@@ -5,9 +5,17 @@ import (
 	"testing"
 
 	"github.com/docker/docker/image"
+	"github.com/go-check/check"
 )
 
-func TestMakeV1ConfigFromConfig(t *testing.T) {
+// Hook up gocheck into the "go test" runner.
+func Test(t *testing.T) { check.TestingT(t) }
+
+type DockerSuite struct{}
+
+var _ = check.Suite(&DockerSuite{})
+
+func (s *DockerSuite) TestMakeV1ConfigFromConfig(c *check.C) {
 	img := &image.Image{
 		V1Image: image.V1Image{
 			ID:     "v2id",
@@ -21,35 +29,35 @@ func TestMakeV1ConfigFromConfig(t *testing.T) {
 	}
 	v2js, err := json.Marshal(img)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	// Convert the image back in order to get RawJSON() support.
 	img, err = image.NewFromJSON(v2js)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	js, err := MakeV1ConfigFromConfig(img, "v1id", "v1parent", false)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	newimg := &image.Image{}
 	err = json.Unmarshal(js, newimg)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	if newimg.V1Image.ID != "v1id" || newimg.Parent != "v1parent" {
-		t.Error("ids should have changed", newimg.V1Image.ID, newimg.V1Image.Parent)
+		c.Error("ids should have changed", newimg.V1Image.ID, newimg.V1Image.Parent)
 	}
 
 	if newimg.RootFS != nil {
-		t.Error("rootfs should have been removed")
+		c.Error("rootfs should have been removed")
 	}
 
 	if newimg.V1Image.OS != "os" {
-		t.Error("os should have been preserved")
+		c.Error("os should have been preserved")
 	}
 }

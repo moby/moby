@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"io/ioutil"
 	"strings"
-	"testing"
 	"time"
 
+	"github.com/go-check/check"
 	"golang.org/x/net/context"
 )
 
@@ -17,18 +17,18 @@ func (r *errorReader) Read(p []byte) (int, error) {
 	return 0, fmt.Errorf("Error reader always fail.")
 }
 
-func TestReadCloserWrapperClose(t *testing.T) {
+func (s *DockerSuite) TestReadCloserWrapperClose(c *check.C) {
 	reader := strings.NewReader("A string reader")
 	wrapper := NewReadCloserWrapper(reader, func() error {
 		return fmt.Errorf("This will be called when closing")
 	})
 	err := wrapper.Close()
 	if err == nil || !strings.Contains(err.Error(), "This will be called when closing") {
-		t.Fatalf("readCloserWrapper should have call the anonymous func and thus, fail.")
+		c.Fatalf("readCloserWrapper should have call the anonymous func and thus, fail.")
 	}
 }
 
-func TestReaderErrWrapperReadOnError(t *testing.T) {
+func (s *DockerSuite) TestReaderErrWrapperReadOnError(c *check.C) {
 	called := false
 	reader := &errorReader{}
 	wrapper := NewReaderErrWrapper(reader, func() {
@@ -36,37 +36,37 @@ func TestReaderErrWrapperReadOnError(t *testing.T) {
 	})
 	_, err := wrapper.Read([]byte{})
 	if err == nil || !strings.Contains(err.Error(), "Error reader always fail.") {
-		t.Fatalf("readErrWrapper should returned an error")
+		c.Fatalf("readErrWrapper should returned an error")
 	}
 	if !called {
-		t.Fatalf("readErrWrapper should have call the anonymous function on failure")
+		c.Fatalf("readErrWrapper should have call the anonymous function on failure")
 	}
 }
 
-func TestReaderErrWrapperRead(t *testing.T) {
+func (s *DockerSuite) TestReaderErrWrapperRead(c *check.C) {
 	reader := strings.NewReader("a string reader.")
 	wrapper := NewReaderErrWrapper(reader, func() {
-		t.Fatalf("readErrWrapper should not have called the anonymous function")
+		c.Fatalf("readErrWrapper should not have called the anonymous function")
 	})
 	// Read 20 byte (should be ok with the string above)
 	num, err := wrapper.Read(make([]byte, 20))
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	if num != 16 {
-		t.Fatalf("readerErrWrapper should have read 16 byte, but read %d", num)
+		c.Fatalf("readerErrWrapper should have read 16 byte, but read %d", num)
 	}
 }
 
-func TestHashData(t *testing.T) {
+func (s *DockerSuite) TestHashData(c *check.C) {
 	reader := strings.NewReader("hash-me")
 	actual, err := HashData(reader)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	expected := "sha256:4d11186aed035cc624d553e10db358492c84a7cd6b9670d92123c144930450aa"
 	if actual != expected {
-		t.Fatalf("Expecting %s, got %s", expected, actual)
+		c.Fatalf("Expecting %s, got %s", expected, actual)
 	}
 }
 
@@ -79,7 +79,7 @@ func (p *perpetualReader) Read(buf []byte) (n int, err error) {
 	return len(buf), nil
 }
 
-func TestCancelReadCloser(t *testing.T) {
+func (s *DockerSuite) TestCancelReadCloser(c *check.C) {
 	ctx, _ := context.WithTimeout(context.Background(), 100*time.Millisecond)
 	cancelReadCloser := NewCancelReadCloser(ctx, ioutil.NopCloser(&perpetualReader{}))
 	for {
@@ -88,7 +88,7 @@ func TestCancelReadCloser(t *testing.T) {
 		if err == context.DeadlineExceeded {
 			break
 		} else if err != nil {
-			t.Fatalf("got unexpected error: %v", err)
+			c.Fatalf("got unexpected error: %v", err)
 		}
 	}
 }

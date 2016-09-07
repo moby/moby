@@ -1,8 +1,19 @@
 package sysinfo
 
-import "testing"
+import (
+	"testing"
 
-func TestIsCpusetListAvailable(t *testing.T) {
+	"github.com/go-check/check"
+)
+
+// Hook up gocheck into the "go test" runner.
+func Test(t *testing.T) { check.TestingT(t) }
+
+type DockerSuite struct{}
+
+var _ = check.Suite(&DockerSuite{})
+
+func (s *DockerSuite) TestIsCpusetListAvailable(c *check.C) {
 	cases := []struct {
 		provided  string
 		available string
@@ -17,10 +28,10 @@ func TestIsCpusetListAvailable(t *testing.T) {
 		{"1,41-42", "43,45", false, false},
 		{"0-3", "", false, false},
 	}
-	for _, c := range cases {
-		r, err := isCpusetListAvailable(c.provided, c.available)
-		if (c.err && err == nil) && r != c.res {
-			t.Fatalf("Expected pair: %v, %v for %s, %s. Got %v, %v instead", c.res, c.err, c.provided, c.available, (c.err && err == nil), r)
+	for _, ca := range cases {
+		r, err := isCpusetListAvailable(ca.provided, ca.available)
+		if (ca.err && err == nil) && r != ca.res {
+			c.Fatalf("Expected pair: %v, %v for %s, %s. Got %v, %v instead", ca.res, ca.err, ca.provided, ca.available, (ca.err && err == nil), r)
 		}
 	}
 }

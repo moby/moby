@@ -5,7 +5,8 @@ import (
 	"log"
 	"os"
 	"sort"
-	"testing"
+
+	"github.com/go-check/check"
 )
 
 const shouldStayFilename = "should_stay"
@@ -20,11 +21,11 @@ func extractFilenames(files []os.FileInfo) []string {
 	return filenames
 }
 
-func checkDirectory(t *testing.T, dir string, expectedFiles []string) {
+func checkDirectory(c *check.C, dir string, expectedFiles []string) {
 	files, err := ioutil.ReadDir(dir)
 
 	if err != nil {
-		t.Fatalf("Could not read directory: %s", err)
+		c.Fatalf("Could not read directory: %s", err)
 	}
 
 	if len(files) != len(expectedFiles) {
@@ -37,59 +38,59 @@ func checkDirectory(t *testing.T, dir string, expectedFiles []string) {
 
 	for i, filename := range filenames {
 		if filename != expectedFiles[i] {
-			t.Fatalf("File %s should be in the directory, got: %s", expectedFiles[i], filename)
+			c.Fatalf("File %s should be in the directory, got: %s", expectedFiles[i], filename)
 		}
 	}
 }
 
-func executeProcess(t *testing.T, contextDir string) {
+func executeProcess(c *check.C, contextDir string) {
 	modifiableCtx := &tarSumContext{root: contextDir}
 	ctx := DockerIgnoreContext{ModifiableContext: modifiableCtx}
 
 	err := ctx.Process([]string{DefaultDockerfileName})
 
 	if err != nil {
-		t.Fatalf("Error when executing Process: %s", err)
+		c.Fatalf("Error when executing Process: %s", err)
 	}
 }
 
-func TestProcessShouldRemoveDockerfileDockerignore(t *testing.T) {
-	contextDir, cleanup := createTestTempDir(t, "", "builder-dockerignore-process-test")
+func (s *DockerSuite) TestProcessShouldRemoveDockerfileDockerignore(c *check.C) {
+	contextDir, cleanup := createTestTempDir(c, "", "builder-dockerignore-process-test")
 	defer cleanup()
 
-	createTestTempFile(t, contextDir, shouldStayFilename, testfileContents, 0777)
-	createTestTempFile(t, contextDir, dockerignoreFilename, "Dockerfile\n.dockerignore", 0777)
-	createTestTempFile(t, contextDir, DefaultDockerfileName, dockerfileContents, 0777)
+	createTestTempFile(c, contextDir, shouldStayFilename, testfileContents, 0777)
+	createTestTempFile(c, contextDir, dockerignoreFilename, "Dockerfile\n.dockerignore", 0777)
+	createTestTempFile(c, contextDir, DefaultDockerfileName, dockerfileContents, 0777)
 
-	executeProcess(t, contextDir)
+	executeProcess(c, contextDir)
 
-	checkDirectory(t, contextDir, []string{shouldStayFilename})
+	checkDirectory(c, contextDir, []string{shouldStayFilename})
 
 }
 
-func TestProcessNoDockerignore(t *testing.T) {
-	contextDir, cleanup := createTestTempDir(t, "", "builder-dockerignore-process-test")
+func (s *DockerSuite) TestProcessNoDockerignore(c *check.C) {
+	contextDir, cleanup := createTestTempDir(c, "", "builder-dockerignore-process-test")
 	defer cleanup()
 
-	createTestTempFile(t, contextDir, shouldStayFilename, testfileContents, 0777)
-	createTestTempFile(t, contextDir, DefaultDockerfileName, dockerfileContents, 0777)
+	createTestTempFile(c, contextDir, shouldStayFilename, testfileContents, 0777)
+	createTestTempFile(c, contextDir, DefaultDockerfileName, dockerfileContents, 0777)
 
-	executeProcess(t, contextDir)
+	executeProcess(c, contextDir)
 
-	checkDirectory(t, contextDir, []string{shouldStayFilename, DefaultDockerfileName})
+	checkDirectory(c, contextDir, []string{shouldStayFilename, DefaultDockerfileName})
 
 }
 
-func TestProcessShouldLeaveAllFiles(t *testing.T) {
-	contextDir, cleanup := createTestTempDir(t, "", "builder-dockerignore-process-test")
+func (s *DockerSuite) TestProcessShouldLeaveAllFiles(c *check.C) {
+	contextDir, cleanup := createTestTempDir(c, "", "builder-dockerignore-process-test")
 	defer cleanup()
 
-	createTestTempFile(t, contextDir, shouldStayFilename, testfileContents, 0777)
-	createTestTempFile(t, contextDir, DefaultDockerfileName, dockerfileContents, 0777)
-	createTestTempFile(t, contextDir, dockerignoreFilename, "input1\ninput2", 0777)
+	createTestTempFile(c, contextDir, shouldStayFilename, testfileContents, 0777)
+	createTestTempFile(c, contextDir, DefaultDockerfileName, dockerfileContents, 0777)
+	createTestTempFile(c, contextDir, dockerignoreFilename, "input1\ninput2", 0777)
 
-	executeProcess(t, contextDir)
+	executeProcess(c, contextDir)
 
-	checkDirectory(t, contextDir, []string{shouldStayFilename, DefaultDockerfileName, dockerignoreFilename})
+	checkDirectory(c, contextDir, []string{shouldStayFilename, DefaultDockerfileName, dockerignoreFilename})
 
 }

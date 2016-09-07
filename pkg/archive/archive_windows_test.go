@@ -6,17 +6,18 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"testing"
+
+	"github.com/go-check/check"
 )
 
-func TestCopyFileWithInvalidDest(t *testing.T) {
+func (s *DockerSuite) TestCopyFileWithInvalidDest(c *check.C) {
 	// TODO Windows: This is currently failing. Not sure what has
 	// recently changed in CopyWithTar as used to pass. Further investigation
 	// is required.
-	t.Skip("Currently fails")
+	c.Skip("Currently fails")
 	folder, err := ioutil.TempDir("", "docker-archive-test")
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	defer os.RemoveAll(folder)
 	dest := "c:dest"
@@ -24,16 +25,16 @@ func TestCopyFileWithInvalidDest(t *testing.T) {
 	src := filepath.Join(folder, "src", "src")
 	err = os.MkdirAll(srcFolder, 0740)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	ioutil.WriteFile(src, []byte("content"), 0777)
 	err = CopyWithTar(src, dest)
 	if err == nil {
-		t.Fatalf("archiver.CopyWithTar should throw an error on invalid dest.")
+		c.Fatalf("archiver.CopyWithTar should throw an error on invalid dest.")
 	}
 }
 
-func TestCanonicalTarNameForPath(t *testing.T) {
+func (s *DockerSuite) TestCanonicalTarNameForPath(c *check.C) {
 	cases := []struct {
 		in, expected string
 		shouldFail   bool
@@ -44,16 +45,16 @@ func TestCanonicalTarNameForPath(t *testing.T) {
 	}
 	for _, v := range cases {
 		if out, err := CanonicalTarNameForPath(v.in); err != nil && !v.shouldFail {
-			t.Fatalf("cannot get canonical name for path: %s: %v", v.in, err)
+			c.Fatalf("cannot get canonical name for path: %s: %v", v.in, err)
 		} else if v.shouldFail && err == nil {
-			t.Fatalf("canonical path call should have failed with error. in=%s out=%s", v.in, out)
+			c.Fatalf("canonical path call should have failed with error. in=%s out=%s", v.in, out)
 		} else if !v.shouldFail && out != v.expected {
-			t.Fatalf("wrong canonical tar name. expected:%s got:%s", v.expected, out)
+			c.Fatalf("wrong canonical tar name. expected:%s got:%s", v.expected, out)
 		}
 	}
 }
 
-func TestCanonicalTarName(t *testing.T) {
+func (s *DockerSuite) TestCanonicalTarName(c *check.C) {
 	cases := []struct {
 		in       string
 		isDir    bool
@@ -66,14 +67,14 @@ func TestCanonicalTarName(t *testing.T) {
 	}
 	for _, v := range cases {
 		if out, err := canonicalTarName(v.in, v.isDir); err != nil {
-			t.Fatalf("cannot get canonical name for path: %s: %v", v.in, err)
+			c.Fatalf("cannot get canonical name for path: %s: %v", v.in, err)
 		} else if out != v.expected {
-			t.Fatalf("wrong canonical tar name. expected:%s got:%s", v.expected, out)
+			c.Fatalf("wrong canonical tar name. expected:%s got:%s", v.expected, out)
 		}
 	}
 }
 
-func TestChmodTarEntry(t *testing.T) {
+func (s *DockerSuite) TestChmodTarEntry(c *check.C) {
 	cases := []struct {
 		in, expected os.FileMode
 	}{
@@ -85,7 +86,7 @@ func TestChmodTarEntry(t *testing.T) {
 	}
 	for _, v := range cases {
 		if out := chmodTarEntry(v.in); out != v.expected {
-			t.Fatalf("wrong chmod. expected:%v got:%v", v.expected, out)
+			c.Fatalf("wrong chmod. expected:%v got:%v", v.expected, out)
 		}
 	}
 }

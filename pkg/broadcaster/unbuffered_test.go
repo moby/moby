@@ -4,9 +4,17 @@ import (
 	"bytes"
 	"errors"
 	"strings"
-
 	"testing"
+
+	"github.com/go-check/check"
 )
+
+// Hook up gocheck into the "go test" runner.
+func Test(t *testing.T) { check.TestingT(t) }
+
+type DockerSuite struct{}
+
+var _ = check.Suite(&DockerSuite{})
 
 type dummyWriter struct {
 	buffer      bytes.Buffer
@@ -28,7 +36,7 @@ func (dw *dummyWriter) Close() error {
 	return nil
 }
 
-func TestUnbuffered(t *testing.T) {
+func (s *DockerSuite) TestUnbuffered(c *check.C) {
 	writer := new(Unbuffered)
 
 	// Test 1: Both bufferA and bufferB should contain "foo"
@@ -39,11 +47,11 @@ func TestUnbuffered(t *testing.T) {
 	writer.Write([]byte("foo"))
 
 	if bufferA.String() != "foo" {
-		t.Errorf("Buffer contains %v", bufferA.String())
+		c.Errorf("Buffer contains %v", bufferA.String())
 	}
 
 	if bufferB.String() != "foo" {
-		t.Errorf("Buffer contains %v", bufferB.String())
+		c.Errorf("Buffer contains %v", bufferB.String())
 	}
 
 	// Test2: bufferA and bufferB should contain "foobar",
@@ -53,34 +61,34 @@ func TestUnbuffered(t *testing.T) {
 	writer.Write([]byte("bar"))
 
 	if bufferA.String() != "foobar" {
-		t.Errorf("Buffer contains %v", bufferA.String())
+		c.Errorf("Buffer contains %v", bufferA.String())
 	}
 
 	if bufferB.String() != "foobar" {
-		t.Errorf("Buffer contains %v", bufferB.String())
+		c.Errorf("Buffer contains %v", bufferB.String())
 	}
 
 	if bufferC.String() != "bar" {
-		t.Errorf("Buffer contains %v", bufferC.String())
+		c.Errorf("Buffer contains %v", bufferC.String())
 	}
 
 	// Test3: Test eviction on failure
 	bufferA.failOnWrite = true
 	writer.Write([]byte("fail"))
 	if bufferA.String() != "foobar" {
-		t.Errorf("Buffer contains %v", bufferA.String())
+		c.Errorf("Buffer contains %v", bufferA.String())
 	}
 	if bufferC.String() != "barfail" {
-		t.Errorf("Buffer contains %v", bufferC.String())
+		c.Errorf("Buffer contains %v", bufferC.String())
 	}
 	// Even though we reset the flag, no more writes should go in there
 	bufferA.failOnWrite = false
 	writer.Write([]byte("test"))
 	if bufferA.String() != "foobar" {
-		t.Errorf("Buffer contains %v", bufferA.String())
+		c.Errorf("Buffer contains %v", bufferA.String())
 	}
 	if bufferC.String() != "barfailtest" {
-		t.Errorf("Buffer contains %v", bufferC.String())
+		c.Errorf("Buffer contains %v", bufferC.String())
 	}
 
 	// Test4: Test eviction on multiple simultaneous failures
@@ -91,13 +99,13 @@ func TestUnbuffered(t *testing.T) {
 	writer.Write([]byte("yo"))
 	writer.Write([]byte("ink"))
 	if strings.Contains(bufferB.String(), "yoink") {
-		t.Errorf("bufferB received write. contents: %q", bufferB)
+		c.Errorf("bufferB received write. contents: %q", bufferB)
 	}
 	if strings.Contains(bufferC.String(), "yoink") {
-		t.Errorf("bufferC received write. contents: %q", bufferC)
+		c.Errorf("bufferC received write. contents: %q", bufferC)
 	}
 	if g, w := bufferD.String(), "yoink"; g != w {
-		t.Errorf("bufferD = %q, want %q", g, w)
+		c.Errorf("bufferD = %q, want %q", g, w)
 	}
 
 	writer.Clean()
@@ -114,18 +122,18 @@ func (d devNullCloser) Write(buf []byte) (int, error) {
 }
 
 // This test checks for races. It is only useful when run with the race detector.
-func TestRaceUnbuffered(t *testing.T) {
+func (s *DockerSuite) TestRaceUnbuffered(c *check.C) {
 	writer := new(Unbuffered)
-	c := make(chan bool)
+	ch := make(chan bool)
 	go func() {
 		writer.Add(devNullCloser(0))
-		c <- true
+		ch <- true
 	}()
 	writer.Write([]byte("hello"))
-	<-c
+	<-ch
 }
 
-func BenchmarkUnbuffered(b *testing.B) {
+func (s *DockerSuite) BenchmarkUnbuffered(c *check.C) {
 	writer := new(Unbuffered)
 	setUpWriter := func() {
 		for i := 0; i < 100; i++ {
@@ -142,21 +150,21 @@ func BenchmarkUnbuffered(b *testing.B) {
 	// line without eol
 	buf.Write([]byte(testLine))
 	testText := buf.Bytes()
-	b.SetBytes(int64(5 * len(testText)))
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		b.StopTimer()
+	c.SetBytes(int64(5 * len(testText)))
+	c.ResetTimer()
+	for i := 0; i < c.N; i++ {
+		c.StopTimer()
 		setUpWriter()
-		b.StartTimer()
+		c.StartTimer()
 
 		for j := 0; j < 5; j++ {
 			if _, err := writer.Write(testText); err != nil {
-				b.Fatal(err)
+				c.Fatal(err)
 			}
 		}
 
-		b.StopTimer()
+		c.StopTimer()
 		writer.Clean()
-		b.StartTimer()
+		c.StartTimer()
 	}
 }

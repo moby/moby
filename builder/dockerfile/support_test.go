@@ -1,6 +1,6 @@
 package dockerfile
 
-import "testing"
+import "github.com/go-check/check"
 
 type testCase struct {
 	name       string
@@ -46,19 +46,19 @@ func initTestCases() []testCase {
 	return testCases
 }
 
-func TestHandleJSONArgs(t *testing.T) {
+func (s *DockerSuite) TestHandleJSONArgs(c *check.C) {
 	testCases := initTestCases()
 
 	for _, test := range testCases {
 		arguments := handleJSONArgs(test.args, test.attributes)
 
 		if len(arguments) != len(test.expected) {
-			t.Fatalf("In test \"%s\": length of returned slice is incorrect. Expected: %d, got: %d", test.name, len(test.expected), len(arguments))
+			c.Fatalf("In test \"%s\": length of returned slice is incorrect. Expected: %d, got: %d", test.name, len(test.expected), len(arguments))
 		}
 
 		for i := range test.expected {
 			if arguments[i] != test.expected[i] {
-				t.Fatalf("In test \"%s\": element as position %d is incorrect. Expected: %s, got: %s", test.name, i, test.expected[i], arguments[i])
+				c.Fatalf("In test \"%s\": element as position %d is incorrect. Expected: %s, got: %s", test.name, i, test.expected[i], arguments[i])
 			}
 		}
 	}

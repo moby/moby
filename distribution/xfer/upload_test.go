@@ -3,12 +3,12 @@ package xfer
 import (
 	"errors"
 	"sync/atomic"
-	"testing"
 	"time"
 
 	"github.com/docker/distribution"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/progress"
+	"github.com/go-check/check"
 	"golang.org/x/net/context"
 )
 
@@ -78,7 +78,7 @@ func uploadDescriptors(currentUploads *int32) []UploadDescriptor {
 	}
 }
 
-func TestSuccessfulUpload(t *testing.T) {
+func (s *DockerSuite) TestSuccessfulUpload(c *check.C) {
 	lum := NewLayerUploadManager(maxUploadConcurrency)
 
 	progressChan := make(chan progress.Progress)
@@ -97,14 +97,14 @@ func TestSuccessfulUpload(t *testing.T) {
 
 	err := lum.Upload(context.Background(), descriptors, progress.ChanOutput(progressChan))
 	if err != nil {
-		t.Fatalf("upload error: %v", err)
+		c.Fatalf("upload error: %v", err)
 	}
 
 	close(progressChan)
 	<-progressDone
 }
 
-func TestCancelledUpload(t *testing.T) {
+func (s *DockerSuite) TestCancelledUpload(c *check.C) {
 	lum := NewLayerUploadManager(maxUploadConcurrency)
 
 	progressChan := make(chan progress.Progress)
@@ -126,7 +126,7 @@ func TestCancelledUpload(t *testing.T) {
 	descriptors := uploadDescriptors(nil)
 	err := lum.Upload(ctx, descriptors, progress.ChanOutput(progressChan))
 	if err != context.Canceled {
-		t.Fatal("expected upload to be cancelled")
+		c.Fatal("expected upload to be cancelled")
 	}
 
 	close(progressChan)

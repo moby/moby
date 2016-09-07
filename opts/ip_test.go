@@ -2,22 +2,23 @@ package opts
 
 import (
 	"net"
-	"testing"
+
+	"github.com/go-check/check"
 )
 
-func TestIpOptString(t *testing.T) {
+func (s *DockerSuite) TestIpOptString(c *check.C) {
 	addresses := []string{"", "0.0.0.0"}
 	var ip net.IP
 
 	for _, address := range addresses {
 		stringAddress := NewIPOpt(&ip, address).String()
 		if stringAddress != address {
-			t.Fatalf("IpOpt string should be `%s`, not `%s`", address, stringAddress)
+			c.Fatalf("IpOpt string should be `%s`, not `%s`", address, stringAddress)
 		}
 	}
 }
 
-func TestNewIpOptInvalidDefaultVal(t *testing.T) {
+func (s *DockerSuite) TestNewIpOptInvalidDefaultVal(c *check.C) {
 	ip := net.IPv4(127, 0, 0, 1)
 	defaultVal := "Not an ip"
 
@@ -25,11 +26,11 @@ func TestNewIpOptInvalidDefaultVal(t *testing.T) {
 
 	expected := "127.0.0.1"
 	if ipOpt.String() != expected {
-		t.Fatalf("Expected [%v], got [%v]", expected, ipOpt.String())
+		c.Fatalf("Expected [%v], got [%v]", expected, ipOpt.String())
 	}
 }
 
-func TestNewIpOptValidDefaultVal(t *testing.T) {
+func (s *DockerSuite) TestNewIpOptValidDefaultVal(c *check.C) {
 	ip := net.IPv4(127, 0, 0, 1)
 	defaultVal := "192.168.1.1"
 
@@ -37,11 +38,11 @@ func TestNewIpOptValidDefaultVal(t *testing.T) {
 
 	expected := "192.168.1.1"
 	if ipOpt.String() != expected {
-		t.Fatalf("Expected [%v], got [%v]", expected, ipOpt.String())
+		c.Fatalf("Expected [%v], got [%v]", expected, ipOpt.String())
 	}
 }
 
-func TestIpOptSetInvalidVal(t *testing.T) {
+func (s *DockerSuite) TestIpOptSetInvalidVal(c *check.C) {
 	ip := net.IPv4(127, 0, 0, 1)
 	ipOpt := &IPOpt{IP: &ip}
 
@@ -49,6 +50,6 @@ func TestIpOptSetInvalidVal(t *testing.T) {
 	expectedError := "invalid ip is not an ip address"
 	err := ipOpt.Set(invalidIP)
 	if err == nil || err.Error() != expectedError {
-		t.Fatalf("Expected an Error with [%v], got [%v]", expectedError, err.Error())
+		c.Fatalf("Expected an Error with [%v], got [%v]", expectedError, err.Error())
 	}
 }

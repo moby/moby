@@ -9,7 +9,16 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/go-check/check"
 )
+
+// Hook up gocheck into the "go test" runner.
+func Test(t *testing.T) { check.TestingT(t) }
+
+type DockerSuite struct{}
+
+var _ = check.Suite(&DockerSuite{})
 
 type TestLoggerJSON struct {
 	*json.Encoder
@@ -30,17 +39,17 @@ func (l *TestLoggerJSON) Close() error { return nil }
 
 func (l *TestLoggerJSON) Name() string { return "json" }
 
-func TestCopier(t *testing.T) {
+func (s *DockerSuite) TestCopier(c *check.C) {
 	stdoutLine := "Line that thinks that it is log line from docker stdout"
 	stderrLine := "Line that thinks that it is log line from docker stderr"
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
 	for i := 0; i < 30; i++ {
 		if _, err := stdout.WriteString(stdoutLine + "\n"); err != nil {
-			t.Fatal(err)
+			c.Fatal(err)
 		}
 		if _, err := stderr.WriteString(stderrLine + "\n"); err != nil {
-			t.Fatal(err)
+			c.Fatal(err)
 		}
 	}
 
@@ -48,21 +57,21 @@ func TestCopier(t *testing.T) {
 
 	jsonLog := &TestLoggerJSON{Encoder: json.NewEncoder(&jsonBuf)}
 
-	c := NewCopier(
+	nc := NewCopier(
 		map[string]io.Reader{
 			"stdout": &stdout,
 			"stderr": &stderr,
 		},
 		jsonLog)
-	c.Run()
+	nc.Run()
 	wait := make(chan struct{})
 	go func() {
-		c.Wait()
+		nc.Wait()
 		close(wait)
 	}()
 	select {
 	case <-time.After(1 * time.Second):
-		t.Fatal("Copier failed to do its work in 1 second")
+		c.Fatal("Copier failed to do its work in 1 second")
 	case <-wait:
 	}
 	dec := json.NewDecoder(&jsonBuf)
@@ -72,30 +81,30 @@ func TestCopier(t *testing.T) {
 			if err == io.EOF {
 				break
 			}
-			t.Fatal(err)
+			c.Fatal(err)
 		}
 		if msg.Source != "stdout" && msg.Source != "stderr" {
-			t.Fatalf("Wrong Source: %q, should be %q or %q", msg.Source, "stdout", "stderr")
+			c.Fatalf("Wrong Source: %q, should be %q or %q", msg.Source, "stdout", "stderr")
 		}
 		if msg.Source == "stdout" {
 			if string(msg.Line) != stdoutLine {
-				t.Fatalf("Wrong Line: %q, expected %q", msg.Line, stdoutLine)
+				c.Fatalf("Wrong Line: %q, expected %q", msg.Line, stdoutLine)
 			}
 		}
 		if msg.Source == "stderr" {
 			if string(msg.Line) != stderrLine {
-				t.Fatalf("Wrong Line: %q, expected %q", msg.Line, stderrLine)
+				c.Fatalf("Wrong Line: %q, expected %q", msg.Line, stderrLine)
 			}
 		}
 	}
 }
 
-func TestCopierSlow(t *testing.T) {
+func (s *DockerSuite) TestCopierSlow(c *check.C) {
 	stdoutLine := "Line that thinks that it is log line from docker stdout"
 	var stdout bytes.Buffer
 	for i := 0; i < 30; i++ {
 		if _, err := stdout.WriteString(stdoutLine + "\n"); err != nil {
-			t.Fatal(err)
+			c.Fatal(err)
 		}
 	}
 
@@ -103,18 +112,18 @@ func TestCopierSlow(t *testing.T) {
 	//encoder := &encodeCloser{Encoder: json.NewEncoder(&jsonBuf)}
 	jsonLog := &TestLoggerJSON{Encoder: json.NewEncoder(&jsonBuf), delay: 100 * time.Millisecond}
 
-	c := NewCopier(map[string]io.Reader{"stdout": &stdout}, jsonLog)
-	c.Run()
+	nc := NewCopier(map[string]io.Reader{"stdout": &stdout}, jsonLog)
+	nc.Run()
 	wait := make(chan struct{})
 	go func() {
-		c.Wait()
+		nc.Wait()
 		close(wait)
 	}()
 	<-time.After(150 * time.Millisecond)
-	c.Close()
+	nc.Close()
 	select {
 	case <-time.After(200 * time.Millisecond):
-		t.Fatalf("failed to exit in time after the copier is closed")
+		c.Fatalf("failed to exit in time after the copier is closed")
 	case <-wait:
 	}
 }
@@ -128,50 +137,50 @@ func (l *BenchmarkLoggerDummy) Close() error { return nil }
 
 func (l *BenchmarkLoggerDummy) Name() string { return "dummy" }
 
-func BenchmarkCopier64(b *testing.B) {
-	benchmarkCopier(b, 1<<6)
+func (s *DockerSuite) BenchmarkCopier64(c *check.C) {
+	benchmarkCopier(c, 1<<6)
 }
-func BenchmarkCopier128(b *testing.B) {
-	benchmarkCopier(b, 1<<7)
+func (s *DockerSuite) BenchmarkCopier128(c *check.C) {
+	benchmarkCopier(c, 1<<7)
 }
-func BenchmarkCopier256(b *testing.B) {
-	benchmarkCopier(b, 1<<8)
+func (s *DockerSuite) BenchmarkCopier256(c *check.C) {
+	benchmarkCopier(c, 1<<8)
 }
-func BenchmarkCopier512(b *testing.B) {
-	benchmarkCopier(b, 1<<9)
+func (s *DockerSuite) BenchmarkCopier512(c *check.C) {
+	benchmarkCopier(c, 1<<9)
 }
-func BenchmarkCopier1K(b *testing.B) {
-	benchmarkCopier(b, 1<<10)
+func (s *DockerSuite) BenchmarkCopier1K(c *check.C) {
+	benchmarkCopier(c, 1<<10)
 }
-func BenchmarkCopier2K(b *testing.B) {
-	benchmarkCopier(b, 1<<11)
+func (s *DockerSuite) BenchmarkCopier2K(c *check.C) {
+	benchmarkCopier(c, 1<<11)
 }
-func BenchmarkCopier4K(b *testing.B) {
-	benchmarkCopier(b, 1<<12)
+func (s *DockerSuite) BenchmarkCopier4K(c *check.C) {
+	benchmarkCopier(c, 1<<12)
 }
-func BenchmarkCopier8K(b *testing.B) {
-	benchmarkCopier(b, 1<<13)
+func (s *DockerSuite) BenchmarkCopier8K(c *check.C) {
+	benchmarkCopier(c, 1<<13)
 }
-func BenchmarkCopier16K(b *testing.B) {
-	benchmarkCopier(b, 1<<14)
+func (s *DockerSuite) BenchmarkCopier16K(c *check.C) {
+	benchmarkCopier(c, 1<<14)
 }
-func BenchmarkCopier32K(b *testing.B) {
-	benchmarkCopier(b, 1<<15)
+func (s *DockerSuite) BenchmarkCopier32K(c *check.C) {
+	benchmarkCopier(c, 1<<15)
 }
-func BenchmarkCopier64K(b *testing.B) {
-	benchmarkCopier(b, 1<<16)
+func (s *DockerSuite) BenchmarkCopier64K(c *check.C) {
+	benchmarkCopier(c, 1<<16)
 }
-func BenchmarkCopier128K(b *testing.B) {
-	benchmarkCopier(b, 1<<17)
+func (s *DockerSuite) BenchmarkCopier128K(c *check.C) {
+	benchmarkCopier(c, 1<<17)
 }
-func BenchmarkCopier256K(b *testing.B) {
-	benchmarkCopier(b, 1<<18)
+func (s *DockerSuite) BenchmarkCopier256K(c *check.C) {
+	benchmarkCopier(c, 1<<18)
 }
 
-func piped(b *testing.B, iterations int, delay time.Duration, buf []byte) io.Reader {
+func piped(c *check.C, iterations int, delay time.Duration, buf []byte) io.Reader {
 	r, w, err := os.Pipe()
 	if err != nil {
-		b.Fatal(err)
+		c.Fatal(err)
 		return nil
 	}
 	go func() {
@@ -179,9 +188,9 @@ func piped(b *testing.B, iterations int, delay time.Duration, buf []byte) io.Rea
 			time.Sleep(delay)
 			if n, err := w.Write(buf); err != nil || n != len(buf) {
 				if err != nil {
-					b.Fatal(err)
+					c.Fatal(err)
 				}
-				b.Fatal(fmt.Errorf("short write"))
+				c.Fatal(fmt.Errorf("short write"))
 			}
 		}
 		w.Close()
@@ -189,22 +198,22 @@ func piped(b *testing.B, iterations int, delay time.Duration, buf []byte) io.Rea
 	return r
 }
 
-func benchmarkCopier(b *testing.B, length int) {
-	b.StopTimer()
+func benchmarkCopier(c *check.C, length int) {
+	c.StopTimer()
 	buf := []byte{'A'}
 	for len(buf) < length {
 		buf = append(buf, buf...)
 	}
 	buf = append(buf[:length-1], []byte{'\n'}...)
-	b.StartTimer()
-	for i := 0; i < b.N; i++ {
-		c := NewCopier(
+	c.StartTimer()
+	for i := 0; i < c.N; i++ {
+		nc := NewCopier(
 			map[string]io.Reader{
-				"buffer": piped(b, 10, time.Nanosecond, buf),
+				"buffer": piped(c, 10, time.Nanosecond, buf),
 			},
 			&BenchmarkLoggerDummy{})
-		c.Run()
-		c.Wait()
-		c.Close()
+		nc.Run()
+		nc.Wait()
+		nc.Close()
 	}
 }

@@ -8,7 +8,16 @@ import (
 	"net"
 	"strings"
 	"testing"
+
+	"github.com/go-check/check"
 )
+
+// Hook up gocheck into the "go test" runner.
+func Test(t *testing.T) { check.TestingT(t) }
+
+type DockerSuite struct{}
+
+var _ = check.Suite(&DockerSuite{})
 
 type bufConn struct {
 	net.Conn
@@ -19,7 +28,7 @@ func (bc *bufConn) Read(b []byte) (int, error) {
 	return bc.buf.Read(b)
 }
 
-func TestHeaderOverrideHack(t *testing.T) {
+func (s *DockerSuite) TestHeaderOverrideHack(c *check.C) {
 	tests := [][2][]byte{
 		{
 			[]byte("GET /foo\nHost: /var/run/docker.sock\nUser-Agent: Docker\r\n\r\n"),
@@ -57,20 +66,20 @@ func TestHeaderOverrideHack(t *testing.T) {
 
 		n, err := l.Read(read)
 		if err != nil && err != io.EOF {
-			t.Fatalf("read: %d - %d, err: %v\n%s", n, len(pair[0]), err, string(read[:n]))
+			c.Fatalf("read: %d - %d, err: %v\n%s", n, len(pair[0]), err, string(read[:n]))
 		}
 		if !bytes.Equal(read[:n], pair[1][:n]) {
-			t.Fatalf("\n%s\n%s\n", read[:n], pair[1][:n])
+			c.Fatalf("\n%s\n%s\n", read[:n], pair[1][:n])
 		}
 	}
 }
 
-func BenchmarkWithHack(b *testing.B) {
+func (s *DockerSuite) BenchmarkWithHack(c *check.C) {
 	client, srv := net.Pipe()
 	done := make(chan struct{})
 	req := []byte("GET /foo\nHost: /var/run/docker.sock\nUser-Agent: Docker\n")
 	read := make([]byte, 4096)
-	b.SetBytes(int64(len(req) * 30))
+	c.SetBytes(int64(len(req) * 30))
 
 	l := MalformedHostHeaderOverrideConn{client, true}
 	go func() {
@@ -84,10 +93,10 @@ func BenchmarkWithHack(b *testing.B) {
 		close(done)
 	}()
 
-	for i := 0; i < b.N; i++ {
+	for i := 0; i < c.N; i++ {
 		for i := 0; i < 30; i++ {
 			if n, err := l.Read(read); err != nil && err != io.EOF {
-				b.Fatalf("read: %d - %d, err: %v\n%s", n, len(req), err, string(read[:n]))
+				c.Fatalf("read: %d - %d, err: %v\n%s", n, len(req), err, string(read[:n]))
 			}
 		}
 	}
@@ -95,12 +104,12 @@ func BenchmarkWithHack(b *testing.B) {
 	<-done
 }
 
-func BenchmarkNoHack(b *testing.B) {
+func (s *DockerSuite) BenchmarkNoHack(c *check.C) {
 	client, srv := net.Pipe()
 	done := make(chan struct{})
 	req := []byte("GET /foo\nHost: /var/run/docker.sock\nUser-Agent: Docker\n")
 	read := make([]byte, 4096)
-	b.SetBytes(int64(len(req) * 30))
+	c.SetBytes(int64(len(req) * 30))
 
 	go func() {
 		for {
@@ -112,10 +121,10 @@ func BenchmarkNoHack(b *testing.B) {
 		close(done)
 	}()
 
-	for i := 0; i < b.N; i++ {
+	for i := 0; i < c.N; i++ {
 		for i := 0; i < 30; i++ {
 			if _, err := client.Read(read); err != nil && err != io.EOF {
-				b.Fatal(err)
+				c.Fatal(err)
 			}
 		}
 	}

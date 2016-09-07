@@ -4,16 +4,17 @@ import (
 	"archive/tar"
 	"bytes"
 	"io"
-	"testing"
+
+	"github.com/go-check/check"
 )
 
-func TestGenerateEmptyFile(t *testing.T) {
+func (s *DockerSuite) TestGenerateEmptyFile(c *check.C) {
 	archive, err := Generate("emptyFile")
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	if archive == nil {
-		t.Fatal("The generated archive should not be nil.")
+		c.Fatal("The generated archive should not be nil.")
 	}
 
 	expectedFiles := [][]string{
@@ -29,7 +30,7 @@ func TestGenerateEmptyFile(t *testing.T) {
 			break
 		}
 		if err != nil {
-			t.Fatal(err)
+			c.Fatal(err)
 		}
 		buf := new(bytes.Buffer)
 		buf.ReadFrom(tr)
@@ -38,27 +39,27 @@ func TestGenerateEmptyFile(t *testing.T) {
 		i++
 	}
 	if len(actualFiles) != len(expectedFiles) {
-		t.Fatalf("Number of expected file %d, got %d.", len(expectedFiles), len(actualFiles))
+		c.Fatalf("Number of expected file %d, got %d.", len(expectedFiles), len(actualFiles))
 	}
 	for i := 0; i < len(expectedFiles); i++ {
 		actual := actualFiles[i]
 		expected := expectedFiles[i]
 		if actual[0] != expected[0] {
-			t.Fatalf("Expected name '%s', Actual name '%s'", expected[0], actual[0])
+			c.Fatalf("Expected name '%s', Actual name '%s'", expected[0], actual[0])
 		}
 		if actual[1] != expected[1] {
-			t.Fatalf("Expected content '%s', Actual content '%s'", expected[1], actual[1])
+			c.Fatalf("Expected content '%s', Actual content '%s'", expected[1], actual[1])
 		}
 	}
 }
 
-func TestGenerateWithContent(t *testing.T) {
+func (s *DockerSuite) TestGenerateWithContent(c *check.C) {
 	archive, err := Generate("file", "content")
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	if archive == nil {
-		t.Fatal("The generated archive should not be nil.")
+		c.Fatal("The generated archive should not be nil.")
 	}
 
 	expectedFiles := [][]string{
@@ -74,7 +75,7 @@ func TestGenerateWithContent(t *testing.T) {
 			break
 		}
 		if err != nil {
-			t.Fatal(err)
+			c.Fatal(err)
 		}
 		buf := new(bytes.Buffer)
 		buf.ReadFrom(tr)
@@ -83,16 +84,16 @@ func TestGenerateWithContent(t *testing.T) {
 		i++
 	}
 	if len(actualFiles) != len(expectedFiles) {
-		t.Fatalf("Number of expected file %d, got %d.", len(expectedFiles), len(actualFiles))
+		c.Fatalf("Number of expected file %d, got %d.", len(expectedFiles), len(actualFiles))
 	}
 	for i := 0; i < len(expectedFiles); i++ {
 		actual := actualFiles[i]
 		expected := expectedFiles[i]
 		if actual[0] != expected[0] {
-			t.Fatalf("Expected name '%s', Actual name '%s'", expected[0], actual[0])
+			c.Fatalf("Expected name '%s', Actual name '%s'", expected[0], actual[0])
 		}
 		if actual[1] != expected[1] {
-			t.Fatalf("Expected content '%s', Actual content '%s'", expected[1], actual[1])
+			c.Fatalf("Expected content '%s', Actual content '%s'", expected[1], actual[1])
 		}
 	}
 }

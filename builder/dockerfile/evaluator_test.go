@@ -3,7 +3,6 @@ package dockerfile
 import (
 	"io/ioutil"
 	"strings"
-	"testing"
 
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/builder/dockerfile/parser"
@@ -11,6 +10,7 @@ import (
 	"github.com/docker/docker/pkg/reexec"
 	"github.com/docker/engine-api/types"
 	"github.com/docker/engine-api/types/container"
+	"github.com/go-check/check"
 )
 
 type dispatchTestCase struct {
@@ -130,43 +130,43 @@ func initDispatchTestCases() []dispatchTestCase {
 	return dispatchTestCases
 }
 
-func TestDispatch(t *testing.T) {
+func (s *DockerSuite) TestDispatch(c *check.C) {
 	testCases := initDispatchTestCases()
 
 	for _, testCase := range testCases {
-		executeTestCase(t, testCase)
+		executeTestCase(c, testCase)
 	}
 }
 
-func executeTestCase(t *testing.T, testCase dispatchTestCase) {
-	contextDir, cleanup := createTestTempDir(t, "", "builder-dockerfile-test")
+func executeTestCase(c *check.C, testCase dispatchTestCase) {
+	contextDir, cleanup := createTestTempDir(c, "", "builder-dockerfile-test")
 	defer cleanup()
 
 	for filename, content := range testCase.files {
-		createTestTempFile(t, contextDir, filename, content, 0777)
+		createTestTempFile(c, contextDir, filename, content, 0777)
 	}
 
 	tarStream, err := archive.Tar(contextDir, archive.Uncompressed)
 
 	if err != nil {
-		t.Fatalf("Error when creating tar stream: %s", err)
+		c.Fatalf("Error when creating tar stream: %s", err)
 	}
 
 	defer func() {
 		if err = tarStream.Close(); err != nil {
-			t.Fatalf("Error when closing tar stream: %s", err)
+			c.Fatalf("Error when closing tar stream: %s", err)
 		}
 	}()
 
 	context, err := builder.MakeTarSumContext(tarStream)
 
 	if err != nil {
-		t.Fatalf("Error when creating tar context: %s", err)
+		c.Fatalf("Error when creating tar context: %s", err)
 	}
 
 	defer func() {
 		if err = context.Close(); err != nil {
-			t.Fatalf("Error when closing tar context: %s", err)
+			c.Fatalf("Error when closing tar context: %s", err)
 		}
 	}()
 
@@ -176,7 +176,7 @@ func executeTestCase(t *testing.T, testCase dispatchTestCase) {
 	n, err := parser.Parse(r, &d)
 
 	if err != nil {
-		t.Fatalf("Error when parsing Dockerfile: %s", err)
+		c.Fatalf("Error when parsing Dockerfile: %s", err)
 	}
 
 	config := &container.Config{}
@@ -187,11 +187,11 @@ func executeTestCase(t *testing.T, testCase dispatchTestCase) {
 	err = b.dispatch(0, len(n.Children), n.Children[0])
 
 	if err == nil {
-		t.Fatalf("No error when executing test %s", testCase.name)
+		c.Fatalf("No error when executing test %s", testCase.name)
 	}
 
 	if !strings.Contains(err.Error(), testCase.expectedError) {
-		t.Fatalf("Wrong error message. Should be \"%s\". Got \"%s\"", testCase.expectedError, err.Error())
+		c.Fatalf("Wrong error message. Should be \"%s\". Got \"%s\"", testCase.expectedError, err.Error())
 	}
 
 }

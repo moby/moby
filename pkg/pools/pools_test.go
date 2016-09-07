@@ -6,35 +6,44 @@ import (
 	"io"
 	"strings"
 	"testing"
+
+	"github.com/go-check/check"
 )
 
-func TestBufioReaderPoolGetWithNoReaderShouldCreateOne(t *testing.T) {
+// Hook up gocheck into the "go test" runner.
+func Test(t *testing.T) { check.TestingT(t) }
+
+type DockerSuite struct{}
+
+var _ = check.Suite(&DockerSuite{})
+
+func (s *DockerSuite) TestBufioReaderPoolGetWithNoReaderShouldCreateOne(c *check.C) {
 	reader := BufioReader32KPool.Get(nil)
 	if reader == nil {
-		t.Fatalf("BufioReaderPool should have create a bufio.Reader but did not.")
+		c.Fatalf("BufioReaderPool should have create a bufio.Reader but did not.")
 	}
 }
 
-func TestBufioReaderPoolPutAndGet(t *testing.T) {
+func (s *DockerSuite) TestBufioReaderPoolPutAndGet(c *check.C) {
 	sr := bufio.NewReader(strings.NewReader("foobar"))
 	reader := BufioReader32KPool.Get(sr)
 	if reader == nil {
-		t.Fatalf("BufioReaderPool should not return a nil reader.")
+		c.Fatalf("BufioReaderPool should not return a nil reader.")
 	}
 	// verify the first 3 byte
 	buf1 := make([]byte, 3)
 	_, err := reader.Read(buf1)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	if actual := string(buf1); actual != "foo" {
-		t.Fatalf("The first letter should have been 'foo' but was %v", actual)
+		c.Fatalf("The first letter should have been 'foo' but was %v", actual)
 	}
 	BufioReader32KPool.Put(reader)
 	// Try to read the next 3 bytes
 	_, err = sr.Read(make([]byte, 3))
 	if err == nil || err != io.EOF {
-		t.Fatalf("The buffer should have been empty, issue an EOF error.")
+		c.Fatalf("The buffer should have been empty, issue an EOF error.")
 	}
 }
 
@@ -48,7 +57,7 @@ func (r *simpleReaderCloser) Close() error {
 	return nil
 }
 
-func TestNewReadCloserWrapperWithAReadCloser(t *testing.T) {
+func (s *DockerSuite) TestNewReadCloserWrapperWithAReadCloser(c *check.C) {
 	br := bufio.NewReader(strings.NewReader(""))
 	sr := &simpleReaderCloser{
 		Reader: strings.NewReader("foobar"),
@@ -56,70 +65,70 @@ func TestNewReadCloserWrapperWithAReadCloser(t *testing.T) {
 	}
 	reader := BufioReader32KPool.NewReadCloserWrapper(br, sr)
 	if reader == nil {
-		t.Fatalf("NewReadCloserWrapper should not return a nil reader.")
+		c.Fatalf("NewReadCloserWrapper should not return a nil reader.")
 	}
 	// Verify the content of reader
 	buf := make([]byte, 3)
 	_, err := reader.Read(buf)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	if actual := string(buf); actual != "foo" {
-		t.Fatalf("The first 3 letter should have been 'foo' but were %v", actual)
+		c.Fatalf("The first 3 letter should have been 'foo' but were %v", actual)
 	}
 	reader.Close()
 	// Read 3 more bytes "bar"
 	_, err = reader.Read(buf)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	if actual := string(buf); actual != "bar" {
-		t.Fatalf("The first 3 letter should have been 'bar' but were %v", actual)
+		c.Fatalf("The first 3 letter should have been 'bar' but were %v", actual)
 	}
 	if !sr.closed {
-		t.Fatalf("The ReaderCloser should have been closed, it is not.")
+		c.Fatalf("The ReaderCloser should have been closed, it is not.")
 	}
 }
 
-func TestBufioWriterPoolGetWithNoReaderShouldCreateOne(t *testing.T) {
+func (s *DockerSuite) TestBufioWriterPoolGetWithNoReaderShouldCreateOne(c *check.C) {
 	writer := BufioWriter32KPool.Get(nil)
 	if writer == nil {
-		t.Fatalf("BufioWriterPool should have create a bufio.Writer but did not.")
+		c.Fatalf("BufioWriterPool should have create a bufio.Writer but did not.")
 	}
 }
 
-func TestBufioWriterPoolPutAndGet(t *testing.T) {
+func (s *DockerSuite) TestBufioWriterPoolPutAndGet(c *check.C) {
 	buf := new(bytes.Buffer)
 	bw := bufio.NewWriter(buf)
 	writer := BufioWriter32KPool.Get(bw)
 	if writer == nil {
-		t.Fatalf("BufioReaderPool should not return a nil writer.")
+		c.Fatalf("BufioReaderPool should not return a nil writer.")
 	}
 	written, err := writer.Write([]byte("foobar"))
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	if written != 6 {
-		t.Fatalf("Should have written 6 bytes, but wrote %v bytes", written)
+		c.Fatalf("Should have written 6 bytes, but wrote %v bytes", written)
 	}
 	// Make sure we Flush all the way ?
 	writer.Flush()
 	bw.Flush()
 	if len(buf.Bytes()) != 6 {
-		t.Fatalf("The buffer should contain 6 bytes ('foobar') but contains %v ('%v')", buf.Bytes(), string(buf.Bytes()))
+		c.Fatalf("The buffer should contain 6 bytes ('foobar') but contains %v ('%v')", buf.Bytes(), string(buf.Bytes()))
 	}
 	// Reset the buffer
 	buf.Reset()
 	BufioWriter32KPool.Put(writer)
 	// Try to write something
 	if _, err = writer.Write([]byte("barfoo")); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	// If we now try to flush it, it should panic (the writer is nil)
 	// recover it
 	defer func() {
 		if r := recover(); r == nil {
-			t.Fatal("Trying to flush the writter should have 'paniced', did not.")
+			c.Fatal("Trying to flush the writter should have 'paniced', did not.")
 		}
 	}()
 	writer.Flush()
@@ -135,7 +144,7 @@ func (r *simpleWriterCloser) Close() error {
 	return nil
 }
 
-func TestNewWriteCloserWrapperWithAWriteCloser(t *testing.T) {
+func (s *DockerSuite) TestNewWriteCloserWrapperWithAWriteCloser(c *check.C) {
 	buf := new(bytes.Buffer)
 	bw := bufio.NewWriter(buf)
 	sw := &simpleWriterCloser{
@@ -145,17 +154,17 @@ func TestNewWriteCloserWrapperWithAWriteCloser(t *testing.T) {
 	bw.Flush()
 	writer := BufioWriter32KPool.NewWriteCloserWrapper(bw, sw)
 	if writer == nil {
-		t.Fatalf("BufioReaderPool should not return a nil writer.")
+		c.Fatalf("BufioReaderPool should not return a nil writer.")
 	}
 	written, err := writer.Write([]byte("foobar"))
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	if written != 6 {
-		t.Fatalf("Should have written 6 bytes, but wrote %v bytes", written)
+		c.Fatalf("Should have written 6 bytes, but wrote %v bytes", written)
 	}
 	writer.Close()
 	if !sw.closed {
-		t.Fatalf("The ReaderCloser should have been closed, it is not.")
+		c.Fatalf("The ReaderCloser should have been closed, it is not.")
 	}
 }

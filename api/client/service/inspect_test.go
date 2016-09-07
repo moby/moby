@@ -7,9 +7,17 @@ import (
 	"time"
 
 	"github.com/docker/engine-api/types/swarm"
+	"github.com/go-check/check"
 )
 
-func TestPrettyPrintWithNoUpdateConfig(t *testing.T) {
+// Hook up gocheck into the "go test" runner.
+func Test(t *testing.T) { check.TestingT(t) }
+
+type DockerSuite struct{}
+
+var _ = check.Suite(&DockerSuite{})
+
+func (s *DockerSuite) TestPrettyPrintWithNoUpdateConfig(c *check.C) {
 	b := new(bytes.Buffer)
 
 	endpointSpec := &swarm.EndpointSpec{
@@ -24,7 +32,7 @@ func TestPrettyPrintWithNoUpdateConfig(t *testing.T) {
 
 	two := uint64(2)
 
-	s := swarm.Service{
+	ss := swarm.Service{
 		ID: "de179gar9d0o7ltdybungplod",
 		Meta: swarm.Meta{
 			Version:   swarm.Version{Index: 315},
@@ -77,8 +85,8 @@ func TestPrettyPrintWithNoUpdateConfig(t *testing.T) {
 		},
 	}
 
-	printService(b, s)
+	printService(b, ss)
 	if strings.Contains(b.String(), "UpdateStatus") {
-		t.Fatal("Pretty print failed before parsing UpdateStatus")
+		c.Fatal("Pretty print failed before parsing UpdateStatus")
 	}
 }

@@ -4,10 +4,11 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
-	"testing"
+
+	"github.com/go-check/check"
 )
 
-func TestEndpointParse(t *testing.T) {
+func (s *DockerSuite) TestEndpointParse(c *check.C) {
 	testData := []struct {
 		str      string
 		expected string
@@ -22,33 +23,33 @@ func TestEndpointParse(t *testing.T) {
 	for _, td := range testData {
 		e, err := newV1EndpointFromStr(td.str, nil, "", nil)
 		if err != nil {
-			t.Errorf("%q: %s", td.str, err)
+			c.Errorf("%q: %s", td.str, err)
 		}
 		if e == nil {
-			t.Logf("something's fishy, endpoint for %q is nil", td.str)
+			c.Logf("something's fishy, endpoint for %q is nil", td.str)
 			continue
 		}
 		if e.String() != td.expected {
-			t.Errorf("expected %q, got %q", td.expected, e.String())
+			c.Errorf("expected %q, got %q", td.expected, e.String())
 		}
 	}
 }
 
-func TestEndpointParseInvalid(t *testing.T) {
+func (s *DockerSuite) TestEndpointParseInvalid(c *check.C) {
 	testData := []string{
 		"http://0.0.0.0:5000/v2/",
 	}
 	for _, td := range testData {
 		e, err := newV1EndpointFromStr(td, nil, "", nil)
 		if err == nil {
-			t.Errorf("expected error parsing %q: parsed as %q", td, e)
+			c.Errorf("expected error parsing %q: parsed as %q", td, e)
 		}
 	}
 }
 
 // Ensure that a registry endpoint that responds with a 401 only is determined
 // to be a valid v1 registry endpoint
-func TestValidateEndpoint(t *testing.T) {
+func (s *DockerSuite) TestValidateEndpoint(c *check.C) {
 	requireBasicAuthHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Add("WWW-Authenticate", `Basic realm="localhost"`)
 		w.WriteHeader(http.StatusUnauthorized)
@@ -60,7 +61,7 @@ func TestValidateEndpoint(t *testing.T) {
 
 	testServerURL, err := url.Parse(testServer.URL)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	testEndpoint := V1Endpoint{
@@ -69,10 +70,10 @@ func TestValidateEndpoint(t *testing.T) {
 	}
 
 	if err = validateEndpoint(&testEndpoint); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	if testEndpoint.URL.Scheme != "http" {
-		t.Fatalf("expecting to validate endpoint as http, got url %s", testEndpoint.String())
+		c.Fatalf("expecting to validate endpoint as http, got url %s", testEndpoint.String())
 	}
 }

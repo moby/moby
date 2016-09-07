@@ -7,7 +7,15 @@ import (
 	"github.com/docker/docker/cliconfig"
 	"github.com/docker/docker/cliconfig/configfile"
 	"github.com/docker/engine-api/types"
+	"github.com/go-check/check"
 )
+
+// Hook up gocheck into the "go test" runner.
+func Test(t *testing.T) { check.TestingT(t) }
+
+type DockerSuite struct{}
+
+var _ = check.Suite(&DockerSuite{})
 
 func newConfigFile(auths map[string]types.AuthConfig) *configfile.ConfigFile {
 	tmp, _ := ioutil.TempFile("", "docker-test")
@@ -19,37 +27,37 @@ func newConfigFile(auths map[string]types.AuthConfig) *configfile.ConfigFile {
 	return c
 }
 
-func TestFileStoreAddCredentials(t *testing.T) {
+func (s *DockerSuite) TestFileStoreAddCredentials(c *check.C) {
 	f := newConfigFile(make(map[string]types.AuthConfig))
 
-	s := NewFileStore(f)
-	err := s.Store(types.AuthConfig{
+	fs := NewFileStore(f)
+	err := fs.Store(types.AuthConfig{
 		Auth:          "super_secret_token",
 		Email:         "foo@example.com",
 		ServerAddress: "https://example.com",
 	})
 
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	if len(f.AuthConfigs) != 1 {
-		t.Fatalf("expected 1 auth config, got %d", len(f.AuthConfigs))
+		c.Fatalf("expected 1 auth config, got %d", len(f.AuthConfigs))
 	}
 
 	a, ok := f.AuthConfigs["https://example.com"]
 	if !ok {
-		t.Fatalf("expected auth for https://example.com, got %v", f.AuthConfigs)
+		c.Fatalf("expected auth for https://example.com, got %v", f.AuthConfigs)
 	}
 	if a.Auth != "super_secret_token" {
-		t.Fatalf("expected auth `super_secret_token`, got %s", a.Auth)
+		c.Fatalf("expected auth `super_secret_token`, got %s", a.Auth)
 	}
 	if a.Email != "foo@example.com" {
-		t.Fatalf("expected email `foo@example.com`, got %s", a.Email)
+		c.Fatalf("expected email `foo@example.com`, got %s", a.Email)
 	}
 }
 
-func TestFileStoreGet(t *testing.T) {
+func (s *DockerSuite) TestFileStoreGet(c *check.C) {
 	f := newConfigFile(map[string]types.AuthConfig{
 		"https://example.com": {
 			Auth:          "super_secret_token",
@@ -58,20 +66,20 @@ func TestFileStoreGet(t *testing.T) {
 		},
 	})
 
-	s := NewFileStore(f)
-	a, err := s.Get("https://example.com")
+	fs := NewFileStore(f)
+	a, err := fs.Get("https://example.com")
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	if a.Auth != "super_secret_token" {
-		t.Fatalf("expected auth `super_secret_token`, got %s", a.Auth)
+		c.Fatalf("expected auth `super_secret_token`, got %s", a.Auth)
 	}
 	if a.Email != "foo@example.com" {
-		t.Fatalf("expected email `foo@example.com`, got %s", a.Email)
+		c.Fatalf("expected email `foo@example.com`, got %s", a.Email)
 	}
 }
 
-func TestFileStoreGetAll(t *testing.T) {
+func (s *DockerSuite) TestFileStoreGetAll(c *check.C) {
 	s1 := "https://example.com"
 	s2 := "https://example2.com"
 	f := newConfigFile(map[string]types.AuthConfig{
@@ -87,29 +95,29 @@ func TestFileStoreGetAll(t *testing.T) {
 		},
 	})
 
-	s := NewFileStore(f)
-	as, err := s.GetAll()
+	fs := NewFileStore(f)
+	as, err := fs.GetAll()
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	if len(as) != 2 {
-		t.Fatalf("wanted 2, got %d", len(as))
+		c.Fatalf("wanted 2, got %d", len(as))
 	}
 	if as[s1].Auth != "super_secret_token" {
-		t.Fatalf("expected auth `super_secret_token`, got %s", as[s1].Auth)
+		c.Fatalf("expected auth `super_secret_token`, got %s", as[s1].Auth)
 	}
 	if as[s1].Email != "foo@example.com" {
-		t.Fatalf("expected email `foo@example.com`, got %s", as[s1].Email)
+		c.Fatalf("expected email `foo@example.com`, got %s", as[s1].Email)
 	}
 	if as[s2].Auth != "super_secret_token2" {
-		t.Fatalf("expected auth `super_secret_token2`, got %s", as[s2].Auth)
+		c.Fatalf("expected auth `super_secret_token2`, got %s", as[s2].Auth)
 	}
 	if as[s2].Email != "foo@example2.com" {
-		t.Fatalf("expected email `foo@example2.com`, got %s", as[s2].Email)
+		c.Fatalf("expected email `foo@example2.com`, got %s", as[s2].Email)
 	}
 }
 
-func TestFileStoreErase(t *testing.T) {
+func (s *DockerSuite) TestFileStoreErase(c *check.C) {
 	f := newConfigFile(map[string]types.AuthConfig{
 		"https://example.com": {
 			Auth:          "super_secret_token",
@@ -118,22 +126,22 @@ func TestFileStoreErase(t *testing.T) {
 		},
 	})
 
-	s := NewFileStore(f)
-	err := s.Erase("https://example.com")
+	fs := NewFileStore(f)
+	err := fs.Erase("https://example.com")
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	// file store never returns errors, check that the auth config is empty
-	a, err := s.Get("https://example.com")
+	a, err := fs.Get("https://example.com")
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	if a.Auth != "" {
-		t.Fatalf("expected empty auth token, got %s", a.Auth)
+		c.Fatalf("expected empty auth token, got %s", a.Auth)
 	}
 	if a.Email != "" {
-		t.Fatalf("expected empty email, got %s", a.Email)
+		c.Fatalf("expected empty email, got %s", a.Email)
 	}
 }

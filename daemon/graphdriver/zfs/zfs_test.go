@@ -6,30 +6,38 @@ import (
 	"testing"
 
 	"github.com/docker/docker/daemon/graphdriver/graphtest"
+	"github.com/go-check/check"
 )
+
+// Hook up gocheck into the "go test" runner.
+func Test(t *testing.T) { check.TestingT(t) }
+
+type DockerSuite struct{}
+
+var _ = check.Suite(&DockerSuite{})
 
 // This avoids creating a new driver for each test if all tests are run
 // Make sure to put new tests between TestZfsSetup and TestZfsTeardown
-func TestZfsSetup(t *testing.T) {
-	graphtest.GetDriver(t, "zfs")
+func (s *DockerSuite) TestZfsSetup(c *check.C) {
+	graphtest.GetDriver(c, "zfs")
 }
 
-func TestZfsCreateEmpty(t *testing.T) {
-	graphtest.DriverTestCreateEmpty(t, "zfs")
+func (s *DockerSuite) TestZfsCreateEmpty(c *check.C) {
+	graphtest.DriverTestCreateEmpty(c, "zfs")
 }
 
-func TestZfsCreateBase(t *testing.T) {
-	graphtest.DriverTestCreateBase(t, "zfs")
+func (s *DockerSuite) TestZfsCreateBase(c *check.C) {
+	graphtest.DriverTestCreateBase(c, "zfs")
 }
 
-func TestZfsCreateSnap(t *testing.T) {
-	graphtest.DriverTestCreateSnap(t, "zfs")
+func (s *DockerSuite) TestZfsCreateSnap(c *check.C) {
+	graphtest.DriverTestCreateSnap(c, "zfs")
 }
 
-func TestZfsSetQuota(t *testing.T) {
-	graphtest.DriverTestSetQuota(t, "zfs")
+func (s *DockerSuite) TestZfsSetQuota(c *check.C) {
+	graphtest.DriverTestSetQuota(c, "zfs")
 }
 
-func TestZfsTeardown(t *testing.T) {
-	graphtest.PutDriver(t)
+func (s *DockerSuite) TestZfsTeardown(c *check.C) {
+	graphtest.PutDriver(c)
 }

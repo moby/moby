@@ -1,10 +1,8 @@
 package registry
 
-import (
-	"testing"
-)
+import "github.com/go-check/check"
 
-func TestValidateMirror(t *testing.T) {
+func (s *DockerSuite) TestValidateMirror(c *check.C) {
 	valid := []string{
 		"http://mirror-1.com",
 		"https://mirror-1.com",
@@ -37,13 +35,13 @@ func TestValidateMirror(t *testing.T) {
 
 	for _, address := range valid {
 		if ret, err := ValidateMirror(address); err != nil || ret == "" {
-			t.Errorf("ValidateMirror(`"+address+"`) got %s %s", ret, err)
+			c.Errorf("ValidateMirror(`"+address+"`) got %s %s", ret, err)
 		}
 	}
 
 	for _, address := range invalid {
 		if ret, err := ValidateMirror(address); err == nil || ret != "" {
-			t.Errorf("ValidateMirror(`"+address+"`) got %s %s", ret, err)
+			c.Errorf("ValidateMirror(`"+address+"`) got %s %s", ret, err)
 		}
 	}
 }

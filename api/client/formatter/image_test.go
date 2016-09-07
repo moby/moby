@@ -4,14 +4,14 @@ import (
 	"bytes"
 	"fmt"
 	"strings"
-	"testing"
 	"time"
 
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/engine-api/types"
+	"github.com/go-check/check"
 )
 
-func TestImageContext(t *testing.T) {
+func (s *DockerSuite) TestImageContext(c *check.C) {
 	imageID := stringid.GenerateRandomID()
 	unix := time.Now().Unix()
 
@@ -57,23 +57,23 @@ func TestImageContext(t *testing.T) {
 		}, "sha256:d149ab53f8718e987c3a3024bb8aa0e2caadf6c0328f1d9d850b2a2a67f2819a", digestHeader, ctx.Digest},
 	}
 
-	for _, c := range cases {
-		ctx = c.imageCtx
-		v := c.call()
+	for _, ca := range cases {
+		ctx = ca.imageCtx
+		v := ca.call()
 		if strings.Contains(v, ",") {
-			compareMultipleValues(t, v, c.expValue)
-		} else if v != c.expValue {
-			t.Fatalf("Expected %s, was %s\n", c.expValue, v)
+			compareMultipleValues(c, v, ca.expValue)
+		} else if v != ca.expValue {
+			c.Fatalf("Expected %s, was %s\n", ca.expValue, v)
 		}
 
 		h := ctx.fullHeader()
-		if h != c.expHeader {
-			t.Fatalf("Expected %s, was %s\n", c.expHeader, h)
+		if h != ca.expHeader {
+			c.Fatalf("Expected %s, was %s\n", ca.expHeader, h)
 		}
 	}
 }
 
-func TestImageContextWrite(t *testing.T) {
+func (s *DockerSuite) TestImageContextWrite(c *check.C) {
 	unixTime := time.Now().AddDate(0, 0, -1).Unix()
 	expectedTime := time.Unix(unixTime, 0).String()
 
@@ -277,14 +277,14 @@ image_id: imageID3
 		context.context.Write()
 		actual := out.String()
 		if actual != context.expected {
-			t.Fatalf("Expected \n%s, got \n%s", context.expected, actual)
+			c.Fatalf("Expected \n%s, got \n%s", context.expected, actual)
 		}
 		// Clean buffer
 		out.Reset()
 	}
 }
 
-func TestImageContextWriteWithNoImage(t *testing.T) {
+func (s *DockerSuite) TestImageContextWriteWithNoImage(c *check.C) {
 	out := bytes.NewBufferString("")
 	images := []types.Image{}
 
@@ -337,7 +337,7 @@ func TestImageContextWriteWithNoImage(t *testing.T) {
 		context.context.Write()
 		actual := out.String()
 		if actual != context.expected {
-			t.Fatalf("Expected \n%s, got \n%s", context.expected, actual)
+			c.Fatalf("Expected \n%s, got \n%s", context.expected, actual)
 		}
 		// Clean buffer
 		out.Reset()

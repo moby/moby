@@ -2,9 +2,9 @@
 
 package dockerfile
 
-import "testing"
+import "github.com/go-check/check"
 
-func TestNormaliseDest(t *testing.T) {
+func (s *DockerSuite) TestNormaliseDest(c *check.C) {
 	tests := []struct{ current, requested, expected, etext string }{
 		{``, `D:\`, ``, `Windows does not support TEST with a destinations not on the system drive (C:)`},
 		{``, `e:/`, ``, `Windows does not support TEST with a destinations not on the system drive (C:)`},
@@ -35,17 +35,17 @@ func TestNormaliseDest(t *testing.T) {
 	for _, i := range tests {
 		got, err := normaliseDest("TEST", i.current, i.requested)
 		if err != nil && i.etext == "" {
-			t.Fatalf("TestNormaliseDest Got unexpected error %q for %s %s. ", err.Error(), i.current, i.requested)
+			c.Fatalf("TestNormaliseDest Got unexpected error %q for %s %s. ", err.Error(), i.current, i.requested)
 		}
 		if i.etext != "" && ((err == nil) || (err != nil && err.Error() != i.etext)) {
 			if err == nil {
-				t.Fatalf("TestNormaliseDest Expected an error for %s %s but didn't get one", i.current, i.requested)
+				c.Fatalf("TestNormaliseDest Expected an error for %s %s but didn't get one", i.current, i.requested)
 			} else {
-				t.Fatalf("TestNormaliseDest Wrong error text for %s %s - %s", i.current, i.requested, err.Error())
+				c.Fatalf("TestNormaliseDest Wrong error text for %s %s - %s", i.current, i.requested, err.Error())
 			}
 		}
 		if i.etext == "" && got != i.expected {
-			t.Fatalf("TestNormaliseDest Expected %q for %q and %q. Got %q", i.expected, i.current, i.requested, got)
+			c.Fatalf("TestNormaliseDest Expected %q for %q and %q. Got %q", i.expected, i.current, i.requested, got)
 		}
 	}
 }

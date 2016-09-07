@@ -6,7 +6,15 @@ import (
 	"github.com/docker/engine-api/types/container"
 	"github.com/docker/engine-api/types/strslice"
 	"github.com/docker/go-connections/nat"
+	"github.com/go-check/check"
 )
+
+// Hook up gocheck into the "go test" runner.
+func Test(t *testing.T) { check.TestingT(t) }
+
+type DockerSuite struct{}
+
+var _ = check.Suite(&DockerSuite{})
 
 // Just to make life easier
 func newPortNoError(proto, port string) nat.Port {
@@ -14,7 +22,7 @@ func newPortNoError(proto, port string) nat.Port {
 	return p
 }
 
-func TestCompare(t *testing.T) {
+func (s *DockerSuite) TestCompare(c *check.C) {
 	ports1 := make(nat.PortSet)
 	ports1[newPortNoError("tcp", "1111")] = struct{}{}
 	ports1[newPortNoError("tcp", "2222")] = struct{}{}
@@ -115,12 +123,12 @@ func TestCompare(t *testing.T) {
 	}
 	for config1, config2 := range sameConfigs {
 		if !Compare(config1, config2) {
-			t.Fatalf("Compare should be true for [%v] and [%v]", config1, config2)
+			c.Fatalf("Compare should be true for [%v] and [%v]", config1, config2)
 		}
 	}
 	for config1, config2 := range differentConfigs {
 		if Compare(config1, config2) {
-			t.Fatalf("Compare should be false for [%v] and [%v]", config1, config2)
+			c.Fatalf("Compare should be false for [%v] and [%v]", config1, config2)
 		}
 	}
 }

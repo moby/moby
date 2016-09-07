@@ -8,12 +8,21 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/go-check/check"
 )
 
-func tmpFileWithContent(content string, t *testing.T) string {
+// Hook up gocheck into the "go test" runner.
+func Test(t *testing.T) { check.TestingT(t) }
+
+type DockerSuite struct{}
+
+var _ = check.Suite(&DockerSuite{})
+
+func tmpFileWithContent(content string, c *check.C) string {
 	tmpFile, err := ioutil.TempFile("", "envfile-test")
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	defer tmpFile.Close()
 
@@ -22,7 +31,7 @@ func tmpFileWithContent(content string, t *testing.T) string {
 }
 
 // Test ParseEnvFile for a file with a few well formatted lines
-func TestParseEnvFileGoodFile(t *testing.T) {
+func (s *DockerSuite) TestParseEnvFileGoodFile(c *check.C) {
 	content := `foo=bar
     baz=quux
 # comment
@@ -37,12 +46,12 @@ and_underscore=working too
 	// from lines, which becomes annoying since that's the
 	// exact thing we need to test.
 	content += "\n    \t  "
-	tmpFile := tmpFileWithContent(content, t)
+	tmpFile := tmpFileWithContent(content, c)
 	defer os.Remove(tmpFile)
 
 	lines, err := ParseEnvFile(tmpFile)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	expectedLines := []string{
@@ -54,89 +63,89 @@ and_underscore=working too
 	}
 
 	if !reflect.DeepEqual(lines, expectedLines) {
-		t.Fatal("lines not equal to expected_lines")
+		c.Fatal("lines not equal to expected_lines")
 	}
 }
 
 // Test ParseEnvFile for an empty file
-func TestParseEnvFileEmptyFile(t *testing.T) {
-	tmpFile := tmpFileWithContent("", t)
+func (s *DockerSuite) TestParseEnvFileEmptyFile(c *check.C) {
+	tmpFile := tmpFileWithContent("", c)
 	defer os.Remove(tmpFile)
 
 	lines, err := ParseEnvFile(tmpFile)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	if len(lines) != 0 {
-		t.Fatal("lines not empty; expected empty")
+		c.Fatal("lines not empty; expected empty")
 	}
 }
 
 // Test ParseEnvFile for a non existent file
-func TestParseEnvFileNonExistentFile(t *testing.T) {
+func (s *DockerSuite) TestParseEnvFileNonExistentFile(c *check.C) {
 	_, err := ParseEnvFile("foo_bar_baz")
 	if err == nil {
-		t.Fatal("ParseEnvFile succeeded; expected failure")
+		c.Fatal("ParseEnvFile succeeded; expected failure")
 	}
 	if _, ok := err.(*os.PathError); !ok {
-		t.Fatalf("Expected a PathError, got [%v]", err)
+		c.Fatalf("Expected a PathError, got [%v]", err)
 	}
 }
 
 // Test ParseEnvFile for a badly formatted file
-func TestParseEnvFileBadlyFormattedFile(t *testing.T) {
+func (s *DockerSuite) TestParseEnvFileBadlyFormattedFile(c *check.C) {
 	content := `foo=bar
     f   =quux
 `
 
-	tmpFile := tmpFileWithContent(content, t)
+	tmpFile := tmpFileWithContent(content, c)
 	defer os.Remove(tmpFile)
 
 	_, err := ParseEnvFile(tmpFile)
 	if err == nil {
-		t.Fatalf("Expected an ErrBadEnvVariable, got nothing")
+		c.Fatalf("Expected an ErrBadEnvVariable, got nothing")
 	}
 	if _, ok := err.(ErrBadEnvVariable); !ok {
-		t.Fatalf("Expected an ErrBadEnvVariable, got [%v]", err)
+		c.Fatalf("Expected an ErrBadEnvVariable, got [%v]", err)
 	}
 	expectedMessage := "poorly formatted environment: variable 'f   ' has white spaces"
 	if err.Error() != expectedMessage {
-		t.Fatalf("Expected [%v], got [%v]", expectedMessage, err.Error())
+		c.Fatalf("Expected [%v], got [%v]", expectedMessage, err.Error())
 	}
 }
 
 // Test ParseEnvFile for a file with a line exceeding bufio.MaxScanTokenSize
-func TestParseEnvFileLineTooLongFile(t *testing.T) {
+func (s *DockerSuite) TestParseEnvFileLineTooLongFile(c *check.C) {
 	content := strings.Repeat("a", bufio.MaxScanTokenSize+42)
 	content = fmt.Sprint("foo=", content)
 
-	tmpFile := tmpFileWithContent(content, t)
+	tmpFile := tmpFileWithContent(content, c)
 	defer os.Remove(tmpFile)
 
 	_, err := ParseEnvFile(tmpFile)
 	if err == nil {
-		t.Fatal("ParseEnvFile succeeded; expected failure")
+		c.Fatal("ParseEnvFile succeeded; expected failure")
 	}
 }
 
 // ParseEnvFile with a random file, pass through
-func TestParseEnvFileRandomFile(t *testing.T) {
+func (s *DockerSuite) TestParseEnvFileRandomFile(c *check.C) {
 	content := `first line
 another invalid line`
-	tmpFile := tmpFileWithContent(content, t)
+	tmpFile := tmpFileWithContent(content, c)
 	defer os.Remove(tmpFile)
 
 	_, err := ParseEnvFile(tmpFile)
 
 	if err == nil {
-		t.Fatalf("Expected an ErrBadEnvVariable, got nothing")
+		c.Fatalf("Expected an ErrBadEnvVariable, got nothing")
 	}
 	if _, ok := err.(ErrBadEnvVariable); !ok {
-		t.Fatalf("Expected an ErrBadEnvvariable, got [%v]", err)
+		c.Fatalf("Expected an ErrBadEnvvariable, got [%v]", err)
 	}
 	expectedMessage := "poorly formatted environment: variable 'first line' has white spaces"
 	if err.Error() != expectedMessage {
-		t.Fatalf("Expected [%v], got [%v]", expectedMessage, err.Error())
+		c.Fatalf("Expected [%v], got [%v]", expectedMessage, err.Error())
 	}
 }

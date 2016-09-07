@@ -8,66 +8,74 @@ import (
 	"testing"
 
 	"github.com/docker/docker/pkg/jsonmessage"
+	"github.com/go-check/check"
 )
 
-func TestFormatStream(t *testing.T) {
+// Hook up gocheck into the "go test" runner.
+func Test(t *testing.T) { check.TestingT(t) }
+
+type DockerSuite struct{}
+
+var _ = check.Suite(&DockerSuite{})
+
+func (s *DockerSuite) TestFormatStream(c *check.C) {
 	sf := NewStreamFormatter()
 	res := sf.FormatStream("stream")
 	if string(res) != "stream"+"\r" {
-		t.Fatalf("%q", res)
+		c.Fatalf("%q", res)
 	}
 }
 
-func TestFormatJSONStatus(t *testing.T) {
+func (s *DockerSuite) TestFormatJSONStatus(c *check.C) {
 	sf := NewStreamFormatter()
 	res := sf.FormatStatus("ID", "%s%d", "a", 1)
 	if string(res) != "a1\r\n" {
-		t.Fatalf("%q", res)
+		c.Fatalf("%q", res)
 	}
 }
 
-func TestFormatSimpleError(t *testing.T) {
+func (s *DockerSuite) TestFormatSimpleError(c *check.C) {
 	sf := NewStreamFormatter()
 	res := sf.FormatError(errors.New("Error for formatter"))
 	if string(res) != "Error: Error for formatter\r\n" {
-		t.Fatalf("%q", res)
+		c.Fatalf("%q", res)
 	}
 }
 
-func TestJSONFormatStream(t *testing.T) {
+func (s *DockerSuite) TestJSONFormatStream(c *check.C) {
 	sf := NewJSONStreamFormatter()
 	res := sf.FormatStream("stream")
 	if string(res) != `{"stream":"stream"}`+"\r\n" {
-		t.Fatalf("%q", res)
+		c.Fatalf("%q", res)
 	}
 }
 
-func TestJSONFormatStatus(t *testing.T) {
+func (s *DockerSuite) TestJSONFormatStatus(c *check.C) {
 	sf := NewJSONStreamFormatter()
 	res := sf.FormatStatus("ID", "%s%d", "a", 1)
 	if string(res) != `{"status":"a1","id":"ID"}`+"\r\n" {
-		t.Fatalf("%q", res)
+		c.Fatalf("%q", res)
 	}
 }
 
-func TestJSONFormatSimpleError(t *testing.T) {
+func (s *DockerSuite) TestJSONFormatSimpleError(c *check.C) {
 	sf := NewJSONStreamFormatter()
 	res := sf.FormatError(errors.New("Error for formatter"))
 	if string(res) != `{"errorDetail":{"message":"Error for formatter"},"error":"Error for formatter"}`+"\r\n" {
-		t.Fatalf("%q", res)
+		c.Fatalf("%q", res)
 	}
 }
 
-func TestJSONFormatJSONError(t *testing.T) {
+func (s *DockerSuite) TestJSONFormatJSONError(c *check.C) {
 	sf := NewJSONStreamFormatter()
 	err := &jsonmessage.JSONError{Code: 50, Message: "Json error"}
 	res := sf.FormatError(err)
 	if string(res) != `{"errorDetail":{"code":50,"message":"Json error"},"error":"Json error"}`+"\r\n" {
-		t.Fatalf("%q", res)
+		c.Fatalf("%q", res)
 	}
 }
 
-func TestJSONFormatProgress(t *testing.T) {
+func (s *DockerSuite) TestJSONFormatProgress(c *check.C) {
 	sf := NewJSONStreamFormatter()
 	progress := &jsonmessage.JSONProgress{
 		Current: 15,
@@ -77,13 +85,13 @@ func TestJSONFormatProgress(t *testing.T) {
 	res := sf.FormatProgress("id", "action", progress, nil)
 	msg := &jsonmessage.JSONMessage{}
 	if err := json.Unmarshal(res, msg); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	if msg.ID != "id" {
-		t.Fatalf("ID must be 'id', got: %s", msg.ID)
+		c.Fatalf("ID must be 'id', got: %s", msg.ID)
 	}
 	if msg.Status != "action" {
-		t.Fatalf("Status must be 'action', got: %s", msg.Status)
+		c.Fatalf("Status must be 'action', got: %s", msg.Status)
 	}
 
 	// The progress will always be in the format of:
@@ -98,11 +106,11 @@ func TestJSONFormatProgress(t *testing.T) {
 	expectedProgressShort := "    15 B/30 B"
 	if !(strings.HasPrefix(msg.ProgressMessage, expectedProgress) ||
 		strings.HasPrefix(msg.ProgressMessage, expectedProgressShort)) {
-		t.Fatalf("ProgressMessage without the timeLeftBox must be %s or %s, got: %s",
+		c.Fatalf("ProgressMessage without the timeLeftBox must be %s or %s, got: %s",
 			expectedProgress, expectedProgressShort, msg.ProgressMessage)
 	}
 
 	if !reflect.DeepEqual(msg.Progress, progress) {
-		t.Fatal("Original progress not equals progress from FormatProgress")
+		c.Fatal("Original progress not equals progress from FormatProgress")
 	}
 }

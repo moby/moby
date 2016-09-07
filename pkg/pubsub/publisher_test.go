@@ -4,36 +4,45 @@ import (
 	"fmt"
 	"testing"
 	"time"
+
+	"github.com/go-check/check"
 )
 
-func TestSendToOneSub(t *testing.T) {
+// Hook up gocheck into the "go test" runner.
+func Test(t *testing.T) { check.TestingT(t) }
+
+type DockerSuite struct{}
+
+var _ = check.Suite(&DockerSuite{})
+
+func (s *DockerSuite) TestSendToOneSub(c *check.C) {
 	p := NewPublisher(100*time.Millisecond, 10)
-	c := p.Subscribe()
+	ss := p.Subscribe()
 
 	p.Publish("hi")
 
-	msg := <-c
+	msg := <-ss
 	if msg.(string) != "hi" {
-		t.Fatalf("expected message hi but received %v", msg)
+		c.Fatalf("expected message hi but received %v", msg)
 	}
 }
 
-func TestSendToMultipleSubs(t *testing.T) {
+func (s *DockerSuite) TestSendToMultipleSubs(c *check.C) {
 	p := NewPublisher(100*time.Millisecond, 10)
 	subs := []chan interface{}{}
 	subs = append(subs, p.Subscribe(), p.Subscribe(), p.Subscribe())
 
 	p.Publish("hi")
 
-	for _, c := range subs {
-		msg := <-c
+	for _, sb := range subs {
+		msg := <-sb
 		if msg.(string) != "hi" {
-			t.Fatalf("expected message hi but received %v", msg)
+			c.Fatalf("expected message hi but received %v", msg)
 		}
 	}
 }
 
-func TestEvictOneSub(t *testing.T) {
+func (s *DockerSuite) TestEvictOneSub(c *check.C) {
 	p := NewPublisher(100*time.Millisecond, 10)
 	s1 := p.Subscribe()
 	s2 := p.Subscribe()
@@ -41,24 +50,24 @@ func TestEvictOneSub(t *testing.T) {
 	p.Evict(s1)
 	p.Publish("hi")
 	if _, ok := <-s1; ok {
-		t.Fatal("expected s1 to not receive the published message")
+		c.Fatal("expected s1 to not receive the published message")
 	}
 
 	msg := <-s2
 	if msg.(string) != "hi" {
-		t.Fatalf("expected message hi but received %v", msg)
+		c.Fatalf("expected message hi but received %v", msg)
 	}
 }
 
-func TestClosePublisher(t *testing.T) {
+func (s *DockerSuite) TestClosePublisher(c *check.C) {
 	p := NewPublisher(100*time.Millisecond, 10)
 	subs := []chan interface{}{}
 	subs = append(subs, p.Subscribe(), p.Subscribe(), p.Subscribe())
 	p.Close()
 
-	for _, c := range subs {
-		if _, ok := <-c; ok {
-			t.Fatal("expected all subscriber channels to be closed")
+	for _, sb := range subs {
+		if _, ok := <-sb; ok {
+			c.Fatal("expected all subscriber channels to be closed")
 		}
 	}
 }
@@ -97,7 +106,7 @@ func newTestSubscriber(p *Publisher) *testSubscriber {
 }
 
 // for testing with -race
-func TestPubSubRace(t *testing.T) {
+func (s *DockerSuite) TestPubSubRace(c *check.C) {
 	p := NewPublisher(0, 1024)
 	var subs [](*testSubscriber)
 	for j := 0; j < 50; j++ {
@@ -107,35 +116,35 @@ func TestPubSubRace(t *testing.T) {
 		p.Publish(sampleText)
 	}
 	time.AfterFunc(1*time.Second, func() {
-		for _, s := range subs {
-			p.Evict(s.dataCh)
+		for _, sb := range subs {
+			p.Evict(sb.dataCh)
 		}
 	})
-	for _, s := range subs {
-		s.Wait()
+	for _, sb := range subs {
+		sb.Wait()
 	}
 }
 
-func BenchmarkPubSub(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		b.StopTimer()
+func (s *DockerSuite) BenchmarkPubSub(c *check.C) {
+	for i := 0; i < c.N; i++ {
+		c.StopTimer()
 		p := NewPublisher(0, 1024)
 		var subs [](*testSubscriber)
 		for j := 0; j < 50; j++ {
 			subs = append(subs, newTestSubscriber(p))
 		}
-		b.StartTimer()
+		c.StartTimer()
 		for j := 0; j < 1000; j++ {
 			p.Publish(sampleText)
 		}
 		time.AfterFunc(1*time.Second, func() {
-			for _, s := range subs {
-				p.Evict(s.dataCh)
+			for _, sb := range subs {
+				p.Evict(sb.dataCh)
 			}
 		})
-		for _, s := range subs {
-			if err := s.Wait(); err != nil {
-				b.Fatal(err)
+		for _, sb := range subs {
+			if err := sb.Wait(); err != nil {
+				c.Fatal(err)
 			}
 		}
 	}

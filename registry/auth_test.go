@@ -5,7 +5,15 @@ import (
 
 	"github.com/docker/engine-api/types"
 	registrytypes "github.com/docker/engine-api/types/registry"
+	"github.com/go-check/check"
 )
+
+// Hook up gocheck into the "go test" runner.
+func Test(t *testing.T) { check.TestingT(t) }
+
+type DockerSuite struct{}
+
+var _ = check.Suite(&DockerSuite{})
 
 func buildAuthConfigs() map[string]types.AuthConfig {
 	authConfigs := map[string]types.AuthConfig{}
@@ -20,21 +28,21 @@ func buildAuthConfigs() map[string]types.AuthConfig {
 	return authConfigs
 }
 
-func TestSameAuthDataPostSave(t *testing.T) {
+func (s *DockerSuite) TestSameAuthDataPostSave(c *check.C) {
 	authConfigs := buildAuthConfigs()
 	authConfig := authConfigs["testIndex"]
 	if authConfig.Username != "docker-user" {
-		t.Fail()
+		c.Fail()
 	}
 	if authConfig.Password != "docker-pass" {
-		t.Fail()
+		c.Fail()
 	}
 	if authConfig.Auth != "" {
-		t.Fail()
+		c.Fail()
 	}
 }
 
-func TestResolveAuthConfigIndexServer(t *testing.T) {
+func (s *DockerSuite) TestResolveAuthConfigIndexServer(c *check.C) {
 	authConfigs := buildAuthConfigs()
 	indexConfig := authConfigs[IndexServer]
 
@@ -46,13 +54,13 @@ func TestResolveAuthConfigIndexServer(t *testing.T) {
 	}
 
 	resolved := ResolveAuthConfig(authConfigs, officialIndex)
-	assertEqual(t, resolved, indexConfig, "Expected ResolveAuthConfig to return IndexServer")
+	assertEqual(c, resolved, indexConfig, "Expected ResolveAuthConfig to return IndexServer")
 
 	resolved = ResolveAuthConfig(authConfigs, privateIndex)
-	assertNotEqual(t, resolved, indexConfig, "Expected ResolveAuthConfig to not return IndexServer")
+	assertNotEqual(c, resolved, indexConfig, "Expected ResolveAuthConfig to not return IndexServer")
 }
 
-func TestResolveAuthConfigFullURL(t *testing.T) {
+func (s *DockerSuite) TestResolveAuthConfigFullURL(c *check.C) {
 	authConfigs := buildAuthConfigs()
 
 	registryAuth := types.AuthConfig{
@@ -99,7 +107,7 @@ func TestResolveAuthConfigFullURL(t *testing.T) {
 	for configKey, registries := range validRegistries {
 		configured, ok := expectedAuths[configKey]
 		if !ok {
-			t.Fail()
+			c.Fail()
 		}
 		index := &registrytypes.IndexInfo{
 			Name: configKey,
@@ -108,12 +116,12 @@ func TestResolveAuthConfigFullURL(t *testing.T) {
 			authConfigs[registry] = configured
 			resolved := ResolveAuthConfig(authConfigs, index)
 			if resolved.Username != configured.Username || resolved.Password != configured.Password {
-				t.Errorf("%s -> %v != %v\n", registry, resolved, configured)
+				c.Errorf("%s -> %v != %v\n", registry, resolved, configured)
 			}
 			delete(authConfigs, registry)
 			resolved = ResolveAuthConfig(authConfigs, index)
 			if resolved.Username == configured.Username || resolved.Password == configured.Password {
-				t.Errorf("%s -> %v == %v\n", registry, resolved, configured)
+				c.Errorf("%s -> %v == %v\n", registry, resolved, configured)
 			}
 		}
 	}

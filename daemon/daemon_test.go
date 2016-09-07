@@ -5,7 +5,6 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
-	"testing"
 	"time"
 
 	"github.com/docker/docker/container"
@@ -19,13 +18,14 @@ import (
 	"github.com/docker/docker/volume/store"
 	containertypes "github.com/docker/engine-api/types/container"
 	"github.com/docker/go-connections/nat"
+	"github.com/go-check/check"
 )
 
 //
 // https://github.com/docker/docker/issues/8069
 //
 
-func TestGetContainer(t *testing.T) {
+func (s *DockerSuite) TestGetContainer(c *check.C) {
 	c1 := &container.Container{
 		CommonContainer: container.CommonContainer{
 			ID:   "5a4ff6a163ad4533d22d69a2b8960bf7fafdcba06e72d2febdba229008b0bf57",
@@ -88,32 +88,32 @@ func TestGetContainer(t *testing.T) {
 	daemon.reserveName(c5.ID, c5.Name)
 
 	if container, _ := daemon.GetContainer("3cdbd1aa394fd68559fd1441d6eff2ab7c1e6363582c82febfaa8045df3bd8de"); container != c2 {
-		t.Fatal("Should explicitly match full container IDs")
+		c.Fatal("Should explicitly match full container IDs")
 	}
 
 	if container, _ := daemon.GetContainer("75fb0b8009"); container != c4 {
-		t.Fatal("Should match a partial ID")
+		c.Fatal("Should match a partial ID")
 	}
 
 	if container, _ := daemon.GetContainer("drunk_hawking"); container != c2 {
-		t.Fatal("Should match a full name")
+		c.Fatal("Should match a full name")
 	}
 
 	// c3.Name is a partial match for both c3.ID and c2.ID
-	if c, _ := daemon.GetContainer("3cdbd1aa"); c != c3 {
-		t.Fatal("Should match a full name even though it collides with another container's ID")
+	if container, _ := daemon.GetContainer("3cdbd1aa"); container != c3 {
+		c.Fatal("Should match a full name even though it collides with another container's ID")
 	}
 
 	if container, _ := daemon.GetContainer("d22d69a2b896"); container != c5 {
-		t.Fatal("Should match a container where the provided prefix is an exact match to the its name, and is also a prefix for its ID")
+		c.Fatal("Should match a container where the provided prefix is an exact match to the its name, and is also a prefix for its ID")
 	}
 
 	if _, err := daemon.GetContainer("3cdbd1"); err == nil {
-		t.Fatal("Should return an error when provided a prefix that partially matches multiple container ID's")
+		c.Fatal("Should return an error when provided a prefix that partially matches multiple container ID's")
 	}
 
 	if _, err := daemon.GetContainer("nothing"); err == nil {
-		t.Fatal("Should return an error when provided a prefix that is neither a name or a partial match to an ID")
+		c.Fatal("Should return an error when provided a prefix that is neither a name or a partial match to an ID")
 	}
 }
 
@@ -137,34 +137,34 @@ func initDaemonWithVolumeStore(tmp string) (*Daemon, error) {
 	return daemon, nil
 }
 
-func TestValidContainerNames(t *testing.T) {
+func (s *DockerSuite) TestValidContainerNames(c *check.C) {
 	invalidNames := []string{"-rm", "&sdfsfd", "safd%sd"}
 	validNames := []string{"word-word", "word_word", "1weoid"}
 
 	for _, name := range invalidNames {
 		if validContainerNamePattern.MatchString(name) {
-			t.Fatalf("%q is not a valid container name and was returned as valid.", name)
+			c.Fatalf("%q is not a valid container name and was returned as valid.", name)
 		}
 	}
 
 	for _, name := range validNames {
 		if !validContainerNamePattern.MatchString(name) {
-			t.Fatalf("%q is a valid container name and was returned as invalid.", name)
+			c.Fatalf("%q is a valid container name and was returned as invalid.", name)
 		}
 	}
 }
 
-func TestContainerInitDNS(t *testing.T) {
+func (s *DockerSuite) TestContainerInitDNS(c *check.C) {
 	tmp, err := ioutil.TempDir("", "docker-container-test-")
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	defer os.RemoveAll(tmp)
 
 	containerID := "d59df5276e7b219d510fe70565e0404bc06350e0d4b43fe961f22f339980170e"
 	containerPath := filepath.Join(tmp, containerID)
 	if err := os.MkdirAll(containerPath, 0755); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	config := `{"State":{"Running":true,"Paused":false,"Restarting":false,"OOMKilled":false,"Dead":false,"Pid":2464,"ExitCode":0,
@@ -187,10 +187,10 @@ func TestContainerInitDNS(t *testing.T) {
 	container := &container.Container{CommonContainer: container.CommonContainer{Root: containerPath}}
 	configPath, err := container.ConfigPath()
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	if err = ioutil.WriteFile(configPath, []byte(config), 0644); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	hostConfig := `{"Binds":[],"ContainerIDFile":"","Memory":0,"MemorySwap":0,"CpuShares":0,"CpusetCpus":"",
@@ -200,33 +200,33 @@ func TestContainerInitDNS(t *testing.T) {
 
 	hostConfigPath, err := container.HostConfigPath()
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	if err = ioutil.WriteFile(hostConfigPath, []byte(hostConfig), 0644); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	daemon, err := initDaemonWithVolumeStore(tmp)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	defer volumedrivers.Unregister(volume.DefaultDriverName)
 
-	c, err := daemon.load(containerID)
+	ct, err := daemon.load(containerID)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
-	if c.HostConfig.DNS == nil {
-		t.Fatal("Expected container DNS to not be nil")
+	if ct.HostConfig.DNS == nil {
+		c.Fatal("Expected container DNS to not be nil")
 	}
 
-	if c.HostConfig.DNSSearch == nil {
-		t.Fatal("Expected container DNSSearch to not be nil")
+	if ct.HostConfig.DNSSearch == nil {
+		c.Fatal("Expected container DNSSearch to not be nil")
 	}
 
-	if c.HostConfig.DNSOptions == nil {
-		t.Fatal("Expected container DNSOptions to not be nil")
+	if ct.HostConfig.DNSOptions == nil {
+		c.Fatal("Expected container DNSOptions to not be nil")
 	}
 }
 
@@ -235,7 +235,7 @@ func newPortNoError(proto, port string) nat.Port {
 	return p
 }
 
-func TestMerge(t *testing.T) {
+func (s *DockerSuite) TestMerge(c *check.C) {
 	volumesImage := make(map[string]struct{})
 	volumesImage["/test1"] = struct{}{}
 	volumesImage["/test2"] = struct{}{}
@@ -260,58 +260,58 @@ func TestMerge(t *testing.T) {
 	}
 
 	if err := merge(configUser, configImage); err != nil {
-		t.Error(err)
+		c.Error(err)
 	}
 
 	if len(configUser.ExposedPorts) != 3 {
-		t.Fatalf("Expected 3 ExposedPorts, 1111, 2222 and 3333, found %d", len(configUser.ExposedPorts))
+		c.Fatalf("Expected 3 ExposedPorts, 1111, 2222 and 3333, found %d", len(configUser.ExposedPorts))
 	}
 	for portSpecs := range configUser.ExposedPorts {
 		if portSpecs.Port() != "1111" && portSpecs.Port() != "2222" && portSpecs.Port() != "3333" {
-			t.Fatalf("Expected 1111 or 2222 or 3333, found %s", portSpecs)
+			c.Fatalf("Expected 1111 or 2222 or 3333, found %s", portSpecs)
 		}
 	}
 	if len(configUser.Env) != 3 {
-		t.Fatalf("Expected 3 env var, VAR1=1, VAR2=3 and VAR3=3, found %d", len(configUser.Env))
+		c.Fatalf("Expected 3 env var, VAR1=1, VAR2=3 and VAR3=3, found %d", len(configUser.Env))
 	}
 	for _, env := range configUser.Env {
 		if env != "VAR1=1" && env != "VAR2=3" && env != "VAR3=3" {
-			t.Fatalf("Expected VAR1=1 or VAR2=3 or VAR3=3, found %s", env)
+			c.Fatalf("Expected VAR1=1 or VAR2=3 or VAR3=3, found %s", env)
 		}
 	}
 
 	if len(configUser.Volumes) != 3 {
-		t.Fatalf("Expected 3 volumes, /test1, /test2 and /test3, found %d", len(configUser.Volumes))
+		c.Fatalf("Expected 3 volumes, /test1, /test2 and /test3, found %d", len(configUser.Volumes))
 	}
 	for v := range configUser.Volumes {
 		if v != "/test1" && v != "/test2" && v != "/test3" {
-			t.Fatalf("Expected /test1 or /test2 or /test3, found %s", v)
+			c.Fatalf("Expected /test1 or /test2 or /test3, found %s", v)
 		}
 	}
 
 	ports, _, err := nat.ParsePortSpecs([]string{"0000"})
 	if err != nil {
-		t.Error(err)
+		c.Error(err)
 	}
 	configImage2 := &containertypes.Config{
 		ExposedPorts: ports,
 	}
 
 	if err := merge(configUser, configImage2); err != nil {
-		t.Error(err)
+		c.Error(err)
 	}
 
 	if len(configUser.ExposedPorts) != 4 {
-		t.Fatalf("Expected 4 ExposedPorts, 0000, 1111, 2222 and 3333, found %d", len(configUser.ExposedPorts))
+		c.Fatalf("Expected 4 ExposedPorts, 0000, 1111, 2222 and 3333, found %d", len(configUser.ExposedPorts))
 	}
 	for portSpecs := range configUser.ExposedPorts {
 		if portSpecs.Port() != "0" && portSpecs.Port() != "1111" && portSpecs.Port() != "2222" && portSpecs.Port() != "3333" {
-			t.Fatalf("Expected %q or %q or %q or %q, found %s", 0, 1111, 2222, 3333, portSpecs)
+			c.Fatalf("Expected %q or %q or %q or %q, found %s", 0, 1111, 2222, 3333, portSpecs)
 		}
 	}
 }
 
-func TestDaemonReloadLabels(t *testing.T) {
+func (s *DockerSuite) TestDaemonReloadLabels(c *check.C) {
 	daemon := &Daemon{}
 	daemon.configStore = &Config{
 		CommonConfig: CommonConfig{
@@ -331,11 +331,11 @@ func TestDaemonReloadLabels(t *testing.T) {
 	daemon.Reload(newConfig)
 	label := daemon.configStore.Labels[0]
 	if label != "foo:baz" {
-		t.Fatalf("Expected daemon label `foo:baz`, got %s", label)
+		c.Fatalf("Expected daemon label `foo:baz`, got %s", label)
 	}
 }
 
-func TestDaemonReloadNotAffectOthers(t *testing.T) {
+func (s *DockerSuite) TestDaemonReloadNotAffectOthers(c *check.C) {
 	daemon := &Daemon{}
 	daemon.configStore = &Config{
 		CommonConfig: CommonConfig{
@@ -356,15 +356,15 @@ func TestDaemonReloadNotAffectOthers(t *testing.T) {
 	daemon.Reload(newConfig)
 	label := daemon.configStore.Labels[0]
 	if label != "foo:baz" {
-		t.Fatalf("Expected daemon label `foo:baz`, got %s", label)
+		c.Fatalf("Expected daemon label `foo:baz`, got %s", label)
 	}
 	debug := daemon.configStore.Debug
 	if !debug {
-		t.Fatalf("Expected debug 'enabled', got 'disabled'")
+		c.Fatalf("Expected debug 'enabled', got 'disabled'")
 	}
 }
 
-func TestDaemonDiscoveryReload(t *testing.T) {
+func (s *DockerSuite) TestDaemonDiscoveryReload(c *check.C) {
 	daemon := &Daemon{}
 	daemon.configStore = &Config{
 		CommonConfig: CommonConfig{
@@ -374,7 +374,7 @@ func TestDaemonDiscoveryReload(t *testing.T) {
 	}
 
 	if err := daemon.initDiscovery(daemon.configStore); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	expected := discovery.Entries{
@@ -383,7 +383,7 @@ func TestDaemonDiscoveryReload(t *testing.T) {
 
 	select {
 	case <-time.After(10 * time.Second):
-		t.Fatal("timeout waiting for discovery")
+		c.Fatal("timeout waiting for discovery")
 	case <-daemon.discoveryWatcher.ReadyCh():
 	}
 
@@ -393,13 +393,13 @@ func TestDaemonDiscoveryReload(t *testing.T) {
 
 	select {
 	case <-time.After(1 * time.Second):
-		t.Fatal("failed to get discovery advertisements in time")
+		c.Fatal("failed to get discovery advertisements in time")
 	case e := <-ch:
 		if !reflect.DeepEqual(e, expected) {
-			t.Fatalf("expected %v, got %v\n", expected, e)
+			c.Fatalf("expected %v, got %v\n", expected, e)
 		}
 	case e := <-errCh:
-		t.Fatal(e)
+		c.Fatal(e)
 	}
 
 	valuesSets := make(map[string]interface{})
@@ -418,12 +418,12 @@ func TestDaemonDiscoveryReload(t *testing.T) {
 	}
 
 	if err := daemon.Reload(newConfig); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	select {
 	case <-time.After(10 * time.Second):
-		t.Fatal("timeout waiting for discovery")
+		c.Fatal("timeout waiting for discovery")
 	case <-daemon.discoveryWatcher.ReadyCh():
 	}
 
@@ -431,17 +431,17 @@ func TestDaemonDiscoveryReload(t *testing.T) {
 
 	select {
 	case <-time.After(1 * time.Second):
-		t.Fatal("failed to get discovery advertisements in time")
+		c.Fatal("failed to get discovery advertisements in time")
 	case e := <-ch:
 		if !reflect.DeepEqual(e, expected) {
-			t.Fatalf("expected %v, got %v\n", expected, e)
+			c.Fatalf("expected %v, got %v\n", expected, e)
 		}
 	case e := <-errCh:
-		t.Fatal(e)
+		c.Fatal(e)
 	}
 }
 
-func TestDaemonDiscoveryReloadFromEmptyDiscovery(t *testing.T) {
+func (s *DockerSuite) TestDaemonDiscoveryReloadFromEmptyDiscovery(c *check.C) {
 	daemon := &Daemon{}
 	daemon.configStore = &Config{}
 
@@ -461,12 +461,12 @@ func TestDaemonDiscoveryReloadFromEmptyDiscovery(t *testing.T) {
 	}
 
 	if err := daemon.Reload(newConfig); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	select {
 	case <-time.After(10 * time.Second):
-		t.Fatal("timeout waiting for discovery")
+		c.Fatal("timeout waiting for discovery")
 	case <-daemon.discoveryWatcher.ReadyCh():
 	}
 
@@ -476,17 +476,17 @@ func TestDaemonDiscoveryReloadFromEmptyDiscovery(t *testing.T) {
 
 	select {
 	case <-time.After(1 * time.Second):
-		t.Fatal("failed to get discovery advertisements in time")
+		c.Fatal("failed to get discovery advertisements in time")
 	case e := <-ch:
 		if !reflect.DeepEqual(e, expected) {
-			t.Fatalf("expected %v, got %v\n", expected, e)
+			c.Fatalf("expected %v, got %v\n", expected, e)
 		}
 	case e := <-errCh:
-		t.Fatal(e)
+		c.Fatal(e)
 	}
 }
 
-func TestDaemonDiscoveryReloadOnlyClusterAdvertise(t *testing.T) {
+func (s *DockerSuite) TestDaemonDiscoveryReloadOnlyClusterAdvertise(c *check.C) {
 	daemon := &Daemon{}
 	daemon.configStore = &Config{
 		CommonConfig: CommonConfig{
@@ -506,13 +506,13 @@ func TestDaemonDiscoveryReloadOnlyClusterAdvertise(t *testing.T) {
 	}
 
 	if err := daemon.Reload(newConfig); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	select {
 	case <-daemon.discoveryWatcher.ReadyCh():
 	case <-time.After(10 * time.Second):
-		t.Fatal("Timeout waiting for discovery")
+		c.Fatal("Timeout waiting for discovery")
 	}
 	stopCh := make(chan struct{})
 	defer close(stopCh)
@@ -520,13 +520,13 @@ func TestDaemonDiscoveryReloadOnlyClusterAdvertise(t *testing.T) {
 
 	select {
 	case <-time.After(1 * time.Second):
-		t.Fatal("failed to get discovery advertisements in time")
+		c.Fatal("failed to get discovery advertisements in time")
 	case e := <-ch:
 		if !reflect.DeepEqual(e, expected) {
-			t.Fatalf("expected %v, got %v\n", expected, e)
+			c.Fatalf("expected %v, got %v\n", expected, e)
 		}
 	case e := <-errCh:
-		t.Fatal(e)
+		c.Fatal(e)
 	}
 
 }

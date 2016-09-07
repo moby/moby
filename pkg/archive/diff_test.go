@@ -8,15 +8,15 @@ import (
 	"path/filepath"
 	"reflect"
 	"runtime"
-	"testing"
 
 	"github.com/docker/docker/pkg/ioutils"
+	"github.com/go-check/check"
 )
 
-func TestApplyLayerInvalidFilenames(t *testing.T) {
+func (s *DockerSuite) TestApplyLayerInvalidFilenames(c *check.C) {
 	// TODO Windows: Figure out how to fix this test.
 	if runtime.GOOS == "windows" {
-		t.Skip("Passes but hits breakoutError: platform and architecture is not supported")
+		c.Skip("Passes but hits breakoutError: platform and architecture is not supported")
 	}
 	for i, headers := range [][]*tar.Header{
 		{
@@ -36,14 +36,14 @@ func TestApplyLayerInvalidFilenames(t *testing.T) {
 		},
 	} {
 		if err := testBreakout("applylayer", "docker-TestApplyLayerInvalidFilenames", headers); err != nil {
-			t.Fatalf("i=%d. %v", i, err)
+			c.Fatalf("i=%d. %v", i, err)
 		}
 	}
 }
 
-func TestApplyLayerInvalidHardlink(t *testing.T) {
+func (s *DockerSuite) TestApplyLayerInvalidHardlink(c *check.C) {
 	if runtime.GOOS == "windows" {
-		t.Skip("TypeLink support on Windows")
+		c.Skip("TypeLink support on Windows")
 	}
 	for i, headers := range [][]*tar.Header{
 		{ // try reading victim/hello (../)
@@ -119,14 +119,14 @@ func TestApplyLayerInvalidHardlink(t *testing.T) {
 		},
 	} {
 		if err := testBreakout("applylayer", "docker-TestApplyLayerInvalidHardlink", headers); err != nil {
-			t.Fatalf("i=%d. %v", i, err)
+			c.Fatalf("i=%d. %v", i, err)
 		}
 	}
 }
 
-func TestApplyLayerInvalidSymlink(t *testing.T) {
+func (s *DockerSuite) TestApplyLayerInvalidSymlink(c *check.C) {
 	if runtime.GOOS == "windows" {
-		t.Skip("TypeSymLink support on Windows")
+		c.Skip("TypeSymLink support on Windows")
 	}
 	for i, headers := range [][]*tar.Header{
 		{ // try reading victim/hello (../)
@@ -202,15 +202,15 @@ func TestApplyLayerInvalidSymlink(t *testing.T) {
 		},
 	} {
 		if err := testBreakout("applylayer", "docker-TestApplyLayerInvalidSymlink", headers); err != nil {
-			t.Fatalf("i=%d. %v", i, err)
+			c.Fatalf("i=%d. %v", i, err)
 		}
 	}
 }
 
-func TestApplyLayerWhiteouts(t *testing.T) {
+func (s *DockerSuite) TestApplyLayerWhiteouts(c *check.C) {
 	// TODO Windows: Figure out why this test fails
 	if runtime.GOOS == "windows" {
-		t.Skip("Failing on Windows")
+		c.Skip("Failing on Windows")
 	}
 
 	wd, err := ioutil.TempDir("", "graphdriver-test-whiteouts")
@@ -304,25 +304,25 @@ func TestApplyLayerWhiteouts(t *testing.T) {
 	for i, tc := range tcases {
 		l, err := makeTestLayer(tc.change)
 		if err != nil {
-			t.Fatal(err)
+			c.Fatal(err)
 		}
 
 		_, err = UnpackLayer(wd, l, nil)
 		if err != nil {
-			t.Fatal(err)
+			c.Fatal(err)
 		}
 		err = l.Close()
 		if err != nil {
-			t.Fatal(err)
+			c.Fatal(err)
 		}
 
 		paths, err := readDirContents(wd)
 		if err != nil {
-			t.Fatal(err)
+			c.Fatal(err)
 		}
 
 		if !reflect.DeepEqual(tc.expected, paths) {
-			t.Fatalf("invalid files for layer %d: expected %q, got %q", i, tc.expected, paths)
+			c.Fatalf("invalid files for layer %d: expected %q, got %q", i, tc.expected, paths)
 		}
 	}
 

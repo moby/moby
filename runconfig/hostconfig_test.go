@@ -6,13 +6,13 @@ import (
 	"bytes"
 	"fmt"
 	"io/ioutil"
-	"testing"
 
 	"github.com/docker/engine-api/types/container"
+	"github.com/go-check/check"
 )
 
 // TODO Windows: This will need addressing for a Windows daemon.
-func TestNetworkModeTest(t *testing.T) {
+func (s *DockerSuite) TestNetworkModeTest(c *check.C) {
 	networkModes := map[container.NetworkMode][]bool{
 		// private, bridge, host, container, none, default
 		"":                         {true, false, false, false, false, false},
@@ -36,30 +36,30 @@ func TestNetworkModeTest(t *testing.T) {
 	}
 	for networkMode, state := range networkModes {
 		if networkMode.IsPrivate() != state[0] {
-			t.Fatalf("NetworkMode.IsPrivate for %v should have been %v but was %v", networkMode, state[0], networkMode.IsPrivate())
+			c.Fatalf("NetworkMode.IsPrivate for %v should have been %v but was %v", networkMode, state[0], networkMode.IsPrivate())
 		}
 		if networkMode.IsBridge() != state[1] {
-			t.Fatalf("NetworkMode.IsBridge for %v should have been %v but was %v", networkMode, state[1], networkMode.IsBridge())
+			c.Fatalf("NetworkMode.IsBridge for %v should have been %v but was %v", networkMode, state[1], networkMode.IsBridge())
 		}
 		if networkMode.IsHost() != state[2] {
-			t.Fatalf("NetworkMode.IsHost for %v should have been %v but was %v", networkMode, state[2], networkMode.IsHost())
+			c.Fatalf("NetworkMode.IsHost for %v should have been %v but was %v", networkMode, state[2], networkMode.IsHost())
 		}
 		if networkMode.IsContainer() != state[3] {
-			t.Fatalf("NetworkMode.IsContainer for %v should have been %v but was %v", networkMode, state[3], networkMode.IsContainer())
+			c.Fatalf("NetworkMode.IsContainer for %v should have been %v but was %v", networkMode, state[3], networkMode.IsContainer())
 		}
 		if networkMode.IsNone() != state[4] {
-			t.Fatalf("NetworkMode.IsNone for %v should have been %v but was %v", networkMode, state[4], networkMode.IsNone())
+			c.Fatalf("NetworkMode.IsNone for %v should have been %v but was %v", networkMode, state[4], networkMode.IsNone())
 		}
 		if networkMode.IsDefault() != state[5] {
-			t.Fatalf("NetworkMode.IsDefault for %v should have been %v but was %v", networkMode, state[5], networkMode.IsDefault())
+			c.Fatalf("NetworkMode.IsDefault for %v should have been %v but was %v", networkMode, state[5], networkMode.IsDefault())
 		}
 		if networkMode.NetworkName() != networkModeNames[networkMode] {
-			t.Fatalf("Expected name %v, got %v", networkModeNames[networkMode], networkMode.NetworkName())
+			c.Fatalf("Expected name %v, got %v", networkModeNames[networkMode], networkMode.NetworkName())
 		}
 	}
 }
 
-func TestIpcModeTest(t *testing.T) {
+func (s *DockerSuite) TestIpcModeTest(c *check.C) {
 	ipcModes := map[container.IpcMode][]bool{
 		// private, host, container, valid
 		"":                         {true, false, false, true},
@@ -72,16 +72,16 @@ func TestIpcModeTest(t *testing.T) {
 	}
 	for ipcMode, state := range ipcModes {
 		if ipcMode.IsPrivate() != state[0] {
-			t.Fatalf("IpcMode.IsPrivate for %v should have been %v but was %v", ipcMode, state[0], ipcMode.IsPrivate())
+			c.Fatalf("IpcMode.IsPrivate for %v should have been %v but was %v", ipcMode, state[0], ipcMode.IsPrivate())
 		}
 		if ipcMode.IsHost() != state[1] {
-			t.Fatalf("IpcMode.IsHost for %v should have been %v but was %v", ipcMode, state[1], ipcMode.IsHost())
+			c.Fatalf("IpcMode.IsHost for %v should have been %v but was %v", ipcMode, state[1], ipcMode.IsHost())
 		}
 		if ipcMode.IsContainer() != state[2] {
-			t.Fatalf("IpcMode.IsContainer for %v should have been %v but was %v", ipcMode, state[2], ipcMode.IsContainer())
+			c.Fatalf("IpcMode.IsContainer for %v should have been %v but was %v", ipcMode, state[2], ipcMode.IsContainer())
 		}
 		if ipcMode.Valid() != state[3] {
-			t.Fatalf("IpcMode.Valid for %v should have been %v but was %v", ipcMode, state[3], ipcMode.Valid())
+			c.Fatalf("IpcMode.Valid for %v should have been %v but was %v", ipcMode, state[3], ipcMode.Valid())
 		}
 	}
 	containerIpcModes := map[container.IpcMode]string{
@@ -95,12 +95,12 @@ func TestIpcModeTest(t *testing.T) {
 	}
 	for ipcMode, container := range containerIpcModes {
 		if ipcMode.Container() != container {
-			t.Fatalf("Expected %v for %v but was %v", container, ipcMode, ipcMode.Container())
+			c.Fatalf("Expected %v for %v but was %v", container, ipcMode, ipcMode.Container())
 		}
 	}
 }
 
-func TestUTSModeTest(t *testing.T) {
+func (s *DockerSuite) TestUTSModeTest(c *check.C) {
 	utsModes := map[container.UTSMode][]bool{
 		// private, host, valid
 		"":                {true, false, true},
@@ -110,18 +110,18 @@ func TestUTSModeTest(t *testing.T) {
 	}
 	for utsMode, state := range utsModes {
 		if utsMode.IsPrivate() != state[0] {
-			t.Fatalf("UtsMode.IsPrivate for %v should have been %v but was %v", utsMode, state[0], utsMode.IsPrivate())
+			c.Fatalf("UtsMode.IsPrivate for %v should have been %v but was %v", utsMode, state[0], utsMode.IsPrivate())
 		}
 		if utsMode.IsHost() != state[1] {
-			t.Fatalf("UtsMode.IsHost for %v should have been %v but was %v", utsMode, state[1], utsMode.IsHost())
+			c.Fatalf("UtsMode.IsHost for %v should have been %v but was %v", utsMode, state[1], utsMode.IsHost())
 		}
 		if utsMode.Valid() != state[2] {
-			t.Fatalf("UtsMode.Valid for %v should have been %v but was %v", utsMode, state[2], utsMode.Valid())
+			c.Fatalf("UtsMode.Valid for %v should have been %v but was %v", utsMode, state[2], utsMode.Valid())
 		}
 	}
 }
 
-func TestUsernsModeTest(t *testing.T) {
+func (s *DockerSuite) TestUsernsModeTest(c *check.C) {
 	usrensMode := map[container.UsernsMode][]bool{
 		// private, host, valid
 		"":                {true, false, true},
@@ -131,18 +131,18 @@ func TestUsernsModeTest(t *testing.T) {
 	}
 	for usernsMode, state := range usrensMode {
 		if usernsMode.IsPrivate() != state[0] {
-			t.Fatalf("UsernsMode.IsPrivate for %v should have been %v but was %v", usernsMode, state[0], usernsMode.IsPrivate())
+			c.Fatalf("UsernsMode.IsPrivate for %v should have been %v but was %v", usernsMode, state[0], usernsMode.IsPrivate())
 		}
 		if usernsMode.IsHost() != state[1] {
-			t.Fatalf("UsernsMode.IsHost for %v should have been %v but was %v", usernsMode, state[1], usernsMode.IsHost())
+			c.Fatalf("UsernsMode.IsHost for %v should have been %v but was %v", usernsMode, state[1], usernsMode.IsHost())
 		}
 		if usernsMode.Valid() != state[2] {
-			t.Fatalf("UsernsMode.Valid for %v should have been %v but was %v", usernsMode, state[2], usernsMode.Valid())
+			c.Fatalf("UsernsMode.Valid for %v should have been %v but was %v", usernsMode, state[2], usernsMode.Valid())
 		}
 	}
 }
 
-func TestPidModeTest(t *testing.T) {
+func (s *DockerSuite) TestPidModeTest(c *check.C) {
 	pidModes := map[container.PidMode][]bool{
 		// private, host, valid
 		"":                {true, false, true},
@@ -152,18 +152,18 @@ func TestPidModeTest(t *testing.T) {
 	}
 	for pidMode, state := range pidModes {
 		if pidMode.IsPrivate() != state[0] {
-			t.Fatalf("PidMode.IsPrivate for %v should have been %v but was %v", pidMode, state[0], pidMode.IsPrivate())
+			c.Fatalf("PidMode.IsPrivate for %v should have been %v but was %v", pidMode, state[0], pidMode.IsPrivate())
 		}
 		if pidMode.IsHost() != state[1] {
-			t.Fatalf("PidMode.IsHost for %v should have been %v but was %v", pidMode, state[1], pidMode.IsHost())
+			c.Fatalf("PidMode.IsHost for %v should have been %v but was %v", pidMode, state[1], pidMode.IsHost())
 		}
 		if pidMode.Valid() != state[2] {
-			t.Fatalf("PidMode.Valid for %v should have been %v but was %v", pidMode, state[2], pidMode.Valid())
+			c.Fatalf("PidMode.Valid for %v should have been %v but was %v", pidMode, state[2], pidMode.Valid())
 		}
 	}
 }
 
-func TestRestartPolicy(t *testing.T) {
+func (s *DockerSuite) TestRestartPolicy(c *check.C) {
 	restartPolicies := map[container.RestartPolicy][]bool{
 		// none, always, failure
 		container.RestartPolicy{}:                {true, false, false},
@@ -174,17 +174,17 @@ func TestRestartPolicy(t *testing.T) {
 	}
 	for restartPolicy, state := range restartPolicies {
 		if restartPolicy.IsNone() != state[0] {
-			t.Fatalf("RestartPolicy.IsNone for %v should have been %v but was %v", restartPolicy, state[0], restartPolicy.IsNone())
+			c.Fatalf("RestartPolicy.IsNone for %v should have been %v but was %v", restartPolicy, state[0], restartPolicy.IsNone())
 		}
 		if restartPolicy.IsAlways() != state[1] {
-			t.Fatalf("RestartPolicy.IsAlways for %v should have been %v but was %v", restartPolicy, state[1], restartPolicy.IsAlways())
+			c.Fatalf("RestartPolicy.IsAlways for %v should have been %v but was %v", restartPolicy, state[1], restartPolicy.IsAlways())
 		}
 		if restartPolicy.IsOnFailure() != state[2] {
-			t.Fatalf("RestartPolicy.IsOnFailure for %v should have been %v but was %v", restartPolicy, state[2], restartPolicy.IsOnFailure())
+			c.Fatalf("RestartPolicy.IsOnFailure for %v should have been %v but was %v", restartPolicy, state[2], restartPolicy.IsOnFailure())
 		}
 	}
 }
-func TestDecodeHostConfig(t *testing.T) {
+func (s *DockerSuite) TestDecodeHostConfig(c *check.C) {
 	fixtures := []struct {
 		file string
 	}{
@@ -195,28 +195,28 @@ func TestDecodeHostConfig(t *testing.T) {
 	for _, f := range fixtures {
 		b, err := ioutil.ReadFile(f.file)
 		if err != nil {
-			t.Fatal(err)
+			c.Fatal(err)
 		}
 
-		c, err := DecodeHostConfig(bytes.NewReader(b))
+		cc, err := DecodeHostConfig(bytes.NewReader(b))
 		if err != nil {
-			t.Fatal(fmt.Errorf("Error parsing %s: %v", f, err))
+			c.Fatal(fmt.Errorf("Error parsing %s: %v", f, err))
 		}
 
-		if c.Privileged != false {
-			t.Fatalf("Expected privileged false, found %v\n", c.Privileged)
+		if cc.Privileged != false {
+			c.Fatalf("Expected privileged false, found %v\n", cc.Privileged)
 		}
 
-		if l := len(c.Binds); l != 1 {
-			t.Fatalf("Expected 1 bind, found %d\n", l)
+		if l := len(cc.Binds); l != 1 {
+			c.Fatalf("Expected 1 bind, found %d\n", l)
 		}
 
-		if len(c.CapAdd) != 1 && c.CapAdd[0] != "NET_ADMIN" {
-			t.Fatalf("Expected CapAdd NET_ADMIN, got %v", c.CapAdd)
+		if len(cc.CapAdd) != 1 && cc.CapAdd[0] != "NET_ADMIN" {
+			c.Fatalf("Expected CapAdd NET_ADMIN, got %v", cc.CapAdd)
 		}
 
-		if len(c.CapDrop) != 1 && c.CapDrop[0] != "NET_ADMIN" {
-			t.Fatalf("Expected CapDrop MKNOD, got %v", c.CapDrop)
+		if len(cc.CapDrop) != 1 && cc.CapDrop[0] != "NET_ADMIN" {
+			c.Fatalf("Expected CapDrop MKNOD, got %v", cc.CapDrop)
 		}
 	}
 }

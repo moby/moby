@@ -4,7 +4,8 @@ package mount
 
 import (
 	"bytes"
-	"testing"
+
+	"github.com/go-check/check"
 )
 
 const (
@@ -422,39 +423,39 @@ const (
 99 15 8:33 / /media/REMOVE\040ME rw,nosuid,nodev,relatime - fuseblk /dev/sdc1 rw,user_id=0,group_id=0,allow_other,blksize=4096`
 )
 
-func TestParseFedoraMountinfo(t *testing.T) {
+func (s *DockerSuite) TestParseFedoraMountinfo(c *check.C) {
 	r := bytes.NewBuffer([]byte(fedoraMountinfo))
 	_, err := parseInfoFile(r)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 }
 
-func TestParseUbuntuMountinfo(t *testing.T) {
+func (s *DockerSuite) TestParseUbuntuMountinfo(c *check.C) {
 	r := bytes.NewBuffer([]byte(ubuntuMountInfo))
 	_, err := parseInfoFile(r)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 }
 
-func TestParseGentooMountinfo(t *testing.T) {
+func (s *DockerSuite) TestParseGentooMountinfo(c *check.C) {
 	r := bytes.NewBuffer([]byte(gentooMountinfo))
 	_, err := parseInfoFile(r)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 }
 
-func TestParseFedoraMountinfoFields(t *testing.T) {
+func (s *DockerSuite) TestParseFedoraMountinfoFields(c *check.C) {
 	r := bytes.NewBuffer([]byte(fedoraMountinfo))
 	infos, err := parseInfoFile(r)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	expectedLength := 58
 	if len(infos) != expectedLength {
-		t.Fatalf("Expected %d entries, got %d", expectedLength, len(infos))
+		c.Fatalf("Expected %d entries, got %d", expectedLength, len(infos))
 	}
 	mi := Info{
 		ID:         15,
@@ -471,6 +472,6 @@ func TestParseFedoraMountinfoFields(t *testing.T) {
 	}
 
 	if *infos[0] != mi {
-		t.Fatalf("expected %#v, got %#v", mi, infos[0])
+		c.Fatalf("expected %#v, got %#v", mi, infos[0])
 	}
 }

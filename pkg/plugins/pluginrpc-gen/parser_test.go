@@ -6,110 +6,119 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+
+	"github.com/go-check/check"
 )
+
+// Hook up gocheck into the "go test" runner.
+func Test(t *testing.T) { check.TestingT(t) }
+
+type DockerSuite struct{}
+
+var _ = check.Suite(&DockerSuite{})
 
 const testFixture = "fixtures/foo.go"
 
-func TestParseEmptyInterface(t *testing.T) {
+func (s *DockerSuite) TestParseEmptyInterface(c *check.C) {
 	pkg, err := Parse(testFixture, "Fooer")
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
-	assertName(t, "foo", pkg.Name)
-	assertNum(t, 0, len(pkg.Functions))
+	assertName(c, "foo", pkg.Name)
+	assertNum(c, 0, len(pkg.Functions))
 }
 
-func TestParseNonInterfaceType(t *testing.T) {
+func (s *DockerSuite) TestParseNonInterfaceType(c *check.C) {
 	_, err := Parse(testFixture, "wobble")
 	if _, ok := err.(errUnexpectedType); !ok {
-		t.Fatal("expected type error when parsing non-interface type")
+		c.Fatal("expected type error when parsing non-interface type")
 	}
 }
 
-func TestParseWithOneFunction(t *testing.T) {
+func (s *DockerSuite) TestParseWithOneFunction(c *check.C) {
 	pkg, err := Parse(testFixture, "Fooer2")
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
-	assertName(t, "foo", pkg.Name)
-	assertNum(t, 1, len(pkg.Functions))
-	assertName(t, "Foo", pkg.Functions[0].Name)
-	assertNum(t, 0, len(pkg.Functions[0].Args))
-	assertNum(t, 0, len(pkg.Functions[0].Returns))
+	assertName(c, "foo", pkg.Name)
+	assertNum(c, 1, len(pkg.Functions))
+	assertName(c, "Foo", pkg.Functions[0].Name)
+	assertNum(c, 0, len(pkg.Functions[0].Args))
+	assertNum(c, 0, len(pkg.Functions[0].Returns))
 }
 
-func TestParseWithMultipleFuncs(t *testing.T) {
+func (s *DockerSuite) TestParseWithMultipleFuncs(c *check.C) {
 	pkg, err := Parse(testFixture, "Fooer3")
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
-	assertName(t, "foo", pkg.Name)
-	assertNum(t, 7, len(pkg.Functions))
+	assertName(c, "foo", pkg.Name)
+	assertNum(c, 7, len(pkg.Functions))
 
 	f := pkg.Functions[0]
-	assertName(t, "Foo", f.Name)
-	assertNum(t, 0, len(f.Args))
-	assertNum(t, 0, len(f.Returns))
+	assertName(c, "Foo", f.Name)
+	assertNum(c, 0, len(f.Args))
+	assertNum(c, 0, len(f.Returns))
 
 	f = pkg.Functions[1]
-	assertName(t, "Bar", f.Name)
-	assertNum(t, 1, len(f.Args))
-	assertNum(t, 0, len(f.Returns))
+	assertName(c, "Bar", f.Name)
+	assertNum(c, 1, len(f.Args))
+	assertNum(c, 0, len(f.Returns))
 	arg := f.Args[0]
-	assertName(t, "a", arg.Name)
-	assertName(t, "string", arg.ArgType)
+	assertName(c, "a", arg.Name)
+	assertName(c, "string", arg.ArgType)
 
 	f = pkg.Functions[2]
-	assertName(t, "Baz", f.Name)
-	assertNum(t, 1, len(f.Args))
-	assertNum(t, 1, len(f.Returns))
+	assertName(c, "Baz", f.Name)
+	assertNum(c, 1, len(f.Args))
+	assertNum(c, 1, len(f.Returns))
 	arg = f.Args[0]
-	assertName(t, "a", arg.Name)
-	assertName(t, "string", arg.ArgType)
+	assertName(c, "a", arg.Name)
+	assertName(c, "string", arg.ArgType)
 	arg = f.Returns[0]
-	assertName(t, "err", arg.Name)
-	assertName(t, "error", arg.ArgType)
+	assertName(c, "err", arg.Name)
+	assertName(c, "error", arg.ArgType)
 
 	f = pkg.Functions[3]
-	assertName(t, "Qux", f.Name)
-	assertNum(t, 2, len(f.Args))
-	assertNum(t, 2, len(f.Returns))
+	assertName(c, "Qux", f.Name)
+	assertNum(c, 2, len(f.Args))
+	assertNum(c, 2, len(f.Returns))
 	arg = f.Args[0]
-	assertName(t, "a", f.Args[0].Name)
-	assertName(t, "string", f.Args[0].ArgType)
+	assertName(c, "a", f.Args[0].Name)
+	assertName(c, "string", f.Args[0].ArgType)
 	arg = f.Args[1]
-	assertName(t, "b", arg.Name)
-	assertName(t, "string", arg.ArgType)
+	assertName(c, "b", arg.Name)
+	assertName(c, "string", arg.ArgType)
 	arg = f.Returns[0]
-	assertName(t, "val", arg.Name)
-	assertName(t, "string", arg.ArgType)
+	assertName(c, "val", arg.Name)
+	assertName(c, "string", arg.ArgType)
 	arg = f.Returns[1]
-	assertName(t, "err", arg.Name)
-	assertName(t, "error", arg.ArgType)
+	assertName(c, "err", arg.Name)
+	assertName(c, "error", arg.ArgType)
 
 	f = pkg.Functions[4]
-	assertName(t, "Wobble", f.Name)
-	assertNum(t, 0, len(f.Args))
-	assertNum(t, 1, len(f.Returns))
+	assertName(c, "Wobble", f.Name)
+	assertNum(c, 0, len(f.Args))
+	assertNum(c, 1, len(f.Returns))
 	arg = f.Returns[0]
-	assertName(t, "w", arg.Name)
-	assertName(t, "*wobble", arg.ArgType)
+	assertName(c, "w", arg.Name)
+	assertName(c, "*wobble", arg.ArgType)
 
 	f = pkg.Functions[5]
-	assertName(t, "Wiggle", f.Name)
-	assertNum(t, 0, len(f.Args))
-	assertNum(t, 1, len(f.Returns))
+	assertName(c, "Wiggle", f.Name)
+	assertNum(c, 0, len(f.Args))
+	assertNum(c, 1, len(f.Returns))
 	arg = f.Returns[0]
-	assertName(t, "w", arg.Name)
-	assertName(t, "wobble", arg.ArgType)
+	assertName(c, "w", arg.Name)
+	assertName(c, "wobble", arg.ArgType)
 
 	f = pkg.Functions[6]
-	assertName(t, "WiggleWobble", f.Name)
-	assertNum(t, 6, len(f.Args))
-	assertNum(t, 6, len(f.Returns))
+	assertName(c, "WiggleWobble", f.Name)
+	assertNum(c, 6, len(f.Args))
+	assertNum(c, 6, len(f.Returns))
 	expectedArgs := [][]string{
 		{"a", "[]*wobble"},
 		{"b", "[]wobble"},
@@ -119,8 +128,8 @@ func TestParseWithMultipleFuncs(t *testing.T) {
 		{"f", "[]*otherfixture.Spaceship"},
 	}
 	for i, arg := range f.Args {
-		assertName(t, expectedArgs[i][0], arg.Name)
-		assertName(t, expectedArgs[i][1], arg.ArgType)
+		assertName(c, expectedArgs[i][0], arg.Name)
+		assertName(c, expectedArgs[i][1], arg.ArgType)
 	}
 	expectedReturns := [][]string{
 		{"g", "map[*wobble]wobble"},
@@ -131,92 +140,92 @@ func TestParseWithMultipleFuncs(t *testing.T) {
 		{"l", "[]otherfixture.Spaceship"},
 	}
 	for i, ret := range f.Returns {
-		assertName(t, expectedReturns[i][0], ret.Name)
-		assertName(t, expectedReturns[i][1], ret.ArgType)
+		assertName(c, expectedReturns[i][0], ret.Name)
+		assertName(c, expectedReturns[i][1], ret.ArgType)
 	}
 }
 
-func TestParseWithUnamedReturn(t *testing.T) {
+func (s *DockerSuite) TestParseWithUnamedReturn(c *check.C) {
 	_, err := Parse(testFixture, "Fooer4")
 	if !strings.HasSuffix(err.Error(), errBadReturn.Error()) {
-		t.Fatalf("expected ErrBadReturn, got %v", err)
+		c.Fatalf("expected ErrBadReturn, got %v", err)
 	}
 }
 
-func TestEmbeddedInterface(t *testing.T) {
+func (s *DockerSuite) TestEmbeddedInterface(c *check.C) {
 	pkg, err := Parse(testFixture, "Fooer5")
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
-	assertName(t, "foo", pkg.Name)
-	assertNum(t, 2, len(pkg.Functions))
+	assertName(c, "foo", pkg.Name)
+	assertNum(c, 2, len(pkg.Functions))
 
 	f := pkg.Functions[0]
-	assertName(t, "Foo", f.Name)
-	assertNum(t, 0, len(f.Args))
-	assertNum(t, 0, len(f.Returns))
+	assertName(c, "Foo", f.Name)
+	assertNum(c, 0, len(f.Args))
+	assertNum(c, 0, len(f.Returns))
 
 	f = pkg.Functions[1]
-	assertName(t, "Boo", f.Name)
-	assertNum(t, 2, len(f.Args))
-	assertNum(t, 2, len(f.Returns))
+	assertName(c, "Boo", f.Name)
+	assertNum(c, 2, len(f.Args))
+	assertNum(c, 2, len(f.Returns))
 
 	arg := f.Args[0]
-	assertName(t, "a", arg.Name)
-	assertName(t, "string", arg.ArgType)
+	assertName(c, "a", arg.Name)
+	assertName(c, "string", arg.ArgType)
 
 	arg = f.Args[1]
-	assertName(t, "b", arg.Name)
-	assertName(t, "string", arg.ArgType)
+	assertName(c, "b", arg.Name)
+	assertName(c, "string", arg.ArgType)
 
 	arg = f.Returns[0]
-	assertName(t, "s", arg.Name)
-	assertName(t, "string", arg.ArgType)
+	assertName(c, "s", arg.Name)
+	assertName(c, "string", arg.ArgType)
 
 	arg = f.Returns[1]
-	assertName(t, "err", arg.Name)
-	assertName(t, "error", arg.ArgType)
+	assertName(c, "err", arg.Name)
+	assertName(c, "error", arg.ArgType)
 }
 
-func TestParsedImports(t *testing.T) {
+func (s *DockerSuite) TestParsedImports(c *check.C) {
 	cases := []string{"Fooer6", "Fooer7", "Fooer8", "Fooer9", "Fooer10", "Fooer11"}
 	for _, testCase := range cases {
 		pkg, err := Parse(testFixture, testCase)
 		if err != nil {
-			t.Fatal(err)
+			c.Fatal(err)
 		}
 
-		assertNum(t, 1, len(pkg.Imports))
+		assertNum(c, 1, len(pkg.Imports))
 		importPath := strings.Split(pkg.Imports[0].Path, "/")
-		assertName(t, "otherfixture\"", importPath[len(importPath)-1])
-		assertName(t, "", pkg.Imports[0].Name)
+		assertName(c, "otherfixture\"", importPath[len(importPath)-1])
+		assertName(c, "", pkg.Imports[0].Name)
 	}
 }
 
-func TestAliasedImports(t *testing.T) {
+func (s *DockerSuite) TestAliasedImports(c *check.C) {
 	pkg, err := Parse(testFixture, "Fooer12")
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
-	assertNum(t, 1, len(pkg.Imports))
-	assertName(t, "aliasedio", pkg.Imports[0].Name)
+	assertNum(c, 1, len(pkg.Imports))
+	assertName(c, "aliasedio", pkg.Imports[0].Name)
 }
 
-func assertName(t *testing.T, expected, actual string) {
+func assertName(c *check.C, expected, actual string) {
 	if expected != actual {
-		fatalOut(t, fmt.Sprintf("expected name to be `%s`, got: %s", expected, actual))
+		fatalOut(c, fmt.Sprintf("expected name to be `%s`, got: %s", expected, actual))
 	}
 }
 
-func assertNum(t *testing.T, expected, actual int) {
+func assertNum(c *check.C, expected, actual int) {
 	if expected != actual {
-		fatalOut(t, fmt.Sprintf("expected number to be %d, got: %d", expected, actual))
+		fatalOut(c, fmt.Sprintf("expected number to be %d, got: %d", expected, actual))
 	}
 }
 
-func fatalOut(t *testing.T, msg string) {
+func fatalOut(c *check.C, msg string) {
 	_, file, ln, _ := runtime.Caller(2)
-	t.Fatalf("%s:%d: %s", filepath.Base(file), ln, msg)
+	c.Fatalf("%s:%d: %s", filepath.Base(file), ln, msg)
 }

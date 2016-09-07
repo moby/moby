@@ -2,9 +2,18 @@ package dockerfile
 
 import (
 	"testing"
+
+	"github.com/go-check/check"
 )
 
-func TestBuilderFlags(t *testing.T) {
+// Hook up gocheck into the "go test" runner.
+func Test(t *testing.T) { check.TestingT(t) }
+
+type DockerSuite struct{}
+
+var _ = check.Suite(&DockerSuite{})
+
+func (s *DockerSuite) TestBuilderFlags(c *check.C) {
 	var expected string
 	var err error
 
@@ -13,7 +22,7 @@ func TestBuilderFlags(t *testing.T) {
 	bf := NewBFlags()
 	bf.Args = []string{}
 	if err := bf.Parse(); err != nil {
-		t.Fatalf("Test1 of %q was supposed to work: %s", bf.Args, err)
+		c.Fatalf("Test1 of %q was supposed to work: %s", bf.Args, err)
 	}
 
 	// ---
@@ -21,7 +30,7 @@ func TestBuilderFlags(t *testing.T) {
 	bf = NewBFlags()
 	bf.Args = []string{"--"}
 	if err := bf.Parse(); err != nil {
-		t.Fatalf("Test2 of %q was supposed to work: %s", bf.Args, err)
+		c.Fatalf("Test2 of %q was supposed to work: %s", bf.Args, err)
 	}
 
 	// ---
@@ -31,14 +40,14 @@ func TestBuilderFlags(t *testing.T) {
 	flBool1 := bf.AddBool("bool1", false)
 	bf.Args = []string{}
 	if err = bf.Parse(); err != nil {
-		t.Fatalf("Test3 of %q was supposed to work: %s", bf.Args, err)
+		c.Fatalf("Test3 of %q was supposed to work: %s", bf.Args, err)
 	}
 
 	if flStr1.IsUsed() == true {
-		t.Fatalf("Test3 - str1 was not used!")
+		c.Fatalf("Test3 - str1 was not used!")
 	}
 	if flBool1.IsUsed() == true {
-		t.Fatalf("Test3 - bool1 was not used!")
+		c.Fatalf("Test3 - bool1 was not used!")
 	}
 
 	// ---
@@ -49,20 +58,20 @@ func TestBuilderFlags(t *testing.T) {
 	bf.Args = []string{}
 
 	if err = bf.Parse(); err != nil {
-		t.Fatalf("Test4 of %q was supposed to work: %s", bf.Args, err)
+		c.Fatalf("Test4 of %q was supposed to work: %s", bf.Args, err)
 	}
 
 	if flStr1.Value != "HI" {
-		t.Fatalf("Str1 was supposed to default to: HI")
+		c.Fatalf("Str1 was supposed to default to: HI")
 	}
 	if flBool1.IsTrue() {
-		t.Fatalf("Bool1 was supposed to default to: false")
+		c.Fatalf("Bool1 was supposed to default to: false")
 	}
 	if flStr1.IsUsed() == true {
-		t.Fatalf("Str1 was not used!")
+		c.Fatalf("Str1 was not used!")
 	}
 	if flBool1.IsUsed() == true {
-		t.Fatalf("Bool1 was not used!")
+		c.Fatalf("Bool1 was not used!")
 	}
 
 	// ---
@@ -72,7 +81,7 @@ func TestBuilderFlags(t *testing.T) {
 	bf.Args = []string{"--str1"}
 
 	if err = bf.Parse(); err == nil {
-		t.Fatalf("Test %q was supposed to fail", bf.Args)
+		c.Fatalf("Test %q was supposed to fail", bf.Args)
 	}
 
 	// ---
@@ -82,12 +91,12 @@ func TestBuilderFlags(t *testing.T) {
 	bf.Args = []string{"--str1="}
 
 	if err = bf.Parse(); err != nil {
-		t.Fatalf("Test %q was supposed to work: %s", bf.Args, err)
+		c.Fatalf("Test %q was supposed to work: %s", bf.Args, err)
 	}
 
 	expected = ""
 	if flStr1.Value != expected {
-		t.Fatalf("Str1 (%q) should be: %q", flStr1.Value, expected)
+		c.Fatalf("Str1 (%q) should be: %q", flStr1.Value, expected)
 	}
 
 	// ---
@@ -97,12 +106,12 @@ func TestBuilderFlags(t *testing.T) {
 	bf.Args = []string{"--str1=BYE"}
 
 	if err = bf.Parse(); err != nil {
-		t.Fatalf("Test %q was supposed to work: %s", bf.Args, err)
+		c.Fatalf("Test %q was supposed to work: %s", bf.Args, err)
 	}
 
 	expected = "BYE"
 	if flStr1.Value != expected {
-		t.Fatalf("Str1 (%q) should be: %q", flStr1.Value, expected)
+		c.Fatalf("Str1 (%q) should be: %q", flStr1.Value, expected)
 	}
 
 	// ---
@@ -112,11 +121,11 @@ func TestBuilderFlags(t *testing.T) {
 	bf.Args = []string{"--bool1"}
 
 	if err = bf.Parse(); err != nil {
-		t.Fatalf("Test %q was supposed to work: %s", bf.Args, err)
+		c.Fatalf("Test %q was supposed to work: %s", bf.Args, err)
 	}
 
 	if !flBool1.IsTrue() {
-		t.Fatalf("Test-b1 Bool1 was supposed to be true")
+		c.Fatalf("Test-b1 Bool1 was supposed to be true")
 	}
 
 	// ---
@@ -126,11 +135,11 @@ func TestBuilderFlags(t *testing.T) {
 	bf.Args = []string{"--bool1=true"}
 
 	if err = bf.Parse(); err != nil {
-		t.Fatalf("Test %q was supposed to work: %s", bf.Args, err)
+		c.Fatalf("Test %q was supposed to work: %s", bf.Args, err)
 	}
 
 	if !flBool1.IsTrue() {
-		t.Fatalf("Test-b2 Bool1 was supposed to be true")
+		c.Fatalf("Test-b2 Bool1 was supposed to be true")
 	}
 
 	// ---
@@ -140,11 +149,11 @@ func TestBuilderFlags(t *testing.T) {
 	bf.Args = []string{"--bool1=false"}
 
 	if err = bf.Parse(); err != nil {
-		t.Fatalf("Test %q was supposed to work: %s", bf.Args, err)
+		c.Fatalf("Test %q was supposed to work: %s", bf.Args, err)
 	}
 
 	if flBool1.IsTrue() {
-		t.Fatalf("Test-b3 Bool1 was supposed to be false")
+		c.Fatalf("Test-b3 Bool1 was supposed to be false")
 	}
 
 	// ---
@@ -154,7 +163,7 @@ func TestBuilderFlags(t *testing.T) {
 	bf.Args = []string{"--bool1=false1"}
 
 	if err = bf.Parse(); err == nil {
-		t.Fatalf("Test %q was supposed to fail", bf.Args)
+		c.Fatalf("Test %q was supposed to fail", bf.Args)
 	}
 
 	// ---
@@ -164,7 +173,7 @@ func TestBuilderFlags(t *testing.T) {
 	bf.Args = []string{"--bool2"}
 
 	if err = bf.Parse(); err == nil {
-		t.Fatalf("Test %q was supposed to fail", bf.Args)
+		c.Fatalf("Test %q was supposed to fail", bf.Args)
 	}
 
 	// ---
@@ -175,13 +184,13 @@ func TestBuilderFlags(t *testing.T) {
 	bf.Args = []string{"--bool1", "--str1=BYE"}
 
 	if err = bf.Parse(); err != nil {
-		t.Fatalf("Test %q was supposed to work: %s", bf.Args, err)
+		c.Fatalf("Test %q was supposed to work: %s", bf.Args, err)
 	}
 
 	if flStr1.Value != "BYE" {
-		t.Fatalf("Teset %s, str1 should be BYE", bf.Args)
+		c.Fatalf("Teset %s, str1 should be BYE", bf.Args)
 	}
 	if !flBool1.IsTrue() {
-		t.Fatalf("Teset %s, bool1 should be true", bf.Args)
+		c.Fatalf("Teset %s, bool1 should be true", bf.Args)
 	}
 }

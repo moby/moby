@@ -5,10 +5,18 @@ import (
 
 	"github.com/docker/docker/pkg/signal"
 	"github.com/docker/engine-api/types/container"
+	"github.com/go-check/check"
 )
 
-func TestContainerStopSignal(t *testing.T) {
-	c := &Container{
+// Hook up gocheck into the "go test" runner.
+func Test(t *testing.T) { check.TestingT(t) }
+
+type DockerSuite struct{}
+
+var _ = check.Suite(&DockerSuite{})
+
+func (s *DockerSuite) TestContainerStopSignal(c *check.C) {
+	co := &Container{
 		CommonContainer: CommonContainer{
 			Config: &container.Config{},
 		},
@@ -16,21 +24,21 @@ func TestContainerStopSignal(t *testing.T) {
 
 	def, err := signal.ParseSignal(signal.DefaultStopSignal)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
-	s := c.StopSignal()
-	if s != int(def) {
-		t.Fatalf("Expected %v, got %v", def, s)
+	ss := co.StopSignal()
+	if ss != int(def) {
+		c.Fatalf("Expected %v, got %v", def, ss)
 	}
 
-	c = &Container{
+	co = &Container{
 		CommonContainer: CommonContainer{
 			Config: &container.Config{StopSignal: "SIGKILL"},
 		},
 	}
-	s = c.StopSignal()
-	if s != 9 {
-		t.Fatalf("Expected 9, got %v", s)
+	ss = co.StopSignal()
+	if ss != 9 {
+		c.Fatalf("Expected 9, got %v", ss)
 	}
 }

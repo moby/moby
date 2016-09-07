@@ -8,12 +8,13 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
-	"testing"
+
+	"github.com/go-check/check"
 )
 
-func TestLocalSocket(t *testing.T) {
+func (s *DockerSuite) TestLocalSocket(c *check.C) {
 	// TODO Windows: Enable a similar version for Windows named pipes
-	tmpdir, unregister := Setup(t)
+	tmpdir, unregister := Setup(c)
 	defer unregister()
 
 	cases := []string{
@@ -21,40 +22,40 @@ func TestLocalSocket(t *testing.T) {
 		filepath.Join(tmpdir, "echo", "echo.sock"),
 	}
 
-	for _, c := range cases {
-		if err := os.MkdirAll(filepath.Dir(c), 0755); err != nil {
-			t.Fatal(err)
+	for _, ca := range cases {
+		if err := os.MkdirAll(filepath.Dir(ca), 0755); err != nil {
+			c.Fatal(err)
 		}
 
-		l, err := net.Listen("unix", c)
+		l, err := net.Listen("unix", ca)
 		if err != nil {
-			t.Fatal(err)
+			c.Fatal(err)
 		}
 
 		r := newLocalRegistry()
 		p, err := r.Plugin("echo")
 		if err != nil {
-			t.Fatal(err)
+			c.Fatal(err)
 		}
 
 		pp, err := r.Plugin("echo")
 		if err != nil {
-			t.Fatal(err)
+			c.Fatal(err)
 		}
 		if !reflect.DeepEqual(p, pp) {
-			t.Fatalf("Expected %v, was %v\n", p, pp)
+			c.Fatalf("Expected %v, was %v\n", p, pp)
 		}
 
 		if p.name != "echo" {
-			t.Fatalf("Expected plugin `echo`, got %s\n", p.name)
+			c.Fatalf("Expected plugin `echo`, got %s\n", p.name)
 		}
 
-		addr := fmt.Sprintf("unix://%s", c)
+		addr := fmt.Sprintf("unix://%s", ca)
 		if p.Addr != addr {
-			t.Fatalf("Expected plugin addr `%s`, got %s\n", addr, p.Addr)
+			c.Fatalf("Expected plugin addr `%s`, got %s\n", addr, p.Addr)
 		}
 		if p.TLSConfig.InsecureSkipVerify != true {
-			t.Fatalf("Expected TLS verification to be skipped")
+			c.Fatalf("Expected TLS verification to be skipped")
 		}
 		l.Close()
 	}

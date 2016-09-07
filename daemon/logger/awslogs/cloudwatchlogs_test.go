@@ -16,7 +16,15 @@ import (
 	"github.com/aws/aws-sdk-go/service/cloudwatchlogs"
 	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/dockerversion"
+	"github.com/go-check/check"
 )
+
+// Hook up gocheck into the "go test" runner.
+func Test(t *testing.T) { check.TestingT(t) }
+
+type DockerSuite struct{}
+
+var _ = check.Suite(&DockerSuite{})
 
 const (
 	groupName         = "groupName"
@@ -26,7 +34,7 @@ const (
 	logline           = "this is a log line"
 )
 
-func TestNewAWSLogsClientUserAgentHandler(t *testing.T) {
+func (s *DockerSuite) TestNewAWSLogsClientUserAgentHandler(c *check.C) {
 	ctx := logger.Context{
 		Config: map[string]string{
 			regionKey: "us-east-1",
@@ -35,11 +43,11 @@ func TestNewAWSLogsClientUserAgentHandler(t *testing.T) {
 
 	client, err := newAWSLogsClient(ctx)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	realClient, ok := client.(*cloudwatchlogs.CloudWatchLogs)
 	if !ok {
-		t.Fatal("Could not cast client to cloudwatchlogs.CloudWatchLogs")
+		c.Fatal("Could not cast client to cloudwatchlogs.CloudWatchLogs")
 	}
 	buildHandlerList := realClient.Handlers.Build
 	request := &request.Request{
@@ -52,12 +60,12 @@ func TestNewAWSLogsClientUserAgentHandler(t *testing.T) {
 		dockerversion.Version, runtime.GOOS, aws.SDKName, aws.SDKVersion, runtime.Version(), runtime.GOOS, runtime.GOARCH)
 	userAgent := request.HTTPRequest.Header.Get("User-Agent")
 	if userAgent != expectedUserAgentString {
-		t.Errorf("Wrong User-Agent string, expected \"%s\" but was \"%s\"",
+		c.Errorf("Wrong User-Agent string, expected \"%s\" but was \"%s\"",
 			expectedUserAgentString, userAgent)
 	}
 }
 
-func TestNewAWSLogsClientRegionDetect(t *testing.T) {
+func (s *DockerSuite) TestNewAWSLogsClientRegionDetect(c *check.C) {
 	ctx := logger.Context{
 		Config: map[string]string{},
 	}
@@ -72,11 +80,11 @@ func TestNewAWSLogsClientRegionDetect(t *testing.T) {
 
 	_, err := newAWSLogsClient(ctx)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 }
 
-func TestCreateSuccess(t *testing.T) {
+func (s *DockerSuite) TestCreateSuccess(c *check.C) {
 	mockClient := newMockClient()
 	stream := &logStream{
 		client:        mockClient,
@@ -88,24 +96,24 @@ func TestCreateSuccess(t *testing.T) {
 	err := stream.create()
 
 	if err != nil {
-		t.Errorf("Received unexpected err: %v\n", err)
+		c.Errorf("Received unexpected err: %v\n", err)
 	}
 	argument := <-mockClient.createLogStreamArgument
 	if argument.LogGroupName == nil {
-		t.Fatal("Expected non-nil LogGroupName")
+		c.Fatal("Expected non-nil LogGroupName")
 	}
 	if *argument.LogGroupName != groupName {
-		t.Errorf("Expected LogGroupName to be %s", groupName)
+		c.Errorf("Expected LogGroupName to be %s", groupName)
 	}
 	if argument.LogStreamName == nil {
-		t.Fatal("Expected non-nil LogGroupName")
+		c.Fatal("Expected non-nil LogGroupName")
 	}
 	if *argument.LogStreamName != streamName {
-		t.Errorf("Expected LogStreamName to be %s", streamName)
+		c.Errorf("Expected LogStreamName to be %s", streamName)
 	}
 }
 
-func TestCreateError(t *testing.T) {
+func (s *DockerSuite) TestCreateError(c *check.C) {
 	mockClient := newMockClient()
 	stream := &logStream{
 		client: mockClient,
@@ -117,11 +125,11 @@ func TestCreateError(t *testing.T) {
 	err := stream.create()
 
 	if err == nil {
-		t.Fatal("Expected non-nil err")
+		c.Fatal("Expected non-nil err")
 	}
 }
 
-func TestCreateAlreadyExists(t *testing.T) {
+func (s *DockerSuite) TestCreateAlreadyExists(c *check.C) {
 	mockClient := newMockClient()
 	stream := &logStream{
 		client: mockClient,
@@ -133,11 +141,11 @@ func TestCreateAlreadyExists(t *testing.T) {
 	err := stream.create()
 
 	if err != nil {
-		t.Fatal("Expected nil err")
+		c.Fatal("Expected nil err")
 	}
 }
 
-func TestPublishBatchSuccess(t *testing.T) {
+func (s *DockerSuite) TestPublishBatchSuccess(c *check.C) {
 	mockClient := newMockClient()
 	stream := &logStream{
 		client:        mockClient,
@@ -160,30 +168,30 @@ func TestPublishBatchSuccess(t *testing.T) {
 
 	stream.publishBatch(events)
 	if stream.sequenceToken == nil {
-		t.Fatal("Expected non-nil sequenceToken")
+		c.Fatal("Expected non-nil sequenceToken")
 	}
 	if *stream.sequenceToken != nextSequenceToken {
-		t.Errorf("Expected sequenceToken to be %s, but was %s", nextSequenceToken, *stream.sequenceToken)
+		c.Errorf("Expected sequenceToken to be %s, but was %s", nextSequenceToken, *stream.sequenceToken)
 	}
 	argument := <-mockClient.putLogEventsArgument
 	if argument == nil {
-		t.Fatal("Expected non-nil PutLogEventsInput")
+		c.Fatal("Expected non-nil PutLogEventsInput")
 	}
 	if argument.SequenceToken == nil {
-		t.Fatal("Expected non-nil PutLogEventsInput.SequenceToken")
+		c.Fatal("Expected non-nil PutLogEventsInput.SequenceToken")
 	}
 	if *argument.SequenceToken != sequenceToken {
-		t.Errorf("Expected PutLogEventsInput.SequenceToken to be %s, but was %s", sequenceToken, *argument.SequenceToken)
+		c.Errorf("Expected PutLogEventsInput.SequenceToken to be %s, but was %s", sequenceToken, *argument.SequenceToken)
 	}
 	if len(argument.LogEvents) != 1 {
-		t.Errorf("Expected LogEvents to contain 1 element, but contains %d", len(argument.LogEvents))
+		c.Errorf("Expected LogEvents to contain 1 element, but contains %d", len(argument.LogEvents))
 	}
 	if argument.LogEvents[0] != events[0].inputLogEvent {
-		t.Error("Expected event to equal input")
+		c.Error("Expected event to equal input")
 	}
 }
 
-func TestPublishBatchError(t *testing.T) {
+func (s *DockerSuite) TestPublishBatchError(c *check.C) {
 	mockClient := newMockClient()
 	stream := &logStream{
 		client:        mockClient,
@@ -205,14 +213,14 @@ func TestPublishBatchError(t *testing.T) {
 
 	stream.publishBatch(events)
 	if stream.sequenceToken == nil {
-		t.Fatal("Expected non-nil sequenceToken")
+		c.Fatal("Expected non-nil sequenceToken")
 	}
 	if *stream.sequenceToken != sequenceToken {
-		t.Errorf("Expected sequenceToken to be %s, but was %s", sequenceToken, *stream.sequenceToken)
+		c.Errorf("Expected sequenceToken to be %s, but was %s", sequenceToken, *stream.sequenceToken)
 	}
 }
 
-func TestPublishBatchInvalidSeqSuccess(t *testing.T) {
+func (s *DockerSuite) TestPublishBatchInvalidSeqSuccess(c *check.C) {
 	mockClient := newMockClientBuffered(2)
 	stream := &logStream{
 		client:        mockClient,
@@ -239,48 +247,48 @@ func TestPublishBatchInvalidSeqSuccess(t *testing.T) {
 
 	stream.publishBatch(events)
 	if stream.sequenceToken == nil {
-		t.Fatal("Expected non-nil sequenceToken")
+		c.Fatal("Expected non-nil sequenceToken")
 	}
 	if *stream.sequenceToken != nextSequenceToken {
-		t.Errorf("Expected sequenceToken to be %s, but was %s", nextSequenceToken, *stream.sequenceToken)
+		c.Errorf("Expected sequenceToken to be %s, but was %s", nextSequenceToken, *stream.sequenceToken)
 	}
 
 	argument := <-mockClient.putLogEventsArgument
 	if argument == nil {
-		t.Fatal("Expected non-nil PutLogEventsInput")
+		c.Fatal("Expected non-nil PutLogEventsInput")
 	}
 	if argument.SequenceToken == nil {
-		t.Fatal("Expected non-nil PutLogEventsInput.SequenceToken")
+		c.Fatal("Expected non-nil PutLogEventsInput.SequenceToken")
 	}
 	if *argument.SequenceToken != sequenceToken {
-		t.Errorf("Expected PutLogEventsInput.SequenceToken to be %s, but was %s", sequenceToken, *argument.SequenceToken)
+		c.Errorf("Expected PutLogEventsInput.SequenceToken to be %s, but was %s", sequenceToken, *argument.SequenceToken)
 	}
 	if len(argument.LogEvents) != 1 {
-		t.Errorf("Expected LogEvents to contain 1 element, but contains %d", len(argument.LogEvents))
+		c.Errorf("Expected LogEvents to contain 1 element, but contains %d", len(argument.LogEvents))
 	}
 	if argument.LogEvents[0] != events[0].inputLogEvent {
-		t.Error("Expected event to equal input")
+		c.Error("Expected event to equal input")
 	}
 
 	argument = <-mockClient.putLogEventsArgument
 	if argument == nil {
-		t.Fatal("Expected non-nil PutLogEventsInput")
+		c.Fatal("Expected non-nil PutLogEventsInput")
 	}
 	if argument.SequenceToken == nil {
-		t.Fatal("Expected non-nil PutLogEventsInput.SequenceToken")
+		c.Fatal("Expected non-nil PutLogEventsInput.SequenceToken")
 	}
 	if *argument.SequenceToken != "token" {
-		t.Errorf("Expected PutLogEventsInput.SequenceToken to be %s, but was %s", "token", *argument.SequenceToken)
+		c.Errorf("Expected PutLogEventsInput.SequenceToken to be %s, but was %s", "token", *argument.SequenceToken)
 	}
 	if len(argument.LogEvents) != 1 {
-		t.Errorf("Expected LogEvents to contain 1 element, but contains %d", len(argument.LogEvents))
+		c.Errorf("Expected LogEvents to contain 1 element, but contains %d", len(argument.LogEvents))
 	}
 	if argument.LogEvents[0] != events[0].inputLogEvent {
-		t.Error("Expected event to equal input")
+		c.Error("Expected event to equal input")
 	}
 }
 
-func TestPublishBatchAlreadyAccepted(t *testing.T) {
+func (s *DockerSuite) TestPublishBatchAlreadyAccepted(c *check.C) {
 	mockClient := newMockClient()
 	stream := &logStream{
 		client:        mockClient,
@@ -302,31 +310,31 @@ func TestPublishBatchAlreadyAccepted(t *testing.T) {
 
 	stream.publishBatch(events)
 	if stream.sequenceToken == nil {
-		t.Fatal("Expected non-nil sequenceToken")
+		c.Fatal("Expected non-nil sequenceToken")
 	}
 	if *stream.sequenceToken != "token" {
-		t.Errorf("Expected sequenceToken to be %s, but was %s", "token", *stream.sequenceToken)
+		c.Errorf("Expected sequenceToken to be %s, but was %s", "token", *stream.sequenceToken)
 	}
 
 	argument := <-mockClient.putLogEventsArgument
 	if argument == nil {
-		t.Fatal("Expected non-nil PutLogEventsInput")
+		c.Fatal("Expected non-nil PutLogEventsInput")
 	}
 	if argument.SequenceToken == nil {
-		t.Fatal("Expected non-nil PutLogEventsInput.SequenceToken")
+		c.Fatal("Expected non-nil PutLogEventsInput.SequenceToken")
 	}
 	if *argument.SequenceToken != sequenceToken {
-		t.Errorf("Expected PutLogEventsInput.SequenceToken to be %s, but was %s", sequenceToken, *argument.SequenceToken)
+		c.Errorf("Expected PutLogEventsInput.SequenceToken to be %s, but was %s", sequenceToken, *argument.SequenceToken)
 	}
 	if len(argument.LogEvents) != 1 {
-		t.Errorf("Expected LogEvents to contain 1 element, but contains %d", len(argument.LogEvents))
+		c.Errorf("Expected LogEvents to contain 1 element, but contains %d", len(argument.LogEvents))
 	}
 	if argument.LogEvents[0] != events[0].inputLogEvent {
-		t.Error("Expected event to equal input")
+		c.Error("Expected event to equal input")
 	}
 }
 
-func TestCollectBatchSimple(t *testing.T) {
+func (s *DockerSuite) TestCollectBatchSimple(c *check.C) {
 	mockClient := newMockClient()
 	stream := &logStream{
 		client:        mockClient,
@@ -359,17 +367,17 @@ func TestCollectBatchSimple(t *testing.T) {
 
 	argument := <-mockClient.putLogEventsArgument
 	if argument == nil {
-		t.Fatal("Expected non-nil PutLogEventsInput")
+		c.Fatal("Expected non-nil PutLogEventsInput")
 	}
 	if len(argument.LogEvents) != 1 {
-		t.Errorf("Expected LogEvents to contain 1 element, but contains %d", len(argument.LogEvents))
+		c.Errorf("Expected LogEvents to contain 1 element, but contains %d", len(argument.LogEvents))
 	}
 	if *argument.LogEvents[0].Message != logline {
-		t.Errorf("Expected message to be %s but was %s", logline, *argument.LogEvents[0].Message)
+		c.Errorf("Expected message to be %s but was %s", logline, *argument.LogEvents[0].Message)
 	}
 }
 
-func TestCollectBatchTicker(t *testing.T) {
+func (s *DockerSuite) TestCollectBatchTicker(c *check.C) {
 	mockClient := newMockClient()
 	stream := &logStream{
 		client:        mockClient,
@@ -406,16 +414,16 @@ func TestCollectBatchTicker(t *testing.T) {
 	// Verify first batch
 	argument := <-mockClient.putLogEventsArgument
 	if argument == nil {
-		t.Fatal("Expected non-nil PutLogEventsInput")
+		c.Fatal("Expected non-nil PutLogEventsInput")
 	}
 	if len(argument.LogEvents) != 2 {
-		t.Errorf("Expected LogEvents to contain 2 elements, but contains %d", len(argument.LogEvents))
+		c.Errorf("Expected LogEvents to contain 2 elements, but contains %d", len(argument.LogEvents))
 	}
 	if *argument.LogEvents[0].Message != logline+" 1" {
-		t.Errorf("Expected message to be %s but was %s", logline+" 1", *argument.LogEvents[0].Message)
+		c.Errorf("Expected message to be %s but was %s", logline+" 1", *argument.LogEvents[0].Message)
 	}
 	if *argument.LogEvents[1].Message != logline+" 2" {
-		t.Errorf("Expected message to be %s but was %s", logline+" 2", *argument.LogEvents[0].Message)
+		c.Errorf("Expected message to be %s but was %s", logline+" 2", *argument.LogEvents[0].Message)
 	}
 
 	stream.Log(&logger.Message{
@@ -426,20 +434,20 @@ func TestCollectBatchTicker(t *testing.T) {
 	ticks <- time.Time{}
 	argument = <-mockClient.putLogEventsArgument
 	if argument == nil {
-		t.Fatal("Expected non-nil PutLogEventsInput")
+		c.Fatal("Expected non-nil PutLogEventsInput")
 	}
 	if len(argument.LogEvents) != 1 {
-		t.Errorf("Expected LogEvents to contain 1 elements, but contains %d", len(argument.LogEvents))
+		c.Errorf("Expected LogEvents to contain 1 elements, but contains %d", len(argument.LogEvents))
 	}
 	if *argument.LogEvents[0].Message != logline+" 3" {
-		t.Errorf("Expected message to be %s but was %s", logline+" 3", *argument.LogEvents[0].Message)
+		c.Errorf("Expected message to be %s but was %s", logline+" 3", *argument.LogEvents[0].Message)
 	}
 
 	stream.Close()
 
 }
 
-func TestCollectBatchClose(t *testing.T) {
+func (s *DockerSuite) TestCollectBatchClose(c *check.C) {
 	mockClient := newMockClient()
 	stream := &logStream{
 		client:        mockClient,
@@ -472,17 +480,17 @@ func TestCollectBatchClose(t *testing.T) {
 
 	argument := <-mockClient.putLogEventsArgument
 	if argument == nil {
-		t.Fatal("Expected non-nil PutLogEventsInput")
+		c.Fatal("Expected non-nil PutLogEventsInput")
 	}
 	if len(argument.LogEvents) != 1 {
-		t.Errorf("Expected LogEvents to contain 1 element, but contains %d", len(argument.LogEvents))
+		c.Errorf("Expected LogEvents to contain 1 element, but contains %d", len(argument.LogEvents))
 	}
 	if *argument.LogEvents[0].Message != logline {
-		t.Errorf("Expected message to be %s but was %s", logline, *argument.LogEvents[0].Message)
+		c.Errorf("Expected message to be %s but was %s", logline, *argument.LogEvents[0].Message)
 	}
 }
 
-func TestCollectBatchLineSplit(t *testing.T) {
+func (s *DockerSuite) TestCollectBatchLineSplit(c *check.C) {
 	mockClient := newMockClient()
 	stream := &logStream{
 		client:        mockClient,
@@ -516,20 +524,20 @@ func TestCollectBatchLineSplit(t *testing.T) {
 
 	argument := <-mockClient.putLogEventsArgument
 	if argument == nil {
-		t.Fatal("Expected non-nil PutLogEventsInput")
+		c.Fatal("Expected non-nil PutLogEventsInput")
 	}
 	if len(argument.LogEvents) != 2 {
-		t.Errorf("Expected LogEvents to contain 2 elements, but contains %d", len(argument.LogEvents))
+		c.Errorf("Expected LogEvents to contain 2 elements, but contains %d", len(argument.LogEvents))
 	}
 	if *argument.LogEvents[0].Message != longline {
-		t.Errorf("Expected message to be %s but was %s", longline, *argument.LogEvents[0].Message)
+		c.Errorf("Expected message to be %s but was %s", longline, *argument.LogEvents[0].Message)
 	}
 	if *argument.LogEvents[1].Message != "B" {
-		t.Errorf("Expected message to be %s but was %s", "B", *argument.LogEvents[1].Message)
+		c.Errorf("Expected message to be %s but was %s", "B", *argument.LogEvents[1].Message)
 	}
 }
 
-func TestCollectBatchMaxEvents(t *testing.T) {
+func (s *DockerSuite) TestCollectBatchMaxEvents(c *check.C) {
 	mockClient := newMockClientBuffered(1)
 	stream := &logStream{
 		client:        mockClient,
@@ -565,22 +573,22 @@ func TestCollectBatchMaxEvents(t *testing.T) {
 
 	argument := <-mockClient.putLogEventsArgument
 	if argument == nil {
-		t.Fatal("Expected non-nil PutLogEventsInput")
+		c.Fatal("Expected non-nil PutLogEventsInput")
 	}
 	if len(argument.LogEvents) != maximumLogEventsPerPut {
-		t.Errorf("Expected LogEvents to contain %d elements, but contains %d", maximumLogEventsPerPut, len(argument.LogEvents))
+		c.Errorf("Expected LogEvents to contain %d elements, but contains %d", maximumLogEventsPerPut, len(argument.LogEvents))
 	}
 
 	argument = <-mockClient.putLogEventsArgument
 	if argument == nil {
-		t.Fatal("Expected non-nil PutLogEventsInput")
+		c.Fatal("Expected non-nil PutLogEventsInput")
 	}
 	if len(argument.LogEvents) != 1 {
-		t.Errorf("Expected LogEvents to contain %d elements, but contains %d", 1, len(argument.LogEvents))
+		c.Errorf("Expected LogEvents to contain %d elements, but contains %d", 1, len(argument.LogEvents))
 	}
 }
 
-func TestCollectBatchMaxTotalBytes(t *testing.T) {
+func (s *DockerSuite) TestCollectBatchMaxTotalBytes(c *check.C) {
 	mockClient := newMockClientBuffered(1)
 	stream := &logStream{
 		client:        mockClient,
@@ -614,27 +622,27 @@ func TestCollectBatchMaxTotalBytes(t *testing.T) {
 
 	argument := <-mockClient.putLogEventsArgument
 	if argument == nil {
-		t.Fatal("Expected non-nil PutLogEventsInput")
+		c.Fatal("Expected non-nil PutLogEventsInput")
 	}
 	bytes := 0
 	for _, event := range argument.LogEvents {
 		bytes += len(*event.Message)
 	}
 	if bytes > maximumBytesPerPut {
-		t.Errorf("Expected <= %d bytes but was %d", maximumBytesPerPut, bytes)
+		c.Errorf("Expected <= %d bytes but was %d", maximumBytesPerPut, bytes)
 	}
 
 	argument = <-mockClient.putLogEventsArgument
 	if len(argument.LogEvents) != 1 {
-		t.Errorf("Expected LogEvents to contain 1 elements, but contains %d", len(argument.LogEvents))
+		c.Errorf("Expected LogEvents to contain 1 elements, but contains %d", len(argument.LogEvents))
 	}
 	message := *argument.LogEvents[0].Message
 	if message[len(message)-1:] != "B" {
-		t.Errorf("Expected message to be %s but was %s", "B", message[len(message)-1:])
+		c.Errorf("Expected message to be %s but was %s", "B", message[len(message)-1:])
 	}
 }
 
-func TestCollectBatchWithDuplicateTimestamps(t *testing.T) {
+func (s *DockerSuite) TestCollectBatchWithDuplicateTimestamps(c *check.C) {
 	mockClient := newMockClient()
 	stream := &logStream{
 		client:        mockClient,
@@ -680,14 +688,14 @@ func TestCollectBatchWithDuplicateTimestamps(t *testing.T) {
 
 	argument := <-mockClient.putLogEventsArgument
 	if argument == nil {
-		t.Fatal("Expected non-nil PutLogEventsInput")
+		c.Fatal("Expected non-nil PutLogEventsInput")
 	}
 	if len(argument.LogEvents) != times {
-		t.Errorf("Expected LogEvents to contain %d elements, but contains %d", times, len(argument.LogEvents))
+		c.Errorf("Expected LogEvents to contain %d elements, but contains %d", times, len(argument.LogEvents))
 	}
 	for i := 0; i < times; i++ {
 		if !reflect.DeepEqual(*argument.LogEvents[i], *expectedEvents[i]) {
-			t.Errorf("Expected event to be %v but was %v", *expectedEvents[i], *argument.LogEvents[i])
+			c.Errorf("Expected event to be %v but was %v", *expectedEvents[i], *argument.LogEvents[i])
 		}
 	}
 }

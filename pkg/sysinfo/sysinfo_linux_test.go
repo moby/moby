@@ -5,54 +5,55 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"testing"
+
+	"github.com/go-check/check"
 )
 
-func TestReadProcBool(t *testing.T) {
+func (s *DockerSuite) TestReadProcBool(c *check.C) {
 	tmpDir, err := ioutil.TempDir("", "test-sysinfo-proc")
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	defer os.RemoveAll(tmpDir)
 
 	procFile := filepath.Join(tmpDir, "read-proc-bool")
 	if err := ioutil.WriteFile(procFile, []byte("1"), 644); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	if !readProcBool(procFile) {
-		t.Fatal("expected proc bool to be true, got false")
+		c.Fatal("expected proc bool to be true, got false")
 	}
 
 	if err := ioutil.WriteFile(procFile, []byte("0"), 644); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	if readProcBool(procFile) {
-		t.Fatal("expected proc bool to be false, got false")
+		c.Fatal("expected proc bool to be false, got false")
 	}
 
 	if readProcBool(path.Join(tmpDir, "no-exist")) {
-		t.Fatal("should be false for non-existent entry")
+		c.Fatal("should be false for non-existent entry")
 	}
 
 }
 
-func TestCgroupEnabled(t *testing.T) {
+func (s *DockerSuite) TestCgroupEnabled(c *check.C) {
 	cgroupDir, err := ioutil.TempDir("", "cgroup-test")
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	defer os.RemoveAll(cgroupDir)
 
 	if cgroupEnabled(cgroupDir, "test") {
-		t.Fatal("cgroupEnabled should be false")
+		c.Fatal("cgroupEnabled should be false")
 	}
 
 	if err := ioutil.WriteFile(path.Join(cgroupDir, "test"), []byte{}, 644); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	if !cgroupEnabled(cgroupDir, "test") {
-		t.Fatal("cgroupEnabled should be true")
+		c.Fatal("cgroupEnabled should be true")
 	}
 }

@@ -6,18 +6,26 @@ import (
 	"testing"
 
 	"github.com/docker/docker/layer"
+	"github.com/go-check/check"
 )
 
-func TestV1IDService(t *testing.T) {
+// Hook up gocheck into the "go test" runner.
+func Test(t *testing.T) { check.TestingT(t) }
+
+type DockerSuite struct{}
+
+var _ = check.Suite(&DockerSuite{})
+
+func (s *DockerSuite) TestV1IDService(c *check.C) {
 	tmpDir, err := ioutil.TempDir("", "v1-id-service-test")
 	if err != nil {
-		t.Fatalf("could not create temp dir: %v", err)
+		c.Fatalf("could not create temp dir: %v", err)
 	}
 	defer os.RemoveAll(tmpDir)
 
 	metadataStore, err := NewFSMetadataStore(tmpDir)
 	if err != nil {
-		t.Fatalf("could not create metadata store: %v", err)
+		c.Fatalf("could not create metadata store: %v", err)
 	}
 	v1IDService := NewV1IDService(metadataStore)
 
@@ -47,7 +55,7 @@ func TestV1IDService(t *testing.T) {
 	for _, vec := range testVectors {
 		err := v1IDService.Set(vec.v1ID, vec.registry, vec.layerID)
 		if err != nil {
-			t.Fatalf("error calling Set: %v", err)
+			c.Fatalf("error calling Set: %v", err)
 		}
 	}
 
@@ -55,29 +63,29 @@ func TestV1IDService(t *testing.T) {
 	for _, vec := range testVectors {
 		layerID, err := v1IDService.Get(vec.v1ID, vec.registry)
 		if err != nil {
-			t.Fatalf("error calling Get: %v", err)
+			c.Fatalf("error calling Get: %v", err)
 		}
 		if layerID != vec.layerID {
-			t.Fatal("Get returned incorrect layer ID")
+			c.Fatal("Get returned incorrect layer ID")
 		}
 	}
 
 	// Test Get on a nonexistent entry
 	_, err = v1IDService.Get("82379823067823853223359023576437723560923756b03560378f4497753917", "registry1")
 	if err == nil {
-		t.Fatal("expected error looking up nonexistent entry")
+		c.Fatal("expected error looking up nonexistent entry")
 	}
 
 	// Overwrite one of the entries and read it back
 	err = v1IDService.Set(testVectors[0].v1ID, testVectors[0].registry, testVectors[1].layerID)
 	if err != nil {
-		t.Fatalf("error calling Set: %v", err)
+		c.Fatalf("error calling Set: %v", err)
 	}
 	layerID, err := v1IDService.Get(testVectors[0].v1ID, testVectors[0].registry)
 	if err != nil {
-		t.Fatalf("error calling Get: %v", err)
+		c.Fatalf("error calling Get: %v", err)
 	}
 	if layerID != testVectors[1].layerID {
-		t.Fatal("Get returned incorrect layer ID")
+		c.Fatal("Get returned incorrect layer ID")
 	}
 }

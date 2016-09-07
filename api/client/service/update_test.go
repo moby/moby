@@ -2,14 +2,14 @@ package service
 
 import (
 	"sort"
-	"testing"
 
 	"github.com/docker/docker/pkg/testutil/assert"
 	mounttypes "github.com/docker/engine-api/types/mount"
 	"github.com/docker/engine-api/types/swarm"
+	"github.com/go-check/check"
 )
 
-func TestUpdateServiceArgs(t *testing.T) {
+func (s *DockerSuite) TestUpdateServiceArgs(c *check.C) {
 	flags := newUpdateCommand(nil).Flags()
 	flags.Set("args", "the \"new args\"")
 
@@ -18,10 +18,10 @@ func TestUpdateServiceArgs(t *testing.T) {
 	cspec.Args = []string{"old", "args"}
 
 	updateService(flags, spec)
-	assert.EqualStringSlice(t, cspec.Args, []string{"the", "new args"})
+	assert.EqualStringSlice(c, cspec.Args, []string{"the", "new args"})
 }
 
-func TestUpdateLabels(t *testing.T) {
+func (s *DockerSuite) TestUpdateLabels(c *check.C) {
 	flags := newUpdateCommand(nil).Flags()
 	flags.Set("label-add", "toadd=newlabel")
 	flags.Set("label-rm", "toremove")
@@ -32,21 +32,21 @@ func TestUpdateLabels(t *testing.T) {
 	}
 
 	updateLabels(flags, &labels)
-	assert.Equal(t, len(labels), 2)
-	assert.Equal(t, labels["tokeep"], "value")
-	assert.Equal(t, labels["toadd"], "newlabel")
+	assert.Equal(c, len(labels), 2)
+	assert.Equal(c, labels["tokeep"], "value")
+	assert.Equal(c, labels["toadd"], "newlabel")
 }
 
-func TestUpdateLabelsRemoveALabelThatDoesNotExist(t *testing.T) {
+func (s *DockerSuite) TestUpdateLabelsRemoveALabelThatDoesNotExist(c *check.C) {
 	flags := newUpdateCommand(nil).Flags()
 	flags.Set("label-rm", "dne")
 
 	labels := map[string]string{"foo": "theoldlabel"}
 	updateLabels(flags, &labels)
-	assert.Equal(t, len(labels), 1)
+	assert.Equal(c, len(labels), 1)
 }
 
-func TestUpdatePlacement(t *testing.T) {
+func (s *DockerSuite) TestUpdatePlacement(c *check.C) {
 	flags := newUpdateCommand(nil).Flags()
 	flags.Set("constraint-add", "node=toadd")
 	flags.Set("constraint-rm", "node!=toremove")
@@ -56,12 +56,12 @@ func TestUpdatePlacement(t *testing.T) {
 	}
 
 	updatePlacement(flags, placement)
-	assert.Equal(t, len(placement.Constraints), 2)
-	assert.Equal(t, placement.Constraints[0], "container=tokeep")
-	assert.Equal(t, placement.Constraints[1], "node=toadd")
+	assert.Equal(c, len(placement.Constraints), 2)
+	assert.Equal(c, placement.Constraints[0], "container=tokeep")
+	assert.Equal(c, placement.Constraints[1], "node=toadd")
 }
 
-func TestUpdateEnvironment(t *testing.T) {
+func (s *DockerSuite) TestUpdateEnvironment(c *check.C) {
 	flags := newUpdateCommand(nil).Flags()
 	flags.Set("env-add", "toadd=newenv")
 	flags.Set("env-rm", "toremove")
@@ -69,14 +69,14 @@ func TestUpdateEnvironment(t *testing.T) {
 	envs := []string{"toremove=theenvtoremove", "tokeep=value"}
 
 	updateEnvironment(flags, &envs)
-	assert.Equal(t, len(envs), 2)
+	assert.Equal(c, len(envs), 2)
 	// Order has been removed in updateEnvironment (map)
 	sort.Strings(envs)
-	assert.Equal(t, envs[0], "toadd=newenv")
-	assert.Equal(t, envs[1], "tokeep=value")
+	assert.Equal(c, envs[0], "toadd=newenv")
+	assert.Equal(c, envs[1], "tokeep=value")
 }
 
-func TestUpdateEnvironmentWithDuplicateValues(t *testing.T) {
+func (s *DockerSuite) TestUpdateEnvironmentWithDuplicateValues(c *check.C) {
 	flags := newUpdateCommand(nil).Flags()
 	flags.Set("env-add", "foo=newenv")
 	flags.Set("env-add", "foo=dupe")
@@ -85,10 +85,10 @@ func TestUpdateEnvironmentWithDuplicateValues(t *testing.T) {
 	envs := []string{"foo=value"}
 
 	updateEnvironment(flags, &envs)
-	assert.Equal(t, len(envs), 0)
+	assert.Equal(c, len(envs), 0)
 }
 
-func TestUpdateEnvironmentWithDuplicateKeys(t *testing.T) {
+func (s *DockerSuite) TestUpdateEnvironmentWithDuplicateKeys(c *check.C) {
 	// Test case for #25404
 	flags := newUpdateCommand(nil).Flags()
 	flags.Set("env-add", "A=b")
@@ -96,11 +96,11 @@ func TestUpdateEnvironmentWithDuplicateKeys(t *testing.T) {
 	envs := []string{"A=c"}
 
 	updateEnvironment(flags, &envs)
-	assert.Equal(t, len(envs), 1)
-	assert.Equal(t, envs[0], "A=b")
+	assert.Equal(c, len(envs), 1)
+	assert.Equal(c, envs[0], "A=b")
 }
 
-func TestUpdateGroups(t *testing.T) {
+func (s *DockerSuite) TestUpdateGroups(c *check.C) {
 	flags := newUpdateCommand(nil).Flags()
 	flags.Set("group-add", "wheel")
 	flags.Set("group-add", "docker")
@@ -111,13 +111,13 @@ func TestUpdateGroups(t *testing.T) {
 	groups := []string{"bar", "root"}
 
 	updateGroups(flags, &groups)
-	assert.Equal(t, len(groups), 3)
-	assert.Equal(t, groups[0], "bar")
-	assert.Equal(t, groups[1], "foo")
-	assert.Equal(t, groups[2], "wheel")
+	assert.Equal(c, len(groups), 3)
+	assert.Equal(c, groups[0], "bar")
+	assert.Equal(c, groups[1], "foo")
+	assert.Equal(c, groups[2], "wheel")
 }
 
-func TestUpdateMounts(t *testing.T) {
+func (s *DockerSuite) TestUpdateMounts(c *check.C) {
 	flags := newUpdateCommand(nil).Flags()
 	flags.Set("mount-add", "type=volume,target=/toadd")
 	flags.Set("mount-rm", "/toremove")
@@ -128,12 +128,12 @@ func TestUpdateMounts(t *testing.T) {
 	}
 
 	updateMounts(flags, &mounts)
-	assert.Equal(t, len(mounts), 2)
-	assert.Equal(t, mounts[0].Target, "/tokeep")
-	assert.Equal(t, mounts[1].Target, "/toadd")
+	assert.Equal(c, len(mounts), 2)
+	assert.Equal(c, mounts[0].Target, "/tokeep")
+	assert.Equal(c, mounts[1].Target, "/toadd")
 }
 
-func TestUpdatePorts(t *testing.T) {
+func (s *DockerSuite) TestUpdatePorts(c *check.C) {
 	flags := newUpdateCommand(nil).Flags()
 	flags.Set("publish-add", "1000:1000")
 	flags.Set("publish-rm", "333/udp")
@@ -144,16 +144,16 @@ func TestUpdatePorts(t *testing.T) {
 	}
 
 	err := updatePorts(flags, &portConfigs)
-	assert.Equal(t, err, nil)
-	assert.Equal(t, len(portConfigs), 2)
+	assert.Equal(c, err, nil)
+	assert.Equal(c, len(portConfigs), 2)
 	// Do a sort to have the order (might have changed by map)
 	targetPorts := []int{int(portConfigs[0].TargetPort), int(portConfigs[1].TargetPort)}
 	sort.Ints(targetPorts)
-	assert.Equal(t, targetPorts[0], 555)
-	assert.Equal(t, targetPorts[1], 1000)
+	assert.Equal(c, targetPorts[0], 555)
+	assert.Equal(c, targetPorts[1], 1000)
 }
 
-func TestUpdatePortsDuplicateEntries(t *testing.T) {
+func (s *DockerSuite) TestUpdatePortsDuplicateEntries(c *check.C) {
 	// Test case for #25375
 	flags := newUpdateCommand(nil).Flags()
 	flags.Set("publish-add", "80:80")
@@ -163,12 +163,12 @@ func TestUpdatePortsDuplicateEntries(t *testing.T) {
 	}
 
 	err := updatePorts(flags, &portConfigs)
-	assert.Equal(t, err, nil)
-	assert.Equal(t, len(portConfigs), 1)
-	assert.Equal(t, portConfigs[0].TargetPort, uint32(80))
+	assert.Equal(c, err, nil)
+	assert.Equal(c, len(portConfigs), 1)
+	assert.Equal(c, portConfigs[0].TargetPort, uint32(80))
 }
 
-func TestUpdatePortsDuplicateKeys(t *testing.T) {
+func (s *DockerSuite) TestUpdatePortsDuplicateKeys(c *check.C) {
 	// Test case for #25375
 	flags := newUpdateCommand(nil).Flags()
 	flags.Set("publish-add", "80:20")
@@ -178,12 +178,12 @@ func TestUpdatePortsDuplicateKeys(t *testing.T) {
 	}
 
 	err := updatePorts(flags, &portConfigs)
-	assert.Equal(t, err, nil)
-	assert.Equal(t, len(portConfigs), 1)
-	assert.Equal(t, portConfigs[0].TargetPort, uint32(20))
+	assert.Equal(c, err, nil)
+	assert.Equal(c, len(portConfigs), 1)
+	assert.Equal(c, portConfigs[0].TargetPort, uint32(20))
 }
 
-func TestUpdatePortsConflictingFlags(t *testing.T) {
+func (s *DockerSuite) TestUpdatePortsConflictingFlags(c *check.C) {
 	// Test case for #25375
 	flags := newUpdateCommand(nil).Flags()
 	flags.Set("publish-add", "80:80")
@@ -194,5 +194,5 @@ func TestUpdatePortsConflictingFlags(t *testing.T) {
 	}
 
 	err := updatePorts(flags, &portConfigs)
-	assert.Error(t, err, "conflicting port mapping")
+	assert.Error(c, err, "conflicting port mapping")
 }

@@ -4,10 +4,11 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"testing"
+
+	"github.com/go-check/check"
 )
 
-func TestValidateAttach(t *testing.T) {
+func (s *DockerSuite) TestValidateAttach(c *check.C) {
 	valid := []string{
 		"stdin",
 		"stdout",
@@ -17,21 +18,21 @@ func TestValidateAttach(t *testing.T) {
 		"STDERR",
 	}
 	if _, err := ValidateAttach("invalid"); err == nil {
-		t.Fatalf("Expected error with [valid streams are STDIN, STDOUT and STDERR], got nothing")
+		c.Fatalf("Expected error with [valid streams are STDIN, STDOUT and STDERR], got nothing")
 	}
 
 	for _, attach := range valid {
 		value, err := ValidateAttach(attach)
 		if err != nil {
-			t.Fatal(err)
+			c.Fatal(err)
 		}
 		if value != strings.ToLower(attach) {
-			t.Fatalf("Expected [%v], got [%v]", attach, value)
+			c.Fatalf("Expected [%v], got [%v]", attach, value)
 		}
 	}
 }
 
-func TestValidateEnv(t *testing.T) {
+func (s *DockerSuite) TestValidateEnv(c *check.C) {
 	valids := map[string]string{
 		"a":                   "a",
 		"something":           "something",
@@ -53,15 +54,15 @@ func TestValidateEnv(t *testing.T) {
 	for value, expected := range valids {
 		actual, err := ValidateEnv(value)
 		if err != nil {
-			t.Fatal(err)
+			c.Fatal(err)
 		}
 		if actual != expected {
-			t.Fatalf("Expected [%v], got [%v]", expected, actual)
+			c.Fatalf("Expected [%v], got [%v]", expected, actual)
 		}
 	}
 }
 
-func TestValidateExtraHosts(t *testing.T) {
+func (s *DockerSuite) TestValidateExtraHosts(c *check.C) {
 	valid := []string{
 		`myhost:192.168.0.1`,
 		`thathost:10.0.2.1`,
@@ -78,31 +79,31 @@ func TestValidateExtraHosts(t *testing.T) {
 
 	for _, extrahost := range valid {
 		if _, err := ValidateExtraHost(extrahost); err != nil {
-			t.Fatalf("ValidateExtraHost(`"+extrahost+"`) should succeed: error %v", err)
+			c.Fatalf("ValidateExtraHost(`"+extrahost+"`) should succeed: error %v", err)
 		}
 	}
 
 	for extraHost, expectedError := range invalid {
 		if _, err := ValidateExtraHost(extraHost); err == nil {
-			t.Fatalf("ValidateExtraHost(`%q`) should have failed validation", extraHost)
+			c.Fatalf("ValidateExtraHost(`%q`) should have failed validation", extraHost)
 		} else {
 			if !strings.Contains(err.Error(), expectedError) {
-				t.Fatalf("ValidateExtraHost(`%q`) error should contain %q", extraHost, expectedError)
+				c.Fatalf("ValidateExtraHost(`%q`) error should contain %q", extraHost, expectedError)
 			}
 		}
 	}
 }
 
-func TestValidateMACAddress(t *testing.T) {
+func (s *DockerSuite) TestValidateMACAddress(c *check.C) {
 	if _, err := ValidateMACAddress(`92:d0:c6:0a:29:33`); err != nil {
-		t.Fatalf("ValidateMACAddress(`92:d0:c6:0a:29:33`) got %s", err)
+		c.Fatalf("ValidateMACAddress(`92:d0:c6:0a:29:33`) got %s", err)
 	}
 
 	if _, err := ValidateMACAddress(`92:d0:c6:0a:33`); err == nil {
-		t.Fatalf("ValidateMACAddress(`92:d0:c6:0a:33`) succeeded; expected failure on invalid MAC")
+		c.Fatalf("ValidateMACAddress(`92:d0:c6:0a:33`) succeeded; expected failure on invalid MAC")
 	}
 
 	if _, err := ValidateMACAddress(`random invalid string`); err == nil {
-		t.Fatalf("ValidateMACAddress(`random invalid string`) succeeded; expected failure on invalid MAC")
+		c.Fatalf("ValidateMACAddress(`random invalid string`) succeeded; expected failure on invalid MAC")
 	}
 }

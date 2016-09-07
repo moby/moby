@@ -10,9 +10,18 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/go-check/check"
 )
 
-func TestIsKilledFalseWithNonKilledProcess(t *testing.T) {
+// Hook up gocheck into the "go test" runner.
+func Test(t *testing.T) { check.TestingT(t) }
+
+type DockerSuite struct{}
+
+var _ = check.Suite(&DockerSuite{})
+
+func (s *DockerSuite) TestIsKilledFalseWithNonKilledProcess(c *check.C) {
 	var lsCmd *exec.Cmd
 	if runtime.GOOS != "windows" {
 		lsCmd = exec.Command("ls")
@@ -22,11 +31,11 @@ func TestIsKilledFalseWithNonKilledProcess(t *testing.T) {
 
 	err := lsCmd.Run()
 	if IsKilled(err) {
-		t.Fatalf("Expected the ls command to not be killed, was.")
+		c.Fatalf("Expected the ls command to not be killed, was.")
 	}
 }
 
-func TestIsKilledTrueWithKilledProcess(t *testing.T) {
+func (s *DockerSuite) TestIsKilledTrueWithKilledProcess(c *check.C) {
 	var longCmd *exec.Cmd
 	if runtime.GOOS != "windows" {
 		longCmd = exec.Command("top")
@@ -37,7 +46,7 @@ func TestIsKilledTrueWithKilledProcess(t *testing.T) {
 	// Start a command
 	err := longCmd.Start()
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	// Capture the error when *dying*
 	done := make(chan error, 1)
@@ -49,19 +58,19 @@ func TestIsKilledTrueWithKilledProcess(t *testing.T) {
 	// Get the error
 	err = <-done
 	if !IsKilled(err) {
-		t.Fatalf("Expected the command to be killed, was not.")
+		c.Fatalf("Expected the command to be killed, was not.")
 	}
 }
 
-func TestRunCommandPipelineWithOutputWithNotEnoughCmds(t *testing.T) {
+func (s *DockerSuite) TestRunCommandPipelineWithOutputWithNotEnoughCmds(c *check.C) {
 	_, _, err := RunCommandPipelineWithOutput(exec.Command("ls"))
 	expectedError := "pipeline does not have multiple cmds"
 	if err == nil || err.Error() != expectedError {
-		t.Fatalf("Expected an error with %s, got err:%s", expectedError, err)
+		c.Fatalf("Expected an error with %s, got err:%s", expectedError, err)
 	}
 }
 
-func TestRunCommandPipelineWithOutputErrors(t *testing.T) {
+func (s *DockerSuite) TestRunCommandPipelineWithOutputErrors(c *check.C) {
 	p := "$PATH"
 	if runtime.GOOS == "windows" {
 		p = "%PATH%"
@@ -71,18 +80,18 @@ func TestRunCommandPipelineWithOutputErrors(t *testing.T) {
 	cmd2 := exec.Command("anything really")
 	_, _, err := RunCommandPipelineWithOutput(cmd1, cmd2)
 	if err == nil || err.Error() != "cannot set stdout pipe for anything really: exec: Stdout already set" {
-		t.Fatalf("Expected an error, got %v", err)
+		c.Fatalf("Expected an error, got %v", err)
 	}
 
 	cmdWithError := exec.Command("doesnotexists")
 	cmdCat := exec.Command("cat")
 	_, _, err = RunCommandPipelineWithOutput(cmdWithError, cmdCat)
 	if err == nil || err.Error() != `starting doesnotexists failed with error: exec: "doesnotexists": executable file not found in `+p {
-		t.Fatalf("Expected an error, got %v", err)
+		c.Fatalf("Expected an error, got %v", err)
 	}
 }
 
-func TestRunCommandPipelineWithOutput(t *testing.T) {
+func (s *DockerSuite) TestRunCommandPipelineWithOutput(c *check.C) {
 	cmds := []*exec.Cmd{
 		// Print 2 characters
 		exec.Command("echo", "-n", "11"),
@@ -92,24 +101,24 @@ func TestRunCommandPipelineWithOutput(t *testing.T) {
 	out, exitCode, err := RunCommandPipelineWithOutput(cmds...)
 	expectedOutput := "2\n"
 	if out != expectedOutput || exitCode != 0 || err != nil {
-		t.Fatalf("Expected %s for commands %v, got out:%s, exitCode:%d, err:%v", expectedOutput, cmds, out, exitCode, err)
+		c.Fatalf("Expected %s for commands %v, got out:%s, exitCode:%d, err:%v", expectedOutput, cmds, out, exitCode, err)
 	}
 }
 
-func TestConvertSliceOfStringsToMap(t *testing.T) {
+func (s *DockerSuite) TestConvertSliceOfStringsToMap(c *check.C) {
 	input := []string{"a", "b"}
 	actual := ConvertSliceOfStringsToMap(input)
 	for _, key := range input {
 		if _, ok := actual[key]; !ok {
-			t.Fatalf("Expected output to contains key %s, did not: %v", key, actual)
+			c.Fatalf("Expected output to contains key %s, did not: %v", key, actual)
 		}
 	}
 }
 
-func TestCompareDirectoryEntries(t *testing.T) {
+func (s *DockerSuite) TestCompareDirectoryEntries(c *check.C) {
 	tmpFolder, err := ioutil.TempDir("", "integration-cli-utils-compare-directories")
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	defer os.RemoveAll(tmpFolder)
 
@@ -120,15 +129,15 @@ func TestCompareDirectoryEntries(t *testing.T) {
 
 	fi1, err := os.Stat(file1)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	fi1bis, err := os.Stat(file1)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	fi2, err := os.Stat(file2)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	cases := []struct {
@@ -164,23 +173,23 @@ func TestCompareDirectoryEntries(t *testing.T) {
 	for _, elt := range cases {
 		err := CompareDirectoryEntries(elt.e1, elt.e2)
 		if elt.shouldError && err == nil {
-			t.Fatalf("Should have return an error, did not with %v and %v", elt.e1, elt.e2)
+			c.Fatalf("Should have return an error, did not with %v and %v", elt.e1, elt.e2)
 		}
 		if !elt.shouldError && err != nil {
-			t.Fatalf("Should have not returned an error, but did : %v with %v and %v", err, elt.e1, elt.e2)
+			c.Fatalf("Should have not returned an error, but did : %v with %v and %v", err, elt.e1, elt.e2)
 		}
 	}
 }
 
 // FIXME make an "unhappy path" test for ListTar without "panicking" :-)
-func TestListTar(t *testing.T) {
+func (s *DockerSuite) TestListTar(c *check.C) {
 	// TODO Windows: Figure out why this fails. Should be portable.
 	if runtime.GOOS == "windows" {
-		t.Skip("Failing on Windows - needs further investigation")
+		c.Skip("Failing on Windows - needs further investigation")
 	}
 	tmpFolder, err := ioutil.TempDir("", "integration-cli-utils-list-tar")
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	defer os.RemoveAll(tmpFolder)
 
@@ -191,25 +200,25 @@ func TestListTar(t *testing.T) {
 	cmd := exec.Command("sh", "-c", "tar cf "+tarFile+" "+srcFile)
 	_, err = cmd.CombinedOutput()
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	reader, err := os.Open(tarFile)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	defer reader.Close()
 
 	entries, err := ListTar(reader)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	if len(entries) != 1 && entries[0] != "src" {
-		t.Fatalf("Expected a tar file with 1 entry (%s), got %v", srcFile, entries)
+		c.Fatalf("Expected a tar file with 1 entry (%s), got %v", srcFile, entries)
 	}
 }
 
-func TestRandomTmpDirPath(t *testing.T) {
+func (s *DockerSuite) TestRandomTmpDirPath(c *check.C) {
 	path := RandomTmpDirPath("something", runtime.GOOS)
 
 	prefix := "/tmp/something"
@@ -219,29 +228,29 @@ func TestRandomTmpDirPath(t *testing.T) {
 	expectedSize := len(prefix) + 11
 
 	if !strings.HasPrefix(path, prefix) {
-		t.Fatalf("Expected generated path to have '%s' as prefix, got %s'", prefix, path)
+		c.Fatalf("Expected generated path to have '%s' as prefix, got %s'", prefix, path)
 	}
 	if len(path) != expectedSize {
-		t.Fatalf("Expected generated path to be %d, got %d", expectedSize, len(path))
+		c.Fatalf("Expected generated path to be %d, got %d", expectedSize, len(path))
 	}
 }
 
-func TestConsumeWithSpeed(t *testing.T) {
+func (s *DockerSuite) TestConsumeWithSpeed(c *check.C) {
 	reader := strings.NewReader("1234567890")
 	chunksize := 2
 
 	bytes1, err := ConsumeWithSpeed(reader, chunksize, 1*time.Second, nil)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	if bytes1 != 10 {
-		t.Fatalf("Expected to have read 10 bytes, got %d", bytes1)
+		c.Fatalf("Expected to have read 10 bytes, got %d", bytes1)
 	}
 
 }
 
-func TestConsumeWithSpeedWithStop(t *testing.T) {
+func (s *DockerSuite) TestConsumeWithSpeedWithStop(c *check.C) {
 	reader := strings.NewReader("1234567890")
 	chunksize := 2
 
@@ -254,44 +263,44 @@ func TestConsumeWithSpeedWithStop(t *testing.T) {
 
 	bytes1, err := ConsumeWithSpeed(reader, chunksize, 20*time.Millisecond, stopIt)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	if bytes1 != 2 {
-		t.Fatalf("Expected to have read 2 bytes, got %d", bytes1)
+		c.Fatalf("Expected to have read 2 bytes, got %d", bytes1)
 	}
 
 }
 
-func TestParseCgroupPathsEmpty(t *testing.T) {
+func (s *DockerSuite) TestParseCgroupPathsEmpty(c *check.C) {
 	cgroupMap := ParseCgroupPaths("")
 	if len(cgroupMap) != 0 {
-		t.Fatalf("Expected an empty map, got %v", cgroupMap)
+		c.Fatalf("Expected an empty map, got %v", cgroupMap)
 	}
 	cgroupMap = ParseCgroupPaths("\n")
 	if len(cgroupMap) != 0 {
-		t.Fatalf("Expected an empty map, got %v", cgroupMap)
+		c.Fatalf("Expected an empty map, got %v", cgroupMap)
 	}
 	cgroupMap = ParseCgroupPaths("something:else\nagain:here")
 	if len(cgroupMap) != 0 {
-		t.Fatalf("Expected an empty map, got %v", cgroupMap)
+		c.Fatalf("Expected an empty map, got %v", cgroupMap)
 	}
 }
 
-func TestParseCgroupPaths(t *testing.T) {
+func (s *DockerSuite) TestParseCgroupPaths(c *check.C) {
 	cgroupMap := ParseCgroupPaths("2:memory:/a\n1:cpuset:/b")
 	if len(cgroupMap) != 2 {
-		t.Fatalf("Expected a map with 2 entries, got %v", cgroupMap)
+		c.Fatalf("Expected a map with 2 entries, got %v", cgroupMap)
 	}
 	if value, ok := cgroupMap["memory"]; !ok || value != "/a" {
-		t.Fatalf("Expected cgroupMap to contains an entry for 'memory' with value '/a', got %v", cgroupMap)
+		c.Fatalf("Expected cgroupMap to contains an entry for 'memory' with value '/a', got %v", cgroupMap)
 	}
 	if value, ok := cgroupMap["cpuset"]; !ok || value != "/b" {
-		t.Fatalf("Expected cgroupMap to contains an entry for 'cpuset' with value '/b', got %v", cgroupMap)
+		c.Fatalf("Expected cgroupMap to contains an entry for 'cpuset' with value '/b', got %v", cgroupMap)
 	}
 }
 
-func TestChannelBufferTimeout(t *testing.T) {
+func (s *DockerSuite) TestChannelBufferTimeout(c *check.C) {
 	expected := "11"
 
 	buf := &ChannelBuffer{make(chan []byte, 1)}
@@ -308,12 +317,12 @@ func TestChannelBufferTimeout(t *testing.T) {
 	b := make([]byte, 2)
 	_, err := buf.ReadTimeout(b, 50*time.Millisecond)
 	if err == nil && err.Error() != "timeout reading from channel" {
-		t.Fatalf("Expected an error, got %s", err)
+		c.Fatalf("Expected an error, got %s", err)
 	}
 	<-done
 }
 
-func TestChannelBuffer(t *testing.T) {
+func (s *DockerSuite) TestChannelBuffer(c *check.C) {
 	expected := "11"
 
 	buf := &ChannelBuffer{make(chan []byte, 1)}
@@ -328,16 +337,16 @@ func TestChannelBuffer(t *testing.T) {
 	b := make([]byte, 2)
 	_, err := buf.ReadTimeout(b, 200*time.Millisecond)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	if string(b) != expected {
-		t.Fatalf("Expected '%s', got '%s'", expected, string(b))
+		c.Fatalf("Expected '%s', got '%s'", expected, string(b))
 	}
 }
 
 // FIXME doesn't work
-// func TestRunAtDifferentDate(t *testing.T) {
+// func (s *DockerSuite) TestRunAtDifferentDate(c *check.C) {
 // 	var date string
 
 // 	// Layout for date. MMDDhhmmYYYY
@@ -345,14 +354,14 @@ func TestChannelBuffer(t *testing.T) {
 // 	expectedDate := "20100201"
 // 	theDate, err := time.Parse(timeLayout, expectedDate)
 // 	if err != nil {
-// 		t.Fatal(err)
+// 		c.Fatal(err)
 // 	}
 
 // 	RunAtDifferentDate(theDate, func() {
 // 		cmd := exec.Command("date", "+%Y%M%d")
 // 		out, err := cmd.Output()
 // 		if err != nil {
-// 			t.Fatal(err)
+// 			c.Fatal(err)
 // 		}
 // 		date = string(out)
 // 	})

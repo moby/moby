@@ -4,9 +4,18 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+
+	"github.com/go-check/check"
 )
 
-func TestParseMountSpec(t *testing.T) {
+// Hook up gocheck into the "go test" runner.
+func Test(t *testing.T) { check.TestingT(t) }
+
+type DockerSuite struct{}
+
+var _ = check.Suite(&DockerSuite{})
+
+func (s *DockerSuite) TestParseMountSpec(c *check.C) {
 	var (
 		valid   []string
 		invalid map[string]string
@@ -119,16 +128,16 @@ func TestParseMountSpec(t *testing.T) {
 
 	for _, path := range valid {
 		if _, err := ParseMountSpec(path, "local"); err != nil {
-			t.Fatalf("ParseMountSpec(`%q`) should succeed: error %q", path, err)
+			c.Fatalf("ParseMountSpec(`%q`) should succeed: error %q", path, err)
 		}
 	}
 
 	for path, expectedError := range invalid {
 		if _, err := ParseMountSpec(path, "local"); err == nil {
-			t.Fatalf("ParseMountSpec(`%q`) should have failed validation. Err %v", path, err)
+			c.Fatalf("ParseMountSpec(`%q`) should have failed validation. Err %v", path, err)
 		} else {
 			if !strings.Contains(err.Error(), expectedError) {
-				t.Fatalf("ParseMountSpec(`%q`) error should contain %q, got %v", path, expectedError, err.Error())
+				c.Fatalf("ParseMountSpec(`%q`) error should contain %q, got %v", path, expectedError, err.Error())
 			}
 		}
 	}
@@ -147,7 +156,7 @@ type testParseMountSpec struct {
 	fail      bool
 }
 
-func TestParseMountSpecSplit(t *testing.T) {
+func (s *DockerSuite) TestParseMountSpecSplit(c *check.C) {
 	var cases []testParseMountSpec
 	if runtime.GOOS == "windows" {
 		cases = []testParseMountSpec{
@@ -176,38 +185,38 @@ func TestParseMountSpecSplit(t *testing.T) {
 		}
 	}
 
-	for _, c := range cases {
-		m, err := ParseMountSpec(c.bind, c.driver)
-		if c.fail {
+	for _, ca := range cases {
+		m, err := ParseMountSpec(ca.bind, ca.driver)
+		if ca.fail {
 			if err == nil {
-				t.Fatalf("Expected error, was nil, for spec %s\n", c.bind)
+				c.Fatalf("Expected error, was nil, for spec %s\n", ca.bind)
 			}
 			continue
 		}
 
 		if m == nil || err != nil {
-			t.Fatalf("ParseMountSpec failed for spec %s driver %s error %v\n", c.bind, c.driver, err.Error())
+			c.Fatalf("ParseMountSpec failed for spec %s driver %s error %v\n", ca.bind, ca.driver, err.Error())
 			continue
 		}
 
-		if m.Destination != c.expDest {
-			t.Fatalf("Expected destination %s, was %s, for spec %s\n", c.expDest, m.Destination, c.bind)
+		if m.Destination != ca.expDest {
+			c.Fatalf("Expected destination %s, was %s, for spec %s\n", ca.expDest, m.Destination, ca.bind)
 		}
 
-		if m.Source != c.expSource {
-			t.Fatalf("Expected source %s, was %s, for spec %s\n", c.expSource, m.Source, c.bind)
+		if m.Source != ca.expSource {
+			c.Fatalf("Expected source %s, was %s, for spec %s\n", ca.expSource, m.Source, ca.bind)
 		}
 
-		if m.Name != c.expName {
-			t.Fatalf("Expected name %s, was %s for spec %s\n", c.expName, m.Name, c.bind)
+		if m.Name != ca.expName {
+			c.Fatalf("Expected name %s, was %s for spec %s\n", ca.expName, m.Name, ca.bind)
 		}
 
-		if m.Driver != c.expDriver {
-			t.Fatalf("Expected driver %s, was %s, for spec %s\n", c.expDriver, m.Driver, c.bind)
+		if m.Driver != ca.expDriver {
+			c.Fatalf("Expected driver %s, was %s, for spec %s\n", ca.expDriver, m.Driver, ca.bind)
 		}
 
-		if m.RW != c.expRW {
-			t.Fatalf("Expected RW %v, was %v for spec %s\n", c.expRW, m.RW, c.bind)
+		if m.RW != ca.expRW {
+			c.Fatalf("Expected RW %v, was %v for spec %s\n", ca.expRW, m.RW, ca.bind)
 		}
 	}
 }

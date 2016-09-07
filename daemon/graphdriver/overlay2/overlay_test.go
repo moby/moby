@@ -11,7 +11,15 @@ import (
 	"github.com/docker/docker/daemon/graphdriver/graphtest"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/reexec"
+	"github.com/go-check/check"
 )
+
+// Hook up gocheck into the "go test" runner.
+func Test(t *testing.T) { check.TestingT(t) }
+
+type DockerSuite struct{}
+
+var _ = check.Suite(&DockerSuite{})
 
 func init() {
 	// Do not sure chroot to speed run time and allow archive
@@ -35,72 +43,72 @@ func cdMountFrom(dir, device, target, mType, label string) error {
 
 // This avoids creating a new driver for each test if all tests are run
 // Make sure to put new tests between TestOverlaySetup and TestOverlayTeardown
-func TestOverlaySetup(t *testing.T) {
-	graphtest.GetDriver(t, driverName)
+func (s *DockerSuite) TestOverlaySetup(c *check.C) {
+	graphtest.GetDriver(c, driverName)
 }
 
-func TestOverlayCreateEmpty(t *testing.T) {
-	graphtest.DriverTestCreateEmpty(t, driverName)
+func (s *DockerSuite) TestOverlayCreateEmpty(c *check.C) {
+	graphtest.DriverTestCreateEmpty(c, driverName)
 }
 
-func TestOverlayCreateBase(t *testing.T) {
-	graphtest.DriverTestCreateBase(t, driverName)
+func (s *DockerSuite) TestOverlayCreateBase(c *check.C) {
+	graphtest.DriverTestCreateBase(c, driverName)
 }
 
-func TestOverlayCreateSnap(t *testing.T) {
-	graphtest.DriverTestCreateSnap(t, driverName)
+func (s *DockerSuite) TestOverlayCreateSnap(c *check.C) {
+	graphtest.DriverTestCreateSnap(c, driverName)
 }
 
-func TestOverlay128LayerRead(t *testing.T) {
-	graphtest.DriverTestDeepLayerRead(t, 128, driverName)
+func (s *DockerSuite) TestOverlay128LayerRead(c *check.C) {
+	graphtest.DriverTestDeepLayerRead(c, 128, driverName)
 }
 
-func TestOverlayDiffApply10Files(t *testing.T) {
-	graphtest.DriverTestDiffApply(t, 10, driverName)
+func (s *DockerSuite) TestOverlayDiffApply10Files(c *check.C) {
+	graphtest.DriverTestDiffApply(c, 10, driverName)
 }
 
-func TestOverlayChanges(t *testing.T) {
-	graphtest.DriverTestChanges(t, driverName)
+func (s *DockerSuite) TestOverlayChanges(c *check.C) {
+	graphtest.DriverTestChanges(c, driverName)
 }
 
-func TestOverlayTeardown(t *testing.T) {
-	graphtest.PutDriver(t)
+func (s *DockerSuite) TestOverlayTeardown(c *check.C) {
+	graphtest.PutDriver(c)
 }
 
 // Benchmarks should always setup new driver
 
-func BenchmarkExists(b *testing.B) {
-	graphtest.DriverBenchExists(b, driverName)
+func (s *DockerSuite) BenchmarkExists(c *check.C) {
+	graphtest.DriverBenchExists(c, driverName)
 }
 
-func BenchmarkGetEmpty(b *testing.B) {
-	graphtest.DriverBenchGetEmpty(b, driverName)
+func (s *DockerSuite) BenchmarkGetEmpty(c *check.C) {
+	graphtest.DriverBenchGetEmpty(c, driverName)
 }
 
-func BenchmarkDiffBase(b *testing.B) {
-	graphtest.DriverBenchDiffBase(b, driverName)
+func (s *DockerSuite) BenchmarkDiffBase(c *check.C) {
+	graphtest.DriverBenchDiffBase(c, driverName)
 }
 
-func BenchmarkDiffSmallUpper(b *testing.B) {
-	graphtest.DriverBenchDiffN(b, 10, 10, driverName)
+func (s *DockerSuite) BenchmarkDiffSmallUpper(c *check.C) {
+	graphtest.DriverBenchDiffN(c, 10, 10, driverName)
 }
 
-func BenchmarkDiff10KFileUpper(b *testing.B) {
-	graphtest.DriverBenchDiffN(b, 10, 10000, driverName)
+func (s *DockerSuite) BenchmarkDiff10KFileUpper(c *check.C) {
+	graphtest.DriverBenchDiffN(c, 10, 10000, driverName)
 }
 
-func BenchmarkDiff10KFilesBottom(b *testing.B) {
-	graphtest.DriverBenchDiffN(b, 10000, 10, driverName)
+func (s *DockerSuite) BenchmarkDiff10KFilesBottom(c *check.C) {
+	graphtest.DriverBenchDiffN(c, 10000, 10, driverName)
 }
 
-func BenchmarkDiffApply100(b *testing.B) {
-	graphtest.DriverBenchDiffApplyN(b, 100, driverName)
+func (s *DockerSuite) BenchmarkDiffApply100(c *check.C) {
+	graphtest.DriverBenchDiffApplyN(c, 100, driverName)
 }
 
-func BenchmarkDiff20Layers(b *testing.B) {
-	graphtest.DriverBenchDeepLayerDiff(b, 20, driverName)
+func (s *DockerSuite) BenchmarkDiff20Layers(c *check.C) {
+	graphtest.DriverBenchDeepLayerDiff(c, 20, driverName)
 }
 
-func BenchmarkRead20Layers(b *testing.B) {
-	graphtest.DriverBenchDeepLayerRead(b, 20, driverName)
+func (s *DockerSuite) BenchmarkRead20Layers(c *check.C) {
+	graphtest.DriverBenchDeepLayerRead(c, 20, driverName)
 }

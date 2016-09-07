@@ -4,10 +4,11 @@ package volume
 
 import (
 	"strings"
-	"testing"
+
+	"github.com/go-check/check"
 )
 
-func TestParseMountSpecPropagation(t *testing.T) {
+func (s *DockerSuite) TestParseMountSpecPropagation(c *check.C) {
 	var (
 		valid   []string
 		invalid map[string]string
@@ -49,16 +50,16 @@ func TestParseMountSpecPropagation(t *testing.T) {
 
 	for _, path := range valid {
 		if _, err := ParseMountSpec(path, "local"); err != nil {
-			t.Fatalf("ParseMountSpec(`%q`) should succeed: error %q", path, err)
+			c.Fatalf("ParseMountSpec(`%q`) should succeed: error %q", path, err)
 		}
 	}
 
 	for path, expectedError := range invalid {
 		if _, err := ParseMountSpec(path, "local"); err == nil {
-			t.Fatalf("ParseMountSpec(`%q`) should have failed validation. Err %v", path, err)
+			c.Fatalf("ParseMountSpec(`%q`) should have failed validation. Err %v", path, err)
 		} else {
 			if !strings.Contains(err.Error(), expectedError) {
-				t.Fatalf("ParseMountSpec(`%q`) error should contain %q, got %v", path, expectedError, err.Error())
+				c.Fatalf("ParseMountSpec(`%q`) error should contain %q, got %v", path, expectedError, err.Error())
 			}
 		}
 	}

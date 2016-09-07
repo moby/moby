@@ -8,56 +8,64 @@ import (
 	"testing"
 
 	"github.com/docker/docker/daemon/graphdriver/graphtest"
+	"github.com/go-check/check"
 )
+
+// Hook up gocheck into the "go test" runner.
+func Test(t *testing.T) { check.TestingT(t) }
+
+type DockerSuite struct{}
+
+var _ = check.Suite(&DockerSuite{})
 
 // This avoids creating a new driver for each test if all tests are run
 // Make sure to put new tests between TestBtrfsSetup and TestBtrfsTeardown
-func TestBtrfsSetup(t *testing.T) {
-	graphtest.GetDriver(t, "btrfs")
+func (s *DockerSuite) TestBtrfsSetup(c *check.C) {
+	graphtest.GetDriver(c, "btrfs")
 }
 
-func TestBtrfsCreateEmpty(t *testing.T) {
-	graphtest.DriverTestCreateEmpty(t, "btrfs")
+func (s *DockerSuite) TestBtrfsCreateEmpty(c *check.C) {
+	graphtest.DriverTestCreateEmpty(c, "btrfs")
 }
 
-func TestBtrfsCreateBase(t *testing.T) {
-	graphtest.DriverTestCreateBase(t, "btrfs")
+func (s *DockerSuite) TestBtrfsCreateBase(c *check.C) {
+	graphtest.DriverTestCreateBase(c, "btrfs")
 }
 
-func TestBtrfsCreateSnap(t *testing.T) {
-	graphtest.DriverTestCreateSnap(t, "btrfs")
+func (s *DockerSuite) TestBtrfsCreateSnap(c *check.C) {
+	graphtest.DriverTestCreateSnap(c, "btrfs")
 }
 
-func TestBtrfsSubvolDelete(t *testing.T) {
-	d := graphtest.GetDriver(t, "btrfs")
+func (s *DockerSuite) TestBtrfsSubvolDelete(c *check.C) {
+	d := graphtest.GetDriver(c, "btrfs")
 	if err := d.CreateReadWrite("test", "", "", nil); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
-	defer graphtest.PutDriver(t)
+	defer graphtest.PutDriver(c)
 
 	dir, err := d.Get("test", "")
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	defer d.Put("test")
 
 	if err := subvolCreate(dir, "subvoltest"); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	if _, err := os.Stat(path.Join(dir, "subvoltest")); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	if err := d.Remove("test"); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	if _, err := os.Stat(path.Join(dir, "subvoltest")); !os.IsNotExist(err) {
-		t.Fatalf("expected not exist error on nested subvol, got: %v", err)
+		c.Fatalf("expected not exist error on nested subvol, got: %v", err)
 	}
 }
 
-func TestBtrfsTeardown(t *testing.T) {
-	graphtest.PutDriver(t)
+func (s *DockerSuite) TestBtrfsTeardown(c *check.C) {
+	graphtest.PutDriver(c)
 }

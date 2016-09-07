@@ -8,45 +8,46 @@ import (
 	"os"
 	"path"
 	"sort"
-	"testing"
+
+	"github.com/go-check/check"
 )
 
-func TestHardLinkOrder(t *testing.T) {
+func (s *DockerSuite) TestHardLinkOrder(c *check.C) {
 	names := []string{"file1.txt", "file2.txt", "file3.txt"}
 	msg := []byte("Hey y'all")
 
 	// Create dir
 	src, err := ioutil.TempDir("", "docker-hardlink-test-src-")
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	//defer os.RemoveAll(src)
 	for _, name := range names {
 		func() {
 			fh, err := os.Create(path.Join(src, name))
 			if err != nil {
-				t.Fatal(err)
+				c.Fatal(err)
 			}
 			defer fh.Close()
 			if _, err = fh.Write(msg); err != nil {
-				t.Fatal(err)
+				c.Fatal(err)
 			}
 		}()
 	}
 	// Create dest, with changes that includes hardlinks
 	dest, err := ioutil.TempDir("", "docker-hardlink-test-dest-")
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	os.RemoveAll(dest) // we just want the name, at first
 	if err := copyDir(src, dest); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	defer os.RemoveAll(dest)
 	for _, name := range names {
 		for i := 0; i < 5; i++ {
 			if err := os.Link(path.Join(dest, name), path.Join(dest, fmt.Sprintf("%s.link%d", name, i))); err != nil {
-				t.Fatal(err)
+				c.Fatal(err)
 			}
 		}
 	}
@@ -54,7 +55,7 @@ func TestHardLinkOrder(t *testing.T) {
 	// get changes
 	changes, err := ChangesDirs(dest, src)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	// sort
@@ -63,11 +64,11 @@ func TestHardLinkOrder(t *testing.T) {
 	// ExportChanges
 	ar, err := ExportChanges(dest, changes, nil, nil)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	hdrs, err := walkHeaders(ar)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	// reverse sort
@@ -75,11 +76,11 @@ func TestHardLinkOrder(t *testing.T) {
 	// ExportChanges
 	arRev, err := ExportChanges(dest, changes, nil, nil)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	hdrsRev, err := walkHeaders(arRev)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	// line up the two sets
@@ -89,16 +90,16 @@ func TestHardLinkOrder(t *testing.T) {
 	// compare Size and LinkName
 	for i := range hdrs {
 		if hdrs[i].Name != hdrsRev[i].Name {
-			t.Errorf("headers - expected name %q; but got %q", hdrs[i].Name, hdrsRev[i].Name)
+			c.Errorf("headers - expected name %q; but got %q", hdrs[i].Name, hdrsRev[i].Name)
 		}
 		if hdrs[i].Size != hdrsRev[i].Size {
-			t.Errorf("headers - %q expected size %d; but got %d", hdrs[i].Name, hdrs[i].Size, hdrsRev[i].Size)
+			c.Errorf("headers - %q expected size %d; but got %d", hdrs[i].Name, hdrs[i].Size, hdrsRev[i].Size)
 		}
 		if hdrs[i].Typeflag != hdrsRev[i].Typeflag {
-			t.Errorf("headers - %q expected type %d; but got %d", hdrs[i].Name, hdrs[i].Typeflag, hdrsRev[i].Typeflag)
+			c.Errorf("headers - %q expected type %d; but got %d", hdrs[i].Name, hdrs[i].Typeflag, hdrsRev[i].Typeflag)
 		}
 		if hdrs[i].Linkname != hdrsRev[i].Linkname {
-			t.Errorf("headers - %q expected linkname %q; but got %q", hdrs[i].Name, hdrs[i].Linkname, hdrsRev[i].Linkname)
+			c.Errorf("headers - %q expected linkname %q; but got %q", hdrs[i].Name, hdrs[i].Linkname, hdrsRev[i].Linkname)
 		}
 	}
 

@@ -1,23 +1,34 @@
 package useragent
 
-import "testing"
+import (
+	"testing"
 
-func TestVersionInfo(t *testing.T) {
+	"github.com/go-check/check"
+)
+
+// Hook up gocheck into the "go test" runner.
+func Test(t *testing.T) { check.TestingT(t) }
+
+type DockerSuite struct{}
+
+var _ = check.Suite(&DockerSuite{})
+
+func (s *DockerSuite) TestVersionInfo(c *check.C) {
 	vi := VersionInfo{"foo", "bar"}
 	if !vi.isValid() {
-		t.Fatalf("VersionInfo should be valid")
+		c.Fatalf("VersionInfo should be valid")
 	}
 	vi = VersionInfo{"", "bar"}
 	if vi.isValid() {
-		t.Fatalf("Expected VersionInfo to be invalid")
+		c.Fatalf("Expected VersionInfo to be invalid")
 	}
 	vi = VersionInfo{"foo", ""}
 	if vi.isValid() {
-		t.Fatalf("Expected VersionInfo to be invalid")
+		c.Fatalf("Expected VersionInfo to be invalid")
 	}
 }
 
-func TestAppendVersions(t *testing.T) {
+func (s *DockerSuite) TestAppendVersions(c *check.C) {
 	vis := []VersionInfo{
 		{"foo", "1.0"},
 		{"bar", "0.1"},
@@ -26,6 +37,6 @@ func TestAppendVersions(t *testing.T) {
 	v := AppendVersions("base", vis...)
 	expect := "base foo/1.0 bar/0.1 pi/3.1.4"
 	if v != expect {
-		t.Fatalf("expected %q, got %q", expect, v)
+		c.Fatalf("expected %q, got %q", expect, v)
 	}
 }

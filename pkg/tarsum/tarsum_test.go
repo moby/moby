@@ -15,7 +15,8 @@ import (
 	"io/ioutil"
 	"os"
 	"strings"
-	"testing"
+
+	"github.com/go-check/check"
 )
 
 type testLayer struct {
@@ -177,35 +178,35 @@ func emptyTarSum(gzip bool) (TarSum, error) {
 }
 
 // Test errors on NewTarsumForLabel
-func TestNewTarSumForLabelInvalid(t *testing.T) {
+func (s *DockerSuite) TestNewTarSumForLabelInvalid(c *check.C) {
 	reader := strings.NewReader("")
 
 	if _, err := NewTarSumForLabel(reader, true, "invalidlabel"); err == nil {
-		t.Fatalf("Expected an error, got nothing.")
+		c.Fatalf("Expected an error, got nothing.")
 	}
 
 	if _, err := NewTarSumForLabel(reader, true, "invalid+sha256"); err == nil {
-		t.Fatalf("Expected an error, got nothing.")
+		c.Fatalf("Expected an error, got nothing.")
 	}
 	if _, err := NewTarSumForLabel(reader, true, "tarsum.v1+invalid"); err == nil {
-		t.Fatalf("Expected an error, got nothing.")
+		c.Fatalf("Expected an error, got nothing.")
 	}
 }
 
-func TestNewTarSumForLabel(t *testing.T) {
+func (s *DockerSuite) TestNewTarSumForLabel(c *check.C) {
 
 	layer := testLayers[0]
 
 	reader, err := os.Open(layer.filename)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	defer reader.Close()
 
 	label := strings.Split(layer.tarsum, ":")[0]
 	ts, err := NewTarSumForLabel(reader, false, label)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	// Make sure it actually worked by reading a little bit of it
@@ -213,17 +214,17 @@ func TestNewTarSumForLabel(t *testing.T) {
 	dBuf := make([]byte, nbByteToRead)
 	_, err = ts.Read(dBuf)
 	if err != nil {
-		t.Errorf("failed to read %vKB from %s: %s", nbByteToRead, layer.filename, err)
+		c.Errorf("failed to read %vKB from %s: %s", nbByteToRead, layer.filename, err)
 	}
 }
 
 // TestEmptyTar tests that tarsum does not fail to read an empty tar
 // and correctly returns the hex digest of an empty hash.
-func TestEmptyTar(t *testing.T) {
+func (s *DockerSuite) TestEmptyTar(c *check.C) {
 	// Test without gzip.
 	ts, err := emptyTarSum(false)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	zeroBlock := make([]byte, 1024)
@@ -231,30 +232,30 @@ func TestEmptyTar(t *testing.T) {
 
 	n, err := io.Copy(buf, ts)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	if n != int64(len(zeroBlock)) || !bytes.Equal(buf.Bytes(), zeroBlock) {
-		t.Fatalf("tarSum did not write the correct number of zeroed bytes: %d", n)
+		c.Fatalf("tarSum did not write the correct number of zeroed bytes: %d", n)
 	}
 
 	expectedSum := ts.Version().String() + "+sha256:" + hex.EncodeToString(sha256.New().Sum(nil))
 	resultSum := ts.Sum(nil)
 
 	if resultSum != expectedSum {
-		t.Fatalf("expected [%s] but got [%s]", expectedSum, resultSum)
+		c.Fatalf("expected [%s] but got [%s]", expectedSum, resultSum)
 	}
 
 	// Test with gzip.
 	ts, err = emptyTarSum(true)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	buf.Reset()
 
 	n, err = io.Copy(buf, ts)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	bufgz := new(bytes.Buffer)
@@ -264,24 +265,24 @@ func TestEmptyTar(t *testing.T) {
 	gzBytes := bufgz.Bytes()
 
 	if n != int64(len(zeroBlock)) || !bytes.Equal(buf.Bytes(), gzBytes) {
-		t.Fatalf("tarSum did not write the correct number of gzipped-zeroed bytes: %d", n)
+		c.Fatalf("tarSum did not write the correct number of gzipped-zeroed bytes: %d", n)
 	}
 
 	resultSum = ts.Sum(nil)
 
 	if resultSum != expectedSum {
-		t.Fatalf("expected [%s] but got [%s]", expectedSum, resultSum)
+		c.Fatalf("expected [%s] but got [%s]", expectedSum, resultSum)
 	}
 
 	// Test without ever actually writing anything.
 	if ts, err = NewTarSum(bytes.NewReader([]byte{}), true, Version0); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	resultSum = ts.Sum(nil)
 
 	if resultSum != expectedSum {
-		t.Fatalf("expected [%s] but got [%s]", expectedSum, resultSum)
+		c.Fatalf("expected [%s] but got [%s]", expectedSum, resultSum)
 	}
 }
 
@@ -294,7 +295,7 @@ var (
 )
 
 // Test all the build-in read size : buf8K, buf16K, buf32K and more
-func TestTarSumsReadSize(t *testing.T) {
+func (s *DockerSuite) TestTarSumsReadSize(c *check.C) {
 	// Test always on the same layer (that is big enough)
 	layer := testLayers[0]
 
@@ -302,13 +303,13 @@ func TestTarSumsReadSize(t *testing.T) {
 
 		reader, err := os.Open(layer.filename)
 		if err != nil {
-			t.Fatal(err)
+			c.Fatal(err)
 		}
 		defer reader.Close()
 
 		ts, err := NewTarSum(reader, false, layer.version)
 		if err != nil {
-			t.Fatal(err)
+			c.Fatal(err)
 		}
 
 		// Read and discard bytes so that it populates sums
@@ -316,13 +317,13 @@ func TestTarSumsReadSize(t *testing.T) {
 		dBuf := make([]byte, nbByteToRead)
 		_, err = ts.Read(dBuf)
 		if err != nil {
-			t.Errorf("failed to read %vKB from %s: %s", nbByteToRead, layer.filename, err)
+			c.Errorf("failed to read %vKB from %s: %s", nbByteToRead, layer.filename, err)
 			continue
 		}
 	}
 }
 
-func TestTarSums(t *testing.T) {
+func (s *DockerSuite) TestTarSums(c *check.C) {
 	for _, layer := range testLayers {
 		var (
 			fh  io.Reader
@@ -331,14 +332,14 @@ func TestTarSums(t *testing.T) {
 		if len(layer.filename) > 0 {
 			fh, err = os.Open(layer.filename)
 			if err != nil {
-				t.Errorf("failed to open %s: %s", layer.filename, err)
+				c.Errorf("failed to open %s: %s", layer.filename, err)
 				continue
 			}
 		} else if layer.options != nil {
 			fh = sizedTar(*layer.options)
 		} else {
 			// What else is there to test?
-			t.Errorf("what to do with %#v", layer)
+			c.Errorf("what to do with %#v", layer)
 			continue
 		}
 		if file, ok := fh.(*os.File); ok {
@@ -353,7 +354,7 @@ func TestTarSums(t *testing.T) {
 			ts, err = NewTarSumHash(fh, !layer.gzip, layer.version, layer.hash)
 		}
 		if err != nil {
-			t.Errorf("%q :: %q", err, layer.filename)
+			c.Errorf("%q :: %q", err, layer.filename)
 			continue
 		}
 
@@ -361,34 +362,34 @@ func TestTarSums(t *testing.T) {
 		dBuf := make([]byte, 1)
 		_, err = ts.Read(dBuf)
 		if err != nil {
-			t.Errorf("failed to read 1B from %s: %s", layer.filename, err)
+			c.Errorf("failed to read 1B from %s: %s", layer.filename, err)
 			continue
 		}
 		dBuf = make([]byte, 16*1024)
 		_, err = ts.Read(dBuf)
 		if err != nil {
-			t.Errorf("failed to read 16KB from %s: %s", layer.filename, err)
+			c.Errorf("failed to read 16KB from %s: %s", layer.filename, err)
 			continue
 		}
 
 		// Read and discard remaining bytes
 		_, err = io.Copy(ioutil.Discard, ts)
 		if err != nil {
-			t.Errorf("failed to copy from %s: %s", layer.filename, err)
+			c.Errorf("failed to copy from %s: %s", layer.filename, err)
 			continue
 		}
 		var gotSum string
 		if len(layer.jsonfile) > 0 {
 			jfh, err := os.Open(layer.jsonfile)
 			if err != nil {
-				t.Errorf("failed to open %s: %s", layer.jsonfile, err)
+				c.Errorf("failed to open %s: %s", layer.jsonfile, err)
 				continue
 			}
 			defer jfh.Close()
 
 			buf, err := ioutil.ReadAll(jfh)
 			if err != nil {
-				t.Errorf("failed to readAll %s: %s", layer.jsonfile, err)
+				c.Errorf("failed to readAll %s: %s", layer.jsonfile, err)
 				continue
 			}
 			gotSum = ts.Sum(buf)
@@ -397,7 +398,7 @@ func TestTarSums(t *testing.T) {
 		}
 
 		if layer.tarsum != gotSum {
-			t.Errorf("expecting [%s], but got [%s]", layer.tarsum, gotSum)
+			c.Errorf("expecting [%s], but got [%s]", layer.tarsum, gotSum)
 		}
 		var expectedHashName string
 		if layer.hash != nil {
@@ -406,12 +407,12 @@ func TestTarSums(t *testing.T) {
 			expectedHashName = DefaultTHash.Name()
 		}
 		if expectedHashName != ts.Hash().Name() {
-			t.Errorf("expecting hash [%v], but got [%s]", expectedHashName, ts.Hash().Name())
+			c.Errorf("expecting hash [%v], but got [%s]", expectedHashName, ts.Hash().Name())
 		}
 	}
 }
 
-func TestIteration(t *testing.T) {
+func (s *DockerSuite) TestIteration(c *check.C) {
 	headerTests := []struct {
 		expectedSum string // TODO(vbatts) it would be nice to get individual sums of each
 		version     Version
@@ -513,13 +514,13 @@ func TestIteration(t *testing.T) {
 		},
 	}
 	for _, htest := range headerTests {
-		s, err := renderSumForHeader(htest.version, htest.hdr, htest.data)
+		sum, err := renderSumForHeader(htest.version, htest.hdr, htest.data)
 		if err != nil {
-			t.Fatal(err)
+			c.Fatal(err)
 		}
 
-		if s != htest.expectedSum {
-			t.Errorf("expected sum: %q, got: %q", htest.expectedSum, s)
+		if sum != htest.expectedSum {
+			c.Errorf("expected sum: %q, got: %q", htest.expectedSum, sum)
 		}
 	}
 
@@ -558,30 +559,30 @@ func renderSumForHeader(v Version, h *tar.Header, data []byte) (string, error) {
 	return ts.Sum(nil), nil
 }
 
-func Benchmark9kTar(b *testing.B) {
+func (s *DockerSuite) Benchmark9kTar(c *check.C) {
 	buf := bytes.NewBuffer([]byte{})
 	fh, err := os.Open("testdata/46af0962ab5afeb5ce6740d4d91652e69206fc991fd5328c1a94d364ad00e457/layer.tar")
 	if err != nil {
-		b.Error(err)
+		c.Error(err)
 		return
 	}
 	defer fh.Close()
 
 	n, err := io.Copy(buf, fh)
 	if err != nil {
-		b.Error(err)
+		c.Error(err)
 		return
 	}
 
 	reader := bytes.NewReader(buf.Bytes())
 
-	b.SetBytes(n)
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	c.SetBytes(n)
+	c.ResetTimer()
+	for i := 0; i < c.N; i++ {
 		reader.Seek(0, 0)
 		ts, err := NewTarSum(reader, true, Version0)
 		if err != nil {
-			b.Error(err)
+			c.Error(err)
 			return
 		}
 		io.Copy(ioutil.Discard, ts)
@@ -589,30 +590,30 @@ func Benchmark9kTar(b *testing.B) {
 	}
 }
 
-func Benchmark9kTarGzip(b *testing.B) {
+func (s *DockerSuite) Benchmark9kTarGzip(c *check.C) {
 	buf := bytes.NewBuffer([]byte{})
 	fh, err := os.Open("testdata/46af0962ab5afeb5ce6740d4d91652e69206fc991fd5328c1a94d364ad00e457/layer.tar")
 	if err != nil {
-		b.Error(err)
+		c.Error(err)
 		return
 	}
 	defer fh.Close()
 
 	n, err := io.Copy(buf, fh)
 	if err != nil {
-		b.Error(err)
+		c.Error(err)
 		return
 	}
 
 	reader := bytes.NewReader(buf.Bytes())
 
-	b.SetBytes(n)
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	c.SetBytes(n)
+	c.ResetTimer()
+	for i := 0; i < c.N; i++ {
 		reader.Seek(0, 0)
 		ts, err := NewTarSum(reader, false, Version0)
 		if err != nil {
-			b.Error(err)
+			c.Error(err)
 			return
 		}
 		io.Copy(ioutil.Discard, ts)
@@ -621,26 +622,26 @@ func Benchmark9kTarGzip(b *testing.B) {
 }
 
 // this is a single big file in the tar archive
-func Benchmark1mbSingleFileTar(b *testing.B) {
-	benchmarkTar(b, sizedOptions{1, 1024 * 1024, true, true}, false)
+func (s *DockerSuite) Benchmark1mbSingleFileTar(c *check.C) {
+	benchmarkTar(c, sizedOptions{1, 1024 * 1024, true, true}, false)
 }
 
 // this is a single big file in the tar archive
-func Benchmark1mbSingleFileTarGzip(b *testing.B) {
-	benchmarkTar(b, sizedOptions{1, 1024 * 1024, true, true}, true)
+func (s *DockerSuite) Benchmark1mbSingleFileTarGzip(c *check.C) {
+	benchmarkTar(c, sizedOptions{1, 1024 * 1024, true, true}, true)
 }
 
 // this is 1024 1k files in the tar archive
-func Benchmark1kFilesTar(b *testing.B) {
-	benchmarkTar(b, sizedOptions{1024, 1024, true, true}, false)
+func (s *DockerSuite) Benchmark1kFilesTar(c *check.C) {
+	benchmarkTar(c, sizedOptions{1024, 1024, true, true}, false)
 }
 
 // this is 1024 1k files in the tar archive
-func Benchmark1kFilesTarGzip(b *testing.B) {
-	benchmarkTar(b, sizedOptions{1024, 1024, true, true}, true)
+func (s *DockerSuite) Benchmark1kFilesTarGzip(c *check.C) {
+	benchmarkTar(c, sizedOptions{1024, 1024, true, true}, true)
 }
 
-func benchmarkTar(b *testing.B, opts sizedOptions, isGzip bool) {
+func benchmarkTar(c *check.C, opts sizedOptions, isGzip bool) {
 	var fh *os.File
 	tarReader := sizedTar(opts)
 	if br, ok := tarReader.(*os.File); ok {
@@ -649,12 +650,12 @@ func benchmarkTar(b *testing.B, opts sizedOptions, isGzip bool) {
 	defer os.Remove(fh.Name())
 	defer fh.Close()
 
-	b.SetBytes(opts.size * opts.num)
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	c.SetBytes(opts.size * opts.num)
+	c.ResetTimer()
+	for i := 0; i < c.N; i++ {
 		ts, err := NewTarSum(fh, !isGzip, Version0)
 		if err != nil {
-			b.Error(err)
+			c.Error(err)
 			return
 		}
 		io.Copy(ioutil.Discard, ts)

@@ -4,24 +4,32 @@ import (
 	"testing"
 
 	"github.com/docker/docker/daemon/logger"
+	"github.com/go-check/check"
 )
 
-func TestParseLogTagDefaultTag(t *testing.T) {
+// Hook up gocheck into the "go test" runner.
+func Test(t *testing.T) { check.TestingT(t) }
+
+type DockerSuite struct{}
+
+var _ = check.Suite(&DockerSuite{})
+
+func (s *DockerSuite) TestParseLogTagDefaultTag(c *check.C) {
 	ctx := buildContext(map[string]string{})
 	tag, e := ParseLogTag(ctx, "{{.ID}}")
-	assertTag(t, e, tag, ctx.ID())
+	assertTag(c, e, tag, ctx.ID())
 }
 
-func TestParseLogTag(t *testing.T) {
+func (s *DockerSuite) TestParseLogTag(c *check.C) {
 	ctx := buildContext(map[string]string{"tag": "{{.ImageName}}/{{.Name}}/{{.ID}}"})
 	tag, e := ParseLogTag(ctx, "{{.ID}}")
-	assertTag(t, e, tag, "test-image/test-container/container-ab")
+	assertTag(c, e, tag, "test-image/test-container/container-ab")
 }
 
-func TestParseLogTagEmptyTag(t *testing.T) {
+func (s *DockerSuite) TestParseLogTagEmptyTag(c *check.C) {
 	ctx := buildContext(map[string]string{})
 	tag, e := ParseLogTag(ctx, "{{.DaemonName}}/{{.ID}}")
-	assertTag(t, e, tag, "test-dockerd/container-ab")
+	assertTag(c, e, tag, "test-dockerd/container-ab")
 }
 
 // Helpers
@@ -37,11 +45,11 @@ func buildContext(cfg map[string]string) logger.Context {
 	}
 }
 
-func assertTag(t *testing.T, e error, tag string, expected string) {
+func assertTag(c *check.C, e error, tag string, expected string) {
 	if e != nil {
-		t.Fatalf("Error generating tag: %q", e)
+		c.Fatalf("Error generating tag: %q", e)
 	}
 	if tag != expected {
-		t.Fatalf("Wrong tag: %q, should be %q", tag, expected)
+		c.Fatalf("Wrong tag: %q, should be %q", tag, expected)
 	}
 }

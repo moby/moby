@@ -1,10 +1,8 @@
 package graphdb
 
-import (
-	"testing"
-)
+import "github.com/go-check/check"
 
-func TestSort(t *testing.T) {
+func (s *DockerSuite) TestSort(c *check.C) {
 	paths := []string{
 		"/",
 		"/myreallylongname",
@@ -14,16 +12,16 @@ func TestSort(t *testing.T) {
 	sortByDepth(paths)
 
 	if len(paths) != 3 {
-		t.Fatalf("Expected 3 parts got %d", len(paths))
+		c.Fatalf("Expected 3 parts got %d", len(paths))
 	}
 
 	if paths[0] != "/app/db" {
-		t.Fatalf("Expected /app/db got %s", paths[0])
+		c.Fatalf("Expected /app/db got %s", paths[0])
 	}
 	if paths[1] != "/myreallylongname" {
-		t.Fatalf("Expected /myreallylongname got %s", paths[1])
+		c.Fatalf("Expected /myreallylongname got %s", paths[1])
 	}
 	if paths[2] != "/" {
-		t.Fatalf("Expected / got %s", paths[2])
+		c.Fatalf("Expected / got %s", paths[2])
 	}
 }

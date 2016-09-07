@@ -12,9 +12,18 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+
+	"github.com/go-check/check"
 )
 
-func TestCloneArgsSmartHttp(t *testing.T) {
+// Hook up gocheck into the "go test" runner.
+func Test(t *testing.T) { check.TestingT(t) }
+
+type DockerSuite struct{}
+
+var _ = check.Suite(&DockerSuite{})
+
+func (s *DockerSuite) TestCloneArgsSmartHttp(c *check.C) {
 	mux := http.NewServeMux()
 	server := httptest.NewServer(mux)
 	serverURL, _ := url.Parse(server.URL)
@@ -30,11 +39,11 @@ func TestCloneArgsSmartHttp(t *testing.T) {
 	args := cloneArgs(serverURL, "/tmp")
 	exp := []string{"clone", "--recursive", "--depth", "1", gitURL, "/tmp"}
 	if !reflect.DeepEqual(args, exp) {
-		t.Fatalf("Expected %v, got %v", exp, args)
+		c.Fatalf("Expected %v, got %v", exp, args)
 	}
 }
 
-func TestCloneArgsDumbHttp(t *testing.T) {
+func (s *DockerSuite) TestCloneArgsDumbHttp(c *check.C) {
 	mux := http.NewServeMux()
 	server := httptest.NewServer(mux)
 	serverURL, _ := url.Parse(server.URL)
@@ -49,25 +58,25 @@ func TestCloneArgsDumbHttp(t *testing.T) {
 	args := cloneArgs(serverURL, "/tmp")
 	exp := []string{"clone", "--recursive", gitURL, "/tmp"}
 	if !reflect.DeepEqual(args, exp) {
-		t.Fatalf("Expected %v, got %v", exp, args)
+		c.Fatalf("Expected %v, got %v", exp, args)
 	}
 }
 
-func TestCloneArgsGit(t *testing.T) {
+func (s *DockerSuite) TestCloneArgsGit(c *check.C) {
 	u, _ := url.Parse("git://github.com/docker/docker")
 	args := cloneArgs(u, "/tmp")
 	exp := []string{"clone", "--recursive", "--depth", "1", "git://github.com/docker/docker", "/tmp"}
 	if !reflect.DeepEqual(args, exp) {
-		t.Fatalf("Expected %v, got %v", exp, args)
+		c.Fatalf("Expected %v, got %v", exp, args)
 	}
 }
 
-func TestCloneArgsStripFragment(t *testing.T) {
+func (s *DockerSuite) TestCloneArgsStripFragment(c *check.C) {
 	u, _ := url.Parse("git://github.com/docker/docker#test")
 	args := cloneArgs(u, "/tmp")
 	exp := []string{"clone", "--recursive", "git://github.com/docker/docker", "/tmp"}
 	if !reflect.DeepEqual(args, exp) {
-		t.Fatalf("Expected %v, got %v", exp, args)
+		c.Fatalf("Expected %v, got %v", exp, args)
 	}
 }
 
@@ -81,17 +90,17 @@ func gitGetConfig(name string) string {
 	return strings.TrimSpace(string(b))
 }
 
-func TestCheckoutGit(t *testing.T) {
+func (s *DockerSuite) TestCheckoutGit(c *check.C) {
 	root, err := ioutil.TempDir("", "docker-build-git-checkout")
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	defer os.RemoveAll(root)
 
 	autocrlf := gitGetConfig("core.autocrlf")
 	if !(autocrlf == "true" || autocrlf == "false" ||
 		autocrlf == "input" || autocrlf == "") {
-		t.Logf("unknown core.autocrlf value: \"%s\"", autocrlf)
+		c.Logf("unknown core.autocrlf value: \"%s\"", autocrlf)
 	}
 	eol := "\n"
 	if autocrlf == "true" {
@@ -101,70 +110,70 @@ func TestCheckoutGit(t *testing.T) {
 	gitDir := filepath.Join(root, "repo")
 	_, err = git("init", gitDir)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	if _, err = gitWithinDir(gitDir, "config", "user.email", "test@docker.com"); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	if _, err = gitWithinDir(gitDir, "config", "user.name", "Docker test"); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	if err = ioutil.WriteFile(filepath.Join(gitDir, "Dockerfile"), []byte("FROM scratch"), 0644); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	subDir := filepath.Join(gitDir, "subdir")
 	if err = os.Mkdir(subDir, 0755); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	if err = ioutil.WriteFile(filepath.Join(subDir, "Dockerfile"), []byte("FROM scratch\nEXPOSE 5000"), 0644); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	if runtime.GOOS != "windows" {
 		if err = os.Symlink("../subdir", filepath.Join(gitDir, "parentlink")); err != nil {
-			t.Fatal(err)
+			c.Fatal(err)
 		}
 
 		if err = os.Symlink("/subdir", filepath.Join(gitDir, "absolutelink")); err != nil {
-			t.Fatal(err)
+			c.Fatal(err)
 		}
 	}
 
 	if _, err = gitWithinDir(gitDir, "add", "-A"); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	if _, err = gitWithinDir(gitDir, "commit", "-am", "First commit"); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	if _, err = gitWithinDir(gitDir, "checkout", "-b", "test"); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	if err = ioutil.WriteFile(filepath.Join(gitDir, "Dockerfile"), []byte("FROM scratch\nEXPOSE 3000"), 0644); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	if err = ioutil.WriteFile(filepath.Join(subDir, "Dockerfile"), []byte("FROM busybox\nEXPOSE 5000"), 0644); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	if _, err = gitWithinDir(gitDir, "add", "-A"); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	if _, err = gitWithinDir(gitDir, "commit", "-am", "Branch commit"); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	if _, err = gitWithinDir(gitDir, "checkout", "master"); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	type singleCase struct {
@@ -197,24 +206,24 @@ func TestCheckoutGit(t *testing.T) {
 		cases = append(cases, singleCase{frag: "master:parentlink", exp: "FROM scratch" + eol + "EXPOSE 5000", fail: false})
 	}
 
-	for _, c := range cases {
-		r, err := checkoutGit(c.frag, gitDir)
+	for _, ca := range cases {
+		r, err := checkoutGit(ca.frag, gitDir)
 
 		fail := err != nil
-		if fail != c.fail {
-			t.Fatalf("Expected %v failure, error was %v\n", c.fail, err)
+		if fail != ca.fail {
+			c.Fatalf("Expected %v failure, error was %v\n", ca.fail, err)
 		}
-		if c.fail {
+		if ca.fail {
 			continue
 		}
 
 		b, err := ioutil.ReadFile(filepath.Join(r, "Dockerfile"))
 		if err != nil {
-			t.Fatal(err)
+			c.Fatal(err)
 		}
 
-		if string(b) != c.exp {
-			t.Fatalf("Expected %v, was %v\n", c.exp, string(b))
+		if string(b) != ca.exp {
+			c.Fatalf("Expected %v, was %v\n", ca.exp, string(b))
 		}
 	}
 }

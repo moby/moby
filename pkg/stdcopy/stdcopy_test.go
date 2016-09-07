@@ -7,46 +7,55 @@ import (
 	"io/ioutil"
 	"strings"
 	"testing"
+
+	"github.com/go-check/check"
 )
 
-func TestNewStdWriter(t *testing.T) {
+// Hook up gocheck into the "go test" runner.
+func Test(t *testing.T) { check.TestingT(t) }
+
+type DockerSuite struct{}
+
+var _ = check.Suite(&DockerSuite{})
+
+func (s *DockerSuite) TestNewStdWriter(c *check.C) {
 	writer := NewStdWriter(ioutil.Discard, Stdout)
 	if writer == nil {
-		t.Fatalf("NewStdWriter with an invalid StdType should not return nil.")
+		c.Fatalf("NewStdWriter with an invalid StdType should not return nil.")
 	}
 }
 
-func TestWriteWithUnitializedStdWriter(t *testing.T) {
+func (s *DockerSuite) TestWriteWithUnitializedStdWriter(c *check.C) {
 	writer := stdWriter{
 		Writer: nil,
 		prefix: byte(Stdout),
 	}
 	n, err := writer.Write([]byte("Something here"))
 	if n != 0 || err == nil {
-		t.Fatalf("Should fail when given an uncomplete or uninitialized StdWriter")
+		c.Fatalf("Should fail when given an uncomplete or uninitialized StdWriter")
 	}
 }
 
-func TestWriteWithNilBytes(t *testing.T) {
+func (s *DockerSuite) TestWriteWithNilBytes(c *check.C) {
 	writer := NewStdWriter(ioutil.Discard, Stdout)
 	n, err := writer.Write(nil)
 	if err != nil {
-		t.Fatalf("Shouldn't have fail when given no data")
+		c.Fatalf("Shouldn't have fail when given no data")
 	}
 	if n > 0 {
-		t.Fatalf("Write should have written 0 byte, but has written %d", n)
+		c.Fatalf("Write should have written 0 byte, but has written %d", n)
 	}
 }
 
-func TestWrite(t *testing.T) {
+func (s *DockerSuite) TestWrite(c *check.C) {
 	writer := NewStdWriter(ioutil.Discard, Stdout)
 	data := []byte("Test StdWrite.Write")
 	n, err := writer.Write(data)
 	if err != nil {
-		t.Fatalf("Error while writing with StdWrite")
+		c.Fatalf("Error while writing with StdWrite")
 	}
 	if n != len(data) {
-		t.Fatalf("Write should have written %d byte but wrote %d.", len(data), n)
+		c.Fatalf("Write should have written %d byte but wrote %d.", len(data), n)
 	}
 }
 
@@ -59,7 +68,7 @@ func (f *errWriter) Write(buf []byte) (int, error) {
 	return f.n, f.err
 }
 
-func TestWriteWithWriterError(t *testing.T) {
+func (s *DockerSuite) TestWriteWithWriterError(c *check.C) {
 	expectedError := errors.New("expected")
 	expectedReturnedBytes := 10
 	writer := NewStdWriter(&errWriter{
@@ -68,20 +77,20 @@ func TestWriteWithWriterError(t *testing.T) {
 	data := []byte("This won't get written, sigh")
 	n, err := writer.Write(data)
 	if err != expectedError {
-		t.Fatalf("Didn't get expected error.")
+		c.Fatalf("Didn't get expected error.")
 	}
 	if n != expectedReturnedBytes {
-		t.Fatalf("Didn't get expected written bytes %d, got %d.",
+		c.Fatalf("Didn't get expected written bytes %d, got %d.",
 			expectedReturnedBytes, n)
 	}
 }
 
-func TestWriteDoesNotReturnNegativeWrittenBytes(t *testing.T) {
+func (s *DockerSuite) TestWriteDoesNotReturnNegativeWrittenBytes(c *check.C) {
 	writer := NewStdWriter(&errWriter{n: -1}, Stdout)
 	data := []byte("This won't get written, sigh")
 	actual, _ := writer.Write(data)
 	if actual != 0 {
-		t.Fatalf("Expected returned written bytes equal to 0, got %d", actual)
+		c.Fatalf("Expected returned written bytes equal to 0, got %d", actual)
 	}
 }
 
@@ -97,20 +106,20 @@ func getSrcBuffer(stdOutBytes, stdErrBytes []byte) (buffer *bytes.Buffer, err er
 	return
 }
 
-func TestStdCopyWriteAndRead(t *testing.T) {
+func (s *DockerSuite) TestStdCopyWriteAndRead(c *check.C) {
 	stdOutBytes := []byte(strings.Repeat("o", startingBufLen))
 	stdErrBytes := []byte(strings.Repeat("e", startingBufLen))
 	buffer, err := getSrcBuffer(stdOutBytes, stdErrBytes)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	written, err := StdCopy(ioutil.Discard, ioutil.Discard, buffer)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	expectedTotalWritten := len(stdOutBytes) + len(stdErrBytes)
 	if written != int64(expectedTotalWritten) {
-		t.Fatalf("Expected to have total of %d bytes written, got %d", expectedTotalWritten, written)
+		c.Fatalf("Expected to have total of %d bytes written, got %d", expectedTotalWritten, written)
 	}
 }
 
@@ -130,26 +139,26 @@ func (f *customReader) Read(buf []byte) (int, error) {
 	return f.n, f.err
 }
 
-func TestStdCopyReturnsErrorReadingHeader(t *testing.T) {
+func (s *DockerSuite) TestStdCopyReturnsErrorReadingHeader(c *check.C) {
 	expectedError := errors.New("error")
 	reader := &customReader{
 		err: expectedError}
 	written, err := StdCopy(ioutil.Discard, ioutil.Discard, reader)
 	if written != 0 {
-		t.Fatalf("Expected 0 bytes read, got %d", written)
+		c.Fatalf("Expected 0 bytes read, got %d", written)
 	}
 	if err != expectedError {
-		t.Fatalf("Didn't get expected error")
+		c.Fatalf("Didn't get expected error")
 	}
 }
 
-func TestStdCopyReturnsErrorReadingFrame(t *testing.T) {
+func (s *DockerSuite) TestStdCopyReturnsErrorReadingFrame(c *check.C) {
 	expectedError := errors.New("error")
 	stdOutBytes := []byte(strings.Repeat("o", startingBufLen))
 	stdErrBytes := []byte(strings.Repeat("e", startingBufLen))
 	buffer, err := getSrcBuffer(stdOutBytes, stdErrBytes)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	reader := &customReader{
 		correctCalls: 1,
@@ -158,19 +167,19 @@ func TestStdCopyReturnsErrorReadingFrame(t *testing.T) {
 		src:          buffer}
 	written, err := StdCopy(ioutil.Discard, ioutil.Discard, reader)
 	if written != 0 {
-		t.Fatalf("Expected 0 bytes read, got %d", written)
+		c.Fatalf("Expected 0 bytes read, got %d", written)
 	}
 	if err != expectedError {
-		t.Fatalf("Didn't get expected error")
+		c.Fatalf("Didn't get expected error")
 	}
 }
 
-func TestStdCopyDetectsCorruptedFrame(t *testing.T) {
+func (s *DockerSuite) TestStdCopyDetectsCorruptedFrame(c *check.C) {
 	stdOutBytes := []byte(strings.Repeat("o", startingBufLen))
 	stdErrBytes := []byte(strings.Repeat("e", startingBufLen))
 	buffer, err := getSrcBuffer(stdOutBytes, stdErrBytes)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	reader := &customReader{
 		correctCalls: 1,
@@ -179,41 +188,41 @@ func TestStdCopyDetectsCorruptedFrame(t *testing.T) {
 		src:          buffer}
 	written, err := StdCopy(ioutil.Discard, ioutil.Discard, reader)
 	if written != startingBufLen {
-		t.Fatalf("Expected %d bytes read, got %d", startingBufLen, written)
+		c.Fatalf("Expected %d bytes read, got %d", startingBufLen, written)
 	}
 	if err != nil {
-		t.Fatal("Didn't get nil error")
+		c.Fatal("Didn't get nil error")
 	}
 }
 
-func TestStdCopyWithInvalidInputHeader(t *testing.T) {
+func (s *DockerSuite) TestStdCopyWithInvalidInputHeader(c *check.C) {
 	dstOut := NewStdWriter(ioutil.Discard, Stdout)
 	dstErr := NewStdWriter(ioutil.Discard, Stderr)
 	src := strings.NewReader("Invalid input")
 	_, err := StdCopy(dstOut, dstErr, src)
 	if err == nil {
-		t.Fatal("StdCopy with invalid input header should fail.")
+		c.Fatal("StdCopy with invalid input header should fail.")
 	}
 }
 
-func TestStdCopyWithCorruptedPrefix(t *testing.T) {
+func (s *DockerSuite) TestStdCopyWithCorruptedPrefix(c *check.C) {
 	data := []byte{0x01, 0x02, 0x03}
 	src := bytes.NewReader(data)
 	written, err := StdCopy(nil, nil, src)
 	if err != nil {
-		t.Fatalf("StdCopy should not return an error with corrupted prefix.")
+		c.Fatalf("StdCopy should not return an error with corrupted prefix.")
 	}
 	if written != 0 {
-		t.Fatalf("StdCopy should have written 0, but has written %d", written)
+		c.Fatalf("StdCopy should have written 0, but has written %d", written)
 	}
 }
 
-func TestStdCopyReturnsWriteErrors(t *testing.T) {
+func (s *DockerSuite) TestStdCopyReturnsWriteErrors(c *check.C) {
 	stdOutBytes := []byte(strings.Repeat("o", startingBufLen))
 	stdErrBytes := []byte(strings.Repeat("e", startingBufLen))
 	buffer, err := getSrcBuffer(stdOutBytes, stdErrBytes)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	expectedError := errors.New("expected")
 
@@ -221,40 +230,40 @@ func TestStdCopyReturnsWriteErrors(t *testing.T) {
 
 	written, err := StdCopy(dstOut, ioutil.Discard, buffer)
 	if written != 0 {
-		t.Fatalf("StdCopy should have written 0, but has written %d", written)
+		c.Fatalf("StdCopy should have written 0, but has written %d", written)
 	}
 	if err != expectedError {
-		t.Fatalf("Didn't get expected error, got %v", err)
+		c.Fatalf("Didn't get expected error, got %v", err)
 	}
 }
 
-func TestStdCopyDetectsNotFullyWrittenFrames(t *testing.T) {
+func (s *DockerSuite) TestStdCopyDetectsNotFullyWrittenFrames(c *check.C) {
 	stdOutBytes := []byte(strings.Repeat("o", startingBufLen))
 	stdErrBytes := []byte(strings.Repeat("e", startingBufLen))
 	buffer, err := getSrcBuffer(stdOutBytes, stdErrBytes)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	dstOut := &errWriter{n: startingBufLen - 10}
 
 	written, err := StdCopy(dstOut, ioutil.Discard, buffer)
 	if written != 0 {
-		t.Fatalf("StdCopy should have return 0 written bytes, but returned %d", written)
+		c.Fatalf("StdCopy should have return 0 written bytes, but returned %d", written)
 	}
 	if err != io.ErrShortWrite {
-		t.Fatalf("Didn't get expected io.ErrShortWrite error")
+		c.Fatalf("Didn't get expected io.ErrShortWrite error")
 	}
 }
 
-func BenchmarkWrite(b *testing.B) {
+func (s *DockerSuite) BenchmarkWrite(c *check.C) {
 	w := NewStdWriter(ioutil.Discard, Stdout)
 	data := []byte("Test line for testing stdwriter performance\n")
 	data = bytes.Repeat(data, 100)
-	b.SetBytes(int64(len(data)))
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	c.SetBytes(int64(len(data)))
+	c.ResetTimer()
+	for i := 0; i < c.N; i++ {
 		if _, err := w.Write(data); err != nil {
-			b.Fatal(err)
+			c.Fatal(err)
 		}
 	}
 }

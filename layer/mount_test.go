@@ -6,17 +6,17 @@ import (
 	"path/filepath"
 	"runtime"
 	"sort"
-	"testing"
 
 	"github.com/docker/docker/pkg/archive"
+	"github.com/go-check/check"
 )
 
-func TestMountInit(t *testing.T) {
+func (s *DockerSuite) TestMountInit(c *check.C) {
 	// TODO Windows: Figure out why this is failing
 	if runtime.GOOS == "windows" {
-		t.Skip("Failing on Windows")
+		c.Skip("Failing on Windows")
 	}
-	ls, _, cleanup := newTestStore(t)
+	ls, _, cleanup := newTestStore(c)
 	defer cleanup()
 
 	basefile := newTestFile("testfile.txt", []byte("base data!"), 0644)
@@ -25,7 +25,7 @@ func TestMountInit(t *testing.T) {
 	li := initWithFiles(basefile)
 	layer, err := createLayer(ls, "", li)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	mountInit := func(root string) error {
@@ -34,45 +34,45 @@ func TestMountInit(t *testing.T) {
 
 	m, err := ls.CreateRWLayer("fun-mount", layer.ChainID(), "", mountInit, nil)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	path, err := m.Mount("")
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	f, err := os.Open(filepath.Join(path, "testfile.txt"))
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	defer f.Close()
 
 	fi, err := f.Stat()
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	b, err := ioutil.ReadAll(f)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	if expected := "init data!"; string(b) != expected {
-		t.Fatalf("Unexpected test file contents %q, expected %q", string(b), expected)
+		c.Fatalf("Unexpected test file contents %q, expected %q", string(b), expected)
 	}
 
 	if fi.Mode().Perm() != 0777 {
-		t.Fatalf("Unexpected filemode %o, expecting %o", fi.Mode().Perm(), 0777)
+		c.Fatalf("Unexpected filemode %o, expecting %o", fi.Mode().Perm(), 0777)
 	}
 }
 
-func TestMountSize(t *testing.T) {
+func (s *DockerSuite) TestMountSize(c *check.C) {
 	// TODO Windows: Figure out why this is failing
 	if runtime.GOOS == "windows" {
-		t.Skip("Failing on Windows")
+		c.Skip("Failing on Windows")
 	}
-	ls, _, cleanup := newTestStore(t)
+	ls, _, cleanup := newTestStore(c)
 	defer cleanup()
 
 	content1 := []byte("Base contents")
@@ -82,7 +82,7 @@ func TestMountSize(t *testing.T) {
 	li := initWithFiles(newTestFile("file1", content1, 0644))
 	layer, err := createLayer(ls, "", li)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	mountInit := func(root string) error {
@@ -91,34 +91,34 @@ func TestMountSize(t *testing.T) {
 
 	m, err := ls.CreateRWLayer("mount-size", layer.ChainID(), "", mountInit, nil)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	path, err := m.Mount("")
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	if err := ioutil.WriteFile(filepath.Join(path, "file2"), content2, 0755); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	mountSize, err := m.Size()
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	if expected := len(content2); int(mountSize) != expected {
-		t.Fatalf("Unexpected mount size %d, expected %d", int(mountSize), expected)
+		c.Fatalf("Unexpected mount size %d, expected %d", int(mountSize), expected)
 	}
 }
 
-func TestMountChanges(t *testing.T) {
+func (s *DockerSuite) TestMountChanges(c *check.C) {
 	// TODO Windows: Figure out why this is failing
 	if runtime.GOOS == "windows" {
-		t.Skip("Failing on Windows")
+		c.Skip("Failing on Windows")
 	}
-	ls, _, cleanup := newTestStore(t)
+	ls, _, cleanup := newTestStore(c)
 	defer cleanup()
 
 	basefiles := []FileApplier{
@@ -131,7 +131,7 @@ func TestMountChanges(t *testing.T) {
 	li := initWithFiles(basefiles...)
 	layer, err := createLayer(ls, "", li)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	mountInit := func(root string) error {
@@ -140,69 +140,69 @@ func TestMountChanges(t *testing.T) {
 
 	m, err := ls.CreateRWLayer("mount-changes", layer.ChainID(), "", mountInit, nil)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	path, err := m.Mount("")
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	if err := os.Chmod(filepath.Join(path, "testfile1.txt"), 0755); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	if err := ioutil.WriteFile(filepath.Join(path, "testfile1.txt"), []byte("mount data!"), 0755); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	if err := os.Remove(filepath.Join(path, "testfile2.txt")); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	if err := os.Chmod(filepath.Join(path, "testfile3.txt"), 0755); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	if err := ioutil.WriteFile(filepath.Join(path, "testfile4.txt"), []byte("mount data!"), 0644); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	changes, err := m.Changes()
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	if expected := 4; len(changes) != expected {
-		t.Fatalf("Wrong number of changes %d, expected %d", len(changes), expected)
+		c.Fatalf("Wrong number of changes %d, expected %d", len(changes), expected)
 	}
 
 	sortChanges(changes)
 
-	assertChange(t, changes[0], archive.Change{
+	assertChange(c, changes[0], archive.Change{
 		Path: "/testfile1.txt",
 		Kind: archive.ChangeModify,
 	})
-	assertChange(t, changes[1], archive.Change{
+	assertChange(c, changes[1], archive.Change{
 		Path: "/testfile2.txt",
 		Kind: archive.ChangeDelete,
 	})
-	assertChange(t, changes[2], archive.Change{
+	assertChange(c, changes[2], archive.Change{
 		Path: "/testfile3.txt",
 		Kind: archive.ChangeModify,
 	})
-	assertChange(t, changes[3], archive.Change{
+	assertChange(c, changes[3], archive.Change{
 		Path: "/testfile4.txt",
 		Kind: archive.ChangeAdd,
 	})
 }
 
-func assertChange(t *testing.T, actual, expected archive.Change) {
+func assertChange(c *check.C, actual, expected archive.Change) {
 	if actual.Path != expected.Path {
-		t.Fatalf("Unexpected change path %s, expected %s", actual.Path, expected.Path)
+		c.Fatalf("Unexpected change path %s, expected %s", actual.Path, expected.Path)
 	}
 	if actual.Kind != expected.Kind {
-		t.Fatalf("Unexpected change type %s, expected %s", actual.Kind, expected.Kind)
+		c.Fatalf("Unexpected change type %s, expected %s", actual.Kind, expected.Kind)
 	}
 }
 

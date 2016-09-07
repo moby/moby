@@ -1,8 +1,8 @@
 package container
 
-import "testing"
+import "github.com/go-check/check"
 
-func TestBuildContainerListOptions(t *testing.T) {
+func (s *DockerSuite) TestBuildContainerListOptions(c *check.C) {
 
 	contexts := []struct {
 		psOpts          *psOptions
@@ -40,34 +40,34 @@ func TestBuildContainerListOptions(t *testing.T) {
 		},
 	}
 
-	for _, c := range contexts {
-		options, err := buildContainerListOptions(c.psOpts)
+	for _, ctxs := range contexts {
+		options, err := buildContainerListOptions(ctxs.psOpts)
 		if err != nil {
-			t.Fatal(err)
+			c.Fatal(err)
 		}
 
-		if c.expectedAll != options.All {
-			t.Fatalf("Expected All to be %t but got %t", c.expectedAll, options.All)
+		if ctxs.expectedAll != options.All {
+			c.Fatalf("Expected All to be %t but got %t", ctxs.expectedAll, options.All)
 		}
 
-		if c.expectedSize != options.Size {
-			t.Fatalf("Expected Size to be %t but got %t", c.expectedSize, options.Size)
+		if ctxs.expectedSize != options.Size {
+			c.Fatalf("Expected Size to be %t but got %t", ctxs.expectedSize, options.Size)
 		}
 
-		if c.expectedLimit != options.Limit {
-			t.Fatalf("Expected Limit to be %d but got %d", c.expectedLimit, options.Limit)
+		if ctxs.expectedLimit != options.Limit {
+			c.Fatalf("Expected Limit to be %d but got %d", ctxs.expectedLimit, options.Limit)
 		}
 
 		f := options.Filter
 
-		if f.Len() != len(c.expectedFilters) {
-			t.Fatalf("Expected %d filters but got %d", len(c.expectedFilters), f.Len())
+		if f.Len() != len(ctxs.expectedFilters) {
+			c.Fatalf("Expected %d filters but got %d", len(ctxs.expectedFilters), f.Len())
 		}
 
-		for k, v := range c.expectedFilters {
+		for k, v := range ctxs.expectedFilters {
 			f := options.Filter
 			if !f.ExactMatch(k, v) {
-				t.Fatalf("Expected filter with key %s to be %s but got %s", k, v, f.Get(k))
+				c.Fatalf("Expected filter with key %s to be %s but got %s", k, v, f.Get(k))
 			}
 		}
 	}

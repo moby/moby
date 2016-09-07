@@ -7,10 +7,11 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
-	"testing"
+
+	"github.com/go-check/check"
 )
 
-func TestResumableRequestHeaderSimpleErrors(t *testing.T) {
+func (s *DockerSuite) TestResumableRequestHeaderSimpleErrors(c *check.C) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintln(w, "Hello, world !")
 	}))
@@ -21,14 +22,14 @@ func TestResumableRequestHeaderSimpleErrors(t *testing.T) {
 	var req *http.Request
 	req, err := http.NewRequest("GET", ts.URL, nil)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	expectedError := "client and request can't be nil\n"
 	resreq := &resumableRequestReader{}
 	_, err = resreq.Read([]byte{})
 	if err == nil || err.Error() != expectedError {
-		t.Fatalf("Expected an error with '%s', got %v.", expectedError, err)
+		c.Fatalf("Expected an error with '%s', got %v.", expectedError, err)
 	}
 
 	resreq = &resumableRequestReader{
@@ -39,19 +40,19 @@ func TestResumableRequestHeaderSimpleErrors(t *testing.T) {
 	expectedError = "failed to auto detect content length"
 	_, err = resreq.Read([]byte{})
 	if err == nil || err.Error() != expectedError {
-		t.Fatalf("Expected an error with '%s', got %v.", expectedError, err)
+		c.Fatalf("Expected an error with '%s', got %v.", expectedError, err)
 	}
 
 }
 
 // Not too much failures, bails out after some wait
-func TestResumableRequestHeaderNotTooMuchFailures(t *testing.T) {
+func (s *DockerSuite) TestResumableRequestHeaderNotTooMuchFailures(c *check.C) {
 	client := &http.Client{}
 
 	var badReq *http.Request
 	badReq, err := http.NewRequest("GET", "I'm not an url", nil)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	resreq := &resumableRequestReader{
@@ -62,18 +63,18 @@ func TestResumableRequestHeaderNotTooMuchFailures(t *testing.T) {
 	}
 	read, err := resreq.Read([]byte{})
 	if err != nil || read != 0 {
-		t.Fatalf("Expected no error and no byte read, got err:%v, read:%v.", err, read)
+		c.Fatalf("Expected no error and no byte read, got err:%v, read:%v.", err, read)
 	}
 }
 
 // Too much failures, returns the error
-func TestResumableRequestHeaderTooMuchFailures(t *testing.T) {
+func (s *DockerSuite) TestResumableRequestHeaderTooMuchFailures(c *check.C) {
 	client := &http.Client{}
 
 	var badReq *http.Request
 	badReq, err := http.NewRequest("GET", "I'm not an url", nil)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	resreq := &resumableRequestReader{
@@ -87,7 +88,7 @@ func TestResumableRequestHeaderTooMuchFailures(t *testing.T) {
 	expectedError := `Get I%27m%20not%20an%20url: unsupported protocol scheme ""`
 	read, err := resreq.Read([]byte{})
 	if err == nil || err.Error() != expectedError || read != 0 {
-		t.Fatalf("Expected the error '%s', got err:%v, read:%v.", expectedError, err, read)
+		c.Fatalf("Expected the error '%s', got err:%v, read:%v.", expectedError, err, read)
 	}
 }
 
@@ -100,11 +101,11 @@ func (errorReaderCloser) Read(p []byte) (n int, err error) {
 }
 
 // If an unknown error is encountered, return 0, nil and log it
-func TestResumableRequestReaderWithReadError(t *testing.T) {
+func (s *DockerSuite) TestResumableRequestReaderWithReadError(c *check.C) {
 	var req *http.Request
 	req, err := http.NewRequest("GET", "", nil)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	client := &http.Client{}
@@ -129,19 +130,19 @@ func TestResumableRequestReaderWithReadError(t *testing.T) {
 	buf := make([]byte, 1)
 	read, err := resreq.Read(buf)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	if read != 0 {
-		t.Fatalf("Expected to have read nothing, but read %v", read)
+		c.Fatalf("Expected to have read nothing, but read %v", read)
 	}
 }
 
-func TestResumableRequestReaderWithEOFWith416Response(t *testing.T) {
+func (s *DockerSuite) TestResumableRequestReaderWithEOFWith416Response(c *check.C) {
 	var req *http.Request
 	req, err := http.NewRequest("GET", "", nil)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	client := &http.Client{}
@@ -166,14 +167,14 @@ func TestResumableRequestReaderWithEOFWith416Response(t *testing.T) {
 	buf := make([]byte, 1)
 	_, err = resreq.Read(buf)
 	if err == nil || err != io.EOF {
-		t.Fatalf("Expected an io.EOF error, got %v", err)
+		c.Fatalf("Expected an io.EOF error, got %v", err)
 	}
 }
 
-func TestResumableRequestReaderWithServerDoesntSupportByteRanges(t *testing.T) {
+func (s *DockerSuite) TestResumableRequestReaderWithServerDoesntSupportByteRanges(c *check.C) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Header.Get("Range") == "" {
-			t.Fatalf("Expected a Range HTTP header, got nothing")
+			c.Fatalf("Expected a Range HTTP header, got nothing")
 		}
 	}))
 	defer ts.Close()
@@ -181,7 +182,7 @@ func TestResumableRequestReaderWithServerDoesntSupportByteRanges(t *testing.T) {
 	var req *http.Request
 	req, err := http.NewRequest("GET", ts.URL, nil)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	client := &http.Client{}
@@ -196,11 +197,11 @@ func TestResumableRequestReaderWithServerDoesntSupportByteRanges(t *testing.T) {
 	buf := make([]byte, 2)
 	_, err = resreq.Read(buf)
 	if err == nil || err.Error() != "the server doesn't support byte ranges" {
-		t.Fatalf("Expected an error 'the server doesn't support byte ranges', got %v", err)
+		c.Fatalf("Expected an error 'the server doesn't support byte ranges', got %v", err)
 	}
 }
 
-func TestResumableRequestReaderWithZeroTotalSize(t *testing.T) {
+func (s *DockerSuite) TestResumableRequestReaderWithZeroTotalSize(c *check.C) {
 
 	srvtxt := "some response text data"
 
@@ -212,7 +213,7 @@ func TestResumableRequestReaderWithZeroTotalSize(t *testing.T) {
 	var req *http.Request
 	req, err := http.NewRequest("GET", ts.URL, nil)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	client := &http.Client{}
@@ -223,17 +224,17 @@ func TestResumableRequestReaderWithZeroTotalSize(t *testing.T) {
 
 	data, err := ioutil.ReadAll(resreq)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	resstr := strings.TrimSuffix(string(data), "\n")
 
 	if resstr != srvtxt {
-		t.Errorf("resstr != srvtxt")
+		c.Errorf("resstr != srvtxt")
 	}
 }
 
-func TestResumableRequestReader(t *testing.T) {
+func (s *DockerSuite) TestResumableRequestReader(c *check.C) {
 
 	srvtxt := "some response text data"
 
@@ -245,7 +246,7 @@ func TestResumableRequestReader(t *testing.T) {
 	var req *http.Request
 	req, err := http.NewRequest("GET", ts.URL, nil)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	client := &http.Client{}
@@ -257,17 +258,17 @@ func TestResumableRequestReader(t *testing.T) {
 
 	data, err := ioutil.ReadAll(resreq)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	resstr := strings.TrimSuffix(string(data), "\n")
 
 	if resstr != srvtxt {
-		t.Errorf("resstr != srvtxt")
+		c.Errorf("resstr != srvtxt")
 	}
 }
 
-func TestResumableRequestReaderWithInitialResponse(t *testing.T) {
+func (s *DockerSuite) TestResumableRequestReaderWithInitialResponse(c *check.C) {
 
 	srvtxt := "some response text data"
 
@@ -279,7 +280,7 @@ func TestResumableRequestReaderWithInitialResponse(t *testing.T) {
 	var req *http.Request
 	req, err := http.NewRequest("GET", ts.URL, nil)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	client := &http.Client{}
@@ -288,7 +289,7 @@ func TestResumableRequestReaderWithInitialResponse(t *testing.T) {
 
 	res, err := client.Do(req)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	resreq := ResumableRequestReaderWithInitialResponse(client, req, retries, imgSize, res)
@@ -296,12 +297,12 @@ func TestResumableRequestReaderWithInitialResponse(t *testing.T) {
 
 	data, err := ioutil.ReadAll(resreq)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	resstr := strings.TrimSuffix(string(data), "\n")
 
 	if resstr != srvtxt {
-		t.Errorf("resstr != srvtxt")
+		c.Errorf("resstr != srvtxt")
 	}
 }

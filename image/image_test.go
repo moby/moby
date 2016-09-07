@@ -4,7 +4,8 @@ import (
 	"encoding/json"
 	"sort"
 	"strings"
-	"testing"
+
+	"github.com/go-check/check"
 )
 
 const sampleImageJSON = `{
@@ -17,25 +18,25 @@ const sampleImageJSON = `{
 	}
 }`
 
-func TestJSON(t *testing.T) {
+func (s *DockerSuite) TestJSON(c *check.C) {
 	img, err := NewFromJSON([]byte(sampleImageJSON))
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	rawJSON := img.RawJSON()
 	if string(rawJSON) != sampleImageJSON {
-		t.Fatalf("Raw JSON of config didn't match: expected %+v, got %v", sampleImageJSON, rawJSON)
+		c.Fatalf("Raw JSON of config didn't match: expected %+v, got %v", sampleImageJSON, rawJSON)
 	}
 }
 
-func TestInvalidJSON(t *testing.T) {
+func (s *DockerSuite) TestInvalidJSON(c *check.C) {
 	_, err := NewFromJSON([]byte("{}"))
 	if err == nil {
-		t.Fatal("Expected JSON parse error")
+		c.Fatal("Expected JSON parse error")
 	}
 }
 
-func TestMarshalKeyOrder(t *testing.T) {
+func (s *DockerSuite) TestMarshalKeyOrder(c *check.C) {
 	b, err := json.Marshal(&Image{
 		V1Image: V1Image{
 			Comment:      "a",
@@ -44,7 +45,7 @@ func TestMarshalKeyOrder(t *testing.T) {
 		},
 	})
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	expectedOrder := []string{"architecture", "author", "comment"}
@@ -54,6 +55,6 @@ func TestMarshalKeyOrder(t *testing.T) {
 	}
 
 	if !sort.IntsAreSorted(indexes) {
-		t.Fatal("invalid key order in JSON: ", string(b))
+		c.Fatal("invalid key order in JSON: ", string(b))
 	}
 }

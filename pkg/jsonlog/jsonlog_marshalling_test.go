@@ -3,9 +3,18 @@ package jsonlog
 import (
 	"regexp"
 	"testing"
+
+	"github.com/go-check/check"
 )
 
-func TestJSONLogMarshalJSON(t *testing.T) {
+// Hook up gocheck into the "go test" runner.
+func Test(t *testing.T) { check.TestingT(t) }
+
+type DockerSuite struct{}
+
+var _ = check.Suite(&DockerSuite{})
+
+func (s *DockerSuite) TestJSONLogMarshalJSON(c *check.C) {
 	logs := map[*JSONLog]string{
 		&JSONLog{Log: `"A log line with \\"`}:           `^{\"log\":\"\\\"A log line with \\\\\\\\\\\"\",\"time\":\".{20,}\"}$`,
 		&JSONLog{Log: "A log line"}:                     `^{\"log\":\"A log line\",\"time\":\".{20,}\"}$`,
@@ -22,13 +31,13 @@ func TestJSONLogMarshalJSON(t *testing.T) {
 	for jsonLog, expression := range logs {
 		data, err := jsonLog.MarshalJSON()
 		if err != nil {
-			t.Fatal(err)
+			c.Fatal(err)
 		}
 		res := string(data)
-		t.Logf("Result of WriteLog: %q", res)
+		c.Logf("Result of WriteLog: %q", res)
 		logRe := regexp.MustCompile(expression)
 		if !logRe.MatchString(res) {
-			t.Fatalf("Log line not in expected format [%v]: %q", expression, res)
+			c.Fatalf("Log line not in expected format [%v]: %q", expression, res)
 		}
 	}
 }

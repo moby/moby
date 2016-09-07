@@ -1,12 +1,11 @@
 package daemon
 
 import (
-	"testing"
-
 	"github.com/docker/docker/volume"
+	"github.com/go-check/check"
 )
 
-func TestParseVolumesFrom(t *testing.T) {
+func (s *DockerSuite) TestParseVolumesFrom(c *check.C) {
 	cases := []struct {
 		spec    string
 		expID   string
@@ -20,20 +19,20 @@ func TestParseVolumesFrom(t *testing.T) {
 		{"foobar:baz", "", "", true},
 	}
 
-	for _, c := range cases {
-		id, mode, err := volume.ParseVolumesFrom(c.spec)
-		if c.fail {
+	for _, ca := range cases {
+		id, mode, err := volume.ParseVolumesFrom(ca.spec)
+		if ca.fail {
 			if err == nil {
-				t.Fatalf("Expected error, was nil, for spec %s\n", c.spec)
+				c.Fatalf("Expected error, was nil, for spec %s\n", ca.spec)
 			}
 			continue
 		}
 
-		if id != c.expID {
-			t.Fatalf("Expected id %s, was %s, for spec %s\n", c.expID, id, c.spec)
+		if id != ca.expID {
+			c.Fatalf("Expected id %s, was %s, for spec %s\n", ca.expID, id, ca.spec)
 		}
-		if mode != c.expMode {
-			t.Fatalf("Expected mode %s, was %s for spec %s\n", c.expMode, mode, c.spec)
+		if mode != ca.expMode {
+			c.Fatalf("Expected mode %s, was %s for spec %s\n", ca.expMode, mode, ca.spec)
 		}
 	}
 }

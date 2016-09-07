@@ -12,7 +12,6 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
-	"testing"
 	"time"
 
 	"github.com/docker/docker/reference"
@@ -20,6 +19,7 @@ import (
 	"github.com/gorilla/mux"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/go-check/check"
 )
 
 var (
@@ -219,28 +219,28 @@ func apiError(w http.ResponseWriter, message string, code int) {
 	writeResponse(w, body, code)
 }
 
-func assertEqual(t *testing.T, a interface{}, b interface{}, message string) {
+func assertEqual(c *check.C, a interface{}, b interface{}, message string) {
 	if a == b {
 		return
 	}
 	if len(message) == 0 {
 		message = fmt.Sprintf("%v != %v", a, b)
 	}
-	t.Fatal(message)
+	c.Fatal(message)
 }
 
-func assertNotEqual(t *testing.T, a interface{}, b interface{}, message string) {
+func assertNotEqual(c *check.C, a interface{}, b interface{}, message string) {
 	if a != b {
 		return
 	}
 	if len(message) == 0 {
 		message = fmt.Sprintf("%v == %v", a, b)
 	}
-	t.Fatal(message)
+	c.Fatal(message)
 }
 
 // Similar to assertEqual, but does not stop test
-func checkEqual(t *testing.T, a interface{}, b interface{}, messagePrefix string) {
+func checkEqual(c *check.C, a interface{}, b interface{}, messagePrefix string) {
 	if a == b {
 		return
 	}
@@ -248,11 +248,11 @@ func checkEqual(t *testing.T, a interface{}, b interface{}, messagePrefix string
 	if len(messagePrefix) != 0 {
 		message = messagePrefix + ": " + message
 	}
-	t.Error(message)
+	c.Error(message)
 }
 
 // Similar to assertNotEqual, but does not stop test
-func checkNotEqual(t *testing.T, a interface{}, b interface{}, messagePrefix string) {
+func checkNotEqual(c *check.C, a interface{}, b interface{}, messagePrefix string) {
 	if a != b {
 		return
 	}
@@ -260,7 +260,7 @@ func checkNotEqual(t *testing.T, a interface{}, b interface{}, messagePrefix str
 	if len(messagePrefix) != 0 {
 		message = messagePrefix + ": " + message
 	}
-	t.Error(message)
+	c.Error(message)
 }
 
 func requiresAuth(w http.ResponseWriter, r *http.Request) bool {
@@ -454,20 +454,20 @@ func handlerSearch(w http.ResponseWriter, r *http.Request) {
 	writeResponse(w, result, 200)
 }
 
-func TestPing(t *testing.T) {
+func (s *DockerSuite) TestPing(c *check.C) {
 	res, err := http.Get(makeURL("/v1/_ping"))
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
-	assertEqual(t, res.StatusCode, 200, "")
-	assertEqual(t, res.Header.Get("X-Docker-Registry-Config"), "mock",
+	assertEqual(c, res.StatusCode, 200, "")
+	assertEqual(c, res.Header.Get("X-Docker-Registry-Config"), "mock",
 		"This is not a Mocked Registry")
 }
 
 /* Uncomment this to test Mocked Registry locally with curl
  * WARNING: Don't push on the repos uncommented, it'll block the tests
  *
-func TestWait(t *testing.T) {
+func (s *DockerSuite) TestWait(c *check.C) {
 	logrus.Println("Test HTTP server ready and waiting:", testHTTPServer.URL)
 	c := make(chan int)
 	<-c

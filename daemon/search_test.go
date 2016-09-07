@@ -3,13 +3,13 @@ package daemon
 import (
 	"fmt"
 	"strings"
-	"testing"
 
 	"golang.org/x/net/context"
 
 	"github.com/docker/docker/registry"
 	"github.com/docker/engine-api/types"
 	registrytypes "github.com/docker/engine-api/types/registry"
+	"github.com/go-check/check"
 )
 
 type FakeService struct {
@@ -32,7 +32,7 @@ func (s *FakeService) Search(ctx context.Context, term string, limit int, authCo
 	}, nil
 }
 
-func TestSearchRegistryForImagesErrors(t *testing.T) {
+func (s *DockerSuite) TestSearchRegistryForImagesErrors(c *check.C) {
 	errorCases := []struct {
 		filtersArgs       string
 		shouldReturnError bool
@@ -83,15 +83,15 @@ func TestSearchRegistryForImagesErrors(t *testing.T) {
 		}
 		_, err := daemon.SearchRegistryForImages(context.Background(), e.filtersArgs, "term", 25, nil, map[string][]string{})
 		if err == nil {
-			t.Errorf("%d: expected an error, got nothing", index)
+			c.Errorf("%d: expected an error, got nothing", index)
 		}
 		if !strings.Contains(err.Error(), e.expectedError) {
-			t.Errorf("%d: expected error to contain %s, got %s", index, e.expectedError, err.Error())
+			c.Errorf("%d: expected error to contain %s, got %s", index, e.expectedError, err.Error())
 		}
 	}
 }
 
-func TestSearchRegistryForImages(t *testing.T) {
+func (s *DockerSuite) TestSearchRegistryForImages(c *check.C) {
 	term := "term"
 	successCases := []struct {
 		filtersArgs     string
@@ -321,26 +321,26 @@ func TestSearchRegistryForImages(t *testing.T) {
 			},
 		},
 	}
-	for index, s := range successCases {
+	for index, sc := range successCases {
 		daemon := &Daemon{
 			RegistryService: &FakeService{
 				term:    term,
-				results: s.registryResults,
+				results: sc.registryResults,
 			},
 		}
-		results, err := daemon.SearchRegistryForImages(context.Background(), s.filtersArgs, term, 25, nil, map[string][]string{})
+		results, err := daemon.SearchRegistryForImages(context.Background(), sc.filtersArgs, term, 25, nil, map[string][]string{})
 		if err != nil {
-			t.Errorf("%d: %v", index, err)
+			c.Errorf("%d: %v", index, err)
 		}
 		if results.Query != term {
-			t.Errorf("%d: expected Query to be %s, got %s", index, term, results.Query)
+			c.Errorf("%d: expected Query to be %s, got %s", index, term, results.Query)
 		}
-		if results.NumResults != len(s.expectedResults) {
-			t.Errorf("%d: expected NumResults to be %d, got %d", index, len(s.expectedResults), results.NumResults)
+		if results.NumResults != len(sc.expectedResults) {
+			c.Errorf("%d: expected NumResults to be %d, got %d", index, len(sc.expectedResults), results.NumResults)
 		}
 		for _, result := range results.Results {
 			found := false
-			for _, expectedResult := range s.expectedResults {
+			for _, expectedResult := range sc.expectedResults {
 				if expectedResult.Name == result.Name &&
 					expectedResult.Description == result.Description &&
 					expectedResult.IsAutomated == result.IsAutomated &&
@@ -351,7 +351,7 @@ func TestSearchRegistryForImages(t *testing.T) {
 				}
 			}
 			if !found {
-				t.Errorf("%d: expected results %v, got %v", index, s.expectedResults, results.Results)
+				c.Errorf("%d: expected results %v, got %v", index, sc.expectedResults, results.Results)
 			}
 		}
 	}

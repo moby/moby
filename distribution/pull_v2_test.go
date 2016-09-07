@@ -11,12 +11,20 @@ import (
 	"github.com/docker/distribution/digest"
 	"github.com/docker/distribution/manifest/schema1"
 	"github.com/docker/docker/reference"
+	"github.com/go-check/check"
 )
+
+// Hook up gocheck into the "go test" runner.
+func Test(t *testing.T) { check.TestingT(t) }
+
+type DockerSuite struct{}
+
+var _ = check.Suite(&DockerSuite{})
 
 // TestFixManifestLayers checks that fixManifestLayers removes a duplicate
 // layer, and that it makes no changes to the manifest when called a second
 // time, after the duplicate is removed.
-func TestFixManifestLayers(t *testing.T) {
+func (s *DockerSuite) TestFixManifestLayers(c *check.C) {
 	duplicateLayerManifest := schema1.Manifest{
 		FSLayers: []schema1.FSLayer{
 			{BlobSum: digest.Digest("sha256:a3ed95caeb02ffe68cdd9fd84406680ae93d633cb16422d00e8a7c22955b46d4")},
@@ -42,30 +50,30 @@ func TestFixManifestLayers(t *testing.T) {
 	}
 
 	if err := fixManifestLayers(&duplicateLayerManifest); err != nil {
-		t.Fatalf("unexpected error from fixManifestLayers: %v", err)
+		c.Fatalf("unexpected error from fixManifestLayers: %v", err)
 	}
 
 	if !reflect.DeepEqual(duplicateLayerManifest, duplicateLayerManifestExpectedOutput) {
-		t.Fatal("incorrect output from fixManifestLayers on duplicate layer manifest")
+		c.Fatal("incorrect output from fixManifestLayers on duplicate layer manifest")
 	}
 
 	// Run fixManifestLayers again and confirm that it doesn't change the
 	// manifest (which no longer has duplicate layers).
 	if err := fixManifestLayers(&duplicateLayerManifest); err != nil {
-		t.Fatalf("unexpected error from fixManifestLayers: %v", err)
+		c.Fatalf("unexpected error from fixManifestLayers: %v", err)
 	}
 
 	if !reflect.DeepEqual(duplicateLayerManifest, duplicateLayerManifestExpectedOutput) {
-		t.Fatal("incorrect output from fixManifestLayers on duplicate layer manifest (second pass)")
+		c.Fatal("incorrect output from fixManifestLayers on duplicate layer manifest (second pass)")
 	}
 }
 
 // TestFixManifestLayersBaseLayerParent makes sure that fixManifestLayers fails
 // if the base layer configuration specifies a parent.
-func TestFixManifestLayersBaseLayerParent(t *testing.T) {
+func (s *DockerSuite) TestFixManifestLayersBaseLayerParent(c *check.C) {
 	// TODO Windows: Fix this unit text
 	if runtime.GOOS == "windows" {
-		t.Skip("Needs fixing on Windows")
+		c.Skip("Needs fixing on Windows")
 	}
 	duplicateLayerManifest := schema1.Manifest{
 		FSLayers: []schema1.FSLayer{
@@ -81,14 +89,14 @@ func TestFixManifestLayersBaseLayerParent(t *testing.T) {
 	}
 
 	if err := fixManifestLayers(&duplicateLayerManifest); err == nil || !strings.Contains(err.Error(), "Invalid parent ID in the base layer of the image.") {
-		t.Fatalf("expected an invalid parent ID error from fixManifestLayers")
+		c.Fatalf("expected an invalid parent ID error from fixManifestLayers")
 	}
 }
 
 // TestFixManifestLayersBadParent makes sure that fixManifestLayers fails
 // if an image configuration specifies a parent that doesn't directly follow
 // that (deduplicated) image in the image history.
-func TestFixManifestLayersBadParent(t *testing.T) {
+func (s *DockerSuite) TestFixManifestLayersBadParent(c *check.C) {
 	duplicateLayerManifest := schema1.Manifest{
 		FSLayers: []schema1.FSLayer{
 			{BlobSum: digest.Digest("sha256:a3ed95caeb02ffe68cdd9fd84406680ae93d633cb16422d00e8a7c22955b46d4")},
@@ -103,19 +111,19 @@ func TestFixManifestLayersBadParent(t *testing.T) {
 	}
 
 	if err := fixManifestLayers(&duplicateLayerManifest); err == nil || !strings.Contains(err.Error(), "Invalid parent ID.") {
-		t.Fatalf("expected an invalid parent ID error from fixManifestLayers")
+		c.Fatalf("expected an invalid parent ID error from fixManifestLayers")
 	}
 }
 
 // TestValidateManifest verifies the validateManifest function
-func TestValidateManifest(t *testing.T) {
+func (s *DockerSuite) TestValidateManifest(c *check.C) {
 	// TODO Windows: Fix this unit text
 	if runtime.GOOS == "windows" {
-		t.Skip("Needs fixing on Windows")
+		c.Skip("Needs fixing on Windows")
 	}
 	expectedDigest, err := reference.ParseNamed("repo@sha256:02fee8c3220ba806531f606525eceb83f4feb654f62b207191b1c9209188dedd")
 	if err != nil {
-		t.Fatal("could not parse reference")
+		c.Fatal("could not parse reference")
 	}
 	expectedFSLayer0 := digest.Digest("sha256:a3ed95caeb02ffe68cdd9fd84406680ae93d633cb16422d00e8a7c22955b46d4")
 
@@ -123,61 +131,61 @@ func TestValidateManifest(t *testing.T) {
 
 	goodManifestBytes, err := ioutil.ReadFile("fixtures/validate_manifest/good_manifest")
 	if err != nil {
-		t.Fatal("error reading fixture:", err)
+		c.Fatal("error reading fixture:", err)
 	}
 
 	var goodSignedManifest schema1.SignedManifest
 	err = json.Unmarshal(goodManifestBytes, &goodSignedManifest)
 	if err != nil {
-		t.Fatal("error unmarshaling manifest:", err)
+		c.Fatal("error unmarshaling manifest:", err)
 	}
 
 	verifiedManifest, err := verifySchema1Manifest(&goodSignedManifest, expectedDigest)
 	if err != nil {
-		t.Fatal("validateManifest failed:", err)
+		c.Fatal("validateManifest failed:", err)
 	}
 
 	if verifiedManifest.FSLayers[0].BlobSum != expectedFSLayer0 {
-		t.Fatal("unexpected FSLayer in good manifest")
+		c.Fatal("unexpected FSLayer in good manifest")
 	}
 
 	// "Extra data" manifest
 
 	extraDataManifestBytes, err := ioutil.ReadFile("fixtures/validate_manifest/extra_data_manifest")
 	if err != nil {
-		t.Fatal("error reading fixture:", err)
+		c.Fatal("error reading fixture:", err)
 	}
 
 	var extraDataSignedManifest schema1.SignedManifest
 	err = json.Unmarshal(extraDataManifestBytes, &extraDataSignedManifest)
 	if err != nil {
-		t.Fatal("error unmarshaling manifest:", err)
+		c.Fatal("error unmarshaling manifest:", err)
 	}
 
 	verifiedManifest, err = verifySchema1Manifest(&extraDataSignedManifest, expectedDigest)
 	if err != nil {
-		t.Fatal("validateManifest failed:", err)
+		c.Fatal("validateManifest failed:", err)
 	}
 
 	if verifiedManifest.FSLayers[0].BlobSum != expectedFSLayer0 {
-		t.Fatal("unexpected FSLayer in extra data manifest")
+		c.Fatal("unexpected FSLayer in extra data manifest")
 	}
 
 	// Bad manifest
 
 	badManifestBytes, err := ioutil.ReadFile("fixtures/validate_manifest/bad_manifest")
 	if err != nil {
-		t.Fatal("error reading fixture:", err)
+		c.Fatal("error reading fixture:", err)
 	}
 
 	var badSignedManifest schema1.SignedManifest
 	err = json.Unmarshal(badManifestBytes, &badSignedManifest)
 	if err != nil {
-		t.Fatal("error unmarshaling manifest:", err)
+		c.Fatal("error unmarshaling manifest:", err)
 	}
 
 	verifiedManifest, err = verifySchema1Manifest(&badSignedManifest, expectedDigest)
 	if err == nil || !strings.HasPrefix(err.Error(), "image verification failed for digest") {
-		t.Fatal("expected validateManifest to fail with digest error")
+		c.Fatal("expected validateManifest to fail with digest error")
 	}
 }

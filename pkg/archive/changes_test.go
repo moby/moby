@@ -7,10 +7,10 @@ import (
 	"path"
 	"runtime"
 	"sort"
-	"testing"
 	"time"
 
 	"github.com/docker/docker/pkg/system"
+	"github.com/go-check/check"
 )
 
 func max(x, y int) int {
@@ -43,7 +43,7 @@ type FileData struct {
 	permissions os.FileMode
 }
 
-func createSampleDir(t *testing.T, root string) {
+func createSampleDir(c *check.C, root string) {
 	files := []FileData{
 		{Regular, "file1", "file1\n", 0600},
 		{Regular, "file2", "file2\n", 0666},
@@ -76,90 +76,90 @@ func createSampleDir(t *testing.T, root string) {
 		p := path.Join(root, info.path)
 		if info.filetype == Dir {
 			if err := os.MkdirAll(p, info.permissions); err != nil {
-				t.Fatal(err)
+				c.Fatal(err)
 			}
 		} else if info.filetype == Regular {
 			if err := ioutil.WriteFile(p, []byte(info.contents), info.permissions); err != nil {
-				t.Fatal(err)
+				c.Fatal(err)
 			}
 		} else if info.filetype == Symlink {
 			if err := os.Symlink(info.contents, p); err != nil {
-				t.Fatal(err)
+				c.Fatal(err)
 			}
 		}
 
 		if info.filetype != Symlink {
 			// Set a consistent ctime, atime for all files and dirs
 			if err := system.Chtimes(p, now, now); err != nil {
-				t.Fatal(err)
+				c.Fatal(err)
 			}
 		}
 	}
 }
 
-func TestChangeString(t *testing.T) {
+func (s *DockerSuite) TestChangeString(c *check.C) {
 	modifiyChange := Change{"change", ChangeModify}
 	toString := modifiyChange.String()
 	if toString != "C change" {
-		t.Fatalf("String() of a change with ChangeModifiy Kind should have been %s but was %s", "C change", toString)
+		c.Fatalf("String() of a change with ChangeModifiy Kind should have been %s but was %s", "C change", toString)
 	}
 	addChange := Change{"change", ChangeAdd}
 	toString = addChange.String()
 	if toString != "A change" {
-		t.Fatalf("String() of a change with ChangeAdd Kind should have been %s but was %s", "A change", toString)
+		c.Fatalf("String() of a change with ChangeAdd Kind should have been %s but was %s", "A change", toString)
 	}
 	deleteChange := Change{"change", ChangeDelete}
 	toString = deleteChange.String()
 	if toString != "D change" {
-		t.Fatalf("String() of a change with ChangeDelete Kind should have been %s but was %s", "D change", toString)
+		c.Fatalf("String() of a change with ChangeDelete Kind should have been %s but was %s", "D change", toString)
 	}
 }
 
-func TestChangesWithNoChanges(t *testing.T) {
+func (s *DockerSuite) TestChangesWithNoChanges(c *check.C) {
 	// TODO Windows. There may be a way of running this, but turning off for now
 	// as createSampleDir uses symlinks.
 	if runtime.GOOS == "windows" {
-		t.Skip("symlinks on Windows")
+		c.Skip("symlinks on Windows")
 	}
 	rwLayer, err := ioutil.TempDir("", "docker-changes-test")
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	defer os.RemoveAll(rwLayer)
 	layer, err := ioutil.TempDir("", "docker-changes-test-layer")
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	defer os.RemoveAll(layer)
-	createSampleDir(t, layer)
+	createSampleDir(c, layer)
 	changes, err := Changes([]string{layer}, rwLayer)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	if len(changes) != 0 {
-		t.Fatalf("Changes with no difference should have detect no changes, but detected %d", len(changes))
+		c.Fatalf("Changes with no difference should have detect no changes, but detected %d", len(changes))
 	}
 }
 
-func TestChangesWithChanges(t *testing.T) {
+func (s *DockerSuite) TestChangesWithChanges(c *check.C) {
 	// TODO Windows. There may be a way of running this, but turning off for now
 	// as createSampleDir uses symlinks.
 	if runtime.GOOS == "windows" {
-		t.Skip("symlinks on Windows")
+		c.Skip("symlinks on Windows")
 	}
 	// Mock the readonly layer
 	layer, err := ioutil.TempDir("", "docker-changes-test-layer")
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	defer os.RemoveAll(layer)
-	createSampleDir(t, layer)
+	createSampleDir(c, layer)
 	os.MkdirAll(path.Join(layer, "dir1/subfolder"), 0740)
 
 	// Mock the RW layer
 	rwLayer, err := ioutil.TempDir("", "docker-changes-test")
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	defer os.RemoveAll(rwLayer)
 
@@ -178,7 +178,7 @@ func TestChangesWithChanges(t *testing.T) {
 
 	changes, err := Changes([]string{layer}, rwLayer)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	expectedChanges := []Change{
@@ -188,15 +188,15 @@ func TestChangesWithChanges(t *testing.T) {
 		{"/dir1/subfolder", ChangeModify},
 		{"/dir1/subfolder/newFile", ChangeAdd},
 	}
-	checkChanges(expectedChanges, changes, t)
+	checkChanges(expectedChanges, changes, c)
 }
 
 // See https://github.com/docker/docker/pull/13590
-func TestChangesWithChangesGH13590(t *testing.T) {
+func (s *DockerSuite) TestChangesWithChangesGH13590(c *check.C) {
 	// TODO Windows. There may be a way of running this, but turning off for now
 	// as createSampleDir uses symlinks.
 	if runtime.GOOS == "windows" {
-		t.Skip("symlinks on Windows")
+		c.Skip("symlinks on Windows")
 	}
 	baseLayer, err := ioutil.TempDir("", "docker-changes-test.")
 	defer os.RemoveAll(baseLayer)
@@ -212,7 +212,7 @@ func TestChangesWithChangesGH13590(t *testing.T) {
 
 	// Test creating a new file
 	if err := copyDir(baseLayer+"/dir1", layer+"/"); err != nil {
-		t.Fatalf("Cmd failed: %q", err)
+		c.Fatalf("Cmd failed: %q", err)
 	}
 
 	os.Remove(path.Join(layer, "dir1/dir2/dir3/file.txt"))
@@ -221,21 +221,21 @@ func TestChangesWithChangesGH13590(t *testing.T) {
 
 	changes, err := Changes([]string{baseLayer}, layer)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	expectedChanges := []Change{
 		{"/dir1/dir2/dir3", ChangeModify},
 		{"/dir1/dir2/dir3/file1.txt", ChangeAdd},
 	}
-	checkChanges(expectedChanges, changes, t)
+	checkChanges(expectedChanges, changes, c)
 
 	// Now test changing a file
 	layer, err = ioutil.TempDir("", "docker-changes-test3.")
 	defer os.RemoveAll(layer)
 
 	if err := copyDir(baseLayer+"/dir1", layer+"/"); err != nil {
-		t.Fatalf("Cmd failed: %q", err)
+		c.Fatalf("Cmd failed: %q", err)
 	}
 
 	file = path.Join(layer, "dir1/dir2/dir3/file.txt")
@@ -243,147 +243,147 @@ func TestChangesWithChangesGH13590(t *testing.T) {
 
 	changes, err = Changes([]string{baseLayer}, layer)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	expectedChanges = []Change{
 		{"/dir1/dir2/dir3/file.txt", ChangeModify},
 	}
-	checkChanges(expectedChanges, changes, t)
+	checkChanges(expectedChanges, changes, c)
 }
 
 // Create a directory, copy it, make sure we report no changes between the two
-func TestChangesDirsEmpty(t *testing.T) {
+func (s *DockerSuite) TestChangesDirsEmpty(c *check.C) {
 	// TODO Windows. There may be a way of running this, but turning off for now
 	// as createSampleDir uses symlinks.
 	if runtime.GOOS == "windows" {
-		t.Skip("symlinks on Windows")
+		c.Skip("symlinks on Windows")
 	}
 	src, err := ioutil.TempDir("", "docker-changes-test")
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	defer os.RemoveAll(src)
-	createSampleDir(t, src)
+	createSampleDir(c, src)
 	dst := src + "-copy"
 	if err := copyDir(src, dst); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	defer os.RemoveAll(dst)
 	changes, err := ChangesDirs(dst, src)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	if len(changes) != 0 {
-		t.Fatalf("Reported changes for identical dirs: %v", changes)
+		c.Fatalf("Reported changes for identical dirs: %v", changes)
 	}
 	os.RemoveAll(src)
 	os.RemoveAll(dst)
 }
 
-func mutateSampleDir(t *testing.T, root string) {
+func mutateSampleDir(c *check.C, root string) {
 	// Remove a regular file
 	if err := os.RemoveAll(path.Join(root, "file1")); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	// Remove a directory
 	if err := os.RemoveAll(path.Join(root, "dir1")); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	// Remove a symlink
 	if err := os.RemoveAll(path.Join(root, "symlink1")); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	// Rewrite a file
 	if err := ioutil.WriteFile(path.Join(root, "file2"), []byte("fileNN\n"), 0777); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	// Replace a file
 	if err := os.RemoveAll(path.Join(root, "file3")); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	if err := ioutil.WriteFile(path.Join(root, "file3"), []byte("fileMM\n"), 0404); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	// Touch file
 	if err := system.Chtimes(path.Join(root, "file4"), time.Now().Add(time.Second), time.Now().Add(time.Second)); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	// Replace file with dir
 	if err := os.RemoveAll(path.Join(root, "file5")); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	if err := os.MkdirAll(path.Join(root, "file5"), 0666); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	// Create new file
 	if err := ioutil.WriteFile(path.Join(root, "filenew"), []byte("filenew\n"), 0777); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	// Create new dir
 	if err := os.MkdirAll(path.Join(root, "dirnew"), 0766); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	// Create a new symlink
 	if err := os.Symlink("targetnew", path.Join(root, "symlinknew")); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	// Change a symlink
 	if err := os.RemoveAll(path.Join(root, "symlink2")); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	if err := os.Symlink("target2change", path.Join(root, "symlink2")); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	// Replace dir with file
 	if err := os.RemoveAll(path.Join(root, "dir2")); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	if err := ioutil.WriteFile(path.Join(root, "dir2"), []byte("dir2\n"), 0777); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	// Touch dir
 	if err := system.Chtimes(path.Join(root, "dir3"), time.Now().Add(time.Second), time.Now().Add(time.Second)); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 }
 
-func TestChangesDirsMutated(t *testing.T) {
+func (s *DockerSuite) TestChangesDirsMutated(c *check.C) {
 	// TODO Windows. There may be a way of running this, but turning off for now
 	// as createSampleDir uses symlinks.
 	if runtime.GOOS == "windows" {
-		t.Skip("symlinks on Windows")
+		c.Skip("symlinks on Windows")
 	}
 	src, err := ioutil.TempDir("", "docker-changes-test")
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
-	createSampleDir(t, src)
+	createSampleDir(c, src)
 	dst := src + "-copy"
 	if err := copyDir(src, dst); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	defer os.RemoveAll(src)
 	defer os.RemoveAll(dst)
 
-	mutateSampleDir(t, dst)
+	mutateSampleDir(c, dst)
 
 	changes, err := ChangesDirs(dst, src)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	sort.Sort(changesByPath(changes))
@@ -405,132 +405,132 @@ func TestChangesDirsMutated(t *testing.T) {
 
 	for i := 0; i < max(len(changes), len(expectedChanges)); i++ {
 		if i >= len(expectedChanges) {
-			t.Fatalf("unexpected change %s\n", changes[i].String())
+			c.Fatalf("unexpected change %s\n", changes[i].String())
 		}
 		if i >= len(changes) {
-			t.Fatalf("no change for expected change %s\n", expectedChanges[i].String())
+			c.Fatalf("no change for expected change %s\n", expectedChanges[i].String())
 		}
 		if changes[i].Path == expectedChanges[i].Path {
 			if changes[i] != expectedChanges[i] {
-				t.Fatalf("Wrong change for %s, expected %s, got %s\n", changes[i].Path, changes[i].String(), expectedChanges[i].String())
+				c.Fatalf("Wrong change for %s, expected %s, got %s\n", changes[i].Path, changes[i].String(), expectedChanges[i].String())
 			}
 		} else if changes[i].Path < expectedChanges[i].Path {
-			t.Fatalf("unexpected change %s\n", changes[i].String())
+			c.Fatalf("unexpected change %s\n", changes[i].String())
 		} else {
-			t.Fatalf("no change for expected change %s != %s\n", expectedChanges[i].String(), changes[i].String())
+			c.Fatalf("no change for expected change %s != %s\n", expectedChanges[i].String(), changes[i].String())
 		}
 	}
 }
 
-func TestApplyLayer(t *testing.T) {
+func (s *DockerSuite) TestApplyLayer(c *check.C) {
 	// TODO Windows. There may be a way of running this, but turning off for now
 	// as createSampleDir uses symlinks.
 	if runtime.GOOS == "windows" {
-		t.Skip("symlinks on Windows")
+		c.Skip("symlinks on Windows")
 	}
 	src, err := ioutil.TempDir("", "docker-changes-test")
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
-	createSampleDir(t, src)
+	createSampleDir(c, src)
 	defer os.RemoveAll(src)
 	dst := src + "-copy"
 	if err := copyDir(src, dst); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
-	mutateSampleDir(t, dst)
+	mutateSampleDir(c, dst)
 	defer os.RemoveAll(dst)
 
 	changes, err := ChangesDirs(dst, src)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	layer, err := ExportChanges(dst, changes, nil, nil)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	layerCopy, err := NewTempArchive(layer, "")
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	if _, err := ApplyLayer(src, layerCopy); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	changes2, err := ChangesDirs(src, dst)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	if len(changes2) != 0 {
-		t.Fatalf("Unexpected differences after reapplying mutation: %v", changes2)
+		c.Fatalf("Unexpected differences after reapplying mutation: %v", changes2)
 	}
 }
 
-func TestChangesSizeWithHardlinks(t *testing.T) {
+func (s *DockerSuite) TestChangesSizeWithHardlinks(c *check.C) {
 	// TODO Windows. There may be a way of running this, but turning off for now
 	// as createSampleDir uses symlinks.
 	if runtime.GOOS == "windows" {
-		t.Skip("hardlinks on Windows")
+		c.Skip("hardlinks on Windows")
 	}
 	srcDir, err := ioutil.TempDir("", "docker-test-srcDir")
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	defer os.RemoveAll(srcDir)
 
 	destDir, err := ioutil.TempDir("", "docker-test-destDir")
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	defer os.RemoveAll(destDir)
 
 	creationSize, err := prepareUntarSourceDirectory(100, destDir, true)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	changes, err := ChangesDirs(destDir, srcDir)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	got := ChangesSize(destDir, changes)
 	if got != int64(creationSize) {
-		t.Errorf("Expected %d bytes of changes, got %d", creationSize, got)
+		c.Errorf("Expected %d bytes of changes, got %d", creationSize, got)
 	}
 }
 
-func TestChangesSizeWithNoChanges(t *testing.T) {
+func (s *DockerSuite) TestChangesSizeWithNoChanges(c *check.C) {
 	size := ChangesSize("/tmp", nil)
 	if size != 0 {
-		t.Fatalf("ChangesSizes with no changes should be 0, was %d", size)
+		c.Fatalf("ChangesSizes with no changes should be 0, was %d", size)
 	}
 }
 
-func TestChangesSizeWithOnlyDeleteChanges(t *testing.T) {
+func (s *DockerSuite) TestChangesSizeWithOnlyDeleteChanges(c *check.C) {
 	changes := []Change{
 		{Path: "deletedPath", Kind: ChangeDelete},
 	}
 	size := ChangesSize("/tmp", changes)
 	if size != 0 {
-		t.Fatalf("ChangesSizes with only delete changes should be 0, was %d", size)
+		c.Fatalf("ChangesSizes with only delete changes should be 0, was %d", size)
 	}
 }
 
-func TestChangesSize(t *testing.T) {
+func (s *DockerSuite) TestChangesSize(c *check.C) {
 	parentPath, err := ioutil.TempDir("", "docker-changes-test")
 	defer os.RemoveAll(parentPath)
 	addition := path.Join(parentPath, "addition")
 	if err := ioutil.WriteFile(addition, []byte{0x01, 0x01, 0x01}, 0744); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	modification := path.Join(parentPath, "modification")
 	if err = ioutil.WriteFile(modification, []byte{0x01, 0x01, 0x01}, 0744); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	changes := []Change{
 		{Path: "addition", Kind: ChangeAdd},
@@ -538,28 +538,28 @@ func TestChangesSize(t *testing.T) {
 	}
 	size := ChangesSize(parentPath, changes)
 	if size != 6 {
-		t.Fatalf("Expected 6 bytes of changes, got %d", size)
+		c.Fatalf("Expected 6 bytes of changes, got %d", size)
 	}
 }
 
-func checkChanges(expectedChanges, changes []Change, t *testing.T) {
+func checkChanges(expectedChanges, changes []Change, c *check.C) {
 	sort.Sort(changesByPath(expectedChanges))
 	sort.Sort(changesByPath(changes))
 	for i := 0; i < max(len(changes), len(expectedChanges)); i++ {
 		if i >= len(expectedChanges) {
-			t.Fatalf("unexpected change %s\n", changes[i].String())
+			c.Fatalf("unexpected change %s\n", changes[i].String())
 		}
 		if i >= len(changes) {
-			t.Fatalf("no change for expected change %s\n", expectedChanges[i].String())
+			c.Fatalf("no change for expected change %s\n", expectedChanges[i].String())
 		}
 		if changes[i].Path == expectedChanges[i].Path {
 			if changes[i] != expectedChanges[i] {
-				t.Fatalf("Wrong change for %s, expected %s, got %s\n", changes[i].Path, changes[i].String(), expectedChanges[i].String())
+				c.Fatalf("Wrong change for %s, expected %s, got %s\n", changes[i].Path, changes[i].String(), expectedChanges[i].String())
 			}
 		} else if changes[i].Path < expectedChanges[i].Path {
-			t.Fatalf("unexpected change %s\n", changes[i].String())
+			c.Fatalf("unexpected change %s\n", changes[i].String())
 		} else {
-			t.Fatalf("no change for expected change %s != %s\n", expectedChanges[i].String(), changes[i].String())
+			c.Fatalf("no change for expected change %s != %s\n", expectedChanges[i].String(), changes[i].String())
 		}
 	}
 }
