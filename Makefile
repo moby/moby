@@ -125,7 +125,7 @@ test-docker-py: build ## run the docker-py tests
 	$(DOCKER_RUN_DOCKER) hack/make.sh dynbinary test-docker-py
 
 test-integration-cli: build ## run the integration tests
-	$(DOCKER_RUN_DOCKER) hack/make.sh dynbinary test-integration-cli
+	$(DOCKER_RUN_DOCKER) hack/make.sh build-integration-test-binary dynbinary test-integration-cli
 
 test-unit: build ## run the unit tests
 	$(DOCKER_RUN_DOCKER) hack/make.sh test-unit
