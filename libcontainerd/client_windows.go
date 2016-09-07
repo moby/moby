@@ -369,7 +369,19 @@ func (clnt *client) Resume(containerID string) error {
 
 // Stats handles stats requests for containers
 func (clnt *client) Stats(containerID string) (*Stats, error) {
-	return nil, errors.New("Windows: Stats not implemented")
+	// Get the libcontainerd container object
+	clnt.lock(containerID)
+	defer clnt.unlock(containerID)
+	container, err := clnt.getContainer(containerID)
+	if err != nil {
+		return nil, err
+	}
+	s, err := container.hcsContainer.Statistics()
+	if err != nil {
+		return nil, err
+	}
+	st := Stats(s)
+	return &st, nil
 }
 
 // Restore is the handler for restoring a container

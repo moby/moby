@@ -50,3 +50,9 @@ func runtimeArchitecture() (string, error) {
 		return "", fmt.Errorf("Unknown processor architecture")
 	}
 }
+
+// NumProcs returns the number of processors on the system
+func NumProcs() uint32 {
+	syscall.Syscall(procGetSystemInfo.Addr(), 1, uintptr(unsafe.Pointer(&sysinfo)), 0, 0)
+	return sysinfo.dwNumberOfProcessors
+}
