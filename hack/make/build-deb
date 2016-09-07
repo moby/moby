@@ -52,7 +52,14 @@ set -e
 
 		image="dockercore/builder-deb:$version"
 		if ! docker inspect "$image" &> /dev/null; then
-			( set -x && docker build ${DOCKER_BUILD_ARGS} -t "$image" "$dir" )
+			(
+				# Add the APT_MIRROR args only if the consuming Dockerfile uses it
+				# Otherwise this will cause the build to fail
+				if [ "$(grep 'ARG APT_MIRROR=' $dir/Dockerfile)" ] && [ "$BUILD_APT_MIRROR" ]; then
+					DOCKER_BUILD_ARGS="$DOCKER_BUILD_ARGS $BUILD_APT_MIRROR"
+				fi
+				set -x && docker build ${DOCKER_BUILD_ARGS} -t "$image" "$dir"
+			)
 		fi
 
 		mkdir -p "$DEST/$version"
