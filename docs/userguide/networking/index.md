@@ -495,7 +495,7 @@ Docker Engine for use with `overlay` network. There are three options to set:
     </tbody>
 </table>
 
-Create an `overlay` network on one of the machines in the Swarm.
+Create an `overlay` network on one of the machines in the swarm.
 
     $ docker network create --driver overlay my-multi-host-network
 

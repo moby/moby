@@ -72,7 +72,7 @@ This flag forces an existing node that was part of a quorum that was lost to res
 
 ### `--listen-addr value`
 
-The node listens for inbound Swarm manager traffic on this address. The default is to listen on
+The node listens for inbound swarm manager traffic on this address. The default is to listen on
 0.0.0.0:2377. It is also possible to specify a network interface to listen on that interface's
 address; for example `--listen-addr eth0:2377`.
 

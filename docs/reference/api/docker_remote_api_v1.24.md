@@ -4009,7 +4009,7 @@ Return low-level information on the node `id`
 
 `DELETE /nodes/<id>`
 
-Remove a node [`id`] from the Swarm.
+Remove a node [`id`] from the swarm.
 
 **Example request**:
 
@@ -4253,7 +4253,7 @@ JSON Parameters:
   address is used. If `AdvertiseAddr` is not specified, it will be automatically detected when
   possible.
 - **RemoteAddr** – Address of any manager node already participating in the swarm.
-- **JoinToken** – Secret token for joining this Swarm.
+- **JoinToken** – Secret token for joining this swarm.
 
 ### Leave a swarm
 
