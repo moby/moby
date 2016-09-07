@@ -47,7 +47,7 @@ $ docker network create \
 
 # Create an nginx service and extend the my-multi-host-network to nodes where
 # the service's tasks run.
-$ $ docker service create --replicas 2 --network my-multi-host-network --name my-web nginx
+$ docker service create --replicas 2 --network my-multi-host-network --name my-web nginx
 
 716thylsndqma81j6kkkb5aus
 ```
