@@ -55,6 +55,7 @@ type buildOptions struct {
 	rm             bool
 	forceRm        bool
 	pull           bool
+	cacheFrom      []string
 }
 
 // NewBuildCommand creates a new `docker build` command
@@ -98,6 +99,7 @@ func NewBuildCommand(dockerCli *client.DockerCli) *cobra.Command {
 	flags.BoolVar(&options.forceRm, "force-rm", false, "Always remove intermediate containers")
 	flags.BoolVarP(&options.quiet, "quiet", "q", false, "Suppress the build output and print image ID on success")
 	flags.BoolVar(&options.pull, "pull", false, "Always attempt to pull a newer version of the image")
+	flags.StringSliceVar(&options.cacheFrom, "cache-from", []string{}, "Images to consider as cache sources")
 
 	client.AddTrustedFlags(flags, true)
 
@@ -285,6 +287,7 @@ func runBuild(dockerCli *client.DockerCli, options buildOptions) error {
 		BuildArgs:      runconfigopts.ConvertKVStringsToMap(options.buildArgs.GetAll()),
 		AuthConfigs:    dockerCli.RetrieveAuthConfigs(),
 		Labels:         runconfigopts.ConvertKVStringsToMap(options.labels),
+		CacheFrom:      options.cacheFrom,
 	}
 
 	response, err := dockerCli.Client().ImageBuild(ctx, body, buildOptions)

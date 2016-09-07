@@ -93,6 +93,15 @@ func newImageBuildOptions(ctx context.Context, r *http.Request) (*types.ImageBui
 		options.Labels = labels
 	}
 
+	var cacheFrom = []string{}
+	cacheFromJSON := r.FormValue("cachefrom")
+	if cacheFromJSON != "" {
+		if err := json.NewDecoder(strings.NewReader(cacheFromJSON)).Decode(&cacheFrom); err != nil {
+			return nil, err
+		}
+		options.CacheFrom = cacheFrom
+	}
+
 	return options, nil
 }
 
