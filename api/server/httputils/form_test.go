@@ -4,9 +4,18 @@ import (
 	"net/http"
 	"net/url"
 	"testing"
+
+	"github.com/go-check/check"
 )
 
-func TestBoolValue(t *testing.T) {
+// Hook up gocheck into the "go test" runner.
+func Test(t *testing.T) { check.TestingT(t) }
+
+type DockerSuite struct{}
+
+var _ = check.Suite(&DockerSuite{})
+
+func (s *DockerSuite) TestBoolValue(c *check.C) {
 	cases := map[string]bool{
 		"":      false,
 		"0":     false,
@@ -20,35 +29,31 @@ func TestBoolValue(t *testing.T) {
 		"100":   true,
 	}
 
-	for c, e := range cases {
+	for n, e := range cases {
 		v := url.Values{}
-		v.Set("test", c)
+		v.Set("test", n)
 		r, _ := http.NewRequest("POST", "", nil)
 		r.Form = v
 
 		a := BoolValue(r, "test")
-		if a != e {
-			t.Fatalf("Value: %s, expected: %v, actual: %v", c, e, a)
-		}
+		c.Assert(a, check.Equals, e, check.Commentf("Value: %s, expected: %v, actual: %v", n, e, a))
 	}
 }
 
-func TestBoolValueOrDefault(t *testing.T) {
+func (s *DockerSuite) TestBoolValueOrDefault(c *check.C) {
 	r, _ := http.NewRequest("GET", "", nil)
 	if !BoolValueOrDefault(r, "queryparam", true) {
-		t.Fatal("Expected to get true default value, got false")
+		c.Fatal("Expected to get true default value, got false")
 	}
 
 	v := url.Values{}
 	v.Set("param", "")
 	r, _ = http.NewRequest("GET", "", nil)
 	r.Form = v
-	if BoolValueOrDefault(r, "param", true) {
-		t.Fatal("Expected not to get true")
-	}
+	c.Assert(BoolValueOrDefault(r, "param", true), check.Equals, false)
 }
 
-func TestInt64ValueOrZero(t *testing.T) {
+func (s *DockerSuite) TestInt64ValueOrZero(c *check.C) {
 	cases := map[string]int64{
 		"":     0,
 		"asdf": 0,
@@ -56,50 +61,42 @@ func TestInt64ValueOrZero(t *testing.T) {
 		"1":    1,
 	}
 
-	for c, e := range cases {
+	for n, e := range cases {
 		v := url.Values{}
-		v.Set("test", c)
+		v.Set("test", n)
 		r, _ := http.NewRequest("POST", "", nil)
 		r.Form = v
 
 		a := Int64ValueOrZero(r, "test")
-		if a != e {
-			t.Fatalf("Value: %s, expected: %v, actual: %v", c, e, a)
-		}
+		c.Assert(a, check.Equals, e, check.Commentf("Value: %s, expected: %v, actual: %v", n, e, a))
 	}
 }
 
-func TestInt64ValueOrDefault(t *testing.T) {
+func (s *DockerSuite) TestInt64ValueOrDefault(c *check.C) {
 	cases := map[string]int64{
 		"":   -1,
 		"-1": -1,
 		"42": 42,
 	}
 
-	for c, e := range cases {
+	for n, e := range cases {
 		v := url.Values{}
-		v.Set("test", c)
+		v.Set("test", n)
 		r, _ := http.NewRequest("POST", "", nil)
 		r.Form = v
 
 		a, err := Int64ValueOrDefault(r, "test", -1)
-		if a != e {
-			t.Fatalf("Value: %s, expected: %v, actual: %v", c, e, a)
-		}
-		if err != nil {
-			t.Fatalf("Error should be nil, but received: %s", err)
-		}
+		c.Assert(a, check.Equals, e, check.Commentf("Value: %s, expected: %v, actual: %v", n, e, a))
+		c.Assert(err, check.IsNil)
 	}
 }
 
-func TestInt64ValueOrDefaultWithError(t *testing.T) {
+func (s *DockerSuite) TestInt64ValueOrDefaultWithError(c *check.C) {
 	v := url.Values{}
 	v.Set("test", "invalid")
 	r, _ := http.NewRequest("POST", "", nil)
 	r.Form = v
 
 	_, err := Int64ValueOrDefault(r, "test", -1)
-	if err == nil {
-		t.Fatalf("Expected an error.")
-	}
+	c.Assert(err, check.NotNil)
 }

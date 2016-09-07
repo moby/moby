@@ -1,12 +1,12 @@
 package formatter
 
 import (
-	"reflect"
 	"strings"
-	"testing"
+
+	"github.com/go-check/check"
 )
 
-func compareMultipleValues(t *testing.T, value, expected string) {
+func compareMultipleValues(c *check.C, value, expected string) {
 	// comma-separated values means probably a map input, which won't
 	// be guaranteed to have the same order as our expected value
 	// We'll create maps and use reflect.DeepEquals to check instead:
@@ -22,7 +22,5 @@ func compareMultipleValues(t *testing.T, value, expected string) {
 		keyval := strings.Split(expected, "=")
 		expMap[keyval[0]] = keyval[1]
 	}
-	if !reflect.DeepEqual(expMap, entriesMap) {
-		t.Fatalf("Expected entries: %v, got: %v", expected, value)
-	}
+	c.Assert(expMap, check.DeepEquals, entriesMap)
 }

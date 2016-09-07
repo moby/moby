@@ -4,7 +4,15 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types"
+	"github.com/go-check/check"
 )
+
+// Hook up gocheck into the "go test" runner.
+func Test(t *testing.T) { check.TestingT(t) }
+
+type DockerSuite struct{}
+
+var _ = check.Suite(&DockerSuite{})
 
 type arguments struct {
 	options   execOptions
@@ -12,7 +20,7 @@ type arguments struct {
 	execCmd   []string
 }
 
-func TestParseExec(t *testing.T) {
+func (s *DockerSuite) TestParseExec(c *check.C) {
 	valids := map[*arguments]*types.ExecConfig{
 		&arguments{
 			execCmd: []string{"command"},
@@ -74,11 +82,9 @@ func TestParseExec(t *testing.T) {
 
 	for valid, expectedExecConfig := range valids {
 		execConfig, err := parseExec(&valid.options, valid.container, valid.execCmd)
-		if err != nil {
-			t.Fatal(err)
-		}
+		c.Assert(err, check.IsNil)
 		if !compareExecConfig(expectedExecConfig, execConfig) {
-			t.Fatalf("Expected [%v] for %v, got [%v]", expectedExecConfig, valid, execConfig)
+			c.Fatalf("Expected [%v] for %v, got [%v]", expectedExecConfig, valid, execConfig)
 		}
 	}
 }

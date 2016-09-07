@@ -8,7 +8,15 @@ import (
 	"os"
 
 	"github.com/docker/docker/api/types"
+	"github.com/go-check/check"
 )
+
+// Hook up gocheck into the "go test" runner.
+func Test(t *testing.T) { check.TestingT(t) }
+
+type DockerSuite struct{}
+
+var _ = check.Suite(&DockerSuite{})
 
 type ports struct {
 	ports    []types.Port
@@ -16,7 +24,7 @@ type ports struct {
 }
 
 // DisplayablePorts
-func TestDisplayablePorts(t *testing.T) {
+func (s *DockerSuite) TestDisplayablePorts(c *check.C) {
 	cases := []ports{
 		{
 			[]types.Port{
@@ -251,62 +259,46 @@ func TestDisplayablePorts(t *testing.T) {
 
 	for _, port := range cases {
 		actual := DisplayablePorts(port.ports)
-		if port.expected != actual {
-			t.Fatalf("Expected %s, got %s.", port.expected, actual)
-		}
+		c.Assert(port.expected, check.Equals, actual)
 	}
 }
 
 // MatchesContentType
-func TestJsonContentType(t *testing.T) {
-	if !MatchesContentType("application/json", "application/json") {
-		t.Fail()
-	}
-
-	if !MatchesContentType("application/json; charset=utf-8", "application/json") {
-		t.Fail()
-	}
-
-	if MatchesContentType("dockerapplication/json", "application/json") {
-		t.Fail()
-	}
+func (s *DockerSuite) TestJsonContentType(c *check.C) {
+	c.Assert(MatchesContentType("application/json", "application/json"), check.Equals, true)
+	c.Assert(MatchesContentType("application/json; charset=utf-8", "application/json"), check.Equals, true)
+	c.Assert(MatchesContentType("dockerapplication/json", "application/json"), check.Equals, false)
 }
 
 // LoadOrCreateTrustKey
-func TestLoadOrCreateTrustKeyInvalidKeyFile(t *testing.T) {
+func (s *DockerSuite) TestLoadOrCreateTrustKeyInvalidKeyFile(c *check.C) {
 	tmpKeyFolderPath, err := ioutil.TempDir("", "api-trustkey-test")
-	if err != nil {
-		t.Fatal(err)
-	}
+	c.Assert(err, check.IsNil)
 	defer os.RemoveAll(tmpKeyFolderPath)
 
 	tmpKeyFile, err := ioutil.TempFile(tmpKeyFolderPath, "keyfile")
-	if err != nil {
-		t.Fatal(err)
-	}
+	c.Assert(err, check.IsNil)
 
 	if _, err := LoadOrCreateTrustKey(tmpKeyFile.Name()); err == nil {
-		t.Fatalf("expected an error, got nothing.")
+		c.Fatalf("expected an error, got nothing.")
 	}
 
 }
 
-func TestLoadOrCreateTrustKeyCreateKey(t *testing.T) {
+func (s *DockerSuite) TestLoadOrCreateTrustKeyCreateKey(c *check.C) {
 	tmpKeyFolderPath, err := ioutil.TempDir("", "api-trustkey-test")
-	if err != nil {
-		t.Fatal(err)
-	}
+	c.Assert(err, check.IsNil)
 	defer os.RemoveAll(tmpKeyFolderPath)
 
 	// Without the need to create the folder hierarchy
 	tmpKeyFile := filepath.Join(tmpKeyFolderPath, "keyfile")
 
 	if key, err := LoadOrCreateTrustKey(tmpKeyFile); err != nil || key == nil {
-		t.Fatalf("expected a new key file, got : %v and %v", err, key)
+		c.Fatalf("expected a new key file, got : %v and %v", err, key)
 	}
 
 	if _, err := os.Stat(tmpKeyFile); err != nil {
-		t.Fatalf("Expected to find a file %s, got %v", tmpKeyFile, err)
+		c.Fatalf("Expected to find a file %s, got %v", tmpKeyFile, err)
 	}
 
 	// With the need to create the folder hierarchy as tmpKeyFie is in a path
@@ -314,28 +306,28 @@ func TestLoadOrCreateTrustKeyCreateKey(t *testing.T) {
 	tmpKeyFile = filepath.Join(tmpKeyFolderPath, "folder/hierarchy/keyfile")
 
 	if key, err := LoadOrCreateTrustKey(tmpKeyFile); err != nil || key == nil {
-		t.Fatalf("expected a new key file, got : %v and %v", err, key)
+		c.Fatalf("expected a new key file, got : %v and %v", err, key)
 	}
 
 	if _, err := os.Stat(tmpKeyFile); err != nil {
-		t.Fatalf("Expected to find a file %s, got %v", tmpKeyFile, err)
+		c.Fatalf("Expected to find a file %s, got %v", tmpKeyFile, err)
 	}
 
 	// With no path at all
 	defer os.Remove("keyfile")
 	if key, err := LoadOrCreateTrustKey("keyfile"); err != nil || key == nil {
-		t.Fatalf("expected a new key file, got : %v and %v", err, key)
+		c.Fatalf("expected a new key file, got : %v and %v", err, key)
 	}
 
 	if _, err := os.Stat("keyfile"); err != nil {
-		t.Fatalf("Expected to find a file keyfile, got %v", err)
+		c.Fatalf("Expected to find a file keyfile, got %v", err)
 	}
 }
 
-func TestLoadOrCreateTrustKeyLoadValidKey(t *testing.T) {
+func (s *DockerSuite) TestLoadOrCreateTrustKeyLoadValidKey(c *check.C) {
 	tmpKeyFile := filepath.Join("fixtures", "keyfile")
 
 	if key, err := LoadOrCreateTrustKey(tmpKeyFile); err != nil || key == nil {
-		t.Fatalf("expected a key file, got : %v and %v", err, key)
+		c.Fatalf("expected a key file, got : %v and %v", err, key)
 	}
 }
