@@ -1,8 +1,6 @@
 package service
 
 import (
-	"golang.org/x/net/context"
-
 	"github.com/docker/docker/api/client"
 	"github.com/docker/docker/api/client/idresolver"
 	"github.com/docker/docker/api/client/node"
@@ -11,6 +9,7 @@ import (
 	"github.com/docker/docker/opts"
 	"github.com/docker/engine-api/types"
 	"github.com/spf13/cobra"
+	"golang.org/x/net/context"
 )
 
 type psOptions struct {
@@ -54,7 +53,7 @@ func runPS(dockerCli *client.DockerCli, opts psOptions) error {
 	if filter.Include("node") {
 		nodeFilters := filter.Get("node")
 		for _, nodeFilter := range nodeFilters {
-			nodeReference, err := node.Reference(client, ctx, nodeFilter)
+			nodeReference, err := node.Reference(ctx, client, nodeFilter)
 			if err != nil {
 				return err
 			}
