@@ -77,7 +77,7 @@ DOCKER_RUN_DOCKER := $(DOCKER_FLAGS) "$(DOCKER_IMAGE)"
 
 default: binary
 
-all: build ## validate all checks, build linux binaries, run all tests\ncross build non-linux binaries and generate archives
+all: build ## validate all checks, build linux binaries, run all tests\nbuild non-linux binaries and generate archives
 	$(DOCKER_RUN_DOCKER) bash -c 'hack/validate/default && hack/make.sh'
 
 binary: build ## build the linux binaries
@@ -89,12 +89,8 @@ build: bundles init-go-pkg-cache
 bundles:
 	mkdir bundles
 
-cross: build ## cross build the binaries for darwin, freebsd and\nwindows
-	$(DOCKER_RUN_DOCKER) hack/make.sh dynbinary binary cross
-
 deb: build  ## build the deb packages
 	$(DOCKER_RUN_DOCKER) hack/make.sh dynbinary build-deb
-
 
 help: ## this help
 	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {sub("\\\\n",sprintf("\n%22c"," "), $$2);printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -121,7 +117,7 @@ shell: build ## start a shell inside the build env
 	$(DOCKER_RUN_DOCKER) bash
 
 test: build ## run the unit, integration and docker-py tests
-	$(DOCKER_RUN_DOCKER) hack/make.sh dynbinary cross test-unit test-integration-cli test-docker-py
+	$(DOCKER_RUN_DOCKER) hack/make.sh dynbinary test-unit test-integration-cli test-docker-py
 
 test-docker-py: build ## run the docker-py tests
 	$(DOCKER_RUN_DOCKER) hack/make.sh dynbinary test-docker-py
@@ -136,11 +132,14 @@ dobi:
 test-unit: dobi ## run the unit tests
 	./dobi test-unit
 
-tgz: build ## build the archives (.zip on windows and .tgz\notherwise) containing the binaries
-	$(DOCKER_RUN_DOCKER) hack/make.sh dynbinary binary cross tgz
+tgz: build cross ## build the archives (.zip on windows and .tgz\notherwise) containing the binaries
+	$(DOCKER_RUN_DOCKER) hack/make.sh dynbinary binary tgz
 
 validate: dobi ## run full validation
 	./dobi validate
+
+cross: bundles dobi ## cross build the binaries for darwin, freebsd and\nwindows
+	./dobi cross
 
 win: build ## cross build the binary for windows
 	$(DOCKER_RUN_DOCKER) hack/make.sh win

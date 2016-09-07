@@ -1,0 +1,9 @@
+#!/bin/bash
+
+# List of platforms to cross compile
+export DOCKER_CROSSPLATFORMS="
+    linux/386 linux/arm
+	darwin/amd64
+	freebsd/amd64 freebsd/386 freebsd/arm
+	windows/amd64 windows/386"
+

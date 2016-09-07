@@ -7,6 +7,8 @@
 
 set -e
 
+source hack/make/.platforms
+
 if ! hash vndr; then
 	echo "Please install vndr with \"go get github.com/LK4D4/vndr\" and put it in your \$GOPATH"
 	exit 1

@@ -24,6 +24,13 @@ image=validator:
     dockerfile: Dockerfile.validate
     context: dockerfiles
 
+image=cross-builder:
+    image: docker-cross
+    dockerfile: Dockerfile.cross
+    context: dockerfiles
+    args:
+      APT_MIRROR: '{env.APT_MIRROR:httpredir.debian.org}'
+
 
 job=validate-vendor:
     use: validator
@@ -58,6 +65,12 @@ job=shell:
     provide-docker: true
     command: bash
     description: "Start an interactive dev environment"
+
+job=cross:
+    use: cross-builder
+    mounts: [source]
+    command: "hack/make.sh cross"
+    description: "Build binaries for non-linux platforms"
 
 
 alias=test:
