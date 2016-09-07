@@ -20,6 +20,6 @@ func FindWithCapability(capability string) ([]CompatPlugin, error) {
 }
 
 // LookupWithCapability returns a plugin matching the given name and capability.
-func LookupWithCapability(name, capability string) (CompatPlugin, error) {
+func LookupWithCapability(name, capability string, _ int) (CompatPlugin, error) {
 	return plugins.Get(name, capability)
 }
