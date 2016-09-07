@@ -79,7 +79,7 @@ func TestGetCapabilities(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	d := newAllocator(plugin, p.Client)
+	d := newAllocator(plugin, p.Client())
 
 	caps, err := d.(*allocator).getCapabilities()
 	if err != nil {
@@ -102,7 +102,7 @@ func TestGetCapabilitiesFromLegacyDriver(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	d := newAllocator(plugin, p.Client)
+	d := newAllocator(plugin, p.Client())
 
 	if _, err := d.(*allocator).getCapabilities(); err == nil {
 		t.Fatalf("Expected error, but got Success %v", err)
@@ -127,7 +127,7 @@ func TestGetDefaultAddressSpaces(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	d := newAllocator(plugin, p.Client)
+	d := newAllocator(plugin, p.Client())
 
 	l, g, err := d.(*allocator).GetDefaultAddressSpaces()
 	if err != nil {
@@ -217,7 +217,7 @@ func TestRemoteDriver(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	d := newAllocator(plugin, p.Client)
+	d := newAllocator(plugin, p.Client())
 
 	l, g, err := d.(*allocator).GetDefaultAddressSpaces()
 	if err != nil {

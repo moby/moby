@@ -15,13 +15,15 @@ func NewAtomicFileWriter(filename string, perm os.FileMode) (io.WriteCloser, err
 	if err != nil {
 		return nil, err
 	}
+
 	abspath, err := filepath.Abs(filename)
 	if err != nil {
 		return nil, err
 	}
 	return &atomicFileWriter{
-		f:  f,
-		fn: abspath,
+		f:    f,
+		fn:   abspath,
+		perm: perm,
 	}, nil
 }
 
@@ -34,6 +36,7 @@ func AtomicWriteFile(filename string, data []byte, perm os.FileMode) error {
 	n, err := f.Write(data)
 	if err == nil && n < len(data) {
 		err = io.ErrShortWrite
+		f.(*atomicFileWriter).writeErr = err
 	}
 	if err1 := f.Close(); err == nil {
 		err = err1
@@ -45,6 +48,7 @@ type atomicFileWriter struct {
 	f        *os.File
 	fn       string
 	writeErr error
+	perm     os.FileMode
 }
 
 func (w *atomicFileWriter) Write(dt []byte) (int, error) {
@@ -57,7 +61,7 @@ func (w *atomicFileWriter) Write(dt []byte) (int, error) {
 
 func (w *atomicFileWriter) Close() (retErr error) {
 	defer func() {
-		if retErr != nil {
+		if retErr != nil || w.writeErr != nil {
 			os.Remove(w.f.Name())
 		}
 	}()
@@ -66,6 +70,9 @@ func (w *atomicFileWriter) Close() (retErr error) {
 		return err
 	}
 	if err := w.f.Close(); err != nil {
+		return err
+	}
+	if err := os.Chmod(w.f.Name(), w.perm); err != nil {
 		return err
 	}
 	if w.writeErr == nil {

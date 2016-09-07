@@ -40,3 +40,8 @@ func (o *IPOpt) String() string {
 	}
 	return o.IP.String()
 }
+
+// Type returns the type of the option
+func (o *IPOpt) Type() string {
+	return "ip"
+}

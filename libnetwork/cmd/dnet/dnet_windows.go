@@ -21,7 +21,7 @@ func setupDumpStackTrap() {
 			logrus.Debugf("Stackdump - waiting signal at %s", ev)
 			for {
 				syscall.WaitForSingleObject(h, syscall.INFINITE)
-				signal.DumpStacks()
+				signal.DumpStacks("")
 			}
 		}
 	}()

@@ -23,8 +23,8 @@ import (
 	"github.com/docker/docker/pkg/reexec"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/pkg/term"
-	"github.com/docker/engine-api/types/network"
 	"github.com/docker/libnetwork"
 	"github.com/docker/libnetwork/api"
 	"github.com/docker/libnetwork/config"
