@@ -73,20 +73,3 @@ func (a *authorizationPlugin) AuthZResponse(authReq *Request) (*Response, error)
 
 	return authRes, nil
 }
-
-// initPlugin initializes the authorization plugin if needed
-func (a *authorizationPlugin) initPlugin() error {
-	// Lazy loading of plugins
-	var err error
-	a.once.Do(func() {
-		if a.plugin == nil {
-			plugin, e := plugins.Get(a.name, AuthZApiImplements)
-			if e != nil {
-				err = e
-				return
-			}
-			a.plugin = plugin.Client()
-		}
-	})
-	return err
-}
