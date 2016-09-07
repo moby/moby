@@ -97,7 +97,7 @@ RUN cd /usr/local/lvm2 \
 
 ## BUILD GOLANG 1.7 with existing gccgo
 
-ENV GO_VERSION 1.7
+ENV GO_VERSION 1.7.1
 ENV GO_DOWNLOAD_URL https://golang.org/dl/go${GO_VERSION}.src.tar.gz
 ENV GOROOT_BOOTSTRAP /usr/local
 
