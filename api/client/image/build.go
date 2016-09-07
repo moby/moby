@@ -15,6 +15,8 @@ import (
 
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/client"
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/builder/dockerignore"
 	"github.com/docker/docker/cli"
@@ -27,8 +29,6 @@ import (
 	"github.com/docker/docker/pkg/urlutil"
 	"github.com/docker/docker/reference"
 	runconfigopts "github.com/docker/docker/runconfig/opts"
-	"github.com/docker/engine-api/types"
-	"github.com/docker/engine-api/types/container"
 	"github.com/docker/go-units"
 	"github.com/spf13/cobra"
 )

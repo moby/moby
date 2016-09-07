@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/opts"
 	runconfigopts "github.com/docker/docker/runconfig/opts"
-	"github.com/docker/engine-api/types/swarm"
 )
 
 type nodeOptions struct {

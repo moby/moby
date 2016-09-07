@@ -9,12 +9,12 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/docker/docker/api/client"
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/filters"
+	registrytypes "github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/pkg/stringutils"
 	"github.com/docker/docker/registry"
-	"github.com/docker/engine-api/types"
-	"github.com/docker/engine-api/types/filters"
-	registrytypes "github.com/docker/engine-api/types/registry"
 	"github.com/spf13/cobra"
 )
 

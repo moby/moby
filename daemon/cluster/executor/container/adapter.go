@@ -11,10 +11,10 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/server/httputils"
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/events"
+	"github.com/docker/docker/api/types/versions"
 	executorpkg "github.com/docker/docker/daemon/cluster/executor"
-	"github.com/docker/engine-api/types"
-	"github.com/docker/engine-api/types/events"
-	"github.com/docker/engine-api/types/versions"
 	"github.com/docker/libnetwork"
 	"github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/log"

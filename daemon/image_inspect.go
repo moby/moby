@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/reference"
-	"github.com/docker/engine-api/types"
 )
 
 // LookupImage looks up an image by name and returns it as an ImageInspect

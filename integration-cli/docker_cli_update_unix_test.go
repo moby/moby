@@ -7,9 +7,9 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/pkg/integration/checker"
 	"github.com/docker/docker/pkg/parsers/kernel"
-	"github.com/docker/engine-api/types"
 	"github.com/go-check/check"
 )
 

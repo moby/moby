@@ -3,7 +3,7 @@ package daemon
 import (
 	"os"
 
-	"github.com/docker/engine-api/types"
+	"github.com/docker/docker/api/types"
 	"github.com/spf13/pflag"
 )
 

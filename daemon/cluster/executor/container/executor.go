@@ -4,10 +4,10 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/network"
 	executorpkg "github.com/docker/docker/daemon/cluster/executor"
 	clustertypes "github.com/docker/docker/daemon/cluster/provider"
-	"github.com/docker/engine-api/types"
-	"github.com/docker/engine-api/types/network"
 	networktypes "github.com/docker/libnetwork/types"
 	"github.com/docker/swarmkit/agent/exec"
 	"github.com/docker/swarmkit/api"

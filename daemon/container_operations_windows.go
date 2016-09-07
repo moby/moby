@@ -5,8 +5,8 @@ package daemon
 import (
 	"fmt"
 
+	networktypes "github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/container"
-	networktypes "github.com/docker/engine-api/types/network"
 )
 
 func (daemon *Daemon) setupLinkedContainers(container *container.Container) ([]string, error) {

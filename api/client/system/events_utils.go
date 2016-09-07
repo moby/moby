@@ -6,7 +6,7 @@ import (
 	"sync"
 
 	"github.com/Sirupsen/logrus"
-	eventtypes "github.com/docker/engine-api/types/events"
+	eventtypes "github.com/docker/docker/api/types/events"
 )
 
 // EventHandler is abstract interface for user to customize

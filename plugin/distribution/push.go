@@ -11,10 +11,10 @@ import (
 	"github.com/docker/distribution"
 	"github.com/docker/distribution/digest"
 	"github.com/docker/distribution/manifest/schema2"
+	"github.com/docker/docker/api/types"
 	dockerdist "github.com/docker/docker/distribution"
 	"github.com/docker/docker/reference"
 	"github.com/docker/docker/registry"
-	"github.com/docker/engine-api/types"
 	"golang.org/x/net/context"
 )
 

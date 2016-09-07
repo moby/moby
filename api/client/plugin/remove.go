@@ -6,9 +6,9 @@ import (
 	"fmt"
 
 	"github.com/docker/docker/api/client"
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/reference"
-	"github.com/docker/engine-api/types"
 	"github.com/spf13/cobra"
 	"golang.org/x/net/context"
 )

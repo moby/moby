@@ -14,10 +14,10 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/client"
 	"github.com/docker/docker/pkg/signal"
 	"github.com/docker/docker/pkg/term"
-	"github.com/docker/engine-api/client"
-	"github.com/docker/engine-api/types"
 )
 
 func (cli *DockerCli) resizeTty(ctx context.Context, id string, isExec bool) {

@@ -6,7 +6,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/server/httputils"
-	"github.com/docker/engine-api/types/versions"
+	"github.com/docker/docker/api/types/versions"
 	"golang.org/x/net/context"
 )
 

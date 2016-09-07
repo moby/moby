@@ -10,13 +10,13 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/types/backend"
+	containertypes "github.com/docker/docker/api/types/container"
+	timetypes "github.com/docker/docker/api/types/time"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/daemon/logger/jsonfilelog"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/stdcopy"
-	containertypes "github.com/docker/engine-api/types/container"
-	timetypes "github.com/docker/engine-api/types/time"
 )
 
 // ContainerLogs hooks up a container's stdout and stderr streams
@@ -68,7 +68,8 @@ func (daemon *Daemon) ContainerLogs(ctx context.Context, containerName string, c
 	close(started)
 	wf.Flush()
 
-	var outStream io.Writer = wf
+	var outStream io.Writer
+	outStream = wf
 	errStream := outStream
 	if !container.Config.Tty {
 		errStream = stdcopy.NewStdWriter(outStream, stdcopy.Stderr)

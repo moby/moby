@@ -9,9 +9,9 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/client"
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/pkg/signal"
-	"github.com/docker/engine-api/types"
 	"github.com/spf13/cobra"
 )
 

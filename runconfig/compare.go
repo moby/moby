@@ -1,6 +1,6 @@
 package runconfig
 
-import "github.com/docker/engine-api/types/container"
+import "github.com/docker/docker/api/types/container"
 
 // Compare two Config struct. Do not compare the "Image" nor "Hostname" fields
 // If OpenStdin is set, then it differs

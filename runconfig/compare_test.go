@@ -3,8 +3,8 @@ package runconfig
 import (
 	"testing"
 
-	"github.com/docker/engine-api/types/container"
-	"github.com/docker/engine-api/types/strslice"
+	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/strslice"
 	"github.com/docker/go-connections/nat"
 )
 

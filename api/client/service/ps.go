@@ -5,9 +5,9 @@ import (
 	"github.com/docker/docker/api/client/idresolver"
 	"github.com/docker/docker/api/client/node"
 	"github.com/docker/docker/api/client/task"
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/opts"
-	"github.com/docker/engine-api/types"
 	"github.com/spf13/cobra"
 	"golang.org/x/net/context"
 )
