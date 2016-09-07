@@ -50,14 +50,18 @@ func runLogin(dockerCli *client.DockerCli, opts loginOptions) error {
 	ctx := context.Background()
 	clnt := dockerCli.Client()
 
-	var serverAddress string
-	var isDefaultRegistry bool
+	var (
+		serverAddress string
+		authServer    = dockerCli.ElectAuthServer(ctx)
+	)
 	if opts.serverAddress != "" {
 		serverAddress = opts.serverAddress
 	} else {
-		serverAddress = dockerCli.ElectAuthServer(ctx)
-		isDefaultRegistry = true
+		serverAddress = authServer
 	}
+
+	isDefaultRegistry := serverAddress == authServer
+
 	authConfig, err := dockerCli.ConfigureAuth(opts.user, opts.password, serverAddress, isDefaultRegistry)
 	if err != nil {
 		return err

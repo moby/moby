@@ -206,6 +206,21 @@ func v2AuthHTTPClient(endpoint *url.URL, authTransport http.RoundTripper, modifi
 
 }
 
+// ConvertToHostname converts a registry url which has http|https prepended
+// to just an hostname.
+func ConvertToHostname(url string) string {
+	stripped := url
+	if strings.HasPrefix(url, "http://") {
+		stripped = strings.TrimPrefix(url, "http://")
+	} else if strings.HasPrefix(url, "https://") {
+		stripped = strings.TrimPrefix(url, "https://")
+	}
+
+	nameParts := strings.SplitN(stripped, "/", 2)
+
+	return nameParts[0]
+}
+
 // ResolveAuthConfig matches an auth configuration to a server address or a URL
 func ResolveAuthConfig(authConfigs map[string]types.AuthConfig, index *registrytypes.IndexInfo) types.AuthConfig {
 	configKey := GetAuthConfigKey(index)
@@ -214,23 +229,10 @@ func ResolveAuthConfig(authConfigs map[string]types.AuthConfig, index *registryt
 		return c
 	}
 
-	convertToHostname := func(url string) string {
-		stripped := url
-		if strings.HasPrefix(url, "http://") {
-			stripped = strings.Replace(url, "http://", "", 1)
-		} else if strings.HasPrefix(url, "https://") {
-			stripped = strings.Replace(url, "https://", "", 1)
-		}
-
-		nameParts := strings.SplitN(stripped, "/", 2)
-
-		return nameParts[0]
-	}
-
 	// Maybe they have a legacy config file, we will iterate the keys converting
 	// them to the new format and testing
 	for registry, ac := range authConfigs {
-		if configKey == convertToHostname(registry) {
+		if configKey == ConvertToHostname(registry) {
 			return ac
 		}
 	}

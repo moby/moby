@@ -49,7 +49,8 @@ func (cli *DockerCli) RegistryAuthenticationPrivilegedFunc(index *registrytypes.
 	return func() (string, error) {
 		fmt.Fprintf(cli.out, "\nPlease login prior to %s:\n", cmdName)
 		indexServer := registry.GetAuthConfigKey(index)
-		authConfig, err := cli.ConfigureAuth("", "", indexServer, false)
+		isDefaultRegistry := indexServer == cli.ElectAuthServer(context.Background())
+		authConfig, err := cli.ConfigureAuth("", "", indexServer, isDefaultRegistry)
 		if err != nil {
 			return "", err
 		}
@@ -89,6 +90,10 @@ func (cli *DockerCli) ConfigureAuth(flUser, flPassword, serverAddress string, is
 	// On Windows, force the use of the regular OS stdin stream. Fixes #14336/#14210
 	if runtime.GOOS == "windows" {
 		cli.in = os.Stdin
+	}
+
+	if !isDefaultRegistry {
+		serverAddress = registry.ConvertToHostname(serverAddress)
 	}
 
 	authconfig, err := GetCredentials(cli.configFile, serverAddress)
