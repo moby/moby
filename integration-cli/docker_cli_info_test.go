@@ -33,8 +33,11 @@ func (s *DockerSuite) TestInfoEnsureSucceeds(c *check.C) {
 		"Storage Driver:",
 		"Volume:",
 		"Network:",
-		"Security Options:",
 		"Live Restore Enabled:",
+	}
+
+	if daemonPlatform == "linux" {
+		stringsToCheck = append(stringsToCheck, "Security Options:")
 	}
 
 	if DaemonIsLinux.Condition() {
