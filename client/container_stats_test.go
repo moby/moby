@@ -54,12 +54,12 @@ func TestContainerStats(t *testing.T) {
 				}, nil
 			}),
 		}
-		body, err := client.ContainerStats(context.Background(), "container_id", c.stream)
+		resp, err := client.ContainerStats(context.Background(), "container_id", c.stream)
 		if err != nil {
 			t.Fatal(err)
 		}
-		defer body.Close()
-		content, err := ioutil.ReadAll(body)
+		defer resp.Body.Close()
+		content, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
 			t.Fatal(err)
 		}

@@ -175,12 +175,10 @@ func (s *DockerSuite) TestContainerApiGetChanges(c *check.C) {
 }
 
 func (s *DockerSuite) TestGetContainerStats(c *check.C) {
-	// Problematic on Windows as Windows does not support stats
-	testRequires(c, DaemonIsLinux)
 	var (
 		name = "statscontainer"
 	)
-	dockerCmd(c, "run", "-d", "--name", name, "busybox", "top")
+	runSleepingContainer(c, "--name", name)
 
 	type b struct {
 		status int
@@ -214,9 +212,7 @@ func (s *DockerSuite) TestGetContainerStats(c *check.C) {
 }
 
 func (s *DockerSuite) TestGetContainerStatsRmRunning(c *check.C) {
-	// Problematic on Windows as Windows does not support stats
-	testRequires(c, DaemonIsLinux)
-	out, _ := dockerCmd(c, "run", "-d", "busybox", "top")
+	out, _ := runSleepingContainer(c)
 	id := strings.TrimSpace(out)
 
 	buf := &integration.ChannelBuffer{make(chan []byte, 1)}
@@ -251,10 +247,8 @@ func (s *DockerSuite) TestGetContainerStatsRmRunning(c *check.C) {
 // previous test was just checking one stat entry so it didn't fail (stats with
 // stream false always return one stat)
 func (s *DockerSuite) TestGetContainerStatsStream(c *check.C) {
-	// Problematic on Windows as Windows does not support stats
-	testRequires(c, DaemonIsLinux)
 	name := "statscontainer"
-	dockerCmd(c, "run", "-d", "--name", name, "busybox", "top")
+	runSleepingContainer(c, "--name", name)
 
 	type b struct {
 		status int
@@ -289,10 +283,8 @@ func (s *DockerSuite) TestGetContainerStatsStream(c *check.C) {
 }
 
 func (s *DockerSuite) TestGetContainerStatsNoStream(c *check.C) {
-	// Problematic on Windows as Windows does not support stats
-	testRequires(c, DaemonIsLinux)
 	name := "statscontainer"
-	dockerCmd(c, "run", "-d", "--name", name, "busybox", "top")
+	runSleepingContainer(c, "--name", name)
 
 	type b struct {
 		status int
@@ -319,16 +311,14 @@ func (s *DockerSuite) TestGetContainerStatsNoStream(c *check.C) {
 		c.Assert(sr.status, checker.Equals, http.StatusOK)
 
 		s := string(sr.body)
-		// count occurrences of "read" of types.Stats
-		c.Assert(strings.Count(s, "read"), checker.Equals, 1, check.Commentf("Expected only one stat streamed, got %d", strings.Count(s, "read")))
+		// count occurrences of `"read"` of types.Stats
+		c.Assert(strings.Count(s, `"read"`), checker.Equals, 1, check.Commentf("Expected only one stat streamed, got %d", strings.Count(s, `"read"`)))
 	}
 }
 
 func (s *DockerSuite) TestGetStoppedContainerStats(c *check.C) {
-	// Problematic on Windows as Windows does not support stats
-	testRequires(c, DaemonIsLinux)
 	name := "statscontainer"
-	dockerCmd(c, "create", "--name", name, "busybox", "top")
+	dockerCmd(c, "create", "--name", name, "busybox", "ps")
 
 	type stats struct {
 		status int
