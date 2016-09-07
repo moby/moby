@@ -1,7 +1,7 @@
 package cluster
 
 import (
-	"github.com/docker/engine-api/types/network"
+	"github.com/docker/docker/api/types/network"
 	"golang.org/x/net/context"
 )
 

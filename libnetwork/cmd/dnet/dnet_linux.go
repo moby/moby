@@ -13,7 +13,7 @@ func setupDumpStackTrap() {
 	signal.Notify(c, syscall.SIGUSR1)
 	go func() {
 		for range c {
-			psignal.DumpStacks()
+			psignal.DumpStacks("")
 		}
 	}()
 }
