@@ -183,15 +183,6 @@ RUN ./contrib/download-frozen-image-v2.sh /docker-frozen-images \
 	ppc64le/hello-world:latest@sha256:186a40a9a02ca26df0b6c8acdfb8ac2f3ae6678996a838f977e57fac9d963974
 # see also "hack/make/.ensure-frozen-images" (which needs to be updated any time this list is)
 
-# Download man page generator
-RUN set -x \
-	&& export GOPATH="$(mktemp -d)" \
-	&& git clone --depth 1 -b v1.0.5 https://github.com/cpuguy83/go-md2man.git "$GOPATH/src/github.com/cpuguy83/go-md2man" \
-	&& git clone --depth 1 -b v1.4 https://github.com/russross/blackfriday.git "$GOPATH/src/github.com/russross/blackfriday" \
-	&& go get -v -d github.com/cpuguy83/go-md2man \
-	&& go build -v -o /usr/local/bin/go-md2man github.com/cpuguy83/go-md2man \
-	&& rm -rf "$GOPATH"
-
 # Download toml validator
 ENV TOMLV_COMMIT 9baf8a8a9f2ed20a8e54160840c492f937eeaf9a
 RUN set -x \
