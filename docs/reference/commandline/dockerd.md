@@ -574,7 +574,7 @@ options for `zfs` start with `zfs` and options for `btrfs` start with `btrfs`.
     **size** cannot be smaller than **btrfs.min_space**.
 
     Example use:
-        $ docker daemon -s btrfs --storage-opt btrfs.min_space=10G
+        $ dockerd -s btrfs --storage-opt btrfs.min_space=10G
 
 #### Overlay2 options
 
@@ -593,6 +593,14 @@ The Docker daemon relies on a
 [OCI](https://github.com/opencontainers/specs) compliant runtime
 (invoked via the `containerd` daemon) as its interface to the Linux
 kernel `namespaces`, `cgroups`, and `SELinux`.
+
+By default, the Docker daemon automatically starts `containerd`. If you want to
+control `containerd` startup, manually start `containerd` and pass the path to
+the `containerd` socket using the `--containerd` flag. For example:
+
+```bash
+$ dockerd --containerd /var/run/dev/docker-containerd.sock
+```
 
 Runtimes can be registered with the daemon either via the
 configuration file or using the `--add-runtime` command line argument.
@@ -1212,7 +1220,7 @@ The `--tls*` options enable use of specific certificates for individual daemons.
 Example script for a separate “bootstrap” instance of the Docker daemon without network:
 
 ```bash
-$ docker daemon \
+$ dockerd \
         -H unix:///var/run/docker-bootstrap.sock \
         -p /var/run/docker-bootstrap.pid \
         --iptables=false \

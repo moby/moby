@@ -134,7 +134,7 @@ docker run -v /Users/<path>:/<container path> ...
 On Windows, mount directories using:
 
 ```bash
-docker run -v /c/Users/<path>:/<container path> ...`
+docker run -v c:\<path>:/c:\<container path>
 ```
 
 All other paths come from your virtual machine's filesystem, so if you want
@@ -203,7 +203,7 @@ The following example also creates the `my-named-volume` volume, this time
 using the `docker volume create` command.
 
 ```bash
-$ docker volume create -d flocker --name my-named-volume -o size=20GB
+$ docker volume create -d flocker -o size=20GB my-named-volume
 
 $ docker run -d -P \
   -v my-named-volume:/opt/webapp \
@@ -211,7 +211,7 @@ $ docker run -d -P \
 ```
 
 A list of available plugins, including volume plugins, is available
-[here](../extend/plugins.md).
+[here](../extend/legacy_plugins.md).
 
 ### Volume labels
 

@@ -5,10 +5,15 @@ description = "Network driver plugins."
 keywords = ["Examples, Usage, plugins, docker, documentation, user guide"]
 [menu.main]
 parent = "engine_extend"
+weight=5
 +++
 <![end-metadata]-->
 
 # Engine network driver plugins
+
+This document describes Docker Engine network driver plugins generally
+available in Docker Engine. To view information on plugins
+managed by Docker Engine, refer to [Docker Engine plugin system](index.md).
 
 Docker Engine network plugins enable Engine deployments to be extended to
 support a wide range of networking technologies, such as VXLAN, IPVLAN, MACVLAN
@@ -41,7 +46,7 @@ commands. For example,
 
     $ docker network create --driver weave mynet
 
-Some network driver plugins are listed in [plugins](plugins.md)
+Some network driver plugins are listed in [plugins](legacy_plugins.md)
 
 The `mynet` network is now owned by `weave`, so subsequent commands
 referring to that network will be sent to the plugin,

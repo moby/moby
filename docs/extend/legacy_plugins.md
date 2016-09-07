@@ -1,15 +1,20 @@
 <!--[metadata]>
 +++
-title = "Extending Engine with plugins"
+aliases = "/engine/extend/plugins/"
+title = "Use Docker Engine plugins"
 description = "How to add additional functionality to Docker with plugins extensions"
 keywords = ["Examples, Usage, plugins, docker, documentation, user guide"]
 [menu.main]
 parent = "engine_extend"
-weight=-1
+weight=3
 +++
 <![end-metadata]-->
 
-# Understand Engine plugins
+# Use Docker Engine plugins
+
+This document describes the Docker Engine plugins generally available in Docker
+Engine. To view information on plugins managed by Docker Engine currently in
+experimental status, refer to [Docker Engine plugin system](index.md).
 
 You can extend the capabilities of the Docker Engine by loading third-party
 plugins. This page explains the types of plugins and provides links to several
@@ -17,7 +22,7 @@ volume and network plugins for Docker.
 
 ## Types of plugins
 
-Plugins extend Docker's functionality.  They come in specific types.  For
+Plugins extend Docker's functionality. They come in specific types.  For
 example, a [volume plugin](plugins_volume.md) might enable Docker
 volumes to persist across multiple Docker hosts and a
 [network plugin](plugins_network.md) might provide network plumbing.
@@ -51,7 +56,7 @@ Plugin                                                                          
 ----------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 [Azure File Storage plugin](https://github.com/Azure/azurefile-dockervolumedriver)  | Lets you mount Microsoft [Azure File Storage](https://azure.microsoft.com/blog/azure-file-storage-now-generally-available/) shares to Docker containers as volumes using the SMB 3.0 protocol. [Learn more](https://azure.microsoft.com/blog/persistent-docker-volumes-with-azure-file-storage/).
 [Blockbridge plugin](https://github.com/blockbridge/blockbridge-docker-volume)      | A volume plugin that provides access to an extensible set of container-based persistent storage options. It supports single and multi-host Docker environments with features that include tenant isolation, automated provisioning, encryption, secure deletion, snapshots and QoS.
-[Contiv Volume Plugin](https://github.com/contiv/volplugin)                         | An open source volume plugin that provides multi-tenant, persistent, distributed storage with intent based consumption using ceph underneath.
+[Contiv Volume Plugin](https://github.com/contiv/volplugin)                         | An open source volume plugin that provides multi-tenant, persistent, distributed storage with intent based consumption. It has support for Ceph and NFS.
 [Convoy plugin](https://github.com/rancher/convoy)                                  | A volume plugin for a variety of storage back-ends including device mapper and NFS. It's a simple standalone executable written in Go and provides the framework to support vendor-specific extensions such as snapshots, backups and restore.
 [DRBD plugin](https://www.drbd.org/en/supported-projects/docker)                    | A volume plugin that provides highly available storage replicated by [DRBD](https://www.drbd.org). Data written to the docker volume is replicated in a cluster of DRBD nodes.
 [Flocker plugin](https://clusterhq.com/docker-plugin/)                              | A volume plugin that provides multi-host portable volumes for Docker, enabling you to run databases and other stateful containers and move them around across a cluster of machines.
@@ -72,7 +77,7 @@ Plugin                                                                          
 
 ### Authorization plugins
 
- Plugin                                                       | Description                                                                                                                                                               
+ Plugin                                                       | Description
 ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
  [Twistlock AuthZ Broker](https://github.com/twistlock/authz) | A basic extendable authorization plugin that runs directly on the host or inside a container. This plugin allows you to define user policies that it evaluates during authorization. Basic authorization is provided if Docker daemon is started with the --tlsverify flag (username is extracted from the certificate common name).
 
