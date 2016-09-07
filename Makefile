@@ -55,6 +55,7 @@ DOCKER_MOUNT := $(if $(DOCKER_MOUNT),$(DOCKER_MOUNT),-v "/go/src/github.com/dock
 GIT_BRANCH := $(shell git rev-parse --abbrev-ref HEAD 2>/dev/null)
 GIT_BRANCH_CLEAN := $(shell echo $(GIT_BRANCH) | sed -e "s/[^[:alnum:]]/-/g")
 DOCKER_IMAGE := docker-dev$(if $(GIT_BRANCH_CLEAN),:$(GIT_BRANCH_CLEAN))
+DOCKER_CROSS_IMAGE := docker-cross$(if $(GIT_BRANCH_CLEAN),:$(GIT_BRANCH_CLEAN))
 DOCKER_DOCS_IMAGE := docker-docs$(if $(GIT_BRANCH_CLEAN),:$(GIT_BRANCH_CLEAN))
 DOCKER_PORT_FORWARD := $(if $(DOCKER_PORT),-p "$(DOCKER_PORT)",)
 
@@ -73,7 +74,7 @@ DOCKER_RUN_DOCKER := $(DOCKER_FLAGS) "$(DOCKER_IMAGE)"
 
 default: binary
 
-all: build ## validate all checks, build linux binaries, run all tests\ncross build non-linux binaries and generate archives
+all: build ## validate all checks, build linux binaries, run all tests\nbuild non-linux binaries and generate archives
 	$(DOCKER_RUN_DOCKER) hack/make.sh
 
 binary: build ## build the linux binaries
@@ -85,8 +86,15 @@ build: bundles init-go-pkg-cache
 bundles:
 	mkdir bundles
 
-cross: build ## cross build the binaries for darwin, freebsd and\nwindows
-	$(DOCKER_RUN_DOCKER) hack/make.sh dynbinary binary cross
+build-cross:
+	docker build ${BUILD_APT_MIRROR} ${DOCKER_BUILD_ARGS} \
+		-t ${DOCKER_CROSS_IMAGE} \
+		-f dockerfiles/Dockerfile.cross dockerfiles/
+
+cross: bundles build-cross ## cross build the binaries for darwin, freebsd and\nwindows
+	$(DOCKER_FLAGS) \
+		-v $(PWD):/go/src/github.com/docker/docker/ \
+		${DOCKER_CROSS_IMAGE} hack/make.sh cross
 
 deb: build  ## build the deb packages
 	$(DOCKER_RUN_DOCKER) hack/make.sh dynbinary build-deb
@@ -119,7 +127,7 @@ shell: build ## start a shell inside the build env
 	$(DOCKER_RUN_DOCKER) bash
 
 test: build ## run the unit, integration and docker-py tests
-	$(DOCKER_RUN_DOCKER) hack/make.sh dynbinary cross test-unit test-integration-cli test-docker-py
+	$(DOCKER_RUN_DOCKER) hack/make.sh dynbinary test-unit test-integration-cli test-docker-py
 
 test-docker-py: build ## run the docker-py tests
 	$(DOCKER_RUN_DOCKER) hack/make.sh dynbinary test-docker-py
@@ -130,8 +138,8 @@ test-integration-cli: build ## run the integration tests
 test-unit: build ## run the unit tests
 	$(DOCKER_RUN_DOCKER) hack/make.sh test-unit
 
-tgz: build ## build the archives (.zip on windows and .tgz\notherwise) containing the binaries
-	$(DOCKER_RUN_DOCKER) hack/make.sh dynbinary binary cross tgz
+tgz: build cross ## build the archives (.zip on windows and .tgz\notherwise) containing the binaries
+	$(DOCKER_RUN_DOCKER) hack/make.sh dynbinary binary tgz
 
 validate: build ## validate DCO, Seccomp profile generation, gofmt,\n./pkg/ isolation, golint, tests, tomls, go vet and vendor
 	$(DOCKER_RUN_DOCKER) hack/make.sh validate-dco validate-default-seccomp validate-gofmt validate-pkg validate-lint validate-test validate-toml validate-vet validate-vendor

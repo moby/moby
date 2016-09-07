@@ -46,7 +46,6 @@ RUN apt-get update && apt-get install -y \
 	bsdmainutils \
 	btrfs-tools \
 	build-essential \
-	clang \
 	createrepo \
 	curl \
 	dpkg-sig \
@@ -90,17 +89,6 @@ RUN cd /usr/local/lvm2 \
 	&& make install_device-mapper
 # see https://git.fedorahosted.org/cgit/lvm2.git/tree/INSTALL
 
-# Configure the container for OSX cross compilation
-ENV OSX_SDK MacOSX10.11.sdk
-ENV OSX_CROSS_COMMIT a9317c18a3a457ca0a657f08cc4d0d43c6cf8953
-RUN set -x \
-	&& export OSXCROSS_PATH="/osxcross" \
-	&& git clone https://github.com/tpoechtrager/osxcross.git $OSXCROSS_PATH \
-	&& ( cd $OSXCROSS_PATH && git checkout -q $OSX_CROSS_COMMIT) \
-	&& curl -sSL https://s3.dockerproject.org/darwin/v2/${OSX_SDK}.tar.xz -o "${OSXCROSS_PATH}/tarballs/${OSX_SDK}.tar.xz" \
-	&& UNATTENDED=yes OSX_VERSION_MIN=10.6 ${OSXCROSS_PATH}/build.sh
-ENV PATH /osxcross/target/bin:$PATH
-
 # install seccomp: the version shipped in trusty is too old
 ENV SECCOMP_VERSION 2.3.1
 RUN set -x \
@@ -126,13 +114,6 @@ RUN curl -fsSL "https://storage.googleapis.com/golang/go${GO_VERSION}.linux-amd6
 
 ENV PATH /go/bin:/usr/local/go/bin:$PATH
 ENV GOPATH /go:/go/src/github.com/docker/docker/vendor
-
-# Compile Go for cross compilation
-ENV DOCKER_CROSSPLATFORMS \
-	linux/386 linux/arm \
-	darwin/amd64 \
-	freebsd/amd64 freebsd/386 freebsd/arm \
-	windows/amd64 windows/386
 
 # Dependency for golint
 ENV GO_TOOLS_COMMIT 823804e1ae08dbb14eb807afc7db9993bc9e3cc3
@@ -241,6 +222,9 @@ RUN set -x \
 	&& cp bin/containerd-shim /usr/local/bin/docker-containerd-shim \
 	&& cp bin/ctr /usr/local/bin/docker-containerd-ctr \
 	&& rm -rf "$GOPATH"
+
+# Used to detect running from within a container
+ENV FROM_DOCKERFILE=1
 
 # Wrap all commands in the "docker-in-docker" script to allow nested containers
 ENTRYPOINT ["hack/dind"]

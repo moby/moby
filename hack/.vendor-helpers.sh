@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+source hack/make/.platforms
+
 PROJECT=github.com/docker/docker
 
 # Downloads dependencies into vendor/ directory
