@@ -7,6 +7,7 @@ type Service struct {
 	ID string
 	Meta
 	Spec         ServiceSpec  `json:",omitempty"`
+	PreviousSpec *ServiceSpec `json:",omitempty"`
 	Endpoint     Endpoint     `json:",omitempty"`
 	UpdateStatus UpdateStatus `json:",omitempty"`
 }
@@ -71,7 +72,34 @@ const (
 
 // UpdateConfig represents the update configuration.
 type UpdateConfig struct {
-	Parallelism   uint64        `json:",omitempty"`
-	Delay         time.Duration `json:",omitempty"`
-	FailureAction string        `json:",omitempty"`
+	// Maximum number of tasks to be updated in one iteration.
+	// 0 means unlimited parallelism.
+	Parallelism uint64 `json:",omitempty"`
+
+	// Amount of time between updates.
+	Delay time.Duration `json:",omitempty"`
+
+	// FailureAction is the action to take when an update failures.
+	FailureAction string `json:",omitempty"`
+
+	// Monitor indicates how long to monitor a task for failure after it is
+	// created. If the task fails by ending up in one of the states
+	// REJECTED, COMPLETED, or FAILED, within Monitor from its creation,
+	// this counts as a failure. If it fails after Monitor, it does not
+	// count as a failure. If Monitor is unspecified, a default value will
+	// be used.
+	Monitor time.Duration `json:",omitempty"`
+
+	// AllowedFailureFraction is the fraction of tasks that may fail during
+	// an update before the failure action is invoked. Any task created by
+	// the current update which ends up in one of the states REJECTED,
+	// COMPLETED or FAILED within Monitor from its creation counts as a
+	// failure. The number of failures is divided by the number of tasks
+	// being updated, and if this fraction is greater than
+	// AllowedFailureFraction, the failure action is invoked.
+	//
+	// If the failure action is CONTINUE, there is no effect.
+	// If the failure action is PAUSE, no more tasks will be updated until
+	// another update is started.
+	AllowedFailureFraction float32
 }
