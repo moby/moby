@@ -177,6 +177,24 @@ func ParseMountSpec(spec string, volumeDriver string) (*MountPoint, error) {
 		}
 	}
 
+	// Fix #26329. If the destination appears to be a file, and the source is null,
+	// it may be because we've fallen through the possible naming regex and hit a
+	// situation where the user intention was to map a file into a container through
+	// a local volume, but this is not supported by the platform.
+	if len(mp.Source) == 0 && len(mp.Destination) > 0 {
+		var fi os.FileInfo
+		var err error
+		if fi, err = os.Stat(mp.Destination); err == nil {
+			validName, err := IsVolumeNameValid(mp.Destination)
+			if err != nil {
+				return nil, err
+			}
+			if !validName && !fi.IsDir() {
+				return nil, fmt.Errorf("file '%s' cannot be mapped. Only directories can be mapped on this platform", mp.Destination)
+			}
+		}
+	}
+
 	logrus.Debugf("MP: Source '%s', Dest '%s', RW %t, Name '%s', Driver '%s'", mp.Source, mp.Destination, mp.RW, mp.Name, mp.Driver)
 	return mp, nil
 }

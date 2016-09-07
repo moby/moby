@@ -77,6 +77,7 @@ func TestParseMountSpec(t *testing.T) {
 			`lpt7:d:`:                          `cannot be a reserved word for Windows filenames`,
 			`lpt8:d:`:                          `cannot be a reserved word for Windows filenames`,
 			`lpt9:d:`:                          `cannot be a reserved word for Windows filenames`,
+			`c:\windows\system32\ntdll.dll`:    `Only directories can be mapped on this platform`,
 		}
 
 	} else {
