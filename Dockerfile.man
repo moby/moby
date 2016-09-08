@@ -1,0 +1,7 @@
+FROM golang:1.7-alpine
+ENV GOPATH=/go/src/github.com/docker/docker/vendor:$GOPATH
+
+COPY . /go/src/github.com/docker/docker
+WORKDIR /go/src/github.com/docker/docker
+RUN go build -o /tmp/gen-manpages github.com/docker/docker/man
+CMD ["/tmp/gen-manpages", "-o", "./man", "-i", "./man"]

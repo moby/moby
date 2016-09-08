@@ -172,4 +172,9 @@ clone git github.com/spf13/pflag cb88ea77998c3f024757528e3305022ab50b43be
 clone git github.com/inconshreveable/mousetrap 76626ae9c91c4f2a10f34cad8ce83ea42c93bb75
 clone git github.com/flynn-archive/go-shlex 3f9db97f856818214da2e1057f8ad84803971cff
 
+# man
+clone git github.com/cpuguy83/go-md2man v1.0.6
+clone git github.com/shurcooL/sanitized_anchor_name 10ef21a441db47d8b13ebcc5fd2310f636973c77
+clone git github.com/russross/blackfriday 93622da34e54fb6529bfb7c57e710f37a8d9cbd8
+
 clean
