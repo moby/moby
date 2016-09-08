@@ -810,7 +810,7 @@ func fixManifestLayers(m *schema1.Manifest) error {
 
 	if imgs[len(imgs)-1].Parent != "" && runtime.GOOS != "windows" {
 		// Windows base layer can point to a base layer parent that is not in manifest.
-		return errors.New("Invalid parent ID in the base layer of the image.")
+		return errors.New("invalid parent ID in the base layer of the image")
 	}
 
 	// check general duplicates to error instead of a deadlock
