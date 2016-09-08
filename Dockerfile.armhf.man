@@ -1,0 +1,12 @@
+FROM armhf/debian:jessie
+# Install Go
+ENV GO_VERSION 1.7.1
+RUN curl -fsSL "https://storage.googleapis.com/golang/go${GO_VERSION}.linux-armv6l.tar.gz" \
+	| tar -xzC /usr/local
+ENV PATH /go/bin:/usr/local/go/bin:$PATH
+ENV GOPATH /go:/go/src/github.com/docker/docker/vendor
+
+COPY . /go/src/github.com/docker/docker
+WORKDIR /go/src/github.com/docker/docker
+RUN go build -o /tmp/gen-manpages github.com/docker/docker/man
+CMD ["/tmp/gen-manpages", "-o", "./man", "-i", "./man"]

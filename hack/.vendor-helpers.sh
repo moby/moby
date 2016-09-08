@@ -78,6 +78,7 @@ clean() {
 		"${PROJECT}/cmd/dockerd" # daemon package main
 		"${PROJECT}/cmd/docker" # client package main
 		"${PROJECT}/integration-cli" # external tests
+		"${PROJECT}/man" # man page generator
 	)
 	local dockerPlatforms=( ${DOCKER_ENGINE_OSARCH:="linux/amd64"} $(_dockerfile_env DOCKER_CROSSPLATFORMS) )
 	local dockerBuildTags="$(_dockerfile_env DOCKER_BUILDTAGS)"
