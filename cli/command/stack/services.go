@@ -7,11 +7,11 @@ import (
 
 	"golang.org/x/net/context"
 
-	"github.com/docker/docker/api/client"
-	"github.com/docker/docker/api/client/service"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/cli"
+	"github.com/docker/docker/cli/command"
+	"github.com/docker/docker/cli/command/service"
 	"github.com/docker/docker/opts"
 	"github.com/spf13/cobra"
 )
@@ -26,7 +26,7 @@ type servicesOptions struct {
 	namespace string
 }
 
-func newServicesCommand(dockerCli *client.DockerCli) *cobra.Command {
+func newServicesCommand(dockerCli *command.DockerCli) *cobra.Command {
 	opts := servicesOptions{filter: opts.NewFilterOpt()}
 
 	cmd := &cobra.Command{
@@ -45,7 +45,7 @@ func newServicesCommand(dockerCli *client.DockerCli) *cobra.Command {
 	return cmd
 }
 
-func runServices(dockerCli *client.DockerCli, opts servicesOptions) error {
+func runServices(dockerCli *command.DockerCli, opts servicesOptions) error {
 	ctx := context.Background()
 	client := dockerCli.Client()
 

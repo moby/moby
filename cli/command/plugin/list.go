@@ -7,8 +7,8 @@ import (
 	"strings"
 	"text/tabwriter"
 
-	"github.com/docker/docker/api/client"
 	"github.com/docker/docker/cli"
+	"github.com/docker/docker/cli/command"
 	"github.com/docker/docker/pkg/stringutils"
 	"github.com/spf13/cobra"
 	"golang.org/x/net/context"
@@ -18,7 +18,7 @@ type listOptions struct {
 	noTrunc bool
 }
 
-func newListCommand(dockerCli *client.DockerCli) *cobra.Command {
+func newListCommand(dockerCli *command.DockerCli) *cobra.Command {
 	var opts listOptions
 
 	cmd := &cobra.Command{
@@ -38,7 +38,7 @@ func newListCommand(dockerCli *client.DockerCli) *cobra.Command {
 	return cmd
 }
 
-func runList(dockerCli *client.DockerCli, opts listOptions) error {
+func runList(dockerCli *command.DockerCli, opts listOptions) error {
 	plugins, err := dockerCli.Client().PluginList(context.Background())
 	if err != nil {
 		return err

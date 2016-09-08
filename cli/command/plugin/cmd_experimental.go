@@ -5,13 +5,13 @@ package plugin
 import (
 	"fmt"
 
-	"github.com/docker/docker/api/client"
 	"github.com/docker/docker/cli"
+	"github.com/docker/docker/cli/command"
 	"github.com/spf13/cobra"
 )
 
 // NewPluginCommand returns a cobra command for `plugin` subcommands
-func NewPluginCommand(rootCmd *cobra.Command, dockerCli *client.DockerCli) {
+func NewPluginCommand(rootCmd *cobra.Command, dockerCli *command.DockerCli) {
 	cmd := &cobra.Command{
 		Use:   "plugin",
 		Short: "Manage Docker plugins",

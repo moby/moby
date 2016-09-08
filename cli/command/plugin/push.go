@@ -7,14 +7,14 @@ import (
 
 	"golang.org/x/net/context"
 
-	"github.com/docker/docker/api/client"
 	"github.com/docker/docker/cli"
+	"github.com/docker/docker/cli/command"
 	"github.com/docker/docker/reference"
 	"github.com/docker/docker/registry"
 	"github.com/spf13/cobra"
 )
 
-func newPushCommand(dockerCli *client.DockerCli) *cobra.Command {
+func newPushCommand(dockerCli *command.DockerCli) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "push PLUGIN",
 		Short: "Push a plugin",
@@ -26,7 +26,7 @@ func newPushCommand(dockerCli *client.DockerCli) *cobra.Command {
 	return cmd
 }
 
-func runPush(dockerCli *client.DockerCli, name string) error {
+func runPush(dockerCli *command.DockerCli, name string) error {
 	named, err := reference.ParseNamed(name) // FIXME: validate
 	if err != nil {
 		return err
@@ -47,7 +47,7 @@ func runPush(dockerCli *client.DockerCli, name string) error {
 	}
 	authConfig := dockerCli.ResolveAuthConfig(ctx, repoInfo.Index)
 
-	encodedAuth, err := client.EncodeAuthToBase64(authConfig)
+	encodedAuth, err := command.EncodeAuthToBase64(authConfig)
 	if err != nil {
 		return err
 	}

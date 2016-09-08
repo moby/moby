@@ -7,13 +7,13 @@ import (
 
 	"golang.org/x/net/context"
 
-	"github.com/docker/docker/api/client"
 	"github.com/docker/docker/cli"
+	"github.com/docker/docker/cli/command"
 	"github.com/docker/docker/reference"
 	"github.com/spf13/cobra"
 )
 
-func newSetCommand(dockerCli *client.DockerCli) *cobra.Command {
+func newSetCommand(dockerCli *command.DockerCli) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "set PLUGIN key1=value1 [key2=value2...]",
 		Short: "Change settings for a plugin",
@@ -26,7 +26,7 @@ func newSetCommand(dockerCli *client.DockerCli) *cobra.Command {
 	return cmd
 }
 
-func runSet(dockerCli *client.DockerCli, name string, args []string) error {
+func runSet(dockerCli *command.DockerCli, name string, args []string) error {
 	named, err := reference.ParseNamed(name) // FIXME: validate
 	if err != nil {
 		return err

@@ -3,9 +3,9 @@
 package stack
 
 import (
-	"github.com/docker/docker/api/client"
-	"github.com/docker/docker/api/client/bundlefile"
 	"github.com/docker/docker/cli"
+	"github.com/docker/docker/cli/command"
+	"github.com/docker/docker/cli/command/bundlefile"
 	"github.com/spf13/cobra"
 )
 
@@ -14,7 +14,7 @@ type configOptions struct {
 	namespace  string
 }
 
-func newConfigCommand(dockerCli *client.DockerCli) *cobra.Command {
+func newConfigCommand(dockerCli *command.DockerCli) *cobra.Command {
 	var opts configOptions
 
 	cmd := &cobra.Command{
@@ -32,7 +32,7 @@ func newConfigCommand(dockerCli *client.DockerCli) *cobra.Command {
 	return cmd
 }
 
-func runConfig(dockerCli *client.DockerCli, opts configOptions) error {
+func runConfig(dockerCli *command.DockerCli, opts configOptions) error {
 	bundle, err := loadBundlefile(dockerCli.Err(), opts.namespace, opts.bundlefile)
 	if err != nil {
 		return err

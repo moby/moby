@@ -7,8 +7,8 @@ import (
 
 	"golang.org/x/net/context"
 
-	"github.com/docker/docker/api/client"
 	"github.com/docker/docker/cli"
+	"github.com/docker/docker/cli/command"
 	"github.com/spf13/cobra"
 )
 
@@ -16,7 +16,7 @@ type removeOptions struct {
 	namespace string
 }
 
-func newRemoveCommand(dockerCli *client.DockerCli) *cobra.Command {
+func newRemoveCommand(dockerCli *command.DockerCli) *cobra.Command {
 	var opts removeOptions
 
 	cmd := &cobra.Command{
@@ -32,7 +32,7 @@ func newRemoveCommand(dockerCli *client.DockerCli) *cobra.Command {
 	return cmd
 }
 
-func runRemove(dockerCli *client.DockerCli, opts removeOptions) error {
+func runRemove(dockerCli *command.DockerCli, opts removeOptions) error {
 	namespace := opts.namespace
 	client := dockerCli.Client()
 	stderr := dockerCli.Err()

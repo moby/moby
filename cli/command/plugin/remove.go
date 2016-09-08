@@ -5,9 +5,9 @@ package plugin
 import (
 	"fmt"
 
-	"github.com/docker/docker/api/client"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/cli"
+	"github.com/docker/docker/cli/command"
 	"github.com/docker/docker/reference"
 	"github.com/spf13/cobra"
 	"golang.org/x/net/context"
@@ -19,7 +19,7 @@ type rmOptions struct {
 	plugins []string
 }
 
-func newRemoveCommand(dockerCli *client.DockerCli) *cobra.Command {
+func newRemoveCommand(dockerCli *command.DockerCli) *cobra.Command {
 	var opts rmOptions
 
 	cmd := &cobra.Command{
@@ -38,7 +38,7 @@ func newRemoveCommand(dockerCli *client.DockerCli) *cobra.Command {
 	return cmd
 }
 
-func runRemove(dockerCli *client.DockerCli, opts *rmOptions) error {
+func runRemove(dockerCli *command.DockerCli, opts *rmOptions) error {
 	ctx := context.Background()
 
 	var errs cli.Errors

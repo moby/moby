@@ -5,9 +5,9 @@ package plugin
 import (
 	"fmt"
 
-	"github.com/docker/docker/api/client"
-	"github.com/docker/docker/api/client/inspect"
 	"github.com/docker/docker/cli"
+	"github.com/docker/docker/cli/command"
+	"github.com/docker/docker/cli/command/inspect"
 	"github.com/docker/docker/reference"
 	"github.com/spf13/cobra"
 	"golang.org/x/net/context"
@@ -18,7 +18,7 @@ type inspectOptions struct {
 	format      string
 }
 
-func newInspectCommand(dockerCli *client.DockerCli) *cobra.Command {
+func newInspectCommand(dockerCli *command.DockerCli) *cobra.Command {
 	var opts inspectOptions
 
 	cmd := &cobra.Command{
@@ -36,7 +36,7 @@ func newInspectCommand(dockerCli *client.DockerCli) *cobra.Command {
 	return cmd
 }
 
-func runInspect(dockerCli *client.DockerCli, opts inspectOptions) error {
+func runInspect(dockerCli *command.DockerCli, opts inspectOptions) error {
 	client := dockerCli.Client()
 	ctx := context.Background()
 	getRef := func(name string) (interface{}, []byte, error) {

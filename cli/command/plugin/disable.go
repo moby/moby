@@ -5,14 +5,14 @@ package plugin
 import (
 	"fmt"
 
-	"github.com/docker/docker/api/client"
 	"github.com/docker/docker/cli"
+	"github.com/docker/docker/cli/command"
 	"github.com/docker/docker/reference"
 	"github.com/spf13/cobra"
 	"golang.org/x/net/context"
 )
 
-func newDisableCommand(dockerCli *client.DockerCli) *cobra.Command {
+func newDisableCommand(dockerCli *command.DockerCli) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "disable PLUGIN",
 		Short: "Disable a plugin",
@@ -25,7 +25,7 @@ func newDisableCommand(dockerCli *client.DockerCli) *cobra.Command {
 	return cmd
 }
 
-func runDisable(dockerCli *client.DockerCli, name string) error {
+func runDisable(dockerCli *command.DockerCli, name string) error {
 	named, err := reference.ParseNamed(name) // FIXME: validate
 	if err != nil {
 		return err

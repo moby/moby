@@ -7,7 +7,7 @@ import (
 	"io"
 	"os"
 
-	"github.com/docker/docker/api/client/bundlefile"
+	"github.com/docker/docker/cli/command/bundlefile"
 	"github.com/spf13/pflag"
 )
 

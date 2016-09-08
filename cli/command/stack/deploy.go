@@ -8,11 +8,11 @@ import (
 	"github.com/spf13/cobra"
 	"golang.org/x/net/context"
 
-	"github.com/docker/docker/api/client"
-	"github.com/docker/docker/api/client/bundlefile"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/cli"
+	"github.com/docker/docker/cli/command"
+	"github.com/docker/docker/cli/command/bundlefile"
 )
 
 const (
@@ -25,7 +25,7 @@ type deployOptions struct {
 	sendRegistryAuth bool
 }
 
-func newDeployCommand(dockerCli *client.DockerCli) *cobra.Command {
+func newDeployCommand(dockerCli *command.DockerCli) *cobra.Command {
 	var opts deployOptions
 
 	cmd := &cobra.Command{
@@ -45,7 +45,7 @@ func newDeployCommand(dockerCli *client.DockerCli) *cobra.Command {
 	return cmd
 }
 
-func runDeploy(dockerCli *client.DockerCli, opts deployOptions) error {
+func runDeploy(dockerCli *command.DockerCli, opts deployOptions) error {
 	bundle, err := loadBundlefile(dockerCli.Err(), opts.namespace, opts.bundlefile)
 	if err != nil {
 		return err
@@ -85,7 +85,7 @@ func getUniqueNetworkNames(services map[string]bundlefile.Service) []string {
 
 func updateNetworks(
 	ctx context.Context,
-	dockerCli *client.DockerCli,
+	dockerCli *command.DockerCli,
 	networks []string,
 	namespace string,
 ) error {
@@ -133,7 +133,7 @@ func convertNetworks(networks []string, namespace string, name string) []swarm.N
 
 func deployServices(
 	ctx context.Context,
-	dockerCli *client.DockerCli,
+	dockerCli *command.DockerCli,
 	services map[string]bundlefile.Service,
 	namespace string,
 	sendAuth bool,

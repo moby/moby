@@ -7,9 +7,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/docker/docker/api/client"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/cli"
+	"github.com/docker/docker/cli/command"
 	"github.com/docker/docker/reference"
 	"github.com/docker/docker/registry"
 	"github.com/spf13/cobra"
@@ -22,7 +22,7 @@ type pluginOptions struct {
 	disable    bool
 }
 
-func newInstallCommand(dockerCli *client.DockerCli) *cobra.Command {
+func newInstallCommand(dockerCli *command.DockerCli) *cobra.Command {
 	var options pluginOptions
 	cmd := &cobra.Command{
 		Use:   "install [OPTIONS] PLUGIN",
@@ -41,7 +41,7 @@ func newInstallCommand(dockerCli *client.DockerCli) *cobra.Command {
 	return cmd
 }
 
-func runInstall(dockerCli *client.DockerCli, opts pluginOptions) error {
+func runInstall(dockerCli *command.DockerCli, opts pluginOptions) error {
 	named, err := reference.ParseNamed(opts.name) // FIXME: validate
 	if err != nil {
 		return err
@@ -63,7 +63,7 @@ func runInstall(dockerCli *client.DockerCli, opts pluginOptions) error {
 
 	authConfig := dockerCli.ResolveAuthConfig(ctx, repoInfo.Index)
 
-	encodedAuth, err := client.EncodeAuthToBase64(authConfig)
+	encodedAuth, err := command.EncodeAuthToBase64(authConfig)
 	if err != nil {
 		return err
 	}
@@ -85,7 +85,7 @@ func runInstall(dockerCli *client.DockerCli, opts pluginOptions) error {
 	return nil
 }
 
-func acceptPrivileges(dockerCli *client.DockerCli, name string) func(privileges types.PluginPrivileges) (bool, error) {
+func acceptPrivileges(dockerCli *command.DockerCli, name string) func(privileges types.PluginPrivileges) (bool, error) {
 	return func(privileges types.PluginPrivileges) (bool, error) {
 		fmt.Fprintf(dockerCli.Out(), "Plugin %q is requesting the following privileges:\n", name)
 		for _, privilege := range privileges {
