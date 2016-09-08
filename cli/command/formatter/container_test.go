@@ -9,6 +9,7 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/pkg/stringid"
+	"github.com/docker/docker/pkg/testutil/assert"
 )
 
 func TestContainerPsContext(t *testing.T) {
@@ -232,19 +233,19 @@ containerID2        ubuntu              ""                  24 hours ago        
 image: ubuntu
 command: ""
 created_at: %s
-status:
+status: 
 names: foobar_baz
-labels:
-ports:
+labels: 
+ports: 
 
 container_id: containerID2
 image: ubuntu
 command: ""
 created_at: %s
-status:
+status: 
 names: foobar_bar
-labels:
-ports:
+labels: 
+ports: 
 
 `, expectedTime, expectedTime),
 		},
@@ -259,20 +260,20 @@ ports:
 image: ubuntu
 command: ""
 created_at: %s
-status:
+status: 
 names: foobar_baz
-labels:
-ports:
+labels: 
+ports: 
 size: 0 B
 
 container_id: containerID2
 image: ubuntu
 command: ""
 created_at: %s
-status:
+status: 
 names: foobar_bar
-labels:
-ports:
+labels: 
+ports: 
 size: 0 B
 
 `, expectedTime, expectedTime),
@@ -316,9 +317,7 @@ size: 0 B
 		context.context.Containers = containers
 		context.context.Write()
 		actual := out.String()
-		if actual != context.expected {
-			t.Fatalf("Expected \n%s, got \n%s", context.expected, actual)
-		}
+		assert.Equal(t, actual, context.expected)
 		// Clean buffer
 		out.Reset()
 	}
