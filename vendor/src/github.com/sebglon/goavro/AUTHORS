@@ -1,0 +1,21 @@
+Goavro was originally created during the Fall of 2014 at LinkedIn,
+Corp., in New York City, New York, USA.
+
+The following persons, listed in alphabetical order, have participated
+with goavro development by contributing code and test cases.
+
+	Fellyn Silliman <fsilliman@linkedin.com>
+	Karrick McDermott <kmcdermott@linkedin.com>
+	Michael Johnson <mijohnson@linkedin.com>
+
+A big thank you to these persons who provided testing and amazing
+feedback to goavro during its initial implementation:
+
+	Dennis Ordanov <dordanov@linkedin.com>
+	Thomas Desrosiers <tdesrosiers@linkedin.com>
+
+Also a big thank you is extended to our supervisors who supported our
+efforts to bring goavro to the open source community:
+
+	Greg Leffler <gleffler@linkedin.com>
+	Nick Berry <niberry@linkedin.com>

@@ -31,6 +31,7 @@ supported:
 | `splunk`    | Splunk logging driver for Docker. Writes log messages to `splunk` using HTTP Event Collector.                                 |
 | `etwlogs`   | ETW logging driver for Docker on Windows. Writes log messages as ETW events.                                                  |
 | `gcplogs`   | Google Cloud Logging driver for Docker. Writes log messages to Google Cloud Logging.                                          |
+| `flume-avro`   | Flume Avro Logging driver for Docker. Writes log messages to Apache Flume with Avro protocol.                              |
 
 The `docker logs`command is available only for the `json-file` and `journald`
 logging drivers.
@@ -305,3 +306,32 @@ The Google Cloud Logging driver supports the following options:
 
 For detailed information about working with this logging driver, see the
 [Google Cloud Logging driver](gcplogs.md). reference documentation.
+
+
+## flume-avro options
+
+The Flume Avro logging driver supports the following options:
+
+```bash
+--log-opt avro-host=host
+--log-opt avro-port=port
+--log-opt labels=label1,label2
+--log-opt env=env1,env2
+```
+
+The `avro-host` option specifies the remote Flume server address that the
+driver connects to. 
+
+The `avro-port` option specifies the remote Flume server port that the
+driver connects to. 
+```bash
+$ docker run -dit \
+    --log-driver=flume-avro \
+    --log-opt avro-host=192.168.0.42 \
+    --log-opt avro-port=63001 \
+    alpine sh
+```
+
+By default, Docker uses the first 12 characters of the container ID to tag log
+messages. Refer to the [log tag option documentation](log_tags.md) for
+customizing the log tag format.
