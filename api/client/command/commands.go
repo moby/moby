@@ -67,5 +67,6 @@ func AddCommands(cmd *cobra.Command, dockerCli *client.DockerCli) {
 		volume.NewVolumeCommand(dockerCli),
 		system.NewInfoCommand(dockerCli),
 	)
+	addExperimentalCommands(cmd, dockerCli)
 	plugin.NewPluginCommand(cmd, dockerCli)
 }
