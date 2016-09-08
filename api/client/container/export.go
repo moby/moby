@@ -38,7 +38,7 @@ func NewExportCommand(dockerCli *client.DockerCli) *cobra.Command {
 }
 
 func runExport(dockerCli *client.DockerCli, opts exportOptions) error {
-	if opts.output == "" && dockerCli.IsTerminalOut() {
+	if opts.output == "" && dockerCli.Out().IsTerminal() {
 		return errors.New("Cowardly refusing to save to a terminal. Use the -o flag or redirect.")
 	}
 

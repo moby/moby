@@ -227,7 +227,7 @@ func runBuild(dockerCli *client.DockerCli, options buildOptions) error {
 
 	// Setup an upload progress bar
 	progressOutput := streamformatter.NewStreamFormatter().NewProgressOutput(progBuff, true)
-	if !dockerCli.IsTerminalOut() {
+	if !dockerCli.Out().IsTerminal() {
 		progressOutput = &lastProgressOutput{output: progressOutput}
 	}
 
@@ -293,7 +293,7 @@ func runBuild(dockerCli *client.DockerCli, options buildOptions) error {
 	}
 	defer response.Body.Close()
 
-	err = jsonmessage.DisplayJSONMessagesStream(response.Body, buildBuff, dockerCli.OutFd(), dockerCli.IsTerminalOut(), nil)
+	err = jsonmessage.DisplayJSONMessagesStream(response.Body, buildBuff, dockerCli.Out().FD(), dockerCli.Out().IsTerminal(), nil)
 	if err != nil {
 		if jerr, ok := err.(*jsonmessage.JSONError); ok {
 			// If no error code is set, default to 1

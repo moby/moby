@@ -46,8 +46,9 @@ func NewAttachCommand(dockerCli *client.DockerCli) *cobra.Command {
 
 func runAttach(dockerCli *client.DockerCli, opts *attachOptions) error {
 	ctx := context.Background()
+	client := dockerCli.Client()
 
-	c, err := dockerCli.Client().ContainerInspect(ctx, opts.container)
+	c, err := client.ContainerInspect(ctx, opts.container)
 	if err != nil {
 		return err
 	}
@@ -60,7 +61,7 @@ func runAttach(dockerCli *client.DockerCli, opts *attachOptions) error {
 		return fmt.Errorf("You cannot attach to a paused container, unpause it first")
 	}
 
-	if err := dockerCli.CheckTtyInput(!opts.noStdin, c.Config.Tty); err != nil {
+	if err := dockerCli.In().CheckTty(!opts.noStdin, c.Config.Tty); err != nil {
 		return err
 	}
 
@@ -82,11 +83,11 @@ func runAttach(dockerCli *client.DockerCli, opts *attachOptions) error {
 	}
 
 	if opts.proxy && !c.Config.Tty {
-		sigc := dockerCli.ForwardAllSignals(ctx, opts.container)
+		sigc := ForwardAllSignals(ctx, dockerCli, opts.container)
 		defer signal.StopCatch(sigc)
 	}
 
-	resp, errAttach := dockerCli.Client().ContainerAttach(ctx, opts.container, options)
+	resp, errAttach := client.ContainerAttach(ctx, opts.container, options)
 	if errAttach != nil && errAttach != httputil.ErrPersistEOF {
 		// ContainerAttach returns an ErrPersistEOF (connection closed)
 		// means server met an error and put it in Hijacked connection
@@ -95,21 +96,21 @@ func runAttach(dockerCli *client.DockerCli, opts *attachOptions) error {
 	}
 	defer resp.Close()
 
-	if c.Config.Tty && dockerCli.IsTerminalOut() {
-		height, width := dockerCli.GetTtySize()
+	if c.Config.Tty && dockerCli.Out().IsTerminal() {
+		height, width := dockerCli.Out().GetTtySize()
 		// To handle the case where a user repeatedly attaches/detaches without resizing their
 		// terminal, the only way to get the shell prompt to display for attaches 2+ is to artificially
 		// resize it, then go back to normal. Without this, every attach after the first will
 		// require the user to manually resize or hit enter.
-		dockerCli.ResizeTtyTo(ctx, opts.container, height+1, width+1, false)
+		resizeTtyTo(ctx, client, opts.container, height+1, width+1, false)
 
 		// After the above resizing occurs, the call to MonitorTtySize below will handle resetting back
 		// to the actual size.
-		if err := dockerCli.MonitorTtySize(ctx, opts.container, false); err != nil {
+		if err := MonitorTtySize(ctx, dockerCli, opts.container, false); err != nil {
 			logrus.Debugf("Error monitoring TTY size: %s", err)
 		}
 	}
-	if err := dockerCli.HoldHijackedConnection(ctx, c.Config.Tty, in, dockerCli.Out(), dockerCli.Err(), resp); err != nil {
+	if err := holdHijackedConnection(ctx, dockerCli, c.Config.Tty, in, dockerCli.Out(), dockerCli.Err(), resp); err != nil {
 		return err
 	}
 

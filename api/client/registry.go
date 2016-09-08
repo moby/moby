@@ -89,7 +89,7 @@ func (cli *DockerCli) RetrieveAuthConfigs() map[string]types.AuthConfig {
 func (cli *DockerCli) ConfigureAuth(flUser, flPassword, serverAddress string, isDefaultRegistry bool) (types.AuthConfig, error) {
 	// On Windows, force the use of the regular OS stdin stream. Fixes #14336/#14210
 	if runtime.GOOS == "windows" {
-		cli.in = os.Stdin
+		cli.in = NewInStream(os.Stdin)
 	}
 
 	if !isDefaultRegistry {
@@ -108,7 +108,7 @@ func (cli *DockerCli) ConfigureAuth(flUser, flPassword, serverAddress string, is
 	// Linux will hit this if you attempt `cat | docker login`, and Windows
 	// will hit this if you attempt docker login from mintty where stdin
 	// is a pipe, not a character based console.
-	if flPassword == "" && !cli.isTerminalIn {
+	if flPassword == "" && !cli.In().IsTerminal() {
 		return authconfig, fmt.Errorf("Error: Cannot perform an interactive login from a non TTY device")
 	}
 
@@ -130,17 +130,17 @@ func (cli *DockerCli) ConfigureAuth(flUser, flPassword, serverAddress string, is
 		return authconfig, fmt.Errorf("Error: Non-null Username Required")
 	}
 	if flPassword == "" {
-		oldState, err := term.SaveState(cli.inFd)
+		oldState, err := term.SaveState(cli.In().FD())
 		if err != nil {
 			return authconfig, err
 		}
 		fmt.Fprintf(cli.out, "Password: ")
-		term.DisableEcho(cli.inFd, oldState)
+		term.DisableEcho(cli.In().FD(), oldState)
 
 		flPassword = readInput(cli.in, cli.out)
 		fmt.Fprint(cli.out, "\n")
 
-		term.RestoreTerminal(cli.inFd, oldState)
+		term.RestoreTerminal(cli.In().FD(), oldState)
 		if flPassword == "" {
 			return authconfig, fmt.Errorf("Error: Password Required")
 		}

@@ -219,3 +219,14 @@ func DisplayJSONMessagesStream(in io.Reader, out io.Writer, terminalFd uintptr, 
 	}
 	return nil
 }
+
+type stream interface {
+	io.Writer
+	FD() uintptr
+	IsTerminal() bool
+}
+
+// DisplayJSONMessagesToStream prints json messages to the output stream
+func DisplayJSONMessagesToStream(in io.Reader, stream stream, auxCallback func(*json.RawMessage)) error {
+	return DisplayJSONMessagesStream(in, stream, stream.FD(), stream.IsTerminal(), auxCallback)
+}

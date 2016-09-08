@@ -49,7 +49,7 @@ func runLoad(dockerCli *client.DockerCli, opts loadOptions) error {
 		defer file.Close()
 		input = file
 	}
-	if !dockerCli.IsTerminalOut() {
+	if !dockerCli.Out().IsTerminal() {
 		opts.quiet = true
 	}
 	response, err := dockerCli.Client().ImageLoad(context.Background(), input, opts.quiet)
@@ -59,7 +59,7 @@ func runLoad(dockerCli *client.DockerCli, opts loadOptions) error {
 	defer response.Body.Close()
 
 	if response.Body != nil && response.JSON {
-		return jsonmessage.DisplayJSONMessagesStream(response.Body, dockerCli.Out(), dockerCli.OutFd(), dockerCli.IsTerminalOut(), nil)
+		return jsonmessage.DisplayJSONMessagesToStream(response.Body, dockerCli.Out(), nil)
 	}
 
 	_, err = io.Copy(dockerCli.Out(), response.Body)
