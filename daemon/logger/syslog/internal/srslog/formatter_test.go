@@ -27,7 +27,7 @@ func TestUnixFormatter(t *testing.T) {
 
 func TestRFC3164Formatter(t *testing.T) {
 	out := RFC3164Formatter(LOG_ERR, "hostname", "tag", "content")
-	expected := fmt.Sprintf("<%d> %s %s %s[%d]: %s",
+	expected := fmt.Sprintf("<%d>%s %s %s[%d]: %s",
 		LOG_ERR, time.Now().Format(time.Stamp), "hostname", "tag", os.Getpid(), "content")
 	if out != expected {
 		t.Errorf("expected %v got %v", expected, out)
