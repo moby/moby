@@ -48,8 +48,8 @@ Options:
   -w, --workdir string                 Working directory inside the container
 ```
 
-Creates a service as described by the specified parameters. This command has to
-be run targeting a manager node.
+Creates a service as described by the specified parameters. You must run this
+command on a manager node.
 
 ## Examples
 
@@ -64,10 +64,10 @@ ID            NAME   REPLICAS  IMAGE        COMMAND
 dmu1ept4cxcf  redis  1/1       redis:3.0.6
 ```
 
-### Create a service with 5 tasks
+### Create a service with 5 replica tasks (--replicas)
 
-You can set the number of tasks for a service using the `--replicas` option. The
-following command creates a `redis` service with `5` tasks:
+Use the `--replicas` flag to set the number of replica tasks for a replicated
+service. The following command creates a `redis` service with `5` replica tasks:
 
 ```bash
 $ docker service create --name redis --replicas=5 redis:3.0.6
@@ -75,12 +75,12 @@ $ docker service create --name redis --replicas=5 redis:3.0.6
 ```
 
 The above command sets the *desired* number of tasks for the service. Even
-though the command returns directly, actual scaling of the service may take
+though the command returns immediately, actual scaling of the service may take
 some time. The `REPLICAS` column shows both the *actual* and *desired* number
-of tasks for the service.
+of replica tasks for the service.
 
-In the following example, the desired number of tasks is set to `5`, but the
-*actual* number is `3`
+In the following example the desired state is  `5` replicas, but the current
+number of `RUNNING` tasks is `3`:
 
 ```bash
 $ docker service ls
@@ -88,8 +88,8 @@ ID            NAME    REPLICAS  IMAGE        COMMAND
 4cdgfyky7ozw  redis   3/5       redis:3.0.7
 ```
 
-Once all the tasks are created, the actual number of tasks is equal to the
-desired number:
+Once all the tasks are created and `RUNNING`, the actual number of tasks is
+equal to the desired number:
 
 ```bash
 $ docker service ls
@@ -97,9 +97,7 @@ ID            NAME    REPLICAS  IMAGE        COMMAND
 4cdgfyky7ozw  redis   5/5       redis:3.0.7
 ```
 
-
 ### Create a service with a rolling update policy
-
 
 ```bash
 $ docker service create \
@@ -110,10 +108,12 @@ $ docker service create \
   redis:3.0.6
 ```
 
-When this service is [updated](service_update.md), a rolling update will update
-tasks in batches of `2`, with `10s` between batches.
+When you run a [service update](service_update.md), the scheduler updates a
+maximum of 2 tasks at a time, with `10s` between updates. For more information,
+refer to the [rolling updates
+tutorial](../../swarm/swarm-tutorial/rolling-update.md).
 
-### Setting environment variables (-e --env)
+### Set environment variables (-e, --env)
 
 This sets environmental variables for all tasks in a service. For example:
 
@@ -121,7 +121,7 @@ This sets environmental variables for all tasks in a service. For example:
 $ docker service create --name redis_2 --replicas 5 --env MYVAR=foo redis:3.0.6
 ```
 
-### Set metadata on a service (-l --label)
+### Set metadata on a service (-l, --label)
 
 A label is a `key=value` pair that applies metadata to a service. To label a
 service with two labels:
@@ -137,19 +137,22 @@ $ docker service create \
 For more information about labels, refer to [apply custom
 metadata](../../userguide/labels-custom-metadata.md).
 
-### Set service mode
+### Set service mode (--mode)
 
-You can set the service mode to "replicated" (default) or to "global". A 
-replicated  service runs  as many tasks as specified, while a global service 
-runs on each  active node in the swarm.
+You can set the service mode to "replicated" (default) or to "global". A
+replicated  service runs the number of replica tasks you specify. A global
+service runs on each active node in the swarm.
 
 The following command creates a "global" service:
 
 ```bash
-$ docker service create --name redis_2 --mode global redis:3.0.6
+$ docker service create \
+ --name redis_2 \
+ --mode global \
+ redis:3.0.6
 ```
 
-### Specify service constraints
+### Specify service constraints (--constraint)
 
 You can limit the set of nodes where a task can be scheduled by defining
 constraint expressions. Multiple constraints find nodes that satisfy every
@@ -178,44 +181,56 @@ $ docker service create \
   redis:3.0.6
 ```
 
-### Container networking
-The containers provisioned in docker swarm mode can be accessed in service discovery either via a Virtual IP (VIP) and routed through the docker swarm ingress overlay network. Or via a DNS round robbin (DNSRR). This configuration is set using the `--endpoint-mode [vip|dnsrr]` setting. Note that dnsrr is incompatible with `--published` ports.
+### Attach a service to an existing network (--network)
 
-### Service discovery
+You can use overlay networks to connect one or more services within the swarm.
 
-Discovering other service from within a container can be ac hived via DNS lookup, but you will get different results depending on whether you want the actual service IPs, or the VIP's.
+First, create an overlay network on a manager node the docker network create
+command:
 
+```bash
+$ docker network create --driver overlay my-network
+
+etjpu59cykrptrgw0z0hk5snf
 ```
-~> nslookup service
 
-Address: 10.255.0.7           # this is the VIP on the ingress network
+After you create an overlay network in swarm mode, all manager nodes have
+access to the network.
 
-~> nslookup tasks.service
+When you create a service and pass the --network flag to attach the service to
+the overlay network:
 
-Non-authoritative answer:
-Name:	tasks.service
-Address: 10.255.0.26          # this is the real IP of a service on the ingress network
-Name:	tasks.service
-Address: 10.255.0.27
-Name:	tasks.service
-Address: 10.255.0.24
+$ docker service create \
+  --replicas 3 \
+  --network my-network \
+  --name my-web \
+  nginx
 
-~> nslookup tasks.service.your_net
+716thylsndqma81j6kkkb5aus
+The swarm extends my-network to each node running the service.
 
-Name:	tasks.service.your_net
-Address: 10.0.0.29            # service 1 IP on your net
-Name:	tasks.service.your_net
-Address: 10.0.0.26            # service 2 IP on your net
-Name:	tasks.service.your_net
-Address: 10.0.0.28            # service 3 IP on your net
+Containers on the same network can access each other using
+[service discovery](../../swarm/networking.md#use-swarm-mode-service-discovery).
 
+### Publish service ports externally to the swarm (-p, --publish)
 
-~> nslookup service.your_net      
+You can publish service ports to make them available externally to the swarm
+using the `--publish` flag:
 
-Non-authoritative answer:
-Name:	service.your_net
-Address: 10.0.0.25            # VIP on your net
+```bash
+docker service create --publish <TARGET-PORT>:<SERVICE-PORT> nginx
 ```
+
+For example:
+
+```bash
+docker service create --name my_web --replicas 3 --publish 8080:80 nginx
+```
+
+When you publish a service port, the swarm routing mesh makes the service
+accessible at the target port on every node regardless if there is a task for
+the service running on the node. For more information refer to
+[Use swarm mode routing mesh](../../swarm/ingress.md).
 
 ## Related information
 
