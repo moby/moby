@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"syscall"
 
+	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
@@ -191,4 +192,10 @@ func escapeArgs(args []string) []string {
 		escapedArgs[i] = syscall.EscapeArg(a)
 	}
 	return escapedArgs
+}
+
+// mergeUlimits merge the Ulimits from HostConfig with daemon defaults, and update HostConfig
+// It will do nothing on non-Linux platform
+func (daemon *Daemon) mergeUlimits(c *containertypes.HostConfig) {
+	return
 }

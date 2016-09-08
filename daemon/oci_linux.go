@@ -115,19 +115,11 @@ func setDevices(s *specs.Spec, c *container.Container) error {
 func setRlimits(daemon *Daemon, s *specs.Spec, c *container.Container) error {
 	var rlimits []specs.Rlimit
 
-	ulimits := c.HostConfig.Ulimits
-	// Merge ulimits with daemon defaults
-	ulIdx := make(map[string]struct{})
-	for _, ul := range ulimits {
-		ulIdx[ul.Name] = struct{}{}
-	}
-	for name, ul := range daemon.configStore.Ulimits {
-		if _, exists := ulIdx[name]; !exists {
-			ulimits = append(ulimits, ul)
-		}
-	}
-
-	for _, ul := range ulimits {
+	// We want to leave the original HostConfig alone so make a copy here
+	hostConfig := *c.HostConfig
+	// Merge with the daemon defaults
+	daemon.mergeUlimits(&hostConfig)
+	for _, ul := range hostConfig.Ulimits {
 		rlimits = append(rlimits, specs.Rlimit{
 			Type: "RLIMIT_" + strings.ToUpper(ul.Name),
 			Soft: uint64(ul.Soft),
@@ -708,4 +700,20 @@ func clearReadOnly(m *specs.Mount) {
 		}
 	}
 	m.Options = opt
+}
+
+// mergeUlimits merge the Ulimits from HostConfig with daemon defaults, and update HostConfig
+func (daemon *Daemon) mergeUlimits(c *containertypes.HostConfig) {
+	ulimits := c.Ulimits
+	// Merge ulimits with daemon defaults
+	ulIdx := make(map[string]struct{})
+	for _, ul := range ulimits {
+		ulIdx[ul.Name] = struct{}{}
+	}
+	for name, ul := range daemon.configStore.Ulimits {
+		if _, exists := ulIdx[name]; !exists {
+			ulimits = append(ulimits, ul)
+		}
+	}
+	c.Ulimits = ulimits
 }
