@@ -47,6 +47,7 @@ import (
 	"github.com/docker/docker/pkg/sysinfo"
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/pkg/truncindex"
+	pluginstore "github.com/docker/docker/plugin/store"
 	"github.com/docker/docker/reference"
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/runconfig"
@@ -94,6 +95,7 @@ type Daemon struct {
 	gidMaps                   []idtools.IDMap
 	layerStore                layer.Store
 	imageStore                image.Store
+	pluginStore               *pluginstore.Store
 	nameIndex                 *registrar.Registrar
 	linkIndex                 *linkIndex
 	containerd                libcontainerd.Client
@@ -548,6 +550,9 @@ func NewDaemon(config *Config, registryService registry.Service, containerdRemot
 	if driverName == "" {
 		driverName = config.GraphDriver
 	}
+
+	d.pluginStore = pluginstore.NewStore(config.Root)
+
 	d.layerStore, err = layer.NewStoreFromOptions(layer.StoreOptions{
 		StorePath:                 config.Root,
 		MetadataStorePathTemplate: filepath.Join(config.Root, "image", "%s", "layerdb"),
@@ -555,6 +560,7 @@ func NewDaemon(config *Config, registryService registry.Service, containerdRemot
 		GraphDriverOptions:        config.GraphOptions,
 		UIDMaps:                   uidMaps,
 		GIDMaps:                   gidMaps,
+		PluginGetter:              d.pluginStore,
 	})
 	if err != nil {
 		return nil, err
@@ -910,6 +916,8 @@ func (daemon *Daemon) configureVolumes(rootUID, rootGID int) (*store.VolumeStore
 	if err != nil {
 		return nil, err
 	}
+
+	volumedrivers.RegisterPluginGetter(daemon.pluginStore)
 
 	if !volumedrivers.Register(volumesDriver, volumesDriver.Name()) {
 		return nil, fmt.Errorf("local volume driver could not be registered")

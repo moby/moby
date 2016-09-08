@@ -83,8 +83,8 @@ func (p *Plugin) Client() *Client {
 	return p.client
 }
 
-// IsLegacy returns true for legacy plugins and false otherwise.
-func (p *Plugin) IsLegacy() bool {
+// IsV1 returns true for V1 plugins and false otherwise.
+func (p *Plugin) IsV1() bool {
 	return true
 }
 
