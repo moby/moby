@@ -5,9 +5,9 @@ import (
 	"os"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/docker/api/client"
-	"github.com/docker/docker/api/client/command"
 	"github.com/docker/docker/cli"
+	"github.com/docker/docker/cli/command"
+	"github.com/docker/docker/cli/command/commands"
 	cliflags "github.com/docker/docker/cli/flags"
 	"github.com/docker/docker/cliconfig"
 	"github.com/docker/docker/dockerversion"
@@ -17,7 +17,7 @@ import (
 	"github.com/spf13/pflag"
 )
 
-func newDockerCommand(dockerCli *client.DockerCli) *cobra.Command {
+func newDockerCommand(dockerCli *command.DockerCli) *cobra.Command {
 	opts := cliflags.NewClientOptions()
 	var flags *pflag.FlagSet
 
@@ -52,7 +52,7 @@ func newDockerCommand(dockerCli *client.DockerCli) *cobra.Command {
 
 	cmd.SetOutput(dockerCli.Out())
 	cmd.AddCommand(newDaemonCommand())
-	command.AddCommands(cmd, dockerCli)
+	commands.AddCommands(cmd, dockerCli)
 
 	return cmd
 }
@@ -70,7 +70,7 @@ func main() {
 	stdin, stdout, stderr := term.StdStreams()
 	logrus.SetOutput(stderr)
 
-	dockerCli := client.NewDockerCli(stdin, stdout, stderr)
+	dockerCli := command.NewDockerCli(stdin, stdout, stderr)
 	cmd := newDockerCommand(dockerCli)
 
 	if err := cmd.Execute(); err != nil {
