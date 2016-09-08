@@ -44,17 +44,19 @@ func newContainerConfig(t *api.Task) (*containerConfig, error) {
 }
 
 func (c *containerConfig) setTask(t *api.Task) error {
-	container := t.Spec.GetContainer()
-	if container == nil {
+	if t.Spec.GetContainer() == nil && t.Spec.GetAttachment() == nil {
 		return exec.ErrRuntimeUnsupported
 	}
 
-	if container.Image == "" {
-		return ErrImageRequired
-	}
+	container := t.Spec.GetContainer()
+	if container != nil {
+		if container.Image == "" {
+			return ErrImageRequired
+		}
 
-	if err := validateMounts(container.Mounts); err != nil {
-		return err
+		if err := validateMounts(container.Mounts); err != nil {
+			return err
+		}
 	}
 
 	// index the networks by name
@@ -67,12 +69,33 @@ func (c *containerConfig) setTask(t *api.Task) error {
 	return nil
 }
 
+func (c *containerConfig) id() string {
+	attachment := c.task.Spec.GetAttachment()
+	if attachment == nil {
+		return ""
+	}
+
+	return attachment.ContainerID
+}
+
+func (c *containerConfig) taskID() string {
+	return c.task.ID
+}
+
 func (c *containerConfig) endpoint() *api.Endpoint {
 	return c.task.Endpoint
 }
 
 func (c *containerConfig) spec() *api.ContainerSpec {
 	return c.task.Spec.GetContainer()
+}
+
+func (c *containerConfig) nameOrID() string {
+	if c.task.Spec.GetContainer() != nil {
+		return c.name()
+	}
+
+	return c.id()
 }
 
 func (c *containerConfig) name() string {
@@ -342,7 +365,7 @@ func (c *containerConfig) resources() enginecontainer.Resources {
 // Docker daemon supports just 1 network during container create.
 func (c *containerConfig) createNetworkingConfig() *network.NetworkingConfig {
 	var networks []*api.NetworkAttachment
-	if c.task.Spec.GetContainer() != nil {
+	if c.task.Spec.GetContainer() != nil || c.task.Spec.GetAttachment() != nil {
 		networks = c.task.Networks
 	}
 
@@ -392,6 +415,7 @@ func getEndpointConfig(na *api.NetworkAttachment) *network.EndpointSettings {
 	}
 
 	return &network.EndpointSettings{
+		NetworkID: na.Network.ID,
 		IPAMConfig: &network.EndpointIPAMConfig{
 			IPv4Address: ipv4,
 			IPv6Address: ipv6,

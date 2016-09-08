@@ -134,8 +134,6 @@ func (w *worker) Assign(ctx context.Context, tasks []*api.Task) error {
 				if err := PutTaskStatus(tx, task.ID, &task.Status); err != nil {
 					return err
 				}
-
-				status = &task.Status
 			} else {
 				task.Status = *status // overwrite the stale manager status with ours.
 			}
@@ -181,7 +179,7 @@ func (w *worker) Listen(ctx context.Context, reporter StatusReporter) {
 	go func() {
 		<-ctx.Done()
 		w.mu.Lock()
-		defer w.mu.Lock()
+		defer w.mu.Unlock()
 		delete(w.listeners, key) // remove the listener if the context is closed.
 	}()
 

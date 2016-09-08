@@ -16,6 +16,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	apitypes "github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
+	"github.com/docker/docker/api/types/network"
 	types "github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/daemon/cluster/convert"
 	executorpkg "github.com/docker/docker/daemon/cluster/executor"
@@ -126,6 +127,18 @@ type Cluster struct {
 	stop            bool
 	err             error
 	cancelDelay     func()
+	attachers       map[string]*attacher
+}
+
+// attacher manages the in-memory attachment state of a container
+// attachment to a global scope network managed by swarm manager. It
+// helps in identifying the attachment ID via the taskID and the
+// corresponding attachment configuration obtained from the manager.
+type attacher struct {
+	taskID       string
+	config       *network.NetworkingConfig
+	attachWaitCh chan *network.NetworkingConfig
+	detachWaitCh chan struct{}
 }
 
 type node struct {
@@ -154,6 +167,7 @@ func New(config Config) (*Cluster, error) {
 		config:      config,
 		configEvent: make(chan struct{}, 10),
 		runtimeRoot: config.RuntimeRoot,
+		attachers:   make(map[string]*attacher),
 	}
 
 	st, err := c.loadState()
@@ -1212,6 +1226,120 @@ func (c *Cluster) GetNetworks() ([]apitypes.NetworkResource, error) {
 	return networks, nil
 }
 
+func attacherKey(target, containerID string) string {
+	return containerID + ":" + target
+}
+
+// UpdateAttachment signals the attachment config to the attachment
+// waiter who is trying to start or attach the container to the
+// network.
+func (c *Cluster) UpdateAttachment(target, containerID string, config *network.NetworkingConfig) error {
+	c.RLock()
+	attacher, ok := c.attachers[attacherKey(target, containerID)]
+	c.RUnlock()
+	if !ok || attacher == nil {
+		return fmt.Errorf("could not find attacher for container %s to network %s", containerID, target)
+	}
+
+	attacher.attachWaitCh <- config
+	close(attacher.attachWaitCh)
+	return nil
+}
+
+// WaitForDetachment waits for the container to stop or detach from
+// the network.
+func (c *Cluster) WaitForDetachment(ctx context.Context, networkName, networkID, taskID, containerID string) error {
+	c.RLock()
+	attacher, ok := c.attachers[attacherKey(networkName, containerID)]
+	if !ok {
+		attacher, ok = c.attachers[attacherKey(networkID, containerID)]
+	}
+	if c.node == nil || c.node.Agent() == nil {
+		c.RUnlock()
+		return fmt.Errorf("invalid cluster node while waiting for detachment")
+	}
+
+	agent := c.node.Agent()
+	c.RUnlock()
+
+	if ok && attacher != nil && attacher.detachWaitCh != nil {
+		select {
+		case <-attacher.detachWaitCh:
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+
+	return agent.ResourceAllocator().DetachNetwork(ctx, taskID)
+}
+
+// AttachNetwork generates an attachment request towards the manager.
+func (c *Cluster) AttachNetwork(target string, containerID string, addresses []string) (*network.NetworkingConfig, error) {
+	aKey := attacherKey(target, containerID)
+	c.Lock()
+	if c.node == nil || c.node.Agent() == nil {
+		c.Unlock()
+		return nil, fmt.Errorf("invalid cluster node while attaching to network")
+	}
+	if attacher, ok := c.attachers[aKey]; ok {
+		c.Unlock()
+		return attacher.config, nil
+	}
+
+	agent := c.node.Agent()
+	attachWaitCh := make(chan *network.NetworkingConfig)
+	detachWaitCh := make(chan struct{})
+	c.attachers[aKey] = &attacher{
+		attachWaitCh: attachWaitCh,
+		detachWaitCh: detachWaitCh,
+	}
+	c.Unlock()
+
+	ctx, cancel := c.getRequestContext()
+	defer cancel()
+
+	taskID, err := agent.ResourceAllocator().AttachNetwork(ctx, containerID, target, addresses)
+	if err != nil {
+		c.Lock()
+		delete(c.attachers, aKey)
+		c.Unlock()
+		return nil, fmt.Errorf("Could not attach to network %s: %v", target, err)
+	}
+
+	logrus.Debugf("Successfully attached to network %s with tid %s", target, taskID)
+
+	var config *network.NetworkingConfig
+	select {
+	case config = <-attachWaitCh:
+	case <-ctx.Done():
+		return nil, fmt.Errorf("attaching to network failed, make sure your network options are correct and check manager logs: %v", ctx.Err())
+	}
+
+	c.Lock()
+	c.attachers[aKey].taskID = taskID
+	c.attachers[aKey].config = config
+	c.Unlock()
+	return config, nil
+}
+
+// DetachNetwork unblocks the waiters waiting on WaitForDetachment so
+// that a request to detach can be generated towards the manager.
+func (c *Cluster) DetachNetwork(target string, containerID string) error {
+	aKey := attacherKey(target, containerID)
+
+	c.Lock()
+	attacher, ok := c.attachers[aKey]
+	delete(c.attachers, aKey)
+	c.Unlock()
+
+	if !ok {
+		return fmt.Errorf("could not find network attachment for container %s to network %s", containerID, target)
+	}
+
+	close(attacher.detachWaitCh)
+	return nil
+}
+
 // CreateNetwork creates a new cluster managed network.
 func (c *Cluster) CreateNetwork(s apitypes.NetworkCreateRequest) (string, error) {
 	c.RLock()
@@ -1262,7 +1390,14 @@ func (c *Cluster) RemoveNetwork(input string) error {
 }
 
 func (c *Cluster) populateNetworkID(ctx context.Context, client swarmapi.ControlClient, s *types.ServiceSpec) error {
-	for i, n := range s.Networks {
+	// Always prefer NetworkAttachmentConfigs from TaskTemplate
+	// but fallback to service spec for backward compatibility
+	networks := s.TaskTemplate.Networks
+	if len(networks) == 0 {
+		networks = s.Networks
+	}
+
+	for i, n := range networks {
 		apiNetwork, err := getNetwork(ctx, client, n.Target)
 		if err != nil {
 			if ln, _ := c.config.Backend.FindNetwork(n.Target); ln != nil && !ln.Info().Dynamic() {
@@ -1271,7 +1406,7 @@ func (c *Cluster) populateNetworkID(ctx context.Context, client swarmapi.Control
 			}
 			return err
 		}
-		s.Networks[i].Target = apiNetwork.ID
+		networks[i].Target = apiNetwork.ID
 	}
 	return nil
 }

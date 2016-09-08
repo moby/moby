@@ -298,6 +298,8 @@ func (s *DockerSwarmSuite) TearDownTest(c *check.C) {
 		if err := os.RemoveAll(walDir); err != nil {
 			c.Logf("error removing %v: %v", walDir, err)
 		}
+
+		cleanupExecRoot(c, d.execRoot)
 	}
 	s.daemons = nil
 	s.daemonsLock.Unlock()

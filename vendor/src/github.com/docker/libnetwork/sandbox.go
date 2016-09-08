@@ -202,12 +202,14 @@ func (sb *sandbox) delete(force bool) error {
 	retain := false
 	for _, ep := range sb.getConnectedEndpoints() {
 		// gw network endpoint detach and removal are automatic
-		if ep.endpointInGWNetwork() {
+		if ep.endpointInGWNetwork() && !force {
 			continue
 		}
 		// Retain the sanbdox if we can't obtain the network from store.
 		if _, err := c.getNetworkFromStore(ep.getNetwork().ID()); err != nil {
-			retain = true
+			if c.isDistributedControl() {
+				retain = true
+			}
 			log.Warnf("Failed getting network for ep %s during sandbox %s delete: %v", ep.ID(), sb.ID(), err)
 			continue
 		}

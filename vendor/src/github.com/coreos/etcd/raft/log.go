@@ -232,7 +232,7 @@ func (l *raftLog) term(i uint64) (uint64, error) {
 	if err == nil {
 		return t, nil
 	}
-	if err == ErrCompacted {
+	if err == ErrCompacted || err == ErrUnavailable {
 		return 0, err
 	}
 	panic(err) // TODO(bdarnell)
@@ -339,7 +339,7 @@ func (l *raftLog) mustCheckOutOfBounds(lo, hi uint64) error {
 		return ErrCompacted
 	}
 
-	length := l.lastIndex() - fi + 1
+	length := l.lastIndex() + 1 - fi
 	if lo < fi || hi > fi+length {
 		l.logger.Panicf("slice[%d,%d) out of bound [%d,%d]", lo, hi, fi, l.lastIndex())
 	}

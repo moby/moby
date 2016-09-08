@@ -1,6 +1,7 @@
 package events
 
 import (
+	"fmt"
 	"math/rand"
 	"sync"
 	"sync/atomic"
@@ -18,6 +19,7 @@ type RetryingSink struct {
 	sink     Sink
 	strategy RetryStrategy
 	closed   chan struct{}
+	once     sync.Once
 }
 
 // NewRetryingSink returns a sink that will retry writes to a sink, backing
@@ -81,13 +83,22 @@ retry:
 
 // Close closes the sink and the underlying sink.
 func (rs *RetryingSink) Close() error {
-	select {
-	case <-rs.closed:
-		return ErrSinkClosed
-	default:
+	rs.once.Do(func() {
 		close(rs.closed)
-		return rs.sink.Close()
+	})
+
+	return nil
+}
+
+func (rs RetryingSink) String() string {
+	// Serialize a copy of the RetryingSink without the sync.Once, to avoid
+	// a data race.
+	rs2 := map[string]interface{}{
+		"sink":     rs.sink,
+		"strategy": rs.strategy,
+		"closed":   rs.closed,
 	}
+	return fmt.Sprint(rs2)
 }
 
 // RetryStrategy defines a strategy for retrying event sink writes.

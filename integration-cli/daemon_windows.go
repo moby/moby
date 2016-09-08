@@ -5,6 +5,8 @@ import (
 	"strconv"
 	"syscall"
 	"unsafe"
+
+	"github.com/go-check/check"
 )
 
 func openEvent(desiredAccess uint32, inheritHandle bool, name string, proc *syscall.LazyProc) (handle syscall.Handle, err error) {
@@ -44,4 +46,7 @@ func signalDaemonDump(pid int) {
 
 func signalDaemonReload(pid int) error {
 	return fmt.Errorf("daemon reload not supported")
+}
+
+func cleanupExecRoot(c *check.C, execRoot string) {
 }

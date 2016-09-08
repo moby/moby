@@ -400,6 +400,9 @@ func includeContainerInList(container *container.Container, ctx *listContext) it
 				return networkExist
 			}
 			for _, nw := range container.NetworkSettings.Networks {
+				if nw.EndpointSettings == nil {
+					continue
+				}
 				if nw.NetworkID == value {
 					return networkExist
 				}
@@ -460,7 +463,7 @@ func (daemon *Daemon) transformContainer(container *container.Container, ctx *li
 	// copy networks to avoid races
 	networks := make(map[string]*networktypes.EndpointSettings)
 	for name, network := range container.NetworkSettings.Networks {
-		if network == nil {
+		if network == nil || network.EndpointSettings == nil {
 			continue
 		}
 		networks[name] = &networktypes.EndpointSettings{

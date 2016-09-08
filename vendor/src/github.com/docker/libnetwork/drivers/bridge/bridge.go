@@ -641,7 +641,10 @@ func (d *driver) createNetwork(config *networkConfiguration) error {
 	d.Unlock()
 
 	// Create or retrieve the bridge L3 interface
-	bridgeIface := newInterface(d.nlh, config)
+	bridgeIface, err := newInterface(d.nlh, config)
+	if err != nil {
+		return err
+	}
 	network.bridge = bridgeIface
 
 	// Verify the network configuration does not conflict with previously installed
@@ -1243,8 +1246,17 @@ func (d *driver) ProgramExternalConnectivity(nid, eid string, options map[string
 		return err
 	}
 
+	defer func() {
+		if err != nil {
+			if e := network.releasePorts(endpoint); e != nil {
+				logrus.Errorf("Failed to release ports allocated for the bridge endpoint %s on failure %v because of %v",
+					eid, err, e)
+			}
+			endpoint.portMapping = nil
+		}
+	}()
+
 	if err = d.storeUpdate(endpoint); err != nil {
-		endpoint.portMapping = nil
 		return fmt.Errorf("failed to update bridge endpoint %s to store: %v", endpoint.id[0:7], err)
 	}
 

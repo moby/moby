@@ -71,8 +71,8 @@ clone git github.com/RackSec/srslog 259aed10dfa74ea2961eddd1d9847619f6e98837
 clone git github.com/imdario/mergo 0.2.1
 
 #get libnetwork packages
-clone git github.com/docker/libnetwork 82fb373e3eaa4e9bbb5b5ac148b0a3a71f80fca6
-clone git github.com/docker/go-events afb2b9f2c23f33ada1a22b03651775fdc65a5089
+clone git github.com/docker/libnetwork 00e7660daeb4b6108a333319d289bf7dc8b9932e
+clone git github.com/docker/go-events 18b43f1bc85d9cdd42c05a6cd2d444c7a200a894
 clone git github.com/armon/go-radix e39d623f12e8e41c7b5529e9a9dd67a1e2261f80
 clone git github.com/armon/go-metrics eb0af217e5e9747e41dd5303755356b62d28e3ec
 clone git github.com/hashicorp/go-msgpack 71c2886f5a673a35f909803f38ece5810165097b
@@ -85,7 +85,7 @@ clone git github.com/vishvananda/netlink e73bad418fd727ed3a02830b1af1ad0283a1de6
 clone git github.com/BurntSushi/toml f706d00e3de6abe700c994cdd545a1a4915af060
 clone git github.com/samuel/go-zookeeper d0e0d8e11f318e000a8cc434616d69e329edc374
 clone git github.com/deckarep/golang-set ef32fa3046d9f249d399f98ebaf9be944430fd1d
-clone git github.com/coreos/etcd 06e2338108fdc694349aed923f4a7e45cf0cec1f
+clone git github.com/coreos/etcd 3a49cbb769ebd8d1dd25abb1e83386e9883a5707
 clone git github.com/ugorji/go f1f1a805ed361a0e078bb537e4ea78cd37dcf065
 clone git github.com/hashicorp/consul v0.5.2
 clone git github.com/boltdb/bolt v1.2.1
@@ -144,11 +144,11 @@ clone git github.com/docker/docker-credential-helpers v0.3.0
 clone git github.com/docker/containerd 8508d2bec90b96403143a1104cdcbd56f6aeb361
 
 # cluster
-clone git github.com/docker/swarmkit 8a761950fb4d9251c335dc6149a8a02756cb3b10
+clone git github.com/docker/swarmkit 27fbaef4ceed648bb575969ccc9083a6e104a719
 clone git github.com/golang/mock bd3c8e81be01eef76d4b503f5e687d2d1354d2d9
 clone git github.com/gogo/protobuf 43a2e0b1c32252bfbbdf81f7faa7a88fb3fa4028
-clone git github.com/cloudflare/cfssl b895b0549c0ff676f92cf09ba971ae02bb41367b
-clone git github.com/google/certificate-transparency 025a5cab06f6a819c455d9fdc9e2a1b6d0982284
+clone git github.com/cloudflare/cfssl 7fb22c8cba7ecaf98e4082d22d65800cf45e042a
+clone git github.com/google/certificate-transparency 0f6e3d1d1ba4d03fdaab7cd716f36255c2e48341
 clone git golang.org/x/crypto 3fbbcd23f1cb824e69491a5930cfeff09b12f4d2 https://github.com/golang/crypto.git
 clone git golang.org/x/time a4bde12657593d5e90d0533a3e4fd95e635124cb https://github.com/golang/time.git
 clone git github.com/mreiferson/go-httpclient 63fe23f7434723dc904c901043af07931f293c47

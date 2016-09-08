@@ -44,7 +44,7 @@ func (f *Filter) Write(event Event) error {
 func (f *Filter) Close() error {
 	// TODO(stevvooe): Not all sinks should have Close.
 	if f.closed {
-		return ErrSinkClosed
+		return nil
 	}
 
 	f.closed = true

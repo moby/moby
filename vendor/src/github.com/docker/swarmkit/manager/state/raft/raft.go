@@ -86,7 +86,6 @@ type Node struct {
 
 	Address  string
 	StateDir string
-	Error    error
 
 	raftStore           *raft.MemoryStorage
 	memoryStore         *store.MemoryStore
@@ -119,6 +118,7 @@ type Node struct {
 	leadershipBroadcast *watch.Queue
 
 	// used to coordinate shutdown
+	// Lock should be used only in stop(), all other functions should use RLock.
 	stopMu sync.RWMutex
 	// used for membership management checks
 	membershipLock sync.Mutex
@@ -176,7 +176,7 @@ func NewNode(ctx context.Context, opts NewNodeOptions) *Node {
 	n := &Node{
 		Ctx:            ctx,
 		cancel:         cancel,
-		cluster:        membership.NewCluster(),
+		cluster:        membership.NewCluster(cfg.ElectionTick),
 		tlsCredentials: opts.TLSCredentials,
 		raftStore:      raftStore,
 		Address:        opts.Addr,
@@ -224,10 +224,15 @@ func NewNode(ctx context.Context, opts NewNodeOptions) *Node {
 }
 
 // JoinAndStart joins and starts the raft server
-func (n *Node) JoinAndStart() error {
+func (n *Node) JoinAndStart() (err error) {
+	defer func() {
+		if err != nil {
+			n.done()
+		}
+	}()
+
 	loadAndStartErr := n.loadAndStart(n.Ctx, n.opts.ForceNewCluster)
 	if loadAndStartErr != nil && loadAndStartErr != errNoWAL {
-		n.ticker.Stop()
 		return loadAndStartErr
 	}
 
@@ -270,6 +275,9 @@ func (n *Node) JoinAndStart() error {
 			n.Node = raft.StartNode(n.Config, []raft.Peer{})
 
 			if err := n.registerNodes(resp.Members); err != nil {
+				if walErr := n.wal.Close(); err != nil {
+					n.Config.Logger.Errorf("raft: error closing WAL: %v", walErr)
+				}
 				return err
 			}
 		} else {
@@ -281,6 +289,9 @@ func (n *Node) JoinAndStart() error {
 			}
 			n.Node = raft.StartNode(n.Config, []raft.Peer{peer})
 			if err := n.Campaign(n.Ctx); err != nil {
+				if walErr := n.wal.Close(); err != nil {
+					n.Config.Logger.Errorf("raft: error closing WAL: %v", walErr)
+				}
 				return err
 			}
 		}
@@ -324,15 +335,24 @@ func (n *Node) MemoryStore() *store.MemoryStore {
 	return n.memoryStore
 }
 
+func (n *Node) done() {
+	n.cluster.Clear()
+
+	n.ticker.Stop()
+	n.leadershipBroadcast.Close()
+	n.cluster.PeersBroadcast.Close()
+	n.memoryStore.Close()
+
+	close(n.doneCh)
+}
+
 // Run is the main loop for a Raft node, it goes along the state machine,
 // acting on the messages received from other Raft nodes in the cluster.
 //
 // Before running the main loop, it first starts the raft node based on saved
 // cluster state. If no saved state exists, it starts a single-node cluster.
 func (n *Node) Run(ctx context.Context) error {
-	defer func() {
-		close(n.doneCh)
-	}()
+	defer n.done()
 
 	wasLeader := false
 
@@ -340,7 +360,7 @@ func (n *Node) Run(ctx context.Context) error {
 		select {
 		case <-n.ticker.C():
 			n.Tick()
-
+			n.cluster.Tick()
 		case rd := <-n.Ready():
 			raftConfig := DefaultRaftConfig()
 			n.memoryStore.View(func(readTx store.ReadTx) {
@@ -453,9 +473,6 @@ func (n *Node) Run(ctx context.Context) error {
 			return ErrMemberRemoved
 		case <-n.stopCh:
 			n.stop()
-			n.leadershipBroadcast.Close()
-			n.cluster.PeersBroadcast.Close()
-			n.memoryStore.Close()
 			return nil
 		}
 	}
@@ -480,13 +497,6 @@ func (n *Node) stop() {
 	n.cancel()
 	n.waitProp.Wait()
 	n.asyncTasks.Wait()
-
-	members := n.cluster.Members()
-	for _, member := range members {
-		if member.Conn != nil {
-			_ = member.Conn.Close()
-		}
-	}
 
 	n.Stop()
 	n.ticker.Stop()
@@ -517,20 +527,26 @@ func (n *Node) IsLeader() bool {
 	return n.isLeader()
 }
 
-// leader returns the id of the leader, without the protection of lock
+// leader returns the id of the leader, without the protection of lock and
+// membership check, so it's caller task.
 func (n *Node) leader() uint64 {
-	if !n.IsMember() {
-		return 0
-	}
 	return n.Node.Status().Lead
 }
 
 // Leader returns the id of the leader, with the protection of lock
-func (n *Node) Leader() uint64 {
+func (n *Node) Leader() (uint64, error) {
 	n.stopMu.RLock()
 	defer n.stopMu.RUnlock()
 
-	return n.leader()
+	if !n.IsMember() {
+		return 0, ErrNoRaftMember
+	}
+	leader := n.leader()
+	if leader == 0 {
+		return 0, ErrNoClusterLeader
+	}
+
+	return leader, nil
 }
 
 // ReadyForProposals returns true if the node has broadcasted a message
@@ -760,6 +776,8 @@ func (n *Node) ProcessRaftMessage(ctx context.Context, msg *api.ProcessRaftMessa
 		return nil, ErrMemberRemoved
 	}
 
+	n.cluster.ReportActive(msg.Message.From)
+
 	if msg.Message.Type == raftpb.MsgProp {
 		// We don't accepted forwarded proposals. Our
 		// current architecture depends on only the leader
@@ -923,15 +941,17 @@ func (n *Node) SubscribePeers() (q chan events.Event, cancel func()) {
 func (n *Node) GetMemberlist() map[uint64]*api.RaftMember {
 	memberlist := make(map[uint64]*api.RaftMember)
 	members := n.cluster.Members()
-	leaderID := n.Leader()
+	leaderID, err := n.Leader()
+	if err != nil {
+		leaderID = 0
+	}
 
 	for id, member := range members {
 		reachability := api.RaftMemberStatus_REACHABLE
 		leader := false
 
 		if member.RaftID != n.Config.ID {
-			connState, err := member.Conn.State()
-			if err != nil || connState != grpc.Ready {
+			if !n.cluster.Active(member.RaftID) {
 				reachability = api.RaftMemberStatus_UNREACHABLE
 			}
 		}
@@ -1111,7 +1131,10 @@ func (n *Node) sendToMember(members map[uint64]*membership.Member, m raftpb.Mess
 		if err != nil {
 			n.Config.Logger.Errorf("could connect to member ID %x at %s: %v", m.To, conn.Addr, err)
 		} else {
-			n.cluster.ReplaceMemberConnection(m.To, conn, newConn)
+			err = n.cluster.ReplaceMemberConnection(m.To, conn, newConn)
+			if err != nil {
+				newConn.Conn.Close()
+			}
 		}
 	} else if m.Type == raftpb.MsgSnap {
 		n.ReportSnapshot(m.To, raft.SnapshotFinish)
@@ -1129,12 +1152,14 @@ type applyResult struct {
 // an error or until the raft node finalizes all the proposals on node
 // shutdown.
 func (n *Node) processInternalRaftRequest(ctx context.Context, r *api.InternalRaftRequest, cb func()) (proto.Message, error) {
-	n.waitProp.Add(1)
-	defer n.waitProp.Done()
-
+	n.stopMu.RLock()
 	if !n.canSubmitProposal() {
+		n.stopMu.RUnlock()
 		return nil, ErrStopped
 	}
+	n.waitProp.Add(1)
+	defer n.waitProp.Done()
+	n.stopMu.RUnlock()
 
 	r.ID = n.reqIDGen.Next()
 

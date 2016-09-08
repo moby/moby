@@ -12,6 +12,11 @@ import (
 func TaskFromGRPC(t swarmapi.Task) types.Task {
 	containerConfig := t.Spec.Runtime.(*swarmapi.TaskSpec_Container).Container
 	containerStatus := t.Status.GetContainer()
+	networks := make([]types.NetworkAttachmentConfig, 0, len(t.Spec.Networks))
+	for _, n := range t.Spec.Networks {
+		networks = append(networks, types.NetworkAttachmentConfig{Target: n.Target, Aliases: n.Aliases})
+	}
+
 	task := types.Task{
 		ID:        t.ID,
 		ServiceID: t.ServiceID,
@@ -23,6 +28,7 @@ func TaskFromGRPC(t swarmapi.Task) types.Task {
 			RestartPolicy: restartPolicyFromGRPC(t.Spec.Restart),
 			Placement:     placementFromGRPC(t.Spec.Placement),
 			LogDriver:     driverFromGRPC(t.Spec.LogDriver),
+			Networks:      networks,
 		},
 		Status: types.TaskStatus{
 			State:   types.TaskState(strings.ToLower(t.Status.State.String())),

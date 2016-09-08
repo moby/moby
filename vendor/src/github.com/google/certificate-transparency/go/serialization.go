@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"container/list"
 	"crypto"
+	"encoding/asn1"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -23,6 +24,8 @@ const (
 const (
 	MaxCertificateLength = (1 << 24) - 1
 	MaxExtensionsLength  = (1 << 16) - 1
+	MaxSCTInListLength   = (1 << 16) - 1
+	MaxSCTListLength     = (1 << 16) - 1
 )
 
 func writeUint(w io.Writer, value uint64, numBytes int) error {
@@ -80,12 +83,11 @@ func readVarBytes(r io.Reader, numLenBytes int) ([]byte, error) {
 		return nil, err
 	}
 	data := make([]byte, l)
-	n, err := r.Read(data)
-	if err != nil {
+	if n, err := io.ReadFull(r, data); err != nil {
+		if err == io.EOF || err == io.ErrUnexpectedEOF {
+			return nil, fmt.Errorf("short read: expected %d but got %d", l, n)
+		}
 		return nil, err
-	}
-	if n != int(l) {
-		return nil, fmt.Errorf("short read: expected %d but got %d", l, n)
 	}
 	return data, nil
 }
@@ -509,4 +511,53 @@ func SerializeSTHSignatureInput(sth SignedTreeHead) ([]byte, error) {
 	default:
 		return nil, fmt.Errorf("unsupported STH version %d", sth.Version)
 	}
+}
+
+// SCTListSerializedLength determines the length of the required buffer should a SCT List need to be serialized
+func SCTListSerializedLength(scts []SignedCertificateTimestamp) (int, error) {
+	if len(scts) == 0 {
+		return 0, fmt.Errorf("SCT List empty")
+	}
+
+	sctListLen := 0
+	for i, sct := range scts {
+		n, err := sct.SerializedLength()
+		if err != nil {
+			return 0, fmt.Errorf("unable to determine length of SCT in position %d: %v", i, err)
+		}
+		if n > MaxSCTInListLength {
+			return 0, fmt.Errorf("SCT in position %d too large: %d", i, n)
+		}
+		sctListLen += 2 + n
+	}
+
+	return sctListLen, nil
+}
+
+// SerializeSCTList serializes the passed-in slice of SignedCertificateTimestamp into a
+// byte slice as a SignedCertificateTimestampList (see RFC6962 Section 3.3)
+func SerializeSCTList(scts []SignedCertificateTimestamp) ([]byte, error) {
+	size, err := SCTListSerializedLength(scts)
+	if err != nil {
+		return nil, err
+	}
+	fullSize := 2 + size // 2 bytes for length + size of SCT list
+	if fullSize > MaxSCTListLength {
+		return nil, fmt.Errorf("SCT List too large to serialize: %d", fullSize)
+	}
+	buf := new(bytes.Buffer)
+	buf.Grow(fullSize)
+	if err = writeUint(buf, uint64(size), 2); err != nil {
+		return nil, err
+	}
+	for _, sct := range scts {
+		serialized, err := SerializeSCT(sct)
+		if err != nil {
+			return nil, err
+		}
+		if err = writeVarBytes(buf, serialized, 2); err != nil {
+			return nil, err
+		}
+	}
+	return asn1.Marshal(buf.Bytes()) // transform to Octet String
 }

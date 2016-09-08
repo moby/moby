@@ -144,6 +144,44 @@ func (c *containerAdapter) removeNetworks(ctx context.Context) error {
 	return nil
 }
 
+func (c *containerAdapter) networkAttach(ctx context.Context) error {
+	config := c.container.createNetworkingConfig()
+
+	var (
+		networkName string
+		networkID   string
+	)
+
+	if config != nil {
+		for n, epConfig := range config.EndpointsConfig {
+			networkName = n
+			networkID = epConfig.NetworkID
+			break
+		}
+	}
+
+	return c.backend.UpdateAttachment(networkName, networkID, c.container.id(), config)
+}
+
+func (c *containerAdapter) waitForDetach(ctx context.Context) error {
+	config := c.container.createNetworkingConfig()
+
+	var (
+		networkName string
+		networkID   string
+	)
+
+	if config != nil {
+		for n, epConfig := range config.EndpointsConfig {
+			networkName = n
+			networkID = epConfig.NetworkID
+			break
+		}
+	}
+
+	return c.backend.WaitForDetachment(ctx, networkName, networkID, c.container.taskID(), c.container.id())
+}
+
 func (c *containerAdapter) create(ctx context.Context) error {
 	var cr types.ContainerCreateResponse
 	var err error
@@ -233,7 +271,7 @@ func (c *containerAdapter) events(ctx context.Context) <-chan events.Message {
 }
 
 func (c *containerAdapter) wait(ctx context.Context) error {
-	return c.backend.ContainerWaitWithContext(ctx, c.container.name())
+	return c.backend.ContainerWaitWithContext(ctx, c.container.nameOrID())
 }
 
 func (c *containerAdapter) shutdown(ctx context.Context) error {

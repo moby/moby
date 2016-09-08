@@ -252,7 +252,7 @@ func (daemon *Daemon) verifyNetworkingConfig(nwConfig *networktypes.NetworkingCo
 	}
 	if len(nwConfig.EndpointsConfig) == 1 {
 		for _, v := range nwConfig.EndpointsConfig {
-			if v.IPAMConfig != nil {
+			if v != nil && v.IPAMConfig != nil {
 				if v.IPAMConfig.IPv4Address != "" && net.ParseIP(v.IPAMConfig.IPv4Address).To4() == nil {
 					return errors.NewBadRequestError(fmt.Errorf("invalid IPv4 address: %s", v.IPAMConfig.IPv4Address))
 				}

@@ -19,8 +19,8 @@ import (
 	"github.com/docker/swarmkit/manager/state"
 	"github.com/docker/swarmkit/manager/state/store"
 	"github.com/docker/swarmkit/manager/state/watch"
-	"github.com/docker/swarmkit/picker"
 	"github.com/docker/swarmkit/protobuf/ptypes"
+	"github.com/docker/swarmkit/remotes"
 	"golang.org/x/net/context"
 )
 
@@ -153,7 +153,7 @@ func getWeightedPeers(cluster Cluster) []*api.WeightedPeer {
 			// TODO(stevvooe): Calculate weight of manager selection based on
 			// cluster-level observations, such as number of connections and
 			// load.
-			Weight: picker.DefaultObservationWeight,
+			Weight: remotes.DefaultObservationWeight,
 		})
 	}
 	return mgrs
@@ -209,7 +209,7 @@ func (d *Dispatcher) Run(ctx context.Context) error {
 		for _, p := range peers {
 			mgrs = append(mgrs, &api.WeightedPeer{
 				Peer:   p,
-				Weight: picker.DefaultObservationWeight,
+				Weight: remotes.DefaultObservationWeight,
 			})
 		}
 		d.mu.Lock()
@@ -854,7 +854,7 @@ func (d *Dispatcher) Session(r *api.SessionRequest, stream api.Dispatcher_Sessio
 
 	for {
 		// After each message send, we need to check the nodes sessionID hasn't
-		// changed. If it has, we will the stream and make the node
+		// changed. If it has, we will shut down the stream and make the node
 		// re-register.
 		node, err := d.nodes.GetWithSession(nodeID, sessionID)
 		if err != nil {
