@@ -2,165 +2,115 @@ package inspect
 
 import (
 	"bytes"
-	"strings"
 	"testing"
 
 	"github.com/docker/docker/utils/templates"
+	"github.com/go-check/check"
 )
+
+// Hook up gocheck into the "go test" runner.
+func Test(t *testing.T) { check.TestingT(t) }
+
+type DockerSuite struct{}
+
+var _ = check.Suite(&DockerSuite{})
 
 type testElement struct {
 	DNS string `json:"Dns"`
 }
 
-func TestTemplateInspectorDefault(t *testing.T) {
+func (s *DockerSuite) TestTemplateInspectorDefault(c *check.C) {
 	b := new(bytes.Buffer)
 	tmpl, err := templates.Parse("{{.DNS}}")
-	if err != nil {
-		t.Fatal(err)
-	}
-	i := NewTemplateInspector(b, tmpl)
-	if err := i.Inspect(testElement{"0.0.0.0"}, nil); err != nil {
-		t.Fatal(err)
-	}
+	c.Assert(err, check.IsNil)
 
-	if err := i.Flush(); err != nil {
-		t.Fatal(err)
-	}
-	if b.String() != "0.0.0.0\n" {
-		t.Fatalf("Expected `0.0.0.0\\n`, got `%s`", b.String())
-	}
+	i := NewTemplateInspector(b, tmpl)
+	c.Assert(i.Inspect(testElement{"0.0.0.0"}, nil), check.IsNil)
+
+	c.Assert(i.Flush(), check.IsNil)
+	c.Assert(b.String(), check.Equals, "0.0.0.0\n")
 }
 
-func TestTemplateInspectorEmpty(t *testing.T) {
+func (s *DockerSuite) TestTemplateInspectorEmpty(c *check.C) {
 	b := new(bytes.Buffer)
 	tmpl, err := templates.Parse("{{.DNS}}")
-	if err != nil {
-		t.Fatal(err)
-	}
-	i := NewTemplateInspector(b, tmpl)
+	c.Assert(err, check.IsNil)
 
-	if err := i.Flush(); err != nil {
-		t.Fatal(err)
-	}
-	if b.String() != "\n" {
-		t.Fatalf("Expected `\\n`, got `%s`", b.String())
-	}
+	i := NewTemplateInspector(b, tmpl)
+	c.Assert(i.Flush(), check.IsNil)
+	c.Assert(b.String(), check.Equals, "\n")
 }
 
-func TestTemplateInspectorTemplateError(t *testing.T) {
+func (s *DockerSuite) TestTemplateInspectorTemplateError(c *check.C) {
 	b := new(bytes.Buffer)
 	tmpl, err := templates.Parse("{{.Foo}}")
-	if err != nil {
-		t.Fatal(err)
-	}
-	i := NewTemplateInspector(b, tmpl)
+	c.Assert(err, check.IsNil)
 
+	i := NewTemplateInspector(b, tmpl)
 	err = i.Inspect(testElement{"0.0.0.0"}, nil)
-	if err == nil {
-		t.Fatal("Expected error got nil")
-	}
+	c.Assert(err, check.NotNil)
 
-	if !strings.HasPrefix(err.Error(), "Template parsing error") {
-		t.Fatalf("Expected template error, got %v", err)
-	}
+	c.Assert(err, check.ErrorMatches, ".*Template parsing error.*")
 }
 
-func TestTemplateInspectorRawFallback(t *testing.T) {
+func (s *DockerSuite) TestTemplateInspectorRawFallback(c *check.C) {
 	b := new(bytes.Buffer)
 	tmpl, err := templates.Parse("{{.Dns}}")
-	if err != nil {
-		t.Fatal(err)
-	}
+	c.Assert(err, check.IsNil)
+
 	i := NewTemplateInspector(b, tmpl)
-	if err := i.Inspect(testElement{"0.0.0.0"}, []byte(`{"Dns": "0.0.0.0"}`)); err != nil {
-		t.Fatal(err)
-	}
+	c.Assert(i.Inspect(testElement{"0.0.0.0"}, []byte(`{"Dns": "0.0.0.0"}`)), check.IsNil)
 
-	if err := i.Flush(); err != nil {
-		t.Fatal(err)
-	}
-	if b.String() != "0.0.0.0\n" {
-		t.Fatalf("Expected `0.0.0.0\\n`, got `%s`", b.String())
-	}
+	c.Assert(i.Flush(), check.IsNil)
+	c.Assert(b.String(), check.Equals, "0.0.0.0\n")
 }
 
-func TestTemplateInspectorRawFallbackError(t *testing.T) {
+func (s *DockerSuite) TestTemplateInspectorRawFallbackError(c *check.C) {
 	b := new(bytes.Buffer)
 	tmpl, err := templates.Parse("{{.Dns}}")
-	if err != nil {
-		t.Fatal(err)
-	}
+	c.Assert(err, check.IsNil)
+
 	i := NewTemplateInspector(b, tmpl)
 	err = i.Inspect(testElement{"0.0.0.0"}, []byte(`{"Foo": "0.0.0.0"}`))
-	if err == nil {
-		t.Fatal("Expected error got nil")
-	}
-
-	if !strings.HasPrefix(err.Error(), "Template parsing error") {
-		t.Fatalf("Expected template error, got %v", err)
-	}
+	c.Assert(err, check.NotNil)
+	c.Assert(err, check.ErrorMatches, ".*Template parsing error.*")
 }
 
-func TestTemplateInspectorMultiple(t *testing.T) {
+func (s *DockerSuite) TestTemplateInspectorMultiple(c *check.C) {
 	b := new(bytes.Buffer)
 	tmpl, err := templates.Parse("{{.DNS}}")
-	if err != nil {
-		t.Fatal(err)
-	}
+	c.Assert(err, check.IsNil)
+
 	i := NewTemplateInspector(b, tmpl)
+	c.Assert(i.Inspect(testElement{"0.0.0.0"}, nil), check.IsNil)
+	c.Assert(i.Inspect(testElement{"1.1.1.1"}, nil), check.IsNil)
 
-	if err := i.Inspect(testElement{"0.0.0.0"}, nil); err != nil {
-		t.Fatal(err)
-	}
-	if err := i.Inspect(testElement{"1.1.1.1"}, nil); err != nil {
-		t.Fatal(err)
-	}
-
-	if err := i.Flush(); err != nil {
-		t.Fatal(err)
-	}
-	if b.String() != "0.0.0.0\n1.1.1.1\n" {
-		t.Fatalf("Expected `0.0.0.0\\n1.1.1.1\\n`, got `%s`", b.String())
-	}
+	c.Assert(i.Flush(), check.IsNil)
+	c.Assert(b.String(), check.Equals, "0.0.0.0\n1.1.1.1\n")
 }
 
-func TestIndentedInspectorDefault(t *testing.T) {
+func (s *DockerSuite) TestIndentedInspectorDefault(c *check.C) {
 	b := new(bytes.Buffer)
 	i := NewIndentedInspector(b)
-	if err := i.Inspect(testElement{"0.0.0.0"}, nil); err != nil {
-		t.Fatal(err)
-	}
+	c.Assert(i.Inspect(testElement{"0.0.0.0"}, nil), check.IsNil)
 
-	if err := i.Flush(); err != nil {
-		t.Fatal(err)
-	}
-
+	c.Assert(i.Flush(), check.IsNil)
 	expected := `[
     {
         "Dns": "0.0.0.0"
     }
 ]
 `
-	if b.String() != expected {
-		t.Fatalf("Expected `%s`, got `%s`", expected, b.String())
-	}
+	c.Assert(expected, check.Equals, b.String())
 }
 
-func TestIndentedInspectorMultiple(t *testing.T) {
+func (s *DockerSuite) TestIndentedInspectorMultiple(c *check.C) {
 	b := new(bytes.Buffer)
 	i := NewIndentedInspector(b)
-	if err := i.Inspect(testElement{"0.0.0.0"}, nil); err != nil {
-		t.Fatal(err)
-	}
+	c.Assert(i.Inspect(testElement{"0.0.0.0"}, nil), check.IsNil)
+	c.Assert(i.Inspect(testElement{"1.1.1.1"}, nil), check.IsNil)
 
-	if err := i.Inspect(testElement{"1.1.1.1"}, nil); err != nil {
-		t.Fatal(err)
-	}
-
-	if err := i.Flush(); err != nil {
-		t.Fatal(err)
-	}
-
+	c.Assert(i.Flush(), check.IsNil)
 	expected := `[
     {
         "Dns": "0.0.0.0"
@@ -170,40 +120,25 @@ func TestIndentedInspectorMultiple(t *testing.T) {
     }
 ]
 `
-	if b.String() != expected {
-		t.Fatalf("Expected `%s`, got `%s`", expected, b.String())
-	}
+	c.Assert(expected, check.Equals, b.String())
 }
 
-func TestIndentedInspectorEmpty(t *testing.T) {
+func (s *DockerSuite) TestIndentedInspectorEmpty(c *check.C) {
 	b := new(bytes.Buffer)
 	i := NewIndentedInspector(b)
 
-	if err := i.Flush(); err != nil {
-		t.Fatal(err)
-	}
-
+	c.Assert(i.Flush(), check.IsNil)
 	expected := "[]\n"
-	if b.String() != expected {
-		t.Fatalf("Expected `%s`, got `%s`", expected, b.String())
-	}
+	c.Assert(expected, check.Equals, b.String())
 }
 
-func TestIndentedInspectorRawElements(t *testing.T) {
+func (s *DockerSuite) TestIndentedInspectorRawElements(c *check.C) {
 	b := new(bytes.Buffer)
 	i := NewIndentedInspector(b)
-	if err := i.Inspect(testElement{"0.0.0.0"}, []byte(`{"Dns": "0.0.0.0", "Node": "0"}`)); err != nil {
-		t.Fatal(err)
-	}
+	c.Assert(i.Inspect(testElement{"0.0.0.0"}, []byte(`{"Dns": "0.0.0.0", "Node": "0"}`)), check.IsNil)
+	c.Assert(i.Inspect(testElement{"1.1.1.1"}, []byte(`{"Dns": "1.1.1.1", "Node": "1"}`)), check.IsNil)
 
-	if err := i.Inspect(testElement{"1.1.1.1"}, []byte(`{"Dns": "1.1.1.1", "Node": "1"}`)); err != nil {
-		t.Fatal(err)
-	}
-
-	if err := i.Flush(); err != nil {
-		t.Fatal(err)
-	}
-
+	c.Assert(i.Flush(), check.IsNil)
 	expected := `[
     {
         "Dns": "0.0.0.0",
@@ -215,7 +150,5 @@ func TestIndentedInspectorRawElements(t *testing.T) {
     }
 ]
 `
-	if b.String() != expected {
-		t.Fatalf("Expected `%s`, got `%s`", expected, b.String())
-	}
+	c.Assert(expected, check.Equals, b.String())
 }

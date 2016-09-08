@@ -3,35 +3,42 @@ package swarm
 import (
 	"testing"
 
-	"github.com/docker/docker/pkg/testutil/assert"
+	"github.com/go-check/check"
 )
 
-func TestNodeAddrOptionSetHostAndPort(t *testing.T) {
+// Hook up gocheck into the "go test" runner.
+func Test(t *testing.T) { check.TestingT(t) }
+
+type DockerSuite struct{}
+
+var _ = check.Suite(&DockerSuite{})
+
+func (s *DockerSuite) TestNodeAddrOptionSetHostAndPort(c *check.C) {
 	opt := NewNodeAddrOption("old:123")
 	addr := "newhost:5555"
-	assert.NilError(t, opt.Set(addr))
-	assert.Equal(t, opt.Value(), addr)
+	c.Assert(opt.Set(addr), check.IsNil)
+	c.Assert(opt.Value(), check.Equals, addr)
 }
 
-func TestNodeAddrOptionSetHostOnly(t *testing.T) {
+func (s *DockerSuite) TestNodeAddrOptionSetHostOnly(c *check.C) {
 	opt := NewListenAddrOption()
-	assert.NilError(t, opt.Set("newhost"))
-	assert.Equal(t, opt.Value(), "newhost:2377")
+	c.Assert(opt.Set("newhost"), check.IsNil)
+	c.Assert(opt.Value(), check.Equals, "newhost:2377")
 }
 
-func TestNodeAddrOptionSetHostOnlyIPv6(t *testing.T) {
+func (s *DockerSuite) TestNodeAddrOptionSetHostOnlyIPv6(c *check.C) {
 	opt := NewListenAddrOption()
-	assert.NilError(t, opt.Set("::1"))
-	assert.Equal(t, opt.Value(), "[::1]:2377")
+	c.Assert(opt.Set("::1"), check.IsNil)
+	c.Assert(opt.Value(), check.Equals, "[::1]:2377")
 }
 
-func TestNodeAddrOptionSetPortOnly(t *testing.T) {
+func (s *DockerSuite) TestNodeAddrOptionSetPortOnly(c *check.C) {
 	opt := NewListenAddrOption()
-	assert.NilError(t, opt.Set(":4545"))
-	assert.Equal(t, opt.Value(), "0.0.0.0:4545")
+	c.Assert(opt.Set(":4545"), check.IsNil)
+	c.Assert(opt.Value(), check.Equals, "0.0.0.0:4545")
 }
 
-func TestNodeAddrOptionSetInvalidFormat(t *testing.T) {
+func (s *DockerSuite) TestNodeAddrOptionSetInvalidFormat(c *check.C) {
 	opt := NewListenAddrOption()
-	assert.Error(t, opt.Set("http://localhost:4545"), "Invalid")
+	c.Assert(opt.Set("http://localhost:4545"), check.ErrorMatches, ".*Invalid.*")
 }

@@ -7,10 +7,17 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/pkg/testutil/assert"
+	"github.com/go-check/check"
 )
 
-func TestLoadFileV01Success(t *testing.T) {
+// Hook up gocheck into the "go test" runner.
+func Test(t *testing.T) { check.TestingT(t) }
+
+type DockerSuite struct{}
+
+var _ = check.Suite(&DockerSuite{})
+
+func (s *DockerSuite) TestLoadFileV01Success(c *check.C) {
 	reader := strings.NewReader(`{
 		"Version": "0.1",
 		"Services": {
@@ -27,22 +34,22 @@ func TestLoadFileV01Success(t *testing.T) {
 	}`)
 
 	bundle, err := LoadFile(reader)
-	assert.NilError(t, err)
-	assert.Equal(t, bundle.Version, "0.1")
-	assert.Equal(t, len(bundle.Services), 2)
+	c.Assert(err, check.IsNil)
+	c.Assert(bundle.Version, check.Equals, "0.1")
+	c.Assert(len(bundle.Services), check.Equals, 2)
 }
 
-func TestLoadFileSyntaxError(t *testing.T) {
+func (s *DockerSuite) TestLoadFileSyntaxError(c *check.C) {
 	reader := strings.NewReader(`{
 		"Version": "0.1",
 		"Services": unquoted string
 	}`)
 
 	_, err := LoadFile(reader)
-	assert.Error(t, err, "syntax error at byte 37: invalid character 'u'")
+	c.Assert(err, check.ErrorMatches, ".*syntax error at byte 37: invalid character 'u'.*")
 }
 
-func TestLoadFileTypeError(t *testing.T) {
+func (s *DockerSuite) TestLoadFileTypeError(c *check.C) {
 	reader := strings.NewReader(`{
 		"Version": "0.1",
 		"Services": {
@@ -54,10 +61,10 @@ func TestLoadFileTypeError(t *testing.T) {
 	}`)
 
 	_, err := LoadFile(reader)
-	assert.Error(t, err, "Unexpected type at byte 94. Expected []string but received string")
+	c.Assert(err, check.ErrorMatches, ".*Unexpected type at byte 94. Expected \\[\\]string but received string.*")
 }
 
-func TestPrint(t *testing.T) {
+func (s *DockerSuite) TestPrint(c *check.C) {
 	var buffer bytes.Buffer
 	bundle := &Bundlefile{
 		Version: "0.1",
@@ -68,12 +75,12 @@ func TestPrint(t *testing.T) {
 			},
 		},
 	}
-	assert.NilError(t, Print(&buffer, bundle))
+	c.Assert(Print(&buffer, bundle), check.IsNil)
 	output := buffer.String()
-	assert.Contains(t, output, "\"Image\": \"image\"")
-	assert.Contains(t, output,
-		`"Command": [
+	c.Assert(output, check.Matches, "(?s).*\"Image\": \"image\".*")
+	c.Assert(output, check.Matches,
+		`(?s).*"Command": \[
                 "echo",
                 "something"
-            ]`)
+            \].*`)
 }

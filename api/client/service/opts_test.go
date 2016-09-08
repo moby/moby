@@ -1,63 +1,62 @@
 package service
 
 import (
-	"testing"
 	"time"
 
 	mounttypes "github.com/docker/docker/api/types/mount"
-	"github.com/docker/docker/pkg/testutil/assert"
+	"github.com/go-check/check"
 )
 
-func TestMemBytesString(t *testing.T) {
+func (s *DockerSuite) TestMemBytesString(c *check.C) {
 	var mem memBytes = 1048576
-	assert.Equal(t, mem.String(), "1 MiB")
+	c.Assert(mem.String(), check.Equals, "1 MiB")
 }
 
-func TestMemBytesSetAndValue(t *testing.T) {
+func (s *DockerSuite) TestMemBytesSetAndValue(c *check.C) {
 	var mem memBytes
-	assert.NilError(t, mem.Set("5kb"))
-	assert.Equal(t, mem.Value(), int64(5120))
+	c.Assert(mem.Set("5kb"), check.IsNil)
+	c.Assert(mem.Value(), check.Equals, int64(5120))
 }
 
-func TestNanoCPUsString(t *testing.T) {
+func (s *DockerSuite) TestNanoCPUsString(c *check.C) {
 	var cpus nanoCPUs = 6100000000
-	assert.Equal(t, cpus.String(), "6.100")
+	c.Assert(cpus.String(), check.Equals, "6.100")
 }
 
-func TestNanoCPUsSetAndValue(t *testing.T) {
+func (s *DockerSuite) TestNanoCPUsSetAndValue(c *check.C) {
 	var cpus nanoCPUs
-	assert.NilError(t, cpus.Set("0.35"))
-	assert.Equal(t, cpus.Value(), int64(350000000))
+	c.Assert(cpus.Set("0.35"), check.IsNil)
+	c.Assert(cpus.Value(), check.Equals, int64(350000000))
 }
 
-func TestDurationOptString(t *testing.T) {
+func (s *DockerSuite) TestDurationOptString(c *check.C) {
 	dur := time.Duration(300 * 10e8)
 	duration := DurationOpt{value: &dur}
-	assert.Equal(t, duration.String(), "5m0s")
+	c.Assert(duration.String(), check.Equals, "5m0s")
 }
 
-func TestDurationOptSetAndValue(t *testing.T) {
+func (s *DockerSuite) TestDurationOptSetAndValue(c *check.C) {
 	var duration DurationOpt
-	assert.NilError(t, duration.Set("300s"))
-	assert.Equal(t, *duration.Value(), time.Duration(300*10e8))
+	c.Assert(duration.Set("300s"), check.IsNil)
+	c.Assert(*duration.Value(), check.Equals, time.Duration(300*10e8))
 }
 
-func TestUint64OptString(t *testing.T) {
+func (s *DockerSuite) TestUint64OptString(c *check.C) {
 	value := uint64(2345678)
 	opt := Uint64Opt{value: &value}
-	assert.Equal(t, opt.String(), "2345678")
+	c.Assert(opt.String(), check.Equals, "2345678")
 
 	opt = Uint64Opt{}
-	assert.Equal(t, opt.String(), "none")
+	c.Assert(opt.String(), check.Equals, "none")
 }
 
-func TestUint64OptSetAndValue(t *testing.T) {
+func (s *DockerSuite) TestUint64OptSetAndValue(c *check.C) {
 	var opt Uint64Opt
-	assert.NilError(t, opt.Set("14445"))
-	assert.Equal(t, *opt.Value(), uint64(14445))
+	c.Assert(opt.Set("14445"), check.IsNil)
+	c.Assert(*opt.Value(), check.Equals, uint64(14445))
 }
 
-func TestMountOptString(t *testing.T) {
+func (s *DockerSuite) TestMountOptString(c *check.C) {
 	mount := MountOpt{
 		values: []mounttypes.Mount{
 			{
@@ -73,10 +72,10 @@ func TestMountOptString(t *testing.T) {
 		},
 	}
 	expected := "bind /home/path /target, volume foo /target/foo"
-	assert.Equal(t, mount.String(), expected)
+	c.Assert(mount.String(), check.Equals, expected)
 }
 
-func TestMountOptSetNoError(t *testing.T) {
+func (s *DockerSuite) TestMountOptSetNoError(c *check.C) {
 	for _, testcase := range []string{
 		// tests several aliases that should have same result.
 		"type=bind,target=/target,source=/source",
@@ -86,11 +85,11 @@ func TestMountOptSetNoError(t *testing.T) {
 	} {
 		var mount MountOpt
 
-		assert.NilError(t, mount.Set(testcase))
+		c.Assert(mount.Set(testcase), check.IsNil)
 
 		mounts := mount.Value()
-		assert.Equal(t, len(mounts), 1)
-		assert.Equal(t, mounts[0], mounttypes.Mount{
+		c.Assert(len(mounts), check.Equals, 1)
+		c.Assert(mounts[0], check.Equals, mounttypes.Mount{
 			Type:   mounttypes.TypeBind,
 			Source: "/source",
 			Target: "/target",
@@ -100,77 +99,77 @@ func TestMountOptSetNoError(t *testing.T) {
 
 // TestMountOptDefaultType ensures that a mount without the type defaults to a
 // volume mount.
-func TestMountOptDefaultType(t *testing.T) {
+func (s *DockerSuite) TestMountOptDefaultType(c *check.C) {
 	var mount MountOpt
-	assert.NilError(t, mount.Set("target=/target,source=/foo"))
-	assert.Equal(t, mount.values[0].Type, mounttypes.TypeVolume)
+	c.Assert(mount.Set("target=/target,source=/foo"), check.IsNil)
+	c.Assert(mount.values[0].Type, check.Equals, mounttypes.TypeVolume)
 }
 
-func TestMountOptSetErrorNoTarget(t *testing.T) {
+func (s *DockerSuite) TestMountOptSetErrorNoTarget(c *check.C) {
 	var mount MountOpt
-	assert.Error(t, mount.Set("type=volume,source=/foo"), "target is required")
+	c.Assert(mount.Set("type=volume,source=/foo"), check.ErrorMatches, ".*target is required.*")
 }
 
-func TestMountOptSetErrorInvalidKey(t *testing.T) {
+func (s *DockerSuite) TestMountOptSetErrorInvalidKey(c *check.C) {
 	var mount MountOpt
-	assert.Error(t, mount.Set("type=volume,bogus=foo"), "unexpected key 'bogus'")
+	c.Assert(mount.Set("type=volume,bogus=foo"), check.ErrorMatches, ".*unexpected key 'bogus'.*")
 }
 
-func TestMountOptSetErrorInvalidField(t *testing.T) {
+func (s *DockerSuite) TestMountOptSetErrorInvalidField(c *check.C) {
 	var mount MountOpt
-	assert.Error(t, mount.Set("type=volume,bogus"), "invalid field 'bogus'")
+	c.Assert(mount.Set("type=volume,bogus"), check.ErrorMatches, ".*invalid field 'bogus'.*")
 }
 
-func TestMountOptSetErrorInvalidReadOnly(t *testing.T) {
+func (s *DockerSuite) TestMountOptSetErrorInvalidReadOnly(c *check.C) {
 	var mount MountOpt
-	assert.Error(t, mount.Set("type=volume,readonly=no"), "invalid value for readonly: no")
-	assert.Error(t, mount.Set("type=volume,readonly=invalid"), "invalid value for readonly: invalid")
+	c.Assert(mount.Set("type=volume,readonly=no"), check.ErrorMatches, ".*invalid value for readonly: no.*")
+	c.Assert(mount.Set("type=volume,readonly=invalid"), check.ErrorMatches, ".*invalid value for readonly: invalid.*")
 }
 
-func TestMountOptDefaultEnableReadOnly(t *testing.T) {
+func (s *DockerSuite) TestMountOptDefaultEnableReadOnly(c *check.C) {
 	var m MountOpt
-	assert.NilError(t, m.Set("type=bind,target=/foo,source=/foo"))
-	assert.Equal(t, m.values[0].ReadOnly, false)
+	c.Assert(m.Set("type=bind,target=/foo,source=/foo"), check.IsNil)
+	c.Assert(m.values[0].ReadOnly, check.Equals, false)
 
 	m = MountOpt{}
-	assert.NilError(t, m.Set("type=bind,target=/foo,source=/foo,readonly"))
-	assert.Equal(t, m.values[0].ReadOnly, true)
+	c.Assert(m.Set("type=bind,target=/foo,source=/foo,readonly"), check.IsNil)
+	c.Assert(m.values[0].ReadOnly, check.Equals, true)
 
 	m = MountOpt{}
-	assert.NilError(t, m.Set("type=bind,target=/foo,source=/foo,readonly=1"))
-	assert.Equal(t, m.values[0].ReadOnly, true)
+	c.Assert(m.Set("type=bind,target=/foo,source=/foo,readonly=1"), check.IsNil)
+	c.Assert(m.values[0].ReadOnly, check.Equals, true)
 
 	m = MountOpt{}
-	assert.NilError(t, m.Set("type=bind,target=/foo,source=/foo,readonly=0"))
-	assert.Equal(t, m.values[0].ReadOnly, false)
+	c.Assert(m.Set("type=bind,target=/foo,source=/foo,readonly=0"), check.IsNil)
+	c.Assert(m.values[0].ReadOnly, check.Equals, false)
 }
 
-func TestMountOptVolumeNoCopy(t *testing.T) {
+func (s *DockerSuite) TestMountOptVolumeNoCopy(c *check.C) {
 	var m MountOpt
-	assert.Error(t, m.Set("type=volume,target=/foo,volume-nocopy"), "source is required")
+	c.Assert(m.Set("type=volume,target=/foo,volume-nocopy"), check.ErrorMatches, ".*source is required.*")
 
 	m = MountOpt{}
-	assert.NilError(t, m.Set("type=volume,target=/foo,source=foo"))
-	assert.Equal(t, m.values[0].VolumeOptions == nil, true)
+	c.Assert(m.Set("type=volume,target=/foo,source=foo"), check.IsNil)
+	c.Assert(m.values[0].VolumeOptions == nil, check.Equals, true)
 
 	m = MountOpt{}
-	assert.NilError(t, m.Set("type=volume,target=/foo,source=foo,volume-nocopy=true"))
-	assert.Equal(t, m.values[0].VolumeOptions != nil, true)
-	assert.Equal(t, m.values[0].VolumeOptions.NoCopy, true)
+	c.Assert(m.Set("type=volume,target=/foo,source=foo,volume-nocopy=true"), check.IsNil)
+	c.Assert(m.values[0].VolumeOptions != nil, check.Equals, true)
+	c.Assert(m.values[0].VolumeOptions.NoCopy, check.Equals, true)
 
 	m = MountOpt{}
-	assert.NilError(t, m.Set("type=volume,target=/foo,source=foo,volume-nocopy"))
-	assert.Equal(t, m.values[0].VolumeOptions != nil, true)
-	assert.Equal(t, m.values[0].VolumeOptions.NoCopy, true)
+	c.Assert(m.Set("type=volume,target=/foo,source=foo,volume-nocopy"), check.IsNil)
+	c.Assert(m.values[0].VolumeOptions != nil, check.Equals, true)
+	c.Assert(m.values[0].VolumeOptions.NoCopy, check.Equals, true)
 
 	m = MountOpt{}
-	assert.NilError(t, m.Set("type=volume,target=/foo,source=foo,volume-nocopy=1"))
-	assert.Equal(t, m.values[0].VolumeOptions != nil, true)
-	assert.Equal(t, m.values[0].VolumeOptions.NoCopy, true)
+	c.Assert(m.Set("type=volume,target=/foo,source=foo,volume-nocopy=1"), check.IsNil)
+	c.Assert(m.values[0].VolumeOptions != nil, check.Equals, true)
+	c.Assert(m.values[0].VolumeOptions.NoCopy, check.Equals, true)
 }
 
-func TestMountOptTypeConflict(t *testing.T) {
+func (s *DockerSuite) TestMountOptTypeConflict(c *check.C) {
 	var m MountOpt
-	assert.Error(t, m.Set("type=bind,target=/foo,source=/foo,volume-nocopy=true"), "cannot mix")
-	assert.Error(t, m.Set("type=volume,target=/foo,source=/foo,bind-propagation=rprivate"), "cannot mix")
+	c.Assert(m.Set("type=bind,target=/foo,source=/foo,volume-nocopy=true"), check.ErrorMatches, ".*cannot mix.*")
+	c.Assert(m.Set("type=volume,target=/foo,source=/foo,bind-propagation=rprivate"), check.ErrorMatches, ".*cannot mix.*")
 }

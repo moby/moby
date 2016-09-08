@@ -3,13 +3,14 @@ package formatter
 import (
 	"bytes"
 	"strings"
-	"testing"
+
+	"github.com/go-check/check"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/pkg/stringid"
 )
 
-func TestNetworkContext(t *testing.T) {
+func (s *DockerSuite) TestNetworkContext(c *check.C) {
 	networkID := stringid.GenerateRandomID()
 
 	var ctx networkContext
@@ -53,23 +54,20 @@ func TestNetworkContext(t *testing.T) {
 		}, "label1=value1,label2=value2", labelsHeader, ctx.Labels},
 	}
 
-	for _, c := range cases {
-		ctx = c.networkCtx
-		v := c.call()
+	for _, ca := range cases {
+		ctx = ca.networkCtx
+		v := ca.call()
 		if strings.Contains(v, ",") {
-			compareMultipleValues(t, v, c.expValue)
-		} else if v != c.expValue {
-			t.Fatalf("Expected %s, was %s\n", c.expValue, v)
+			compareMultipleValues(c, v, ca.expValue)
+		} else if v != ca.expValue {
+			c.Fatalf("Expected %s, was %s\n", ca.expValue, v)
 		}
 
-		h := ctx.fullHeader()
-		if h != c.expHeader {
-			t.Fatalf("Expected %s, was %s\n", c.expHeader, h)
-		}
+		c.Assert(ctx.fullHeader(), check.Equals, ca.expHeader)
 	}
 }
 
-func TestNetworkContextWrite(t *testing.T) {
+func (s *DockerSuite) TestNetworkContextWrite(c *check.C) {
 	contexts := []struct {
 		context  NetworkContext
 		expected string
@@ -191,10 +189,7 @@ foobar_bar
 		context.context.Output = out
 		context.context.Networks = networks
 		context.context.Write()
-		actual := out.String()
-		if actual != context.expected {
-			t.Fatalf("Expected \n%s, got \n%s", context.expected, actual)
-		}
+		c.Assert(out.String(), check.Equals, context.expected)
 		// Clean buffer
 		out.Reset()
 	}

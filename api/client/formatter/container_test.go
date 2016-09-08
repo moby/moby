@@ -9,9 +9,17 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/pkg/stringid"
+	"github.com/go-check/check"
 )
 
-func TestContainerPsContext(t *testing.T) {
+// Hook up gocheck into the "go test" runner.
+func Test(t *testing.T) { check.TestingT(t) }
+
+type DockerSuite struct{}
+
+var _ = check.Suite(&DockerSuite{})
+
+func (s *DockerSuite) TestContainerPsContext(c *check.C) {
 	containerID := stringid.GenerateRandomID()
 	unix := time.Now().Add(-65 * time.Second).Unix()
 
@@ -85,19 +93,16 @@ func TestContainerPsContext(t *testing.T) {
 		}, false, "733908409c91817de8e92b0096373245f329f19a88e2c849f02460e9b3d1c203", mountsHeader, ctx.Mounts},
 	}
 
-	for _, c := range cases {
-		ctx = containerContext{c: c.container, trunc: c.trunc}
-		v := c.call()
+	for _, ca := range cases {
+		ctx = containerContext{c: ca.container, trunc: ca.trunc}
+		v := ca.call()
 		if strings.Contains(v, ",") {
-			compareMultipleValues(t, v, c.expValue)
-		} else if v != c.expValue {
-			t.Fatalf("Expected %s, was %s\n", c.expValue, v)
+			compareMultipleValues(c, v, ca.expValue)
+		} else if v != ca.expValue {
+			c.Fatalf("Expected %s, was %s\n", ca.expValue, v)
 		}
 
-		h := ctx.fullHeader()
-		if h != c.expHeader {
-			t.Fatalf("Expected %s, was %s\n", c.expHeader, h)
-		}
+		c.Assert(ctx.fullHeader(), check.Equals, ca.expHeader)
 	}
 
 	c1 := types.Container{Labels: map[string]string{"com.docker.swarm.swarm-id": "33", "com.docker.swarm.node_name": "ubuntu"}}
@@ -105,37 +110,21 @@ func TestContainerPsContext(t *testing.T) {
 
 	sid := ctx.Label("com.docker.swarm.swarm-id")
 	node := ctx.Label("com.docker.swarm.node_name")
-	if sid != "33" {
-		t.Fatalf("Expected 33, was %s\n", sid)
-	}
+	c.Assert(sid, check.Equals, "33")
+	c.Assert(node, check.Equals, "ubuntu")
 
-	if node != "ubuntu" {
-		t.Fatalf("Expected ubuntu, was %s\n", node)
-	}
-
-	h := ctx.fullHeader()
-	if h != "SWARM ID\tNODE NAME" {
-		t.Fatalf("Expected %s, was %s\n", "SWARM ID\tNODE NAME", h)
-
-	}
+	c.Assert(ctx.fullHeader(), check.Equals, "SWARM ID\tNODE NAME")
 
 	c2 := types.Container{}
 	ctx = containerContext{c: c2, trunc: true}
 
-	label := ctx.Label("anything.really")
-	if label != "" {
-		t.Fatalf("Expected an empty string, was %s", label)
-	}
+	c.Assert(ctx.Label("anything.really"), check.Equals, "")
 
 	ctx = containerContext{c: c2, trunc: true}
-	fullHeader := ctx.fullHeader()
-	if fullHeader != "" {
-		t.Fatalf("Expected fullHeader to be empty, was %s", fullHeader)
-	}
-
+	c.Assert(ctx.fullHeader(), check.Equals, "")
 }
 
-func TestContainerContextWrite(t *testing.T) {
+func (s *DockerSuite) TestContainerContextWrite(c *check.C) {
 	unixTime := time.Now().AddDate(0, 0, -1).Unix()
 	expectedTime := time.Unix(unixTime, 0).String()
 
@@ -315,16 +304,13 @@ size: 0 B
 		context.context.Output = out
 		context.context.Containers = containers
 		context.context.Write()
-		actual := out.String()
-		if actual != context.expected {
-			t.Fatalf("Expected \n%s, got \n%s", context.expected, actual)
-		}
+		c.Assert(out.String(), check.Equals, context.expected)
 		// Clean buffer
 		out.Reset()
 	}
 }
 
-func TestContainerContextWriteWithNoContainers(t *testing.T) {
+func (s *DockerSuite) TestContainerContextWriteWithNoContainers(c *check.C) {
 	out := bytes.NewBufferString("")
 	containers := []types.Container{}
 
@@ -394,10 +380,7 @@ func TestContainerContextWriteWithNoContainers(t *testing.T) {
 	for _, context := range contexts {
 		context.context.Containers = containers
 		context.context.Write()
-		actual := out.String()
-		if actual != context.expected {
-			t.Fatalf("Expected \n%s, got \n%s", context.expected, actual)
-		}
+		c.Assert(out.String(), check.Equals, context.expected)
 		// Clean buffer
 		out.Reset()
 	}
