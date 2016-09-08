@@ -1435,7 +1435,7 @@ func runSleepingContainerInImage(c *check.C, image string, extraArgs ...string) 
 	args := []string{"run", "-d"}
 	args = append(args, extraArgs...)
 	args = append(args, image)
-	args = append(args, defaultSleepCommand...)
+	args = append(args, sleepCommandForDaemonPlatform()...)
 	return dockerCmd(c, args...)
 }
 

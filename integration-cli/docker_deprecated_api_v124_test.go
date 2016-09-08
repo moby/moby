@@ -162,7 +162,7 @@ func (s *DockerSuite) TestDeprecatedPostContainersStartWithoutLinksInHostConfig(
 	// An alternate test could be written to validate the negative testing aspect of this
 	testRequires(c, DaemonIsLinux)
 	name := "test-host-config-links"
-	dockerCmd(c, append([]string{"create", "--name", name, "busybox"}, defaultSleepCommand...)...)
+	dockerCmd(c, append([]string{"create", "--name", name, "busybox"}, sleepCommandForDaemonPlatform()...)...)
 
 	hc := inspectFieldJSON(c, name, "HostConfig")
 	config := `{"HostConfig":` + hc + `}`
