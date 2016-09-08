@@ -7,13 +7,13 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/utils"
 
-	"github.com/docker/docker/api/client"
+	"github.com/docker/docker/cli/command"
 )
 
 func TestClientDebugEnabled(t *testing.T) {
 	defer utils.DisableDebug()
 
-	cmd := newDockerCommand(&client.DockerCli{})
+	cmd := newDockerCommand(&command.DockerCli{})
 	cmd.Flags().Set("debug", "true")
 
 	if err := cmd.PersistentPreRunE(cmd, []string{}); err != nil {
