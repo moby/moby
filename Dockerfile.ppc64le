@@ -104,7 +104,7 @@ RUN set -x \
 	&& tar -C /usr/local -xzf golang.tar.gz \
 	&& rm golang.tar.gz \
 	&& cd go/src && ./make.bash 2>&1 \
-	&& rm -rf $TEMPDIR 
+	&& rm -rf $TEMPDIR
 
 ENV GOROOT_BOOTSTRAP /usr/local/go
 ENV PATH /usr/local/go/bin/:$PATH
@@ -204,7 +204,7 @@ RUN set -x \
 	&& rm -rf "$GOPATH"
 
 # Install containerd
-ENV CONTAINERD_COMMIT 8508d2bec90b96403143a1104cdcbd56f6aeb361
+ENV CONTAINERD_COMMIT 35a736c471ccd3ebfc7b80ceeb0ee303129acd61
 RUN set -x \
 	&& export GOPATH="$(mktemp -d)" \
 	&& git clone https://github.com/docker/containerd.git "$GOPATH/src/github.com/docker/containerd" \

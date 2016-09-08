@@ -192,7 +192,7 @@ message UpdateContainerRequest {
 }
 
 message UpdateResource {
-	uint64 blkioWeight =1;
+	uint64 blkioWeight = 1;
 	uint64 cpuShares = 2;
 	uint64 cpuPeriod = 3;
 	uint64 cpuQuota = 4;
@@ -203,6 +203,28 @@ message UpdateResource {
 	uint64 memoryReservation = 9;
 	uint64 kernelMemoryLimit = 10;
 	uint64 kernelTCPMemoryLimit = 11;
+	uint64 blkioLeafWeight = 12;
+	repeated WeightDevice blkioWeightDevice = 13;
+	repeated ThrottleDevice blkioThrottleReadBpsDevice = 14;
+	repeated ThrottleDevice blkioThrottleWriteBpsDevice = 15;
+	repeated ThrottleDevice blkioThrottleReadIopsDevice = 16;
+	repeated ThrottleDevice blkioThrottleWriteIopsDevice = 17;
+}
+
+message BlockIODevice {
+	int64 major = 1;
+	int64 minor = 2;
+}
+
+message WeightDevice {
+	BlockIODevice blkIODevice = 1;
+	uint32 weight = 2;
+	uint32 leafWeight = 3;
+}
+
+message ThrottleDevice {
+	BlockIODevice blkIODevice = 1;
+	uint64 rate = 2;
 }
 
 message UpdateContainerResponse {
