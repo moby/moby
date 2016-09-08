@@ -11,7 +11,7 @@ parent = "smn_cli"
 # rename
 
 ```markdown
-Usage:  docker rename OLD_NAME NEW_NAME
+Usage:  docker rename CONTAINER NEW_NAME
 
 Rename a container
 
