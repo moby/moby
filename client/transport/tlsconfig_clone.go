@@ -1,4 +1,4 @@
-// +build !go1.7,!windows
+// +build go1.8
 
 package transport
 
