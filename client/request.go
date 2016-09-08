@@ -14,6 +14,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/client/transport/cancellable"
+	"github.com/pkg/errors"
 	"golang.org/x/net/context"
 )
 
@@ -131,7 +132,8 @@ func (cli *Client) sendClientRequest(ctx context.Context, method, path string, q
 				}
 			}
 		}
-		return serverResp, fmt.Errorf("An error occurred trying to connect: %v", err)
+
+		return serverResp, errors.Wrap(err, "error during connect")
 	}
 
 	if resp != nil {
