@@ -4518,3 +4518,25 @@ exec "$@"`,
 	c.Assert(err, check.NotNil)
 	c.Assert(err.Error(), checker.Contains, "No command specified")
 }
+
+func (s *DockerDaemonSuite) TestRunWithUlimitAndDaemonDefault(c *check.C) {
+	c.Assert(s.d.StartWithBusybox("--debug", "--default-ulimit=nofile=65535"), checker.IsNil)
+
+	name := "test-A"
+	_, err := s.d.Cmd("run", "--name", name, "-d", "busybox", "top")
+	c.Assert(err, checker.IsNil)
+	c.Assert(s.d.waitRun(name), check.IsNil)
+
+	out, err := s.d.Cmd("inspect", "--format", "{{.HostConfig.Ulimits}}", name)
+	c.Assert(err, checker.IsNil)
+	c.Assert(out, checker.Contains, "[nofile=65535:65535]")
+
+	name = "test-B"
+	_, err = s.d.Cmd("run", "--name", name, "--ulimit=nofile=42", "-d", "busybox", "top")
+	c.Assert(err, checker.IsNil)
+	c.Assert(s.d.waitRun(name), check.IsNil)
+
+	out, err = s.d.Cmd("inspect", "--format", "{{.HostConfig.Ulimits}}", name)
+	c.Assert(err, checker.IsNil)
+	c.Assert(out, checker.Contains, "[nofile=42:42]")
+}

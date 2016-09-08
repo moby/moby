@@ -117,6 +117,9 @@ func (daemon *Daemon) getInspectData(container *container.Container, size bool) 
 		hostConfig.Links = append(hostConfig.Links, fmt.Sprintf("%s:%s", child.Name, linkAlias))
 	}
 
+	// We merge the Ulimits from hostConfig with daemon default
+	daemon.mergeUlimits(&hostConfig)
+
 	var containerHealth *types.Health
 	if container.State.Health != nil {
 		containerHealth = &types.Health{
