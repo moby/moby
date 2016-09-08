@@ -371,8 +371,9 @@ func (d *Daemon) LoadBusybox() error {
 			return fmt.Errorf("unexpected error on busybox.tar stat: %v", err)
 		}
 		// saving busybox image from main daemon
-		if err := exec.Command(dockerBinary, "save", "--output", bb, "busybox:latest").Run(); err != nil {
-			return fmt.Errorf("could not save busybox image: %v", err)
+		if out, err := exec.Command(dockerBinary, "save", "--output", bb, "busybox:latest").CombinedOutput(); err != nil {
+			imagesOut, _ := exec.Command(dockerBinary, "images", "--format", "{{ .Repository }}:{{ .Tag }}").CombinedOutput()
+			return fmt.Errorf("could not save busybox image: %s\n%s", string(out), strings.TrimSpace(string(imagesOut)))
 		}
 	}
 	// loading busybox image to this daemon

@@ -23,6 +23,9 @@ func Test(t *testing.T) {
 		fmt.Println("INFO: Testing against a local daemon")
 	}
 
+	if daemonPlatform == "linux" {
+		ensureFrozenImagesLinux(t)
+	}
 	check.TestingT(t)
 }
 

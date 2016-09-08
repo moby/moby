@@ -754,6 +754,10 @@ func newRemoteFileServer(ctx *FakeContext) (*remoteFileServer, error) {
 		container = fmt.Sprintf("fileserver-cnt-%s", strings.ToLower(stringutils.GenerateRandomAlphaOnlyString(10)))
 	)
 
+	if err := ensureHTTPServerImage(); err != nil {
+		return nil, err
+	}
+
 	// Build the image
 	if err := fakeContextAddDockerfile(ctx, `FROM httpserver
 COPY . /static`); err != nil {
