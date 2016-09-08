@@ -550,15 +550,36 @@ func (p *v2Puller) pullSchema2(ctx context.Context, ref reference.Named, mfst *s
 	)
 
 	// https://github.com/docker/docker/issues/24766 - Err on the side of caution,
-	// explicitly blocking images intended for linux from the Windows daemon
-	if runtime.GOOS == "windows" && unmarshalledConfig.OS == "linux" {
-		return "", "", fmt.Errorf("image operating system %q cannot be used on this platform", unmarshalledConfig.OS)
+	// explicitly blocking images intended for linux from the Windows daemon. On
+	// Windows, we do this before the attempt to download, effectively serialising
+	// the download slightly slowing it down. We have to do it this way, as
+	// chances are the download of layers itself would fail due to file names
+	// which aren't suitable for NTFS. At some point in the future, if a similar
+	// check to block Windows images being pulled on Linux is implemented, it
+	// may be necessary to perform the same type of serialisation.
+	if runtime.GOOS == "windows" {
+		configJSON, unmarshalledConfig, err = receiveConfig(configChan, errChan)
+		if err != nil {
+			return "", "", err
+		}
+
+		if unmarshalledConfig.RootFS == nil {
+			return "", "", errRootFSInvalid
+		}
+
+		if unmarshalledConfig.OS == "linux" {
+			return "", "", fmt.Errorf("image operating system %q cannot be used on this platform", unmarshalledConfig.OS)
+		}
 	}
 
 	downloadRootFS = *image.NewRootFS()
 
 	rootFS, release, err := p.config.DownloadManager.Download(ctx, downloadRootFS, descriptors, p.config.ProgressOutput)
 	if err != nil {
+		if configJSON != nil {
+			// Already received the config
+			return "", "", err
+		}
 		select {
 		case err = <-errChan:
 			return "", "", err
@@ -573,13 +594,15 @@ func (p *v2Puller) pullSchema2(ctx context.Context, ref reference.Named, mfst *s
 	}
 	defer release()
 
-	configJSON, unmarshalledConfig, err = receiveConfig(configChan, errChan)
-	if err != nil {
-		return "", "", err
-	}
+	if configJSON == nil {
+		configJSON, unmarshalledConfig, err = receiveConfig(configChan, errChan)
+		if err != nil {
+			return "", "", err
+		}
 
-	if unmarshalledConfig.RootFS == nil {
-		return "", "", errRootFSInvalid
+		if unmarshalledConfig.RootFS == nil {
+			return "", "", errRootFSInvalid
+		}
 	}
 
 	// The DiffIDs returned in rootFS MUST match those in the config.
