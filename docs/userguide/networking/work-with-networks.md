@@ -62,7 +62,8 @@ $ docker network inspect simple-network
             ]
         },
         "Containers": {},
-        "Options": {}
+        "Options": {},
+        "Labels": {}
     }
 ]
 ```
@@ -160,7 +161,8 @@ $ docker network inspect my-network
         "Containers": {},
         "Options": {
             "com.docker.network.bridge.host_binding_ipv4": "172.23.0.1"
-        }
+        },
+        "Labels": {}
     }
 ]
 
@@ -236,7 +238,8 @@ $ docker network inspect isolated_nw
                 "IPv6Address": ""
             }
         },
-        "Options": {}
+        "Options": {},
+        "Labels": {}
     }
 ]
 ```
@@ -797,7 +800,8 @@ $ docker network inspect isolated_nw
                 "IPv6Address": ""
             }
         },
-        "Options": {}
+        "Options": {},
+        "Labels": {}
     }
 ]
 ```
@@ -900,7 +904,8 @@ docker network inspect isolated_nw
             ]
         },
         "Containers": {},
-        "Options": {}
+        "Options": {},
+        "Labels": {}
     }
 ]
 

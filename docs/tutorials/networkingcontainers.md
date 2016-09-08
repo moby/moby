@@ -141,7 +141,8 @@ $ docker network inspect bridge
             "com.docker.network.bridge.host_binding_ipv4": "0.0.0.0",
             "com.docker.network.bridge.name": "docker0",
             "com.docker.network.driver.mtu": "9001"
-        }
+        },
+        "Labels": {}
     }
 ]
 ```
@@ -188,7 +189,8 @@ If you inspect the network, you'll find that it has nothing in it.
                 ]
             },
             "Containers": {},
-            "Options": {}
+            "Options": {},
+            "Labels": {}
         }
     ]
 
