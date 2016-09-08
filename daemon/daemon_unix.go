@@ -464,10 +464,13 @@ func verifyPlatformContainerSettings(daemon *Daemon, hostConfig *containertypes.
 	}
 
 	w, err := verifyContainerResources(&hostConfig.Resources, sysInfo, update)
+
+	// no matter err is nil or not, w could have data in itself.
+	warnings = append(warnings, w...)
+
 	if err != nil {
 		return warnings, err
 	}
-	warnings = append(warnings, w...)
 
 	if hostConfig.ShmSize < 0 {
 		return warnings, fmt.Errorf("SHM size can not be less than 0")
