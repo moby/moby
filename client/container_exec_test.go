@@ -16,7 +16,7 @@ import (
 
 func TestContainerExecCreateError(t *testing.T) {
 	client := &Client{
-		transport: newMockClient(nil, errorMock(http.StatusInternalServerError, "Server error")),
+		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 	_, err := client.ContainerExecCreate(context.Background(), "container_id", types.ExecConfig{})
 	if err == nil || err.Error() != "Error response from daemon: Server error" {
@@ -27,7 +27,7 @@ func TestContainerExecCreateError(t *testing.T) {
 func TestContainerExecCreate(t *testing.T) {
 	expectedURL := "/containers/container_id/exec"
 	client := &Client{
-		transport: newMockClient(nil, func(req *http.Request) (*http.Response, error) {
+		client: newMockClient(func(req *http.Request) (*http.Response, error) {
 			if !strings.HasPrefix(req.URL.Path, expectedURL) {
 				return nil, fmt.Errorf("expected URL '%s', got '%s'", expectedURL, req.URL)
 			}
@@ -71,7 +71,7 @@ func TestContainerExecCreate(t *testing.T) {
 
 func TestContainerExecStartError(t *testing.T) {
 	client := &Client{
-		transport: newMockClient(nil, errorMock(http.StatusInternalServerError, "Server error")),
+		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 	err := client.ContainerExecStart(context.Background(), "nothing", types.ExecStartCheck{})
 	if err == nil || err.Error() != "Error response from daemon: Server error" {
@@ -82,7 +82,7 @@ func TestContainerExecStartError(t *testing.T) {
 func TestContainerExecStart(t *testing.T) {
 	expectedURL := "/exec/exec_id/start"
 	client := &Client{
-		transport: newMockClient(nil, func(req *http.Request) (*http.Response, error) {
+		client: newMockClient(func(req *http.Request) (*http.Response, error) {
 			if !strings.HasPrefix(req.URL.Path, expectedURL) {
 				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
 			}
@@ -115,7 +115,7 @@ func TestContainerExecStart(t *testing.T) {
 
 func TestContainerExecInspectError(t *testing.T) {
 	client := &Client{
-		transport: newMockClient(nil, errorMock(http.StatusInternalServerError, "Server error")),
+		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 	_, err := client.ContainerExecInspect(context.Background(), "nothing")
 	if err == nil || err.Error() != "Error response from daemon: Server error" {
@@ -126,7 +126,7 @@ func TestContainerExecInspectError(t *testing.T) {
 func TestContainerExecInspect(t *testing.T) {
 	expectedURL := "/exec/exec_id/json"
 	client := &Client{
-		transport: newMockClient(nil, func(req *http.Request) (*http.Response, error) {
+		client: newMockClient(func(req *http.Request) (*http.Response, error) {
 			if !strings.HasPrefix(req.URL.Path, expectedURL) {
 				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
 			}

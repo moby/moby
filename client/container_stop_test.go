@@ -14,7 +14,7 @@ import (
 
 func TestContainerStopError(t *testing.T) {
 	client := &Client{
-		transport: newMockClient(nil, errorMock(http.StatusInternalServerError, "Server error")),
+		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 	timeout := 0 * time.Second
 	err := client.ContainerStop(context.Background(), "nothing", &timeout)
@@ -26,7 +26,7 @@ func TestContainerStopError(t *testing.T) {
 func TestContainerStop(t *testing.T) {
 	expectedURL := "/containers/container_id/stop"
 	client := &Client{
-		transport: newMockClient(nil, func(req *http.Request) (*http.Response, error) {
+		client: newMockClient(func(req *http.Request) (*http.Response, error) {
 			if !strings.HasPrefix(req.URL.Path, expectedURL) {
 				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
 			}

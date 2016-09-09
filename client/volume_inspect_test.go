@@ -15,7 +15,7 @@ import (
 
 func TestVolumeInspectError(t *testing.T) {
 	client := &Client{
-		transport: newMockClient(nil, errorMock(http.StatusInternalServerError, "Server error")),
+		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 
 	_, err := client.VolumeInspect(context.Background(), "nothing")
@@ -26,7 +26,7 @@ func TestVolumeInspectError(t *testing.T) {
 
 func TestVolumeInspectNotFound(t *testing.T) {
 	client := &Client{
-		transport: newMockClient(nil, errorMock(http.StatusNotFound, "Server error")),
+		client: newMockClient(errorMock(http.StatusNotFound, "Server error")),
 	}
 
 	_, err := client.VolumeInspect(context.Background(), "unknown")
@@ -38,7 +38,7 @@ func TestVolumeInspectNotFound(t *testing.T) {
 func TestVolumeInspect(t *testing.T) {
 	expectedURL := "/volumes/volume_id"
 	client := &Client{
-		transport: newMockClient(nil, func(req *http.Request) (*http.Response, error) {
+		client: newMockClient(func(req *http.Request) (*http.Response, error) {
 			if !strings.HasPrefix(req.URL.Path, expectedURL) {
 				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
 			}

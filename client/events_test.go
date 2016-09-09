@@ -34,7 +34,7 @@ func TestEventsErrorInOptions(t *testing.T) {
 	}
 	for _, e := range errorCases {
 		client := &Client{
-			transport: newMockClient(nil, errorMock(http.StatusInternalServerError, "Server error")),
+			client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 		}
 		_, err := client.Events(context.Background(), e.options)
 		if err == nil || !strings.Contains(err.Error(), e.expectedError) {
@@ -45,7 +45,7 @@ func TestEventsErrorInOptions(t *testing.T) {
 
 func TestEventsErrorFromServer(t *testing.T) {
 	client := &Client{
-		transport: newMockClient(nil, errorMock(http.StatusInternalServerError, "Server error")),
+		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 	_, err := client.Events(context.Background(), types.EventsOptions{})
 	if err == nil || err.Error() != "Error response from daemon: Server error" {
@@ -93,7 +93,7 @@ func TestEvents(t *testing.T) {
 
 	for _, eventsCase := range eventsCases {
 		client := &Client{
-			transport: newMockClient(nil, func(req *http.Request) (*http.Response, error) {
+			client: newMockClient(func(req *http.Request) (*http.Response, error) {
 				if !strings.HasPrefix(req.URL.Path, expectedURL) {
 					return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
 				}

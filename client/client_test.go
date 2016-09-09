@@ -173,7 +173,7 @@ func TestParseHost(t *testing.T) {
 
 func TestUpdateClientVersion(t *testing.T) {
 	client := &Client{
-		transport: newMockClient(nil, func(req *http.Request) (*http.Response, error) {
+		client: newMockClient(func(req *http.Request) (*http.Response, error) {
 			splitQuery := strings.Split(req.URL.Path, "/")
 			queryVersion := splitQuery[1]
 			b, err := json.Marshal(types.Version{

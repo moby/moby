@@ -18,7 +18,7 @@ import (
 
 func TestContainerWaitError(t *testing.T) {
 	client := &Client{
-		transport: newMockClient(nil, errorMock(http.StatusInternalServerError, "Server error")),
+		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 	code, err := client.ContainerWait(context.Background(), "nothing")
 	if err == nil || err.Error() != "Error response from daemon: Server error" {
@@ -32,7 +32,7 @@ func TestContainerWaitError(t *testing.T) {
 func TestContainerWait(t *testing.T) {
 	expectedURL := "/containers/container_id/wait"
 	client := &Client{
-		transport: newMockClient(nil, func(req *http.Request) (*http.Response, error) {
+		client: newMockClient(func(req *http.Request) (*http.Response, error) {
 			if !strings.HasPrefix(req.URL.Path, expectedURL) {
 				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
 			}

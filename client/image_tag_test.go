@@ -13,7 +13,7 @@ import (
 
 func TestImageTagError(t *testing.T) {
 	client := &Client{
-		transport: newMockClient(nil, errorMock(http.StatusInternalServerError, "Server error")),
+		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 
 	err := client.ImageTag(context.Background(), "image_id", "repo:tag")
@@ -26,7 +26,7 @@ func TestImageTagError(t *testing.T) {
 // of distribution/reference package.
 func TestImageTagInvalidReference(t *testing.T) {
 	client := &Client{
-		transport: newMockClient(nil, errorMock(http.StatusInternalServerError, "Server error")),
+		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 
 	err := client.ImageTag(context.Background(), "image_id", "aa/asdf$$^/aa")
@@ -93,7 +93,7 @@ func TestImageTag(t *testing.T) {
 	}
 	for _, tagCase := range tagCases {
 		client := &Client{
-			transport: newMockClient(nil, func(req *http.Request) (*http.Response, error) {
+			client: newMockClient(func(req *http.Request) (*http.Response, error) {
 				if !strings.HasPrefix(req.URL.Path, expectedURL) {
 					return nil, fmt.Errorf("expected URL '%s', got '%s'", expectedURL, req.URL)
 				}

@@ -19,7 +19,7 @@ import (
 
 func TestContainerLogsError(t *testing.T) {
 	client := &Client{
-		transport: newMockClient(nil, errorMock(http.StatusInternalServerError, "Server error")),
+		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 	_, err := client.ContainerLogs(context.Background(), "container_id", types.ContainerLogsOptions{})
 	if err == nil || err.Error() != "Error response from daemon: Server error" {
@@ -83,7 +83,7 @@ func TestContainerLogs(t *testing.T) {
 	}
 	for _, logCase := range cases {
 		client := &Client{
-			transport: newMockClient(nil, func(r *http.Request) (*http.Response, error) {
+			client: newMockClient(func(r *http.Request) (*http.Response, error) {
 				if !strings.HasPrefix(r.URL.Path, expectedURL) {
 					return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, r.URL)
 				}
