@@ -384,6 +384,9 @@ func (daemon *Daemon) findAndAttachNetwork(container *container.Container, idOrN
 		return nil, nil, err
 	}
 
+	// This container has attachment to a swarm scope
+	// network. Update the container network settings accordingly.
+	container.NetworkSettings.HasSwarmEndpoint = true
 	return n, config, nil
 }
 
@@ -492,6 +495,7 @@ func (daemon *Daemon) allocateNetwork(container *container.Container) error {
 	// on first network connecting.
 	defaultNetName := runconfig.DefaultDaemonNetworkMode().NetworkName()
 	if nConf, ok := container.NetworkSettings.Networks[defaultNetName]; ok {
+		cleanOperationalData(nConf)
 		if err := daemon.connectToNetwork(container, defaultNetName, nConf.EndpointSettings, updateSettings); err != nil {
 			return err
 		}
@@ -512,6 +516,7 @@ func (daemon *Daemon) allocateNetwork(container *container.Container) error {
 	}
 
 	for i, epConf := range epConfigs {
+		cleanOperationalData(epConf)
 		if err := daemon.connectToNetwork(container, networks[i], epConf.EndpointSettings, updateSettings); err != nil {
 			return err
 		}

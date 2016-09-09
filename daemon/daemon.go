@@ -202,7 +202,13 @@ func (daemon *Daemon) restore() error {
 			// fixme: only if not running
 			// get list of containers we need to restart
 			if !c.IsRunning() && !c.IsPaused() {
-				if daemon.configStore.AutoRestart && c.ShouldRestart() {
+				// Do not autostart containers which
+				// has endpoints in a swarm scope
+				// network yet since the cluster is
+				// not initialized yet. We will start
+				// it after the cluster is
+				// initialized.
+				if daemon.configStore.AutoRestart && c.ShouldRestart() && !c.NetworkSettings.HasSwarmEndpoint {
 					mapLock.Lock()
 					restartContainers[c] = make(chan struct{})
 					mapLock.Unlock()
@@ -344,6 +350,30 @@ func (daemon *Daemon) restore() error {
 	}
 
 	return nil
+}
+
+// RestartSwarmContainers restarts any autostart container which has a
+// swarm endpoint.
+func (daemon *Daemon) RestartSwarmContainers() {
+	group := sync.WaitGroup{}
+	for _, c := range daemon.List() {
+		if !c.IsRunning() && !c.IsPaused() {
+			// Autostart all the containers which has a
+			// swarm endpoint now that the cluster is
+			// initialized.
+			if daemon.configStore.AutoRestart && c.ShouldRestart() && c.NetworkSettings.HasSwarmEndpoint {
+				group.Add(1)
+				go func(c *container.Container) {
+					defer group.Done()
+					if err := daemon.containerStart(c, ""); err != nil {
+						logrus.Error(err)
+					}
+				}(c)
+			}
+		}
+
+	}
+	group.Wait()
 }
 
 // waitForNetworks is used during daemon initialization when starting up containers
