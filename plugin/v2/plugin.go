@@ -242,11 +242,18 @@ func (p *Plugin) ComputePrivileges() types.PluginPrivileges {
 			})
 		}
 	}
-	if len(m.Capabilities) > 0 {
+	if m.DeviceCreation {
+		privileges = append(privileges, types.PluginPrivilege{
+			Name:        "device-creation",
+			Description: "",
+			Value:       []string{"true"},
+		})
+	}
+	if len(m.Linux.Capabilities) > 0 {
 		privileges = append(privileges, types.PluginPrivilege{
 			Name:        "capabilities",
 			Description: "",
-			Value:       m.Capabilities,
+			Value:       m.Linux.Capabilities,
 		})
 	}
 	return privileges
@@ -292,6 +299,11 @@ func (p *Plugin) InitSpec(s specs.Spec, libRoot string) (*specs.Spec, error) {
 		Readonly: false, // TODO: all plugins should be readonly? settable in config?
 	}
 
+	if p.PluginObj.Config.DeviceCreation {
+		rwm := "rwm"
+		s.Linux.Resources.Devices = []specs.DeviceCgroup{{Allow: true, Access: &rwm}}
+	}
+
 	mounts := append(p.PluginObj.Settings.Mounts, types.PluginMount{
 		Source:      &p.RuntimeSourcePath,
 		Destination: defaultPluginRuntimeDestination,
@@ -322,6 +334,12 @@ func (p *Plugin) InitSpec(s specs.Spec, libRoot string) (*specs.Spec, error) {
 		s.Mounts = append(s.Mounts, m)
 	}
 
+	for i, m := range s.Mounts {
+		if strings.HasPrefix(m.Destination, "/dev/") && true { // TODO: && user specified /dev
+			s.Mounts = append(s.Mounts[:i], s.Mounts[i+1:]...)
+		}
+	}
+
 	envs := make([]string, 1, len(p.PluginObj.Settings.Env)+1)
 	envs[0] = "PATH=" + system.DefaultPathEnv
 	envs = append(envs, p.PluginObj.Settings.Env...)
@@ -331,12 +349,14 @@ func (p *Plugin) InitSpec(s specs.Spec, libRoot string) (*specs.Spec, error) {
 	if len(cwd) == 0 {
 		cwd = "/"
 	}
-	s.Process = specs.Process{
-		Terminal: false,
-		Args:     args,
-		Cwd:      cwd,
-		Env:      envs,
-	}
+	s.Process.Terminal = false
+	s.Process.Args = args
+	s.Process.Cwd = cwd
+	s.Process.Env = envs
+
+	// TODO: what about duplicates?
+	// TODO: Should not need CAP_ prefix in manifest?
+	s.Process.Capabilities = append(s.Process.Capabilities, p.PluginObj.Config.Linux.Capabilities...)
 
 	return &s, nil
 }
