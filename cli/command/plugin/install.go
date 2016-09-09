@@ -61,14 +61,14 @@ func runInstall(dockerCli *command.DockerCli, opts pluginOptions) error {
 		return err
 	}
 
-	authConfig := dockerCli.ResolveAuthConfig(ctx, repoInfo.Index)
+	authConfig := command.ResolveAuthConfig(ctx, dockerCli, repoInfo.Index)
 
 	encodedAuth, err := command.EncodeAuthToBase64(authConfig)
 	if err != nil {
 		return err
 	}
 
-	registryAuthFunc := dockerCli.RegistryAuthenticationPrivilegedFunc(repoInfo.Index, "plugin install")
+	registryAuthFunc := command.RegistryAuthenticationPrivilegedFunc(dockerCli, repoInfo.Index, "plugin install")
 
 	options := types.PluginInstallOptions{
 		RegistryAuth:          encodedAuth,

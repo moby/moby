@@ -45,7 +45,7 @@ func runPush(dockerCli *command.DockerCli, name string) error {
 	if err != nil {
 		return err
 	}
-	authConfig := dockerCli.ResolveAuthConfig(ctx, repoInfo.Index)
+	authConfig := command.ResolveAuthConfig(ctx, dockerCli, repoInfo.Index)
 
 	encodedAuth, err := command.EncodeAuthToBase64(authConfig)
 	if err != nil {

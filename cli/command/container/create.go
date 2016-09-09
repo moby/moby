@@ -85,7 +85,7 @@ func pullImage(ctx context.Context, dockerCli *command.DockerCli, image string, 
 		return err
 	}
 
-	authConfig := dockerCli.ResolveAuthConfig(ctx, repoInfo.Index)
+	authConfig := command.ResolveAuthConfig(ctx, dockerCli, repoInfo.Index)
 	encodedAuth, err := command.EncodeAuthToBase64(authConfig)
 	if err != nil {
 		return err

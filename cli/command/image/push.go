@@ -44,8 +44,8 @@ func runPush(dockerCli *command.DockerCli, remote string) error {
 	ctx := context.Background()
 
 	// Resolve the Auth config relevant for this server
-	authConfig := dockerCli.ResolveAuthConfig(ctx, repoInfo.Index)
-	requestPrivilege := dockerCli.RegistryAuthenticationPrivilegedFunc(repoInfo.Index, "push")
+	authConfig := command.ResolveAuthConfig(ctx, dockerCli, repoInfo.Index)
+	requestPrivilege := command.RegistryAuthenticationPrivilegedFunc(dockerCli, repoInfo.Index, "push")
 
 	if command.IsTrusted() {
 		return trustedPush(ctx, dockerCli, repoInfo, ref, authConfig, requestPrivilege)
