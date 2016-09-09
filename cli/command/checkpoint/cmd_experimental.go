@@ -11,7 +11,7 @@ import (
 	"github.com/docker/docker/cli/command"
 )
 
-// NewCheckpointCommand returns a cobra command for `checkpoint` subcommands
+// NewCheckpointCommand appends the `checkpoint` subcommands to rootCmd
 func NewCheckpointCommand(rootCmd *cobra.Command, dockerCli *command.DockerCli) {
 	cmd := &cobra.Command{
 		Use:   "checkpoint",
