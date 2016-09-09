@@ -12,14 +12,9 @@ import (
 	"golang.org/x/net/context"
 )
 
-type streams interface {
-	In() *command.InStream
-	Out() *command.OutStream
-}
-
 // holdHijackedConnection handles copying input to and output from streams to the
 // connection
-func holdHijackedConnection(ctx context.Context, streams streams, tty bool, inputStream io.ReadCloser, outputStream, errorStream io.Writer, resp types.HijackedResponse) error {
+func holdHijackedConnection(ctx context.Context, streams command.Streams, tty bool, inputStream io.ReadCloser, outputStream, errorStream io.Writer, resp types.HijackedResponse) error {
 	var (
 		err         error
 		restoreOnce sync.Once
@@ -100,14 +95,14 @@ func holdHijackedConnection(ctx context.Context, streams streams, tty bool, inpu
 	return nil
 }
 
-func setRawTerminal(streams streams) error {
+func setRawTerminal(streams command.Streams) error {
 	if err := streams.In().SetRawTerminal(); err != nil {
 		return err
 	}
 	return streams.Out().SetRawTerminal()
 }
 
-func restoreTerminal(streams streams, in io.Closer) error {
+func restoreTerminal(streams command.Streams, in io.Closer) error {
 	streams.In().RestoreTerminal()
 	streams.Out().RestoreTerminal()
 	// WARNING: DO NOT REMOVE THE OS CHECK !!!

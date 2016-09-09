@@ -9,6 +9,7 @@ import (
 
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cli/command"
+	"github.com/docker/docker/cli/command/image"
 	"github.com/docker/docker/pkg/jsonmessage"
 	// FIXME migrate to docker/distribution/reference
 	"github.com/docker/docker/api/types"
@@ -169,7 +170,7 @@ func createContainer(ctx context.Context, dockerCli *command.DockerCli, config *
 
 		if ref, ok := ref.(reference.NamedTagged); ok && command.IsTrusted() {
 			var err error
-			trustedRef, err = dockerCli.TrustedReference(ctx, ref)
+			trustedRef, err = image.TrustedReference(ctx, dockerCli, ref)
 			if err != nil {
 				return nil, err
 			}
@@ -190,7 +191,7 @@ func createContainer(ctx context.Context, dockerCli *command.DockerCli, config *
 				return nil, err
 			}
 			if ref, ok := ref.(reference.NamedTagged); ok && trustedRef != nil {
-				if err := dockerCli.TagTrusted(ctx, trustedRef, ref); err != nil {
+				if err := image.TagTrusted(ctx, dockerCli, trustedRef, ref); err != nil {
 					return nil, err
 				}
 			}
