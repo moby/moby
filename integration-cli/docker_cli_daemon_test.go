@@ -1703,7 +1703,7 @@ func (s *DockerDaemonSuite) TestDaemonNoTlsCliTlsVerifyWithEnv(c *check.C) {
 	cmd.Env = []string{"DOCKER_TLS_VERIFY=1", "DOCKER_CERT_PATH=fixtures/https"}
 	out, _, err := runCommandWithOutput(cmd)
 	c.Assert(err, check.Not(check.IsNil), check.Commentf("%s", out))
-	c.Assert(strings.Contains(out, "error occurred trying to connect"), check.Equals, true)
+	c.Assert(strings.Contains(out, "error during connect"), check.Equals, true)
 
 }
 
