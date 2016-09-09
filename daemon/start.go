@@ -19,7 +19,7 @@ import (
 )
 
 // ContainerStart starts a container.
-func (daemon *Daemon) ContainerStart(name string, hostConfig *containertypes.HostConfig, validateHostname bool) error {
+func (daemon *Daemon) ContainerStart(name string, hostConfig *containertypes.HostConfig, validateHostname bool, checkpoint string) error {
 	container, err := daemon.GetContainer(name)
 	if err != nil {
 		return err
@@ -78,19 +78,19 @@ func (daemon *Daemon) ContainerStart(name string, hostConfig *containertypes.Hos
 		return err
 	}
 
-	return daemon.containerStart(container)
+	return daemon.containerStart(container, checkpoint)
 }
 
 // Start starts a container
 func (daemon *Daemon) Start(container *container.Container) error {
-	return daemon.containerStart(container)
+	return daemon.containerStart(container, "")
 }
 
 // containerStart prepares the container to run by setting up everything the
 // container needs, such as storage and networking, as well as links
 // between containers. The container is left waiting for a signal to
 // begin running.
-func (daemon *Daemon) containerStart(container *container.Container) (err error) {
+func (daemon *Daemon) containerStart(container *container.Container, checkpoint string) (err error) {
 	container.Lock()
 	defer container.Unlock()
 
@@ -150,7 +150,7 @@ func (daemon *Daemon) containerStart(container *container.Container) (err error)
 		createOptions = append(createOptions, *copts...)
 	}
 
-	if err := daemon.containerd.Create(container.ID, *spec, createOptions...); err != nil {
+	if err := daemon.containerd.Create(container.ID, checkpoint, container.CheckpointDir(), *spec, createOptions...); err != nil {
 		errDesc := grpc.ErrorDesc(err)
 		logrus.Errorf("Create container failed with error: %s", errDesc)
 		// if we receive an internal error from the initial start of a container then lets

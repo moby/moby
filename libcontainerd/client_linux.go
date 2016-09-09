@@ -133,7 +133,7 @@ func (clnt *client) prepareBundleDir(uid, gid int) (string, error) {
 	return p, nil
 }
 
-func (clnt *client) Create(containerID string, spec Spec, options ...CreateOption) (err error) {
+func (clnt *client) Create(containerID string, checkpoint string, checkpointDir string, spec Spec, options ...CreateOption) (err error) {
 	clnt.lock(containerID)
 	defer clnt.unlock(containerID)
 
@@ -180,7 +180,7 @@ func (clnt *client) Create(containerID string, spec Spec, options ...CreateOptio
 		return err
 	}
 
-	return container.start()
+	return container.start(checkpoint, checkpointDir)
 }
 
 func (clnt *client) Signal(containerID string, sig int) error {
@@ -624,4 +624,58 @@ func (en *exitNotifier) close() {
 }
 func (en *exitNotifier) wait() <-chan struct{} {
 	return en.c
+}
+
+func (clnt *client) CreateCheckpoint(containerID string, checkpointID string, checkpointDir string, exit bool) error {
+	clnt.lock(containerID)
+	defer clnt.unlock(containerID)
+	if _, err := clnt.getContainer(containerID); err != nil {
+		return err
+	}
+
+	_, err := clnt.remote.apiClient.CreateCheckpoint(context.Background(), &containerd.CreateCheckpointRequest{
+		Id: containerID,
+		Checkpoint: &containerd.Checkpoint{
+			Name:        checkpointID,
+			Exit:        exit,
+			Tcp:         true,
+			UnixSockets: true,
+			Shell:       false,
+			EmptyNS:     []string{"network"},
+		},
+		CheckpointDir: checkpointDir,
+	})
+	return err
+}
+
+func (clnt *client) DeleteCheckpoint(containerID string, checkpointID string, checkpointDir string) error {
+	clnt.lock(containerID)
+	defer clnt.unlock(containerID)
+	if _, err := clnt.getContainer(containerID); err != nil {
+		return err
+	}
+
+	_, err := clnt.remote.apiClient.DeleteCheckpoint(context.Background(), &containerd.DeleteCheckpointRequest{
+		Id:            containerID,
+		Name:          checkpointID,
+		CheckpointDir: checkpointDir,
+	})
+	return err
+}
+
+func (clnt *client) ListCheckpoints(containerID string, checkpointDir string) (*Checkpoints, error) {
+	clnt.lock(containerID)
+	defer clnt.unlock(containerID)
+	if _, err := clnt.getContainer(containerID); err != nil {
+		return nil, err
+	}
+
+	resp, err := clnt.remote.apiClient.ListCheckpoint(context.Background(), &containerd.ListCheckpointRequest{
+		Id:            containerID,
+		CheckpointDir: checkpointDir,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return (*Checkpoints)(resp), nil
 }

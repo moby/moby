@@ -37,3 +37,13 @@ type Resources struct{}
 type ServicingOption struct {
 	IsServicing bool
 }
+
+// Checkpoint holds the details of a checkpoint (not supported in windows)
+type Checkpoint struct {
+	Name string
+}
+
+// Checkpoints contains the details of a checkpoint
+type Checkpoints struct {
+	Checkpoints []*Checkpoint
+}

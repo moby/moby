@@ -20,6 +20,7 @@ type startOptions struct {
 	attach     bool
 	openStdin  bool
 	detachKeys string
+	checkpoint string
 
 	containers []string
 }
@@ -42,6 +43,9 @@ func NewStartCommand(dockerCli *command.DockerCli) *cobra.Command {
 	flags.BoolVarP(&opts.attach, "attach", "a", false, "Attach STDOUT/STDERR and forward signals")
 	flags.BoolVarP(&opts.openStdin, "interactive", "i", false, "Attach container's STDIN")
 	flags.StringVar(&opts.detachKeys, "detach-keys", "", "Override the key sequence for detaching a container")
+
+	addExperimentalStartFlags(flags, &opts)
+
 	return cmd
 }
 
@@ -105,9 +109,12 @@ func runStart(dockerCli *command.DockerCli, opts *startOptions) error {
 		// 3. We should open a channel for receiving status code of the container
 		// no matter it's detached, removed on daemon side(--rm) or exit normally.
 		statusChan, statusErr := waitExitOrRemoved(dockerCli, context.Background(), c.ID, c.HostConfig.AutoRemove)
+		startOptions := types.ContainerStartOptions{
+			CheckpointID: opts.checkpoint,
+		}
 
 		// 4. Start the container.
-		if err := dockerCli.Client().ContainerStart(ctx, c.ID, types.ContainerStartOptions{}); err != nil {
+		if err := dockerCli.Client().ContainerStart(ctx, c.ID, startOptions); err != nil {
 			cancelFun()
 			<-cErr
 			if c.HostConfig.AutoRemove && statusErr == nil {
@@ -134,6 +141,16 @@ func runStart(dockerCli *command.DockerCli, opts *startOptions) error {
 		if status := <-statusChan; status != 0 {
 			return cli.StatusError{StatusCode: status}
 		}
+	} else if opts.checkpoint != "" {
+		if len(opts.containers) > 1 {
+			return fmt.Errorf("You cannot restore multiple containers at once.")
+		}
+		container := opts.containers[0]
+		startOptions := types.ContainerStartOptions{
+			CheckpointID: opts.checkpoint,
+		}
+		return dockerCli.Client().ContainerStart(ctx, container, startOptions)
+
 	} else {
 		// We're not going to attach to anything.
 		// Start as many containers as we want.

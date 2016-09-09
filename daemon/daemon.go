@@ -287,7 +287,7 @@ func (daemon *Daemon) restore() error {
 
 			// Make sure networks are available before starting
 			daemon.waitForNetworks(c)
-			if err := daemon.containerStart(c); err != nil {
+			if err := daemon.containerStart(c, ""); err != nil {
 				logrus.Errorf("Failed to start container %s: %s", c.ID, err)
 			}
 			close(chNotify)

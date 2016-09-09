@@ -12,7 +12,7 @@ func (clnt *client) AddProcess(ctx context.Context, containerID, processFriendly
 	return nil
 }
 
-func (clnt *client) Create(containerID string, spec Spec, options ...CreateOption) (err error) {
+func (clnt *client) Create(containerID string, checkpoint string, checkpointDir string, spec Spec, options ...CreateOption) (err error) {
 	return nil
 }
 

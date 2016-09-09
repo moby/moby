@@ -53,3 +53,6 @@ type User specs.User
 
 // Resources defines updatable container resource values.
 type Resources containerd.UpdateResource
+
+// Checkpoints contains the details of a checkpoint
+type Checkpoints containerd.ListCheckpointResponse

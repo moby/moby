@@ -57,12 +57,17 @@ RUN apt-get update && apt-get install -y \
 	libapparmor-dev \
 	libcap-dev \
 	libltdl-dev \
+	libnl-3-dev \
+	libprotobuf-c0-dev \
+	libprotobuf-dev	\
 	libsqlite3-dev \
 	libsystemd-journal-dev \
 	libtool \
 	mercurial \
 	net-tools \
 	pkg-config \
+	protobuf-compiler \
+	protobuf-c-compiler \
 	python-dev \
 	python-mock \
 	python-pip \
@@ -144,6 +149,14 @@ ENV GO_LINT_COMMIT 32a87160691b3c96046c0c678fe57c5bef761456
 RUN git clone https://github.com/golang/lint.git /go/src/github.com/golang/lint \
 	&& (cd /go/src/github.com/golang/lint && git checkout -q $GO_LINT_COMMIT) \
 	&& go install -v github.com/golang/lint/golint
+
+# Install CRIU for checkpoint/restore support
+ENV CRIU_VERSION 2.2
+RUN mkdir -p /usr/src/criu \
+	&& curl -sSL https://github.com/xemul/criu/archive/v${CRIU_VERSION}.tar.gz | tar -v -C /usr/src/criu/ -xz --strip-components=1 \
+	&& cd /usr/src/criu \
+	&& make \
+	&& make install-criu
 
 # Install two versions of the registry. The first is an older version that
 # only supports schema1 manifests. The second is a newer version that supports
@@ -230,7 +243,7 @@ RUN set -x \
 	&& rm -rf "$GOPATH"
 
 # Install containerd
-ENV CONTAINERD_COMMIT 8508d2bec90b96403143a1104cdcbd56f6aeb361
+ENV CONTAINERD_COMMIT 35a736c471ccd3ebfc7b80ceeb0ee303129acd61
 RUN set -x \
 	&& export GOPATH="$(mktemp -d)" \
 	&& git clone https://github.com/docker/containerd.git "$GOPATH/src/github.com/docker/containerd" \
