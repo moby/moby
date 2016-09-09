@@ -15,7 +15,7 @@ import (
 
 func TestNetworkDisconnectError(t *testing.T) {
 	client := &Client{
-		transport: newMockClient(nil, errorMock(http.StatusInternalServerError, "Server error")),
+		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 
 	err := client.NetworkDisconnect(context.Background(), "network_id", "container_id", false)
@@ -28,7 +28,7 @@ func TestNetworkDisconnect(t *testing.T) {
 	expectedURL := "/networks/network_id/disconnect"
 
 	client := &Client{
-		transport: newMockClient(nil, func(req *http.Request) (*http.Response, error) {
+		client: newMockClient(func(req *http.Request) (*http.Response, error) {
 			if !strings.HasPrefix(req.URL.Path, expectedURL) {
 				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
 			}

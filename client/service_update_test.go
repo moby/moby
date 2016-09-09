@@ -16,7 +16,7 @@ import (
 
 func TestServiceUpdateError(t *testing.T) {
 	client := &Client{
-		transport: newMockClient(nil, errorMock(http.StatusInternalServerError, "Server error")),
+		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 
 	err := client.ServiceUpdate(context.Background(), "service_id", swarm.Version{}, swarm.ServiceSpec{}, types.ServiceUpdateOptions{})
@@ -51,7 +51,7 @@ func TestServiceUpdate(t *testing.T) {
 
 	for _, updateCase := range updateCases {
 		client := &Client{
-			transport: newMockClient(nil, func(req *http.Request) (*http.Response, error) {
+			client: newMockClient(func(req *http.Request) (*http.Response, error) {
 				if !strings.HasPrefix(req.URL.Path, expectedURL) {
 					return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
 				}

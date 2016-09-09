@@ -13,9 +13,9 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/versions"
-	"github.com/docker/docker/client/transport/cancellable"
 	"github.com/pkg/errors"
 	"golang.org/x/net/context"
+	"golang.org/x/net/context/ctxhttp"
 )
 
 // serverResponse is a wrapper for http API responses.
@@ -98,20 +98,27 @@ func (cli *Client) sendClientRequest(ctx context.Context, method, path string, q
 		// need a valid and meaningful host name. (See #189)
 		req.Host = "docker"
 	}
+
+	scheme, err := resolveScheme(cli.client.Transport)
+	if err != nil {
+		return serverResp, err
+	}
+
 	req.URL.Host = cli.addr
-	req.URL.Scheme = cli.transport.Scheme()
+	req.URL.Scheme = scheme
 
 	if expectedPayload && req.Header.Get("Content-Type") == "" {
 		req.Header.Set("Content-Type", "text/plain")
 	}
 
-	resp, err := cancellable.Do(ctx, cli.transport, req)
+	resp, err := ctxhttp.Do(ctx, cli.client, req)
 	if err != nil {
-		if !cli.transport.Secure() && strings.Contains(err.Error(), "malformed HTTP response") {
+
+		if scheme == "https" && strings.Contains(err.Error(), "malformed HTTP response") {
 			return serverResp, fmt.Errorf("%v.\n* Are you trying to connect to a TLS-enabled daemon without TLS?", err)
 		}
 
-		if cli.transport.Secure() && strings.Contains(err.Error(), "bad certificate") {
+		if scheme == "https" && strings.Contains(err.Error(), "bad certificate") {
 			return serverResp, fmt.Errorf("The server probably has client authentication (--tlsverify) enabled. Please check your TLS client certification settings: %v", err)
 		}
 

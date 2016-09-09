@@ -18,7 +18,7 @@ import (
 
 func TestImageSearchAnyError(t *testing.T) {
 	client := &Client{
-		transport: newMockClient(nil, errorMock(http.StatusInternalServerError, "Server error")),
+		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 	_, err := client.ImageSearch(context.Background(), "some-image", types.ImageSearchOptions{})
 	if err == nil || err.Error() != "Error response from daemon: Server error" {
@@ -28,7 +28,7 @@ func TestImageSearchAnyError(t *testing.T) {
 
 func TestImageSearchStatusUnauthorizedError(t *testing.T) {
 	client := &Client{
-		transport: newMockClient(nil, errorMock(http.StatusUnauthorized, "Unauthorized error")),
+		client: newMockClient(errorMock(http.StatusUnauthorized, "Unauthorized error")),
 	}
 	_, err := client.ImageSearch(context.Background(), "some-image", types.ImageSearchOptions{})
 	if err == nil || err.Error() != "Error response from daemon: Unauthorized error" {
@@ -38,7 +38,7 @@ func TestImageSearchStatusUnauthorizedError(t *testing.T) {
 
 func TestImageSearchWithUnauthorizedErrorAndPrivilegeFuncError(t *testing.T) {
 	client := &Client{
-		transport: newMockClient(nil, errorMock(http.StatusUnauthorized, "Unauthorized error")),
+		client: newMockClient(errorMock(http.StatusUnauthorized, "Unauthorized error")),
 	}
 	privilegeFunc := func() (string, error) {
 		return "", fmt.Errorf("Error requesting privilege")
@@ -53,7 +53,7 @@ func TestImageSearchWithUnauthorizedErrorAndPrivilegeFuncError(t *testing.T) {
 
 func TestImageSearchWithUnauthorizedErrorAndAnotherUnauthorizedError(t *testing.T) {
 	client := &Client{
-		transport: newMockClient(nil, errorMock(http.StatusUnauthorized, "Unauthorized error")),
+		client: newMockClient(errorMock(http.StatusUnauthorized, "Unauthorized error")),
 	}
 	privilegeFunc := func() (string, error) {
 		return "a-auth-header", nil
@@ -69,7 +69,7 @@ func TestImageSearchWithUnauthorizedErrorAndAnotherUnauthorizedError(t *testing.
 func TestImageSearchWithPrivilegedFuncNoError(t *testing.T) {
 	expectedURL := "/images/search"
 	client := &Client{
-		transport: newMockClient(nil, func(req *http.Request) (*http.Response, error) {
+		client: newMockClient(func(req *http.Request) (*http.Response, error) {
 			if !strings.HasPrefix(req.URL.Path, expectedURL) {
 				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
 			}
@@ -126,7 +126,7 @@ func TestImageSearchWithoutErrors(t *testing.T) {
 	expectedFilters := `{"is-automated":{"true":true},"stars":{"3":true}}`
 
 	client := &Client{
-		transport: newMockClient(nil, func(req *http.Request) (*http.Response, error) {
+		client: newMockClient(func(req *http.Request) (*http.Response, error) {
 			if !strings.HasPrefix(req.URL.Path, expectedURL) {
 				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
 			}

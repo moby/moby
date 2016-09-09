@@ -16,7 +16,7 @@ import (
 
 func TestContainerCreateError(t *testing.T) {
 	client := &Client{
-		transport: newMockClient(nil, errorMock(http.StatusInternalServerError, "Server error")),
+		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 	_, err := client.ContainerCreate(context.Background(), nil, nil, nil, "nothing")
 	if err == nil || err.Error() != "Error response from daemon: Server error" {
@@ -25,7 +25,7 @@ func TestContainerCreateError(t *testing.T) {
 
 	// 404 doesn't automagitally means an unknown image
 	client = &Client{
-		transport: newMockClient(nil, errorMock(http.StatusNotFound, "Server error")),
+		client: newMockClient(errorMock(http.StatusNotFound, "Server error")),
 	}
 	_, err = client.ContainerCreate(context.Background(), nil, nil, nil, "nothing")
 	if err == nil || err.Error() != "Error response from daemon: Server error" {
@@ -35,7 +35,7 @@ func TestContainerCreateError(t *testing.T) {
 
 func TestContainerCreateImageNotFound(t *testing.T) {
 	client := &Client{
-		transport: newMockClient(nil, errorMock(http.StatusNotFound, "No such image")),
+		client: newMockClient(errorMock(http.StatusNotFound, "No such image")),
 	}
 	_, err := client.ContainerCreate(context.Background(), &container.Config{Image: "unknown_image"}, nil, nil, "unknown")
 	if err == nil || !IsErrImageNotFound(err) {
@@ -46,7 +46,7 @@ func TestContainerCreateImageNotFound(t *testing.T) {
 func TestContainerCreateWithName(t *testing.T) {
 	expectedURL := "/containers/create"
 	client := &Client{
-		transport: newMockClient(nil, func(req *http.Request) (*http.Response, error) {
+		client: newMockClient(func(req *http.Request) (*http.Response, error) {
 			if !strings.HasPrefix(req.URL.Path, expectedURL) {
 				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
 			}
