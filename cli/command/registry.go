@@ -36,7 +36,6 @@ func (cli *DockerCli) ElectAuthServer(ctx context.Context) string {
 }
 
 // EncodeAuthToBase64 serializes the auth configuration as JSON base64 payload
-// TODO: move to client/encode ?
 func EncodeAuthToBase64(authConfig types.AuthConfig) (string, error) {
 	buf, err := json.Marshal(authConfig)
 	if err != nil {
@@ -71,7 +70,7 @@ func (cli *DockerCli) ResolveAuthConfig(ctx context.Context, index *registrytype
 		configKey = cli.ElectAuthServer(ctx)
 	}
 
-	a, _ := GetCredentials(cli.configFile, configKey)
+	a, _ := cli.CredentialsStore().Get(configKey)
 	return a
 }
 
@@ -87,7 +86,7 @@ func (cli *DockerCli) ConfigureAuth(flUser, flPassword, serverAddress string, is
 		serverAddress = registry.ConvertToHostname(serverAddress)
 	}
 
-	authconfig, err := GetCredentials(cli.configFile, serverAddress)
+	authconfig, err := cli.CredentialsStore().Get(serverAddress)
 	if err != nil {
 		return authconfig, err
 	}
