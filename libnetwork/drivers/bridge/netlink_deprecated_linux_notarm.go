@@ -1,4 +1,4 @@
-// +build !arm,!ppc64,!ppc64le,!s390x
+// +build !arm,!ppc64,!ppc64le
 
 package bridge
 
