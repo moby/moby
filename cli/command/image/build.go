@@ -266,6 +266,7 @@ func runBuild(dockerCli *command.DockerCli, options buildOptions) error {
 		}
 	}
 
+	authConfig, _ := dockerCli.CredentialsStore().GetAll()
 	buildOptions := types.ImageBuildOptions{
 		Memory:         memory,
 		MemorySwap:     memorySwap,
@@ -286,7 +287,7 @@ func runBuild(dockerCli *command.DockerCli, options buildOptions) error {
 		ShmSize:        shmSize,
 		Ulimits:        options.ulimits.GetList(),
 		BuildArgs:      runconfigopts.ConvertKVStringsToMap(options.buildArgs.GetAll()),
-		AuthConfigs:    dockerCli.RetrieveAuthConfigs(),
+		AuthConfigs:    authConfig,
 		Labels:         runconfigopts.ConvertKVStringsToMap(options.labels),
 	}
 

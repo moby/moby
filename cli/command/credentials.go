@@ -13,13 +13,6 @@ func GetCredentials(c *configfile.ConfigFile, serverAddress string) (types.AuthC
 	return s.Get(serverAddress)
 }
 
-// GetAllCredentials loads all credentials from a credentials store.
-// The store is determined by the config file settings.
-func GetAllCredentials(c *configfile.ConfigFile) (map[string]types.AuthConfig, error) {
-	s := LoadCredentialsStore(c)
-	return s.GetAll()
-}
-
 // StoreCredentials saves the user credentials in a credentials store.
 // The store is determined by the config file settings.
 func StoreCredentials(c *configfile.ConfigFile, auth types.AuthConfig) error {
