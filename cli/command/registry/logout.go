@@ -35,7 +35,7 @@ func runLogout(dockerCli *command.DockerCli, serverAddress string) error {
 	var isDefaultRegistry bool
 
 	if serverAddress == "" {
-		serverAddress = dockerCli.ElectAuthServer(ctx)
+		serverAddress = command.ElectAuthServer(ctx, dockerCli)
 		isDefaultRegistry = true
 	}
 

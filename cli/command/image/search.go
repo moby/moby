@@ -66,8 +66,8 @@ func runSearch(dockerCli *command.DockerCli, opts searchOptions) error {
 
 	ctx := context.Background()
 
-	authConfig := dockerCli.ResolveAuthConfig(ctx, indexInfo)
-	requestPrivilege := dockerCli.RegistryAuthenticationPrivilegedFunc(indexInfo, "search")
+	authConfig := command.ResolveAuthConfig(ctx, dockerCli, indexInfo)
+	requestPrivilege := command.RegistryAuthenticationPrivilegedFunc(dockerCli, indexInfo, "search")
 
 	encodedAuth, err := command.EncodeAuthToBase64(authConfig)
 	if err != nil {
