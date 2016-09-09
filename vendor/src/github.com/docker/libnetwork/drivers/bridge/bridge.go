@@ -70,7 +70,18 @@ type networkConfiguration struct {
 	dbIndex            uint64
 	dbExists           bool
 	Internal           bool
+
+	BridgeIfaceCreator ifaceCreator
 }
+
+// ifaceCreator represents how the bridge interface was created
+type ifaceCreator int8
+
+const (
+	ifaceCreatorUnknown ifaceCreator = iota
+	ifaceCreatedByLibnetwork
+	ifaceCreatedByUser
+)
 
 // endpointConfiguration represents the user specified configuration for the sandbox endpoint
 type endpointConfiguration struct {
@@ -512,6 +523,17 @@ func parseNetworkOptions(id string, option options.Generic) (*networkConfigurati
 		config.BridgeName = "br-" + id[:12]
 	}
 
+	exists, err := bridgeInterfaceExists(config.BridgeName)
+	if err != nil {
+		return nil, err
+	}
+
+	if !exists {
+		config.BridgeIfaceCreator = ifaceCreatedByLibnetwork
+	} else {
+		config.BridgeIfaceCreator = ifaceCreatedByUser
+	}
+
 	config.ID = id
 	return config, nil
 }
@@ -778,11 +800,17 @@ func (d *driver) DeleteNetwork(nid string) error {
 		return err
 	}
 
-	// We only delete the bridge when it's not the default bridge. This is keep the backward compatible behavior.
-	if !config.DefaultBridge {
-		if err := d.nlh.LinkDel(n.bridge.Link); err != nil {
-			logrus.Warnf("Failed to remove bridge interface %s on network %s delete: %v", config.BridgeName, nid, err)
+	switch config.BridgeIfaceCreator {
+	case ifaceCreatedByLibnetwork, ifaceCreatorUnknown:
+		// We only delete the bridge if it was created by the bridge driver and
+		// it is not the default one (to keep the backward compatible behavior.)
+		if !config.DefaultBridge {
+			if err := d.nlh.LinkDel(n.bridge.Link); err != nil {
+				logrus.Warnf("Failed to remove bridge interface %s on network %s delete: %v", config.BridgeName, nid, err)
+			}
 		}
+	case ifaceCreatedByUser:
+		// Don't delete the bridge interface if it was not created by libnetwork.
 	}
 
 	// clean all relevant iptables rules
