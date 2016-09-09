@@ -2,8 +2,10 @@ package bridge
 
 import (
 	"fmt"
+	"strings"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/docker/libnetwork/ns"
 	"github.com/docker/libnetwork/types"
 	"github.com/vishvananda/netlink"
 )
@@ -50,4 +52,20 @@ func findIPv6Address(addr netlink.Addr, addresses []netlink.Addr) bool {
 		}
 	}
 	return false
+}
+
+func bridgeInterfaceExists(name string) (bool, error) {
+	nlh := ns.NlHandle()
+	link, err := nlh.LinkByName(name)
+	if err != nil {
+		if strings.Contains(err.Error(), "Link not found") {
+			return false, nil
+		}
+		return false, fmt.Errorf("failed to check bridge interface existence: %v", err)
+	}
+
+	if link.Type() == "bridge" {
+		return true, nil
+	}
+	return false, fmt.Errorf("existing interface %s is not a bridge", name)
 }
