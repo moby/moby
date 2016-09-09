@@ -1311,9 +1311,10 @@ definitions:
           - Entrypoint
           - Workdir
           - Network
-          - Capabilities
+          - Linux
           - Mounts
           - Devices
+          - DeviceCreation
           - Env
           - Args
         properties:
@@ -1361,10 +1362,15 @@ definitions:
               Type:
                 x-nullable: false
                 type: "string"
-          Capabilities:
-            type: "array"
-            items:
-              type: "string"
+          Linux:
+            type: "object"
+            x-nullable: false
+            required: [Capabilities]
+            properties:
+              Capabilities:
+                type: "array"
+                items:
+                  type: "string"
           Mounts:
             type: "array"
             items:
@@ -1373,6 +1379,9 @@ definitions:
             type: "array"
             items:
               $ref: "#/definitions/PluginDevice"
+          DeviceCreation:
+            type: "boolean"
+            x-nullable: false
           Env:
             type: "array"
             items:
