@@ -165,7 +165,7 @@ func checkSystem() error {
 		return fmt.Errorf("This version of Windows does not support the docker daemon")
 	}
 	if osv.Build < 14300 {
-		return fmt.Errorf("The Windows daemon requires Windows Server 2016 Technical Preview 5 build 14300 or later")
+		return fmt.Errorf("The docker daemon requires Windows Server 2016 Technical Preview 5 build 14300 or later")
 	}
 	return nil
 }
