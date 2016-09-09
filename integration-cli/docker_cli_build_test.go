@@ -3022,14 +3022,17 @@ func (s *DockerSuite) TestBuildOnBuild(c *check.C) {
 
 // gh #2446
 func (s *DockerSuite) TestBuildAddToSymlinkDest(c *check.C) {
-	testRequires(c, DaemonIsLinux)
+	makeLink := `ln -s /foo /bar`
+	if daemonPlatform == "windows" {
+		makeLink = `mklink /D C:\bar C:\foo`
+	}
 	name := "testbuildaddtosymlinkdest"
 	ctx, err := fakeContext(`FROM busybox
-        RUN mkdir /foo
-        RUN ln -s /foo /bar
+        RUN sh -c "mkdir /foo"
+        RUN `+makeLink+`
         ADD foo /bar/
-        RUN [ -f /bar/foo ]
-        RUN [ -f /foo/foo ]`,
+        RUN sh -c "[ -f /bar/foo ]"
+        RUN sh -c "[ -f /foo/foo ]"`,
 		map[string]string{
 			"foo": "hello",
 		})
