@@ -95,20 +95,11 @@ RUN cd /usr/local/lvm2 \
 	&& make install_device-mapper
 # see https://git.fedorahosted.org/cgit/lvm2.git/tree/INSTALL
 
-## BUILD GOLANG 1.7 with existing gccgo
-
 ENV GO_VERSION 1.7.1
-ENV GO_DOWNLOAD_URL https://golang.org/dl/go${GO_VERSION}.src.tar.gz
-ENV GOROOT_BOOTSTRAP /usr/local
+RUN curl -fsSL "https://storage.googleapis.com/golang/go${GO_VERSION}.linux-s390x.tar.gz" \
+	| tar -xzC /usr/local
 
-RUN curl -fsSL "$GO_DOWNLOAD_URL" -o golang.tar.gz \
-    && tar -C /usr/src -xzf golang.tar.gz \
-    && rm golang.tar.gz \
-    && cd /usr/src/go/src && ./make.bash 2>&1
-
-ENV GOROOT_BOOTSTRAP /usr/src/
-
-ENV PATH /usr/src/go/bin/:/go/bin:$PATH
+ENV PATH /go/bin:/usr/local/go/bin:$PATH
 ENV GOPATH /go:/go/src/github.com/docker/docker/vendor
 
 # Dependency for golint
