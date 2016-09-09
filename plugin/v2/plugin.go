@@ -310,6 +310,34 @@ func (p *Plugin) InitSpec(s specs.Spec, libRoot string) (*specs.Spec, error) {
 		Type:        "bind",
 		Options:     []string{"rbind", "rshared"},
 	})
+
+	if p.PluginObj.Config.Network.Type != "" {
+		// TODO: if net == bridge, use libnetwork controller to create a new plugin-specific bridge, bind mount /etc/hosts and /etc/resolv.conf look at the docker code (allocateNetwork, initialize)
+		if p.PluginObj.Config.Network.Type == "host" {
+			for i, n := range s.Linux.Namespaces {
+				if n.Type == "network" {
+					s.Linux.Namespaces = append(s.Linux.Namespaces[:i], s.Linux.Namespaces[i+1:]...)
+					break
+				}
+			}
+		}
+		etcHosts := "/etc/hosts"
+		resolvConf := "/etc/resolv.conf"
+		mounts = append(mounts,
+			types.PluginMount{
+				Source:      &etcHosts,
+				Destination: etcHosts,
+				Type:        "bind",
+				Options:     []string{"rbind", "ro"},
+			},
+			types.PluginMount{
+				Source:      &resolvConf,
+				Destination: resolvConf,
+				Type:        "bind",
+				Options:     []string{"rbind", "ro"},
+			})
+	}
+
 	for _, mount := range mounts {
 		m := specs.Mount{
 			Destination: mount.Destination,
