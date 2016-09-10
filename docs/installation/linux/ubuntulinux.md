@@ -232,7 +232,9 @@ install Docker using the following:
 
     This command downloads a test image and runs it in a container. When the
     container runs, it prints an informational message. Then, it exits.
-
+    >**Note**: Suggest that you should exclude /var/lib/docker from your backup software
+    > to avoid running out of your space.
+    
 ## Optional configurations
 
 This section contains optional procedures for configuring your Ubuntu to work
