@@ -44,7 +44,10 @@ Windows](index.md#use-docker-for-mac-or-docker-for-windows) with Swarm.
         --token SWMTKN-1-49nj1cmql0jkz5s954yi3oex3nedyz0fb0xx14ie39trti4wxv-8vxv8rssmk743ojnwacrr2e7c \
         192.168.99.100:2377
 
-    To add a manager to this swarm, run 'docker swarm join-token manager' and follow the instructions.
+    To add a manager to this swarm, run the following command:
+    	docker swarm join \
+    	--token SWMTKN-1-49nj1cmql0jkz5s954yi3oex3nedyz0fb0xx14ie39trti4wxv-0tk3v1qukd2oh9su7jq3hw3d2 \
+        192.168.99.100:2377
     ```
 
     The `--advertise-addr` flag configures the manager node to publish its
