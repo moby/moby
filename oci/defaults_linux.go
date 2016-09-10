@@ -2,6 +2,7 @@ package oci
 
 import (
 	"os"
+	"os/exec"
 	"runtime"
 
 	"github.com/opencontainers/runtime-spec/specs-go"
@@ -59,6 +60,14 @@ func DefaultSpec() specs.Spec {
 			Options:     []string{"nosuid", "noexec", "nodev"},
 		},
 	}
+
+	path, _ := exec.LookPath("docker-init")
+	s.Mounts = append(s.Mounts, specs.Mount{
+		Destination: "/.dockerinit",
+		Type:        "bind",
+		Source:      path,
+		Options:     []string{"bind", "rw"},
+	})
 
 	s.Process.Capabilities = []string{
 		"CAP_CHOWN",

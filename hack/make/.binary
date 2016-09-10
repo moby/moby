@@ -40,6 +40,9 @@ go build \
 		$LDFLAGS_STATIC_DOCKER
 	" \
 	$SOURCE_PATH
+
+    # i don't know what i'm doing in these files
+    gcc -o "$DEST/docker-init" -static init/init.c
 )
 
 echo "Created binary: $DEST/$BINARY_FULLNAME"

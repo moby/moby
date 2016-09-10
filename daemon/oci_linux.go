@@ -584,7 +584,7 @@ func (daemon *Daemon) populateCommonSpec(s *specs.Spec, c *container.Container) 
 	if len(cwd) == 0 {
 		cwd = "/"
 	}
-	s.Process.Args = append([]string{c.Path}, c.Args...)
+	s.Process.Args = append([]string{"/.dockerinit", c.Path}, c.Args...)
 	s.Process.Cwd = cwd
 	s.Process.Env = c.CreateDaemonEnvironment(linkedEnv)
 	s.Process.Terminal = c.Config.Tty
