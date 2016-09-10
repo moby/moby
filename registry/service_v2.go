@@ -44,13 +44,34 @@ func (s *DefaultService) lookupV2Endpoints(hostname string) (endpoints []APIEndp
 		return endpoints, nil
 	}
 
+	for _, mirror := range s.config.Mirrors {
+                        if !strings.HasPrefix(mirror, "http://") && !strings.HasPrefix(mirror, "https://") {
+                                mirror = "https://" + mirror
+                        }
+                        mirrorURL, err := url.Parse(mirror)
+                        if err != nil {
+                                return nil, err
+                        }
+                        mirrorTLSConfig, err := s.tlsConfigForMirror(mirrorURL)
+                        if err != nil {
+                                return nil, err
+                        }
+                        endpoints = append(endpoints, APIEndpoint{
+                                URL: mirrorURL,
+                                // guess mirrors are v2
+                                Version:      APIVersion2,
+                                Mirror:       true,
+                                TrimHostname: true,
+                                TLSConfig:    mirrorTLSConfig,
+                        })
+	}
+	
 	tlsConfig, err = s.TLSConfig(hostname)
 	if err != nil {
 		return nil, err
 	}
 
-	endpoints = []APIEndpoint{
-		{
+	endpoints = append(endpoints, APIEndpoint{
 			URL: &url.URL{
 				Scheme: "https",
 				Host:   hostname,
@@ -58,8 +79,8 @@ func (s *DefaultService) lookupV2Endpoints(hostname string) (endpoints []APIEndp
 			Version:      APIVersion2,
 			TrimHostname: true,
 			TLSConfig:    tlsConfig,
-		},
-	}
+	})
+
 
 	if tlsConfig.InsecureSkipVerify {
 		endpoints = append(endpoints, APIEndpoint{
