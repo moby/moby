@@ -94,24 +94,53 @@ func (s *statsCollector) unsubscribe(c *container.Container, ch chan interface{}
 	s.m.Unlock()
 }
 
-func (s *statsCollector) run() {
-	type publishersPair struct {
-		container *container.Container
-		publisher *pubsub.Publisher
+type publishersPair struct {
+	container *container.Container
+	publisher *pubsub.Publisher
+	wg        *sync.WaitGroup
+	usage     uint64
+}
+
+func (s *statsCollector) worker(c chan *publishersPair) {
+	for pair := range c {
+		stats, err := s.supervisor.GetContainerStats(pair.container)
+		if err != nil {
+			if _, ok := err.(errNotRunning); !ok {
+				logrus.Errorf("collecting stats for %s: %v", pair.container.ID, err)
+			}
+			pair.wg.Done()
+			continue
+		}
+		// FIXME: move to containerd
+		stats.CPUStats.SystemUsage = pair.usage
+
+		pair.publisher.Publish(*stats)
+		pair.wg.Done()
 	}
+}
+
+func (s *statsCollector) run() {
 	// we cannot determine the capacity here.
 	// it will grow enough in first iteration
-	var pairs []publishersPair
+	var (
+		pairs []*publishersPair
+		c     = make(chan *publishersPair, 10)
+	)
+	for i := 0; i < 10; i++ {
+		go s.worker(c)
+	}
 
 	for range time.Tick(s.interval) {
 		// it does not make sense in the first iteration,
 		// but saves allocations in further iterations
 		pairs = pairs[:0]
 
+		wg := &sync.WaitGroup{}
+
 		s.m.Lock()
 		for container, publisher := range s.publishers {
 			// copy pointers here to release the lock ASAP
-			pairs = append(pairs, publishersPair{container, publisher})
+			pairs = append(pairs, &publishersPair{container, publisher, wg, 0})
 		}
 		s.m.Unlock()
 		if len(pairs) == 0 {
@@ -125,19 +154,14 @@ func (s *statsCollector) run() {
 		}
 
 		for _, pair := range pairs {
-			stats, err := s.supervisor.GetContainerStats(pair.container)
-			if err != nil {
-				if _, ok := err.(errNotRunning); !ok {
-					logrus.Errorf("collecting stats for %s: %v", pair.container.ID, err)
-				}
-				continue
-			}
-			// FIXME: move to containerd
-			stats.CPUStats.SystemUsage = systemUsage
-
-			pair.publisher.Publish(*stats)
+			wg.Add(1)
+			pair.usage = systemUsage
+			c <- pair
 		}
+		wg.Wait()
+
 	}
+	close(c)
 }
 
 const nanoSecondsPerSecond = 1e9
