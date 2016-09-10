@@ -772,6 +772,21 @@ func (s *DockerNetworkSuite) TestDockerNetworkDriverOptions(c *check.C) {
 
 }
 
+func (s *DockerNetworkSuite) TestDockerNetworkDriverInfo(c *check.C) {
+	dockerCmd(c, "network", "create", "-d", dummyNetworkDriver, "testinfo")
+	assertNwIsAvailable(c, "testinfo")
+
+	out, _ := dockerCmd(c, "info")
+	temp := strings.Split(out, "\n")
+	for _, s := range temp {
+		if strings.HasPrefix(strings.TrimSpace(s), "Network:") {
+			c.Assert(s, checker.Contains, dummyNetworkDriver)
+			return
+		}
+	}
+	c.Error("Failed to match on plugin name in docker info")
+
+}
 func (s *DockerDaemonSuite) TestDockerNetworkNoDiscoveryDefaultBridgeNetwork(c *check.C) {
 	testRequires(c, ExecSupport)
 	// On default bridge network built-in service discovery should not happen

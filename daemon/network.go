@@ -11,6 +11,7 @@ import (
 	"github.com/docker/docker/api/types/network"
 	clustertypes "github.com/docker/docker/daemon/cluster/provider"
 	"github.com/docker/docker/errors"
+	"github.com/docker/docker/pkg/plugins"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/libnetwork"
 	networktypes "github.com/docker/libnetwork/types"
@@ -375,6 +376,11 @@ func (daemon *Daemon) GetNetworkDriverList() []string {
 	pluginList = append(pluginList, "overlay")
 
 	sort.Strings(pluginList)
+
+	remotes, _ := plugins.GetAll("NetworkDriver")
+	for _, remote := range remotes {
+		pluginList[remote.Name()] = true
+	}
 
 	return pluginList
 }
