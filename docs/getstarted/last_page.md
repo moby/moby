@@ -59,7 +59,7 @@ Depending on your interest, the Docker documentation contains a wealth of inform
   </tr>
   <tr>
     <td class="tg-031e">How to run a multi-container application with Compose</td>
-    <td class="tg-031e"> [Docker Compose documentation](/compose/overview.md)
+    <td class="tg-031e"> [Docker Compose documentation](https://docs.docker.com/compose/)
     </td>
   </tr>
 </table>
