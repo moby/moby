@@ -135,7 +135,7 @@ Swarm mode lets you network services in a couple of ways:
 
 ### Publish ports externally to the swarm
 
-You publish service ports externally to the swarm using the `--publish
+You publish service ports externally to the swarm using the `--publish-add
 <TARGET-PORT>:<SERVICE-PORT>` flag. When you publish a service port, the swarm
 makes the service accessible at the target port on every node regardless if
 there is a task for the service running on the node.
@@ -144,7 +144,7 @@ For example, imagine you want to deploy a 3-replica nginx service to a 10-node
 swarm as follows:
 
 ```bash
-docker service create --name my_web --replicas 3 --publish 8080:80 nginx
+docker service create --name my_web --replicas 3 --publish-add 8080:80 nginx
 ```
 
 The scheduler will deploy nginx tasks to a maximum of 3 nodes. However, the
@@ -181,6 +181,8 @@ Commercial support is available at
 </body>
 </html>
 ```
+
+Published ports can be un-published with `--publish-rm`.
 
 ### Add an overlay network
 
