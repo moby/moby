@@ -178,6 +178,45 @@ $ docker service create \
   redis:3.0.6
 ```
 
+### Container networking
+The containers provisioned in docker swarm mode can be accessed in service discovery either via a Virtual IP (VIP) and routed through the docker swarm ingress overlay network. Or via a DNS round robbin (DNSRR). This configuration is set using the `--endpoint-mode [vip|dnsrr]` setting. Note that dnsrr is incompatible with `--published` ports.
+
+### Service discovery
+
+Discovering other service from within a container can be ac hived via DNS lookup, but you will get different results depending on whether you want the actual service IPs, or the VIP's.
+
+```
+~> nslookup service
+
+Address: 10.255.0.7           # this is the VIP on the ingress network
+
+~> nslookup tasks.service
+
+Non-authoritative answer:
+Name:	tasks.service
+Address: 10.255.0.26          # this is the real IP of a service on the ingress network
+Name:	tasks.service
+Address: 10.255.0.27
+Name:	tasks.service
+Address: 10.255.0.24
+
+~> nslookup tasks.service.your_net
+
+Name:	tasks.service.your_net
+Address: 10.0.0.29            # service 1 IP on your net
+Name:	tasks.service.your_net
+Address: 10.0.0.26            # service 2 IP on your net
+Name:	tasks.service.your_net
+Address: 10.0.0.28            # service 3 IP on your net
+
+
+~> nslookup service.your_net      
+
+Non-authoritative answer:
+Name:	service.your_net
+Address: 10.0.0.25            # VIP on your net
+```
+
 ## Related information
 
 * [service inspect](service_inspect.md)
