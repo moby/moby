@@ -69,19 +69,36 @@ $ docker service update --limit-cpu 2 redis
 
 ### Adding and removing mounts
 
-You can add, or remove bind-mounts or volumes to a service using the
-`--mount-add` and `--mount-rm` options.
+Use the `--mount-add` or `--mount-rm` options add or remove a service's bind-mounts
+or volumes.
 
-The following example creates a service using the `test-data` volume, then
-updates the service to mount another volume, and finally unmounts the first
-volume:
+The following example creates a service which mounts the `test-data` volume to
+`/somewhere`. The next step updates the service to also mount the `other-volume`
+volume to `/somewhere-else`volume, The last step unmounts the `/somewhere` mount
+point, effectively removing the `test-data` volume. Each command returns the
+service name.
+
+- The `--mount-add` flag takes the same parameters as the `--mount` flag on
+  `service create`. Refer to the [volumes and
+  bind-mounts](service_create.md#volumes-and-bind-mounts-mount) section in the
+  `service create` reference for details.
+
+- The `--mount-rm` flag takes the `target` path of the mount.
 
 ```bash
-$ docker service create --name=myservice --mount type=volume,source=test-data,target=/somewhere nginx:alpine
+$ docker service create \
+    --name=myservice \
+    --mount \
+      type=volume,source=test-data,target=/somewhere \
+    nginx:alpine \
+    myservice
 
 myservice
 
-$ docker service update --mount-add type=volume,source=other-volume,target=/somewhere-else myservice
+$ docker service update \
+    --mount-add \
+      type=volume,source=other-volume,target=/somewhere-else \
+    myservice
 
 myservice
 
@@ -89,12 +106,6 @@ $ docker service update --mount-rm /somewhere myservice
 
 myservice
 ```
-
-The `--mount-rm` flag takes the `target` path of the mount. The `--mount-add`
-flag takes the same parameters as the `--mount` flag on `service create`. Refer
-to the [volumes and bind-mounts](service_create.md#volumes-and-bind-mounts-mount) section in the
-`service create` reference for details.
-
 
 ## Related information
 
