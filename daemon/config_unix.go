@@ -31,7 +31,7 @@ type Config struct {
 	EnableSelinuxSupport bool                     `json:"selinux-enabled,omitempty"`
 	ExecRoot             string                   `json:"exec-root,omitempty"`
 	RemappedRoot         string                   `json:"userns-remap,omitempty"`
-	Ulimits              map[string]*units.Ulimit `json:"default-ulimits,omitempty"`
+	Ulimits              map[string]*units.Ulimit `json:"default-ulimit,omitempty"`
 	Runtimes             map[string]types.Runtime `json:"runtimes,omitempty"`
 	DefaultRuntime       string                   `json:"default-runtime,omitempty"`
 	OOMScoreAdjust       int                      `json:"oom-score-adjust,omitempty"`
