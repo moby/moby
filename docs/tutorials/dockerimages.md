@@ -470,7 +470,7 @@ build of the image and it needs the local context to do it.
 Next you can see each instruction in the `Dockerfile` being executed
 step-by-step. You can see that each step creates a new container, runs
 the instruction inside that container and then commits that change -
-just like the `docker commit` work flow you saw earlier. When all the
+just like the `docker commit` workflow you saw earlier. When all the
 instructions have executed you're left with the `97feabe5d2ed` image
 (also helpfuly tagged as `ouruser/sinatra:v2`) and all intermediate
 containers will get removed to clean things up.
