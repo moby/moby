@@ -63,7 +63,7 @@ curl -v -X POST http://192.168.99.100:8091/pools/default -d memoryQuota=300 -d i
 > Content-Length: 36
 > Content-Type: application/x-www-form-urlencoded
 >
-* upload completely sent off: 36 out of 36 bytes
+* Upload completely sent off: 36 out of 36 bytes
 < HTTP/1.1 401 Unauthorized
 < WWW-Authenticate: Basic realm="Couchbase Server Admin / REST"
 * Server Couchbase Server is not blacklisted

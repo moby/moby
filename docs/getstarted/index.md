@@ -36,13 +36,13 @@ If you have already downloaded and installed Docker, you are ready to run Docker
 
 You'll learn how to:
 
-* install Docker software for your platform
-* run a software image in a container
-* browse for an image on Docker Hub
-* create your own image and run it in a container
-* create a Docker Hub account and an image repository
-* create an image of your own
-* push your image to Docker Hub for others to use
+* Install Docker software for your platform
+* Run a software image in a container
+* Browse for an image on Docker Hub
+* Create your own image and run it in a container
+* Create a Docker Hub account and an image repository
+* Create an image of your own
+* Push your image to Docker Hub for others to use
 
 The getting started was user tested to reduce the chance of users having problems. For the best chance of success, follow the steps as written the first time before exploring on your own. It takes approximately 45 minutes to complete.
 
