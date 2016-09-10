@@ -34,6 +34,8 @@ type lockCtr struct {
 	// waiters is the number of waiters waiting to acquire the lock
 	// this is int32 instead of uint32 so we can add `-1` in `dec()`
 	waiters int32
+	// err is the error message shared by waiters
+	err error
 }
 
 // inc increments the number of waiters waiting for the lock
@@ -69,7 +71,8 @@ func New() *Locker {
 }
 
 // Lock locks a mutex with the given name. If it doesn't exist, one is created
-func (l *Locker) Lock(name string) {
+// If the previous lock owner cancel the lock, Lock will fail and return this error
+func (l *Locker) Lock(name string) error {
 	l.mu.Lock()
 	if l.locks == nil {
 		l.locks = make(map[string]*lockCtr)
@@ -90,6 +93,13 @@ func (l *Locker) Lock(name string) {
 	// once locked then we can decrement the number of waiters for this lock
 	nameLock.Lock()
 	nameLock.dec()
+
+	if nameLock.err != nil {
+		// If there is an error, the Lock action will fail. (Unlock immediately)
+		l.Unlock(name)
+		return nameLock.err
+	}
+	return nil
 }
 
 // Unlock unlocks the mutex with the given name
@@ -108,5 +118,21 @@ func (l *Locker) Unlock(name string) error {
 	nameLock.Unlock()
 
 	l.mu.Unlock()
+	return nil
+}
+
+// CancelWithError manually set the error for the lock with the given name.
+// Other goroutines who are waiting for the lock will get an error, instead of getting the lock.
+func (l *Locker) CancelWithError(name string, err error) error {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	if err == nil {
+		return errors.New("Cannot cancel with a nil error")
+	}
+	nameLock, exists := l.locks[name]
+	if !exists {
+		return ErrNoSuchLock
+	}
+	nameLock.err = err
 	return nil
 }

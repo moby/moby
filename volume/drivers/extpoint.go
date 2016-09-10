@@ -92,7 +92,9 @@ func Unregister(name string) bool {
 // driver with the given name has not been registered it checks if
 // there is a VolumeDriver plugin available with the given name.
 func lookup(name string) (volume.Driver, error) {
-	drivers.driverLock.Lock(name)
+	if err := drivers.driverLock.Lock(name); err != nil {
+		return nil, fmt.Errorf("Error looking up volume plugin %s: %v", name, err)
+	}
 	defer drivers.driverLock.Unlock(name)
 
 	drivers.Lock()
@@ -104,6 +106,7 @@ func lookup(name string) (volume.Driver, error) {
 
 	p, err := pluginStore.LookupWithCapability(name, extName)
 	if err != nil {
+		drivers.driverLock.CancelWithError(name, err)
 		return nil, fmt.Errorf("Error looking up volume plugin %s: %v", name, err)
 	}
 

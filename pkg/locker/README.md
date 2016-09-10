@@ -63,3 +63,23 @@ else is modfying it at the same time.
 Since name lock is already in place, no reads will occur while the modification
 is being performed.
 
+### CancelWithError
+
+CancelWithError manually set the error for the lock with the given name.
+Other goroutines who are waiting for the lock will get an error, instead of getting the lock.
+
+```go
+# In goroutine1
+locker.Lock("test")
+defer locker.Lock("test")
+locker.CancelWithError("test", errors.New("some error"))
+
+# In goroutine2, assuming that it runs after goroutine1 getting the lock
+if err := locker.Lock("test"); err != nil {
+  # goroutine1 called the CancelWithError when it was holding the lock,
+  # this Lock function will return that error, indicating that this lock action has been canceled.
+  # ... handle the error ...
+} else {
+  defer locker.Unlock("test")
+}
+```

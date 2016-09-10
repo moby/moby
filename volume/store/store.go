@@ -311,16 +311,20 @@ func (s *VolumeStore) create(name, driverName string, opts, labels map[string]st
 // This makes sure there are no races between checking for the existence of a volume and adding a reference for it
 func (s *VolumeStore) GetWithRef(name, driverName, ref string) (volume.Volume, error) {
 	name = normaliseVolumeName(name)
-	s.locks.Lock(name)
+	if err := s.locks.Lock(name); err != nil {
+		return nil, &OpErr{Err: err, Name: name, Op: "get"}
+	}
 	defer s.locks.Unlock(name)
 
 	vd, err := volumedrivers.GetDriver(driverName)
 	if err != nil {
+		s.locks.CancelWithError(name, err)
 		return nil, &OpErr{Err: err, Name: name, Op: "get"}
 	}
 
 	v, err := vd.Get(name)
 	if err != nil {
+		s.locks.CancelWithError(name, err)
 		return nil, &OpErr{Err: err, Name: name, Op: "get"}
 	}
 
