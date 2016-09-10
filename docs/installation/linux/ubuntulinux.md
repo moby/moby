@@ -22,7 +22,8 @@ Docker is supported on these Ubuntu operating systems:
 This page instructs you to install using Docker-managed release packages and
 installation mechanisms. Using these packages ensures you get the latest release
 of Docker. If you wish to install using Ubuntu-managed packages, consult your
-Ubuntu documentation.
+Ubuntu documentation. If you are comfortable with package managers, and are familiar
+with Docker's prerequisites, feel free to skip to step 3 in the [Install](#install) section
 
 >**Note**: Ubuntu Utopic 14.10 and 15.04 exist in Docker's `APT` repository but
 > are no longer officially supported.
