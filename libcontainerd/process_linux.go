@@ -5,10 +5,11 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"sync"
 	"syscall"
+	"time"
 
 	containerd "github.com/docker/containerd/api/grpc/types"
-	"github.com/docker/docker/pkg/ioutils"
 	"golang.org/x/net/context"
 )
 
@@ -40,10 +41,6 @@ func (p *process) openFifos(terminal bool) (*IOPipe, error) {
 	}
 
 	io := &IOPipe{}
-	stdinf, err := os.OpenFile(p.fifo(syscall.Stdin), syscall.O_RDWR, 0)
-	if err != nil {
-		return nil, err
-	}
 
 	io.Stdout = openReaderFromFifo(p.fifo(syscall.Stdout))
 	if !terminal {
@@ -52,15 +49,17 @@ func (p *process) openFifos(terminal bool) (*IOPipe, error) {
 		io.Stderr = emptyReader{}
 	}
 
-	io.Stdin = ioutils.NewWriteCloserWrapper(stdinf, func() error {
-		stdinf.Close()
-		_, err := p.client.remote.apiClient.UpdateProcess(context.Background(), &containerd.UpdateProcessRequest{
-			Id:         p.containerID,
-			Pid:        p.friendlyName,
-			CloseStdin: true,
-		})
-		return err
-	})
+	io.Stdin = &stdinWriter{
+		path: p.fifo(syscall.Stdin),
+		cb: func() error {
+			_, err := p.client.remote.apiClient.UpdateProcess(context.Background(), &containerd.UpdateProcessRequest{
+				Id:         p.containerID,
+				Pid:        p.friendlyName,
+				CloseStdin: true,
+			})
+			return err
+		},
+	}
 
 	return io, nil
 }
@@ -69,6 +68,52 @@ func (p *process) closeFifos(io *IOPipe) {
 	io.Stdin.Close()
 	closeReaderFifo(p.fifo(syscall.Stdout))
 	closeReaderFifo(p.fifo(syscall.Stderr))
+}
+
+type stdinWriter struct {
+	sync.Mutex
+	path   string
+	cb     func() error
+	f      *os.File
+	closed bool
+	ready  chan struct{}
+}
+
+func (s *stdinWriter) Write(b []byte) (int, error) {
+	s.Lock()
+	defer s.Unlock()
+	if s.closed {
+		return 0, fmt.Errorf("writing on closed stdin")
+	}
+
+	if s.f == nil {
+		s.ready = make(chan struct{})
+		go func() {
+			var err error
+			s.f, err = os.OpenFile(s.path, syscall.O_WRONLY, 0)
+			if err == nil {
+				close(s.ready)
+			}
+		}()
+		select {
+		case <-s.ready:
+		case <-time.After(500 * time.Millisecond):
+			// this case is for apps closing stdin on startup before we attach and for restores that already have closed stdin.
+			closeWriterFifo(s.path)
+			return 0, fmt.Errorf("could not open %v for writing", s.path)
+		}
+	}
+	return s.f.Write(b)
+}
+
+func (s *stdinWriter) Close() error {
+	s.Lock()
+	defer s.Unlock()
+	if s.f != nil {
+		s.f.Close()
+	}
+	s.closed = true
+	return s.cb()
 }
 
 type emptyReader struct{}
@@ -99,6 +144,15 @@ func openReaderFromFifo(fn string) io.Reader {
 // closeReaderFifo closes fifo that may be blocked on open by opening the write side.
 func closeReaderFifo(fn string) {
 	f, err := os.OpenFile(fn, syscall.O_WRONLY|syscall.O_NONBLOCK, 0)
+	if err != nil {
+		return
+	}
+	f.Close()
+}
+
+// closeWriterFifo closes fifo that may be blocked on open by opening the reader side.
+func closeWriterFifo(fn string) {
+	f, err := os.OpenFile(fn, syscall.O_RDONLY|syscall.O_NONBLOCK, 0)
 	if err != nil {
 		return
 	}
