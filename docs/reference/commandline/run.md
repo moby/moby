@@ -197,8 +197,8 @@ The `-w` lets the command being executed inside directory given, here
 
     $ docker run -it --storage-opt size=120G fedora /bin/bash
 
-This (size) will allow to set the container rootfs size to 120G at creation time. 
-User cannot pass a size less than the Default BaseFS Size. This option is only 
+This (size) will allow to set the container rootfs size to 120G at creation time.
+User cannot pass a size less than the Default BaseFS Size. This option is only
 available for the `devicemapper`, `btrfs`, `windowsfilter`, and `zfs` graph drivers.
 
 ### Mount tmpfs (--tmpfs)
@@ -636,14 +636,14 @@ On Microsoft Windows, can take any of these values:
 | `hyperv`   | Hyper-V hypervisor partition-based isolation.                                                                                                                  |
 
 On Windows, the default isolation for client is `hyperv`, and for server is
-`process`. Therefore when running on Windows server without a `daemon` option 
+`process`. Therefore when running on Windows server without a `daemon` option
 set, these two commands are equivalent:
 ```
 $ docker run -d --isolation default busybox top
 $ docker run -d --isolation process busybox top
 ```
 
-If you have set the `--exec-opt isolation=hyperv` option on the Docker `daemon`, 
+If you have set the `--exec-opt isolation=hyperv` option on the Docker `daemon`,
 if running on Windows server, any of these commands also result in `hyperv` isolation:
 
 ```
