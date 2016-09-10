@@ -257,7 +257,7 @@ First, create a directory and a `Dockerfile`.
     $ touch Dockerfile
 
 If you are using Docker Machine on Windows, you may access your host
-directory by `cd` to `/c/Users/your_user_name`.
+directory by `cd` to `c:/Users/your_user_name`.
 
 Each instruction creates a new layer of the image. Try a simple example now for
 building your own Sinatra image for your fictitious development team.
