@@ -159,6 +159,7 @@ Linux:
  - Fedora 19/20+
  - RHEL 6.5+
  - CentOS 6+
+ - Oracle Linux 6+
  - Gentoo
  - ArchLinux
  - openSUSE 12.3+
