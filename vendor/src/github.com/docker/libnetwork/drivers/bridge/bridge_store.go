@@ -143,6 +143,7 @@ func (ncfg *networkConfiguration) MarshalJSON() ([]byte, error) {
 	nMap["DefaultBindingIP"] = ncfg.DefaultBindingIP.String()
 	nMap["DefaultGatewayIPv4"] = ncfg.DefaultGatewayIPv4.String()
 	nMap["DefaultGatewayIPv6"] = ncfg.DefaultGatewayIPv6.String()
+	nMap["BridgeIfaceCreator"] = ncfg.BridgeIfaceCreator
 
 	if ncfg.AddressIPv4 != nil {
 		nMap["AddressIPv4"] = ncfg.AddressIPv4.String()
@@ -189,6 +190,10 @@ func (ncfg *networkConfiguration) UnmarshalJSON(b []byte) error {
 	ncfg.Mtu = int(nMap["Mtu"].(float64))
 	if v, ok := nMap["Internal"]; ok {
 		ncfg.Internal = v.(bool)
+	}
+
+	if v, ok := nMap["BridgeIfaceCreator"]; ok {
+		ncfg.BridgeIfaceCreator = ifaceCreator(v.(float64))
 	}
 
 	return nil

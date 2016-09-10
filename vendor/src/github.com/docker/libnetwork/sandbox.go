@@ -147,7 +147,7 @@ func (sb *sandbox) Key() string {
 
 func (sb *sandbox) Labels() map[string]interface{} {
 	sb.Lock()
-	sb.Unlock()
+	defer sb.Unlock()
 	opts := make(map[string]interface{}, len(sb.config.generic))
 	for k, v := range sb.config.generic {
 		opts[k] = v
