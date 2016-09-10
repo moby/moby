@@ -27,6 +27,7 @@ const (
 	regionKey             = "awslogs-region"
 	regionEnvKey          = "AWS_REGION"
 	logGroupKey           = "awslogs-group"
+	logCreateGroupKey     = "awslogs-create-group"
 	logStreamKey          = "awslogs-stream"
 	batchPublishFrequency = 5 * time.Second
 
@@ -41,6 +42,7 @@ const (
 	resourceAlreadyExistsCode = "ResourceAlreadyExistsException"
 	dataAlreadyAcceptedCode   = "DataAlreadyAcceptedException"
 	invalidSequenceTokenCode  = "InvalidSequenceTokenException"
+	resourceNotFoundCode      = "ResourceNotFoundException"
 
 	userAgentHeader = "User-Agent"
 )
@@ -53,11 +55,13 @@ type logStream struct {
 	lock          sync.RWMutex
 	closed        bool
 	sequenceToken *string
+	createGroup   bool
 }
 
 type api interface {
 	CreateLogStream(*cloudwatchlogs.CreateLogStreamInput) (*cloudwatchlogs.CreateLogStreamOutput, error)
 	PutLogEvents(*cloudwatchlogs.PutLogEventsInput) (*cloudwatchlogs.PutLogEventsOutput, error)
+	CreateLogGroup(*cloudwatchlogs.CreateLogGroupInput) (*cloudwatchlogs.CreateLogGroupOutput, error)
 }
 
 type regionFinder interface {
@@ -88,6 +92,7 @@ func init() {
 // the EC2 Instance Metadata Service.
 func New(ctx logger.Context) (logger.Logger, error) {
 	logGroupName := ctx.Config[logGroupKey]
+	logCreateGroup := strings.ToLower(ctx.Config[logCreateGroupKey])
 	logStreamName := ctx.ContainerID
 	if ctx.Config[logStreamKey] != "" {
 		logStreamName = ctx.Config[logStreamKey]
@@ -101,6 +106,7 @@ func New(ctx logger.Context) (logger.Logger, error) {
 		logGroupName:  logGroupName,
 		client:        client,
 		messages:      make(chan *logger.Message, 4096),
+		createGroup:   logCreateGroup == "true" || logCreateGroup == "t" || logCreateGroup == "1",
 	}
 	err = containerStream.create()
 	if err != nil {
@@ -187,13 +193,56 @@ func (l *logStream) Close() error {
 }
 
 // create creates a log stream for the instance of the awslogs logging driver
+func createGroup(client api, logGroupName string) error {
+
+	input := &cloudwatchlogs.CreateLogGroupInput{
+		LogGroupName: aws.String(logGroupName),
+	}
+
+	_, err := client.CreateLogGroup(input)
+
+	if err != nil {
+		if awsErr, ok := err.(awserr.Error); ok {
+			fields := logrus.Fields{
+				"errorCode":    awsErr.Code(),
+				"message":      awsErr.Message(),
+				"origError":    awsErr.OrigErr(),
+				"logGroupName": logGroupName,
+			}
+			if awsErr.Code() == resourceAlreadyExistsCode {
+				// Allow creation to succeed
+				logrus.WithFields(fields).Info("Log group already exists")
+			} else {
+				logrus.WithFields(fields).Error("Failed to create log group")
+			}
+		}
+	}
+
+	return err
+}
+
+// create creates a log stream for the instance of the awslogs logging driver
 func (l *logStream) create() error {
+
 	input := &cloudwatchlogs.CreateLogStreamInput{
 		LogGroupName:  aws.String(l.logGroupName),
 		LogStreamName: aws.String(l.logStreamName),
 	}
 
 	_, err := l.client.CreateLogStream(input)
+
+	// if group not found, create group and try to create stream again
+	if err != nil && l.createGroup {
+		if awsErr, ok := err.(awserr.Error); ok {
+			if awsErr.Code() == resourceNotFoundCode {
+				err = createGroup(l.client, l.logGroupName)
+				if err != nil {
+					return err
+				}
+				_, err = l.client.CreateLogStream(input)
+			}
+		}
+	}
 
 	if err != nil {
 		if awsErr, ok := err.(awserr.Error); ok {
@@ -348,6 +397,7 @@ func ValidateLogOpt(cfg map[string]string) error {
 	for key := range cfg {
 		switch key {
 		case logGroupKey:
+		case logCreateGroupKey:
 		case logStreamKey:
 		case regionKey:
 		default:
@@ -356,6 +406,12 @@ func ValidateLogOpt(cfg map[string]string) error {
 	}
 	if cfg[logGroupKey] == "" {
 		return fmt.Errorf("must specify a value for log opt '%s'", logGroupKey)
+	}
+	if cfg[logCreateGroupKey] != "" {
+		v := strings.ToLower(cfg[logCreateGroupKey])
+		if v != "true" && v != "false" && v != "t" && v != "f" && v != "1" && v != "0" {
+			return fmt.Errorf("must specify a valid value for log opt '%s': 'true', 't', '1', 'false', 'f', '0'", logCreateGroupKey)
+		}
 	}
 	return nil
 }

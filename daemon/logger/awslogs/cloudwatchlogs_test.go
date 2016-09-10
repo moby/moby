@@ -84,6 +84,7 @@ func TestCreateSuccess(t *testing.T) {
 		logStreamName: streamName,
 	}
 	mockClient.createLogStreamResult <- &createLogStreamResult{}
+	mockClient.createLogGroupResult <- &createLogGroupResult{}
 
 	err := stream.create()
 
@@ -113,6 +114,9 @@ func TestCreateError(t *testing.T) {
 	mockClient.createLogStreamResult <- &createLogStreamResult{
 		errorResult: errors.New("Error!"),
 	}
+	mockClient.createLogGroupResult <- &createLogGroupResult{
+		errorResult: errors.New("Error!"),
+	}
 
 	err := stream.create()
 
@@ -127,6 +131,9 @@ func TestCreateAlreadyExists(t *testing.T) {
 		client: mockClient,
 	}
 	mockClient.createLogStreamResult <- &createLogStreamResult{
+		errorResult: awserr.New(resourceAlreadyExistsCode, "", nil),
+	}
+	mockClient.createLogGroupResult <- &createLogGroupResult{
 		errorResult: awserr.New(resourceAlreadyExistsCode, "", nil),
 	}
 

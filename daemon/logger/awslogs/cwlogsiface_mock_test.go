@@ -7,6 +7,8 @@ type mockcwlogsclient struct {
 	createLogStreamResult   chan *createLogStreamResult
 	putLogEventsArgument    chan *cloudwatchlogs.PutLogEventsInput
 	putLogEventsResult      chan *putLogEventsResult
+	createLogGroupArgument  chan *cloudwatchlogs.CreateLogGroupInput
+	createLogGroupResult    chan *createLogGroupResult
 }
 
 type createLogStreamResult struct {
@@ -19,12 +21,19 @@ type putLogEventsResult struct {
 	errorResult   error
 }
 
+type createLogGroupResult struct {
+	successResult *cloudwatchlogs.CreateLogGroupOutput
+	errorResult   error
+}
+
 func newMockClient() *mockcwlogsclient {
 	return &mockcwlogsclient{
 		createLogStreamArgument: make(chan *cloudwatchlogs.CreateLogStreamInput, 1),
 		createLogStreamResult:   make(chan *createLogStreamResult, 1),
 		putLogEventsArgument:    make(chan *cloudwatchlogs.PutLogEventsInput, 1),
 		putLogEventsResult:      make(chan *putLogEventsResult, 1),
+		createLogGroupArgument:  make(chan *cloudwatchlogs.CreateLogGroupInput, 1),
+		createLogGroupResult:    make(chan *createLogGroupResult, 1),
 	}
 }
 
@@ -34,6 +43,8 @@ func newMockClientBuffered(buflen int) *mockcwlogsclient {
 		createLogStreamResult:   make(chan *createLogStreamResult, buflen),
 		putLogEventsArgument:    make(chan *cloudwatchlogs.PutLogEventsInput, buflen),
 		putLogEventsResult:      make(chan *putLogEventsResult, buflen),
+		createLogGroupArgument:  make(chan *cloudwatchlogs.CreateLogGroupInput, buflen),
+		createLogGroupResult:    make(chan *createLogGroupResult, buflen),
 	}
 }
 
@@ -53,6 +64,12 @@ func (m *mockcwlogsclient) PutLogEvents(input *cloudwatchlogs.PutLogEventsInput)
 		LogStreamName: input.LogStreamName,
 	}
 	output := <-m.putLogEventsResult
+	return output.successResult, output.errorResult
+}
+
+func (m *mockcwlogsclient) CreateLogGroup(input *cloudwatchlogs.CreateLogGroupInput) (*cloudwatchlogs.CreateLogGroupOutput, error) {
+	m.createLogGroupArgument <- input
+	output := <-m.createLogGroupResult
 	return output.successResult, output.errorResult
 }
 

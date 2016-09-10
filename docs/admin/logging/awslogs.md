@@ -51,6 +51,15 @@ for the `awslogs` logging driver.  You can specify the log group with the
 
     docker run --log-driver=awslogs --log-opt awslogs-region=us-east-1 --log-opt awslogs-group=myLogGroup ...
 
+### awslogs-create-group
+
+By default `awslogs` logging driver does not create
+[log group](http://docs.aws.amazon.com/AmazonCloudWatch/latest/DeveloperGuide/WhatIsCloudWatchLogs.html),
+if log group does not exist, the container fails to start.
+You can force creation of log group by specifying the `awslogs-create-group` log option:
+
+    docker run --log-driver=awslogs --log-opt awslogs-region=us-east-1 --log-opt awslogs-group=myLogGroup --log-opt awslogs-create-group=true ...
+
 ### awslogs-stream
 
 To configure which
@@ -72,14 +81,16 @@ default AWS shared credentials file (`~/.aws/credentials` of the root user), or
 (if you are running the Docker daemon on an Amazon EC2 instance) the Amazon EC2
 instance profile.
 
-Credentials must have a policy applied that allows the `logs:CreateLogStream`
-and `logs:PutLogEvents` actions, as shown in the following example.
+Credentials must have a policy applied that allows the `logs:CreateLogStream`,
+`logs:PutLogEvents`, and optionally `logs:CreateLogGroup` actions,
+as shown in the following example.
 
     {
       "Version": "2012-10-17",
       "Statement": [
         {
           "Action": [
+            "logs:CreateLogGroup",
             "logs:CreateLogStream",
             "logs:PutLogEvents"
           ],
