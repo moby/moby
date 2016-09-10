@@ -24,7 +24,7 @@ installation mechanisms. Using these packages ensures you get the latest release
 of Docker. If you wish to install using Ubuntu-managed packages, consult your
 Ubuntu documentation.
 
->**Note**: Ubuntu Utopic 14.10 and 15.04 exist in Docker's `APT` repository but
+>**Note**: Ubuntu topic 14.10 and 15.04 exist in Docker's `APT` repository but
 > are no longer officially supported.
 
 ## Prerequisites
