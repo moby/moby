@@ -152,8 +152,8 @@ func (c *containerContext) Status() string {
 
 func (c *containerContext) Size() string {
 	c.addHeader(sizeHeader)
-	srw := units.HumanSize(float64(c.c.SizeRw))
-	sv := units.HumanSize(float64(c.c.SizeRootFs))
+	srw := units.HumanSizeWithPrecision(float64(c.c.SizeRw), 3)
+	sv := units.HumanSizeWithPrecision(float64(c.c.SizeRootFs), 3)
 
 	sf := srw
 	if c.c.SizeRootFs > 0 {

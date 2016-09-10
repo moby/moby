@@ -86,7 +86,7 @@ func runHistory(dockerCli *command.DockerCli, opts historyOptions) error {
 
 		if opts.human {
 			created = units.HumanDuration(time.Now().UTC().Sub(time.Unix(entry.Created, 0))) + " ago"
-			size = units.HumanSize(float64(entry.Size))
+			size = units.HumanSizeWithPrecision(float64(entry.Size), 3)
 		} else {
 			created = time.Unix(entry.Created, 0).Format(time.RFC3339)
 			size = strconv.FormatInt(entry.Size, 10)
