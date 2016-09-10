@@ -14,10 +14,10 @@ weight=14
 
 As part of the swarm management lifecycle, you may need to view or update a node as follows:
 
-* [list nodes in the swarm](#list-nodes)
-* [inspect an individual node](#inspect-an-individual-node)
-* [update a node](#update-a-node)
-* [leave the swarm](#leave-the-swarm)
+* [List nodes in the swarm](#list-nodes)
+* [Inspect an individual node](#inspect-an-individual-node)
+* [Update a node](#update-a-node)
+* [Leave the swarm](#leave-the-swarm)
 
 ## List nodes
 
@@ -95,9 +95,9 @@ Engine Version:         1.12.0-dev
 
 You can modify node attributes as follows:
 
-* [change node availability](#change-node-availability)
-* [add or remove label metadata](#add-or-remove-label-metadata)
-* [change a node role](#promote-or-demote-a-node)
+* [Change node availability](#change-node-availability)
+* [Add or remove label metadata](#add-or-remove-label-metadata)
+* [Change a node role](#promote-or-demote-a-node)
 
 ### Change node availability
 

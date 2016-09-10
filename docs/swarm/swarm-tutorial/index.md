@@ -12,16 +12,16 @@ weight=11
 
 # Getting started with swarm mode
 
-This tutorial introduces you to the features of Docker Engine Swarm mode. You
+This tutorial introduces you to the features of Docker Engine swarm mode. You
 may want to familiarize yourself with the [key concepts](../key-concepts.md)
 before you begin.
 
 The tutorial guides you through the following activities:
 
-* initializing a cluster of Docker Engines in swarm mode
-* adding nodes to the swarm
-* deploying application services to the swarm
-* managing the swarm once you have everything running
+* Initializing a cluster of Docker Engines in swarm mode
+* Adding nodes to the swarm
+* Deploying application services to the swarm
+* Managing the swarm once you have everything running
 
 This tutorial uses Docker Engine CLI commands entered on the command line of a
 terminal window. You should be able to install Docker on networked machines and
@@ -33,10 +33,10 @@ If you are brand new to Docker, see [About Docker Engine](../../index.md).
 
 To run this tutorial, you need the following:
 
-* [three networked host machines](#three-networked-host-machines)
+* [Three networked host machines](#three-networked-host-machines)
 * [Docker Engine 1.12 or later installed](#docker-engine-1-12-or-later)
-* [the IP address of the manager machine](#the-ip-address-of-the-manager-machine)
-* [open ports between the hosts](#open-ports-between-the-hosts)
+* [The IP address of the manager machine](#the-ip-address-of-the-manager-machine)
+* [Open ports between the hosts](#open-ports-between-the-hosts)
 
 ### Three networked host machines
 
@@ -44,9 +44,9 @@ The tutorial uses three networked host machines as nodes in the swarm. These can
 be virtual machines on your PC, in a data center, or on a cloud service
 provider. This tutorial uses the following machine names:
 
-* manager1
-* worker1
-* worker2
+* Manager1
+* Worker1
+* Worker2
 
 >**Note:** You can follow many of the tutorial steps to test single-node swarm
 as well, in which case you need only one host. Multi-node commands will not

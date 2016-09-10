@@ -40,19 +40,19 @@ Run [`docker swarm init`](../reference/commandline/swarm_init.md)
 to create a single-node swarm on the current node. The Engine sets up the swarm
 as follows:
 
-* switches the current node into swarm mode.
-* creates a swarm named `default`.
-* designates the current node as a leader manager node for the swarm.
-* names the node with the machine hostname.
-* configures the manager to listen on an active network interface on port 2377.
-* sets the current node to `Active` availability, meanining it can receive tasks
+* Switches the current node into swarm mode.
+* Creates a swarm named `default`.
+* Designates the current node as a leader manager node for the swarm.
+* Names the node with the machine hostname.
+* Configures the manager to listen on an active network interface on port 2377.
+* Sets the current node to `Active` availability, meanining it can receive tasks
 from the scheduler.
-* starts an internal distributed data store for Engines participating in the
+* Starts an internal distributed data store for Engines participating in the
 swarm to maintain a consistent view of the swarm and all services running on it.
-* by default, generates a self-signed root CA for the swarm.
-* by default, generates tokens for worker and manager nodes to join the
+* By default, generates a self-signed root CA for the swarm.
+* By default, generates tokens for worker and manager nodes to join the
 swarm.
-* creates an overlay network named `ingress` for publishing service ports
+* Creates an overlay network named `ingress` for publishing service ports
 external to the swarm.
 
 The output for `docker swarm init` provides the connection command to use when
@@ -176,5 +176,5 @@ To add a worker to this swarm, run the following command:
 ## Learn More
 
 * [Join nodes to a swarm](join-nodes.md)
-* `swarm init`[command line reference](../reference/commandline/swarm_init.md)
+* `Swarm init`[command line reference](../reference/commandline/swarm_init.md)
 * [Swarm mode tutorial](swarm-tutorial/index.md)
