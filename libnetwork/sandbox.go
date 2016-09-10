@@ -86,6 +86,7 @@ type sandbox struct {
 	isStub             bool
 	inDelete           bool
 	ingress            bool
+	ndotsSet           bool
 	sync.Mutex
 }
 
