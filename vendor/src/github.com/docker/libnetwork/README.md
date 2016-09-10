@@ -11,7 +11,7 @@ Please refer to the [design](docs/design.md) for more information.
 
 #### Using libnetwork
 
-There are many networking solutions available to suit a broad range of use-cases. libnetwork uses a driver / plugin model to support all of these solutions while abstracting the complexity of the driver implementations by exposing a simple and consistent Network Model to users.
+There are many networking solutions available to suit a broad range of use-cases. Libnetwork uses a driver / plugin model to support all of these solutions while abstracting the complexity of the driver implementations by exposing a simple and consistent Network Model to users.
 
 
 ```go

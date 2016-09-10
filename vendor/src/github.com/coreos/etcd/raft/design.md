@@ -51,7 +51,7 @@ A progress changes from `probe` to `snapshot` when the follower falls very far b
 
 ### Flow Control
 
-1. limit the max size of message sent per message. Max should be configurable.
+1. Limit the max size of message sent per message. Max should be configurable.
 Lower the cost at probing state as we limit the size per message; lower the penalty when aggressively decreased to a too low `next`
 
-2. limit the # of in flight messages < N when in `replicate` state. N should be configurable. Most implementation will have a sending buffer on top of its actual network transport layer (not blocking raft node). We want to make sure raft does not overflow that buffer, which can cause message dropping and triggering a bunch of unnecessary resending repeatedly. 
+2. Limit the # of in flight messages < N when in `replicate` state. N should be configurable. Most implementation will have a sending buffer on top of its actual network transport layer (not blocking raft node). We want to make sure raft does not overflow that buffer, which can cause message dropping and triggering a bunch of unnecessary resending repeatedly. 
