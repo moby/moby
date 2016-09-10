@@ -58,7 +58,7 @@ func ParseMountSpec(spec, volumeDriver string) (*MountPoint, error) {
 	switch len(arr) {
 	case 1:
 		// Just a destination path in the container
-		mp.Destination = filepath.Clean(arr[0])
+		mp.Destination = arr[0]
 	case 2:
 		if isValid := ValidMountMode(arr[1]); isValid {
 			// Destination + Mode is not a valid volume - volumes
