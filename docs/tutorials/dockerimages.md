@@ -563,6 +563,32 @@ Delete the `training/sinatra` image as you don't need it anymore.
 > **Note:** To remove an image from the host, please make sure
 > that there are no containers actively based on it.
 
+## Check sizes of images and containers
+
+An image is
+[stored in layers](../userguide/storagedriver/imagesandcontainers.md),
+and shared with other images, the real disk usage depends on existing layers
+on your host. A container is running on
+[a writable layer](../userguide/storagedriver/imagesandcontainers.md#/container-and-layers)
+on top of a readonly rootfs.
+
+You can figure the size of image layers with `docker history` command.
+
+    $ docker history centos:centos7
+
+    IMAGE               CREATED             CREATED BY                                      SIZE
+    970633036444        6 weeks ago         /bin/sh -c #(nop) CMD ["/bin/bash"]             0 B
+    <missing>           6 weeks ago         /bin/sh -c #(nop) LABEL name=CentOS Base Imag   0 B
+    <missing>           6 weeks ago         /bin/sh -c #(nop) ADD file:44ef4e10b27d8c464a   196.7 MB
+    <missing>           10 weeks ago        /bin/sh -c #(nop) MAINTAINER https://github.c   0 B
+
+Also, you can check the sizes of containers by performing `docker ps` command with `-s`.
+
+    $ docker ps -s
+
+    CONTAINER ID        IMAGE                                                          COMMAND                  CREATED              STATUS              PORTS                    NAMES               SIZE
+    cb7827c19ef7        docker-docs:is-11160-explain-image-container-size-prediction   "hugo server --port=8"   About a minute ago   Up About a minute   0.0.0.0:8000->8000/tcp   evil_hodgkin        0 B (virtual 949.2 MB)
+
 # Next steps
 
 Until now you've seen how to build individual applications inside Docker
