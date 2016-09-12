@@ -15,11 +15,12 @@ Usage:  docker exec [OPTIONS] CONTAINER COMMAND [ARG...]
 
 Run a command in a running container
 
+Options:
   -d, --detach         Detached mode: run command in the background
-  --detach-keys        Override the key sequence for detaching a container
-  --help               Print usage
+      --detach-keys    Override the key sequence for detaching a container
+      --help           Print usage
   -i, --interactive    Keep STDIN open even if not attached
-  --privileged         Give extended privileges to the command
+      --privileged     Give extended privileges to the command
   -t, --tty            Allocate a pseudo-TTY
   -u, --user           Username or UID (format: <name|uid>[:<group|gid>])
 ```
