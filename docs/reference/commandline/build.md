@@ -231,12 +231,12 @@ specify an arbitrary Git repository by using the `git://` or `git@` scheme.
 $ docker build -f ctx/Dockerfile http://server/ctx.tar.gz
 
 Downloading context: http://server/ctx.tar.gz [===================>]    240 B/240 B
-Step 0 : FROM busybox
+Step 1 : FROM busybox
  ---> 8c2e06607696
-Step 1 : ADD ctx/container.cfg /
+Step 2 : ADD ctx/container.cfg /
  ---> e7829950cee3
 Removing intermediate container b35224abf821
-Step 2 : CMD /bin/ls
+Step 3 : CMD /bin/ls
  ---> Running in fbc63d321d73
  ---> 3286931702ad
 Removing intermediate container fbc63d321d73
