@@ -123,13 +123,13 @@ Then, Docker loads with the `whalesay` image.	It already has this image
 locally as you might recall from the last page. So, Docker doesn't need to
 download it.
 
-    Step 0 : FROM docker/whalesay:latest
+    Step 1 : FROM docker/whalesay:latest
      ---> fb434121fc77
 
 Docker moves onto the next step which is to update the `apt-get` package
 manager. This takes a lot of lines, no need to list them all again here.
 
-    Step 1 : RUN apt-get -y update && apt-get install -y fortunes
+    Step 2 : RUN apt-get -y update && apt-get install -y fortunes
      ---> Running in 27d224dfa5b2
     Ign http://archive.ubuntu.com trusty InRelease
     Ign http://archive.ubuntu.com trusty-updates InRelease
@@ -144,7 +144,7 @@ manager. This takes a lot of lines, no need to list them all again here.
 Then, Docker installs the new `fortunes` software.
 
     Removing intermediate container e2a84b5f390f
-    Step 2 : RUN apt-get install -y fortunes
+    Step 3 : RUN apt-get install -y fortunes
      ---> Running in 23aa52c1897c
     Reading package lists...
     Building dependency tree...
@@ -167,7 +167,7 @@ Then, Docker installs the new `fortunes` software.
 
 Finally, Docker finishes the build and reports its outcome.		
 
-    Step 3 : CMD /usr/games/fortune -a | cowsay
+    Step 4 : CMD /usr/games/fortune -a | cowsay
      ---> Running in a8e6faa88df3
      ---> 7d9495d03763
     Removing intermediate container a8e6faa88df3
