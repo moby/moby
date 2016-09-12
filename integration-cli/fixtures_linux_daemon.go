@@ -16,30 +16,13 @@ import (
 )
 
 func ensureFrozenImagesLinux(t *testing.T) {
-	images := []string{"busybox:latest", "hello-world:latest", "debian:jessie"}
+	images := []string{"busybox:latest", "hello-world:frozen", "debian:jessie"}
 	err := load.FrozenImagesLinux(dockerBinary, images...)
 	if err != nil {
 		t.Log(dockerCmdWithError("images"))
 		t.Fatalf("%+v", err)
 	}
-
-	// hello-world:latest gets re-tagged as hello-world:frozen
-	// there are some tests that use hello-world:latest specifically so it pulls
-	// the image and hello-world:frozen is used for when we just want a super
-	// small image
-	if out, err := exec.Command(dockerBinary, "tag", "hello-world:latest", "hello-world:frozen").CombinedOutput(); err != nil {
-		t.Log(dockerCmdWithError("images"))
-		t.Fatal(string(out))
-	}
-	if out, err := exec.Command(dockerBinary, "rmi", "hello-world:latest").CombinedOutput(); err != nil {
-		t.Log(dockerCmdWithError("images"))
-		t.Fatal(string(out))
-	}
-
 	for _, img := range images {
-		if img == "hello-world:latest" {
-			img = "hello-world:frozen"
-		}
 		protectedImages[img] = struct{}{}
 	}
 }

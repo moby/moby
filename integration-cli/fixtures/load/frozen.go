@@ -21,16 +21,26 @@ var frozenImgDir = "/docker-frozen-images"
 // the passed in images
 func FrozenImagesLinux(dockerBinary string, images ...string) error {
 	imgNS := os.Getenv("TEST_IMAGE_NAMESPACE")
-	var loadImages []string
+	var loadImages []struct{ srcName, destName string }
 	for _, img := range images {
-		if imgNS != "" {
-			img = imgNS + "/" + img
-		}
 		if err := exec.Command(dockerBinary, "inspect", "--type=image", img).Run(); err != nil {
-			loadImages = append(loadImages, img)
+			srcName := img
+			// hello-world:latest gets re-tagged as hello-world:frozen
+			// there are some tests that use hello-world:latest specifically so it pulls
+			// the image and hello-world:frozen is used for when we just want a super
+			// small image
+			if img == "hello-world:frozen" {
+				srcName = "hello-world:latest"
+			}
+			if imgNS != "" {
+				srcName = imgNS + "/" + srcName
+			}
+			loadImages = append(loadImages, struct{ srcName, destName string }{
+				srcName:  srcName,
+				destName: img,
+			})
 		}
 	}
-
 	if len(loadImages) == 0 {
 		// everything is loaded, we're done
 		return nil
@@ -38,32 +48,33 @@ func FrozenImagesLinux(dockerBinary string, images ...string) error {
 
 	fi, err := os.Stat(frozenImgDir)
 	if err != nil || !fi.IsDir() {
-		if err := pullImages(dockerBinary, loadImages); err != nil {
+		srcImages := make([]string, 0, len(loadImages))
+		for _, img := range loadImages {
+			srcImages = append(srcImages, img.srcName)
+		}
+		if err := pullImages(dockerBinary, srcImages); err != nil {
 			return errors.Wrap(err, "error pulling image list")
 		}
 	} else {
-		if err := loadFrozenImags(dockerBinary); err != nil {
+		if err := loadFrozenImages(dockerBinary); err != nil {
 			return err
 		}
 	}
 
-	if imgNS != "" {
-		for _, img := range loadImages {
-			target := strings.TrimPrefix(img, imgNS+"/")
-			if target != img {
-				if out, err := exec.Command(dockerBinary, "tag", img, target).CombinedOutput(); err != nil {
-					return errors.Errorf("%v: %s", err, string(out))
-				}
-				if out, err := exec.Command(dockerBinary, "rmi", img).CombinedOutput(); err != nil {
-					return errors.Errorf("%v: %s", err, string(out))
-				}
+	for _, img := range loadImages {
+		if img.srcName != img.destName {
+			if out, err := exec.Command(dockerBinary, "tag", img.srcName, img.destName).CombinedOutput(); err != nil {
+				return errors.Errorf("%v: %s", err, string(out))
+			}
+			if out, err := exec.Command(dockerBinary, "rmi", img.srcName).CombinedOutput(); err != nil {
+				return errors.Errorf("%v: %s", err, string(out))
 			}
 		}
 	}
 	return nil
 }
 
-func loadFrozenImags(dockerBinary string) error {
+func loadFrozenImages(dockerBinary string) error {
 	tar, err := exec.LookPath("tar")
 	if err != nil {
 		return errors.Wrap(err, "could not find tar binary")
