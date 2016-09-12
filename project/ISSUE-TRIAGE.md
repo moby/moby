@@ -39,7 +39,7 @@ An issue can have multiple of the following labels.
 | kind/bug         | Bugs are bugs. The cause may or may not be known at triage time so debugging should be taken account into the time estimate.    |
 | kind/docs        | Writing documentation, man pages, articles, blogs, or other significant word-driven task.                                       |
 | kind/enhancement | Enhancement are not bugs or new features but can drastically improve usability or performance of a project component.           |
-| kind/feature     | Functionality or other elements that the project does not currently support.  Features are new and shiny.                      |
+| kind/feature     | Functionality or other elements that the project does not currently support.  Features are new and shiny.                       |
 | kind/question    | Contains a user or contributor question requiring a response.                                                                   |
 
 #### Functional area
@@ -49,14 +49,37 @@ An issue can have multiple of the following labels.
 | area/api                  |
 | area/builder              |
 | area/cli                  |
+| area/distribution         |
 | area/kernel               |
+| area/logging              |
+| area/networking           |
+| area/plugins              |
+| area/project              |
 | area/runtime              |
+| area/security             |
+| area/security/apparmor    |
+| area/security/seccomp     |
+| area/security/selinux     |
+| area/security/trust       |
 | area/storage              |
 | area/storage/aufs         |
 | area/storage/btrfs        |
 | area/storage/devicemapper |
 | area/storage/overlay      |
 | area/storage/zfs          |
+| area/swarm                |
+| area/testing              |
+| area/volumes              |
+
+### Platform
+
+| Platform                  |
+|---------------------------|
+| platform/arm              |
+| platform/darwin           |
+| platform/ibm-power        |
+| platform/ibm-z            |
+| platform/windows          |
 
 #### Experience level
 
