@@ -7,17 +7,13 @@ import (
 )
 
 // DefaultSpec returns default spec used by docker.
-func DefaultSpec() windowsoci.WindowsSpec {
-	s := windowsoci.Spec{
+func DefaultSpec() windowsoci.Spec {
+	return windowsoci.Spec{
 		Version: windowsoci.Version,
 		Platform: windowsoci.Platform{
 			OS:   runtime.GOOS,
 			Arch: runtime.GOARCH,
 		},
-	}
-
-	return windowsoci.WindowsSpec{
-		Spec:    s,
-		Windows: windowsoci.Windows{},
+		Windows: &windowsoci.Windows{},
 	}
 }
