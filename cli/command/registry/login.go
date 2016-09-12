@@ -52,7 +52,7 @@ func runLogin(dockerCli *command.DockerCli, opts loginOptions) error {
 
 	var (
 		serverAddress string
-		authServer    = dockerCli.ElectAuthServer(ctx)
+		authServer    = command.ElectAuthServer(ctx, dockerCli)
 	)
 	if opts.serverAddress != "" {
 		serverAddress = opts.serverAddress
@@ -62,7 +62,7 @@ func runLogin(dockerCli *command.DockerCli, opts loginOptions) error {
 
 	isDefaultRegistry := serverAddress == authServer
 
-	authConfig, err := dockerCli.ConfigureAuth(opts.user, opts.password, serverAddress, isDefaultRegistry)
+	authConfig, err := command.ConfigureAuth(dockerCli, opts.user, opts.password, serverAddress, isDefaultRegistry)
 	if err != nil {
 		return err
 	}
@@ -74,7 +74,7 @@ func runLogin(dockerCli *command.DockerCli, opts loginOptions) error {
 		authConfig.Password = ""
 		authConfig.IdentityToken = response.IdentityToken
 	}
-	if err := command.StoreCredentials(dockerCli.ConfigFile(), authConfig); err != nil {
+	if err := dockerCli.CredentialsStore().Store(authConfig); err != nil {
 		return fmt.Errorf("Error saving credentials: %v", err)
 	}
 

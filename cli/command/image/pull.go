@@ -73,8 +73,8 @@ func runPull(dockerCli *command.DockerCli, opts pullOptions) error {
 
 	ctx := context.Background()
 
-	authConfig := dockerCli.ResolveAuthConfig(ctx, repoInfo.Index)
-	requestPrivilege := dockerCli.RegistryAuthenticationPrivilegedFunc(repoInfo.Index, "pull")
+	authConfig := command.ResolveAuthConfig(ctx, dockerCli, repoInfo.Index)
+	requestPrivilege := command.RegistryAuthenticationPrivilegedFunc(dockerCli, repoInfo.Index, "pull")
 
 	if command.IsTrusted() && !registryRef.HasDigest() {
 		// Check if tag is digest

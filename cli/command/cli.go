@@ -64,6 +64,15 @@ func (cli *DockerCli) ConfigFile() *configfile.ConfigFile {
 	return cli.configFile
 }
 
+// CredentialsStore returns a new credentials store based
+// on the settings provided in the configuration file.
+func (cli *DockerCli) CredentialsStore() credentials.Store {
+	if cli.configFile.CredentialsStore != "" {
+		return credentials.NewNativeStore(cli.configFile)
+	}
+	return credentials.NewFileStore(cli.configFile)
+}
+
 // Initialize the dockerCli runs initialization that must happen after command
 // line flags are parsed.
 func (cli *DockerCli) Initialize(opts *cliflags.ClientOptions) error {
