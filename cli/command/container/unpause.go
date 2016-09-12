@@ -35,8 +35,9 @@ func runUnpause(dockerCli *command.DockerCli, opts *unpauseOptions) error {
 	ctx := context.Background()
 
 	var errs []string
+	errChan := parallelOperation(ctx, opts.containers, dockerCli.Client().ContainerUnpause)
 	for _, container := range opts.containers {
-		if err := dockerCli.Client().ContainerUnpause(ctx, container); err != nil {
+		if err := <-errChan; err != nil {
 			errs = append(errs, err.Error())
 		} else {
 			fmt.Fprintf(dockerCli.Out(), "%s\n", container)
