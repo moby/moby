@@ -1736,6 +1736,7 @@ _docker_service_update() {
 		--constraint
 		--endpoint-mode
 		--env -e
+		--group-add
 		--label -l
 		--limit-cpu
 		--limit-memory
@@ -1785,10 +1786,15 @@ _docker_service_update() {
 			--arg
 			--container-label-add
 			--container-label-rm
+			--group-rm
 			--image
 		"
 
 		case "$prev" in
+			--group-rm)
+				COMPREPLY=( $(compgen -g -- "$cur") )
+				return
+				;;
 			--image)
 				__docker_complete_image_repos_and_tags
 				return
@@ -1805,6 +1811,10 @@ _docker_service_update() {
 			# we do not append a "=" here because "-e VARNAME" is legal systax, too
 			COMPREPLY=( $( compgen -e -- "$cur" ) )
 			__docker_nospace
+			return
+			;;
+		--group-add)
+			COMPREPLY=( $(compgen -g -- "$cur") )
 			return
 			;;
 		--log-driver)
