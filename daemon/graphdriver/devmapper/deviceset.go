@@ -1894,8 +1894,8 @@ func (devices *DeviceSet) initDevmapper(doInit bool) error {
 
 // AddDevice adds a device and registers in the hash.
 func (devices *DeviceSet) AddDevice(hash, baseHash string, storageOpt map[string]string) error {
-	logrus.Debugf("devmapper: AddDevice(hash=%s basehash=%s)", hash, baseHash)
-	defer logrus.Debugf("devmapper: AddDevice(hash=%s basehash=%s) END", hash, baseHash)
+	logrus.Debugf("devmapper: AddDevice START(hash=%s basehash=%s)", hash, baseHash)
+	defer logrus.Debugf("devmapper: AddDevice END(hash=%s basehash=%s)", hash, baseHash)
 
 	// If a deleted device exists, return error.
 	baseInfo, err := devices.lookupDeviceWithLock(baseHash)
@@ -2033,8 +2033,8 @@ func (devices *DeviceSet) deleteTransaction(info *devInfo, syncDelete bool) erro
 
 // Issue discard only if device open count is zero.
 func (devices *DeviceSet) issueDiscard(info *devInfo) error {
-	logrus.Debugf("devmapper: issueDiscard(device: %s). START", info.Hash)
-	defer logrus.Debugf("devmapper: issueDiscard(device: %s). END", info.Hash)
+	logrus.Debugf("devmapper: issueDiscard START(device: %s).", info.Hash)
+	defer logrus.Debugf("devmapper: issueDiscard END(device: %s).", info.Hash)
 	// This is a workaround for the kernel not discarding block so
 	// on the thin pool when we remove a thinp device, so we do it
 	// manually.
@@ -2083,8 +2083,8 @@ func (devices *DeviceSet) deleteDevice(info *devInfo, syncDelete bool) error {
 // removal. If one wants to override that and want DeleteDevice() to fail if
 // device was busy and could not be deleted, set syncDelete=true.
 func (devices *DeviceSet) DeleteDevice(hash string, syncDelete bool) error {
-	logrus.Debugf("devmapper: DeleteDevice(hash=%v syncDelete=%v) START", hash, syncDelete)
-	defer logrus.Debugf("devmapper: DeleteDevice(hash=%v syncDelete=%v) END", hash, syncDelete)
+	logrus.Debugf("devmapper: DeleteDevice START(hash=%v syncDelete=%v)", hash, syncDelete)
+	defer logrus.Debugf("devmapper: DeleteDevice END(hash=%v syncDelete=%v)", hash, syncDelete)
 	info, err := devices.lookupDeviceWithLock(hash)
 	if err != nil {
 		return err
@@ -2100,8 +2100,8 @@ func (devices *DeviceSet) DeleteDevice(hash string, syncDelete bool) error {
 }
 
 func (devices *DeviceSet) deactivatePool() error {
-	logrus.Debug("devmapper: deactivatePool()")
-	defer logrus.Debug("devmapper: deactivatePool END")
+	logrus.Debug("devmapper: deactivatePool() START")
+	defer logrus.Debug("devmapper: deactivatePool() END")
 	devname := devices.getPoolDevName()
 
 	devinfo, err := devicemapper.GetInfo(devname)
@@ -2124,7 +2124,7 @@ func (devices *DeviceSet) deactivatePool() error {
 }
 
 func (devices *DeviceSet) deactivateDevice(info *devInfo) error {
-	logrus.Debugf("devmapper: deactivateDevice(%s)", info.Hash)
+	logrus.Debugf("devmapper: deactivateDevice START(%s)", info.Hash)
 	defer logrus.Debugf("devmapper: deactivateDevice END(%s)", info.Hash)
 
 	devinfo, err := devicemapper.GetInfo(info.Name())
@@ -2390,8 +2390,8 @@ func (devices *DeviceSet) MountDevice(hash, path, mountLabel string) error {
 
 // UnmountDevice unmounts the device and removes it from hash.
 func (devices *DeviceSet) UnmountDevice(hash, mountPath string) error {
-	logrus.Debugf("devmapper: UnmountDevice(hash=%s)", hash)
-	defer logrus.Debugf("devmapper: UnmountDevice(hash=%s) END", hash)
+	logrus.Debugf("devmapper: UnmountDevice START(hash=%s)", hash)
+	defer logrus.Debugf("devmapper: UnmountDevice END(hash=%s)", hash)
 
 	info, err := devices.lookupDeviceWithLock(hash)
 	if err != nil {
