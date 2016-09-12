@@ -208,6 +208,9 @@ func (b *Builder) build(stdout io.Writer, stderr io.Writer, out io.Writer) (stri
 	b.Stderr = stderr
 	b.Output = out
 
+	// Send event about build starting
+	b.docker.LogBuildEvent("build")
+
 	// If Dockerfile was not parsed yet, extract it from the Context
 	if b.dockerfile == nil {
 		if err := b.readDockerfile(); err != nil {

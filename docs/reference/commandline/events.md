@@ -30,6 +30,10 @@ Docker images report the following events:
 
     delete, import, load, pull, push, save, tag, untag
 
+Docker build report the following event:
+
+    build
+
 Docker plugins(experimental) report the following events:
 
     install, enable, disable, remove
