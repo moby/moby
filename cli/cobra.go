@@ -9,6 +9,11 @@ import (
 // SetupRootCommand sets default usage, help, and error handling for the
 // root command.
 func SetupRootCommand(rootCmd *cobra.Command) {
+	cobra.AddTemplateFunc("hasSubCommands", hasSubCommands)
+	cobra.AddTemplateFunc("hasManagementSubCommands", hasManagementSubCommands)
+	cobra.AddTemplateFunc("operationSubCommands", operationSubCommands)
+	cobra.AddTemplateFunc("managementSubCommands", managementSubCommands)
+
 	rootCmd.SetUsageTemplate(usageTemplate)
 	rootCmd.SetHelpTemplate(helpTemplate)
 	rootCmd.SetFlagErrorFunc(FlagErrorFunc)
@@ -34,23 +39,81 @@ func FlagErrorFunc(cmd *cobra.Command, err error) error {
 	}
 }
 
-var usageTemplate = `Usage:	{{if not .HasSubCommands}}{{.UseLine}}{{end}}{{if .HasSubCommands}}{{ .CommandPath}} COMMAND{{end}}
+func hasSubCommands(cmd *cobra.Command) bool {
+	return len(operationSubCommands(cmd)) > 0
+}
 
-{{ .Short | trim }}{{if gt .Aliases 0}}
+func hasManagementSubCommands(cmd *cobra.Command) bool {
+	return len(managementSubCommands(cmd)) > 0
+}
+
+func operationSubCommands(cmd *cobra.Command) []*cobra.Command {
+	cmds := []*cobra.Command{}
+	for _, sub := range cmd.Commands() {
+		if sub.IsAvailableCommand() && !sub.HasSubCommands() {
+			cmds = append(cmds, sub)
+		}
+	}
+	return cmds
+}
+
+func managementSubCommands(cmd *cobra.Command) []*cobra.Command {
+	cmds := []*cobra.Command{}
+	for _, sub := range cmd.Commands() {
+		if sub.IsAvailableCommand() && sub.HasSubCommands() {
+			cmds = append(cmds, sub)
+		}
+	}
+	return cmds
+}
+
+var usageTemplate = `Usage:
+
+{{- if not .HasSubCommands}}	{{.UseLine}}{{end}}
+{{- if .HasSubCommands}}	{{ .CommandPath}} COMMAND{{end}}
+
+{{ .Short | trim }}
+
+{{- if gt .Aliases 0}}
 
 Aliases:
-  {{.NameAndAliases}}{{end}}{{if .HasExample}}
+  {{.NameAndAliases}}
+
+{{- end}}
+{{- if .HasExample}}
 
 Examples:
-{{ .Example }}{{end}}{{if .HasFlags}}
+{{ .Example }}
+
+{{- end}}
+{{- if .HasFlags}}
 
 Options:
-{{.Flags.FlagUsages | trimRightSpace}}{{end}}{{ if .HasAvailableSubCommands}}
+{{.Flags.FlagUsages | trimRightSpace}}
 
-Commands:{{range .Commands}}{{if .IsAvailableCommand}}
-  {{rpad .Name .NamePadding }} {{.Short}}{{end}}{{end}}{{end}}{{ if .HasSubCommands }}
+{{- end}}
+{{- if hasManagementSubCommands . }}
 
-Run '{{.CommandPath}} COMMAND --help' for more information on a command.{{end}}
+Management Commands:
+
+{{- range managementSubCommands . }}
+  {{rpad .Name .NamePadding }} {{.Short}}
+{{- end}}
+
+{{- end}}
+{{- if hasSubCommands .}}
+
+Commands:
+
+{{- range operationSubCommands . }}
+  {{rpad .Name .NamePadding }} {{.Short}}
+{{- end}}
+{{- end}}
+
+{{- if .HasSubCommands }}
+
+Run '{{.CommandPath}} COMMAND --help' for more information on a command.
+{{- end}}
 `
 
 var helpTemplate = `
