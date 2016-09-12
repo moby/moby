@@ -7,6 +7,7 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/pkg/stringid"
+	"github.com/docker/docker/pkg/testutil/assert"
 )
 
 func TestNetworkContext(t *testing.T) {
@@ -62,7 +63,7 @@ func TestNetworkContext(t *testing.T) {
 			t.Fatalf("Expected %s, was %s\n", c.expValue, v)
 		}
 
-		h := ctx.fullHeader()
+		h := ctx.FullHeader()
 		if h != c.expHeader {
 			t.Fatalf("Expected %s, was %s\n", c.expHeader, h)
 		}
@@ -70,71 +71,45 @@ func TestNetworkContext(t *testing.T) {
 }
 
 func TestNetworkContextWrite(t *testing.T) {
-	contexts := []struct {
-		context  NetworkContext
+	cases := []struct {
+		context  Context
 		expected string
 	}{
 
 		// Errors
 		{
-			NetworkContext{
-				Context: Context{
-					Format: "{{InvalidFunction}}",
-				},
-			},
+			Context{Format: "{{InvalidFunction}}"},
 			`Template parsing error: template: :1: function "InvalidFunction" not defined
 `,
 		},
 		{
-			NetworkContext{
-				Context: Context{
-					Format: "{{nil}}",
-				},
-			},
+			Context{Format: "{{nil}}"},
 			`Template parsing error: template: :1:2: executing "" at <nil>: nil is not a command
 `,
 		},
 		// Table format
 		{
-			NetworkContext{
-				Context: Context{
-					Format: "table",
-				},
-			},
+			Context{Format: NewNetworkFormat("table", false)},
 			`NETWORK ID          NAME                DRIVER              SCOPE
 networkID1          foobar_baz          foo                 local
 networkID2          foobar_bar          bar                 local
 `,
 		},
 		{
-			NetworkContext{
-				Context: Context{
-					Format: "table",
-					Quiet:  true,
-				},
-			},
+			Context{Format: NewNetworkFormat("table", true)},
 			`networkID1
 networkID2
 `,
 		},
 		{
-			NetworkContext{
-				Context: Context{
-					Format: "table {{.Name}}",
-				},
-			},
+			Context{Format: NewNetworkFormat("table {{.Name}}", false)},
 			`NAME
 foobar_baz
 foobar_bar
 `,
 		},
 		{
-			NetworkContext{
-				Context: Context{
-					Format: "table {{.Name}}",
-					Quiet:  true,
-				},
-			},
+			Context{Format: NewNetworkFormat("table {{.Name}}", true)},
 			`NAME
 foobar_baz
 foobar_bar
@@ -142,11 +117,8 @@ foobar_bar
 		},
 		// Raw Format
 		{
-			NetworkContext{
-				Context: Context{
-					Format: "raw",
-				},
-			}, `network_id: networkID1
+			Context{Format: NewNetworkFormat("raw", false)},
+			`network_id: networkID1
 name: foobar_baz
 driver: foo
 scope: local
@@ -159,43 +131,32 @@ scope: local
 `,
 		},
 		{
-			NetworkContext{
-				Context: Context{
-					Format: "raw",
-					Quiet:  true,
-				},
-			},
+			Context{Format: NewNetworkFormat("raw", true)},
 			`network_id: networkID1
 network_id: networkID2
 `,
 		},
 		// Custom Format
 		{
-			NetworkContext{
-				Context: Context{
-					Format: "{{.Name}}",
-				},
-			},
+			Context{Format: NewNetworkFormat("{{.Name}}", false)},
 			`foobar_baz
 foobar_bar
 `,
 		},
 	}
 
-	for _, context := range contexts {
+	for _, testcase := range cases {
 		networks := []types.NetworkResource{
 			{ID: "networkID1", Name: "foobar_baz", Driver: "foo", Scope: "local"},
 			{ID: "networkID2", Name: "foobar_bar", Driver: "bar", Scope: "local"},
 		}
 		out := bytes.NewBufferString("")
-		context.context.Output = out
-		context.context.Networks = networks
-		context.context.Write()
-		actual := out.String()
-		if actual != context.expected {
-			t.Fatalf("Expected \n%s, got \n%s", context.expected, actual)
+		testcase.context.Output = out
+		err := NetworkWrite(testcase.context, networks)
+		if err != nil {
+			assert.Error(t, err, testcase.expected)
+		} else {
+			assert.Equal(t, out.String(), testcase.expected)
 		}
-		// Clean buffer
-		out.Reset()
 	}
 }

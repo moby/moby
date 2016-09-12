@@ -1,7 +1,6 @@
 package formatter
 
 import (
-	"bytes"
 	"fmt"
 	"strings"
 
@@ -16,78 +15,63 @@ const (
 	// Status header ?
 )
 
-// VolumeContext contains volume specific information required by the formatter,
-// encapsulate a Context struct.
-type VolumeContext struct {
-	Context
-	// Volumes
-	Volumes []*types.Volume
+// NewVolumeFormat returns a format for use with a volume Context
+func NewVolumeFormat(source string, quiet bool) Format {
+	switch source {
+	case TableFormatKey:
+		if quiet {
+			return defaultVolumeQuietFormat
+		}
+		return defaultVolumeTableFormat
+	case RawFormatKey:
+		if quiet {
+			return `name: {{.Name}}`
+		}
+		return `name: {{.Name}}\ndriver: {{.Driver}}\n`
+	}
+	return Format(source)
 }
 
-func (ctx VolumeContext) Write() {
-	switch ctx.Format {
-	case tableFormatKey:
-		if ctx.Quiet {
-			ctx.Format = defaultVolumeQuietFormat
-		} else {
-			ctx.Format = defaultVolumeTableFormat
+// VolumeWrite writes formatted volumes using the Context
+func VolumeWrite(ctx Context, volumes []*types.Volume) error {
+	render := func(format func(subContext subContext) error) error {
+		for _, volume := range volumes {
+			if err := format(&volumeContext{v: volume}); err != nil {
+				return err
+			}
 		}
-	case rawFormatKey:
-		if ctx.Quiet {
-			ctx.Format = `name: {{.Name}}`
-		} else {
-			ctx.Format = `name: {{.Name}}\ndriver: {{.Driver}}\n`
-		}
+		return nil
 	}
-
-	ctx.buffer = bytes.NewBufferString("")
-	ctx.preformat()
-
-	tmpl, err := ctx.parseFormat()
-	if err != nil {
-		return
-	}
-
-	for _, volume := range ctx.Volumes {
-		volumeCtx := &volumeContext{
-			v: volume,
-		}
-		err = ctx.contextFormat(tmpl, volumeCtx)
-		if err != nil {
-			return
-		}
-	}
-
-	ctx.postformat(tmpl, &networkContext{})
+	return ctx.Write(&volumeContext{}, render)
 }
 
 type volumeContext struct {
-	baseSubContext
+	HeaderContext
 	v *types.Volume
 }
 
 func (c *volumeContext) Name() string {
-	c.addHeader(nameHeader)
+	c.AddHeader(nameHeader)
 	return c.v.Name
 }
 
 func (c *volumeContext) Driver() string {
-	c.addHeader(driverHeader)
+	c.AddHeader(driverHeader)
 	return c.v.Driver
 }
 
 func (c *volumeContext) Scope() string {
-	c.addHeader(scopeHeader)
+	c.AddHeader(scopeHeader)
 	return c.v.Scope
 }
 
 func (c *volumeContext) Mountpoint() string {
-	c.addHeader(mountpointHeader)
+	c.AddHeader(mountpointHeader)
 	return c.v.Mountpoint
 }
 
 func (c *volumeContext) Labels() string {
-	c.addHeader(labelsHeader)
+	c.AddHeader(labelsHeader)
 	if c.v.Labels == nil {
 		return ""
 	}
@@ -105,7 +89,7 @@ func (c *volumeContext) Label(name string) string {
 	r := strings.NewReplacer("-", " ", "_", " ")
 	h := r.Replace(n[len(n)-1])
 
-	c.addHeader(h)
+	c.AddHeader(h)
 
 	if c.v.Labels == nil {
 		return ""
