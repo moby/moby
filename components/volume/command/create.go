@@ -1,13 +1,13 @@
-package client
+package command
 
 import (
 	"fmt"
 
 	"golang.org/x/net/context"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cli/command"
+	"github.com/docker/docker/components/volume/types"
 	"github.com/docker/docker/opts"
 	runconfigopts "github.com/docker/docker/runconfig/opts"
 	"github.com/spf13/cobra"

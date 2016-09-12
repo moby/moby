@@ -6,10 +6,10 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/api/types/swarm"
+	volumeclient "github.com/docker/docker/components/volume/client"
 	"golang.org/x/net/context"
 )
 
@@ -22,7 +22,7 @@ type CommonAPIClient interface {
 	ServiceAPIClient
 	SwarmAPIClient
 	SystemAPIClient
-	VolumeAPIClient
+	volumeclient.VolumeAPIClient
 	ClientVersion() string
 	ServerVersion(ctx context.Context) (types.Version, error)
 	UpdateClientVersion(v string)
@@ -123,13 +123,4 @@ type SystemAPIClient interface {
 	Events(ctx context.Context, options types.EventsOptions) (io.ReadCloser, error)
 	Info(ctx context.Context) (types.Info, error)
 	RegistryLogin(ctx context.Context, auth types.AuthConfig) (types.AuthResponse, error)
-}
-
-// VolumeAPIClient defines API client methods for the volumes
-type VolumeAPIClient interface {
-	VolumeCreate(ctx context.Context, options types.VolumeCreateRequest) (types.Volume, error)
-	VolumeInspect(ctx context.Context, volumeID string) (types.Volume, error)
-	VolumeInspectWithRaw(ctx context.Context, volumeID string) (types.Volume, []byte, error)
-	VolumeList(ctx context.Context, filter filters.Args) (types.VolumesListResponse, error)
-	VolumeRemove(ctx context.Context, volumeID string, force bool) error
 }

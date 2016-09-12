@@ -6,7 +6,7 @@ import (
 
 	"github.com/docker/docker/api/server/httputils"
 	apirouter "github.com/docker/docker/api/server/router"
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/components/volume/types"
 	"golang.org/x/net/context"
 )
 
