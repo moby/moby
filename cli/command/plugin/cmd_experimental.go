@@ -14,7 +14,7 @@ import (
 func NewPluginCommand(rootCmd *cobra.Command, dockerCli *command.DockerCli) {
 	cmd := &cobra.Command{
 		Use:   "plugin",
-		Short: "Manage Docker plugins",
+		Short: "Manage plugins",
 		Args:  cli.NoArgs,
 		Run: func(cmd *cobra.Command, args []string) {
 			fmt.Fprintf(dockerCli.Err(), "\n"+cmd.UsageString())

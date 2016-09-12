@@ -13,7 +13,7 @@ import (
 func NewSwarmCommand(dockerCli *command.DockerCli) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "swarm",
-		Short: "Manage Docker Swarm",
+		Short: "Manage Swarm",
 		Args:  cli.NoArgs,
 		Run: func(cmd *cobra.Command, args []string) {
 			fmt.Fprintf(dockerCli.Err(), "\n"+cmd.UsageString())

@@ -13,7 +13,7 @@ import (
 func NewContainerCommand(dockerCli *command.DockerCli) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "container",
-		Short: "Manage Docker containers",
+		Short: "Manage containers",
 		Args:  cli.NoArgs,
 		Run: func(cmd *cobra.Command, args []string) {
 			fmt.Fprintf(dockerCli.Err(), "\n"+cmd.UsageString())
