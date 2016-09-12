@@ -35,7 +35,7 @@ not optimized for the task).
 
 ## Using Checkpoint & Restore
 
-A new top level commands `docker checkpoint` is introduced, with three subcommands:
+A new top level command `docker checkpoint` is introduced, with three subcommands:
 - `create` (creates a new checkpoint)
 - `ls` (lists existing checkpoints)
 - `rm` (deletes an existing checkpoint)
@@ -44,9 +44,9 @@ Additionally, a `--checkpoint` flag is added to the container start command.
 
 The options for checkpoint create:
 
-    Usage:  docker checkpoint [OPTIONS] CONTAINER CHECKPOINT_ID
+    Usage:  docker checkpoint create [OPTIONS] CONTAINER CHECKPOINT
 
-    Checkpoint the specified container
+    Create a checkpoint from a running container
 
       --leave-running=false    leave the container running after checkpoint
 
