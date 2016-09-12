@@ -1,4 +1,4 @@
-package volumetestutils
+package testutils
 
 import (
 	"fmt"

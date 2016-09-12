@@ -1,4 +1,4 @@
-package eventstestutils
+package testutils
 
 import (
 	"fmt"
