@@ -377,7 +377,7 @@ support automatic service discovery on this network. For this reason, pinging
 
 ```bash
 / # ping -w 4 container1
-ping: bad address 'container1'
+^C
 ```
 
 A ping using the `container1` IP address does succeed though:
@@ -590,7 +590,7 @@ $ docker network disconnect isolated_nw container5
 $ docker attach container4
 
 / # ping -w 4 c5
-ping: bad address 'c5'
+^C
 
 / # ping -w 4 foo
 PING foo (172.26.0.3): 56 data bytes
@@ -690,7 +690,7 @@ round-trip min/avg/max = 0.070/0.081/0.097 ms
 $ docker attach container5
 
 / # ping -w 4 scoped-app
-ping: bad address 'scoped-app'
+^C
 
 ```
 
