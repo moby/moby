@@ -7,7 +7,7 @@ import (
 
 	"github.com/docker/docker/api/types/events"
 	timetypes "github.com/docker/docker/api/types/time"
-	"github.com/docker/docker/daemon/events/testutils"
+	eventstestutils "github.com/docker/docker/daemon/events/testutils"
 )
 
 func TestEventsLog(t *testing.T) {

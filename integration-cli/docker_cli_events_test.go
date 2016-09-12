@@ -11,7 +11,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/docker/docker/daemon/events/testutils"
+	eventstestutils "github.com/docker/docker/daemon/events/testutils"
 	"github.com/docker/docker/pkg/integration/checker"
 	icmd "github.com/docker/docker/pkg/integration/cmd"
 	"github.com/go-check/check"
