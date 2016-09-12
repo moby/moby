@@ -1,7 +1,6 @@
 package formatter
 
 import (
-	"bytes"
 	"fmt"
 	"strconv"
 	"strings"
@@ -11,7 +10,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/pkg/stringutils"
-	"github.com/docker/go-units"
+	units "github.com/docker/go-units"
 )
 
 const (
@@ -26,67 +25,53 @@ const (
 	mountsHeader      = "MOUNTS"
 )
 
-// ContainerContext contains container specific information required by the formater, encapsulate a Context struct.
-type ContainerContext struct {
-	Context
-	// Size when set to true will display the size of the output.
-	Size bool
-	// Containers
-	Containers []types.Container
+// NewContainerFormat returns a Format for rendering using a Context
+func NewContainerFormat(source string, quiet bool, size bool) Format {
+	switch source {
+	case TableFormatKey:
+		if quiet {
+			return defaultQuietFormat
+		}
+		format := defaultContainerTableFormat
+		if size {
+			format += `\t{{.Size}}`
+		}
+		return Format(format)
+	case RawFormatKey:
+		if quiet {
+			return `container_id: {{.ID}}`
+		}
+		format := `container_id: {{.ID}}\nimage: {{.Image}}\ncommand: {{.Command}}\ncreated_at: {{.CreatedAt}}\nstatus: {{.Status}}\nnames: {{.Names}}\nlabels: {{.Labels}}\nports: {{.Ports}}\n`
+		if size {
+			format += `size: {{.Size}}\n`
+		}
+		return Format(format)
+	}
+	return Format(source)
 }
 
-func (ctx ContainerContext) Write() {
-	switch ctx.Format {
-	case tableFormatKey:
-		if ctx.Quiet {
-			ctx.Format = defaultQuietFormat
-		} else {
-			ctx.Format = defaultContainerTableFormat
-			if ctx.Size {
-				ctx.Format += `\t{{.Size}}`
+// ContainerWrite renders the context for a list of containers
+func ContainerWrite(ctx Context, containers []types.Container) error {
+	render := func(format func(subContext subContext) error) error {
+		for _, container := range containers {
+			err := format(&containerContext{trunc: ctx.Trunc, c: container})
+			if err != nil {
+				return err
 			}
 		}
-	case rawFormatKey:
-		if ctx.Quiet {
-			ctx.Format = `container_id: {{.ID}}`
-		} else {
-			ctx.Format = `container_id: {{.ID}}\nimage: {{.Image}}\ncommand: {{.Command}}\ncreated_at: {{.CreatedAt}}\nstatus: {{.Status}}\nnames: {{.Names}}\nlabels: {{.Labels}}\nports: {{.Ports}}\n`
-			if ctx.Size {
-				ctx.Format += `size: {{.Size}}\n`
-			}
-		}
+		return nil
 	}
-
-	ctx.buffer = bytes.NewBufferString("")
-	ctx.preformat()
-
-	tmpl, err := ctx.parseFormat()
-	if err != nil {
-		return
-	}
-
-	for _, container := range ctx.Containers {
-		containerCtx := &containerContext{
-			trunc: ctx.Trunc,
-			c:     container,
-		}
-		err = ctx.contextFormat(tmpl, containerCtx)
-		if err != nil {
-			return
-		}
-	}
-
-	ctx.postformat(tmpl, &containerContext{})
+	return ctx.Write(&containerContext{}, render)
 }
 
 type containerContext struct {
-	baseSubContext
+	HeaderContext
 	trunc bool
 	c     types.Container
 }
 
 func (c *containerContext) ID() string {
-	c.addHeader(containerIDHeader)
+	c.AddHeader(containerIDHeader)
 	if c.trunc {
 		return stringid.TruncateID(c.c.ID)
 	}
@@ -94,7 +79,7 @@ func (c *containerContext) ID() string {
 }
 
 func (c *containerContext) Names() string {
-	c.addHeader(namesHeader)
+	c.AddHeader(namesHeader)
 	names := stripNamePrefix(c.c.Names)
 	if c.trunc {
 		for _, name := range names {
@@ -108,7 +93,7 @@ func (c *containerContext) Names() string {
 }
 
 func (c *containerContext) Image() string {
-	c.addHeader(imageHeader)
+	c.AddHeader(imageHeader)
 	if c.c.Image == "" {
 		return "<no image>"
 	}
@@ -121,7 +106,7 @@ func (c *containerContext) Image() string {
 }
 
 func (c *containerContext) Command() string {
-	c.addHeader(commandHeader)
+	c.AddHeader(commandHeader)
 	command := c.c.Command
 	if c.trunc {
 		command = stringutils.Ellipsis(command, 20)
@@ -130,28 +115,28 @@ func (c *containerContext) Command() string {
 }
 
 func (c *containerContext) CreatedAt() string {
-	c.addHeader(createdAtHeader)
+	c.AddHeader(createdAtHeader)
 	return time.Unix(int64(c.c.Created), 0).String()
 }
 
 func (c *containerContext) RunningFor() string {
-	c.addHeader(runningForHeader)
+	c.AddHeader(runningForHeader)
 	createdAt := time.Unix(int64(c.c.Created), 0)
 	return units.HumanDuration(time.Now().UTC().Sub(createdAt))
 }
 
 func (c *containerContext) Ports() string {
-	c.addHeader(portsHeader)
+	c.AddHeader(portsHeader)
 	return api.DisplayablePorts(c.c.Ports)
 }
 
 func (c *containerContext) Status() string {
-	c.addHeader(statusHeader)
+	c.AddHeader(statusHeader)
 	return c.c.Status
 }
 
 func (c *containerContext) Size() string {
-	c.addHeader(sizeHeader)
+	c.AddHeader(sizeHeader)
 	srw := units.HumanSizeWithPrecision(float64(c.c.SizeRw), 3)
 	sv := units.HumanSizeWithPrecision(float64(c.c.SizeRootFs), 3)
 
@@ -163,7 +148,7 @@ func (c *containerContext) Size() string {
 }
 
 func (c *containerContext) Labels() string {
-	c.addHeader(labelsHeader)
+	c.AddHeader(labelsHeader)
 	if c.c.Labels == nil {
 		return ""
 	}
@@ -180,7 +165,7 @@ func (c *containerContext) Label(name string) string {
 	r := strings.NewReplacer("-", " ", "_", " ")
 	h := r.Replace(n[len(n)-1])
 
-	c.addHeader(h)
+	c.AddHeader(h)
 
 	if c.c.Labels == nil {
 		return ""
@@ -189,7 +174,7 @@ func (c *containerContext) Label(name string) string {
 }
 
 func (c *containerContext) Mounts() string {
-	c.addHeader(mountsHeader)
+	c.AddHeader(mountsHeader)
 
 	var name string
 	var mounts []string
