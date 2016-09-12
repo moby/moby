@@ -20,6 +20,7 @@
 # For several commands, the amount of completions can be configured by
 # setting environment variables.
 #
+# DOCKER_COMPLETION_SHOW_CONTAINER_IDS
 # DOCKER_COMPLETION_SHOW_NETWORK_IDS
 # DOCKER_COMPLETION_SHOW_NODE_IDS
 # DOCKER_COMPLETION_SHOW_SERVICE_IDS
@@ -58,96 +59,115 @@ __docker_q() {
 	docker ${host:+-H "$host"} ${config:+--config "$config"} 2>/dev/null "$@"
 }
 
-__docker_complete_containers_all() {
-	local IFS=$'\n'
-	local containers=( $(__docker_q ps -aq --no-trunc) )
-	if [ "$1" ]; then
-		containers=( $(__docker_q inspect --format "{{if $1}}{{.Id}}{{end}}" "${containers[@]}") )
+# Returns a list of containers. Additional arguments to `docker ps`
+# may be specified in order to filter the list, e.g.
+# `__docker_containers --filter status=running`
+# By default, only names are returned.
+# Set DOCKER_COMPLETION_SHOW_CONTAINER_IDS=yes to also complete IDs.
+# An optional first option `--id|--name` may be used to limit the
+# output to the IDs or names of matching items. This setting takes
+# precedence over the environment setting.
+__docker_containers() {
+	local format='{{.Names}}'
+	if [ "${DOCKER_COMPLETION_SHOW_CONTAINER_IDS}" = yes ] ; then
+		format='{{.ID}} {{.Names}}'
 	fi
-	local names=( $(__docker_q inspect --format '{{.Name}}' "${containers[@]}") )
-	names=( "${names[@]#/}" ) # trim off the leading "/" from the container names
-	unset IFS
-	COMPREPLY=( $(compgen -W "${names[*]} ${containers[*]}" -- "$cur") )
+
+	if [ "$1" = "--id" ] ; then
+		format='{{.ID}}'
+		shift
+	elif [ "$1" = "--name" ] ; then
+		format='{{.Names}}'
+		shift
+	fi
+	__docker_q ps --format "$format" "$@"
+}
+
+# Applies completion of containers based on the current value of `$cur` or
+# the value of the optional first option `--cur`, if given.
+# Additional filters may be appended, see `__docker_containers`.
+__docker_complete_containers() {
+	local current="$cur"
+	if [ "$1" = "--cur" ] ; then
+		current="$2"
+		shift 2
+	fi
+	COMPREPLY=( $(compgen -W "$(__docker_containers "$@")" -- "$current") )
+}
+
+__docker_complete_containers_all() {
+	__docker_complete_containers "$@" --all
 }
 
 __docker_complete_containers_running() {
-	__docker_complete_containers_all '.State.Running'
+	__docker_complete_containers "$@" --filter status=running
 }
 
 __docker_complete_containers_stopped() {
-	__docker_complete_containers_all 'not .State.Running'
-}
-
-__docker_complete_containers_pauseable() {
-	__docker_complete_containers_all 'and .State.Running (not .State.Paused)'
+	__docker_complete_containers "$@" --filter status=exited
 }
 
 __docker_complete_containers_unpauseable() {
-	__docker_complete_containers_all '.State.Paused'
+	__docker_complete_containers "$@" --filter status=paused
 }
 
-__docker_complete_container_names() {
-	local containers=( $(__docker_q ps -aq --no-trunc) )
-	local names=( $(__docker_q inspect --format '{{.Name}}' "${containers[@]}") )
-	names=( "${names[@]#/}" ) # trim off the leading "/" from the container names
-	COMPREPLY=( $(compgen -W "${names[*]}" -- "$cur") )
-}
-
-__docker_complete_container_ids() {
-	local containers=( $(__docker_q ps -aq) )
-	COMPREPLY=( $(compgen -W "${containers[*]}" -- "$cur") )
-}
-
-__docker_complete_images() {
-	local images_args=""
-
-	case "$DOCKER_COMPLETION_SHOW_IMAGE_IDS" in
-		all)
-			images_args="--no-trunc -a"
-			;;
-		non-intermediate)
-			images_args="--no-trunc"
-			;;
-	esac
-
-	local repo_print_command
-	if [ "${DOCKER_COMPLETION_SHOW_TAGS:-yes}" = "yes" ]; then
-		repo_print_command='print $1; print $1":"$2'
-	else
-		repo_print_command='print $1'
+# Returns a list of images. Additional arguments to `docker images`
+# may be specified in order to filter the list, e.g.
+# `__docker_containers --filter dangling=true`.
+# By default, names and tags are returned.
+# Set DOCKER_COMPLETION_SHOW_IMAGE_IDS=all|non-intermediate to also complete IDs.
+# Set DOCKER_COMPLETION_SHOW_TAGS=no to exclude tags.
+# If you specify a custom `--format`, it will override the settings from the
+# environment variables.
+__docker_images() {
+	local all=""
+	if [ "$DOCKER_COMPLETION_SHOW_IMAGE_IDS" = "all" ] ; then
+		# if a `--format` option is given, we do not automatically set
+		#`--all` so that the caller can decide whether `--all` is needed.
+		if [[ ! " $@" =~ " --format" ]] ; then
+			all="--all"
+		fi
 	fi
 
-	local awk_script
+	local format='{{.Repository}}'
+	if [ "${DOCKER_COMPLETION_SHOW_TAGS:-yes}" = "yes" ]; then
+		format+=' {{.Repository}}:{{.Tag}}'
+	fi
+
 	case "$DOCKER_COMPLETION_SHOW_IMAGE_IDS" in
 		all|non-intermediate)
-			awk_script='NR>1 { print $3; if ($1 != "<none>") { '"$repo_print_command"' } }'
-			;;
-		none|*)
-			awk_script='NR>1 && $1 != "<none>" { '"$repo_print_command"' }'
+			format+='\n{{.ID}}'
 			;;
 	esac
 
-	local images=$(__docker_q images $images_args | awk "$awk_script")
-	COMPREPLY=( $(compgen -W "$images" -- "$cur") )
-	__ltrim_colon_completions "$cur"
+	__docker_q images --no-trunc --format "$format" $all "$@" | grep -v '^<none>'
+}
+
+# Applies completion of images based on the current value of `$cur` or
+# the value of the optional first option `--cur`, if given.
+# Additional filters may be appended, see `__docker_images`.
+__docker_complete_images() {
+	local current="$cur"
+	if [ "$1" = "--cur" ] ; then
+		current="$2"
+		shift 2
+	fi
+	COMPREPLY=( $(compgen -W "$(__docker_images "$@")" -- "$current") )
+	__ltrim_colon_completions "$current"
 }
 
 __docker_complete_image_repos() {
-	local repos="$(__docker_q images | awk 'NR>1 && $1 != "<none>" { print $1 }')"
-	COMPREPLY=( $(compgen -W "$repos" -- "$cur") )
+	COMPREPLY=( $(compgen -W "$(__docker_images --format '{{.Repository}}')" -- "$cur") )
 }
 
 __docker_complete_image_repos_and_tags() {
-	local reposAndTags="$(__docker_q images | awk 'NR>1 && $1 != "<none>" { print $1; print $1":"$2 }')"
-	COMPREPLY=( $(compgen -W "$reposAndTags" -- "$cur") )
+	COMPREPLY=( $(compgen -W "$(__docker_images --format '{{.Repository}} {{.Repository}}:{{.Tag}}')" -- "$cur") )
 	__ltrim_colon_completions "$cur"
 }
 
 __docker_complete_containers_and_images() {
-	__docker_complete_containers_all
-	local containers=( "${COMPREPLY[@]}" )
-	__docker_complete_images
-	COMPREPLY+=( "${containers[@]}" )
+	COMPREPLY=( $(compgen -W "$(__docker_containers --all) $(__docker_images)" -- "$cur") )
+	__ltrim_colon_completions "$cur"
 }
 
 # Returns a list of all networks. Additional arguments to `docker network ls`
@@ -1151,8 +1171,7 @@ _docker_events() {
 	local key=$(__docker_map_key_of_current_option '-f|--filter')
 	case "$key" in
 		container)
-			cur="${cur##*=}"
-			__docker_complete_containers_all
+			__docker_complete_containers_all --cur "${cur##*=}"
 			return
 			;;
 		daemon)
@@ -1202,8 +1221,7 @@ _docker_events() {
 			return
 			;;
 		image)
-			cur="${cur##*=}"
-			__docker_complete_images
+			__docker_complete_images --cur "${cur##*=}"
 			return
 			;;
 		network)
@@ -1297,8 +1315,7 @@ _docker_images() {
 	local key=$(__docker_map_key_of_current_option '--filter|-f')
 	case "$key" in
 		before)
-			cur="${cur##*=}"
-			__docker_complete_images
+			__docker_complete_images --cur "${cur##*=}"
 			return
 			;;
 		dangling)
@@ -1309,8 +1326,7 @@ _docker_images() {
 			return
 			;;
 		since)
-			cur="${cur##*=}"
-			__docker_complete_images
+			__docker_complete_images --cur "${cur##*=}"
 			return
 			;;
 	esac
@@ -2209,7 +2225,7 @@ _docker_pause() {
 		*)
 			local counter=$(__docker_pos_first_nonflag)
 			if [ $cword -eq $counter ]; then
-				__docker_complete_containers_pauseable
+				__docker_complete_containers_running
 			fi
 			;;
 	esac
@@ -2233,18 +2249,15 @@ _docker_ps() {
 	local key=$(__docker_map_key_of_current_option '--filter|-f')
 	case "$key" in
 		ancestor)
-			cur="${cur##*=}"
-			__docker_complete_images
+			__docker_complete_images --cur "${cur##*=}"
 			return
 			;;
 		before)
-			cur="${cur##*=}"
-			__docker_complete_containers_all
+			__docker_complete_containers_all --cur "${cur##*=}"
 			return
 			;;
 		id)
-			cur="${cur##*=}"
-			__docker_complete_container_ids
+			__docker_complete_containers_all --cur "${cur##*=}" --id
 			return
 			;;
 		is-task)
@@ -2252,8 +2265,7 @@ _docker_ps() {
 			return
 			;;
 		name)
-			cur="${cur##*=}"
-			__docker_complete_container_names
+			__docker_complete_containers_all --cur "${cur##*=}" --name
 			return
 			;;
 		network)
@@ -2261,8 +2273,7 @@ _docker_ps() {
 			return
 			;;
 		since)
-			cur="${cur##*=}"
-			__docker_complete_containers_all
+			__docker_complete_containers_all --cur "${cur##*=}"
 			return
 			;;
 		status)
@@ -2558,8 +2569,7 @@ _docker_run() {
 		--ipc)
 			case "$cur" in
 				*:*)
-					cur="${cur#*:}"
-					__docker_complete_containers_running
+					__docker_complete_containers_running --cur "${cur#*:}"
 					;;
 				*)
 					COMPREPLY=( $( compgen -W 'host container:' -- "$cur" ) )
@@ -2597,8 +2607,7 @@ _docker_run() {
 		--network)
 			case "$cur" in
 				container:*)
-					local cur=${cur#*:}
-					__docker_complete_containers_all
+					__docker_complete_containers_all --cur "${cur##*=}"
 					;;
 				*)
 					COMPREPLY=( $( compgen -W "$(__docker_plugins --type Network) $(__docker_networks) container:" -- "$cur") )
@@ -2612,8 +2621,7 @@ _docker_run() {
 		--pid)
 			case "$cur" in
 				*:*)
-					cur="${cur#*:}"
-					__docker_complete_containers_running
+					__docker_complete_containers_running --cur "${cur#*:}"
 					;;
 				*)
 					COMPREPLY=( $( compgen -W 'host container:' -- "$cur" ) )
