@@ -45,7 +45,7 @@ import (
 	"google.golang.org/grpc/credentials"
 )
 
-// TokenSource supplies credentials from an oauth2.TokenSource.
+// TokenSource supplies PerRPCCredentials from an oauth2.TokenSource.
 type TokenSource struct {
 	oauth2.TokenSource
 }
@@ -57,10 +57,11 @@ func (ts TokenSource) GetRequestMetadata(ctx context.Context, uri ...string) (ma
 		return nil, err
 	}
 	return map[string]string{
-		"authorization": token.TokenType + " " + token.AccessToken,
+		"authorization": token.Type() + " " + token.AccessToken,
 	}, nil
 }
 
+// RequireTransportSecurity indicates whether the credentails requires transport security.
 func (ts TokenSource) RequireTransportSecurity() bool {
 	return true
 }
@@ -69,7 +70,8 @@ type jwtAccess struct {
 	jsonKey []byte
 }
 
-func NewJWTAccessFromFile(keyFile string) (credentials.Credentials, error) {
+// NewJWTAccessFromFile creates PerRPCCredentials from the given keyFile.
+func NewJWTAccessFromFile(keyFile string) (credentials.PerRPCCredentials, error) {
 	jsonKey, err := ioutil.ReadFile(keyFile)
 	if err != nil {
 		return nil, fmt.Errorf("credentials: failed to read the service account key file: %v", err)
@@ -77,7 +79,8 @@ func NewJWTAccessFromFile(keyFile string) (credentials.Credentials, error) {
 	return NewJWTAccessFromKey(jsonKey)
 }
 
-func NewJWTAccessFromKey(jsonKey []byte) (credentials.Credentials, error) {
+// NewJWTAccessFromKey creates PerRPCCredentials from the given jsonKey.
+func NewJWTAccessFromKey(jsonKey []byte) (credentials.PerRPCCredentials, error) {
 	return jwtAccess{jsonKey}, nil
 }
 
@@ -99,13 +102,13 @@ func (j jwtAccess) RequireTransportSecurity() bool {
 	return true
 }
 
-// oauthAccess supplies credentials from a given token.
+// oauthAccess supplies PerRPCCredentials from a given token.
 type oauthAccess struct {
 	token oauth2.Token
 }
 
-// NewOauthAccess constructs the credentials using a given token.
-func NewOauthAccess(token *oauth2.Token) credentials.Credentials {
+// NewOauthAccess constructs the PerRPCCredentials using a given token.
+func NewOauthAccess(token *oauth2.Token) credentials.PerRPCCredentials {
 	return oauthAccess{token: *token}
 }
 
@@ -119,15 +122,15 @@ func (oa oauthAccess) RequireTransportSecurity() bool {
 	return true
 }
 
-// NewComputeEngine constructs the credentials that fetches access tokens from
+// NewComputeEngine constructs the PerRPCCredentials that fetches access tokens from
 // Google Compute Engine (GCE)'s metadata server. It is only valid to use this
 // if your program is running on a GCE instance.
 // TODO(dsymonds): Deprecate and remove this.
-func NewComputeEngine() credentials.Credentials {
+func NewComputeEngine() credentials.PerRPCCredentials {
 	return TokenSource{google.ComputeTokenSource("")}
 }
 
-// serviceAccount represents credentials via JWT signing key.
+// serviceAccount represents PerRPCCredentials via JWT signing key.
 type serviceAccount struct {
 	config *jwt.Config
 }
@@ -146,9 +149,9 @@ func (s serviceAccount) RequireTransportSecurity() bool {
 	return true
 }
 
-// NewServiceAccountFromKey constructs the credentials using the JSON key slice
+// NewServiceAccountFromKey constructs the PerRPCCredentials using the JSON key slice
 // from a Google Developers service account.
-func NewServiceAccountFromKey(jsonKey []byte, scope ...string) (credentials.Credentials, error) {
+func NewServiceAccountFromKey(jsonKey []byte, scope ...string) (credentials.PerRPCCredentials, error) {
 	config, err := google.JWTConfigFromJSON(jsonKey, scope...)
 	if err != nil {
 		return nil, err
@@ -156,9 +159,9 @@ func NewServiceAccountFromKey(jsonKey []byte, scope ...string) (credentials.Cred
 	return serviceAccount{config: config}, nil
 }
 
-// NewServiceAccountFromFile constructs the credentials using the JSON key file
+// NewServiceAccountFromFile constructs the PerRPCCredentials using the JSON key file
 // of a Google Developers service account.
-func NewServiceAccountFromFile(keyFile string, scope ...string) (credentials.Credentials, error) {
+func NewServiceAccountFromFile(keyFile string, scope ...string) (credentials.PerRPCCredentials, error) {
 	jsonKey, err := ioutil.ReadFile(keyFile)
 	if err != nil {
 		return nil, fmt.Errorf("credentials: failed to read the service account key file: %v", err)
@@ -168,7 +171,7 @@ func NewServiceAccountFromFile(keyFile string, scope ...string) (credentials.Cre
 
 // NewApplicationDefault returns "Application Default Credentials". For more
 // detail, see https://developers.google.com/accounts/docs/application-default-credentials.
-func NewApplicationDefault(ctx context.Context, scope ...string) (credentials.Credentials, error) {
+func NewApplicationDefault(ctx context.Context, scope ...string) (credentials.PerRPCCredentials, error) {
 	t, err := google.DefaultTokenSource(ctx, scope...)
 	if err != nil {
 		return nil, err

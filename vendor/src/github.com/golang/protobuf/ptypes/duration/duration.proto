@@ -31,9 +31,9 @@
 syntax = "proto3";
 
 package google.protobuf;
-option go_package = "duration";
 
 option csharp_namespace = "Google.Protobuf.WellKnownTypes";
+option go_package = "github.com/golang/protobuf/ptypes/duration";
 option java_package = "com.google.protobuf";
 option java_outer_classname = "DurationProto";
 option java_multiple_files = true;
@@ -80,6 +80,7 @@ option objc_class_prefix = "GPB";
 //       end.seconds += 1;
 //       end.nanos -= 1000000000;
 //     }
+//
 //
 message Duration {
 
