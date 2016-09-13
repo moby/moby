@@ -102,7 +102,7 @@ instruction, and the image we built to run the service:
 
     $ docker run --rm -t -i --volumes-from test_apt_cacher_ng eg_apt_cacher_ng bash
 
-    $$ /usr/lib/apt-cacher-ng/distkill.pl
+    root@f38c87f2a42d:/# /usr/lib/apt-cacher-ng/distkill.pl
     Scanning /var/cache/apt-cacher-ng, please wait...
     Found distributions:
     bla, taggedcount: 0

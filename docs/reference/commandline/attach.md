@@ -119,7 +119,7 @@ process is returned by the `docker attach` command to its caller too:
     $ docker run --name test -d -it debian
     275c44472aebd77c926d4527885bb09f2f6db21d878c75f0a1c212c03d3bcfab
     $ docker attach test
-    $$ exit 13
+    root@f38c87f2a42d:/# exit 13
     exit
     $ echo $?
     13
