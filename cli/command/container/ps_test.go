@@ -1,8 +1,16 @@
 package container
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/docker/docker/opts"
+	"github.com/docker/docker/pkg/testutil/assert"
+)
 
 func TestBuildContainerListOptions(t *testing.T) {
+	filters := opts.NewFilterOpt()
+	assert.NilError(t, filters.Set("foo=bar"))
+	assert.NilError(t, filters.Set("baz=foo"))
 
 	contexts := []struct {
 		psOpts          *psOptions
@@ -16,7 +24,7 @@ func TestBuildContainerListOptions(t *testing.T) {
 				all:    true,
 				size:   true,
 				last:   5,
-				filter: []string{"foo=bar", "baz=foo"},
+				filter: filters,
 			},
 			expectedAll:   true,
 			expectedSize:  true,
@@ -42,27 +50,12 @@ func TestBuildContainerListOptions(t *testing.T) {
 
 	for _, c := range contexts {
 		options, err := buildContainerListOptions(c.psOpts)
-		if err != nil {
-			t.Fatal(err)
-		}
+		assert.NilError(t, err)
 
-		if c.expectedAll != options.All {
-			t.Fatalf("Expected All to be %t but got %t", c.expectedAll, options.All)
-		}
-
-		if c.expectedSize != options.Size {
-			t.Fatalf("Expected Size to be %t but got %t", c.expectedSize, options.Size)
-		}
-
-		if c.expectedLimit != options.Limit {
-			t.Fatalf("Expected Limit to be %d but got %d", c.expectedLimit, options.Limit)
-		}
-
-		f := options.Filter
-
-		if f.Len() != len(c.expectedFilters) {
-			t.Fatalf("Expected %d filters but got %d", len(c.expectedFilters), f.Len())
-		}
+		assert.Equal(t, c.expectedAll, options.All)
+		assert.Equal(t, c.expectedSize, options.Size)
+		assert.Equal(t, c.expectedLimit, options.Limit)
+		assert.Equal(t, options.Filter.Len(), len(c.expectedFilters))
 
 		for k, v := range c.expectedFilters {
 			f := options.Filter

@@ -344,7 +344,7 @@ func (s *DockerRegistrySuite) TestListDanglingImagesWithDigests(c *check.C) {
 	dockerCmd(c, "pull", imageReference2)
 
 	// list images
-	out, _ = dockerCmd(c, "images", "--digests", "--filter=\"dangling=true\"")
+	out, _ = dockerCmd(c, "images", "--digests", "--filter=dangling=true")
 
 	// make sure repo shown, tag=<none>, digest = $digest1
 	c.Assert(re1.MatchString(out), checker.True, check.Commentf("expected %q: %s", re1.String(), out))
@@ -357,7 +357,7 @@ func (s *DockerRegistrySuite) TestListDanglingImagesWithDigests(c *check.C) {
 	dockerCmd(c, "pull", repoName+":dangle1")
 
 	// list images
-	out, _ = dockerCmd(c, "images", "--digests", "--filter=\"dangling=true\"")
+	out, _ = dockerCmd(c, "images", "--digests", "--filter=dangling=true")
 
 	// make sure image 1 has repo, tag, <none> AND repo, <none>, digest
 	reWithDigest1 := regexp.MustCompile(`\s*` + repoName + `\s*dangle1\s*` + digest1.String() + `\s`)
@@ -379,7 +379,7 @@ func (s *DockerRegistrySuite) TestListDanglingImagesWithDigests(c *check.C) {
 	c.Assert(reWithDigest2.MatchString(out), checker.True, check.Commentf("expected %q: %s", reWithDigest2.String(), out))
 
 	// list images, no longer dangling, should not match
-	out, _ = dockerCmd(c, "images", "--digests", "--filter=\"dangling=true\"")
+	out, _ = dockerCmd(c, "images", "--digests", "--filter=dangling=true")
 
 	// make sure image 1 has repo, tag, digest
 	c.Assert(reWithDigest1.MatchString(out), checker.False, check.Commentf("unexpected %q: %s", reWithDigest1.String(), out))

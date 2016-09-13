@@ -1,16 +1,15 @@
 package container
 
 import (
+	"io/ioutil"
+
 	"golang.org/x/net/context"
 
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cli/command"
 	"github.com/docker/docker/cli/command/formatter"
-
-	"io/ioutil"
-
+	"github.com/docker/docker/opts"
 	"github.com/docker/docker/utils/templates"
 	"github.com/spf13/cobra"
 )
@@ -23,12 +22,12 @@ type psOptions struct {
 	nLatest bool
 	last    int
 	format  string
-	filter  []string
+	filter  opts.FilterOpt
 }
 
 // NewPsCommand creates a new cobra.Command for `docker ps`
 func NewPsCommand(dockerCli *command.DockerCli) *cobra.Command {
-	var opts psOptions
+	opts := psOptions{filter: opts.NewFilterOpt()}
 
 	cmd := &cobra.Command{
 		Use:   "ps [OPTIONS]",
@@ -48,7 +47,7 @@ func NewPsCommand(dockerCli *command.DockerCli) *cobra.Command {
 	flags.BoolVarP(&opts.nLatest, "latest", "l", false, "Show the latest created container (includes all states)")
 	flags.IntVarP(&opts.last, "last", "n", -1, "Show n last created containers (includes all states)")
 	flags.StringVarP(&opts.format, "format", "", "", "Pretty-print containers using a Go template")
-	flags.StringSliceVarP(&opts.filter, "filter", "f", []string{}, "Filter output based on conditions provided")
+	flags.VarP(&opts.filter, "filter", "f", "Filter output based on conditions provided")
 
 	return cmd
 }
@@ -65,24 +64,15 @@ func (p *preProcessor) Size() bool {
 }
 
 func buildContainerListOptions(opts *psOptions) (*types.ContainerListOptions, error) {
-
 	options := &types.ContainerListOptions{
 		All:    opts.all,
 		Limit:  opts.last,
 		Size:   opts.size,
-		Filter: filters.NewArgs(),
+		Filter: opts.filter.Value(),
 	}
 
 	if opts.nLatest && opts.last == -1 {
 		options.Limit = 1
-	}
-
-	for _, f := range opts.filter {
-		var err error
-		options.Filter, err = filters.ParseFlag(f, options.Filter)
-		if err != nil {
-			return nil, err
-		}
 	}
 
 	// Currently only used with Size, so we can determine if the user
