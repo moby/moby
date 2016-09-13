@@ -4,10 +4,10 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cli/command"
 	"github.com/docker/docker/cli/command/formatter"
+	"github.com/docker/docker/opts"
 	"github.com/spf13/cobra"
 )
 
@@ -19,12 +19,12 @@ type imagesOptions struct {
 	noTrunc     bool
 	showDigests bool
 	format      string
-	filter      []string
+	filter      opts.FilterOpt
 }
 
 // NewImagesCommand creates a new `docker images` command
 func NewImagesCommand(dockerCli *command.DockerCli) *cobra.Command {
-	var opts imagesOptions
+	opts := imagesOptions{filter: opts.NewFilterOpt()}
 
 	cmd := &cobra.Command{
 		Use:   "images [OPTIONS] [REPOSITORY[:TAG]]",
@@ -45,7 +45,7 @@ func NewImagesCommand(dockerCli *command.DockerCli) *cobra.Command {
 	flags.BoolVar(&opts.noTrunc, "no-trunc", false, "Don't truncate output")
 	flags.BoolVar(&opts.showDigests, "digests", false, "Show digests")
 	flags.StringVar(&opts.format, "format", "", "Pretty-print images using a Go template")
-	flags.StringSliceVarP(&opts.filter, "filter", "f", []string{}, "Filter output based on conditions provided")
+	flags.VarP(&opts.filter, "filter", "f", "Filter output based on conditions provided")
 
 	return cmd
 }
@@ -53,23 +53,10 @@ func NewImagesCommand(dockerCli *command.DockerCli) *cobra.Command {
 func runImages(dockerCli *command.DockerCli, opts imagesOptions) error {
 	ctx := context.Background()
 
-	// Consolidate all filter flags, and sanity check them early.
-	// They'll get process in the daemon/server.
-	imageFilterArgs := filters.NewArgs()
-	for _, f := range opts.filter {
-		var err error
-		imageFilterArgs, err = filters.ParseFlag(f, imageFilterArgs)
-		if err != nil {
-			return err
-		}
-	}
-
-	matchName := opts.matchName
-
 	options := types.ImageListOptions{
-		MatchName: matchName,
+		MatchName: opts.matchName,
 		All:       opts.all,
-		Filters:   imageFilterArgs,
+		Filters:   opts.filter.Value(),
 	}
 
 	images, err := dockerCli.Client().ImageList(ctx, options)
