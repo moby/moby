@@ -111,13 +111,13 @@ func runPs(dockerCli *command.DockerCli, opts *psOptions) error {
 		if len(dockerCli.ConfigFile().PsFormat) > 0 && !opts.quiet {
 			format = dockerCli.ConfigFile().PsFormat
 		} else {
-			format = "table"
+			format = formatter.TableFormatKey
 		}
 	}
 
 	containerCtx := formatter.Context{
 		Output: dockerCli.Out(),
-		Format: formatter.NewContainerFormat(format, opts.quiet, opts.size),
+		Format: formatter.NewContainerFormat(format, opts.quiet, listOptions.Size),
 		Trunc:  !opts.noTrunc,
 	}
 	return formatter.ContainerWrite(containerCtx, containers)

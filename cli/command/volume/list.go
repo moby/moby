@@ -61,7 +61,7 @@ func runList(dockerCli *command.DockerCli, opts listOptions) error {
 		if len(dockerCli.ConfigFile().VolumesFormat) > 0 && !opts.quiet {
 			format = dockerCli.ConfigFile().VolumesFormat
 		} else {
-			format = "table"
+			format = formatter.TableFormatKey
 		}
 	}
 

@@ -61,7 +61,7 @@ func runList(dockerCli *command.DockerCli, opts listOptions) error {
 		if len(dockerCli.ConfigFile().NetworksFormat) > 0 && !opts.quiet {
 			format = dockerCli.ConfigFile().NetworksFormat
 		} else {
-			format = "table"
+			format = formatter.TableFormatKey
 		}
 	}
 
