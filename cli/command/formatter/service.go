@@ -139,6 +139,10 @@ type serviceInspectContext struct {
 	subContext
 }
 
+func (ctx *serviceInspectContext) MarshalJSON() ([]byte, error) {
+	return marshalJSON(ctx)
+}
+
 func (ctx *serviceInspectContext) ID() string {
 	return ctx.Service.ID
 }

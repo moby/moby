@@ -2,6 +2,7 @@ package formatter
 
 import (
 	"bytes"
+	"encoding/json"
 	"strings"
 	"testing"
 
@@ -158,5 +159,50 @@ foobar_bar
 		} else {
 			assert.Equal(t, out.String(), testcase.expected)
 		}
+	}
+}
+
+func TestNetworkContextWriteJSON(t *testing.T) {
+	networks := []types.NetworkResource{
+		{ID: "networkID1", Name: "foobar_baz"},
+		{ID: "networkID2", Name: "foobar_bar"},
+	}
+	expectedJSONs := []map[string]interface{}{
+		{"Driver": "", "ID": "networkID1", "IPv6": "false", "Internal": "false", "Labels": "", "Name": "foobar_baz", "Scope": ""},
+		{"Driver": "", "ID": "networkID2", "IPv6": "false", "Internal": "false", "Labels": "", "Name": "foobar_bar", "Scope": ""},
+	}
+
+	out := bytes.NewBufferString("")
+	err := NetworkWrite(Context{Format: "{{json .}}", Output: out}, networks)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i, line := range strings.Split(strings.TrimSpace(out.String()), "\n") {
+		t.Logf("Output: line %d: %s", i, line)
+		var m map[string]interface{}
+		if err := json.Unmarshal([]byte(line), &m); err != nil {
+			t.Fatal(err)
+		}
+		assert.DeepEqual(t, m, expectedJSONs[i])
+	}
+}
+
+func TestNetworkContextWriteJSONField(t *testing.T) {
+	networks := []types.NetworkResource{
+		{ID: "networkID1", Name: "foobar_baz"},
+		{ID: "networkID2", Name: "foobar_bar"},
+	}
+	out := bytes.NewBufferString("")
+	err := NetworkWrite(Context{Format: "{{json .ID}}", Output: out}, networks)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i, line := range strings.Split(strings.TrimSpace(out.String()), "\n") {
+		t.Logf("Output: line %d: %s", i, line)
+		var s string
+		if err := json.Unmarshal([]byte(line), &s); err != nil {
+			t.Fatal(err)
+		}
+		assert.Equal(t, s, networks[i].ID)
 	}
 }

@@ -2,6 +2,7 @@ package formatter
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"testing"
@@ -321,5 +322,51 @@ func TestContainerContextWriteWithNoContainers(t *testing.T) {
 		assert.Equal(t, context.expected, out.String())
 		// Clean buffer
 		out.Reset()
+	}
+}
+
+func TestContainerContextWriteJSON(t *testing.T) {
+	unix := time.Now().Add(-65 * time.Second).Unix()
+	containers := []types.Container{
+		{ID: "containerID1", Names: []string{"/foobar_baz"}, Image: "ubuntu", Created: unix},
+		{ID: "containerID2", Names: []string{"/foobar_bar"}, Image: "ubuntu", Created: unix},
+	}
+	expectedCreated := time.Unix(unix, 0).String()
+	expectedJSONs := []map[string]interface{}{
+		{"Command": "\"\"", "CreatedAt": expectedCreated, "ID": "containerID1", "Image": "ubuntu", "Labels": "", "LocalVolumes": "0", "Mounts": "", "Names": "foobar_baz", "Ports": "", "RunningFor": "About a minute", "Size": "0 B", "Status": ""},
+		{"Command": "\"\"", "CreatedAt": expectedCreated, "ID": "containerID2", "Image": "ubuntu", "Labels": "", "LocalVolumes": "0", "Mounts": "", "Names": "foobar_bar", "Ports": "", "RunningFor": "About a minute", "Size": "0 B", "Status": ""},
+	}
+	out := bytes.NewBufferString("")
+	err := ContainerWrite(Context{Format: "{{json .}}", Output: out}, containers)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i, line := range strings.Split(strings.TrimSpace(out.String()), "\n") {
+		t.Logf("Output: line %d: %s", i, line)
+		var m map[string]interface{}
+		if err := json.Unmarshal([]byte(line), &m); err != nil {
+			t.Fatal(err)
+		}
+		assert.DeepEqual(t, m, expectedJSONs[i])
+	}
+}
+
+func TestContainerContextWriteJSONField(t *testing.T) {
+	containers := []types.Container{
+		{ID: "containerID1", Names: []string{"/foobar_baz"}, Image: "ubuntu"},
+		{ID: "containerID2", Names: []string{"/foobar_bar"}, Image: "ubuntu"},
+	}
+	out := bytes.NewBufferString("")
+	err := ContainerWrite(Context{Format: "{{json .ID}}", Output: out}, containers)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i, line := range strings.Split(strings.TrimSpace(out.String()), "\n") {
+		t.Logf("Output: line %d: %s", i, line)
+		var s string
+		if err := json.Unmarshal([]byte(line), &s); err != nil {
+			t.Fatal(err)
+		}
+		assert.Equal(t, s, containers[i].ID)
 	}
 }

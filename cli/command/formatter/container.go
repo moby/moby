@@ -79,6 +79,10 @@ type containerContext struct {
 	c     types.Container
 }
 
+func (c *containerContext) MarshalJSON() ([]byte, error) {
+	return marshalJSON(c)
+}
+
 func (c *containerContext) ID() string {
 	c.AddHeader(containerIDHeader)
 	if c.trunc {
