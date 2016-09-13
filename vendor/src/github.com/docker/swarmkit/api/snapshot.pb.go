@@ -222,11 +222,12 @@ func valueToGoStringSnapshot(v interface{}, typ string) string {
 	pv := reflect.Indirect(rv).Interface()
 	return fmt.Sprintf("func(v %v) *%v { return &v } ( %#v )", typ, typ, pv)
 }
-func extensionToGoStringSnapshot(e map[int32]github_com_gogo_protobuf_proto.Extension) string {
+func extensionToGoStringSnapshot(m github_com_gogo_protobuf_proto.Message) string {
+	e := github_com_gogo_protobuf_proto.GetUnsafeExtensionsMap(m)
 	if e == nil {
 		return "nil"
 	}
-	s := "map[int32]proto.Extension{"
+	s := "proto.NewUnsafeXXX_InternalExtensions(map[int32]proto.Extension{"
 	keys := make([]int, 0, len(e))
 	for k := range e {
 		keys = append(keys, int(k))
@@ -236,7 +237,7 @@ func extensionToGoStringSnapshot(e map[int32]github_com_gogo_protobuf_proto.Exte
 	for _, k := range keys {
 		ss = append(ss, strconv.Itoa(k)+": "+e[int32(k)].GoString())
 	}
-	s += strings.Join(ss, ",") + "}"
+	s += strings.Join(ss, ",") + "})"
 	return s
 }
 func (m *StoreSnapshot) Marshal() (data []byte, err error) {
@@ -1084,6 +1085,8 @@ var (
 	ErrInvalidLengthSnapshot = fmt.Errorf("proto: negative length found during unmarshaling")
 	ErrIntOverflowSnapshot   = fmt.Errorf("proto: integer overflow")
 )
+
+func init() { proto.RegisterFile("snapshot.proto", fileDescriptorSnapshot) }
 
 var fileDescriptorSnapshot = []byte{
 	// 396 bytes of a gzipped FileDescriptorProto

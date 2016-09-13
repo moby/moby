@@ -29,7 +29,7 @@ type Config struct {
 	NotifyRoleChange chan<- api.NodeRole
 
 	// Credentials is credentials for grpc connection to manager.
-	Credentials credentials.TransportAuthenticator
+	Credentials credentials.TransportCredentials
 }
 
 func (c *Config) validate() error {

@@ -16,7 +16,6 @@ import (
 	"path/filepath"
 	"time"
 
-	log "github.com/Sirupsen/logrus"
 	cfcsr "github.com/cloudflare/cfssl/csr"
 	"github.com/cloudflare/cfssl/helpers"
 	"github.com/cloudflare/cfssl/initca"
@@ -117,8 +116,7 @@ func (rca *RootCA) CanSign() bool {
 func (rca *RootCA) IssueAndSaveNewCertificates(paths CertPaths, cn, ou, org string) (*tls.Certificate, error) {
 	csr, key, err := GenerateAndWriteNewKey(paths)
 	if err != nil {
-		log.Debugf("error when generating new node certs: %v", err)
-		return nil, err
+		return nil, fmt.Errorf("error when generating new node certs: %v", err)
 	}
 
 	if !rca.CanSign() {
@@ -128,8 +126,7 @@ func (rca *RootCA) IssueAndSaveNewCertificates(paths CertPaths, cn, ou, org stri
 	// Obtain a signed Certificate
 	certChain, err := rca.ParseValidateAndSignCSR(csr, cn, ou, org)
 	if err != nil {
-		log.Debugf("failed to sign node certificate: %v", err)
-		return nil, err
+		return nil, fmt.Errorf("failed to sign node certificate: %v", err)
 	}
 
 	// Ensure directory exists
@@ -149,20 +146,18 @@ func (rca *RootCA) IssueAndSaveNewCertificates(paths CertPaths, cn, ou, org stri
 		return nil, err
 	}
 
-	log.Debugf("locally issued new TLS certificate for node ID: %s and role: %s", cn, ou)
 	return &tlsKeyPair, nil
 }
 
 // RequestAndSaveNewCertificates gets new certificates issued, either by signing them locally if a signer is
 // available, or by requesting them from the remote server at remoteAddr.
-func (rca *RootCA) RequestAndSaveNewCertificates(ctx context.Context, paths CertPaths, token string, remotes remotes.Remotes, transport credentials.TransportAuthenticator, nodeInfo chan<- api.IssueNodeCertificateResponse) (*tls.Certificate, error) {
+func (rca *RootCA) RequestAndSaveNewCertificates(ctx context.Context, paths CertPaths, token string, remotes remotes.Remotes, transport credentials.TransportCredentials, nodeInfo chan<- api.IssueNodeCertificateResponse) (*tls.Certificate, error) {
 	// Create a new key/pair and CSR for the new manager
 	// Write the new CSR and the new key to a temporary location so we can survive crashes on rotation
 	tempPaths := genTempPaths(paths)
 	csr, key, err := GenerateAndWriteNewKey(tempPaths)
 	if err != nil {
-		log.Debugf("error when generating new node certs: %v", err)
-		return nil, err
+		return nil, fmt.Errorf("error when generating new node certs: %v", err)
 	}
 
 	// Get the remote manager to issue a CA signed certificate for this node
@@ -174,7 +169,6 @@ func (rca *RootCA) RequestAndSaveNewCertificates(ctx context.Context, paths Cert
 		if err == nil {
 			break
 		}
-		log.Warningf("error fetching signed node certificate: %v", err)
 	}
 	if err != nil {
 		return nil, err
@@ -204,10 +198,6 @@ func (rca *RootCA) RequestAndSaveNewCertificates(ctx context.Context, paths Cert
 	tlsKeyPair, err := tls.X509KeyPair(signedCert, key)
 	if err != nil {
 		return nil, err
-	}
-
-	if len(X509Cert.Subject.OrganizationalUnit) != 0 {
-		log.Infof("Downloaded new TLS credentials with role: %s.", X509Cert.Subject.OrganizationalUnit[0])
 	}
 
 	// Ensure directory exists
@@ -259,8 +249,7 @@ func (rca *RootCA) ParseValidateAndSignCSR(csrBytes []byte, cn, ou, org string) 
 
 	cert, err := rca.Signer.Sign(signRequest)
 	if err != nil {
-		log.Debugf("failed to sign node certificate: %v", err)
-		return nil, err
+		return nil, fmt.Errorf("failed to sign node certificate: %v", err)
 	}
 
 	return rca.AppendFirstRootPEM(cert)
@@ -342,8 +331,7 @@ func NewRootCA(certBytes, keyBytes []byte, certExpiry time.Duration) (RootCA, er
 	if err != nil {
 		priv, err = helpers.ParsePrivateKeyPEMWithPassword(keyBytes, passphrasePrev)
 		if err != nil {
-			log.Debug("Malformed private key %v", err)
-			return RootCA{}, err
+			return RootCA{}, fmt.Errorf("Malformed private key: %v", err)
 		}
 	}
 
@@ -414,12 +402,7 @@ func GetLocalRootCA(baseDir string) (RootCA, error) {
 		key = nil
 	}
 
-	rootCA, err := NewRootCA(cert, key, DefaultNodeCertExpiration)
-	if err == nil {
-		log.Debugf("successfully loaded the Root CA: %s", paths.RootCA.Cert)
-	}
-
-	return rootCA, err
+	return NewRootCA(cert, key, DefaultNodeCertExpiration)
 }
 
 // GetRemoteCA returns the remote endpoint's CA certificate
@@ -552,8 +535,7 @@ func GenerateAndSignNewTLSCert(rootCA RootCA, cn, ou, org string, paths CertPath
 	// Obtain a signed Certificate
 	certChain, err := rootCA.ParseValidateAndSignCSR(csr, cn, ou, org)
 	if err != nil {
-		log.Debugf("failed to sign node certificate: %v", err)
-		return nil, err
+		return nil, fmt.Errorf("failed to sign node certificate: %v", err)
 	}
 
 	// Ensure directory exists
@@ -603,7 +585,7 @@ func GenerateAndWriteNewKey(paths CertPaths) (csr, key []byte, err error) {
 
 // GetRemoteSignedCertificate submits a CSR to a remote CA server address,
 // and that is part of a CA identified by a specific certificate pool.
-func GetRemoteSignedCertificate(ctx context.Context, csr []byte, token string, rootCAPool *x509.CertPool, r remotes.Remotes, creds credentials.TransportAuthenticator, nodeInfo chan<- api.IssueNodeCertificateResponse) ([]byte, error) {
+func GetRemoteSignedCertificate(ctx context.Context, csr []byte, token string, rootCAPool *x509.CertPool, r remotes.Remotes, creds credentials.TransportCredentials, nodeInfo chan<- api.IssueNodeCertificateResponse) ([]byte, error) {
 	if rootCAPool == nil {
 		return nil, fmt.Errorf("valid root CA pool required")
 	}
@@ -653,7 +635,6 @@ func GetRemoteSignedCertificate(ctx context.Context, csr []byte, token string, r
 		Max:    30 * time.Second,
 	})
 
-	log.Infof("Waiting for TLS certificate to be issued...")
 	// Exponential backoff with Max of 30 seconds to wait for a new retry
 	for {
 		// Send the Request and retrieve the certificate
@@ -694,7 +675,6 @@ func readCertExpiration(paths CertPaths) (time.Duration, error) {
 	// Read the Cert
 	cert, err := ioutil.ReadFile(paths.Cert)
 	if err != nil {
-		log.Debugf("failed to read certificate file: %s", paths.Cert)
 		return time.Hour, err
 	}
 
@@ -730,7 +710,6 @@ func generateNewCSR() (csr, key []byte, err error) {
 
 	csr, key, err = cfcsr.ParseRequest(req)
 	if err != nil {
-		log.Debugf(`failed to generate CSR`)
 		return
 	}
 

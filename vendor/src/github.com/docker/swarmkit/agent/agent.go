@@ -15,6 +15,7 @@ import (
 const (
 	initialSessionFailureBackoff = 100 * time.Millisecond
 	maxSessionFailureBackoff     = 8 * time.Second
+	nodeUpdatePeriod             = 20 * time.Second
 )
 
 // Agent implements the primary node functionality for a member of a swarm
@@ -134,9 +135,18 @@ func (a *Agent) run(ctx context.Context) {
 	log.G(ctx).Debugf("(*Agent).run")
 	defer log.G(ctx).Debugf("(*Agent).run exited")
 
+	// get the node description
+	nodeDescription, err := a.nodeDescriptionWithHostname(ctx)
+	if err != nil {
+		log.G(ctx).WithError(err).WithField("agent", a.config.Executor).Errorf("agent: node description unavailable")
+	}
+	// nodeUpdateTicker is used to periodically check for updates to node description
+	nodeUpdateTicker := time.NewTicker(nodeUpdatePeriod)
+	defer nodeUpdateTicker.Stop()
+
 	var (
 		backoff    time.Duration
-		session    = newSession(ctx, a, backoff, "") // start the initial session
+		session    = newSession(ctx, a, backoff, "", nodeDescription) // start the initial session
 		registered = session.registered
 		ready      = a.ready // first session ready
 		sessionq   chan sessionOperation
@@ -158,9 +168,16 @@ func (a *Agent) run(ctx context.Context) {
 		select {
 		case operation := <-sessionq:
 			operation.response <- operation.fn(session)
-		case msg := <-session.tasks:
-			if err := a.worker.Assign(ctx, msg.Tasks); err != nil {
-				log.G(ctx).WithError(err).Error("task assignment failed")
+		case msg := <-session.assignments:
+			switch msg.Type {
+			case api.AssignmentsMessage_COMPLETE:
+				if err := a.worker.AssignTasks(ctx, msg.UpdateTasks); err != nil {
+					log.G(ctx).WithError(err).Error("failed to synchronize worker assignments")
+				}
+			case api.AssignmentsMessage_INCREMENTAL:
+				if err := a.worker.UpdateTasks(ctx, msg.UpdateTasks, msg.RemoveTasks); err != nil {
+					log.G(ctx).WithError(err).Error("failed to update worker assignments")
+				}
 			}
 		case msg := <-session.messages:
 			if err := a.handleSessionMessage(ctx, msg); err != nil {
@@ -197,10 +214,42 @@ func (a *Agent) run(ctx context.Context) {
 			log.G(ctx).Debugf("agent: rebuild session")
 
 			// select a session registration delay from backoff range.
-			delay := time.Duration(rand.Int63n(int64(backoff)))
-			session = newSession(ctx, a, delay, session.sessionID)
+			delay := time.Duration(0)
+			if backoff > 0 {
+				delay = time.Duration(rand.Int63n(int64(backoff)))
+			}
+			session = newSession(ctx, a, delay, session.sessionID, nodeDescription)
 			registered = session.registered
 			sessionq = a.sessionq
+		case <-nodeUpdateTicker.C:
+			// skip this case if the registration isn't finished
+			if registered != nil {
+				continue
+			}
+			// get the current node description
+			newNodeDescription, err := a.nodeDescriptionWithHostname(ctx)
+			if err != nil {
+				log.G(ctx).WithError(err).WithField("agent", a.config.Executor).Errorf("agent: updated node description unavailable")
+			}
+
+			// if newNodeDescription is nil, it will cause a panic when
+			// trying to create a session. Typically this can happen
+			// if the engine goes down
+			if newNodeDescription == nil {
+				continue
+			}
+
+			// if the node description has changed, update it to the new one
+			// and close the session. The old session will be stopped and a
+			// new one will be created with the updated description
+			if !reflect.DeepEqual(nodeDescription, newNodeDescription) {
+				nodeDescription = newNodeDescription
+				// close the session
+				log.G(ctx).Info("agent: found node update")
+				if err := session.close(); err != nil {
+					log.G(ctx).WithError(err).Error("agent: closing session for node update failed")
+				}
+			}
 		case <-a.stopped:
 			// TODO(stevvooe): Wait on shutdown and cleanup. May need to pump
 			// this loop a few times.
@@ -315,7 +364,8 @@ func (a *Agent) UpdateTaskStatus(ctx context.Context, taskID string, status *api
 				if err == errTaskUnknown {
 					err = nil // dispatcher no longer cares about this task.
 				} else {
-					log.G(ctx).WithError(err).Error("sending task status update failed")
+					log.G(ctx).WithError(err).Error("closing session after fatal error")
+					session.close()
 				}
 			} else {
 				log.G(ctx).Debug("task status reported")
@@ -335,6 +385,17 @@ func (a *Agent) UpdateTaskStatus(ctx context.Context, taskID string, status *api
 	case <-ctx.Done():
 		return ctx.Err()
 	}
+}
+
+// nodeDescriptionWithHostname retrieves node description, and overrides hostname if available
+func (a *Agent) nodeDescriptionWithHostname(ctx context.Context) (*api.NodeDescription, error) {
+	desc, err := a.config.Executor.Describe(ctx)
+
+	// Override hostname
+	if a.config.Hostname != "" && desc != nil {
+		desc.Hostname = a.config.Hostname
+	}
+	return desc, err
 }
 
 // nodesEqual returns true if the node states are functionaly equal, ignoring status,

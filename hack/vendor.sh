@@ -141,10 +141,10 @@ clone git google.golang.org/cloud dae7e3d993bc3812a2185af60552bb6b847e52a0 https
 clone git github.com/docker/docker-credential-helpers v0.3.0
 
 # containerd
-clone git github.com/docker/containerd 4c21ad662f71af56c0e6b29c0afef72df441d1ff
+clone git github.com/docker/containerd 2545227b0357eb55e369fa0072baef9ad91cdb69
 
 # cluster
-clone git github.com/docker/swarmkit 27fbaef4ceed648bb575969ccc9083a6e104a719
+clone git github.com/docker/swarmkit 191acc1bbdb13d8ea3b8059dda14a12f8c3903f2
 clone git github.com/golang/mock bd3c8e81be01eef76d4b503f5e687d2d1354d2d9
 clone git github.com/gogo/protobuf v0.3
 clone git github.com/cloudflare/cfssl 7fb22c8cba7ecaf98e4082d22d65800cf45e042a
