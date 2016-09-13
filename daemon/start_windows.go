@@ -53,6 +53,7 @@ func (daemon *Daemon) getLibcontainerdCreateOptions(container *container.Contain
 
 	// Get endpoints for the libnetwork allocated networks to the container
 	var epList []string
+	AllowUnqualifiedDNSQuery := false
 	if container.NetworkSettings != nil {
 		for n := range container.NetworkSettings.Networks {
 			sn, err := daemon.FindNetwork(n)
@@ -72,6 +73,10 @@ func (daemon *Daemon) getLibcontainerdCreateOptions(container *container.Contain
 			if data["hnsid"] != nil {
 				epList = append(epList, data["hnsid"].(string))
 			}
+
+			if data["AllowUnqualifiedDNSQuery"] != nil {
+				AllowUnqualifiedDNSQuery = true
+			}
 		}
 	}
 
@@ -80,7 +85,7 @@ func (daemon *Daemon) getLibcontainerdCreateOptions(container *container.Contain
 	createOptions = append(createOptions, hvOpts)
 	createOptions = append(createOptions, layerOpts)
 	if epList != nil {
-		createOptions = append(createOptions, &libcontainerd.NetworkEndpointsOption{Endpoints: epList})
+		createOptions = append(createOptions, &libcontainerd.NetworkEndpointsOption{Endpoints: epList, AllowUnqualifiedDNSQuery: AllowUnqualifiedDNSQuery})
 	}
 
 	return &createOptions, nil

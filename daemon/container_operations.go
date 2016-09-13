@@ -597,11 +597,12 @@ func cleanOperationalData(es *network.EndpointSettings) {
 }
 
 func (daemon *Daemon) updateNetworkConfig(container *container.Container, n libnetwork.Network, endpointConfig *networktypes.EndpointSettings, updateSettings bool) error {
+
 	if !containertypes.NetworkMode(n.Name()).IsUserDefined() {
 		if hasUserDefinedIPAddress(endpointConfig) && !enableIPOnPredefinedNetwork() {
 			return runconfig.ErrUnsupportedNetworkAndIP
 		}
-		if endpointConfig != nil && len(endpointConfig.Aliases) > 0 {
+		if endpointConfig != nil && len(endpointConfig.Aliases) > 0 && !container.EnableServiceDiscoveryOnDefaultNetwork() {
 			return runconfig.ErrUnsupportedNetworkAndAlias
 		}
 	} else {
@@ -673,9 +674,8 @@ func (daemon *Daemon) connectToNetwork(container *container.Container, idOrName 
 	}
 
 	controller := daemon.netController
-
 	sb := daemon.getNetworkSandbox(container)
-	createOptions, err := container.BuildCreateEndpointOptions(n, endpointConfig, sb)
+	createOptions, err := container.BuildCreateEndpointOptions(n, endpointConfig, sb, daemon.configStore.DNS)
 	if err != nil {
 		return err
 	}
