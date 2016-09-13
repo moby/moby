@@ -158,9 +158,9 @@ func (daemon *Daemon) registerMountPoints(container *container.Container, hostCo
 				if cfg.VolumeOptions.DriverConfig != nil {
 					driverOpts = cfg.VolumeOptions.DriverConfig.Options
 				}
-				v, err = daemon.volumes.CreateWithRef(mp.Name, mp.Driver, container.ID, driverOpts, cfg.VolumeOptions.Labels)
+				v, err = daemon.volumeComponent.Create(mp.Name, mp.Driver, container.ID, driverOpts, cfg.VolumeOptions.Labels)
 			} else {
-				v, err = daemon.volumes.CreateWithRef(mp.Name, mp.Driver, container.ID, nil, nil)
+				v, err = daemon.volumeComponent.Create(mp.Name, mp.Driver, container.ID, nil, nil)
 			}
 			if err != nil {
 				return err

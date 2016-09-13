@@ -6,7 +6,7 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/events"
-	volumecomp "github.com/docker/docker/components/volume"
+	volumetypes "github.com/docker/docker/components/volume/types"
 	executorpkg "github.com/docker/docker/daemon/cluster/executor"
 	compreg "github.com/docker/docker/pkg/component/registry"
 	"github.com/docker/libnetwork"
@@ -87,11 +87,11 @@ func (r *controller) Prepare(ctx context.Context) error {
 
 	// TODO: store the component as part of the cluster component when it
 	// exists, so the casting to expected interface can be done only once.
-	comp, err := compreg.Get().Get(volumecomp.ComponentType)
+	comp, err := compreg.Get().Get(volumetypes.ComponentType)
 	if err != nil {
 		return err
 	}
-	volumes, ok := comp.Interface().(volumecomp.Volumes)
+	volumes, ok := comp.Interface().(volumetypes.VolumeComponent)
 	if !ok {
 		return fmt.Errorf("Unexpected volume component %T", comp)
 	}

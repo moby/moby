@@ -4,27 +4,11 @@ import (
 	apirouter "github.com/docker/docker/api/server/router"
 	clicommand "github.com/docker/docker/cli/command"
 	"github.com/docker/docker/components/volume/command"
+	"github.com/docker/docker/components/volume/types"
 	"github.com/docker/docker/pkg/component"
 	"github.com/docker/docker/pkg/component/registry"
 	"github.com/spf13/cobra"
-
-	// TODO: move this under the component
-	"github.com/docker/docker/volume"
 )
-
-const (
-	// ComponentType is the name identifying this type of component
-	ComponentType = "volumes"
-)
-
-// Volumes is the public interface for the volume component. It is used by other
-// compoennts.
-type Volumes interface {
-	Create(name, driverName, ref string, opts, labels map[string]string) (volume.Volume, error)
-	GetWithRef(name, driver, ref string) (volume.Volume, error)
-	Dereference(volume.Volume, string)
-	Remove(volume.Volume) error
-}
 
 // Component provides volume functionality to the engine
 type Component struct {
@@ -34,7 +18,7 @@ type Component struct {
 
 // Provides returns the component type
 func (c *Component) Provides() string {
-	return ComponentType
+	return types.ComponentType
 }
 
 // Routes returns the api routes provided by this component

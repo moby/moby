@@ -216,4 +216,4 @@ func (b *backend) Dereference(v volume.Volume, ref string) {
 	b.volumes.Dereference(v, ref)
 }
 
-var _ Volumes = &backend{}
+var _ types.VolumeComponent = &backend{}

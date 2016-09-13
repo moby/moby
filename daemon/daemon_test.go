@@ -10,6 +10,7 @@ import (
 
 	containertypes "github.com/docker/docker/api/types/container"
 	volumecomp "github.com/docker/docker/components/volume"
+	volumetypes "github.com/docker/docker/components/volume/types"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/events"
 	"github.com/docker/docker/pkg/component"

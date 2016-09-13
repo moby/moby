@@ -14,7 +14,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/versions"
-	volumecomp "github.com/docker/docker/components/volume"
+	volumetypes "github.com/docker/docker/components/volume/types"
 	executorpkg "github.com/docker/docker/daemon/cluster/executor"
 	"github.com/docker/libnetwork"
 	"github.com/docker/swarmkit/api"
@@ -296,7 +296,7 @@ func (c *containerAdapter) remove(ctx context.Context) error {
 	})
 }
 
-func (c *containerAdapter) createVolumes(ctx context.Context, volumes volumecomp.Volumes) error {
+func (c *containerAdapter) createVolumes(ctx context.Context, volumes volumetypes.VolumeComponent) error {
 	// Create plugin volumes that are embedded inside a Mount
 	for _, mount := range c.container.task.Spec.GetContainer().Mounts {
 		if mount.Type != api.MountTypeVolume {

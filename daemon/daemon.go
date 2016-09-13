@@ -25,7 +25,7 @@ import (
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
-	volumecomp "github.com/docker/docker/components/volume"
+	volumetypes "github.com/docker/docker/components/volume/types"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/events"
 	"github.com/docker/docker/daemon/exec"
@@ -99,7 +99,7 @@ type Daemon struct {
 	containerdRemote          libcontainerd.Remote
 	defaultIsolation          containertypes.Isolation // Default isolation mode on Windows
 	clusterProvider           cluster.Provider
-	volumeComponent           volumecomp.Volumes
+	volumeComponent           volumetypes.VolumeComponent
 }
 
 func (daemon *Daemon) restore() error {
@@ -382,12 +382,12 @@ func (daemon *Daemon) RestartSwarmContainers() {
 
 // TODO: remove once all access to this component has moved into other
 // components
-func getVolumeComponent() (volumecomp.Volumes, error) {
-	comp, err := compreg.Get().Get(volumecomp.ComponentType)
+func getVolumeComponent() (volumetypes.VolumeComponent, error) {
+	comp, err := compreg.Get().Get(volumetypes.ComponentType)
 	if err != nil {
 		return nil, err
 	}
-	volumes, ok := comp.Interface().(volumecomp.Volumes)
+	volumes, ok := comp.Interface().(volumetypes.VolumeComponent)
 	if !ok {
 		return nil, fmt.Errorf("Unexpected volume component %T", comp)
 	}
