@@ -15,6 +15,8 @@ func (container *Container) Reset(lock bool) {
 	if lock {
 		container.Lock()
 		defer container.Unlock()
+		container.DataLock.Lock()
+		defer container.DataLock.Unlock()
 	}
 
 	if err := container.CloseStreams(); err != nil {

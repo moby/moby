@@ -34,8 +34,8 @@ func (daemon *Daemon) ContainerInspectCurrent(name string, size bool) (*types.Co
 		return nil, err
 	}
 
-	container.Lock()
-	defer container.Unlock()
+	container.DataLock.Lock()
+	defer container.DataLock.Unlock()
 
 	base, err := daemon.getInspectData(container, size)
 	if err != nil {
@@ -81,8 +81,8 @@ func (daemon *Daemon) containerInspect120(name string) (*v1p20.ContainerJSON, er
 		return nil, err
 	}
 
-	container.Lock()
-	defer container.Unlock()
+	container.DataLock.Lock()
+	defer container.DataLock.Unlock()
 
 	base, err := daemon.getInspectData(container, false)
 	if err != nil {
