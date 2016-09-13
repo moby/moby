@@ -423,14 +423,12 @@ func (b *Builder) processImageFrom(img builder.Image) error {
 		}
 
 		total := len(ast.Children)
-		for i, n := range ast.Children {
-			switch strings.ToUpper(n.Value) {
-			case "ONBUILD":
-				return fmt.Errorf("Chaining ONBUILD via `ONBUILD ONBUILD` isn't allowed")
-			case "MAINTAINER", "FROM":
-				return fmt.Errorf("%s isn't allowed as an ONBUILD trigger", n.Value)
+		for _, n := range ast.Children {
+			if err := b.checkDispatch(n, true); err != nil {
+				return err
 			}
-
+		}
+		for i, n := range ast.Children {
 			if err := b.dispatch(i, total, n); err != nil {
 				return err
 			}
