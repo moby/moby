@@ -32,7 +32,9 @@ var _ = math.Inf
 
 // This is a compile-time assertion to ensure that this generated file
 // is compatible with the proto package it is being compiled against.
-const _ = proto.GoGoProtoPackageIsVersion1
+// A compilation error at this line likely means your copy of the
+// proto package needs to be updated.
+const _ = proto.GoGoProtoPackageIsVersion2 // please upgrade the proto package
 
 // A Timestamp represents a point in time independent of any time zone
 // or calendar, represented as seconds and fractions of seconds at
@@ -141,11 +143,12 @@ func valueToGoStringTimestamp(v interface{}, typ string) string {
 	pv := reflect.Indirect(rv).Interface()
 	return fmt.Sprintf("func(v %v) *%v { return &v } ( %#v )", typ, typ, pv)
 }
-func extensionToGoStringTimestamp(e map[int32]github_com_gogo_protobuf_proto.Extension) string {
+func extensionToGoStringTimestamp(m github_com_gogo_protobuf_proto.Message) string {
+	e := github_com_gogo_protobuf_proto.GetUnsafeExtensionsMap(m)
 	if e == nil {
 		return "nil"
 	}
-	s := "map[int32]proto.Extension{"
+	s := "proto.NewUnsafeXXX_InternalExtensions(map[int32]proto.Extension{"
 	keys := make([]int, 0, len(e))
 	for k := range e {
 		keys = append(keys, int(k))
@@ -155,7 +158,7 @@ func extensionToGoStringTimestamp(e map[int32]github_com_gogo_protobuf_proto.Ext
 	for _, k := range keys {
 		ss = append(ss, strconv.Itoa(k)+": "+e[int32(k)].GoString())
 	}
-	s += strings.Join(ss, ",") + "}"
+	s += strings.Join(ss, ",") + "})"
 	return s
 }
 func (m *Timestamp) Marshal() (data []byte, err error) {
@@ -450,6 +453,8 @@ var (
 	ErrInvalidLengthTimestamp = fmt.Errorf("proto: negative length found during unmarshaling")
 	ErrIntOverflowTimestamp   = fmt.Errorf("proto: integer overflow")
 )
+
+func init() { proto.RegisterFile("timestamp.proto", fileDescriptorTimestamp) }
 
 var fileDescriptorTimestamp = []byte{
 	// 205 bytes of a gzipped FileDescriptorProto

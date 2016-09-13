@@ -6,6 +6,29 @@ import (
 	"github.com/docker/go-events"
 )
 
+// dropErrClosed is a sink that suppresses ErrSinkClosed from Write, to avoid
+// debug log messages that may be confusing. It is possible that the queue
+// will try to write an event to its destination channel while the queue is
+// being removed from the broadcaster. Since the channel is closed before the
+// queue, there is a narrow window when this is possible. In some event-based
+// dropping events when a sink is removed from a broadcaster is a problem, but
+// for the usage in this watch package that's the expected behavior.
+type dropErrClosed struct {
+	sink events.Sink
+}
+
+func (s dropErrClosed) Write(event events.Event) error {
+	err := s.sink.Write(event)
+	if err == events.ErrSinkClosed {
+		return nil
+	}
+	return err
+}
+
+func (s dropErrClosed) Close() error {
+	return s.sink.Close()
+}
+
 // Queue is the structure used to publish events and watch for them.
 type Queue struct {
 	mu          sync.Mutex
@@ -35,7 +58,7 @@ func (q *Queue) Watch() (eventq chan events.Event, cancel func()) {
 // close the channel.
 func (q *Queue) CallbackWatch(matcher events.Matcher) (eventq chan events.Event, cancel func()) {
 	ch := events.NewChannel(0)
-	sink := events.Sink(events.NewQueue(ch))
+	sink := events.Sink(events.NewQueue(dropErrClosed{sink: ch}))
 
 	if matcher != nil {
 		sink = events.NewFilter(sink, matcher)
