@@ -66,6 +66,7 @@ func (daemon *Daemon) Images(filterArgs, filter string, all bool) ([]*types.Imag
 	}
 
 	var beforeFilter, sinceFilter *image.Image
+
 	err = imageFilters.WalkValues("before", func(value string) error {
 		beforeFilter, err = daemon.GetImage(value)
 		return err
@@ -86,6 +87,9 @@ func (daemon *Daemon) Images(filterArgs, filter string, all bool) ([]*types.Imag
 
 	var filterTagged bool
 	if filter != "" {
+		if _, err := daemon.GetImage(filter); err != nil {
+			return nil, err
+		}
 		filterRef, err := reference.ParseNamed(filter)
 		if err == nil { // parse error means wildcard repo
 			if _, ok := filterRef.(reference.NamedTagged); ok {
