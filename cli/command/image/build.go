@@ -293,6 +293,9 @@ func runBuild(dockerCli *command.DockerCli, options buildOptions) error {
 
 	response, err := dockerCli.Client().ImageBuild(ctx, body, buildOptions)
 	if err != nil {
+		if options.quiet {
+			fmt.Fprintf(dockerCli.Err(), "%s", progBuff)
+		}
 		return err
 	}
 	defer response.Body.Close()
