@@ -18,7 +18,7 @@ func (daemon *Daemon) createContainerPlatformSpecificSettings(container *contain
 
 	for spec := range config.Volumes {
 
-		mp, err := volume.ParseMountSpec(spec, hostConfig.VolumeDriver)
+		mp, err := volume.ParseMountRaw(spec, hostConfig.VolumeDriver)
 		if err != nil {
 			return fmt.Errorf("Unrecognised volume spec: %v", err)
 		}

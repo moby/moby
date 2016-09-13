@@ -9,8 +9,11 @@ import (
 
 	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
+	mounttypes "github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/container"
+	dockererrors "github.com/docker/docker/errors"
 	"github.com/docker/docker/volume"
+	"github.com/opencontainers/runc/libcontainer/label"
 )
 
 var (
@@ -106,7 +109,8 @@ func (daemon *Daemon) registerMountPoints(container *container.Container, hostCo
 				Driver:      m.Driver,
 				Destination: m.Destination,
 				Propagation: m.Propagation,
-				Named:       m.Named,
+				Spec:        m.Spec,
+				CopyData:    false,
 			}
 
 			if len(cp.Source) == 0 {
@@ -123,18 +127,18 @@ func (daemon *Daemon) registerMountPoints(container *container.Container, hostCo
 
 	// 3. Read bind mounts
 	for _, b := range hostConfig.Binds {
-		// #10618
-		bind, err := volume.ParseMountSpec(b, hostConfig.VolumeDriver)
+		bind, err := volume.ParseMountRaw(b, hostConfig.VolumeDriver)
 		if err != nil {
 			return err
 		}
 
+		// #10618
 		_, tmpfsExists := hostConfig.Tmpfs[bind.Destination]
 		if binds[bind.Destination] || tmpfsExists {
 			return fmt.Errorf("Duplicate mount point '%s'", bind.Destination)
 		}
 
-		if len(bind.Name) > 0 {
+		if bind.Type == mounttypes.TypeVolume {
 			// create the volume
 			v, err := daemon.volumes.CreateWithRef(bind.Name, bind.Driver, container.ID, nil, nil)
 			if err != nil {
@@ -144,14 +148,57 @@ func (daemon *Daemon) registerMountPoints(container *container.Container, hostCo
 			bind.Source = v.Path()
 			// bind.Name is an already existing volume, we need to use that here
 			bind.Driver = v.DriverName()
-			bind.Named = true
-			if bind.Driver == "local" {
-				bind = setBindModeIfNull(bind)
+			if bind.Driver == volume.DefaultDriverName {
+				setBindModeIfNull(bind)
 			}
 		}
 
 		binds[bind.Destination] = true
 		mountPoints[bind.Destination] = bind
+	}
+
+	for _, cfg := range hostConfig.Mounts {
+		mp, err := volume.ParseMountSpec(cfg)
+		if err != nil {
+			return dockererrors.NewBadRequestError(err)
+		}
+
+		if binds[mp.Destination] {
+			return fmt.Errorf("Duplicate mount point '%s'", cfg.Target)
+		}
+
+		if mp.Type == mounttypes.TypeVolume {
+			var v volume.Volume
+			if cfg.VolumeOptions != nil {
+				var driverOpts map[string]string
+				if cfg.VolumeOptions.DriverConfig != nil {
+					driverOpts = cfg.VolumeOptions.DriverConfig.Options
+				}
+				v, err = daemon.volumes.CreateWithRef(mp.Name, mp.Driver, container.ID, driverOpts, cfg.VolumeOptions.Labels)
+			} else {
+				v, err = daemon.volumes.CreateWithRef(mp.Name, mp.Driver, container.ID, nil, nil)
+			}
+			if err != nil {
+				return err
+			}
+
+			if err := label.Relabel(mp.Source, container.MountLabel, false); err != nil {
+				return err
+			}
+			mp.Volume = v
+			mp.Name = v.Name()
+			mp.Driver = v.DriverName()
+
+			// only use the cached path here since getting the path is not neccessary right now and calling `Path()` may be slow
+			if cv, ok := v.(interface {
+				CachedPath() string
+			}); ok {
+				mp.Source = cv.CachedPath()
+			}
+		}
+
+		binds[mp.Destination] = true
+		mountPoints[mp.Destination] = mp
 	}
 
 	container.Lock()
@@ -182,4 +229,48 @@ func (daemon *Daemon) lazyInitializeVolume(containerID string, m *volume.MountPo
 		m.Volume = v
 	}
 	return nil
+}
+
+func backportMountSpec(container *container.Container) error {
+	for target, m := range container.MountPoints {
+		if m.Spec.Type != "" {
+			// if type is set on even one mount, no need to migrate
+			return nil
+		}
+		if m.Name != "" {
+			m.Type = mounttypes.TypeVolume
+			m.Spec.Type = mounttypes.TypeVolume
+
+			// make sure this is not an anyonmous volume before setting the spec source
+			if _, exists := container.Config.Volumes[target]; !exists {
+				m.Spec.Source = m.Name
+			}
+			if container.HostConfig.VolumeDriver != "" {
+				m.Spec.VolumeOptions = &mounttypes.VolumeOptions{
+					DriverConfig: &mounttypes.Driver{Name: container.HostConfig.VolumeDriver},
+				}
+			}
+			if strings.Contains(m.Mode, "nocopy") {
+				if m.Spec.VolumeOptions == nil {
+					m.Spec.VolumeOptions = &mounttypes.VolumeOptions{}
+				}
+				m.Spec.VolumeOptions.NoCopy = true
+			}
+		} else {
+			m.Type = mounttypes.TypeBind
+			m.Spec.Type = mounttypes.TypeBind
+			m.Spec.Source = m.Source
+			if m.Propagation != "" {
+				m.Spec.BindOptions = &mounttypes.BindOptions{
+					Propagation: m.Propagation,
+				}
+			}
+		}
+
+		m.Spec.Target = m.Destination
+		if !m.RW {
+			m.Spec.ReadOnly = true
+		}
+	}
+	return container.ToDiskLocking()
 }
