@@ -6,10 +6,10 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cli/command"
 	"github.com/docker/docker/cli/command/formatter"
+	"github.com/docker/docker/opts"
 	"github.com/spf13/cobra"
 )
 
@@ -23,11 +23,11 @@ type listOptions struct {
 	quiet   bool
 	noTrunc bool
 	format  string
-	filter  []string
+	filter  opts.FilterOpt
 }
 
 func newListCommand(dockerCli *command.DockerCli) *cobra.Command {
-	var opts listOptions
+	opts := listOptions{filter: opts.NewFilterOpt()}
 
 	cmd := &cobra.Command{
 		Use:     "ls [OPTIONS]",
@@ -43,7 +43,7 @@ func newListCommand(dockerCli *command.DockerCli) *cobra.Command {
 	flags.BoolVarP(&opts.quiet, "quiet", "q", false, "Only display network IDs")
 	flags.BoolVar(&opts.noTrunc, "no-trunc", false, "Do not truncate the output")
 	flags.StringVar(&opts.format, "format", "", "Pretty-print networks using a Go template")
-	flags.StringSliceVarP(&opts.filter, "filter", "f", []string{}, "Provide filter values (i.e. 'dangling=true')")
+	flags.VarP(&opts.filter, "filter", "f", "Provide filter values (i.e. 'dangling=true')")
 
 	return cmd
 }
@@ -51,19 +51,7 @@ func newListCommand(dockerCli *command.DockerCli) *cobra.Command {
 func runList(dockerCli *command.DockerCli, opts listOptions) error {
 	client := dockerCli.Client()
 
-	netFilterArgs := filters.NewArgs()
-	for _, f := range opts.filter {
-		var err error
-		netFilterArgs, err = filters.ParseFlag(f, netFilterArgs)
-		if err != nil {
-			return err
-		}
-	}
-
-	options := types.NetworkListOptions{
-		Filters: netFilterArgs,
-	}
-
+	options := types.NetworkListOptions{Filters: opts.filter.Value()}
 	networkResources, err := client.NetworkList(context.Background(), options)
 	if err != nil {
 		return err

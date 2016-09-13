@@ -11,9 +11,9 @@ import (
 
 	"github.com/docker/docker/api/types"
 	eventtypes "github.com/docker/docker/api/types/events"
-	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cli/command"
+	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/jsonlog"
 	"github.com/spf13/cobra"
 )
@@ -21,12 +21,12 @@ import (
 type eventsOptions struct {
 	since  string
 	until  string
-	filter []string
+	filter opts.FilterOpt
 }
 
 // NewEventsCommand creates a new cobra.Command for `docker events`
 func NewEventsCommand(dockerCli *command.DockerCli) *cobra.Command {
-	var opts eventsOptions
+	opts := eventsOptions{filter: opts.NewFilterOpt()}
 
 	cmd := &cobra.Command{
 		Use:   "events [OPTIONS]",
@@ -40,28 +40,16 @@ func NewEventsCommand(dockerCli *command.DockerCli) *cobra.Command {
 	flags := cmd.Flags()
 	flags.StringVar(&opts.since, "since", "", "Show all events created since timestamp")
 	flags.StringVar(&opts.until, "until", "", "Stream events until this timestamp")
-	flags.StringSliceVarP(&opts.filter, "filter", "f", []string{}, "Filter output based on conditions provided")
+	flags.VarP(&opts.filter, "filter", "f", "Filter output based on conditions provided")
 
 	return cmd
 }
 
 func runEvents(dockerCli *command.DockerCli, opts *eventsOptions) error {
-	eventFilterArgs := filters.NewArgs()
-
-	// Consolidate all filter flags, and sanity check them early.
-	// They'll get process in the daemon/server.
-	for _, f := range opts.filter {
-		var err error
-		eventFilterArgs, err = filters.ParseFlag(f, eventFilterArgs)
-		if err != nil {
-			return err
-		}
-	}
-
 	options := types.EventsOptions{
 		Since:   opts.since,
 		Until:   opts.until,
-		Filters: eventFilterArgs,
+		Filters: opts.filter.Value(),
 	}
 
 	responseBody, err := dockerCli.Client().Events(context.Background(), options)
