@@ -69,7 +69,7 @@ func (c *Context) parseFormat() (*template.Template, error) {
 	return tmpl, err
 }
 
-func (c *Context) postFormat(tmpl *template.Template, subContext subContext) {
+func (c *Context) postFormat(tmpl *template.Template, subContext SubContext) {
 	if c.Format.IsTable() {
 		if len(c.header) == 0 {
 			// if we still don't have a header, we didn't have any containers so we need to fake it to get the right headers from the template
@@ -87,7 +87,7 @@ func (c *Context) postFormat(tmpl *template.Template, subContext subContext) {
 	}
 }
 
-func (c *Context) contextFormat(tmpl *template.Template, subContext subContext) error {
+func (c *Context) contextFormat(tmpl *template.Template, subContext SubContext) error {
 	if err := tmpl.Execute(c.buffer, subContext); err != nil {
 		return fmt.Errorf("Template parsing error: %v\n", err)
 	}
@@ -99,10 +99,10 @@ func (c *Context) contextFormat(tmpl *template.Template, subContext subContext) 
 }
 
 // SubFormat is a function type accepted by Write()
-type SubFormat func(func(subContext) error) error
+type SubFormat func(func(SubContext) error) error
 
 // Write the template to the buffer using this Context
-func (c *Context) Write(sub subContext, f SubFormat) error {
+func (c *Context) Write(sub SubContext, f SubFormat) error {
 	c.buffer = bytes.NewBufferString("")
 	c.preFormat()
 
@@ -111,7 +111,7 @@ func (c *Context) Write(sub subContext, f SubFormat) error {
 		return err
 	}
 
-	subFormat := func(subContext subContext) error {
+	subFormat := func(subContext SubContext) error {
 		return c.contextFormat(tmpl, subContext)
 	}
 	if err := f(subFormat); err != nil {

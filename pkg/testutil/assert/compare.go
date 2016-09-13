@@ -1,15 +1,14 @@
-package formatter
+package assert
 
 import (
 	"reflect"
 	"strings"
-	"testing"
 )
 
-func compareMultipleValues(t *testing.T, value, expected string) {
-	// comma-separated values means probably a map input, which won't
-	// be guaranteed to have the same order as our expected value
-	// We'll create maps and use reflect.DeepEquals to check instead:
+// CompareMultipleValues accepts two strings which contain comma-separated
+// key=value pairs. Parses them into maps, then uses reflect.DeepEquals to
+// assert they contain the same pairs (which may be in any order).
+func CompareMultipleValues(t TestingT, value, expected string) {
 	entriesMap := make(map[string]string)
 	expMap := make(map[string]string)
 	entries := strings.Split(value, ",")
@@ -23,6 +22,6 @@ func compareMultipleValues(t *testing.T, value, expected string) {
 		expMap[keyval[0]] = keyval[1]
 	}
 	if !reflect.DeepEqual(expMap, entriesMap) {
-		t.Fatalf("Expected entries: %v, got: %v", expected, value)
+		fatal(t, "Expected entries: %v, got: %v", expected, value)
 	}
 }

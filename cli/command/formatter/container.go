@@ -60,7 +60,7 @@ ports: {{- pad .Ports 1 0}}
 
 // ContainerWrite renders the context for a list of containers
 func ContainerWrite(ctx Context, containers []types.Container) error {
-	render := func(format func(subContext subContext) error) error {
+	render := func(format func(subContext SubContext) error) error {
 		for _, container := range containers {
 			err := format(&containerContext{trunc: ctx.Trunc, c: container})
 			if err != nil {

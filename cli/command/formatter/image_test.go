@@ -62,7 +62,7 @@ func TestImageContext(t *testing.T) {
 		ctx = c.imageCtx
 		v := c.call()
 		if strings.Contains(v, ",") {
-			compareMultipleValues(t, v, c.expValue)
+			assert.CompareMultipleValues(t, v, c.expValue)
 		} else if v != c.expValue {
 			t.Fatalf("Expected %s, was %s\n", c.expValue, v)
 		}

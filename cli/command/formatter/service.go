@@ -116,7 +116,7 @@ func ServiceInspectWrite(ctx Context, refs []string, getRef inspect.GetRefFunc) 
 	if ctx.Format != serviceInspectPrettyTemplate {
 		return inspect.Inspect(ctx.Output, refs, string(ctx.Format), getRef)
 	}
-	render := func(format func(subContext subContext) error) error {
+	render := func(format func(subContext SubContext) error) error {
 		for _, ref := range refs {
 			serviceI, _, err := getRef(ref)
 			if err != nil {
@@ -137,7 +137,7 @@ func ServiceInspectWrite(ctx Context, refs []string, getRef inspect.GetRefFunc) 
 
 type serviceInspectContext struct {
 	swarm.Service
-	subContext
+	SubContext
 }
 
 func (ctx *serviceInspectContext) ID() string {

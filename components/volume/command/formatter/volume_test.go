@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/docker/docker/cli/command/formatter"
 	"github.com/docker/docker/components/volume/types"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/pkg/testutil/assert"
@@ -44,7 +45,7 @@ func TestVolumeContext(t *testing.T) {
 		ctx = c.volumeCtx
 		v := c.call()
 		if strings.Contains(v, ",") {
-			compareMultipleValues(t, v, c.expValue)
+			assert.CompareMultipleValues(t, v, c.expValue)
 		} else if v != c.expValue {
 			t.Fatalf("Expected %s, was %s\n", c.expValue, v)
 		}
@@ -58,44 +59,44 @@ func TestVolumeContext(t *testing.T) {
 
 func TestVolumeContextWrite(t *testing.T) {
 	cases := []struct {
-		context  Context
+		context  formatter.Context
 		expected string
 	}{
 
 		// Errors
 		{
-			Context{Format: "{{InvalidFunction}}"},
+			formatter.Context{Format: "{{InvalidFunction}}"},
 			`Template parsing error: template: :1: function "InvalidFunction" not defined
 `,
 		},
 		{
-			Context{Format: "{{nil}}"},
+			formatter.Context{Format: "{{nil}}"},
 			`Template parsing error: template: :1:2: executing "" at <nil>: nil is not a command
 `,
 		},
 		// Table format
 		{
-			Context{Format: NewVolumeFormat("table", false)},
+			formatter.Context{Format: NewVolumeFormat("table", false)},
 			`DRIVER              NAME
 foo                 foobar_baz
 bar                 foobar_bar
 `,
 		},
 		{
-			Context{Format: NewVolumeFormat("table", true)},
+			formatter.Context{Format: NewVolumeFormat("table", true)},
 			`foobar_baz
 foobar_bar
 `,
 		},
 		{
-			Context{Format: NewVolumeFormat("table {{.Name}}", false)},
+			formatter.Context{Format: NewVolumeFormat("table {{.Name}}", false)},
 			`NAME
 foobar_baz
 foobar_bar
 `,
 		},
 		{
-			Context{Format: NewVolumeFormat("table {{.Name}}", true)},
+			formatter.Context{Format: NewVolumeFormat("table {{.Name}}", true)},
 			`NAME
 foobar_baz
 foobar_bar
@@ -103,7 +104,7 @@ foobar_bar
 		},
 		// Raw Format
 		{
-			Context{Format: NewVolumeFormat("raw", false)},
+			formatter.Context{Format: NewVolumeFormat("raw", false)},
 			`name: foobar_baz
 driver: foo
 
@@ -113,14 +114,14 @@ driver: bar
 `,
 		},
 		{
-			Context{Format: NewVolumeFormat("raw", true)},
+			formatter.Context{Format: NewVolumeFormat("raw", true)},
 			`name: foobar_baz
 name: foobar_bar
 `,
 		},
 		// Custom Format
 		{
-			Context{Format: NewVolumeFormat("{{.Name}}", false)},
+			formatter.Context{Format: NewVolumeFormat("{{.Name}}", false)},
 			`foobar_baz
 foobar_bar
 `,

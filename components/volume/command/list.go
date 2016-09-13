@@ -7,7 +7,8 @@ import (
 
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cli/command"
-	"github.com/docker/docker/cli/command/formatter"
+	cmdformatter "github.com/docker/docker/cli/command/formatter"
+	"github.com/docker/docker/components/volume/command/formatter"
 	"github.com/docker/docker/components/volume/types"
 	"github.com/docker/docker/opts"
 	"github.com/spf13/cobra"
@@ -61,13 +62,13 @@ func runList(dockerCli *command.DockerCli, opts listOptions) error {
 		if len(dockerCli.ConfigFile().VolumesFormat) > 0 && !opts.quiet {
 			format = dockerCli.ConfigFile().VolumesFormat
 		} else {
-			format = formatter.TableFormatKey
+			format = cmdformatter.TableFormatKey
 		}
 	}
 
 	sort.Sort(byVolumeName(volumes.Volumes))
 
-	volumeCtx := formatter.Context{
+	volumeCtx := cmdformatter.Context{
 		Output: dockerCli.Out(),
 		Format: formatter.NewVolumeFormat(format, opts.quiet),
 	}

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/docker/docker/cli/command/formatter"
 	"github.com/docker/docker/components/volume/types"
 )
 
@@ -11,30 +12,33 @@ const (
 	defaultVolumeQuietFormat = "{{.Name}}"
 	defaultVolumeTableFormat = "table {{.Driver}}\t{{.Name}}"
 
+	nameHeader       = "NAME"
+	driverHeader     = "DRIVER"
 	mountpointHeader = "MOUNTPOINT"
-	// Status header ?
+	scopeHeader      = "SCOPE"
+	labelsHeader     = "LABELS"
 )
 
 // NewVolumeFormat returns a format for use with a volume Context
-func NewVolumeFormat(source string, quiet bool) Format {
+func NewVolumeFormat(source string, quiet bool) formatter.Format {
 	switch source {
-	case TableFormatKey:
+	case formatter.TableFormatKey:
 		if quiet {
 			return defaultVolumeQuietFormat
 		}
 		return defaultVolumeTableFormat
-	case RawFormatKey:
+	case formatter.RawFormatKey:
 		if quiet {
 			return `name: {{.Name}}`
 		}
 		return `name: {{.Name}}\ndriver: {{.Driver}}\n`
 	}
-	return Format(source)
+	return formatter.Format(source)
 }
 
 // VolumeWrite writes formatted volumes using the Context
-func VolumeWrite(ctx Context, volumes []*types.Volume) error {
-	render := func(format func(subContext subContext) error) error {
+func VolumeWrite(ctx formatter.Context, volumes []*types.Volume) error {
+	render := func(format func(subContext formatter.SubContext) error) error {
 		for _, volume := range volumes {
 			if err := format(&volumeContext{v: *volume}); err != nil {
 				return err
@@ -46,7 +50,7 @@ func VolumeWrite(ctx Context, volumes []*types.Volume) error {
 }
 
 type volumeContext struct {
-	HeaderContext
+	formatter.HeaderContext
 	v types.Volume
 }
 
