@@ -127,7 +127,7 @@ Apache web server and your web application installed. You can build or update
 images from scratch or download and use images created by others. An image may be
 based on, or may extend, one or more other images. A docker image is described in
 text file called a _Dockerfile_, which has a simple, well-defined syntax. For more
-details about images, see [How does a Docker image work?](how-does-a-docker-image-work).
+details about images, see [How does a Docker image work?](#how-does-a-docker-image-work).
 
 Docker images are the **build** component of Docker.
 
@@ -138,7 +138,7 @@ a container, you can provide configuration metadata such as networking informati
 or environment variables. Each container is an isolated and secure application
 platform, but can be given access to resources running in a different host or
 container, as well as persistent storage or databases. For more details about
-containers, see [How does a container work?](how-does-a-container-work).
+containers, see [How does a container work?](#how-does-a-container-work).
 
 Docker containers are the **run** component of Docker.
 
@@ -146,7 +146,7 @@ Docker containers are the **run** component of Docker.
 A docker registry is a library of images. A registry can be public or private,
 and can be on the same server as the Docker daemon or Docker client, or on a
 totally separate server. For more details about registries, see
-[How does a Docker registry work?](how-does-a-docker-registry-work) 
+[How does a Docker registry work?](#how-does-a-docker-registry-work)
 
 Docker registries are the **distribution** component of Docker.
 
