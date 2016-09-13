@@ -486,13 +486,6 @@ before each new `FROM` command.
 assumes a `latest` by default. The builder returns an error if it cannot match
 the `tag` value.
 
-## MAINTAINER
-
-    MAINTAINER <name>
-
-The `MAINTAINER` instruction allows you to set the *Author* field of the
-generated images.
-
 ## RUN
 
 RUN has 2 forms:
@@ -686,6 +679,20 @@ To view an image's labels, use the `docker inspect` command.
         "multi.label2": "value2",
         "other": "value3"
     },
+
+## MAINTAINER (deprecated)
+
+    MAINTAINER <name>
+
+The `MAINTAINER` instruction sets the *Author* field of the generated images. 
+The `LABEL` instruction is a much more flexible version of this and you should use
+it instead, as it enables setting any metadata you require, and can be viewed
+easily, for example with `docker inspect`. To set a label corresponding to the
+`MAINTAINER` field you could use:
+
+    LABEL maintainer "SvenDowideit@home.org.au"
+
+This will then be visible from `docker inspect` with the other labels.
 
 ## EXPOSE
 
@@ -1676,8 +1683,6 @@ something more realistic, take a look at the list of [Dockerization examples](..
 # VERSION               0.0.1
 
 FROM      ubuntu
-MAINTAINER Victor Vieux <victor@docker.com>
-
 LABEL Description="This image is used to start the foobar executable" Vendor="ACME Products" Version="1.0"
 RUN apt-get update && apt-get install -y inotify-tools nginx apache2 openssh-server
 ```
