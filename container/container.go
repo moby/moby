@@ -782,7 +782,7 @@ func (container *Container) BuildJoinOptions(n libnetwork.Network) ([]libnetwork
 }
 
 // BuildCreateEndpointOptions builds endpoint options from a given network.
-func (container *Container) BuildCreateEndpointOptions(n libnetwork.Network, epConfig *networktypes.EndpointSettings, sb libnetwork.Sandbox) ([]libnetwork.EndpointOption, error) {
+func (container *Container) BuildCreateEndpointOptions(n libnetwork.Network, epConfig *networktypes.EndpointSettings, sb libnetwork.Sandbox, daemonDNS []string) ([]libnetwork.EndpointOption, error) {
 	var (
 		bindings      = make(nat.PortMap)
 		pbList        []types.PortBinding
@@ -792,7 +792,8 @@ func (container *Container) BuildCreateEndpointOptions(n libnetwork.Network, epC
 
 	defaultNetName := runconfig.DefaultDaemonNetworkMode().NetworkName()
 
-	if n.Name() == defaultNetName || container.NetworkSettings.IsAnonymousEndpoint {
+	if (!container.EnableServiceDiscoveryOnDefaultNetwork() && n.Name() == defaultNetName) ||
+		container.NetworkSettings.IsAnonymousEndpoint {
 		createOptions = append(createOptions, libnetwork.CreateOptionAnonymous())
 	}
 
@@ -912,6 +913,19 @@ func (container *Container) BuildCreateEndpointOptions(n libnetwork.Network, epC
 		if container.HostConfig.PublishAllPorts && len(binding) == 0 {
 			pbList = append(pbList, pb)
 		}
+	}
+
+	var dns []string
+
+	if len(container.HostConfig.DNS) > 0 {
+		dns = container.HostConfig.DNS
+	} else if len(daemonDNS) > 0 {
+		dns = daemonDNS
+	}
+
+	if len(dns) > 0 {
+		createOptions = append(createOptions,
+			libnetwork.CreateOptionDNS(dns))
 	}
 
 	createOptions = append(createOptions,

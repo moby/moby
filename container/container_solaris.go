@@ -93,3 +93,8 @@ func (container *Container) BuildHostnameFile() error {
 func (container *Container) canMountFS() bool {
 	return true
 }
+
+// EnableServiceDiscoveryOnDefaultNetwork Enable service discovery on default network
+func (container *Container) EnableServiceDiscoveryOnDefaultNetwork() bool {
+	return false
+}

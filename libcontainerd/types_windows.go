@@ -64,7 +64,8 @@ type LayerOption struct {
 // NetworkEndpointsOption is a CreateOption that provides the runtime list
 // of network endpoints to which a container should be attached during its creation.
 type NetworkEndpointsOption struct {
-	Endpoints []string
+	Endpoints                []string
+	AllowUnqualifiedDNSQuery bool
 }
 
 // Checkpoint holds the details of a checkpoint (not supported in windows)
