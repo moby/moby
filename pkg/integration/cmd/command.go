@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -49,6 +50,23 @@ func ProcessExitCode(err error) (exitCode int) {
 	return
 }
 
+type lockedBuffer struct {
+	m   sync.RWMutex
+	buf bytes.Buffer
+}
+
+func (buf *lockedBuffer) Write(b []byte) (int, error) {
+	buf.m.Lock()
+	defer buf.m.Unlock()
+	return buf.buf.Write(b)
+}
+
+func (buf *lockedBuffer) String() string {
+	buf.m.RLock()
+	defer buf.m.RUnlock()
+	return buf.buf.String()
+}
+
 // Result stores the result of running a command
 type Result struct {
 	Cmd      *exec.Cmd
@@ -56,8 +74,8 @@ type Result struct {
 	Error    error
 	// Timeout is true if the command was killed because it ran for too long
 	Timeout   bool
-	outBuffer *bytes.Buffer
-	errBuffer *bytes.Buffer
+	outBuffer *lockedBuffer
+	errBuffer *lockedBuffer
 }
 
 // Assert compares the Result against the Expected struct, and fails the test if
@@ -255,8 +273,8 @@ func buildCmd(cmd Cmd) *Result {
 	default:
 		execCmd = exec.Command(cmd.Command[0], cmd.Command[1:]...)
 	}
-	outBuffer := new(bytes.Buffer)
-	errBuffer := new(bytes.Buffer)
+	outBuffer := new(lockedBuffer)
+	errBuffer := new(lockedBuffer)
 
 	execCmd.Stdin = cmd.Stdin
 	execCmd.Dir = cmd.Dir
