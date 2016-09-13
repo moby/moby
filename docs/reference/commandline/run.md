@@ -546,7 +546,7 @@ more `--add-host` flags. This example adds a static address for a host named
 `docker`:
 
     $ docker run --add-host=docker:10.180.0.1 --rm -it debian
-    $$ ping docker
+    root@f38c87f2a42d:/# ping docker
     PING docker (10.180.0.1): 48 data bytes
     56 bytes from 10.180.0.1: icmp_seq=0 ttl=254 time=7.600 ms
     56 bytes from 10.180.0.1: icmp_seq=1 ttl=254 time=30.705 ms
