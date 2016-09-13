@@ -639,10 +639,6 @@ func TestSetInRange(t *testing.T) {
 		t.Fatalf("Expected failure. Got success with ordinal:%d", o)
 	}
 
-	if o, err := hnd.SetAnyInRange(5, 5); err == nil {
-		t.Fatalf("Expected failure. Got success with ordinal:%d", o)
-	}
-
 	if o, err := hnd.SetAnyInRange(0, numBits); err == nil {
 		t.Fatalf("Expected failure. Got success with ordinal:%d", o)
 	}
@@ -690,6 +686,11 @@ func TestSetInRange(t *testing.T) {
 
 	if _, err := hnd.SetAnyInRange(0, numBits-1); err != nil {
 		t.Fatalf("Unexpected failure: %v", err)
+	}
+
+	// set one bit using the set range with 1 bit size range
+	if _, err := hnd.SetAnyInRange(uint64(163*blockLen-1), uint64(163*blockLen-1)); err != nil {
+		t.Fatal(err)
 	}
 
 	// create a non multiple of 32 mask
