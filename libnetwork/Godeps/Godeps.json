@@ -121,6 +121,11 @@
 			"Rev": "426a0af0759798d8e3332b38236ee40df6d14798"
 		},
 		{
+			"ImportPath": "github.com/docker/docker/pkg/locker",
+			"Comment": "docs-v1.12.0-rc4-2016-07-15-1316-g426a0af",
+			"Rev": "426a0af0759798d8e3332b38236ee40df6d14798"
+		},
+		{
 			"ImportPath": "github.com/docker/docker/pkg/longpath",
 			"Comment": "docs-v1.12.0-rc4-2016-07-15-1316-g426a0af",
 			"Rev": "426a0af0759798d8e3332b38236ee40df6d14798"
