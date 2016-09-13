@@ -69,7 +69,7 @@ func runImages(dockerCli *command.DockerCli, opts imagesOptions) error {
 		if len(dockerCli.ConfigFile().ImagesFormat) > 0 && !opts.quiet {
 			format = dockerCli.ConfigFile().ImagesFormat
 		} else {
-			format = "table"
+			format = formatter.TableFormatKey
 		}
 	}
 

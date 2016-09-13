@@ -21,22 +21,22 @@ func TestVolumeContext(t *testing.T) {
 		call      func() string
 	}{
 		{volumeContext{
-			v: &types.Volume{Name: volumeName},
+			v: types.Volume{Name: volumeName},
 		}, volumeName, nameHeader, ctx.Name},
 		{volumeContext{
-			v: &types.Volume{Driver: "driver_name"},
+			v: types.Volume{Driver: "driver_name"},
 		}, "driver_name", driverHeader, ctx.Driver},
 		{volumeContext{
-			v: &types.Volume{Scope: "local"},
+			v: types.Volume{Scope: "local"},
 		}, "local", scopeHeader, ctx.Scope},
 		{volumeContext{
-			v: &types.Volume{Mountpoint: "mountpoint"},
+			v: types.Volume{Mountpoint: "mountpoint"},
 		}, "mountpoint", mountpointHeader, ctx.Mountpoint},
 		{volumeContext{
-			v: &types.Volume{},
+			v: types.Volume{},
 		}, "", labelsHeader, ctx.Labels},
 		{volumeContext{
-			v: &types.Volume{Labels: map[string]string{"label1": "value1", "label2": "value2"}},
+			v: types.Volume{Labels: map[string]string{"label1": "value1", "label2": "value2"}},
 		}, "label1=value1,label2=value2", labelsHeader, ctx.Labels},
 	}
 

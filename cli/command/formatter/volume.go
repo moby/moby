@@ -36,7 +36,7 @@ func NewVolumeFormat(source string, quiet bool) Format {
 func VolumeWrite(ctx Context, volumes []*types.Volume) error {
 	render := func(format func(subContext subContext) error) error {
 		for _, volume := range volumes {
-			if err := format(&volumeContext{v: volume}); err != nil {
+			if err := format(&volumeContext{v: *volume}); err != nil {
 				return err
 			}
 		}
@@ -47,7 +47,7 @@ func VolumeWrite(ctx Context, volumes []*types.Volume) error {
 
 type volumeContext struct {
 	HeaderContext
-	v *types.Volume
+	v types.Volume
 }
 
 func (c *volumeContext) Name() string {

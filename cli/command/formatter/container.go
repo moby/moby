@@ -41,7 +41,15 @@ func NewContainerFormat(source string, quiet bool, size bool) Format {
 		if quiet {
 			return `container_id: {{.ID}}`
 		}
-		format := `container_id: {{.ID}}\nimage: {{.Image}}\ncommand: {{.Command}}\ncreated_at: {{.CreatedAt}}\nstatus: {{.Status}}\nnames: {{.Names}}\nlabels: {{.Labels}}\nports: {{.Ports}}\n`
+		format := `container_id: {{.ID}}
+image: {{.Image}}
+command: {{.Command}}
+created_at: {{.CreatedAt}}
+status: {{- pad .Status 1 0}}
+names: {{.Names}}
+labels: {{- pad .Labels 1 0}}
+ports: {{- pad .Ports 1 0}}
+`
 		if size {
 			format += `size: {{.Size}}\n`
 		}
