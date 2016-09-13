@@ -102,7 +102,7 @@ func inspectAll(ctx context.Context, dockerCli *command.DockerCli, getSize bool,
 		ObjectInspector func(string) (interface{}, []byte, error)
 	}{
 		{"container", true, inspectContainers(ctx, dockerCli, getSize)},
-		{"image", true, inspectImages(ctx, dockerCli)},
+		{"image", false, inspectImages(ctx, dockerCli)},
 		{"network", false, inspectNetwork(ctx, dockerCli)},
 		{"volume", false, inspectVolume(ctx, dockerCli)},
 		{"service", false, inspectService(ctx, dockerCli)},
@@ -126,7 +126,7 @@ func inspectAll(ctx context.Context, dockerCli *command.DockerCli, getSize bool,
 				}
 				return v, raw, err
 			}
-			if !inspectData.IsSizeSupported {
+			if getSize && !inspectData.IsSizeSupported {
 				fmt.Fprintf(dockerCli.Err(), "WARNING: --size ignored for %s\n", inspectData.ObjectType)
 			}
 			return v, raw, err
