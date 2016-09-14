@@ -1,10 +1,9 @@
 // generated code - DO NOT EDIT
 
-package volumedrivers
+package drivers
 
 import (
 	"errors"
-	"github.com/docker/docker/volume"
 )
 
 type client interface {
@@ -217,11 +216,11 @@ type volumeDriverProxyCapabilitiesRequest struct {
 }
 
 type volumeDriverProxyCapabilitiesResponse struct {
-	Capabilities volume.Capability
+	Capabilities Capability
 	Err          string
 }
 
-func (pp *volumeDriverProxy) Capabilities() (capabilities volume.Capability, err error) {
+func (pp *volumeDriverProxy) Capabilities() (capabilities Capability, err error) {
 	var (
 		req volumeDriverProxyCapabilitiesRequest
 		ret volumeDriverProxyCapabilitiesResponse

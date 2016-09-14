@@ -5,12 +5,12 @@ import (
 
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/filters"
+	"github.com/docker/docker/components/volume/drivers"
 	"github.com/docker/docker/components/volume/types"
 	"github.com/docker/docker/errors"
 	"github.com/docker/docker/pkg/component"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/volume"
-	volumedrivers "github.com/docker/docker/volume/drivers"
 	"github.com/docker/docker/volume/local"
 	"github.com/docker/docker/volume/store"
 )
@@ -214,6 +214,15 @@ func (b *backend) Remove(v volume.Volume) error {
 // Dereference removes a reference to a volume in the store
 func (b *backend) Dereference(v volume.Volume, ref string) {
 	b.volumes.Dereference(v, ref)
+}
+
+// DriverList returns the list of registered drivers
+func (b *backend) DriverList() []string {
+	return drivers.GetDriverList()
+}
+
+func (b *backend) MigrateVolume17(id, path string) error {
+	return migrateVolume17(id, path)
 }
 
 var _ types.VolumeComponent = &backend{}

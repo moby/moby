@@ -1,4 +1,4 @@
-package volumedrivers
+package drivers
 
 import (
 	"errors"
@@ -12,9 +12,18 @@ var (
 	errNoSuchVolume = errors.New("no such volume")
 )
 
+// Capability defines a set of capabilities that a driver is able to handle.
+type Capability struct {
+	// Scope is the scope of the driver, `global` or `local`
+	// A `global` scope indicates that the driver manages volumes across the cluster
+	// A `local` scope indicates that the driver only manages volumes resources local to the host
+	// Scope is declared by the driver
+	Scope string
+}
+
 type volumeDriverAdapter struct {
 	name         string
-	capabilities *volume.Capability
+	capabilities *Capability
 	proxy        *volumeDriverProxy
 }
 
@@ -80,7 +89,7 @@ func (a *volumeDriverAdapter) Scope() string {
 	return cap.Scope
 }
 
-func (a *volumeDriverAdapter) getCapabilities() volume.Capability {
+func (a *volumeDriverAdapter) getCapabilities() Capability {
 	if a.capabilities != nil {
 		return *a.capabilities
 	}
@@ -89,7 +98,7 @@ func (a *volumeDriverAdapter) getCapabilities() volume.Capability {
 		// `GetCapabilities` is a not a required endpoint.
 		// On error assume it's a local-only driver
 		logrus.Warnf("Volume driver %s returned an error while trying to query its capabilities, using default capabilties: %v", a.name, err)
-		return volume.Capability{Scope: volume.LocalScope}
+		return Capability{Scope: volume.LocalScope}
 	}
 
 	// don't spam the warn log below just because the plugin didn't provide a scope

@@ -10,6 +10,7 @@ import (
 
 	containertypes "github.com/docker/docker/api/types/container"
 	volumecomp "github.com/docker/docker/components/volume"
+	volumedrivers "github.com/docker/docker/components/volume/drivers"
 	volumetypes "github.com/docker/docker/components/volume/types"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/events"
@@ -19,7 +20,6 @@ import (
 	"github.com/docker/docker/pkg/registrar"
 	"github.com/docker/docker/pkg/truncindex"
 	"github.com/docker/docker/volume"
-	volumedrivers "github.com/docker/docker/volume/drivers"
 	"github.com/docker/go-connections/nat"
 )
 

@@ -1,6 +1,6 @@
 //go:generate pluginrpc-gen -i $GOFILE -o proxy.go -type volumeDriver -name VolumeDriver
 
-package volumedrivers
+package drivers
 
 import (
 	"fmt"
@@ -8,6 +8,7 @@ import (
 
 	"github.com/docker/docker/pkg/locker"
 	pluginStore "github.com/docker/docker/plugin/store"
+	// TODO: remove this import
 	"github.com/docker/docker/volume"
 )
 
@@ -43,7 +44,7 @@ type volumeDriver interface {
 	// Get retrieves the volume with the requested name
 	Get(name string) (volume *proxyVolume, err error)
 	// Capabilities gets the list of capabilities of the driver
-	Capabilities() (capabilities volume.Capability, err error)
+	Capabilities() (capabilities Capability, err error)
 }
 
 type driverExtpoint struct {

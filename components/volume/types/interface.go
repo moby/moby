@@ -17,4 +17,10 @@ type VolumeComponent interface {
 	GetWithRef(name, driver, ref string) (volume.Volume, error)
 	Dereference(volume.Volume, string)
 	Remove(volume.Volume) error
+
+	// Drivers
+	DriverList() []string
+
+	// Migration
+	MigrateVolume17(string, string) error
 }

@@ -1,4 +1,4 @@
-package volumedrivers
+package drivers
 
 import (
 	"testing"

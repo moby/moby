@@ -10,9 +10,9 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/boltdb/bolt"
+	volumedrivers "github.com/docker/docker/components/volume/drivers"
 	"github.com/docker/docker/pkg/locker"
 	"github.com/docker/docker/volume"
-	"github.com/docker/docker/volume/drivers"
 )
 
 const (

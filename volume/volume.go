@@ -41,15 +41,6 @@ type Driver interface {
 	Scope() string
 }
 
-// Capability defines a set of capabilities that a driver is able to handle.
-type Capability struct {
-	// Scope is the scope of the driver, `global` or `local`
-	// A `global` scope indicates that the driver manages volumes across the cluster
-	// A `local` scope indicates that the driver only manages volumes resources local to the host
-	// Scope is declared by the driver
-	Scope string
-}
-
 // Volume is a place to store data. It is backed by a specific driver, and can be mounted.
 type Volume interface {
 	// Name returns the name of the volume

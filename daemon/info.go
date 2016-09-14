@@ -18,7 +18,6 @@ import (
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/utils"
-	"github.com/docker/docker/volume/drivers"
 	"github.com/docker/go-connections/sockets"
 )
 
@@ -174,7 +173,7 @@ func (daemon *Daemon) SystemVersion() types.Version {
 func (daemon *Daemon) showPluginsInfo() types.PluginsInfo {
 	var pluginsInfo types.PluginsInfo
 
-	pluginsInfo.Volume = volumedrivers.GetDriverList()
+	pluginsInfo.Volume = daemon.volumeComponent.DriverList()
 	pluginsInfo.Network = daemon.GetNetworkDriverList()
 	pluginsInfo.Authorization = daemon.configStore.AuthorizationPlugins
 
