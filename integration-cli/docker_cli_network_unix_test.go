@@ -1764,7 +1764,7 @@ func (s *DockerNetworkSuite) TestDockerNetworkDisconnectFromBridge(c *check.C) {
 	network := strings.TrimSpace(out)
 
 	name := "test"
-	dockerCmd(c, "create", "--rm", "--name", name, "busybox", "top")
+	dockerCmd(c, "create", "--name", name, "busybox", "top")
 
 	_, _, err := dockerCmdWithError("network", "disconnect", network, name)
 	c.Assert(err, check.IsNil)
