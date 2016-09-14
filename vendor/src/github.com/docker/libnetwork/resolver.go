@@ -325,6 +325,21 @@ func (r *resolver) ServeDNS(w dns.ResponseWriter, query *dns.Msg) {
 		return
 	}
 
+	// If the user sets ndots > 0 explicitly and the query is
+	// in the root domain don't forward it out. We will return
+	// failure and let the client retry with the search domain
+	// attached
+	if resp == nil {
+		switch query.Question[0].Qtype {
+		case dns.TypeA:
+			fallthrough
+		case dns.TypeAAAA:
+			if r.sb.ndotsSet && !strings.Contains(strings.TrimSuffix(name, "."), ".") {
+				resp = createRespMsg(query)
+			}
+		}
+	}
+
 	proto := w.LocalAddr().Network()
 	maxSize := 0
 	if proto == "tcp" {

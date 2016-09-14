@@ -8,6 +8,8 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strconv"
+	"strings"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/libnetwork/etchosts"
@@ -313,8 +315,32 @@ func (sb *sandbox) rebuildDNS() error {
 	// external v6 DNS servers has to be listed in resolv.conf
 	dnsList = append(dnsList, resolvconf.GetNameservers(currRC.Content, types.IPv6)...)
 
-	// Resolver returns the options in the format resolv.conf expects
-	dnsOptionsList = append(dnsOptionsList, sb.resolver.ResolverOptions()...)
+	// If the user config and embedded DNS server both have ndots option set,
+	// remember the user's config so that unqualified names not in the docker
+	// domain can be dropped.
+	resOptions := sb.resolver.ResolverOptions()
+
+dnsOpt:
+	for _, resOpt := range resOptions {
+		if strings.Contains(resOpt, "ndots") {
+			for _, option := range dnsOptionsList {
+				if strings.Contains(option, "ndots") {
+					parts := strings.Split(option, ":")
+					if len(parts) != 2 {
+						return fmt.Errorf("invalid ndots option %v", option)
+					}
+					if num, err := strconv.Atoi(parts[1]); err != nil {
+						return fmt.Errorf("invalid number for ndots option %v", option)
+					} else if num > 0 {
+						sb.ndotsSet = true
+						break dnsOpt
+					}
+				}
+			}
+		}
+	}
+
+	dnsOptionsList = append(dnsOptionsList, resOptions...)
 
 	_, err = resolvconf.Build(sb.config.resolvConfPath, dnsList, dnsSearchList, dnsOptionsList)
 	return err
