@@ -57,7 +57,7 @@ Docker daemon host:
 
     $ ssh root@192.168.1.2 -p 49154
     # The password is ``screencast``.
-    $$
+    root@f38c87f2a42d:/#
 
 ## Environment variables
 
