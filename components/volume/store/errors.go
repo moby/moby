@@ -16,6 +16,13 @@ var (
 	errNameConflict = errors.New("conflict: volume name must be unique")
 )
 
+// OperationErr is an error used by the store when operations fail
+type OperationErr interface {
+	error
+	IsInUse() bool
+	IsNameConflict() bool
+}
+
 // OpErr is the error type returned by functions in the store package. It describes
 // the operation, volume name, and error.
 type OpErr struct {
@@ -48,27 +55,12 @@ func (e *OpErr) Error() string {
 
 // IsInUse returns a boolean indicating whether the error indicates that a
 // volume is in use
-func IsInUse(err error) bool {
-	return isErr(err, errVolumeInUse)
-}
-
-// IsNotExist returns a boolean indicating whether the error indicates that the volume does not exist
-func IsNotExist(err error) bool {
-	return isErr(err, errNoSuchVolume)
+func (e *OpErr) IsInUse() bool {
+	return e.Err == errVolumeInUse
 }
 
 // IsNameConflict returns a boolean indicating whether the error indicates that a
 // volume name is already taken
-func IsNameConflict(err error) bool {
-	return isErr(err, errNameConflict)
-}
-
-func isErr(err error, expected error) bool {
-	switch pe := err.(type) {
-	case nil:
-		return false
-	case *OpErr:
-		err = pe.Err
-	}
-	return err == expected
+func (e *OpErr) IsNameConflict() bool {
+	return e.Err == errVolumeInUse
 }

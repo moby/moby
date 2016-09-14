@@ -59,7 +59,7 @@ func TestRemove(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := s.Remove(v); !IsInUse(err) {
+	if err := s.Remove(v); !err.IsInUse() {
 		t.Fatalf("Expected ErrVolumeInUse error, got %v", err)
 	}
 	s.Dereference(v, "fake")

@@ -215,7 +215,7 @@ func (s *VolumeStore) list() ([]volume.Volume, []string, error) {
 
 // CreateWithRef creates a volume with the given name and driver and stores the ref
 // This ensures there's no race between creating a volume and then storing a reference.
-func (s *VolumeStore) CreateWithRef(name, driverName, ref string, opts, labels map[string]string) (volume.Volume, error) {
+func (s *VolumeStore) CreateWithRef(name, driverName, ref string, opts, labels map[string]string) (volume.Volume, OperationErr) {
 	name = normaliseVolumeName(name)
 	s.locks.Lock(name)
 	defer s.locks.Unlock(name)
@@ -232,7 +232,7 @@ func (s *VolumeStore) CreateWithRef(name, driverName, ref string, opts, labels m
 // Create creates a volume with the given name and driver.
 // This is just like CreateWithRef() except we don't store a reference while holding the lock.
 // TODO: remove?
-func (s *VolumeStore) Create(name, driverName string, opts, labels map[string]string) (volume.Volume, error) {
+func (s *VolumeStore) Create(name, driverName string, opts, labels map[string]string) (volume.Volume, OperationErr) {
 	return s.CreateWithRef(name, driverName, "", opts, labels)
 }
 
@@ -408,7 +408,7 @@ func (s *VolumeStore) getVolume(name string) (volume.Volume, error) {
 }
 
 // Remove removes the requested volume. A volume is not removed if it has any refs
-func (s *VolumeStore) Remove(v volume.Volume) error {
+func (s *VolumeStore) Remove(v volume.Volume) *OpErr {
 	name := normaliseVolumeName(v.Name())
 	s.locks.Lock(name)
 	defer s.locks.Unlock(name)

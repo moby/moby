@@ -5,7 +5,6 @@ import (
 	"strings"
 
 	"github.com/docker/docker/container"
-	volumestore "github.com/docker/docker/volume/store"
 )
 
 func (daemon *Daemon) prepareMountPoints(container *container.Container) error {
@@ -15,6 +14,11 @@ func (daemon *Daemon) prepareMountPoints(container *container.Container) error {
 		}
 	}
 	return nil
+}
+
+type inUseErr interface {
+	error
+	IsInUse() bool
 }
 
 func (daemon *Daemon) removeMountPoints(container *container.Container, rm bool) error {
@@ -36,7 +40,7 @@ func (daemon *Daemon) removeMountPoints(container *container.Container, rm bool)
 			// not an error, but an implementation detail.
 			// This prevents docker from logging "ERROR: Volume in use"
 			// where there is another container using the volume.
-			if err != nil && !volumestore.IsInUse(err) {
+			if err, ok := err.(inUseErr); err != nil && ok {
 				rmErrors = append(rmErrors, err.Error())
 			}
 		}

@@ -7,12 +7,12 @@ import (
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/components/volume/drivers"
 	"github.com/docker/docker/components/volume/local"
+	"github.com/docker/docker/components/volume/store"
 	"github.com/docker/docker/components/volume/types"
 	"github.com/docker/docker/errors"
 	"github.com/docker/docker/pkg/component"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/volume"
-	"github.com/docker/docker/volume/store"
 )
 
 type backend struct {
@@ -63,7 +63,7 @@ func (b *backend) Create(name, driverName, ref string, opts, labels map[string]s
 
 	v, err := b.volumes.CreateWithRef(name, driverName, ref, opts, labels)
 	if err != nil {
-		if store.IsNameConflict(err) {
+		if err.IsNameConflict() {
 			return nil, fmt.Errorf("A volume named %s already exists. Choose a different volume name.", name)
 		}
 		return nil, err
@@ -178,7 +178,7 @@ func (b *backend) remove(name string) error {
 	}
 
 	if err := b.volumes.Remove(v); err != nil {
-		if store.IsInUse(err) {
+		if err.IsInUse() {
 			err := fmt.Errorf("Unable to remove volume, volume still in use: %v", err)
 			return errors.NewRequestConflictError(err)
 		}
