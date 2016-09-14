@@ -49,10 +49,8 @@ type Windows struct {
 
 // Process contains information to start a specific application inside the container.
 type Process struct {
-	// Terminal indicates if stderr should NOT be attached for the container.
-	Terminal bool `json:"terminal"`
-	// ConsoleSize contains the initial h,w of the console size
-	InitialConsoleSize [2]int `json:"-"`
+	// Terminal creates an interactive terminal for the container.
+	Terminal bool `json:"terminal,omitempty"`
 	// User specifies user information for the process.
 	User User `json:"user"`
 	// Args specifies the binary and arguments for the application to execute.
@@ -62,6 +60,24 @@ type Process struct {
 	// Cwd is the current working directory for the process and must be
 	// relative to the container's root.
 	Cwd string `json:"cwd"`
+	// Capabilities are Linux capabilities that are kept for the container.
+	Capabilities []string `json:"capabilities,omitempty" platform:"linux"`
+	// Rlimits specifies rlimit options to apply to the process.
+	Rlimits []Rlimit `json:"rlimits,omitempty" platform:"linux"`
+	// NoNewPrivileges controls whether additional privileges could be gained by processes in the container.
+	NoNewPrivileges bool `json:"noNewPrivileges,omitempty" platform:"linux"`
+	// ApparmorProfile specifies the apparmor profile for the container.
+	ApparmorProfile string `json:"apparmorProfile,omitempty" platform:"linux"`
+	// SelinuxLabel specifies the selinux context that the container process is run as.
+	SelinuxLabel string `json:"selinuxLabel,omitempty" platform:"linux"`
+	// ConsoleSize contains the initial size of the console.
+	ConsoleSize Box `json:"consoleSize" platform:"windows"`
+}
+
+// Box specifies height and width dimensions. Used for sizing of a console.
+type Box struct {
+	Height uint
+	Width  uint
 }
 
 // User specifies specific user (and group) information for the container process.
@@ -197,4 +213,9 @@ type Solaris struct {
 
 // Hooks for container setup and teardown
 type Hooks struct {
+}
+
+// Rlimit type and restrictions. Placeholder only to support the Process structure.
+// Not used on Windows, only present for compilation purposes.
+type Rlimit struct {
 }

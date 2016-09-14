@@ -313,7 +313,7 @@ type HostConfig struct {
 	Runtime         string            `json:",omitempty"` // Runtime to use with this container
 
 	// Applicable to Windows
-	ConsoleSize [2]int    // Initial console size
+	ConsoleSize Box       // Initial console size
 	Isolation   Isolation // Isolation technology of the container (eg default, hyperv)
 
 	// Contains container's resources (cgroups, ulimits)
@@ -321,4 +321,10 @@ type HostConfig struct {
 
 	// Mounts specs used by the container
 	Mounts []mount.Mount `json:",omitempty"`
+}
+
+// Box specifies height and width dimensions. Used for sizing of a console.
+type Box struct {
+	Height uint
+	Width  uint
 }

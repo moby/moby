@@ -66,11 +66,12 @@ func (ctr *container) start() error {
 	createProcessParms := &hcsshim.ProcessConfig{
 		EmulateConsole:   ctr.ociSpec.Process.Terminal,
 		WorkingDirectory: ctr.ociSpec.Process.Cwd,
-		ConsoleSize:      ctr.ociSpec.Process.InitialConsoleSize,
 		CreateStdInPipe:  !isServicing,
 		CreateStdOutPipe: !isServicing,
 		CreateStdErrPipe: !ctr.ociSpec.Process.Terminal && !isServicing,
 	}
+	createProcessParms.ConsoleSize[0] = int(ctr.ociSpec.Process.ConsoleSize.Height)
+	createProcessParms.ConsoleSize[1] = int(ctr.ociSpec.Process.ConsoleSize.Width)
 
 	// Configure the environment for the process
 	createProcessParms.Environment = setupEnvironmentVariables(ctr.ociSpec.Process.Env)
