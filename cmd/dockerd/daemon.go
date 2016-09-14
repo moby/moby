@@ -262,6 +262,11 @@ func (cli *DaemonCli) start(opts daemonOptions) (err error) {
 		logrus.Fatalf("Error creating cluster component: %v", err)
 	}
 
+	// Restart all autostart containers which has a swarm endpoint
+	// and is not yet running now that we have successfully
+	// initialized the cluster.
+	d.RestartSwarmContainers()
+
 	logrus.Info("Daemon has completed initialization")
 
 	logrus.WithFields(logrus.Fields{
