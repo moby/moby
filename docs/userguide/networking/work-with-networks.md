@@ -882,7 +882,7 @@ $ docker network disconnect isolated_nw container3
 ```
 
 ```bash
-docker network inspect isolated_nw
+$ docker network inspect isolated_nw
 
 [
     {
