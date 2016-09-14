@@ -1216,14 +1216,6 @@ func (f *fakeSandbox) Endpoints() []libnetwork.Endpoint {
 	return nil
 }
 
-func (f *fakeSandbox) EnableService() error {
-	return nil
-}
-
-func (f *fakeSandbox) DisableService() error {
-	return nil
-}
-
 func TestExternalKey(t *testing.T) {
 	externalKeyTest(t, false)
 }
