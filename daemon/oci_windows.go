@@ -46,11 +46,14 @@ func (daemon *Daemon) createSpec(c *container.Container) (*libcontainerd.Spec, e
 		return nil, err
 	}
 	for _, mount := range mounts {
-		s.Mounts = append(s.Mounts, windowsoci.Mount{
+		m := windowsoci.Mount{
 			Source:      mount.Source,
 			Destination: mount.Destination,
-			Readonly:    !mount.Writable,
-		})
+		}
+		if !mount.Writable {
+			m.Options = append(m.Options, "ro")
+		}
+		s.Mounts = append(s.Mounts, m)
 	}
 
 	// In s.Process

@@ -101,11 +101,11 @@ type Mount struct {
 	Destination string `json:"destination"`
 	// Type specifies the mount kind.
 	Type string `json:"type"`
-	// Source specifies the source path of the mount.  In the case of bind mounts
-	// this would be the file on the host.
+	// Source specifies the source path of the mount.  In the case of bind mounts on
+	// Linux based systems this would be the file on the host.
 	Source string `json:"source"`
-	// Readonly specifies if the mount should be read-only
-	Readonly bool `json:"readonly"`
+	// Options are fstab style mount options.
+	Options []string `json:"options,omitempty"`
 }
 
 // HvRuntime contains settings specific to Hyper-V containers
