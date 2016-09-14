@@ -514,40 +514,29 @@ func (a *Driver) aufsMount(ro []string, rw, target, mountLabel string) (err erro
 	b := make([]byte, syscall.Getpagesize()-len(mountLabel)-offset) // room for xino & mountLabel
 	bp := copy(b, fmt.Sprintf("br:%s=rw", rw))
 
-	firstMount := true
-	i := 0
-
-	for {
-		for ; i < len(ro); i++ {
-			layer := fmt.Sprintf(":%s=ro+wh", ro[i])
-
-			if firstMount {
-				if bp+len(layer) > len(b) {
-					break
-				}
-				bp += copy(b[bp:], layer)
-			} else {
-				data := label.FormatMountLabel(fmt.Sprintf("append%s", layer), mountLabel)
-				if err = mount("none", target, "aufs", syscall.MS_REMOUNT, data); err != nil {
-					return
-				}
-			}
-		}
-
-		if firstMount {
-			opts := "dio,xino=/dev/shm/aufs.xino"
-			if useDirperm() {
-				opts += ",dirperm1"
-			}
-			data := label.FormatMountLabel(fmt.Sprintf("%s,%s", string(b[:bp]), opts), mountLabel)
-			if err = mount("none", target, "aufs", 0, data); err != nil {
-				return
-			}
-			firstMount = false
-		}
-
-		if i == len(ro) {
+	index := 0
+	for ; index < len(ro); index++ {
+		layer := fmt.Sprintf(":%s=ro+wh", ro[index])
+		if bp+len(layer) > len(b) {
 			break
+		}
+		bp += copy(b[bp:], layer)
+	}
+
+	opts := "dio,xino=/dev/shm/aufs.xino"
+	if useDirperm() {
+		opts += ",dirperm1"
+	}
+	data := label.FormatMountLabel(fmt.Sprintf("%s,%s", string(b[:bp]), opts), mountLabel)
+	if err = mount("none", target, "aufs", 0, data); err != nil {
+		return
+	}
+
+	for ; index < len(ro); index++ {
+		layer := fmt.Sprintf(":%s=ro+wh", ro[index])
+		data := label.FormatMountLabel(fmt.Sprintf("append%s", layer), mountLabel)
+		if err = mount("none", target, "aufs", syscall.MS_REMOUNT, data); err != nil {
+			return
 		}
 	}
 
