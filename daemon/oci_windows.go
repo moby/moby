@@ -72,7 +72,7 @@ func (daemon *Daemon) createSpec(c *container.Container) (*libcontainerd.Spec, e
 	s.Process.Env = c.CreateDaemonEnvironment(linkedEnv)
 	s.Process.InitialConsoleSize = c.HostConfig.ConsoleSize
 	s.Process.Terminal = c.Config.Tty
-	s.Process.User.User = c.Config.User
+	s.Process.User.Username = c.Config.User
 
 	// In spec.Root
 	s.Root.Path = c.BaseFS
