@@ -153,6 +153,19 @@ var (
 		},
 		"Test requires support for IPv6",
 	}
+	UserNamespaceROMount = testRequirement{
+		func() bool {
+			// quick case--userns not enabled in this test run
+			if os.Getenv("DOCKER_REMAP_ROOT") == "" {
+				return true
+			}
+			if _, _, err := dockerCmdWithError("run", "--rm", "--read-only", "busybox", "date"); err != nil {
+				return false
+			}
+			return true
+		},
+		"Test cannot be run if user namespaces enabled but readonly mounts fail on this kernel.",
+	}
 	UserNamespaceInKernel = testRequirement{
 		func() bool {
 			if _, err := os.Stat("/proc/self/uid_map"); os.IsNotExist(err) {
