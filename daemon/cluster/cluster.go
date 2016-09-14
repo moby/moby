@@ -418,7 +418,7 @@ func (c *Cluster) Init(req types.InitRequest) (string, error) {
 
 	if err := validateAndSanitizeInitRequest(&req); err != nil {
 		c.Unlock()
-		return "", err
+		return "", apierrors.NewBadRequestError(err)
 	}
 
 	listenHost, listenPort, err := resolveListenAddr(req.ListenAddr)
@@ -505,7 +505,7 @@ func (c *Cluster) Join(req types.JoinRequest) error {
 	}
 	if err := validateAndSanitizeJoinRequest(&req); err != nil {
 		c.Unlock()
-		return err
+		return apierrors.NewBadRequestError(err)
 	}
 
 	listenHost, listenPort, err := resolveListenAddr(req.ListenAddr)
@@ -801,7 +801,7 @@ func (c *Cluster) Update(version uint64, spec types.Spec, flags types.UpdateFlag
 	// will be used to swarmkit.
 	clusterSpec, err := convert.SwarmSpecToGRPC(spec)
 	if err != nil {
-		return err
+		return apierrors.NewBadRequestError(err)
 	}
 
 	_, err = c.client.UpdateCluster(
@@ -1083,7 +1083,7 @@ func (c *Cluster) CreateService(s types.ServiceSpec, encodedAuth string) (*apity
 
 	serviceSpec, err := convert.ServiceSpecToGRPC(s)
 	if err != nil {
-		return nil, err
+		return nil, apierrors.NewBadRequestError(err)
 	}
 
 	ctnr := serviceSpec.Task.GetContainer()
@@ -1166,7 +1166,7 @@ func (c *Cluster) UpdateService(serviceIDOrName string, version uint64, spec typ
 
 	serviceSpec, err := convert.ServiceSpecToGRPC(spec)
 	if err != nil {
-		return nil, err
+		return nil, apierrors.NewBadRequestError(err)
 	}
 
 	currentService, err := getService(ctx, c.client, serviceIDOrName)
@@ -1381,7 +1381,7 @@ func (c *Cluster) GetNodes(options apitypes.NodeListOptions) ([]types.Node, erro
 	return nodes, nil
 }
 
-// GetNode returns a node based on an ID or name.
+// GetNode returns a node based on an ID.
 func (c *Cluster) GetNode(input string) (types.Node, error) {
 	c.RLock()
 	defer c.RUnlock()
@@ -1411,7 +1411,7 @@ func (c *Cluster) UpdateNode(input string, version uint64, spec types.NodeSpec) 
 
 	nodeSpec, err := convert.NodeSpecToGRPC(spec)
 	if err != nil {
-		return err
+		return apierrors.NewBadRequestError(err)
 	}
 
 	ctx, cancel := c.getRequestContext()
