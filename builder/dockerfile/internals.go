@@ -375,18 +375,6 @@ func (b *Builder) calcCopyInfo(cmdName, origPath string, allowLocalDecompression
 	return copyInfos, nil
 }
 
-func containsWildcards(name string) bool {
-	for i := 0; i < len(name); i++ {
-		ch := name[i]
-		if ch == '\\' {
-			i++
-		} else if ch == '*' || ch == '?' || ch == '[' {
-			return true
-		}
-	}
-	return false
-}
-
 func (b *Builder) processImageFrom(img builder.Image) error {
 	if img != nil {
 		b.image = img.ImageID()
