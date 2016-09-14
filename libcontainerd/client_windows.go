@@ -126,7 +126,13 @@ func (clnt *client) Create(containerID string, checkpoint string, checkpointDir 
 		mds[i] = hcsshim.MappedDir{
 			HostPath:      mount.Source,
 			ContainerPath: mount.Destination,
-			ReadOnly:      mount.Readonly}
+			ReadOnly:      false,
+		}
+		for _, o := range mount.Options {
+			if strings.ToLower(o) == "ro" {
+				mds[i].ReadOnly = true
+			}
+		}
 	}
 	configuration.MappedDirectories = mds
 
