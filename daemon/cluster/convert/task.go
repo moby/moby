@@ -10,6 +10,9 @@ import (
 
 // TaskFromGRPC converts a grpc Task to a Task.
 func TaskFromGRPC(t swarmapi.Task) types.Task {
+	if t.Spec.GetAttachment() != nil {
+		return types.Task{}
+	}
 	containerConfig := t.Spec.Runtime.(*swarmapi.TaskSpec_Container).Container
 	containerStatus := t.Status.GetContainer()
 	networks := make([]types.NetworkAttachmentConfig, 0, len(t.Spec.Networks))
