@@ -52,6 +52,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/discovery"
+	"github.com/docker/docker/pkg/locker"
 	"github.com/docker/docker/pkg/plugins"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/libnetwork/cluster"
@@ -149,6 +150,7 @@ type controller struct {
 	ingressSandbox         *sandbox
 	sboxOnce               sync.Once
 	agent                  *agent
+	networkLocker          *locker.Locker
 	agentInitDone          chan struct{}
 	keys                   []*types.EncryptionKey
 	clusterConfigAvailable bool
@@ -169,6 +171,7 @@ func New(cfgOptions ...config.Option) (NetworkController, error) {
 		svcRecords:      make(map[string]svcInfo),
 		serviceBindings: make(map[serviceKey]*service),
 		agentInitDone:   make(chan struct{}),
+		networkLocker:   locker.New(),
 	}
 
 	if err := c.initStores(); err != nil {
@@ -614,6 +617,15 @@ func (c *controller) RegisterDriver(networkType string, driver driverapi.Driver,
 // NewNetwork creates a new network of the specified network type. The options
 // are network specific and modeled in a generic way.
 func (c *controller) NewNetwork(networkType, name string, id string, options ...NetworkOption) (Network, error) {
+	if id != "" {
+		c.networkLocker.Lock(id)
+		defer c.networkLocker.Unlock(id)
+
+		if _, err := c.NetworkByID(id); err == nil {
+			return nil, NetworkNameError(id)
+		}
+	}
+
 	if !config.IsValidName(name) {
 		return nil, ErrInvalidName(name)
 	}
