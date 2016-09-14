@@ -24,7 +24,8 @@ Options:
 
 Installs and enables a plugin. Docker looks first for the plugin on your Docker
 host. If the plugin does not exist locally, then the plugin is pulled from
-Docker Hub.
+the registry. Note that the minimum required registry version to distribute
+plugins is 2.3.0
 
 
 The following example installs `no-remove` plugin. Install consists of pulling the
