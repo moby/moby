@@ -229,8 +229,8 @@ type ImageSearchOptions struct {
 // It can be used to resize container ttys and
 // exec process ttys too.
 type ResizeOptions struct {
-	Height int
-	Width  int
+	Height uint
+	Width  uint
 }
 
 // VersionResponse holds version information for the client and the server

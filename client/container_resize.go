@@ -18,10 +18,10 @@ func (cli *Client) ContainerExecResize(ctx context.Context, execID string, optio
 	return cli.resize(ctx, "/exec/"+execID, options.Height, options.Width)
 }
 
-func (cli *Client) resize(ctx context.Context, basePath string, height, width int) error {
+func (cli *Client) resize(ctx context.Context, basePath string, height, width uint) error {
 	query := url.Values{}
-	query.Set("h", strconv.Itoa(height))
-	query.Set("w", strconv.Itoa(width))
+	query.Set("h", strconv.Itoa(int(height)))
+	query.Set("w", strconv.Itoa(int(width)))
 
 	resp, err := cli.post(ctx, basePath+"/resize", query, nil, nil)
 	ensureReaderClosed(resp)

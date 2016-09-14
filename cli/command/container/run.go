@@ -135,7 +135,7 @@ func runRun(dockerCli *command.DockerCli, flags *pflag.FlagSet, opts *runOptions
 	// a far better user experience rather than relying on subsequent resizes
 	// to cause things to catch up.
 	if runtime.GOOS == "windows" {
-		hostConfig.ConsoleSize[0], hostConfig.ConsoleSize[1] = dockerCli.Out().GetTtySize()
+		hostConfig.ConsoleSize.Height, hostConfig.ConsoleSize.Width = dockerCli.Out().GetTtySize()
 	}
 
 	ctx, cancelFun := context.WithCancel(context.Background())

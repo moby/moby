@@ -191,11 +191,12 @@ func (clnt *client) AddProcess(ctx context.Context, containerID, processFriendly
 	// is only created if it we're not -t.
 	createProcessParms := hcsshim.ProcessConfig{
 		EmulateConsole:   procToAdd.Terminal,
-		ConsoleSize:      procToAdd.InitialConsoleSize,
 		CreateStdInPipe:  true,
 		CreateStdOutPipe: true,
 		CreateStdErrPipe: !procToAdd.Terminal,
 	}
+	createProcessParms.ConsoleSize[0] = int(procToAdd.ConsoleSize.Height)
+	createProcessParms.ConsoleSize[1] = int(procToAdd.ConsoleSize.Width)
 
 	// Take working directory from the process to add if it is defined,
 	// otherwise take from the first process.
