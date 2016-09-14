@@ -1157,7 +1157,9 @@ func (c *Cluster) GetTasks(options apitypes.TaskListOptions) ([]types.Task, erro
 	tasks := []types.Task{}
 
 	for _, task := range r.Tasks {
-		tasks = append(tasks, convert.TaskFromGRPC(*task))
+		if task.Spec.GetContainer() != nil {
+			tasks = append(tasks, convert.TaskFromGRPC(*task))
+		}
 	}
 	return tasks, nil
 }
