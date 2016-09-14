@@ -66,9 +66,16 @@ type Process struct {
 	Cwd string `json:"cwd"`
 }
 
-// User contains the user information for Windows
+// User specifies specific user (and group) information for the container process.
 type User struct {
-	User string `json:"user,omitempty"`
+	// UID is the user id.
+	UID uint32 `json:"uid" platform:"linux,solaris"`
+	// GID is the group id.
+	GID uint32 `json:"gid" platform:"linux,solaris"`
+	// AdditionalGids are additional group ids set for the container's process.
+	AdditionalGids []uint32 `json:"additionalGids,omitempty" platform:"linux,solaris"`
+	// Username is the user name.
+	Username string `json:"username,omitempty" platform:"windows"`
 }
 
 // Root contains information about the container's root filesystem on the host.
