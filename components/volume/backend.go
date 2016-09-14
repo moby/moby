@@ -6,12 +6,12 @@ import (
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/components/volume/drivers"
+	"github.com/docker/docker/components/volume/local"
 	"github.com/docker/docker/components/volume/types"
 	"github.com/docker/docker/errors"
 	"github.com/docker/docker/pkg/component"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/volume"
-	"github.com/docker/docker/volume/local"
 	"github.com/docker/docker/volume/store"
 )
 

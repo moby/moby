@@ -10,10 +10,10 @@ import (
 
 	containertypes "github.com/docker/docker/api/types/container"
 	volumedrivers "github.com/docker/docker/components/volume/drivers"
+	"github.com/docker/docker/components/volume/local"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/pkg/testutil/assert"
 	"github.com/docker/docker/volume"
-	"github.com/docker/docker/volume/local"
 )
 
 // Unix test as uses settings which are not available on Windows

@@ -4,8 +4,8 @@ import (
 	"os"
 
 	"github.com/docker/docker/components/volume/drivers"
+	"github.com/docker/docker/components/volume/local"
 	"github.com/docker/docker/volume"
-	"github.com/docker/docker/volume/local"
 )
 
 // migrateVolume17 links the contents of a volume created pre Docker 1.7
