@@ -11,18 +11,28 @@ NAME[:TAG] | [REGISTRY_HOST[:REGISTRY_PORT]/]NAME[:TAG]
 
 # DESCRIPTION
 
-This command pushes an image or a repository to a registry. If you do not
-specify a `REGISTRY_HOST`, the command uses Docker's public registry located at
-`registry-1.docker.io` by default. Refer to **docker-tag(1)** for more 
-information about valid image and tag names.
+Use `docker push` to share your images to the [Docker Hub](https://hub.docker.com)
+registry or to a self-hosted one.
+
+Refer to **docker-tag(1)** for more information about valid image and tag names.
+
+Killing the **docker push** process, for example by pressing **CTRL-c** while it
+is running in a terminal, terminates the push operation.
+
+Registry credentials are managed by **docker-login(1)**.
+
 
 # OPTIONS
+
+**--disable-content-trust**
+  Skip image verification (default true)
+
 **--help**
   Print usage statement
 
 # EXAMPLES
 
-# Pushing a new image to a registry
+## Pushing a new image to a registry
 
 First save the new image by finding the container ID (using **docker ps**)
 and then committing it to a new image name.  Note that only a-z0-9-_. are
@@ -44,8 +54,6 @@ Check that this worked by running:
 
 You should see both `rhel-httpd` and `registry-host:5000/myadmin/rhel-httpd`
 listed.
-
-Registry credentials are managed by **docker-login(1)**.
 
 # HISTORY
 April 2014, Originally compiled by William Henry (whenry at redhat dot com)
