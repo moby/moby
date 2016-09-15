@@ -31,7 +31,6 @@ import (
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/events"
 	"github.com/docker/docker/daemon/exec"
-	"github.com/docker/libnetwork/cluster"
 	// register graph drivers
 	_ "github.com/docker/docker/daemon/graphdriver/register"
 	dmetadata "github.com/docker/docker/distribution/metadata"
@@ -55,6 +54,7 @@ import (
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/utils"
 	"github.com/docker/libnetwork"
+	"github.com/docker/libnetwork/cluster"
 	nwconfig "github.com/docker/libnetwork/config"
 	"github.com/docker/libtrust"
 )
@@ -461,7 +461,7 @@ func (daemon *Daemon) IsSwarmCompatible() error {
 
 // NewDaemon sets up everything for the daemon to be able to service
 // requests from the webserver.
-func NewDaemon(config *Config, registryService registry.Service, containerdRemote libcontainerd.Remote) (daemon *Daemon, err error) {
+func NewDaemon(config *Config, registryService registry.Service, containerdRemote libcontainerd.Remote) (*Daemon, error) {
 	setDefaultMtu(config)
 
 	// Ensure that we have a correct root key limit for launching containers.
@@ -564,7 +564,7 @@ func NewDaemon(config *Config, registryService registry.Service, containerdRemot
 		},
 	}
 	if err := compreg.Get().ForEach(func(c component.Component) error {
-		return c.Init(daemon.componentContext(), compConfig)
+		return c.Init(d.componentContext(), compConfig)
 	}); err != nil {
 		return nil, err
 	}

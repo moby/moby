@@ -17,6 +17,8 @@ import (
 	"github.com/docker/docker/utils"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
+	// register components
+	_ "github.com/docker/docker/components"
 )
 
 func newDockerCommand(dockerCli *command.DockerCli) *cobra.Command {
