@@ -75,13 +75,18 @@ func GetHTTPErrorStatusCode(err error) int {
 	return statusCode
 }
 
+func apiVersionSupportsJSONErrors(version string) bool {
+	const firstAPIVersionWithJSONErrors = "1.23"
+	return version == "" || versions.GreaterThan(version, firstAPIVersionWithJSONErrors)
+}
+
 // MakeErrorHandler makes an HTTP handler that decodes a Docker error and
 // returns it in the response.
 func MakeErrorHandler(err error) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		statusCode := GetHTTPErrorStatusCode(err)
 		vars := mux.Vars(r)
-		if vars["version"] == "" || versions.GreaterThan(vars["version"], "1.23") {
+		if apiVersionSupportsJSONErrors(vars["version"]) {
 			response := &types.ErrorResponse{
 				Message: err.Error(),
 			}
