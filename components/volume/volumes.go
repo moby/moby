@@ -18,6 +18,22 @@ type backend struct {
 	eventsService component.Events
 }
 
+func (b *backend) init(context *component.Context, config component.Config) error {
+	b.eventsService = context.Events
+
+	fsConfig := config.Filesystem
+	volumesDriver, err := local.New(fsConfig.Root, fsConfig.UID, fsConfig.GID)
+	if err != nil {
+		return err
+	}
+
+	if !drivers.Register(volumesDriver, volumesDriver.Name()) {
+		return fmt.Errorf("local volume driver could not be registered")
+	}
+	b.volumes, err = store.New(fsConfig.Root)
+	return err
+}
+
 // Inspect looks up a volume by name. An error is returned if the volume
 // cannot be found.
 func (b *backend) Inspect(name string) (*types.Volume, error) {

@@ -543,8 +543,16 @@ func NewDaemon(config *Config, registryService registry.Service, containerdRemot
 		logrus.Warnf("Failed to configure golang's threads limit: %v", err)
 	}
 
+	// Initialize all the compoents
+	compConfig := component.Config{
+		Filesystem: component.FilesystemConfig{
+			Root: config.Root,
+			UID:  rootUID,
+			GID:  rootGID,
+		},
+	}
 	if err := compreg.Get().ForEach(func(c component.Component) error {
-		return c.Init(config, d.EventsService)
+		return c.Init(daemon.componentContext(), compConfig)
 	}); err != nil {
 		return nil, err
 	}
@@ -788,8 +796,7 @@ func (daemon *Daemon) Shutdown() error {
 }
 
 func (daemon *Daemon) componentContext() *component.Context {
-	// TODO:
-	return &component.Context{}
+	return &component.Context{Events: daemon.EventsService}
 }
 
 // Mount sets container.BaseFS

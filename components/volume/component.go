@@ -41,9 +41,8 @@ func (c *Component) CommandLine() []*cobra.Command {
 }
 
 // Init initializes the component
-func (c *Component) Init(config component.Config, events component.Events) error {
-	c.backend.eventsService = events
-	return nil
+func (c *Component) Init(context *component.Context, config component.Config) error {
+	return c.backend.init(context, config)
 }
 
 // Start the component using the context

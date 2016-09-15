@@ -137,6 +137,17 @@ func initDaemonWithVolumeStore(tmp string) (*Daemon, error) {
 	return daemon, nil
 }
 
+func newVolumeComponent(path string) (volumetypes.VolumeComponent, error) {
+	comp := volumecomp.New()
+	err := comp.Init(
+		&component.Context{Events: events.New()},
+		component.Config{
+			Filesystem: component.FilesystemConfig{Root: path, UID: 0, GID: 0},
+		},
+	)
+	return comp.Interface().(volumetypes.VolumeComponent), err
+}
+
 func TestValidContainerNames(t *testing.T) {
 	invalidNames := []string{"-rm", "&sdfsfd", "safd%sd"}
 	validNames := []string{"word-word", "word_word", "1weoid"}
