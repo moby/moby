@@ -88,7 +88,7 @@ clone git github.com/deckarep/golang-set ef32fa3046d9f249d399f98ebaf9be944430fd1
 clone git github.com/coreos/etcd 3a49cbb769ebd8d1dd25abb1e83386e9883a5707
 clone git github.com/ugorji/go f1f1a805ed361a0e078bb537e4ea78cd37dcf065
 clone git github.com/hashicorp/consul v0.5.2
-clone git github.com/boltdb/bolt v1.2.1
+clone git github.com/boltdb/bolt fff57c100f4dea1905678da7e90d92429dff2904
 clone git github.com/miekg/dns 75e6e86cc601825c5dbcd4e0c209eab180997cd7
 
 # get graph and distribution packages
