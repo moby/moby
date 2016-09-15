@@ -6,6 +6,7 @@ keywords = ["API, Docker, rcli, REST,  documentation"]
 [menu.main]
 parent="engine_remoteapi"
 weight=-6
+draft = true
 +++
 <![end-metadata]-->
 
@@ -2695,7 +2696,7 @@ See the [image tarball format](#image-tarball-format) for more details.
 
 **Example response**:
 
-If the "quiet" query parameter is set to `true` / `1` (`?quiet=1`), progress 
+If the "quiet" query parameter is set to `true` / `1` (`?quiet=1`), progress
 details are suppressed, and only a confirmation message is returned once the
 action completes.
 
