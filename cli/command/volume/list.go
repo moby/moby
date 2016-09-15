@@ -56,29 +56,22 @@ func runList(dockerCli *command.DockerCli, opts listOptions) error {
 		return err
 	}
 
-	f := opts.format
-	if len(f) == 0 {
+	format := opts.format
+	if len(format) == 0 {
 		if len(dockerCli.ConfigFile().VolumesFormat) > 0 && !opts.quiet {
-			f = dockerCli.ConfigFile().VolumesFormat
+			format = dockerCli.ConfigFile().VolumesFormat
 		} else {
-			f = "table"
+			format = formatter.TableFormatKey
 		}
 	}
 
 	sort.Sort(byVolumeName(volumes.Volumes))
 
-	volumeCtx := formatter.VolumeContext{
-		Context: formatter.Context{
-			Output: dockerCli.Out(),
-			Format: f,
-			Quiet:  opts.quiet,
-		},
-		Volumes: volumes.Volumes,
+	volumeCtx := formatter.Context{
+		Output: dockerCli.Out(),
+		Format: formatter.NewVolumeFormat(format, opts.quiet),
 	}
-
-	volumeCtx.Write()
-
-	return nil
+	return formatter.VolumeWrite(volumeCtx, volumes.Volumes)
 }
 
 var listDescription = `

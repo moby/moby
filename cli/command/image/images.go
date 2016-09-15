@@ -64,27 +64,22 @@ func runImages(dockerCli *command.DockerCli, opts imagesOptions) error {
 		return err
 	}
 
-	f := opts.format
-	if len(f) == 0 {
+	format := opts.format
+	if len(format) == 0 {
 		if len(dockerCli.ConfigFile().ImagesFormat) > 0 && !opts.quiet {
-			f = dockerCli.ConfigFile().ImagesFormat
+			format = dockerCli.ConfigFile().ImagesFormat
 		} else {
-			f = "table"
+			format = formatter.TableFormatKey
 		}
 	}
 
-	imagesCtx := formatter.ImageContext{
+	imageCtx := formatter.ImageContext{
 		Context: formatter.Context{
 			Output: dockerCli.Out(),
-			Format: f,
-			Quiet:  opts.quiet,
+			Format: formatter.NewImageFormat(format, opts.quiet, opts.showDigests),
 			Trunc:  !opts.noTrunc,
 		},
 		Digest: opts.showDigests,
-		Images: images,
 	}
-
-	imagesCtx.Write()
-
-	return nil
+	return formatter.ImageWrite(imageCtx, images)
 }

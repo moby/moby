@@ -106,27 +106,19 @@ func runPs(dockerCli *command.DockerCli, opts *psOptions) error {
 		return err
 	}
 
-	f := opts.format
-	if len(f) == 0 {
+	format := opts.format
+	if len(format) == 0 {
 		if len(dockerCli.ConfigFile().PsFormat) > 0 && !opts.quiet {
-			f = dockerCli.ConfigFile().PsFormat
+			format = dockerCli.ConfigFile().PsFormat
 		} else {
-			f = "table"
+			format = formatter.TableFormatKey
 		}
 	}
 
-	psCtx := formatter.ContainerContext{
-		Context: formatter.Context{
-			Output: dockerCli.Out(),
-			Format: f,
-			Quiet:  opts.quiet,
-			Trunc:  !opts.noTrunc,
-		},
-		Size:       listOptions.Size,
-		Containers: containers,
+	containerCtx := formatter.Context{
+		Output: dockerCli.Out(),
+		Format: formatter.NewContainerFormat(format, opts.quiet, listOptions.Size),
+		Trunc:  !opts.noTrunc,
 	}
-
-	psCtx.Write()
-
-	return nil
+	return formatter.ContainerWrite(containerCtx, containers)
 }

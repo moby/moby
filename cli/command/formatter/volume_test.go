@@ -7,6 +7,7 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/pkg/stringid"
+	"github.com/docker/docker/pkg/testutil/assert"
 )
 
 func TestVolumeContext(t *testing.T) {
@@ -20,22 +21,22 @@ func TestVolumeContext(t *testing.T) {
 		call      func() string
 	}{
 		{volumeContext{
-			v: &types.Volume{Name: volumeName},
+			v: types.Volume{Name: volumeName},
 		}, volumeName, nameHeader, ctx.Name},
 		{volumeContext{
-			v: &types.Volume{Driver: "driver_name"},
+			v: types.Volume{Driver: "driver_name"},
 		}, "driver_name", driverHeader, ctx.Driver},
 		{volumeContext{
-			v: &types.Volume{Scope: "local"},
+			v: types.Volume{Scope: "local"},
 		}, "local", scopeHeader, ctx.Scope},
 		{volumeContext{
-			v: &types.Volume{Mountpoint: "mountpoint"},
+			v: types.Volume{Mountpoint: "mountpoint"},
 		}, "mountpoint", mountpointHeader, ctx.Mountpoint},
 		{volumeContext{
-			v: &types.Volume{},
+			v: types.Volume{},
 		}, "", labelsHeader, ctx.Labels},
 		{volumeContext{
-			v: &types.Volume{Labels: map[string]string{"label1": "value1", "label2": "value2"}},
+			v: types.Volume{Labels: map[string]string{"label1": "value1", "label2": "value2"}},
 		}, "label1=value1,label2=value2", labelsHeader, ctx.Labels},
 	}
 
@@ -48,7 +49,7 @@ func TestVolumeContext(t *testing.T) {
 			t.Fatalf("Expected %s, was %s\n", c.expValue, v)
 		}
 
-		h := ctx.fullHeader()
+		h := ctx.FullHeader()
 		if h != c.expHeader {
 			t.Fatalf("Expected %s, was %s\n", c.expHeader, h)
 		}
@@ -56,71 +57,45 @@ func TestVolumeContext(t *testing.T) {
 }
 
 func TestVolumeContextWrite(t *testing.T) {
-	contexts := []struct {
-		context  VolumeContext
+	cases := []struct {
+		context  Context
 		expected string
 	}{
 
 		// Errors
 		{
-			VolumeContext{
-				Context: Context{
-					Format: "{{InvalidFunction}}",
-				},
-			},
+			Context{Format: "{{InvalidFunction}}"},
 			`Template parsing error: template: :1: function "InvalidFunction" not defined
 `,
 		},
 		{
-			VolumeContext{
-				Context: Context{
-					Format: "{{nil}}",
-				},
-			},
+			Context{Format: "{{nil}}"},
 			`Template parsing error: template: :1:2: executing "" at <nil>: nil is not a command
 `,
 		},
 		// Table format
 		{
-			VolumeContext{
-				Context: Context{
-					Format: "table",
-				},
-			},
+			Context{Format: NewVolumeFormat("table", false)},
 			`DRIVER              NAME
 foo                 foobar_baz
 bar                 foobar_bar
 `,
 		},
 		{
-			VolumeContext{
-				Context: Context{
-					Format: "table",
-					Quiet:  true,
-				},
-			},
+			Context{Format: NewVolumeFormat("table", true)},
 			`foobar_baz
 foobar_bar
 `,
 		},
 		{
-			VolumeContext{
-				Context: Context{
-					Format: "table {{.Name}}",
-				},
-			},
+			Context{Format: NewVolumeFormat("table {{.Name}}", false)},
 			`NAME
 foobar_baz
 foobar_bar
 `,
 		},
 		{
-			VolumeContext{
-				Context: Context{
-					Format: "table {{.Name}}",
-					Quiet:  true,
-				},
-			},
+			Context{Format: NewVolumeFormat("table {{.Name}}", true)},
 			`NAME
 foobar_baz
 foobar_bar
@@ -128,11 +103,8 @@ foobar_bar
 		},
 		// Raw Format
 		{
-			VolumeContext{
-				Context: Context{
-					Format: "raw",
-				},
-			}, `name: foobar_baz
+			Context{Format: NewVolumeFormat("raw", false)},
+			`name: foobar_baz
 driver: foo
 
 name: foobar_bar
@@ -141,43 +113,32 @@ driver: bar
 `,
 		},
 		{
-			VolumeContext{
-				Context: Context{
-					Format: "raw",
-					Quiet:  true,
-				},
-			},
+			Context{Format: NewVolumeFormat("raw", true)},
 			`name: foobar_baz
 name: foobar_bar
 `,
 		},
 		// Custom Format
 		{
-			VolumeContext{
-				Context: Context{
-					Format: "{{.Name}}",
-				},
-			},
+			Context{Format: NewVolumeFormat("{{.Name}}", false)},
 			`foobar_baz
 foobar_bar
 `,
 		},
 	}
 
-	for _, context := range contexts {
+	for _, testcase := range cases {
 		volumes := []*types.Volume{
 			{Name: "foobar_baz", Driver: "foo"},
 			{Name: "foobar_bar", Driver: "bar"},
 		}
 		out := bytes.NewBufferString("")
-		context.context.Output = out
-		context.context.Volumes = volumes
-		context.context.Write()
-		actual := out.String()
-		if actual != context.expected {
-			t.Fatalf("Expected \n%s, got \n%s", context.expected, actual)
+		testcase.context.Output = out
+		err := VolumeWrite(testcase.context, volumes)
+		if err != nil {
+			assert.Error(t, err, testcase.expected)
+		} else {
+			assert.Equal(t, out.String(), testcase.expected)
 		}
-		// Clean buffer
-		out.Reset()
 	}
 }
