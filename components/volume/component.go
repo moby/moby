@@ -3,10 +3,10 @@ package volume
 import (
 	apirouter "github.com/docker/docker/api/server/router"
 	clicommand "github.com/docker/docker/cli/command"
+	"github.com/docker/docker/component"
+	"github.com/docker/docker/component/registry"
 	"github.com/docker/docker/components/volume/command"
 	"github.com/docker/docker/components/volume/types"
-	"github.com/docker/docker/pkg/component"
-	"github.com/docker/docker/pkg/component/registry"
 	"github.com/spf13/cobra"
 )
 

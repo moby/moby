@@ -9,12 +9,12 @@ import (
 	"time"
 
 	containertypes "github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/component"
 	volumecomp "github.com/docker/docker/components/volume"
 	volumedrivers "github.com/docker/docker/components/volume/drivers"
 	volumetypes "github.com/docker/docker/components/volume/types"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/events"
-	"github.com/docker/docker/pkg/component"
 	"github.com/docker/docker/pkg/discovery"
 	_ "github.com/docker/docker/pkg/discovery/memory"
 	"github.com/docker/docker/pkg/registrar"

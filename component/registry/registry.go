@@ -3,7 +3,7 @@ package registry
 import (
 	"fmt"
 
-	"github.com/docker/docker/pkg/component"
+	"github.com/docker/docker/component"
 )
 
 // Registry stores Components so they can retrieved by other Components
