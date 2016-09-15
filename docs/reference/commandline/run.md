@@ -115,9 +115,10 @@ Options:
                                     'host': Use the Docker host user namespace
                                     '': Use the Docker daemon user namespace specified by `--userns-remap` option.
       --uts string                  UTS namespace to use
-  -v, --volume value                Bind mount a volume (default []). The comma-delimited
-                                    `options` are [rw|ro], [z|Z],
-                                    [[r]shared|[r]slave|[r]private], and
+  -v, --volume value                Bind mount a volume (default []). The format
+                                    is `[host-src:]container-dest[:<options>]`.
+                                    The comma-delimited `options` are [rw|ro],
+                                    [z|Z], [[r]shared|[r]slave|[r]private], and
                                     [nocopy]. The 'host-src' is an absolute path
                                     or a name value.
       --volume-driver string        Optional volume driver for the container
