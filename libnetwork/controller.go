@@ -753,9 +753,11 @@ func (c *controller) reservePools() {
 				c.Gateway = n.ipamV4Info[i].Gateway.IP.String()
 			}
 		}
-		for i, c := range n.ipamV6Config {
-			if c.Gateway == "" && n.ipamV6Info[i].Gateway != nil {
-				c.Gateway = n.ipamV6Info[i].Gateway.IP.String()
+		if n.enableIPv6 {
+			for i, c := range n.ipamV6Config {
+				if c.Gateway == "" && n.ipamV6Info[i].Gateway != nil {
+					c.Gateway = n.ipamV6Info[i].Gateway.IP.String()
+				}
 			}
 		}
 		// Reserve pools
