@@ -128,7 +128,7 @@ func testMetadataGetSet(t *testing.T, store StoreBackend) {
 	}
 
 	tcases := []struct {
-		id    ID
+		id    digest.Digest
 		key   string
 		value []byte
 	}{
@@ -158,12 +158,12 @@ func testMetadataGetSet(t *testing.T, store StoreBackend) {
 	}
 
 	id3 := digest.FromBytes([]byte("baz"))
-	err = store.SetMetadata(ID(id3), "tkey", []byte("tval"))
+	err = store.SetMetadata(id3, "tkey", []byte("tval"))
 	if err == nil {
 		t.Fatal("Expected error for setting metadata for unknown ID.")
 	}
 
-	_, err = store.GetMetadata(ID(id3), "tkey")
+	_, err = store.GetMetadata(id3, "tkey")
 	if err == nil {
 		t.Fatal("Expected error for getting metadata for unknown ID.")
 	}
@@ -232,7 +232,7 @@ func TestFSInvalidWalker(t *testing.T) {
 	}
 
 	n := 0
-	err = fs.Walk(func(id ID) error {
+	err = fs.Walk(func(id digest.Digest) error {
 		if id != fooID {
 			t.Fatalf("Invalid walker ID %q, expected %q", id, fooID)
 		}
@@ -250,10 +250,10 @@ func TestFSInvalidWalker(t *testing.T) {
 func testGetSet(t *testing.T, store StoreBackend) {
 	type tcase struct {
 		input    []byte
-		expected ID
+		expected digest.Digest
 	}
 	tcases := []tcase{
-		{[]byte("foobar"), ID("sha256:c3ab8ff13720e8ad9047dd39466b3c8974e592c2fa383d4a3960714caef0c4f2")},
+		{[]byte("foobar"), digest.Digest("sha256:c3ab8ff13720e8ad9047dd39466b3c8974e592c2fa383d4a3960714caef0c4f2")},
 	}
 
 	randomInput := make([]byte, 8*1024)
@@ -269,7 +269,7 @@ func testGetSet(t *testing.T, store StoreBackend) {
 	}
 	tcases = append(tcases, tcase{
 		input:    randomInput,
-		expected: ID("sha256:" + hex.EncodeToString(h.Sum(nil))),
+		expected: digest.Digest("sha256:" + hex.EncodeToString(h.Sum(nil))),
 	})
 
 	for _, tc := range tcases {
@@ -299,7 +299,7 @@ func testGetSet(t *testing.T, store StoreBackend) {
 		}
 	}
 
-	for _, key := range []ID{"foobar:abc", "sha256:abc", "sha256:c3ab8ff13720e8ad9047dd39466b3c8974e592c2fa383d4a3960714caef0c4f2a"} {
+	for _, key := range []digest.Digest{"foobar:abc", "sha256:abc", "sha256:c3ab8ff13720e8ad9047dd39466b3c8974e592c2fa383d4a3960714caef0c4f2a"} {
 		_, err := store.Get(key)
 		if err == nil {
 			t.Fatalf("Expected error for ID %q.", key)
@@ -352,11 +352,11 @@ func testWalker(t *testing.T, store StoreBackend) {
 		t.Fatal(err)
 	}
 
-	tcases := make(map[ID]struct{})
+	tcases := make(map[digest.Digest]struct{})
 	tcases[id] = struct{}{}
 	tcases[id2] = struct{}{}
 	n := 0
-	err = store.Walk(func(id ID) error {
+	err = store.Walk(func(id digest.Digest) error {
 		delete(tcases, id)
 		n++
 		return nil
@@ -373,9 +373,9 @@ func testWalker(t *testing.T, store StoreBackend) {
 	}
 
 	// stop on error
-	tcases = make(map[ID]struct{})
+	tcases = make(map[digest.Digest]struct{})
 	tcases[id] = struct{}{}
-	err = store.Walk(func(id ID) error {
+	err = store.Walk(func(id digest.Digest) error {
 		return errors.New("")
 	})
 	if err == nil {
