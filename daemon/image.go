@@ -27,18 +27,18 @@ func (daemon *Daemon) GetImageID(refOrID string) (image.ID, error) {
 		return "", err
 	}
 	if id != "" {
-		if _, err := daemon.imageStore.Get(image.ID(id)); err != nil {
+		if _, err := daemon.imageStore.Get(image.IDFromDigest(id)); err != nil {
 			return "", ErrImageDoesNotExist{refOrID}
 		}
-		return image.ID(id), nil
+		return image.IDFromDigest(id), nil
 	}
 
 	if id, err := daemon.referenceStore.Get(ref); err == nil {
-		return id, nil
+		return image.IDFromDigest(id), nil
 	}
 	if tagged, ok := ref.(reference.NamedTagged); ok {
 		if id, err := daemon.imageStore.Search(tagged.Tag()); err == nil {
-			for _, namedRef := range daemon.referenceStore.References(id) {
+			for _, namedRef := range daemon.referenceStore.References(id.Digest()) {
 				if namedRef.Name() == ref.Name() {
 					return id, nil
 				}

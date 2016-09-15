@@ -135,7 +135,7 @@ func (daemon *Daemon) Images(filterArgs, filter string, all bool) ([]*types.Imag
 
 		newImage := newImage(img, size)
 
-		for _, ref := range daemon.referenceStore.References(id) {
+		for _, ref := range daemon.referenceStore.References(id.Digest()) {
 			if filter != "" { // filter by tag/repo name
 				if filterTagged { // filter by tag, require full ref match
 					if ref.String() != filter {

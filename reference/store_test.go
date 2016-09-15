@@ -8,11 +8,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/image"
+	"github.com/docker/distribution/digest"
 )
 
 var (
-	saveLoadTestCases = map[string]image.ID{
+	saveLoadTestCases = map[string]digest.Digest{
 		"registry:5000/foobar:HEAD":                                                        "sha256:470022b8af682154f57a2163d030eb369549549cba00edc69e1b99b46bb924d6",
 		"registry:5000/foobar:alternate":                                                   "sha256:ae300ebc4a4f00693702cfb0a5e0b7bc527b353828dc86ad09fb95c8a681b793",
 		"registry:5000/foobar:latest":                                                      "sha256:6153498b9ac00968d71b66cca4eac37e990b5f9eb50c26877eb8799c8847451b",
@@ -115,9 +115,9 @@ func TestAddDeleteGet(t *testing.T) {
 		t.Fatalf("error creating tag store: %v", err)
 	}
 
-	testImageID1 := image.ID("sha256:9655aef5fd742a1b4e1b7b163aa9f1c76c186304bf39102283d80927c916ca9c")
-	testImageID2 := image.ID("sha256:9655aef5fd742a1b4e1b7b163aa9f1c76c186304bf39102283d80927c916ca9d")
-	testImageID3 := image.ID("sha256:9655aef5fd742a1b4e1b7b163aa9f1c76c186304bf39102283d80927c916ca9e")
+	testImageID1 := digest.Digest("sha256:9655aef5fd742a1b4e1b7b163aa9f1c76c186304bf39102283d80927c916ca9c")
+	testImageID2 := digest.Digest("sha256:9655aef5fd742a1b4e1b7b163aa9f1c76c186304bf39102283d80927c916ca9d")
+	testImageID3 := digest.Digest("sha256:9655aef5fd742a1b4e1b7b163aa9f1c76c186304bf39102283d80927c916ca9e")
 
 	// Try adding a reference with no tag or digest
 	nameOnly, err := WithName("username/repo")
@@ -276,19 +276,19 @@ func TestAddDeleteGet(t *testing.T) {
 	if associations[0].Ref.String() != ref3.String() {
 		t.Fatalf("unexpected reference: %v", associations[0].Ref.String())
 	}
-	if associations[0].ImageID != testImageID1 {
+	if associations[0].ID != testImageID1 {
 		t.Fatalf("unexpected reference: %v", associations[0].Ref.String())
 	}
 	if associations[1].Ref.String() != ref1.String() {
 		t.Fatalf("unexpected reference: %v", associations[1].Ref.String())
 	}
-	if associations[1].ImageID != testImageID1 {
+	if associations[1].ID != testImageID1 {
 		t.Fatalf("unexpected reference: %v", associations[1].Ref.String())
 	}
 	if associations[2].Ref.String() != ref2.String() {
 		t.Fatalf("unexpected reference: %v", associations[2].Ref.String())
 	}
-	if associations[2].ImageID != testImageID2 {
+	if associations[2].ID != testImageID2 {
 		t.Fatalf("unexpected reference: %v", associations[2].Ref.String())
 	}
 
@@ -331,7 +331,7 @@ func TestInvalidTags(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error creating tag store: %v", err)
 	}
-	id := image.ID("sha256:470022b8af682154f57a2163d030eb369549549cba00edc69e1b99b46bb924d6")
+	id := digest.Digest("sha256:470022b8af682154f57a2163d030eb369549549cba00edc69e1b99b46bb924d6")
 
 	// sha256 as repo name
 	ref, err := ParseNamed("sha256:abc")
