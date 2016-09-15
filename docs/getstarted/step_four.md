@@ -99,7 +99,7 @@ commands to run. Your recipe is going to be very short.
 2. Now, build your new image by typing the `docker build -t docker-whale .` command in your terminal (don't forget the . period).
 
         $ docker build -t docker-whale .
-        Sending build context to Docker daemon 158.8 MB
+        Sending build context to Docker daemon 2.048 kB
         ...snip...
         Removing intermediate container a8e6faa88df3
         Successfully built 7d9495d03763
@@ -117,7 +117,7 @@ complex. In this section, you learn what each message means.
 
 First Docker checks to make sure it has everything it needs to build.
 
-    Sending build context to Docker daemon 158.8 MB
+    Sending build context to Docker daemon 2.048 kB
 
 Then, Docker loads with the `whalesay` image.	It already has this image
 locally as you might recall from the last page. So, Docker doesn't need to
@@ -143,9 +143,6 @@ manager. This takes a lot of lines, no need to list them all again here.
 
 Then, Docker installs the new `fortunes` software.
 
-    Removing intermediate container e2a84b5f390f
-    Step 3 : RUN apt-get install -y fortunes
-     ---> Running in 23aa52c1897c
     Reading package lists...
     Building dependency tree...
     Reading state information...
@@ -167,7 +164,7 @@ Then, Docker installs the new `fortunes` software.
 
 Finally, Docker finishes the build and reports its outcome.		
 
-    Step 4 : CMD /usr/games/fortune -a | cowsay
+    Step 3 : CMD /usr/games/fortune -a | cowsay
      ---> Running in a8e6faa88df3
      ---> 7d9495d03763
     Removing intermediate container a8e6faa88df3
