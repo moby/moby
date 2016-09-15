@@ -264,3 +264,13 @@ func (s *DockerSwarmSuite) TestSwarmContainerAutoStart(c *check.C) {
 	c.Assert(err, checker.IsNil)
 	c.Assert(strings.TrimSpace(out), checker.Not(checker.Equals), "")
 }
+
+func (s *DockerSwarmSuite) TestSwarmRemoveInternalNetwork(c *check.C) {
+	d := s.AddDaemon(c, true, true)
+
+	name := "ingress"
+	out, err := d.Cmd("network", "rm", name)
+	c.Assert(err, checker.NotNil)
+	c.Assert(strings.TrimSpace(out), checker.Contains, name)
+	c.Assert(strings.TrimSpace(out), checker.Contains, "is a pre-defined network and cannot be removed")
+}
