@@ -6,7 +6,6 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"reflect"
-	"strings"
 	"testing"
 	"time"
 
@@ -29,32 +28,6 @@ func teardownRemotePluginServer() {
 	if server != nil {
 		server.Close()
 	}
-}
-
-func testHTTPTimeout(t *testing.T, timeout, epsilon time.Duration) {
-	addr := setupRemotePluginServer()
-	defer teardownRemotePluginServer()
-	stop := make(chan struct{}) // we need this variable to stop the http server
-	mux.HandleFunc("/hang", func(w http.ResponseWriter, r *http.Request) {
-		<-stop
-	})
-	c, _ := NewClient(addr, &tlsconfig.Options{InsecureSkipVerify: true})
-	c.http.Timeout = timeout
-	begin := time.Now()
-	_, err := c.callWithRetry("hang", nil, false)
-	close(stop)
-	if err == nil || !strings.Contains(err.Error(), "request canceled") {
-		t.Fatalf("The request should be canceled %v", err)
-	}
-	elapsed := time.Now().Sub(begin)
-	if elapsed < timeout-epsilon || elapsed > timeout+epsilon {
-		t.Fatalf("elapsed time: got %v, expected %v (epsilon=%v)",
-			elapsed, timeout, epsilon)
-	}
-}
-
-func TestHTTPTimeout(t *testing.T) {
-	testHTTPTimeout(t, 5*time.Second, 500*time.Millisecond)
 }
 
 func TestFailedConnection(t *testing.T) {
