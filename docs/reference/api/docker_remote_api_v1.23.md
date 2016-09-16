@@ -1760,7 +1760,8 @@ a base64-encoded AuthConfig object.
 -   **repo** – Repository name given to an image when it is imported.
         The repo may include a tag. This parameter may only be used when importing
         an image.
--   **tag** – Tag or digest.
+-   **tag** – Tag or digest. If empty when pulling an image, this causes all tags
+        for the given image to be pulled.
 
 **Request Headers**:
 

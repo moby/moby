@@ -1263,7 +1263,8 @@ a base64-encoded AuthConfig object.
 -   **fromSrc** – Source to import.  The value may be a URL from which the image
         can be retrieved or `-` to read the image from the request body.
 -   **repo** – Repository name.
--   **tag** – Tag.
+-   **tag** – Tag. If empty when pulling an image, this causes all tags
+        for the given image to be pulled.
 
 **Request Headers**:
 
