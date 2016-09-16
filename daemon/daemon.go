@@ -806,7 +806,7 @@ func (daemon *Daemon) Shutdown() error {
 }
 
 func (daemon *Daemon) componentContext() *component.Context {
-	return &component.Context{Events: daemon.EventsService}
+	return &component.Context{EventLogger: daemon.EventsService}
 }
 
 // Mount sets container.BaseFS

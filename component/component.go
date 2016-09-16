@@ -15,8 +15,8 @@ type Component interface {
 	Routes() []router.Route
 	// CommandLine returns the CLI commands provided by the Component
 	CommandLine(*command.DockerCli) []*cobra.Command
-	// Interface returns the interfaced used by other Components to access the
-	// functionality of the Component
+	// Interface return the interface used by other Components to access the
+	// functionality of this Component
 	Interface() interface{}
 
 	// Init the Component. Init is the first lifecycle hook called on a
@@ -45,7 +45,7 @@ type CompType interface {
 
 // Context is the context used by Componenets to run
 type Context struct {
-	Events Events
+	EventLogger EventLogger
 }
 
 // Config is the configuration data provided to components
@@ -61,7 +61,7 @@ type FilesystemConfig struct {
 	GID  int
 }
 
-// Events interface used by components to log events
-type Events interface {
+// EventLogger interface used by components to log events
+type EventLogger interface {
 	Log(string, string, events.Actor)
 }

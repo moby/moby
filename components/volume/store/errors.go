@@ -62,5 +62,5 @@ func (e *OpErr) IsInUse() bool {
 // IsNameConflict returns a boolean indicating whether the error indicates that a
 // volume name is already taken
 func (e *OpErr) IsNameConflict() bool {
-	return e.Err == errVolumeInUse
+	return e.Err == errNameConflict
 }

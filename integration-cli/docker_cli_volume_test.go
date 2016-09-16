@@ -28,19 +28,26 @@ func (s *DockerSuite) TestVolumeCliCreate(c *check.C) {
 	c.Assert(name, check.Equals, "test2")
 }
 
-func (s *DockerSuite) TestVolumeCliCreateOptionConflict(c *check.C) {
+func (s *DockerSuite) TestVolumeCliCreateVolumeConflict(c *check.C) {
 	dockerCmd(c, "volume", "create", "test")
-	out, _, err := dockerCmdWithError("volume", "create", "test", "--driver", "nosuchdriver")
-	c.Assert(err, check.NotNil, check.Commentf("volume create exception name already in use with another driver"))
-	c.Assert(out, checker.Contains, "A volume named test already exists")
+	result := dockerCmdWithResult("volume", "create", "test", "--driver", "nosuchdriver")
+	c.Assert(result, icmd.Matches, icmd.Expected{
+		Err:      "A volume named test already exists",
+		ExitCode: 1,
+	})
 
-	out, _ = dockerCmd(c, "volume", "inspect", "--format={{ .Driver }}", "test")
-	_, _, err = dockerCmdWithError("volume", "create", "test", "--driver", strings.TrimSpace(out))
-	c.Assert(err, check.IsNil)
+	out, _ := dockerCmd(c, "volume", "inspect", "--format={{ .Driver }}", "test")
+	result = dockerCmdWithResult("volume", "create", "test", "--driver", strings.TrimSpace(out))
+	c.Assert(result, icmd.Matches, icmd.Success)
+}
 
+func (s *DockerSuite) TestVolumeCliCreateNameFlagConflict(c *check.C) {
 	// make sure hidden --name option conflicts with positional arg name
-	out, _, err = dockerCmdWithError("volume", "create", "--name", "test2", "test2")
-	c.Assert(err, check.NotNil, check.Commentf("Conflicting options: either specify --name or provide positional arg, not both"))
+	result := dockerCmdWithResult("volume", "create", "--name", "test2", "test2")
+	c.Assert(result, icmd.Matches, icmd.Expected{
+		Err:      "Conflicting options: either specify --name or provide positional",
+		ExitCode: 1,
+	})
 }
 
 func (s *DockerSuite) TestVolumeCliInspect(c *check.C) {

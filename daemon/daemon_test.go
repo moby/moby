@@ -132,7 +132,7 @@ func initDaemonWithVolumeComponent(tmp string) (*Daemon, error) {
 func newVolumeComponent(path string) (volumetypes.VolumeComponent, error) {
 	comp := volumecomp.New()
 	err := comp.Init(
-		&component.Context{Events: events.New()},
+		&component.Context{EventLogger: events.New()},
 		component.Config{
 			Filesystem: component.FilesystemConfig{Root: path, UID: 0, GID: 0},
 		},

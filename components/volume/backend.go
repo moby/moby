@@ -17,11 +17,11 @@ import (
 
 type backend struct {
 	volumes       *store.VolumeStore
-	eventsService component.Events
+	eventsService component.EventLogger
 }
 
 func (b *backend) init(context *component.Context, config component.Config) error {
-	b.eventsService = context.Events
+	b.eventsService = context.EventLogger
 
 	fsConfig := config.Filesystem
 	volumesDriver, err := local.New(fsConfig.Root, fsConfig.UID, fsConfig.GID)
