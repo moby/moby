@@ -41,12 +41,11 @@ func (clnt *client) Create(containerID string, checkpoint string, checkpointDir 
 	logrus.Debugln("libcontainerd: client.Create() with spec", spec)
 
 	configuration := &hcsshim.ContainerConfig{
-		SystemType: "Container",
-		Name:       containerID,
-		Owner:      defaultOwner,
-
+		SystemType:              "Container",
+		Name:                    containerID,
+		Owner:                   defaultOwner,
 		VolumePath:              spec.Root.Path,
-		IgnoreFlushesDuringBoot: spec.Windows.FirstStart,
+		IgnoreFlushesDuringBoot: false,
 		LayerFolderPath:         spec.Windows.LayerFolder,
 		HostName:                spec.Hostname,
 	}
@@ -104,6 +103,10 @@ func (clnt *client) Create(containerID string, checkpoint string, checkpointDir 
 	for _, option := range options {
 		if s, ok := option.(*ServicingOption); ok {
 			configuration.Servicing = s.IsServicing
+			break
+		}
+		if s, ok := option.(*FlushOption); ok {
+			configuration.IgnoreFlushesDuringBoot = s.IgnoreFlushesDuringBoot
 			break
 		}
 	}

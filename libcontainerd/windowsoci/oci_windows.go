@@ -39,8 +39,6 @@ type Windows struct {
 	Resources *Resources `json:"resources,omitempty"`
 	// Networking contains the platform specific network settings for the container.
 	Networking *Networking `json:"networking,omitempty"`
-	// FirstStart is used for an optimization on first boot of Windows
-	FirstStart bool `json:"first_start,omitempty"`
 	// LayerFolder is the path to the current layer folder
 	LayerFolder string `json:"layer_folder,omitempty"`
 	// Layer paths of the parent layers

@@ -23,6 +23,11 @@ func (s *ServicingOption) Apply(interface{}) error {
 	return nil
 }
 
+// Apply for the flush option is a no-op.
+func (s *FlushOption) Apply(interface{}) error {
+	return nil
+}
+
 // buildFromVersion takes an image version string and returns the Windows build
 // number. It returns 0 if the build number is not present.
 func buildFromVersion(osver string) int {

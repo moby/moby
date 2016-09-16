@@ -38,6 +38,13 @@ type ServicingOption struct {
 	IsServicing bool
 }
 
+// FlushOption is an empty CreateOption that signifies if the container should be
+// started with flushes ignored until boot has completed. This is an optimisation
+// for first boot of a container.
+type FlushOption struct {
+	IgnoreFlushesDuringBoot bool
+}
+
 // Checkpoint holds the details of a checkpoint (not supported in windows)
 type Checkpoint struct {
 	Name string
