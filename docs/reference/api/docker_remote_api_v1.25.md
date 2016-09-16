@@ -1757,16 +1757,25 @@ Create an image either by pulling it from the registry or by importing it
 
 **Example request**:
 
-    POST /images/create?fromImage=ubuntu HTTP/1.1
+    POST /images/create?fromImage=busybox&tag=latest HTTP/1.1
 
 **Example response**:
 
     HTTP/1.1 200 OK
     Content-Type: application/json
 
-    {"status": "Pulling..."}
-    {"status": "Pulling", "progress": "1 B/ 100 B", "progressDetail": {"current": 1, "total": 100}}
-    {"error": "Invalid..."}
+    {"status":"Pulling from library/busybox","id":"latest"}
+    {"status":"Pulling fs layer","progressDetail":{},"id":"8ddc19f16526"}
+    {"status":"Downloading","progressDetail":{"current":15881,"total":667590},"progress":"[=\u003e                                                 ] 15.88 kB/667.6 kB","id":"8ddc19f16526"}
+    {"status":"Downloading","progressDetail":{"current":556269,"total":667590},"progress":"[=========================================\u003e         ] 556.3 kB/667.6 kB","id":"8ddc19f16526"}
+    {"status":"Download complete","progressDetail":{},"id":"8ddc19f16526"}
+    {"status":"Extracting","progressDetail":{"current":32768,"total":667590},"progress":"[==\u003e                                                ] 32.77 kB/667.6 kB","id":"8ddc19f16526"}
+    {"status":"Extracting","progressDetail":{"current":491520,"total":667590},"progress":"[====================================\u003e              ] 491.5 kB/667.6 kB","id":"8ddc19f16526"}
+    {"status":"Extracting","progressDetail":{"current":667590,"total":667590},"progress":"[==================================================\u003e] 667.6 kB/667.6 kB","id":"8ddc19f16526"}
+    {"status":"Extracting","progressDetail":{"current":667590,"total":667590},"progress":"[==================================================\u003e] 667.6 kB/667.6 kB","id":"8ddc19f16526"}
+    {"status":"Pull complete","progressDetail":{},"id":"8ddc19f16526"}
+    {"status":"Digest: sha256:a59906e33509d14c036c8678d687bd4eec81ed7c4b8ce907b888c607f6a1e0e6"}
+    {"status":"Status: Downloaded newer image for busybox:latest"}
     ...
 
 When using this endpoint to pull an image from the registry, the
@@ -1784,7 +1793,8 @@ a base64-encoded AuthConfig object.
 -   **repo** – Repository name given to an image when it is imported.
         The repo may include a tag. This parameter may only be used when importing
         an image.
--   **tag** – Tag or digest.
+-   **tag** – Tag or digest. If empty when pulling an image, this causes all tags
+        for the given image to be pulled.
 
 **Request Headers**:
 
