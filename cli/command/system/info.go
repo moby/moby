@@ -135,9 +135,11 @@ func prettyPrintInfo(dockerCli *command.DockerCli, info types.Info) error {
 		fmt.Fprintf(dockerCli.Out(), "Default Runtime: %s\n", info.DefaultRuntime)
 	}
 
-	fmt.Fprintf(dockerCli.Out(), "Security Options:")
-	ioutils.FprintfIfNotEmpty(dockerCli.Out(), " %s", strings.Join(info.SecurityOptions, " "))
-	fmt.Fprintf(dockerCli.Out(), "\n")
+	if info.OSType == "linux" {
+		fmt.Fprintf(dockerCli.Out(), "Security Options:")
+		ioutils.FprintfIfNotEmpty(dockerCli.Out(), " %s", strings.Join(info.SecurityOptions, " "))
+		fmt.Fprintf(dockerCli.Out(), "\n")
+	}
 
 	ioutils.FprintfIfNotEmpty(dockerCli.Out(), "Kernel Version: %s\n", info.KernelVersion)
 	ioutils.FprintfIfNotEmpty(dockerCli.Out(), "Operating System: %s\n", info.OperatingSystem)
