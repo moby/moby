@@ -3,6 +3,7 @@ package volume
 import (
 	"fmt"
 
+	"github.com/docker/docker/api/errors"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/component"
@@ -10,7 +11,6 @@ import (
 	"github.com/docker/docker/components/volume/local"
 	"github.com/docker/docker/components/volume/store"
 	"github.com/docker/docker/components/volume/types"
-	"github.com/docker/docker/errors"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/volume"
 )
@@ -62,15 +62,17 @@ func (b *backend) Create(name, driverName, ref string, opts, labels map[string]s
 	}
 
 	v, err := b.volumes.CreateWithRef(name, driverName, ref, opts, labels)
-	if err != nil {
-		if err.IsNameConflict() {
-			return nil, fmt.Errorf("A volume named %s already exists. Choose a different volume name.", name)
-		}
+	switch {
+	case err == nil:
+		b.event(v.Name(), "create", map[string]string{"driver": v.DriverName()})
+		return v, nil
+	case err.IsNameConflict():
+		return nil, fmt.Errorf("A volume named %s already exists. Choose a different volume name.", name)
+	case err.IsVolumeExists():
+		return v, nil
+	default:
 		return nil, err
 	}
-
-	b.event(v.Name(), "create", map[string]string{"driver": v.DriverName()})
-	return v, nil
 }
 
 var acceptedVolumeFilterTags = map[string]bool{

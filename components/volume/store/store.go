@@ -221,19 +221,14 @@ func (s *VolumeStore) CreateWithRef(name, driverName, ref string, opts, labels m
 	defer s.locks.Unlock(name)
 
 	v, err := s.create(name, driverName, opts, labels)
-	if err != nil {
-		return nil, &OpErr{Err: err, Name: name, Op: "create"}
+	if err == nil || err == errVolumExists {
+		s.setNamed(v, ref)
 	}
 
-	s.setNamed(v, ref)
-	return v, nil
-}
-
-// Create creates a volume with the given name and driver.
-// This is just like CreateWithRef() except we don't store a reference while holding the lock.
-// TODO: remove?
-func (s *VolumeStore) Create(name, driverName string, opts, labels map[string]string) (volume.Volume, OperationErr) {
-	return s.CreateWithRef(name, driverName, "", opts, labels)
+	if err == nil {
+		return v, nil
+	}
+	return v, &OpErr{Err: err, Name: name, Op: "create"}
 }
 
 // create asks the given driver to create a volume with the name/opts.
@@ -247,17 +242,18 @@ func (s *VolumeStore) create(name, driverName string, opts, labels map[string]st
 		return nil, err
 	}
 	if !valid {
-		return nil, &OpErr{Err: errInvalidName, Name: name, Op: "create"}
+		return nil, errInvalidName
 	}
 
 	if v, exists := s.getNamed(name); exists {
 		if v.DriverName() != driverName && driverName != "" && driverName != volume.DefaultDriverName {
 			return nil, errNameConflict
 		}
-		return v, nil
+		return v, errVolumExists
 	}
 
-	// Since there isn't a specified driver name, let's see if any of the existing drivers have this volume name
+	// Since there isn't a specified driver name, let's see if any of the
+	// existing drivers have this volume name
 	if driverName == "" {
 		v, _ := s.getVolume(name)
 		if v != nil {
@@ -266,9 +262,8 @@ func (s *VolumeStore) create(name, driverName string, opts, labels map[string]st
 	}
 
 	vd, err := volumedrivers.CreateDriver(driverName)
-
 	if err != nil {
-		return nil, &OpErr{Op: "create", Name: name, Err: err}
+		return nil, err
 	}
 
 	logrus.Debugf("Registering new volume reference: driver %q, name %q", vd.Name(), name)

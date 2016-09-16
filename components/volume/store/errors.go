@@ -6,14 +6,21 @@ import (
 )
 
 var (
-	// errVolumeInUse is a typed error returned when trying to remove a volume that is currently in use by a container
+	// errVolumeInUse is a typed error returned when trying to remove a volume
+	// that is currently in use by a container
 	errVolumeInUse = errors.New("volume is in use")
-	// errNoSuchVolume is a typed error returned if the requested volume doesn't exist in the volume store
+	// errNoSuchVolume is a typed error returned if the requested volume doesn't
+	// exist in the volume store
 	errNoSuchVolume = errors.New("no such volume")
-	// errInvalidName is a typed error returned when creating a volume with a name that is not valid on the platform
+	// errInvalidName is a typed error returned when creating a volume with a
+	// name that is not valid on the platform
 	errInvalidName = errors.New("volume name is not valid on this platform")
-	// errNameConflict is a typed error returned on create when a volume exists with the given name, but for a different driver
+	// errNameConflict is a typed error returned on create when a volume exists
+	// with the given name, but for a different driver
 	errNameConflict = errors.New("conflict: volume name must be unique")
+	// errVolumeExists is a typed error returned on create when a volume exists
+	// with the give name and the same driver.
+	errVolumExists = errors.New("duplicate: volume already exists")
 )
 
 // OperationErr is an error used by the store when operations fail
@@ -21,6 +28,7 @@ type OperationErr interface {
 	error
 	IsInUse() bool
 	IsNameConflict() bool
+	IsVolumeExists() bool
 }
 
 // OpErr is the error type returned by functions in the store package. It describes
@@ -63,4 +71,10 @@ func (e *OpErr) IsInUse() bool {
 // volume name is already taken
 func (e *OpErr) IsNameConflict() bool {
 	return e.Err == errNameConflict
+}
+
+// IsVolumeExists returns true if the volume already exists and the create
+// request was a no-op
+func (e *OpErr) IsVolumeExists() bool {
+	return e.Err == errVolumExists
 }

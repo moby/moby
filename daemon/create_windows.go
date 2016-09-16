@@ -5,7 +5,6 @@ import (
 
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/container"
-	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/volume"
 )
 
@@ -21,11 +20,6 @@ func (daemon *Daemon) createContainerPlatformSpecificSettings(container *contain
 		mp, err := volume.ParseMountRaw(spec, hostConfig.VolumeDriver)
 		if err != nil {
 			return fmt.Errorf("Unrecognised volume spec: %v", err)
-		}
-
-		// If the mountpoint doesn't have a name, generate one.
-		if len(mp.Name) == 0 {
-			mp.Name = stringid.GenerateNonCryptoID()
 		}
 
 		// Skip volumes for which we already have something mounted on that

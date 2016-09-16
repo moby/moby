@@ -44,6 +44,7 @@ func (daemon *Daemon) setupMounts(c *container.Container) ([]container.Mount, er
 				Writable:    m.RW,
 				Propagation: string(m.Propagation),
 			}
+			// TODO: this should be part of the volume component
 			if m.Volume != nil {
 				attributes := map[string]string{
 					"driver":      m.Volume.DriverName(),

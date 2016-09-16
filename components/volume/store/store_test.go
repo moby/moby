@@ -16,7 +16,7 @@ func TestCreate(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	v, err := s.Create("fake1", "fake", nil, nil)
+	v, err := s.CreateWithRef("fake1", "fake", "", nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -27,11 +27,11 @@ func TestCreate(t *testing.T) {
 		t.Fatalf("Expected 1 volume in the store, got %v: %v", len(l), l)
 	}
 
-	if _, err := s.Create("none", "none", nil, nil); err == nil {
+	if _, err := s.CreateWithRef("none", "none", "", nil, nil); err == nil {
 		t.Fatalf("Expected unknown driver error, got nil")
 	}
 
-	_, err = s.Create("fakeerror", "fake", map[string]string{"error": "create error"}, nil)
+	_, err = s.CreateWithRef("fakeerror", "fake", "", map[string]string{"error": "create error"}, nil)
 	expected := &OpErr{Op: "create", Name: "fakeerror", Err: errors.New("create error")}
 	if err != nil && err.Error() != expected.Error() {
 		t.Fatalf("Expected create fakeError: create error, got %v", err)
@@ -81,10 +81,10 @@ func TestList(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.Create("test", "fake", nil, nil); err != nil {
+	if _, err := s.CreateWithRef("test", "fake", "", nil, nil); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.Create("test2", "fake2", nil, nil); err != nil {
+	if _, err := s.CreateWithRef("test2", "fake2", "", nil, nil); err != nil {
 		t.Fatal(err)
 	}
 
@@ -120,13 +120,13 @@ func TestFilterByDriver(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if _, err := s.Create("fake1", "fake", nil, nil); err != nil {
+	if _, err := s.CreateWithRef("fake1", "fake", "", nil, nil); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.Create("fake2", "fake", nil, nil); err != nil {
+	if _, err := s.CreateWithRef("fake2", "fake", "", nil, nil); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.Create("fake3", "noop", nil, nil); err != nil {
+	if _, err := s.CreateWithRef("fake3", "noop", "", nil, nil); err != nil {
 		t.Fatal(err)
 	}
 
@@ -151,7 +151,7 @@ func TestFilterByUsed(t *testing.T) {
 	if _, err := s.CreateWithRef("fake1", "fake", "volReference", nil, nil); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.Create("fake2", "fake", nil, nil); err != nil {
+	if _, err := s.CreateWithRef("fake2", "fake", "", nil, nil); err != nil {
 		t.Fatal(err)
 	}
 

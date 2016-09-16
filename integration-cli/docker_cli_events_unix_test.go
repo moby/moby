@@ -184,7 +184,7 @@ func (s *DockerSuite) TestVolumeEvents(c *check.C) {
 	c.Assert(len(events), checker.GreaterThan, 4)
 
 	volumeEvents := eventActionsByIDAndType(c, events, "test-event-volume-local", "volume")
-	c.Assert(volumeEvents, checker.HasLen, 4)
+	c.Assert(volumeEvents, checker.HasLen, 4, check.Commentf("%s", strings.Join(events, "\n")))
 	c.Assert(volumeEvents[0], checker.Equals, "create")
 	c.Assert(volumeEvents[1], checker.Equals, "mount")
 	c.Assert(volumeEvents[2], checker.Equals, "unmount")
