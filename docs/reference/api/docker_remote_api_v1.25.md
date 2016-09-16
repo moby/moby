@@ -4463,7 +4463,8 @@ List services
               "Reservations": {}
             },
             "RestartPolicy": {
-              "Condition": "ANY"
+              "Condition": "any",
+              "MaxAttempts": 0
             },
             "Placement": {}
           },
@@ -4473,26 +4474,36 @@ List services
             }
           },
           "UpdateConfig": {
-            "Parallelism": 1
+            "Parallelism": 1,
+            "FailureAction": "pause"
           },
           "EndpointSpec": {
-            "Mode": "VIP",
-            "Ingress": "PUBLICPORT",
-            "ExposedPorts": [
+            "Mode": "vip",
+            "Ports": [
               {
                 "Protocol": "tcp",
-                "Port": 6379
+                "TargetPort": 6379,
+                "PublishedPort": 30001
               }
             ]
           }
         },
         "Endpoint": {
-          "Spec": {},
-          "ExposedPorts": [
+          "Spec": {
+            "Mode": "vip",
+            "Ports": [
+              {
+                "Protocol": "tcp",
+                "TargetPort": 6379,
+                "PublishedPort": 30001
+              }
+            ]
+          },
+          "Ports": [
             {
               "Protocol": "tcp",
-              "Port": 6379,
-              "PublicPort": 30000
+              "TargetPort": 6379,
+              "PublishedPort": 30001
             }
           ],
           "VirtualIPs": [
@@ -4678,13 +4689,13 @@ image](#create-an-image) section for more details.
     - **FailureAction** - Action to take if an updated task fails to run, or stops running during the
       update. Values are `continue` and `pause`.
 - **Networks** – Array of network names or IDs to attach the service to.
-- **Endpoint** – Properties that can be configured to access and load balance a service.
-    - **Spec** –
-        - **Mode** – The mode of resolution to use for internal load balancing
-          between tasks (`vip` or `dnsrr`).
-        - **Ports** – Exposed ports that this service is accessible on from the outside, in the form
-          of: `"Ports": { "<port>/<tcp|udp>: {}" }`
-    - **VirtualIPs**
+- **EndpointSpec** – Properties that can be configured to access and load balance a service.
+    - **Mode** – The mode of resolution to use for internal load balancing
+      between tasks (`vip` or `dnsrr`). Defaults to `vip` if not provided.
+    - **Ports** – List of exposed ports that this service is accessible on from
+      the outside, in the form of:
+      `{"Protocol": <"tcp"|"udp">, "PublishedPort": <port>, "TargetPort": <port>}`.
+      Ports can only be provided if `vip` resolution mode is used.
 
 **Request Headers**:
 
@@ -4737,7 +4748,7 @@ Return information on the service `id`.
       "UpdatedAt": "2016-06-07T21:10:20.276301259Z",
       "Spec": {
         "Name": "redis",
-        "Task": {
+        "TaskTemplate": {
           "ContainerSpec": {
             "Image": "redis"
           },
@@ -4746,7 +4757,8 @@ Return information on the service `id`.
             "Reservations": {}
           },
           "RestartPolicy": {
-            "Condition": "ANY"
+            "Condition": "any",
+            "MaxAttempts": 0
           },
           "Placement": {}
         },
@@ -4756,26 +4768,36 @@ Return information on the service `id`.
           }
         },
         "UpdateConfig": {
-          "Parallelism": 1
+          "Parallelism": 1,
+          "FailureAction": "pause"
         },
         "EndpointSpec": {
-          "Mode": "VIP",
-          "Ingress": "PUBLICPORT",
-          "ExposedPorts": [
+          "Mode": "vip",
+          "Ports": [
             {
               "Protocol": "tcp",
-              "Port": 6379
+              "TargetPort": 6379,
+              "PublishedPort": 30001
             }
           ]
         }
       },
       "Endpoint": {
-        "Spec": {},
-        "ExposedPorts": [
+        "Spec": {
+          "Mode": "vip",
+          "Ports": [
+            {
+              "Protocol": "tcp",
+              "TargetPort": 6379,
+              "PublishedPort": 30001
+            }
+          ]
+        },
+        "Ports": [
           {
             "Protocol": "tcp",
-            "Port": 6379,
-            "PublicPort": 30001
+            "TargetPort": 6379,
+            "PublishedPort": 30001
           }
         ],
         "VirtualIPs": [
@@ -4889,7 +4911,7 @@ image](#create-an-image) section for more details.
       as part of this service.
         - **Condition** – Condition for restart (`none`, `on-failure`, or `any`).
         - **Delay** – Delay between restart attempts.
-        - **Attempts** – Maximum attempts to restart a given container before giving up (default value
+        - **MaxAttempts** – Maximum attempts to restart a given container before giving up (default value
           is 0, which is ignored).
         - **Window** – Windows is the time window used to evaluate the restart policy (default value is
           0, which is unbounded).
@@ -4900,13 +4922,13 @@ image](#create-an-image) section for more details.
       parallelism).
     - **Delay** – Amount of time between updates.
 - **Networks** – Array of network names or IDs to attach the service to.
-- **Endpoint** – Properties that can be configured to access and load balance a service.
-    - **Spec** –
-        - **Mode** – The mode of resolution to use for internal load balancing
-          between tasks (`vip` or `dnsrr`).
-        - **Ports** – Exposed ports that this service is accessible on from the outside, in the form
-          of: `"Ports": { "<port>/<tcp|udp>: {}" }`
-    - **VirtualIPs**
+- **EndpointSpec** – Properties that can be configured to access and load balance a service.
+    - **Mode** – The mode of resolution to use for internal load balancing
+      between tasks (`vip` or `dnsrr`). Defaults to `vip` if not provided.
+    - **Ports** – List of exposed ports that this service is accessible on from
+      the outside, in the form of:
+      `{"Protocol": <"tcp"|"udp">, "PublishedPort": <port>, "TargetPort": <port>}`.
+      Ports can only be provided if `vip` resolution mode is used.
 
 **Query parameters**:
 
@@ -4951,7 +4973,6 @@ List tasks
         },
         "CreatedAt": "2016-06-07T21:07:31.171892745Z",
         "UpdatedAt": "2016-06-07T21:07:31.376370513Z",
-        "Name": "hopeful_cori",
         "Spec": {
           "ContainerSpec": {
             "Image": "redis"
@@ -4961,21 +4982,24 @@ List tasks
             "Reservations": {}
           },
           "RestartPolicy": {
-            "Condition": "ANY"
+            "Condition": "any",
+            "MaxAttempts": 0
           },
           "Placement": {}
         },
         "ServiceID": "9mnpnzenvg8p8tdbtq4wvbkcz",
-        "Instance": 1,
-        "NodeID": "24ifsmvkjbyhk",
-        "ServiceAnnotations": {},
+        "Slot": 1,
+        "NodeID": "60gvrl6tm78dmak4yl7srz94v",
         "Status": {
           "Timestamp": "2016-06-07T21:07:31.290032978Z",
-          "State": "FAILED",
-          "Message": "execution failed",
-          "ContainerStatus": {}
+          "State": "running",
+          "Message": "started",
+          "ContainerStatus": {
+            "ContainerID": "e5d62702a1b48d01c3e02ca1e0212a250801fa8d67caca0b6f35919ebc12f035",
+            "PID": 677
+          }
         },
-        "DesiredState": "SHUTDOWN",
+        "DesiredState": "running",
         "NetworksAttachments": [
           {
             "Network": {
@@ -4991,12 +5015,12 @@ List tasks
                   "com.docker.swarm.internal": "true"
                 },
                 "DriverConfiguration": {},
-                "IPAM": {
+                "IPAMOptions": {
                   "Driver": {},
                   "Configs": [
                     {
-                      "Family": "UNKNOWN",
-                      "Subnet": "10.255.0.0/16"
+                      "Subnet": "10.255.0.0/16",
+                      "Gateway": "10.255.0.1"
                     }
                   ]
                 }
@@ -5007,14 +5031,14 @@ List tasks
                   "com.docker.network.driver.overlay.vxlanid_list": "256"
                 }
               },
-              "IPAM": {
+              "IPAMOptions": {
                 "Driver": {
                   "Name": "default"
                 },
                 "Configs": [
                   {
-                    "Family": "UNKNOWN",
-                    "Subnet": "10.255.0.0/16"
+                    "Subnet": "10.255.0.0/16",
+                    "Gateway": "10.255.0.1"
                   }
                 ]
               }
@@ -5024,26 +5048,6 @@ List tasks
             ]
           }
         ],
-        "Endpoint": {
-          "Spec": {},
-          "ExposedPorts": [
-            {
-              "Protocol": "tcp",
-              "Port": 6379,
-              "PublicPort": 30000
-            }
-          ],
-          "VirtualIPs": [
-            {
-              "NetworkID": "4qvuz4ko70xaltuqbt8956gd1",
-              "Addr": "10.255.0.2/16"
-            },
-            {
-              "NetworkID": "4qvuz4ko70xaltuqbt8956gd1",
-              "Addr": "10.255.0.3/16"
-            }
-          ]
-        }
       },
       {
         "ID": "1yljwbmlr8er2waf8orvqpwms",
@@ -5062,21 +5066,23 @@ List tasks
             "Reservations": {}
           },
           "RestartPolicy": {
-            "Condition": "ANY"
+            "Condition": "any",
+            "MaxAttempts": 0
           },
           "Placement": {}
         },
         "ServiceID": "9mnpnzenvg8p8tdbtq4wvbkcz",
-        "Instance": 1,
-        "NodeID": "24ifsmvkjbyhk",
-        "ServiceAnnotations": {},
+        "Slot": 1,
+        "NodeID": "60gvrl6tm78dmak4yl7srz94v",
         "Status": {
           "Timestamp": "2016-06-07T21:07:30.202183143Z",
-          "State": "FAILED",
-          "Message": "execution failed",
-          "ContainerStatus": {}
+          "State": "shutdown",
+          "Message": "shutdown",
+          "ContainerStatus": {
+            "ContainerID": "1cf8d63d18e79668b0004a4be4c6ee58cddfad2dae29506d8781581d0688a213"
+          }
         },
-        "DesiredState": "SHUTDOWN",
+        "DesiredState": "shutdown",
         "NetworksAttachments": [
           {
             "Network": {
@@ -5092,12 +5098,12 @@ List tasks
                   "com.docker.swarm.internal": "true"
                 },
                 "DriverConfiguration": {},
-                "IPAM": {
+                "IPAMOptions": {
                   "Driver": {},
                   "Configs": [
                     {
-                      "Family": "UNKNOWN",
-                      "Subnet": "10.255.0.0/16"
+                      "Subnet": "10.255.0.0/16",
+                      "Gateway": "10.255.0.1"
                     }
                   ]
                 }
@@ -5108,14 +5114,14 @@ List tasks
                   "com.docker.network.driver.overlay.vxlanid_list": "256"
                 }
               },
-              "IPAM": {
+              "IPAMOptions": {
                 "Driver": {
                   "Name": "default"
                 },
                 "Configs": [
                   {
-                    "Family": "UNKNOWN",
-                    "Subnet": "10.255.0.0/16"
+                    "Subnet": "10.255.0.0/16",
+                    "Gateway": "10.255.0.1"
                   }
                 ]
               }
@@ -5124,27 +5130,7 @@ List tasks
               "10.255.0.5/16"
             ]
           }
-        ],
-        "Endpoint": {
-          "Spec": {},
-          "ExposedPorts": [
-            {
-              "Protocol": "tcp",
-              "Port": 6379,
-              "PublicPort": 30000
-            }
-          ],
-          "VirtualIPs": [
-            {
-              "NetworkID": "4qvuz4ko70xaltuqbt8956gd1",
-              "Addr": "10.255.0.2/16"
-            },
-            {
-              "NetworkID": "4qvuz4ko70xaltuqbt8956gd1",
-              "Addr": "10.255.0.3/16"
-            }
-          ]
-        }
+        ]
       }
     ]
 
@@ -5184,7 +5170,6 @@ Get details on a task
       },
       "CreatedAt": "2016-06-07T21:07:31.171892745Z",
       "UpdatedAt": "2016-06-07T21:07:31.376370513Z",
-      "Name": "hopeful_cori",
       "Spec": {
         "ContainerSpec": {
           "Image": "redis"
@@ -5194,21 +5179,24 @@ Get details on a task
           "Reservations": {}
         },
         "RestartPolicy": {
-          "Condition": "ANY"
+          "Condition": "any",
+          "MaxAttempts": 0
         },
         "Placement": {}
       },
       "ServiceID": "9mnpnzenvg8p8tdbtq4wvbkcz",
-      "Instance": 1,
-      "NodeID": "24ifsmvkjbyhk",
-      "ServiceAnnotations": {},
+      "Slot": 1,
+      "NodeID": "60gvrl6tm78dmak4yl7srz94v",
       "Status": {
         "Timestamp": "2016-06-07T21:07:31.290032978Z",
-        "State": "FAILED",
-        "Message": "execution failed",
-        "ContainerStatus": {}
+        "State": "running",
+        "Message": "started",
+        "ContainerStatus": {
+          "ContainerID": "e5d62702a1b48d01c3e02ca1e0212a250801fa8d67caca0b6f35919ebc12f035",
+          "PID": 677
+        }
       },
-      "DesiredState": "SHUTDOWN",
+      "DesiredState": "running",
       "NetworksAttachments": [
         {
           "Network": {
@@ -5224,12 +5212,12 @@ Get details on a task
                 "com.docker.swarm.internal": "true"
               },
               "DriverConfiguration": {},
-              "IPAM": {
+              "IPAMOptions": {
                 "Driver": {},
                 "Configs": [
                   {
-                    "Family": "UNKNOWN",
-                    "Subnet": "10.255.0.0/16"
+                    "Subnet": "10.255.0.0/16",
+                    "Gateway": "10.255.0.1"
                   }
                 ]
               }
@@ -5240,14 +5228,14 @@ Get details on a task
                 "com.docker.network.driver.overlay.vxlanid_list": "256"
               }
             },
-            "IPAM": {
+            "IPAMOptions": {
               "Driver": {
                 "Name": "default"
               },
               "Configs": [
                 {
-                  "Family": "UNKNOWN",
-                  "Subnet": "10.255.0.0/16"
+                  "Subnet": "10.255.0.0/16",
+                  "Gateway": "10.255.0.1"
                 }
               ]
             }
@@ -5256,27 +5244,7 @@ Get details on a task
             "10.255.0.10/16"
           ]
         }
-      ],
-      "Endpoint": {
-        "Spec": {},
-        "ExposedPorts": [
-          {
-            "Protocol": "tcp",
-            "Port": 6379,
-            "PublicPort": 30000
-          }
-        ],
-        "VirtualIPs": [
-          {
-            "NetworkID": "4qvuz4ko70xaltuqbt8956gd1",
-            "Addr": "10.255.0.2/16"
-          },
-          {
-            "NetworkID": "4qvuz4ko70xaltuqbt8956gd1",
-            "Addr": "10.255.0.3/16"
-          }
-        ]
-      }
+      ]
     }
 
 **Status codes**:
