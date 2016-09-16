@@ -24,10 +24,13 @@ Options:
   -t, --timestamps     Show timestamps
 ```
 
-> **Note**: this command is available only for containers with `json-file` and
-> `journald` logging drivers.
-
 The `docker logs` command batch-retrieves logs present at the time of execution.
+
+> **Note**: this command is only functional for containers that are started with
+> the `json-file` or `journald` logging driver.
+
+For more information about selecting and configuring login-drivers, refer to
+[Configure logging drivers](../../admin/logging/overview.md).
 
 The `docker logs --follow` command will continue streaming the new output from
 the container's `STDOUT` and `STDERR`.
