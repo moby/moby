@@ -78,9 +78,6 @@ func (daemon *Daemon) createSpec(c *container.Container) (*libcontainerd.Spec, e
 	s.Root.Path = c.BaseFS
 	s.Root.Readonly = c.HostConfig.ReadonlyRootfs
 
-	// In s.Windows
-	s.Windows.FirstStart = !c.HasBeenStartedBefore
-
 	// s.Windows.LayerFolder.
 	m, err := c.RWLayer.Metadata()
 	if err != nil {

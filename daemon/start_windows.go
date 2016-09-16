@@ -6,5 +6,7 @@ import (
 )
 
 func (daemon *Daemon) getLibcontainerdCreateOptions(container *container.Container) (*[]libcontainerd.CreateOption, error) {
-	return &[]libcontainerd.CreateOption{}, nil
+	createOptions := []libcontainerd.CreateOption{}
+	createOptions = append(createOptions, &libcontainerd.FlushOption{IgnoreFlushesDuringBoot: !container.HasBeenStartedBefore})
+	return &createOptions, nil
 }
