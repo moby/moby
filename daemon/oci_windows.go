@@ -115,7 +115,7 @@ func (daemon *Daemon) createSpec(c *container.Container) (*libcontainerd.Spec, e
 		hv = c.HostConfig.Isolation.IsHyperV()
 	}
 	if hv {
-		hvr := &windowsoci.HvRuntime{}
+		hvr := &windowsoci.WindowsHvRuntime{}
 		if img.RootFS != nil && img.RootFS.Type == image.TypeLayers {
 			// For TP5, the utility VM is part of the base layer.
 			// TODO-jstarks: Add support for separate utility VM images
@@ -159,26 +159,26 @@ func (daemon *Daemon) createSpec(c *container.Container) (*libcontainerd.Spec, e
 			}
 		}
 	}
-	s.Windows.Networking = &windowsoci.Networking{
+	s.Windows.Networking = &windowsoci.WindowsNetworking{
 		EndpointList: epList,
 	}
 
 	// In s.Windows.Resources
 	// @darrenstahlmsft implement these resources
 	cpuShares := uint64(c.HostConfig.CPUShares)
-	s.Windows.Resources = &windowsoci.Resources{
-		CPU: &windowsoci.CPU{
+	s.Windows.Resources = &windowsoci.WindowsResources{
+		CPU: &windowsoci.WindowsCPU{
 			Percent: &c.HostConfig.CPUPercent,
 			Shares:  &cpuShares,
 		},
-		Memory: &windowsoci.Memory{
+		Memory: &windowsoci.WindowsMemory{
 			Limit: &c.HostConfig.Memory,
 			//TODO Reservation: ...,
 		},
-		Network: &windowsoci.Network{
+		Network: &windowsoci.WindowsNetwork{
 		//TODO Bandwidth: ...,
 		},
-		Storage: &windowsoci.Storage{
+		Storage: &windowsoci.WindowsStorage{
 			Bps:  &c.HostConfig.IOMaximumBandwidth,
 			Iops: &c.HostConfig.IOMaximumIOps,
 		},

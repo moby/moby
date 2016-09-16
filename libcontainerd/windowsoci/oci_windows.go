@@ -36,15 +36,15 @@ type Spec struct {
 // Windows contains platform specific configuration for Windows based containers.
 type Windows struct {
 	// Resources contains information for handling resource constraints for the container
-	Resources *Resources `json:"resources,omitempty"`
+	Resources *WindowsResources `json:"resources,omitempty"`
 	// Networking contains the platform specific network settings for the container.
-	Networking *Networking `json:"networking,omitempty"`
+	Networking *WindowsNetworking `json:"networking,omitempty"`
 	// LayerFolder is the path to the current layer folder
 	LayerFolder string `json:"layer_folder,omitempty"`
 	// Layer paths of the parent layers
 	LayerPaths []string `json:"layer_paths,omitempty"`
 	// HvRuntime contains settings specific to Hyper-V containers, omitted if not using Hyper-V isolation
-	HvRuntime *HvRuntime `json:"hv_runtime,omitempty"`
+	HvRuntime *WindowsHvRuntime `json:"hv_runtime,omitempty"`
 }
 
 // Process contains information to start a specific application inside the container.
@@ -108,20 +108,20 @@ type Mount struct {
 	Options []string `json:"options,omitempty"`
 }
 
-// HvRuntime contains settings specific to Hyper-V containers
-type HvRuntime struct {
+// WindowsHvRuntime contains settings specific to Hyper-V containers
+type WindowsHvRuntime struct {
 	// ImagePath is the path to the Utility VM image for this container
 	ImagePath string `json:"image_path,omitempty"`
 }
 
-// Networking contains the platform specific network settings for the container
-type Networking struct {
+// WindowsNetworking contains the platform specific network settings for the container
+type WindowsNetworking struct {
 	// List of endpoints to be attached to the container
 	EndpointList []string `json:"endpoints,omitempty"`
 }
 
-// Storage contains storage resource management settings
-type Storage struct {
+// WindowsStorage contains storage resource management settings
+type WindowsStorage struct {
 	// Specifies maximum Iops for the system drive
 	Iops *uint64 `json:"iops,omitempty"`
 	// Specifies maximum bytes per second for the system drive
@@ -130,16 +130,16 @@ type Storage struct {
 	SandboxSize *uint64 `json:"sandbox_size,omitempty"`
 }
 
-// Memory contains memory settings for the container
-type Memory struct {
+// WindowsMemory contains memory settings for the container
+type WindowsMemory struct {
 	// Memory limit (in bytes).
 	Limit *int64 `json:"limit,omitempty"`
 	// Memory reservation (in bytes).
 	Reservation *uint64 `json:"reservation,omitempty"`
 }
 
-// CPU contains information for cpu resource management
-type CPU struct {
+// WindowsCPU contains information for cpu resource management
+type WindowsCPU struct {
 	// Number of CPUs available to the container. This is an appoximation for Windows Server Containers.
 	Count *uint64 `json:"count,omitempty"`
 	// CPU shares (relative weight (ratio) vs. other containers with cpu shares). Range is from 1 to 10000.
@@ -148,24 +148,24 @@ type CPU struct {
 	Percent *int64 `json:"percent,omitempty"`
 }
 
-// Network contains network resource management information
-type Network struct {
+// WindowsNetwork contains network resource management information
+type WindowsNetwork struct {
 	// Bandwidth is the maximum egress bandwidth in bytes per second
 	Bandwidth *uint64 `json:"bandwidth,omitempty"`
 }
 
-// Resources has container runtime resource constraints
+// WindowsResources has container runtime resource constraints
 // TODO Windows containerd. This structure needs ratifying with the old resources
 // structure used on Windows and the latest OCI spec.
-type Resources struct {
+type WindowsResources struct {
 	// Memory restriction configuration
-	Memory *Memory `json:"memory,omitempty"`
+	Memory *WindowsMemory `json:"memory,omitempty"`
 	// CPU resource restriction configuration
-	CPU *CPU `json:"cpu,omitempty"`
+	CPU *WindowsCPU `json:"cpu,omitempty"`
 	// Storage restriction configuration
-	Storage *Storage `json:"storage,omitempty"`
+	Storage *WindowsStorage `json:"storage,omitempty"`
 	// Network restriction configuration
-	Network *Network `json:"network,omitempty"`
+	Network *WindowsNetwork `json:"network,omitempty"`
 }
 
 const (
