@@ -520,7 +520,7 @@ __docker_complete_log_options() {
 	local journald_options="env labels tag"
 	local json_file_options="env labels max-file max-size"
 	local syslog_options="env labels syslog-address syslog-facility syslog-format syslog-tls-ca-cert syslog-tls-cert syslog-tls-key syslog-tls-skip-verify tag"
-	local splunk_options="env labels splunk-caname splunk-capath splunk-format splunk-index splunk-insecureskipverify splunk-source splunk-sourcetype splunk-token splunk-url splunk-verify-connection tag"
+	local splunk_options="env labels splunk-caname splunk-capath splunk-format splunk-gzip splunk-gzip-level splunk-index splunk-insecureskipverify splunk-source splunk-sourcetype splunk-token splunk-url splunk-verify-connection tag"
 
 	local all_options="$fluentd_options $gcplogs_options $gelf_options $journald_options $json_file_options $syslog_options $splunk_options"
 
@@ -629,7 +629,7 @@ __docker_complete_log_driver_options() {
 			__ltrim_colon_completions "${cur}"
 			return
 			;;
-		splunk-insecureskipverify|splunk-verify-connection)
+		splunk-gzip|splunk-insecureskipverify|splunk-verify-connection)
 			COMPREPLY=( $( compgen -W "false true" -- "${cur##*=}" ) )
 			return
 			;;
