@@ -35,8 +35,6 @@ func (daemon *Daemon) createSpec(c *container.Container) (*libcontainerd.Spec, e
 		return nil, fmt.Errorf("Failed to graph.Get on ImageID %s - %s", c.ImageID, err)
 	}
 
-	s.Platform.OSVersion = img.OSVersion
-
 	// In base spec
 	s.Hostname = c.FullHostname()
 

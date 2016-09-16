@@ -91,8 +91,6 @@ type Platform struct {
 	OS string `json:"os"`
 	// Arch is the architecture
 	Arch string `json:"arch"`
-	// OSVersion is the version of the operating system.
-	OSVersion string `json:"os.version,omitempty"`
 }
 
 // Mount specifies a mount for a container.
