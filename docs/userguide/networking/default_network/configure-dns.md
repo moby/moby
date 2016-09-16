@@ -19,7 +19,7 @@ automatically when you install Docker.
 How can Docker supply each container with a hostname and DNS configuration, without having to build a custom image with the hostname written inside?  Its trick is to overlay three crucial `/etc` files inside the container with virtual files where it can write fresh information.  You can see this by running `mount` inside a container:
 
 ```
-$$ mount
+root@f38c87f2a42d:/# mount
 
 ...
 /dev/disk/by-uuid/1fec...ebdf on /etc/hostname type ext4 ...
