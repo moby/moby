@@ -3,7 +3,7 @@ package runconfig
 import (
 	"fmt"
 
-	"github.com/docker/docker/errors"
+	"github.com/docker/docker/api/errors"
 )
 
 var (

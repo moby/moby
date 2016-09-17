@@ -7,10 +7,10 @@ import (
 	"strings"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/api/errors"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/network"
 	clustertypes "github.com/docker/docker/daemon/cluster/provider"
-	"github.com/docker/docker/errors"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/libnetwork"
 	networktypes "github.com/docker/libnetwork/types"
