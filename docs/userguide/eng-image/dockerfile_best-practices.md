@@ -238,12 +238,12 @@ keep the image size down. Since the `RUN` statement starts with
 The `CMD` instruction should be used to run the software contained by your
 image, along with any arguments. `CMD` should almost always be used in the
 form of `CMD [“executable”, “param1”, “param2”…]`. Thus, if the image is for a
-service (Apache, Rails, etc.), you would run something like
+service, such as Apache and Rails, you would run something like
 `CMD ["apache2","-DFOREGROUND"]`. Indeed, this form of the instruction is
 recommended for any service-based image.
 
-In most other cases, `CMD` should be given an interactive shell (bash, python,
-perl, etc), for example, `CMD ["perl", "-de0"]`, `CMD ["python"]`, or
+In most other cases, `CMD` should be given an interactive shell, such as bash, python
+and perl. For example, `CMD ["perl", "-de0"]`, `CMD ["python"]`, or
 `CMD [“php”, “-a”]`. Using this form means that when you execute something like
 `docker run -it python`, you’ll get dropped into a usable shell, ready to go.
 `CMD` should rarely be used in the manner of `CMD [“param”, “param”]` in
