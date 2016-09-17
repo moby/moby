@@ -26,8 +26,8 @@ type StateInfo struct {
 	UpdatePending bool // Indicates that there are some update operations pending that should be completed by a servicing container.
 }
 
-// Stats contains a stats properties from containerd.
-type Stats struct{}
+// Stats contains statics from HCS
+type Stats hcsshim.Statistics
 
 // Resources defines updatable container resource values.
 type Resources struct{}

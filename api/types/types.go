@@ -1,6 +1,7 @@
 package types
 
 import (
+	"io"
 	"os"
 	"time"
 
@@ -180,6 +181,13 @@ type ContainerPathStat struct {
 	Mode       os.FileMode `json:"mode"`
 	Mtime      time.Time   `json:"mtime"`
 	LinkTarget string      `json:"linkTarget"`
+}
+
+// ContainerStats contains resonse of Remote API:
+// GET "/stats"
+type ContainerStats struct {
+	Body   io.ReadCloser `json:"body"`
+	OSType string        `json:"ostype"`
 }
 
 // ContainerProcessList contains response of Remote API:
