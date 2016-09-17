@@ -47,14 +47,14 @@ func testHTTPTimeout(t *testing.T, timeout, epsilon time.Duration) {
 		t.Fatalf("The request should be canceled %v", err)
 	}
 	elapsed := time.Now().Sub(begin)
-	if elapsed < timeout || elapsed > timeout+epsilon {
+	if elapsed < timeout-epsilon || elapsed > timeout+epsilon {
 		t.Fatalf("elapsed time: got %v, expected %v (epsilon=%v)",
 			elapsed, timeout, epsilon)
 	}
 }
 
 func TestHTTPTimeout(t *testing.T) {
-	testHTTPTimeout(t, 5*time.Second, 1*time.Second)
+	testHTTPTimeout(t, 5*time.Second, 500*time.Millisecond)
 }
 
 func TestFailedConnection(t *testing.T) {
