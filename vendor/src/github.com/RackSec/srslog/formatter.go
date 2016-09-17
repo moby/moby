@@ -32,7 +32,7 @@ func UnixFormatter(p Priority, hostname, tag, content string) string {
 // RFC3164Formatter provides an RFC 3164 compliant message.
 func RFC3164Formatter(p Priority, hostname, tag, content string) string {
 	timestamp := time.Now().Format(time.Stamp)
-	msg := fmt.Sprintf("<%d> %s %s %s[%d]: %s",
+	msg := fmt.Sprintf("<%d>%s %s %s[%d]: %s",
 		p, timestamp, hostname, tag, os.Getpid(), content)
 	return msg
 }
