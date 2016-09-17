@@ -328,6 +328,7 @@ Create a container
              "AutoRemove": true,
              "NetworkMode": "bridge",
              "Devices": [],
+             "Sysctls": { "net.ipv4.ip_forward": "1" },
              "Ulimits": [{}],
              "LogConfig": { "Type": "json-file", "Config": {} },
              "SecurityOpt": [],
@@ -1323,7 +1324,7 @@ last four bytes (`uint32`).
 
 It is encoded on the first eight bytes like this:
 
-header := [8]byte{STREAM_TYPE, 0, 0, 0, SIZE1, SIZE2, SIZE3, SIZE4}
+    header := [8]byte{STREAM_TYPE, 0, 0, 0, SIZE1, SIZE2, SIZE3, SIZE4}
 
 `STREAM_TYPE` can be:
 
@@ -2852,6 +2853,7 @@ interactive session with the `exec` command.
 -   **409** - container is paused
 
 **Stream details**:
+
 Similar to the stream behavior of `POST /containers/(id or name)/attach` API
 
 ### Exec Resize
@@ -4200,7 +4202,7 @@ Inspect swarm
 
 `POST /swarm/init`
 
-Initialize a new swarm
+Initialize a new swarm. The body of the HTTP response includes the node ID.
 
 **Example request**:
 
@@ -4222,8 +4224,12 @@ Initialize a new swarm
 **Example response**:
 
     HTTP/1.1 200 OK
-    Content-Length: 0
-    Content-Type: text/plain; charset=utf-8
+    Content-Length: 28
+    Content-Type: application/json
+    Date: Thu, 01 Sep 2016 21:49:13 GMT
+    Server: Docker/1.12.0 (linux)
+
+    "7v2t30z9blmxuhnyo6s4cpenp"
 
 **Status codes**:
 
