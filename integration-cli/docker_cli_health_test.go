@@ -165,3 +165,61 @@ func (s *DockerSuite) TestHealth(c *check.C) {
 	c.Check(out, checker.Equals, "[CMD cat /my status]\n")
 
 }
+
+func (s *DockerSuite) TestHealthWithInitialRetries(c *check.C) {
+	testRequires(c, DaemonIsLinux) // busybox doesn't work on Windows
+
+	imageName := "testhealth"
+	_, err := buildImage(imageName,
+		`FROM busybox
+		CMD ["/bin/sleep", "120"]
+		STOPSIGNAL SIGKILL
+		HEALTHCHECK --interval=1s --timeout=30s --initial-retries=3 \
+		  CMD cat /status`,
+		true)
+
+	c.Check(err, check.IsNil)
+
+	name := "test_health"
+	dockerCmd(c, "create", "--health-initial-retries=10", "--health-retries=1", "--name", name, imageName)
+	out, _ := dockerCmd(c, "ps", "-a", "--format={{.Status}}")
+	c.Check(out, checker.Equals, "Created\n")
+
+	// Inspect the options
+	out, _ = dockerCmd(c, "inspect",
+		"--format=timeout={{.Config.Healthcheck.Timeout}} "+
+			"interval={{.Config.Healthcheck.Interval}} "+
+			"retries={{.Config.Healthcheck.Retries}} "+
+			"initial_retries={{.Config.Healthcheck.InitialRetries}} "+
+			"test={{.Config.Healthcheck.Test}}", name)
+	c.Check(out, checker.Equals, "timeout=30s interval=1s retries=1 initial_retries=10 test=[CMD-SHELL cat /status]\n")
+
+	// Start
+	dockerCmd(c, "start", name)
+
+	// Wait for 3 seconds, and make health check healthy
+	// should still be in the initial retry stage
+	dockerCmd(c, "exec", name, "touch", "/status")
+
+	// We should see healthy now
+	waitForHealthStatus(c, name, "starting", "healthy")
+
+	// Inspect the status
+	out, _ = dockerCmd(c, "inspect", "--format={{.State.Health.Status}}", name)
+	c.Check(strings.TrimSpace(out), checker.Equals, "healthy")
+
+	// Fail the check
+	dockerCmd(c, "exec", name, "rm", "/status")
+	waitForHealthStatus(c, name, "healthy", "unhealthy")
+
+	// Check failing streak, already passed initial stage
+	// retries is 1 and initial-retries is 10 so it should be between 1 and 10
+	failsStr, _ := dockerCmd(c, "inspect", "--format={{.State.Health.FailingStreak}}", name)
+	fails, err := strconv.Atoi(strings.TrimSpace(failsStr))
+	//c.Check(err, check.IsNil)
+	c.Check(fails >= 1, checker.Equals, true)
+	c.Check(fails < 10, checker.Equals, true)
+
+	// Remove container
+	dockerCmd(c, "rm", "-f", name)
+}
