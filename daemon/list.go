@@ -608,7 +608,7 @@ func (daemon *Daemon) filterVolumes(vols []volume.Volume, filter filters.Args) (
 			}
 		}
 		if filter.Include("label") {
-			v, ok := vol.(volume.LabeledVolume)
+			v, ok := vol.(volume.DetailedVolume)
 			if !ok {
 				continue
 			}

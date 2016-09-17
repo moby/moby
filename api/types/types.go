@@ -447,6 +447,7 @@ type Volume struct {
 	Status     map[string]interface{} `json:",omitempty"` // Status provides low-level status information about the volume
 	Labels     map[string]string      // Labels is metadata specific to the volume
 	Scope      string                 // Scope describes the level at which the volume exists (e.g. `global` for cluster-wide or `local` for machine level)
+	Options    map[string]string      // Options holds the driver specific options to use for when creating the volume.
 	UsageData  *VolumeUsageData       `json:",omitempty"`
 }
 

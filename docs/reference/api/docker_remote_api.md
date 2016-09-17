@@ -132,6 +132,7 @@ This section lists each version from latest to oldest.  Each listing includes a 
 * `POST /services/create` and `POST /services/(id or name)/update` now accept `Monitor` and `MaxFailureRatio` parameters, which control the response to failures during service updates.
 * `GET /networks/(name)` now returns `Created`.
 * `POST /containers/(id or name)/exec` now accepts an `Env` field, which holds a list of environment variables to be set in the context of the command execution.
+* `GET /volumes`, `GET /volumes/(name)`, and `POST /volumes/create` now return the `Options` field which holds the driver specific options to use for when creating the volume.
 
 ### v1.24 API changes
 
