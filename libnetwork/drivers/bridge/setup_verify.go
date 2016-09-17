@@ -11,11 +11,13 @@ import (
 )
 
 func setupVerifyAndReconcile(config *networkConfiguration, i *bridgeInterface) error {
-	// Fetch a single IPv4 and a slice of IPv6 addresses from the bridge.
-	addrv4, addrsv6, err := i.addresses()
+	// Fetch a slice of IPv4 addresses and a slice of IPv6 addresses from the bridge.
+	addrsv4, addrsv6, err := i.addresses()
 	if err != nil {
 		return fmt.Errorf("Failed to verify ip addresses: %v", err)
 	}
+
+	addrv4, _ := selectIPv4Address(addrsv4, config.AddressIPv4)
 
 	// Verify that the bridge does have an IPv4 address.
 	if addrv4.IPNet == nil {
