@@ -25,10 +25,12 @@ const (
 
 // PortConfig represents the config of a port.
 type PortConfig struct {
-	Name          string             `json:",omitempty"`
-	Protocol      PortConfigProtocol `json:",omitempty"`
-	TargetPort    uint32             `json:",omitempty"`
-	PublishedPort uint32             `json:",omitempty"`
+	Name     string             `json:",omitempty"`
+	Protocol PortConfigProtocol `json:",omitempty"`
+	// TargetPort is the port inside the container
+	TargetPort uint32 `json:",omitempty"`
+	// PublishedPort is the port on the swarm hosts
+	PublishedPort uint32 `json:",omitempty"`
 }
 
 // PortConfigProtocol represents the protocol of a port.
