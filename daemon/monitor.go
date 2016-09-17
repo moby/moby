@@ -9,10 +9,22 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/exec"
 	"github.com/docker/docker/libcontainerd"
 	"github.com/docker/docker/runconfig"
 )
+
+func (daemon *Daemon) setStateStats(c *container.Container, locked bool) {
+	if !locked {
+		c.Lock()
+	}
+	state := c.StateString()
+	if !locked {
+		c.Unlock()
+	}
+	daemon.containers.SetState(c.ID, state)
+}
 
 // StateChanged updates daemon state changes from containerd
 func (daemon *Daemon) StateChanged(id string, e libcontainerd.StateInfo) error {
@@ -20,7 +32,13 @@ func (daemon *Daemon) StateChanged(id string, e libcontainerd.StateInfo) error {
 	if c == nil {
 		return fmt.Errorf("no such container: %s", id)
 	}
-
+	deleted := false
+	locked := false
+	defer func() {
+		if !deleted {
+			daemon.setStateStats(c, locked)
+		}
+	}()
 	switch e.State {
 	case libcontainerd.StateOOM:
 		// StateOOM is Linux specific and should never be hit on Windows
@@ -36,6 +54,7 @@ func (daemon *Daemon) StateChanged(id string, e libcontainerd.StateInfo) error {
 				if err := daemon.ContainerRm(c.ID, &types.ContainerRmConfig{ForceRemove: true, RemoveVolume: true}); err != nil {
 					logrus.Errorf("can't remove container %s: %v", c.ID, err)
 				}
+				deleted = true
 			}()
 		}
 		c.Lock()
@@ -88,6 +107,7 @@ func (daemon *Daemon) StateChanged(id string, e libcontainerd.StateInfo) error {
 		}
 	case libcontainerd.StateStart, libcontainerd.StateRestore:
 		// Container is already locked in this case
+		locked = true
 		c.SetRunning(int(e.Pid), e.State == libcontainerd.StateStart)
 		c.HasBeenManuallyStopped = false
 		c.HasBeenStartedBefore = true
@@ -99,6 +119,7 @@ func (daemon *Daemon) StateChanged(id string, e libcontainerd.StateInfo) error {
 		daemon.LogContainerEvent(c, "start")
 	case libcontainerd.StatePause:
 		// Container is already locked in this case
+		locked = true
 		c.Paused = true
 		if err := c.ToDisk(); err != nil {
 			return err
@@ -107,6 +128,7 @@ func (daemon *Daemon) StateChanged(id string, e libcontainerd.StateInfo) error {
 		daemon.LogContainerEvent(c, "pause")
 	case libcontainerd.StateResume:
 		// Container is already locked in this case
+		locked = true
 		c.Paused = false
 		if err := c.ToDisk(); err != nil {
 			return err

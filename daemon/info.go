@@ -3,12 +3,10 @@ package daemon
 import (
 	"os"
 	"runtime"
-	"sync/atomic"
 	"time"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/container"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/pkg/fileutils"
 	"github.com/docker/docker/pkg/parsers/kernel"
@@ -56,17 +54,10 @@ func (daemon *Daemon) SystemInfo() (*types.Info, error) {
 
 	sysInfo := sysinfo.New(true)
 
-	var cRunning, cPaused, cStopped int32
-	daemon.containers.ApplyAll(func(c *container.Container) {
-		switch c.StateString() {
-		case "paused":
-			atomic.AddInt32(&cPaused, 1)
-		case "running":
-			atomic.AddInt32(&cRunning, 1)
-		default:
-			atomic.AddInt32(&cStopped, 1)
-		}
-	})
+	storeStats := daemon.containers.Stats()
+	cRunning, _ := storeStats.StateCounts["running"]
+	cPaused, _ := storeStats.StateCounts["paused"]
+	cStopped := storeStats.Size - cRunning - cPaused
 
 	var securityOptions []string
 	if sysInfo.AppArmor {
@@ -81,10 +72,10 @@ func (daemon *Daemon) SystemInfo() (*types.Info, error) {
 
 	v := &types.Info{
 		ID:                 daemon.ID,
-		Containers:         int(cRunning + cPaused + cStopped),
-		ContainersRunning:  int(cRunning),
-		ContainersPaused:   int(cPaused),
-		ContainersStopped:  int(cStopped),
+		Containers:         storeStats.Size,
+		ContainersRunning:  cRunning,
+		ContainersPaused:   cPaused,
+		ContainersStopped:  cStopped,
 		Images:             len(daemon.imageStore.Map()),
 		Driver:             daemon.GraphDriverName(),
 		DriverStatus:       daemon.layerStore.DriverStatus(),

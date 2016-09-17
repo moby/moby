@@ -4,14 +4,16 @@ import "sync"
 
 // memoryStore implements a Store in memory.
 type memoryStore struct {
-	s map[string]*Container
+	s     map[string]*Container
+	state map[string]string
 	sync.RWMutex
 }
 
 // NewMemoryStore initializes a new memory store.
 func NewMemoryStore() Store {
 	return &memoryStore{
-		s: make(map[string]*Container),
+		s:     make(map[string]*Container),
+		state: make(map[string]string),
 	}
 }
 
@@ -20,6 +22,7 @@ func NewMemoryStore() Store {
 func (c *memoryStore) Add(id string, cont *Container) {
 	c.Lock()
 	c.s[id] = cont
+	c.state[id] = ""
 	c.Unlock()
 }
 
@@ -35,6 +38,7 @@ func (c *memoryStore) Get(id string) *Container {
 func (c *memoryStore) Delete(id string) {
 	c.Lock()
 	delete(c.s, id)
+	delete(c.state, id)
 	c.Unlock()
 }
 
@@ -87,6 +91,31 @@ func (c *memoryStore) all() []*Container {
 	}
 	c.RUnlock()
 	return containers
+}
+
+func (c *memoryStore) SetState(id, state string) {
+	c.Lock()
+	c.state[id] = state
+	c.Unlock()
+}
+
+func (c *memoryStore) Stats() StoreStats {
+	m := make(map[string]int)
+	c.RLock()
+	size := len(c.state)
+	for _, state := range c.state {
+		count, ok := m[state]
+		if ok {
+			m[state] = count + 1
+		} else {
+			m[state] = 1
+		}
+	}
+	c.RUnlock()
+	return StoreStats{
+		Size:        size,
+		StateCounts: m,
+	}
 }
 
 var _ Store = &memoryStore{}

@@ -65,7 +65,8 @@ func NewState() *State {
 	}
 }
 
-// String returns a human-readable description of the state
+// String returns a human-readable description of the state. Take lock before if
+// state may be shared.
 func (s *State) String() string {
 	if s.Running {
 		if s.Paused {
@@ -100,7 +101,8 @@ func (s *State) String() string {
 	return fmt.Sprintf("Exited (%d) %s ago", s.ExitCodeValue, units.HumanDuration(time.Now().UTC().Sub(s.FinishedAt)))
 }
 
-// StateString returns a single string to describe state
+// StateString returns a single string to describe state. Take lock before if
+// state may be shared.
 func (s *State) StateString() string {
 	if s.Running {
 		if s.Paused {
@@ -231,7 +233,8 @@ func (s *State) SetExitCode(ec int) {
 	s.ExitCodeValue = ec
 }
 
-// SetRunning sets the state of the container to "running".
+// SetRunning sets the state of the container to "running". Take lock before if state
+// may be shared.
 func (s *State) SetRunning(pid int, initial bool) {
 	s.ErrorMsg = ""
 	s.Running = true
@@ -271,7 +274,7 @@ func (s *State) SetRestarting(exitStatus *ExitStatus) {
 
 // SetError sets the container's error state. This is useful when we want to
 // know the error that occurred when container transits to another state
-// when inspecting it
+// when inspecting it. Take lock before if state may be shared.
 func (s *State) SetError(err error) {
 	s.ErrorMsg = err.Error()
 }
@@ -318,7 +321,8 @@ func (s *State) SetDead() {
 	s.Unlock()
 }
 
-// Error returns current error for the state.
+// Error returns current error for the state. Take lock before if state may be
+// shared.
 func (s *State) Error() string {
 	return s.ErrorMsg
 }
