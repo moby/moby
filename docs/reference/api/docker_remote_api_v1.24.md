@@ -334,8 +334,7 @@ Create a container
              "StorageOpt": {},
              "CgroupParent": "",
              "VolumeDriver": "",
-             "ShmSize": 67108864,
-             "Mounts": []
+             "ShmSize": 67108864
           },
           "NetworkingConfig": {
               "EndpointsConfig": {
@@ -611,8 +610,7 @@ Return low-level information on the container `id`
 			"VolumesFrom": null,
 			"Ulimits": [{}],
 			"VolumeDriver": "",
-			"ShmSize": 67108864,
-			"Mounts": []
+			"ShmSize": 67108864
 		},
 		"HostnamePath": "/var/lib/docker/containers/ba033ac4401106a3b513bc9d639eee123ad78ca3616b921167cd74b20e25ed39/hostname",
 		"HostsPath": "/var/lib/docker/containers/ba033ac4401106a3b513bc9d639eee123ad78ca3616b921167cd74b20e25ed39/hosts",
