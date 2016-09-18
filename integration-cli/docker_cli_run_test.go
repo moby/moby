@@ -4536,3 +4536,17 @@ func (s *DockerDaemonSuite) TestRunWithUlimitAndDaemonDefault(c *check.C) {
 	c.Assert(err, checker.IsNil)
 	c.Assert(out, checker.Contains, "[nofile=42:42]")
 }
+
+func (s *DockerSuite) TestRunContainerWithSysFirmwareMountRO(c *check.C) {
+	testRequires(c, DaemonIsLinux, NotUserNamespace)
+
+	filename := "/sys/firmware/test123"
+	out, _, err := dockerCmdWithError("run", "busybox", "touch", filename)
+	if err == nil {
+		c.Fatal("expected /sys/firmware mount point to be read-only, touch file should fail")
+	}
+	expected := "Read-only file system"
+	if !strings.Contains(out, expected) {
+		c.Fatalf("expected output from failure to contain %s but contains %s", expected, out)
+	}
+}
