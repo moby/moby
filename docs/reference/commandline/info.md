@@ -38,7 +38,7 @@ meta data regarding those images are stored. When run for the first time Docker
 allocates a certain amount of data space and meta data space from the space
 available on the volume where `/var/lib/docker` is mounted.
 
-# EXAMPLES
+# Examples
 
 ## Display Docker system information
 
