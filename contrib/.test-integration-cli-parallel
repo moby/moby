@@ -1,0 +1,23 @@
+#!/bin/bash
+# stdin: regexp for test case (e.g. TestFooBar)
+set -e
+if [ -z $PARALLEL_SEQ ]; then
+    echo "Please run this script from parallel(1)"
+    false
+fi
+
+mkdir -p bundles-parallel/$PARALLEL_SEQ
+# TODO: dedup binaries
+cp -r bundles bundles-parallel/$PARALLEL_SEQ
+
+run=$(BINDDIR="bundles-parallel/$PARALLEL_SEQ/bundles" make --silent echo-docker-run)
+script=$(cat <<EOF
+ln -s bundles-parallel/$PARALLEL_SEQ/bundles bundles
+while read r; do
+    echo "Job $PARALLEL_SEQ: running \$r"
+    KEEPBUNDLE=1 DOCKER_INTEGRATION_TESTS_VERIFIED=1 TESTFLAGS="-check.f \$r" hack/make.sh test-integration-cli
+done
+EOF
+      )
+
+$run sh -c "$script"

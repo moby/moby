@@ -1,4 +1,5 @@
 bundles
+bundles-parallel
 .gopath
 vendor/pkg
 .go-pkg-cache
