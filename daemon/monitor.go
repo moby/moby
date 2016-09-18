@@ -90,6 +90,7 @@ func (daemon *Daemon) StateChanged(id string, e libcontainerd.StateInfo) error {
 		// Container is already locked in this case
 		c.SetRunning(int(e.Pid), e.State == libcontainerd.StateStart)
 		c.HasBeenManuallyStopped = false
+		c.HasBeenStartedBefore = true
 		if err := c.ToDisk(); err != nil {
 			c.Reset(false)
 			return err
