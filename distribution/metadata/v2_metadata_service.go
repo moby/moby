@@ -1,9 +1,13 @@
 package metadata
 
 import (
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 
 	"github.com/docker/distribution/digest"
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/layer"
 )
 
@@ -17,6 +21,69 @@ type V2MetadataService struct {
 type V2Metadata struct {
 	Digest           digest.Digest
 	SourceRepository string
+	// HMAC hashes above attributes with recent authconfig digest used as a key in order to determine matching
+	// metadata entries accompanied by the same credentials without actually exposing them.
+	HMAC string
+}
+
+// CheckV2MetadataHMAC return true if the given "meta" is tagged with a hmac hashed by the given "key".
+func CheckV2MetadataHMAC(meta *V2Metadata, key []byte) bool {
+	if len(meta.HMAC) == 0 || len(key) == 0 {
+		return len(meta.HMAC) == 0 && len(key) == 0
+	}
+	mac := hmac.New(sha256.New, key)
+	mac.Write([]byte(meta.Digest))
+	mac.Write([]byte(meta.SourceRepository))
+	expectedMac := mac.Sum(nil)
+
+	storedMac, err := hex.DecodeString(meta.HMAC)
+	if err != nil {
+		return false
+	}
+
+	return hmac.Equal(storedMac, expectedMac)
+}
+
+// ComputeV2MetadataHMAC returns a hmac for the given "meta" hash by the given key.
+func ComputeV2MetadataHMAC(key []byte, meta *V2Metadata) string {
+	if len(key) == 0 || meta == nil {
+		return ""
+	}
+	mac := hmac.New(sha256.New, key)
+	mac.Write([]byte(meta.Digest))
+	mac.Write([]byte(meta.SourceRepository))
+	return hex.EncodeToString(mac.Sum(nil))
+}
+
+// ComputeV2MetadataHMACKey returns a key for the given "authConfig" that can be used to hash v2 metadata
+// entries.
+func ComputeV2MetadataHMACKey(authConfig *types.AuthConfig) ([]byte, error) {
+	if authConfig == nil {
+		return nil, nil
+	}
+	key := authConfigKeyInput{
+		Username:      authConfig.Username,
+		Password:      authConfig.Password,
+		Auth:          authConfig.Auth,
+		IdentityToken: authConfig.IdentityToken,
+		RegistryToken: authConfig.RegistryToken,
+	}
+	buf, err := json.Marshal(&key)
+	if err != nil {
+		return nil, err
+	}
+	return []byte(digest.FromBytes([]byte(buf))), nil
+}
+
+// authConfigKeyInput is a reduced AuthConfig structure holding just relevant credential data eligible for
+// hmac key creation.
+type authConfigKeyInput struct {
+	Username string `json:"username,omitempty"`
+	Password string `json:"password,omitempty"`
+	Auth     string `json:"auth,omitempty"`
+
+	IdentityToken string `json:"identitytoken,omitempty"`
+	RegistryToken string `json:"registrytoken,omitempty"`
 }
 
 // maxMetadata is the number of metadata entries to keep per layer DiffID.
@@ -103,6 +170,13 @@ func (serv *V2MetadataService) Add(diffID layer.DiffID, metadata V2Metadata) err
 	}
 
 	return serv.store.Set(serv.digestNamespace(), serv.digestKey(metadata.Digest), []byte(diffID))
+}
+
+// TagAndAdd amends the given "meta" for hmac hashed by the given "hmacKey" and associates it with a layer
+// DiffID. If too many metadata entries are present, the oldest one is dropped.
+func (serv *V2MetadataService) TagAndAdd(diffID layer.DiffID, hmacKey []byte, meta V2Metadata) error {
+	meta.HMAC = ComputeV2MetadataHMAC(hmacKey, &meta)
+	return serv.Add(diffID, meta)
 }
 
 // Remove unassociates a metadata entry from a layer DiffID.
