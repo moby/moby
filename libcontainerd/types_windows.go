@@ -32,13 +32,13 @@ type Stats hcsshim.Statistics
 // Resources defines updatable container resource values.
 type Resources struct{}
 
-// ServicingOption is an empty CreateOption with a no-op application that signifies
+// ServicingOption is a CreateOption with a no-op application that signifies
 // the container needs to be used for a Windows servicing operation.
 type ServicingOption struct {
 	IsServicing bool
 }
 
-// FlushOption is an empty CreateOption that signifies if the container should be
+// FlushOption is a CreateOption that signifies if the container should be
 // started with flushes ignored until boot has completed. This is an optimisation
 // for first boot of a container.
 type FlushOption struct {
@@ -59,6 +59,12 @@ type LayerOption struct {
 	LayerFolderPath string `json:",omitempty"`
 	// Layer paths of the parent layers
 	LayerPaths []string
+}
+
+// NetworkEndpointsOption is a CreateOption that provides the runtime list
+// of network endpoints to which a container should be attached during its creation.
+type NetworkEndpointsOption struct {
+	Endpoints []string
 }
 
 // Checkpoint holds the details of a checkpoint (not supported in windows)

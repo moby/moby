@@ -106,10 +106,6 @@ func (clnt *client) Create(containerID string, checkpoint string, checkpointDir 
 		HvPartition:             false,
 	}
 
-	if spec.Windows.Networking != nil {
-		configuration.EndpointList = spec.Windows.Networking.EndpointList
-	}
-
 	if spec.Windows.Resources != nil {
 		if spec.Windows.Resources.CPU != nil {
 			if spec.Windows.Resources.CPU.Shares != nil {
@@ -151,6 +147,9 @@ func (clnt *client) Create(containerID string, checkpoint string, checkpointDir 
 		}
 		if l, ok := option.(*LayerOption); ok {
 			layerOpt = l
+		}
+		if n, ok := option.(*NetworkEndpointsOption); ok {
+			configuration.EndpointList = n.Endpoints
 			continue
 		}
 	}
