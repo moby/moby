@@ -107,7 +107,7 @@ func (nnr NetworkNameError) Error() string {
 // Forbidden denotes the type of this error
 func (nnr NetworkNameError) Forbidden() {}
 
-// UnknownNetworkError is returned when libnetwork could not find in it's database
+// UnknownNetworkError is returned when libnetwork could not find in its database
 // a network with the same name and id.
 type UnknownNetworkError struct {
 	name string

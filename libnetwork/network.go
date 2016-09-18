@@ -34,7 +34,7 @@ type Network interface {
 	Type() string
 
 	// Create a new endpoint to this network symbolically identified by the
-	// specified unique name. The options parameter carry driver specific options.
+	// specified unique name. The options parameter carries driver specific options.
 	CreateEndpoint(name string, options ...EndpointOption) (Endpoint, error)
 
 	// Delete the network.
