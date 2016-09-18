@@ -719,6 +719,13 @@ func (daemon *Daemon) connectToNetwork(container *container.Container, idOrName 
 		return err
 	}
 
+	if !container.Managed {
+		// add container name/alias to DNS
+		if err := daemon.ActivateContainerServiceBinding(container.Name); err != nil {
+			return fmt.Errorf("Activate container service binding for %s failed: %v", container.Name, err)
+		}
+	}
+
 	if err := container.UpdateJoinInfo(n, ep); err != nil {
 		return fmt.Errorf("Updating join info failed: %v", err)
 	}
@@ -986,4 +993,30 @@ func (daemon *Daemon) DisconnectFromNetwork(container *container.Container, netw
 		daemon.LogNetworkEventWithAttributes(n, "disconnect", attributes)
 	}
 	return nil
+}
+
+// ActivateContainerServiceBinding puts this container into load balancer active rotation and DNS response
+func (daemon *Daemon) ActivateContainerServiceBinding(containerName string) error {
+	container, err := daemon.GetContainer(containerName)
+	if err != nil {
+		return err
+	}
+	sb := daemon.getNetworkSandbox(container)
+	if sb == nil {
+		return fmt.Errorf("network sandbox not exists for container %s", containerName)
+	}
+	return sb.EnableService()
+}
+
+// DeactivateContainerServiceBinding remove this container fromload balancer active rotation, and DNS response
+func (daemon *Daemon) DeactivateContainerServiceBinding(containerName string) error {
+	container, err := daemon.GetContainer(containerName)
+	if err != nil {
+		return err
+	}
+	sb := daemon.getNetworkSandbox(container)
+	if sb == nil {
+		return fmt.Errorf("network sandbox not exists for container %s", containerName)
+	}
+	return sb.DisableService()
 }

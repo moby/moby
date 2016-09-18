@@ -178,6 +178,10 @@ func (daemon *Daemon) SetupIngress(create clustertypes.NetworkCreateRequest, nod
 		if err := ep.Join(sb, nil); err != nil {
 			logrus.Errorf("Failed joining ingress sandbox to ingress endpoint: %v", err)
 		}
+
+		if err := sb.EnableService(); err != nil {
+			logrus.WithError(err).Error("Failed enabling service for ingress sandbox")
+		}
 	}()
 
 	return nil
