@@ -14,8 +14,8 @@ NAME|ID [NAME|ID...]
 
 # DESCRIPTION
 
-This displays all the information available in Docker for one or multiple given
-containers, images, volumes, networks, nodes, services, or tasks. By default,
+This displays the low-level information on Docker object(s) (e.g. container, 
+image, volume,network, node, service, or task) identified by name or ID. By default,
 this will render all results in a JSON array. If the container and image have
 the same name, this will return container JSON for unspecified type. If a format
 is specified, the given template will be executed for each result.
@@ -25,14 +25,14 @@ is specified, the given template will be executed for each result.
     Print usage statement
 
 **-f**, **--format**=""
-    Format the output using the given Go template.
+    Format the output using the given Go template
 
 **-s**, **--size**
-    Display total file sizes if the type is container.
+    Display total file sizes if the type is container
 
 **--type**=*container*|*image*|*network*|*node*|*service*|*task*|*volume*
     Return JSON for specified type, permissible values are "image", "container",
-    "network", "node", "service", "task", and "volume".
+    "network", "node", "service", "task", and "volume"
 
 # EXAMPLES
 

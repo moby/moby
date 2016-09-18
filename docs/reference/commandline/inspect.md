@@ -13,14 +13,13 @@ parent = "smn_cli"
 ```markdown
 Usage:  docker inspect [OPTIONS] NAME|ID [NAME|ID...]
 
-Return low-level information on one or multiple containers, images, volumes,
-networks, nodes, services, or tasks identified by name or ID.
+Return low-level information on Docker object(s) (e.g. container, image, volume,
+network, node, service, or task) identified by name or ID
 
 Options:
   -f, --format       Format the output using the given go template
       --help         Print usage
   -s, --size         Display total file sizes if the type is container
-                     values are "image" or "container" or "task
       --type         Return JSON for specified type
 ```
 
