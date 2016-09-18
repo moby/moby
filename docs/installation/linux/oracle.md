@@ -110,11 +110,11 @@ To create the `docker` group and add your user:
 
 2. Create the `docker` group.
 
-        sudo groupadd docker
+        $ sudo groupadd docker
 
 3. Add your user to `docker` group.
 
-        sudo usermod -aG docker username
+        $ sudo usermod -aG docker username
 
 4. Log out and log back in.
 
