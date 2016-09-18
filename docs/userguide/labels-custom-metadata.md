@@ -210,7 +210,7 @@ These labels appear as part of the `docker info` output for the daemon:
     Operating System: Ubuntu 15.04
     CPUs: 24
     Total Memory: 62.86 GiB
-    Name: docker
+    Name: ubuntu
     ID: I54V:OLXT:HVMM:TPKO:JPHQ:CQCD:JNLC:O3BZ:4ZVJ:43XJ:PFHZ:6N2S
     Debug mode (server): true
      File Descriptors: 59
@@ -228,3 +228,5 @@ These labels appear as part of the `docker info` output for the daemon:
     Labels:
      com.example.environment=production
      com.example.storage=ssd
+
+The global `-D` option tells all `docker` commands to output debug information.

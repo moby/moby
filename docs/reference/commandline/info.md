@@ -73,7 +73,7 @@ storage driver and a node that is part of a 2-node swarm:
     Architecture: x86_64
     CPUs: 24
     Total Memory: 62.86 GiB
-    Name: docker
+    Name: ubuntu
     ID: I54V:OLXT:HVMM:TPKO:JPHQ:CQCD:JNLC:O3BZ:4ZVJ:43XJ:PFHZ:6N2S
     Docker Root Dir: /var/lib/docker
     Debug mode (client): true
