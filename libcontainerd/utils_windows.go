@@ -34,3 +34,8 @@ func (h *HyperVIsolationOption) Apply(interface{}) error {
 func (h *LayerOption) Apply(interface{}) error {
 	return nil
 }
+
+// Apply for the network endpoints option is a no-op.
+func (s *NetworkEndpointsOption) Apply(interface{}) error {
+	return nil
+}

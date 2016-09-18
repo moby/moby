@@ -51,10 +51,37 @@ func (daemon *Daemon) getLibcontainerdCreateOptions(container *container.Contain
 		layerOpts.LayerPaths = append([]string{layerPath}, layerOpts.LayerPaths...)
 	}
 
+	// Get endpoints for the libnetwork allocated networks to the container
+	var epList []string
+	if container.NetworkSettings != nil {
+		for n := range container.NetworkSettings.Networks {
+			sn, err := daemon.FindNetwork(n)
+			if err != nil {
+				continue
+			}
+
+			ep, err := container.GetEndpointInNetwork(sn)
+			if err != nil {
+				continue
+			}
+
+			data, err := ep.DriverInfo()
+			if err != nil {
+				continue
+			}
+			if data["hnsid"] != nil {
+				epList = append(epList, data["hnsid"].(string))
+			}
+		}
+	}
+
 	// Now build the full set of options
 	createOptions = append(createOptions, &libcontainerd.FlushOption{IgnoreFlushesDuringBoot: !container.HasBeenStartedBefore})
 	createOptions = append(createOptions, hvOpts)
 	createOptions = append(createOptions, layerOpts)
+	if epList != nil {
+		createOptions = append(createOptions, &libcontainerd.NetworkEndpointsOption{Endpoints: epList})
+	}
 
 	return &createOptions, nil
 }
