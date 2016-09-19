@@ -35,6 +35,7 @@ type Plugin struct {
 	RestartManager    restartmanager.RestartManager `json:"-"`
 	RuntimeSourcePath string                        `json:"-"`
 	ExitChan          chan bool                     `json:"-"`
+	RefCount          int                           `json:"-"`
 }
 
 func newPluginObj(name, id, tag string) types.Plugin {

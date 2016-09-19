@@ -264,7 +264,7 @@ func (s *VolumeStore) create(name, driverName string, opts, labels map[string]st
 		}
 	}
 
-	vd, err := volumedrivers.GetDriver(driverName)
+	vd, err := volumedrivers.CreateDriver(driverName)
 
 	if err != nil {
 		return nil, &OpErr{Op: "create", Name: name, Err: err}
@@ -416,7 +416,7 @@ func (s *VolumeStore) Remove(v volume.Volume) error {
 		return &OpErr{Err: errVolumeInUse, Name: v.Name(), Op: "remove", Refs: refs}
 	}
 
-	vd, err := volumedrivers.GetDriver(v.DriverName())
+	vd, err := volumedrivers.RemoveDriver(v.DriverName())
 	if err != nil {
 		return &OpErr{Err: err, Name: vd.Name(), Op: "remove"}
 	}

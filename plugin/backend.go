@@ -147,14 +147,26 @@ func (pm *Manager) Remove(name string, config *types.PluginRmConfig) error {
 	if err != nil {
 		return err
 	}
-	if p.IsEnabled() {
-		if !config.ForceRemove {
+
+	if !config.ForceRemove {
+		p.RLock()
+		if p.RefCount > 0 {
+			p.RUnlock()
+			return fmt.Errorf("plugin %s is in use", p.Name())
+		}
+		p.RUnlock()
+
+		if p.IsEnabled() {
 			return fmt.Errorf("plugin %s is enabled", p.Name())
 		}
+	}
+
+	if p.IsEnabled() {
 		if err := pm.disable(p); err != nil {
 			logrus.Errorf("failed to disable plugin '%s': %s", p.Name(), err)
 		}
 	}
+
 	pm.pluginStore.Remove(p)
 	pm.pluginEventLogger(p.GetID(), name, "remove")
 	return nil

@@ -91,7 +91,7 @@ func Unregister(name string) bool {
 // lookup returns the driver associated with the given name. If a
 // driver with the given name has not been registered it checks if
 // there is a VolumeDriver plugin available with the given name.
-func lookup(name string) (volume.Driver, error) {
+func lookup(name string, mode int) (volume.Driver, error) {
 	drivers.driverLock.Lock(name)
 	defer drivers.driverLock.Unlock(name)
 
@@ -102,7 +102,7 @@ func lookup(name string) (volume.Driver, error) {
 		return ext, nil
 	}
 
-	p, err := pluginStore.LookupWithCapability(name, extName)
+	p, err := pluginStore.LookupWithCapability(name, extName, mode)
 	if err != nil {
 		return nil, fmt.Errorf("Error looking up volume plugin %s: %v", name, err)
 	}
@@ -134,7 +134,25 @@ func GetDriver(name string) (volume.Driver, error) {
 	if name == "" {
 		name = volume.DefaultDriverName
 	}
-	return lookup(name)
+	return lookup(name, pluginStore.LOOKUP)
+}
+
+// CreateDriver returns a volume driver by its name and increments RefCount.
+// If the driver is empty, it looks for the local driver.
+func CreateDriver(name string) (volume.Driver, error) {
+	if name == "" {
+		name = volume.DefaultDriverName
+	}
+	return lookup(name, pluginStore.CREATE)
+}
+
+// RemoveDriver returns a volume driver by its name and decrements RefCount..
+// If the driver is empty, it looks for the local driver.
+func RemoveDriver(name string) (volume.Driver, error) {
+	if name == "" {
+		name = volume.DefaultDriverName
+	}
+	return lookup(name, pluginStore.REMOVE)
 }
 
 // GetDriverList returns list of volume drivers registered.
