@@ -84,13 +84,6 @@ func (clnt *client) Create(containerID string, checkpoint string, checkpointDir 
 		configuration.HvRuntime = &hcsshim.HvRuntime{
 			ImagePath: spec.Windows.HvRuntime.ImagePath,
 		}
-
-		// Images with build version < 14350 don't support running with clone, but
-		// Windows cannot automatically detect this. Explicitly block cloning in this
-		// case.
-		if build := buildFromVersion(spec.Platform.OSVersion); build > 0 && build < 14350 {
-			configuration.HvRuntime.SkipTemplate = true
-		}
 	}
 
 	if configuration.HvPartition {
@@ -235,9 +228,6 @@ func (clnt *client) AddProcess(ctx context.Context, containerID, processFriendly
 
 	iopipe := &IOPipe{Terminal: procToAdd.Terminal}
 	iopipe.Stdin = createStdInCloser(stdin, newProcess)
-
-	// TEMP: Work around Windows BS/DEL behavior.
-	iopipe.Stdin = fixStdinBackspaceBehavior(iopipe.Stdin, container.ociSpec.Platform.OSVersion, procToAdd.Terminal)
 
 	// Convert io.ReadClosers to io.Readers
 	if stdout != nil {
