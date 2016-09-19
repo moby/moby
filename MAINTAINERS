@@ -60,7 +60,6 @@
 		people = [
 			"jamtur01",
 			"misty",
-			"moxiegirl",
 			"sven",
 			"thajeztah"
 		]
@@ -123,6 +122,15 @@
 			# read her blog at https://blog.jessfraz.com (a must-read), and
 			# check out her open source projects on GitHub https://github.com/jfrazelle (a must-try).
 			"jfrazelle",
+
+			# As a docs maintainer, Mary Anthony contributed greatly to the Docker
+			# docs. She wrote the Docker Contributor Guide and Getting Started
+			# Guides. She helped create a doc build system independent of
+			# docker/docker project, and implemented a new docs.docker.com theme and
+			# nav for 2015 Dockercon. Fun fact: the most inherited layer in DockerHub
+			# public repositories was originally referenced in
+			# maryatdocker/docker-whale back in May 2015.
+			"moxiegirl",
 
 			# Vincent "vbatts!" Batts made his first contribution to the project
 			# in November 2013, to become a maintainer a few months later, on
