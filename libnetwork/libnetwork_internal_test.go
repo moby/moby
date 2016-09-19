@@ -389,10 +389,8 @@ func TestSRVServiceQuery(t *testing.T) {
 
 	c.(*controller).svcRecords[n.ID()] = sr
 
-	_, ip, err := ep.Info().Sandbox().ResolveService("_http._tcp.web.swarm")
-	if err != nil {
-		t.Fatal(err)
-	}
+	_, ip := ep.Info().Sandbox().ResolveService("_http._tcp.web.swarm")
+
 	if len(ip) == 0 {
 		t.Fatal(err)
 	}
@@ -400,10 +398,8 @@ func TestSRVServiceQuery(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, ip, err = ep.Info().Sandbox().ResolveService("_host_http._tcp.web.swarm")
-	if err != nil {
-		t.Fatal(err)
-	}
+	_, ip = ep.Info().Sandbox().ResolveService("_host_http._tcp.web.swarm")
+
 	if len(ip) == 0 {
 		t.Fatal(err)
 	}
@@ -412,7 +408,7 @@ func TestSRVServiceQuery(t *testing.T) {
 	}
 
 	// Service name with invalid protocol name. Should fail without error
-	_, ip, err = ep.Info().Sandbox().ResolveService("_http._icmp.web.swarm")
+	_, ip = ep.Info().Sandbox().ResolveService("_http._icmp.web.swarm")
 	if len(ip) != 0 {
 		t.Fatal("Valid response for invalid service name")
 	}
