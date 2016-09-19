@@ -41,7 +41,7 @@ options on a running or a stopped container. On kernel version older than
 4.6, you can only update `--kernel-memory` on a stopped container or on
 a running container with kernel memory initialized.
 
-## EXAMPLES
+## Examples
 
 The following sections illustrate ways to use this command.
 

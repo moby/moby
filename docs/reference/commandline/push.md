@@ -31,7 +31,7 @@ running in a terminal, terminates the push operation.
 
 Registry credentials are managed by [docker login](login.md).
 
-## EXAMPLES
+## Examples
 
 ### Pushing a new image to a registry
 
