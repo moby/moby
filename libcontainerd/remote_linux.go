@@ -435,6 +435,11 @@ func setOOMScore(pid, score int) error {
 	}
 	_, err = f.WriteString(strconv.Itoa(score))
 	f.Close()
+	if os.IsPermission(err) {
+		// Setting oom_score_adj does not work in an
+		// unprivileged container. Ignore the error.
+		return nil
+	}
 	return err
 }
 
