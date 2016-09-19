@@ -370,6 +370,7 @@ access to the network.
 When you create a service and pass the --network flag to attach the service to
 the overlay network:
 
+```bash
 $ docker service create \
   --replicas 3 \
   --network my-network \
@@ -377,6 +378,8 @@ $ docker service create \
   nginx
 
 716thylsndqma81j6kkkb5aus
+```
+
 The swarm extends my-network to each node running the service.
 
 Containers on the same network can access each other using
@@ -388,13 +391,13 @@ You can publish service ports to make them available externally to the swarm
 using the `--publish` flag:
 
 ```bash
-docker service create --publish <TARGET-PORT>:<SERVICE-PORT> nginx
+$ docker service create --publish <TARGET-PORT>:<SERVICE-PORT> nginx
 ```
 
 For example:
 
 ```bash
-docker service create --name my_web --replicas 3 --publish 8080:80 nginx
+$ docker service create --name my_web --replicas 3 --publish 8080:80 nginx
 ```
 
 When you publish a service port, the swarm routing mesh makes the service
