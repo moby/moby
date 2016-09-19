@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"path/filepath"
 	"strings"
 	"syscall"
@@ -36,20 +37,73 @@ const (
 const defaultOwner = "docker"
 
 // Create is the entrypoint to create a container from a spec, and if successfully
-// created, start it too.
+// created, start it too. Table below shows the fields required for HCS JSON calling parameters,
+// where if not populated, is omitted.
+// +-----------------+--------------------------------------------+--------------------------------------------+
+// |                 | Isolation=Process                          | Isolation=Hyper-V                          |
+// +-----------------+--------------------------------------------+--------------------------------------------+
+// | VolumePath      | \\?\\Volume{GUIDa}                         |                                            |
+// | LayerFolderPath | %root%\windowsfilter\containerID           |                                            |
+// | Layers[]        | ID=GUIDb;Path=%root%\windowsfilter\layerID | ID=GUIDb;Path=%root%\windowsfilter\layerID |
+// | SandboxPath     |                                            | %root%\windowsfilter                       |
+// | HvRuntime       |                                            | ImagePath=%root%\BaseLayerID\UtilityVM     |
+// +-----------------+--------------------------------------------+--------------------------------------------+
+//
+// Isolation=Process example:
+//
+// {
+//	"SystemType": "Container",
+//	"Name": "5e0055c814a6005b8e57ac59f9a522066e0af12b48b3c26a9416e23907698776",
+//	"Owner": "docker",
+//	"IsDummy": false,
+//	"VolumePath": "\\\\\\\\?\\\\Volume{66d1ef4c-7a00-11e6-8948-00155ddbef9d}",
+//	"IgnoreFlushesDuringBoot": true,
+//	"LayerFolderPath": "C:\\\\control\\\\windowsfilter\\\\5e0055c814a6005b8e57ac59f9a522066e0af12b48b3c26a9416e23907698776",
+//	"Layers": [{
+//		"ID": "18955d65-d45a-557b-bf1c-49d6dfefc526",
+//		"Path": "C:\\\\control\\\\windowsfilter\\\\65bf96e5760a09edf1790cb229e2dfb2dbd0fcdc0bf7451bae099106bfbfea0c"
+//	}],
+//	"HostName": "5e0055c814a6",
+//	"MappedDirectories": [],
+//	"HvPartition": false,
+//	"EndpointList": ["eef2649d-bb17-4d53-9937-295a8efe6f2c"],
+//	"Servicing": false
+//}
+//
+// Isolation=Hyper-V example:
+//
+//{
+//	"SystemType": "Container",
+//	"Name": "475c2c58933b72687a88a441e7e0ca4bd72d76413c5f9d5031fee83b98f6045d",
+//	"Owner": "docker",
+//	"IsDummy": false,
+//	"IgnoreFlushesDuringBoot": true,
+//	"Layers": [{
+//		"ID": "18955d65-d45a-557b-bf1c-49d6dfefc526",
+//		"Path": "C:\\\\control\\\\windowsfilter\\\\65bf96e5760a09edf1790cb229e2dfb2dbd0fcdc0bf7451bae099106bfbfea0c"
+//	}],
+//	"HostName": "475c2c58933b",
+//	"MappedDirectories": [],
+//	"SandboxPath": "C:\\\\control\\\\windowsfilter",
+//	"HvPartition": true,
+//	"EndpointList": ["e1bb1e61-d56f-405e-b75d-fd520cefa0cb"],
+//	"HvRuntime": {
+//		"ImagePath": "C:\\\\control\\\\windowsfilter\\\\65bf96e5760a09edf1790cb229e2dfb2dbd0fcdc0bf7451bae099106bfbfea0c\\\\UtilityVM"
+//	},
+//	"Servicing": false
+//}
 func (clnt *client) Create(containerID string, checkpoint string, checkpointDir string, spec Spec, options ...CreateOption) error {
 	clnt.lock(containerID)
 	defer clnt.unlock(containerID)
 	logrus.Debugln("libcontainerd: client.Create() with spec", spec)
 
 	configuration := &hcsshim.ContainerConfig{
-		SystemType:              "Container",
-		Name:                    containerID,
-		Owner:                   defaultOwner,
-		VolumePath:              spec.Root.Path,
+		SystemType: "Container",
+		Name:       containerID,
+		Owner:      defaultOwner,
 		IgnoreFlushesDuringBoot: false,
-		LayerFolderPath:         spec.Windows.LayerFolder,
 		HostName:                spec.Hostname,
+		HvPartition:             false,
 	}
 
 	if spec.Windows.Networking != nil {
@@ -80,33 +134,45 @@ func (clnt *client) Create(containerID string, checkpoint string, checkpointDir 
 		}
 	}
 
-	if spec.Windows.HvRuntime != nil {
-		configuration.VolumePath = "" // Always empty for Hyper-V containers
-		configuration.HvPartition = true
-		configuration.HvRuntime = &hcsshim.HvRuntime{
-			ImagePath: spec.Windows.HvRuntime.ImagePath,
-		}
-	}
-
-	if configuration.HvPartition {
-		configuration.SandboxPath = filepath.Dir(spec.Windows.LayerFolder)
-	} else {
-		configuration.VolumePath = spec.Root.Path
-		configuration.LayerFolderPath = spec.Windows.LayerFolder
-	}
-
+	var layerOpt *LayerOption
 	for _, option := range options {
 		if s, ok := option.(*ServicingOption); ok {
 			configuration.Servicing = s.IsServicing
 			continue
 		}
-		if s, ok := option.(*FlushOption); ok {
-			configuration.IgnoreFlushesDuringBoot = s.IgnoreFlushesDuringBoot
+		if f, ok := option.(*FlushOption); ok {
+			configuration.IgnoreFlushesDuringBoot = f.IgnoreFlushesDuringBoot
+			continue
+		}
+		if h, ok := option.(*HyperVIsolationOption); ok {
+			configuration.HvPartition = h.IsHyperV
+			configuration.SandboxPath = h.SandboxPath
+			continue
+		}
+		if l, ok := option.(*LayerOption); ok {
+			layerOpt = l
 			continue
 		}
 	}
 
-	for _, layerPath := range spec.Windows.LayerPaths {
+	// We must have a layer option with at least one path
+	if layerOpt == nil || layerOpt.LayerPaths == nil {
+		return fmt.Errorf("no layer option or paths were supplied to the runtime")
+	}
+
+	if configuration.HvPartition {
+		// Make sure the Utility VM image is present in the base layer directory.
+		// TODO @swernli/jhowardmsft at some point post RS1 this may be re-locatable.
+		configuration.HvRuntime = &hcsshim.HvRuntime{ImagePath: filepath.Join(layerOpt.LayerPaths[len(layerOpt.LayerPaths)-1], "UtilityVM")}
+		if _, err := os.Stat(configuration.HvRuntime.ImagePath); os.IsNotExist(err) {
+			return fmt.Errorf("utility VM image '%s' could not be found", configuration.HvRuntime.ImagePath)
+		}
+	} else {
+		configuration.VolumePath = spec.Root.Path
+		configuration.LayerFolderPath = layerOpt.LayerFolderPath
+	}
+
+	for _, layerPath := range layerOpt.LayerPaths {
 		_, filename := filepath.Split(layerPath)
 		g, err := hcsshim.NameToGuid(filename)
 		if err != nil {

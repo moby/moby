@@ -1,16 +1,10 @@
 package daemon
 
 import (
-	"errors"
-	"fmt"
-	"os"
-	"path/filepath"
 	"syscall"
 
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/container"
-	"github.com/docker/docker/image"
-	"github.com/docker/docker/layer"
 	"github.com/docker/docker/libcontainerd"
 	"github.com/docker/docker/libcontainerd/windowsoci"
 	"github.com/docker/docker/oci"
@@ -28,11 +22,6 @@ func (daemon *Daemon) createSpec(c *container.Container) (*libcontainerd.Spec, e
 	rootUID, rootGID := daemon.GetRemappedUIDGID()
 	if err := c.SetupWorkingDirectory(rootUID, rootGID); err != nil {
 		return nil, err
-	}
-
-	img, err := daemon.imageStore.Get(c.ImageID)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to graph.Get on ImageID %s - %s", c.ImageID, err)
 	}
 
 	// In base spec
@@ -79,60 +68,6 @@ func (daemon *Daemon) createSpec(c *container.Container) (*libcontainerd.Spec, e
 	// In spec.Root
 	s.Root.Path = c.BaseFS
 	s.Root.Readonly = c.HostConfig.ReadonlyRootfs
-
-	// s.Windows.LayerFolder.
-	m, err := c.RWLayer.Metadata()
-	if err != nil {
-		return nil, fmt.Errorf("Failed to get layer metadata - %s", err)
-	}
-	s.Windows.LayerFolder = m["dir"]
-
-	// s.Windows.LayerPaths
-	var layerPaths []string
-	if img.RootFS != nil && img.RootFS.Type == image.TypeLayers {
-		// Get the layer path for each layer.
-		max := len(img.RootFS.DiffIDs)
-		for i := 1; i <= max; i++ {
-			img.RootFS.DiffIDs = img.RootFS.DiffIDs[:i]
-			path, err := layer.GetLayerPath(daemon.layerStore, img.RootFS.ChainID())
-			if err != nil {
-				return nil, fmt.Errorf("Failed to get layer path from graphdriver %s for ImageID %s - %s", daemon.layerStore, img.RootFS.ChainID(), err)
-			}
-			// Reverse order, expecting parent most first
-			layerPaths = append([]string{path}, layerPaths...)
-		}
-	}
-	s.Windows.LayerPaths = layerPaths
-
-	// Are we going to run as a Hyper-V container?
-	hv := false
-	if c.HostConfig.Isolation.IsDefault() {
-		// Container is set to use the default, so take the default from the daemon configuration
-		hv = daemon.defaultIsolation.IsHyperV()
-	} else {
-		// Container is requesting an isolation mode. Honour it.
-		hv = c.HostConfig.Isolation.IsHyperV()
-	}
-	if hv {
-		hvr := &windowsoci.WindowsHvRuntime{}
-		if img.RootFS != nil && img.RootFS.Type == image.TypeLayers {
-			// For TP5, the utility VM is part of the base layer.
-			// TODO-jstarks: Add support for separate utility VM images
-			// once it is decided how they can be stored.
-			uvmpath := filepath.Join(layerPaths[len(layerPaths)-1], "UtilityVM")
-			_, err = os.Stat(uvmpath)
-			if err != nil {
-				if os.IsNotExist(err) {
-					err = errors.New("container image does not contain a utility VM")
-				}
-				return nil, err
-			}
-
-			hvr.ImagePath = uvmpath
-		}
-
-		s.Windows.HvRuntime = hvr
-	}
 
 	// In s.Windows.Networking
 	// Connect all the libnetwork allocated networks to the container

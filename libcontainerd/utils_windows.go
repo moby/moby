@@ -21,6 +21,16 @@ func (s *ServicingOption) Apply(interface{}) error {
 }
 
 // Apply for the flush option is a no-op.
-func (s *FlushOption) Apply(interface{}) error {
+func (f *FlushOption) Apply(interface{}) error {
+	return nil
+}
+
+// Apply for the hypervisolation option is a no-op.
+func (h *HyperVIsolationOption) Apply(interface{}) error {
+	return nil
+}
+
+// Apply for the layer option is a no-op.
+func (h *LayerOption) Apply(interface{}) error {
 	return nil
 }
