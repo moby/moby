@@ -58,6 +58,13 @@ func DefaultSpec() specs.Spec {
 			Source:      "mqueue",
 			Options:     []string{"nosuid", "noexec", "nodev"},
 		},
+		// Masking /sys/firmware is not required (nor prohibited) by the OCI spec
+		{
+			Destination: "/sys/firmware",
+			Type:        "tmpfs",
+			Source:      "tmpfs",
+			Options:     []string{"ro", "nosuid", "noexec", "nodev"},
+		},
 	}
 
 	s.Process.Capabilities = []string{

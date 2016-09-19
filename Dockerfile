@@ -231,11 +231,22 @@ RUN set -x \
 	&& go build -v -o /usr/local/bin/tomlv github.com/BurntSushi/toml/cmd/tomlv \
 	&& rm -rf "$GOPATH"
 
-# Install runc
-ENV RUNC_COMMIT cc29e3dded8e27ba8f65738f40d251c885030a28
+# # Install runc
+# ENV RUNC_COMMIT cc29e3dded8e27ba8f65738f40d251c885030a28
+# RUN set -x \
+# 	&& export GOPATH="$(mktemp -d)" \
+# 	&& git clone https://github.com/opencontainers/runc.git "$GOPATH/src/github.com/opencontainers/runc" \
+# 	&& cd "$GOPATH/src/github.com/opencontainers/runc" \
+# 	&& git checkout -q "$RUNC_COMMIT" \
+# 	&& make static BUILDTAGS="seccomp apparmor selinux" \
+# 	&& cp runc /usr/local/bin/docker-runc \
+# 	&& rm -rf "$GOPATH"
+
+# Install runc (DO NOT MERGE)
+ENV RUNC_COMMIT f77819655520276db900c6dc4707550e35b675f1
 RUN set -x \
 	&& export GOPATH="$(mktemp -d)" \
-	&& git clone https://github.com/opencontainers/runc.git "$GOPATH/src/github.com/opencontainers/runc" \
+	&& git clone https://github.com/AkihiroSuda/runc.git "$GOPATH/src/github.com/opencontainers/runc" \
 	&& cd "$GOPATH/src/github.com/opencontainers/runc" \
 	&& git checkout -q "$RUNC_COMMIT" \
 	&& make static BUILDTAGS="seccomp apparmor selinux" \
