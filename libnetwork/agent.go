@@ -9,6 +9,7 @@ import (
 	"sort"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/go-events"
 	"github.com/docker/libnetwork/datastore"
 	"github.com/docker/libnetwork/discoverapi"
@@ -247,9 +248,12 @@ func (c *controller) agentInit(bindAddrOrInterface, advertiseAddr string) error 
 
 	keys, tags := c.getKeys(subsysGossip)
 	hostname, _ := os.Hostname()
+	nodeName := hostname + "-" + stringid.TruncateID(stringid.GenerateRandomID())
+	logrus.Info("Gossip cluster hostname ", nodeName)
+
 	nDB, err := networkdb.New(&networkdb.Config{
 		AdvertiseAddr: advertiseAddr,
-		NodeName:      hostname,
+		NodeName:      nodeName,
 		Keys:          keys,
 	})
 
