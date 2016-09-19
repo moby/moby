@@ -73,7 +73,7 @@ func testAuthChallengeNormalization(t *testing.T, host string) {
 
 	lowered := *url
 	lowered.Host = strings.ToLower(lowered.Host)
-	lowered.Host = CanonicalAddr(&lowered)
+	lowered.Host = canonicalAddr(&lowered)
 	c, err := scm.GetChallenges(lowered)
 	if err != nil {
 		t.Fatal(err)
