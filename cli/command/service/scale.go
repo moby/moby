@@ -46,9 +46,17 @@ func runScale(dockerCli *command.DockerCli, args []string) error {
 	var errors []string
 	for _, arg := range args {
 		parts := strings.SplitN(arg, "=", 2)
-		serviceID, scale := parts[0], parts[1]
+		serviceID, scaleStr := parts[0], parts[1]
+
+		// validate input arg scale number
+		scale, err := strconv.ParseUint(scaleStr, 10, 64)
+		if err != nil {
+			errors = append(errors, fmt.Sprintf("%s: invalid replicas value %s: %v", serviceID, scaleStr, err))
+			continue
+		}
+
 		if err := runServiceScale(dockerCli, serviceID, scale); err != nil {
-			errors = append(errors, fmt.Sprintf("%s: %s", serviceID, err.Error()))
+			errors = append(errors, fmt.Sprintf("%s: %v", serviceID, err))
 		}
 	}
 
@@ -58,12 +66,11 @@ func runScale(dockerCli *command.DockerCli, args []string) error {
 	return fmt.Errorf(strings.Join(errors, "\n"))
 }
 
-func runServiceScale(dockerCli *command.DockerCli, serviceID string, scale string) error {
+func runServiceScale(dockerCli *command.DockerCli, serviceID string, scale uint64) error {
 	client := dockerCli.Client()
 	ctx := context.Background()
 
 	service, _, err := client.ServiceInspectWithRaw(ctx, serviceID)
-
 	if err != nil {
 		return err
 	}
@@ -72,17 +79,14 @@ func runServiceScale(dockerCli *command.DockerCli, serviceID string, scale strin
 	if serviceMode.Replicated == nil {
 		return fmt.Errorf("scale can only be used with replicated mode")
 	}
-	uintScale, err := strconv.ParseUint(scale, 10, 64)
-	if err != nil {
-		return fmt.Errorf("invalid replicas value %s: %s", scale, err.Error())
-	}
-	serviceMode.Replicated.Replicas = &uintScale
+
+	serviceMode.Replicated.Replicas = &scale
 
 	err = client.ServiceUpdate(ctx, service.ID, service.Version, service.Spec, types.ServiceUpdateOptions{})
 	if err != nil {
 		return err
 	}
 
-	fmt.Fprintf(dockerCli.Out(), "%s scaled to %s\n", serviceID, scale)
+	fmt.Fprintf(dockerCli.Out(), "%s scaled to %d\n", serviceID, scale)
 	return nil
 }
