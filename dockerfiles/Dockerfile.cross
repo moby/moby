@@ -1,0 +1,60 @@
+#
+# Build environment for cross-compiling docker
+#
+FROM debian:jessie
+
+# add zfs ppa
+RUN apt-key adv --keyserver hkp://p80.pool.sks-keyservers.net:80 --recv-keys E871F18B51E0147C77796AC81196BA81F6B0FC61 \
+	|| apt-key adv --keyserver hkp://pgp.mit.edu:80 --recv-keys E871F18B51E0147C77796AC81196BA81F6B0FC61
+RUN echo deb http://ppa.launchpad.net/zfs-native/stable/ubuntu trusty main > /etc/apt/sources.list.d/zfs.list
+
+# allow replacing httpredir mirror
+ARG APT_MIRROR=httpredir.debian.org
+RUN sed -i s/httpredir.debian.org/$APT_MIRROR/g /etc/apt/sources.list
+
+# Packaged dependencies
+RUN apt-get update && apt-get install -y \
+	automake \
+	binutils-mingw-w64 \
+	build-essential \
+	ca-certificates \
+	clang \
+	curl \
+	gcc-mingw-w64 \
+	git \
+	libapparmor-dev \
+	libcap-dev \
+	libltdl-dev \
+	libsqlite3-dev \
+	libsystemd-journal-dev \
+	libtool \
+	libzfs-dev \
+	tar \
+	--no-install-recommends
+
+# Configure the container for OSX cross compilation
+ENV OSX_SDK MacOSX10.11.sdk
+ENV OSX_CROSS_COMMIT a9317c18a3a457ca0a657f08cc4d0d43c6cf8953
+RUN set -x \
+	&& export OSXCROSS_PATH="/osxcross" \
+	&& git clone https://github.com/tpoechtrager/osxcross.git $OSXCROSS_PATH \
+	&& ( cd $OSXCROSS_PATH && git checkout -q $OSX_CROSS_COMMIT) \
+	&& curl -sSL https://s3.dockerproject.org/darwin/v2/${OSX_SDK}.tar.xz -o "${OSXCROSS_PATH}/tarballs/${OSX_SDK}.tar.xz" \
+	&& UNATTENDED=yes OSX_VERSION_MIN=10.6 ${OSXCROSS_PATH}/build.sh
+ENV PATH /osxcross/target/bin:$PATH
+
+# Install Go
+# IMPORTANT: If the version of Go is updated, the Windows to Linux CI machines
+#            will need updating, to avoid errors. Ping #docker-maintainers on IRC
+#            with a heads-up.
+ENV GO_VERSION 1.7.1
+RUN curl -fsSL "https://storage.googleapis.com/golang/go${GO_VERSION}.linux-amd64.tar.gz" \
+	| tar -xzC /usr/local
+
+ENV PATH /go/bin:/usr/local/go/bin:$PATH
+ENV GOPATH /go:/go/src/github.com/docker/docker/vendor
+
+WORKDIR /go/src/github.com/docker/docker
+# Used to detect running from within a container
+ENV FROM_DOCKERFILE=1
+ENV DOCKER_BUILDTAGS apparmor pkcs11 seccomp selinux
