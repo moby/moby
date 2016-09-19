@@ -2,7 +2,9 @@ package main
 
 import (
 	"bufio"
+	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -11,6 +13,7 @@ import (
 	"sync"
 	"time"
 
+	eventtypes "github.com/docker/docker/api/types/events"
 	eventstestutils "github.com/docker/docker/daemon/events/testutils"
 	"github.com/docker/docker/pkg/integration/checker"
 	icmd "github.com/docker/docker/pkg/integration/cmd"
@@ -744,4 +747,47 @@ func (s *DockerSuite) TestEventsUntilInThePast(c *check.C) {
 
 	c.Assert(out, checker.Not(checker.Contains), "test-container2")
 	c.Assert(out, checker.Contains, "test-container")
+}
+
+func (s *DockerSuite) TestEventsFormat(c *check.C) {
+	since := daemonUnixTime(c)
+	dockerCmd(c, "run", "--rm", "busybox", "true")
+	dockerCmd(c, "run", "--rm", "busybox", "true")
+	out, _ := dockerCmd(c, "events", "--since", since, "--until", daemonUnixTime(c), "--format", "{{json .}}")
+	dec := json.NewDecoder(strings.NewReader(out))
+	// make sure we got 2 start events
+	startCount := 0
+	for {
+		var err error
+		var ev eventtypes.Message
+		if err = dec.Decode(&ev); err == io.EOF {
+			break
+		}
+		c.Assert(err, checker.IsNil)
+		if ev.Status == "start" {
+			startCount++
+		}
+	}
+
+	c.Assert(startCount, checker.Equals, 2, check.Commentf("should have had 2 start events but had %d, out: %s", startCount, out))
+}
+
+func (s *DockerSuite) TestEventsFormatBadFunc(c *check.C) {
+	// make sure it fails immediately, without receiving any event
+	result := dockerCmdWithResult("events", "--format", "{{badFuncString .}}")
+	c.Assert(result, icmd.Matches, icmd.Expected{
+		Error:    "exit status 64",
+		ExitCode: 64,
+		Err:      "Error parsing format: template: :1: function \"badFuncString\" not defined",
+	})
+}
+
+func (s *DockerSuite) TestEventsFormatBadField(c *check.C) {
+	// make sure it fails immediately, without receiving any event
+	result := dockerCmdWithResult("events", "--format", "{{.badFieldString}}")
+	c.Assert(result, icmd.Matches, icmd.Expected{
+		Error:    "exit status 64",
+		ExitCode: 64,
+		Err:      "Error parsing format: template: :1:2: executing \"\" at <.badFieldString>: can't evaluate field badFieldString in type *events.Message",
+	})
 }
