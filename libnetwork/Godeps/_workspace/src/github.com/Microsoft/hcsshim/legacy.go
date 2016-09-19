@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -16,17 +17,24 @@ import (
 var errorIterationCanceled = errors.New("")
 
 func openFileOrDir(path string, mode uint32, createDisposition uint32) (file *os.File, err error) {
-	winPath, err := syscall.UTF16FromString(path)
-	if err != nil {
-		return
+	return winio.OpenForBackup(path, mode, syscall.FILE_SHARE_READ, createDisposition)
+}
+
+func makeLongAbsPath(path string) (string, error) {
+	if strings.HasPrefix(path, `\\?\`) || strings.HasPrefix(path, `\\.\`) {
+		return path, nil
 	}
-	h, err := syscall.CreateFile(&winPath[0], mode, syscall.FILE_SHARE_READ, nil, createDisposition, syscall.FILE_FLAG_BACKUP_SEMANTICS, 0)
-	if err != nil {
-		err = &os.PathError{"open", path, err}
-		return
+	if !filepath.IsAbs(path) {
+		absPath, err := filepath.Abs(path)
+		if err != nil {
+			return "", err
+		}
+		path = absPath
 	}
-	file = os.NewFile(uintptr(h), path)
-	return
+	if strings.HasPrefix(path, `\\`) {
+		return `\\?\UNC\` + path[2:], nil
+	}
+	return `\\?\` + path, nil
 }
 
 type fileEntry struct {
@@ -35,7 +43,7 @@ type fileEntry struct {
 	err  error
 }
 
-type LegacyLayerReader struct {
+type legacyLayerReader struct {
 	root         string
 	result       chan *fileEntry
 	proceed      chan bool
@@ -44,10 +52,10 @@ type LegacyLayerReader struct {
 	isTP4Format  bool
 }
 
-// NewLegacyLayerReader returns a new LayerReader that can read the Windows
+// newLegacyLayerReader returns a new LayerReader that can read the Windows
 // TP4 transport format from disk.
-func NewLegacyLayerReader(root string) *LegacyLayerReader {
-	r := &LegacyLayerReader{
+func newLegacyLayerReader(root string) *legacyLayerReader {
+	r := &legacyLayerReader{
 		root:        root,
 		result:      make(chan *fileEntry),
 		proceed:     make(chan bool),
@@ -70,7 +78,7 @@ func readTombstones(path string) (map[string]([]string), error) {
 
 	ts := make(map[string]([]string))
 	for s.Scan() {
-		t := s.Text()[1:] // skip leading `\`
+		t := filepath.Join("Files", s.Text()[1:]) // skip leading `\`
 		dir := filepath.Dir(t)
 		ts[dir] = append(ts[dir], t)
 	}
@@ -81,15 +89,16 @@ func readTombstones(path string) (map[string]([]string), error) {
 	return ts, nil
 }
 
-func (r *LegacyLayerReader) walk() {
-	defer close(r.result)
-	if !<-r.proceed {
-		return
+func (r *legacyLayerReader) walkUntilCancelled() error {
+	root, err := makeLongAbsPath(r.root)
+	if err != nil {
+		return err
 	}
 
+	r.root = root
 	ts, err := readTombstones(r.root)
 	if err != nil {
-		goto ErrorLoop
+		return err
 	}
 
 	err = filepath.Walk(r.root, func(path string, info os.FileInfo, err error) error {
@@ -99,6 +108,7 @@ func (r *LegacyLayerReader) walk() {
 		if path == r.root || path == filepath.Join(r.root, "tombstones.txt") || strings.HasSuffix(path, ".$wcidirs$") {
 			return nil
 		}
+
 		r.result <- &fileEntry{path, info, nil}
 		if !<-r.proceed {
 			return errorIterationCanceled
@@ -112,7 +122,7 @@ func (r *LegacyLayerReader) walk() {
 			}
 			if dts, ok := ts[relPath]; ok {
 				for _, t := range dts {
-					r.result <- &fileEntry{t, nil, nil}
+					r.result <- &fileEntry{filepath.Join(r.root, t), nil, nil}
 					if !<-r.proceed {
 						return errorIterationCanceled
 					}
@@ -122,22 +132,32 @@ func (r *LegacyLayerReader) walk() {
 		return nil
 	})
 	if err == errorIterationCanceled {
-		return
+		return nil
 	}
 	if err == nil {
-		err = io.EOF
+		return io.EOF
+	}
+	return err
+}
+
+func (r *legacyLayerReader) walk() {
+	defer close(r.result)
+	if !<-r.proceed {
+		return
 	}
 
-ErrorLoop:
-	for {
-		r.result <- &fileEntry{err: err}
-		if !<-r.proceed {
-			break
+	err := r.walkUntilCancelled()
+	if err != nil {
+		for {
+			r.result <- &fileEntry{err: err}
+			if !<-r.proceed {
+				return
+			}
 		}
 	}
 }
 
-func (r *LegacyLayerReader) reset() {
+func (r *legacyLayerReader) reset() {
 	if r.backupReader != nil {
 		r.backupReader.Close()
 		r.backupReader = nil
@@ -164,7 +184,7 @@ func findBackupStreamSize(r io.Reader) (int64, error) {
 	}
 }
 
-func (r *LegacyLayerReader) Next() (path string, size int64, fileInfo *winio.FileBasicInfo, err error) {
+func (r *legacyLayerReader) Next() (path string, size int64, fileInfo *winio.FileBasicInfo, err error) {
 	r.reset()
 	r.proceed <- true
 	fe := <-r.result
@@ -247,7 +267,7 @@ func (r *LegacyLayerReader) Next() (path string, size int64, fileInfo *winio.Fil
 		if !fe.fi.IsDir() {
 			size, err = findBackupStreamSize(f)
 			if err != nil {
-				err = &os.PathError{"findBackupStreamSize", fe.path, err}
+				err = &os.PathError{Op: "findBackupStreamSize", Path: fe.path, Err: err}
 				return
 			}
 		}
@@ -264,7 +284,7 @@ func (r *LegacyLayerReader) Next() (path string, size int64, fileInfo *winio.Fil
 	return
 }
 
-func (r *LegacyLayerReader) Read(b []byte) (int, error) {
+func (r *legacyLayerReader) Read(b []byte) (int, error) {
 	if r.backupReader == nil {
 		if r.currentFile == nil {
 			return 0, io.EOF
@@ -274,31 +294,44 @@ func (r *LegacyLayerReader) Read(b []byte) (int, error) {
 	return r.backupReader.Read(b)
 }
 
-func (r *LegacyLayerReader) Close() error {
+func (r *legacyLayerReader) Close() error {
 	r.proceed <- false
 	<-r.result
 	r.reset()
 	return nil
 }
 
-type LegacyLayerWriter struct {
+type legacyLayerWriter struct {
 	root         string
 	currentFile  *os.File
 	backupWriter *winio.BackupFileWriter
 	tombstones   []string
 	isTP4Format  bool
+	pathFixed    bool
 }
 
-// NewLegacyLayerWriter returns a LayerWriter that can write the TP4 transport format
+// newLegacyLayerWriter returns a LayerWriter that can write the TP4 transport format
 // to disk.
-func NewLegacyLayerWriter(root string) *LegacyLayerWriter {
-	return &LegacyLayerWriter{
+func newLegacyLayerWriter(root string) *legacyLayerWriter {
+	return &legacyLayerWriter{
 		root:        root,
 		isTP4Format: IsTP4(),
 	}
 }
 
-func (w *LegacyLayerWriter) reset() {
+func (w *legacyLayerWriter) init() error {
+	if !w.pathFixed {
+		path, err := makeLongAbsPath(w.root)
+		if err != nil {
+			return err
+		}
+		w.root = path
+		w.pathFixed = true
+	}
+	return nil
+}
+
+func (w *legacyLayerWriter) reset() {
 	if w.backupWriter != nil {
 		w.backupWriter.Close()
 		w.backupWriter = nil
@@ -309,8 +342,12 @@ func (w *LegacyLayerWriter) reset() {
 	}
 }
 
-func (w *LegacyLayerWriter) Add(name string, fileInfo *winio.FileBasicInfo) error {
+func (w *legacyLayerWriter) Add(name string, fileInfo *winio.FileBasicInfo) error {
 	w.reset()
+	err := w.init()
+	if err != nil {
+		return err
+	}
 	path := filepath.Join(w.root, name)
 
 	createDisposition := uint32(syscall.CREATE_NEW)
@@ -357,12 +394,19 @@ func (w *LegacyLayerWriter) Add(name string, fileInfo *winio.FileBasicInfo) erro
 	return nil
 }
 
-func (w *LegacyLayerWriter) Remove(name string) error {
-	w.tombstones = append(w.tombstones, name)
+func (w *legacyLayerWriter) AddLink(name string, target string) error {
+	return errors.New("hard links not supported with legacy writer")
+}
+
+func (w *legacyLayerWriter) Remove(name string) error {
+	if !strings.HasPrefix(name, `Files\`) {
+		return fmt.Errorf("invalid tombstone %s", name)
+	}
+	w.tombstones = append(w.tombstones, name[len(`Files\`):])
 	return nil
 }
 
-func (w *LegacyLayerWriter) Write(b []byte) (int, error) {
+func (w *legacyLayerWriter) Write(b []byte) (int, error) {
 	if w.backupWriter == nil {
 		if w.currentFile == nil {
 			return 0, errors.New("closed")
@@ -372,8 +416,12 @@ func (w *LegacyLayerWriter) Write(b []byte) (int, error) {
 	return w.backupWriter.Write(b)
 }
 
-func (w *LegacyLayerWriter) Close() error {
+func (w *legacyLayerWriter) Close() error {
 	w.reset()
+	err := w.init()
+	if err != nil {
+		return err
+	}
 	tf, err := os.Create(filepath.Join(w.root, "tombstones.txt"))
 	if err != nil {
 		return err
