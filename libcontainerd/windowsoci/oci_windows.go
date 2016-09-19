@@ -6,31 +6,31 @@ package windowsoci
 
 import "fmt"
 
-// WindowsSpec is the full specification for Windows containers.
-type WindowsSpec struct {
-	Spec
-
-	// Windows is platform specific configuration for Windows based containers.
-	Windows Windows `json:"windows"`
-}
-
-// Spec is the base configuration for the container.  It specifies platform
-// independent configuration. This information must be included when the
-// bundle is packaged for distribution.
+// Spec is the base configuration for the container.
 type Spec struct {
-
-	// Version is the version of the specification that is supported.
+	// Version of the Open Container Runtime Specification with which the bundle complies.
 	Version string `json:"ociVersion"`
-	// Platform is the host information for OS and Arch.
+	// Platform specifies the configuration's target platform.
 	Platform Platform `json:"platform"`
-	// Process is the container's main process.
+	// Process configures the container process.
 	Process Process `json:"process"`
-	// Root is the root information for the container's filesystem.
+	// Root configures the container's root filesystem.
 	Root Root `json:"root"`
-	// Hostname is the container's host name.
+	// Hostname configures the container's hostname.
 	Hostname string `json:"hostname,omitempty"`
-	// Mounts profiles configuration for adding mounts to the container's filesystem.
-	Mounts []Mount `json:"mounts"`
+	// Mounts configures additional mounts (on top of Root).
+	Mounts []Mount `json:"mounts,omitempty"`
+	// Hooks configures callbacks for container lifecycle events.
+	Hooks Hooks `json:"hooks"`
+	// Annotations contains arbitrary metadata for the container.
+	Annotations map[string]string `json:"annotations,omitempty"`
+
+	// Linux is platform specific configuration for Linux based containers.
+	Linux *Linux `json:"linux,omitempty" platform:"linux"`
+	// Solaris is platform specific configuration for Solaris containers.
+	Solaris *Solaris `json:"solaris,omitempty" platform:"solaris"`
+	// Windows is platform specific configuration for Windows based containers, including Hyper-V containers.
+	Windows *Windows `json:"windows,omitempty" platform:"windows"`
 }
 
 // Windows contains platform specific configuration for Windows based containers.
@@ -182,3 +182,19 @@ const (
 
 // Version is the specification version that the package types support.
 var Version = fmt.Sprintf("%d.%d.%d%s (Windows)", VersionMajor, VersionMinor, VersionPatch, VersionDev)
+
+//
+// Temporary structures. Ultimately this whole file will be removed.
+//
+
+// Linux contains platform specific configuration for Linux based containers.
+type Linux struct {
+}
+
+// Solaris contains platform specific configuration for Solaris application containers.
+type Solaris struct {
+}
+
+// Hooks for container setup and teardown
+type Hooks struct {
+}
