@@ -3,7 +3,6 @@
 package daemon
 
 import (
-	"fmt"
 	"sort"
 
 	"github.com/docker/docker/container"
@@ -25,14 +24,11 @@ func (daemon *Daemon) setupMounts(c *container.Container) ([]container.Mount, er
 		if err := daemon.lazyInitializeVolume(c.ID, mount); err != nil {
 			return nil, err
 		}
-		// If there is no source, take it from the volume path
-		s := mount.Source
-		if s == "" && mount.Volume != nil {
-			s = mount.Volume.Path()
+		s, err := mount.Setup(c.MountLabel, 0, 0)
+		if err != nil {
+			return nil, err
 		}
-		if s == "" {
-			return nil, fmt.Errorf("No source for mount name '%s' driver %q destination '%s'", mount.Name, mount.Driver, mount.Destination)
-		}
+
 		mnts = append(mnts, container.Mount{
 			Source:      s,
 			Destination: mount.Destination,
