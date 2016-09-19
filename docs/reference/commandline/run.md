@@ -150,127 +150,154 @@ previous changes intact using `docker start`. See `docker ps -a` to view a list
 of all containers.
 
 The `docker run` command can be used in combination with `docker commit` to
-[*change the command that a container runs*](commit.md). There is additional detailed information about `docker run` in the [Docker run reference](../run.md).
+[*change the command that a container runs*](commit.md).
+
+See the [Docker run reference](../run.md) for more details and examples about
+what you can do with the `docker run` command. A few examples are listed below.
 
 For information on connecting a container to a network, see the ["*Docker network overview*"](https://docs.docker.com/engine/userguide/networking/).
 
 ## Examples
 
-### Assign name and allocate pseudo-TTY (--name, -it)
+The `docker run` command is powerful and has many options which can augment or
+override your container's Dockerfile settings at runtime. See the
+[Docker run reference](../run.md) for more thorough examples using the
+`docker run` command. The following are only a few examples.
 
-    $ docker run --name test -it debian
-    root@d6c0fe130dba:/# exit 13
-    $ echo $?
-    13
-    $ docker ps -a | grep test
-    d6c0fe130dba        debian:7            "/bin/bash"         26 seconds ago      Exited (13) 17 seconds ago                         test
+### Simple examples
 
-This example runs a container named `test` using the `debian:latest`
-image. The `-it` instructs Docker to allocate a pseudo-TTY connected to
-the container's stdin; creating an interactive `bash` shell in the container.
-In the example, the `bash` shell is quit by entering
-`exit 13`. This exit code is passed on to the caller of
-`docker run`, and is recorded in the `test` container's metadata.
+Run the `hello-world` container to test your Docker installation.
 
-### Capture container ID (--cidfile)
+```bash
+$ docker run hello-world
+```
 
-    $ docker run --cidfile /tmp/docker_test.cid ubuntu echo "test"
+Run the `sh` command in an `alpine` container in interactive mode. Remove the
+container when it stops. To stop the container, type `exit`.
 
-This will create a container and print `test` to the console. The `cidfile`
-flag makes Docker attempt to create a new file and write the container ID to it.
-If the file exists already, Docker will return an error. Docker will close this
-file when `docker run` exits.
+```bash
+docker run --rm -it alpine sh
+```
 
-### Full container capabilities (--privileged)
+Run a `nginx` container as a daemon process (in the background), mapping port 80
+to port 8080 on the host machine. To access the web server, go to
+http://<host_ip>:8080/.
 
-    $ docker run -t -i --rm ubuntu bash
-    root@bc338942ef20:/# mount -t tmpfs none /mnt
-    mount: permission denied
+```bash
+$ docker run -d -p 8080:80 nginx
+```
 
-This will *not* work, because by default, most potentially dangerous kernel
-capabilities are dropped; including `cap_sys_admin` (which is required to mount
-filesystems). However, the `--privileged` flag will allow it to run:
+### More complex examples
 
-    $ docker run -t -i --privileged ubuntu bash
-    root@50e3f57e16e6:/# mount -t tmpfs none /mnt
-    root@50e3f57e16e6:/# df -h
-    Filesystem      Size  Used Avail Use% Mounted on
-    none            1.9G     0  1.9G   0% /mnt
+#### Granting kernel-level capabilities
 
-The `--privileged` flag gives *all* capabilities to the container, and it also
-lifts all the limitations enforced by the `device` cgroup controller. In other
-words, the container can then do almost everything that the host can do. This
-flag exists to allow special use-cases, like running Docker within Docker.
+By default, a container does not have the ability to manipulate the host
+machine. If your container needs the ability to mount or unmount disks, start
+or stop network interfaces, run a debugger against a host process, or other
+privileged operations, you can grant kernel-level capabilities to the container,
+using the `--cap-add` flag. For a full list of capabilities, view the
+`capabilities` man page by running the command `man 7 capabilities` on your host.
 
-### Set working directory (-w)
+Granting capabilities reduces the isolation of your container and represents a
+security compromise. For this reason, always grant the minimum capability that
+will allow the container to accomplish the task.
 
-    $ docker  run -w /path/to/dir/ -i -t  ubuntu pwd
+The following example shows a failed attempt by an unprivileged container to
+mount a filesystem.
 
-The `-w` lets the command being executed inside directory given, here
-`/path/to/dir/`. If the path does not exist it is created inside the container.
+```bash
+$ docker run --rm --it ubuntu bash
+root@bc338942ef20:/# mount -t tmpfs none /mnt
+mount: permission denied
+```
 
-### Set storage driver options per container
+In order to mount filesystems, the container needs the kernel capability
+`cap_sys_admin`. The following container is given that capability, and the
+`mount` command succeeds.
 
-    $ docker run -it --storage-opt size=120G fedora /bin/bash
+```bash
+$ docker run -it --cap-add="SYS_ADMIN" ubuntu bash
+root@50e3f57e16e6:/# mount -t tmpfs none /mnt
+root@50e3f57e16e6:/# df -h
+Filesystem      Size  Used Avail Use% Mounted on
+none            1.9G     0  1.9G   0% /mnt
+```
 
-This (size) will allow to set the container rootfs size to 120G at creation time.
-This option is only available for the `devicemapper`, `btrfs`, `overlay2`,
-`windowsfilter` and `zfs` graph drivers.
-For the `devicemapper`, `btrfs`, `windowsfilter` and `zfs` graph drivers,
-user cannot pass a size less than the Default BaseFS Size.
-For the `overlay2` storage driver, the size option is only available if the
-backing fs is `xfs` and mounted with the `pquota` mount option.
-Under these conditions, user can pass any size less then the backing fs size.
+**Note**: Docker automatically prepends the `CAP_` to the beginning of the
+capability. In this case, the capability is called `CAP_SYS_ADMIN`, so you
+pass `--cap-add="SYS_ADMIN"`, which Docker transforms into `CAP_SYS_ADMIN`.
+By convention, capital letters are used for capability names.
 
-### Mount tmpfs (--tmpfs)
+To grant all capabilities, you can use the `--privileged` flag. However, this is
+not recommended for most situations because it is potentially dangerous to the
+host machine and other containers running on that host. One case which requires
+the `--privileged` flag is running the Docker daemon inside a container.
+
+#### Mount tmpfs (--tmpfs)
 
     $ docker run -d --tmpfs /run:rw,noexec,nosuid,size=65536k my_image
 
 The `--tmpfs` flag mounts an empty tmpfs into the container with the `rw`,
 `noexec`, `nosuid`, `size=65536k` options.
 
-### Mount volume (-v, --read-only)
+#### Mount Docker volumes or host filesystems into a container
 
-    $ docker  run  -v `pwd`:`pwd` -w `pwd` -i -t  ubuntu pwd
+To mount a volume managed by Docker or a host filesystem (bind mount) into a
+container at runtime, use the `-v` or `--volume` flag. By default, the volume or
+filesystem is mounted read-write, so that the container can both read from and
+write to the filesystem. To limit the container's access to read-only, use the
+`--read-only` flag.
 
-The `-v` flag mounts the current working directory into the container. The `-w`
-lets the command being executed inside the current working directory, by
-changing into the directory to the value returned by `pwd`. So this
-combination executes the command using the container, but inside the
-current working directory.
+Named volumes are managed by Docker, and a named volume's lifecycle is independent
+of the lifecycles of containers using it. The first example mounts a volume
+named `myvol` into the container at mount point `/myvol/`. If the volume does
+not yet exist, it is created automatically, and it persists even if no running
+container is using it.
 
-    $ docker run -v /doesnt/exist:/foo -w /foo -i -t ubuntu bash
+```bash
+$ docker run -v myvol:/myvol -w /myvol -i -t busybox bash
+```
 
-When the host directory of a bind-mounted volume doesn't exist, Docker
-will automatically create this directory on the host for you. In the
-example above, Docker will create the `/doesnt/exist`
-folder before starting your container.
+Anonymous volumes are also managed by Docker, but an anonymous volume's name is
+randomly generated and an anonymous volume is generally only used by the
+container that created it. If a second container uses an anonymous volume, it
+is not removed automatically, but behaves like a named volume. To create an
+anonymous volume, do not specify a name. This example is the same as the
+previous one, but uses an anonymous volume.
 
-    $ docker run --read-only -v /icanwrite busybox touch /icanwrite/here
+```bash
+$ docker run -v /myvol -w /myvol -i -t busybox bash
+```
 
-Volumes can be used in combination with `--read-only` to control where
-a container writes files. The `--read-only` flag mounts the container's root
-filesystem as read only prohibiting writes to locations other than the
-specified volumes for the container.
+This example uses a bind mount to a host directory which does not yet exist.
+Docker creates the host volume automatically before starting the container. If
+the host or another container writes data into the directory, this container can
+read it.
 
-    $ docker run -t -i -v /var/run/docker.sock:/var/run/docker.sock -v /path/to/static-docker-binary:/usr/bin/docker busybox sh
+```bash
+$ docker run -v /doesnt/exist:/foo -w /foo -i -t busybox bash
+```
 
-By bind-mounting the docker unix socket and statically linked docker
-binary (refer to [get the linux binary](
-https://docs.docker.com/engine/installation/binaries/#/get-the-linux-binary)),
-you give the container the full access to create and manipulate the host's
-Docker daemon.
+This example mounts the same directory, but mounts the volume read-only by
+appending `ro:` to the mount point. The `touch` command fails.
 
-On Windows, the paths must be specified using Windows-style semantics. 
+```bash
+$ docker run -v /doesnt/exist:/foo:ro -w /foo -i -t busybox touch /foo/testfile
+
+touch: cannot touch '/foo/testfile': Read-only file system
+```
+
+On Windows, the paths must be specified using Windows-style semantics.
+
 
     PS C:\> docker run -v c:\foo:c:\dest microsoft/nanoserver cmd /s /c type c:\dest\somefile.txt
     Contents of file
-	
+
     PS C:\> docker run -v c:\foo:d: microsoft/nanoserver cmd /s /c type d:\somefile.txt
     Contents of file
 
-The following examples will fail when using Windows-based containers, as the 
-destination of a volume or bind-mount inside the container must be one of: 
+The following examples will fail when using Windows-based containers, as the
+destination of a volume or bind-mount inside the container must be one of:
 a non-existing or empty directory; or a drive other than C:. Further, the source
 of a bind mount must be a local directory, not a file.
 
@@ -283,389 +310,133 @@ of a bind mount must be a local directory, not a file.
 
 For in-depth information about volumes, refer to [manage data in containers](https://docs.docker.com/engine/tutorials/dockervolumes/)
 
-### Publish or expose port (-p, --expose)
 
-    $ docker run -p 127.0.0.1:80:8080 ubuntu bash
-
-This binds port `8080` of the container to port `80` on `127.0.0.1` of the host
-machine. The [Docker User
-Guide](https://docs.docker.com/engine/userguide/networking/default_network/dockerlinks/)
-explains in detail how to manipulate ports in Docker.
-
-    $ docker run --expose 80 ubuntu bash
-
-This exposes port `80` of the container without publishing the port to the host
-system's interfaces.
-
-### Set environment variables (-e, --env, --env-file)
-
-    $ docker run -e MYVAR1 --env MYVAR2=foo --env-file ./env.list ubuntu bash
-
-This sets simple (non-array) environmental variables in the container. For
-illustration all three
-flags are shown here. Where `-e`, `--env` take an environment variable and
-value, or if no `=` is provided, then that variable's current value, set via
-`export`, is passed through (i.e. `$MYVAR1` from the host is set to `$MYVAR1`
-in the container). When no `=` is provided and that variable is not defined
-in the client's environment then that variable will be removed from the
-container's list of environment variables. All three flags, `-e`, `--env` and
-`--env-file` can be repeated.
-
-Regardless of the order of these three flags, the `--env-file` are processed
-first, and then `-e`, `--env` flags. This way, the `-e` or `--env` will
-override variables as needed.
-
-    $ cat ./env.list
-    TEST_FOO=BAR
-    $ docker run --env TEST_FOO="This is a test" --env-file ./env.list busybox env | grep TEST_FOO
-    TEST_FOO=This is a test
-
-The `--env-file` flag takes a filename as an argument and expects each line
-to be in the `VAR=VAL` format, mimicking the argument passed to `--env`. Comment
-lines need only be prefixed with `#`
-
-An example of a file passed with `--env-file`
-
-    $ cat ./env.list
-    TEST_FOO=BAR
-
-    # this is a comment
-    TEST_APP_DEST_HOST=10.10.0.127
-    TEST_APP_DEST_PORT=8888
-    _TEST_BAR=FOO
-    TEST_APP_42=magic
-    helloWorld=true
-    123qwe=bar
-    org.spring.config=something
-
-    # pass through this variable from the caller
-    TEST_PASSTHROUGH
-    $ TEST_PASSTHROUGH=howdy docker run --env-file ./env.list busybox env
-    PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-    HOSTNAME=5198e0745561
-    TEST_FOO=BAR
-    TEST_APP_DEST_HOST=10.10.0.127
-    TEST_APP_DEST_PORT=8888
-    _TEST_BAR=FOO
-    TEST_APP_42=magic
-    helloWorld=true
-    TEST_PASSTHROUGH=howdy
-    HOME=/root
-    123qwe=bar
-    org.spring.config=something
-
-    $ docker run --env-file ./env.list busybox env
-    PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-    HOSTNAME=5198e0745561
-    TEST_FOO=BAR
-    TEST_APP_DEST_HOST=10.10.0.127
-    TEST_APP_DEST_PORT=8888
-    _TEST_BAR=FOO
-    TEST_APP_42=magic
-    helloWorld=true
-    TEST_PASSTHROUGH=
-    HOME=/root
-    123qwe=bar
-    org.spring.config=something
-
-### Set metadata on container (-l, --label, --label-file)
-
-A label is a `key=value` pair that applies metadata to a container. To label a container with two labels:
-
-    $ docker run -l my-label --label com.example.foo=bar ubuntu bash
-
-The `my-label` key doesn't specify a value so the label defaults to an empty
-string(`""`). To add multiple labels, repeat the label flag (`-l` or `--label`).
-
-The `key=value` must be unique to avoid overwriting the label value. If you
-specify labels with identical keys but different values, each subsequent value
-overwrites the previous. Docker uses the last `key=value` you supply.
-
-Use the `--label-file` flag to load multiple labels from a file. Delimit each
-label in the file with an EOL mark. The example below loads labels from a
-labels file in the current directory:
-
-    $ docker run --label-file ./labels ubuntu bash
-
-The label-file format is similar to the format for loading environment
-variables. (Unlike environment variables, labels are not visible to processes
-running inside a container.) The following example illustrates a label-file
-format:
-
-    com.example.label1="a label"
-
-    # this is a comment
-    com.example.label2=another\ label
-    com.example.label3
-
-You can load multiple label-files by supplying multiple  `--label-file` flags.
-
-For additional information on working with labels, see [*Labels - custom
-metadata in Docker*](https://docs.docker.com/engine/userguide/labels-custom-metadata/) in the Docker User
-Guide.
-
-### Connect a container to a network (--network)
-
-When you start a container use the `--network` flag to connect it to a network.
-This adds the `busybox` container to the `my-net` network.
+Volumes can be used in combination with `--read-only` to control where
+a container can write files. This example mounts an anonymous volume mounted
+on `/icanwrite/` in the container. Because of the `--read-only` flag, the
+container's root filesystem is read-only. The `touch` command succeeds because
+the `/icanwrite` filesystem is still read-write.
 
 ```bash
-$ docker run -itd --network=my-net busybox
+$ docker run --read-only -v /icanwrite busybox touch /icanwrite/testfile
 ```
 
-You can also choose the IP addresses for the container with `--ip` and `--ip6`
-flags when you start the container on a user-defined network.
+This command uses a feature of Bash and and other similar shells called _command
+substitution_ to run the `pwd` command and use its output in several different
+places. The `pwd` command outputs the directory on the host where the current
+command is being run.
 
 ```bash
-$ docker run -itd --network=my-net --ip=10.10.9.75 busybox
+$ docker  run  -v `pwd`:`pwd` -w `pwd` -i -t  ubuntu pwd
 ```
 
-If you want to add a running container to a network use the `docker network connect` subcommand.
+The `-v` flag mounts the current working directory into the container at the
+same path. The `-w` sets the container's working directory to the mounted
+directory. This combination of flags might be helpful in running a script or
+command which must be run within a specific directory structure.
 
-You can connect multiple containers to the same network. Once connected, the
-containers can communicate easily need only another container's IP address
-or name. For `overlay` networks or custom plugins that support multi-host
-connectivity, containers connected to the same multi-host network but launched
-from different Engines can also communicate in this way.
+This example provides you with the ability to create and manipulate the host
+machine's Docker daemon, by mounting the running Docker's Unix socket and running
+a statically linked Docker binary. This has security implications, so use this
+method at your own risk. To get the statically linked binary, refer to
+[get the linux binary](
+../../installation/binaries.md#get-the-linux-binary)).
 
-**Note**: Service discovery is unavailable on the default bridge network.
-Containers can communicate via their IP addresses by default. To communicate
-by name, they must be linked.
+```bash
+$ docker run -t -i -v /var/run/docker.sock:/var/run/docker.sock -v /path/to/static-docker-binary:/usr/bin/docker busybox sh
+```
 
-You can disconnect a container from a network using the `docker network
-disconnect` command.
+For in-depth information about volumes, refer to [manage data in containers](https://docs.docker.com/engine/tutorials/dockervolumes/)
 
-### Mount volumes from container (--volumes-from)
+#### Publish or expose port (-p, --expose)
 
-    $ docker run --volumes-from 777f7dc92da7 --volumes-from ba8c0c54f0f2:ro -i -t ubuntu pwd
+By default, all ports on a given container are accessible by other **containers**
+on the same network (except the default `bridge` network), but are not accessible
+from external hosts, because the host machine does not route to or from them. If
+you want to make a port on a container accessible to external hosts, you can
+_publish_ them. You do not need to publish a port if it will only be used by
+other containers. For instance, if you run a `mysql` container which is only
+used by a `wordpress` container on the same network, you do not need to publish
+the `mysql` port. However, if you want web browsers on external hosts to be able
+to connect to the `wordpress` container, you do need to publish its HTTP port.
 
-The `--volumes-from` flag mounts all the defined volumes from the referenced
-containers. Containers can be specified by repetitions of the `--volumes-from`
-argument. The container ID may be optionally suffixed with `:ro` or `:rw` to
-mount the volumes in read-only or read-write mode, respectively. By default,
-the volumes are mounted in the same mode (read write or read only) as
-the reference container.
+The format for the `-p` or `--publish` flag is
+`HOST_IP:HOST_PORT:CONTAINER_IP:CONTAINER_PORT`. The `HOST_IP` and `CONTAINER_IP`
+are optional, and if you omit them, the IP `0.0.0.0` is used, which binds all
+IP addresses. If you leave off `HOST_PORT`, the container port is bound to a
+random port higher than port 3000.
 
-Labeling systems like SELinux require that proper labels are placed on volume
-content mounted into a container. Without a label, the security system might
-prevent the processes running inside the container from using the content. By
-default, Docker does not change the labels set by the OS.
+The following example maps port 80 on the container to port 8080 on the host
+machine. This means that if someone browses `http://<HOST_IP>:8080`, the
+connection will be routed to `http://<CONTAINER_IP>:80`.
 
-To change the label in the container context, you can add either of two suffixes
-`:z` or `:Z` to the volume mount. These suffixes tell Docker to relabel file
-objects on the shared volumes. The `z` option tells Docker that two containers
-share the volume content. As a result, Docker labels the content with a shared
-content label. Shared volume labels allow all containers to read/write content.
-The `Z` option tells Docker to label the content with a private unshared label.
-Only the current container can use a private volume.
+```bash
+$ docker run -p 8080:80 ubuntu bash
+```
 
-### Attach to STDIN/STDOUT/STDERR (-a)
+In addition to publishing a port, you can _expose_ a port. Exposing a port adds
+metadata to the information Docker has about the container by adding an
+`ExposedPorts` section to the container's configuration, which you can see in
+the output of `docker inspect`. In addition, if you have exposed ports for a
+container and you use the `-P` flag at runtime, which publishes all exposed
+ports), then each exposed port is automatically published to a random port
+numbered higher than 3000.
 
-The `-a` flag tells `docker run` to bind to the container's `STDIN`, `STDOUT`
-or `STDERR`. This makes it possible to manipulate the output and input as
-needed.
+```bash
+$ docker run --expose 80 ubuntu bash
+```
 
-    $ echo "test" | docker run -i -a stdin ubuntu cat -
+This adds metadata to the container's `docker inspect` output that port 80
+is exposed.
 
-This pipes data into a container and prints the container's ID by attaching
-only to the container's `STDIN`.
+```bash
+$ docker run --expose 80 -P ubuntu bash
+```
 
-    $ docker run -a stderr ubuntu echo test
+This adds metadata to the container's configuration indicating that port 80
+is exposed, and maps port 80 to a random port numbered higher than 3000 on the
+host machine.
 
-This isn't going to print anything unless there's an error because we've
-only attached to the `STDERR` of the container. The container's logs
-still store what's been written to `STDERR` and `STDOUT`.
-
-    $ cat somefile | docker run -i -a stdin mybuilder dobuild
-
-This is how piping a file into a container could be done for a build.
-The container's ID will be printed after the build is done and the build
-logs could be retrieved using `docker logs`. This is
-useful if you need to pipe a file or something else into a container and
-retrieve the container's ID once the container has finished running.
-
-### Add host device to container (--device)
-
-    $ docker run --device=/dev/sdc:/dev/xvdc --device=/dev/sdd --device=/dev/zero:/dev/nulo -i -t ubuntu ls -l /dev/{xvdc,sdd,nulo}
-    brw-rw---- 1 root disk 8, 2 Feb  9 16:05 /dev/xvdc
-    brw-rw---- 1 root disk 8, 3 Feb  9 16:05 /dev/sdd
-    crw-rw-rw- 1 root root 1, 5 Feb  9 16:05 /dev/nulo
-
-It is often necessary to directly expose devices to a container. The `--device`
-option enables that. For example, a specific block storage device or loop
-device or audio device can be added to an otherwise unprivileged container
-(without the `--privileged` flag) and have the application directly access it.
-
-By default, the container will be able to `read`, `write` and `mknod` these devices.
-This can be overridden using a third `:rwm` set of options to each `--device`
-flag:
+The
+[Docker User Guide](https://docs.docker.com/engine/userguide/networking/default_network/dockerlinks/)
+provides more information about how and when to publish and expose container
+ports.
 
 
-    $ docker run --device=/dev/sda:/dev/xvdc --rm -it ubuntu fdisk  /dev/xvdc
+#### Set metadata on container (-l, --label, --label-file)
 
-    Command (m for help): q
-    $ docker run --device=/dev/sda:/dev/xvdc:r --rm -it ubuntu fdisk  /dev/xvdc
-    You will not be able to write the partition table.
+For information on working with labels, see [*Labels - custom
+metadata in Docker*](../../userguide/labels-custom-metadata.md) in the Docker
+User Guide.
 
-    Command (m for help): q
+#### Connect a container to a network (--network)
 
-    $ docker run --device=/dev/sda:/dev/xvdc:rw --rm -it ubuntu fdisk  /dev/xvdc
+To connect a container to a network managed by Docker, use the `--network` flag.
+This example adds the `busybox` container to the `my-net` network.
 
-    Command (m for help): q
+```bash
+$ docker run -itd --network="my-net" busybox
+```
 
-    $ docker run --device=/dev/sda:/dev/xvdc:m --rm -it ubuntu fdisk  /dev/xvdc
-    fdisk: unable to open /dev/xvdc: Operation not permitted
+See the [Docker run reference](../run.md) for more details about configuring
+network settings at runtime.
 
-> **Note:**
-> `--device` cannot be safely used with ephemeral devices. Block devices
-> that may be removed should not be added to untrusted containers with
-> `--device`.
 
-### Restart policies (--restart)
+#### Restart policies (--restart)
 
-Use Docker's `--restart` to specify a container's *restart policy*. A restart
-policy controls whether the Docker daemon restarts a container after exit.
-Docker supports the following restart policies:
+See the [Docker run reference](../run.md) for details and examples about setting
+restart policies on containers.
 
-<table>
-  <thead>
-    <tr>
-      <th>Policy</th>
-      <th>Result</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td><strong>no</strong></td>
-      <td>
-        Do not automatically restart the container when it exits. This is the
-        default.
-      </td>
-    </tr>
-    <tr>
-      <td>
-        <span style="white-space: nowrap">
-          <strong>on-failure</strong>[:max-retries]
-        </span>
-      </td>
-      <td>
-        Restart only if the container exits with a non-zero exit status.
-        Optionally, limit the number of restart retries the Docker
-        daemon attempts.
-      </td>
-    </tr>
-    <tr>
-      <td><strong>always</strong></td>
-      <td>
-        Always restart the container regardless of the exit status.
-        When you specify always, the Docker daemon will try to restart
-        the container indefinitely. The container will also always start
-        on daemon startup, regardless of the current state of the container.
-      </td>
-    </tr>
-    <tr>
-      <td><strong>unless-stopped</strong></td>
-      <td>
-        Always restart the container regardless of the exit status, but
-        do not start it on daemon startup if the container has been put
-        to a stopped state before.
-      </td>
-    </tr>
-  </tbody>
-</table>
+The `--stop-timeout` flag sets the timeout (in seconds) that a pre-defined (see `--stop-signal`) system call
+signal that will be sent to the container to exit. After timeout elapses the container will be killed with SIGKILL.
 
-    $ docker run --restart=always redis
-
-This will run the `redis` container with a restart policy of **always**
-so that if the container exits, Docker will restart it.
-
-More detailed information on restart policies can be found in the
-[Restart Policies (--restart)](../run.md#restart-policies-restart)
-section of the Docker run reference page.
-
-### Add entries to container hosts file (--add-host)
-
-You can add other hosts into a container's `/etc/hosts` file by using one or
-more `--add-host` flags. This example adds a static address for a host named
-`docker`:
-
-    $ docker run --add-host=docker:10.180.0.1 --rm -it debian
-    root@f38c87f2a42d:/# ping docker
-    PING docker (10.180.0.1): 48 data bytes
-    56 bytes from 10.180.0.1: icmp_seq=0 ttl=254 time=7.600 ms
-    56 bytes from 10.180.0.1: icmp_seq=1 ttl=254 time=30.705 ms
-    ^C--- docker ping statistics ---
-    2 packets transmitted, 2 packets received, 0% packet loss
-    round-trip min/avg/max/stddev = 7.600/19.152/30.705/11.553 ms
-
-Sometimes you need to connect to the Docker host from within your
-container. To enable this, pass the Docker host's IP address to
-the container using the `--add-host` flag. To find the host's address,
-use the `ip addr show` command.
-
-The flags you pass to `ip addr show` depend on whether you are
-using IPv4 or IPv6 networking in your containers. Use the following
-flags for IPv4 address retrieval for a network device named `eth0`:
-
-    $ HOSTIP=`ip -4 addr show scope global dev eth0 | grep inet | awk '{print \$2}' | cut -d / -f 1`
-    $ docker run  --add-host=docker:${HOSTIP} --rm -it debian
-
-For IPv6 use the `-6` flag instead of the `-4` flag. For other network
-devices, replace `eth0` with the correct device name (for example `docker0`
-for the bridge device).
-
-### Set ulimits in container (--ulimit)
-
-Since setting `ulimit` settings in a container requires extra privileges not
-available in the default container, you can set these using the `--ulimit` flag.
-`--ulimit` is specified with a soft and hard limit as such:
-`<type>=<soft limit>[:<hard limit>]`, for example:
-
-    $ docker run --ulimit nofile=1024:1024 --rm debian sh -c "ulimit -n"
-    1024
-
-> **Note:**
-> If you do not provide a `hard limit`, the `soft limit` will be used
-> for both values. If no `ulimits` are set, they will be inherited from
-> the default `ulimits` set on the daemon.  `as` option is disabled now.
-> In other words, the following script is not supported:
-> `$ docker run -it --ulimit as=1024 fedora /bin/bash`
-
-The values are sent to the appropriate `syscall` as they are set.
-Docker doesn't perform any byte conversion. Take this into account when setting the values.
-
-#### For `nproc` usage
-
-Be careful setting `nproc` with the `ulimit` flag as `nproc` is designed by Linux to set the
-maximum number of processes available to a user, not to a container.  For example, start four
-containers with `daemon` user:
-
-    docker run -d -u daemon --ulimit nproc=3 busybox top
-    docker run -d -u daemon --ulimit nproc=3 busybox top
-    docker run -d -u daemon --ulimit nproc=3 busybox top
-    docker run -d -u daemon --ulimit nproc=3 busybox top
-
-The 4th container fails and reports "[8] System error: resource temporarily unavailable" error.
-This fails because the caller set `nproc=3` resulting in the first three containers using up
-the three processes quota set for the `daemon` user.
-
-### Stop container with signal (--stop-signal)
+#### Stop container with signal (--stop-signal)
 
 The `--stop-signal` flag sets the system call signal that will be sent to the container to exit.
 This signal can be a valid unsigned number that matches a position in the kernel's syscall table, for instance 9,
 or a signal name in the format SIGNAME, for instance SIGKILL.
 
-### Optional security options (--security-opt)
-
-On Windows, this flag can be used to specify the `credentialspec` option.
-The `credentialspec` must be in the format `file://spec.txt` or `registry://keyname`.
-
-### Stop container with timeout (--stop-timeout)
-
-The `--stop-timeout` flag sets the timeout (in seconds) that a pre-defined (see `--stop-signal`) system call
-signal that will be sent to the container to exit. After timeout elapses the container will be killed with SIGKILL.
-
-### Specify isolation technology for container (--isolation)
+#### Specify isolation technology for container (--isolation)
 
 This option is useful in situations where you are running Docker containers on
 Windows. The `--isolation <value>` option sets a container's isolation technology.
@@ -708,30 +479,3 @@ PS C:\> docker run -d microsoft/nanoserver powershell echo hyperv
 PS C:\> docker run -d --isolation default microsoft/nanoserver powershell echo hyperv
 PS C:\> docker run -d --isolation hyperv microsoft/nanoserver powershell echo hyperv
 ```
-
-### Configure namespaced kernel parameters (sysctls) at runtime
-
-The `--sysctl` sets namespaced kernel parameters (sysctls) in the
-container. For example, to turn on IP forwarding in the containers
-network namespace, run this command:
-
-    $ docker run --sysctl net.ipv4.ip_forward=1 someimage
-
-
-> **Note**: Not all sysctls are namespaced. Docker does not support changing sysctls
-> inside of a container that also modify the host system. As the kernel
-> evolves we expect to see more sysctls become namespaced.
-
-#### Currently supported sysctls
-
-  `IPC Namespace`:
-
-  kernel.msgmax, kernel.msgmnb, kernel.msgmni, kernel.sem, kernel.shmall, kernel.shmmax, kernel.shmmni, kernel.shm_rmid_forced
-  Sysctls beginning with fs.mqueue.*
-
-  If you use the `--ipc=host` option these sysctls will not be allowed.
-
-  `Network Namespace`:
-      Sysctls beginning with net.*
-
-  If you use the `--network=host` option using these sysctls will not be allowed.
