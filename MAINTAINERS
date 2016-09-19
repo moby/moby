@@ -78,6 +78,7 @@
 	# - close an issue or pull request when it's inappropriate or off-topic
 
 		people = [
+			"ehazlett",
 			"mgoelzer",
 			"programmerq",
 			"thajeztah"
@@ -197,6 +198,11 @@
 	Name = "Doug Davis"
 	Email = "dug@us.ibm.com"
 	GitHub = "duglin"
+
+	[people.ehazlett]
+	Name = "Evan Hazlett"
+	Email = "ejhazlett@gmail.com"
+	GitHub = "ehazlett"
 
 	[people.erikh]
 	Name = "Erik Hollensbe"
