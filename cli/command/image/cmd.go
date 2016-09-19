@@ -12,9 +12,10 @@ import (
 // NewImageCommand returns a cobra command for `image` subcommands
 func NewImageCommand(dockerCli *command.DockerCli) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "image",
-		Short: "Manage images",
-		Args:  cli.NoArgs,
+		Use:     "image",
+		Short:   "Manage images",
+		Args:    cli.NoArgs,
+		Aliases: []string{"img"},
 		Run: func(cmd *cobra.Command, args []string) {
 			fmt.Fprintf(dockerCli.Err(), "\n"+cmd.UsageString())
 		},
