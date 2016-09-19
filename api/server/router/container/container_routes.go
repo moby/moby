@@ -155,8 +155,9 @@ func (s *containerRouter) postContainersStart(ctx context.Context, w http.Respon
 	}
 
 	checkpoint := r.Form.Get("checkpoint")
+	checkpointDir := r.Form.Get("checkpoint-dir")
 	validateHostname := versions.GreaterThanOrEqualTo(version, "1.24")
-	if err := s.backend.ContainerStart(vars["name"], hostConfig, validateHostname, checkpoint); err != nil {
+	if err := s.backend.ContainerStart(vars["name"], hostConfig, validateHostname, checkpoint, checkpointDir); err != nil {
 		return err
 	}
 

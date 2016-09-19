@@ -224,7 +224,7 @@ func (c *containerAdapter) create(ctx context.Context) error {
 func (c *containerAdapter) start(ctx context.Context) error {
 	version := httputils.VersionFromContext(ctx)
 	validateHostname := versions.GreaterThanOrEqualTo(version, "1.24")
-	return c.backend.ContainerStart(c.container.name(), nil, validateHostname, "")
+	return c.backend.ContainerStart(c.container.name(), nil, validateHostname, "", "")
 }
 
 func (c *containerAdapter) inspect(ctx context.Context) (types.ContainerJSON, error) {

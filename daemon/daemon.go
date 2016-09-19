@@ -305,7 +305,7 @@ func (daemon *Daemon) restore() error {
 
 			// Make sure networks are available before starting
 			daemon.waitForNetworks(c)
-			if err := daemon.containerStart(c, "", true); err != nil {
+			if err := daemon.containerStart(c, "", "", true); err != nil {
 				logrus.Errorf("Failed to start container %s: %s", c.ID, err)
 			}
 			close(chNotify)
@@ -372,7 +372,7 @@ func (daemon *Daemon) RestartSwarmContainers() {
 				group.Add(1)
 				go func(c *container.Container) {
 					defer group.Done()
-					if err := daemon.containerStart(c, "", true); err != nil {
+					if err := daemon.containerStart(c, "", "", true); err != nil {
 						logrus.Error(err)
 					}
 				}(c)

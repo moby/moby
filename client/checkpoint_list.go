@@ -2,16 +2,22 @@ package client
 
 import (
 	"encoding/json"
+	"net/url"
 
 	"github.com/docker/docker/api/types"
 	"golang.org/x/net/context"
 )
 
 // CheckpointList returns the volumes configured in the docker host.
-func (cli *Client) CheckpointList(ctx context.Context, container string) ([]types.Checkpoint, error) {
+func (cli *Client) CheckpointList(ctx context.Context, container string, options types.CheckpointListOptions) ([]types.Checkpoint, error) {
 	var checkpoints []types.Checkpoint
 
-	resp, err := cli.get(ctx, "/containers/"+container+"/checkpoints", nil, nil)
+	query := url.Values{}
+	if options.CheckpointDir != "" {
+		query.Set("dir", options.CheckpointDir)
+	}
+
+	resp, err := cli.get(ctx, "/containers/"+container+"/checkpoints", query, nil)
 	if err != nil {
 		return checkpoints, err
 	}
