@@ -11,8 +11,8 @@ import (
 	"github.com/docker/docker/cli/command"
 )
 
-// NewCheckpointCommand appends the `checkpoint` subcommands to rootCmd
-func NewCheckpointCommand(rootCmd *cobra.Command, dockerCli *command.DockerCli) {
+// NewCheckpointCommand returns the `checkpoint` subcommand (only in experimental)
+func NewCheckpointCommand(dockerCli *command.DockerCli) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "checkpoint",
 		Short: "Manage checkpoints",
@@ -26,6 +26,5 @@ func NewCheckpointCommand(rootCmd *cobra.Command, dockerCli *command.DockerCli) 
 		newListCommand(dockerCli),
 		newRemoveCommand(dockerCli),
 	)
-
-	rootCmd.AddCommand(cmd)
+	return cmd
 }
