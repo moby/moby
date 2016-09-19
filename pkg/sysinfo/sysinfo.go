@@ -27,6 +27,12 @@ type SysInfo struct {
 
 	// Whether the cgroup has the mountpoint of "devices" or not
 	CgroupDevicesEnabled bool
+
+	// Whether the cgroup has the mountpoint of "net_cls" or not
+	CgroupNetclsEnabled bool
+
+	// Whether the cgroup has the mountpoint of "net_prio" or not
+	CgroupNetprioEnabled bool
 }
 
 type cgroupMemInfo struct {

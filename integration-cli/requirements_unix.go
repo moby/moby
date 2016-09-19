@@ -112,6 +112,18 @@ var (
 		},
 		"Test cannot be run with 'sysctl kernel.unprivileged_userns_clone' = 0",
 	}
+	netclsEnable = testRequirement{
+		func() bool {
+			return SysInfo.CgroupNetclsEnabled
+		},
+		"Test requires an environment that supports net_cls.",
+	}
+	netprioEnable = testRequirement{
+		func() bool {
+			return SysInfo.CgroupNetprioEnabled
+		},
+		"Test requires an environment that supports net_prio.",
+	}
 )
 
 func init() {

@@ -2351,6 +2351,7 @@ _docker_run() {
 		--expose
 		--group-add
 		--hostname -h
+		--interface-priority
 		--ip
 		--ip6
 		--ipc
@@ -2368,6 +2369,7 @@ _docker_run() {
 		--memory-swappiness
 		--memory-reservation
 		--name
+		--net-classid
 		--network
 		--network-alias
 		--oom-score-adj

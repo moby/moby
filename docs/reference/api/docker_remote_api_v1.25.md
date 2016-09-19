@@ -312,6 +312,8 @@ Create a container
              "OomScoreAdj": 500,
              "PidMode": "",
              "PidsLimit": -1,
+             "IfPriorities": [{ "Name": "eth0", "Priority": 5 }],
+             "NetClassID": 3,
              "PortBindings": { "22/tcp": [{ "HostPort": "11022" }] },
              "PublishAllPorts": false,
              "Privileged": false,
@@ -432,6 +434,9 @@ Create a container
           `"container:<name|id>"`: joins another container's PID namespace
           `"host"`: use the host's PID namespace inside the container
     -   **PidsLimit** - Tune a container's pids limit. Set -1 for unlimited.
+    -   **IfPriorities** - Set the priority of network traffic in the form: `[{"Name": "<interface_name>", "Priority": <priority>}]`, for example:
+        `"IfPriorities": [{"Name": "eth0", "Priority": 5}]`
+    -   **NetClassID** - Tag network packets with a class identifier. Accepts a natural number.
     -   **PortBindings** - A map of exposed container ports and the host port they
           should map to. A JSON object in the form
           `{ <port>/<protocol>: [{ "HostPort": "<port>" }] }`

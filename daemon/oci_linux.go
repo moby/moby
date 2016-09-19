@@ -48,9 +48,21 @@ func setResources(s *specs.Spec, r containertypes.Resources) error {
 		return err
 	}
 
+	priorities := getPriorities(r)
+
 	memoryRes := getMemoryResources(r)
 	cpuRes := getCPUResources(r)
 	blkioWeight := r.BlkioWeight
+	classID := r.NetClassID
+
+	fmt.Println("###notice")
+	if len(priorities) == 0 {
+		fmt.Println("###priorities is nil")
+	}
+
+	if classID == nil {
+		fmt.Println("###classID is nil")
+	}
 
 	specResources := &specs.Resources{
 		Memory: memoryRes,
@@ -66,6 +78,10 @@ func setResources(s *specs.Spec, r containertypes.Resources) error {
 		DisableOOMKiller: r.OomKillDisable,
 		Pids: &specs.Pids{
 			Limit: &r.PidsLimit,
+		},
+		Network: &specs.Network{
+			ClassID:    classID,
+			Priorities: priorities,
 		},
 	}
 

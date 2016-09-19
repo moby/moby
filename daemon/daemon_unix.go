@@ -194,6 +194,22 @@ func getBlkioThrottleDevices(devs []*blkiodev.ThrottleDevice) ([]specs.ThrottleD
 	return throttleDevices, nil
 }
 
+func getPriorities(config containertypes.Resources) []specs.InterfacePriority {
+	var priorities []specs.InterfacePriority
+
+	for _, p := range config.IfPriorities {
+		name := p.Name
+		prio := p.Priority
+		priority := specs.InterfacePriority{
+			Name:     name,
+			Priority: prio,
+		}
+		priorities = append(priorities, priority)
+	}
+
+	return priorities
+}
+
 func checkKernel() error {
 	// Check for unsupported kernel versions
 	// FIXME: it would be cleaner to not test for specific versions, but rather
