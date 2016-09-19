@@ -23,86 +23,87 @@ import (
 
 // ContainerOptions is a data object with all the options for creating a container
 type ContainerOptions struct {
-	attach            opts.ListOpts
-	volumes           opts.ListOpts
-	tmpfs             opts.ListOpts
-	blkioWeightDevice WeightdeviceOpt
-	deviceReadBps     ThrottledeviceOpt
-	deviceWriteBps    ThrottledeviceOpt
-	links             opts.ListOpts
-	aliases           opts.ListOpts
-	linkLocalIPs      opts.ListOpts
-	deviceReadIOps    ThrottledeviceOpt
-	deviceWriteIOps   ThrottledeviceOpt
-	env               opts.ListOpts
-	labels            opts.ListOpts
-	devices           opts.ListOpts
-	ulimits           *UlimitOpt
-	sysctls           *opts.MapOpts
-	publish           opts.ListOpts
-	expose            opts.ListOpts
-	dns               opts.ListOpts
-	dnsSearch         opts.ListOpts
-	dnsOptions        opts.ListOpts
-	extraHosts        opts.ListOpts
-	volumesFrom       opts.ListOpts
-	envFile           opts.ListOpts
-	capAdd            opts.ListOpts
-	capDrop           opts.ListOpts
-	groupAdd          opts.ListOpts
-	securityOpt       opts.ListOpts
-	storageOpt        opts.ListOpts
-	labelsFile        opts.ListOpts
-	loggingOpts       opts.ListOpts
-	privileged        bool
-	pidMode           string
-	utsMode           string
-	usernsMode        string
-	publishAll        bool
-	stdin             bool
-	tty               bool
-	oomKillDisable    bool
-	oomScoreAdj       int
-	containerIDFile   string
-	entrypoint        string
-	hostname          string
-	memoryString      string
-	memoryReservation string
-	memorySwap        string
-	kernelMemory      string
-	user              string
-	workingDir        string
-	cpuShares         int64
-	cpuPercent        int64
-	cpuPeriod         int64
-	cpuQuota          int64
-	cpusetCpus        string
-	cpusetMems        string
-	blkioWeight       uint16
-	ioMaxBandwidth    string
-	ioMaxIOps         uint64
-	swappiness        int64
-	netMode           string
-	macAddress        string
-	ipv4Address       string
-	ipv6Address       string
-	ipcMode           string
-	pidsLimit         int64
-	restartPolicy     string
-	readonlyRootfs    bool
-	loggingDriver     string
-	cgroupParent      string
-	volumeDriver      string
-	stopSignal        string
-	isolation         string
-	shmSize           string
-	noHealthcheck     bool
-	healthCmd         string
-	healthInterval    time.Duration
-	healthTimeout     time.Duration
-	healthRetries     int
-	runtime           string
-	autoRemove        bool
+	attach               opts.ListOpts
+	volumes              opts.ListOpts
+	tmpfs                opts.ListOpts
+	blkioWeightDevice    WeightdeviceOpt
+	deviceReadBps        ThrottledeviceOpt
+	deviceWriteBps       ThrottledeviceOpt
+	links                opts.ListOpts
+	aliases              opts.ListOpts
+	linkLocalIPs         opts.ListOpts
+	deviceReadIOps       ThrottledeviceOpt
+	deviceWriteIOps      ThrottledeviceOpt
+	env                  opts.ListOpts
+	labels               opts.ListOpts
+	devices              opts.ListOpts
+	ulimits              *UlimitOpt
+	sysctls              *opts.MapOpts
+	publish              opts.ListOpts
+	expose               opts.ListOpts
+	dns                  opts.ListOpts
+	dnsSearch            opts.ListOpts
+	dnsOptions           opts.ListOpts
+	extraHosts           opts.ListOpts
+	volumesFrom          opts.ListOpts
+	envFile              opts.ListOpts
+	capAdd               opts.ListOpts
+	capDrop              opts.ListOpts
+	groupAdd             opts.ListOpts
+	securityOpt          opts.ListOpts
+	storageOpt           opts.ListOpts
+	labelsFile           opts.ListOpts
+	loggingOpts          opts.ListOpts
+	privileged           bool
+	pidMode              string
+	utsMode              string
+	usernsMode           string
+	publishAll           bool
+	stdin                bool
+	tty                  bool
+	oomKillDisable       bool
+	oomScoreAdj          int
+	containerIDFile      string
+	entrypoint           string
+	hostname             string
+	memoryString         string
+	memoryReservation    string
+	memorySwap           string
+	kernelMemory         string
+	user                 string
+	workingDir           string
+	cpuShares            int64
+	cpuPercent           int64
+	cpuPeriod            int64
+	cpuQuota             int64
+	cpusetCpus           string
+	cpusetMems           string
+	blkioWeight          uint16
+	ioMaxBandwidth       string
+	ioMaxIOps            uint64
+	swappiness           int64
+	netMode              string
+	macAddress           string
+	ipv4Address          string
+	ipv6Address          string
+	ipcMode              string
+	pidsLimit            int64
+	restartPolicy        string
+	readonlyRootfs       bool
+	loggingDriver        string
+	cgroupParent         string
+	volumeDriver         string
+	stopSignal           string
+	isolation            string
+	shmSize              string
+	noHealthcheck        bool
+	healthCmd            string
+	healthInterval       time.Duration
+	healthTimeout        time.Duration
+	healthRetries        int
+	healthInitialRetries int
+	runtime              string
+	autoRemove           bool
 
 	Image string
 	Args  []string
@@ -207,6 +208,7 @@ func AddFlags(flags *pflag.FlagSet) *ContainerOptions {
 	flags.StringVar(&copts.healthCmd, "health-cmd", "", "Command to run to check health")
 	flags.DurationVar(&copts.healthInterval, "health-interval", 0, "Time between running the check")
 	flags.IntVar(&copts.healthRetries, "health-retries", 0, "Consecutive failures needed to report unhealthy")
+	flags.IntVar(&copts.healthInitialRetries, "health-initial-retries", 0, "Consecutive failures needed to report unhealthy initially")
 	flags.DurationVar(&copts.healthTimeout, "health-timeout", 0, "Maximum time to allow one check to run")
 	flags.BoolVar(&copts.noHealthcheck, "no-healthcheck", false, "Disable any container-specified HEALTHCHECK")
 
@@ -470,7 +472,8 @@ func Parse(flags *pflag.FlagSet, copts *ContainerOptions) (*container.Config, *c
 	haveHealthSettings := copts.healthCmd != "" ||
 		copts.healthInterval != 0 ||
 		copts.healthTimeout != 0 ||
-		copts.healthRetries != 0
+		copts.healthRetries != 0 ||
+		copts.healthInitialRetries != 0
 	if copts.noHealthcheck {
 		if haveHealthSettings {
 			return nil, nil, nil, fmt.Errorf("--no-healthcheck conflicts with --health-* options")
@@ -491,10 +494,11 @@ func Parse(flags *pflag.FlagSet, copts *ContainerOptions) (*container.Config, *c
 		}
 
 		healthConfig = &container.HealthConfig{
-			Test:     probe,
-			Interval: copts.healthInterval,
-			Timeout:  copts.healthTimeout,
-			Retries:  copts.healthRetries,
+			Test:           probe,
+			Interval:       copts.healthInterval,
+			Timeout:        copts.healthTimeout,
+			Retries:        copts.healthRetries,
+			InitialRetries: copts.healthInitialRetries,
 		}
 	}
 

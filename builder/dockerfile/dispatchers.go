@@ -480,6 +480,7 @@ func healthcheck(b *Builder, args []string, attributes map[string]bool, original
 		flInterval := b.flags.AddString("interval", "")
 		flTimeout := b.flags.AddString("timeout", "")
 		flRetries := b.flags.AddString("retries", "")
+		flInitialRetries := b.flags.AddString("initial-retries", "")
 
 		if err := b.flags.Parse(); err != nil {
 			return err
@@ -524,6 +525,19 @@ func healthcheck(b *Builder, args []string, attributes map[string]bool, original
 			healthcheck.Retries = int(retries)
 		} else {
 			healthcheck.Retries = 0
+		}
+
+		if flInitialRetries.Value != "" {
+			initialRetries, err := strconv.ParseInt(flInitialRetries.Value, 10, 32)
+			if err != nil {
+				return err
+			}
+			if initialRetries < 1 {
+				return fmt.Errorf("--initial-retries must be at least 1 (not %d)", initialRetries)
+			}
+			healthcheck.InitialRetries = int(initialRetries)
+		} else {
+			healthcheck.InitialRetries = 0
 		}
 
 		b.runConfig.Healthcheck = &healthcheck

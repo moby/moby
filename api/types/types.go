@@ -310,6 +310,7 @@ type Health struct {
 	Status        string               // Status is one of Starting, Healthy or Unhealthy
 	FailingStreak int                  // FailingStreak is the number of consecutive failures
 	Log           []*HealthcheckResult // Log contains the last few results (oldest first)
+	HealthyOnce   bool                 // HealthyOnce means the container health check was at least successful once
 }
 
 // ContainerState stores container's running state

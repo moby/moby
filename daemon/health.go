@@ -33,6 +33,10 @@ const (
 	// for the container to be considered unhealthy.
 	defaultProbeRetries = 3
 
+	// Default number of consecutive failures of the health check initially
+	// for the container to be considered unhealthy.
+	defaultProbeInitialRetries = 0
+
 	// Maximum number of entries to record
 	maxLogEntries = 5
 )
@@ -115,6 +119,11 @@ func handleProbeResult(d *Daemon, c *container.Container, result *types.Healthch
 		retries = defaultProbeRetries
 	}
 
+	initialRetries := c.Config.Healthcheck.InitialRetries
+	if initialRetries <= 0 {
+		initialRetries = defaultProbeInitialRetries
+	}
+
 	h := c.State.Health
 	oldStatus := h.Status
 
@@ -127,7 +136,14 @@ func handleProbeResult(d *Daemon, c *container.Container, result *types.Healthch
 	if result.ExitCode == exitStatusHealthy {
 		h.FailingStreak = 0
 		h.Status = types.Healthy
+		// The container is healthy at least once
+		h.HealthyOnce = true
 	} else {
+		// If container has never been healthy before, use InitialRetries
+		// if InitialRetries > 0
+		if !h.HealthyOnce && initialRetries > 0 {
+			retries = initialRetries
+		}
 		// Failure (including invalid exit code)
 		h.FailingStreak++
 		if h.FailingStreak >= retries {
