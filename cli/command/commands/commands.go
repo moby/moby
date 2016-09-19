@@ -71,9 +71,9 @@ func AddCommands(cmd *cobra.Command, dockerCli *command.DockerCli) {
 		hide(image.NewSaveCommand(dockerCli)),
 		hide(image.NewTagCommand(dockerCli)),
 		hide(system.NewInspectCommand(dockerCli)),
+		checkpoint.NewCheckpointCommand(dockerCli),
+		plugin.NewPluginCommand(dockerCli),
 	)
-	checkpoint.NewCheckpointCommand(cmd, dockerCli)
-	plugin.NewPluginCommand(cmd, dockerCli)
 }
 
 func hide(cmd *cobra.Command) *cobra.Command {
