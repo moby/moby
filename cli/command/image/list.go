@@ -50,6 +50,13 @@ func NewImagesCommand(dockerCli *command.DockerCli) *cobra.Command {
 	return cmd
 }
 
+func newListCommand(dockerCli *command.DockerCli) *cobra.Command {
+	cmd := *NewImagesCommand(dockerCli)
+	cmd.Aliases = []string{"images", "list"}
+	cmd.Use = "ls [OPTIONS] [REPOSITORY[:TAG]]"
+	return &cmd
+}
+
 func runImages(dockerCli *command.DockerCli, opts imagesOptions) error {
 	ctx := context.Background()
 
