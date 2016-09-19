@@ -96,11 +96,11 @@ func (clnt *client) Create(containerID string, checkpoint string, checkpointDir 
 	for _, option := range options {
 		if s, ok := option.(*ServicingOption); ok {
 			configuration.Servicing = s.IsServicing
-			break
+			continue
 		}
 		if s, ok := option.(*FlushOption); ok {
 			configuration.IgnoreFlushesDuringBoot = s.IgnoreFlushesDuringBoot
-			break
+			continue
 		}
 	}
 
