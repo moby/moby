@@ -56,7 +56,7 @@ type simpleChallengeManager struct {
 
 func normalizeURL(endpoint *url.URL) {
 	endpoint.Host = strings.ToLower(endpoint.Host)
-	endpoint.Host = CanonicalAddr(endpoint)
+	endpoint.Host = canonicalAddr(endpoint)
 }
 
 func (m *simpleChallengeManager) GetChallenges(endpoint url.URL) ([]Challenge, error) {
@@ -78,9 +78,10 @@ func (m *simpleChallengeManager) AddResponse(resp *http.Response) error {
 		Host:   resp.Request.URL.Host,
 		Scheme: resp.Request.URL.Scheme,
 	}
+	normalizeURL(&urlCopy)
+
 	m.Lock()
 	defer m.Unlock()
-	normalizeURL(&urlCopy)
 	m.Challanges[urlCopy.String()] = challenges
 	return nil
 }
