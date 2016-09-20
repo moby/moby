@@ -374,10 +374,17 @@ Create a container
 -   **StopSignal** - Signal to stop a container as a string or unsigned integer. `SIGTERM` by default.
 -   **HostConfig**
     -   **Binds** – A list of volume bindings for this container. Each volume binding is a string in one of these forms:
-           + `host_path:container_path` to bind-mount a host path into the container
-           + `host_path:container_path:ro` to make the bind-mount read-only inside the container.
-           + `volume_name:container_path` to bind-mount a volume managed by a volume plugin into the container.
-           + `volume_name:container_path:ro` to make the bind mount read-only inside the container.
+           + `host-src:container-dest` to bind-mount a host path into the
+             container. Both `host-src`, and `container-dest` must be an
+             _absolute_ path.
+           + `host-src:container-dest:ro` to make the bind-mount read-only
+             inside the container. Both `host-src`, and `container-dest` must be
+             an _absolute_ path.
+           + `volume-name:container-dest` to bind-mount a volume managed by a
+             volume driver into the container. `container-dest` must be an
+             _absolute_ path.
+           + `volume-name:container-dest:ro` to mount the volume read-only
+             inside the container.  `container-dest` must be an _absolute_ path.
     -   **Links** - A list of links for the container. Each link entry should be
           in the form of `container_name:alias`.
     -   **Memory** - Memory limit in bytes.
