@@ -30,7 +30,12 @@ reopened when the necessary information is provided.
 
 ### 2. Classify the Issue
 
-An issue can have multiple of the following labels.
+An issue can have multiple of the following labels. Typically, a properly classified issues should
+have:
+
+- One label identifying its kind (`kind/*`).
+- One or multiple labels identifying the functional areas of interest (`area/*`).
+- Where applicable, one label categorizing its difficulty (`exp/*`).
 
 #### Issue kind
 
@@ -101,9 +106,8 @@ class="gh-label expert">exp/expert</strong> level task.
 
 ### 3. Prioritizing issue
 
-When attached to a specific milestone, an issue can be attributed one of the
-following labels to indicate their degree of priority (from more urgent to less
-urgent).
+When, and only when, an issue is attached to a specific milestone, the issue can be labeled with the
+following labels to indicate their degree of priority (from more urgent to less urgent).
 
 | Priority    | Description                                                                                                                       |
 |-------------|-----------------------------------------------------------------------------------------------------------------------------------|
