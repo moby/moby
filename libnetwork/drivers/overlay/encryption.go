@@ -392,10 +392,11 @@ func (d *driver) secMapWalk(f func(string, []*spi) ([]*spi, bool)) error {
 }
 
 func (d *driver) setKeys(keys []*key) error {
-	if d.keys != nil {
-		return types.ForbiddenErrorf("initial keys are already present")
-	}
+	// Accept the encryption keys and clear any stale encryption map
+	d.Lock()
 	d.keys = keys
+	d.secMap = &encrMap{nodes: map[string][]*spi{}}
+	d.Unlock()
 	log.Debugf("Initial encryption keys: %v", d.keys)
 	return nil
 }
@@ -433,10 +434,8 @@ func (d *driver) updateKeys(newKey, primary, pruneKey *key) error {
 	if (newKey != nil && newIdx == -1) ||
 		(primary != nil && priIdx == -1) ||
 		(pruneKey != nil && delIdx == -1) {
-		err := types.BadRequestErrorf("cannot find proper key indices while processing key update:"+
+		return types.BadRequestErrorf("cannot find proper key indices while processing key update:"+
 			"(newIdx,priIdx,delIdx):(%d, %d, %d)", newIdx, priIdx, delIdx)
-		log.Warn(err)
-		return err
 	}
 
 	d.secMapWalk(func(rIPs string, spis []*spi) ([]*spi, bool) {
