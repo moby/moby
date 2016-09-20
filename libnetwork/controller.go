@@ -49,6 +49,7 @@ import (
 	"net"
 	"strings"
 	"sync"
+	"time"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/discovery"
@@ -640,6 +641,7 @@ func (c *controller) NewNetwork(networkType, name string, id string, options ...
 		generic:     map[string]interface{}{netlabel.GenericData: make(map[string]string)},
 		ipamType:    ipamapi.DefaultIPAM,
 		id:          id,
+		created:     time.Now(),
 		ctrlr:       c,
 		persist:     true,
 		drvOnce:     &sync.Once{},

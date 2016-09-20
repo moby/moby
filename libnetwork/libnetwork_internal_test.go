@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"testing"
+	"time"
 
 	"github.com/docker/libnetwork/datastore"
 	"github.com/docker/libnetwork/discoverapi"
@@ -114,6 +115,7 @@ func TestNetworkMarshalling(t *testing.T) {
 			"color":        "blue",
 			"superimposed": "",
 		},
+		created: time.Now(),
 	}
 
 	b, err := json.Marshal(n)
@@ -133,7 +135,8 @@ func TestNetworkMarshalling(t *testing.T) {
 		!compareIpamInfoList(n.ipamV4Info, nn.ipamV4Info) || !compareIpamConfList(n.ipamV6Config, nn.ipamV6Config) ||
 		!compareIpamInfoList(n.ipamV6Info, nn.ipamV6Info) ||
 		!compareStringMaps(n.ipamOptions, nn.ipamOptions) ||
-		!compareStringMaps(n.labels, nn.labels) {
+		!compareStringMaps(n.labels, nn.labels) ||
+		!n.created.Equal(nn.created) {
 		t.Fatalf("JSON marsh/unmarsh failed."+
 			"\nOriginal:\n%#v\nDecoded:\n%#v"+
 			"\nOriginal ipamV4Conf: %#v\n\nDecoded ipamV4Conf: %#v"+
