@@ -13,12 +13,20 @@ import (
 
 func (s *DockerSuite) TestBuildApiDockerFileRemote(c *check.C) {
 	testRequires(c, NotUserNamespace)
-	server, err := fakeStorage(map[string]string{
-		"testD": `FROM busybox
+	var testD string
+	if daemonPlatform == "windows" {
+		testD = `FROM busybox
 COPY * /tmp/
 RUN find / -name ba*
-RUN find /tmp/`,
-	})
+RUN find /tmp/`
+	} else {
+		// -xdev is required because sysfs can cause EPERM
+		testD = `FROM busybox
+COPY * /tmp/
+RUN find / -xdev -name ba*
+RUN find /tmp/`
+	}
+	server, err := fakeStorage(map[string]string{"testD": testD})
 	c.Assert(err, checker.IsNil)
 	defer server.Close()
 
