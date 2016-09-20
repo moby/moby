@@ -53,8 +53,8 @@ for d in "$CROSS/"*/*; do
 		cp -L "$d/$PROXY_BINARY_FULLNAME" "$TAR_PATH/${DOCKER_PROXY_BINARY_NAME}${BINARY_EXTENSION}"
 	fi
 
-	# copy over all the containerd binaries
-	copy_containerd $TAR_PATH
+	# copy over all the extra binaries
+	copy_binaries $TAR_PATH
 
 	if [ "$IS_TAR" == "true" ]; then
 		echo "Creating tgz from $BUILD_PATH and naming it $TGZ"

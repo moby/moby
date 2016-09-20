@@ -12,5 +12,5 @@ set -e
 	export BINARY_SHORT_NAME="$DOCKER_PROXY_BINARY_NAME"
 	export SOURCE_PATH='./vendor/src/github.com/docker/libnetwork/cmd/proxy'
 	source "${MAKEDIR}/.binary"
-	copy_containerd "$DEST" 'hash'
+	copy_binaries "$DEST" 'hash'
 )
