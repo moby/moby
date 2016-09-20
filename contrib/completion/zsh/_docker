@@ -1704,7 +1704,7 @@ __docker_subcommand() {
                 "($help -a --all)"{-a,--all}"[Show all images]" \
                 "($help)--digests[Show digests]" \
                 "($help)*"{-f=,--filter=}"[Filter values]:filter:->filter-options" \
-                "($help)--format[Pretty-print containers using a Go template]:template: " \
+                "($help)--format[Pretty-print images using a Go template]:template: " \
                 "($help)--no-trunc[Do not truncate output]" \
                 "($help -q --quiet)"{-q,--quiet}"[Only show numeric IDs]" \
                 "($help -): :__docker_repositories" && ret=0
