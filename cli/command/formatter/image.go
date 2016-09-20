@@ -72,13 +72,13 @@ virtual_size: {{.Size}}
 
 // ImageWrite writes the formatter images using the ImageContext
 func ImageWrite(ctx ImageContext, images []types.Image) error {
-	render := func(format func(subContext subContext) error) error {
+	render := func(format func(subContext SubContext) error) error {
 		return imageFormat(ctx, images, format)
 	}
 	return ctx.Write(&imageContext{}, render)
 }
 
-func imageFormat(ctx ImageContext, images []types.Image, format func(subContext subContext) error) error {
+func imageFormat(ctx ImageContext, images []types.Image, format func(subContext SubContext) error) error {
 	for _, image := range images {
 		images := []*imageContext{}
 		if isDangling(image) {

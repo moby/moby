@@ -11,7 +11,6 @@ import (
 	containertypes "github.com/docker/docker/api/types/container"
 	mounttypes "github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/container"
-	"github.com/docker/docker/pkg/stringid"
 	"github.com/opencontainers/runc/libcontainer/label"
 )
 
@@ -28,7 +27,6 @@ func (daemon *Daemon) createContainerPlatformSpecificSettings(container *contain
 	}
 
 	for spec := range config.Volumes {
-		name := stringid.GenerateNonCryptoID()
 		destination := filepath.Clean(spec)
 
 		// Skip volumes for which we already have something mounted on that
@@ -46,7 +44,7 @@ func (daemon *Daemon) createContainerPlatformSpecificSettings(container *contain
 			return fmt.Errorf("cannot mount volume over existing file, file exists %s", path)
 		}
 
-		v, err := daemon.volumes.CreateWithRef(name, hostConfig.VolumeDriver, container.ID, nil, nil)
+		v, err := daemon.volumeComponent.Create("", hostConfig.VolumeDriver, container.ID, nil, nil)
 		if err != nil {
 			return err
 		}

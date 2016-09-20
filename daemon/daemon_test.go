@@ -9,15 +9,17 @@ import (
 	"time"
 
 	containertypes "github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/component"
+	volumecomp "github.com/docker/docker/components/volume"
+	volumedrivers "github.com/docker/docker/components/volume/drivers"
+	volumetypes "github.com/docker/docker/components/volume/types"
 	"github.com/docker/docker/container"
+	"github.com/docker/docker/daemon/events"
 	"github.com/docker/docker/pkg/discovery"
 	_ "github.com/docker/docker/pkg/discovery/memory"
 	"github.com/docker/docker/pkg/registrar"
 	"github.com/docker/docker/pkg/truncindex"
 	"github.com/docker/docker/volume"
-	volumedrivers "github.com/docker/docker/volume/drivers"
-	"github.com/docker/docker/volume/local"
-	"github.com/docker/docker/volume/store"
 	"github.com/docker/go-connections/nat"
 )
 
@@ -117,24 +119,25 @@ func TestGetContainer(t *testing.T) {
 	}
 }
 
-func initDaemonWithVolumeStore(tmp string) (*Daemon, error) {
-	var err error
+func initDaemonWithVolumeComponent(tmp string) (*Daemon, error) {
 	daemon := &Daemon{
 		repository: tmp,
 		root:       tmp,
 	}
-	daemon.volumes, err = store.New(tmp)
-	if err != nil {
-		return nil, err
-	}
+	var err error
+	daemon.volumeComponent, err = newVolumeComponent(tmp)
+	return daemon, err
+}
 
-	volumesDriver, err := local.New(tmp, 0, 0)
-	if err != nil {
-		return nil, err
-	}
-	volumedrivers.Register(volumesDriver, volumesDriver.Name())
-
-	return daemon, nil
+func newVolumeComponent(path string) (volumetypes.VolumeComponent, error) {
+	comp := volumecomp.New()
+	err := comp.Init(
+		&component.Context{EventLogger: events.New()},
+		component.Config{
+			Filesystem: component.FilesystemConfig{Root: path, UID: 0, GID: 0},
+		},
+	)
+	return comp.Interface().(volumetypes.VolumeComponent), err
 }
 
 func TestValidContainerNames(t *testing.T) {
@@ -206,7 +209,7 @@ func TestContainerInitDNS(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	daemon, err := initDaemonWithVolumeStore(tmp)
+	daemon, err := initDaemonWithVolumeComponent(tmp)
 	if err != nil {
 		t.Fatal(err)
 	}

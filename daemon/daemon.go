@@ -25,10 +25,12 @@ import (
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/component"
+	compreg "github.com/docker/docker/component/registry"
+	volumetypes "github.com/docker/docker/components/volume/types"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/events"
 	"github.com/docker/docker/daemon/exec"
-	"github.com/docker/libnetwork/cluster"
 	// register graph drivers
 	_ "github.com/docker/docker/daemon/graphdriver/register"
 	dmetadata "github.com/docker/docker/distribution/metadata"
@@ -51,10 +53,8 @@ import (
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/utils"
-	volumedrivers "github.com/docker/docker/volume/drivers"
-	"github.com/docker/docker/volume/local"
-	"github.com/docker/docker/volume/store"
 	"github.com/docker/libnetwork"
+	"github.com/docker/libnetwork/cluster"
 	nwconfig "github.com/docker/libnetwork/config"
 	"github.com/docker/libtrust"
 )
@@ -85,7 +85,6 @@ type Daemon struct {
 	RegistryService           registry.Service
 	EventsService             *events.Events
 	netController             libnetwork.NetworkController
-	volumes                   *store.VolumeStore
 	discoveryWatcher          discoveryReloader
 	root                      string
 	seccompEnabled            bool
@@ -100,6 +99,7 @@ type Daemon struct {
 	containerdRemote          libcontainerd.Remote
 	defaultIsolation          containertypes.Isolation // Default isolation mode on Windows
 	clusterProvider           cluster.Provider
+	volumeComponent           volumetypes.VolumeComponent
 }
 
 func (daemon *Daemon) restore() error {
@@ -380,6 +380,20 @@ func (daemon *Daemon) RestartSwarmContainers() {
 	group.Wait()
 }
 
+// TODO: remove once all access to this component has moved into other
+// components
+func getVolumeComponent() (volumetypes.VolumeComponent, error) {
+	comp, err := compreg.Get().Get(volumetypes.ComponentType)
+	if err != nil {
+		return nil, err
+	}
+	volumes, ok := comp.Interface().(volumetypes.VolumeComponent)
+	if !ok {
+		return nil, fmt.Errorf("Unexpected volume component %T", comp)
+	}
+	return volumes, nil
+}
+
 // waitForNetworks is used during daemon initialization when starting up containers
 // It ensures that all of a container's networks are available before the daemon tries to start the container.
 // In practice it just makes sure the discovery service is available for containers which use a network that require discovery.
@@ -447,7 +461,7 @@ func (daemon *Daemon) IsSwarmCompatible() error {
 
 // NewDaemon sets up everything for the daemon to be able to service
 // requests from the webserver.
-func NewDaemon(config *Config, registryService registry.Service, containerdRemote libcontainerd.Remote) (daemon *Daemon, err error) {
+func NewDaemon(config *Config, registryService registry.Service, containerdRemote libcontainerd.Remote) (*Daemon, error) {
 	setDefaultMtu(config)
 
 	// Ensure that we have a correct root key limit for launching containers.
@@ -516,7 +530,10 @@ func NewDaemon(config *Config, registryService registry.Service, containerdRemot
 	}
 	os.Setenv("TMPDIR", realTmp)
 
-	d := &Daemon{configStore: config}
+	d := &Daemon{
+		configStore:   config,
+		EventsService: events.New(),
+	}
 	// Ensure the daemon is properly shutdown if there is a failure during
 	// initialization
 	defer func() {
@@ -536,6 +553,20 @@ func NewDaemon(config *Config, registryService registry.Service, containerdRemot
 
 	if err := configureMaxThreads(config); err != nil {
 		logrus.Warnf("Failed to configure golang's threads limit: %v", err)
+	}
+
+	// Initialize all the compoents
+	compConfig := component.Config{
+		Filesystem: component.FilesystemConfig{
+			Root: config.Root,
+			UID:  rootUID,
+			GID:  rootGID,
+		},
+	}
+	if err := compreg.Get().ForEach(func(c component.Component) error {
+		return c.Init(d.componentContext(), compConfig)
+	}); err != nil {
+		return nil, err
 	}
 
 	installDefaultAppArmorProfile()
@@ -583,12 +614,6 @@ func NewDaemon(config *Config, registryService registry.Service, containerdRemot
 		return nil, err
 	}
 
-	// Configure the volumes driver
-	volStore, err := d.configureVolumes(rootUID, rootGID)
-	if err != nil {
-		return nil, err
-	}
-
 	trustKey, err := api.LoadOrCreateTrustKey(config.TrustKeyPath)
 	if err != nil {
 		return nil, err
@@ -604,8 +629,6 @@ func NewDaemon(config *Config, registryService registry.Service, containerdRemot
 	if err != nil {
 		return nil, err
 	}
-
-	eventsService := events.New()
 
 	referenceStore, err := reference.NewReferenceStore(filepath.Join(imageRoot, "repositories.json"))
 	if err != nil {
@@ -645,8 +668,6 @@ func NewDaemon(config *Config, registryService registry.Service, containerdRemot
 		Config: config.LogConfig.Config,
 	}
 	d.RegistryService = registryService
-	d.EventsService = eventsService
-	d.volumes = volStore
 	d.root = config.Root
 	d.uidMaps = uidMaps
 	d.gidMaps = gidMaps
@@ -655,6 +676,10 @@ func NewDaemon(config *Config, registryService registry.Service, containerdRemot
 	d.nameIndex = registrar.NewRegistrar()
 	d.linkIndex = newLinkIndex()
 	d.containerdRemote = containerdRemote
+	d.volumeComponent, err = getVolumeComponent()
+	if err != nil {
+		return nil, err
+	}
 
 	go d.execCommandGC()
 
@@ -668,11 +693,19 @@ func NewDaemon(config *Config, registryService registry.Service, containerdRemot
 		return nil, err
 	}
 
+	// TODO: StartComponents might need to be called before this
 	if err := d.restore(); err != nil {
 		return nil, err
 	}
 
 	return d, nil
+}
+
+// StartComponents starts all the components
+func (daemon *Daemon) StartComponents() error {
+	return compreg.Get().ForEach(func(c component.Component) error {
+		return c.Start(daemon.componentContext())
+	})
 }
 
 func (daemon *Daemon) shutdownContainer(c *container.Container) error {
@@ -747,6 +780,13 @@ func (daemon *Daemon) Shutdown() error {
 		})
 	}
 
+	compreg.Get().ForEach(func(c component.Component) error {
+		if err := c.Shutdown(daemon.componentContext()); err != nil {
+			logrus.Errorf("Component %q shutdown error: %v", c.Provides(), err)
+		}
+		return nil
+	})
+
 	// trigger libnetwork Stop only if it's initialized
 	if daemon.netController != nil {
 		daemon.netController.Stop()
@@ -763,6 +803,10 @@ func (daemon *Daemon) Shutdown() error {
 	}
 
 	return nil
+}
+
+func (daemon *Daemon) componentContext() *component.Context {
+	return &component.Context{EventLogger: daemon.EventsService}
 }
 
 // Mount sets container.BaseFS
@@ -905,18 +949,6 @@ func setDefaultMtu(config *Config) {
 	config.Mtu = defaultNetworkMtu
 }
 
-func (daemon *Daemon) configureVolumes(rootUID, rootGID int) (*store.VolumeStore, error) {
-	volumesDriver, err := local.New(daemon.configStore.Root, rootUID, rootGID)
-	if err != nil {
-		return nil, err
-	}
-
-	if !volumedrivers.Register(volumesDriver, volumesDriver.Name()) {
-		return nil, fmt.Errorf("local volume driver could not be registered")
-	}
-	return store.New(daemon.configStore.Root)
-}
-
 // IsShuttingDown tells whether the daemon is shutting down or not
 func (daemon *Daemon) IsShuttingDown() bool {
 	return daemon.shutdown
@@ -1011,6 +1043,14 @@ func (daemon *Daemon) Reload(config *Config) error {
 	logrus.Debugf("Reset Max Concurrent Uploads: %d", *daemon.configStore.MaxConcurrentUploads)
 	if daemon.uploadManager != nil {
 		daemon.uploadManager.SetConcurrency(*daemon.configStore.MaxConcurrentUploads)
+	}
+
+	// TODO: build up this config
+	compConfig := component.Config{}
+	if err := compreg.Get().ForEach(func(c component.Component) error {
+		return c.Reload(daemon.componentContext(), compConfig)
+	}); err != nil {
+		return err
 	}
 
 	// We emit daemon reload event here with updatable configurations

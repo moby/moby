@@ -12,8 +12,6 @@ import (
 
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/volume"
-	"github.com/docker/docker/volume/drivers"
-	"github.com/docker/docker/volume/local"
 	"github.com/pkg/errors"
 )
 
@@ -46,6 +44,7 @@ func (daemon *Daemon) setupMounts(c *container.Container) ([]container.Mount, er
 				Writable:    m.RW,
 				Propagation: string(m.Propagation),
 			}
+			// TODO: this should be part of the volume component
 			if m.Volume != nil {
 				attributes := map[string]string{
 					"driver":      m.Volume.DriverName(),
@@ -91,30 +90,6 @@ func setBindModeIfNull(bind *volume.MountPoint) {
 	}
 }
 
-// migrateVolume links the contents of a volume created pre Docker 1.7
-// into the location expected by the local driver.
-// It creates a symlink from DOCKER_ROOT/vfs/dir/VOLUME_ID to DOCKER_ROOT/volumes/VOLUME_ID/_container_data.
-// It preserves the volume json configuration generated pre Docker 1.7 to be able to
-// downgrade from Docker 1.7 to Docker 1.6 without losing volume compatibility.
-func migrateVolume(id, vfs string) error {
-	l, err := volumedrivers.GetDriver(volume.DefaultDriverName)
-	if err != nil {
-		return err
-	}
-
-	newDataPath := l.(*local.Root).DataPath(id)
-	fi, err := os.Stat(newDataPath)
-	if err != nil && !os.IsNotExist(err) {
-		return err
-	}
-
-	if fi != nil && fi.IsDir() {
-		return nil
-	}
-
-	return os.Symlink(vfs, newDataPath)
-}
-
 // verifyVolumesInfo ports volumes configured for the containers pre docker 1.7.
 // It reads the container configuration and creates valid mount points for the old volumes.
 func (daemon *Daemon) verifyVolumesInfo(container *container.Container) error {
@@ -144,11 +119,11 @@ func (daemon *Daemon) verifyVolumesInfo(container *container.Container) error {
 
 			if strings.HasPrefix(hostPath, vfsPath) {
 				id := filepath.Base(hostPath)
-				v, err := daemon.volumes.CreateWithRef(id, volume.DefaultDriverName, container.ID, nil, nil)
+				v, err := daemon.volumeComponent.Create(id, volume.DefaultDriverName, container.ID, nil, nil)
 				if err != nil {
 					return err
 				}
-				if err := migrateVolume(id, hostPath); err != nil {
+				if err := daemon.volumeComponent.MigrateVolume17(id, hostPath); err != nil {
 					return err
 				}
 				container.AddMountPointWithVolume(destination, v, true)

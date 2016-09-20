@@ -15,7 +15,9 @@ const (
 	scopeHeader        = "SCOPE"
 )
 
-type subContext interface {
+// SubContext interface is fragment of a context which is used to format lists
+// of object
+type SubContext interface {
 	FullHeader() string
 	AddHeader(header string)
 }

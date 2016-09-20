@@ -21,10 +21,11 @@ import (
 	"github.com/docker/docker/api/server/router/network"
 	swarmrouter "github.com/docker/docker/api/server/router/swarm"
 	systemrouter "github.com/docker/docker/api/server/router/system"
-	"github.com/docker/docker/api/server/router/volume"
 	"github.com/docker/docker/builder/dockerfile"
 	cliflags "github.com/docker/docker/cli/flags"
 	"github.com/docker/docker/cliconfig"
+	"github.com/docker/docker/component"
+	compreg "github.com/docker/docker/component/registry"
 	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/daemon/cluster"
 	"github.com/docker/docker/daemon/logger"
@@ -280,6 +281,9 @@ func (cli *DaemonCli) start(opts daemonOptions) (err error) {
 
 	cli.d = d
 	cli.setupConfigReloadTrap()
+	if err := d.StartComponents(); err != nil {
+		return err
+	}
 
 	// The serve API routine never exits unless an error occurs
 	// We need to start it as a goroutine and wait on it so
@@ -412,7 +416,6 @@ func initRouter(s *apiserver.Server, d *daemon.Daemon, c *cluster.Cluster) {
 		container.NewRouter(d, decoder),
 		image.NewRouter(d, decoder),
 		systemrouter.NewRouter(d, c),
-		volume.NewRouter(d),
 		build.NewRouter(dockerfile.NewBuildManager(d)),
 		swarmrouter.NewRouter(c),
 	}...)
@@ -420,6 +423,11 @@ func initRouter(s *apiserver.Server, d *daemon.Daemon, c *cluster.Cluster) {
 	if d.NetworkControllerEnabled() {
 		routers = append(routers, network.NewRouter(d, c))
 	}
+
+	compreg.Get().ForEach(func(c component.Component) error {
+		routers = append(routers, c)
+		return nil
+	})
 
 	s.InitRouter(utils.IsDebugEnabled(), routers...)
 }

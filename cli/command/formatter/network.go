@@ -35,7 +35,7 @@ func NewNetworkFormat(source string, quiet bool) Format {
 
 // NetworkWrite writes the context
 func NetworkWrite(ctx Context, networks []types.NetworkResource) error {
-	render := func(format func(subContext subContext) error) error {
+	render := func(format func(subContext SubContext) error) error {
 		for _, network := range networks {
 			networkCtx := &networkContext{trunc: ctx.Trunc, n: network}
 			if err := format(networkCtx); err != nil {

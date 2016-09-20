@@ -14,9 +14,7 @@ import (
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/idtools"
-	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/runconfig"
-	volumestore "github.com/docker/docker/volume/store"
 	"github.com/opencontainers/runc/libcontainer/label"
 )
 
@@ -208,27 +206,6 @@ func (daemon *Daemon) setRWLayer(container *container.Container) error {
 	container.RWLayer = rwLayer
 
 	return nil
-}
-
-// VolumeCreate creates a volume with the specified name, driver, and opts
-// This is called directly from the remote API
-func (daemon *Daemon) VolumeCreate(name, driverName string, opts, labels map[string]string) (*types.Volume, error) {
-	if name == "" {
-		name = stringid.GenerateNonCryptoID()
-	}
-
-	v, err := daemon.volumes.Create(name, driverName, opts, labels)
-	if err != nil {
-		if volumestore.IsNameConflict(err) {
-			return nil, fmt.Errorf("A volume named %s already exists. Choose a different volume name.", name)
-		}
-		return nil, err
-	}
-
-	daemon.LogVolumeEvent(v.Name(), "create", map[string]string{"driver": v.DriverName()})
-	apiV := volumeToAPIType(v)
-	apiV.Mountpoint = v.Path()
-	return apiV, nil
 }
 
 func (daemon *Daemon) mergeAndVerifyConfig(config *containertypes.Config, img *image.Image) error {

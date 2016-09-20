@@ -15,7 +15,6 @@ import (
 	"github.com/docker/docker/cli/command/stack"
 	"github.com/docker/docker/cli/command/swarm"
 	"github.com/docker/docker/cli/command/system"
-	"github.com/docker/docker/cli/command/volume"
 	"github.com/spf13/cobra"
 )
 
@@ -38,7 +37,6 @@ func AddCommands(cmd *cobra.Command, dockerCli *command.DockerCli) {
 		registry.NewLogoutCommand(dockerCli),
 		registry.NewSearchCommand(dockerCli),
 		system.NewVersionCommand(dockerCli),
-		volume.NewVolumeCommand(dockerCli),
 		hide(system.NewInfoCommand(dockerCli)),
 		hide(container.NewAttachCommand(dockerCli)),
 		hide(container.NewCommitCommand(dockerCli)),

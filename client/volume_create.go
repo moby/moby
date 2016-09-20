@@ -3,7 +3,7 @@ package client
 import (
 	"encoding/json"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/components/volume/types"
 	"golang.org/x/net/context"
 )
 
