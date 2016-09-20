@@ -11,11 +11,11 @@ import (
 	"github.com/docker/docker/utils/templates"
 )
 
+// Format keys used to specify certain kinds of output formats
 const (
-	// TableFormatKey is the key used to format as a table
-	TableFormatKey = "table"
-	// RawFormatKey is the key used to format as raw JSON
-	RawFormatKey = "raw"
+	TableFormatKey  = "table"
+	RawFormatKey    = "raw"
+	PrettyFormatKey = "pretty"
 
 	defaultQuietFormat = "{{.ID}}"
 )

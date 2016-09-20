@@ -130,6 +130,8 @@ Ports:
  PublishedPort = 4443
 ```
 
+You can also use `--format pretty` for the same effect.
+
 
 ### Finding the number of tasks running as part of a service
 
