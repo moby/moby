@@ -468,8 +468,12 @@ func (n *network) addDriverWatches() {
 
 	c := n.getController()
 	for _, tableName := range n.driverTables {
-		ch, cancel := c.agent.networkDB.Watch(tableName, n.ID(), "")
 		c.Lock()
+		if c.agent == nil {
+			c.Unlock()
+			return
+		}
+		ch, cancel := c.agent.networkDB.Watch(tableName, n.ID(), "")
 		c.agent.driverCancelFuncs[n.ID()] = append(c.agent.driverCancelFuncs[n.ID()], cancel)
 		c.Unlock()
 
