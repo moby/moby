@@ -1667,9 +1667,8 @@ func (f *localResponseWriter) WriteHeader(c int) {
 	f.statusCode = c
 }
 
-func TestwriteJSON(t *testing.T) {
-	testCode := 55
-	testData, err := json.Marshal("test data")
+func testWriteJSON(t *testing.T, testCode int, testData interface{}) {
+	testDataMarshalled, err := json.Marshal(testData)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1679,10 +1678,17 @@ func TestwriteJSON(t *testing.T) {
 	if rsp.statusCode != testCode {
 		t.Fatalf("writeJSON() failed to set the status code. Expected %d. Got %d", testCode, rsp.statusCode)
 	}
-	if !bytes.Equal(testData, rsp.body) {
-		t.Fatalf("writeJSON() failed to set the body. Expected %s. Got %s", testData, rsp.body)
+	// writeJSON calls json.Encode and it appends '\n' to the result,
+	// while json.Marshal not
+	expected := append(testDataMarshalled, byte('\n'))
+	if !bytes.Equal(expected, rsp.body) {
+		t.Fatalf("writeJSON() failed to set the body. Expected %q. Got %q", expected, rsp.body)
 	}
+}
 
+func TestWriteJSON(t *testing.T) {
+	testWriteJSON(t, 55, "test data as string")
+	testWriteJSON(t, 55, []byte("test data as bytes"))
 }
 
 func TestHttpHandlerUninit(t *testing.T) {
