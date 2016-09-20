@@ -134,7 +134,7 @@ This section lists each version from latest to oldest.  Each listing includes a 
   with ContainerD in Docker 1.11.
 * `GET /networks` now supports filtering by `label` and `driver`.
 * `GET /containers/json` now supports filtering containers by `network` name or id.
-* `POST /containers/create` now takes `MaximumIOps` and `MaximumIOBps` fields. Windows daemon only.
+* `POST /containers/create` now takes `IOMaximumBandwidth` and `IOMaximumIOps` fields. Windows daemon only.
 * `POST /containers/create` now returns an HTTP 400 "bad parameter" message
   if no command is specified (instead of an HTTP 500 "server error")
 * `GET /images/search` now takes a `filters` query parameter.
