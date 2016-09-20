@@ -323,7 +323,7 @@ type HostConfig struct {
 	Mounts []mount.Mount `json:",omitempty"`
 
 	// Run a custom init inside the container, if null, use the daemon's configured settings
-	Init *bool `json:",om        itempty"`
+	Init *bool `json:",omitempty"`
 }
 
 // Box specifies height and width dimensions. Used for sizing of a console.
