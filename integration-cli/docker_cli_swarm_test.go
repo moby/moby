@@ -250,17 +250,13 @@ func (s *DockerSwarmSuite) TestSwarmContainerAutoStart(c *check.C) {
 	c.Assert(err, checker.IsNil)
 	c.Assert(strings.TrimSpace(out), checker.Not(checker.Equals), "")
 
-	out, err = d.Cmd("run", "-id", "--restart=always", "--net=foo", "--name=test", "busybox", "top")
+	out, err = d.Cmd("run", "-d", "--restart=always", "--net=foo", "--name=test", "busybox", "top")
 	c.Assert(err, checker.IsNil)
 	c.Assert(strings.TrimSpace(out), checker.Not(checker.Equals), "")
 
-	out, err = d.Cmd("ps", "-q")
-	c.Assert(err, checker.IsNil)
-	c.Assert(strings.TrimSpace(out), checker.Not(checker.Equals), "")
+	c.Assert(waitRun("test", "-H", d.sock()), check.IsNil)
 
 	d.Restart()
 
-	out, err = d.Cmd("ps", "-q")
-	c.Assert(err, checker.IsNil)
-	c.Assert(strings.TrimSpace(out), checker.Not(checker.Equals), "")
+	c.Assert(waitRun("test", "-H", d.sock()), check.IsNil)
 }
