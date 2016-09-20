@@ -15,7 +15,7 @@ import (
 
 func TestInfoServerError(t *testing.T) {
 	client := &Client{
-		transport: newMockClient(nil, errorMock(http.StatusInternalServerError, "Server error")),
+		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 	_, err := client.Info(context.Background())
 	if err == nil || err.Error() != "Error response from daemon: Server error" {
@@ -25,7 +25,7 @@ func TestInfoServerError(t *testing.T) {
 
 func TestInfoInvalidResponseJSONError(t *testing.T) {
 	client := &Client{
-		transport: newMockClient(nil, func(req *http.Request) (*http.Response, error) {
+		client: newMockClient(func(req *http.Request) (*http.Response, error) {
 			return &http.Response{
 				StatusCode: http.StatusOK,
 				Body:       ioutil.NopCloser(bytes.NewReader([]byte("invalid json"))),
@@ -41,7 +41,7 @@ func TestInfoInvalidResponseJSONError(t *testing.T) {
 func TestInfo(t *testing.T) {
 	expectedURL := "/info"
 	client := &Client{
-		transport: newMockClient(nil, func(req *http.Request) (*http.Response, error) {
+		client: newMockClient(func(req *http.Request) (*http.Response, error) {
 			if !strings.HasPrefix(req.URL.Path, expectedURL) {
 				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
 			}

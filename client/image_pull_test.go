@@ -15,7 +15,7 @@ import (
 
 func TestImagePullReferenceParseError(t *testing.T) {
 	client := &Client{
-		transport: newMockClient(nil, func(req *http.Request) (*http.Response, error) {
+		client: newMockClient(func(req *http.Request) (*http.Response, error) {
 			return nil, nil
 		}),
 	}
@@ -28,7 +28,7 @@ func TestImagePullReferenceParseError(t *testing.T) {
 
 func TestImagePullAnyError(t *testing.T) {
 	client := &Client{
-		transport: newMockClient(nil, errorMock(http.StatusInternalServerError, "Server error")),
+		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 	_, err := client.ImagePull(context.Background(), "myimage", types.ImagePullOptions{})
 	if err == nil || err.Error() != "Error response from daemon: Server error" {
@@ -38,7 +38,7 @@ func TestImagePullAnyError(t *testing.T) {
 
 func TestImagePullStatusUnauthorizedError(t *testing.T) {
 	client := &Client{
-		transport: newMockClient(nil, errorMock(http.StatusUnauthorized, "Unauthorized error")),
+		client: newMockClient(errorMock(http.StatusUnauthorized, "Unauthorized error")),
 	}
 	_, err := client.ImagePull(context.Background(), "myimage", types.ImagePullOptions{})
 	if err == nil || err.Error() != "Error response from daemon: Unauthorized error" {
@@ -48,7 +48,7 @@ func TestImagePullStatusUnauthorizedError(t *testing.T) {
 
 func TestImagePullWithUnauthorizedErrorAndPrivilegeFuncError(t *testing.T) {
 	client := &Client{
-		transport: newMockClient(nil, errorMock(http.StatusUnauthorized, "Unauthorized error")),
+		client: newMockClient(errorMock(http.StatusUnauthorized, "Unauthorized error")),
 	}
 	privilegeFunc := func() (string, error) {
 		return "", fmt.Errorf("Error requesting privilege")
@@ -63,7 +63,7 @@ func TestImagePullWithUnauthorizedErrorAndPrivilegeFuncError(t *testing.T) {
 
 func TestImagePullWithUnauthorizedErrorAndAnotherUnauthorizedError(t *testing.T) {
 	client := &Client{
-		transport: newMockClient(nil, errorMock(http.StatusUnauthorized, "Unauthorized error")),
+		client: newMockClient(errorMock(http.StatusUnauthorized, "Unauthorized error")),
 	}
 	privilegeFunc := func() (string, error) {
 		return "a-auth-header", nil
@@ -79,7 +79,7 @@ func TestImagePullWithUnauthorizedErrorAndAnotherUnauthorizedError(t *testing.T)
 func TestImagePullWithPrivilegedFuncNoError(t *testing.T) {
 	expectedURL := "/images/create"
 	client := &Client{
-		transport: newMockClient(nil, func(req *http.Request) (*http.Response, error) {
+		client: newMockClient(func(req *http.Request) (*http.Response, error) {
 			if !strings.HasPrefix(req.URL.Path, expectedURL) {
 				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
 			}
@@ -163,7 +163,7 @@ func TestImagePullWithoutErrors(t *testing.T) {
 	}
 	for _, pullCase := range pullCases {
 		client := &Client{
-			transport: newMockClient(nil, func(req *http.Request) (*http.Response, error) {
+			client: newMockClient(func(req *http.Request) (*http.Response, error) {
 				if !strings.HasPrefix(req.URL.Path, expectedURL) {
 					return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
 				}
