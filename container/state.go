@@ -156,7 +156,7 @@ func wait(waitChan <-chan struct{}, timeout time.Duration) error {
 
 // WaitStop waits until state is stopped. If state already stopped it returns
 // immediately. If you want wait forever you must supply negative timeout.
-// Returns exit code, that was passed to SetStoppedLocking
+// Returns exit code, that was passed to SetStopped
 func (s *State) WaitStop(timeout time.Duration) (int, error) {
 	s.Lock()
 	if !s.Running {
@@ -243,13 +243,6 @@ func (s *State) SetRunning(pid int, initial bool) {
 	}
 }
 
-// SetStoppedLocking locks the container state and sets it to "stopped".
-func (s *State) SetStoppedLocking(exitStatus *ExitStatus) {
-	s.Lock()
-	s.SetStopped(exitStatus)
-	s.Unlock()
-}
-
 // SetStopped sets the container state to "stopped" without locking.
 func (s *State) SetStopped(exitStatus *ExitStatus) {
 	s.Running = false
@@ -262,15 +255,7 @@ func (s *State) SetStopped(exitStatus *ExitStatus) {
 	s.waitChan = make(chan struct{})
 }
 
-// SetRestartingLocking is when docker handles the auto restart of containers when they are
-// in the middle of a stop and being restarted again
-func (s *State) SetRestartingLocking(exitStatus *ExitStatus) {
-	s.Lock()
-	s.SetRestarting(exitStatus)
-	s.Unlock()
-}
-
-// SetRestarting sets the container state to "restarting".
+// SetRestarting sets the container state to "restarting" without locking.
 // It also sets the container PID to 0.
 func (s *State) SetRestarting(exitStatus *ExitStatus) {
 	// we should consider the container running when it is restarting because of
