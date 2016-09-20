@@ -28,16 +28,6 @@ Special status labels:
  * `status/failing-ci`: indicates that the PR in its current state fails the test suite
  * `status/needs-attention`: calls for a collective discussion during a review session
 
-### Specialty group labels
-
-Those labels are used to raise awareness of a particular specialty group, either because we need
-help in reviewing the PR, or because of the potential impact of the PR on their work:
-
- * `group/distribution`
- * `group/networking`
- * `group/security`
- * `group/windows`
-
 ### Impact labels (apply to merged pull requests)
 
  * `impact/api`
@@ -207,3 +197,24 @@ review session. The goal of that session is to agree on one of the following out
  * Escalate to Solomon by formulating a few specific questions on which his answers will allow
    maintainers to decide.
 
+## Milestones
+
+Typically, every merged pull request get shipped naturally with the next release cut from the
+`master` branch (either the next minor or major version, as indicated by the
+[`VERSION`](https://github.com/docker/docker/blob/master/VERSION) file at the root of the
+repository). However, the time-based nature of the release process provides no guarantee that a
+given pull request will get merged in time. In other words, all open pull requests are implicitly
+considered part of the next minor or major release milestone, and this won't be materialized on
+GitHub.
+
+A merged pull request must be attached to the milestone corresponding to the release in which it
+will be shipped: this is both useful for tracking, and to help the release manager with the
+changelog generation.
+
+An open pull request may exceptionally get attached to a milestone to express a particular intent to
+get it merged in time for that release. This may for example be the case for an important feature to
+be included in a minor release, or a critical bugfix to be included in a patch release.
+
+Finally, and as documented by the [`PATCH-RELEASES.md`](PATCH-RELEASES.md) process, the existence of
+a milestone is not a guarantee that a release will happen, as some milestones will be created purely
+for the purpose of bookkeeping
