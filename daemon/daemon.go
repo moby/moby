@@ -100,6 +100,7 @@ type Daemon struct {
 	containerdRemote          libcontainerd.Remote
 	defaultIsolation          containertypes.Isolation // Default isolation mode on Windows
 	clusterProvider           cluster.Provider
+	loggers                   *loggerStore
 }
 
 func (daemon *Daemon) restore() error {
@@ -655,6 +656,7 @@ func NewDaemon(config *Config, registryService registry.Service, containerdRemot
 	d.nameIndex = registrar.NewRegistrar()
 	d.linkIndex = newLinkIndex()
 	d.containerdRemote = containerdRemote
+	d.loggers = newLoggerStore()
 
 	go d.execCommandGC()
 

@@ -85,11 +85,8 @@ type CommonContainer struct {
 	MountPoints            map[string]*volume.MountPoint
 	HostConfig             *containertypes.HostConfig `json:"-"` // do not serialize the host config in the json, otherwise we'll make the container unportable
 	ExecCommands           *exec.Store                `json:"-"`
-	// logDriver for closing
-	LogDriver      logger.Logger  `json:"-"`
-	LogCopier      *logger.Copier `json:"-"`
-	restartManager restartmanager.RestartManager
-	attachContext  *attachContext
+	restartManager         restartmanager.RestartManager
+	attachContext          *attachContext
 }
 
 // NewBaseContainer creates a new container with its
