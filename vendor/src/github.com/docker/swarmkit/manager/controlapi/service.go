@@ -5,7 +5,7 @@ import (
 	"reflect"
 	"strconv"
 
-	"github.com/docker/engine-api/types/reference"
+	"github.com/docker/distribution/reference"
 	"github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/identity"
 	"github.com/docker/swarmkit/manager/scheduler"
@@ -133,7 +133,7 @@ func validateTask(taskSpec api.TaskSpec) error {
 		return grpc.Errorf(codes.InvalidArgument, "ContainerSpec: image reference must be provided")
 	}
 
-	if _, _, err := reference.Parse(container.Image); err != nil {
+	if _, err := reference.ParseNamed(container.Image); err != nil {
 		return grpc.Errorf(codes.InvalidArgument, "ContainerSpec: %q is not a valid repository/tag", container.Image)
 	}
 	return nil
@@ -149,13 +149,13 @@ func validateEndpointSpec(epSpec *api.EndpointSpec) error {
 		return grpc.Errorf(codes.InvalidArgument, "EndpointSpec: ports can't be used with dnsrr mode")
 	}
 
-	portSet := make(map[api.PortConfig]struct{})
+	portSet := make(map[uint32]struct{})
 	for _, port := range epSpec.Ports {
-		if _, ok := portSet[*port]; ok {
-			return grpc.Errorf(codes.InvalidArgument, "EndpointSpec: duplicate ports provided")
+		if _, ok := portSet[port.PublishedPort]; ok {
+			return grpc.Errorf(codes.InvalidArgument, "EndpointSpec: duplicate published ports provided")
 		}
 
-		portSet[*port] = struct{}{}
+		portSet[port.PublishedPort] = struct{}{}
 	}
 
 	return nil
@@ -350,6 +350,7 @@ func (s *Server) UpdateService(ctx context.Context, request *api.UpdateServiceRe
 			return errModeChangeNotAllowed
 		}
 		service.Meta.Version = *request.ServiceVersion
+		service.PreviousSpec = service.Spec.Copy()
 		service.Spec = *request.Spec.Copy()
 
 		// Reset update status

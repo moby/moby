@@ -21,10 +21,11 @@ import (
 	grpc "google.golang.org/grpc"
 )
 
-import raftpicker "github.com/docker/swarmkit/manager/raftpicker"
+import raftselector "github.com/docker/swarmkit/manager/raftselector"
 import codes "google.golang.org/grpc/codes"
 import metadata "google.golang.org/grpc/metadata"
 import transport "google.golang.org/grpc/transport"
+import time "time"
 
 import io "io"
 
@@ -285,11 +286,12 @@ func valueToGoStringCa(v interface{}, typ string) string {
 	pv := reflect.Indirect(rv).Interface()
 	return fmt.Sprintf("func(v %v) *%v { return &v } ( %#v )", typ, typ, pv)
 }
-func extensionToGoStringCa(e map[int32]github_com_gogo_protobuf_proto.Extension) string {
+func extensionToGoStringCa(m github_com_gogo_protobuf_proto.Message) string {
+	e := github_com_gogo_protobuf_proto.GetUnsafeExtensionsMap(m)
 	if e == nil {
 		return "nil"
 	}
-	s := "map[int32]proto.Extension{"
+	s := "proto.NewUnsafeXXX_InternalExtensions(map[int32]proto.Extension{"
 	keys := make([]int, 0, len(e))
 	for k := range e {
 		keys = append(keys, int(k))
@@ -299,7 +301,7 @@ func extensionToGoStringCa(e map[int32]github_com_gogo_protobuf_proto.Extension)
 	for _, k := range keys {
 		ss = append(ss, strconv.Itoa(k)+": "+e[int32(k)].GoString())
 	}
-	s += strings.Join(ss, ",") + "}"
+	s += strings.Join(ss, ",") + "})"
 	return s
 }
 
@@ -309,7 +311,7 @@ var _ grpc.ClientConn
 
 // This is a compile-time assertion to ensure that this generated file
 // is compatible with the grpc package it is being compiled against.
-const _ = grpc.SupportPackageIsVersion2
+const _ = grpc.SupportPackageIsVersion3
 
 // Client API for CA service
 
@@ -371,7 +373,8 @@ var _CA_serviceDesc = grpc.ServiceDesc{
 			Handler:    _CA_GetRootCACertificate_Handler,
 		},
 	},
-	Streams: []grpc.StreamDesc{},
+	Streams:  []grpc.StreamDesc{},
+	Metadata: fileDescriptorCa,
 }
 
 // Client API for NodeCA service
@@ -467,7 +470,8 @@ var _NodeCA_serviceDesc = grpc.ServiceDesc{
 			Handler:    _NodeCA_NodeCertificateStatus_Handler,
 		},
 	},
-	Streams: []grpc.StreamDesc{},
+	Streams:  []grpc.StreamDesc{},
+	Metadata: fileDescriptorCa,
 }
 
 func (m *NodeCertificateStatusRequest) Marshal() (data []byte, err error) {
@@ -668,12 +672,11 @@ func encodeVarintCa(data []byte, offset int, v uint64) int {
 
 type raftProxyCAServer struct {
 	local        CAServer
-	connSelector raftpicker.Interface
-	cluster      raftpicker.RaftCluster
+	connSelector raftselector.ConnProvider
 	ctxMods      []func(context.Context) (context.Context, error)
 }
 
-func NewRaftProxyCAServer(local CAServer, connSelector raftpicker.Interface, cluster raftpicker.RaftCluster, ctxMod func(context.Context) (context.Context, error)) CAServer {
+func NewRaftProxyCAServer(local CAServer, connSelector raftselector.ConnProvider, ctxMod func(context.Context) (context.Context, error)) CAServer {
 	redirectChecker := func(ctx context.Context) (context.Context, error) {
 		s, ok := transport.StreamFromContext(ctx)
 		if !ok {
@@ -695,7 +698,6 @@ func NewRaftProxyCAServer(local CAServer, connSelector raftpicker.Interface, clu
 
 	return &raftProxyCAServer{
 		local:        local,
-		cluster:      cluster,
 		connSelector: connSelector,
 		ctxMods:      mods,
 	}
@@ -710,44 +712,68 @@ func (p *raftProxyCAServer) runCtxMods(ctx context.Context) (context.Context, er
 	}
 	return ctx, nil
 }
+func (p *raftProxyCAServer) pollNewLeaderConn(ctx context.Context) (*grpc.ClientConn, error) {
+	ticker := time.NewTicker(500 * time.Millisecond)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ticker.C:
+			conn, err := p.connSelector.LeaderConn(ctx)
+			if err != nil {
+				return nil, err
+			}
+
+			client := NewHealthClient(conn)
+
+			resp, err := client.Check(ctx, &HealthCheckRequest{Service: "Raft"})
+			if err != nil || resp.Status != HealthCheckResponse_SERVING {
+				continue
+			}
+			return conn, nil
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		}
+	}
+}
 
 func (p *raftProxyCAServer) GetRootCACertificate(ctx context.Context, r *GetRootCACertificateRequest) (*GetRootCACertificateResponse, error) {
 
-	if p.cluster.IsLeader() {
-		return p.local.GetRootCACertificate(ctx, r)
-	}
-	ctx, err := p.runCtxMods(ctx)
+	conn, err := p.connSelector.LeaderConn(ctx)
 	if err != nil {
-		return nil, err
-	}
-	conn, err := p.connSelector.Conn()
-	if err != nil {
-		return nil, err
-	}
-
-	defer func() {
-		if err != nil {
-			errStr := err.Error()
-			if strings.Contains(errStr, grpc.ErrClientConnClosing.Error()) ||
-				strings.Contains(errStr, grpc.ErrClientConnTimeout.Error()) ||
-				strings.Contains(errStr, "connection error") ||
-				grpc.Code(err) == codes.Internal {
-				p.connSelector.Reset()
-			}
+		if err == raftselector.ErrIsLeader {
+			return p.local.GetRootCACertificate(ctx, r)
 		}
-	}()
+		return nil, err
+	}
+	modCtx, err := p.runCtxMods(ctx)
+	if err != nil {
+		return nil, err
+	}
 
-	return NewCAClient(conn).GetRootCACertificate(ctx, r)
+	resp, err := NewCAClient(conn).GetRootCACertificate(modCtx, r)
+	if err != nil {
+		if !strings.Contains(err.Error(), "is closing") && !strings.Contains(err.Error(), "the connection is unavailable") && !strings.Contains(err.Error(), "connection error") {
+			return resp, err
+		}
+		conn, err := p.pollNewLeaderConn(ctx)
+		if err != nil {
+			if err == raftselector.ErrIsLeader {
+				return p.local.GetRootCACertificate(ctx, r)
+			}
+			return nil, err
+		}
+		return NewCAClient(conn).GetRootCACertificate(modCtx, r)
+	}
+	return resp, err
 }
 
 type raftProxyNodeCAServer struct {
 	local        NodeCAServer
-	connSelector raftpicker.Interface
-	cluster      raftpicker.RaftCluster
+	connSelector raftselector.ConnProvider
 	ctxMods      []func(context.Context) (context.Context, error)
 }
 
-func NewRaftProxyNodeCAServer(local NodeCAServer, connSelector raftpicker.Interface, cluster raftpicker.RaftCluster, ctxMod func(context.Context) (context.Context, error)) NodeCAServer {
+func NewRaftProxyNodeCAServer(local NodeCAServer, connSelector raftselector.ConnProvider, ctxMod func(context.Context) (context.Context, error)) NodeCAServer {
 	redirectChecker := func(ctx context.Context) (context.Context, error) {
 		s, ok := transport.StreamFromContext(ctx)
 		if !ok {
@@ -769,7 +795,6 @@ func NewRaftProxyNodeCAServer(local NodeCAServer, connSelector raftpicker.Interf
 
 	return &raftProxyNodeCAServer{
 		local:        local,
-		cluster:      cluster,
 		connSelector: connSelector,
 		ctxMods:      mods,
 	}
@@ -784,63 +809,90 @@ func (p *raftProxyNodeCAServer) runCtxMods(ctx context.Context) (context.Context
 	}
 	return ctx, nil
 }
+func (p *raftProxyNodeCAServer) pollNewLeaderConn(ctx context.Context) (*grpc.ClientConn, error) {
+	ticker := time.NewTicker(500 * time.Millisecond)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ticker.C:
+			conn, err := p.connSelector.LeaderConn(ctx)
+			if err != nil {
+				return nil, err
+			}
+
+			client := NewHealthClient(conn)
+
+			resp, err := client.Check(ctx, &HealthCheckRequest{Service: "Raft"})
+			if err != nil || resp.Status != HealthCheckResponse_SERVING {
+				continue
+			}
+			return conn, nil
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		}
+	}
+}
 
 func (p *raftProxyNodeCAServer) IssueNodeCertificate(ctx context.Context, r *IssueNodeCertificateRequest) (*IssueNodeCertificateResponse, error) {
 
-	if p.cluster.IsLeader() {
-		return p.local.IssueNodeCertificate(ctx, r)
-	}
-	ctx, err := p.runCtxMods(ctx)
+	conn, err := p.connSelector.LeaderConn(ctx)
 	if err != nil {
-		return nil, err
-	}
-	conn, err := p.connSelector.Conn()
-	if err != nil {
-		return nil, err
-	}
-
-	defer func() {
-		if err != nil {
-			errStr := err.Error()
-			if strings.Contains(errStr, grpc.ErrClientConnClosing.Error()) ||
-				strings.Contains(errStr, grpc.ErrClientConnTimeout.Error()) ||
-				strings.Contains(errStr, "connection error") ||
-				grpc.Code(err) == codes.Internal {
-				p.connSelector.Reset()
-			}
+		if err == raftselector.ErrIsLeader {
+			return p.local.IssueNodeCertificate(ctx, r)
 		}
-	}()
+		return nil, err
+	}
+	modCtx, err := p.runCtxMods(ctx)
+	if err != nil {
+		return nil, err
+	}
 
-	return NewNodeCAClient(conn).IssueNodeCertificate(ctx, r)
+	resp, err := NewNodeCAClient(conn).IssueNodeCertificate(modCtx, r)
+	if err != nil {
+		if !strings.Contains(err.Error(), "is closing") && !strings.Contains(err.Error(), "the connection is unavailable") && !strings.Contains(err.Error(), "connection error") {
+			return resp, err
+		}
+		conn, err := p.pollNewLeaderConn(ctx)
+		if err != nil {
+			if err == raftselector.ErrIsLeader {
+				return p.local.IssueNodeCertificate(ctx, r)
+			}
+			return nil, err
+		}
+		return NewNodeCAClient(conn).IssueNodeCertificate(modCtx, r)
+	}
+	return resp, err
 }
 
 func (p *raftProxyNodeCAServer) NodeCertificateStatus(ctx context.Context, r *NodeCertificateStatusRequest) (*NodeCertificateStatusResponse, error) {
 
-	if p.cluster.IsLeader() {
-		return p.local.NodeCertificateStatus(ctx, r)
-	}
-	ctx, err := p.runCtxMods(ctx)
+	conn, err := p.connSelector.LeaderConn(ctx)
 	if err != nil {
-		return nil, err
-	}
-	conn, err := p.connSelector.Conn()
-	if err != nil {
-		return nil, err
-	}
-
-	defer func() {
-		if err != nil {
-			errStr := err.Error()
-			if strings.Contains(errStr, grpc.ErrClientConnClosing.Error()) ||
-				strings.Contains(errStr, grpc.ErrClientConnTimeout.Error()) ||
-				strings.Contains(errStr, "connection error") ||
-				grpc.Code(err) == codes.Internal {
-				p.connSelector.Reset()
-			}
+		if err == raftselector.ErrIsLeader {
+			return p.local.NodeCertificateStatus(ctx, r)
 		}
-	}()
+		return nil, err
+	}
+	modCtx, err := p.runCtxMods(ctx)
+	if err != nil {
+		return nil, err
+	}
 
-	return NewNodeCAClient(conn).NodeCertificateStatus(ctx, r)
+	resp, err := NewNodeCAClient(conn).NodeCertificateStatus(modCtx, r)
+	if err != nil {
+		if !strings.Contains(err.Error(), "is closing") && !strings.Contains(err.Error(), "the connection is unavailable") && !strings.Contains(err.Error(), "connection error") {
+			return resp, err
+		}
+		conn, err := p.pollNewLeaderConn(ctx)
+		if err != nil {
+			if err == raftselector.ErrIsLeader {
+				return p.local.NodeCertificateStatus(ctx, r)
+			}
+			return nil, err
+		}
+		return NewNodeCAClient(conn).NodeCertificateStatus(modCtx, r)
+	}
+	return resp, err
 }
 
 func (m *NodeCertificateStatusRequest) Size() (n int) {
@@ -1654,6 +1706,8 @@ var (
 	ErrInvalidLengthCa = fmt.Errorf("proto: negative length found during unmarshaling")
 	ErrIntOverflowCa   = fmt.Errorf("proto: integer overflow")
 )
+
+func init() { proto.RegisterFile("ca.proto", fileDescriptorCa) }
 
 var fileDescriptorCa = []byte{
 	// 493 bytes of a gzipped FileDescriptorProto

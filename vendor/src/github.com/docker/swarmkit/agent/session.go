@@ -2,8 +2,10 @@ package agent
 
 import (
 	"errors"
+	"sync"
 	"time"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/log"
 	"github.com/docker/swarmkit/protobuf/ptypes"
@@ -31,26 +33,27 @@ type session struct {
 	conn *grpc.ClientConn
 	addr string
 
-	agent     *Agent
-	sessionID string
-	session   api.Dispatcher_SessionClient
-	errs      chan error
-	messages  chan *api.SessionMessage
-	tasks     chan *api.TasksMessage
+	agent       *Agent
+	sessionID   string
+	session     api.Dispatcher_SessionClient
+	errs        chan error
+	messages    chan *api.SessionMessage
+	assignments chan *api.AssignmentsMessage
 
 	registered chan struct{} // closed registration
 	closed     chan struct{}
+	closeOnce  sync.Once
 }
 
-func newSession(ctx context.Context, agent *Agent, delay time.Duration, sessionID string) *session {
+func newSession(ctx context.Context, agent *Agent, delay time.Duration, sessionID string, description *api.NodeDescription) *session {
 	s := &session{
-		agent:      agent,
-		sessionID:  sessionID,
-		errs:       make(chan error, 1),
-		messages:   make(chan *api.SessionMessage),
-		tasks:      make(chan *api.TasksMessage),
-		registered: make(chan struct{}),
-		closed:     make(chan struct{}),
+		agent:       agent,
+		sessionID:   sessionID,
+		errs:        make(chan error, 1),
+		messages:    make(chan *api.SessionMessage),
+		assignments: make(chan *api.AssignmentsMessage),
+		registered:  make(chan struct{}),
+		closed:      make(chan struct{}),
 	}
 	peer, err := agent.config.Managers.Select()
 	if err != nil {
@@ -68,14 +71,14 @@ func newSession(ctx context.Context, agent *Agent, delay time.Duration, sessionI
 	s.addr = peer.Addr
 	s.conn = cc
 
-	go s.run(ctx, delay)
+	go s.run(ctx, delay, description)
 	return s
 }
 
-func (s *session) run(ctx context.Context, delay time.Duration) {
+func (s *session) run(ctx context.Context, delay time.Duration, description *api.NodeDescription) {
 	time.Sleep(delay) // delay before registering.
 
-	if err := s.start(ctx); err != nil {
+	if err := s.start(ctx, description); err != nil {
 		select {
 		case s.errs <- err:
 		case <-s.closed:
@@ -94,24 +97,14 @@ func (s *session) run(ctx context.Context, delay time.Duration) {
 }
 
 // start begins the session and returns the first SessionMessage.
-func (s *session) start(ctx context.Context) error {
+func (s *session) start(ctx context.Context, description *api.NodeDescription) error {
 	log.G(ctx).Debugf("(*session).start")
-
-	description, err := s.agent.config.Executor.Describe(ctx)
-	if err != nil {
-		log.G(ctx).WithError(err).WithField("executor", s.agent.config.Executor).
-			Errorf("node description unavailable")
-		return err
-	}
-	// Override hostname
-	if s.agent.config.Hostname != "" {
-		description.Hostname = s.agent.config.Hostname
-	}
 
 	errChan := make(chan error, 1)
 	var (
 		msg    *api.SessionMessage
 		stream api.Dispatcher_SessionClient
+		err    error
 	)
 	// Note: we don't defer cancellation of this context, because the
 	// streaming RPC is used after this function returned. We only cancel
@@ -215,22 +208,68 @@ func (s *session) handleSessionMessage(ctx context.Context, msg *api.SessionMess
 }
 
 func (s *session) watch(ctx context.Context) error {
-	log.G(ctx).Debugf("(*session).watch")
-	client := api.NewDispatcherClient(s.conn)
-	watch, err := client.Tasks(ctx, &api.TasksRequest{
-		SessionID: s.sessionID})
-	if err != nil {
-		return err
-	}
+	log := log.G(ctx).WithFields(logrus.Fields{"method": "(*session).watch"})
+	log.Debugf("")
+	var (
+		resp            *api.AssignmentsMessage
+		assignmentWatch api.Dispatcher_AssignmentsClient
+		tasksWatch      api.Dispatcher_TasksClient
+		streamReference string
+		tasksFallback   bool
+		err             error
+	)
 
+	client := api.NewDispatcherClient(s.conn)
 	for {
-		resp, err := watch.Recv()
-		if err != nil {
-			return err
+		// If this is the first time we're running the loop, or there was a reference mismatch
+		// attempt to get the assignmentWatch
+		if assignmentWatch == nil && !tasksFallback {
+			assignmentWatch, err = client.Assignments(ctx, &api.AssignmentsRequest{SessionID: s.sessionID})
+			if err != nil {
+				return err
+			}
+		}
+		// We have an assignmentWatch, let's try to receive an AssignmentMessage
+		if assignmentWatch != nil {
+			// If we get a code = 12 desc = unknown method Assignments, try to use tasks
+			resp, err = assignmentWatch.Recv()
+			if err != nil {
+				if grpc.Code(err) != codes.Unimplemented {
+					return err
+				}
+				tasksFallback = true
+				assignmentWatch = nil
+				log.WithError(err).Infof("falling back to Tasks")
+			}
+		}
+
+		// This code is here for backwards compatibility (so that newer clients can use the
+		// older method Tasks)
+		if tasksWatch == nil && tasksFallback {
+			tasksWatch, err = client.Tasks(ctx, &api.TasksRequest{SessionID: s.sessionID})
+			if err != nil {
+				return err
+			}
+		}
+		if tasksWatch != nil {
+			var taskResp *api.TasksMessage
+			taskResp, err = tasksWatch.Recv()
+			if err != nil {
+				return err
+			}
+			resp = &api.AssignmentsMessage{Type: api.AssignmentsMessage_COMPLETE, UpdateTasks: taskResp.Tasks}
+		}
+
+		// If there seems to be a gap in the stream, let's break out of the inner for and
+		// re-sync (by calling Assignments again).
+		if streamReference != "" && streamReference != resp.AppliesTo {
+			assignmentWatch = nil
+		} else {
+			streamReference = resp.ResultsIn
 		}
 
 		select {
-		case s.tasks <- resp:
+		case s.assignments <- resp:
 		case <-s.closed:
 			return errSessionClosed
 		case <-ctx.Done():
@@ -241,7 +280,6 @@ func (s *session) watch(ctx context.Context) error {
 
 // sendTaskStatus uses the current session to send the status of a single task.
 func (s *session) sendTaskStatus(ctx context.Context, taskID string, status *api.TaskStatus) error {
-
 	client := api.NewDispatcherClient(s.conn)
 	if _, err := client.UpdateTaskStatus(ctx, &api.UpdateTaskStatusRequest{
 		SessionID: s.sessionID,
@@ -302,15 +340,14 @@ func (s *session) sendTaskStatuses(ctx context.Context, updates ...*api.UpdateTa
 }
 
 func (s *session) close() error {
-	select {
-	case <-s.closed:
-		return errSessionClosed
-	default:
+	s.closeOnce.Do(func() {
 		if s.conn != nil {
 			s.agent.config.Managers.ObserveIfExists(api.Peer{Addr: s.addr}, -remotes.DefaultObservationWeight)
 			s.conn.Close()
 		}
+
 		close(s.closed)
-		return nil
-	}
+	})
+
+	return nil
 }

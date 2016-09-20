@@ -346,7 +346,8 @@ func (r *RestartSupervisor) DelayStart(ctx context.Context, _ store.Tx, oldTask 
 			close(doneCh)
 		}()
 
-		oldTaskTimeout := time.After(r.taskTimeout)
+		oldTaskTimer := time.NewTimer(r.taskTimeout)
+		defer oldTaskTimer.Stop()
 
 		// Wait for the delay to elapse, if one is specified.
 		if delay != 0 {
@@ -357,10 +358,10 @@ func (r *RestartSupervisor) DelayStart(ctx context.Context, _ store.Tx, oldTask 
 			}
 		}
 
-		if waitStop {
+		if waitStop && oldTask != nil {
 			select {
 			case <-watch:
-			case <-oldTaskTimeout:
+			case <-oldTaskTimer.C:
 			case <-ctx.Done():
 				return
 			}

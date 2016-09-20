@@ -57,6 +57,10 @@ message Service {
 
 	ServiceSpec spec = 3 [(gogoproto.nullable) = false];
 
+	// PreviousSpec is the previous service spec that was in place before
+	// "Spec".
+	ServiceSpec previous_spec = 6;
+
 	// Runtime state of service endpoint. This may be different
 	// from the spec version because the user may not have entered
 	// the optional fields like node_port or virtual_ip and it

@@ -13,7 +13,7 @@ import (
 )
 
 // dial returns a grpc client connection
-func dial(addr string, protocol string, creds credentials.TransportAuthenticator, timeout time.Duration) (*grpc.ClientConn, error) {
+func dial(addr string, protocol string, creds credentials.TransportCredentials, timeout time.Duration) (*grpc.ClientConn, error) {
 	grpcOptions := []grpc.DialOption{
 		grpc.WithBackoffMaxDelay(2 * time.Second),
 		grpc.WithTransportCredentials(creds),

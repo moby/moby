@@ -102,7 +102,7 @@ clone git github.com/pborman/uuid v1.0
 # get desired notary commit, might also need to be updated in Dockerfile
 clone git github.com/docker/notary v0.3.0
 
-clone git google.golang.org/grpc ab0be5212fb225475f2087566eded7da5d727960 https://github.com/grpc/grpc-go.git
+clone git google.golang.org/grpc v1.0.1-GA https://github.com/grpc/grpc-go.git
 clone git github.com/miekg/pkcs11 df8ae6ca730422dba20c768ff38ef7d79077a59f
 clone git github.com/docker/go v1.5.1-1-1-gbaf439e
 clone git github.com/agl/ed25519 d2b94fd789ea21d12fac1a4443dd3a3f79cda72c
@@ -114,7 +114,7 @@ clone git github.com/seccomp/libseccomp-golang 32f571b70023028bd57d9288c20efbcb2
 clone git github.com/coreos/go-systemd v4
 clone git github.com/godbus/dbus v4.0.0
 clone git github.com/syndtr/gocapability 2c00daeb6c3b45114c80ac44119e7b8801fdd852
-clone git github.com/golang/protobuf 3c84672111d91bb5ac31719e112f9f7126a0e26e
+clone git github.com/golang/protobuf 1f49d83d9aa00e6ce4fc8258c71cc7786aec968a
 
 # gelf logging driver deps
 clone git github.com/Graylog2/go-gelf aab2f594e4585d43468ac57287b0dece9d806883
@@ -141,12 +141,12 @@ clone git google.golang.org/cloud dae7e3d993bc3812a2185af60552bb6b847e52a0 https
 clone git github.com/docker/docker-credential-helpers v0.3.0
 
 # containerd
-clone git github.com/docker/containerd 4c21ad662f71af56c0e6b29c0afef72df441d1ff
+clone git github.com/docker/containerd 2545227b0357eb55e369fa0072baef9ad91cdb69
 
 # cluster
-clone git github.com/docker/swarmkit 27fbaef4ceed648bb575969ccc9083a6e104a719
+clone git github.com/docker/swarmkit 191acc1bbdb13d8ea3b8059dda14a12f8c3903f2
 clone git github.com/golang/mock bd3c8e81be01eef76d4b503f5e687d2d1354d2d9
-clone git github.com/gogo/protobuf 43a2e0b1c32252bfbbdf81f7faa7a88fb3fa4028
+clone git github.com/gogo/protobuf v0.3
 clone git github.com/cloudflare/cfssl 7fb22c8cba7ecaf98e4082d22d65800cf45e042a
 clone git github.com/google/certificate-transparency 0f6e3d1d1ba4d03fdaab7cd716f36255c2e48341
 clone git golang.org/x/crypto 3fbbcd23f1cb824e69491a5930cfeff09b12f4d2 https://github.com/golang/crypto.git
