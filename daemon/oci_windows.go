@@ -71,8 +71,8 @@ func (daemon *Daemon) createSpec(c *container.Container) (*libcontainerd.Spec, e
 		s.Process.Cwd = `C:\`
 	}
 	s.Process.Env = c.CreateDaemonEnvironment(linkedEnv)
-	s.Process.ConsoleSize.Height = c.HostConfig.ConsoleSize.Height
-	s.Process.ConsoleSize.Width = c.HostConfig.ConsoleSize.Width
+	s.Process.ConsoleSize.Height = c.HostConfig.ConsoleSize[0]
+	s.Process.ConsoleSize.Width = c.HostConfig.ConsoleSize[1]
 	s.Process.Terminal = c.Config.Tty
 	s.Process.User.Username = c.Config.User
 
