@@ -8,7 +8,7 @@ bundle_test_integration_cli() {
 }
 
 # If $TESTFLAGS is set in the environment, it is passed as extra arguments to 'go test'.
-# You can use this to select certain tests to run, eg.
+# You can use this to select certain tests to run, e.g.
 #
 #     TESTFLAGS='-test.run ^TestBuild$' ./hack/make.sh test-unit
 #
