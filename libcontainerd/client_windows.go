@@ -224,11 +224,6 @@ func (clnt *client) AddProcess(ctx context.Context, containerID, processFriendly
 	}
 
 	pid := newProcess.Pid()
-	openedProcess, err := container.hcsContainer.OpenProcess(pid)
-	if err != nil {
-		logrus.Errorf("AddProcess %s OpenProcess() failed %s", containerID, err)
-		return err
-	}
 
 	stdin, stdout, stderr, err = newProcess.Stdio()
 	if err != nil {
@@ -255,7 +250,7 @@ func (clnt *client) AddProcess(ctx context.Context, containerID, processFriendly
 			systemPid:    uint32(pid),
 		},
 		commandLine: createProcessParms.CommandLine,
-		hcsProcess:  openedProcess,
+		hcsProcess:  newProcess,
 	}
 
 	// Add the process to the container's list of processes
