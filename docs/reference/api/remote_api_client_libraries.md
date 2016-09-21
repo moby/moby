@@ -51,11 +51,6 @@ with the library maintainers.
       <td><a class="reference external" href="https://github.com/bwu-dart/bwu_docker">https://github.com/bwu-dart/bwu_docker</a></td>
     </tr>
     <tr>
-      <td>Go</td>
-      <td>engine-api</td>
-      <td><a class="reference external" href="https://github.com/docker/engine-api">https://github.com/docker/engine-api</a></td>
-    </tr>
-    <tr>
       <td>Gradle</td>
       <td>gradle-docker-plugin</td>
       <td><a class="reference external" href="https://github.com/gesellix/gradle-docker-plugin">https://github.com/gesellix/gradle-docker-plugin</a></td>
