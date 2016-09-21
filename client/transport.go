@@ -21,7 +21,10 @@ func (tf transportFunc) RoundTrip(req *http.Request) (*http.Response, error) {
 func resolveTLSConfig(transport http.RoundTripper) (*tls.Config, error) {
 	switch tr := transport.(type) {
 	case *http.Transport:
-		return tr.TLSClientConfig, nil
+		if tr.DialTLS != nil {
+			return tr.TLSClientConfig, nil
+		}
+		return nil, nil
 	case transportFunc:
 		return nil, nil // detect this type for testing.
 	default:
