@@ -264,6 +264,9 @@ func (ctr *container) waitExit(process *process, isFirstProcessToStart bool) err
 	if err := ctr.client.backend.StateChanged(ctr.containerID, si); err != nil {
 		logrus.Error(err)
 	}
+
+	logrus.Debugf("libcontainerd: waitExit() completed OK, %+v", si)
+
 	if si.State == StateRestart {
 		go func() {
 			err := <-waitRestart
@@ -282,7 +285,6 @@ func (ctr *container) waitExit(process *process, isFirstProcessToStart bool) err
 		}()
 	}
 
-	logrus.Debugf("libcontainerd: waitExit() completed OK, %+v", si)
 	return nil
 }
 
