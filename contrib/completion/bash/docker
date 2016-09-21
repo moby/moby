@@ -2669,9 +2669,15 @@ _docker_start() {
 }
 
 _docker_stats() {
+	case "$prev" in
+		--format)
+			return
+			;;
+	esac
+
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "--all -a --help --no-stream" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "--all -a --format --help --no-stream" -- "$cur" ) )
 			;;
 		*)
 			__docker_complete_containers_running
