@@ -93,20 +93,10 @@ func (ctr *container) start() error {
 	ctr.startedAt = time.Now()
 
 	pid := newProcess.Pid()
-	openedProcess, err := ctr.hcsContainer.OpenProcess(pid)
-	if err != nil {
-		logrus.Errorf("OpenProcess() failed %s", err)
-		if err := ctr.terminate(); err != nil {
-			logrus.Errorf("Failed to cleanup after a failed OpenProcess. %s", err)
-		} else {
-			logrus.Debugln("Cleaned up after failed OpenProcess by calling Terminate")
-		}
-		return err
-	}
 
 	// Save the hcs Process and PID
 	ctr.process.friendlyName = InitFriendlyName
-	ctr.process.hcsProcess = openedProcess
+	ctr.process.hcsProcess = newProcess
 
 	// If this is a servicing container, wait on the process synchronously here and
 	// if it succeeds, wait for it cleanly shutdown and merge into the parent container.

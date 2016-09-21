@@ -47,6 +47,6 @@ func createStdInCloser(pipe io.WriteCloser, process hcsshim.Process) io.WriteClo
 			}
 		}
 
-		return process.Close()
+		return err
 	})
 }
