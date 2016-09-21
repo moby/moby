@@ -41,7 +41,13 @@ type NetworkDB struct {
 
 	// List of all peer nodes in the cluster not-limited to any
 	// network.
-	nodes map[string]*memberlist.Node
+	nodes map[string]*node
+
+	// List of all peer nodes which have failed
+	failedNodes map[string]*node
+
+	// List of all peer nodes which have left
+	leftNodes map[string]*node
 
 	// A multi-dimensional map of network/node attachmemts. The
 	// first key is a node name and the second key is a network ID
@@ -66,6 +72,9 @@ type NetworkDB struct {
 	// Broadcast queue for network event gossip.
 	networkBroadcasts *memberlist.TransmitLimitedQueue
 
+	// Broadcast queue for node event gossip.
+	nodeBroadcasts *memberlist.TransmitLimitedQueue
+
 	// A central stop channel to stop all go routines running on
 	// behalf of the NetworkDB instance.
 	stopCh chan struct{}
@@ -80,6 +89,11 @@ type NetworkDB struct {
 
 	// Reference to the memberlist's keyring to add & remove keys
 	keyring *memberlist.Keyring
+}
+
+type node struct {
+	memberlist.Node
+	ltime serf.LamportTime
 }
 
 // network describes the node/network attachment.
@@ -146,7 +160,9 @@ func New(c *Config) (*NetworkDB, error) {
 		config:         c,
 		indexes:        make(map[int]*radix.Tree),
 		networks:       make(map[string]map[string]*network),
-		nodes:          make(map[string]*memberlist.Node),
+		nodes:          make(map[string]*node),
+		failedNodes:    make(map[string]*node),
+		leftNodes:      make(map[string]*node),
 		networkNodes:   make(map[string][]string),
 		bulkSyncAckTbl: make(map[string]chan struct{}),
 		broadcaster:    events.NewBroadcaster(),
@@ -286,7 +302,7 @@ func (nDB *NetworkDB) DeleteEntry(tname, nid, key string) error {
 	return nil
 }
 
-func (nDB *NetworkDB) deleteNetworkNodeEntries(deletedNode string) {
+func (nDB *NetworkDB) deleteNetworkEntriesForNode(deletedNode string) {
 	nDB.Lock()
 	for nid, nodes := range nDB.networkNodes {
 		updatedNodes := make([]string, 0, len(nodes))
@@ -300,6 +316,8 @@ func (nDB *NetworkDB) deleteNetworkNodeEntries(deletedNode string) {
 
 		nDB.networkNodes[nid] = updatedNodes
 	}
+
+	delete(nDB.networks, deletedNode)
 	nDB.Unlock()
 }
 
@@ -389,7 +407,7 @@ func (nDB *NetworkDB) JoinNetwork(nid string) error {
 	}
 
 	logrus.Debugf("%s: joined network %s", nDB.config.NodeName, nid)
-	if _, err := nDB.bulkSync(nid, networkNodes, true); err != nil {
+	if _, err := nDB.bulkSync(networkNodes, true); err != nil {
 		logrus.Errorf("Error bulk syncing while joining network %s: %v", nid, err)
 	}
 
@@ -492,10 +510,41 @@ func (nDB *NetworkDB) findCommonNetworks(nodeName string) []string {
 
 	var networks []string
 	for nid := range nDB.networks[nDB.config.NodeName] {
-		if _, ok := nDB.networks[nodeName][nid]; ok {
-			networks = append(networks, nid)
+		if n, ok := nDB.networks[nodeName][nid]; ok {
+			if !n.leaving {
+				networks = append(networks, nid)
+			}
 		}
 	}
 
 	return networks
+}
+
+func (nDB *NetworkDB) updateLocalStateTime() {
+	nDB.Lock()
+	defer nDB.Unlock()
+
+	ltime := nDB.networkClock.Increment()
+	for _, n := range nDB.networks[nDB.config.NodeName] {
+		n.ltime = ltime
+	}
+
+	ltime = nDB.tableClock.Increment()
+	nDB.indexes[byTable].Walk(func(path string, v interface{}) bool {
+		entry := v.(*entry)
+		if entry.node != nDB.config.NodeName {
+			return false
+		}
+
+		params := strings.Split(path[1:], "/")
+		tname := params[0]
+		nid := params[1]
+		key := params[2]
+		entry.ltime = ltime
+
+		nDB.indexes[byTable].Insert(fmt.Sprintf("/%s/%s/%s", tname, nid, key), entry)
+		nDB.indexes[byNetwork].Insert(fmt.Sprintf("/%s/%s/%s", nid, tname, key), entry)
+
+		return false
+	})
 }

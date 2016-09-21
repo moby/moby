@@ -753,9 +753,11 @@ func (c *controller) reservePools() {
 				c.Gateway = n.ipamV4Info[i].Gateway.IP.String()
 			}
 		}
-		for i, c := range n.ipamV6Config {
-			if c.Gateway == "" && n.ipamV6Info[i].Gateway != nil {
-				c.Gateway = n.ipamV6Info[i].Gateway.IP.String()
+		if n.enableIPv6 {
+			for i, c := range n.ipamV6Config {
+				if c.Gateway == "" && n.ipamV6Info[i].Gateway != nil {
+					c.Gateway = n.ipamV6Info[i].Gateway.IP.String()
+				}
 			}
 		}
 		// Reserve pools
@@ -801,6 +803,8 @@ func (c *controller) addNetwork(n *network) error {
 	if err := d.CreateNetwork(n.id, n.generic, n, n.getIPData(4), n.getIPData(6)); err != nil {
 		return err
 	}
+
+	n.startResolver()
 
 	return nil
 }
@@ -920,6 +924,7 @@ func (c *controller) NewSandbox(containerID string, options ...SandboxOption) (s
 
 	if sb.ingress {
 		c.ingressSandbox = sb
+		sb.id = "ingress_sbox"
 	}
 	c.Unlock()
 	defer func() {

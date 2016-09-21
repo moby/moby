@@ -26,7 +26,7 @@ const (
 func (sb *sandbox) startResolver(restore bool) {
 	sb.resolverOnce.Do(func() {
 		var err error
-		sb.resolver = NewResolver(sb)
+		sb.resolver = NewResolver(resolverIPSandbox, true, sb.Key(), sb)
 		defer func() {
 			if err != nil {
 				sb.resolver = nil
@@ -46,7 +46,7 @@ func (sb *sandbox) startResolver(restore bool) {
 		}
 		sb.resolver.SetExtServers(sb.extDNS)
 
-		sb.osSbox.InvokeFunc(sb.resolver.SetupFunc())
+		sb.osSbox.InvokeFunc(sb.resolver.SetupFunc(0))
 		if err = sb.resolver.Start(); err != nil {
 			log.Errorf("Resolver Setup/Start failed for container %s, %q", sb.ContainerID(), err)
 		}
