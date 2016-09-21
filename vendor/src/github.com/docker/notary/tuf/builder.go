@@ -18,7 +18,7 @@ var ErrBuildDone = fmt.Errorf(
 	"the builder has finished building and cannot accept any more input or produce any more output")
 
 // ErrInvalidBuilderInput is returned when RepoBuilder.Load is called
-// with the wrong type of metadata for thes tate that it's in
+// with the wrong type of metadata for the state that it's in
 type ErrInvalidBuilderInput struct{ msg string }
 
 func (e ErrInvalidBuilderInput) Error() string {
@@ -59,8 +59,9 @@ type RepoBuilder interface {
 	Load(roleName string, content []byte, minVersion int, allowExpired bool) error
 	GenerateSnapshot(prev *data.SignedSnapshot) ([]byte, int, error)
 	GenerateTimestamp(prev *data.SignedTimestamp) ([]byte, int, error)
-	Finish() (*Repo, error)
+	Finish() (*Repo, *Repo, error)
 	BootstrapNewBuilder() RepoBuilder
+	BootstrapNewBuilderWithNewTrustpin(trustpin trustpinning.TrustPinConfig) RepoBuilder
 
 	// informative functions
 	IsLoaded(roleName string) bool
@@ -80,8 +81,11 @@ func (f finishedBuilder) GenerateSnapshot(prev *data.SignedSnapshot) ([]byte, in
 func (f finishedBuilder) GenerateTimestamp(prev *data.SignedTimestamp) ([]byte, int, error) {
 	return nil, 0, ErrBuildDone
 }
-func (f finishedBuilder) Finish() (*Repo, error)               { return nil, ErrBuildDone }
-func (f finishedBuilder) BootstrapNewBuilder() RepoBuilder     { return f }
+func (f finishedBuilder) Finish() (*Repo, *Repo, error)    { return nil, nil, ErrBuildDone }
+func (f finishedBuilder) BootstrapNewBuilder() RepoBuilder { return f }
+func (f finishedBuilder) BootstrapNewBuilderWithNewTrustpin(trustpin trustpinning.TrustPinConfig) RepoBuilder {
+	return f
+}
 func (f finishedBuilder) IsLoaded(roleName string) bool        { return false }
 func (f finishedBuilder) GetLoadedVersion(roleName string) int { return 0 }
 func (f finishedBuilder) GetConsistentInfo(roleName string) ConsistentInfo {
@@ -90,12 +94,21 @@ func (f finishedBuilder) GetConsistentInfo(roleName string) ConsistentInfo {
 
 // NewRepoBuilder is the only way to get a pre-built RepoBuilder
 func NewRepoBuilder(gun string, cs signed.CryptoService, trustpin trustpinning.TrustPinConfig) RepoBuilder {
-	return &repoBuilderWrapper{RepoBuilder: &repoBuilder{
-		repo:                 NewRepo(cs),
-		gun:                  gun,
-		trustpin:             trustpin,
-		loadedNotChecksummed: make(map[string][]byte),
-	}}
+	return NewBuilderFromRepo(gun, NewRepo(cs), trustpin)
+}
+
+// NewBuilderFromRepo allows us to bootstrap a builder given existing repo data.
+// YOU PROBABLY SHOULDN'T BE USING THIS OUTSIDE OF TESTING CODE!!!
+func NewBuilderFromRepo(gun string, repo *Repo, trustpin trustpinning.TrustPinConfig) RepoBuilder {
+	return &repoBuilderWrapper{
+		RepoBuilder: &repoBuilder{
+			repo:                 repo,
+			invalidRoles:         NewRepo(nil),
+			gun:                  gun,
+			trustpin:             trustpin,
+			loadedNotChecksummed: make(map[string][]byte),
+		},
+	}
 }
 
 // repoBuilderWrapper embeds a repoBuilder, but once Finish is called, swaps
@@ -104,7 +117,7 @@ type repoBuilderWrapper struct {
 	RepoBuilder
 }
 
-func (rbw *repoBuilderWrapper) Finish() (*Repo, error) {
+func (rbw *repoBuilderWrapper) Finish() (*Repo, *Repo, error) {
 	switch rbw.RepoBuilder.(type) {
 	case finishedBuilder:
 		return rbw.RepoBuilder.Finish()
@@ -117,7 +130,8 @@ func (rbw *repoBuilderWrapper) Finish() (*Repo, error) {
 
 // repoBuilder actually builds a tuf.Repo
 type repoBuilder struct {
-	repo *Repo
+	repo         *Repo
+	invalidRoles *Repo
 
 	// needed for root trust pininng verification
 	gun      string
@@ -136,16 +150,29 @@ type repoBuilder struct {
 	nextRootChecksum *data.FileMeta
 }
 
-func (rb *repoBuilder) Finish() (*Repo, error) {
-	return rb.repo, nil
+func (rb *repoBuilder) Finish() (*Repo, *Repo, error) {
+	return rb.repo, rb.invalidRoles, nil
 }
 
 func (rb *repoBuilder) BootstrapNewBuilder() RepoBuilder {
 	return &repoBuilderWrapper{RepoBuilder: &repoBuilder{
 		repo:                 NewRepo(rb.repo.cryptoService),
+		invalidRoles:         NewRepo(nil),
 		gun:                  rb.gun,
 		loadedNotChecksummed: make(map[string][]byte),
 		trustpin:             rb.trustpin,
+
+		prevRoot:                 rb.repo.Root,
+		bootstrappedRootChecksum: rb.nextRootChecksum,
+	}}
+}
+
+func (rb *repoBuilder) BootstrapNewBuilderWithNewTrustpin(trustpin trustpinning.TrustPinConfig) RepoBuilder {
+	return &repoBuilderWrapper{RepoBuilder: &repoBuilder{
+		repo:                 NewRepo(rb.repo.cryptoService),
+		gun:                  rb.gun,
+		loadedNotChecksummed: make(map[string][]byte),
+		trustpin:             trustpin,
 
 		prevRoot:                 rb.repo.Root,
 		bootstrappedRootChecksum: rb.nextRootChecksum,
@@ -338,7 +365,7 @@ func (rb *repoBuilder) GenerateTimestamp(prev *data.SignedTimestamp) ([]byte, in
 		return nil, 0, ErrInvalidBuilderInput{msg: "timestamp has already been loaded"}
 	}
 
-	// SignTimetamp always serializes the loaded snapshot and signs in the data, so we must always
+	// SignTimestamp always serializes the loaded snapshot and signs in the data, so we must always
 	// have the snapshot loaded first
 	if err := rb.checkPrereqsLoaded([]string{data.CanonicalRootRole, data.CanonicalSnapshotRole}); err != nil {
 		return nil, 0, err
@@ -411,7 +438,6 @@ func (rb *repoBuilder) loadRoot(content []byte, minVersion int, allowExpired boo
 	if err != nil { // this should never happen since the root has been validated
 		return err
 	}
-
 	rb.repo.Root = signedRoot
 	rb.repo.originalRootRole = rootRole
 	return nil
@@ -524,6 +550,7 @@ func (rb *repoBuilder) loadTargets(content []byte, minVersion int, allowExpired 
 		}
 	}
 
+	signedTargets.Signatures = signedObj.Signatures
 	rb.repo.Targets[roleName] = signedTargets
 	return nil
 }
@@ -534,7 +561,8 @@ func (rb *repoBuilder) loadDelegation(roleName string, content []byte, minVersio
 		return err
 	}
 
-	signedObj, err := rb.bytesToSignedAndValidateSigs(delegationRole.BaseRole, content)
+	// bytesToSigned checks checksum
+	signedObj, err := rb.bytesToSigned(content, roleName)
 	if err != nil {
 		return err
 	}
@@ -545,15 +573,24 @@ func (rb *repoBuilder) loadDelegation(roleName string, content []byte, minVersio
 	}
 
 	if err := signed.VerifyVersion(&(signedTargets.Signed.SignedCommon), minVersion); err != nil {
+		// don't capture in invalidRoles because the role we received is a rollback
+		return err
+	}
+
+	// verify signature
+	if err := signed.VerifySignatures(signedObj, delegationRole.BaseRole); err != nil {
+		rb.invalidRoles.Targets[roleName] = signedTargets
 		return err
 	}
 
 	if !allowExpired { // check must go at the end because all other validation should pass
 		if err := signed.VerifyExpiry(&(signedTargets.Signed.SignedCommon), roleName); err != nil {
+			rb.invalidRoles.Targets[roleName] = signedTargets
 			return err
 		}
 	}
 
+	signedTargets.Signatures = signedObj.Signatures
 	rb.repo.Targets[roleName] = signedTargets
 	return nil
 }

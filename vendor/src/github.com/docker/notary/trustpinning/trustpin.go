@@ -4,7 +4,6 @@ import (
 	"crypto/x509"
 	"fmt"
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/notary/trustmanager"
 	"github.com/docker/notary/tuf/utils"
 	"strings"
 )
@@ -28,25 +27,29 @@ type trustPinChecker struct {
 type CertChecker func(leafCert *x509.Certificate, intCerts []*x509.Certificate) bool
 
 // NewTrustPinChecker returns a new certChecker function from a TrustPinConfig for a GUN
-func NewTrustPinChecker(trustPinConfig TrustPinConfig, gun string) (CertChecker, error) {
+func NewTrustPinChecker(trustPinConfig TrustPinConfig, gun string, firstBootstrap bool) (CertChecker, error) {
 	t := trustPinChecker{gun: gun, config: trustPinConfig}
 	// Determine the mode, and if it's even valid
 	if pinnedCerts, ok := trustPinConfig.Certs[gun]; ok {
+		logrus.Debugf("trust-pinning using Cert IDs")
 		t.pinnedCertIDs = pinnedCerts
 		return t.certsCheck, nil
 	}
 
 	if caFilepath, err := getPinnedCAFilepathByPrefix(gun, trustPinConfig); err == nil {
+		logrus.Debugf("trust-pinning using root CA bundle at: %s", caFilepath)
+
 		// Try to add the CA certs from its bundle file to our certificate store,
 		// and use it to validate certs in the root.json later
-		caCerts, err := trustmanager.LoadCertBundleFromFile(caFilepath)
+		caCerts, err := utils.LoadCertBundleFromFile(caFilepath)
 		if err != nil {
 			return nil, fmt.Errorf("could not load root cert from CA path")
 		}
 		// Now only consider certificates that are direct children from this CA cert chain
 		caRootPool := x509.NewCertPool()
 		for _, caCert := range caCerts {
-			if err = trustmanager.ValidateCertificate(caCert); err != nil {
+			if err = utils.ValidateCertificate(caCert, true); err != nil {
+				logrus.Debugf("ignoring root CA certificate with CN %s in bundle: %s", caCert.Subject.CommonName, err)
 				continue
 			}
 			caRootPool.AddCert(caCert)
@@ -59,16 +62,18 @@ func NewTrustPinChecker(trustPinConfig TrustPinConfig, gun string) (CertChecker,
 		return t.caCheck, nil
 	}
 
-	if !trustPinConfig.DisableTOFU {
-		return t.tofusCheck, nil
+	// If TOFUs is disabled and we don't have any previous trusted root data for this GUN, we error out
+	if trustPinConfig.DisableTOFU && firstBootstrap {
+		return nil, fmt.Errorf("invalid trust pinning specified")
+
 	}
-	return nil, fmt.Errorf("invalid trust pinning specified")
+	return t.tofusCheck, nil
 }
 
 func (t trustPinChecker) certsCheck(leafCert *x509.Certificate, intCerts []*x509.Certificate) bool {
 	// reconstruct the leaf + intermediate cert chain, which is bundled as {leaf, intermediates...},
 	// in order to get the matching id in the root file
-	key, err := trustmanager.CertBundleToKey(leafCert, intCerts)
+	key, err := utils.CertBundleToKey(leafCert, intCerts)
 	if err != nil {
 		logrus.Debug("error creating cert bundle: ", err.Error())
 		return false
@@ -84,9 +89,11 @@ func (t trustPinChecker) caCheck(leafCert *x509.Certificate, intCerts []*x509.Ce
 	}
 	// Attempt to find a valid certificate chain from the leaf cert to CA root
 	// Use this certificate if such a valid chain exists (possibly using intermediates)
-	if _, err := leafCert.Verify(x509.VerifyOptions{Roots: t.pinnedCAPool, Intermediates: caIntPool}); err == nil {
+	var err error
+	if _, err = leafCert.Verify(x509.VerifyOptions{Roots: t.pinnedCAPool, Intermediates: caIntPool}); err == nil {
 		return true
 	}
+	logrus.Debugf("unable to find a valid certificate chain from leaf cert to CA root: %s", err)
 	return false
 }
 

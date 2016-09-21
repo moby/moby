@@ -5,12 +5,11 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/notary/trustmanager"
 	"github.com/docker/notary/tuf/data"
 	"github.com/docker/notary/tuf/signed"
+	"github.com/docker/notary/tuf/utils"
 )
 
 // ErrValidationFail is returned when there is no valid trusted certificates
@@ -98,18 +97,25 @@ func ValidateRoot(prevRoot *data.SignedRoot, root *data.Signed, gun string, trus
 	// Retrieve all the leaf and intermediate certificates in root for which the CN matches the GUN
 	allLeafCerts, allIntCerts := parseAllCerts(signedRoot)
 	certsFromRoot, err := validRootLeafCerts(allLeafCerts, gun, true)
+	validIntCerts := validRootIntCerts(allIntCerts)
 
 	if err != nil {
 		logrus.Debugf("error retrieving valid leaf certificates for: %s, %v", gun, err)
 		return nil, &ErrValidationFail{Reason: "unable to retrieve valid leaf certificates"}
 	}
 
+	logrus.Debugf("found %d leaf certs, of which %d are valid leaf certs for %s", len(allLeafCerts), len(certsFromRoot), gun)
+
 	// If we have a previous root, let's try to use it to validate that this new root is valid.
-	if prevRoot != nil {
+	havePrevRoot := prevRoot != nil
+	if havePrevRoot {
 		// Retrieve all the trusted certificates from our previous root
 		// Note that we do not validate expiries here since our originally trusted root might have expired certs
 		allTrustedLeafCerts, allTrustedIntCerts := parseAllCerts(prevRoot)
 		trustedLeafCerts, err := validRootLeafCerts(allTrustedLeafCerts, gun, false)
+		if err != nil {
+			return nil, &ErrValidationFail{Reason: "could not retrieve trusted certs from previous root role data"}
+		}
 
 		// Use the certificates we found in the previous root for the GUN to verify its signatures
 		// This could potentially be an empty set, in which case we will fail to verify
@@ -121,45 +127,52 @@ func ValidateRoot(prevRoot *data.SignedRoot, root *data.Signed, gun string, trus
 		if !ok {
 			return nil, &ErrValidationFail{Reason: "could not retrieve previous root role data"}
 		}
-
 		err = signed.VerifySignatures(
-			root, data.BaseRole{Keys: trustmanager.CertsToKeys(trustedLeafCerts, allTrustedIntCerts), Threshold: prevRootRoleData.Threshold})
+			root, data.BaseRole{Keys: utils.CertsToKeys(trustedLeafCerts, allTrustedIntCerts), Threshold: prevRootRoleData.Threshold})
 		if err != nil {
 			logrus.Debugf("failed to verify TUF data for: %s, %v", gun, err)
 			return nil, &ErrRootRotationFail{Reason: "failed to validate data with current trusted certificates"}
 		}
-	} else {
-		logrus.Debugf("found no currently valid root certificates for %s, using trust_pinning config to bootstrap trust", gun)
-		trustPinCheckFunc, err := NewTrustPinChecker(trustPinning, gun)
-		if err != nil {
-			return nil, &ErrValidationFail{Reason: err.Error()}
+		// Clear the IsValid marks we could have received from VerifySignatures
+		for i := range root.Signatures {
+			root.Signatures[i].IsValid = false
 		}
-
-		validPinnedCerts := map[string]*x509.Certificate{}
-		for id, cert := range certsFromRoot {
-			if ok := trustPinCheckFunc(cert, allIntCerts[id]); !ok {
-				continue
-			}
-			validPinnedCerts[id] = cert
-		}
-		if len(validPinnedCerts) == 0 {
-			return nil, &ErrValidationFail{Reason: "unable to match any certificates to trust_pinning config"}
-		}
-		certsFromRoot = validPinnedCerts
 	}
+
+	// Regardless of having a previous root or not, confirm that the new root validates against the trust pinning
+	logrus.Debugf("checking root against trust_pinning config", gun)
+	trustPinCheckFunc, err := NewTrustPinChecker(trustPinning, gun, !havePrevRoot)
+	if err != nil {
+		return nil, &ErrValidationFail{Reason: err.Error()}
+	}
+
+	validPinnedCerts := map[string]*x509.Certificate{}
+	for id, cert := range certsFromRoot {
+		logrus.Debugf("checking trust-pinning for cert: %s", id)
+		if ok := trustPinCheckFunc(cert, validIntCerts[id]); !ok {
+			logrus.Debugf("trust-pinning check failed for cert: %s", id)
+			continue
+		}
+		validPinnedCerts[id] = cert
+	}
+	if len(validPinnedCerts) == 0 {
+		return nil, &ErrValidationFail{Reason: "unable to match any certificates to trust_pinning config"}
+	}
+	certsFromRoot = validPinnedCerts
 
 	// Validate the integrity of the new root (does it have valid signatures)
 	// Note that certsFromRoot is guaranteed to be unchanged only if we had prior cert data for this GUN or enabled TOFUS
 	// If we attempted to pin a certain certificate or CA, certsFromRoot could have been pruned accordingly
 	err = signed.VerifySignatures(root, data.BaseRole{
-		Keys: trustmanager.CertsToKeys(certsFromRoot, allIntCerts), Threshold: rootRole.Threshold})
+		Keys: utils.CertsToKeys(certsFromRoot, validIntCerts), Threshold: rootRole.Threshold})
 	if err != nil {
 		logrus.Debugf("failed to verify TUF data for: %s, %v", gun, err)
 		return nil, &ErrValidationFail{Reason: "failed to validate integrity of roots"}
 	}
 
-	logrus.Debugf("Root validation succeeded for %s", gun)
-	return signedRoot, nil
+	logrus.Debugf("root validation succeeded for %s", gun)
+	// Call RootFromSigned to make sure we pick up on the IsValid markings from VerifySignatures
+	return data.RootFromSigned(root)
 }
 
 // validRootLeafCerts returns a list of possibly (if checkExpiry is true) non-expired, non-sha1 certificates
@@ -177,17 +190,9 @@ func validRootLeafCerts(allLeafCerts map[string]*x509.Certificate, gun string, c
 			continue
 		}
 		// Make sure the certificate is not expired if checkExpiry is true
-		if checkExpiry && time.Now().After(cert.NotAfter) {
-			logrus.Debugf("error leaf certificate is expired")
-			continue
-		}
-
-		// We don't allow root certificates that use SHA1
-		if cert.SignatureAlgorithm == x509.SHA1WithRSA ||
-			cert.SignatureAlgorithm == x509.DSAWithSHA1 ||
-			cert.SignatureAlgorithm == x509.ECDSAWithSHA1 {
-
-			logrus.Debugf("error certificate uses deprecated hashing algorithm (SHA1)")
+		// and warn if it hasn't expired yet but is within 6 months of expiry
+		if err := utils.ValidateCertificate(cert, checkExpiry); err != nil {
+			logrus.Debugf("%s is invalid: %s", id, err.Error())
 			continue
 		}
 
@@ -202,6 +207,24 @@ func validRootLeafCerts(allLeafCerts map[string]*x509.Certificate, gun string, c
 	logrus.Debugf("found %d valid leaf certificates for %s: %s", len(validLeafCerts), gun,
 		prettyFormatCertIDs(validLeafCerts))
 	return validLeafCerts, nil
+}
+
+// validRootIntCerts filters the passed in structure of intermediate certificates to only include non-expired, non-sha1 certificates
+// Note that this "validity" alone does not imply any measure of trust.
+func validRootIntCerts(allIntCerts map[string][]*x509.Certificate) map[string][]*x509.Certificate {
+	validIntCerts := make(map[string][]*x509.Certificate)
+
+	// Go through every leaf cert ID, and build its valid intermediate certificate list
+	for leafID, intCertList := range allIntCerts {
+		for _, intCert := range intCertList {
+			if err := utils.ValidateCertificate(intCert, true); err != nil {
+				continue
+			}
+			validIntCerts[leafID] = append(validIntCerts[leafID], intCert)
+		}
+
+	}
+	return validIntCerts
 }
 
 // parseAllCerts returns two maps, one with all of the leafCertificates and one
@@ -233,14 +256,14 @@ func parseAllCerts(signedRoot *data.SignedRoot) (map[string]*x509.Certificate, m
 
 		// Decode all the x509 certificates that were bundled with this
 		// Specific root key
-		decodedCerts, err := trustmanager.LoadCertBundleFromPEM(key.Public())
+		decodedCerts, err := utils.LoadCertBundleFromPEM(key.Public())
 		if err != nil {
 			logrus.Debugf("error while parsing root certificate with keyID: %s, %v", keyID, err)
 			continue
 		}
 
 		// Get all non-CA certificates in the decoded certificates
-		leafCertList := trustmanager.GetLeafCerts(decodedCerts)
+		leafCertList := utils.GetLeafCerts(decodedCerts)
 
 		// If we got no leaf certificates or we got more than one, fail
 		if len(leafCertList) != 1 {
@@ -260,7 +283,7 @@ func parseAllCerts(signedRoot *data.SignedRoot) (map[string]*x509.Certificate, m
 		leafCerts[key.ID()] = leafCert
 
 		// Get all the remainder certificates marked as a CA to be used as intermediates
-		intermediateCerts := trustmanager.GetIntermediateCerts(decodedCerts)
+		intermediateCerts := utils.GetIntermediateCerts(decodedCerts)
 		intCerts[key.ID()] = intermediateCerts
 	}
 

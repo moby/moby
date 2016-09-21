@@ -77,11 +77,10 @@ type Repo struct {
 // If the Repo will only be used for reading, the CryptoService
 // can be nil.
 func NewRepo(cryptoService signed.CryptoService) *Repo {
-	repo := &Repo{
+	return &Repo{
 		Targets:       make(map[string]*data.SignedTargets),
 		cryptoService: cryptoService,
 	}
-	return repo
 }
 
 // AddBaseKeys is used to add keys to the role in root.json
@@ -245,6 +244,21 @@ func (tr *Repo) GetDelegationRole(name string) (data.DelegationRole, error) {
 				if err != nil {
 					return err
 				}
+				// Check all public key certificates in the role for expiry
+				// Currently we do not reject expired delegation keys but warn if they might expire soon or have already
+				for keyID, pubKey := range delgRole.Keys {
+					certFromKey, err := utils.LoadCertFromPEM(pubKey.Public())
+					if err != nil {
+						continue
+					}
+					if err := utils.ValidateCertificate(certFromKey, true); err != nil {
+						if _, ok := err.(data.ErrCertExpired); !ok {
+							// do not allow other invalid cert errors
+							return err
+						}
+						logrus.Warnf("error with delegation %s key ID %d: %s", delgRole.Name, keyID, err)
+					}
+				}
 				foundRole = &delgRole
 				return StopWalk{}
 			}
@@ -325,17 +339,16 @@ func delegationUpdateVisitor(roleName string, addKeys data.KeyList, removeKeys, 
 				break
 			}
 		}
-		// We didn't find the role earlier, so create it only if we have keys to add
+		// We didn't find the role earlier, so create it.
+		if addKeys == nil {
+			addKeys = data.KeyList{} // initialize to empty list if necessary so calling .IDs() below won't panic
+		}
 		if delgRole == nil {
-			if len(addKeys) > 0 {
-				delgRole, err = data.NewRole(roleName, newThreshold, addKeys.IDs(), addPaths)
-				if err != nil {
-					return err
-				}
-			} else {
-				// If we can't find the role and didn't specify keys to add, this is an error
-				return data.ErrInvalidRole{Role: roleName, Reason: "cannot create new delegation without keys"}
+			delgRole, err = data.NewRole(roleName, newThreshold, addKeys.IDs(), addPaths)
+			if err != nil {
+				return err
 			}
+
 		}
 		// Add the key IDs to the role and the keys themselves to the parent
 		for _, k := range addKeys {
@@ -345,7 +358,7 @@ func delegationUpdateVisitor(roleName string, addKeys data.KeyList, removeKeys, 
 		}
 		// Make sure we have a valid role still
 		if len(delgRole.KeyIDs) < delgRole.Threshold {
-			return data.ErrInvalidRole{Role: roleName, Reason: "insufficient keys to meet threshold"}
+			logrus.Warnf("role %s has fewer keys than its threshold of %d; it will not be usable until keys are added to it", delgRole.Name, delgRole.Threshold)
 		}
 		// NOTE: this closure CANNOT error after this point, as we've committed to editing the SignedTargets metadata in the repo object.
 		// Any errors related to updating this delegation must occur before this point.
@@ -392,11 +405,77 @@ func (tr *Repo) UpdateDelegationKeys(roleName string, addKeys data.KeyList, remo
 	// Walk to the parent of this delegation, since that is where its role metadata exists
 	// We do not have to verify that the walker reached its desired role in this scenario
 	// since we've already done another walk to the parent role in VerifyCanSign, and potentially made a targets file
-	err := tr.WalkTargets("", parent, delegationUpdateVisitor(roleName, addKeys, removeKeys, []string{}, []string{}, false, newThreshold))
-	if err != nil {
-		return err
+	return tr.WalkTargets("", parent, delegationUpdateVisitor(roleName, addKeys, removeKeys, []string{}, []string{}, false, newThreshold))
+}
+
+// PurgeDelegationKeys removes the provided canonical key IDs from all delegations
+// present in the subtree rooted at role. The role argument must be provided in a wildcard
+// format, i.e. targets/* would remove the key from all delegations in the repo
+func (tr *Repo) PurgeDelegationKeys(role string, removeKeys []string) error {
+	if !data.IsWildDelegation(role) {
+		return data.ErrInvalidRole{
+			Role:   role,
+			Reason: "only wildcard roles can be used in a purge",
+		}
 	}
-	return nil
+
+	removeIDs := make(map[string]struct{})
+	for _, id := range removeKeys {
+		removeIDs[id] = struct{}{}
+	}
+
+	start := path.Dir(role)
+	tufIDToCanon := make(map[string]string)
+
+	purgeKeys := func(tgt *data.SignedTargets, validRole data.DelegationRole) interface{} {
+		var (
+			deleteCandidates []string
+			err              error
+		)
+		for id, key := range tgt.Signed.Delegations.Keys {
+			var (
+				canonID string
+				ok      bool
+			)
+			if canonID, ok = tufIDToCanon[id]; !ok {
+				canonID, err = utils.CanonicalKeyID(key)
+				if err != nil {
+					return err
+				}
+				tufIDToCanon[id] = canonID
+			}
+			if _, ok := removeIDs[canonID]; ok {
+				deleteCandidates = append(deleteCandidates, id)
+			}
+		}
+		if len(deleteCandidates) == 0 {
+			// none of the interesting keys were present. We're done with this role
+			return nil
+		}
+		// now we know there are changes, check if we'll be able to sign them in
+		if err := tr.VerifyCanSign(validRole.Name); err != nil {
+			logrus.Warnf(
+				"role %s contains keys being purged but you do not have the necessary keys present to sign it; keys will not be purged from %s or its immediate children",
+				validRole.Name,
+				validRole.Name,
+			)
+			return nil
+		}
+		// we know we can sign in the changes, delete the keys
+		for _, id := range deleteCandidates {
+			delete(tgt.Signed.Delegations.Keys, id)
+		}
+		// delete candidate keys from all roles.
+		for _, role := range tgt.Signed.Delegations.Roles {
+			role.RemoveKeys(deleteCandidates)
+			if len(role.KeyIDs) < role.Threshold {
+				logrus.Warnf("role %s has fewer keys than its threshold of %d; it will not be usable until keys are added to it", role.Name, role.Threshold)
+			}
+		}
+		tgt.Dirty = true
+		return nil
+	}
+	return tr.WalkTargets("", start, purgeKeys)
 }
 
 // UpdateDelegationPaths updates the appropriate delegation's paths.
@@ -655,7 +734,7 @@ func (tr *Repo) WalkTargets(targetPath, rolePath string, visitTargets walkVisito
 		}
 
 		// Determine whether to visit this role or not:
-		// If the paths validate against the specified targetPath and the rolePath is empty or is in the subtree
+		// If the paths validate against the specified targetPath and the rolePath is empty or is in the subtree.
 		// Also check if we are choosing to skip visiting this role on this walk (see ListTargets and GetTargetByName priority)
 		if isValidPath(targetPath, role) && isAncestorRole(role.Name, rolePath) && !utils.StrSliceContains(skipRoles, role.Name) {
 			// If we had matching path or role name, visit this target and determine whether or not to keep walking
@@ -948,7 +1027,7 @@ func (tr *Repo) SignTargets(role string, expires time.Time) (*data.Signed, error
 	if _, ok := tr.Targets[role]; !ok {
 		return nil, data.ErrInvalidRole{
 			Role:   role,
-			Reason: "SignTargets called with non-existant targets role",
+			Reason: "SignTargets called with non-existent targets role",
 		}
 	}
 	tr.Targets[role].Signed.Expires = expires

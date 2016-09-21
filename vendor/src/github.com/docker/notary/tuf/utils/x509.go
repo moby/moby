@@ -1,4 +1,4 @@
-package trustmanager
+package utils
 
 import (
 	"bytes"
@@ -22,22 +22,16 @@ import (
 	"github.com/docker/notary/tuf/data"
 )
 
-// CertToPEM is a utility function returns a PEM encoded x509 Certificate
-func CertToPEM(cert *x509.Certificate) []byte {
-	pemCert := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw})
-
-	return pemCert
-}
-
-// CertChainToPEM is a utility function returns a PEM encoded chain of x509 Certificates, in the order they are passed
-func CertChainToPEM(certChain []*x509.Certificate) ([]byte, error) {
-	var pemBytes bytes.Buffer
-	for _, cert := range certChain {
-		if err := pem.Encode(&pemBytes, &pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw}); err != nil {
-			return nil, err
-		}
+// CanonicalKeyID returns the ID of the public bytes version of a TUF key.
+// On regular RSA/ECDSA TUF keys, this is just the key ID.  On X509 RSA/ECDSA
+// TUF keys, this is the key ID of the public key part of the key in the leaf cert
+func CanonicalKeyID(k data.PublicKey) (string, error) {
+	switch k.Algorithm() {
+	case data.ECDSAx509Key, data.RSAx509Key:
+		return X509PublicKeyID(k)
+	default:
+		return k.ID(), nil
 	}
-	return pemBytes.Bytes(), nil
 }
 
 // LoadCertFromPEM returns the first certificate found in a bunch of bytes or error
@@ -62,6 +56,108 @@ func LoadCertFromPEM(pemBytes []byte) (*x509.Certificate, error) {
 	}
 
 	return nil, errors.New("no certificates found in PEM data")
+}
+
+// X509PublicKeyID returns a public key ID as a string, given a
+// data.PublicKey that contains an X509 Certificate
+func X509PublicKeyID(certPubKey data.PublicKey) (string, error) {
+	// Note that this only loads the first certificate from the public key
+	cert, err := LoadCertFromPEM(certPubKey.Public())
+	if err != nil {
+		return "", err
+	}
+	pubKeyBytes, err := x509.MarshalPKIXPublicKey(cert.PublicKey)
+	if err != nil {
+		return "", err
+	}
+
+	var key data.PublicKey
+	switch certPubKey.Algorithm() {
+	case data.ECDSAx509Key:
+		key = data.NewECDSAPublicKey(pubKeyBytes)
+	case data.RSAx509Key:
+		key = data.NewRSAPublicKey(pubKeyBytes)
+	}
+
+	return key.ID(), nil
+}
+
+// ParsePEMPrivateKey returns a data.PrivateKey from a PEM encoded private key. It
+// only supports RSA (PKCS#1) and attempts to decrypt using the passphrase, if encrypted.
+func ParsePEMPrivateKey(pemBytes []byte, passphrase string) (data.PrivateKey, error) {
+	block, _ := pem.Decode(pemBytes)
+	if block == nil {
+		return nil, errors.New("no valid private key found")
+	}
+
+	var privKeyBytes []byte
+	var err error
+	if x509.IsEncryptedPEMBlock(block) {
+		privKeyBytes, err = x509.DecryptPEMBlock(block, []byte(passphrase))
+		if err != nil {
+			return nil, errors.New("could not decrypt private key")
+		}
+	} else {
+		privKeyBytes = block.Bytes
+	}
+
+	switch block.Type {
+	case "RSA PRIVATE KEY":
+		rsaPrivKey, err := x509.ParsePKCS1PrivateKey(privKeyBytes)
+		if err != nil {
+			return nil, fmt.Errorf("could not parse DER encoded key: %v", err)
+		}
+
+		tufRSAPrivateKey, err := RSAToPrivateKey(rsaPrivKey)
+		if err != nil {
+			return nil, fmt.Errorf("could not convert rsa.PrivateKey to data.PrivateKey: %v", err)
+		}
+
+		return tufRSAPrivateKey, nil
+	case "EC PRIVATE KEY":
+		ecdsaPrivKey, err := x509.ParseECPrivateKey(privKeyBytes)
+		if err != nil {
+			return nil, fmt.Errorf("could not parse DER encoded private key: %v", err)
+		}
+
+		tufECDSAPrivateKey, err := ECDSAToPrivateKey(ecdsaPrivKey)
+		if err != nil {
+			return nil, fmt.Errorf("could not convert ecdsa.PrivateKey to data.PrivateKey: %v", err)
+		}
+
+		return tufECDSAPrivateKey, nil
+	case "ED25519 PRIVATE KEY":
+		// We serialize ED25519 keys by concatenating the private key
+		// to the public key and encoding with PEM. See the
+		// ED25519ToPrivateKey function.
+		tufECDSAPrivateKey, err := ED25519ToPrivateKey(privKeyBytes)
+		if err != nil {
+			return nil, fmt.Errorf("could not convert ecdsa.PrivateKey to data.PrivateKey: %v", err)
+		}
+
+		return tufECDSAPrivateKey, nil
+
+	default:
+		return nil, fmt.Errorf("unsupported key type %q", block.Type)
+	}
+}
+
+// CertToPEM is a utility function returns a PEM encoded x509 Certificate
+func CertToPEM(cert *x509.Certificate) []byte {
+	pemCert := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw})
+
+	return pemCert
+}
+
+// CertChainToPEM is a utility function returns a PEM encoded chain of x509 Certificates, in the order they are passed
+func CertChainToPEM(certChain []*x509.Certificate) ([]byte, error) {
+	var pemBytes bytes.Buffer
+	for _, cert := range certChain {
+		if err := pem.Encode(&pemBytes, &pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw}); err != nil {
+			return nil, err
+		}
+	}
+	return pemBytes.Bytes(), nil
 }
 
 // LoadCertFromFile loads the first certificate from the file provided. The
@@ -138,66 +234,6 @@ func GetIntermediateCerts(certs []*x509.Certificate) []*x509.Certificate {
 	return intCerts
 }
 
-// ParsePEMPrivateKey returns a data.PrivateKey from a PEM encoded private key. It
-// only supports RSA (PKCS#1) and attempts to decrypt using the passphrase, if encrypted.
-func ParsePEMPrivateKey(pemBytes []byte, passphrase string) (data.PrivateKey, error) {
-	block, _ := pem.Decode(pemBytes)
-	if block == nil {
-		return nil, errors.New("no valid private key found")
-	}
-
-	var privKeyBytes []byte
-	var err error
-	if x509.IsEncryptedPEMBlock(block) {
-		privKeyBytes, err = x509.DecryptPEMBlock(block, []byte(passphrase))
-		if err != nil {
-			return nil, errors.New("could not decrypt private key")
-		}
-	} else {
-		privKeyBytes = block.Bytes
-	}
-
-	switch block.Type {
-	case "RSA PRIVATE KEY":
-		rsaPrivKey, err := x509.ParsePKCS1PrivateKey(privKeyBytes)
-		if err != nil {
-			return nil, fmt.Errorf("could not parse DER encoded key: %v", err)
-		}
-
-		tufRSAPrivateKey, err := RSAToPrivateKey(rsaPrivKey)
-		if err != nil {
-			return nil, fmt.Errorf("could not convert rsa.PrivateKey to data.PrivateKey: %v", err)
-		}
-
-		return tufRSAPrivateKey, nil
-	case "EC PRIVATE KEY":
-		ecdsaPrivKey, err := x509.ParseECPrivateKey(privKeyBytes)
-		if err != nil {
-			return nil, fmt.Errorf("could not parse DER encoded private key: %v", err)
-		}
-
-		tufECDSAPrivateKey, err := ECDSAToPrivateKey(ecdsaPrivKey)
-		if err != nil {
-			return nil, fmt.Errorf("could not convert ecdsa.PrivateKey to data.PrivateKey: %v", err)
-		}
-
-		return tufECDSAPrivateKey, nil
-	case "ED25519 PRIVATE KEY":
-		// We serialize ED25519 keys by concatenating the private key
-		// to the public key and encoding with PEM. See the
-		// ED25519ToPrivateKey function.
-		tufECDSAPrivateKey, err := ED25519ToPrivateKey(privKeyBytes)
-		if err != nil {
-			return nil, fmt.Errorf("could not convert ecdsa.PrivateKey to data.PrivateKey: %v", err)
-		}
-
-		return tufECDSAPrivateKey, nil
-
-	default:
-		return nil, fmt.Errorf("unsupported key type %q", block.Type)
-	}
-}
-
 // ParsePEMPublicKey returns a data.PublicKey from a PEM encoded public key or certificate.
 func ParsePEMPublicKey(pubKeyBytes []byte) (data.PublicKey, error) {
 	pemBlock, _ := pem.Decode(pubKeyBytes)
@@ -211,7 +247,7 @@ func ParsePEMPublicKey(pubKeyBytes []byte) (data.PublicKey, error) {
 		if err != nil {
 			return nil, fmt.Errorf("could not parse provided certificate: %v", err)
 		}
-		err = ValidateCertificate(cert)
+		err = ValidateCertificate(cert, true)
 		if err != nil {
 			return nil, fmt.Errorf("invalid certificate: %v", err)
 		}
@@ -222,16 +258,15 @@ func ParsePEMPublicKey(pubKeyBytes []byte) (data.PublicKey, error) {
 }
 
 // ValidateCertificate returns an error if the certificate is not valid for notary
-// Currently this is only a time expiry check, and ensuring the public key has a large enough modulus if RSA
-func ValidateCertificate(c *x509.Certificate) error {
+// Currently this is only ensuring the public key has a large enough modulus if RSA,
+// using a non SHA1 signature algorithm, and an optional time expiry check
+func ValidateCertificate(c *x509.Certificate, checkExpiry bool) error {
 	if (c.NotBefore).After(c.NotAfter) {
 		return fmt.Errorf("certificate validity window is invalid")
 	}
-	now := time.Now()
-	tomorrow := now.AddDate(0, 0, 1)
-	// Give one day leeway on creation "before" time, check "after" against today
-	if (tomorrow).Before(c.NotBefore) || now.After(c.NotAfter) {
-		return fmt.Errorf("certificate is expired")
+	// Can't have SHA1 sig algorithm
+	if c.SignatureAlgorithm == x509.SHA1WithRSA || c.SignatureAlgorithm == x509.DSAWithSHA1 || c.SignatureAlgorithm == x509.ECDSAWithSHA1 {
+		return fmt.Errorf("certificate with CN %s uses invalid SHA1 signature algorithm", c.Subject.CommonName)
 	}
 	// If we have an RSA key, make sure it's long enough
 	if c.PublicKeyAlgorithm == x509.RSA {
@@ -241,6 +276,18 @@ func ValidateCertificate(c *x509.Certificate) error {
 		}
 		if rsaKey.N.BitLen() < notary.MinRSABitSize {
 			return fmt.Errorf("RSA bit length is too short")
+		}
+	}
+	if checkExpiry {
+		now := time.Now()
+		tomorrow := now.AddDate(0, 0, 1)
+		// Give one day leeway on creation "before" time, check "after" against today
+		if (tomorrow).Before(c.NotBefore) || now.After(c.NotAfter) {
+			return data.ErrCertExpired{CN: c.Subject.CommonName}
+		}
+		// If this certificate is expiring within 6 months, put out a warning
+		if (c.NotAfter).Before(time.Now().AddDate(0, 6, 0)) {
+			logrus.Warnf("certificate with CN %s is near expiry", c.Subject.CommonName)
 		}
 	}
 	return nil
@@ -385,7 +432,7 @@ func KeyToPEM(privKey data.PrivateKey, role string) ([]byte, error) {
 
 // EncryptPrivateKey returns an encrypted PEM key given a Privatekey
 // and a passphrase
-func EncryptPrivateKey(key data.PrivateKey, role, passphrase string) ([]byte, error) {
+func EncryptPrivateKey(key data.PrivateKey, role, gun, passphrase string) ([]byte, error) {
 	bt, err := blockType(key)
 	if err != nil {
 		return nil, err
@@ -407,6 +454,10 @@ func EncryptPrivateKey(key data.PrivateKey, role, passphrase string) ([]byte, er
 		return nil, fmt.Errorf("unable to encrypt key - invalid PEM file produced")
 	}
 	encryptedPEMBlock.Headers["role"] = role
+
+	if gun != "" {
+		encryptedPEMBlock.Headers["gun"] = gun
+	}
 
 	return pem.EncodeToMemory(encryptedPEMBlock), nil
 }
@@ -497,28 +548,4 @@ func NewCertificate(gun string, startTime, endTime time.Time) (*x509.Certificate
 		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageCodeSigning},
 		BasicConstraintsValid: true,
 	}, nil
-}
-
-// X509PublicKeyID returns a public key ID as a string, given a
-// data.PublicKey that contains an X509 Certificate
-func X509PublicKeyID(certPubKey data.PublicKey) (string, error) {
-	// Note that this only loads the first certificate from the public key
-	cert, err := LoadCertFromPEM(certPubKey.Public())
-	if err != nil {
-		return "", err
-	}
-	pubKeyBytes, err := x509.MarshalPKIXPublicKey(cert.PublicKey)
-	if err != nil {
-		return "", err
-	}
-
-	var key data.PublicKey
-	switch certPubKey.Algorithm() {
-	case data.ECDSAx509Key:
-		key = data.NewECDSAPublicKey(pubKeyBytes)
-	case data.RSAx509Key:
-		key = data.NewRSAPublicKey(pubKeyBytes)
-	}
-
-	return key.ID(), nil
 }

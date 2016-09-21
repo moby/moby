@@ -111,6 +111,7 @@ type Signature struct {
 	KeyID     string       `json:"keyid"`
 	Method    SigAlgorithm `json:"method"`
 	Signature []byte       `json:"sig"`
+	IsValid   bool         `json:"-"`
 }
 
 // Files is the map of paths to file meta container in targets and delegations
@@ -156,6 +157,40 @@ func CheckHashes(payload []byte, name string, hashes Hashes) error {
 
 	if cnt == 0 {
 		return ErrMissingMeta{Role: name}
+	}
+
+	return nil
+}
+
+// CompareMultiHashes verifies that the two Hashes passed in can represent the same data.
+// This means that both maps must have at least one key defined for which they map, and no conflicts.
+// Note that we check the intersection of map keys, which adds support for non-default hash algorithms in notary
+func CompareMultiHashes(hashes1, hashes2 Hashes) error {
+	// First check if the two hash structures are valid
+	if err := CheckValidHashStructures(hashes1); err != nil {
+		return err
+	}
+	if err := CheckValidHashStructures(hashes2); err != nil {
+		return err
+	}
+	// Check if they have at least one matching hash, and no conflicts
+	cnt := 0
+	for hashAlg, hash1 := range hashes1 {
+
+		hash2, ok := hashes2[hashAlg]
+		if !ok {
+			continue
+		}
+
+		if subtle.ConstantTimeCompare(hash1[:], hash2[:]) == 0 {
+			return fmt.Errorf("mismatched %s checksum", hashAlg)
+		}
+		// If we reached here, we had a match
+		cnt++
+	}
+
+	if cnt == 0 {
+		return fmt.Errorf("at least one matching hash needed")
 	}
 
 	return nil

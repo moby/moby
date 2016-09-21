@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/docker/notary/passphrase"
+	"github.com/docker/notary"
 	"github.com/docker/notary/trustmanager"
 	"github.com/docker/notary/trustmanager/yubikey"
 	"github.com/docker/notary/trustpinning"
@@ -16,7 +16,7 @@ import (
 // It takes the base directory under where all the trust files will be stored
 // (usually ~/.docker/trust/).
 func NewNotaryRepository(baseDir, gun, baseURL string, rt http.RoundTripper,
-	retriever passphrase.Retriever, trustPinning trustpinning.TrustPinConfig) (
+	retriever notary.PassRetriever, trustPinning trustpinning.TrustPinConfig) (
 	*NotaryRepository, error) {
 
 	fileKeyStore, err := trustmanager.NewKeyFileStore(baseDir, retriever)

@@ -1,4 +1,4 @@
-FROM golang:1.6.1-alpine
+FROM golang:1.7.1-alpine
 MAINTAINER David Lawrence "david.lawrence@docker.com"
 
 RUN apk add --update git gcc libc-dev && rm -rf /var/cache/apk/*
@@ -13,10 +13,9 @@ COPY . /go/src/${NOTARYPKG}
 
 WORKDIR /go/src/${NOTARYPKG}
 
+ENV SERVICE_NAME=notary_signer
 ENV NOTARY_SIGNER_DEFAULT_ALIAS="timestamp_1"
 ENV NOTARY_SIGNER_TIMESTAMP_1="testpassword"
-
-EXPOSE 4444
 
 # Install notary-signer
 RUN go install \

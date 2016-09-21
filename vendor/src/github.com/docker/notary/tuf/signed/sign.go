@@ -100,7 +100,7 @@ func Sign(service CryptoService, s *data.Signed, signingKeys []data.PublicKey,
 			// key is no longer a valid signing key
 			continue
 		}
-		if err := VerifySignature(*s.Signed, sig, k); err != nil {
+		if err := VerifySignature(*s.Signed, &sig, k); err != nil {
 			// signature is no longer valid
 			continue
 		}

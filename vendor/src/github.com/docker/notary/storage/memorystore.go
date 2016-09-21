@@ -1,50 +1,46 @@
-package store
+package storage
 
 import (
 	"crypto/sha256"
-	"fmt"
 
 	"github.com/docker/notary"
-	"github.com/docker/notary/tuf/data"
 	"github.com/docker/notary/tuf/utils"
 )
 
 // NewMemoryStore returns a MetadataStore that operates entirely in memory.
 // Very useful for testing
-func NewMemoryStore(meta map[string][]byte) *MemoryStore {
+func NewMemoryStore(initial map[string][]byte) *MemoryStore {
 	var consistent = make(map[string][]byte)
-	if meta == nil {
-		meta = make(map[string][]byte)
+	if initial == nil {
+		initial = make(map[string][]byte)
 	} else {
 		// add all seed meta to consistent
-		for name, data := range meta {
+		for name, data := range initial {
 			checksum := sha256.Sum256(data)
 			path := utils.ConsistentName(name, checksum[:])
 			consistent[path] = data
 		}
 	}
 	return &MemoryStore{
-		meta:       meta,
+		data:       initial,
 		consistent: consistent,
-		keys:       make(map[string][]data.PrivateKey),
 	}
 }
 
 // MemoryStore implements a mock RemoteStore entirely in memory.
 // For testing purposes only.
 type MemoryStore struct {
-	meta       map[string][]byte
+	data       map[string][]byte
 	consistent map[string][]byte
-	keys       map[string][]data.PrivateKey
 }
 
-// GetMeta returns up to size bytes of data references by name.
+// GetSized returns up to size bytes of data references by name.
 // If size is "NoSizeLimit", this corresponds to "infinite," but we cut off at a
 // predefined threshold "notary.MaxDownloadSize", as we will always know the
 // size for everything but a timestamp and sometimes a root,
 // neither of which should be exceptionally large
-func (m *MemoryStore) GetMeta(name string, size int64) ([]byte, error) {
-	d, ok := m.meta[name]
+func (m MemoryStore) GetSized(name string, size int64) ([]byte, error) {
+	d, ok := m.data[name]
 	if ok {
 		if size == NoSizeLimit {
 			size = notary.MaxDownloadSize
@@ -64,9 +60,20 @@ func (m *MemoryStore) GetMeta(name string, size int64) ([]byte, error) {
 	return nil, ErrMetaNotFound{Resource: name}
 }
 
-// SetMeta sets the metadata value for the given name
-func (m *MemoryStore) SetMeta(name string, meta []byte) error {
-	m.meta[name] = meta
+// Get returns the data associated with name
+func (m MemoryStore) Get(name string) ([]byte, error) {
+	if d, ok := m.data[name]; ok {
+		return d, nil
+	}
+	if d, ok := m.consistent[name]; ok {
+		return d, nil
+	}
+	return nil, ErrMetaNotFound{Resource: name}
+}
+
+// Set sets the metadata value for the given name
+func (m *MemoryStore) Set(name string, meta []byte) error {
+	m.data[name] = meta
 
 	checksum := sha256.Sum256(meta)
 	path := utils.ConsistentName(name, checksum[:])
@@ -74,34 +81,44 @@ func (m *MemoryStore) SetMeta(name string, meta []byte) error {
 	return nil
 }
 
-// SetMultiMeta sets multiple pieces of metadata for multiple names
+// SetMulti sets multiple pieces of metadata for multiple names
 // in a single operation.
-func (m *MemoryStore) SetMultiMeta(metas map[string][]byte) error {
+func (m *MemoryStore) SetMulti(metas map[string][]byte) error {
 	for role, blob := range metas {
-		m.SetMeta(role, blob)
+		m.Set(role, blob)
 	}
 	return nil
 }
 
-// RemoveMeta removes the metadata for a single role - if the metadata doesn't
+// Remove removes the metadata for a single role - if the metadata doesn't
 // exist, no error is returned
-func (m *MemoryStore) RemoveMeta(name string) error {
-	if meta, ok := m.meta[name]; ok {
+func (m *MemoryStore) Remove(name string) error {
+	if meta, ok := m.data[name]; ok {
 		checksum := sha256.Sum256(meta)
 		path := utils.ConsistentName(name, checksum[:])
-		delete(m.meta, name)
+		delete(m.data, name)
 		delete(m.consistent, path)
 	}
 	return nil
-}
-
-// GetKey returns the public key for the given role
-func (m *MemoryStore) GetKey(role string) ([]byte, error) {
-	return nil, fmt.Errorf("GetKey is not implemented for the MemoryStore")
 }
 
 // RemoveAll clears the existing memory store by setting this store as new empty one
 func (m *MemoryStore) RemoveAll() error {
 	*m = *NewMemoryStore(nil)
 	return nil
+}
+
+// Location provides a human readable name for the storage location
+func (m MemoryStore) Location() string {
+	return "memory"
+}
+
+// ListFiles returns a list of all files. The names returned should be
+// usable with Get directly, with no modification.
+func (m *MemoryStore) ListFiles() []string {
+	names := make([]string, 0, len(m.data))
+	for n := range m.data {
+		names = append(names, n)
+	}
+	return names
 }

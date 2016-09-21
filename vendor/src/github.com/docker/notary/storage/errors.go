@@ -1,6 +1,15 @@
-package store
+package storage
 
-import "fmt"
+import (
+	"errors"
+	"fmt"
+)
+
+var (
+	// ErrPathOutsideStore indicates that the returned path would be
+	// outside the store
+	ErrPathOutsideStore = errors.New("path outside file store")
+)
 
 // ErrMetaNotFound indicates we did not find a particular piece
 // of metadata in the store

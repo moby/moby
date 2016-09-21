@@ -13,13 +13,15 @@ endif
 CTIMEVAR=-X $(NOTARY_PKG)/version.GitCommit=$(GITCOMMIT) -X $(NOTARY_PKG)/version.NotaryVersion=$(NOTARY_VERSION)
 GO_LDFLAGS=-ldflags "-w $(CTIMEVAR)"
 GO_LDFLAGS_STATIC=-ldflags "-w $(CTIMEVAR) -extldflags -static"
-GOOSES = darwin linux
+GOOSES = darwin linux windows
 NOTARY_BUILDTAGS ?= pkcs11
 NOTARYDIR := /go/src/github.com/docker/notary
 
-GO_VERSION := $(shell go version | grep "1\.[6-9]\(\.[0-9]+\)*")
-# check to make sure we have the right version
-ifeq ($(strip $(GO_VERSION)),)
+GO_VERSION := $(shell go version | grep "1\.[6-9]\(\.[0-9]+\)*\|devel")
+# check to make sure we have the right version. development versions of Go are
+# not officially supported, but allowed for building
+
+ifeq ($(strip $(GO_VERSION))$(SKIPENVCHECK),)
 $(error Bad Go version - please install Go >= 1.6)
 endif
 
@@ -40,13 +42,11 @@ COVERPROFILE?=$(COVERDIR)/cover.out
 COVERMODE=count
 PKGS ?= $(shell go list -tags "${NOTARY_BUILDTAGS}" ./... | grep -v /vendor/ | tr '\n' ' ')
 
-GO_VERSION = $(shell go version | awk '{print $$3}')
-
-.PHONY: clean all fmt vet lint build test binaries cross cover docker-images notary-dockerfile
+.PHONY: clean all lint build test binaries cross cover docker-images notary-dockerfile
 .DELETE_ON_ERROR: cover
 .DEFAULT: default
 
-all: AUTHORS clean fmt vet fmt lint build test binaries
+all: AUTHORS clean lint build test binaries
 
 AUTHORS: .git/HEAD
 	git log --format='%aN <%aE>' | sort -fu > $@
@@ -90,32 +90,27 @@ ${PREFIX}/bin/static/notary:
 	@go build -tags ${NOTARY_BUILDTAGS} -o $@ ${GO_LDFLAGS_STATIC} ./cmd/notary
 endif
 
-vet:
-	@echo "+ $@"
+
+# run all lint functionality - excludes Godep directory, vendoring, binaries, python tests, and git files
+lint:
+	@echo "+ $@: golint, go vet, go fmt, misspell, ineffassign"
+	# golint
+	@test -z "$(shell find . -type f -name "*.go" -not -path "./vendor/*" -not -name "*.pb.*" -exec golint {} \; | tee /dev/stderr)"
+	# gofmt
+	@test -z "$$(gofmt -s -l .| grep -v .pb. | grep -v vendor/ | tee /dev/stderr)"
+	# govet
 ifeq ($(shell uname -s), Darwin)
 	@test -z "$(shell find . -iname *test*.go | grep -v _test.go | grep -v vendor | xargs echo "This file should end with '_test':"  | tee /dev/stderr)"
 else
 	@test -z "$(shell find . -iname *test*.go | grep -v _test.go | grep -v vendor | xargs -r echo "This file should end with '_test':"  | tee /dev/stderr)"
 endif
 	@test -z "$$(go tool vet -printf=false . 2>&1 | grep -v vendor/ | tee /dev/stderr)"
-
-fmt:
-	@echo "+ $@"
-	@test -z "$$(gofmt -s -l .| grep -v .pb. | grep -v vendor/ | tee /dev/stderr)"
-
-lint:
-	@echo "+ $@"
-	@test -z "$(shell find . -type f -name "*.go" -not -path "./vendor/*" -not -name "*.pb.*" -exec golint {} \; | tee /dev/stderr)"
-
-# Requires that the following:
-# go get -u github.com/client9/misspell/cmd/misspell
-#
-# be run first
-
-# misspell target, don't include Godeps, binaries, python tests, or git files
-misspell:
-	@echo "+ $@"
-	@test -z "$$(find . -name '*' | grep -v vendor/ | grep -v bin/ | grep -v misc/ | grep -v .git/ | xargs misspell | tee /dev/stderr)"
+	# misspell - requires that the following be run first:
+	#    go get -u github.com/client9/misspell/cmd/misspell
+	@test -z "$$(find . -type f | grep -v vendor/ | grep -v bin/ | grep -v misc/ | grep -v .git/ | grep -v \.pdf | xargs misspell | tee /dev/stderr)"
+	# ineffassign - requires that the following be run first:
+	#    go get -u github.com/gordonklaus/ineffassign
+	@test -z "$(shell find . -type f -name "*.go" -not -path "./vendor/*" -not -name "*.pb.*" -exec ineffassign {} \; | tee /dev/stderr)"
 
 build:
 	@echo "+ $@"
@@ -130,15 +125,13 @@ test:
 	@echo
 	go test -tags "${NOTARY_BUILDTAGS}" $(TESTOPTS) $(PKGS)
 
-test-full: TESTOPTS =
-test-full: vet lint
-	@echo Note: when testing with a yubikey plugged in, make sure to include 'TESTOPTS="-p 1"'
-	@echo "+ $@"
-	@echo
-	go test -tags "${NOTARY_BUILDTAGS}" $(TESTOPTS) -v $(PKGS)
+integration: TESTDB = mysql
+integration: clean
+	buildscripts/integrationtest.sh $(TESTDB)
 
-integration:
-	buildscripts/integrationtest.sh development.yml
+testdb: TESTDB = mysql
+testdb:
+	buildscripts/dbtests.sh $(TESTDB)
 
 protos:
 	@protoc --go_out=plugins=grpc:. proto/*.proto
@@ -148,25 +141,19 @@ protos:
 # go get github.com/wadey/gocovmerge; go install github.com/wadey/gocovmerge
 #
 # be run first
-
-define gocover
-go test $(OPTS) $(TESTOPTS) -covermode="$(COVERMODE)" -coverprofile="$(COVERDIR)/$(subst /,-,$(1)).$(subst $(_space),.,$(NOTARY_BUILDTAGS)).coverage.txt" "$(1)" || exit 1;
-endef
-
+gen-cover:
 gen-cover:
 	@mkdir -p "$(COVERDIR)"
-	$(foreach PKG,$(PKGS),$(call gocover,$(PKG)))
-	rm -f "$(COVERDIR)"/*testutils*.coverage.txt
+	python -u buildscripts/covertest.py --coverdir "$(COVERDIR)" --tags "$(NOTARY_BUILDTAGS)" --pkgs="$(PKGS)" --testopts="${TESTOPTS}"
 
 # Generates the cover binaries and runs them all in serial, so this can be used
 # run all tests with a yubikey without any problems
-cover: OPTS = -tags "${NOTARY_BUILDTAGS}" -coverpkg "$(shell ./coverpkg.sh $(1) $(NOTARY_PKG))"
 cover: gen-cover covmerge
 	@go tool cover -html="$(COVERPROFILE)"
 
 # Generates the cover binaries and runs them all in serial, so this can be used
 # run all tests with a yubikey without any problems
-ci: OPTS = -tags "${NOTARY_BUILDTAGS}" -race -coverpkg "$(shell ./coverpkg.sh $(1) $(NOTARY_PKG))"
+ci: override TESTOPTS = -race
 # Codecov knows how to merge multiple coverage files, so covmerge is not needed
 ci: gen-cover
 
@@ -205,10 +192,9 @@ shell: notary-dockerfile
 
 cross: notary-dockerfile
 	@rm -rf $(CURDIR)/cross
-	docker run --rm -v $(CURDIR)/cross:$(NOTARYDIR)/cross -e NOTARY_BUILDTAGS=$(NOTARY_BUILDTAGS) notary buildscripts/cross.sh $(GOOSES)
-
+	docker run --rm -v $(CURDIR)/cross:$(NOTARYDIR)/cross -e CTIMEVAR="${CTIMEVAR}" -e NOTARY_BUILDTAGS=$(NOTARY_BUILDTAGS) notary buildscripts/cross.sh $(GOOSES)
 
 clean:
 	@echo "+ $@"
-	@rm -rf "$(COVERDIR)"
+	@rm -rf "$(COVERDIR)" cross
 	@rm -rf "${PREFIX}/bin/notary-server" "${PREFIX}/bin/notary" "${PREFIX}/bin/notary-signer"

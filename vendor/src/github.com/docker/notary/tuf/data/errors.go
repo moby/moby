@@ -42,3 +42,12 @@ func (e ErrMismatchedChecksum) Error() string {
 	return fmt.Sprintf("%s checksum for %s did not match: expected %s", e.alg, e.name,
 		e.expected)
 }
+
+// ErrCertExpired is the error to be returned when a certificate has expired
+type ErrCertExpired struct {
+	CN string
+}
+
+func (e ErrCertExpired) Error() string {
+	return fmt.Sprintf("certificate with CN %s is expired", e.CN)
+}
