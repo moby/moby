@@ -34,7 +34,6 @@ func NewPortCommand(dockerCli *client.DockerCli) *cobra.Command {
 			return runPort(dockerCli, &opts)
 		},
 	}
-	cmd.SetFlagErrorFunc(flagErrorFunc)
 
 	return cmd
 }
