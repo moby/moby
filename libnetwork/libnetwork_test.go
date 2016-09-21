@@ -1208,8 +1208,8 @@ func (f *fakeSandbox) ResolveIP(ip string) string {
 	return ""
 }
 
-func (f *fakeSandbox) ResolveService(name string) ([]*net.SRV, []net.IP, error) {
-	return nil, nil, nil
+func (f *fakeSandbox) ResolveService(name string) ([]*net.SRV, []net.IP) {
+	return nil, nil
 }
 
 func (f *fakeSandbox) Endpoints() []libnetwork.Endpoint {

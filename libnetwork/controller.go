@@ -804,6 +804,8 @@ func (c *controller) addNetwork(n *network) error {
 		return err
 	}
 
+	n.startResolver()
+
 	return nil
 }
 
