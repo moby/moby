@@ -40,7 +40,7 @@ func (daemon *Daemon) getNetworkStats(c *container.Container) (map[string]types.
 	}
 
 	stats := make(map[string]types.NetworkStats)
-	// Convert libnetwork nw stats into engine-api stats
+	// Convert libnetwork nw stats into api stats
 	for ifName, ifStats := range lnstats {
 		stats[ifName] = types.NetworkStats{
 			RxBytes:   ifStats.RxBytes,
