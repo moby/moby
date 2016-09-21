@@ -779,6 +779,10 @@ func initBridgeDriver(controller libnetwork.NetworkController, config *Config) e
 	return nil
 }
 
+func (daemon *Daemon) getLayerInit() func(string) error {
+	return daemon.setupInitLayer
+}
+
 // setupInitLayer populates a directory with mountpoints suitable
 // for bind-mounting things into the container.
 //

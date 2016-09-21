@@ -61,6 +61,10 @@ func setupInitLayer(initLayer string, rootUID, rootGID int) error {
 	return nil
 }
 
+func (daemon *Daemon) getLayerInit() func(string) error {
+	return nil
+}
+
 func checkKernel() error {
 	return nil
 }
