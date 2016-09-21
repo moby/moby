@@ -18,7 +18,7 @@ docker-version-osarch() {
 	'
 }
 
-# Retrieve OS/ARCH of docker daemon, eg. linux/amd64
+# Retrieve OS/ARCH of docker daemon, e.g. linux/amd64
 export DOCKER_ENGINE_OSARCH="$(docker-version-osarch 'Server')"
 export DOCKER_ENGINE_GOOS="${DOCKER_ENGINE_OSARCH%/*}"
 export DOCKER_ENGINE_GOARCH="${DOCKER_ENGINE_OSARCH##*/}"
