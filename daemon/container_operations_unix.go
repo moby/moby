@@ -13,10 +13,8 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	containertypes "github.com/docker/docker/api/types/container"
-	networktypes "github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/links"
-	"github.com/docker/docker/daemon/network"
 	"github.com/docker/docker/pkg/fileutils"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/mount"
@@ -97,78 +95,6 @@ func (daemon *Daemon) getSize(container *container.Container) (int64, int64) {
 		}
 	}
 	return sizeRw, sizeRootfs
-}
-
-// ConnectToNetwork connects a container to a network
-func (daemon *Daemon) ConnectToNetwork(container *container.Container, idOrName string, endpointConfig *networktypes.EndpointSettings) error {
-	if endpointConfig == nil {
-		endpointConfig = &networktypes.EndpointSettings{}
-	}
-	if !container.Running {
-		if container.RemovalInProgress || container.Dead {
-			return errRemovalContainer(container.ID)
-		}
-
-		n, err := daemon.FindNetwork(idOrName)
-		if err == nil && n != nil {
-			if err := daemon.updateNetworkConfig(container, n, endpointConfig, true); err != nil {
-				return err
-			}
-		} else {
-			container.NetworkSettings.Networks[idOrName] = &network.EndpointSettings{
-				EndpointSettings: endpointConfig,
-			}
-		}
-	} else {
-		if err := daemon.connectToNetwork(container, idOrName, endpointConfig, true); err != nil {
-			return err
-		}
-	}
-	if err := container.ToDiskLocking(); err != nil {
-		return fmt.Errorf("Error saving container to disk: %v", err)
-	}
-	return nil
-}
-
-// DisconnectFromNetwork disconnects container from network n.
-func (daemon *Daemon) DisconnectFromNetwork(container *container.Container, networkName string, force bool) error {
-	n, err := daemon.FindNetwork(networkName)
-	if !container.Running || (err != nil && force) {
-		if container.RemovalInProgress || container.Dead {
-			return errRemovalContainer(container.ID)
-		}
-		// In case networkName is resolved we will use n.Name()
-		// this will cover the case where network id is passed.
-		if n != nil {
-			networkName = n.Name()
-		}
-		if _, ok := container.NetworkSettings.Networks[networkName]; !ok {
-			return fmt.Errorf("container %s is not connected to the network %s", container.ID, networkName)
-		}
-		delete(container.NetworkSettings.Networks, networkName)
-	} else if err == nil {
-		if container.HostConfig.NetworkMode.IsHost() && containertypes.NetworkMode(n.Type()).IsHost() {
-			return runconfig.ErrConflictHostNetwork
-		}
-
-		if err := daemon.disconnectFromNetwork(container, n, false); err != nil {
-			return err
-		}
-	} else {
-		return err
-	}
-
-	if err := container.ToDiskLocking(); err != nil {
-		return fmt.Errorf("Error saving container to disk: %v", err)
-	}
-
-	if n != nil {
-		attributes := map[string]string{
-			"container": container.ID,
-		}
-		daemon.LogNetworkEventWithAttributes(n, "disconnect", attributes)
-	}
-	return nil
 }
 
 func (daemon *Daemon) getIpcContainer(container *container.Container) (*container.Container, error) {
@@ -397,10 +323,10 @@ func isLinkable(child *container.Container) bool {
 	return ok
 }
 
-func errRemovalContainer(containerID string) error {
-	return fmt.Errorf("Container %s is marked for removal and cannot be connected or disconnected to the network", containerID)
-}
-
 func enableIPOnPredefinedNetwork() bool {
 	return false
+}
+
+func (daemon *Daemon) isNetworkHotPluggable() bool {
+	return true
 }
