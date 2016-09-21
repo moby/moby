@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"runtime"
 
-	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/pkg/parsers/kernel"
 	"github.com/docker/docker/pkg/useragent"
 	"golang.org/x/net/context"
@@ -25,24 +24,13 @@ func DockerUserAgent(ctx context.Context) string {
 	httpVersion = append(httpVersion, useragent.VersionInfo{Name: "arch", Version: runtime.GOARCH})
 
 	dockerUA := useragent.AppendVersions("", httpVersion...)
-	upstreamUA := getUserAgentFromContext(ctx)
-	if len(upstreamUA) > 0 {
-		ret := insertUpstreamUserAgent(upstreamUA, dockerUA)
-		return ret
-	}
-	return dockerUA
-}
 
-// getUserAgentFromContext returns the previously saved user-agent context stored in ctx, if one exists
-func getUserAgentFromContext(ctx context.Context) string {
-	var upstreamUA string
-	if ctx != nil {
-		var ki interface{} = ctx.Value(httputils.UAStringKey)
-		if ki != nil {
-			upstreamUA = ctx.Value(httputils.UAStringKey).(string)
-		}
+	upstreamUA := useragent.FromContext(ctx)
+	if len(upstreamUA) > 0 {
+		dockerUA = insertUpstreamUserAgent(upstreamUA, dockerUA)
 	}
-	return upstreamUA
+
+	return dockerUA
 }
 
 // escapeStr returns s with every rune in charsToEscape escaped by a backslash
