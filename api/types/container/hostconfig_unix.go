@@ -6,7 +6,12 @@ import "strings"
 
 // IsValid indicates if an isolation technology is valid
 func (i Isolation) IsValid() bool {
-	return i.IsDefault()
+	return i.IsDefault() || i.IsQemu()
+}
+
+// IsQemu indicates if "qemu" is provided as isolation driver
+func (i Isolation) IsQemu() bool {
+       return strings.ToLower(string(i)) == "qemu"
 }
 
 // IsPrivate indicates whether container uses its private network stack.
