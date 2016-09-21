@@ -201,7 +201,9 @@ func (daemon *Daemon) setRWLayer(container *container.Container) error {
 		}
 		layerID = img.RootFS.ChainID()
 	}
-	rwLayer, err := daemon.layerStore.CreateRWLayer(container.ID, layerID, container.MountLabel, daemon.setupInitLayer, container.HostConfig.StorageOpt)
+
+	rwLayer, err := daemon.layerStore.CreateRWLayer(container.ID, layerID, container.MountLabel, daemon.getLayerInit(), container.HostConfig.StorageOpt)
+
 	if err != nil {
 		return err
 	}

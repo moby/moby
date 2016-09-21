@@ -586,7 +586,7 @@ func (ls *layerStore) initMount(graphID, parent, mountLabel string, initFunc Mou
 	// then the initID should be randomly generated.
 	initID := fmt.Sprintf("%s-init", graphID)
 
-	if err := ls.driver.Create(initID, parent, mountLabel, storageOpt); err != nil {
+	if err := ls.driver.CreateReadWrite(initID, parent, mountLabel, storageOpt); err != nil {
 		return "", err
 	}
 	p, err := ls.driver.Get(initID, "")
