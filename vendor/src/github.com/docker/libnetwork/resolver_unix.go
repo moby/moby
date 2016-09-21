@@ -35,7 +35,7 @@ func reexecSetupResolver() {
 		os.Exit(1)
 	}
 
-	_, ipPort, _ := net.SplitHostPort(os.Args[2])
+	resolverIP, ipPort, _ := net.SplitHostPort(os.Args[2])
 	_, tcpPort, _ := net.SplitHostPort(os.Args[3])
 	rules := [][]string{
 		{"-t", "nat", "-I", outputChain, "-d", resolverIP, "-p", "udp", "--dport", dnsPort, "-j", "DNAT", "--to-destination", os.Args[2]},
@@ -90,7 +90,7 @@ func (r *resolver) setupIPTable() error {
 
 	cmd := &exec.Cmd{
 		Path:   reexec.Self(),
-		Args:   append([]string{"setup-resolver"}, r.sb.Key(), laddr, ltcpaddr),
+		Args:   append([]string{"setup-resolver"}, r.resolverKey, laddr, ltcpaddr),
 		Stdout: os.Stdout,
 		Stderr: os.Stderr,
 	}
