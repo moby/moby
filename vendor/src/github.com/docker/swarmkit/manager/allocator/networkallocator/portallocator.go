@@ -155,7 +155,18 @@ func (pa *portAllocator) serviceDeallocatePorts(s *api.Service) {
 }
 
 func (pa *portAllocator) isPortsAllocated(s *api.Service) bool {
-	if s.Endpoint == nil {
+	// If service has no user-defined endpoint and allocated endpoint,
+	// we assume it is allocated and return true.
+	if s.Endpoint == nil && s.Spec.Endpoint == nil {
+		return true
+	}
+
+	// If service has allocated endpoint while has no user-defined endpoint,
+	// we assume allocated endpoints are redudant, and they need deallocated.
+	// If service has no allocated endpoint while has user-defined endpoint,
+	// we assume it is not allocated.
+	if (s.Endpoint != nil && s.Spec.Endpoint == nil) ||
+		(s.Endpoint == nil && s.Spec.Endpoint != nil) {
 		return false
 	}
 
