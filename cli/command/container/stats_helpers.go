@@ -3,7 +3,6 @@ package container
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"strings"
 	"sync"
@@ -11,30 +10,15 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/cli/command/formatter"
 	"github.com/docker/docker/client"
-	"github.com/docker/go-units"
 	"golang.org/x/net/context"
 )
 
-type containerStats struct {
-	Name             string
-	CPUPercentage    float64
-	Memory           float64 // On Windows this is the private working set
-	MemoryLimit      float64 // Not used on Windows
-	MemoryPercentage float64 // Not used on Windows
-	NetworkRx        float64
-	NetworkTx        float64
-	BlockRead        float64
-	BlockWrite       float64
-	PidsCurrent      uint64 // Not used on Windows
-	mu               sync.Mutex
-	err              error
-}
-
 type stats struct {
-	mu     sync.Mutex
 	ostype string
-	cs     []*containerStats
+	mu     sync.RWMutex
+	cs     []*formatter.ContainerStats
 }
 
 // daemonOSType is set once we have at least one stat for a container
@@ -42,7 +26,7 @@ type stats struct {
 // on the daemon platform.
 var daemonOSType string
 
-func (s *stats) add(cs *containerStats) bool {
+func (s *stats) add(cs *formatter.ContainerStats) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if _, exists := s.isKnownContainer(cs.Name); !exists {
@@ -69,7 +53,7 @@ func (s *stats) isKnownContainer(cid string) (int, bool) {
 	return -1, false
 }
 
-func (s *containerStats) Collect(ctx context.Context, cli client.APIClient, streamStats bool, waitFirst *sync.WaitGroup) {
+func collect(s *formatter.ContainerStats, ctx context.Context, cli client.APIClient, streamStats bool, waitFirst *sync.WaitGroup) {
 	logrus.Debugf("collecting stats for %s", s.Name)
 	var (
 		getFirst       bool
@@ -88,9 +72,9 @@ func (s *containerStats) Collect(ctx context.Context, cli client.APIClient, stre
 
 	response, err := cli.ContainerStats(ctx, s.Name, streamStats)
 	if err != nil {
-		s.mu.Lock()
-		s.err = err
-		s.mu.Unlock()
+		s.Mu.Lock()
+		s.Err = err
+		s.Mu.Unlock()
 		return
 	}
 	defer response.Body.Close()
@@ -137,7 +121,7 @@ func (s *containerStats) Collect(ctx context.Context, cli client.APIClient, stre
 				mem = float64(v.MemoryStats.PrivateWorkingSet)
 			}
 
-			s.mu.Lock()
+			s.Mu.Lock()
 			s.CPUPercentage = cpuPercent
 			s.Memory = mem
 			s.NetworkRx, s.NetworkTx = calculateNetwork(v.Networks)
@@ -148,7 +132,7 @@ func (s *containerStats) Collect(ctx context.Context, cli client.APIClient, stre
 				s.MemoryPercentage = memPercent
 				s.PidsCurrent = v.PidsStats.Current
 			}
-			s.mu.Unlock()
+			s.Mu.Unlock()
 			u <- nil
 			if !streamStats {
 				return
@@ -160,7 +144,7 @@ func (s *containerStats) Collect(ctx context.Context, cli client.APIClient, stre
 		case <-time.After(2 * time.Second):
 			// zero out the values if we have not received an update within
 			// the specified duration.
-			s.mu.Lock()
+			s.Mu.Lock()
 			s.CPUPercentage = 0
 			s.Memory = 0
 			s.MemoryPercentage = 0
@@ -170,8 +154,8 @@ func (s *containerStats) Collect(ctx context.Context, cli client.APIClient, stre
 			s.BlockRead = 0
 			s.BlockWrite = 0
 			s.PidsCurrent = 0
-			s.err = errors.New("timeout waiting for stats")
-			s.mu.Unlock()
+			s.Err = errors.New("timeout waiting for stats")
+			s.Mu.Unlock()
 			// if this is the first stat you get, release WaitGroup
 			if !getFirst {
 				getFirst = true
@@ -179,12 +163,12 @@ func (s *containerStats) Collect(ctx context.Context, cli client.APIClient, stre
 			}
 		case err := <-u:
 			if err != nil {
-				s.mu.Lock()
-				s.err = err
-				s.mu.Unlock()
+				s.Mu.Lock()
+				s.Err = err
+				s.Mu.Unlock()
 				continue
 			}
-			s.err = nil
+			s.Err = nil
 			// if this is the first stat you get, release WaitGroup
 			if !getFirst {
 				getFirst = true
@@ -195,51 +179,6 @@ func (s *containerStats) Collect(ctx context.Context, cli client.APIClient, stre
 			return
 		}
 	}
-}
-
-func (s *containerStats) Display(w io.Writer) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if daemonOSType == "windows" {
-		// NOTE: if you change this format, you must also change the err format below!
-		format := "%s\t%.2f%%\t%s\t%s / %s\t%s / %s\n"
-		if s.err != nil {
-			format = "%s\t%s\t%s\t%s / %s\t%s / %s\n"
-			errStr := "--"
-			fmt.Fprintf(w, format,
-				s.Name, errStr, errStr, errStr, errStr, errStr, errStr,
-			)
-			err := s.err
-			return err
-		}
-		fmt.Fprintf(w, format,
-			s.Name,
-			s.CPUPercentage,
-			units.BytesSize(s.Memory),
-			units.HumanSizeWithPrecision(s.NetworkRx, 3), units.HumanSizeWithPrecision(s.NetworkTx, 3),
-			units.HumanSizeWithPrecision(s.BlockRead, 3), units.HumanSizeWithPrecision(s.BlockWrite, 3))
-	} else {
-		// NOTE: if you change this format, you must also change the err format below!
-		format := "%s\t%.2f%%\t%s / %s\t%.2f%%\t%s / %s\t%s / %s\t%d\n"
-		if s.err != nil {
-			format = "%s\t%s\t%s / %s\t%s\t%s / %s\t%s / %s\t%s\n"
-			errStr := "--"
-			fmt.Fprintf(w, format,
-				s.Name, errStr, errStr, errStr, errStr, errStr, errStr, errStr, errStr, errStr,
-			)
-			err := s.err
-			return err
-		}
-		fmt.Fprintf(w, format,
-			s.Name,
-			s.CPUPercentage,
-			units.BytesSize(s.Memory), units.BytesSize(s.MemoryLimit),
-			s.MemoryPercentage,
-			units.HumanSizeWithPrecision(s.NetworkRx, 3), units.HumanSizeWithPrecision(s.NetworkTx, 3),
-			units.HumanSizeWithPrecision(s.BlockRead, 3), units.HumanSizeWithPrecision(s.BlockWrite, 3),
-			s.PidsCurrent)
-	}
-	return nil
 }
 
 func calculateCPUPercentUnix(previousCPU, previousSystem uint64, v *types.StatsJSON) float64 {
