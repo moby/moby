@@ -41,7 +41,7 @@ type PushResult struct {
 }
 
 type v2Pusher struct {
-	v2MetadataService *metadata.V2MetadataService
+	v2MetadataService metadata.V2MetadataService
 	ref               reference.Named
 	endpoint          registry.APIEndpoint
 	repoInfo          *registry.RepositoryInfo
@@ -243,7 +243,7 @@ func manifestFromBuilder(ctx context.Context, builder distribution.ManifestBuild
 
 type v2PushDescriptor struct {
 	layer             layer.Layer
-	v2MetadataService *metadata.V2MetadataService
+	v2MetadataService metadata.V2MetadataService
 	hmacKey           []byte
 	repoInfo          reference.Named
 	ref               reference.Named

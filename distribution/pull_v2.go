@@ -50,7 +50,7 @@ func (e ImageConfigPullError) Error() string {
 }
 
 type v2Puller struct {
-	V2MetadataService *metadata.V2MetadataService
+	V2MetadataService metadata.V2MetadataService
 	endpoint          registry.APIEndpoint
 	config            *ImagePullConfig
 	repoInfo          *registry.RepositoryInfo
@@ -134,7 +134,7 @@ type v2LayerDescriptor struct {
 	digest            digest.Digest
 	repoInfo          *registry.RepositoryInfo
 	repo              distribution.Repository
-	V2MetadataService *metadata.V2MetadataService
+	V2MetadataService metadata.V2MetadataService
 	tmpFile           *os.File
 	verifier          digest.Verifier
 	src               distribution.Descriptor

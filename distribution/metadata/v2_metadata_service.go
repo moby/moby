@@ -13,9 +13,20 @@ import (
 
 // V2MetadataService maps layer IDs to a set of known metadata for
 // the layer.
-type V2MetadataService struct {
+type V2MetadataService interface {
+	GetMetadata(diffID layer.DiffID) ([]V2Metadata, error)
+	GetDiffID(dgst digest.Digest) (layer.DiffID, error)
+	Add(diffID layer.DiffID, metadata V2Metadata) error
+	TagAndAdd(diffID layer.DiffID, hmacKey []byte, metadata V2Metadata) error
+	Remove(metadata V2Metadata) error
+}
+
+// v2MetadataService implements V2MetadataService
+type v2MetadataService struct {
 	store Store
 }
+
+var _ V2MetadataService = &v2MetadataService{}
 
 // V2Metadata contains the digest and source repository information for a layer.
 type V2Metadata struct {
@@ -90,30 +101,30 @@ type authConfigKeyInput struct {
 const maxMetadata = 50
 
 // NewV2MetadataService creates a new diff ID to v2 metadata mapping service.
-func NewV2MetadataService(store Store) *V2MetadataService {
-	return &V2MetadataService{
+func NewV2MetadataService(store Store) V2MetadataService {
+	return &v2MetadataService{
 		store: store,
 	}
 }
 
-func (serv *V2MetadataService) diffIDNamespace() string {
+func (serv *v2MetadataService) diffIDNamespace() string {
 	return "v2metadata-by-diffid"
 }
 
-func (serv *V2MetadataService) digestNamespace() string {
+func (serv *v2MetadataService) digestNamespace() string {
 	return "diffid-by-digest"
 }
 
-func (serv *V2MetadataService) diffIDKey(diffID layer.DiffID) string {
+func (serv *v2MetadataService) diffIDKey(diffID layer.DiffID) string {
 	return string(digest.Digest(diffID).Algorithm()) + "/" + digest.Digest(diffID).Hex()
 }
 
-func (serv *V2MetadataService) digestKey(dgst digest.Digest) string {
+func (serv *v2MetadataService) digestKey(dgst digest.Digest) string {
 	return string(dgst.Algorithm()) + "/" + dgst.Hex()
 }
 
 // GetMetadata finds the metadata associated with a layer DiffID.
-func (serv *V2MetadataService) GetMetadata(diffID layer.DiffID) ([]V2Metadata, error) {
+func (serv *v2MetadataService) GetMetadata(diffID layer.DiffID) ([]V2Metadata, error) {
 	jsonBytes, err := serv.store.Get(serv.diffIDNamespace(), serv.diffIDKey(diffID))
 	if err != nil {
 		return nil, err
@@ -128,7 +139,7 @@ func (serv *V2MetadataService) GetMetadata(diffID layer.DiffID) ([]V2Metadata, e
 }
 
 // GetDiffID finds a layer DiffID from a digest.
-func (serv *V2MetadataService) GetDiffID(dgst digest.Digest) (layer.DiffID, error) {
+func (serv *v2MetadataService) GetDiffID(dgst digest.Digest) (layer.DiffID, error) {
 	diffIDBytes, err := serv.store.Get(serv.digestNamespace(), serv.digestKey(dgst))
 	if err != nil {
 		return layer.DiffID(""), err
@@ -139,7 +150,7 @@ func (serv *V2MetadataService) GetDiffID(dgst digest.Digest) (layer.DiffID, erro
 
 // Add associates metadata with a layer DiffID. If too many metadata entries are
 // present, the oldest one is dropped.
-func (serv *V2MetadataService) Add(diffID layer.DiffID, metadata V2Metadata) error {
+func (serv *v2MetadataService) Add(diffID layer.DiffID, metadata V2Metadata) error {
 	oldMetadata, err := serv.GetMetadata(diffID)
 	if err != nil {
 		oldMetadata = nil
@@ -174,13 +185,13 @@ func (serv *V2MetadataService) Add(diffID layer.DiffID, metadata V2Metadata) err
 
 // TagAndAdd amends the given "meta" for hmac hashed by the given "hmacKey" and associates it with a layer
 // DiffID. If too many metadata entries are present, the oldest one is dropped.
-func (serv *V2MetadataService) TagAndAdd(diffID layer.DiffID, hmacKey []byte, meta V2Metadata) error {
+func (serv *v2MetadataService) TagAndAdd(diffID layer.DiffID, hmacKey []byte, meta V2Metadata) error {
 	meta.HMAC = ComputeV2MetadataHMAC(hmacKey, &meta)
 	return serv.Add(diffID, meta)
 }
 
 // Remove unassociates a metadata entry from a layer DiffID.
-func (serv *V2MetadataService) Remove(metadata V2Metadata) error {
+func (serv *v2MetadataService) Remove(metadata V2Metadata) error {
 	diffID, err := serv.GetDiffID(metadata.Digest)
 	if err != nil {
 		return err
