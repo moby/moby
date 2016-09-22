@@ -45,6 +45,22 @@ type FlushOption struct {
 	IgnoreFlushesDuringBoot bool
 }
 
+// HyperVIsolationOption is a CreateOption that indicates whether the runtime
+// should start the container as a Hyper-V container, and if so, the sandbox path.
+type HyperVIsolationOption struct {
+	IsHyperV    bool
+	SandboxPath string `json:",omitempty"`
+}
+
+// LayerOption is a CreateOption that indicates to the runtime the layer folder
+// and layer paths for a container.
+type LayerOption struct {
+	// LayerFolder is the path to the current layer folder. Empty for Hyper-V containers.
+	LayerFolderPath string `json:",omitempty"`
+	// Layer paths of the parent layers
+	LayerPaths []string
+}
+
 // Checkpoint holds the details of a checkpoint (not supported in windows)
 type Checkpoint struct {
 	Name string
