@@ -42,6 +42,20 @@ func TestNewEnvClient(t *testing.T) {
 		},
 		{
 			envs: map[string]string{
+				"DOCKER_CERT_PATH":  "testdata/",
+				"DOCKER_TLS_VERIFY": "1",
+			},
+			expectedVersion: DefaultVersion,
+		},
+		{
+			envs: map[string]string{
+				"DOCKER_CERT_PATH": "testdata/",
+				"DOCKER_HOST":      "https://notaunixsocket",
+			},
+			expectedVersion: DefaultVersion,
+		},
+		{
+			envs: map[string]string{
 				"DOCKER_HOST": "host",
 			},
 			expectedError: "unable to parse docker host `host`",
@@ -69,7 +83,9 @@ func TestNewEnvClient(t *testing.T) {
 		recoverEnvs := setupEnvs(t, c.envs)
 		apiclient, err := NewEnvClient()
 		if c.expectedError != "" {
-			if err == nil || err.Error() != c.expectedError {
+			if err == nil {
+				t.Errorf("expected an error for %v", c)
+			} else if err.Error() != c.expectedError {
 				t.Errorf("expected an error %s, got %s, for %v", c.expectedError, err.Error(), c)
 			}
 		} else {
@@ -81,6 +97,19 @@ func TestNewEnvClient(t *testing.T) {
 				t.Errorf("expected %s, got %s, for %v", c.expectedVersion, version, c)
 			}
 		}
+
+		if c.envs["DOCKER_TLS_VERIFY"] != "" {
+			// pedantic checking that this is handled correctly
+			tr := apiclient.client.Transport.(*http.Transport)
+			if tr.TLSClientConfig == nil {
+				t.Errorf("no tls config found when DOCKER_TLS_VERIFY enabled")
+			}
+
+			if tr.TLSClientConfig.InsecureSkipVerify {
+				t.Errorf("tls verification should be enabled")
+			}
+		}
+
 		recoverEnvs(t)
 	}
 }

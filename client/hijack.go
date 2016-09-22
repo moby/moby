@@ -47,12 +47,7 @@ func (cli *Client) postHijacked(ctx context.Context, path string, query url.Valu
 	req.Header.Set("Connection", "Upgrade")
 	req.Header.Set("Upgrade", "tcp")
 
-	tlsConfig, err := resolveTLSConfig(cli.client.Transport)
-	if err != nil {
-		return types.HijackedResponse{}, err
-	}
-
-	conn, err := dial(cli.proto, cli.addr, tlsConfig)
+	conn, err := dial(cli.proto, cli.addr, resolveTLSConfig(cli.client.Transport))
 	if err != nil {
 		if strings.Contains(err.Error(), "connection refused") {
 			return types.HijackedResponse{}, fmt.Errorf("Cannot connect to the Docker daemon. Is 'docker daemon' running on this host?")
