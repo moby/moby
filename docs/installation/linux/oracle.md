@@ -11,7 +11,7 @@ parent = "engine_linux"
 
 # Oracle Linux
 
-Docker is supported Oracle Linux 6 and 7. You do not require an Oracle Linux
+Docker is supported on Oracle Linux 6 and 7. You do not require an Oracle Linux
 Support subscription to install Docker on Oracle Linux.
 
 ## Prerequisites
