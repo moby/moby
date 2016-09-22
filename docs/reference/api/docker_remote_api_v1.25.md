@@ -1715,6 +1715,7 @@ or being killed.
         there must be a file with the corresponding path inside the tarball.
 -   **q** – Suppress verbose build output.
 -   **nocache** – Do not use the cache when building the image.
+-   **cachefrom** - JSON array of images used for build cache resolution.
 -   **pull** - Attempt to pull the image even if an older image exists locally.
 -   **rm** - Remove intermediate containers after a successful build (default behavior).
 -   **forcerm** - Always remove intermediate containers (includes `rm`).
