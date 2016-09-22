@@ -32,8 +32,12 @@ type Stats hcsshim.Statistics
 // Resources defines updatable container resource values.
 type Resources struct{}
 
+// RestartingOption is an empty CreateOption with a no-op application that signifies
+// the container needs is being created as part of a restart operating
+type RestartingOption struct {
+}
+
 // ServicingOption is a CreateOption with a no-op application that signifies
-// the container needs to be used for a Windows servicing operation.
 type ServicingOption struct {
 	IsServicing bool
 }

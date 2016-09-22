@@ -130,8 +130,31 @@ func (clnt *client) Create(containerID string, checkpoint string, checkpointDir 
 		}
 	}
 
-	var layerOpt *LayerOption
+	var (
+		layerOpt   *LayerOption
+		restarting bool
+	)
 	for _, option := range options {
+		// A RestartingOption is present if Create() is called from libcontainerd
+		// (as opposed to from the docker engine), as the container is restarting
+		// after it has exited.
+		//
+		// The contract from the engine is that when Create is called, the container
+		// lock is held. However, when called from libcontainerd, as the engine
+		// is not the originator of the Create, and the Create is asynchronous
+		// from the engines perspective, the engine is not holding the container lock.
+		//
+		// Thus, once the restarted container has started and libcontainer calls
+		// back into the monitor to notify it of the state change, the engine is
+		// able to take the lock.
+		//
+		// This avoids the data-race described in https://github.com/docker/docker/issues/26801,
+		// where daemons state can become corrupted, leading to unexpected errors,
+		// or a daemon deadlock.
+		if _, ok := option.(*RestartingOption); ok {
+			restarting = true
+			continue
+		}
 		if s, ok := option.(*ServicingOption); ok {
 			configuration.Servicing = s.IsServicing
 			continue
@@ -233,7 +256,7 @@ func (clnt *client) Create(containerID string, checkpoint string, checkpointDir 
 	// internal structure, start will keep HCS in sync by deleting the
 	// container there.
 	logrus.Debugf("libcontainerd: Create() id=%s, Calling start()", containerID)
-	if err := container.start(); err != nil {
+	if err := container.start(restarting); err != nil {
 		clnt.deleteContainer(containerID)
 		return err
 	}
