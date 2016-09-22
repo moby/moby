@@ -11,9 +11,6 @@ import (
 	"github.com/docker/docker/api"
 )
 
-// APIVersionKey is the client's requested API version.
-const APIVersionKey = "api-version"
-
 // APIFunc is an adapter to allow the use of ordinary functions as Docker API endpoints.
 // Any function that has the appropriate signature can be registered as an API endpoint (e.g. getVersion).
 type APIFunc func(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error
@@ -71,17 +68,4 @@ func ParseForm(r *http.Request) error {
 		return err
 	}
 	return nil
-}
-
-// VersionFromContext returns an API version from the context using APIVersionKey.
-// It panics if the context value does not have version.Version type.
-func VersionFromContext(ctx context.Context) (ver string) {
-	if ctx == nil {
-		return
-	}
-	val := ctx.Value(APIVersionKey)
-	if val == nil {
-		return
-	}
-	return val.(string)
 }

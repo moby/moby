@@ -16,6 +16,7 @@ import (
 	"github.com/docker/docker/api/types/registry"
 	timetypes "github.com/docker/docker/api/types/time"
 	"github.com/docker/docker/api/types/versions"
+	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/pkg/ioutils"
 	"golang.org/x/net/context"
 )
@@ -39,7 +40,7 @@ func (s *systemRouter) getInfo(ctx context.Context, w http.ResponseWriter, r *ht
 		info.Swarm = s.clusterProvider.Info()
 	}
 
-	if versions.LessThan(httputils.VersionFromContext(ctx), "1.25") {
+	if versions.LessThan(dockerversion.FromContext(ctx), "1.25") {
 		// TODO: handle this conversion in engine-api
 		type oldInfo struct {
 			*types.Info

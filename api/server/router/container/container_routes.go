@@ -16,6 +16,7 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/versions"
+	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/signal"
 	"golang.org/x/net/context"
@@ -68,7 +69,7 @@ func (s *containerRouter) getContainersStats(ctx context.Context, w http.Respons
 	config := &backend.ContainerStatsConfig{
 		Stream:    stream,
 		OutStream: w,
-		Version:   string(httputils.VersionFromContext(ctx)),
+		Version:   dockerversion.FromContext(ctx),
 	}
 
 	return s.backend.ContainerStats(ctx, vars["name"], config)
@@ -131,7 +132,7 @@ func (s *containerRouter) postContainersStart(ctx context.Context, w http.Respon
 	// including r.TransferEncoding
 	// allow a nil body for backwards compatibility
 
-	version := httputils.VersionFromContext(ctx)
+	version := dockerversion.FromContext(ctx)
 	var hostConfig *container.HostConfig
 	// A non-nil json object is at least 7 characters.
 	if r.ContentLength > 7 || r.ContentLength == -1 {
@@ -216,7 +217,7 @@ func (s *containerRouter) postContainersKill(ctx context.Context, w http.Respons
 		// Return error that's not caused because the container is stopped.
 		// Return error if the container is not running and the api is >= 1.20
 		// to keep backwards compatibility.
-		version := httputils.VersionFromContext(ctx)
+		version := dockerversion.FromContext(ctx)
 		if versions.GreaterThanOrEqualTo(version, "1.20") || !isStopped {
 			return fmt.Errorf("Cannot kill container %s: %v", name, err)
 		}
@@ -332,7 +333,7 @@ func (s *containerRouter) postContainerUpdate(ctx context.Context, w http.Respon
 		return err
 	}
 
-	version := httputils.VersionFromContext(ctx)
+	version := dockerversion.FromContext(ctx)
 	var updateConfig container.UpdateConfig
 
 	decoder := json.NewDecoder(r.Body)
@@ -369,7 +370,7 @@ func (s *containerRouter) postContainersCreate(ctx context.Context, w http.Respo
 	if err != nil {
 		return err
 	}
-	version := httputils.VersionFromContext(ctx)
+	version := dockerversion.FromContext(ctx)
 	adjustCPUShares := versions.LessThan(version, "1.19")
 
 	validateHostname := versions.GreaterThanOrEqualTo(version, "1.24")
