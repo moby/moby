@@ -51,7 +51,6 @@ func newDockerCommand(dockerCli *command.DockerCli) *cobra.Command {
 	opts.Common.InstallFlags(flags)
 
 	cmd.SetOutput(dockerCli.Out())
-	cmd.AddCommand(newDaemonCommand())
 	commands.AddCommands(cmd, dockerCli)
 
 	return cmd

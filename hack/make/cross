@@ -31,8 +31,6 @@ for platform in $DOCKER_CROSSPLATFORMS; do
 		if [ -z "${daemonSupporting[$platform]}" ]; then
 			# we just need a simple client for these platforms
 			export LDFLAGS_STATIC_DOCKER=""
-			# remove the "daemon" build tag from platforms that aren't supported
-			export BUILDFLAGS=( "${ORIG_BUILDFLAGS[@]/ daemon/}" )
 			source "${MAKEDIR}/binary-client"
 		else
 			source "${MAKEDIR}/binary-client"
