@@ -511,10 +511,11 @@ Create a container
     -   **Mounts** – Specification for mounts to be added to the container.
         - **Target** – Container path.
         - **Source** – Mount source (e.g. a volume name, a host path).
-        - **Type** – The mount type (`bind`, or `volume`).
+        - **Type** – The mount type (`bind`, `volume`, or `tmpfs`).
           Available types (for the `Type` field):
           - **bind** - Mounts a file or directory from the host into the container. Must exist prior to creating the container.
           - **volume** - Creates a volume with the given name and options (or uses a pre-existing volume with the same name and options). These are **not** removed when the container is removed.
+          - **tmpfs** - Create a tmpfs with the given options. The mount source cannot be specified for tmpfs.
         - **ReadOnly** – A boolean indicating whether the mount should be read-only.
         - **BindOptions** - Optional configuration for the `bind` type.
           - **Propagation** – A propagation mode with the value `[r]private`, `[r]shared`, or `[r]slave`.
@@ -525,6 +526,9 @@ Create a container
             - **DriverConfig** – Map of driver-specific options.
               - **Name** - Name of the driver to use to create the volume.
               - **Options** - key/value map of driver specific options.
+        - **TmpfsOptions** – Optional configuration for the `tmpfs` type.
+            - **SizeBytes** – The size for the tmpfs mount in bytes.
+            - **Mode** – The permission mode for the tmpfs mount in an integer.
 
 
 **Query parameters**:

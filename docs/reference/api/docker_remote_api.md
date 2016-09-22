@@ -139,7 +139,7 @@ This section lists each version from latest to oldest.  Each listing includes a 
 * `DELETE /volumes/(name)` now accepts a `force` query parameter to force removal of volumes that were already removed out of band by the volume driver plugin.
 * `POST /containers/create/` and `POST /containers/(name)/update` now validates restart policies.
 * `POST /containers/create` now validates IPAMConfig in NetworkingConfig, and returns error for invalid IPv4 and IPv6 addresses (`--ip` and `--ip6` in `docker create/run`).
-* `POST /containers/create` now takes a `Mounts` field in `HostConfig` which replaces `Binds` and `Volumes`. *note*: `Binds` and `Volumes` are still available but are exclusive with `Mounts`
+* `POST /containers/create` now takes a `Mounts` field in `HostConfig` which replaces `Binds`, `Volumes`, and `Tmpfs`. *note*: `Binds`, `Volumes`, and `Tmpfs` are still available and can be combined with `Mounts`.
 * `POST /build` now performs a preliminary validation of the `Dockerfile` before starting the build, and returns an error if the syntax is incorrect. Note that this change is _unversioned_ and applied to all API versions.
 * `POST /build` accepts `cachefrom` parameter to specify images used for build cache.
 * `GET /networks/` endpoint now correctly returns a list of *all* networks,

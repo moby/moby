@@ -473,7 +473,7 @@ func setMounts(daemon *Daemon, s *specs.Spec, c *container.Container, mounts []c
 		}
 
 		if m.Source == "tmpfs" {
-			data := c.HostConfig.Tmpfs[m.Destination]
+			data := m.Data
 			options := []string{"noexec", "nosuid", "nodev", string(volume.DefaultPropagationMode)}
 			if data != "" {
 				options = append(options, strings.Split(data, ",")...)
@@ -707,7 +707,11 @@ func (daemon *Daemon) createSpec(c *container.Container) (*specs.Spec, error) {
 		return nil, err
 	}
 	ms = append(ms, c.IpcMounts()...)
-	ms = append(ms, c.TmpfsMounts()...)
+	tmpfsMounts, err := c.TmpfsMounts()
+	if err != nil {
+		return nil, err
+	}
+	ms = append(ms, tmpfsMounts...)
 	sort.Sort(mounts(ms))
 	if err := setMounts(daemon, &s, c, ms); err != nil {
 		return nil, fmt.Errorf("linux mounts: %v", err)
