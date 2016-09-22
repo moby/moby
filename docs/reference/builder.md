@@ -68,6 +68,13 @@ add multiple `-t` parameters when you run the `build` command:
 
     $ docker build -t shykes/myapp:1.0.2 -t shykes/myapp:latest .
 
+Before the Docker daemon runs the instructions in the `Dockerfile`, it performs
+a preliminary validation of the `Dockerfile` and returns an error if the syntax is incorrect:
+
+    $ docker build -t test/myapp .
+    Sending build context to Docker daemon 2.048 kB
+    Error response from daemon: Unknown instruction: RUNCMD
+
 The Docker daemon runs the instructions in the `Dockerfile` one-by-one,
 committing the result of each instruction
 to a new image if necessary, before finally outputting the ID of your
