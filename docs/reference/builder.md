@@ -106,6 +106,13 @@ the `Using cache` message in the console output.
      ---> 7ea8aef582cc
     Successfully built 7ea8aef582cc
 
+Build cache is only used from images that have a local parent chain. This means
+that these images were created by previous builds or the whole chain of images
+was loaded with `docker load`. If you wish to use build cache of a specific
+image you can specify it with `--cache-from` option. Images specified with
+`--cache-from` do not need to have a parent chain and may be pulled from other
+registries.
+
 When you're done with your build, you're ready to look into [*Pushing a
 repository to its registry*](../tutorials/dockerrepos.md#contributing-to-docker-hub).
 
