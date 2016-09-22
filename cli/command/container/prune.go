@@ -1,0 +1,74 @@
+package container
+
+import (
+	"fmt"
+
+	"golang.org/x/net/context"
+
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/cli"
+	"github.com/docker/docker/cli/command"
+	units "github.com/docker/go-units"
+	"github.com/spf13/cobra"
+)
+
+type pruneOptions struct {
+	force bool
+}
+
+// NewPruneCommand returns a new cobra prune command for containers
+func NewPruneCommand(dockerCli *command.DockerCli) *cobra.Command {
+	var opts pruneOptions
+
+	cmd := &cobra.Command{
+		Use:   "prune",
+		Short: "Remove all stopped containers",
+		Args:  cli.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			spaceReclaimed, output, err := runPrune(dockerCli, opts)
+			if err != nil {
+				return err
+			}
+			if output != "" {
+				fmt.Fprintln(dockerCli.Out(), output)
+			}
+			fmt.Fprintln(dockerCli.Out(), "Total reclaimed space:", units.HumanSize(float64(spaceReclaimed)))
+			return nil
+		},
+	}
+
+	flags := cmd.Flags()
+	flags.BoolVarP(&opts.force, "force", "f", false, "Do not prompt for confirmation")
+
+	return cmd
+}
+
+const warning = `WARNING! This will remove all stopped containers.
+Are you sure you want to continue? [y/N] `
+
+func runPrune(dockerCli *command.DockerCli, opts pruneOptions) (spaceReclaimed uint64, output string, err error) {
+	if !opts.force && !command.PromptForConfirmation(dockerCli.In(), dockerCli.Out(), warning) {
+		return
+	}
+
+	report, err := dockerCli.Client().ContainersPrune(context.Background(), types.ContainersPruneConfig{})
+	if err != nil {
+		return
+	}
+
+	if len(report.ContainersDeleted) > 0 {
+		output = "Deleted Containers:"
+		for _, id := range report.ContainersDeleted {
+			output += id + "\n"
+		}
+		spaceReclaimed = report.SpaceReclaimed
+	}
+
+	return
+}
+
+// RunPrune call the Container Prune API
+// This returns the amount of space reclaimed and a detailed output string
+func RunPrune(dockerCli *command.DockerCli) (uint64, string, error) {
+	return runPrune(dockerCli, pruneOptions{force: true})
+}
