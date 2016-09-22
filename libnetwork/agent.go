@@ -172,10 +172,12 @@ func (c *controller) agentSetup() error {
 	advAddr := clusterProvider.GetAdvertiseAddress()
 	remote := clusterProvider.GetRemoteAddress()
 	remoteAddr, _, _ := net.SplitHostPort(remote)
+	listen := clusterProvider.GetListenAddress()
+	listenAddr, _, _ := net.SplitHostPort(listen)
 
-	logrus.Infof("Initializing Libnetwork Agent Local-addr=%s Adv-addr=%s Remote-addr =%s", bindAddr, advAddr, remoteAddr)
+	logrus.Infof("Initializing Libnetwork Agent Listen-Addr=%s Local-addr=%s Adv-addr=%s Remote-addr =%s", listenAddr, bindAddr, advAddr, remoteAddr)
 	if advAddr != "" && c.agent == nil {
-		if err := c.agentInit(bindAddr, advAddr); err != nil {
+		if err := c.agentInit(listenAddr, bindAddr, advAddr); err != nil {
 			logrus.Errorf("Error in agentInit : %v", err)
 		} else {
 			c.drvRegistry.WalkDrivers(func(name string, driver driverapi.Driver, capability driverapi.Capability) bool {
@@ -236,7 +238,7 @@ func (c *controller) getPrimaryKeyTag(subsys string) ([]byte, uint64, error) {
 	return keys[1].Key, keys[1].LamportTime, nil
 }
 
-func (c *controller) agentInit(bindAddrOrInterface, advertiseAddr string) error {
+func (c *controller) agentInit(listenAddr, bindAddrOrInterface, advertiseAddr string) error {
 	if !c.isAgent() {
 		return nil
 	}
@@ -252,6 +254,7 @@ func (c *controller) agentInit(bindAddrOrInterface, advertiseAddr string) error 
 	logrus.Info("Gossip cluster hostname ", nodeName)
 
 	nDB, err := networkdb.New(&networkdb.Config{
+		BindAddr:      listenAddr,
 		AdvertiseAddr: advertiseAddr,
 		NodeName:      nodeName,
 		Keys:          keys,
