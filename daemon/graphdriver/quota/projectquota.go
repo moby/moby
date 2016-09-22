@@ -99,7 +99,7 @@ func NewControl(basePath string) (*Control, error) {
 	//
 	// Get project id of parent dir as minimal id to be used by driver
 	//
-	minProjectID, err := getProjectID(basePath)
+	minProjectID, err := GetProjectID(basePath)
 	if err != nil {
 		return nil, err
 	}
@@ -222,8 +222,8 @@ func (q *Control) GetQuota(targetPath string, quota *Quota) error {
 	return nil
 }
 
-// getProjectID - get the project id of path on xfs
-func getProjectID(targetPath string) (uint32, error) {
+// GetProjectID - gets the project id of path on xfs
+func GetProjectID(targetPath string) (uint32, error) {
 	dir, err := openDir(targetPath)
 	if err != nil {
 		return 0, err
@@ -277,7 +277,7 @@ func (q *Control) findNextProjectID(home string) error {
 			continue
 		}
 		path := filepath.Join(home, file.Name())
-		projid, err := getProjectID(path)
+		projid, err := GetProjectID(path)
 		if err != nil {
 			return err
 		}
