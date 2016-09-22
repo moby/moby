@@ -501,23 +501,20 @@ func (daemon *Daemon) allocateNetwork(container *container.Container) error {
 		}
 
 	}
-	var (
-		networks  []string
-		epConfigs []*network.EndpointSettings
-	)
 
+	// the intermediate map is necessary because "connectToNetwork" modifies "container.NetworkSettings.Networks"
+	networks := make(map[string]*network.EndpointSettings)
 	for n, epConf := range container.NetworkSettings.Networks {
 		if n == defaultNetName {
 			continue
 		}
 
-		networks = append(networks, n)
-		epConfigs = append(epConfigs, epConf)
+		networks[n] = epConf
 	}
 
-	for i, epConf := range epConfigs {
+	for netName, epConf := range networks {
 		cleanOperationalData(epConf)
-		if err := daemon.connectToNetwork(container, networks[i], epConf.EndpointSettings, updateSettings); err != nil {
+		if err := daemon.connectToNetwork(container, netName, epConf.EndpointSettings, updateSettings); err != nil {
 			return err
 		}
 	}
