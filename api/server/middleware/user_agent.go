@@ -6,12 +6,13 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/types/versions"
+	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/pkg/useragent"
 	"golang.org/x/net/context"
 )
 
-// UserAgentMiddleware is a middleware that
-// validates the client user-agent.
+// UserAgentMiddleware is a middleware that validates the client user-agent and
+// wraps it with additional version information.
 type UserAgentMiddleware struct {
 	serverVersion string
 }
@@ -30,7 +31,9 @@ func (u UserAgentMiddleware) WrapHandler(handler func(ctx context.Context, w htt
 		upstreamUA := r.Header.Get("User-Agent")
 		validate(upstreamUA, u.serverVersion)
 
-		ctx = useragent.NewContext(ctx, upstreamUA)
+		dockerUA := dockerversion.DockerUserAgent(upstreamUA)
+		ctx = useragent.NewContext(ctx, dockerUA)
+
 		return handler(ctx, w, r, vars)
 	}
 }

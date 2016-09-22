@@ -14,6 +14,7 @@ import (
 	"github.com/docker/distribution/registry/client/auth"
 	"github.com/docker/docker/api/types"
 	registrytypes "github.com/docker/docker/api/types/registry"
+	"github.com/docker/docker/pkg/useragent"
 	"github.com/docker/docker/reference"
 )
 
@@ -24,11 +25,11 @@ const (
 
 // Service is the interface defining what a registry service should implement.
 type Service interface {
-	Auth(ctx context.Context, authConfig *types.AuthConfig, userAgent string) (status, token string, err error)
+	Auth(ctx context.Context, authConfig *types.AuthConfig) (status, token string, err error)
 	LookupPullEndpoints(hostname string) (endpoints []APIEndpoint, err error)
 	LookupPushEndpoints(hostname string) (endpoints []APIEndpoint, err error)
 	ResolveRepository(name reference.Named) (*RepositoryInfo, error)
-	Search(ctx context.Context, term string, limit int, authConfig *types.AuthConfig, userAgent string, headers map[string][]string) (*registrytypes.SearchResults, error)
+	Search(ctx context.Context, term string, limit int, authConfig *types.AuthConfig, headers map[string][]string) (*registrytypes.SearchResults, error)
 	ServiceConfig() *registrytypes.ServiceConfig
 	TLSConfig(hostname string) (*tls.Config, error)
 	LoadInsecureRegistries([]string) error
@@ -84,7 +85,7 @@ func (s *DefaultService) LoadInsecureRegistries(registries []string) error {
 // Auth contacts the public registry with the provided credentials,
 // and returns OK if authentication was successful.
 // It can be used to verify the validity of a client's credentials.
-func (s *DefaultService) Auth(ctx context.Context, authConfig *types.AuthConfig, userAgent string) (status, token string, err error) {
+func (s *DefaultService) Auth(ctx context.Context, authConfig *types.AuthConfig) (status, token string, err error) {
 	// TODO Use ctx when searching for repositories
 	serverAddress := authConfig.ServerAddress
 	if serverAddress == "" {
@@ -103,6 +104,7 @@ func (s *DefaultService) Auth(ctx context.Context, authConfig *types.AuthConfig,
 		return "", "", err
 	}
 
+	userAgent := useragent.FromContext(ctx)
 	for _, endpoint := range endpoints {
 		login := loginV2
 		if endpoint.Version == APIVersion1 {
@@ -143,7 +145,7 @@ func splitReposSearchTerm(reposName string) (string, string) {
 
 // Search queries the public registry for images matching the specified
 // search terms, and returns the results.
-func (s *DefaultService) Search(ctx context.Context, term string, limit int, authConfig *types.AuthConfig, userAgent string, headers map[string][]string) (*registrytypes.SearchResults, error) {
+func (s *DefaultService) Search(ctx context.Context, term string, limit int, authConfig *types.AuthConfig, headers map[string][]string) (*registrytypes.SearchResults, error) {
 	// TODO Use ctx when searching for repositories
 	if err := validateNoScheme(term); err != nil {
 		return nil, err
@@ -160,6 +162,7 @@ func (s *DefaultService) Search(ctx context.Context, term string, limit int, aut
 		return nil, err
 	}
 
+	userAgent := useragent.FromContext(ctx)
 	// *TODO: Search multiple indexes.
 	endpoint, err := NewV1Endpoint(index, userAgent, http.Header(headers))
 	if err != nil {

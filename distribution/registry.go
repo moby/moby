@@ -12,7 +12,7 @@ import (
 	"github.com/docker/distribution/registry/client/auth"
 	"github.com/docker/distribution/registry/client/transport"
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/dockerversion"
+	"github.com/docker/docker/pkg/useragent"
 	"github.com/docker/docker/registry"
 	"github.com/docker/go-connections/sockets"
 	"golang.org/x/net/context"
@@ -49,7 +49,7 @@ func NewV2Repository(ctx context.Context, repoInfo *registry.RepositoryInfo, end
 		base.Dial = proxyDialer.Dial
 	}
 
-	modifiers := registry.DockerHeaders(dockerversion.DockerUserAgent(ctx), metaHeaders)
+	modifiers := registry.DockerHeaders(useragent.FromContext(ctx), metaHeaders)
 	authTransport := transport.NewTransport(base, modifiers...)
 
 	challengeManager, foundVersion, err := registry.PingV2Registry(endpoint.URL, authTransport)

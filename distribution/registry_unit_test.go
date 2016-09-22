@@ -11,6 +11,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/types"
 	registrytypes "github.com/docker/docker/api/types/registry"
+	"github.com/docker/docker/pkg/useragent"
 	"github.com/docker/docker/reference"
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/utils"
@@ -80,7 +81,7 @@ func testTokenPassThru(t *testing.T, ts *httptest.Server) {
 		t.Fatal(err)
 	}
 	p := puller.(*v2Puller)
-	ctx := context.Background()
+	ctx := useragent.NewContext(context.Background(), "useragent/foo")
 	p.repo, _, err = NewV2Repository(ctx, p.repoInfo, p.endpoint, p.config.MetaHeaders, p.config.AuthConfig, "pull")
 	if err != nil {
 		t.Fatal(err)
