@@ -69,34 +69,6 @@ func (daemon *Daemon) createSpec(c *container.Container) (*libcontainerd.Spec, e
 	s.Root.Path = c.BaseFS
 	s.Root.Readonly = c.HostConfig.ReadonlyRootfs
 
-	// In s.Windows.Networking
-	// Connect all the libnetwork allocated networks to the container
-	var epList []string
-	if c.NetworkSettings != nil {
-		for n := range c.NetworkSettings.Networks {
-			sn, err := daemon.FindNetwork(n)
-			if err != nil {
-				continue
-			}
-
-			ep, err := c.GetEndpointInNetwork(sn)
-			if err != nil {
-				continue
-			}
-
-			data, err := ep.DriverInfo()
-			if err != nil {
-				continue
-			}
-			if data["hnsid"] != nil {
-				epList = append(epList, data["hnsid"].(string))
-			}
-		}
-	}
-	s.Windows.Networking = &windowsoci.WindowsNetworking{
-		EndpointList: epList,
-	}
-
 	// In s.Windows.Resources
 	// @darrenstahlmsft implement these resources
 	cpuShares := uint64(c.HostConfig.CPUShares)
