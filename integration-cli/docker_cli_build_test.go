@@ -830,7 +830,7 @@ RUN [ $(cat "/test dir/test_file5") = 'test5' ]
 RUN [ $(cat "/test dir/test_file6") = 'test6' ]`
 
 	if daemonPlatform == "windows" {
-		dockerfile = `FROM windowsservercore
+		dockerfile = `FROM ` + WindowsBaseImage + `
 RUN mkdir "C:/test dir"
 RUN mkdir "C:/test_dir"
 COPY [ "test file1", "/test_file1" ]
