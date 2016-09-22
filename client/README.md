@@ -11,10 +11,10 @@ package main
 
 import (
 	"fmt"
+	"context"
 
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/api/types"
-	"golang.org/x/net/context"
 )
 
 func main() {
