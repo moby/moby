@@ -1,52 +1,10 @@
 package hcsshim
 
 import (
-	"github.com/Sirupsen/logrus"
-	"syscall"
 	"time"
+
+	"github.com/Sirupsen/logrus"
 )
-
-type waitable interface {
-	waitTimeoutInternal(timeout uint32) (bool, error)
-	hcsWait(timeout uint32) (bool, error)
-}
-
-func waitTimeoutHelper(object waitable, timeout time.Duration) (bool, error) {
-	var (
-		millis uint32
-	)
-
-	for totalMillis := uint64(timeout / time.Millisecond); totalMillis > 0; totalMillis = totalMillis - uint64(millis) {
-		if totalMillis >= syscall.INFINITE {
-			millis = syscall.INFINITE - 1
-		} else {
-			millis = uint32(totalMillis)
-		}
-
-		result, err := object.waitTimeoutInternal(millis)
-
-		if err != nil {
-			return result, err
-		}
-	}
-	return true, nil
-}
-
-func waitTimeoutInternalHelper(object waitable, timeout uint32) (bool, error) {
-	return object.hcsWait(timeout)
-}
-
-func waitForSingleObject(handle syscall.Handle, timeout uint32) (bool, error) {
-	s, e := syscall.WaitForSingleObject(handle, timeout)
-	switch s {
-	case syscall.WAIT_OBJECT_0:
-		return true, nil
-	case syscall.WAIT_TIMEOUT:
-		return false, nil
-	default:
-		return false, e
-	}
-}
 
 func processAsyncHcsResult(err error, resultp *uint16, callbackNumber uintptr, expectedNotification hcsNotification, timeout *time.Duration) error {
 	err = processHcsResult(err, resultp)
