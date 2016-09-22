@@ -16,6 +16,8 @@ Usage:  docker service create [OPTIONS] IMAGE [COMMAND] [ARG...]
 Create a new service
 
 Options:
+      --cap-add                        Add Linux capabilities (default [])
+      --cap-drop                       Drop Linux capabilities (default [])
       --constraint value               Placement constraints (default [])
       --container-label value          Service container labels (default [])
       --endpoint-mode string           Endpoint mode (vip or dnsrr)

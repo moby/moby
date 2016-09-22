@@ -4573,7 +4573,9 @@ image](#create-an-image) section for more details.
               }
             }
           ],
-          "User": "33"
+          "User": "33",
+          "CapAdd": [ "NET_ADMIN" ],
+          "CapDrop": [ "ALL" ]
         },
         "LogDriver": {
           "Name": "json-file",
@@ -4647,6 +4649,8 @@ image](#create-an-image) section for more details.
         - **Env** – A list of environment variables in the form of `["VAR=value"[,"VAR2=value2"]]`.
         - **Dir** – A string specifying the working directory for commands to run in.
         - **User** – A string value specifying the user inside the container.
+        - **CapAdd** - An list of string values specifying the Linux capabilities to add to the container
+        - **CapDrop** - An list of string values specifying the Linux capabilities to drop from the container
         - **Labels** – A map of labels to associate with the service (e.g.,
           `{"key":"value"[,"key2":"value2"]}`).
         - **Mounts** – Specification for mounts to be added to containers
@@ -4889,6 +4893,8 @@ image](#create-an-image) section for more details.
         - **User** – A string value specifying the user inside the container.
         - **Labels** – A map of labels to associate with the service (e.g.,
           `{"key":"value"[,"key2":"value2"]}`).
+        - **CapAdd** - An list of string values specifying the Linux capabilities to add to the container
+        - **CapDrop** - An list of string values specifying the Linux capabilities to drop from the container
         - **Mounts** – Specification for mounts to be added to containers created as part of the new
           service.
             - **Target** – Container path.

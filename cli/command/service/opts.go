@@ -401,6 +401,8 @@ type serviceOptions struct {
 	user            string
 	groups          []string
 	mounts          MountOpt
+	capAdd          opts.ListOpts
+	capDrop         opts.ListOpts
 
 	resources resourceOptions
 	stopGrace DurationOpt
@@ -424,6 +426,8 @@ func newServiceOptions() *serviceOptions {
 		labels:          opts.NewListOpts(runconfigopts.ValidateEnv),
 		containerLabels: opts.NewListOpts(runconfigopts.ValidateEnv),
 		env:             opts.NewListOpts(runconfigopts.ValidateEnv),
+		capAdd:          opts.NewListOpts(nil),
+		capDrop:         opts.NewListOpts(nil),
 		endpoint: endpointOptions{
 			ports: opts.NewListOpts(ValidatePort),
 		},
@@ -450,6 +454,8 @@ func (opts *serviceOptions) ToService() (swarm.ServiceSpec, error) {
 				Groups:          opts.groups,
 				Mounts:          opts.mounts.Value(),
 				StopGracePeriod: opts.stopGrace.Value(),
+				CapAdd:          opts.capAdd.GetAll(),
+				CapDrop:         opts.capDrop.GetAll(),
 			},
 			Networks:      convertNetworks(opts.networks),
 			Resources:     opts.resources.ToResourceRequirements(),
@@ -519,6 +525,9 @@ func addServiceFlags(cmd *cobra.Command, opts *serviceOptions) {
 
 	flags.StringVar(&opts.logDriver.name, flagLogDriver, "", "Logging driver for service")
 	flags.Var(&opts.logDriver.opts, flagLogOpt, "Logging driver options")
+
+	flags.Var(&opts.capAdd, flagCapAdd, "Add Linux capabilities")
+	flags.Var(&opts.capDrop, flagCapDrop, "Drop Linux capabilities")
 }
 
 const (
@@ -564,4 +573,6 @@ const (
 	flagRegistryAuth         = "with-registry-auth"
 	flagLogDriver            = "log-driver"
 	flagLogOpt               = "log-opt"
+	flagCapAdd               = "cap-add"
+	flagCapDrop              = "cap-drop"
 )

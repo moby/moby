@@ -300,6 +300,8 @@ func (c *containerConfig) hostConfig() *enginecontainer.HostConfig {
 		Binds:     c.binds(),
 		Tmpfs:     c.tmpfs(),
 		GroupAdd:  c.spec().Groups,
+		CapAdd:    c.spec().CapAdd,
+		CapDrop:   c.spec().CapDrop,
 	}
 
 	if c.task.LogDriver != nil {

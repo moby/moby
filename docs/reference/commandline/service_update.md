@@ -17,6 +17,8 @@ Update a service
 
 Options:
       --args string                    Service command args
+      --cap-add                        Add Linux capabilities (default [])
+      --cap-drop                       Drop Linux capabilities (default [])
       --constraint-add value           Add or update placement constraints (default [])
       --constraint-rm value            Remove a constraint (default [])
       --container-label-add value      Add or update container labels (default [])

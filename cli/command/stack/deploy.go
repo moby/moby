@@ -176,7 +176,9 @@ func deployServices(
 					// Service Labels will not be copied to Containers
 					// automatically during the deployment so we apply
 					// it here.
-					Labels: getStackLabels(namespace, nil),
+					Labels:  getStackLabels(namespace, nil),
+					CapAdd:  service.CapAdd,
+					CapDrop: service.CapDrop,
 				},
 			},
 			EndpointSpec: &swarm.EndpointSpec{

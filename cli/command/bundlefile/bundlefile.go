@@ -25,6 +25,8 @@ type Service struct {
 	WorkingDir *string           `json:",omitempty"`
 	User       *string           `json:",omitempty"`
 	Networks   []string          `json:",omitempty"`
+	CapAdd     []string          `json:",omitempty"`
+	CapDrop    []string          `json:",omitempty"`
 }
 
 // Port is a port as defined in a bundlefile

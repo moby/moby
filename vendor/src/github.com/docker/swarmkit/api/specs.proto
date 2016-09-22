@@ -188,6 +188,12 @@ message ContainerSpec {
 
 	// PullOptions parameterize the behavior of image pulls.
 	PullOptions pull_options = 10;
+
+	// Capabilitis to add
+	repeated string cap_add = 12;
+
+	// Capabilitis to drop
+	repeated string cap_drop = 13;
 }
 
 // EndpointSpec defines the properties that can be configured to

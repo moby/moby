@@ -19,4 +19,6 @@ type ContainerSpec struct {
 	TTY             bool              `json:",omitempty"`
 	Mounts          []mount.Mount     `json:",omitempty"`
 	StopGracePeriod *time.Duration    `json:",omitempty"`
+	CapAdd          []string          `json:",omitempty"`
+	CapDrop         []string          `json:",omitempty"`
 }

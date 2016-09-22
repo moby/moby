@@ -156,6 +156,8 @@ func updateService(flags *pflag.FlagSet, spec *swarm.ServiceSpec) error {
 	updateString(flagWorkdir, &cspec.Dir)
 	updateString(flagUser, &cspec.User)
 	updateMounts(flags, &cspec.Mounts)
+	updateCapabilities(flags, flagCapAdd, &cspec.CapAdd)
+	updateCapabilities(flags, flagCapDrop, &cspec.CapDrop)
 
 	if flags.Changed(flagLimitCPU) || flags.Changed(flagLimitMemory) {
 		taskResources().Limits = &swarm.Resources{}
@@ -321,6 +323,18 @@ func updateEnvironment(flags *pflag.FlagSet, field *[]string) {
 
 	toRemove := buildToRemoveSet(flags, flagEnvRemove)
 	*field = removeItems(*field, toRemove, envKey)
+}
+
+func updateCapabilities(flags *pflag.FlagSet, flag string, field *[]string) {
+	if flags.Changed(flag) {
+		if *field == nil {
+			*field = []string{}
+		}
+		values := flags.Lookup(flag).Value.(*opts.ListOpts).GetAll()
+		for _, value := range values {
+			*field = append(*field, value)
+		}
+	}
 }
 
 func envKey(value string) string {
