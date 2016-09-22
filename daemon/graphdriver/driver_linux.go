@@ -72,6 +72,7 @@ var (
 		FsMagicJffs2Fs:     "jffs2",
 		FsMagicJfs:         "jfs",
 		FsMagicNfsFs:       "nfs",
+		FsMagicOverlay:     "overlayfs",
 		FsMagicRAMFs:       "ramfs",
 		FsMagicReiserFs:    "reiserfs",
 		FsMagicSmbFs:       "smb",
