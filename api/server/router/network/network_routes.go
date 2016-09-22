@@ -12,6 +12,7 @@ import (
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/libnetwork"
 	"github.com/docker/libnetwork/networkdb"
+	"sync"
 )
 
 func (n *networkRouter) getNetworksList(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
@@ -33,6 +34,8 @@ func (n *networkRouter) getNetworksList(ctx context.Context, w http.ResponseWrit
 
 	// Combine the network list returned by Docker daemon if it is not already
 	// returned by the cluster manager
+	var wg sync.WaitGroup
+	networkResourceChannel := make(chan types.NetworkResource, 1)
 SKIP:
 	for _, nw := range n.backend.GetNetworks() {
 		for _, nl := range list {
@@ -40,9 +43,21 @@ SKIP:
 				continue SKIP
 			}
 		}
-		list = append(list, *n.buildNetworkResource(nw))
+		wg.Add(1)
+		go func(tmpNw libnetwork.Network) {
+			tmpNwr := *n.buildNetworkResource(tmpNw)
+			networkResourceChannel <- tmpNwr
+		}(nw)
 	}
 
+	go func() {
+		for resource := range networkResourceChannel {
+			list = append(list, resource)
+			wg.Done()
+		}
+	}()
+
+	wg.Wait()
 	list, err = filterNetworks(list, netFilters)
 	if err != nil {
 		return err
