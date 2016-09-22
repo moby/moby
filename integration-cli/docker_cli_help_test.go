@@ -86,14 +86,8 @@ func (s *DockerSuite) TestHelpTextVerify(c *check.C) {
 		cmds := []string{}
 		// Grab all chars starting at "Commands:"
 		helpOut := strings.Split(out[i:], "\n")
-		// First line is just "Commands:"
-		if isLocalDaemon {
-			// Replace first line with "daemon" command since it's not part of the list of commands.
-			helpOut[0] = " daemon"
-		} else {
-			// Skip first line
-			helpOut = helpOut[1:]
-		}
+		// Skip first line, it is just "Commands:"
+		helpOut = helpOut[1:]
 
 		// Create the list of commands we want to test
 		cmdsToTest := []string{}
