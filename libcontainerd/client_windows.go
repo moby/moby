@@ -109,15 +109,15 @@ func (clnt *client) Create(containerID string, checkpoint string, checkpointDir 
 	if spec.Windows.Resources != nil {
 		if spec.Windows.Resources.CPU != nil {
 			if spec.Windows.Resources.CPU.Shares != nil {
-				configuration.ProcessorWeight = *spec.Windows.Resources.CPU.Shares
+				configuration.ProcessorWeight = uint64(*spec.Windows.Resources.CPU.Shares)
 			}
 			if spec.Windows.Resources.CPU.Percent != nil {
-				configuration.ProcessorMaximum = *spec.Windows.Resources.CPU.Percent * 100 // ProcessorMaximum is a value between 1 and 10000
+				configuration.ProcessorMaximum = int64(*spec.Windows.Resources.CPU.Percent * 100) // ProcessorMaximum is a value between 1 and 10000
 			}
 		}
 		if spec.Windows.Resources.Memory != nil {
 			if spec.Windows.Resources.Memory.Limit != nil {
-				configuration.MemoryMaximumInMB = *spec.Windows.Resources.Memory.Limit / 1024 / 1024
+				configuration.MemoryMaximumInMB = int64(*spec.Windows.Resources.Memory.Limit / 1024 / 1024)
 			}
 		}
 		if spec.Windows.Resources.Storage != nil {
