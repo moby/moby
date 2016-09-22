@@ -234,8 +234,9 @@ Developer Certificate of Origin
 Version 1.1
 
 Copyright (C) 2004, 2006 The Linux Foundation and its contributors.
-660 York Street, Suite 102,
-San Francisco, CA 94110 USA
+1 Letterman Drive
+Suite D4700
+San Francisco, CA, 94129
 
 Everyone is permitted to copy and distribute verbatim copies of this
 license document, but changing it is not allowed.
