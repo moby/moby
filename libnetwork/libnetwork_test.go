@@ -1545,7 +1545,7 @@ func TestLeaveAll(t *testing.T) {
 	}
 }
 
-func TestontainerInvalidLeave(t *testing.T) {
+func TestContainerInvalidLeave(t *testing.T) {
 	if !testutils.IsRunningInContainer() {
 		defer testutils.SetupTestOSContext(t)()
 	}
@@ -1595,11 +1595,11 @@ func TestontainerInvalidLeave(t *testing.T) {
 		t.Fatalf("Failed with unexpected error type: %T. Desc: %s", err, err.Error())
 	}
 
-	if err := ep.Leave(nil); err == nil {
+	if err = ep.Leave(nil); err == nil {
 		t.Fatalf("Expected to fail leave nil Sandbox")
 	}
 	if _, ok := err.(types.BadRequestError); !ok {
-		t.Fatalf("Unexpected error type returned: %T", err)
+		t.Fatalf("Unexpected error type returned: %T. Desc: %s", err, err.Error())
 	}
 
 	fsbx := &fakeSandbox{}
@@ -1607,7 +1607,7 @@ func TestontainerInvalidLeave(t *testing.T) {
 		t.Fatalf("Expected to fail leave with invalid Sandbox")
 	}
 	if _, ok := err.(types.BadRequestError); !ok {
-		t.Fatalf("Unexpected error type returned: %T", err)
+		t.Fatalf("Unexpected error type returned: %T. Desc: %s", err, err.Error())
 	}
 }
 
