@@ -28,7 +28,6 @@ func NewDiffCommand(dockerCli *client.DockerCli) *cobra.Command {
 			return runDiff(dockerCli, &opts)
 		},
 	}
-	cmd.SetFlagErrorFunc(flagErrorFunc)
 
 	return cmd
 }

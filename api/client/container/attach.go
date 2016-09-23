@@ -36,7 +36,6 @@ func NewAttachCommand(dockerCli *client.DockerCli) *cobra.Command {
 			return runAttach(dockerCli, &opts)
 		},
 	}
-	cmd.SetFlagErrorFunc(flagErrorFunc)
 
 	flags := cmd.Flags()
 	flags.BoolVar(&opts.noStdin, "no-stdin", false, "Do not attach STDIN")
