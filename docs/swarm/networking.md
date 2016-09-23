@@ -65,7 +65,7 @@ $ docker network ls
 NETWORK ID          NAME        DRIVER   SCOPE
 f9145f09b38b        bridge      bridge   local
 ..snip..
-bd0befxwiva4        my-network  overlay  swarm
+273d53261bcd        my-network  overlay  swarm
 ```
 
 The `swarm` scope indicates that the network is available for use with services
@@ -123,7 +123,7 @@ $ docker network inspect my-network
 [
     {
         "Name": "my-network",
-        "Id": "7m2rjx0a97n88wzr4nu8772r3",
+        "Id": "273d53261bcdfda5f198587974dae3827e947ccd7e74a41bf1f482ad17fa0d33",
         "Scope": "swarm",
         "Driver": "overlay",
         "EnableIPv6": false,
