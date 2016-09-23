@@ -115,7 +115,7 @@ read the [`dockerd`](dockerd.md) reference page.
 | [node demote](node_demote.md) | Demotes an existing manager so that it is no longer a manager |
 | [node inspect](node_inspect.md) | Inspect a node in the swarm                |
 | [node update](node_update.md) | Update attributes for a node                 |
-| [node ps](node_ps.md) | List tasks running on a node                         |
+| [node ps](node_ps.md) | List tasks running on one or more nodes                         |
 | [node ls](node_ls.md) | List nodes in the swarm                              |
 | [node rm](node_rm.md) | Remove one or more nodes from the swarm                         |
 
