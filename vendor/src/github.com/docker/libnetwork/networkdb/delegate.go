@@ -3,6 +3,7 @@ package networkdb
 import (
 	"fmt"
 	"net"
+	"strings"
 	"time"
 
 	"github.com/Sirupsen/logrus"
@@ -31,7 +32,7 @@ func (nDB *NetworkDB) checkAndGetNode(nEvent *NodeEvent) *node {
 				return nil
 			}
 
-			delete(nDB.failedNodes, n.Name)
+			delete(nodes, n.Name)
 			return n
 		}
 	}
@@ -39,16 +40,36 @@ func (nDB *NetworkDB) checkAndGetNode(nEvent *NodeEvent) *node {
 	return nil
 }
 
-func (nDB *NetworkDB) handleNodeEvent(nEvent *NodeEvent) bool {
-	// Update our local clock if the received messages has newer
-	// time.
-	nDB.networkClock.Witness(nEvent.LTime)
+func (nDB *NetworkDB) purgeSameNode(n *node) {
+	nDB.Lock()
+	defer nDB.Unlock()
 
+	prefix := strings.Split(n.Name, "-")[0]
+	for _, nodes := range []map[string]*node{
+		nDB.failedNodes,
+		nDB.leftNodes,
+		nDB.nodes,
+	} {
+		var nodeNames []string
+		for name, node := range nodes {
+			if strings.HasPrefix(name, prefix) && n.Addr.Equal(node.Addr) {
+				nodeNames = append(nodeNames, name)
+			}
+		}
+
+		for _, name := range nodeNames {
+			delete(nodes, name)
+		}
+	}
+}
+
+func (nDB *NetworkDB) handleNodeEvent(nEvent *NodeEvent) bool {
 	n := nDB.checkAndGetNode(nEvent)
 	if n == nil {
 		return false
 	}
 
+	nDB.purgeSameNode(n)
 	n.ltime = nEvent.LTime
 
 	switch nEvent.Type {
@@ -357,6 +378,15 @@ func (d *delegate) GetBroadcasts(overhead, limit int) [][]byte {
 }
 
 func (d *delegate) LocalState(join bool) []byte {
+	if join {
+		// Update all the local node/network state to a new time to
+		// force update on the node we are trying to rejoin, just in
+		// case that node has these in leaving state still. This is
+		// facilitate fast convergence after recovering from a gossip
+		// failure.
+		d.nDB.updateLocalNetworkTime()
+	}
+
 	d.nDB.RLock()
 	defer d.nDB.RUnlock()
 
@@ -406,10 +436,6 @@ func (d *delegate) MergeRemoteState(buf []byte, isJoin bool) {
 	if err := proto.Unmarshal(gMsg.Data, &pp); err != nil {
 		logrus.Errorf("Failed to decode remote network state: %v", err)
 		return
-	}
-
-	if pp.LTime > 0 {
-		d.nDB.networkClock.Witness(pp.LTime)
 	}
 
 	nodeEvent := &NodeEvent{

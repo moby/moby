@@ -524,7 +524,7 @@ func (nDB *NetworkDB) findCommonNetworks(nodeName string) []string {
 	return networks
 }
 
-func (nDB *NetworkDB) updateLocalStateTime() {
+func (nDB *NetworkDB) updateLocalNetworkTime() {
 	nDB.Lock()
 	defer nDB.Unlock()
 
@@ -532,8 +532,13 @@ func (nDB *NetworkDB) updateLocalStateTime() {
 	for _, n := range nDB.networks[nDB.config.NodeName] {
 		n.ltime = ltime
 	}
+}
 
-	ltime = nDB.tableClock.Increment()
+func (nDB *NetworkDB) updateLocalTableTime() {
+	nDB.Lock()
+	defer nDB.Unlock()
+
+	ltime := nDB.tableClock.Increment()
 	nDB.indexes[byTable].Walk(func(path string, v interface{}) bool {
 		entry := v.(*entry)
 		if entry.node != nDB.config.NodeName {
