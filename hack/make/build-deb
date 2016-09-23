@@ -72,9 +72,8 @@ set -e
 				&& ln -snf /usr/src/docker /go/src/github.com/docker/docker
 		EOF
 
-		# get the RUNC and CONTAINERD commit from the root Dockerfile, this keeps the commits in sync
-		awk '$1 == "ENV" && $2 == "RUNC_COMMIT" { print; exit }' Dockerfile >> "$DEST/$version/Dockerfile.build"
-		awk '$1 == "ENV" && $2 == "CONTAINERD_COMMIT" { print; exit }' Dockerfile >> "$DEST/$version/Dockerfile.build"
+		echo "ENV RUNC_COMMIT $(grep "^RUNC_COMMIT" hack/dockerfile/install-binaries.sh | cut -d"=" -f 2)" >> "$DEST/$version/Dockerfile.build"
+		echo "ENV CONTAINERD_COMMIT $(grep "^CONTAINERD_COMMIT" hack/dockerfile/install-binaries.sh | cut -d"=" -f 2)" >> "$DEST/$version/Dockerfile.build"
 
 		# add runc and containerd compile and install
 		cat >> "$DEST/$version/Dockerfile.build" <<-EOF
