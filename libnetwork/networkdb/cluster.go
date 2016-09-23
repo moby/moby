@@ -190,7 +190,7 @@ func (nDB *NetworkDB) clusterLeave() error {
 	mlist := nDB.memberlist
 
 	if err := nDB.sendNodeEvent(NodeEventTypeLeave); err != nil {
-		return fmt.Errorf("failed to send node leave: %v", err)
+		logrus.Errorf("failed to send node leave: %v", err)
 	}
 
 	if err := mlist.Leave(time.Second); err != nil {
