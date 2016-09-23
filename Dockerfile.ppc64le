@@ -54,9 +54,9 @@ ENV LVM2_VERSION 2.02.103
 RUN mkdir -p /usr/local/lvm2 \
 	&& curl -fsSL "https://mirrors.kernel.org/sourceware/lvm2/LVM2.${LVM2_VERSION}.tgz" \
 		| tar -xzC /usr/local/lvm2 --strip-components=1
-# see https://git.fedorahosted.org/cgit/lvm2.git/refs/tags for release tags
+# See https://git.fedorahosted.org/cgit/lvm2.git/refs/tags for release tags
 
-# fix platform enablement in lvm2 to support ppc64le properly
+# Fix platform enablement in lvm2 to support ppc64le properly
 RUN set -e \
 	&& for f in config.guess config.sub; do \
 		curl -fsSL -o "/usr/local/lvm2/autoconf/$f" "http://git.savannah.gnu.org/gitweb/?p=config.git;a=blob_plain;f=$f;hb=HEAD"; \
@@ -70,9 +70,9 @@ RUN cd /usr/local/lvm2 \
 		--enable-static_link \
 	&& make device-mapper \
 	&& make install_device-mapper
-# see https://git.fedorahosted.org/cgit/lvm2.git/tree/INSTALL
+# See https://git.fedorahosted.org/cgit/lvm2.git/tree/INSTALL
 
-# install seccomp: the version shipped in jessie is too old
+# Install seccomp: the version shipped in jessie is too old
 ENV SECCOMP_VERSION 2.3.1
 RUN set -x \
         && export SECCOMP_PATH="$(mktemp -d)" \
@@ -181,7 +181,7 @@ RUN ./contrib/download-frozen-image-v2.sh /docker-frozen-images \
 	ppc64le/busybox:latest@sha256:38bb82085248d5a3c24bd7a5dc146f2f2c191e189da0441f1c2ca560e3fc6f1b \
 	ppc64le/debian:jessie@sha256:412845f51b6ab662afba71bc7a716e20fdb9b84f185d180d4c7504f8a75c4f91 \
 	ppc64le/hello-world:latest@sha256:186a40a9a02ca26df0b6c8acdfb8ac2f3ae6678996a838f977e57fac9d963974
-# see also "hack/make/.ensure-frozen-images" (which needs to be updated any time this list is)
+# See also "hack/make/.ensure-frozen-images" (which needs to be updated any time this list is)
 
 # Download toml validator
 ENV TOMLV_COMMIT 9baf8a8a9f2ed20a8e54160840c492f937eeaf9a

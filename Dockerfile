@@ -25,13 +25,13 @@
 
 FROM debian:jessie
 
-# add zfs ppa
+# Add zfs ppa
 RUN apt-key adv --keyserver hkp://p80.pool.sks-keyservers.net:80 --recv-keys E871F18B51E0147C77796AC81196BA81F6B0FC61 \
 	|| apt-key adv --keyserver hkp://pgp.mit.edu:80 --recv-keys E871F18B51E0147C77796AC81196BA81F6B0FC61
 RUN echo deb http://ppa.launchpad.net/zfs-native/stable/ubuntu trusty main > /etc/apt/sources.list.d/zfs.list
 
 
-# allow replacing httpredir mirror
+# Allow replacing httpredir mirror
 ARG APT_MIRROR=httpredir.debian.org
 RUN sed -i s/httpredir.debian.org/$APT_MIRROR/g /etc/apt/sources.list
 
@@ -84,7 +84,7 @@ ENV LVM2_VERSION 2.02.103
 RUN mkdir -p /usr/local/lvm2 \
 	&& curl -fsSL "https://mirrors.kernel.org/sourceware/lvm2/LVM2.${LVM2_VERSION}.tgz" \
 		| tar -xzC /usr/local/lvm2 --strip-components=1
-# see https://git.fedorahosted.org/cgit/lvm2.git/refs/tags for release tags
+# See https://git.fedorahosted.org/cgit/lvm2.git/refs/tags for release tags
 
 # Compile and install lvm2
 RUN cd /usr/local/lvm2 \
@@ -93,7 +93,7 @@ RUN cd /usr/local/lvm2 \
 		--enable-static_link \
 	&& make device-mapper \
 	&& make install_device-mapper
-# see https://git.fedorahosted.org/cgit/lvm2.git/tree/INSTALL
+# See https://git.fedorahosted.org/cgit/lvm2.git/tree/INSTALL
 
 # Configure the container for OSX cross compilation
 ENV OSX_SDK MacOSX10.11.sdk
@@ -106,7 +106,7 @@ RUN set -x \
 	&& UNATTENDED=yes OSX_VERSION_MIN=10.6 ${OSXCROSS_PATH}/build.sh
 ENV PATH /osxcross/target/bin:$PATH
 
-# install seccomp: the version shipped in trusty is too old
+# Install seccomp: the version shipped in trusty is too old
 ENV SECCOMP_VERSION 2.3.1
 RUN set -x \
 	&& export SECCOMP_PATH="$(mktemp -d)" \
@@ -220,7 +220,7 @@ RUN ./contrib/download-frozen-image-v2.sh /docker-frozen-images \
 	busybox:latest@sha256:e4f93f6ed15a0cdd342f5aae387886fba0ab98af0a102da6276eaf24d6e6ade0 \
 	debian:jessie@sha256:f968f10b4b523737e253a97eac59b0d1420b5c19b69928d35801a6373ffe330e \
 	hello-world:latest@sha256:8be990ef2aeb16dbcb9271ddfe2610fa6658d13f6dfb8bc72074cc1ca36966a7
-# see also "hack/make/.ensure-frozen-images" (which needs to be updated any time this list is)
+# See also "hack/make/.ensure-frozen-images" (which needs to be updated any time this list is)
 
 # Download toml validator
 ENV TOMLV_COMMIT 9baf8a8a9f2ed20a8e54160840c492f937eeaf9a
