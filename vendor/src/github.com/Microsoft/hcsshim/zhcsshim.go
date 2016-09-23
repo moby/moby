@@ -10,9 +10,11 @@ var _ unsafe.Pointer
 
 var (
 	modole32     = syscall.NewLazyDLL("ole32.dll")
+	modiphlpapi  = syscall.NewLazyDLL("iphlpapi.dll")
 	modvmcompute = syscall.NewLazyDLL("vmcompute.dll")
 
 	procCoTaskMemFree                              = modole32.NewProc("CoTaskMemFree")
+	procSetCurrentThreadCompartmentId              = modiphlpapi.NewProc("SetCurrentThreadCompartmentId")
 	procActivateLayer                              = modvmcompute.NewProc("ActivateLayer")
 	procCopyLayer                                  = modvmcompute.NewProc("CopyLayer")
 	procCreateLayer                                = modvmcompute.NewProc("CreateLayer")
@@ -79,6 +81,14 @@ var (
 
 func coTaskMemFree(buffer unsafe.Pointer) {
 	syscall.Syscall(procCoTaskMemFree.Addr(), 1, uintptr(buffer), 0, 0)
+	return
+}
+
+func SetCurrentThreadCompartmentId(compartmentId uint32) (hr error) {
+	r0, _, _ := syscall.Syscall(procSetCurrentThreadCompartmentId.Addr(), 1, uintptr(compartmentId), 0, 0)
+	if int32(r0) < 0 {
+		hr = syscall.Errno(win32FromHresult(r0))
+	}
 	return
 }
 

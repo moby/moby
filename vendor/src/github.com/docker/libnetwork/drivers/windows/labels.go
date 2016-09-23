@@ -15,4 +15,19 @@ const (
 
 	// QosPolicies of the endpoint
 	QosPolicies = "com.docker.endpoint.windowsshim.qospolicies"
+
+	// VLAN of the network
+	VLAN = "com.docker.network.windowsshim.vlanid"
+
+	// VSID of the network
+	VSID = "com.docker.network.windowsshim.vsid"
+
+	// DNSSuffix of the network
+	DNSSuffix = "com.docker.network.windowsshim.dnssuffix"
+
+	// DNSServers of the network
+	DNSServers = "com.docker.network.windowsshim.dnsservers"
+
+	// SourceMac of the network
+	SourceMac = "com.docker.network.windowsshim.sourcemac"
 )

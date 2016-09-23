@@ -1,9 +1,14 @@
 package networkdb
 
 import (
+	"fmt"
+	"time"
+
 	"github.com/hashicorp/memberlist"
 	"github.com/hashicorp/serf/serf"
 )
+
+const broadcastTimeout = 5 * time.Second
 
 type networkEventMessage struct {
 	id   string
@@ -41,6 +46,53 @@ func (nDB *NetworkDB) sendNetworkEvent(nid string, event NetworkEvent_Type, ltim
 		id:   nid,
 		node: nDB.config.NodeName,
 	})
+	return nil
+}
+
+type nodeEventMessage struct {
+	msg    []byte
+	notify chan<- struct{}
+}
+
+func (m *nodeEventMessage) Invalidates(other memberlist.Broadcast) bool {
+	return false
+}
+
+func (m *nodeEventMessage) Message() []byte {
+	return m.msg
+}
+
+func (m *nodeEventMessage) Finished() {
+	if m.notify != nil {
+		close(m.notify)
+	}
+}
+
+func (nDB *NetworkDB) sendNodeEvent(event NodeEvent_Type) error {
+	nEvent := NodeEvent{
+		Type:     event,
+		LTime:    nDB.networkClock.Increment(),
+		NodeName: nDB.config.NodeName,
+	}
+
+	raw, err := encodeMessage(MessageTypeNodeEvent, &nEvent)
+	if err != nil {
+		return err
+	}
+
+	notifyCh := make(chan struct{})
+	nDB.nodeBroadcasts.QueueBroadcast(&nodeEventMessage{
+		msg:    raw,
+		notify: notifyCh,
+	})
+
+	// Wait for the broadcast
+	select {
+	case <-notifyCh:
+	case <-time.After(broadcastTimeout):
+		return fmt.Errorf("timed out broadcasting node event")
+	}
+
 	return nil
 }
 

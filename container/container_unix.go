@@ -428,3 +428,8 @@ func cleanResourcePath(path string) string {
 func (container *Container) canMountFS() bool {
 	return true
 }
+
+// EnableServiceDiscoveryOnDefaultNetwork Enable service discovery on default network
+func (container *Container) EnableServiceDiscoveryOnDefaultNetwork() bool {
+	return false
+}
