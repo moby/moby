@@ -30,7 +30,7 @@ func newDeployCommand(dockerCli *command.DockerCli) *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:     "deploy [OPTIONS] STACK",
-		Aliases: []string{"up"},
+		Aliases: []string{"up", "docker deploy"},
 		Short:   "Create and update a stack from a Distributed Application Bundle (DAB)",
 		Args:    cli.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
