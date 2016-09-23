@@ -135,9 +135,7 @@ func (daemon *Daemon) create(params types.ContainerCreateConfig, managed bool) (
 	// backwards API compatibility.
 	container.HostConfig = runconfig.SetDefaultNetModeIfBlank(container.HostConfig)
 
-	if err := daemon.updateContainerNetworkSettings(container, endpointsConfigs); err != nil {
-		return nil, err
-	}
+	daemon.updateContainerNetworkSettings(container, endpointsConfigs)
 
 	if err := container.ToDisk(); err != nil {
 		logrus.Errorf("Error saving new container to disk: %v", err)

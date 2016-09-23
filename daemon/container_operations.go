@@ -380,12 +380,12 @@ func (daemon *Daemon) findAndAttachNetwork(container *container.Container, idOrN
 }
 
 // updateContainerNetworkSettings update the network settings
-func (daemon *Daemon) updateContainerNetworkSettings(container *container.Container, endpointsConfig map[string]*networktypes.EndpointSettings) error {
+func (daemon *Daemon) updateContainerNetworkSettings(container *container.Container, endpointsConfig map[string]*networktypes.EndpointSettings) {
 	var n libnetwork.Network
 
 	mode := container.HostConfig.NetworkMode
 	if container.Config.NetworkDisabled || mode.IsContainer() {
-		return nil
+		return
 	}
 
 	networkName := mode.NetworkName()
@@ -435,22 +435,20 @@ func (daemon *Daemon) updateContainerNetworkSettings(container *container.Contai
 	}
 
 	if !mode.IsUserDefined() {
-		return nil
+		return
 	}
 	// Make sure to internally store the per network endpoint config by network name
 	if _, ok := container.NetworkSettings.Networks[networkName]; ok {
-		return nil
+		return
 	}
 
 	if n != nil {
 		if nwConfig, ok := container.NetworkSettings.Networks[n.ID()]; ok {
 			container.NetworkSettings.Networks[networkName] = nwConfig
 			delete(container.NetworkSettings.Networks, n.ID())
-			return nil
+			return
 		}
 	}
-
-	return nil
 }
 
 func (daemon *Daemon) allocateNetwork(container *container.Container) error {
@@ -471,10 +469,7 @@ func (daemon *Daemon) allocateNetwork(container *container.Container) error {
 			return nil
 		}
 
-		err := daemon.updateContainerNetworkSettings(container, nil)
-		if err != nil {
-			return err
-		}
+		daemon.updateContainerNetworkSettings(container, nil)
 		updateSettings = true
 	}
 
