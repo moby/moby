@@ -161,12 +161,25 @@ func (clnt *client) Create(containerID string, checkpoint string, checkpointDir 
 	}
 
 	if configuration.HvPartition {
-		// Make sure the Utility VM image is present in the base layer directory.
+		// Find the upper-most utility VM image, since the utility VM does not
+		// use layering in RS1.
 		// TODO @swernli/jhowardmsft at some point post RS1 this may be re-locatable.
-		configuration.HvRuntime = &hcsshim.HvRuntime{ImagePath: filepath.Join(layerOpt.LayerPaths[len(layerOpt.LayerPaths)-1], "UtilityVM")}
-		if _, err := os.Stat(configuration.HvRuntime.ImagePath); os.IsNotExist(err) {
-			return fmt.Errorf("utility VM image '%s' could not be found", configuration.HvRuntime.ImagePath)
+		var uvmImagePath string
+		for _, path := range layerOpt.LayerPaths {
+			fullPath := filepath.Join(path, "UtilityVM")
+			_, err := os.Stat(fullPath)
+			if err == nil {
+				uvmImagePath = fullPath
+				break
+			}
+			if !os.IsNotExist(err) {
+				return err
+			}
 		}
+		if uvmImagePath == "" {
+			return errors.New("utility VM image could not be found")
+		}
+		configuration.HvRuntime = &hcsshim.HvRuntime{ImagePath: uvmImagePath}
 	} else {
 		configuration.VolumePath = spec.Root.Path
 		configuration.LayerFolderPath = layerOpt.LayerFolderPath
