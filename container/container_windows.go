@@ -49,6 +49,40 @@ func (container *Container) IpcMounts() []Mount {
 
 // UnmountVolumes explicitly unmounts volumes from the container.
 func (container *Container) UnmountVolumes(forceSyscall bool, volumeEventLog func(name, action string, attributes map[string]string)) error {
+	var (
+		volumeMounts []volume.MountPoint
+		err          error
+	)
+
+	for _, mntPoint := range container.MountPoints {
+		dest, err := container.GetResourcePath(mntPoint.Destination)
+		if err != nil {
+			return err
+		}
+		volumeMounts = append(volumeMounts, volume.MountPoint{Destination: dest, Volume: mntPoint.Volume, ID: mntPoint.ID})
+
+	}
+
+	// atm, this is a no-op.
+	if volumeMounts, err = appendNetworkMounts(container, volumeMounts); err != nil {
+		return err
+	}
+
+	for _, volumeMount := range volumeMounts {
+		if volumeMount.Volume != nil {
+			if err := volumeMount.Volume.Unmount(volumeMount.ID); err != nil {
+				return err
+			}
+			volumeMount.ID = ""
+
+			attributes := map[string]string{
+				"driver":    volumeMount.Volume.DriverName(),
+				"container": container.ID,
+			}
+			volumeEventLog(volumeMount.Volume.Name(), "unmount", attributes)
+		}
+	}
+
 	return nil
 }
 
