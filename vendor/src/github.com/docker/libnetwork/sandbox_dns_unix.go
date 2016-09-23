@@ -46,9 +46,13 @@ func (sb *sandbox) startResolver(restore bool) {
 		}
 		sb.resolver.SetExtServers(sb.extDNS)
 
-		sb.osSbox.InvokeFunc(sb.resolver.SetupFunc(0))
+		if err = sb.osSbox.InvokeFunc(sb.resolver.SetupFunc(0)); err != nil {
+			log.Errorf("Resolver Setup function failed for container %s, %q", sb.ContainerID(), err)
+			return
+		}
+
 		if err = sb.resolver.Start(); err != nil {
-			log.Errorf("Resolver Setup/Start failed for container %s, %q", sb.ContainerID(), err)
+			log.Errorf("Resolver Start failed for container %s, %q", sb.ContainerID(), err)
 		}
 	})
 }
