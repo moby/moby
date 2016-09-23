@@ -719,6 +719,13 @@ func (c *Cluster) GetLocalAddress() string {
 	return c.actualLocalAddr
 }
 
+// GetListenAddress returns the listen address.
+func (c *Cluster) GetListenAddress() string {
+	c.RLock()
+	defer c.RUnlock()
+	return c.listenAddr
+}
+
 // GetAdvertiseAddress returns the remotely reachable address of this node.
 func (c *Cluster) GetAdvertiseAddress() string {
 	c.RLock()
