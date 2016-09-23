@@ -121,6 +121,10 @@ type Config struct {
 	// NodeName is the cluster wide unique name for this node.
 	NodeName string
 
+	// BindAddr is the IP on which networkdb listens. It can be
+	// 0.0.0.0 to listen on all addresses on the host.
+	BindAddr string
+
 	// AdvertiseAddr is the node's IP address that we advertise for
 	// cluster communication.
 	AdvertiseAddr string
