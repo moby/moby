@@ -10,6 +10,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"src/github.com/pkg/errors"
+
 	"github.com/docker/docker/pkg/mount"
 )
 
@@ -27,6 +29,10 @@ type optsConfig struct {
 	MountType   string
 	MountOpts   string
 	MountDevice string
+}
+
+func (o *optsConfig) String() string {
+	return fmt.Sprintf("type='%s' device='%s' o='%s'", o.MountType, o.MountDevice, o.MountOpts)
 }
 
 // scopedPath verifies that the path where the volume is located
@@ -65,5 +71,6 @@ func (v *localVolume) mount() error {
 	if v.opts.MountDevice == "" {
 		return fmt.Errorf("missing device in volume options")
 	}
-	return mount.Mount(v.opts.MountDevice, v.path, v.opts.MountType, v.opts.MountOpts)
+	err := mount.Mount(v.opts.MountDevice, v.path, v.opts.MountType, v.opts.MountOpts)
+	return errors.Wrapf(err, "error while mounting volume with options: %s", v.opts)
 }
