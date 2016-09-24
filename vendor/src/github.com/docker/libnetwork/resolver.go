@@ -354,8 +354,8 @@ func (r *resolver) ServeDNS(w dns.ResponseWriter, query *dns.Msg) {
 				extConn, err = net.DialTimeout(proto, addr, extIOTimeout)
 			}
 
-			r.sb.execFunc(extConnect)
-			if err != nil {
+			execErr := r.sb.execFunc(extConnect)
+			if execErr != nil || err != nil {
 				log.Debugf("Connect failed, %s", err)
 				continue
 			}
