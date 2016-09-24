@@ -183,7 +183,7 @@ type ContainerPathStat struct {
 	LinkTarget string      `json:"linkTarget"`
 }
 
-// ContainerStats contains resonse of Remote API:
+// ContainerStats contains response of Remote API:
 // GET "/stats"
 type ContainerStats struct {
 	Body   io.ReadCloser `json:"body"`
@@ -446,7 +446,7 @@ type VolumesListResponse struct {
 	Warnings []string  // Warnings is a list of warnings that occurred when getting the list from the volume drivers
 }
 
-// VolumeCreateRequest contains the response for the remote API:
+// VolumeCreateRequest contains the request for the remote API:
 // POST "/volumes/create"
 type VolumeCreateRequest struct {
 	Name       string            // Name is the requested name of the volume
