@@ -190,7 +190,7 @@ func (nDB *NetworkDB) clusterLeave() error {
 	mlist := nDB.memberlist
 
 	if err := nDB.sendNodeEvent(NodeEventTypeLeave); err != nil {
-		return fmt.Errorf("failed to send node leave: %v", err)
+		logrus.Errorf("failed to send node leave: %v", err)
 	}
 
 	if err := mlist.Leave(time.Second); err != nil {
@@ -237,13 +237,6 @@ func (nDB *NetworkDB) reconnectNode() {
 	}
 	nDB.RUnlock()
 
-	// Update all the local state to a new time to force update on
-	// the node we are trying to rejoin, just in case that node
-	// has these in leaving/deleting state still. This is
-	// facilitate fast convergence after recovering from a gossip
-	// failure.
-	nDB.updateLocalStateTime()
-
 	node := nodes[randomOffset(len(nodes))]
 	addr := net.UDPAddr{IP: node.Addr, Port: int(node.Port)}
 
@@ -255,6 +248,13 @@ func (nDB *NetworkDB) reconnectNode() {
 		logrus.Errorf("failed to send node join during reconnect: %v", err)
 		return
 	}
+
+	// Update all the local table state to a new time to
+	// force update on the node we are trying to rejoin, just in
+	// case that node has these in deleting state still. This is
+	// facilitate fast convergence after recovering from a gossip
+	// failure.
+	nDB.updateLocalTableTime()
 
 	logrus.Debugf("Initiating bulk sync with node %s after reconnect", node.Name)
 	nDB.bulkSync([]string{node.Name}, true)
