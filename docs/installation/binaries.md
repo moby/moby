@@ -146,6 +146,9 @@ For example, to install the binaries in `/usr/bin`:
 $ mv docker/* /usr/bin/
 ```
 
+> **Note**: Depending on your current setup, you can specify custom paths
+> for some of the binaries provided.
+
 > **Note**: If you already have Engine installed on your host, make sure you
 > stop Engine before installing (`killall docker`), and install the binaries
 > in the same location. You can find the location of the current installation
