@@ -61,7 +61,8 @@ func (c *containerAdapter) pullImage(ctx context.Context) error {
 	pr, pw := io.Pipe()
 	metaHeaders := map[string][]string{}
 	go func() {
-		err := c.backend.PullImage(ctx, c.container.image(), "", metaHeaders, authConfig, pw)
+		// There's no insecure registry overrides in the context of a Swarm-initiated pull.
+		err := c.backend.PullImage(ctx, c.container.image(), "", metaHeaders, authConfig, []string{}, pw)
 		pw.CloseWithError(err)
 	}()
 

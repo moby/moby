@@ -41,7 +41,7 @@ func (p *v1Puller) Pull(ctx context.Context, ref reference.Named) error {
 		return fallbackError{err: ErrNoSupport{Err: errors.New("Cannot pull by digest with v1 registry")}}
 	}
 
-	tlsConfig, err := p.config.RegistryService.TLSConfig(p.repoInfo.Index.Name)
+	tlsConfig, err := p.config.RegistryService.TLSConfig(p.repoInfo.Index.Name, p.config.InsecureRegistries)
 	if err != nil {
 		return err
 	}

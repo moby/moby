@@ -6,7 +6,7 @@ import (
 	"github.com/docker/go-connections/tlsconfig"
 )
 
-func (s *DefaultService) lookupV1Endpoints(hostname string) (endpoints []APIEndpoint, err error) {
+func (s *DefaultService) lookupV1Endpoints(hostname string, insecureRegistries []string) (endpoints []APIEndpoint, err error) {
 	tlsConfig := tlsconfig.ServerDefault()
 	if hostname == DefaultNamespace {
 		endpoints = append(endpoints, APIEndpoint{
@@ -19,7 +19,7 @@ func (s *DefaultService) lookupV1Endpoints(hostname string) (endpoints []APIEndp
 		return endpoints, nil
 	}
 
-	tlsConfig, err = s.TLSConfig(hostname)
+	tlsConfig, err = s.TLSConfig(hostname, insecureRegistries)
 	if err != nil {
 		return nil, err
 	}

@@ -16,7 +16,7 @@ import (
 
 // PullImage initiates a pull operation. image is the repository name to pull, and
 // tag may be either empty, or indicate a specific tag to pull.
-func (daemon *Daemon) PullImage(ctx context.Context, image, tag string, metaHeaders map[string][]string, authConfig *types.AuthConfig, outStream io.Writer) error {
+func (daemon *Daemon) PullImage(ctx context.Context, image, tag string, metaHeaders map[string][]string, authConfig *types.AuthConfig, insecureRegistries []string, outStream io.Writer) error {
 	// Special case: "pull -a" may send an image name with a
 	// trailing :. This is ugly, but let's not break API
 	// compatibility.
@@ -41,7 +41,7 @@ func (daemon *Daemon) PullImage(ctx context.Context, image, tag string, metaHead
 		}
 	}
 
-	return daemon.pullImageWithReference(ctx, ref, metaHeaders, authConfig, outStream)
+	return daemon.pullImageWithReference(ctx, ref, metaHeaders, authConfig, insecureRegistries, outStream)
 }
 
 // PullOnBuild tells Docker to pull image referenced by `name`.
@@ -67,13 +67,14 @@ func (daemon *Daemon) PullOnBuild(ctx context.Context, name string, authConfigs 
 		pullRegistryAuth = &resolvedConfig
 	}
 
-	if err := daemon.pullImageWithReference(ctx, ref, nil, pullRegistryAuth, output); err != nil {
+	// There's no insecure registry overrides in the context of a build-initiated pull.
+	if err := daemon.pullImageWithReference(ctx, ref, nil, pullRegistryAuth, []string{}, output); err != nil {
 		return nil, err
 	}
 	return daemon.GetImage(name)
 }
 
-func (daemon *Daemon) pullImageWithReference(ctx context.Context, ref reference.Named, metaHeaders map[string][]string, authConfig *types.AuthConfig, outStream io.Writer) error {
+func (daemon *Daemon) pullImageWithReference(ctx context.Context, ref reference.Named, metaHeaders map[string][]string, authConfig *types.AuthConfig, insecureRegistries []string, outStream io.Writer) error {
 	// Include a buffer so that slow client connections don't affect
 	// transfer performance.
 	progressChan := make(chan progress.Progress, 100)
@@ -88,15 +89,16 @@ func (daemon *Daemon) pullImageWithReference(ctx context.Context, ref reference.
 	}()
 
 	imagePullConfig := &distribution.ImagePullConfig{
-		MetaHeaders:      metaHeaders,
-		AuthConfig:       authConfig,
-		ProgressOutput:   progress.ChanOutput(progressChan),
-		RegistryService:  daemon.RegistryService,
-		ImageEventLogger: daemon.LogImageEvent,
-		MetadataStore:    daemon.distributionMetadataStore,
-		ImageStore:       daemon.imageStore,
-		ReferenceStore:   daemon.referenceStore,
-		DownloadManager:  daemon.downloadManager,
+		MetaHeaders:        metaHeaders,
+		AuthConfig:         authConfig,
+		ProgressOutput:     progress.ChanOutput(progressChan),
+		RegistryService:    daemon.RegistryService,
+		ImageEventLogger:   daemon.LogImageEvent,
+		MetadataStore:      daemon.distributionMetadataStore,
+		ImageStore:         daemon.imageStore,
+		ReferenceStore:     daemon.referenceStore,
+		DownloadManager:    daemon.downloadManager,
+		InsecureRegistries: insecureRegistries,
 	}
 
 	err := distribution.Pull(ctx, ref, imagePullConfig)

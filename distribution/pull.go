@@ -40,6 +40,9 @@ type ImagePullConfig struct {
 	ReferenceStore reference.Store
 	// DownloadManager manages concurrent pulls.
 	DownloadManager *xfer.LayerDownloadManager
+	// InsecureRegistries is the list of endpoints with which insecure registry
+	// communication is allowed.
+	InsecureRegistries []string
 }
 
 // Puller is an interface that abstracts pulling for different API versions.
@@ -89,7 +92,7 @@ func Pull(ctx context.Context, ref reference.Named, imagePullConfig *ImagePullCo
 		return err
 	}
 
-	endpoints, err := imagePullConfig.RegistryService.LookupPullEndpoints(repoInfo.Hostname())
+	endpoints, err := imagePullConfig.RegistryService.LookupPullEndpoints(repoInfo.Hostname(), imagePullConfig.InsecureRegistries)
 	if err != nil {
 		return err
 	}

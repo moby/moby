@@ -139,10 +139,16 @@ func newServiceConfig(options ServiceOptions) *serviceConfig {
 // or an IP address. If it is a domain name, then it will be resolved in order to check if the IP is contained
 // in a subnet. If the resolving is not successful, isSecureIndex will only try to match hostname to any element
 // of insecureRegistries.
-func isSecureIndex(config *serviceConfig, indexName string) bool {
+func isSecureIndex(config *serviceConfig, indexName string, insecureRegistries []string) bool {
 	// Check for configured index, first.  This is needed in case isSecureIndex
 	// is called from anything besides newIndexInfo, in order to honor per-index configurations.
 	if index, ok := config.IndexConfigs[indexName]; ok {
+		// Verify if this index being secure is locally overriden.
+		for _, r := range insecureRegistries {
+			if r == indexName {
+				return false
+			}
+		}
 		return index.Secure
 	}
 
@@ -164,11 +170,26 @@ func isSecureIndex(config *serviceConfig, indexName string) bool {
 		// So, len(addrs) == 0 and we're not aborting.
 	}
 
+	// Attempt to parse local overrides for insecure registries as CIDR.
+	localInsecureRegistriesCIDRS := []*net.IPNet{}
+	for _, spec := range insecureRegistries {
+		if _, ipnet, err := net.ParseCIDR(spec); err == nil {
+			localInsecureRegistriesCIDRS = append(localInsecureRegistriesCIDRS, ipnet)
+		}
+	}
+
 	// Try CIDR notation only if addrs has any elements, i.e. if `host`'s IP could be determined.
 	for _, addr := range addrs {
 		for _, ipnet := range config.InsecureRegistryCIDRs {
 			// check if the addr falls in the subnet
 			if (*net.IPNet)(ipnet).Contains(addr) {
+				return false
+			}
+		}
+
+		// Test local overrides.
+		for _, ipnet := range localInsecureRegistriesCIDRS {
+			if ipnet.Contains(addr) {
 				return false
 			}
 		}
@@ -233,7 +254,9 @@ func newIndexInfo(config *serviceConfig, indexName string) (*registrytypes.Index
 		Mirrors:  make([]string, 0),
 		Official: false,
 	}
-	index.Secure = isSecureIndex(config, indexName)
+
+	// There's no overrides of insecure registries for search.
+	index.Secure = isSecureIndex(config, indexName, []string{})
 	return index, nil
 }
 
