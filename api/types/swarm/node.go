@@ -4,11 +4,17 @@ package swarm
 type Node struct {
 	ID string
 	Meta
-
-	Spec          NodeSpec        `json:",omitempty"`
-	Description   NodeDescription `json:",omitempty"`
-	Status        NodeStatus      `json:",omitempty"`
-	ManagerStatus *ManagerStatus  `json:",omitempty"`
+	// Spec defines the desired state of the node as specified by the user.
+	// The system will honor this and will *never* modify it.
+	Spec NodeSpec `json:",omitempty"`
+	// Description encapsulates the properties of the Node as reported by the
+	// agent.
+	Description NodeDescription `json:",omitempty"`
+	// Status provides the current status of the node, as seen by the manager.
+	Status NodeStatus `json:",omitempty"`
+	// ManagerStatus provides the current status of the node's manager
+	// component, if the node is a manager.
+	ManagerStatus *ManagerStatus `json:",omitempty"`
 }
 
 // NodeSpec represents the spec of a node.
