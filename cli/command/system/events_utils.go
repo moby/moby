@@ -1,13 +1,13 @@
 package system
 
 import (
-	"encoding/json"
-	"io"
 	"sync"
 
 	"github.com/Sirupsen/logrus"
 	eventtypes "github.com/docker/docker/api/types/events"
 )
+
+type eventProcessor func(eventtypes.Message, error) error
 
 // EventHandler is abstract interface for user to customize
 // own handle functions of each type of events
@@ -46,21 +46,4 @@ func (w *eventHandler) Watch(c <-chan eventtypes.Message) {
 		logrus.Debugf("event handler: received event: %v", e)
 		go h(e)
 	}
-}
-
-// DecodeEvents decodes event from input stream
-func DecodeEvents(input io.Reader, ep eventProcessor) error {
-	dec := json.NewDecoder(input)
-	for {
-		var event eventtypes.Message
-		err := dec.Decode(&event)
-		if err != nil && err == io.EOF {
-			break
-		}
-
-		if procErr := ep(event, err); procErr != nil {
-			return procErr
-		}
-	}
-	return nil
 }

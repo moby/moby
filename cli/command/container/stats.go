@@ -63,24 +63,22 @@ func runStats(dockerCli *command.DockerCli, opts *statsOptions) error {
 		options := types.EventsOptions{
 			Filters: f,
 		}
-		resBody, err := dockerCli.Client().Events(ctx, options)
-		// Whether we successfully subscribed to events or not, we can now
+
+		eventq, errq := dockerCli.Client().Events(ctx, options)
+
+		// Whether we successfully subscribed to eventq or not, we can now
 		// unblock the main goroutine.
 		close(started)
-		if err != nil {
-			closeChan <- err
-			return
-		}
-		defer resBody.Close()
 
-		system.DecodeEvents(resBody, func(event events.Message, err error) error {
-			if err != nil {
+		for {
+			select {
+			case event := <-eventq:
+				c <- event
+			case err := <-errq:
 				closeChan <- err
-				return nil
+				return
 			}
-			c <- event
-			return nil
-		})
+		}
 	}
 
 	// waitFirst is a WaitGroup to wait first stat data's reach for each container

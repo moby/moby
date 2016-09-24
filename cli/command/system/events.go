@@ -63,13 +63,33 @@ func runEvents(dockerCli *command.DockerCli, opts *eventsOptions) error {
 		Filters: opts.filter.Value(),
 	}
 
-	responseBody, err := dockerCli.Client().Events(context.Background(), options)
-	if err != nil {
-		return err
-	}
-	defer responseBody.Close()
+	ctx, cancel := context.WithCancel(context.Background())
+	events, errs := dockerCli.Client().Events(ctx, options)
+	defer cancel()
 
-	return streamEvents(dockerCli.Out(), responseBody, tmpl)
+	out := dockerCli.Out()
+
+	for {
+		select {
+		case event := <-events:
+			if err := handleEvent(out, event, tmpl); err != nil {
+				return err
+			}
+		case err := <-errs:
+			if err == io.EOF {
+				return nil
+			}
+			return err
+		}
+	}
+}
+
+func handleEvent(out io.Writer, event eventtypes.Message, tmpl *template.Template) error {
+	if tmpl == nil {
+		return prettyPrintEvent(out, event)
+	}
+
+	return formatEvent(out, event, tmpl)
 }
 
 func makeTemplate(format string) (*template.Template, error) {
@@ -84,21 +104,6 @@ func makeTemplate(format string) (*template.Template, error) {
 	// a bad template like "{{.badFieldString}}"
 	return tmpl, tmpl.Execute(ioutil.Discard, &eventtypes.Message{})
 }
-
-// streamEvents decodes prints the incoming events in the provided output.
-func streamEvents(out io.Writer, input io.Reader, tmpl *template.Template) error {
-	return DecodeEvents(input, func(event eventtypes.Message, err error) error {
-		if err != nil {
-			return err
-		}
-		if tmpl == nil {
-			return prettyPrintEvent(out, event)
-		}
-		return formatEvent(out, event, tmpl)
-	})
-}
-
-type eventProcessor func(event eventtypes.Message, err error) error
 
 // prettyPrintEvent prints all types of event information.
 // Each output includes the event type, actor id, name and action.
