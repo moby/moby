@@ -357,12 +357,14 @@ func (daemon *Daemon) DisconnectContainerFromNetwork(containerName string, netwo
 // GetNetworkDriverList returns the list of plugins drivers
 // registered for network.
 func (daemon *Daemon) GetNetworkDriverList() []string {
-	pluginList := []string{}
-	pluginMap := make(map[string]bool)
-
 	if !daemon.NetworkControllerEnabled() {
 		return nil
 	}
+
+	// TODO: Replace this with proper libnetwork API
+	pluginList := []string{"overlay"}
+	pluginMap := map[string]bool{"overlay": true}
+
 	networks := daemon.netController.Networks()
 
 	for _, network := range networks {
@@ -371,8 +373,6 @@ func (daemon *Daemon) GetNetworkDriverList() []string {
 			pluginMap[network.Type()] = true
 		}
 	}
-	// TODO : Replace this with proper libnetwork API
-	pluginList = append(pluginList, "overlay")
 
 	sort.Strings(pluginList)
 
