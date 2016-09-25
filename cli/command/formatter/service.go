@@ -19,9 +19,9 @@ Labels:
 {{- range $k, $v := .Labels }}
  {{ $k }}{{if $v }}={{ $v }}{{ end }}
 {{- end }}{{ end }}
-Mode:
-{{- if .IsModeGlobal }}		Global
-{{- else if .IsModeReplicated }}		Replicated
+Service Mode:
+{{- if .IsModeGlobal }}	Global
+{{- else if .IsModeReplicated }}	Replicated
 {{- if .ModeReplicatedReplicas }}
  Replicas:	{{ .ModeReplicatedReplicas }}
 {{- end }}{{ end }}
@@ -90,6 +90,7 @@ Resources:
 {{- if .Networks }}
 Networks:
 {{- range $network := .Networks }} {{ $network }}{{ end }} {{ end }}
+Endpoint Mode:	{{ .EndpointMode }}
 {{- if .Ports }}
 Ports:
 {{- range $port := .Ports }}
@@ -280,6 +281,14 @@ func (ctx *serviceInspectContext) Networks() []string {
 		out = append(out, n.Target)
 	}
 	return out
+}
+
+func (ctx *serviceInspectContext) EndpointMode() string {
+	if ctx.Service.Spec.EndpointSpec == nil {
+		return ""
+	}
+
+	return string(ctx.Service.Spec.EndpointSpec.Mode)
 }
 
 func (ctx *serviceInspectContext) Ports() []swarm.PortConfig {
