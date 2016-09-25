@@ -122,7 +122,7 @@ func (i *TemplateInspector) tryRawInspectFallback(rawElement []byte) error {
 	return nil
 }
 
-// Flush write the result of inspecting all elements into the output stream.
+// Flush writes the result of inspecting all elements into the output stream.
 func (i *TemplateInspector) Flush() error {
 	if i.buffer.Len() == 0 {
 		_, err := io.WriteString(i.outputStream, "\n")
@@ -156,7 +156,7 @@ func (i *IndentedInspector) Inspect(typedElement interface{}, rawElement []byte)
 	return nil
 }
 
-// Flush write the result of inspecting all elements into the output stream.
+// Flush writes the result of inspecting all elements into the output stream.
 func (i *IndentedInspector) Flush() error {
 	if len(i.elements) == 0 && len(i.rawElements) == 0 {
 		_, err := io.WriteString(i.outputStream, "[]\n")

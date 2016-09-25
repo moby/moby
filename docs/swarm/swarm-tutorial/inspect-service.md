@@ -29,7 +29,7 @@ about a service in an easily readable format.
 
     ID:		9uk4639qpg7npwf3fn2aasksr
     Name:		helloworld
-    Mode:		REPLICATED
+    Service Mode:	REPLICATED
      Replicas:		1
     Placement:
     UpdateConfig:
@@ -37,6 +37,8 @@ about a service in an easily readable format.
     ContainerSpec:
      Image:		alpine
      Args:	ping docker.com
+    Resources:
+    Endpoint Mode:  vip
     ```
 
     >**Tip**: To return the service details in json format, run the same command
