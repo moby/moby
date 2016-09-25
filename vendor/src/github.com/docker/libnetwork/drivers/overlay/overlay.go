@@ -90,7 +90,20 @@ func Init(dc driverapi.DriverCallback, config map[string]interface{}) error {
 		}
 	}
 
-	d.restoreEndpoints()
+	if err := d.restoreEndpoints(); err != nil {
+		logrus.Warnf("Failure during overlay endpoints restore: %v", err)
+	}
+
+	// If an error happened when the network join the sandbox during the endpoints restore
+	// we should reset it now along with the once variable, so that subsequent endpoint joins
+	// outside of the restore path can potentially fix the network join and succeed.
+	for nid, n := range d.networks {
+		if n.initErr != nil {
+			logrus.Infof("resetting init error and once variable for network %s after unsuccesful endpoint restore: %v", nid, n.initErr)
+			n.initErr = nil
+			n.once = &sync.Once{}
+		}
+	}
 
 	return dc.RegisterDriver(networkType, d, c)
 }
@@ -323,7 +336,9 @@ func (d *driver) DiscoverNew(dType discoverapi.DiscoveryType, data interface{}) 
 			}
 			keys = append(keys, k)
 		}
-		d.setKeys(keys)
+		if err := d.setKeys(keys); err != nil {
+			logrus.Warn(err)
+		}
 	case discoverapi.EncryptionKeysUpdate:
 		var newKey, delKey, priKey *key
 		encrData, ok := data.(discoverapi.DriverEncryptionUpdate)
@@ -348,7 +363,9 @@ func (d *driver) DiscoverNew(dType discoverapi.DiscoveryType, data interface{}) 
 				tag:   uint32(encrData.PruneTag),
 			}
 		}
-		d.updateKeys(newKey, priKey, delKey)
+		if err := d.updateKeys(newKey, priKey, delKey); err != nil {
+			logrus.Warn(err)
+		}
 	default:
 	}
 	return nil
