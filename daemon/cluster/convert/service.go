@@ -185,15 +185,18 @@ func ServiceSpecToGRPC(s types.ServiceSpec) (swarmapi.ServiceSpec, error) {
 	}
 
 	if s.EndpointSpec != nil {
-		if s.EndpointSpec.Mode != "" &&
-			s.EndpointSpec.Mode != types.ResolutionModeVIP &&
-			s.EndpointSpec.Mode != types.ResolutionModeDNSRR {
-			return swarmapi.ServiceSpec{}, fmt.Errorf("invalid resolution mode: %q", s.EndpointSpec.Mode)
+		esMode := s.EndpointSpec.Mode
+		if esMode != "" &&
+			esMode != types.ResolutionModeVIP &&
+			esMode != types.ResolutionModeDNSRR {
+			return swarmapi.ServiceSpec{}, fmt.Errorf("invalid resolution mode: %q (only vip and dnsrr supported)", esMode)
+		} else if esMode == "" {
+			return swarmapi.ServiceSpec{}, fmt.Errorf("resolution mode cannot be empty in a non-nil endpoint spec")
 		}
 
 		spec.Endpoint = &swarmapi.EndpointSpec{}
 
-		spec.Endpoint.Mode = swarmapi.EndpointSpec_ResolutionMode(swarmapi.EndpointSpec_ResolutionMode_value[strings.ToUpper(string(s.EndpointSpec.Mode))])
+		spec.Endpoint.Mode = swarmapi.EndpointSpec_ResolutionMode(swarmapi.EndpointSpec_ResolutionMode_value[strings.ToUpper(string(esMode))])
 
 		for _, portConfig := range s.EndpointSpec.Ports {
 			spec.Endpoint.Ports = append(spec.Endpoint.Ports, &swarmapi.PortConfig{

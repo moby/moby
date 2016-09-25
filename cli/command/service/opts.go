@@ -92,7 +92,8 @@ func (d *DurationOpt) Value() *time.Duration {
 	return d.value
 }
 
-// Uint64Opt represents a uint64.
+// Uint64Opt is an option type for uint64 that uses a pointer. This
+// allows us to get nil values outside, instead of defaulting to 0
 type Uint64Opt struct {
 	value *uint64
 }
@@ -120,6 +121,41 @@ func (i *Uint64Opt) String() string {
 // Value returns the uint64
 func (i *Uint64Opt) Value() *uint64 {
 	return i.value
+}
+
+// StringOpt is an option type for string that uses a pointer. This
+// allows us to get nil values outside, instead of defaulting to empty string
+type StringOpt struct {
+	value *string
+}
+
+// Set a new value on the option
+func (i *StringOpt) Set(s string) error {
+	i.value = &s
+	return nil
+}
+
+// Type returns the type of this option
+func (i *StringOpt) Type() string {
+	return "string-ptr"
+}
+
+// String returns a string repr of this option
+func (i *StringOpt) String() string {
+	if i.value != nil {
+		return fmt.Sprintf("%s", *i.value)
+	}
+	return "none"
+}
+
+// Value returns the string
+func (i *StringOpt) Value() *string {
+	return i.value
+}
+
+// MountOpt is a Value type for parsing mounts
+type MountOpt struct {
+	values []mounttypes.Mount
 }
 
 type floatValue float32
@@ -287,13 +323,20 @@ func convertNetworks(networks []string) []swarm.NetworkAttachmentConfig {
 }
 
 type endpointOptions struct {
-	mode          string
+	mode          StringOpt
 	publishPorts  opts.ListOpts
 	expandedPorts opts.PortOpt
 }
 
 func (e *endpointOptions) ToEndpointSpec() *swarm.EndpointSpec {
-	portConfigs := []swarm.PortConfig{}
+	if e == nil {
+		return nil
+	}
+
+	var (
+		endpointSpec swarm.EndpointSpec
+		portConfigs  []swarm.PortConfig
+	)
 	// We can ignore errors because the format was already validated by ValidatePort
 	ports, portBindings, _ := nat.ParsePortSpecs(e.publishPorts.GetAll())
 
@@ -305,6 +348,10 @@ func (e *endpointOptions) ToEndpointSpec() *swarm.EndpointSpec {
 		Mode:  swarm.ResolutionMode(strings.ToLower(e.mode)),
 		Ports: append(portConfigs, e.expandedPorts.Value()...),
 	}
+
+	endpointSpec.Ports = portConfigs
+
+	return &endpointSpec
 }
 
 // ConvertPortToPortConfig converts ports to the swarm type
@@ -590,7 +637,7 @@ func addServiceFlags(cmd *cobra.Command, opts *serviceOptions) {
 	flags.StringVar(&opts.update.onFailure, flagUpdateFailureAction, "pause", "Action on update failure (pause|continue)")
 	flags.Var(&opts.update.maxFailureRatio, flagUpdateMaxFailureRatio, "Failure rate to tolerate during an update")
 
-	flags.StringVar(&opts.endpoint.mode, flagEndpointMode, "", "Endpoint mode (vip or dnsrr)")
+	flags.Var(&opts.endpoint.mode, flagEndpointMode, "Endpoint mode (vip or dnsrr)")
 
 	flags.BoolVar(&opts.registryAuth, flagRegistryAuth, false, "Send registry authentication details to swarm agents")
 
