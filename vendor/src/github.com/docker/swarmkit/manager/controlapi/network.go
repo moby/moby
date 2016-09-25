@@ -1,6 +1,7 @@
 package controlapi
 
 import (
+	"fmt"
 	"net"
 
 	"github.com/docker/libnetwork/ipamapi"
@@ -186,7 +187,11 @@ func (s *Server) RemoveNetwork(ctx context.Context, request *api.RemoveNetworkRe
 	err = s.store.Update(func(tx store.Tx) error {
 		nw := store.GetNetwork(tx, request.NetworkID)
 		if _, ok := nw.Spec.Annotations.Labels["com.docker.swarm.internal"]; ok {
-			return grpc.Errorf(codes.PermissionDenied, "%s is a pre-defined network and cannot be removed", request.NetworkID)
+			networkDescription := nw.ID
+			if nw.Spec.Annotations.Name != "" {
+				networkDescription = fmt.Sprintf("%s (%s)", nw.Spec.Annotations.Name, nw.ID)
+			}
+			return grpc.Errorf(codes.PermissionDenied, "%s is a pre-defined network and cannot be removed", networkDescription)
 		}
 		return store.DeleteNetwork(tx, request.NetworkID)
 	})
