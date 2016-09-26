@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution"
 	"github.com/docker/distribution/context"
 	"github.com/docker/distribution/manifest/schema2"
@@ -34,11 +35,13 @@ func (ld *v2LayerDescriptor) open(ctx context.Context) (distribution.ReadSeekClo
 
 	// Find the first URL that results in a 200 result code.
 	for _, url := range ld.src.URLs {
+		logrus.Debugf("Pulling %v from foreign URL %v", ld.digest, url)
 		rsc = transport.NewHTTPReadSeeker(http.DefaultClient, url, nil)
 		_, err = rsc.Seek(0, os.SEEK_SET)
 		if err == nil {
 			break
 		}
+		logrus.Debugf("Download for %v failed: %v", ld.digest, err)
 		rsc.Close()
 		rsc = nil
 	}
