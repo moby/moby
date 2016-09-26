@@ -43,6 +43,10 @@ func setupDaemonRoot(config *Config, rootDir string, rootUID, rootGID int) error
 	return nil
 }
 
+func (daemon *Daemon) getLayerInit() func(string) error {
+	return nil
+}
+
 // setupInitLayer populates a directory with mountpoints suitable
 // for bind-mounting dockerinit into the container. The mountpoint is simply an
 // empty file at /.dockerinit
