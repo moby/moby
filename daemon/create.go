@@ -154,6 +154,11 @@ func (daemon *Daemon) create(params types.ContainerCreateConfig, managed bool) (
 	if err := daemon.Register(container); err != nil {
 		return nil, err
 	}
+
+        if params.HostConfig.Isolation == "qemu" {
+                return nil, fmt.Errorf("Still unimplemented isolation : %v", params.HostConfig.Isolation)
+        }
+
 	daemon.LogContainerEvent(container, "create")
 	return container, nil
 }

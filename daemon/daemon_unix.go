@@ -239,6 +239,13 @@ func checkKernel() error {
 	return nil
 }
 
+// runAsIsolatedContainer returns true if we are going to run as a Isolated container
+func (daemon *Daemon) runAsIsolatedContainer(container *container.Container) bool {
+        // Container is requesting an isolation mode. Honour it.
+        return container.HostConfig.Isolation.IsQemu()
+
+}
+
 // adaptContainerSettings is called during container creation to modify any
 // settings necessary in the HostConfig structure.
 func (daemon *Daemon) adaptContainerSettings(hostConfig *containertypes.HostConfig, adjustCPUShares bool) error {
