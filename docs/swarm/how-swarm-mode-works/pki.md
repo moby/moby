@@ -18,7 +18,7 @@ in a swarm use mutual Transport Layer Security (TLS) to authenticate, authorize,
 and encrypt the communications between themselves and other nodes in the swarm.
 
 When you create a swarm by running `docker swarm init`, the Docker Engine
-designates istself as a manager node. By default, the manager node generates
+designates itself as a manager node. By default, the manager node generates
 itself a new root Certificate Authority (CA) along with a key pair to secure
 communications with other nodes that join the swarm. If you prefer, you can pass
 the `--external-ca` flag to specify a root CA external to the swarm. Refer to
