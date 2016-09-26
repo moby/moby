@@ -847,7 +847,7 @@ __docker_node_subcommand() {
                 "($help)*"{-f=,--filter=}"[Provide filter values]:filter:->filter-options" \
                 "($help)--no-resolve[Do not map IDs to Names]" \
                 "($help)--no-trunc[Do not truncate output]" \
-                "($help -)1:node:__docker_complete_nodes" && ret=0
+                "($help -)*:node:__docker_complete_nodes" && ret=0
             case $state in
                 (filter-options)
                     __docker_node_complete_ps_filters && ret=0
