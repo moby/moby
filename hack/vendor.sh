@@ -63,7 +63,7 @@ clone git github.com/tchap/go-patricia v2.2.6
 clone git github.com/vdemeester/shakers 24d7f1d6a71aa5d9cbe7390e4afb66b7eef9e1b3
 # forked golang.org/x/net package includes a patch for lazy loading trace templates
 clone git golang.org/x/net 2beffdc2e92c8a3027590f898fe88f69af48a3f8 https://github.com/tonistiigi/net.git
-clone git golang.org/x/sys eb2c74142fd19a79b3f237334c7384d5167b1b46 https://github.com/golang/sys.git
+clone git golang.org/x/sys 8f0908ab3b2457e2e15403d3697c9ef5cb4b57a9 https://github.com/golang/sys.git
 clone git github.com/docker/go-units 8a7beacffa3009a9ac66bad506b18ffdd110cf97
 clone git github.com/docker/go-connections f512407a188ecb16f31a33dbc9c4e4814afc1b03
 
