@@ -21,7 +21,7 @@ Labels:
 {{- end }}{{ end }}
 Mode:
 {{- if .IsModeGlobal }}		Global
-{{- else }}		Replicated
+{{- else if .IsModeReplicated }}		Replicated
 {{- if .ModeReplicatedReplicas }}
  Replicas:	{{ .ModeReplicatedReplicas }}
 {{- end }}{{ end }}
@@ -73,22 +73,20 @@ Mounts:
 Resources:
 {{- if .HasResourceReservations }}
  Reservations:
-{{- end }}
 {{- if gt .ResourceReservationNanoCPUs 0.0 }}
   CPU:		{{ .ResourceReservationNanoCPUs }}
 {{- end }}
 {{- if .ResourceReservationMemory }}
   Memory:	{{ .ResourceReservationMemory }}
-{{- end }}
+{{- end }}{{ end }}
 {{- if .HasResourceLimits }}
  Limits:
-{{- end }}
 {{- if gt .ResourceLimitsNanoCPUs 0.0 }}
   CPU:		{{ .ResourceLimitsNanoCPUs }}
 {{- end }}
 {{- if .ResourceLimitMemory }}
   Memory:	{{ .ResourceLimitMemory }}
-{{- end }}{{ end }}
+{{- end }}{{ end }}{{ end }}
 {{- if .Networks }}
 Networks:
 {{- range $network := .Networks }} {{ $network }}{{ end }} {{ end }}
@@ -154,6 +152,10 @@ func (ctx *serviceInspectContext) Labels() map[string]string {
 
 func (ctx *serviceInspectContext) IsModeGlobal() bool {
 	return ctx.Service.Spec.Mode.Global != nil
+}
+
+func (ctx *serviceInspectContext) IsModeReplicated() bool {
+	return ctx.Service.Spec.Mode.Replicated != nil
 }
 
 func (ctx *serviceInspectContext) ModeReplicatedReplicas() *uint64 {
