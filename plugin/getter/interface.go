@@ -22,4 +22,5 @@ type CompatPlugin interface {
 type PluginGetter interface {
 	Get(name, capability string, mode int) (CompatPlugin, error)
 	GetAllByCap(capability string) ([]CompatPlugin, error)
+	Handle(capability string, callback func(string, *plugins.Client))
 }

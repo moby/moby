@@ -208,15 +208,13 @@ func (ps *Store) GetAllByCap(capability string) ([]getter.CompatPlugin, error) {
 // Handle sets a callback for a given capability. It is only used by network
 // and ipam drivers during plugin registration. The callback registers the
 // driver with the subsystem (network, ipam).
-func (ps Store) Handle(capability string, callback func(string, *plugins.Client)) {
+func (ps *Store) Handle(capability string, callback func(string, *plugins.Client)) {
 	pluginType := fmt.Sprintf("docker.%s/1", strings.ToLower(capability))
 
-	store := &ps
-
 	// Register callback with new plugin model.
-	store.Lock()
-	store.handlers[pluginType] = callback
-	store.Unlock()
+	ps.Lock()
+	ps.handlers[pluginType] = callback
+	ps.Unlock()
 
 	// Register callback with legacy plugin model.
 	if allowV1PluginsFallback {
