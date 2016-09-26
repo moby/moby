@@ -1704,7 +1704,7 @@ __docker_subcommand() {
                 "($help -a --all)"{-a,--all}"[Show all images]" \
                 "($help)--digests[Show digests]" \
                 "($help)*"{-f=,--filter=}"[Filter values]:filter:->filter-options" \
-                "($help)--format[Pretty-print images using a Go template]:template: " \
+                "($help)--format=[Pretty-print images using a Go template]:template: " \
                 "($help)--no-trunc[Do not truncate output]" \
                 "($help -q --quiet)"{-q,--quiet}"[Only show numeric IDs]" \
                 "($help -): :__docker_repositories" && ret=0
@@ -1726,7 +1726,7 @@ __docker_subcommand() {
         (info|version)
             _arguments $(__docker_arguments) \
                 $opts_help \
-		"($help -f --format)"{-f=,--format=}"[Format the output using the given go template]:template: " && ret=0
+                "($help -f --format)"{-f=,--format=}"[Format the output using the given go template]:template: " && ret=0
             ;;
         (inspect)
             local state
@@ -1851,7 +1851,7 @@ __docker_subcommand() {
                 "($help -a --all)"{-a,--all}"[Show all containers]" \
                 "($help)--before=[Show only container created before...]:containers:__docker_containers" \
                 "($help)*"{-f=,--filter=}"[Filter values]:filter:__docker_complete_ps_filters" \
-                "($help)--format[Pretty-print containers using a Go template]:template: " \
+                "($help)--format=[Pretty-print containers using a Go template]:template: " \
                 "($help -l --latest)"{-l,--latest}"[Show only the latest created container]" \
                 "($help -n --last)"{-n=,--last=}"[Show n last created containers (includes all states)]:n:(1 5 10 25 50)" \
                 "($help)--no-trunc[Do not truncate output]" \
@@ -1999,6 +1999,7 @@ __docker_subcommand() {
             _arguments $(__docker_arguments) \
                 $opts_help \
                 "($help -a --all)"{-a,--all}"[Show all containers (default shows just running)]" \
+                "($help)--format=[Pretty-print images using a Go template]:template: " \
                 "($help)--no-stream[Disable streaming stats and only pull the first result]" \
                 "($help -)*:containers:__docker_runningcontainers" && ret=0
             ;;
