@@ -75,8 +75,13 @@ for version in "${versions[@]}"; do
 
 	# ppc64le doesn't have an official downloadable binary as of go 1.6.2. so use the
 	# older packaged go(v1.6.1) to bootstrap latest go, then remove the packaged go
+	echo "# Install Go" >> "$version/Dockerfile"
+	echo "# ppc64le doesn't have official go binaries, so use the version of go installed from the image" >> "$version/Dockerfile"
+	echo "# to build go from source." >> "$version/Dockerfile"
+	echo "# NOTE: ppc64le has compatibility issues with older versions of go, so make sure the version >= 1.6" >> "$version/Dockerfile"
+	
 	awk '$1 == "ENV" && $2 == "GO_VERSION" { print; exit }' ../../../../Dockerfile.ppc64le >> "$version/Dockerfile"
-	echo 'ENV GO_DOWNLOAD_URL https://golang.org/dl/go${GO_VERSION}.src.tar.gz' >> "$version/Dockerfile"
+	echo 'ENV GO_DOWNLOAD_URL https://storage.googleapis.com/golang/go${GO_VERSION}.src.tar.gz' >> "$version/Dockerfile"
 	echo 'ENV GOROOT_BOOTSTRAP /usr/lib/go-1.6' >> "$version/Dockerfile"
 	echo >> "$version/Dockerfile"
 	
