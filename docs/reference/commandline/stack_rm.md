@@ -32,3 +32,4 @@ a manager node.
 * [stack deploy](stack_deploy.md)
 * [stack services](stack_services.md)
 * [stack tasks](stack_tasks.md)
+* [stack ls](stack_ls.md)

@@ -93,6 +93,7 @@ Options:
 Commands:
   config      Print the stack configuration
   deploy      Create and update a stack
+  ls          List stacks
   rm          Remove the stack
   services    List the services in the stack
   tasks       List the tasks in the stack
