@@ -17,6 +17,7 @@ Build an image from a Dockerfile
 
 Options:
       --build-arg value         Set build-time variables (default [])
+      --cache-from value        Images to consider as cache sources (default [])
       --cgroup-parent string    Optional parent cgroup for the container
       --cpu-period int          Limit the CPU CFS (Completely Fair Scheduler) period
       --cpu-quota int           Limit the CPU CFS (Completely Fair Scheduler) quota
