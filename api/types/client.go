@@ -84,7 +84,7 @@ type CopyToContainerOptions struct {
 	AllowOverwriteDirWithFile bool
 }
 
-// EventsOptions hold parameters to filter events with.
+// EventsOptions holds parameters to filter events with.
 type EventsOptions struct {
 	Since   string
 	Until   string
