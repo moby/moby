@@ -552,7 +552,9 @@ func (a *Allocator) allocateNode(ctx context.Context, nc *networkContext, node *
 
 func (a *Allocator) allocateService(ctx context.Context, nc *networkContext, s *api.Service) error {
 	if s.Spec.Endpoint != nil {
+		// service has user-defined endpoint
 		if s.Endpoint == nil {
+			// service currently has no allocated endpoint, need allocated.
 			s.Endpoint = &api.Endpoint{
 				Spec: s.Spec.Endpoint.Copy(),
 			}
@@ -574,6 +576,12 @@ func (a *Allocator) allocateService(ctx context.Context, nc *networkContext, s *
 				s.Endpoint.VirtualIPs = append(s.Endpoint.VirtualIPs,
 					&api.Endpoint_VirtualIP{NetworkID: nc.ingressNetwork.ID})
 			}
+		}
+	} else if s.Endpoint != nil {
+		// service has no user-defined endpoints while has already allocated network resources,
+		// need deallocated.
+		if err := nc.nwkAllocator.ServiceDeallocate(s); err != nil {
+			return err
 		}
 	}
 

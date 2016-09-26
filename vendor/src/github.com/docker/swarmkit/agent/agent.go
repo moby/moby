@@ -319,7 +319,8 @@ func (a *Agent) UpdateTaskStatus(ctx context.Context, taskID string, status *api
 				if err == errTaskUnknown {
 					err = nil // dispatcher no longer cares about this task.
 				} else {
-					log.G(ctx).WithError(err).Error("sending task status update failed")
+					log.G(ctx).WithError(err).Error("closing session after fatal error")
+					session.close()
 				}
 			} else {
 				log.G(ctx).Debug("task status reported")
