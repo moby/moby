@@ -11,7 +11,7 @@ import (
 // DockerUserAgent is the User-Agent the Docker client uses to identify itself.
 // In accordance with RFC 7231 (5.5.3) is of the form:
 //    [docker client's UA] UpstreamClient([upstream client's UA])
-func DockerUserAgent(upstreamUA string) string {
+func DockerUserAgent(upstreamUA string, customUA string) string {
 	httpVersion := make([]useragent.VersionInfo, 0, 6)
 	httpVersion = append(httpVersion, useragent.VersionInfo{Name: "docker", Version: Version})
 	httpVersion = append(httpVersion, useragent.VersionInfo{Name: "go", Version: runtime.Version()})
@@ -21,6 +21,10 @@ func DockerUserAgent(upstreamUA string) string {
 	}
 	httpVersion = append(httpVersion, useragent.VersionInfo{Name: "os", Version: runtime.GOOS})
 	httpVersion = append(httpVersion, useragent.VersionInfo{Name: "arch", Version: runtime.GOARCH})
+
+	if len(customUA) > 0 {
+		httpVersion = append(httpVersion, useragent.VersionInfo{Name: "custom", Version: customUA})
+	}
 
 	dockerUA := useragent.AppendVersions("", httpVersion...)
 

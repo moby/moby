@@ -15,13 +15,15 @@ import (
 // wraps it with additional version information.
 type UserAgentMiddleware struct {
 	serverVersion string
+	customUA      string
 }
 
 // NewUserAgentMiddleware creates a new UserAgentMiddleware
-// with the server version.
-func NewUserAgentMiddleware(s string) UserAgentMiddleware {
+// with the server version and a custom useragent annotation.
+func NewUserAgentMiddleware(s string, ua string) UserAgentMiddleware {
 	return UserAgentMiddleware{
 		serverVersion: s,
+		customUA:      ua,
 	}
 }
 
@@ -31,7 +33,7 @@ func (u UserAgentMiddleware) WrapHandler(handler func(ctx context.Context, w htt
 		upstreamUA := r.Header.Get("User-Agent")
 		validate(upstreamUA, u.serverVersion)
 
-		dockerUA := dockerversion.DockerUserAgent(upstreamUA)
+		dockerUA := dockerversion.DockerUserAgent(upstreamUA, u.customUA)
 		ctx = useragent.NewContext(ctx, dockerUA)
 
 		return handler(ctx, w, r, vars)

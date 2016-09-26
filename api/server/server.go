@@ -25,6 +25,7 @@ type Config struct {
 	Logging     bool
 	EnableCors  bool
 	CorsHeaders string
+	UserAgent   string
 	Version     string
 	SocketGroup string
 	TLSConfig   *tls.Config
