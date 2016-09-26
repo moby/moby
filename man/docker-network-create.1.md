@@ -127,8 +127,8 @@ $ docker network create -d overlay \
   --gateway=192.168.0.100 \ 
   --gateway=192.170.0.100 \
   --ip-range=192.168.1.0/24 \
-  --aux-address a=192.168.1.5 --aux-address b=192.168.1.6 \
-  --aux-address a=192.170.1.5 --aux-address b=192.170.1.6 \
+  --aux-address="my-router=192.168.1.5" --aux-address="my-switch=192.168.1.6" \
+  --aux-address="my-printer=192.170.1.5" --aux-address="my-nas=192.170.1.6" \
   my-multihost-network
 ```
 
