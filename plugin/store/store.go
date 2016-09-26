@@ -24,3 +24,10 @@ func (ps Store) GetAllByCap(capability string) ([]getter.CompatPlugin, error) {
 func (ps Store) Get(name, capability string, _ int) (getter.CompatPlugin, error) {
 	return plugins.Get(name, capability)
 }
+
+// Handle sets a callback for a given capability. It is only used by network
+// and ipam drivers during plugin registration. The callback registers the
+// driver with the subsystem (network, ipam).
+func (ps *Store) Handle(capability string, callback func(string, *plugins.Client)) {
+	plugins.Handle(capability, callback)
+}
