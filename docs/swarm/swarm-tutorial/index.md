@@ -34,7 +34,7 @@ If you are brand new to Docker, see [About Docker Engine](../../index.md).
 To run this tutorial, you need the following:
 
 * [three networked host machines](#three-networked-host-machines)
-* [Docker Engine 1.12 or later installed](#docker-engine-1-12-or-later)
+* [Docker Engine 1.12 or later installed](#docker-engine-1-12-or-newer)
 * [the IP address of the manager machine](#the-ip-address-of-the-manager-machine)
 * [open ports between the hosts](#open-ports-between-the-hosts)
 
