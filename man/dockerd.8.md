@@ -533,6 +533,21 @@ the issue.
 
 Example use:: `dockerd --storage-opt dm.min_free_space=10%`
 
+#### dm.xfs_nospace_max_retries
+
+Specifies the maximum number of retries XFS should attempt to complete
+IO when ENOSPC (no space) error is returned by underlying storage device.
+
+By default XFS retries infinitely for IO to finish and this can result
+in unkillable process. To change this behavior one can set
+xfs_nospace_max_retries to say 0 and XFS will not retry IO after getting
+ENOSPC and will shutdown filesystem.
+
+Example use:
+
+    $ sudo dockerd --storage-opt dm.xfs_nospace_max_retries=0
+
+
 ## ZFS options
 
 #### zfs.fsname
