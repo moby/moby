@@ -58,7 +58,7 @@ types*](commandline/cli.md#option-types).
 Only the operator (the person executing `docker run`) can set the
 following options.
 
- - [Detached vs foreground](#detached-vs-foreground)
+ - [Detached vs. foreground](#detached-vs-foreground)
      - [Detached (-d)](#detached-d)
      - [Foreground](#foreground)
  - [Container identification](#container-identification)
@@ -71,7 +71,7 @@ following options.
  - [Runtime constraints on resources](#runtime-constraints-on-resources)
  - [Runtime privilege and Linux capabilities](#runtime-privilege-and-linux-capabilities)
 
-## Detached vs foreground
+## Detached vs. foreground
 
 When starting a Docker container, you must first decide if you want to
 run the container in the background in a "detached" mode or in the

@@ -29,7 +29,7 @@ Since version 1.12, Docker also provides `overlay2` storage driver which is much
 more efficient than `overlay` in terms of inode utilization. The `overlay2`
 driver is only compatible with Linux kernel 4.0 and later.
 
-For comparison between `overlay` vs `overlay2`, please also refer to [Select a
+For comparison between `overlay` and `overlay2`, please also refer to [Select a
 storage driver](selectadriver.md#overlay-vs-overlay2).
 
 >**Note**: Since it was merged into the mainline kernel, the OverlayFS *kernel 
