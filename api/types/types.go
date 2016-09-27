@@ -268,6 +268,7 @@ type Info struct {
 	// running when the daemon is shutdown or upon daemon start if
 	// running containers are detected
 	LiveRestoreEnabled bool
+	Isolation          container.Isolation
 }
 
 // PluginsInfo is a temp struct holding Plugins name

@@ -71,8 +71,8 @@ We cherry-pick only the commits we want into the bump branch:
 # get the commits ids we want to cherry-pick
 git log
 # cherry-pick the commits starting from the oldest one, without including merge commits
-git cherry-pick <commit-id>
-git cherry-pick <commit-id>
+git cherry-pick -s -x <commit-id>
+git cherry-pick -s -x <commit-id>
 ...
 ```
 
@@ -340,7 +340,7 @@ Each time you'll want to produce a new release candidate, you will start by
 adding commits to the branch, usually by cherry-picking from master:
 
 ```bash
-git cherry-pick -x -m0 <commit_id>
+git cherry-pick -s -x -m0 <commit_id>
 ```
 
 You want your "bump commit" (the one that updates the CHANGELOG and VERSION
@@ -494,7 +494,7 @@ and you can check its progress with the CDN Cloudfront Chrome addon.
 git checkout master
 git fetch
 git reset --hard origin/master
-git cherry-pick $VERSION
+git cherry-pick -s -x $VERSION
 git push $GITHUBUSER merge_release_$VERSION
 echo "https://github.com/$GITHUBUSER/docker/compare/docker:master...$GITHUBUSER:merge_release_$VERSION?expand=1"
 ```

@@ -59,7 +59,7 @@ update delay:
 
     ID:             0u6a4s31ybk7yw2wyvtikmu50
     Name:           redis
-    Mode:           Replicated
+    Service Mode:   Replicated
      Replicas:      3
     Placement:
      Strategy:	    Spread
@@ -69,6 +69,7 @@ update delay:
     ContainerSpec:
      Image:         redis:3.0.6
     Resources:
+    Endpoint Mode:  vip
     ```
 
 4. Now you can update the container image for `redis`. The swarm  manager
@@ -97,7 +98,7 @@ desired state:
 
     ID:             0u6a4s31ybk7yw2wyvtikmu50
     Name:           redis
-    Mode:           Replicated
+    Service Mode:   Replicated
      Replicas:      3
     Placement:
      Strategy:	    Spread
@@ -107,6 +108,7 @@ desired state:
     ContainerSpec:
      Image:         redis:3.0.7
     Resources:
+    Endpoint Mode:  vip
     ```
 
     The output of `service inspect` shows if your update paused due to failure:

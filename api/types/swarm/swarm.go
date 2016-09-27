@@ -39,7 +39,7 @@ type Spec struct {
 type OrchestrationConfig struct {
 	// TaskHistoryRetentionLimit is the number of historic tasks to keep per instance or
 	// node. If negative, never remove completed or failed tasks.
-	TaskHistoryRetentionLimit int64 `json:",omitempty"`
+	TaskHistoryRetentionLimit *int64 `json:",omitempty"`
 }
 
 // TaskDefaults parameterizes cluster-level task creation with default values.

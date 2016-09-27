@@ -52,6 +52,7 @@ have:
 |---------------------------|
 | area/api                  |
 | area/builder              |
+| area/bundles              |
 | area/cli                  |
 | area/daemon               |
 | area/distribution         |

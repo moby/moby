@@ -116,6 +116,7 @@ This section lists each version from latest to oldest.  Each listing includes a 
 
 [Docker Remote API v1.25](docker_remote_api_v1.25.md) documentation
 
+* `GET /info` now returns `Isolation`.
 * `POST /containers/create` now takes `AutoRemove` in HostConfig, to enable auto-removal of the container on daemon side when the container's process exits.
 * `GET /containers/json` and `GET /containers/(id or name)/json` now return `"removing"` as a value for the `State.Status` field if the container is being removed. Previously, "exited" was returned as status.
 * `GET /containers/json` now accepts `removing` as a valid value for the `status` filter.
@@ -125,6 +126,10 @@ This section lists each version from latest to oldest.  Each listing includes a 
 * `POST /containers/create` now takes a `Mounts` field in `HostConfig` which replaces `Binds` and `Volumes`. *note*: `Binds` and `Volumes` are still available but are exclusive with `Mounts`
 * `POST /build` now performs a preliminary validation of the `Dockerfile` before starting the build, and returns an error if the syntax is incorrect. Note that this change is _unversioned_ and applied to all API versions.
 * `POST /build` accepts `cachefrom` parameter to specify images used for build cache.
+* `GET /networks/` endpoint now correctly returns a list of *all* networks,
+  instead of the default network if a trailing slash is provided, but no `name`
+  or `id`.
+* `DELETE /containers/(name)` endpoint now returns an error of `removal of container name is already in progress` with status code of 400, when container name is in a state of removal in progress.
 
 ### v1.24 API changes
 

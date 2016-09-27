@@ -55,26 +55,6 @@ var ErrPendingSwarmExists = fmt.Errorf("This node is processing an existing join
 // ErrSwarmJoinTimeoutReached is returned when cluster join could not complete before timeout was reached.
 var ErrSwarmJoinTimeoutReached = fmt.Errorf("Timeout was reached before node was joined. The attempt to join the swarm will continue in the background. Use the \"docker info\" command to see the current swarm status of your node.")
 
-// defaultSpec contains some sane defaults if cluster options are missing on init
-var defaultSpec = types.Spec{
-	Raft: types.RaftConfig{
-		SnapshotInterval:           10000,
-		KeepOldSnapshots:           0,
-		LogEntriesForSlowFollowers: 500,
-		HeartbeatTick:              1,
-		ElectionTick:               3,
-	},
-	CAConfig: types.CAConfig{
-		NodeCertExpiry: 90 * 24 * time.Hour,
-	},
-	Dispatcher: types.DispatcherConfig{
-		HeartbeatPeriod: 5 * time.Second,
-	},
-	Orchestration: types.OrchestrationConfig{
-		TaskHistoryRetentionLimit: 10,
-	},
-}
-
 type state struct {
 	// LocalAddr is this machine's local IP or hostname, if specified.
 	LocalAddr string
@@ -676,7 +656,10 @@ func (c *Cluster) Update(version uint64, spec types.Spec, flags types.UpdateFlag
 		return err
 	}
 
-	swarmSpec, err := convert.SwarmSpecToGRPC(spec)
+	// In update, client should provide the complete spec of the swarm, including
+	// Name and Labels. If a field is specified with 0 or nil, then the default value
+	// will be used to swarmkit.
+	clusterSpec, err := convert.SwarmSpecToGRPC(spec)
 	if err != nil {
 		return err
 	}
@@ -685,7 +668,7 @@ func (c *Cluster) Update(version uint64, spec types.Spec, flags types.UpdateFlag
 		ctx,
 		&swarmapi.UpdateClusterRequest{
 			ClusterID: swarm.ID,
-			Spec:      &swarmSpec,
+			Spec:      &clusterSpec,
 			ClusterVersion: &swarmapi.Version{
 				Index: version,
 			},
@@ -1517,32 +1500,6 @@ func validateAndSanitizeInitRequest(req *types.InitRequest) error {
 		return fmt.Errorf("invalid ListenAddr %q: %v", req.ListenAddr, err)
 	}
 
-	spec := &req.Spec
-	// provide sane defaults instead of erroring
-	if spec.Name == "" {
-		spec.Name = "default"
-	}
-	if spec.Raft.SnapshotInterval == 0 {
-		spec.Raft.SnapshotInterval = defaultSpec.Raft.SnapshotInterval
-	}
-	if spec.Raft.LogEntriesForSlowFollowers == 0 {
-		spec.Raft.LogEntriesForSlowFollowers = defaultSpec.Raft.LogEntriesForSlowFollowers
-	}
-	if spec.Raft.ElectionTick == 0 {
-		spec.Raft.ElectionTick = defaultSpec.Raft.ElectionTick
-	}
-	if spec.Raft.HeartbeatTick == 0 {
-		spec.Raft.HeartbeatTick = defaultSpec.Raft.HeartbeatTick
-	}
-	if spec.Dispatcher.HeartbeatPeriod == 0 {
-		spec.Dispatcher.HeartbeatPeriod = defaultSpec.Dispatcher.HeartbeatPeriod
-	}
-	if spec.CAConfig.NodeCertExpiry == 0 {
-		spec.CAConfig.NodeCertExpiry = defaultSpec.CAConfig.NodeCertExpiry
-	}
-	if spec.Orchestration.TaskHistoryRetentionLimit == 0 {
-		spec.Orchestration.TaskHistoryRetentionLimit = defaultSpec.Orchestration.TaskHistoryRetentionLimit
-	}
 	return nil
 }
 
@@ -1599,14 +1556,20 @@ func initClusterSpec(node *node, spec types.Spec) error {
 				cluster = lcr.Clusters[0]
 				break
 			}
-			newspec, err := convert.SwarmSpecToGRPC(spec)
+			// In init, we take the initial default values from swarmkit, and merge
+			// any non nil or 0 value from spec to GRPC spec. This will leave the
+			// default value alone.
+			// Note that this is different from Update(), as in Update() we expect
+			// user to specify the complete spec of the cluster (as they already know
+			// the existing one and knows which field to update)
+			clusterSpec, err := convert.MergeSwarmSpecToGRPC(spec, cluster.Spec)
 			if err != nil {
 				return fmt.Errorf("error updating cluster settings: %v", err)
 			}
 			_, err = client.UpdateCluster(ctx, &swarmapi.UpdateClusterRequest{
 				ClusterID:      cluster.ID,
 				ClusterVersion: &cluster.Meta.Version,
-				Spec:           &newspec,
+				Spec:           &clusterSpec,
 			})
 			if err != nil {
 				return fmt.Errorf("error updating cluster settings: %v", err)
