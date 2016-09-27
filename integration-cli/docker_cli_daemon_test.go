@@ -643,6 +643,24 @@ func (s *DockerDaemonSuite) TestDaemonBridgeExternal(c *check.C) {
 			containerIP))
 }
 
+func (s *DockerDaemonSuite) TestDaemonBridgeNone(c *check.C) {
+	// start with bridge none
+	d := s.d
+	err := d.StartWithBusybox("--bridge", "none")
+	c.Assert(err, check.IsNil)
+	defer d.Restart()
+
+	// verify docker0 iface is not there
+	out, _, err := runCommandWithOutput(exec.Command("ifconfig", "docker0"))
+	c.Assert(err, check.NotNil, check.Commentf("docker0 should not be present if daemon started with --bridge=none"))
+	c.Assert(strings.Contains(out, "Device not found"), check.Equals, true)
+
+	// verify default "bridge" network is not there
+	out, err = d.Cmd("network", "inspect", "bridge")
+	c.Assert(err, check.NotNil, check.Commentf("\"bridge\" network should not be present if daemon started with --bridge=none"))
+	c.Assert(strings.Contains(out, "No such network"), check.Equals, true)
+}
+
 func createInterface(c *check.C, ifType string, ifName string, ipNet string) (string, error) {
 	args := []string{"link", "add", "name", ifName, "type", ifType}
 	ipLinkCmd := exec.Command("ip", args...)
