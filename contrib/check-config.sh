@@ -234,6 +234,7 @@ flags=(
 	CFS_BANDWIDTH FAIR_GROUP_SCHED RT_GROUP_SCHED
 	IP_VS
 	IP_VS_NFCT
+ 	IP_VS_RR
 )
 check_flags "${flags[@]}"
 
