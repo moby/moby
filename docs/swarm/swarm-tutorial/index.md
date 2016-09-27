@@ -73,8 +73,8 @@ single-node and multi-node swarm scenarios on Linux machines.
 
 #### Use Docker for Mac or Docker for Windows
 
-Alternatively, install the latest [Docker for Mac](/docker-for-mac/index.md) or
-[Docker for Windows](/docker-for-windows/index.md) application on a one
+Alternatively, install the latest [Docker for Mac](../../installation/mac.md) or
+[Docker for Windows](../../installation/windows.md) application on a one
 computer. You can test both single-node and multi-node swarm from this computer,
 but you will need to use Docker Machine to test the multi-node scenarios.
 
@@ -87,7 +87,7 @@ will serve as the single swarm node.
 
 * Currently, you cannot use Docker for Mac or Windows alone to test a
 _multi-node_ swarm. However, you can use the included version of [Docker
-Machine](/machine/overview.md) to create the swarm nodes, then follow the
+Machine](https://docs.docker.com/machine/overview) to create the swarm nodes, then follow the
 tutorial for all multi-node features. For this scenario, you run commands from
 a Docker for Mac or Docker for Windows host, but that Docker host itself is
 _not_ participating in the swarm (i.e., it will not be `manager1`, `worker1`,
