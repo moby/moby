@@ -15,6 +15,7 @@ import (
 	"github.com/docker/docker/pkg/plugins"
 	"github.com/docker/docker/plugin/v2"
 	"github.com/docker/docker/restartmanager"
+	"github.com/opencontainers/runtime-spec/specs-go"
 )
 
 func (pm *Manager) enable(p *v2.Plugin, force bool) error {
@@ -27,7 +28,7 @@ func (pm *Manager) enable(p *v2.Plugin, force bool) error {
 	}
 
 	p.RestartManager = restartmanager.New(container.RestartPolicy{Name: "always"}, 0)
-	if err := pm.containerdClient.Create(p.GetID(), "", "", libcontainerd.Spec(*spec), libcontainerd.WithRestartManager(p.RestartManager)); err != nil {
+	if err := pm.containerdClient.Create(p.GetID(), "", "", specs.Spec(*spec), libcontainerd.WithRestartManager(p.RestartManager)); err != nil {
 		if err := p.RestartManager.Cancel(); err != nil {
 			logrus.Errorf("enable: restartManager.Cancel failed due to %v", err)
 		}

@@ -5,6 +5,7 @@ import (
 	"github.com/docker/docker/daemon/caps"
 	"github.com/docker/docker/daemon/exec"
 	"github.com/docker/docker/libcontainerd"
+	"github.com/opencontainers/runtime-spec/specs-go"
 )
 
 func execSetPlatformOpt(c *container.Container, ec *exec.Config, p *libcontainerd.Process) error {
@@ -13,7 +14,7 @@ func execSetPlatformOpt(c *container.Container, ec *exec.Config, p *libcontainer
 		if err != nil {
 			return err
 		}
-		p.User = &libcontainerd.User{
+		p.User = &specs.User{
 			UID:            uid,
 			GID:            gid,
 			AdditionalGids: additionalGids,

@@ -8,6 +8,7 @@ import (
 
 	"github.com/Microsoft/hcsshim"
 	"github.com/Sirupsen/logrus"
+	"github.com/opencontainers/runtime-spec/specs-go"
 )
 
 type container struct {
@@ -19,7 +20,7 @@ type container struct {
 	// The ociSpec is required, as client.Create() needs a spec,
 	// but can be called from the RestartManager context which does not
 	// otherwise have access to the Spec
-	ociSpec Spec
+	ociSpec specs.Spec
 
 	manualStopRequested bool
 	hcsContainer        hcsshim.Container

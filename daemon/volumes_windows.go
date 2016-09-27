@@ -15,7 +15,7 @@ import (
 // It also ensures each of the mounts are lexographically sorted.
 
 // BUGBUG TODO Windows containerd. This would be much better if it returned
-// an array of windowsoci mounts, not container mounts. Then no need to
+// an array of runtime spec mounts, not container mounts. Then no need to
 // do multiple transitions.
 
 func (daemon *Daemon) setupMounts(c *container.Container) ([]container.Mount, error) {
