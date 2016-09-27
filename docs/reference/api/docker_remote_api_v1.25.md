@@ -5040,7 +5040,9 @@ Stop and remove the service `id`
 
 **Example response**:
 
-    HTTP/1.1 200 No Content
+    HTTP/1.1 200 OK
+    Content-Length: 0
+    Content-Type: text/plain; charset=utf-8
 
 **Status codes**:
 
