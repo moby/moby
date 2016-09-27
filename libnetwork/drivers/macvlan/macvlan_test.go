@@ -3,6 +3,7 @@ package macvlan
 import (
 	"testing"
 
+	"github.com/docker/docker/plugin/getter"
 	"github.com/docker/libnetwork/driverapi"
 	_ "github.com/docker/libnetwork/testutils"
 )
@@ -12,6 +13,10 @@ const testNetworkType = "macvlan"
 type driverTester struct {
 	t *testing.T
 	d *driver
+}
+
+func (dt *driverTester) GetPluginGetter() getter.PluginGetter {
+	return nil
 }
 
 func (dt *driverTester) RegisterDriver(name string, drv driverapi.Driver,
