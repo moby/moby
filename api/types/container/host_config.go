@@ -324,4 +324,7 @@ type HostConfig struct {
 
 	// Run a custom init inside the container, if null, use the daemon's configured settings
 	Init *bool `json:",omitempty"`
+
+	// Custom init path
+	InitPath string `json:",omitempty"`
 }

@@ -36,6 +36,7 @@ type Config struct {
 	DefaultRuntime       string                   `json:"default-runtime,omitempty"`
 	OOMScoreAdjust       int                      `json:"oom-score-adjust,omitempty"`
 	Init                 bool                     `json:"init,omitempty"`
+	InitPath             string                   `json:"init-path,omitempty"`
 }
 
 // bridgeConfig stores all the bridge driver specific
@@ -93,6 +94,7 @@ func (config *Config) InstallFlags(flags *pflag.FlagSet) {
 	flags.StringVar(&config.DefaultRuntime, "default-runtime", stockRuntimeName, "Default OCI runtime for containers")
 	flags.IntVar(&config.OOMScoreAdjust, "oom-score-adjust", -500, "Set the oom_score_adj for the daemon")
 	flags.BoolVar(&config.Init, "init", false, "Run an init in the container to forward signals and reap processes")
+	flags.StringVar(&config.InitPath, "init-path", "", "Path to the docker-init binary")
 
 	config.attachExperimentalFlags(flags)
 }
