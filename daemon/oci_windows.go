@@ -71,20 +71,22 @@ func (daemon *Daemon) createSpec(c *container.Container) (*libcontainerd.Spec, e
 
 	// In s.Windows.Resources
 	// @darrenstahlmsft implement these resources
-	cpuShares := uint64(c.HostConfig.CPUShares)
+	cpuShares := uint16(c.HostConfig.CPUShares)
+	cpuPercent := uint8(c.HostConfig.CPUPercent)
+	memoryLimit := uint64(c.HostConfig.Memory)
 	s.Windows.Resources = &windowsoci.WindowsResources{
-		CPU: &windowsoci.WindowsCPU{
-			Percent: &c.HostConfig.CPUPercent,
+		CPU: &windowsoci.WindowsCPUResources{
+			Percent: &cpuPercent,
 			Shares:  &cpuShares,
 		},
-		Memory: &windowsoci.WindowsMemory{
-			Limit: &c.HostConfig.Memory,
+		Memory: &windowsoci.WindowsMemoryResources{
+			Limit: &memoryLimit,
 			//TODO Reservation: ...,
 		},
-		Network: &windowsoci.WindowsNetwork{
+		Network: &windowsoci.WindowsNetworkResources{
 		//TODO Bandwidth: ...,
 		},
-		Storage: &windowsoci.WindowsStorage{
+		Storage: &windowsoci.WindowsStorageResources{
 			Bps:  &c.HostConfig.IOMaximumBandwidth,
 			Iops: &c.HostConfig.IOMaximumIOps,
 		},
