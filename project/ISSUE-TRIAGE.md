@@ -78,7 +78,7 @@ have:
 | area/testing              |
 | area/volumes              |
 
-### Platform
+#### Platform
 
 | Platform                  |
 |---------------------------|
@@ -104,6 +104,18 @@ As the table states, these labels are meant as guidelines. You might have
 written a whole plugin for Docker in a personal project and never contributed to
 Docker. With that kind of experience, you could take on an <strong
 class="gh-label expert">exp/expert</strong> level task.
+
+#### Triage status
+
+To communicate the triage status with other collaborators, you can apply status
+labels to issues. These labels prevent duplicating effort.
+
+| Status                        | Description                                                                                                                                                                 |
+|-------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| status/confirmed              | You triaged the issue, and were able to reproduce the issue. Always leave a comment how you reproduced, so that the person working on resolving the issue has a way to set up a test-case.
+| status/accepted               | Apply to enhancements / feature requests that we think are good to have. Adding this label helps contributors find things to work on.
+| status/more-info-needed       | Apply this to issues that are missing information (e.g. no `docker version` or `docker info` output, or no steps to reproduce), or require feedback from the reporter. If the issue is not updated after a week, it can generally be closed.
+| status/needs-attention        | Apply this label if an issue (or PR) needs more eyes.
 
 ### 3. Prioritizing issue
 
