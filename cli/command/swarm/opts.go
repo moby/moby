@@ -169,11 +169,20 @@ func addSwarmFlags(flags *pflag.FlagSet, opts *swarmOptions) {
 	flags.Var(&opts.externalCA, flagExternalCA, "Specifications of one or more certificate signing endpoints")
 }
 
-func (opts *swarmOptions) ToSpec() swarm.Spec {
+func (opts *swarmOptions) ToSpec(flags *pflag.FlagSet) swarm.Spec {
 	spec := swarm.Spec{}
-	spec.Orchestration.TaskHistoryRetentionLimit = opts.taskHistoryLimit
-	spec.Dispatcher.HeartbeatPeriod = opts.dispatcherHeartbeat
-	spec.CAConfig.NodeCertExpiry = opts.nodeCertExpiry
-	spec.CAConfig.ExternalCAs = opts.externalCA.Value()
+
+	if flags.Changed(flagTaskHistoryLimit) {
+		spec.Orchestration.TaskHistoryRetentionLimit = &opts.taskHistoryLimit
+	}
+	if flags.Changed(flagDispatcherHeartbeat) {
+		spec.Dispatcher.HeartbeatPeriod = opts.dispatcherHeartbeat
+	}
+	if flags.Changed(flagCertExpiry) {
+		spec.CAConfig.NodeCertExpiry = opts.nodeCertExpiry
+	}
+	if flags.Changed(flagExternalCA) {
+		spec.CAConfig.ExternalCAs = opts.externalCA.Value()
+	}
 	return spec
 }
