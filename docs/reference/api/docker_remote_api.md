@@ -129,6 +129,7 @@ This section lists each version from latest to oldest.  Each listing includes a 
 * `GET /networks/` endpoint now correctly returns a list of *all* networks,
   instead of the default network if a trailing slash is provided, but no `name`
   or `id`.
+* `DELETE /containers/(name)` endpoint now returns an error of `removal of container name is already in progress` with status code of 400, when container name is in a state of removal in progress.
 
 ### v1.24 API changes
 
