@@ -22,7 +22,7 @@ Options:
   -f, --filter value   Provide filter values (i.e. 'dangling=true') (default [])
       --help           Print usage
       --no-trunc       Do not truncate the output
-  -q, --quiet          Only display volume names
+  -q, --quiet          Only display network IDs
 ```
 
 Lists all the networks the Engine `daemon` knows about. This includes the

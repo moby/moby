@@ -61,7 +61,7 @@ clone git golang.org/x/sys eb2c74142fd19a79b3f237334c7384d5167b1b46 https://gith
 clone git github.com/docker/go-units 651fc226e7441360384da338d0fd37f2440ffbe3
 clone git github.com/docker/go-connections fa2850ff103453a9ad190da0df0af134f0314b3d
 clone git github.com/docker/engine-api 4eca04ae18f4f93f40196a17b9aa6e11262a7269
-clone git github.com/RackSec/srslog 259aed10dfa74ea2961eddd1d9847619f6e98837
+clone git github.com/RackSec/srslog 365bf33cd9acc21ae1c355209865f17228ca534e
 clone git github.com/imdario/mergo 0.2.1
 
 #get libnetwork packages
@@ -83,7 +83,7 @@ clone git github.com/coreos/etcd v2.3.2
 fix_rewritten_imports github.com/coreos/etcd
 clone git github.com/ugorji/go f1f1a805ed361a0e078bb537e4ea78cd37dcf065
 clone git github.com/hashicorp/consul v0.5.2
-clone git github.com/boltdb/bolt v1.2.1
+clone git github.com/boltdb/bolt fff57c100f4dea1905678da7e90d92429dff2904
 clone git github.com/miekg/dns 75e6e86cc601825c5dbcd4e0c209eab180997cd7
 
 # get graph and distribution packages
@@ -114,7 +114,7 @@ clone git github.com/golang/protobuf 3c84672111d91bb5ac31719e112f9f7126a0e26e
 # gelf logging driver deps
 clone git github.com/Graylog2/go-gelf aab2f594e4585d43468ac57287b0dece9d806883
 
-clone git github.com/fluent/fluent-logger-golang v1.1.0
+clone git github.com/fluent/fluent-logger-golang v1.2.0
 # fluent-logger-golang deps
 clone git github.com/philhofer/fwd 899e4efba8eaa1fea74175308f3fae18ff3319fa
 clone git github.com/tinylib/msgp 75ee40d2601edf122ef667e2a07d600d4c44490c

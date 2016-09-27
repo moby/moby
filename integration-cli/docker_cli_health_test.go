@@ -149,4 +149,19 @@ func (s *DockerSuite) TestHealth(c *check.C) {
 	c.Check(last.ExitCode, checker.Equals, -1)
 	c.Check(last.Output, checker.Equals, "Health check exceeded timeout (1ms)")
 	dockerCmd(c, "rm", "-f", "test")
+
+	// Check JSON-format
+	_, err = buildImage(imageName,
+		`FROM busybox
+		RUN echo OK > /status
+		CMD ["/bin/sleep", "120"]
+		STOPSIGNAL SIGKILL
+		HEALTHCHECK --interval=1s --timeout=30s \
+		  CMD ["cat", "/my status"]`,
+		true)
+	c.Check(err, check.IsNil)
+	out, _ = dockerCmd(c, "inspect",
+		"--format={{.Config.Healthcheck.Test}}", imageName)
+	c.Check(out, checker.Equals, "[CMD cat /my status]\n")
+
 }

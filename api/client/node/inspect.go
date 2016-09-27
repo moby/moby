@@ -71,6 +71,8 @@ func printHumanFriendly(out io.Writer, refs []string, getRef inspect.GetRefFunc)
 		// print extra space between objects, but not after the last one
 		if idx+1 != len(refs) {
 			fmt.Fprintf(out, "\n\n")
+		} else {
+			fmt.Fprintf(out, "\n")
 		}
 	}
 	return nil
