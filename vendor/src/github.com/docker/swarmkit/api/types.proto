@@ -301,26 +301,26 @@ message UpdateConfig {
 	// be used.
 	Duration monitor = 4;
 
-	// AllowedFailureFraction is the fraction of tasks that may fail during
+	// MaxFailureRatio is the fraction of tasks that may fail during
 	// an update before the failure action is invoked. Any task created by
 	// the current update which ends up in one of the states REJECTED,
 	// COMPLETED or FAILED within Monitor from its creation counts as a
 	// failure. The number of failures is divided by the number of tasks
 	// being updated, and if this fraction is greater than
-	// AllowedFailureFraction, the failure action is invoked.
+	// MaxFailureRatio, the failure action is invoked.
 	//
 	// If the failure action is CONTINUE, there is no effect.
 	// If the failure action is PAUSE, no more tasks will be updated until
 	// another update is started.
 	// If the failure action is ROLLBACK, the orchestrator will attempt to
-	// roll back to the previous service spec. If the AllowedFailureFraction
+	// roll back to the previous service spec. If the MaxFailureRatio
 	// threshold is hit during the rollback, the rollback will pause.
 	//
 	// TODO(aaronl): Should there be a separate failure threshold for
 	// rollbacks? Should there be a failure action for rollbacks (to allow
 	// them to do something other than pause when the rollback encounters
 	// errors)?
-	float allowed_failure_fraction = 5;
+	float max_failure_ratio = 5;
 }
 
 // UpdateStatus is the status of an update in progress.
@@ -746,4 +746,33 @@ message ManagerStatus {
 
 	// Reachability specifies whether this node is reachable.
 	RaftMemberStatus.Reachability reachability = 4;
+}
+
+// SecretReference is the linkage between a service and a secret that it uses.
+message SecretReference {
+	// SecretID represents the ID of the specific Secret that we're
+	// referencing. This identifier exists so that SecretReferences don't leak
+	// any information about the secret contents.
+	string secret_id = 1 [(gogoproto.customname) = "SecretID"];
+
+	// Mode specifies how this secret should be exposed to the task.
+	enum Mode {
+		// SYSTEM means that it is not exposed inside to a task at all, but
+		// only available via direct access, usually at the agent-level
+		SYSTEM = 0;
+		// FILE means that it will be exposed to the task as a file
+		FILE = 1;
+		// ENV means that it will be exposed to the task as an environment variable
+		ENV = 2;
+	}
+
+	// Mode is the way the secret should be presented.
+	Mode mode = 2;
+
+	// Target is the name by which the image accesses the secret.
+	string target = 3;
+
+	// SecretName is the name of the secret that this references, but this is just provided for
+	// lookup/display purposes.  The secret in the reference will be identified by its ID.
+	string secret_name = 4;
 }

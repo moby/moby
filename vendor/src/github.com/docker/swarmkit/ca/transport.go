@@ -4,14 +4,13 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
-	"fmt"
 	"net"
 	"strings"
 	"sync"
 
-	"google.golang.org/grpc/credentials"
-
+	"github.com/pkg/errors"
 	"golang.org/x/net/context"
+	"google.golang.org/grpc/credentials"
 )
 
 var (
@@ -153,7 +152,7 @@ func NewMutableTLS(c *tls.Config) (*MutableTLSCreds, error) {
 	originalTC := credentials.NewTLS(c)
 
 	if len(c.Certificates) < 1 {
-		return nil, fmt.Errorf("invalid configuration: needs at least one certificate")
+		return nil, errors.New("invalid configuration: needs at least one certificate")
 	}
 
 	subject, err := GetAndValidateCertificateSubject(c.Certificates)
@@ -177,18 +176,18 @@ func GetAndValidateCertificateSubject(certs []tls.Certificate) (pkix.Name, error
 			continue
 		}
 		if len(x509Cert.Subject.OrganizationalUnit) < 1 {
-			return pkix.Name{}, fmt.Errorf("no OU found in certificate subject")
+			return pkix.Name{}, errors.New("no OU found in certificate subject")
 		}
 
 		if len(x509Cert.Subject.Organization) < 1 {
-			return pkix.Name{}, fmt.Errorf("no organization found in certificate subject")
+			return pkix.Name{}, errors.New("no organization found in certificate subject")
 		}
 		if x509Cert.Subject.CommonName == "" {
-			return pkix.Name{}, fmt.Errorf("no valid subject names found for TLS configuration")
+			return pkix.Name{}, errors.New("no valid subject names found for TLS configuration")
 		}
 
 		return x509Cert.Subject, nil
 	}
 
-	return pkix.Name{}, fmt.Errorf("no valid certificates found for TLS configuration")
+	return pkix.Name{}, errors.New("no valid certificates found for TLS configuration")
 }

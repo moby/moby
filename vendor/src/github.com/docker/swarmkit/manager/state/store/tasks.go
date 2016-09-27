@@ -112,6 +112,26 @@ func init() {
 	})
 }
 
+// TaskName returns the task name from Annotations.Name,
+// and, in case Annotations.Name is missing, fallback
+// to construct the name from othere information.
+func TaskName(t *api.Task) string {
+	name := t.Annotations.Name
+	if name == "" {
+		// If Task name is not assigned then calculated name is used like before.
+		// This might be removed in the future.
+		// We use the following scheme for Task name:
+		// Name := <ServiceAnnotations.Name>.<Slot>.<TaskID> (replicated mode)
+		//      := <ServiceAnnotations.Name>.<NodeID>.<TaskID> (global mode)
+		if t.Slot != 0 {
+			name = fmt.Sprintf("%v.%v.%v", t.ServiceAnnotations.Name, t.Slot, t.ID)
+		} else {
+			name = fmt.Sprintf("%v.%v.%v", t.ServiceAnnotations.Name, t.NodeID, t.ID)
+		}
+	}
+	return name
+}
+
 type taskEntry struct {
 	*api.Task
 }
@@ -225,12 +245,7 @@ func (ti taskIndexerByName) FromObject(obj interface{}) (bool, []byte, error) {
 		panic("unexpected type passed to FromObject")
 	}
 
-	name := t.Annotations.Name
-	if name == "" {
-		// If Task name is not assigned then calculated name is used like before.
-		// This might be removed in the future.
-		name = fmt.Sprintf("%v.%v.%v", t.ServiceAnnotations.Name, t.Slot, t.Task.ID)
-	}
+	name := TaskName(t.Task)
 
 	// Add the null character as a terminator
 	return true, []byte(strings.ToLower(name) + "\x00"), nil

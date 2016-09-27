@@ -1,7 +1,6 @@
 package raft
 
 import (
-	"errors"
 	"fmt"
 	"math"
 	"math/rand"
@@ -32,6 +31,7 @@ import (
 	"github.com/docker/swarmkit/manager/state/watch"
 	"github.com/gogo/protobuf/proto"
 	"github.com/pivotal-golang/clock"
+	"github.com/pkg/errors"
 )
 
 var (
@@ -862,13 +862,13 @@ func (n *Node) getLeaderConn() (*grpc.ClientConn, error) {
 	}
 	l := n.cluster.GetMember(leader)
 	if l == nil {
-		return nil, fmt.Errorf("no leader found")
+		return nil, errors.New("no leader found")
 	}
 	if !n.cluster.Active(leader) {
-		return nil, fmt.Errorf("leader marked as inactive")
+		return nil, errors.New("leader marked as inactive")
 	}
 	if l.Conn == nil {
-		return nil, fmt.Errorf("no connection to leader in member list")
+		return nil, errors.New("no connection to leader in member list")
 	}
 	return l.Conn, nil
 }

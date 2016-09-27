@@ -373,8 +373,7 @@ func (g *GlobalOrchestrator) removeTask(ctx context.Context, batch *store.Batch,
 }
 
 func (g *GlobalOrchestrator) addTask(ctx context.Context, batch *store.Batch, service *api.Service, nodeID string) {
-	task := newTask(g.cluster, service, 0)
-	task.NodeID = nodeID
+	task := newTask(g.cluster, service, 0, nodeID)
 
 	err := batch.Update(func(tx store.Tx) error {
 		return store.CreateTask(tx, task)

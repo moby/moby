@@ -143,7 +143,7 @@ clone git github.com/docker/docker-credential-helpers v0.3.0
 clone git github.com/docker/containerd 2545227b0357eb55e369fa0072baef9ad91cdb69
 
 # cluster
-clone git github.com/docker/swarmkit 7b202f058db2f3a7d41351a56e5ef720c9b5a45d
+clone git github.com/docker/swarmkit b79d41fa99c137181d8f58ef76a6e8a25bc2e72f
 clone git github.com/golang/mock bd3c8e81be01eef76d4b503f5e687d2d1354d2d9
 clone git github.com/gogo/protobuf v0.3
 clone git github.com/cloudflare/cfssl 7fb22c8cba7ecaf98e4082d22d65800cf45e042a

@@ -202,4 +202,14 @@ message AssignmentsMessage {
 	// assignment set. It is not used in the first assignments message of
 	// a stream.
 	repeated string remove_tasks = 5;
+
+	// UpdateSecrets is a set of new or updated secrets for this node.
+	// In the first assignments message, it contains all of the secrets
+	// the node needs for itself and its assigned tasks.
+	repeated Secret update_secrets = 6;
+
+	// RemoveSecrets is a set of previously-assigned secret names to remove
+	// from memory. It is not used in the first assignments message of
+	// a stream.
+	repeated string remove_secrets = 7;
 }
