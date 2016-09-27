@@ -1,0 +1,83 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+#######################################################################################################
+#
+# 	If you get problems about guest additions versions, please get this plugin to fix it up:
+#
+#		vagrant plugin install vagrant-vbguest
+#
+#######################################################################################################
+
+require '../vagrant-provision-reboot-plugin'
+
+VAGRANTFILE_API_VERSION = "2"
+
+Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
+  config.vm.box = "rafacas/fedora19-plain"
+  config.vm.provision "shell", privileged: true, inline: <<-EOF
+    set -e
+    echo "Installing LXC + libvirt dependencies"
+	yum -y install cyrus-sasl-devel device-mapper-devel gnutls-devel \
+	libxml2-devel cyrus-sasl-md5 gnutls-utils nc numactl numactl-libs libwsman1 \
+	libwsman-devel avahi-devel e2fsprogs-devel libcap-ng-devel libnl-devel \
+	libpciaccess-devel libselinux-devel libssh2-devel libudev-devel netcf-devel \
+	numactl-devel parted-devel python-devel readline-devel xen-devel xhtml1-dtds \
+	xmlrpc-c-devel yajl-devel pm-utils dmidecode libcgroup numad iptables-ipv6 \
+	radvd lzop glusterfs-client iscsi-initiator-utils sheepdog fuse-libs \
+	glusterfs-api librados2 librbd1 qemu-img lxc
+
+	echo "Download libvirt 1.2.2 RPMs"
+	mkdir -p /tmp/rpms && cd /tmp/rpms
+	wget -N http://libvirt.org/sources/libvirt-client-1.2.2-1.fc19.x86_64.rpm \
+	http://libvirt.org/sources/libvirt-daemon-1.2.2-1.fc19.x86_64.rpm \
+	http://libvirt.org/sources/libvirt-daemon-config-network-1.2.2-1.fc19.x86_64.rpm \
+	http://libvirt.org/sources/libvirt-daemon-config-nwfilter-1.2.2-1.fc19.x86_64.rpm \
+	http://libvirt.org/sources/libvirt-daemon-driver-interface-1.2.2-1.fc19.x86_64.rpm \
+	http://libvirt.org/sources/libvirt-daemon-driver-libxl-1.2.2-1.fc19.x86_64.rpm \
+	http://libvirt.org/sources/libvirt-daemon-driver-lxc-1.2.2-1.fc19.x86_64.rpm \
+	http://libvirt.org/sources/libvirt-daemon-driver-network-1.2.2-1.fc19.x86_64.rpm \
+	http://libvirt.org/sources/libvirt-daemon-driver-nodedev-1.2.2-1.fc19.x86_64.rpm \
+	http://libvirt.org/sources/libvirt-daemon-driver-nwfilter-1.2.2-1.fc19.x86_64.rpm \
+	http://libvirt.org/sources/libvirt-daemon-driver-qemu-1.2.2-1.fc19.x86_64.rpm \
+	http://libvirt.org/sources/libvirt-daemon-driver-secret-1.2.2-1.fc19.x86_64.rpm \
+	http://libvirt.org/sources/libvirt-daemon-driver-storage-1.2.2-1.fc19.x86_64.rpm \
+	http://libvirt.org/sources/libvirt-daemon-driver-uml-1.2.2-1.fc19.x86_64.rpm \
+	http://libvirt.org/sources/libvirt-daemon-driver-vbox-1.2.2-1.fc19.x86_64.rpm \
+	http://libvirt.org/sources/libvirt-daemon-driver-xen-1.2.2-1.fc19.x86_64.rpm \
+	http://libvirt.org/sources/libvirt-daemon-lxc-1.2.2-1.fc19.x86_64.rpm \
+	http://libvirt.org/sources/libvirt-devel-1.2.2-1.fc19.x86_64.rpm \
+	http://libvirt.org/sources/libvirt-docs-1.2.2-1.fc19.x86_64.rpm
+
+	echo "Installing libvirt RPMs"
+	cd /tmp/rpms
+	# sigh, bad rpm
+	yum -y install *.rpm || true
+
+    GOVERSION="1.3.3"
+    GOTARBALL="go${GOVERSION}.linux-amd64.tar.gz"
+    export GOROOT=/usr/local/go
+    export GOPATH=/opt/go
+    export PATH=$PATH:$GOROOT/bin:$GOPATH/bin
+    echo "Installing Go $GOVERSION"
+    if [ ! $(which go) ]; then
+    echo " Downloading $GOTARBALL"
+    wget --quiet --directory-prefix=/tmp https://storage.googleapis.com/golang/$GOTARBALL
+    echo " Extracting $GOTARBALL to $GOROOT"
+    tar -C /usr/local -xzf /tmp/$GOTARBALL
+    echo " Configuring GOPATH"
+    mkdir -p $GOPATH/src $GOPATH/bin $GOPATH/pkg
+    chown -R vagrant $GOPATH
+    echo " Configuring env vars"
+    echo "export PATH=\$PATH:$GOROOT/bin:$GOPATH/bin" | tee /etc/profile.d/golang.sh > /dev/null
+    echo "export GOROOT=$GOROOT" | tee --append /etc/profile.d/golang.sh > /dev/null
+    echo "export GOPATH=$GOPATH" | tee --append /etc/profile.d/golang.sh > /dev/null
+    fi
+
+    systemctl enable lxc
+    systemctl enable libvirtd
+  EOF
+
+  config.vm.provision :unix_reboot
+  config.vm.synced_folder "../..", "/libvirt-go"
+end
