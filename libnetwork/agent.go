@@ -191,8 +191,7 @@ func (c *controller) agentSetup() error {
 
 	if remoteAddr != "" {
 		if err := c.agentJoin(remoteAddr); err != nil {
-			logrus.Errorf("Error in agentJoin : %v", err)
-			return nil
+			logrus.Errorf("Error in joining gossip cluster : %v(join will be retried in background)", err)
 		}
 	}
 
