@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strconv"
 
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/pkg/reexec"
 )
 
@@ -68,6 +69,9 @@ var (
 	// WindowsBaseImage is the name of the base image for Windows testing
 	// Environment variable WINDOWS_BASE_IMAGE can override this
 	WindowsBaseImage = "windowsservercore"
+
+	// isolation is the isolation mode of the daemon under test
+	isolation container.Isolation
 
 	// daemonPid is the pid of the main test daemon
 	daemonPid int

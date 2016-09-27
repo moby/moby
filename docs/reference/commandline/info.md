@@ -154,3 +154,36 @@ You can also specify the output format:
 
     $ docker info --format '{{json .}}'
 	{"ID":"I54V:OLXT:HVMM:TPKO:JPHQ:CQCD:JNLC:O3BZ:4ZVJ:43XJ:PFHZ:6N2S","Containers":14, ...}
+
+Here is a sample output for a daemon running on Windows Server 2016:
+
+    E:\docker>docker info
+    Containers: 1
+     Running: 0
+     Paused: 0
+     Stopped: 1
+    Images: 17
+    Server Version: 1.13.0-dev
+    Storage Driver: windowsfilter
+     Windows:
+    Logging Driver: json-file
+    Plugins:
+     Volume: local
+     Network: nat null overlay
+    Swarm: inactive
+    Default Isolation: process
+    Kernel Version: 10.0 14393 (14393.206.amd64fre.rs1_release.160912-1937)
+    Operating System: Windows Server 2016 Datacenter
+    OSType: windows
+    Architecture: x86_64
+    CPUs: 8
+    Total Memory: 3.999 GiB
+    Name: WIN-V0V70C0LU5P
+    ID: NYMS:B5VK:UMSL:FVDZ:EWB5:FKVK:LPFL:FJMQ:H6FT:BZJ6:L2TD:XH62
+    Docker Root Dir: C:\control
+    Debug Mode (client): false
+    Debug Mode (server): false
+    Registry: https://index.docker.io/v1/
+    Insecure Registries:
+     127.0.0.0/8
+    Live Restore Enabled: false
