@@ -270,19 +270,27 @@ func (nDB *NetworkDB) reconnectNode() {
 	nDB.bulkSync([]string{node.Name}, true)
 }
 
+// For timing the entry deletion in the repaer APIs that doesn't use monotonic clock
+// source (time.Now, Sub etc.) should be avoided. Hence we use reapTime in every
+// entry which is set initially to reapInterval and decremented by reapPeriod every time
+// the reaper runs. NOTE nDB.reapTableEntries updates the reapTime with a readlock. This
+// is safe as long as no other concurrent path touches the reapTime field.
 func (nDB *NetworkDB) reapState() {
 	nDB.reapNetworks()
 	nDB.reapTableEntries()
 }
 
 func (nDB *NetworkDB) reapNetworks() {
-	now := time.Now()
 	nDB.Lock()
 	for name, nn := range nDB.networks {
 		for id, n := range nn {
-			if n.leaving && now.Sub(n.leaveTime) > reapInterval {
-				delete(nn, id)
-				nDB.deleteNetworkNode(id, name)
+			if n.leaving {
+				if n.reapTime <= 0 {
+					delete(nn, id)
+					nDB.deleteNetworkNode(id, name)
+					continue
+				}
+				n.reapTime -= reapPeriod
 			}
 		}
 	}
@@ -292,8 +300,6 @@ func (nDB *NetworkDB) reapNetworks() {
 func (nDB *NetworkDB) reapTableEntries() {
 	var paths []string
 
-	now := time.Now()
-
 	nDB.RLock()
 	nDB.indexes[byTable].Walk(func(path string, v interface{}) bool {
 		entry, ok := v.(*entry)
@@ -301,10 +307,13 @@ func (nDB *NetworkDB) reapTableEntries() {
 			return false
 		}
 
-		if !entry.deleting || now.Sub(entry.deleteTime) <= reapInterval {
+		if !entry.deleting {
 			return false
 		}
-
+		if entry.reapTime > 0 {
+			entry.reapTime -= reapPeriod
+			return false
+		}
 		paths = append(paths, path)
 		return false
 	})
