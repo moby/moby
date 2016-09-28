@@ -416,14 +416,14 @@ func (s *DockerTrustSuite) TestTrustedCreateFromBadTrustServer(c *check.C) {
 	c.Assert(err, check.IsNil)
 	c.Assert(string(out), checker.Contains, "Signing and pushing trust metadata", check.Commentf("Missing expected output on trusted push:\n%s", out))
 
-	// Now, try creating with the original client from this new trust server. This should fallback to our cached timestamp and metadata.
+	// Now, try creating with the original client from this new trust server. This should fail because the new root is invalid.
 	createCmd = exec.Command(dockerBinary, "create", repoName)
 	s.trustedCmd(createCmd)
 	out, _, err = runCommandWithOutput(createCmd)
-	if err != nil {
-		c.Fatalf("Error falling back to cached trust data: %s\n%s", err, out)
+	if err == nil {
+		c.Fatalf("Continuing with cached data even though it's an invalid root rotation: %s\n%s", err, out)
 	}
-	if !strings.Contains(string(out), "Error while downloading remote metadata, using cached timestamp") {
+	if !strings.Contains(out, "could not rotate trust to a new trusted root") {
 		c.Fatalf("Missing expected output on trusted create:\n%s", out)
 	}
 
