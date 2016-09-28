@@ -29,7 +29,12 @@ func newDriver(name string, client *plugins.Client) driverapi.Driver {
 // Init makes sure a remote driver is registered when a network driver
 // plugin is activated.
 func Init(dc driverapi.DriverCallback, config map[string]interface{}) error {
-	plugins.Handle(driverapi.NetworkPluginEndpointType, func(name string, client *plugins.Client) {
+	// Unit test code is unaware of a true PluginStore. So we fall back to v1 plugins.
+	handleFunc := plugins.Handle
+	if pg := dc.GetPluginGetter(); pg != nil {
+		handleFunc = pg.Handle
+	}
+	handleFunc(driverapi.NetworkPluginEndpointType, func(name string, client *plugins.Client) {
 		// negotiate driver capability with client
 		d := newDriver(name, client)
 		c, err := d.(*driver).getCapabilities()

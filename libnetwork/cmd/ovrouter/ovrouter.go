@@ -7,6 +7,7 @@ import (
 	"os/signal"
 
 	"github.com/docker/docker/pkg/reexec"
+	"github.com/docker/docker/plugin/getter"
 	"github.com/docker/libnetwork/driverapi"
 	"github.com/docker/libnetwork/drivers/overlay"
 	"github.com/docker/libnetwork/netlabel"
@@ -22,6 +23,10 @@ type endpoint struct {
 	addr *net.IPNet
 	mac  net.HardwareAddr
 	name string
+}
+
+func (r *router) GetPluginGetter() getter.PluginGetter {
+	return nil
 }
 
 func (r *router) RegisterDriver(name string, driver driverapi.Driver, c driverapi.Capability) error {

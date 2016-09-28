@@ -88,7 +88,7 @@ func (m *mockDriver) EventNotify(etype driverapi.EventType, nid, tableName, key 
 }
 
 func getNew(t *testing.T) *DrvRegistry {
-	reg, err := New(nil, nil, nil, nil)
+	reg, err := New(nil, nil, nil, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

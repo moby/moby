@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/docker/docker/plugin/getter"
 	"github.com/docker/libkv/store/consul"
 	"github.com/docker/libnetwork/datastore"
 	"github.com/docker/libnetwork/discoverapi"
@@ -65,6 +66,10 @@ func cleanupDriver(t *testing.T, dt *driverTester) {
 	case <-time.After(10 * time.Second):
 		t.Fatal("test timed out because Fini() did not return on time")
 	}
+}
+
+func (dt *driverTester) GetPluginGetter() getter.PluginGetter {
+	return nil
 }
 
 func (dt *driverTester) RegisterDriver(name string, drv driverapi.Driver,
