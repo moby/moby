@@ -68,6 +68,7 @@ func (daemon *Daemon) LookupImage(name string) (*types.ImageInspect, error) {
 		Config:          img.Config,
 		Architecture:    img.Architecture,
 		Os:              img.OS,
+		OsVersion:       img.OSVersion,
 		Size:            size,
 		VirtualSize:     size, // TODO: field unused, deprecate
 		RootFS:          rootFSToAPIType(img.RootFS),

@@ -1884,7 +1884,7 @@ Return low-level information on the image `name`
 
     GET /images/example/json HTTP/1.1
 
-**Example response**:
+**Example response (Linux daemon)**:
 
     HTTP/1.1 200 OK
     Content-Type: application/json
@@ -1985,6 +1985,86 @@ Return low-level information on the image `name`
            ]
        }
     }
+
+**Example response (Windows daemon)**:
+
+    HTTP/1.1 200 OK
+    Content-Type: application/json
+
+    [
+        {
+            "Id": "sha256:105d76d0f40e38427c63023ffe649bf36fa85058d3469551e43e4dcc2431fb31",
+            "RepoTags": [
+                "microsoft/nanoserver:latest"
+            ],
+            "RepoDigests": [
+                "microsoft/nanoserver@sha256:aee7d4330fe3dc5987c808f647441c16ed2fa1c7d9c6ef49d6498e5c9860b50b"
+            ],
+            "Parent": "",
+            "Comment": "",
+            "Created": "2016-09-22T02:39:30.9154862-07:00",
+            "Container": "",
+            "ContainerConfig": {
+                "Hostname": "",
+                "Domainname": "",
+                "User": "",
+                "AttachStdin": false,
+                "AttachStdout": false,
+                "AttachStderr": false,
+                "Tty": false,
+                "OpenStdin": false,
+                "StdinOnce": false,
+                "Env": null,
+                "Cmd": null,
+                "Image": "",
+                "Volumes": null,
+                "WorkingDir": "",
+                "Entrypoint": null,
+                "OnBuild": null,
+                "Labels": null
+            },
+            "DockerVersion": "",
+            "Author": "",
+            "Config": {
+                "Hostname": "",
+                "Domainname": "",
+                "User": "",
+                "AttachStdin": false,
+                "AttachStdout": false,
+                "AttachStderr": false,
+                "Tty": false,
+                "OpenStdin": false,
+                "StdinOnce": false,
+                "Env": null,
+                "Cmd": [
+                    "c:\\windows\\system32\\cmd.exe"
+                ],
+                "Image": "",
+                "Volumes": null,
+                "WorkingDir": "",
+                "Entrypoint": null,
+                "OnBuild": null,
+                "Labels": null
+            },
+            "Architecture": "",
+            "Os": "windows",
+            "OsVersion": "10.0.14393",
+            "Size": 651862727,
+            "VirtualSize": 651862727,
+            "GraphDriver": {
+                "Name": "windowsfilter",
+                "Data": {
+                    "dir": "C:\\control\\windowsfilter\\6fe6a289b98276a6a5ca0345156ca61d7b38f3da6bb49ef95af1d0f1ac37e5bf"
+                }
+            },
+            "RootFS": {
+                "Type": "layers",
+                "Layers": [
+                    "sha256:342d4e407550c52261edd20cd901b5ce438f0b1e940336de3978210612365063"
+                ]
+            }
+        }
+    ]
 
 **Status codes**:
 
