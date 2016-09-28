@@ -36,17 +36,17 @@ The following command shows all the tasks that are part of the `redis` service:
 
 ```bash
 $ docker service ps redis
-ID                         NAME      SERVICE IMAGE        LAST STATE          DESIRED STATE  NODE
-0qihejybwf1x5vqi8lgzlgnpq  redis.1   redis   redis:3.0.6  Running 8 seconds   Running        manager1
-bk658fpbex0d57cqcwoe3jthu  redis.2   redis   redis:3.0.6  Running 9 seconds   Running        worker2
-5ls5s5fldaqg37s9pwayjecrf  redis.3   redis   redis:3.0.6  Running 9 seconds   Running        worker1
-8ryt076polmclyihzx67zsssj  redis.4   redis   redis:3.0.6  Running 9 seconds   Running        worker1
-1x0v8yomsncd6sbvfn0ph6ogc  redis.5   redis   redis:3.0.6  Running 8 seconds   Running        manager1
-71v7je3el7rrw0osfywzs0lko  redis.6   redis   redis:3.0.6  Running 9 seconds   Running        worker2
-4l3zm9b7tfr7cedaik8roxq6r  redis.7   redis   redis:3.0.6  Running 9 seconds   Running        worker2
-9tfpyixiy2i74ad9uqmzp1q6o  redis.8   redis   redis:3.0.6  Running 9 seconds   Running        worker1
-3w1wu13yuplna8ri3fx47iwad  redis.9   redis   redis:3.0.6  Running 8 seconds   Running        manager1
-8eaxrb2fqpbnv9x30vr06i6vt  redis.10  redis   redis:3.0.6  Running 8 seconds   Running        manager1
+NAME                                IMAGE        NODE      DESIRED STATE  CURRENT STATE
+redis.1.0qihejybwf1x5vqi8lgzlgnpq   redis:3.0.6  manager1  Running        Running 8 seconds
+redis.2.bk658fpbex0d57cqcwoe3jthu   redis:3.0.6  worker2   Running        Running 9 seconds
+redis.3.5ls5s5fldaqg37s9pwayjecrf   redis:3.0.6  worker1   Running        Running 9 seconds
+redis.4.8ryt076polmclyihzx67zsssj   redis:3.0.6  worker1   Running        Running 9 seconds
+redis.5.1x0v8yomsncd6sbvfn0ph6ogc   redis:3.0.6  manager1  Running        Running 8 seconds
+redis.6.71v7je3el7rrw0osfywzs0lko   redis:3.0.6  worker2   Running        Running 9 seconds
+redis.7.4l3zm9b7tfr7cedaik8roxq6r   redis:3.0.6  worker2   Running        Running 9 seconds
+redis.8.9tfpyixiy2i74ad9uqmzp1q6o   redis:3.0.6  worker1   Running        Running 9 seconds
+redis.9.3w1wu13yuplna8ri3fx47iwad   redis:3.0.6  manager1  Running        Running 8 seconds
+redis.10.8eaxrb2fqpbnv9x30vr06i6vt  redis:3.0.6  manager1  Running        Running 8 seconds
 ```
 
 
@@ -70,9 +70,9 @@ The `id` filter matches on all or a prefix of a task's ID.
 
 ```bash
 $ docker service ps -f "id=8" redis
-ID                         NAME      SERVICE  IMAGE        LAST STATE         DESIRED STATE  NODE
-8ryt076polmclyihzx67zsssj  redis.4   redis    redis:3.0.6  Running 4 minutes  Running        worker1
-8eaxrb2fqpbnv9x30vr06i6vt  redis.10  redis    redis:3.0.6  Running 4 minutes  Running        manager1
+NAME                                IMAGE        NODE      DESIRED STATE  CURRENT STATE
+redis.4.8ryt076polmclyihzx67zsssj   redis:3.0.6  worker1   Running        Running 9 seconds
+redis.10.8eaxrb2fqpbnv9x30vr06i6vt  redis:3.0.6  manager1  Running        Running 8 seconds
 ```
 
 #### Name
@@ -81,8 +81,8 @@ The `name` filter matches on task names.
 
 ```bash
 $ docker service ps -f "name=redis.1" redis
-ID                         NAME      SERVICE  IMAGE        DESIRED STATE  LAST STATE         NODE
-0qihejybwf1x5vqi8lgzlgnpq  redis.1   redis    redis:3.0.6  Running        Running 8 seconds  manager1
+NAME                                IMAGE        NODE      DESIRED STATE  CURRENT STATE
+redis.1.0qihejybwf1x5vqi8lgzlgnpq   redis:3.0.6  manager1  Running        Running 8 seconds
 ```
 
 
