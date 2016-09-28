@@ -229,6 +229,9 @@ List containers
   -   `status=`(`created`|`restarting`|`running`|`removing`|`paused`|`exited`|`dead`)
   -   `label=key` or `label="key=value"` of a container label
   -   `isolation=`(`default`|`process`|`hyperv`)   (Windows daemon only)
+      `id=<ID>` a container's ID
+      `name=<name>` a container's name
+      `is-task=`(`true`|`false`)
   -   `ancestor`=(`<image-name>[:<tag>]`,  `<image id>` or `<image@digest>`)
   -   `before`=(`<container id>` or `<container name>`)
   -   `since`=(`<container id>` or `<container name>`)

@@ -27,6 +27,7 @@ Options:
                         - since=(<container-name>|<container-id>)
                         - ancestor=(<image-name>[:tag]|<image-id>|<image@digest>)
                           containers created from an image or a descendant.
+                        - is-task=(true|false)
       --format string   Pretty-print containers using a Go template
       --help            Print usage
   -n, --last int        Show n last created containers (includes all states) (default -1)

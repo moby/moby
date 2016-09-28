@@ -323,3 +323,33 @@ func (s *DockerSwarmSuite) TestSwarmTaskListFilter(c *check.C) {
 	c.Assert(err, checker.IsNil)
 	c.Assert(out, checker.Not(checker.Contains), name)
 }
+
+func (s *DockerSwarmSuite) TestPsListContainersFilterIsTask(c *check.C) {
+	d := s.AddDaemon(c, true, true)
+
+	// Create a bare container
+	out, err := d.Cmd("run", "-d", "--name=bare-container", "busybox", "top")
+	c.Assert(err, checker.IsNil)
+	bareID := strings.TrimSpace(out)[:12]
+	// Create a service
+	name := "busybox-top"
+	out, err = d.Cmd("service", "create", "--name", name, "busybox", "top")
+	c.Assert(err, checker.IsNil)
+	c.Assert(strings.TrimSpace(out), checker.Not(checker.Equals), "")
+
+	// make sure task has been deployed.
+	waitAndAssert(c, defaultReconciliationTimeout, d.checkServiceRunningTasks(c, name), checker.Equals, 1)
+
+	// Filter non-tasks
+	out, err = d.Cmd("ps", "-a", "-q", "--filter=is-task=false")
+	c.Assert(err, checker.IsNil)
+	psOut := strings.TrimSpace(out)
+	c.Assert(psOut, checker.Equals, bareID, check.Commentf("Expected id %s, got %s for is-task label, output %q", bareID, psOut, out))
+
+	// Filter tasks
+	out, err = d.Cmd("ps", "-a", "-q", "--filter=is-task=true")
+	c.Assert(err, checker.IsNil)
+	lines := strings.Split(strings.Trim(out, "\n "), "\n")
+	c.Assert(lines, checker.HasLen, 1)
+	c.Assert(lines[0], checker.Not(checker.Equals), bareID, check.Commentf("Expected not %s, but got it for is-task label, output %q", bareID, out))
+}
