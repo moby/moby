@@ -35,6 +35,7 @@ dockerd - Enable daemon mode
 [**--help**]
 [**--icc**[=*true*]]
 [**--init**[=*false*]]
+[**--init-path**[=*""*]]
 [**--insecure-registry**[=*[]*]]
 [**--ip**[=*0.0.0.0*]]
 [**--ip-forward**[=*true*]]
@@ -169,6 +170,9 @@ unix://[/path/to/socket] to use.
 
 **--init**
 Run an init process inside containers for signal forwarding and process reaping.
+
+**--init-path**
+Path to the docker-init binary.
 
 **--insecure-registry**=[]
   Enable insecure registry communication, i.e., enable un-encrypted and/or untrusted communication.
