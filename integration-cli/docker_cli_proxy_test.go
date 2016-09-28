@@ -9,7 +9,7 @@ import (
 	"github.com/go-check/check"
 )
 
-func (s *DockerSuite) TestCliProxyDisableProxyUnixSock(c *check.C) {
+func (s *DockerSuite) TestCLIProxyDisableProxyUnixSock(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	testRequires(c, SameHostDaemon) // test is valid when DOCKER_HOST=unix://..
 
@@ -23,7 +23,7 @@ func (s *DockerSuite) TestCliProxyDisableProxyUnixSock(c *check.C) {
 
 // Can't use localhost here since go has a special case to not use proxy if connecting to localhost
 // See https://golang.org/pkg/net/http/#ProxyFromEnvironment
-func (s *DockerDaemonSuite) TestCliProxyProxyTCPSock(c *check.C) {
+func (s *DockerDaemonSuite) TestCLIProxyProxyTCPSock(c *check.C) {
 	testRequires(c, SameHostDaemon)
 	// get the IP to use to connect since we can't use localhost
 	addrs, err := net.InterfaceAddrs()

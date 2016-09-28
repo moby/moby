@@ -12,7 +12,7 @@ import (
 	"github.com/go-check/check"
 )
 
-func (s *DockerSuite) TestApiStatsContainerGetMemoryLimit(c *check.C) {
+func (s *DockerSuite) TestAPIStatsContainerGetMemoryLimit(c *check.C) {
 	testRequires(c, DaemonIsLinux, memoryLimitSupport)
 
 	resp, body, err := sockRequestRaw("GET", "/info", nil, "application/json")

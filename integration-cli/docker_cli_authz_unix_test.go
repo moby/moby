@@ -276,8 +276,8 @@ func (s *DockerAuthzSuite) TestAuthZPluginDenyRequest(c *check.C) {
 	c.Assert(res, check.Equals, fmt.Sprintf("Error response from daemon: authorization denied by plugin %s: %s\n", testAuthZPlugin, unauthorizedMessage))
 }
 
-// TestAuthZPluginApiDenyResponse validates that when authorization plugin deny the request, the status code is forbidden
-func (s *DockerAuthzSuite) TestAuthZPluginApiDenyResponse(c *check.C) {
+// TestAuthZPluginAPIDenyResponse validates that when authorization plugin deny the request, the status code is forbidden
+func (s *DockerAuthzSuite) TestAuthZPluginAPIDenyResponse(c *check.C) {
 	err := s.d.Start("--authorization-plugin=" + testAuthZPlugin)
 	c.Assert(err, check.IsNil)
 	s.ctrl.reqRes.Allow = false

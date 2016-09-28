@@ -19,7 +19,7 @@ import (
 
 var expectedNetworkInterfaceStats = strings.Split("rx_bytes rx_dropped rx_errors rx_packets tx_bytes tx_dropped tx_errors tx_packets", " ")
 
-func (s *DockerSuite) TestApiStatsNoStreamGetCpu(c *check.C) {
+func (s *DockerSuite) TestAPIStatsNoStreamGetCpu(c *check.C) {
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "while true;do echo 'Hello'; usleep 100000; done")
 
 	id := strings.TrimSpace(out)
@@ -59,7 +59,7 @@ func (s *DockerSuite) TestApiStatsNoStreamGetCpu(c *check.C) {
 	c.Assert(cpuPercent, check.Not(checker.Equals), 0.0, check.Commentf("docker stats with no-stream get cpu usage failed: was %v", cpuPercent))
 }
 
-func (s *DockerSuite) TestApiStatsStoppedContainerInGoroutines(c *check.C) {
+func (s *DockerSuite) TestAPIStatsStoppedContainerInGoroutines(c *check.C) {
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "echo 1")
 	id := strings.TrimSpace(out)
 
@@ -94,7 +94,7 @@ func (s *DockerSuite) TestApiStatsStoppedContainerInGoroutines(c *check.C) {
 	}
 }
 
-func (s *DockerSuite) TestApiStatsNetworkStats(c *check.C) {
+func (s *DockerSuite) TestAPIStatsNetworkStats(c *check.C) {
 	testRequires(c, SameHostDaemon)
 
 	out, _ := runSleepingContainer(c)
@@ -161,7 +161,7 @@ func (s *DockerSuite) TestApiStatsNetworkStats(c *check.C) {
 		check.Commentf("Reported less Txbytes than expected. Expected >= %d. Found %d. %s", expRxPkts, postRxPackets, pingouts))
 }
 
-func (s *DockerSuite) TestApiStatsNetworkStatsVersioning(c *check.C) {
+func (s *DockerSuite) TestAPIStatsNetworkStatsVersioning(c *check.C) {
 	testRequires(c, SameHostDaemon)
 
 	out, _ := runSleepingContainer(c)
@@ -257,7 +257,7 @@ func jsonBlobHasGTE121NetworkStats(blob map[string]interface{}) bool {
 	return true
 }
 
-func (s *DockerSuite) TestApiStatsContainerNotFound(c *check.C) {
+func (s *DockerSuite) TestAPIStatsContainerNotFound(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 
 	status, _, err := sockRequest("GET", "/containers/nonexistent/stats", nil)
@@ -269,7 +269,7 @@ func (s *DockerSuite) TestApiStatsContainerNotFound(c *check.C) {
 	c.Assert(status, checker.Equals, http.StatusNotFound)
 }
 
-func (s *DockerSuite) TestApiStatsNoStreamConnectedContainers(c *check.C) {
+func (s *DockerSuite) TestAPIStatsNoStreamConnectedContainers(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 
 	out1, _ := runSleepingContainer(c)

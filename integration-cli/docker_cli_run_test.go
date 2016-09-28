@@ -184,7 +184,7 @@ func (s *DockerSuite) TestRunLinksContainerWithContainerName(c *check.C) {
 }
 
 //test --link use container id to link target
-func (s *DockerSuite) TestRunLinksContainerWithContainerId(c *check.C) {
+func (s *DockerSuite) TestRunLinksContainerWithContainerID(c *check.C) {
 	// TODO Windows: This test cannot run on a Windows daemon as the networking
 	// settings are not populated back yet on inspect.
 	testRequires(c, DaemonIsLinux)
@@ -1709,7 +1709,7 @@ func (s *DockerSuite) TestRunState(c *check.C) {
 }
 
 // Test for #1737
-func (s *DockerSuite) TestRunCopyVolumeUidGid(c *check.C) {
+func (s *DockerSuite) TestRunCopyVolumeUIDGID(c *check.C) {
 	// Not applicable on Windows as it does not support uid or gid in this way
 	testRequires(c, DaemonIsLinux)
 	name := "testrunvolumesuidgid"
@@ -2484,7 +2484,7 @@ func (s *DockerSuite) TestRunModeIpcContainerNotRunning(c *check.C) {
 	}
 }
 
-func (s *DockerSuite) TestRunModePidContainer(c *check.C) {
+func (s *DockerSuite) TestRunModePIDContainer(c *check.C) {
 	// Not applicable on Windows as uses Unix-specific capabilities
 	testRequires(c, SameHostDaemon, DaemonIsLinux)
 
@@ -2509,7 +2509,7 @@ func (s *DockerSuite) TestRunModePidContainer(c *check.C) {
 	}
 }
 
-func (s *DockerSuite) TestRunModePidContainerNotExists(c *check.C) {
+func (s *DockerSuite) TestRunModePIDContainerNotExists(c *check.C) {
 	// Not applicable on Windows as uses Unix-specific capabilities
 	testRequires(c, DaemonIsLinux)
 	out, _, err := dockerCmdWithError("run", "-d", "--pid", "container:abcd1234", "busybox", "top")
@@ -2518,7 +2518,7 @@ func (s *DockerSuite) TestRunModePidContainerNotExists(c *check.C) {
 	}
 }
 
-func (s *DockerSuite) TestRunModePidContainerNotRunning(c *check.C) {
+func (s *DockerSuite) TestRunModePIDContainerNotRunning(c *check.C) {
 	// Not applicable on Windows as uses Unix-specific capabilities
 	testRequires(c, SameHostDaemon, DaemonIsLinux)
 
@@ -2576,7 +2576,7 @@ func (s *DockerSuite) TestContainerNetworkMode(c *check.C) {
 	}
 }
 
-func (s *DockerSuite) TestRunModePidHost(c *check.C) {
+func (s *DockerSuite) TestRunModePIDHost(c *check.C) {
 	// Not applicable on Windows as uses Unix-specific capabilities
 	testRequires(c, SameHostDaemon, DaemonIsLinux, NotUserNamespace)
 
@@ -2958,7 +2958,7 @@ func (s *DockerSuite) TestRunContainerWithRmFlagCannotStartContainer(c *check.C)
 	}
 }
 
-func (s *DockerSuite) TestRunPidHostWithChildIsKillable(c *check.C) {
+func (s *DockerSuite) TestRunPIDHostWithChildIsKillable(c *check.C) {
 	// Not applicable on Windows as uses Unix specific functionality
 	testRequires(c, DaemonIsLinux, NotUserNamespace)
 	name := "ibuildthecloud"

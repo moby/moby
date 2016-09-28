@@ -15,7 +15,7 @@ import (
 	"github.com/go-check/check"
 )
 
-func (s *DockerSuite) TestConfigHttpHeader(c *check.C) {
+func (s *DockerSuite) TestConfigHTTPHeader(c *check.C) {
 	testRequires(c, UnixCli) // Can't set/unset HOME on windows right now
 	// We either need a level of Go that supports Unsetenv (for cases
 	// when HOME/USERPROFILE isn't set), or we need to be able to use

@@ -1229,8 +1229,8 @@ func (s *DockerSuite) TestRunDeviceSymlink(c *check.C) {
 	c.Assert(strings.Trim(out, "\r\n"), checker.Contains, "bb7df04e1b0a2570657527a7e108ae23", check.Commentf("expected output bb7df04e1b0a2570657527a7e108ae23"))
 }
 
-// TestRunPidsLimit makes sure the pids cgroup is set with --pids-limit
-func (s *DockerSuite) TestRunPidsLimit(c *check.C) {
+// TestRunPIDsLimit makes sure the pids cgroup is set with --pids-limit
+func (s *DockerSuite) TestRunPIDsLimit(c *check.C) {
 	testRequires(c, pidsLimit)
 
 	file := "/sys/fs/cgroup/pids/pids.max"

@@ -13,7 +13,7 @@ import (
 	"github.com/go-check/check"
 )
 
-func (s *DockerSuite) TestExecResizeApiHeightWidthNoInt(c *check.C) {
+func (s *DockerSuite) TestExecResizeAPIHeightWidthNoInt(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "top")
 	cleanedContainerID := strings.TrimSpace(out)
