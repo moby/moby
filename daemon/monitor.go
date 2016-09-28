@@ -30,7 +30,7 @@ func (daemon *Daemon) StateChanged(id string, e libcontainerd.StateInfo) error {
 		daemon.updateHealthMonitor(c)
 		daemon.LogContainerEvent(c, "oom")
 	case libcontainerd.StateExit:
-		// if containers AutoRemove flag is set, remove it after clean up
+		// if container's AutoRemove flag is set, remove it after clean up
 		if c.HostConfig.AutoRemove {
 			defer func() {
 				if err := daemon.ContainerRm(c.ID, &types.ContainerRmConfig{ForceRemove: true, RemoveVolume: true}); err != nil {
