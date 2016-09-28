@@ -212,6 +212,14 @@ capability removal, or less secure through the addition of capabilities.
 The best practice for users would be to remove all capabilities except
 those explicitly required for their processes.
 
+Linux kernel versions since 4.3 allow Docker to grant capabilities to
+container processes running as a non root user. This adds an extra
+layer of protection as the process can then be denied access to be able
+to write files belonging to the root uid, for example. User namespaces
+also allow capabilities to be granted to processes that are effectively
+non root, but these capabilities are limited to resources created in the
+user namespace, so they have limitations.
+
 ## Other kernel security features
 
 Capabilities are just one of the many security features provided by

@@ -1220,6 +1220,10 @@ since Docker 1.12. In Docker 1.10 and 1.11 this did not happen and it may be nec
 to use a custom seccomp profile or use `--security-opt seccomp=unconfined` when adding
 capabilities.
 
+It is only possible to grant capabilities to a container running as a user other than `root`
+on a system with a Linux kernel version of 4.3 or later, as this requires "ambient capabilities"
+to be granted. These will be added if the kernel allows it from Docker version 1.13.
+
 ## Logging drivers (--log-driver)
 
 The container can have a different logging driver than the Docker daemon. Use
