@@ -1095,7 +1095,6 @@ __docker_service_subcommand() {
         "($help)--log-driver=[Logging driver for service]:logging driver:__docker_log_drivers"
         "($help)*--log-opt=[Logging driver options]:log driver options:__docker_log_options"
         "($help)*--mount=[Attach a mount to the service]:mount: "
-        "($help)--name=[Service name]:name: "
         "($help)*--network=[Network attachments]:network: "
         "($help)*"{-p=,--publish=}"[Publish a port as a node port]:port: "
         "($help)--replicas=[Number of tasks]:replicas: "
@@ -1123,6 +1122,7 @@ __docker_service_subcommand() {
                 $opts_create_update \
                 "($help)*--container-label=[Container labels]:label: " \
                 "($help)--mode=[Service Mode]:mode:(global replicated)" \
+                "($help)--name=[Service name]:name: " \
                 "($help -): :__docker_images" \
                 "($help -):command: _command_names -e" \
                 "($help -)*::arguments: _normal" && ret=0

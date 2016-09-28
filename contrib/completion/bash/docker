@@ -2672,7 +2672,6 @@ _docker_service_update() {
 		--log-driver
 		--log-opt
 		--mount
-		--name
 		--network
 		--publish -p
 		--replicas
@@ -2704,6 +2703,7 @@ _docker_service_update() {
 		options_with_args="$options_with_args
 			--container-label
 			--mode
+			--name
 		"
 
 		case "$prev" in

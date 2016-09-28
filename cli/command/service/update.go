@@ -172,7 +172,6 @@ func updateService(flags *pflag.FlagSet, spec *swarm.ServiceSpec) error {
 		return task.Resources
 	}
 
-	updateString(flagName, &spec.Name)
 	updateLabels(flags, &spec.Labels)
 	updateContainerLabels(flags, &cspec.Labels)
 	updateString("image", &cspec.Image)

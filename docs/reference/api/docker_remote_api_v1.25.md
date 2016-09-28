@@ -5375,7 +5375,7 @@ image](#create-an-image) section for more details.
 
 **JSON Parameters**:
 
-- **Name** – User-defined name for the service.
+- **Name** – User-defined name for the service. Note that renaming services is not supported.
 - **Labels** – A map of labels to associate with the service (e.g., `{"key":"value", "key2":"value2"}`).
 - **TaskTemplate** – Specification of the tasks to start as part of the new service.
     - **ContainerSpec** - Container settings for containers started as part of this task.
