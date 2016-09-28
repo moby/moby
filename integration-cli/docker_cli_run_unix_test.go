@@ -1155,6 +1155,24 @@ func (s *DockerSuite) TestRunNoNewPrivSetuid(c *check.C) {
 	}
 }
 
+func (s *DockerSuite) TestRunAmbientCapabilities(c *check.C) {
+	testRequires(c, DaemonIsLinux, ambientCapabilities)
+
+	// test that a non root user can gain capabilities
+	runCmd := exec.Command(dockerBinary, "run", "--user", "1000", "--cap-add", "chown", "busybox", "chown", "100", "/tmp")
+	_, _, err := runCommandWithOutput(runCmd)
+	c.Assert(err, check.IsNil)
+	// test that non root user has default capabilities
+	runCmd = exec.Command(dockerBinary, "run", "--user", "1000", "busybox", "chown", "100", "/tmp")
+	_, _, err = runCommandWithOutput(runCmd)
+	c.Assert(err, check.IsNil)
+	// test this fails without cap_chown
+	runCmd = exec.Command(dockerBinary, "run", "--user", "1000", "--cap-drop", "chown", "busybox", "chown", "100", "/tmp")
+	out, _, err := runCommandWithOutput(runCmd)
+	c.Assert(err, checker.NotNil, check.Commentf(out))
+	c.Assert(strings.TrimSpace(out), checker.Equals, "chown: /tmp: Operation not permitted")
+}
+
 func (s *DockerSuite) TestRunApparmorProcDirectory(c *check.C) {
 	testRequires(c, SameHostDaemon, Apparmor)
 

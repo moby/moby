@@ -112,6 +112,16 @@ var (
 		},
 		"Test cannot be run with 'sysctl kernel.unprivileged_userns_clone' = 0",
 	}
+	ambientCapabilities = testRequirement{
+		func() bool {
+			content, err := ioutil.ReadFile("/proc/self/status")
+			if err == nil && strings.Contains(string(content), "CapAmb:") {
+				return true
+			}
+			return false
+		},
+		"Test cannot be run without a kernel (4.3+) supporting ambient capabilities",
+	}
 )
 
 func init() {
