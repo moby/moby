@@ -128,11 +128,37 @@ completeness, validity, and breadth of coverage across all existing and new docu
 They should ask for any editorial change that makes the documentation more consistent and easier to
 understand.
 
+The docker/docker repository only contains _reference documentation_, all
+"narrative" documentation is kept in a [unified documentation
+repository](https://github.com/docker/docker.github.io). Reviewers must
+therefore verify which parts of the documentation need to be updated. Any
+contribution that may require changing the narrative should get the
+`impact/documentation` label: this is the signal for documentation maintainers
+that a change will likely need to happen on the unified documentation
+repository. When in doubt, it’s better to add the label and leave it to
+documentation maintainers to decide whether it’s ok to skip. In all cases,
+leave a comment to explain what documentation changes you think might be needed.
+
+- If the pull request does not impact the documentation at all, the docs review
+  step is skipped, and the pull request is ready to merge.
+- If the changes in
+  the pull request require changes to the reference documentation (either
+  command-line reference, or API reference), those changes must be included as
+  part of the pull request and will be reviewed now. Keep in mind that the
+  narrative documentation may contain output examples of commands, so may need
+  to be updated as well, in which case the `impact/documentation` label must
+  be applied.
+- If the PR has the `impact/documentation` label, merging is delayed until a
+  documentation maintainer acknowledges that a corresponding documentation PR
+  (or issue) is opened on the documentation repository. Once a documentation
+  maintainer acknowledges the change, she/he will move the PR to `status/4-merge`
+  for a code maintainer to push the green button.
+
 Changes and additions to docs must be reviewed and approved (LGTM'd) by a minimum of two docs
 sub-project maintainers. If the docs change originates with a docs maintainer, only one additional
 LGTM is required (since we assume a docs maintainer approves of their own PR).
 
-Once documentation is approved (see below), a maintainer should make sure to remove this label and
+Once documentation is approved, a maintainer should make sure to remove this label and
 add the next one.
 
 Possible transitions from this state:
