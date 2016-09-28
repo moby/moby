@@ -616,7 +616,7 @@ func (daemon *Daemon) populateCommonSpec(s *specs.Spec, c *container.Container) 
 		}
 	}
 	s.Process.Cwd = cwd
-	s.Process.Env = c.CreateDaemonEnvironment(linkedEnv)
+	s.Process.Env = c.CreateDaemonEnvironment(c.Config.Tty, linkedEnv)
 	s.Process.Terminal = c.Config.Tty
 	s.Hostname = c.FullHostname()
 
