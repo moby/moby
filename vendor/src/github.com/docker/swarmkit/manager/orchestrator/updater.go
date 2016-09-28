@@ -180,7 +180,7 @@ func (u *Updater) Run(ctx context.Context, slots []slot) {
 
 	if service.Spec.Update != nil {
 		failureAction = service.Spec.Update.FailureAction
-		allowedFailureFraction = service.Spec.Update.AllowedFailureFraction
+		allowedFailureFraction = service.Spec.Update.MaxFailureRatio
 
 		if service.Spec.Update.Monitor != nil {
 			var err error
@@ -331,11 +331,11 @@ func (u *Updater) worker(ctx context.Context, queue <-chan slot) {
 				log.G(ctx).WithError(err).Error("update failed")
 			}
 		} else {
-			updated := newTask(u.cluster, u.newService, slot[0].Slot)
-			updated.DesiredState = api.TaskStateReady
+			updated := newTask(u.cluster, u.newService, slot[0].Slot, "")
 			if isGlobalService(u.newService) {
-				updated.NodeID = slot[0].NodeID
+				updated = newTask(u.cluster, u.newService, slot[0].Slot, slot[0].NodeID)
 			}
+			updated.DesiredState = api.TaskStateReady
 
 			if err := u.updateTask(ctx, slot, updated); err != nil {
 				log.G(ctx).WithError(err).WithField("task.id", updated.ID).Error("update failed")

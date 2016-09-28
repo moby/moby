@@ -143,11 +143,19 @@ func (c *containerConfig) config() *enginecontainer.Config {
 }
 
 func (c *containerConfig) labels() map[string]string {
+	taskName := c.task.Annotations.Name
+	if taskName == "" {
+		if c.task.Slot != 0 {
+			taskName = fmt.Sprintf("%v.%v.%v", c.task.ServiceAnnotations.Name, c.task.Slot, c.task.ID)
+		} else {
+			taskName = fmt.Sprintf("%v.%v.%v", c.task.ServiceAnnotations.Name, c.task.NodeID, c.task.ID)
+		}
+	}
 	var (
 		system = map[string]string{
 			"task":         "", // mark as cluster task
 			"task.id":      c.task.ID,
-			"task.name":    fmt.Sprintf("%v.%v", c.task.ServiceAnnotations.Name, c.task.Slot),
+			"task.name":    taskName,
 			"node.id":      c.task.NodeID,
 			"service.id":   c.task.ServiceID,
 			"service.name": c.task.ServiceAnnotations.Name,

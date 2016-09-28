@@ -1,8 +1,6 @@
 package controlapi
 
 import (
-	"fmt"
-
 	"github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/manager/state/store"
 	"golang.org/x/net/context"
@@ -106,22 +104,10 @@ func (s *Server) ListTasks(ctx context.Context, request *api.ListTasksRequest) (
 	if request.Filters != nil {
 		tasks = filterTasks(tasks,
 			func(e *api.Task) bool {
-				name := e.Annotations.Name
-				if name == "" {
-					// If Task name is not assigned then calculated name is used like before.
-					// This might be removed in the future.
-					name = fmt.Sprintf("%v.%v.%v", e.ServiceAnnotations.Name, e.Slot, e.ID)
-				}
-				return filterContains(name, request.Filters.Names)
+				return filterContains(store.TaskName(e), request.Filters.Names)
 			},
 			func(e *api.Task) bool {
-				name := e.Annotations.Name
-				if name == "" {
-					// If Task name is not assigned then calculated name is used like before
-					// This might be removed in the future.
-					name = fmt.Sprintf("%v.%v.%v", e.ServiceAnnotations.Name, e.Slot, e.ID)
-				}
-				return filterContainsPrefix(name, request.Filters.NamePrefixes)
+				return filterContainsPrefix(store.TaskName(e), request.Filters.NamePrefixes)
 			},
 			func(e *api.Task) bool {
 				return filterContainsPrefix(e.ID, request.Filters.IDPrefixes)

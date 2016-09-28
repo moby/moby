@@ -1,7 +1,6 @@
 package dispatcher
 
 import (
-	"errors"
 	"fmt"
 	"strconv"
 	"sync"
@@ -22,6 +21,7 @@ import (
 	"github.com/docker/swarmkit/manager/state/watch"
 	"github.com/docker/swarmkit/protobuf/ptypes"
 	"github.com/docker/swarmkit/remotes"
+	"github.com/pkg/errors"
 	"golang.org/x/net/context"
 )
 
@@ -167,7 +167,7 @@ func (d *Dispatcher) Run(ctx context.Context) error {
 	d.mu.Lock()
 	if d.isRunning() {
 		d.mu.Unlock()
-		return fmt.Errorf("dispatcher is already running")
+		return errors.New("dispatcher is already running")
 	}
 	ctx = log.WithModule(ctx, "dispatcher")
 	if err := d.markNodesUnknown(ctx); err != nil {
@@ -262,7 +262,7 @@ func (d *Dispatcher) Stop() error {
 	d.mu.Lock()
 	if !d.isRunning() {
 		d.mu.Unlock()
-		return fmt.Errorf("dispatcher is already stopped")
+		return errors.New("dispatcher is already stopped")
 	}
 	d.cancel()
 	d.mu.Unlock()
@@ -299,7 +299,7 @@ func (d *Dispatcher) markNodesUnknown(ctx context.Context) error {
 		nodes, err = store.FindNodes(tx, store.All)
 	})
 	if err != nil {
-		return fmt.Errorf("failed to get list of nodes: %v", err)
+		return errors.Wrap(err, "failed to get list of nodes")
 	}
 	_, err = d.store.Batch(func(batch *store.Batch) error {
 		for _, n := range nodes {
@@ -328,10 +328,10 @@ func (d *Dispatcher) markNodesUnknown(ctx context.Context) error {
 					}
 				}
 				if err := d.nodes.AddUnknown(node, expireFunc); err != nil {
-					return fmt.Errorf(`adding node in "unknown" state to node store failed: %v`, err)
+					return errors.Wrap(err, `adding node in "unknown" state to node store failed`)
 				}
 				if err := store.UpdateNode(tx, node); err != nil {
-					return fmt.Errorf("update failed %v", err)
+					return errors.Wrap(err, "update failed")
 				}
 				return nil
 			})
@@ -933,7 +933,7 @@ func (d *Dispatcher) nodeRemove(id string, status api.NodeStatus) error {
 	}
 
 	if rn := d.nodes.Delete(id); rn == nil {
-		return fmt.Errorf("node %s is not found in local storage", id)
+		return errors.Errorf("node %s is not found in local storage", id)
 	}
 
 	return nil

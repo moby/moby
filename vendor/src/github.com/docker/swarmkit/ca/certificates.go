@@ -8,8 +8,6 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/pem"
-	"errors"
-	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
@@ -28,6 +26,7 @@ import (
 	"github.com/docker/swarmkit/identity"
 	"github.com/docker/swarmkit/ioutils"
 	"github.com/docker/swarmkit/remotes"
+	"github.com/pkg/errors"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -116,7 +115,7 @@ func (rca *RootCA) CanSign() bool {
 func (rca *RootCA) IssueAndSaveNewCertificates(paths CertPaths, cn, ou, org string) (*tls.Certificate, error) {
 	csr, key, err := GenerateAndWriteNewKey(paths)
 	if err != nil {
-		return nil, fmt.Errorf("error when generating new node certs: %v", err)
+		return nil, errors.Wrap(err, "error when generating new node certs")
 	}
 
 	if !rca.CanSign() {
@@ -126,7 +125,7 @@ func (rca *RootCA) IssueAndSaveNewCertificates(paths CertPaths, cn, ou, org stri
 	// Obtain a signed Certificate
 	certChain, err := rca.ParseValidateAndSignCSR(csr, cn, ou, org)
 	if err != nil {
-		return nil, fmt.Errorf("failed to sign node certificate: %v", err)
+		return nil, errors.Wrap(err, "failed to sign node certificate")
 	}
 
 	// Ensure directory exists
@@ -157,7 +156,7 @@ func (rca *RootCA) RequestAndSaveNewCertificates(ctx context.Context, paths Cert
 	tempPaths := genTempPaths(paths)
 	csr, key, err := GenerateAndWriteNewKey(tempPaths)
 	if err != nil {
-		return nil, fmt.Errorf("error when generating new node certs: %v", err)
+		return nil, errors.Wrap(err, "error when generating new node certs")
 	}
 
 	// Get the remote manager to issue a CA signed certificate for this node
@@ -179,7 +178,7 @@ func (rca *RootCA) RequestAndSaveNewCertificates(ctx context.Context, paths Cert
 	// Create an X509Cert so we can .Verify()
 	certBlock, _ := pem.Decode(signedCert)
 	if certBlock == nil {
-		return nil, fmt.Errorf("failed to parse certificate PEM")
+		return nil, errors.New("failed to parse certificate PEM")
 	}
 	X509Cert, err := x509.ParseCertificate(certBlock.Bytes)
 	if err != nil {
@@ -249,7 +248,7 @@ func (rca *RootCA) ParseValidateAndSignCSR(csrBytes []byte, cn, ou, org string) 
 
 	cert, err := rca.Signer.Sign(signRequest)
 	if err != nil {
-		return nil, fmt.Errorf("failed to sign node certificate: %v", err)
+		return nil, errors.Wrap(err, "failed to sign node certificate")
 	}
 
 	return rca.AppendFirstRootPEM(cert)
@@ -266,12 +265,12 @@ func (rca *RootCA) AppendFirstRootPEM(cert []byte) ([]byte, error) {
 		return nil, err
 	}
 	if len(firstRootCA) < 1 {
-		return nil, fmt.Errorf("no valid Root CA certificates found")
+		return nil, errors.New("no valid Root CA certificates found")
 	}
 	// Convert the first root CA back to PEM
 	firstRootCAPEM := helpers.EncodeCertificatePEM(firstRootCA[0])
 	if firstRootCAPEM == nil {
-		return nil, fmt.Errorf("error while encoding the Root CA certificate")
+		return nil, errors.New("error while encoding the Root CA certificate")
 	}
 	// Append this Root CA to the certificate to make [Cert PEM]\n[Root PEM][EOF]
 	certChain := append(cert, firstRootCAPEM...)
@@ -290,7 +289,7 @@ func NewRootCA(certBytes, keyBytes []byte, certExpiry time.Duration) (RootCA, er
 	}
 	// Check to see if we have at least one valid cert
 	if len(parsedCerts) < 1 {
-		return RootCA{}, fmt.Errorf("no valid Root CA certificates found")
+		return RootCA{}, errors.New("no valid Root CA certificates found")
 	}
 
 	// Create a Pool with all of the certificates found
@@ -298,7 +297,7 @@ func NewRootCA(certBytes, keyBytes []byte, certExpiry time.Duration) (RootCA, er
 	for _, cert := range parsedCerts {
 		// Check to see if all of the certificates are valid, self-signed root CA certs
 		if err := cert.CheckSignature(cert.SignatureAlgorithm, cert.RawTBSCertificate, cert.Signature); err != nil {
-			return RootCA{}, fmt.Errorf("error while validating Root CA Certificate: %v", err)
+			return RootCA{}, errors.Wrap(err, "error while validating Root CA Certificate")
 		}
 		pool.AddCert(cert)
 	}
@@ -331,7 +330,7 @@ func NewRootCA(certBytes, keyBytes []byte, certExpiry time.Duration) (RootCA, er
 	if err != nil {
 		priv, err = helpers.ParsePrivateKeyPEMWithPassword(keyBytes, passphrasePrev)
 		if err != nil {
-			return RootCA{}, fmt.Errorf("Malformed private key: %v", err)
+			return RootCA{}, errors.Wrap(err, "malformed private key")
 		}
 	}
 
@@ -371,10 +370,10 @@ func ensureCertKeyMatch(cert *x509.Certificate, key crypto.PublicKey) error {
 			return nil
 		}
 	default:
-		return fmt.Errorf("unknown or unsupported certificate public key algorithm")
+		return errors.New("unknown or unsupported certificate public key algorithm")
 	}
 
-	return fmt.Errorf("certificate key mismatch")
+	return errors.New("certificate key mismatch")
 }
 
 // GetLocalRootCA validates if the contents of the file are a valid self-signed
@@ -446,13 +445,13 @@ func GetRemoteCA(ctx context.Context, d digest.Digest, r remotes.Remotes) (RootC
 	if d != "" {
 		verifier, err := digest.NewDigestVerifier(d)
 		if err != nil {
-			return RootCA{}, fmt.Errorf("unexpected error getting digest verifier: %v", err)
+			return RootCA{}, errors.Wrap(err, "unexpected error getting digest verifier")
 		}
 
 		io.Copy(verifier, bytes.NewReader(response.Certificate))
 
 		if !verifier.Verified() {
-			return RootCA{}, fmt.Errorf("remote CA does not match fingerprint. Expected: %s", d.Hex())
+			return RootCA{}, errors.Errorf("remote CA does not match fingerprint. Expected: %s", d.Hex())
 
 		}
 	}
@@ -466,7 +465,7 @@ func GetRemoteCA(ctx context.Context, d digest.Digest, r remotes.Remotes) (RootC
 	// Create a Pool with our RootCACertificate
 	pool := x509.NewCertPool()
 	if !pool.AppendCertsFromPEM(response.Certificate) {
-		return RootCA{}, fmt.Errorf("failed to append certificate to cert pool")
+		return RootCA{}, errors.New("failed to append certificate to cert pool")
 	}
 
 	return RootCA{Cert: response.Certificate, Digest: digest.FromBytes(response.Certificate), Pool: pool}, nil
@@ -535,7 +534,7 @@ func GenerateAndSignNewTLSCert(rootCA RootCA, cn, ou, org string, paths CertPath
 	// Obtain a signed Certificate
 	certChain, err := rootCA.ParseValidateAndSignCSR(csr, cn, ou, org)
 	if err != nil {
-		return nil, fmt.Errorf("failed to sign node certificate: %v", err)
+		return nil, errors.Wrap(err, "failed to sign node certificate")
 	}
 
 	// Ensure directory exists
@@ -587,7 +586,7 @@ func GenerateAndWriteNewKey(paths CertPaths) (csr, key []byte, err error) {
 // and that is part of a CA identified by a specific certificate pool.
 func GetRemoteSignedCertificate(ctx context.Context, csr []byte, token string, rootCAPool *x509.CertPool, r remotes.Remotes, creds credentials.TransportCredentials, nodeInfo chan<- api.IssueNodeCertificateResponse) ([]byte, error) {
 	if rootCAPool == nil {
-		return nil, fmt.Errorf("valid root CA pool required")
+		return nil, errors.New("valid root CA pool required")
 	}
 
 	if creds == nil {
@@ -649,7 +648,7 @@ func GetRemoteSignedCertificate(ctx context.Context, csr []byte, token string, r
 		// If the certificate was issued, return
 		if statusResponse.Status.State == api.IssuanceStateIssued {
 			if statusResponse.Certificate == nil {
-				return nil, fmt.Errorf("no certificate in CertificateStatus response")
+				return nil, errors.New("no certificate in CertificateStatus response")
 			}
 
 			// The certificate in the response must match the CSR
@@ -681,7 +680,7 @@ func readCertExpiration(paths CertPaths) (time.Duration, error) {
 	// Create an x509 certificate out of the contents on disk
 	certBlock, _ := pem.Decode([]byte(cert))
 	if certBlock == nil {
-		return time.Hour, fmt.Errorf("failed to decode certificate block")
+		return time.Hour, errors.New("failed to decode certificate block")
 	}
 	X509Cert, err := x509.ParseCertificate(certBlock.Bytes)
 	if err != nil {
@@ -726,7 +725,7 @@ func EncryptECPrivateKey(key []byte, passphraseStr string) ([]byte, error) {
 	keyBlock, _ := pem.Decode(key)
 	if keyBlock == nil {
 		// This RootCA does not have a valid signer.
-		return nil, fmt.Errorf("error while decoding PEM key")
+		return nil, errors.New("error while decoding PEM key")
 	}
 
 	encryptedPEMBlock, err := x509.EncryptPEMBlock(rand.Reader,
@@ -739,7 +738,7 @@ func EncryptECPrivateKey(key []byte, passphraseStr string) ([]byte, error) {
 	}
 
 	if encryptedPEMBlock.Headers == nil {
-		return nil, fmt.Errorf("unable to encrypt key - invalid PEM file produced")
+		return nil, errors.New("unable to encrypt key - invalid PEM file produced")
 	}
 
 	return pem.EncodeToMemory(encryptedPEMBlock), nil

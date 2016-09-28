@@ -188,6 +188,10 @@ message ContainerSpec {
 
 	// PullOptions parameterize the behavior of image pulls.
 	PullOptions pull_options = 10;
+
+	// Secrets contains references to zero or more secrets that
+	// will be exposed to the container.
+	repeated SecretReference secrets = 12;
 }
 
 // EndpointSpec defines the properties that can be configured to
@@ -270,4 +274,12 @@ message ClusterSpec {
 
 	// TaskDefaults specifies the default values to use for task creation.
 	TaskDefaults task_defaults = 7 [(gogoproto.nullable) = false];
+}
+
+// SecretSpec specifies a user-provided secret.
+message SecretSpec {
+	Annotations annotations = 1 [(gogoproto.nullable) = false];
+
+	// Data is the secret payload - the maximum size is 500KB (that is, 500*1024 bytes)
+	bytes data = 2;
 }

@@ -3,7 +3,6 @@ package agent
 import (
 	"crypto/tls"
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"net"
 	"os"
@@ -22,6 +21,7 @@ import (
 	"github.com/docker/swarmkit/log"
 	"github.com/docker/swarmkit/manager"
 	"github.com/docker/swarmkit/remotes"
+	"github.com/pkg/errors"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -500,7 +500,7 @@ func (n *Node) loadCertificates() error {
 			return nil
 		}
 
-		return fmt.Errorf("error while loading TLS Certificate in %s: %v", configPaths.Node.Cert, err)
+		return errors.Wrapf(err, "error while loading TLS Certificate in %s", configPaths.Node.Cert)
 	}
 	// todo: try csr if no cert or store nodeID/role in some other way
 	n.Lock()

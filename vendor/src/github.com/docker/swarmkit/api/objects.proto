@@ -226,3 +226,29 @@ message Cluster {
 	// a new key is allocated on key rotation.
 	uint64 encryption_key_lamport_clock = 6;
 }
+
+// Secret represents a secret that should be passed to a container or a node,
+// and is immutable. It wraps the `spec` provided by the user with useful
+// information that is generated from the secret data in the `spec`, such as
+// the digest and size of the secret data.
+message Secret {
+	string id = 1 [(gogoproto.customname) = "ID"];
+
+	Meta meta = 2 [(gogoproto.nullable) = false];
+
+	// Spec contains the actual secret data, as well as any context around the
+	// secret data that the user provides.
+	SecretSpec spec = 3  [(gogoproto.nullable) = false];
+
+	// Digest represents the cryptographic digest of the secret data, and follows
+	// the form "<algorithm>:<digest>": for example "sha256:DEADBEEF...".  It
+	// is calculated from the data contained in `Secret.Spec.data`.
+	string digest = 4;
+
+	// Size represents the size (number of bytes) of the secret data, and is
+	// calculated from the data contained in `Secret.Spec.data`..
+	uint32 size = 5 [(gogoproto.customname) = "SecretSize"];
+
+	// Whether the secret is an internal secret (not set by a user) or not.
+	bool internal = 6;
+}
