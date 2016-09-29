@@ -324,27 +324,7 @@ func (c *controller) clusterAgentInit() {
 			c.agentClose()
 			c.cleanupServiceBindings("")
 
-			c.Lock()
-			ingressSandbox := c.ingressSandbox
-			c.ingressSandbox = nil
-			c.Unlock()
-
-			if ingressSandbox != nil {
-				if err := ingressSandbox.Delete(); err != nil {
-					log.Warnf("Could not delete ingress sandbox while leaving: %v", err)
-				}
-			}
-
-			n, err := c.NetworkByName("ingress")
-			if err != nil {
-				log.Warnf("Could not find ingress network while leaving: %v", err)
-			}
-
-			if n != nil {
-				if err := n.Delete(); err != nil {
-					log.Warnf("Could not delete ingress network while leaving: %v", err)
-				}
-			}
+			c.clearIngress(true)
 
 			return
 		}
@@ -1108,7 +1088,32 @@ func (c *controller) getIPAMDriver(name string) (ipamapi.Ipam, *ipamapi.Capabili
 }
 
 func (c *controller) Stop() {
+	c.clearIngress(false)
 	c.closeStores()
 	c.stopExternalKeyListener()
 	osl.GC()
+}
+
+func (c *controller) clearIngress(clusterLeave bool) {
+	c.Lock()
+	ingressSandbox := c.ingressSandbox
+	c.ingressSandbox = nil
+	c.Unlock()
+
+	if ingressSandbox != nil {
+		if err := ingressSandbox.Delete(); err != nil {
+			log.Warnf("Could not delete ingress sandbox while leaving: %v", err)
+		}
+	}
+
+	n, err := c.NetworkByName("ingress")
+	if err != nil && clusterLeave {
+		log.Warnf("Could not find ingress network while leaving: %v", err)
+	}
+
+	if n != nil {
+		if err := n.Delete(); err != nil {
+			log.Warnf("Could not delete ingress network while leaving: %v", err)
+		}
+	}
 }
