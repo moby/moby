@@ -3399,6 +3399,7 @@ Instruct the driver to remove the network (`id`).
 
 **Status codes**:
 
+-   **200** - no error
 -   **204** - no error
 -   **404** - no such network
 -   **500** - server error
@@ -4672,7 +4673,9 @@ Stop and remove the service `id`
 
 **Example response**:
 
-    HTTP/1.1 200 No Content
+    HTTP/1.1 200 OK
+    Content-Length: 0
+    Content-Type: text/plain; charset=utf-8
 
 **Status codes**:
 
