@@ -2181,6 +2181,10 @@ _docker_ps() {
 			__docker_complete_container_ids
 			return
 			;;
+		is-task)
+			COMPREPLY=( $( compgen -W "true false" -- "${cur##*=}" ) )
+			return
+			;;
 		name)
 			cur="${cur##*=}"
 			__docker_complete_container_names

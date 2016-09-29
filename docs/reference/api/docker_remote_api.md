@@ -130,6 +130,8 @@ This section lists each version from latest to oldest.  Each listing includes a 
   instead of the default network if a trailing slash is provided, but no `name`
   or `id`.
 * `DELETE /containers/(name)` endpoint now returns an error of `removal of container name is already in progress` with status code of 400, when container name is in a state of removal in progress.
+* `GET /containers/json` now supports a `is-task` filter to filter
+  containers that are tasks (part of a service in swarm mode).
 
 ### v1.24 API changes
 
