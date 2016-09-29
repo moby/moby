@@ -94,7 +94,7 @@ wget --no-check-certificate --certificate=$DOCKER_CERT_PATH/cert.pem \
 
 The following diagram depicts the container states accessible through the API.
 
-[![States](images/event_state.png)](../images/event_state.png)
+![States](images/event_state.png)
 
 Some container-related events are not affected by container state, so they are not included in this diagram. These events are:
 
