@@ -47,7 +47,7 @@ func (s *DockerSwarmSuite) TestServiceHealthRun(c *check.C) {
 	waitAndAssert(c, defaultReconciliationTimeout, func(c *check.C) (interface{}, check.CommentInterface) {
 		task = d.getTask(c, task.ID)
 		return task.Status.State, nil
-	}, checker.Equals, swarm.TaskStateStarting)
+	}, checker.Equals, swarm.TaskStateRunning)
 	containerID := task.Status.ContainerStatus.ContainerID
 
 	// wait for container to be healthy
