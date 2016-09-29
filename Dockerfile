@@ -59,7 +59,7 @@ RUN apt-get update && apt-get install -y \
 	libltdl-dev \
 	libnl-3-dev \
 	libprotobuf-c0-dev \
-	libprotobuf-dev	\
+	libprotobuf-dev \
 	libsqlite3-dev \
 	libsystemd-journal-dev \
 	libtool \
