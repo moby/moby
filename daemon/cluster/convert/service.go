@@ -272,7 +272,7 @@ func restartPolicyToGRPC(p *types.RestartPolicy) (*swarmapi.RestartPolicy, error
 	var rp *swarmapi.RestartPolicy
 	if p != nil {
 		rp = &swarmapi.RestartPolicy{}
-		sanatizedCondition := strings.ToUpper(p.Condition.String())
+		sanatizedCondition := strings.ToUpper(string(p.Condition))
 		if condition, ok := swarmapi.RestartPolicy_RestartCondition_value[sanatizedCondition]; ok {
 			rp.Condition = swarmapi.RestartPolicy_RestartCondition(condition)
 		} else if string(p.Condition) == "" {
