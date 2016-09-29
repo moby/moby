@@ -34,6 +34,27 @@ pgp.mit.edu
 keyserver.ubuntu.com
 "
 
+mirror=''
+while [ $# -gt 0 ]; do
+	case "$1" in
+		--mirror)
+			mirror="$2"
+			shift
+			;;
+		*)
+			echo "Illegal option $1"
+			;;
+	esac
+	shift $(( $# > 0 ? 1 : 0 ))
+done
+
+case "$mirror" in
+	AzureChinaCloud)
+		apt_url="https://mirror.azure.cn/docker-engine/apt"
+		yum_url="https://mirror.azure.cn/docker-engine/yum"
+		;;
+esac
+
 command_exists() {
 	command -v "$@" > /dev/null 2>&1
 }
