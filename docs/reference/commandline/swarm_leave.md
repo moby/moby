@@ -43,7 +43,7 @@ To remove `worker2`, issue the following command from `worker2` itself:
 $ docker swarm leave
 Node left the default swarm.
 ```
-To remove an inactive node, use the [`node rm`](swarm_rm.md) command instead.
+To remove an inactive node, use the [`node rm`](node_rm.md) command instead.
 
 ## Related information
 
