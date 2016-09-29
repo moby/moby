@@ -902,3 +902,8 @@ func (s *DockerSuite) TestPsByOrder(c *check.C) {
 	c.Assert(err, checker.NotNil)
 	c.Assert(strings.TrimSpace(out), checker.Equals, fmt.Sprintf("%s\n%s", container2, container1))
 }
+
+func (s *DockerSuite) TestPsFilterMissingArgErrorCode(c *check.C) {
+	_, errCode, _ := dockerCmdWithError("ps", "--filter")
+	c.Assert(errCode, checker.Equals, 125)
+}
