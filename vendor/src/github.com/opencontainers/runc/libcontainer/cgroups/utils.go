@@ -16,7 +16,10 @@ import (
 	"github.com/docker/go-units"
 )
 
-const cgroupNamePrefix = "name="
+const (
+	cgroupNamePrefix = "name="
+	CgroupProcesses  = "cgroup.procs"
+)
 
 // https://www.kernel.org/doc/Documentation/cgroup-v1/cgroups.txt
 func FindCgroupMountpoint(subsystem string) (string, error) {
@@ -136,7 +139,7 @@ func (m Mount) GetThisCgroupDir(cgroups map[string]string) (string, error) {
 	return getControllerPath(m.Subsystems[0], cgroups)
 }
 
-func getCgroupMountsHelper(ss map[string]bool, mi io.Reader) ([]Mount, error) {
+func getCgroupMountsHelper(ss map[string]bool, mi io.Reader, all bool) ([]Mount, error) {
 	res := make([]Mount, 0, len(ss))
 	scanner := bufio.NewScanner(mi)
 	numFound := 0
@@ -163,7 +166,9 @@ func getCgroupMountsHelper(ss map[string]bool, mi io.Reader) ([]Mount, error) {
 			} else {
 				m.Subsystems = append(m.Subsystems, opt)
 			}
-			numFound++
+			if !all {
+				numFound++
+			}
 		}
 		res = append(res, m)
 	}
@@ -173,23 +178,25 @@ func getCgroupMountsHelper(ss map[string]bool, mi io.Reader) ([]Mount, error) {
 	return res, nil
 }
 
-func GetCgroupMounts() ([]Mount, error) {
+// GetCgroupMounts returns the mounts for the cgroup subsystems.
+// all indicates whether to return just the first instance or all the mounts.
+func GetCgroupMounts(all bool) ([]Mount, error) {
 	f, err := os.Open("/proc/self/mountinfo")
 	if err != nil {
 		return nil, err
 	}
 	defer f.Close()
 
-	all, err := ParseCgroupFile("/proc/self/cgroup")
+	allSubsystems, err := ParseCgroupFile("/proc/self/cgroup")
 	if err != nil {
 		return nil, err
 	}
 
 	allMap := make(map[string]bool)
-	for s := range all {
+	for s := range allSubsystems {
 		allMap[s] = true
 	}
-	return getCgroupMountsHelper(allMap, f)
+	return getCgroupMountsHelper(allMap, f, all)
 }
 
 // GetAllSubsystems returns all the cgroup subsystems supported by the kernel
@@ -239,7 +246,7 @@ func GetInitCgroupDir(subsystem string) (string, error) {
 }
 
 func readProcsFile(dir string) ([]int, error) {
-	f, err := os.Open(filepath.Join(dir, "cgroup.procs"))
+	f, err := os.Open(filepath.Join(dir, CgroupProcesses))
 	if err != nil {
 		return nil, err
 	}
@@ -326,8 +333,7 @@ func PathExists(path string) bool {
 func EnterPid(cgroupPaths map[string]string, pid int) error {
 	for _, path := range cgroupPaths {
 		if PathExists(path) {
-			if err := ioutil.WriteFile(filepath.Join(path, "cgroup.procs"),
-				[]byte(strconv.Itoa(pid)), 0700); err != nil {
+			if err := WriteCgroupProc(path, pid); err != nil {
 				return err
 			}
 		}
@@ -396,7 +402,7 @@ func GetAllPids(path string) ([]int, error) {
 	// collect pids from all sub-cgroups
 	err := filepath.Walk(path, func(p string, info os.FileInfo, iErr error) error {
 		dir, file := filepath.Split(p)
-		if file != "cgroup.procs" {
+		if file != CgroupProcesses {
 			return nil
 		}
 		if iErr != nil {
@@ -410,4 +416,21 @@ func GetAllPids(path string) ([]int, error) {
 		return nil
 	})
 	return pids, err
+}
+
+// WriteCgroupProc writes the specified pid into the cgroup's cgroup.procs file
+func WriteCgroupProc(dir string, pid int) error {
+	// Normally dir should not be empty, one case is that cgroup subsystem
+	// is not mounted, we will get empty dir, and we want it fail here.
+	if dir == "" {
+		return fmt.Errorf("no such directory for %s", CgroupProcesses)
+	}
+
+	// Dont attach any pid to the cgroup if -1 is specified as a pid
+	if pid != -1 {
+		if err := ioutil.WriteFile(filepath.Join(dir, CgroupProcesses), []byte(strconv.Itoa(pid)), 0700); err != nil {
+			return fmt.Errorf("failed to write %v to %v: %v", pid, CgroupProcesses, err)
+		}
+	}
+	return nil
 }

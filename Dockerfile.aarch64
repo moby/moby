@@ -165,7 +165,7 @@ RUN ./contrib/download-frozen-image-v2.sh /docker-frozen-images \
 	aarch64/hello-world:latest@sha256:65a4a158587b307bb02db4de41b836addb0c35175bdc801367b1ac1ddeb9afda
 # See also "hack/make/.ensure-frozen-images" (which needs to be updated any time this list is)
 
-# Install tomlv, runc, containerd.and grimes
+# Install tomlv, runc, containerd and grimes
 # Please edit hack/dockerfile/install-binaries.sh to update them.
 COPY hack/dockerfile/install-binaries.sh /tmp/install-binaries.sh
 RUN /tmp/install-binaries.sh tomlv runc containerd grimes
