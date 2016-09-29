@@ -46,7 +46,7 @@ Another configuration you can change with this command is restart policy,
 new restart policy will take effect instantly after you run `docker update`
 on a container.
 
-## EXAMPLES
+## Examples
 
 The following sections illustrate ways to use this command.
 

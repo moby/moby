@@ -53,4 +53,4 @@ Your Mac must be running OS X 10.8 "Mountain Lion" or newer to install the Docke
 
 * If you are interested in using the Kitematic GUI, see the [Kitematic user guide](https://docs.docker.com/kitematic/userguide/).
 
-> **Note**: The Boot2Docker command line was deprecated several releases > back in favor of Docker Machine, and now Docker for Windows.
+> **Note**: The Boot2Docker command line was deprecated several releases back in favor of Docker Machine, and now Docker for Mac.

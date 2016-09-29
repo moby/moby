@@ -115,9 +115,10 @@ Options:
                                     'host': Use the Docker host user namespace
                                     '': Use the Docker daemon user namespace specified by `--userns-remap` option.
       --uts string                  UTS namespace to use
-  -v, --volume value                Bind mount a volume (default []). The comma-delimited
-                                    `options` are [rw|ro], [z|Z],
-                                    [[r]shared|[r]slave|[r]private], and
+  -v, --volume value                Bind mount a volume (default []). The format
+                                    is `[host-src:]container-dest[:<options>]`.
+                                    The comma-delimited `options` are [rw|ro],
+                                    [z|Z], [[r]shared|[r]slave|[r]private], and
                                     [nocopy]. The 'host-src' is an absolute path
                                     or a name value.
       --volume-driver string        Optional volume driver for the container
@@ -238,6 +239,8 @@ binary (refer to [get the linux binary](
 ../../installation/binaries.md#get-the-linux-binary)),
 you give the container the full access to create and manipulate the host's
 Docker daemon.
+
+For in-depth information about volumes, refer to [manage data in containers](../../tutorials/dockervolumes.md)
 
 ### Publish or expose port (-p, --expose)
 
@@ -633,14 +636,14 @@ On Microsoft Windows, can take any of these values:
 | `hyperv`   | Hyper-V hypervisor partition-based isolation.                                                                                                                  |
 
 On Windows, the default isolation for client is `hyperv`, and for server is
-`process`. Therefore when running on Windows server without a `daemon` option 
+`process`. Therefore when running on Windows server without a `daemon` option
 set, these two commands are equivalent:
 ```
 $ docker run -d --isolation default busybox top
 $ docker run -d --isolation process busybox top
 ```
 
-If you have set the `--exec-opt isolation=hyperv` option on the Docker `daemon`, 
+If you have set the `--exec-opt isolation=hyperv` option on the Docker `daemon`,
 if running on Windows server, any of these commands also result in `hyperv` isolation:
 
 ```
