@@ -3,6 +3,7 @@ package daemon
 import (
 	"fmt"
 	"io"
+	"runtime"
 	"strings"
 	"time"
 
@@ -123,11 +124,15 @@ func (d *Daemon) ContainerExecCreate(name string, config *types.ExecConfig) (str
 	execConfig.Tty = config.Tty
 	execConfig.Privileged = config.Privileged
 	execConfig.User = config.User
-	execConfig.Env = []string{
-		"PATH=" + system.DefaultPathEnv,
-	}
-	if config.Tty {
-		execConfig.Env = append(execConfig.Env, "TERM=xterm")
+
+	// On Windows, don't default the path, let the platform do it. Also TERM isn't meaningful
+	if runtime.GOOS != "windows" {
+		execConfig.Env = []string{
+			"PATH=" + system.DefaultPathEnv,
+		}
+		if config.Tty {
+			execConfig.Env = append(execConfig.Env, "TERM=xterm")
+		}
 	}
 	execConfig.Env = utils.ReplaceOrAppendEnvValues(execConfig.Env, container.Config.Env)
 	if len(execConfig.User) == 0 {
