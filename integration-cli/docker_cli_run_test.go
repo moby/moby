@@ -1864,7 +1864,7 @@ func (s *DockerSuite) TestRunInteractiveWithRestartPolicy(c *check.C) {
 		dockerCmdWithResult("stop", name).Assert(c, icmd.Success)
 	}()
 
-	result = icmd.WaitOnCmd(10*time.Second, result)
+	result = icmd.WaitOnCmd(60*time.Second, result)
 	c.Assert(result, icmd.Matches, icmd.Expected{ExitCode: 11})
 }
 
