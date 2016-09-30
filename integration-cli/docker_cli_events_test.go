@@ -272,36 +272,23 @@ func (s *DockerSuite) TestEventsImageLoad(c *check.C) {
 
 func (s *DockerSuite) TestEventsBuild(c *check.C) {
 	name := "testimageeventsbuild"
+	since := daemonUnixTime(c)
 	_, err := buildImage(name,
 		`FROM scratch
-		MAINTAINER "docker"`,
-		true)
-	if err != nil {
-		c.Fatal(err)
-	}
-	out, _ := dockerCmd(c, "events", "--since=0", fmt.Sprintf("--until=%d", daemonTime(c).Unix()))
-	events := strings.Split(out, "\n")
+		MAINTAINER "docker"`, true)
+	c.Assert(err, checker.IsNil, check.Commentf("Couldn't create image"))
 
-	events = events[:len(events)-1]
-	if len(events) < 4 {
-		c.Fatalf("Missing expected event")
-	}
-	buildEvent := strings.Fields(events[len(events)-4])
-	createEvent := strings.Fields(events[len(events)-3])
-	commitEvent := strings.Fields(events[len(events)-2])
-	destroyEvent := strings.Fields(events[len(events)-1])
-	if buildEvent[len(buildEvent)-1] != "build" {
-		c.Fatalf("build should be build, not %#v", buildEvent)
-	}
-	if createEvent[len(createEvent)-1] != "create" {
-		c.Fatalf("create should be create, not %#v", createEvent)
-	}
-	if commitEvent[len(commitEvent)-1] != "commit" {
-		c.Fatalf("commit should be commit, not %#v", commitEvent)
-	}
-	if destroyEvent[len(destroyEvent)-1] != "destroy" {
-		c.Fatalf("destroy should be destroy, not %#v", destroyEvent)
-	}
+	out, _ := dockerCmd(c, "events", "--since", since, "--until", daemonUnixTime(c))
+	events := strings.Split(strings.TrimSuffix(out, "\n"), "\n")
+
+	nEvents := len(events)
+	c.Assert(nEvents, checker.GreaterOrEqualThan, 5)
+
+	c.Assert(parseEventAction(c, events[nEvents-5]), checker.Equals, "build")
+	c.Assert(parseEventAction(c, events[nEvents-4]), checker.Equals, "create")
+	c.Assert(parseEventAction(c, events[nEvents-3]), checker.Equals, "commit")
+	c.Assert(parseEventAction(c, events[nEvents-2]), checker.Equals, "destroy")
+	c.Assert(parseEventAction(c, events[nEvents-1]), checker.Equals, "image")
 }
 
 func (s *DockerSuite) TestEventsPluginOps(c *check.C) {
