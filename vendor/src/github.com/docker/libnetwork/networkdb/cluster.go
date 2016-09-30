@@ -161,6 +161,10 @@ func (nDB *NetworkDB) retryJoin(members []string, stop <-chan struct{}) {
 				logrus.Errorf("Failed to join memberlist %s on retry: %v", members, err)
 				continue
 			}
+			if err := nDB.sendNodeEvent(NodeEventTypeJoin); err != nil {
+				logrus.Errorf("failed to send node join on retry: %v", err)
+				continue
+			}
 			return
 		case <-stop:
 			return
