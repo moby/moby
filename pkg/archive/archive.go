@@ -1050,7 +1050,7 @@ func (archiver *Archiver) CopyFileWithTar(src, dst string) (err error) {
 		return nil
 	})
 	defer func() {
-		if er := <-errC; err != nil {
+		if er := <-errC; err == nil && er != nil {
 			err = er
 		}
 	}()
