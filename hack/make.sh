@@ -115,7 +115,7 @@ if [ "$AUTO_GOPATH" ]; then
 	if [ "$(go env GOOS)" = 'solaris' ]; then
 		# sys/unix is installed outside the standard library on solaris
 		# TODO need to allow for version change, need to get version from go
-		export GO_VERSION=${GO_VERSION:-"1.7"}
+		export GO_VERSION=${GO_VERSION:-"1.7.1"}
 		export GOPATH="${GOPATH}:/usr/lib/gocode/${GO_VERSION}"
 	fi
 fi
@@ -255,7 +255,7 @@ bundle() {
 	source "$SCRIPTDIR/make/$bundle" "$@"
 }
 
-copy_containerd() {
+copy_binaries() {
 	dir="$1"
 	# Add nested executables to bundle dir so we have complete set of
 	# them available, but only if the native OS/ARCH is the same as the
@@ -263,7 +263,7 @@ copy_containerd() {
 	if [ "$(go env GOOS)/$(go env GOARCH)" == "$(go env GOHOSTOS)/$(go env GOHOSTARCH)" ]; then
 		if [ -x /usr/local/bin/docker-runc ]; then
 			echo "Copying nested executables into $dir"
-			for file in containerd containerd-shim containerd-ctr runc; do
+			for file in containerd containerd-shim containerd-ctr runc init; do
 				cp `which "docker-$file"` "$dir/"
 				if [ "$2" == "hash" ]; then
 					hash_files "$dir/docker-$file"

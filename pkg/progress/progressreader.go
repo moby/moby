@@ -2,27 +2,32 @@ package progress
 
 import (
 	"io"
+	"time"
+
+	"golang.org/x/time/rate"
 )
 
 // Reader is a Reader with progress bar.
 type Reader struct {
-	in         io.ReadCloser // Stream to read from
-	out        Output        // Where to send progress bar to
-	size       int64
-	current    int64
-	lastUpdate int64
-	id         string
-	action     string
+	in          io.ReadCloser // Stream to read from
+	out         Output        // Where to send progress bar to
+	size        int64
+	current     int64
+	lastUpdate  int64
+	id          string
+	action      string
+	rateLimiter *rate.Limiter
 }
 
 // NewProgressReader creates a new ProgressReader.
 func NewProgressReader(in io.ReadCloser, out Output, size int64, id, action string) *Reader {
 	return &Reader{
-		in:     in,
-		out:    out,
-		size:   size,
-		id:     id,
-		action: action,
+		in:          in,
+		out:         out,
+		size:        size,
+		id:          id,
+		action:      action,
+		rateLimiter: rate.NewLimiter(rate.Every(100*time.Millisecond), 1),
 	}
 }
 
@@ -55,5 +60,7 @@ func (p *Reader) Close() error {
 }
 
 func (p *Reader) updateProgress(last bool) {
-	p.out.WriteProgress(Progress{ID: p.id, Action: p.action, Current: p.current, Total: p.size, LastUpdate: last})
+	if last || p.current == p.size || p.rateLimiter.Allow() {
+		p.out.WriteProgress(Progress{ID: p.id, Action: p.action, Current: p.current, Total: p.size, LastUpdate: last})
+	}
 }

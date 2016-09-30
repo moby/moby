@@ -17,7 +17,6 @@ import (
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/plugin/distribution"
 	"github.com/docker/docker/plugin/v2"
-	"github.com/docker/docker/reference"
 )
 
 // Disable deactivates a plugin, which implies that they cannot be used by containers.
@@ -57,9 +56,9 @@ func (pm *Manager) Inspect(name string) (tp types.Plugin, err error) {
 
 // Pull pulls a plugin and computes the privileges required to install it.
 func (pm *Manager) Pull(name string, metaHeader http.Header, authConfig *types.AuthConfig) (types.PluginPrivileges, error) {
-	ref, err := reference.ParseNamed(name)
+	ref, err := distribution.GetRef(name)
 	if err != nil {
-		logrus.Debugf("error in reference.ParseNamed: %v", err)
+		logrus.Debugf("error in distribution.GetRef: %v", err)
 		return nil, err
 	}
 	name = ref.String()
@@ -76,7 +75,7 @@ func (pm *Manager) Pull(name string, metaHeader http.Header, authConfig *types.A
 		return nil, err
 	}
 
-	pd, err := distribution.Pull(name, pm.registryService, metaHeader, authConfig)
+	pd, err := distribution.Pull(ref, pm.registryService, metaHeader, authConfig)
 	if err != nil {
 		logrus.Debugf("error in distribution.Pull(): %v", err)
 		return nil, err
@@ -87,10 +86,7 @@ func (pm *Manager) Pull(name string, metaHeader http.Header, authConfig *types.A
 		return nil, err
 	}
 
-	var tag string
-	if ref, ok := ref.(reference.NamedTagged); ok {
-		tag = ref.Tag()
-	}
+	tag := distribution.GetTag(ref)
 	p := v2.NewPlugin(ref.Name(), pluginID, pm.runRoot, tag)
 	if err := p.InitPlugin(pm.libRoot); err != nil {
 		return nil, err
@@ -147,14 +143,26 @@ func (pm *Manager) Remove(name string, config *types.PluginRmConfig) error {
 	if err != nil {
 		return err
 	}
-	if p.IsEnabled() {
-		if !config.ForceRemove {
+
+	if !config.ForceRemove {
+		p.RLock()
+		if p.RefCount > 0 {
+			p.RUnlock()
+			return fmt.Errorf("plugin %s is in use", p.Name())
+		}
+		p.RUnlock()
+
+		if p.IsEnabled() {
 			return fmt.Errorf("plugin %s is enabled", p.Name())
 		}
+	}
+
+	if p.IsEnabled() {
 		if err := pm.disable(p); err != nil {
 			logrus.Errorf("failed to disable plugin '%s': %s", p.Name(), err)
 		}
 	}
+
 	pm.pluginStore.Remove(p)
 	pm.pluginEventLogger(p.GetID(), name, "remove")
 	return nil

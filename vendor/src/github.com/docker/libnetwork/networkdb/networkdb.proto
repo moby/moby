@@ -41,12 +41,39 @@ enum MessageType {
 	// which is a pack of many message of above types, packed into
 	// a single compound message.
 	COMPOUND = 5 [(gogoproto.enumvalue_customname) = "MessageTypeCompound"];
+
+	// NodeEvent message type is used to communicare node
+	// join/leave events in the cluster
+	NODE_EVENT = 6 [(gogoproto.enumvalue_customname) = "MessageTypeNodeEvent"];
 }
 
 // GossipMessage is a basic message header used by all messages types.
 message GossipMessage {
 	MessageType type = 1; // type defines one of the message types defined above.
 	bytes data = 2; // Payload of the message of any type defined here.
+}
+
+// NodeEvent message payload definition.
+message NodeEvent {
+	enum Type {
+		option (gogoproto.goproto_enum_prefix) = false;
+		option (gogoproto.enum_customname) = "Type";
+
+		INVALID = 0 [(gogoproto.enumvalue_customname) = "NodeEventTypeInvalid"];
+		// Join event is generated when this node joins the cluster.
+		JOIN = 1 [(gogoproto.enumvalue_customname) = "NodeEventTypeJoin"];;
+		// Leave event is generated when this node leaves the cluster.
+		LEAVE = 2 [(gogoproto.enumvalue_customname) = "NodeEventTypeLeave"];;
+	}
+
+	Type type = 1;
+
+	// Lamport time using a network lamport clock indicating the
+	// time this event was generated on the node where it was
+	// generated.
+	uint64 l_time = 2 [(gogoproto.customtype) = "github.com/hashicorp/serf/serf.LamportTime", (gogoproto.nullable) = false];
+	// Source node name.
+	string node_name = 3;
 }
 
 // NetworkEvent message payload definition.

@@ -225,7 +225,7 @@ func (s *DockerSwarmSuite) TestSwarmServiceWithGroup(c *check.C) {
 	d := s.AddDaemon(c, true, true)
 
 	name := "top"
-	out, err := d.Cmd("service", "create", "--name", name, "--user", "root:root", "--group-add", "wheel", "--group-add", "audio", "--group-add", "staff", "--group-add", "777", "busybox", "sh", "-c", "id > /id && top")
+	out, err := d.Cmd("service", "create", "--name", name, "--user", "root:root", "--group-add", "wheel", "--group-add", "audio", "--group-add", "staff", "--group-add", "777", "busybox", "top")
 	c.Assert(err, checker.IsNil)
 	c.Assert(strings.TrimSpace(out), checker.Not(checker.Equals), "")
 
@@ -238,7 +238,118 @@ func (s *DockerSwarmSuite) TestSwarmServiceWithGroup(c *check.C) {
 
 	container := strings.TrimSpace(out)
 
-	out, err = d.Cmd("exec", container, "cat", "/id")
+	out, err = d.Cmd("exec", container, "id")
 	c.Assert(err, checker.IsNil)
 	c.Assert(strings.TrimSpace(out), checker.Equals, "uid=0(root) gid=0(root) groups=10(wheel),29(audio),50(staff),777")
+}
+
+func (s *DockerSwarmSuite) TestSwarmContainerAutoStart(c *check.C) {
+	d := s.AddDaemon(c, true, true)
+
+	out, err := d.Cmd("network", "create", "--attachable", "-d", "overlay", "foo")
+	c.Assert(err, checker.IsNil)
+	c.Assert(strings.TrimSpace(out), checker.Not(checker.Equals), "")
+
+	out, err = d.Cmd("run", "-id", "--restart=always", "--net=foo", "--name=test", "busybox", "top")
+	c.Assert(err, checker.IsNil)
+	c.Assert(strings.TrimSpace(out), checker.Not(checker.Equals), "")
+
+	out, err = d.Cmd("ps", "-q")
+	c.Assert(err, checker.IsNil)
+	c.Assert(strings.TrimSpace(out), checker.Not(checker.Equals), "")
+
+	d.Restart()
+
+	out, err = d.Cmd("ps", "-q")
+	c.Assert(err, checker.IsNil)
+	c.Assert(strings.TrimSpace(out), checker.Not(checker.Equals), "")
+}
+
+func (s *DockerSwarmSuite) TestSwarmRemoveInternalNetwork(c *check.C) {
+	d := s.AddDaemon(c, true, true)
+
+	name := "ingress"
+	out, err := d.Cmd("network", "rm", name)
+	c.Assert(err, checker.NotNil)
+	c.Assert(strings.TrimSpace(out), checker.Contains, name)
+	c.Assert(strings.TrimSpace(out), checker.Contains, "is a pre-defined network and cannot be removed")
+}
+
+// Test case for #24108, also the case from:
+// https://github.com/docker/docker/pull/24620#issuecomment-233715656
+func (s *DockerSwarmSuite) TestSwarmTaskListFilter(c *check.C) {
+	d := s.AddDaemon(c, true, true)
+
+	name := "redis-cluster-md5"
+	out, err := d.Cmd("service", "create", "--name", name, "--replicas=3", "busybox", "top")
+	c.Assert(err, checker.IsNil)
+	c.Assert(strings.TrimSpace(out), checker.Not(checker.Equals), "")
+
+	filter := "name=redis-cluster"
+
+	out, err = d.Cmd("service", "ps", "--filter", filter, name)
+	c.Assert(err, checker.IsNil)
+	c.Assert(out, checker.Contains, name+".1")
+	c.Assert(out, checker.Contains, name+".2")
+	c.Assert(out, checker.Contains, name+".3")
+
+	out, err = d.Cmd("service", "ps", "--filter", "name="+name+".1", name)
+	c.Assert(err, checker.IsNil)
+	c.Assert(out, checker.Contains, name+".1")
+	c.Assert(out, checker.Not(checker.Contains), name+".2")
+	c.Assert(out, checker.Not(checker.Contains), name+".3")
+
+	out, err = d.Cmd("service", "ps", "--filter", "name=none", name)
+	c.Assert(err, checker.IsNil)
+	c.Assert(out, checker.Not(checker.Contains), name+".1")
+	c.Assert(out, checker.Not(checker.Contains), name+".2")
+	c.Assert(out, checker.Not(checker.Contains), name+".3")
+
+	name = "redis-cluster-sha1"
+	out, err = d.Cmd("service", "create", "--name", name, "--mode=global", "busybox", "top")
+	c.Assert(err, checker.IsNil)
+	c.Assert(strings.TrimSpace(out), checker.Not(checker.Equals), "")
+
+	filter = "name=redis-cluster"
+	out, err = d.Cmd("service", "ps", "--filter", filter, name)
+	c.Assert(err, checker.IsNil)
+	c.Assert(out, checker.Contains, name)
+
+	out, err = d.Cmd("service", "ps", "--filter", "name="+name, name)
+	c.Assert(err, checker.IsNil)
+	c.Assert(out, checker.Contains, name)
+
+	out, err = d.Cmd("service", "ps", "--filter", "name=none", name)
+	c.Assert(err, checker.IsNil)
+	c.Assert(out, checker.Not(checker.Contains), name)
+}
+
+func (s *DockerSwarmSuite) TestPsListContainersFilterIsTask(c *check.C) {
+	d := s.AddDaemon(c, true, true)
+
+	// Create a bare container
+	out, err := d.Cmd("run", "-d", "--name=bare-container", "busybox", "top")
+	c.Assert(err, checker.IsNil)
+	bareID := strings.TrimSpace(out)[:12]
+	// Create a service
+	name := "busybox-top"
+	out, err = d.Cmd("service", "create", "--name", name, "busybox", "top")
+	c.Assert(err, checker.IsNil)
+	c.Assert(strings.TrimSpace(out), checker.Not(checker.Equals), "")
+
+	// make sure task has been deployed.
+	waitAndAssert(c, defaultReconciliationTimeout, d.checkServiceRunningTasks(c, name), checker.Equals, 1)
+
+	// Filter non-tasks
+	out, err = d.Cmd("ps", "-a", "-q", "--filter=is-task=false")
+	c.Assert(err, checker.IsNil)
+	psOut := strings.TrimSpace(out)
+	c.Assert(psOut, checker.Equals, bareID, check.Commentf("Expected id %s, got %s for is-task label, output %q", bareID, psOut, out))
+
+	// Filter tasks
+	out, err = d.Cmd("ps", "-a", "-q", "--filter=is-task=true")
+	c.Assert(err, checker.IsNil)
+	lines := strings.Split(strings.Trim(out, "\n "), "\n")
+	c.Assert(lines, checker.HasLen, 1)
+	c.Assert(lines[0], checker.Not(checker.Equals), bareID, check.Commentf("Expected not %s, but got it for is-task label, output %q", bareID, out))
 }

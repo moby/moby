@@ -7,7 +7,7 @@
 
 FROM debian:jessie
 
-# compile and runtime deps
+# Compile and runtime deps
 # https://github.com/docker/docker/blob/master/project/PACKAGERS.md#build-dependencies
 # https://github.com/docker/docker/blob/master/project/PACKAGERS.md#runtime-dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -30,7 +30,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 		aufs-tools \
 	&& rm -rf /var/lib/apt/lists/*
 
-# install seccomp: the version shipped in trusty is too old
+# Install seccomp: the version shipped in trusty is too old
 ENV SECCOMP_VERSION 2.3.1
 RUN set -x \
 	&& export SECCOMP_PATH="$(mktemp -d)" \
@@ -68,7 +68,7 @@ RUN set -x \
 	&& rm -rf "$GOPATH"
 
 # Install containerd
-ENV CONTAINERD_COMMIT 4c21ad662f71af56c0e6b29c0afef72df441d1ff
+ENV CONTAINERD_COMMIT 2545227b0357eb55e369fa0072baef9ad91cdb69
 RUN set -x \
 	&& export GOPATH="$(mktemp -d)" \
 	&& git clone https://github.com/docker/containerd.git "$GOPATH/src/github.com/docker/containerd" \
@@ -78,6 +78,16 @@ RUN set -x \
 	&& cp bin/containerd /usr/local/bin/docker-containerd \
 	&& cp bin/containerd-shim /usr/local/bin/docker-containerd-shim \
 	&& cp bin/ctr /usr/local/bin/docker-containerd-ctr \
+	&& rm -rf "$GOPATH"
+
+ENV GRIMES_COMMIT f207601a8d19a534cc90d9e26e037e9931ccb9db
+RUN set -x \
+    && export GOPATH="$(mktemp -d)" \
+	&& git clone https://github.com/crosbymichael/grimes.git "$GOPATH/grimes" \
+	&& cd "$GOPATH/grimes" \
+	&& git checkout -q "$GRIMES_COMMIT" \
+	&& make \
+	&& cp init /usr/local/bin/docker-init \
 	&& rm -rf "$GOPATH"
 
 ENV AUTO_GOPATH 1

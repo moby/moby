@@ -10,7 +10,6 @@ import (
 	"sync"
 
 	"github.com/docker/distribution/digest"
-	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/ioutils"
 )
 
@@ -22,18 +21,18 @@ var (
 
 // An Association is a tuple associating a reference with an image ID.
 type Association struct {
-	Ref     Named
-	ImageID image.ID
+	Ref Named
+	ID  digest.Digest
 }
 
 // Store provides the set of methods which can operate on a tag store.
 type Store interface {
-	References(id image.ID) []Named
+	References(id digest.Digest) []Named
 	ReferencesByName(ref Named) []Association
-	AddTag(ref Named, id image.ID, force bool) error
-	AddDigest(ref Canonical, id image.ID, force bool) error
+	AddTag(ref Named, id digest.Digest, force bool) error
+	AddDigest(ref Canonical, id digest.Digest, force bool) error
 	Delete(ref Named) (bool, error)
-	Get(ref Named) (image.ID, error)
+	Get(ref Named) (digest.Digest, error)
 }
 
 type store struct {
@@ -45,12 +44,12 @@ type store struct {
 	Repositories map[string]repository
 	// referencesByIDCache is a cache of references indexed by ID, to speed
 	// up References.
-	referencesByIDCache map[image.ID]map[string]Named
+	referencesByIDCache map[digest.Digest]map[string]Named
 }
 
-// Repository maps tags to image IDs. The key is a stringified Reference,
+// Repository maps tags to digests. The key is a stringified Reference,
 // including the repository name.
-type repository map[string]image.ID
+type repository map[string]digest.Digest
 
 type lexicalRefs []Named
 
@@ -75,7 +74,7 @@ func NewReferenceStore(jsonPath string) (Store, error) {
 	store := &store{
 		jsonPath:            abspath,
 		Repositories:        make(map[string]repository),
-		referencesByIDCache: make(map[image.ID]map[string]Named),
+		referencesByIDCache: make(map[digest.Digest]map[string]Named),
 	}
 	// Load the json file if it exists, otherwise create it.
 	if err := store.reload(); os.IsNotExist(err) {
@@ -90,7 +89,7 @@ func NewReferenceStore(jsonPath string) (Store, error) {
 
 // AddTag adds a tag reference to the store. If force is set to true, existing
 // references can be overwritten. This only works for tags, not digests.
-func (store *store) AddTag(ref Named, id image.ID, force bool) error {
+func (store *store) AddTag(ref Named, id digest.Digest, force bool) error {
 	if _, isCanonical := ref.(Canonical); isCanonical {
 		return errors.New("refusing to create a tag with a digest reference")
 	}
@@ -98,11 +97,11 @@ func (store *store) AddTag(ref Named, id image.ID, force bool) error {
 }
 
 // AddDigest adds a digest reference to the store.
-func (store *store) AddDigest(ref Canonical, id image.ID, force bool) error {
+func (store *store) AddDigest(ref Canonical, id digest.Digest, force bool) error {
 	return store.addReference(ref, id, force)
 }
 
-func (store *store) addReference(ref Named, id image.ID, force bool) error {
+func (store *store) addReference(ref Named, id digest.Digest, force bool) error {
 	if ref.Name() == string(digest.Canonical) {
 		return errors.New("refusing to create an ambiguous tag using digest algorithm as name")
 	}
@@ -112,7 +111,7 @@ func (store *store) addReference(ref Named, id image.ID, force bool) error {
 
 	repository, exists := store.Repositories[ref.Name()]
 	if !exists || repository == nil {
-		repository = make(map[string]image.ID)
+		repository = make(map[string]digest.Digest)
 		store.Repositories[ref.Name()] = repository
 	}
 
@@ -179,8 +178,8 @@ func (store *store) Delete(ref Named) (bool, error) {
 	return false, ErrDoesNotExist
 }
 
-// Get retrieves an item from the store by
-func (store *store) Get(ref Named) (image.ID, error) {
+// Get retrieves an item from the store by reference
+func (store *store) Get(ref Named) (digest.Digest, error) {
 	ref = WithDefaultTag(ref)
 
 	store.mu.RLock()
@@ -199,9 +198,9 @@ func (store *store) Get(ref Named) (image.ID, error) {
 	return id, nil
 }
 
-// References returns a slice of references to the given image ID. The slice
-// will be nil if there are no references to this image ID.
-func (store *store) References(id image.ID) []Named {
+// References returns a slice of references to the given ID. The slice
+// will be nil if there are no references to this ID.
+func (store *store) References(id digest.Digest) []Named {
 	store.mu.RLock()
 	defer store.mu.RUnlock()
 
@@ -240,8 +239,8 @@ func (store *store) ReferencesByName(ref Named) []Association {
 		}
 		associations = append(associations,
 			Association{
-				Ref:     ref,
-				ImageID: refID,
+				Ref: ref,
+				ID:  refID,
 			})
 	}
 

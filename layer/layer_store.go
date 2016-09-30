@@ -14,6 +14,7 @@ import (
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/stringid"
+	"github.com/docker/docker/plugin/getter"
 	"github.com/vbatts/tar-split/tar/asm"
 	"github.com/vbatts/tar-split/tar/storage"
 )
@@ -44,6 +45,7 @@ type StoreOptions struct {
 	GraphDriverOptions        []string
 	UIDMaps                   []idtools.IDMap
 	GIDMaps                   []idtools.IDMap
+	PluginGetter              getter.PluginGetter
 }
 
 // NewStoreFromOptions creates a new Store instance
@@ -53,7 +55,8 @@ func NewStoreFromOptions(options StoreOptions) (Store, error) {
 		options.GraphDriver,
 		options.GraphDriverOptions,
 		options.UIDMaps,
-		options.GIDMaps)
+		options.GIDMaps,
+		options.PluginGetter)
 	if err != nil {
 		return nil, fmt.Errorf("error initializing graphdriver: %v", err)
 	}
@@ -583,7 +586,7 @@ func (ls *layerStore) initMount(graphID, parent, mountLabel string, initFunc Mou
 	// then the initID should be randomly generated.
 	initID := fmt.Sprintf("%s-init", graphID)
 
-	if err := ls.driver.Create(initID, parent, mountLabel, storageOpt); err != nil {
+	if err := ls.driver.CreateReadWrite(initID, parent, mountLabel, storageOpt); err != nil {
 		return "", err
 	}
 	p, err := ls.driver.Get(initID, "")

@@ -9,6 +9,7 @@ import (
 	"sort"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/go-events"
 	"github.com/docker/libnetwork/datastore"
 	"github.com/docker/libnetwork/discoverapi"
@@ -171,10 +172,12 @@ func (c *controller) agentSetup() error {
 	advAddr := clusterProvider.GetAdvertiseAddress()
 	remote := clusterProvider.GetRemoteAddress()
 	remoteAddr, _, _ := net.SplitHostPort(remote)
+	listen := clusterProvider.GetListenAddress()
+	listenAddr, _, _ := net.SplitHostPort(listen)
 
-	logrus.Infof("Initializing Libnetwork Agent Local-addr=%s Adv-addr=%s Remote-addr =%s", bindAddr, advAddr, remoteAddr)
+	logrus.Infof("Initializing Libnetwork Agent Listen-Addr=%s Local-addr=%s Adv-addr=%s Remote-addr =%s", listenAddr, bindAddr, advAddr, remoteAddr)
 	if advAddr != "" && c.agent == nil {
-		if err := c.agentInit(bindAddr, advAddr); err != nil {
+		if err := c.agentInit(listenAddr, bindAddr, advAddr); err != nil {
 			logrus.Errorf("Error in agentInit : %v", err)
 		} else {
 			c.drvRegistry.WalkDrivers(func(name string, driver driverapi.Driver, capability driverapi.Capability) bool {
@@ -235,7 +238,7 @@ func (c *controller) getPrimaryKeyTag(subsys string) ([]byte, uint64, error) {
 	return keys[1].Key, keys[1].LamportTime, nil
 }
 
-func (c *controller) agentInit(bindAddrOrInterface, advertiseAddr string) error {
+func (c *controller) agentInit(listenAddr, bindAddrOrInterface, advertiseAddr string) error {
 	if !c.isAgent() {
 		return nil
 	}
@@ -247,9 +250,13 @@ func (c *controller) agentInit(bindAddrOrInterface, advertiseAddr string) error 
 
 	keys, tags := c.getKeys(subsysGossip)
 	hostname, _ := os.Hostname()
+	nodeName := hostname + "-" + stringid.TruncateID(stringid.GenerateRandomID())
+	logrus.Info("Gossip cluster hostname ", nodeName)
+
 	nDB, err := networkdb.New(&networkdb.Config{
+		BindAddr:      listenAddr,
 		AdvertiseAddr: advertiseAddr,
-		NodeName:      hostname,
+		NodeName:      nodeName,
 		Keys:          keys,
 	})
 
@@ -464,8 +471,12 @@ func (n *network) addDriverWatches() {
 
 	c := n.getController()
 	for _, tableName := range n.driverTables {
-		ch, cancel := c.agent.networkDB.Watch(tableName, n.ID(), "")
 		c.Lock()
+		if c.agent == nil {
+			c.Unlock()
+			return
+		}
+		ch, cancel := c.agent.networkDB.Watch(tableName, n.ID(), "")
 		c.agent.driverCancelFuncs[n.ID()] = append(c.agent.driverCancelFuncs[n.ID()], cancel)
 		c.Unlock()
 

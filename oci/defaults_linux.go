@@ -59,7 +59,6 @@ func DefaultSpec() specs.Spec {
 			Options:     []string{"nosuid", "noexec", "nodev"},
 		},
 	}
-
 	s.Process.Capabilities = []string{
 		"CAP_CHOWN",
 		"CAP_DAC_OVERRIDE",

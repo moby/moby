@@ -53,7 +53,7 @@ ENV LVM2_VERSION 2.02.103
 RUN mkdir -p /usr/local/lvm2 \
 	&& curl -fsSL "https://mirrors.kernel.org/sourceware/lvm2/LVM2.${LVM2_VERSION}.tgz" \
 		| tar -xzC /usr/local/lvm2 --strip-components=1
-# see https://git.fedorahosted.org/cgit/lvm2.git/refs/tags for release tags
+# See https://git.fedorahosted.org/cgit/lvm2.git/refs/tags for release tags
 
 # Compile and install lvm2
 RUN cd /usr/local/lvm2 \
@@ -62,7 +62,7 @@ RUN cd /usr/local/lvm2 \
 		--enable-static_link \
 	&& make device-mapper \
 	&& make install_device-mapper
-# see https://git.fedorahosted.org/cgit/lvm2.git/tree/INSTALL
+# See https://git.fedorahosted.org/cgit/lvm2.git/tree/INSTALL
 
 # Install Go
 ENV GO_VERSION 1.7.1
@@ -71,7 +71,7 @@ RUN curl -fsSL "https://storage.googleapis.com/golang/go${GO_VERSION}.linux-armv
 ENV PATH /go/bin:/usr/local/go/bin:$PATH
 ENV GOPATH /go:/go/src/github.com/docker/docker/vendor
 
-# we're building for armhf, which is ARMv7, so let's be explicit about that
+# We're building for armhf, which is ARMv7, so let's be explicit about that
 ENV GOARCH arm
 ENV GOARM 7
 
@@ -86,7 +86,7 @@ RUN git clone https://github.com/golang/lint.git /go/src/github.com/golang/lint 
 	&& (cd /go/src/github.com/golang/lint && git checkout -q $GO_LINT_COMMIT) \
 	&& go install -v github.com/golang/lint/golint
 
-# install seccomp: the version shipped in trusty is too old
+# Install seccomp: the version shipped in trusty is too old
 ENV SECCOMP_VERSION 2.3.1
 RUN set -x \
 	&& export SECCOMP_PATH="$(mktemp -d)" \
@@ -161,7 +161,7 @@ RUN ./contrib/download-frozen-image-v2.sh /docker-frozen-images \
 	armhf/busybox:latest@sha256:d98a7343ac750ffe387e3d514f8521ba69846c216778919b01414b8617cfb3d4 \
 	armhf/debian:jessie@sha256:4a2187483f04a84f9830910fe3581d69b3c985cc045d9f01d8e2f3795b28107b \
 	armhf/hello-world:latest@sha256:161dcecea0225975b2ad5f768058212c1e0d39e8211098666ffa1ac74cfb7791
-# see also "hack/make/.ensure-frozen-images" (which needs to be updated any time this list is)
+# See also "hack/make/.ensure-frozen-images" (which needs to be updated any time this list is)
 
 # Download toml validator
 ENV TOMLV_COMMIT 9baf8a8a9f2ed20a8e54160840c492f937eeaf9a
@@ -184,7 +184,7 @@ RUN set -x \
 	&& rm -rf "$GOPATH"
 
 # Install containerd
-ENV CONTAINERD_COMMIT 4c21ad662f71af56c0e6b29c0afef72df441d1ff
+ENV CONTAINERD_COMMIT 2545227b0357eb55e369fa0072baef9ad91cdb69
 RUN set -x \
 	&& export GOPATH="$(mktemp -d)" \
 	&& git clone https://github.com/docker/containerd.git "$GOPATH/src/github.com/docker/containerd" \
@@ -194,6 +194,16 @@ RUN set -x \
 	&& cp bin/containerd /usr/local/bin/docker-containerd \
 	&& cp bin/containerd-shim /usr/local/bin/docker-containerd-shim \
 	&& cp bin/ctr /usr/local/bin/docker-containerd-ctr \
+	&& rm -rf "$GOPATH"
+
+ENV GRIMES_COMMIT f207601a8d19a534cc90d9e26e037e9931ccb9db
+RUN set -x \
+    && export GOPATH="$(mktemp -d)" \
+	&& git clone https://github.com/crosbymichael/grimes.git "$GOPATH/grimes" \
+	&& cd "$GOPATH/grimes" \
+	&& git checkout -q "$GRIMES_COMMIT" \
+	&& make \
+	&& cp init /usr/local/bin/docker-init \
 	&& rm -rf "$GOPATH"
 
 ENTRYPOINT ["hack/dind"]

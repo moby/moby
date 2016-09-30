@@ -1,39 +1,18 @@
-// +build experimental
+// +build !experimental
 
 package stack
 
 import (
-	"fmt"
-
-	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cli/command"
 	"github.com/spf13/cobra"
 )
 
-// NewStackCommand returns a cobra command for `stack` subcommands
+// NewStackCommand returns no command
 func NewStackCommand(dockerCli *command.DockerCli) *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "stack",
-		Short: "Manage Docker stacks",
-		Args:  cli.NoArgs,
-		Run: func(cmd *cobra.Command, args []string) {
-			fmt.Fprintf(dockerCli.Err(), "\n"+cmd.UsageString())
-		},
-	}
-	cmd.AddCommand(
-		newConfigCommand(dockerCli),
-		newDeployCommand(dockerCli),
-		newRemoveCommand(dockerCli),
-		newServicesCommand(dockerCli),
-		newPsCommand(dockerCli),
-	)
-	return cmd
+	return &cobra.Command{}
 }
 
-// NewTopLevelDeployCommand returns a command for `docker deploy`
+// NewTopLevelDeployCommand returns no command
 func NewTopLevelDeployCommand(dockerCli *command.DockerCli) *cobra.Command {
-	cmd := newDeployCommand(dockerCli)
-	// Remove the aliases at the top level
-	cmd.Aliases = []string{}
-	return cmd
+	return &cobra.Command{}
 }

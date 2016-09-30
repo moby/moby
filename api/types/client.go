@@ -84,7 +84,7 @@ type CopyToContainerOptions struct {
 	AllowOverwriteDirWithFile bool
 }
 
-// EventsOptions hold parameters to filter events with.
+// EventsOptions holds parameters to filter events with.
 type EventsOptions struct {
 	Since   string
 	Until   string
@@ -151,6 +151,9 @@ type ImageBuildOptions struct {
 	// preserves the original image and creates a new one from the parent with all
 	// the changes applied to a single layer
 	Squash bool
+	// CacheFrom specifies images that are used for matching cache. Images
+	// specified here do not need to have a valid parent chain to match cache.
+	CacheFrom []string
 }
 
 // ImageBuildResponse holds information
@@ -229,8 +232,8 @@ type ImageSearchOptions struct {
 // It can be used to resize container ttys and
 // exec process ttys too.
 type ResizeOptions struct {
-	Height int
-	Width  int
+	Height uint
+	Width  uint
 }
 
 // VersionResponse holds version information for the client and the server

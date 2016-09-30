@@ -16,7 +16,7 @@ import (
 )
 
 // resizeTtyTo resizes tty to specific height and width
-func resizeTtyTo(ctx context.Context, client client.ContainerAPIClient, id string, height, width int, isExec bool) {
+func resizeTtyTo(ctx context.Context, client client.ContainerAPIClient, id string, height, width uint, isExec bool) {
 	if height == 0 && width == 0 {
 		return
 	}

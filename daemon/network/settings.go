@@ -21,6 +21,7 @@ type Settings struct {
 	SecondaryIPAddresses   []networktypes.Address
 	SecondaryIPv6Addresses []networktypes.Address
 	IsAnonymousEndpoint    bool
+	HasSwarmEndpoint       bool
 }
 
 // EndpointSettings is a package local wrapper for

@@ -185,7 +185,11 @@ func ServiceSpecToGRPC(s types.ServiceSpec) (swarmapi.ServiceSpec, error) {
 		}
 	}
 
-	//Mode
+	// Mode
+	if s.Mode.Global != nil && s.Mode.Replicated != nil {
+		return swarmapi.ServiceSpec{}, fmt.Errorf("cannot specify both replicated mode and global mode")
+	}
+
 	if s.Mode.Global != nil {
 		spec.Mode = &swarmapi.ServiceSpec_Global{
 			Global: &swarmapi.GlobalService{},

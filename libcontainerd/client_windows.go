@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"path/filepath"
 	"strings"
 	"syscall"
@@ -36,23 +37,73 @@ const (
 const defaultOwner = "docker"
 
 // Create is the entrypoint to create a container from a spec, and if successfully
-// created, start it too.
+// created, start it too. Table below shows the fields required for HCS JSON calling parameters,
+// where if not populated, is omitted.
+// +-----------------+--------------------------------------------+--------------------------------------------+
+// |                 | Isolation=Process                          | Isolation=Hyper-V                          |
+// +-----------------+--------------------------------------------+--------------------------------------------+
+// | VolumePath      | \\?\\Volume{GUIDa}                         |                                            |
+// | LayerFolderPath | %root%\windowsfilter\containerID           |                                            |
+// | Layers[]        | ID=GUIDb;Path=%root%\windowsfilter\layerID | ID=GUIDb;Path=%root%\windowsfilter\layerID |
+// | SandboxPath     |                                            | %root%\windowsfilter                       |
+// | HvRuntime       |                                            | ImagePath=%root%\BaseLayerID\UtilityVM     |
+// +-----------------+--------------------------------------------+--------------------------------------------+
+//
+// Isolation=Process example:
+//
+// {
+//	"SystemType": "Container",
+//	"Name": "5e0055c814a6005b8e57ac59f9a522066e0af12b48b3c26a9416e23907698776",
+//	"Owner": "docker",
+//	"IsDummy": false,
+//	"VolumePath": "\\\\\\\\?\\\\Volume{66d1ef4c-7a00-11e6-8948-00155ddbef9d}",
+//	"IgnoreFlushesDuringBoot": true,
+//	"LayerFolderPath": "C:\\\\control\\\\windowsfilter\\\\5e0055c814a6005b8e57ac59f9a522066e0af12b48b3c26a9416e23907698776",
+//	"Layers": [{
+//		"ID": "18955d65-d45a-557b-bf1c-49d6dfefc526",
+//		"Path": "C:\\\\control\\\\windowsfilter\\\\65bf96e5760a09edf1790cb229e2dfb2dbd0fcdc0bf7451bae099106bfbfea0c"
+//	}],
+//	"HostName": "5e0055c814a6",
+//	"MappedDirectories": [],
+//	"HvPartition": false,
+//	"EndpointList": ["eef2649d-bb17-4d53-9937-295a8efe6f2c"],
+//	"Servicing": false
+//}
+//
+// Isolation=Hyper-V example:
+//
+//{
+//	"SystemType": "Container",
+//	"Name": "475c2c58933b72687a88a441e7e0ca4bd72d76413c5f9d5031fee83b98f6045d",
+//	"Owner": "docker",
+//	"IsDummy": false,
+//	"IgnoreFlushesDuringBoot": true,
+//	"Layers": [{
+//		"ID": "18955d65-d45a-557b-bf1c-49d6dfefc526",
+//		"Path": "C:\\\\control\\\\windowsfilter\\\\65bf96e5760a09edf1790cb229e2dfb2dbd0fcdc0bf7451bae099106bfbfea0c"
+//	}],
+//	"HostName": "475c2c58933b",
+//	"MappedDirectories": [],
+//	"SandboxPath": "C:\\\\control\\\\windowsfilter",
+//	"HvPartition": true,
+//	"EndpointList": ["e1bb1e61-d56f-405e-b75d-fd520cefa0cb"],
+//	"HvRuntime": {
+//		"ImagePath": "C:\\\\control\\\\windowsfilter\\\\65bf96e5760a09edf1790cb229e2dfb2dbd0fcdc0bf7451bae099106bfbfea0c\\\\UtilityVM"
+//	},
+//	"Servicing": false
+//}
 func (clnt *client) Create(containerID string, checkpoint string, checkpointDir string, spec Spec, options ...CreateOption) error {
+	clnt.lock(containerID)
+	defer clnt.unlock(containerID)
 	logrus.Debugln("libcontainerd: client.Create() with spec", spec)
 
 	configuration := &hcsshim.ContainerConfig{
 		SystemType: "Container",
 		Name:       containerID,
 		Owner:      defaultOwner,
-
-		VolumePath:              spec.Root.Path,
-		IgnoreFlushesDuringBoot: spec.Windows.FirstStart,
-		LayerFolderPath:         spec.Windows.LayerFolder,
+		IgnoreFlushesDuringBoot: false,
 		HostName:                spec.Hostname,
-	}
-
-	if spec.Windows.Networking != nil {
-		configuration.EndpointList = spec.Windows.Networking.EndpointList
+		HvPartition:             false,
 	}
 
 	if spec.Windows.Resources != nil {
@@ -79,36 +130,49 @@ func (clnt *client) Create(containerID string, checkpoint string, checkpointDir 
 		}
 	}
 
-	if spec.Windows.HvRuntime != nil {
-		configuration.VolumePath = "" // Always empty for Hyper-V containers
-		configuration.HvPartition = true
-		configuration.HvRuntime = &hcsshim.HvRuntime{
-			ImagePath: spec.Windows.HvRuntime.ImagePath,
-		}
-
-		// Images with build version < 14350 don't support running with clone, but
-		// Windows cannot automatically detect this. Explicitly block cloning in this
-		// case.
-		if build := buildFromVersion(spec.Platform.OSVersion); build > 0 && build < 14350 {
-			configuration.HvRuntime.SkipTemplate = true
-		}
-	}
-
-	if configuration.HvPartition {
-		configuration.SandboxPath = filepath.Dir(spec.Windows.LayerFolder)
-	} else {
-		configuration.VolumePath = spec.Root.Path
-		configuration.LayerFolderPath = spec.Windows.LayerFolder
-	}
-
+	var layerOpt *LayerOption
 	for _, option := range options {
 		if s, ok := option.(*ServicingOption); ok {
 			configuration.Servicing = s.IsServicing
-			break
+			continue
+		}
+		if f, ok := option.(*FlushOption); ok {
+			configuration.IgnoreFlushesDuringBoot = f.IgnoreFlushesDuringBoot
+			continue
+		}
+		if h, ok := option.(*HyperVIsolationOption); ok {
+			configuration.HvPartition = h.IsHyperV
+			configuration.SandboxPath = h.SandboxPath
+			continue
+		}
+		if l, ok := option.(*LayerOption); ok {
+			layerOpt = l
+		}
+		if n, ok := option.(*NetworkEndpointsOption); ok {
+			configuration.EndpointList = n.Endpoints
+			configuration.AllowUnqualifiedDNSQuery = n.AllowUnqualifiedDNSQuery
+			continue
 		}
 	}
 
-	for _, layerPath := range spec.Windows.LayerPaths {
+	// We must have a layer option with at least one path
+	if layerOpt == nil || layerOpt.LayerPaths == nil {
+		return fmt.Errorf("no layer option or paths were supplied to the runtime")
+	}
+
+	if configuration.HvPartition {
+		// Make sure the Utility VM image is present in the base layer directory.
+		// TODO @swernli/jhowardmsft at some point post RS1 this may be re-locatable.
+		configuration.HvRuntime = &hcsshim.HvRuntime{ImagePath: filepath.Join(layerOpt.LayerPaths[len(layerOpt.LayerPaths)-1], "UtilityVM")}
+		if _, err := os.Stat(configuration.HvRuntime.ImagePath); os.IsNotExist(err) {
+			return fmt.Errorf("utility VM image '%s' could not be found", configuration.HvRuntime.ImagePath)
+		}
+	} else {
+		configuration.VolumePath = spec.Root.Path
+		configuration.LayerFolderPath = layerOpt.LayerFolderPath
+	}
+
+	for _, layerPath := range layerOpt.LayerPaths {
 		_, filename := filepath.Split(layerPath)
 		g, err := hcsshim.NameToGuid(filename)
 		if err != nil {
@@ -126,7 +190,13 @@ func (clnt *client) Create(containerID string, checkpoint string, checkpointDir 
 		mds[i] = hcsshim.MappedDir{
 			HostPath:      mount.Source,
 			ContainerPath: mount.Destination,
-			ReadOnly:      mount.Readonly}
+			ReadOnly:      false,
+		}
+		for _, o := range mount.Options {
+			if strings.ToLower(o) == "ro" {
+				mds[i].ReadOnly = true
+			}
+		}
 	}
 	configuration.MappedDirectories = mds
 
@@ -189,11 +259,12 @@ func (clnt *client) AddProcess(ctx context.Context, containerID, processFriendly
 	// is only created if it we're not -t.
 	createProcessParms := hcsshim.ProcessConfig{
 		EmulateConsole:   procToAdd.Terminal,
-		ConsoleSize:      procToAdd.InitialConsoleSize,
 		CreateStdInPipe:  true,
 		CreateStdOutPipe: true,
 		CreateStdErrPipe: !procToAdd.Terminal,
 	}
+	createProcessParms.ConsoleSize[0] = int(procToAdd.ConsoleSize.Height)
+	createProcessParms.ConsoleSize[1] = int(procToAdd.ConsoleSize.Width)
 
 	// Take working directory from the process to add if it is defined,
 	// otherwise take from the first process.
@@ -218,6 +289,8 @@ func (clnt *client) AddProcess(ctx context.Context, containerID, processFriendly
 		return err
 	}
 
+	pid := newProcess.Pid()
+
 	stdin, stdout, stderr, err = newProcess.Stdio()
 	if err != nil {
 		logrus.Errorf("libcontainerd: %s getting std pipes failed %s", containerID, err)
@@ -227,9 +300,6 @@ func (clnt *client) AddProcess(ctx context.Context, containerID, processFriendly
 	iopipe := &IOPipe{Terminal: procToAdd.Terminal}
 	iopipe.Stdin = createStdInCloser(stdin, newProcess)
 
-	// TEMP: Work around Windows BS/DEL behavior.
-	iopipe.Stdin = fixStdinBackspaceBehavior(iopipe.Stdin, container.ociSpec.Platform.OSVersion, procToAdd.Terminal)
-
 	// Convert io.ReadClosers to io.Readers
 	if stdout != nil {
 		iopipe.Stdout = openReaderFromPipe(stdout)
@@ -237,8 +307,6 @@ func (clnt *client) AddProcess(ctx context.Context, containerID, processFriendly
 	if stderr != nil {
 		iopipe.Stderr = openReaderFromPipe(stderr)
 	}
-
-	pid := newProcess.Pid()
 
 	proc := &process{
 		processCommon: processCommon{
@@ -280,7 +348,7 @@ func (clnt *client) Signal(containerID string, sig int) error {
 		err  error
 	)
 
-	// Get the container as we need it to find the pid of the process.
+	// Get the container as we need it to get the container handle.
 	clnt.lock(containerID)
 	defer clnt.unlock(containerID)
 	if cont, err = clnt.getContainer(containerID); err != nil {
@@ -369,7 +437,19 @@ func (clnt *client) Resume(containerID string) error {
 
 // Stats handles stats requests for containers
 func (clnt *client) Stats(containerID string) (*Stats, error) {
-	return nil, errors.New("Windows: Stats not implemented")
+	// Get the libcontainerd container object
+	clnt.lock(containerID)
+	defer clnt.unlock(containerID)
+	container, err := clnt.getContainer(containerID)
+	if err != nil {
+		return nil, err
+	}
+	s, err := container.hcsContainer.Statistics()
+	if err != nil {
+		return nil, err
+	}
+	st := Stats(s)
+	return &st, nil
 }
 
 // Restore is the handler for restoring a container

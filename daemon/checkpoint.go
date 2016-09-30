@@ -42,13 +42,13 @@ func (daemon *Daemon) CheckpointDelete(name string, checkpoint string) error {
 	return os.RemoveAll(filepath.Join(checkpointDir, checkpoint))
 }
 
-// CheckpointList deletes the specified checkpoint
+// CheckpointList lists all checkpoints of the specified container
 func (daemon *Daemon) CheckpointList(name string) ([]types.Checkpoint, error) {
-	response := []types.Checkpoint{}
+	var out []types.Checkpoint
 
 	container, err := daemon.GetContainer(name)
 	if err != nil {
-		return response, err
+		return nil, err
 	}
 
 	checkpointDir := container.CheckpointDir()
@@ -61,7 +61,6 @@ func (daemon *Daemon) CheckpointList(name string) ([]types.Checkpoint, error) {
 		return nil, err
 	}
 
-	var out []types.Checkpoint
 	for _, d := range dirs {
 		if !d.IsDir() {
 			continue

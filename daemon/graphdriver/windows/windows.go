@@ -30,9 +30,7 @@ import (
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/longpath"
 	"github.com/docker/docker/pkg/reexec"
-	"github.com/docker/docker/pkg/system"
 	"github.com/docker/go-units"
-	"github.com/vbatts/tar-split/tar/storage"
 )
 
 // filterDriver is an HCSShim driver type for the Windows Filter driver.
@@ -42,6 +40,15 @@ var (
 	vmcomputedll            = syscall.NewLazyDLL("vmcompute.dll")
 	hcsExpandSandboxSize    = vmcomputedll.NewProc("ExpandSandboxSize")
 	hcsSandboxSizeSupported = hcsExpandSandboxSize.Find() == nil
+
+	// mutatedFiles is a list of files that are mutated by the import process
+	// and must be backed up and restored.
+	mutatedFiles = map[string]string{
+		"UtilityVM/Files/EFI/Microsoft/Boot/BCD":      "bcd.bak",
+		"UtilityVM/Files/EFI/Microsoft/Boot/BCD.LOG":  "bcd.log.bak",
+		"UtilityVM/Files/EFI/Microsoft/Boot/BCD.LOG1": "bcd.log1.bak",
+		"UtilityVM/Files/EFI/Microsoft/Boot/BCD.LOG2": "bcd.log2.bak",
+	}
 )
 
 // init registers the windows graph drivers to the register.
@@ -66,10 +73,6 @@ type Driver struct {
 	// restoring containers when the daemon dies.
 	cacheMu sync.Mutex
 	cache   map[string]string
-}
-
-func isTP5OrOlder() bool {
-	return system.GetOSVersion().Build <= 14300
 }
 
 // InitFilter returns a new Windows storage filter driver.
@@ -198,29 +201,6 @@ func (d *Driver) create(id, parent, mountLabel string, readOnly bool, storageOpt
 		var parentPath string
 		if len(layerChain) != 0 {
 			parentPath = layerChain[0]
-		}
-
-		if isTP5OrOlder() {
-			// Pre-create the layer directory, providing an ACL to give the Hyper-V Virtual Machines
-			// group access. This is necessary to ensure that Hyper-V containers can access the
-			// virtual machine data. This is not necessary post-TP5.
-			path, err := syscall.UTF16FromString(filepath.Join(d.info.HomeDir, id))
-			if err != nil {
-				return err
-			}
-			// Give system and administrators full control, and VMs read, write, and execute.
-			// Mark these ACEs as inherited.
-			sd, err := winio.SddlToSecurityDescriptor("D:(A;OICI;FA;;;SY)(A;OICI;FA;;;BA)(A;OICI;FRFWFX;;;S-1-5-83-0)")
-			if err != nil {
-				return err
-			}
-			err = syscall.CreateDirectory(&path[0], &syscall.SecurityAttributes{
-				Length:             uint32(unsafe.Sizeof(syscall.SecurityAttributes{})),
-				SecurityDescriptor: uintptr(unsafe.Pointer(&sd[0])),
-			})
-			if err != nil {
-				return err
-			}
 		}
 
 		if err := hcsshim.CreateSandboxLayer(d.info, id, parentPath, layerChain); err != nil {
@@ -560,7 +540,48 @@ func (d *Driver) exportLayer(id string, parentLayerPaths []string) (archive.Arch
 	return archive, nil
 }
 
-func writeLayerFromTar(r archive.Reader, w hcsshim.LayerWriter) (int64, error) {
+// writeBackupStreamFromTarAndSaveMutatedFiles reads data from a tar stream and
+// writes it to a backup stream, and also saves any files that will be mutated
+// by the import layer process to a backup location.
+func writeBackupStreamFromTarAndSaveMutatedFiles(buf *bufio.Writer, w io.Writer, t *tar.Reader, hdr *tar.Header, root string) (nextHdr *tar.Header, err error) {
+	var bcdBackup *os.File
+	var bcdBackupWriter *winio.BackupFileWriter
+	if backupPath, ok := mutatedFiles[hdr.Name]; ok {
+		bcdBackup, err = os.Create(filepath.Join(root, backupPath))
+		if err != nil {
+			return nil, err
+		}
+		defer func() {
+			cerr := bcdBackup.Close()
+			if err == nil {
+				err = cerr
+			}
+		}()
+
+		bcdBackupWriter = winio.NewBackupFileWriter(bcdBackup, false)
+		defer func() {
+			cerr := bcdBackupWriter.Close()
+			if err == nil {
+				err = cerr
+			}
+		}()
+
+		buf.Reset(io.MultiWriter(w, bcdBackupWriter))
+	} else {
+		buf.Reset(w)
+	}
+
+	defer func() {
+		ferr := buf.Flush()
+		if err == nil {
+			err = ferr
+		}
+	}()
+
+	return backuptar.WriteBackupStreamFromTarFile(buf, t, hdr)
+}
+
+func writeLayerFromTar(r archive.Reader, w hcsshim.LayerWriter, root string) (int64, error) {
 	t := tar.NewReader(r)
 	hdr, err := t.Next()
 	totalSize := int64(0)
@@ -594,30 +615,7 @@ func writeLayerFromTar(r archive.Reader, w hcsshim.LayerWriter) (int64, error) {
 			if err != nil {
 				return 0, err
 			}
-			buf.Reset(w)
-
-			// Add the Hyper-V Virtual Machine group ACE to the security descriptor
-			// for TP5 so that Xenons can access all files. This is not necessary
-			// for post-TP5 builds.
-			if isTP5OrOlder() {
-				if sddl, ok := hdr.Winheaders["sd"]; ok {
-					var ace string
-					if hdr.Typeflag == tar.TypeDir {
-						ace = "(A;OICI;0x1200a9;;;S-1-5-83-0)"
-					} else {
-						ace = "(A;;0x1200a9;;;S-1-5-83-0)"
-					}
-					if hdr.Winheaders["sd"], ok = addAceToSddlDacl(sddl, ace); !ok {
-						logrus.Debugf("failed to add VM ACE to %s", sddl)
-					}
-				}
-			}
-
-			hdr, err = backuptar.WriteBackupStreamFromTarFile(buf, t, hdr)
-			ferr := buf.Flush()
-			if ferr != nil {
-				err = ferr
-			}
+			hdr, err = writeBackupStreamFromTarAndSaveMutatedFiles(buf, w, t, hdr, root)
 			totalSize += size
 		}
 	}
@@ -625,46 +623,6 @@ func writeLayerFromTar(r archive.Reader, w hcsshim.LayerWriter) (int64, error) {
 		return 0, err
 	}
 	return totalSize, nil
-}
-
-func addAceToSddlDacl(sddl, ace string) (string, bool) {
-	daclStart := strings.Index(sddl, "D:")
-	if daclStart < 0 {
-		return sddl, false
-	}
-
-	dacl := sddl[daclStart:]
-	daclEnd := strings.Index(dacl, "S:")
-	if daclEnd < 0 {
-		daclEnd = len(dacl)
-	}
-	dacl = dacl[:daclEnd]
-
-	if strings.Contains(dacl, ace) {
-		return sddl, true
-	}
-
-	i := 2
-	for i+1 < len(dacl) {
-		if dacl[i] != '(' {
-			return sddl, false
-		}
-
-		if dacl[i+1] == 'A' {
-			break
-		}
-
-		i += 2
-		for p := 1; i < len(dacl) && p > 0; i++ {
-			if dacl[i] == '(' {
-				p++
-			} else if dacl[i] == ')' {
-				p--
-			}
-		}
-	}
-
-	return sddl[:daclStart+i] + ace + sddl[daclStart+i:], true
 }
 
 // importLayer adds a new layer to the tag and graph store based on the given data.
@@ -708,7 +666,7 @@ func writeLayer() {
 			return err
 		}
 
-		size, err := writeLayerFromTar(os.Stdin, w)
+		size, err := writeLayerFromTar(os.Stdin, w, filepath.Join(home, id))
 		if err != nil {
 			return err
 		}
@@ -788,6 +746,10 @@ type fileGetCloserWithBackupPrivileges struct {
 }
 
 func (fg *fileGetCloserWithBackupPrivileges) Get(filename string) (io.ReadCloser, error) {
+	if backupPath, ok := mutatedFiles[filename]; ok {
+		return os.Open(filepath.Join(fg.path, backupPath))
+	}
+
 	var f *os.File
 	// Open the file while holding the Windows backup privilege. This ensures that the
 	// file can be opened even if the caller does not actually have access to it according
@@ -810,16 +772,6 @@ func (fg *fileGetCloserWithBackupPrivileges) Get(filename string) (io.ReadCloser
 
 func (fg *fileGetCloserWithBackupPrivileges) Close() error {
 	return nil
-}
-
-type fileGetDestroyCloser struct {
-	storage.FileGetter
-	path string
-}
-
-func (f *fileGetDestroyCloser) Close() error {
-	// TODO: activate layers and release here?
-	return os.RemoveAll(f.path)
 }
 
 // DiffGetter returns a FileGetCloser that can read files from the directory that

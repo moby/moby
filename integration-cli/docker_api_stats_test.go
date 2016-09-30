@@ -20,7 +20,6 @@ import (
 var expectedNetworkInterfaceStats = strings.Split("rx_bytes rx_dropped rx_errors rx_packets tx_bytes tx_dropped tx_errors tx_packets", " ")
 
 func (s *DockerSuite) TestApiStatsNoStreamGetCpu(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "while true;do echo 'Hello'; usleep 100000; done")
 
 	id := strings.TrimSpace(out)
@@ -37,15 +36,30 @@ func (s *DockerSuite) TestApiStatsNoStreamGetCpu(c *check.C) {
 	body.Close()
 
 	var cpuPercent = 0.0
-	cpuDelta := float64(v.CPUStats.CPUUsage.TotalUsage - v.PreCPUStats.CPUUsage.TotalUsage)
-	systemDelta := float64(v.CPUStats.SystemUsage - v.PreCPUStats.SystemUsage)
-	cpuPercent = (cpuDelta / systemDelta) * float64(len(v.CPUStats.CPUUsage.PercpuUsage)) * 100.0
+
+	if daemonPlatform != "windows" {
+		cpuDelta := float64(v.CPUStats.CPUUsage.TotalUsage - v.PreCPUStats.CPUUsage.TotalUsage)
+		systemDelta := float64(v.CPUStats.SystemUsage - v.PreCPUStats.SystemUsage)
+		cpuPercent = (cpuDelta / systemDelta) * float64(len(v.CPUStats.CPUUsage.PercpuUsage)) * 100.0
+	} else {
+		// Max number of 100ns intervals between the previous time read and now
+		possIntervals := uint64(v.Read.Sub(v.PreRead).Nanoseconds()) // Start with number of ns intervals
+		possIntervals /= 100                                         // Convert to number of 100ns intervals
+		possIntervals *= uint64(v.NumProcs)                          // Multiple by the number of processors
+
+		// Intervals used
+		intervalsUsed := v.CPUStats.CPUUsage.TotalUsage - v.PreCPUStats.CPUUsage.TotalUsage
+
+		// Percentage avoiding divide-by-zero
+		if possIntervals > 0 {
+			cpuPercent = float64(intervalsUsed) / float64(possIntervals) * 100.0
+		}
+	}
 
 	c.Assert(cpuPercent, check.Not(checker.Equals), 0.0, check.Commentf("docker stats with no-stream get cpu usage failed: was %v", cpuPercent))
 }
 
 func (s *DockerSuite) TestApiStatsStoppedContainerInGoroutines(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "echo 1")
 	id := strings.TrimSpace(out)
 
@@ -82,14 +96,17 @@ func (s *DockerSuite) TestApiStatsStoppedContainerInGoroutines(c *check.C) {
 
 func (s *DockerSuite) TestApiStatsNetworkStats(c *check.C) {
 	testRequires(c, SameHostDaemon)
-	testRequires(c, DaemonIsLinux)
 
 	out, _ := runSleepingContainer(c)
 	id := strings.TrimSpace(out)
 	c.Assert(waitRun(id), checker.IsNil)
 
 	// Retrieve the container address
-	contIP := findContainerIP(c, id, "bridge")
+	net := "bridge"
+	if daemonPlatform == "windows" {
+		net = "nat"
+	}
+	contIP := findContainerIP(c, id, net)
 	numPings := 1
 
 	var preRxPackets uint64
@@ -130,9 +147,14 @@ func (s *DockerSuite) TestApiStatsNetworkStats(c *check.C) {
 		postTxPackets += v.TxPackets
 	}
 
-	// Verify the stats contain at least the expected number of packets (account for ARP)
-	expRxPkts := 1 + preRxPackets + uint64(numPings)
-	expTxPkts := 1 + preTxPackets + uint64(numPings)
+	// Verify the stats contain at least the expected number of packets
+	// On Linux, account for ARP.
+	expRxPkts := preRxPackets + uint64(numPings)
+	expTxPkts := preTxPackets + uint64(numPings)
+	if daemonPlatform != "windows" {
+		expRxPkts++
+		expTxPkts++
+	}
 	c.Assert(postTxPackets, checker.GreaterOrEqualThan, expTxPkts,
 		check.Commentf("Reported less TxPackets than expected. Expected >= %d. Found %d. %s", expTxPkts, postTxPackets, pingouts))
 	c.Assert(postRxPackets, checker.GreaterOrEqualThan, expRxPkts,
@@ -141,7 +163,6 @@ func (s *DockerSuite) TestApiStatsNetworkStats(c *check.C) {
 
 func (s *DockerSuite) TestApiStatsNetworkStatsVersioning(c *check.C) {
 	testRequires(c, SameHostDaemon)
-	testRequires(c, DaemonIsLinux)
 
 	out, _ := runSleepingContainer(c)
 	id := strings.TrimSpace(out)

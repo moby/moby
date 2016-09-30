@@ -1,35 +1,10 @@
 package container
 
 import (
-	"bytes"
 	"testing"
 
 	"github.com/docker/docker/api/types"
 )
-
-func TestDisplay(t *testing.T) {
-	c := &containerStats{
-		Name:             "app",
-		CPUPercentage:    30.0,
-		Memory:           100 * 1024 * 1024.0,
-		MemoryLimit:      2048 * 1024 * 1024.0,
-		MemoryPercentage: 100.0 / 2048.0 * 100.0,
-		NetworkRx:        100 * 1024 * 1024,
-		NetworkTx:        800 * 1024 * 1024,
-		BlockRead:        100 * 1024 * 1024,
-		BlockWrite:       800 * 1024 * 1024,
-		PidsCurrent:      1,
-	}
-	var b bytes.Buffer
-	if err := c.Display(&b); err != nil {
-		t.Fatalf("c.Display() gave error: %s", err)
-	}
-	got := b.String()
-	want := "app\t30.00%\t100 MiB / 2 GiB\t4.88%\t105 MB / 839 MB\t105 MB / 839 MB\t1\n"
-	if got != want {
-		t.Fatalf("c.Display() = %q, want %q", got, want)
-	}
-}
 
 func TestCalculBlockIO(t *testing.T) {
 	blkio := types.BlkioStats{

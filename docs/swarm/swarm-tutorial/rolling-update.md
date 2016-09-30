@@ -59,7 +59,7 @@ update delay:
 
     ID:             0u6a4s31ybk7yw2wyvtikmu50
     Name:           redis
-    Mode:           Replicated
+    Service Mode:   Replicated
      Replicas:      3
     Placement:
      Strategy:	    Spread
@@ -69,6 +69,7 @@ update delay:
     ContainerSpec:
      Image:         redis:3.0.6
     Resources:
+    Endpoint Mode:  vip
     ```
 
 4. Now you can update the container image for `redis`. The swarm  manager
@@ -97,7 +98,7 @@ desired state:
 
     ID:             0u6a4s31ybk7yw2wyvtikmu50
     Name:           redis
-    Mode:           Replicated
+    Service Mode:   Replicated
      Replicas:      3
     Placement:
      Strategy:	    Spread
@@ -107,6 +108,7 @@ desired state:
     ContainerSpec:
      Image:         redis:3.0.7
     Resources:
+    Endpoint Mode:  vip
     ```
 
     The output of `service inspect` shows if your update paused due to failure:
@@ -138,13 +140,13 @@ desired state:
     ```bash
     $ docker service ps redis
 
-    ID                         NAME         IMAGE        NODE       DESIRED STATE  CURRENT STATE            ERROR
-    dos1zffgeofhagnve8w864fco  redis.1      redis:3.0.7  worker1    Running        Running 37 seconds
-    88rdo6pa52ki8oqx6dogf04fh   \_ redis.1  redis:3.0.6  worker2    Shutdown       Shutdown 56 seconds ago
-    9l3i4j85517skba5o7tn5m8g0  redis.2      redis:3.0.7  worker2    Running        Running About a minute
-    66k185wilg8ele7ntu8f6nj6i   \_ redis.2  redis:3.0.6  worker1    Shutdown       Shutdown 2 minutes ago
-    egiuiqpzrdbxks3wxgn8qib1g  redis.3      redis:3.0.7  worker1    Running        Running 48 seconds
-    ctzktfddb2tepkr45qcmqln04   \_ redis.3  redis:3.0.6  mmanager1  Shutdown       Shutdown 2 minutes ago
+    NAME                                   IMAGE        NODE       DESIRED STATE  CURRENT STATE            ERROR
+    redis.1.dos1zffgeofhagnve8w864fco      redis:3.0.7  worker1    Running        Running 37 seconds
+     \_ redis.1.88rdo6pa52ki8oqx6dogf04fh  redis:3.0.6  worker2    Shutdown       Shutdown 56 seconds ago
+    redis.2.9l3i4j85517skba5o7tn5m8g0      redis:3.0.7  worker2    Running        Running About a minute
+     \_ redis.2.66k185wilg8ele7ntu8f6nj6i  redis:3.0.6  worker1    Shutdown       Shutdown 2 minutes ago
+    redis.3.egiuiqpzrdbxks3wxgn8qib1g      redis:3.0.7  worker1    Running        Running 48 seconds
+     \_ redis.3.ctzktfddb2tepkr45qcmqln04  redis:3.0.6  mmanager1  Shutdown       Shutdown 2 minutes ago
     ```
 
     Before Swarm updates all of the tasks, you can see that some are running

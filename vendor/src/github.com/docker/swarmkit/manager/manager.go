@@ -9,7 +9,6 @@ import (
 	"path/filepath"
 	"sync"
 	"syscall"
-	"time"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/go-events"
@@ -18,17 +17,16 @@ import (
 	"github.com/docker/swarmkit/log"
 	"github.com/docker/swarmkit/manager/allocator"
 	"github.com/docker/swarmkit/manager/controlapi"
-	"github.com/docker/swarmkit/manager/controlapi/hackpicker"
 	"github.com/docker/swarmkit/manager/dispatcher"
 	"github.com/docker/swarmkit/manager/health"
 	"github.com/docker/swarmkit/manager/keymanager"
 	"github.com/docker/swarmkit/manager/orchestrator"
-	"github.com/docker/swarmkit/manager/raftpicker"
 	"github.com/docker/swarmkit/manager/resourceapi"
 	"github.com/docker/swarmkit/manager/scheduler"
 	"github.com/docker/swarmkit/manager/state/raft"
 	"github.com/docker/swarmkit/manager/state/store"
 	"github.com/docker/swarmkit/protobuf/ptypes"
+	"github.com/pkg/errors"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 )
@@ -92,7 +90,6 @@ type Manager struct {
 	server                 *grpc.Server
 	localserver            *grpc.Server
 	RaftNode               *raft.Node
-	connSelector           *raftpicker.ConnSelector
 
 	mu sync.Mutex
 
@@ -146,18 +143,18 @@ func New(config *Config) (*Manager, error) {
 
 	err := os.MkdirAll(filepath.Dir(config.ProtoAddr["unix"]), 0700)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create socket directory: %v", err)
+		return nil, errors.Wrap(err, "failed to create socket directory")
 	}
 
 	err = os.MkdirAll(config.StateDir, 0700)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create state directory: %v", err)
+		return nil, errors.Wrap(err, "failed to create state directory")
 	}
 
 	raftStateDir := filepath.Join(config.StateDir, "raft")
 	err = os.MkdirAll(raftStateDir, 0700)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create raft state directory: %v", err)
+		return nil, errors.Wrap(err, "failed to create raft state directory")
 	}
 
 	var listeners map[string]net.Listener
@@ -250,25 +247,6 @@ func (m *Manager) Run(parent context.Context) error {
 
 	go m.handleLeadershipEvents(ctx, leadershipCh)
 
-	proxyOpts := []grpc.DialOption{
-		grpc.WithTimeout(5 * time.Second),
-		grpc.WithTransportCredentials(m.config.SecurityConfig.ClientTLSCreds),
-	}
-
-	cs := raftpicker.NewConnSelector(m.RaftNode, proxyOpts...)
-	m.connSelector = cs
-
-	// We need special connSelector for controlapi because it provides automatic
-	// leader tracking.
-	// Other APIs are using connSelector which errors out on leader change, but
-	// allows to react quickly to reelections.
-	controlAPIProxyOpts := []grpc.DialOption{
-		grpc.WithBackoffMaxDelay(time.Second),
-		grpc.WithTransportCredentials(m.config.SecurityConfig.ClientTLSCreds),
-	}
-
-	controlAPIConnSelector := hackpicker.NewConnSelector(m.RaftNode, controlAPIProxyOpts...)
-
 	authorize := func(ctx context.Context, roles []string) error {
 		// Authorize the remote roles, ensure they can only be forwarded by managers
 		_, err := ca.AuthorizeForwardedRoleAndOrg(ctx, roles, []string{ca.ManagerRole}, m.config.SecurityConfig.ClientTLSCreds.Organization())
@@ -289,11 +267,11 @@ func (m *Manager) Run(parent context.Context) error {
 	authenticatedHealthAPI := api.NewAuthenticatedWrapperHealthServer(healthServer, authorize)
 	authenticatedRaftMembershipAPI := api.NewAuthenticatedWrapperRaftMembershipServer(m.RaftNode, authorize)
 
-	proxyDispatcherAPI := api.NewRaftProxyDispatcherServer(authenticatedDispatcherAPI, cs, m.RaftNode, ca.WithMetadataForwardTLSInfo)
-	proxyCAAPI := api.NewRaftProxyCAServer(authenticatedCAAPI, cs, m.RaftNode, ca.WithMetadataForwardTLSInfo)
-	proxyNodeCAAPI := api.NewRaftProxyNodeCAServer(authenticatedNodeCAAPI, cs, m.RaftNode, ca.WithMetadataForwardTLSInfo)
-	proxyRaftMembershipAPI := api.NewRaftProxyRaftMembershipServer(authenticatedRaftMembershipAPI, cs, m.RaftNode, ca.WithMetadataForwardTLSInfo)
-	proxyResourceAPI := api.NewRaftProxyResourceAllocatorServer(authenticatedResourceAPI, cs, m.RaftNode, ca.WithMetadataForwardTLSInfo)
+	proxyDispatcherAPI := api.NewRaftProxyDispatcherServer(authenticatedDispatcherAPI, m.RaftNode, ca.WithMetadataForwardTLSInfo)
+	proxyCAAPI := api.NewRaftProxyCAServer(authenticatedCAAPI, m.RaftNode, ca.WithMetadataForwardTLSInfo)
+	proxyNodeCAAPI := api.NewRaftProxyNodeCAServer(authenticatedNodeCAAPI, m.RaftNode, ca.WithMetadataForwardTLSInfo)
+	proxyRaftMembershipAPI := api.NewRaftProxyRaftMembershipServer(authenticatedRaftMembershipAPI, m.RaftNode, ca.WithMetadataForwardTLSInfo)
+	proxyResourceAPI := api.NewRaftProxyResourceAllocatorServer(authenticatedResourceAPI, m.RaftNode, ca.WithMetadataForwardTLSInfo)
 
 	// localProxyControlAPI is a special kind of proxy. It is only wired up
 	// to receive requests from a trusted local socket, and these requests
@@ -302,7 +280,7 @@ func (m *Manager) Run(parent context.Context) error {
 	// this manager rather than forwarded requests (it has no TLS
 	// information to put in the metadata map).
 	forwardAsOwnRequest := func(ctx context.Context) (context.Context, error) { return ctx, nil }
-	localProxyControlAPI := api.NewRaftProxyControlServer(baseControlAPI, controlAPIConnSelector, m.RaftNode, forwardAsOwnRequest)
+	localProxyControlAPI := api.NewRaftProxyControlServer(baseControlAPI, m.RaftNode, forwardAsOwnRequest)
 
 	// Everything registered on m.server should be an authenticated
 	// wrapper, or a proxy wrapping an authenticated wrapper!
@@ -318,23 +296,27 @@ func (m *Manager) Run(parent context.Context) error {
 	api.RegisterControlServer(m.localserver, localProxyControlAPI)
 	api.RegisterHealthServer(m.localserver, localHealthServer)
 
-	errServe := make(chan error, 2)
+	healthServer.SetServingStatus("Raft", api.HealthCheckResponse_NOT_SERVING)
+	localHealthServer.SetServingStatus("ControlAPI", api.HealthCheckResponse_NOT_SERVING)
+
+	errServe := make(chan error, len(m.listeners))
 	for proto, l := range m.listeners {
 		go m.serveListener(ctx, errServe, proto, l)
 	}
-
-	// Set the raft server as serving for the health server
-	healthServer.SetServingStatus("Raft", api.HealthCheckResponse_SERVING)
-	localHealthServer.SetServingStatus("ControlAPI", api.HealthCheckResponse_SERVING)
 
 	defer func() {
 		m.server.Stop()
 		m.localserver.Stop()
 	}()
 
+	// Set the raft server as serving for the health server
+	healthServer.SetServingStatus("Raft", api.HealthCheckResponse_SERVING)
+
 	if err := m.RaftNode.JoinAndStart(); err != nil {
-		return fmt.Errorf("can't initialize raft node: %v", err)
+		return errors.Wrap(err, "can't initialize raft node")
 	}
+
+	localHealthServer.SetServingStatus("ControlAPI", api.HealthCheckResponse_SERVING)
 
 	close(m.started)
 
@@ -433,9 +415,6 @@ func (m *Manager) Stop(ctx context.Context) {
 		m.keyManager.Stop()
 	}
 
-	if m.connSelector != nil {
-		m.connSelector.Stop()
-	}
 	m.RaftNode.Shutdown()
 	// some time after this point, Run will receive an error from one of these
 	m.server.Stop()

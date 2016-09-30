@@ -58,6 +58,33 @@ func (s *DockerSuite) TestPluginForceRemove(c *check.C) {
 	c.Assert(out, checker.Contains, pNameWithTag)
 }
 
+func (s *DockerSuite) TestPluginActive(c *check.C) {
+	testRequires(c, DaemonIsLinux, ExperimentalDaemon)
+	out, _, err := dockerCmdWithError("plugin", "install", "--grant-all-permissions", pNameWithTag)
+	c.Assert(err, checker.IsNil)
+
+	out, _, err = dockerCmdWithError("volume", "create", "-d", pNameWithTag)
+	c.Assert(err, checker.IsNil)
+
+	vID := strings.TrimSpace(out)
+
+	out, _, err = dockerCmdWithError("plugin", "remove", pNameWithTag)
+	c.Assert(out, checker.Contains, "is in use")
+
+	_, _, err = dockerCmdWithError("volume", "rm", vID)
+	c.Assert(err, checker.IsNil)
+
+	out, _, err = dockerCmdWithError("plugin", "remove", pNameWithTag)
+	c.Assert(out, checker.Contains, "is enabled")
+
+	_, _, err = dockerCmdWithError("plugin", "disable", pNameWithTag)
+	c.Assert(err, checker.IsNil)
+
+	out, _, err = dockerCmdWithError("plugin", "remove", pNameWithTag)
+	c.Assert(err, checker.IsNil)
+	c.Assert(out, checker.Contains, pNameWithTag)
+}
+
 func (s *DockerSuite) TestPluginInstallDisable(c *check.C) {
 	testRequires(c, DaemonIsLinux, ExperimentalDaemon)
 	out, _, err := dockerCmdWithError("plugin", "install", "--grant-all-permissions", "--disable", pName)

@@ -3,7 +3,6 @@ package agent
 import (
 	"crypto/tls"
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"net"
 	"os"
@@ -22,6 +21,7 @@ import (
 	"github.com/docker/swarmkit/log"
 	"github.com/docker/swarmkit/manager"
 	"github.com/docker/swarmkit/remotes"
+	"github.com/pkg/errors"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -120,7 +120,7 @@ func NewNode(c *NodeConfig) (*Node, error) {
 
 	n := &Node{
 		remotes:              newPersistentRemotes(stateFile, p...),
-		role:                 ca.AgentRole,
+		role:                 ca.WorkerRole,
 		config:               c,
 		started:              make(chan struct{}),
 		stopped:              make(chan struct{}),
@@ -194,7 +194,9 @@ func (n *Node) run(ctx context.Context) (err error) {
 		select {
 		case <-ctx.Done():
 		case resp := <-issueResponseChan:
-			logrus.Debugf("Requesting certificate for NodeID: %v", resp.NodeID)
+			log.G(log.WithModule(ctx, "tls")).WithFields(logrus.Fields{
+				"node.id": resp.NodeID,
+			}).Debugf("requesting certificate")
 			n.Lock()
 			n.nodeID = resp.NodeID
 			n.nodeMembership = resp.NodeMembership
@@ -233,7 +235,7 @@ func (n *Node) run(ctx context.Context) (err error) {
 			case apirole := <-n.roleChangeReq:
 				n.Lock()
 				lastRole := n.role
-				role := ca.AgentRole
+				role := ca.WorkerRole
 				if apirole == api.NodeRoleManager {
 					role = ca.ManagerRole
 				}
@@ -242,7 +244,7 @@ func (n *Node) run(ctx context.Context) (err error) {
 					continue
 				}
 				// switch role to agent immediately to shutdown manager early
-				if role == ca.AgentRole {
+				if role == ca.WorkerRole {
 					n.role = role
 					n.roleCond.Broadcast()
 				}
@@ -343,7 +345,7 @@ func (n *Node) Err(ctx context.Context) error {
 	}
 }
 
-func (n *Node) runAgent(ctx context.Context, db *bolt.DB, creds credentials.TransportAuthenticator, ready chan<- struct{}) error {
+func (n *Node) runAgent(ctx context.Context, db *bolt.DB, creds credentials.TransportCredentials, ready chan<- struct{}) error {
 	select {
 	case <-ctx.Done():
 	case <-n.remotes.WaitSelect(ctx):
@@ -498,7 +500,7 @@ func (n *Node) loadCertificates() error {
 			return nil
 		}
 
-		return fmt.Errorf("error while loading TLS Certificate in %s: %v", configPaths.Node.Cert, err)
+		return errors.Wrapf(err, "error while loading TLS Certificate in %s", configPaths.Node.Cert)
 	}
 	// todo: try csr if no cert or store nodeID/role in some other way
 	n.Lock()
@@ -588,7 +590,7 @@ func (n *Node) runManager(ctx context.Context, securityConfig *ca.SecurityConfig
 			return err
 		}
 
-		remoteAddr, _ := n.remotes.Select(n.nodeID)
+		remoteAddr, _ := n.remotes.Select(n.NodeID())
 		m, err := manager.New(&manager.Config{
 			ForceNewCluster: n.config.ForceNewCluster,
 			ProtoAddr: map[string]string{
@@ -607,8 +609,9 @@ func (n *Node) runManager(ctx context.Context, securityConfig *ca.SecurityConfig
 			return err
 		}
 		done := make(chan struct{})
+		var runErr error
 		go func() {
-			m.Run(context.Background()) // todo: store error
+			runErr = m.Run(context.Background())
 			close(done)
 		}()
 
@@ -624,14 +627,31 @@ func (n *Node) runManager(ctx context.Context, securityConfig *ca.SecurityConfig
 			go func(ready chan struct{}) {
 				select {
 				case <-ready:
-					n.remotes.Observe(api.Peer{NodeID: n.nodeID, Addr: n.config.ListenRemoteAPI}, remotes.DefaultObservationWeight)
+					n.remotes.Observe(api.Peer{NodeID: n.NodeID(), Addr: n.config.ListenRemoteAPI}, remotes.DefaultObservationWeight)
 				case <-connCtx.Done():
 				}
 			}(ready)
 			ready = nil
 		}
 
-		err = n.waitRole(ctx, ca.AgentRole)
+		roleChanged := make(chan error)
+		waitCtx, waitCancel := context.WithCancel(ctx)
+		go func() {
+			err := n.waitRole(waitCtx, ca.WorkerRole)
+			roleChanged <- err
+		}()
+
+		select {
+		case <-done:
+			// Fail out if m.Run() returns error, otherwise wait for
+			// role change.
+			if runErr != nil {
+				err = runErr
+			} else {
+				err = <-roleChanged
+			}
+		case err = <-roleChanged:
+		}
 
 		n.Lock()
 		n.manager = nil
@@ -646,6 +666,7 @@ func (n *Node) runManager(ctx context.Context, securityConfig *ca.SecurityConfig
 		}
 		connCancel()
 		n.setControlSocket(nil)
+		waitCancel()
 
 		if err != nil {
 			return err
@@ -672,17 +693,18 @@ func newPersistentRemotes(f string, peers ...api.Peer) *persistentRemotes {
 
 func (s *persistentRemotes) Observe(peer api.Peer, weight int) {
 	s.Lock()
+	defer s.Unlock()
 	s.Remotes.Observe(peer, weight)
 	s.c.Broadcast()
 	if err := s.save(); err != nil {
 		logrus.Errorf("error writing cluster state file: %v", err)
-		s.Unlock()
 		return
 	}
-	s.Unlock()
 	return
 }
 func (s *persistentRemotes) Remove(peers ...api.Peer) {
+	s.Lock()
+	defer s.Unlock()
 	s.Remotes.Remove(peers...)
 	if err := s.save(); err != nil {
 		logrus.Errorf("error writing cluster state file: %v", err)

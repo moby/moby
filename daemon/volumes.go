@@ -7,11 +7,11 @@ import (
 	"path/filepath"
 	"strings"
 
+	dockererrors "github.com/docker/docker/api/errors"
 	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
 	mounttypes "github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/container"
-	dockererrors "github.com/docker/docker/errors"
 	"github.com/docker/docker/volume"
 	"github.com/opencontainers/runc/libcontainer/label"
 )
@@ -85,8 +85,8 @@ func (daemon *Daemon) registerMountPoints(container *container.Container, hostCo
 	}()
 
 	// 1. Read already configured mount points.
-	for name, point := range container.MountPoints {
-		mountPoints[name] = point
+	for destination, point := range container.MountPoints {
+		mountPoints[destination] = point
 	}
 
 	// 2. Read volumes from other containers.

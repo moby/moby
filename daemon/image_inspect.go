@@ -17,7 +17,7 @@ func (daemon *Daemon) LookupImage(name string) (*types.ImageInspect, error) {
 		return nil, fmt.Errorf("No such image: %s", name)
 	}
 
-	refs := daemon.referenceStore.References(img.ID())
+	refs := daemon.referenceStore.References(img.ID().Digest())
 	repoTags := []string{}
 	repoDigests := []string{}
 	for _, ref := range refs {

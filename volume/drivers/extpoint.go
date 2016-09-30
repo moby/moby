@@ -7,14 +7,17 @@ import (
 	"sync"
 
 	"github.com/docker/docker/pkg/locker"
-	pluginStore "github.com/docker/docker/plugin/store"
+	"github.com/docker/docker/plugin/getter"
 	"github.com/docker/docker/volume"
 )
 
 // currently created by hand. generation tool would generate this like:
 // $ extpoint-gen Driver > volume/extpoint.go
 
-var drivers = &driverExtpoint{extensions: make(map[string]volume.Driver), driverLock: &locker.Locker{}}
+var drivers = &driverExtpoint{
+	extensions: make(map[string]volume.Driver),
+	driverLock: &locker.Locker{},
+}
 
 const extName = "VolumeDriver"
 
@@ -49,7 +52,13 @@ type volumeDriver interface {
 type driverExtpoint struct {
 	extensions map[string]volume.Driver
 	sync.Mutex
-	driverLock *locker.Locker
+	driverLock   *locker.Locker
+	plugingetter getter.PluginGetter
+}
+
+// RegisterPluginGetter sets the plugingetter
+func RegisterPluginGetter(plugingetter getter.PluginGetter) {
+	drivers.plugingetter = plugingetter
 }
 
 // Register associates the given driver to the given name, checking if
@@ -72,6 +81,7 @@ func Register(extension volume.Driver, name string) bool {
 	}
 
 	drivers.extensions[name] = extension
+
 	return true
 }
 
@@ -91,7 +101,7 @@ func Unregister(name string) bool {
 // lookup returns the driver associated with the given name. If a
 // driver with the given name has not been registered it checks if
 // there is a VolumeDriver plugin available with the given name.
-func lookup(name string) (volume.Driver, error) {
+func lookup(name string, mode int) (volume.Driver, error) {
 	drivers.driverLock.Lock(name)
 	defer drivers.driverLock.Unlock(name)
 
@@ -102,7 +112,7 @@ func lookup(name string) (volume.Driver, error) {
 		return ext, nil
 	}
 
-	p, err := pluginStore.LookupWithCapability(name, extName)
+	p, err := drivers.plugingetter.Get(name, extName, mode)
 	if err != nil {
 		return nil, fmt.Errorf("Error looking up volume plugin %s: %v", name, err)
 	}
@@ -112,7 +122,7 @@ func lookup(name string) (volume.Driver, error) {
 		return nil, err
 	}
 
-	if p.IsLegacy() {
+	if p.IsV1() {
 		drivers.Lock()
 		drivers.extensions[name] = d
 		drivers.Unlock()
@@ -134,7 +144,25 @@ func GetDriver(name string) (volume.Driver, error) {
 	if name == "" {
 		name = volume.DefaultDriverName
 	}
-	return lookup(name)
+	return lookup(name, getter.LOOKUP)
+}
+
+// CreateDriver returns a volume driver by its name and increments RefCount.
+// If the driver is empty, it looks for the local driver.
+func CreateDriver(name string) (volume.Driver, error) {
+	if name == "" {
+		name = volume.DefaultDriverName
+	}
+	return lookup(name, getter.CREATE)
+}
+
+// RemoveDriver returns a volume driver by its name and decrements RefCount..
+// If the driver is empty, it looks for the local driver.
+func RemoveDriver(name string) (volume.Driver, error) {
+	if name == "" {
+		name = volume.DefaultDriverName
+	}
+	return lookup(name, getter.REMOVE)
 }
 
 // GetDriverList returns list of volume drivers registered.
@@ -151,7 +179,7 @@ func GetDriverList() []string {
 
 // GetAllDrivers lists all the registered drivers
 func GetAllDrivers() ([]volume.Driver, error) {
-	plugins, err := pluginStore.FindWithCapability(extName)
+	plugins, err := drivers.plugingetter.GetAllByCap(extName)
 	if err != nil {
 		return nil, fmt.Errorf("error listing plugins: %v", err)
 	}
@@ -172,7 +200,7 @@ func GetAllDrivers() ([]volume.Driver, error) {
 		}
 
 		ext = NewVolumeDriver(name, p.Client())
-		if p.IsLegacy() {
+		if p.IsV1() {
 			drivers.extensions[name] = ext
 		}
 		ds = append(ds, ext)

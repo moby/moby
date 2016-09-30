@@ -179,7 +179,7 @@ func (r *ReplicatedOrchestrator) addTasks(ctx context.Context, batch *store.Batc
 		}
 
 		err := batch.Update(func(tx store.Tx) error {
-			return store.CreateTask(tx, newTask(r.cluster, service, slot))
+			return store.CreateTask(tx, newTask(r.cluster, service, slot, ""))
 		})
 		if err != nil {
 			log.G(ctx).Errorf("Failed to create task: %v", err)

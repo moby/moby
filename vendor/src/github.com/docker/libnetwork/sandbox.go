@@ -37,19 +37,11 @@ type Sandbox interface {
 	Rename(name string) error
 	// Delete destroys this container after detaching it from all connected endpoints.
 	Delete() error
-	// ResolveName resolves a service name to an IPv4 or IPv6 address by searching
-	// the networks the sandbox is connected to. For IPv6 queries, second return
-	// value will be true if the name exists in docker domain but doesn't have an
-	// IPv6 address. Such queries shouldn't be forwarded to external nameservers.
-	ResolveName(name string, iplen int) ([]net.IP, bool)
-	// ResolveIP returns the service name for the passed in IP. IP is in reverse dotted
-	// notation; the format used for DNS PTR records
-	ResolveIP(name string) string
-	// ResolveService returns all the backend details about the containers or hosts
-	// backing a service. Its purpose is to satisfy an SRV query
-	ResolveService(name string) ([]*net.SRV, []net.IP, error)
 	// Endpoints returns all the endpoints connected to the sandbox
 	Endpoints() []Endpoint
+	// ResolveService returns all the backend details about the containers or hosts
+	// backing a service. Its purpose is to satisfy an SRV query
+	ResolveService(name string) ([]*net.SRV, []net.IP)
 }
 
 // SandboxOption is an option setter function type used to pass various options to
@@ -86,6 +78,7 @@ type sandbox struct {
 	isStub             bool
 	inDelete           bool
 	ingress            bool
+	ndotsSet           bool
 	sync.Mutex
 }
 
@@ -129,6 +122,10 @@ type containerConfig struct {
 	prio              int // higher the value, more the priority
 	exposedPorts      []types.TransportPort
 }
+
+const (
+	resolverIPSandbox = "127.0.0.11"
+)
 
 func (sb *sandbox) ID() string {
 	return sb.id
@@ -414,33 +411,20 @@ func (sb *sandbox) ResolveIP(ip string) string {
 
 	for _, ep := range sb.getConnectedEndpoints() {
 		n := ep.getNetwork()
-
-		c := n.getController()
-
-		c.Lock()
-		sr, ok := c.svcRecords[n.ID()]
-		c.Unlock()
-
-		if !ok {
-			continue
-		}
-
-		nwName := n.Name()
-		n.Lock()
-		svc, ok = sr.ipMap[ip]
-		n.Unlock()
-		if ok {
-			return svc + "." + nwName
+		svc = n.ResolveIP(ip)
+		if len(svc) != 0 {
+			return svc
 		}
 	}
+
 	return svc
 }
 
-func (sb *sandbox) execFunc(f func()) {
-	sb.osSbox.InvokeFunc(f)
+func (sb *sandbox) ExecFunc(f func()) error {
+	return sb.osSbox.InvokeFunc(f)
 }
 
-func (sb *sandbox) ResolveService(name string) ([]*net.SRV, []net.IP, error) {
+func (sb *sandbox) ResolveService(name string) ([]*net.SRV, []net.IP) {
 	srv := []*net.SRV{}
 	ip := []net.IP{}
 
@@ -451,53 +435,18 @@ func (sb *sandbox) ResolveService(name string) ([]*net.SRV, []net.IP, error) {
 	// not done
 	parts := strings.Split(name, ".")
 	if len(parts) < 3 {
-		return nil, nil, nil
+		return nil, nil
 	}
-
-	portName := parts[0]
-	proto := parts[1]
-	svcName := strings.Join(parts[2:], ".")
 
 	for _, ep := range sb.getConnectedEndpoints() {
 		n := ep.getNetwork()
 
-		c := n.getController()
-
-		c.Lock()
-		sr, ok := c.svcRecords[n.ID()]
-		c.Unlock()
-
-		if !ok {
-			continue
-		}
-
-		svcs, ok := sr.service[svcName]
-		if !ok {
-			continue
-		}
-
-		for _, svc := range svcs {
-			if svc.portName != portName {
-				continue
-			}
-			if svc.proto != proto {
-				continue
-			}
-			for _, t := range svc.target {
-				srv = append(srv,
-					&net.SRV{
-						Target: t.name,
-						Port:   t.port,
-					})
-
-				ip = append(ip, t.ip)
-			}
-		}
+		srv, ip = n.ResolveService(name)
 		if len(srv) > 0 {
 			break
 		}
 	}
-	return srv, ip, nil
+	return srv, ip
 }
 
 func getDynamicNwEndpoints(epList []*endpoint) []*endpoint {
@@ -634,32 +583,14 @@ func (sb *sandbox) resolveName(req string, networkName string, epList []*endpoin
 			ep.Unlock()
 		}
 
-		c := n.getController()
-		c.Lock()
-		sr, ok := c.svcRecords[n.ID()]
-		c.Unlock()
+		ip, miss := n.ResolveName(name, ipType)
 
-		if !ok {
-			continue
-		}
-
-		var ip []net.IP
-		n.Lock()
-		ip, ok = sr.svcMap[name]
-
-		if ipType == types.IPv6 {
-			// If the name resolved to v4 address then its a valid name in
-			// the docker network domain. If the network is not v6 enabled
-			// set ipv6Miss to filter the DNS query from going to external
-			// resolvers.
-			if ok && n.enableIPv6 == false {
-				ipv6Miss = true
-			}
-			ip = sr.svcIPv6Map[name]
-		}
-		n.Unlock()
 		if ip != nil {
 			return ip, false
+		}
+
+		if miss {
+			ipv6Miss = miss
 		}
 	}
 	return nil, ipv6Miss
@@ -707,9 +638,12 @@ func (sb *sandbox) SetKey(basePath string) error {
 	if oldosSbox != nil && sb.resolver != nil {
 		sb.resolver.Stop()
 
-		sb.osSbox.InvokeFunc(sb.resolver.SetupFunc())
-		if err := sb.resolver.Start(); err != nil {
-			log.Errorf("Resolver Setup/Start failed for container %s, %q", sb.ContainerID(), err)
+		if err := sb.osSbox.InvokeFunc(sb.resolver.SetupFunc(0)); err == nil {
+			if err := sb.resolver.Start(); err != nil {
+				log.Errorf("Resolver Start failed for container %s, %q", sb.ContainerID(), err)
+			}
+		} else {
+			log.Errorf("Resolver Setup Function failed for container %s, %q", sb.ContainerID(), err)
 		}
 	}
 
@@ -1229,4 +1163,8 @@ func (eh *epHeap) Pop() interface{} {
 	x := old[n-1]
 	*eh = old[0 : n-1]
 	return x
+}
+
+func (sb *sandbox) NdotsSet() bool {
+	return sb.ndotsSet
 }

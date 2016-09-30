@@ -6,8 +6,6 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
-
-	"github.com/docker/docker/pkg/system"
 )
 
 // read-write modes
@@ -77,23 +75,13 @@ const (
 	//    -  Variation on hostdir but can be a drive followed by colon as well
 	//    -  If a path, must be absolute. Can include spaces
 	//    -  Drive cannot be c: (explicitly checked in code, not RegEx)
-)
 
-// RXMode is the regex expression for the mode of the mount
-var RXMode string
-
-func init() {
-	osv := system.GetOSVersion()
-	// Read-only volumes supported from 14350 onwards (post Windows Server 2016 TP5)
+	// RXMode is the regex expression for the mode of the mount
 	// Mode (optional):
 	//    -  Hopefully self explanatory in comparison to above regex's.
 	//    -  Colon is not in the capture group
-	if osv.Build >= 14350 {
-		RXMode = `(:(?P<mode>(?i)ro|rw))?`
-	} else {
-		RXMode = `(:(?P<mode>(?i)rw))?`
-	}
-}
+	RXMode = `(:(?P<mode>(?i)ro|rw))?`
+)
 
 // BackwardsCompatible decides whether this mount point can be
 // used in old versions of Docker or not.

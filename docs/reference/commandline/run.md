@@ -76,7 +76,7 @@ Options:
   -m, --memory string               Memory limit
       --memory-reservation string   Memory soft limit
       --memory-swap string          Swap limit equal to memory plus swap: '-1' to enable unlimited swap
-      --memory-swappiness int       Tune container memory swappiness (0 to 100) (default -1).
+      --memory-swappiness int       Tune container memory swappiness (0 to 100) (default -1)
       --name string                 Assign a name to the container
       --network-alias value         Add network-scoped alias for the container (default [])
       --network string              Connect a container to a network
@@ -115,9 +115,10 @@ Options:
                                     'host': Use the Docker host user namespace
                                     '': Use the Docker daemon user namespace specified by `--userns-remap` option.
       --uts string                  UTS namespace to use
-  -v, --volume value                Bind mount a volume (default []). The comma-delimited
-                                    `options` are [rw|ro], [z|Z],
-                                    [[r]shared|[r]slave|[r]private], and
+  -v, --volume value                Bind mount a volume (default []). The format
+                                    is `[host-src:]container-dest[:<options>]`.
+                                    The comma-delimited `options` are [rw|ro],
+                                    [z|Z], [[r]shared|[r]slave|[r]private], and
                                     [nocopy]. The 'host-src' is an absolute path
                                     or a name value.
       --volume-driver string        Optional volume driver for the container
@@ -196,8 +197,8 @@ The `-w` lets the command being executed inside directory given, here
 
     $ docker run -it --storage-opt size=120G fedora /bin/bash
 
-This (size) will allow to set the container rootfs size to 120G at creation time. 
-User cannot pass a size less than the Default BaseFS Size. This option is only 
+This (size) will allow to set the container rootfs size to 120G at creation time.
+User cannot pass a size less than the Default BaseFS Size. This option is only
 available for the `devicemapper`, `btrfs`, `windowsfilter`, and `zfs` graph drivers.
 
 ### Mount tmpfs (--tmpfs)
@@ -238,6 +239,8 @@ binary (refer to [get the linux binary](
 ../../installation/binaries.md#get-the-linux-binary)),
 you give the container the full access to create and manipulate the host's
 Docker daemon.
+
+For in-depth information about volumes, refer to [manage data in containers](../../tutorials/dockervolumes.md)
 
 ### Publish or expose port (-p, --expose)
 
@@ -546,7 +549,7 @@ more `--add-host` flags. This example adds a static address for a host named
 `docker`:
 
     $ docker run --add-host=docker:10.180.0.1 --rm -it debian
-    $$ ping docker
+    root@f38c87f2a42d:/# ping docker
     PING docker (10.180.0.1): 48 data bytes
     56 bytes from 10.180.0.1: icmp_seq=0 ttl=254 time=7.600 ms
     56 bytes from 10.180.0.1: icmp_seq=1 ttl=254 time=30.705 ms
@@ -633,14 +636,14 @@ On Microsoft Windows, can take any of these values:
 | `hyperv`   | Hyper-V hypervisor partition-based isolation.                                                                                                                  |
 
 On Windows, the default isolation for client is `hyperv`, and for server is
-`process`. Therefore when running on Windows server without a `daemon` option 
+`process`. Therefore when running on Windows server without a `daemon` option
 set, these two commands are equivalent:
 ```
 $ docker run -d --isolation default busybox top
 $ docker run -d --isolation process busybox top
 ```
 
-If you have set the `--exec-opt isolation=hyperv` option on the Docker `daemon`, 
+If you have set the `--exec-opt isolation=hyperv` option on the Docker `daemon`,
 if running on Windows server, any of these commands also result in `hyperv` isolation:
 
 ```

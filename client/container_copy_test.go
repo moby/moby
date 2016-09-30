@@ -17,7 +17,7 @@ import (
 
 func TestContainerStatPathError(t *testing.T) {
 	client := &Client{
-		transport: newMockClient(nil, errorMock(http.StatusInternalServerError, "Server error")),
+		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 	_, err := client.ContainerStatPath(context.Background(), "container_id", "path")
 	if err == nil || err.Error() != "Error response from daemon: Server error" {
@@ -27,7 +27,7 @@ func TestContainerStatPathError(t *testing.T) {
 
 func TestContainerStatPathNoHeaderError(t *testing.T) {
 	client := &Client{
-		transport: newMockClient(nil, func(req *http.Request) (*http.Response, error) {
+		client: newMockClient(func(req *http.Request) (*http.Response, error) {
 			return &http.Response{
 				StatusCode: http.StatusOK,
 				Body:       ioutil.NopCloser(bytes.NewReader([]byte(""))),
@@ -44,7 +44,7 @@ func TestContainerStatPath(t *testing.T) {
 	expectedURL := "/containers/container_id/archive"
 	expectedPath := "path/to/file"
 	client := &Client{
-		transport: newMockClient(nil, func(req *http.Request) (*http.Response, error) {
+		client: newMockClient(func(req *http.Request) (*http.Response, error) {
 			if !strings.HasPrefix(req.URL.Path, expectedURL) {
 				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
 			}
@@ -87,7 +87,7 @@ func TestContainerStatPath(t *testing.T) {
 
 func TestCopyToContainerError(t *testing.T) {
 	client := &Client{
-		transport: newMockClient(nil, errorMock(http.StatusInternalServerError, "Server error")),
+		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 	err := client.CopyToContainer(context.Background(), "container_id", "path/to/file", bytes.NewReader([]byte("")), types.CopyToContainerOptions{})
 	if err == nil || err.Error() != "Error response from daemon: Server error" {
@@ -97,7 +97,7 @@ func TestCopyToContainerError(t *testing.T) {
 
 func TestCopyToContainerNotStatusOKError(t *testing.T) {
 	client := &Client{
-		transport: newMockClient(nil, errorMock(http.StatusNoContent, "No content")),
+		client: newMockClient(errorMock(http.StatusNoContent, "No content")),
 	}
 	err := client.CopyToContainer(context.Background(), "container_id", "path/to/file", bytes.NewReader([]byte("")), types.CopyToContainerOptions{})
 	if err == nil || err.Error() != "unexpected status code from daemon: 204" {
@@ -109,7 +109,7 @@ func TestCopyToContainer(t *testing.T) {
 	expectedURL := "/containers/container_id/archive"
 	expectedPath := "path/to/file"
 	client := &Client{
-		transport: newMockClient(nil, func(req *http.Request) (*http.Response, error) {
+		client: newMockClient(func(req *http.Request) (*http.Response, error) {
 			if !strings.HasPrefix(req.URL.Path, expectedURL) {
 				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
 			}
@@ -153,7 +153,7 @@ func TestCopyToContainer(t *testing.T) {
 
 func TestCopyFromContainerError(t *testing.T) {
 	client := &Client{
-		transport: newMockClient(nil, errorMock(http.StatusInternalServerError, "Server error")),
+		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 	_, _, err := client.CopyFromContainer(context.Background(), "container_id", "path/to/file")
 	if err == nil || err.Error() != "Error response from daemon: Server error" {
@@ -163,7 +163,7 @@ func TestCopyFromContainerError(t *testing.T) {
 
 func TestCopyFromContainerNotStatusOKError(t *testing.T) {
 	client := &Client{
-		transport: newMockClient(nil, errorMock(http.StatusNoContent, "No content")),
+		client: newMockClient(errorMock(http.StatusNoContent, "No content")),
 	}
 	_, _, err := client.CopyFromContainer(context.Background(), "container_id", "path/to/file")
 	if err == nil || err.Error() != "unexpected status code from daemon: 204" {
@@ -173,7 +173,7 @@ func TestCopyFromContainerNotStatusOKError(t *testing.T) {
 
 func TestCopyFromContainerNoHeaderError(t *testing.T) {
 	client := &Client{
-		transport: newMockClient(nil, func(req *http.Request) (*http.Response, error) {
+		client: newMockClient(func(req *http.Request) (*http.Response, error) {
 			return &http.Response{
 				StatusCode: http.StatusOK,
 				Body:       ioutil.NopCloser(bytes.NewReader([]byte(""))),
@@ -190,7 +190,7 @@ func TestCopyFromContainer(t *testing.T) {
 	expectedURL := "/containers/container_id/archive"
 	expectedPath := "path/to/file"
 	client := &Client{
-		transport: newMockClient(nil, func(req *http.Request) (*http.Response, error) {
+		client: newMockClient(func(req *http.Request) (*http.Response, error) {
 			if !strings.HasPrefix(req.URL.Path, expectedURL) {
 				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
 			}

@@ -65,7 +65,7 @@ $ docker network ls
 NETWORK ID          NAME        DRIVER   SCOPE
 f9145f09b38b        bridge      bridge   local
 ..snip..
-bd0befxwiva4        my-network  overlay  swarm
+273d53261bcd        my-network  overlay  swarm
 ```
 
 The `swarm` scope indicates that the network is available for use with services
@@ -100,10 +100,10 @@ tasks are running for the service:
 ```bash
 $ docker service ps my-web
 
-ID                         NAME      IMAGE  NODE   DESIRED STATE  CURRENT STATE               ERROR
-63s86gf6a0ms34mvboniev7bs  my-web.1  nginx  node1  Running        Running 58 seconds ago
-6b3q2qbjveo4zauc6xig7au10  my-web.2  nginx  node2  Running        Running 58 seconds ago
-66u2hcrz0miqpc8h0y0f3v7aw  my-web.3  nginx  node3  Running        Running about a minute ago
+NAME                                IMAGE  NODE   DESIRED STATE  CURRENT STATE               ERROR
+my-web.1.63s86gf6a0ms34mvboniev7bs  nginx  node1  Running        Running 58 seconds ago
+my-web.2.6b3q2qbjveo4zauc6xig7au10  nginx  node2  Running        Running 58 seconds ago
+my-web.3.66u2hcrz0miqpc8h0y0f3v7aw  nginx  node3  Running        Running about a minute ago
 ```
 
 ![service vip image](images/service-vip.png)
@@ -123,7 +123,7 @@ $ docker network inspect my-network
 [
     {
         "Name": "my-network",
-        "Id": "7m2rjx0a97n88wzr4nu8772r3",
+        "Id": "273d53261bcdfda5f198587974dae3827e947ccd7e74a41bf1f482ad17fa0d33",
         "Scope": "swarm",
         "Driver": "overlay",
         "EnableIPv6": false,
@@ -200,8 +200,8 @@ using the DNS name `my-web`:
     ```bash
     $ docker service ps my-busybox
 
-    ID                         NAME          IMAGE    NODE   DESIRED STATE  CURRENT STATE          ERROR
-    1dok2cmx2mln5hbqve8ilnair  my-busybox.1  busybox  node1  Running        Running 5 seconds ago
+    NAME                                    IMAGE    NODE   DESIRED STATE  CURRENT STATE          ERROR
+    my-busybox.1.1dok2cmx2mln5hbqve8ilnair  busybox  node1  Running        Running 5 seconds ago
     ```
 
 3. From the node where the busybox task is running, open an interactive shell to

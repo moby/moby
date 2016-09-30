@@ -15,6 +15,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -34,6 +35,11 @@ type networkConfiguration struct {
 	Name               string
 	HnsID              string
 	RDID               string
+	VLAN               uint
+	VSID               uint
+	DNSServers         string
+	DNSSuffix          string
+	SourceMac          string
 	NetworkAdapterName string
 }
 
@@ -43,6 +49,7 @@ type endpointConfiguration struct {
 	PortBindings []types.PortBinding
 	ExposedPorts []types.TransportPort
 	QosPolicies  []types.QosPolicy
+	DNSServers   []string
 }
 
 type hnsEndpoint struct {
@@ -69,7 +76,7 @@ type driver struct {
 }
 
 func isValidNetworkType(networkType string) bool {
-	if "l2bridge" == networkType || "l2tunnel" == networkType || "nat" == networkType || "transparent" == networkType {
+	if "l2bridge" == networkType || "l2tunnel" == networkType || "nat" == networkType || "ics" == networkType || "transparent" == networkType {
 		return true
 	}
 
@@ -129,6 +136,22 @@ func (d *driver) parseNetworkOptions(id string, genericOptions map[string]string
 			config.RDID = value
 		case Interface:
 			config.NetworkAdapterName = value
+		case DNSSuffix:
+			config.DNSSuffix = value
+		case DNSServers:
+			config.DNSServers = value
+		case VLAN:
+			vlan, err := strconv.ParseUint(value, 10, 32)
+			if err != nil {
+				return nil, err
+			}
+			config.VLAN = uint(vlan)
+		case VSID:
+			vsid, err := strconv.ParseUint(value, 10, 32)
+			if err != nil {
+				return nil, err
+			}
+			config.VSID = uint(vsid)
 		}
 	}
 
@@ -207,7 +230,34 @@ func (d *driver) CreateNetwork(id string, option map[string]interface{}, nInfo d
 			Name:               config.Name,
 			Type:               d.name,
 			Subnets:            subnets,
+			DNSServerList:      config.DNSServers,
+			DNSSuffix:          config.DNSSuffix,
+			SourceMac:          config.SourceMac,
 			NetworkAdapterName: config.NetworkAdapterName,
+		}
+
+		if config.VLAN != 0 {
+			vlanPolicy, err := json.Marshal(hcsshim.VlanPolicy{
+				Type: "VLAN",
+				VLAN: config.VLAN,
+			})
+
+			if err != nil {
+				return err
+			}
+			network.Policies = append(network.Policies, vlanPolicy)
+		}
+
+		if config.VSID != 0 {
+			vsidPolicy, err := json.Marshal(hcsshim.VsidPolicy{
+				Type: "VSID",
+				VSID: config.VSID,
+			})
+
+			if err != nil {
+				return err
+			}
+			network.Policies = append(network.Policies, vsidPolicy)
 		}
 
 		if network.Name == "" {
@@ -379,6 +429,14 @@ func parseEndpointOptions(epOptions map[string]interface{}) (*endpointConfigurat
 		}
 	}
 
+	if opt, ok := epOptions[netlabel.DNSServers]; ok {
+		if dns, ok := opt.([]string); ok {
+			ec.DNSServers = dns
+		} else {
+			return nil, fmt.Errorf("Invalid endpoint configuration")
+		}
+	}
+
 	return ec, nil
 }
 
@@ -419,6 +477,12 @@ func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo,
 
 	if ifInfo.Address() != nil {
 		endpointStruct.IPAddress = ifInfo.Address().IP
+	}
+
+	endpointStruct.DNSServerList = strings.Join(ec.DNSServers, ",")
+
+	if n.driver.name == "nat" {
+		endpointStruct.EnableInternalDNS = true
 	}
 
 	configurationb, err := json.Marshal(endpointStruct)
@@ -502,6 +566,10 @@ func (d *driver) EndpointOperInfo(nid, eid string) (map[string]interface{}, erro
 	}
 
 	data := make(map[string]interface{}, 1)
+	if network.driver.name == "nat" {
+		data["AllowUnqualifiedDNSQuery"] = true
+	}
+
 	data["hnsid"] = ep.profileID
 	if ep.config.ExposedPorts != nil {
 		// Return a copy of the config data

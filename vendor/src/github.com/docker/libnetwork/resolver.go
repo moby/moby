@@ -23,7 +23,7 @@ type Resolver interface {
 	Stop()
 	// SetupFunc() provides the setup function that should be run
 	// in the container's network namespace.
-	SetupFunc() func()
+	SetupFunc(int) func()
 	// NameServer() returns the IP of the DNS resolver for the
 	// containers.
 	NameServer() string
@@ -34,8 +34,29 @@ type Resolver interface {
 	ResolverOptions() []string
 }
 
+// DNSBackend represents a backend DNS resolver used for DNS name
+// resolution. All the queries to the resolver are forwared to the
+// backend resolver.
+type DNSBackend interface {
+	// ResolveName resolves a service name to an IPv4 or IPv6 address by searching
+	// the networks the sandbox is connected to. For IPv6 queries, second return
+	// value will be true if the name exists in docker domain but doesn't have an
+	// IPv6 address. Such queries shouldn't be forwarded to external nameservers.
+	ResolveName(name string, iplen int) ([]net.IP, bool)
+	// ResolveIP returns the service name for the passed in IP. IP is in reverse dotted
+	// notation; the format used for DNS PTR records
+	ResolveIP(name string) string
+	// ResolveService returns all the backend details about the containers or hosts
+	// backing a service. Its purpose is to satisfy an SRV query
+	ResolveService(name string) ([]*net.SRV, []net.IP)
+	// ExecFunc allows a function to be executed in the context of the backend
+	// on behalf of the resolver.
+	ExecFunc(f func()) error
+	//NdotsSet queries the backends ndots dns option settings
+	NdotsSet() bool
+}
+
 const (
-	resolverIP      = "127.0.0.11"
 	dnsPort         = "53"
 	ptrIPv4domain   = ".in-addr.arpa."
 	ptrIPv6domain   = ".ip6.arpa."
@@ -53,16 +74,19 @@ type extDNSEntry struct {
 
 // resolver implements the Resolver interface
 type resolver struct {
-	sb         *sandbox
-	extDNSList [maxExtDNS]extDNSEntry
-	server     *dns.Server
-	conn       *net.UDPConn
-	tcpServer  *dns.Server
-	tcpListen  *net.TCPListener
-	err        error
-	count      int32
-	tStamp     time.Time
-	queryLock  sync.Mutex
+	backend       DNSBackend
+	extDNSList    [maxExtDNS]extDNSEntry
+	server        *dns.Server
+	conn          *net.UDPConn
+	tcpServer     *dns.Server
+	tcpListen     *net.TCPListener
+	err           error
+	count         int32
+	tStamp        time.Time
+	queryLock     sync.Mutex
+	listenAddress string
+	proxyDNS      bool
+	resolverKey   string
 }
 
 func init() {
@@ -70,20 +94,24 @@ func init() {
 }
 
 // NewResolver creates a new instance of the Resolver
-func NewResolver(sb *sandbox) Resolver {
+func NewResolver(address string, proxyDNS bool, resolverKey string, backend DNSBackend) Resolver {
 	return &resolver{
-		sb:  sb,
-		err: fmt.Errorf("setup not done yet"),
+		backend:       backend,
+		proxyDNS:      proxyDNS,
+		listenAddress: address,
+		resolverKey:   resolverKey,
+		err:           fmt.Errorf("setup not done yet"),
 	}
 }
 
-func (r *resolver) SetupFunc() func() {
+func (r *resolver) SetupFunc(port int) func() {
 	return (func() {
 		var err error
 
 		// DNS operates primarily on UDP
 		addr := &net.UDPAddr{
-			IP: net.ParseIP(resolverIP),
+			IP:   net.ParseIP(r.listenAddress),
+			Port: port,
 		}
 
 		r.conn, err = net.ListenUDP("udp", addr)
@@ -94,7 +122,8 @@ func (r *resolver) SetupFunc() func() {
 
 		// Listen on a TCP as well
 		tcpaddr := &net.TCPAddr{
-			IP: net.ParseIP(resolverIP),
+			IP:   net.ParseIP(r.listenAddress),
+			Port: port,
 		}
 
 		r.tcpListen, err = net.ListenTCP("tcp", tcpaddr)
@@ -156,7 +185,7 @@ func (r *resolver) SetExtServers(dns []string) {
 }
 
 func (r *resolver) NameServer() string {
-	return resolverIP
+	return r.listenAddress
 }
 
 func (r *resolver) ResolverOptions() []string {
@@ -184,7 +213,10 @@ func createRespMsg(query *dns.Msg) *dns.Msg {
 }
 
 func (r *resolver) handleIPQuery(name string, query *dns.Msg, ipType int) (*dns.Msg, error) {
-	addr, ipv6Miss := r.sb.ResolveName(name, ipType)
+	var addr []net.IP
+	var ipv6Miss bool
+	addr, ipv6Miss = r.backend.ResolveName(name, ipType)
+
 	if addr == nil && ipv6Miss {
 		// Send a reply without any Answer sections
 		log.Debugf("Lookup name %s present without IPv6 address", name)
@@ -230,7 +262,8 @@ func (r *resolver) handlePTRQuery(ptr string, query *dns.Msg) (*dns.Msg, error) 
 		return nil, fmt.Errorf("invalid PTR query, %v", ptr)
 	}
 
-	host := r.sb.ResolveIP(parts[0])
+	host := r.backend.ResolveIP(parts[0])
+
 	if len(host) == 0 {
 		return nil, nil
 	}
@@ -250,11 +283,9 @@ func (r *resolver) handlePTRQuery(ptr string, query *dns.Msg) (*dns.Msg, error) 
 }
 
 func (r *resolver) handleSRVQuery(svc string, query *dns.Msg) (*dns.Msg, error) {
-	srv, ip, err := r.sb.ResolveService(svc)
 
-	if err != nil {
-		return nil, err
-	}
+	srv, ip := r.backend.ResolveService(svc)
+
 	if len(srv) == 0 {
 		return nil, nil
 	}
@@ -325,6 +356,30 @@ func (r *resolver) ServeDNS(w dns.ResponseWriter, query *dns.Msg) {
 		return
 	}
 
+	if resp == nil {
+		// If the backend doesn't support proxying dns request
+		// fail the response
+		if !r.proxyDNS {
+			resp = new(dns.Msg)
+			resp.SetRcode(query, dns.RcodeServerFailure)
+			w.WriteMsg(resp)
+			return
+		}
+
+		// If the user sets ndots > 0 explicitly and the query is
+		// in the root domain don't forward it out. We will return
+		// failure and let the client retry with the search domain
+		// attached
+		switch query.Question[0].Qtype {
+		case dns.TypeA:
+			fallthrough
+		case dns.TypeAAAA:
+			if r.backend.NdotsSet() && !strings.Contains(strings.TrimSuffix(name, "."), ".") {
+				resp = createRespMsg(query)
+			}
+		}
+	}
+
 	proto := w.LocalAddr().Network()
 	maxSize := 0
 	if proto == "tcp" {
@@ -354,8 +409,8 @@ func (r *resolver) ServeDNS(w dns.ResponseWriter, query *dns.Msg) {
 				extConn, err = net.DialTimeout(proto, addr, extIOTimeout)
 			}
 
-			r.sb.execFunc(extConnect)
-			if err != nil {
+			execErr := r.backend.ExecFunc(extConnect)
+			if execErr != nil || err != nil {
 				log.Debugf("Connect failed, %s", err)
 				continue
 			}

@@ -21,9 +21,9 @@ type ServiceSpec struct {
 	Mode         ServiceMode   `json:",omitempty"`
 	UpdateConfig *UpdateConfig `json:",omitempty"`
 
-	// Networks field in ServiceSpec is being deprecated. Users of
-	// engine-api should start using the same field in
-	// TaskSpec. This field will be removed in future releases.
+	// Networks field in ServiceSpec is deprecated. The
+	// same field in TaskSpec should be used instead.
+	// This field will be removed in a future release.
 	Networks     []NetworkAttachmentConfig `json:",omitempty"`
 	EndpointSpec *EndpointSpec             `json:",omitempty"`
 }

@@ -75,7 +75,9 @@ var _ = math.Inf
 
 // This is a compile-time assertion to ensure that this generated file
 // is compatible with the proto package it is being compiled against.
-const _ = proto.ProtoPackageIsVersion1
+// A compilation error at this line likely means your copy of the
+// proto package needs to be updated.
+const _ = proto.ProtoPackageIsVersion2 // please upgrade the proto package
 
 type GetServerVersionRequest struct {
 }
@@ -223,7 +225,7 @@ func (*Rlimit) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{9} }
 type User struct {
 	Uid            uint32   `protobuf:"varint,1,opt,name=uid" json:"uid,omitempty"`
 	Gid            uint32   `protobuf:"varint,2,opt,name=gid" json:"gid,omitempty"`
-	AdditionalGids []uint32 `protobuf:"varint,3,rep,name=additionalGids" json:"additionalGids,omitempty"`
+	AdditionalGids []uint32 `protobuf:"varint,3,rep,packed,name=additionalGids" json:"additionalGids,omitempty"`
 }
 
 func (m *User) Reset()                    { *m = User{} }
@@ -385,7 +387,7 @@ type Container struct {
 	Processes  []*Process `protobuf:"bytes,3,rep,name=processes" json:"processes,omitempty"`
 	Status     string     `protobuf:"bytes,4,opt,name=status" json:"status,omitempty"`
 	Labels     []string   `protobuf:"bytes,5,rep,name=labels" json:"labels,omitempty"`
-	Pids       []uint32   `protobuf:"varint,6,rep,name=pids" json:"pids,omitempty"`
+	Pids       []uint32   `protobuf:"varint,6,rep,packed,name=pids" json:"pids,omitempty"`
 	Runtime    string     `protobuf:"bytes,7,opt,name=runtime" json:"runtime,omitempty"`
 }
 
@@ -628,7 +630,7 @@ func (*NetworkStats) Descriptor() ([]byte, []int) { return fileDescriptor0, []in
 
 type CpuUsage struct {
 	TotalUsage        uint64   `protobuf:"varint,1,opt,name=total_usage,json=totalUsage" json:"total_usage,omitempty"`
-	PercpuUsage       []uint64 `protobuf:"varint,2,rep,name=percpu_usage,json=percpuUsage" json:"percpu_usage,omitempty"`
+	PercpuUsage       []uint64 `protobuf:"varint,2,rep,packed,name=percpu_usage,json=percpuUsage" json:"percpu_usage,omitempty"`
 	UsageInKernelmode uint64   `protobuf:"varint,3,opt,name=usage_in_kernelmode,json=usageInKernelmode" json:"usage_in_kernelmode,omitempty"`
 	UsageInUsermode   uint64   `protobuf:"varint,4,opt,name=usage_in_usermode,json=usageInUsermode" json:"usage_in_usermode,omitempty"`
 }
@@ -978,7 +980,7 @@ var _ grpc.ClientConn
 
 // This is a compile-time assertion to ensure that this generated file
 // is compatible with the grpc package it is being compiled against.
-const _ = grpc.SupportPackageIsVersion2
+const _ = grpc.SupportPackageIsVersion3
 
 // Client API for API service
 
@@ -1432,7 +1434,10 @@ var _API_serviceDesc = grpc.ServiceDesc{
 			ServerStreams: true,
 		},
 	},
+	Metadata: fileDescriptor0,
 }
+
+func init() { proto.RegisterFile("api.proto", fileDescriptor0) }
 
 var fileDescriptor0 = []byte{
 	// 2604 bytes of a gzipped FileDescriptorProto

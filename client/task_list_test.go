@@ -17,7 +17,7 @@ import (
 
 func TestTaskListError(t *testing.T) {
 	client := &Client{
-		transport: newMockClient(nil, errorMock(http.StatusInternalServerError, "Server error")),
+		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 
 	_, err := client.TaskList(context.Background(), types.TaskListOptions{})
@@ -54,7 +54,7 @@ func TestTaskList(t *testing.T) {
 	}
 	for _, listCase := range listCases {
 		client := &Client{
-			transport: newMockClient(nil, func(req *http.Request) (*http.Response, error) {
+			client: newMockClient(func(req *http.Request) (*http.Response, error) {
 				if !strings.HasPrefix(req.URL.Path, expectedURL) {
 					return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
 				}

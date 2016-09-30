@@ -30,4 +30,7 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 regenerate:
+	go install github.com/gogo/protobuf/protoc-gen-gogo
 	protoc --gogo_out=. -I=../../protobuf/google/protobuf ../../protobuf/google/protobuf/descriptor.proto
+	go install github.com/gogo/protobuf/protoc-gen-gostring
+	protoc --gostring_out=. -I=../../protobuf/google/protobuf ../../protobuf/google/protobuf/descriptor.proto

@@ -4,6 +4,7 @@ package splunk
 
 import (
 	"bytes"
+	"compress/gzip"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
@@ -12,7 +13,9 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"os"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/Sirupsen/logrus"
@@ -22,21 +25,46 @@ import (
 )
 
 const (
-	driverName                  = "splunk"
-	splunkURLKey                = "splunk-url"
-	splunkTokenKey              = "splunk-token"
-	splunkSourceKey             = "splunk-source"
-	splunkSourceTypeKey         = "splunk-sourcetype"
-	splunkIndexKey              = "splunk-index"
-	splunkCAPathKey             = "splunk-capath"
-	splunkCANameKey             = "splunk-caname"
-	splunkInsecureSkipVerifyKey = "splunk-insecureskipverify"
-	splunkFormatKey             = "splunk-format"
-	splunkVerifyConnectionKey   = "splunk-verify-connection"
-	envKey                      = "env"
-	labelsKey                   = "labels"
-	tagKey                      = "tag"
+	driverName                    = "splunk"
+	splunkURLKey                  = "splunk-url"
+	splunkTokenKey                = "splunk-token"
+	splunkSourceKey               = "splunk-source"
+	splunkSourceTypeKey           = "splunk-sourcetype"
+	splunkIndexKey                = "splunk-index"
+	splunkCAPathKey               = "splunk-capath"
+	splunkCANameKey               = "splunk-caname"
+	splunkInsecureSkipVerifyKey   = "splunk-insecureskipverify"
+	splunkFormatKey               = "splunk-format"
+	splunkVerifyConnectionKey     = "splunk-verify-connection"
+	splunkGzipCompressionKey      = "splunk-gzip"
+	splunkGzipCompressionLevelKey = "splunk-gzip-level"
+	envKey                        = "env"
+	labelsKey                     = "labels"
+	tagKey                        = "tag"
 )
+
+const (
+	// How often do we send messages (if we are not reaching batch size)
+	defaultPostMessagesFrequency = 5 * time.Second
+	// How big can be batch of messages
+	defaultPostMessagesBatchSize = 1000
+	// Maximum number of messages we can store in buffer
+	defaultBufferMaximum = 10 * defaultPostMessagesBatchSize
+	// Number of messages allowed to be queued in the channel
+	defaultStreamChannelSize = 4 * defaultPostMessagesBatchSize
+)
+
+const (
+	envVarPostMessagesFrequency = "SPLUNK_LOGGING_DRIVER_POST_MESSAGES_FREQUENCY"
+	envVarPostMessagesBatchSize = "SPLUNK_LOGGING_DRIVER_POST_MESSAGES_BATCH_SIZE"
+	envVarBufferMaximum         = "SPLUNK_LOGGING_DRIVER_BUFFER_MAX"
+	envVarStreamChannelSize     = "SPLUNK_LOGGING_DRIVER_CHANNEL_SIZE"
+)
+
+type splunkLoggerInterface interface {
+	logger.Logger
+	worker()
+}
 
 type splunkLogger struct {
 	client    *http.Client
@@ -45,6 +73,23 @@ type splunkLogger struct {
 	url         string
 	auth        string
 	nullMessage *splunkMessage
+
+	// http compression
+	gzipCompression      bool
+	gzipCompressionLevel int
+
+	// Advanced options
+	postMessagesFrequency time.Duration
+	postMessagesBatchSize int
+	bufferMaximum         int
+
+	// For synchronization between background worker and logger.
+	// We use channel to send messages to worker go routine.
+	// All other variables for blocking Close call before we flush all messages to HEC
+	stream     chan *splunkMessage
+	lock       sync.RWMutex
+	closed     bool
+	closedCond *sync.Cond
 }
 
 type splunkLoggerInline struct {
@@ -140,6 +185,29 @@ func New(ctx logger.Context) (logger.Logger, error) {
 		tlsConfig.ServerName = caName
 	}
 
+	gzipCompression := false
+	if gzipCompressionStr, ok := ctx.Config[splunkGzipCompressionKey]; ok {
+		gzipCompression, err = strconv.ParseBool(gzipCompressionStr)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	gzipCompressionLevel := gzip.DefaultCompression
+	if gzipCompressionLevelStr, ok := ctx.Config[splunkGzipCompressionLevelKey]; ok {
+		var err error
+		gzipCompressionLevel64, err := strconv.ParseInt(gzipCompressionLevelStr, 10, 32)
+		if err != nil {
+			return nil, err
+		}
+		gzipCompressionLevel = int(gzipCompressionLevel64)
+		if gzipCompressionLevel < gzip.DefaultCompression || gzipCompressionLevel > gzip.BestCompression {
+			err := fmt.Errorf("Not supported level '%s' for %s (supported values between %d and %d).",
+				gzipCompressionLevelStr, splunkGzipCompressionLevelKey, gzip.DefaultCompression, gzip.BestCompression)
+			return nil, err
+		}
+	}
+
 	transport := &http.Transport{
 		TLSClientConfig: tlsConfig,
 	}
@@ -158,19 +226,36 @@ func New(ctx logger.Context) (logger.Logger, error) {
 		Index:      index,
 	}
 
-	tag, err := loggerutils.ParseLogTag(ctx, loggerutils.DefaultTemplate)
-	if err != nil {
-		return nil, err
+	// Allow user to remove tag from the messages by setting tag to empty string
+	tag := ""
+	if tagTemplate, ok := ctx.Config[tagKey]; !ok || tagTemplate != "" {
+		tag, err = loggerutils.ParseLogTag(ctx, loggerutils.DefaultTemplate)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	attrs := ctx.ExtraAttributes(nil)
 
+	var (
+		postMessagesFrequency = getAdvancedOptionDuration(envVarPostMessagesFrequency, defaultPostMessagesFrequency)
+		postMessagesBatchSize = getAdvancedOptionInt(envVarPostMessagesBatchSize, defaultPostMessagesBatchSize)
+		bufferMaximum         = getAdvancedOptionInt(envVarBufferMaximum, defaultBufferMaximum)
+		streamChannelSize     = getAdvancedOptionInt(envVarStreamChannelSize, defaultStreamChannelSize)
+	)
+
 	logger := &splunkLogger{
-		client:      client,
-		transport:   transport,
-		url:         splunkURL.String(),
-		auth:        "Splunk " + splunkToken,
-		nullMessage: nullMessage,
+		client:                client,
+		transport:             transport,
+		url:                   splunkURL.String(),
+		auth:                  "Splunk " + splunkToken,
+		nullMessage:           nullMessage,
+		gzipCompression:       gzipCompression,
+		gzipCompressionLevel:  gzipCompressionLevel,
+		stream:                make(chan *splunkMessage, streamChannelSize),
+		postMessagesFrequency: postMessagesFrequency,
+		postMessagesBatchSize: postMessagesBatchSize,
+		bufferMaximum:         bufferMaximum,
 	}
 
 	// By default we verify connection, but we allow use to skip that
@@ -203,6 +288,8 @@ func New(ctx logger.Context) (logger.Logger, error) {
 		splunkFormat = splunkFormatInline
 	}
 
+	var loggerWrapper splunkLoggerInterface
+
 	switch splunkFormat {
 	case splunkFormatInline:
 		nullEvent := &splunkMessageEvent{
@@ -210,18 +297,20 @@ func New(ctx logger.Context) (logger.Logger, error) {
 			Attrs: attrs,
 		}
 
-		return &splunkLoggerInline{logger, nullEvent}, nil
+		loggerWrapper = &splunkLoggerInline{logger, nullEvent}
 	case splunkFormatJSON:
 		nullEvent := &splunkMessageEvent{
 			Tag:   tag,
 			Attrs: attrs,
 		}
 
-		return &splunkLoggerJSON{&splunkLoggerInline{logger, nullEvent}}, nil
+		loggerWrapper = &splunkLoggerJSON{&splunkLoggerInline{logger, nullEvent}}
 	case splunkFormatRaw:
 		var prefix bytes.Buffer
-		prefix.WriteString(tag)
-		prefix.WriteString(" ")
+		if tag != "" {
+			prefix.WriteString(tag)
+			prefix.WriteString(" ")
+		}
 		for key, value := range attrs {
 			prefix.WriteString(key)
 			prefix.WriteString("=")
@@ -229,10 +318,14 @@ func New(ctx logger.Context) (logger.Logger, error) {
 			prefix.WriteString(" ")
 		}
 
-		return &splunkLoggerRaw{logger, prefix.Bytes()}, nil
+		loggerWrapper = &splunkLoggerRaw{logger, prefix.Bytes()}
 	default:
 		return nil, fmt.Errorf("Unexpected format %s", splunkFormat)
 	}
+
+	go loggerWrapper.worker()
+
+	return loggerWrapper, nil
 }
 
 func (l *splunkLoggerInline) Log(msg *logger.Message) error {
@@ -244,7 +337,7 @@ func (l *splunkLoggerInline) Log(msg *logger.Message) error {
 
 	message.Event = &event
 
-	return l.postMessage(message)
+	return l.queueMessageAsync(message)
 }
 
 func (l *splunkLoggerJSON) Log(msg *logger.Message) error {
@@ -262,7 +355,7 @@ func (l *splunkLoggerJSON) Log(msg *logger.Message) error {
 
 	message.Event = &event
 
-	return l.postMessage(message)
+	return l.queueMessageAsync(message)
 }
 
 func (l *splunkLoggerRaw) Log(msg *logger.Message) error {
@@ -270,19 +363,124 @@ func (l *splunkLoggerRaw) Log(msg *logger.Message) error {
 
 	message.Event = string(append(l.prefix, msg.Line...))
 
-	return l.postMessage(message)
+	return l.queueMessageAsync(message)
 }
 
-func (l *splunkLogger) postMessage(message *splunkMessage) error {
-	jsonEvent, err := json.Marshal(message)
-	if err != nil {
-		return err
+func (l *splunkLogger) queueMessageAsync(message *splunkMessage) error {
+	l.lock.RLock()
+	defer l.lock.RUnlock()
+	if l.closedCond != nil {
+		return fmt.Errorf("%s: driver is closed", driverName)
 	}
-	req, err := http.NewRequest("POST", l.url, bytes.NewBuffer(jsonEvent))
+	l.stream <- message
+	return nil
+}
+
+func (l *splunkLogger) worker() {
+	timer := time.NewTicker(l.postMessagesFrequency)
+	var messages []*splunkMessage
+	for {
+		select {
+		case message, open := <-l.stream:
+			if !open {
+				l.postMessages(messages, true)
+				l.lock.Lock()
+				defer l.lock.Unlock()
+				l.transport.CloseIdleConnections()
+				l.closed = true
+				l.closedCond.Signal()
+				return
+			}
+			messages = append(messages, message)
+			// Only sending when we get exactly to the batch size,
+			// This also helps not to fire postMessages on every new message,
+			// when previous try failed.
+			if len(messages)%l.postMessagesBatchSize == 0 {
+				messages = l.postMessages(messages, false)
+			}
+		case <-timer.C:
+			messages = l.postMessages(messages, false)
+		}
+	}
+}
+
+func (l *splunkLogger) postMessages(messages []*splunkMessage, lastChance bool) []*splunkMessage {
+	messagesLen := len(messages)
+	for i := 0; i < messagesLen; i += l.postMessagesBatchSize {
+		upperBound := i + l.postMessagesBatchSize
+		if upperBound > messagesLen {
+			upperBound = messagesLen
+		}
+		if err := l.tryPostMessages(messages[i:upperBound]); err != nil {
+			logrus.Error(err)
+			if messagesLen-i >= l.bufferMaximum || lastChance {
+				// If this is last chance - print them all to the daemon log
+				if lastChance {
+					upperBound = messagesLen
+				}
+				// Not all sent, but buffer has got to its maximum, let's log all messages
+				// we could not send and return buffer minus one batch size
+				for j := i; j < upperBound; j++ {
+					if jsonEvent, err := json.Marshal(messages[j]); err != nil {
+						logrus.Error(err)
+					} else {
+						logrus.Error(fmt.Errorf("Failed to send a message '%s'", string(jsonEvent)))
+					}
+				}
+				return messages[upperBound:messagesLen]
+			}
+			// Not all sent, returning buffer from where we have not sent messages
+			return messages[i:messagesLen]
+		}
+	}
+	// All sent, return empty buffer
+	return messages[:0]
+}
+
+func (l *splunkLogger) tryPostMessages(messages []*splunkMessage) error {
+	if len(messages) == 0 {
+		return nil
+	}
+	var buffer bytes.Buffer
+	var writer io.Writer
+	var gzipWriter *gzip.Writer
+	var err error
+	// If gzip compression is enabled - create gzip writer with specified compression
+	// level. If gzip compression is disabled, use standard buffer as a writer
+	if l.gzipCompression {
+		gzipWriter, err = gzip.NewWriterLevel(&buffer, l.gzipCompressionLevel)
+		if err != nil {
+			return err
+		}
+		writer = gzipWriter
+	} else {
+		writer = &buffer
+	}
+	for _, message := range messages {
+		jsonEvent, err := json.Marshal(message)
+		if err != nil {
+			return err
+		}
+		if _, err := writer.Write(jsonEvent); err != nil {
+			return err
+		}
+	}
+	// If gzip compression is enabled, tell it, that we are done
+	if l.gzipCompression {
+		err = gzipWriter.Close()
+		if err != nil {
+			return err
+		}
+	}
+	req, err := http.NewRequest("POST", l.url, bytes.NewBuffer(buffer.Bytes()))
 	if err != nil {
 		return err
 	}
 	req.Header.Set("Authorization", l.auth)
+	// Tell if we are sending gzip compressed body
+	if l.gzipCompression {
+		req.Header.Set("Content-Encoding", "gzip")
+	}
 	res, err := l.client.Do(req)
 	if err != nil {
 		return err
@@ -301,7 +499,15 @@ func (l *splunkLogger) postMessage(message *splunkMessage) error {
 }
 
 func (l *splunkLogger) Close() error {
-	l.transport.CloseIdleConnections()
+	l.lock.Lock()
+	defer l.lock.Unlock()
+	if l.closedCond == nil {
+		l.closedCond = sync.NewCond(&l.lock)
+		close(l.stream)
+		for !l.closed {
+			l.closedCond.Wait()
+		}
+	}
 	return nil
 }
 
@@ -329,6 +535,8 @@ func ValidateLogOpt(cfg map[string]string) error {
 		case splunkInsecureSkipVerifyKey:
 		case splunkFormatKey:
 		case splunkVerifyConnectionKey:
+		case splunkGzipCompressionKey:
+		case splunkGzipCompressionLevelKey:
 		case envKey:
 		case labelsKey:
 		case tagKey:
@@ -364,7 +572,7 @@ func parseURL(ctx logger.Context) (*url.URL, error) {
 }
 
 func verifySplunkConnection(l *splunkLogger) error {
-	req, err := http.NewRequest("OPTIONS", l.url, nil)
+	req, err := http.NewRequest(http.MethodOptions, l.url, nil)
 	if err != nil {
 		return err
 	}
@@ -384,4 +592,30 @@ func verifySplunkConnection(l *splunkLogger) error {
 		return fmt.Errorf("%s: failed to verify connection - %s - %s", driverName, res.Status, body)
 	}
 	return nil
+}
+
+func getAdvancedOptionDuration(envName string, defaultValue time.Duration) time.Duration {
+	valueStr := os.Getenv(envName)
+	if valueStr == "" {
+		return defaultValue
+	}
+	parsedValue, err := time.ParseDuration(valueStr)
+	if err != nil {
+		logrus.Error(fmt.Sprintf("Failed to parse value of %s as duration. Using default %v. %v", envName, defaultValue, err))
+		return defaultValue
+	}
+	return parsedValue
+}
+
+func getAdvancedOptionInt(envName string, defaultValue int) int {
+	valueStr := os.Getenv(envName)
+	if valueStr == "" {
+		return defaultValue
+	}
+	parsedValue, err := strconv.ParseInt(valueStr, 10, 32)
+	if err != nil {
+		logrus.Error(fmt.Sprintf("Failed to parse value of %s as integer. Using default %d. %v", envName, defaultValue, err))
+		return defaultValue
+	}
+	return int(parsedValue)
 }

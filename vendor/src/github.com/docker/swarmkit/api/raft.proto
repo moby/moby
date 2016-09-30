@@ -115,7 +115,7 @@ enum StoreActionKind {
 	STORE_ACTION_REMOVE = 3 [(gogoproto.enumvalue_customname) = "StoreActionKindRemove"];
 }
 
-// StoreAction defines a taret and operation to apply on the storage system.
+// StoreAction defines a target and operation to apply on the storage system.
 message StoreAction {
 	StoreActionKind action = 1;
 	oneof target {
@@ -124,5 +124,6 @@ message StoreAction {
 		Task task = 4;
 		Network network = 5;
 		Cluster cluster = 6;
+		Secret secret = 7;
 	}
 }

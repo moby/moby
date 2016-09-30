@@ -8,6 +8,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/pkg/errors"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/boltdb/bolt"
 	"github.com/docker/docker/pkg/locker"
@@ -70,13 +72,13 @@ func New(rootPath string) (*VolumeStore, error) {
 		var err error
 		vs.db, err = bolt.Open(dbPath, 0600, &bolt.Options{Timeout: 1 * time.Second})
 		if err != nil {
-			return nil, err
+			return nil, errors.Wrap(err, "error while opening volume store metadata database")
 		}
 
 		// initialize volumes bucket
 		if err := vs.db.Update(func(tx *bolt.Tx) error {
 			if _, err := tx.CreateBucketIfNotExists([]byte(volumeBucketName)); err != nil {
-				return err
+				return errors.Wrap(err, "error while setting up volume store metadata database")
 			}
 
 			return nil
@@ -264,7 +266,7 @@ func (s *VolumeStore) create(name, driverName string, opts, labels map[string]st
 		}
 	}
 
-	vd, err := volumedrivers.GetDriver(driverName)
+	vd, err := volumedrivers.CreateDriver(driverName)
 
 	if err != nil {
 		return nil, &OpErr{Op: "create", Name: name, Err: err}
@@ -299,7 +301,7 @@ func (s *VolumeStore) create(name, driverName string, opts, labels map[string]st
 			err := b.Put([]byte(name), volData)
 			return err
 		}); err != nil {
-			return nil, err
+			return nil, errors.Wrap(err, "error while persisting volume metadata")
 		}
 	}
 
@@ -416,7 +418,7 @@ func (s *VolumeStore) Remove(v volume.Volume) error {
 		return &OpErr{Err: errVolumeInUse, Name: v.Name(), Op: "remove", Refs: refs}
 	}
 
-	vd, err := volumedrivers.GetDriver(v.DriverName())
+	vd, err := volumedrivers.RemoveDriver(v.DriverName())
 	if err != nil {
 		return &OpErr{Err: err, Name: vd.Name(), Op: "remove"}
 	}

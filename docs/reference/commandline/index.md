@@ -115,7 +115,7 @@ read the [`dockerd`](dockerd.md) reference page.
 | [node demote](node_demote.md) | Demotes an existing manager so that it is no longer a manager |
 | [node inspect](node_inspect.md) | Inspect a node in the swarm                |
 | [node update](node_update.md) | Update attributes for a node                 |
-| [node ps](node_ps.md) | List tasks running on a node                         |
+| [node ps](node_ps.md) | List tasks running on one or more nodes                         |
 | [node ls](node_ls.md) | List nodes in the swarm                              |
 | [node rm](node_rm.md) | Remove one or more nodes from the swarm                         |
 
@@ -136,7 +136,7 @@ read the [`dockerd`](dockerd.md) reference page.
 | [service create](service_create.md) | Create a new service                   |
 | [service inspect](service_inspect.md) | Inspect a service                    |
 | [service ls](service_ls.md) | List services in the swarm                     |
-| [service rm](service_rm.md) | Reemove a swervice from the swarm              |
+| [service rm](service_rm.md) | Remove a service from the swarm                |
 | [service scale](service_scale.md) | Set the number of replicas for the desired state of the service |
 | [service ps](service_ps.md) | List the tasks of a service              |
 | [service update](service_update.md)  | Update the attributes of a service    |

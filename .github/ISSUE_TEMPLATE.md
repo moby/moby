@@ -22,7 +22,7 @@ You do NOT have to include this information if this is a FEATURE REQUEST
 **Description**
 
 <!--
-Briefly describe the problem your having in a few paragraphs.
+Briefly describe the problem you are having in a few paragraphs.
 -->
 
 **Steps to reproduce the issue:**

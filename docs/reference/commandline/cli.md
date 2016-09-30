@@ -143,6 +143,13 @@ Docker's client uses this property. If this property is not set, the client
 falls back to the default table format. For a list of supported formatting
 directives, see the [**Formatting** section in the `docker images` documentation](images.md)
 
+The property `serviceInspectFormat` specifies the default format for `docker
+service inspect` output. When the `--format` flag is not provided with the
+`docker service inspect` command, Docker's client uses this property. If this
+property is not set, the client falls back to the default json format. For a
+list of supported formatting directives, see the
+[**Formatting** section in the `docker service inspect` documentation](service_inspect.md)
+
 Following is a sample `config.json` file:
 
     {
@@ -151,6 +158,7 @@ Following is a sample `config.json` file:
       },
       "psFormat": "table {{.ID}}\\t{{.Image}}\\t{{.Command}}\\t{{.Labels}}",
       "imagesFormat": "table {{.ID}}\\t{{.Repository}}\\t{{.Tag}}\\t{{.CreatedAt}}",
+      "serviceInspectFormat": "pretty",
       "detachKeys": "ctrl-e,e"
     }
 
@@ -174,8 +182,9 @@ To list the help on any command just execute the command, followed by the
 
     Run a command in a new container
 
-      -a, --attach=[]            Attach to STDIN, STDOUT or STDERR
-      --cpu-shares=0             CPU shares (relative weight)
+    Options:
+          --add-host value             Add a custom host-to-IP mapping (host:ip) (default [])
+      -a, --attach value               Attach to STDIN, STDOUT or STDERR (default [])
     ...
 
 ## Option types

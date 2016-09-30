@@ -16,7 +16,7 @@ import (
 )
 
 const (
-	psTaskItemFmt = "%s\t%s\t%s\t%s\t%s\t%s %s ago\t%s\n"
+	psTaskItemFmt = "%s\t%s\t%s\t%s\t%s %s ago\t%s\n"
 	maxErrLength  = 30
 )
 
@@ -48,11 +48,12 @@ func Print(dockerCli *command.DockerCli, ctx context.Context, tasks []swarm.Task
 
 	// Ignore flushing errors
 	defer writer.Flush()
-	fmt.Fprintln(writer, strings.Join([]string{"ID", "NAME", "IMAGE", "NODE", "DESIRED STATE", "CURRENT STATE", "ERROR"}, "\t"))
+	fmt.Fprintln(writer, strings.Join([]string{"NAME", "IMAGE", "NODE", "DESIRED STATE", "CURRENT STATE", "ERROR"}, "\t"))
 
-	prevName := ""
+	prevServiceName := ""
+	prevSlot := 0
 	for _, task := range tasks {
-		serviceValue, err := resolver.Resolve(ctx, swarm.Service{}, task.ServiceID)
+		serviceName, err := resolver.Resolve(ctx, swarm.Service{}, task.ServiceID)
 		if err != nil {
 			return err
 		}
@@ -61,17 +62,27 @@ func Print(dockerCli *command.DockerCli, ctx context.Context, tasks []swarm.Task
 			return err
 		}
 
-		name := serviceValue
-		if task.Slot > 0 {
-			name = fmt.Sprintf("%s.%d", name, task.Slot)
+		name := task.Annotations.Name
+		// TODO: This is the fallback <ServiceName>.<Slot>.<taskID> in case task name is not present in
+		// Annotations (upgraded from 1.12).
+		// We may be able to remove the following in the future.
+		if name == "" {
+			if task.Slot != 0 {
+				name = fmt.Sprintf("%v.%v.%v", serviceName, task.Slot, task.ID)
+			} else {
+				name = fmt.Sprintf("%v.%v.%v", serviceName, task.NodeID, task.ID)
+			}
 		}
 
 		// Indent the name if necessary
 		indentedName := name
-		if prevName == name {
+		// Since the new format of the task name is <ServiceName>.<Slot>.<taskID>, we should only compare
+		// <ServiceName> and <Slot> here.
+		if prevServiceName == serviceName && prevSlot == task.Slot {
 			indentedName = fmt.Sprintf(" \\_ %s", indentedName)
 		}
-		prevName = name
+		prevServiceName = serviceName
+		prevSlot = task.Slot
 
 		// Trim and quote the error message.
 		taskErr := task.Status.Err
@@ -85,7 +96,6 @@ func Print(dockerCli *command.DockerCli, ctx context.Context, tasks []swarm.Task
 		fmt.Fprintf(
 			writer,
 			psTaskItemFmt,
-			task.ID,
 			indentedName,
 			task.Spec.ContainerSpec.Image,
 			nodeValue,

@@ -16,7 +16,7 @@ import (
 
 func TestImageInspectError(t *testing.T) {
 	client := &Client{
-		transport: newMockClient(nil, errorMock(http.StatusInternalServerError, "Server error")),
+		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 
 	_, _, err := client.ImageInspectWithRaw(context.Background(), "nothing")
@@ -27,7 +27,7 @@ func TestImageInspectError(t *testing.T) {
 
 func TestImageInspectImageNotFound(t *testing.T) {
 	client := &Client{
-		transport: newMockClient(nil, errorMock(http.StatusNotFound, "Server error")),
+		client: newMockClient(errorMock(http.StatusNotFound, "Server error")),
 	}
 
 	_, _, err := client.ImageInspectWithRaw(context.Background(), "unknown")
@@ -40,7 +40,7 @@ func TestImageInspect(t *testing.T) {
 	expectedURL := "/images/image_id/json"
 	expectedTags := []string{"tag1", "tag2"}
 	client := &Client{
-		transport: newMockClient(nil, func(req *http.Request) (*http.Response, error) {
+		client: newMockClient(func(req *http.Request) (*http.Response, error) {
 			if !strings.HasPrefix(req.URL.Path, expectedURL) {
 				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
 			}

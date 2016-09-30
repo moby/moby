@@ -59,7 +59,7 @@ func runInit(dockerCli *command.DockerCli, flags *pflag.FlagSet, opts initOption
 		ListenAddr:      opts.listenAddr.String(),
 		AdvertiseAddr:   opts.advertiseAddr,
 		ForceNewCluster: opts.forceNewCluster,
-		Spec:            opts.swarmOptions.ToSpec(),
+		Spec:            opts.swarmOptions.ToSpec(flags),
 	}
 
 	nodeID, err := client.SwarmInit(ctx, req)

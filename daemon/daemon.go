@@ -47,6 +47,7 @@ import (
 	"github.com/docker/docker/pkg/sysinfo"
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/pkg/truncindex"
+	pluginstore "github.com/docker/docker/plugin/store"
 	"github.com/docker/docker/reference"
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/runconfig"
@@ -94,6 +95,7 @@ type Daemon struct {
 	gidMaps                   []idtools.IDMap
 	layerStore                layer.Store
 	imageStore                image.Store
+	pluginStore               *pluginstore.Store
 	nameIndex                 *registrar.Registrar
 	linkIndex                 *linkIndex
 	containerd                libcontainerd.Client
@@ -206,7 +208,13 @@ func (daemon *Daemon) restore() error {
 			// fixme: only if not running
 			// get list of containers we need to restart
 			if !c.IsRunning() && !c.IsPaused() {
-				if daemon.configStore.AutoRestart && c.ShouldRestart() {
+				// Do not autostart containers which
+				// has endpoints in a swarm scope
+				// network yet since the cluster is
+				// not initialized yet. We will start
+				// it after the cluster is
+				// initialized.
+				if daemon.configStore.AutoRestart && c.ShouldRestart() && !c.NetworkSettings.HasSwarmEndpoint {
 					mapLock.Lock()
 					restartContainers[c] = make(chan struct{})
 					mapLock.Unlock()
@@ -348,6 +356,30 @@ func (daemon *Daemon) restore() error {
 	}
 
 	return nil
+}
+
+// RestartSwarmContainers restarts any autostart container which has a
+// swarm endpoint.
+func (daemon *Daemon) RestartSwarmContainers() {
+	group := sync.WaitGroup{}
+	for _, c := range daemon.List() {
+		if !c.IsRunning() && !c.IsPaused() {
+			// Autostart all the containers which has a
+			// swarm endpoint now that the cluster is
+			// initialized.
+			if daemon.configStore.AutoRestart && c.ShouldRestart() && c.NetworkSettings.HasSwarmEndpoint {
+				group.Add(1)
+				go func(c *container.Container) {
+					defer group.Done()
+					if err := daemon.containerStart(c, ""); err != nil {
+						logrus.Error(err)
+					}
+				}(c)
+			}
+		}
+
+	}
+	group.Wait()
 }
 
 // waitForNetworks is used during daemon initialization when starting up containers
@@ -518,6 +550,9 @@ func NewDaemon(config *Config, registryService registry.Service, containerdRemot
 	if driverName == "" {
 		driverName = config.GraphDriver
 	}
+
+	d.pluginStore = pluginstore.NewStore(config.Root)
+
 	d.layerStore, err = layer.NewStoreFromOptions(layer.StoreOptions{
 		StorePath:                 config.Root,
 		MetadataStorePathTemplate: filepath.Join(config.Root, "image", "%s", "layerdb"),
@@ -525,6 +560,7 @@ func NewDaemon(config *Config, registryService registry.Service, containerdRemot
 		GraphDriverOptions:        config.GraphOptions,
 		UIDMaps:                   uidMaps,
 		GIDMaps:                   gidMaps,
+		PluginGetter:              d.pluginStore,
 	})
 	if err != nil {
 		return nil, err
@@ -880,6 +916,8 @@ func (daemon *Daemon) configureVolumes(rootUID, rootGID int) (*store.VolumeStore
 	if err != nil {
 		return nil, err
 	}
+
+	volumedrivers.RegisterPluginGetter(daemon.pluginStore)
 
 	if !volumedrivers.Register(volumesDriver, volumesDriver.Name()) {
 		return nil, fmt.Errorf("local volume driver could not be registered")

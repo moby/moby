@@ -92,7 +92,7 @@ type v1TopImage struct {
 }
 
 func newV1TopImage(imageID image.ID, img *image.Image, l layer.Layer, parent *v1DependencyImage) (*v1TopImage, error) {
-	v1ID := digest.Digest(imageID).Hex()
+	v1ID := imageID.Digest().Hex()
 	parentV1ID := ""
 	if parent != nil {
 		parentV1ID = parent.V1ID()
@@ -149,10 +149,12 @@ func (p *v1Pusher) getImageList() (imageList []v1Image, tagsByImage map[image.ID
 	if isTagged {
 		// Push a specific tag
 		var imgID image.ID
-		imgID, err = p.config.ReferenceStore.Get(p.ref)
+		var dgst digest.Digest
+		dgst, err = p.config.ReferenceStore.Get(p.ref)
 		if err != nil {
 			return
 		}
+		imgID = image.IDFromDigest(dgst)
 
 		imageList, err = p.imageListForTag(imgID, nil, &referencedLayers)
 		if err != nil {
@@ -164,7 +166,7 @@ func (p *v1Pusher) getImageList() (imageList []v1Image, tagsByImage map[image.ID
 		return
 	}
 
-	imagesSeen := make(map[image.ID]struct{})
+	imagesSeen := make(map[digest.Digest]struct{})
 	dependenciesSeen := make(map[layer.ChainID]*v1DependencyImage)
 
 	associations := p.config.ReferenceStore.ReferencesByName(p.ref)
@@ -174,15 +176,16 @@ func (p *v1Pusher) getImageList() (imageList []v1Image, tagsByImage map[image.ID
 			continue
 		}
 
-		tagsByImage[association.ImageID] = append(tagsByImage[association.ImageID], tagged.Tag())
+		imgID := image.IDFromDigest(association.ID)
+		tagsByImage[imgID] = append(tagsByImage[imgID], tagged.Tag())
 
-		if _, present := imagesSeen[association.ImageID]; present {
+		if _, present := imagesSeen[association.ID]; present {
 			// Skip generating image list for already-seen image
 			continue
 		}
-		imagesSeen[association.ImageID] = struct{}{}
+		imagesSeen[association.ID] = struct{}{}
 
-		imageListForThisTag, err := p.imageListForTag(association.ImageID, dependenciesSeen, &referencedLayers)
+		imageListForThisTag, err := p.imageListForTag(imgID, dependenciesSeen, &referencedLayers)
 		if err != nil {
 			return nil, nil, nil, err
 		}

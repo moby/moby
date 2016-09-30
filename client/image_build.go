@@ -39,7 +39,7 @@ func (cli *Client) ImageBuild(ctx context.Context, buildContext io.Reader, optio
 		return types.ImageBuildResponse{}, err
 	}
 
-	osType := getDockerOS(serverResp.header.Get("Server"))
+	osType := GetDockerOS(serverResp.header.Get("Server"))
 
 	return types.ImageBuildResponse{
 		Body:   serverResp.body,
@@ -110,10 +110,18 @@ func imageBuildOptionsToQuery(options types.ImageBuildOptions) (url.Values, erro
 		return query, err
 	}
 	query.Set("labels", string(labelsJSON))
+
+	cacheFromJSON, err := json.Marshal(options.CacheFrom)
+	if err != nil {
+		return query, err
+	}
+	query.Set("cachefrom", string(cacheFromJSON))
+
 	return query, nil
 }
 
-func getDockerOS(serverHeader string) string {
+// GetDockerOS returns the operating system based on the server header from the daemon.
+func GetDockerOS(serverHeader string) string {
 	var osType string
 	matches := headerRegexp.FindStringSubmatch(serverHeader)
 	if len(matches) > 0 {

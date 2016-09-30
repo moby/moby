@@ -1,35 +1,15 @@
+// +build windows
+
 package daemon
 
-import (
-	"time"
-
-	"github.com/docker/docker/container"
-)
-
-// newStatsCollector returns a new statsCollector for collection stats
-// for a registered container at the specified interval. The collector allows
-// non-running containers to be added and will start processing stats when
-// they are started.
-func (daemon *Daemon) newStatsCollector(interval time.Duration) *statsCollector {
-	return &statsCollector{}
+// platformNewStatsCollector performs platform specific initialisation of the
+// statsCollector structure. This is a no-op on Windows.
+func platformNewStatsCollector(s *statsCollector) {
 }
 
-// statsCollector manages and provides container resource stats
-type statsCollector struct {
-}
-
-// collect registers the container with the collector and adds it to
-// the event loop for collection on the specified interval returning
-// a channel for the subscriber to receive on.
-func (s *statsCollector) collect(c *container.Container) chan interface{} {
-	return nil
-}
-
-// stopCollection closes the channels for all subscribers and removes
-// the container from metrics collection.
-func (s *statsCollector) stopCollection(c *container.Container) {
-}
-
-// unsubscribe removes a specific subscriber from receiving updates for a container's stats.
-func (s *statsCollector) unsubscribe(c *container.Container, ch chan interface{}) {
+// getSystemCPUUsage returns the host system's cpu usage in
+// nanoseconds. An error is returned if the format of the underlying
+// file does not match. This is a no-op on Windows.
+func (s *statsCollector) getSystemCPUUsage() (uint64, error) {
+	return 0, nil
 }

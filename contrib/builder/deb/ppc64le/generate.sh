@@ -50,17 +50,40 @@ for version in "${versions[@]}"; do
 		dh-apparmor # for apparmor debhelper
 		dh-systemd # for systemd debhelper integration
 		git # for "git commit" info in "docker -v"
-		golang-go # ppc64le needs go to bootstrap go
 		libapparmor-dev # for "sys/apparmor.h"
 		libdevmapper-dev # for "libdevmapper.h"
 		libltdl-dev # for pkcs11 "ltdl.h"
-		libseccomp-dev  # for "seccomp.h" & "libseccomp.so"
 		libsqlite3-dev # for "sqlite3.h"
-		libsystemd-dev
 		pkg-config # for detecting things like libsystemd-journal dynamically
 	)
-	
+
+	# trusty uses a different go package name then xenial and newer, so track that for later
+	goPackage=
 	case "$suite" in
+		trusty) 
+			# ppc64le doesn't have go binaries, so install go to bootstrap go
+			# trusty doesn't have a ppc64le golang-go package
+			packages+=( golang-1.6 )
+			goPackage='golang-1.6'
+
+			packages+=( libsystemd-journal-dev )
+			;;
+		*)
+			# libseccomp isn't available until ubuntu xenial and is required for "seccomp.h" & "libseccomp.so"
+			packages+=( golang-go )
+			goPackage='golang-go'
+
+			packages+=( libseccomp-dev )
+			packages+=( libsystemd-dev )
+			;;
+	esac
+
+	# buildtags
+	case "$suite" in
+		# trusty has no seccomp package
+		trusty)
+			runcBuildTags="apparmor selinux"
+		;;
 		# ppc64le support was backported into libseccomp 2.2.3-2,
 		# so enable seccomp by default
 		*)
@@ -75,8 +98,13 @@ for version in "${versions[@]}"; do
 
 	# ppc64le doesn't have an official downloadable binary as of go 1.6.2. so use the
 	# older packaged go(v1.6.1) to bootstrap latest go, then remove the packaged go
+	echo "# Install Go" >> "$version/Dockerfile"
+	echo "# ppc64le doesn't have official go binaries, so use the version of go installed from the image" >> "$version/Dockerfile"
+	echo "# to build go from source." >> "$version/Dockerfile"
+	echo "# NOTE: ppc64le has compatibility issues with older versions of go, so make sure the version >= 1.6" >> "$version/Dockerfile"
+	
 	awk '$1 == "ENV" && $2 == "GO_VERSION" { print; exit }' ../../../../Dockerfile.ppc64le >> "$version/Dockerfile"
-	echo 'ENV GO_DOWNLOAD_URL https://golang.org/dl/go${GO_VERSION}.src.tar.gz' >> "$version/Dockerfile"
+	echo 'ENV GO_DOWNLOAD_URL https://storage.googleapis.com/golang/go${GO_VERSION}.src.tar.gz' >> "$version/Dockerfile"
 	echo 'ENV GOROOT_BOOTSTRAP /usr/lib/go-1.6' >> "$version/Dockerfile"
 	echo >> "$version/Dockerfile"
 	
@@ -84,7 +112,7 @@ for version in "${versions[@]}"; do
 	echo '	&& tar -C /usr/local -xzf golang.tar.gz \' >> "$version/Dockerfile"
 	echo '	&& rm golang.tar.gz \' >> "$version/Dockerfile"
 	echo '	&& cd /usr/local/go/src && ./make.bash 2>&1 \' >> "$version/Dockerfile"
-	echo '	&& apt-get purge -y golang-go && apt-get autoremove -y' >> "$version/Dockerfile"
+	echo "	&& apt-get purge -y $goPackage && apt-get autoremove -y" >> "$version/Dockerfile"
 	echo >> "$version/Dockerfile"
 
 	echo 'ENV PATH $PATH:/usr/local/go/bin' >> "$version/Dockerfile"

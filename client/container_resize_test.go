@@ -14,7 +14,7 @@ import (
 
 func TestContainerResizeError(t *testing.T) {
 	client := &Client{
-		transport: newMockClient(nil, errorMock(http.StatusInternalServerError, "Server error")),
+		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 	err := client.ContainerResize(context.Background(), "container_id", types.ResizeOptions{})
 	if err == nil || err.Error() != "Error response from daemon: Server error" {
@@ -24,7 +24,7 @@ func TestContainerResizeError(t *testing.T) {
 
 func TestContainerExecResizeError(t *testing.T) {
 	client := &Client{
-		transport: newMockClient(nil, errorMock(http.StatusInternalServerError, "Server error")),
+		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 	err := client.ContainerExecResize(context.Background(), "exec_id", types.ResizeOptions{})
 	if err == nil || err.Error() != "Error response from daemon: Server error" {
@@ -34,7 +34,7 @@ func TestContainerExecResizeError(t *testing.T) {
 
 func TestContainerResize(t *testing.T) {
 	client := &Client{
-		transport: newMockClient(nil, resizeTransport("/containers/container_id/resize")),
+		client: newMockClient(resizeTransport("/containers/container_id/resize")),
 	}
 
 	err := client.ContainerResize(context.Background(), "container_id", types.ResizeOptions{
@@ -48,7 +48,7 @@ func TestContainerResize(t *testing.T) {
 
 func TestContainerExecResize(t *testing.T) {
 	client := &Client{
-		transport: newMockClient(nil, resizeTransport("/exec/exec_id/resize")),
+		client: newMockClient(resizeTransport("/exec/exec_id/resize")),
 	}
 
 	err := client.ContainerExecResize(context.Background(), "exec_id", types.ResizeOptions{

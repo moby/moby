@@ -631,7 +631,7 @@ func (s *DockerNetworkSuite) TestDockerNetworkIpamMultipleNetworks(c *check.C) {
 		"--gateway=192.168.0.100", "--gateway=192.170.0.100",
 		"--ip-range=192.168.1.0/24",
 		"--aux-address", "a=192.168.1.5", "--aux-address", "b=192.168.1.6",
-		"--aux-address", "a=192.170.1.5", "--aux-address", "b=192.170.1.6",
+		"--aux-address", "c=192.170.1.5", "--aux-address", "d=192.170.1.6",
 		"test7")
 	assertNwIsAvailable(c, "test7")
 
@@ -1764,7 +1764,7 @@ func (s *DockerNetworkSuite) TestDockerNetworkDisconnectFromBridge(c *check.C) {
 	network := strings.TrimSpace(out)
 
 	name := "test"
-	dockerCmd(c, "create", "--rm", "--name", name, "busybox", "top")
+	dockerCmd(c, "create", "--name", name, "busybox", "top")
 
 	_, _, err := dockerCmdWithError("network", "disconnect", network, name)
 	c.Assert(err, check.IsNil)

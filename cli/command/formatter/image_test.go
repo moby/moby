@@ -9,6 +9,7 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/pkg/stringid"
+	"github.com/docker/docker/pkg/testutil/assert"
 )
 
 func TestImageContext(t *testing.T) {
@@ -66,7 +67,7 @@ func TestImageContext(t *testing.T) {
 			t.Fatalf("Expected %s, was %s\n", c.expValue, v)
 		}
 
-		h := ctx.fullHeader()
+		h := ctx.FullHeader()
 		if h != c.expHeader {
 			t.Fatalf("Expected %s, was %s\n", c.expHeader, h)
 		}
@@ -77,7 +78,7 @@ func TestImageContextWrite(t *testing.T) {
 	unixTime := time.Now().AddDate(0, 0, -1).Unix()
 	expectedTime := time.Unix(unixTime, 0).String()
 
-	contexts := []struct {
+	cases := []struct {
 		context  ImageContext
 		expected string
 	}{
@@ -104,7 +105,7 @@ func TestImageContextWrite(t *testing.T) {
 		{
 			ImageContext{
 				Context: Context{
-					Format: "table",
+					Format: NewImageFormat("table", false, false),
 				},
 			},
 			`REPOSITORY          TAG                 IMAGE ID            CREATED             SIZE
@@ -116,7 +117,7 @@ image               tag2                imageID2            24 hours ago        
 		{
 			ImageContext{
 				Context: Context{
-					Format: "table {{.Repository}}",
+					Format: NewImageFormat("table {{.Repository}}", false, false),
 				},
 			},
 			"REPOSITORY\nimage\nimage\n<none>\n",
@@ -124,7 +125,7 @@ image               tag2                imageID2            24 hours ago        
 		{
 			ImageContext{
 				Context: Context{
-					Format: "table {{.Repository}}",
+					Format: NewImageFormat("table {{.Repository}}", false, true),
 				},
 				Digest: true,
 			},
@@ -137,8 +138,7 @@ image               <none>
 		{
 			ImageContext{
 				Context: Context{
-					Format: "table {{.Repository}}",
-					Quiet:  true,
+					Format: NewImageFormat("table {{.Repository}}", true, false),
 				},
 			},
 			"REPOSITORY\nimage\nimage\n<none>\n",
@@ -146,8 +146,7 @@ image               <none>
 		{
 			ImageContext{
 				Context: Context{
-					Format: "table",
-					Quiet:  true,
+					Format: NewImageFormat("table", true, false),
 				},
 			},
 			"imageID1\nimageID2\nimageID3\n",
@@ -155,8 +154,7 @@ image               <none>
 		{
 			ImageContext{
 				Context: Context{
-					Format: "table",
-					Quiet:  false,
+					Format: NewImageFormat("table", false, true),
 				},
 				Digest: true,
 			},
@@ -169,8 +167,7 @@ image               tag2                <none>                                  
 		{
 			ImageContext{
 				Context: Context{
-					Format: "table",
-					Quiet:  true,
+					Format: NewImageFormat("table", true, true),
 				},
 				Digest: true,
 			},
@@ -180,7 +177,7 @@ image               tag2                <none>                                  
 		{
 			ImageContext{
 				Context: Context{
-					Format: "raw",
+					Format: NewImageFormat("raw", false, false),
 				},
 			},
 			fmt.Sprintf(`repository: image
@@ -206,7 +203,7 @@ virtual_size: 0 B
 		{
 			ImageContext{
 				Context: Context{
-					Format: "raw",
+					Format: NewImageFormat("raw", false, true),
 				},
 				Digest: true,
 			},
@@ -236,8 +233,7 @@ virtual_size: 0 B
 		{
 			ImageContext{
 				Context: Context{
-					Format: "raw",
-					Quiet:  true,
+					Format: NewImageFormat("raw", true, false),
 				},
 			},
 			`image_id: imageID1
@@ -249,7 +245,7 @@ image_id: imageID3
 		{
 			ImageContext{
 				Context: Context{
-					Format: "{{.Repository}}",
+					Format: NewImageFormat("{{.Repository}}", false, false),
 				},
 			},
 			"image\nimage\n<none>\n",
@@ -257,7 +253,7 @@ image_id: imageID3
 		{
 			ImageContext{
 				Context: Context{
-					Format: "{{.Repository}}",
+					Format: NewImageFormat("{{.Repository}}", false, true),
 				},
 				Digest: true,
 			},
@@ -265,22 +261,20 @@ image_id: imageID3
 		},
 	}
 
-	for _, context := range contexts {
+	for _, testcase := range cases {
 		images := []types.Image{
 			{ID: "imageID1", RepoTags: []string{"image:tag1"}, RepoDigests: []string{"image@sha256:cbbf2f9a99b47fc460d422812b6a5adff7dfee951d8fa2e4a98caa0382cfbdbf"}, Created: unixTime},
 			{ID: "imageID2", RepoTags: []string{"image:tag2"}, Created: unixTime},
 			{ID: "imageID3", RepoTags: []string{"<none>:<none>"}, RepoDigests: []string{"<none>@<none>"}, Created: unixTime},
 		}
 		out := bytes.NewBufferString("")
-		context.context.Output = out
-		context.context.Images = images
-		context.context.Write()
-		actual := out.String()
-		if actual != context.expected {
-			t.Fatalf("Expected \n%s, got \n%s", context.expected, actual)
+		testcase.context.Output = out
+		err := ImageWrite(testcase.context, images)
+		if err != nil {
+			assert.Error(t, err, testcase.expected)
+		} else {
+			assert.Equal(t, out.String(), testcase.expected)
 		}
-		// Clean buffer
-		out.Reset()
 	}
 }
 
@@ -295,7 +289,7 @@ func TestImageContextWriteWithNoImage(t *testing.T) {
 		{
 			ImageContext{
 				Context: Context{
-					Format: "{{.Repository}}",
+					Format: NewImageFormat("{{.Repository}}", false, false),
 					Output: out,
 				},
 			},
@@ -304,7 +298,7 @@ func TestImageContextWriteWithNoImage(t *testing.T) {
 		{
 			ImageContext{
 				Context: Context{
-					Format: "table {{.Repository}}",
+					Format: NewImageFormat("table {{.Repository}}", false, false),
 					Output: out,
 				},
 			},
@@ -313,32 +307,26 @@ func TestImageContextWriteWithNoImage(t *testing.T) {
 		{
 			ImageContext{
 				Context: Context{
-					Format: "{{.Repository}}",
+					Format: NewImageFormat("{{.Repository}}", false, true),
 					Output: out,
 				},
-				Digest: true,
 			},
 			"",
 		},
 		{
 			ImageContext{
 				Context: Context{
-					Format: "table {{.Repository}}",
+					Format: NewImageFormat("table {{.Repository}}", false, true),
 					Output: out,
 				},
-				Digest: true,
 			},
 			"REPOSITORY          DIGEST\n",
 		},
 	}
 
 	for _, context := range contexts {
-		context.context.Images = images
-		context.context.Write()
-		actual := out.String()
-		if actual != context.expected {
-			t.Fatalf("Expected \n%s, got \n%s", context.expected, actual)
-		}
+		ImageWrite(context.context, images)
+		assert.Equal(t, out.String(), context.expected)
 		// Clean buffer
 		out.Reset()
 	}

@@ -8,13 +8,13 @@ package keymanager
 import (
 	"crypto/rand"
 	"encoding/binary"
-	"fmt"
 	"sync"
 	"time"
 
 	"github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/log"
 	"github.com/docker/swarmkit/manager/state/store"
+	"github.com/pkg/errors"
 	"golang.org/x/net/context"
 )
 
@@ -97,7 +97,7 @@ func (k *KeyManager) allocateKey(ctx context.Context, subsys string) *api.Encryp
 
 	_, err := rand.Read(key)
 	if err != nil {
-		panic(fmt.Errorf("key generated failed, %v", err))
+		panic(errors.Wrap(err, "key generated failed"))
 	}
 	k.keyRing.lClock++
 
@@ -137,7 +137,7 @@ func (k *KeyManager) rotateKey(ctx context.Context) error {
 
 	cluster := clusters[0]
 	if len(cluster.NetworkBootstrapKeys) == 0 {
-		panic(fmt.Errorf("no key in the cluster config"))
+		panic(errors.New("no key in the cluster config"))
 	}
 
 	subsysKeys := map[string][]*api.EncryptionKey{}
@@ -225,7 +225,7 @@ func (k *KeyManager) Stop() error {
 	k.mu.Lock()
 	defer k.mu.Unlock()
 	if k.cancel == nil {
-		return fmt.Errorf("keymanager is not started")
+		return errors.New("keymanager is not started")
 	}
 	k.cancel()
 	return nil

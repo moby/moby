@@ -15,7 +15,7 @@ import (
 
 func TestNodeInspectError(t *testing.T) {
 	client := &Client{
-		transport: newMockClient(nil, errorMock(http.StatusInternalServerError, "Server error")),
+		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 
 	_, _, err := client.NodeInspectWithRaw(context.Background(), "nothing")
@@ -26,7 +26,7 @@ func TestNodeInspectError(t *testing.T) {
 
 func TestNodeInspectNodeNotFound(t *testing.T) {
 	client := &Client{
-		transport: newMockClient(nil, errorMock(http.StatusNotFound, "Server error")),
+		client: newMockClient(errorMock(http.StatusNotFound, "Server error")),
 	}
 
 	_, _, err := client.NodeInspectWithRaw(context.Background(), "unknown")
@@ -38,7 +38,7 @@ func TestNodeInspectNodeNotFound(t *testing.T) {
 func TestNodeInspect(t *testing.T) {
 	expectedURL := "/nodes/node_id"
 	client := &Client{
-		transport: newMockClient(nil, func(req *http.Request) (*http.Response, error) {
+		client: newMockClient(func(req *http.Request) (*http.Response, error) {
 			if !strings.HasPrefix(req.URL.Path, expectedURL) {
 				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
 			}

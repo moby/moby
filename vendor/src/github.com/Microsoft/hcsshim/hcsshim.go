@@ -14,6 +14,7 @@ import (
 //go:generate go run mksyscall_windows.go -output zhcsshim.go hcsshim.go
 
 //sys coTaskMemFree(buffer unsafe.Pointer) = ole32.CoTaskMemFree
+//sys SetCurrentThreadCompartmentId(compartmentId uint32) (hr error) = iphlpapi.SetCurrentThreadCompartmentId
 
 //sys activateLayer(info *driverInfo, id string) (hr error) = vmcompute.ActivateLayer?
 //sys copyLayer(info *driverInfo, srcId string, dstId string, descriptors []WC_LAYER_DESCRIPTOR) (hr error) = vmcompute.CopyLayer?

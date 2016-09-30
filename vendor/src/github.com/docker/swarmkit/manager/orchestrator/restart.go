@@ -133,10 +133,9 @@ func (r *RestartSupervisor) Restart(ctx context.Context, tx store.Tx, cluster *a
 	var restartTask *api.Task
 
 	if isReplicatedService(service) {
-		restartTask = newTask(cluster, service, t.Slot)
+		restartTask = newTask(cluster, service, t.Slot, "")
 	} else if isGlobalService(service) {
-		restartTask = newTask(cluster, service, 0)
-		restartTask.NodeID = t.NodeID
+		restartTask = newTask(cluster, service, 0, t.NodeID)
 	} else {
 		log.G(ctx).Error("service not supported by restart supervisor")
 		return nil
@@ -346,7 +345,8 @@ func (r *RestartSupervisor) DelayStart(ctx context.Context, _ store.Tx, oldTask 
 			close(doneCh)
 		}()
 
-		oldTaskTimeout := time.After(r.taskTimeout)
+		oldTaskTimer := time.NewTimer(r.taskTimeout)
+		defer oldTaskTimer.Stop()
 
 		// Wait for the delay to elapse, if one is specified.
 		if delay != 0 {
@@ -357,10 +357,10 @@ func (r *RestartSupervisor) DelayStart(ctx context.Context, _ store.Tx, oldTask 
 			}
 		}
 
-		if waitStop {
+		if waitStop && oldTask != nil {
 			select {
 			case <-watch:
-			case <-oldTaskTimeout:
+			case <-oldTaskTimer.C:
 			case <-ctx.Done():
 				return
 			}

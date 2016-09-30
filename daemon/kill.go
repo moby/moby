@@ -121,11 +121,8 @@ func (daemon *Daemon) Kill(container *container.Container) error {
 			return nil
 		}
 
-		if container.IsRunning() {
-			container.WaitStop(2 * time.Second)
-			if container.IsRunning() {
-				return err
-			}
+		if _, err2 := container.WaitStop(2 * time.Second); err2 != nil {
+			return err
 		}
 	}
 

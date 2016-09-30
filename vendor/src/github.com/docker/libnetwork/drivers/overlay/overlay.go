@@ -336,7 +336,9 @@ func (d *driver) DiscoverNew(dType discoverapi.DiscoveryType, data interface{}) 
 			}
 			keys = append(keys, k)
 		}
-		d.setKeys(keys)
+		if err := d.setKeys(keys); err != nil {
+			logrus.Warn(err)
+		}
 	case discoverapi.EncryptionKeysUpdate:
 		var newKey, delKey, priKey *key
 		encrData, ok := data.(discoverapi.DriverEncryptionUpdate)
@@ -361,7 +363,9 @@ func (d *driver) DiscoverNew(dType discoverapi.DiscoveryType, data interface{}) 
 				tag:   uint32(encrData.PruneTag),
 			}
 		}
-		d.updateKeys(newKey, priKey, delKey)
+		if err := d.updateKeys(newKey, priKey, delKey); err != nil {
+			logrus.Warn(err)
+		}
 	default:
 	}
 	return nil

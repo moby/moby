@@ -17,7 +17,7 @@ import (
 
 func TestNetworkConnectError(t *testing.T) {
 	client := &Client{
-		transport: newMockClient(nil, errorMock(http.StatusInternalServerError, "Server error")),
+		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 
 	err := client.NetworkConnect(context.Background(), "network_id", "container_id", nil)
@@ -30,7 +30,7 @@ func TestNetworkConnectEmptyNilEndpointSettings(t *testing.T) {
 	expectedURL := "/networks/network_id/connect"
 
 	client := &Client{
-		transport: newMockClient(nil, func(req *http.Request) (*http.Response, error) {
+		client: newMockClient(func(req *http.Request) (*http.Response, error) {
 			if !strings.HasPrefix(req.URL.Path, expectedURL) {
 				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
 			}
@@ -69,7 +69,7 @@ func TestNetworkConnect(t *testing.T) {
 	expectedURL := "/networks/network_id/connect"
 
 	client := &Client{
-		transport: newMockClient(nil, func(req *http.Request) (*http.Response, error) {
+		client: newMockClient(func(req *http.Request) (*http.Response, error) {
 			if !strings.HasPrefix(req.URL.Path, expectedURL) {
 				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
 			}

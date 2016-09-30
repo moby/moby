@@ -2,7 +2,6 @@ package ca
 
 import (
 	"crypto/subtle"
-	"fmt"
 	"sync"
 
 	"github.com/Sirupsen/logrus"
@@ -12,6 +11,7 @@ import (
 	"github.com/docker/swarmkit/manager/state"
 	"github.com/docker/swarmkit/manager/state/store"
 	"github.com/docker/swarmkit/protobuf/ptypes"
+	"github.com/pkg/errors"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -149,14 +149,14 @@ func (s *Server) IssueNodeCertificate(ctx context.Context, request *api.IssueNod
 	}
 	defer s.doneTask()
 
-	// If the remote node is an Agent (either forwarded by a manager, or calling directly),
-	// issue a renew agent certificate entry with the correct ID
-	nodeID, err := AuthorizeForwardedRoleAndOrg(ctx, []string{AgentRole}, []string{ManagerRole}, s.securityConfig.ClientTLSCreds.Organization())
+	// If the remote node is a worker (either forwarded by a manager, or calling directly),
+	// issue a renew worker certificate entry with the correct ID
+	nodeID, err := AuthorizeForwardedRoleAndOrg(ctx, []string{WorkerRole}, []string{ManagerRole}, s.securityConfig.ClientTLSCreds.Organization())
 	if err == nil {
 		return s.issueRenewCertificate(ctx, nodeID, request.CSR)
 	}
 
-	// If the remote node is a Manager (either forwarded by another manager, or calling directly),
+	// If the remote node is a manager (either forwarded by another manager, or calling directly),
 	// issue a renew certificate entry with the correct ID
 	nodeID, err = AuthorizeForwardedRoleAndOrg(ctx, []string{ManagerRole}, []string{ManagerRole}, s.securityConfig.ClientTLSCreds.Organization())
 	if err == nil {
@@ -300,7 +300,7 @@ func (s *Server) Run(ctx context.Context) error {
 	s.mu.Lock()
 	if s.isRunning() {
 		s.mu.Unlock()
-		return fmt.Errorf("CA signer is already running")
+		return errors.New("CA signer is already running")
 	}
 	s.wg.Add(1)
 	s.mu.Unlock()
@@ -319,7 +319,7 @@ func (s *Server) Run(ctx context.Context) error {
 				return err
 			}
 			if len(clusters) != 1 {
-				return fmt.Errorf("could not find cluster object")
+				return errors.New("could not find cluster object")
 			}
 			s.updateCluster(ctx, clusters[0])
 
@@ -387,7 +387,7 @@ func (s *Server) Stop() error {
 	s.mu.Lock()
 	if !s.isRunning() {
 		s.mu.Unlock()
-		return fmt.Errorf("CA signer is already stopped")
+		return errors.New("CA signer is already stopped")
 	}
 	s.cancel()
 	s.mu.Unlock()
@@ -564,7 +564,7 @@ func (s *Server) signNodeCert(ctx context.Context, node *api.Node) {
 		err = s.store.Update(func(tx store.Tx) error {
 			node := store.GetNode(tx, nodeID)
 			if node == nil {
-				return fmt.Errorf("node %s not found", nodeID)
+				return errors.Errorf("node %s not found", nodeID)
 			}
 
 			node.Certificate.Status = api.IssuanceStatus{
@@ -595,7 +595,7 @@ func (s *Server) signNodeCert(ctx context.Context, node *api.Node) {
 			if err != nil {
 				node = store.GetNode(tx, nodeID)
 				if node == nil {
-					err = fmt.Errorf("node %s does not exist", nodeID)
+					err = errors.Errorf("node %s does not exist", nodeID)
 				}
 			}
 			return err

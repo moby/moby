@@ -5,9 +5,9 @@ set -e
 #
 # Usage:
 # vendor.sh revendor all dependencies
-# vendor.sh github.com/docker/engine-api revendor only the engine-api dependency.
-# vendor.sh github.com/docker/engine-api v0.3.3 vendor only engine-api at the specified tag/commit.
-# vendor.sh git github.com/docker/engine-api v0.3.3 is the same but specifies the VCS for cases where the VCS is something else than git
+# vendor.sh github.com/docker/libkv revendor only the libkv dependency.
+# vendor.sh github.com/docker/libkv v0.2.1 vendor only libkv at the specified tag/commit.
+# vendor.sh git github.com/docker/libkv v0.2.1 is the same but specifies the VCS for cases where the VCS is something else than git
 # vendor.sh git golang.org/x/sys eb2c74142fd19a79b3f237334c7384d5167b1b46 https://github.com/golang/sys.git vendor only golang.org/x/sys downloading from the specified URL
 
 cd "$(dirname "$BASH_SOURCE")/.."
@@ -48,7 +48,7 @@ esac
 
 # the following lines are in sorted order, FYI
 clone git github.com/Azure/go-ansiterm 388960b655244e76e24c75f48631564eaefade62
-clone git github.com/Microsoft/hcsshim v0.4.2
+clone git github.com/Microsoft/hcsshim v0.4.3
 clone git github.com/Microsoft/go-winio v0.3.4
 clone git github.com/Sirupsen/logrus v0.10.0 # logrus is a common dependency among multiple deps
 clone git github.com/docker/libtrust 9cbd2a1374f46905c68a4eb3694a130610adc62a
@@ -66,12 +66,11 @@ clone git golang.org/x/sys eb2c74142fd19a79b3f237334c7384d5167b1b46 https://gith
 clone git github.com/docker/go-units f2145db703495b2e525c59662db69a7344b00bb8
 clone git github.com/docker/go-connections 988efe982fdecb46f01d53465878ff1f2ff411ce
 
-clone git github.com/docker/engine-api f9cef590446e4e6073b49b652f47a337b897c1a3
-clone git github.com/RackSec/srslog 259aed10dfa74ea2961eddd1d9847619f6e98837
+clone git github.com/RackSec/srslog 365bf33cd9acc21ae1c355209865f17228ca534e
 clone git github.com/imdario/mergo 0.2.1
 
 #get libnetwork packages
-clone git github.com/docker/libnetwork 51d88e9ae63f4164f3678fe74feda89d6990befa
+clone git github.com/docker/libnetwork bf3d9ccfb8ebf768843691143c66d137743cc5e9
 clone git github.com/docker/go-events 18b43f1bc85d9cdd42c05a6cd2d444c7a200a894
 clone git github.com/armon/go-radix e39d623f12e8e41c7b5529e9a9dd67a1e2261f80
 clone git github.com/armon/go-metrics eb0af217e5e9747e41dd5303755356b62d28e3ec
@@ -88,7 +87,7 @@ clone git github.com/deckarep/golang-set ef32fa3046d9f249d399f98ebaf9be944430fd1
 clone git github.com/coreos/etcd 3a49cbb769ebd8d1dd25abb1e83386e9883a5707
 clone git github.com/ugorji/go f1f1a805ed361a0e078bb537e4ea78cd37dcf065
 clone git github.com/hashicorp/consul v0.5.2
-clone git github.com/boltdb/bolt v1.2.1
+clone git github.com/boltdb/bolt fff57c100f4dea1905678da7e90d92429dff2904
 clone git github.com/miekg/dns 75e6e86cc601825c5dbcd4e0c209eab180997cd7
 
 # get graph and distribution packages
@@ -102,7 +101,7 @@ clone git github.com/pborman/uuid v1.0
 # get desired notary commit, might also need to be updated in Dockerfile
 clone git github.com/docker/notary v0.3.0
 
-clone git google.golang.org/grpc ab0be5212fb225475f2087566eded7da5d727960 https://github.com/grpc/grpc-go.git
+clone git google.golang.org/grpc v1.0.1-GA https://github.com/grpc/grpc-go.git
 clone git github.com/miekg/pkcs11 df8ae6ca730422dba20c768ff38ef7d79077a59f
 clone git github.com/docker/go v1.5.1-1-1-gbaf439e
 clone git github.com/agl/ed25519 d2b94fd789ea21d12fac1a4443dd3a3f79cda72c
@@ -114,12 +113,12 @@ clone git github.com/seccomp/libseccomp-golang 32f571b70023028bd57d9288c20efbcb2
 clone git github.com/coreos/go-systemd v4
 clone git github.com/godbus/dbus v4.0.0
 clone git github.com/syndtr/gocapability 2c00daeb6c3b45114c80ac44119e7b8801fdd852
-clone git github.com/golang/protobuf 3c84672111d91bb5ac31719e112f9f7126a0e26e
+clone git github.com/golang/protobuf 1f49d83d9aa00e6ce4fc8258c71cc7786aec968a
 
 # gelf logging driver deps
 clone git github.com/Graylog2/go-gelf aab2f594e4585d43468ac57287b0dece9d806883
 
-clone git github.com/fluent/fluent-logger-golang v1.1.0
+clone git github.com/fluent/fluent-logger-golang v1.2.0
 # fluent-logger-golang deps
 clone git github.com/philhofer/fwd 899e4efba8eaa1fea74175308f3fae18ff3319fa
 clone git github.com/tinylib/msgp 75ee40d2601edf122ef667e2a07d600d4c44490c
@@ -141,12 +140,12 @@ clone git google.golang.org/cloud dae7e3d993bc3812a2185af60552bb6b847e52a0 https
 clone git github.com/docker/docker-credential-helpers v0.3.0
 
 # containerd
-clone git github.com/docker/containerd 4c21ad662f71af56c0e6b29c0afef72df441d1ff
+clone git github.com/docker/containerd 2545227b0357eb55e369fa0072baef9ad91cdb69
 
 # cluster
-clone git github.com/docker/swarmkit 27fbaef4ceed648bb575969ccc9083a6e104a719
+clone git github.com/docker/swarmkit b79d41fa99c137181d8f58ef76a6e8a25bc2e72f
 clone git github.com/golang/mock bd3c8e81be01eef76d4b503f5e687d2d1354d2d9
-clone git github.com/gogo/protobuf 43a2e0b1c32252bfbbdf81f7faa7a88fb3fa4028
+clone git github.com/gogo/protobuf v0.3
 clone git github.com/cloudflare/cfssl 7fb22c8cba7ecaf98e4082d22d65800cf45e042a
 clone git github.com/google/certificate-transparency 0f6e3d1d1ba4d03fdaab7cd716f36255c2e48341
 clone git golang.org/x/crypto 3fbbcd23f1cb824e69491a5930cfeff09b12f4d2 https://github.com/golang/crypto.git

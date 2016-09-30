@@ -15,7 +15,7 @@ import (
 
 func TestImageCreateError(t *testing.T) {
 	client := &Client{
-		transport: newMockClient(nil, errorMock(http.StatusInternalServerError, "Server error")),
+		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 	_, err := client.ImageCreate(context.Background(), "reference", types.ImageCreateOptions{})
 	if err == nil || err.Error() != "Error response from daemon: Server error" {
@@ -30,7 +30,7 @@ func TestImageCreate(t *testing.T) {
 	expectedReference := fmt.Sprintf("%s@%s", expectedImage, expectedTag)
 	expectedRegistryAuth := "eyJodHRwczovL2luZGV4LmRvY2tlci5pby92MS8iOnsiYXV0aCI6ImRHOTBid289IiwiZW1haWwiOiJqb2huQGRvZS5jb20ifX0="
 	client := &Client{
-		transport: newMockClient(nil, func(r *http.Request) (*http.Response, error) {
+		client: newMockClient(func(r *http.Request) (*http.Response, error) {
 			if !strings.HasPrefix(r.URL.Path, expectedURL) {
 				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, r.URL)
 			}

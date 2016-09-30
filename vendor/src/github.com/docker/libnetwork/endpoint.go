@@ -883,6 +883,14 @@ func CreateOptionPortMapping(portBindings []types.PortBinding) EndpointOption {
 	}
 }
 
+// CreateOptionDNS function returns an option setter for dns entry option to
+// be passed to container Create method.
+func CreateOptionDNS(dns []string) EndpointOption {
+	return func(ep *endpoint) {
+		ep.generic[netlabel.DNSServers] = dns
+	}
+}
+
 // CreateOptionAnonymous function returns an option setter for setting
 // this endpoint as anonymous
 func CreateOptionAnonymous() EndpointOption {

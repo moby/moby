@@ -60,8 +60,6 @@
 		people = [
 			"jamtur01",
 			"misty",
-			"moxiegirl",
-			"sfsmithcha",
 			"sven",
 			"thajeztah"
 		]
@@ -79,6 +77,7 @@
 	# - close an issue or pull request when it's inappropriate or off-topic
 
 		people = [
+			"ehazlett",
 			"mgoelzer",
 			"programmerq",
 			"thajeztah"
@@ -114,7 +113,7 @@
 			# expressions (coz, YOLO!) on July 10, 2014
 			# https://github.com/docker/docker/pull/6950/commits/f3a68ffa390fb851115c77783fa4031f1d3b2995.
 			# Jess was Release Captain for Docker 1.4, 1.6 and 1.7, and contributed
-			# many features and improvement, among which "seccomp profiles" (making 
+			# many features and improvement, among which "seccomp profiles" (making
 			# containers a lot more secure). Besides being a maintainer, she
 			# set up the CI infrastructure for the project, giving everyone
 			# something to shout at if a PR failed ("noooo Janky!").
@@ -125,8 +124,17 @@
 			# check out her open source projects on GitHub https://github.com/jfrazelle (a must-try).
 			"jfrazelle",
 
+			# As a docs maintainer, Mary Anthony contributed greatly to the Docker
+			# docs. She wrote the Docker Contributor Guide and Getting Started
+			# Guides. She helped create a doc build system independent of
+			# docker/docker project, and implemented a new docs.docker.com theme and
+			# nav for 2015 Dockercon. Fun fact: the most inherited layer in DockerHub
+			# public repositories was originally referenced in
+			# maryatdocker/docker-whale back in May 2015.
+			"moxiegirl",
+
 			# Vincent "vbatts!" Batts made his first contribution to the project
-			# in November 2013, to become a maintainer a few months later, on 
+			# in November 2013, to become a maintainer a few months later, on
 			# May 10, 2014 (https://github.com/docker/docker/commit/d6e666a87a01a5634c250358a94c814bf26cb778).
 			# As a maintainer, Vincent made important contributions to core elements
 			# of Docker, such as "distribution" (tarsum) and graphdrivers (btrfs, devicemapper).
@@ -198,6 +206,11 @@
 	Name = "Doug Davis"
 	Email = "dug@us.ibm.com"
 	GitHub = "duglin"
+
+	[people.ehazlett]
+	Name = "Evan Hazlett"
+	Email = "ejhazlett@gmail.com"
+	GitHub = "ehazlett"
 
 	[people.erikh]
 	Name = "Erik Hollensbe"
@@ -283,11 +296,6 @@
 	Name = "Antonio Murdaca"
 	Email = "runcom@redhat.com"
 	GitHub = "runcom"
-
-	[people.sfsmithcha]
-	Name = "Charles Smith"
-	Email = "charles.smith@docker.com"
-	GitHub = "sfsmithcha"
 
 	[people.shykes]
 	Name = "Solomon Hykes"

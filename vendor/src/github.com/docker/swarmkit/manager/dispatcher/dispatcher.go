@@ -1,8 +1,8 @@
 package dispatcher
 
 import (
-	"errors"
 	"fmt"
+	"strconv"
 	"sync"
 	"time"
 
@@ -21,6 +21,7 @@ import (
 	"github.com/docker/swarmkit/manager/state/watch"
 	"github.com/docker/swarmkit/protobuf/ptypes"
 	"github.com/docker/swarmkit/remotes"
+	"github.com/pkg/errors"
 	"golang.org/x/net/context"
 )
 
@@ -41,6 +42,9 @@ const (
 	// into a single transaction. A fraction of a second feels about
 	// right.
 	maxBatchInterval = 100 * time.Millisecond
+
+	modificationBatchLimit = 100
+	batchingWaitTime       = 100 * time.Millisecond
 )
 
 var (
@@ -127,8 +131,6 @@ func New(cluster Cluster, c *Config) *Dispatcher {
 		nodes:                 newNodeStore(c.HeartbeatPeriod, c.HeartbeatEpsilon, c.GracePeriodMultiplier, c.RateLimitPeriod),
 		store:                 cluster.MemoryStore(),
 		cluster:               cluster,
-		mgrQueue:              watch.NewQueue(),
-		keyMgrQueue:           watch.NewQueue(),
 		taskUpdates:           make(map[string]*api.TaskStatus),
 		nodeUpdates:           make(map[string]nodeUpdate),
 		processUpdatesTrigger: make(chan struct{}, 1),
@@ -165,7 +167,7 @@ func (d *Dispatcher) Run(ctx context.Context) error {
 	d.mu.Lock()
 	if d.isRunning() {
 		d.mu.Unlock()
-		return fmt.Errorf("dispatcher is already running")
+		return errors.New("dispatcher is already running")
 	}
 	ctx = log.WithModule(ctx, "dispatcher")
 	if err := d.markNodesUnknown(ctx); err != nil {
@@ -195,6 +197,9 @@ func (d *Dispatcher) Run(ctx context.Context) error {
 		d.mu.Unlock()
 		return err
 	}
+	// set queues here to guarantee that Close will close them
+	d.mgrQueue = watch.NewQueue()
+	d.keyMgrQueue = watch.NewQueue()
 
 	peerWatcher, peerCancel := d.cluster.SubscribePeers()
 	defer peerCancel()
@@ -257,7 +262,7 @@ func (d *Dispatcher) Stop() error {
 	d.mu.Lock()
 	if !d.isRunning() {
 		d.mu.Unlock()
-		return fmt.Errorf("dispatcher is already stopped")
+		return errors.New("dispatcher is already stopped")
 	}
 	d.cancel()
 	d.mu.Unlock()
@@ -294,7 +299,7 @@ func (d *Dispatcher) markNodesUnknown(ctx context.Context) error {
 		nodes, err = store.FindNodes(tx, store.All)
 	})
 	if err != nil {
-		return fmt.Errorf("failed to get list of nodes: %v", err)
+		return errors.Wrap(err, "failed to get list of nodes")
 	}
 	_, err = d.store.Batch(func(batch *store.Batch) error {
 		for _, n := range nodes {
@@ -323,10 +328,10 @@ func (d *Dispatcher) markNodesUnknown(ctx context.Context) error {
 					}
 				}
 				if err := d.nodes.AddUnknown(node, expireFunc); err != nil {
-					return fmt.Errorf(`adding node in "unknown" state to node store failed: %v`, err)
+					return errors.Wrap(err, `adding node in "unknown" state to node store failed`)
 				}
 				if err := store.UpdateNode(tx, node); err != nil {
-					return fmt.Errorf("update failed %v", err)
+					return errors.Wrap(err, "update failed")
 				}
 				return nil
 			})
@@ -351,6 +356,37 @@ func (d *Dispatcher) isRunning() bool {
 	return true
 }
 
+// updateNode updates the description of a node and sets status to READY
+// this is used during registration when a new node description is provided
+// and during node updates when the node description changes
+func (d *Dispatcher) updateNode(nodeID string, description *api.NodeDescription) error {
+	d.nodeUpdatesLock.Lock()
+	d.nodeUpdates[nodeID] = nodeUpdate{status: &api.NodeStatus{State: api.NodeStatus_READY}, description: description}
+	numUpdates := len(d.nodeUpdates)
+	d.nodeUpdatesLock.Unlock()
+
+	if numUpdates >= maxBatchItems {
+		select {
+		case d.processUpdatesTrigger <- struct{}{}:
+		case <-d.ctx.Done():
+			return d.ctx.Err()
+		}
+
+	}
+
+	// Wait until the node update batch happens before unblocking register.
+	d.processUpdatesLock.Lock()
+	select {
+	case <-d.ctx.Done():
+		return d.ctx.Err()
+	default:
+	}
+	d.processUpdatesCond.Wait()
+	d.processUpdatesLock.Unlock()
+
+	return nil
+}
+
 // register is used for registration of node with particular dispatcher.
 func (d *Dispatcher) register(ctx context.Context, nodeID string, description *api.NodeDescription) (string, error) {
 	// prevent register until we're ready to accept it
@@ -371,29 +407,9 @@ func (d *Dispatcher) register(ctx context.Context, nodeID string, description *a
 		return "", ErrNodeNotFound
 	}
 
-	d.nodeUpdatesLock.Lock()
-	d.nodeUpdates[nodeID] = nodeUpdate{status: &api.NodeStatus{State: api.NodeStatus_READY}, description: description}
-	numUpdates := len(d.nodeUpdates)
-	d.nodeUpdatesLock.Unlock()
-
-	if numUpdates >= maxBatchItems {
-		select {
-		case d.processUpdatesTrigger <- struct{}{}:
-		case <-d.ctx.Done():
-			return "", d.ctx.Err()
-		}
-
+	if err := d.updateNode(nodeID, description); err != nil {
+		return "", err
 	}
-
-	// Wait until the node update batch happens before unblocking register.
-	d.processUpdatesLock.Lock()
-	select {
-	case <-d.ctx.Done():
-		return "", d.ctx.Err()
-	default:
-	}
-	d.processUpdatesCond.Wait()
-	d.processUpdatesLock.Unlock()
 
 	expireFunc := func() {
 		nodeStatus := api.NodeStatus{State: api.NodeStatus_DOWN, Message: "heartbeat failure"}
@@ -657,14 +673,10 @@ func (d *Dispatcher) Tasks(r *api.TasksRequest, stream api.Dispatcher_TasksServe
 		}
 
 		// bursty events should be processed in batches and sent out snapshot
-		const (
-			modificationBatchLimit = 200
-			eventPausedGap         = 50 * time.Millisecond
-		)
 		var (
-			modificationCnt    int
-			eventPausedTimer   *time.Timer
-			eventPausedTimeout <-chan time.Time
+			modificationCnt int
+			batchingTimer   *time.Timer
+			batchingTimeout <-chan time.Time
 		)
 
 	batchingLoop:
@@ -692,13 +704,13 @@ func (d *Dispatcher) Tasks(r *api.TasksRequest, stream api.Dispatcher_TasksServe
 					delete(tasksMap, v.Task.ID)
 					modificationCnt++
 				}
-				if eventPausedTimer != nil {
-					eventPausedTimer.Reset(eventPausedGap)
+				if batchingTimer != nil {
+					batchingTimer.Reset(batchingWaitTime)
 				} else {
-					eventPausedTimer = time.NewTimer(eventPausedGap)
-					eventPausedTimeout = eventPausedTimer.C
+					batchingTimer = time.NewTimer(batchingWaitTime)
+					batchingTimeout = batchingTimer.C
 				}
-			case <-eventPausedTimeout:
+			case <-batchingTimeout:
 				break batchingLoop
 			case <-stream.Context().Done():
 				return stream.Context().Err()
@@ -707,8 +719,198 @@ func (d *Dispatcher) Tasks(r *api.TasksRequest, stream api.Dispatcher_TasksServe
 			}
 		}
 
-		if eventPausedTimer != nil {
-			eventPausedTimer.Stop()
+		if batchingTimer != nil {
+			batchingTimer.Stop()
+		}
+	}
+}
+
+// Assignments is a stream of assignments for a node. Each message contains
+// either full list of tasks and secrets for the node, or an incremental update.
+func (d *Dispatcher) Assignments(r *api.AssignmentsRequest, stream api.Dispatcher_AssignmentsServer) error {
+	nodeInfo, err := ca.RemoteNode(stream.Context())
+	if err != nil {
+		return err
+	}
+	nodeID := nodeInfo.NodeID
+
+	if err := d.isRunningLocked(); err != nil {
+		return err
+	}
+
+	fields := logrus.Fields{
+		"node.id":      nodeID,
+		"node.session": r.SessionID,
+		"method":       "(*Dispatcher).Assignments",
+	}
+	if nodeInfo.ForwardedBy != nil {
+		fields["forwarder.id"] = nodeInfo.ForwardedBy.NodeID
+	}
+	log := log.G(stream.Context()).WithFields(fields)
+	log.Debugf("")
+
+	if _, err = d.nodes.GetWithSession(nodeID, r.SessionID); err != nil {
+		return err
+	}
+
+	var (
+		sequence  int64
+		appliesTo string
+		initial   api.AssignmentsMessage
+	)
+	tasksMap := make(map[string]*api.Task)
+
+	sendMessage := func(msg api.AssignmentsMessage, assignmentType api.AssignmentsMessage_Type) error {
+		sequence++
+		msg.AppliesTo = appliesTo
+		msg.ResultsIn = strconv.FormatInt(sequence, 10)
+		appliesTo = msg.ResultsIn
+		msg.Type = assignmentType
+
+		if err := stream.Send(&msg); err != nil {
+			return err
+		}
+		return nil
+	}
+
+	// TODO(aaronl): Also send node secrets that should be exposed to
+	// this node.
+	nodeTasks, cancel, err := store.ViewAndWatch(
+		d.store,
+		func(readTx store.ReadTx) error {
+			tasks, err := store.FindTasks(readTx, store.ByNodeID(nodeID))
+			if err != nil {
+				return err
+			}
+
+			for _, t := range tasks {
+				// We only care about tasks that are ASSIGNED or
+				// higher. If the state is below ASSIGNED, the
+				// task may not meet the constraints for this
+				// node, so we have to be careful about sending
+				// secrets associated with it.
+				if t.Status.State < api.TaskStateAssigned {
+					continue
+				}
+
+				tasksMap[t.ID] = t
+				initial.UpdateTasks = append(initial.UpdateTasks, t)
+			}
+			return nil
+		},
+		state.EventUpdateTask{Task: &api.Task{NodeID: nodeID},
+			Checks: []state.TaskCheckFunc{state.TaskCheckNodeID}},
+		state.EventDeleteTask{Task: &api.Task{NodeID: nodeID},
+			Checks: []state.TaskCheckFunc{state.TaskCheckNodeID}},
+	)
+	if err != nil {
+		return err
+	}
+	defer cancel()
+
+	if err := sendMessage(initial, api.AssignmentsMessage_COMPLETE); err != nil {
+		return err
+	}
+
+	for {
+		// Check for session expiration
+		if _, err := d.nodes.GetWithSession(nodeID, r.SessionID); err != nil {
+			return err
+		}
+
+		// bursty events should be processed in batches and sent out together
+		var (
+			update          api.AssignmentsMessage
+			modificationCnt int
+			batchingTimer   *time.Timer
+			batchingTimeout <-chan time.Time
+			updateTasks     = make(map[string]*api.Task)
+			removeTasks     = make(map[string]struct{})
+		)
+
+		oneModification := func() {
+			modificationCnt++
+
+			if batchingTimer != nil {
+				batchingTimer.Reset(batchingWaitTime)
+			} else {
+				batchingTimer = time.NewTimer(batchingWaitTime)
+				batchingTimeout = batchingTimer.C
+			}
+		}
+
+		// The batching loop waits for 50 ms after the most recent
+		// change, or until modificationBatchLimit is reached. The
+		// worst case latency is modificationBatchLimit * batchingWaitTime,
+		// which is 10 seconds.
+	batchingLoop:
+		for modificationCnt < modificationBatchLimit {
+			select {
+			case event := <-nodeTasks:
+				switch v := event.(type) {
+				// We don't monitor EventCreateTask because tasks are
+				// never created in the ASSIGNED state. First tasks are
+				// created by the orchestrator, then the scheduler moves
+				// them to ASSIGNED. If this ever changes, we will need
+				// to monitor task creations as well.
+				case state.EventUpdateTask:
+					// We only care about tasks that are ASSIGNED or
+					// higher.
+					if v.Task.Status.State < api.TaskStateAssigned {
+						continue
+					}
+
+					if oldTask, exists := tasksMap[v.Task.ID]; exists {
+						// States ASSIGNED and below are set by the orchestrator/scheduler,
+						// not the agent, so tasks in these states need to be sent to the
+						// agent even if nothing else has changed.
+						if equality.TasksEqualStable(oldTask, v.Task) && v.Task.Status.State > api.TaskStateAssigned {
+							// this update should not trigger a task change for the agent
+							tasksMap[v.Task.ID] = v.Task
+							continue
+						}
+					}
+					tasksMap[v.Task.ID] = v.Task
+					updateTasks[v.Task.ID] = v.Task
+
+					oneModification()
+				case state.EventDeleteTask:
+
+					if _, exists := tasksMap[v.Task.ID]; !exists {
+						continue
+					}
+
+					removeTasks[v.Task.ID] = struct{}{}
+
+					delete(tasksMap, v.Task.ID)
+
+					oneModification()
+				}
+			case <-batchingTimeout:
+				break batchingLoop
+			case <-stream.Context().Done():
+				return stream.Context().Err()
+			case <-d.ctx.Done():
+				return d.ctx.Err()
+			}
+		}
+
+		if batchingTimer != nil {
+			batchingTimer.Stop()
+		}
+
+		if modificationCnt > 0 {
+			for id, task := range updateTasks {
+				if _, ok := removeTasks[id]; !ok {
+					update.UpdateTasks = append(update.UpdateTasks, task)
+				}
+			}
+			for id := range removeTasks {
+				update.RemoveTasks = append(update.RemoveTasks, id)
+			}
+			if err := sendMessage(update, api.AssignmentsMessage_INCREMENTAL); err != nil {
+				return err
+			}
 		}
 	}
 }
@@ -731,7 +933,7 @@ func (d *Dispatcher) nodeRemove(id string, status api.NodeStatus) error {
 	}
 
 	if rn := d.nodes.Delete(id); rn == nil {
-		return fmt.Errorf("node %s is not found in local storage", id)
+		return errors.Errorf("node %s is not found in local storage", id)
 	}
 
 	return nil
@@ -787,6 +989,10 @@ func (d *Dispatcher) Session(r *api.SessionRequest, stream api.Dispatcher_Sessio
 		}
 	} else {
 		sessionID = r.SessionID
+		// update the node description
+		if err := d.updateNode(nodeID, r.Description); err != nil {
+			return err
+		}
 	}
 
 	fields := logrus.Fields{

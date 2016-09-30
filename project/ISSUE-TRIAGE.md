@@ -30,14 +30,18 @@ reopened when the necessary information is provided.
 
 ### 2. Classify the Issue
 
-An issue can have multiple of the following labels.
+An issue can have multiple of the following labels. Typically, a properly classified issues should
+have:
+
+- One label identifying its kind (`kind/*`).
+- One or multiple labels identifying the functional areas of interest (`area/*`).
+- Where applicable, one label categorizing its difficulty (`exp/*`).
 
 #### Issue kind
 
 | Kind             | Description                                                                                                                     |
 |------------------|---------------------------------------------------------------------------------------------------------------------------------|
 | kind/bug         | Bugs are bugs. The cause may or may not be known at triage time so debugging should be taken account into the time estimate.    |
-| kind/docs        | Writing documentation, man pages, articles, blogs, or other significant word-driven task.                                       |
 | kind/enhancement | Enhancement are not bugs or new features but can drastically improve usability or performance of a project component.           |
 | kind/feature     | Functionality or other elements that the project does not currently support.  Features are new and shiny.                       |
 | kind/question    | Contains a user or contributor question requiring a response.                                                                   |
@@ -48,8 +52,11 @@ An issue can have multiple of the following labels.
 |---------------------------|
 | area/api                  |
 | area/builder              |
+| area/bundles              |
 | area/cli                  |
+| area/daemon               |
 | area/distribution         |
+| area/docs                 |
 | area/kernel               |
 | area/logging              |
 | area/networking           |
@@ -100,9 +107,8 @@ class="gh-label expert">exp/expert</strong> level task.
 
 ### 3. Prioritizing issue
 
-When attached to a specific milestone, an issue can be attributed one of the
-following labels to indicate their degree of priority (from more urgent to less
-urgent).
+When, and only when, an issue is attached to a specific milestone, the issue can be labeled with the
+following labels to indicate their degree of priority (from more urgent to less urgent).
 
 | Priority    | Description                                                                                                                       |
 |-------------|-----------------------------------------------------------------------------------------------------------------------------------|

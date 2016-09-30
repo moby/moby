@@ -136,6 +136,7 @@ func assertContainerList(out string, expected []string) bool {
 	return true
 }
 
+// FIXME(vdemeester) Move this into a unit test in daemon package
 func (s *DockerSuite) TestPsListContainersInvalidFilterName(c *check.C) {
 	out, _, err := dockerCmdWithError("ps", "-f", "invalidFilter=test")
 	c.Assert(err, checker.NotNil)
@@ -901,4 +902,9 @@ func (s *DockerSuite) TestPsByOrder(c *check.C) {
 	out, err = dockerCmd(c, "ps", "--no-trunc", "-q", "-f", "name=xyz")
 	c.Assert(err, checker.NotNil)
 	c.Assert(strings.TrimSpace(out), checker.Equals, fmt.Sprintf("%s\n%s", container2, container1))
+}
+
+func (s *DockerSuite) TestPsFilterMissingArgErrorCode(c *check.C) {
+	_, errCode, _ := dockerCmdWithError("ps", "--filter")
+	c.Assert(errCode, checker.Equals, 125)
 }

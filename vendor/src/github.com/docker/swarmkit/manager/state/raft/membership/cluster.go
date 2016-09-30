@@ -74,6 +74,9 @@ func (c *Cluster) Tick() {
 		m.tick++
 		if m.tick > c.heartbeatTicks {
 			m.active = false
+			if m.Conn != nil {
+				m.Conn.Close()
+			}
 		}
 	}
 }

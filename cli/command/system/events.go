@@ -3,30 +3,34 @@ package system
 import (
 	"fmt"
 	"io"
+	"io/ioutil"
 	"sort"
 	"strings"
+	"text/template"
 	"time"
 
 	"golang.org/x/net/context"
 
 	"github.com/docker/docker/api/types"
 	eventtypes "github.com/docker/docker/api/types/events"
-	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cli/command"
+	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/jsonlog"
+	"github.com/docker/docker/utils/templates"
 	"github.com/spf13/cobra"
 )
 
 type eventsOptions struct {
 	since  string
 	until  string
-	filter []string
+	filter opts.FilterOpt
+	format string
 }
 
 // NewEventsCommand creates a new cobra.Command for `docker events`
 func NewEventsCommand(dockerCli *command.DockerCli) *cobra.Command {
-	var opts eventsOptions
+	opts := eventsOptions{filter: opts.NewFilterOpt()}
 
 	cmd := &cobra.Command{
 		Use:   "events [OPTIONS]",
@@ -40,63 +44,78 @@ func NewEventsCommand(dockerCli *command.DockerCli) *cobra.Command {
 	flags := cmd.Flags()
 	flags.StringVar(&opts.since, "since", "", "Show all events created since timestamp")
 	flags.StringVar(&opts.until, "until", "", "Stream events until this timestamp")
-	flags.StringSliceVarP(&opts.filter, "filter", "f", []string{}, "Filter output based on conditions provided")
+	flags.VarP(&opts.filter, "filter", "f", "Filter output based on conditions provided")
+	flags.StringVar(&opts.format, "format", "", "Format the output using the given go template")
 
 	return cmd
 }
 
 func runEvents(dockerCli *command.DockerCli, opts *eventsOptions) error {
-	eventFilterArgs := filters.NewArgs()
-
-	// Consolidate all filter flags, and sanity check them early.
-	// They'll get process in the daemon/server.
-	for _, f := range opts.filter {
-		var err error
-		eventFilterArgs, err = filters.ParseFlag(f, eventFilterArgs)
-		if err != nil {
-			return err
-		}
+	tmpl, err := makeTemplate(opts.format)
+	if err != nil {
+		return cli.StatusError{
+			StatusCode: 64,
+			Status:     "Error parsing format: " + err.Error()}
 	}
-
 	options := types.EventsOptions{
 		Since:   opts.since,
 		Until:   opts.until,
-		Filters: eventFilterArgs,
+		Filters: opts.filter.Value(),
 	}
 
-	responseBody, err := dockerCli.Client().Events(context.Background(), options)
-	if err != nil {
-		return err
-	}
-	defer responseBody.Close()
+	ctx, cancel := context.WithCancel(context.Background())
+	events, errs := dockerCli.Client().Events(ctx, options)
+	defer cancel()
 
-	return streamEvents(responseBody, dockerCli.Out())
-}
+	out := dockerCli.Out()
 
-// streamEvents decodes prints the incoming events in the provided output.
-func streamEvents(input io.Reader, output io.Writer) error {
-	return DecodeEvents(input, func(event eventtypes.Message, err error) error {
-		if err != nil {
+	for {
+		select {
+		case event := <-events:
+			if err := handleEvent(out, event, tmpl); err != nil {
+				return err
+			}
+		case err := <-errs:
+			if err == io.EOF {
+				return nil
+			}
 			return err
 		}
-		printOutput(event, output)
-		return nil
-	})
+	}
 }
 
-type eventProcessor func(event eventtypes.Message, err error) error
-
-// printOutput prints all types of event information.
-// Each output includes the event type, actor id, name and action.
-// Actor attributes are printed at the end if the actor has any.
-func printOutput(event eventtypes.Message, output io.Writer) {
-	if event.TimeNano != 0 {
-		fmt.Fprintf(output, "%s ", time.Unix(0, event.TimeNano).Format(jsonlog.RFC3339NanoFixed))
-	} else if event.Time != 0 {
-		fmt.Fprintf(output, "%s ", time.Unix(event.Time, 0).Format(jsonlog.RFC3339NanoFixed))
+func handleEvent(out io.Writer, event eventtypes.Message, tmpl *template.Template) error {
+	if tmpl == nil {
+		return prettyPrintEvent(out, event)
 	}
 
-	fmt.Fprintf(output, "%s %s %s", event.Type, event.Action, event.Actor.ID)
+	return formatEvent(out, event, tmpl)
+}
+
+func makeTemplate(format string) (*template.Template, error) {
+	if format == "" {
+		return nil, nil
+	}
+	tmpl, err := templates.Parse(format)
+	if err != nil {
+		return tmpl, err
+	}
+	// we execute the template for an empty message, so as to validate
+	// a bad template like "{{.badFieldString}}"
+	return tmpl, tmpl.Execute(ioutil.Discard, &eventtypes.Message{})
+}
+
+// prettyPrintEvent prints all types of event information.
+// Each output includes the event type, actor id, name and action.
+// Actor attributes are printed at the end if the actor has any.
+func prettyPrintEvent(out io.Writer, event eventtypes.Message) error {
+	if event.TimeNano != 0 {
+		fmt.Fprintf(out, "%s ", time.Unix(0, event.TimeNano).Format(jsonlog.RFC3339NanoFixed))
+	} else if event.Time != 0 {
+		fmt.Fprintf(out, "%s ", time.Unix(event.Time, 0).Format(jsonlog.RFC3339NanoFixed))
+	}
+
+	fmt.Fprintf(out, "%s %s %s", event.Type, event.Action, event.Actor.ID)
 
 	if len(event.Actor.Attributes) > 0 {
 		var attrs []string
@@ -109,7 +128,13 @@ func printOutput(event eventtypes.Message, output io.Writer) {
 			v := event.Actor.Attributes[k]
 			attrs = append(attrs, fmt.Sprintf("%s=%s", k, v))
 		}
-		fmt.Fprintf(output, " (%s)", strings.Join(attrs, ", "))
+		fmt.Fprintf(out, " (%s)", strings.Join(attrs, ", "))
 	}
-	fmt.Fprint(output, "\n")
+	fmt.Fprint(out, "\n")
+	return nil
+}
+
+func formatEvent(out io.Writer, event eventtypes.Message, tmpl *template.Template) error {
+	defer out.Write([]byte{'\n'})
+	return tmpl.Execute(out, event)
 }

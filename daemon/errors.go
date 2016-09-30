@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/docker/docker/errors"
+	"github.com/docker/docker/api/errors"
 	"github.com/docker/docker/reference"
 )
 

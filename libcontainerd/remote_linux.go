@@ -279,7 +279,7 @@ func (r *remote) startEventsMonitor() error {
 	er := &containerd.EventsRequest{
 		Timestamp: tsp,
 	}
-	events, err := r.apiClient.Events(context.Background(), er)
+	events, err := r.apiClient.Events(context.Background(), er, grpc.FailFast(false))
 	if err != nil {
 		return err
 	}

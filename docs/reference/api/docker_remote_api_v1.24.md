@@ -299,8 +299,8 @@ Create a container
              "CpuQuota": 50000,
              "CpusetCpus": "0,1",
              "CpusetMems": "0,1",
-             "MaximumIOps": 0,
-             "MaximumIOBps": 0,
+             "IOMaximumBandwidth": 0,
+             "IOMaximumIOps": 0,
              "BlkioWeight": 300,
              "BlkioWeightDevice": [{}],
              "BlkioDeviceReadBps": [{}],
@@ -334,8 +334,7 @@ Create a container
              "StorageOpt": {},
              "CgroupParent": "",
              "VolumeDriver": "",
-             "ShmSize": 67108864,
-             "Mounts": []
+             "ShmSize": 67108864
           },
           "NetworkingConfig": {
               "EndpointsConfig": {
@@ -392,10 +391,17 @@ Create a container
 -   **StopSignal** - Signal to stop a container as a string or unsigned integer. `SIGTERM` by default.
 -   **HostConfig**
     -   **Binds** – A list of volume bindings for this container. Each volume binding is a string in one of these forms:
-           + `host_path:container_path` to bind-mount a host path into the container
-           + `host_path:container_path:ro` to make the bind-mount read-only inside the container.
-           + `volume_name:container_path` to bind-mount a volume managed by a volume plugin into the container.
-           + `volume_name:container_path:ro` to make the bind mount read-only inside the container.
+           + `host-src:container-dest` to bind-mount a host path into the
+             container. Both `host-src`, and `container-dest` must be an
+             _absolute_ path.
+           + `host-src:container-dest:ro` to make the bind-mount read-only
+             inside the container. Both `host-src`, and `container-dest` must be
+             an _absolute_ path.
+           + `volume-name:container-dest` to bind-mount a volume managed by a
+             volume driver into the container. `container-dest` must be an
+             _absolute_ path.
+           + `volume-name:container-dest:ro` to mount the volume read-only
+             inside the container.  `container-dest` must be an _absolute_ path.
     -   **Links** - A list of links for the container. Each link entry should be
           in the form of `container_name:alias`.
     -   **Memory** - Memory limit in bytes.
@@ -410,8 +416,8 @@ Create a container
     -   **CpuQuota** - Microseconds of CPU time that the container can get in a CPU period.
     -   **CpusetCpus** - String value containing the `cgroups CpusetCpus` to use.
     -   **CpusetMems** - Memory nodes (MEMs) in which to allow execution (0-3, 0,1). Only effective on NUMA systems.
-    -   **MaximumIOps** - Maximum IO absolute rate in terms of IOps.
-    -   **MaximumIOBps** - Maximum IO absolute rate in terms of bytes per second.
+    -   **IOMaximumBandwidth** - Maximum IO absolute rate in terms of IOps.
+    -   **IOMaximumIOps** - Maximum IO absolute rate in terms of bytes per second.
     -   **BlkioWeight** - Block IO weight (relative weight) accepts a weight value between 10 and 1000.
     -   **BlkioWeightDevice** - Block IO weight (relative device weight) in the form of:        `"BlkioWeightDevice": [{"Path": "device_path", "Weight": weight}]`
     -   **BlkioDeviceReadBps** - Limit read rate (bytes per second) from a device in the form of:	`"BlkioDeviceReadBps": [{"Path": "device_path", "Rate": rate}]`, for example:
@@ -559,8 +565,8 @@ Return low-level information on the container `id`
 		"ExecIDs": null,
 		"HostConfig": {
 			"Binds": null,
-			"MaximumIOps": 0,
-			"MaximumIOBps": 0,
+			"IOMaximumBandwidth": 0,
+			"IOMaximumIOps": 0,
 			"BlkioWeight": 0,
 			"BlkioWeightDevice": [{}],
 			"BlkioDeviceReadBps": [{}],
@@ -611,8 +617,7 @@ Return low-level information on the container `id`
 			"VolumesFrom": null,
 			"Ulimits": [{}],
 			"VolumeDriver": "",
-			"ShmSize": 67108864,
-			"Mounts": []
+			"ShmSize": 67108864
 		},
 		"HostnamePath": "/var/lib/docker/containers/ba033ac4401106a3b513bc9d639eee123ad78ca3616b921167cd74b20e25ed39/hostname",
 		"HostsPath": "/var/lib/docker/containers/ba033ac4401106a3b513bc9d639eee123ad78ca3616b921167cd74b20e25ed39/hosts",
@@ -1283,43 +1288,43 @@ Attach to the container `id`
 -   **409** - container is paused
 -   **500** – server error
 
-    **Stream details**:
+**Stream details**:
 
-    When using the TTY setting is enabled in
-    [`POST /containers/create`
-    ](#create-a-container),
-    the stream is the raw data from the process PTY and client's `stdin`.
-    When the TTY is disabled, then the stream is multiplexed to separate
-    `stdout` and `stderr`.
+When using the TTY setting is enabled in
+[`POST /containers/create`
+](#create-a-container),
+the stream is the raw data from the process PTY and client's `stdin`.
+When the TTY is disabled, then the stream is multiplexed to separate
+`stdout` and `stderr`.
 
-    The format is a **Header** and a **Payload** (frame).
+The format is a **Header** and a **Payload** (frame).
 
-    **HEADER**
+**HEADER**
 
-    The header contains the information which the stream writes (`stdout` or
-    `stderr`). It also contains the size of the associated frame encoded in the
-    last four bytes (`uint32`).
+The header contains the information which the stream writes (`stdout` or
+`stderr`). It also contains the size of the associated frame encoded in the
+last four bytes (`uint32`).
 
-    It is encoded on the first eight bytes like this:
+It is encoded on the first eight bytes like this:
 
-        header := [8]byte{STREAM_TYPE, 0, 0, 0, SIZE1, SIZE2, SIZE3, SIZE4}
+    header := [8]byte{STREAM_TYPE, 0, 0, 0, SIZE1, SIZE2, SIZE3, SIZE4}
 
-    `STREAM_TYPE` can be:
+`STREAM_TYPE` can be:
 
 -   0: `stdin` (is written on `stdout`)
 -   1: `stdout`
 -   2: `stderr`
 
-    `SIZE1, SIZE2, SIZE3, SIZE4` are the four bytes of
-    the `uint32` size encoded as big endian.
+`SIZE1, SIZE2, SIZE3, SIZE4` are the four bytes of
+the `uint32` size encoded as big endian.
 
-    **PAYLOAD**
+**PAYLOAD**
 
-    The payload is the raw stream.
+The payload is the raw stream.
 
-    **IMPLEMENTATION**
+**IMPLEMENTATION**
 
-    The simplest way to implement the Attach protocol is the following:
+The simplest way to implement the Attach protocol is the following:
 
     1.  Read eight bytes.
     2.  Choose `stdout` or `stderr` depending on the first byte.
@@ -1661,6 +1666,10 @@ The archive may include any number of other files,
 which are accessible in the build context (See the [*ADD build
 command*](../../reference/builder.md#add)).
 
+The Docker daemon performs a preliminary validation of the `Dockerfile` before
+starting the build, and returns an error if the syntax is incorrect. After that,
+each instruction is run one-by-one until the ID of the new image is output.
+
 The build is canceled if the client drops the connection by quitting
 or being killed.
 
@@ -1736,7 +1745,7 @@ Create an image either by pulling it from the registry or by importing it
 
 **Example request**:
 
-    POST /images/create?fromImage=ubuntu HTTP/1.1
+    POST /images/create?fromImage=busybox&tag=latest HTTP/1.1
 
 **Example response**:
 
@@ -1763,7 +1772,8 @@ a base64-encoded AuthConfig object.
 -   **repo** – Repository name given to an image when it is imported.
         The repo may include a tag. This parameter may only be used when importing
         an image.
--   **tag** – Tag or digest.
+-   **tag** – Tag or digest. If empty when pulling an image, this causes all tags
+        for the given image to be pulled.
 
 **Request Headers**:
 
@@ -2744,16 +2754,16 @@ Sets up an exec instance in a running container `id`
     POST /containers/e90e34656806/exec HTTP/1.1
     Content-Type: application/json
 
-      {
-       "AttachStdin": false,
-       "AttachStdout": true,
-       "AttachStderr": true,
-       "DetachKeys": "ctrl-p,ctrl-q",
-       "Tty": false,
-       "Cmd": [
-                     "date"
-             ]
-      }
+    {
+      "AttachStdin": true,
+      "AttachStdout": true,
+      "AttachStderr": true,
+      "Cmd": ["sh"],
+      "DetachKeys": "ctrl-p,ctrl-q",
+      "Privileged": true,
+      "Tty": true,
+      "User": "123:456"
+    }
 
 **Example response**:
 
@@ -2775,7 +2785,10 @@ Sets up an exec instance in a running container `id`
         where `<value>` is one of: `a-z`, `@`, `^`, `[`, `,` or `_`.
 -   **Tty** - Boolean value to allocate a pseudo-TTY.
 -   **Cmd** - Command to run specified as a string or an array of strings.
-
+-   **Privileged** - Boolean value, runs the exec process with extended privileges.
+-   **User** - A string value specifying the user, and optionally, group to run
+        the exec process inside the container. Format is one of: `"user"`,
+        `"user:group"`, `"uid"`, or `"uid:gid"`.
 
 **Status codes**:
 
@@ -2820,8 +2833,9 @@ interactive session with the `exec` command.
 -   **404** – no such exec instance
 -   **409** - container is paused
 
-    **Stream details**:
-    Similar to the stream behavior of `POST /containers/(id or name)/attach` API
+**Stream details**:
+
+Similar to the stream behavior of `POST /containers/(id or name)/attach` API
 
 ### Exec Resize
 
@@ -4009,7 +4023,7 @@ Return low-level information on the node `id`
 ### Remove a node
 
 
-`DELETE /nodes/<id>`
+`DELETE /nodes/(id)`
 
 Remove a node [`id`] from the swarm.
 
@@ -4037,7 +4051,7 @@ Remove a node [`id`] from the swarm.
 ### Update a node
 
 
-`POST /nodes/<id>/update`
+`POST /nodes/(id)/update`
 
 Update the node `id`.
 
@@ -4403,7 +4417,8 @@ List services
               "Reservations": {}
             },
             "RestartPolicy": {
-              "Condition": "ANY"
+              "Condition": "any",
+              "MaxAttempts": 0
             },
             "Placement": {}
           },
@@ -4413,26 +4428,36 @@ List services
             }
           },
           "UpdateConfig": {
-            "Parallelism": 1
+            "Parallelism": 1,
+            "FailureAction": "pause"
           },
           "EndpointSpec": {
-            "Mode": "VIP",
-            "Ingress": "PUBLICPORT",
-            "ExposedPorts": [
+            "Mode": "vip",
+            "Ports": [
               {
                 "Protocol": "tcp",
-                "Port": 6379
+                "TargetPort": 6379,
+                "PublishedPort": 30001
               }
             ]
           }
         },
         "Endpoint": {
-          "Spec": {},
-          "ExposedPorts": [
+          "Spec": {
+            "Mode": "vip",
+            "Ports": [
+              {
+                "Protocol": "tcp",
+                "TargetPort": 6379,
+                "PublishedPort": 30001
+              }
+            ]
+          },
+          "Ports": [
             {
               "Protocol": "tcp",
-              "Port": 6379,
-              "PublicPort": 30000
+              "TargetPort": 6379,
+              "PublishedPort": 30001
             }
           ],
           "VirtualIPs": [
@@ -4618,13 +4643,13 @@ image](#create-an-image) section for more details.
     - **FailureAction** - Action to take if an updated task fails to run, or stops running during the
       update. Values are `continue` and `pause`.
 - **Networks** – Array of network names or IDs to attach the service to.
-- **Endpoint** – Properties that can be configured to access and load balance a service.
-    - **Spec** –
-        - **Mode** – The mode of resolution to use for internal load balancing
-          between tasks (`vip` or `dnsrr`).
-        - **Ports** – Exposed ports that this service is accessible on from the outside, in the form
-          of: `"Ports": { "<port>/<tcp|udp>: {}" }`
-    - **VirtualIPs**
+- **EndpointSpec** – Properties that can be configured to access and load balance a service.
+    - **Mode** – The mode of resolution to use for internal load balancing
+      between tasks (`vip` or `dnsrr`). Defaults to `vip` if not provided.
+    - **Ports** – List of exposed ports that this service is accessible on from
+      the outside, in the form of:
+      `{"Protocol": <"tcp"|"udp">, "PublishedPort": <port>, "TargetPort": <port>}`.
+      Ports can only be provided if `vip` resolution mode is used.
 
 **Request Headers**:
 
@@ -4677,7 +4702,7 @@ Return information on the service `id`.
       "UpdatedAt": "2016-06-07T21:10:20.276301259Z",
       "Spec": {
         "Name": "redis",
-        "Task": {
+        "TaskTemplate": {
           "ContainerSpec": {
             "Image": "redis"
           },
@@ -4686,7 +4711,8 @@ Return information on the service `id`.
             "Reservations": {}
           },
           "RestartPolicy": {
-            "Condition": "ANY"
+            "Condition": "any",
+            "MaxAttempts": 0
           },
           "Placement": {}
         },
@@ -4696,26 +4722,36 @@ Return information on the service `id`.
           }
         },
         "UpdateConfig": {
-          "Parallelism": 1
+          "Parallelism": 1,
+          "FailureAction": "pause"
         },
         "EndpointSpec": {
-          "Mode": "VIP",
-          "Ingress": "PUBLICPORT",
-          "ExposedPorts": [
+          "Mode": "vip",
+          "Ports": [
             {
               "Protocol": "tcp",
-              "Port": 6379
+              "TargetPort": 6379,
+              "PublishedPort": 30001
             }
           ]
         }
       },
       "Endpoint": {
-        "Spec": {},
-        "ExposedPorts": [
+        "Spec": {
+          "Mode": "vip",
+          "Ports": [
+            {
+              "Protocol": "tcp",
+              "TargetPort": 6379,
+              "PublishedPort": 30001
+            }
+          ]
+        },
+        "Ports": [
           {
             "Protocol": "tcp",
-            "Port": 6379,
-            "PublicPort": 30001
+            "TargetPort": 6379,
+            "PublishedPort": 30001
           }
         ],
         "VirtualIPs": [
@@ -4829,7 +4865,7 @@ image](#create-an-image) section for more details.
       as part of this service.
         - **Condition** – Condition for restart (`none`, `on-failure`, or `any`).
         - **Delay** – Delay between restart attempts.
-        - **Attempts** – Maximum attempts to restart a given container before giving up (default value
+        - **MaxAttempts** – Maximum attempts to restart a given container before giving up (default value
           is 0, which is ignored).
         - **Window** – Windows is the time window used to evaluate the restart policy (default value is
           0, which is unbounded).
@@ -4840,13 +4876,13 @@ image](#create-an-image) section for more details.
       parallelism).
     - **Delay** – Amount of time between updates.
 - **Networks** – Array of network names or IDs to attach the service to.
-- **Endpoint** – Properties that can be configured to access and load balance a service.
-    - **Spec** –
-        - **Mode** – The mode of resolution to use for internal load balancing
-          between tasks (`vip` or `dnsrr`).
-        - **Ports** – Exposed ports that this service is accessible on from the outside, in the form
-          of: `"Ports": { "<port>/<tcp|udp>: {}" }`
-    - **VirtualIPs**
+- **EndpointSpec** – Properties that can be configured to access and load balance a service.
+    - **Mode** – The mode of resolution to use for internal load balancing
+      between tasks (`vip` or `dnsrr`). Defaults to `vip` if not provided.
+    - **Ports** – List of exposed ports that this service is accessible on from
+      the outside, in the form of:
+      `{"Protocol": <"tcp"|"udp">, "PublishedPort": <port>, "TargetPort": <port>}`.
+      Ports can only be provided if `vip` resolution mode is used.
 
 **Query parameters**:
 
@@ -4865,7 +4901,7 @@ image](#create-an-image) section for more details.
 -   **200** – no error
 -   **404** – no such service
 -   **500** – server error
- 
+
 ## 3.10 Tasks
 
 **Note**: Task operations require the engine to be part of a swarm.
@@ -4891,7 +4927,6 @@ List tasks
         },
         "CreatedAt": "2016-06-07T21:07:31.171892745Z",
         "UpdatedAt": "2016-06-07T21:07:31.376370513Z",
-        "Name": "hopeful_cori",
         "Spec": {
           "ContainerSpec": {
             "Image": "redis"
@@ -4901,21 +4936,24 @@ List tasks
             "Reservations": {}
           },
           "RestartPolicy": {
-            "Condition": "ANY"
+            "Condition": "any",
+            "MaxAttempts": 0
           },
           "Placement": {}
         },
         "ServiceID": "9mnpnzenvg8p8tdbtq4wvbkcz",
-        "Instance": 1,
-        "NodeID": "24ifsmvkjbyhk",
-        "ServiceAnnotations": {},
+        "Slot": 1,
+        "NodeID": "60gvrl6tm78dmak4yl7srz94v",
         "Status": {
           "Timestamp": "2016-06-07T21:07:31.290032978Z",
-          "State": "FAILED",
-          "Message": "execution failed",
-          "ContainerStatus": {}
+          "State": "running",
+          "Message": "started",
+          "ContainerStatus": {
+            "ContainerID": "e5d62702a1b48d01c3e02ca1e0212a250801fa8d67caca0b6f35919ebc12f035",
+            "PID": 677
+          }
         },
-        "DesiredState": "SHUTDOWN",
+        "DesiredState": "running",
         "NetworksAttachments": [
           {
             "Network": {
@@ -4931,12 +4969,12 @@ List tasks
                   "com.docker.swarm.internal": "true"
                 },
                 "DriverConfiguration": {},
-                "IPAM": {
+                "IPAMOptions": {
                   "Driver": {},
                   "Configs": [
                     {
-                      "Family": "UNKNOWN",
-                      "Subnet": "10.255.0.0/16"
+                      "Subnet": "10.255.0.0/16",
+                      "Gateway": "10.255.0.1"
                     }
                   ]
                 }
@@ -4947,14 +4985,14 @@ List tasks
                   "com.docker.network.driver.overlay.vxlanid_list": "256"
                 }
               },
-              "IPAM": {
+              "IPAMOptions": {
                 "Driver": {
                   "Name": "default"
                 },
                 "Configs": [
                   {
-                    "Family": "UNKNOWN",
-                    "Subnet": "10.255.0.0/16"
+                    "Subnet": "10.255.0.0/16",
+                    "Gateway": "10.255.0.1"
                   }
                 ]
               }
@@ -4964,26 +5002,6 @@ List tasks
             ]
           }
         ],
-        "Endpoint": {
-          "Spec": {},
-          "ExposedPorts": [
-            {
-              "Protocol": "tcp",
-              "Port": 6379,
-              "PublicPort": 30000
-            }
-          ],
-          "VirtualIPs": [
-            {
-              "NetworkID": "4qvuz4ko70xaltuqbt8956gd1",
-              "Addr": "10.255.0.2/16"
-            },
-            {
-              "NetworkID": "4qvuz4ko70xaltuqbt8956gd1",
-              "Addr": "10.255.0.3/16"
-            }
-          ]
-        }
       },
       {
         "ID": "1yljwbmlr8er2waf8orvqpwms",
@@ -5002,21 +5020,23 @@ List tasks
             "Reservations": {}
           },
           "RestartPolicy": {
-            "Condition": "ANY"
+            "Condition": "any",
+            "MaxAttempts": 0
           },
           "Placement": {}
         },
         "ServiceID": "9mnpnzenvg8p8tdbtq4wvbkcz",
-        "Instance": 1,
-        "NodeID": "24ifsmvkjbyhk",
-        "ServiceAnnotations": {},
+        "Slot": 1,
+        "NodeID": "60gvrl6tm78dmak4yl7srz94v",
         "Status": {
           "Timestamp": "2016-06-07T21:07:30.202183143Z",
-          "State": "FAILED",
-          "Message": "execution failed",
-          "ContainerStatus": {}
+          "State": "shutdown",
+          "Message": "shutdown",
+          "ContainerStatus": {
+            "ContainerID": "1cf8d63d18e79668b0004a4be4c6ee58cddfad2dae29506d8781581d0688a213"
+          }
         },
-        "DesiredState": "SHUTDOWN",
+        "DesiredState": "shutdown",
         "NetworksAttachments": [
           {
             "Network": {
@@ -5032,12 +5052,12 @@ List tasks
                   "com.docker.swarm.internal": "true"
                 },
                 "DriverConfiguration": {},
-                "IPAM": {
+                "IPAMOptions": {
                   "Driver": {},
                   "Configs": [
                     {
-                      "Family": "UNKNOWN",
-                      "Subnet": "10.255.0.0/16"
+                      "Subnet": "10.255.0.0/16",
+                      "Gateway": "10.255.0.1"
                     }
                   ]
                 }
@@ -5048,14 +5068,14 @@ List tasks
                   "com.docker.network.driver.overlay.vxlanid_list": "256"
                 }
               },
-              "IPAM": {
+              "IPAMOptions": {
                 "Driver": {
                   "Name": "default"
                 },
                 "Configs": [
                   {
-                    "Family": "UNKNOWN",
-                    "Subnet": "10.255.0.0/16"
+                    "Subnet": "10.255.0.0/16",
+                    "Gateway": "10.255.0.1"
                   }
                 ]
               }
@@ -5064,27 +5084,7 @@ List tasks
               "10.255.0.5/16"
             ]
           }
-        ],
-        "Endpoint": {
-          "Spec": {},
-          "ExposedPorts": [
-            {
-              "Protocol": "tcp",
-              "Port": 6379,
-              "PublicPort": 30000
-            }
-          ],
-          "VirtualIPs": [
-            {
-              "NetworkID": "4qvuz4ko70xaltuqbt8956gd1",
-              "Addr": "10.255.0.2/16"
-            },
-            {
-              "NetworkID": "4qvuz4ko70xaltuqbt8956gd1",
-              "Addr": "10.255.0.3/16"
-            }
-          ]
-        }
+        ]
       }
     ]
 
@@ -5124,7 +5124,6 @@ Get details on a task
       },
       "CreatedAt": "2016-06-07T21:07:31.171892745Z",
       "UpdatedAt": "2016-06-07T21:07:31.376370513Z",
-      "Name": "hopeful_cori",
       "Spec": {
         "ContainerSpec": {
           "Image": "redis"
@@ -5134,21 +5133,24 @@ Get details on a task
           "Reservations": {}
         },
         "RestartPolicy": {
-          "Condition": "ANY"
+          "Condition": "any",
+          "MaxAttempts": 0
         },
         "Placement": {}
       },
       "ServiceID": "9mnpnzenvg8p8tdbtq4wvbkcz",
-      "Instance": 1,
-      "NodeID": "24ifsmvkjbyhk",
-      "ServiceAnnotations": {},
+      "Slot": 1,
+      "NodeID": "60gvrl6tm78dmak4yl7srz94v",
       "Status": {
         "Timestamp": "2016-06-07T21:07:31.290032978Z",
-        "State": "FAILED",
-        "Message": "execution failed",
-        "ContainerStatus": {}
+        "State": "running",
+        "Message": "started",
+        "ContainerStatus": {
+          "ContainerID": "e5d62702a1b48d01c3e02ca1e0212a250801fa8d67caca0b6f35919ebc12f035",
+          "PID": 677
+        }
       },
-      "DesiredState": "SHUTDOWN",
+      "DesiredState": "running",
       "NetworksAttachments": [
         {
           "Network": {
@@ -5164,12 +5166,12 @@ Get details on a task
                 "com.docker.swarm.internal": "true"
               },
               "DriverConfiguration": {},
-              "IPAM": {
+              "IPAMOptions": {
                 "Driver": {},
                 "Configs": [
                   {
-                    "Family": "UNKNOWN",
-                    "Subnet": "10.255.0.0/16"
+                    "Subnet": "10.255.0.0/16",
+                    "Gateway": "10.255.0.1"
                   }
                 ]
               }
@@ -5180,14 +5182,14 @@ Get details on a task
                 "com.docker.network.driver.overlay.vxlanid_list": "256"
               }
             },
-            "IPAM": {
+            "IPAMOptions": {
               "Driver": {
                 "Name": "default"
               },
               "Configs": [
                 {
-                  "Family": "UNKNOWN",
-                  "Subnet": "10.255.0.0/16"
+                  "Subnet": "10.255.0.0/16",
+                  "Gateway": "10.255.0.1"
                 }
               ]
             }
@@ -5196,27 +5198,7 @@ Get details on a task
             "10.255.0.10/16"
           ]
         }
-      ],
-      "Endpoint": {
-        "Spec": {},
-        "ExposedPorts": [
-          {
-            "Protocol": "tcp",
-            "Port": 6379,
-            "PublicPort": 30000
-          }
-        ],
-        "VirtualIPs": [
-          {
-            "NetworkID": "4qvuz4ko70xaltuqbt8956gd1",
-            "Addr": "10.255.0.2/16"
-          },
-          {
-            "NetworkID": "4qvuz4ko70xaltuqbt8956gd1",
-            "Addr": "10.255.0.3/16"
-          }
-        ]
-      }
+      ]
     }
 
 **Status codes**:

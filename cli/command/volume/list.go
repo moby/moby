@@ -6,10 +6,10 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cli/command"
 	"github.com/docker/docker/cli/command/formatter"
+	"github.com/docker/docker/opts"
 	"github.com/spf13/cobra"
 )
 
@@ -24,11 +24,11 @@ func (r byVolumeName) Less(i, j int) bool {
 type listOptions struct {
 	quiet  bool
 	format string
-	filter []string
+	filter opts.FilterOpt
 }
 
 func newListCommand(dockerCli *command.DockerCli) *cobra.Command {
-	var opts listOptions
+	opts := listOptions{filter: opts.NewFilterOpt()}
 
 	cmd := &cobra.Command{
 		Use:     "ls [OPTIONS]",
@@ -44,51 +44,34 @@ func newListCommand(dockerCli *command.DockerCli) *cobra.Command {
 	flags := cmd.Flags()
 	flags.BoolVarP(&opts.quiet, "quiet", "q", false, "Only display volume names")
 	flags.StringVar(&opts.format, "format", "", "Pretty-print volumes using a Go template")
-	flags.StringSliceVarP(&opts.filter, "filter", "f", []string{}, "Provide filter values (e.g. 'dangling=true')")
+	flags.VarP(&opts.filter, "filter", "f", "Provide filter values (e.g. 'dangling=true')")
 
 	return cmd
 }
 
 func runList(dockerCli *command.DockerCli, opts listOptions) error {
 	client := dockerCli.Client()
-
-	volFilterArgs := filters.NewArgs()
-	for _, f := range opts.filter {
-		var err error
-		volFilterArgs, err = filters.ParseFlag(f, volFilterArgs)
-		if err != nil {
-			return err
-		}
-	}
-
-	volumes, err := client.VolumeList(context.Background(), volFilterArgs)
+	volumes, err := client.VolumeList(context.Background(), opts.filter.Value())
 	if err != nil {
 		return err
 	}
 
-	f := opts.format
-	if len(f) == 0 {
+	format := opts.format
+	if len(format) == 0 {
 		if len(dockerCli.ConfigFile().VolumesFormat) > 0 && !opts.quiet {
-			f = dockerCli.ConfigFile().VolumesFormat
+			format = dockerCli.ConfigFile().VolumesFormat
 		} else {
-			f = "table"
+			format = formatter.TableFormatKey
 		}
 	}
 
 	sort.Sort(byVolumeName(volumes.Volumes))
 
-	volumeCtx := formatter.VolumeContext{
-		Context: formatter.Context{
-			Output: dockerCli.Out(),
-			Format: f,
-			Quiet:  opts.quiet,
-		},
-		Volumes: volumes.Volumes,
+	volumeCtx := formatter.Context{
+		Output: dockerCli.Out(),
+		Format: formatter.NewVolumeFormat(format, opts.quiet),
 	}
-
-	volumeCtx.Write()
-
-	return nil
+	return formatter.VolumeWrite(volumeCtx, volumes.Volumes)
 }
 
 var listDescription = `

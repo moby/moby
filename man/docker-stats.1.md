@@ -9,6 +9,7 @@ docker-stats - Display a live stream of one or more containers' resource usage s
 [**-a**|**--all**]
 [**--help**]
 [**--no-stream**]
+[**--format[="*TEMPLATE*"]**]
 [CONTAINER...]
 
 # DESCRIPTION
@@ -24,6 +25,17 @@ Display a live stream of one or more containers' resource usage statistics
 
 **--no-stream**=*true*|*false*
   Disable streaming stats and only pull the first result, default setting is false.
+
+**--format**="*TEMPLATE*"
+   Pretty-print containers statistics using a Go template.
+   Valid placeholders:
+      .Container - Container name or ID.
+      .CPUPerc - CPU percentage.
+      .MemUsage - Memory usage.
+      .NetIO - Network IO.
+      .BlockIO - Block IO.
+      .MemPerc - Memory percentage (Not available on Windows).
+      .PIDs - Number of PIDs (Not available on Windows).
 
 # EXAMPLES
 
