@@ -407,3 +407,13 @@ func (s *DockerSuite) TestInspectRootFS(c *check.C) {
 
 	c.Assert(len(imageJSON[0].RootFS.Layers), checker.GreaterOrEqualThan, 1)
 }
+
+func (s *DockerSuite) TestInspectAmpersand(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+
+	name := "test"
+	out, _ := dockerCmd(c, "run", "--name", name, "--env", `TEST_ENV="soanni&rtr"`, "busybox", "env")
+	c.Assert(out, checker.Contains, `soanni&rtr`)
+	out, _ = dockerCmd(c, "inspect", name)
+	c.Assert(out, checker.Contains, `soanni&rtr`)
+}
