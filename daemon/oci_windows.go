@@ -5,12 +5,11 @@ import (
 
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/container"
-	"github.com/docker/docker/libcontainerd"
-	"github.com/docker/docker/libcontainerd/windowsoci"
 	"github.com/docker/docker/oci"
+	"github.com/opencontainers/runtime-spec/specs-go"
 )
 
-func (daemon *Daemon) createSpec(c *container.Container) (*libcontainerd.Spec, error) {
+func (daemon *Daemon) createSpec(c *container.Container) (*specs.Spec, error) {
 	s := oci.DefaultSpec()
 
 	linkedEnv, err := daemon.setupLinkedContainers(c)
@@ -33,7 +32,7 @@ func (daemon *Daemon) createSpec(c *container.Container) (*libcontainerd.Spec, e
 		return nil, err
 	}
 	for _, mount := range mounts {
-		m := windowsoci.Mount{
+		m := specs.Mount{
 			Source:      mount.Source,
 			Destination: mount.Destination,
 		}
@@ -71,25 +70,27 @@ func (daemon *Daemon) createSpec(c *container.Container) (*libcontainerd.Spec, e
 
 	// In s.Windows.Resources
 	// @darrenstahlmsft implement these resources
-	cpuShares := uint64(c.HostConfig.CPUShares)
-	s.Windows.Resources = &windowsoci.WindowsResources{
-		CPU: &windowsoci.WindowsCPU{
-			Percent: &c.HostConfig.CPUPercent,
+	cpuShares := uint16(c.HostConfig.CPUShares)
+	cpuPercent := uint8(c.HostConfig.CPUPercent)
+	memoryLimit := uint64(c.HostConfig.Memory)
+	s.Windows.Resources = &specs.WindowsResources{
+		CPU: &specs.WindowsCPUResources{
+			Percent: &cpuPercent,
 			Shares:  &cpuShares,
 		},
-		Memory: &windowsoci.WindowsMemory{
-			Limit: &c.HostConfig.Memory,
+		Memory: &specs.WindowsMemoryResources{
+			Limit: &memoryLimit,
 			//TODO Reservation: ...,
 		},
-		Network: &windowsoci.WindowsNetwork{
+		Network: &specs.WindowsNetworkResources{
 		//TODO Bandwidth: ...,
 		},
-		Storage: &windowsoci.WindowsStorage{
+		Storage: &specs.WindowsStorageResources{
 			Bps:  &c.HostConfig.IOMaximumBandwidth,
 			Iops: &c.HostConfig.IOMaximumIOps,
 		},
 	}
-	return (*libcontainerd.Spec)(&s), nil
+	return (*specs.Spec)(&s), nil
 }
 
 func escapeArgs(args []string) []string {
