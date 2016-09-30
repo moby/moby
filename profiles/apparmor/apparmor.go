@@ -66,8 +66,8 @@ func macroExists(m string) bool {
 	return err == nil
 }
 
-// InstallDefault generates a default profile and installs it in the
-// ProfileDirectory with `apparmor_parser`.
+// InstallDefault generates a default profile in a temp directory determined by
+// os.TempDir(), then loads the profile into the kernel using 'apparmor_parser'.
 func InstallDefault(name string) error {
 	p := profileData{
 		Name: name,
