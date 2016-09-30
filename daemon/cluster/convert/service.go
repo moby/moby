@@ -253,7 +253,7 @@ func restartPolicyFromGRPC(p *swarmapi.RestartPolicy) *types.RestartPolicy {
 	var rp *types.RestartPolicy
 	if p != nil {
 		rp = &types.RestartPolicy{}
-		
+
 		switch p.Condition {
 		case swarmapi.RestartOnNone:
 			rp.Condition = types.RestartPolicyConditionNone
@@ -264,7 +264,7 @@ func restartPolicyFromGRPC(p *swarmapi.RestartPolicy) *types.RestartPolicy {
 		default:
 			rp.Condition = types.RestartPolicyConditionAny
 		}
-		
+
 		if p.Delay != nil {
 			delay, _ := ptypes.Duration(p.Delay)
 			rp.Delay = &delay
@@ -283,7 +283,7 @@ func restartPolicyToGRPC(p *types.RestartPolicy) (*swarmapi.RestartPolicy, error
 	var rp *swarmapi.RestartPolicy
 	if p != nil {
 		rp = &swarmapi.RestartPolicy{}
-		
+
 		switch p.Condition {
 		case types.RestartPolicyConditionNone:
 			rp.Condition = swarmapi.RestartOnNone
