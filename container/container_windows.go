@@ -55,12 +55,10 @@ func (container *Container) UnmountVolumes(forceSyscall bool, volumeEventLog fun
 	)
 
 	for _, mntPoint := range container.MountPoints {
-		dest, err := container.GetResourcePath(mntPoint.Destination)
-		if err != nil {
-			return err
-		}
-		volumeMounts = append(volumeMounts, volume.MountPoint{Destination: dest, Volume: mntPoint.Volume, ID: mntPoint.ID})
-
+		// Do not attempt to get the mountpoint destination on the host as it
+		// is not accessible on Windows in the case that a container is running.
+		// (It's a special reparse point which doesn't have any contextual meaning).
+		volumeMounts = append(volumeMounts, volume.MountPoint{Volume: mntPoint.Volume, ID: mntPoint.ID})
 	}
 
 	// atm, this is a no-op.
