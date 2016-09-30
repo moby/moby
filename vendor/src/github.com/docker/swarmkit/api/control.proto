@@ -71,6 +71,44 @@ service Control {
 	rpc UpdateCluster(UpdateClusterRequest) returns (UpdateClusterResponse) {
 		option (docker.protobuf.plugin.tls_authorization) = { roles: "swarm-manager" };
 	};
+
+	// --- secret APIs ---
+
+	// GetSecret returns a `GetSecretResponse` with a `Secret` with the same
+	// id as `GetSecretRequest.SecretID`
+	// - Returns `NotFound` if the Secret with the given id is not found.
+	// - Returns `InvalidArgument` if the `GetSecretRequest.SecretID` is empty.
+	// - Returns an error if getting fails.
+	rpc GetSecret(GetSecretRequest) returns (GetSecretResponse) {
+		option (docker.protobuf.plugin.tls_authorization) = { roles: "swarm-manager" };
+	}
+
+	// ListSecrets returns a `ListSecretResponse` with a list all non-internal `Secret`s being
+	// managed, or all secrets matching any name in `ListSecretsRequest.Names`, any
+	// name prefix in `ListSecretsRequest.NamePrefixes`, any id in
+	// `ListSecretsRequest.SecretIDs`, or any id prefix in `ListSecretsRequest.IDPrefixes`.
+	// - Returns an error if listing fails.
+	rpc ListSecrets(ListSecretsRequest) returns (ListSecretsResponse) {
+		option (docker.protobuf.plugin.tls_authorization) = { roles: "swarm-manager" };
+	}
+	// CreateSecret creates and return a `CreateSecretResponse` with a `Secret` based
+	// on the provided `CreateSecretRequest.SecretSpec`.
+	// - Returns `InvalidArgument` if the `CreateSecretRequest.SecretSpec` is malformed,
+	//   or if the secret data is too long or contains invalid characters.
+	// - Returns `ResourceExhausted` if there are already the maximum number of allowed
+	//   secrets in the system.
+	// - Returns an error if the creation fails.
+	rpc CreateSecret(CreateSecretRequest) returns (CreateSecretResponse) {
+		option (docker.protobuf.plugin.tls_authorization) = { roles: "swarm-manager" };
+	}
+
+	// RemoveSecret removes the secret referenced by `RemoveSecretRequest.ID`.
+	// - Returns `InvalidArgument` if `RemoveSecretRequest.ID` is empty.
+	// - Returns `NotFound` if the a secret named `RemoveSecretRequest.ID` is not found.
+	// - Returns an error if the deletion fails.
+	rpc RemoveSecret(RemoveSecretRequest) returns (RemoveSecretResponse) {
+		option (docker.protobuf.plugin.tls_authorization) = { roles: "swarm-manager" };
+	}
 }
 
 message GetNodeRequest {
@@ -88,6 +126,8 @@ message ListNodesRequest {
 		map<string, string> labels = 3;
 		repeated NodeSpec.Membership memberships = 4;
 		repeated NodeRole roles = 5;
+		// NamePrefixes matches all objects with the given prefixes
+		repeated string name_prefixes = 6;
 	}
 
 	Filters filters = 1;
@@ -113,6 +153,7 @@ message UpdateNodeResponse {
 // RemoveNodeRequest requests to delete the specified node from store.
 message RemoveNodeRequest {
 	string node_id = 1 [(gogoproto.customname) = "NodeID"];
+	bool force = 2;
 }
 
 message RemoveNodeResponse {
@@ -141,6 +182,8 @@ message ListTasksRequest {
 		repeated string service_ids = 4 [(gogoproto.customname) = "ServiceIDs"];
 		repeated string node_ids = 5 [(gogoproto.customname) = "NodeIDs"];
 		repeated docker.swarmkit.v1.TaskState desired_states = 6;
+		// NamePrefixes matches all objects with the given prefixes
+		repeated string name_prefixes = 7;
 	}
 
 	Filters filters = 1;
@@ -188,6 +231,8 @@ message ListServicesRequest {
 		repeated string names = 1;
 		repeated string id_prefixes = 2 [(gogoproto.customname) = "IDPrefixes"];
 		map<string, string> labels = 3;
+		// NamePrefixes matches all objects with the given prefixes
+		repeated string name_prefixes = 4;
 	}
 
 	Filters filters = 1;
@@ -226,6 +271,8 @@ message ListNetworksRequest {
 		repeated string names = 1;
 		repeated string id_prefixes = 2 [(gogoproto.customname) = "IDPrefixes"];
 		map<string, string> labels = 3;
+		// NamePrefixes matches all objects with the given prefixes
+		repeated string name_prefixes = 4;
 	}
 
 	Filters filters = 1;
@@ -248,6 +295,8 @@ message ListClustersRequest {
 		repeated string names = 1;
 		repeated string id_prefixes = 2 [(gogoproto.customname) = "IDPrefixes"];
 		map<string, string> labels = 3;
+		// NamePrefixes matches all objects with the given prefixes
+		repeated string name_prefixes = 4;
 	}
 
 	Filters filters = 1;
@@ -255,6 +304,14 @@ message ListClustersRequest {
 
 message ListClustersResponse {
 	repeated Cluster clusters = 1;
+}
+
+message JoinTokenRotation {
+	// RotateWorkerToken tells UpdateCluster to rotate the worker secret.
+	bool rotate_worker_token = 1;
+
+	// RotateManagerSecret tells UpdateCluster to rotate the manager secret.
+	bool rotate_manager_token = 2;
 }
 
 message UpdateClusterRequest {
@@ -266,8 +323,67 @@ message UpdateClusterRequest {
 
 	// Spec is the new spec to apply to the cluster.
 	ClusterSpec spec = 3;
+
+	// Rotation contains flags for join token rotation
+	JoinTokenRotation rotation = 4 [(gogoproto.nullable) = false];
 }
 
 message UpdateClusterResponse {
 	Cluster cluster = 1;
 }
+
+// GetSecretRequest is the request to get a `Secret` object given a secret id.
+message GetSecretRequest {
+	string secret_id = 1 [(gogoproto.customname) = "SecretID"];
+}
+
+// GetSecretResponse contains the Secret corresponding to the id in
+// `GetSecretRequest`, but the `Secret.Spec.Data` field in each `Secret`
+// object should be nil instead of actually containing the secret bytes.
+message GetSecretResponse {
+	Secret secret = 1;
+}
+
+// ListSecretRequest is the request to list all non-internal secrets in the secret store,
+// or all secrets filtered by (name or name prefix or id prefix) and labels.
+message ListSecretsRequest {
+	message Filters {
+		repeated string names = 1;
+		repeated string id_prefixes = 2 [(gogoproto.customname) = "IDPrefixes"];
+		map<string, string> labels = 3;
+		repeated string name_prefixes = 4;
+	}
+
+	Filters filters = 1;
+}
+
+// ListSecretResponse contains a list of all the secrets that match the name or
+// name prefix filters provided in `ListSecretRequest`.  The `Secret.Spec.Data`
+// field in each `Secret` object should be nil instead of actually containing
+// the secret bytes.
+message ListSecretsResponse {
+	repeated Secret secrets = 1;
+}
+
+// CreateSecretRequest specifies a new secret (it will not update an existing
+// secret) to create.
+message CreateSecretRequest {
+	SecretSpec spec = 1;
+}
+
+// CreateSecretResponse contains the newly created `Secret`` corresponding to the
+// name in `CreateSecretRequest`.  The `Secret.Spec.Data` field should be nil instead
+// of actually containing the secret bytes.
+message CreateSecretResponse {
+	Secret secret = 1;
+}
+
+// RemoveSecretRequest contains the ID of the secret that should be removed.  This
+// removes all versions of the secret.
+message RemoveSecretRequest {
+	string secret_id = 1 [(gogoproto.customname) = "SecretID"];
+}
+
+// RemoveSecretResponse is an empty object indicating the successful removal of
+// a secret.
+message RemoveSecretResponse {}

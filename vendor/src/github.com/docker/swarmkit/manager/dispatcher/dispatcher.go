@@ -1,10 +1,8 @@
 package dispatcher
 
 import (
-	"errors"
 	"fmt"
-	"reflect"
-	"sort"
+	"strconv"
 	"sync"
 	"time"
 
@@ -13,13 +11,17 @@ import (
 	"google.golang.org/grpc/transport"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/go-events"
 	"github.com/docker/swarmkit/api"
+	"github.com/docker/swarmkit/api/equality"
 	"github.com/docker/swarmkit/ca"
 	"github.com/docker/swarmkit/log"
 	"github.com/docker/swarmkit/manager/state"
 	"github.com/docker/swarmkit/manager/state/store"
 	"github.com/docker/swarmkit/manager/state/watch"
 	"github.com/docker/swarmkit/protobuf/ptypes"
+	"github.com/docker/swarmkit/remotes"
+	"github.com/pkg/errors"
 	"golang.org/x/net/context"
 )
 
@@ -29,7 +31,7 @@ const (
 	DefaultHeartBeatPeriod       = 5 * time.Second
 	defaultHeartBeatEpsilon      = 500 * time.Millisecond
 	defaultGracePeriodMultiplier = 3
-	defaultRateLimitPeriod       = 16 * time.Second
+	defaultRateLimitPeriod       = 8 * time.Second
 
 	// maxBatchItems is the threshold of queued writes that should
 	// trigger an actual transaction to commit them to the shared store.
@@ -40,6 +42,9 @@ const (
 	// into a single transaction. A fraction of a second feels about
 	// right.
 	maxBatchInterval = 100 * time.Millisecond
+
+	modificationBatchLimit = 100
+	batchingWaitTime       = 100 * time.Millisecond
 )
 
 var (
@@ -52,15 +57,13 @@ var (
 	// ErrSessionInvalid returned when the session in use is no longer valid.
 	// The node should re-register and start a new session.
 	ErrSessionInvalid = errors.New("session invalid")
-	// ErrNodeNotFound returned when the Node doesn't exists in raft.
+	// ErrNodeNotFound returned when the Node doesn't exist in raft.
 	ErrNodeNotFound = errors.New("node not found")
 )
 
 // Config is configuration for Dispatcher. For default you should use
-// DefautConfig.
+// DefaultConfig.
 type Config struct {
-	// Addr configures the address the dispatcher reports to agents.
-	Addr             string
 	HeartbeatPeriod  time.Duration
 	HeartbeatEpsilon time.Duration
 	// RateLimitPeriod specifies how often node with same ID can try to register
@@ -79,17 +82,24 @@ func DefaultConfig() *Config {
 	}
 }
 
-// Cluster is interface which represent raft cluster. mananger/state/raft.Node
-// is implenents it. This interface needed only for easier unit-testing.
+// Cluster is interface which represent raft cluster. manager/state/raft.Node
+// is implements it. This interface needed only for easier unit-testing.
 type Cluster interface {
 	GetMemberlist() map[uint64]*api.RaftMember
+	SubscribePeers() (chan events.Event, func())
 	MemoryStore() *store.MemoryStore
+}
+
+// nodeUpdate provides a new status and/or description to apply to a node
+// object.
+type nodeUpdate struct {
+	status      *api.NodeStatus
+	description *api.NodeDescription
 }
 
 // Dispatcher is responsible for dispatching tasks and tracking agent health.
 type Dispatcher struct {
 	mu                   sync.Mutex
-	addr                 string
 	nodes                *nodeStore
 	store                *store.MemoryStore
 	mgrQueue             *watch.Queue
@@ -104,32 +114,32 @@ type Dispatcher struct {
 	taskUpdates     map[string]*api.TaskStatus // indexed by task ID
 	taskUpdatesLock sync.Mutex
 
-	processTaskUpdatesTrigger chan struct{}
+	nodeUpdates     map[string]nodeUpdate // indexed by node ID
+	nodeUpdatesLock sync.Mutex
+
+	processUpdatesTrigger chan struct{}
+
+	// for waiting for the next task/node batch update
+	processUpdatesLock sync.Mutex
+	processUpdatesCond *sync.Cond
 }
-
-// weightedPeerByNodeID is a sort wrapper for []*api.WeightedPeer
-type weightedPeerByNodeID []*api.WeightedPeer
-
-func (b weightedPeerByNodeID) Less(i, j int) bool { return b[i].Peer.NodeID < b[j].Peer.NodeID }
-
-func (b weightedPeerByNodeID) Len() int { return len(b) }
-
-func (b weightedPeerByNodeID) Swap(i, j int) { b[i], b[j] = b[j], b[i] }
 
 // New returns Dispatcher with cluster interface(usually raft.Node).
 // NOTE: each handler which does something with raft must add to Dispatcher.wg
 func New(cluster Cluster, c *Config) *Dispatcher {
-	return &Dispatcher{
-		addr:                      c.Addr,
-		nodes:                     newNodeStore(c.HeartbeatPeriod, c.HeartbeatEpsilon, c.GracePeriodMultiplier, c.RateLimitPeriod),
-		store:                     cluster.MemoryStore(),
-		cluster:                   cluster,
-		mgrQueue:                  watch.NewQueue(16),
-		keyMgrQueue:               watch.NewQueue(16),
-		taskUpdates:               make(map[string]*api.TaskStatus),
-		processTaskUpdatesTrigger: make(chan struct{}, 1),
-		config: c,
+	d := &Dispatcher{
+		nodes:                 newNodeStore(c.HeartbeatPeriod, c.HeartbeatEpsilon, c.GracePeriodMultiplier, c.RateLimitPeriod),
+		store:                 cluster.MemoryStore(),
+		cluster:               cluster,
+		taskUpdates:           make(map[string]*api.TaskStatus),
+		nodeUpdates:           make(map[string]nodeUpdate),
+		processUpdatesTrigger: make(chan struct{}, 1),
+		config:                c,
 	}
+
+	d.processUpdatesCond = sync.NewCond(&d.processUpdatesLock)
+
+	return d
 }
 
 func getWeightedPeers(cluster Cluster) []*api.WeightedPeer {
@@ -141,7 +151,11 @@ func getWeightedPeers(cluster Cluster) []*api.WeightedPeer {
 				NodeID: m.NodeID,
 				Addr:   m.Addr,
 			},
-			Weight: 1,
+
+			// TODO(stevvooe): Calculate weight of manager selection based on
+			// cluster-level observations, such as number of connections and
+			// load.
+			Weight: remotes.DefaultObservationWeight,
 		})
 	}
 	return mgrs
@@ -153,12 +167,11 @@ func (d *Dispatcher) Run(ctx context.Context) error {
 	d.mu.Lock()
 	if d.isRunning() {
 		d.mu.Unlock()
-		return fmt.Errorf("dispatcher is already running")
+		return errors.New("dispatcher is already running")
 	}
-	logger := log.G(ctx).WithField("module", "dispatcher")
-	ctx = log.WithLogger(ctx, logger)
+	ctx = log.WithModule(ctx, "dispatcher")
 	if err := d.markNodesUnknown(ctx); err != nil {
-		logger.Errorf(`failed to move all nodes to "unknown" state: %v`, err)
+		log.G(ctx).Errorf(`failed to move all nodes to "unknown" state: %v`, err)
 	}
 	configWatcher, cancel, err := store.ViewAndWatch(
 		d.store,
@@ -184,39 +197,44 @@ func (d *Dispatcher) Run(ctx context.Context) error {
 		d.mu.Unlock()
 		return err
 	}
+	// set queues here to guarantee that Close will close them
+	d.mgrQueue = watch.NewQueue()
+	d.keyMgrQueue = watch.NewQueue()
+
+	peerWatcher, peerCancel := d.cluster.SubscribePeers()
+	defer peerCancel()
+	d.lastSeenManagers = getWeightedPeers(d.cluster)
+
 	defer cancel()
 	d.ctx, d.cancel = context.WithCancel(ctx)
 	d.mu.Unlock()
 
-	publishManagers := func() {
-		mgrs := getWeightedPeers(d.cluster)
-		sort.Sort(weightedPeerByNodeID(mgrs))
-		d.mu.Lock()
-		if reflect.DeepEqual(mgrs, d.lastSeenManagers) {
-			d.mu.Unlock()
-			return
+	publishManagers := func(peers []*api.Peer) {
+		var mgrs []*api.WeightedPeer
+		for _, p := range peers {
+			mgrs = append(mgrs, &api.WeightedPeer{
+				Peer:   p,
+				Weight: remotes.DefaultObservationWeight,
+			})
 		}
+		d.mu.Lock()
 		d.lastSeenManagers = mgrs
 		d.mu.Unlock()
 		d.mgrQueue.Publish(mgrs)
 	}
-
-	publishManagers()
-	publishTicker := time.NewTicker(1 * time.Second)
-	defer publishTicker.Stop()
 
 	batchTimer := time.NewTimer(maxBatchInterval)
 	defer batchTimer.Stop()
 
 	for {
 		select {
-		case <-publishTicker.C:
-			publishManagers()
-		case <-d.processTaskUpdatesTrigger:
-			d.processTaskUpdates()
+		case ev := <-peerWatcher:
+			publishManagers(ev.([]*api.Peer))
+		case <-d.processUpdatesTrigger:
+			d.processUpdates()
 			batchTimer.Reset(maxBatchInterval)
 		case <-batchTimer.C:
-			d.processTaskUpdates()
+			d.processUpdates()
 			batchTimer.Reset(maxBatchInterval)
 		case v := <-configWatcher:
 			cluster := v.(state.EventUpdateCluster)
@@ -232,7 +250,7 @@ func (d *Dispatcher) Run(ctx context.Context) error {
 			}
 			d.networkBootstrapKeys = cluster.Cluster.NetworkBootstrapKeys
 			d.mu.Unlock()
-			d.keyMgrQueue.Publish(struct{}{})
+			d.keyMgrQueue.Publish(cluster.Cluster.NetworkBootstrapKeys)
 		case <-d.ctx.Done():
 			return nil
 		}
@@ -244,11 +262,22 @@ func (d *Dispatcher) Stop() error {
 	d.mu.Lock()
 	if !d.isRunning() {
 		d.mu.Unlock()
-		return fmt.Errorf("dispatcher is already stopped")
+		return errors.New("dispatcher is already stopped")
 	}
 	d.cancel()
 	d.mu.Unlock()
 	d.nodes.Clean()
+
+	d.processUpdatesLock.Lock()
+	// In case there are any waiters. There is no chance of any starting
+	// after this point, because they check if the context is canceled
+	// before waiting.
+	d.processUpdatesCond.Broadcast()
+	d.processUpdatesLock.Unlock()
+
+	d.mgrQueue.Close()
+	d.keyMgrQueue.Close()
+
 	return nil
 }
 
@@ -270,7 +299,7 @@ func (d *Dispatcher) markNodesUnknown(ctx context.Context) error {
 		nodes, err = store.FindNodes(tx, store.All)
 	})
 	if err != nil {
-		return fmt.Errorf("failed to get list of nodes: %v", err)
+		return errors.Wrap(err, "failed to get list of nodes")
 	}
 	_, err = d.store.Batch(func(batch *store.Batch) error {
 		for _, n := range nodes {
@@ -299,10 +328,10 @@ func (d *Dispatcher) markNodesUnknown(ctx context.Context) error {
 					}
 				}
 				if err := d.nodes.AddUnknown(node, expireFunc); err != nil {
-					return fmt.Errorf(`adding node in "unknown" state to node store failed: %v`, err)
+					return errors.Wrap(err, `adding node in "unknown" state to node store failed`)
 				}
 				if err := store.UpdateNode(tx, node); err != nil {
-					return fmt.Errorf("update failed %v", err)
+					return errors.Wrap(err, "update failed")
 				}
 				return nil
 			})
@@ -327,35 +356,59 @@ func (d *Dispatcher) isRunning() bool {
 	return true
 }
 
+// updateNode updates the description of a node and sets status to READY
+// this is used during registration when a new node description is provided
+// and during node updates when the node description changes
+func (d *Dispatcher) updateNode(nodeID string, description *api.NodeDescription) error {
+	d.nodeUpdatesLock.Lock()
+	d.nodeUpdates[nodeID] = nodeUpdate{status: &api.NodeStatus{State: api.NodeStatus_READY}, description: description}
+	numUpdates := len(d.nodeUpdates)
+	d.nodeUpdatesLock.Unlock()
+
+	if numUpdates >= maxBatchItems {
+		select {
+		case d.processUpdatesTrigger <- struct{}{}:
+		case <-d.ctx.Done():
+			return d.ctx.Err()
+		}
+
+	}
+
+	// Wait until the node update batch happens before unblocking register.
+	d.processUpdatesLock.Lock()
+	select {
+	case <-d.ctx.Done():
+		return d.ctx.Err()
+	default:
+	}
+	d.processUpdatesCond.Wait()
+	d.processUpdatesLock.Unlock()
+
+	return nil
+}
+
 // register is used for registration of node with particular dispatcher.
-func (d *Dispatcher) register(ctx context.Context, nodeID string, description *api.NodeDescription) (string, string, error) {
+func (d *Dispatcher) register(ctx context.Context, nodeID string, description *api.NodeDescription) (string, error) {
 	// prevent register until we're ready to accept it
 	if err := d.isRunningLocked(); err != nil {
-		return "", "", err
+		return "", err
 	}
 
 	if err := d.nodes.CheckRateLimit(nodeID); err != nil {
-		return "", "", err
+		return "", err
 	}
 
-	// create or update node in store
 	// TODO(stevvooe): Validate node specification.
 	var node *api.Node
-	err := d.store.Update(func(tx store.Tx) error {
+	d.store.View(func(tx store.ReadTx) {
 		node = store.GetNode(tx, nodeID)
-		if node == nil {
-			return ErrNodeNotFound
-		}
-
-		node.Description = description
-		node.Status = api.NodeStatus{
-			State: api.NodeStatus_READY,
-		}
-		return store.UpdateNode(tx, node)
-
 	})
-	if err != nil {
-		return "", "", err
+	if node == nil {
+		return "", ErrNodeNotFound
+	}
+
+	if err := d.updateNode(nodeID, description); err != nil {
+		return "", err
 	}
 
 	expireFunc := func() {
@@ -377,7 +430,7 @@ func (d *Dispatcher) register(ctx context.Context, nodeID string, description *a
 	// time a node registers, we invalidate the session and issue a new
 	// session, once identity is proven. This will cause misbehaved agents to
 	// be kicked when multiple connections are made.
-	return rn.Node.ID, rn.SessionID, nil
+	return rn.SessionID, nil
 }
 
 // UpdateTaskStatus updates status of task. Node should send such updates
@@ -442,23 +495,39 @@ func (d *Dispatcher) UpdateTaskStatus(ctx context.Context, r *api.UpdateTaskStat
 	d.taskUpdatesLock.Unlock()
 
 	if numUpdates >= maxBatchItems {
-		d.processTaskUpdatesTrigger <- struct{}{}
+		select {
+		case d.processUpdatesTrigger <- struct{}{}:
+		case <-d.ctx.Done():
+		}
 	}
 	return nil, nil
 }
 
-func (d *Dispatcher) processTaskUpdates() {
+func (d *Dispatcher) processUpdates() {
+	var (
+		taskUpdates map[string]*api.TaskStatus
+		nodeUpdates map[string]nodeUpdate
+	)
 	d.taskUpdatesLock.Lock()
-	if len(d.taskUpdates) == 0 {
-		d.taskUpdatesLock.Unlock()
-		return
+	if len(d.taskUpdates) != 0 {
+		taskUpdates = d.taskUpdates
+		d.taskUpdates = make(map[string]*api.TaskStatus)
 	}
-	taskUpdates := d.taskUpdates
-	d.taskUpdates = make(map[string]*api.TaskStatus)
 	d.taskUpdatesLock.Unlock()
 
+	d.nodeUpdatesLock.Lock()
+	if len(d.nodeUpdates) != 0 {
+		nodeUpdates = d.nodeUpdates
+		d.nodeUpdates = make(map[string]nodeUpdate)
+	}
+	d.nodeUpdatesLock.Unlock()
+
+	if len(taskUpdates) == 0 && len(nodeUpdates) == 0 {
+		return
+	}
+
 	log := log.G(d.ctx).WithFields(logrus.Fields{
-		"method": "(*Dispatcher).processTaskUpdates",
+		"method": "(*Dispatcher).processUpdates",
 	})
 
 	_, err := d.store.Batch(func(batch *store.Batch) error {
@@ -492,14 +561,45 @@ func (d *Dispatcher) processTaskUpdates() {
 				return nil
 			})
 			if err != nil {
-				log.WithError(err).Error("dispatcher transaction failed")
+				log.WithError(err).Error("dispatcher task update transaction failed")
 			}
 		}
+
+		for nodeID, nodeUpdate := range nodeUpdates {
+			err := batch.Update(func(tx store.Tx) error {
+				logger := log.WithField("node.id", nodeID)
+				node := store.GetNode(tx, nodeID)
+				if node == nil {
+					logger.Errorf("node unavailable")
+					return nil
+				}
+
+				if nodeUpdate.status != nil {
+					node.Status = *nodeUpdate.status
+				}
+				if nodeUpdate.description != nil {
+					node.Description = nodeUpdate.description
+				}
+
+				if err := store.UpdateNode(tx, node); err != nil {
+					logger.WithError(err).Error("failed to update node status")
+					return nil
+				}
+				logger.Debug("node status updated")
+				return nil
+			})
+			if err != nil {
+				log.WithError(err).Error("dispatcher node update transaction failed")
+			}
+		}
+
 		return nil
 	})
 	if err != nil {
 		log.WithError(err).Error("dispatcher batch failed")
 	}
+
+	d.processUpdatesCond.Broadcast()
 }
 
 // Tasks is a stream of tasks state for node. Each message contains full list
@@ -572,20 +672,245 @@ func (d *Dispatcher) Tasks(r *api.TasksRequest, stream api.Dispatcher_TasksServe
 			return err
 		}
 
-		select {
-		case event := <-nodeTasks:
-			switch v := event.(type) {
-			case state.EventCreateTask:
-				tasksMap[v.Task.ID] = v.Task
-			case state.EventUpdateTask:
-				tasksMap[v.Task.ID] = v.Task
-			case state.EventDeleteTask:
-				delete(tasksMap, v.Task.ID)
+		// bursty events should be processed in batches and sent out snapshot
+		var (
+			modificationCnt int
+			batchingTimer   *time.Timer
+			batchingTimeout <-chan time.Time
+		)
+
+	batchingLoop:
+		for modificationCnt < modificationBatchLimit {
+			select {
+			case event := <-nodeTasks:
+				switch v := event.(type) {
+				case state.EventCreateTask:
+					tasksMap[v.Task.ID] = v.Task
+					modificationCnt++
+				case state.EventUpdateTask:
+					if oldTask, exists := tasksMap[v.Task.ID]; exists {
+						// States ASSIGNED and below are set by the orchestrator/scheduler,
+						// not the agent, so tasks in these states need to be sent to the
+						// agent even if nothing else has changed.
+						if equality.TasksEqualStable(oldTask, v.Task) && v.Task.Status.State > api.TaskStateAssigned {
+							// this update should not trigger action at agent
+							tasksMap[v.Task.ID] = v.Task
+							continue
+						}
+					}
+					tasksMap[v.Task.ID] = v.Task
+					modificationCnt++
+				case state.EventDeleteTask:
+					delete(tasksMap, v.Task.ID)
+					modificationCnt++
+				}
+				if batchingTimer != nil {
+					batchingTimer.Reset(batchingWaitTime)
+				} else {
+					batchingTimer = time.NewTimer(batchingWaitTime)
+					batchingTimeout = batchingTimer.C
+				}
+			case <-batchingTimeout:
+				break batchingLoop
+			case <-stream.Context().Done():
+				return stream.Context().Err()
+			case <-d.ctx.Done():
+				return d.ctx.Err()
 			}
-		case <-stream.Context().Done():
-			return stream.Context().Err()
-		case <-d.ctx.Done():
-			return d.ctx.Err()
+		}
+
+		if batchingTimer != nil {
+			batchingTimer.Stop()
+		}
+	}
+}
+
+// Assignments is a stream of assignments for a node. Each message contains
+// either full list of tasks and secrets for the node, or an incremental update.
+func (d *Dispatcher) Assignments(r *api.AssignmentsRequest, stream api.Dispatcher_AssignmentsServer) error {
+	nodeInfo, err := ca.RemoteNode(stream.Context())
+	if err != nil {
+		return err
+	}
+	nodeID := nodeInfo.NodeID
+
+	if err := d.isRunningLocked(); err != nil {
+		return err
+	}
+
+	fields := logrus.Fields{
+		"node.id":      nodeID,
+		"node.session": r.SessionID,
+		"method":       "(*Dispatcher).Assignments",
+	}
+	if nodeInfo.ForwardedBy != nil {
+		fields["forwarder.id"] = nodeInfo.ForwardedBy.NodeID
+	}
+	log := log.G(stream.Context()).WithFields(fields)
+	log.Debugf("")
+
+	if _, err = d.nodes.GetWithSession(nodeID, r.SessionID); err != nil {
+		return err
+	}
+
+	var (
+		sequence  int64
+		appliesTo string
+		initial   api.AssignmentsMessage
+	)
+	tasksMap := make(map[string]*api.Task)
+
+	sendMessage := func(msg api.AssignmentsMessage, assignmentType api.AssignmentsMessage_Type) error {
+		sequence++
+		msg.AppliesTo = appliesTo
+		msg.ResultsIn = strconv.FormatInt(sequence, 10)
+		appliesTo = msg.ResultsIn
+		msg.Type = assignmentType
+
+		if err := stream.Send(&msg); err != nil {
+			return err
+		}
+		return nil
+	}
+
+	// TODO(aaronl): Also send node secrets that should be exposed to
+	// this node.
+	nodeTasks, cancel, err := store.ViewAndWatch(
+		d.store,
+		func(readTx store.ReadTx) error {
+			tasks, err := store.FindTasks(readTx, store.ByNodeID(nodeID))
+			if err != nil {
+				return err
+			}
+
+			for _, t := range tasks {
+				// We only care about tasks that are ASSIGNED or
+				// higher. If the state is below ASSIGNED, the
+				// task may not meet the constraints for this
+				// node, so we have to be careful about sending
+				// secrets associated with it.
+				if t.Status.State < api.TaskStateAssigned {
+					continue
+				}
+
+				tasksMap[t.ID] = t
+				initial.UpdateTasks = append(initial.UpdateTasks, t)
+			}
+			return nil
+		},
+		state.EventUpdateTask{Task: &api.Task{NodeID: nodeID},
+			Checks: []state.TaskCheckFunc{state.TaskCheckNodeID}},
+		state.EventDeleteTask{Task: &api.Task{NodeID: nodeID},
+			Checks: []state.TaskCheckFunc{state.TaskCheckNodeID}},
+	)
+	if err != nil {
+		return err
+	}
+	defer cancel()
+
+	if err := sendMessage(initial, api.AssignmentsMessage_COMPLETE); err != nil {
+		return err
+	}
+
+	for {
+		// Check for session expiration
+		if _, err := d.nodes.GetWithSession(nodeID, r.SessionID); err != nil {
+			return err
+		}
+
+		// bursty events should be processed in batches and sent out together
+		var (
+			update          api.AssignmentsMessage
+			modificationCnt int
+			batchingTimer   *time.Timer
+			batchingTimeout <-chan time.Time
+			updateTasks     = make(map[string]*api.Task)
+			removeTasks     = make(map[string]struct{})
+		)
+
+		oneModification := func() {
+			modificationCnt++
+
+			if batchingTimer != nil {
+				batchingTimer.Reset(batchingWaitTime)
+			} else {
+				batchingTimer = time.NewTimer(batchingWaitTime)
+				batchingTimeout = batchingTimer.C
+			}
+		}
+
+		// The batching loop waits for 50 ms after the most recent
+		// change, or until modificationBatchLimit is reached. The
+		// worst case latency is modificationBatchLimit * batchingWaitTime,
+		// which is 10 seconds.
+	batchingLoop:
+		for modificationCnt < modificationBatchLimit {
+			select {
+			case event := <-nodeTasks:
+				switch v := event.(type) {
+				// We don't monitor EventCreateTask because tasks are
+				// never created in the ASSIGNED state. First tasks are
+				// created by the orchestrator, then the scheduler moves
+				// them to ASSIGNED. If this ever changes, we will need
+				// to monitor task creations as well.
+				case state.EventUpdateTask:
+					// We only care about tasks that are ASSIGNED or
+					// higher.
+					if v.Task.Status.State < api.TaskStateAssigned {
+						continue
+					}
+
+					if oldTask, exists := tasksMap[v.Task.ID]; exists {
+						// States ASSIGNED and below are set by the orchestrator/scheduler,
+						// not the agent, so tasks in these states need to be sent to the
+						// agent even if nothing else has changed.
+						if equality.TasksEqualStable(oldTask, v.Task) && v.Task.Status.State > api.TaskStateAssigned {
+							// this update should not trigger a task change for the agent
+							tasksMap[v.Task.ID] = v.Task
+							continue
+						}
+					}
+					tasksMap[v.Task.ID] = v.Task
+					updateTasks[v.Task.ID] = v.Task
+
+					oneModification()
+				case state.EventDeleteTask:
+
+					if _, exists := tasksMap[v.Task.ID]; !exists {
+						continue
+					}
+
+					removeTasks[v.Task.ID] = struct{}{}
+
+					delete(tasksMap, v.Task.ID)
+
+					oneModification()
+				}
+			case <-batchingTimeout:
+				break batchingLoop
+			case <-stream.Context().Done():
+				return stream.Context().Err()
+			case <-d.ctx.Done():
+				return d.ctx.Err()
+			}
+		}
+
+		if batchingTimer != nil {
+			batchingTimer.Stop()
+		}
+
+		if modificationCnt > 0 {
+			for id, task := range updateTasks {
+				if _, ok := removeTasks[id]; !ok {
+					update.UpdateTasks = append(update.UpdateTasks, task)
+				}
+			}
+			for id := range removeTasks {
+				update.RemoveTasks = append(update.RemoveTasks, id)
+			}
+			if err := sendMessage(update, api.AssignmentsMessage_INCREMENTAL); err != nil {
+				return err
+			}
 		}
 	}
 }
@@ -594,21 +919,21 @@ func (d *Dispatcher) nodeRemove(id string, status api.NodeStatus) error {
 	if err := d.isRunningLocked(); err != nil {
 		return err
 	}
-	// TODO(aaronl): Is it worth batching node removals?
-	err := d.store.Update(func(tx store.Tx) error {
-		node := store.GetNode(tx, id)
-		if node == nil {
-			return errors.New("node not found")
+
+	d.nodeUpdatesLock.Lock()
+	d.nodeUpdates[id] = nodeUpdate{status: status.Copy(), description: d.nodeUpdates[id].description}
+	numUpdates := len(d.nodeUpdates)
+	d.nodeUpdatesLock.Unlock()
+
+	if numUpdates >= maxBatchItems {
+		select {
+		case d.processUpdatesTrigger <- struct{}{}:
+		case <-d.ctx.Done():
 		}
-		node.Status = status
-		return store.UpdateNode(tx, node)
-	})
-	if err != nil {
-		return fmt.Errorf("failed to update node %s status to down: %v", id, err)
 	}
 
 	if rn := d.nodes.Delete(id); rn == nil {
-		return fmt.Errorf("node %s is not found in local storage", id)
+		return errors.Errorf("node %s is not found in local storage", id)
 	}
 
 	return nil
@@ -633,6 +958,12 @@ func (d *Dispatcher) getManagers() []*api.WeightedPeer {
 	return d.lastSeenManagers
 }
 
+func (d *Dispatcher) getNetworkBootstrapKeys() []*api.EncryptionKey {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	return d.networkBootstrapKeys
+}
+
 // Session is a stream which controls agent connection.
 // Each message contains list of backup Managers with weights. Also there is
 // a special boolean field Disconnect which if true indicates that node should
@@ -649,10 +980,19 @@ func (d *Dispatcher) Session(r *api.SessionRequest, stream api.Dispatcher_Sessio
 		return err
 	}
 
-	// register the node.
-	nodeID, sessionID, err := d.register(stream.Context(), nodeID, r.Description)
-	if err != nil {
-		return err
+	var sessionID string
+	if _, err := d.nodes.GetWithSession(nodeID, r.SessionID); err != nil {
+		// register the node.
+		sessionID, err = d.register(stream.Context(), nodeID, r.Description)
+		if err != nil {
+			return err
+		}
+	} else {
+		sessionID = r.SessionID
+		// update the node description
+		if err := d.updateNode(nodeID, r.Description); err != nil {
+			return err
+		}
 	}
 
 	fields := logrus.Fields{
@@ -688,7 +1028,7 @@ func (d *Dispatcher) Session(r *api.SessionRequest, stream api.Dispatcher_Sessio
 		SessionID:            sessionID,
 		Node:                 nodeObj,
 		Managers:             d.getManagers(),
-		NetworkBootstrapKeys: d.networkBootstrapKeys,
+		NetworkBootstrapKeys: d.getNetworkBootstrapKeys(),
 	}); err != nil {
 		return err
 	}
@@ -720,16 +1060,18 @@ func (d *Dispatcher) Session(r *api.SessionRequest, stream api.Dispatcher_Sessio
 
 	for {
 		// After each message send, we need to check the nodes sessionID hasn't
-		// changed. If it has, we will the stream and make the node
+		// changed. If it has, we will shut down the stream and make the node
 		// re-register.
 		node, err := d.nodes.GetWithSession(nodeID, sessionID)
 		if err != nil {
 			return err
 		}
 
-		var mgrs []*api.WeightedPeer
-
-		var disconnect bool
+		var (
+			disconnect bool
+			mgrs       []*api.WeightedPeer
+			netKeys    []*api.EncryptionKey
+		)
 
 		select {
 		case ev := <-managerUpdates:
@@ -742,17 +1084,21 @@ func (d *Dispatcher) Session(r *api.SessionRequest, stream api.Dispatcher_Sessio
 			disconnect = true
 		case <-d.ctx.Done():
 			disconnect = true
-		case <-keyMgrUpdates:
+		case ev := <-keyMgrUpdates:
+			netKeys = ev.([]*api.EncryptionKey)
 		}
 		if mgrs == nil {
 			mgrs = d.getManagers()
+		}
+		if netKeys == nil {
+			netKeys = d.getNetworkBootstrapKeys()
 		}
 
 		if err := stream.Send(&api.SessionMessage{
 			SessionID:            sessionID,
 			Node:                 nodeObj,
 			Managers:             mgrs,
-			NetworkBootstrapKeys: d.networkBootstrapKeys,
+			NetworkBootstrapKeys: netKeys,
 		}); err != nil {
 			return err
 		}

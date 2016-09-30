@@ -61,8 +61,8 @@ func (s *DockerHubPullSuite) SetUpTest(c *check.C) {
 func (s *DockerHubPullSuite) TearDownTest(c *check.C) {
 	out := s.Cmd(c, "images", "-aq")
 	images := strings.Split(out, "\n")
-	images = append([]string{"-f"}, images...)
-	s.d.Cmd("rmi", images...)
+	images = append([]string{"rmi", "-f"}, images...)
+	s.d.Cmd(images...)
 	s.ds.TearDownTest(c)
 }
 

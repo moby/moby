@@ -4,8 +4,6 @@ import (
 	"bytes"
 	"crypto/tls"
 	"encoding/json"
-	"errors"
-	"fmt"
 	"io/ioutil"
 	"net/http"
 	"sync"
@@ -13,6 +11,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/cloudflare/cfssl/api"
 	"github.com/cloudflare/cfssl/signer"
+	"github.com/pkg/errors"
 )
 
 // ErrNoExternalCAURLs is an error used it indicate that an ExternalCA is
@@ -80,7 +79,7 @@ func (eca *ExternalCA) Sign(req signer.SignRequest) (cert []byte, err error) {
 
 	csrJSON, err := json.Marshal(req)
 	if err != nil {
-		return nil, fmt.Errorf("unable to JSON-encode CFSSL signing request: %s", err)
+		return nil, errors.Wrap(err, "unable to JSON-encode CFSSL signing request")
 	}
 
 	// Try each configured proxy URL. Return after the first success. If
@@ -100,41 +99,41 @@ func (eca *ExternalCA) Sign(req signer.SignRequest) (cert []byte, err error) {
 func makeExternalSignRequest(client *http.Client, url string, csrJSON []byte) (cert []byte, err error) {
 	resp, err := client.Post(url, "application/json", bytes.NewReader(csrJSON))
 	if err != nil {
-		return nil, fmt.Errorf("unable to perform certificate signing request: %s", err)
+		return nil, errors.Wrap(err, "unable to perform certificate signing request")
 	}
 	defer resp.Body.Close()
 
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return nil, fmt.Errorf("unable to read CSR response body: %s", err)
+		return nil, errors.Wrap(err, "unable to read CSR response body")
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("unexpected status code in CSR response: %d - %s", resp.StatusCode, string(body))
+		return nil, errors.Errorf("unexpected status code in CSR response: %d - %s", resp.StatusCode, string(body))
 	}
 
 	var apiResponse api.Response
 	if err := json.Unmarshal(body, &apiResponse); err != nil {
 		log.Debugf("unable to JSON-parse CFSSL API response body: %s", string(body))
-		return nil, fmt.Errorf("unable to parse JSON response: %s", err)
+		return nil, errors.Wrap(err, "unable to parse JSON response")
 	}
 
 	if !apiResponse.Success || apiResponse.Result == nil {
 		if len(apiResponse.Errors) > 0 {
-			return nil, fmt.Errorf("response errors: %v", apiResponse.Errors)
+			return nil, errors.Errorf("response errors: %v", apiResponse.Errors)
 		}
 
-		return nil, fmt.Errorf("certificate signing request failed")
+		return nil, errors.New("certificate signing request failed")
 	}
 
 	result, ok := apiResponse.Result.(map[string]interface{})
 	if !ok {
-		return nil, fmt.Errorf("invalid result type: %T", apiResponse.Result)
+		return nil, errors.Errorf("invalid result type: %T", apiResponse.Result)
 	}
 
 	certPEM, ok := result["certificate"].(string)
 	if !ok {
-		return nil, fmt.Errorf("invalid result certificate field type: %T", result["certificate"])
+		return nil, errors.Errorf("invalid result certificate field type: %T", result["certificate"])
 	}
 
 	return []byte(certPEM), nil

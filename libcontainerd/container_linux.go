@@ -11,8 +11,9 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	containerd "github.com/docker/containerd/api/grpc/types"
+	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/restartmanager"
-	"github.com/opencontainers/specs/specs-go"
+	"github.com/opencontainers/runtime-spec/specs-go"
 	"golang.org/x/net/context"
 )
 
@@ -67,7 +68,7 @@ func (ctr *container) cleanProcess(id string) {
 	if p, ok := ctr.processes[id]; ok {
 		for _, i := range []int{syscall.Stdin, syscall.Stdout, syscall.Stderr} {
 			if err := os.Remove(p.fifo(i)); err != nil {
-				logrus.Warnf("failed to remove %v for process %v: %v", p.fifo(i), id, err)
+				logrus.Warnf("libcontainerd: failed to remove %v for process %v: %v", p.fifo(i), id, err)
 			}
 		}
 	}
@@ -86,22 +87,37 @@ func (ctr *container) spec() (*specs.Spec, error) {
 	return &spec, nil
 }
 
-func (ctr *container) start() error {
+func (ctr *container) start(checkpoint string, checkpointDir string) error {
 	spec, err := ctr.spec()
 	if err != nil {
 		return nil
 	}
+	createChan := make(chan struct{})
 	iopipe, err := ctr.openFifos(spec.Process.Terminal)
 	if err != nil {
 		return err
 	}
 
+	// we need to delay stdin closure after container start or else "stdin close"
+	// event will be rejected by containerd.
+	// stdin closure happens in AttachStreams
+	stdin := iopipe.Stdin
+	iopipe.Stdin = ioutils.NewWriteCloserWrapper(stdin, func() error {
+		go func() {
+			<-createChan
+			stdin.Close()
+		}()
+		return nil
+	})
+
 	r := &containerd.CreateContainerRequest{
-		Id:         ctr.containerID,
-		BundlePath: ctr.dir,
-		Stdin:      ctr.fifo(syscall.Stdin),
-		Stdout:     ctr.fifo(syscall.Stdout),
-		Stderr:     ctr.fifo(syscall.Stderr),
+		Id:            ctr.containerID,
+		BundlePath:    ctr.dir,
+		Stdin:         ctr.fifo(syscall.Stdin),
+		Stdout:        ctr.fifo(syscall.Stdout),
+		Stderr:        ctr.fifo(syscall.Stderr),
+		Checkpoint:    checkpoint,
+		CheckpointDir: checkpointDir,
 		// check to see if we are running in ramdisk to disable pivot root
 		NoPivotRoot: os.Getenv("DOCKER_RAMDISK") != "",
 		Runtime:     ctr.runtime,
@@ -109,17 +125,21 @@ func (ctr *container) start() error {
 	}
 	ctr.client.appendContainer(ctr)
 
+	if err := ctr.client.backend.AttachStreams(ctr.containerID, *iopipe); err != nil {
+		close(createChan)
+		ctr.closeFifos(iopipe)
+		return err
+	}
+
 	resp, err := ctr.client.remote.apiClient.CreateContainer(context.Background(), r)
 	if err != nil {
+		close(createChan)
 		ctr.closeFifos(iopipe)
 		return err
 	}
 	ctr.startedAt = time.Now()
-
-	if err := ctr.client.backend.AttachStreams(ctr.containerID, *iopipe); err != nil {
-		return err
-	}
 	ctr.systemPid = systemPid(resp.Container)
+	close(createChan)
 
 	return ctr.client.backend.StateChanged(ctr.containerID, StateInfo{
 		CommonStateInfo: CommonStateInfo{
@@ -144,6 +164,7 @@ func (ctr *container) handleEvent(e *containerd.Event) error {
 	defer ctr.client.unlock(ctr.containerID)
 	switch e.Type {
 	case StateExit, StatePause, StateResume, StateOOM:
+		var waitRestart chan error
 		st := StateInfo{
 			CommonStateInfo: CommonStateInfo{
 				State:    e.Type,
@@ -161,31 +182,12 @@ func (ctr *container) handleEvent(e *containerd.Event) error {
 		if st.State == StateExit && ctr.restartManager != nil {
 			restart, wait, err := ctr.restartManager.ShouldRestart(e.Status, false, time.Since(ctr.startedAt))
 			if err != nil {
-				logrus.Warnf("container %s %v", ctr.containerID, err)
+				logrus.Warnf("libcontainerd: container %s %v", ctr.containerID, err)
 			} else if restart {
 				st.State = StateRestart
 				ctr.restarting = true
 				ctr.client.deleteContainer(e.Id)
-				go func() {
-					err := <-wait
-					ctr.client.lock(ctr.containerID)
-					defer ctr.client.unlock(ctr.containerID)
-					ctr.restarting = false
-					if err != nil {
-						st.State = StateExit
-						ctr.clean()
-						ctr.client.q.append(e.Id, func() {
-							if err := ctr.client.backend.StateChanged(e.Id, st); err != nil {
-								logrus.Error(err)
-							}
-						})
-						if err != restartmanager.ErrRestartCanceled {
-							logrus.Error(err)
-						}
-					} else {
-						ctr.start()
-					}
-				}()
+				waitRestart = wait
 			}
 		}
 
@@ -200,8 +202,34 @@ func (ctr *container) handleEvent(e *containerd.Event) error {
 		}
 		ctr.client.q.append(e.Id, func() {
 			if err := ctr.client.backend.StateChanged(e.Id, st); err != nil {
-				logrus.Error(err)
+				logrus.Errorf("libcontainerd: backend.StateChanged(): %v", err)
 			}
+			if st.State == StateRestart {
+				go func() {
+					err := <-waitRestart
+					ctr.client.lock(ctr.containerID)
+					defer ctr.client.unlock(ctr.containerID)
+					ctr.restarting = false
+					if err == nil {
+						if err = ctr.start("", ""); err != nil {
+							logrus.Errorf("libcontainerd: error restarting %v", err)
+						}
+					}
+					if err != nil {
+						st.State = StateExit
+						ctr.clean()
+						ctr.client.q.append(e.Id, func() {
+							if err := ctr.client.backend.StateChanged(e.Id, st); err != nil {
+								logrus.Errorf("libcontainerd: %v", err)
+							}
+						})
+						if err != restartmanager.ErrRestartCanceled {
+							logrus.Errorf("libcontainerd: %v", err)
+						}
+					}
+				}()
+			}
+
 			if e.Type == StatePause || e.Type == StateResume {
 				ctr.pauseMonitor.handle(e.Type)
 			}
@@ -213,7 +241,7 @@ func (ctr *container) handleEvent(e *containerd.Event) error {
 		})
 
 	default:
-		logrus.Debugf("event unhandled: %+v", e)
+		logrus.Debugf("libcontainerd: event unhandled: %+v", e)
 	}
 	return nil
 }
@@ -225,8 +253,9 @@ func (ctr *container) discardFifos() {
 		f := ctr.fifo(i)
 		c := make(chan struct{})
 		go func() {
+			r := openReaderFromFifo(f)
 			close(c) // this channel is used to not close the writer too early, before readonly open has been called.
-			io.Copy(ioutil.Discard, openReaderFromFifo(f))
+			io.Copy(ioutil.Discard, r)
 		}()
 		<-c
 		closeReaderFifo(f) // avoid blocking permanently on open if there is no writer side

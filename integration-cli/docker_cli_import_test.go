@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/docker/docker/pkg/integration/checker"
+	icmd "github.com/docker/docker/pkg/integration/cmd"
 	"github.com/go-check/check"
 )
 
@@ -32,11 +33,11 @@ func (s *DockerSuite) TestImportDisplay(c *check.C) {
 }
 
 func (s *DockerSuite) TestImportBadURL(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	out, _, err := dockerCmdWithError("import", "http://nourl/bad")
 	c.Assert(err, checker.NotNil, check.Commentf("import was supposed to fail but didn't"))
 	// Depending on your system you can get either of these errors
 	if !strings.Contains(out, "dial tcp") &&
+		!strings.Contains(out, "ApplyLayer exit status 1 stdout:  stderr: archive/tar: invalid tar header") &&
 		!strings.Contains(out, "Error processing tar file") {
 		c.Fatalf("expected an error msg but didn't get one.\nErr: %v\nOut: %v", err, out)
 	}
@@ -124,4 +125,26 @@ func (s *DockerSuite) TestImportFileWithMessage(c *check.C) {
 func (s *DockerSuite) TestImportFileNonExistentFile(c *check.C) {
 	_, _, err := dockerCmdWithError("import", "example.com/myImage.tar")
 	c.Assert(err, checker.NotNil, check.Commentf("import non-existing file must failed"))
+}
+
+func (s *DockerSuite) TestImportWithQuotedChanges(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+	dockerCmd(c, "run", "--name", "test-import", "busybox", "true")
+
+	temporaryFile, err := ioutil.TempFile("", "exportImportTest")
+	c.Assert(err, checker.IsNil, check.Commentf("failed to create temporary file"))
+	defer os.Remove(temporaryFile.Name())
+
+	result := icmd.RunCmd(icmd.Cmd{
+		Command: binaryWithArgs("export", "test-import"),
+		Stdout:  bufio.NewWriter(temporaryFile),
+	})
+	c.Assert(result, icmd.Matches, icmd.Success)
+
+	result = dockerCmdWithResult("import", "-c", `ENTRYPOINT ["/bin/sh", "-c"]`, temporaryFile.Name())
+	c.Assert(result, icmd.Matches, icmd.Success)
+	image := strings.TrimSpace(result.Stdout())
+
+	result = dockerCmdWithResult("run", "--rm", image, "true")
+	c.Assert(result, icmd.Matches, icmd.Expected{Out: icmd.None})
 }

@@ -76,6 +76,8 @@ http:
 	if err != nil {
 		return nil, err
 	}
+	defer config.Close()
+
 	if _, err := fmt.Fprintf(config, template, tmp, privateRegistryURL, authTemplate); err != nil {
 		os.RemoveAll(tmp)
 		return nil, err
@@ -128,7 +130,7 @@ func (t *testRegistryV2) Close() {
 }
 
 func (t *testRegistryV2) getBlobFilename(blobDigest digest.Digest) string {
-	// Split the digest into it's algorithm and hex components.
+	// Split the digest into its algorithm and hex components.
 	dgstAlg, dgstHex := blobDigest.Algorithm(), blobDigest.Hex()
 
 	// The path to the target blob data looks something like:

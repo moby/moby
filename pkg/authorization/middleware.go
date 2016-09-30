@@ -14,16 +14,25 @@ type Middleware struct {
 }
 
 // NewMiddleware creates a new Middleware
-// with a slice of plugins.
-func NewMiddleware(p []Plugin) Middleware {
-	return Middleware{
-		plugins: p,
+// with a slice of plugins names.
+func NewMiddleware(names []string) *Middleware {
+	return &Middleware{
+		plugins: newPlugins(names),
 	}
 }
 
+// SetPlugins sets the plugin used for authorization
+func (m *Middleware) SetPlugins(names []string) {
+	m.plugins = newPlugins(names)
+}
+
 // WrapHandler returns a new handler function wrapping the previous one in the request chain.
-func (m Middleware) WrapHandler(handler func(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error) func(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (m *Middleware) WrapHandler(handler func(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error) func(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	return func(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+
+		if len(m.plugins) == 0 {
+			return handler(ctx, w, r, vars)
+		}
 
 		user := ""
 		userAuthNMethod := ""

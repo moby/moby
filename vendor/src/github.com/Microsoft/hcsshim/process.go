@@ -71,9 +71,7 @@ func (process *process) Kill() error {
 	var resultp *uint16
 	err := hcsTerminateProcess(process.handle, &resultp)
 	err = processHcsResult(err, resultp)
-	if err == ErrVmcomputeOperationPending {
-		return ErrVmcomputeOperationPending
-	} else if err != nil {
+	if err != nil {
 		return makeProcessError(process, operation, "", err)
 	}
 
@@ -118,8 +116,9 @@ func (process *process) WaitTimeout(timeout time.Duration) error {
 	} else {
 		finished, err := waitTimeoutHelper(process, timeout)
 		if !finished {
-			return ErrTimeout
-		} else if err != nil {
+			err = ErrTimeout
+		}
+		if err != nil {
 			return makeProcessError(process, operation, "", err)
 		}
 	}
@@ -160,7 +159,7 @@ func (process *process) ExitCode() (int, error) {
 	}
 
 	if properties.Exited == false {
-		return 0, ErrInvalidProcessState
+		return 0, makeProcessError(process, operation, "", ErrInvalidProcessState)
 	}
 
 	logrus.Debugf(title+" succeeded processid=%d exitCode=%d", process.processID, properties.ExitCode)
@@ -211,7 +210,7 @@ func (process *process) properties() (*processStatus, error) {
 	err := hcsGetProcessProperties(process.handle, &propertiesp, &resultp)
 	err = processHcsResult(err, resultp)
 	if err != nil {
-		return nil, makeProcessError(process, operation, "", err)
+		return nil, err
 	}
 
 	if propertiesp == nil {
@@ -260,7 +259,7 @@ func (process *process) Stdio() (io.WriteCloser, io.ReadCloser, io.ReadCloser, e
 
 	pipes, err := makeOpenFiles([]syscall.Handle{stdIn, stdOut, stdErr})
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, nil, makeProcessError(process, operation, "", err)
 	}
 
 	logrus.Debugf(title+" succeeded processid=%d", process.processID)

@@ -1,6 +1,7 @@
 package controlapi
 
 import (
+	"fmt"
 	"net"
 
 	"github.com/docker/libnetwork/ipamapi"
@@ -171,7 +172,12 @@ func (s *Server) RemoveNetwork(ctx context.Context, request *api.RemoveNetworkRe
 	}
 
 	for _, s := range services {
-		for _, na := range s.Spec.Networks {
+		specNetworks := s.Spec.Task.Networks
+		if len(specNetworks) == 0 {
+			specNetworks = s.Spec.Networks
+		}
+
+		for _, na := range specNetworks {
 			if na.Target == request.NetworkID {
 				return nil, grpc.Errorf(codes.FailedPrecondition, "network %s is in use", request.NetworkID)
 			}
@@ -181,7 +187,11 @@ func (s *Server) RemoveNetwork(ctx context.Context, request *api.RemoveNetworkRe
 	err = s.store.Update(func(tx store.Tx) error {
 		nw := store.GetNetwork(tx, request.NetworkID)
 		if _, ok := nw.Spec.Annotations.Labels["com.docker.swarm.internal"]; ok {
-			return grpc.Errorf(codes.PermissionDenied, "%s is a pre-defined network and cannot be removed", request.NetworkID)
+			networkDescription := nw.ID
+			if nw.Spec.Annotations.Name != "" {
+				networkDescription = fmt.Sprintf("%s (%s)", nw.Spec.Annotations.Name, nw.ID)
+			}
+			return grpc.Errorf(codes.PermissionDenied, "%s is a pre-defined network and cannot be removed", networkDescription)
 		}
 		return store.DeleteNetwork(tx, request.NetworkID)
 	})
@@ -224,6 +234,8 @@ func (s *Server) ListNetworks(ctx context.Context, request *api.ListNetworksRequ
 		switch {
 		case request.Filters != nil && len(request.Filters.Names) > 0:
 			networks, err = store.FindNetworks(tx, buildFilters(store.ByName, request.Filters.Names))
+		case request.Filters != nil && len(request.Filters.NamePrefixes) > 0:
+			networks, err = store.FindNetworks(tx, buildFilters(store.ByNamePrefix, request.Filters.NamePrefixes))
 		case request.Filters != nil && len(request.Filters.IDPrefixes) > 0:
 			networks, err = store.FindNetworks(tx, buildFilters(store.ByIDPrefix, request.Filters.IDPrefixes))
 		default:
@@ -238,6 +250,9 @@ func (s *Server) ListNetworks(ctx context.Context, request *api.ListNetworksRequ
 		networks = filterNetworks(networks,
 			func(e *api.Network) bool {
 				return filterContains(e.Spec.Annotations.Name, request.Filters.Names)
+			},
+			func(e *api.Network) bool {
+				return filterContainsPrefix(e.Spec.Annotations.Name, request.Filters.NamePrefixes)
 			},
 			func(e *api.Network) bool {
 				return filterContainsPrefix(e.ID, request.Filters.IDPrefixes)

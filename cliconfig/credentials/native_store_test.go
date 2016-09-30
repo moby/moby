@@ -10,7 +10,7 @@ import (
 
 	"github.com/docker/docker-credential-helpers/client"
 	"github.com/docker/docker-credential-helpers/credentials"
-	"github.com/docker/engine-api/types"
+	"github.com/docker/docker/api/types"
 )
 
 const (

@@ -11,7 +11,7 @@ import (
 	"syscall"
 
 	"github.com/Sirupsen/logrus"
-	flag "github.com/docker/docker/pkg/mflag"
+	"github.com/spf13/pflag"
 	"golang.org/x/sys/windows"
 	"golang.org/x/sys/windows/svc"
 	"golang.org/x/sys/windows/svc/debug"
@@ -20,10 +20,10 @@ import (
 )
 
 var (
-	flServiceName       = flag.String([]string{"-service-name"}, "docker", "Set the Windows service name")
-	flRegisterService   = flag.Bool([]string{"-register-service"}, false, "Register the service and exit")
-	flUnregisterService = flag.Bool([]string{"-unregister-service"}, false, "Unregister the service and exit")
-	flRunService        = flag.Bool([]string{"-run-service"}, false, "")
+	flServiceName       *string
+	flRegisterService   *bool
+	flUnregisterService *bool
+	flRunService        *bool
 
 	setStdHandle = syscall.NewLazyDLL("kernel32.dll").NewProc("SetStdHandle")
 	oldStderr    syscall.Handle
@@ -44,9 +44,17 @@ const (
 	eventExtraOffset = 10 // Add this to any event to get a string that supports extended data
 )
 
+func installServiceFlags(flags *pflag.FlagSet) {
+	flServiceName = flags.String("service-name", "docker", "Set the Windows service name")
+	flRegisterService = flags.Bool("register-service", false, "Register the service and exit")
+	flUnregisterService = flags.Bool("unregister-service", false, "Unregister the service and exit")
+	flRunService = flags.Bool("run-service", false, "")
+}
+
 type handler struct {
-	tosvc   chan bool
-	fromsvc chan error
+	tosvc     chan bool
+	fromsvc   chan error
+	daemonCli *DaemonCli
 }
 
 type etwHook struct {
@@ -203,7 +211,7 @@ func unregisterService() error {
 	return nil
 }
 
-func initService() (bool, error) {
+func initService(daemonCli *DaemonCli) (bool, error) {
 	if *flUnregisterService {
 		if *flRegisterService {
 			return true, errors.New("--register-service and --unregister-service cannot be used together")
@@ -225,8 +233,9 @@ func initService() (bool, error) {
 	}
 
 	h := &handler{
-		tosvc:   make(chan bool),
-		fromsvc: make(chan error),
+		tosvc:     make(chan bool),
+		fromsvc:   make(chan error),
+		daemonCli: daemonCli,
 	}
 
 	var log *eventlog.Log
@@ -261,7 +270,7 @@ func initService() (bool, error) {
 
 func (h *handler) started() error {
 	// This must be delayed until daemonCli initializes Config.Root
-	err := initPanicFile(filepath.Join(daemonCli.Config.Root, "panic.log"))
+	err := initPanicFile(filepath.Join(h.daemonCli.Config.Root, "panic.log"))
 	if err != nil {
 		return err
 	}
@@ -298,12 +307,12 @@ Loop:
 		case c := <-r:
 			switch c.Cmd {
 			case svc.Cmd(windows.SERVICE_CONTROL_PARAMCHANGE):
-				daemonCli.reloadConfig()
+				h.daemonCli.reloadConfig()
 			case svc.Interrogate:
 				s <- c.CurrentStatus
 			case svc.Stop, svc.Shutdown:
 				s <- svc.Status{State: svc.StopPending, Accepts: 0}
-				daemonCli.stop()
+				h.daemonCli.stop()
 			}
 		}
 	}

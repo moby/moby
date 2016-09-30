@@ -19,6 +19,16 @@ func (a byAll) isBy() {
 // set.
 var All byAll
 
+type byNamePrefix string
+
+func (b byNamePrefix) isBy() {
+}
+
+// ByNamePrefix creates an object to pass to Find to select by query.
+func ByNamePrefix(namePrefix string) By {
+	return byNamePrefix(namePrefix)
+}
+
 type byIDPrefix string
 
 func (b byIDPrefix) isBy() {

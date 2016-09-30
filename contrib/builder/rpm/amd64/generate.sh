@@ -25,6 +25,9 @@ for version in "${versions[@]}"; do
 	if [[ "$distro" == "fedora" ]]; then
 		installer=dnf
 	fi
+	if [[ "$distro" == "photon" ]]; then
+		installer=tdnf
+	fi
 
 	mkdir -p "$version"
 	echo "$version -> FROM $from"
@@ -69,6 +72,9 @@ for version in "${versions[@]}"; do
 		opensuse:*)
 			# get rpm-build and curl packages and dependencies
 			echo 'RUN zypper --non-interactive install ca-certificates* curl gzip rpm-build' >> "$version/Dockerfile"
+			;;
+		photon:*)
+			echo "RUN ${installer} install -y wget curl ca-certificates gzip make rpm-build sed gcc linux-api-headers glibc-devel binutils libseccomp libltdl-devel elfutils" >> "$version/Dockerfile"
 			;;
 		*)
 			echo "RUN ${installer} install -y @development-tools fedora-packager" >> "$version/Dockerfile"
@@ -128,6 +134,10 @@ for version in "${versions[@]}"; do
 
 			# use zypper
 			echo "RUN zypper --non-interactive install ${packages[*]}" >> "$version/Dockerfile"
+			;;
+		photon:*)
+			packages=( "${packages[@]/pkgconfig/pkg-config}" )
+			echo "RUN ${installer} install -y ${packages[*]}" >> "$version/Dockerfile"
 			;;
 		*)
 			echo "RUN ${installer} install -y ${packages[*]}" >> "$version/Dockerfile"

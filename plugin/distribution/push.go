@@ -11,10 +11,10 @@ import (
 	"github.com/docker/distribution"
 	"github.com/docker/distribution/digest"
 	"github.com/docker/distribution/manifest/schema2"
+	"github.com/docker/docker/api/types"
 	dockerdist "github.com/docker/docker/distribution"
 	"github.com/docker/docker/reference"
 	"github.com/docker/docker/registry"
-	"github.com/docker/engine-api/types"
 	"golang.org/x/net/context"
 )
 
@@ -51,7 +51,7 @@ func Push(name string, rs registry.Service, metaHeader http.Header, authConfig *
 			return "", err
 		}
 		if !confirmedV2 {
-			return "", ErrUnSupportedRegistry
+			return "", ErrUnsupportedRegistry
 		}
 		logrus.Debugf("Trying to push %s to %s %s", repoInfo.Name(), endpoint.URL, endpoint.Version)
 		// This means that we found an endpoint. and we are ready to push
@@ -79,9 +79,9 @@ func Push(name string, rs registry.Service, metaHeader http.Header, authConfig *
 			return "", err
 		}
 		f.Close()
-		mt := MediaTypeLayer
+		mt := schema2.MediaTypeLayer
 		if i == 0 {
-			mt = MediaTypeConfig
+			mt = schema2.MediaTypePluginConfig
 		}
 		// Commit completes the write process to the BlobService.
 		// The descriptor arg to Commit is called the "provisional" descriptor and

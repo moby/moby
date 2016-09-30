@@ -143,7 +143,7 @@ func (h *Handle) FilterAdd(filter Filter) error {
 		if u32.RedirIndex != 0 {
 			u32.Actions = append([]Action{NewMirredAction(u32.RedirIndex)}, u32.Actions...)
 		}
-		if err := encodeActions(actionsAttr, u32.Actions); err != nil {
+		if err := EncodeActions(actionsAttr, u32.Actions); err != nil {
 			return err
 		}
 	} else if fw, ok := filter.(*Fw); ok {
@@ -309,7 +309,7 @@ func toAttrs(tcgen *nl.TcGen, attrs *ActionAttrs) {
 	attrs.Bindcnt = int(tcgen.Bindcnt)
 }
 
-func encodeActions(attr *nl.RtAttr, actions []Action) error {
+func EncodeActions(attr *nl.RtAttr, actions []Action) error {
 	tabIndex := int(nl.TCA_ACT_TAB)
 
 	for _, action := range actions {

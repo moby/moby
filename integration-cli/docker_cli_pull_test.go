@@ -272,3 +272,10 @@ func (s *DockerRegistryAuthHtpasswdSuite) TestPullNoCredentialsNotFound(c *check
 	c.Assert(err, check.NotNil, check.Commentf(out))
 	c.Assert(out, checker.Contains, "Error: image busybox:latest not found")
 }
+
+// Regression test for https://github.com/docker/docker/issues/26429
+func (s *DockerSuite) TestPullLinuxImageFailsOnWindows(c *check.C) {
+	testRequires(c, DaemonIsWindows, Network)
+	_, _, err := dockerCmdWithError("pull", "ubuntu")
+	c.Assert(err.Error(), checker.Contains, "cannot be used on this platform")
+}

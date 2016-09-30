@@ -15,6 +15,12 @@ type baseLayerWriter struct {
 	bw           *winio.BackupFileWriter
 	err          error
 	hasUtilityVM bool
+	dirInfo      []dirInfo
+}
+
+type dirInfo struct {
+	path     string
+	fileInfo winio.FileBasicInfo
 }
 
 func (w *baseLayerWriter) closeCurrentFile() error {
@@ -69,17 +75,20 @@ func (w *baseLayerWriter) Add(name string, fileInfo *winio.FileBasicInfo) (err e
 			return err
 		}
 		createmode = syscall.OPEN_EXISTING
+		if fileInfo.FileAttributes&syscall.FILE_ATTRIBUTE_REPARSE_POINT == 0 {
+			w.dirInfo = append(w.dirInfo, dirInfo{path, *fileInfo})
+		}
 	}
 
 	mode := uint32(syscall.GENERIC_READ | syscall.GENERIC_WRITE | winio.WRITE_DAC | winio.WRITE_OWNER | winio.ACCESS_SYSTEM_SECURITY)
 	f, err = winio.OpenForBackup(path, mode, syscall.FILE_SHARE_READ, createmode)
 	if err != nil {
-		return err
+		return makeError(err, "Failed to OpenForBackup", path)
 	}
 
 	err = winio.SetFileBasicInfo(f, fileInfo)
 	if err != nil {
-		return err
+		return makeError(err, "Failed to SetFileBasicInfo", path)
 	}
 
 	w.f = f
@@ -131,6 +140,22 @@ func (w *baseLayerWriter) Close() error {
 		return err
 	}
 	if w.err == nil {
+		// Restore the file times of all the directories, since they may have
+		// been modified by creating child directories.
+		for i := range w.dirInfo {
+			di := &w.dirInfo[len(w.dirInfo)-i-1]
+			f, err := winio.OpenForBackup(di.path, uint32(syscall.GENERIC_READ|syscall.GENERIC_WRITE), syscall.FILE_SHARE_READ, syscall.OPEN_EXISTING)
+			if err != nil {
+				return makeError(err, "Failed to OpenForBackup", di.path)
+			}
+
+			err = winio.SetFileBasicInfo(f, &di.fileInfo)
+			f.Close()
+			if err != nil {
+				return makeError(err, "Failed to SetFileBasicInfo", di.path)
+			}
+		}
+
 		err = ProcessBaseLayer(w.root)
 		if err != nil {
 			return err

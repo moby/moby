@@ -78,7 +78,8 @@ func (e *Expr) Match(whats ...string) bool {
 
 	// full string match
 	for _, what := range whats {
-		if e.exp == what {
+		// case insensitive compare
+		if strings.EqualFold(e.exp, what) {
 			match = true
 			break
 		}

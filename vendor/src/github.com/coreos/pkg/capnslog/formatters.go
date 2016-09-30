@@ -18,6 +18,7 @@ import (
 	"bufio"
 	"fmt"
 	"io"
+	"log"
 	"runtime"
 	"strings"
 	"time"
@@ -28,7 +29,7 @@ type Formatter interface {
 	Flush()
 }
 
-func NewStringFormatter(w io.Writer) *StringFormatter {
+func NewStringFormatter(w io.Writer) Formatter {
 	return &StringFormatter{
 		w: bufio.NewWriter(w),
 	}
@@ -103,4 +104,54 @@ func (c *PrettyFormatter) Format(pkg string, l LogLevel, depth int, entries ...i
 
 func (c *PrettyFormatter) Flush() {
 	c.w.Flush()
+}
+
+// LogFormatter emulates the form of the traditional built-in logger.
+type LogFormatter struct {
+	logger *log.Logger
+	prefix string
+}
+
+// NewLogFormatter is a helper to produce a new LogFormatter struct. It uses the
+// golang log package to actually do the logging work so that logs look similar.
+func NewLogFormatter(w io.Writer, prefix string, flag int) Formatter {
+	return &LogFormatter{
+		logger: log.New(w, "", flag), // don't use prefix here
+		prefix: prefix,               // save it instead
+	}
+}
+
+// Format builds a log message for the LogFormatter. The LogLevel is ignored.
+func (lf *LogFormatter) Format(pkg string, _ LogLevel, _ int, entries ...interface{}) {
+	str := fmt.Sprint(entries...)
+	prefix := lf.prefix
+	if pkg != "" {
+		prefix = fmt.Sprintf("%s%s: ", prefix, pkg)
+	}
+	lf.logger.Output(5, fmt.Sprintf("%s%v", prefix, str)) // call depth is 5
+}
+
+// Flush is included so that the interface is complete, but is a no-op.
+func (lf *LogFormatter) Flush() {
+	// noop
+}
+
+// NilFormatter is a no-op log formatter that does nothing.
+type NilFormatter struct {
+}
+
+// NewNilFormatter is a helper to produce a new LogFormatter struct. It logs no
+// messages so that you can cause part of your logging to be silent.
+func NewNilFormatter() Formatter {
+	return &NilFormatter{}
+}
+
+// Format does nothing.
+func (_ *NilFormatter) Format(_ string, _ LogLevel, _ int, _ ...interface{}) {
+	// noop
+}
+
+// Flush is included so that the interface is complete, but is a no-op.
+func (_ *NilFormatter) Flush() {
+	// noop
 }

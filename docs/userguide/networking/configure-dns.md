@@ -48,13 +48,13 @@ Various container options that affect container domain name services.
   <tr>
     <td>
     <p>
-    <code>--net-alias=ALIAS</code>
+    <code>--network-alias=ALIAS</code>
     </p>
     </td>
     <td>
     <p>
      In addition to <code>--name</code> as described above, a container is discovered by one or more 
-     of its configured <code>--net-alias</code> (or <code>--alias</code> in <code>docker network connect</code> command)
+     of its configured <code>--network-alias</code> (or <code>--alias</code> in <code>docker network connect</code> command)
      within the user-defined network. The embedded DNS server maintains the mapping between
      all of the container aliases and its IP address on a specific user-defined network.
      A container can have different aliases in different networks by using the <code>--alias</code>

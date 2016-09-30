@@ -39,7 +39,7 @@ func newVFSGraphDriver(td string) (graphdriver.Driver, error) {
 		},
 	}
 
-	return graphdriver.GetDriver("vfs", td, nil, uidMap, gidMap)
+	return graphdriver.GetDriver("vfs", td, nil, uidMap, gidMap, nil)
 }
 
 func newTestGraphDriver(t *testing.T) (graphdriver.Driver, func()) {
@@ -741,18 +741,20 @@ func TestTarStreamVerification(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer src.Close()
 
 	dst, err := os.Create(filepath.Join(tmpdir, id2.Algorithm().String(), id2.Hex(), "tar-split.json.gz"))
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer dst.Close()
 
 	if _, err := io.Copy(dst, src); err != nil {
 		t.Fatal(err)
 	}
 
-	src.Close()
-	dst.Close()
+	src.Sync()
+	dst.Sync()
 
 	ts, err := layer2.TarStream()
 	if err != nil {

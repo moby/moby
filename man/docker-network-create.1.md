@@ -127,8 +127,8 @@ $ docker network create -d overlay \
   --gateway=192.168.0.100 \ 
   --gateway=192.170.0.100 \
   --ip-range=192.168.1.0/24 \
-  --aux-address a=192.168.1.5 --aux-address b=192.168.1.6 \
-  --aux-address a=192.170.1.5 --aux-address b=192.170.1.6 \
+  --aux-address="my-router=192.168.1.5" --aux-address="my-switch=192.168.1.6" \
+  --aux-address="my-printer=192.170.1.5" --aux-address="my-nas=192.170.1.6" \
   my-multihost-network
 ```
 
@@ -144,19 +144,19 @@ to create an externally isolated `overlay` network, you can specify the
 
 # OPTIONS
 **--aux-address**=map[]
-  Auxiliary ipv4 or ipv6 addresses used by network driver
+  Auxiliary IPv4 or IPv6 addresses used by network driver
 
 **-d**, **--driver**=*DRIVER*
   Driver to manage the Network bridge or overlay. The default is bridge.
 
 **--gateway**=[]
-  ipv4 or ipv6 Gateway for the master subnet
+  IPv4 or IPv6 Gateway for the master subnet
 
 **--help**
   Print usage
 
 **--internal**
-  Restricts external access to the network
+  Restrict external access to the network
 
 **--ip-range**=[]
   Allocate container ip from a sub-range

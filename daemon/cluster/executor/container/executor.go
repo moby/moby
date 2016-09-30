@@ -1,12 +1,13 @@
 package container
 
 import (
+	"sort"
 	"strings"
 
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/network"
 	executorpkg "github.com/docker/docker/daemon/cluster/executor"
 	clustertypes "github.com/docker/docker/daemon/cluster/provider"
-	"github.com/docker/engine-api/types"
-	"github.com/docker/engine-api/types/network"
 	networktypes "github.com/docker/libnetwork/types"
 	"github.com/docker/swarmkit/agent/exec"
 	"github.com/docker/swarmkit/api"
@@ -31,13 +32,13 @@ func (e *executor) Describe(ctx context.Context) (*api.NodeDescription, error) {
 		return nil, err
 	}
 
-	var plugins []api.PluginDescription
+	plugins := map[api.PluginDescription]struct{}{}
 	addPlugins := func(typ string, names []string) {
 		for _, name := range names {
-			plugins = append(plugins, api.PluginDescription{
+			plugins[api.PluginDescription{
 				Type: typ,
 				Name: name,
-			})
+			}] = struct{}{}
 		}
 	}
 
@@ -46,6 +47,13 @@ func (e *executor) Describe(ctx context.Context) (*api.NodeDescription, error) {
 	// the plugin list by default.
 	addPlugins("Network", append([]string{"overlay"}, info.Plugins.Network...))
 	addPlugins("Authorization", info.Plugins.Authorization)
+
+	pluginFields := make([]api.PluginDescription, 0, len(plugins))
+	for k := range plugins {
+		pluginFields = append(pluginFields, k)
+	}
+
+	sort.Sort(sortedPlugins(pluginFields))
 
 	// parse []string labels into a map[string]string
 	labels := map[string]string{}
@@ -67,7 +75,7 @@ func (e *executor) Describe(ctx context.Context) (*api.NodeDescription, error) {
 		Engine: &api.EngineDescription{
 			EngineVersion: info.ServerVersion,
 			Labels:        labels,
-			Plugins:       plugins,
+			Plugins:       pluginFields,
 		},
 		Resources: &api.Resources{
 			NanoCPUs:    int64(info.NCPU) * 1e9,
@@ -86,7 +94,7 @@ func (e *executor) Configure(ctx context.Context, node *api.Node) error {
 
 	options := types.NetworkCreate{
 		Driver: na.Network.DriverState.Name,
-		IPAM: network.IPAM{
+		IPAM: &network.IPAM{
 			Driver: na.Network.IPAM.Driver.Name,
 		},
 		Options:        na.Network.DriverState.Options,
@@ -113,6 +121,10 @@ func (e *executor) Configure(ctx context.Context, node *api.Node) error {
 
 // Controller returns a docker container runner.
 func (e *executor) Controller(t *api.Task) (exec.Controller, error) {
+	if t.Spec.GetAttachment() != nil {
+		return newNetworkAttacherController(e.backend, t)
+	}
+
 	ctlr, err := newController(e.backend, t)
 	if err != nil {
 		return nil, err
@@ -136,4 +148,17 @@ func (e *executor) SetNetworkBootstrapKeys(keys []*api.EncryptionKey) error {
 	e.backend.SetNetworkBootstrapKeys(nwKeys)
 
 	return nil
+}
+
+type sortedPlugins []api.PluginDescription
+
+func (sp sortedPlugins) Len() int { return len(sp) }
+
+func (sp sortedPlugins) Swap(i, j int) { sp[i], sp[j] = sp[j], sp[i] }
+
+func (sp sortedPlugins) Less(i, j int) bool {
+	if sp[i].Type != sp[j].Type {
+		return sp[i].Type < sp[j].Type
+	}
+	return sp[i].Name < sp[j].Name
 }

@@ -3,7 +3,6 @@
 title = "service rm"
 description = "The service rm command description and usage"
 keywords = ["service, rm"]
-advisory = "rc"
 [menu.main]
 parent = "smn_cli"
 +++
@@ -12,9 +11,9 @@ parent = "smn_cli"
 # service rm
 
 ```Markdown
-Usage:	docker service rm [OPTIONS] SERVICE
+Usage:	docker service rm SERVICE [SERVICE...]
 
-Remove a service
+Remove one or more services
 
 Aliases:
   rm, remove
@@ -46,5 +45,5 @@ ID            NAME   SCALE  IMAGE        COMMAND
 * [service inspect](service_inspect.md)
 * [service ls](service_ls.md)
 * [service scale](service_scale.md)
-* [service tasks](service_tasks.md)
+* [service ps](service_ps.md)
 * [service update](service_update.md)

@@ -34,11 +34,15 @@ message NodeCertificateStatusResponse {
 }
 
 message IssueNodeCertificateRequest {
-	NodeRole role = 1;
+	// DEPRECATED: Role is now selected based on which secret is matched.
+	NodeRole role = 1 [deprecated=true];
+
+	// CSR is the certificate signing request.
 	bytes csr = 2 [(gogoproto.customname) = "CSR"];
-	// Secret represents a user-provided string that is necessary for new
+
+	// Token represents a user-provided string that is necessary for new
 	// nodes to join the cluster
-	string secret = 3;
+	string token = 3;
 }
 
 message IssueNodeCertificateResponse {

@@ -104,7 +104,7 @@ on the separate [Release Notes page](https://docs.docker.com/release-notes)
 As changes are made to Docker there may be times when existing features
 will need to be removed or replaced with newer features. Before an existing
 feature is removed it will be labeled as "deprecated" within the documentation
-and will remain in Docker for, usually, at least 2 releases. After that time
+and will remain in Docker for, usually, at least 3 releases. After that time
 it may be removed.
 
 Users are expected to take note of the list of deprecated features each

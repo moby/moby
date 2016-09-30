@@ -3,10 +3,10 @@ package daemon
 import (
 	"io"
 
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/distribution"
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/reference"
-	"github.com/docker/engine-api/types"
 	"golang.org/x/net/context"
 )
 

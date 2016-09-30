@@ -9,9 +9,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/engine-api/types/container"
-	networktypes "github.com/docker/engine-api/types/network"
-	"github.com/docker/engine-api/types/strslice"
+	"github.com/docker/docker/api/types/container"
+	networktypes "github.com/docker/docker/api/types/network"
+	"github.com/docker/docker/api/types/strslice"
 )
 
 type f struct {

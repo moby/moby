@@ -12,11 +12,15 @@ package journald
 // #include <time.h>
 // #include <unistd.h>
 //
-//static int get_message(sd_journal *j, const char **msg, size_t *length)
+//static int get_message(sd_journal *j, const char **msg, size_t *length, int *partial)
 //{
 //	int rc;
+//	size_t plength;
 //	*msg = NULL;
 //	*length = 0;
+//	plength = strlen("CONTAINER_PARTIAL_MESSAGE=true");
+//	rc = sd_journal_get_data(j, "CONTAINER_PARTIAL_MESSAGE", (const void **) msg, length);
+//	*partial = ((rc == 0) && (*length == plength) && (memcmp(*msg, "CONTAINER_PARTIAL_MESSAGE=true", plength) == 0));
 //	rc = sd_journal_get_data(j, "MESSAGE", (const void **) msg, length);
 //	if (rc == 0) {
 //		if (*length > 8) {
@@ -167,7 +171,7 @@ func (s *journald) drainJournal(logWatcher *logger.LogWatcher, config logger.Rea
 	var msg, data, cursor *C.char
 	var length C.size_t
 	var stamp C.uint64_t
-	var priority C.int
+	var priority, partial C.int
 
 	// Walk the journal from here forward until we run out of new entries.
 drain:
@@ -183,7 +187,7 @@ drain:
 			}
 		}
 		// Read and send the logged message, if there is one to read.
-		i := C.get_message(j, &msg, &length)
+		i := C.get_message(j, &msg, &length, &partial)
 		if i != -C.ENOENT && i != -C.EADDRNOTAVAIL {
 			// Read the entry's timestamp.
 			if C.sd_journal_get_realtime_usec(j, &stamp) != 0 {
@@ -191,7 +195,10 @@ drain:
 			}
 			// Set up the time and text of the entry.
 			timestamp := time.Unix(int64(stamp)/1000000, (int64(stamp)%1000000)*1000)
-			line := append(C.GoBytes(unsafe.Pointer(msg), C.int(length)), "\n"...)
+			line := C.GoBytes(unsafe.Pointer(msg), C.int(length))
+			if partial == 0 {
+				line = append(line, "\n"...)
+			}
 			// Recover the stream name by mapping
 			// from the journal priority back to
 			// the stream that we would have

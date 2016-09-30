@@ -165,7 +165,7 @@ func GetNode(tx ReadTx, id string) *api.Node {
 func FindNodes(tx ReadTx, by By) ([]*api.Node, error) {
 	checkType := func(by By) error {
 		switch by.(type) {
-		case byName, byIDPrefix, byRole, byMembership:
+		case byName, byNamePrefix, byIDPrefix, byRole, byMembership:
 			return nil
 		default:
 			return ErrInvalidFindBy
@@ -219,6 +219,10 @@ func (ni nodeIndexerByHostname) FromObject(obj interface{}) (bool, []byte, error
 	}
 	// Add the null character as a terminator
 	return true, []byte(strings.ToLower(n.Description.Hostname) + "\x00"), nil
+}
+
+func (ni nodeIndexerByHostname) PrefixFromArgs(args ...interface{}) ([]byte, error) {
+	return prefixFromArgs(args...)
 }
 
 type nodeIndexerByRole struct{}

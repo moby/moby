@@ -11,9 +11,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/docker/docker/api/types/container"
+	networktypes "github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/runconfig"
-	"github.com/docker/engine-api/types/container"
-	networktypes "github.com/docker/engine-api/types/network"
 	"github.com/docker/go-connections/nat"
 	"github.com/spf13/pflag"
 )
@@ -186,7 +186,7 @@ func TestDecodeContainerConfigVolumes(t *testing.T) {
 		t.Fatalf("binds %v should have failed", bindsOrVols)
 	}
 	if _, _, err := callDecodeContainerConfig(bindsOrVols, nil); err == nil {
-		t.Fatalf("binds %v should have failed", bindsOrVols)
+		t.Fatalf("volume %v should have failed", bindsOrVols)
 	}
 
 	//	// No destination path or mode
@@ -195,7 +195,7 @@ func TestDecodeContainerConfigVolumes(t *testing.T) {
 		t.Fatalf("binds %v should have failed", bindsOrVols)
 	}
 	if _, _, err := callDecodeContainerConfig(bindsOrVols, nil); err == nil {
-		t.Fatalf("binds %v should have failed", bindsOrVols)
+		t.Fatalf("volume %v should have failed", bindsOrVols)
 	}
 
 	// A whole lot of nothing
@@ -204,7 +204,7 @@ func TestDecodeContainerConfigVolumes(t *testing.T) {
 		t.Fatalf("binds %v should have failed", bindsOrVols)
 	}
 	if _, _, err := callDecodeContainerConfig(bindsOrVols, nil); err == nil {
-		t.Fatalf("binds %v should have failed", bindsOrVols)
+		t.Fatalf("volume %v should have failed", bindsOrVols)
 	}
 
 	// A whole lot of nothing with no mode
@@ -213,7 +213,7 @@ func TestDecodeContainerConfigVolumes(t *testing.T) {
 		t.Fatalf("binds %v should have failed", bindsOrVols)
 	}
 	if _, _, err := callDecodeContainerConfig(bindsOrVols, nil); err == nil {
-		t.Fatalf("binds %v should have failed", bindsOrVols)
+		t.Fatalf("volume %v should have failed", bindsOrVols)
 	}
 
 	// Too much including an invalid mode
@@ -223,7 +223,7 @@ func TestDecodeContainerConfigVolumes(t *testing.T) {
 		t.Fatalf("binds %v should have failed", bindsOrVols)
 	}
 	if _, _, err := callDecodeContainerConfig(bindsOrVols, nil); err == nil {
-		t.Fatalf("binds %v should have failed", bindsOrVols)
+		t.Fatalf("volume %v should have failed", bindsOrVols)
 	}
 
 	// Windows specific error tests
@@ -234,7 +234,7 @@ func TestDecodeContainerConfigVolumes(t *testing.T) {
 			t.Fatalf("binds %v should have failed", bindsOrVols)
 		}
 		if _, _, err := callDecodeContainerConfig(bindsOrVols, nil); err == nil {
-			t.Fatalf("binds %v should have failed", bindsOrVols)
+			t.Fatalf("volume %v should have failed", bindsOrVols)
 		}
 
 		// Root to C-Drive
@@ -243,7 +243,7 @@ func TestDecodeContainerConfigVolumes(t *testing.T) {
 			t.Fatalf("binds %v should have failed", bindsOrVols)
 		}
 		if _, _, err := callDecodeContainerConfig(bindsOrVols, nil); err == nil {
-			t.Fatalf("binds %v should have failed", bindsOrVols)
+			t.Fatalf("volume %v should have failed", bindsOrVols)
 		}
 
 		// Container path that does not include a drive letter
@@ -252,7 +252,7 @@ func TestDecodeContainerConfigVolumes(t *testing.T) {
 			t.Fatalf("binds %v should have failed", bindsOrVols)
 		}
 		if _, _, err := callDecodeContainerConfig(bindsOrVols, nil); err == nil {
-			t.Fatalf("binds %v should have failed", bindsOrVols)
+			t.Fatalf("volume %v should have failed", bindsOrVols)
 		}
 	}
 
@@ -264,7 +264,7 @@ func TestDecodeContainerConfigVolumes(t *testing.T) {
 			t.Fatalf("binds %v should have failed", bindsOrVols)
 		}
 		if _, _, err := callDecodeContainerConfig(bindsOrVols, nil); err == nil {
-			t.Fatalf("binds %v should have failed", bindsOrVols)
+			t.Fatalf("volume %v should have failed", bindsOrVols)
 		}
 
 		// A single volume that looks like a bind mount passed in Volumes.
@@ -556,11 +556,8 @@ func TestParseModes(t *testing.T) {
 
 func TestParseRestartPolicy(t *testing.T) {
 	invalids := map[string]string{
-		"something":          "invalid restart policy something",
-		"always:2":           "maximum restart count not valid with restart policy of \"always\"",
-		"always:2:3":         "maximum restart count not valid with restart policy of \"always\"",
-		"on-failure:invalid": `strconv.ParseInt: parsing "invalid": invalid syntax`,
-		"on-failure:2:5":     "restart count format is not valid, usage: 'on-failure:N' or 'on-failure'",
+		"always:2:3":         "invalid restart policy format",
+		"on-failure:invalid": "maximum retry count must be an integer",
 	}
 	valids := map[string]container.RestartPolicy{
 		"": {},

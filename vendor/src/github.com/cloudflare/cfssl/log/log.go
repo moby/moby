@@ -6,7 +6,6 @@
 package log
 
 import (
-	"flag"
 	"fmt"
 	"log"
 	"os"
@@ -61,13 +60,6 @@ var syslogWriter SyslogWriter
 // Call with a nil parameter to revert to default behavior.
 func SetLogger(logger SyslogWriter) {
 	syslogWriter = logger
-}
-
-func init() {
-	// Only define loglevel flag once.
-	if flag.Lookup("loglevel") == nil {
-		flag.IntVar(&Level, "loglevel", LevelInfo, "Log level (0 = DEBUG, 5 = FATAL)")
-	}
 }
 
 func print(l int, msg string) {

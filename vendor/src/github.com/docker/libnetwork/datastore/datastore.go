@@ -63,13 +63,13 @@ type datastore struct {
 	sync.Mutex
 }
 
-// KVObject is  Key/Value interface used by objects to be part of the DataStore
+// KVObject is Key/Value interface used by objects to be part of the DataStore
 type KVObject interface {
-	// Key method lets an object to provide the Key to be used in KV Store
+	// Key method lets an object provide the Key to be used in KV Store
 	Key() []string
-	// KeyPrefix method lets an object to return immediate parent key that can be used for tree walk
+	// KeyPrefix method lets an object return immediate parent key that can be used for tree walk
 	KeyPrefix() []string
-	// Value method lets an object to marshal its content to be stored in the KV store
+	// Value method lets an object marshal its content to be stored in the KV store
 	Value() []byte
 	// SetValue is used by the datastore to set the object's value when loaded from the data store.
 	SetValue([]byte) error

@@ -57,11 +57,19 @@ message Service {
 
 	ServiceSpec spec = 3 [(gogoproto.nullable) = false];
 
+	// PreviousSpec is the previous service spec that was in place before
+	// "Spec".
+	ServiceSpec previous_spec = 6;
+
 	// Runtime state of service endpoint. This may be different
 	// from the spec version because the user may not have entered
 	// the optional fields like node_port or virtual_ip and it
 	// could be auto allocated by the system.
 	Endpoint endpoint = 4;
+
+	// UpdateStatus contains the status of an update, if one is in
+	// progress.
+	UpdateStatus update_status = 5;
 }
 
 // Endpoint specified all the network parameters required to
@@ -155,6 +163,16 @@ message Task {
 	// A copy of runtime state of service endpoint from Service
 	// object to be distributed to agents as part of the task.
 	Endpoint endpoint = 12;
+
+	// LogDriver specifies the selected log driver to use for the task. Agent
+	// processes should always favor the value in this field.
+	//
+	// If present in the TaskSpec, this will be a copy of that value. The
+	// orchestrator may choose to insert a value here, which should be honored,
+	// such a cluster default or policy-based value.
+	//
+	// If not present, the daemon's default will be used.
+	Driver log_driver = 13;
 }
 
 // NetworkAttachment specifies the network parameters of attachment to
@@ -207,4 +225,30 @@ message Cluster {
 	// and agents to unambiguously identify the older key to be deleted when
 	// a new key is allocated on key rotation.
 	uint64 encryption_key_lamport_clock = 6;
+}
+
+// Secret represents a secret that should be passed to a container or a node,
+// and is immutable. It wraps the `spec` provided by the user with useful
+// information that is generated from the secret data in the `spec`, such as
+// the digest and size of the secret data.
+message Secret {
+	string id = 1 [(gogoproto.customname) = "ID"];
+
+	Meta meta = 2 [(gogoproto.nullable) = false];
+
+	// Spec contains the actual secret data, as well as any context around the
+	// secret data that the user provides.
+	SecretSpec spec = 3  [(gogoproto.nullable) = false];
+
+	// Digest represents the cryptographic digest of the secret data, and follows
+	// the form "<algorithm>:<digest>": for example "sha256:DEADBEEF...".  It
+	// is calculated from the data contained in `Secret.Spec.data`.
+	string digest = 4;
+
+	// Size represents the size (number of bytes) of the secret data, and is
+	// calculated from the data contained in `Secret.Spec.data`..
+	uint32 size = 5 [(gogoproto.customname) = "SecretSize"];
+
+	// Whether the secret is an internal secret (not set by a user) or not.
+	bool internal = 6;
 }

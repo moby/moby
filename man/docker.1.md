@@ -161,7 +161,7 @@ inside it)
   See **docker-rename(1)** for full documentation on the **rename** command.
 
 **restart**
-  Restart a container
+  Restart one or more containers
   See **docker-restart(1)** for full documentation on the **restart** command.
 
 **rm**

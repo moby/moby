@@ -3,128 +3,112 @@
 package plugin
 
 import (
-	"os"
+	"fmt"
 	"path/filepath"
 	"syscall"
+	"time"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/libcontainerd"
 	"github.com/docker/docker/oci"
 	"github.com/docker/docker/pkg/plugins"
-	"github.com/docker/docker/pkg/system"
+	"github.com/docker/docker/plugin/v2"
 	"github.com/docker/docker/restartmanager"
-	"github.com/docker/engine-api/types"
-	"github.com/docker/engine-api/types/container"
-	"github.com/opencontainers/specs/specs-go"
 )
 
-func (pm *Manager) enable(p *plugin) error {
-	spec, err := pm.initSpec(p)
+func (pm *Manager) enable(p *v2.Plugin, force bool) error {
+	if p.IsEnabled() && !force {
+		return fmt.Errorf("plugin %s is already enabled", p.Name())
+	}
+	spec, err := p.InitSpec(oci.DefaultSpec(), pm.libRoot)
 	if err != nil {
 		return err
 	}
 
-	p.restartManager = restartmanager.New(container.RestartPolicy{Name: "always"}, 0)
-	if err := pm.containerdClient.Create(p.P.ID, libcontainerd.Spec(*spec), libcontainerd.WithRestartManager(p.restartManager)); err != nil { // POC-only
-		return err
-	}
-
-	socket := p.P.Manifest.Interface.Socket
-	p.client, err = plugins.NewClient("unix://"+filepath.Join(p.runtimeSourcePath, socket), nil)
-	if err != nil {
-		return err
-	}
-
-	//TODO: check net.Dial
-
-	pm.Lock() // fixme: lock single record
-	p.P.Active = true
-	pm.save()
-	pm.Unlock()
-
-	for _, typ := range p.P.Manifest.Interface.Types {
-		if handler := pm.handlers[typ.String()]; handler != nil {
-			handler(p.Name(), p.Client())
+	p.RestartManager = restartmanager.New(container.RestartPolicy{Name: "always"}, 0)
+	if err := pm.containerdClient.Create(p.GetID(), "", "", libcontainerd.Spec(*spec), libcontainerd.WithRestartManager(p.RestartManager)); err != nil {
+		if err := p.RestartManager.Cancel(); err != nil {
+			logrus.Errorf("enable: restartManager.Cancel failed due to %v", err)
 		}
+		return err
 	}
+
+	p.PClient, err = plugins.NewClient("unix://"+filepath.Join(p.RuntimeSourcePath, p.GetSocket()), nil)
+	if err != nil {
+		if err := p.RestartManager.Cancel(); err != nil {
+			logrus.Errorf("enable: restartManager.Cancel failed due to %v", err)
+		}
+		return err
+	}
+
+	pm.pluginStore.SetState(p, true)
+	pm.pluginStore.CallHandler(p)
 
 	return nil
 }
 
-func (pm *Manager) restore(p *plugin) error {
-	p.restartManager = restartmanager.New(container.RestartPolicy{Name: "always"}, 0)
-	return pm.containerdClient.Restore(p.P.ID, libcontainerd.WithRestartManager(p.restartManager))
+func (pm *Manager) restore(p *v2.Plugin) error {
+	p.RestartManager = restartmanager.New(container.RestartPolicy{Name: "always"}, 0)
+	return pm.containerdClient.Restore(p.GetID(), libcontainerd.WithRestartManager(p.RestartManager))
 }
 
-func (pm *Manager) initSpec(p *plugin) (*specs.Spec, error) {
-	s := oci.DefaultSpec()
-
-	rootfs := filepath.Join(pm.libRoot, p.P.ID, "rootfs")
-	s.Root = specs.Root{
-		Path:     rootfs,
-		Readonly: false, // TODO: all plugins should be readonly? settable in manifest?
+func (pm *Manager) disable(p *v2.Plugin) error {
+	if !p.IsEnabled() {
+		return fmt.Errorf("plugin %s is already disabled", p.Name())
 	}
+	if err := p.RestartManager.Cancel(); err != nil {
+		logrus.Error(err)
+	}
+	if err := pm.containerdClient.Signal(p.GetID(), int(syscall.SIGKILL)); err != nil {
+		logrus.Error(err)
+	}
+	if err := p.RemoveFromDisk(); err != nil {
+		logrus.Error(err)
+	}
+	pm.pluginStore.SetState(p, false)
+	return nil
+}
 
-	mounts := append(p.P.Config.Mounts, types.PluginMount{
-		Source:      &p.runtimeSourcePath,
-		Destination: defaultPluginRuntimeDestination,
-		Type:        "bind",
-		Options:     []string{"rbind", "rshared"},
-	})
-	for _, mount := range mounts {
-		m := specs.Mount{
-			Destination: mount.Destination,
-			Type:        mount.Type,
-			Options:     mount.Options,
+// Shutdown stops all plugins and called during daemon shutdown.
+func (pm *Manager) Shutdown() {
+	pm.Lock()
+	pm.shutdown = true
+	pm.Unlock()
+
+	pm.RLock()
+	defer pm.RUnlock()
+	plugins := pm.pluginStore.GetAll()
+	for _, p := range plugins {
+		if pm.liveRestore && p.IsEnabled() {
+			logrus.Debug("Plugin active when liveRestore is set, skipping shutdown")
+			continue
 		}
-		// TODO: if nil, then it's required and user didn't set it
-		if mount.Source != nil {
-			m.Source = *mount.Source
-		}
-		if m.Source != "" && m.Type == "bind" {
-			fi, err := os.Lstat(filepath.Join(rootfs, string(os.PathSeparator), m.Destination)) // TODO: followsymlinks
-			if err != nil {
-				return nil, err
+		if p.RestartManager != nil {
+			if err := p.RestartManager.Cancel(); err != nil {
+				logrus.Error(err)
 			}
-			if fi.IsDir() {
-				if err := os.MkdirAll(m.Source, 0700); err != nil {
-					return nil, err
+		}
+		if pm.containerdClient != nil && p.IsEnabled() {
+			pluginID := p.GetID()
+			p.ExitChan = make(chan bool)
+			err := pm.containerdClient.Signal(p.PluginObj.ID, int(syscall.SIGTERM))
+			if err != nil {
+				logrus.Errorf("Sending SIGTERM to plugin failed with error: %v", err)
+			} else {
+				select {
+				case <-p.ExitChan:
+					logrus.Debug("Clean shutdown of plugin")
+				case <-time.After(time.Second * 10):
+					logrus.Debug("Force shutdown plugin")
+					if err := pm.containerdClient.Signal(pluginID, int(syscall.SIGKILL)); err != nil {
+						logrus.Errorf("Sending SIGKILL to plugin failed with error: %v", err)
+					}
 				}
 			}
 		}
-		s.Mounts = append(s.Mounts, m)
+		if err := p.RemoveFromDisk(); err != nil {
+			logrus.Errorf("Remove plugin runtime failed with error: %v", err)
+		}
 	}
-
-	envs := make([]string, 1, len(p.P.Config.Env)+1)
-	envs[0] = "PATH=" + system.DefaultPathEnv
-	envs = append(envs, p.P.Config.Env...)
-
-	args := append(p.P.Manifest.Entrypoint, p.P.Config.Args...)
-	cwd := p.P.Manifest.Workdir
-	if len(cwd) == 0 {
-		cwd = "/"
-	}
-	s.Process = specs.Process{
-		Terminal: false,
-		Args:     args,
-		Cwd:      cwd,
-		Env:      envs,
-	}
-
-	return &s, nil
-}
-
-func (pm *Manager) disable(p *plugin) error {
-	if err := p.restartManager.Cancel(); err != nil {
-		logrus.Error(err)
-	}
-	if err := pm.containerdClient.Signal(p.P.ID, int(syscall.SIGKILL)); err != nil {
-		logrus.Error(err)
-	}
-	os.RemoveAll(p.runtimeSourcePath)
-	pm.Lock() // fixme: lock single record
-	defer pm.Unlock()
-	p.P.Active = false
-	pm.save()
-	return nil
 }

@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	"github.com/docker/docker/api/server/httputils"
-	"github.com/docker/engine-api/types"
+	"github.com/docker/docker/api/types"
 	"golang.org/x/net/context"
 )
 
@@ -51,7 +51,15 @@ func (pr *pluginRouter) disablePlugin(ctx context.Context, w http.ResponseWriter
 }
 
 func (pr *pluginRouter) removePlugin(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	return pr.backend.Remove(vars["name"])
+	if err := httputils.ParseForm(r); err != nil {
+		return err
+	}
+
+	name := vars["name"]
+	config := &types.PluginRmConfig{
+		ForceRemove: httputils.BoolValue(r, "force"),
+	}
+	return pr.backend.Remove(name, config)
 }
 
 func (pr *pluginRouter) pushPlugin(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {

@@ -13,8 +13,6 @@
 
 package prometheus
 
-import "hash/fnv"
-
 // Gauge is a Metric that represents a single numerical value that can
 // arbitrarily go up and down.
 //
@@ -77,7 +75,6 @@ func NewGaugeVec(opts GaugeOpts, labelNames []string) *GaugeVec {
 		MetricVec: MetricVec{
 			children: map[uint64]Metric{},
 			desc:     desc,
-			hash:     fnv.New64a(),
 			newMetric: func(lvs ...string) Metric {
 				return newValue(desc, GaugeValue, 0, lvs...)
 			},

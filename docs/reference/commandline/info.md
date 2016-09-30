@@ -10,18 +10,24 @@ parent = "smn_cli"
 
 # info
 
+```markdown
+Usage:  docker info [OPTIONS]
 
-    Usage: docker info [OPTIONS]
+Display system-wide information
 
-    Display system-wide information
-
-      --help              Print usage
-
+Options:
+  -f, --format string   Format the output using the given go template
+      --help            Print usage
+```
 
 This command displays system wide information regarding the Docker installation.
 Information displayed includes the kernel version, number of containers and images.
 The number of images shown is the number of unique images. The same image tagged
 under different names is counted only once.
+
+If a format is specified, the given template will be executed instead of the
+default format. Go's [text/template](http://golang.org/pkg/text/template/) package
+describes all the details of the format.
 
 Depending on the storage driver in use, additional information can be shown, such
 as pool name, data file, metadata file, data space used, total data space, metadata
@@ -32,12 +38,12 @@ meta data regarding those images are stored. When run for the first time Docker
 allocates a certain amount of data space and meta data space from the space
 available on the volume where `/var/lib/docker` is mounted.
 
-# EXAMPLES
+# Examples
 
 ## Display Docker system information
 
 Here is a sample output for a daemon running on Ubuntu, using the overlay
-storage driver and a node that is part of a 2 node Swarm cluster:
+storage driver and a node that is part of a 2-node swarm:
 
     $ docker -D info
     Containers: 14
@@ -55,7 +61,7 @@ storage driver and a node that is part of a 2 node Swarm cluster:
      Network: bridge null host overlay
     Swarm: 
      NodeID: 0gac67oclbxq7
-     IsManager: YES
+     Is Manager: true
      Managers: 2
      Nodes: 2
     Runtimes: default
@@ -143,3 +149,41 @@ information about the devicemapper storage driver is shown:
     Insecure registries:
      myinsecurehost:5000
      127.0.0.0/8
+
+You can also specify the output format:
+
+    $ docker info --format '{{json .}}'
+	{"ID":"I54V:OLXT:HVMM:TPKO:JPHQ:CQCD:JNLC:O3BZ:4ZVJ:43XJ:PFHZ:6N2S","Containers":14, ...}
+
+Here is a sample output for a daemon running on Windows Server 2016:
+
+    E:\docker>docker info
+    Containers: 1
+     Running: 0
+     Paused: 0
+     Stopped: 1
+    Images: 17
+    Server Version: 1.13.0-dev
+    Storage Driver: windowsfilter
+     Windows:
+    Logging Driver: json-file
+    Plugins:
+     Volume: local
+     Network: nat null overlay
+    Swarm: inactive
+    Default Isolation: process
+    Kernel Version: 10.0 14393 (14393.206.amd64fre.rs1_release.160912-1937)
+    Operating System: Windows Server 2016 Datacenter
+    OSType: windows
+    Architecture: x86_64
+    CPUs: 8
+    Total Memory: 3.999 GiB
+    Name: WIN-V0V70C0LU5P
+    ID: NYMS:B5VK:UMSL:FVDZ:EWB5:FKVK:LPFL:FJMQ:H6FT:BZJ6:L2TD:XH62
+    Docker Root Dir: C:\control
+    Debug Mode (client): false
+    Debug Mode (server): false
+    Registry: https://index.docker.io/v1/
+    Insecure Registries:
+     127.0.0.0/8
+    Live Restore Enabled: false

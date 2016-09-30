@@ -3,9 +3,9 @@ package daemon
 import (
 	"fmt"
 
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/reference"
-	"github.com/docker/engine-api/types"
 )
 
 // ImageHistory returns a slice of ImageHistory structures for the specified image
@@ -60,7 +60,7 @@ func (daemon *Daemon) ImageHistory(name string) ([]*types.ImageHistory, error) {
 		h.ID = id.String()
 
 		var tags []string
-		for _, r := range daemon.referenceStore.References(id) {
+		for _, r := range daemon.referenceStore.References(id.Digest()) {
 			if _, ok := r.(reference.NamedTagged); ok {
 				tags = append(tags, r.String())
 			}

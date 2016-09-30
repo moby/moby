@@ -5,7 +5,7 @@ import (
 	"net/http"
 
 	"github.com/docker/docker/api/server/httputils"
-	"github.com/docker/engine-api/types"
+	"github.com/docker/docker/api/types"
 	"golang.org/x/net/context"
 )
 
@@ -58,7 +58,8 @@ func (v *volumeRouter) deleteVolumes(ctx context.Context, w http.ResponseWriter,
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
-	if err := v.backend.VolumeRm(vars["name"]); err != nil {
+	force := httputils.BoolValue(r, "force")
+	if err := v.backend.VolumeRm(vars["name"], force); err != nil {
 		return err
 	}
 	w.WriteHeader(http.StatusNoContent)

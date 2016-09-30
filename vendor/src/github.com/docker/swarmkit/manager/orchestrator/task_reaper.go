@@ -13,6 +13,8 @@ import (
 const (
 	// maxDirty is the size threshold for running a task pruning operation.
 	maxDirty = 1000
+	// reaperBatchingInterval is how often to prune old tasks.
+	reaperBatchingInterval = 250 * time.Millisecond
 )
 
 type instanceTuple struct {
@@ -59,8 +61,7 @@ func (tr *TaskReaper) Run() {
 		}
 	})
 
-	ticker := time.NewTicker(250 * time.Millisecond)
-	defer ticker.Stop()
+	timer := time.NewTimer(reaperBatchingInterval)
 
 	for {
 		select {
@@ -74,14 +75,19 @@ func (tr *TaskReaper) Run() {
 					nodeID:    t.NodeID,
 				}] = struct{}{}
 				if len(tr.dirty) > maxDirty {
+					timer.Stop()
 					tr.tick()
+				} else {
+					timer.Reset(reaperBatchingInterval)
 				}
 			case state.EventUpdateCluster:
 				tr.taskHistory = v.Cluster.Spec.Orchestration.TaskHistoryRetentionLimit
 			}
-		case <-ticker.C:
+		case <-timer.C:
+			timer.Stop()
 			tr.tick()
 		case <-tr.stopChan:
+			timer.Stop()
 			return
 		}
 	}

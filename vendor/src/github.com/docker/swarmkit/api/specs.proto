@@ -72,19 +72,7 @@ message ServiceSpec {
 	// UpdateConfig controls the rate and policy of updates.
 	UpdateConfig update = 6;
 
-	// NetworkAttachmentConfig specifies how a service should be attached to a particular network.
-	//
-	// For now, this is a simple struct, but this can include future information
-	// instructing Swarm on how this service should work on the particular
-	// network.
-	message NetworkAttachmentConfig {
-		// Target specifies the target network for attachment. This value may be a
-		// network name or identifier. Only identifiers are supported at this time.
-		string target = 1;
-		// Aliases specifies a list of discoverable alternate names for the service on this Target.
-		repeated string aliases = 2;
-	}
-	repeated NetworkAttachmentConfig networks = 7;
+	repeated NetworkAttachmentConfig networks = 7 [deprecated=true];
 
 	// Service endpoint specifies the user provided configuration
 	// to properly discover and load balance a service.
@@ -103,6 +91,7 @@ message GlobalService {
 
 message TaskSpec {
 	oneof runtime {
+		NetworkAttachmentSpec attachment = 8;
 		ContainerSpec container = 1;
 	}
 
@@ -114,6 +103,23 @@ message TaskSpec {
 
 	// Placement specifies node selection constraints
 	Placement placement = 5;
+
+	// LogDriver specifies the log driver to use for the task. Any runtime will
+	// direct logs into the specified driver for the duration of the task.
+	Driver log_driver = 6;
+
+	// Networks specifies the list of network attachment
+	// configurations (which specify the network and per-network
+	// aliases) that this task spec is bound to.
+	repeated NetworkAttachmentConfig networks = 7;
+}
+
+// NetworkAttachmentSpec specifies runtime parameters required to attach
+// a container to a network.
+message NetworkAttachmentSpec {
+	// ContainerID spcifies a unique ID of the container for which
+	// this attachment is for.
+	string container_id = 1 [(gogoproto.customname) = "ContainerID"];
 }
 
 // Container specifies runtime parameters for a container.
@@ -156,7 +162,14 @@ message ContainerSpec {
 	string dir = 6;
 
 	// User specifies the user that should be employed to run the container.
+	//
+	// Note that the primary group may be specified by appending the group name
+	// or id to the user name, separated by a `:`. This syntax is
+	// `<user>:<group>`.
 	string user = 7;
+
+	// Groups specifies supplementary groups available to the user.
+	repeated string groups = 11;
 
 	repeated Mount mounts = 8 [(gogoproto.nullable) = false];
 
@@ -175,6 +188,10 @@ message ContainerSpec {
 
 	// PullOptions parameterize the behavior of image pulls.
 	PullOptions pull_options = 10;
+
+	// Secrets contains references to zero or more secrets that
+	// will be exposed to the container.
+	repeated SecretReference secrets = 12;
 }
 
 // EndpointSpec defines the properties that can be configured to
@@ -223,14 +240,25 @@ message NetworkSpec {
 	bool internal = 4;
 
 	IPAMOptions ipam = 5 [(gogoproto.customname) = "IPAM"];
+
+	// Attachable allows external(to swarm) entities to manually
+	// attach to this network. With this flag enabled, external
+	// entities such as containers running in an worker node in
+	// the cluster can manually attach to this network and access
+	// the services attached to this network. If this flag is not
+	// enabled(default case) no manual attachment to this network
+	// can happen.
+	bool attachable = 6;
 }
 
 // ClusterSpec specifies global cluster settings.
 message ClusterSpec {
 	Annotations annotations = 1 [(gogoproto.nullable) = false];
 
-	// AcceptancePolicy defines the certificate issuance policy.
-	AcceptancePolicy acceptance_policy = 2 [(gogoproto.nullable) = false];
+	// DEPRECATED: AcceptancePolicy defines the certificate issuance policy.
+	// Acceptance policy is no longer customizable, and secrets have been
+	// replaced with join tokens.
+	AcceptancePolicy acceptance_policy = 2 [deprecated=true, (gogoproto.nullable) = false];
 
 	// Orchestration defines cluster-level orchestration settings.
 	OrchestrationConfig orchestration = 3 [(gogoproto.nullable) = false];
@@ -243,4 +271,15 @@ message ClusterSpec {
 
 	// CAConfig defines cluster-level certificate authority settings.
 	CAConfig ca_config = 6 [(gogoproto.nullable) = false, (gogoproto.customname) = "CAConfig"];
+
+	// TaskDefaults specifies the default values to use for task creation.
+	TaskDefaults task_defaults = 7 [(gogoproto.nullable) = false];
+}
+
+// SecretSpec specifies a user-provided secret.
+message SecretSpec {
+	Annotations annotations = 1 [(gogoproto.nullable) = false];
+
+	// Data is the secret payload - the maximum size is 500KB (that is, 500*1024 bytes)
+	bytes data = 2;
 }

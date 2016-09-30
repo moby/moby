@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
+	types "github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/pkg/namesgenerator"
-	types "github.com/docker/engine-api/types/swarm"
 	swarmapi "github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/protobuf/ptypes"
 )
@@ -15,10 +15,16 @@ func ServiceFromGRPC(s swarmapi.Service) types.Service {
 	spec := s.Spec
 	containerConfig := spec.Task.Runtime.(*swarmapi.TaskSpec_Container).Container
 
-	networks := make([]types.NetworkAttachmentConfig, 0, len(spec.Networks))
+	serviceNetworks := make([]types.NetworkAttachmentConfig, 0, len(spec.Networks))
 	for _, n := range spec.Networks {
-		networks = append(networks, types.NetworkAttachmentConfig{Target: n.Target, Aliases: n.Aliases})
+		serviceNetworks = append(serviceNetworks, types.NetworkAttachmentConfig{Target: n.Target, Aliases: n.Aliases})
 	}
+
+	taskNetworks := make([]types.NetworkAttachmentConfig, 0, len(spec.Task.Networks))
+	for _, n := range spec.Task.Networks {
+		taskNetworks = append(taskNetworks, types.NetworkAttachmentConfig{Target: n.Target, Aliases: n.Aliases})
+	}
+
 	service := types.Service{
 		ID: s.ID,
 
@@ -28,9 +34,11 @@ func ServiceFromGRPC(s swarmapi.Service) types.Service {
 				Resources:     resourcesFromGRPC(s.Spec.Task.Resources),
 				RestartPolicy: restartPolicyFromGRPC(s.Spec.Task.Restart),
 				Placement:     placementFromGRPC(s.Spec.Task.Placement),
+				LogDriver:     driverFromGRPC(s.Spec.Task.LogDriver),
+				Networks:      taskNetworks,
 			},
 
-			Networks:     networks,
+			Networks:     serviceNetworks,
 			EndpointSpec: endpointSpecFromGRPC(s.Spec.Endpoint),
 		},
 		Endpoint: endpointFromGRPC(s.Endpoint),
@@ -52,9 +60,16 @@ func ServiceFromGRPC(s swarmapi.Service) types.Service {
 		}
 
 		service.Spec.UpdateConfig.Delay, _ = ptypes.Duration(&s.Spec.Update.Delay)
+
+		switch s.Spec.Update.FailureAction {
+		case swarmapi.UpdateConfig_PAUSE:
+			service.Spec.UpdateConfig.FailureAction = types.UpdateFailureActionPause
+		case swarmapi.UpdateConfig_CONTINUE:
+			service.Spec.UpdateConfig.FailureAction = types.UpdateFailureActionContinue
+		}
 	}
 
-	//Mode
+	// Mode
 	switch t := s.Spec.GetMode().(type) {
 	case *swarmapi.ServiceSpec_Global:
 		service.Spec.Mode.Global = &types.GlobalService{}
@@ -62,6 +77,23 @@ func ServiceFromGRPC(s swarmapi.Service) types.Service {
 		service.Spec.Mode.Replicated = &types.ReplicatedService{
 			Replicas: &t.Replicated.Replicas,
 		}
+	}
+
+	// UpdateStatus
+	service.UpdateStatus = types.UpdateStatus{}
+	if s.UpdateStatus != nil {
+		switch s.UpdateStatus.State {
+		case swarmapi.UpdateStatus_UPDATING:
+			service.UpdateStatus.State = types.UpdateStateUpdating
+		case swarmapi.UpdateStatus_PAUSED:
+			service.UpdateStatus.State = types.UpdateStatePaused
+		case swarmapi.UpdateStatus_COMPLETED:
+			service.UpdateStatus.State = types.UpdateStateCompleted
+		}
+
+		service.UpdateStatus.StartedAt, _ = ptypes.Timestamp(s.UpdateStatus.StartedAt)
+		service.UpdateStatus.CompletedAt, _ = ptypes.Timestamp(s.UpdateStatus.CompletedAt)
+		service.UpdateStatus.Message = s.UpdateStatus.Message
 	}
 
 	return service
@@ -74,9 +106,14 @@ func ServiceSpecToGRPC(s types.ServiceSpec) (swarmapi.ServiceSpec, error) {
 		name = namesgenerator.GetRandomName(0)
 	}
 
-	networks := make([]*swarmapi.ServiceSpec_NetworkAttachmentConfig, 0, len(s.Networks))
+	serviceNetworks := make([]*swarmapi.NetworkAttachmentConfig, 0, len(s.Networks))
 	for _, n := range s.Networks {
-		networks = append(networks, &swarmapi.ServiceSpec_NetworkAttachmentConfig{Target: n.Target, Aliases: n.Aliases})
+		serviceNetworks = append(serviceNetworks, &swarmapi.NetworkAttachmentConfig{Target: n.Target, Aliases: n.Aliases})
+	}
+
+	taskNetworks := make([]*swarmapi.NetworkAttachmentConfig, 0, len(s.TaskTemplate.Networks))
+	for _, n := range s.TaskTemplate.Networks {
+		taskNetworks = append(taskNetworks, &swarmapi.NetworkAttachmentConfig{Target: n.Target, Aliases: n.Aliases})
 	}
 
 	spec := swarmapi.ServiceSpec{
@@ -86,8 +123,10 @@ func ServiceSpecToGRPC(s types.ServiceSpec) (swarmapi.ServiceSpec, error) {
 		},
 		Task: swarmapi.TaskSpec{
 			Resources: resourcesToGRPC(s.TaskTemplate.Resources),
+			LogDriver: driverToGRPC(s.TaskTemplate.LogDriver),
+			Networks:  taskNetworks,
 		},
-		Networks: networks,
+		Networks: serviceNetworks,
 	}
 
 	containerSpec, err := containerToGRPC(s.TaskTemplate.ContainerSpec)
@@ -109,9 +148,19 @@ func ServiceSpecToGRPC(s types.ServiceSpec) (swarmapi.ServiceSpec, error) {
 	}
 
 	if s.UpdateConfig != nil {
+		var failureAction swarmapi.UpdateConfig_FailureAction
+		switch s.UpdateConfig.FailureAction {
+		case types.UpdateFailureActionPause, "":
+			failureAction = swarmapi.UpdateConfig_PAUSE
+		case types.UpdateFailureActionContinue:
+			failureAction = swarmapi.UpdateConfig_CONTINUE
+		default:
+			return swarmapi.ServiceSpec{}, fmt.Errorf("unrecongized update failure action %s", s.UpdateConfig.FailureAction)
+		}
 		spec.Update = &swarmapi.UpdateConfig{
-			Parallelism: s.UpdateConfig.Parallelism,
-			Delay:       *ptypes.DurationProto(s.UpdateConfig.Delay),
+			Parallelism:   s.UpdateConfig.Parallelism,
+			Delay:         *ptypes.DurationProto(s.UpdateConfig.Delay),
+			FailureAction: failureAction,
 		}
 	}
 
@@ -136,7 +185,11 @@ func ServiceSpecToGRPC(s types.ServiceSpec) (swarmapi.ServiceSpec, error) {
 		}
 	}
 
-	//Mode
+	// Mode
+	if s.Mode.Global != nil && s.Mode.Replicated != nil {
+		return swarmapi.ServiceSpec{}, fmt.Errorf("cannot specify both replicated mode and global mode")
+	}
+
 	if s.Mode.Global != nil {
 		spec.Mode = &swarmapi.ServiceSpec_Global{
 			Global: &swarmapi.GlobalService{},
@@ -219,7 +272,8 @@ func restartPolicyToGRPC(p *types.RestartPolicy) (*swarmapi.RestartPolicy, error
 	var rp *swarmapi.RestartPolicy
 	if p != nil {
 		rp = &swarmapi.RestartPolicy{}
-		if condition, ok := swarmapi.RestartPolicy_RestartCondition_value[strings.ToUpper(string(p.Condition))]; ok {
+		sanatizedCondition := strings.ToUpper(strings.Replace(string(p.Condition), "-", "_", -1))
+		if condition, ok := swarmapi.RestartPolicy_RestartCondition_value[sanatizedCondition]; ok {
 			rp.Condition = swarmapi.RestartPolicy_RestartCondition(condition)
 		} else if string(p.Condition) == "" {
 			rp.Condition = swarmapi.RestartOnAny
@@ -249,4 +303,26 @@ func placementFromGRPC(p *swarmapi.Placement) *types.Placement {
 	}
 
 	return r
+}
+
+func driverFromGRPC(p *swarmapi.Driver) *types.Driver {
+	if p == nil {
+		return nil
+	}
+
+	return &types.Driver{
+		Name:    p.Name,
+		Options: p.Options,
+	}
+}
+
+func driverToGRPC(p *types.Driver) *swarmapi.Driver {
+	if p == nil {
+		return nil
+	}
+
+	return &swarmapi.Driver{
+		Name:    p.Name,
+		Options: p.Options,
+	}
 }

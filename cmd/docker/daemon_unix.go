@@ -3,23 +3,40 @@
 package main
 
 import (
+	"fmt"
+
 	"os"
 	"os/exec"
 	"path/filepath"
 	"syscall"
+
+	"github.com/spf13/cobra"
 )
 
-// CmdDaemon execs dockerd with the same flags
-func (p DaemonProxy) CmdDaemon(args ...string) error {
-	// Special case for handling `docker help daemon`. When pkg/mflag is removed
-	// we can support this on the daemon side, but that is not possible with
-	// pkg/mflag because it uses os.Exit(1) instead of returning an error on
-	// unexpected args.
-	if len(args) == 0 || args[0] != "--help" {
-		// Use os.Args[1:] so that "global" args are passed to dockerd
-		args = stripDaemonArg(os.Args[1:])
-	}
+const daemonBinary = "dockerd"
 
+func newDaemonCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:                "daemon",
+		Hidden:             true,
+		Args:               cobra.ArbitraryArgs,
+		DisableFlagParsing: true,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runDaemon()
+		},
+		Deprecated: "and will be removed in Docker 1.16. Please run `dockerd` directly.",
+	}
+	cmd.SetHelpFunc(helpFunc)
+	return cmd
+}
+
+// CmdDaemon execs dockerd with the same flags
+func runDaemon() error {
+	// Use os.Args[1:] so that "global" args are passed to dockerd
+	return execDaemon(stripDaemonArg(os.Args[1:]))
+}
+
+func execDaemon(args []string) error {
 	binaryPath, err := findDaemonBinary()
 	if err != nil {
 		return err
@@ -29,6 +46,12 @@ func (p DaemonProxy) CmdDaemon(args ...string) error {
 		binaryPath,
 		append([]string{daemonBinary}, args...),
 		os.Environ())
+}
+
+func helpFunc(cmd *cobra.Command, args []string) {
+	if err := execDaemon([]string{"--help"}); err != nil {
+		fmt.Fprintf(os.Stderr, "%s\n", err.Error())
+	}
 }
 
 // findDaemonBinary looks for the path to the dockerd binary starting with

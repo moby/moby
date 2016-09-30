@@ -19,8 +19,8 @@ type Plugin interface {
 	AuthZResponse(*Request) (*Response, error)
 }
 
-// NewPlugins constructs and initializes the authorization plugins based on plugin names
-func NewPlugins(names []string) []Plugin {
+// newPlugins constructs and initializes the authorization plugins based on plugin names
+func newPlugins(names []string) []Plugin {
 	plugins := []Plugin{}
 	pluginsMap := make(map[string]struct{})
 	for _, name := range names {

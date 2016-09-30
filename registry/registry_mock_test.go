@@ -15,8 +15,8 @@ import (
 	"testing"
 	"time"
 
+	registrytypes "github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/reference"
-	registrytypes "github.com/docker/engine-api/types/registry"
 	"github.com/gorilla/mux"
 
 	"github.com/Sirupsen/logrus"

@@ -13,8 +13,6 @@
 
 package prometheus
 
-import "hash/fnv"
-
 // Untyped is a Metric that represents a single numerical value that can
 // arbitrarily go up and down.
 //
@@ -75,7 +73,6 @@ func NewUntypedVec(opts UntypedOpts, labelNames []string) *UntypedVec {
 		MetricVec: MetricVec{
 			children: map[uint64]Metric{},
 			desc:     desc,
-			hash:     fnv.New64a(),
 			newMetric: func(lvs ...string) Metric {
 				return newValue(desc, UntypedValue, 0, lvs...)
 			},

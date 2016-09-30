@@ -40,7 +40,7 @@ func (d *driver) serfInit() error {
 
 	config := serf.DefaultConfig()
 	config.Init()
-	config.MemberlistConfig.BindAddr = d.bindAddress
+	config.MemberlistConfig.BindAddr = d.advertiseAddress
 
 	d.eventCh = make(chan serf.Event, 4)
 	config.EventCh = d.eventCh

@@ -10,15 +10,16 @@ import (
 	"google.golang.org/grpc"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/api/errors"
+	"github.com/docker/docker/api/types"
+	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/container"
-	"github.com/docker/docker/errors"
 	"github.com/docker/docker/libcontainerd"
 	"github.com/docker/docker/runconfig"
-	containertypes "github.com/docker/engine-api/types/container"
 )
 
 // ContainerStart starts a container.
-func (daemon *Daemon) ContainerStart(name string, hostConfig *containertypes.HostConfig, validateHostname bool) error {
+func (daemon *Daemon) ContainerStart(name string, hostConfig *containertypes.HostConfig, validateHostname bool, checkpoint string) error {
 	container, err := daemon.GetContainer(name)
 	if err != nil {
 		return err
@@ -38,7 +39,7 @@ func (daemon *Daemon) ContainerStart(name string, hostConfig *containertypes.Hos
 		// This is kept for backward compatibility - hostconfig should be passed when
 		// creating a container, not during start.
 		if hostConfig != nil {
-			logrus.Warn("DEPRECATED: Setting host configuration options when the container starts is deprecated and will be removed in Docker 1.12")
+			logrus.Warn("DEPRECATED: Setting host configuration options when the container starts is deprecated and has been removed in Docker 1.12")
 			oldNetworkMode := container.HostConfig.NetworkMode
 			if err := daemon.setSecurityOptions(container, hostConfig); err != nil {
 				return err
@@ -52,7 +53,7 @@ func (daemon *Daemon) ContainerStart(name string, hostConfig *containertypes.Hos
 			newNetworkMode := container.HostConfig.NetworkMode
 			if string(oldNetworkMode) != string(newNetworkMode) {
 				// if user has change the network mode on starting, clean up the
-				// old networks. It is a deprecated feature and will be removed in Docker 1.12
+				// old networks. It is a deprecated feature and has been removed in Docker 1.12
 				container.NetworkSettings.Networks = nil
 				if err := container.ToDisk(); err != nil {
 					return err
@@ -77,19 +78,19 @@ func (daemon *Daemon) ContainerStart(name string, hostConfig *containertypes.Hos
 		return err
 	}
 
-	return daemon.containerStart(container)
+	return daemon.containerStart(container, checkpoint)
 }
 
 // Start starts a container
 func (daemon *Daemon) Start(container *container.Container) error {
-	return daemon.containerStart(container)
+	return daemon.containerStart(container, "")
 }
 
 // containerStart prepares the container to run by setting up everything the
 // container needs, such as storage and networking, as well as links
 // between containers. The container is left waiting for a signal to
 // begin running.
-func (daemon *Daemon) containerStart(container *container.Container) (err error) {
+func (daemon *Daemon) containerStart(container *container.Container, checkpoint string) (err error) {
 	container.Lock()
 	defer container.Unlock()
 
@@ -112,6 +113,14 @@ func (daemon *Daemon) containerStart(container *container.Container) (err error)
 			}
 			container.ToDisk()
 			daemon.Cleanup(container)
+			// if containers AutoRemove flag is set, remove it after clean up
+			if container.HostConfig.AutoRemove {
+				container.Unlock()
+				if err := daemon.ContainerRm(container.ID, &types.ContainerRmConfig{ForceRemove: true, RemoveVolume: true}); err != nil {
+					logrus.Errorf("can't remove container %s: %v", container.ID, err)
+				}
+				container.Lock()
+			}
 		}
 	}()
 
@@ -141,7 +150,7 @@ func (daemon *Daemon) containerStart(container *container.Container) (err error)
 		createOptions = append(createOptions, *copts...)
 	}
 
-	if err := daemon.containerd.Create(container.ID, *spec, createOptions...); err != nil {
+	if err := daemon.containerd.Create(container.ID, checkpoint, container.CheckpointDir(), *spec, createOptions...); err != nil {
 		errDesc := grpc.ErrorDesc(err)
 		logrus.Errorf("Create container failed with error: %s", errDesc)
 		// if we receive an internal error from the initial start of a container then lets
@@ -156,6 +165,12 @@ func (daemon *Daemon) containerStart(container *container.Container) (err error)
 		// set to 126 for container cmd can't be invoked errors
 		if strings.Contains(errDesc, syscall.EACCES.Error()) {
 			container.SetExitCode(126)
+		}
+
+		// attempted to mount a file onto a directory, or a directory onto a file, maybe from user specified bind mounts
+		if strings.Contains(errDesc, syscall.ENOTDIR.Error()) {
+			errDesc += ": Are you trying to mount a directory onto a file (or vice-versa)? Check if the specified host path exists and is the expected type"
+			container.SetExitCode(127)
 		}
 
 		container.Reset(false)

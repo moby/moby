@@ -167,7 +167,7 @@ func GetNetwork(tx ReadTx, id string) *api.Network {
 func FindNetworks(tx ReadTx, by By) ([]*api.Network, error) {
 	checkType := func(by By) error {
 		switch by.(type) {
-		case byName, byIDPrefix:
+		case byName, byNamePrefix, byIDPrefix:
 			return nil
 		default:
 			return ErrInvalidFindBy
@@ -218,4 +218,8 @@ func (ni networkIndexerByName) FromObject(obj interface{}) (bool, []byte, error)
 
 	// Add the null character as a terminator
 	return true, []byte(strings.ToLower(n.Spec.Annotations.Name) + "\x00"), nil
+}
+
+func (ni networkIndexerByName) PrefixFromArgs(args ...interface{}) ([]byte, error) {
+	return prefixFromArgs(args...)
 }

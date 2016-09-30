@@ -12,7 +12,7 @@ func Self() string {
 	return naiveSelf()
 }
 
-// Command returns *exec.Cmd which have Path as current binary.
+// Command returns *exec.Cmd which has Path as current binary.
 // For example if current binary is "docker.exe" at "C:\", then cmd.Path will
 // be set to "C:\docker.exe".
 func Command(args ...string) *exec.Cmd {

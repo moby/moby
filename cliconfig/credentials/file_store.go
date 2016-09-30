@@ -1,10 +1,9 @@
 package credentials
 
 import (
-	"strings"
-
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/cliconfig/configfile"
-	"github.com/docker/engine-api/types"
+	"github.com/docker/docker/registry"
 )
 
 // fileStore implements a credentials store using
@@ -32,8 +31,8 @@ func (c *fileStore) Get(serverAddress string) (types.AuthConfig, error) {
 	if !ok {
 		// Maybe they have a legacy config file, we will iterate the keys converting
 		// them to the new format and testing
-		for registry, ac := range c.file.AuthConfigs {
-			if serverAddress == convertToHostname(registry) {
+		for r, ac := range c.file.AuthConfigs {
+			if serverAddress == registry.ConvertToHostname(r) {
 				return ac, nil
 			}
 		}
@@ -51,17 +50,4 @@ func (c *fileStore) GetAll() (map[string]types.AuthConfig, error) {
 func (c *fileStore) Store(authConfig types.AuthConfig) error {
 	c.file.AuthConfigs[authConfig.ServerAddress] = authConfig
 	return c.file.Save()
-}
-
-func convertToHostname(url string) string {
-	stripped := url
-	if strings.HasPrefix(url, "http://") {
-		stripped = strings.Replace(url, "http://", "", 1)
-	} else if strings.HasPrefix(url, "https://") {
-		stripped = strings.Replace(url, "https://", "", 1)
-	}
-
-	nameParts := strings.SplitN(stripped, "/", 2)
-
-	return nameParts[0]
 }

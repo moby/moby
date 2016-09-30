@@ -16,6 +16,9 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/Sirupsen/logrus"
+	containertypes "github.com/docker/docker/api/types/container"
+	mounttypes "github.com/docker/docker/api/types/mount"
+	networktypes "github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/daemon/exec"
 	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/daemon/logger/jsonfilelog"
@@ -31,8 +34,6 @@ import (
 	"github.com/docker/docker/runconfig"
 	runconfigopts "github.com/docker/docker/runconfig/opts"
 	"github.com/docker/docker/volume"
-	containertypes "github.com/docker/engine-api/types/container"
-	networktypes "github.com/docker/engine-api/types/network"
 	"github.com/docker/go-connections/nat"
 	"github.com/docker/libnetwork"
 	"github.com/docker/libnetwork/netlabel"
@@ -306,6 +307,11 @@ func (container *Container) ConfigPath() (string, error) {
 	return container.GetRootResourcePath(configFileName)
 }
 
+// CheckpointDir returns the directory checkpoints are stored in
+func (container *Container) CheckpointDir() string {
+	return filepath.Join(container.Root, "checkpoints")
+}
+
 // StartLogger starts a new logger driver for the container.
 func (container *Container) StartLogger(cfg containertypes.LogConfig) (logger.Logger, error) {
 	c, err := logger.GetLogDriver(cfg.Type)
@@ -546,6 +552,7 @@ func (container *Container) ShouldRestart() bool {
 // AddMountPointWithVolume adds a new mount point configured with a volume to the container.
 func (container *Container) AddMountPointWithVolume(destination string, vol volume.Volume, rw bool) {
 	container.MountPoints[destination] = &volume.MountPoint{
+		Type:        mounttypes.TypeVolume,
 		Name:        vol.Name(),
 		Driver:      vol.DriverName(),
 		Destination: destination,
@@ -700,7 +707,9 @@ func (container *Container) BuildEndpointInfo(n libnetwork.Network, ep libnetwor
 	}
 
 	if _, ok := networkSettings.Networks[n.Name()]; !ok {
-		networkSettings.Networks[n.Name()] = new(networktypes.EndpointSettings)
+		networkSettings.Networks[n.Name()] = &network.EndpointSettings{
+			EndpointSettings: &networktypes.EndpointSettings{},
+		}
 	}
 	networkSettings.Networks[n.Name()].NetworkID = n.ID()
 	networkSettings.Networks[n.Name()].EndpointID = ep.ID()
@@ -773,7 +782,7 @@ func (container *Container) BuildJoinOptions(n libnetwork.Network) ([]libnetwork
 }
 
 // BuildCreateEndpointOptions builds endpoint options from a given network.
-func (container *Container) BuildCreateEndpointOptions(n libnetwork.Network, epConfig *networktypes.EndpointSettings, sb libnetwork.Sandbox) ([]libnetwork.EndpointOption, error) {
+func (container *Container) BuildCreateEndpointOptions(n libnetwork.Network, epConfig *networktypes.EndpointSettings, sb libnetwork.Sandbox, daemonDNS []string) ([]libnetwork.EndpointOption, error) {
 	var (
 		bindings      = make(nat.PortMap)
 		pbList        []types.PortBinding
@@ -783,7 +792,8 @@ func (container *Container) BuildCreateEndpointOptions(n libnetwork.Network, epC
 
 	defaultNetName := runconfig.DefaultDaemonNetworkMode().NetworkName()
 
-	if n.Name() == defaultNetName || container.NetworkSettings.IsAnonymousEndpoint {
+	if (!container.EnableServiceDiscoveryOnDefaultNetwork() && n.Name() == defaultNetName) ||
+		container.NetworkSettings.IsAnonymousEndpoint {
 		createOptions = append(createOptions, libnetwork.CreateOptionAnonymous())
 	}
 
@@ -905,6 +915,19 @@ func (container *Container) BuildCreateEndpointOptions(n libnetwork.Network, epC
 		}
 	}
 
+	var dns []string
+
+	if len(container.HostConfig.DNS) > 0 {
+		dns = container.HostConfig.DNS
+	} else if len(daemonDNS) > 0 {
+		dns = daemonDNS
+	}
+
+	if len(dns) > 0 {
+		createOptions = append(createOptions,
+			libnetwork.CreateOptionDNS(dns))
+	}
+
 	createOptions = append(createOptions,
 		libnetwork.CreateOptionPortMapping(pbList),
 		libnetwork.CreateOptionExposedPorts(exposeList))
@@ -951,7 +974,7 @@ type attachContext struct {
 	mu     sync.Mutex
 }
 
-// InitAttachContext initialize or returns existing context for attach calls to
+// InitAttachContext initializes or returns existing context for attach calls to
 // track container liveness.
 func (container *Container) InitAttachContext() context.Context {
 	container.attachContext.mu.Lock()
@@ -962,7 +985,7 @@ func (container *Container) InitAttachContext() context.Context {
 	return container.attachContext.ctx
 }
 
-// CancelAttachContext cancel attach context. All attach calls should detach
+// CancelAttachContext cancels attach context. All attach calls should detach
 // after this call.
 func (container *Container) CancelAttachContext() {
 	container.attachContext.mu.Lock()

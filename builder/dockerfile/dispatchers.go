@@ -18,11 +18,11 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api"
+	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/strslice"
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/pkg/signal"
 	runconfigopts "github.com/docker/docker/runconfig/opts"
-	"github.com/docker/engine-api/types/container"
-	"github.com/docker/engine-api/types/strslice"
 	"github.com/docker/go-connections/nat"
 )
 
@@ -66,6 +66,11 @@ func env(b *Builder, args []string, attributes map[string]bool, original string)
 	for j := 0; j < len(args); j++ {
 		// name  ==> args[j]
 		// value ==> args[j+1]
+
+		if len(args[j]) == 0 {
+			return errBlankCommandNames("ENV")
+		}
+
 		newVar := args[j] + "=" + args[j+1] + ""
 		commitStr += " " + newVar
 
@@ -129,6 +134,11 @@ func label(b *Builder, args []string, attributes map[string]bool, original strin
 	for j := 0; j < len(args); j++ {
 		// name  ==> args[j]
 		// value ==> args[j+1]
+
+		if len(args[j]) == 0 {
+			return errBlankCommandNames("LABEL")
+		}
+
 		newVar := args[j] + "=" + args[j+1] + ""
 		commitStr += " " + newVar
 
@@ -145,7 +155,7 @@ func label(b *Builder, args []string, attributes map[string]bool, original strin
 //
 func add(b *Builder, args []string, attributes map[string]bool, original string) error {
 	if len(args) < 2 {
-		return errAtLeastOneArgument("ADD")
+		return errAtLeastTwoArguments("ADD")
 	}
 
 	if err := b.flags.Parse(); err != nil {
@@ -161,7 +171,7 @@ func add(b *Builder, args []string, attributes map[string]bool, original string)
 //
 func dispatchCopy(b *Builder, args []string, attributes map[string]bool, original string) error {
 	if len(args) < 2 {
-		return errAtLeastOneArgument("COPY")
+		return errAtLeastTwoArguments("COPY")
 	}
 
 	if err := b.flags.Parse(); err != nil {
@@ -407,6 +417,8 @@ func cmd(b *Builder, args []string, attributes map[string]bool, original string)
 	}
 
 	b.runConfig.Cmd = strslice.StrSlice(cmdSlice)
+	// set config as already being escaped, this prevents double escaping on windows
+	b.runConfig.ArgsEscaped = true
 
 	if err := b.commit("", b.runConfig.Cmd, fmt.Sprintf("CMD %q", cmdSlice)); err != nil {
 		return err
@@ -443,7 +455,7 @@ func parseOptInterval(f *Flag) (time.Duration, error) {
 //
 func healthcheck(b *Builder, args []string, attributes map[string]bool, original string) error {
 	if len(args) == 0 {
-		return fmt.Errorf("HEALTHCHECK requires an argument")
+		return errAtLeastOneArgument("HEALTHCHECK")
 	}
 	typ := strings.ToUpper(args[0])
 	args = args[1:]
@@ -517,11 +529,7 @@ func healthcheck(b *Builder, args []string, attributes map[string]bool, original
 		b.runConfig.Healthcheck = &healthcheck
 	}
 
-	if err := b.commit("", b.runConfig.Cmd, fmt.Sprintf("HEALTHCHECK %q", b.runConfig.Healthcheck)); err != nil {
-		return err
-	}
-
-	return nil
+	return b.commit("", b.runConfig.Cmd, fmt.Sprintf("HEALTHCHECK %q", b.runConfig.Healthcheck))
 }
 
 // ENTRYPOINT /usr/sbin/nginx
@@ -642,7 +650,7 @@ func volume(b *Builder, args []string, attributes map[string]bool, original stri
 	for _, v := range args {
 		v = strings.TrimSpace(v)
 		if v == "" {
-			return fmt.Errorf("Volume specified can not be an empty string")
+			return fmt.Errorf("VOLUME specified can not be an empty string")
 		}
 		b.runConfig.Volumes[v] = struct{}{}
 	}
@@ -657,7 +665,7 @@ func volume(b *Builder, args []string, attributes map[string]bool, original stri
 // Set the signal that will be used to kill the container.
 func stopSignal(b *Builder, args []string, attributes map[string]bool, original string) error {
 	if len(args) != 1 {
-		return fmt.Errorf("STOPSIGNAL requires exactly one argument")
+		return errExactlyOneArgument("STOPSIGNAL")
 	}
 
 	sig := args[0]
@@ -677,7 +685,7 @@ func stopSignal(b *Builder, args []string, attributes map[string]bool, original 
 // Dockerfile author may optionally set a default value of this variable.
 func arg(b *Builder, args []string, attributes map[string]bool, original string) error {
 	if len(args) != 1 {
-		return fmt.Errorf("ARG requires exactly one argument definition")
+		return errExactlyOneArgument("ARG")
 	}
 
 	var (
@@ -694,6 +702,10 @@ func arg(b *Builder, args []string, attributes map[string]bool, original string)
 	// name-value pair). If possible, it will be good to harmonize the two.
 	if strings.Contains(arg, "=") {
 		parts := strings.SplitN(arg, "=", 2)
+		if len(parts[0]) == 0 {
+			return errBlankCommandNames("ARG")
+		}
+
 		name = parts[0]
 		value = parts[1]
 		hasDefault = true
@@ -742,6 +754,14 @@ func errAtLeastOneArgument(command string) error {
 
 func errExactlyOneArgument(command string) error {
 	return fmt.Errorf("%s requires exactly one argument", command)
+}
+
+func errAtLeastTwoArguments(command string) error {
+	return fmt.Errorf("%s requires at least two arguments", command)
+}
+
+func errBlankCommandNames(command string) error {
+	return fmt.Errorf("%s names can not be blank", command)
 }
 
 func errTooManyArguments(command string) error {

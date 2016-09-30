@@ -8,7 +8,6 @@ import (
 )
 
 func (s *DockerSuite) TestCommitAfterContainerIsDone(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-i", "-a", "stdin", "busybox", "echo", "foo")
 
 	cleanedContainerID := strings.TrimSpace(out)
@@ -55,7 +54,6 @@ func (s *DockerSuite) TestCommitPausedContainer(c *check.C) {
 }
 
 func (s *DockerSuite) TestCommitNewFile(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	dockerCmd(c, "run", "--name", "commiter", "busybox", "/bin/sh", "-c", "echo koye > /foo")
 
 	imageID, _ := dockerCmd(c, "commit", "commiter")
@@ -87,7 +85,6 @@ func (s *DockerSuite) TestCommitHardlink(c *check.C) {
 }
 
 func (s *DockerSuite) TestCommitTTY(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	dockerCmd(c, "run", "-t", "--name", "tty", "busybox", "/bin/ls")
 
 	imageID, _ := dockerCmd(c, "commit", "tty", "ttytest")
@@ -142,48 +139,5 @@ func (s *DockerSuite) TestCommitChange(c *check.C) {
 		if res != value {
 			c.Errorf("%s('%s'), expected %s", conf, res, value)
 		}
-	}
-}
-
-// TODO: commit --run is deprecated, remove this once --run is removed
-func (s *DockerSuite) TestCommitMergeConfigRun(c *check.C) {
-	testRequires(c, DaemonIsLinux)
-	name := "commit-test"
-	out, _ := dockerCmd(c, "run", "-d", "-e=FOO=bar", "busybox", "/bin/sh", "-c", "echo testing > /tmp/foo")
-	id := strings.TrimSpace(out)
-
-	dockerCmd(c, "commit", `--run={"Cmd": ["cat", "/tmp/foo"]}`, id, "commit-test")
-
-	out, _ = dockerCmd(c, "run", "--name", name, "commit-test")
-	//run config in committed container was not merged
-	c.Assert(strings.TrimSpace(out), checker.Equals, "testing")
-
-	type cfg struct {
-		Env []string
-		Cmd []string
-	}
-	config1 := cfg{}
-	inspectFieldAndMarshall(c, id, "Config", &config1)
-
-	config2 := cfg{}
-	inspectFieldAndMarshall(c, name, "Config", &config2)
-
-	// Env has at least PATH loaded as well here, so let's just grab the FOO one
-	var env1, env2 string
-	for _, e := range config1.Env {
-		if strings.HasPrefix(e, "FOO") {
-			env1 = e
-			break
-		}
-	}
-	for _, e := range config2.Env {
-		if strings.HasPrefix(e, "FOO") {
-			env2 = e
-			break
-		}
-	}
-
-	if len(config1.Env) != len(config2.Env) || env1 != env2 && env2 != "" {
-		c.Fatalf("expected envs to match: %v - %v", config1.Env, config2.Env)
 	}
 }

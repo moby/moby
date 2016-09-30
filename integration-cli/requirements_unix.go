@@ -3,6 +3,9 @@
 package main
 
 import (
+	"io/ioutil"
+	"strings"
+
 	"github.com/docker/docker/pkg/sysinfo"
 )
 
@@ -98,6 +101,16 @@ var (
 			return !SysInfo.BridgeNFCallIP6TablesDisabled
 		},
 		"Test requires that bridge-nf-call-ip6tables support be enabled in the daemon.",
+	}
+	unprivilegedUsernsClone = testRequirement{
+		func() bool {
+			content, err := ioutil.ReadFile("/proc/sys/kernel/unprivileged_userns_clone")
+			if err == nil && strings.Contains(string(content), "0") {
+				return false
+			}
+			return true
+		},
+		"Test cannot be run with 'sysctl kernel.unprivileged_userns_clone' = 0",
 	}
 )
 

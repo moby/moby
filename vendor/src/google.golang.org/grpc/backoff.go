@@ -19,7 +19,7 @@ var (
 // backoffStrategy defines the methodology for backing off after a grpc
 // connection failure.
 //
-// This is unexported until the GRPC project decides whether or not to allow
+// This is unexported until the gRPC project decides whether or not to allow
 // alternative backoff strategies. Once a decision is made, this type and its
 // method may be exported.
 type backoffStrategy interface {
@@ -28,14 +28,14 @@ type backoffStrategy interface {
 	backoff(retries int) time.Duration
 }
 
-// BackoffConfig defines the parameters for the default GRPC backoff strategy.
+// BackoffConfig defines the parameters for the default gRPC backoff strategy.
 type BackoffConfig struct {
 	// MaxDelay is the upper bound of backoff delay.
 	MaxDelay time.Duration
 
 	// TODO(stevvooe): The following fields are not exported, as allowing
-	// changes would violate the current GRPC specification for backoff. If
-	// GRPC decides to allow more interesting backoff strategies, these fields
+	// changes would violate the current gRPC specification for backoff. If
+	// gRPC decides to allow more interesting backoff strategies, these fields
 	// may be opened up in the future.
 
 	// baseDelay is the amount of time to wait before retrying after the first

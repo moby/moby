@@ -1,4 +1,4 @@
-// Copyright 2015 CoreOS, Inc.
+// Copyright 2015 The etcd Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -37,6 +37,10 @@ var (
 	ErrClusterUnavailable    = errors.New("client: etcd cluster is unavailable or misconfigured")
 	ErrNoLeaderEndpoint      = errors.New("client: no leader endpoint available")
 	errTooManyRedirectChecks = errors.New("client: too many redirect checks")
+
+	// oneShotCtxValue is set on a context using WithValue(&oneShotValue) so
+	// that Do() will not retry a request
+	oneShotCtxValue interface{}
 )
 
 var DefaultRequestTimeout = 5 * time.Second
@@ -301,7 +305,7 @@ func (c *httpClusterClient) SetEndpoints(eps []string) error {
 		// If endpoints doesn't have the lu, just keep c.pinned = 0.
 		// Forwarding between follower and leader would be required but it works.
 	default:
-		return errors.New(fmt.Sprintf("invalid endpoint selection mode: %d", c.selectionMode))
+		return fmt.Errorf("invalid endpoint selection mode: %d", c.selectionMode)
 	}
 
 	return nil
@@ -335,6 +339,7 @@ func (c *httpClusterClient) Do(ctx context.Context, act httpAction) (*http.Respo
 	var body []byte
 	var err error
 	cerr := &ClusterError{}
+	isOneShot := ctx.Value(&oneShotCtxValue) != nil
 
 	for i := pinned; i < leps+pinned; i++ {
 		k := i % leps
@@ -348,6 +353,9 @@ func (c *httpClusterClient) Do(ctx context.Context, act httpAction) (*http.Respo
 			if err == context.Canceled || err == context.DeadlineExceeded {
 				return nil, nil, err
 			}
+			if isOneShot {
+				return nil, nil, err
+			}
 			continue
 		}
 		if resp.StatusCode/100 == 5 {
@@ -357,6 +365,9 @@ func (c *httpClusterClient) Do(ctx context.Context, act httpAction) (*http.Respo
 				cerr.Errors = append(cerr.Errors, fmt.Errorf("client: etcd member %s has no leader", eps[k].String()))
 			default:
 				cerr.Errors = append(cerr.Errors, fmt.Errorf("client: etcd member %s returns server error [%s]", eps[k].String(), http.StatusText(resp.StatusCode)))
+			}
+			if isOneShot {
+				return nil, nil, cerr.Errors[0]
 			}
 			continue
 		}
@@ -393,7 +404,7 @@ func (c *httpClusterClient) Sync(ctx context.Context) error {
 	c.Lock()
 	defer c.Unlock()
 
-	eps := make([]string, 0)
+	var eps []string
 	for _, m := range ms {
 		eps = append(eps, m.ClientURLs...)
 	}

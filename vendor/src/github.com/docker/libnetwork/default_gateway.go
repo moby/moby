@@ -14,7 +14,7 @@ const (
 var procGwNetwork = make(chan (bool), 1)
 
 /*
-   libnetwork creates a bridge network "docker_gw_bridge" for provding
+   libnetwork creates a bridge network "docker_gw_bridge" for providing
    default gateway for the containers if none of the container's endpoints
    have GW set by the driver. ICC is set to false for the GW_bridge network.
 
@@ -29,7 +29,7 @@ var procGwNetwork = make(chan (bool), 1)
 
 func (sb *sandbox) setupDefaultGW() error {
 
-	// check if the conitainer already has a GW endpoint
+	// check if the container already has a GW endpoint
 	if ep := sb.getEndpointInGWNetwork(); ep != nil {
 		return nil
 	}

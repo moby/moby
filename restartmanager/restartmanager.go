@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/docker/engine-api/types/container"
+	"github.com/docker/docker/api/types/container"
 )
 
 const (

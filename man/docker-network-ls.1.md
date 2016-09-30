@@ -7,6 +7,7 @@ docker-network-ls - list networks
 # SYNOPSIS
 **docker network ls**
 [**-f**|**--filter**[=*[]*]]
+[**--format**=*"TEMPLATE"*]
 [**--no-trunc**[=*true*|*false*]]
 [**-q**|**--quiet**[=*true*|*false*]]
 [**--help**]
@@ -162,11 +163,23 @@ attached.
 **-f**, **--filter**=*[]*
   filter output based on conditions provided. 
 
+**--format**="*TEMPLATE*"
+  Pretty-print networks using a Go template.
+  Valid placeholders:
+     .ID - Network ID
+     .Name - Network name
+     .Driver - Network driver
+     .Scope - Network scope (local, global)
+     .IPv6 - Whether IPv6 is enabled on the network or not
+     .Internal - Whether the network is internal or not
+     .Labels - All labels assigned to the network
+     .Label - Value of a specific label for this network. For example `{{.Label "project.version"}}`
+
 **--no-trunc**=*true*|*false*
   Do not truncate the output
 
 **-q**, **--quiet**=*true*|*false*
-  Only display numeric IDs
+  Only display network IDs
 
 **--help**
   Print usage statement

@@ -13,7 +13,7 @@ import (
 
 	"github.com/docker/docker/cliconfig"
 	"github.com/docker/docker/pkg/integration/checker"
-	"github.com/docker/docker/pkg/tlsconfig"
+	"github.com/docker/go-connections/tlsconfig"
 	"github.com/go-check/check"
 )
 
@@ -61,10 +61,10 @@ func newTestNotary(c *check.C) (*testNotary, error) {
 	}
 	confPath := filepath.Join(tmp, "config.json")
 	config, err := os.Create(confPath)
-	defer config.Close()
 	if err != nil {
 		return nil, err
 	}
+	defer config.Close()
 
 	workingDir, err := os.Getwd()
 	if err != nil {
@@ -78,10 +78,11 @@ func newTestNotary(c *check.C) (*testNotary, error) {
 	// generate client config
 	clientConfPath := filepath.Join(tmp, "client-config.json")
 	clientConfig, err := os.Create(clientConfPath)
-	defer clientConfig.Close()
 	if err != nil {
 		return nil, err
 	}
+	defer clientConfig.Close()
+
 	template = `{
 	"trust_dir" : "%s",
 	"remote_server": {
@@ -135,7 +136,7 @@ func newTestNotary(c *check.C) (*testNotary, error) {
 }
 
 func (t *testNotary) Ping() error {
-	tlsConfig := tlsconfig.ClientDefault
+	tlsConfig := tlsconfig.ClientDefault()
 	tlsConfig.InsecureSkipVerify = true
 	client := http.Client{
 		Transport: &http.Transport{
@@ -145,14 +146,14 @@ func (t *testNotary) Ping() error {
 				KeepAlive: 30 * time.Second,
 			}).Dial,
 			TLSHandshakeTimeout: 10 * time.Second,
-			TLSClientConfig:     &tlsConfig,
+			TLSClientConfig:     tlsConfig,
 		},
 	}
 	resp, err := client.Get(fmt.Sprintf("%s/v2/", notaryURL))
 	if err != nil {
 		return err
 	}
-	if resp.StatusCode != 200 {
+	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("notary ping replied with an unexpected status code %d", resp.StatusCode)
 	}
 	return nil

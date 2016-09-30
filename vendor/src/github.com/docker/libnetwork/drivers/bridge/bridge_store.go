@@ -83,9 +83,9 @@ func (d *driver) populateEndpoints() error {
 		n, ok := d.networks[ep.nid]
 		if !ok {
 			logrus.Debugf("Network (%s) not found for restored bridge endpoint (%s)", ep.nid[0:7], ep.id[0:7])
-			logrus.Debugf("Deleting stale bridge endpoint (%s) from store", ep.nid[0:7])
+			logrus.Debugf("Deleting stale bridge endpoint (%s) from store", ep.id[0:7])
 			if err := d.storeDelete(ep); err != nil {
-				logrus.Debugf("Failed to delete stale bridge endpoint (%s) from store", ep.nid[0:7])
+				logrus.Debugf("Failed to delete stale bridge endpoint (%s) from store", ep.id[0:7])
 			}
 			continue
 		}
@@ -143,6 +143,7 @@ func (ncfg *networkConfiguration) MarshalJSON() ([]byte, error) {
 	nMap["DefaultBindingIP"] = ncfg.DefaultBindingIP.String()
 	nMap["DefaultGatewayIPv4"] = ncfg.DefaultGatewayIPv4.String()
 	nMap["DefaultGatewayIPv6"] = ncfg.DefaultGatewayIPv6.String()
+	nMap["BridgeIfaceCreator"] = ncfg.BridgeIfaceCreator
 
 	if ncfg.AddressIPv4 != nil {
 		nMap["AddressIPv4"] = ncfg.AddressIPv4.String()
@@ -189,6 +190,10 @@ func (ncfg *networkConfiguration) UnmarshalJSON(b []byte) error {
 	ncfg.Mtu = int(nMap["Mtu"].(float64))
 	if v, ok := nMap["Internal"]; ok {
 		ncfg.Internal = v.(bool)
+	}
+
+	if v, ok := nMap["BridgeIfaceCreator"]; ok {
+		ncfg.BridgeIfaceCreator = ifaceCreator(v.(float64))
 	}
 
 	return nil

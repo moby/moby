@@ -2,7 +2,7 @@ package container
 
 import (
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/engine-api/types"
+	"github.com/docker/docker/api/types"
 )
 
 // Health holds the current container health-check state
@@ -13,9 +13,12 @@ type Health struct {
 
 // String returns a human-readable description of the health-check state
 func (s *Health) String() string {
+	// This happens when the container is being shutdown and the monitor has stopped
+	// or the monitor has yet to be setup.
 	if s.stop == nil {
-		return "no healthcheck"
+		return types.Unhealthy
 	}
+
 	switch s.Status {
 	case types.Starting:
 		return "health: starting"

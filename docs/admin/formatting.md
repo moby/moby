@@ -5,7 +5,7 @@ description = "CLI and log output formatting reference"
 keywords = ["format, formatting, output, templates, log"]
 [menu.main]
 parent = "engine_admin"
-weight=-90
+weight=7
 +++
 <![end-metadata]-->
 
@@ -20,6 +20,7 @@ list of elements they support in their templates:
 - [Docker Log Tag formatting](logging/log_tags.md)
 - [Docker Network Inspect formatting](../reference/commandline/network_inspect.md)
 - [Docker PS formatting](../reference/commandline/ps.md#formatting)
+- [Docker Stats formatting](../reference/commandline/stats.md#formatting)
 - [Docker Volume Inspect formatting](../reference/commandline/volume_inspect.md)
 - [Docker Version formatting](../reference/commandline/version.md#examples)
 

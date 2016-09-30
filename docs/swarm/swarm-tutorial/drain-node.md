@@ -1,9 +1,8 @@
 <!--[metadata]>
 +++
 title = "Drain a node"
-description = "Drain nodes on the Swarm"
+description = "Drain nodes on the swarm"
 keywords = ["tutorial, cluster management, swarm, service, drain"]
-advisory="rc"
 [menu.main]
 identifier="swarm-tutorial-drain-node"
 parent="swarm-tutorial"
@@ -31,37 +30,37 @@ run your manager node. For example, the tutorial uses a machine named
     ```bash
     $ docker node ls
 
-    ID                           NAME      MEMBERSHIP  STATUS  AVAILABILITY     MANAGER STATUS  LEADER
-    1bcef6utixb0l0ca7gxuivsj0    worker2   Accepted    Ready   Active
-    38ciaotwjuritcdtn9npbnkuz    worker1   Accepted    Ready   Active
-    e216jshn25ckzbvmwlnh5jr3g *  manager1  Accepted    Ready   Active        Reachable       Yes
+    ID                           HOSTNAME  STATUS  AVAILABILITY  MANAGER STATUS
+    1bcef6utixb0l0ca7gxuivsj0    worker2   Ready   Active
+    38ciaotwjuritcdtn9npbnkuz    worker1   Ready   Active
+    e216jshn25ckzbvmwlnh5jr3g *  manager1  Ready   Active        Leader
     ```
 
-2. If you aren't still running the `redis` service from the [rolling
+3. If you aren't still running the `redis` service from the [rolling
 update](rolling-update.md) tutorial, start it now:
 
     ```bash
-    $ docker service create --replicas 3 --name redis --update-delay 10s --update-parallelism 1 redis:3.0.6
+    $ docker service create --replicas 3 --name redis --update-delay 10s redis:3.0.6
 
     c5uo6kdmzpon37mgj9mwglcfw
     ```
 
-3. Run `docker service tasks redis` to see how the Swarm manager assigned the
+4. Run `docker service ps redis` to see how the swarm manager assigned the
 tasks to different nodes:
 
     ```bash
-    $ docker service tasks redis
+    $ docker service ps redis
 
-    ID                         NAME     SERVICE  IMAGE        LAST STATE          DESIRED STATE  NODE
-    7q92v0nr1hcgts2amcjyqg3pq  redis.1  redis    redis:3.0.6  Running 26 seconds  Running        manager1
-    7h2l8h3q3wqy5f66hlv9ddmi6  redis.2  redis    redis:3.0.6  Running 26 seconds  Running        worker1
-    9bg7cezvedmkgg6c8yzvbhwsd  redis.3  redis    redis:3.0.6  Running 26 seconds  Running        worker2
+    NAME                               IMAGE        NODE     DESIRED STATE  CURRENT STATE
+    redis.1.7q92v0nr1hcgts2amcjyqg3pq  redis:3.0.6  manager1 Running        Running 26 seconds
+    redis.2.7h2l8h3q3wqy5f66hlv9ddmi6  redis:3.0.6  worker1  Running        Running 26 seconds
+    redis.3.9bg7cezvedmkgg6c8yzvbhwsd  redis:3.0.6  worker2  Running        Running 26 seconds
     ```
 
     In this case the swarm manager distributed one task to each node. You may
     see the tasks distributed differently among the nodes in your environment.
 
-4. Run `docker node update --availability drain <NODE-ID>` to drain a node that
+5. Run `docker node update --availability drain <NODE-ID>` to drain a node that
 had a task assigned to it:
 
     ```bash
@@ -70,7 +69,7 @@ had a task assigned to it:
     worker1
     ```
 
-5. Inspect the node to check its availability:
+6. Inspect the node to check its availability:
 
     ```bash
     $ docker node inspect --pretty worker1
@@ -85,23 +84,24 @@ had a task assigned to it:
 
     The drained node shows `Drain` for `AVAILABILITY`.
 
-6. Run `docker service tasks redis` to see how the Swarm manager updated the
+7. Run `docker service ps redis` to see how the swarm manager updated the
 task assignments for the `redis` service:
 
     ```bash
-    $ docker service tasks redis
+    $ docker service ps redis
 
-    ID                         NAME     SERVICE  IMAGE        LAST STATE              DESIRED STATE  NODE
-    7q92v0nr1hcgts2amcjyqg3pq  redis.1  redis    redis:3.0.6  Running 4 minutes       Running        manager1
-    b4hovzed7id8irg1to42egue8  redis.2  redis    redis:3.0.6  Running About a minute  Running        worker2
-    9bg7cezvedmkgg6c8yzvbhwsd  redis.3  redis    redis:3.0.6  Running 4 minutes       Running        worker2
+    NAME                                    IMAGE        NODE      DESIRED STATE  CURRENT STATE           ERROR
+    redis.1.7q92v0nr1hcgts2amcjyqg3pq       redis:3.0.6  manager1  Running        Running 4 minutes
+    redis.2.b4hovzed7id8irg1to42egue8       redis:3.0.6  worker2   Running        Running About a minute
+     \_ redis.2.7h2l8h3q3wqy5f66hlv9ddmi6   redis:3.0.6  worker1   Shutdown       Shutdown 2 minutes ago
+    redis.3.9bg7cezvedmkgg6c8yzvbhwsd       redis:3.0.6  worker2   Running        Running 4 minutes
     ```
 
-    The Swarm manager maintains the desired state by ending the task on a node
+    The swarm manager maintains the desired state by ending the task on a node
     with `Drain` availability and creating a new task on a node with `Active`
     availability.
 
-7. Run  `docker node update --availability active <NODE-ID>` to return the
+8. Run  `docker node update --availability active <NODE-ID>` to return the
 drained node to an active state:
 
     ```bash
@@ -110,7 +110,7 @@ drained node to an active state:
     worker1
     ```
 
-8. Inspect the node to see the updated state:
+9. Inspect the node to see the updated state:
 
    ```bash
    $ docker node inspect --pretty worker1

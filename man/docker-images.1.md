@@ -45,7 +45,7 @@ versions.
    - since=(<image-name>[:tag]|<image-id>|<image@digest>)
 
 **--format**="*TEMPLATE*"
-   Pretty-print containers using a Go template.
+   Pretty-print images using a Go template.
    Valid placeholders:
       .ID - Image ID
       .Repository - Image repository

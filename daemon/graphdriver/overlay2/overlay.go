@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"strconv"
 	"strings"
 	"syscall"
 
@@ -21,6 +22,7 @@ import (
 	"github.com/docker/docker/pkg/directory"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/mount"
+	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/parsers/kernel"
 
 	"github.com/opencontainers/runc/libcontainer/label"
@@ -90,8 +92,12 @@ func init() {
 
 // Init returns the a native diff driver for overlay filesystem.
 // If overlay filesystem is not supported on the host, graphdriver.ErrNotSupported is returned as error.
-// If a overlay filesystem is not supported over a existing filesystem then error graphdriver.ErrIncompatibleFS is returned.
+// If an overlay filesystem is not supported over an existing filesystem then error graphdriver.ErrIncompatibleFS is returned.
 func Init(home string, options []string, uidMaps, gidMaps []idtools.IDMap) (graphdriver.Driver, error) {
+	opts, err := parseOptions(options)
+	if err != nil {
+		return nil, err
+	}
 
 	if err := supportsOverlay(); err != nil {
 		return nil, graphdriver.ErrNotSupported
@@ -103,7 +109,10 @@ func Init(home string, options []string, uidMaps, gidMaps []idtools.IDMap) (grap
 		return nil, err
 	}
 	if kernel.CompareKernelVersion(*v, kernel.VersionInfo{Kernel: 4, Major: 0, Minor: 0}) < 0 {
-		return nil, graphdriver.ErrNotSupported
+		if !opts.overrideKernelCheck {
+			return nil, graphdriver.ErrNotSupported
+		}
+		logrus.Warnf("Using pre-4.0.0 kernel for overlay2, mount failures may require kernel update")
 	}
 
 	fsMagic, err := graphdriver.GetFSMagic(home)
@@ -142,6 +151,31 @@ func Init(home string, options []string, uidMaps, gidMaps []idtools.IDMap) (grap
 	}
 
 	return d, nil
+}
+
+type overlayOptions struct {
+	overrideKernelCheck bool
+}
+
+func parseOptions(options []string) (*overlayOptions, error) {
+	o := &overlayOptions{}
+	for _, option := range options {
+		key, val, err := parsers.ParseKeyValueOpt(option)
+		if err != nil {
+			return nil, err
+		}
+		key = strings.ToLower(key)
+		switch key {
+		case "overlay2.override_kernel_check":
+			o.overrideKernelCheck, err = strconv.ParseBool(val)
+			if err != nil {
+				return nil, err
+			}
+		default:
+			return nil, fmt.Errorf("overlay2: Unknown option %s\n", key)
+		}
+	}
+	return o, nil
 }
 
 func supportsOverlay() error {
@@ -375,13 +409,36 @@ func (d *Driver) Get(id string, mountLabel string) (s string, err error) {
 	}()
 
 	workDir := path.Join(dir, "work")
-	opts := fmt.Sprintf("lowerdir=%s,upperdir=%s,workdir=%s", string(lowers), path.Join(id, "diff"), path.Join(id, "work"))
-	mountLabel = label.FormatMountLabel(opts, mountLabel)
-	if len(mountLabel) > syscall.Getpagesize() {
-		return "", fmt.Errorf("cannot mount layer, mount label too large %d", len(mountLabel))
+	splitLowers := strings.Split(string(lowers), ":")
+	absLowers := make([]string, len(splitLowers))
+	for i, s := range splitLowers {
+		absLowers[i] = path.Join(d.home, s)
+	}
+	opts := fmt.Sprintf("lowerdir=%s,upperdir=%s,workdir=%s", strings.Join(absLowers, ":"), path.Join(dir, "diff"), path.Join(dir, "work"))
+	mountData := label.FormatMountLabel(opts, mountLabel)
+	mount := syscall.Mount
+	mountTarget := mergedDir
+
+	pageSize := syscall.Getpagesize()
+
+	// Use relative paths and mountFrom when the mount data has exceeded
+	// the page size. The mount syscall fails if the mount data cannot
+	// fit within a page and relative links make the mount data much
+	// smaller at the expense of requiring a fork exec to chroot.
+	if len(mountData) > pageSize {
+		opts = fmt.Sprintf("lowerdir=%s,upperdir=%s,workdir=%s", string(lowers), path.Join(id, "diff"), path.Join(id, "work"))
+		mountData = label.FormatMountLabel(opts, mountLabel)
+		if len(mountData) > pageSize {
+			return "", fmt.Errorf("cannot mount layer, mount label too large %d", len(mountData))
+		}
+
+		mount = func(source string, target string, mType string, flags uintptr, label string) error {
+			return mountFrom(d.home, source, target, mType, flags, label)
+		}
+		mountTarget = path.Join(id, "merged")
 	}
 
-	if err := mountFrom(d.home, "overlay", path.Join(id, "merged"), "overlay", mountLabel); err != nil {
+	if err := mount("overlay", mountTarget, "overlay", 0, mountData); err != nil {
 		return "", fmt.Errorf("error creating overlay mount to %s: %v", mergedDir, err)
 	}
 

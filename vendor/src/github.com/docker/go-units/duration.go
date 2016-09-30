@@ -12,6 +12,8 @@ import (
 func HumanDuration(d time.Duration) string {
 	if seconds := int(d.Seconds()); seconds < 1 {
 		return "Less than a second"
+	} else if seconds == 1 {
+		return "1 second"
 	} else if seconds < 60 {
 		return fmt.Sprintf("%d seconds", seconds)
 	} else if minutes := int(d.Minutes()); minutes == 1 {

@@ -10,10 +10,18 @@ type XfrmStateAlgo struct {
 	Name        string
 	Key         []byte
 	TruncateLen int // Auth only
+	ICVLen      int // AEAD only
 }
 
 func (a XfrmStateAlgo) String() string {
-	return fmt.Sprintf("{Name: %s, Key: 0x%x, TruncateLen: %d}", a.Name, a.Key, a.TruncateLen)
+	base := fmt.Sprintf("{Name: %s, Key: 0x%x", a.Name, a.Key)
+	if a.TruncateLen != 0 {
+		base = fmt.Sprintf("%s, Truncate length: %d", base, a.TruncateLen)
+	}
+	if a.ICVLen != 0 {
+		base = fmt.Sprintf("%s, ICV length: %d", base, a.ICVLen)
+	}
+	return fmt.Sprintf("%s}", base)
 }
 
 // EncapType is an enum representing the optional packet encapsulation.
@@ -73,12 +81,13 @@ type XfrmState struct {
 	Mark         *XfrmMark
 	Auth         *XfrmStateAlgo
 	Crypt        *XfrmStateAlgo
+	Aead         *XfrmStateAlgo
 	Encap        *XfrmStateEncap
 }
 
 func (sa XfrmState) String() string {
-	return fmt.Sprintf("Dst: %v, Src: %v, Proto: %s, Mode: %s, SPI: 0x%x, ReqID: 0x%x, ReplayWindow: %d, Mark: %v, Auth: %v, Crypt: %v, Encap: %v",
-		sa.Dst, sa.Src, sa.Proto, sa.Mode, sa.Spi, sa.Reqid, sa.ReplayWindow, sa.Mark, sa.Auth, sa.Crypt, sa.Encap)
+	return fmt.Sprintf("Dst: %v, Src: %v, Proto: %s, Mode: %s, SPI: 0x%x, ReqID: 0x%x, ReplayWindow: %d, Mark: %v, Auth: %v, Crypt: %v, Aead: %v,Encap: %v",
+		sa.Dst, sa.Src, sa.Proto, sa.Mode, sa.Spi, sa.Reqid, sa.ReplayWindow, sa.Mark, sa.Auth, sa.Crypt, sa.Aead, sa.Encap)
 }
 func (sa XfrmState) Print(stats bool) string {
 	if !stats {

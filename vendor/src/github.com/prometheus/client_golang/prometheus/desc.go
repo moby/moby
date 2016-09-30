@@ -1,10 +1,8 @@
 package prometheus
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
-	"hash/fnv"
 	"regexp"
 	"sort"
 	"strings"
@@ -131,31 +129,24 @@ func NewDesc(fqName, help string, variableLabels []string, constLabels Labels) *
 		d.err = errors.New("duplicate label names")
 		return d
 	}
-	h := fnv.New64a()
-	var b bytes.Buffer // To copy string contents into, avoiding []byte allocations.
+	vh := hashNew()
 	for _, val := range labelValues {
-		b.Reset()
-		b.WriteString(val)
-		b.WriteByte(separatorByte)
-		h.Write(b.Bytes())
+		vh = hashAdd(vh, val)
+		vh = hashAddByte(vh, separatorByte)
 	}
-	d.id = h.Sum64()
+	d.id = vh
 	// Sort labelNames so that order doesn't matter for the hash.
 	sort.Strings(labelNames)
 	// Now hash together (in this order) the help string and the sorted
 	// label names.
-	h.Reset()
-	b.Reset()
-	b.WriteString(help)
-	b.WriteByte(separatorByte)
-	h.Write(b.Bytes())
+	lh := hashNew()
+	lh = hashAdd(lh, help)
+	lh = hashAddByte(lh, separatorByte)
 	for _, labelName := range labelNames {
-		b.Reset()
-		b.WriteString(labelName)
-		b.WriteByte(separatorByte)
-		h.Write(b.Bytes())
+		lh = hashAdd(lh, labelName)
+		lh = hashAddByte(lh, separatorByte)
 	}
-	d.dimHash = h.Sum64()
+	d.dimHash = lh
 
 	d.constLabelPairs = make([]*dto.LabelPair, 0, len(constLabels))
 	for n, v := range constLabels {

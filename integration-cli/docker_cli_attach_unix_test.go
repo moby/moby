@@ -56,7 +56,6 @@ func (s *DockerSuite) TestAttachClosedOnContainerStop(c *check.C) {
 }
 
 func (s *DockerSuite) TestAttachAfterDetach(c *check.C) {
-
 	name := "detachtest"
 
 	cpty, tty, err := pty.Open()
@@ -80,7 +79,11 @@ func (s *DockerSuite) TestAttachAfterDetach(c *check.C) {
 
 	select {
 	case err := <-errChan:
-		c.Assert(err, check.IsNil)
+		if err != nil {
+			buff := make([]byte, 200)
+			tty.Read(buff)
+			c.Fatalf("%s: %s", err, buff)
+		}
 	case <-time.After(5 * time.Second):
 		c.Fatal("timeout while detaching")
 	}

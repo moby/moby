@@ -17,7 +17,6 @@ import (
 	"time"
 
 	"github.com/google/certificate-transparency/go"
-	"github.com/mreiferson/go-httpclient"
 	"golang.org/x/net/context"
 )
 
@@ -25,6 +24,7 @@ import (
 const (
 	AddChainPath    = "/ct/v1/add-chain"
 	AddPreChainPath = "/ct/v1/add-pre-chain"
+	AddJSONPath     = "/ct/v1/add-json"
 	GetSTHPath      = "/ct/v1/get-sth"
 	GetEntriesPath  = "/ct/v1/get-entries"
 )
@@ -55,6 +55,12 @@ type addChainResponse struct {
 	Timestamp  uint64     `json:"timestamp"`   // Timestamp of issuance
 	Extensions string     `json:"extensions"`  // Holder for any CT extensions
 	Signature  string     `json:"signature"`   // Log signature for this SCT
+}
+
+// addJSONRequest represents the JSON request body sent ot the add-json CT
+// method.
+type addJSONRequest struct {
+	Data interface{} `json:"data"`
 }
 
 // getSTHResponse respresents the JSON response to the get-sth CT method
@@ -102,18 +108,12 @@ type getEntryAndProofResponse struct {
 // New constructs a new LogClient instance.
 // |uri| is the base URI of the CT log instance to interact with, e.g.
 // http://ct.googleapis.com/pilot
-func New(uri string) *LogClient {
-	var c LogClient
-	c.uri = uri
-	transport := &httpclient.Transport{
-		ConnectTimeout:        10 * time.Second,
-		RequestTimeout:        30 * time.Second,
-		ResponseHeaderTimeout: 30 * time.Second,
-		MaxIdleConnsPerHost:   10,
-		DisableKeepAlives:     false,
+// |hc| is the underlying client to be used for HTTP requests to the CT log.
+func New(uri string, hc *http.Client) *LogClient {
+	if hc == nil {
+		hc = new(http.Client)
 	}
-	c.httpClient = &http.Client{Transport: transport}
-	return &c
+	return &LogClient{uri: uri, httpClient: hc}
 }
 
 // Makes a HTTP call to |uri|, and attempts to parse the response as a JSON
@@ -154,7 +154,6 @@ func (c *LogClient) postAndParse(uri string, req interface{}, res interface{}) (
 	if err != nil {
 		return nil, "", err
 	}
-	httpReq.Header.Set("Keep-Alive", "timeout=15, max=100")
 	httpReq.Header.Set("Content-Type", "application/json")
 	resp, err := c.httpClient.Do(httpReq)
 	// Read all of the body, if there is one, so that the http.Client can do
@@ -275,6 +274,37 @@ func (c *LogClient) AddPreChain(chain []ct.ASN1Cert) (*ct.SignedCertificateTimes
 // fails if the provided context expires before the chain is submitted.
 func (c *LogClient) AddChainWithContext(ctx context.Context, chain []ct.ASN1Cert) (*ct.SignedCertificateTimestamp, error) {
 	return c.addChainWithRetry(ctx, AddChainPath, chain)
+}
+
+func (c *LogClient) AddJSON(data interface{}) (*ct.SignedCertificateTimestamp, error) {
+	req := addJSONRequest{
+		Data: data,
+	}
+	var resp addChainResponse
+	_, _, err := c.postAndParse(c.uri+AddJSONPath, &req, &resp)
+	if err != nil {
+		return nil, err
+	}
+	rawLogID, err := base64.StdEncoding.DecodeString(resp.ID)
+	if err != nil {
+		return nil, err
+	}
+	rawSignature, err := base64.StdEncoding.DecodeString(resp.Signature)
+	if err != nil {
+		return nil, err
+	}
+	ds, err := ct.UnmarshalDigitallySigned(bytes.NewReader(rawSignature))
+	if err != nil {
+		return nil, err
+	}
+	var logID ct.SHA256Hash
+	copy(logID[:], rawLogID)
+	return &ct.SignedCertificateTimestamp{
+		SCTVersion: resp.SCTVersion,
+		LogID:      logID,
+		Timestamp:  resp.Timestamp,
+		Extensions: ct.CTExtensions(resp.Extensions),
+		Signature:  *ds}, nil
 }
 
 // GetSTH retrieves the current STH from the log.

@@ -19,28 +19,16 @@ Use the commands below to provide key information from your environment:
 You do NOT have to include this information if this is a FEATURE REQUEST
 -->
 
-**Output of `docker version`:**
+**Description**
 
-```
-(paste your output here)
-```
-
-
-**Output of `docker info`:**
-
-```
-(paste your output here)
-```
-
-**Additional environment details (AWS, VirtualBox, physical, etc.):**
-
-
+<!--
+Briefly describe the problem you are having in a few paragraphs.
+-->
 
 **Steps to reproduce the issue:**
 1.
 2.
 3.
-
 
 **Describe the results you received:**
 
@@ -49,3 +37,17 @@ You do NOT have to include this information if this is a FEATURE REQUEST
 
 
 **Additional information you deem important (e.g. issue happens only occasionally):**
+
+**Output of `docker version`:**
+
+```
+(paste your output here)
+```
+
+**Output of `docker info`:**
+
+```
+(paste your output here)
+```
+
+**Additional environment details (AWS, VirtualBox, physical, etc.):**

@@ -119,25 +119,34 @@ func Add(path string, recs []Record) error {
 		return nil
 	}
 
-	f, err := os.Open(path)
+	b, err := mergeRecords(path, recs)
 	if err != nil {
 		return err
 	}
 
+	return ioutil.WriteFile(path, b, 0644)
+}
+
+func mergeRecords(path string, recs []Record) ([]byte, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+
 	content := bytes.NewBuffer(nil)
 
-	_, err = content.ReadFrom(f)
-	if err != nil {
-		return err
+	if _, err := content.ReadFrom(f); err != nil {
+		return nil, err
 	}
 
 	for _, r := range recs {
 		if _, err := r.WriteTo(content); err != nil {
-			return err
+			return nil, err
 		}
 	}
 
-	return ioutil.WriteFile(path, content.Bytes(), 0644)
+	return content.Bytes(), nil
 }
 
 // Delete deletes an arbitrary number of Records already existing in /etc/hosts file

@@ -3,7 +3,6 @@
 title = "Swarm mode overview"
 description = "Docker Engine swarm mode overview"
 keywords = ["docker, container, cluster, swarm"]
-advisory = "rc"
 [menu.main]
 identifier="swarm_overview"
 parent="engine_swarm"
@@ -12,30 +11,30 @@ weight="1"
 <![end-metadata]-->
 # Swarm mode overview
 
-To use Docker Engine in swarm mode, install the Docker Engine `v1.12.0-rc1` or
+To use Docker Engine in swarm mode, install the Docker Engine `v1.12.0` or
 later from the [Docker releases GitHub
 repository](https://github.com/docker/docker/releases). Alternatively, install
 the latest Docker for Mac or Docker for Windows Beta.
 
 Docker Engine 1.12 includes swarm mode for natively managing a cluster of
-Docker Engines called a Swarm. Use the Docker CLI to create a swarm, deploy
+Docker Engines called a *swarm*. Use the Docker CLI to create a swarm, deploy
 application services to a swarm, and manage swarm behavior.
 
 
-If you’re using a Docker version prior to `v1.12.0-rc1`, see [Docker
+If you’re using a Docker version prior to `v1.12.0`, see [Docker
 Swarm](https://docs.docker.com/swarm).
 
 ## Feature highlights
 
 * **Cluster management integrated with Docker Engine:** Use the Docker Engine
-CLI to create a Swarm of Docker Engines where you can deploy application
+CLI to create a swarm of Docker Engines where you can deploy application
 services. You don't need additional orchestration software to create or manage
-a Swarm.
+a swarm.
 
 * **Decentralized design:** Instead of handling differentiation between node
 roles at deployment time, the Docker Engine handles any specialization at
 runtime. You can deploy both kinds of nodes, managers and workers, using the
-Docker Engine. This means you can build an entire Swarm from a single disk
+Docker Engine. This means you can build an entire swarm from a single disk
 image.
 
 * **Declarative service model:** Docker Engine uses a declarative approach to
@@ -51,7 +50,7 @@ adding or removing tasks to maintain the desired state.
 the cluster state and reconciles any differences between the actual state your
 expressed desired state. For example, if you set up a service to run 10
 replicas of a container, and a worker machine hosting two of those replicas
-crashes, the manager will create two new replicas to replace the ones that
+crashes, the manager will create two new replicas to replace the replicas that
 crashed. The swarm manager assigns the new replicas to workers that are
 running and available.
 
@@ -88,5 +87,5 @@ roll-back a task to a previous version of the service.
     * [service ls](../reference/commandline/service_ls.md)
     * [service rm](../reference/commandline/service_rm.md)
     * [service scale](../reference/commandline/service_scale.md)
-    * [service tasks](../reference/commandline/service_tasks.md)
+    * [service ps](../reference/commandline/service_ps.md)
     * [service update](../reference/commandline/service_update.md)

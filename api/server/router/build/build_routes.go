@@ -13,13 +13,13 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/server/httputils"
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
+	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/pkg/streamformatter"
-	"github.com/docker/engine-api/types"
-	"github.com/docker/engine-api/types/container"
-	"github.com/docker/engine-api/types/versions"
 	"github.com/docker/go-units"
 	"golang.org/x/net/context"
 )
@@ -70,7 +70,7 @@ func newImageBuildOptions(ctx context.Context, r *http.Request) (*types.ImageBui
 	var buildUlimits = []*units.Ulimit{}
 	ulimitsJSON := r.FormValue("ulimits")
 	if ulimitsJSON != "" {
-		if err := json.NewDecoder(strings.NewReader(ulimitsJSON)).Decode(&buildUlimits); err != nil {
+		if err := json.Unmarshal([]byte(ulimitsJSON), &buildUlimits); err != nil {
 			return nil, err
 		}
 		options.Ulimits = buildUlimits
@@ -79,7 +79,7 @@ func newImageBuildOptions(ctx context.Context, r *http.Request) (*types.ImageBui
 	var buildArgs = map[string]string{}
 	buildArgsJSON := r.FormValue("buildargs")
 	if buildArgsJSON != "" {
-		if err := json.NewDecoder(strings.NewReader(buildArgsJSON)).Decode(&buildArgs); err != nil {
+		if err := json.Unmarshal([]byte(buildArgsJSON), &buildArgs); err != nil {
 			return nil, err
 		}
 		options.BuildArgs = buildArgs
@@ -87,10 +87,19 @@ func newImageBuildOptions(ctx context.Context, r *http.Request) (*types.ImageBui
 	var labels = map[string]string{}
 	labelsJSON := r.FormValue("labels")
 	if labelsJSON != "" {
-		if err := json.NewDecoder(strings.NewReader(labelsJSON)).Decode(&labels); err != nil {
+		if err := json.Unmarshal([]byte(labelsJSON), &labels); err != nil {
 			return nil, err
 		}
 		options.Labels = labels
+	}
+
+	var cacheFrom = []string{}
+	cacheFromJSON := r.FormValue("cachefrom")
+	if cacheFromJSON != "" {
+		if err := json.Unmarshal([]byte(cacheFromJSON), &cacheFrom); err != nil {
+			return nil, err
+		}
+		options.CacheFrom = cacheFrom
 	}
 
 	return options, nil
@@ -163,7 +172,7 @@ func (br *buildRouter) postBuild(ctx context.Context, w http.ResponseWriter, r *
 		return progress.NewProgressReader(in, progressOutput, r.ContentLength, "Downloading context", remoteURL)
 	}
 
-	var out io.Writer = output
+	out := io.Writer(output)
 	if buildOptions.SuppressOutput {
 		out = notVerboseBuffer
 	}

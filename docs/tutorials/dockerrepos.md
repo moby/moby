@@ -57,6 +57,7 @@ interface or by using the command line interface. Searching can find images by i
 name, user name, or description:
 
     $ docker search centos
+
     NAME           DESCRIPTION                                     STARS     OFFICIAL   AUTOMATED
     centos         The official build of CentOS                    1223      [OK]
     tianon/centos  CentOS 5 and 6, created using rinse instea...   33
@@ -72,6 +73,7 @@ a user's repository from the image name.
 Once you've found the image you want, you can download it with `docker pull <imagename>`:
 
     $ docker pull centos
+
     Using default tag: latest
     latest: Pulling from library/centos
     f1b10cd84249: Pull complete

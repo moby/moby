@@ -6,6 +6,7 @@ import (
 	"syscall"
 
 	"github.com/vishvananda/netlink/nl"
+	"github.com/vishvananda/netns"
 )
 
 // RtAttr is shared so it is in netlink_linux.go
@@ -421,7 +422,17 @@ func (h *Handle) RouteGet(destination net.IP) ([]Route, error) {
 // RouteSubscribe takes a chan down which notifications will be sent
 // when routes are added or deleted. Close the 'done' chan to stop subscription.
 func RouteSubscribe(ch chan<- RouteUpdate, done <-chan struct{}) error {
-	s, err := nl.Subscribe(syscall.NETLINK_ROUTE, syscall.RTNLGRP_IPV4_ROUTE, syscall.RTNLGRP_IPV6_ROUTE)
+	return routeSubscribeAt(netns.None(), netns.None(), ch, done)
+}
+
+// RouteSubscribeAt works like RouteSubscribe plus it allows the caller
+// to choose the network namespace in which to subscribe (ns).
+func RouteSubscribeAt(ns netns.NsHandle, ch chan<- RouteUpdate, done <-chan struct{}) error {
+	return routeSubscribeAt(ns, netns.None(), ch, done)
+}
+
+func routeSubscribeAt(newNs, curNs netns.NsHandle, ch chan<- RouteUpdate, done <-chan struct{}) error {
+	s, err := nl.SubscribeAt(newNs, curNs, syscall.NETLINK_ROUTE, syscall.RTNLGRP_IPV4_ROUTE, syscall.RTNLGRP_IPV6_ROUTE)
 	if err != nil {
 		return err
 	}

@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/docker/docker/pkg/integration/checker"
+	icmd "github.com/docker/docker/pkg/integration/cmd"
 	"github.com/go-check/check"
 )
 
@@ -35,7 +36,6 @@ func (s *DockerSuite) TestCpLocalOnly(c *check.C) {
 // Test for #5656
 // Check that garbage paths don't escape the container's rootfs
 func (s *DockerSuite) TestCpGarbagePath(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "mkdir -p '"+cpTestPath+"' && echo -n '"+cpContainerContents+"' > "+cpFullPath)
 
 	containerID := strings.TrimSpace(out)
@@ -78,7 +78,6 @@ func (s *DockerSuite) TestCpGarbagePath(c *check.C) {
 
 // Check that relative paths are relative to the container's rootfs
 func (s *DockerSuite) TestCpRelativePath(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "mkdir -p '"+cpTestPath+"' && echo -n '"+cpContainerContents+"' > "+cpFullPath)
 
 	containerID := strings.TrimSpace(out)
@@ -127,7 +126,6 @@ func (s *DockerSuite) TestCpRelativePath(c *check.C) {
 
 // Check that absolute paths are relative to the container's rootfs
 func (s *DockerSuite) TestCpAbsolutePath(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "mkdir -p '"+cpTestPath+"' && echo -n '"+cpContainerContents+"' > "+cpFullPath)
 
 	containerID := strings.TrimSpace(out)
@@ -399,10 +397,9 @@ func (s *DockerSuite) TestCpUnprivilegedUser(c *check.C) {
 
 	c.Assert(os.Chmod(tmpdir, 0777), checker.IsNil)
 
-	path := cpTestName
-
-	_, _, err = runCommandWithOutput(exec.Command("su", "unprivilegeduser", "-c", dockerBinary+" cp "+containerID+":"+path+" "+tmpdir))
-	c.Assert(err, checker.IsNil, check.Commentf("couldn't copy with unprivileged user: %s:%s", containerID, path))
+	result := icmd.RunCommand("su", "unprivilegeduser", "-c",
+		fmt.Sprintf("%s cp %s:%s %s", dockerBinary, containerID, cpTestName, tmpdir))
+	result.Assert(c, icmd.Expected{})
 }
 
 func (s *DockerSuite) TestCpSpecialFiles(c *check.C) {
@@ -519,7 +516,6 @@ func (s *DockerSuite) TestCpVolumePath(c *check.C) {
 }
 
 func (s *DockerSuite) TestCpToDot(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "echo lololol > /test")
 
 	containerID := strings.TrimSpace(out)
@@ -541,7 +537,6 @@ func (s *DockerSuite) TestCpToDot(c *check.C) {
 }
 
 func (s *DockerSuite) TestCpToStdout(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "echo lololol > /test")
 
 	containerID := strings.TrimSpace(out)

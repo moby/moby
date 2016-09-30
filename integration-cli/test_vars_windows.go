@@ -13,6 +13,3 @@ const (
 	// on `sleep` with a high duration.
 	defaultSleepImage = "busybox"
 )
-
-// TODO Windows: In TP5, decrease this sleep time, as performance will be better
-var defaultSleepCommand = []string{"sleep", "240"}

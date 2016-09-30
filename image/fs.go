@@ -12,18 +12,18 @@ import (
 	"github.com/docker/docker/pkg/ioutils"
 )
 
-// IDWalkFunc is function called by StoreBackend.Walk
-type IDWalkFunc func(id ID) error
+// DigestWalkFunc is function called by StoreBackend.Walk
+type DigestWalkFunc func(id digest.Digest) error
 
 // StoreBackend provides interface for image.Store persistence
 type StoreBackend interface {
-	Walk(f IDWalkFunc) error
-	Get(id ID) ([]byte, error)
-	Set(data []byte) (ID, error)
-	Delete(id ID) error
-	SetMetadata(id ID, key string, data []byte) error
-	GetMetadata(id ID, key string) ([]byte, error)
-	DeleteMetadata(id ID, key string) error
+	Walk(f DigestWalkFunc) error
+	Get(id digest.Digest) ([]byte, error)
+	Set(data []byte) (digest.Digest, error)
+	Delete(id digest.Digest) error
+	SetMetadata(id digest.Digest, key string, data []byte) error
+	GetMetadata(id digest.Digest, key string) ([]byte, error)
+	DeleteMetadata(id digest.Digest, key string) error
 }
 
 // fs implements StoreBackend using the filesystem.
@@ -55,18 +55,16 @@ func newFSStore(root string) (*fs, error) {
 	return s, nil
 }
 
-func (s *fs) contentFile(id ID) string {
-	dgst := digest.Digest(id)
+func (s *fs) contentFile(dgst digest.Digest) string {
 	return filepath.Join(s.root, contentDirName, string(dgst.Algorithm()), dgst.Hex())
 }
 
-func (s *fs) metadataDir(id ID) string {
-	dgst := digest.Digest(id)
+func (s *fs) metadataDir(dgst digest.Digest) string {
 	return filepath.Join(s.root, metadataDirName, string(dgst.Algorithm()), dgst.Hex())
 }
 
 // Walk calls the supplied callback for each image ID in the storage backend.
-func (s *fs) Walk(f IDWalkFunc) error {
+func (s *fs) Walk(f DigestWalkFunc) error {
 	// Only Canonical digest (sha256) is currently supported
 	s.RLock()
 	dir, err := ioutil.ReadDir(filepath.Join(s.root, contentDirName, string(digest.Canonical)))
@@ -80,37 +78,37 @@ func (s *fs) Walk(f IDWalkFunc) error {
 			logrus.Debugf("Skipping invalid digest %s: %s", dgst, err)
 			continue
 		}
-		if err := f(ID(dgst)); err != nil {
+		if err := f(dgst); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-// Get returns the content stored under a given ID.
-func (s *fs) Get(id ID) ([]byte, error) {
+// Get returns the content stored under a given digest.
+func (s *fs) Get(dgst digest.Digest) ([]byte, error) {
 	s.RLock()
 	defer s.RUnlock()
 
-	return s.get(id)
+	return s.get(dgst)
 }
 
-func (s *fs) get(id ID) ([]byte, error) {
-	content, err := ioutil.ReadFile(s.contentFile(id))
+func (s *fs) get(dgst digest.Digest) ([]byte, error) {
+	content, err := ioutil.ReadFile(s.contentFile(dgst))
 	if err != nil {
 		return nil, err
 	}
 
 	// todo: maybe optional
-	if ID(digest.FromBytes(content)) != id {
-		return nil, fmt.Errorf("failed to verify image: %v", id)
+	if digest.FromBytes(content) != dgst {
+		return nil, fmt.Errorf("failed to verify: %v", dgst)
 	}
 
 	return content, nil
 }
 
-// Set stores content under a given ID.
-func (s *fs) Set(data []byte) (ID, error) {
+// Set stores content by checksum.
+func (s *fs) Set(data []byte) (digest.Digest, error) {
 	s.Lock()
 	defer s.Unlock()
 
@@ -118,58 +116,58 @@ func (s *fs) Set(data []byte) (ID, error) {
 		return "", fmt.Errorf("Invalid empty data")
 	}
 
-	id := ID(digest.FromBytes(data))
-	if err := ioutils.AtomicWriteFile(s.contentFile(id), data, 0600); err != nil {
+	dgst := digest.FromBytes(data)
+	if err := ioutils.AtomicWriteFile(s.contentFile(dgst), data, 0600); err != nil {
 		return "", err
 	}
 
-	return id, nil
+	return dgst, nil
 }
 
-// Delete removes content and metadata files associated with the ID.
-func (s *fs) Delete(id ID) error {
+// Delete removes content and metadata files associated with the digest.
+func (s *fs) Delete(dgst digest.Digest) error {
 	s.Lock()
 	defer s.Unlock()
 
-	if err := os.RemoveAll(s.metadataDir(id)); err != nil {
+	if err := os.RemoveAll(s.metadataDir(dgst)); err != nil {
 		return err
 	}
-	if err := os.Remove(s.contentFile(id)); err != nil {
+	if err := os.Remove(s.contentFile(dgst)); err != nil {
 		return err
 	}
 	return nil
 }
 
 // SetMetadata sets metadata for a given ID. It fails if there's no base file.
-func (s *fs) SetMetadata(id ID, key string, data []byte) error {
+func (s *fs) SetMetadata(dgst digest.Digest, key string, data []byte) error {
 	s.Lock()
 	defer s.Unlock()
-	if _, err := s.get(id); err != nil {
+	if _, err := s.get(dgst); err != nil {
 		return err
 	}
 
-	baseDir := filepath.Join(s.metadataDir(id))
+	baseDir := filepath.Join(s.metadataDir(dgst))
 	if err := os.MkdirAll(baseDir, 0700); err != nil {
 		return err
 	}
-	return ioutils.AtomicWriteFile(filepath.Join(s.metadataDir(id), key), data, 0600)
+	return ioutils.AtomicWriteFile(filepath.Join(s.metadataDir(dgst), key), data, 0600)
 }
 
-// GetMetadata returns metadata for a given ID.
-func (s *fs) GetMetadata(id ID, key string) ([]byte, error) {
+// GetMetadata returns metadata for a given digest.
+func (s *fs) GetMetadata(dgst digest.Digest, key string) ([]byte, error) {
 	s.RLock()
 	defer s.RUnlock()
 
-	if _, err := s.get(id); err != nil {
+	if _, err := s.get(dgst); err != nil {
 		return nil, err
 	}
-	return ioutil.ReadFile(filepath.Join(s.metadataDir(id), key))
+	return ioutil.ReadFile(filepath.Join(s.metadataDir(dgst), key))
 }
 
-// DeleteMetadata removes the metadata associated with an ID.
-func (s *fs) DeleteMetadata(id ID, key string) error {
+// DeleteMetadata removes the metadata associated with a digest.
+func (s *fs) DeleteMetadata(dgst digest.Digest, key string) error {
 	s.Lock()
 	defer s.Unlock()
 
-	return os.RemoveAll(filepath.Join(s.metadataDir(id), key))
+	return os.RemoveAll(filepath.Join(s.metadataDir(dgst), key))
 }

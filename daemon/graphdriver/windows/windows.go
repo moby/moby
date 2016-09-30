@@ -5,8 +5,8 @@ package windows
 import (
 	"bufio"
 	"bytes"
-	"crypto/sha512"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -17,7 +17,6 @@ import (
 	"strings"
 	"sync"
 	"syscall"
-	"time"
 	"unsafe"
 
 	"github.com/Microsoft/go-winio"
@@ -31,12 +30,26 @@ import (
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/longpath"
 	"github.com/docker/docker/pkg/reexec"
-	"github.com/docker/docker/pkg/system"
-	"github.com/vbatts/tar-split/tar/storage"
+	"github.com/docker/go-units"
 )
 
 // filterDriver is an HCSShim driver type for the Windows Filter driver.
 const filterDriver = 1
+
+var (
+	vmcomputedll            = syscall.NewLazyDLL("vmcompute.dll")
+	hcsExpandSandboxSize    = vmcomputedll.NewProc("ExpandSandboxSize")
+	hcsSandboxSizeSupported = hcsExpandSandboxSize.Find() == nil
+
+	// mutatedFiles is a list of files that are mutated by the import process
+	// and must be backed up and restored.
+	mutatedFiles = map[string]string{
+		"UtilityVM/Files/EFI/Microsoft/Boot/BCD":      "bcd.bak",
+		"UtilityVM/Files/EFI/Microsoft/Boot/BCD.LOG":  "bcd.log.bak",
+		"UtilityVM/Files/EFI/Microsoft/Boot/BCD.LOG1": "bcd.log1.bak",
+		"UtilityVM/Files/EFI/Microsoft/Boot/BCD.LOG2": "bcd.log2.bak",
+	}
+)
 
 // init registers the windows graph drivers to the register.
 func init() {
@@ -62,13 +75,18 @@ type Driver struct {
 	cache   map[string]string
 }
 
-func isTP5OrOlder() bool {
-	return system.GetOSVersion().Build <= 14300
-}
-
 // InitFilter returns a new Windows storage filter driver.
 func InitFilter(home string, options []string, uidMaps, gidMaps []idtools.IDMap) (graphdriver.Driver, error) {
 	logrus.Debugf("WindowsGraphDriver InitFilter at %s", home)
+
+	fsType, err := getFileSystemType(string(home[0]))
+	if err != nil {
+		return nil, err
+	}
+	if strings.ToLower(fsType) == "refs" {
+		return nil, fmt.Errorf("%s is on an ReFS volume - ReFS volumes are not supported", home)
+	}
+
 	d := &Driver{
 		info: hcsshim.DriverInfo{
 			HomeDir: home,
@@ -78,6 +96,37 @@ func InitFilter(home string, options []string, uidMaps, gidMaps []idtools.IDMap)
 		ctr:   graphdriver.NewRefCounter(&checker{}),
 	}
 	return d, nil
+}
+
+// win32FromHresult is a helper function to get the win32 error code from an HRESULT
+func win32FromHresult(hr uintptr) uintptr {
+	if hr&0x1fff0000 == 0x00070000 {
+		return hr & 0xffff
+	}
+	return hr
+}
+
+// getFileSystemType obtains the type of a file system through GetVolumeInformation
+// https://msdn.microsoft.com/en-us/library/windows/desktop/aa364993(v=vs.85).aspx
+func getFileSystemType(drive string) (fsType string, hr error) {
+	var (
+		modkernel32              = syscall.NewLazyDLL("kernel32.dll")
+		procGetVolumeInformation = modkernel32.NewProc("GetVolumeInformationW")
+		buf                      = make([]uint16, 255)
+		size                     = syscall.MAX_PATH + 1
+	)
+	if len(drive) != 1 {
+		hr = errors.New("getFileSystemType must be called with a drive letter")
+		return
+	}
+	drive += `:\`
+	n := uintptr(unsafe.Pointer(nil))
+	r0, _, _ := syscall.Syscall9(procGetVolumeInformation.Addr(), 8, uintptr(unsafe.Pointer(syscall.StringToUTF16Ptr(drive))), n, n, n, n, n, uintptr(unsafe.Pointer(&buf[0])), uintptr(size), 0)
+	if int32(r0) < 0 {
+		hr = syscall.Errno(win32FromHresult(r0))
+	}
+	fsType = syscall.UTF16ToString(buf)
+	return
 }
 
 // String returns the string representation of a driver. This should match
@@ -118,10 +167,6 @@ func (d *Driver) Create(id, parent, mountLabel string, storageOpt map[string]str
 }
 
 func (d *Driver) create(id, parent, mountLabel string, readOnly bool, storageOpt map[string]string) error {
-	if len(storageOpt) != 0 {
-		return fmt.Errorf("--storage-opt is not supported for windows")
-	}
-
 	rPId, err := d.resolveID(parent)
 	if err != nil {
 		return err
@@ -158,31 +203,19 @@ func (d *Driver) create(id, parent, mountLabel string, readOnly bool, storageOpt
 			parentPath = layerChain[0]
 		}
 
-		if isTP5OrOlder() {
-			// Pre-create the layer directory, providing an ACL to give the Hyper-V Virtual Machines
-			// group access. This is necessary to ensure that Hyper-V containers can access the
-			// virtual machine data. This is not necessary post-TP5.
-			path, err := syscall.UTF16FromString(filepath.Join(d.info.HomeDir, id))
-			if err != nil {
-				return err
-			}
-			// Give system and administrators full control, and VMs read, write, and execute.
-			// Mark these ACEs as inherited.
-			sd, err := winio.SddlToSecurityDescriptor("D:(A;OICI;FA;;;SY)(A;OICI;FA;;;BA)(A;OICI;FRFWFX;;;S-1-5-83-0)")
-			if err != nil {
-				return err
-			}
-			err = syscall.CreateDirectory(&path[0], &syscall.SecurityAttributes{
-				Length:             uint32(unsafe.Sizeof(syscall.SecurityAttributes{})),
-				SecurityDescriptor: uintptr(unsafe.Pointer(&sd[0])),
-			})
-			if err != nil {
-				return err
-			}
-		}
-
 		if err := hcsshim.CreateSandboxLayer(d.info, id, parentPath, layerChain); err != nil {
 			return err
+		}
+
+		storageOptions, err := parseStorageOpt(storageOpt)
+		if err != nil {
+			return fmt.Errorf("Failed to parse storage options - %s", err)
+		}
+
+		if hcsSandboxSizeSupported {
+			if err := hcsshim.ExpandSandboxSize(d.info, id, storageOptions.size); err != nil {
+				return err
+			}
 		}
 	}
 
@@ -218,7 +251,7 @@ func (d *Driver) Remove(id string) error {
 	return hcsshim.DestroyLayer(d.info, rID)
 }
 
-// Get returns the rootfs path for the id. This will mount the dir at it's given path.
+// Get returns the rootfs path for the id. This will mount the dir at its given path.
 func (d *Driver) Get(id, mountLabel string) (string, error) {
 	logrus.Debugf("WindowsGraphDriver Get() id %s mountLabel %s", id, mountLabel)
 	var dir string
@@ -448,78 +481,6 @@ func (d *Driver) DiffSize(id, parent string) (size int64, err error) {
 	return archive.ChangesSize(layerFs, changes), nil
 }
 
-// CustomImageInfo is the object returned by the driver describing the base
-// image.
-type CustomImageInfo struct {
-	ID          string
-	Name        string
-	Version     string
-	Path        string
-	Size        int64
-	CreatedTime time.Time
-	OSVersion   string   `json:"-"`
-	OSFeatures  []string `json:"-"`
-}
-
-// GetCustomImageInfos returns the image infos for window specific
-// base images which should always be present.
-func (d *Driver) GetCustomImageInfos() ([]CustomImageInfo, error) {
-	strData, err := hcsshim.GetSharedBaseImages()
-	if err != nil {
-		return nil, fmt.Errorf("Failed to restore base images: %s", err)
-	}
-
-	type customImageInfoList struct {
-		Images []CustomImageInfo
-	}
-
-	var infoData customImageInfoList
-
-	if err = json.Unmarshal([]byte(strData), &infoData); err != nil {
-		err = fmt.Errorf("JSON unmarshal returned error=%s", err)
-		logrus.Error(err)
-		return nil, err
-	}
-
-	var images []CustomImageInfo
-
-	for _, imageData := range infoData.Images {
-		folderName := filepath.Base(imageData.Path)
-
-		// Use crypto hash of the foldername to generate a docker style id.
-		h := sha512.Sum384([]byte(folderName))
-		id := fmt.Sprintf("%x", h[:32])
-
-		if err := d.Create(id, "", "", nil); err != nil {
-			return nil, err
-		}
-		// Create the alternate ID file.
-		if err := d.setID(id, folderName); err != nil {
-			return nil, err
-		}
-
-		imageData.ID = id
-
-		// For now, hard code that all base images except nanoserver depend on win32k support
-		if imageData.Name != "NanoServer" {
-			imageData.OSFeatures = append(imageData.OSFeatures, "win32k")
-		}
-
-		versionData := strings.Split(imageData.Version, ".")
-		if len(versionData) != 4 {
-			logrus.Warnf("Could not parse Windows version %s", imageData.Version)
-		} else {
-			// Include just major.minor.build, skip the fourth version field, which does not influence
-			// OS compatibility.
-			imageData.OSVersion = strings.Join(versionData[:3], ".")
-		}
-
-		images = append(images, imageData)
-	}
-
-	return images, nil
-}
-
 // GetMetadata returns custom driver information.
 func (d *Driver) GetMetadata(id string) (map[string]string, error) {
 	m := make(map[string]string)
@@ -579,7 +540,48 @@ func (d *Driver) exportLayer(id string, parentLayerPaths []string) (archive.Arch
 	return archive, nil
 }
 
-func writeLayerFromTar(r archive.Reader, w hcsshim.LayerWriter) (int64, error) {
+// writeBackupStreamFromTarAndSaveMutatedFiles reads data from a tar stream and
+// writes it to a backup stream, and also saves any files that will be mutated
+// by the import layer process to a backup location.
+func writeBackupStreamFromTarAndSaveMutatedFiles(buf *bufio.Writer, w io.Writer, t *tar.Reader, hdr *tar.Header, root string) (nextHdr *tar.Header, err error) {
+	var bcdBackup *os.File
+	var bcdBackupWriter *winio.BackupFileWriter
+	if backupPath, ok := mutatedFiles[hdr.Name]; ok {
+		bcdBackup, err = os.Create(filepath.Join(root, backupPath))
+		if err != nil {
+			return nil, err
+		}
+		defer func() {
+			cerr := bcdBackup.Close()
+			if err == nil {
+				err = cerr
+			}
+		}()
+
+		bcdBackupWriter = winio.NewBackupFileWriter(bcdBackup, false)
+		defer func() {
+			cerr := bcdBackupWriter.Close()
+			if err == nil {
+				err = cerr
+			}
+		}()
+
+		buf.Reset(io.MultiWriter(w, bcdBackupWriter))
+	} else {
+		buf.Reset(w)
+	}
+
+	defer func() {
+		ferr := buf.Flush()
+		if err == nil {
+			err = ferr
+		}
+	}()
+
+	return backuptar.WriteBackupStreamFromTarFile(buf, t, hdr)
+}
+
+func writeLayerFromTar(r archive.Reader, w hcsshim.LayerWriter, root string) (int64, error) {
 	t := tar.NewReader(r)
 	hdr, err := t.Next()
 	totalSize := int64(0)
@@ -613,30 +615,7 @@ func writeLayerFromTar(r archive.Reader, w hcsshim.LayerWriter) (int64, error) {
 			if err != nil {
 				return 0, err
 			}
-			buf.Reset(w)
-
-			// Add the Hyper-V Virtual Machine group ACE to the security descriptor
-			// for TP5 so that Xenons can access all files. This is not necessary
-			// for post-TP5 builds.
-			if isTP5OrOlder() {
-				if sddl, ok := hdr.Winheaders["sd"]; ok {
-					var ace string
-					if hdr.Typeflag == tar.TypeDir {
-						ace = "(A;OICI;0x1200a9;;;S-1-5-83-0)"
-					} else {
-						ace = "(A;;0x1200a9;;;S-1-5-83-0)"
-					}
-					if hdr.Winheaders["sd"], ok = addAceToSddlDacl(sddl, ace); !ok {
-						logrus.Debugf("failed to add VM ACE to %s", sddl)
-					}
-				}
-			}
-
-			hdr, err = backuptar.WriteBackupStreamFromTarFile(buf, t, hdr)
-			ferr := buf.Flush()
-			if ferr != nil {
-				err = ferr
-			}
+			hdr, err = writeBackupStreamFromTarAndSaveMutatedFiles(buf, w, t, hdr, root)
 			totalSize += size
 		}
 	}
@@ -644,46 +623,6 @@ func writeLayerFromTar(r archive.Reader, w hcsshim.LayerWriter) (int64, error) {
 		return 0, err
 	}
 	return totalSize, nil
-}
-
-func addAceToSddlDacl(sddl, ace string) (string, bool) {
-	daclStart := strings.Index(sddl, "D:")
-	if daclStart < 0 {
-		return sddl, false
-	}
-
-	dacl := sddl[daclStart:]
-	daclEnd := strings.Index(dacl, "S:")
-	if daclEnd < 0 {
-		daclEnd = len(dacl)
-	}
-	dacl = dacl[:daclEnd]
-
-	if strings.Contains(dacl, ace) {
-		return sddl, true
-	}
-
-	i := 2
-	for i+1 < len(dacl) {
-		if dacl[i] != '(' {
-			return sddl, false
-		}
-
-		if dacl[i+1] == 'A' {
-			break
-		}
-
-		i += 2
-		for p := 1; i < len(dacl) && p > 0; i++ {
-			if dacl[i] == '(' {
-				p++
-			} else if dacl[i] == ')' {
-				p--
-			}
-		}
-	}
-
-	return sddl[:daclStart+i] + ace + sddl[daclStart+i:], true
 }
 
 // importLayer adds a new layer to the tag and graph store based on the given data.
@@ -727,7 +666,7 @@ func writeLayer() {
 			return err
 		}
 
-		size, err := writeLayerFromTar(os.Stdin, w)
+		size, err := writeLayerFromTar(os.Stdin, w, filepath.Join(home, id))
 		if err != nil {
 			return err
 		}
@@ -807,6 +746,10 @@ type fileGetCloserWithBackupPrivileges struct {
 }
 
 func (fg *fileGetCloserWithBackupPrivileges) Get(filename string) (io.ReadCloser, error) {
+	if backupPath, ok := mutatedFiles[filename]; ok {
+		return os.Open(filepath.Join(fg.path, backupPath))
+	}
+
 	var f *os.File
 	// Open the file while holding the Windows backup privilege. This ensures that the
 	// file can be opened even if the caller does not actually have access to it according
@@ -831,16 +774,6 @@ func (fg *fileGetCloserWithBackupPrivileges) Close() error {
 	return nil
 }
 
-type fileGetDestroyCloser struct {
-	storage.FileGetter
-	path string
-}
-
-func (f *fileGetDestroyCloser) Close() error {
-	// TODO: activate layers and release here?
-	return os.RemoveAll(f.path)
-}
-
 // DiffGetter returns a FileGetCloser that can read files from the directory that
 // contains files for the layer differences. Used for direct access for tar-split.
 func (d *Driver) DiffGetter(id string) (graphdriver.FileGetCloser, error) {
@@ -850,4 +783,28 @@ func (d *Driver) DiffGetter(id string) (graphdriver.FileGetCloser, error) {
 	}
 
 	return &fileGetCloserWithBackupPrivileges{d.dir(id)}, nil
+}
+
+type storageOptions struct {
+	size uint64
+}
+
+func parseStorageOpt(storageOpt map[string]string) (*storageOptions, error) {
+	options := storageOptions{}
+
+	// Read size to change the block device size per container.
+	for key, val := range storageOpt {
+		key := strings.ToLower(key)
+		switch key {
+		case "size":
+			size, err := units.RAMInBytes(val)
+			if err != nil {
+				return nil, err
+			}
+			options.size = uint64(size)
+		default:
+			return nil, fmt.Errorf("Unknown storage option: %s", key)
+		}
+	}
+	return &options, nil
 }

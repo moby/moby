@@ -11,14 +11,18 @@ parent = "smn_cli"
 
 # plugin ls (experimental)
 
-    Usage: docker plugin ls
+```markdown
+Usage:  docker plugin ls [OPTIONS]
 
-    List plugins
+List plugins
 
-      --help   Print usage
+Aliases:
+  ls, list
 
-    Aliases:
-      ls, list
+Options:
+      --help	   Print usage
+      --no-trunc   Don't truncate output
+```
 
 Lists all the plugins that are currently installed. You can install plugins
 using the [`docker plugin install`](plugin_install.md) command.
@@ -27,8 +31,9 @@ Example output:
 
 ```bash
 $ docker plugin ls
-NAME                	VERSION             ACTIVE
-tiborvass/no-remove	latest              true
+
+NAME                  TAG                 DESCRIPTION                ENABLED
+tiborvass/no-remove   latest              A test plugin for Docker   true
 ```
 
 ## Related information

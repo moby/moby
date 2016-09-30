@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"net"
 	"strings"
@@ -32,7 +33,11 @@ func (s *DockerSuite) TestInfoEnsureSucceeds(c *check.C) {
 		"Storage Driver:",
 		"Volume:",
 		"Network:",
-		"Security Options:",
+		"Live Restore Enabled:",
+	}
+
+	if daemonPlatform == "linux" {
+		stringsToCheck = append(stringsToCheck, "Security Options:")
 	}
 
 	if DaemonIsLinux.Condition() {
@@ -46,6 +51,17 @@ func (s *DockerSuite) TestInfoEnsureSucceeds(c *check.C) {
 	for _, linePrefix := range stringsToCheck {
 		c.Assert(out, checker.Contains, linePrefix, check.Commentf("couldn't find string %v in output", linePrefix))
 	}
+}
+
+// TestInfoFormat tests `docker info --format`
+func (s *DockerSuite) TestInfoFormat(c *check.C) {
+	out, status := dockerCmd(c, "info", "--format", "{{json .}}")
+	c.Assert(status, checker.Equals, 0)
+	var m map[string]interface{}
+	err := json.Unmarshal([]byte(out), &m)
+	c.Assert(err, checker.IsNil)
+	_, _, err = dockerCmdWithError("info", "--format", "{{.badString}}")
+	c.Assert(err, checker.NotNil)
 }
 
 // TestInfoDiscoveryBackend verifies that a daemon run with `--cluster-advertise` and
@@ -186,4 +202,20 @@ func (s *DockerSuite) TestInsecureRegistries(c *check.C) {
 	c.Assert(out, checker.Contains, "Insecure Registries:\n")
 	c.Assert(out, checker.Contains, fmt.Sprintf(" %s\n", registryHost))
 	c.Assert(out, checker.Contains, fmt.Sprintf(" %s\n", registryCIDR))
+}
+
+func (s *DockerDaemonSuite) TestRegistryMirrors(c *check.C) {
+	testRequires(c, SameHostDaemon, DaemonIsLinux)
+
+	registryMirror1 := "https://192.168.1.2"
+	registryMirror2 := "http://registry.mirror.com:5000"
+
+	err := s.d.Start("--registry-mirror="+registryMirror1, "--registry-mirror="+registryMirror2)
+	c.Assert(err, checker.IsNil)
+
+	out, err := s.d.Cmd("info")
+	c.Assert(err, checker.IsNil)
+	c.Assert(out, checker.Contains, "Registry Mirrors:\n")
+	c.Assert(out, checker.Contains, fmt.Sprintf(" %s", registryMirror1))
+	c.Assert(out, checker.Contains, fmt.Sprintf(" %s", registryMirror2))
 }

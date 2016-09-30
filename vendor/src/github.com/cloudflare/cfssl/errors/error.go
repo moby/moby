@@ -149,6 +149,8 @@ const (
 
 	// UnknownProfile indicates that the profile does not exist.
 	UnknownProfile // 54XX
+
+	UnmatchedWhitelist // 55xx
 )
 
 // The following are API client related errors, and should be
@@ -313,6 +315,8 @@ func New(category Category, reason Reason) *Error {
 			msg = "Policy violation request"
 		case UnknownProfile:
 			msg = "Unknown policy profile"
+		case UnmatchedWhitelist:
+			msg = "Request does not match policy whitelist"
 		default:
 			panic(fmt.Sprintf("Unsupported CFSSL error reason %d under category PolicyError.",
 				reason))

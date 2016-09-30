@@ -139,20 +139,21 @@ message Mount {
 
 		BIND = 0 [(gogoproto.enumvalue_customname) = "MountTypeBind"]; // Bind mount host dir
 		VOLUME = 1 [(gogoproto.enumvalue_customname) = "MountTypeVolume"];  // Remote storage volumes
+		TMPFS = 2 [(gogoproto.enumvalue_customname) = "MountTypeTmpfs"]; // Mount a tmpfs
 	}
 
 	// Type defines the nature of the mount.
 	Type type = 1;
 
-	// Source path to mount
+	// Source specifies the name of the mount. Depending on mount type, this
+	// may be a volume name or a host path, or even ignored.
 	string source = 2;
 
 	// Target path in container
 	string target = 3;
 
-	// Writable should be set to true if the mount should be writable from the
-	// container.
-	bool writable = 4;
+	// ReadOnly should be set to true if the mount should not be writable.
+	bool readonly = 4 [(gogoproto.customname) = "ReadOnly"];
 
 	// BindOptions specifies options that are specific to a bind mount.
 	message BindOptions {
@@ -174,8 +175,8 @@ message Mount {
 
 	// VolumeOptions contains parameters for mounting the volume.
 	message VolumeOptions {
-		// populate volume with data from target
-		bool populate = 1;
+		// nocopy prevents automatic copying of data to the volume with data from target
+		bool nocopy = 1 [(gogoproto.customname) = "NoCopy"];
 
 		// labels to apply to the volume if creating
 		map<string, string> labels = 2;
@@ -187,13 +188,57 @@ message Mount {
 		Driver driver_config = 3;
 	}
 
+	message TmpfsOptions {
+		// Size sets the size of the tmpfs, in bytes.
+		//
+		// This will be converted to an operating system specific value
+		// depending on the host. For example, on linux, it will be convered to
+		// use a 'k', 'm' or 'g' syntax. BSD, though not widely supported with
+		// docker, uses a straight byte value.
+		//
+		// Percentages are not supported.
+		int64 size_bytes = 1;
+
+		// Mode of the tmpfs upon creation
+		int32 mode = 2 [(gogoproto.customtype) = "os.FileMode", (gogoproto.nullable) = false];
+
+		// TODO(stevvooe): There are several more tmpfs flags, specified in the
+		// daemon, that are accepted. Only the most basic are added for now.
+		//
+		// From docker/docker/pkg/mount/flags.go:
+		//
+		// var validFlags = map[string]bool{
+		// 	"":          true,
+		// 	"size":      true, X
+		// 	"mode":      true, X
+		// 	"uid":       true,
+		// 	"gid":       true,
+		// 	"nr_inodes": true,
+		// 	"nr_blocks": true,
+		// 	"mpol":      true,
+		// }
+		//
+		// Some of these may be straightforward to add, but others, such as
+		// uid/gid have implications in a clustered system.
+	}
+
 	// Depending on type, one of bind_options or volumes_options will be set.
 
 	// BindOptions configures properties of a bind mount type.
+	//
+	// For mounts of type bind, the source must be an absolute host path.
 	BindOptions bind_options = 5;
 
 	// VolumeOptions configures the properties specific to a volume mount type.
+	//
+	// For mounts of type volume, the source will be used as the volume name.
 	VolumeOptions volume_options = 6;
+
+	// TmpfsOptions allows one to set options for mounting a temporary
+	// filesystem.
+	//
+	// The source field will be ignored when using mounts of type tmpfs.
+	TmpfsOptions tmpfs_options = 7;
 
 	// TODO(stevvooe): It be better to use a oneof field above, although the
 	// type is enough to make the decision, while being primary to the
@@ -232,6 +277,88 @@ message UpdateConfig {
 
 	// Amount of time between updates.
 	Duration delay = 2 [(gogoproto.nullable) = false];
+
+	enum FailureAction {
+		PAUSE = 0;
+		CONTINUE = 1;
+		// NOTE: Automated rollback triggered as a failure action is an
+		// experimental feature that is not yet exposed to the end
+		// user. Currently, rollbacks must be initiated manually
+		// through the API by setting Spec to PreviousSpec. We may
+		// decide to expose automatic rollback in the future based on
+		// user feedback, or remove this feature otherwise.
+		ROLLBACK = 2;
+	}
+
+	// FailureAction is the action to take when an update failures.
+	FailureAction failure_action = 3;
+
+	// Monitor indicates how long to monitor a task for failure after it is
+	// created. If the task fails by ending up in one of the states
+	// REJECTED, COMPLETED, or FAILED, within Monitor from its creation,
+	// this counts as a failure. If it fails after Monitor, it does not
+	// count as a failure. If Monitor is unspecified, a default value will
+	// be used.
+	Duration monitor = 4;
+
+	// MaxFailureRatio is the fraction of tasks that may fail during
+	// an update before the failure action is invoked. Any task created by
+	// the current update which ends up in one of the states REJECTED,
+	// COMPLETED or FAILED within Monitor from its creation counts as a
+	// failure. The number of failures is divided by the number of tasks
+	// being updated, and if this fraction is greater than
+	// MaxFailureRatio, the failure action is invoked.
+	//
+	// If the failure action is CONTINUE, there is no effect.
+	// If the failure action is PAUSE, no more tasks will be updated until
+	// another update is started.
+	// If the failure action is ROLLBACK, the orchestrator will attempt to
+	// roll back to the previous service spec. If the MaxFailureRatio
+	// threshold is hit during the rollback, the rollback will pause.
+	//
+	// TODO(aaronl): Should there be a separate failure threshold for
+	// rollbacks? Should there be a failure action for rollbacks (to allow
+	// them to do something other than pause when the rollback encounters
+	// errors)?
+	float max_failure_ratio = 5;
+}
+
+// UpdateStatus is the status of an update in progress.
+message UpdateStatus {
+	enum UpdateState {
+		UNKNOWN = 0;
+		UPDATING = 1;
+		PAUSED = 2;
+		COMPLETED = 3;
+		ROLLBACK_STARTED = 4;
+		ROLLBACK_PAUSED = 5; // if a rollback fails
+		ROLLBACK_COMPLETED = 6;
+	}
+
+	// State is the state of this update. It indicates whether the
+	// update is in progress, completed, paused, rolling back, or
+	// finished rolling back.
+	UpdateState state = 1;
+
+	// StartedAt is the time at which the update was started.
+	Timestamp started_at = 2;
+
+	// CompletedAt is the time at which the update completed successfully,
+	// paused, or finished rolling back.
+	Timestamp completed_at = 3;
+
+	// TODO(aaronl): Consider adding a timestamp showing when the most
+	// recent task update took place. Currently, this is nontrivial
+	// because each service update kicks off a replacement update, so
+	// updating the service object with a timestamp at every step along
+	// the rolling update would cause the rolling update to be constantly
+	// restarted.
+
+	// Message explains how the update got into its current state. For
+	// example, if the update is paused, it will explain what is preventing
+	// the update from proceeding (typically the failure of a task to start up
+	// when OnFailure is PAUSE).
+	string message = 4;
 }
 
 // TaskState enumerates the states that a task progresses through within an
@@ -312,6 +439,23 @@ message TaskStatus {
 	oneof runtime_status {
 		ContainerStatus container = 5;
 	}
+}
+
+// NetworkAttachmentConfig specifies how a service should be attached to a particular network.
+//
+// For now, this is a simple struct, but this can include future information
+// instructing Swarm on how this service should work on the particular
+// network.
+message NetworkAttachmentConfig {
+	// Target specifies the target network for attachment. This value may be a
+	// network name or identifier. Only identifiers are supported at this time.
+	string target = 1;
+	// Aliases specifies a list of discoverable alternate names for the service on this Target.
+	repeated string aliases = 2;
+	// Addresses specifies a list of ipv4 and ipv6 addresses
+	// preferred. If these addresses are not available then the
+	// attachment might fail.
+	repeated string addresses = 3;
 }
 
 // IPAMConfig specifies parameters for IP Address Management.
@@ -427,10 +571,10 @@ message IssuanceStatus {
 
 message AcceptancePolicy {
 	message RoleAdmissionPolicy {
-		message HashedSecret {
-			// The actual hashed content
+		message Secret {
+			// The actual content (possibly hashed)
 			bytes data = 1;
-			// The type of hash we are using
+			// The type of hash we are using, or "plaintext"
 			string alg = 2;
 		}
 
@@ -440,12 +584,11 @@ message AcceptancePolicy {
 		bool autoaccept = 2;
 		// Secret represents a user-provided string that is necessary for new
 		// nodes to join the cluster
-		HashedSecret secret = 3;
+		Secret secret = 3;
 	}
 
 	repeated RoleAdmissionPolicy policies = 1;
 }
-
 
 message ExternalCA {
 	enum CAProtocol {
@@ -477,6 +620,17 @@ message OrchestrationConfig {
 	// TaskHistoryRetentionLimit is the number of historic tasks to keep per instance or
 	// node. If negative, never remove completed or failed tasks.
 	int64 task_history_retention_limit = 1;
+
+}
+
+// TaskDefaults specifies default values for task creation.
+message TaskDefaults {
+	// LogDriver specifies the log driver to use for the cluster if not
+	// specified for each task.
+	//
+	// If this is changed, only new tasks will pick up the new log driver.
+	// Existing tasks will continue to use the previous default until rescheduled.
+	Driver log_driver = 1;
 }
 
 // DispatcherConfig defines cluster-level dispatcher settings.
@@ -510,6 +664,15 @@ message Placement {
 	repeated string constraints = 1;
 }
 
+// JoinToken contains the join tokens for workers and managers.
+message JoinTokens {
+	// Worker is the join token workers may use to join the swarm.
+	string worker = 1;
+
+	// Manager is the join token workers may use to join the swarm.
+	string manager = 2;
+}
+
 message RootCA {
 	// CAKey is the root CA private key.
 	bytes ca_key = 1 [(gogoproto.customname) = "CAKey"];
@@ -519,6 +682,9 @@ message RootCA {
 
 	// CACertHash is the digest of the CA Certificate.
 	string ca_cert_hash = 3 [(gogoproto.customname) = "CACertHash"];
+
+	// JoinTokens contains the join tokens for workers and managers.
+	JoinTokens join_tokens = 4 [(gogoproto.nullable) = false];
 }
 
 
@@ -580,4 +746,33 @@ message ManagerStatus {
 
 	// Reachability specifies whether this node is reachable.
 	RaftMemberStatus.Reachability reachability = 4;
+}
+
+// SecretReference is the linkage between a service and a secret that it uses.
+message SecretReference {
+	// SecretID represents the ID of the specific Secret that we're
+	// referencing. This identifier exists so that SecretReferences don't leak
+	// any information about the secret contents.
+	string secret_id = 1 [(gogoproto.customname) = "SecretID"];
+
+	// Mode specifies how this secret should be exposed to the task.
+	enum Mode {
+		// SYSTEM means that it is not exposed inside to a task at all, but
+		// only available via direct access, usually at the agent-level
+		SYSTEM = 0;
+		// FILE means that it will be exposed to the task as a file
+		FILE = 1;
+		// ENV means that it will be exposed to the task as an environment variable
+		ENV = 2;
+	}
+
+	// Mode is the way the secret should be presented.
+	Mode mode = 2;
+
+	// Target is the name by which the image accesses the secret.
+	string target = 3;
+
+	// SecretName is the name of the secret that this references, but this is just provided for
+	// lookup/display purposes.  The secret in the reference will be identified by its ID.
+	string secret_name = 4;
 }

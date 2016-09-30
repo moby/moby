@@ -93,8 +93,8 @@ too.
 **Option 5** creates a custom network of APT proxy server and Debian-based containers:
 
     $ docker network create mynetwork
-    $ docker run -d -p 3142:3142 --net=mynetwork --name test_apt_cacher_ng eg_apt_cacher_ng
-    $ docker run --rm -it --net=mynetwork -e http_proxy=http://test_apt_cacher_ng:3142/ debian bash
+    $ docker run -d -p 3142:3142 --network=mynetwork --name test_apt_cacher_ng eg_apt_cacher_ng
+    $ docker run --rm -it --network=mynetwork -e http_proxy=http://test_apt_cacher_ng:3142/ debian bash
 
 Apt-cacher-ng has some tools that allow you to manage the repository,
 and they can be used by leveraging the `VOLUME`
@@ -102,7 +102,7 @@ instruction, and the image we built to run the service:
 
     $ docker run --rm -t -i --volumes-from test_apt_cacher_ng eg_apt_cacher_ng bash
 
-    $$ /usr/lib/apt-cacher-ng/distkill.pl
+    root@f38c87f2a42d:/# /usr/lib/apt-cacher-ng/distkill.pl
     Scanning /var/cache/apt-cacher-ng, please wait...
     Found distributions:
     bla, taggedcount: 0

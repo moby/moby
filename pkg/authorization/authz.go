@@ -119,7 +119,7 @@ func (ctx *Ctx) AuthZResponse(rm ResponseModifier, r *http.Request) error {
 	return nil
 }
 
-// drainBody dump the body (if it's length is less than 1MB) without modifying the request state
+// drainBody dump the body (if its length is less than 1MB) without modifying the request state
 func drainBody(body io.ReadCloser) ([]byte, io.ReadCloser, error) {
 	bufReader := bufio.NewReaderSize(body, maxBodySize)
 	newBody := ioutils.NewReadCloserWrapper(bufReader, func() error { return body.Close() })

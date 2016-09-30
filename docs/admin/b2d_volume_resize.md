@@ -9,7 +9,7 @@ parent = "smn_win_osx"
 +++
 <![end-metadata]-->
 
-# Getting “no space left on device” errors with Boot2Docker?
+# Getting "no space left on device" errors with Boot2Docker?
 
 If you're using Boot2Docker with a large number of images, or the images you're
 working with are very large, your pulls might start failing with "no space left
@@ -73,7 +73,7 @@ The `boot2docker` command reads its configuration from the `$BOOT2DOCKER_PROFILE
 
 This solution increases the volume size by first cloning it, then resizing it
 using a disk partitioning tool. We recommend
-[GParted](http://gparted.sourceforge.net/download.php/index.php). The tool comes
+[GParted](https://sourceforge.net/projects/gparted/files/). The tool comes
 as a bootable ISO, is a free download, and works well with VirtualBox.
 
 1. Stop Boot2Docker
@@ -102,7 +102,7 @@ as a bootable ISO, is a free download, and works well with VirtualBox.
 
 5. Download a disk partitioning tool ISO
 
-  To resize the volume, we'll use [GParted](http://gparted.sourceforge.net/download.php/).
+  To resize the volume, we'll use [GParted](https://sourceforge.net/projects/gparted/files/).
   Once you've downloaded the tool, add the ISO to the Boot2Docker VM IDE bus.
   You might need to create the bus before you can add the ISO.
 

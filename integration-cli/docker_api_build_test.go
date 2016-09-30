@@ -13,13 +13,20 @@ import (
 
 func (s *DockerSuite) TestBuildApiDockerFileRemote(c *check.C) {
 	testRequires(c, NotUserNamespace)
-	testRequires(c, DaemonIsLinux)
-	server, err := fakeStorage(map[string]string{
-		"testD": `FROM busybox
+	var testD string
+	if daemonPlatform == "windows" {
+		testD = `FROM busybox
 COPY * /tmp/
 RUN find / -name ba*
-RUN find /tmp/`,
-	})
+RUN find /tmp/`
+	} else {
+		// -xdev is required because sysfs can cause EPERM
+		testD = `FROM busybox
+COPY * /tmp/
+RUN find / -xdev -name ba*
+RUN find /tmp/`
+	}
+	server, err := fakeStorage(map[string]string{"testD": testD})
 	c.Assert(err, checker.IsNil)
 	defer server.Close()
 
@@ -38,7 +45,6 @@ RUN find /tmp/`,
 }
 
 func (s *DockerSuite) TestBuildApiRemoteTarballContext(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	buffer := new(bytes.Buffer)
 	tw := tar.NewWriter(buffer)
 	defer tw.Close()
@@ -72,7 +78,6 @@ func (s *DockerSuite) TestBuildApiRemoteTarballContext(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildApiRemoteTarballContextWithCustomDockerfile(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	buffer := new(bytes.Buffer)
 	tw := tar.NewWriter(buffer)
 	defer tw.Close()
@@ -128,7 +133,6 @@ RUN echo 'right'
 }
 
 func (s *DockerSuite) TestBuildApiLowerDockerfile(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	git, err := newFakeGit("repo", map[string]string{
 		"dockerfile": `FROM busybox
 RUN echo from dockerfile`,
@@ -148,7 +152,6 @@ RUN echo from dockerfile`,
 }
 
 func (s *DockerSuite) TestBuildApiBuildGitWithF(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	git, err := newFakeGit("repo", map[string]string{
 		"baz": `FROM busybox
 RUN echo from baz`,

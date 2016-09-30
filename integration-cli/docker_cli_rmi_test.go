@@ -134,7 +134,7 @@ func (s *DockerSuite) TestRmiImgIDForce(c *check.C) {
 	// rmi tagged in multiple repos should have failed without force
 	c.Assert(err, checker.NotNil)
 	// rmi tagged in multiple repos should have failed without force
-	c.Assert(out, checker.Contains, "(must be forced) - image is referenced in one or more repositories", check.Commentf("out: %s; err: %v;", out, err))
+	c.Assert(out, checker.Contains, "(must be forced) - image is referenced in multiple repositories", check.Commentf("out: %s; err: %v;", out, err))
 
 	dockerCmd(c, "rmi", "-f", imgID)
 	{
@@ -308,8 +308,13 @@ RUN echo 2 #layer2
 }
 
 func (*DockerSuite) TestRmiParentImageFail(c *check.C) {
-	parent := inspectField(c, "busybox", "Parent")
-	out, _, err := dockerCmdWithError("rmi", parent)
+	_, err := buildImage("test", `
+	FROM busybox
+	RUN echo hello`, false)
+	c.Assert(err, checker.IsNil)
+
+	id := inspectField(c, "busybox", "ID")
+	out, _, err := dockerCmdWithError("rmi", id)
 	c.Assert(err, check.NotNil)
 	if !strings.Contains(out, "image has dependent child images") {
 		c.Fatalf("rmi should have failed because it's a parent image, got %s", out)

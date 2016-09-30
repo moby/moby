@@ -1,10 +1,10 @@
 package daemon
 
 import (
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/exec"
-	"github.com/docker/engine-api/types"
 )
 
 // This sets platform-specific fields
@@ -16,6 +16,7 @@ func addMountPoints(container *container.Container) []types.MountPoint {
 	mountPoints := make([]types.MountPoint, 0, len(container.MountPoints))
 	for _, m := range container.MountPoints {
 		mountPoints = append(mountPoints, types.MountPoint{
+			Type:        m.Type,
 			Name:        m.Name,
 			Source:      m.Path(),
 			Destination: m.Destination,

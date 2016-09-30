@@ -3,9 +3,11 @@ package signal
 import (
 	"os"
 	gosignal "os/signal"
+	"path/filepath"
 	"runtime"
 	"sync/atomic"
 	"syscall"
+	"time"
 
 	"github.com/Sirupsen/logrus"
 )
@@ -52,7 +54,7 @@ func Trap(cleanup func()) {
 						logrus.Info("Forcing docker daemon shutdown without cleanup; 3 interrupts received")
 					}
 				case syscall.SIGQUIT:
-					DumpStacks()
+					DumpStacks("")
 					logrus.Info("Forcing docker daemon shutdown without cleanup on SIGQUIT")
 				}
 				//for the SIGINT/TERM, and SIGQUIT non-clean shutdown case, exit with 128 + signal #
@@ -63,7 +65,7 @@ func Trap(cleanup func()) {
 }
 
 // DumpStacks dumps the runtime stack.
-func DumpStacks() {
+func DumpStacks(root string) {
 	var (
 		buf       []byte
 		stackSize int
@@ -77,5 +79,30 @@ func DumpStacks() {
 	buf = buf[:stackSize]
 	// Note that if the daemon is started with a less-verbose log-level than "info" (the default), the goroutine
 	// traces won't show up in the log.
-	logrus.Infof("=== BEGIN goroutine stack dump ===\n%s\n=== END goroutine stack dump ===", buf)
+	if root == "" {
+		logrus.Infof("=== BEGIN goroutine stack dump ===\n%s\n=== END goroutine stack dump ===", buf)
+	} else {
+		// Dumps the stacks to a file in the root directory of the daemon
+		// On Windows, this overcomes two issues - one being that if the stack is too big, it doesn't
+		// get written to the event log when the Windows daemon is running as a service.
+		// Second, using logrus, the tabs and new-lines end up getting written as literal
+		// \t and \n's, meaning you need to use something like notepad++ to convert the
+		// output into something readable using 'type' from a command line or notepad/notepad++ etc.
+		path := filepath.Join(root, "goroutine-stacks.log")
+		f, err := os.OpenFile(path, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0666)
+		if err != nil {
+			logrus.Warnf("Could not open %s to write the goroutine stacks: %v", path, err)
+			return
+		}
+		defer f.Close()
+		f.WriteString("=== BEGIN goroutine stack dump ===\n")
+		f.WriteString(time.Now().String() + "\n")
+		if _, err := f.Write(buf); err != nil {
+			logrus.Warnf("Could not write goroutine stacks to %s: %v", path, err)
+			return
+		}
+		f.WriteString("=== END goroutine stack dump ===\n")
+		f.Sync()
+		logrus.Infof("goroutine stacks written to %s", path)
+	}
 }

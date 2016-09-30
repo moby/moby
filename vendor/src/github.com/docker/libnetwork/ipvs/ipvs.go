@@ -94,7 +94,7 @@ func (i *Handle) DelService(s *Service) error {
 	return i.doCmd(s, nil, ipvsCmdDelService)
 }
 
-// NewDestination creates an new real server in the passed ipvs
+// NewDestination creates a new real server in the passed ipvs
 // service which should already be existing in the passed handle.
 func (i *Handle) NewDestination(s *Service, d *Destination) error {
 	return i.doCmd(s, d, ipvsCmdNewDest)

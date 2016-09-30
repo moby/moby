@@ -73,14 +73,12 @@ class TestSplunkLoggingDriver(object):
         rm.wait()
         # Check results in Splunk
         splunk = Client.connect(host="localhost", port=8089, username="admin", password="changeme")
-        query = "search earliest=-40s"
+        query = 'search earliest=-90s | spath tag | search tag="*%s*"' % hello_world[0:12]
         results = run_search(splunk, query)
         # Hello world image will print 21 lines to STDOUT, so 21 events should be captured
         assert len(results) == 21
         # "Host" field should be consistent with docker container ID
         assert results[0]["host"] == os.uname()[1]
-        # Assert "tag" field in event corresponds to hello-world container ID
-        assert json.loads(results[0]["_raw"])["tag"] == hello_world[0:12]
 
     def test_logged_content(self):
         '''
@@ -95,16 +93,18 @@ class TestSplunkLoggingDriver(object):
         rm.wait()
         # Check results in Splunk
         splunk = Client.connect(host="localhost", port=8089, username="admin", password="changeme")
-        query = "search earliest=-40s | stats values(line) as msg by _time"
-        results = run_search(splunk, query)      
+        query = 'search earliest=-90s | spath tag | search tag="*%s*" | stats values(line) as msg by _time | mvexpand msg' % hello_world[0:12]
+        results = run_search(splunk, query)
         msg = ""
         for res in results:
             msg += res["msg"] + "\n"
         # Check that the message lines print correctly
-        assert "Hello from Docker!\nThis message shows that your installation appears to be working correctly." in msg
+        assert "Hello from Docker!" in msg
+        assert "This message shows that your installation appears to be working correctly." in msg
         assert "1. The Docker client contacted the Docker daemon." in msg
         assert '2. The Docker daemon pulled the "hello-world" image from the Docker Hub.' in msg
-        assert "3. The Docker daemon created a new container from that image which runs the\n    executable that produces the output you are currently reading." in msg
+        assert "3. The Docker daemon created a new container from that image which runs the" in msg
+        assert "executable that produces the output you are currently reading." in msg
         assert "$ docker run -it ubuntu bash" in msg
         assert "https://hub.docker.com" in msg
 
@@ -145,7 +145,7 @@ class TestSplunkLoggingDriver(object):
         rm.wait()
         # Check results in Splunk
         splunk = Client.connect(host="localhost", port=8089, username="admin", password="changeme")
-        query = 'search earliest=-45s | spath tag | search tag="nginx/%s/%s"' % ('jerry_seinfeld', nginx[0:12])
+        query = 'search earliest=-90s | spath tag | search tag="nginx/%s/%s"' % ('jerry_seinfeld', nginx[0:12])
         results = run_search(splunk, query)
         # The nginx image should have 2 events, one for stdout and one for stderr
         assert len(results) == 2
@@ -176,7 +176,7 @@ class TestSplunkLoggingDriver(object):
         rm.wait()
         # Check results in Splunk
         splunk = Client.connect(host="localhost", port=8089, username="admin", password="changeme")
-        query = "search earliest=-45s | spath tag | search tag=%s" % nginx[0:12]
+        query = "search earliest=-90s | spath tag | search tag=%s" % nginx[0:12]
         results = run_search(splunk, query)
         # Only 1 event should be logged
         assert len(results) == 1
@@ -202,7 +202,7 @@ class TestSplunkLoggingDriver(object):
         rm.wait()
         # Check results in Splunk
         splunk = Client.connect(host="localhost", port=8089, username="admin", password="changeme")
-        query = "search earliest=-45s | spath tag | search tag=%s" % nginx[0:12]
+        query = "search earliest=-90s | spath tag | search tag=%s" % nginx[0:12]
         results = run_search(splunk, query)
         # Only 1 event should be logged
         assert len(results) == 1
@@ -239,7 +239,7 @@ class TestSplunkLoggingDriver(object):
         rm.wait()
         # Check results in Splunk
         splunk = Client.connect(host="localhost", port=8089, username="admin", password="changeme")
-        query = "search index=dockertest earliest=-45s | spath tag | search tag=%s" % nginx[0:12]
+        query = "search index=dockertest earliest=-90s | spath tag | search tag=%s" % nginx[0:12]
         results = run_search(splunk, query)
         # Only 1 event should be logged
         assert len(results) == 1
@@ -267,7 +267,7 @@ class TestSplunkLoggingDriver(object):
         rm.wait()
         # Check results in Splunk
         splunk = Client.connect(host="localhost", port=8089, username="admin", password="changeme")
-        query = "search earliest=-45s | spath tag | search tag=%s" % nginx[0:12]
+        query = "search earliest=-90s | spath tag | search tag=%s" % nginx[0:12]
         results = run_search(splunk, query)
         # Only 1 event should be logged
         assert len(results) == 1
@@ -297,7 +297,7 @@ class TestSplunkLoggingDriver(object):
         rm.wait()
         # Check results in Splunk
         splunk = Client.connect(host="localhost", port=8089, username="admin", password="changeme")
-        query = "search earliest=-45s | spath tag | search tag=%s" % nginx[0:12]
+        query = "search earliest=-90s | spath tag | search tag=%s" % nginx[0:12]
         results = run_search(splunk, query)
         # Only 1 event should be logged
         assert len(results) == 1
@@ -326,7 +326,7 @@ class TestSplunkLoggingDriver(object):
         rm.wait()
         # Check results in Splunk
         splunk = Client.connect(host="localhost", port=8089, username="admin", password="changeme")
-        query = "search earliest=-45s | spath tag | search tag=%s" % nginx[0:12]
+        query = "search earliest=-90s | spath tag | search tag=%s" % nginx[0:12]
         results = run_search(splunk, query)
         # Only 1 event should be logged
         assert len(results) == 1
@@ -341,3 +341,118 @@ class TestSplunkLoggingDriver(object):
         line = json.loads(results[0]["_raw"])["line"]
         assert " 200 " in line
         assert "/?labelsandenvs" in line
+
+    def test_verify_false_connection(self):
+        '''
+        Run a hello-world image using the Splunk logging driver with splunk-verify-connection as set to "false".
+        The splunk-url is purposely set incorrectly to "https://newman:8088" to make see if the logging 
+        driver will not error out.
+        '''
+        try:
+            # Run hello-world container with Splunk logging driver enabled and splunk-verifyconnection==false
+            run_hw = subprocess.check_output("docker run --log-driver=splunk --log-opt splunk-verify-connection=false --log-opt splunk-token=SPLUNK-LOGGER-DOCKER --log-opt splunk-url=https://newman:8088 --log-opt splunk-insecureskipverify=true -d hello-world", shell=True)
+        except subprocess.CalledProcessError:
+            assert False
+        assert True
+
+    def test_verify_true_connection(self):
+        '''
+        Run a hello-world image using the Splunk logging driver with splunk-verify-connection as set to "true".
+        The splunk-url is purposely set incorrectly to "https://newman:8088" to make see if the logging 
+        driver will error out.
+        '''
+        try:
+            # Run hello-world container with Splunk logging driver enabled and splunk-verifyconnection==true
+            run_hw = subprocess.check_output("docker run --log-driver=splunk --log-opt splunk-verify-connection=true --log-opt splunk-token=SPLUNK-LOGGER-DOCKER --log-opt splunk-url=https://newman:8088 --log-opt splunk-insecureskipverify=true -d hello-world", stderr=subprocess.STDOUT, shell=True)
+        except subprocess.CalledProcessError, cpe:
+            assert "Failed to initialize logging driver" in cpe.output
+
+    def test_format_inline(self):
+        '''
+        Run a tutum/curl image (Ubuntu w/ curl installed) with the Splunk logging driver enabled. Then send a curl
+        request to curl https://api.twitter.com/1.1/search/tweets.json?q=%%40SeinfeldToday to get a JSON response, 
+        but log it as format=inline.
+        '''
+        # Run tutum-curl container with Splunk logging driver enabled and splunk-format=inline
+        run_curl = subprocess.check_output('docker run --log-driver=splunk --log-opt splunk-format=inline --log-opt splunk-token=SPLUNK-LOGGER-DOCKER --log-opt splunk-url=https://%s:8088 --log-opt splunk-insecureskipverify=true -d tutum/curl curl -s curl https://api.twitter.com/1.1/search/tweets.json?q=%%40SeinfeldToday' % (os.uname()[1]), shell=True)
+        # Sleep to allow Splunk to index the data
+        time.sleep(10)
+        print run_curl
+        # Check results in Splunk
+        splunk = Client.connect(host="localhost", port=8089, username="admin", password="changeme")
+        query = 'search "*%s*"' % run_curl[0:12]
+        results = run_search(splunk, query)
+        # Check response
+        assert len(results) == 1
+        # Check line message
+        line = json.loads(results[0]["_raw"])["line"]
+        assert type(line) == unicode
+        assert line == "{\"errors\":[{\"code\":215,\"message\":\"Bad Authentication data.\"}]}"
+
+    def test_format_json(self):
+        '''
+        Run a tutum/curl image (Ubuntu w/ curl installed) with the Splunk logging driver enabled. Then send a curl
+        request to curl https://api.twitter.com/1.1/search/tweets.json?q=%%40SeinfeldToday to get a JSON response, 
+        but log it as format=json.
+        '''
+        # Run tutum-curl container with Splunk logging driver enabled and splunk-format=json
+        run_curl = subprocess.check_output('docker run --log-driver=splunk --log-opt splunk-format=json --log-opt splunk-token=SPLUNK-LOGGER-DOCKER --log-opt splunk-url=https://%s:8088 --log-opt splunk-insecureskipverify=true -d tutum/curl curl -s curl https://api.twitter.com/1.1/search/tweets.json?q=%%40SeinfeldToday' % (os.uname()[1]), shell=True)
+        # Sleep to allow Splunk to index the data
+        time.sleep(25)
+        # Check results in Splunk
+        splunk = Client.connect(host="localhost", port=8089, username="admin", password="changeme")
+        query = 'search "*%s*"' % run_curl[0:12]
+        results = run_search(splunk, query)
+        # Check response
+        assert len(results) == 1
+        # Check line message
+        line = json.loads(results[0]["_raw"])["line"]
+        assert type(line) == dict
+        assert line == {"errors":[{"code":215,"message":"Bad Authentication data."}]}
+
+    def test_format_raw(self):
+        '''
+        Run a tutum/curl image (Ubuntu w/ curl installed) with the Splunk logging driver enabled. Then send a curl
+        request to curl https://api.twitter.com/1.1/search/tweets.json?q=%%40SeinfeldToday to get a JSON response, 
+        but log it as format=raw.
+        '''
+        # Run tutum-curl container with Splunk logging driver enabled and splunk-format=raw
+        run_curl = subprocess.check_output('docker run --log-driver=splunk --log-opt splunk-format=raw --log-opt splunk-token=SPLUNK-LOGGER-DOCKER --log-opt splunk-url=https://%s:8088 --log-opt splunk-insecureskipverify=true -d tutum/curl curl -s curl https://api.twitter.com/1.1/search/tweets.json?q=%%40SeinfeldToday' % (os.uname()[1]), shell=True)
+        # Sleep to allow Splunk to index the data
+        time.sleep(25)
+        # Check results in Splunk
+        splunk = Client.connect(host="localhost", port=8089, username="admin", password="changeme")
+        query = 'search "*%s*"' % run_curl[0:12]
+        results = run_search(splunk, query)
+        # Check response
+        assert len(results) == 1
+        # Check line message
+        line = results[0]["_raw"]
+        assert type(line) == str
+        assert line.startswith(run_curl[0:12])
+        assert "{\"errors\":[{\"code\":215,\"message\":\"Bad Authentication data.\"}]}" in line
+
+    def test_raw_labels_and_envs(self):
+        '''
+        Run a tutum/curl image (Ubuntu w/ curl installed) with the Splunk logging driver enabled. Then send a curl
+        request to curl https://api.twitter.com/1.1/search/tweets.json?q=%%40SeinfeldToday to get a JSON response, 
+        but log it as format=raw.
+        '''
+        # Run tutum-curl container with Splunk logging driver enabled and splunk-format=raw
+        run_curl = subprocess.check_output('docker run --name elaine --env "test=foo" --env "newenv=1" --label test=bar --label newlabel=two --log-driver=splunk --log-opt tag="{{.Name}}@{{.ID}}" --log-opt labels=test,newlabel --log-opt env=test,newenv --log-opt splunk-format=raw --log-opt splunk-token=SPLUNK-LOGGER-DOCKER --log-opt splunk-url=https://%s:8088 --log-opt splunk-insecureskipverify=true -d tutum/curl curl -s curl https://api.twitter.com/1.1/search/tweets.json?q=%%40SeinfeldToday' % (os.uname()[1]), shell=True)
+        # Sleep to allow Splunk to index the data
+        time.sleep(25)
+        # Check results in Splunk
+        splunk = Client.connect(host="localhost", port=8089, username="admin", password="changeme")
+        query = 'search "*%s*"' % run_curl[0:12]
+        results = run_search(splunk, query)
+        # Check response
+        assert len(results) == 1
+        # Check line message
+        line = results[0]["_raw"]
+        assert type(line) == str
+        assert line.startswith("elaine@"+run_curl[0:12])
+        assert "test=foo" in line
+        assert "newenv=1" in line
+        assert "newlabel=two" in line
+        assert line.endswith("{\"errors\":[{\"code\":215,\"message\":\"Bad Authentication data.\"}]}")

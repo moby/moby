@@ -99,6 +99,14 @@ func Init(base string, opt []string, uidMaps, gidMaps []idtools.IDMap) (graphdri
 		return nil, fmt.Errorf("BUG: zfs get all -t filesystem -rHp '%s' should contain '%s'", options.fsName, options.fsName)
 	}
 
+	rootUID, rootGID, err := idtools.GetRootUIDGID(uidMaps, gidMaps)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to get root uid/guid: %v", err)
+	}
+	if err := idtools.MkdirAllAs(base, 0700, rootUID, rootGID); err != nil {
+		return nil, fmt.Errorf("Failed to create '%s': %v", base, err)
+	}
+
 	if err := mount.MakePrivate(base); err != nil {
 		return nil, err
 	}

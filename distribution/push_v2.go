@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"runtime"
 	"sync"
 
 	"github.com/Sirupsen/logrus"
@@ -98,7 +99,7 @@ func (p *v2Pusher) pushV2Repository(ctx context.Context) (err error) {
 	for _, association := range p.config.ReferenceStore.ReferencesByName(p.ref) {
 		if namedTagged, isNamedTagged := association.Ref.(reference.NamedTagged); isNamedTagged {
 			pushed++
-			if err := p.pushV2Tag(ctx, namedTagged, association.ImageID); err != nil {
+			if err := p.pushV2Tag(ctx, namedTagged, association.ID); err != nil {
 				return err
 			}
 		}
@@ -111,10 +112,10 @@ func (p *v2Pusher) pushV2Repository(ctx context.Context) (err error) {
 	return nil
 }
 
-func (p *v2Pusher) pushV2Tag(ctx context.Context, ref reference.NamedTagged, imageID image.ID) error {
+func (p *v2Pusher) pushV2Tag(ctx context.Context, ref reference.NamedTagged, id digest.Digest) error {
 	logrus.Debugf("Pushing repository: %s", ref.String())
 
-	img, err := p.config.ImageStore.Get(imageID)
+	img, err := p.config.ImageStore.Get(image.IDFromDigest(id))
 	if err != nil {
 		return fmt.Errorf("could not find image from tag %s: %v", ref.String(), err)
 	}
@@ -169,6 +170,11 @@ func (p *v2Pusher) pushV2Tag(ctx context.Context, ref reference.NamedTagged, ima
 
 	putOptions := []distribution.ManifestServiceOption{distribution.WithTag(ref.Tag())}
 	if _, err = manSvc.Put(ctx, manifest, putOptions...); err != nil {
+		if runtime.GOOS == "windows" {
+			logrus.Warnf("failed to upload schema2 manifest: %v", err)
+			return err
+		}
+
 		logrus.Warnf("failed to upload schema2 manifest: %v - falling back to schema1", err)
 
 		manifestRef, err := distreference.WithTag(p.repo.Named(), ref.Tag())
@@ -201,7 +207,7 @@ func (p *v2Pusher) pushV2Tag(ctx context.Context, ref reference.NamedTagged, ima
 	manifestDigest := digest.FromBytes(canonicalManifest)
 	progress.Messagef(p.config.ProgressOutput, "", "%s: digest: %s size: %d", ref.Tag(), manifestDigest, len(canonicalManifest))
 
-	if err := addDigestReference(p.config.ReferenceStore, ref, manifestDigest, imageID); err != nil {
+	if err := addDigestReference(p.config.ReferenceStore, ref, manifestDigest, id); err != nil {
 		return err
 	}
 

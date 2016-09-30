@@ -3,7 +3,6 @@ package agent
 import (
 	"crypto/tls"
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"net"
 	"os"
@@ -21,7 +20,8 @@ import (
 	"github.com/docker/swarmkit/ioutils"
 	"github.com/docker/swarmkit/log"
 	"github.com/docker/swarmkit/manager"
-	"github.com/docker/swarmkit/picker"
+	"github.com/docker/swarmkit/remotes"
+	"github.com/pkg/errors"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -31,10 +31,10 @@ const stateFilename = "state.json"
 
 // NodeConfig provides values for a Node.
 type NodeConfig struct {
-	// Hostname the name of host for agent instance.
+	// Hostname is the name of host for agent instance.
 	Hostname string
 
-	// JoinAddrs specifies node that should be used for the initial connection to
+	// JoinAddr specifies node that should be used for the initial connection to
 	// other manager in cluster. This should be only one address and optional,
 	// the actual remotes come from the stored state.
 	JoinAddr string
@@ -43,11 +43,8 @@ type NodeConfig struct {
 	// remote managers and certificates.
 	StateDir string
 
-	// CAHash to be used on the first certificate request.
-	CAHash string
-
-	// Secret to be used on the first certificate request.
-	Secret string
+	// JoinToken is the token to be used on the first certificate request.
+	JoinToken string
 
 	// ExternalCAs is a list of CAs to which a manager node
 	// will make certificate signing requests for node certificates.
@@ -63,6 +60,10 @@ type NodeConfig struct {
 	// and raft members connect to.
 	ListenRemoteAPI string
 
+	// AdvertiseRemoteAPI specifies the address that should be advertised
+	// for connections to the remote API (including the raft service).
+	AdvertiseRemoteAPI string
+
 	// Executor specifies the executor to use for the agent.
 	Executor exec.Executor
 
@@ -73,9 +74,6 @@ type NodeConfig struct {
 	// HeartbeatTick defines the amount of ticks between each
 	// heartbeat sent to other members for health-check purposes
 	HeartbeatTick uint32
-
-	// todo: temporary to bypass promotion not working yet
-	IsManager bool
 }
 
 // Node implements the primary node functionality for a member of a swarm
@@ -85,12 +83,15 @@ type Node struct {
 	config               *NodeConfig
 	remotes              *persistentRemotes
 	role                 string
+	roleCond             *sync.Cond
 	conn                 *grpc.ClientConn
 	connCond             *sync.Cond
 	nodeID               string
 	nodeMembership       api.NodeSpec_Membership
 	started              chan struct{}
+	startOnce            sync.Once
 	stopped              chan struct{}
+	stopOnce             sync.Once
 	ready                chan struct{} // closed when agent has completed registration and manager(if enabled) is ready to receive control requests
 	certificateRequested chan struct{} // closed when certificate issue request has been sent by node
 	closed               chan struct{}
@@ -98,7 +99,6 @@ type Node struct {
 	agent                *Agent
 	manager              *manager.Manager
 	roleChangeReq        chan api.NodeRole // used to send role updates from the dispatcher api on promotion/demotion
-	managerRoleCh        chan struct{}
 }
 
 // NewNode returns new Node instance.
@@ -120,7 +120,7 @@ func NewNode(c *NodeConfig) (*Node, error) {
 
 	n := &Node{
 		remotes:              newPersistentRemotes(stateFile, p...),
-		role:                 ca.AgentRole,
+		role:                 ca.WorkerRole,
 		config:               c,
 		started:              make(chan struct{}),
 		stopped:              make(chan struct{}),
@@ -128,8 +128,8 @@ func NewNode(c *NodeConfig) (*Node, error) {
 		ready:                make(chan struct{}),
 		certificateRequested: make(chan struct{}),
 		roleChangeReq:        make(chan api.NodeRole, 1),
-		managerRoleCh:        make(chan struct{}, 32), // 32 just for the case
 	}
+	n.roleCond = sync.NewCond(n.RLocker())
 	n.connCond = sync.NewCond(n.RLocker())
 	if err := n.loadCertificates(); err != nil {
 		return nil, err
@@ -139,26 +139,15 @@ func NewNode(c *NodeConfig) (*Node, error) {
 
 // Start starts a node instance.
 func (n *Node) Start(ctx context.Context) error {
-	select {
-	case <-n.started:
-		select {
-		case <-n.closed:
-			return n.err
-		case <-n.stopped:
-			return errAgentStopped
-		case <-ctx.Done():
-			return ctx.Err()
-		default:
-			return errAgentStarted
-		}
-	case <-ctx.Done():
-		return ctx.Err()
-	default:
-	}
+	err := errNodeStarted
 
-	close(n.started)
-	go n.run(ctx)
-	return nil
+	n.startOnce.Do(func() {
+		close(n.started)
+		go n.run(ctx)
+		err = nil // clear error above, only once.
+	})
+
+	return err
 }
 
 func (n *Node) run(ctx context.Context) (err error) {
@@ -168,7 +157,7 @@ func (n *Node) run(ctx context.Context) (err error) {
 	}()
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
-	ctx = log.WithLogger(ctx, log.G(ctx).WithField("module", "node"))
+	ctx = log.WithModule(ctx, "node")
 
 	go func() {
 		select {
@@ -189,13 +178,8 @@ func (n *Node) run(ctx context.Context) (err error) {
 	if n.config.JoinAddr != "" || n.config.ForceNewCluster {
 		n.remotes = newPersistentRemotes(filepath.Join(n.config.StateDir, stateFilename))
 		if n.config.JoinAddr != "" {
-			n.remotes.Observe(api.Peer{Addr: n.config.JoinAddr}, 1)
+			n.remotes.Observe(api.Peer{Addr: n.config.JoinAddr}, remotes.DefaultObservationWeight)
 		}
-	}
-
-	csrRole := n.role
-	if n.config.IsManager { // todo: temporary
-		csrRole = ca.ManagerRole
 	}
 
 	// Obtain new certs and setup TLS certificates renewal for this node:
@@ -210,7 +194,9 @@ func (n *Node) run(ctx context.Context) (err error) {
 		select {
 		case <-ctx.Done():
 		case resp := <-issueResponseChan:
-			logrus.Debugf("Requesting certificate for NodeID: %v", resp.NodeID)
+			log.G(log.WithModule(ctx, "tls")).WithFields(logrus.Fields{
+				"node.id": resp.NodeID,
+			}).Debugf("requesting certificate")
 			n.Lock()
 			n.nodeID = resp.NodeID
 			n.nodeMembership = resp.NodeMembership
@@ -220,7 +206,7 @@ func (n *Node) run(ctx context.Context) (err error) {
 	}()
 
 	certDir := filepath.Join(n.config.StateDir, "certificates")
-	securityConfig, err := ca.LoadOrCreateSecurityConfig(ctx, certDir, n.config.CAHash, n.config.Secret, csrRole, picker.NewPicker(n.remotes), issueResponseChan)
+	securityConfig, err := ca.LoadOrCreateSecurityConfig(ctx, certDir, n.config.JoinToken, ca.ManagerRole, n.remotes, issueResponseChan)
 	if err != nil {
 		return err
 	}
@@ -240,49 +226,50 @@ func (n *Node) run(ctx context.Context) (err error) {
 		return err
 	}
 
-	if n.role == ca.ManagerRole {
-		n.managerRoleCh <- struct{}{}
-	}
-
 	forceCertRenewal := make(chan struct{})
 	go func() {
-		n.RLock()
-		lastRole := n.role
-		n.RUnlock()
 		for {
 			select {
 			case <-ctx.Done():
 				return
 			case apirole := <-n.roleChangeReq:
-				role := ca.AgentRole
+				n.Lock()
+				lastRole := n.role
+				role := ca.WorkerRole
 				if apirole == api.NodeRoleManager {
 					role = ca.ManagerRole
 				}
-				if lastRole != role {
-					forceCertRenewal <- struct{}{}
+				if lastRole == role {
+					n.Unlock()
+					continue
 				}
-				lastRole = role
+				// switch role to agent immediately to shutdown manager early
+				if role == ca.WorkerRole {
+					n.role = role
+					n.roleCond.Broadcast()
+				}
+				n.Unlock()
+				select {
+				case forceCertRenewal <- struct{}{}:
+				case <-ctx.Done():
+					return
+				}
 			}
 		}
 	}()
 
-	updates := ca.RenewTLSConfig(ctx, securityConfig, certDir, picker.NewPicker(n.remotes), forceCertRenewal)
+	updates := ca.RenewTLSConfig(ctx, securityConfig, certDir, n.remotes, forceCertRenewal)
 	go func() {
 		for {
 			select {
 			case certUpdate := <-updates:
-				if ctx.Err() != nil {
-					return
-				}
 				if certUpdate.Err != nil {
 					logrus.Warnf("error renewing TLS certificate: %v", certUpdate.Err)
 					continue
 				}
 				n.Lock()
 				n.role = certUpdate.Role
-				if n.role == ca.ManagerRole {
-					n.managerRoleCh <- struct{}{}
-				}
+				n.roleCond.Broadcast()
 				n.Unlock()
 			case <-ctx.Done():
 				return
@@ -331,27 +318,19 @@ func (n *Node) run(ctx context.Context) (err error) {
 func (n *Node) Stop(ctx context.Context) error {
 	select {
 	case <-n.started:
-		select {
-		case <-n.closed:
-			return n.err
-		case <-n.stopped:
-			select {
-			case <-n.closed:
-				return n.err
-			case <-ctx.Done():
-				return ctx.Err()
-			}
-		case <-ctx.Done():
-			return ctx.Err()
-		default:
-			close(n.stopped)
-			// recurse and wait for closure
-			return n.Stop(ctx)
-		}
+	default:
+		return errNodeNotStarted
+	}
+
+	n.stopOnce.Do(func() {
+		close(n.stopped)
+	})
+
+	select {
+	case <-n.closed:
+		return nil
 	case <-ctx.Done():
 		return ctx.Err()
-	default:
-		return errAgentNotStarted
 	}
 }
 
@@ -366,21 +345,13 @@ func (n *Node) Err(ctx context.Context) error {
 	}
 }
 
-func (n *Node) runAgent(ctx context.Context, db *bolt.DB, creds credentials.TransportAuthenticator, ready chan<- struct{}) error {
-	var manager api.Peer
+func (n *Node) runAgent(ctx context.Context, db *bolt.DB, creds credentials.TransportCredentials, ready chan<- struct{}) error {
 	select {
 	case <-ctx.Done():
-	case manager = <-n.remotes.WaitSelect(ctx):
+	case <-n.remotes.WaitSelect(ctx):
 	}
 	if ctx.Err() != nil {
 		return ctx.Err()
-	}
-	conn, err := grpc.Dial(manager.Addr,
-		grpc.WithPicker(picker.NewPicker(n.remotes, manager.Addr)),
-		grpc.WithTransportCredentials(creds),
-		grpc.WithBackoffMaxDelay(maxSessionFailureBackoff))
-	if err != nil {
-		return err
 	}
 
 	agent, err := New(&Config{
@@ -388,8 +359,8 @@ func (n *Node) runAgent(ctx context.Context, db *bolt.DB, creds credentials.Tran
 		Managers:         n.remotes,
 		Executor:         n.config.Executor,
 		DB:               db,
-		Conn:             conn,
 		NotifyRoleChange: n.roleChangeReq,
+		Credentials:      creds,
 	})
 	if err != nil {
 		return err
@@ -433,6 +404,9 @@ func (n *Node) CertificateRequested() <-chan struct{} {
 
 func (n *Node) setControlSocket(conn *grpc.ClientConn) {
 	n.Lock()
+	if n.conn != nil {
+		n.conn.Close()
+	}
 	n.conn = conn
 	n.connCond.Broadcast()
 	n.Unlock()
@@ -486,7 +460,7 @@ func (n *Node) NodeMembership() api.NodeSpec_Membership {
 	return n.nodeMembership
 }
 
-// Manager return manager instance started by node. May be nil.
+// Manager returns manager instance started by node. May be nil.
 func (n *Node) Manager() *manager.Manager {
 	n.RLock()
 	defer n.RUnlock()
@@ -526,13 +500,14 @@ func (n *Node) loadCertificates() error {
 			return nil
 		}
 
-		return fmt.Errorf("error while loading TLS Certificate in %s: %v", configPaths.Node.Cert, err)
+		return errors.Wrapf(err, "error while loading TLS Certificate in %s", configPaths.Node.Cert)
 	}
 	// todo: try csr if no cert or store nodeID/role in some other way
 	n.Lock()
 	n.role = clientTLSCreds.Role()
 	n.nodeID = clientTLSCreds.NodeID()
 	n.nodeMembership = api.NodeMembershipAccepted
+	n.roleCond.Broadcast()
 	n.Unlock()
 
 	return nil
@@ -549,6 +524,8 @@ func (n *Node) initManagerConnection(ctx context.Context, ready chan<- struct{})
 	opts := []grpc.DialOption{}
 	insecureCreds := credentials.NewTLS(&tls.Config{InsecureSkipVerify: true})
 	opts = append(opts, grpc.WithTransportCredentials(insecureCreds))
+	// Using listen address instead of advertised address because this is a
+	// local connection.
 	addr := n.config.ListenControlAPI
 	opts = append(opts, grpc.WithDialer(
 		func(addr string, timeout time.Duration) (net.Conn, error) {
@@ -558,103 +535,141 @@ func (n *Node) initManagerConnection(ctx context.Context, ready chan<- struct{})
 	if err != nil {
 		return err
 	}
-	state := grpc.Idle
+	client := api.NewHealthClient(conn)
 	for {
-		s, err := conn.WaitForStateChange(ctx, state)
+		resp, err := client.Check(ctx, &api.HealthCheckRequest{Service: "ControlAPI"})
 		if err != nil {
 			return err
 		}
-		if s == grpc.Ready {
-			n.setControlSocket(conn)
-			if ready != nil {
-				close(ready)
-			}
-			ready = nil
-		} else if state == grpc.Shutdown {
-			n.setControlSocket(nil)
+		if resp.Status == api.HealthCheckResponse_SERVING {
+			break
 		}
-		state = s
+		time.Sleep(500 * time.Millisecond)
 	}
+	n.setControlSocket(conn)
+	if ready != nil {
+		close(ready)
+	}
+	return nil
+}
+
+func (n *Node) waitRole(ctx context.Context, role string) error {
+	n.roleCond.L.Lock()
+	if role == n.role {
+		n.roleCond.L.Unlock()
+		return nil
+	}
+	finishCh := make(chan struct{})
+	defer close(finishCh)
+	go func() {
+		select {
+		case <-finishCh:
+		case <-ctx.Done():
+			// call broadcast to shutdown this function
+			n.roleCond.Broadcast()
+		}
+	}()
+	defer n.roleCond.L.Unlock()
+	for role != n.role {
+		n.roleCond.Wait()
+		select {
+		case <-ctx.Done():
+			if ctx.Err() != nil {
+				return ctx.Err()
+			}
+		default:
+		}
+	}
+
+	return nil
 }
 
 func (n *Node) runManager(ctx context.Context, securityConfig *ca.SecurityConfig, ready chan struct{}) error {
 	for {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case <-n.managerRoleCh:
-			if ctx.Err() != nil {
-				return ctx.Err()
-			}
-			n.Lock()
-			// in case if we missed some notifications
-			if n.role != ca.ManagerRole {
-				n.Unlock()
-				continue
-			}
-			n.Unlock()
-			remoteAddr, _ := n.remotes.Select(n.nodeID)
-			m, err := manager.New(&manager.Config{
-				ForceNewCluster: n.config.ForceNewCluster,
-				ProtoAddr: map[string]string{
-					"tcp":  n.config.ListenRemoteAPI,
-					"unix": n.config.ListenControlAPI,
-				},
-				SecurityConfig: securityConfig,
-				ExternalCAs:    n.config.ExternalCAs,
-				JoinRaft:       remoteAddr.Addr,
-				StateDir:       n.config.StateDir,
-				HeartbeatTick:  n.config.HeartbeatTick,
-				ElectionTick:   n.config.ElectionTick,
-			})
-			if err != nil {
-				return err
-			}
-			done := make(chan struct{})
-			go func() {
-				m.Run(context.Background()) // todo: store error
-				close(done)
-			}()
+		if err := n.waitRole(ctx, ca.ManagerRole); err != nil {
+			return err
+		}
 
-			n.Lock()
-			n.manager = m
-			n.Unlock()
+		remoteAddr, _ := n.remotes.Select(n.NodeID())
+		m, err := manager.New(&manager.Config{
+			ForceNewCluster: n.config.ForceNewCluster,
+			ProtoAddr: map[string]string{
+				"tcp":  n.config.ListenRemoteAPI,
+				"unix": n.config.ListenControlAPI,
+			},
+			AdvertiseAddr:  n.config.AdvertiseRemoteAPI,
+			SecurityConfig: securityConfig,
+			ExternalCAs:    n.config.ExternalCAs,
+			JoinRaft:       remoteAddr.Addr,
+			StateDir:       n.config.StateDir,
+			HeartbeatTick:  n.config.HeartbeatTick,
+			ElectionTick:   n.config.ElectionTick,
+		})
+		if err != nil {
+			return err
+		}
+		done := make(chan struct{})
+		var runErr error
+		go func() {
+			runErr = m.Run(context.Background())
+			close(done)
+		}()
 
-			connCtx, connCancel := context.WithCancel(ctx)
-			go n.initManagerConnection(connCtx, ready)
+		n.Lock()
+		n.manager = m
+		n.Unlock()
 
-			// this happens only on initial start
-			if ready != nil {
-				go func(ready chan struct{}) {
-					select {
-					case <-ready:
-						n.remotes.Observe(api.Peer{NodeID: n.nodeID, Addr: n.config.ListenRemoteAPI}, 5)
-					case <-connCtx.Done():
-					}
-				}(ready)
-			}
+		connCtx, connCancel := context.WithCancel(ctx)
+		go n.initManagerConnection(connCtx, ready)
 
+		// this happens only on initial start
+		if ready != nil {
+			go func(ready chan struct{}) {
+				select {
+				case <-ready:
+					n.remotes.Observe(api.Peer{NodeID: n.NodeID(), Addr: n.config.ListenRemoteAPI}, remotes.DefaultObservationWeight)
+				case <-connCtx.Done():
+				}
+			}(ready)
 			ready = nil
+		}
 
-			select {
-			case <-ctx.Done():
-				m.Stop(context.Background()) // todo: this should be sync like other components
-				<-done
-			// in case of demotion manager will stop itself
-			case <-done:
-			}
-			connCancel()
+		roleChanged := make(chan error)
+		waitCtx, waitCancel := context.WithCancel(ctx)
+		go func() {
+			err := n.waitRole(waitCtx, ca.WorkerRole)
+			roleChanged <- err
+		}()
 
-			n.Lock()
-			n.manager = nil
-			if n.conn != nil {
-				n.conn.Close()
+		select {
+		case <-done:
+			// Fail out if m.Run() returns error, otherwise wait for
+			// role change.
+			if runErr != nil {
+				err = runErr
+			} else {
+				err = <-roleChanged
 			}
-			n.Unlock()
+		case err = <-roleChanged:
+		}
 
-			if ctx.Err() != nil {
-				return err
-			}
+		n.Lock()
+		n.manager = nil
+		n.Unlock()
+
+		select {
+		case <-done:
+		case <-ctx.Done():
+			err = ctx.Err()
+			m.Stop(context.Background())
+			<-done
+		}
+		connCancel()
+		n.setControlSocket(nil)
+		waitCancel()
+
+		if err != nil {
+			return err
 		}
 	}
 }
@@ -662,15 +677,15 @@ func (n *Node) runManager(ctx context.Context, securityConfig *ca.SecurityConfig
 type persistentRemotes struct {
 	sync.RWMutex
 	c *sync.Cond
-	picker.Remotes
+	remotes.Remotes
 	storePath      string
 	lastSavedState []api.Peer
 }
 
-func newPersistentRemotes(f string, remotes ...api.Peer) *persistentRemotes {
+func newPersistentRemotes(f string, peers ...api.Peer) *persistentRemotes {
 	pr := &persistentRemotes{
 		storePath: f,
-		Remotes:   picker.NewRemotes(remotes...),
+		Remotes:   remotes.NewRemotes(peers...),
 	}
 	pr.c = sync.NewCond(pr.RLocker())
 	return pr
@@ -678,17 +693,18 @@ func newPersistentRemotes(f string, remotes ...api.Peer) *persistentRemotes {
 
 func (s *persistentRemotes) Observe(peer api.Peer, weight int) {
 	s.Lock()
+	defer s.Unlock()
 	s.Remotes.Observe(peer, weight)
 	s.c.Broadcast()
 	if err := s.save(); err != nil {
 		logrus.Errorf("error writing cluster state file: %v", err)
-		s.Unlock()
 		return
 	}
-	s.Unlock()
 	return
 }
 func (s *persistentRemotes) Remove(peers ...api.Peer) {
+	s.Lock()
+	defer s.Unlock()
 	s.Remotes.Remove(peers...)
 	if err := s.save(); err != nil {
 		logrus.Errorf("error writing cluster state file: %v", err)

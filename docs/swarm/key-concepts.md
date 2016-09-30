@@ -3,7 +3,6 @@
 title = "Swarm mode key concepts"
 description = "Introducing key concepts for Docker Engine swarm mode"
 keywords = ["docker, container, cluster, swarm mode"]
-advisory = "rc"
 [menu.main]
 identifier="swarm-mode-concepts"
 parent="engine_swarm"
@@ -78,7 +77,7 @@ PublishedPort for the service in the 30000-32767 range.
 
 External components, such as cloud load balancers, can access the service on the
 PublishedPort of any node in the cluster whether or not the node is currently
-running the task for the service.  All nodes in the swarm cluster route ingress
+running the task for the service.  All nodes in the swarm route ingress
 connections to a running task instance.
 
 Swarm mode has an internal DNS component that automatically assigns each service

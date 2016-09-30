@@ -105,8 +105,6 @@ func (s *DockerSuite) TestCreateHostConfig(c *check.C) {
 }
 
 func (s *DockerSuite) TestCreateWithPortRange(c *check.C) {
-	// Windows does not currently support port ranges.
-	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "create", "-p", "3300-3303:3300-3303/tcp", "busybox", "echo")
 
 	cleanedContainerID := strings.TrimSpace(out)
@@ -136,8 +134,6 @@ func (s *DockerSuite) TestCreateWithPortRange(c *check.C) {
 }
 
 func (s *DockerSuite) TestCreateWithLargePortRange(c *check.C) {
-	// Windows does not currently support port ranges.
-	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "create", "-p", "1-65535:1-65535/tcp", "busybox", "echo")
 
 	cleanedContainerID := strings.TrimSpace(out)
@@ -477,4 +473,31 @@ func (s *DockerSuite) TestCreate64ByteHexID(c *check.C) {
 	imageID := strings.TrimPrefix(strings.TrimSpace(string(out)), "sha256:")
 
 	dockerCmd(c, "create", imageID)
+}
+
+// Test case for #23498
+func (s *DockerSuite) TestCreateUnsetEntrypoint(c *check.C) {
+	name := "test-entrypoint"
+	dockerfile := `FROM busybox
+ADD entrypoint.sh /entrypoint.sh
+RUN chmod 755 /entrypoint.sh
+ENTRYPOINT ["/entrypoint.sh"]
+CMD echo foobar`
+
+	ctx, err := fakeContext(dockerfile, map[string]string{
+		"entrypoint.sh": `#!/bin/sh
+echo "I am an entrypoint"
+exec "$@"`,
+	})
+	c.Assert(err, check.IsNil)
+	defer ctx.Close()
+
+	_, err = buildImageFromContext(name, ctx, true)
+	c.Assert(err, check.IsNil)
+
+	out, _ := dockerCmd(c, "create", "--entrypoint=", name, "echo", "foo")
+	id := strings.TrimSpace(out)
+	c.Assert(id, check.Not(check.Equals), "")
+	out, _ = dockerCmd(c, "start", "-a", id)
+	c.Assert(strings.TrimSpace(out), check.Equals, "foo")
 }

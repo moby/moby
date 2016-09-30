@@ -1,4 +1,4 @@
-// Copyright 2015 CoreOS, Inc.
+// Copyright 2015 The etcd Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -26,9 +26,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/coreos/etcd/pkg/pathutil"
 	"github.com/ugorji/go/codec"
 	"golang.org/x/net/context"
-	"github.com/coreos/etcd/pkg/pathutil"
 )
 
 const (
@@ -337,7 +337,11 @@ func (k *httpKeysAPI) Set(ctx context.Context, key, val string, opts *SetOptions
 		act.Dir = opts.Dir
 	}
 
-	resp, body, err := k.client.Do(ctx, act)
+	doCtx := ctx
+	if act.PrevExist == PrevNoExist {
+		doCtx = context.WithValue(doCtx, &oneShotCtxValue, &oneShotCtxValue)
+	}
+	resp, body, err := k.client.Do(doCtx, act)
 	if err != nil {
 		return nil, err
 	}
@@ -385,7 +389,8 @@ func (k *httpKeysAPI) Delete(ctx context.Context, key string, opts *DeleteOption
 		act.Recursive = opts.Recursive
 	}
 
-	resp, body, err := k.client.Do(ctx, act)
+	doCtx := context.WithValue(ctx, &oneShotCtxValue, &oneShotCtxValue)
+	resp, body, err := k.client.Do(doCtx, act)
 	if err != nil {
 		return nil, err
 	}

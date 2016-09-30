@@ -7,14 +7,24 @@ import (
 	"time"
 
 	"github.com/docker/distribution/digest"
-	"github.com/docker/engine-api/types/container"
+	"github.com/docker/docker/api/types/container"
 )
 
 // ID is the content-addressable ID of an image.
 type ID digest.Digest
 
 func (id ID) String() string {
-	return digest.Digest(id).String()
+	return id.Digest().String()
+}
+
+// Digest converts ID into a digest
+func (id ID) Digest() digest.Digest {
+	return digest.Digest(id)
+}
+
+// IDFromDigest creates an ID from a digest
+func IDFromDigest(digest digest.Digest) ID {
+	return ID(digest)
 }
 
 // V1Image stores the V1 image configuration.
@@ -72,9 +82,9 @@ func (img *Image) ID() ID {
 	return img.computedID
 }
 
-// ImageID stringizes ID.
+// ImageID stringifies ID.
 func (img *Image) ImageID() string {
-	return string(img.ID())
+	return img.ID().String()
 }
 
 // RunConfig returns the image's container config.

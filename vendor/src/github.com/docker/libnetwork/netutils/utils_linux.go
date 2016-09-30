@@ -63,7 +63,7 @@ func GenerateIfaceName(nlh *netlink.Handle, prefix string, len int) (string, err
 
 // ElectInterfaceAddresses looks for an interface on the OS with the
 // specified name and returns its IPv4 and IPv6 addresses in CIDR
-// form. If the interface does not exist, it chooses from a predifined
+// form. If the interface does not exist, it chooses from a predefined
 // list the first IPv4 address which does not conflict with other
 // interfaces on the system.
 func ElectInterfaceAddresses(name string) (*net.IPNet, []*net.IPNet, error) {
@@ -94,7 +94,7 @@ func ElectInterfaceAddresses(name string) (*net.IPNet, []*net.IPNet, error) {
 	}
 
 	if link == nil || v4Net == nil {
-		// Choose from predifined broad networks
+		// Choose from predefined broad networks
 		v4Net, err = FindAvailableNetwork(ipamutils.PredefinedBroadNetworks)
 		if err != nil {
 			return nil, nil, err

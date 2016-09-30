@@ -19,6 +19,7 @@ message StoreSnapshot {
 	repeated Network networks = 3;
 	repeated Task tasks = 4;
 	repeated Cluster clusters = 5;
+	repeated Secret secrets = 6;
 }
 
 // ClusterSnapshot stores cluster membership information in snapshots.

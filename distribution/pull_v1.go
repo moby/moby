@@ -248,7 +248,7 @@ func (p *v1Puller) pullImage(ctx context.Context, v1ID, endpoint string, localNa
 		return err
 	}
 
-	if err := p.config.ReferenceStore.AddTag(localNameRef, imageID, true); err != nil {
+	if err := p.config.ReferenceStore.AddTag(localNameRef, imageID.Digest(), true); err != nil {
 		return err
 	}
 

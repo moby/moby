@@ -333,14 +333,14 @@ type mockTagAdder struct {
 	refs map[string]string
 }
 
-func (t *mockTagAdder) AddTag(ref reference.Named, id image.ID, force bool) error {
+func (t *mockTagAdder) AddTag(ref reference.Named, id digest.Digest, force bool) error {
 	if t.refs == nil {
 		t.refs = make(map[string]string)
 	}
 	t.refs[ref.String()] = id.String()
 	return nil
 }
-func (t *mockTagAdder) AddDigest(ref reference.Canonical, id image.ID, force bool) error {
+func (t *mockTagAdder) AddDigest(ref reference.Canonical, id digest.Digest, force bool) error {
 	return t.AddTag(ref, id, force)
 }
 

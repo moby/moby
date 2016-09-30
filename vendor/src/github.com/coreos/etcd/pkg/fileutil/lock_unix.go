@@ -1,4 +1,4 @@
-// Copyright 2015 CoreOS, Inc.
+// Copyright 2015 The etcd Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,54 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// +build !windows,!plan9,!solaris
+// +build !windows,!plan9,!solaris,!linux
 
 package fileutil
 
 import (
-	"errors"
 	"os"
-	"syscall"
 )
 
-var (
-	ErrLocked = errors.New("file already locked")
-)
-
-type lock struct {
-	fd   int
-	file *os.File
+func TryLockFile(path string, flag int, perm os.FileMode) (*LockedFile, error) {
+	return flockTryLockFile(path, flag, perm)
 }
 
-func (l *lock) Name() string {
-	return l.file.Name()
-}
-
-func (l *lock) TryLock() error {
-	err := syscall.Flock(l.fd, syscall.LOCK_EX|syscall.LOCK_NB)
-	if err != nil && err == syscall.EWOULDBLOCK {
-		return ErrLocked
-	}
-	return err
-}
-
-func (l *lock) Lock() error {
-	return syscall.Flock(l.fd, syscall.LOCK_EX)
-}
-
-func (l *lock) Unlock() error {
-	return syscall.Flock(l.fd, syscall.LOCK_UN)
-}
-
-func (l *lock) Destroy() error {
-	return l.file.Close()
-}
-
-func NewLock(file string) (Lock, error) {
-	f, err := os.Open(file)
-	if err != nil {
-		return nil, err
-	}
-	l := &lock{int(f.Fd()), f}
-	return l, nil
+func LockFile(path string, flag int, perm os.FileMode) (*LockedFile, error) {
+	return flockLockFile(path, flag, perm)
 }

@@ -2,7 +2,9 @@ package main
 
 import (
 	"bufio"
+	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -11,8 +13,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/docker/docker/daemon/events/testutils"
+	eventtypes "github.com/docker/docker/api/types/events"
+	eventstestutils "github.com/docker/docker/daemon/events/testutils"
 	"github.com/docker/docker/pkg/integration/checker"
+	icmd "github.com/docker/docker/pkg/integration/cmd"
 	"github.com/go-check/check"
 )
 
@@ -57,51 +61,20 @@ func (s *DockerSuite) TestEventsUntag(c *check.C) {
 	dockerCmd(c, "tag", image, "utest:tag2")
 	dockerCmd(c, "rmi", "utest:tag1")
 	dockerCmd(c, "rmi", "utest:tag2")
-	eventsCmd := exec.Command(dockerBinary, "events", "--since=1")
-	out, exitCode, _, err := runCommandWithOutputForDuration(eventsCmd, time.Duration(time.Millisecond*2500))
-	c.Assert(err, checker.IsNil)
-	c.Assert(exitCode, checker.Equals, 0, check.Commentf("Failed to get events"))
-	events := strings.Split(out, "\n")
+
+	result := icmd.RunCmd(icmd.Cmd{
+		Command: []string{dockerBinary, "events", "--since=1"},
+		Timeout: time.Millisecond * 2500,
+	})
+	c.Assert(result, icmd.Matches, icmd.Expected{Timeout: true})
+
+	events := strings.Split(result.Stdout(), "\n")
 	nEvents := len(events)
 	// The last element after the split above will be an empty string, so we
 	// get the two elements before the last, which are the untags we're
 	// looking for.
 	for _, v := range events[nEvents-3 : nEvents-1] {
 		c.Assert(v, checker.Contains, "untag", check.Commentf("event should be untag"))
-	}
-}
-
-func (s *DockerSuite) TestEventsContainerFailStartDie(c *check.C) {
-	_, _, err := dockerCmdWithError("run", "--name", "testeventdie", "busybox", "blerg")
-	c.Assert(err, checker.NotNil, check.Commentf("Container run with command blerg should have failed, but it did not"))
-
-	out, _ := dockerCmd(c, "events", "--since=0", "--until", daemonUnixTime(c))
-	events := strings.Split(strings.TrimSpace(out), "\n")
-
-	nEvents := len(events)
-	c.Assert(nEvents, checker.GreaterOrEqualThan, 1) //Missing expected event
-
-	actions := eventActionsByIDAndType(c, events, "testeventdie", "container")
-
-	var startEvent bool
-	var dieEvent bool
-	for _, a := range actions {
-		switch a {
-		case "start":
-			startEvent = true
-		case "die":
-			dieEvent = true
-		}
-	}
-
-	// Windows platform is different from Linux, it will start container whatever
-	// so Windows can get start/die event but Linux can't
-	if daemonPlatform == "windows" {
-		c.Assert(startEvent, checker.True, check.Commentf("Start event not found: %v\n%v", actions, events))
-		c.Assert(dieEvent, checker.True, check.Commentf("Die event not found: %v\n%v", actions, events))
-	} else {
-		c.Assert(startEvent, checker.False, check.Commentf("Start event not expected: %v\n%v", actions, events))
-		c.Assert(dieEvent, checker.False, check.Commentf("Die event not expected: %v\n%v", actions, events))
 	}
 }
 
@@ -275,8 +248,8 @@ func (s *DockerSuite) TestEventsImageLoad(c *check.C) {
 	c.Assert(noImageID, checker.Equals, "", check.Commentf("Should not have any image"))
 	dockerCmd(c, "load", "-i", "saveimg.tar")
 
-	cmd := exec.Command("rm", "-rf", "saveimg.tar")
-	runCommand(cmd)
+	result := icmd.RunCommand("rm", "-rf", "saveimg.tar")
+	c.Assert(result, icmd.Matches, icmd.Success)
 
 	out, _ = dockerCmd(c, "images", "-q", "--no-trunc", myImageName)
 	imageID := strings.TrimSpace(out)
@@ -295,6 +268,32 @@ func (s *DockerSuite) TestEventsImageLoad(c *check.C) {
 	matches = eventstestutils.ScanMap(events[0])
 	c.Assert(matches["id"], checker.Equals, imageID, check.Commentf("matches: %v\nout:\n%s\n", matches, out))
 	c.Assert(matches["action"], checker.Equals, "save", check.Commentf("matches: %v\nout:\n%s\n", matches, out))
+}
+
+func (s *DockerSuite) TestEventsPluginOps(c *check.C) {
+	testRequires(c, DaemonIsLinux, ExperimentalDaemon)
+
+	pluginName := "tiborvass/no-remove:latest"
+	since := daemonUnixTime(c)
+
+	dockerCmd(c, "plugin", "install", pluginName, "--grant-all-permissions")
+	dockerCmd(c, "plugin", "disable", pluginName)
+	dockerCmd(c, "plugin", "remove", pluginName)
+
+	out, _ := dockerCmd(c, "events", "--since", since, "--until", daemonUnixTime(c))
+	events := strings.Split(out, "\n")
+	events = events[:len(events)-1]
+
+	nEvents := len(events)
+	c.Assert(nEvents, checker.GreaterOrEqualThan, 4)
+
+	pluginEvents := eventActionsByIDAndType(c, events, pluginName, "plugin")
+	c.Assert(pluginEvents, checker.HasLen, 4, check.Commentf("events: %v", events))
+
+	c.Assert(pluginEvents[0], checker.Equals, "pull", check.Commentf(out))
+	c.Assert(pluginEvents[1], checker.Equals, "enable", check.Commentf(out))
+	c.Assert(pluginEvents[2], checker.Equals, "disable", check.Commentf(out))
+	c.Assert(pluginEvents[3], checker.Equals, "remove", check.Commentf(out))
 }
 
 func (s *DockerSuite) TestEventsFilters(c *check.C) {
@@ -653,7 +652,7 @@ func (s *DockerSuite) TestEventsContainerRestart(c *check.C) {
 	// wait until test2 is auto removed.
 	waitTime := 10 * time.Second
 	if daemonPlatform == "windows" {
-		// nslookup isn't present in Windows busybox. Is built-in.
+		// Windows takes longer...
 		waitTime = 90 * time.Second
 	}
 
@@ -714,4 +713,47 @@ func (s *DockerSuite) TestEventsUntilInThePast(c *check.C) {
 
 	c.Assert(out, checker.Not(checker.Contains), "test-container2")
 	c.Assert(out, checker.Contains, "test-container")
+}
+
+func (s *DockerSuite) TestEventsFormat(c *check.C) {
+	since := daemonUnixTime(c)
+	dockerCmd(c, "run", "--rm", "busybox", "true")
+	dockerCmd(c, "run", "--rm", "busybox", "true")
+	out, _ := dockerCmd(c, "events", "--since", since, "--until", daemonUnixTime(c), "--format", "{{json .}}")
+	dec := json.NewDecoder(strings.NewReader(out))
+	// make sure we got 2 start events
+	startCount := 0
+	for {
+		var err error
+		var ev eventtypes.Message
+		if err = dec.Decode(&ev); err == io.EOF {
+			break
+		}
+		c.Assert(err, checker.IsNil)
+		if ev.Status == "start" {
+			startCount++
+		}
+	}
+
+	c.Assert(startCount, checker.Equals, 2, check.Commentf("should have had 2 start events but had %d, out: %s", startCount, out))
+}
+
+func (s *DockerSuite) TestEventsFormatBadFunc(c *check.C) {
+	// make sure it fails immediately, without receiving any event
+	result := dockerCmdWithResult("events", "--format", "{{badFuncString .}}")
+	c.Assert(result, icmd.Matches, icmd.Expected{
+		Error:    "exit status 64",
+		ExitCode: 64,
+		Err:      "Error parsing format: template: :1: function \"badFuncString\" not defined",
+	})
+}
+
+func (s *DockerSuite) TestEventsFormatBadField(c *check.C) {
+	// make sure it fails immediately, without receiving any event
+	result := dockerCmdWithResult("events", "--format", "{{.badFieldString}}")
+	c.Assert(result, icmd.Matches, icmd.Expected{
+		Error:    "exit status 64",
+		ExitCode: 64,
+		Err:      "Error parsing format: template: :1:2: executing \"\" at <.badFieldString>: can't evaluate field badFieldString in type *events.Message",
+	})
 }

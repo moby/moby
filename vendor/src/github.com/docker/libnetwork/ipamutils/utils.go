@@ -1,4 +1,4 @@
-// Package ipamutils provides utililty functions for ipam management
+// Package ipamutils provides utility functions for ipam management
 package ipamutils
 
 import (
@@ -17,7 +17,7 @@ var (
 	initNetworksOnce sync.Once
 )
 
-// InitNetworks initializes the pre-defined networks used by the  built-in IP allocator
+// InitNetworks initializes the pre-defined networks used by the built-in IP allocator
 func InitNetworks() {
 	initNetworksOnce.Do(func() {
 		PredefinedBroadNetworks = initBroadPredefinedNetworks()

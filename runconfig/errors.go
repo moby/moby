@@ -2,6 +2,8 @@ package runconfig
 
 import (
 	"fmt"
+
+	"github.com/docker/docker/api/errors"
 )
 
 var (
@@ -38,3 +40,7 @@ var (
 	// ErrConflictUTSHostname conflict between the hostname and the UTS mode
 	ErrConflictUTSHostname = fmt.Errorf("Conflicting options: hostname and the UTS mode")
 )
+
+func conflictError(err error) error {
+	return errors.NewRequestConflictError(err)
+}

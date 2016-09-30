@@ -3,6 +3,8 @@ package local
 import (
 	"io/ioutil"
 	"os"
+	"path/filepath"
+	"reflect"
 	"runtime"
 	"strings"
 	"testing"
@@ -132,11 +134,17 @@ func TestCreate(t *testing.T) {
 			}
 		}
 	}
+
+	r, err = New(rootDir, 0, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
 }
 
 func TestValidateName(t *testing.T) {
 	r := &Root{}
 	names := map[string]bool{
+		"x":           false,
 		"/testvol":    false,
 		"thing.d":     true,
 		"hello-world": true,
@@ -245,5 +253,77 @@ func TestCreateWithOpts(t *testing.T) {
 	}
 	if !mounted {
 		t.Fatal("expected mount to still be active")
+	}
+
+	r, err = New(rootDir, 0, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	v2, exists := r.volumes["test"]
+	if !exists {
+		t.Fatal("missing volume on restart")
+	}
+
+	if !reflect.DeepEqual(v.opts, v2.opts) {
+		t.Fatal("missing volume options on restart")
+	}
+}
+
+func TestRealodNoOpts(t *testing.T) {
+	rootDir, err := ioutil.TempDir("", "volume-test-reload-no-opts")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(rootDir)
+
+	r, err := New(rootDir, 0, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := r.Create("test1", nil); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := r.Create("test2", nil); err != nil {
+		t.Fatal(err)
+	}
+	// make sure a file with `null` (.e.g. empty opts map from older daemon) is ok
+	if err := ioutil.WriteFile(filepath.Join(rootDir, "test2"), []byte("null"), 600); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := r.Create("test3", nil); err != nil {
+		t.Fatal(err)
+	}
+	// make sure an empty opts file doesn't break us too
+	if err := ioutil.WriteFile(filepath.Join(rootDir, "test3"), nil, 600); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := r.Create("test4", map[string]string{}); err != nil {
+		t.Fatal(err)
+	}
+
+	r, err = New(rootDir, 0, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, name := range []string{"test1", "test2", "test3", "test4"} {
+		v, err := r.Get(name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		lv, ok := v.(*localVolume)
+		if !ok {
+			t.Fatalf("expected *localVolume got: %v", reflect.TypeOf(v))
+		}
+		if lv.opts != nil {
+			t.Fatalf("expected opts to be nil, got: %v", lv.opts)
+		}
+		if _, err := lv.Mount("1234"); err != nil {
+			t.Fatal(err)
+		}
 	}
 }

@@ -8,6 +8,9 @@ go-units is a library to transform human friendly measurements into machine frie
 
 See the [docs in godoc](https://godoc.org/github.com/docker/go-units) for examples and documentation.
 
-## License
+## Copyright and license
 
-go-units is licensed under the Apache License, Version 2.0. See [LICENSE](LICENSE) for the full license text.
+Copyright © 2015 Docker, Inc.
+
+go-units is licensed under the Apache License, Version 2.0.
+See [LICENSE](LICENSE) for the full text of the license.

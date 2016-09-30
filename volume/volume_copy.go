@@ -2,11 +2,6 @@ package volume
 
 import "strings"
 
-const (
-	// DefaultCopyMode is the copy mode used by default for normal/named volumes
-	DefaultCopyMode = true
-)
-
 // {<copy mode>=isEnabled}
 var copyModes = map[string]bool{
 	"nocopy": false,

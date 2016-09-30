@@ -10,109 +10,121 @@ parent = "smn_cli"
 
 # run
 
-    Usage: docker run [OPTIONS] IMAGE [COMMAND] [ARG...]
+```markdown
+Usage:  docker run [OPTIONS] IMAGE [COMMAND] [ARG...]
 
-    Run a command in a new container
+Run a command in a new container
 
-      -a, --attach=[]               Attach to STDIN, STDOUT or STDERR
-      --add-host=[]                 Add a custom host-to-IP mapping (host:ip)
-      --blkio-weight=0              Block IO weight (relative weight)
-      --blkio-weight-device=[]      Block IO weight (relative device weight, format: `DEVICE_NAME:WEIGHT`)
-      --cpu-shares=0                CPU shares (relative weight)
-      --cap-add=[]                  Add Linux capabilities
-      --cap-drop=[]                 Drop Linux capabilities
-      --cgroup-parent=""            Optional parent cgroup for the container
-      --cidfile=""                  Write the container ID to the file
-      --cpu-percent=0               Limit percentage of CPU available for execution by the container. Windows daemon only.
-      --cpu-period=0                Limit CPU CFS (Completely Fair Scheduler) period
-      --cpu-quota=0                 Limit CPU CFS (Completely Fair Scheduler) quota
-      --cpuset-cpus=""              CPUs in which to allow execution (0-3, 0,1)
-      --cpuset-mems=""              Memory nodes (MEMs) in which to allow execution (0-3, 0,1)
-      -d, --detach                  Run container in background and print container ID
-      --detach-keys                 Specify the escape key sequence used to detach a container
-      --device=[]                   Add a host device to the container
-      --device-read-bps=[]          Limit read rate (bytes per second) from a device (e.g., --device-read-bps=/dev/sda:1mb)
-      --device-read-iops=[]         Limit read rate (IO per second) from a device (e.g., --device-read-iops=/dev/sda:1000)
-      --device-write-bps=[]         Limit write rate (bytes per second) to a device (e.g., --device-write-bps=/dev/sda:1mb)
-      --device-write-iops=[]        Limit write rate (IO per second) to a device (e.g., --device-write-bps=/dev/sda:1000)
-      --disable-content-trust=true  Skip image verification
-      --dns=[]                      Set custom DNS servers
-      --dns-opt=[]                  Set custom DNS options
-      --dns-search=[]               Set custom DNS search domains
-      -e, --env=[]                  Set environment variables
-      --entrypoint=""               Overwrite the default ENTRYPOINT of the image
-      --env-file=[]                 Read in a file of environment variables
-      --expose=[]                   Expose a port or a range of ports
-      --group-add=[]                Add additional groups to run as
-      -h, --hostname=""             Container host name
+Options:
+      --add-host value              Add a custom host-to-IP mapping (host:ip) (default [])
+  -a, --attach value                Attach to STDIN, STDOUT or STDERR (default [])
+      --blkio-weight value          Block IO (relative weight), between 10 and 1000
+      --blkio-weight-device value   Block IO weight (relative device weight) (default [])
+      --cap-add value               Add Linux capabilities (default [])
+      --cap-drop value              Drop Linux capabilities (default [])
+      --cgroup-parent string        Optional parent cgroup for the container
+      --cidfile string              Write the container ID to the file
+      --cpu-percent int             CPU percent (Windows only)
+      --cpu-period int              Limit CPU CFS (Completely Fair Scheduler) period
+      --cpu-quota int               Limit CPU CFS (Completely Fair Scheduler) quota
+  -c, --cpu-shares int              CPU shares (relative weight)
+      --cpuset-cpus string          CPUs in which to allow execution (0-3, 0,1)
+      --cpuset-mems string          MEMs in which to allow execution (0-3, 0,1)
+  -d, --detach                      Run container in background and print container ID
+      --detach-keys string          Override the key sequence for detaching a container
+      --device value                Add a host device to the container (default [])
+      --device-read-bps value       Limit read rate (bytes per second) from a device (default [])
+      --device-read-iops value      Limit read rate (IO per second) from a device (default [])
+      --device-write-bps value      Limit write rate (bytes per second) to a device (default [])
+      --device-write-iops value     Limit write rate (IO per second) to a device (default [])
+      --disable-content-trust       Skip image verification (default true)
+      --dns value                   Set custom DNS servers (default [])
+      --dns-opt value               Set DNS options (default [])
+      --dns-search value            Set custom DNS search domains (default [])
+      --entrypoint string           Overwrite the default ENTRYPOINT of the image
+  -e, --env value                   Set environment variables (default [])
+      --env-file value              Read in a file of environment variables (default [])
+      --expose value                Expose a port or a range of ports (default [])
+      --group-add value             Add additional groups to join (default [])
+      --health-cmd string           Command to run to check health
+      --health-interval duration    Time between running the check
+      --health-retries int          Consecutive failures needed to report unhealthy
+      --health-timeout duration     Maximum time to allow one check to run
       --help                        Print usage
-      -i, --interactive             Keep STDIN open even if not attached
-      --ip=""                       Container IPv4 address (e.g. 172.30.100.104)
-      --ip6=""                      Container IPv6 address (e.g. 2001:db8::33)
-      --ipc=""                      IPC namespace to use
-      --isolation=""                Container isolation technology
-      --kernel-memory=""            Kernel memory limit
-      -l, --label=[]                Set metadata on the container (e.g., --label=com.example.key=value)
-      --label-file=[]               Read in a file of labels (EOL delimited)
-      --link=[]                     Add link to another container
-      --link-local-ip=[]            Container IPv4/IPv6 link-local addresses (e.g. 169.254.0.77, fe80::77)
-      --log-driver=""               Logging driver for container
-      --log-opt=[]                  Log driver specific options
-      -m, --memory=""               Memory limit
-      --mac-address=""              Container MAC address (e.g. 92:d0:c6:0a:29:33)
-      --io-maxbandwidth=""          Maximum IO bandwidth limit for the system drive
+  -h, --hostname string             Container host name
+  -i, --interactive                 Keep STDIN open even if not attached
+      --io-maxbandwidth string      Maximum IO bandwidth limit for the system drive (Windows only)
                                     (Windows only). The format is `<number><unit>`.
                                     Unit is optional and can be `b` (bytes per second),
                                     `k` (kilobytes per second), `m` (megabytes per second),
                                     or `g` (gigabytes per second). If you omit the unit,
                                     the system uses bytes per second.
                                     --io-maxbandwidth and --io-maxiops are mutually exclusive options.
-      --io-maxiops=0                Maximum IO per second limit for the system drive (Windows only).
-                                    --io-maxbandwidth and --io-maxiops are mutually exclusive options.
-      --memory-reservation=""       Memory soft limit
-      --memory-swap=""              A positive integer equal to memory plus swap. Specify -1 to enable unlimited swap.
-      --memory-swappiness=""        Tune a container's memory swappiness behavior. Accepts an integer between 0 and 100.
-      --name=""                     Assign a name to the container
-      --net="bridge"                Connect a container to a network
+      --io-maxiops uint             Maximum IOps limit for the system drive (Windows only)
+      --ip string                   Container IPv4 address (e.g. 172.30.100.104)
+      --ip6 string                  Container IPv6 address (e.g. 2001:db8::33)
+      --ipc string                  IPC namespace to use
+      --isolation string            Container isolation technology
+      --kernel-memory string        Kernel memory limit
+  -l, --label value                 Set meta data on a container (default [])
+      --label-file value            Read in a line delimited file of labels (default [])
+      --link value                  Add link to another container (default [])
+      --link-local-ip value         Container IPv4/IPv6 link-local addresses (default [])
+      --log-driver string           Logging driver for the container
+      --log-opt value               Log driver options (default [])
+      --mac-address string          Container MAC address (e.g. 92:d0:c6:0a:29:33)
+  -m, --memory string               Memory limit
+      --memory-reservation string   Memory soft limit
+      --memory-swap string          Swap limit equal to memory plus swap: '-1' to enable unlimited swap
+      --memory-swappiness int       Tune container memory swappiness (0 to 100) (default -1)
+      --name string                 Assign a name to the container
+      --network-alias value         Add network-scoped alias for the container (default [])
+      --network string              Connect a container to a network
                                     'bridge': create a network stack on the default Docker bridge
                                     'none': no networking
                                     'container:<name|id>': reuse another container's network stack
                                     'host': use the Docker host network stack
                                     '<network-name>|<network-id>': connect to a user-defined network
-      --net-alias=[]                Add network-scoped alias for the container
-      --oom-kill-disable            Whether to disable OOM Killer for the container or not
-      --oom-score-adj=0             Tune the host's OOM preferences for containers (accepts -1000 to 1000)
-      -P, --publish-all             Publish all exposed ports to random ports
-      -p, --publish=[]              Publish a container's port(s) to the host
-      --pid=""                      PID namespace to use
-      --pids-limit=-1                Tune container pids limit (set -1 for unlimited), kernel >= 4.3
+      --no-healthcheck              Disable any container-specified HEALTHCHECK
+      --oom-kill-disable            Disable OOM Killer
+      --oom-score-adj int           Tune host's OOM preferences (-1000 to 1000)
+      --pid string                  PID namespace to use
+      --pids-limit int              Tune container pids limit (set -1 for unlimited)
       --privileged                  Give extended privileges to this container
+  -p, --publish value               Publish a container's port(s) to the host (default [])
+  -P, --publish-all                 Publish all exposed ports to random ports
       --read-only                   Mount the container's root filesystem as read only
-      --restart="no"                Restart policy (no, on-failure[:max-retry], always, unless-stopped)
+      --restart string              Restart policy to apply when a container exits (default "no")
+                                    Possible values are : no, on-failure[:max-retry], always, unless-stopped
       --rm                          Automatically remove the container when it exits
-      --runtime=""                  Name of the runtime to be used for that container
-      --shm-size=[]                 Size of `/dev/shm`. The format is `<number><unit>`. `number` must be greater than `0`.  Unit is optional and can be `b` (bytes), `k` (kilobytes), `m` (megabytes), or `g` (gigabytes). If you omit the unit, the system uses bytes. If you omit the size entirely, the system uses `64m`.
-      --security-opt=[]             Security Options
-      --sig-proxy=true              Proxy received signals to the process
-      --stop-signal="SIGTERM"       Signal to stop a container
-      --storage-opt=[]              Set storage driver options per container
-      --sysctl[=*[]*]]              Configure namespaced kernel parameters at runtime
-      -t, --tty                     Allocate a pseudo-TTY
-      -u, --user=""                 Username or UID (format: <name|uid>[:<group|gid>])
-      --userns=""                   Container user namespace
+      --runtime string              Runtime to use for this container
+      --security-opt value          Security Options (default [])
+      --shm-size string             Size of /dev/shm, default value is 64MB.
+                                    The format is `<number><unit>`. `number` must be greater than `0`.
+                                    Unit is optional and can be `b` (bytes), `k` (kilobytes), `m` (megabytes),
+                                    or `g` (gigabytes). If you omit the unit, the system uses bytes.
+      --sig-proxy                   Proxy received signals to the process (default true)
+      --stop-signal string          Signal to stop a container, SIGTERM by default (default "SIGTERM")
+      --storage-opt value           Storage driver options for the container (default [])
+      --sysctl value                Sysctl options (default map[])
+      --tmpfs value                 Mount a tmpfs directory (default [])
+  -t, --tty                         Allocate a pseudo-TTY
+      --ulimit value                Ulimit options (default [])
+  -u, --user string                 Username or UID (format: <name|uid>[:<group|gid>])
+      --userns string               User namespace to use
                                     'host': Use the Docker host user namespace
                                     '': Use the Docker daemon user namespace specified by `--userns-remap` option.
-      --ulimit=[]                   Ulimit options
-      --uts=""                      UTS namespace to use
-      -v, --volume=[host-src:]container-dest[:<options>]
-                                    Bind mount a volume. The comma-delimited
-                                    `options` are [rw|ro], [z|Z],
-                                    [[r]shared|[r]slave|[r]private], and
+      --uts string                  UTS namespace to use
+  -v, --volume value                Bind mount a volume (default []). The format
+                                    is `[host-src:]container-dest[:<options>]`.
+                                    The comma-delimited `options` are [rw|ro],
+                                    [z|Z], [[r]shared|[r]slave|[r]private], and
                                     [nocopy]. The 'host-src' is an absolute path
                                     or a name value.
-      --volume-driver=""            Container's volume driver
-      --volumes-from=[]             Mount volumes from the specified container(s)
-      -w, --workdir=""              Working directory inside the container
+      --volume-driver string        Optional volume driver for the container
+      --volumes-from value          Mount volumes from the specified container(s) (default [])
+  -w, --workdir string              Working directory inside the container
+```
 
 The `docker run` command first `creates` a writeable container layer over the
 specified image, and then `starts` it using the specified command. That is,
@@ -183,11 +195,11 @@ The `-w` lets the command being executed inside directory given, here
 
 ### Set storage driver options per container
 
-    $ docker create -it --storage-opt size=120G fedora /bin/bash
+    $ docker run -it --storage-opt size=120G fedora /bin/bash
 
-This (size) will allow to set the container rootfs size to 120G at creation time. 
-User cannot pass a size less than the Default BaseFS Size. This option is only 
-available for the `devicemapper`, `btrfs`, and `zfs` graph drivers.
+This (size) will allow to set the container rootfs size to 120G at creation time.
+User cannot pass a size less than the Default BaseFS Size. This option is only
+available for the `devicemapper`, `btrfs`, `windowsfilter`, and `zfs` graph drivers.
 
 ### Mount tmpfs (--tmpfs)
 
@@ -213,7 +225,7 @@ will automatically create this directory on the host for you. In the
 example above, Docker will create the `/doesnt/exist`
 folder before starting your container.
 
-    $ docker run --read-only -v /icanwrite busybox touch /icanwrite here
+    $ docker run --read-only -v /icanwrite busybox touch /icanwrite/here
 
 Volumes can be used in combination with `--read-only` to control where
 a container writes files. The `--read-only` flag mounts the container's root
@@ -227,6 +239,8 @@ binary (refer to [get the linux binary](
 ../../installation/binaries.md#get-the-linux-binary)),
 you give the container the full access to create and manipulate the host's
 Docker daemon.
+
+For in-depth information about volumes, refer to [manage data in containers](../../tutorials/dockervolumes.md)
 
 ### Publish or expose port (-p, --expose)
 
@@ -349,20 +363,20 @@ For additional information on working with labels, see [*Labels - custom
 metadata in Docker*](../../userguide/labels-custom-metadata.md) in the Docker User
 Guide.
 
-### Connect a container to a network (--net)
+### Connect a container to a network (--network)
 
-When you start a container use the `--net` flag to connect it to a network.
+When you start a container use the `--network` flag to connect it to a network.
 This adds the `busybox` container to the `my-net` network.
 
 ```bash
-$ docker run -itd --net=my-net busybox
+$ docker run -itd --network=my-net busybox
 ```
 
 You can also choose the IP addresses for the container with `--ip` and `--ip6`
 flags when you start the container on a user-defined network.
 
 ```bash
-$ docker run -itd --net=my-net --ip=10.10.9.75 busybox
+$ docker run -itd --network=my-net --ip=10.10.9.75 busybox
 ```
 
 If you want to add a running container to a network use the `docker network connect` subcommand.
@@ -535,7 +549,7 @@ more `--add-host` flags. This example adds a static address for a host named
 `docker`:
 
     $ docker run --add-host=docker:10.180.0.1 --rm -it debian
-    $$ ping docker
+    root@f38c87f2a42d:/# ping docker
     PING docker (10.180.0.1): 48 data bytes
     56 bytes from 10.180.0.1: icmp_seq=0 ttl=254 time=7.600 ms
     56 bytes from 10.180.0.1: icmp_seq=1 ttl=254 time=30.705 ms
@@ -622,14 +636,14 @@ On Microsoft Windows, can take any of these values:
 | `hyperv`   | Hyper-V hypervisor partition-based isolation.                                                                                                                  |
 
 On Windows, the default isolation for client is `hyperv`, and for server is
-`process`. Therefore when running on Windows server without a `daemon` option 
+`process`. Therefore when running on Windows server without a `daemon` option
 set, these two commands are equivalent:
 ```
 $ docker run -d --isolation default busybox top
 $ docker run -d --isolation process busybox top
 ```
 
-If you have set the `--exec-opt isolation=hyperv` option on the Docker `daemon`, 
+If you have set the `--exec-opt isolation=hyperv` option on the Docker `daemon`,
 if running on Windows server, any of these commands also result in `hyperv` isolation:
 
 ```
@@ -646,7 +660,7 @@ network namespace, run this command:
     $ docker run --sysctl net.ipv4.ip_forward=1 someimage
 
 
-> **Note**: Not all sysctls are namespaced. docker does not support changing sysctls
+> **Note**: Not all sysctls are namespaced. Docker does not support changing sysctls
 > inside of a container that also modify the host system. As the kernel 
 > evolves we expect to see more sysctls become namespaced.
 
@@ -662,4 +676,4 @@ network namespace, run this command:
   `Network Namespace`:
       Sysctls beginning with net.*
 
-  If you use the `--net=host` option using these sysctls will not be allowed.
+  If you use the `--network=host` option using these sysctls will not be allowed.

@@ -115,9 +115,6 @@ func (s *Signer) sign(template *x509.Certificate, profile *config.SigningProfile
 		template.EmailAddresses = nil
 		s.ca = template
 		initRoot = true
-	} else if template.IsCA {
-		template.DNSNames = nil
-		template.EmailAddresses = nil
 	}
 
 	derBytes, err := x509.CreateCertificate(rand.Reader, template, s.ca, template.PublicKey, s.priv)
@@ -250,18 +247,21 @@ func (s *Signer) Sign(req signer.SignRequest) (cert []byte, err error) {
 	}
 
 	if safeTemplate.IsCA {
-		if !profile.CA {
-			return nil, cferr.New(cferr.CertificateError, cferr.InvalidRequest)
+		if !profile.CAConstraint.IsCA {
+			log.Error("local signer policy disallows issuing CA certificate")
+			return nil, cferr.New(cferr.PolicyError, cferr.InvalidRequest)
 		}
 
 		if s.ca != nil && s.ca.MaxPathLen > 0 {
 			if safeTemplate.MaxPathLen >= s.ca.MaxPathLen {
+				log.Error("local signer certificate disallows CA MaxPathLen extending")
 				// do not sign a cert with pathlen > current
-				return nil, cferr.New(cferr.CertificateError, cferr.InvalidRequest)
+				return nil, cferr.New(cferr.PolicyError, cferr.InvalidRequest)
 			}
 		} else if s.ca != nil && s.ca.MaxPathLen == 0 && s.ca.MaxPathLenZero {
+			log.Error("local signer certificate disallows issuing CA certificate")
 			// signer has pathlen of 0, do not sign more intermediate CAs
-			return nil, cferr.New(cferr.CertificateError, cferr.InvalidRequest)
+			return nil, cferr.New(cferr.PolicyError, cferr.InvalidRequest)
 		}
 	}
 
@@ -272,17 +272,17 @@ func (s *Signer) Sign(req signer.SignRequest) (cert []byte, err error) {
 	if profile.NameWhitelist != nil {
 		if safeTemplate.Subject.CommonName != "" {
 			if profile.NameWhitelist.Find([]byte(safeTemplate.Subject.CommonName)) == nil {
-				return nil, cferr.New(cferr.PolicyError, cferr.InvalidPolicy)
+				return nil, cferr.New(cferr.PolicyError, cferr.UnmatchedWhitelist)
 			}
 		}
 		for _, name := range safeTemplate.DNSNames {
 			if profile.NameWhitelist.Find([]byte(name)) == nil {
-				return nil, cferr.New(cferr.PolicyError, cferr.InvalidPolicy)
+				return nil, cferr.New(cferr.PolicyError, cferr.UnmatchedWhitelist)
 			}
 		}
 		for _, name := range safeTemplate.EmailAddresses {
 			if profile.NameWhitelist.Find([]byte(name)) == nil {
-				return nil, cferr.New(cferr.PolicyError, cferr.InvalidPolicy)
+				return nil, cferr.New(cferr.PolicyError, cferr.UnmatchedWhitelist)
 			}
 		}
 	}
@@ -352,7 +352,7 @@ func (s *Signer) Sign(req signer.SignRequest) (cert []byte, err error) {
 
 		for _, server := range profile.CTLogServers {
 			log.Infof("submitting poisoned precertificate to %s", server)
-			var ctclient = client.New(server)
+			var ctclient = client.New(server, nil)
 			var resp *ct.SignedCertificateTimestamp
 			resp, err = ctclient.AddPreChain(prechain)
 			if err != nil {

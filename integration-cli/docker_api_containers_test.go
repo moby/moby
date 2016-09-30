@@ -6,21 +6,27 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/docker/docker/api/types"
+	containertypes "github.com/docker/docker/api/types/container"
+	mounttypes "github.com/docker/docker/api/types/mount"
+	networktypes "github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/pkg/integration"
 	"github.com/docker/docker/pkg/integration/checker"
+	"github.com/docker/docker/pkg/ioutils"
+	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/stringid"
-	"github.com/docker/engine-api/types"
-	containertypes "github.com/docker/engine-api/types/container"
-	networktypes "github.com/docker/engine-api/types/network"
+	"github.com/docker/docker/volume"
 	"github.com/go-check/check"
 )
 
@@ -169,12 +175,10 @@ func (s *DockerSuite) TestContainerApiGetChanges(c *check.C) {
 }
 
 func (s *DockerSuite) TestGetContainerStats(c *check.C) {
-	// Problematic on Windows as Windows does not support stats
-	testRequires(c, DaemonIsLinux)
 	var (
 		name = "statscontainer"
 	)
-	dockerCmd(c, "run", "-d", "--name", name, "busybox", "top")
+	runSleepingContainer(c, "--name", name)
 
 	type b struct {
 		status int
@@ -208,35 +212,25 @@ func (s *DockerSuite) TestGetContainerStats(c *check.C) {
 }
 
 func (s *DockerSuite) TestGetContainerStatsRmRunning(c *check.C) {
-	// Problematic on Windows as Windows does not support stats
-	testRequires(c, DaemonIsLinux)
-	out, _ := dockerCmd(c, "run", "-d", "busybox", "top")
+	out, _ := runSleepingContainer(c)
 	id := strings.TrimSpace(out)
 
 	buf := &integration.ChannelBuffer{make(chan []byte, 1)}
 	defer buf.Close()
+
+	_, body, err := sockRequestRaw("GET", "/containers/"+id+"/stats?stream=1", nil, "application/json")
+	c.Assert(err, checker.IsNil)
+	defer body.Close()
+
 	chErr := make(chan error, 1)
 	go func() {
-		_, body, err := sockRequestRaw("GET", "/containers/"+id+"/stats?stream=1", nil, "application/json")
-		if err != nil {
-			chErr <- err
-		}
-		defer body.Close()
 		_, err = io.Copy(buf, body)
 		chErr <- err
-	}()
-	defer func() {
-		select {
-		case err := <-chErr:
-			c.Assert(err, checker.IsNil)
-		default:
-			return
-		}
 	}()
 
 	b := make([]byte, 32)
 	// make sure we've got some stats
-	_, err := buf.ReadTimeout(b, 2*time.Second)
+	_, err = buf.ReadTimeout(b, 2*time.Second)
 	c.Assert(err, checker.IsNil)
 
 	// Now remove without `-f` and make sure we are still pulling stats
@@ -245,17 +239,16 @@ func (s *DockerSuite) TestGetContainerStatsRmRunning(c *check.C) {
 	_, err = buf.ReadTimeout(b, 2*time.Second)
 	c.Assert(err, checker.IsNil)
 
-	dockerCmd(c, "kill", id)
+	dockerCmd(c, "rm", "-f", id)
+	c.Assert(<-chErr, checker.IsNil)
 }
 
 // regression test for gh13421
 // previous test was just checking one stat entry so it didn't fail (stats with
 // stream false always return one stat)
 func (s *DockerSuite) TestGetContainerStatsStream(c *check.C) {
-	// Problematic on Windows as Windows does not support stats
-	testRequires(c, DaemonIsLinux)
 	name := "statscontainer"
-	dockerCmd(c, "run", "-d", "--name", name, "busybox", "top")
+	runSleepingContainer(c, "--name", name)
 
 	type b struct {
 		status int
@@ -290,10 +283,8 @@ func (s *DockerSuite) TestGetContainerStatsStream(c *check.C) {
 }
 
 func (s *DockerSuite) TestGetContainerStatsNoStream(c *check.C) {
-	// Problematic on Windows as Windows does not support stats
-	testRequires(c, DaemonIsLinux)
 	name := "statscontainer"
-	dockerCmd(c, "run", "-d", "--name", name, "busybox", "top")
+	runSleepingContainer(c, "--name", name)
 
 	type b struct {
 		status int
@@ -320,16 +311,14 @@ func (s *DockerSuite) TestGetContainerStatsNoStream(c *check.C) {
 		c.Assert(sr.status, checker.Equals, http.StatusOK)
 
 		s := string(sr.body)
-		// count occurrences of "read" of types.Stats
-		c.Assert(strings.Count(s, "read"), checker.Equals, 1, check.Commentf("Expected only one stat streamed, got %d", strings.Count(s, "read")))
+		// count occurrences of `"read"` of types.Stats
+		c.Assert(strings.Count(s, `"read"`), checker.Equals, 1, check.Commentf("Expected only one stat streamed, got %d", strings.Count(s, `"read"`)))
 	}
 }
 
 func (s *DockerSuite) TestGetStoppedContainerStats(c *check.C) {
-	// Problematic on Windows as Windows does not support stats
-	testRequires(c, DaemonIsLinux)
 	name := "statscontainer"
-	dockerCmd(c, "create", "--name", name, "busybox", "top")
+	dockerCmd(c, "create", "--name", name, "busybox", "ps")
 
 	type stats struct {
 		status int
@@ -483,7 +472,7 @@ func (s *DockerSuite) TestContainerApiBadPort(c *check.C) {
 	status, body, err := sockRequest("POST", "/containers/create", config)
 	c.Assert(err, checker.IsNil)
 	c.Assert(status, checker.Equals, http.StatusInternalServerError)
-	c.Assert(getErrorMessage(c, body), checker.Equals, `Invalid port specification: "aa80"`, check.Commentf("Incorrect error msg: %s", body))
+	c.Assert(getErrorMessage(c, body), checker.Equals, `invalid port specification: "aa80"`, check.Commentf("Incorrect error msg: %s", body))
 }
 
 func (s *DockerSuite) TestContainerApiCreate(c *check.C) {
@@ -542,8 +531,6 @@ func (s *DockerSuite) TestContainerApiCreateMultipleNetworksConfig(c *check.C) {
 }
 
 func (s *DockerSuite) TestContainerApiCreateWithHostName(c *check.C) {
-	// TODO Windows: Port this test once hostname is supported
-	testRequires(c, DaemonIsLinux)
 	hostName := "test-host"
 	config := map[string]interface{}{
 		"Image":    "busybox",
@@ -567,8 +554,6 @@ func (s *DockerSuite) TestContainerApiCreateWithHostName(c *check.C) {
 }
 
 func (s *DockerSuite) TestContainerApiCreateWithDomainName(c *check.C) {
-	// TODO Windows: Port this test once domain name is supported
-	testRequires(c, DaemonIsLinux)
 	domainName := "test-domain"
 	config := map[string]interface{}{
 		"Image":      "busybox",
@@ -707,15 +692,72 @@ func (s *DockerSuite) TestContainerApiInvalidPortSyntax(c *check.C) {
 
 	b, err := readBody(body)
 	c.Assert(err, checker.IsNil)
-	c.Assert(string(b[:]), checker.Contains, "Invalid port")
+	c.Assert(string(b[:]), checker.Contains, "invalid port")
+}
+
+func (s *DockerSuite) TestContainerApiInvalidRestartPolicyName(c *check.C) {
+	config := `{
+		"Image": "busybox",
+		"HostConfig": {
+			"RestartPolicy": {
+				"Name": "something",
+				"MaximumRetryCount": 0
+			}
+		}
+	}`
+
+	res, body, err := sockRequestRaw("POST", "/containers/create", strings.NewReader(config), "application/json")
+	c.Assert(err, checker.IsNil)
+	c.Assert(res.StatusCode, checker.Equals, http.StatusInternalServerError)
+
+	b, err := readBody(body)
+	c.Assert(err, checker.IsNil)
+	c.Assert(string(b[:]), checker.Contains, "invalid restart policy")
+}
+
+func (s *DockerSuite) TestContainerApiInvalidRestartPolicyRetryMismatch(c *check.C) {
+	config := `{
+		"Image": "busybox",
+		"HostConfig": {
+			"RestartPolicy": {
+				"Name": "always",
+				"MaximumRetryCount": 2
+			}
+		}
+	}`
+
+	res, body, err := sockRequestRaw("POST", "/containers/create", strings.NewReader(config), "application/json")
+	c.Assert(err, checker.IsNil)
+	c.Assert(res.StatusCode, checker.Equals, http.StatusInternalServerError)
+
+	b, err := readBody(body)
+	c.Assert(err, checker.IsNil)
+	c.Assert(string(b[:]), checker.Contains, "maximum restart count not valid with restart policy")
+}
+
+func (s *DockerSuite) TestContainerApiInvalidRestartPolicyPositiveRetryCount(c *check.C) {
+	config := `{
+		"Image": "busybox",
+		"HostConfig": {
+			"RestartPolicy": {
+				"Name": "on-failure",
+				"MaximumRetryCount": -2
+			}
+		}
+	}`
+
+	res, body, err := sockRequestRaw("POST", "/containers/create", strings.NewReader(config), "application/json")
+	c.Assert(err, checker.IsNil)
+	c.Assert(res.StatusCode, checker.Equals, http.StatusInternalServerError)
+
+	b, err := readBody(body)
+	c.Assert(err, checker.IsNil)
+	c.Assert(string(b[:]), checker.Contains, "maximum restart count must be a positive integer")
 }
 
 // Issue 7941 - test to make sure a "null" in JSON is just ignored.
 // W/o this fix a null in JSON would be parsed into a string var as "null"
 func (s *DockerSuite) TestContainerApiPostCreateNull(c *check.C) {
-	// TODO Windows to Windows CI. Bit of this with alternate fields checked
-	// can probably be ported.
-	testRequires(c, DaemonIsLinux)
 	config := `{
 		"Hostname":"",
 		"Domainname":"",
@@ -780,8 +822,6 @@ func (s *DockerSuite) TestCreateWithTooLowMemoryLimit(c *check.C) {
 }
 
 func (s *DockerSuite) TestContainerApiRename(c *check.C) {
-	// TODO Windows: Debug why this sometimes fails on TP5. For now, leave disabled
-	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "--name", "TestContainerApiRename", "-d", "busybox", "sh")
 
 	containerID := strings.TrimSpace(out)
@@ -837,7 +877,7 @@ func (s *DockerSuite) TestContainerApiStart(c *check.C) {
 	name := "testing-start"
 	config := map[string]interface{}{
 		"Image":     "busybox",
-		"Cmd":       append([]string{"/bin/sh", "-c"}, defaultSleepCommand...),
+		"Cmd":       append([]string{"/bin/sh", "-c"}, sleepCommandForDaemonPlatform()...),
 		"OpenStdin": true,
 	}
 
@@ -881,7 +921,7 @@ func (s *DockerSuite) TestContainerApiWait(c *check.C) {
 	if daemonPlatform == "windows" {
 		sleepCmd = "sleep"
 	}
-	dockerCmd(c, "run", "--name", name, "busybox", sleepCmd, "5")
+	dockerCmd(c, "run", "--name", name, "busybox", sleepCmd, "2")
 
 	status, body, err := sockRequest("POST", "/containers/"+name+"/wait", nil)
 	c.Assert(err, checker.IsNil)
@@ -894,8 +934,6 @@ func (s *DockerSuite) TestContainerApiWait(c *check.C) {
 }
 
 func (s *DockerSuite) TestContainerApiCopyNotExistsAnyMore(c *check.C) {
-	// TODO Windows to Windows CI. This can be ported.
-	testRequires(c, DaemonIsLinux)
 	name := "test-container-api-copy"
 	dockerCmd(c, "run", "--name", name, "busybox", "touch", "/test.txt")
 
@@ -909,8 +947,7 @@ func (s *DockerSuite) TestContainerApiCopyNotExistsAnyMore(c *check.C) {
 }
 
 func (s *DockerSuite) TestContainerApiCopyPre124(c *check.C) {
-	// TODO Windows to Windows CI. This can be ported.
-	testRequires(c, DaemonIsLinux)
+
 	name := "test-container-api-copy"
 	dockerCmd(c, "run", "--name", name, "busybox", "touch", "/test.txt")
 
@@ -940,8 +977,6 @@ func (s *DockerSuite) TestContainerApiCopyPre124(c *check.C) {
 }
 
 func (s *DockerSuite) TestContainerApiCopyResourcePathEmptyPr124(c *check.C) {
-	// TODO Windows to Windows CI. This can be ported.
-	testRequires(c, DaemonIsLinux)
 	name := "test-container-api-copy-resource-empty"
 	dockerCmd(c, "run", "--name", name, "busybox", "touch", "/test.txt")
 
@@ -956,8 +991,6 @@ func (s *DockerSuite) TestContainerApiCopyResourcePathEmptyPr124(c *check.C) {
 }
 
 func (s *DockerSuite) TestContainerApiCopyResourcePathNotFoundPre124(c *check.C) {
-	// TODO Windows to Windows CI. This can be ported.
-	testRequires(c, DaemonIsLinux)
 	name := "test-container-api-copy-resource-not-found"
 	dockerCmd(c, "run", "--name", name, "busybox")
 
@@ -1073,9 +1106,6 @@ func (s *DockerSuite) TestContainerApiDeleteRemoveVolume(c *check.C) {
 
 // Regression test for https://github.com/docker/docker/issues/6231
 func (s *DockerSuite) TestContainerApiChunkedEncoding(c *check.C) {
-	// TODO Windows CI: This can be ported
-	testRequires(c, DaemonIsLinux)
-
 	conn, err := sockConn(time.Duration(10*time.Second), "")
 	c.Assert(err, checker.IsNil)
 	client := httputil.NewClientConn(conn, nil)
@@ -1083,7 +1113,7 @@ func (s *DockerSuite) TestContainerApiChunkedEncoding(c *check.C) {
 
 	config := map[string]interface{}{
 		"Image":     "busybox",
-		"Cmd":       append([]string{"/bin/sh", "-c"}, defaultSleepCommand...),
+		"Cmd":       append([]string{"/bin/sh", "-c"}, sleepCommandForDaemonPlatform()...),
 		"OpenStdin": true,
 	}
 	b, err := json.Marshal(config)
@@ -1274,7 +1304,7 @@ func (s *DockerSuite) TestPostContainersCreateShmSizeNegative(c *check.C) {
 	status, body, err := sockRequest("POST", "/containers/create", config)
 	c.Assert(err, check.IsNil)
 	c.Assert(status, check.Equals, http.StatusInternalServerError)
-	c.Assert(getErrorMessage(c, body), checker.Contains, "SHM size must be greater than 0")
+	c.Assert(getErrorMessage(c, body), checker.Contains, "SHM size can not be less than 0")
 }
 
 func (s *DockerSuite) TestPostContainersCreateShmSizeHostConfigOmitted(c *check.C) {
@@ -1438,4 +1468,265 @@ func (s *DockerSuite) TestContainerApiDeleteWithEmptyName(c *check.C) {
 	c.Assert(err, checker.IsNil)
 	c.Assert(status, checker.Equals, http.StatusBadRequest)
 	c.Assert(string(out), checker.Contains, "No container name or ID supplied")
+}
+
+func (s *DockerSuite) TestContainerApiStatsWithNetworkDisabled(c *check.C) {
+	// Problematic on Windows as Windows does not support stats
+	testRequires(c, DaemonIsLinux)
+
+	name := "testing-network-disabled"
+	config := map[string]interface{}{
+		"Image":           "busybox",
+		"Cmd":             []string{"top"},
+		"NetworkDisabled": true,
+	}
+
+	status, _, err := sockRequest("POST", "/containers/create?name="+name, config)
+	c.Assert(err, checker.IsNil)
+	c.Assert(status, checker.Equals, http.StatusCreated)
+
+	status, _, err = sockRequest("POST", "/containers/"+name+"/start", nil)
+	c.Assert(err, checker.IsNil)
+	c.Assert(status, checker.Equals, http.StatusNoContent)
+
+	c.Assert(waitRun(name), check.IsNil)
+
+	type b struct {
+		status int
+		body   []byte
+		err    error
+	}
+	bc := make(chan b, 1)
+	go func() {
+		status, body, err := sockRequest("GET", "/containers/"+name+"/stats", nil)
+		bc <- b{status, body, err}
+	}()
+
+	// allow some time to stream the stats from the container
+	time.Sleep(4 * time.Second)
+	dockerCmd(c, "rm", "-f", name)
+
+	// collect the results from the stats stream or timeout and fail
+	// if the stream was not disconnected.
+	select {
+	case <-time.After(2 * time.Second):
+		c.Fatal("stream was not closed after container was removed")
+	case sr := <-bc:
+		c.Assert(sr.err, checker.IsNil)
+		c.Assert(sr.status, checker.Equals, http.StatusOK)
+
+		// decode only one object from the stream
+		var s *types.Stats
+		dec := json.NewDecoder(bytes.NewBuffer(sr.body))
+		c.Assert(dec.Decode(&s), checker.IsNil)
+	}
+}
+
+func (s *DockerSuite) TestContainersApiCreateMountsValidation(c *check.C) {
+	type m mounttypes.Mount
+	type hc struct{ Mounts []m }
+	type cfg struct {
+		Image      string
+		HostConfig hc
+	}
+	type testCase struct {
+		config cfg
+		status int
+		msg    string
+	}
+
+	prefix, slash := getPrefixAndSlashFromDaemonPlatform()
+	destPath := prefix + slash + "foo"
+	notExistPath := prefix + slash + "notexist"
+
+	cases := []testCase{
+		{cfg{Image: "busybox", HostConfig: hc{Mounts: []m{{Type: "notreal", Target: destPath}}}}, http.StatusBadRequest, "mount type unknown"},
+		{cfg{Image: "busybox", HostConfig: hc{Mounts: []m{{Type: "bind"}}}}, http.StatusBadRequest, "Target must not be empty"},
+		{cfg{Image: "busybox", HostConfig: hc{Mounts: []m{{Type: "bind", Target: destPath}}}}, http.StatusBadRequest, "Source must not be empty"},
+		{cfg{Image: "busybox", HostConfig: hc{Mounts: []m{{Type: "bind", Source: notExistPath, Target: destPath}}}}, http.StatusBadRequest, "bind source path does not exist"},
+		{cfg{Image: "busybox", HostConfig: hc{Mounts: []m{{Type: "volume"}}}}, http.StatusBadRequest, "Target must not be empty"},
+		{cfg{Image: "busybox", HostConfig: hc{Mounts: []m{{Type: "volume", Source: "hello", Target: destPath}}}}, http.StatusCreated, ""},
+		{cfg{Image: "busybox", HostConfig: hc{Mounts: []m{{Type: "volume", Source: "hello2", Target: destPath, VolumeOptions: &mounttypes.VolumeOptions{DriverConfig: &mounttypes.Driver{Name: "local"}}}}}}, http.StatusCreated, ""},
+	}
+
+	if SameHostDaemon.Condition() {
+		tmpDir, err := ioutils.TempDir("", "test-mounts-api")
+		c.Assert(err, checker.IsNil)
+		defer os.RemoveAll(tmpDir)
+		cases = append(cases, []testCase{
+			{cfg{Image: "busybox", HostConfig: hc{Mounts: []m{{Type: "bind", Source: tmpDir, Target: destPath}}}}, http.StatusCreated, ""},
+			{cfg{Image: "busybox", HostConfig: hc{Mounts: []m{{Type: "bind", Source: tmpDir, Target: destPath, VolumeOptions: &mounttypes.VolumeOptions{}}}}}, http.StatusBadRequest, "VolumeOptions must not be specified"},
+		}...)
+	}
+
+	if DaemonIsLinux.Condition() {
+		cases = append(cases, []testCase{
+			{cfg{Image: "busybox", HostConfig: hc{Mounts: []m{{Type: "volume", Source: "hello3", Target: destPath, VolumeOptions: &mounttypes.VolumeOptions{DriverConfig: &mounttypes.Driver{Name: "local", Options: map[string]string{"o": "size=1"}}}}}}}, http.StatusCreated, ""},
+		}...)
+
+	}
+
+	for i, x := range cases {
+		c.Logf("case %d", i)
+		status, b, err := sockRequest("POST", "/containers/create", x.config)
+		c.Assert(err, checker.IsNil)
+		c.Assert(status, checker.Equals, x.status, check.Commentf("%s\n%v", string(b), cases[i].config))
+		if len(x.msg) > 0 {
+			c.Assert(string(b), checker.Contains, x.msg, check.Commentf("%v", cases[i].config))
+		}
+	}
+}
+
+func (s *DockerSuite) TestContainerApiCreateMountsBindRead(c *check.C) {
+	testRequires(c, NotUserNamespace, SameHostDaemon)
+	// also with data in the host side
+	prefix, slash := getPrefixAndSlashFromDaemonPlatform()
+	destPath := prefix + slash + "foo"
+	tmpDir, err := ioutil.TempDir("", "test-mounts-api-bind")
+	c.Assert(err, checker.IsNil)
+	defer os.RemoveAll(tmpDir)
+	err = ioutil.WriteFile(filepath.Join(tmpDir, "bar"), []byte("hello"), 666)
+	c.Assert(err, checker.IsNil)
+
+	data := map[string]interface{}{
+		"Image":      "busybox",
+		"Cmd":        []string{"/bin/sh", "-c", "cat /foo/bar"},
+		"HostConfig": map[string]interface{}{"Mounts": []map[string]interface{}{{"Type": "bind", "Source": tmpDir, "Target": destPath}}},
+	}
+	status, resp, err := sockRequest("POST", "/containers/create?name=test", data)
+	c.Assert(err, checker.IsNil, check.Commentf(string(resp)))
+	c.Assert(status, checker.Equals, http.StatusCreated, check.Commentf(string(resp)))
+
+	out, _ := dockerCmd(c, "start", "-a", "test")
+	c.Assert(out, checker.Equals, "hello")
+}
+
+// Test Mounts comes out as expected for the MountPoint
+func (s *DockerSuite) TestContainersApiCreateMountsCreate(c *check.C) {
+	prefix, slash := getPrefixAndSlashFromDaemonPlatform()
+	destPath := prefix + slash + "foo"
+
+	var (
+		err     error
+		testImg string
+	)
+	if daemonPlatform != "windows" {
+		testImg, err = buildImage("test-mount-config", `
+	FROM busybox
+	RUN mkdir `+destPath+` && touch `+destPath+slash+`bar
+	CMD cat `+destPath+slash+`bar
+	`, true)
+	} else {
+		testImg = "busybox"
+	}
+	c.Assert(err, checker.IsNil)
+
+	type testCase struct {
+		cfg      mounttypes.Mount
+		expected types.MountPoint
+	}
+
+	cases := []testCase{
+		// use literal strings here for `Type` instead of the defined constants in the volume package to keep this honest
+		// Validation of the actual `Mount` struct is done in another test is not needed here
+		{mounttypes.Mount{Type: "volume", Target: destPath}, types.MountPoint{Driver: volume.DefaultDriverName, Type: "volume", RW: true, Destination: destPath}},
+		{mounttypes.Mount{Type: "volume", Target: destPath + slash}, types.MountPoint{Driver: volume.DefaultDriverName, Type: "volume", RW: true, Destination: destPath}},
+		{mounttypes.Mount{Type: "volume", Target: destPath, Source: "test1"}, types.MountPoint{Type: "volume", Name: "test1", RW: true, Destination: destPath}},
+		{mounttypes.Mount{Type: "volume", Target: destPath, ReadOnly: true, Source: "test2"}, types.MountPoint{Type: "volume", Name: "test2", RW: false, Destination: destPath}},
+		{mounttypes.Mount{Type: "volume", Target: destPath, Source: "test3", VolumeOptions: &mounttypes.VolumeOptions{DriverConfig: &mounttypes.Driver{Name: volume.DefaultDriverName}}}, types.MountPoint{Driver: volume.DefaultDriverName, Type: "volume", Name: "test3", RW: true, Destination: destPath}},
+	}
+
+	if SameHostDaemon.Condition() {
+		// setup temp dir for testing binds
+		tmpDir1, err := ioutil.TempDir("", "test-mounts-api-1")
+		c.Assert(err, checker.IsNil)
+		defer os.RemoveAll(tmpDir1)
+		cases = append(cases, []testCase{
+			{mounttypes.Mount{Type: "bind", Source: tmpDir1, Target: destPath}, types.MountPoint{Type: "bind", RW: true, Destination: destPath, Source: tmpDir1}},
+			{mounttypes.Mount{Type: "bind", Source: tmpDir1, Target: destPath, ReadOnly: true}, types.MountPoint{Type: "bind", RW: false, Destination: destPath, Source: tmpDir1}},
+		}...)
+
+		// for modes only supported on Linux
+		if DaemonIsLinux.Condition() {
+			tmpDir3, err := ioutils.TempDir("", "test-mounts-api-3")
+			c.Assert(err, checker.IsNil)
+			defer os.RemoveAll(tmpDir3)
+
+			c.Assert(mount.Mount(tmpDir3, tmpDir3, "none", "bind,rw"), checker.IsNil)
+			c.Assert(mount.ForceMount("", tmpDir3, "none", "shared"), checker.IsNil)
+
+			cases = append(cases, []testCase{
+				{mounttypes.Mount{Type: "bind", Source: tmpDir3, Target: destPath}, types.MountPoint{Type: "bind", RW: true, Destination: destPath, Source: tmpDir3}},
+				{mounttypes.Mount{Type: "bind", Source: tmpDir3, Target: destPath, ReadOnly: true}, types.MountPoint{Type: "bind", RW: false, Destination: destPath, Source: tmpDir3}},
+				{mounttypes.Mount{Type: "bind", Source: tmpDir3, Target: destPath, ReadOnly: true, BindOptions: &mounttypes.BindOptions{Propagation: "shared"}}, types.MountPoint{Type: "bind", RW: false, Destination: destPath, Source: tmpDir3, Propagation: "shared"}},
+			}...)
+		}
+	}
+
+	if daemonPlatform != "windows" { // Windows does not support volume populate
+		cases = append(cases, []testCase{
+			{mounttypes.Mount{Type: "volume", Target: destPath, VolumeOptions: &mounttypes.VolumeOptions{NoCopy: true}}, types.MountPoint{Driver: volume.DefaultDriverName, Type: "volume", RW: true, Destination: destPath}},
+			{mounttypes.Mount{Type: "volume", Target: destPath + slash, VolumeOptions: &mounttypes.VolumeOptions{NoCopy: true}}, types.MountPoint{Driver: volume.DefaultDriverName, Type: "volume", RW: true, Destination: destPath}},
+			{mounttypes.Mount{Type: "volume", Target: destPath, Source: "test4", VolumeOptions: &mounttypes.VolumeOptions{NoCopy: true}}, types.MountPoint{Type: "volume", Name: "test4", RW: true, Destination: destPath}},
+			{mounttypes.Mount{Type: "volume", Target: destPath, Source: "test5", ReadOnly: true, VolumeOptions: &mounttypes.VolumeOptions{NoCopy: true}}, types.MountPoint{Type: "volume", Name: "test5", RW: false, Destination: destPath}},
+		}...)
+	}
+
+	type wrapper struct {
+		containertypes.Config
+		HostConfig containertypes.HostConfig
+	}
+	type createResp struct {
+		ID string `json:"Id"`
+	}
+	for i, x := range cases {
+		c.Logf("case %d - config: %v", i, x.cfg)
+		status, data, err := sockRequest("POST", "/containers/create", wrapper{containertypes.Config{Image: testImg}, containertypes.HostConfig{Mounts: []mounttypes.Mount{x.cfg}}})
+		c.Assert(err, checker.IsNil, check.Commentf(string(data)))
+		c.Assert(status, checker.Equals, http.StatusCreated, check.Commentf(string(data)))
+
+		var resp createResp
+		err = json.Unmarshal(data, &resp)
+		c.Assert(err, checker.IsNil, check.Commentf(string(data)))
+		id := resp.ID
+
+		var mps []types.MountPoint
+		err = json.NewDecoder(strings.NewReader(inspectFieldJSON(c, id, "Mounts"))).Decode(&mps)
+		c.Assert(err, checker.IsNil)
+		c.Assert(mps, checker.HasLen, 1)
+		c.Assert(mps[0].Destination, checker.Equals, x.expected.Destination)
+
+		if len(x.expected.Source) > 0 {
+			c.Assert(mps[0].Source, checker.Equals, x.expected.Source)
+		}
+		if len(x.expected.Name) > 0 {
+			c.Assert(mps[0].Name, checker.Equals, x.expected.Name)
+		}
+		if len(x.expected.Driver) > 0 {
+			c.Assert(mps[0].Driver, checker.Equals, x.expected.Driver)
+		}
+		c.Assert(mps[0].RW, checker.Equals, x.expected.RW)
+		c.Assert(mps[0].Type, checker.Equals, x.expected.Type)
+		c.Assert(mps[0].Mode, checker.Equals, x.expected.Mode)
+		if len(x.expected.Propagation) > 0 {
+			c.Assert(mps[0].Propagation, checker.Equals, x.expected.Propagation)
+		}
+
+		out, _, err := dockerCmdWithError("start", "-a", id)
+		if (x.cfg.Type != "volume" || (x.cfg.VolumeOptions != nil && x.cfg.VolumeOptions.NoCopy)) && daemonPlatform != "windows" {
+			c.Assert(err, checker.NotNil, check.Commentf("%s\n%v", out, mps[0]))
+		} else {
+			c.Assert(err, checker.IsNil, check.Commentf("%s\n%v", out, mps[0]))
+		}
+
+		dockerCmd(c, "rm", "-fv", id)
+		if x.cfg.Type == "volume" && len(x.cfg.Source) > 0 {
+			// This should still exist even though we removed the container
+			dockerCmd(c, "volume", "inspect", mps[0].Name)
+		} else {
+			// This should be removed automatically when we removed the container
+			out, _, err := dockerCmdWithError("volume", "inspect", mps[0].Name)
+			c.Assert(err, checker.NotNil, check.Commentf(out))
+		}
+	}
 }

@@ -70,7 +70,18 @@ type networkConfiguration struct {
 	dbIndex            uint64
 	dbExists           bool
 	Internal           bool
+
+	BridgeIfaceCreator ifaceCreator
 }
+
+// ifaceCreator represents how the bridge interface was created
+type ifaceCreator int8
+
+const (
+	ifaceCreatorUnknown ifaceCreator = iota
+	ifaceCreatedByLibnetwork
+	ifaceCreatedByUser
+)
 
 // endpointConfiguration represents the user specified configuration for the sandbox endpoint
 type endpointConfiguration struct {
@@ -330,7 +341,7 @@ func (c *networkConfiguration) conflictsWithNetworks(id string, others []*bridge
 		// bridges. This could not be completely caught by the config conflict
 		// check, because networks which config does not specify the AddressIPv4
 		// get their address and subnet selected by the driver (see electBridgeIPv4())
-		if c.AddressIPv4 != nil {
+		if c.AddressIPv4 != nil && nwBridge.bridgeIPv4 != nil {
 			if nwBridge.bridgeIPv4.Contains(c.AddressIPv4.IP) ||
 				c.AddressIPv4.Contains(nwBridge.bridgeIPv4.IP) {
 				return types.ForbiddenErrorf("conflicts with network %s (%s) by ip network", nwID, nwConfig.BridgeName)
@@ -512,6 +523,17 @@ func parseNetworkOptions(id string, option options.Generic) (*networkConfigurati
 		config.BridgeName = "br-" + id[:12]
 	}
 
+	exists, err := bridgeInterfaceExists(config.BridgeName)
+	if err != nil {
+		return nil, err
+	}
+
+	if !exists {
+		config.BridgeIfaceCreator = ifaceCreatedByLibnetwork
+	} else {
+		config.BridgeIfaceCreator = ifaceCreatedByUser
+	}
+
 	config.ID = id
 	return config, nil
 }
@@ -564,7 +586,7 @@ func (d *driver) CreateNetwork(id string, option map[string]interface{}, nInfo d
 	}
 	d.Unlock()
 
-	// Parse and validate the config. It should not conflict with existing networks' config
+	// Parse and validate the config. It should not be conflict with existing networks' config
 	config, err := parseNetworkOptions(id, option)
 	if err != nil {
 		return err
@@ -641,7 +663,10 @@ func (d *driver) createNetwork(config *networkConfiguration) error {
 	d.Unlock()
 
 	// Create or retrieve the bridge L3 interface
-	bridgeIface := newInterface(d.nlh, config)
+	bridgeIface, err := newInterface(d.nlh, config)
+	if err != nil {
+		return err
+	}
 	network.bridge = bridgeIface
 
 	// Verify the network configuration does not conflict with previously installed
@@ -775,11 +800,17 @@ func (d *driver) DeleteNetwork(nid string) error {
 		return err
 	}
 
-	// We only delete the bridge when it's not the default bridge. This is keep the backward compatible behavior.
-	if !config.DefaultBridge {
-		if err := d.nlh.LinkDel(n.bridge.Link); err != nil {
-			logrus.Warnf("Failed to remove bridge interface %s on network %s delete: %v", config.BridgeName, nid, err)
+	switch config.BridgeIfaceCreator {
+	case ifaceCreatedByLibnetwork, ifaceCreatorUnknown:
+		// We only delete the bridge if it was created by the bridge driver and
+		// it is not the default one (to keep the backward compatible behavior.)
+		if !config.DefaultBridge {
+			if err := d.nlh.LinkDel(n.bridge.Link); err != nil {
+				logrus.Warnf("Failed to remove bridge interface %s on network %s delete: %v", config.BridgeName, nid, err)
+			}
 		}
+	case ifaceCreatedByUser:
+		// Don't delete the bridge interface if it was not created by libnetwork.
 	}
 
 	// clean all relevant iptables rules
@@ -1243,8 +1274,17 @@ func (d *driver) ProgramExternalConnectivity(nid, eid string, options map[string
 		return err
 	}
 
+	defer func() {
+		if err != nil {
+			if e := network.releasePorts(endpoint); e != nil {
+				logrus.Errorf("Failed to release ports allocated for the bridge endpoint %s on failure %v because of %v",
+					eid, err, e)
+			}
+			endpoint.portMapping = nil
+		}
+	}()
+
 	if err = d.storeUpdate(endpoint); err != nil {
-		endpoint.portMapping = nil
 		return fmt.Errorf("failed to update bridge endpoint %s to store: %v", endpoint.id[0:7], err)
 	}
 

@@ -16,3 +16,10 @@ func mkdirAs(path string, mode os.FileMode, ownerUID, ownerGID int, mkAll, chown
 	}
 	return nil
 }
+
+// CanAccess takes a valid (existing) directory and a uid, gid pair and determines
+// if that uid, gid pair has access (execute bit) to the directory
+// Windows does not require/support this function, so always return true
+func CanAccess(path string, uid, gid int) bool {
+	return true
+}

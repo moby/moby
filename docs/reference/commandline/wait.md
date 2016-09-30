@@ -10,8 +10,11 @@ parent = "smn_cli"
 
 # wait
 
-    Usage: docker wait [OPTIONS] CONTAINER [CONTAINER...]
+```markdown
+Usage:  docker wait CONTAINER [CONTAINER...]
 
-    Block until a container stops, then print its exit code.
+Block until one or more containers stop, then print their exit codes
 
-      --help          Print usage
+Options:
+      --help   Print usage
+```

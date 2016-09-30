@@ -3,21 +3,24 @@ package daemon
 import (
 	"fmt"
 	"io"
+	"runtime"
 	"strings"
 	"time"
 
 	"golang.org/x/net/context"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/api/errors"
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/strslice"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/exec"
-	"github.com/docker/docker/errors"
 	"github.com/docker/docker/libcontainerd"
 	"github.com/docker/docker/pkg/pools"
 	"github.com/docker/docker/pkg/signal"
+	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/pkg/term"
-	"github.com/docker/engine-api/types"
-	"github.com/docker/engine-api/types/strslice"
+	"github.com/docker/docker/utils"
 )
 
 // Seconds to wait after sending TERM before trying KILL
@@ -121,6 +124,17 @@ func (d *Daemon) ContainerExecCreate(name string, config *types.ExecConfig) (str
 	execConfig.Tty = config.Tty
 	execConfig.Privileged = config.Privileged
 	execConfig.User = config.User
+
+	// On Windows, don't default the path, let the platform do it. Also TERM isn't meaningful
+	if runtime.GOOS != "windows" {
+		execConfig.Env = []string{
+			"PATH=" + system.DefaultPathEnv,
+		}
+		if config.Tty {
+			execConfig.Env = append(execConfig.Env, "TERM=xterm")
+		}
+	}
+	execConfig.Env = utils.ReplaceOrAppendEnvValues(execConfig.Env, container.Config.Env)
 	if len(execConfig.User) == 0 {
 		execConfig.User = container.Config.User
 	}
@@ -195,16 +209,17 @@ func (d *Daemon) ContainerExecStart(ctx context.Context, name string, stdin io.R
 
 	p := libcontainerd.Process{
 		Args:     append([]string{ec.Entrypoint}, ec.Args...),
+		Env:      ec.Env,
 		Terminal: ec.Tty,
 	}
 
 	if err := execSetPlatformOpt(c, ec, &p); err != nil {
-		return nil
+		return err
 	}
 
 	attachErr := container.AttachStreams(ctx, ec.StreamConfig, ec.OpenStdin, true, ec.Tty, cStdin, cStdout, cStderr, ec.DetachKeys)
 
-	if err := d.containerd.AddProcess(c.ID, name, p); err != nil {
+	if err := d.containerd.AddProcess(ctx, c.ID, name, p); err != nil {
 		return err
 	}
 

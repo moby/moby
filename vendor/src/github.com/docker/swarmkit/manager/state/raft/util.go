@@ -13,7 +13,7 @@ import (
 )
 
 // dial returns a grpc client connection
-func dial(addr string, protocol string, creds credentials.TransportAuthenticator, timeout time.Duration) (*grpc.ClientConn, error) {
+func dial(addr string, protocol string, creds credentials.TransportCredentials, timeout time.Duration) (*grpc.ClientConn, error) {
 	grpcOptions := []grpc.DialOption{
 		grpc.WithBackoffMaxDelay(2 * time.Second),
 		grpc.WithTransportCredentials(creds),
@@ -35,19 +35,19 @@ func Register(server *grpc.Server, node *Node) {
 // WaitForLeader waits until node observe some leader in cluster. It returns
 // error if ctx was cancelled before leader appeared.
 func WaitForLeader(ctx context.Context, n *Node) error {
-	l := n.Leader()
-	if l != 0 {
+	_, err := n.Leader()
+	if err == nil {
 		return nil
 	}
 	ticker := time.NewTicker(50 * time.Millisecond)
 	defer ticker.Stop()
-	for l == 0 {
+	for err != nil {
 		select {
 		case <-ticker.C:
 		case <-ctx.Done():
 			return ctx.Err()
 		}
-		l = n.Leader()
+		_, err = n.Leader()
 	}
 	return nil
 }

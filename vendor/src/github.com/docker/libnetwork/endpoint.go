@@ -536,9 +536,6 @@ func (ep *endpoint) sbJoin(sb *sandbox, options ...EndpointOption) error {
 			}
 		}
 
-		if sb.resolver != nil {
-			sb.resolver.FlushExtServers()
-		}
 	}
 
 	if !sb.needDefaultGW() {
@@ -618,10 +615,6 @@ func (ep *endpoint) Leave(sbox Sandbox, options ...EndpointOption) error {
 
 	sb.joinLeaveStart()
 	defer sb.joinLeaveEnd()
-
-	if sb.resolver != nil {
-		sb.resolver.FlushExtServers()
-	}
 
 	return ep.sbLeave(sb, false, options...)
 }
@@ -764,27 +757,18 @@ func (ep *endpoint) Delete(force bool) error {
 		}
 	}()
 
-	if err = n.getEpCnt().DecEndpointCnt(); err != nil && !force {
-		return err
-	}
-	defer func() {
-		if err != nil && !force {
-			if e := n.getEpCnt().IncEndpointCnt(); e != nil {
-				log.Warnf("failed to update network %s : %v", n.name, e)
-			}
-		}
-	}()
-
 	// unwatch for service records
-	if !n.getController().isAgent() {
-		n.getController().unWatchSvcRecord(ep)
-	}
+	n.getController().unWatchSvcRecord(ep)
 
 	if err = ep.deleteEndpoint(force); err != nil && !force {
 		return err
 	}
 
 	ep.releaseAddress()
+
+	if err := n.getEpCnt().DecEndpointCnt(); err != nil {
+		log.Warnf("failed to decrement endpoint coint for ep %s: %v", ep.ID(), err)
+	}
 
 	return nil
 }
@@ -896,6 +880,14 @@ func CreateOptionPortMapping(portBindings []types.PortBinding) EndpointOption {
 		pbs := make([]types.PortBinding, len(portBindings))
 		copy(pbs, portBindings)
 		ep.generic[netlabel.PortMap] = pbs
+	}
+}
+
+// CreateOptionDNS function returns an option setter for dns entry option to
+// be passed to container Create method.
+func CreateOptionDNS(dns []string) EndpointOption {
+	return func(ep *endpoint) {
+		ep.generic[netlabel.DNSServers] = dns
 	}
 }
 

@@ -1,4 +1,4 @@
-package eventstestutils
+package testutils
 
 import (
 	"fmt"
@@ -6,8 +6,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/docker/engine-api/types/events"
-	timetypes "github.com/docker/engine-api/types/time"
+	"github.com/docker/docker/api/types/events"
+	timetypes "github.com/docker/docker/api/types/time"
 )
 
 var (

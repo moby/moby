@@ -21,6 +21,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	flag "github.com/spf13/pflag"
@@ -105,6 +106,8 @@ type Command struct {
 	commandsMaxUseLen         int
 	commandsMaxCommandPathLen int
 	commandsMaxNameLen        int
+	// is commands slice are sorted or not
+	commandsAreSorted bool
 
 	flagErrorBuf *bytes.Buffer
 
@@ -126,6 +129,9 @@ type Command struct {
 
 	// Disable the flag parsing. If this is true all flags will be passed to the command as arguments.
 	DisableFlagParsing bool
+
+	// TraverseChildren parses flags on all parents before executing child command
+	TraverseChildren bool
 }
 
 // os.Args[1:] by default, if desired, can be overridden
@@ -409,13 +415,14 @@ func argsMinusFirstX(args []string, x string) []string {
 	return args
 }
 
-// find the target command given the args and command tree
+func isFlagArg(arg string) bool {
+	return ((len(arg) >= 3 && arg[1] == '-') ||
+	        (len(arg) >= 2 && arg[0] == '-' && arg[1] != '-'))
+}
+
+// Find the target command given the args and command tree
 // Meant to be run on the highest node. Only searches down.
 func (c *Command) Find(args []string) (*Command, []string, error) {
-	if c == nil {
-		return nil, nil, fmt.Errorf("Called find() on a nil Command")
-	}
-
 	var innerfind func(*Command, []string) (*Command, []string)
 
 	innerfind = func(c *Command, innerArgs []string) (*Command, []string) {
@@ -424,28 +431,11 @@ func (c *Command) Find(args []string) (*Command, []string, error) {
 			return c, innerArgs
 		}
 		nextSubCmd := argsWOflags[0]
-		matches := make([]*Command, 0)
-		for _, cmd := range c.commands {
-			if cmd.Name() == nextSubCmd || cmd.HasAlias(nextSubCmd) { // exact name or alias match
-				return innerfind(cmd, argsMinusFirstX(innerArgs, nextSubCmd))
-			}
-			if EnablePrefixMatching {
-				if strings.HasPrefix(cmd.Name(), nextSubCmd) { // prefix match
-					matches = append(matches, cmd)
-				}
-				for _, x := range cmd.Aliases {
-					if strings.HasPrefix(x, nextSubCmd) {
-						matches = append(matches, cmd)
-					}
-				}
-			}
-		}
 
-		// only accept a single prefix match - multiple matches would be ambiguous
-		if len(matches) == 1 {
-			return innerfind(matches[0], argsMinusFirstX(innerArgs, argsWOflags[0]))
+		cmd := c.findNext(nextSubCmd)
+		if cmd != nil {
+			return innerfind(cmd, argsMinusFirstX(innerArgs, nextSubCmd))
 		}
-
 		return c, innerArgs
 	}
 
@@ -454,6 +444,66 @@ func (c *Command) Find(args []string) (*Command, []string, error) {
 		return commandFound, a, legacyArgs(commandFound, stripFlags(a, commandFound))
 	}
 	return commandFound, a, nil
+}
+
+func (c *Command) findNext(next string) *Command {
+	matches := make([]*Command, 0)
+	for _, cmd := range c.commands {
+		if cmd.Name() == next || cmd.HasAlias(next) {
+			return cmd
+		}
+		if EnablePrefixMatching && cmd.HasNameOrAliasPrefix(next) {
+			matches = append(matches, cmd)
+		}
+	}
+
+	if len(matches) == 1 {
+		return matches[0]
+	}
+	return nil
+}
+
+// Traverse the command tree to find the command, and parse args for
+// each parent.
+func (c *Command) Traverse(args []string) (*Command, []string, error) {
+	flags := []string{}
+	inFlag := false
+
+	for i, arg := range args {
+		switch {
+		// A long flag with a space separated value
+		case strings.HasPrefix(arg, "--") && !strings.Contains(arg, "="):
+			// TODO: this isn't quite right, we should really check ahead for 'true' or 'false'
+			inFlag = !isBooleanFlag(arg[2:], c.Flags())
+			flags = append(flags, arg)
+			continue
+		// A short flag with a space separated value
+		case strings.HasPrefix(arg, "-") && !strings.Contains(arg, "=") && len(arg) == 2 && !isBooleanShortFlag(arg[1:], c.Flags()):
+			inFlag = true
+			flags = append(flags, arg)
+			continue
+		// The value for a flag
+		case inFlag:
+			inFlag = false
+			flags = append(flags, arg)
+			continue
+		// A flag without a value, or with an `=` separated value
+		case isFlagArg(arg):
+			flags = append(flags, arg)
+			continue
+		}
+
+		cmd := c.findNext(arg)
+		if cmd == nil {
+			return c, args, nil
+		}
+
+		if err := c.ParseFlags(flags); err != nil {
+			return nil, args, err
+		}
+		return cmd.Traverse(args[i+1:])
+	}
+	return c, args, nil
 }
 
 func (c *Command) findSuggestions(arg string) string {
@@ -668,7 +718,12 @@ func (c *Command) ExecuteC() (cmd *Command, err error) {
 		args = c.args
 	}
 
-	cmd, flags, err := c.Find(args)
+	var flags []string
+	if c.TraverseChildren {
+		cmd, flags, err = c.Traverse(args)
+	} else {
+		cmd, flags, err = c.Find(args)
+	}
 	if err != nil {
 		// If found parse to a subcommand and then failed, talk about the subcommand
 		if cmd != nil {
@@ -680,6 +735,7 @@ func (c *Command) ExecuteC() (cmd *Command, err error) {
 		}
 		return c, err
 	}
+
 	err = cmd.execute(flags)
 	if err != nil {
 		// Always show help if requested, even if SilenceErrors is in
@@ -754,8 +810,20 @@ func (c *Command) ResetCommands() {
 	c.helpCommand = nil
 }
 
-//Commands returns a slice of child commands.
+// Sorts commands by their names
+type commandSorterByName []*Command
+
+func (c commandSorterByName) Len() int           { return len(c) }
+func (c commandSorterByName) Swap(i, j int)      { c[i], c[j] = c[j], c[i] }
+func (c commandSorterByName) Less(i, j int) bool { return c[i].Name() < c[j].Name() }
+
+// Commands returns a sorted slice of child commands.
 func (c *Command) Commands() []*Command {
+	// do not sort commands if it already sorted or sorting was disabled
+	if EnableCommandSorting && !c.commandsAreSorted{
+		sort.Sort(commandSorterByName(c.commands))
+		c.commandsAreSorted = true
+	}
 	return c.commands
 }
 
@@ -784,6 +852,7 @@ func (c *Command) AddCommand(cmds ...*Command) {
 			x.SetGlobalNormalizationFunc(c.globNormFunc)
 		}
 		c.commands = append(c.commands, x)
+		c.commandsAreSorted = false
 	}
 }
 
@@ -953,6 +1022,20 @@ func (c *Command) HasAlias(s string) bool {
 	return false
 }
 
+// HasNameOrAliasPrefix returns true if the Name or any of aliases start
+// with prefix
+func (c *Command) HasNameOrAliasPrefix(prefix string) bool {
+	if strings.HasPrefix(c.Name(), prefix) {
+		return true
+	}
+	for _, alias := range c.Aliases {
+		if strings.HasPrefix(alias, prefix) {
+			return true
+		}
+	}
+	return false
+}
+
 func (c *Command) NameAndAliases() string {
 	return strings.Join(append([]string{c.Name()}, c.Aliases...), ", ")
 }
@@ -1063,6 +1146,19 @@ func (c *Command) Flags() *flag.FlagSet {
 		c.flags.SetOutput(c.flagErrorBuf)
 	}
 	return c.flags
+}
+
+// LocalNonPersistentFlags are flags specific to this command which will NOT persist to subcommands
+func (c *Command) LocalNonPersistentFlags() *flag.FlagSet {
+	persistentFlags := c.PersistentFlags()
+
+	out := flag.NewFlagSet(c.Name(), flag.ContinueOnError)
+	c.LocalFlags().VisitAll(func(f *flag.Flag) {
+		if persistentFlags.Lookup(f.Name) == nil {
+			out.AddFlag(f)
+		}
+	})
+	return out
 }
 
 // Get the local FlagSet specifically set in the current command

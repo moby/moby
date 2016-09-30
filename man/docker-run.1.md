@@ -54,8 +54,8 @@ docker-run - Run a command in a new container
 [**--memory-swap**[=*LIMIT*]]
 [**--memory-swappiness**[=*MEMORY-SWAPPINESS*]]
 [**--name**[=*NAME*]]
-[**--net**[=*"bridge"*]]
-[**--net-alias**[=*[]*]]
+[**--network-alias**[=*[]*]]
+[**--network**[=*"bridge"*]]
 [**--oom-kill-disable**]
 [**--oom-score-adj**[=*0*]]
 [**-P**|**--publish-all**]
@@ -331,7 +331,7 @@ which interface and port to use.
    Add one or more link-local IPv4/IPv6 addresses to the container's interface
 
 **--log-driver**="*json-file*|*syslog*|*journald*|*gelf*|*fluentd*|*awslogs*|*splunk*|*etwlogs*|*gcplogs*|*none*"
-  Logging driver for container. Default is defined by daemon `--log-driver` flag.
+  Logging driver for the container. Default is defined by daemon `--log-driver` flag.
   **Warning**: the `docker logs` command works only for the `json-file` and
   `journald` logging drivers.
 
@@ -395,7 +395,7 @@ and foreground Docker containers.
                                'host': use the Docker host network stack. Note: the host mode gives the container full access to local system services such as D-bus and is therefore considered insecure.
                                '<network-name>|<network-id>': connect to a user-defined network
 
-**--net-alias**=[]
+**--network-alias**=[]
    Add network-scoped alias for the container
 
 **--oom-kill-disable**=*true*|*false*
@@ -468,7 +468,9 @@ its root filesystem mounted as read only prohibiting any writes.
    Restart policy to apply when a container exits (no, on-failure[:max-retry], always, unless-stopped).
 
 **--rm**=*true*|*false*
-   Automatically remove the container when it exits (incompatible with -d). The default is *false*.
+   Automatically remove the container when it exits. The default is *false*.
+   `--rm` flag can work together with `-d`, and auto-removal will be done on daemon side. Note that it's
+incompatible with any restart policy other than `none`.
 
 **--security-opt**=[]
    Security Options
@@ -990,7 +992,7 @@ network namespace, run this command:
 
 Note:
 
-Not all sysctls are namespaced. docker does not support changing sysctls
+Not all sysctls are namespaced. Docker does not support changing sysctls
 inside of a container that also modify the host system. As the kernel 
 evolves we expect to see more sysctls become namespaced.
 

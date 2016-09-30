@@ -1,7 +1,7 @@
 package libcontainerd
 
 import (
-	"github.com/opencontainers/specs/specs-go"
+	"github.com/opencontainers/runtime-spec/specs-go"
 )
 
 // Spec is the base configuration for the container.  It specifies platform
@@ -20,7 +20,7 @@ type Process struct {
 // Stats contains a stats properties from containerd.
 type Stats struct{}
 
-// Summary container a container summary from containerd
+// Summary contains a container summary from containerd
 type Summary struct{}
 
 // StateInfo contains description about the new state container has entered.

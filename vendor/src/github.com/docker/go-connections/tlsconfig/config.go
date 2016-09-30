@@ -46,19 +46,23 @@ var acceptedCBCCiphers = []uint16{
 // known weak algorithms removed.
 var DefaultServerAcceptedCiphers = append(clientCipherSuites, acceptedCBCCiphers...)
 
-// ServerDefault is a secure-enough TLS configuration for the server TLS configuration.
-var ServerDefault = tls.Config{
-	// Avoid fallback to SSL protocols < TLS1.0
-	MinVersion:               tls.VersionTLS10,
-	PreferServerCipherSuites: true,
-	CipherSuites:             DefaultServerAcceptedCiphers,
+// ServerDefault returns a secure-enough TLS configuration for the server TLS configuration.
+func ServerDefault() *tls.Config {
+	return &tls.Config{
+		// Avoid fallback to SSL protocols < TLS1.0
+		MinVersion:               tls.VersionTLS10,
+		PreferServerCipherSuites: true,
+		CipherSuites:             DefaultServerAcceptedCiphers,
+	}
 }
 
-// ClientDefault is a secure-enough TLS configuration for the client TLS configuration.
-var ClientDefault = tls.Config{
-	// Prefer TLS1.2 as the client minimum
-	MinVersion:   tls.VersionTLS12,
-	CipherSuites: clientCipherSuites,
+// ClientDefault returns a secure-enough TLS configuration for the client TLS configuration.
+func ClientDefault() *tls.Config {
+	return &tls.Config{
+		// Prefer TLS1.2 as the client minimum
+		MinVersion:   tls.VersionTLS12,
+		CipherSuites: clientCipherSuites,
+	}
 }
 
 // certPool returns an X.509 certificate pool from `caFile`, the certificate file.
@@ -78,7 +82,7 @@ func certPool(caFile string) (*x509.CertPool, error) {
 
 // Client returns a TLS configuration meant to be used by a client.
 func Client(options Options) (*tls.Config, error) {
-	tlsConfig := ClientDefault
+	tlsConfig := ClientDefault()
 	tlsConfig.InsecureSkipVerify = options.InsecureSkipVerify
 	if !options.InsecureSkipVerify && options.CAFile != "" {
 		CAs, err := certPool(options.CAFile)
@@ -96,12 +100,12 @@ func Client(options Options) (*tls.Config, error) {
 		tlsConfig.Certificates = []tls.Certificate{tlsCert}
 	}
 
-	return &tlsConfig, nil
+	return tlsConfig, nil
 }
 
 // Server returns a TLS configuration meant to be used by a server.
 func Server(options Options) (*tls.Config, error) {
-	tlsConfig := ServerDefault
+	tlsConfig := ServerDefault()
 	tlsConfig.ClientAuth = options.ClientAuth
 	tlsCert, err := tls.LoadX509KeyPair(options.CertFile, options.KeyFile)
 	if err != nil {
@@ -118,5 +122,5 @@ func Server(options Options) (*tls.Config, error) {
 		}
 		tlsConfig.ClientCAs = CAs
 	}
-	return &tlsConfig, nil
+	return tlsConfig, nil
 }

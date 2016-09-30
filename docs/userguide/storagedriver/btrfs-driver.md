@@ -112,6 +112,7 @@ commands. The example below shows a truncated output of an `ls -l` command an
 image layer:
 
     $ ls -l /var/lib/docker/btrfs/subvolumes/0a17decee4139b0de68478f149cc16346f5e711c5ae3bb969895f22dd6723751/
+
     total 0
     drwxr-xr-x 1 root root 1372 Oct  9 08:39 bin
     drwxr-xr-x 1 root root    0 Apr 10  2014 boot
@@ -173,6 +174,7 @@ Assuming your system meets the prerequisites, do the following:
 1. Install the "btrfs-tools" package.
 
         $ sudo apt-get install btrfs-tools
+
         Reading package lists... Done
         Building dependency tree
         <output truncated>
@@ -184,6 +186,7 @@ multiple devices to the `mkfs.btrfs` command creates a pool across all of those
  devices. Here you create a pool with a single device at `/dev/xvdb`.
 
         $ sudo mkfs.btrfs -f /dev/xvdb
+
         WARNING! - Btrfs v3.12 IS EXPERIMENTAL
         WARNING! - see http://btrfs.wiki.kernel.org before using
 
@@ -209,6 +212,7 @@ multiple devices to the `mkfs.btrfs` command creates a pool across all of those
     a. Obtain the Btrfs filesystem's UUID.
 
         $ sudo blkid /dev/xvdb
+
         /dev/xvdb: UUID="a0ed851e-158b-4120-8416-c9b072c8cf47" UUID_SUB="c3927a64-4454-4eef-95c2-a7d44ac0cf27" TYPE="btrfs"
 
     b. Create an `/etc/fstab` entry to automatically mount `/var/lib/docker` 
@@ -222,7 +226,9 @@ remember to substitute the UUID value with the value obtained from the previous
 5. Mount the new filesystem and verify the operation.
 
         $ sudo mount -a
+
         $ mount
+
         /dev/xvda1 on / type ext4 (rw,discard)
         <output truncated>
         /dev/xvdb on /var/lib/docker type btrfs (rw)
@@ -236,6 +242,7 @@ should automatically load with the `btrfs` storage driver.
 1. Start the Docker daemon.
 
         $ sudo service docker start
+
         docker start/running, process 2315
 
     The procedure for starting the Docker daemon may differ depending on the
@@ -249,6 +256,7 @@ daemon` at startup, or adding it to the `DOCKER_OPTS` line to the Docker config
 2. Verify the storage driver with the `docker info` command.
 
         $ sudo docker info
+
         Containers: 0
         Images: 0
         Storage Driver: btrfs

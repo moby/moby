@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/docker/engine-api/types"
+	"github.com/docker/docker/api/types"
 )
 
 // RuntimeOpt defines a map of Runtimes
@@ -71,4 +71,9 @@ func (o *RuntimeOpt) GetMap() map[string]types.Runtime {
 	}
 
 	return map[string]types.Runtime{}
+}
+
+// Type returns the type of the option
+func (o *RuntimeOpt) Type() string {
+	return "runtime"
 }

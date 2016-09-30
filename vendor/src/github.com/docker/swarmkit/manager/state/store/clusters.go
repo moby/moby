@@ -173,7 +173,7 @@ func GetCluster(tx ReadTx, id string) *api.Cluster {
 func FindClusters(tx ReadTx, by By) ([]*api.Cluster, error) {
 	checkType := func(by By) error {
 		switch by.(type) {
-		case byName, byIDPrefix:
+		case byName, byNamePrefix, byIDPrefix:
 			return nil
 		default:
 			return ErrInvalidFindBy
@@ -224,4 +224,8 @@ func (ci clusterIndexerByName) FromObject(obj interface{}) (bool, []byte, error)
 
 	// Add the null character as a terminator
 	return true, []byte(strings.ToLower(c.Spec.Annotations.Name) + "\x00"), nil
+}
+
+func (ci clusterIndexerByName) PrefixFromArgs(args ...interface{}) ([]byte, error) {
+	return prefixFromArgs(args...)
 }

@@ -50,7 +50,7 @@ func waitForSingleObject(handle syscall.Handle, timeout uint32) (bool, error) {
 
 func processAsyncHcsResult(err error, resultp *uint16, callbackNumber uintptr, expectedNotification hcsNotification, timeout *time.Duration) error {
 	err = processHcsResult(err, resultp)
-	if err == ErrVmcomputeOperationPending {
+	if IsPending(err) {
 		return waitForNotification(callbackNumber, expectedNotification, timeout)
 	}
 

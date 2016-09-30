@@ -31,7 +31,7 @@ func (d *driver) deleteNetwork(nid string) {
 	d.Unlock()
 }
 
-// getNetworks Safely returns a slice of existng networks
+// getNetworks Safely returns a slice of existing networks
 func (d *driver) getNetworks() []*network {
 	d.Lock()
 	defer d.Unlock()

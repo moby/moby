@@ -103,7 +103,7 @@ func TarResourceRebase(sourcePath, rebaseName string) (content Archive, err erro
 		return
 	}
 
-	// Separate the source path between it's directory and
+	// Separate the source path between its directory and
 	// the entry in that directory which we are archiving.
 	sourceDir, sourceBase := SplitPathDirEntry(sourcePath)
 

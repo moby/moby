@@ -10,15 +10,18 @@ parent = "smn_cli"
 
 # commit
 
-    Usage: docker commit [OPTIONS] CONTAINER [REPOSITORY[:TAG]]
+```markdown
+Usage:  docker commit [OPTIONS] CONTAINER [REPOSITORY[:TAG]]
 
-    Create a new image from a container's changes
+Create a new image from a container's changes
 
-      -a, --author=""     Author (e.g., "John Hannibal Smith <hannibal@a-team.com>")
-      -c, --change=[]     Apply specified Dockerfile instructions while committing the image
-      --help              Print usage
-      -m, --message=""    Commit message
-      -p, --pause=true    Pause container during commit
+Options:
+  -a, --author string    Author (e.g., "John Hannibal Smith <hannibal@a-team.com>")
+  -c, --change value     Apply Dockerfile instruction to the created image (default [])
+      --help             Print usage
+  -m, --message string   Commit message
+  -p, --pause            Pause container during commit (default true)
+```
 
 It can be useful to commit a container's file changes or settings into a new
 image. This allows you debug a container by running an interactive shell, or to

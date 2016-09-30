@@ -10,12 +10,14 @@ parent = "smn_cli"
 
 # port
 
-    Usage: docker port [OPTIONS] CONTAINER [PRIVATE_PORT[/PROTO]]
+```markdown
+Usage:  docker port CONTAINER [PRIVATE_PORT[/PROTO]]
 
-    List port mappings for the CONTAINER, or lookup the public-facing port that is
-	NAT-ed to the PRIVATE_PORT
+List port mappings or a specific mapping for the container
 
-      --help          Print usage
+Options:
+      --help   Print usage
+```
 
 You can find out all the ports mapped by not specifying a `PRIVATE_PORT`, or
 just a specific mapping:

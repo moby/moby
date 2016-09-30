@@ -61,7 +61,6 @@ func (s *DockerSuite) TestDiffEnsureDefaultDevs(c *check.C) {
 		"A /dev/mqueue":  true,
 		"A /dev/kmsg":    true,
 		"A /dev/fd":      true,
-		"A /dev/fuse":    true,
 		"A /dev/ptmx":    true,
 		"A /dev/null":    true,
 		"A /dev/random":  true,

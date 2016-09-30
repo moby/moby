@@ -1,11 +1,11 @@
 package agent
 
 import (
-	"reflect"
 	"time"
 
 	"github.com/docker/swarmkit/agent/exec"
 	"github.com/docker/swarmkit/api"
+	"github.com/docker/swarmkit/api/equality"
 	"github.com/docker/swarmkit/log"
 	"golang.org/x/net/context"
 )
@@ -68,7 +68,7 @@ func (tm *taskManager) run(ctx context.Context) {
 	ctx, cancelAll := context.WithCancel(ctx)
 	defer cancelAll() // cancel all child operations on exit.
 
-	ctx = log.WithLogger(ctx, log.G(ctx).WithField("module", "taskmanager"))
+	ctx = log.WithModule(ctx, "taskmanager")
 
 	var (
 		opctx    context.Context
@@ -93,7 +93,7 @@ func (tm *taskManager) run(ctx context.Context) {
 		case <-run:
 			// always check for shutdown before running.
 			select {
-			case <-shutdown:
+			case <-tm.shutdown:
 				continue // ignore run request and handle shutdown
 			case <-tm.closed:
 				continue
@@ -142,6 +142,13 @@ func (tm *taskManager) run(ctx context.Context) {
 			// goal is to decide whether or not we re-dispatch the operation.
 			cancel = nil
 
+			select {
+			case <-tm.shutdown:
+				shutdown = tm.shutdown // re-enable the shutdown branch
+				continue               // no dispatch if we are in shutdown.
+			default:
+			}
+
 			switch err {
 			case exec.ErrTaskNoop:
 				if !updated {
@@ -168,7 +175,7 @@ func (tm *taskManager) run(ctx context.Context) {
 		case status := <-statusq:
 			tm.task.Status = *status
 		case task := <-tm.updateq:
-			if tasksEqual(task, tm.task) {
+			if equality.TasksEqualStable(task, tm.task) {
 				continue // ignore the update
 			}
 
@@ -193,7 +200,7 @@ func (tm *taskManager) run(ctx context.Context) {
 				cancel() // cancel outstanding if necessary.
 			} else {
 				// If this channel op fails, it means there is already a
-				// message un the run queue.
+				// message on the run queue.
 				select {
 				case run <- struct{}{}:
 				default:
@@ -203,6 +210,12 @@ func (tm *taskManager) run(ctx context.Context) {
 			if cancel != nil {
 				// cancel outstanding operation.
 				cancel()
+
+				// subtle: after a cancellation, we want to avoid busy wait
+				// here. this gets renabled in the errs branch and we'll come
+				// back around and try shutdown again.
+				shutdown = nil // turn off this branch until op proceeds
+				continue       // wait until operation actually exits.
 			}
 
 			// TODO(stevvooe): This should be left for the repear.
@@ -227,17 +240,4 @@ func (tm *taskManager) run(ctx context.Context) {
 			return
 		}
 	}
-}
-
-// tasksEqual returns true if the tasks are functionaly equal, ignoring status,
-// version and other superfluous fields.
-//
-// This used to decide whether or not to propagate a task update to a controller.
-func tasksEqual(a, b *api.Task) bool {
-	a, b = a.Copy(), b.Copy()
-
-	a.Status, b.Status = api.TaskStatus{}, api.TaskStatus{}
-	a.Meta, b.Meta = api.Meta{}, api.Meta{}
-
-	return reflect.DeepEqual(a, b)
 }

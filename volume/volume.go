@@ -3,12 +3,15 @@ package volume
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"syscall"
 
+	mounttypes "github.com/docker/docker/api/types/mount"
+	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/stringid"
-	"github.com/docker/docker/pkg/system"
 	"github.com/opencontainers/runc/libcontainer/label"
+	"github.com/pkg/errors"
 )
 
 // DefaultDriverName is the driver name used for the driver
@@ -81,19 +84,19 @@ type ScopedVolume interface {
 // specifies which volume is to be used and where inside a container it should
 // be mounted.
 type MountPoint struct {
-	Source      string // Container host directory
-	Destination string // Inside the container
-	RW          bool   // True if writable
-	Name        string // Name set by user
-	Driver      string // Volume driver to use
-	Volume      Volume `json:"-"`
+	Source      string          // Container host directory
+	Destination string          // Inside the container
+	RW          bool            // True if writable
+	Name        string          // Name set by user
+	Driver      string          // Volume driver to use
+	Type        mounttypes.Type `json:",omitempty"` // Type of mount to use, see `Type<foo>` definitions
+	Volume      Volume          `json:"-"`
 
 	// Note Mode is not used on Windows
-	Mode string `json:"Relabel"` // Originally field was `Relabel`"
+	Mode string `json:"Relabel,omitempty"` // Originally field was `Relabel`"
 
 	// Note Propagation is not used on Windows
-	Propagation string // Mount propagation string
-	Named       bool   // specifies if the mountpoint was specified by name
+	Propagation mounttypes.Propagation `json:",omitempty"` // Mount propagation string
 
 	// Specifies if data should be copied from the container before the first mount
 	// Use a pointer here so we can tell if the user set this value explicitly
@@ -101,32 +104,38 @@ type MountPoint struct {
 	CopyData bool `json:"-"`
 	// ID is the opaque ID used to pass to the volume driver.
 	// This should be set by calls to `Mount` and unset by calls to `Unmount`
-	ID string
+	ID   string `json:",omitempty"`
+	Spec mounttypes.Mount
 }
 
 // Setup sets up a mount point by either mounting the volume if it is
 // configured, or creating the source directory if supplied.
-func (m *MountPoint) Setup(mountLabel string) (string, error) {
+func (m *MountPoint) Setup(mountLabel string, rootUID, rootGID int) (string, error) {
 	if m.Volume != nil {
 		if m.ID == "" {
 			m.ID = stringid.GenerateNonCryptoID()
 		}
-		return m.Volume.Mount(m.ID)
+		path, err := m.Volume.Mount(m.ID)
+		return path, errors.Wrapf(err, "error while mounting volume '%s'", m.Source)
 	}
 	if len(m.Source) == 0 {
 		return "", fmt.Errorf("Unable to setup mount point, neither source nor volume defined")
 	}
 	// system.MkdirAll() produces an error if m.Source exists and is a file (not a directory),
-	if err := system.MkdirAll(m.Source, 0755); err != nil {
-		if perr, ok := err.(*os.PathError); ok {
-			if perr.Err != syscall.ENOTDIR {
-				return "", err
+	if m.Type == mounttypes.TypeBind {
+		// idtools.MkdirAllNewAs() produces an error if m.Source exists and is a file (not a directory)
+		// also, makes sure that if the directory is created, the correct remapped rootUID/rootGID will own it
+		if err := idtools.MkdirAllNewAs(m.Source, 0755, rootUID, rootGID); err != nil {
+			if perr, ok := err.(*os.PathError); ok {
+				if perr.Err != syscall.ENOTDIR {
+					return "", errors.Wrapf(err, "error while creating mount source path '%s'", m.Source)
+				}
 			}
 		}
 	}
 	if label.RelabelNeeded(m.Mode) {
 		if err := label.Relabel(m.Source, mountLabel, label.IsShared(m.Mode)); err != nil {
-			return "", err
+			return "", errors.Wrapf(err, "error setting label on mount source '%s'", m.Source)
 		}
 	}
 	return m.Source, nil
@@ -140,21 +149,10 @@ func (m *MountPoint) Path() string {
 	return m.Source
 }
 
-// Type returns the type of mount point
-func (m *MountPoint) Type() string {
-	if m.Name != "" {
-		return "VOLUME"
-	}
-	if m.Source != "" {
-		return "BIND"
-	}
-	return "EPHEMERAL"
-}
-
 // ParseVolumesFrom ensures that the supplied volumes-from is valid.
 func ParseVolumesFrom(spec string) (string, string, error) {
 	if len(spec) == 0 {
-		return "", "", fmt.Errorf("malformed volumes-from specification: %s", spec)
+		return "", "", fmt.Errorf("volumes-from specification cannot be an empty string")
 	}
 
 	specParts := strings.SplitN(spec, ":", 2)
@@ -181,10 +179,125 @@ func ParseVolumesFrom(spec string) (string, string, error) {
 	return id, mode, nil
 }
 
+// ParseMountRaw parses a raw volume spec (e.g. `-v /foo:/bar:shared`) into a
+// structured spec. Once the raw spec is parsed it relies on `ParseMountSpec` to
+// validate the spec and create a MountPoint
+func ParseMountRaw(raw, volumeDriver string) (*MountPoint, error) {
+	arr, err := splitRawSpec(convertSlash(raw))
+	if err != nil {
+		return nil, err
+	}
+
+	var spec mounttypes.Mount
+	var mode string
+	switch len(arr) {
+	case 1:
+		// Just a destination path in the container
+		spec.Target = arr[0]
+	case 2:
+		if ValidMountMode(arr[1]) {
+			// Destination + Mode is not a valid volume - volumes
+			// cannot include a mode. eg /foo:rw
+			return nil, errInvalidSpec(raw)
+		}
+		// Host Source Path or Name + Destination
+		spec.Source = arr[0]
+		spec.Target = arr[1]
+	case 3:
+		// HostSourcePath+DestinationPath+Mode
+		spec.Source = arr[0]
+		spec.Target = arr[1]
+		mode = arr[2]
+	default:
+		return nil, errInvalidSpec(raw)
+	}
+
+	if !ValidMountMode(mode) {
+		return nil, errInvalidMode(mode)
+	}
+
+	if filepath.IsAbs(spec.Source) {
+		spec.Type = mounttypes.TypeBind
+	} else {
+		spec.Type = mounttypes.TypeVolume
+	}
+
+	spec.ReadOnly = !ReadWrite(mode)
+
+	// cannot assume that if a volume driver is passed in that we should set it
+	if volumeDriver != "" && spec.Type == mounttypes.TypeVolume {
+		spec.VolumeOptions = &mounttypes.VolumeOptions{
+			DriverConfig: &mounttypes.Driver{Name: volumeDriver},
+		}
+	}
+
+	if copyData, isSet := getCopyMode(mode); isSet {
+		if spec.VolumeOptions == nil {
+			spec.VolumeOptions = &mounttypes.VolumeOptions{}
+		}
+		spec.VolumeOptions.NoCopy = !copyData
+	}
+	if HasPropagation(mode) {
+		spec.BindOptions = &mounttypes.BindOptions{
+			Propagation: GetPropagation(mode),
+		}
+	}
+
+	mp, err := ParseMountSpec(spec, platformRawValidationOpts...)
+	if mp != nil {
+		mp.Mode = mode
+	}
+	if err != nil {
+		err = fmt.Errorf("%v: %v", errInvalidSpec(raw), err)
+	}
+	return mp, err
+}
+
+// ParseMountSpec reads a mount config, validates it, and configures a mountpoint from it.
+func ParseMountSpec(cfg mounttypes.Mount, options ...func(*validateOpts)) (*MountPoint, error) {
+	if err := validateMountConfig(&cfg, options...); err != nil {
+		return nil, err
+	}
+	mp := &MountPoint{
+		RW:          !cfg.ReadOnly,
+		Destination: clean(convertSlash(cfg.Target)),
+		Type:        cfg.Type,
+		Spec:        cfg,
+	}
+
+	switch cfg.Type {
+	case mounttypes.TypeVolume:
+		if cfg.Source == "" {
+			mp.Name = stringid.GenerateNonCryptoID()
+		} else {
+			mp.Name = cfg.Source
+		}
+		mp.CopyData = DefaultCopyMode
+
+		mp.Driver = DefaultDriverName
+		if cfg.VolumeOptions != nil {
+			if cfg.VolumeOptions.DriverConfig != nil {
+				mp.Driver = cfg.VolumeOptions.DriverConfig.Name
+			}
+			if cfg.VolumeOptions.NoCopy {
+				mp.CopyData = false
+			}
+		}
+	case mounttypes.TypeBind:
+		mp.Source = clean(convertSlash(cfg.Source))
+		if cfg.BindOptions != nil {
+			if len(cfg.BindOptions.Propagation) > 0 {
+				mp.Propagation = cfg.BindOptions.Propagation
+			}
+		}
+	}
+	return mp, nil
+}
+
 func errInvalidMode(mode string) error {
 	return fmt.Errorf("invalid mode: %v", mode)
 }
 
 func errInvalidSpec(spec string) error {
-	return fmt.Errorf("Invalid volume specification: '%s'", spec)
+	return fmt.Errorf("invalid volume specification: '%s'", spec)
 }

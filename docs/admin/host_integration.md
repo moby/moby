@@ -6,6 +6,7 @@ description = "How to generate scripts for upstart, systemd, etc."
 keywords = ["systemd, upstart, supervisor, docker, documentation,  host integration"]
 [menu.main]
 parent = "engine_admin"
+weight="5"
 +++
 <![end-metadata]-->
 
@@ -76,6 +77,10 @@ a new service that will be started after the docker daemon service has started.
     [Install]
     WantedBy=default.target
 
+If you intend to use this as a system service, put the above contents in a file
+in the `/etc/systemd/system` directory, e.g.
+`/etc/systemd/system/docker-redis_server.service`.
+
 If you need to pass options to the redis container (such as `--env`),
 then you'll need to use `docker run` rather than `docker start`. This will
 create a new container every time the service is started, which will be stopped
@@ -87,3 +92,12 @@ and removed when the service is stopped.
     ExecStop=/usr/bin/docker stop -t 2 redis_server
     ExecStopPost=/usr/bin/docker rm -f redis_server
     ...
+
+To start using the service, reload systemd and start the service:
+
+    systemctl daemon-reload
+    systemctl start docker-redis_server.service
+
+To enable the service at system startup, execute:
+
+    systemctl enable docker-redis_server.service

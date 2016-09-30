@@ -45,7 +45,7 @@ to manually start the daemon with the `json-file` driver, and include additional
 attributes in the output, run the following command:
 
 ```bash
-$ docker daemon \
+$ dockerd \
     --log-driver=json-file \
     --log-opt labels=foo \
     --log-opt env=foo,fizz
@@ -71,8 +71,8 @@ This adds additional fields to the log depending on the driver, e.g. for
 The following logging options are supported for the `json-file` logging driver:
 
 ```bash
---log-opt max-size=[0-9+][k|m|g]
---log-opt max-file=[0-9+]
+--log-opt max-size=[0-9]+[kmg]
+--log-opt max-file=[0-9]+
 --log-opt labels=label1,label2
 --log-opt env=env1,env2
 ```

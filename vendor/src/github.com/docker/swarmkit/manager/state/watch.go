@@ -40,6 +40,11 @@ func TaskCheckNodeID(t1, t2 *api.Task) bool {
 	return t1.NodeID == t2.NodeID
 }
 
+// TaskCheckServiceID is a TaskCheckFunc for matching service IDs.
+func TaskCheckServiceID(t1, t2 *api.Task) bool {
+	return t1.ServiceID == t2.ServiceID
+}
+
 // TaskCheckStateGreaterThan is a TaskCheckFunc for checking task state.
 func TaskCheckStateGreaterThan(t1, t2 *api.Task) bool {
 	return t2.Status.State > t1.Status.State

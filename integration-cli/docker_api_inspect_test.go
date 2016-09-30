@@ -5,10 +5,10 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/versions/v1p20"
 	"github.com/docker/docker/pkg/integration/checker"
 	"github.com/docker/docker/pkg/stringutils"
-	"github.com/docker/engine-api/types"
-	"github.com/docker/engine-api/types/versions/v1p20"
 	"github.com/go-check/check"
 )
 
@@ -97,7 +97,7 @@ func (s *DockerSuite) TestInspectApiContainerVolumeDriver(c *check.C) {
 	c.Assert(ok, checker.False, check.Commentf("Api version 1.21 expected to not include VolumeDriver in 'Config'"))
 
 	config, ok = inspectJSON["HostConfig"]
-	c.Assert(ok, checker.True, check.Commentf("Unable to find 'Config'"))
+	c.Assert(ok, checker.True, check.Commentf("Unable to find 'HostConfig'"))
 	cfg = config.(map[string]interface{})
 	_, ok = cfg["VolumeDriver"]
 	c.Assert(ok, checker.True, check.Commentf("Api version 1.21 expected to include VolumeDriver in 'HostConfig'"))

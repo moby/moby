@@ -15,7 +15,6 @@ package prometheus
 
 import (
 	"errors"
-	"hash/fnv"
 )
 
 // Counter is a Metric that represents a single numerical value that only ever
@@ -97,7 +96,6 @@ func NewCounterVec(opts CounterOpts, labelNames []string) *CounterVec {
 		MetricVec: MetricVec{
 			children: map[uint64]Metric{},
 			desc:     desc,
-			hash:     fnv.New64a(),
 			newMetric: func(lvs ...string) Metric {
 				result := &counter{value: value{
 					desc:       desc,

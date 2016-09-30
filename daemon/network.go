@@ -3,16 +3,18 @@ package daemon
 import (
 	"fmt"
 	"net"
+	"sort"
 	"strings"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/api/errors"
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/network"
 	clustertypes "github.com/docker/docker/daemon/cluster/provider"
-	"github.com/docker/docker/errors"
 	"github.com/docker/docker/runconfig"
-	"github.com/docker/engine-api/types"
-	"github.com/docker/engine-api/types/network"
 	"github.com/docker/libnetwork"
 	networktypes "github.com/docker/libnetwork/types"
+	"golang.org/x/net/context"
 )
 
 // NetworkControllerEnabled checks if the networking stack is enabled.
@@ -57,6 +59,7 @@ func (daemon *Daemon) GetNetworkByID(partialID string) (libnetwork.Network, erro
 }
 
 // GetNetworkByName function returns a network for a given network name.
+// If no network name is given, the default network is returned.
 func (daemon *Daemon) GetNetworkByName(name string) (libnetwork.Network, error) {
 	c := daemon.netController
 	if c == nil {
@@ -127,6 +130,14 @@ func (daemon *Daemon) SetupIngress(create clustertypes.NetworkCreateRequest, nod
 				return
 			}
 
+			// Cleanup any stale endpoints that might be left over during previous iterations
+			epList := n.Endpoints()
+			for _, ep := range epList {
+				if err := ep.Delete(true); err != nil {
+					logrus.Errorf("Failed to delete endpoint %s (%s): %v", ep.Name(), ep.ID(), err)
+				}
+			}
+
 			if err := n.Delete(); err != nil {
 				logrus.Errorf("Failed to delete stale ingress network %s: %v", n.ID(), err)
 				return
@@ -152,7 +163,9 @@ func (daemon *Daemon) SetupIngress(create clustertypes.NetworkCreateRequest, nod
 
 		sb, err := controller.NewSandbox("ingress-sbox", libnetwork.OptionIngress())
 		if err != nil {
-			logrus.Errorf("Failed creating ingress sandbox: %v", err)
+			if _, ok := err.(networktypes.ForbiddenError); !ok {
+				logrus.Errorf("Failed creating ingress sandbox: %v", err)
+			}
 			return
 		}
 
@@ -173,6 +186,29 @@ func (daemon *Daemon) SetupIngress(create clustertypes.NetworkCreateRequest, nod
 // SetNetworkBootstrapKeys sets the bootstrap keys.
 func (daemon *Daemon) SetNetworkBootstrapKeys(keys []*networktypes.EncryptionKey) error {
 	return daemon.netController.SetKeys(keys)
+}
+
+// UpdateAttachment notifies the attacher about the attachment config.
+func (daemon *Daemon) UpdateAttachment(networkName, networkID, containerID string, config *network.NetworkingConfig) error {
+	if daemon.clusterProvider == nil {
+		return fmt.Errorf("cluster provider is not initialized")
+	}
+
+	if err := daemon.clusterProvider.UpdateAttachment(networkName, containerID, config); err != nil {
+		return daemon.clusterProvider.UpdateAttachment(networkID, containerID, config)
+	}
+
+	return nil
+}
+
+// WaitForDetachment makes the cluster manager wait for detachment of
+// the container from the network.
+func (daemon *Daemon) WaitForDetachment(ctx context.Context, networkName, networkID, taskID, containerID string) error {
+	if daemon.clusterProvider == nil {
+		return fmt.Errorf("cluster provider is not initialized")
+	}
+
+	return daemon.clusterProvider.WaitForDetachment(ctx, networkName, networkID, taskID, containerID)
 }
 
 // CreateManagedNetwork creates an agent network.
@@ -223,18 +259,21 @@ func (daemon *Daemon) createNetwork(create types.NetworkCreateRequest, id string
 		driver = c.Config().Daemon.DefaultDriver
 	}
 
-	ipam := create.IPAM
-	v4Conf, v6Conf, err := getIpamConfig(ipam.Config)
-	if err != nil {
-		return nil, err
-	}
-
 	nwOptions := []libnetwork.NetworkOption{
-		libnetwork.NetworkOptionIpam(ipam.Driver, "", v4Conf, v6Conf, ipam.Options),
 		libnetwork.NetworkOptionEnableIPv6(create.EnableIPv6),
 		libnetwork.NetworkOptionDriverOpts(create.Options),
 		libnetwork.NetworkOptionLabels(create.Labels),
 	}
+
+	if create.IPAM != nil {
+		ipam := create.IPAM
+		v4Conf, v6Conf, err := getIpamConfig(ipam.Config)
+		if err != nil {
+			return nil, err
+		}
+		nwOptions = append(nwOptions, libnetwork.NetworkOptionIpam(ipam.Driver, "", v4Conf, v6Conf, ipam.Options))
+	}
+
 	if create.Internal {
 		nwOptions = append(nwOptions, libnetwork.NetworkOptionInternalNetwork())
 	}
@@ -292,10 +331,6 @@ func (daemon *Daemon) UpdateContainerServiceConfig(containerName string, service
 	return nil
 }
 
-func errClusterNetworkConnect() error {
-	return fmt.Errorf("cannot connect or disconnect managed containers on a network")
-}
-
 // ConnectContainerToNetwork connects the given container to the given
 // network. If either cannot be found, an err is returned. If the
 // network cannot be set up, an err is returned.
@@ -304,45 +339,43 @@ func (daemon *Daemon) ConnectContainerToNetwork(containerName, networkName strin
 	if err != nil {
 		return err
 	}
-	if container.Managed {
-		return errClusterNetworkConnect()
-	}
 	return daemon.ConnectToNetwork(container, networkName, endpointConfig)
 }
 
 // DisconnectContainerFromNetwork disconnects the given container from
 // the given network. If either cannot be found, an err is returned.
-func (daemon *Daemon) DisconnectContainerFromNetwork(containerName string, network libnetwork.Network, force bool) error {
+func (daemon *Daemon) DisconnectContainerFromNetwork(containerName string, networkName string, force bool) error {
 	container, err := daemon.GetContainer(containerName)
 	if err != nil {
 		if force {
-			return daemon.ForceEndpointDelete(containerName, network)
+			return daemon.ForceEndpointDelete(containerName, networkName)
 		}
 		return err
 	}
-	if container.Managed {
-		return errClusterNetworkConnect()
-	}
-	return daemon.DisconnectFromNetwork(container, network, force)
+	return daemon.DisconnectFromNetwork(container, networkName, force)
 }
 
 // GetNetworkDriverList returns the list of plugins drivers
 // registered for network.
-func (daemon *Daemon) GetNetworkDriverList() map[string]bool {
-	pluginList := make(map[string]bool)
-
+func (daemon *Daemon) GetNetworkDriverList() []string {
 	if !daemon.NetworkControllerEnabled() {
 		return nil
 	}
-	c := daemon.netController
-	networks := c.Networks()
+
+	// TODO: Replace this with proper libnetwork API
+	pluginList := []string{"overlay"}
+	pluginMap := map[string]bool{"overlay": true}
+
+	networks := daemon.netController.Networks()
 
 	for _, network := range networks {
-		driver := network.Type()
-		pluginList[driver] = true
+		if !pluginMap[network.Type()] {
+			pluginList = append(pluginList, network.Type())
+			pluginMap[network.Type()] = true
+		}
 	}
-	// TODO : Replace this with proper libnetwork API
-	pluginList["overlay"] = true
+
+	sort.Strings(pluginList)
 
 	return pluginList
 }

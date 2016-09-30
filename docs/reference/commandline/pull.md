@@ -10,13 +10,16 @@ parent = "smn_cli"
 
 # pull
 
-    Usage: docker pull [OPTIONS] NAME[:TAG] | [REGISTRY_HOST[:REGISTRY_PORT]/]NAME[:TAG]
+```markdown
+Usage:  docker pull [OPTIONS] NAME[:TAG|@DIGEST]
 
-    Pull an image or a repository from the registry
+Pull an image or a repository from a registry
 
-      -a, --all-tags                Download all tagged images in the repository
-      --disable-content-trust=true  Skip image verification
-      --help                        Print usage
+Options:
+  -a, --all-tags                Download all tagged images in the repository
+      --disable-content-trust   Skip image verification (default true)
+      --help                    Print usage
+```
 
 Most of your images will be created on top of a base image from the
 [Docker Hub](https://hub.docker.com) registry.

@@ -83,6 +83,11 @@ func (p *Plugin) Client() *Client {
 	return p.client
 }
 
+// IsV1 returns true for V1 plugins and false otherwise.
+func (p *Plugin) IsV1() bool {
+	return true
+}
+
 // NewLocalPlugin creates a new local plugin.
 func NewLocalPlugin(name, addr string) *Plugin {
 	return &Plugin{

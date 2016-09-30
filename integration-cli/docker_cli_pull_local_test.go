@@ -387,6 +387,52 @@ func (s *DockerRegistrySuite) TestPullManifestList(c *check.C) {
 	dockerCmd(c, "rmi", repoName)
 }
 
+// #23100
+func (s *DockerRegistryAuthHtpasswdSuite) TestPullWithExternalAuthLoginWithScheme(c *check.C) {
+	osPath := os.Getenv("PATH")
+	defer os.Setenv("PATH", osPath)
+
+	workingDir, err := os.Getwd()
+	c.Assert(err, checker.IsNil)
+	absolute, err := filepath.Abs(filepath.Join(workingDir, "fixtures", "auth"))
+	c.Assert(err, checker.IsNil)
+	testPath := fmt.Sprintf("%s%c%s", osPath, filepath.ListSeparator, absolute)
+
+	os.Setenv("PATH", testPath)
+
+	repoName := fmt.Sprintf("%v/dockercli/busybox:authtest", privateRegistryURL)
+
+	tmp, err := ioutil.TempDir("", "integration-cli-")
+	c.Assert(err, checker.IsNil)
+
+	externalAuthConfig := `{ "credsStore": "shell-test" }`
+
+	configPath := filepath.Join(tmp, "config.json")
+	err = ioutil.WriteFile(configPath, []byte(externalAuthConfig), 0644)
+	c.Assert(err, checker.IsNil)
+
+	dockerCmd(c, "--config", tmp, "login", "-u", s.reg.username, "-p", s.reg.password, privateRegistryURL)
+
+	b, err := ioutil.ReadFile(configPath)
+	c.Assert(err, checker.IsNil)
+	c.Assert(string(b), checker.Not(checker.Contains), "\"auth\":")
+
+	dockerCmd(c, "--config", tmp, "tag", "busybox", repoName)
+	dockerCmd(c, "--config", tmp, "push", repoName)
+
+	dockerCmd(c, "--config", tmp, "logout", privateRegistryURL)
+	dockerCmd(c, "--config", tmp, "login", "-u", s.reg.username, "-p", s.reg.password, "https://"+privateRegistryURL)
+	dockerCmd(c, "--config", tmp, "pull", repoName)
+
+	// likewise push should work
+	repoName2 := fmt.Sprintf("%v/dockercli/busybox:nocreds", privateRegistryURL)
+	dockerCmd(c, "tag", repoName, repoName2)
+	dockerCmd(c, "--config", tmp, "push", repoName2)
+
+	// logout should work w scheme also because it will be stripped
+	dockerCmd(c, "--config", tmp, "logout", "https://"+privateRegistryURL)
+}
+
 func (s *DockerRegistryAuthHtpasswdSuite) TestPullWithExternalAuth(c *check.C) {
 	osPath := os.Getenv("PATH")
 	defer os.Setenv("PATH", osPath)

@@ -110,3 +110,8 @@ Application behavior can be controlled by how `Write` behaves. The examples
 above are designed to queue the message and return as quickly as possible.
 Other implementations may block until the event is committed to durable
 storage.
+
+## Copyright and license
+
+Copyright © 2016 Docker, Inc. go-events is licensed under the Apache License,
+Version 2.0. See [LICENSE](LICENSE) for the full license text.

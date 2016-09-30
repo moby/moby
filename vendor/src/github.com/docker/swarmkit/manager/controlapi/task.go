@@ -79,6 +79,8 @@ func (s *Server) ListTasks(ctx context.Context, request *api.ListTasksRequest) (
 		switch {
 		case request.Filters != nil && len(request.Filters.Names) > 0:
 			tasks, err = store.FindTasks(tx, buildFilters(store.ByName, request.Filters.Names))
+		case request.Filters != nil && len(request.Filters.NamePrefixes) > 0:
+			tasks, err = store.FindTasks(tx, buildFilters(store.ByNamePrefix, request.Filters.NamePrefixes))
 		case request.Filters != nil && len(request.Filters.IDPrefixes) > 0:
 			tasks, err = store.FindTasks(tx, buildFilters(store.ByIDPrefix, request.Filters.IDPrefixes))
 		case request.Filters != nil && len(request.Filters.ServiceIDs) > 0:
@@ -102,7 +104,10 @@ func (s *Server) ListTasks(ctx context.Context, request *api.ListTasksRequest) (
 	if request.Filters != nil {
 		tasks = filterTasks(tasks,
 			func(e *api.Task) bool {
-				return filterContains(e.ServiceAnnotations.Name, request.Filters.Names)
+				return filterContains(store.TaskName(e), request.Filters.Names)
+			},
+			func(e *api.Task) bool {
+				return filterContainsPrefix(store.TaskName(e), request.Filters.NamePrefixes)
 			},
 			func(e *api.Task) bool {
 				return filterContainsPrefix(e.ID, request.Filters.IDPrefixes)

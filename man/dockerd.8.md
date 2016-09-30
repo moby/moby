@@ -34,6 +34,8 @@ dockerd - Enable daemon mode
 [**-H**|**--host**[=*[]*]]
 [**--help**]
 [**--icc**[=*true*]]
+[**--init**[=*false*]]
+[**--init-path**[=*""*]]
 [**--insecure-registry**[=*[]*]]
 [**--ip**[=*0.0.0.0*]]
 [**--ip-forward**[=*true*]]
@@ -55,6 +57,7 @@ dockerd - Enable daemon mode
 [**-s**|**--storage-driver**[=*STORAGE-DRIVER*]]
 [**--selinux-enabled**]
 [**--storage-opt**[=*[]*]]
+[**--swarm-default-advertise-addr**[=*IP|INTERFACE*]]
 [**--tls**]
 [**--tlscacert**[=*~/.docker/ca.pem*]]
 [**--tlscert**[=*~/.docker/cert.pem*]]
@@ -121,10 +124,10 @@ format.
   IPv6 address of the container default gateway
 
 **--default-ulimit**=[]
-  Set default ulimits for containers.
+  Default ulimits for containers.
 
 **--disable-legacy-registry**=*true*|*false*
-  Do not contact legacy registries
+  Disable contacting legacy registries
 
 **--dns**=""
   Force Docker to use specific DNS servers
@@ -164,6 +167,12 @@ unix://[/path/to/socket] to use.
 
 **--icc**=*true*|*false*
   Allow unrestricted inter\-container and Docker daemon host communication. If disabled, containers can still be linked together using the **--link** option (see **docker-run(1)**). Default is true.
+
+**--init**
+Run an init process inside containers for signal forwarding and process reaping.
+
+**--init-path**
+Path to the docker-init binary.
 
 **--insecure-registry**=[]
   Enable insecure registry communication, i.e., enable un-encrypted and/or untrusted communication.
@@ -234,10 +243,15 @@ output otherwise.
   Force the Docker runtime to use a specific storage driver.
 
 **--selinux-enabled**=*true*|*false*
-  Enable selinux support. Default is false. SELinux does not presently support either of the overlay storage drivers.
+  Enable selinux support. Default is false.
 
 **--storage-opt**=[]
   Set storage driver options. See STORAGE DRIVER OPTIONS.
+
+**--swarm-default-advertise-addr**=*IP|INTERFACE*
+  Set default address or interface for swarm to advertise as its externally-reachable address to other cluster
+  members. This can be a hostname, an IP address, or an interface such as `eth0`. A port cannot be specified with
+  this option.
 
 **--tls**=*true*|*false*
   Use TLS; implied by --tlsverify. Default is false.
@@ -522,6 +536,21 @@ Engine daemon, grow the size of loop files and restart the daemon to resolve
 the issue.
 
 Example use:: `dockerd --storage-opt dm.min_free_space=10%`
+
+#### dm.xfs_nospace_max_retries
+
+Specifies the maximum number of retries XFS should attempt to complete
+IO when ENOSPC (no space) error is returned by underlying storage device.
+
+By default XFS retries infinitely for IO to finish and this can result
+in unkillable process. To change this behavior one can set
+xfs_nospace_max_retries to say 0 and XFS will not retry IO after getting
+ENOSPC and will shutdown filesystem.
+
+Example use:
+
+    $ sudo dockerd --storage-opt dm.xfs_nospace_max_retries=0
+
 
 ## ZFS options
 

@@ -41,6 +41,9 @@ func notifySystem() {
 // notifyShutdown is called after the daemon shuts down but before the process exits.
 func notifyShutdown(err error) {
 	if service != nil {
+		if err != nil {
+			logrus.Fatal(err)
+		}
 		service.stopped(err)
 	}
 }
@@ -70,6 +73,12 @@ func (cli *DaemonCli) getPlatformRemoteOptions() []libcontainerd.RemoteOption {
 // state. The Windows libcontainerd implementation does not need to write a spec
 // or state to disk, so this is a no-op.
 func (cli *DaemonCli) getLibcontainerdRoot() string {
+	return ""
+}
+
+// getSwarmRunRoot gets the root directory for swarm to store runtime state
+// For example, the control socket
+func (cli *DaemonCli) getSwarmRunRoot() string {
 	return ""
 }
 

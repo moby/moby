@@ -2,8 +2,6 @@ package integration
 
 import (
 	"archive/tar"
-	"bytes"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -15,34 +13,9 @@ import (
 	"syscall"
 	"time"
 
+	icmd "github.com/docker/docker/pkg/integration/cmd"
 	"github.com/docker/docker/pkg/stringutils"
 )
-
-// GetExitCode returns the ExitStatus of the specified error if its type is
-// exec.ExitError, returns 0 and an error otherwise.
-func GetExitCode(err error) (int, error) {
-	exitCode := 0
-	if exiterr, ok := err.(*exec.ExitError); ok {
-		if procExit, ok := exiterr.Sys().(syscall.WaitStatus); ok {
-			return procExit.ExitStatus(), nil
-		}
-	}
-	return exitCode, fmt.Errorf("failed to get exit code")
-}
-
-// ProcessExitCode process the specified error and returns the exit status code
-// if the error was of type exec.ExitError, returns nothing otherwise.
-func ProcessExitCode(err error) (exitCode int) {
-	if err != nil {
-		var exiterr error
-		if exitCode, exiterr = GetExitCode(err); exiterr != nil {
-			// TODO: Fix this so we check the error's text.
-			// we've failed to retrieve exit code, so we set it to 127
-			exitCode = 127
-		}
-	}
-	return
-}
 
 // IsKilled process the specified error and returns whether the process was killed or not.
 func IsKilled(err error) bool {
@@ -59,107 +32,11 @@ func IsKilled(err error) bool {
 	return false
 }
 
-// RunCommandWithOutput runs the specified command and returns the combined output (stdout/stderr)
-// with the exitCode different from 0 and the error if something bad happened
-func RunCommandWithOutput(cmd *exec.Cmd) (output string, exitCode int, err error) {
+func runCommandWithOutput(cmd *exec.Cmd) (output string, exitCode int, err error) {
 	exitCode = 0
 	out, err := cmd.CombinedOutput()
-	exitCode = ProcessExitCode(err)
+	exitCode = icmd.ProcessExitCode(err)
 	output = string(out)
-	return
-}
-
-// RunCommandWithStdoutStderr runs the specified command and returns stdout and stderr separately
-// with the exitCode different from 0 and the error if something bad happened
-func RunCommandWithStdoutStderr(cmd *exec.Cmd) (stdout string, stderr string, exitCode int, err error) {
-	var (
-		stderrBuffer, stdoutBuffer bytes.Buffer
-	)
-	exitCode = 0
-	cmd.Stderr = &stderrBuffer
-	cmd.Stdout = &stdoutBuffer
-	err = cmd.Run()
-	exitCode = ProcessExitCode(err)
-
-	stdout = stdoutBuffer.String()
-	stderr = stderrBuffer.String()
-	return
-}
-
-// RunCommandWithOutputForDuration runs the specified command "timeboxed" by the specified duration.
-// If the process is still running when the timebox is finished, the process will be killed and .
-// It will returns the output with the exitCode different from 0 and the error if something bad happened
-// and a boolean whether it has been killed or not.
-func RunCommandWithOutputForDuration(cmd *exec.Cmd, duration time.Duration) (output string, exitCode int, timedOut bool, err error) {
-	var outputBuffer bytes.Buffer
-	if cmd.Stdout != nil {
-		err = errors.New("cmd.Stdout already set")
-		return
-	}
-	cmd.Stdout = &outputBuffer
-
-	if cmd.Stderr != nil {
-		err = errors.New("cmd.Stderr already set")
-		return
-	}
-	cmd.Stderr = &outputBuffer
-
-	// Start the command in the main thread..
-	err = cmd.Start()
-	if err != nil {
-		err = fmt.Errorf("Fail to start command %v : %v", cmd, err)
-	}
-
-	type exitInfo struct {
-		exitErr  error
-		exitCode int
-	}
-
-	done := make(chan exitInfo, 1)
-
-	go func() {
-		// And wait for it to exit in the goroutine :)
-		info := exitInfo{}
-		info.exitErr = cmd.Wait()
-		info.exitCode = ProcessExitCode(info.exitErr)
-		done <- info
-	}()
-
-	select {
-	case <-time.After(duration):
-		killErr := cmd.Process.Kill()
-		if killErr != nil {
-			fmt.Printf("failed to kill (pid=%d): %v\n", cmd.Process.Pid, killErr)
-		}
-		timedOut = true
-	case info := <-done:
-		err = info.exitErr
-		exitCode = info.exitCode
-	}
-	output = outputBuffer.String()
-	return
-}
-
-var errCmdTimeout = fmt.Errorf("command timed out")
-
-// RunCommandWithOutputAndTimeout runs the specified command "timeboxed" by the specified duration.
-// It returns the output with the exitCode different from 0 and the error if something bad happened or
-// if the process timed out (and has been killed).
-func RunCommandWithOutputAndTimeout(cmd *exec.Cmd, timeout time.Duration) (output string, exitCode int, err error) {
-	var timedOut bool
-	output, exitCode, timedOut, err = RunCommandWithOutputForDuration(cmd, timeout)
-	if timedOut {
-		err = errCmdTimeout
-	}
-	return
-}
-
-// RunCommand runs the specified command and returns the exitCode different from 0
-// and the error if something bad happened.
-func RunCommand(cmd *exec.Cmd) (exitCode int, err error) {
-	exitCode = 0
-	err = cmd.Run()
-	exitCode = ProcessExitCode(err)
 	return
 }
 
@@ -191,31 +68,21 @@ func RunCommandPipelineWithOutput(cmds ...*exec.Cmd) (output string, exitCode in
 		}
 	}
 
-	var pipelineError error
 	defer func() {
+		var pipeErrMsgs []string
 		// wait all cmds except the last to release their resources
 		for _, cmd := range cmds[:len(cmds)-1] {
-			if err := cmd.Wait(); err != nil {
-				pipelineError = fmt.Errorf("command %s failed with error: %v", cmd.Path, err)
-				break
+			if pipeErr := cmd.Wait(); pipeErr != nil {
+				pipeErrMsgs = append(pipeErrMsgs, fmt.Sprintf("command %s failed with error: %v", cmd.Path, pipeErr))
 			}
 		}
+		if len(pipeErrMsgs) > 0 && err == nil {
+			err = fmt.Errorf("pipelineError from Wait: %v", strings.Join(pipeErrMsgs, ", "))
+		}
 	}()
-	if pipelineError != nil {
-		return "", 0, pipelineError
-	}
 
 	// wait on last cmd
-	return RunCommandWithOutput(cmds[len(cmds)-1])
-}
-
-// UnmarshalJSON deserialize a JSON in the given interface.
-func UnmarshalJSON(data []byte, result interface{}) error {
-	if err := json.Unmarshal(data, result); err != nil {
-		return err
-	}
-
-	return nil
+	return runCommandWithOutput(cmds[len(cmds)-1])
 }
 
 // ConvertSliceOfStringsToMap converts a slices of string in a map
@@ -351,11 +218,9 @@ func RunAtDifferentDate(date time.Time, block func()) {
 	const timeLayout = "010203042006"
 	// Ensure we bring time back to now
 	now := time.Now().Format(timeLayout)
-	dateReset := exec.Command("date", now)
-	defer RunCommand(dateReset)
+	defer icmd.RunCommand("date", now)
 
-	dateChange := exec.Command("date", date.Format(timeLayout))
-	RunCommand(dateChange)
+	icmd.RunCommand("date", date.Format(timeLayout))
 	block()
 	return
 }

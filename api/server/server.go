@@ -8,10 +8,10 @@ import (
 	"strings"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/api/errors"
 	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/api/server/middleware"
 	"github.com/docker/docker/api/server/router"
-	"github.com/docker/docker/errors"
 	"github.com/gorilla/mux"
 	"golang.org/x/net/context"
 )
@@ -129,7 +129,7 @@ func (s *Server) makeHTTPHandler(handler httputils.APIFunc) http.HandlerFunc {
 		// immediate function being called should still be passed
 		// as 'args' on the function call.
 		ctx := context.Background()
-		handlerFunc := s.handleWithGlobalMiddlewares(handler)
+		handlerFunc := s.handlerWithGlobalMiddlewares(handler)
 
 		vars := mux.Vars(r)
 		if vars == nil {

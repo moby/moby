@@ -22,10 +22,11 @@ import (
 	grpc "google.golang.org/grpc"
 )
 
-import raftpicker "github.com/docker/swarmkit/manager/raftpicker"
+import raftselector "github.com/docker/swarmkit/manager/raftselector"
 import codes "google.golang.org/grpc/codes"
 import metadata "google.golang.org/grpc/metadata"
 import transport "google.golang.org/grpc/transport"
+import time "time"
 
 import io "io"
 
@@ -64,6 +65,8 @@ type ListNodesRequest_Filters struct {
 	Labels      map[string]string     `protobuf:"bytes,3,rep,name=labels" json:"labels,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
 	Memberships []NodeSpec_Membership `protobuf:"varint,4,rep,name=memberships,enum=docker.swarmkit.v1.NodeSpec_Membership" json:"memberships,omitempty"`
 	Roles       []NodeRole            `protobuf:"varint,5,rep,name=roles,enum=docker.swarmkit.v1.NodeRole" json:"roles,omitempty"`
+	// NamePrefixes matches all objects with the given prefixes
+	NamePrefixes []string `protobuf:"bytes,6,rep,name=name_prefixes,json=namePrefixes" json:"name_prefixes,omitempty"`
 }
 
 func (m *ListNodesRequest_Filters) Reset()      { *m = ListNodesRequest_Filters{} }
@@ -104,6 +107,7 @@ func (*UpdateNodeResponse) Descriptor() ([]byte, []int) { return fileDescriptorC
 // RemoveNodeRequest requests to delete the specified node from store.
 type RemoveNodeRequest struct {
 	NodeID string `protobuf:"bytes,1,opt,name=node_id,json=nodeId,proto3" json:"node_id,omitempty"`
+	Force  bool   `protobuf:"varint,2,opt,name=force,proto3" json:"force,omitempty"`
 }
 
 func (m *RemoveNodeRequest) Reset()                    { *m = RemoveNodeRequest{} }
@@ -163,6 +167,8 @@ type ListTasksRequest_Filters struct {
 	ServiceIDs    []string          `protobuf:"bytes,4,rep,name=service_ids,json=serviceIds" json:"service_ids,omitempty"`
 	NodeIDs       []string          `protobuf:"bytes,5,rep,name=node_ids,json=nodeIds" json:"node_ids,omitempty"`
 	DesiredStates []TaskState       `protobuf:"varint,6,rep,name=desired_states,json=desiredStates,enum=docker.swarmkit.v1.TaskState" json:"desired_states,omitempty"`
+	// NamePrefixes matches all objects with the given prefixes
+	NamePrefixes []string `protobuf:"bytes,7,rep,name=name_prefixes,json=namePrefixes" json:"name_prefixes,omitempty"`
 }
 
 func (m *ListTasksRequest_Filters) Reset()      { *m = ListTasksRequest_Filters{} }
@@ -256,6 +262,8 @@ type ListServicesRequest_Filters struct {
 	Names      []string          `protobuf:"bytes,1,rep,name=names" json:"names,omitempty"`
 	IDPrefixes []string          `protobuf:"bytes,2,rep,name=id_prefixes,json=idPrefixes" json:"id_prefixes,omitempty"`
 	Labels     map[string]string `protobuf:"bytes,3,rep,name=labels" json:"labels,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
+	// NamePrefixes matches all objects with the given prefixes
+	NamePrefixes []string `protobuf:"bytes,4,rep,name=name_prefixes,json=namePrefixes" json:"name_prefixes,omitempty"`
 }
 
 func (m *ListServicesRequest_Filters) Reset()      { *m = ListServicesRequest_Filters{} }
@@ -333,6 +341,8 @@ type ListNetworksRequest_Filters struct {
 	Names      []string          `protobuf:"bytes,1,rep,name=names" json:"names,omitempty"`
 	IDPrefixes []string          `protobuf:"bytes,2,rep,name=id_prefixes,json=idPrefixes" json:"id_prefixes,omitempty"`
 	Labels     map[string]string `protobuf:"bytes,3,rep,name=labels" json:"labels,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
+	// NamePrefixes matches all objects with the given prefixes
+	NamePrefixes []string `protobuf:"bytes,4,rep,name=name_prefixes,json=namePrefixes" json:"name_prefixes,omitempty"`
 }
 
 func (m *ListNetworksRequest_Filters) Reset()      { *m = ListNetworksRequest_Filters{} }
@@ -377,6 +387,8 @@ type ListClustersRequest_Filters struct {
 	Names      []string          `protobuf:"bytes,1,rep,name=names" json:"names,omitempty"`
 	IDPrefixes []string          `protobuf:"bytes,2,rep,name=id_prefixes,json=idPrefixes" json:"id_prefixes,omitempty"`
 	Labels     map[string]string `protobuf:"bytes,3,rep,name=labels" json:"labels,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
+	// NamePrefixes matches all objects with the given prefixes
+	NamePrefixes []string `protobuf:"bytes,4,rep,name=name_prefixes,json=namePrefixes" json:"name_prefixes,omitempty"`
 }
 
 func (m *ListClustersRequest_Filters) Reset()      { *m = ListClustersRequest_Filters{} }
@@ -393,6 +405,17 @@ func (m *ListClustersResponse) Reset()                    { *m = ListClustersRes
 func (*ListClustersResponse) ProtoMessage()               {}
 func (*ListClustersResponse) Descriptor() ([]byte, []int) { return fileDescriptorControl, []int{35} }
 
+type JoinTokenRotation struct {
+	// RotateWorkerToken tells UpdateCluster to rotate the worker secret.
+	RotateWorkerToken bool `protobuf:"varint,1,opt,name=rotate_worker_token,json=rotateWorkerToken,proto3" json:"rotate_worker_token,omitempty"`
+	// RotateManagerSecret tells UpdateCluster to rotate the manager secret.
+	RotateManagerToken bool `protobuf:"varint,2,opt,name=rotate_manager_token,json=rotateManagerToken,proto3" json:"rotate_manager_token,omitempty"`
+}
+
+func (m *JoinTokenRotation) Reset()                    { *m = JoinTokenRotation{} }
+func (*JoinTokenRotation) ProtoMessage()               {}
+func (*JoinTokenRotation) Descriptor() ([]byte, []int) { return fileDescriptorControl, []int{36} }
+
 type UpdateClusterRequest struct {
 	// ClusterID is the cluster ID to update.
 	ClusterID string `protobuf:"bytes,1,opt,name=cluster_id,json=clusterId,proto3" json:"cluster_id,omitempty"`
@@ -400,11 +423,13 @@ type UpdateClusterRequest struct {
 	ClusterVersion *Version `protobuf:"bytes,2,opt,name=cluster_version,json=clusterVersion" json:"cluster_version,omitempty"`
 	// Spec is the new spec to apply to the cluster.
 	Spec *ClusterSpec `protobuf:"bytes,3,opt,name=spec" json:"spec,omitempty"`
+	// Rotation contains flags for join token rotation
+	Rotation JoinTokenRotation `protobuf:"bytes,4,opt,name=rotation" json:"rotation"`
 }
 
 func (m *UpdateClusterRequest) Reset()                    { *m = UpdateClusterRequest{} }
 func (*UpdateClusterRequest) ProtoMessage()               {}
-func (*UpdateClusterRequest) Descriptor() ([]byte, []int) { return fileDescriptorControl, []int{36} }
+func (*UpdateClusterRequest) Descriptor() ([]byte, []int) { return fileDescriptorControl, []int{37} }
 
 type UpdateClusterResponse struct {
 	Cluster *Cluster `protobuf:"bytes,1,opt,name=cluster" json:"cluster,omitempty"`
@@ -412,7 +437,102 @@ type UpdateClusterResponse struct {
 
 func (m *UpdateClusterResponse) Reset()                    { *m = UpdateClusterResponse{} }
 func (*UpdateClusterResponse) ProtoMessage()               {}
-func (*UpdateClusterResponse) Descriptor() ([]byte, []int) { return fileDescriptorControl, []int{37} }
+func (*UpdateClusterResponse) Descriptor() ([]byte, []int) { return fileDescriptorControl, []int{38} }
+
+// GetSecretRequest is the request to get a `Secret` object given a secret id.
+type GetSecretRequest struct {
+	SecretID string `protobuf:"bytes,1,opt,name=secret_id,json=secretId,proto3" json:"secret_id,omitempty"`
+}
+
+func (m *GetSecretRequest) Reset()                    { *m = GetSecretRequest{} }
+func (*GetSecretRequest) ProtoMessage()               {}
+func (*GetSecretRequest) Descriptor() ([]byte, []int) { return fileDescriptorControl, []int{39} }
+
+// GetSecretResponse contains the Secret corresponding to the id in
+// `GetSecretRequest`, but the `Secret.Spec.Data` field in each `Secret`
+// object should be nil instead of actually containing the secret bytes.
+type GetSecretResponse struct {
+	Secret *Secret `protobuf:"bytes,1,opt,name=secret" json:"secret,omitempty"`
+}
+
+func (m *GetSecretResponse) Reset()                    { *m = GetSecretResponse{} }
+func (*GetSecretResponse) ProtoMessage()               {}
+func (*GetSecretResponse) Descriptor() ([]byte, []int) { return fileDescriptorControl, []int{40} }
+
+// ListSecretRequest is the request to list all non-internal secrets in the secret store,
+// or all secrets filtered by (name or name prefix or id prefix) and labels.
+type ListSecretsRequest struct {
+	Filters *ListSecretsRequest_Filters `protobuf:"bytes,1,opt,name=filters" json:"filters,omitempty"`
+}
+
+func (m *ListSecretsRequest) Reset()                    { *m = ListSecretsRequest{} }
+func (*ListSecretsRequest) ProtoMessage()               {}
+func (*ListSecretsRequest) Descriptor() ([]byte, []int) { return fileDescriptorControl, []int{41} }
+
+type ListSecretsRequest_Filters struct {
+	Names        []string          `protobuf:"bytes,1,rep,name=names" json:"names,omitempty"`
+	IDPrefixes   []string          `protobuf:"bytes,2,rep,name=id_prefixes,json=idPrefixes" json:"id_prefixes,omitempty"`
+	Labels       map[string]string `protobuf:"bytes,3,rep,name=labels" json:"labels,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
+	NamePrefixes []string          `protobuf:"bytes,4,rep,name=name_prefixes,json=namePrefixes" json:"name_prefixes,omitempty"`
+}
+
+func (m *ListSecretsRequest_Filters) Reset()      { *m = ListSecretsRequest_Filters{} }
+func (*ListSecretsRequest_Filters) ProtoMessage() {}
+func (*ListSecretsRequest_Filters) Descriptor() ([]byte, []int) {
+	return fileDescriptorControl, []int{41, 0}
+}
+
+// ListSecretResponse contains a list of all the secrets that match the name or
+// name prefix filters provided in `ListSecretRequest`.  The `Secret.Spec.Data`
+// field in each `Secret` object should be nil instead of actually containing
+// the secret bytes.
+type ListSecretsResponse struct {
+	Secrets []*Secret `protobuf:"bytes,1,rep,name=secrets" json:"secrets,omitempty"`
+}
+
+func (m *ListSecretsResponse) Reset()                    { *m = ListSecretsResponse{} }
+func (*ListSecretsResponse) ProtoMessage()               {}
+func (*ListSecretsResponse) Descriptor() ([]byte, []int) { return fileDescriptorControl, []int{42} }
+
+// CreateSecretRequest specifies a new secret (it will not update an existing
+// secret) to create.
+type CreateSecretRequest struct {
+	Spec *SecretSpec `protobuf:"bytes,1,opt,name=spec" json:"spec,omitempty"`
+}
+
+func (m *CreateSecretRequest) Reset()                    { *m = CreateSecretRequest{} }
+func (*CreateSecretRequest) ProtoMessage()               {}
+func (*CreateSecretRequest) Descriptor() ([]byte, []int) { return fileDescriptorControl, []int{43} }
+
+// CreateSecretResponse contains the newly created `Secret`` corresponding to the
+// name in `CreateSecretRequest`.  The `Secret.Spec.Data` field should be nil instead
+// of actually containing the secret bytes.
+type CreateSecretResponse struct {
+	Secret *Secret `protobuf:"bytes,1,opt,name=secret" json:"secret,omitempty"`
+}
+
+func (m *CreateSecretResponse) Reset()                    { *m = CreateSecretResponse{} }
+func (*CreateSecretResponse) ProtoMessage()               {}
+func (*CreateSecretResponse) Descriptor() ([]byte, []int) { return fileDescriptorControl, []int{44} }
+
+// RemoveSecretRequest contains the ID of the secret that should be removed.  This
+// removes all versions of the secret.
+type RemoveSecretRequest struct {
+	SecretID string `protobuf:"bytes,1,opt,name=secret_id,json=secretId,proto3" json:"secret_id,omitempty"`
+}
+
+func (m *RemoveSecretRequest) Reset()                    { *m = RemoveSecretRequest{} }
+func (*RemoveSecretRequest) ProtoMessage()               {}
+func (*RemoveSecretRequest) Descriptor() ([]byte, []int) { return fileDescriptorControl, []int{45} }
+
+// RemoveSecretResponse is an empty object indicating the successful removal of
+// a secret.
+type RemoveSecretResponse struct {
+}
+
+func (m *RemoveSecretResponse) Reset()                    { *m = RemoveSecretResponse{} }
+func (*RemoveSecretResponse) ProtoMessage()               {}
+func (*RemoveSecretResponse) Descriptor() ([]byte, []int) { return fileDescriptorControl, []int{46} }
 
 func init() {
 	proto.RegisterType((*GetNodeRequest)(nil), "docker.swarmkit.v1.GetNodeRequest")
@@ -456,8 +576,18 @@ func init() {
 	proto.RegisterType((*ListClustersRequest)(nil), "docker.swarmkit.v1.ListClustersRequest")
 	proto.RegisterType((*ListClustersRequest_Filters)(nil), "docker.swarmkit.v1.ListClustersRequest.Filters")
 	proto.RegisterType((*ListClustersResponse)(nil), "docker.swarmkit.v1.ListClustersResponse")
+	proto.RegisterType((*JoinTokenRotation)(nil), "docker.swarmkit.v1.JoinTokenRotation")
 	proto.RegisterType((*UpdateClusterRequest)(nil), "docker.swarmkit.v1.UpdateClusterRequest")
 	proto.RegisterType((*UpdateClusterResponse)(nil), "docker.swarmkit.v1.UpdateClusterResponse")
+	proto.RegisterType((*GetSecretRequest)(nil), "docker.swarmkit.v1.GetSecretRequest")
+	proto.RegisterType((*GetSecretResponse)(nil), "docker.swarmkit.v1.GetSecretResponse")
+	proto.RegisterType((*ListSecretsRequest)(nil), "docker.swarmkit.v1.ListSecretsRequest")
+	proto.RegisterType((*ListSecretsRequest_Filters)(nil), "docker.swarmkit.v1.ListSecretsRequest.Filters")
+	proto.RegisterType((*ListSecretsResponse)(nil), "docker.swarmkit.v1.ListSecretsResponse")
+	proto.RegisterType((*CreateSecretRequest)(nil), "docker.swarmkit.v1.CreateSecretRequest")
+	proto.RegisterType((*CreateSecretResponse)(nil), "docker.swarmkit.v1.CreateSecretResponse")
+	proto.RegisterType((*RemoveSecretRequest)(nil), "docker.swarmkit.v1.RemoveSecretRequest")
+	proto.RegisterType((*RemoveSecretResponse)(nil), "docker.swarmkit.v1.RemoveSecretResponse")
 }
 
 type authenticatedWrapperControlServer struct {
@@ -624,6 +754,38 @@ func (p *authenticatedWrapperControlServer) UpdateCluster(ctx context.Context, r
 	return p.local.UpdateCluster(ctx, r)
 }
 
+func (p *authenticatedWrapperControlServer) GetSecret(ctx context.Context, r *GetSecretRequest) (*GetSecretResponse, error) {
+
+	if err := p.authorize(ctx, []string{"swarm-manager"}); err != nil {
+		return nil, err
+	}
+	return p.local.GetSecret(ctx, r)
+}
+
+func (p *authenticatedWrapperControlServer) ListSecrets(ctx context.Context, r *ListSecretsRequest) (*ListSecretsResponse, error) {
+
+	if err := p.authorize(ctx, []string{"swarm-manager"}); err != nil {
+		return nil, err
+	}
+	return p.local.ListSecrets(ctx, r)
+}
+
+func (p *authenticatedWrapperControlServer) CreateSecret(ctx context.Context, r *CreateSecretRequest) (*CreateSecretResponse, error) {
+
+	if err := p.authorize(ctx, []string{"swarm-manager"}); err != nil {
+		return nil, err
+	}
+	return p.local.CreateSecret(ctx, r)
+}
+
+func (p *authenticatedWrapperControlServer) RemoveSecret(ctx context.Context, r *RemoveSecretRequest) (*RemoveSecretResponse, error) {
+
+	if err := p.authorize(ctx, []string{"swarm-manager"}); err != nil {
+		return nil, err
+	}
+	return p.local.RemoveSecret(ctx, r)
+}
+
 func (m *GetNodeRequest) Copy() *GetNodeRequest {
 	if m == nil {
 		return nil
@@ -702,6 +864,13 @@ func (m *ListNodesRequest_Filters) Copy() *ListNodesRequest_Filters {
 		}
 	}
 
+	if m.NamePrefixes != nil {
+		o.NamePrefixes = make([]string, 0, len(m.NamePrefixes))
+		for _, v := range m.NamePrefixes {
+			o.NamePrefixes = append(o.NamePrefixes, v)
+		}
+	}
+
 	return o
 }
 
@@ -755,6 +924,7 @@ func (m *RemoveNodeRequest) Copy() *RemoveNodeRequest {
 
 	o := &RemoveNodeRequest{
 		NodeID: m.NodeID,
+		Force:  m.Force,
 	}
 
 	return o
@@ -874,6 +1044,13 @@ func (m *ListTasksRequest_Filters) Copy() *ListTasksRequest_Filters {
 		o.DesiredStates = make([]TaskState, 0, len(m.DesiredStates))
 		for _, v := range m.DesiredStates {
 			o.DesiredStates = append(o.DesiredStates, v)
+		}
+	}
+
+	if m.NamePrefixes != nil {
+		o.NamePrefixes = make([]string, 0, len(m.NamePrefixes))
+		for _, v := range m.NamePrefixes {
+			o.NamePrefixes = append(o.NamePrefixes, v)
 		}
 	}
 
@@ -1033,6 +1210,13 @@ func (m *ListServicesRequest_Filters) Copy() *ListServicesRequest_Filters {
 		}
 	}
 
+	if m.NamePrefixes != nil {
+		o.NamePrefixes = make([]string, 0, len(m.NamePrefixes))
+		for _, v := range m.NamePrefixes {
+			o.NamePrefixes = append(o.NamePrefixes, v)
+		}
+	}
+
 	return o
 }
 
@@ -1165,6 +1349,13 @@ func (m *ListNetworksRequest_Filters) Copy() *ListNetworksRequest_Filters {
 		}
 	}
 
+	if m.NamePrefixes != nil {
+		o.NamePrefixes = make([]string, 0, len(m.NamePrefixes))
+		for _, v := range m.NamePrefixes {
+			o.NamePrefixes = append(o.NamePrefixes, v)
+		}
+	}
+
 	return o
 }
 
@@ -1249,6 +1440,13 @@ func (m *ListClustersRequest_Filters) Copy() *ListClustersRequest_Filters {
 		}
 	}
 
+	if m.NamePrefixes != nil {
+		o.NamePrefixes = make([]string, 0, len(m.NamePrefixes))
+		for _, v := range m.NamePrefixes {
+			o.NamePrefixes = append(o.NamePrefixes, v)
+		}
+	}
+
 	return o
 }
 
@@ -1269,6 +1467,19 @@ func (m *ListClustersResponse) Copy() *ListClustersResponse {
 	return o
 }
 
+func (m *JoinTokenRotation) Copy() *JoinTokenRotation {
+	if m == nil {
+		return nil
+	}
+
+	o := &JoinTokenRotation{
+		RotateWorkerToken:  m.RotateWorkerToken,
+		RotateManagerToken: m.RotateManagerToken,
+	}
+
+	return o
+}
+
 func (m *UpdateClusterRequest) Copy() *UpdateClusterRequest {
 	if m == nil {
 		return nil
@@ -1278,6 +1489,7 @@ func (m *UpdateClusterRequest) Copy() *UpdateClusterRequest {
 		ClusterID:      m.ClusterID,
 		ClusterVersion: m.ClusterVersion.Copy(),
 		Spec:           m.Spec.Copy(),
+		Rotation:       *m.Rotation.Copy(),
 	}
 
 	return o
@@ -1291,6 +1503,143 @@ func (m *UpdateClusterResponse) Copy() *UpdateClusterResponse {
 	o := &UpdateClusterResponse{
 		Cluster: m.Cluster.Copy(),
 	}
+
+	return o
+}
+
+func (m *GetSecretRequest) Copy() *GetSecretRequest {
+	if m == nil {
+		return nil
+	}
+
+	o := &GetSecretRequest{
+		SecretID: m.SecretID,
+	}
+
+	return o
+}
+
+func (m *GetSecretResponse) Copy() *GetSecretResponse {
+	if m == nil {
+		return nil
+	}
+
+	o := &GetSecretResponse{
+		Secret: m.Secret.Copy(),
+	}
+
+	return o
+}
+
+func (m *ListSecretsRequest) Copy() *ListSecretsRequest {
+	if m == nil {
+		return nil
+	}
+
+	o := &ListSecretsRequest{
+		Filters: m.Filters.Copy(),
+	}
+
+	return o
+}
+
+func (m *ListSecretsRequest_Filters) Copy() *ListSecretsRequest_Filters {
+	if m == nil {
+		return nil
+	}
+
+	o := &ListSecretsRequest_Filters{}
+
+	if m.Names != nil {
+		o.Names = make([]string, 0, len(m.Names))
+		for _, v := range m.Names {
+			o.Names = append(o.Names, v)
+		}
+	}
+
+	if m.IDPrefixes != nil {
+		o.IDPrefixes = make([]string, 0, len(m.IDPrefixes))
+		for _, v := range m.IDPrefixes {
+			o.IDPrefixes = append(o.IDPrefixes, v)
+		}
+	}
+
+	if m.Labels != nil {
+		o.Labels = make(map[string]string)
+		for k, v := range m.Labels {
+			o.Labels[k] = v
+		}
+	}
+
+	if m.NamePrefixes != nil {
+		o.NamePrefixes = make([]string, 0, len(m.NamePrefixes))
+		for _, v := range m.NamePrefixes {
+			o.NamePrefixes = append(o.NamePrefixes, v)
+		}
+	}
+
+	return o
+}
+
+func (m *ListSecretsResponse) Copy() *ListSecretsResponse {
+	if m == nil {
+		return nil
+	}
+
+	o := &ListSecretsResponse{}
+
+	if m.Secrets != nil {
+		o.Secrets = make([]*Secret, 0, len(m.Secrets))
+		for _, v := range m.Secrets {
+			o.Secrets = append(o.Secrets, v.Copy())
+		}
+	}
+
+	return o
+}
+
+func (m *CreateSecretRequest) Copy() *CreateSecretRequest {
+	if m == nil {
+		return nil
+	}
+
+	o := &CreateSecretRequest{
+		Spec: m.Spec.Copy(),
+	}
+
+	return o
+}
+
+func (m *CreateSecretResponse) Copy() *CreateSecretResponse {
+	if m == nil {
+		return nil
+	}
+
+	o := &CreateSecretResponse{
+		Secret: m.Secret.Copy(),
+	}
+
+	return o
+}
+
+func (m *RemoveSecretRequest) Copy() *RemoveSecretRequest {
+	if m == nil {
+		return nil
+	}
+
+	o := &RemoveSecretRequest{
+		SecretID: m.SecretID,
+	}
+
+	return o
+}
+
+func (m *RemoveSecretResponse) Copy() *RemoveSecretResponse {
+	if m == nil {
+		return nil
+	}
+
+	o := &RemoveSecretResponse{}
 
 	return o
 }
@@ -1333,7 +1682,7 @@ func (this *ListNodesRequest_Filters) GoString() string {
 	if this == nil {
 		return "nil"
 	}
-	s := make([]string, 0, 9)
+	s := make([]string, 0, 10)
 	s = append(s, "&api.ListNodesRequest_Filters{")
 	s = append(s, "Names: "+fmt.Sprintf("%#v", this.Names)+",\n")
 	s = append(s, "IDPrefixes: "+fmt.Sprintf("%#v", this.IDPrefixes)+",\n")
@@ -1352,6 +1701,7 @@ func (this *ListNodesRequest_Filters) GoString() string {
 	}
 	s = append(s, "Memberships: "+fmt.Sprintf("%#v", this.Memberships)+",\n")
 	s = append(s, "Roles: "+fmt.Sprintf("%#v", this.Roles)+",\n")
+	s = append(s, "NamePrefixes: "+fmt.Sprintf("%#v", this.NamePrefixes)+",\n")
 	s = append(s, "}")
 	return strings.Join(s, "")
 }
@@ -1399,9 +1749,10 @@ func (this *RemoveNodeRequest) GoString() string {
 	if this == nil {
 		return "nil"
 	}
-	s := make([]string, 0, 5)
+	s := make([]string, 0, 6)
 	s = append(s, "&api.RemoveNodeRequest{")
 	s = append(s, "NodeID: "+fmt.Sprintf("%#v", this.NodeID)+",\n")
+	s = append(s, "Force: "+fmt.Sprintf("%#v", this.Force)+",\n")
 	s = append(s, "}")
 	return strings.Join(s, "")
 }
@@ -1471,7 +1822,7 @@ func (this *ListTasksRequest_Filters) GoString() string {
 	if this == nil {
 		return "nil"
 	}
-	s := make([]string, 0, 10)
+	s := make([]string, 0, 11)
 	s = append(s, "&api.ListTasksRequest_Filters{")
 	s = append(s, "Names: "+fmt.Sprintf("%#v", this.Names)+",\n")
 	s = append(s, "IDPrefixes: "+fmt.Sprintf("%#v", this.IDPrefixes)+",\n")
@@ -1491,6 +1842,7 @@ func (this *ListTasksRequest_Filters) GoString() string {
 	s = append(s, "ServiceIDs: "+fmt.Sprintf("%#v", this.ServiceIDs)+",\n")
 	s = append(s, "NodeIDs: "+fmt.Sprintf("%#v", this.NodeIDs)+",\n")
 	s = append(s, "DesiredStates: "+fmt.Sprintf("%#v", this.DesiredStates)+",\n")
+	s = append(s, "NamePrefixes: "+fmt.Sprintf("%#v", this.NamePrefixes)+",\n")
 	s = append(s, "}")
 	return strings.Join(s, "")
 }
@@ -1615,7 +1967,7 @@ func (this *ListServicesRequest_Filters) GoString() string {
 	if this == nil {
 		return "nil"
 	}
-	s := make([]string, 0, 7)
+	s := make([]string, 0, 8)
 	s = append(s, "&api.ListServicesRequest_Filters{")
 	s = append(s, "Names: "+fmt.Sprintf("%#v", this.Names)+",\n")
 	s = append(s, "IDPrefixes: "+fmt.Sprintf("%#v", this.IDPrefixes)+",\n")
@@ -1632,6 +1984,7 @@ func (this *ListServicesRequest_Filters) GoString() string {
 	if this.Labels != nil {
 		s = append(s, "Labels: "+mapStringForLabels+",\n")
 	}
+	s = append(s, "NamePrefixes: "+fmt.Sprintf("%#v", this.NamePrefixes)+",\n")
 	s = append(s, "}")
 	return strings.Join(s, "")
 }
@@ -1730,7 +2083,7 @@ func (this *ListNetworksRequest_Filters) GoString() string {
 	if this == nil {
 		return "nil"
 	}
-	s := make([]string, 0, 7)
+	s := make([]string, 0, 8)
 	s = append(s, "&api.ListNetworksRequest_Filters{")
 	s = append(s, "Names: "+fmt.Sprintf("%#v", this.Names)+",\n")
 	s = append(s, "IDPrefixes: "+fmt.Sprintf("%#v", this.IDPrefixes)+",\n")
@@ -1747,6 +2100,7 @@ func (this *ListNetworksRequest_Filters) GoString() string {
 	if this.Labels != nil {
 		s = append(s, "Labels: "+mapStringForLabels+",\n")
 	}
+	s = append(s, "NamePrefixes: "+fmt.Sprintf("%#v", this.NamePrefixes)+",\n")
 	s = append(s, "}")
 	return strings.Join(s, "")
 }
@@ -1800,7 +2154,7 @@ func (this *ListClustersRequest_Filters) GoString() string {
 	if this == nil {
 		return "nil"
 	}
-	s := make([]string, 0, 7)
+	s := make([]string, 0, 8)
 	s = append(s, "&api.ListClustersRequest_Filters{")
 	s = append(s, "Names: "+fmt.Sprintf("%#v", this.Names)+",\n")
 	s = append(s, "IDPrefixes: "+fmt.Sprintf("%#v", this.IDPrefixes)+",\n")
@@ -1817,6 +2171,7 @@ func (this *ListClustersRequest_Filters) GoString() string {
 	if this.Labels != nil {
 		s = append(s, "Labels: "+mapStringForLabels+",\n")
 	}
+	s = append(s, "NamePrefixes: "+fmt.Sprintf("%#v", this.NamePrefixes)+",\n")
 	s = append(s, "}")
 	return strings.Join(s, "")
 }
@@ -1832,11 +2187,22 @@ func (this *ListClustersResponse) GoString() string {
 	s = append(s, "}")
 	return strings.Join(s, "")
 }
+func (this *JoinTokenRotation) GoString() string {
+	if this == nil {
+		return "nil"
+	}
+	s := make([]string, 0, 6)
+	s = append(s, "&api.JoinTokenRotation{")
+	s = append(s, "RotateWorkerToken: "+fmt.Sprintf("%#v", this.RotateWorkerToken)+",\n")
+	s = append(s, "RotateManagerToken: "+fmt.Sprintf("%#v", this.RotateManagerToken)+",\n")
+	s = append(s, "}")
+	return strings.Join(s, "")
+}
 func (this *UpdateClusterRequest) GoString() string {
 	if this == nil {
 		return "nil"
 	}
-	s := make([]string, 0, 7)
+	s := make([]string, 0, 8)
 	s = append(s, "&api.UpdateClusterRequest{")
 	s = append(s, "ClusterID: "+fmt.Sprintf("%#v", this.ClusterID)+",\n")
 	if this.ClusterVersion != nil {
@@ -1845,6 +2211,7 @@ func (this *UpdateClusterRequest) GoString() string {
 	if this.Spec != nil {
 		s = append(s, "Spec: "+fmt.Sprintf("%#v", this.Spec)+",\n")
 	}
+	s = append(s, "Rotation: "+strings.Replace(this.Rotation.GoString(), `&`, ``, 1)+",\n")
 	s = append(s, "}")
 	return strings.Join(s, "")
 }
@@ -1860,6 +2227,120 @@ func (this *UpdateClusterResponse) GoString() string {
 	s = append(s, "}")
 	return strings.Join(s, "")
 }
+func (this *GetSecretRequest) GoString() string {
+	if this == nil {
+		return "nil"
+	}
+	s := make([]string, 0, 5)
+	s = append(s, "&api.GetSecretRequest{")
+	s = append(s, "SecretID: "+fmt.Sprintf("%#v", this.SecretID)+",\n")
+	s = append(s, "}")
+	return strings.Join(s, "")
+}
+func (this *GetSecretResponse) GoString() string {
+	if this == nil {
+		return "nil"
+	}
+	s := make([]string, 0, 5)
+	s = append(s, "&api.GetSecretResponse{")
+	if this.Secret != nil {
+		s = append(s, "Secret: "+fmt.Sprintf("%#v", this.Secret)+",\n")
+	}
+	s = append(s, "}")
+	return strings.Join(s, "")
+}
+func (this *ListSecretsRequest) GoString() string {
+	if this == nil {
+		return "nil"
+	}
+	s := make([]string, 0, 5)
+	s = append(s, "&api.ListSecretsRequest{")
+	if this.Filters != nil {
+		s = append(s, "Filters: "+fmt.Sprintf("%#v", this.Filters)+",\n")
+	}
+	s = append(s, "}")
+	return strings.Join(s, "")
+}
+func (this *ListSecretsRequest_Filters) GoString() string {
+	if this == nil {
+		return "nil"
+	}
+	s := make([]string, 0, 8)
+	s = append(s, "&api.ListSecretsRequest_Filters{")
+	s = append(s, "Names: "+fmt.Sprintf("%#v", this.Names)+",\n")
+	s = append(s, "IDPrefixes: "+fmt.Sprintf("%#v", this.IDPrefixes)+",\n")
+	keysForLabels := make([]string, 0, len(this.Labels))
+	for k, _ := range this.Labels {
+		keysForLabels = append(keysForLabels, k)
+	}
+	github_com_gogo_protobuf_sortkeys.Strings(keysForLabels)
+	mapStringForLabels := "map[string]string{"
+	for _, k := range keysForLabels {
+		mapStringForLabels += fmt.Sprintf("%#v: %#v,", k, this.Labels[k])
+	}
+	mapStringForLabels += "}"
+	if this.Labels != nil {
+		s = append(s, "Labels: "+mapStringForLabels+",\n")
+	}
+	s = append(s, "NamePrefixes: "+fmt.Sprintf("%#v", this.NamePrefixes)+",\n")
+	s = append(s, "}")
+	return strings.Join(s, "")
+}
+func (this *ListSecretsResponse) GoString() string {
+	if this == nil {
+		return "nil"
+	}
+	s := make([]string, 0, 5)
+	s = append(s, "&api.ListSecretsResponse{")
+	if this.Secrets != nil {
+		s = append(s, "Secrets: "+fmt.Sprintf("%#v", this.Secrets)+",\n")
+	}
+	s = append(s, "}")
+	return strings.Join(s, "")
+}
+func (this *CreateSecretRequest) GoString() string {
+	if this == nil {
+		return "nil"
+	}
+	s := make([]string, 0, 5)
+	s = append(s, "&api.CreateSecretRequest{")
+	if this.Spec != nil {
+		s = append(s, "Spec: "+fmt.Sprintf("%#v", this.Spec)+",\n")
+	}
+	s = append(s, "}")
+	return strings.Join(s, "")
+}
+func (this *CreateSecretResponse) GoString() string {
+	if this == nil {
+		return "nil"
+	}
+	s := make([]string, 0, 5)
+	s = append(s, "&api.CreateSecretResponse{")
+	if this.Secret != nil {
+		s = append(s, "Secret: "+fmt.Sprintf("%#v", this.Secret)+",\n")
+	}
+	s = append(s, "}")
+	return strings.Join(s, "")
+}
+func (this *RemoveSecretRequest) GoString() string {
+	if this == nil {
+		return "nil"
+	}
+	s := make([]string, 0, 5)
+	s = append(s, "&api.RemoveSecretRequest{")
+	s = append(s, "SecretID: "+fmt.Sprintf("%#v", this.SecretID)+",\n")
+	s = append(s, "}")
+	return strings.Join(s, "")
+}
+func (this *RemoveSecretResponse) GoString() string {
+	if this == nil {
+		return "nil"
+	}
+	s := make([]string, 0, 4)
+	s = append(s, "&api.RemoveSecretResponse{")
+	s = append(s, "}")
+	return strings.Join(s, "")
+}
 func valueToGoStringControl(v interface{}, typ string) string {
 	rv := reflect.ValueOf(v)
 	if rv.IsNil() {
@@ -1868,11 +2349,12 @@ func valueToGoStringControl(v interface{}, typ string) string {
 	pv := reflect.Indirect(rv).Interface()
 	return fmt.Sprintf("func(v %v) *%v { return &v } ( %#v )", typ, typ, pv)
 }
-func extensionToGoStringControl(e map[int32]github_com_gogo_protobuf_proto.Extension) string {
+func extensionToGoStringControl(m github_com_gogo_protobuf_proto.Message) string {
+	e := github_com_gogo_protobuf_proto.GetUnsafeExtensionsMap(m)
 	if e == nil {
 		return "nil"
 	}
-	s := "map[int32]proto.Extension{"
+	s := "proto.NewUnsafeXXX_InternalExtensions(map[int32]proto.Extension{"
 	keys := make([]int, 0, len(e))
 	for k := range e {
 		keys = append(keys, int(k))
@@ -1882,7 +2364,7 @@ func extensionToGoStringControl(e map[int32]github_com_gogo_protobuf_proto.Exten
 	for _, k := range keys {
 		ss = append(ss, strconv.Itoa(k)+": "+e[int32(k)].GoString())
 	}
-	s += strings.Join(ss, ",") + "}"
+	s += strings.Join(ss, ",") + "})"
 	return s
 }
 
@@ -1892,7 +2374,7 @@ var _ grpc.ClientConn
 
 // This is a compile-time assertion to ensure that this generated file
 // is compatible with the grpc package it is being compiled against.
-const _ = grpc.SupportPackageIsVersion2
+const _ = grpc.SupportPackageIsVersion3
 
 // Client API for Control service
 
@@ -1916,6 +2398,31 @@ type ControlClient interface {
 	GetCluster(ctx context.Context, in *GetClusterRequest, opts ...grpc.CallOption) (*GetClusterResponse, error)
 	ListClusters(ctx context.Context, in *ListClustersRequest, opts ...grpc.CallOption) (*ListClustersResponse, error)
 	UpdateCluster(ctx context.Context, in *UpdateClusterRequest, opts ...grpc.CallOption) (*UpdateClusterResponse, error)
+	// GetSecret returns a `GetSecretResponse` with a `Secret` with the same
+	// id as `GetSecretRequest.SecretID`
+	// - Returns `NotFound` if the Secret with the given id is not found.
+	// - Returns `InvalidArgument` if the `GetSecretRequest.SecretID` is empty.
+	// - Returns an error if getting fails.
+	GetSecret(ctx context.Context, in *GetSecretRequest, opts ...grpc.CallOption) (*GetSecretResponse, error)
+	// ListSecrets returns a `ListSecretResponse` with a list all non-internal `Secret`s being
+	// managed, or all secrets matching any name in `ListSecretsRequest.Names`, any
+	// name prefix in `ListSecretsRequest.NamePrefixes`, any id in
+	// `ListSecretsRequest.SecretIDs`, or any id prefix in `ListSecretsRequest.IDPrefixes`.
+	// - Returns an error if listing fails.
+	ListSecrets(ctx context.Context, in *ListSecretsRequest, opts ...grpc.CallOption) (*ListSecretsResponse, error)
+	// CreateSecret creates and return a `CreateSecretResponse` with a `Secret` based
+	// on the provided `CreateSecretRequest.SecretSpec`.
+	// - Returns `InvalidArgument` if the `CreateSecretRequest.SecretSpec` is malformed,
+	//   or if the secret data is too long or contains invalid characters.
+	// - Returns `ResourceExhausted` if there are already the maximum number of allowed
+	//   secrets in the system.
+	// - Returns an error if the creation fails.
+	CreateSecret(ctx context.Context, in *CreateSecretRequest, opts ...grpc.CallOption) (*CreateSecretResponse, error)
+	// RemoveSecret removes the secret referenced by `RemoveSecretRequest.ID`.
+	// - Returns `InvalidArgument` if `RemoveSecretRequest.ID` is empty.
+	// - Returns `NotFound` if the a secret named `RemoveSecretRequest.ID` is not found.
+	// - Returns an error if the deletion fails.
+	RemoveSecret(ctx context.Context, in *RemoveSecretRequest, opts ...grpc.CallOption) (*RemoveSecretResponse, error)
 }
 
 type controlClient struct {
@@ -2097,6 +2604,42 @@ func (c *controlClient) UpdateCluster(ctx context.Context, in *UpdateClusterRequ
 	return out, nil
 }
 
+func (c *controlClient) GetSecret(ctx context.Context, in *GetSecretRequest, opts ...grpc.CallOption) (*GetSecretResponse, error) {
+	out := new(GetSecretResponse)
+	err := grpc.Invoke(ctx, "/docker.swarmkit.v1.Control/GetSecret", in, out, c.cc, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *controlClient) ListSecrets(ctx context.Context, in *ListSecretsRequest, opts ...grpc.CallOption) (*ListSecretsResponse, error) {
+	out := new(ListSecretsResponse)
+	err := grpc.Invoke(ctx, "/docker.swarmkit.v1.Control/ListSecrets", in, out, c.cc, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *controlClient) CreateSecret(ctx context.Context, in *CreateSecretRequest, opts ...grpc.CallOption) (*CreateSecretResponse, error) {
+	out := new(CreateSecretResponse)
+	err := grpc.Invoke(ctx, "/docker.swarmkit.v1.Control/CreateSecret", in, out, c.cc, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *controlClient) RemoveSecret(ctx context.Context, in *RemoveSecretRequest, opts ...grpc.CallOption) (*RemoveSecretResponse, error) {
+	out := new(RemoveSecretResponse)
+	err := grpc.Invoke(ctx, "/docker.swarmkit.v1.Control/RemoveSecret", in, out, c.cc, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // Server API for Control service
 
 type ControlServer interface {
@@ -2119,6 +2662,31 @@ type ControlServer interface {
 	GetCluster(context.Context, *GetClusterRequest) (*GetClusterResponse, error)
 	ListClusters(context.Context, *ListClustersRequest) (*ListClustersResponse, error)
 	UpdateCluster(context.Context, *UpdateClusterRequest) (*UpdateClusterResponse, error)
+	// GetSecret returns a `GetSecretResponse` with a `Secret` with the same
+	// id as `GetSecretRequest.SecretID`
+	// - Returns `NotFound` if the Secret with the given id is not found.
+	// - Returns `InvalidArgument` if the `GetSecretRequest.SecretID` is empty.
+	// - Returns an error if getting fails.
+	GetSecret(context.Context, *GetSecretRequest) (*GetSecretResponse, error)
+	// ListSecrets returns a `ListSecretResponse` with a list all non-internal `Secret`s being
+	// managed, or all secrets matching any name in `ListSecretsRequest.Names`, any
+	// name prefix in `ListSecretsRequest.NamePrefixes`, any id in
+	// `ListSecretsRequest.SecretIDs`, or any id prefix in `ListSecretsRequest.IDPrefixes`.
+	// - Returns an error if listing fails.
+	ListSecrets(context.Context, *ListSecretsRequest) (*ListSecretsResponse, error)
+	// CreateSecret creates and return a `CreateSecretResponse` with a `Secret` based
+	// on the provided `CreateSecretRequest.SecretSpec`.
+	// - Returns `InvalidArgument` if the `CreateSecretRequest.SecretSpec` is malformed,
+	//   or if the secret data is too long or contains invalid characters.
+	// - Returns `ResourceExhausted` if there are already the maximum number of allowed
+	//   secrets in the system.
+	// - Returns an error if the creation fails.
+	CreateSecret(context.Context, *CreateSecretRequest) (*CreateSecretResponse, error)
+	// RemoveSecret removes the secret referenced by `RemoveSecretRequest.ID`.
+	// - Returns `InvalidArgument` if `RemoveSecretRequest.ID` is empty.
+	// - Returns `NotFound` if the a secret named `RemoveSecretRequest.ID` is not found.
+	// - Returns an error if the deletion fails.
+	RemoveSecret(context.Context, *RemoveSecretRequest) (*RemoveSecretResponse, error)
 }
 
 func RegisterControlServer(s *grpc.Server, srv ControlServer) {
@@ -2467,6 +3035,78 @@ func _Control_UpdateCluster_Handler(srv interface{}, ctx context.Context, dec fu
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Control_GetSecret_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetSecretRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ControlServer).GetSecret(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/docker.swarmkit.v1.Control/GetSecret",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ControlServer).GetSecret(ctx, req.(*GetSecretRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Control_ListSecrets_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListSecretsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ControlServer).ListSecrets(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/docker.swarmkit.v1.Control/ListSecrets",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ControlServer).ListSecrets(ctx, req.(*ListSecretsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Control_CreateSecret_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CreateSecretRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ControlServer).CreateSecret(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/docker.swarmkit.v1.Control/CreateSecret",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ControlServer).CreateSecret(ctx, req.(*CreateSecretRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Control_RemoveSecret_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RemoveSecretRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ControlServer).RemoveSecret(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/docker.swarmkit.v1.Control/RemoveSecret",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ControlServer).RemoveSecret(ctx, req.(*RemoveSecretRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 var _Control_serviceDesc = grpc.ServiceDesc{
 	ServiceName: "docker.swarmkit.v1.Control",
 	HandlerType: (*ControlServer)(nil),
@@ -2547,8 +3187,25 @@ var _Control_serviceDesc = grpc.ServiceDesc{
 			MethodName: "UpdateCluster",
 			Handler:    _Control_UpdateCluster_Handler,
 		},
+		{
+			MethodName: "GetSecret",
+			Handler:    _Control_GetSecret_Handler,
+		},
+		{
+			MethodName: "ListSecrets",
+			Handler:    _Control_ListSecrets_Handler,
+		},
+		{
+			MethodName: "CreateSecret",
+			Handler:    _Control_CreateSecret_Handler,
+		},
+		{
+			MethodName: "RemoveSecret",
+			Handler:    _Control_RemoveSecret_Handler,
+		},
 	},
-	Streams: []grpc.StreamDesc{},
+	Streams:  []grpc.StreamDesc{},
+	Metadata: fileDescriptorControl,
 }
 
 func (m *GetNodeRequest) Marshal() (data []byte, err error) {
@@ -2707,6 +3364,21 @@ func (m *ListNodesRequest_Filters) MarshalTo(data []byte) (int, error) {
 			i = encodeVarintControl(data, i, uint64(num))
 		}
 	}
+	if len(m.NamePrefixes) > 0 {
+		for _, s := range m.NamePrefixes {
+			data[i] = 0x32
+			i++
+			l = len(s)
+			for l >= 1<<7 {
+				data[i] = uint8(uint64(l)&0x7f | 0x80)
+				l >>= 7
+				i++
+			}
+			data[i] = uint8(l)
+			i++
+			i += copy(data[i:], s)
+		}
+	}
 	return i, nil
 }
 
@@ -2832,6 +3504,16 @@ func (m *RemoveNodeRequest) MarshalTo(data []byte) (int, error) {
 		i++
 		i = encodeVarintControl(data, i, uint64(len(m.NodeID)))
 		i += copy(data[i:], m.NodeID)
+	}
+	if m.Force {
+		data[i] = 0x10
+		i++
+		if m.Force {
+			data[i] = 1
+		} else {
+			data[i] = 0
+		}
+		i++
 	}
 	return i, nil
 }
@@ -3073,6 +3755,21 @@ func (m *ListTasksRequest_Filters) MarshalTo(data []byte) (int, error) {
 			data[i] = 0x30
 			i++
 			i = encodeVarintControl(data, i, uint64(num))
+		}
+	}
+	if len(m.NamePrefixes) > 0 {
+		for _, s := range m.NamePrefixes {
+			data[i] = 0x3a
+			i++
+			l = len(s)
+			for l >= 1<<7 {
+				data[i] = uint8(uint64(l)&0x7f | 0x80)
+				l >>= 7
+				i++
+			}
+			data[i] = uint8(l)
+			i++
+			i += copy(data[i:], s)
 		}
 	}
 	return i, nil
@@ -3420,6 +4117,21 @@ func (m *ListServicesRequest_Filters) MarshalTo(data []byte) (int, error) {
 			i += copy(data[i:], v)
 		}
 	}
+	if len(m.NamePrefixes) > 0 {
+		for _, s := range m.NamePrefixes {
+			data[i] = 0x22
+			i++
+			l = len(s)
+			for l >= 1<<7 {
+				data[i] = uint8(uint64(l)&0x7f | 0x80)
+				l >>= 7
+				i++
+			}
+			data[i] = uint8(l)
+			i++
+			i += copy(data[i:], s)
+		}
+	}
 	return i, nil
 }
 
@@ -3705,6 +4417,21 @@ func (m *ListNetworksRequest_Filters) MarshalTo(data []byte) (int, error) {
 			i += copy(data[i:], v)
 		}
 	}
+	if len(m.NamePrefixes) > 0 {
+		for _, s := range m.NamePrefixes {
+			data[i] = 0x22
+			i++
+			l = len(s)
+			for l >= 1<<7 {
+				data[i] = uint8(uint64(l)&0x7f | 0x80)
+				l >>= 7
+				i++
+			}
+			data[i] = uint8(l)
+			i++
+			i += copy(data[i:], s)
+		}
+	}
 	return i, nil
 }
 
@@ -3880,6 +4607,21 @@ func (m *ListClustersRequest_Filters) MarshalTo(data []byte) (int, error) {
 			i += copy(data[i:], v)
 		}
 	}
+	if len(m.NamePrefixes) > 0 {
+		for _, s := range m.NamePrefixes {
+			data[i] = 0x22
+			i++
+			l = len(s)
+			for l >= 1<<7 {
+				data[i] = uint8(uint64(l)&0x7f | 0x80)
+				l >>= 7
+				i++
+			}
+			data[i] = uint8(l)
+			i++
+			i += copy(data[i:], s)
+		}
+	}
 	return i, nil
 }
 
@@ -3909,6 +4651,44 @@ func (m *ListClustersResponse) MarshalTo(data []byte) (int, error) {
 			}
 			i += n
 		}
+	}
+	return i, nil
+}
+
+func (m *JoinTokenRotation) Marshal() (data []byte, err error) {
+	size := m.Size()
+	data = make([]byte, size)
+	n, err := m.MarshalTo(data)
+	if err != nil {
+		return nil, err
+	}
+	return data[:n], nil
+}
+
+func (m *JoinTokenRotation) MarshalTo(data []byte) (int, error) {
+	var i int
+	_ = i
+	var l int
+	_ = l
+	if m.RotateWorkerToken {
+		data[i] = 0x8
+		i++
+		if m.RotateWorkerToken {
+			data[i] = 1
+		} else {
+			data[i] = 0
+		}
+		i++
+	}
+	if m.RotateManagerToken {
+		data[i] = 0x10
+		i++
+		if m.RotateManagerToken {
+			data[i] = 1
+		} else {
+			data[i] = 0
+		}
+		i++
 	}
 	return i, nil
 }
@@ -3954,6 +4734,14 @@ func (m *UpdateClusterRequest) MarshalTo(data []byte) (int, error) {
 		}
 		i += n22
 	}
+	data[i] = 0x22
+	i++
+	i = encodeVarintControl(data, i, uint64(m.Rotation.Size()))
+	n23, err := m.Rotation.MarshalTo(data[i:])
+	if err != nil {
+		return 0, err
+	}
+	i += n23
 	return i, nil
 }
 
@@ -3976,12 +4764,300 @@ func (m *UpdateClusterResponse) MarshalTo(data []byte) (int, error) {
 		data[i] = 0xa
 		i++
 		i = encodeVarintControl(data, i, uint64(m.Cluster.Size()))
-		n23, err := m.Cluster.MarshalTo(data[i:])
+		n24, err := m.Cluster.MarshalTo(data[i:])
 		if err != nil {
 			return 0, err
 		}
-		i += n23
+		i += n24
 	}
+	return i, nil
+}
+
+func (m *GetSecretRequest) Marshal() (data []byte, err error) {
+	size := m.Size()
+	data = make([]byte, size)
+	n, err := m.MarshalTo(data)
+	if err != nil {
+		return nil, err
+	}
+	return data[:n], nil
+}
+
+func (m *GetSecretRequest) MarshalTo(data []byte) (int, error) {
+	var i int
+	_ = i
+	var l int
+	_ = l
+	if len(m.SecretID) > 0 {
+		data[i] = 0xa
+		i++
+		i = encodeVarintControl(data, i, uint64(len(m.SecretID)))
+		i += copy(data[i:], m.SecretID)
+	}
+	return i, nil
+}
+
+func (m *GetSecretResponse) Marshal() (data []byte, err error) {
+	size := m.Size()
+	data = make([]byte, size)
+	n, err := m.MarshalTo(data)
+	if err != nil {
+		return nil, err
+	}
+	return data[:n], nil
+}
+
+func (m *GetSecretResponse) MarshalTo(data []byte) (int, error) {
+	var i int
+	_ = i
+	var l int
+	_ = l
+	if m.Secret != nil {
+		data[i] = 0xa
+		i++
+		i = encodeVarintControl(data, i, uint64(m.Secret.Size()))
+		n25, err := m.Secret.MarshalTo(data[i:])
+		if err != nil {
+			return 0, err
+		}
+		i += n25
+	}
+	return i, nil
+}
+
+func (m *ListSecretsRequest) Marshal() (data []byte, err error) {
+	size := m.Size()
+	data = make([]byte, size)
+	n, err := m.MarshalTo(data)
+	if err != nil {
+		return nil, err
+	}
+	return data[:n], nil
+}
+
+func (m *ListSecretsRequest) MarshalTo(data []byte) (int, error) {
+	var i int
+	_ = i
+	var l int
+	_ = l
+	if m.Filters != nil {
+		data[i] = 0xa
+		i++
+		i = encodeVarintControl(data, i, uint64(m.Filters.Size()))
+		n26, err := m.Filters.MarshalTo(data[i:])
+		if err != nil {
+			return 0, err
+		}
+		i += n26
+	}
+	return i, nil
+}
+
+func (m *ListSecretsRequest_Filters) Marshal() (data []byte, err error) {
+	size := m.Size()
+	data = make([]byte, size)
+	n, err := m.MarshalTo(data)
+	if err != nil {
+		return nil, err
+	}
+	return data[:n], nil
+}
+
+func (m *ListSecretsRequest_Filters) MarshalTo(data []byte) (int, error) {
+	var i int
+	_ = i
+	var l int
+	_ = l
+	if len(m.Names) > 0 {
+		for _, s := range m.Names {
+			data[i] = 0xa
+			i++
+			l = len(s)
+			for l >= 1<<7 {
+				data[i] = uint8(uint64(l)&0x7f | 0x80)
+				l >>= 7
+				i++
+			}
+			data[i] = uint8(l)
+			i++
+			i += copy(data[i:], s)
+		}
+	}
+	if len(m.IDPrefixes) > 0 {
+		for _, s := range m.IDPrefixes {
+			data[i] = 0x12
+			i++
+			l = len(s)
+			for l >= 1<<7 {
+				data[i] = uint8(uint64(l)&0x7f | 0x80)
+				l >>= 7
+				i++
+			}
+			data[i] = uint8(l)
+			i++
+			i += copy(data[i:], s)
+		}
+	}
+	if len(m.Labels) > 0 {
+		for k, _ := range m.Labels {
+			data[i] = 0x1a
+			i++
+			v := m.Labels[k]
+			mapSize := 1 + len(k) + sovControl(uint64(len(k))) + 1 + len(v) + sovControl(uint64(len(v)))
+			i = encodeVarintControl(data, i, uint64(mapSize))
+			data[i] = 0xa
+			i++
+			i = encodeVarintControl(data, i, uint64(len(k)))
+			i += copy(data[i:], k)
+			data[i] = 0x12
+			i++
+			i = encodeVarintControl(data, i, uint64(len(v)))
+			i += copy(data[i:], v)
+		}
+	}
+	if len(m.NamePrefixes) > 0 {
+		for _, s := range m.NamePrefixes {
+			data[i] = 0x22
+			i++
+			l = len(s)
+			for l >= 1<<7 {
+				data[i] = uint8(uint64(l)&0x7f | 0x80)
+				l >>= 7
+				i++
+			}
+			data[i] = uint8(l)
+			i++
+			i += copy(data[i:], s)
+		}
+	}
+	return i, nil
+}
+
+func (m *ListSecretsResponse) Marshal() (data []byte, err error) {
+	size := m.Size()
+	data = make([]byte, size)
+	n, err := m.MarshalTo(data)
+	if err != nil {
+		return nil, err
+	}
+	return data[:n], nil
+}
+
+func (m *ListSecretsResponse) MarshalTo(data []byte) (int, error) {
+	var i int
+	_ = i
+	var l int
+	_ = l
+	if len(m.Secrets) > 0 {
+		for _, msg := range m.Secrets {
+			data[i] = 0xa
+			i++
+			i = encodeVarintControl(data, i, uint64(msg.Size()))
+			n, err := msg.MarshalTo(data[i:])
+			if err != nil {
+				return 0, err
+			}
+			i += n
+		}
+	}
+	return i, nil
+}
+
+func (m *CreateSecretRequest) Marshal() (data []byte, err error) {
+	size := m.Size()
+	data = make([]byte, size)
+	n, err := m.MarshalTo(data)
+	if err != nil {
+		return nil, err
+	}
+	return data[:n], nil
+}
+
+func (m *CreateSecretRequest) MarshalTo(data []byte) (int, error) {
+	var i int
+	_ = i
+	var l int
+	_ = l
+	if m.Spec != nil {
+		data[i] = 0xa
+		i++
+		i = encodeVarintControl(data, i, uint64(m.Spec.Size()))
+		n27, err := m.Spec.MarshalTo(data[i:])
+		if err != nil {
+			return 0, err
+		}
+		i += n27
+	}
+	return i, nil
+}
+
+func (m *CreateSecretResponse) Marshal() (data []byte, err error) {
+	size := m.Size()
+	data = make([]byte, size)
+	n, err := m.MarshalTo(data)
+	if err != nil {
+		return nil, err
+	}
+	return data[:n], nil
+}
+
+func (m *CreateSecretResponse) MarshalTo(data []byte) (int, error) {
+	var i int
+	_ = i
+	var l int
+	_ = l
+	if m.Secret != nil {
+		data[i] = 0xa
+		i++
+		i = encodeVarintControl(data, i, uint64(m.Secret.Size()))
+		n28, err := m.Secret.MarshalTo(data[i:])
+		if err != nil {
+			return 0, err
+		}
+		i += n28
+	}
+	return i, nil
+}
+
+func (m *RemoveSecretRequest) Marshal() (data []byte, err error) {
+	size := m.Size()
+	data = make([]byte, size)
+	n, err := m.MarshalTo(data)
+	if err != nil {
+		return nil, err
+	}
+	return data[:n], nil
+}
+
+func (m *RemoveSecretRequest) MarshalTo(data []byte) (int, error) {
+	var i int
+	_ = i
+	var l int
+	_ = l
+	if len(m.SecretID) > 0 {
+		data[i] = 0xa
+		i++
+		i = encodeVarintControl(data, i, uint64(len(m.SecretID)))
+		i += copy(data[i:], m.SecretID)
+	}
+	return i, nil
+}
+
+func (m *RemoveSecretResponse) Marshal() (data []byte, err error) {
+	size := m.Size()
+	data = make([]byte, size)
+	n, err := m.MarshalTo(data)
+	if err != nil {
+		return nil, err
+	}
+	return data[:n], nil
+}
+
+func (m *RemoveSecretResponse) MarshalTo(data []byte) (int, error) {
+	var i int
+	_ = i
+	var l int
+	_ = l
 	return i, nil
 }
 
@@ -4015,12 +5091,11 @@ func encodeVarintControl(data []byte, offset int, v uint64) int {
 
 type raftProxyControlServer struct {
 	local        ControlServer
-	connSelector *raftpicker.ConnSelector
-	cluster      raftpicker.RaftCluster
+	connSelector raftselector.ConnProvider
 	ctxMods      []func(context.Context) (context.Context, error)
 }
 
-func NewRaftProxyControlServer(local ControlServer, connSelector *raftpicker.ConnSelector, cluster raftpicker.RaftCluster, ctxMod func(context.Context) (context.Context, error)) ControlServer {
+func NewRaftProxyControlServer(local ControlServer, connSelector raftselector.ConnProvider, ctxMod func(context.Context) (context.Context, error)) ControlServer {
 	redirectChecker := func(ctx context.Context) (context.Context, error) {
 		s, ok := transport.StreamFromContext(ctx)
 		if !ok {
@@ -4042,7 +5117,6 @@ func NewRaftProxyControlServer(local ControlServer, connSelector *raftpicker.Con
 
 	return &raftProxyControlServer{
 		local:        local,
-		cluster:      cluster,
 		connSelector: connSelector,
 		ctxMods:      mods,
 	}
@@ -4057,309 +5131,741 @@ func (p *raftProxyControlServer) runCtxMods(ctx context.Context) (context.Contex
 	}
 	return ctx, nil
 }
+func (p *raftProxyControlServer) pollNewLeaderConn(ctx context.Context) (*grpc.ClientConn, error) {
+	ticker := time.NewTicker(500 * time.Millisecond)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ticker.C:
+			conn, err := p.connSelector.LeaderConn(ctx)
+			if err != nil {
+				return nil, err
+			}
+
+			client := NewHealthClient(conn)
+
+			resp, err := client.Check(ctx, &HealthCheckRequest{Service: "Raft"})
+			if err != nil || resp.Status != HealthCheckResponse_SERVING {
+				continue
+			}
+			return conn, nil
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		}
+	}
+}
 
 func (p *raftProxyControlServer) GetNode(ctx context.Context, r *GetNodeRequest) (*GetNodeResponse, error) {
 
-	if p.cluster.IsLeader() {
-		return p.local.GetNode(ctx, r)
+	conn, err := p.connSelector.LeaderConn(ctx)
+	if err != nil {
+		if err == raftselector.ErrIsLeader {
+			return p.local.GetNode(ctx, r)
+		}
+		return nil, err
 	}
-	ctx, err := p.runCtxMods(ctx)
+	modCtx, err := p.runCtxMods(ctx)
 	if err != nil {
 		return nil, err
 	}
-	conn, err := p.connSelector.Conn()
+
+	resp, err := NewControlClient(conn).GetNode(modCtx, r)
 	if err != nil {
-		return nil, err
+		if !strings.Contains(err.Error(), "is closing") && !strings.Contains(err.Error(), "the connection is unavailable") && !strings.Contains(err.Error(), "connection error") {
+			return resp, err
+		}
+		conn, err := p.pollNewLeaderConn(ctx)
+		if err != nil {
+			if err == raftselector.ErrIsLeader {
+				return p.local.GetNode(ctx, r)
+			}
+			return nil, err
+		}
+		return NewControlClient(conn).GetNode(modCtx, r)
 	}
-	return NewControlClient(conn).GetNode(ctx, r)
+	return resp, err
 }
 
 func (p *raftProxyControlServer) ListNodes(ctx context.Context, r *ListNodesRequest) (*ListNodesResponse, error) {
 
-	if p.cluster.IsLeader() {
-		return p.local.ListNodes(ctx, r)
+	conn, err := p.connSelector.LeaderConn(ctx)
+	if err != nil {
+		if err == raftselector.ErrIsLeader {
+			return p.local.ListNodes(ctx, r)
+		}
+		return nil, err
 	}
-	ctx, err := p.runCtxMods(ctx)
+	modCtx, err := p.runCtxMods(ctx)
 	if err != nil {
 		return nil, err
 	}
-	conn, err := p.connSelector.Conn()
+
+	resp, err := NewControlClient(conn).ListNodes(modCtx, r)
 	if err != nil {
-		return nil, err
+		if !strings.Contains(err.Error(), "is closing") && !strings.Contains(err.Error(), "the connection is unavailable") && !strings.Contains(err.Error(), "connection error") {
+			return resp, err
+		}
+		conn, err := p.pollNewLeaderConn(ctx)
+		if err != nil {
+			if err == raftselector.ErrIsLeader {
+				return p.local.ListNodes(ctx, r)
+			}
+			return nil, err
+		}
+		return NewControlClient(conn).ListNodes(modCtx, r)
 	}
-	return NewControlClient(conn).ListNodes(ctx, r)
+	return resp, err
 }
 
 func (p *raftProxyControlServer) UpdateNode(ctx context.Context, r *UpdateNodeRequest) (*UpdateNodeResponse, error) {
 
-	if p.cluster.IsLeader() {
-		return p.local.UpdateNode(ctx, r)
+	conn, err := p.connSelector.LeaderConn(ctx)
+	if err != nil {
+		if err == raftselector.ErrIsLeader {
+			return p.local.UpdateNode(ctx, r)
+		}
+		return nil, err
 	}
-	ctx, err := p.runCtxMods(ctx)
+	modCtx, err := p.runCtxMods(ctx)
 	if err != nil {
 		return nil, err
 	}
-	conn, err := p.connSelector.Conn()
+
+	resp, err := NewControlClient(conn).UpdateNode(modCtx, r)
 	if err != nil {
-		return nil, err
+		if !strings.Contains(err.Error(), "is closing") && !strings.Contains(err.Error(), "the connection is unavailable") && !strings.Contains(err.Error(), "connection error") {
+			return resp, err
+		}
+		conn, err := p.pollNewLeaderConn(ctx)
+		if err != nil {
+			if err == raftselector.ErrIsLeader {
+				return p.local.UpdateNode(ctx, r)
+			}
+			return nil, err
+		}
+		return NewControlClient(conn).UpdateNode(modCtx, r)
 	}
-	return NewControlClient(conn).UpdateNode(ctx, r)
+	return resp, err
 }
 
 func (p *raftProxyControlServer) RemoveNode(ctx context.Context, r *RemoveNodeRequest) (*RemoveNodeResponse, error) {
 
-	if p.cluster.IsLeader() {
-		return p.local.RemoveNode(ctx, r)
+	conn, err := p.connSelector.LeaderConn(ctx)
+	if err != nil {
+		if err == raftselector.ErrIsLeader {
+			return p.local.RemoveNode(ctx, r)
+		}
+		return nil, err
 	}
-	ctx, err := p.runCtxMods(ctx)
+	modCtx, err := p.runCtxMods(ctx)
 	if err != nil {
 		return nil, err
 	}
-	conn, err := p.connSelector.Conn()
+
+	resp, err := NewControlClient(conn).RemoveNode(modCtx, r)
 	if err != nil {
-		return nil, err
+		if !strings.Contains(err.Error(), "is closing") && !strings.Contains(err.Error(), "the connection is unavailable") && !strings.Contains(err.Error(), "connection error") {
+			return resp, err
+		}
+		conn, err := p.pollNewLeaderConn(ctx)
+		if err != nil {
+			if err == raftselector.ErrIsLeader {
+				return p.local.RemoveNode(ctx, r)
+			}
+			return nil, err
+		}
+		return NewControlClient(conn).RemoveNode(modCtx, r)
 	}
-	return NewControlClient(conn).RemoveNode(ctx, r)
+	return resp, err
 }
 
 func (p *raftProxyControlServer) GetTask(ctx context.Context, r *GetTaskRequest) (*GetTaskResponse, error) {
 
-	if p.cluster.IsLeader() {
-		return p.local.GetTask(ctx, r)
+	conn, err := p.connSelector.LeaderConn(ctx)
+	if err != nil {
+		if err == raftselector.ErrIsLeader {
+			return p.local.GetTask(ctx, r)
+		}
+		return nil, err
 	}
-	ctx, err := p.runCtxMods(ctx)
+	modCtx, err := p.runCtxMods(ctx)
 	if err != nil {
 		return nil, err
 	}
-	conn, err := p.connSelector.Conn()
+
+	resp, err := NewControlClient(conn).GetTask(modCtx, r)
 	if err != nil {
-		return nil, err
+		if !strings.Contains(err.Error(), "is closing") && !strings.Contains(err.Error(), "the connection is unavailable") && !strings.Contains(err.Error(), "connection error") {
+			return resp, err
+		}
+		conn, err := p.pollNewLeaderConn(ctx)
+		if err != nil {
+			if err == raftselector.ErrIsLeader {
+				return p.local.GetTask(ctx, r)
+			}
+			return nil, err
+		}
+		return NewControlClient(conn).GetTask(modCtx, r)
 	}
-	return NewControlClient(conn).GetTask(ctx, r)
+	return resp, err
 }
 
 func (p *raftProxyControlServer) ListTasks(ctx context.Context, r *ListTasksRequest) (*ListTasksResponse, error) {
 
-	if p.cluster.IsLeader() {
-		return p.local.ListTasks(ctx, r)
+	conn, err := p.connSelector.LeaderConn(ctx)
+	if err != nil {
+		if err == raftselector.ErrIsLeader {
+			return p.local.ListTasks(ctx, r)
+		}
+		return nil, err
 	}
-	ctx, err := p.runCtxMods(ctx)
+	modCtx, err := p.runCtxMods(ctx)
 	if err != nil {
 		return nil, err
 	}
-	conn, err := p.connSelector.Conn()
+
+	resp, err := NewControlClient(conn).ListTasks(modCtx, r)
 	if err != nil {
-		return nil, err
+		if !strings.Contains(err.Error(), "is closing") && !strings.Contains(err.Error(), "the connection is unavailable") && !strings.Contains(err.Error(), "connection error") {
+			return resp, err
+		}
+		conn, err := p.pollNewLeaderConn(ctx)
+		if err != nil {
+			if err == raftselector.ErrIsLeader {
+				return p.local.ListTasks(ctx, r)
+			}
+			return nil, err
+		}
+		return NewControlClient(conn).ListTasks(modCtx, r)
 	}
-	return NewControlClient(conn).ListTasks(ctx, r)
+	return resp, err
 }
 
 func (p *raftProxyControlServer) RemoveTask(ctx context.Context, r *RemoveTaskRequest) (*RemoveTaskResponse, error) {
 
-	if p.cluster.IsLeader() {
-		return p.local.RemoveTask(ctx, r)
+	conn, err := p.connSelector.LeaderConn(ctx)
+	if err != nil {
+		if err == raftselector.ErrIsLeader {
+			return p.local.RemoveTask(ctx, r)
+		}
+		return nil, err
 	}
-	ctx, err := p.runCtxMods(ctx)
+	modCtx, err := p.runCtxMods(ctx)
 	if err != nil {
 		return nil, err
 	}
-	conn, err := p.connSelector.Conn()
+
+	resp, err := NewControlClient(conn).RemoveTask(modCtx, r)
 	if err != nil {
-		return nil, err
+		if !strings.Contains(err.Error(), "is closing") && !strings.Contains(err.Error(), "the connection is unavailable") && !strings.Contains(err.Error(), "connection error") {
+			return resp, err
+		}
+		conn, err := p.pollNewLeaderConn(ctx)
+		if err != nil {
+			if err == raftselector.ErrIsLeader {
+				return p.local.RemoveTask(ctx, r)
+			}
+			return nil, err
+		}
+		return NewControlClient(conn).RemoveTask(modCtx, r)
 	}
-	return NewControlClient(conn).RemoveTask(ctx, r)
+	return resp, err
 }
 
 func (p *raftProxyControlServer) GetService(ctx context.Context, r *GetServiceRequest) (*GetServiceResponse, error) {
 
-	if p.cluster.IsLeader() {
-		return p.local.GetService(ctx, r)
+	conn, err := p.connSelector.LeaderConn(ctx)
+	if err != nil {
+		if err == raftselector.ErrIsLeader {
+			return p.local.GetService(ctx, r)
+		}
+		return nil, err
 	}
-	ctx, err := p.runCtxMods(ctx)
+	modCtx, err := p.runCtxMods(ctx)
 	if err != nil {
 		return nil, err
 	}
-	conn, err := p.connSelector.Conn()
+
+	resp, err := NewControlClient(conn).GetService(modCtx, r)
 	if err != nil {
-		return nil, err
+		if !strings.Contains(err.Error(), "is closing") && !strings.Contains(err.Error(), "the connection is unavailable") && !strings.Contains(err.Error(), "connection error") {
+			return resp, err
+		}
+		conn, err := p.pollNewLeaderConn(ctx)
+		if err != nil {
+			if err == raftselector.ErrIsLeader {
+				return p.local.GetService(ctx, r)
+			}
+			return nil, err
+		}
+		return NewControlClient(conn).GetService(modCtx, r)
 	}
-	return NewControlClient(conn).GetService(ctx, r)
+	return resp, err
 }
 
 func (p *raftProxyControlServer) ListServices(ctx context.Context, r *ListServicesRequest) (*ListServicesResponse, error) {
 
-	if p.cluster.IsLeader() {
-		return p.local.ListServices(ctx, r)
+	conn, err := p.connSelector.LeaderConn(ctx)
+	if err != nil {
+		if err == raftselector.ErrIsLeader {
+			return p.local.ListServices(ctx, r)
+		}
+		return nil, err
 	}
-	ctx, err := p.runCtxMods(ctx)
+	modCtx, err := p.runCtxMods(ctx)
 	if err != nil {
 		return nil, err
 	}
-	conn, err := p.connSelector.Conn()
+
+	resp, err := NewControlClient(conn).ListServices(modCtx, r)
 	if err != nil {
-		return nil, err
+		if !strings.Contains(err.Error(), "is closing") && !strings.Contains(err.Error(), "the connection is unavailable") && !strings.Contains(err.Error(), "connection error") {
+			return resp, err
+		}
+		conn, err := p.pollNewLeaderConn(ctx)
+		if err != nil {
+			if err == raftselector.ErrIsLeader {
+				return p.local.ListServices(ctx, r)
+			}
+			return nil, err
+		}
+		return NewControlClient(conn).ListServices(modCtx, r)
 	}
-	return NewControlClient(conn).ListServices(ctx, r)
+	return resp, err
 }
 
 func (p *raftProxyControlServer) CreateService(ctx context.Context, r *CreateServiceRequest) (*CreateServiceResponse, error) {
 
-	if p.cluster.IsLeader() {
-		return p.local.CreateService(ctx, r)
+	conn, err := p.connSelector.LeaderConn(ctx)
+	if err != nil {
+		if err == raftselector.ErrIsLeader {
+			return p.local.CreateService(ctx, r)
+		}
+		return nil, err
 	}
-	ctx, err := p.runCtxMods(ctx)
+	modCtx, err := p.runCtxMods(ctx)
 	if err != nil {
 		return nil, err
 	}
-	conn, err := p.connSelector.Conn()
+
+	resp, err := NewControlClient(conn).CreateService(modCtx, r)
 	if err != nil {
-		return nil, err
+		if !strings.Contains(err.Error(), "is closing") && !strings.Contains(err.Error(), "the connection is unavailable") && !strings.Contains(err.Error(), "connection error") {
+			return resp, err
+		}
+		conn, err := p.pollNewLeaderConn(ctx)
+		if err != nil {
+			if err == raftselector.ErrIsLeader {
+				return p.local.CreateService(ctx, r)
+			}
+			return nil, err
+		}
+		return NewControlClient(conn).CreateService(modCtx, r)
 	}
-	return NewControlClient(conn).CreateService(ctx, r)
+	return resp, err
 }
 
 func (p *raftProxyControlServer) UpdateService(ctx context.Context, r *UpdateServiceRequest) (*UpdateServiceResponse, error) {
 
-	if p.cluster.IsLeader() {
-		return p.local.UpdateService(ctx, r)
+	conn, err := p.connSelector.LeaderConn(ctx)
+	if err != nil {
+		if err == raftselector.ErrIsLeader {
+			return p.local.UpdateService(ctx, r)
+		}
+		return nil, err
 	}
-	ctx, err := p.runCtxMods(ctx)
+	modCtx, err := p.runCtxMods(ctx)
 	if err != nil {
 		return nil, err
 	}
-	conn, err := p.connSelector.Conn()
+
+	resp, err := NewControlClient(conn).UpdateService(modCtx, r)
 	if err != nil {
-		return nil, err
+		if !strings.Contains(err.Error(), "is closing") && !strings.Contains(err.Error(), "the connection is unavailable") && !strings.Contains(err.Error(), "connection error") {
+			return resp, err
+		}
+		conn, err := p.pollNewLeaderConn(ctx)
+		if err != nil {
+			if err == raftselector.ErrIsLeader {
+				return p.local.UpdateService(ctx, r)
+			}
+			return nil, err
+		}
+		return NewControlClient(conn).UpdateService(modCtx, r)
 	}
-	return NewControlClient(conn).UpdateService(ctx, r)
+	return resp, err
 }
 
 func (p *raftProxyControlServer) RemoveService(ctx context.Context, r *RemoveServiceRequest) (*RemoveServiceResponse, error) {
 
-	if p.cluster.IsLeader() {
-		return p.local.RemoveService(ctx, r)
+	conn, err := p.connSelector.LeaderConn(ctx)
+	if err != nil {
+		if err == raftselector.ErrIsLeader {
+			return p.local.RemoveService(ctx, r)
+		}
+		return nil, err
 	}
-	ctx, err := p.runCtxMods(ctx)
+	modCtx, err := p.runCtxMods(ctx)
 	if err != nil {
 		return nil, err
 	}
-	conn, err := p.connSelector.Conn()
+
+	resp, err := NewControlClient(conn).RemoveService(modCtx, r)
 	if err != nil {
-		return nil, err
+		if !strings.Contains(err.Error(), "is closing") && !strings.Contains(err.Error(), "the connection is unavailable") && !strings.Contains(err.Error(), "connection error") {
+			return resp, err
+		}
+		conn, err := p.pollNewLeaderConn(ctx)
+		if err != nil {
+			if err == raftselector.ErrIsLeader {
+				return p.local.RemoveService(ctx, r)
+			}
+			return nil, err
+		}
+		return NewControlClient(conn).RemoveService(modCtx, r)
 	}
-	return NewControlClient(conn).RemoveService(ctx, r)
+	return resp, err
 }
 
 func (p *raftProxyControlServer) GetNetwork(ctx context.Context, r *GetNetworkRequest) (*GetNetworkResponse, error) {
 
-	if p.cluster.IsLeader() {
-		return p.local.GetNetwork(ctx, r)
+	conn, err := p.connSelector.LeaderConn(ctx)
+	if err != nil {
+		if err == raftselector.ErrIsLeader {
+			return p.local.GetNetwork(ctx, r)
+		}
+		return nil, err
 	}
-	ctx, err := p.runCtxMods(ctx)
+	modCtx, err := p.runCtxMods(ctx)
 	if err != nil {
 		return nil, err
 	}
-	conn, err := p.connSelector.Conn()
+
+	resp, err := NewControlClient(conn).GetNetwork(modCtx, r)
 	if err != nil {
-		return nil, err
+		if !strings.Contains(err.Error(), "is closing") && !strings.Contains(err.Error(), "the connection is unavailable") && !strings.Contains(err.Error(), "connection error") {
+			return resp, err
+		}
+		conn, err := p.pollNewLeaderConn(ctx)
+		if err != nil {
+			if err == raftselector.ErrIsLeader {
+				return p.local.GetNetwork(ctx, r)
+			}
+			return nil, err
+		}
+		return NewControlClient(conn).GetNetwork(modCtx, r)
 	}
-	return NewControlClient(conn).GetNetwork(ctx, r)
+	return resp, err
 }
 
 func (p *raftProxyControlServer) ListNetworks(ctx context.Context, r *ListNetworksRequest) (*ListNetworksResponse, error) {
 
-	if p.cluster.IsLeader() {
-		return p.local.ListNetworks(ctx, r)
+	conn, err := p.connSelector.LeaderConn(ctx)
+	if err != nil {
+		if err == raftselector.ErrIsLeader {
+			return p.local.ListNetworks(ctx, r)
+		}
+		return nil, err
 	}
-	ctx, err := p.runCtxMods(ctx)
+	modCtx, err := p.runCtxMods(ctx)
 	if err != nil {
 		return nil, err
 	}
-	conn, err := p.connSelector.Conn()
+
+	resp, err := NewControlClient(conn).ListNetworks(modCtx, r)
 	if err != nil {
-		return nil, err
+		if !strings.Contains(err.Error(), "is closing") && !strings.Contains(err.Error(), "the connection is unavailable") && !strings.Contains(err.Error(), "connection error") {
+			return resp, err
+		}
+		conn, err := p.pollNewLeaderConn(ctx)
+		if err != nil {
+			if err == raftselector.ErrIsLeader {
+				return p.local.ListNetworks(ctx, r)
+			}
+			return nil, err
+		}
+		return NewControlClient(conn).ListNetworks(modCtx, r)
 	}
-	return NewControlClient(conn).ListNetworks(ctx, r)
+	return resp, err
 }
 
 func (p *raftProxyControlServer) CreateNetwork(ctx context.Context, r *CreateNetworkRequest) (*CreateNetworkResponse, error) {
 
-	if p.cluster.IsLeader() {
-		return p.local.CreateNetwork(ctx, r)
+	conn, err := p.connSelector.LeaderConn(ctx)
+	if err != nil {
+		if err == raftselector.ErrIsLeader {
+			return p.local.CreateNetwork(ctx, r)
+		}
+		return nil, err
 	}
-	ctx, err := p.runCtxMods(ctx)
+	modCtx, err := p.runCtxMods(ctx)
 	if err != nil {
 		return nil, err
 	}
-	conn, err := p.connSelector.Conn()
+
+	resp, err := NewControlClient(conn).CreateNetwork(modCtx, r)
 	if err != nil {
-		return nil, err
+		if !strings.Contains(err.Error(), "is closing") && !strings.Contains(err.Error(), "the connection is unavailable") && !strings.Contains(err.Error(), "connection error") {
+			return resp, err
+		}
+		conn, err := p.pollNewLeaderConn(ctx)
+		if err != nil {
+			if err == raftselector.ErrIsLeader {
+				return p.local.CreateNetwork(ctx, r)
+			}
+			return nil, err
+		}
+		return NewControlClient(conn).CreateNetwork(modCtx, r)
 	}
-	return NewControlClient(conn).CreateNetwork(ctx, r)
+	return resp, err
 }
 
 func (p *raftProxyControlServer) RemoveNetwork(ctx context.Context, r *RemoveNetworkRequest) (*RemoveNetworkResponse, error) {
 
-	if p.cluster.IsLeader() {
-		return p.local.RemoveNetwork(ctx, r)
+	conn, err := p.connSelector.LeaderConn(ctx)
+	if err != nil {
+		if err == raftselector.ErrIsLeader {
+			return p.local.RemoveNetwork(ctx, r)
+		}
+		return nil, err
 	}
-	ctx, err := p.runCtxMods(ctx)
+	modCtx, err := p.runCtxMods(ctx)
 	if err != nil {
 		return nil, err
 	}
-	conn, err := p.connSelector.Conn()
+
+	resp, err := NewControlClient(conn).RemoveNetwork(modCtx, r)
 	if err != nil {
-		return nil, err
+		if !strings.Contains(err.Error(), "is closing") && !strings.Contains(err.Error(), "the connection is unavailable") && !strings.Contains(err.Error(), "connection error") {
+			return resp, err
+		}
+		conn, err := p.pollNewLeaderConn(ctx)
+		if err != nil {
+			if err == raftselector.ErrIsLeader {
+				return p.local.RemoveNetwork(ctx, r)
+			}
+			return nil, err
+		}
+		return NewControlClient(conn).RemoveNetwork(modCtx, r)
 	}
-	return NewControlClient(conn).RemoveNetwork(ctx, r)
+	return resp, err
 }
 
 func (p *raftProxyControlServer) GetCluster(ctx context.Context, r *GetClusterRequest) (*GetClusterResponse, error) {
 
-	if p.cluster.IsLeader() {
-		return p.local.GetCluster(ctx, r)
+	conn, err := p.connSelector.LeaderConn(ctx)
+	if err != nil {
+		if err == raftselector.ErrIsLeader {
+			return p.local.GetCluster(ctx, r)
+		}
+		return nil, err
 	}
-	ctx, err := p.runCtxMods(ctx)
+	modCtx, err := p.runCtxMods(ctx)
 	if err != nil {
 		return nil, err
 	}
-	conn, err := p.connSelector.Conn()
+
+	resp, err := NewControlClient(conn).GetCluster(modCtx, r)
 	if err != nil {
-		return nil, err
+		if !strings.Contains(err.Error(), "is closing") && !strings.Contains(err.Error(), "the connection is unavailable") && !strings.Contains(err.Error(), "connection error") {
+			return resp, err
+		}
+		conn, err := p.pollNewLeaderConn(ctx)
+		if err != nil {
+			if err == raftselector.ErrIsLeader {
+				return p.local.GetCluster(ctx, r)
+			}
+			return nil, err
+		}
+		return NewControlClient(conn).GetCluster(modCtx, r)
 	}
-	return NewControlClient(conn).GetCluster(ctx, r)
+	return resp, err
 }
 
 func (p *raftProxyControlServer) ListClusters(ctx context.Context, r *ListClustersRequest) (*ListClustersResponse, error) {
 
-	if p.cluster.IsLeader() {
-		return p.local.ListClusters(ctx, r)
+	conn, err := p.connSelector.LeaderConn(ctx)
+	if err != nil {
+		if err == raftselector.ErrIsLeader {
+			return p.local.ListClusters(ctx, r)
+		}
+		return nil, err
 	}
-	ctx, err := p.runCtxMods(ctx)
+	modCtx, err := p.runCtxMods(ctx)
 	if err != nil {
 		return nil, err
 	}
-	conn, err := p.connSelector.Conn()
+
+	resp, err := NewControlClient(conn).ListClusters(modCtx, r)
 	if err != nil {
-		return nil, err
+		if !strings.Contains(err.Error(), "is closing") && !strings.Contains(err.Error(), "the connection is unavailable") && !strings.Contains(err.Error(), "connection error") {
+			return resp, err
+		}
+		conn, err := p.pollNewLeaderConn(ctx)
+		if err != nil {
+			if err == raftselector.ErrIsLeader {
+				return p.local.ListClusters(ctx, r)
+			}
+			return nil, err
+		}
+		return NewControlClient(conn).ListClusters(modCtx, r)
 	}
-	return NewControlClient(conn).ListClusters(ctx, r)
+	return resp, err
 }
 
 func (p *raftProxyControlServer) UpdateCluster(ctx context.Context, r *UpdateClusterRequest) (*UpdateClusterResponse, error) {
 
-	if p.cluster.IsLeader() {
-		return p.local.UpdateCluster(ctx, r)
+	conn, err := p.connSelector.LeaderConn(ctx)
+	if err != nil {
+		if err == raftselector.ErrIsLeader {
+			return p.local.UpdateCluster(ctx, r)
+		}
+		return nil, err
 	}
-	ctx, err := p.runCtxMods(ctx)
+	modCtx, err := p.runCtxMods(ctx)
 	if err != nil {
 		return nil, err
 	}
-	conn, err := p.connSelector.Conn()
+
+	resp, err := NewControlClient(conn).UpdateCluster(modCtx, r)
+	if err != nil {
+		if !strings.Contains(err.Error(), "is closing") && !strings.Contains(err.Error(), "the connection is unavailable") && !strings.Contains(err.Error(), "connection error") {
+			return resp, err
+		}
+		conn, err := p.pollNewLeaderConn(ctx)
+		if err != nil {
+			if err == raftselector.ErrIsLeader {
+				return p.local.UpdateCluster(ctx, r)
+			}
+			return nil, err
+		}
+		return NewControlClient(conn).UpdateCluster(modCtx, r)
+	}
+	return resp, err
+}
+
+func (p *raftProxyControlServer) GetSecret(ctx context.Context, r *GetSecretRequest) (*GetSecretResponse, error) {
+
+	conn, err := p.connSelector.LeaderConn(ctx)
+	if err != nil {
+		if err == raftselector.ErrIsLeader {
+			return p.local.GetSecret(ctx, r)
+		}
+		return nil, err
+	}
+	modCtx, err := p.runCtxMods(ctx)
 	if err != nil {
 		return nil, err
 	}
-	return NewControlClient(conn).UpdateCluster(ctx, r)
+
+	resp, err := NewControlClient(conn).GetSecret(modCtx, r)
+	if err != nil {
+		if !strings.Contains(err.Error(), "is closing") && !strings.Contains(err.Error(), "the connection is unavailable") && !strings.Contains(err.Error(), "connection error") {
+			return resp, err
+		}
+		conn, err := p.pollNewLeaderConn(ctx)
+		if err != nil {
+			if err == raftselector.ErrIsLeader {
+				return p.local.GetSecret(ctx, r)
+			}
+			return nil, err
+		}
+		return NewControlClient(conn).GetSecret(modCtx, r)
+	}
+	return resp, err
+}
+
+func (p *raftProxyControlServer) ListSecrets(ctx context.Context, r *ListSecretsRequest) (*ListSecretsResponse, error) {
+
+	conn, err := p.connSelector.LeaderConn(ctx)
+	if err != nil {
+		if err == raftselector.ErrIsLeader {
+			return p.local.ListSecrets(ctx, r)
+		}
+		return nil, err
+	}
+	modCtx, err := p.runCtxMods(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := NewControlClient(conn).ListSecrets(modCtx, r)
+	if err != nil {
+		if !strings.Contains(err.Error(), "is closing") && !strings.Contains(err.Error(), "the connection is unavailable") && !strings.Contains(err.Error(), "connection error") {
+			return resp, err
+		}
+		conn, err := p.pollNewLeaderConn(ctx)
+		if err != nil {
+			if err == raftselector.ErrIsLeader {
+				return p.local.ListSecrets(ctx, r)
+			}
+			return nil, err
+		}
+		return NewControlClient(conn).ListSecrets(modCtx, r)
+	}
+	return resp, err
+}
+
+func (p *raftProxyControlServer) CreateSecret(ctx context.Context, r *CreateSecretRequest) (*CreateSecretResponse, error) {
+
+	conn, err := p.connSelector.LeaderConn(ctx)
+	if err != nil {
+		if err == raftselector.ErrIsLeader {
+			return p.local.CreateSecret(ctx, r)
+		}
+		return nil, err
+	}
+	modCtx, err := p.runCtxMods(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := NewControlClient(conn).CreateSecret(modCtx, r)
+	if err != nil {
+		if !strings.Contains(err.Error(), "is closing") && !strings.Contains(err.Error(), "the connection is unavailable") && !strings.Contains(err.Error(), "connection error") {
+			return resp, err
+		}
+		conn, err := p.pollNewLeaderConn(ctx)
+		if err != nil {
+			if err == raftselector.ErrIsLeader {
+				return p.local.CreateSecret(ctx, r)
+			}
+			return nil, err
+		}
+		return NewControlClient(conn).CreateSecret(modCtx, r)
+	}
+	return resp, err
+}
+
+func (p *raftProxyControlServer) RemoveSecret(ctx context.Context, r *RemoveSecretRequest) (*RemoveSecretResponse, error) {
+
+	conn, err := p.connSelector.LeaderConn(ctx)
+	if err != nil {
+		if err == raftselector.ErrIsLeader {
+			return p.local.RemoveSecret(ctx, r)
+		}
+		return nil, err
+	}
+	modCtx, err := p.runCtxMods(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := NewControlClient(conn).RemoveSecret(modCtx, r)
+	if err != nil {
+		if !strings.Contains(err.Error(), "is closing") && !strings.Contains(err.Error(), "the connection is unavailable") && !strings.Contains(err.Error(), "connection error") {
+			return resp, err
+		}
+		conn, err := p.pollNewLeaderConn(ctx)
+		if err != nil {
+			if err == raftselector.ErrIsLeader {
+				return p.local.RemoveSecret(ctx, r)
+			}
+			return nil, err
+		}
+		return NewControlClient(conn).RemoveSecret(modCtx, r)
+	}
+	return resp, err
 }
 
 func (m *GetNodeRequest) Size() (n int) {
@@ -4425,6 +5931,12 @@ func (m *ListNodesRequest_Filters) Size() (n int) {
 			n += 1 + sovControl(uint64(e))
 		}
 	}
+	if len(m.NamePrefixes) > 0 {
+		for _, s := range m.NamePrefixes {
+			l = len(s)
+			n += 1 + l + sovControl(uint64(l))
+		}
+	}
 	return n
 }
 
@@ -4474,6 +5986,9 @@ func (m *RemoveNodeRequest) Size() (n int) {
 	l = len(m.NodeID)
 	if l > 0 {
 		n += 1 + l + sovControl(uint64(l))
+	}
+	if m.Force {
+		n += 2
 	}
 	return n
 }
@@ -4568,6 +6083,12 @@ func (m *ListTasksRequest_Filters) Size() (n int) {
 	if len(m.DesiredStates) > 0 {
 		for _, e := range m.DesiredStates {
 			n += 1 + sovControl(uint64(e))
+		}
+	}
+	if len(m.NamePrefixes) > 0 {
+		for _, s := range m.NamePrefixes {
+			l = len(s)
+			n += 1 + l + sovControl(uint64(l))
 		}
 	}
 	return n
@@ -4702,6 +6223,12 @@ func (m *ListServicesRequest_Filters) Size() (n int) {
 			n += mapEntrySize + 1 + sovControl(uint64(mapEntrySize))
 		}
 	}
+	if len(m.NamePrefixes) > 0 {
+		for _, s := range m.NamePrefixes {
+			l = len(s)
+			n += 1 + l + sovControl(uint64(l))
+		}
+	}
 	return n
 }
 
@@ -4814,6 +6341,12 @@ func (m *ListNetworksRequest_Filters) Size() (n int) {
 			n += mapEntrySize + 1 + sovControl(uint64(mapEntrySize))
 		}
 	}
+	if len(m.NamePrefixes) > 0 {
+		for _, s := range m.NamePrefixes {
+			l = len(s)
+			n += 1 + l + sovControl(uint64(l))
+		}
+	}
 	return n
 }
 
@@ -4882,6 +6415,12 @@ func (m *ListClustersRequest_Filters) Size() (n int) {
 			n += mapEntrySize + 1 + sovControl(uint64(mapEntrySize))
 		}
 	}
+	if len(m.NamePrefixes) > 0 {
+		for _, s := range m.NamePrefixes {
+			l = len(s)
+			n += 1 + l + sovControl(uint64(l))
+		}
+	}
 	return n
 }
 
@@ -4893,6 +6432,18 @@ func (m *ListClustersResponse) Size() (n int) {
 			l = e.Size()
 			n += 1 + l + sovControl(uint64(l))
 		}
+	}
+	return n
+}
+
+func (m *JoinTokenRotation) Size() (n int) {
+	var l int
+	_ = l
+	if m.RotateWorkerToken {
+		n += 2
+	}
+	if m.RotateManagerToken {
+		n += 2
 	}
 	return n
 }
@@ -4912,6 +6463,8 @@ func (m *UpdateClusterRequest) Size() (n int) {
 		l = m.Spec.Size()
 		n += 1 + l + sovControl(uint64(l))
 	}
+	l = m.Rotation.Size()
+	n += 1 + l + sovControl(uint64(l))
 	return n
 }
 
@@ -4922,6 +6475,116 @@ func (m *UpdateClusterResponse) Size() (n int) {
 		l = m.Cluster.Size()
 		n += 1 + l + sovControl(uint64(l))
 	}
+	return n
+}
+
+func (m *GetSecretRequest) Size() (n int) {
+	var l int
+	_ = l
+	l = len(m.SecretID)
+	if l > 0 {
+		n += 1 + l + sovControl(uint64(l))
+	}
+	return n
+}
+
+func (m *GetSecretResponse) Size() (n int) {
+	var l int
+	_ = l
+	if m.Secret != nil {
+		l = m.Secret.Size()
+		n += 1 + l + sovControl(uint64(l))
+	}
+	return n
+}
+
+func (m *ListSecretsRequest) Size() (n int) {
+	var l int
+	_ = l
+	if m.Filters != nil {
+		l = m.Filters.Size()
+		n += 1 + l + sovControl(uint64(l))
+	}
+	return n
+}
+
+func (m *ListSecretsRequest_Filters) Size() (n int) {
+	var l int
+	_ = l
+	if len(m.Names) > 0 {
+		for _, s := range m.Names {
+			l = len(s)
+			n += 1 + l + sovControl(uint64(l))
+		}
+	}
+	if len(m.IDPrefixes) > 0 {
+		for _, s := range m.IDPrefixes {
+			l = len(s)
+			n += 1 + l + sovControl(uint64(l))
+		}
+	}
+	if len(m.Labels) > 0 {
+		for k, v := range m.Labels {
+			_ = k
+			_ = v
+			mapEntrySize := 1 + len(k) + sovControl(uint64(len(k))) + 1 + len(v) + sovControl(uint64(len(v)))
+			n += mapEntrySize + 1 + sovControl(uint64(mapEntrySize))
+		}
+	}
+	if len(m.NamePrefixes) > 0 {
+		for _, s := range m.NamePrefixes {
+			l = len(s)
+			n += 1 + l + sovControl(uint64(l))
+		}
+	}
+	return n
+}
+
+func (m *ListSecretsResponse) Size() (n int) {
+	var l int
+	_ = l
+	if len(m.Secrets) > 0 {
+		for _, e := range m.Secrets {
+			l = e.Size()
+			n += 1 + l + sovControl(uint64(l))
+		}
+	}
+	return n
+}
+
+func (m *CreateSecretRequest) Size() (n int) {
+	var l int
+	_ = l
+	if m.Spec != nil {
+		l = m.Spec.Size()
+		n += 1 + l + sovControl(uint64(l))
+	}
+	return n
+}
+
+func (m *CreateSecretResponse) Size() (n int) {
+	var l int
+	_ = l
+	if m.Secret != nil {
+		l = m.Secret.Size()
+		n += 1 + l + sovControl(uint64(l))
+	}
+	return n
+}
+
+func (m *RemoveSecretRequest) Size() (n int) {
+	var l int
+	_ = l
+	l = len(m.SecretID)
+	if l > 0 {
+		n += 1 + l + sovControl(uint64(l))
+	}
+	return n
+}
+
+func (m *RemoveSecretResponse) Size() (n int) {
+	var l int
+	_ = l
 	return n
 }
 
@@ -4988,6 +6651,7 @@ func (this *ListNodesRequest_Filters) String() string {
 		`Labels:` + mapStringForLabels + `,`,
 		`Memberships:` + fmt.Sprintf("%v", this.Memberships) + `,`,
 		`Roles:` + fmt.Sprintf("%v", this.Roles) + `,`,
+		`NamePrefixes:` + fmt.Sprintf("%v", this.NamePrefixes) + `,`,
 		`}`,
 	}, "")
 	return s
@@ -5030,6 +6694,7 @@ func (this *RemoveNodeRequest) String() string {
 	}
 	s := strings.Join([]string{`&RemoveNodeRequest{`,
 		`NodeID:` + fmt.Sprintf("%v", this.NodeID) + `,`,
+		`Force:` + fmt.Sprintf("%v", this.Force) + `,`,
 		`}`,
 	}, "")
 	return s
@@ -5113,6 +6778,7 @@ func (this *ListTasksRequest_Filters) String() string {
 		`ServiceIDs:` + fmt.Sprintf("%v", this.ServiceIDs) + `,`,
 		`NodeIDs:` + fmt.Sprintf("%v", this.NodeIDs) + `,`,
 		`DesiredStates:` + fmt.Sprintf("%v", this.DesiredStates) + `,`,
+		`NamePrefixes:` + fmt.Sprintf("%v", this.NamePrefixes) + `,`,
 		`}`,
 	}, "")
 	return s
@@ -5236,6 +6902,7 @@ func (this *ListServicesRequest_Filters) String() string {
 		`Names:` + fmt.Sprintf("%v", this.Names) + `,`,
 		`IDPrefixes:` + fmt.Sprintf("%v", this.IDPrefixes) + `,`,
 		`Labels:` + mapStringForLabels + `,`,
+		`NamePrefixes:` + fmt.Sprintf("%v", this.NamePrefixes) + `,`,
 		`}`,
 	}, "")
 	return s
@@ -5339,6 +7006,7 @@ func (this *ListNetworksRequest_Filters) String() string {
 		`Names:` + fmt.Sprintf("%v", this.Names) + `,`,
 		`IDPrefixes:` + fmt.Sprintf("%v", this.IDPrefixes) + `,`,
 		`Labels:` + mapStringForLabels + `,`,
+		`NamePrefixes:` + fmt.Sprintf("%v", this.NamePrefixes) + `,`,
 		`}`,
 	}, "")
 	return s
@@ -5401,6 +7069,7 @@ func (this *ListClustersRequest_Filters) String() string {
 		`Names:` + fmt.Sprintf("%v", this.Names) + `,`,
 		`IDPrefixes:` + fmt.Sprintf("%v", this.IDPrefixes) + `,`,
 		`Labels:` + mapStringForLabels + `,`,
+		`NamePrefixes:` + fmt.Sprintf("%v", this.NamePrefixes) + `,`,
 		`}`,
 	}, "")
 	return s
@@ -5415,6 +7084,17 @@ func (this *ListClustersResponse) String() string {
 	}, "")
 	return s
 }
+func (this *JoinTokenRotation) String() string {
+	if this == nil {
+		return "nil"
+	}
+	s := strings.Join([]string{`&JoinTokenRotation{`,
+		`RotateWorkerToken:` + fmt.Sprintf("%v", this.RotateWorkerToken) + `,`,
+		`RotateManagerToken:` + fmt.Sprintf("%v", this.RotateManagerToken) + `,`,
+		`}`,
+	}, "")
+	return s
+}
 func (this *UpdateClusterRequest) String() string {
 	if this == nil {
 		return "nil"
@@ -5423,6 +7103,7 @@ func (this *UpdateClusterRequest) String() string {
 		`ClusterID:` + fmt.Sprintf("%v", this.ClusterID) + `,`,
 		`ClusterVersion:` + strings.Replace(fmt.Sprintf("%v", this.ClusterVersion), "Version", "Version", 1) + `,`,
 		`Spec:` + strings.Replace(fmt.Sprintf("%v", this.Spec), "ClusterSpec", "ClusterSpec", 1) + `,`,
+		`Rotation:` + strings.Replace(strings.Replace(this.Rotation.String(), "JoinTokenRotation", "JoinTokenRotation", 1), `&`, ``, 1) + `,`,
 		`}`,
 	}, "")
 	return s
@@ -5433,6 +7114,108 @@ func (this *UpdateClusterResponse) String() string {
 	}
 	s := strings.Join([]string{`&UpdateClusterResponse{`,
 		`Cluster:` + strings.Replace(fmt.Sprintf("%v", this.Cluster), "Cluster", "Cluster", 1) + `,`,
+		`}`,
+	}, "")
+	return s
+}
+func (this *GetSecretRequest) String() string {
+	if this == nil {
+		return "nil"
+	}
+	s := strings.Join([]string{`&GetSecretRequest{`,
+		`SecretID:` + fmt.Sprintf("%v", this.SecretID) + `,`,
+		`}`,
+	}, "")
+	return s
+}
+func (this *GetSecretResponse) String() string {
+	if this == nil {
+		return "nil"
+	}
+	s := strings.Join([]string{`&GetSecretResponse{`,
+		`Secret:` + strings.Replace(fmt.Sprintf("%v", this.Secret), "Secret", "Secret", 1) + `,`,
+		`}`,
+	}, "")
+	return s
+}
+func (this *ListSecretsRequest) String() string {
+	if this == nil {
+		return "nil"
+	}
+	s := strings.Join([]string{`&ListSecretsRequest{`,
+		`Filters:` + strings.Replace(fmt.Sprintf("%v", this.Filters), "ListSecretsRequest_Filters", "ListSecretsRequest_Filters", 1) + `,`,
+		`}`,
+	}, "")
+	return s
+}
+func (this *ListSecretsRequest_Filters) String() string {
+	if this == nil {
+		return "nil"
+	}
+	keysForLabels := make([]string, 0, len(this.Labels))
+	for k, _ := range this.Labels {
+		keysForLabels = append(keysForLabels, k)
+	}
+	github_com_gogo_protobuf_sortkeys.Strings(keysForLabels)
+	mapStringForLabels := "map[string]string{"
+	for _, k := range keysForLabels {
+		mapStringForLabels += fmt.Sprintf("%v: %v,", k, this.Labels[k])
+	}
+	mapStringForLabels += "}"
+	s := strings.Join([]string{`&ListSecretsRequest_Filters{`,
+		`Names:` + fmt.Sprintf("%v", this.Names) + `,`,
+		`IDPrefixes:` + fmt.Sprintf("%v", this.IDPrefixes) + `,`,
+		`Labels:` + mapStringForLabels + `,`,
+		`NamePrefixes:` + fmt.Sprintf("%v", this.NamePrefixes) + `,`,
+		`}`,
+	}, "")
+	return s
+}
+func (this *ListSecretsResponse) String() string {
+	if this == nil {
+		return "nil"
+	}
+	s := strings.Join([]string{`&ListSecretsResponse{`,
+		`Secrets:` + strings.Replace(fmt.Sprintf("%v", this.Secrets), "Secret", "Secret", 1) + `,`,
+		`}`,
+	}, "")
+	return s
+}
+func (this *CreateSecretRequest) String() string {
+	if this == nil {
+		return "nil"
+	}
+	s := strings.Join([]string{`&CreateSecretRequest{`,
+		`Spec:` + strings.Replace(fmt.Sprintf("%v", this.Spec), "SecretSpec", "SecretSpec", 1) + `,`,
+		`}`,
+	}, "")
+	return s
+}
+func (this *CreateSecretResponse) String() string {
+	if this == nil {
+		return "nil"
+	}
+	s := strings.Join([]string{`&CreateSecretResponse{`,
+		`Secret:` + strings.Replace(fmt.Sprintf("%v", this.Secret), "Secret", "Secret", 1) + `,`,
+		`}`,
+	}, "")
+	return s
+}
+func (this *RemoveSecretRequest) String() string {
+	if this == nil {
+		return "nil"
+	}
+	s := strings.Join([]string{`&RemoveSecretRequest{`,
+		`SecretID:` + fmt.Sprintf("%v", this.SecretID) + `,`,
+		`}`,
+	}, "")
+	return s
+}
+func (this *RemoveSecretResponse) String() string {
+	if this == nil {
+		return "nil"
+	}
+	s := strings.Join([]string{`&RemoveSecretResponse{`,
 		`}`,
 	}, "")
 	return s
@@ -5843,50 +7626,55 @@ func (m *ListNodesRequest_Filters) Unmarshal(data []byte) error {
 			}
 			mapkey := string(data[iNdEx:postStringIndexmapkey])
 			iNdEx = postStringIndexmapkey
-			var valuekey uint64
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowControl
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := data[iNdEx]
-				iNdEx++
-				valuekey |= (uint64(b) & 0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			var stringLenmapvalue uint64
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowControl
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := data[iNdEx]
-				iNdEx++
-				stringLenmapvalue |= (uint64(b) & 0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			intStringLenmapvalue := int(stringLenmapvalue)
-			if intStringLenmapvalue < 0 {
-				return ErrInvalidLengthControl
-			}
-			postStringIndexmapvalue := iNdEx + intStringLenmapvalue
-			if postStringIndexmapvalue > l {
-				return io.ErrUnexpectedEOF
-			}
-			mapvalue := string(data[iNdEx:postStringIndexmapvalue])
-			iNdEx = postStringIndexmapvalue
 			if m.Labels == nil {
 				m.Labels = make(map[string]string)
 			}
-			m.Labels[mapkey] = mapvalue
+			if iNdEx < postIndex {
+				var valuekey uint64
+				for shift := uint(0); ; shift += 7 {
+					if shift >= 64 {
+						return ErrIntOverflowControl
+					}
+					if iNdEx >= l {
+						return io.ErrUnexpectedEOF
+					}
+					b := data[iNdEx]
+					iNdEx++
+					valuekey |= (uint64(b) & 0x7F) << shift
+					if b < 0x80 {
+						break
+					}
+				}
+				var stringLenmapvalue uint64
+				for shift := uint(0); ; shift += 7 {
+					if shift >= 64 {
+						return ErrIntOverflowControl
+					}
+					if iNdEx >= l {
+						return io.ErrUnexpectedEOF
+					}
+					b := data[iNdEx]
+					iNdEx++
+					stringLenmapvalue |= (uint64(b) & 0x7F) << shift
+					if b < 0x80 {
+						break
+					}
+				}
+				intStringLenmapvalue := int(stringLenmapvalue)
+				if intStringLenmapvalue < 0 {
+					return ErrInvalidLengthControl
+				}
+				postStringIndexmapvalue := iNdEx + intStringLenmapvalue
+				if postStringIndexmapvalue > l {
+					return io.ErrUnexpectedEOF
+				}
+				mapvalue := string(data[iNdEx:postStringIndexmapvalue])
+				iNdEx = postStringIndexmapvalue
+				m.Labels[mapkey] = mapvalue
+			} else {
+				var mapvalue string
+				m.Labels[mapkey] = mapvalue
+			}
 			iNdEx = postIndex
 		case 4:
 			if wireType != 0 {
@@ -5928,6 +7716,35 @@ func (m *ListNodesRequest_Filters) Unmarshal(data []byte) error {
 				}
 			}
 			m.Roles = append(m.Roles, v)
+		case 6:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field NamePrefixes", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowControl
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				stringLen |= (uint64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthControl
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.NamePrefixes = append(m.NamePrefixes, string(data[iNdEx:postIndex]))
+			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
 			skippy, err := skipControl(data[iNdEx:])
@@ -6316,6 +8133,26 @@ func (m *RemoveNodeRequest) Unmarshal(data []byte) error {
 			}
 			m.NodeID = string(data[iNdEx:postIndex])
 			iNdEx = postIndex
+		case 2:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Force", wireType)
+			}
+			var v int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowControl
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				v |= (int(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			m.Force = bool(v != 0)
 		default:
 			iNdEx = preIndex
 			skippy, err := skipControl(data[iNdEx:])
@@ -6914,50 +8751,55 @@ func (m *ListTasksRequest_Filters) Unmarshal(data []byte) error {
 			}
 			mapkey := string(data[iNdEx:postStringIndexmapkey])
 			iNdEx = postStringIndexmapkey
-			var valuekey uint64
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowControl
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := data[iNdEx]
-				iNdEx++
-				valuekey |= (uint64(b) & 0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			var stringLenmapvalue uint64
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowControl
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := data[iNdEx]
-				iNdEx++
-				stringLenmapvalue |= (uint64(b) & 0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			intStringLenmapvalue := int(stringLenmapvalue)
-			if intStringLenmapvalue < 0 {
-				return ErrInvalidLengthControl
-			}
-			postStringIndexmapvalue := iNdEx + intStringLenmapvalue
-			if postStringIndexmapvalue > l {
-				return io.ErrUnexpectedEOF
-			}
-			mapvalue := string(data[iNdEx:postStringIndexmapvalue])
-			iNdEx = postStringIndexmapvalue
 			if m.Labels == nil {
 				m.Labels = make(map[string]string)
 			}
-			m.Labels[mapkey] = mapvalue
+			if iNdEx < postIndex {
+				var valuekey uint64
+				for shift := uint(0); ; shift += 7 {
+					if shift >= 64 {
+						return ErrIntOverflowControl
+					}
+					if iNdEx >= l {
+						return io.ErrUnexpectedEOF
+					}
+					b := data[iNdEx]
+					iNdEx++
+					valuekey |= (uint64(b) & 0x7F) << shift
+					if b < 0x80 {
+						break
+					}
+				}
+				var stringLenmapvalue uint64
+				for shift := uint(0); ; shift += 7 {
+					if shift >= 64 {
+						return ErrIntOverflowControl
+					}
+					if iNdEx >= l {
+						return io.ErrUnexpectedEOF
+					}
+					b := data[iNdEx]
+					iNdEx++
+					stringLenmapvalue |= (uint64(b) & 0x7F) << shift
+					if b < 0x80 {
+						break
+					}
+				}
+				intStringLenmapvalue := int(stringLenmapvalue)
+				if intStringLenmapvalue < 0 {
+					return ErrInvalidLengthControl
+				}
+				postStringIndexmapvalue := iNdEx + intStringLenmapvalue
+				if postStringIndexmapvalue > l {
+					return io.ErrUnexpectedEOF
+				}
+				mapvalue := string(data[iNdEx:postStringIndexmapvalue])
+				iNdEx = postStringIndexmapvalue
+				m.Labels[mapkey] = mapvalue
+			} else {
+				var mapvalue string
+				m.Labels[mapkey] = mapvalue
+			}
 			iNdEx = postIndex
 		case 4:
 			if wireType != 2 {
@@ -7037,6 +8879,35 @@ func (m *ListTasksRequest_Filters) Unmarshal(data []byte) error {
 				}
 			}
 			m.DesiredStates = append(m.DesiredStates, v)
+		case 7:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field NamePrefixes", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowControl
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				stringLen |= (uint64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthControl
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.NamePrefixes = append(m.NamePrefixes, string(data[iNdEx:postIndex]))
+			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
 			skippy, err := skipControl(data[iNdEx:])
@@ -8060,50 +9931,84 @@ func (m *ListServicesRequest_Filters) Unmarshal(data []byte) error {
 			}
 			mapkey := string(data[iNdEx:postStringIndexmapkey])
 			iNdEx = postStringIndexmapkey
-			var valuekey uint64
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowControl
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := data[iNdEx]
-				iNdEx++
-				valuekey |= (uint64(b) & 0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			var stringLenmapvalue uint64
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowControl
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := data[iNdEx]
-				iNdEx++
-				stringLenmapvalue |= (uint64(b) & 0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			intStringLenmapvalue := int(stringLenmapvalue)
-			if intStringLenmapvalue < 0 {
-				return ErrInvalidLengthControl
-			}
-			postStringIndexmapvalue := iNdEx + intStringLenmapvalue
-			if postStringIndexmapvalue > l {
-				return io.ErrUnexpectedEOF
-			}
-			mapvalue := string(data[iNdEx:postStringIndexmapvalue])
-			iNdEx = postStringIndexmapvalue
 			if m.Labels == nil {
 				m.Labels = make(map[string]string)
 			}
-			m.Labels[mapkey] = mapvalue
+			if iNdEx < postIndex {
+				var valuekey uint64
+				for shift := uint(0); ; shift += 7 {
+					if shift >= 64 {
+						return ErrIntOverflowControl
+					}
+					if iNdEx >= l {
+						return io.ErrUnexpectedEOF
+					}
+					b := data[iNdEx]
+					iNdEx++
+					valuekey |= (uint64(b) & 0x7F) << shift
+					if b < 0x80 {
+						break
+					}
+				}
+				var stringLenmapvalue uint64
+				for shift := uint(0); ; shift += 7 {
+					if shift >= 64 {
+						return ErrIntOverflowControl
+					}
+					if iNdEx >= l {
+						return io.ErrUnexpectedEOF
+					}
+					b := data[iNdEx]
+					iNdEx++
+					stringLenmapvalue |= (uint64(b) & 0x7F) << shift
+					if b < 0x80 {
+						break
+					}
+				}
+				intStringLenmapvalue := int(stringLenmapvalue)
+				if intStringLenmapvalue < 0 {
+					return ErrInvalidLengthControl
+				}
+				postStringIndexmapvalue := iNdEx + intStringLenmapvalue
+				if postStringIndexmapvalue > l {
+					return io.ErrUnexpectedEOF
+				}
+				mapvalue := string(data[iNdEx:postStringIndexmapvalue])
+				iNdEx = postStringIndexmapvalue
+				m.Labels[mapkey] = mapvalue
+			} else {
+				var mapvalue string
+				m.Labels[mapkey] = mapvalue
+			}
+			iNdEx = postIndex
+		case 4:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field NamePrefixes", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowControl
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				stringLen |= (uint64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthControl
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.NamePrefixes = append(m.NamePrefixes, string(data[iNdEx:postIndex]))
 			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
@@ -8958,50 +10863,84 @@ func (m *ListNetworksRequest_Filters) Unmarshal(data []byte) error {
 			}
 			mapkey := string(data[iNdEx:postStringIndexmapkey])
 			iNdEx = postStringIndexmapkey
-			var valuekey uint64
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowControl
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := data[iNdEx]
-				iNdEx++
-				valuekey |= (uint64(b) & 0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			var stringLenmapvalue uint64
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowControl
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := data[iNdEx]
-				iNdEx++
-				stringLenmapvalue |= (uint64(b) & 0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			intStringLenmapvalue := int(stringLenmapvalue)
-			if intStringLenmapvalue < 0 {
-				return ErrInvalidLengthControl
-			}
-			postStringIndexmapvalue := iNdEx + intStringLenmapvalue
-			if postStringIndexmapvalue > l {
-				return io.ErrUnexpectedEOF
-			}
-			mapvalue := string(data[iNdEx:postStringIndexmapvalue])
-			iNdEx = postStringIndexmapvalue
 			if m.Labels == nil {
 				m.Labels = make(map[string]string)
 			}
-			m.Labels[mapkey] = mapvalue
+			if iNdEx < postIndex {
+				var valuekey uint64
+				for shift := uint(0); ; shift += 7 {
+					if shift >= 64 {
+						return ErrIntOverflowControl
+					}
+					if iNdEx >= l {
+						return io.ErrUnexpectedEOF
+					}
+					b := data[iNdEx]
+					iNdEx++
+					valuekey |= (uint64(b) & 0x7F) << shift
+					if b < 0x80 {
+						break
+					}
+				}
+				var stringLenmapvalue uint64
+				for shift := uint(0); ; shift += 7 {
+					if shift >= 64 {
+						return ErrIntOverflowControl
+					}
+					if iNdEx >= l {
+						return io.ErrUnexpectedEOF
+					}
+					b := data[iNdEx]
+					iNdEx++
+					stringLenmapvalue |= (uint64(b) & 0x7F) << shift
+					if b < 0x80 {
+						break
+					}
+				}
+				intStringLenmapvalue := int(stringLenmapvalue)
+				if intStringLenmapvalue < 0 {
+					return ErrInvalidLengthControl
+				}
+				postStringIndexmapvalue := iNdEx + intStringLenmapvalue
+				if postStringIndexmapvalue > l {
+					return io.ErrUnexpectedEOF
+				}
+				mapvalue := string(data[iNdEx:postStringIndexmapvalue])
+				iNdEx = postStringIndexmapvalue
+				m.Labels[mapkey] = mapvalue
+			} else {
+				var mapvalue string
+				m.Labels[mapkey] = mapvalue
+			}
+			iNdEx = postIndex
+		case 4:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field NamePrefixes", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowControl
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				stringLen |= (uint64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthControl
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.NamePrefixes = append(m.NamePrefixes, string(data[iNdEx:postIndex]))
 			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
@@ -9503,50 +11442,84 @@ func (m *ListClustersRequest_Filters) Unmarshal(data []byte) error {
 			}
 			mapkey := string(data[iNdEx:postStringIndexmapkey])
 			iNdEx = postStringIndexmapkey
-			var valuekey uint64
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowControl
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := data[iNdEx]
-				iNdEx++
-				valuekey |= (uint64(b) & 0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			var stringLenmapvalue uint64
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowControl
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := data[iNdEx]
-				iNdEx++
-				stringLenmapvalue |= (uint64(b) & 0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			intStringLenmapvalue := int(stringLenmapvalue)
-			if intStringLenmapvalue < 0 {
-				return ErrInvalidLengthControl
-			}
-			postStringIndexmapvalue := iNdEx + intStringLenmapvalue
-			if postStringIndexmapvalue > l {
-				return io.ErrUnexpectedEOF
-			}
-			mapvalue := string(data[iNdEx:postStringIndexmapvalue])
-			iNdEx = postStringIndexmapvalue
 			if m.Labels == nil {
 				m.Labels = make(map[string]string)
 			}
-			m.Labels[mapkey] = mapvalue
+			if iNdEx < postIndex {
+				var valuekey uint64
+				for shift := uint(0); ; shift += 7 {
+					if shift >= 64 {
+						return ErrIntOverflowControl
+					}
+					if iNdEx >= l {
+						return io.ErrUnexpectedEOF
+					}
+					b := data[iNdEx]
+					iNdEx++
+					valuekey |= (uint64(b) & 0x7F) << shift
+					if b < 0x80 {
+						break
+					}
+				}
+				var stringLenmapvalue uint64
+				for shift := uint(0); ; shift += 7 {
+					if shift >= 64 {
+						return ErrIntOverflowControl
+					}
+					if iNdEx >= l {
+						return io.ErrUnexpectedEOF
+					}
+					b := data[iNdEx]
+					iNdEx++
+					stringLenmapvalue |= (uint64(b) & 0x7F) << shift
+					if b < 0x80 {
+						break
+					}
+				}
+				intStringLenmapvalue := int(stringLenmapvalue)
+				if intStringLenmapvalue < 0 {
+					return ErrInvalidLengthControl
+				}
+				postStringIndexmapvalue := iNdEx + intStringLenmapvalue
+				if postStringIndexmapvalue > l {
+					return io.ErrUnexpectedEOF
+				}
+				mapvalue := string(data[iNdEx:postStringIndexmapvalue])
+				iNdEx = postStringIndexmapvalue
+				m.Labels[mapkey] = mapvalue
+			} else {
+				var mapvalue string
+				m.Labels[mapkey] = mapvalue
+			}
+			iNdEx = postIndex
+		case 4:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field NamePrefixes", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowControl
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				stringLen |= (uint64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthControl
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.NamePrefixes = append(m.NamePrefixes, string(data[iNdEx:postIndex]))
 			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
@@ -9629,6 +11602,96 @@ func (m *ListClustersResponse) Unmarshal(data []byte) error {
 				return err
 			}
 			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipControl(data[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthControl
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *JoinTokenRotation) Unmarshal(data []byte) error {
+	l := len(data)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowControl
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := data[iNdEx]
+			iNdEx++
+			wire |= (uint64(b) & 0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: JoinTokenRotation: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: JoinTokenRotation: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field RotateWorkerToken", wireType)
+			}
+			var v int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowControl
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				v |= (int(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			m.RotateWorkerToken = bool(v != 0)
+		case 2:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field RotateManagerToken", wireType)
+			}
+			var v int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowControl
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				v |= (int(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			m.RotateManagerToken = bool(v != 0)
 		default:
 			iNdEx = preIndex
 			skippy, err := skipControl(data[iNdEx:])
@@ -9774,6 +11837,36 @@ func (m *UpdateClusterRequest) Unmarshal(data []byte) error {
 				return err
 			}
 			iNdEx = postIndex
+		case 4:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Rotation", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowControl
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				msglen |= (int(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthControl
+			}
+			postIndex := iNdEx + msglen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if err := m.Rotation.Unmarshal(data[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
 			skippy, err := skipControl(data[iNdEx:])
@@ -9857,6 +11950,880 @@ func (m *UpdateClusterResponse) Unmarshal(data []byte) error {
 				return err
 			}
 			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipControl(data[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthControl
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *GetSecretRequest) Unmarshal(data []byte) error {
+	l := len(data)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowControl
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := data[iNdEx]
+			iNdEx++
+			wire |= (uint64(b) & 0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: GetSecretRequest: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: GetSecretRequest: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field SecretID", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowControl
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				stringLen |= (uint64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthControl
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.SecretID = string(data[iNdEx:postIndex])
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipControl(data[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthControl
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *GetSecretResponse) Unmarshal(data []byte) error {
+	l := len(data)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowControl
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := data[iNdEx]
+			iNdEx++
+			wire |= (uint64(b) & 0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: GetSecretResponse: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: GetSecretResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Secret", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowControl
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				msglen |= (int(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthControl
+			}
+			postIndex := iNdEx + msglen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if m.Secret == nil {
+				m.Secret = &Secret{}
+			}
+			if err := m.Secret.Unmarshal(data[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipControl(data[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthControl
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *ListSecretsRequest) Unmarshal(data []byte) error {
+	l := len(data)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowControl
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := data[iNdEx]
+			iNdEx++
+			wire |= (uint64(b) & 0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: ListSecretsRequest: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: ListSecretsRequest: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Filters", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowControl
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				msglen |= (int(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthControl
+			}
+			postIndex := iNdEx + msglen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if m.Filters == nil {
+				m.Filters = &ListSecretsRequest_Filters{}
+			}
+			if err := m.Filters.Unmarshal(data[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipControl(data[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthControl
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *ListSecretsRequest_Filters) Unmarshal(data []byte) error {
+	l := len(data)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowControl
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := data[iNdEx]
+			iNdEx++
+			wire |= (uint64(b) & 0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: Filters: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: Filters: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Names", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowControl
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				stringLen |= (uint64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthControl
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Names = append(m.Names, string(data[iNdEx:postIndex]))
+			iNdEx = postIndex
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field IDPrefixes", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowControl
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				stringLen |= (uint64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthControl
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.IDPrefixes = append(m.IDPrefixes, string(data[iNdEx:postIndex]))
+			iNdEx = postIndex
+		case 3:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Labels", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowControl
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				msglen |= (int(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthControl
+			}
+			postIndex := iNdEx + msglen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			var keykey uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowControl
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				keykey |= (uint64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			var stringLenmapkey uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowControl
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				stringLenmapkey |= (uint64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLenmapkey := int(stringLenmapkey)
+			if intStringLenmapkey < 0 {
+				return ErrInvalidLengthControl
+			}
+			postStringIndexmapkey := iNdEx + intStringLenmapkey
+			if postStringIndexmapkey > l {
+				return io.ErrUnexpectedEOF
+			}
+			mapkey := string(data[iNdEx:postStringIndexmapkey])
+			iNdEx = postStringIndexmapkey
+			if m.Labels == nil {
+				m.Labels = make(map[string]string)
+			}
+			if iNdEx < postIndex {
+				var valuekey uint64
+				for shift := uint(0); ; shift += 7 {
+					if shift >= 64 {
+						return ErrIntOverflowControl
+					}
+					if iNdEx >= l {
+						return io.ErrUnexpectedEOF
+					}
+					b := data[iNdEx]
+					iNdEx++
+					valuekey |= (uint64(b) & 0x7F) << shift
+					if b < 0x80 {
+						break
+					}
+				}
+				var stringLenmapvalue uint64
+				for shift := uint(0); ; shift += 7 {
+					if shift >= 64 {
+						return ErrIntOverflowControl
+					}
+					if iNdEx >= l {
+						return io.ErrUnexpectedEOF
+					}
+					b := data[iNdEx]
+					iNdEx++
+					stringLenmapvalue |= (uint64(b) & 0x7F) << shift
+					if b < 0x80 {
+						break
+					}
+				}
+				intStringLenmapvalue := int(stringLenmapvalue)
+				if intStringLenmapvalue < 0 {
+					return ErrInvalidLengthControl
+				}
+				postStringIndexmapvalue := iNdEx + intStringLenmapvalue
+				if postStringIndexmapvalue > l {
+					return io.ErrUnexpectedEOF
+				}
+				mapvalue := string(data[iNdEx:postStringIndexmapvalue])
+				iNdEx = postStringIndexmapvalue
+				m.Labels[mapkey] = mapvalue
+			} else {
+				var mapvalue string
+				m.Labels[mapkey] = mapvalue
+			}
+			iNdEx = postIndex
+		case 4:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field NamePrefixes", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowControl
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				stringLen |= (uint64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthControl
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.NamePrefixes = append(m.NamePrefixes, string(data[iNdEx:postIndex]))
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipControl(data[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthControl
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *ListSecretsResponse) Unmarshal(data []byte) error {
+	l := len(data)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowControl
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := data[iNdEx]
+			iNdEx++
+			wire |= (uint64(b) & 0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: ListSecretsResponse: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: ListSecretsResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Secrets", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowControl
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				msglen |= (int(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthControl
+			}
+			postIndex := iNdEx + msglen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Secrets = append(m.Secrets, &Secret{})
+			if err := m.Secrets[len(m.Secrets)-1].Unmarshal(data[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipControl(data[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthControl
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *CreateSecretRequest) Unmarshal(data []byte) error {
+	l := len(data)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowControl
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := data[iNdEx]
+			iNdEx++
+			wire |= (uint64(b) & 0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: CreateSecretRequest: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: CreateSecretRequest: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Spec", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowControl
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				msglen |= (int(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthControl
+			}
+			postIndex := iNdEx + msglen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if m.Spec == nil {
+				m.Spec = &SecretSpec{}
+			}
+			if err := m.Spec.Unmarshal(data[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipControl(data[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthControl
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *CreateSecretResponse) Unmarshal(data []byte) error {
+	l := len(data)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowControl
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := data[iNdEx]
+			iNdEx++
+			wire |= (uint64(b) & 0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: CreateSecretResponse: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: CreateSecretResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Secret", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowControl
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				msglen |= (int(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthControl
+			}
+			postIndex := iNdEx + msglen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if m.Secret == nil {
+				m.Secret = &Secret{}
+			}
+			if err := m.Secret.Unmarshal(data[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipControl(data[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthControl
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *RemoveSecretRequest) Unmarshal(data []byte) error {
+	l := len(data)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowControl
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := data[iNdEx]
+			iNdEx++
+			wire |= (uint64(b) & 0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: RemoveSecretRequest: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: RemoveSecretRequest: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field SecretID", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowControl
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				stringLen |= (uint64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthControl
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.SecretID = string(data[iNdEx:postIndex])
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipControl(data[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthControl
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *RemoveSecretResponse) Unmarshal(data []byte) error {
+	l := len(data)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowControl
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := data[iNdEx]
+			iNdEx++
+			wire |= (uint64(b) & 0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: RemoveSecretResponse: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: RemoveSecretResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
 		default:
 			iNdEx = preIndex
 			skippy, err := skipControl(data[iNdEx:])
@@ -9983,93 +12950,117 @@ var (
 	ErrIntOverflowControl   = fmt.Errorf("proto: integer overflow")
 )
 
+func init() { proto.RegisterFile("control.proto", fileDescriptorControl) }
+
 var fileDescriptorControl = []byte{
-	// 1384 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x09, 0x6e, 0x88, 0x02, 0xff, 0xcc, 0x59, 0xcf, 0x6f, 0x1b, 0xc5,
-	0x17, 0xff, 0xda, 0x69, 0xe2, 0xfa, 0xb9, 0x4e, 0x9a, 0xa9, 0xa3, 0x6f, 0xe4, 0x86, 0x14, 0x6d,
-	0x21, 0x4d, 0xa4, 0xe0, 0x80, 0xa3, 0x8a, 0x00, 0x12, 0x88, 0x24, 0x14, 0x59, 0x94, 0x50, 0x6d,
-	0x28, 0xe2, 0x16, 0x39, 0xf6, 0x34, 0x2c, 0xb1, 0xbd, 0x66, 0x77, 0x93, 0x36, 0xe2, 0xc2, 0x9f,
-	0xc1, 0xdf, 0xc0, 0x81, 0x3b, 0x27, 0x0e, 0x5c, 0x2a, 0x4e, 0x5c, 0x90, 0x40, 0x42, 0xa8, 0xed,
-	0x1f, 0x80, 0xf8, 0x03, 0x38, 0x30, 0xb3, 0xf3, 0x66, 0x77, 0x3d, 0x9e, 0x9d, 0xb5, 0xe3, 0x54,
-	0xf4, 0x60, 0xd5, 0x3b, 0xfb, 0x79, 0xbf, 0xe6, 0x7d, 0xde, 0xcb, 0x7b, 0x2e, 0x94, 0x5b, 0x6e,
-	0x2f, 0xf0, 0xdc, 0x4e, 0xad, 0xef, 0xb9, 0x81, 0x4b, 0x48, 0xdb, 0x6d, 0x1d, 0x53, 0xaf, 0xe6,
-	0x3f, 0x6c, 0x7a, 0xdd, 0x63, 0x27, 0xa8, 0x9d, 0xbe, 0x51, 0x2d, 0xf9, 0x7d, 0xda, 0xf2, 0x05,
-	0xa0, 0x5a, 0x76, 0x0f, 0xbf, 0xa4, 0xad, 0x40, 0x3e, 0x96, 0x82, 0xb3, 0x3e, 0x95, 0x0f, 0x95,
-	0x23, 0xf7, 0xc8, 0x0d, 0xbf, 0x6e, 0xf0, 0x6f, 0x78, 0x7a, 0xad, 0xdf, 0x39, 0x39, 0x72, 0x7a,
-	0x1b, 0xe2, 0x1f, 0x71, 0x68, 0xdd, 0x86, 0xd9, 0x0f, 0x69, 0xb0, 0xe7, 0xb6, 0xa9, 0x4d, 0xbf,
-	0x3a, 0xa1, 0x7e, 0x40, 0x6e, 0x42, 0xa1, 0xc7, 0x1e, 0x0f, 0x9c, 0xf6, 0x62, 0xee, 0xe5, 0xdc,
-	0x6a, 0x71, 0x1b, 0x9e, 0xfd, 0x79, 0x63, 0x86, 0x23, 0x1a, 0xbb, 0xf6, 0x0c, 0x7f, 0xd5, 0x68,
-	0x5b, 0xef, 0xc1, 0x5c, 0x24, 0xe6, 0xf7, 0xdd, 0x9e, 0x4f, 0xc9, 0x3a, 0x5c, 0xe2, 0x2f, 0x43,
-	0xa1, 0x52, 0x7d, 0xb1, 0x36, 0x1c, 0x40, 0x2d, 0xc4, 0x87, 0x28, 0xeb, 0x87, 0x29, 0xb8, 0x7a,
-	0xd7, 0xf1, 0x43, 0x15, 0xbe, 0x34, 0x7d, 0x07, 0x0a, 0x0f, 0x9c, 0x4e, 0x40, 0x3d, 0x1f, 0xb5,
-	0xac, 0xeb, 0xb4, 0xa8, 0x62, 0xb5, 0x3b, 0x42, 0xc6, 0x96, 0xc2, 0xd5, 0x3f, 0xf2, 0x50, 0xc0,
-	0x43, 0x52, 0x81, 0xe9, 0x5e, 0xb3, 0x4b, 0xb9, 0xc6, 0xa9, 0xd5, 0xa2, 0x2d, 0x1e, 0xc8, 0x06,
-	0x94, 0x9c, 0xf6, 0x41, 0xdf, 0xa3, 0x0f, 0x9c, 0x47, 0xec, 0x5d, 0x9e, 0xbf, 0xdb, 0x9e, 0x65,
-	0x81, 0x42, 0x63, 0xf7, 0x1e, 0x9e, 0xda, 0xe0, 0xb4, 0xe5, 0x77, 0x72, 0x0f, 0x66, 0x3a, 0xcd,
-	0x43, 0xda, 0xf1, 0x17, 0xa7, 0x18, 0xb6, 0x54, 0xdf, 0x1a, 0xc7, 0xb3, 0xda, 0xdd, 0x50, 0xf4,
-	0x03, 0x96, 0xe0, 0x33, 0x1b, 0xf5, 0x90, 0x06, 0x94, 0xba, 0xb4, 0x7b, 0xc8, 0x5e, 0x7f, 0xe1,
-	0xf4, 0xfd, 0xc5, 0x4b, 0x4c, 0xed, 0x6c, 0xfd, 0x56, 0xda, 0xb5, 0xed, 0xb3, 0xd4, 0xd7, 0x3e,
-	0x8e, 0xf0, 0x76, 0x52, 0x96, 0xd4, 0x61, 0x9a, 0x31, 0x87, 0xc5, 0x31, 0x1d, 0x2a, 0x59, 0x4a,
-	0xbd, 0x7b, 0x06, 0xb2, 0x05, 0xb4, 0xfa, 0x16, 0x94, 0x12, 0x5e, 0x91, 0xab, 0x30, 0x75, 0x4c,
-	0xcf, 0x44, 0xc6, 0x6d, 0xfe, 0x95, 0x5f, 0xdc, 0x69, 0xb3, 0x73, 0x42, 0xd9, 0xe5, 0xf0, 0x33,
-	0xf1, 0xf0, 0x76, 0x7e, 0x2b, 0x67, 0xed, 0xc0, 0x7c, 0x22, 0x52, 0x4c, 0x7f, 0x8d, 0xdd, 0x33,
-	0x3f, 0x08, 0xef, 0xd9, 0x94, 0x7f, 0x01, 0xb3, 0xbe, 0xcb, 0xc1, 0xfc, 0xfd, 0x7e, 0xbb, 0x19,
-	0xd0, 0x71, 0xc9, 0x47, 0xde, 0x85, 0x2b, 0x21, 0xe8, 0x94, 0xc5, 0xef, 0xb8, 0xbd, 0xd0, 0xc1,
-	0x52, 0xfd, 0xba, 0xce, 0xe2, 0x67, 0x02, 0x62, 0x97, 0xb8, 0x00, 0x3e, 0x90, 0xd7, 0xe1, 0x12,
-	0xaf, 0x24, 0x96, 0x49, 0x2e, 0xb7, 0x64, 0xba, 0x72, 0x3b, 0x44, 0x5a, 0xdb, 0x40, 0x92, 0xbe,
-	0x9e, 0x8b, 0xf1, 0x5b, 0x30, 0x6f, 0xd3, 0xae, 0x7b, 0x3a, 0x76, 0xbc, 0x56, 0x05, 0x48, 0x52,
-	0x52, 0x58, 0xc7, 0xca, 0xfd, 0xb4, 0xe9, 0x1f, 0x27, 0x94, 0x05, 0xec, 0x51, 0x51, 0xc6, 0x11,
-	0x5c, 0x19, 0x7f, 0x15, 0x55, 0xae, 0x10, 0x8b, 0xe3, 0xe0, 0x2f, 0x4d, 0x71, 0x84, 0xf8, 0x10,
-	0x15, 0xc7, 0x31, 0xb6, 0xe9, 0x28, 0x8e, 0xa4, 0x75, 0xeb, 0x77, 0xec, 0x04, 0xfc, 0xf0, 0x1c,
-	0x9d, 0x20, 0x29, 0x36, 0xdc, 0x09, 0xfe, 0xf9, 0x0f, 0x3b, 0x81, 0xce, 0x33, 0x6d, 0x27, 0x60,
-	0x2e, 0xf8, 0xd4, 0x3b, 0x75, 0x5a, 0x9c, 0x07, 0xa2, 0x13, 0xa0, 0x0b, 0xfb, 0xe2, 0xb8, 0xb1,
-	0xcb, 0x5c, 0x40, 0x48, 0xa3, 0xed, 0x93, 0x15, 0xb8, 0x8c, 0xac, 0x11, 0x25, 0x5f, 0xdc, 0x2e,
-	0x31, 0x74, 0x41, 0xd0, 0x86, 0x45, 0x2f, 0x78, 0xe3, 0x93, 0x5d, 0x98, 0x65, 0xa5, 0xe6, 0x78,
-	0xb4, 0x7d, 0xe0, 0x07, 0x8c, 0xbd, 0xfe, 0xe2, 0x4c, 0xd8, 0x20, 0x5e, 0x4a, 0x4b, 0xf1, 0x3e,
-	0x47, 0xd9, 0x65, 0x14, 0x0a, 0x9f, 0x2e, 0xa2, 0x53, 0xe0, 0x4d, 0xc4, 0x9d, 0x82, 0x13, 0xc2,
-	0xd8, 0x29, 0x42, 0x86, 0x08, 0x98, 0xf5, 0x11, 0x54, 0x76, 0x3c, 0xca, 0x5c, 0xc1, 0xdb, 0x90,
-	0x1c, 0xd9, 0xc4, 0x32, 0x16, 0x04, 0xb9, 0xa1, 0x53, 0x83, 0x12, 0x89, 0x4a, 0xde, 0x83, 0x05,
-	0x45, 0x19, 0x7a, 0x75, 0x1b, 0x0a, 0x78, 0xc3, 0xa8, 0xf0, 0xba, 0x41, 0xa1, 0x2d, 0xb1, 0xd6,
-	0xfb, 0x30, 0xcf, 0xca, 0x49, 0xf1, 0x6c, 0x1d, 0x20, 0x4e, 0x28, 0x16, 0x44, 0x99, 0x65, 0xa8,
-	0x18, 0xe5, 0xd3, 0x2e, 0x46, 0xe9, 0x64, 0xf1, 0x91, 0xa4, 0x8a, 0xc9, 0xfc, 0xf9, 0x31, 0x07,
-	0x15, 0xd1, 0xaa, 0x26, 0xf1, 0x89, 0x31, 0x67, 0x4e, 0xa2, 0xc7, 0xe8, 0xb2, 0xb3, 0x28, 0x23,
-	0x1b, 0xed, 0xe6, 0x40, 0xa3, 0x1d, 0x3d, 0x43, 0x4a, 0x00, 0x93, 0xdd, 0xc8, 0x2e, 0x54, 0x44,
-	0xd7, 0x99, 0x28, 0x49, 0xff, 0x87, 0x05, 0x45, 0x0b, 0xb6, 0xaf, 0x9f, 0xf2, 0x70, 0x8d, 0x73,
-	0x1c, 0xcf, 0xa3, 0x0e, 0xd6, 0x50, 0x3b, 0xd8, 0x46, 0x5a, 0x9f, 0x50, 0x24, 0x87, 0x9b, 0xd8,
-	0x93, 0xdc, 0x85, 0x37, 0xb1, 0x7d, 0xa5, 0x89, 0xbd, 0x33, 0xa6, 0x73, 0xba, 0x3e, 0x36, 0x49,
-	0xa3, 0xf8, 0x04, 0x2a, 0x83, 0xd6, 0x30, 0xe7, 0x6f, 0xc2, 0x65, 0xcc, 0x81, 0x6c, 0x17, 0xc6,
-	0xa4, 0x47, 0xe0, 0xb8, 0x69, 0xec, 0xd1, 0xe0, 0xa1, 0xeb, 0x1d, 0x8f, 0xd1, 0x34, 0x50, 0x42,
-	0xd7, 0x34, 0x22, 0x65, 0x31, 0x25, 0x7b, 0xe2, 0xc8, 0x44, 0x49, 0x29, 0x25, 0xb1, 0xd6, 0xfd,
-	0xb0, 0x69, 0x28, 0x9e, 0x11, 0x36, 0x4d, 0xb0, 0x64, 0xe2, 0x7d, 0x85, 0xdf, 0x39, 0x47, 0x51,
-	0x86, 0x73, 0x34, 0x1f, 0x73, 0x14, 0x65, 0x39, 0x47, 0x11, 0x10, 0x35, 0x92, 0x0b, 0xf2, 0xf1,
-	0x73, 0x59, 0x36, 0x17, 0xee, 0x66, 0x54, 0x4a, 0x8a, 0xa7, 0x51, 0x29, 0xe1, 0xf9, 0x39, 0x4a,
-	0x49, 0x91, 0x7c, 0xb1, 0x4a, 0x29, 0xc5, 0xb9, 0xe7, 0x54, 0x4a, 0xb1, 0xb5, 0xb8, 0x94, 0x30,
-	0x07, 0xc6, 0x52, 0x92, 0x49, 0x89, 0xc0, 0xf8, 0x27, 0x6e, 0xa7, 0x73, 0xe2, 0x33, 0x77, 0x13,
-	0xdd, 0xb3, 0x25, 0x4e, 0x94, 0xee, 0x89, 0x38, 0x9e, 0x72, 0x04, 0x44, 0xcc, 0x8c, 0x54, 0xc4,
-	0xcc, 0x44, 0x88, 0x89, 0x99, 0x52, 0x4a, 0x62, 0x23, 0x9a, 0xe0, 0x8b, 0x73, 0xd0, 0x44, 0x91,
-	0x7c, 0xb1, 0x68, 0x92, 0xe2, 0xdc, 0x73, 0xa2, 0x49, 0x6c, 0x2d, 0xa6, 0x09, 0x5e, 0xb4, 0x91,
-	0x26, 0x32, 0x2b, 0x11, 0x38, 0x31, 0x79, 0x4c, 0x42, 0x15, 0x3e, 0x79, 0x48, 0xf4, 0x38, 0x93,
-	0x07, 0xca, 0x8c, 0x31, 0x79, 0xa0, 0x75, 0xdd, 0xe4, 0x71, 0x31, 0x44, 0xad, 0xff, 0x3a, 0x0f,
-	0x85, 0x1d, 0xf1, 0xab, 0x0e, 0x71, 0xa0, 0x80, 0x3f, 0x98, 0x10, 0x4b, 0x27, 0x3c, 0xf8, 0x23,
-	0x4c, 0xf5, 0xa6, 0x11, 0x83, 0xfd, 0x72, 0xe1, 0xe7, 0xef, 0xff, 0xfa, 0x36, 0x3f, 0x07, 0xe5,
-	0x10, 0xf4, 0x5a, 0xb7, 0xd9, 0x6b, 0x1e, 0x51, 0x8f, 0xb8, 0x50, 0x8c, 0xd6, 0x73, 0xf2, 0xca,
-	0x28, 0xbf, 0x53, 0x54, 0x5f, 0xcd, 0x40, 0x99, 0x0d, 0x7a, 0x00, 0xf1, 0x76, 0x4c, 0xb4, 0xba,
-	0x86, 0x36, 0xfd, 0xea, 0x4a, 0x16, 0x2c, 0xd3, 0x66, 0xbc, 0x13, 0xeb, 0x6d, 0x0e, 0x6d, 0xdb,
-	0x7a, 0x9b, 0x9a, 0xd5, 0x3a, 0xc5, 0xa6, 0xc8, 0x21, 0x5f, 0x4d, 0x52, 0x73, 0x98, 0xd8, 0x89,
-	0x53, 0x73, 0x38, 0xb0, 0xfd, 0x9a, 0x73, 0x18, 0x2e, 0x4e, 0xe9, 0x39, 0x4c, 0x6e, 0x98, 0xe9,
-	0x39, 0x1c, 0xd8, 0xbe, 0x32, 0xef, 0x33, 0x0c, 0xcf, 0x70, 0x9f, 0xc9, 0x08, 0x57, 0xb2, 0x60,
-	0x99, 0x36, 0xe3, 0xc5, 0x47, 0x6f, 0x73, 0x68, 0xb7, 0xd2, 0xdb, 0x1c, 0xde, 0x9f, 0xd2, 0x6c,
-	0x3e, 0x82, 0x2b, 0xc9, 0x41, 0x93, 0xdc, 0x1a, 0x71, 0xf0, 0xad, 0xae, 0x66, 0x03, 0xcd, 0x96,
-	0xbf, 0x86, 0xf2, 0xc0, 0xe6, 0x49, 0xb4, 0x1a, 0x75, 0x9b, 0x6e, 0x75, 0x6d, 0x04, 0x64, 0xa6,
-	0xf1, 0x81, 0xa5, 0x4a, 0x6f, 0x5c, 0xb7, 0x38, 0xea, 0x8d, 0x6b, 0x37, 0x34, 0x83, 0xf1, 0x81,
-	0xdd, 0x49, 0x6f, 0x5c, 0xb7, 0xa4, 0xe9, 0x8d, 0xeb, 0x17, 0x31, 0x23, 0xc9, 0x70, 0xaa, 0x49,
-	0x25, 0xd9, 0xe0, 0x90, 0x9b, 0x4a, 0x32, 0x75, 0x62, 0x35, 0x93, 0x4c, 0x8e, 0x60, 0xe9, 0x24,
-	0x53, 0x46, 0xc2, 0x74, 0x92, 0xa9, 0xd3, 0x5c, 0x26, 0xc9, 0x64, 0xc0, 0x06, 0x92, 0x29, 0x31,
-	0xaf, 0x8d, 0x80, 0x1c, 0x31, 0xcf, 0x46, 0xe3, 0xba, 0xad, 0xc2, 0x94, 0xe7, 0x11, 0x8d, 0x8b,
-	0x3c, 0xe3, 0xdf, 0xe0, 0xd4, 0x3c, 0x0f, 0x8e, 0x26, 0xa9, 0x79, 0x56, 0x06, 0x80, 0x8c, 0x3c,
-	0xcb, 0x19, 0x2a, 0x3d, 0xcf, 0xca, 0x4c, 0x97, 0x9e, 0x67, 0x75, 0x1c, 0xcb, 0xac, 0x67, 0x19,
-	0xb0, 0xa1, 0x9e, 0x95, 0x98, 0xd7, 0x46, 0x40, 0x1a, 0x8d, 0x6f, 0x2f, 0x3d, 0x7e, 0xba, 0xfc,
-	0xbf, 0xdf, 0xd8, 0xe7, 0xef, 0xa7, 0xcb, 0xb9, 0x6f, 0x9e, 0x2d, 0xe7, 0x1e, 0xb3, 0xcf, 0x2f,
-	0xec, 0xf3, 0x84, 0x7d, 0x0e, 0x67, 0xc2, 0xff, 0x58, 0xda, 0xfc, 0x37, 0x00, 0x00, 0xff, 0xff,
-	0x35, 0x0f, 0xc7, 0x5a, 0xd1, 0x1a, 0x00, 0x00,
+	// 1731 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x09, 0x6e, 0x88, 0x02, 0xff, 0xcc, 0x5a, 0x5f, 0x6f, 0x1b, 0xc5,
+	0x16, 0xaf, 0xed, 0x24, 0x4e, 0x8e, 0x93, 0xb4, 0x99, 0x38, 0xf7, 0x5a, 0xdb, 0x5e, 0xa7, 0xda,
+	0xde, 0xa6, 0x8e, 0xd4, 0xeb, 0xf4, 0xba, 0x54, 0x94, 0x22, 0xfe, 0x25, 0xa6, 0xc1, 0xfd, 0x13,
+	0xaa, 0x4d, 0x0b, 0xbc, 0x45, 0x8e, 0x3d, 0x0d, 0x8b, 0x1d, 0xaf, 0xd9, 0xdd, 0xa4, 0xad, 0x78,
+	0x01, 0x09, 0x24, 0x3e, 0x02, 0xaf, 0xbc, 0xf2, 0x80, 0xc4, 0x27, 0xe0, 0xb5, 0xe2, 0x89, 0x47,
+	0x9e, 0x2c, 0x6a, 0x09, 0x89, 0x27, 0xc4, 0x27, 0x40, 0x68, 0x66, 0xce, 0xec, 0xae, 0xd7, 0xb3,
+	0xbb, 0x76, 0x12, 0x94, 0x3e, 0x65, 0x77, 0xf6, 0x77, 0xe6, 0x9c, 0x99, 0xf3, 0x9b, 0x9f, 0xcf,
+	0x1c, 0x05, 0xe6, 0x1a, 0x56, 0xc7, 0xb5, 0xad, 0x76, 0xb9, 0x6b, 0x5b, 0xae, 0x45, 0x48, 0xd3,
+	0x6a, 0xb4, 0xa8, 0x5d, 0x76, 0x9e, 0xd4, 0xed, 0xfd, 0x96, 0xe9, 0x96, 0x0f, 0xff, 0xaf, 0xe5,
+	0x9c, 0x2e, 0x6d, 0x38, 0x02, 0xa0, 0xcd, 0x59, 0xbb, 0x9f, 0xd0, 0x86, 0x2b, 0x5f, 0x73, 0xee,
+	0xb3, 0x2e, 0x95, 0x2f, 0xf9, 0x3d, 0x6b, 0xcf, 0xe2, 0x8f, 0x6b, 0xec, 0x09, 0x47, 0x17, 0xbb,
+	0xed, 0x83, 0x3d, 0xb3, 0xb3, 0x26, 0xfe, 0x88, 0x41, 0xfd, 0x06, 0xcc, 0x6f, 0x52, 0x77, 0xcb,
+	0x6a, 0x52, 0x83, 0x7e, 0x7a, 0x40, 0x1d, 0x97, 0x5c, 0x82, 0x6c, 0xc7, 0x6a, 0xd2, 0x1d, 0xb3,
+	0x59, 0x48, 0x5d, 0x4c, 0x95, 0x66, 0xd6, 0xa1, 0xdf, 0x5b, 0x9e, 0x62, 0x88, 0x5a, 0xd5, 0x98,
+	0x62, 0x9f, 0x6a, 0x4d, 0xfd, 0x2d, 0x38, 0xeb, 0x99, 0x39, 0x5d, 0xab, 0xe3, 0x50, 0x72, 0x15,
+	0x26, 0xd8, 0x47, 0x6e, 0x94, 0xab, 0x14, 0xca, 0xc3, 0x0b, 0x28, 0x73, 0x3c, 0x47, 0xe9, 0xbd,
+	0x0c, 0x9c, 0xbb, 0x67, 0x3a, 0x7c, 0x0a, 0x47, 0xba, 0xbe, 0x0d, 0xd9, 0xc7, 0x66, 0xdb, 0xa5,
+	0xb6, 0x83, 0xb3, 0x5c, 0x55, 0xcd, 0x12, 0x36, 0x2b, 0xdf, 0x16, 0x36, 0x86, 0x34, 0xd6, 0xbe,
+	0xc8, 0x40, 0x16, 0x07, 0x49, 0x1e, 0x26, 0x3b, 0xf5, 0x7d, 0xca, 0x66, 0xcc, 0x94, 0x66, 0x0c,
+	0xf1, 0x42, 0xd6, 0x20, 0x67, 0x36, 0x77, 0xba, 0x36, 0x7d, 0x6c, 0x3e, 0xa5, 0x4e, 0x21, 0xcd,
+	0xbe, 0xad, 0xcf, 0xf7, 0x7b, 0xcb, 0x50, 0xab, 0x3e, 0xc0, 0x51, 0x03, 0xcc, 0xa6, 0x7c, 0x26,
+	0x0f, 0x60, 0xaa, 0x5d, 0xdf, 0xa5, 0x6d, 0xa7, 0x90, 0xb9, 0x98, 0x29, 0xe5, 0x2a, 0x37, 0xc7,
+	0x89, 0xac, 0x7c, 0x8f, 0x9b, 0xbe, 0xdb, 0x71, 0xed, 0x67, 0x06, 0xce, 0x43, 0x6a, 0x90, 0xdb,
+	0xa7, 0xfb, 0xbb, 0xd4, 0x76, 0x3e, 0x36, 0xbb, 0x4e, 0x61, 0xe2, 0x62, 0xa6, 0x34, 0x5f, 0xb9,
+	0x12, 0xb5, 0x6d, 0xdb, 0x5d, 0xda, 0x28, 0xdf, 0xf7, 0xf0, 0x46, 0xd0, 0x96, 0x54, 0x60, 0xd2,
+	0xb6, 0xda, 0xd4, 0x29, 0x4c, 0xf2, 0x49, 0x2e, 0x44, 0xee, 0xbd, 0xd5, 0xa6, 0x86, 0x80, 0x92,
+	0x4b, 0x30, 0xc7, 0xb6, 0xc2, 0xdf, 0x83, 0x29, 0xbe, 0x3f, 0xb3, 0x6c, 0x50, 0xae, 0x5a, 0x7b,
+	0x0d, 0x72, 0x81, 0xd0, 0xc9, 0x39, 0xc8, 0xb4, 0xe8, 0x33, 0x41, 0x0b, 0x83, 0x3d, 0xb2, 0xdd,
+	0x3d, 0xac, 0xb7, 0x0f, 0x68, 0x21, 0xcd, 0xc7, 0xc4, 0xcb, 0xad, 0xf4, 0xcd, 0x94, 0xbe, 0x01,
+	0x0b, 0x81, 0xed, 0x40, 0x8e, 0x94, 0x61, 0x92, 0x65, 0x5f, 0x24, 0x23, 0x8e, 0x24, 0x02, 0xa6,
+	0x7f, 0x97, 0x82, 0x85, 0x47, 0xdd, 0x66, 0xdd, 0xa5, 0xe3, 0x32, 0x94, 0xbc, 0x09, 0xb3, 0x1c,
+	0x74, 0x48, 0x6d, 0xc7, 0xb4, 0x3a, 0x3c, 0xc0, 0x5c, 0xe5, 0xbc, 0xca, 0xe3, 0x07, 0x02, 0x62,
+	0xe4, 0x98, 0x01, 0xbe, 0x90, 0x6b, 0x30, 0xc1, 0x8e, 0x5b, 0x21, 0xc3, 0xed, 0x2e, 0xc4, 0xe5,
+	0xc5, 0xe0, 0x48, 0x7d, 0x1d, 0x48, 0x30, 0xd6, 0x23, 0x1d, 0x8b, 0x2d, 0x58, 0x30, 0xe8, 0xbe,
+	0x75, 0x38, 0xfe, 0x7a, 0xf3, 0x30, 0xf9, 0xd8, 0xb2, 0x1b, 0x22, 0x13, 0xd3, 0x86, 0x78, 0xd1,
+	0xf3, 0x40, 0x82, 0xf3, 0x89, 0x98, 0xf0, 0xd0, 0x3f, 0xac, 0x3b, 0xad, 0x80, 0x0b, 0xb7, 0xee,
+	0xb4, 0x42, 0x2e, 0x18, 0x82, 0xb9, 0x60, 0x9f, 0xbc, 0x43, 0x2f, 0xcc, 0xfc, 0xd5, 0xb1, 0x8f,
+	0x71, 0xab, 0xe3, 0x78, 0x8e, 0xd2, 0x6f, 0xca, 0xd5, 0x8d, 0xed, 0xda, 0x5b, 0x47, 0xd0, 0xbb,
+	0xfe, 0x17, 0x8a, 0x08, 0x1b, 0x3c, 0x82, 0x88, 0x04, 0xcd, 0x86, 0x45, 0xe4, 0xdb, 0x53, 0x14,
+	0x11, 0x55, 0x64, 0x4a, 0x11, 0x59, 0x83, 0x9c, 0x43, 0xed, 0x43, 0xb3, 0xc1, 0xd8, 0x21, 0x44,
+	0x04, 0x43, 0xd8, 0x16, 0xc3, 0xb5, 0xaa, 0x63, 0x00, 0x42, 0x6a, 0x4d, 0x87, 0xac, 0xc0, 0x34,
+	0x72, 0x49, 0xa8, 0xc5, 0xcc, 0x7a, 0xae, 0xdf, 0x5b, 0xce, 0x0a, 0x32, 0x39, 0x46, 0x56, 0xb0,
+	0xc9, 0x21, 0x55, 0x98, 0x6f, 0x52, 0xc7, 0xb4, 0x69, 0x73, 0xc7, 0x71, 0xeb, 0x2e, 0xea, 0xc3,
+	0x7c, 0xe5, 0x3f, 0x51, 0x29, 0xde, 0x66, 0x28, 0x63, 0x0e, 0x8d, 0xf8, 0x9b, 0x42, 0x64, 0xb2,
+	0xff, 0x88, 0xc8, 0xe0, 0x76, 0xf9, 0x22, 0xc3, 0x58, 0x13, 0x2b, 0x32, 0x9c, 0x46, 0x02, 0xa6,
+	0xdf, 0x85, 0xfc, 0x86, 0x4d, 0xeb, 0x2e, 0xc5, 0x2d, 0x93, 0x44, 0xba, 0x8e, 0x0a, 0x20, 0x58,
+	0xb4, 0xac, 0x9a, 0x06, 0x2d, 0x02, 0x22, 0xb0, 0x05, 0x4b, 0xa1, 0xc9, 0x30, 0xaa, 0x1b, 0x90,
+	0xc5, 0x34, 0xe0, 0x84, 0xe7, 0x63, 0x26, 0x34, 0x24, 0x56, 0x7f, 0x07, 0x16, 0x36, 0xa9, 0x1b,
+	0x8a, 0xec, 0x2a, 0x80, 0x9f, 0x75, 0x3c, 0x35, 0x73, 0xfd, 0xde, 0xf2, 0x8c, 0x97, 0x74, 0x63,
+	0xc6, 0xcb, 0xb9, 0x7e, 0x17, 0x48, 0x70, 0x8a, 0xe3, 0xc5, 0xf3, 0x63, 0x0a, 0xf2, 0x42, 0xe5,
+	0x8e, 0x13, 0x13, 0xa9, 0xc2, 0x59, 0x89, 0x1e, 0x43, 0xa0, 0xe7, 0xd1, 0x46, 0x6a, 0xf4, 0xf5,
+	0x01, 0x8d, 0x1e, 0x3d, 0x43, 0xa1, 0x05, 0x1c, 0x6f, 0x47, 0xaa, 0x90, 0x17, 0xd2, 0x74, 0xac,
+	0x24, 0xfd, 0x1b, 0x96, 0x42, 0xb3, 0xa0, 0xc6, 0xfd, 0x9e, 0x86, 0x45, 0xc6, 0x71, 0x1c, 0xf7,
+	0x64, 0xae, 0x16, 0x96, 0xb9, 0xb5, 0x28, 0x31, 0x09, 0x59, 0x0e, 0x2b, 0xdd, 0x57, 0xe9, 0x13,
+	0x57, 0xba, 0xed, 0x90, 0xd2, 0xbd, 0x3e, 0x66, 0x70, 0x4a, 0xb1, 0x1b, 0x52, 0x93, 0x89, 0x93,
+	0x55, 0x93, 0xf7, 0x21, 0x3f, 0x18, 0x12, 0x12, 0xe3, 0x55, 0x98, 0xc6, 0x44, 0x49, 0x4d, 0x89,
+	0x65, 0x86, 0x07, 0xf6, 0x95, 0x65, 0x8b, 0xba, 0x4f, 0x2c, 0xbb, 0x35, 0x86, 0xb2, 0xa0, 0x85,
+	0x4a, 0x59, 0xbc, 0xc9, 0x7c, 0xde, 0x76, 0xc4, 0x50, 0x1c, 0x6f, 0xa5, 0x95, 0xc4, 0xea, 0x8f,
+	0xb8, 0xb2, 0x84, 0x22, 0x23, 0x30, 0xc1, 0x76, 0x13, 0xf7, 0x8b, 0x3f, 0x33, 0x22, 0xa3, 0x0d,
+	0x23, 0x72, 0xda, 0x27, 0x32, 0xda, 0x32, 0x22, 0x23, 0xc0, 0x53, 0x9b, 0x13, 0x8a, 0xf1, 0x23,
+	0x79, 0xb6, 0x4e, 0x3c, 0x4c, 0xef, 0xbc, 0x85, 0x22, 0xf5, 0xce, 0x1b, 0x8e, 0x1f, 0xe1, 0xbc,
+	0x85, 0x2c, 0x5f, 0xae, 0xf3, 0x16, 0x11, 0xdc, 0x69, 0x9e, 0x37, 0x3f, 0x24, 0xff, 0xbc, 0x61,
+	0xa2, 0x62, 0xcf, 0x9b, 0xcc, 0x9c, 0x07, 0xc6, 0x1f, 0xcb, 0x8d, 0xf6, 0x81, 0xe3, 0x52, 0x3b,
+	0xa0, 0xc3, 0x0d, 0x31, 0x12, 0xd2, 0x61, 0xc4, 0x31, 0x5e, 0x20, 0xc0, 0xa3, 0xaf, 0x37, 0x85,
+	0x4f, 0x5f, 0x84, 0xc4, 0xd1, 0x57, 0x5a, 0x49, 0xac, 0xc7, 0x25, 0xfc, 0x70, 0x04, 0x2e, 0x85,
+	0x2c, 0x5f, 0x2e, 0x2e, 0x45, 0x04, 0x77, 0x9a, 0x5c, 0xf2, 0x43, 0xf2, 0xb9, 0x84, 0xd9, 0x88,
+	0xe5, 0x92, 0x4c, 0x9d, 0x07, 0xd6, 0x0f, 0x60, 0xe1, 0x8e, 0x65, 0x76, 0x1e, 0x5a, 0x2d, 0xda,
+	0x31, 0x2c, 0xb7, 0xee, 0xb2, 0x82, 0xa3, 0x0c, 0x8b, 0x36, 0x7b, 0xa6, 0x3b, 0x8c, 0x70, 0xd4,
+	0xde, 0x71, 0xd9, 0x67, 0x1e, 0xe1, 0xb4, 0xb1, 0x20, 0x3e, 0x7d, 0xc8, 0xbf, 0x70, 0x3b, 0x72,
+	0x0d, 0xf2, 0x88, 0xdf, 0xaf, 0x77, 0xea, 0x7b, 0x9e, 0x81, 0xb8, 0xa3, 0x11, 0xf1, 0xed, 0xbe,
+	0xf8, 0xc4, 0x2d, 0xf4, 0xaf, 0xd3, 0xb2, 0xbe, 0x3a, 0x0e, 0x8d, 0x59, 0x7d, 0x25, 0xd1, 0xe3,
+	0xd4, 0x57, 0x68, 0x33, 0x46, 0x7d, 0x85, 0xde, 0xfd, 0xdf, 0x29, 0xb2, 0x09, 0xd3, 0x36, 0xee,
+	0x57, 0x61, 0x82, 0x1b, 0x5e, 0x56, 0x19, 0x0e, 0x6d, 0xee, 0xfa, 0xc4, 0xf3, 0xde, 0xf2, 0x19,
+	0xc3, 0x33, 0xf6, 0x0b, 0xb5, 0x13, 0x3a, 0x8d, 0x6f, 0xc0, 0x39, 0x5e, 0x07, 0x37, 0x6c, 0xea,
+	0xca, 0x5d, 0x5d, 0x85, 0x19, 0x87, 0x0f, 0xf8, 0x9b, 0x3a, 0xdb, 0xef, 0x2d, 0x4f, 0x0b, 0x54,
+	0xad, 0xca, 0x7e, 0xcc, 0xf9, 0x53, 0x53, 0xdf, 0xc4, 0x4a, 0x5c, 0x98, 0x63, 0x28, 0x15, 0x98,
+	0x12, 0x00, 0x8c, 0x44, 0x53, 0x17, 0x06, 0xdc, 0x06, 0x91, 0xfa, 0x6f, 0x69, 0x20, 0xa2, 0xce,
+	0x60, 0xaf, 0x9e, 0x28, 0xbc, 0x17, 0x16, 0x85, 0x72, 0x74, 0xcd, 0x14, 0x34, 0x1c, 0xd6, 0x84,
+	0x2f, 0x4f, 0x5e, 0x13, 0x8c, 0x90, 0x26, 0xdc, 0x1a, 0x2f, 0xb6, 0x53, 0x91, 0x84, 0xbb, 0xb2,
+	0x70, 0xc6, 0x88, 0x30, 0x65, 0xaf, 0xb0, 0x32, 0x9f, 0x0f, 0xa1, 0x20, 0xc4, 0xe5, 0x4c, 0x42,
+	0xf5, 0x1a, 0x2c, 0xca, 0x7b, 0x5d, 0x90, 0x3f, 0x95, 0x81, 0x4a, 0xae, 0x18, 0x3d, 0x53, 0xa0,
+	0x90, 0xbb, 0xe3, 0xdf, 0x37, 0x8f, 0xcd, 0xa5, 0xb7, 0x61, 0x51, 0x5e, 0x1b, 0x8e, 0x48, 0xeb,
+	0x7f, 0xf9, 0xd7, 0x97, 0x60, 0x34, 0x95, 0x1f, 0x96, 0x20, 0xbb, 0x21, 0x5a, 0xd2, 0xc4, 0x84,
+	0x2c, 0x76, 0x7b, 0x89, 0xae, 0x0a, 0x6a, 0xb0, 0x83, 0xac, 0x5d, 0x8a, 0xc5, 0x60, 0x9d, 0xb5,
+	0xf4, 0xd3, 0xf7, 0x7f, 0x7c, 0x93, 0x3e, 0x0b, 0x73, 0x1c, 0xf4, 0x3f, 0xd4, 0x47, 0x62, 0xc1,
+	0x8c, 0xd7, 0x36, 0x24, 0xff, 0x1d, 0xa5, 0xc9, 0xaa, 0x5d, 0x4e, 0x40, 0xc5, 0x3b, 0xb4, 0x01,
+	0xfc, 0xae, 0x1d, 0x51, 0xce, 0x35, 0xd4, 0x81, 0xd4, 0x56, 0x92, 0x60, 0x89, 0x3e, 0xfd, 0xae,
+	0x9c, 0xda, 0xe7, 0x50, 0x17, 0x50, 0xed, 0x53, 0xd1, 0xdc, 0x8b, 0xf0, 0x29, 0x72, 0xf8, 0xb0,
+	0xee, 0xb4, 0x22, 0x73, 0x18, 0xe8, 0xca, 0x45, 0xe6, 0x70, 0xa0, 0xff, 0x16, 0x9f, 0x43, 0xde,
+	0x95, 0x89, 0xce, 0x61, 0xb0, 0xc7, 0x15, 0x9d, 0xc3, 0x81, 0xd6, 0x4e, 0xe2, 0x7e, 0xf2, 0xe5,
+	0xc5, 0xec, 0x67, 0x70, 0x85, 0x2b, 0x49, 0xb0, 0x44, 0x9f, 0x7e, 0x57, 0x45, 0xed, 0x73, 0xa8,
+	0x71, 0xa3, 0xf6, 0x39, 0xdc, 0x9c, 0x89, 0xf2, 0xf9, 0x14, 0x66, 0x83, 0x17, 0x54, 0x72, 0x65,
+	0xc4, 0x5b, 0xb5, 0x56, 0x4a, 0x06, 0xc6, 0x7b, 0xfe, 0x0c, 0xe6, 0x06, 0xda, 0x5a, 0x44, 0x39,
+	0xa3, 0xaa, 0x8d, 0xa6, 0xad, 0x8e, 0x80, 0x4c, 0x74, 0x3e, 0xd0, 0xb1, 0x51, 0x3b, 0x57, 0x75,
+	0xa5, 0xd4, 0xce, 0x95, 0xed, 0x9f, 0x18, 0xe7, 0x03, 0x8d, 0x19, 0xb5, 0x73, 0x55, 0x07, 0x48,
+	0xed, 0x5c, 0xdd, 0xe5, 0x89, 0x25, 0x19, 0x5e, 0x74, 0x22, 0x49, 0x36, 0x78, 0x39, 0x8e, 0x24,
+	0x59, 0xf8, 0xa6, 0x1b, 0x4f, 0x32, 0x79, 0x2b, 0x8b, 0x26, 0x59, 0xe8, 0x2a, 0x19, 0x4d, 0xb2,
+	0xf0, 0x05, 0x2f, 0x91, 0x64, 0x72, 0xc1, 0x31, 0x24, 0x0b, 0xad, 0x79, 0x75, 0x04, 0xe4, 0x88,
+	0x79, 0x8e, 0x75, 0xae, 0xea, 0x46, 0xc4, 0xe5, 0x79, 0x44, 0xe7, 0x22, 0xcf, 0x58, 0xb1, 0x46,
+	0xe6, 0x79, 0xf0, 0x46, 0x10, 0x99, 0xe7, 0x50, 0xb9, 0x9c, 0x90, 0x67, 0x79, 0x63, 0x8a, 0xce,
+	0x73, 0xe8, 0x9a, 0x17, 0x9d, 0xe7, 0xf0, 0xe5, 0x2b, 0xf1, 0x3c, 0xcb, 0x05, 0xc7, 0x9c, 0xe7,
+	0xd0, 0x9a, 0x57, 0x47, 0x40, 0x26, 0xfe, 0x38, 0x79, 0x65, 0xbc, 0xfa, 0xc7, 0x29, 0x7c, 0x49,
+	0xd0, 0x2e, 0x27, 0xa0, 0xe2, 0x1d, 0x1e, 0x40, 0x2e, 0x50, 0x86, 0x92, 0x95, 0xd1, 0x2a, 0x67,
+	0xed, 0x4a, 0x22, 0x2e, 0x31, 0xbd, 0xc1, 0x2a, 0x53, 0x9d, 0x5e, 0x45, 0x49, 0xab, 0x95, 0x92,
+	0x81, 0x89, 0x9e, 0x83, 0x15, 0xa5, 0xda, 0xb3, 0xa2, 0x6a, 0xd5, 0x4a, 0xc9, 0xc0, 0x58, 0xcf,
+	0xeb, 0x17, 0x9e, 0xbf, 0x28, 0x9e, 0xf9, 0xe5, 0x45, 0xf1, 0xcc, 0x9f, 0x2f, 0x8a, 0xa9, 0xcf,
+	0xfb, 0xc5, 0xd4, 0xf3, 0x7e, 0x31, 0xf5, 0x73, 0xbf, 0x98, 0xfa, 0xb5, 0x5f, 0x4c, 0xed, 0x4e,
+	0xf1, 0xff, 0x78, 0xb8, 0xfe, 0x77, 0x00, 0x00, 0x00, 0xff, 0xff, 0xde, 0x36, 0x11, 0xa9, 0x6a,
+	0x21, 0x00, 0x00,
 }

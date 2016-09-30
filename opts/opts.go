@@ -6,7 +6,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/docker/engine-api/types/filters"
+	"github.com/docker/docker/api/types/filters"
 )
 
 var (
@@ -136,7 +136,7 @@ func (o *NamedListOpts) Name() string {
 	return o.name
 }
 
-//MapOpts holds a map of values and a validation function.
+// MapOpts holds a map of values and a validation function.
 type MapOpts struct {
 	values    map[string]string
 	validator ValidatorFctType

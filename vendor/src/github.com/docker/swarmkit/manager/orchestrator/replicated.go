@@ -27,6 +27,8 @@ type ReplicatedOrchestrator struct {
 
 	updater  *UpdateSupervisor
 	restarts *RestartSupervisor
+
+	cluster *api.Cluster // local cluster instance
 }
 
 // NewReplicatedOrchestrator creates a new ReplicatedOrchestrator.
@@ -60,7 +62,14 @@ func (r *ReplicatedOrchestrator) Run(ctx context.Context) error {
 		if err = r.initTasks(ctx, readTx); err != nil {
 			return
 		}
-		err = r.initServices(readTx)
+
+		if err = r.initServices(readTx); err != nil {
+			return
+		}
+
+		if err = r.initCluster(readTx); err != nil {
+			return
+		}
 	})
 	if err != nil {
 		return err
@@ -74,9 +83,11 @@ func (r *ReplicatedOrchestrator) Run(ctx context.Context) error {
 			// TODO(stevvooe): Use ctx to limit running time of operation.
 			r.handleTaskEvent(ctx, event)
 			r.handleServiceEvent(ctx, event)
-			switch event.(type) {
+			switch v := event.(type) {
 			case state.EventCommit:
 				r.tick(ctx)
+			case state.EventUpdateCluster:
+				r.cluster = v.Cluster
 			}
 		case <-r.stopChan:
 			return nil
@@ -99,16 +110,23 @@ func (r *ReplicatedOrchestrator) tick(ctx context.Context) {
 	r.tickServices(ctx)
 }
 
-func newTask(service *api.Service, instance uint64) *api.Task {
-	// NOTE(stevvooe): For now, we don't override the container naming and
-	// labeling scheme in the agent. If we decide to do this in the future,
-	// they should be overridden here.
-	return &api.Task{
-		ID:                 identity.NewID(),
+func newTask(cluster *api.Cluster, service *api.Service, slot uint64, nodeID string) *api.Task {
+	var logDriver *api.Driver
+	if service.Spec.Task.LogDriver != nil {
+		// use the log driver specific to the task, if we have it.
+		logDriver = service.Spec.Task.LogDriver
+	} else if cluster != nil {
+		// pick up the cluster default, if available.
+		logDriver = cluster.Spec.TaskDefaults.LogDriver // nil is okay here.
+	}
+
+	taskID := identity.NewID()
+	task := api.Task{
+		ID:                 taskID,
 		ServiceAnnotations: service.Spec.Annotations,
 		Spec:               service.Spec.Task,
 		ServiceID:          service.ID,
-		Slot:               instance,
+		Slot:               slot,
 		Status: api.TaskStatus{
 			State:     api.TaskStateNew,
 			Timestamp: ptypes.MustTimestampProto(time.Now()),
@@ -118,7 +136,19 @@ func newTask(service *api.Service, instance uint64) *api.Task {
 			Spec: service.Spec.Endpoint.Copy(),
 		},
 		DesiredState: api.TaskStateRunning,
+		LogDriver:    logDriver,
 	}
+
+	// In global mode we also set the NodeID
+	if nodeID != "" {
+		task.NodeID = nodeID
+	}
+
+	// Assign name based on task name schema
+	name := store.TaskName(&task)
+	task.Annotations = api.Annotations{Name: name}
+
+	return &task
 }
 
 // isReplicatedService checks if a service is a replicated service

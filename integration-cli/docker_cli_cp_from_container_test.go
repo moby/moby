@@ -24,7 +24,6 @@ import (
 
 // Test for error when SRC does not exist.
 func (s *DockerSuite) TestCpFromErrSrcNotExists(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	containerID := makeTestContainer(c, testContainerOptions{})
 
 	tmpDir := getTestDir(c, "test-cp-from-err-src-not-exists")

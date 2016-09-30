@@ -47,6 +47,7 @@ To find out which storage driver is set on the daemon, you use the
 `docker info` command:
 
     $ docker info
+
     Containers: 0
     Images: 0
     Storage Driver: overlay
@@ -96,6 +97,7 @@ The following command shows how to start the Docker daemon with the
     $ dockerd --storage-driver=devicemapper &
 
     $ docker info
+
     Containers: 0
     Images: 0
     Storage Driver: devicemapper

@@ -3,7 +3,6 @@
 title = "service scale"
 description = "The service scale command description and usage"
 keywords = ["service, scale"]
-advisory = "rc"
 [menu.main]
 parent = "smn_cli"
 +++
@@ -11,13 +10,14 @@ parent = "smn_cli"
 
 # service scale
 
-    Usage:	docker service scale SERVICE=REPLICAS [SERVICE=REPLICAS...]
+```markdown
+Usage:  docker service scale SERVICE=REPLICAS [SERVICE=REPLICAS...]
 
-    Scale one or multiple services
+Scale one or multiple services
 
-    Options:
-          --help   Print usage
-
+Options:
+      --help   Print usage
+```
 
 ## Examples
 
@@ -74,5 +74,5 @@ ID            NAME      REPLICAS  IMAGE         COMMAND
 * [service inspect](service_inspect.md)
 * [service ls](service_ls.md)
 * [service rm](service_rm.md)
-* [service tasks](service_tasks.md)
+* [service ps](service_ps.md)
 * [service update](service_update.md)

@@ -10,11 +10,16 @@ parent = "smn_cli"
 
 # node promote
 
-    Usage:  docker node promote NODE [NODE...]
+```markdown
+Usage:  docker node promote NODE [NODE...]
 
-    Promote a node as manager in the swarm
+Promote one or more nodes to manager in the swarm
 
-Promotes a node that is pending a promotion to manager. This command targets a docker engine that is a manager in the swarm cluster.
+Options:
+      --help   Print usage
+```
+
+Promotes a node to manager. This command targets a docker engine that is a manager in the swarm.
 
 
 ```bash
@@ -23,5 +28,4 @@ $ docker node promote <node name>
 
 ## Related information
 
-* [node accept](node_accept.md)
 * [node demote](node_demote.md)

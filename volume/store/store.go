@@ -8,6 +8,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/pkg/errors"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/boltdb/bolt"
 	"github.com/docker/docker/pkg/locker"
@@ -70,13 +72,13 @@ func New(rootPath string) (*VolumeStore, error) {
 		var err error
 		vs.db, err = bolt.Open(dbPath, 0600, &bolt.Options{Timeout: 1 * time.Second})
 		if err != nil {
-			return nil, err
+			return nil, errors.Wrap(err, "error while opening volume store metadata database")
 		}
 
 		// initialize volumes bucket
 		if err := vs.db.Update(func(tx *bolt.Tx) error {
 			if _, err := tx.CreateBucketIfNotExists([]byte(volumeBucketName)); err != nil {
-				return err
+				return errors.Wrap(err, "error while setting up volume store metadata database")
 			}
 
 			return nil
@@ -104,7 +106,9 @@ func (s *VolumeStore) setNamed(v volume.Volume, ref string) {
 	s.globalLock.Unlock()
 }
 
-func (s *VolumeStore) purge(name string) {
+// Purge allows the cleanup of internal data on docker in case
+// the internal data is out of sync with volumes driver plugins.
+func (s *VolumeStore) Purge(name string) {
 	s.globalLock.Lock()
 	delete(s.names, name)
 	delete(s.refs, name)
@@ -212,7 +216,6 @@ func (s *VolumeStore) list() ([]volume.Volume, []string, error) {
 }
 
 // CreateWithRef creates a volume with the given name and driver and stores the ref
-// This is just like Create() except we store the reference while holding the lock.
 // This ensures there's no race between creating a volume and then storing a reference.
 func (s *VolumeStore) CreateWithRef(name, driverName, ref string, opts, labels map[string]string) (volume.Volume, error) {
 	name = normaliseVolumeName(name)
@@ -229,17 +232,9 @@ func (s *VolumeStore) CreateWithRef(name, driverName, ref string, opts, labels m
 }
 
 // Create creates a volume with the given name and driver.
+// This is just like CreateWithRef() except we don't store a reference while holding the lock.
 func (s *VolumeStore) Create(name, driverName string, opts, labels map[string]string) (volume.Volume, error) {
-	name = normaliseVolumeName(name)
-	s.locks.Lock(name)
-	defer s.locks.Unlock(name)
-
-	v, err := s.create(name, driverName, opts, labels)
-	if err != nil {
-		return nil, &OpErr{Err: err, Name: name, Op: "create"}
-	}
-	s.setNamed(v, "")
-	return v, nil
+	return s.CreateWithRef(name, driverName, "", opts, labels)
 }
 
 // create asks the given driver to create a volume with the name/opts.
@@ -271,7 +266,7 @@ func (s *VolumeStore) create(name, driverName string, opts, labels map[string]st
 		}
 	}
 
-	vd, err := volumedrivers.GetDriver(driverName)
+	vd, err := volumedrivers.CreateDriver(driverName)
 
 	if err != nil {
 		return nil, &OpErr{Op: "create", Name: name, Err: err}
@@ -306,7 +301,7 @@ func (s *VolumeStore) create(name, driverName string, opts, labels map[string]st
 			err := b.Put([]byte(name), volData)
 			return err
 		}); err != nil {
-			return nil, err
+			return nil, errors.Wrap(err, "error while persisting volume metadata")
 		}
 	}
 
@@ -423,7 +418,7 @@ func (s *VolumeStore) Remove(v volume.Volume) error {
 		return &OpErr{Err: errVolumeInUse, Name: v.Name(), Op: "remove", Refs: refs}
 	}
 
-	vd, err := volumedrivers.GetDriver(v.DriverName())
+	vd, err := volumedrivers.RemoveDriver(v.DriverName())
 	if err != nil {
 		return &OpErr{Err: err, Name: vd.Name(), Op: "remove"}
 	}
@@ -434,7 +429,7 @@ func (s *VolumeStore) Remove(v volume.Volume) error {
 		return &OpErr{Err: err, Name: name, Op: "remove"}
 	}
 
-	s.purge(name)
+	s.Purge(name)
 	return nil
 }
 

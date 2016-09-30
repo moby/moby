@@ -125,7 +125,7 @@ func TestResponseModifier(t *testing.T) {
 	m := NewResponseModifier(r)
 	m.Header().Set("h1", "v1")
 	m.Write([]byte("body"))
-	m.WriteHeader(500)
+	m.WriteHeader(http.StatusInternalServerError)
 
 	m.FlushAll()
 	if r.Header().Get("h1") != "v1" {
@@ -134,7 +134,7 @@ func TestResponseModifier(t *testing.T) {
 	if !reflect.DeepEqual(r.Body.Bytes(), []byte("body")) {
 		t.Fatalf("Body value must exists %s", r.Body.Bytes())
 	}
-	if r.Code != 500 {
+	if r.Code != http.StatusInternalServerError {
 		t.Fatalf("Status code must be correct %d", r.Code)
 	}
 }
@@ -177,7 +177,7 @@ func TestResponseModifierOverride(t *testing.T) {
 	m := NewResponseModifier(r)
 	m.Header().Set("h1", "v1")
 	m.Write([]byte("body"))
-	m.WriteHeader(500)
+	m.WriteHeader(http.StatusInternalServerError)
 
 	overrideHeader := make(http.Header)
 	overrideHeader.Add("h1", "v2")
@@ -188,7 +188,7 @@ func TestResponseModifierOverride(t *testing.T) {
 
 	m.OverrideHeader(overrideHeaderBytes)
 	m.OverrideBody([]byte("override body"))
-	m.OverrideStatusCode(404)
+	m.OverrideStatusCode(http.StatusNotFound)
 	m.FlushAll()
 	if r.Header().Get("h1") != "v2" {
 		t.Fatalf("Header value must exists %s", r.Header().Get("h1"))
@@ -196,7 +196,7 @@ func TestResponseModifierOverride(t *testing.T) {
 	if !reflect.DeepEqual(r.Body.Bytes(), []byte("override body")) {
 		t.Fatalf("Body value must exists %s", r.Body.Bytes())
 	}
-	if r.Code != 404 {
+	if r.Code != http.StatusNotFound {
 		t.Fatalf("Status code must be correct %d", r.Code)
 	}
 }

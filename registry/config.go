@@ -7,10 +7,10 @@ import (
 	"net/url"
 	"strings"
 
+	registrytypes "github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/opts"
-	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/reference"
-	registrytypes "github.com/docker/engine-api/types/registry"
+	"github.com/spf13/pflag"
 )
 
 // ServiceOptions holds command line options.
@@ -70,14 +70,14 @@ var lookupIP = net.LookupIP
 
 // InstallCliFlags adds command-line options to the top-level flag parser for
 // the current process.
-func (options *ServiceOptions) InstallCliFlags(cmd *flag.FlagSet, usageFn func(string) string) {
+func (options *ServiceOptions) InstallCliFlags(flags *pflag.FlagSet) {
 	mirrors := opts.NewNamedListOptsRef("registry-mirrors", &options.Mirrors, ValidateMirror)
-	cmd.Var(mirrors, []string{"-registry-mirror"}, usageFn("Preferred Docker registry mirror"))
-
 	insecureRegistries := opts.NewNamedListOptsRef("insecure-registries", &options.InsecureRegistries, ValidateIndexName)
-	cmd.Var(insecureRegistries, []string{"-insecure-registry"}, usageFn("Enable insecure registry communication"))
 
-	cmd.BoolVar(&options.V2Only, []string{"-disable-legacy-registry"}, false, usageFn("Do not contact legacy registries"))
+	flags.Var(mirrors, "registry-mirror", "Preferred Docker registry mirror")
+	flags.Var(insecureRegistries, "insecure-registry", "Enable insecure registry communication")
+
+	options.installCliPlatformFlags(flags)
 }
 
 // newServiceConfig returns a new instance of ServiceConfig

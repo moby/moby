@@ -8,10 +8,10 @@ import (
 	"net/url"
 	"strings"
 
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/filters"
+	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/pkg/integration/checker"
-	"github.com/docker/engine-api/types"
-	"github.com/docker/engine-api/types/filters"
-	"github.com/docker/engine-api/types/network"
 	"github.com/go-check/check"
 )
 
@@ -101,7 +101,7 @@ func (s *DockerSuite) TestApiNetworkInspect(c *check.C) {
 	c.Assert(ip.String(), checker.Equals, containerIP)
 
 	// IPAM configuration inspect
-	ipam := network.IPAM{
+	ipam := &network.IPAM{
 		Driver: "default",
 		Config: []network.IPAMConfig{{Subnet: "172.28.0.0/16", IPRange: "172.28.5.0/24", Gateway: "172.28.5.254"}},
 	}
@@ -173,7 +173,7 @@ func (s *DockerSuite) TestApiNetworkConnectDisconnect(c *check.C) {
 func (s *DockerSuite) TestApiNetworkIpamMultipleBridgeNetworks(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	// test0 bridge network
-	ipam0 := network.IPAM{
+	ipam0 := &network.IPAM{
 		Driver: "default",
 		Config: []network.IPAMConfig{{Subnet: "192.178.0.0/16", IPRange: "192.178.128.0/17", Gateway: "192.178.138.100"}},
 	}
@@ -187,7 +187,7 @@ func (s *DockerSuite) TestApiNetworkIpamMultipleBridgeNetworks(c *check.C) {
 	id0 := createNetwork(c, config0, true)
 	c.Assert(isNetworkAvailable(c, "test0"), checker.Equals, true)
 
-	ipam1 := network.IPAM{
+	ipam1 := &network.IPAM{
 		Driver: "default",
 		Config: []network.IPAMConfig{{Subnet: "192.178.128.0/17", Gateway: "192.178.128.1"}},
 	}
@@ -202,7 +202,7 @@ func (s *DockerSuite) TestApiNetworkIpamMultipleBridgeNetworks(c *check.C) {
 	createNetwork(c, config1, false)
 	c.Assert(isNetworkAvailable(c, "test1"), checker.Equals, false)
 
-	ipam2 := network.IPAM{
+	ipam2 := &network.IPAM{
 		Driver: "default",
 		Config: []network.IPAMConfig{{Subnet: "192.169.0.0/16", Gateway: "192.169.100.100"}},
 	}

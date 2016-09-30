@@ -484,6 +484,8 @@ func TestJsonSaveWithNoFile(t *testing.T) {
 
 	fn := filepath.Join(tmpHome, ConfigFileName)
 	f, _ := os.OpenFile(fn, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
+	defer f.Close()
+
 	err = config.SaveToWriter(f)
 	if err != nil {
 		t.Fatalf("Failed saving to file: %q", err)
@@ -522,6 +524,8 @@ func TestLegacyJsonSaveWithNoFile(t *testing.T) {
 
 	fn := filepath.Join(tmpHome, ConfigFileName)
 	f, _ := os.OpenFile(fn, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
+	defer f.Close()
+
 	if err = config.SaveToWriter(f); err != nil {
 		t.Fatalf("Failed saving to file: %q", err)
 	}

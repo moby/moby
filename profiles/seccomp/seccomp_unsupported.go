@@ -3,8 +3,8 @@
 package seccomp
 
 import (
-	"github.com/docker/engine-api/types"
-	"github.com/opencontainers/specs/specs-go"
+	"github.com/docker/docker/api/types"
+	"github.com/opencontainers/runtime-spec/specs-go"
 )
 
 // DefaultProfile returns a nil pointer on unsupported systems.

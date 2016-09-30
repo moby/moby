@@ -1,9 +1,9 @@
 package events
 
 import (
+	"github.com/docker/docker/api/types/events"
+	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/reference"
-	"github.com/docker/engine-api/types/events"
-	"github.com/docker/engine-api/types/filters"
 )
 
 // Filter can filter out docker events from a stream
@@ -22,6 +22,7 @@ func (ef *Filter) Include(ev events.Message) bool {
 		ef.filter.ExactMatch("type", ev.Type) &&
 		ef.matchDaemon(ev) &&
 		ef.matchContainer(ev) &&
+		ef.matchPlugin(ev) &&
 		ef.matchVolume(ev) &&
 		ef.matchNetwork(ev) &&
 		ef.matchImage(ev) &&
@@ -41,6 +42,10 @@ func (ef *Filter) matchDaemon(ev events.Message) bool {
 
 func (ef *Filter) matchContainer(ev events.Message) bool {
 	return ef.fuzzyMatchName(ev, events.ContainerEventType)
+}
+
+func (ef *Filter) matchPlugin(ev events.Message) bool {
+	return ef.fuzzyMatchName(ev, events.PluginEventType)
 }
 
 func (ef *Filter) matchVolume(ev events.Message) bool {

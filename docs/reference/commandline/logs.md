@@ -10,21 +10,27 @@ parent = "smn_cli"
 
 # logs
 
-    Usage: docker logs [OPTIONS] CONTAINER
+```markdown
+Usage:  docker logs [OPTIONS] CONTAINER
 
-    Fetch the logs of a container
+Fetch the logs of a container
 
-      --details                 Show extra details provided to logs
-      -f, --follow              Follow log output
-      --help                    Print usage
-      --since=""                Show logs since timestamp
-      -t, --timestamps          Show timestamps
-      --tail="all"              Number of lines to show from the end of the logs
-
-> **Note**: this command is available only for containers with `json-file` and
-> `journald` logging drivers.
+Options:
+      --details        Show extra details provided to logs
+  -f, --follow         Follow log output
+      --help           Print usage
+      --since string   Show logs since timestamp
+      --tail string    Number of lines to show from the end of the logs (default "all")
+  -t, --timestamps     Show timestamps
+```
 
 The `docker logs` command batch-retrieves logs present at the time of execution.
+
+> **Note**: this command is only functional for containers that are started with
+> the `json-file` or `journald` logging driver.
+
+For more information about selecting and configuring login-drivers, refer to
+[Configure logging drivers](../../admin/logging/overview.md).
 
 The `docker logs --follow` command will continue streaming the new output from
 the container's `STDOUT` and `STDERR`.

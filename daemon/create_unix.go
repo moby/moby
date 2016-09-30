@@ -8,9 +8,10 @@ import (
 	"path/filepath"
 
 	"github.com/Sirupsen/logrus"
+	containertypes "github.com/docker/docker/api/types/container"
+	mounttypes "github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/pkg/stringid"
-	containertypes "github.com/docker/engine-api/types/container"
 	"github.com/opencontainers/runc/libcontainer/label"
 )
 
@@ -63,7 +64,11 @@ func (daemon *Daemon) createContainerPlatformSpecificSettings(container *contain
 // this is only called when the container is created.
 func (daemon *Daemon) populateVolumes(c *container.Container) error {
 	for _, mnt := range c.MountPoints {
-		if !mnt.CopyData || mnt.Volume == nil {
+		if mnt.Volume == nil {
+			continue
+		}
+
+		if mnt.Type != mounttypes.TypeVolume || !mnt.CopyData {
 			continue
 		}
 

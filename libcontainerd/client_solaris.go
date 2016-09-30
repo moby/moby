@@ -1,16 +1,18 @@
 package libcontainerd
 
+import "golang.org/x/net/context"
+
 type client struct {
 	clientCommon
 
 	// Platform specific properties below here.
 }
 
-func (clnt *client) AddProcess(containerID, processFriendlyName string, specp Process) error {
+func (clnt *client) AddProcess(ctx context.Context, containerID, processFriendlyName string, specp Process) error {
 	return nil
 }
 
-func (clnt *client) Create(containerID string, spec Spec, options ...CreateOption) (err error) {
+func (clnt *client) Create(containerID string, checkpoint string, checkpointDir string, spec Spec, options ...CreateOption) (err error) {
 	return nil
 }
 

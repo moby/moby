@@ -1,6 +1,10 @@
 package libcontainerd
 
-import "io"
+import (
+	"io"
+
+	"golang.org/x/net/context"
+)
 
 // State constants used in state change reporting.
 const (
@@ -32,10 +36,10 @@ type Backend interface {
 
 // Client provides access to containerd features.
 type Client interface {
-	Create(containerID string, spec Spec, options ...CreateOption) error
+	Create(containerID string, checkpoint string, checkpointDir string, spec Spec, options ...CreateOption) error
 	Signal(containerID string, sig int) error
 	SignalProcess(containerID string, processFriendlyName string, sig int) error
-	AddProcess(containerID, processFriendlyName string, process Process) error
+	AddProcess(ctx context.Context, containerID, processFriendlyName string, process Process) error
 	Resize(containerID, processFriendlyName string, width, height int) error
 	Pause(containerID string) error
 	Resume(containerID string) error
@@ -44,6 +48,9 @@ type Client interface {
 	GetPidsForContainer(containerID string) ([]int, error)
 	Summary(containerID string) ([]Summary, error)
 	UpdateResources(containerID string, resources Resources) error
+	CreateCheckpoint(containerID string, checkpointID string, checkpointDir string, exit bool) error
+	DeleteCheckpoint(containerID string, checkpointID string, checkpointDir string) error
+	ListCheckpoints(containerID string, checkpointDir string) (*Checkpoints, error)
 }
 
 // CreateOption allows to configure parameters of container creation.

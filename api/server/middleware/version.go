@@ -5,17 +5,10 @@ import (
 	"net/http"
 	"runtime"
 
-	"github.com/docker/engine-api/types/versions"
+	"github.com/docker/docker/api/errors"
+	"github.com/docker/docker/api/types/versions"
 	"golang.org/x/net/context"
 )
-
-type badRequestError struct {
-	error
-}
-
-func (badRequestError) HTTPErrorStatusCode() int {
-	return http.StatusBadRequest
-}
 
 // VersionMiddleware is a middleware that
 // validates the client and server versions.
@@ -44,10 +37,10 @@ func (v VersionMiddleware) WrapHandler(handler func(ctx context.Context, w http.
 		}
 
 		if versions.GreaterThan(apiVersion, v.defaultVersion) {
-			return badRequestError{fmt.Errorf("client is newer than server (client API version: %s, server API version: %s)", apiVersion, v.defaultVersion)}
+			return errors.NewBadRequestError(fmt.Errorf("client is newer than server (client API version: %s, server API version: %s)", apiVersion, v.defaultVersion))
 		}
 		if versions.LessThan(apiVersion, v.minVersion) {
-			return badRequestError{fmt.Errorf("client version %s is too old. Minimum supported API version is %s, please upgrade your client to a newer version", apiVersion, v.minVersion)}
+			return errors.NewBadRequestError(fmt.Errorf("client version %s is too old. Minimum supported API version is %s, please upgrade your client to a newer version", apiVersion, v.minVersion))
 		}
 
 		header := fmt.Sprintf("Docker/%s (%s)", v.serverVersion, runtime.GOOS)

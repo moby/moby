@@ -1,4 +1,4 @@
-FROM outcoldman/splunk:6.4.1
+FROM splunk/splunk:latest
 
 # Setup HEC settings
 COPY http_inputs.conf /tmp/http_inputs.conf

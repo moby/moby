@@ -13,7 +13,10 @@ start_pre() {
 	checkpath -f -m 0644 -o root:docker "$DOCKER_LOGFILE"
 
 	ulimit -n 1048576
-	ulimit -u 1048576
+
+	# Having non-zero limits causes performance problems due to accounting overhead
+	# in the kernel. We recommend using cgroups to do container-local accounting.
+	ulimit -u unlimited
 
 	return 0
 }

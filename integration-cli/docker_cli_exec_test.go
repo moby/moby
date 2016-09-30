@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/pkg/integration/checker"
+	icmd "github.com/docker/docker/pkg/integration/cmd"
 	"github.com/go-check/check"
 )
 
@@ -67,7 +68,6 @@ func (s *DockerSuite) TestExecInteractive(c *check.C) {
 }
 
 func (s *DockerSuite) TestExecAfterContainerRestart(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	out, _ := runSleepingContainer(c)
 	cleanedContainerID := strings.TrimSpace(out)
 	c.Assert(waitRun(cleanedContainerID), check.IsNil)
@@ -122,10 +122,8 @@ func (s *DockerSuite) TestExecEnv(c *check.C) {
 func (s *DockerSuite) TestExecExitStatus(c *check.C) {
 	runSleepingContainer(c, "-d", "--name", "top")
 
-	// Test normal (non-detached) case first
-	cmd := exec.Command(dockerBinary, "exec", "top", "sh", "-c", "exit 23")
-	ec, _ := runCommand(cmd)
-	c.Assert(ec, checker.Equals, 23)
+	result := icmd.RunCommand(dockerBinary, "exec", "top", "sh", "-c", "exit 23")
+	c.Assert(result, icmd.Matches, icmd.Expected{ExitCode: 23, Error: "exit status 23"})
 }
 
 func (s *DockerSuite) TestExecPausedContainer(c *check.C) {
@@ -167,8 +165,6 @@ func (s *DockerSuite) TestExecTTYCloseStdin(c *check.C) {
 }
 
 func (s *DockerSuite) TestExecTTYWithoutStdin(c *check.C) {
-	// TODO Windows CI: This requires some work to port to Windows.
-	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-d", "-ti", "busybox")
 	id := strings.TrimSpace(out)
 	c.Assert(waitRun(id), checker.IsNil)
@@ -214,7 +210,7 @@ func (s *DockerSuite) TestExecParseError(c *check.C) {
 	cmd := exec.Command(dockerBinary, "exec", "top")
 	_, stderr, _, err := runCommandWithStdoutStderr(cmd)
 	c.Assert(err, checker.NotNil)
-	c.Assert(stderr, checker.Contains, "See '"+dockerBinary+" exec --help'")
+	c.Assert(stderr, checker.Contains, "See 'docker exec --help'")
 }
 
 func (s *DockerSuite) TestExecStopNotHanging(c *check.C) {
@@ -512,4 +508,15 @@ func (s *DockerSuite) TestExecStartFails(c *check.C) {
 	out, _, err := dockerCmdWithError("exec", name, "no-such-cmd")
 	c.Assert(err, checker.NotNil, check.Commentf(out))
 	c.Assert(out, checker.Contains, "executable file not found")
+}
+
+// Fix regression in https://github.com/docker/docker/pull/26461#issuecomment-250287297
+func (s *DockerSuite) TestExecWindowsPathNotWiped(c *check.C) {
+	testRequires(c, DaemonIsWindows)
+	out, _ := dockerCmd(c, "run", "-d", "--name", "testing", minimalBaseImage(), "powershell", "start-sleep", "60")
+	c.Assert(waitRun(strings.TrimSpace(out)), check.IsNil)
+
+	out, _ = dockerCmd(c, "exec", "testing", "powershell", "write-host", "$env:PATH")
+	out = strings.ToLower(strings.Trim(out, "\r\n"))
+	c.Assert(out, checker.Contains, `windowspowershell\v1.0`)
 }

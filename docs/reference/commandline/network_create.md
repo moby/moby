@@ -11,24 +11,24 @@ parent = "smn_cli"
 # network create
 
 ```markdown
-Usage:	docker network create [OPTIONS]
+Usage:	docker network create [OPTIONS] NETWORK
 
 Create a network
 
 Options:
-      --aux-address value    auxiliary ipv4 or ipv6 addresses used by Network
+      --aux-address value    Auxiliary IPv4 or IPv6 addresses used by Network
                              driver (default map[])
   -d, --driver string        Driver to manage the Network (default "bridge")
-      --gateway value        ipv4 or ipv6 Gateway for the master subnet (default [])
+      --gateway value        IPv4 or IPv6 Gateway for the master subnet (default [])
       --help                 Print usage
-      --internal             restricts external access to the network
-      --ip-range value       allocate container ip from a sub-range (default [])
+      --internal             Restrict external access to the network
+      --ip-range value       Allocate container ip from a sub-range (default [])
       --ipam-driver string   IP Address Management Driver (default "default")
-      --ipam-opt value       set IPAM driver specific options (default map[])
-      --ipv6                 enable IPv6 networking
+      --ipam-opt value       Set IPAM driver specific options (default map[])
+      --ipv6                 Enable IPv6 networking
       --label value          Set metadata on a network (default [])
   -o, --opt value            Set driver specific options (default map[])
-      --subnet value         subnet in CIDR format that represents a
+      --subnet value         Subnet in CIDR format that represents a
                              network segment (default [])
 ```
 
@@ -82,11 +82,11 @@ name conflicts.
 
 ## Connect containers
 
-When you start a container, use the `--net` flag to connect it to a network.
+When you start a container, use the `--network` flag to connect it to a network.
 This example adds the `busybox` container to the `mynet` network:
 
 ```bash
-$ docker run -itd --net=mynet busybox
+$ docker run -itd --network=mynet busybox
 ```
 
 If you want to add a container to a network after the container is already
@@ -136,8 +136,8 @@ $ docker network create -d overlay \
   --gateway=192.168.0.100 \ 
   --gateway=192.170.0.100 \
   --ip-range=192.168.1.0/24 \
-  --aux-address a=192.168.1.5 --aux-address b=192.168.1.6 \
-  --aux-address a=192.170.1.5 --aux-address b=192.170.1.6 \
+  --aux-address="my-router=192.168.1.5" --aux-address="my-switch=192.168.1.6" \
+  --aux-address="my-printer=192.170.1.5" --aux-address="my-nas=192.170.1.6" \
   my-multihost-network
 ```
 
@@ -156,16 +156,16 @@ equivalent docker daemon flags used for docker0 bridge:
 | `com.docker.network.bridge.enable_ip_masquerade` | `--ip-masq` | Enable IP masquerading                                |
 | `com.docker.network.bridge.enable_icc`           | `--icc`     | Enable or Disable Inter Container Connectivity        |
 | `com.docker.network.bridge.host_binding_ipv4`    | `--ip`      | Default IP when binding container ports               |
-| `com.docker.network.mtu`                         | `--mtu`     | Set the containers network MTU                        |
+| `com.docker.network.driver.mtu`                  | `--mtu`     | Set the containers network MTU                        |
 
 The following arguments can be passed to `docker network create` for any
 network driver, again with their approximate equivalents to `docker daemon`.
 
 | Argument     | Equivalent     | Description                                |
 |--------------|----------------|--------------------------------------------|
-| `--gateway`  | -              | ipv4 or ipv6 Gateway for the master subnet |
+| `--gateway`  | -              | IPv4 or IPv6 Gateway for the master subnet |
 | `--ip-range` | `--fixed-cidr` | Allocate IPs from a range                  |
-| `--internal` | -              | Restricts external access to the network   |
+| `--internal` | -              | Restrict external access to the network   |
 | `--ipv6`     | `--ipv6`       | Enable IPv6 networking                     |
 | `--subnet`   | `--bip`        | Subnet for network                         |
 
@@ -192,4 +192,4 @@ to create an externally isolated `overlay` network, you can specify the
 * [network disconnect](network_disconnect.md)
 * [network ls](network_ls.md)
 * [network rm](network_rm.md)
-* [Understand Docker container networks](../../userguide/networking/dockernetworks.md)
+* [Understand Docker container networks](../../userguide/networking/index.md)

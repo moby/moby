@@ -87,7 +87,7 @@ check_forked() {
 			Upstream release is '$lsb_dist' version '$dist_version'.
 			EOF
 		else
-			if [ -r /etc/debian_version ] && [ "$lsb_dist" != "ubuntu" ]; then
+			if [ -r /etc/debian_version ] && [ "$lsb_dist" != "ubuntu" ] && [ "$lsb_dist" != "raspbian" ]; then
 				# We're Debian and don't even know it!
 				lsb_dist=debian
 				dist_version="$(cat /etc/debian_version | sed 's/\/.*//' | sed 's/\..*//')"
@@ -129,17 +129,19 @@ do_install() {
 	case "$(uname -m)" in
 		*64)
 			;;
+		armv6l|armv7l)
+			;;
 		*)
 			cat >&2 <<-'EOF'
-			Error: you are not using a 64bit platform.
-			Docker currently only supports 64bit platforms.
+			Error: you are not using a 64bit platform or a Raspberry Pi (armv6l/armv7l).
+			Docker currently only supports 64bit platforms or a Raspberry Pi (armv6l/armv7l).
 			EOF
 			exit 1
 			;;
 	esac
 
 	if command_exists docker; then
-		version="$(docker -v | awk -F '[ ,]+' '{ print $3 }')"
+		version="$(docker -v | cut -d ' ' -f3 | cut -d ',' -f1)"
 		MAJOR_W=1
 		MINOR_W=10
 
@@ -245,6 +247,9 @@ do_install() {
 	if [ -z "$lsb_dist" ] && [ -r /etc/redhat-release ]; then
 		lsb_dist='redhat'
 	fi
+	if [ -z "$lsb_dist" ] && [ -r /etc/photon-release ]; then
+		lsb_dist='photon'
+	fi
 	if [ -z "$lsb_dist" ] && [ -r /etc/os-release ]; then
 		lsb_dist="$(. /etc/os-release && echo "$ID")"
 	fi
@@ -268,7 +273,7 @@ do_install() {
 			fi
 		;;
 
-		debian)
+		debian|raspbian)
 			dist_version="$(cat /etc/debian_version | sed 's/\/.*//' | sed 's/\..*//')"
 			case "$dist_version" in
 				8)
@@ -288,6 +293,11 @@ do_install() {
 
 		fedora|centos|redhat)
 			dist_version="$(rpm -q --whatprovides ${lsb_dist}-release --queryformat "%{VERSION}\n" | sed 's/\/.*//' | sed 's/\..*//' | sed 's/Server*//' | sort | tail -1)"
+		;;
+
+		"vmware photon")
+			lsb_dist="photon"
+			dist_version="$(. /etc/os-release && echo "$VERSION_ID")"
 		;;
 
 		*)
@@ -375,7 +385,7 @@ do_install() {
 			exit 0
 			;;
 
-		ubuntu|debian)
+		ubuntu|debian|raspbian)
 			export DEBIAN_FRONTEND=noninteractive
 
 			did_apt_get_update=
@@ -386,24 +396,26 @@ do_install() {
 				fi
 			}
 
-			# aufs is preferred over devicemapper; try to ensure the driver is available.
-			if ! grep -q aufs /proc/filesystems && ! $sh_c 'modprobe aufs'; then
-				if uname -r | grep -q -- '-generic' && dpkg -l 'linux-image-*-generic' | grep -qE '^ii|^hi' 2>/dev/null; then
-					kern_extras="linux-image-extra-$(uname -r) linux-image-extra-virtual"
+			if [ "$lsb_dist" != "raspbian" ]; then
+				# aufs is preferred over devicemapper; try to ensure the driver is available.
+				if ! grep -q aufs /proc/filesystems && ! $sh_c 'modprobe aufs'; then
+					if uname -r | grep -q -- '-generic' && dpkg -l 'linux-image-*-generic' | grep -qE '^ii|^hi' 2>/dev/null; then
+						kern_extras="linux-image-extra-$(uname -r) linux-image-extra-virtual"
 
-					apt_get_update
-					( set -x; $sh_c 'sleep 3; apt-get install -y -q '"$kern_extras" ) || true
+						apt_get_update
+						( set -x; $sh_c 'sleep 3; apt-get install -y -q '"$kern_extras" ) || true
 
-					if ! grep -q aufs /proc/filesystems && ! $sh_c 'modprobe aufs'; then
-						echo >&2 'Warning: tried to install '"$kern_extras"' (for AUFS)'
-						echo >&2 ' but we still have no AUFS.  Docker may not work. Proceeding anyways!'
+						if ! grep -q aufs /proc/filesystems && ! $sh_c 'modprobe aufs'; then
+							echo >&2 'Warning: tried to install '"$kern_extras"' (for AUFS)'
+							echo >&2 ' but we still have no AUFS.  Docker may not work. Proceeding anyways!'
+							( set -x; sleep 10 )
+						fi
+					else
+						echo >&2 'Warning: current kernel is not supported by the linux-image-extra-virtual'
+						echo >&2 ' package.  We have no AUFS support.  Consider installing the packages'
+						echo >&2 ' linux-image-virtual kernel and linux-image-extra-virtual for AUFS support.'
 						( set -x; sleep 10 )
 					fi
-				else
-					echo >&2 'Warning: current kernel is not supported by the linux-image-extra-virtual'
-					echo >&2 ' package.  We have no AUFS support.  Consider installing the packages'
-					echo >&2 ' linux-image-virtual kernel and linux-image-extra-virtual for AUFS support.'
-					( set -x; sleep 10 )
 				fi
 			fi
 
@@ -413,7 +425,7 @@ do_install() {
 				if command -v apparmor_parser >/dev/null 2>&1; then
 					echo 'apparmor is enabled in the kernel and apparmor utils were already installed'
 				else
-					echo 'apparmor is enabled in the kernel, but apparmor_parser missing'
+					echo 'apparmor is enabled in the kernel, but apparmor_parser is missing. Trying to install it..'
 					apt_get_update
 					( set -x; $sh_c 'sleep 3; apt-get install -y -q apparmor' )
 				fi
@@ -442,7 +454,7 @@ do_install() {
 			exit 0
 			;;
 
-		fedora|centos|redhat|oraclelinux)
+		fedora|centos|redhat|oraclelinux|photon)
 			if [ "${lsb_dist}" = "redhat" ]; then
 				# we use the centos repository for both redhat and centos releases
 				lsb_dist='centos'
@@ -459,6 +471,11 @@ do_install() {
 				(
 					set -x
 					$sh_c 'sleep 3; dnf -y -q install docker-engine'
+				)
+			elif [ "$lsb_dist" = "photon" ]; then
+				(
+					set -x
+					$sh_c 'sleep 3; tdnf -y install docker-engine'
 				)
 			else
 				(

@@ -35,29 +35,70 @@ CONFIG_SECCOMP=y
 
 The default seccomp profile provides a sane default for running containers with
 seccomp and disables around 44 system calls out of 300+. It is moderately protective while providing wide application
-compatibility. The default Docker profile (found [here](https://github.com/docker/docker/blob/master/profiles/seccomp/default.json) has a JSON layout in the following form:
+compatibility. The default Docker profile (found [here](https://github.com/docker/docker/blob/master/profiles/seccomp/default.json)) has a JSON layout in the following form:
 
 ```json
 {
 	"defaultAction": "SCMP_ACT_ERRNO",
-	"architectures": [
-		"SCMP_ARCH_X86_64",
-		"SCMP_ARCH_X86",
-		"SCMP_ARCH_X32"
+	"archMap": [
+		{
+			"architecture": "SCMP_ARCH_X86_64",
+			"subArchitectures": [
+				"SCMP_ARCH_X86",
+				"SCMP_ARCH_X32"
+			]
+		},
+		...
 	],
 	"syscalls": [
 		{
-			"name": "accept",
+			"names": [
+				"accept",
+				"accept4",
+				"access",
+				"alarm",
+				"alarm",
+				"bind",
+				"brk",
+				...
+				"waitid",
+				"waitpid",
+				"write",
+				"writev"
+			],
 			"action": "SCMP_ACT_ALLOW",
-			"args": []
+			"args": [],
+			"comment": "",
+			"includes": {},
+			"excludes": {}
 		},
 		{
-			"name": "accept4",
+			"names": [
+				"clone"
+			],
 			"action": "SCMP_ACT_ALLOW",
-			"args": []
+			"args": [
+				{
+					"index": 1,
+					"value": 2080505856,
+					"valueTwo": 0,
+					"op": "SCMP_CMP_MASKED_EQ"
+				}
+			],
+			"comment": "s390 parameter ordering for clone is different",
+			"includes": {
+				"arches": [
+					"s390",
+					"s390x"
+				]
+			},
+			"excludes": {
+				"caps": [
+					"CAP_SYS_ADMIN"
+				]
+			}
 		},
 		...
-	]
 }
 ```
 

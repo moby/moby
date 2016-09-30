@@ -11,7 +11,7 @@ parent = "engine_linux"
 
 # Oracle Linux
 
-Docker is supported Oracle Linux 6 and 7. You do not require an Oracle Linux
+Docker is supported on Oracle Linux 6 and 7. You do not require an Oracle Linux
 Support subscription to install Docker on Oracle Linux.
 
 ## Prerequisites
@@ -110,11 +110,11 @@ To create the `docker` group and add your user:
 
 2. Create the `docker` group.
 
-        sudo groupadd docker
+        $ sudo groupadd docker
 
 3. Add your user to `docker` group.
 
-        sudo usermod -aG docker username
+        $ sudo usermod -aG docker username
 
 4. Log out and log back in.
 
@@ -202,7 +202,7 @@ use the btrfs storage engine on Oracle Linux 7.
 
 If you have a current Basic or Premier Support Subscription for Oracle Linux,
 you can report any issues you have with the installation of Docker via a Service
-Request at [My Oracle Support](http://support.oracle.com).
+Request at [My Oracle Support](https://support.oracle.com).
 
 If you do not have an Oracle Linux Support Subscription, you can use the [Oracle
 Linux

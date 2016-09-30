@@ -4,9 +4,19 @@ package volume
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
+
+	mounttypes "github.com/docker/docker/api/types/mount"
 )
+
+var platformRawValidationOpts = []func(o *validateOpts){
+	// need to make sure to not error out if the bind source does not exist on unix
+	// this is supported for historical reasons, the path will be automatically
+	// created later.
+	func(o *validateOpts) { o.skipBindSourceCheck = true },
+}
 
 // read-write modes
 var rwModes = map[string]bool{
@@ -36,103 +46,6 @@ func (m *MountPoint) HasResource(absolutePath string) bool {
 	return err == nil && relPath != ".." && !strings.HasPrefix(relPath, fmt.Sprintf("..%c", filepath.Separator))
 }
 
-// ParseMountSpec validates the configuration of mount information is valid.
-func ParseMountSpec(spec, volumeDriver string) (*MountPoint, error) {
-	spec = filepath.ToSlash(spec)
-
-	mp := &MountPoint{
-		RW:          true,
-		Propagation: DefaultPropagationMode,
-	}
-	if strings.Count(spec, ":") > 2 {
-		return nil, errInvalidSpec(spec)
-	}
-
-	arr := strings.SplitN(spec, ":", 3)
-	if arr[0] == "" {
-		return nil, errInvalidSpec(spec)
-	}
-
-	switch len(arr) {
-	case 1:
-		// Just a destination path in the container
-		mp.Destination = filepath.Clean(arr[0])
-	case 2:
-		if isValid := ValidMountMode(arr[1]); isValid {
-			// Destination + Mode is not a valid volume - volumes
-			// cannot include a mode. eg /foo:rw
-			return nil, errInvalidSpec(spec)
-		}
-		// Host Source Path or Name + Destination
-		mp.Source = arr[0]
-		mp.Destination = arr[1]
-	case 3:
-		// HostSourcePath+DestinationPath+Mode
-		mp.Source = arr[0]
-		mp.Destination = arr[1]
-		mp.Mode = arr[2] // Mode field is used by SELinux to decide whether to apply label
-		if !ValidMountMode(mp.Mode) {
-			return nil, errInvalidMode(mp.Mode)
-		}
-		mp.RW = ReadWrite(mp.Mode)
-		mp.Propagation = GetPropagation(mp.Mode)
-	default:
-		return nil, errInvalidSpec(spec)
-	}
-
-	//validate the volumes destination path
-	mp.Destination = filepath.Clean(mp.Destination)
-	if !filepath.IsAbs(mp.Destination) {
-		return nil, fmt.Errorf("Invalid volume destination path: '%s' mount path must be absolute.", mp.Destination)
-	}
-
-	// Destination cannot be "/"
-	if mp.Destination == "/" {
-		return nil, fmt.Errorf("Invalid specification: destination can't be '/' in '%s'", spec)
-	}
-
-	name, source := ParseVolumeSource(mp.Source)
-	if len(source) == 0 {
-		mp.Source = "" // Clear it out as we previously assumed it was not a name
-		mp.Driver = volumeDriver
-		// Named volumes can't have propagation properties specified.
-		// Their defaults will be decided by docker. This is just a
-		// safeguard. Don't want to get into situations where named
-		// volumes were mounted as '[r]shared' inside container and
-		// container does further mounts under that volume and these
-		// mounts become visible on  host and later original volume
-		// cleanup becomes an issue if container does not unmount
-		// submounts explicitly.
-		if HasPropagation(mp.Mode) {
-			return nil, errInvalidSpec(spec)
-		}
-	} else {
-		mp.Source = filepath.Clean(source)
-	}
-
-	copyData, isSet := getCopyMode(mp.Mode)
-	// do not allow copy modes on binds
-	if len(name) == 0 && isSet {
-		return nil, errInvalidMode(mp.Mode)
-	}
-
-	mp.CopyData = copyData
-	mp.Name = name
-
-	return mp, nil
-}
-
-// ParseVolumeSource parses the origin sources that's mounted into the container.
-// It returns a name and a source. It looks to see if the spec passed in
-// is an absolute file. If it is, it assumes the spec is a source. If not,
-// it assumes the spec is a name.
-func ParseVolumeSource(spec string) (string, string) {
-	if !filepath.IsAbs(spec) {
-		return spec, ""
-	}
-	return "", spec
-}
-
 // IsVolumeNameValid checks a volume name in a platform specific manner.
 func IsVolumeNameValid(name string) (bool, error) {
 	return true, nil
@@ -141,6 +54,10 @@ func IsVolumeNameValid(name string) (bool, error) {
 // ValidMountMode will make sure the mount mode is valid.
 // returns if it's a valid mount mode or not.
 func ValidMountMode(mode string) bool {
+	if mode == "" {
+		return true
+	}
+
 	rwModeCount := 0
 	labelModeCount := 0
 	propagationModeCount := 0
@@ -152,7 +69,7 @@ func ValidMountMode(mode string) bool {
 			rwModeCount++
 		case labelModes[o]:
 			labelModeCount++
-		case propagationModes[o]:
+		case propagationModes[mounttypes.Propagation(o)]:
 			propagationModeCount++
 		case copyModeExists(o):
 			copyModeCount++
@@ -181,6 +98,41 @@ func ReadWrite(mode string) bool {
 			return false
 		}
 	}
-
 	return true
+}
+
+func validateNotRoot(p string) error {
+	p = filepath.Clean(convertSlash(p))
+	if p == "/" {
+		return fmt.Errorf("invalid specification: destination can't be '/'")
+	}
+	return nil
+}
+
+func validateCopyMode(mode bool) error {
+	return nil
+}
+
+func convertSlash(p string) string {
+	return filepath.ToSlash(p)
+}
+
+func splitRawSpec(raw string) ([]string, error) {
+	if strings.Count(raw, ":") > 2 {
+		return nil, errInvalidSpec(raw)
+	}
+
+	arr := strings.SplitN(raw, ":", 3)
+	if arr[0] == "" {
+		return nil, errInvalidSpec(raw)
+	}
+	return arr, nil
+}
+
+func clean(p string) string {
+	return filepath.Clean(p)
+}
+
+func validateStat(fi os.FileInfo) error {
+	return nil
 }

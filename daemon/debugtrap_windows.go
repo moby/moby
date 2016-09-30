@@ -10,7 +10,7 @@ import (
 	"github.com/docker/docker/pkg/system"
 )
 
-func setupDumpStackTrap() {
+func setupDumpStackTrap(root string) {
 	// Windows does not support signals like *nix systems. So instead of
 	// trapping on SIGUSR1 to dump stacks, we wait on a Win32 event to be
 	// signaled.
@@ -23,7 +23,7 @@ func setupDumpStackTrap() {
 			logrus.Debugf("Stackdump - waiting signal at %s", ev)
 			for {
 				syscall.WaitForSingleObject(h, syscall.INFINITE)
-				signal.DumpStacks()
+				signal.DumpStacks(root)
 			}
 		}
 	}()

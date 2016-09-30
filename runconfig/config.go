@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/docker/docker/api/types/container"
+	networktypes "github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/volume"
-	"github.com/docker/engine-api/types/container"
-	networktypes "github.com/docker/engine-api/types/network"
 )
 
 // ContainerDecoder implements httputils.ContainerDecoder
@@ -73,16 +73,29 @@ func DecodeContainerConfig(src io.Reader) (*container.Config, *container.HostCon
 // validateVolumesAndBindSettings validates each of the volumes and bind settings
 // passed by the caller to ensure they are valid.
 func validateVolumesAndBindSettings(c *container.Config, hc *container.HostConfig) error {
+	if len(hc.Mounts) > 0 {
+		if len(hc.Binds) > 0 {
+			return conflictError(fmt.Errorf("must not specify both Binds and Mounts"))
+		}
+
+		if len(c.Volumes) > 0 {
+			return conflictError(fmt.Errorf("must not specify both Volumes and Mounts"))
+		}
+
+		if len(hc.VolumeDriver) > 0 {
+			return conflictError(fmt.Errorf("must not specify both VolumeDriver and Mounts"))
+		}
+	}
 
 	// Ensure all volumes and binds are valid.
 	for spec := range c.Volumes {
-		if _, err := volume.ParseMountSpec(spec, hc.VolumeDriver); err != nil {
-			return fmt.Errorf("Invalid volume spec %q: %v", spec, err)
+		if _, err := volume.ParseMountRaw(spec, hc.VolumeDriver); err != nil {
+			return fmt.Errorf("invalid volume spec %q: %v", spec, err)
 		}
 	}
 	for _, spec := range hc.Binds {
-		if _, err := volume.ParseMountSpec(spec, hc.VolumeDriver); err != nil {
-			return fmt.Errorf("Invalid bind mount spec %q: %v", spec, err)
+		if _, err := volume.ParseMountRaw(spec, hc.VolumeDriver); err != nil {
+			return fmt.Errorf("invalid bind mount spec %q: %v", spec, err)
 		}
 	}
 

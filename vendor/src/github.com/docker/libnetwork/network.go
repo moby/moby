@@ -184,6 +184,8 @@ type network struct {
 	persist      bool
 	stopWatchCh  chan struct{}
 	drvOnce      *sync.Once
+	resolverOnce sync.Once
+	resolver     []Resolver
 	internal     bool
 	inDelete     bool
 	ingress      bool
@@ -320,6 +322,7 @@ func (n *network) CopyTo(o datastore.KVObject) error {
 	dstN.id = n.id
 	dstN.networkType = n.networkType
 	dstN.scope = n.scope
+	dstN.dynamic = n.dynamic
 	dstN.ipamType = n.ipamType
 	dstN.enableIPv6 = n.enableIPv6
 	dstN.persist = n.persist
@@ -701,12 +704,13 @@ func (n *network) driver(load bool) (driverapi.Driver, error) {
 	}
 
 	c := n.getController()
+	isAgent := c.isAgent()
 	n.Lock()
 	// If load is not required, driver, cap and err may all be nil
 	if cap != nil {
 		n.scope = cap.DataScope
 	}
-	if c.isAgent() {
+	if isAgent || n.dynamic {
 		// If we are running in agent mode then all networks
 		// in libnetwork are local scope regardless of the
 		// backing driver.
@@ -754,6 +758,19 @@ func (n *network) delete(force bool) error {
 		log.Warnf("Failed to update store after ipam release for network %s (%s): %v", n.Name(), n.ID(), err)
 	}
 
+	// We are about to delete the network. Leave the gossip
+	// cluster for the network to stop all incoming network
+	// specific gossip updates before cleaning up all the service
+	// bindings for the network. But cleanup service binding
+	// before deleting the network from the store since service
+	// bindings cleanup requires the network in the store.
+	n.cancelDriverWatches()
+	if err = n.leaveCluster(); err != nil {
+		log.Errorf("Failed leaving network %s from the agent cluster: %v", n.Name(), err)
+	}
+
+	c.cleanupServiceBindings(n.ID())
+
 	// deleteFromStore performs an atomic delete operation and the
 	// network.epCnt will help prevent any possible
 	// race between endpoint join and network delete
@@ -766,12 +783,6 @@ func (n *network) delete(force bool) error {
 
 	if err = c.deleteFromStore(n); err != nil {
 		return fmt.Errorf("error deleting network from store: %v", err)
-	}
-
-	n.cancelDriverWatches()
-
-	if err = n.leaveCluster(); err != nil {
-		log.Errorf("Failed leaving network %s from the agent cluster: %v", n.Name(), err)
 	}
 
 	return nil
@@ -794,6 +805,9 @@ func (n *network) deleteNetwork() error {
 		}
 	}
 
+	for _, resolver := range n.resolver {
+		resolver.Stop()
+	}
 	return nil
 }
 
@@ -1104,15 +1118,19 @@ func (n *network) getSvcRecords(ep *endpoint) []etchosts.Record {
 	}
 
 	var recs []etchosts.Record
-	sr, _ := n.ctrlr.svcRecords[n.id]
+
 	epName := ep.Name()
+
+	n.ctrlr.Lock()
+	defer n.ctrlr.Unlock()
+	sr, _ := n.ctrlr.svcRecords[n.id]
 
 	for h, ip := range sr.svcMap {
 		if strings.Split(h, ".")[0] == epName {
 			continue
 		}
 		if len(ip) == 0 {
-			log.Warnf("Found empty list of IP addresses for service %s on network %s (%s)", h, n.Name(), n.ID())
+			log.Warnf("Found empty list of IP addresses for service %s on network %s (%s)", h, n.name, n.id)
 			continue
 		}
 		recs = append(recs, etchosts.Record{
@@ -1177,7 +1195,7 @@ func (n *network) requestPoolHelper(ipam ipamapi.Ipam, addressSpace, preferredPo
 		}
 
 		// If the network belongs to global scope or the pool was
-		// explicitely chosen or it is invalid, do not perform the overlap check.
+		// explicitly chosen or it is invalid, do not perform the overlap check.
 		if n.Scope() == datastore.GlobalScope || preferredPool != "" || !types.IsIPNetValid(pool) {
 			return poolID, pool, meta, nil
 		}
@@ -1201,7 +1219,7 @@ func (n *network) requestPoolHelper(ipam ipamapi.Ipam, addressSpace, preferredPo
 		}()
 
 		// If this is a preferred pool request and the network
-		// is local scope and there is a overlap, we fail the
+		// is local scope and there is an overlap, we fail the
 		// network creation right here. The pool will be
 		// released in the defer.
 		if preferredPool != "" {
@@ -1514,4 +1532,127 @@ func (n *network) TableEventRegister(tableName string) error {
 // Special drivers are ones which do not need to perform any network plumbing
 func (n *network) hasSpecialDriver() bool {
 	return n.Type() == "host" || n.Type() == "null"
+}
+
+func (n *network) ResolveName(req string, ipType int) ([]net.IP, bool) {
+	var ipv6Miss bool
+
+	c := n.getController()
+	c.Lock()
+	sr, ok := c.svcRecords[n.ID()]
+	c.Unlock()
+
+	if !ok {
+		return nil, false
+	}
+
+	req = strings.TrimSuffix(req, ".")
+	var ip []net.IP
+	n.Lock()
+	ip, ok = sr.svcMap[req]
+
+	if ipType == types.IPv6 {
+		// If the name resolved to v4 address then its a valid name in
+		// the docker network domain. If the network is not v6 enabled
+		// set ipv6Miss to filter the DNS query from going to external
+		// resolvers.
+		if ok && n.enableIPv6 == false {
+			ipv6Miss = true
+		}
+		ip = sr.svcIPv6Map[req]
+	}
+	n.Unlock()
+
+	if ip != nil {
+		return ip, false
+	}
+
+	return nil, ipv6Miss
+}
+
+func (n *network) ResolveIP(ip string) string {
+	var svc string
+
+	c := n.getController()
+	c.Lock()
+	sr, ok := c.svcRecords[n.ID()]
+	c.Unlock()
+
+	if !ok {
+		return ""
+	}
+
+	nwName := n.Name()
+
+	n.Lock()
+	defer n.Unlock()
+	svc, ok = sr.ipMap[ip]
+
+	if ok {
+		return svc + "." + nwName
+	}
+
+	return svc
+}
+
+func (n *network) ResolveService(name string) ([]*net.SRV, []net.IP) {
+	c := n.getController()
+
+	srv := []*net.SRV{}
+	ip := []net.IP{}
+
+	log.Debugf("Service name To resolve: %v", name)
+
+	// There are DNS implementaions that allow SRV queries for names not in
+	// the format defined by RFC 2782. Hence specific validations checks are
+	// not done
+	parts := strings.Split(name, ".")
+	if len(parts) < 3 {
+		return nil, nil
+	}
+
+	portName := parts[0]
+	proto := parts[1]
+	svcName := strings.Join(parts[2:], ".")
+
+	c.Lock()
+	sr, ok := c.svcRecords[n.ID()]
+	c.Unlock()
+
+	if !ok {
+		return nil, nil
+	}
+
+	svcs, ok := sr.service[svcName]
+	if !ok {
+		return nil, nil
+	}
+
+	for _, svc := range svcs {
+		if svc.portName != portName {
+			continue
+		}
+		if svc.proto != proto {
+			continue
+		}
+		for _, t := range svc.target {
+			srv = append(srv,
+				&net.SRV{
+					Target: t.name,
+					Port:   t.port,
+				})
+
+			ip = append(ip, t.ip)
+		}
+	}
+
+	return srv, ip
+}
+
+func (n *network) ExecFunc(f func()) error {
+	return types.NotImplementedErrorf("ExecFunc not supported by network")
+}
+
+func (n *network) NdotsSet() bool {
+	return false
 }

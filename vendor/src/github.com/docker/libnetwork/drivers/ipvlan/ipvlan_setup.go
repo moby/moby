@@ -32,7 +32,7 @@ func createIPVlan(containerIfName, parent, ipvlanMode string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("error occoured looking up the %s parent iface %s error: %s", ipvlanType, parent, err)
 	}
-	// Create a ipvlan link
+	// Create an ipvlan link
 	ipvlan := &netlink.IPVlan{
 		LinkAttrs: netlink.LinkAttrs{
 			Name:        containerIfName,

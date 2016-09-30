@@ -13,6 +13,16 @@ weight=80
 # Deprecated Engine Features
 
 The following list of features are deprecated in Engine.
+To learn more about Docker Engine's deprecation policy,
+see [Feature Deprecation Policy](index.md#feature-deprecation-policy).
+
+
+### `docker daemon` subcommand
+**Deprecated In Release: [v1.13](https://github.com/docker/docker/releases/)**
+
+**Target For Removal In Release: v1.16**
+
+The daemon is moved to a separate binary (`dockerd`), and should be used instead.
 
 ### Three argument form in `docker import`
 **Deprecated In Release: [v0.6.7](https://github.com/docker/docker/releases/tag/v0.6.7)**
@@ -25,26 +35,26 @@ The `docker import` command format 'file|URL|- [REPOSITORY [TAG]]' is deprecated
 
 **Deprecated In Release: [v1.12.0](https://github.com/docker/docker/releases/tag/v1.12.0)**
 
-**Target For Removal In Release: [v1.14.0](https://github.com/docker/docker/releases/tag/v1.12.0)**
+**Target For Removal In Release: v1.15**
 
 The shorthand (`-h`) is less common than `--help` on Linux and cannot be used
 on all subcommands (due to it conflicting with, e.g. `-h` / `--hostname` on
 `docker create`). For this reason, the `-h` shorthand was not printed in the
-"usage" output of subcommands, nor docummented, and is now marked "deprecated".
+"usage" output of subcommands, nor documented, and is now marked "deprecated".
 
 ### `-e` and `--email` flags on `docker login`
 **Deprecated In Release: [v1.11.0](https://github.com/docker/docker/releases/tag/v1.11.0)**
 
-**Target For Removal In Release: v1.13**
+**Target For Removal In Release: v1.14**
 
 The docker login command is removing the ability to automatically register for an account with the target registry if the given username doesn't exist. Due to this change, the email flag is no longer required, and will be deprecated.
 
 ### Separator (`:`) of `--security-opt` flag on `docker run`
 **Deprecated In Release: [v1.11.0](https://github.com/docker/docker/releases/tag/v1.11.0)**
 
-**Target For Removal In Release: v1.13**
+**Target For Removal In Release: v1.14**
 
-The flag `--security-opt` doesn't use the colon separator(`:`) anymore to divide keys and values, it uses the equal symbol(`=`) for consinstency with other similar flags, like `--storage-opt`.
+The flag `--security-opt` doesn't use the colon separator(`:`) anymore to divide keys and values, it uses the equal symbol(`=`) for consistency with other similar flags, like `--storage-opt`.
 
 ### `/containers/(id or name)/copy` endpoint
 
@@ -88,7 +98,7 @@ Use `docker ps --filter=before=...` and `docker ps --filter=since=...` instead.
 
 **Deprecated in Release: [v1.12.0](https://github.com/docker/docker/releases/tag/v1.12.0)**
 
-**Target For Removal In Release: v1.14**
+**Target For Removal In Release: v1.15**
 
 The `docker search --automated` and `docker search --stars` options are deprecated.
 Use `docker search --filter=is-automated=...` and `docker search --filter=stars=...` instead.
@@ -169,6 +179,15 @@ The single-dash (`-help`) was removed, in favor of the double-dash `--help`
     docker -help
     docker [COMMAND] -help
 
+### `--run` flag on docker commit
+
+**Deprecated In Release: [v0.10.0](https://github.com/docker/docker/releases/tag/v0.10.0)**
+
+**Removed In Release: [v1.13.0](https://github.com/docker/docker/releases/)**
+
+The flag `--run` of the docker commit (and its short version `-run`) were deprecated in favor 
+of the `--changes` flag that allows to pass `Dockerfile` commands.
+
 
 ### Interacting with V1 registries
 
@@ -183,3 +202,8 @@ Since 1.9, Docker Content Trust Offline key has been renamed to Root key and the
 
 - DOCKER_CONTENT_TRUST_OFFLINE_PASSPHRASE is now named DOCKER_CONTENT_TRUST_ROOT_PASSPHRASE
 - DOCKER_CONTENT_TRUST_TAGGING_PASSPHRASE is now named DOCKER_CONTENT_TRUST_REPOSITORY_PASSPHRASE
+
+### `MAINTAINER` in Dockerfile
+**Deprecated In Release: v1.13.0**
+
+`MAINTAINER` was an early very limited form of `LABEL` which should be used instead.

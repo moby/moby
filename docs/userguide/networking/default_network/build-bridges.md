@@ -14,7 +14,7 @@ This section explains how to build your own bridge to replace the Docker default
 bridge. This is a `bridge` network named `bridge` created automatically when you
 install Docker.
 
-> **Note**: The [Docker networks feature](../dockernetworks.md) allows you to
+> **Note**: The [Docker networks feature](../index.md) allows you to
 create user-defined networks in addition to the default bridge network.
 
 You can set up your own bridge before starting Docker and use `-b BRIDGE` or
@@ -27,8 +27,11 @@ stopping the service and removing the interface:
 # Stopping Docker and removing docker0
 
 $ sudo service docker stop
+
 $ sudo ip link set dev docker0 down
+
 $ sudo brctl delbr docker0
+
 $ sudo iptables -t nat -F POSTROUTING
 ```
 
@@ -41,12 +44,15 @@ customize `docker0`, but it will be enough to illustrate the technique.
 # Create our own bridge
 
 $ sudo brctl addbr bridge0
+
 $ sudo ip addr add 192.168.5.1/24 dev bridge0
+
 $ sudo ip link set dev bridge0 up
 
 # Confirming that our bridge is up and running
 
 $ ip addr show bridge0
+
 4: bridge0: <BROADCAST,MULTICAST> mtu 1500 qdisc noop state UP group default
     link/ether 66:38:d0:0d:76:18 brd ff:ff:ff:ff:ff:ff
     inet 192.168.5.1/24 scope global bridge0
@@ -55,11 +61,13 @@ $ ip addr show bridge0
 # Tell Docker about it and restart (on Ubuntu)
 
 $ echo 'DOCKER_OPTS="-b=bridge0"' >> /etc/default/docker
+
 $ sudo service docker start
 
 # Confirming new outgoing NAT masquerade is set up
 
 $ sudo iptables -t nat -L -n
+
 ...
 Chain POSTROUTING (policy ACCEPT)
 target     prot opt source               destination

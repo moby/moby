@@ -119,10 +119,10 @@ packages from the new repository:
 - Ubuntu Trusty 14.04 (LTS)
 
 For Ubuntu Trusty, Wily, and Xenial, it's recommended to install the
-`linux-image-extra` kernel package. The `linux-image-extra` package
+`linux-image-extra-*` kernel packages. The `linux-image-extra-*` packages
 allows you use the `aufs` storage driver.
 
-To install the `linux-image-extra` package for your kernel version:
+To install the `linux-image-extra-*` packages:
 
 1. Open a terminal on your Ubuntu host.
 
@@ -130,13 +130,11 @@ To install the `linux-image-extra` package for your kernel version:
 
         $ sudo apt-get update
 
-3. Install the recommended package.
+3. Install the recommended packages.
 
-        $ sudo apt-get install linux-image-extra-$(uname -r)
+        $ sudo apt-get install linux-image-extra-$(uname -r) linux-image-extra-virtual
 
 4. Go ahead and install Docker.
-
-If you are installing on Ubuntu 14.04 or 12.04, `apparmor` is required.  You can install it using: `apt-get install apparmor`
 
 #### Ubuntu Precise 12.04 (LTS)
 
@@ -144,27 +142,48 @@ For Ubuntu Precise, Docker requires the 3.13 kernel version. If your kernel
 version is older than 3.13, you must upgrade it. Refer to this table to see
 which packages are required for your environment:
 
-<style type="text/css"> .tg  {border-collapse:collapse;border-spacing:0;} .tg
-td{font-size:14px;padding:10px
-5px;border-style:solid;border-width:1px;overflow:hidden;word-break:normal;}
-.tg-031{width:275px;font-family:monospace} </style> <table class="tg"> <tr> <td
-class="tg-031">linux-image-generic-lts-trusty</td> <td class="tg-031e">Generic
-Linux kernel image. This kernel has AUFS built in. This is required to run
-Docker.</td> </tr> <tr> <td class="tg-031">linux-headers-generic-lts-trusty</td>
-<td class="tg-031e">Allows packages such as ZFS and VirtualBox guest additions
-which depend on them. If you didn't install the headers for your existing
-kernel, then you can skip these headers for the"trusty" kernel. If you're
-unsure, you should include this package for safety.</td> </tr> <tr> <td
-class="tg-031">xserver-xorg-lts-trusty</td> <td class="tg-031e"
-rowspan="2">Optional in non-graphical environments without Unity/Xorg.
-<b>Required</b> when running Docker on machine with a graphical environment.
-<br>
-<br>To learn more about the reasons for these packages, read the installation
-instructions for backported kernels, specifically the <a
-href="https://wiki.ubuntu.com/Kernel/LTSEnablementStack" target="_blank">LTS
-Enablement Stack</a> &mdash; refer to note 5 under each version.
-</td> </tr>
-<tr> <td class="tg-031">libgl1-mesa-glx-lts-trusty</td> </tr> </table> &nbsp;
+<table>
+  <thead>
+  <tr>
+    <th>Package</th>
+    <th>Description</th>
+  </tr>
+  </thead>
+  <tbody>
+  <tr>
+    <td><b style="white-space: nowrap">linux-image-generic-lts-trusty</b></td>
+    <td>
+      Generic Linux kernel image. This kernel has AUFS built in. This is
+      required to run Docker.
+    </td>
+  </tr>
+  <tr>
+    <td><b style="white-space: nowrap">linux-headers-generic-lts-trusty</b></td>
+    <td>
+      Allows packages such as ZFS and VirtualBox guest additions which depend
+      on them. If you didn't install the headers for your existing kernel, then
+      you can skip these headers for the"trusty" kernel. If you're unsure, you
+      should include this package for safety.
+    </td>
+  </tr>
+  <tr>
+    <td><b style="white-space: nowrap">xserver-xorg-lts-trusty</b></td>
+    <td rowspan="2">
+      Optional in non-graphical environments without Unity/Xorg.
+      <b>Required</b> when running Docker on machine with a graphical
+      environment.<br /><br />
+      To learn more about the reasons for these packages, read the installation
+      instructions for backported kernels, specifically the <a
+      href="https://wiki.ubuntu.com/Kernel/LTSEnablementStack"
+      target="_blank">LTS Enablement Stack</a> &mdash; refer to note 5 under each
+      version.
+    </td>
+  </tr>
+  <tr>
+    <td><b style="white-space: nowrap">libgl1-mesa-glx-lts-trusty</b></td>
+  </tr>
+  </tbody>
+</table>
 
 To upgrade your kernel and install the additional packages, do the following:
 
@@ -243,15 +262,13 @@ To create the `docker` group and add your user:
 
 1. Log into Ubuntu as a user with `sudo` privileges.
 
-    This procedure assumes you log in as the `ubuntu` user.
-
 2. Create the `docker` group.
 
         $ sudo groupadd docker
 
 3. Add your user to `docker` group.
 
-        $ sudo usermod -aG docker ubuntu
+        $ sudo usermod -aG docker $USER
 
 4. Log out and log back in.
 

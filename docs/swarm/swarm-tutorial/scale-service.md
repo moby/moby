@@ -3,7 +3,6 @@
 title = "Scale the service"
 description = "Scale the service running in the swarm"
 keywords = ["tutorial, cluster management, swarm mode, scale"]
-advisory = "rc"
 [menu.main]
 identifier="swarm-tutorial-scale-service"
 parent="swarm-tutorial"
@@ -14,7 +13,7 @@ weight=18
 # Scale the service in the swarm
 
 Once you have [deployed a service](deploy-service.md) to a swarm, you are ready
-to use the Docker CLI to scale the number of service tasks in
+to use the Docker CLI to scale the number of service ps in
 the swarm.
 
 1. If you haven't already, open a terminal and ssh into the machine where you
@@ -36,17 +35,17 @@ service running in the swarm:
     helloworld scaled to 5
     ```
 
-3. Run `docker service tasks <SERVICE-ID>` to see the updated task list:
+3. Run `docker service ps <SERVICE-ID>` to see the updated task list:
 
     ```
-    $ docker service tasks helloworld
+    $ docker service ps helloworld
 
-    ID                         NAME          SERVICE     IMAGE   LAST STATE          DESIRED STATE  NODE
-    8p1vev3fq5zm0mi8g0as41w35  helloworld.1  helloworld  alpine  Running 7 minutes   Running        worker2
-    c7a7tcdq5s0uk3qr88mf8xco6  helloworld.2  helloworld  alpine  Running 24 seconds  Running        worker1
-    6crl09vdcalvtfehfh69ogfb1  helloworld.3  helloworld  alpine  Running 24 seconds  Running        worker1
-    auky6trawmdlcne8ad8phb0f1  helloworld.4  helloworld  alpine  Running 24 seconds  Accepted       manager1
-    ba19kca06l18zujfwxyc5lkyn  helloworld.5  helloworld  alpine  Running 24 seconds  Running        worker2
+    NAME                                    IMAGE   NODE      DESIRED STATE  CURRENT STATE
+    helloworld.1.8p1vev3fq5zm0mi8g0as41w35  alpine  worker2   Running        Running 7 minutes
+    helloworld.2.c7a7tcdq5s0uk3qr88mf8xco6  alpine  worker1   Running        Running 24 seconds
+    helloworld.3.6crl09vdcalvtfehfh69ogfb1  alpine  worker1   Running        Running 24 seconds
+    helloworld.4.auky6trawmdlcne8ad8phb0f1  alpine  manager1  Running        Running 24 seconds
+    helloworld.5.ba19kca06l18zujfwxyc5lkyn  alpine  worker2   Running        Running 24 seconds
     ```
 
     You can see that swarm has created 4 new tasks to scale to a total of 5

@@ -46,7 +46,7 @@ func TestLocalSocket(t *testing.T) {
 		}
 
 		if p.name != "echo" {
-			t.Fatalf("Expected plugin `echo`, got %s\n", p.Name)
+			t.Fatalf("Expected plugin `echo`, got %s\n", p.name)
 		}
 
 		addr := fmt.Sprintf("unix://%s", c)

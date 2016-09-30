@@ -22,7 +22,6 @@ func (s *DockerSuite) TestInfoApi(c *check.C) {
 		"ContainersPaused",
 		"ContainersStopped",
 		"Images",
-		"ExecutionDriver",
 		"LoggingDriver",
 		"OperatingSystem",
 		"NCPU",

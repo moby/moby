@@ -4,6 +4,7 @@ import (
 	"io"
 
 	"github.com/Microsoft/hcsshim"
+	"github.com/docker/docker/pkg/ioutils"
 )
 
 // process keeps the state for both main container process and exec process.
@@ -29,60 +30,23 @@ func openReaderFromPipe(p io.ReadCloser) io.Reader {
 	return r
 }
 
-// fixStdinBackspaceBehavior works around a bug in Windows before build 14350
-// where it interpreted DEL as VK_DELETE instead of as VK_BACK. This replaces
-// DEL with BS to work around this.
-func fixStdinBackspaceBehavior(w io.WriteCloser, osversion string, tty bool) io.WriteCloser {
-	if !tty {
-		return w
-	}
-	if build := buildFromVersion(osversion); build == 0 || build >= 14350 {
-		return w
-	}
-
-	return &delToBsWriter{w}
-}
-
-type delToBsWriter struct {
-	io.WriteCloser
-}
-
-func (w *delToBsWriter) Write(b []byte) (int, error) {
-	const (
-		backspace = 0x8
-		del       = 0x7f
-	)
-	bc := make([]byte, len(b))
-	for i, c := range b {
-		if c == del {
-			bc[i] = backspace
-		} else {
-			bc[i] = c
+func createStdInCloser(pipe io.WriteCloser, process hcsshim.Process) io.WriteCloser {
+	return ioutils.NewWriteCloserWrapper(pipe, func() error {
+		if err := pipe.Close(); err != nil {
+			return err
 		}
-	}
-	return w.WriteCloser.Write(bc)
-}
 
-type stdInCloser struct {
-	io.WriteCloser
-	hcsshim.Process
-}
+		// We do not need to lock container ID here, even though
+		// we are calling into hcsshim. This is safe, because the
+		// only place that closes this process handle is this method.
+		err := process.CloseStdin()
+		if err != nil && !hcsshim.IsNotExist(err) {
+			// This error will occur if the compute system is currently shutting down
+			if perr, ok := err.(*hcsshim.ProcessError); ok && perr.Err != hcsshim.ErrVmcomputeOperationInvalidState {
+				return err
+			}
+		}
 
-func createStdInCloser(pipe io.WriteCloser, process hcsshim.Process) *stdInCloser {
-	return &stdInCloser{
-		WriteCloser: pipe,
-		Process:     process,
-	}
-}
-
-func (stdin *stdInCloser) Close() error {
-	if err := stdin.WriteCloser.Close(); err != nil {
 		return err
-	}
-
-	return stdin.Process.CloseStdin()
-}
-
-func (stdin *stdInCloser) Write(p []byte) (n int, err error) {
-	return stdin.WriteCloser.Write(p)
+	})
 }

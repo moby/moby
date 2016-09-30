@@ -31,7 +31,7 @@ If you don't already have a terminal open, open one now:
 2. At the prompt, type `docker images` to list the images you currently have:
 
         $ docker images
-        REPOSITORY           TAG          IMAGE ID            CREATED             VIRTUAL SIZE
+        REPOSITORY           TAG          IMAGE ID            CREATED             SIZE
         docker-whale         latest       7d9495d03763        38 minutes ago      273.7 MB
         <none>               <none>       5dac217f722c        45 minutes ago      273.7 MB
         docker/whalesay      latest       fb434121fc77        4 hours ago         247 MB
@@ -61,7 +61,7 @@ If you don't already have a terminal open, open one now:
 7. Type the `docker images` command again to see your newly tagged image.
 
         $ docker images
-        REPOSITORY                  TAG       IMAGE ID        CREATED          VIRTUAL SIZE
+        REPOSITORY                  TAG       IMAGE ID        CREATED          SIZE
         maryatdocker/docker-whale   latest    7d9495d03763    5 minutes ago    273.7 MB
         docker-whale                latest    7d9495d03763    2 hours ago      273.7 MB
         <none>                      <none>    5dac217f722c    5 hours ago      273.7 MB
@@ -72,13 +72,14 @@ If you don't already have a terminal open, open one now:
 
     The format for the login command is:
 
-        docker login --username=yourhubusername --email=youremail@company.com
+        docker login 
 
     When prompted, enter your password and press enter. So, for example:
 
-        $ docker login --username=maryatdocker --email=mary@docker.com
-        Password:
-        WARNING: login credentials saved in C:\Users\sven\.docker\config.json
+        $ docker login
+        Login with your Docker ID to push and pull images from Docker Hub. If you don't have a Docker ID, head over to https://hub.docker.com to create one.
+        Username: 
+        Password:        
         Login Succeeded
 
 9. Type the `docker push` command to push your image to your new repository.
@@ -116,7 +117,7 @@ from the hub &mdash; why would it? The two images are identical.
 2. At the prompt, type `docker images` to list the images you currently have on your local machine.
 
 		$ docker images
-		REPOSITORY                  TAG       IMAGE ID        CREATED          VIRTUAL SIZE
+		REPOSITORY                  TAG       IMAGE ID        CREATED          SIZE
 		maryatdocker/docker-whale   latest    7d9495d03763    5 minutes ago    273.7 MB
 		docker-whale                latest    7d9495d03763    2 hours ago      273.7 MB
 		<none>                      <none>    5dac217f722c    5 hours ago      273.7 MB

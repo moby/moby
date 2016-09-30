@@ -99,7 +99,7 @@ commands to run. Your recipe is going to be very short.
 2. Now, build your new image by typing the `docker build -t docker-whale .` command in your terminal (don't forget the . period).
 
         $ docker build -t docker-whale .
-        Sending build context to Docker daemon 158.8 MB
+        Sending build context to Docker daemon 2.048 kB
         ...snip...
         Removing intermediate container a8e6faa88df3
         Successfully built 7d9495d03763
@@ -117,19 +117,19 @@ complex. In this section, you learn what each message means.
 
 First Docker checks to make sure it has everything it needs to build.
 
-    Sending build context to Docker daemon 158.8 MB
+    Sending build context to Docker daemon 2.048 kB
 
 Then, Docker loads with the `whalesay` image.	It already has this image
 locally as you might recall from the last page. So, Docker doesn't need to
 download it.
 
-    Step 0 : FROM docker/whalesay:latest
+    Step 1 : FROM docker/whalesay:latest
      ---> fb434121fc77
 
 Docker moves onto the next step which is to update the `apt-get` package
 manager. This takes a lot of lines, no need to list them all again here.
 
-    Step 1 : RUN apt-get -y update && apt-get install -y fortunes
+    Step 2 : RUN apt-get -y update && apt-get install -y fortunes
      ---> Running in 27d224dfa5b2
     Ign http://archive.ubuntu.com trusty InRelease
     Ign http://archive.ubuntu.com trusty-updates InRelease
@@ -143,9 +143,6 @@ manager. This takes a lot of lines, no need to list them all again here.
 
 Then, Docker installs the new `fortunes` software.
 
-    Removing intermediate container e2a84b5f390f
-    Step 2 : RUN apt-get install -y fortunes
-     ---> Running in 23aa52c1897c
     Reading package lists...
     Building dependency tree...
     Reading state information...
@@ -185,7 +182,7 @@ In this step, you verify the new images is on your computer and then you run you
     This command, you might remember, lists the images you have locally.
 
         $ docker images
-        REPOSITORY           TAG          IMAGE ID          CREATED             VIRTUAL SIZE
+        REPOSITORY           TAG          IMAGE ID          CREATED             SIZE
         docker-whale         latest       7d9495d03763      4 minutes ago       273.7 MB
         docker/whalesay      latest       fb434121fc77      4 hours ago         247 MB
         hello-world          latest       91c95931e552      5 weeks ago         910 B

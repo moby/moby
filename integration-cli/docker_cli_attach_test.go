@@ -10,15 +10,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/docker/docker/pkg/integration/checker"
+	icmd "github.com/docker/docker/pkg/integration/cmd"
 	"github.com/go-check/check"
 )
 
 const attachWait = 5 * time.Second
 
 func (s *DockerSuite) TestAttachMultipleAndRestart(c *check.C) {
-	testRequires(c, DaemonIsLinux)
-
 	endGroup := &sync.WaitGroup{}
 	startGroup := &sync.WaitGroup{}
 	endGroup.Add(3)
@@ -53,6 +51,7 @@ func (s *DockerSuite) TestAttachMultipleAndRestart(c *check.C) {
 			if err != nil {
 				c.Fatal(err)
 			}
+			defer out.Close()
 
 			if err := cmd.Start(); err != nil {
 				c.Fatal(err)
@@ -88,7 +87,6 @@ func (s *DockerSuite) TestAttachMultipleAndRestart(c *check.C) {
 }
 
 func (s *DockerSuite) TestAttachTTYWithoutStdin(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-d", "-ti", "busybox")
 
 	id := strings.TrimSpace(out)
@@ -160,7 +158,11 @@ func (s *DockerSuite) TestAttachPausedContainer(c *check.C) {
 	defer unpauseAllContainers()
 	dockerCmd(c, "run", "-d", "--name=test", "busybox", "top")
 	dockerCmd(c, "pause", "test")
-	out, _, err := dockerCmdWithError("attach", "test")
-	c.Assert(err, checker.NotNil, check.Commentf(out))
-	c.Assert(out, checker.Contains, "You cannot attach to a paused container, unpause it first")
+
+	result := dockerCmdWithResult("attach", "test")
+	c.Assert(result, icmd.Matches, icmd.Expected{
+		Error:    "exit status 1",
+		ExitCode: 1,
+		Err:      "You cannot attach to a paused container, unpause it first",
+	})
 }

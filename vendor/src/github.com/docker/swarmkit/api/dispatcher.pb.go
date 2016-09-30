@@ -22,10 +22,11 @@ import (
 	grpc "google.golang.org/grpc"
 )
 
-import raftpicker "github.com/docker/swarmkit/manager/raftpicker"
+import raftselector "github.com/docker/swarmkit/manager/raftselector"
 import codes "google.golang.org/grpc/codes"
 import metadata "google.golang.org/grpc/metadata"
 import transport "google.golang.org/grpc/transport"
+import time "time"
 
 import io "io"
 
@@ -34,9 +35,39 @@ var _ = proto.Marshal
 var _ = fmt.Errorf
 var _ = math.Inf
 
+// AssignmentType specifies whether this assignment message carries
+// the full state, or is an update to an existing state.
+type AssignmentsMessage_Type int32
+
+const (
+	AssignmentsMessage_COMPLETE    AssignmentsMessage_Type = 0
+	AssignmentsMessage_INCREMENTAL AssignmentsMessage_Type = 1
+)
+
+var AssignmentsMessage_Type_name = map[int32]string{
+	0: "COMPLETE",
+	1: "INCREMENTAL",
+}
+var AssignmentsMessage_Type_value = map[string]int32{
+	"COMPLETE":    0,
+	"INCREMENTAL": 1,
+}
+
+func (x AssignmentsMessage_Type) String() string {
+	return proto.EnumName(AssignmentsMessage_Type_name, int32(x))
+}
+func (AssignmentsMessage_Type) EnumDescriptor() ([]byte, []int) {
+	return fileDescriptorDispatcher, []int{9, 0}
+}
+
 // SessionRequest starts a session.
 type SessionRequest struct {
 	Description *NodeDescription `protobuf:"bytes,1,opt,name=description" json:"description,omitempty"`
+	// SessionID can be provided to attempt resuming an exising session. If the
+	// SessionID is empty or invalid, a new SessionID will be assigned.
+	//
+	// See SessionMessage.SessionID for details.
+	SessionID string `protobuf:"bytes,2,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
 }
 
 func (m *SessionRequest) Reset()                    { *m = SessionRequest{} }
@@ -175,6 +206,49 @@ func (m *TasksMessage) Reset()                    { *m = TasksMessage{} }
 func (*TasksMessage) ProtoMessage()               {}
 func (*TasksMessage) Descriptor() ([]byte, []int) { return fileDescriptorDispatcher, []int{7} }
 
+type AssignmentsRequest struct {
+	SessionID string `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
+}
+
+func (m *AssignmentsRequest) Reset()                    { *m = AssignmentsRequest{} }
+func (*AssignmentsRequest) ProtoMessage()               {}
+func (*AssignmentsRequest) Descriptor() ([]byte, []int) { return fileDescriptorDispatcher, []int{8} }
+
+type AssignmentsMessage struct {
+	Type AssignmentsMessage_Type `protobuf:"varint,1,opt,name=type,proto3,enum=docker.swarmkit.v1.AssignmentsMessage_Type" json:"type,omitempty"`
+	// AppliesTo references the previous ResultsIn value, to chain
+	// incremental updates together. For the first update in a stream,
+	// AppliesTo is empty.  If AppliesTo does not match the previously
+	// received ResultsIn, the consumer of the stream should start a new
+	// Assignments stream to re-sync.
+	AppliesTo string `protobuf:"bytes,2,opt,name=applies_to,json=appliesTo,proto3" json:"applies_to,omitempty"`
+	// ResultsIn identifies the result of this assignments message, to
+	// match against the next message's AppliesTo value and protect
+	// against missed messages.
+	ResultsIn string `protobuf:"bytes,3,opt,name=results_in,json=resultsIn,proto3" json:"results_in,omitempty"`
+	// UpdateTasks is a set of new or updated tasks to run on this node.
+	// In the first assignments message, it contains all of the tasks
+	// to run on this node. Tasks outside of this set running on the node
+	// should be terminated.
+	UpdateTasks []*Task `protobuf:"bytes,4,rep,name=update_tasks,json=updateTasks" json:"update_tasks,omitempty"`
+	// RemoveTasks is a set of previously-assigned task IDs to remove from the
+	// assignment set. It is not used in the first assignments message of
+	// a stream.
+	RemoveTasks []string `protobuf:"bytes,5,rep,name=remove_tasks,json=removeTasks" json:"remove_tasks,omitempty"`
+	// UpdateSecrets is a set of new or updated secrets for this node.
+	// In the first assignments message, it contains all of the secrets
+	// the node needs for itself and its assigned tasks.
+	UpdateSecrets []*Secret `protobuf:"bytes,6,rep,name=update_secrets,json=updateSecrets" json:"update_secrets,omitempty"`
+	// RemoveSecrets is a set of previously-assigned secret names to remove
+	// from memory. It is not used in the first assignments message of
+	// a stream.
+	RemoveSecrets []string `protobuf:"bytes,7,rep,name=remove_secrets,json=removeSecrets" json:"remove_secrets,omitempty"`
+}
+
+func (m *AssignmentsMessage) Reset()                    { *m = AssignmentsMessage{} }
+func (*AssignmentsMessage) ProtoMessage()               {}
+func (*AssignmentsMessage) Descriptor() ([]byte, []int) { return fileDescriptorDispatcher, []int{9} }
+
 func init() {
 	proto.RegisterType((*SessionRequest)(nil), "docker.swarmkit.v1.SessionRequest")
 	proto.RegisterType((*SessionMessage)(nil), "docker.swarmkit.v1.SessionMessage")
@@ -185,6 +259,9 @@ func init() {
 	proto.RegisterType((*UpdateTaskStatusResponse)(nil), "docker.swarmkit.v1.UpdateTaskStatusResponse")
 	proto.RegisterType((*TasksRequest)(nil), "docker.swarmkit.v1.TasksRequest")
 	proto.RegisterType((*TasksMessage)(nil), "docker.swarmkit.v1.TasksMessage")
+	proto.RegisterType((*AssignmentsRequest)(nil), "docker.swarmkit.v1.AssignmentsRequest")
+	proto.RegisterType((*AssignmentsMessage)(nil), "docker.swarmkit.v1.AssignmentsMessage")
+	proto.RegisterEnum("docker.swarmkit.v1.AssignmentsMessage_Type", AssignmentsMessage_Type_name, AssignmentsMessage_Type_value)
 }
 
 type authenticatedWrapperDispatcherServer struct {
@@ -231,6 +308,14 @@ func (p *authenticatedWrapperDispatcherServer) Tasks(r *TasksRequest, stream Dis
 	return p.local.Tasks(r, stream)
 }
 
+func (p *authenticatedWrapperDispatcherServer) Assignments(r *AssignmentsRequest, stream Dispatcher_AssignmentsServer) error {
+
+	if err := p.authorize(stream.Context(), []string{"swarm-worker", "swarm-manager"}); err != nil {
+		return err
+	}
+	return p.local.Assignments(r, stream)
+}
+
 func (m *SessionRequest) Copy() *SessionRequest {
 	if m == nil {
 		return nil
@@ -238,6 +323,7 @@ func (m *SessionRequest) Copy() *SessionRequest {
 
 	o := &SessionRequest{
 		Description: m.Description.Copy(),
+		SessionID:   m.SessionID,
 	}
 
 	return o
@@ -365,15 +451,70 @@ func (m *TasksMessage) Copy() *TasksMessage {
 	return o
 }
 
+func (m *AssignmentsRequest) Copy() *AssignmentsRequest {
+	if m == nil {
+		return nil
+	}
+
+	o := &AssignmentsRequest{
+		SessionID: m.SessionID,
+	}
+
+	return o
+}
+
+func (m *AssignmentsMessage) Copy() *AssignmentsMessage {
+	if m == nil {
+		return nil
+	}
+
+	o := &AssignmentsMessage{
+		Type:      m.Type,
+		AppliesTo: m.AppliesTo,
+		ResultsIn: m.ResultsIn,
+	}
+
+	if m.UpdateTasks != nil {
+		o.UpdateTasks = make([]*Task, 0, len(m.UpdateTasks))
+		for _, v := range m.UpdateTasks {
+			o.UpdateTasks = append(o.UpdateTasks, v.Copy())
+		}
+	}
+
+	if m.RemoveTasks != nil {
+		o.RemoveTasks = make([]string, 0, len(m.RemoveTasks))
+		for _, v := range m.RemoveTasks {
+			o.RemoveTasks = append(o.RemoveTasks, v)
+		}
+	}
+
+	if m.UpdateSecrets != nil {
+		o.UpdateSecrets = make([]*Secret, 0, len(m.UpdateSecrets))
+		for _, v := range m.UpdateSecrets {
+			o.UpdateSecrets = append(o.UpdateSecrets, v.Copy())
+		}
+	}
+
+	if m.RemoveSecrets != nil {
+		o.RemoveSecrets = make([]string, 0, len(m.RemoveSecrets))
+		for _, v := range m.RemoveSecrets {
+			o.RemoveSecrets = append(o.RemoveSecrets, v)
+		}
+	}
+
+	return o
+}
+
 func (this *SessionRequest) GoString() string {
 	if this == nil {
 		return "nil"
 	}
-	s := make([]string, 0, 5)
+	s := make([]string, 0, 6)
 	s = append(s, "&api.SessionRequest{")
 	if this.Description != nil {
 		s = append(s, "Description: "+fmt.Sprintf("%#v", this.Description)+",\n")
 	}
+	s = append(s, "SessionID: "+fmt.Sprintf("%#v", this.SessionID)+",\n")
 	s = append(s, "}")
 	return strings.Join(s, "")
 }
@@ -473,6 +614,36 @@ func (this *TasksMessage) GoString() string {
 	s = append(s, "}")
 	return strings.Join(s, "")
 }
+func (this *AssignmentsRequest) GoString() string {
+	if this == nil {
+		return "nil"
+	}
+	s := make([]string, 0, 5)
+	s = append(s, "&api.AssignmentsRequest{")
+	s = append(s, "SessionID: "+fmt.Sprintf("%#v", this.SessionID)+",\n")
+	s = append(s, "}")
+	return strings.Join(s, "")
+}
+func (this *AssignmentsMessage) GoString() string {
+	if this == nil {
+		return "nil"
+	}
+	s := make([]string, 0, 11)
+	s = append(s, "&api.AssignmentsMessage{")
+	s = append(s, "Type: "+fmt.Sprintf("%#v", this.Type)+",\n")
+	s = append(s, "AppliesTo: "+fmt.Sprintf("%#v", this.AppliesTo)+",\n")
+	s = append(s, "ResultsIn: "+fmt.Sprintf("%#v", this.ResultsIn)+",\n")
+	if this.UpdateTasks != nil {
+		s = append(s, "UpdateTasks: "+fmt.Sprintf("%#v", this.UpdateTasks)+",\n")
+	}
+	s = append(s, "RemoveTasks: "+fmt.Sprintf("%#v", this.RemoveTasks)+",\n")
+	if this.UpdateSecrets != nil {
+		s = append(s, "UpdateSecrets: "+fmt.Sprintf("%#v", this.UpdateSecrets)+",\n")
+	}
+	s = append(s, "RemoveSecrets: "+fmt.Sprintf("%#v", this.RemoveSecrets)+",\n")
+	s = append(s, "}")
+	return strings.Join(s, "")
+}
 func valueToGoStringDispatcher(v interface{}, typ string) string {
 	rv := reflect.ValueOf(v)
 	if rv.IsNil() {
@@ -481,11 +652,12 @@ func valueToGoStringDispatcher(v interface{}, typ string) string {
 	pv := reflect.Indirect(rv).Interface()
 	return fmt.Sprintf("func(v %v) *%v { return &v } ( %#v )", typ, typ, pv)
 }
-func extensionToGoStringDispatcher(e map[int32]github_com_gogo_protobuf_proto.Extension) string {
+func extensionToGoStringDispatcher(m github_com_gogo_protobuf_proto.Message) string {
+	e := github_com_gogo_protobuf_proto.GetUnsafeExtensionsMap(m)
 	if e == nil {
 		return "nil"
 	}
-	s := "map[int32]proto.Extension{"
+	s := "proto.NewUnsafeXXX_InternalExtensions(map[int32]proto.Extension{"
 	keys := make([]int, 0, len(e))
 	for k := range e {
 		keys = append(keys, int(k))
@@ -495,7 +667,7 @@ func extensionToGoStringDispatcher(e map[int32]github_com_gogo_protobuf_proto.Ex
 	for _, k := range keys {
 		ss = append(ss, strconv.Itoa(k)+": "+e[int32(k)].GoString())
 	}
-	s += strings.Join(ss, ",") + "}"
+	s += strings.Join(ss, ",") + "})"
 	return s
 }
 
@@ -505,7 +677,7 @@ var _ grpc.ClientConn
 
 // This is a compile-time assertion to ensure that this generated file
 // is compatible with the grpc package it is being compiled against.
-const _ = grpc.SupportPackageIsVersion2
+const _ = grpc.SupportPackageIsVersion3
 
 // Client API for Dispatcher service
 
@@ -534,6 +706,11 @@ type DispatcherClient interface {
 	// of tasks which should be run on node, if task is not present in that list,
 	// it should be terminated.
 	Tasks(ctx context.Context, in *TasksRequest, opts ...grpc.CallOption) (Dispatcher_TasksClient, error)
+	// Assignments is a stream of assignments such as tasks and secrets for node.
+	// The first message in the stream contains all of the tasks and secrets
+	// that are relevant to the node. Future messages in the stream are updates to
+	// the set of assignments.
+	Assignments(ctx context.Context, in *AssignmentsRequest, opts ...grpc.CallOption) (Dispatcher_AssignmentsClient, error)
 }
 
 type dispatcherClient struct {
@@ -626,6 +803,38 @@ func (x *dispatcherTasksClient) Recv() (*TasksMessage, error) {
 	return m, nil
 }
 
+func (c *dispatcherClient) Assignments(ctx context.Context, in *AssignmentsRequest, opts ...grpc.CallOption) (Dispatcher_AssignmentsClient, error) {
+	stream, err := grpc.NewClientStream(ctx, &_Dispatcher_serviceDesc.Streams[2], c.cc, "/docker.swarmkit.v1.Dispatcher/Assignments", opts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &dispatcherAssignmentsClient{stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+type Dispatcher_AssignmentsClient interface {
+	Recv() (*AssignmentsMessage, error)
+	grpc.ClientStream
+}
+
+type dispatcherAssignmentsClient struct {
+	grpc.ClientStream
+}
+
+func (x *dispatcherAssignmentsClient) Recv() (*AssignmentsMessage, error) {
+	m := new(AssignmentsMessage)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
 // Server API for Dispatcher service
 
 type DispatcherServer interface {
@@ -653,6 +862,11 @@ type DispatcherServer interface {
 	// of tasks which should be run on node, if task is not present in that list,
 	// it should be terminated.
 	Tasks(*TasksRequest, Dispatcher_TasksServer) error
+	// Assignments is a stream of assignments such as tasks and secrets for node.
+	// The first message in the stream contains all of the tasks and secrets
+	// that are relevant to the node. Future messages in the stream are updates to
+	// the set of assignments.
+	Assignments(*AssignmentsRequest, Dispatcher_AssignmentsServer) error
 }
 
 func RegisterDispatcherServer(s *grpc.Server, srv DispatcherServer) {
@@ -737,6 +951,27 @@ func (x *dispatcherTasksServer) Send(m *TasksMessage) error {
 	return x.ServerStream.SendMsg(m)
 }
 
+func _Dispatcher_Assignments_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(AssignmentsRequest)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(DispatcherServer).Assignments(m, &dispatcherAssignmentsServer{stream})
+}
+
+type Dispatcher_AssignmentsServer interface {
+	Send(*AssignmentsMessage) error
+	grpc.ServerStream
+}
+
+type dispatcherAssignmentsServer struct {
+	grpc.ServerStream
+}
+
+func (x *dispatcherAssignmentsServer) Send(m *AssignmentsMessage) error {
+	return x.ServerStream.SendMsg(m)
+}
+
 var _Dispatcher_serviceDesc = grpc.ServiceDesc{
 	ServiceName: "docker.swarmkit.v1.Dispatcher",
 	HandlerType: (*DispatcherServer)(nil),
@@ -761,7 +996,13 @@ var _Dispatcher_serviceDesc = grpc.ServiceDesc{
 			Handler:       _Dispatcher_Tasks_Handler,
 			ServerStreams: true,
 		},
+		{
+			StreamName:    "Assignments",
+			Handler:       _Dispatcher_Assignments_Handler,
+			ServerStreams: true,
+		},
 	},
+	Metadata: fileDescriptorDispatcher,
 }
 
 func (m *SessionRequest) Marshal() (data []byte, err error) {
@@ -788,6 +1029,12 @@ func (m *SessionRequest) MarshalTo(data []byte) (int, error) {
 			return 0, err
 		}
 		i += n1
+	}
+	if len(m.SessionID) > 0 {
+		data[i] = 0x12
+		i++
+		i = encodeVarintDispatcher(data, i, uint64(len(m.SessionID)))
+		i += copy(data[i:], m.SessionID)
 	}
 	return i, nil
 }
@@ -1042,6 +1289,119 @@ func (m *TasksMessage) MarshalTo(data []byte) (int, error) {
 	return i, nil
 }
 
+func (m *AssignmentsRequest) Marshal() (data []byte, err error) {
+	size := m.Size()
+	data = make([]byte, size)
+	n, err := m.MarshalTo(data)
+	if err != nil {
+		return nil, err
+	}
+	return data[:n], nil
+}
+
+func (m *AssignmentsRequest) MarshalTo(data []byte) (int, error) {
+	var i int
+	_ = i
+	var l int
+	_ = l
+	if len(m.SessionID) > 0 {
+		data[i] = 0xa
+		i++
+		i = encodeVarintDispatcher(data, i, uint64(len(m.SessionID)))
+		i += copy(data[i:], m.SessionID)
+	}
+	return i, nil
+}
+
+func (m *AssignmentsMessage) Marshal() (data []byte, err error) {
+	size := m.Size()
+	data = make([]byte, size)
+	n, err := m.MarshalTo(data)
+	if err != nil {
+		return nil, err
+	}
+	return data[:n], nil
+}
+
+func (m *AssignmentsMessage) MarshalTo(data []byte) (int, error) {
+	var i int
+	_ = i
+	var l int
+	_ = l
+	if m.Type != 0 {
+		data[i] = 0x8
+		i++
+		i = encodeVarintDispatcher(data, i, uint64(m.Type))
+	}
+	if len(m.AppliesTo) > 0 {
+		data[i] = 0x12
+		i++
+		i = encodeVarintDispatcher(data, i, uint64(len(m.AppliesTo)))
+		i += copy(data[i:], m.AppliesTo)
+	}
+	if len(m.ResultsIn) > 0 {
+		data[i] = 0x1a
+		i++
+		i = encodeVarintDispatcher(data, i, uint64(len(m.ResultsIn)))
+		i += copy(data[i:], m.ResultsIn)
+	}
+	if len(m.UpdateTasks) > 0 {
+		for _, msg := range m.UpdateTasks {
+			data[i] = 0x22
+			i++
+			i = encodeVarintDispatcher(data, i, uint64(msg.Size()))
+			n, err := msg.MarshalTo(data[i:])
+			if err != nil {
+				return 0, err
+			}
+			i += n
+		}
+	}
+	if len(m.RemoveTasks) > 0 {
+		for _, s := range m.RemoveTasks {
+			data[i] = 0x2a
+			i++
+			l = len(s)
+			for l >= 1<<7 {
+				data[i] = uint8(uint64(l)&0x7f | 0x80)
+				l >>= 7
+				i++
+			}
+			data[i] = uint8(l)
+			i++
+			i += copy(data[i:], s)
+		}
+	}
+	if len(m.UpdateSecrets) > 0 {
+		for _, msg := range m.UpdateSecrets {
+			data[i] = 0x32
+			i++
+			i = encodeVarintDispatcher(data, i, uint64(msg.Size()))
+			n, err := msg.MarshalTo(data[i:])
+			if err != nil {
+				return 0, err
+			}
+			i += n
+		}
+	}
+	if len(m.RemoveSecrets) > 0 {
+		for _, s := range m.RemoveSecrets {
+			data[i] = 0x3a
+			i++
+			l = len(s)
+			for l >= 1<<7 {
+				data[i] = uint8(uint64(l)&0x7f | 0x80)
+				l >>= 7
+				i++
+			}
+			data[i] = uint8(l)
+			i++
+			i += copy(data[i:], s)
+		}
+	}
+	return i, nil
+}
+
 func encodeFixed64Dispatcher(data []byte, offset int, v uint64) int {
 	data[offset] = uint8(v)
 	data[offset+1] = uint8(v >> 8)
@@ -1072,12 +1432,11 @@ func encodeVarintDispatcher(data []byte, offset int, v uint64) int {
 
 type raftProxyDispatcherServer struct {
 	local        DispatcherServer
-	connSelector *raftpicker.ConnSelector
-	cluster      raftpicker.RaftCluster
+	connSelector raftselector.ConnProvider
 	ctxMods      []func(context.Context) (context.Context, error)
 }
 
-func NewRaftProxyDispatcherServer(local DispatcherServer, connSelector *raftpicker.ConnSelector, cluster raftpicker.RaftCluster, ctxMod func(context.Context) (context.Context, error)) DispatcherServer {
+func NewRaftProxyDispatcherServer(local DispatcherServer, connSelector raftselector.ConnProvider, ctxMod func(context.Context) (context.Context, error)) DispatcherServer {
 	redirectChecker := func(ctx context.Context) (context.Context, error) {
 		s, ok := transport.StreamFromContext(ctx)
 		if !ok {
@@ -1099,7 +1458,6 @@ func NewRaftProxyDispatcherServer(local DispatcherServer, connSelector *raftpick
 
 	return &raftProxyDispatcherServer{
 		local:        local,
-		cluster:      cluster,
 		connSelector: connSelector,
 		ctxMods:      mods,
 	}
@@ -1114,17 +1472,41 @@ func (p *raftProxyDispatcherServer) runCtxMods(ctx context.Context) (context.Con
 	}
 	return ctx, nil
 }
+func (p *raftProxyDispatcherServer) pollNewLeaderConn(ctx context.Context) (*grpc.ClientConn, error) {
+	ticker := time.NewTicker(500 * time.Millisecond)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ticker.C:
+			conn, err := p.connSelector.LeaderConn(ctx)
+			if err != nil {
+				return nil, err
+			}
+
+			client := NewHealthClient(conn)
+
+			resp, err := client.Check(ctx, &HealthCheckRequest{Service: "Raft"})
+			if err != nil || resp.Status != HealthCheckResponse_SERVING {
+				continue
+			}
+			return conn, nil
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		}
+	}
+}
 
 func (p *raftProxyDispatcherServer) Session(r *SessionRequest, stream Dispatcher_SessionServer) error {
 
-	if p.cluster.IsLeader() {
-		return p.local.Session(r, stream)
-	}
-	ctx, err := p.runCtxMods(stream.Context())
+	ctx := stream.Context()
+	conn, err := p.connSelector.LeaderConn(ctx)
 	if err != nil {
+		if err == raftselector.ErrIsLeader {
+			return p.local.Session(r, stream)
+		}
 		return err
 	}
-	conn, err := p.connSelector.Conn()
+	ctx, err = p.runCtxMods(ctx)
 	if err != nil {
 		return err
 	}
@@ -1151,50 +1533,116 @@ func (p *raftProxyDispatcherServer) Session(r *SessionRequest, stream Dispatcher
 
 func (p *raftProxyDispatcherServer) Heartbeat(ctx context.Context, r *HeartbeatRequest) (*HeartbeatResponse, error) {
 
-	if p.cluster.IsLeader() {
-		return p.local.Heartbeat(ctx, r)
+	conn, err := p.connSelector.LeaderConn(ctx)
+	if err != nil {
+		if err == raftselector.ErrIsLeader {
+			return p.local.Heartbeat(ctx, r)
+		}
+		return nil, err
 	}
-	ctx, err := p.runCtxMods(ctx)
+	modCtx, err := p.runCtxMods(ctx)
 	if err != nil {
 		return nil, err
 	}
-	conn, err := p.connSelector.Conn()
+
+	resp, err := NewDispatcherClient(conn).Heartbeat(modCtx, r)
 	if err != nil {
-		return nil, err
+		if !strings.Contains(err.Error(), "is closing") && !strings.Contains(err.Error(), "the connection is unavailable") && !strings.Contains(err.Error(), "connection error") {
+			return resp, err
+		}
+		conn, err := p.pollNewLeaderConn(ctx)
+		if err != nil {
+			if err == raftselector.ErrIsLeader {
+				return p.local.Heartbeat(ctx, r)
+			}
+			return nil, err
+		}
+		return NewDispatcherClient(conn).Heartbeat(modCtx, r)
 	}
-	return NewDispatcherClient(conn).Heartbeat(ctx, r)
+	return resp, err
 }
 
 func (p *raftProxyDispatcherServer) UpdateTaskStatus(ctx context.Context, r *UpdateTaskStatusRequest) (*UpdateTaskStatusResponse, error) {
 
-	if p.cluster.IsLeader() {
-		return p.local.UpdateTaskStatus(ctx, r)
+	conn, err := p.connSelector.LeaderConn(ctx)
+	if err != nil {
+		if err == raftselector.ErrIsLeader {
+			return p.local.UpdateTaskStatus(ctx, r)
+		}
+		return nil, err
 	}
-	ctx, err := p.runCtxMods(ctx)
+	modCtx, err := p.runCtxMods(ctx)
 	if err != nil {
 		return nil, err
 	}
-	conn, err := p.connSelector.Conn()
+
+	resp, err := NewDispatcherClient(conn).UpdateTaskStatus(modCtx, r)
 	if err != nil {
-		return nil, err
+		if !strings.Contains(err.Error(), "is closing") && !strings.Contains(err.Error(), "the connection is unavailable") && !strings.Contains(err.Error(), "connection error") {
+			return resp, err
+		}
+		conn, err := p.pollNewLeaderConn(ctx)
+		if err != nil {
+			if err == raftselector.ErrIsLeader {
+				return p.local.UpdateTaskStatus(ctx, r)
+			}
+			return nil, err
+		}
+		return NewDispatcherClient(conn).UpdateTaskStatus(modCtx, r)
 	}
-	return NewDispatcherClient(conn).UpdateTaskStatus(ctx, r)
+	return resp, err
 }
 
 func (p *raftProxyDispatcherServer) Tasks(r *TasksRequest, stream Dispatcher_TasksServer) error {
 
-	if p.cluster.IsLeader() {
-		return p.local.Tasks(r, stream)
-	}
-	ctx, err := p.runCtxMods(stream.Context())
+	ctx := stream.Context()
+	conn, err := p.connSelector.LeaderConn(ctx)
 	if err != nil {
+		if err == raftselector.ErrIsLeader {
+			return p.local.Tasks(r, stream)
+		}
 		return err
 	}
-	conn, err := p.connSelector.Conn()
+	ctx, err = p.runCtxMods(ctx)
 	if err != nil {
 		return err
 	}
 	clientStream, err := NewDispatcherClient(conn).Tasks(ctx, r)
+
+	if err != nil {
+		return err
+	}
+
+	for {
+		msg, err := clientStream.Recv()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return err
+		}
+		if err := stream.Send(msg); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (p *raftProxyDispatcherServer) Assignments(r *AssignmentsRequest, stream Dispatcher_AssignmentsServer) error {
+
+	ctx := stream.Context()
+	conn, err := p.connSelector.LeaderConn(ctx)
+	if err != nil {
+		if err == raftselector.ErrIsLeader {
+			return p.local.Assignments(r, stream)
+		}
+		return err
+	}
+	ctx, err = p.runCtxMods(ctx)
+	if err != nil {
+		return err
+	}
+	clientStream, err := NewDispatcherClient(conn).Assignments(ctx, r)
 
 	if err != nil {
 		return err
@@ -1220,6 +1668,10 @@ func (m *SessionRequest) Size() (n int) {
 	_ = l
 	if m.Description != nil {
 		l = m.Description.Size()
+		n += 1 + l + sovDispatcher(uint64(l))
+	}
+	l = len(m.SessionID)
+	if l > 0 {
 		n += 1 + l + sovDispatcher(uint64(l))
 	}
 	return n
@@ -1327,6 +1779,57 @@ func (m *TasksMessage) Size() (n int) {
 	return n
 }
 
+func (m *AssignmentsRequest) Size() (n int) {
+	var l int
+	_ = l
+	l = len(m.SessionID)
+	if l > 0 {
+		n += 1 + l + sovDispatcher(uint64(l))
+	}
+	return n
+}
+
+func (m *AssignmentsMessage) Size() (n int) {
+	var l int
+	_ = l
+	if m.Type != 0 {
+		n += 1 + sovDispatcher(uint64(m.Type))
+	}
+	l = len(m.AppliesTo)
+	if l > 0 {
+		n += 1 + l + sovDispatcher(uint64(l))
+	}
+	l = len(m.ResultsIn)
+	if l > 0 {
+		n += 1 + l + sovDispatcher(uint64(l))
+	}
+	if len(m.UpdateTasks) > 0 {
+		for _, e := range m.UpdateTasks {
+			l = e.Size()
+			n += 1 + l + sovDispatcher(uint64(l))
+		}
+	}
+	if len(m.RemoveTasks) > 0 {
+		for _, s := range m.RemoveTasks {
+			l = len(s)
+			n += 1 + l + sovDispatcher(uint64(l))
+		}
+	}
+	if len(m.UpdateSecrets) > 0 {
+		for _, e := range m.UpdateSecrets {
+			l = e.Size()
+			n += 1 + l + sovDispatcher(uint64(l))
+		}
+	}
+	if len(m.RemoveSecrets) > 0 {
+		for _, s := range m.RemoveSecrets {
+			l = len(s)
+			n += 1 + l + sovDispatcher(uint64(l))
+		}
+	}
+	return n
+}
+
 func sovDispatcher(x uint64) (n int) {
 	for {
 		n++
@@ -1346,6 +1849,7 @@ func (this *SessionRequest) String() string {
 	}
 	s := strings.Join([]string{`&SessionRequest{`,
 		`Description:` + strings.Replace(fmt.Sprintf("%v", this.Description), "NodeDescription", "NodeDescription", 1) + `,`,
+		`SessionID:` + fmt.Sprintf("%v", this.SessionID) + `,`,
 		`}`,
 	}, "")
 	return s
@@ -1434,6 +1938,32 @@ func (this *TasksMessage) String() string {
 	}, "")
 	return s
 }
+func (this *AssignmentsRequest) String() string {
+	if this == nil {
+		return "nil"
+	}
+	s := strings.Join([]string{`&AssignmentsRequest{`,
+		`SessionID:` + fmt.Sprintf("%v", this.SessionID) + `,`,
+		`}`,
+	}, "")
+	return s
+}
+func (this *AssignmentsMessage) String() string {
+	if this == nil {
+		return "nil"
+	}
+	s := strings.Join([]string{`&AssignmentsMessage{`,
+		`Type:` + fmt.Sprintf("%v", this.Type) + `,`,
+		`AppliesTo:` + fmt.Sprintf("%v", this.AppliesTo) + `,`,
+		`ResultsIn:` + fmt.Sprintf("%v", this.ResultsIn) + `,`,
+		`UpdateTasks:` + strings.Replace(fmt.Sprintf("%v", this.UpdateTasks), "Task", "Task", 1) + `,`,
+		`RemoveTasks:` + fmt.Sprintf("%v", this.RemoveTasks) + `,`,
+		`UpdateSecrets:` + strings.Replace(fmt.Sprintf("%v", this.UpdateSecrets), "Secret", "Secret", 1) + `,`,
+		`RemoveSecrets:` + fmt.Sprintf("%v", this.RemoveSecrets) + `,`,
+		`}`,
+	}, "")
+	return s
+}
 func valueToStringDispatcher(v interface{}) string {
 	rv := reflect.ValueOf(v)
 	if rv.IsNil() {
@@ -1503,6 +2033,35 @@ func (m *SessionRequest) Unmarshal(data []byte) error {
 			if err := m.Description.Unmarshal(data[iNdEx:postIndex]); err != nil {
 				return err
 			}
+			iNdEx = postIndex
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field SessionID", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowDispatcher
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				stringLen |= (uint64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthDispatcher
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.SessionID = string(data[iNdEx:postIndex])
 			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
@@ -2290,6 +2849,332 @@ func (m *TasksMessage) Unmarshal(data []byte) error {
 	}
 	return nil
 }
+func (m *AssignmentsRequest) Unmarshal(data []byte) error {
+	l := len(data)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowDispatcher
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := data[iNdEx]
+			iNdEx++
+			wire |= (uint64(b) & 0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: AssignmentsRequest: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: AssignmentsRequest: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field SessionID", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowDispatcher
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				stringLen |= (uint64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthDispatcher
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.SessionID = string(data[iNdEx:postIndex])
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipDispatcher(data[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthDispatcher
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *AssignmentsMessage) Unmarshal(data []byte) error {
+	l := len(data)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowDispatcher
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := data[iNdEx]
+			iNdEx++
+			wire |= (uint64(b) & 0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: AssignmentsMessage: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: AssignmentsMessage: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Type", wireType)
+			}
+			m.Type = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowDispatcher
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				m.Type |= (AssignmentsMessage_Type(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field AppliesTo", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowDispatcher
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				stringLen |= (uint64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthDispatcher
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.AppliesTo = string(data[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 3:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ResultsIn", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowDispatcher
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				stringLen |= (uint64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthDispatcher
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.ResultsIn = string(data[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 4:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field UpdateTasks", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowDispatcher
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				msglen |= (int(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthDispatcher
+			}
+			postIndex := iNdEx + msglen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.UpdateTasks = append(m.UpdateTasks, &Task{})
+			if err := m.UpdateTasks[len(m.UpdateTasks)-1].Unmarshal(data[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		case 5:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field RemoveTasks", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowDispatcher
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				stringLen |= (uint64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthDispatcher
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.RemoveTasks = append(m.RemoveTasks, string(data[iNdEx:postIndex]))
+			iNdEx = postIndex
+		case 6:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field UpdateSecrets", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowDispatcher
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				msglen |= (int(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthDispatcher
+			}
+			postIndex := iNdEx + msglen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.UpdateSecrets = append(m.UpdateSecrets, &Secret{})
+			if err := m.UpdateSecrets[len(m.UpdateSecrets)-1].Unmarshal(data[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		case 7:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field RemoveSecrets", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowDispatcher
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				stringLen |= (uint64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthDispatcher
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.RemoveSecrets = append(m.RemoveSecrets, string(data[iNdEx:postIndex]))
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipDispatcher(data[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthDispatcher
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
 func skipDispatcher(data []byte) (n int, err error) {
 	l := len(data)
 	iNdEx := 0
@@ -2395,46 +3280,62 @@ var (
 	ErrIntOverflowDispatcher   = fmt.Errorf("proto: integer overflow")
 )
 
+func init() { proto.RegisterFile("dispatcher.proto", fileDescriptorDispatcher) }
+
 var fileDescriptorDispatcher = []byte{
-	// 626 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x09, 0x6e, 0x88, 0x02, 0xff, 0x9c, 0x54, 0xdf, 0x6e, 0x12, 0x4f,
-	0x14, 0xee, 0x02, 0x85, 0x1f, 0x87, 0xf2, 0x0b, 0x8e, 0x8d, 0xdd, 0x6c, 0x2a, 0xc5, 0x45, 0x13,
-	0x13, 0xeb, 0xa2, 0x35, 0xf1, 0xc2, 0x10, 0x63, 0x08, 0x4d, 0x6c, 0x8c, 0x7f, 0xb2, 0x55, 0xb9,
-	0x24, 0x0b, 0x3b, 0xa1, 0x2b, 0x76, 0x67, 0x9d, 0x19, 0xac, 0x5c, 0x98, 0x98, 0x78, 0x6f, 0x8c,
-	0x57, 0x3e, 0x85, 0xcf, 0x41, 0xbc, 0xf2, 0xd2, 0xab, 0xc6, 0xf6, 0x01, 0x8c, 0x8f, 0xe0, 0xec,
-	0xec, 0x2c, 0x20, 0x5d, 0xb4, 0xf4, 0x62, 0xc2, 0xcc, 0x99, 0xef, 0xfb, 0xce, 0xc7, 0x39, 0x67,
-	0x16, 0x4a, 0xae, 0xc7, 0x02, 0x87, 0x77, 0xf7, 0x30, 0xb5, 0x02, 0x4a, 0x38, 0x41, 0xc8, 0x25,
-	0xdd, 0xbe, 0x38, 0xb1, 0x03, 0x87, 0xee, 0xf7, 0x3d, 0x6e, 0xbd, 0xbe, 0x69, 0x14, 0xf8, 0x30,
-	0xc0, 0x2c, 0x02, 0x18, 0x45, 0xd2, 0x79, 0x81, 0xbb, 0x3c, 0x3e, 0xae, 0xf6, 0x48, 0x8f, 0xc8,
-	0x6d, 0x2d, 0xdc, 0xa9, 0xe8, 0xf9, 0xe0, 0xe5, 0xa0, 0xe7, 0xf9, 0xb5, 0xe8, 0x47, 0x05, 0xd7,
-	0xdc, 0x01, 0x75, 0xb8, 0x47, 0xfc, 0x5a, 0xbc, 0x89, 0x2e, 0xcc, 0x16, 0xfc, 0xbf, 0x8b, 0x19,
-	0x13, 0x01, 0x1b, 0xbf, 0x1a, 0x60, 0xc6, 0xd1, 0x36, 0x14, 0x5c, 0xcc, 0xba, 0xd4, 0x0b, 0x42,
-	0x98, 0xae, 0x55, 0xb4, 0xab, 0x85, 0xad, 0xaa, 0x75, 0xd2, 0x9b, 0xf5, 0x88, 0xb8, 0xb8, 0x39,
-	0x81, 0xda, 0xd3, 0x3c, 0xf3, 0x7d, 0x6a, 0xac, 0xfc, 0x50, 0xfc, 0x38, 0x3d, 0x8c, 0x36, 0x01,
-	0x58, 0x14, 0x69, 0x7b, 0xae, 0x14, 0xce, 0x37, 0x8a, 0xc7, 0x87, 0x1b, 0x79, 0x85, 0xdb, 0x69,
-	0xda, 0x79, 0x05, 0xd8, 0x71, 0x05, 0x3a, 0xe3, 0x8b, 0x04, 0x7a, 0x4a, 0x1a, 0xd0, 0xe7, 0x19,
-	0xb0, 0x25, 0x0a, 0xd5, 0xe1, 0xbf, 0x7d, 0xc7, 0x17, 0x59, 0x28, 0xd3, 0xd3, 0x95, 0xb4, 0x60,
-	0x54, 0x92, 0x18, 0x2d, 0xec, 0xf5, 0xf6, 0x38, 0x76, 0x9f, 0x60, 0x4c, 0xed, 0x31, 0x03, 0xb5,
-	0xe0, 0x82, 0x8f, 0xf9, 0x01, 0xa1, 0xfd, 0x76, 0x87, 0x10, 0xce, 0x38, 0x75, 0x82, 0x76, 0x1f,
-	0x0f, 0x99, 0x9e, 0x91, 0x5a, 0x97, 0x92, 0xb4, 0xb6, 0xfd, 0x2e, 0x1d, 0xca, 0x3f, 0xfb, 0x00,
-	0x0f, 0xed, 0x55, 0x25, 0xd0, 0x88, 0xf9, 0x22, 0xc8, 0xcc, 0x7b, 0x50, 0xba, 0x8f, 0x1d, 0xca,
-	0x3b, 0xd8, 0xe1, 0x71, 0x81, 0x17, 0x2a, 0x83, 0xf9, 0x18, 0xce, 0x4d, 0x29, 0xb0, 0x80, 0xf8,
-	0x0c, 0xa3, 0x3b, 0x90, 0x0d, 0x30, 0xf5, 0x88, 0xab, 0xda, 0xb3, 0x9e, 0xe4, 0xaf, 0xa9, 0x3a,
-	0xdd, 0xc8, 0x8c, 0x0e, 0x37, 0x96, 0x6c, 0xc5, 0x30, 0x3f, 0xa6, 0x60, 0xed, 0x59, 0xe0, 0x3a,
-	0x1c, 0x3f, 0x75, 0x58, 0x7f, 0x97, 0x3b, 0x7c, 0xc0, 0xce, 0x64, 0x0d, 0x3d, 0x87, 0xdc, 0x40,
-	0x0a, 0xc5, 0x25, 0xaf, 0x27, 0xd9, 0x98, 0x93, 0xcb, 0x9a, 0x44, 0x22, 0x84, 0x1d, 0x8b, 0x19,
-	0x04, 0x4a, 0xb3, 0x97, 0xa8, 0x0a, 0x39, 0x2e, 0x62, 0x13, 0x5b, 0x20, 0x6c, 0x65, 0x43, 0x98,
-	0xf0, 0x94, 0x0d, 0xaf, 0x84, 0xa1, 0xdb, 0x90, 0x65, 0x92, 0xa4, 0x86, 0xa6, 0x9c, 0xe4, 0x67,
-	0xca, 0x89, 0x42, 0x9b, 0x06, 0xe8, 0x27, 0x5d, 0x46, 0xa5, 0x36, 0xeb, 0xb0, 0x12, 0x46, 0xcf,
-	0x56, 0x22, 0xf3, 0xae, 0x62, 0xc7, 0x4f, 0xc0, 0x82, 0xe5, 0xd0, 0x2b, 0x13, 0xc4, 0xf4, 0xbc,
-	0xa9, 0x0e, 0x09, 0x76, 0x04, 0xdb, 0xfa, 0x90, 0x01, 0x68, 0x8e, 0xbf, 0x13, 0xe8, 0x0d, 0xe4,
-	0x54, 0x1a, 0x64, 0x26, 0x51, 0xff, 0x7c, 0xca, 0xc6, 0xdf, 0x30, 0xca, 0x91, 0x59, 0xfd, 0xfa,
-	0xe5, 0xe7, 0xe7, 0xd4, 0x45, 0x58, 0x91, 0x98, 0xeb, 0xe1, 0x08, 0x63, 0x0a, 0xc5, 0xe8, 0xa4,
-	0x1e, 0xc8, 0x0d, 0x0d, 0xbd, 0x85, 0xfc, 0x78, 0x0c, 0xd1, 0xe5, 0x24, 0xdd, 0xd9, 0x39, 0x37,
-	0xae, 0xfc, 0x03, 0xa5, 0x0a, 0x7c, 0x1a, 0x03, 0xe8, 0x93, 0x06, 0xa5, 0xd9, 0x16, 0xa1, 0x6b,
-	0x0b, 0x8c, 0x9b, 0xb1, 0x79, 0x3a, 0xf0, 0x22, 0xa6, 0x28, 0x2c, 0xcb, 0xe6, 0xa2, 0xca, 0xbc,
-	0x36, 0x8e, 0xb3, 0xcf, 0x47, 0x2c, 0xd6, 0x87, 0xc6, 0xfa, 0xe8, 0xa8, 0xbc, 0xf4, 0x5d, 0xac,
-	0x5f, 0x47, 0x65, 0xed, 0xdd, 0x71, 0x59, 0x1b, 0x89, 0xf5, 0x4d, 0xac, 0x1f, 0x62, 0x75, 0xb2,
-	0xf2, 0xa3, 0x7e, 0xeb, 0x77, 0x00, 0x00, 0x00, 0xff, 0xff, 0x3f, 0x41, 0x8f, 0x02, 0x5c, 0x06,
-	0x00, 0x00,
+	// 858 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x09, 0x6e, 0x88, 0x02, 0xff, 0x9c, 0x56, 0x41, 0x6f, 0x1b, 0x45,
+	0x14, 0xce, 0xd8, 0x8e, 0x53, 0xbf, 0xb5, 0x83, 0x19, 0x2a, 0xba, 0xb2, 0x5a, 0xc7, 0xdd, 0x90,
+	0x28, 0x52, 0x83, 0x53, 0x8c, 0xc4, 0x01, 0x22, 0x20, 0xae, 0x2d, 0x61, 0xb5, 0x49, 0xab, 0x8d,
+	0xa1, 0x47, 0x6b, 0xe3, 0x7d, 0x72, 0x17, 0x27, 0x3b, 0xcb, 0xcc, 0x6c, 0x8b, 0x0f, 0x48, 0x48,
+	0x14, 0x89, 0x23, 0xe2, 0xd4, 0x5f, 0xc1, 0xef, 0x88, 0x38, 0x71, 0xe4, 0x14, 0x11, 0xff, 0x00,
+	0xc4, 0x4f, 0x40, 0xbb, 0x33, 0xeb, 0x18, 0x67, 0xdd, 0x38, 0x39, 0x65, 0xe7, 0xcd, 0xf7, 0x7d,
+	0xef, 0xd3, 0x7b, 0xf3, 0x5e, 0x0c, 0x65, 0xd7, 0x13, 0x81, 0x23, 0xfb, 0x2f, 0x90, 0xd7, 0x03,
+	0xce, 0x24, 0xa3, 0xd4, 0x65, 0xfd, 0x21, 0xf2, 0xba, 0x78, 0xe5, 0xf0, 0x93, 0xa1, 0x27, 0xeb,
+	0x2f, 0x3f, 0xaa, 0x18, 0x72, 0x14, 0xa0, 0x50, 0x80, 0x4a, 0x89, 0x1d, 0x7d, 0x8b, 0x7d, 0x99,
+	0x1c, 0x6f, 0x0f, 0xd8, 0x80, 0xc5, 0x9f, 0x3b, 0xd1, 0x97, 0x8e, 0xbe, 0x17, 0x1c, 0x87, 0x03,
+	0xcf, 0xdf, 0x51, 0x7f, 0x74, 0xf0, 0x8e, 0x1b, 0x72, 0x47, 0x7a, 0xcc, 0xdf, 0x49, 0x3e, 0xd4,
+	0x85, 0xf5, 0x33, 0x81, 0xd5, 0x43, 0x14, 0xc2, 0x63, 0xbe, 0x8d, 0xdf, 0x85, 0x28, 0x24, 0x6d,
+	0x83, 0xe1, 0xa2, 0xe8, 0x73, 0x2f, 0x88, 0x70, 0x26, 0xa9, 0x91, 0x2d, 0xa3, 0xb1, 0x5e, 0xbf,
+	0x6c, 0xae, 0x7e, 0xc0, 0x5c, 0x6c, 0x5d, 0x40, 0xed, 0x69, 0x1e, 0xdd, 0x06, 0x10, 0x4a, 0xb8,
+	0xe7, 0xb9, 0x66, 0xa6, 0x46, 0xb6, 0x0a, 0xcd, 0xd2, 0xf8, 0x6c, 0xad, 0xa0, 0xd3, 0x75, 0x5a,
+	0x76, 0x41, 0x03, 0x3a, 0xae, 0xf5, 0x53, 0x66, 0xe2, 0x63, 0x1f, 0x85, 0x70, 0x06, 0x38, 0x23,
+	0x40, 0xde, 0x2e, 0x40, 0xb7, 0x21, 0xe7, 0x33, 0x17, 0xe3, 0x44, 0x46, 0xc3, 0x9c, 0x67, 0xd7,
+	0x8e, 0x51, 0x74, 0x17, 0x6e, 0x9d, 0x38, 0xbe, 0x33, 0x40, 0x2e, 0xcc, 0x6c, 0x2d, 0xbb, 0x65,
+	0x34, 0x6a, 0x69, 0x8c, 0xe7, 0xe8, 0x0d, 0x5e, 0x48, 0x74, 0x9f, 0x21, 0x72, 0x7b, 0xc2, 0xa0,
+	0xcf, 0xe1, 0x7d, 0x1f, 0xe5, 0x2b, 0xc6, 0x87, 0xbd, 0x23, 0xc6, 0xa4, 0x90, 0xdc, 0x09, 0x7a,
+	0x43, 0x1c, 0x09, 0x33, 0x17, 0x6b, 0xdd, 0x4f, 0xd3, 0x6a, 0xfb, 0x7d, 0x3e, 0x8a, 0x4b, 0xf3,
+	0x18, 0x47, 0xf6, 0x6d, 0x2d, 0xd0, 0x4c, 0xf8, 0x8f, 0x71, 0x24, 0xac, 0x2f, 0xa1, 0xfc, 0x15,
+	0x3a, 0x5c, 0x1e, 0xa1, 0x23, 0x93, 0x76, 0x5c, 0xab, 0x0c, 0xd6, 0x53, 0x78, 0x77, 0x4a, 0x41,
+	0x04, 0xcc, 0x17, 0x48, 0x3f, 0x85, 0x7c, 0x80, 0xdc, 0x63, 0xae, 0x6e, 0xe6, 0xdd, 0x34, 0x7f,
+	0x2d, 0xfd, 0x30, 0x9a, 0xb9, 0xd3, 0xb3, 0xb5, 0x25, 0x5b, 0x33, 0xac, 0x5f, 0x33, 0x70, 0xe7,
+	0xeb, 0xc0, 0x75, 0x24, 0x76, 0x1d, 0x31, 0x3c, 0x94, 0x8e, 0x0c, 0xc5, 0x8d, 0xac, 0xd1, 0x6f,
+	0x60, 0x25, 0x8c, 0x85, 0x92, 0x92, 0xef, 0xa6, 0xd9, 0x98, 0x93, 0xab, 0x7e, 0x11, 0x51, 0x08,
+	0x3b, 0x11, 0xab, 0x30, 0x28, 0xcf, 0x5e, 0xd2, 0x75, 0x58, 0x91, 0x8e, 0x18, 0x5e, 0xd8, 0x82,
+	0xf1, 0xd9, 0x5a, 0x3e, 0x82, 0x75, 0x5a, 0x76, 0x3e, 0xba, 0xea, 0xb8, 0xf4, 0x13, 0xc8, 0x8b,
+	0x98, 0xa4, 0x1f, 0x4d, 0x35, 0xcd, 0xcf, 0x94, 0x13, 0x8d, 0xb6, 0x2a, 0x60, 0x5e, 0x76, 0xa9,
+	0x4a, 0x6d, 0xed, 0x42, 0x31, 0x8a, 0xde, 0xac, 0x44, 0xd6, 0xe7, 0x9a, 0x9d, 0x8c, 0x40, 0x1d,
+	0x96, 0x23, 0xaf, 0xc2, 0x24, 0x71, 0xc1, 0xcc, 0x79, 0x06, 0x6d, 0x05, 0xb3, 0x9a, 0x40, 0xf7,
+	0x84, 0xf0, 0x06, 0xfe, 0x09, 0xfa, 0xf2, 0x86, 0x1e, 0x5e, 0x67, 0xff, 0x27, 0x92, 0x58, 0xf9,
+	0x02, 0x72, 0xd1, 0x2a, 0x8a, 0xe9, 0xab, 0x8d, 0x07, 0x69, 0x4e, 0x2e, 0xb3, 0xea, 0xdd, 0x51,
+	0x80, 0x76, 0x4c, 0xa4, 0xf7, 0x00, 0x9c, 0x20, 0x38, 0xf6, 0x50, 0xf4, 0x24, 0x53, 0xfb, 0xc0,
+	0x2e, 0xe8, 0x48, 0x97, 0x45, 0xd7, 0x1c, 0x45, 0x78, 0x2c, 0x45, 0xcf, 0xf3, 0xcd, 0xac, 0xba,
+	0xd6, 0x91, 0x8e, 0x4f, 0x3f, 0x83, 0xa2, 0xea, 0x77, 0x4f, 0x15, 0x24, 0x77, 0x45, 0x41, 0x8c,
+	0x70, 0xd2, 0x21, 0x41, 0xef, 0x43, 0x91, 0xe3, 0x09, 0x7b, 0x99, 0x90, 0x97, 0x6b, 0xd9, 0xad,
+	0x82, 0x6d, 0xa8, 0x98, 0x82, 0xec, 0xc1, 0xaa, 0xd6, 0x17, 0xd8, 0xe7, 0x28, 0x85, 0x99, 0x8f,
+	0x33, 0x54, 0xd2, 0x32, 0x1c, 0xc6, 0x10, 0xbb, 0xa4, 0x18, 0xea, 0x24, 0xe8, 0x06, 0xac, 0xea,
+	0x2c, 0x89, 0xc4, 0x4a, 0x9c, 0xa7, 0xa4, 0xa2, 0x1a, 0x66, 0x6d, 0x40, 0x2e, 0xaa, 0x0a, 0x2d,
+	0xc2, 0xad, 0x47, 0x4f, 0xf7, 0x9f, 0x3d, 0x69, 0x77, 0xdb, 0xe5, 0x25, 0xfa, 0x0e, 0x18, 0x9d,
+	0x83, 0x47, 0x76, 0x7b, 0xbf, 0x7d, 0xd0, 0xdd, 0x7b, 0x52, 0x26, 0x8d, 0x37, 0xcb, 0x00, 0xad,
+	0xc9, 0x7f, 0x08, 0xfa, 0x3d, 0xac, 0xe8, 0x6e, 0x51, 0x2b, 0xdd, 0xd2, 0xf4, 0x0e, 0xaf, 0xbc,
+	0x0d, 0xa3, 0x7b, 0x63, 0xad, 0xff, 0xf1, 0xfb, 0x3f, 0x6f, 0x32, 0xf7, 0xa0, 0x18, 0x63, 0x3e,
+	0x8c, 0xb6, 0x11, 0x72, 0x28, 0xa9, 0x93, 0xde, 0x75, 0x0f, 0x09, 0xfd, 0x01, 0x0a, 0x93, 0x8d,
+	0x42, 0x3f, 0x48, 0xd3, 0x9d, 0x5d, 0x59, 0x95, 0x8d, 0x2b, 0x50, 0x7a, 0x56, 0x16, 0x31, 0x40,
+	0x7f, 0x23, 0x50, 0x9e, 0x9d, 0x36, 0xfa, 0xe0, 0x1a, 0x9b, 0xa3, 0xb2, 0xbd, 0x18, 0xf8, 0x3a,
+	0xa6, 0x42, 0x58, 0x56, 0xcf, 0xa6, 0x36, 0xef, 0x01, 0x4e, 0xb2, 0xcf, 0x47, 0x24, 0x7d, 0xd8,
+	0x5c, 0x20, 0xe3, 0x2f, 0x19, 0xf2, 0x90, 0xd0, 0xd7, 0x04, 0x8c, 0xa9, 0x21, 0xa3, 0x9b, 0x57,
+	0x4c, 0x61, 0xe2, 0x61, 0x73, 0xb1, 0x69, 0x5d, 0xf0, 0x45, 0x34, 0xef, 0x9e, 0x9e, 0x57, 0x97,
+	0xfe, 0x3a, 0xaf, 0x2e, 0xfd, 0x7b, 0x5e, 0x25, 0x3f, 0x8e, 0xab, 0xe4, 0x74, 0x5c, 0x25, 0x7f,
+	0x8e, 0xab, 0xe4, 0xef, 0x71, 0x95, 0x1c, 0xe5, 0xe3, 0x1f, 0x16, 0x1f, 0xff, 0x17, 0x00, 0x00,
+	0xff, 0xff, 0xf5, 0xa0, 0x46, 0x49, 0xe0, 0x08, 0x00, 0x00,
 }

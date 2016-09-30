@@ -2,6 +2,7 @@ package orchestrator
 
 import (
 	"container/list"
+	"errors"
 	"sync"
 	"time"
 
@@ -31,8 +32,13 @@ type instanceRestartInfo struct {
 }
 
 type delayedStart struct {
+	// cancel is called to cancel the delayed start.
 	cancel func()
 	doneCh chan struct{}
+
+	// waiter is set to true if the next restart is waiting for this delay
+	// to complete.
+	waiter bool
 }
 
 // RestartSupervisor initiates and manages restarts. It's responsible for
@@ -40,7 +46,7 @@ type delayedStart struct {
 type RestartSupervisor struct {
 	mu               sync.Mutex
 	store            *store.MemoryStore
-	delays           map[string]delayedStart
+	delays           map[string]*delayedStart
 	history          map[instanceTuple]*instanceRestartInfo
 	historyByService map[string]map[instanceTuple]struct{}
 	taskTimeout      time.Duration
@@ -50,17 +56,68 @@ type RestartSupervisor struct {
 func NewRestartSupervisor(store *store.MemoryStore) *RestartSupervisor {
 	return &RestartSupervisor{
 		store:            store,
-		delays:           make(map[string]delayedStart),
+		delays:           make(map[string]*delayedStart),
 		history:          make(map[instanceTuple]*instanceRestartInfo),
 		historyByService: make(map[string]map[instanceTuple]struct{}),
 		taskTimeout:      defaultOldTaskTimeout,
 	}
 }
 
+func (r *RestartSupervisor) waitRestart(ctx context.Context, oldDelay *delayedStart, cluster *api.Cluster, taskID string) {
+	// Wait for the last restart delay to elapse.
+	select {
+	case <-oldDelay.doneCh:
+	case <-ctx.Done():
+		return
+	}
+
+	// Start the next restart
+	err := r.store.Update(func(tx store.Tx) error {
+		t := store.GetTask(tx, taskID)
+		if t == nil {
+			return nil
+		}
+		if t.DesiredState > api.TaskStateRunning {
+			return nil
+		}
+		service := store.GetService(tx, t.ServiceID)
+		if service == nil {
+			return nil
+		}
+		return r.Restart(ctx, tx, cluster, service, *t)
+	})
+
+	if err != nil {
+		log.G(ctx).WithError(err).Errorf("failed to restart task after waiting for previous restart")
+	}
+}
+
 // Restart initiates a new task to replace t if appropriate under the service's
 // restart policy.
-func (r *RestartSupervisor) Restart(ctx context.Context, tx store.Tx, service *api.Service, t api.Task) error {
+func (r *RestartSupervisor) Restart(ctx context.Context, tx store.Tx, cluster *api.Cluster, service *api.Service, t api.Task) error {
 	// TODO(aluzzardi): This function should not depend on `service`.
+
+	// Is the old task still in the process of restarting? If so, wait for
+	// its restart delay to elapse, to avoid tight restart loops (for
+	// example, when the image doesn't exist).
+	r.mu.Lock()
+	oldDelay, ok := r.delays[t.ID]
+	if ok {
+		if !oldDelay.waiter {
+			oldDelay.waiter = true
+			go r.waitRestart(ctx, oldDelay, cluster, t.ID)
+		}
+		r.mu.Unlock()
+		return nil
+	}
+	r.mu.Unlock()
+
+	// Sanity check: was the task shut down already by a separate call to
+	// Restart? If so, we must avoid restarting it, because this will create
+	// an extra task. This should never happen unless there is a bug.
+	if t.DesiredState > api.TaskStateRunning {
+		return errors.New("Restart called on task that was already shut down")
+	}
 
 	t.DesiredState = api.TaskStateShutdown
 	err := store.UpdateTask(tx, &t)
@@ -76,10 +133,9 @@ func (r *RestartSupervisor) Restart(ctx context.Context, tx store.Tx, service *a
 	var restartTask *api.Task
 
 	if isReplicatedService(service) {
-		restartTask = newTask(service, t.Slot)
+		restartTask = newTask(cluster, service, t.Slot, "")
 	} else if isGlobalService(service) {
-		restartTask = newTask(service, 0)
-		restartTask.NodeID = t.NodeID
+		restartTask = newTask(cluster, service, 0, t.NodeID)
 	} else {
 		log.G(ctx).Error("service not supported by restart supervisor")
 		return nil
@@ -87,10 +143,10 @@ func (r *RestartSupervisor) Restart(ctx context.Context, tx store.Tx, service *a
 
 	n := store.GetNode(tx, t.NodeID)
 
-	restartTask.DesiredState = api.TaskStateAccepted
+	restartTask.DesiredState = api.TaskStateReady
 
 	var restartDelay time.Duration
-	// Restart delay does not applied to drained nodes
+	// Restart delay is not applied to drained nodes
 	if n == nil || n.Spec.Availability != api.NodeAvailabilityDrain {
 		if t.Spec.Restart != nil && t.Spec.Restart.Delay != nil {
 			var err error
@@ -254,7 +310,7 @@ func (r *RestartSupervisor) DelayStart(ctx context.Context, _ store.Tx, oldTask 
 		<-oldDelay.doneCh
 		r.mu.Lock()
 	}
-	r.delays[newTaskID] = delayedStart{cancel: cancel, doneCh: doneCh}
+	r.delays[newTaskID] = &delayedStart{cancel: cancel, doneCh: doneCh}
 	r.mu.Unlock()
 
 	var watch chan events.Event
@@ -289,7 +345,8 @@ func (r *RestartSupervisor) DelayStart(ctx context.Context, _ store.Tx, oldTask 
 			close(doneCh)
 		}()
 
-		oldTaskTimeout := time.After(r.taskTimeout)
+		oldTaskTimer := time.NewTimer(r.taskTimeout)
+		defer oldTaskTimer.Stop()
 
 		// Wait for the delay to elapse, if one is specified.
 		if delay != 0 {
@@ -300,10 +357,10 @@ func (r *RestartSupervisor) DelayStart(ctx context.Context, _ store.Tx, oldTask 
 			}
 		}
 
-		if waitStop {
+		if waitStop && oldTask != nil {
 			select {
 			case <-watch:
-			case <-oldTaskTimeout:
+			case <-oldTaskTimer.C:
 			case <-ctx.Done():
 				return
 			}
