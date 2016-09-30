@@ -3,7 +3,6 @@ package daemon
 import (
 	"fmt"
 	"io"
-	"runtime"
 	"strings"
 	"time"
 
@@ -18,7 +17,6 @@ import (
 	"github.com/docker/docker/libcontainerd"
 	"github.com/docker/docker/pkg/pools"
 	"github.com/docker/docker/pkg/signal"
-	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/pkg/term"
 	"github.com/docker/docker/utils"
 )
@@ -125,16 +123,11 @@ func (d *Daemon) ContainerExecCreate(name string, config *types.ExecConfig) (str
 	execConfig.Privileged = config.Privileged
 	execConfig.User = config.User
 
-	// On Windows, don't default the path, let the platform do it. Also TERM isn't meaningful
-	if runtime.GOOS != "windows" {
-		execConfig.Env = []string{
-			"PATH=" + system.DefaultPathEnv,
-		}
-		if config.Tty {
-			execConfig.Env = append(execConfig.Env, "TERM=xterm")
-		}
+	linkedEnv, err := d.setupLinkedContainers(container)
+	if err != nil {
+		return "", err
 	}
-	execConfig.Env = utils.ReplaceOrAppendEnvValues(execConfig.Env, container.Config.Env)
+	execConfig.Env = utils.ReplaceOrAppendEnvValues(container.CreateDaemonEnvironment(config.Tty, linkedEnv), execConfig.Env)
 	if len(execConfig.User) == 0 {
 		execConfig.User = container.Config.User
 	}

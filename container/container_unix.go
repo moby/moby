@@ -52,13 +52,13 @@ type ExitStatus struct {
 // environment variables related to links.
 // Sets PATH, HOSTNAME and if container.Config.Tty is set: TERM.
 // The defaults set here do not override the values in container.Config.Env
-func (container *Container) CreateDaemonEnvironment(linkedEnv []string) []string {
+func (container *Container) CreateDaemonEnvironment(tty bool, linkedEnv []string) []string {
 	// Setup environment
 	env := []string{
 		"PATH=" + system.DefaultPathEnv,
 		"HOSTNAME=" + container.Config.Hostname,
 	}
-	if container.Config.Tty {
+	if tty {
 		env = append(env, "TERM=xterm")
 	}
 	env = append(env, linkedEnv...)

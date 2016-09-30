@@ -59,7 +59,7 @@ func (daemon *Daemon) createSpec(c *container.Container) (*libcontainerd.Spec, e
 		// as c:\. Hence, setting it to default of c:\ makes for consistency.
 		s.Process.Cwd = `C:\`
 	}
-	s.Process.Env = c.CreateDaemonEnvironment(linkedEnv)
+	s.Process.Env = c.CreateDaemonEnvironment(c.Config.Tty, linkedEnv)
 	s.Process.ConsoleSize.Height = c.HostConfig.ConsoleSize[0]
 	s.Process.ConsoleSize.Width = c.HostConfig.ConsoleSize[1]
 	s.Process.Terminal = c.Config.Tty

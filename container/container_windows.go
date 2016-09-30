@@ -30,7 +30,7 @@ type ExitStatus struct {
 }
 
 // CreateDaemonEnvironment creates a new environment variable slice for this container.
-func (container *Container) CreateDaemonEnvironment(linkedEnv []string) []string {
+func (container *Container) CreateDaemonEnvironment(_ bool, linkedEnv []string) []string {
 	// because the env on the container can override certain default values
 	// we need to replace the 'env' keys where they match and append anything
 	// else.
