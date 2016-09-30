@@ -801,7 +801,12 @@ the source will be copied inside the destination container.
     ADD test relativeDir/          # adds "test" to `WORKDIR`/relativeDir/
     ADD test /absoluteDir/         # adds "test" to /absoluteDir/
 
-All new files and directories are created with a UID and GID of 0.
+If the `--user` flag is specified (e.g., `ADD --user=john:john`), new files and
+directories will be created with the UID and GID corresponding to the specified
+user and group. Formats allowed are `user`, `uid`, `user:group`,
+`user:gid`, `uid:group`, and `uid:gid`
+If `--user` is not specified, all new files and directories are created with a
+UID and GID of 0.
 
 In the case where `<src>` is a remote file URL, the destination will
 have permissions of 600. If the remote file being retrieved has an HTTP
@@ -913,7 +918,12 @@ the source will be copied inside the destination container.
     COPY test relativeDir/   # adds "test" to `WORKDIR`/relativeDir/
     COPY test /absoluteDir/  # adds "test" to /absoluteDir/
 
-All new files and directories are created with a UID and GID of 0.
+If the `--user` flag is specified (e.g., `COPY --user=john:john`), new files and
+directories will be created with the UID and GID corresponding to the specified
+user and group. Formats allowed are `user`, `uid`, `user:group`,
+`user:gid`, `uid:group`, and `uid:gid`
+If `--user` is not specified, all new files and directories are created with a
+UID and GID of 0.
 
 > **Note**:
 > If you build using STDIN (`docker build - < somefile`), there is no

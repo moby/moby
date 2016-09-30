@@ -139,7 +139,7 @@ type Backend interface {
 	// with Context.Walk
 	// ContainerCopy(name string, res string) (io.ReadCloser, error)
 	// TODO: use copyBackend api
-	CopyOnBuild(containerID string, destPath string, src FileInfo, decompress bool) error
+	CopyOnBuild(containerID string, destPath string, src FileInfo, decompress bool, usergrp string) error
 
 	// HasExperimental checks if the backend supports experimental features
 	HasExperimental() bool

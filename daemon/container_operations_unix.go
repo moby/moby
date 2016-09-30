@@ -107,7 +107,7 @@ func (daemon *Daemon) setupIpcDirs(c *container.Container) error {
 		}
 		c.ShmPath = "/dev/shm"
 	} else {
-		rootUID, rootGID := daemon.GetRemappedUIDGID()
+		rootUID, rootGID := daemon.GetRemappedRootUIDGID()
 		if !c.HasMountFor("/dev/shm") {
 			shmPath, err := c.ShmResourcePath()
 			if err != nil {

@@ -166,11 +166,13 @@ func add(b *Builder, args []string, attributes map[string]bool, original string)
 		return errAtLeastTwoArguments("ADD")
 	}
 
+	userStr := b.flags.AddString("user", "")
+
 	if err := b.flags.Parse(); err != nil {
 		return err
 	}
 
-	return b.runContextCommand(args, true, true, "ADD")
+	return b.runContextCommand(args, true, true, "ADD", userStr.Value)
 }
 
 // COPY foo /path
@@ -182,11 +184,13 @@ func dispatchCopy(b *Builder, args []string, attributes map[string]bool, origina
 		return errAtLeastTwoArguments("COPY")
 	}
 
+	userStr := b.flags.AddString("user", "")
+
 	if err := b.flags.Parse(); err != nil {
 		return err
 	}
 
-	return b.runContextCommand(args, false, false, "COPY")
+	return b.runContextCommand(args, false, false, "COPY", userStr.Value)
 }
 
 // FROM imagename

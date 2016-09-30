@@ -18,7 +18,9 @@ func (daemon *Daemon) createSpec(c *container.Container) (*specs.Spec, error) {
 		return nil, err
 	}
 
-	if err := c.SetupWorkingDirectory(0, 0); err != nil {
+	// TODO Windows - this can be removed. Not used (UID/GID)
+	rootUID, rootGID := daemon.GetRemappedRootUIDGID()
+	if err := c.SetupWorkingDirectory(rootUID, rootGID); err != nil {
 		return nil, err
 	}
 

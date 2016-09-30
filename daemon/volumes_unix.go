@@ -42,7 +42,7 @@ func (daemon *Daemon) setupMounts(c *container.Container) ([]container.Mount, er
 		if err := daemon.lazyInitializeVolume(c.ID, m); err != nil {
 			return nil, err
 		}
-		rootUID, rootGID := daemon.GetRemappedUIDGID()
+		rootUID, rootGID := daemon.GetRemappedRootUIDGID()
 		path, err := m.Setup(c.MountLabel, rootUID, rootGID)
 		if err != nil {
 			return nil, err
@@ -73,7 +73,7 @@ func (daemon *Daemon) setupMounts(c *container.Container) ([]container.Mount, er
 	// if we are going to mount any of the network files from container
 	// metadata, the ownership must be set properly for potential container
 	// remapped root (user namespaces)
-	rootUID, rootGID := daemon.GetRemappedUIDGID()
+	rootUID, rootGID := daemon.GetRemappedRootUIDGID()
 	for _, mount := range netMounts {
 		if err := os.Chown(mount.Source, rootUID, rootGID); err != nil {
 			return nil, err

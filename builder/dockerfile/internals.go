@@ -91,7 +91,7 @@ type copyInfo struct {
 	decompress bool
 }
 
-func (b *Builder) runContextCommand(args []string, allowRemote bool, allowLocalDecompression bool, cmdName string) error {
+func (b *Builder) runContextCommand(args []string, allowRemote bool, allowLocalDecompression bool, cmdName string, usergrp string) error {
 	if b.context == nil {
 		return fmt.Errorf("No context given. Impossible to use %s", cmdName)
 	}
@@ -171,7 +171,11 @@ func (b *Builder) runContextCommand(args []string, allowRemote bool, allowLocalD
 	}
 
 	cmd := b.runConfig.Cmd
-	b.runConfig.Cmd = strslice.StrSlice(append(getShell(b.runConfig), fmt.Sprintf("#(nop) %s %s in %s ", cmdName, srcHash, dest)))
+	if usergrp != "" {
+		b.runConfig.Cmd = strslice.StrSlice(append(getShell(b.runConfig), fmt.Sprintf("#(nop) %s --user=%s %s in %s ", cmdName, usergrp, srcHash, dest)))
+	} else {
+		b.runConfig.Cmd = strslice.StrSlice(append(getShell(b.runConfig), fmt.Sprintf("#(nop) %s %s in %s ", cmdName, srcHash, dest)))
+	}
 	defer func(cmd strslice.StrSlice) { b.runConfig.Cmd = cmd }(cmd)
 
 	if hit, err := b.probeCache(); err != nil {
@@ -186,7 +190,12 @@ func (b *Builder) runContextCommand(args []string, allowRemote bool, allowLocalD
 	}
 	b.tmpContainers[container.ID] = struct{}{}
 
-	comment := fmt.Sprintf("%s %s in %s", cmdName, origPaths, dest)
+	var comment string
+	if usergrp != "" {
+		comment = fmt.Sprintf("%s --user=%s %s in %s", cmdName, usergrp, origPaths, dest)
+	} else {
+		comment = fmt.Sprintf("%s %s in %s", cmdName, origPaths, dest)
+	}
 
 	// Twiddle the destination when it's a relative path - meaning, make it
 	// relative to the WORKINGDIR
@@ -195,7 +204,7 @@ func (b *Builder) runContextCommand(args []string, allowRemote bool, allowLocalD
 	}
 
 	for _, info := range infos {
-		if err := b.docker.CopyOnBuild(container.ID, dest, info.FileInfo, info.decompress); err != nil {
+		if err := b.docker.CopyOnBuild(container.ID, dest, info.FileInfo, info.decompress, usergrp); err != nil {
 			return err
 		}
 	}
