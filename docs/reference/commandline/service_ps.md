@@ -61,6 +61,7 @@ The currently supported filters are:
 
 * [id](#id)
 * [name](#name)
+* [node](#node)
 * [desired-state](#desired-state)
 
 
@@ -83,6 +84,20 @@ The `name` filter matches on task names.
 $ docker service ps -f "name=redis.1" redis
 NAME                                IMAGE        NODE      DESIRED STATE  CURRENT STATE
 redis.1.0qihejybwf1x5vqi8lgzlgnpq   redis:3.0.6  manager1  Running        Running 8 seconds
+```
+
+
+#### Node
+
+The `node` filter matches on a node name or a node ID.
+
+```bash
+$ docker service ps -f "node=manager1" redis
+NAME                                IMAGE        NODE      DESIRED STATE  CURRENT STATE
+redis.1.0qihejybwf1x5vqi8lgzlgnpq   redis:3.0.6  manager1  Running        Running 8 seconds
+redis.5.1x0v8yomsncd6sbvfn0ph6ogc   redis:3.0.6  manager1  Running        Running 8 seconds
+redis.9.3w1wu13yuplna8ri3fx47iwad   redis:3.0.6  manager1  Running        Running 8 seconds
+redis.10.8eaxrb2fqpbnv9x30vr06i6vt  redis:3.0.6  manager1  Running        Running 8 seconds
 ```
 
 
