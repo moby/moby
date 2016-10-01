@@ -372,10 +372,14 @@ Json Parameters:
 -   **StopSignal** - Signal to stop a container as a string or unsigned integer. `SIGTERM` by default.
 -   **HostConfig**
     -   **Binds** – A list of volume bindings for this container. Each volume binding is a string in one of these forms:
-           + `host_path:container_path` to bind-mount a host path into the container
-           + `host_path:container_path:ro` to make the bind-mount read-only inside the container.
-           + `volume_name:container_path` to bind-mount a volume managed by a volume plugin into the container.
-           + `volume_name:container_path:ro` to make the bind mount read-only inside the container.
+           + `host_path:container_path[:options]` to bind-mount a host path into the container
+           + `volume_name:container_path[:options]` to bind-mount a volume managed by a volume plugin into the container.
+
+        `options` can be a comma-delimited list of:
+           + `[ro|rw]` to mount a volume read-only or read-write, respectively. By default, the volumes are mounted read-write.
+           + `[z|Z]` The z option tells Docker that two containers share the volume content. As a result, Docker labels the content with a shared content label. Shared volume labels allow all containers to read/write content. The Z option tells Docker to label the content with a private unshared label. Only the current container can use a private volume. Labeling systems like SELinux require that proper labels are placed on volume content mounted into a container. Without a label, the security system might prevent the processes running inside the container from using the content. By default, Docker does not change the labels set by the OS.
+           + `[[r]shared|[r]slave|[r]private]` to specify the propagation property only for bind mounted volumes and not for internal volumes or named volumes. For mount propagation to work source mount point (mount point where source dir is mounted on) has to have right propagation properties. For shared volumes, source mount point has to be shared. And for slave volumes, source mount has to be either shared or slave.
+           + `nocopy` to disable automatic copying of data from the container path to the volume, use the `nocopy` flag. The `nocopy` flag can only be set on named volumes.
     -   **Links** - A list of links for the container. Each link entry should be
           in the form of `container_name:alias`.
     -   **Memory** - Memory limit in bytes.
