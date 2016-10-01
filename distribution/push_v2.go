@@ -5,7 +5,11 @@ import (
 	"fmt"
 	"io"
 	"runtime"
+	"sort"
+	"strings"
 	"sync"
+
+	"golang.org/x/net/context"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution"
@@ -23,7 +27,11 @@ import (
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/reference"
 	"github.com/docker/docker/registry"
-	"golang.org/x/net/context"
+)
+
+const (
+	smallLayerMaximumSize  = 100 * (1 << 10) // 100KB
+	middleLayerMaximumSize = 10 * (1 << 20)  // 10MB
 )
 
 // PushResult contains the tag, manifest digest, and manifest size from the
@@ -36,7 +44,7 @@ type PushResult struct {
 }
 
 type v2Pusher struct {
-	v2MetadataService *metadata.V2MetadataService
+	v2MetadataService metadata.V2MetadataService
 	ref               reference.Named
 	endpoint          registry.APIEndpoint
 	repoInfo          *registry.RepositoryInfo
@@ -133,10 +141,16 @@ func (p *v2Pusher) pushV2Tag(ctx context.Context, ref reference.NamedTagged, id 
 		defer layer.ReleaseAndLog(p.config.LayerStore, l)
 	}
 
+	hmacKey, err := metadata.ComputeV2MetadataHMACKey(p.config.AuthConfig)
+	if err != nil {
+		return fmt.Errorf("failed to compute hmac key of auth config: %v", err)
+	}
+
 	var descriptors []xfer.UploadDescriptor
 
 	descriptorTemplate := v2PushDescriptor{
 		v2MetadataService: p.v2MetadataService,
+		hmacKey:           hmacKey,
 		repoInfo:          p.repoInfo,
 		ref:               p.ref,
 		repo:              p.repo,
@@ -147,6 +161,7 @@ func (p *v2Pusher) pushV2Tag(ctx context.Context, ref reference.NamedTagged, id 
 	for i := 0; i < len(img.RootFS.DiffIDs); i++ {
 		descriptor := descriptorTemplate
 		descriptor.layer = l
+		descriptor.checkedDigests = make(map[digest.Digest]struct{})
 		descriptors = append(descriptors, &descriptor)
 
 		l = l.Parent()
@@ -232,12 +247,15 @@ func manifestFromBuilder(ctx context.Context, builder distribution.ManifestBuild
 
 type v2PushDescriptor struct {
 	layer             layer.Layer
-	v2MetadataService *metadata.V2MetadataService
+	v2MetadataService metadata.V2MetadataService
+	hmacKey           []byte
 	repoInfo          reference.Named
 	ref               reference.Named
 	repo              distribution.Repository
 	pushState         *pushState
 	remoteDescriptor  distribution.Descriptor
+	// a set of digests whose presence has been checked in a target repository
+	checkedDigests map[digest.Digest]struct{}
 }
 
 func (pd *v2PushDescriptor) Key() string {
@@ -272,71 +290,61 @@ func (pd *v2PushDescriptor) Upload(ctx context.Context, progressOutput progress.
 	}
 	pd.pushState.Unlock()
 
+	maxMountAttempts, maxExistenceChecks, checkOtherRepositories := getMaxMountAndExistenceCheckAttempts(pd.layer)
+
 	// Do we have any metadata associated with this layer's DiffID?
 	v2Metadata, err := pd.v2MetadataService.GetMetadata(diffID)
 	if err == nil {
-		descriptor, exists, err := layerAlreadyExists(ctx, v2Metadata, pd.repoInfo, pd.repo, pd.pushState)
-		if err != nil {
-			progress.Update(progressOutput, pd.ID(), "Image push failed")
-			return distribution.Descriptor{}, retryOnError(err)
-		}
-		if exists {
-			progress.Update(progressOutput, pd.ID(), "Layer already exists")
-			pd.pushState.Lock()
-			pd.pushState.remoteLayers[diffID] = descriptor
-			pd.pushState.Unlock()
-			return descriptor, nil
+		// check for blob existence in the target repository if we have a mapping with it
+		descriptor, exists, err := pd.layerAlreadyExists(ctx, progressOutput, diffID, false, 1, v2Metadata)
+		if exists || err != nil {
+			return descriptor, err
 		}
 	}
-
-	logrus.Debugf("Pushing layer: %s", diffID)
 
 	// if digest was empty or not saved, or if blob does not exist on the remote repository,
 	// then push the blob.
 	bs := pd.repo.Blobs(ctx)
 
 	var layerUpload distribution.BlobWriter
-	mountAttemptsRemaining := 3
 
-	// Attempt to find another repository in the same registry to mount the layer
-	// from to avoid an unnecessary upload.
-	// Note: metadata is stored from oldest to newest, so we iterate through this
-	// slice in reverse to maximize our chances of the blob still existing in the
-	// remote repository.
-	for i := len(v2Metadata) - 1; i >= 0 && mountAttemptsRemaining > 0; i-- {
-		mountFrom := v2Metadata[i]
+	// Attempt to find another repository in the same registry to mount the layer from to avoid an unnecessary upload
+	candidates := getRepositoryMountCandidates(pd.repoInfo, pd.hmacKey, maxMountAttempts, v2Metadata)
+	for _, mountCandidate := range candidates {
+		logrus.Debugf("attempting to mount layer %s (%s) from %s", diffID, mountCandidate.Digest, mountCandidate.SourceRepository)
+		createOpts := []distribution.BlobCreateOption{}
 
-		sourceRepo, err := reference.ParseNamed(mountFrom.SourceRepository)
-		if err != nil {
-			continue
-		}
-		if pd.repoInfo.Hostname() != sourceRepo.Hostname() {
-			// don't mount blobs from another registry
-			continue
-		}
+		if len(mountCandidate.SourceRepository) > 0 {
+			namedRef, err := reference.WithName(mountCandidate.SourceRepository)
+			if err != nil {
+				logrus.Errorf("failed to parse source repository reference %v: %v", namedRef.String(), err)
+				pd.v2MetadataService.Remove(mountCandidate)
+				continue
+			}
 
-		namedRef, err := reference.WithName(mountFrom.SourceRepository)
-		if err != nil {
-			continue
-		}
+			// TODO (brianbland): We need to construct a reference where the Name is
+			// only the full remote name, so clean this up when distribution has a
+			// richer reference package
+			remoteRef, err := distreference.WithName(namedRef.RemoteName())
+			if err != nil {
+				logrus.Errorf("failed to make remote reference out of %q: %v", namedRef.RemoteName(), namedRef.RemoteName())
+				continue
+			}
 
-		// TODO (brianbland): We need to construct a reference where the Name is
-		// only the full remote name, so clean this up when distribution has a
-		// richer reference package
-		remoteRef, err := distreference.WithName(namedRef.RemoteName())
-		if err != nil {
-			continue
-		}
+			canonicalRef, err := distreference.WithDigest(remoteRef, mountCandidate.Digest)
+			if err != nil {
+				logrus.Errorf("failed to make canonical reference: %v", err)
+				continue
+			}
 
-		canonicalRef, err := distreference.WithDigest(remoteRef, mountFrom.Digest)
-		if err != nil {
-			continue
+			createOpts = append(createOpts, client.WithMountFrom(canonicalRef))
 		}
 
-		logrus.Debugf("attempting to mount layer %s (%s) from %s", diffID, mountFrom.Digest, sourceRepo.FullName())
-
-		layerUpload, err = bs.Create(ctx, client.WithMountFrom(canonicalRef))
+		// send the layer
+		lu, err := bs.Create(ctx, createOpts...)
 		switch err := err.(type) {
+		case nil:
+			// noop
 		case distribution.ErrBlobMounted:
 			progress.Updatef(progressOutput, pd.ID(), "Mounted from %s", err.From.Name())
 
@@ -348,21 +356,44 @@ func (pd *v2PushDescriptor) Upload(ctx context.Context, progressOutput progress.
 			pd.pushState.Unlock()
 
 			// Cache mapping from this layer's DiffID to the blobsum
-			if err := pd.v2MetadataService.Add(diffID, metadata.V2Metadata{Digest: mountFrom.Digest, SourceRepository: pd.repoInfo.FullName()}); err != nil {
+			if err := pd.v2MetadataService.TagAndAdd(diffID, pd.hmacKey, metadata.V2Metadata{
+				Digest:           err.Descriptor.Digest,
+				SourceRepository: pd.repoInfo.FullName(),
+			}); err != nil {
 				return distribution.Descriptor{}, xfer.DoNotRetry{Err: err}
 			}
 			return err.Descriptor, nil
-		case nil:
-			// blob upload session created successfully, so begin the upload
-			mountAttemptsRemaining = 0
 		default:
-			// unable to mount layer from this repository, so this source mapping is no longer valid
-			logrus.Debugf("unassociating layer %s (%s) with %s", diffID, mountFrom.Digest, mountFrom.SourceRepository)
-			pd.v2MetadataService.Remove(mountFrom)
-			mountAttemptsRemaining--
+			logrus.Infof("failed to mount layer %s (%s) from %s: %v", diffID, mountCandidate.Digest, mountCandidate.SourceRepository, err)
+		}
+
+		if len(mountCandidate.SourceRepository) > 0 &&
+			(metadata.CheckV2MetadataHMAC(&mountCandidate, pd.hmacKey) ||
+				len(mountCandidate.HMAC) == 0) {
+			cause := "blob mount failure"
+			if err != nil {
+				cause = fmt.Sprintf("an error: %v", err.Error())
+			}
+			logrus.Debugf("removing association between layer %s and %s due to %s", mountCandidate.Digest, mountCandidate.SourceRepository, cause)
+			pd.v2MetadataService.Remove(mountCandidate)
+		}
+
+		if lu != nil {
+			// cancel previous upload
+			cancelLayerUpload(ctx, mountCandidate.Digest, layerUpload)
+			layerUpload = lu
 		}
 	}
 
+	if maxExistenceChecks-len(pd.checkedDigests) > 0 {
+		// do additional layer existence checks with other known digests if any
+		descriptor, exists, err := pd.layerAlreadyExists(ctx, progressOutput, diffID, checkOtherRepositories, maxExistenceChecks-len(pd.checkedDigests), v2Metadata)
+		if exists || err != nil {
+			return descriptor, err
+		}
+	}
+
+	logrus.Debugf("Pushing layer: %s", diffID)
 	if layerUpload == nil {
 		layerUpload, err = bs.Create(ctx)
 		if err != nil {
@@ -371,6 +402,29 @@ func (pd *v2PushDescriptor) Upload(ctx context.Context, progressOutput progress.
 	}
 	defer layerUpload.Close()
 
+	// upload the blob
+	desc, err := pd.uploadUsingSession(ctx, progressOutput, diffID, layerUpload)
+	if err != nil {
+		return desc, err
+	}
+
+	return desc, nil
+}
+
+func (pd *v2PushDescriptor) SetRemoteDescriptor(descriptor distribution.Descriptor) {
+	pd.remoteDescriptor = descriptor
+}
+
+func (pd *v2PushDescriptor) Descriptor() distribution.Descriptor {
+	return pd.remoteDescriptor
+}
+
+func (pd *v2PushDescriptor) uploadUsingSession(
+	ctx context.Context,
+	progressOutput progress.Output,
+	diffID layer.DiffID,
+	layerUpload distribution.BlobWriter,
+) (distribution.Descriptor, error) {
 	arch, err := pd.layer.TarStream()
 	if err != nil {
 		return distribution.Descriptor{}, xfer.DoNotRetry{Err: err}
@@ -404,55 +458,237 @@ func (pd *v2PushDescriptor) Upload(ctx context.Context, progressOutput progress.
 	progress.Update(progressOutput, pd.ID(), "Pushed")
 
 	// Cache mapping from this layer's DiffID to the blobsum
-	if err := pd.v2MetadataService.Add(diffID, metadata.V2Metadata{Digest: pushDigest, SourceRepository: pd.repoInfo.FullName()}); err != nil {
+	if err := pd.v2MetadataService.TagAndAdd(diffID, pd.hmacKey, metadata.V2Metadata{
+		Digest:           pushDigest,
+		SourceRepository: pd.repoInfo.FullName(),
+	}); err != nil {
 		return distribution.Descriptor{}, xfer.DoNotRetry{Err: err}
 	}
 
-	pd.pushState.Lock()
-
-	// If Commit succeeded, that's an indication that the remote registry
-	// speaks the v2 protocol.
-	pd.pushState.confirmedV2 = true
-
-	descriptor := distribution.Descriptor{
+	desc := distribution.Descriptor{
 		Digest:    pushDigest,
 		MediaType: schema2.MediaTypeLayer,
 		Size:      nn,
 	}
-	pd.pushState.remoteLayers[diffID] = descriptor
 
+	pd.pushState.Lock()
+	// If Commit succeeded, that's an indication that the remote registry speaks the v2 protocol.
+	pd.pushState.confirmedV2 = true
+	pd.pushState.remoteLayers[diffID] = desc
 	pd.pushState.Unlock()
 
-	return descriptor, nil
+	return desc, nil
 }
 
-func (pd *v2PushDescriptor) SetRemoteDescriptor(descriptor distribution.Descriptor) {
-	pd.remoteDescriptor = descriptor
-}
-
-func (pd *v2PushDescriptor) Descriptor() distribution.Descriptor {
-	return pd.remoteDescriptor
-}
-
-// layerAlreadyExists checks if the registry already know about any of the
-// metadata passed in the "metadata" slice. If it finds one that the registry
-// knows about, it returns the known digest and "true".
-func layerAlreadyExists(ctx context.Context, metadata []metadata.V2Metadata, repoInfo reference.Named, repo distribution.Repository, pushState *pushState) (distribution.Descriptor, bool, error) {
-	for _, meta := range metadata {
-		// Only check blobsums that are known to this repository or have an unknown source
-		if meta.SourceRepository != "" && meta.SourceRepository != repoInfo.FullName() {
+// layerAlreadyExists checks if the registry already knows about any of the metadata passed in the "metadata"
+// slice. If it finds one that the registry knows about, it returns the known digest and "true". If
+// "checkOtherRepositories" is true, stat will be performed also with digests mapped to any other repository
+// (not just the target one).
+func (pd *v2PushDescriptor) layerAlreadyExists(
+	ctx context.Context,
+	progressOutput progress.Output,
+	diffID layer.DiffID,
+	checkOtherRepositories bool,
+	maxExistenceCheckAttempts int,
+	v2Metadata []metadata.V2Metadata,
+) (desc distribution.Descriptor, exists bool, err error) {
+	// filter the metadata
+	candidates := []metadata.V2Metadata{}
+	for _, meta := range v2Metadata {
+		if len(meta.SourceRepository) > 0 && !checkOtherRepositories && meta.SourceRepository != pd.repoInfo.FullName() {
 			continue
 		}
-		descriptor, err := repo.Blobs(ctx).Stat(ctx, meta.Digest)
+		candidates = append(candidates, meta)
+	}
+	// sort the candidates by similarity
+	sortV2MetadataByLikenessAndAge(pd.repoInfo, pd.hmacKey, candidates)
+
+	digestToMetadata := make(map[digest.Digest]*metadata.V2Metadata)
+	// an array of unique blob digests ordered from the best mount candidates to worst
+	layerDigests := []digest.Digest{}
+	for i := 0; i < len(candidates); i++ {
+		if len(layerDigests) >= maxExistenceCheckAttempts {
+			break
+		}
+		meta := &candidates[i]
+		if _, exists := digestToMetadata[meta.Digest]; exists {
+			// keep reference just to the first mapping (the best mount candidate)
+			continue
+		}
+		if _, exists := pd.checkedDigests[meta.Digest]; exists {
+			// existence of this digest has already been tested
+			continue
+		}
+		digestToMetadata[meta.Digest] = meta
+		layerDigests = append(layerDigests, meta.Digest)
+	}
+
+	for _, dgst := range layerDigests {
+		meta := digestToMetadata[dgst]
+		logrus.Debugf("Checking for presence of layer %s (%s) in %s", diffID, dgst, pd.repoInfo.FullName())
+		desc, err = pd.repo.Blobs(ctx).Stat(ctx, dgst)
+		pd.checkedDigests[meta.Digest] = struct{}{}
 		switch err {
 		case nil:
-			descriptor.MediaType = schema2.MediaTypeLayer
-			return descriptor, true, nil
+			if m, ok := digestToMetadata[desc.Digest]; !ok || m.SourceRepository != pd.repoInfo.FullName() || !metadata.CheckV2MetadataHMAC(m, pd.hmacKey) {
+				// cache mapping from this layer's DiffID to the blobsum
+				if err := pd.v2MetadataService.TagAndAdd(diffID, pd.hmacKey, metadata.V2Metadata{
+					Digest:           desc.Digest,
+					SourceRepository: pd.repoInfo.FullName(),
+				}); err != nil {
+					return distribution.Descriptor{}, false, xfer.DoNotRetry{Err: err}
+				}
+			}
+			desc.MediaType = schema2.MediaTypeLayer
+			exists = true
+			break
 		case distribution.ErrBlobUnknown:
-			// nop
+			if meta.SourceRepository == pd.repoInfo.FullName() {
+				// remove the mapping to the target repository
+				pd.v2MetadataService.Remove(*meta)
+			}
 		default:
-			return distribution.Descriptor{}, false, err
+			progress.Update(progressOutput, pd.ID(), "Image push failed")
+			return desc, false, retryOnError(err)
 		}
 	}
-	return distribution.Descriptor{}, false, nil
+
+	if exists {
+		progress.Update(progressOutput, pd.ID(), "Layer already exists")
+		pd.pushState.Lock()
+		pd.pushState.remoteLayers[diffID] = desc
+		pd.pushState.Unlock()
+	}
+
+	return desc, exists, nil
+}
+
+// getMaxMountAndExistenceCheckAttempts returns a maximum number of cross repository mount attempts from
+// source repositories of target registry, maximum number of layer existence checks performed on the target
+// repository and whether the check shall be done also with digests mapped to different repositories. The
+// decision is based on layer size. The smaller the layer, the fewer attempts shall be made because the cost
+// of upload does not outweigh a latency.
+func getMaxMountAndExistenceCheckAttempts(layer layer.Layer) (maxMountAttempts, maxExistenceCheckAttempts int, checkOtherRepositories bool) {
+	size, err := layer.DiffSize()
+	switch {
+	// big blob
+	case size > middleLayerMaximumSize:
+		// 1st attempt to mount the blob few times
+		// 2nd few existence checks with digests associated to any repository
+		// then fallback to upload
+		return 4, 3, true
+
+	// middle sized blobs; if we could not get the size, assume we deal with middle sized blob
+	case size > smallLayerMaximumSize, err != nil:
+		// 1st attempt to mount blobs of average size few times
+		// 2nd try at most 1 existence check if there's an existing mapping to the target repository
+		// then fallback to upload
+		return 3, 1, false
+
+	// small blobs, do a minimum number of checks
+	default:
+		return 1, 1, false
+	}
+}
+
+// getRepositoryMountCandidates returns an array of v2 metadata items belonging to the given registry. The
+// array is sorted from youngest to oldest. If requireReigstryMatch is true, the resulting array will contain
+// only metadata entries having registry part of SourceRepository matching the part of repoInfo.
+func getRepositoryMountCandidates(
+	repoInfo reference.Named,
+	hmacKey []byte,
+	max int,
+	v2Metadata []metadata.V2Metadata,
+) []metadata.V2Metadata {
+	candidates := []metadata.V2Metadata{}
+	for _, meta := range v2Metadata {
+		sourceRepo, err := reference.ParseNamed(meta.SourceRepository)
+		if err != nil || repoInfo.Hostname() != sourceRepo.Hostname() {
+			continue
+		}
+		// target repository is not a viable candidate
+		if meta.SourceRepository == repoInfo.FullName() {
+			continue
+		}
+		candidates = append(candidates, meta)
+	}
+
+	sortV2MetadataByLikenessAndAge(repoInfo, hmacKey, candidates)
+	if max >= 0 && len(candidates) > max {
+		// select the youngest metadata
+		candidates = candidates[:max]
+	}
+
+	return candidates
+}
+
+// byLikeness is a sorting container for v2 metadata candidates for cross repository mount. The
+// candidate "a" is preferred over "b":
+//
+//  1. if it was hashed using the same AuthConfig as the one used to authenticate to target repository and the
+//     "b" was not
+//  2. if a number of its repository path components exactly matching path components of target repository is higher
+type byLikeness struct {
+	arr            []metadata.V2Metadata
+	hmacKey        []byte
+	pathComponents []string
+}
+
+func (bla byLikeness) Less(i, j int) bool {
+	aMacMatch := metadata.CheckV2MetadataHMAC(&bla.arr[i], bla.hmacKey)
+	bMacMatch := metadata.CheckV2MetadataHMAC(&bla.arr[j], bla.hmacKey)
+	if aMacMatch != bMacMatch {
+		return aMacMatch
+	}
+	aMatch := numOfMatchingPathComponents(bla.arr[i].SourceRepository, bla.pathComponents)
+	bMatch := numOfMatchingPathComponents(bla.arr[j].SourceRepository, bla.pathComponents)
+	return aMatch > bMatch
+}
+func (bla byLikeness) Swap(i, j int) {
+	bla.arr[i], bla.arr[j] = bla.arr[j], bla.arr[i]
+}
+func (bla byLikeness) Len() int { return len(bla.arr) }
+
+func sortV2MetadataByLikenessAndAge(repoInfo reference.Named, hmacKey []byte, marr []metadata.V2Metadata) {
+	// reverse the metadata array to shift the newest entries to the beginning
+	for i := 0; i < len(marr)/2; i++ {
+		marr[i], marr[len(marr)-i-1] = marr[len(marr)-i-1], marr[i]
+	}
+	// keep equal entries ordered from the youngest to the oldest
+	sort.Stable(byLikeness{
+		arr:            marr,
+		hmacKey:        hmacKey,
+		pathComponents: getPathComponents(repoInfo.FullName()),
+	})
+}
+
+// numOfMatchingPathComponents returns a number of path components in "pth" that exactly match "matchComponents".
+func numOfMatchingPathComponents(pth string, matchComponents []string) int {
+	pthComponents := getPathComponents(pth)
+	i := 0
+	for ; i < len(pthComponents) && i < len(matchComponents); i++ {
+		if matchComponents[i] != pthComponents[i] {
+			return i
+		}
+	}
+	return i
+}
+
+func getPathComponents(path string) []string {
+	// make sure to add docker.io/ prefix to the path
+	named, err := reference.ParseNamed(path)
+	if err == nil {
+		path = named.FullName()
+	}
+	return strings.Split(path, "/")
+}
+
+func cancelLayerUpload(ctx context.Context, dgst digest.Digest, layerUpload distribution.BlobWriter) {
+	if layerUpload != nil {
+		logrus.Debugf("cancelling upload of blob %s", dgst)
+		err := layerUpload.Cancel(ctx)
+		if err != nil {
+			logrus.Warnf("failed to cancel upload: %v", err)
+		}
+	}
 }
