@@ -5040,13 +5040,13 @@ Stop and remove the service `id`
 
 **Example response**:
 
-    HTTP/1.1 204 No Content
+    HTTP/1.1 200 OK
     Content-Length: 0
     Content-Type: text/plain; charset=utf-8
 
 **Status codes**:
 
--   **204** – no error
+-   **200** – no error
 -   **404** – no such service
 -   **500** – server error
 
