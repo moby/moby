@@ -170,6 +170,7 @@ type MountInit func(root string) error
 type Store interface {
 	Register(io.Reader, ChainID) (Layer, error)
 	Get(ChainID) (Layer, error)
+	Map() map[ChainID]Layer
 	Release(Layer) ([]Metadata, error)
 
 	CreateRWLayer(id string, parent ChainID, mountLabel string, initFunc MountInit, storageOpt map[string]string) (RWLayer, error)

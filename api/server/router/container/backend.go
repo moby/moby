@@ -62,6 +62,11 @@ type attachBackend interface {
 	ContainerAttach(name string, c *backend.ContainerAttachConfig) error
 }
 
+// systemBackend includes functions to implement to provide system wide containers functionality
+type systemBackend interface {
+	ContainersPrune(config *types.ContainersPruneConfig) (*types.ContainersPruneReport, error)
+}
+
 // Backend is all the methods that need to be implemented to provide container specific functionality.
 type Backend interface {
 	execBackend
@@ -69,4 +74,5 @@ type Backend interface {
 	stateBackend
 	monitorBackend
 	attachBackend
+	systemBackend
 }

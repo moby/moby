@@ -15,7 +15,6 @@ import (
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cli/command"
 	"github.com/docker/docker/cli/command/formatter"
-	"github.com/docker/docker/cli/command/system"
 	"github.com/spf13/cobra"
 )
 
@@ -110,7 +109,7 @@ func runStats(dockerCli *command.DockerCli, opts *statsOptions) error {
 		// retrieving the list of running containers to avoid a race where we
 		// would "miss" a creation.
 		started := make(chan struct{})
-		eh := system.InitEventHandler()
+		eh := command.InitEventHandler()
 		eh.Handle("create", func(e events.Message) {
 			if opts.all {
 				s := formatter.NewContainerStats(e.ID[:12], daemonOSType)

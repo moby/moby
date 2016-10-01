@@ -57,3 +57,25 @@ func PrettyPrint(i interface{}) string {
 		return capitalizeFirst(fmt.Sprintf("%s", t))
 	}
 }
+
+// PromptForConfirmation request and check confirmation from user.
+// This will display the provided message followed by ' [y/N] '. If
+// the user input 'y' or 'Y' it returns true other false.  If no
+// message is provided "Are you sure you want to proceeed? [y/N] "
+// will be used instead.
+func PromptForConfirmation(ins *InStream, outs *OutStream, message string) bool {
+	if message == "" {
+		message = "Are you sure you want to proceeed?"
+	}
+	message += " [y/N] "
+
+	fmt.Fprintf(outs, message)
+
+	answer := ""
+	n, _ := fmt.Fscan(ins, &answer)
+	if n != 1 || (answer != "y" && answer != "Y") {
+		return false
+	}
+
+	return true
+}

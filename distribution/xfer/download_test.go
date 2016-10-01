@@ -71,6 +71,16 @@ func createChainIDFromParent(parent layer.ChainID, dgsts ...layer.DiffID) layer.
 	return createChainIDFromParent(layer.ChainID(dgst), dgsts[1:]...)
 }
 
+func (ls *mockLayerStore) Map() map[layer.ChainID]layer.Layer {
+	layers := map[layer.ChainID]layer.Layer{}
+
+	for k, v := range ls.layers {
+		layers[k] = v
+	}
+
+	return layers
+}
+
 func (ls *mockLayerStore) Register(reader io.Reader, parentID layer.ChainID) (layer.Layer, error) {
 	return ls.RegisterWithDescriptor(reader, parentID, distribution.Descriptor{})
 }

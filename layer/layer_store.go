@@ -360,6 +360,19 @@ func (ls *layerStore) Get(l ChainID) (Layer, error) {
 	return layer.getReference(), nil
 }
 
+func (ls *layerStore) Map() map[ChainID]Layer {
+	ls.layerL.Lock()
+	defer ls.layerL.Unlock()
+
+	layers := map[ChainID]Layer{}
+
+	for k, v := range ls.layerMap {
+		layers[k] = v
+	}
+
+	return layers
+}
+
 func (ls *layerStore) deleteLayer(layer *roLayer, metadata *Metadata) error {
 	err := ls.driver.Remove(layer.cacheID)
 	if err != nil {

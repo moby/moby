@@ -23,6 +23,7 @@ const (
 	statusHeader      = "STATUS"
 	portsHeader       = "PORTS"
 	mountsHeader      = "MOUNTS"
+	localVolumes      = "LOCAL VOLUMES"
 )
 
 // NewContainerFormat returns a Format for rendering using a Context
@@ -198,4 +199,17 @@ func (c *containerContext) Mounts() string {
 		mounts = append(mounts, name)
 	}
 	return strings.Join(mounts, ",")
+}
+
+func (c *containerContext) LocalVolumes() string {
+	c.AddHeader(localVolumes)
+
+	count := 0
+	for _, m := range c.c.Mounts {
+		if m.Driver == "local" {
+			count++
+		}
+	}
+
+	return fmt.Sprintf("%d", count)
 }

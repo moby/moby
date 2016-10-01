@@ -1567,6 +1567,38 @@ Upload a tar archive to be extracted to a path in the filesystem of container
     - no such file or directory (**path** resource does not exist)
 - **500** – server error
 
+
+### Prune stopped containers
+
+`POST /containers/prune`
+
+Delete stopped containers
+
+**Example request**:
+
+    POST /containers/prune HTTP/1.1
+    Content-Type: application/json
+
+    {
+    }
+
+**Example response**:
+
+    HTTP/1.1 200 OK
+    Content-Type: application/json
+
+    {
+        "ContainersDeleted": [
+            "e575172ed11dc01bfce087fb27bee502db149e1a0fad7c296ad300bbff178148"
+        ],
+        "SpaceReclaimed": 109
+    }
+
+**Status codes**:
+
+-   **200** – no error
+-   **500** – server error
+
 ## 3.2 Images
 
 ### List Images
@@ -2194,6 +2226,54 @@ Search for an image on [Docker Hub](https://hub.docker.com).
 -   **200** – no error
 -   **500** – server error
 
+### Prune unused images
+
+`POST /images/prune`
+
+Delete unused images
+
+**Example request**:
+
+    POST /images/prune HTTP/1.1
+    Content-Type: application/json
+
+    {
+        "DanglingOnly": false
+    }
+
+**Example response**:
+
+    HTTP/1.1 200 OK
+    Content-Type: application/json
+
+    {
+        "ImagesDeleted": [
+            {
+                "Untagged": "busybox:latest"
+            },
+            {
+                "Untagged": "busybox@sha256:a59906e33509d14c036c8678d687bd4eec81ed7c4b8ce907b888c607f6a1e0e6"
+            },
+            {
+                "Deleted": "sha256:2b8fd9751c4c0f5dd266fcae00707e67a2545ef34f9a29354585f93dac906749"
+            },
+            {
+                "Deleted": "sha256:8ac8bfaff55af948c796026ee867448c5b5b5d9dd3549f4006d9759b25d4a893"
+            }
+        ],
+        "SpaceReclaimed": 1092588
+    }
+
+**JSON parameters**:
+
+- **DanglingOnly**: if `true` only delete unused *and* untagged images. Default to `false` if omitted
+
+**Status codes**:
+
+-   **200** – no error
+-   **500** – server error
+
+
 ## 3.3 Misc
 
 ### Check auth configuration
@@ -2418,6 +2498,95 @@ Display system-wide information
         },
         "LiveRestoreEnabled": false,
         "Isolation": "process"
+    }
+
+**Status codes**:
+
+-   **200** – no error
+-   **500** – server error
+
+### Show docker data usage information
+
+`GET /system/df`
+
+Return docker data usage information
+
+**Example request**:
+
+    GET /system/df HTTP/1.1
+
+**Example response**:
+
+    {
+        "LayersSize": 1092588,
+        "Images": [
+            {
+                "Id": "sha256:2b8fd9751c4c0f5dd266fcae00707e67a2545ef34f9a29354585f93dac906749",
+                "ParentId": "",
+                "RepoTags": [
+                    "busybox:latest"
+                ],
+                "RepoDigests": [
+                    "busybox@sha256:a59906e33509d14c036c8678d687bd4eec81ed7c4b8ce907b888c607f6a1e0e6"
+                ],
+                "Created": 1466724217,
+                "Size": 1092588,
+                "SharedSize": 0,
+                "VirtualSize": 1092588,
+                "Labels": {},
+                "Containers": 1
+            }
+        ],
+        "Containers": [
+            {
+                "Id": "e575172ed11dc01bfce087fb27bee502db149e1a0fad7c296ad300bbff178148",
+                "Names": [
+                    "/top"
+                ],
+                "Image": "busybox",
+                "ImageID": "sha256:2b8fd9751c4c0f5dd266fcae00707e67a2545ef34f9a29354585f93dac906749",
+                "Command": "top",
+                "Created": 1472592424,
+                "Ports": [],
+                "SizeRootFs": 1092588,
+                "Labels": {},
+                "State": "exited",
+                "Status": "Exited (0) 56 minutes ago",
+                "HostConfig": {
+                    "NetworkMode": "default"
+                },
+                "NetworkSettings": {
+                    "Networks": {
+                        "bridge": {
+                            "IPAMConfig": null,
+                            "Links": null,
+                            "Aliases": null,
+                            "NetworkID": "d687bc59335f0e5c9ee8193e5612e8aee000c8c62ea170cfb99c098f95899d92",
+                            "EndpointID": "8ed5115aeaad9abb174f68dcf135b49f11daf597678315231a32ca28441dec6a",
+                            "Gateway": "172.18.0.1",
+                            "IPAddress": "172.18.0.2",
+                            "IPPrefixLen": 16,
+                            "IPv6Gateway": "",
+                            "GlobalIPv6Address": "",
+                            "GlobalIPv6PrefixLen": 0,
+                            "MacAddress": "02:42:ac:12:00:02"
+                        }
+                    }
+                },
+                "Mounts": []
+            }
+        ],
+        "Volumes": [
+                {
+                    "Name": "my-volume",
+                    "Driver": "local",
+                    "Mountpoint": "",
+                    "Labels": null,
+                    "Scope": "",
+                    "Size": 0,
+                    "RefCount": 0
+                }
+        ]
     }
 
 **Status codes**:
@@ -3226,6 +3395,38 @@ Instruct the driver to remove the volume (`name`).
 -   **404** - no such volume or volume driver
 -   **409** - volume is in use and cannot be removed
 -   **500** - server error
+
+### Prune unused volumes
+
+`POST /volumes/prune`
+
+Delete unused volumes
+
+**Example request**:
+
+    POST /volumes/prune HTTP/1.1
+    Content-Type: application/json
+
+    {
+    }
+
+**Example response**:
+
+    HTTP/1.1 200 OK
+    Content-Type: application/json
+
+    {
+        "VolumesDeleted": [
+            "my-volume"
+        ],
+        "SpaceReclaimed": 42
+    }
+
+**Status codes**:
+
+-   **200** – no error
+-   **500** – server error
+
 
 ## 3.5 Networks
 

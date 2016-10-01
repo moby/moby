@@ -32,7 +32,7 @@ func TestImageContext(t *testing.T) {
 			trunc: false,
 		}, imageID, imageIDHeader, ctx.ID},
 		{imageContext{
-			i:     types.Image{Size: 10},
+			i:     types.Image{Size: 10, VirtualSize: 10},
 			trunc: true,
 		}, "10 B", sizeHeader, ctx.Size},
 		{imageContext{
