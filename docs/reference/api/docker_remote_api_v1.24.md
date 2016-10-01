@@ -397,11 +397,17 @@ Create a container
            + `host-src:container-dest:ro` to make the bind-mount read-only
              inside the container. Both `host-src`, and `container-dest` must be
              an _absolute_ path.
-           + `volume-name:container-dest` to bind-mount a volume managed by a
+           + `volume-name:container-dest[:nocopy]` to bind-mount a volume managed by a
              volume driver into the container. `container-dest` must be an
-             _absolute_ path.
-           + `volume-name:container-dest:ro` to mount the volume read-only
+             _absolute_ path. Optionally, `nocopy` option initializes an empty volume
+	     with data from `container-dest`. In that case, `container-dest` must not 
+	     be declared as `VOLUME` in the `Dockerfile` of the image from which the
+	     container is created.
+           + `volume-name:container-dest:ro[,nocopy]` to mount the volume read-only
              inside the container.  `container-dest` must be an _absolute_ path.
+	     Optionally, `nocopy` option initializes an empty volume with data from 
+	     `container-dest`. In that case, `container-dest` must not be declared as 
+	     `VOLUME` in the `Dockerfile` of the image from which the container is created.
     -   **Links** - A list of links for the container. Each link entry should be
           in the form of `container_name:alias`.
     -   **Memory** - Memory limit in bytes.
