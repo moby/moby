@@ -4,6 +4,7 @@ package plugin
 
 import (
 	"fmt"
+	"os/exec"
 	"path/filepath"
 	"syscall"
 	"time"
@@ -25,6 +26,12 @@ func (pm *Manager) enable(p *v2.Plugin, force bool) error {
 	spec, err := p.InitSpec(oci.DefaultSpec(), pm.libRoot)
 	if err != nil {
 		return err
+	}
+
+	for _, module := range p.PluginObj.Config.KernelModules {
+		if err := exec.Command("modprobe", module).Run(); err != nil {
+			logrus.Errorf("enable: failed to modprobe %s: %v", module, err)
+		}
 	}
 
 	p.RestartManager = restartmanager.New(container.RestartPolicy{Name: "always"}, 0)

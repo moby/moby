@@ -96,6 +96,7 @@ func (p *Plugin) InitPlugin(libRoot string) error {
 		}
 	}
 	copy(p.PluginObj.Config.Args, p.PluginObj.Manifest.Args.Value)
+	copy(p.PluginObj.Config.KernelModules, p.PluginObj.Manifest.KernelModules)
 
 	f, err := os.Create(filepath.Join(libRoot, p.PluginObj.ID, "plugin-config.json"))
 	if err != nil {
@@ -154,6 +155,13 @@ func (p *Plugin) ComputePrivileges() types.PluginPrivileges {
 			Name:        "capabilities",
 			Description: "",
 			Value:       m.Capabilities,
+		})
+	}
+	if len(m.KernelModules) > 0 {
+		privileges = append(privileges, types.PluginPrivilege{
+			Name:        "kernel modules",
+			Description: "",
+			Value:       m.KernelModules,
 		})
 	}
 	return privileges

@@ -16,10 +16,11 @@ type PluginInstallOptions struct {
 
 // PluginConfig represents the values of settings potentially modifiable by a user
 type PluginConfig struct {
-	Mounts  []PluginMount
-	Env     []string
-	Args    []string
-	Devices []PluginDevice
+	Mounts        []PluginMount
+	Env           []string
+	Args          []string
+	Devices       []PluginDevice
+	KernelModules []string
 }
 
 // Plugin represents a Docker plugin for the remote API
@@ -154,6 +155,7 @@ type PluginManifest struct {
 	Devices         []PluginDevice
 	Env             []PluginEnv
 	Args            PluginArgs
+	KernelModules   []string
 }
 
 // PluginPrivilege describes a permission the user has to accept
