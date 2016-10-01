@@ -101,6 +101,7 @@ func (clnt *client) AddProcess(ctx context.Context, containerID, processFriendly
 	clnt.unlock(containerID)
 
 	if err := clnt.backend.AttachStreams(processFriendlyName, *iopipe); err != nil {
+		clnt.lock(containerID)
 		return err
 	}
 	clnt.lock(containerID)
