@@ -922,6 +922,7 @@ _docker_daemon() {
 		--fixed-cidr-v6
 		--graph -g
 		--group -G
+		--init-path
 		--insecure-registry
 		--ip
 		--label
@@ -981,16 +982,16 @@ _docker_daemon() {
 			__docker_nospace
 			return
 			;;
+		--config-file|--containerd|--init-path|--pidfile|-p|--tlscacert|--tlscert|--tlskey)
+			_filedir
+			return
+			;;
 		--exec-root|--graph|-g)
 			_filedir -d
 			return
 			;;
 		--log-driver)
 			__docker_complete_log_drivers
-			return
-			;;
-		--config-file|--containerd|--pidfile|-p|--tlscacert|--tlscert|--tlskey)
-			_filedir
 			return
 			;;
 		--storage-driver|-s)
