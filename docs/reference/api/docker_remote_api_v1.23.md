@@ -374,8 +374,8 @@ Json Parameters:
     -   **Binds** – A list of volume bindings for this container. Each volume binding is a string in one of these forms:
            + `host_path:container_path` to bind-mount a host path into the container
            + `host_path:container_path:ro` to make the bind-mount read-only inside the container.
-           + `volume_name:container_path` to bind-mount a volume managed by a volume plugin into the container.
-           + `volume_name:container_path:ro` to make the bind mount read-only inside the container.
+           + `volume_name:container_path[:nocopy]` to bind-mount a volume managed by a volume plugin into the container. Optionally, `nocopy` option initializes an empty volume with data from `container-path`. In that case, `container-path` must not be declared as `VOLUME` in the `Dockerfile` of the image from which the container is created.
+           + `volume_name:container_path:ro[,nocopy]` to make the bind mount read-only inside the container. Optionally, `nocopy` option initializes an empty volume with data from `container-path`. In that case, `container-path` must not be declared as `VOLUME` in the `Dockerfile` of the image from which the container is created.
     -   **Links** - A list of links for the container. Each link entry should be
           in the form of `container_name:alias`.
     -   **Memory** - Memory limit in bytes.
