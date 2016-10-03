@@ -55,6 +55,7 @@ import (
 	"github.com/docker/docker/pkg/locker"
 	"github.com/docker/docker/pkg/plugins"
 	"github.com/docker/docker/pkg/stringid"
+	pluginstore "github.com/docker/docker/plugin/store"
 	"github.com/docker/libnetwork/cluster"
 	"github.com/docker/libnetwork/config"
 	"github.com/docker/libnetwork/datastore"
@@ -1060,9 +1061,12 @@ func SandboxKeyWalker(out *Sandbox, key string) SandboxWalker {
 }
 
 func (c *controller) loadDriver(networkType string) error {
-	// Plugins pkg performs lazy loading of plugins that acts as remote drivers.
-	// As per the design, this Get call will result in remote driver discovery if there is a corresponding plugin available.
-	_, err := plugins.Get(networkType, driverapi.NetworkPluginEndpointType)
+	/* pluginstore provides abstraction for legacy (pluginv1) and new plugin model (pluginv2).
+	 * - In pluginv2, plugins are installed from the registry and loaded right away. This call
+	 *   looks up the plugin corresponding to the given networkType.
+	 * - In pluginv1, plugins are lazily loaded. This call results in remote driver discovery,
+	 *   if there's a corresponding plugin available. */
+	_, err := pluginstore.LookupWithCapability(networkType, driverapi.NetworkPluginEndpointType)
 	if err != nil {
 		if err == plugins.ErrNotFound {
 			return types.NotFoundErrorf(err.Error())
@@ -1074,7 +1078,7 @@ func (c *controller) loadDriver(networkType string) error {
 }
 
 func (c *controller) loadIPAMDriver(name string) error {
-	if _, err := plugins.Get(name, ipamapi.PluginEndpointType); err != nil {
+	if _, err := pluginstore.LookupWithCapability(name, ipamapi.PluginEndpointType); err != nil {
 		if err == plugins.ErrNotFound {
 			return types.NotFoundErrorf(err.Error())
 		}

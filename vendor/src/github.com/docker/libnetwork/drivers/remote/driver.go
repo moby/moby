@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"net"
 
-	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/plugins"
 	"github.com/docker/libnetwork/datastore"
 	"github.com/docker/libnetwork/discoverapi"
@@ -24,24 +23,6 @@ type maybeError interface {
 
 func newDriver(name string, client *plugins.Client) driverapi.Driver {
 	return &driver{networkType: name, endpoint: client}
-}
-
-// Init makes sure a remote driver is registered when a network driver
-// plugin is activated.
-func Init(dc driverapi.DriverCallback, config map[string]interface{}) error {
-	plugins.Handle(driverapi.NetworkPluginEndpointType, func(name string, client *plugins.Client) {
-		// negotiate driver capability with client
-		d := newDriver(name, client)
-		c, err := d.(*driver).getCapabilities()
-		if err != nil {
-			log.Errorf("error getting capability for %s due to %v", name, err)
-			return
-		}
-		if err = dc.RegisterDriver(name, d, *c); err != nil {
-			log.Errorf("error registering driver for %s due to %v", name, err)
-		}
-	})
-	return nil
 }
 
 // Get capability from client
