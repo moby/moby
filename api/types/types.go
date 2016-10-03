@@ -138,15 +138,6 @@ type ImageInspect struct {
 	RootFS          RootFS
 }
 
-// Port stores open ports info of container
-// e.g. {"PrivatePort": 8080, "PublicPort": 80, "Type": "tcp"}
-type Port struct {
-	IP          string `json:",omitempty"`
-	PrivatePort int
-	PublicPort  int `json:",omitempty"`
-	Type        string
-}
-
 // Container contains response of Remote API:
 // GET "/containers/json"
 type Container struct {

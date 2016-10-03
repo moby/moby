@@ -62,20 +62,28 @@ definitions:
   Port:
     type: "object"
     description: "An open port on a container"
+    required: [PrivatePort, Type]
     properties:
       IP:
         type: "string"
+        format: "ip-address"
       PrivatePort:
         type: "integer"
+        format: "uint16"
+        x-nullable: false
         description: "Port on the container"
       PublicPort:
         type: "integer"
+        format: "uint16"
         description: "Port exposed on the host"
       Type:
         type: "string"
-        enum:
-          - "tcp"
-          - "udp"
+        x-nullable: false
+        enum: ["tcp", "udp"]
+    example:
+      PrivatePort: 8080
+      PublicPort: 80
+      Type: "tcp"
   MountPoint:
     type: "object"
     description: "A mount point inside a container"
