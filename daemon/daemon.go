@@ -726,8 +726,6 @@ func (daemon *Daemon) Shutdown() error {
 	// Keep mounts and networking running on daemon shutdown if
 	// we are to keep containers running and restore them.
 
-	pluginShutdown()
-
 	if daemon.configStore.LiveRestoreEnabled && daemon.containers != nil {
 		// check if there are any running containers, if none we should do some cleanup
 		if ls, err := daemon.Containers(&types.ContainerListOptions{}); len(ls) != 0 || err != nil {
@@ -752,6 +750,9 @@ func (daemon *Daemon) Shutdown() error {
 			logrus.Debugf("container stopped %s", c.ID)
 		})
 	}
+
+	// Shutdown plugins after containers. Dont change the order.
+	pluginShutdown()
 
 	// trigger libnetwork Stop only if it's initialized
 	if daemon.netController != nil {
