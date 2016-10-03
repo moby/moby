@@ -15,7 +15,7 @@ import (
 	"github.com/go-check/check"
 )
 
-func (s *DockerSuite) TestApiNetworkGetDefaults(c *check.C) {
+func (s *DockerSuite) TestAPINetworkGetDefaults(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	// By default docker daemon creates 3 networks. check if they are present
 	defaults := []string{"bridge", "host", "none"}
@@ -24,7 +24,7 @@ func (s *DockerSuite) TestApiNetworkGetDefaults(c *check.C) {
 	}
 }
 
-func (s *DockerSuite) TestApiNetworkCreateDelete(c *check.C) {
+func (s *DockerSuite) TestAPINetworkCreateDelete(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	// Create a network
 	name := "testnetwork"
@@ -42,7 +42,7 @@ func (s *DockerSuite) TestApiNetworkCreateDelete(c *check.C) {
 	c.Assert(isNetworkAvailable(c, name), checker.Equals, false)
 }
 
-func (s *DockerSuite) TestApiNetworkCreateCheckDuplicate(c *check.C) {
+func (s *DockerSuite) TestAPINetworkCreateCheckDuplicate(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	name := "testcheckduplicate"
 	configOnCheck := types.NetworkCreateRequest{
@@ -69,13 +69,13 @@ func (s *DockerSuite) TestApiNetworkCreateCheckDuplicate(c *check.C) {
 	createNetwork(c, configNotCheck, true)
 }
 
-func (s *DockerSuite) TestApiNetworkFilter(c *check.C) {
+func (s *DockerSuite) TestAPINetworkFilter(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	nr := getNetworkResource(c, getNetworkIDByName(c, "bridge"))
 	c.Assert(nr.Name, checker.Equals, "bridge")
 }
 
-func (s *DockerSuite) TestApiNetworkInspect(c *check.C) {
+func (s *DockerSuite) TestAPINetworkInspect(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	// Inspect default bridge network
 	nr := getNetworkResource(c, "bridge")
@@ -129,7 +129,7 @@ func (s *DockerSuite) TestApiNetworkInspect(c *check.C) {
 	c.Assert(isNetworkAvailable(c, "br0"), checker.Equals, false)
 }
 
-func (s *DockerSuite) TestApiNetworkConnectDisconnect(c *check.C) {
+func (s *DockerSuite) TestAPINetworkConnectDisconnect(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	// Create test network
 	name := "testnetwork"
@@ -170,7 +170,7 @@ func (s *DockerSuite) TestApiNetworkConnectDisconnect(c *check.C) {
 	deleteNetwork(c, nr.ID, true)
 }
 
-func (s *DockerSuite) TestApiNetworkIpamMultipleBridgeNetworks(c *check.C) {
+func (s *DockerSuite) TestAPINetworkIPAMMultipleBridgeNetworks(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	// test0 bridge network
 	ipam0 := &network.IPAM{
@@ -235,7 +235,7 @@ func (s *DockerSuite) TestApiNetworkIpamMultipleBridgeNetworks(c *check.C) {
 	}
 }
 
-func (s *DockerSuite) TestApiCreateDeletePredefinedNetworks(c *check.C) {
+func (s *DockerSuite) TestAPICreateDeletePredefinedNetworks(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	createDeletePredefinedNetwork(c, "bridge")
 	createDeletePredefinedNetwork(c, "none")

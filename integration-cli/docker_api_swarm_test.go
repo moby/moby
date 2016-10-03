@@ -20,7 +20,7 @@ import (
 
 var defaultReconciliationTimeout = 30 * time.Second
 
-func (s *DockerSwarmSuite) TestApiSwarmInit(c *check.C) {
+func (s *DockerSwarmSuite) TestAPISwarmInit(c *check.C) {
 	// todo: should find a better way to verify that components are running than /info
 	d1 := s.AddDaemon(c, true, true)
 	info, err := d1.info()
@@ -71,7 +71,7 @@ func (s *DockerSwarmSuite) TestApiSwarmInit(c *check.C) {
 	c.Assert(info.LocalNodeState, checker.Equals, swarm.LocalNodeStateActive)
 }
 
-func (s *DockerSwarmSuite) TestApiSwarmJoinToken(c *check.C) {
+func (s *DockerSwarmSuite) TestAPISwarmJoinToken(c *check.C) {
 	d1 := s.AddDaemon(c, false, false)
 	c.Assert(d1.Init(swarm.InitRequest{}), checker.IsNil)
 
@@ -142,7 +142,7 @@ func (s *DockerSwarmSuite) TestApiSwarmJoinToken(c *check.C) {
 	c.Assert(info.LocalNodeState, checker.Equals, swarm.LocalNodeStateInactive)
 }
 
-func (s *DockerSwarmSuite) TestApiSwarmCAHash(c *check.C) {
+func (s *DockerSwarmSuite) TestAPISwarmCAHash(c *check.C) {
 	d1 := s.AddDaemon(c, true, true)
 	d2 := s.AddDaemon(c, false, false)
 	splitToken := strings.Split(d1.joinTokens(c).Worker, "-")
@@ -153,7 +153,7 @@ func (s *DockerSwarmSuite) TestApiSwarmCAHash(c *check.C) {
 	c.Assert(err.Error(), checker.Contains, "remote CA does not match fingerprint")
 }
 
-func (s *DockerSwarmSuite) TestApiSwarmPromoteDemote(c *check.C) {
+func (s *DockerSwarmSuite) TestAPISwarmPromoteDemote(c *check.C) {
 	d1 := s.AddDaemon(c, false, false)
 	c.Assert(d1.Init(swarm.InitRequest{}), checker.IsNil)
 	d2 := s.AddDaemon(c, true, false)
@@ -196,7 +196,7 @@ func (s *DockerSwarmSuite) TestApiSwarmPromoteDemote(c *check.C) {
 	waitAndAssert(c, defaultReconciliationTimeout, d2.checkControlAvailable, checker.True)
 }
 
-func (s *DockerSwarmSuite) TestApiSwarmServicesEmptyList(c *check.C) {
+func (s *DockerSwarmSuite) TestAPISwarmServicesEmptyList(c *check.C) {
 	d := s.AddDaemon(c, true, true)
 
 	services := d.listServices(c)
@@ -204,7 +204,7 @@ func (s *DockerSwarmSuite) TestApiSwarmServicesEmptyList(c *check.C) {
 	c.Assert(len(services), checker.Equals, 0, check.Commentf("services: %#v", services))
 }
 
-func (s *DockerSwarmSuite) TestApiSwarmServicesCreate(c *check.C) {
+func (s *DockerSwarmSuite) TestAPISwarmServicesCreate(c *check.C) {
 	d := s.AddDaemon(c, true, true)
 
 	instances := 2
@@ -220,7 +220,7 @@ func (s *DockerSwarmSuite) TestApiSwarmServicesCreate(c *check.C) {
 	waitAndAssert(c, defaultReconciliationTimeout, d.checkActiveContainerCount, checker.Equals, 0)
 }
 
-func (s *DockerSwarmSuite) TestApiSwarmServicesMultipleAgents(c *check.C) {
+func (s *DockerSwarmSuite) TestAPISwarmServicesMultipleAgents(c *check.C) {
 	d1 := s.AddDaemon(c, true, true)
 	d2 := s.AddDaemon(c, true, false)
 	d3 := s.AddDaemon(c, true, false)
@@ -248,7 +248,7 @@ func (s *DockerSwarmSuite) TestApiSwarmServicesMultipleAgents(c *check.C) {
 
 }
 
-func (s *DockerSwarmSuite) TestApiSwarmServicesCreateGlobal(c *check.C) {
+func (s *DockerSwarmSuite) TestAPISwarmServicesCreateGlobal(c *check.C) {
 	d1 := s.AddDaemon(c, true, true)
 	d2 := s.AddDaemon(c, true, false)
 	d3 := s.AddDaemon(c, true, false)
@@ -266,7 +266,7 @@ func (s *DockerSwarmSuite) TestApiSwarmServicesCreateGlobal(c *check.C) {
 	waitAndAssert(c, defaultReconciliationTimeout, d5.checkActiveContainerCount, checker.Equals, 1)
 }
 
-func (s *DockerSwarmSuite) TestApiSwarmServicesUpdate(c *check.C) {
+func (s *DockerSwarmSuite) TestAPISwarmServicesUpdate(c *check.C) {
 	const nodeCount = 3
 	var daemons [nodeCount]*SwarmDaemon
 	for i := 0; i < nodeCount; i++ {
@@ -312,7 +312,7 @@ func (s *DockerSwarmSuite) TestApiSwarmServicesUpdate(c *check.C) {
 		map[string]int{image2: instances})
 }
 
-func (s *DockerSwarmSuite) TestApiSwarmServiceConstraintRole(c *check.C) {
+func (s *DockerSwarmSuite) TestAPISwarmServiceConstraintRole(c *check.C) {
 	const nodeCount = 3
 	var daemons [nodeCount]*SwarmDaemon
 	for i := 0; i < nodeCount; i++ {
@@ -364,7 +364,7 @@ func (s *DockerSwarmSuite) TestApiSwarmServiceConstraintRole(c *check.C) {
 	}
 }
 
-func (s *DockerSwarmSuite) TestApiSwarmServiceConstraintLabel(c *check.C) {
+func (s *DockerSwarmSuite) TestAPISwarmServiceConstraintLabel(c *check.C) {
 	const nodeCount = 3
 	var daemons [nodeCount]*SwarmDaemon
 	for i := 0; i < nodeCount; i++ {
@@ -459,7 +459,7 @@ func (s *DockerSwarmSuite) TestApiSwarmServiceConstraintLabel(c *check.C) {
 	}
 }
 
-func (s *DockerSwarmSuite) TestApiSwarmServicesStateReporting(c *check.C) {
+func (s *DockerSwarmSuite) TestAPISwarmServicesStateReporting(c *check.C) {
 	testRequires(c, SameHostDaemon)
 	testRequires(c, DaemonIsLinux)
 
@@ -533,7 +533,7 @@ func (s *DockerSwarmSuite) TestApiSwarmServicesStateReporting(c *check.C) {
 	}
 }
 
-func (s *DockerSwarmSuite) TestApiSwarmLeaderProxy(c *check.C) {
+func (s *DockerSwarmSuite) TestAPISwarmLeaderProxy(c *check.C) {
 	// add three managers, one of these is leader
 	d1 := s.AddDaemon(c, true, true)
 	d2 := s.AddDaemon(c, true, true)
@@ -558,7 +558,7 @@ func (s *DockerSwarmSuite) TestApiSwarmLeaderProxy(c *check.C) {
 	}
 }
 
-func (s *DockerSwarmSuite) TestApiSwarmLeaderElection(c *check.C) {
+func (s *DockerSwarmSuite) TestAPISwarmLeaderElection(c *check.C) {
 	// Create 3 nodes
 	d1 := s.AddDaemon(c, true, true)
 	d2 := s.AddDaemon(c, true, true)
@@ -621,7 +621,7 @@ func (s *DockerSwarmSuite) TestApiSwarmLeaderElection(c *check.C) {
 	c.Assert(leader.NodeID, checker.Equals, stableleader.NodeID)
 }
 
-func (s *DockerSwarmSuite) TestApiSwarmRaftQuorum(c *check.C) {
+func (s *DockerSwarmSuite) TestAPISwarmRaftQuorum(c *check.C) {
 	d1 := s.AddDaemon(c, true, true)
 	d2 := s.AddDaemon(c, true, true)
 	d3 := s.AddDaemon(c, true, true)
@@ -659,7 +659,7 @@ func (s *DockerSwarmSuite) TestApiSwarmRaftQuorum(c *check.C) {
 	})
 }
 
-func (s *DockerSwarmSuite) TestApiSwarmListNodes(c *check.C) {
+func (s *DockerSwarmSuite) TestAPISwarmListNodes(c *check.C) {
 	d1 := s.AddDaemon(c, true, true)
 	d2 := s.AddDaemon(c, true, false)
 	d3 := s.AddDaemon(c, true, false)
@@ -678,7 +678,7 @@ loop0:
 	}
 }
 
-func (s *DockerSwarmSuite) TestApiSwarmNodeUpdate(c *check.C) {
+func (s *DockerSwarmSuite) TestAPISwarmNodeUpdate(c *check.C) {
 	d := s.AddDaemon(c, true, true)
 
 	nodes := d.listNodes(c)
@@ -691,7 +691,7 @@ func (s *DockerSwarmSuite) TestApiSwarmNodeUpdate(c *check.C) {
 	c.Assert(n.Spec.Availability, checker.Equals, swarm.NodeAvailabilityPause)
 }
 
-func (s *DockerSwarmSuite) TestApiSwarmNodeRemove(c *check.C) {
+func (s *DockerSwarmSuite) TestAPISwarmNodeRemove(c *check.C) {
 	testRequires(c, Network)
 	d1 := s.AddDaemon(c, true, true)
 	d2 := s.AddDaemon(c, true, false)
@@ -722,7 +722,7 @@ func (s *DockerSwarmSuite) TestApiSwarmNodeRemove(c *check.C) {
 	c.Assert(len(nodes), checker.Equals, 2, check.Commentf("nodes: %#v", nodes))
 }
 
-func (s *DockerSwarmSuite) TestApiSwarmNodeDrainPause(c *check.C) {
+func (s *DockerSwarmSuite) TestAPISwarmNodeDrainPause(c *check.C) {
 	d1 := s.AddDaemon(c, true, true)
 	d2 := s.AddDaemon(c, true, false)
 
@@ -776,7 +776,7 @@ func (s *DockerSwarmSuite) TestApiSwarmNodeDrainPause(c *check.C) {
 
 }
 
-func (s *DockerSwarmSuite) TestApiSwarmLeaveRemovesContainer(c *check.C) {
+func (s *DockerSwarmSuite) TestAPISwarmLeaveRemovesContainer(c *check.C) {
 	d := s.AddDaemon(c, true, true)
 
 	instances := 2
@@ -799,7 +799,7 @@ func (s *DockerSwarmSuite) TestApiSwarmLeaveRemovesContainer(c *check.C) {
 }
 
 // #23629
-func (s *DockerSwarmSuite) TestApiSwarmLeaveOnPendingJoin(c *check.C) {
+func (s *DockerSwarmSuite) TestAPISwarmLeaveOnPendingJoin(c *check.C) {
 	s.AddDaemon(c, true, true)
 	d2 := s.AddDaemon(c, false, false)
 
@@ -827,7 +827,7 @@ func (s *DockerSwarmSuite) TestApiSwarmLeaveOnPendingJoin(c *check.C) {
 }
 
 // #23705
-func (s *DockerSwarmSuite) TestApiSwarmRestoreOnPendingJoin(c *check.C) {
+func (s *DockerSwarmSuite) TestAPISwarmRestoreOnPendingJoin(c *check.C) {
 	d := s.AddDaemon(c, false, false)
 	err := d.Join(swarm.JoinRequest{
 		RemoteAddrs: []string{"123.123.123.123:1234"},
@@ -845,7 +845,7 @@ func (s *DockerSwarmSuite) TestApiSwarmRestoreOnPendingJoin(c *check.C) {
 	c.Assert(info.LocalNodeState, checker.Equals, swarm.LocalNodeStateInactive)
 }
 
-func (s *DockerSwarmSuite) TestApiSwarmManagerRestore(c *check.C) {
+func (s *DockerSwarmSuite) TestAPISwarmManagerRestore(c *check.C) {
 	d1 := s.AddDaemon(c, true, true)
 
 	instances := 2
@@ -874,7 +874,7 @@ func (s *DockerSwarmSuite) TestApiSwarmManagerRestore(c *check.C) {
 	d3.getService(c, id)
 }
 
-func (s *DockerSwarmSuite) TestApiSwarmScaleNoRollingUpdate(c *check.C) {
+func (s *DockerSwarmSuite) TestAPISwarmScaleNoRollingUpdate(c *check.C) {
 	d := s.AddDaemon(c, true, true)
 
 	instances := 2
@@ -898,7 +898,7 @@ loop0:
 	}
 }
 
-func (s *DockerSwarmSuite) TestApiSwarmInvalidAddress(c *check.C) {
+func (s *DockerSwarmSuite) TestAPISwarmInvalidAddress(c *check.C) {
 	d := s.AddDaemon(c, false, false)
 	req := swarm.InitRequest{
 		ListenAddr: "",
@@ -916,7 +916,7 @@ func (s *DockerSwarmSuite) TestApiSwarmInvalidAddress(c *check.C) {
 	c.Assert(status, checker.Equals, http.StatusInternalServerError)
 }
 
-func (s *DockerSwarmSuite) TestApiSwarmForceNewCluster(c *check.C) {
+func (s *DockerSwarmSuite) TestAPISwarmForceNewCluster(c *check.C) {
 	d1 := s.AddDaemon(c, true, true)
 	d2 := s.AddDaemon(c, true, true)
 
@@ -1099,7 +1099,7 @@ func checkClusterHealth(c *check.C, cl []*SwarmDaemon, managerCount, workerCount
 	c.Assert(totalWCount, checker.Equals, workerCount)
 }
 
-func (s *DockerSwarmSuite) TestApiSwarmRestartCluster(c *check.C) {
+func (s *DockerSwarmSuite) TestAPISwarmRestartCluster(c *check.C) {
 	mCount, wCount := 5, 1
 
 	var nodes []*SwarmDaemon
@@ -1169,7 +1169,7 @@ func (s *DockerSwarmSuite) TestApiSwarmRestartCluster(c *check.C) {
 	checkClusterHealth(c, nodes, mCount, wCount)
 }
 
-func (s *DockerSwarmSuite) TestApiSwarmServicesUpdateWithName(c *check.C) {
+func (s *DockerSwarmSuite) TestAPISwarmServicesUpdateWithName(c *check.C) {
 	d := s.AddDaemon(c, true, true)
 
 	instances := 2

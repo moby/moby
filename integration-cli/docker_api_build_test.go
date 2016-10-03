@@ -11,7 +11,7 @@ import (
 	"github.com/go-check/check"
 )
 
-func (s *DockerSuite) TestBuildApiDockerFileRemote(c *check.C) {
+func (s *DockerSuite) TestBuildAPIDockerFileRemote(c *check.C) {
 	testRequires(c, NotUserNamespace)
 	var testD string
 	if daemonPlatform == "windows" {
@@ -44,7 +44,7 @@ RUN find /tmp/`
 	c.Assert(out, checker.Not(checker.Contains), "baz")
 }
 
-func (s *DockerSuite) TestBuildApiRemoteTarballContext(c *check.C) {
+func (s *DockerSuite) TestBuildAPIRemoteTarballContext(c *check.C) {
 	buffer := new(bytes.Buffer)
 	tw := tar.NewWriter(buffer)
 	defer tw.Close()
@@ -77,7 +77,7 @@ func (s *DockerSuite) TestBuildApiRemoteTarballContext(c *check.C) {
 	b.Close()
 }
 
-func (s *DockerSuite) TestBuildApiRemoteTarballContextWithCustomDockerfile(c *check.C) {
+func (s *DockerSuite) TestBuildAPIRemoteTarballContextWithCustomDockerfile(c *check.C) {
 	buffer := new(bytes.Buffer)
 	tw := tar.NewWriter(buffer)
 	defer tw.Close()
@@ -132,7 +132,7 @@ RUN echo 'right'
 	c.Assert(string(content), checker.Not(checker.Contains), "wrong")
 }
 
-func (s *DockerSuite) TestBuildApiLowerDockerfile(c *check.C) {
+func (s *DockerSuite) TestBuildAPILowerDockerfile(c *check.C) {
 	git, err := newFakeGit("repo", map[string]string{
 		"dockerfile": `FROM busybox
 RUN echo from dockerfile`,
@@ -151,7 +151,7 @@ RUN echo from dockerfile`,
 	c.Assert(out, checker.Contains, "from dockerfile")
 }
 
-func (s *DockerSuite) TestBuildApiBuildGitWithF(c *check.C) {
+func (s *DockerSuite) TestBuildAPIBuildGitWithF(c *check.C) {
 	git, err := newFakeGit("repo", map[string]string{
 		"baz": `FROM busybox
 RUN echo from baz`,
@@ -173,7 +173,7 @@ RUN echo from Dockerfile`,
 	c.Assert(out, checker.Contains, "from baz")
 }
 
-func (s *DockerSuite) TestBuildApiDoubleDockerfile(c *check.C) {
+func (s *DockerSuite) TestBuildAPIDoubleDockerfile(c *check.C) {
 	testRequires(c, UnixCli) // dockerfile overwrites Dockerfile on Windows
 	git, err := newFakeGit("repo", map[string]string{
 		"Dockerfile": `FROM busybox
@@ -196,7 +196,7 @@ RUN echo from dockerfile`,
 	c.Assert(out, checker.Contains, "from Dockerfile")
 }
 
-func (s *DockerSuite) TestBuildApiUnnormalizedTarPaths(c *check.C) {
+func (s *DockerSuite) TestBuildAPIUnnormalizedTarPaths(c *check.C) {
 	// Make sure that build context tars with entries of the form
 	// x/./y don't cause caching false positives.
 

@@ -7,7 +7,7 @@ import (
 	"github.com/go-check/check"
 )
 
-func (s *DockerSuite) TestInfoApi(c *check.C) {
+func (s *DockerSuite) TestInfoAPI(c *check.C) {
 	endpoint := "/info"
 
 	status, body, err := sockRequest("GET", endpoint, nil)

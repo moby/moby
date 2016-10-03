@@ -30,7 +30,7 @@ import (
 )
 
 const dummyNetworkDriver = "dummy-network-driver"
-const dummyIpamDriver = "dummy-ipam-driver"
+const dummyIPAMDriver = "dummy-ipam-driver"
 
 var remoteDriverNetworkRequest remoteapi.CreateNetworkRequest
 
@@ -59,7 +59,7 @@ func (s *DockerNetworkSuite) SetUpSuite(c *check.C) {
 	mux := http.NewServeMux()
 	s.server = httptest.NewServer(mux)
 	c.Assert(s.server, check.NotNil, check.Commentf("Failed to start an HTTP Server"))
-	setupRemoteNetworkDrivers(c, mux, s.server.URL, dummyNetworkDriver, dummyIpamDriver)
+	setupRemoteNetworkDrivers(c, mux, s.server.URL, dummyNetworkDriver, dummyIPAMDriver)
 }
 
 func setupRemoteNetworkDrivers(c *check.C, mux *http.ServeMux, url, netDrv, ipamDrv string) {
@@ -120,7 +120,7 @@ func setupRemoteNetworkDrivers(c *check.C, mux *http.ServeMux, url, netDrv, ipam
 		fmt.Fprintf(w, "null")
 	})
 
-	// Ipam Driver implementation
+	// IPAM Driver implementation
 	var (
 		poolRequest       remoteipam.RequestPoolRequest
 		poolReleaseReq    remoteipam.ReleasePoolRequest
@@ -601,7 +601,7 @@ func (s *DockerNetworkSuite) TestDockerNetworkConnectDisconnect(c *check.C) {
 	assertNwNotAvailable(c, "test")
 }
 
-func (s *DockerNetworkSuite) TestDockerNetworkIpamMultipleNetworks(c *check.C) {
+func (s *DockerNetworkSuite) TestDockerNetworkIPAMMultipleNetworks(c *check.C) {
 	// test0 bridge network
 	dockerCmd(c, "network", "create", "--subnet=192.168.0.0/16", "test1")
 	assertNwIsAvailable(c, "test1")
@@ -641,24 +641,24 @@ func (s *DockerNetworkSuite) TestDockerNetworkIpamMultipleNetworks(c *check.C) {
 	}
 }
 
-func (s *DockerNetworkSuite) TestDockerNetworkCustomIpam(c *check.C) {
+func (s *DockerNetworkSuite) TestDockerNetworkCustomIPAM(c *check.C) {
 	// Create a bridge network using custom ipam driver
-	dockerCmd(c, "network", "create", "--ipam-driver", dummyIpamDriver, "br0")
+	dockerCmd(c, "network", "create", "--ipam-driver", dummyIPAMDriver, "br0")
 	assertNwIsAvailable(c, "br0")
 
 	// Verify expected network ipam fields are there
 	nr := getNetworkResource(c, "br0")
 	c.Assert(nr.Driver, checker.Equals, "bridge")
-	c.Assert(nr.IPAM.Driver, checker.Equals, dummyIpamDriver)
+	c.Assert(nr.IPAM.Driver, checker.Equals, dummyIPAMDriver)
 
 	// remove network and exercise remote ipam driver
 	dockerCmd(c, "network", "rm", "br0")
 	assertNwNotAvailable(c, "br0")
 }
 
-func (s *DockerNetworkSuite) TestDockerNetworkIpamOptions(c *check.C) {
+func (s *DockerNetworkSuite) TestDockerNetworkIPAMOptions(c *check.C) {
 	// Create a bridge network using custom ipam driver and options
-	dockerCmd(c, "network", "create", "--ipam-driver", dummyIpamDriver, "--ipam-opt", "opt1=drv1", "--ipam-opt", "opt2=drv2", "br0")
+	dockerCmd(c, "network", "create", "--ipam-driver", dummyIPAMDriver, "--ipam-opt", "opt1=drv1", "--ipam-opt", "opt2=drv2", "br0")
 	assertNwIsAvailable(c, "br0")
 
 	// Verify expected network ipam options
@@ -734,7 +734,7 @@ func (s *DockerNetworkSuite) TestDockerNetworkInspectCustomSpecified(c *check.C)
 	assertNwNotAvailable(c, "test01")
 }
 
-func (s *DockerNetworkSuite) TestDockerNetworkIpamInvalidCombinations(c *check.C) {
+func (s *DockerNetworkSuite) TestDockerNetworkIPAMInvalidCombinations(c *check.C) {
 	// network with ip-range out of subnet range
 	_, _, err := dockerCmdWithError("network", "create", "--subnet=192.168.0.0/16", "--ip-range=192.170.0.0/16", "test")
 	c.Assert(err, check.NotNil)
@@ -1014,7 +1014,7 @@ func (s *DockerNetworkSuite) TestDockerNetworkMacInspect(c *check.C) {
 	c.Assert(mac, checker.Equals, "a0:b1:c2:d3:e4:f5")
 }
 
-func (s *DockerSuite) TestInspectApiMultipleNetworks(c *check.C) {
+func (s *DockerSuite) TestInspectAPIMultipleNetworks(c *check.C) {
 	dockerCmd(c, "network", "create", "mybridge1")
 	dockerCmd(c, "network", "create", "mybridge2")
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "top")

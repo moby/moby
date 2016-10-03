@@ -7,7 +7,7 @@ import (
 	"github.com/go-check/check"
 )
 
-func (s *DockerSuite) TestApiCreateWithNotExistImage(c *check.C) {
+func (s *DockerSuite) TestAPICreateWithNotExistImage(c *check.C) {
 	name := "test"
 	config := map[string]interface{}{
 		"Image":   "test456:v1",

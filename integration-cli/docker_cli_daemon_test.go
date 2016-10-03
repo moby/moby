@@ -1409,8 +1409,8 @@ func (s *DockerDaemonSuite) TestDaemonRestartKillWait(c *check.C) {
 	}
 }
 
-// TestHttpsInfo connects via two-way authenticated HTTPS to the info endpoint
-func (s *DockerDaemonSuite) TestHttpsInfo(c *check.C) {
+// TestHTTPSInfo connects via two-way authenticated HTTPS to the info endpoint
+func (s *DockerDaemonSuite) TestHTTPSInfo(c *check.C) {
 	const (
 		testDaemonHTTPSAddr = "tcp://localhost:4271"
 	)
@@ -1433,9 +1433,9 @@ func (s *DockerDaemonSuite) TestHttpsInfo(c *check.C) {
 	}
 }
 
-// TestHttpsRun connects via two-way authenticated HTTPS to the create, attach, start, and wait endpoints.
+// TestHTTPSRun connects via two-way authenticated HTTPS to the create, attach, start, and wait endpoints.
 // https://github.com/docker/docker/issues/19280
-func (s *DockerDaemonSuite) TestHttpsRun(c *check.C) {
+func (s *DockerDaemonSuite) TestHTTPSRun(c *check.C) {
 	const (
 		testDaemonHTTPSAddr = "tcp://localhost:4271"
 	)
@@ -1462,17 +1462,17 @@ func (s *DockerDaemonSuite) TestHttpsRun(c *check.C) {
 	}
 }
 
-// TestTlsVerify verifies that --tlsverify=false turns on tls
-func (s *DockerDaemonSuite) TestTlsVerify(c *check.C) {
+// TestTLSVerify verifies that --tlsverify=false turns on tls
+func (s *DockerDaemonSuite) TestTLSVerify(c *check.C) {
 	out, err := exec.Command(dockerdBinary, "--tlsverify=false").CombinedOutput()
 	if err == nil || !strings.Contains(string(out), "Could not load X509 key pair") {
 		c.Fatalf("Daemon should not have started due to missing certs: %v\n%s", err, string(out))
 	}
 }
 
-// TestHttpsInfoRogueCert connects via two-way authenticated HTTPS to the info endpoint
+// TestHTTPSInfoRogueCert connects via two-way authenticated HTTPS to the info endpoint
 // by using a rogue client certificate and checks that it fails with the expected error.
-func (s *DockerDaemonSuite) TestHttpsInfoRogueCert(c *check.C) {
+func (s *DockerDaemonSuite) TestHTTPSInfoRogueCert(c *check.C) {
 	const (
 		errBadCertificate   = "bad certificate"
 		testDaemonHTTPSAddr = "tcp://localhost:4271"
@@ -1496,9 +1496,9 @@ func (s *DockerDaemonSuite) TestHttpsInfoRogueCert(c *check.C) {
 	}
 }
 
-// TestHttpsInfoRogueServerCert connects via two-way authenticated HTTPS to the info endpoint
+// TestHTTPSInfoRogueServerCert connects via two-way authenticated HTTPS to the info endpoint
 // which provides a rogue server certificate and checks that it fails with the expected error
-func (s *DockerDaemonSuite) TestHttpsInfoRogueServerCert(c *check.C) {
+func (s *DockerDaemonSuite) TestHTTPSInfoRogueServerCert(c *check.C) {
 	const (
 		errCaUnknown             = "x509: certificate signed by unknown authority"
 		testDaemonRogueHTTPSAddr = "tcp://localhost:4272"
@@ -1696,7 +1696,7 @@ func (s *DockerDaemonSuite) TestDaemonRestartCleanupNetns(c *check.C) {
 }
 
 // tests regression detailed in #13964 where DOCKER_TLS_VERIFY env is ignored
-func (s *DockerDaemonSuite) TestDaemonNoTlsCliTlsVerifyWithEnv(c *check.C) {
+func (s *DockerDaemonSuite) TestDaemonTLSVerifyIssue13964(c *check.C) {
 	host := "tcp://localhost:4271"
 	c.Assert(s.d.Start("-H", host), check.IsNil)
 	cmd := exec.Command(dockerBinary, "-H", host, "info")
@@ -1846,7 +1846,7 @@ func (s *DockerDaemonSuite) TestDaemonStartWithoutHost(c *check.C) {
 	c.Assert(s.d.Start(), check.IsNil)
 }
 
-func (s *DockerDaemonSuite) TestDaemonStartWithDefalutTlsHost(c *check.C) {
+func (s *DockerDaemonSuite) TestDaemonStartWithDefalutTLSHost(c *check.C) {
 	s.d.useDefaultTLSHost = true
 	defer func() {
 		s.d.useDefaultTLSHost = false

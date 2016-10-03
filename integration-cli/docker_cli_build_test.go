@@ -4001,7 +4001,7 @@ func (s *DockerSuite) TestBuildAddTarXzGz(c *check.C) {
 
 }
 
-func (s *DockerSuite) TestBuildFromGIT(c *check.C) {
+func (s *DockerSuite) TestBuildFromGit(c *check.C) {
 	name := "testbuildfromgit"
 	git, err := newFakeGit("repo", map[string]string{
 		"Dockerfile": `FROM busybox
@@ -4025,7 +4025,7 @@ func (s *DockerSuite) TestBuildFromGIT(c *check.C) {
 	}
 }
 
-func (s *DockerSuite) TestBuildFromGITWithContext(c *check.C) {
+func (s *DockerSuite) TestBuildFromGitWithContext(c *check.C) {
 	name := "testbuildfromgit"
 	git, err := newFakeGit("repo", map[string]string{
 		"docker/Dockerfile": `FROM busybox
@@ -4050,7 +4050,7 @@ func (s *DockerSuite) TestBuildFromGITWithContext(c *check.C) {
 	}
 }
 
-func (s *DockerSuite) TestBuildFromGITwithF(c *check.C) {
+func (s *DockerSuite) TestBuildFromGitwithF(c *check.C) {
 	name := "testbuildfromgitwithf"
 	git, err := newFakeGit("repo", map[string]string{
 		"myApp/myDockerfile": `FROM busybox

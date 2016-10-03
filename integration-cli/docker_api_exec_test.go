@@ -15,7 +15,7 @@ import (
 )
 
 // Regression test for #9414
-func (s *DockerSuite) TestExecApiCreateNoCmd(c *check.C) {
+func (s *DockerSuite) TestExecAPICreateNoCmd(c *check.C) {
 	name := "exec_test"
 	dockerCmd(c, "run", "-d", "-t", "--name", name, "busybox", "/bin/sh")
 
@@ -27,7 +27,7 @@ func (s *DockerSuite) TestExecApiCreateNoCmd(c *check.C) {
 	c.Assert(getErrorMessage(c, body), checker.Contains, "No exec command specified", comment)
 }
 
-func (s *DockerSuite) TestExecApiCreateNoValidContentType(c *check.C) {
+func (s *DockerSuite) TestExecAPICreateNoValidContentType(c *check.C) {
 	name := "exec_test"
 	dockerCmd(c, "run", "-d", "-t", "--name", name, "busybox", "/bin/sh")
 
@@ -47,7 +47,7 @@ func (s *DockerSuite) TestExecApiCreateNoValidContentType(c *check.C) {
 	c.Assert(getErrorMessage(c, b), checker.Contains, "Content-Type specified", comment)
 }
 
-func (s *DockerSuite) TestExecApiCreateContainerPaused(c *check.C) {
+func (s *DockerSuite) TestExecAPICreateContainerPaused(c *check.C) {
 	// Not relevant on Windows as Windows containers cannot be paused
 	testRequires(c, DaemonIsLinux)
 	name := "exec_create_test"
@@ -62,7 +62,7 @@ func (s *DockerSuite) TestExecApiCreateContainerPaused(c *check.C) {
 	c.Assert(getErrorMessage(c, body), checker.Contains, "Container "+name+" is paused, unpause the container before exec", comment)
 }
 
-func (s *DockerSuite) TestExecApiStart(c *check.C) {
+func (s *DockerSuite) TestExecAPIStart(c *check.C) {
 	testRequires(c, DaemonIsLinux) // Uses pause/unpause but bits may be salvagable to Windows to Windows CI
 	dockerCmd(c, "run", "-d", "--name", "test", "busybox", "top")
 
@@ -85,7 +85,7 @@ func (s *DockerSuite) TestExecApiStart(c *check.C) {
 	startExec(c, id, http.StatusOK)
 }
 
-func (s *DockerSuite) TestExecApiStartBackwardsCompatible(c *check.C) {
+func (s *DockerSuite) TestExecAPIStartBackwardsCompatible(c *check.C) {
 	runSleepingContainer(c, "-d", "--name", "test")
 	id := createExec(c, "test")
 
@@ -99,7 +99,7 @@ func (s *DockerSuite) TestExecApiStartBackwardsCompatible(c *check.C) {
 }
 
 // #19362
-func (s *DockerSuite) TestExecApiStartMultipleTimesError(c *check.C) {
+func (s *DockerSuite) TestExecAPIStartMultipleTimesError(c *check.C) {
 	runSleepingContainer(c, "-d", "--name", "test")
 	execID := createExec(c, "test")
 	startExec(c, execID, http.StatusOK)
@@ -123,7 +123,7 @@ func (s *DockerSuite) TestExecApiStartMultipleTimesError(c *check.C) {
 }
 
 // #20638
-func (s *DockerSuite) TestExecApiStartWithDetach(c *check.C) {
+func (s *DockerSuite) TestExecAPIStartWithDetach(c *check.C) {
 	name := "foo"
 	runSleepingContainer(c, "-d", "-t", "--name", name)
 	data := map[string]interface{}{

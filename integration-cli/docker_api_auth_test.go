@@ -9,7 +9,7 @@ import (
 )
 
 // Test case for #22244
-func (s *DockerSuite) TestAuthApi(c *check.C) {
+func (s *DockerSuite) TestAuthAPI(c *check.C) {
 	testRequires(c, Network)
 	config := types.AuthConfig{
 		Username: "no-user",
