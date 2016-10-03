@@ -143,4 +143,5 @@ swagger-gen:
 	docker run --rm -v $(PWD):/work -w /work quay.io/goswagger/swagger \
 		generate model -m "types" -f api/swagger.yaml -t api/ --skip-validator \
 			-n Volume \
-			-n Port
+			-n Port \
+			-n ImageSummary

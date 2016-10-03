@@ -86,21 +86,6 @@ type ImageDelete struct {
 	Deleted  string `json:",omitempty"`
 }
 
-// Image contains response of Remote API:
-// GET "/images/json"
-type Image struct {
-	ID          string `json:"Id"`
-	ParentID    string `json:"ParentId"`
-	RepoTags    []string
-	RepoDigests []string
-	Created     int64
-	Size        int64
-	SharedSize  int64
-	VirtualSize int64
-	Labels      map[string]string
-	Containers  int64
-}
-
 // GraphDriverData returns Image's graph driver config info
 // when calling inspect command
 type GraphDriverData struct {
@@ -516,7 +501,7 @@ type Runtime struct {
 // GET "/system/df"
 type DiskUsage struct {
 	LayersSize int64
-	Images     []*Image
+	Images     []*ImageSummary
 	Containers []*Container
 	Volumes    []*Volume
 }

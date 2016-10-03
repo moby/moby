@@ -24,36 +24,36 @@ func TestImageContext(t *testing.T) {
 		call      func() string
 	}{
 		{imageContext{
-			i:     types.Image{ID: imageID},
+			i:     types.ImageSummary{ID: imageID},
 			trunc: true,
 		}, stringid.TruncateID(imageID), imageIDHeader, ctx.ID},
 		{imageContext{
-			i:     types.Image{ID: imageID},
+			i:     types.ImageSummary{ID: imageID},
 			trunc: false,
 		}, imageID, imageIDHeader, ctx.ID},
 		{imageContext{
-			i:     types.Image{Size: 10, VirtualSize: 10},
+			i:     types.ImageSummary{Size: 10, VirtualSize: 10},
 			trunc: true,
 		}, "10 B", sizeHeader, ctx.Size},
 		{imageContext{
-			i:     types.Image{Created: unix},
+			i:     types.ImageSummary{Created: unix},
 			trunc: true,
 		}, time.Unix(unix, 0).String(), createdAtHeader, ctx.CreatedAt},
 		// FIXME
 		// {imageContext{
-		// 	i:     types.Image{Created: unix},
+		// 	i:     types.ImageSummary{Created: unix},
 		// 	trunc: true,
 		// }, units.HumanDuration(time.Unix(unix, 0)), createdSinceHeader, ctx.CreatedSince},
 		{imageContext{
-			i:    types.Image{},
+			i:    types.ImageSummary{},
 			repo: "busybox",
 		}, "busybox", repositoryHeader, ctx.Repository},
 		{imageContext{
-			i:   types.Image{},
+			i:   types.ImageSummary{},
 			tag: "latest",
 		}, "latest", tagHeader, ctx.Tag},
 		{imageContext{
-			i:      types.Image{},
+			i:      types.ImageSummary{},
 			digest: "sha256:d149ab53f8718e987c3a3024bb8aa0e2caadf6c0328f1d9d850b2a2a67f2819a",
 		}, "sha256:d149ab53f8718e987c3a3024bb8aa0e2caadf6c0328f1d9d850b2a2a67f2819a", digestHeader, ctx.Digest},
 	}
@@ -262,7 +262,7 @@ image_id: imageID3
 	}
 
 	for _, testcase := range cases {
-		images := []types.Image{
+		images := []types.ImageSummary{
 			{ID: "imageID1", RepoTags: []string{"image:tag1"}, RepoDigests: []string{"image@sha256:cbbf2f9a99b47fc460d422812b6a5adff7dfee951d8fa2e4a98caa0382cfbdbf"}, Created: unixTime},
 			{ID: "imageID2", RepoTags: []string{"image:tag2"}, Created: unixTime},
 			{ID: "imageID3", RepoTags: []string{"<none>:<none>"}, RepoDigests: []string{"<none>@<none>"}, Created: unixTime},
@@ -280,7 +280,7 @@ image_id: imageID3
 
 func TestImageContextWriteWithNoImage(t *testing.T) {
 	out := bytes.NewBufferString("")
-	images := []types.Image{}
+	images := []types.ImageSummary{}
 
 	contexts := []struct {
 		context  ImageContext

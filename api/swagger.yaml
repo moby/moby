@@ -762,6 +762,58 @@ definitions:
               type: "string"
           BaseLayer:
             type: "string"
+
+  ImageSummary:
+    type: "object"
+    required:
+      - Id
+      - ParentId
+      - RepoTags
+      - RepoDigests
+      - Created
+      - Size
+      - SharedSize
+      - VirtualSize
+      - Labels
+      - Containers
+    properties:
+      Id:
+        type: "string"
+        x-nullable: false
+      ParentId:
+        type: "string"
+        x-nullable: false
+      RepoTags:
+        type: "array"
+        x-nullable: false
+        items:
+          type: "string"
+      RepoDigests:
+        type: "array"
+        x-nullable: false
+        items:
+          type: "string"
+      Created:
+        type: "integer"
+        x-nullable: false
+      Size:
+        type: "integer"
+        x-nullable: false
+      SharedSize:
+        type: "integer"
+        x-nullable: false
+      VirtualSize:
+        type: "integer"
+        x-nullable: false
+      Labels:
+        type: "object"
+        x-nullable: false
+        additionalProperties:
+          type: "string"
+      Containers:
+        x-nullable: false
+        type: "integer"
+
   AuthConfig:
     type: "object"
     properties:
@@ -3829,37 +3881,11 @@ paths:
         - "application/json"
       responses:
         200:
-          description: "no error"
+          description: "Summary image data for the images matching the query"
           schema:
             type: "array"
             items:
-              type: "object"
-              properties:
-                Id:
-                  type: "string"
-                ParentId:
-                  type: "string"
-                RepoTags:
-                  type: "array"
-                  items:
-                    type: "string"
-                RepoDigests:
-                  type: "array"
-                  items:
-                    type: "string"
-                Created:
-                  type: "integer"
-                  format: "int64"
-                Size:
-                  type: "integer"
-                  format: "int64"
-                VirtualSize:
-                  type: "integer"
-                  format: "int64"
-                Labels:
-                  type: "object"
-                  additionalProperties:
-                    type: "string"
+              $ref: "#/definitions/ImageSummary"
           examples:
             application/json:
               - RepoTags:

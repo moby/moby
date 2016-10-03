@@ -26,7 +26,7 @@ type ImageContext struct {
 	Digest bool
 }
 
-func isDangling(image types.Image) bool {
+func isDangling(image types.ImageSummary) bool {
 	return len(image.RepoTags) == 1 && image.RepoTags[0] == "<none>:<none>" && len(image.RepoDigests) == 1 && image.RepoDigests[0] == "<none>@<none>"
 }
 
@@ -72,14 +72,14 @@ virtual_size: {{.Size}}
 }
 
 // ImageWrite writes the formatter images using the ImageContext
-func ImageWrite(ctx ImageContext, images []types.Image) error {
+func ImageWrite(ctx ImageContext, images []types.ImageSummary) error {
 	render := func(format func(subContext subContext) error) error {
 		return imageFormat(ctx, images, format)
 	}
 	return ctx.Write(&imageContext{}, render)
 }
 
-func imageFormat(ctx ImageContext, images []types.Image, format func(subContext subContext) error) error {
+func imageFormat(ctx ImageContext, images []types.ImageSummary, format func(subContext subContext) error) error {
 	for _, image := range images {
 		images := []*imageContext{}
 		if isDangling(image) {
@@ -184,7 +184,7 @@ func imageFormat(ctx ImageContext, images []types.Image, format func(subContext 
 type imageContext struct {
 	HeaderContext
 	trunc  bool
-	i      types.Image
+	i      types.ImageSummary
 	repo   string
 	tag    string
 	digest string

@@ -22,7 +22,7 @@ var acceptedImageFilterTags = map[string]bool{
 
 // byCreated is a temporary type used to sort a list of images by creation
 // time.
-type byCreated []*types.Image
+type byCreated []*types.ImageSummary
 
 func (r byCreated) Len() int           { return len(r) }
 func (r byCreated) Swap(i, j int)      { r[i], r[j] = r[j], r[i] }
@@ -38,7 +38,7 @@ func (daemon *Daemon) Map() map[image.ID]*image.Image {
 // filter is a shell glob string applied to repository names. The argument
 // named all controls whether all images in the graph are filtered, or just
 // the heads.
-func (daemon *Daemon) Images(filterArgs, filter string, all bool, withExtraAttrs bool) ([]*types.Image, error) {
+func (daemon *Daemon) Images(filterArgs, filter string, all bool, withExtraAttrs bool) ([]*types.ImageSummary, error) {
 	var (
 		allImages    map[image.ID]*image.Image
 		err          error
@@ -83,8 +83,8 @@ func (daemon *Daemon) Images(filterArgs, filter string, all bool, withExtraAttrs
 		return nil, err
 	}
 
-	images := []*types.Image{}
-	var imagesMap map[*image.Image]*types.Image
+	images := []*types.ImageSummary{}
+	var imagesMap map[*image.Image]*types.ImageSummary
 	var layerRefs map[layer.ChainID]int
 	var allLayers map[layer.ChainID]layer.Layer
 	var allContainers []*container.Container
@@ -181,7 +181,7 @@ func (daemon *Daemon) Images(filterArgs, filter string, all bool, withExtraAttrs
 			if imagesMap == nil {
 				allContainers = daemon.List()
 				allLayers = daemon.layerStore.Map()
-				imagesMap = make(map[*image.Image]*types.Image)
+				imagesMap = make(map[*image.Image]*types.ImageSummary)
 				layerRefs = make(map[layer.ChainID]int)
 			}
 
@@ -241,8 +241,8 @@ func (daemon *Daemon) Images(filterArgs, filter string, all bool, withExtraAttrs
 	return images, nil
 }
 
-func newImage(image *image.Image, virtualSize int64) *types.Image {
-	newImage := new(types.Image)
+func newImage(image *image.Image, virtualSize int64) *types.ImageSummary {
+	newImage := new(types.ImageSummary)
 	newImage.ParentID = image.Parent.String()
 	newImage.ID = image.ID().String()
 	newImage.Created = image.Created.Unix()
