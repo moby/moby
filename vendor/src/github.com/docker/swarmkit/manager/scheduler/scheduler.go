@@ -505,7 +505,6 @@ func (s *Scheduler) scheduleTaskGroup(ctx context.Context, taskGroup map[string]
 			nextNode := nodes[(nodeIter+1)%len(nodes)]
 			if nodeLess(&nextNode, &nodeInfo) {
 				nodeIter++
-				continue
 			}
 		} else {
 			// In later passes, we just assign one task at a time

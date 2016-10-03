@@ -86,7 +86,7 @@ func (r *ReplicatedOrchestrator) resolveService(ctx context.Context, task *api.T
 }
 
 func (r *ReplicatedOrchestrator) reconcile(ctx context.Context, service *api.Service) {
-	runningSlots, err := getRunnableSlots(r.store, service.ID)
+	runningSlots, deadSlots, err := getRunnableAndDeadSlots(r.store, service.ID)
 	if err != nil {
 		log.G(ctx).WithError(err).Errorf("reconcile failed finding tasks")
 		return
@@ -108,7 +108,8 @@ func (r *ReplicatedOrchestrator) reconcile(ctx context.Context, service *api.Ser
 		// Update all current tasks then add missing tasks
 		r.updater.Update(ctx, r.cluster, service, slotsSlice)
 		_, err = r.store.Batch(func(batch *store.Batch) error {
-			r.addTasks(ctx, batch, service, runningSlots, specifiedSlots-numSlots)
+			r.addTasks(ctx, batch, service, runningSlots, deadSlots, specifiedSlots-numSlots)
+			r.deleteTasksMap(ctx, batch, deadSlots)
 			return nil
 		})
 		if err != nil {
@@ -154,7 +155,8 @@ func (r *ReplicatedOrchestrator) reconcile(ctx context.Context, service *api.Ser
 
 		r.updater.Update(ctx, r.cluster, service, sortedSlots[:specifiedSlots])
 		_, err = r.store.Batch(func(batch *store.Batch) error {
-			r.removeTasks(ctx, batch, service, sortedSlots[specifiedSlots:])
+			r.deleteTasksMap(ctx, batch, deadSlots)
+			r.deleteTasks(ctx, batch, sortedSlots[specifiedSlots:])
 			return nil
 		})
 		if err != nil {
@@ -162,12 +164,16 @@ func (r *ReplicatedOrchestrator) reconcile(ctx context.Context, service *api.Ser
 		}
 
 	case specifiedSlots == numSlots:
+		_, err = r.store.Batch(func(batch *store.Batch) error {
+			r.deleteTasksMap(ctx, batch, deadSlots)
+			return nil
+		})
 		// Simple update, no scaling - update all tasks.
 		r.updater.Update(ctx, r.cluster, service, slotsSlice)
 	}
 }
 
-func (r *ReplicatedOrchestrator) addTasks(ctx context.Context, batch *store.Batch, service *api.Service, runningSlots map[uint64]slot, count int) {
+func (r *ReplicatedOrchestrator) addTasks(ctx context.Context, batch *store.Batch, service *api.Service, runningSlots map[uint64]slot, deadSlots map[uint64]slot, count int) {
 	slot := uint64(0)
 	for i := 0; i < count; i++ {
 		// Find an slot number that is missing a running task
@@ -178,6 +184,7 @@ func (r *ReplicatedOrchestrator) addTasks(ctx context.Context, batch *store.Batc
 			}
 		}
 
+		delete(deadSlots, slot)
 		err := batch.Update(func(tx store.Tx) error {
 			return store.CreateTask(tx, newTask(r.cluster, service, slot, ""))
 		})
@@ -187,28 +194,36 @@ func (r *ReplicatedOrchestrator) addTasks(ctx context.Context, batch *store.Batc
 	}
 }
 
-func (r *ReplicatedOrchestrator) removeTasks(ctx context.Context, batch *store.Batch, service *api.Service, slots []slot) {
+func (r *ReplicatedOrchestrator) deleteTasks(ctx context.Context, batch *store.Batch, slots []slot) {
 	for _, slot := range slots {
 		for _, t := range slot {
-			err := batch.Update(func(tx store.Tx) error {
-				// TODO(aaronl): optimistic update?
-				t = store.GetTask(tx, t.ID)
-				if t != nil && t.DesiredState < api.TaskStateShutdown {
-					t.DesiredState = api.TaskStateShutdown
-					return store.UpdateTask(tx, t)
-				}
-				return nil
-			})
-			if err != nil {
-				log.G(ctx).WithError(err).Errorf("removing task %s failed", t.ID)
-			}
+			r.deleteTask(ctx, batch, t)
 		}
 	}
 }
 
-// getRunnableSlots returns a map of slots that have at least one task with
-// a desired state above NEW and lesser or equal to RUNNING.
-func getRunnableSlots(s *store.MemoryStore, serviceID string) (map[uint64]slot, error) {
+func (r *ReplicatedOrchestrator) deleteTasksMap(ctx context.Context, batch *store.Batch, slots map[uint64]slot) {
+	for _, slot := range slots {
+		for _, t := range slot {
+			r.deleteTask(ctx, batch, t)
+		}
+	}
+}
+
+func (r *ReplicatedOrchestrator) deleteTask(ctx context.Context, batch *store.Batch, t *api.Task) {
+	err := batch.Update(func(tx store.Tx) error {
+		return store.DeleteTask(tx, t.ID)
+	})
+	if err != nil {
+		log.G(ctx).WithError(err).Errorf("deleting task %s failed", t.ID)
+	}
+}
+
+// getRunnableAndDeadSlots returns two maps of slots. The first contains slots
+// that have at least one task with a desired state above NEW and lesser or
+// equal to RUNNING. The second is for slots that only contain tasks with a
+// desired state above RUNNING.
+func getRunnableAndDeadSlots(s *store.MemoryStore, serviceID string) (map[uint64]slot, map[uint64]slot, error) {
 	var (
 		tasks []*api.Task
 		err   error
@@ -217,18 +232,22 @@ func getRunnableSlots(s *store.MemoryStore, serviceID string) (map[uint64]slot, 
 		tasks, err = store.FindTasks(tx, store.ByServiceID(serviceID))
 	})
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	runningSlots := make(map[uint64]slot)
 	for _, t := range tasks {
-		// Technically the check below could just be
-		// t.DesiredState <= api.TaskStateRunning, but ignoring tasks
-		// with DesiredState == NEW simplifies the drainer unit tests.
-		if t.DesiredState > api.TaskStateNew && t.DesiredState <= api.TaskStateRunning {
+		if t.DesiredState <= api.TaskStateRunning {
 			runningSlots[t.Slot] = append(runningSlots[t.Slot], t)
 		}
 	}
 
-	return runningSlots, nil
+	deadSlots := make(map[uint64]slot)
+	for _, t := range tasks {
+		if _, exists := runningSlots[t.Slot]; !exists {
+			deadSlots[t.Slot] = append(deadSlots[t.Slot], t)
+		}
+	}
+
+	return runningSlots, deadSlots, nil
 }

@@ -2,6 +2,7 @@ package membership
 
 import (
 	"errors"
+	"fmt"
 	"sync"
 
 	"google.golang.org/grpc"
@@ -10,6 +11,7 @@ import (
 	"github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/manager/state/watch"
 	"github.com/gogo/protobuf/proto"
+	"golang.org/x/net/context"
 )
 
 var (
@@ -44,9 +46,23 @@ type Member struct {
 	*api.RaftMember
 
 	api.RaftClient
-	Conn   *grpc.ClientConn
-	tick   int
-	active bool
+	Conn         *grpc.ClientConn
+	tick         int
+	active       bool
+	lastSeenHost string
+}
+
+// HealthCheck sends a health check RPC to the member and returns the response.
+func (member *Member) HealthCheck(ctx context.Context) error {
+	healthClient := api.NewHealthClient(member.Conn)
+	resp, err := healthClient.Check(ctx, &api.HealthCheckRequest{Service: "Raft"})
+	if err != nil {
+		return err
+	}
+	if resp.Status != api.HealthCheckResponse_SERVING {
+		return fmt.Errorf("health check returned status %s", resp.Status.String())
+	}
+	return nil
 }
 
 // NewCluster creates a new Cluster neighbors list for a raft Member.
@@ -171,7 +187,7 @@ func (c *Cluster) clearMember(id uint64) error {
 
 // ReplaceMemberConnection replaces the member's GRPC connection and GRPC
 // client.
-func (c *Cluster) ReplaceMemberConnection(id uint64, oldConn *Member, newConn *Member) error {
+func (c *Cluster) ReplaceMemberConnection(id uint64, oldConn *Member, newConn *Member, newAddr string, force bool) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -180,15 +196,19 @@ func (c *Cluster) ReplaceMemberConnection(id uint64, oldConn *Member, newConn *M
 		return ErrIDNotFound
 	}
 
-	if oldConn.Conn != oldMember.Conn {
+	if !force && oldConn.Conn != oldMember.Conn {
 		// The connection was already replaced. Don't do it again.
 		newConn.Conn.Close()
 		return nil
 	}
 
-	oldMember.Conn.Close()
+	if oldMember.Conn != nil {
+		oldMember.Conn.Close()
+	}
 
 	newMember := *oldMember
+	newMember.RaftMember = oldMember.RaftMember.Copy()
+	newMember.RaftMember.Addr = newAddr
 	newMember.Conn = newConn.Conn
 	newMember.RaftClient = newConn.RaftClient
 	c.members[id] = &newMember
@@ -217,8 +237,8 @@ func (c *Cluster) Clear() {
 	c.mu.Unlock()
 }
 
-// ReportActive reports that member is acive (called ProcessRaftMessage),
-func (c *Cluster) ReportActive(id uint64) {
+// ReportActive reports that member is active (called ProcessRaftMessage),
+func (c *Cluster) ReportActive(id uint64, sourceHost string) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	m, ok := c.members[id]
@@ -227,6 +247,9 @@ func (c *Cluster) ReportActive(id uint64) {
 	}
 	m.tick = 0
 	m.active = true
+	if sourceHost != "" {
+		m.lastSeenHost = sourceHost
+	}
 }
 
 // Active returns true if node is active.
@@ -238,6 +261,18 @@ func (c *Cluster) Active(id uint64) bool {
 		return false
 	}
 	return m.active
+}
+
+// LastSeenHost returns the last observed source address that the specified
+// member connected from.
+func (c *Cluster) LastSeenHost(id uint64) string {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	m, ok := c.members[id]
+	if ok {
+		return m.lastSeenHost
+	}
+	return ""
 }
 
 // ValidateConfigurationChange takes a proposed ConfChange and

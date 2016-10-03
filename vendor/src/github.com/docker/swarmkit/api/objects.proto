@@ -245,9 +245,9 @@ message Secret {
 	// is calculated from the data contained in `Secret.Spec.data`.
 	string digest = 4;
 
-	// Size represents the size (number of bytes) of the secret data, and is
-	// calculated from the data contained in `Secret.Spec.data`..
-	uint32 size = 5 [(gogoproto.customname) = "SecretSize"];
+	// SecretSize represents the size (number of bytes) of the secret data, and is
+	// calculated from the data contained in `Secret.Spec.data`.
+	int64 size = 5 [(gogoproto.customname) = "SecretSize"];
 
 	// Whether the secret is an internal secret (not set by a user) or not.
 	bool internal = 6;

@@ -451,6 +451,87 @@ func (e EventDeleteCluster) matches(watchEvent events.Event) bool {
 	return true
 }
 
+// SecretCheckFunc is the type of function used to perform filtering checks on
+// api.Secret structures.
+type SecretCheckFunc func(v1, v2 *api.Secret) bool
+
+// SecretCheckID is a SecretCheckFunc for matching volume IDs.
+func SecretCheckID(v1, v2 *api.Secret) bool {
+	return v1.ID == v2.ID
+}
+
+// EventCreateSecret is the type used to put CreateSecret events on the
+// publish/subscribe queue and filter these events in calls to Watch.
+type EventCreateSecret struct {
+	Secret *api.Secret
+	// Checks is a list of functions to call to filter events for a watch
+	// stream. They are applied with AND logic. They are only applicable for
+	// calls to Watch.
+	Checks []SecretCheckFunc
+}
+
+func (e EventCreateSecret) matches(watchEvent events.Event) bool {
+	typedEvent, ok := watchEvent.(EventCreateSecret)
+	if !ok {
+		return false
+	}
+
+	for _, check := range e.Checks {
+		if !check(e.Secret, typedEvent.Secret) {
+			return false
+		}
+	}
+	return true
+}
+
+// EventUpdateSecret is the type used to put UpdateSecret events on the
+// publish/subscribe queue and filter these events in calls to Watch.
+type EventUpdateSecret struct {
+	Secret *api.Secret
+	// Checks is a list of functions to call to filter events for a watch
+	// stream. They are applied with AND logic. They are only applicable for
+	// calls to Watch.
+	Checks []SecretCheckFunc
+}
+
+func (e EventUpdateSecret) matches(watchEvent events.Event) bool {
+	typedEvent, ok := watchEvent.(EventUpdateSecret)
+	if !ok {
+		return false
+	}
+
+	for _, check := range e.Checks {
+		if !check(e.Secret, typedEvent.Secret) {
+			return false
+		}
+	}
+	return true
+}
+
+// EventDeleteSecret is the type used to put DeleteSecret events on the
+// publish/subscribe queue and filter these events in calls to Watch.
+type EventDeleteSecret struct {
+	Secret *api.Secret
+	// Checks is a list of functions to call to filter events for a watch
+	// stream. They are applied with AND logic. They are only applicable for
+	// calls to Watch.
+	Checks []SecretCheckFunc
+}
+
+func (e EventDeleteSecret) matches(watchEvent events.Event) bool {
+	typedEvent, ok := watchEvent.(EventDeleteSecret)
+	if !ok {
+		return false
+	}
+
+	for _, check := range e.Checks {
+		if !check(e.Secret, typedEvent.Secret) {
+			return false
+		}
+	}
+	return true
+}
+
 // Watch takes a variable number of events to match against. The subscriber
 // will receive events that match any of the arguments passed to Watch.
 //

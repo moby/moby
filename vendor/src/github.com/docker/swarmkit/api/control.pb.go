@@ -2414,8 +2414,6 @@ type ControlClient interface {
 	// on the provided `CreateSecretRequest.SecretSpec`.
 	// - Returns `InvalidArgument` if the `CreateSecretRequest.SecretSpec` is malformed,
 	//   or if the secret data is too long or contains invalid characters.
-	// - Returns `ResourceExhausted` if there are already the maximum number of allowed
-	//   secrets in the system.
 	// - Returns an error if the creation fails.
 	CreateSecret(ctx context.Context, in *CreateSecretRequest, opts ...grpc.CallOption) (*CreateSecretResponse, error)
 	// RemoveSecret removes the secret referenced by `RemoveSecretRequest.ID`.
@@ -2678,8 +2676,6 @@ type ControlServer interface {
 	// on the provided `CreateSecretRequest.SecretSpec`.
 	// - Returns `InvalidArgument` if the `CreateSecretRequest.SecretSpec` is malformed,
 	//   or if the secret data is too long or contains invalid characters.
-	// - Returns `ResourceExhausted` if there are already the maximum number of allowed
-	//   secrets in the system.
 	// - Returns an error if the creation fails.
 	CreateSecret(context.Context, *CreateSecretRequest) (*CreateSecretResponse, error)
 	// RemoveSecret removes the secret referenced by `RemoveSecretRequest.ID`.
