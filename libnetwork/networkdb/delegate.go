@@ -318,12 +318,13 @@ func (nDB *NetworkDB) handleBulkSync(buf []byte) {
 
 	// Don't respond to a bulk sync which was not unsolicited
 	if !bsm.Unsolicited {
-		nDB.RLock()
+		nDB.Lock()
 		ch, ok := nDB.bulkSyncAckTbl[bsm.NodeName]
-		nDB.RUnlock()
 		if ok {
 			close(ch)
+			delete(nDB.bulkSyncAckTbl, bsm.NodeName)
 		}
+		nDB.Unlock()
 
 		return
 	}
