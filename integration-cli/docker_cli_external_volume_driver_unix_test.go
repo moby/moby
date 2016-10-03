@@ -73,6 +73,7 @@ type vol struct {
 	Mountpoint string
 	Ninja      bool // hack used to trigger a null volume return on `Get`
 	Status     map[string]interface{}
+	Options    map[string]string
 }
 
 func (p *volumePlugin) Close() {
@@ -130,7 +131,7 @@ func newVolumePlugin(c *check.C, name string) *volumePlugin {
 		}
 		_, isNinja := pr.Opts["ninja"]
 		status := map[string]interface{}{"Hello": "world"}
-		s.vols[pr.Name] = vol{Name: pr.Name, Ninja: isNinja, Status: status}
+		s.vols[pr.Name] = vol{Name: pr.Name, Ninja: isNinja, Status: status, Options: pr.Opts}
 		send(w, nil)
 	})
 
@@ -210,6 +211,14 @@ func newVolumePlugin(c *check.C, name string) *volumePlugin {
 		if err != nil {
 			send(w, err)
 			return
+		}
+
+		if v, exists := s.vols[pr.Name]; exists {
+			// Use this to simulate a mount failure
+			if _, exists := v.Options["invalidOption"]; exists {
+				send(w, fmt.Errorf("invalid argument"))
+				return
+			}
 		}
 
 		p := hostVolumePath(pr.Name)
@@ -561,4 +570,14 @@ func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverOutOfBandDelete(c *c
 
 	out, err = s.d.Cmd("volume", "create", "-d", "local", "--name", "test")
 	c.Assert(err, checker.IsNil, check.Commentf(out))
+}
+
+func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverUnmountOnMountFail(c *check.C) {
+	c.Assert(s.d.StartWithBusybox(), checker.IsNil)
+	s.d.Cmd("volume", "create", "-d", "test-external-volume-driver", "--opt=invalidOption=1", "--name=testumount")
+
+	out, _ := s.d.Cmd("run", "-v", "testumount:/foo", "busybox", "true")
+	c.Assert(s.ec.unmounts, checker.Equals, 0, check.Commentf(out))
+	out, _ = s.d.Cmd("run", "-w", "/foo", "-v", "testumount:/foo", "busybox", "true")
+	c.Assert(s.ec.unmounts, checker.Equals, 0, check.Commentf(out))
 }
