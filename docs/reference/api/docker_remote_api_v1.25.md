@@ -3750,6 +3750,7 @@ Instruct the driver to remove the network (`id`).
 
 **Status codes**:
 
+-   **200** - no error
 -   **204** - no error
 -   **404** - no such network
 -   **500** - server error
