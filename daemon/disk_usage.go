@@ -61,7 +61,7 @@ func (daemon *Daemon) SystemDiskUsage() (*types.DiskUsage, error) {
 			logrus.Warnf("failed to determine size of volume %v", name)
 			sz = -1
 		}
-		tv.UsageData = &types.VolumeUsageData{Size: sz, RefCount: len(refs)}
+		tv.UsageData = &types.VolumeUsageData{Size: sz, RefCount: int64(len(refs))}
 		allVolumes = append(allVolumes, tv)
 
 		return nil
