@@ -469,12 +469,14 @@ func (ep *endpoint) sbJoin(sb *sandbox, options ...EndpointOption) error {
 		n.getController().watchSvcRecord(ep)
 	}
 
-	address := ""
-	if ip := ep.getFirstInterfaceAddress(); ip != nil {
-		address = ip.String()
-	}
-	if err = sb.updateHostsFile(address); err != nil {
-		return err
+	if doUpdateHostsFile(n, sb) {
+		address := ""
+		if ip := ep.getFirstInterfaceAddress(); ip != nil {
+			address = ip.String()
+		}
+		if err = sb.updateHostsFile(address); err != nil {
+			return err
+		}
 	}
 	if err = sb.updateDNS(n.enableIPv6); err != nil {
 		return err
@@ -546,6 +548,10 @@ func (ep *endpoint) sbJoin(sb *sandbox, options ...EndpointOption) error {
 	}
 
 	return nil
+}
+
+func doUpdateHostsFile(n *network, sb *sandbox) bool {
+	return !n.ingress && n.Name() != libnGWNetwork
 }
 
 func (ep *endpoint) rename(name string) error {
