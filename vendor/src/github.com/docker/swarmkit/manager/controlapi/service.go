@@ -136,6 +136,15 @@ func validateTask(taskSpec api.TaskSpec) error {
 	if _, err := reference.ParseNamed(container.Image); err != nil {
 		return grpc.Errorf(codes.InvalidArgument, "ContainerSpec: %q is not a valid repository/tag", container.Image)
 	}
+
+	mountMap := make(map[string]bool)
+	for _, mount := range container.Mounts {
+		if _, exists := mountMap[mount.Target]; exists {
+			return grpc.Errorf(codes.InvalidArgument, "ContainerSpec: duplicate mount point: %s", mount.Target)
+		}
+		mountMap[mount.Target] = true
+	}
+
 	return nil
 }
 
@@ -327,26 +336,24 @@ func (s *Server) UpdateService(ctx context.Context, request *api.UpdateServiceRe
 			return nil
 		}
 		// temporary disable network update
-		if request.Spec != nil {
-			requestSpecNetworks := request.Spec.Task.Networks
-			if len(requestSpecNetworks) == 0 {
-				requestSpecNetworks = request.Spec.Networks
-			}
+		requestSpecNetworks := request.Spec.Task.Networks
+		if len(requestSpecNetworks) == 0 {
+			requestSpecNetworks = request.Spec.Networks
+		}
 
-			specNetworks := service.Spec.Task.Networks
-			if len(specNetworks) == 0 {
-				specNetworks = service.Spec.Networks
-			}
+		specNetworks := service.Spec.Task.Networks
+		if len(specNetworks) == 0 {
+			specNetworks = service.Spec.Networks
+		}
 
-			if !reflect.DeepEqual(requestSpecNetworks, specNetworks) {
-				return errNetworkUpdateNotSupported
-			}
+		if !reflect.DeepEqual(requestSpecNetworks, specNetworks) {
+			return errNetworkUpdateNotSupported
 		}
 
 		// orchestrator is designed to be stateless, so it should not deal
 		// with service mode change (comparing current config with previous config).
 		// proper way to change service mode is to delete and re-add.
-		if request.Spec != nil && reflect.TypeOf(service.Spec.Mode) != reflect.TypeOf(request.Spec.Mode) {
+		if reflect.TypeOf(service.Spec.Mode) != reflect.TypeOf(request.Spec.Mode) {
 			return errModeChangeNotAllowed
 		}
 		service.Meta.Version = *request.ServiceVersion

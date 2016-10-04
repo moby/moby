@@ -220,7 +220,6 @@ func (a *Agent) run(ctx context.Context) {
 			}
 			session = newSession(ctx, a, delay, session.sessionID, nodeDescription)
 			registered = session.registered
-			sessionq = a.sessionq
 		case <-nodeUpdateTicker.C:
 			// skip this case if the registration isn't finished
 			if registered != nil {
@@ -246,9 +245,7 @@ func (a *Agent) run(ctx context.Context) {
 				nodeDescription = newNodeDescription
 				// close the session
 				log.G(ctx).Info("agent: found node update")
-				if err := session.close(); err != nil {
-					log.G(ctx).WithError(err).Error("agent: closing session for node update failed")
-				}
+				session.sendError(nil)
 			}
 		case <-a.stopped:
 			// TODO(stevvooe): Wait on shutdown and cleanup. May need to pump
@@ -365,7 +362,7 @@ func (a *Agent) UpdateTaskStatus(ctx context.Context, taskID string, status *api
 					err = nil // dispatcher no longer cares about this task.
 				} else {
 					log.G(ctx).WithError(err).Error("closing session after fatal error")
-					session.close()
+					session.sendError(err)
 				}
 			} else {
 				log.G(ctx).Debug("task status reported")

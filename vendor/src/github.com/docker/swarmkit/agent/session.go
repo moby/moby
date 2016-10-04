@@ -339,6 +339,16 @@ func (s *session) sendTaskStatuses(ctx context.Context, updates ...*api.UpdateTa
 	return updates[n:], nil
 }
 
+// sendError is used to send errors to errs channel and trigger session recreation
+func (s *session) sendError(err error) {
+	select {
+	case s.errs <- err:
+	case <-s.closed:
+	}
+}
+
+// close closing session. It should be called only in <-session.errs branch
+// of event loop.
 func (s *session) close() error {
 	s.closeOnce.Do(func() {
 		if s.conn != nil {

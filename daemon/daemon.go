@@ -47,6 +47,7 @@ import (
 	"github.com/docker/docker/pkg/sysinfo"
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/pkg/truncindex"
+	plugingetter "github.com/docker/docker/plugin/getter"
 	pluginstore "github.com/docker/docker/plugin/store"
 	"github.com/docker/docker/reference"
 	"github.com/docker/docker/registry"
@@ -1096,7 +1097,7 @@ func (daemon *Daemon) reloadClusterDiscovery(config *Config) error {
 	if daemon.netController == nil {
 		return nil
 	}
-	netOptions, err := daemon.networkOptions(daemon.configStore, nil)
+	netOptions, err := daemon.networkOptions(daemon.configStore, daemon.pluginStore, nil)
 	if err != nil {
 		logrus.WithError(err).Warnf("failed to get options with network controller")
 		return nil
@@ -1113,7 +1114,7 @@ func isBridgeNetworkDisabled(config *Config) bool {
 	return config.bridgeConfig.Iface == disableNetworkBridge
 }
 
-func (daemon *Daemon) networkOptions(dconfig *Config, activeSandboxes map[string]interface{}) ([]nwconfig.Option, error) {
+func (daemon *Daemon) networkOptions(dconfig *Config, pg plugingetter.PluginGetter, activeSandboxes map[string]interface{}) ([]nwconfig.Option, error) {
 	options := []nwconfig.Option{}
 	if dconfig == nil {
 		return options, nil
@@ -1152,6 +1153,10 @@ func (daemon *Daemon) networkOptions(dconfig *Config, activeSandboxes map[string
 
 	if daemon.configStore != nil && daemon.configStore.LiveRestoreEnabled && len(activeSandboxes) != 0 {
 		options = append(options, nwconfig.OptionActiveSandboxes(activeSandboxes))
+	}
+
+	if pg != nil {
+		options = append(options, nwconfig.OptionPluginGetter(pg))
 	}
 
 	return options, nil

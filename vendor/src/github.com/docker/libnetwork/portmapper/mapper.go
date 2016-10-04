@@ -38,19 +38,22 @@ type PortMapper struct {
 	currentMappings map[string]*mapping
 	lock            sync.Mutex
 
+	proxyPath string
+
 	Allocator *portallocator.PortAllocator
 }
 
 // New returns a new instance of PortMapper
-func New() *PortMapper {
-	return NewWithPortAllocator(portallocator.Get())
+func New(proxyPath string) *PortMapper {
+	return NewWithPortAllocator(portallocator.Get(), proxyPath)
 }
 
 // NewWithPortAllocator returns a new instance of PortMapper which will use the specified PortAllocator
-func NewWithPortAllocator(allocator *portallocator.PortAllocator) *PortMapper {
+func NewWithPortAllocator(allocator *portallocator.PortAllocator, proxyPath string) *PortMapper {
 	return &PortMapper{
 		currentMappings: make(map[string]*mapping),
 		Allocator:       allocator,
+		proxyPath:       proxyPath,
 	}
 }
 
@@ -90,7 +93,7 @@ func (pm *PortMapper) MapRange(container net.Addr, hostIP net.IP, hostPortStart,
 		}
 
 		if useProxy {
-			m.userlandProxy, err = newProxy(proto, hostIP, allocatedHostPort, container.(*net.TCPAddr).IP, container.(*net.TCPAddr).Port)
+			m.userlandProxy, err = newProxy(proto, hostIP, allocatedHostPort, container.(*net.TCPAddr).IP, container.(*net.TCPAddr).Port, pm.proxyPath)
 			if err != nil {
 				return nil, err
 			}
@@ -110,7 +113,7 @@ func (pm *PortMapper) MapRange(container net.Addr, hostIP net.IP, hostPortStart,
 		}
 
 		if useProxy {
-			m.userlandProxy, err = newProxy(proto, hostIP, allocatedHostPort, container.(*net.UDPAddr).IP, container.(*net.UDPAddr).Port)
+			m.userlandProxy, err = newProxy(proto, hostIP, allocatedHostPort, container.(*net.UDPAddr).IP, container.(*net.UDPAddr).Port, pm.proxyPath)
 			if err != nil {
 				return nil, err
 			}

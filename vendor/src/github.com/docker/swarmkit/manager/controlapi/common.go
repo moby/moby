@@ -66,7 +66,7 @@ func validateAnnotations(m api.Annotations) error {
 		return grpc.Errorf(codes.InvalidArgument, "meta: name must be provided")
 	} else if !isValidName.MatchString(m.Name) {
 		// if the name doesn't match the regex
-		return grpc.Errorf(codes.InvalidArgument, "invalid name, only [a-zA-Z0-9][a-zA-Z0-9-]*[a-zA-Z0-9] are allowed")
+		return grpc.Errorf(codes.InvalidArgument, "name must be valid as a DNS name component")
 	}
 	return nil
 }

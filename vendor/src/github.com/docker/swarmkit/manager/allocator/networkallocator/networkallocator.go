@@ -79,7 +79,7 @@ func New() (*NetworkAllocator, error) {
 
 	// There are no driver configurations and notification
 	// functions as of now.
-	reg, err := drvregistry.New(nil, nil, nil, nil)
+	reg, err := drvregistry.New(nil, nil, nil, nil, nil)
 	if err != nil {
 		return nil, err
 	}

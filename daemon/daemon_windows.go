@@ -186,7 +186,7 @@ func configureMaxThreads(config *Config) error {
 }
 
 func (daemon *Daemon) initNetworkController(config *Config, activeSandboxes map[string]interface{}) (libnetwork.NetworkController, error) {
-	netOptions, err := daemon.networkOptions(config, nil)
+	netOptions, err := daemon.networkOptions(config, nil, nil)
 	if err != nil {
 		return nil, err
 	}

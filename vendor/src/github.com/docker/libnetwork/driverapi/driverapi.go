@@ -3,6 +3,7 @@ package driverapi
 import (
 	"net"
 
+	"github.com/docker/docker/plugin/getter"
 	"github.com/docker/libnetwork/discoverapi"
 )
 
@@ -139,6 +140,8 @@ type JoinInfo interface {
 
 // DriverCallback provides a Callback interface for Drivers into LibNetwork
 type DriverCallback interface {
+	// GetPluginGetter returns the pluginv2 getter.
+	GetPluginGetter() getter.PluginGetter
 	// RegisterDriver provides a way for Remote drivers to dynamically register new NetworkType and associate with a driver instance
 	RegisterDriver(name string, driver Driver, capability Capability) error
 }
