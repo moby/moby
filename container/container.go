@@ -26,6 +26,7 @@ import (
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/libcontainerd"
+        libvirtgo "github.com/rgbkrk/libvirt-go"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/promise"
@@ -62,6 +63,18 @@ func (DetachError) Error() string {
 	return "detached from container"
 }
 
+// Required for isolated container.
+type LibvirtDriver struct {
+        sync.Mutex
+        conn libvirtgo.VirConnection
+}
+
+type LibvirtContext struct {
+        driver    *LibvirtDriver
+        container *Container
+        domain    *libvirtgo.VirDomain
+}
+
 // CommonContainer holds the fields for a container which are
 // applicable across all platforms supported by the daemon.
 type CommonContainer struct {
@@ -82,6 +95,8 @@ type CommonContainer struct {
 	LogPath         string
 	Name            string
 	Driver          string
+        // Domain for isolated container
+        IsolatedContainerContext *LibvirtContext
 	// MountLabel contains the options for the 'mount' command
 	MountLabel             string
 	ProcessLabel           string

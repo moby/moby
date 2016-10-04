@@ -156,7 +156,10 @@ func (daemon *Daemon) create(params types.ContainerCreateConfig, managed bool) (
 	}
 
         if params.HostConfig.Isolation == "qemu" {
-                return nil, fmt.Errorf("Still unimplemented isolation : %v", params.HostConfig.Isolation)
+                ld := container.InitDriver()
+                lc := ld.InitContext(container)
+                lc.Create()
+                container.IsolatedContainerContext = lc
         }
 
 	daemon.LogContainerEvent(container, "create")

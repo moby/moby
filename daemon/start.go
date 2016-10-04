@@ -143,6 +143,14 @@ func (daemon *Daemon) containerStart(container *container.Container, checkpoint 
 		return err
 	}
 
+        if container.HostConfig.Isolation == "qemu" {
+          if container.IsolatedContainerContext != nil {
+            container.IsolatedContainerContext.Launch()
+          } else {
+            return fmt.Errorf("container.IsolatedContainerContext is not set")
+          }
+        }
+
 	spec, err := daemon.createSpec(container)
 	if err != nil {
 		return err
