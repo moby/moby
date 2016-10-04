@@ -670,7 +670,7 @@ func NewDaemon(config *Config, registryService registry.Service, containerdRemot
 		return nil, err
 	}
 
-	// Plugin system initialization should happen before restore. Dont change order.
+	// Plugin system initialization should happen before restore. Do not change order.
 	if err := pluginInit(d, config, containerdRemote); err != nil {
 		return nil, err
 	}
