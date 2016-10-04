@@ -84,6 +84,7 @@ definitions:
       PrivatePort: 8080
       PublicPort: 80
       Type: "tcp"
+
   MountPoint:
     type: "object"
     description: "A mount point inside a container"
@@ -104,6 +105,7 @@ definitions:
         type: "boolean"
       Propagation:
         type: "string"
+
   DeviceMapping:
     type: "object"
     description: "A device mapping between the host and container"
@@ -118,6 +120,7 @@ definitions:
       PathOnHost: "/dev/deviceName"
       PathInContainer: "/dev/deviceName"
       CgroupPermissions: "mrw"
+
   ThrottleDevice:
     type: "object"
     properties:
@@ -129,6 +132,7 @@ definitions:
         type: "integer"
         format: "int64"
         minimum: 0
+
   Mount:
     type: "object"
     properties:
@@ -188,6 +192,7 @@ definitions:
                 type: "object"
                 additionalProperties:
                   type: "string"
+
   RestartPolicy:
     description: |
       The behavior to apply when the container exits. The default is not to restart.
@@ -209,6 +214,7 @@ definitions:
         type: "integer"
         description: "If `on-failure` is used, the number of times to retry before giving up"
     default: {}
+
   Resources:
     description: "A container's resources (cgroups config, ulimits, etc)"
     type: "object"
@@ -680,6 +686,7 @@ definitions:
         type: "array"
         items:
           type: "string"
+
   NetworkConfig:
     description: "TODO: check is correct"
     type: "object"
@@ -700,6 +707,7 @@ definitions:
         type: "array"
         items:
           $ref: "#/definitions/Port"
+
   GraphDriver:
     description: "Information about this container's graph driver."
     type: "object"
@@ -710,6 +718,7 @@ definitions:
         type: "object"
         additionalProperties:
           type: "string"
+
   Image:
     type: "object"
     properties:
@@ -829,6 +838,7 @@ definitions:
       username: "hannibal"
       password: "xxxx"
       serveraddress: "https://index.docker.io/v1/"
+
   ProcessConfig:
     type: "object"
     properties:
@@ -844,6 +854,7 @@ definitions:
         type: "array"
         items:
           type: "string"
+
   Volume:
     type: "object"
     required: [Name, Driver, Mountpoint, Labels, Scope]
@@ -911,6 +922,7 @@ definitions:
         com.example.some-label: "some-value"
         com.example.some-other-label: "some-other-value"
       Scope: "local"
+
   Network:
     type: "object"
     properties:
@@ -980,6 +992,7 @@ definitions:
           type: "object"
           additionalProperties:
             type: "string"
+
   NetworkContainer:
     type: "object"
     properties:
@@ -991,6 +1004,7 @@ definitions:
         type: "string"
       IPv6Address:
         type: "string"
+
   BuildInfo:
     type: "object"
     properties:
@@ -1008,6 +1022,7 @@ definitions:
         type: "string"
       progressDetail:
         $ref: "#/definitions/ProgressDetail"
+
   CreateImageInfo:
     type: "object"
     properties:
@@ -1019,6 +1034,7 @@ definitions:
         type: "string"
       progressDetail:
         $ref: "#/definitions/ProgressDetail"
+
   PushImageInfo:
     type: "object"
     properties:
@@ -1044,6 +1060,7 @@ definitions:
         type: "integer"
       message:
         type: "integer"
+
   Error:
     description: "Represents an error."
     type: "object"
@@ -1054,6 +1071,7 @@ definitions:
         type: "string"
     example:
       message: "Something went wrong."
+
   EndpointSettings:
     description: "Configuration for a network endpoint."
     type: "object"
@@ -1097,6 +1115,7 @@ definitions:
         format: "int64"
       MacAddress:
         type: "string"
+
   PluginMount:
     type: "object"
     properties:
@@ -1118,6 +1137,7 @@ definitions:
         type: "array"
         items:
           type: "string"
+
   PluginDevice:
     type: "object"
     properties:
@@ -1131,6 +1151,7 @@ definitions:
           type: "string"
       Path:
         type: "string"
+
   Plugin:
     description: "A plugin for the Remote API"
     type: "object"
@@ -1317,6 +1338,7 @@ definitions:
           Description: "command line arguments"
           Settable: null
           Value: []
+
   NodeSpec:
     type: "object"
     properties:
@@ -5299,26 +5321,32 @@ paths:
           type: "string"
       tags:
         - "Exec"
+
   /volumes:
     get:
       summary: "List volumes"
-      operationId: "GetVolumesList"
-      produces:
-        - "application/json"
+      operationId: "VolumesList"
+      produces: ["application/json"]
       responses:
         200:
-          description: "No error"
+          description: "Summary volume data that matches the query"
           schema:
             type: "object"
+            required: [Volumes, Warnings]
             properties:
               Volumes:
                 type: "array"
+                x-nullable: false
+                description: "List of volumes"
                 items:
                   $ref: "#/definitions/Volume"
               Warnings:
                 type: "array"
+                x-nullable: false
+                description: "Warnings that occurred when fetching the list of volumes"
                 items:
                   type: "string"
+
           examples:
             application/json:
               Volumes:
@@ -5338,14 +5366,21 @@ paths:
         - name: "filters"
           in: "query"
           description: |
-            JSON encoded value of the filters (a `map[string][]string`) to process on the volumes list. Available filters:
+            JSON encoded value of the filters (a `map[string][]string`) to
+            process on the volumes list. Available filters:
 
             - `name=<volume-name>` Matches all or part of a volume name.
-            - `dangling=<boolean>` When set to `true` (or `1`), returns all volumes that are not in use by a container. When set to `false` (or `0`), only volumes that are in use by one or more containers are returned.
-            - `driver=<volume-driver-name>` Matches all or part of a volume driver name.
+            - `dangling=<boolean>` When set to `true` (or `1`), returns all
+               volumes that are not in use by a container. When set to `false`
+               (or `0`), only volumes that are in use by one or more
+               containers are returned.
+            - `driver=<volume-driver-name>` Matches all or part of a volume
+              driver name.
           type: "string"
+          format: "json"
       tags:
         - "Volume"
+
   /volumes/create:
     post:
       summary: "Create a volume"
