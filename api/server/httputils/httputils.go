@@ -1,7 +1,6 @@
 package httputils
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -75,15 +74,6 @@ func ParseForm(r *http.Request) error {
 		return err
 	}
 	return nil
-}
-
-// WriteJSON writes the value v to the http response stream as json with standard json encoding.
-func WriteJSON(w http.ResponseWriter, code int, v interface{}) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(code)
-	enc := json.NewEncoder(w)
-	enc.SetEscapeHTML(false)
-	return enc.Encode(v)
 }
 
 // VersionFromContext returns an API version from the context using APIVersionKey.
