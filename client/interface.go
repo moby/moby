@@ -4,6 +4,7 @@ import (
 	"io"
 	"time"
 
+	volumetypes "github.com/docker/docker/api/server/types/volume"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/events"
@@ -136,7 +137,7 @@ type VolumeAPIClient interface {
 	VolumeCreate(ctx context.Context, options types.VolumeCreateRequest) (types.Volume, error)
 	VolumeInspect(ctx context.Context, volumeID string) (types.Volume, error)
 	VolumeInspectWithRaw(ctx context.Context, volumeID string) (types.Volume, []byte, error)
-	VolumeList(ctx context.Context, filter filters.Args) (types.VolumesListResponse, error)
+	VolumeList(ctx context.Context, filter filters.Args) (volumetypes.VolumesListOKBody, error)
 	VolumeRemove(ctx context.Context, volumeID string, force bool) error
 	VolumesPrune(ctx context.Context, cfg types.VolumesPruneConfig) (types.VolumesPruneReport, error)
 }

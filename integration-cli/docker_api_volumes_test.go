@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"path/filepath"
 
+	volumetypes "github.com/docker/docker/api/server/types/volume"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/pkg/integration/checker"
 	"github.com/go-check/check"
@@ -18,7 +19,7 @@ func (s *DockerSuite) TestVolumesAPIList(c *check.C) {
 	c.Assert(err, checker.IsNil)
 	c.Assert(status, checker.Equals, http.StatusOK)
 
-	var volumes types.VolumesListResponse
+	var volumes volumetypes.VolumesListOKBody
 	c.Assert(json.Unmarshal(b, &volumes), checker.IsNil)
 
 	c.Assert(len(volumes.Volumes), checker.Equals, 1, check.Commentf("\n%v", volumes.Volumes))
@@ -47,7 +48,7 @@ func (s *DockerSuite) TestVolumesAPIRemove(c *check.C) {
 	c.Assert(err, checker.IsNil)
 	c.Assert(status, checker.Equals, http.StatusOK)
 
-	var volumes types.VolumesListResponse
+	var volumes volumetypes.VolumesListOKBody
 	c.Assert(json.Unmarshal(b, &volumes), checker.IsNil)
 	c.Assert(len(volumes.Volumes), checker.Equals, 1, check.Commentf("\n%v", volumes.Volumes))
 
@@ -75,7 +76,7 @@ func (s *DockerSuite) TestVolumesAPIInspect(c *check.C) {
 	c.Assert(err, checker.IsNil)
 	c.Assert(status, checker.Equals, http.StatusOK, check.Commentf(string(b)))
 
-	var volumes types.VolumesListResponse
+	var volumes volumetypes.VolumesListOKBody
 	c.Assert(json.Unmarshal(b, &volumes), checker.IsNil)
 	c.Assert(len(volumes.Volumes), checker.Equals, 1, check.Commentf("\n%v", volumes.Volumes))
 

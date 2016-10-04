@@ -22,6 +22,7 @@ import (
 	"strings"
 	"time"
 
+	volumetypes "github.com/docker/docker/api/server/types/volume"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/httputils"
@@ -325,7 +326,7 @@ func deleteAllVolumes() error {
 }
 
 func getAllVolumes() ([]*types.Volume, error) {
-	var volumes types.VolumesListResponse
+	var volumes volumetypes.VolumesListOKBody
 	_, b, err := sockRequest("GET", "/volumes", nil)
 	if err != nil {
 		return nil, err
