@@ -1,6 +1,8 @@
 package client
 
 import (
+	"io"
+
 	"github.com/docker/docker/api/types"
 	"golang.org/x/net/context"
 )
@@ -27,4 +29,5 @@ type PluginAPIClient interface {
 	PluginPush(ctx context.Context, name string, registryAuth string) error
 	PluginSet(ctx context.Context, name string, args []string) error
 	PluginInspectWithRaw(ctx context.Context, name string) (*types.Plugin, []byte, error)
+	PluginCreate(ctx context.Context, createContext io.Reader, options types.PluginCreateOptions) error
 }

@@ -6089,6 +6089,33 @@ paths:
           type: "string"
       tags:
         - "Plugins"
+  /plugins/create:
+    post:
+      summary: "Create a plugin"
+      operationId: "PostPluginsCreate"
+      consumes:
+        - "application/x-tar"
+      responses:
+        204:
+          description: "no error"
+        500:
+          description: "server error"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+      parameters:
+        - name: "name"
+          in: "query"
+          description: "The name of the plugin. The `:latest` tag is optional, and is the default if omitted."
+          required: true
+          type: "string"
+        - name: "tarContext"
+          in: "body"
+          description: "Path to tar containing plugin rootfs and manifest"
+          schema:
+            type: "string"
+            format: "binary"
+      tags:
+        - "Plugins"
   /nodes:
     get:
       summary: "List nodes"

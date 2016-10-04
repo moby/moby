@@ -4401,6 +4401,44 @@ Content-Type: text/plain; charset=utf-8
 -   **404** - plugin not installed
 -   **500** - plugin is active
 
+### Create a plugin
+
+`POST /v1.25/plugins/create?name=(plugin name)`
+
+Create a plugin
+
+**Example request**:
+
+To create a plugin named `plugin`
+
+```
+POST /v1.25/plugins/create?name=plugin:latest HTTP/1.1
+Content-Type: application/x-tar
+
+{% raw %}
+{{ TAR STREAM }}
+{% endraw %}
+```
+
+The `:latest` tag is optional, and is used as default if omitted.
+
+**Example response**:
+
+```
+HTTP/1.1 204 No Content
+Content-Length: 0
+Content-Type: text/plain; charset=utf-8
+```
+
+**Query parameters**:
+
+- **name** - A name and optional tag to apply for the plugin in the `name:tag format`. If you omit the `tag` the default `:latest` value is assumed.
+
+**Status codes**:
+
+-   **204** - no error
+-   **500** - server error
+
 <!-- TODO Document "docker plugin push" endpoint once we have "plugin build"
 
 ### Push a plugin
