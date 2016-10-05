@@ -169,9 +169,15 @@ func (s *DockerSuite) TestAPIStatsNetworkStatsVersioning(c *check.C) {
 	c.Assert(waitRun(id), checker.IsNil)
 	wg := sync.WaitGroup{}
 
-	for i := 17; i <= 21; i++ {
+	// Windows API versions prior to 1.21 doesn't support stats.
+	startAt := 17
+	if daemonPlatform == "windows" {
+		startAt = 21
+	}
+
+	for i := startAt; i <= 21; i++ {
 		wg.Add(1)
-		go func() {
+		go func(i int) {
 			defer wg.Done()
 			apiVersion := fmt.Sprintf("v1.%d", i)
 			statsJSONBlob := getVersionedStats(c, id, apiVersion)
@@ -182,7 +188,7 @@ func (s *DockerSuite) TestAPIStatsNetworkStatsVersioning(c *check.C) {
 				c.Assert(jsonBlobHasGTE121NetworkStats(statsJSONBlob), checker.Equals, true,
 					check.Commentf("Stats JSON blob from API %s %#v does not look like a >=v1.21 API stats structure", apiVersion, statsJSONBlob))
 			}
-		}()
+		}(i)
 	}
 	wg.Wait()
 }
