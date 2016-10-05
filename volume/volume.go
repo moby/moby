@@ -270,7 +270,6 @@ func ParseMountSpec(cfg mounttypes.Mount, options ...func(*validateOpts)) (*Moun
 		}
 		mp.CopyData = DefaultCopyMode
 
-		mp.Driver = DefaultDriverName
 		if cfg.VolumeOptions != nil {
 			if cfg.VolumeOptions.DriverConfig != nil {
 				mp.Driver = cfg.VolumeOptions.DriverConfig.Name

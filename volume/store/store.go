@@ -3,6 +3,7 @@ package store
 import (
 	"bytes"
 	"encoding/json"
+	"net"
 	"os"
 	"path/filepath"
 	"sync"
@@ -115,6 +116,15 @@ func (s *VolumeStore) setNamed(v volume.Volume, ref string) {
 		s.refs[v.Name()] = append(s.refs[v.Name()], ref)
 	}
 	s.globalLock.Unlock()
+}
+
+// getRefs gets the list of refs for a given name
+// Callers of this function are expected to hold the name lock.
+func (s *VolumeStore) getRefs(name string) []string {
+	s.globalLock.Lock()
+	refs := s.refs[name]
+	s.globalLock.Unlock()
+	return refs
 }
 
 // Purge allows the cleanup of internal data on docker in case
@@ -251,9 +261,77 @@ func (s *VolumeStore) Create(name, driverName string, opts, labels map[string]st
 	return s.CreateWithRef(name, driverName, "", opts, labels)
 }
 
+// checkConflict checks the local cache for name collisions with the passed in name,
+// for existing volumes with the same name but in a different driver.
+// This is used by `Create` as a best effort to prevent name collisions for volumes.
+// If a matching volume is found that is not a conflict that is returned so the caller
+// does not need to perform an additional lookup.
+// When no matching volume is found, both returns will be nil
+//
+// Note: This does not probe all the drivers for name collisions because v1 plugins
+// are very slow, particularly if the plugin is down, and cause other issues,
+// particularly around locking the store.
+// TODO(cpuguy83): With v2 plugins this shouldn't be a problem. Could also potentially
+// use a connect timeout for this kind of check to ensure we aren't blocking for a
+// long time.
+func (s *VolumeStore) checkConflict(name, driverName string) (volume.Volume, error) {
+	// check the local cache
+	v, _ := s.getNamed(name)
+	if v != nil {
+		vDriverName := v.DriverName()
+		if driverName != "" && vDriverName != driverName {
+			// we have what looks like a conflict
+			// let's see if there are existing refs to this volume, if so we don't need
+			// to go any further since we can assume the volume is legit.
+			if len(s.getRefs(name)) > 0 {
+				return nil, errors.Wrapf(errNameConflict, "driver '%s' already has volume '%s'", vDriverName, name)
+			}
+
+			// looks like there is a conflict, but nothing is referencing it...
+			// let's check if the found volume ref
+			// is stale by checking with the driver if it still exists
+			vd, err := volumedrivers.GetDriver(vDriverName)
+			if err != nil {
+				// play it safe and return the error
+				// TODO(cpuguy83): maybe when when v2 plugins are ubiquitous, we should
+				// just purge this from the cache
+				return nil, errors.Wrapf(errNameConflict, "found reference to volume '%s' in driver '%s', but got an error while checking the driver: %v", name, vDriverName, err)
+			}
+
+			// now check if it still exists in the driver
+			v2, err := vd.Get(name)
+			err = errors.Cause(err)
+			if err != nil {
+				if _, ok := err.(net.Error); ok {
+					// got some error related to the driver connectivity
+					// play it safe and return the error
+					// TODO(cpuguy83): When when v2 plugins are ubiquitous, maybe we should
+					// just purge this from the cache
+					return nil, errors.Wrapf(errNameConflict, "found reference to volume '%s' in driver '%s', but got an error while checking the driver: %v", name, vDriverName, err)
+				}
+
+				// a driver can return whatever it wants, so let's make sure this is nil
+				if v2 == nil {
+					// purge this reference from the cache
+					s.Purge(name)
+					return nil, nil
+				}
+			}
+			if v2 != nil {
+				return nil, errors.Wrapf(errNameConflict, "driver '%s' already has volume '%s'", vDriverName, name)
+			}
+		}
+		return v, nil
+	}
+
+	return nil, nil
+}
+
 // create asks the given driver to create a volume with the name/opts.
 // If a volume with the name is already known, it will ask the stored driver for the volume.
-// If the passed in driver name does not match the driver name which is stored for the given volume name, an error is returned.
+// If the passed in driver name does not match the driver name which is stored
+//  for the given volume name, an error is returned after checking if the reference is stale.
+// If the reference is stale, it will be purged and this create can continue.
 // It is expected that callers of this function hold any necessary locks.
 func (s *VolumeStore) create(name, driverName string, opts, labels map[string]string) (volume.Volume, error) {
 	// Validate the name in a platform-specific manner
@@ -265,14 +343,12 @@ func (s *VolumeStore) create(name, driverName string, opts, labels map[string]st
 		return nil, &OpErr{Err: errInvalidName, Name: name, Op: "create"}
 	}
 
-	if v, exists := s.getNamed(name); exists {
-		if v.DriverName() != driverName && driverName != "" && driverName != volume.DefaultDriverName {
-			return nil, errNameConflict
-		}
-		// check exist in driver
-		if driverName == "" || driverName == volume.DefaultDriverName {
-			return v, nil
-		}
+	v, err := s.checkConflict(name, driverName)
+	if err != nil {
+		return nil, err
+	}
+	if v != nil {
+		return v, nil
 	}
 
 	// Since there isn't a specified driver name, let's see if any of the existing drivers have this volume name
@@ -294,7 +370,7 @@ func (s *VolumeStore) create(name, driverName string, opts, labels map[string]st
 	if v, _ := vd.Get(name); v != nil {
 		return v, nil
 	}
-	v, err := vd.Create(name, opts)
+	v, err = vd.Create(name, opts)
 	if err != nil {
 		return nil, err
 	}
@@ -435,7 +511,8 @@ func (s *VolumeStore) Remove(v volume.Volume) error {
 	s.locks.Lock(name)
 	defer s.locks.Unlock(name)
 
-	if refs, exists := s.refs[name]; exists && len(refs) > 0 {
+	refs := s.getRefs(name)
+	if len(refs) > 0 {
 		return &OpErr{Err: errVolumeInUse, Name: v.Name(), Op: "remove", Refs: refs}
 	}
 
@@ -476,13 +553,7 @@ func (s *VolumeStore) Refs(v volume.Volume) []string {
 	s.locks.Lock(v.Name())
 	defer s.locks.Unlock(v.Name())
 
-	s.globalLock.Lock()
-	defer s.globalLock.Unlock()
-	refs, exists := s.refs[v.Name()]
-	if !exists {
-		return nil
-	}
-
+	refs := s.getRefs(v.Name())
 	refsOut := make([]string, len(refs))
 	copy(refsOut, refs)
 	return refsOut
@@ -514,7 +585,7 @@ func (s *VolumeStore) FilterByDriver(name string) ([]volume.Volume, error) {
 func (s *VolumeStore) FilterByUsed(vols []volume.Volume, used bool) []volume.Volume {
 	return s.filter(vols, func(v volume.Volume) bool {
 		s.locks.Lock(v.Name())
-		l := len(s.refs[v.Name()])
+		l := len(s.getRefs(v.Name()))
 		s.locks.Unlock(v.Name())
 		if (used && l > 0) || (!used && l == 0) {
 			return true
