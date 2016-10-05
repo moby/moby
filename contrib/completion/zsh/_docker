@@ -1509,6 +1509,7 @@ __docker_subcommand() {
                 $opts_build_create_run \
                 $opts_build_create_run_update \
                 "($help)*--build-arg[Build-time variables]:<varname>=<value>: " \
+                "($help)--compress[Compress the build context using gzip]" \
                 "($help -f --file)"{-f=,--file=}"[Name of the Dockerfile]:Dockerfile:_files" \
                 "($help)--force-rm[Always remove intermediate containers]" \
                 "($help)*--label=[Set metadata for an image]:label=value: " \

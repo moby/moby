@@ -56,6 +56,7 @@ type buildOptions struct {
 	forceRm        bool
 	pull           bool
 	cacheFrom      []string
+	compress       bool
 }
 
 // NewBuildCommand creates a new `docker build` command
@@ -101,6 +102,7 @@ func NewBuildCommand(dockerCli *command.DockerCli) *cobra.Command {
 	flags.BoolVarP(&options.quiet, "quiet", "q", false, "Suppress the build output and print image ID on success")
 	flags.BoolVar(&options.pull, "pull", false, "Always attempt to pull a newer version of the image")
 	flags.StringSliceVar(&options.cacheFrom, "cache-from", []string{}, "Images to consider as cache sources")
+	flags.BoolVar(&options.compress, "compress", false, "Compress the build context using gzip")
 
 	command.AddTrustedFlags(flags, true)
 
@@ -209,8 +211,12 @@ func runBuild(dockerCli *command.DockerCli, options buildOptions) error {
 			includes = append(includes, ".dockerignore", relDockerfile)
 		}
 
+		compression := archive.Uncompressed
+		if options.compress {
+			compression = archive.Gzip
+		}
 		buildCtx, err = archive.TarWithOptions(contextDir, &archive.TarOptions{
-			Compression:     archive.Uncompressed,
+			Compression:     compression,
 			ExcludePatterns: excludes,
 			IncludeFiles:    includes,
 		})

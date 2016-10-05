@@ -758,6 +758,7 @@ _docker_build() {
 	"
 
 	local boolean_options="
+		--compress
 		--disable-content-trust=false
 		--force-rm
 		--help
@@ -1301,7 +1302,7 @@ _docker_info() {
 			return
 			;;
 	esac
-    
+
 	case "$cur" in
 		-*)
 			COMPREPLY=( $( compgen -W "--format -f --help" -- "$cur" ) )
