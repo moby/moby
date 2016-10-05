@@ -16,8 +16,9 @@ Docker Engine swarm mode makes it easy to publish ports for services to make
 them available to resources outside the swarm. All nodes participate in an
 ingress **routing mesh**. The routing mesh enables each node in the swarm to
 accept connections on published ports for any service running in the swarm, even
-if there's no task running on the node. The routing mesh routes all
-incoming requests to published ports on available nodes to an active container.
+if there's no task running on the node. The routing mesh uses an internal overlay
+network `ingress` to route incoming requests to published ports on available nodes 
+to an active container. 
 
 In order to use the ingress network in the swarm, you need to have the following
 ports open between the swarm nodes before you enable swarm mode:
@@ -27,6 +28,10 @@ ports open between the swarm nodes before you enable swarm mode:
 
 You must also open the published port between the swarm nodes and any external
 resources, such as an external load balancer, that require access to the port.
+
+**Note** `ingress` network exists only to route the external traffic to the right
+backend containers. swarm services shouldn't be attached explicitly to the `ingress`
+network.
 
 ## Publish a port for a service
 
