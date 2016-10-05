@@ -130,21 +130,42 @@ type legacyLayerWriterWrapper struct {
 }
 
 func (r *legacyLayerWriterWrapper) Close() error {
+	defer os.RemoveAll(r.root)
 	err := r.legacyLayerWriter.Close()
-	if err == nil {
-		var fullPath string
-		// Use the original path here because ImportLayer does not support long paths for the source in TP5.
-		// But do use a long path for the destination to work around another bug with directories
-		// with MAX_PATH - 12 < length < MAX_PATH.
-		info := r.info
-		fullPath, err = makeLongAbsPath(filepath.Join(info.HomeDir, r.layerID))
-		if err == nil {
-			info.HomeDir = ""
-			err = ImportLayer(info, fullPath, r.path, r.parentLayerPaths)
+	if err != nil {
+		return err
+	}
+
+	// Use the original path here because ImportLayer does not support long paths for the source in TP5.
+	// But do use a long path for the destination to work around another bug with directories
+	// with MAX_PATH - 12 < length < MAX_PATH.
+	info := r.info
+	fullPath, err := makeLongAbsPath(filepath.Join(info.HomeDir, r.layerID))
+	if err != nil {
+		return err
+	}
+
+	info.HomeDir = ""
+	if err = ImportLayer(info, fullPath, r.path, r.parentLayerPaths); err != nil {
+		return err
+	}
+	// Add any hard links that were collected.
+	for _, lnk := range r.PendingLinks {
+		if err = os.Remove(lnk.Path); err != nil && !os.IsNotExist(err) {
+			return err
+		}
+		if err = os.Link(lnk.Target, lnk.Path); err != nil {
+			return err
 		}
 	}
-	os.RemoveAll(r.root)
-	return err
+	// Prepare the utility VM for use if one is present in the layer.
+	if r.HasUtilityVM {
+		err = ProcessUtilityVMImage(filepath.Join(fullPath, "UtilityVM"))
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // NewLayerWriter returns a new layer writer for creating a layer on disk.
@@ -166,7 +187,7 @@ func NewLayerWriter(info DriverInfo, layerID string, parentLayerPaths []string) 
 			return nil, err
 		}
 		return &legacyLayerWriterWrapper{
-			legacyLayerWriter: newLegacyLayerWriter(path),
+			legacyLayerWriter: newLegacyLayerWriter(path, parentLayerPaths, filepath.Join(info.HomeDir, layerID)),
 			info:              info,
 			layerID:           layerID,
 			path:              path,
