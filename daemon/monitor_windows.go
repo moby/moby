@@ -32,7 +32,7 @@ func (daemon *Daemon) postRunProcessing(container *container.Container, e libcon
 		}
 
 		if copts != nil {
-			newOpts = append(newOpts, *copts...)
+			newOpts = append(newOpts, copts...)
 		}
 
 		// Create a new servicing container, which will start, complete the update, and merge back the

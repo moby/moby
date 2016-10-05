@@ -6,11 +6,13 @@ import (
 	"io"
 	"runtime"
 	"strconv"
+	"time"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/daemon/exec"
 	"github.com/docker/docker/libcontainerd"
+	"github.com/docker/docker/restartmanager"
 	"github.com/docker/docker/runconfig"
 )
 
@@ -31,43 +33,57 @@ func (daemon *Daemon) StateChanged(id string, e libcontainerd.StateInfo) error {
 		daemon.LogContainerEvent(c, "oom")
 	case libcontainerd.StateExit:
 		// if container's AutoRemove flag is set, remove it after clean up
-		if c.HostConfig.AutoRemove {
-			defer func() {
+		autoRemove := func() {
+			if c.HostConfig.AutoRemove {
 				if err := daemon.ContainerRm(c.ID, &types.ContainerRmConfig{ForceRemove: true, RemoveVolume: true}); err != nil {
 					logrus.Errorf("can't remove container %s: %v", c.ID, err)
 				}
-			}()
+			}
 		}
+
 		c.Lock()
-		defer c.Unlock()
 		c.Wait()
 		c.Reset(false)
-		c.SetStopped(platformConstructExitStatus(e))
+
+		restart, wait, err := c.RestartManager().ShouldRestart(e.ExitCode, false, time.Since(c.StartedAt))
+		if err == nil && restart {
+			c.RestartCount++
+			c.SetRestarting(platformConstructExitStatus(e))
+		} else {
+			c.SetStopped(platformConstructExitStatus(e))
+			defer autoRemove()
+		}
+
+		daemon.updateHealthMonitor(c)
 		attributes := map[string]string{
 			"exitCode": strconv.Itoa(int(e.ExitCode)),
 		}
-		daemon.updateHealthMonitor(c)
 		daemon.LogContainerEventWithAttributes(c, "die", attributes)
 		daemon.Cleanup(c)
-		// FIXME: here is race condition between two RUN instructions in Dockerfile
-		// because they share same runconfig and change image. Must be fixed
-		// in builder/builder.go
+
+		if err == nil && restart {
+			go func() {
+				err := <-wait
+				if err == nil {
+					if err = daemon.containerStart(c, "", false); err != nil {
+						logrus.Debugf("failed to restart contianer: %+v", err)
+					}
+				}
+				if err != nil {
+					c.SetStopped(platformConstructExitStatus(e))
+					defer autoRemove()
+					if err != restartmanager.ErrRestartCanceled {
+						logrus.Errorf("restartmanger wait error: %+v", err)
+					}
+				}
+			}()
+		}
+
+		defer c.Unlock()
 		if err := c.ToDisk(); err != nil {
 			return err
 		}
 		return daemon.postRunProcessing(c, e)
-	case libcontainerd.StateRestart:
-		c.Lock()
-		defer c.Unlock()
-		c.Reset(false)
-		c.RestartCount++
-		c.SetRestarting(platformConstructExitStatus(e))
-		attributes := map[string]string{
-			"exitCode": strconv.Itoa(int(e.ExitCode)),
-		}
-		daemon.LogContainerEventWithAttributes(c, "die", attributes)
-		daemon.updateHealthMonitor(c)
-		return c.ToDisk()
 	case libcontainerd.StateExitProcess:
 		c.Lock()
 		defer c.Unlock()

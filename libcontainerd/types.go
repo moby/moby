@@ -13,7 +13,6 @@ const (
 	StatePause        = "pause"
 	StateResume       = "resume"
 	StateExit         = "exit"
-	StateRestart      = "restart"
 	StateRestore      = "restore"
 	StateStartProcess = "start-process"
 	StateExitProcess  = "exit-process"
