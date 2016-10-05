@@ -54,7 +54,7 @@ use the following URLs:
     https://experimental.docker.com/builds/Linux/x86_64/docker-latest.tgz
 
 After downloading the appropriate binary, you can follow the instructions
-[here](https://docs.docker.com/installation/binaries/#get-the-docker-binary) to run the `docker` daemon.
+[here](https://docs.docker.com/engine/installation/binaries/#/get-the-docker-engine-binaries) to run the `docker` daemon.
 
 > **Note**
 >
