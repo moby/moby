@@ -935,6 +935,14 @@ func redirecter() {
 		rule := strings.Fields(fmt.Sprintf("-t nat -A PREROUTING -d %s -p %s --dport %d -j REDIRECT --to-port %d",
 			eIP.String(), strings.ToLower(PortConfig_Protocol_name[int32(iPort.Protocol)]), iPort.PublishedPort, iPort.TargetPort))
 		rules = append(rules, rule)
+		// Allow only incoming connections to exposed ports
+		iRule := strings.Fields(fmt.Sprintf("-I INPUT -d %s -p %s --dport %d -m conntrack --ctstate NEW,ESTABLISHED -j ACCEPT",
+			eIP.String(), strings.ToLower(PortConfig_Protocol_name[int32(iPort.Protocol)]), iPort.TargetPort))
+		rules = append(rules, iRule)
+		// Allow only outgoing connections from exposed ports
+		oRule := strings.Fields(fmt.Sprintf("-I OUTPUT -s %s -p %s --sport %d -m conntrack --ctstate ESTABLISHED -j ACCEPT",
+			eIP.String(), strings.ToLower(PortConfig_Protocol_name[int32(iPort.Protocol)]), iPort.TargetPort))
+		rules = append(rules, oRule)
 	}
 
 	ns, err := netns.GetFromPath(os.Args[1])
@@ -952,7 +960,31 @@ func redirecter() {
 	for _, rule := range rules {
 		if err := iptables.RawCombinedOutputNative(rule...); err != nil {
 			logrus.Errorf("setting up rule failed, %v: %v", rule, err)
-			os.Exit(5)
+			os.Exit(6)
+		}
+	}
+
+	if len(ingressPorts) == 0 {
+		return
+	}
+
+	// Ensure blocking rules for anything else in/to ingress network
+	for _, rule := range [][]string{
+		{"-d", eIP.String(), "-p", "udp", "-j", "DROP"},
+		{"-d", eIP.String(), "-p", "tcp", "-j", "DROP"},
+	} {
+		if !iptables.ExistsNative(iptables.Filter, "INPUT", rule...) {
+			if err := iptables.RawCombinedOutputNative(append([]string{"-A", "INPUT"}, rule...)...); err != nil {
+				logrus.Errorf("setting up rule failed, %v: %v", rule, err)
+				os.Exit(7)
+			}
+		}
+		rule[0] = "-s"
+		if !iptables.ExistsNative(iptables.Filter, "OUTPUT", rule...) {
+			if err := iptables.RawCombinedOutputNative(append([]string{"-A", "OUTPUT"}, rule...)...); err != nil {
+				logrus.Errorf("setting up rule failed, %v: %v", rule, err)
+				os.Exit(8)
+			}
 		}
 	}
 }
