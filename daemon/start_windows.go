@@ -30,9 +30,9 @@ func (daemon *Daemon) getLibcontainerdCreateOptions(container *container.Contain
 	}
 	if hvOpts.IsHyperV {
 		hvOpts.SandboxPath = filepath.Dir(m["dir"])
-	} else {
-		layerOpts.LayerFolderPath = m["dir"]
 	}
+
+	layerOpts.LayerFolderPath = m["dir"]
 
 	// Generate the layer paths of the layer options
 	img, err := daemon.imageStore.Get(container.ImageID)

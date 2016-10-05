@@ -40,15 +40,15 @@ const defaultOwner = "docker"
 // Create is the entrypoint to create a container from a spec, and if successfully
 // created, start it too. Table below shows the fields required for HCS JSON calling parameters,
 // where if not populated, is omitted.
-// +-----------------+--------------------------------------------+--------------------------------------------+
-// |                 | Isolation=Process                          | Isolation=Hyper-V                          |
-// +-----------------+--------------------------------------------+--------------------------------------------+
-// | VolumePath      | \\?\\Volume{GUIDa}                         |                                            |
-// | LayerFolderPath | %root%\windowsfilter\containerID           |                                            |
-// | Layers[]        | ID=GUIDb;Path=%root%\windowsfilter\layerID | ID=GUIDb;Path=%root%\windowsfilter\layerID |
-// | SandboxPath     |                                            | %root%\windowsfilter                       |
-// | HvRuntime       |                                            | ImagePath=%root%\BaseLayerID\UtilityVM     |
-// +-----------------+--------------------------------------------+--------------------------------------------+
+// +-----------------+--------------------------------------------+---------------------------------------------------+
+// |                 | Isolation=Process                          | Isolation=Hyper-V                                 |
+// +-----------------+--------------------------------------------+---------------------------------------------------+
+// | VolumePath      | \\?\\Volume{GUIDa}                         |                                                   |
+// | LayerFolderPath | %root%\windowsfilter\containerID           | %root%\windowsfilter\containerID (servicing only) |
+// | Layers[]        | ID=GUIDb;Path=%root%\windowsfilter\layerID | ID=GUIDb;Path=%root%\windowsfilter\layerID        |
+// | SandboxPath     |                                            | %root%\windowsfilter                              |
+// | HvRuntime       |                                            | ImagePath=%root%\BaseLayerID\UtilityVM            |
+// +-----------------+--------------------------------------------+---------------------------------------------------+
 //
 // Isolation=Process example:
 //
@@ -183,8 +183,9 @@ func (clnt *client) Create(containerID string, checkpoint string, checkpointDir 
 		configuration.HvRuntime = &hcsshim.HvRuntime{ImagePath: uvmImagePath}
 	} else {
 		configuration.VolumePath = spec.Root.Path
-		configuration.LayerFolderPath = layerOpt.LayerFolderPath
 	}
+
+	configuration.LayerFolderPath = layerOpt.LayerFolderPath
 
 	for _, layerPath := range layerOpt.LayerPaths {
 		_, filename := filepath.Split(layerPath)
