@@ -1118,11 +1118,15 @@ definitions:
 
   PluginMount:
     type: "object"
+    x-nullable: false
+    required: [Name, Description, Settable, Source, Destination, Type, Options]
     properties:
       Name:
         type: "string"
+        x-nullable: false
       Description:
         type: "string"
+        x-nullable: false
       Settable:
         type: "array"
         items:
@@ -1131,8 +1135,10 @@ definitions:
         type: "string"
       Destination:
         type: "string"
+        x-nullable: false
       Type:
         type: "string"
+        x-nullable: false
       Options:
         type: "array"
         items:
@@ -1140,11 +1146,15 @@ definitions:
 
   PluginDevice:
     type: "object"
+    required: [Name, Description, Settable, Path]
+    x-nullable: false
     properties:
       Name:
         type: "string"
+        x-nullable: false
       Description:
         type: "string"
+        x-nullable: false
       Settable:
         type: "array"
         items:
@@ -1152,22 +1162,61 @@ definitions:
       Path:
         type: "string"
 
+  PluginEnv:
+    type: "object"
+    x-nullable: false
+    required: [Name, Description, Settable, Value]
+    properties:
+      Name:
+        x-nullable: false
+        type: "string"
+      Description:
+        x-nullable: false
+        type: "string"
+      Settable:
+        type: "array"
+        items:
+          type: "string"
+      Value:
+        type: "string"
+
+  PluginInterfaceType:
+    type: "object"
+    x-nullable: false
+    required: [Prefix, Capability, Version]
+    properties:
+      Prefix:
+        type: "string"
+        x-nullable: false
+      Capability:
+        type: "string"
+        x-nullable: false
+      Version:
+        type: "string"
+        x-nullable: false
+
   Plugin:
     description: "A plugin for the Remote API"
     type: "object"
+    required: [Config, Enabled, Manifest, Name, Tag]
     properties:
       Id:
         type: "string"
       Name:
         type: "string"
+        x-nullable: false
       Tag:
         type: "string"
+        x-nullable: false
       Enabled:
         description: "True when the plugin is running. False when the plugin is not running, only installed."
         type: "boolean"
+        x-nullable: false
       Config:
         description: "Settings that can be modified by users."
         type: "object"
+        x-nullable: false
+        required: [Args, Devices, Env, Mounts]
         properties:
           Mounts:
             type: "array"
@@ -1188,40 +1237,67 @@ definitions:
       Manifest:
         description: "The manifest of a plugin."
         type: "object"
+        x-nullable: false
+        required:
+          - ManifestVersion
+          - Description
+          - Documentation
+          - Interface
+          - Entrypoint
+          - Workdir
+          - Network
+          - Capabilities
+          - Mounts
+          - Devices
+          - Env
+          - Args
         properties:
           ManifestVersion:
             type: "string"
+            x-nullable: false
           Description:
             type: "string"
+            x-nullable: false
           Documentation:
             type: "string"
+            x-nullable: false
           Interface:
             description: "The interface between Docker and the plugin"
+            x-nullable: false
             type: "object"
+            required: [Types, Socket]
             properties:
               Types:
                 type: "array"
                 items:
-                  type: "string"
+                  $ref: "#/definitions/PluginInterfaceType"
               Socket:
                 type: "string"
+                x-nullable: false
           Entrypoint:
             type: "array"
             items:
               type: "string"
           Workdir:
             type: "string"
+            x-nullable: false
           User:
             type: "object"
+            x-nullable: false
             properties:
               UID:
                 type: "integer"
+                format: "uint32"
               GID:
                 type: "integer"
+                format: "uint32"
           Network:
             type: "object"
+            x-nullable: false
+            required: [Type]
             properties:
               Type:
+                x-nullable: false
                 type: "string"
           Capabilities:
             type: "array"
@@ -1236,24 +1312,19 @@ definitions:
             items:
               $ref: "#/definitions/PluginDevice"
           Env:
-            type: "object"
-            properties:
-              Name:
-                type: "string"
-              Description:
-                type: "string"
-              Settable:
-                type: "array"
-                items:
-                  type: "string"
-              Value:
-                type: "string"
+            type: "array"
+            items:
+              $ref: "#/definitions/PluginEnv"
           Args:
             type: "object"
+            x-nullable: false
+            required: [Name, Description, Settable, Value]
             properties:
               Name:
+                x-nullable: false
                 type: "string"
               Description:
+                x-nullable: false
                 type: "string"
               Settable:
                 type: "array"
