@@ -5560,7 +5560,7 @@ paths:
   /networks:
     get:
       summary: "List networks"
-      operationId: "GetNetworksList"
+      operationId: "NetworksList"
       produces:
         - "application/json"
       responses:
@@ -5634,12 +5634,12 @@ paths:
             - `name=<network-name>` Matches all or part of a network name.
             - `type=["custom"|"builtin"]` Filters networks by type. The `custom` keyword returns all user-defined networks.
           type: "string"
-      tags:
-        - "Network"
+      tags: ["Network"]
+
   /networks/{id}:
     get:
       summary: "Inspect a network"
-      operationId: "GetNetworksInspect"
+      operationId: "NetworksInspect"
       produces:
         - "application/json"
       responses:
@@ -5657,8 +5657,8 @@ paths:
           description: "Network ID or name"
           required: true
           type: "string"
-      tags:
-        - "Network"
+      tags: ["Network"]
+
     delete:
       summary: "Remove a network"
       operationId: "DeleteNetworks"
@@ -5679,12 +5679,12 @@ paths:
           description: "Network ID or name"
           required: true
           type: "string"
-      tags:
-        - "Network"
+      tags: ["Network"]
+
   /networks/create:
     post:
       summary: "Create a network"
-      operationId: "PostNetworksCreate"
+      operationId: "NetworksCreate"
       consumes:
         - "application/json"
       produces:
@@ -5774,12 +5774,12 @@ paths:
               Labels:
                 com.example.some-label: "some-value"
                 com.example.some-other-label: "some-other-value"
-      tags:
-        - "Network"
+      tags: ["Network"]
+
   /networks/{id}/connect:
     post:
       summary: "Connect a container to a network"
-      operationId: "PostNetworksConnect"
+      operationId: "NetworksConnect"
       consumes:
         - "application/octet-stream"
       responses:
@@ -5820,12 +5820,12 @@ paths:
                 IPAMConfig:
                   IPv4Address: "172.24.56.89"
                   IPv6Address: "2001:db8::5689"
-      tags:
-        - "Network"
+      tags: ["Network"]
+
   /networks/{id}/disconnect:
     post:
       summary: "Disconnect a container from a network"
-      operationId: "PostNetworksDisconnect"
+      operationId: "NetworksDisconnect"
       consumes:
         - "application/json"
       responses:
@@ -5861,15 +5861,14 @@ paths:
               Force:
                 type: "boolean"
                 description: "Force the container to disconnect from the network."
-      tags:
-        - "Network"
+      tags: ["Network"]
+
   /plugins:
     get:
       summary: "List plugins"
-      operationId: "GetPluginsList"
+      operationId: "PluginsList"
       description: "Returns information about installed plugins."
-      produces:
-        - "application/json"
+      produces: ["application/json"]
       responses:
         200:
           description: "No error"
@@ -5956,8 +5955,8 @@ paths:
           description: "Server error"
           schema:
             $ref: "#/definitions/ErrorResponse"
-      tags:
-        - "Plugins"
+      tags: ["Plugins"]
+
   /plugins/pull:
     post:
       summary: "Install a plugin"
