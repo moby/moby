@@ -6,7 +6,8 @@ swagger generate model -f api/swagger.yaml \
     -n Volume \
     -n Port \
     -n ImageSummary \
-    -n Plugin -n PluginDevice -n PluginMount -n PluginEnv -n PluginInterfaceType
+    -n Plugin -n PluginDevice -n PluginMount -n PluginEnv -n PluginInterfaceType \
+    -n ErrorResponse
 
 swagger generate operation -f api/swagger.yaml \
     -t api -s server -a types -m types \
