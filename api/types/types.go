@@ -410,15 +410,6 @@ type MountPoint struct {
 	Propagation mount.Propagation
 }
 
-// VolumeCreateRequest contains the request for the remote API:
-// POST "/volumes/create"
-type VolumeCreateRequest struct {
-	Name       string            // Name is the requested name of the volume
-	Driver     string            // Driver is the name of the driver that should be used to create the volume
-	DriverOpts map[string]string // DriverOpts holds the driver specific options to use for when creating the volume.
-	Labels     map[string]string // Labels holds metadata specific to the volume being created.
-}
-
 // NetworkResource is the body of the "get network" http response message
 type NetworkResource struct {
 	Name       string                      // Name is the requested name of the network

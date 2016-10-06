@@ -5480,10 +5480,12 @@ paths:
               Name:
                 description: "The new volume's name. If not specified, Docker generates a name."
                 type: "string"
+                x-nullable: false
               Driver:
                 description: "Name of the volume driver to use."
                 type: "string"
                 default: "local"
+                x-nullable: false
               DriverOpts:
                 description: "A mapping of driver options and values. These options are passed directly to the driver and are driver specific."
                 type: "object"

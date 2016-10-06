@@ -12,4 +12,5 @@ swagger generate model -f api/swagger.yaml \
 swagger generate operation -f api/swagger.yaml \
     -t api -s server -a types -m types \
     -T api/templates --skip-responses --skip-parameters --skip-validator \
-    -n VolumesList
+    -n VolumesList \
+    -n VolumesCreate

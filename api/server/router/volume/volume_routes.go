@@ -43,7 +43,7 @@ func (v *volumeRouter) postVolumesCreate(ctx context.Context, w http.ResponseWri
 		return err
 	}
 
-	var req types.VolumeCreateRequest
+	var req volumetypes.VolumesCreateBody
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		return err
 	}

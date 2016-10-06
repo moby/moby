@@ -9,6 +9,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 
+	volumetypes "github.com/docker/docker/api/server/types/volume"
 	"github.com/docker/docker/api/types"
 	enginecontainer "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/events"
@@ -335,7 +336,7 @@ func (c *containerConfig) hostConfig() *enginecontainer.HostConfig {
 }
 
 // This handles the case of volumes that are defined inside a service Mount
-func (c *containerConfig) volumeCreateRequest(mount *api.Mount) *types.VolumeCreateRequest {
+func (c *containerConfig) volumeCreateRequest(mount *api.Mount) *volumetypes.VolumesCreateBody {
 	var (
 		driverName string
 		driverOpts map[string]string
@@ -349,7 +350,7 @@ func (c *containerConfig) volumeCreateRequest(mount *api.Mount) *types.VolumeCre
 	}
 
 	if mount.VolumeOptions != nil {
-		return &types.VolumeCreateRequest{
+		return &volumetypes.VolumesCreateBody{
 			Name:       mount.Source,
 			Driver:     driverName,
 			DriverOpts: driverOpts,

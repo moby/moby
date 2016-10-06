@@ -26,7 +26,7 @@ func (s *DockerSuite) TestVolumesAPIList(c *check.C) {
 }
 
 func (s *DockerSuite) TestVolumesAPICreate(c *check.C) {
-	config := types.VolumeCreateRequest{
+	config := volumetypes.VolumesCreateBody{
 		Name: "test",
 	}
 	status, b, err := sockRequest("POST", "/volumes/create", config)
@@ -65,7 +65,7 @@ func (s *DockerSuite) TestVolumesAPIRemove(c *check.C) {
 }
 
 func (s *DockerSuite) TestVolumesAPIInspect(c *check.C) {
-	config := types.VolumeCreateRequest{
+	config := volumetypes.VolumesCreateBody{
 		Name: "test",
 	}
 	status, b, err := sockRequest("POST", "/volumes/create", config)
