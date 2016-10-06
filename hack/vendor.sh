@@ -65,7 +65,7 @@ clone git github.com/RackSec/srslog 365bf33cd9acc21ae1c355209865f17228ca534e
 clone git github.com/imdario/mergo 0.2.1
 
 #get libnetwork packages
-clone git github.com/docker/libnetwork 9fc9609b49d79b8a90ca24e3a63f2a3c09f5e29b
+clone git github.com/docker/libnetwork 7ba98d93bd24a04c4a096bf119e9791257631060
 clone git github.com/docker/go-events afb2b9f2c23f33ada1a22b03651775fdc65a5089
 clone git github.com/armon/go-radix e39d623f12e8e41c7b5529e9a9dd67a1e2261f80
 clone git github.com/armon/go-metrics eb0af217e5e9747e41dd5303755356b62d28e3ec
@@ -139,7 +139,7 @@ clone git github.com/docker/docker-credential-helpers v0.3.0
 clone git github.com/docker/containerd v0.2.4
 
 # cluster
-clone git github.com/docker/swarmkit a2abe794f7a1cfe0ed376fbc7c107ab3d6cf7705
+clone git github.com/docker/swarmkit 2478f57a6faf037b8d4b6964ae9ee2baf80d5f2f
 clone git github.com/golang/mock bd3c8e81be01eef76d4b503f5e687d2d1354d2d9
 clone git github.com/gogo/protobuf 43a2e0b1c32252bfbbdf81f7faa7a88fb3fa4028
 clone git github.com/cloudflare/cfssl b895b0549c0ff676f92cf09ba971ae02bb41367b
