@@ -161,6 +161,24 @@ func validateEndpointSpec(epSpec *api.EndpointSpec) error {
 	return nil
 }
 
+func (s *Server) validateNetworks(networks []*api.ServiceSpec_NetworkAttachmentConfig) error {
+	for _, na := range networks {
+		var network *api.Network
+		s.store.View(func(tx store.ReadTx) {
+			network = store.FindNetwork(tx, na.Target)
+		})
+		if network == nil {
+			continue
+		}
+		if _, ok := network.Spec.Annotations.Labels["com.docker.swarm.internal"]; ok {
+			return grpc.Errorf(codes.InvalidArgument,
+				"Service cannot be explicitly attached to %q network which is a swarm internal network",
+				network.Spec.Annotations.Name)
+		}
+	}
+	return nil
+}
+
 func validateServiceSpec(spec *api.ServiceSpec) error {
 	if spec == nil {
 		return grpc.Errorf(codes.InvalidArgument, errInvalidArgument.Error())
@@ -244,6 +262,10 @@ func (s *Server) checkPortConflicts(spec *api.ServiceSpec, serviceID string) err
 // - Returns an error if the creation fails.
 func (s *Server) CreateService(ctx context.Context, request *api.CreateServiceRequest) (*api.CreateServiceResponse, error) {
 	if err := validateServiceSpec(request.Spec); err != nil {
+		return nil, err
+	}
+
+	if err := s.validateNetworks(request.Spec.Networks); err != nil {
 		return nil, err
 	}
 
