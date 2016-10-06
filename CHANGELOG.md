@@ -5,7 +5,7 @@ information on the list of deprecated flags and APIs please have a look at
 https://docs.docker.com/engine/deprecated/ where target removal dates can also
 be found.
 
-## 1.12.2-rc2 (2016-10-03)
+## 1.12.2 (2016-10-06)
 
 **IMPORTANT**: Docker 1.12 ships with an updated systemd unit file for rpm
 based installs (which includes RHEL, Fedora, CentOS, and Oracle Linux 7). When
@@ -71,6 +71,7 @@ systemctl restart docker` to reload changes and (re)start the docker daemon.
 
 * Update the debian sysv-init script to use `dockerd` instead of `docker daemon` [#25869](https://github.com/docker/docker/pull/25869)
 * Improve stability when running the docker client on MacOS Sierra [#26875](https://github.com/docker/docker/pull/26875)
+- Fix installation on debian stretch [#27184](https://github.com/docker/docker/pull/27184)
 
 ### Windows
 
