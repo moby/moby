@@ -531,7 +531,6 @@ func (s *DockerSuite) TestBuildCacheAdd(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildLastModified(c *check.C) {
-	testRequires(c, DaemonIsLinux) // Windows doesn't have httpserver image yet
 	name := "testbuildlastmodified"
 
 	server, err := fakeStorage(map[string]string{
@@ -545,32 +544,27 @@ func (s *DockerSuite) TestBuildLastModified(c *check.C) {
 	var out, out2 string
 
 	dFmt := `FROM busybox
-ADD %s/file /
-RUN ls -le /file`
+ADD %s/file /`
 
 	dockerfile := fmt.Sprintf(dFmt, server.URL())
 
-	if _, out, err = buildImageWithOut(name, dockerfile, false); err != nil {
+	if _, _, err = buildImageWithOut(name, dockerfile, false); err != nil {
 		c.Fatal(err)
 	}
 
-	originMTime := regexp.MustCompile(`root.*/file.*\n`).FindString(out)
-	// Make sure our regexp is correct
-	if strings.Index(originMTime, "/file") < 0 {
-		c.Fatalf("Missing ls info on 'file':\n%s", out)
-	}
+	out, _ = dockerCmd(c, "run", name, "ls", "-le", "/file")
 
 	// Build it again and make sure the mtime of the file didn't change.
 	// Wait a few seconds to make sure the time changed enough to notice
 	time.Sleep(2 * time.Second)
 
-	if _, out2, err = buildImageWithOut(name, dockerfile, false); err != nil {
+	if _, _, err = buildImageWithOut(name, dockerfile, false); err != nil {
 		c.Fatal(err)
 	}
+	out2, _ = dockerCmd(c, "run", name, "ls", "-le", "/file")
 
-	newMTime := regexp.MustCompile(`root.*/file.*\n`).FindString(out2)
-	if newMTime != originMTime {
-		c.Fatalf("MTime changed:\nOrigin:%s\nNew:%s", originMTime, newMTime)
+	if out != out2 {
+		c.Fatalf("MTime changed:\nOrigin:%s\nNew:%s", out, out2)
 	}
 
 	// Now 'touch' the file and make sure the timestamp DID change this time
@@ -585,13 +579,13 @@ RUN ls -le /file`
 
 	dockerfile = fmt.Sprintf(dFmt, server.URL())
 
-	if _, out2, err = buildImageWithOut(name, dockerfile, false); err != nil {
+	if _, _, err = buildImageWithOut(name, dockerfile, false); err != nil {
 		c.Fatal(err)
 	}
+	out2, _ = dockerCmd(c, "run", name, "ls", "-le", "/file")
 
-	newMTime = regexp.MustCompile(`root.*/file.*\n`).FindString(out2)
-	if newMTime == originMTime {
-		c.Fatalf("MTime didn't change:\nOrigin:%s\nNew:%s", originMTime, newMTime)
+	if out == out2 {
+		c.Fatalf("MTime didn't change:\nOrigin:%s\nNew:%s", out, out2)
 	}
 
 }
@@ -6551,13 +6545,11 @@ func (s *DockerRegistryAuthHtpasswdSuite) TestBuildWithExternalAuth(c *check.C) 
 
 // Test cases in #22036
 func (s *DockerSuite) TestBuildLabelsOverride(c *check.C) {
-	testRequires(c, DaemonIsLinux)
-
 	// Command line option labels will always override
 	name := "scratchy"
 	expected := `{"bar":"from-flag","foo":"from-flag"}`
 	_, err := buildImage(name,
-		`FROM scratch
+		`FROM `+minimalBaseImage()+`
                 LABEL foo=from-dockerfile`,
 		true, "--label", "foo=from-flag", "--label", "bar=from-flag")
 	c.Assert(err, check.IsNil)
@@ -6570,7 +6562,7 @@ func (s *DockerSuite) TestBuildLabelsOverride(c *check.C) {
 	name = "from"
 	expected = `{"foo":"from-dockerfile"}`
 	_, err = buildImage(name,
-		`FROM scratch
+		`FROM `+minimalBaseImage()+`
                 LABEL foo from-dockerfile`,
 		true)
 	c.Assert(err, check.IsNil)
@@ -6599,7 +6591,7 @@ func (s *DockerSuite) TestBuildLabelsOverride(c *check.C) {
 	name = "scratchy2"
 	expected = `{"bar":"","foo":""}`
 	_, err = buildImage(name,
-		`FROM scratch
+		`FROM `+minimalBaseImage()+`
                 LABEL foo=from-dockerfile`,
 		true, "--label", "foo", "--label", "bar=")
 	c.Assert(err, check.IsNil)
@@ -6629,7 +6621,7 @@ func (s *DockerSuite) TestBuildLabelsOverride(c *check.C) {
 	name = "scratchy"
 	expected = `{"bar":"from-flag","foo":"from-flag"}`
 	_, err = buildImage(name,
-		`FROM scratch`,
+		`FROM `+minimalBaseImage(),
 		true, "--label", "foo=from-flag", "--label", "bar=from-flag")
 	c.Assert(err, check.IsNil)
 
