@@ -3,6 +3,7 @@ package daemon
 import (
 	"fmt"
 	"io"
+	"runtime"
 
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/pkg/archive"
@@ -12,6 +13,10 @@ import (
 // ContainerExport writes the contents of the container to the given
 // writer. An error is returned if the container cannot be found.
 func (daemon *Daemon) ContainerExport(name string, out io.Writer) error {
+	if runtime.GOOS == "windows" {
+		return fmt.Errorf("the daemon on this platform does not support export of a container")
+	}
+
 	container, err := daemon.GetContainer(name)
 	if err != nil {
 		return err
