@@ -5451,20 +5451,17 @@ paths:
               driver name.
           type: "string"
           format: "json"
-      tags:
-        - "Volume"
+      tags: ["Volume"]
 
   /volumes/create:
     post:
       summary: "Create a volume"
-      operationId: "PostVolumesCreate"
-      consumes:
-        - "application/json"
-      produces:
-        - "application/json"
+      operationId: "VolumesCreate"
+      consumes: ["application/json"]
+      produces: ["application/json"]
       responses:
         201:
-          description: "No error"
+          description: "The volume was created successfully"
           schema:
             $ref: "#/definitions/Volume"
         500:
@@ -5502,14 +5499,13 @@ paths:
                 com.example.some-label: "some-value"
                 com.example.some-other-label: "some-other-value"
               Driver: "custom"
-      tags:
-        - "Volume"
+      tags: ["Volume"]
+
   /volumes/{name}:
     get:
       summary: "Inspect a volume"
-      operationId: "GetVolumesInspect"
-      produces:
-        - "application/json"
+      operationId: "VolumesInspect"
+      produces: ["application/json"]
       responses:
         200:
           description: "No error"
@@ -5529,15 +5525,15 @@ paths:
           required: true
           description: "Volume name or ID"
           type: "string"
-      tags:
-        - "Volume"
+      tags: ["Volume"]
+
     delete:
       summary: "Remove a volume"
       description: "Instruct the driver to remove the volume."
-      operationId: "DeleteVolumes"
+      operationId: "VolumesDelete"
       responses:
         204:
-          description: "No error"
+          description: "The volume was removed"
         404:
           description: "No such volume or volume driver"
           schema:
@@ -5556,8 +5552,8 @@ paths:
           required: true
           description: "Volume name or ID"
           type: "string"
-      tags:
-        - "Volume"
+      tags: ["Volume"]
+
   /networks:
     get:
       summary: "List networks"
