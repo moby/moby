@@ -1,4 +1,4 @@
-// +build linux,experimental
+// +build linux
 
 package plugin
 
@@ -12,7 +12,7 @@ import (
 	"github.com/docker/docker/oci"
 	"github.com/docker/docker/pkg/plugins"
 	"github.com/docker/docker/plugin/v2"
-	"github.com/opencontainers/runtime-spec/specs-go"
+	specs "github.com/opencontainers/runtime-spec/specs-go"
 )
 
 func (pm *Manager) enable(p *v2.Plugin, force bool) error {

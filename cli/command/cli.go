@@ -19,6 +19,7 @@ import (
 	dopts "github.com/docker/docker/opts"
 	"github.com/docker/go-connections/sockets"
 	"github.com/docker/go-connections/tlsconfig"
+	"golang.org/x/net/context"
 )
 
 // Streams is an interface which exposes the standard input and output streams
@@ -31,12 +32,27 @@ type Streams interface {
 // DockerCli represents the docker command line client.
 // Instances of the client can be returned from NewDockerCli.
 type DockerCli struct {
-	configFile *configfile.ConfigFile
-	in         *InStream
-	out        *OutStream
-	err        io.Writer
-	keyFile    string
-	client     client.APIClient
+	configFile      *configfile.ConfigFile
+	in              *InStream
+	out             *OutStream
+	err             io.Writer
+	keyFile         string
+	client          client.APIClient
+	hasExperimental *bool
+}
+
+// HasExperimental returns true if experimental features are accessible
+func (cli *DockerCli) HasExperimental() bool {
+	if cli.hasExperimental == nil {
+		if cli.client == nil {
+			cli.Initialize(cliflags.NewClientOptions())
+		}
+		enabled := false
+		cli.hasExperimental = &enabled
+		enabled, _ = cli.client.Ping(context.Background())
+	}
+
+	return *cli.hasExperimental
 }
 
 // Client returns the APIClient
