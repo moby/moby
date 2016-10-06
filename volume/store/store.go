@@ -239,7 +239,7 @@ func (s *VolumeStore) Create(name, driverName string, opts, labels map[string]st
 }
 
 // checkConflict checks the local cache for name collisions with the passed in name,
-// for existing volumes with the same name but in a different driver.
+// for existing volumes with the same name.
 // This is used by `Create` as a best effort to prevent name collisions for volumes.
 // If a matching volume is found that is not a conflict that is returned so the caller
 // does not need to perform an additional lookup.
@@ -255,11 +255,11 @@ func (s *VolumeStore) checkConflict(name, driverName string) (volume.Volume, err
 	// check the local cache
 	v, _ := s.getNamed(name)
 	if v != nil {
-		vDriverName := v.DriverName()
-		if driverName != "" && vDriverName != driverName {
+		if driverName != "" {
 			// we have what looks like a conflict
 			// let's see if there are existing refs to this volume, if so we don't need
 			// to go any further since we can assume the volume is legit.
+			vDriverName := v.DriverName()
 			if len(s.refs[name]) > 0 {
 				return nil, errors.Wrapf(errNameConflict, "driver '%s' already has volume '%s'", vDriverName, name)
 			}
