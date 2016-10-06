@@ -27,6 +27,7 @@ dockerd - Enable daemon mode
 [**--dns-search**[=*[]*]]
 [**--exec-opt**[=*[]*]]
 [**--exec-root**[=*/var/run/docker*]]
+[**--experimental**[=*false*]]
 [**--fixed-cidr**[=*FIXED-CIDR*]]
 [**--fixed-cidr-v6**[=*FIXED-CIDR-V6*]]
 [**-G**|**--group**[=*docker*]]
@@ -145,6 +146,9 @@ format.
 
 **--exec-root**=""
   Path to use as the root of the Docker execution state files. Default is `/var/run/docker`.
+
+**--experimental**=""
+  Enable the daemon experimental features.
 
 **--fixed-cidr**=""
   IPv4 subnet for fixed IPs (e.g., 10.20.0.0/16); this subnet must be nested in the bridge subnet (which is defined by \-b or \-\-bip)

@@ -96,8 +96,7 @@ set -e
 			# Install runc and containerd
 			RUN ./hack/dockerfile/install-binaries.sh runc-dynamic containerd-dynamic
 		EOF
-
-		if [ "$DOCKER_EXPERIMENTAL" ]; then
+		if [[ "$VERSION" == *-dev ]] || [ -n "$(git status --porcelain)" ]; then
 			echo 'ENV DOCKER_EXPERIMENTAL 1' >> "$DEST/$version/Dockerfile.build"
 		fi
 		cat >> "$DEST/$version/Dockerfile.build" <<-EOF

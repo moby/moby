@@ -129,7 +129,7 @@ func (cli *DaemonCli) start(opts daemonOptions) (err error) {
 		utils.EnableDebug()
 	}
 
-	if utils.ExperimentalBuild() {
+	if cli.Config.Experimental {
 		logrus.Warn("Running experimental build")
 	}
 
@@ -434,6 +434,9 @@ func initRouter(s *apiserver.Server, d *daemon.Daemon, c *cluster.Cluster) {
 
 func (cli *DaemonCli) initMiddlewares(s *apiserver.Server, cfg *apiserver.Config) {
 	v := cfg.Version
+
+	exp := middleware.NewExperimentalMiddleware(cli.d.HasExperimental())
+	s.UseMiddleware(exp)
 
 	vm := middleware.NewVersionMiddleware(v, api.DefaultVersion, api.MinVersion)
 	s.UseMiddleware(vm)

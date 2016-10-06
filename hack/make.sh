@@ -126,12 +126,6 @@ if [ ! "$GOPATH" ]; then
 	exit 1
 fi
 
-if [ "$DOCKER_EXPERIMENTAL" ]; then
-	echo >&2 '# WARNING! DOCKER_EXPERIMENTAL is set: building experimental features'
-	echo >&2
-	DOCKER_BUILDTAGS+=" experimental"
-fi
-
 DOCKER_BUILDTAGS+=" daemon"
 if ${PKG_CONFIG} 'libsystemd >= 209' 2> /dev/null ; then
 	DOCKER_BUILDTAGS+=" journald"

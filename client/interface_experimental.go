@@ -1,5 +1,3 @@
-// +build experimental
-
 package client
 
 import (
@@ -7,9 +5,7 @@ import (
 	"golang.org/x/net/context"
 )
 
-// APIClient is an interface that clients that talk with a docker server must implement.
-type APIClient interface {
-	CommonAPIClient
+type apiClientExperimental interface {
 	CheckpointAPIClient
 	PluginAPIClient
 }
@@ -32,6 +28,3 @@ type PluginAPIClient interface {
 	PluginSet(ctx context.Context, name string, args []string) error
 	PluginInspectWithRaw(ctx context.Context, name string) (*types.Plugin, []byte, error)
 }
-
-// Ensure that Client always implements APIClient.
-var _ APIClient = &Client{}

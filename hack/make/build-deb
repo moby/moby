@@ -76,10 +76,6 @@ set -e
 			# Install runc and containerd
 			RUN ./hack/dockerfile/install-binaries.sh runc-dynamic containerd-dynamic
 		EOF
-
-		if [ "$DOCKER_EXPERIMENTAL" ]; then
-			echo 'ENV DOCKER_EXPERIMENTAL 1' >> "$DEST/$version/Dockerfile.build"
-		fi
 		cat >> "$DEST/$version/Dockerfile.build" <<-EOF
 			RUN cp -aL hack/make/.build-deb debian
 			RUN { echo '$debSource (${debVersion}-0~${suite}) $suite; urgency=low'; echo; echo '  * Version: $VERSION'; echo; echo " -- $debMaintainer  $debDate"; } > debian/changelog && cat >&2 debian/changelog
