@@ -194,7 +194,7 @@ Storage Driver: devicemapper
  Metadata loop file: /var/lib/docker/devicemapper/devicemapper/metadata
  Library Version: 1.02.93-RHEL7 (2015-01-28)
  [...]
- ```
+```
 
 The output above shows a Docker host running with the `devicemapper` storage
 driver operating in `loop-lvm` mode. This is indicated by the fact that the
