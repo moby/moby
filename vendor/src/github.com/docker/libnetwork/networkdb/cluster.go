@@ -112,14 +112,20 @@ func (nDB *NetworkDB) clusterInit() error {
 
 	nDB.networkBroadcasts = &memberlist.TransmitLimitedQueue{
 		NumNodes: func() int {
-			return len(nDB.nodes)
+			nDB.RLock()
+			num := len(nDB.nodes)
+			nDB.RUnlock()
+			return num
 		},
 		RetransmitMult: config.RetransmitMult,
 	}
 
 	nDB.nodeBroadcasts = &memberlist.TransmitLimitedQueue{
 		NumNodes: func() int {
-			return len(nDB.nodes)
+			nDB.RLock()
+			num := len(nDB.nodes)
+			nDB.RUnlock()
+			return num
 		},
 		RetransmitMult: config.RetransmitMult,
 	}
