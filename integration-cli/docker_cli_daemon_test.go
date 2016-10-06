@@ -2778,7 +2778,7 @@ func (s *DockerDaemonSuite) TestDaemonRestartSaveContainerExitCode(c *check.C) {
 	c.Assert(err, checker.IsNil)
 
 	containerName := "error-values"
-	runError := "oci runtime error: exec: \"toto\": executable file not found in $PATH"
+	runError := `exec: \"toto\": executable file not found in $PATH`
 	// Make a container with both a non 0 exit code and an error message
 	out, err := s.d.Cmd("run", "--name", containerName, "busybox", "toto")
 	c.Assert(err, checker.NotNil)
@@ -2793,7 +2793,7 @@ func (s *DockerDaemonSuite) TestDaemonRestartSaveContainerExitCode(c *check.C) {
 	out, err = s.d.Cmd("inspect", "-f", "{{.State.Error}}", containerName)
 	out = strings.TrimSpace(out)
 	c.Assert(err, checker.IsNil)
-	c.Assert(out, checker.Equals, runError)
+	c.Assert(out, checker.Contains, runError)
 
 	// now restart daemon
 	err = s.d.Restart()
@@ -2808,7 +2808,7 @@ func (s *DockerDaemonSuite) TestDaemonRestartSaveContainerExitCode(c *check.C) {
 	out, err = s.d.Cmd("inspect", "-f", "{{.State.Error}}", containerName)
 	out = strings.TrimSpace(out)
 	c.Assert(err, checker.IsNil)
-	c.Assert(out, checker.Equals, runError)
+	c.Assert(out, checker.Contains, runError)
 }
 
 func (s *DockerDaemonSuite) TestDaemonBackcompatPre17Volumes(c *check.C) {

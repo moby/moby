@@ -56,7 +56,7 @@ ENV PATH /go/bin:/usr/local/go/bin:$PATH
 ENV GOPATH /go:/go/src/github.com/docker/docker/vendor
 ENV CGO_LDFLAGS -L/lib
 
-# Install runc, containerd.and grimes
+# Install runc, containerd and grimes
 # Please edit hack/dockerfile/install-binaries.sh to update them.
 COPY hack/dockerfile/install-binaries.sh /tmp/install-binaries.sh
 RUN /tmp/install-binaries.sh runc containerd grimes
