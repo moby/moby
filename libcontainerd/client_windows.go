@@ -278,8 +278,8 @@ func (clnt *client) AddProcess(ctx context.Context, containerID, processFriendly
 		CreateStdOutPipe: true,
 		CreateStdErrPipe: !procToAdd.Terminal,
 	}
-	createProcessParms.ConsoleSize[0] = int(procToAdd.ConsoleSize.Height)
-	createProcessParms.ConsoleSize[1] = int(procToAdd.ConsoleSize.Width)
+	createProcessParms.ConsoleSize[0] = uint(procToAdd.ConsoleSize.Height)
+	createProcessParms.ConsoleSize[1] = uint(procToAdd.ConsoleSize.Width)
 
 	// Take working directory from the process to add if it is defined,
 	// otherwise take from the first process.

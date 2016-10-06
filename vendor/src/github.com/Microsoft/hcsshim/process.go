@@ -3,6 +3,7 @@ package hcsshim
 import (
 	"encoding/json"
 	"io"
+	"sync"
 	"syscall"
 	"time"
 
@@ -11,6 +12,7 @@ import (
 
 // ContainerError is an error encountered in HCS
 type process struct {
+	handleLock     sync.RWMutex
 	handle         hcsProcess
 	processID      int
 	container      *container
@@ -64,9 +66,15 @@ func (process *process) Pid() int {
 
 // Kill signals the process to terminate but does not wait for it to finish terminating.
 func (process *process) Kill() error {
+	process.handleLock.RLock()
+	defer process.handleLock.RUnlock()
 	operation := "Kill"
 	title := "HCSShim::Process::" + operation
 	logrus.Debugf(title+" processid=%d", process.processID)
+
+	if process.handle == 0 {
+		return makeProcessError(process, operation, "", ErrInvalidHandle)
+	}
 
 	var resultp *uint16
 	err := hcsTerminateProcess(process.handle, &resultp)
@@ -85,16 +93,9 @@ func (process *process) Wait() error {
 	title := "HCSShim::Process::" + operation
 	logrus.Debugf(title+" processid=%d", process.processID)
 
-	if hcsCallbacksSupported {
-		err := waitForNotification(process.callbackNumber, hcsNotificationProcessExited, nil)
-		if err != nil {
-			return makeProcessError(process, operation, "", err)
-		}
-	} else {
-		_, err := process.waitTimeoutInternal(syscall.INFINITE)
-		if err != nil {
-			return makeProcessError(process, operation, "", err)
-		}
+	err := waitForNotification(process.callbackNumber, hcsNotificationProcessExited, nil)
+	if err != nil {
+		return makeProcessError(process, operation, "", err)
 	}
 
 	logrus.Debugf(title+" succeeded processid=%d", process.processID)
@@ -108,50 +109,27 @@ func (process *process) WaitTimeout(timeout time.Duration) error {
 	title := "HCSShim::Process::" + operation
 	logrus.Debugf(title+" processid=%d", process.processID)
 
-	if hcsCallbacksSupported {
-		err := waitForNotification(process.callbackNumber, hcsNotificationProcessExited, &timeout)
-		if err != nil {
-			return makeProcessError(process, operation, "", err)
-		}
-	} else {
-		finished, err := waitTimeoutHelper(process, timeout)
-		if !finished {
-			err = ErrTimeout
-		}
-		if err != nil {
-			return makeProcessError(process, operation, "", err)
-		}
+	err := waitForNotification(process.callbackNumber, hcsNotificationProcessExited, &timeout)
+	if err != nil {
+		return makeProcessError(process, operation, "", err)
 	}
 
 	logrus.Debugf(title+" succeeded processid=%d", process.processID)
 	return nil
 }
 
-func (process *process) hcsWait(timeout uint32) (bool, error) {
-	var (
-		resultp   *uint16
-		exitEvent syscall.Handle
-	)
-	err := hcsCreateProcessWait(process.handle, &exitEvent, &resultp)
-	err = processHcsResult(err, resultp)
-	if err != nil {
-		return false, err
-	}
-	defer syscall.CloseHandle(exitEvent)
-
-	return waitForSingleObject(exitEvent, timeout)
-}
-
-func (process *process) waitTimeoutInternal(timeout uint32) (bool, error) {
-	return waitTimeoutInternalHelper(process, timeout)
-}
-
 // ExitCode returns the exit code of the process. The process must have
 // already terminated.
 func (process *process) ExitCode() (int, error) {
+	process.handleLock.RLock()
+	defer process.handleLock.RUnlock()
 	operation := "ExitCode"
 	title := "HCSShim::Process::" + operation
 	logrus.Debugf(title+" processid=%d", process.processID)
+
+	if process.handle == 0 {
+		return 0, makeProcessError(process, operation, "", ErrInvalidHandle)
+	}
 
 	properties, err := process.properties()
 	if err != nil {
@@ -162,15 +140,25 @@ func (process *process) ExitCode() (int, error) {
 		return 0, makeProcessError(process, operation, "", ErrInvalidProcessState)
 	}
 
+	if properties.LastWaitResult != 0 {
+		return 0, makeProcessError(process, operation, "", syscall.Errno(properties.LastWaitResult))
+	}
+
 	logrus.Debugf(title+" succeeded processid=%d exitCode=%d", process.processID, properties.ExitCode)
 	return int(properties.ExitCode), nil
 }
 
 // ResizeConsole resizes the console of the process.
 func (process *process) ResizeConsole(width, height uint16) error {
+	process.handleLock.RLock()
+	defer process.handleLock.RUnlock()
 	operation := "ResizeConsole"
 	title := "HCSShim::Process::" + operation
 	logrus.Debugf(title+" processid=%d", process.processID)
+
+	if process.handle == 0 {
+		return makeProcessError(process, operation, "", ErrInvalidHandle)
+	}
 
 	modifyRequest := processModifyRequest{
 		Operation: modifyConsoleSize,
@@ -231,9 +219,15 @@ func (process *process) properties() (*processStatus, error) {
 // these pipes does not close the underlying pipes; it should be possible to
 // call this multiple times to get multiple interfaces.
 func (process *process) Stdio() (io.WriteCloser, io.ReadCloser, io.ReadCloser, error) {
+	process.handleLock.RLock()
+	defer process.handleLock.RUnlock()
 	operation := "Stdio"
 	title := "HCSShim::Process::" + operation
 	logrus.Debugf(title+" processid=%d", process.processID)
+
+	if process.handle == 0 {
+		return nil, nil, nil, makeProcessError(process, operation, "", ErrInvalidHandle)
+	}
 
 	var stdIn, stdOut, stdErr syscall.Handle
 
@@ -269,9 +263,15 @@ func (process *process) Stdio() (io.WriteCloser, io.ReadCloser, io.ReadCloser, e
 // CloseStdin closes the write side of the stdin pipe so that the process is
 // notified on the read side that there is no more data in stdin.
 func (process *process) CloseStdin() error {
+	process.handleLock.RLock()
+	defer process.handleLock.RUnlock()
 	operation := "CloseStdin"
 	title := "HCSShim::Process::" + operation
 	logrus.Debugf(title+" processid=%d", process.processID)
+
+	if process.handle == 0 {
+		return makeProcessError(process, operation, "", ErrInvalidHandle)
+	}
 
 	modifyRequest := processModifyRequest{
 		Operation: modifyCloseHandle,
@@ -301,6 +301,8 @@ func (process *process) CloseStdin() error {
 // Close cleans up any state associated with the process but does not kill
 // or wait on it.
 func (process *process) Close() error {
+	process.handleLock.Lock()
+	defer process.handleLock.Unlock()
 	operation := "Close"
 	title := "HCSShim::Process::" + operation
 	logrus.Debugf(title+" processid=%d", process.processID)
@@ -310,10 +312,8 @@ func (process *process) Close() error {
 		return nil
 	}
 
-	if hcsCallbacksSupported {
-		if err := process.unregisterCallback(); err != nil {
-			return makeProcessError(process, operation, "", err)
-		}
+	if err := process.unregisterCallback(); err != nil {
+		return makeProcessError(process, operation, "", err)
 	}
 
 	if err := hcsCloseProcess(process.handle); err != nil {

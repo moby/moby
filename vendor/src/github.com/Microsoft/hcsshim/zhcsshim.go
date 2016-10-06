@@ -13,69 +13,57 @@ var (
 	modiphlpapi  = syscall.NewLazyDLL("iphlpapi.dll")
 	modvmcompute = syscall.NewLazyDLL("vmcompute.dll")
 
-	procCoTaskMemFree                              = modole32.NewProc("CoTaskMemFree")
-	procSetCurrentThreadCompartmentId              = modiphlpapi.NewProc("SetCurrentThreadCompartmentId")
-	procActivateLayer                              = modvmcompute.NewProc("ActivateLayer")
-	procCopyLayer                                  = modvmcompute.NewProc("CopyLayer")
-	procCreateLayer                                = modvmcompute.NewProc("CreateLayer")
-	procCreateSandboxLayer                         = modvmcompute.NewProc("CreateSandboxLayer")
-	procExpandSandboxSize                          = modvmcompute.NewProc("ExpandSandboxSize")
-	procDeactivateLayer                            = modvmcompute.NewProc("DeactivateLayer")
-	procDestroyLayer                               = modvmcompute.NewProc("DestroyLayer")
-	procExportLayer                                = modvmcompute.NewProc("ExportLayer")
-	procGetLayerMountPath                          = modvmcompute.NewProc("GetLayerMountPath")
-	procGetBaseImages                              = modvmcompute.NewProc("GetBaseImages")
-	procImportLayer                                = modvmcompute.NewProc("ImportLayer")
-	procLayerExists                                = modvmcompute.NewProc("LayerExists")
-	procNameToGuid                                 = modvmcompute.NewProc("NameToGuid")
-	procPrepareLayer                               = modvmcompute.NewProc("PrepareLayer")
-	procUnprepareLayer                             = modvmcompute.NewProc("UnprepareLayer")
-	procProcessBaseImage                           = modvmcompute.NewProc("ProcessBaseImage")
-	procProcessUtilityImage                        = modvmcompute.NewProc("ProcessUtilityImage")
-	procImportLayerBegin                           = modvmcompute.NewProc("ImportLayerBegin")
-	procImportLayerNext                            = modvmcompute.NewProc("ImportLayerNext")
-	procImportLayerWrite                           = modvmcompute.NewProc("ImportLayerWrite")
-	procImportLayerEnd                             = modvmcompute.NewProc("ImportLayerEnd")
-	procExportLayerBegin                           = modvmcompute.NewProc("ExportLayerBegin")
-	procExportLayerNext                            = modvmcompute.NewProc("ExportLayerNext")
-	procExportLayerRead                            = modvmcompute.NewProc("ExportLayerRead")
-	procExportLayerEnd                             = modvmcompute.NewProc("ExportLayerEnd")
-	procCreateComputeSystem                        = modvmcompute.NewProc("CreateComputeSystem")
-	procCreateProcessWithStdHandlesInComputeSystem = modvmcompute.NewProc("CreateProcessWithStdHandlesInComputeSystem")
-	procResizeConsoleInComputeSystem               = modvmcompute.NewProc("ResizeConsoleInComputeSystem")
-	procShutdownComputeSystem                      = modvmcompute.NewProc("ShutdownComputeSystem")
-	procStartComputeSystem                         = modvmcompute.NewProc("StartComputeSystem")
-	procTerminateComputeSystem                     = modvmcompute.NewProc("TerminateComputeSystem")
-	procTerminateProcessInComputeSystem            = modvmcompute.NewProc("TerminateProcessInComputeSystem")
-	procWaitForProcessInComputeSystem              = modvmcompute.NewProc("WaitForProcessInComputeSystem")
-	procGetComputeSystemProperties                 = modvmcompute.NewProc("GetComputeSystemProperties")
-	procHcsEnumerateComputeSystems                 = modvmcompute.NewProc("HcsEnumerateComputeSystems")
-	procHcsCreateComputeSystem                     = modvmcompute.NewProc("HcsCreateComputeSystem")
-	procHcsOpenComputeSystem                       = modvmcompute.NewProc("HcsOpenComputeSystem")
-	procHcsCloseComputeSystem                      = modvmcompute.NewProc("HcsCloseComputeSystem")
-	procHcsStartComputeSystem                      = modvmcompute.NewProc("HcsStartComputeSystem")
-	procHcsShutdownComputeSystem                   = modvmcompute.NewProc("HcsShutdownComputeSystem")
-	procHcsTerminateComputeSystem                  = modvmcompute.NewProc("HcsTerminateComputeSystem")
-	procHcsPauseComputeSystem                      = modvmcompute.NewProc("HcsPauseComputeSystem")
-	procHcsResumeComputeSystem                     = modvmcompute.NewProc("HcsResumeComputeSystem")
-	procHcsGetComputeSystemProperties              = modvmcompute.NewProc("HcsGetComputeSystemProperties")
-	procHcsModifyComputeSystem                     = modvmcompute.NewProc("HcsModifyComputeSystem")
-	procHcsCreateComputeSystemWait                 = modvmcompute.NewProc("HcsCreateComputeSystemWait")
-	procHcsCreateProcess                           = modvmcompute.NewProc("HcsCreateProcess")
-	procHcsOpenProcess                             = modvmcompute.NewProc("HcsOpenProcess")
-	procHcsCloseProcess                            = modvmcompute.NewProc("HcsCloseProcess")
-	procHcsTerminateProcess                        = modvmcompute.NewProc("HcsTerminateProcess")
-	procHcsGetProcessInfo                          = modvmcompute.NewProc("HcsGetProcessInfo")
-	procHcsGetProcessProperties                    = modvmcompute.NewProc("HcsGetProcessProperties")
-	procHcsModifyProcess                           = modvmcompute.NewProc("HcsModifyProcess")
-	procHcsCreateProcessWait                       = modvmcompute.NewProc("HcsCreateProcessWait")
-	procHcsGetServiceProperties                    = modvmcompute.NewProc("HcsGetServiceProperties")
-	procHcsModifyServiceSettings                   = modvmcompute.NewProc("HcsModifyServiceSettings")
-
+	procCoTaskMemFree                      = modole32.NewProc("CoTaskMemFree")
+	procSetCurrentThreadCompartmentId      = modiphlpapi.NewProc("SetCurrentThreadCompartmentId")
+	procActivateLayer                      = modvmcompute.NewProc("ActivateLayer")
+	procCopyLayer                          = modvmcompute.NewProc("CopyLayer")
+	procCreateLayer                        = modvmcompute.NewProc("CreateLayer")
+	procCreateSandboxLayer                 = modvmcompute.NewProc("CreateSandboxLayer")
+	procExpandSandboxSize                  = modvmcompute.NewProc("ExpandSandboxSize")
+	procDeactivateLayer                    = modvmcompute.NewProc("DeactivateLayer")
+	procDestroyLayer                       = modvmcompute.NewProc("DestroyLayer")
+	procExportLayer                        = modvmcompute.NewProc("ExportLayer")
+	procGetLayerMountPath                  = modvmcompute.NewProc("GetLayerMountPath")
+	procGetBaseImages                      = modvmcompute.NewProc("GetBaseImages")
+	procImportLayer                        = modvmcompute.NewProc("ImportLayer")
+	procLayerExists                        = modvmcompute.NewProc("LayerExists")
+	procNameToGuid                         = modvmcompute.NewProc("NameToGuid")
+	procPrepareLayer                       = modvmcompute.NewProc("PrepareLayer")
+	procUnprepareLayer                     = modvmcompute.NewProc("UnprepareLayer")
+	procProcessBaseImage                   = modvmcompute.NewProc("ProcessBaseImage")
+	procProcessUtilityImage                = modvmcompute.NewProc("ProcessUtilityImage")
+	procImportLayerBegin                   = modvmcompute.NewProc("ImportLayerBegin")
+	procImportLayerNext                    = modvmcompute.NewProc("ImportLayerNext")
+	procImportLayerWrite                   = modvmcompute.NewProc("ImportLayerWrite")
+	procImportLayerEnd                     = modvmcompute.NewProc("ImportLayerEnd")
+	procExportLayerBegin                   = modvmcompute.NewProc("ExportLayerBegin")
+	procExportLayerNext                    = modvmcompute.NewProc("ExportLayerNext")
+	procExportLayerRead                    = modvmcompute.NewProc("ExportLayerRead")
+	procExportLayerEnd                     = modvmcompute.NewProc("ExportLayerEnd")
+	procHcsEnumerateComputeSystems         = modvmcompute.NewProc("HcsEnumerateComputeSystems")
+	procHcsCreateComputeSystem             = modvmcompute.NewProc("HcsCreateComputeSystem")
+	procHcsOpenComputeSystem               = modvmcompute.NewProc("HcsOpenComputeSystem")
+	procHcsCloseComputeSystem              = modvmcompute.NewProc("HcsCloseComputeSystem")
+	procHcsStartComputeSystem              = modvmcompute.NewProc("HcsStartComputeSystem")
+	procHcsShutdownComputeSystem           = modvmcompute.NewProc("HcsShutdownComputeSystem")
+	procHcsTerminateComputeSystem          = modvmcompute.NewProc("HcsTerminateComputeSystem")
+	procHcsPauseComputeSystem              = modvmcompute.NewProc("HcsPauseComputeSystem")
+	procHcsResumeComputeSystem             = modvmcompute.NewProc("HcsResumeComputeSystem")
+	procHcsGetComputeSystemProperties      = modvmcompute.NewProc("HcsGetComputeSystemProperties")
+	procHcsModifyComputeSystem             = modvmcompute.NewProc("HcsModifyComputeSystem")
 	procHcsRegisterComputeSystemCallback   = modvmcompute.NewProc("HcsRegisterComputeSystemCallback")
 	procHcsUnregisterComputeSystemCallback = modvmcompute.NewProc("HcsUnregisterComputeSystemCallback")
+	procHcsCreateProcess                   = modvmcompute.NewProc("HcsCreateProcess")
+	procHcsOpenProcess                     = modvmcompute.NewProc("HcsOpenProcess")
+	procHcsCloseProcess                    = modvmcompute.NewProc("HcsCloseProcess")
+	procHcsTerminateProcess                = modvmcompute.NewProc("HcsTerminateProcess")
+	procHcsGetProcessInfo                  = modvmcompute.NewProc("HcsGetProcessInfo")
+	procHcsGetProcessProperties            = modvmcompute.NewProc("HcsGetProcessProperties")
+	procHcsModifyProcess                   = modvmcompute.NewProc("HcsModifyProcess")
+	procHcsGetServiceProperties            = modvmcompute.NewProc("HcsGetServiceProperties")
 	procHcsRegisterProcessCallback         = modvmcompute.NewProc("HcsRegisterProcessCallback")
 	procHcsUnregisterProcessCallback       = modvmcompute.NewProc("HcsUnregisterProcessCallback")
+	procHcsModifyServiceSettings           = modvmcompute.NewProc("HcsModifyServiceSettings")
 	procHNSCall                            = modvmcompute.NewProc("HNSCall")
 )
 
@@ -599,196 +587,6 @@ func exportLayerEnd(context uintptr) (hr error) {
 	return
 }
 
-func createComputeSystem(id string, configuration string) (hr error) {
-	var _p0 *uint16
-	_p0, hr = syscall.UTF16PtrFromString(id)
-	if hr != nil {
-		return
-	}
-	var _p1 *uint16
-	_p1, hr = syscall.UTF16PtrFromString(configuration)
-	if hr != nil {
-		return
-	}
-	return _createComputeSystem(_p0, _p1)
-}
-
-func _createComputeSystem(id *uint16, configuration *uint16) (hr error) {
-	if hr = procCreateComputeSystem.Find(); hr != nil {
-		return
-	}
-	r0, _, _ := syscall.Syscall(procCreateComputeSystem.Addr(), 2, uintptr(unsafe.Pointer(id)), uintptr(unsafe.Pointer(configuration)), 0)
-	if int32(r0) < 0 {
-		hr = syscall.Errno(win32FromHresult(r0))
-	}
-	return
-}
-
-func createProcessWithStdHandlesInComputeSystem(id string, paramsJson string, pid *uint32, stdin *syscall.Handle, stdout *syscall.Handle, stderr *syscall.Handle) (hr error) {
-	var _p0 *uint16
-	_p0, hr = syscall.UTF16PtrFromString(id)
-	if hr != nil {
-		return
-	}
-	var _p1 *uint16
-	_p1, hr = syscall.UTF16PtrFromString(paramsJson)
-	if hr != nil {
-		return
-	}
-	return _createProcessWithStdHandlesInComputeSystem(_p0, _p1, pid, stdin, stdout, stderr)
-}
-
-func _createProcessWithStdHandlesInComputeSystem(id *uint16, paramsJson *uint16, pid *uint32, stdin *syscall.Handle, stdout *syscall.Handle, stderr *syscall.Handle) (hr error) {
-	if hr = procCreateProcessWithStdHandlesInComputeSystem.Find(); hr != nil {
-		return
-	}
-	r0, _, _ := syscall.Syscall6(procCreateProcessWithStdHandlesInComputeSystem.Addr(), 6, uintptr(unsafe.Pointer(id)), uintptr(unsafe.Pointer(paramsJson)), uintptr(unsafe.Pointer(pid)), uintptr(unsafe.Pointer(stdin)), uintptr(unsafe.Pointer(stdout)), uintptr(unsafe.Pointer(stderr)))
-	if int32(r0) < 0 {
-		hr = syscall.Errno(win32FromHresult(r0))
-	}
-	return
-}
-
-func resizeConsoleInComputeSystem(id string, pid uint32, height uint16, width uint16, flags uint32) (hr error) {
-	var _p0 *uint16
-	_p0, hr = syscall.UTF16PtrFromString(id)
-	if hr != nil {
-		return
-	}
-	return _resizeConsoleInComputeSystem(_p0, pid, height, width, flags)
-}
-
-func _resizeConsoleInComputeSystem(id *uint16, pid uint32, height uint16, width uint16, flags uint32) (hr error) {
-	if hr = procResizeConsoleInComputeSystem.Find(); hr != nil {
-		return
-	}
-	r0, _, _ := syscall.Syscall6(procResizeConsoleInComputeSystem.Addr(), 5, uintptr(unsafe.Pointer(id)), uintptr(pid), uintptr(height), uintptr(width), uintptr(flags), 0)
-	if int32(r0) < 0 {
-		hr = syscall.Errno(win32FromHresult(r0))
-	}
-	return
-}
-
-func shutdownComputeSystem(id string, timeout uint32) (hr error) {
-	var _p0 *uint16
-	_p0, hr = syscall.UTF16PtrFromString(id)
-	if hr != nil {
-		return
-	}
-	return _shutdownComputeSystem(_p0, timeout)
-}
-
-func _shutdownComputeSystem(id *uint16, timeout uint32) (hr error) {
-	if hr = procShutdownComputeSystem.Find(); hr != nil {
-		return
-	}
-	r0, _, _ := syscall.Syscall(procShutdownComputeSystem.Addr(), 2, uintptr(unsafe.Pointer(id)), uintptr(timeout), 0)
-	if int32(r0) < 0 {
-		hr = syscall.Errno(win32FromHresult(r0))
-	}
-	return
-}
-
-func startComputeSystem(id string) (hr error) {
-	var _p0 *uint16
-	_p0, hr = syscall.UTF16PtrFromString(id)
-	if hr != nil {
-		return
-	}
-	return _startComputeSystem(_p0)
-}
-
-func _startComputeSystem(id *uint16) (hr error) {
-	if hr = procStartComputeSystem.Find(); hr != nil {
-		return
-	}
-	r0, _, _ := syscall.Syscall(procStartComputeSystem.Addr(), 1, uintptr(unsafe.Pointer(id)), 0, 0)
-	if int32(r0) < 0 {
-		hr = syscall.Errno(win32FromHresult(r0))
-	}
-	return
-}
-
-func terminateComputeSystem(id string) (hr error) {
-	var _p0 *uint16
-	_p0, hr = syscall.UTF16PtrFromString(id)
-	if hr != nil {
-		return
-	}
-	return _terminateComputeSystem(_p0)
-}
-
-func _terminateComputeSystem(id *uint16) (hr error) {
-	if hr = procTerminateComputeSystem.Find(); hr != nil {
-		return
-	}
-	r0, _, _ := syscall.Syscall(procTerminateComputeSystem.Addr(), 1, uintptr(unsafe.Pointer(id)), 0, 0)
-	if int32(r0) < 0 {
-		hr = syscall.Errno(win32FromHresult(r0))
-	}
-	return
-}
-
-func terminateProcessInComputeSystem(id string, pid uint32) (hr error) {
-	var _p0 *uint16
-	_p0, hr = syscall.UTF16PtrFromString(id)
-	if hr != nil {
-		return
-	}
-	return _terminateProcessInComputeSystem(_p0, pid)
-}
-
-func _terminateProcessInComputeSystem(id *uint16, pid uint32) (hr error) {
-	if hr = procTerminateProcessInComputeSystem.Find(); hr != nil {
-		return
-	}
-	r0, _, _ := syscall.Syscall(procTerminateProcessInComputeSystem.Addr(), 2, uintptr(unsafe.Pointer(id)), uintptr(pid), 0)
-	if int32(r0) < 0 {
-		hr = syscall.Errno(win32FromHresult(r0))
-	}
-	return
-}
-
-func waitForProcessInComputeSystem(id string, pid uint32, timeout uint32, exitCode *uint32) (hr error) {
-	var _p0 *uint16
-	_p0, hr = syscall.UTF16PtrFromString(id)
-	if hr != nil {
-		return
-	}
-	return _waitForProcessInComputeSystem(_p0, pid, timeout, exitCode)
-}
-
-func _waitForProcessInComputeSystem(id *uint16, pid uint32, timeout uint32, exitCode *uint32) (hr error) {
-	if hr = procWaitForProcessInComputeSystem.Find(); hr != nil {
-		return
-	}
-	r0, _, _ := syscall.Syscall6(procWaitForProcessInComputeSystem.Addr(), 4, uintptr(unsafe.Pointer(id)), uintptr(pid), uintptr(timeout), uintptr(unsafe.Pointer(exitCode)), 0, 0)
-	if int32(r0) < 0 {
-		hr = syscall.Errno(win32FromHresult(r0))
-	}
-	return
-}
-
-func getComputeSystemProperties(id string, flags uint32, properties **uint16) (hr error) {
-	var _p0 *uint16
-	_p0, hr = syscall.UTF16PtrFromString(id)
-	if hr != nil {
-		return
-	}
-	return _getComputeSystemProperties(_p0, flags, properties)
-}
-
-func _getComputeSystemProperties(id *uint16, flags uint32, properties **uint16) (hr error) {
-	if hr = procGetComputeSystemProperties.Find(); hr != nil {
-		return
-	}
-	r0, _, _ := syscall.Syscall(procGetComputeSystemProperties.Addr(), 3, uintptr(unsafe.Pointer(id)), uintptr(flags), uintptr(unsafe.Pointer(properties)))
-	if int32(r0) < 0 {
-		hr = syscall.Errno(win32FromHresult(r0))
-	}
-	return
-}
-
 func hcsEnumerateComputeSystems(query string, computeSystems **uint16, result **uint16) (hr error) {
 	var _p0 *uint16
 	_p0, hr = syscall.UTF16PtrFromString(query)
@@ -1005,11 +803,22 @@ func _hcsModifyComputeSystem(computeSystem hcsSystem, configuration *uint16, res
 	return
 }
 
-func hcsCreateComputeSystemWait(computeSystem hcsSystem, exitEvent *syscall.Handle, result **uint16) (hr error) {
-	if hr = procHcsCreateComputeSystemWait.Find(); hr != nil {
+func hcsRegisterComputeSystemCallback(computeSystem hcsSystem, callback uintptr, context uintptr, callbackHandle *hcsCallback) (hr error) {
+	if hr = procHcsRegisterComputeSystemCallback.Find(); hr != nil {
 		return
 	}
-	r0, _, _ := syscall.Syscall(procHcsCreateComputeSystemWait.Addr(), 3, uintptr(computeSystem), uintptr(unsafe.Pointer(exitEvent)), uintptr(unsafe.Pointer(result)))
+	r0, _, _ := syscall.Syscall6(procHcsRegisterComputeSystemCallback.Addr(), 4, uintptr(computeSystem), uintptr(callback), uintptr(context), uintptr(unsafe.Pointer(callbackHandle)), 0, 0)
+	if int32(r0) < 0 {
+		hr = syscall.Errno(win32FromHresult(r0))
+	}
+	return
+}
+
+func hcsUnregisterComputeSystemCallback(callbackHandle hcsCallback) (hr error) {
+	if hr = procHcsUnregisterComputeSystemCallback.Find(); hr != nil {
+		return
+	}
+	r0, _, _ := syscall.Syscall(procHcsUnregisterComputeSystemCallback.Addr(), 1, uintptr(callbackHandle), 0, 0)
 	if int32(r0) < 0 {
 		hr = syscall.Errno(win32FromHresult(r0))
 	}
@@ -1111,17 +920,6 @@ func _hcsModifyProcess(process hcsProcess, settings *uint16, result **uint16) (h
 	return
 }
 
-func hcsCreateProcessWait(process hcsProcess, settings *syscall.Handle, result **uint16) (hr error) {
-	if hr = procHcsCreateProcessWait.Find(); hr != nil {
-		return
-	}
-	r0, _, _ := syscall.Syscall(procHcsCreateProcessWait.Addr(), 3, uintptr(process), uintptr(unsafe.Pointer(settings)), uintptr(unsafe.Pointer(result)))
-	if int32(r0) < 0 {
-		hr = syscall.Errno(win32FromHresult(r0))
-	}
-	return
-}
-
 func hcsGetServiceProperties(propertyQuery string, properties **uint16, result **uint16) (hr error) {
 	var _p0 *uint16
 	_p0, hr = syscall.UTF16PtrFromString(propertyQuery)
@@ -1136,128 +934,6 @@ func _hcsGetServiceProperties(propertyQuery *uint16, properties **uint16, result
 		return
 	}
 	r0, _, _ := syscall.Syscall(procHcsGetServiceProperties.Addr(), 3, uintptr(unsafe.Pointer(propertyQuery)), uintptr(unsafe.Pointer(properties)), uintptr(unsafe.Pointer(result)))
-	if int32(r0) < 0 {
-		hr = syscall.Errno(win32FromHresult(r0))
-	}
-	return
-}
-
-func hcsModifyServiceSettings(settings string, result **uint16) (hr error) {
-	var _p0 *uint16
-	_p0, hr = syscall.UTF16PtrFromString(settings)
-	if hr != nil {
-		return
-	}
-	return _hcsModifyServiceSettings(_p0, result)
-}
-
-func _hcsModifyServiceSettings(settings *uint16, result **uint16) (hr error) {
-	if hr = procHcsModifyServiceSettings.Find(); hr != nil {
-		return
-	}
-	r0, _, _ := syscall.Syscall(procHcsModifyServiceSettings.Addr(), 2, uintptr(unsafe.Pointer(settings)), uintptr(unsafe.Pointer(result)), 0)
-	if int32(r0) < 0 {
-		hr = syscall.Errno(win32FromHresult(r0))
-	}
-	return
-}
-
-func hcsCreateComputeSystemTP5(id string, configuration string, computeSystem *hcsSystem, result **uint16) (hr error) {
-	var _p0 *uint16
-	_p0, hr = syscall.UTF16PtrFromString(id)
-	if hr != nil {
-		return
-	}
-	var _p1 *uint16
-	_p1, hr = syscall.UTF16PtrFromString(configuration)
-	if hr != nil {
-		return
-	}
-	return _hcsCreateComputeSystemTP5(_p0, _p1, computeSystem, result)
-}
-
-func _hcsCreateComputeSystemTP5(id *uint16, configuration *uint16, computeSystem *hcsSystem, result **uint16) (hr error) {
-	if hr = procHcsCreateComputeSystem.Find(); hr != nil {
-		return
-	}
-	r0, _, _ := syscall.Syscall6(procHcsCreateComputeSystem.Addr(), 4, uintptr(unsafe.Pointer(id)), uintptr(unsafe.Pointer(configuration)), uintptr(unsafe.Pointer(computeSystem)), uintptr(unsafe.Pointer(result)), 0, 0)
-	if int32(r0) < 0 {
-		hr = syscall.Errno(win32FromHresult(r0))
-	}
-	return
-}
-
-func hcsStartComputeSystemTP5(computeSystem hcsSystem, options *uint16, result **uint16) (hr error) {
-	if hr = procHcsStartComputeSystem.Find(); hr != nil {
-		return
-	}
-	r0, _, _ := syscall.Syscall(procHcsStartComputeSystem.Addr(), 3, uintptr(computeSystem), uintptr(unsafe.Pointer(options)), uintptr(unsafe.Pointer(result)))
-	if int32(r0) < 0 {
-		hr = syscall.Errno(win32FromHresult(r0))
-	}
-	return
-}
-
-func hcsShutdownComputeSystemTP5(computeSystem hcsSystem, options *uint16, result **uint16) (hr error) {
-	if hr = procHcsShutdownComputeSystem.Find(); hr != nil {
-		return
-	}
-	r0, _, _ := syscall.Syscall(procHcsShutdownComputeSystem.Addr(), 3, uintptr(computeSystem), uintptr(unsafe.Pointer(options)), uintptr(unsafe.Pointer(result)))
-	if int32(r0) < 0 {
-		hr = syscall.Errno(win32FromHresult(r0))
-	}
-	return
-}
-
-func hcsTerminateComputeSystemTP5(computeSystem hcsSystem, options *uint16, result **uint16) (hr error) {
-	if hr = procHcsTerminateComputeSystem.Find(); hr != nil {
-		return
-	}
-	r0, _, _ := syscall.Syscall(procHcsTerminateComputeSystem.Addr(), 3, uintptr(computeSystem), uintptr(unsafe.Pointer(options)), uintptr(unsafe.Pointer(result)))
-	if int32(r0) < 0 {
-		hr = syscall.Errno(win32FromHresult(r0))
-	}
-	return
-}
-
-func hcsPauseComputeSystemTP5(computeSystem hcsSystem, options *uint16, result **uint16) (hr error) {
-	if hr = procHcsPauseComputeSystem.Find(); hr != nil {
-		return
-	}
-	r0, _, _ := syscall.Syscall(procHcsPauseComputeSystem.Addr(), 3, uintptr(computeSystem), uintptr(unsafe.Pointer(options)), uintptr(unsafe.Pointer(result)))
-	if int32(r0) < 0 {
-		hr = syscall.Errno(win32FromHresult(r0))
-	}
-	return
-}
-
-func hcsResumeComputeSystemTP5(computeSystem hcsSystem, options *uint16, result **uint16) (hr error) {
-	if hr = procHcsResumeComputeSystem.Find(); hr != nil {
-		return
-	}
-	r0, _, _ := syscall.Syscall(procHcsResumeComputeSystem.Addr(), 3, uintptr(computeSystem), uintptr(unsafe.Pointer(options)), uintptr(unsafe.Pointer(result)))
-	if int32(r0) < 0 {
-		hr = syscall.Errno(win32FromHresult(r0))
-	}
-	return
-}
-
-func hcsRegisterComputeSystemCallback(computeSystem hcsSystem, callback uintptr, context uintptr, callbackHandle *hcsCallback) (hr error) {
-	if hr = procHcsRegisterComputeSystemCallback.Find(); hr != nil {
-		return
-	}
-	r0, _, _ := syscall.Syscall6(procHcsRegisterComputeSystemCallback.Addr(), 4, uintptr(computeSystem), uintptr(callback), uintptr(context), uintptr(unsafe.Pointer(callbackHandle)), 0, 0)
-	if int32(r0) < 0 {
-		hr = syscall.Errno(win32FromHresult(r0))
-	}
-	return
-}
-
-func hcsUnregisterComputeSystemCallback(callbackHandle hcsCallback) (hr error) {
-	if hr = procHcsUnregisterComputeSystemCallback.Find(); hr != nil {
-		return
-	}
-	r0, _, _ := syscall.Syscall(procHcsUnregisterComputeSystemCallback.Addr(), 1, uintptr(callbackHandle), 0, 0)
 	if int32(r0) < 0 {
 		hr = syscall.Errno(win32FromHresult(r0))
 	}
@@ -1280,6 +956,26 @@ func hcsUnregisterProcessCallback(callbackHandle hcsCallback) (hr error) {
 		return
 	}
 	r0, _, _ := syscall.Syscall(procHcsUnregisterProcessCallback.Addr(), 1, uintptr(callbackHandle), 0, 0)
+	if int32(r0) < 0 {
+		hr = syscall.Errno(win32FromHresult(r0))
+	}
+	return
+}
+
+func hcsModifyServiceSettings(settings string, result **uint16) (hr error) {
+	var _p0 *uint16
+	_p0, hr = syscall.UTF16PtrFromString(settings)
+	if hr != nil {
+		return
+	}
+	return _hcsModifyServiceSettings(_p0, result)
+}
+
+func _hcsModifyServiceSettings(settings *uint16, result **uint16) (hr error) {
+	if hr = procHcsModifyServiceSettings.Find(); hr != nil {
+		return
+	}
+	r0, _, _ := syscall.Syscall(procHcsModifyServiceSettings.Addr(), 2, uintptr(unsafe.Pointer(settings)), uintptr(unsafe.Pointer(result)), 0)
 	if int32(r0) < 0 {
 		hr = syscall.Errno(win32FromHresult(r0))
 	}

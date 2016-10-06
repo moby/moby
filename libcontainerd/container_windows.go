@@ -73,8 +73,8 @@ func (ctr *container) start() error {
 		CreateStdOutPipe: !isServicing,
 		CreateStdErrPipe: !ctr.ociSpec.Process.Terminal && !isServicing,
 	}
-	createProcessParms.ConsoleSize[0] = int(ctr.ociSpec.Process.ConsoleSize.Height)
-	createProcessParms.ConsoleSize[1] = int(ctr.ociSpec.Process.ConsoleSize.Width)
+	createProcessParms.ConsoleSize[0] = uint(ctr.ociSpec.Process.ConsoleSize.Height)
+	createProcessParms.ConsoleSize[1] = uint(ctr.ociSpec.Process.ConsoleSize.Width)
 
 	// Configure the environment for the process
 	createProcessParms.Environment = setupEnvironmentVariables(ctr.ociSpec.Process.Env)
