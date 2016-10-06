@@ -1598,6 +1598,7 @@ __docker_subcommand() {
                 "($help -g --graph)"{-g=,--graph=}"[Root of the Docker runtime]:path:_directories" \
                 "($help -H --host)"{-H=,--host=}"[tcp://host:port to bind/connect to]:host: " \
                 "($help)--icc[Enable inter-container communication]" \
+                "($help)--init-path=[Path to the docker-init binary]:docker-init binary:_files" \
                 "($help)*--insecure-registry=[Enable insecure registry communication]:registry: " \
                 "($help)--ip=[Default IP when binding container ports]" \
                 "($help)--ip-forward[Enable net.ipv4.ip_forward]" \
