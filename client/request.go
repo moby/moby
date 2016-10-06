@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 
 	"github.com/docker/docker/api/types"
@@ -127,6 +128,14 @@ func (cli *Client) sendClientRequest(ctx context.Context, method, path string, q
 		switch err {
 		case context.Canceled, context.DeadlineExceeded:
 			return serverResp, err
+		}
+
+		if nErr, ok := err.(*url.Error); ok {
+			if nErr, ok := nErr.Err.(*net.OpError); ok {
+				if os.IsPermission(nErr.Err) {
+					return serverResp, errors.Wrapf(err, "Got permission denied while trying to connect to the Docker daemon socket at %v", cli.host)
+				}
+			}
 		}
 
 		if err, ok := err.(net.Error); ok {
