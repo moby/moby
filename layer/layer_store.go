@@ -13,8 +13,8 @@ import (
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/idtools"
+	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/docker/pkg/stringid"
-	"github.com/docker/docker/plugin/getter"
 	"github.com/vbatts/tar-split/tar/asm"
 	"github.com/vbatts/tar-split/tar/storage"
 )
@@ -45,7 +45,7 @@ type StoreOptions struct {
 	GraphDriverOptions        []string
 	UIDMaps                   []idtools.IDMap
 	GIDMaps                   []idtools.IDMap
-	PluginGetter              getter.PluginGetter
+	PluginGetter              plugingetter.PluginGetter
 }
 
 // NewStoreFromOptions creates a new Store instance

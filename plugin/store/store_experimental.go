@@ -9,8 +9,8 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/ioutils"
+	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/docker/pkg/plugins"
-	"github.com/docker/docker/plugin/getter"
 	"github.com/docker/docker/plugin/v2"
 	"github.com/docker/docker/reference"
 )
@@ -80,11 +80,11 @@ func (ps *Store) getByCap(name string, capability string) (*v2.Plugin, error) {
 	return p.FilterByCap(capability)
 }
 
-func (ps *Store) getAllByCap(capability string) []getter.CompatPlugin {
+func (ps *Store) getAllByCap(capability string) []plugingetter.CompatPlugin {
 	ps.RLock()
 	defer ps.RUnlock()
 
-	result := make([]getter.CompatPlugin, 0, 1)
+	result := make([]plugingetter.CompatPlugin, 0, 1)
 	for _, p := range ps.plugins {
 		if _, err := p.FilterByCap(capability); err == nil {
 			result = append(result, p)
@@ -132,7 +132,7 @@ func (ps *Store) updatePluginDB() error {
 }
 
 // Get returns a plugin matching the given name and capability.
-func (ps *Store) Get(name, capability string, mode int) (getter.CompatPlugin, error) {
+func (ps *Store) Get(name, capability string, mode int) (plugingetter.CompatPlugin, error) {
 	var (
 		p   *v2.Plugin
 		err error
@@ -176,8 +176,8 @@ func (ps *Store) Get(name, capability string, mode int) (getter.CompatPlugin, er
 }
 
 // GetAllByCap returns a list of plugins matching the given capability.
-func (ps *Store) GetAllByCap(capability string) ([]getter.CompatPlugin, error) {
-	result := make([]getter.CompatPlugin, 0, 1)
+func (ps *Store) GetAllByCap(capability string) ([]plugingetter.CompatPlugin, error) {
+	result := make([]plugingetter.CompatPlugin, 0, 1)
 
 	/* Daemon start always calls plugin.Init thereby initializing a store.
 	 * So store on experimental builds can never be nil, even while
