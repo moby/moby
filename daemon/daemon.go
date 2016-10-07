@@ -96,7 +96,7 @@ type Daemon struct {
 	gidMaps                   []idtools.IDMap
 	layerStore                layer.Store
 	imageStore                image.Store
-	pluginStore               *pluginstore.Store
+	PluginStore               *pluginstore.Store
 	nameIndex                 *registrar.Registrar
 	linkIndex                 *linkIndex
 	containerd                libcontainerd.Client
@@ -559,7 +559,7 @@ func NewDaemon(config *Config, registryService registry.Service, containerdRemot
 		driverName = config.GraphDriver
 	}
 
-	d.pluginStore = pluginstore.NewStore(config.Root)
+	d.PluginStore = pluginstore.NewStore(config.Root)
 
 	d.layerStore, err = layer.NewStoreFromOptions(layer.StoreOptions{
 		StorePath:                 config.Root,
@@ -568,7 +568,7 @@ func NewDaemon(config *Config, registryService registry.Service, containerdRemot
 		GraphDriverOptions:        config.GraphOptions,
 		UIDMaps:                   uidMaps,
 		GIDMaps:                   gidMaps,
-		PluginGetter:              d.pluginStore,
+		PluginGetter:              d.PluginStore,
 	})
 	if err != nil {
 		return nil, err
@@ -926,7 +926,7 @@ func (daemon *Daemon) configureVolumes(rootUID, rootGID int) (*store.VolumeStore
 		return nil, err
 	}
 
-	volumedrivers.RegisterPluginGetter(daemon.pluginStore)
+	volumedrivers.RegisterPluginGetter(daemon.PluginStore)
 
 	if !volumedrivers.Register(volumesDriver, volumesDriver.Name()) {
 		return nil, fmt.Errorf("local volume driver could not be registered")
@@ -1102,7 +1102,7 @@ func (daemon *Daemon) reloadClusterDiscovery(config *Config) error {
 	if daemon.netController == nil {
 		return nil
 	}
-	netOptions, err := daemon.networkOptions(daemon.configStore, daemon.pluginStore, nil)
+	netOptions, err := daemon.networkOptions(daemon.configStore, daemon.PluginStore, nil)
 	if err != nil {
 		logrus.WithError(err).Warnf("failed to get options with network controller")
 		return nil

@@ -275,10 +275,12 @@ func (cli *DaemonCli) start(opts daemonOptions) (err error) {
 		"graphdriver": d.GraphDriverName(),
 	}).Info("Docker daemon")
 
+	cli.d = d
+
+	// initMiddlewares needs cli.d to be populated. Dont change this init order.
 	cli.initMiddlewares(api, serverConfig)
 	initRouter(api, d, c)
 
-	cli.d = d
 	cli.setupConfigReloadTrap()
 
 	// The serve API routine never exits unless an error occurs
@@ -438,6 +440,6 @@ func (cli *DaemonCli) initMiddlewares(s *apiserver.Server, cfg *apiserver.Config
 	u := middleware.NewUserAgentMiddleware(v)
 	s.UseMiddleware(u)
 
-	cli.authzMiddleware = authorization.NewMiddleware(cli.Config.AuthorizationPlugins)
+	cli.authzMiddleware = authorization.NewMiddleware(cli.Config.AuthorizationPlugins, cli.d.PluginStore)
 	s.UseMiddleware(cli.authzMiddleware)
 }

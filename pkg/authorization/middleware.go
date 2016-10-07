@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/pkg/plugingetter"
 	"golang.org/x/net/context"
 )
 
@@ -15,7 +16,8 @@ type Middleware struct {
 
 // NewMiddleware creates a new Middleware
 // with a slice of plugins names.
-func NewMiddleware(names []string) *Middleware {
+func NewMiddleware(names []string, pg plugingetter.PluginGetter) *Middleware {
+	SetPluginGetter(pg)
 	return &Middleware{
 		plugins: newPlugins(names),
 	}
