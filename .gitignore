@@ -9,6 +9,8 @@
 .DS_Store
 # a .bashrc may be added to customize the build environment
 .bashrc
+.dobi
+dobi
 .editorconfig
 .gopath/
 .go-pkg-cache/

@@ -129,14 +129,18 @@ test-docker-py: build ## run the docker-py tests
 test-integration-cli: build ## run the integration tests
 	$(DOCKER_RUN_DOCKER) hack/make.sh build-integration-test-binary dynbinary test-integration-cli
 
-test-unit: build ## run the unit tests
-	$(DOCKER_RUN_DOCKER) hack/make.sh test-unit
+dobi:
+	curl -LsS -o dobi https://github.com/dnephin/dobi/releases/download/v0.8/dobi-linux
+	chmod +x dobi
+
+test-unit: dobi ## run the unit tests
+	./dobi test-unit
 
 tgz: build ## build the archives (.zip on windows and .tgz\notherwise) containing the binaries
 	$(DOCKER_RUN_DOCKER) hack/make.sh dynbinary binary cross tgz
 
-validate: build ## validate DCO, Seccomp profile generation, gofmt,\n./pkg/ isolation, golint, tests, tomls, go vet and vendor
-	$(DOCKER_RUN_DOCKER) hack/validate/all
+validate: dobi ## run full validation
+	./dobi validate
 
 win: build ## cross build the binary for windows
 	$(DOCKER_RUN_DOCKER) hack/make.sh win
