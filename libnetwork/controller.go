@@ -75,6 +75,9 @@ type NetworkController interface {
 	// ID provides a unique identity for the controller
 	ID() string
 
+	// BuiltinDrivers returns list of builtin drivers
+	BuiltinDrivers() []string
+
 	// Config method returns the bootup configuration for the controller
 	Config() config.Config
 
@@ -461,6 +464,17 @@ func (c *controller) ReloadConfiguration(cfgOptions ...config.Option) error {
 
 func (c *controller) ID() string {
 	return c.id
+}
+
+func (c *controller) BuiltinDrivers() []string {
+	drivers := []string{}
+	for _, i := range getInitializers() {
+		if i.ntype == "remote" {
+			continue
+		}
+		drivers = append(drivers, i.ntype)
+	}
+	return drivers
 }
 
 func (c *controller) validateHostDiscoveryConfig() bool {
