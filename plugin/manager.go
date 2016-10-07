@@ -32,14 +32,12 @@ type eventLogger func(id, name, action string)
 
 // Manager controls the plugin subsystem.
 type Manager struct {
-	sync.RWMutex
 	libRoot           string
 	runRoot           string
 	pluginStore       *store.Store
 	containerdClient  libcontainerd.Client
 	registryService   registry.Service
 	liveRestore       bool
-	shutdown          bool
 	pluginEventLogger eventLogger
 }
 
@@ -83,16 +81,19 @@ func (pm *Manager) StateChanged(id string, e libcontainerd.StateInfo) error {
 
 	switch e.State {
 	case libcontainerd.StateExit:
-		var shutdown bool
-		pm.RLock()
-		shutdown = pm.shutdown
-		pm.RUnlock()
-		if shutdown {
-			p, err := pm.pluginStore.GetByID(id)
-			if err != nil {
-				return err
-			}
+		p, err := pm.pluginStore.GetByID(id)
+		if err != nil {
+			return err
+		}
+		p.RLock()
+		if p.ExitChan != nil {
 			close(p.ExitChan)
+		}
+		restart := p.Restart
+		p.RUnlock()
+		p.RemoveFromDisk()
+		if restart {
+			pm.enable(p, true)
 		}
 	}
 

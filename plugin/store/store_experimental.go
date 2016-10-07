@@ -111,13 +111,12 @@ func (ps *Store) Add(p *v2.Plugin) {
 	ps.Unlock()
 }
 
-// Remove removes a plugin from memory, plugindb and disk.
+// Remove removes a plugin from memory and plugindb.
 func (ps *Store) Remove(p *v2.Plugin) {
 	ps.Lock()
 	delete(ps.plugins, p.GetID())
 	delete(ps.nameToID, p.Name())
 	ps.updatePluginDB()
-	p.RemoveFromDisk()
 	ps.Unlock()
 }
 

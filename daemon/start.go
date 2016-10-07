@@ -14,7 +14,6 @@ import (
 	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/container"
-	"github.com/docker/docker/libcontainerd"
 	"github.com/docker/docker/runconfig"
 )
 
@@ -78,23 +77,23 @@ func (daemon *Daemon) ContainerStart(name string, hostConfig *containertypes.Hos
 		return err
 	}
 
-	return daemon.containerStart(container, checkpoint)
+	return daemon.containerStart(container, checkpoint, true)
 }
 
 // Start starts a container
 func (daemon *Daemon) Start(container *container.Container) error {
-	return daemon.containerStart(container, "")
+	return daemon.containerStart(container, "", true)
 }
 
 // containerStart prepares the container to run by setting up everything the
 // container needs, such as storage and networking, as well as links
 // between containers. The container is left waiting for a signal to
 // begin running.
-func (daemon *Daemon) containerStart(container *container.Container, checkpoint string) (err error) {
+func (daemon *Daemon) containerStart(container *container.Container, checkpoint string, resetRestartManager bool) (err error) {
 	container.Lock()
 	defer container.Unlock()
 
-	if container.Running {
+	if resetRestartManager && container.Running { // skip this check if already in restarting step and resetRestartManager==false
 		return nil
 	}
 
@@ -141,13 +140,13 @@ func (daemon *Daemon) containerStart(container *container.Container, checkpoint 
 		return err
 	}
 
-	createOptions := []libcontainerd.CreateOption{libcontainerd.WithRestartManager(container.RestartManager(true))}
-	copts, err := daemon.getLibcontainerdCreateOptions(container)
+	createOptions, err := daemon.getLibcontainerdCreateOptions(container)
 	if err != nil {
 		return err
 	}
-	if copts != nil {
-		createOptions = append(createOptions, *copts...)
+
+	if resetRestartManager {
+		container.ResetRestartManager(true)
 	}
 
 	if err := daemon.containerd.Create(container.ID, checkpoint, container.CheckpointDir(), *spec, createOptions...); err != nil {
