@@ -125,7 +125,7 @@ func (s *DockerSuite) TestContainerAPIPsOmitFields(c *check.C) {
 }
 
 func (s *DockerSuite) TestContainerAPIGetExport(c *check.C) {
-	// TODO: Investigate why this fails on Windows to Windows CI
+	// Not supported on Windows as Windows does not support docker export
 	testRequires(c, DaemonIsLinux)
 	name := "exportcontainer"
 	dockerCmd(c, "run", "--name", name, "busybox", "touch", "/test")
@@ -371,7 +371,6 @@ func (s *DockerSuite) TestContainerAPIPause(c *check.C) {
 }
 
 func (s *DockerSuite) TestContainerAPITop(c *check.C) {
-	// Problematic on Windows as Windows does not support top
 	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "top")
 	id := strings.TrimSpace(string(out))
@@ -394,6 +393,40 @@ func (s *DockerSuite) TestContainerAPITop(c *check.C) {
 	c.Assert(top.Processes, checker.HasLen, 2, check.Commentf("expected 2 processes, found %d: %v", len(top.Processes), top.Processes))
 	c.Assert(top.Processes[0][10], checker.Equals, "/bin/sh -c top")
 	c.Assert(top.Processes[1][10], checker.Equals, "top")
+}
+
+func (s *DockerSuite) TestContainerAPITopWindows(c *check.C) {
+	testRequires(c, DaemonIsWindows)
+	out, _ := runSleepingContainer(c, "-d")
+	id := strings.TrimSpace(string(out))
+	c.Assert(waitRun(id), checker.IsNil)
+
+	type topResp struct {
+		Titles    []string
+		Processes [][]string
+	}
+	var top topResp
+	status, b, err := sockRequest("GET", "/containers/"+id+"/top", nil)
+	c.Assert(err, checker.IsNil)
+	c.Assert(status, checker.Equals, http.StatusOK)
+	c.Assert(json.Unmarshal(b, &top), checker.IsNil)
+	c.Assert(top.Titles, checker.HasLen, 4, check.Commentf("expected 4 titles, found %d: %v", len(top.Titles), top.Titles))
+
+	if top.Titles[0] != "Name" || top.Titles[3] != "Private Working Set" {
+		c.Fatalf("expected `Name` at `Titles[0]` and `Private Working Set` at Titles[3]: %v", top.Titles)
+	}
+	c.Assert(len(top.Processes), checker.GreaterOrEqualThan, 2, check.Commentf("expected at least 2 processes, found %d: %v", len(top.Processes), top.Processes))
+
+	foundProcess := false
+	expectedProcess := "busybox.exe"
+	for _, process := range top.Processes {
+		if process[0] == expectedProcess {
+			foundProcess = true
+			break
+		}
+	}
+
+	c.Assert(foundProcess, checker.Equals, true, check.Commentf("expected to find %s: %v", expectedProcess, top.Processes))
 }
 
 func (s *DockerSuite) TestContainerAPICommit(c *check.C) {
@@ -848,29 +881,25 @@ func (s *DockerSuite) TestContainerAPIKill(c *check.C) {
 }
 
 func (s *DockerSuite) TestContainerAPIRestart(c *check.C) {
-	// TODO Windows to Windows CI. This is flaky due to the timing
-	testRequires(c, DaemonIsLinux)
 	name := "test-api-restart"
-	dockerCmd(c, "run", "-di", "--name", name, "busybox", "top")
+	runSleepingContainer(c, "-di", "--name", name)
 
 	status, _, err := sockRequest("POST", "/containers/"+name+"/restart?t=1", nil)
 	c.Assert(err, checker.IsNil)
 	c.Assert(status, checker.Equals, http.StatusNoContent)
-	c.Assert(waitInspect(name, "{{ .State.Restarting  }} {{ .State.Running  }}", "false true", 5*time.Second), checker.IsNil)
+	c.Assert(waitInspect(name, "{{ .State.Restarting  }} {{ .State.Running  }}", "false true", 15*time.Second), checker.IsNil)
 }
 
 func (s *DockerSuite) TestContainerAPIRestartNotimeoutParam(c *check.C) {
-	// TODO Windows to Windows CI. This is flaky due to the timing
-	testRequires(c, DaemonIsLinux)
 	name := "test-api-restart-no-timeout-param"
-	out, _ := dockerCmd(c, "run", "-di", "--name", name, "busybox", "top")
+	out, _ := runSleepingContainer(c, "-di", "--name", name)
 	id := strings.TrimSpace(out)
 	c.Assert(waitRun(id), checker.IsNil)
 
 	status, _, err := sockRequest("POST", "/containers/"+name+"/restart", nil)
 	c.Assert(err, checker.IsNil)
 	c.Assert(status, checker.Equals, http.StatusNoContent)
-	c.Assert(waitInspect(name, "{{ .State.Restarting  }} {{ .State.Running  }}", "false true", 5*time.Second), checker.IsNil)
+	c.Assert(waitInspect(name, "{{ .State.Restarting  }} {{ .State.Running  }}", "false true", 15*time.Second), checker.IsNil)
 }
 
 func (s *DockerSuite) TestContainerAPIStart(c *check.C) {
