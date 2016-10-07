@@ -2890,3 +2890,33 @@ func (s *DockerDaemonSuite) TestDaemonBackcompatPre17Volumes(c *check.C) {
 		c.Assert(matched, checker.True, check.Commentf("did find match for %+v", m))
 	}
 }
+
+func (s *DockerDaemonSuite) TestDaemonWithUserlandProxyPath(c *check.C) {
+	testRequires(c, SameHostDaemon, DaemonIsLinux)
+
+	dockerProxyPath, err := exec.LookPath("docker-proxy")
+	c.Assert(err, checker.IsNil)
+	tmpDir, err := ioutil.TempDir("", "test-docker-proxy")
+	c.Assert(err, checker.IsNil)
+
+	newProxyPath := filepath.Join(tmpDir, "docker-proxy")
+	cmd := exec.Command("cp", dockerProxyPath, newProxyPath)
+	c.Assert(cmd.Run(), checker.IsNil)
+
+	// custom one
+	c.Assert(s.d.StartWithBusybox("--userland-proxy-path", newProxyPath), checker.IsNil)
+	out, err := s.d.Cmd("run", "-p", "5000:5000", "busybox:latest", "true")
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+
+	// try with the original one
+	c.Assert(s.d.Restart("--userland-proxy-path", dockerProxyPath), checker.IsNil)
+	out, err = s.d.Cmd("run", "-p", "5000:5000", "busybox:latest", "true")
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+
+	// not exist
+	c.Assert(s.d.Restart("--userland-proxy-path", "/does/not/exist"), checker.IsNil)
+	out, err = s.d.Cmd("run", "-p", "5000:5000", "busybox:latest", "true")
+	c.Assert(err, checker.NotNil, check.Commentf(out))
+	c.Assert(out, checker.Contains, "driver failed programming external connectivity on endpoint")
+	c.Assert(out, checker.Contains, "/does/not/exist: no such file or directory")
+}
