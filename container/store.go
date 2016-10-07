@@ -8,6 +8,12 @@ type StoreFilter func(*Container) bool
 // manipulate containers in the store
 type StoreReducer func(*Container)
 
+// StoreStats is a statistics from the store
+type StoreStats struct {
+	Size        int
+	StateCounts map[string]int
+}
+
 // Store defines an interface that
 // any container store must implement.
 type Store interface {
@@ -25,4 +31,8 @@ type Store interface {
 	First(StoreFilter) *Container
 	// ApplyAll calls the reducer function with every container in the store.
 	ApplyAll(StoreReducer)
+	// SetState sets state
+	SetState(string, string)
+	// Stats returns stats
+	Stats() StoreStats
 }
