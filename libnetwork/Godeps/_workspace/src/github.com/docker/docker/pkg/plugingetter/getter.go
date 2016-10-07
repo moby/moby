@@ -1,4 +1,4 @@
-package getter
+package plugingetter
 
 import "github.com/docker/docker/pkg/plugins"
 

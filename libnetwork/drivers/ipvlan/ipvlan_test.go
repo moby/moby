@@ -3,7 +3,7 @@ package ipvlan
 import (
 	"testing"
 
-	"github.com/docker/docker/plugin/getter"
+	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/libnetwork/driverapi"
 	_ "github.com/docker/libnetwork/testutils"
 )
@@ -15,7 +15,7 @@ type driverTester struct {
 	d *driver
 }
 
-func (dt *driverTester) GetPluginGetter() getter.PluginGetter {
+func (dt *driverTester) GetPluginGetter() plugingetter.PluginGetter {
 	return nil
 }
 
