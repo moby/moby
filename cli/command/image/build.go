@@ -57,6 +57,7 @@ type buildOptions struct {
 	pull           bool
 	cacheFrom      []string
 	compress       bool
+	securityOpt    []string
 }
 
 // NewBuildCommand creates a new `docker build` command
@@ -103,6 +104,7 @@ func NewBuildCommand(dockerCli *command.DockerCli) *cobra.Command {
 	flags.BoolVar(&options.pull, "pull", false, "Always attempt to pull a newer version of the image")
 	flags.StringSliceVar(&options.cacheFrom, "cache-from", []string{}, "Images to consider as cache sources")
 	flags.BoolVar(&options.compress, "compress", false, "Compress the build context using gzip")
+	flags.StringSliceVar(&options.securityOpt, "security-opt", []string{}, "Security options")
 
 	command.AddTrustedFlags(flags, true)
 
@@ -299,6 +301,7 @@ func runBuild(dockerCli *command.DockerCli, options buildOptions) error {
 		AuthConfigs:    authConfig,
 		Labels:         runconfigopts.ConvertKVStringsToMap(options.labels.GetAll()),
 		CacheFrom:      options.cacheFrom,
+		SecurityOpt:    options.securityOpt,
 	}
 
 	response, err := dockerCli.Client().ImageBuild(ctx, body, buildOptions)

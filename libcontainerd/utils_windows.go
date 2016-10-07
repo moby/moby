@@ -39,3 +39,8 @@ func (h *LayerOption) Apply(interface{}) error {
 func (s *NetworkEndpointsOption) Apply(interface{}) error {
 	return nil
 }
+
+// Apply for the credentials option is a no-op.
+func (s *CredentialsOption) Apply(interface{}) error {
+	return nil
+}

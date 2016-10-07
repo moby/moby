@@ -154,6 +154,10 @@ func (clnt *client) Create(containerID string, checkpoint string, checkpointDir 
 			configuration.AllowUnqualifiedDNSQuery = n.AllowUnqualifiedDNSQuery
 			continue
 		}
+		if c, ok := option.(*CredentialsOption); ok {
+			configuration.Credentials = c.Credentials
+			continue
+		}
 	}
 
 	// We must have a layer option with at least one path

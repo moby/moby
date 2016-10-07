@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -51,6 +52,7 @@ func newImageBuildOptions(ctx context.Context, r *http.Request) (*types.ImageBui
 	options.CPUSetMems = r.FormValue("cpusetmems")
 	options.CgroupParent = r.FormValue("cgroupparent")
 	options.Tags = r.Form["t"]
+	options.SecurityOpt = r.Form["securityopt"]
 
 	if r.Form.Get("shmsize") != "" {
 		shmSize, err := strconv.ParseInt(r.Form.Get("shmsize"), 10, 64)
@@ -65,6 +67,10 @@ func newImageBuildOptions(ctx context.Context, r *http.Request) (*types.ImageBui
 			return nil, fmt.Errorf("Unsupported isolation: %q", i)
 		}
 		options.Isolation = i
+	}
+
+	if runtime.GOOS != "windows" && options.SecurityOpt != nil {
+		return nil, fmt.Errorf("the daemon on this platform does not support --security-opt to build")
 	}
 
 	var buildUlimits = []*units.Ulimit{}

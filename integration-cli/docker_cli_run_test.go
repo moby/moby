@@ -4519,3 +4519,22 @@ func (s *DockerSuite) TestRunStoppedLoggingDriverNoLeak(c *check.C) {
 	// NGoroutines is not updated right away, so we need to wait before failing
 	c.Assert(waitForGoroutines(nroutines), checker.IsNil)
 }
+
+// Handles error conditions for --credentialspec. Validating E2E success cases
+// requires additional infrastructure (AD for example) on CI servers.
+func (s *DockerSuite) TestRunCredentialSpecFailures(c *check.C) {
+	testRequires(c, DaemonIsWindows)
+	attempts := []struct{ value, expectedError string }{
+		{"rubbish", "invalid credential spec security option - value must be prefixed file:// or registry://"},
+		{"rubbish://", "invalid credential spec security option - value must be prefixed file:// or registry://"},
+		{"file://", "no value supplied for file:// credential spec security option"},
+		{"registry://", "no value supplied for registry:// credential spec security option"},
+		{`file://c:\blah.txt`, "path cannot be absolute"},
+		{`file://doesnotexist.txt`, "The system cannot find the file specified"},
+	}
+	for _, attempt := range attempts {
+		_, _, err := dockerCmdWithError("run", "--security-opt=credentialspec="+attempt.value, "busybox", "true")
+		c.Assert(err, checker.NotNil, check.Commentf("%s expected non-nil err", attempt.value))
+		c.Assert(err.Error(), checker.Contains, attempt.expectedError, check.Commentf("%s expected %s got %s", attempt.value, attempt.expectedError, err))
+	}
+}

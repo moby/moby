@@ -547,6 +547,12 @@ func NewDaemon(config *Config, registryService registry.Service, containerdRemot
 		return nil, err
 	}
 
+	if runtime.GOOS == "windows" {
+		if err := idtools.MkdirAllAs(filepath.Join(config.Root, "credentialspecs"), 0700, rootUID, rootGID); err != nil && !os.IsExist(err) {
+			return nil, err
+		}
+	}
+
 	driverName := os.Getenv("DOCKER_DRIVER")
 	if driverName == "" {
 		driverName = config.GraphDriver
