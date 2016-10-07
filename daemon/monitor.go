@@ -86,6 +86,20 @@ func (daemon *Daemon) StateChanged(id string, e libcontainerd.StateInfo) error {
 		} else {
 			logrus.Warnf("Ignoring StateExitProcess for %v but no exec command found", e)
 		}
+	case libcontainerd.StateAsyncStart:
+		// Start instigated asynchronously, such as in the case of restart on Windows.
+		// The container is not locked in this case
+		c.Lock()
+		defer c.Unlock()
+		c.SetRunning(int(e.Pid), false)
+		c.HasBeenManuallyStopped = false
+		c.HasBeenStartedBefore = true
+		if err := c.ToDisk(); err != nil {
+			c.Reset(false)
+			return err
+		}
+		daemon.initHealthMonitor(c)
+		daemon.LogContainerEvent(c, "start")
 	case libcontainerd.StateStart, libcontainerd.StateRestore:
 		// Container is already locked in this case
 		c.SetRunning(int(e.Pid), e.State == libcontainerd.StateStart)

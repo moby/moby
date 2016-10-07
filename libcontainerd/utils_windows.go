@@ -15,6 +15,11 @@ func setupEnvironmentVariables(a []string) map[string]string {
 	return r
 }
 
+// Apply for a restarting option is a no-op.
+func (s *RestartingOption) Apply(interface{}) error {
+	return nil
+}
+
 // Apply for a servicing option is a no-op.
 func (s *ServicingOption) Apply(interface{}) error {
 	return nil

@@ -38,7 +38,7 @@ func (ctr *container) newProcess(friendlyName string) *process {
 
 // start starts a created container.
 // Caller needs to lock container ID before calling this method.
-func (ctr *container) start() error {
+func (ctr *container) start(restarting bool) error {
 	var err error
 	isServicing := false
 
@@ -155,6 +155,13 @@ func (ctr *container) start() error {
 			State: StateStart,
 			Pid:   ctr.systemPid, // Not sure this is needed? Double-check monitor.go in daemon BUGBUG @jhowardmsft
 		}}
+
+	// If we are restarting, this is an async call back into the monitor where the
+	// container lock isn't held. Otherwise, effectively a start.
+	if restarting {
+		si.State = StateAsyncStart
+	}
+
 	logrus.Debugf("libcontainerd: start() completed OK, %+v", si)
 	return ctr.client.backend.StateChanged(ctr.containerID, si)
 
@@ -273,6 +280,24 @@ func (ctr *container) waitExit(process *process, isFirstProcessToStart bool) err
 			err := <-waitRestart
 			ctr.restarting = false
 			if err == nil {
+				// Make sure there is a restarting option so that Create picks it up.
+				// In this case, we are eventually going to call back into the monitor
+				// in the engine to tell it the container has started, but because
+				// it is asynchronous, the engine needs to ensure the container lock
+				// is taken to avoid a race condition.
+				foundRestartingOption := false
+				restartingOpt := &RestartingOption{}
+				for _, option := range ctr.options {
+					if _, ok := option.(*RestartingOption); ok {
+						foundRestartingOption = true
+						break
+					}
+				}
+				// If there isn't a restarting option and we are invoking Create
+				// asynchronously from the engine calling us, then we need to add one
+				if !foundRestartingOption {
+					ctr.options = append(ctr.options, restartingOpt)
+				}
 				if err = ctr.client.Create(ctr.containerID, "", "", ctr.ociSpec, ctr.options...); err != nil {
 					logrus.Errorf("libcontainerd: error restarting %v", err)
 				}

@@ -10,6 +10,7 @@ import (
 // State constants used in state change reporting.
 const (
 	StateStart        = "start-container"
+	StateAsyncStart   = "start-container-async"
 	StatePause        = "pause"
 	StateResume       = "resume"
 	StateExit         = "exit"
