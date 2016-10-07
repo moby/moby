@@ -1,0 +1,28 @@
+
+meta:
+    project: docker
+    default: all
+
+mount=source:
+    bind: .
+    path: /go/src/github.com/docker/docker
+
+
+image=dev:
+    image: docker-dev
+    dockerfile: Dockerfile.dev
+    context: dockerfiles
+
+job=validate-vendor:
+    use: dev
+    mounts: [source]
+    command: hack/validate/vendor
+
+job=validate:
+    use: dev
+    mounts: [source]
+    command: hack/validate/all
+
+
+alias=all:
+    tasks: [validate, validate-vendor]
