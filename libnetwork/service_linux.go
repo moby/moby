@@ -311,6 +311,14 @@ func (sb *sandbox) populateLoadbalancers(ep *endpoint) {
 		for _, ip := range lb.backEnds {
 			sb.addLBBackend(ip, lb.vip, lb.fwMark, lb.service.ingressPorts,
 				eIP, gwIP, addService, n.ingress)
+			// For a new service program the vip as an alias on the task's sandbox interface
+			// connected to this network.
+			if !addService {
+				continue
+			}
+			if err := ep.setAliasIP(sb, lb.vip, true); err != nil {
+				logrus.Errorf("Adding Service VIP %v to ep %v(%v) failed: %v", lb.vip, ep.ID(), ep.Name(), err)
+			}
 			addService = false
 		}
 		lb.service.Unlock()
@@ -334,8 +342,16 @@ func (n *network) addLBBackend(ip, vip net.IP, fwMark uint32, ingressPorts []*Po
 			}
 
 			sb.addLBBackend(ip, vip, fwMark, ingressPorts, ep.Iface().Address(), gwIP, addService, n.ingress)
-		}
 
+			// For a new service program the vip as an alias on the task's sandbox interface
+			// connected to this network.
+			if !addService {
+				return false
+			}
+			if err := ep.setAliasIP(sb, vip, true); err != nil {
+				logrus.Errorf("Adding Service VIP %v to ep %v(%v) failed: %v", vip, ep.ID(), ep.Name(), err)
+			}
+		}
 		return false
 	})
 }
@@ -357,8 +373,16 @@ func (n *network) rmLBBackend(ip, vip net.IP, fwMark uint32, ingressPorts []*Por
 			}
 
 			sb.rmLBBackend(ip, vip, fwMark, ingressPorts, ep.Iface().Address(), gwIP, rmService, n.ingress)
-		}
 
+			// If the service is being remove its vip alias on on the task's sandbox interface
+			// has to be removed as well.
+			if !rmService {
+				return false
+			}
+			if err := ep.setAliasIP(sb, vip, false); err != nil {
+				logrus.Errorf("Removing Service VIP %v from ep %v(%v) failed: %v", vip, ep.ID(), ep.Name(), err)
+			}
+		}
 		return false
 	})
 }
