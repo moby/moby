@@ -53,9 +53,9 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/discovery"
 	"github.com/docker/docker/pkg/locker"
+	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/docker/pkg/plugins"
 	"github.com/docker/docker/pkg/stringid"
-	"github.com/docker/docker/plugin/getter"
 	"github.com/docker/libnetwork/cluster"
 	"github.com/docker/libnetwork/config"
 	"github.com/docker/libnetwork/datastore"
@@ -596,7 +596,7 @@ func (c *controller) isDistributedControl() bool {
 	return !c.isManager() && !c.isAgent()
 }
 
-func (c *controller) GetPluginGetter() getter.PluginGetter {
+func (c *controller) GetPluginGetter() plugingetter.PluginGetter {
 	return c.drvRegistry.GetPluginGetter()
 }
 
@@ -1073,7 +1073,7 @@ func (c *controller) loadDriver(networkType string) error {
 }
 
 func (c *controller) loadIPAMDriver(name string) error {
-	if _, err := c.GetPluginGetter().Get(name, ipamapi.PluginEndpointType, getter.LOOKUP); err != nil {
+	if _, err := c.GetPluginGetter().Get(name, ipamapi.PluginEndpointType, plugingetter.LOOKUP); err != nil {
 		if err == plugins.ErrNotFound {
 			return types.NotFoundErrorf(err.Error())
 		}
