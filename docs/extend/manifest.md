@@ -50,11 +50,11 @@ Manifest provides the base accessible fields for working with V0 plugin format
       
     - **`types`** *string array*
 
-      types indicate what interface(s) the plugin currently implements.
+          types indicate what interface(s) the plugin currently implements.
 
-      currently supported:
+          currently supported:
 
-      	- **docker.volumedriver/1.0**
+           - **docker.volumedriver/1.0**
       
     - **`socket`** *string*
       
@@ -76,15 +76,15 @@ Manifest provides the base accessible fields for working with V0 plugin format
       
     - **`type`** *string*
 
-      network type.
+          network type.
 
-      currently supported:
+          currently supported:
 
-      	- **bridge**
-      	- **host**
-      	- **none**
+           - **bridge**
+           - **host**
+           - **none**
       
-- **`capabilities`** *array*
+- **`capabilities`** *string array*
 
    capabilities of the plugin (*Linux only*), see list [`here`](https://github.com/opencontainers/runc/blob/master/libcontainer/SPEC.md#security)
     
@@ -98,7 +98,7 @@ Manifest provides the base accessible fields for working with V0 plugin format
       
     - **`description`** *string*
 	
-      description of the mount.
+          description of the mount.
    
     - **`source`** *string*
 
@@ -110,7 +110,7 @@ Manifest provides the base accessible fields for working with V0 plugin format
    
     - **`type`** *string*
 
-      mount type.
+          mount type.
       
     - **`options`** *string array*
 
@@ -126,7 +126,7 @@ Manifest provides the base accessible fields for working with V0 plugin format
       
     - **`description`** *string*
 
-      description of the device.
+          description of the device.
       
     - **`path`** *string*
 
@@ -142,7 +142,7 @@ Manifest provides the base accessible fields for working with V0 plugin format
       
     - **`description`** *string*
 	
-      description of the env.
+          description of the env.
    
     - **`value`** *string*
 
@@ -158,13 +158,17 @@ Manifest provides the base accessible fields for working with V0 plugin format
       
     - **`description`** *string*
 	
-      description of the env.
+          description of the env.
    
     - **`value`** *string array*
 
 	  values of the args.
-    
-    
+
+- **`kernelModules`** *string array*
+
+   Loadable Kernel Modules (LKM) to modprobe before enabling a plugin (*Linux only*)
+
+
 ## Example Manifest
 
 *Example showing the 'tiborvass/no-remove' plugin manifest.*
