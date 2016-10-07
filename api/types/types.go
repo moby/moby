@@ -131,6 +131,7 @@ type ImageInspect struct {
 	Config          *container.Config
 	Architecture    string
 	Os              string
+	OsVersion       string `json:",omitempty"`
 	Size            int64
 	VirtualSize     int64
 	GraphDriver     GraphDriverData
