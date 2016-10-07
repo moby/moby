@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/plugin/getter"
+	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/libkv/store/consul"
 	"github.com/docker/libnetwork/datastore"
 	"github.com/docker/libnetwork/discoverapi"
@@ -68,7 +68,7 @@ func cleanupDriver(t *testing.T, dt *driverTester) {
 	}
 }
 
-func (dt *driverTester) GetPluginGetter() getter.PluginGetter {
+func (dt *driverTester) GetPluginGetter() plugingetter.PluginGetter {
 	return nil
 }
 

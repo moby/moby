@@ -6,8 +6,8 @@ import (
 	"os"
 	"os/signal"
 
+	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/docker/pkg/reexec"
-	"github.com/docker/docker/plugin/getter"
 	"github.com/docker/libnetwork/driverapi"
 	"github.com/docker/libnetwork/drivers/overlay"
 	"github.com/docker/libnetwork/netlabel"
@@ -25,7 +25,7 @@ type endpoint struct {
 	name string
 }
 
-func (r *router) GetPluginGetter() getter.PluginGetter {
+func (r *router) GetPluginGetter() plugingetter.PluginGetter {
 	return nil
 }
 
