@@ -1,37 +1,35 @@
-## Client
+## Go client for the Docker Remote API
 
-The client package implements a fully featured http client to interact with the Docker engine. It's modeled after the requirements of the Docker engine CLI, but it can also serve other purposes.
+The `docker` command uses this package to communicate with the daemon. It can also be used by your own Go applications to do anything the command-line interface does – running containers, pulling images, managing swarms, etc.
 
-### Usage
-
-You can use this client package in your applications by creating a new client object. Then use that object to execute operations against the remote server. Follow the example below to see how to list all the containers running in a Docker engine host:
+For example, to list running containers (the equivalent of `docker ps`):
 
 ```go
 package main
 
 import (
-	"fmt"
 	"context"
+	"fmt"
 
-	"github.com/docker/docker/client"
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/client"
 )
 
 func main() {
-	defaultHeaders := map[string]string{"User-Agent": "engine-api-cli-1.0"}
-	cli, err := client.NewClient("unix:///var/run/docker.sock", "v1.22", nil, defaultHeaders)
+	cli, err := client.NewEnvClient()
 	if err != nil {
 		panic(err)
 	}
 
-	options := types.ContainerListOptions{All: true}
-	containers, err := cli.ContainerList(context.Background(), options)
+	containers, err := cli.ContainerList(context.Background(), types.ContainerListOptions{})
 	if err != nil {
 		panic(err)
 	}
 
-	for _, c := range containers {
-		fmt.Println(c.ID)
+	for _, container := range containers {
+		fmt.Printf("%s %s\n", container.ID[:10], container.Image)
 	}
 }
 ```
+
+[Full documentation is available on GoDoc.](https://godoc.org/github.com/docker/docker/client)
