@@ -103,7 +103,7 @@ init-go-pkg-cache:
 	mkdir -p $(shell echo $(PKGCACHE_MAP) | sed -E 's@([^: ]*):[^ ]*@$(PKGCACHE_DIR)/\1@g')
 
 install: ## install the linux binaries
-	KEEPBUNDLE=1 hack/make.sh install-binary
+	KEEPBUNDLE=1 $(DOCKER_RUN_DOCKER) hack/make.sh install-binary
 
 manpages: ## Generate man pages from go source and markdown
 	docker build -t docker-manpage-dev -f "man/$(DOCKERFILE)" ./man
