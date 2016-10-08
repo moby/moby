@@ -30,7 +30,7 @@ type imageNotFoundError struct {
 	imageID string
 }
 
-// NoFound indicates that this error type is of NotFound
+// NotFound indicates that this error type is of NotFound
 func (e imageNotFoundError) NotFound() bool {
 	return true
 }
@@ -51,7 +51,7 @@ type containerNotFoundError struct {
 	containerID string
 }
 
-// NoFound indicates that this error type is of NotFound
+// NotFound indicates that this error type is of NotFound
 func (e containerNotFoundError) NotFound() bool {
 	return true
 }
@@ -72,7 +72,7 @@ type networkNotFoundError struct {
 	networkID string
 }
 
-// NoFound indicates that this error type is of NotFound
+// NotFound indicates that this error type is of NotFound
 func (e networkNotFoundError) NotFound() bool {
 	return true
 }
@@ -93,12 +93,12 @@ type volumeNotFoundError struct {
 	volumeID string
 }
 
-// NoFound indicates that this error type is of NotFound
+// NotFound indicates that this error type is of NotFound
 func (e volumeNotFoundError) NotFound() bool {
 	return true
 }
 
-// Error returns a string representation of a networkNotFoundError
+// Error returns a string representation of a volumeNotFoundError
 func (e volumeNotFoundError) Error() string {
 	return fmt.Sprintf("Error: No such volume: %s", e.volumeID)
 }
@@ -136,7 +136,7 @@ func (e nodeNotFoundError) Error() string {
 	return fmt.Sprintf("Error: No such node: %s", e.nodeID)
 }
 
-// NoFound indicates that this error type is of NotFound
+// NotFound indicates that this error type is of NotFound
 func (e nodeNotFoundError) NotFound() bool {
 	return true
 }
@@ -158,7 +158,7 @@ func (e serviceNotFoundError) Error() string {
 	return fmt.Sprintf("Error: No such service: %s", e.serviceID)
 }
 
-// NoFound indicates that this error type is of NotFound
+// NotFound indicates that this error type is of NotFound
 func (e serviceNotFoundError) NotFound() bool {
 	return true
 }
@@ -180,7 +180,7 @@ func (e taskNotFoundError) Error() string {
 	return fmt.Sprintf("Error: No such task: %s", e.taskID)
 }
 
-// NoFound indicates that this error type is of NotFound
+// NotFound indicates that this error type is of NotFound
 func (e taskNotFoundError) NotFound() bool {
 	return true
 }
