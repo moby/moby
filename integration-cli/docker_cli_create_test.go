@@ -20,12 +20,8 @@ import (
 
 // Make sure we can create a simple container with some args
 func (s *DockerSuite) TestCreateArgs(c *check.C) {
-	// TODO Windows. This requires further investigation for porting to
-	// Windows CI. Currently fails.
-	if daemonPlatform == "windows" {
-		c.Skip("Fails on Windows CI")
-	}
-	out, _ := dockerCmd(c, "create", "busybox", "command", "arg1", "arg2", "arg with space", "-c", "flags")
+	// Intentionally clear entrypoint, as the Windows busybox image needs an entrypoint, which breaks this test
+	out, _ := dockerCmd(c, "create", "--entrypoint=", "busybox", "command", "arg1", "arg2", "arg with space", "-c", "flags")
 
 	cleanedContainerID := strings.TrimSpace(out)
 
@@ -62,7 +58,10 @@ func (s *DockerSuite) TestCreateArgs(c *check.C) {
 
 // Make sure we can grow the container's rootfs at creation time.
 func (s *DockerSuite) TestCreateGrowRootfs(c *check.C) {
-	testRequires(c, Devicemapper)
+	// Windows and Devicemapper support growing the rootfs
+	if daemonPlatform != "windows" {
+		testRequires(c, Devicemapper)
+	}
 	out, _ := dockerCmd(c, "create", "--storage-opt", "size=120G", "busybox")
 
 	cleanedContainerID := strings.TrimSpace(out)
@@ -174,15 +173,12 @@ func (s *DockerSuite) TestCreateEchoStdout(c *check.C) {
 
 func (s *DockerSuite) TestCreateVolumesCreated(c *check.C) {
 	testRequires(c, SameHostDaemon)
-	prefix := "/"
-	if daemonPlatform == "windows" {
-		prefix = `c:\`
-	}
+	prefix, slash := getPrefixAndSlashFromDaemonPlatform()
 
 	name := "test_create_volume"
-	dockerCmd(c, "create", "--name", name, "-v", prefix+"foo", "busybox")
+	dockerCmd(c, "create", "--name", name, "-v", prefix+slash+"foo", "busybox")
 
-	dir, err := inspectMountSourceField(name, prefix+"foo")
+	dir, err := inspectMountSourceField(name, prefix+slash+"foo")
 	c.Assert(err, check.IsNil, check.Commentf("Error getting volume host path: %q", err))
 
 	if _, err := os.Stat(dir); err != nil && os.IsNotExist(err) {
@@ -229,12 +225,12 @@ func (s *DockerSuite) TestCreateLabelFromImage(c *check.C) {
 }
 
 func (s *DockerSuite) TestCreateHostnameWithNumber(c *check.C) {
-	// TODO Windows. Consider enabling this in TP5 timeframe if Windows support
-	// is fully hooked up. The hostname is passed through, but only to the
-	// environment variable "COMPUTERNAME". It is not hooked up to hostname.exe
-	// or returned in ipconfig. Needs platform support in networking.
-	testRequires(c, DaemonIsLinux)
-	out, _ := dockerCmd(c, "run", "-h", "web.0", "busybox", "hostname")
+	image := "busybox"
+	// Busybox on Windows does not implement hostname command
+	if daemonPlatform == "windows" {
+		image = WindowsBaseImage
+	}
+	out, _ := dockerCmd(c, "run", "-h", "web.0", image, "hostname")
 	c.Assert(strings.TrimSpace(out), checker.Equals, "web.0", check.Commentf("hostname not set, expected `web.0`, got: %s", out))
 
 }
@@ -443,17 +439,16 @@ func (s *DockerSuite) TestCreateStopSignal(c *check.C) {
 }
 
 func (s *DockerSuite) TestCreateWithWorkdir(c *check.C) {
-	// TODO Windows. This requires further investigation for porting to
-	// Windows CI. Currently fails.
-	if daemonPlatform == "windows" {
-		c.Skip("Fails on Windows CI")
-	}
 	name := "foo"
 
 	prefix, slash := getPrefixAndSlashFromDaemonPlatform()
 	dir := prefix + slash + "home" + slash + "foo" + slash + "bar"
 
 	dockerCmd(c, "create", "--name", name, "-w", dir, "busybox")
+	// Windows does not create the workdir until the container is started
+	if daemonPlatform == "windows" {
+		dockerCmd(c, "start", name)
+	}
 	dockerCmd(c, "cp", fmt.Sprintf("%s:%s", name, dir), prefix+slash+"tmp")
 }
 
