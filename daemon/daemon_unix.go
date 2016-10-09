@@ -633,7 +633,12 @@ func (daemon *Daemon) initNetworkController(config *Config, activeSandboxes map[
 
 	// Initialize default network on "host"
 	if n, _ := controller.NetworkByName("host"); n == nil {
-		if _, err := controller.NewNetwork("host", "host", "", libnetwork.NetworkOptionPersist(true)); err != nil {
+		hostLabels := make(map[string]string)
+		hostLabels["host"] = ""
+		options := []libnetwork.NetworkOption{}
+		options = append(options, libnetwork.NetworkOptionPersist(true))
+		options = append(options, libnetwork.NetworkOptionLabels(hostLabels))
+		if _, err := controller.NewNetwork("host", "host", "", options...); err != nil {
 			return nil, fmt.Errorf("Error creating default \"host\" network: %v", err)
 		}
 	}
