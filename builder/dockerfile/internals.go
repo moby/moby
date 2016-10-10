@@ -16,7 +16,6 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/Sirupsen/logrus"
@@ -524,10 +523,7 @@ func (b *Builder) run(cID string) (err error) {
 	}()
 
 	finished := make(chan struct{})
-	var once sync.Once
-	finish := func() { close(finished) }
 	cancelErrCh := make(chan error, 1)
-	defer once.Do(finish)
 	go func() {
 		select {
 		case <-b.clientCtx.Done():
@@ -541,22 +537,37 @@ func (b *Builder) run(cID string) (err error) {
 	}()
 
 	if err := b.docker.ContainerStart(cID, nil, true, ""); err != nil {
+		close(finished)
+		if cancelErr := <-cancelErrCh; cancelErr != nil {
+			logrus.Debugf("Build cancelled (%v) and got an error from ContainerStart: %v",
+				cancelErr, err)
+		}
 		return err
 	}
 
 	// Block on reading output from container, stop on err or chan closed
 	if err := <-errCh; err != nil {
+		close(finished)
+		if cancelErr := <-cancelErrCh; cancelErr != nil {
+			logrus.Debugf("Build cancelled (%v) and got an error from errCh: %v",
+				cancelErr, err)
+		}
 		return err
 	}
 
 	if ret, _ := b.docker.ContainerWait(cID, -1); ret != 0 {
+		close(finished)
+		if cancelErr := <-cancelErrCh; cancelErr != nil {
+			logrus.Debugf("Build cancelled (%v) and got a non-zero code from ContainerWait: %d",
+				cancelErr, ret)
+		}
 		// TODO: change error type, because jsonmessage.JSONError assumes HTTP
 		return &jsonmessage.JSONError{
 			Message: fmt.Sprintf("The command '%s' returned a non-zero code: %d", strings.Join(b.runConfig.Cmd, " "), ret),
 			Code:    ret,
 		}
 	}
-	once.Do(finish)
+	close(finished)
 	return <-cancelErrCh
 }
 
