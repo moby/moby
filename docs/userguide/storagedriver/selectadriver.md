@@ -201,7 +201,7 @@ the guidance offered by the table below along with the points mentioned above.
 
 ![](images/driver-pros-cons.png)
 
-### Overlay vs Overlay2
+### Overlay vs. Overlay2
 
 OverlayFS has 2 storage drivers which both make use of the same OverlayFS
 technology but with different implementations and incompatible on disk

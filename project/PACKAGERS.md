@@ -27,7 +27,7 @@ for, so feel free to reach out to him even just to say "Hi!"
 If possible, your package should be called "docker". If that name is already
 taken, a second choice is "docker-engine". Another possible choice is "docker.io".
 
-## Official Build vs Distro Build
+## Official Build vs. Distro Build
 
 The Docker project maintains its own build and release toolchain. It is pretty
 neat and entirely based on Docker (surprise!). This toolchain is the canonical
