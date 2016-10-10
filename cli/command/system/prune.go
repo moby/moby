@@ -15,13 +15,13 @@ type pruneOptions struct {
 	all   bool
 }
 
-// NewPruneCommand creates a new cobra.Command for `docker du`
+// NewPruneCommand creates a new cobra.Command for `docker prune`
 func NewPruneCommand(dockerCli *command.DockerCli) *cobra.Command {
 	var opts pruneOptions
 
 	cmd := &cobra.Command{
 		Use:   "prune [OPTIONS]",
-		Short: "Remove unused data.",
+		Short: "Remove unused data",
 		Args:  cli.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runPrune(dockerCli, opts)

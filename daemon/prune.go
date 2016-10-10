@@ -11,7 +11,7 @@ import (
 	"github.com/docker/docker/volume"
 )
 
-// ContainersPrune remove unused containers
+// ContainersPrune removes unused containers
 func (daemon *Daemon) ContainersPrune(config *types.ContainersPruneConfig) (*types.ContainersPruneReport, error) {
 	rep := &types.ContainersPruneReport{}
 
@@ -22,7 +22,7 @@ func (daemon *Daemon) ContainersPrune(config *types.ContainersPruneConfig) (*typ
 			// TODO: sets RmLink to true?
 			err := daemon.ContainerRm(c.ID, &types.ContainerRmConfig{})
 			if err != nil {
-				logrus.Warnf("failed to prune container %s: %v", c.ID)
+				logrus.Warnf("failed to prune container %s: %v", c.ID, err)
 				continue
 			}
 			if cSize > 0 {
@@ -35,7 +35,7 @@ func (daemon *Daemon) ContainersPrune(config *types.ContainersPruneConfig) (*typ
 	return rep, nil
 }
 
-// VolumesPrune remove unused local volumes
+// VolumesPrune removes unused local volumes
 func (daemon *Daemon) VolumesPrune(config *types.VolumesPruneConfig) (*types.VolumesPruneReport, error) {
 	rep := &types.VolumesPruneReport{}
 
@@ -65,7 +65,7 @@ func (daemon *Daemon) VolumesPrune(config *types.VolumesPruneConfig) (*types.Vol
 	return rep, err
 }
 
-// ImagesPrune remove unused images
+// ImagesPrune removes unused images
 func (daemon *Daemon) ImagesPrune(config *types.ImagesPruneConfig) (*types.ImagesPruneReport, error) {
 	rep := &types.ImagesPruneReport{}
 
