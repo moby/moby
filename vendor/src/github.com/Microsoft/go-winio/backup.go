@@ -257,7 +257,7 @@ func OpenForBackup(path string, access uint32, share uint32, createmode uint32) 
 	if err != nil {
 		return nil, err
 	}
-	h, err := syscall.CreateFile(&winPath[0], access, share, nil, createmode, syscall.FILE_FLAG_BACKUP_SEMANTICS, 0)
+	h, err := syscall.CreateFile(&winPath[0], access, share, nil, createmode, syscall.FILE_FLAG_BACKUP_SEMANTICS|syscall.FILE_FLAG_OPEN_REPARSE_POINT, 0)
 	if err != nil {
 		err = &os.PathError{Op: "open", Path: path, Err: err}
 		return nil, err
