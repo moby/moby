@@ -121,29 +121,29 @@ the reason each syscall is blocked rather than white-listed.
 |---------------------|---------------------------------------------------------------------------------------------------------------------------------------|
 | `acct`              | Accounting syscall which could let containers disable their own resource limits or process accounting. Also gated by `CAP_SYS_PACCT`. |
 | `add_key`           | Prevent containers from using the kernel keyring, which is not namespaced.                                   |
-| `adjtimex`          | Similar to `clock_settime` and `settimeofday`, time/date is not namespaced.                                  |
+| `adjtimex`          | Similar to `clock_settime` and `settimeofday`, time/date is not namespaced.  Also gated by `CAP_SYS_TIME`    |
 | `bpf`               | Deny loading potentially persistent bpf programs into kernel, already gated by `CAP_SYS_ADMIN`.              |
-| `clock_adjtime`     | Time/date is not namespaced.                                                                                 |
-| `clock_settime`     | Time/date is not namespaced.                                                                                 |
+| `clock_adjtime`     | Time/date is not namespaced. Also gated by `CAP_SYS_TIME`.                                                   |
+| `clock_settime`     | Time/date is not namespaced. Also gated by `CAP_SYS_TIME`.                                                   |
 | `clone`             | Deny cloning new namespaces. Also gated by `CAP_SYS_ADMIN` for CLONE_* flags, except `CLONE_USERNS`.         |
-| `create_module`     | Deny manipulation and functions on kernel modules.                                                           |
+| `create_module`     | Deny manipulation and functions on kernel modules. Obsolete. Also gated by `CAP_SYS_MODULE`                  |
 | `delete_module`     | Deny manipulation and functions on kernel modules. Also gated by `CAP_SYS_MODULE`.                           |
 | `finit_module`      | Deny manipulation and functions on kernel modules. Also gated by `CAP_SYS_MODULE`.                           |
-| `get_kernel_syms`   | Deny retrieval of exported kernel and module symbols.                                                        |
+| `get_kernel_syms`   | Deny retrieval of exported kernel and module symbols. Obsolete.                                              |
 | `get_mempolicy`     | Syscall that modifies kernel memory and NUMA settings. Already gated by `CAP_SYS_NICE`.                      |
 | `init_module`       | Deny manipulation and functions on kernel modules. Also gated by `CAP_SYS_MODULE`.                           |
 | `ioperm`            | Prevent containers from modifying kernel I/O privilege levels. Already gated by `CAP_SYS_RAWIO`.             |
 | `iopl`              | Prevent containers from modifying kernel I/O privilege levels. Already gated by `CAP_SYS_RAWIO`.             |
 | `kcmp`              | Restrict process inspection capabilities, already blocked by dropping `CAP_PTRACE`.                          |
-| `kexec_file_load`   | Sister syscall of `kexec_load` that does the same thing, slightly different arguments.                       |
-| `kexec_load`        | Deny loading a new kernel for later execution.                                                               |
+| `kexec_file_load`   | Sister syscall of `kexec_load` that does the same thing, slightly different arguments. Also gated by `CAP_SYS_BOOT`. |
+| `kexec_load`        | Deny loading a new kernel for later execution. Also gated by `CAP_SYS_BOOT`.                                 |
 | `keyctl`            | Prevent containers from using the kernel keyring, which is not namespaced.                                   |
-| `lookup_dcookie`    | Tracing/profiling syscall, which could leak a lot of information on the host.                                |
+| `lookup_dcookie`    | Tracing/profiling syscall, which could leak a lot of information on the host. Also gated by `CAP_SYS_ADMIN`. |
 | `mbind`             | Syscall that modifies kernel memory and NUMA settings. Already gated by `CAP_SYS_NICE`.                      |
 | `mount`             | Deny mounting, already gated by `CAP_SYS_ADMIN`.                                                             |
 | `move_pages`        | Syscall that modifies kernel memory and NUMA settings.                                                       |
 | `name_to_handle_at` | Sister syscall to `open_by_handle_at`. Already gated by `CAP_SYS_NICE`.                                      |
-| `nfsservctl`        | Deny interaction with the kernel nfs daemon.                                                                 |
+| `nfsservctl`        | Deny interaction with the kernel nfs daemon. Obsolete since Linux 3.1.                                       |
 | `open_by_handle_at` | Cause of an old container breakout. Also gated by `CAP_DAC_READ_SEARCH`.                                     |
 | `perf_event_open`   | Tracing/profiling syscall, which could leak a lot of information on the host.                                |
 | `personality`       | Prevent container from enabling BSD emulation. Not inherently dangerous, but poorly tested, potential for a lot of kernel vulns. |
@@ -151,7 +151,7 @@ the reason each syscall is blocked rather than white-listed.
 | `process_vm_readv`  | Restrict process inspection capabilities, already blocked by dropping `CAP_PTRACE`.                          |
 | `process_vm_writev` | Restrict process inspection capabilities, already blocked by dropping `CAP_PTRACE`.                          |
 | `ptrace`            | Tracing/profiling syscall, which could leak a lot of information on the host. Already blocked by dropping `CAP_PTRACE`. |
-| `query_module`      | Deny manipulation and functions on kernel modules.                                                            |
+| `query_module`      | Deny manipulation and functions on kernel modules. Obsolete.                                                  |
 | `quotactl`          | Quota syscall which could let containers disable their own resource limits or process accounting. Also gated by `CAP_SYS_ADMIN`. |
 | `reboot`            | Don't let containers reboot the host. Also gated by `CAP_SYS_BOOT`.                                           |
 | `request_key`       | Prevent containers from using the kernel keyring, which is not namespaced.                                    |
@@ -164,7 +164,7 @@ the reason each syscall is blocked rather than white-listed.
 | `sysfs`             | Obsolete syscall.                                                                                             |
 | `_sysctl`           | Obsolete, replaced by /proc/sys.                                                                              |
 | `umount`            | Should be a privileged operation. Also gated by `CAP_SYS_ADMIN`.                                              |
-| `umount2`           | Should be a privileged operation.                                                                             |
+| `umount2`           | Should be a privileged operation. Also gated by `CAP_SYS_ADMIN`.                                              |
 | `unshare`           | Deny cloning new namespaces for processes. Also gated by `CAP_SYS_ADMIN`, with the exception of `unshare --user`. |
 | `uselib`            | Older syscall related to shared libraries, unused for a long time.                                            |
 | `userfaultfd`       | Userspace page fault handling, largely needed for process migration.                                          |
