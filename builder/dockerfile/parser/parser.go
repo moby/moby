@@ -4,6 +4,7 @@ package parser
 import (
 	"bufio"
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"regexp"
@@ -36,27 +37,36 @@ type Node struct {
 	endLine    int             // the line in the original dockerfile where the node ends (used in tests)
 }
 
-// Directive is the structure used during a build run to hold the state of
+// Directives is the structure used during a build run to hold the state of
 // parsing directives.
-type Directive struct {
-	EscapeToken           rune           // Current escape token
-	LineContinuationRegex *regexp.Regexp // Current line contination regex
-	LookingForDirectives  bool           // Whether we are currently looking for directives
-	EscapeSeen            bool           // Whether the escape directive has been seen
+type Directives struct {
+	EscapeToken           rune                // Current escape token
+	LineContinuationRegex *regexp.Regexp      // Current line contination regex
+	usedDirectives        map[string]struct{} // Whether a directive has been seen
 }
 
 var (
-	dispatch           map[string]func(string, *Directive) (*Node, map[string]bool, error)
-	tokenWhitespace    = regexp.MustCompile(`[\t\v\f\r ]+`)
-	tokenEscapeCommand = regexp.MustCompile(`^#[ \t]*escape[ \t]*=[ \t]*(?P<escapechar>.).*$`)
-	tokenComment       = regexp.MustCompile(`^#.*$`)
+	dispatch        map[string]func(string, Directives) (*Node, map[string]bool, error)
+	tokenWhitespace = regexp.MustCompile(`[\t\v\f\r ]+`)
+	directiveRegexp = regexp.MustCompile(`^#[ \t]*([a-z0-9]+)[ \t]*=[ \t]*(.*)$`)
+	tokenComment    = regexp.MustCompile(`^#.*$`)
+	errNoDirective  = errors.New("not a directive")
 )
 
 // DefaultEscapeToken is the default escape token
 const DefaultEscapeToken = "\\"
 
+// DefaultDirectives returns directives struct with default properties
+func DefaultDirectives() Directives {
+	d := &Directives{usedDirectives: make(map[string]struct{})}
+	if err := d.SetEscapeToken(DefaultEscapeToken); err != nil {
+		panic(err)
+	}
+	return *d
+}
+
 // SetEscapeToken sets the default token for escaping characters in a Dockerfile.
-func SetEscapeToken(s string, d *Directive) error {
+func (d *Directives) SetEscapeToken(s string) error {
 	if s != "`" && s != "\\" {
 		return fmt.Errorf("invalid ESCAPE '%s'. Must be ` or \\", s)
 	}
@@ -72,7 +82,7 @@ func init() {
 	// reformulating the arguments according to the rules in the parser
 	// functions. Errors are propagated up by Parse() and the resulting AST can
 	// be incorporated directly into the existing AST as a next.
-	dispatch = map[string]func(string, *Directive) (*Node, map[string]bool, error){
+	dispatch = map[string]func(string, Directives) (*Node, map[string]bool, error){
 		command.Add:         parseMaybeJSONToList,
 		command.Arg:         parseNameOrNameVal,
 		command.Cmd:         parseMaybeJSON,
@@ -95,33 +105,10 @@ func init() {
 }
 
 // ParseLine parses a line and returns the remainder.
-func ParseLine(line string, d *Directive) (string, *Node, error) {
-	// Handle the parser directive '# escape=<char>. Parser directives must precede
-	// any builder instruction or other comments, and cannot be repeated.
-	if d.LookingForDirectives {
-		tecMatch := tokenEscapeCommand.FindStringSubmatch(strings.ToLower(line))
-		if len(tecMatch) > 0 {
-			if d.EscapeSeen == true {
-				return "", nil, fmt.Errorf("only one escape parser directive can be used")
-			}
-			for i, n := range tokenEscapeCommand.SubexpNames() {
-				if n == "escapechar" {
-					if err := SetEscapeToken(tecMatch[i], d); err != nil {
-						return "", nil, err
-					}
-					d.EscapeSeen = true
-					return "", nil, nil
-				}
-			}
-		}
-	}
-
-	d.LookingForDirectives = false
-
+func ParseLine(line string, d Directives) (string, *Node, error) {
 	if line = stripComments(line); line == "" {
 		return "", nil, nil
 	}
-
 	if d.LineContinuationRegex.MatchString(line) {
 		line = d.LineContinuationRegex.ReplaceAllString(line, "")
 		return line, nil, nil
@@ -148,56 +135,47 @@ func ParseLine(line string, d *Directive) (string, *Node, error) {
 	return "", node, nil
 }
 
+// ParseDirectives attempts to parse a directive from input line
+func ParseDirectives(line string, d *Directives) (err error) {
+	tecMatch := directiveRegexp.FindStringSubmatch(strings.ToLower(line))
+	if len(tecMatch) > 2 {
+		if _, ok := d.usedDirectives[tecMatch[1]]; ok {
+			return fmt.Errorf("only one %v parser directive can be used", tecMatch[1])
+		}
+		defer func() {
+			if err != nil {
+				d.usedDirectives[tecMatch[1]] = struct{}{}
+			}
+		}()
+		switch tecMatch[1] {
+		case "escape":
+			return d.SetEscapeToken(tecMatch[2])
+		}
+	}
+	return errNoDirective
+}
+
 // Parse is the main parse routine.
 // It handles an io.ReadWriteCloser and returns the root of the AST.
-func Parse(rwc io.Reader, d *Directive) (*Node, error) {
-	currentLine := 0
+func Parse(r io.Reader) (*Node, error) {
+	startLine, currentLine := 0, 0
+	parseDirectives := true
 	root := &Node{}
 	root.startLine = -1
-	scanner := bufio.NewScanner(rwc)
-
+	scanner := bufio.NewScanner(r)
+	d := DefaultDirectives()
 	utf8bom := []byte{0xEF, 0xBB, 0xBF}
-	for scanner.Scan() {
-		scannedBytes := scanner.Bytes()
-		// We trim UTF8 BOM
-		if currentLine == 0 {
-			scannedBytes = bytes.TrimPrefix(scannedBytes, utf8bom)
-		}
-		scannedLine := strings.TrimLeftFunc(string(scannedBytes), unicode.IsSpace)
-		currentLine++
-		line, child, err := ParseLine(scannedLine, d)
+	partialLine := ""
+
+	parse := func(line string) error { // iterate line and accumulate children
+		line, child, err := ParseLine(line, d)
 		if err != nil {
-			return nil, err
+			return err
 		}
-		startLine := currentLine
-
-		if line != "" && child == nil {
-			for scanner.Scan() {
-				newline := scanner.Text()
-				currentLine++
-
-				if stripComments(strings.TrimSpace(newline)) == "" {
-					continue
-				}
-
-				line, child, err = ParseLine(line+newline, d)
-				if err != nil {
-					return nil, err
-				}
-
-				if child != nil {
-					break
-				}
-			}
-			if child == nil && line != "" {
-				_, child, err = ParseLine(line, d)
-				if err != nil {
-					return nil, err
-				}
-			}
-		}
+		partialLine = line
 
 		if child != nil {
+			partialLine = ""
 			// Update the line information for the current child.
 			child.startLine = startLine
 			child.endLine = currentLine
@@ -208,6 +186,43 @@ func Parse(rwc io.Reader, d *Directive) (*Node, error) {
 			}
 			root.endLine = currentLine
 			root.Children = append(root.Children, child)
+		}
+		return nil
+	}
+
+	for scanner.Scan() {
+		scannedBytes := scanner.Bytes()
+		// We trim UTF8 BOM
+		if currentLine == 0 {
+			scannedBytes = bytes.TrimPrefix(scannedBytes, utf8bom)
+		}
+		currentLine++
+		if parseDirectives {
+			if err := ParseDirectives(string(scannedBytes), &d); err != nil {
+				if err == errNoDirective {
+					parseDirectives = false
+				} else {
+					return nil, err
+				}
+			}
+		}
+
+		scannedLine := string(scannedBytes)
+		if len(partialLine) == 0 {
+			startLine = currentLine
+			scannedLine = strings.TrimLeftFunc(scannedLine, unicode.IsSpace)
+		}
+		if line := stripComments(scannedLine); line == "" {
+			continue
+		}
+		partialLine += scannedLine
+		if err := parse(partialLine); err != nil {
+			return nil, err
+		}
+	}
+	if partialLine != "" {
+		if err := parse(partialLine); err != nil {
+			return nil, err
 		}
 	}
 

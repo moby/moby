@@ -3577,8 +3577,8 @@ RUN [ "$(id -u):$(id -g)/$(id -un):$(id -gn)/$(id -G):$(id -Gn)" = '1001:1001/do
 
 # Switch back to root and double check that worked exactly as we might expect it to
 USER root
+# Add a "supplementary" group for our dockerio user
 RUN [ "$(id -u):$(id -g)/$(id -un):$(id -gn)/$(id -G):$(id -Gn)" = '0:0/root:root/0 10:root wheel' ] && \
-	# Add a "supplementary" group for our dockerio user \
 	echo 'supplementary:x:1002:dockerio' >> /etc/group
 
 # ... and then go verify that we get it like we expect
