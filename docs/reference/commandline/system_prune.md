@@ -11,7 +11,7 @@ parent = "smn_cli"
 # system prune
 
 ```markdown
-Usage:	docker system prune COMMAND
+Usage:	docker system prune [OPTIONS]
 
 Delete unused data
 

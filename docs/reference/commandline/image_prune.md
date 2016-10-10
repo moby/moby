@@ -11,7 +11,7 @@ parent = "smn_cli"
 # image prune
 
 ```markdown
-Usage:	docker image prune
+Usage:	docker image prune [OPTIONS]
 
 Remove unused images
 

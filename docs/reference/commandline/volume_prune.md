@@ -11,7 +11,7 @@ parent = "smn_cli"
 # volume prune
 
 ```markdown
-Usage:	docker volume prune
+Usage:	docker volume prune [OPTIONS]
 
 Remove all unused volumes
 

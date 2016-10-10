@@ -11,7 +11,7 @@ parent = "smn_cli"
 # container prune
 
 ```markdown
-Usage:	docker container prune
+Usage:	docker container prune [OPTIONS]
 
 Remove all stopped containers
 
@@ -20,7 +20,7 @@ Options:
       --help    Print usage
 ```
 
-Example output:
+## Examples
 
 ```bash
 $ docker container prune
@@ -36,6 +36,6 @@ Total reclaimed space: 212 B
 ## Related information
 
 * [system df](system_df.md)
-* [volume prune](container_prune.md)
-* [image prune](container_prune.md)
+* [volume prune](volume_prune.md)
+* [image prune](image_prune.md)
 * [system prune](system_prune.md)

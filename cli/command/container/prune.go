@@ -21,7 +21,7 @@ func NewPruneCommand(dockerCli *command.DockerCli) *cobra.Command {
 	var opts pruneOptions
 
 	cmd := &cobra.Command{
-		Use:   "prune",
+		Use:   "prune [OPTIONS]",
 		Short: "Remove all stopped containers",
 		Args:  cli.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
