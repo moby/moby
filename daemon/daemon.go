@@ -968,25 +968,23 @@ func (daemon *Daemon) initDiscovery(config *Config) error {
 // - Daemon max concurrent uploads
 // - Cluster discovery (reconfigure and restart).
 // - Daemon live restore
-func (daemon *Daemon) Reload(config *Config) error {
-	var err error
-	// used to hold reloaded changes
-	attributes := map[string]string{}
+func (daemon *Daemon) Reload(config *Config) (err error) {
 
-	// We need defer here to ensure the lock is released as
-	// daemon.SystemInfo() will try to get it too
+	daemon.configStore.reloadLock.Lock()
+
+	attributes := daemon.platformReload(config)
+
 	defer func() {
+		// we're unlocking here, because
+		// LogDaemonEventWithAttributes() -> SystemInfo() -> GetAllRuntimes()
+		// holds that lock too.
+		daemon.configStore.reloadLock.Unlock()
 		if err == nil {
 			daemon.LogDaemonEventWithAttributes("reload", attributes)
 		}
 	}()
 
-	daemon.configStore.reloadLock.Lock()
-	defer daemon.configStore.reloadLock.Unlock()
-
-	daemon.platformReload(config, &attributes)
-
-	if err = daemon.reloadClusterDiscovery(config); err != nil {
+	if err := daemon.reloadClusterDiscovery(config); err != nil {
 		return err
 	}
 
