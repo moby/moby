@@ -20,7 +20,7 @@ func NewPruneCommand(dockerCli *command.DockerCli) *cobra.Command {
 	var opts pruneOptions
 
 	cmd := &cobra.Command{
-		Use:   "prune [COMMAND]",
+		Use:   "prune [OPTIONS]",
 		Short: "Remove unused data.",
 		Args:  cli.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
