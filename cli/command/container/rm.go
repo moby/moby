@@ -45,13 +45,22 @@ func runRm(dockerCli *command.DockerCli, opts *rmOptions) error {
 	ctx := context.Background()
 
 	var errs []string
-	for _, name := range opts.containers {
-		if name == "" {
+	options := types.ContainerRemoveOptions{
+		RemoveVolumes: opts.rmVolumes,
+		RemoveLinks:   opts.rmLink,
+		Force:         opts.force,
+	}
+
+	errChan := parallelOperation(ctx, opts.containers, func(ctx context.Context, container string) error {
+		if container == "" {
 			return fmt.Errorf("Container name cannot be empty")
 		}
-		name = strings.Trim(name, "/")
+		container = strings.Trim(container, "/")
+		return dockerCli.Client().ContainerRemove(ctx, container, options)
+	})
 
-		if err := removeContainer(dockerCli, ctx, name, opts.rmVolumes, opts.rmLink, opts.force); err != nil {
+	for _, name := range opts.containers {
+		if err := <-errChan; err != nil {
 			errs = append(errs, err.Error())
 		} else {
 			fmt.Fprintf(dockerCli.Out(), "%s\n", name)
@@ -59,18 +68,6 @@ func runRm(dockerCli *command.DockerCli, opts *rmOptions) error {
 	}
 	if len(errs) > 0 {
 		return fmt.Errorf("%s", strings.Join(errs, "\n"))
-	}
-	return nil
-}
-
-func removeContainer(dockerCli *command.DockerCli, ctx context.Context, container string, removeVolumes, removeLinks, force bool) error {
-	options := types.ContainerRemoveOptions{
-		RemoveVolumes: removeVolumes,
-		RemoveLinks:   removeLinks,
-		Force:         force,
-	}
-	if err := dockerCli.Client().ContainerRemove(ctx, container, options); err != nil {
-		return err
 	}
 	return nil
 }
