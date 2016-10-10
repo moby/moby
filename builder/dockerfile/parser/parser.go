@@ -32,8 +32,8 @@ type Node struct {
 	Attributes map[string]bool // special attributes for this node
 	Original   string          // original line used before parsing
 	Flags      []string        // only top Node should have this set
-	StartLine  int             // the line in the original dockerfile where the node begins
-	EndLine    int             // the line in the original dockerfile where the node ends
+	startLine  int             // the line in the original dockerfile where the node begins (used in tests)
+	endLine    int             // the line in the original dockerfile where the node ends (used in tests)
 }
 
 // Directive is the structure used during a build run to hold the state of
@@ -153,7 +153,7 @@ func ParseLine(line string, d *Directive) (string, *Node, error) {
 func Parse(rwc io.Reader, d *Directive) (*Node, error) {
 	currentLine := 0
 	root := &Node{}
-	root.StartLine = -1
+	root.startLine = -1
 	scanner := bufio.NewScanner(rwc)
 
 	utf8bom := []byte{0xEF, 0xBB, 0xBF}
@@ -199,14 +199,14 @@ func Parse(rwc io.Reader, d *Directive) (*Node, error) {
 
 		if child != nil {
 			// Update the line information for the current child.
-			child.StartLine = startLine
-			child.EndLine = currentLine
+			child.startLine = startLine
+			child.endLine = currentLine
 			// Update the line information for the root. The starting line of the root is always the
 			// starting line of the first child and the ending line is the ending line of the last child.
-			if root.StartLine < 0 {
-				root.StartLine = currentLine
+			if root.startLine < 0 {
+				root.startLine = currentLine
 			}
-			root.EndLine = currentLine
+			root.endLine = currentLine
 			root.Children = append(root.Children, child)
 		}
 	}
