@@ -66,5 +66,5 @@ Total reclaimed space: 13.5 MB
 * [Understand Data Volumes](../../tutorials/dockervolumes.md)
 * [system df](system_df.md)
 * [container prune](container_prune.md)
-* [image prune](container_prune.md)
+* [image prune](image_prune.md)
 * [system prune](system_prune.md)
