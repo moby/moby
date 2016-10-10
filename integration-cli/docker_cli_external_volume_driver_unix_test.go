@@ -40,10 +40,18 @@ type eventCounter struct {
 }
 
 type DockerExternalVolumeSuite struct {
-	server *httptest.Server
-	ds     *DockerSuite
-	d      *Daemon
-	ec     *eventCounter
+	server  *httptest.Server
+	ds      *DockerSuite
+	d       *Daemon
+	ec      *eventCounter
+	volList []vol
+}
+
+type vol struct {
+	Name       string
+	Mountpoint string
+	Ninja      bool // hack used to trigger a null volume return on `Get`
+	Status     map[string]interface{}
 }
 
 func (s *DockerExternalVolumeSuite) SetUpTest(c *check.C) {
@@ -70,14 +78,6 @@ func (s *DockerExternalVolumeSuite) SetUpSuite(c *check.C) {
 		Mountpoint string `json:",omitempty"`
 		Err        string `json:",omitempty"`
 	}
-
-	type vol struct {
-		Name       string
-		Mountpoint string
-		Ninja      bool // hack used to trigger a null volume return on `Get`
-		Status     map[string]interface{}
-	}
-	var volList []vol
 
 	read := func(b io.ReadCloser) (pluginRequest, error) {
 		defer b.Close()
@@ -115,14 +115,14 @@ func (s *DockerExternalVolumeSuite) SetUpSuite(c *check.C) {
 		}
 		_, isNinja := pr.Opts["ninja"]
 		status := map[string]interface{}{"Hello": "world"}
-		volList = append(volList, vol{Name: pr.Name, Ninja: isNinja, Status: status})
+		s.volList = append(s.volList, vol{Name: pr.Name, Ninja: isNinja, Status: status})
 		send(w, nil)
 	})
 
 	mux.HandleFunc("/VolumeDriver.List", func(w http.ResponseWriter, r *http.Request) {
 		s.ec.lists++
 		vols := []vol{}
-		for _, v := range volList {
+		for _, v := range s.volList {
 			if v.Ninja {
 				continue
 			}
@@ -139,7 +139,7 @@ func (s *DockerExternalVolumeSuite) SetUpSuite(c *check.C) {
 			return
 		}
 
-		for _, v := range volList {
+		for _, v := range s.volList {
 			if v.Name == pr.Name {
 				if v.Ninja {
 					send(w, map[string]vol{})
@@ -162,13 +162,13 @@ func (s *DockerExternalVolumeSuite) SetUpSuite(c *check.C) {
 			return
 		}
 
-		for i, v := range volList {
+		for i, v := range s.volList {
 			if v.Name == pr.Name {
 				if err := os.RemoveAll(hostVolumePath(v.Name)); err != nil {
 					send(w, &pluginResp{Err: err.Error()})
 					return
 				}
-				volList = append(volList[:i], volList[i+1:]...)
+				s.volList = append(s.volList[:i], s.volList[i+1:]...)
 				break
 			}
 		}
@@ -523,4 +523,37 @@ func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverCapabilities(c *chec
 		c.Assert(err, checker.IsNil)
 		c.Assert(strings.TrimSpace(out), checker.Equals, volume.GlobalScope)
 	}
+}
+
+func (s *DockerExternalVolumeSuite) TestExternalVolumeDeleteOutsideHost(c *check.C) {
+	driverName := "test-external-volume-driver"
+	c.Assert(s.d.StartWithBusybox(), checker.IsNil)
+
+	out, err := s.d.Cmd("volume", "create", "-d", driverName, "--name", "globalVol1")
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+
+	// Name conflict between the local driver and test-external-volume-driver, which
+	// already have a volume of same name in existence.
+	out, err = s.d.Cmd("volume", "create", "-d", "local", "--name", "globalVol1")
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+	c.Assert(out, checker.Contains, "glovalVol1")
+
+	// simulate out of band volume deletion on plugin level
+	var vols []vol
+	for _, vol := range s.volList {
+		if vol.Name == "globalVol1" {
+			continue
+		}
+		vols = append(vols, vol)
+	}
+	s.volList = vols
+
+	// There is inconsistency in the local volume cache at this point as the volume
+	// exists as per the local volume cache but does not exist in real as the volume
+	// was deleted outside the host by the plugin.
+
+	// The fix 27274 avoids the inconsistency and allows re-creation of the global
+	//  volume by the same global volume driver
+	out, err = s.d.Cmd("volume", "create", "-d", driverName, "--name", "globalVol1")
+	c.Assert(err, checker.IsNil, check.Commentf(out))
 }

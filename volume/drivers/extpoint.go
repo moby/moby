@@ -179,10 +179,7 @@ func GetDriverList() []string {
 
 // GetAllDrivers lists all the registered drivers
 func GetAllDrivers() ([]volume.Driver, error) {
-	plugins, err := drivers.plugingetter.GetAllByCap(extName)
-	if err != nil {
-		return nil, fmt.Errorf("error listing plugins: %v", err)
-	}
+
 	var ds []volume.Driver
 
 	drivers.Lock()
@@ -192,18 +189,25 @@ func GetAllDrivers() ([]volume.Driver, error) {
 		ds = append(ds, d)
 	}
 
-	for _, p := range plugins {
-		name := p.Name()
-		ext, ok := drivers.extensions[name]
-		if ok {
-			continue
+	if drivers.plugingetter != nil {
+		plugins, err := drivers.plugingetter.GetAllByCap(extName)
+		if err != nil {
+			return nil, fmt.Errorf("error listing plugins: %v", err)
 		}
 
-		ext = NewVolumeDriver(name, p.Client())
-		if p.IsV1() {
-			drivers.extensions[name] = ext
+		for _, p := range plugins {
+			name := p.Name()
+			ext, ok := drivers.extensions[name]
+			if ok {
+				continue
+			}
+
+			ext = NewVolumeDriver(name, p.Client())
+			if p.IsV1() {
+				drivers.extensions[name] = ext
+			}
+			ds = append(ds, ext)
 		}
-		ds = append(ds, ext)
 	}
 	return ds, nil
 }
