@@ -22,6 +22,7 @@ import (
 	"github.com/docker/docker/utils"
 	"github.com/golang/protobuf/ptypes"
 	"github.com/golang/protobuf/ptypes/timestamp"
+	rsystem "github.com/opencontainers/runc/libcontainer/system"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/grpclog"
@@ -429,12 +430,23 @@ func (r *remote) runContainerdDaemon() error {
 }
 
 func setOOMScore(pid, score int) error {
-	f, err := os.OpenFile(fmt.Sprintf("/proc/%d/oom_score_adj", pid), os.O_WRONLY, 0)
+	oomScoreAdjPath := fmt.Sprintf("/proc/%d/oom_score_adj", pid)
+	f, err := os.OpenFile(oomScoreAdjPath, os.O_WRONLY, 0)
 	if err != nil {
 		return err
 	}
-	_, err = f.WriteString(strconv.Itoa(score))
+	stringScore := strconv.Itoa(score)
+	_, err = f.WriteString(stringScore)
 	f.Close()
+	if os.IsPermission(err) {
+		// Setting oom_score_adj does not work in an
+		// unprivileged container. Ignore the error, but log
+		// it if we appear not to be in that situation.
+		if !rsystem.RunningInUserNS() {
+			logrus.Debugf("Permission denied writing %q to %s", stringScore, oomScoreAdjPath)
+		}
+		return nil
+	}
 	return err
 }
 

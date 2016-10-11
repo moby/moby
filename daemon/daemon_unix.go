@@ -37,6 +37,7 @@ import (
 	lntypes "github.com/docker/libnetwork/types"
 	"github.com/golang/protobuf/ptypes"
 	"github.com/opencontainers/runc/libcontainer/label"
+	rsystem "github.com/opencontainers/runc/libcontainer/system"
 	"github.com/opencontainers/runc/libcontainer/user"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/vishvananda/netlink"
@@ -1168,7 +1169,18 @@ func setupOOMScoreAdj(score int) error {
 	if err != nil {
 		return err
 	}
-	_, err = f.WriteString(strconv.Itoa(score))
+
+	stringScore := strconv.Itoa(score)
+	_, err = f.WriteString(stringScore)
+	if os.IsPermission(err) {
+		// Setting oom_score_adj does not work in an
+		// unprivileged container. Ignore the error, but log
+		// it if we appear not to be in that situation.
+		if !rsystem.RunningInUserNS() {
+			logrus.Debugf("Permission denied writing %q to /proc/self/oom_score_adj", stringScore)
+		}
+		return nil
+	}
 	f.Close()
 	return err
 }
