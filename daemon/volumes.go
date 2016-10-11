@@ -29,10 +29,8 @@ type mounts []container.Mount
 // volumeToAPIType converts a volume.Volume to the type used by the remote API
 func volumeToAPIType(v volume.Volume) *types.Volume {
 	tv := &types.Volume{
-		Name:     v.Name(),
-		Driver:   v.DriverName(),
-		Size:     -1,
-		RefCount: -1,
+		Name:   v.Name(),
+		Driver: v.DriverName(),
 	}
 	if v, ok := v.(volume.LabeledVolume); ok {
 		tv.Labels = v.Labels()
