@@ -16,9 +16,13 @@ operating system and its applications from security threats. To use it, a system
 administrator associates an AppArmor security profile with each program. Docker
 expects to find an AppArmor policy loaded and enforced.
 
-Docker automatically loads container profiles. The Docker binary installs
-a `docker-default` profile in the `/etc/apparmor.d/docker` file. This profile
-is used on containers, _not_ on the Docker Daemon.
+Docker automatically generates and loads a default profile for containers that's
+named `docker-default`. On Docker versions `1.13.0` and later, the Docker binary will
+generate this profile in `tmpfs` and then load it into the kernel. On Docker versions
+earlier than `1.13.0`, this profile will be generated in `/etc/apparmor.d/docker`
+instead. 
+
+> **Note:** This profile is used on containers, _not_ on the Docker Daemon.
 
 A profile for the Docker Engine daemon exists but it is not currently installed
 with the `deb` packages. If you are interested in the source for the daemon
@@ -46,7 +50,11 @@ profile docker-default flags=(attach_disconnected,mediate_deleted) {
   file,
   umount,
 
-  deny @{PROC}/{*,**^[0-9*],sys/kernel/shm*} wkx,
+  deny @{PROC}/* w,   # deny write for all files directly in /proc (not in a subdir)
+  # deny write to files not in /proc/<number>/** or /proc/sys/**  
+  deny @{PROC}/{[^1-9],[^1-9][^0-9],[^1-9s][^0-9y][^0-9s],[^1-9][^0-9][^0-9][^0-9]*}/** w,
+  deny @{PROC}/sys/[^k]** w,  # deny /proc/sys except /proc/sys/k* (effectively /proc/sys/kernel)
+  deny @{PROC}/sys/kernel/{?,??,[^s][^h][^m]**} w,  # deny everything except shm* in /proc/sys/kernel/
   deny @{PROC}/sysrq-trigger rwklx,
   deny @{PROC}/mem rwklx,
   deny @{PROC}/kmem rwklx,
@@ -164,12 +172,18 @@ profile docker-nginx flags=(attach_disconnected,mediate_deleted) {
   capability setgid,
   capability net_bind_service,
 
-  deny @{PROC}/{*,**^[0-9*],sys/kernel/shm*} wkx,
+  deny @{PROC}/* w,   # deny write for all files directly in /proc (not in a subdir)
+  # deny write to files not in /proc/<number>/** or /proc/sys/**
+  deny @{PROC}/{[^1-9],[^1-9][^0-9],[^1-9s][^0-9y][^0-9s],[^1-9][^0-9][^0-9][^0-9]*}/** w,
+  deny @{PROC}/sys/[^k]** w,  # deny /proc/sys except /proc/sys/k* (effectively /proc/sys/kernel)
+  deny @{PROC}/sys/kernel/{?,??,[^s][^h][^m]**} w,  # deny everything except shm* in /proc/sys/kernel/
   deny @{PROC}/sysrq-trigger rwklx,
   deny @{PROC}/mem rwklx,
   deny @{PROC}/kmem rwklx,
   deny @{PROC}/kcore rwklx,
+
   deny mount,
+
   deny /sys/[^f]*/** wklx,
   deny /sys/f[^s]*/** wklx,
   deny /sys/fs/[^c]*/** wklx,
