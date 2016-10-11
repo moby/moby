@@ -219,7 +219,7 @@ We are always open to suggestions on process improvements, and are always lookin
         IRC is a rich chat protocol but it can overwhelm new users. You can search
         <a href="https://botbot.me/freenode/docker/#" target="_blank">our chat archives</a>.
       </p>
-      Read our <a href="https://docs.docker.com/project/get-help/#irc-quickstart" target="_blank">IRC quickstart guide</a> for an easy way to get started.
+      Read our <a href="https://docs.docker.com/opensource/get-help/#/irc-quickstart" target="_blank">IRC quickstart guide</a> for an easy way to get started.
     </td>
   </tr>
   <tr>
