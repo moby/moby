@@ -63,12 +63,12 @@ func TestRunCommandWithTimeoutKilled(t *testing.T) {
 		t.Skip("Needs porting to Windows")
 	}
 
-	command := []string{"sh", "-c", "while true ; do echo 1 ; sleep .1 ; done"}
-	result := RunCmd(Cmd{Command: command, Timeout: 500 * time.Millisecond})
+	command := []string{"sh", "-c", "while true ; do echo 1 ; sleep .5 ; done"}
+	result := RunCmd(Cmd{Command: command, Timeout: 1250 * time.Millisecond})
 	result.Assert(t, Expected{Timeout: true})
 
 	ones := strings.Split(result.Stdout(), "\n")
-	assert.Equal(t, len(ones), 6)
+	assert.Equal(t, len(ones), 4)
 }
 
 func TestRunCommandWithErrors(t *testing.T) {
