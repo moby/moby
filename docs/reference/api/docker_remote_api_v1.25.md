@@ -2663,8 +2663,10 @@ Return docker data usage information
                     "Mountpoint": "",
                     "Labels": null,
                     "Scope": "",
-                    "Size": 0,
-                    "RefCount": 0
+                    "UsageData": {
+                        "Size": 0,
+                        "RefCount": 0
+                    }
                 }
         ]
     }
