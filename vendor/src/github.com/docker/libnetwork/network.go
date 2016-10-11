@@ -1059,6 +1059,12 @@ func delNameToIP(svcMap map[string][]net.IP, name string, epIP net.IP) {
 }
 
 func (n *network) addSvcRecords(name string, epIP net.IP, epIPv6 net.IP, ipMapUpdate bool) {
+	// Do not add service names for ingress network as this is a
+	// routing only network
+	if n.ingress {
+		return
+	}
+
 	c := n.getController()
 	c.Lock()
 	defer c.Unlock()
@@ -1086,6 +1092,12 @@ func (n *network) addSvcRecords(name string, epIP net.IP, epIPv6 net.IP, ipMapUp
 }
 
 func (n *network) deleteSvcRecords(name string, epIP net.IP, epIPv6 net.IP, ipMapUpdate bool) {
+	// Do not delete service names from ingress network as this is a
+	// routing only network
+	if n.ingress {
+		return
+	}
+
 	c := n.getController()
 	c.Lock()
 	defer c.Unlock()
