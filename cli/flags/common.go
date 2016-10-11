@@ -101,9 +101,8 @@ func (commonOpts *CommonOptions) SetDefaultOptions(flags *pflag.FlagSet) {
 	}
 }
 
-// SetDaemonLogLevel sets the logrus logging level
-// TODO: this is a bad name, it applies to the client as well.
-func SetDaemonLogLevel(logLevel string) {
+// SetLogLevel sets the logrus logging level
+func SetLogLevel(logLevel string) {
 	if logLevel != "" {
 		lvl, err := logrus.ParseLevel(logLevel)
 		if err != nil {

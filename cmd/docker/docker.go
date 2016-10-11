@@ -99,7 +99,7 @@ func showVersion() {
 }
 
 func dockerPreRun(opts *cliflags.ClientOptions) {
-	cliflags.SetDaemonLogLevel(opts.Common.LogLevel)
+	cliflags.SetLogLevel(opts.Common.LogLevel)
 
 	if opts.ConfigDir != "" {
 		cliconfig.SetConfigDir(opts.ConfigDir)
