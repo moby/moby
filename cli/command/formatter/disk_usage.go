@@ -288,7 +288,7 @@ func (c *diskUsageVolumesContext) Active() string {
 
 	used := 0
 	for _, v := range c.volumes {
-		if v.RefCount > 0 {
+		if v.UsageData.RefCount > 0 {
 			used++
 		}
 	}
@@ -301,8 +301,8 @@ func (c *diskUsageVolumesContext) Size() string {
 
 	c.AddHeader(sizeHeader)
 	for _, v := range c.volumes {
-		if v.Size != -1 {
-			size += v.Size
+		if v.UsageData.Size != -1 {
+			size += v.UsageData.Size
 		}
 	}
 
@@ -315,11 +315,11 @@ func (c *diskUsageVolumesContext) Reclaimable() string {
 
 	c.AddHeader(reclaimableHeader)
 	for _, v := range c.volumes {
-		if v.Size != -1 {
-			if v.RefCount == 0 {
-				reclaimable += v.Size
+		if v.UsageData.Size != -1 {
+			if v.UsageData.RefCount == 0 {
+				reclaimable += v.UsageData.Size
 			}
-			totalSize += v.Size
+			totalSize += v.UsageData.Size
 		}
 	}
 

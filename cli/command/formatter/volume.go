@@ -101,16 +101,16 @@ func (c *volumeContext) Label(name string) string {
 
 func (c *volumeContext) Links() string {
 	c.AddHeader(linksHeader)
-	if c.v.Size == -1 {
+	if c.v.UsageData == nil {
 		return "N/A"
 	}
-	return fmt.Sprintf("%d", c.v.RefCount)
+	return fmt.Sprintf("%d", c.v.UsageData.RefCount)
 }
 
 func (c *volumeContext) Size() string {
 	c.AddHeader(sizeHeader)
-	if c.v.Size == -1 {
+	if c.v.UsageData == nil {
 		return "N/A"
 	}
-	return units.HumanSize(float64(c.v.Size))
+	return units.HumanSize(float64(c.v.UsageData.Size))
 }
