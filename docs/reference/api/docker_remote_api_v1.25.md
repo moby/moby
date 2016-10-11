@@ -3323,7 +3323,9 @@ Return low-level information about the `exec` command `id`.
             "com.example.some-label": "some-value",
             "com.example.some-other-label": "some-other-value"
           },
-          "Scope": "local"
+          "Scope": "local",
+          "Size": 0,
+          "RefCount": 0
         }
       ],
       "Warnings": []
@@ -3377,7 +3379,9 @@ Create a volume
         "com.example.some-label": "some-value",
         "com.example.some-other-label": "some-other-value"
       },
-      "Scope": "local"
+      "Scope": "local",
+      "Size": 0,
+      "RefCount": 0
     }
 
 **Status codes**:
@@ -3424,7 +3428,9 @@ Return low-level information on the volume `name`
           "com.example.some-label": "some-value",
           "com.example.some-other-label": "some-other-value"
       },
-      "Scope": "local"
+      "Scope": "local",
+      "Size": 0,
+      "RefCount": 0
     }
 
 **Status codes**:
@@ -3449,6 +3455,8 @@ response.
 - **Labels** - Labels set on the volume, specified as a map: `{"key":"value","key2":"value2"}`.
 - **Scope** - Scope describes the level at which the volume exists, can be one of
     `global` for cluster-wide or `local` for machine level. The default is `local`.
+- **Size** - Size holds how much disk space is used by the (local driver only). Sets to -1 if not provided.
+- **RefCount** - RefCount holds the number of containers having this volume attached to them. Sets to -1 if not provided.
 
 ### Remove a volume
 
