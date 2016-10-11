@@ -800,6 +800,7 @@ func (s *DockerSwarmSuite) TestAPISwarmLeaveRemovesContainer(c *check.C) {
 
 // #23629
 func (s *DockerSwarmSuite) TestAPISwarmLeaveOnPendingJoin(c *check.C) {
+	testRequires(c, Network)
 	s.AddDaemon(c, true, true)
 	d2 := s.AddDaemon(c, false, false)
 
@@ -828,6 +829,7 @@ func (s *DockerSwarmSuite) TestAPISwarmLeaveOnPendingJoin(c *check.C) {
 
 // #23705
 func (s *DockerSwarmSuite) TestAPISwarmRestoreOnPendingJoin(c *check.C) {
+	testRequires(c, Network)
 	d := s.AddDaemon(c, false, false)
 	err := d.Join(swarm.JoinRequest{
 		RemoteAddrs: []string{"123.123.123.123:1234"},
