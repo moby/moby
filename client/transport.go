@@ -18,14 +18,12 @@ func (tf transportFunc) RoundTrip(req *http.Request) (*http.Response, error) {
 
 // resolveTLSConfig attempts to resolve the tls configuration from the
 // RoundTripper.
-func resolveTLSConfig(transport http.RoundTripper) (*tls.Config, error) {
+func resolveTLSConfig(transport http.RoundTripper) *tls.Config {
 	switch tr := transport.(type) {
 	case *http.Transport:
-		return tr.TLSClientConfig, nil
-	case transportFunc:
-		return nil, nil // detect this type for testing.
+		return tr.TLSClientConfig
 	default:
-		return nil, errTLSConfigUnavailable
+		return nil
 	}
 }
 
@@ -37,15 +35,11 @@ func resolveTLSConfig(transport http.RoundTripper) (*tls.Config, error) {
 // Unfortunately, the model of having a host-ish/url-thingy as the connection
 // string has us confusing protocol and transport layers. We continue doing
 // this to avoid breaking existing clients but this should be addressed.
-func resolveScheme(transport http.RoundTripper) (string, error) {
-	c, err := resolveTLSConfig(transport)
-	if err != nil {
-		return "", err
-	}
-
+func resolveScheme(transport http.RoundTripper) string {
+	c := resolveTLSConfig(transport)
 	if c != nil {
-		return "https", nil
+		return "https"
 	}
 
-	return "http", nil
+	return "http"
 }

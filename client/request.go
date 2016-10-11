@@ -100,10 +100,7 @@ func (cli *Client) sendClientRequest(ctx context.Context, method, path string, q
 		req.Host = "docker"
 	}
 
-	scheme, err := resolveScheme(cli.client.Transport)
-	if err != nil {
-		return serverResp, err
-	}
+	scheme := resolveScheme(cli.client.Transport)
 
 	req.URL.Host = cli.addr
 	req.URL.Scheme = scheme
@@ -114,8 +111,7 @@ func (cli *Client) sendClientRequest(ctx context.Context, method, path string, q
 
 	resp, err := ctxhttp.Do(ctx, cli.client, req)
 	if err != nil {
-
-		if scheme == "https" && strings.Contains(err.Error(), "malformed HTTP response") {
+		if scheme != "https" && strings.Contains(err.Error(), "malformed HTTP response") {
 			return serverResp, fmt.Errorf("%v.\n* Are you trying to connect to a TLS-enabled daemon without TLS?", err)
 		}
 
