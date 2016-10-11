@@ -23,17 +23,17 @@ A self-sufficient runtime for containers.
 
 Options:
 
-  --config=~/.docker              Location of client config files
-  -D, --debug                     Enable debug mode
-  -H, --host=[]                   Daemon socket(s) to connect to
-  --help                          Print usage
-  -l, --log-level=info            Set the logging level
-  --tls                           Use TLS; implied by --tlsverify
-  --tlscacert=~/.docker/ca.pem    Trust certs signed only by this CA
-  --tlscert=~/.docker/cert.pem    Path to TLS certificate file
-  --tlskey=~/.docker/key.pem      Path to TLS key file
-  --tlsverify                     Use TLS and verify the remote
-  -v, --version                   Print version information and quit
+      --config string      Location of client config files (default "/root/.docker")
+  -D, --debug              Enable debug mode
+      --help               Print usage
+  -H, --host value         Daemon socket(s) to connect to (default [])
+  -l, --log-level string   Set the logging level (debug, info, warn, error, fatal) (default "info")
+      --tls                Use TLS; implied by --tlsverify
+      --tlscacert string   Trust certs signed only by this CA (default "/root/.docker/ca.pem")
+      --tlscert string     Path to TLS certificate file (default "/root/.docker/cert.pem")
+      --tlskey string      Path to TLS key file (default "/root/.docker/key.pem")
+      --tlsverify          Use TLS and verify the remote
+  -v, --version            Print version information and quit
 
 Commands:
     attach    Attach to a running container
