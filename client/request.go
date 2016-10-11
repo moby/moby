@@ -100,10 +100,8 @@ func (cli *Client) sendClientRequest(ctx context.Context, method, path string, q
 		req.Host = "docker"
 	}
 
-	scheme := resolveScheme(cli.client.Transport)
-
 	req.URL.Host = cli.addr
-	req.URL.Scheme = scheme
+	req.URL.Scheme = cli.scheme
 
 	if expectedPayload && req.Header.Get("Content-Type") == "" {
 		req.Header.Set("Content-Type", "text/plain")
@@ -111,11 +109,11 @@ func (cli *Client) sendClientRequest(ctx context.Context, method, path string, q
 
 	resp, err := ctxhttp.Do(ctx, cli.client, req)
 	if err != nil {
-		if scheme != "https" && strings.Contains(err.Error(), "malformed HTTP response") {
+		if cli.scheme != "https" && strings.Contains(err.Error(), "malformed HTTP response") {
 			return serverResp, fmt.Errorf("%v.\n* Are you trying to connect to a TLS-enabled daemon without TLS?", err)
 		}
 
-		if scheme == "https" && strings.Contains(err.Error(), "bad certificate") {
+		if cli.scheme == "https" && strings.Contains(err.Error(), "bad certificate") {
 			return serverResp, fmt.Errorf("The server probably has client authentication (--tlsverify) enabled. Please check your TLS client certification settings: %v", err)
 		}
 

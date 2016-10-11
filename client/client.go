@@ -63,6 +63,8 @@ const DefaultVersion string = "1.23"
 // Client is the API client that performs all operations
 // against a docker server.
 type Client struct {
+	// scheme sets the scheme for the client
+	scheme string
 	// host holds the server address to connect to
 	host string
 	// proto holds the client protocol i.e. unix.
@@ -143,7 +145,19 @@ func NewClient(host string, version string, client *http.Client, httpHeaders map
 		}
 	}
 
+	scheme := "http"
+	tlsConfig := resolveTLSConfig(client.Transport)
+	if tlsConfig != nil {
+		// TODO(stevvooe): This isn't really the right way to write clients in Go.
+		// `NewClient` should probably only take an `*http.Client` and work from there.
+		// Unfortunately, the model of having a host-ish/url-thingy as the connection
+		// string has us confusing protocol and transport layers. We continue doing
+		// this to avoid breaking existing clients but this should be addressed.
+		scheme = "https"
+	}
+
 	return &Client{
+		scheme:            scheme,
 		host:              host,
 		proto:             proto,
 		addr:              addr,
