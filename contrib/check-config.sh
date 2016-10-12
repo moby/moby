@@ -252,8 +252,9 @@ echo '- Network Drivers:'
 {
 	echo '- "'$(wrap_color 'overlay' blue)'":'
 	check_flags VXLAN | sed 's/^/  /'
-	echo '  Optional (for secure networks):'
-	check_flags XFRM_ALGO XFRM_USER | sed 's/^/  /'
+	echo '    Optional (for encrypted networks):'
+	check_flags CRYPTO CRYPTO_AEAD CRYPTO_GCM CRYPTO_SEQIV CRYPTO_GHASH \
+	            XFRM XFRM_USER XFRM_ALGO INET_ESP INET_XFRM_MODE_TRANSPORT | sed 's/^/    /'
 	echo '- "'$(wrap_color 'ipvlan' blue)'":'
 	check_flags IPVLAN | sed 's/^/  /'
 	echo '- "'$(wrap_color 'macvlan' blue)'":'
