@@ -1,8 +1,8 @@
 #!/bin/bash
-
 # Make sure we're not using gos' Testing package any more in integration-cli
 
-source "${MAKEDIR}/.validate"
+export SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+source "${SCRIPTDIR}/.validate"
 
 IFS=$'\n'
 files=( $(validate_diff --diff-filter=ACMR --name-only -- 'integration-cli/*.go' || true) )
@@ -25,7 +25,7 @@ for f in "${files[@]}"; do
 done
 
 if [ ${#badFiles[@]} -eq 0 ]; then
-	echo 'Congratulations! No testing.T found.'
+	echo 'Congratulations!  No testing.T found.'
 else
 	{
 		echo "These files use the wrong testing infrastructure:"

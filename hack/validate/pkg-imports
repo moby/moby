@@ -1,7 +1,8 @@
 #!/bin/bash
 set -e
 
-source "${MAKEDIR}/.validate"
+export SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+source "${SCRIPTDIR}/.validate"
 
 IFS=$'\n'
 files=( $(validate_diff --diff-filter=ACMR --name-only -- 'pkg/*.go' || true) )
@@ -19,7 +20,7 @@ for f in "${files[@]}"; do
 done
 
 if [ ${#badFiles[@]} -eq 0 ]; then
-	echo 'Congratulations! "./pkg/..." is safely isolated from internal code.'
+	echo 'Congratulations!  "./pkg/..." is safely isolated from internal code.'
 else
 	{
 		echo 'These files import internal code: (either directly or indirectly)'
