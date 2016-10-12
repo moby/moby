@@ -90,3 +90,20 @@ func (s *DockerSwarmSuite) TestStackWithDAB(c *check.C) {
 	c.Assert(err, checker.IsNil)
 	c.Assert(out, check.Equals, "NAME  SERVICES\n")
 }
+
+func (s *DockerSwarmSuite) TestStackWithDABExtension(c *check.C) {
+	// setup
+	testStackName := "test.dab"
+	testDABFileName := testStackName
+	defer os.RemoveAll(testDABFileName)
+	err := ioutil.WriteFile(testDABFileName, []byte(testDAB), 0444)
+	c.Assert(err, checker.IsNil)
+	d := s.AddDaemon(c, true, true)
+	// deploy
+	stackArgs := []string{"stack", "deploy", testStackName}
+	out, err := d.Cmd(stackArgs...)
+	c.Assert(err, checker.IsNil)
+	c.Assert(out, checker.Contains, "Loading bundle from test.dab\n")
+	c.Assert(out, checker.Contains, "Creating service test_srv1\n")
+	c.Assert(out, checker.Contains, "Creating service test_srv2\n")
+}
