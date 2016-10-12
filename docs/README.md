@@ -3,6 +3,9 @@
 The documentation for Docker Engine has been merged into
 [the general documentation repo](https://github.com/docker/docker.github.io).
 
+See the [README](https://github.com/docker/docker.github.io/blob/master/README.md)
+for instructions on contributing to and building the documentation.
+
 If you'd like to edit the current published version of the Engine docs,
 do it in the master branch here:
 https://github.com/docker/docker.github.io/tree/master/engine
