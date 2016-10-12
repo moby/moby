@@ -26,20 +26,3 @@ func resolveTLSConfig(transport http.RoundTripper) *tls.Config {
 		return nil
 	}
 }
-
-// resolveScheme detects a tls config on the transport and returns the
-// appropriate http scheme.
-//
-// TODO(stevvooe): This isn't really the right way to write clients in Go.
-// `NewClient` should probably only take an `*http.Client` and work from there.
-// Unfortunately, the model of having a host-ish/url-thingy as the connection
-// string has us confusing protocol and transport layers. We continue doing
-// this to avoid breaking existing clients but this should be addressed.
-func resolveScheme(transport http.RoundTripper) string {
-	c := resolveTLSConfig(transport)
-	if c != nil {
-		return "https"
-	}
-
-	return "http"
-}
