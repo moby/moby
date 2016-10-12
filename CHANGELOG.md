@@ -5,6 +5,80 @@ information on the list of deprecated flags and APIs please have a look at
 https://docs.docker.com/engine/deprecated/ where target removal dates can also
 be found.
 
+## 1.12.2 (2016-10-11)
+
+**IMPORTANT**: Docker 1.12 ships with an updated systemd unit file for rpm
+based installs (which includes RHEL, Fedora, CentOS, and Oracle Linux 7). When
+upgrading from an older version of docker, the upgrade process may not
+automatically install the updated version of the unit file, or fail to start
+the docker service if;
+
+- the systemd unit file (`/usr/lib/systemd/system/docker.service`) contains local changes, or
+- a systemd drop-in file is present, and contains `-H fd://` in the `ExecStart` directive
+
+Starting the docker service will produce an error:
+
+    Failed to start docker.service: Unit docker.socket failed to load: No such file or directory.
+
+or
+
+    no sockets found via socket activation: make sure the service was started by systemd.
+
+To resolve this:
+
+- Backup the current version of the unit file, and replace the file with the
+  [version that ships with docker 1.12](https://raw.githubusercontent.com/docker/docker/v1.12.0/contrib/init/systemd/docker.service.rpm)
+- Remove the `Requires=docker.socket` directive from the `/usr/lib/systemd/system/docker.service` file if present
+- Remove `-H fd://` from the `ExecStart` directive (both in the main unit file, and in any drop-in files present).
+
+After making those changes, run `sudo systemctl daemon-reload`, and `sudo
+systemctl restart docker` to reload changes and (re)start the docker daemon.
+
+
+### Runtime
+
+- Fix a panic due to a race condition filtering `docker ps` [#26049](https://github.com/docker/docker/pull/26049)
+* Implement retry logic to prevent "Unable to remove filesystem" errors when using the aufs storage driver [#26536](https://github.com/docker/docker/pull/26536)
+* Prevent devicemapper from removing device symlinks if `dm.use_deferred_removal` is enabled [#24740](https://github.com/docker/docker/pull/24740)
+- Fix an issue where the CLI did not return correct exit codes if a command was run with invalid options [#26777](https://github.com/docker/docker/pull/26777)
+- Fix a panic due to a bug in stdout / stderr processing in health checks [#26507](https://github.com/docker/docker/pull/26507)
+- Fix exec's children handling [#26874](https://github.com/docker/docker/pull/26874)
+- Fix exec form of HEALTHCHECK CMD [#26208](https://github.com/docker/docker/pull/26208)
+
+### Networking
+
+- Fix a daemon start panic on armv5 [#24315](https://github.com/docker/docker/issues/24315)
+* Vendor libnetwork [#26879](https://github.com/docker/docker/pull/26879) [#26953](https://github.com/docker/docker/pull/26953)
+ * Avoid returning early on agent join failures [docker/libnetwork#1473](https://github.com/docker/libnetwork/pull/1473)
+ - Fix service published port cleanup issues [docker/libetwork#1432](https://github.com/docker/libnetwork/pull/1432) [docker/libnetwork#1433](https://github.com/docker/libnetwork/pull/1433)
+ * Recover properly from transient gossip failures [docker/libnetwork#1446](https://github.com/docker/libnetwork/pull/1446)
+ * Disambiguate node names known to gossip cluster to avoid node name collision [docker/libnetwork#1451](https://github.com/docker/libnetwork/pull/1451)
+ * Honor user provided listen address for gossip  [docker/libnetwork#1460](https://github.com/docker/libnetwork/pull/1460)
+ * Allow reachability via published port across services on the same host [docker/libnetwork#1398](https://github.com/docker/libnetwork/pull/1398)
+ * Change the ingress sandbox name from random id to just `ingress_sbox` [docker/libnetwork#1449](https://github.com/docker/libnetwork/pull/1449)
+ - Disable service discovery in ingress network [docker/libnetwork#1489](https://github.com/docker/libnetwork/pull/1489)
+
+### Swarm Mode
+
+* Fix remote detection of a node's address when it joins the cluster [#26211](https://github.com/docker/docker/pull/26211)
+* Vendor SwarmKit [#26765](https://github.com/docker/docker/pull/26765)
+ * Bounce session after failed status update [docker/swarmkit#1539](https://github.com/docker/swarmkit/pull/1539)
+ - Fix possible raft deadlocks [docker/swarmkit#1537](https://github.com/docker/swarmkit/pull/1537)
+ - Fix panic and endpoint leak when a service is updated with no endpoints [docker/swarmkit#1481](https://github.com/docker/swarmkit/pull/1481)
+ * Produce an error if the same port is published twice on `service create` or `service update` [docker/swarmkit#1495](https://github.com/docker/swarmkit/pull/1495)
+ - Fix an issue where changes to a service were not detected, resulting in the service not being updated [docker/swarmkit#1497](https://github.com/docker/swarmkit/pull/1497)
+ - Do not allow service creation on ingress network [docker/swarmkit#1600](https://github.com/docker/swarmkit/pull/1600)
+
+### Contrib
+
+* Update the debian sysv-init script to use `dockerd` instead of `docker daemon` [#25869](https://github.com/docker/docker/pull/25869)
+* Improve stability when running the docker client on MacOS Sierra [#26875](https://github.com/docker/docker/pull/26875)
+- Fix installation on debian stretch [#27184](https://github.com/docker/docker/pull/27184)
+
+### Windows
+
+- Fix an issue where arrow-navigation did not work when running the docker client in ConEmu [#25578](https://github.com/docker/docker/pull/25578)
+
 ## 1.12.1 (2016-08-18)
 
 **IMPORTANT**: Docker 1.12 ships with an updated systemd unit file for rpm
