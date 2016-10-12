@@ -5,7 +5,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/docker/docker/plugin/getter"
+	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/libnetwork/driverapi"
 	"github.com/docker/libnetwork/ipamapi"
 	"github.com/docker/libnetwork/types"
@@ -33,7 +33,7 @@ type DrvRegistry struct {
 	ipamDrivers  ipamTable
 	dfn          DriverNotifyFunc
 	ifn          IPAMNotifyFunc
-	pluginGetter getter.PluginGetter
+	pluginGetter plugingetter.PluginGetter
 }
 
 // Functors definition
@@ -54,7 +54,7 @@ type IPAMNotifyFunc func(name string, driver ipamapi.Ipam, cap *ipamapi.Capabili
 type DriverNotifyFunc func(name string, driver driverapi.Driver, capability driverapi.Capability) error
 
 // New retruns a new driver registry handle.
-func New(lDs, gDs interface{}, dfn DriverNotifyFunc, ifn IPAMNotifyFunc, pg getter.PluginGetter) (*DrvRegistry, error) {
+func New(lDs, gDs interface{}, dfn DriverNotifyFunc, ifn IPAMNotifyFunc, pg plugingetter.PluginGetter) (*DrvRegistry, error) {
 	r := &DrvRegistry{
 		drivers:      make(driverTable),
 		ipamDrivers:  make(ipamTable),
@@ -153,7 +153,7 @@ func (r *DrvRegistry) IPAMDefaultAddressSpaces(name string) (string, string, err
 }
 
 // GetPluginGetter returns the plugingetter
-func (r *DrvRegistry) GetPluginGetter() getter.PluginGetter {
+func (r *DrvRegistry) GetPluginGetter() plugingetter.PluginGetter {
 	return r.pluginGetter
 }
 

@@ -12,7 +12,7 @@ import (
 
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/idtools"
-	"github.com/docker/docker/plugin/getter"
+	"github.com/docker/docker/pkg/plugingetter"
 )
 
 // FsMagic unsigned id of the filesystem in use.
@@ -135,11 +135,11 @@ func Register(name string, initFunc InitFunc) error {
 }
 
 // GetDriver initializes and returns the registered driver
-func GetDriver(name, home string, options []string, uidMaps, gidMaps []idtools.IDMap, plugingetter getter.PluginGetter) (Driver, error) {
+func GetDriver(name, home string, options []string, uidMaps, gidMaps []idtools.IDMap, pg plugingetter.PluginGetter) (Driver, error) {
 	if initFunc, exists := drivers[name]; exists {
 		return initFunc(filepath.Join(home, name), options, uidMaps, gidMaps)
 	}
-	if pluginDriver, err := lookupPlugin(name, home, options, plugingetter); err == nil {
+	if pluginDriver, err := lookupPlugin(name, home, options, pg); err == nil {
 		return pluginDriver, nil
 	}
 	logrus.Errorf("Failed to GetDriver graph %s %s", name, home)
@@ -156,10 +156,10 @@ func getBuiltinDriver(name, home string, options []string, uidMaps, gidMaps []id
 }
 
 // New creates the driver and initializes it at the specified root.
-func New(root string, name string, options []string, uidMaps, gidMaps []idtools.IDMap, plugingetter getter.PluginGetter) (Driver, error) {
+func New(root string, name string, options []string, uidMaps, gidMaps []idtools.IDMap, pg plugingetter.PluginGetter) (Driver, error) {
 	if name != "" {
 		logrus.Debugf("[graphdriver] trying provided driver: %s", name) // so the logs show specified driver
-		return GetDriver(name, root, options, uidMaps, gidMaps, plugingetter)
+		return GetDriver(name, root, options, uidMaps, gidMaps, pg)
 	}
 
 	// Guess for prior driver

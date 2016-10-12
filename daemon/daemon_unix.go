@@ -613,7 +613,7 @@ func configureKernelSecuritySupport(config *Config, driverName string) error {
 }
 
 func (daemon *Daemon) initNetworkController(config *Config, activeSandboxes map[string]interface{}) (libnetwork.NetworkController, error) {
-	netOptions, err := daemon.networkOptions(config, daemon.pluginStore, activeSandboxes)
+	netOptions, err := daemon.networkOptions(config, daemon.PluginStore, activeSandboxes)
 	if err != nil {
 		return nil, err
 	}
