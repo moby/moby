@@ -1,6 +1,7 @@
 package libcontainerd
 
 import (
+	"fmt"
 	"io"
 	"strings"
 	"syscall"
@@ -104,8 +105,10 @@ func (ctr *container) start() error {
 		exitCode := ctr.waitProcessExitCode(&ctr.process)
 
 		if exitCode != 0 {
-			logrus.Warnf("libcontainerd: servicing container %s returned non-zero exit code %d", ctr.containerID, exitCode)
-			return ctr.terminate()
+			if err := ctr.terminate(); err != nil {
+				logrus.Warnf("libcontainerd: terminating servicing container %s failed: %s", ctr.containerID, err)
+			}
+			return fmt.Errorf("libcontainerd: servicing container %s returned non-zero exit code %d", ctr.containerID, exitCode)
 		}
 
 		return ctr.hcsContainer.WaitTimeout(time.Minute * 5)
