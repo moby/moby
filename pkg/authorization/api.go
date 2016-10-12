@@ -16,6 +16,9 @@ type Request struct {
 	// User holds the user extracted by AuthN mechanism
 	User string `json:"User,omitempty"`
 
+	// UID holds the uid extracted by AuthN mechanism
+	UID string `json:"UID,omitempty"`
+
 	// UserAuthNMethod holds the mechanism used to extract user details (e.g., krb)
 	UserAuthNMethod string `json:"UserAuthNMethod,omitempty"`
 

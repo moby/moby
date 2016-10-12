@@ -230,7 +230,7 @@ func (d *Daemon) StartWithLogFile(out *os.File, providedArgs ...string) error {
 			if err != nil {
 				continue
 			}
-			if resp.StatusCode != http.StatusOK {
+			if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusUnauthorized {
 				d.c.Logf("[%s] received status != 200 OK: %s", d.id, resp.Status)
 			}
 			d.c.Logf("[%s] daemon started", d.id)
