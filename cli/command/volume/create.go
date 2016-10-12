@@ -17,12 +17,13 @@ type createOptions struct {
 	name       string
 	driver     string
 	driverOpts opts.MapOpts
-	labels     []string
+	labels     opts.ListOpts
 }
 
 func newCreateCommand(dockerCli *command.DockerCli) *cobra.Command {
 	opts := createOptions{
 		driverOpts: *opts.NewMapOpts(nil, nil),
+		labels:     opts.NewListOpts(runconfigopts.ValidateEnv),
 	}
 
 	cmd := &cobra.Command{
@@ -46,7 +47,7 @@ func newCreateCommand(dockerCli *command.DockerCli) *cobra.Command {
 	flags.StringVar(&opts.name, "name", "", "Specify volume name")
 	flags.Lookup("name").Hidden = true
 	flags.VarP(&opts.driverOpts, "opt", "o", "Set driver specific options")
-	flags.StringSliceVar(&opts.labels, "label", []string{}, "Set metadata for a volume")
+	flags.Var(&opts.labels, "label", "Set metadata for a volume")
 
 	return cmd
 }
@@ -58,7 +59,7 @@ func runCreate(dockerCli *command.DockerCli, opts createOptions) error {
 		Driver:     opts.driver,
 		DriverOpts: opts.driverOpts.GetAll(),
 		Name:       opts.name,
-		Labels:     runconfigopts.ConvertKVStringsToMap(opts.labels),
+		Labels:     runconfigopts.ConvertKVStringsToMap(opts.labels.GetAll()),
 	}
 
 	vol, err := client.VolumeCreate(context.Background(), volReq)
