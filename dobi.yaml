@@ -16,6 +16,8 @@ image=builder:
     image: docker-dev
     dockerfile: Dockerfile.build
     context: dockerfiles
+    args:
+      APT_MIRROR: '{env.APT_MIRROR:httpredir.debian.org}'
 
 image=validator:
     image: docker-validator
@@ -38,9 +40,24 @@ job=validate:
 job=test-unit:
     use: builder
     mounts: [source]
-    interactive: true
+    privileged: true
     command: "hack/make.sh test-unit"
     description: "Run the unit test suite"
+
+job=binary:
+    use: builder
+    mounts: [source]
+    command: "hack/make.sh binary"
+    description: "Build the linux binary"
+    # TODO: set the artifact paths
+
+job=shell:
+    use: builder
+    mounts: [source]
+    interactive: true
+    provide-docker: true
+    command: bash
+    description: "Start an interactive dev environment"
 
 
 alias=test:
