@@ -1,4 +1,8 @@
-
+#
+# Docker project tasks
+#
+# Config reference: http://dnephin.github.io/dobi/config.html
+#
 meta:
     project: docker
     default: all
@@ -8,21 +12,40 @@ mount=source:
     path: /go/src/github.com/docker/docker
 
 
-image=dev:
+image=builder:
     image: docker-dev
-    dockerfile: Dockerfile.dev
+    dockerfile: Dockerfile.build
     context: dockerfiles
 
+image=validator:
+    image: docker-validator
+    dockerfile: Dockerfile.validate
+    context: dockerfiles
+
+
 job=validate-vendor:
-    use: dev
+    use: validator
     mounts: [source]
     command: hack/validate/vendor
+    description: "Perform a vendor and validate that no files changed"
 
 job=validate:
-    use: dev
+    use: validator
     mounts: [source]
     command: hack/validate/all
+    description: "Run all validation checks"
 
+job=test-unit:
+    use: builder
+    mounts: [source]
+    interactive: true
+    command: "hack/make.sh test-unit"
+    description: "Run the unit test suite"
+
+
+alias=test:
+    tasks: [test-unit]
 
 alias=all:
-    tasks: [validate, validate-vendor]
+    tasks: [validate, validate-vendor, test]
+    description: "Run every project task"
