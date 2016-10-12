@@ -37,10 +37,6 @@ import (
 const filterDriver = 1
 
 var (
-	vmcomputedll            = syscall.NewLazyDLL("vmcompute.dll")
-	hcsExpandSandboxSize    = vmcomputedll.NewProc("ExpandSandboxSize")
-	hcsSandboxSizeSupported = hcsExpandSandboxSize.Find() == nil
-
 	// mutatedFiles is a list of files that are mutated by the import process
 	// and must be backed up and restored.
 	mutatedFiles = map[string]string{
@@ -212,7 +208,7 @@ func (d *Driver) create(id, parent, mountLabel string, readOnly bool, storageOpt
 			return fmt.Errorf("Failed to parse storage options - %s", err)
 		}
 
-		if hcsSandboxSizeSupported {
+		if storageOptions.size != 0 {
 			if err := hcsshim.ExpandSandboxSize(d.info, id, storageOptions.size); err != nil {
 				return err
 			}
