@@ -476,10 +476,6 @@ func NewDaemon(config *Config, registryService registry.Service, containerdRemot
 		return nil, err
 	}
 
-	// set up SIGUSR1 handler on Unix-like systems, or a Win32 global event
-	// on Windows to dump Go routine stacks
-	setupDumpStackTrap(config.Root)
-
 	uidMaps, gidMaps, err := setupRemappedRoot(config)
 	if err != nil {
 		return nil, err
@@ -698,6 +694,10 @@ func NewDaemon(config *Config, registryService registry.Service, containerdRemot
 	).Set(1)
 	engineCpus.Set(float64(info.NCPU))
 	engineMemory.Set(float64(info.MemTotal))
+
+	// set up SIGUSR1 handler on Unix-like systems, or a Win32 global event
+	// on Windows to dump Go routine stacks
+	d.setupDumpStackTrap(config.Root)
 
 	return d, nil
 }

@@ -6,6 +6,7 @@ import (
 	gosignal "os/signal"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"sync/atomic"
 	"syscall"
 	"time"
@@ -82,7 +83,7 @@ func DumpStacks(dir string) (string, error) {
 		bufferLen *= 2
 	}
 	buf = buf[:stackSize]
-	path := filepath.Join(dir, fmt.Sprintf(stacksLogNameTemplate, time.Now().Format(time.RFC3339)))
+	path := filepath.Join(dir, fmt.Sprintf(stacksLogNameTemplate, strings.Replace(time.Now().Format(time.RFC3339), ":", "", -1)))
 	f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY, 0666)
 	if err != nil {
 		return "", errors.Wrap(err, "failed to open file to write the goroutine stacks")
