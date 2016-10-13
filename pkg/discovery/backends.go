@@ -69,7 +69,7 @@ func ParseAdvertise(advertise string) (string, error) {
 		return "", fmt.Errorf("unable to get advertise IP address from interface (%s) : %v", advertise, err)
 	}
 
-	if addrs == nil || len(addrs) == 0 {
+	if len(addrs) == 0 {
 		return "", fmt.Errorf("no available advertise IP address in interface (%s)", advertise)
 	}
 
