@@ -68,7 +68,7 @@ func (i *InStream) CheckTty(attachStdin, ttyMode bool) error {
 	return nil
 }
 
-// NewInStream returns a new OutStream object from a Writer
+// NewInStream returns a new InStream object from a ReadCloser
 func NewInStream(in io.ReadCloser) *InStream {
 	fd, isTerminal := term.GetFdInfo(in)
 	return &InStream{in: in, fd: fd, isTerminal: isTerminal}
