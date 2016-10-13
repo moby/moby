@@ -56,9 +56,7 @@ func (daemon *Daemon) setupLinkedContainers(container *container.Container) ([]s
 			child.Config.ExposedPorts,
 		)
 
-		for _, envVar := range link.ToEnv() {
-			env = append(env, envVar)
-		}
+		env = append(env, link.ToEnv()...)
 	}
 
 	return env, nil

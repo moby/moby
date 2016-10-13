@@ -146,9 +146,7 @@ func (s *Server) makeHTTPHandler(handler httputils.APIFunc) http.HandlerFunc {
 // InitRouter initializes the list of routers for the server.
 // This method also enables the Go profiler if enableProfiler is true.
 func (s *Server) InitRouter(enableProfiler bool, routers ...router.Router) {
-	for _, r := range routers {
-		s.routers = append(s.routers, r)
-	}
+	s.routers = append(s.routers, routers...)
 
 	m := s.createMux()
 	if enableProfiler {

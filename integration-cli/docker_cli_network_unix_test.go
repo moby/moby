@@ -288,9 +288,7 @@ func (s *DockerSuite) TestNetworkLsFormat(c *check.C) {
 
 	expected := []string{"bridge", "host", "none"}
 	var names []string
-	for _, l := range lines {
-		names = append(names, l)
-	}
+	names = append(names, lines...)
 	c.Assert(expected, checker.DeepEquals, names, check.Commentf("Expected array with truncated names: %v, got: %v", expected, names))
 }
 
@@ -312,9 +310,7 @@ func (s *DockerSuite) TestNetworkLsFormatDefaultFormat(c *check.C) {
 
 	expected := []string{"bridge default", "host default", "none default"}
 	var names []string
-	for _, l := range lines {
-		names = append(names, l)
-	}
+	names = append(names, lines...)
 	c.Assert(expected, checker.DeepEquals, names, check.Commentf("Expected array with truncated names: %v, got: %v", expected, names))
 }
 

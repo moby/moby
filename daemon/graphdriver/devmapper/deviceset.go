@@ -583,9 +583,7 @@ func (devices *DeviceSet) createFilesystem(info *devInfo) (err error) {
 	devname := info.DevName()
 
 	args := []string{}
-	for _, arg := range devices.mkfsArgs {
-		args = append(args, arg)
-	}
+	args = append(args, devices.mkfsArgs...)
 
 	args = append(args, devname)
 
