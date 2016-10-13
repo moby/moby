@@ -179,11 +179,18 @@ func GetDriverList() []string {
 
 // GetAllDrivers lists all the registered drivers
 func GetAllDrivers() ([]volume.Driver, error) {
-	plugins, err := drivers.plugingetter.GetAllByCap(extName)
-	if err != nil {
-		return nil, fmt.Errorf("error listing plugins: %v", err)
+	var (
+		plugins []getter.CompatPlugin
+		ds      []volume.Driver
+		err     error
+	)
+
+	if drivers.plugingetter != nil {
+		plugins, err = drivers.plugingetter.GetAllByCap(extName)
+		if err != nil {
+			return nil, fmt.Errorf("error listing plugins: %v", err)
+		}
 	}
-	var ds []volume.Driver
 
 	drivers.Lock()
 	defer drivers.Unlock()
