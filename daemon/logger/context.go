@@ -75,9 +75,7 @@ func (ctx *Context) Hostname() (string, error) {
 // arguments.
 func (ctx *Context) Command() string {
 	terms := []string{ctx.ContainerEntrypoint}
-	for _, arg := range ctx.ContainerArgs {
-		terms = append(terms, arg)
-	}
+	terms = append(terms, ctx.ContainerArgs...)
 	command := strings.Join(terms, " ")
 	return command
 }

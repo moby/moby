@@ -106,9 +106,7 @@ func (s *DockerSuite) TestVolumeLsFormat(c *check.C) {
 
 	expected := []string{"aaa", "soo", "test"}
 	var names []string
-	for _, l := range lines {
-		names = append(names, l)
-	}
+	names = append(names, lines...)
 	c.Assert(expected, checker.DeepEquals, names, check.Commentf("Expected array with truncated names: %v, got: %v", expected, names))
 }
 
@@ -132,9 +130,7 @@ func (s *DockerSuite) TestVolumeLsFormatDefaultFormat(c *check.C) {
 
 	expected := []string{"aaa default", "soo default", "test default"}
 	var names []string
-	for _, l := range lines {
-		names = append(names, l)
-	}
+	names = append(names, lines...)
 	c.Assert(expected, checker.DeepEquals, names, check.Commentf("Expected array with truncated names: %v, got: %v", expected, names))
 }
 

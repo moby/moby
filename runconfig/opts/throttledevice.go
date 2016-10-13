@@ -100,9 +100,7 @@ func (opt *ThrottledeviceOpt) String() string {
 // GetList returns a slice of pointers to ThrottleDevices.
 func (opt *ThrottledeviceOpt) GetList() []*blkiodev.ThrottleDevice {
 	var throttledevice []*blkiodev.ThrottleDevice
-	for _, v := range opt.values {
-		throttledevice = append(throttledevice, v)
-	}
+	throttledevice = append(throttledevice, opt.values...)
 
 	return throttledevice
 }

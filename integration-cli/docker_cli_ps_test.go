@@ -566,9 +566,7 @@ func (s *DockerSuite) TestPsFormatMultiNames(c *check.C) {
 	lines := strings.Split(strings.TrimSpace(string(out)), "\n")
 	expected := []string{"parent", "child,parent/linkedone"}
 	var names []string
-	for _, l := range lines {
-		names = append(names, l)
-	}
+	names = append(names, lines...)
 	c.Assert(expected, checker.DeepEquals, names, check.Commentf("Expected array with non-truncated names: %v, got: %v", expected, names))
 
 	//now list without turning off truncation and make sure we only get the non-link names
@@ -576,9 +574,7 @@ func (s *DockerSuite) TestPsFormatMultiNames(c *check.C) {
 	lines = strings.Split(strings.TrimSpace(string(out)), "\n")
 	expected = []string{"parent", "child"}
 	var truncNames []string
-	for _, l := range lines {
-		truncNames = append(truncNames, l)
-	}
+	truncNames = append(truncNames, lines...)
 	c.Assert(expected, checker.DeepEquals, truncNames, check.Commentf("Expected array with truncated names: %v, got: %v", expected, truncNames))
 }
 
@@ -592,9 +588,7 @@ func (s *DockerSuite) TestPsNamesMultipleTime(c *check.C) {
 	lines := strings.Split(strings.TrimSpace(string(out)), "\n")
 	expected := []string{"test2 test2", "test1 test1"}
 	var names []string
-	for _, l := range lines {
-		names = append(names, l)
-	}
+	names = append(names, lines...)
 	c.Assert(expected, checker.DeepEquals, names, check.Commentf("Expected array with names displayed twice: %v, got: %v", expected, names))
 }
 

@@ -333,9 +333,7 @@ func (s *DockerSuite) TestImagesFormat(c *check.C) {
 
 	expected := []string{"myimage", "myimage"}
 	var names []string
-	for _, l := range lines {
-		names = append(names, l)
-	}
+	names = append(names, lines...)
 	c.Assert(expected, checker.DeepEquals, names, check.Commentf("Expected array with truncated names: %v, got: %v", expected, names))
 }
 
