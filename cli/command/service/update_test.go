@@ -1,9 +1,12 @@
 package service
 
 import (
+	"reflect"
 	"sort"
 	"testing"
+	"time"
 
+	"github.com/docker/docker/api/types/container"
 	mounttypes "github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/pkg/testutil/assert"
@@ -195,4 +198,80 @@ func TestUpdatePortsConflictingFlags(t *testing.T) {
 
 	err := updatePorts(flags, &portConfigs)
 	assert.Error(t, err, "conflicting port mapping")
+}
+
+func TestUpdateHealthcheckTable(t *testing.T) {
+	type test struct {
+		flags    [][2]string
+		initial  *container.HealthConfig
+		expected *container.HealthConfig
+		err      string
+	}
+	testCases := []test{
+		{
+			flags:    [][2]string{{"no-healthcheck", "true"}},
+			initial:  &container.HealthConfig{Test: []string{"CMD-SHELL", "cmd1"}, Retries: 10},
+			expected: &container.HealthConfig{Test: []string{"NONE"}},
+		},
+		{
+			flags:    [][2]string{{"health-cmd", "cmd1"}},
+			initial:  &container.HealthConfig{Test: []string{"NONE"}},
+			expected: &container.HealthConfig{Test: []string{"CMD-SHELL", "cmd1"}},
+		},
+		{
+			flags:    [][2]string{{"health-retries", "10"}},
+			initial:  &container.HealthConfig{Test: []string{"NONE"}},
+			expected: &container.HealthConfig{Retries: 10},
+		},
+		{
+			flags:    [][2]string{{"health-retries", "10"}},
+			initial:  &container.HealthConfig{Test: []string{"CMD", "cmd1"}},
+			expected: &container.HealthConfig{Test: []string{"CMD", "cmd1"}, Retries: 10},
+		},
+		{
+			flags:    [][2]string{{"health-interval", "1m"}},
+			initial:  &container.HealthConfig{Test: []string{"CMD", "cmd1"}},
+			expected: &container.HealthConfig{Test: []string{"CMD", "cmd1"}, Interval: time.Minute},
+		},
+		{
+			flags:    [][2]string{{"health-cmd", ""}},
+			initial:  &container.HealthConfig{Test: []string{"CMD", "cmd1"}, Retries: 10},
+			expected: &container.HealthConfig{Retries: 10},
+		},
+		{
+			flags:    [][2]string{{"health-retries", "0"}},
+			initial:  &container.HealthConfig{Test: []string{"CMD", "cmd1"}, Retries: 10},
+			expected: &container.HealthConfig{Test: []string{"CMD", "cmd1"}},
+		},
+		{
+			flags: [][2]string{{"health-cmd", "cmd1"}, {"no-healthcheck", "true"}},
+			err:   "--no-healthcheck conflicts with --health-* options",
+		},
+		{
+			flags: [][2]string{{"health-interval", "10m"}, {"no-healthcheck", "true"}},
+			err:   "--no-healthcheck conflicts with --health-* options",
+		},
+		{
+			flags: [][2]string{{"health-timeout", "1m"}, {"no-healthcheck", "true"}},
+			err:   "--no-healthcheck conflicts with --health-* options",
+		},
+	}
+	for i, c := range testCases {
+		flags := newUpdateCommand(nil).Flags()
+		for _, flag := range c.flags {
+			flags.Set(flag[0], flag[1])
+		}
+		cspec := &swarm.ContainerSpec{
+			Healthcheck: c.initial,
+		}
+		err := updateHealthcheck(flags, cspec)
+		if c.err != "" {
+			assert.Error(t, err, c.err)
+		} else {
+			assert.NilError(t, err)
+			if !reflect.DeepEqual(cspec.Healthcheck, c.expected) {
+				t.Errorf("incorrect result for test %d, expected health config:\n\t%#v\ngot:\n\t%#v", i, c.expected, cspec.Healthcheck)
+			}
+		}
+	}
 }

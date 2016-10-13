@@ -18,6 +18,7 @@ import (
 	"github.com/docker/docker/reference"
 	"github.com/docker/swarmkit/agent/exec"
 	"github.com/docker/swarmkit/api"
+	"github.com/docker/swarmkit/protobuf/ptypes"
 )
 
 const (
@@ -124,12 +125,13 @@ func (c *containerConfig) image() string {
 
 func (c *containerConfig) config() *enginecontainer.Config {
 	config := &enginecontainer.Config{
-		Labels:     c.labels(),
-		User:       c.spec().User,
-		Env:        c.spec().Env,
-		WorkingDir: c.spec().Dir,
-		Image:      c.image(),
-		Volumes:    c.volumes(),
+		Labels:      c.labels(),
+		User:        c.spec().User,
+		Env:         c.spec().Env,
+		WorkingDir:  c.spec().Dir,
+		Image:       c.image(),
+		Volumes:     c.volumes(),
+		Healthcheck: c.healthcheck(),
 	}
 
 	if len(c.spec().Command) > 0 {
@@ -222,6 +224,21 @@ func (c *containerConfig) binds() []string {
 		}
 	}
 	return r
+}
+
+func (c *containerConfig) healthcheck() *enginecontainer.HealthConfig {
+	hcSpec := c.spec().Healthcheck
+	if hcSpec == nil {
+		return nil
+	}
+	interval, _ := ptypes.Duration(hcSpec.Interval)
+	timeout, _ := ptypes.Duration(hcSpec.Timeout)
+	return &enginecontainer.HealthConfig{
+		Test:     hcSpec.Test,
+		Interval: interval,
+		Timeout:  timeout,
+		Retries:  int(hcSpec.Retries),
+	}
 }
 
 func getMountMask(m *api.Mount) string {

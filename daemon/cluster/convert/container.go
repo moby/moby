@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	container "github.com/docker/docker/api/types/container"
 	mounttypes "github.com/docker/docker/api/types/mount"
 	types "github.com/docker/docker/api/types/swarm"
 	swarmapi "github.com/docker/swarmkit/api"
@@ -56,6 +57,11 @@ func containerSpecFromGRPC(c *swarmapi.ContainerSpec) types.ContainerSpec {
 		grace, _ := ptypes.Duration(c.StopGracePeriod)
 		containerSpec.StopGracePeriod = &grace
 	}
+
+	if c.Healthcheck != nil {
+		containerSpec.Healthcheck = healthConfigFromGRPC(c.Healthcheck)
+	}
+
 	return containerSpec
 }
 
@@ -115,5 +121,29 @@ func containerToGRPC(c types.ContainerSpec) (*swarmapi.ContainerSpec, error) {
 		containerSpec.Mounts = append(containerSpec.Mounts, mount)
 	}
 
+	if c.Healthcheck != nil {
+		containerSpec.Healthcheck = healthConfigToGRPC(c.Healthcheck)
+	}
+
 	return containerSpec, nil
+}
+
+func healthConfigFromGRPC(h *swarmapi.HealthConfig) *container.HealthConfig {
+	interval, _ := ptypes.Duration(h.Interval)
+	timeout, _ := ptypes.Duration(h.Timeout)
+	return &container.HealthConfig{
+		Test:     h.Test,
+		Interval: interval,
+		Timeout:  timeout,
+		Retries:  int(h.Retries),
+	}
+}
+
+func healthConfigToGRPC(h *container.HealthConfig) *swarmapi.HealthConfig {
+	return &swarmapi.HealthConfig{
+		Test:     h.Test,
+		Interval: ptypes.DurationProto(h.Interval),
+		Timeout:  ptypes.DurationProto(h.Timeout),
+		Retries:  int32(h.Retries),
+	}
 }
