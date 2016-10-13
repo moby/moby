@@ -697,7 +697,7 @@ func parseSecurityOpts(securityOpts []string) ([]string, error) {
 	for key, opt := range securityOpts {
 		con := strings.SplitN(opt, "=", 2)
 		if len(con) == 1 && con[0] != "no-new-privileges" {
-			if strings.Index(opt, ":") != -1 {
+			if strings.Contains(opt, ":") {
 				con = strings.SplitN(opt, ":", 2)
 			} else {
 				return securityOpts, fmt.Errorf("Invalid --security-opt: %q", opt)
