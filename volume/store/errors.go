@@ -12,7 +12,7 @@ var (
 	errNoSuchVolume = errors.New("no such volume")
 	// errInvalidName is a typed error returned when creating a volume with a name that is not valid on the platform
 	errInvalidName = errors.New("volume name is not valid on this platform")
-	// errNameConflict is a typed error returned on create when a volume exists with the given name, but for a different driver
+	// errNameConflict is a typed error returned on create when a volume exists with the given name
 	errNameConflict = errors.New("conflict: volume name must be unique")
 )
 

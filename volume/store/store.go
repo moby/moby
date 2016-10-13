@@ -60,6 +60,19 @@ func (v volumeWrapper) CachedPath() string {
 	return v.Volume.Path()
 }
 
+// VolumeStore is a struct that stores the list of volumes available and keeps track of their usage counts
+type VolumeStore struct {
+	locks      *locker.Locker
+	globalLock sync.Mutex
+	// names stores the volume name -> specified volume relationship.
+	names map[string]volume.Volume
+	// refs stores the volume name and the list of things referencing it
+	refs map[string][]string
+	// labels stores volume labels for each volume
+	labels map[string]map[string]string
+	db     *bolt.DB
+}
+
 // New initializes a VolumeStore to keep
 // reference counting of volumes in the system.
 func New(rootPath string) (*VolumeStore, error) {
@@ -163,12 +176,12 @@ func (s *VolumeStore) List() ([]volume.Volume, []string, error) {
 		// deleted before we acquire a lock on its name
 		if exists && storedV.DriverName() != v.DriverName() {
 			logrus.Warnf("Volume name %s already exists for driver %s, not including volume returned by %s", v.Name(), storedV.DriverName(), v.DriverName())
-			s.locks.Unlock(v.Name())
+			s.locks.Unlock(name)
 			continue
 		}
 
 		out = append(out, v)
-		s.locks.Unlock(v.Name())
+		s.locks.Unlock(name)
 	}
 	return out, warnings, nil
 }
@@ -236,24 +249,37 @@ func (s *VolumeStore) CreateWithRef(name, driverName, ref string, opts, labels m
 	s.locks.Lock(name)
 	defer s.locks.Unlock(name)
 
-	v, err := s.create(name, driverName, opts, labels)
-	if err != nil {
-		return nil, &OpErr{Err: err, Name: name, Op: "create"}
-	}
+	var err error
 
+	v, exist := s.getNamed(name)
+	if !exist {
+		// it means no volume with name exists, we should create one
+		v, err = s.create(name, driverName, opts, labels)
+		if err != nil {
+			return nil, &OpErr{Err: err, Name: name, Op: "create"}
+		}
+
+	}
 	s.setNamed(v, ref)
+
 	return v, nil
 }
 
 // Create creates a volume with the given name and driver.
 // This is just like CreateWithRef() except we don't store a reference while holding the lock.
 func (s *VolumeStore) Create(name, driverName string, opts, labels map[string]string) (volume.Volume, error) {
+	name = normaliseVolumeName(name)
+
+	if _, exists := s.getNamed(name); exists {
+		// if given name exists, return errNameConflict
+		return nil, errNameConflict
+	}
+
 	return s.CreateWithRef(name, driverName, "", opts, labels)
 }
 
 // create asks the given driver to create a volume with the name/opts.
-// If a volume with the name is already known, it will ask the stored driver for the volume.
-// If the passed in driver name does not match the driver name which is stored for the given volume name, an error is returned.
+// If a volume with the given name is already known, a conflict error will be returned.
 // It is expected that callers of this function hold any necessary locks.
 func (s *VolumeStore) create(name, driverName string, opts, labels map[string]string) (volume.Volume, error) {
 	// Validate the name in a platform-specific manner
@@ -265,23 +291,7 @@ func (s *VolumeStore) create(name, driverName string, opts, labels map[string]st
 		return nil, &OpErr{Err: errInvalidName, Name: name, Op: "create"}
 	}
 
-	if v, exists := s.getNamed(name); exists {
-		if v.DriverName() != driverName && driverName != "" && driverName != volume.DefaultDriverName {
-			return nil, errNameConflict
-		}
-		return v, nil
-	}
-
-	// Since there isn't a specified driver name, let's see if any of the existing drivers have this volume name
-	if driverName == "" {
-		v, _ := s.getVolume(name)
-		if v != nil {
-			return v, nil
-		}
-	}
-
 	vd, err := volumedrivers.CreateDriver(driverName)
-
 	if err != nil {
 		return nil, &OpErr{Op: "create", Name: name, Err: err}
 	}
