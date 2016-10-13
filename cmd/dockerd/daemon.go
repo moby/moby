@@ -397,7 +397,7 @@ func loadDaemonCliConfig(opts daemonOptions) (*daemon.Config, error) {
 	}
 
 	// ensure that the log level is the one set after merging configurations
-	cliflags.SetDaemonLogLevel(config.LogLevel)
+	cliflags.SetLogLevel(config.LogLevel)
 
 	return config, nil
 }
