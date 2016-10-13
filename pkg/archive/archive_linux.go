@@ -36,7 +36,7 @@ func (overlayWhiteoutConverter) ConvertWrite(hdr *tar.Header, path string, fi os
 		if err != nil {
 			return err
 		}
-		if opaque != nil && len(opaque) == 1 && opaque[0] == 'y' {
+		if len(opaque) == 1 && opaque[0] == 'y' {
 			// create a header for the whiteout file
 			// it should inherit some properties from the parent, but be a regular file
 			*hdr = tar.Header{

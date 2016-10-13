@@ -302,7 +302,7 @@ func overlayDeletedFile(root, path string, fi os.FileInfo) (string, error) {
 		if err != nil {
 			return "", err
 		}
-		if opaque != nil && len(opaque) == 1 && opaque[0] == 'y' {
+		if len(opaque) == 1 && opaque[0] == 'y' {
 			return path, nil
 		}
 	}
