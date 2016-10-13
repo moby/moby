@@ -20,6 +20,7 @@ import (
 	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/runconfig"
+	"github.com/docker/libnetwork"
 	"github.com/opencontainers/runc/libcontainer/configs"
 	"github.com/opencontainers/runc/libcontainer/devices"
 	"github.com/opencontainers/runc/libcontainer/label"
@@ -329,4 +330,27 @@ func enableIPOnPredefinedNetwork() bool {
 
 func (daemon *Daemon) isNetworkHotPluggable() bool {
 	return true
+}
+
+func setupPathsAndSandboxOptions(container *container.Container, sboxOptions *[]libnetwork.SandboxOption) error {
+	var err error
+
+	container.HostsPath, err = container.GetRootResourcePath("hosts")
+	if err != nil {
+		return err
+	}
+	*sboxOptions = append(*sboxOptions, libnetwork.OptionHostsPath(container.HostsPath))
+
+	container.ResolvConfPath, err = container.GetRootResourcePath("resolv.conf")
+	if err != nil {
+		return err
+	}
+	*sboxOptions = append(*sboxOptions, libnetwork.OptionResolvConfPath(container.ResolvConfPath))
+	return nil
+}
+
+func initializeNetworkingPaths(container *container.Container, nc *container.Container) {
+	container.HostnamePath = nc.HostnamePath
+	container.HostsPath = nc.HostsPath
+	container.ResolvConfPath = nc.ResolvConfPath
 }
