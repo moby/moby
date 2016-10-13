@@ -7,6 +7,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"testing"
 	"time"
@@ -74,8 +75,7 @@ func newInfo(hnd *netlink.Handle, t *testing.T) (Sandbox, error) {
 	intf1.address = addr
 	intf1.address.IP = ip4
 
-	// ip6, addrv6, err := net.ParseCIDR("2001:DB8::ABCD/48")
-	ip6, addrv6, err := net.ParseCIDR("fe80::2/64")
+	ip6, addrv6, err := net.ParseCIDR("2001:DB8::ABCD/48")
 	if err != nil {
 		return nil, err
 	}
@@ -223,5 +223,67 @@ func TestDisableIPv6DAD(t *testing.T) {
 
 	if addrList[0].Flags&syscall.IFA_F_NODAD == 0 {
 		t.Fatalf("Unexpected interface flags: 0x%x. Expected to contain 0x%x", addrList[0].Flags, syscall.IFA_F_NODAD)
+	}
+}
+
+func TestSetInterfaceIP(t *testing.T) {
+	defer testutils.SetupTestOSContext(t)()
+
+	ipv4, _ := types.ParseCIDR("172.30.0.33/24")
+	ipv6, _ := types.ParseCIDR("2001:db8::44/64")
+	iface := &nwIface{address: ipv4, addressIPv6: ipv6}
+
+	nlh, err := netlink.NewHandle(syscall.NETLINK_ROUTE)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := nlh.LinkAdd(&netlink.Veth{
+		LinkAttrs: netlink.LinkAttrs{Name: "sideA"},
+		PeerName:  "sideB",
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	linkA, err := nlh.LinkByName("sideA")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	linkB, err := nlh.LinkByName("sideB")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := nlh.LinkSetUp(linkA); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := nlh.LinkSetUp(linkB); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := setInterfaceIP(nlh, linkA, iface); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := setInterfaceIPv6(nlh, linkA, iface); err != nil {
+		t.Fatal(err)
+	}
+
+	err = setInterfaceIP(nlh, linkB, iface)
+	if err == nil {
+		t.Fatalf("Expected route conflict error, but succeeded")
+	}
+	if !strings.Contains(err.Error(), "conflicts with existing route") {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	err = setInterfaceIPv6(nlh, linkB, iface)
+	if err == nil {
+		t.Fatalf("Expected route conflict error, but succeeded")
+	}
+	if !strings.Contains(err.Error(), "conflicts with existing route") {
+		t.Fatalf("Unexpected error: %v", err)
 	}
 }
