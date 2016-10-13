@@ -2,22 +2,22 @@
 redirect_from:
   - /reference/commandline/stack_tasks/
 advisory: experimental
-description: The stack tasks command description and usage
+description: The stack ps command description and usage
 keywords:
-- stack, tasks
-title: docker stack tasks (experimental)
+- stack, ps
+title: docker stack ps (experimental)
 ---
 
 ```markdown
-Usage:  docker stack tasks [OPTIONS] STACK
+Usage:  docker stack ps [OPTIONS] STACK
 
 List the tasks in the stack
 
 Options:
   -a, --all            Display all tasks
   -f, --filter value   Filter output based on conditions provided
-      --help           Print usage
       --no-resolve     Do not map IDs to Names
+      --no-trunc       Do not truncate output
 ```
 
 Lists the tasks that are running as part of the specified stack. This
@@ -32,9 +32,9 @@ Multiple filter flags are combined as an `OR` filter. For example,
 
 The currently supported filters are:
 
-* [id](stack_tasks.md#id)
-* [name](stack_tasks.md#name)
-* [desired-state](stack_tasks.md#desired-state)
+* [id](stack_ps.md#id)
+* [name](stack_ps.md#name)
+* [desired-state](stack_ps.md#desired-state)
 
 ## Related information
 
