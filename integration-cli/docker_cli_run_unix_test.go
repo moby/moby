@@ -929,10 +929,10 @@ func (s *DockerSuite) TestRunSeccompProfileDenyUnshare(c *check.C) {
 	]
 }`
 	tmpFile, err := ioutil.TempFile("", "profile.json")
-	defer tmpFile.Close()
 	if err != nil {
 		c.Fatal(err)
 	}
+	defer tmpFile.Close()
 
 	if _, err := tmpFile.Write([]byte(jsonData)); err != nil {
 		c.Fatal(err)
@@ -1000,10 +1000,10 @@ func (s *DockerSuite) TestRunSeccompProfileDenyUnshareUserns(c *check.C) {
 	]
 }`, uint64(0x10000000))
 	tmpFile, err := ioutil.TempFile("", "profile.json")
-	defer tmpFile.Close()
 	if err != nil {
 		c.Fatal(err)
 	}
+	defer tmpFile.Close()
 
 	if _, err := tmpFile.Write([]byte(jsonData)); err != nil {
 		c.Fatal(err)
