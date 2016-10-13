@@ -1,4 +1,6 @@
 machine:
+  environment:
+    GODIST: "go1.7.1.linux-amd64.tar.gz"
   services:
     - docker
 
