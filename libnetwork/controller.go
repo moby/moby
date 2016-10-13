@@ -882,8 +882,9 @@ func (c *controller) NewSandbox(containerID string, options ...SandboxOption) (s
 		if s.containerID == containerID {
 			// If not a stub, then we already have a complete sandbox.
 			if !s.isStub {
+				sbID := s.ID()
 				c.Unlock()
-				return nil, types.ForbiddenErrorf("container %s is already present: %v", containerID, s)
+				return nil, types.ForbiddenErrorf("container %s is already present in sandbox %s", containerID, sbID)
 			}
 
 			// We already have a stub sandbox from the
