@@ -1,12 +1,8 @@
-<!--[metadata]>
-+++
-title = "swarm init"
-description = "The swarm init command description and usage"
-keywords = ["swarm, init"]
-[menu.main]
-parent = "smn_cli"
-+++
-<![end-metadata]-->
+---
+title: "swarm init"
+description: "The swarm init command description and usage"
+keywords: ["swarm, init"]
+---
 
 # swarm init
 

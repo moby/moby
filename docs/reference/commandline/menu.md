@@ -1,14 +1,9 @@
-<!-- [metadata]>
-+++
-title = "Command line reference"
-description = "Docker's CLI command description and usage"
-keywords = ["Docker, Docker documentation, CLI,  command line"]
-[menu.main]
-identifier= "smn_cli"
-parent = "engine_ref"
-weight=-75
-+++
-<![end-metadata]-->
+---
+title: "Command line reference"
+description: "Docker's CLI command description and usage"
+keywords: ["Docker, Docker documentation, CLI,  command line"]
+identifier:  "smn_cli"
+---
 
 
 

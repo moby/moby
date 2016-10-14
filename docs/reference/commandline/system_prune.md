@@ -1,12 +1,8 @@
-<!--[metadata]>
-+++
-title = "system prune"
-description = "Remove unused data"
-keywords = [system, prune, delete, remove]
-[menu.main]
-parent = "smn_cli"
-+++
-<![end-metadata]-->
+---
+title: "system prune"
+description: "Remove unused data"
+keywords: [system, prune, delete, remove]
+---
 
 # system prune
 

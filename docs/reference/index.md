@@ -1,14 +1,8 @@
-<!-- [metadata]>
-+++
-title = "Engine reference"
-description = "Docker Engine reference"
-keywords = ["Engine"]
-[menu.main]
-parent="engine_use"
-identifier="engine_ref"
-weight=70
-+++
-<![end-metadata]-->
+---
+title: "Engine reference"
+description: "Docker Engine reference"
+keywords: ["Engine"]
+---
 
 # Engine reference
 

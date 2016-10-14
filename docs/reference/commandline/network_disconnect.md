@@ -1,12 +1,8 @@
-<!--[metadata]>
-+++
-title = "network disconnect"
-description = "The network disconnect command description and usage"
-keywords = ["network, disconnect, user-defined"]
-[menu.main]
-parent = "smn_cli"
-+++
-<![end-metadata]-->
+---
+title: "network disconnect"
+description: "The network disconnect command description and usage"
+keywords: ["network, disconnect, user-defined"]
+---
 
 # network disconnect
 

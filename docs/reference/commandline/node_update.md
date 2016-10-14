@@ -1,12 +1,8 @@
-<!--[metadata]>
-+++
-title = "node update"
-description = "The node update command description and usage"
-keywords = ["resources, update, dynamically"]
-[menu.main]
-parent = "smn_cli"
-+++
-<![end-metadata]-->
+---
+title: "node update"
+description: "The node update command description and usage"
+keywords: ["resources, update, dynamically"]
+---
 
 ## update
 

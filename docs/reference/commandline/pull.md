@@ -1,12 +1,8 @@
-<!--[metadata]>
-+++
-title = "pull"
-description = "The pull command description and usage"
-keywords = ["pull, image, hub, docker"]
-[menu.main]
-parent = "smn_cli"
-+++
-<![end-metadata]-->
+---
+title: "pull"
+description: "The pull command description and usage"
+keywords: ["pull, image, hub, docker"]
+---
 
 # pull
 

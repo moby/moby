@@ -1,13 +1,8 @@
-<!--[metadata]>
-+++
-title = "Use the Docker command line"
-description = "Docker's CLI command description and usage"
-keywords = ["Docker, Docker documentation, CLI,  command line"]
-[menu.main]
-parent = "smn_cli"
-weight = -2
-+++
-<![end-metadata]-->
+---
+title: "Use the Docker command line"
+description: "Docker's CLI command description and usage"
+keywords: ["Docker, Docker documentation, CLI,  command line"]
+---
 
 # Use the Docker command line
 
@@ -122,7 +117,7 @@ directives, see the
 Once attached to a container, users detach from it and leave it running using
 the using `CTRL-p CTRL-q` key sequence. This detach key sequence is customizable
 using the `detachKeys` property. Specify a `<sequence>` value for the
-property. The format of the `<sequence>` is a comma-separated list of either 
+property. The format of the `<sequence>` is a comma-separated list of either
 a letter [a-Z], or the `ctrl-` combined with any of the following:
 
 * `a-z` (a single lowercase alpha character )

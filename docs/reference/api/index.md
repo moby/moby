@@ -1,13 +1,9 @@
-<!-- [metadata]>
-+++
-title = "API Reference"
-description = "Reference"
-keywords = ["Engine"]
-[menu.main]
-identifier="engine_remoteapi"
-parent="engine_ref"
-+++
-<![end-metadata]-->
+---
+title: "API Reference"
+description: "Reference"
+keywords: ["Engine"]
+identifier: "engine_remoteapi"
+---
 
 
 # API Reference

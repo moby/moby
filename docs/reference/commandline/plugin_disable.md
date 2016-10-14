@@ -1,13 +1,9 @@
-<!--[metadata]>
-+++
-title = "plugin disable"
-description = "the plugin disable command description and usage"
-keywords = ["plugin, disable"]
-advisory = "experimental"
-[menu.main]
-parent = "smn_cli"
-+++
-<![end-metadata]-->
+---
+title: "plugin disable"
+description: "the plugin disable command description and usage"
+keywords: ["plugin, disable"]
+advisory: "experimental"
+---
 
 # plugin disable (experimental)
 

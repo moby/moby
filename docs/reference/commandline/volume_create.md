@@ -1,12 +1,8 @@
-<!--[metadata]>
-+++
-title = "volume create"
-description = "The volume create command description and usage"
-keywords = ["volume, create"]
-[menu.main]
-parent = "smn_cli"
-+++
-<![end-metadata]-->
+---
+title: "volume create"
+description: "The volume create command description and usage"
+keywords: ["volume, create"]
+---
 
 # volume create
 
@@ -57,7 +53,7 @@ different volume drivers may do different things (or nothing at all).
 The built-in `local` driver on Windows does not support any options.
 
 The built-in `local` driver on Linux accepts options similar to the linux `mount` command. You can provide multiple options by passing the `--opt` flag multiple times. Some `mount` options (such as the `o` option) can take a comma-separated list of options. Complete list of available mount options can be found [here](http://man7.org/linux/man-pages/man8/mount.8.html).
- 
+
 For example, the following creates a `tmpfs` volume called `foo` with a size of 100 megabyte and `uid` of 1000.
 
 ```bash

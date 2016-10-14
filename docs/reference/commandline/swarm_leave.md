@@ -1,12 +1,8 @@
-<!--[metadata]>
-+++
-title = "swarm leave"
-description = "The swarm leave command description and usage"
-keywords = ["swarm, leave"]
-[menu.main]
-parent = "smn_cli"
-+++
-<![end-metadata]-->
+---
+title: "swarm leave"
+description: "The swarm leave command description and usage"
+keywords: ["swarm, leave"]
+---
 
 # swarm leave
 

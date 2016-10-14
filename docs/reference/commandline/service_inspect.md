@@ -1,12 +1,8 @@
-<!--[metadata]>
-+++
-title = "service inspect"
-description = "The service inspect command description and usage"
-keywords = ["service, inspect"]
-[menu.main]
-parent = "smn_cli"
-+++
-<![end-metadata]-->
+---
+title: "service inspect"
+description: "The service inspect command description and usage"
+keywords: ["service, inspect"]
+---
 
 # service inspect
 

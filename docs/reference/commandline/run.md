@@ -1,12 +1,8 @@
-<!--[metadata]>
-+++
-title = "run"
-description = "The run command description and usage"
-keywords = ["run, command, container"]
-[menu.main]
-parent = "smn_cli"
-+++
-<![end-metadata]-->
+---
+title: "run"
+description: "The run command description and usage"
+keywords: ["run, command, container"]
+---
 
 # run
 

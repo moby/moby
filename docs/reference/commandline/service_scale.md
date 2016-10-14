@@ -1,12 +1,8 @@
-<!--[metadata]>
-+++
-title = "service scale"
-description = "The service scale command description and usage"
-keywords = ["service, scale"]
-[menu.main]
-parent = "smn_cli"
-+++
-<![end-metadata]-->
+---
+title: "service scale"
+description: "The service scale command description and usage"
+keywords: ["service, scale"]
+---
 
 # service scale
 

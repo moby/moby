@@ -1,12 +1,8 @@
-<!--[metadata]>
-+++
-title = "port"
-description = "The port command description and usage"
-keywords = ["port, mapping, container"]
-[menu.main]
-parent = "smn_cli"
-+++
-<![end-metadata]-->
+---
+title: "port"
+description: "The port command description and usage"
+keywords: ["port, mapping, container"]
+---
 
 # port
 

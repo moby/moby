@@ -1,12 +1,8 @@
-<!--[metadata]>
-+++
-title = "container prune"
-description = "Remove all stopped containers"
-keywords = [container, prune, delete, remove]
-[menu.main]
-parent = "smn_cli"
-+++
-<![end-metadata]-->
+---
+title: "container prune"
+description: "Remove all stopped containers"
+keywords: [container, prune, delete, remove]
+---
 
 # container prune
 

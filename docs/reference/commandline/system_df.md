@@ -1,12 +1,8 @@
-<!--[metadata]>
-+++
-title = "system df"
-description = "The system df command description and usage"
-keywords = [system, data, usage, disk]
-[menu.main]
-parent = "smn_cli"
-+++
-<![end-metadata]-->
+---
+title: "system df"
+description: "The system df command description and usage"
+keywords: [system, data, usage, disk]
+---
 
 # system df
 

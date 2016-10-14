@@ -1,13 +1,9 @@
-<!--[metadata]>
-+++
-title = "stack ls"
-description = "The stack ls command description and usage"
-keywords = ["stack, ls"]
-advisory = "experimental"
-[menu.main]
-parent = "smn_cli"
-+++
-<![end-metadata]-->
+---
+title: "stack ls"
+description: "The stack ls command description and usage"
+keywords: ["stack, ls"]
+advisory: "experimental"
+---
 
 # stack ls (experimental)
 

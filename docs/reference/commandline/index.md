@@ -1,14 +1,9 @@
-<!-- [metadata]>
-+++
-title = "Docker commands"
-description = "Docker's CLI command description and usage"
-keywords = ["Docker, Docker documentation, CLI,  command line"]
-[menu.main]
-identifier= "smn_cli_guide"
-parent = "smn_cli"
-weight=-70
-+++
-<![end-metadata]-->
+---
+title: "Docker commands"
+description: "Docker's CLI command description and usage"
+keywords: ["Docker, Docker documentation, CLI,  command line"]
+identifier: "smn_cli_guide"
+---
 
 
 

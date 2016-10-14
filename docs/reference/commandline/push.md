@@ -1,12 +1,8 @@
-<!--[metadata]>
-+++
-title = "push"
-description = "The push command description and usage"
-keywords = ["share, push, image"]
-[menu.main]
-parent = "smn_cli"
-+++
-<![end-metadata]-->
+---
+title: "push"
+description: "The push command description and usage"
+keywords: ["share, push, image"]
+---
 
 # push
 

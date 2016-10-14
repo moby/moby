@@ -1,12 +1,8 @@
-<!--[metadata]>
-+++
-title = "unpause"
-description = "The unpause command description and usage"
-keywords = ["cgroups, suspend, container"]
-[menu.main]
-parent = "smn_cli"
-+++
-<![end-metadata]-->
+---
+title: "unpause"
+description: "The unpause command description and usage"
+keywords: ["cgroups, suspend, container"]
+---
 
 # unpause
 

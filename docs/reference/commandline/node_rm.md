@@ -1,12 +1,8 @@
-<!--[metadata]>
-+++
-title = "node rm"
-description = "The node rm command description and usage"
-keywords = ["node, remove"]
-[menu.main]
-parent = "smn_cli"
-+++
-<![end-metadata]-->
+---
+title: "node rm"
+description: "The node rm command description and usage"
+keywords: ["node, remove"]
+---
 
 # node rm
 

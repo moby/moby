@@ -1,12 +1,8 @@
-<!--[metadata]>
-+++
-title = "update"
-description = "The update command description and usage"
-keywords = ["resources, update, dynamically"]
-[menu.main]
-parent = "smn_cli"
-+++
-<![end-metadata]-->
+---
+title: "update"
+description: "The update command description and usage"
+keywords: ["resources, update, dynamically"]
+---
 
 ## update
 
@@ -31,8 +27,8 @@ Options:
 ```
 
 The `docker update` command dynamically updates container configuration.
-You can use this command to prevent containers from consuming too many 
-resources from their Docker host.  With a single command, you can place 
+You can use this command to prevent containers from consuming too many
+resources from their Docker host.  With a single command, you can place
 limits on a single container or on many. To specify more than one container,
 provide space-separated list of container names or IDs.
 

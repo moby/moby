@@ -1,12 +1,8 @@
-<!--[metadata]>
-+++
-title = "service create"
-description = "The service create command description and usage"
-keywords = ["service, create"]
-[menu.main]
-parent = "smn_cli"
-+++
-<![end-metadata]-->
+---
+title: "service create"
+description: "The service create command description and usage"
+keywords: ["service, create"]
+---
 
 # service create
 

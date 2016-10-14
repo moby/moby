@@ -1,12 +1,8 @@
-<!--[metadata]>
-+++
-title = "tag"
-description = "The tag command description and usage"
-keywords = ["tag, name, image"]
-[menu.main]
-parent = "smn_cli"
-+++
-<![end-metadata]-->
+---
+title: "tag"
+description: "The tag command description and usage"
+keywords: ["tag, name, image"]
+---
 
 # tag
 
