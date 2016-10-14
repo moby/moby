@@ -13,16 +13,6 @@ import (
 	"github.com/docker/go-connections/nat"
 )
 
-// ContainerCreateResponse contains the information returned to a client on the
-// creation of a new container.
-type ContainerCreateResponse struct {
-	// ID is the ID of the created container.
-	ID string `json:"Id"`
-
-	// Warnings are any warnings encountered during the creation of the container.
-	Warnings []string `json:"Warnings"`
-}
-
 // ContainerExecCreateResponse contains response of Remote API:
 // POST "/containers/{name:.*}/exec"
 type ContainerExecCreateResponse struct {

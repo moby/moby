@@ -2393,7 +2393,7 @@ paths:
   /containers/create:
     post:
       summary: "Create a container"
-      operationId: "PostContainerCreate"
+      operationId: "ContainerCreate"
       consumes:
         - "application/json"
         - "application/octet-stream"
@@ -2542,15 +2542,19 @@ paths:
           required: true
       responses:
         201:
-          description: "no error"
+          description: "Container created successfully"
           schema:
             type: "object"
+            required: [Id, Warnings]
             properties:
               Id:
                 description: "The ID of the created container"
                 type: "string"
+                x-nullable: false
               Warnings:
+                description: "Warnings encountered when creating the container"
                 type: "array"
+                x-nullable: false
                 items:
                   type: "string"
           examples:

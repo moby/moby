@@ -22,29 +22,29 @@ import (
 )
 
 // CreateManagedContainer creates a container that is managed by a Service
-func (daemon *Daemon) CreateManagedContainer(params types.ContainerCreateConfig, validateHostname bool) (types.ContainerCreateResponse, error) {
+func (daemon *Daemon) CreateManagedContainer(params types.ContainerCreateConfig, validateHostname bool) (containertypes.ContainerCreateCreatedBody, error) {
 	return daemon.containerCreate(params, true, validateHostname)
 }
 
 // ContainerCreate creates a regular container
-func (daemon *Daemon) ContainerCreate(params types.ContainerCreateConfig, validateHostname bool) (types.ContainerCreateResponse, error) {
+func (daemon *Daemon) ContainerCreate(params types.ContainerCreateConfig, validateHostname bool) (containertypes.ContainerCreateCreatedBody, error) {
 	return daemon.containerCreate(params, false, validateHostname)
 }
 
-func (daemon *Daemon) containerCreate(params types.ContainerCreateConfig, managed bool, validateHostname bool) (types.ContainerCreateResponse, error) {
+func (daemon *Daemon) containerCreate(params types.ContainerCreateConfig, managed bool, validateHostname bool) (containertypes.ContainerCreateCreatedBody, error) {
 	start := time.Now()
 	if params.Config == nil {
-		return types.ContainerCreateResponse{}, fmt.Errorf("Config cannot be empty in order to create a container")
+		return containertypes.ContainerCreateCreatedBody{}, fmt.Errorf("Config cannot be empty in order to create a container")
 	}
 
 	warnings, err := daemon.verifyContainerSettings(params.HostConfig, params.Config, false, validateHostname)
 	if err != nil {
-		return types.ContainerCreateResponse{Warnings: warnings}, err
+		return containertypes.ContainerCreateCreatedBody{Warnings: warnings}, err
 	}
 
 	err = daemon.verifyNetworkingConfig(params.NetworkingConfig)
 	if err != nil {
-		return types.ContainerCreateResponse{Warnings: warnings}, err
+		return containertypes.ContainerCreateCreatedBody{Warnings: warnings}, err
 	}
 
 	if params.HostConfig == nil {
@@ -52,15 +52,16 @@ func (daemon *Daemon) containerCreate(params types.ContainerCreateConfig, manage
 	}
 	err = daemon.adaptContainerSettings(params.HostConfig, params.AdjustCPUShares)
 	if err != nil {
-		return types.ContainerCreateResponse{Warnings: warnings}, err
+		return containertypes.ContainerCreateCreatedBody{Warnings: warnings}, err
 	}
 
 	container, err := daemon.create(params, managed)
 	if err != nil {
-		return types.ContainerCreateResponse{Warnings: warnings}, daemon.imageNotExistToErrcode(err)
+		return containertypes.ContainerCreateCreatedBody{Warnings: warnings}, daemon.imageNotExistToErrcode(err)
 	}
 	containerActions.WithValues("create").UpdateSince(start)
-	return types.ContainerCreateResponse{ID: container.ID, Warnings: warnings}, nil
+
+	return containertypes.ContainerCreateCreatedBody{ID: container.ID, Warnings: warnings}, nil
 }
 
 // Create creates a new container from the given configuration with a given name.
