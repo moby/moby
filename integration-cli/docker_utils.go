@@ -22,8 +22,8 @@ import (
 	"strings"
 	"time"
 
-	volumetypes "github.com/docker/docker/api/server/types/volume"
 	"github.com/docker/docker/api/types"
+	volumetypes "github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/httputils"
 	icmd "github.com/docker/docker/pkg/integration/cmd"

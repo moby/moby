@@ -2,7 +2,7 @@
 set -eu
 
 swagger generate model -f api/swagger.yaml \
-    -t api -m types --skip-validator \
+    -t api -m types --skip-validator -C api/swagger-gen.yaml \
     -n Volume \
     -n Port \
     -n ImageSummary \
@@ -10,7 +10,7 @@ swagger generate model -f api/swagger.yaml \
     -n ErrorResponse
 
 swagger generate operation -f api/swagger.yaml \
-    -t api -s server -a types -m types \
+    -t api -a types -m types -C api/swagger-gen.yaml \
     -T api/templates --skip-responses --skip-parameters --skip-validator \
     -n VolumesList \
     -n VolumesCreate

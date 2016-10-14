@@ -3,8 +3,8 @@ package client
 import (
 	"encoding/json"
 
-	volumetypes "github.com/docker/docker/api/server/types/volume"
 	"github.com/docker/docker/api/types"
+	volumetypes "github.com/docker/docker/api/types/volume"
 	"golang.org/x/net/context"
 )
 

@@ -5,8 +5,8 @@ import (
 	"net/http"
 	"path/filepath"
 
-	volumetypes "github.com/docker/docker/api/server/types/volume"
 	"github.com/docker/docker/api/types"
+	volumetypes "github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/pkg/integration/checker"
 	"github.com/go-check/check"
 )
