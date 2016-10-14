@@ -9,21 +9,15 @@ package volume
 
 import "github.com/docker/docker/api/types"
 
-/*VolumesListOKBody volumes list o k body
-
-swagger:model VolumesListOKBody
-*/
+// VolumesListOKBody volumes list o k body
+// swagger:model VolumesListOKBody
 type VolumesListOKBody struct {
 
-	/* List of volumes
-
-	Required: true
-	*/
+	// List of volumes
+	// Required: true
 	Volumes []*types.Volume `json:"Volumes"`
 
-	/* Warnings that occurred when fetching the list of volumes
-
-	Required: true
-	*/
+	// Warnings that occurred when fetching the list of volumes
+	// Required: true
 	Warnings []string `json:"Warnings"`
 }
