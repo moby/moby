@@ -3,6 +3,7 @@ package formatter
 import (
 	"fmt"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/docker/distribution/reference"
@@ -82,14 +83,11 @@ func ImageWrite(ctx ImageContext, images []types.ImageSummary) error {
 }
 
 func imageFormat(ctx ImageContext, images []types.ImageSummary, format func(subContext subContext) error) error {
-	imageSorter := &imageSorter{
-		imageCtxs: []*imageContext{},
-		by:        ctx.Sortby,
-	}
+	imageCtxs := []interface{}{}
 
 	for _, image := range images {
 		if isDangling(image) {
-			imageSorter.imageCtxs = append(imageSorter.imageCtxs, &imageContext{
+			imageCtxs = append(imageCtxs, imageContext{
 				trunc:  ctx.Trunc,
 				i:      image,
 				repo:   "<none>",
@@ -134,7 +132,7 @@ func imageFormat(ctx ImageContext, images []types.ImageSummary, format func(subC
 
 				for _, tag := range tags {
 					if len(digests) == 0 {
-						imageSorter.imageCtxs = append(imageSorter.imageCtxs, &imageContext{
+						imageCtxs = append(imageCtxs, imageContext{
 							trunc:  ctx.Trunc,
 							i:      image,
 							repo:   repo,
@@ -145,7 +143,7 @@ func imageFormat(ctx ImageContext, images []types.ImageSummary, format func(subC
 					}
 					// Display the digests for each tag
 					for _, dgst := range digests {
-						imageSorter.imageCtxs = append(imageSorter.imageCtxs, &imageContext{
+						imageCtxs = append(imageCtxs, imageContext{
 							trunc:  ctx.Trunc,
 							i:      image,
 							repo:   repo,
@@ -162,7 +160,7 @@ func imageFormat(ctx ImageContext, images []types.ImageSummary, format func(subC
 				// If digests are displayed, show row per digest
 				if ctx.Digest {
 					for _, dgst := range digests {
-						imageSorter.imageCtxs = append(imageSorter.imageCtxs, &imageContext{
+						imageCtxs = append(imageCtxs, imageContext{
 							trunc:  ctx.Trunc,
 							i:      image,
 							repo:   repo,
@@ -171,7 +169,7 @@ func imageFormat(ctx ImageContext, images []types.ImageSummary, format func(subC
 						})
 					}
 				} else {
-					imageSorter.imageCtxs = append(imageSorter.imageCtxs, &imageContext{
+					imageCtxs = append(imageCtxs, imageContext{
 						trunc: ctx.Trunc,
 						i:     image,
 						repo:  repo,
@@ -182,11 +180,22 @@ func imageFormat(ctx ImageContext, images []types.ImageSummary, format func(subC
 		}
 	}
 
-	// sort image contexts
-	sort.Sort(imageSorter)
+	bys := []string{}
+	if ctx.Sortby == "" {
+		bys = append(bys, "Created:dsc")
+	} else {
+		bys = append(bys, strings.Split(ctx.Sortby, ",")...)
+	}
 
-	for _, imageCtx := range imageSorter.imageCtxs {
-		if err := format(imageCtx); err != nil {
+	sorter, err := newGenericStructSorter(imageCtxs, bys)
+	if err != nil {
+		return err
+	}
+
+	sort.Sort(sorter)
+	for _, imageCtx := range sorter.data {
+		subContext := imageCtx.(imageContext)
+		if err := format(&subContext); err != nil {
 			return err
 		}
 	}
