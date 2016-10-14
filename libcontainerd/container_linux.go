@@ -13,6 +13,7 @@ import (
 	containerd "github.com/docker/containerd/api/grpc/types"
 	"github.com/docker/docker/restartmanager"
 	"github.com/opencontainers/specs/specs-go"
+	"github.com/tonistiigi/fifo"
 	"golang.org/x/net/context"
 )
 
@@ -229,15 +230,15 @@ func (ctr *container) handleEvent(e *containerd.Event) error {
 // discardFifos attempts to fully read the container fifos to unblock processes
 // that may be blocked on the writer side.
 func (ctr *container) discardFifos() {
+	ctx, _ := context.WithTimeout(context.Background(), 3*time.Second)
 	for _, i := range []int{syscall.Stdout, syscall.Stderr} {
-		f := ctr.fifo(i)
-		c := make(chan struct{})
+		f, err := fifo.OpenFifo(ctx, ctr.fifo(i), syscall.O_RDONLY|syscall.O_NONBLOCK, 0)
+		if err != nil {
+			logrus.Warnf("error opening fifo %v for discarding: %+v", f, err)
+			continue
+		}
 		go func() {
-			r := openReaderFromFifo(f)
-			close(c) // this channel is used to not close the writer too early, before readonly open has been called.
-			io.Copy(ioutil.Discard, r)
+			io.Copy(ioutil.Discard, f)
 		}()
-		<-c
-		closeReaderFifo(f) // avoid blocking permanently on open if there is no writer side
 	}
 }
