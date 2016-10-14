@@ -170,5 +170,9 @@ clone git github.com/spf13/cobra v1.4.1 https://github.com/dnephin/cobra.git
 clone git github.com/spf13/pflag cb88ea77998c3f024757528e3305022ab50b43be
 clone git github.com/inconshreveable/mousetrap 76626ae9c91c4f2a10f34cad8ce83ea42c93bb75
 clone git github.com/flynn-archive/go-shlex 3f9db97f856818214da2e1057f8ad84803971cff
-
+ 
+# Avro lig for logger
+clone git github.com/sebglon/goavro FEAT-IPC
+clone git github.com/golang/snappy d9eb7a3d35ec988b8585d4a0068e462c27d28380
+clone git gopkg.in/fatih/pool.v2 v2.0.0
 clean
