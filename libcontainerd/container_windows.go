@@ -3,6 +3,7 @@ package libcontainerd
 import (
 	"fmt"
 	"io"
+	"io/ioutil"
 	"strings"
 	"syscall"
 	"time"
@@ -131,10 +132,10 @@ func (ctr *container) start() error {
 
 	// Convert io.ReadClosers to io.Readers
 	if stdout != nil {
-		iopipe.Stdout = openReaderFromPipe(stdout)
+		iopipe.Stdout = ioutil.NopCloser(&autoClosingReader{ReadCloser: stdout})
 	}
 	if stderr != nil {
-		iopipe.Stderr = openReaderFromPipe(stderr)
+		iopipe.Stderr = ioutil.NopCloser(&autoClosingReader{ReadCloser: stderr})
 	}
 
 	// Save the PID
