@@ -2,6 +2,7 @@
 package awslogs
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"os"
@@ -9,6 +10,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"text/template"
 	"time"
 
 	"github.com/Sirupsen/logrus"
@@ -28,6 +30,7 @@ const (
 	regionEnvKey          = "AWS_REGION"
 	logGroupKey           = "awslogs-group"
 	logStreamKey          = "awslogs-stream"
+	logStreamTemplateKey  = "awslogs-stream-template"
 	batchPublishFrequency = 5 * time.Second
 
 	// See: http://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_PutLogEvents.html
@@ -88,9 +91,9 @@ func init() {
 // the EC2 Instance Metadata Service.
 func New(ctx logger.Context) (logger.Logger, error) {
 	logGroupName := ctx.Config[logGroupKey]
-	logStreamName := ctx.ContainerID
-	if ctx.Config[logStreamKey] != "" {
-		logStreamName = ctx.Config[logStreamKey]
+	logStreamName, err := getStreamName(ctx)
+	if err != nil {
+		return nil, err
 	}
 	client, err := newAWSLogsClient(ctx)
 	if err != nil {
@@ -109,6 +112,29 @@ func New(ctx logger.Context) (logger.Logger, error) {
 	go containerStream.collectBatch()
 
 	return containerStream, nil
+}
+
+// Extract the logStreamName, rendering the template if appropriate
+func getStreamName(ctx logger.Context) (string, error) {
+	if ctx.Config[logStreamKey] != "" {
+		return ctx.Config[logStreamKey], nil
+	} else if ctx.Config[logStreamTemplateKey] != "" {
+		var name string
+		t, err := template.New("t").Parse(ctx.Config[logStreamTemplateKey])
+		if err == nil {
+			buff := bytes.NewBuffer(nil)
+			err = t.Execute(buff, ctx)
+			name = buff.String()
+		}
+		if err == nil && strings.IndexAny(name, ":*") >= 0 {
+			// Arguably, we could let AWS reject this later, but by then your container is
+			// running somewhere and logging nowhere, and we can fail fast here.
+			err = fmt.Errorf("CloudWatch Logs stream names cannot contain colons or asterisks: %q", name)
+		}
+		return name, err
+	} else {
+		return ctx.ContainerID, nil
+	}
 }
 
 // newRegionFinder is a variable such that the implementation
@@ -345,14 +371,19 @@ func (l *logStream) putLogEvents(events []*cloudwatchlogs.InputLogEvent, sequenc
 // ValidateLogOpt looks for awslogs-specific log options awslogs-region,
 // awslogs-group, and awslogs-stream
 func ValidateLogOpt(cfg map[string]string) error {
+	nameSpec := 0
 	for key := range cfg {
 		switch key {
 		case logGroupKey:
-		case logStreamKey:
+		case logStreamTemplateKey, logStreamKey:
+			nameSpec++
 		case regionKey:
 		default:
 			return fmt.Errorf("unknown log opt '%s' for %s log driver", key, name)
 		}
+	}
+	if nameSpec > 1 {
+		return fmt.Errorf("Cannot specify both '%s' and '%s'", logStreamKey, logStreamTemplateKey)
 	}
 	if cfg[logGroupKey] == "" {
 		return fmt.Errorf("must specify a value for log opt '%s'", logGroupKey)
