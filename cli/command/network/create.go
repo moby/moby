@@ -20,7 +20,7 @@ type createOptions struct {
 	name       string
 	driver     string
 	driverOpts opts.MapOpts
-	labels     []string
+	labels     opts.ListOpts
 	internal   bool
 	ipv6       bool
 	attachable bool
@@ -36,6 +36,7 @@ type createOptions struct {
 func newCreateCommand(dockerCli *command.DockerCli) *cobra.Command {
 	opts := createOptions{
 		driverOpts: *opts.NewMapOpts(nil, nil),
+		labels:     opts.NewListOpts(runconfigopts.ValidateEnv),
 		ipamAux:    *opts.NewMapOpts(nil, nil),
 		ipamOpt:    *opts.NewMapOpts(nil, nil),
 	}
@@ -53,7 +54,7 @@ func newCreateCommand(dockerCli *command.DockerCli) *cobra.Command {
 	flags := cmd.Flags()
 	flags.StringVarP(&opts.driver, "driver", "d", "bridge", "Driver to manage the Network")
 	flags.VarP(&opts.driverOpts, "opt", "o", "Set driver specific options")
-	flags.StringSliceVar(&opts.labels, "label", []string{}, "Set metadata on a network")
+	flags.Var(&opts.labels, "label", "Set metadata on a network")
 	flags.BoolVar(&opts.internal, "internal", false, "Restrict external access to the network")
 	flags.BoolVar(&opts.ipv6, "ipv6", false, "Enable IPv6 networking")
 	flags.BoolVar(&opts.attachable, "attachable", false, "Enable manual container attachment")
@@ -90,7 +91,7 @@ func runCreate(dockerCli *command.DockerCli, opts createOptions) error {
 		Internal:       opts.internal,
 		EnableIPv6:     opts.ipv6,
 		Attachable:     opts.attachable,
-		Labels:         runconfigopts.ConvertKVStringsToMap(opts.labels),
+		Labels:         runconfigopts.ConvertKVStringsToMap(opts.labels.GetAll()),
 	}
 
 	resp, err := client.NetworkCreate(context.Background(), opts.name, nc)
