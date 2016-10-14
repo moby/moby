@@ -6,6 +6,7 @@ import (
 	"net"
 	"strings"
 	"sync"
+	"time"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/stringid"
@@ -65,6 +66,7 @@ type NetworkInfo interface {
 	Internal() bool
 	Labels() map[string]string
 	Dynamic() bool
+	Created() time.Time
 }
 
 // EndpointWalker is a client provided function which will be used to walk the Endpoints.
@@ -166,6 +168,7 @@ type network struct {
 	name         string
 	networkType  string
 	id           string
+	created      time.Time
 	scope        string
 	labels       map[string]string
 	ipamType     string
@@ -206,6 +209,13 @@ func (n *network) ID() string {
 	defer n.Unlock()
 
 	return n.id
+}
+
+func (n *network) Created() time.Time {
+	n.Lock()
+	defer n.Unlock()
+
+	return n.created
 }
 
 func (n *network) Type() string {
@@ -320,6 +330,7 @@ func (n *network) CopyTo(o datastore.KVObject) error {
 	dstN := o.(*network)
 	dstN.name = n.name
 	dstN.id = n.id
+	dstN.created = n.created
 	dstN.networkType = n.networkType
 	dstN.scope = n.scope
 	dstN.dynamic = n.dynamic
@@ -397,6 +408,7 @@ func (n *network) MarshalJSON() ([]byte, error) {
 	netMap := make(map[string]interface{})
 	netMap["name"] = n.name
 	netMap["id"] = n.id
+	netMap["created"] = n.created
 	netMap["networkType"] = n.networkType
 	netMap["scope"] = n.scope
 	netMap["labels"] = n.labels
@@ -451,6 +463,14 @@ func (n *network) UnmarshalJSON(b []byte) (err error) {
 	}
 	n.name = netMap["name"].(string)
 	n.id = netMap["id"].(string)
+	// "created" is not available in older versions
+	if v, ok := netMap["created"]; ok {
+		// n.created is time.Time but marshalled as string
+		if err = n.created.UnmarshalText([]byte(v.(string))); err != nil {
+			log.Warnf("failed to unmarshal creation time %v: %v", v, err)
+			n.created = time.Time{}
+		}
+	}
 	n.networkType = netMap["networkType"].(string)
 	n.enableIPv6 = netMap["enableIPv6"].(bool)
 

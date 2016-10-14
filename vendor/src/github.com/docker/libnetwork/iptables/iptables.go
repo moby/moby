@@ -206,7 +206,8 @@ func (c *ChainInfo) Forward(action Action, ip net.IP, port int, proto, destAddr 
 		// value" by both iptables and ip6tables.
 		daddr = "0/0"
 	}
-	args := []string{"-t", string(Nat), string(action), c.Name,
+
+	args := []string{
 		"-p", proto,
 		"-d", daddr,
 		"--dport", strconv.Itoa(port),
@@ -215,33 +216,31 @@ func (c *ChainInfo) Forward(action Action, ip net.IP, port int, proto, destAddr 
 	if !c.HairpinMode {
 		args = append(args, "!", "-i", bridgeName)
 	}
-	if output, err := Raw(args...); err != nil {
+	if err := ProgramRule(Nat, c.Name, action, args); err != nil {
 		return err
-	} else if len(output) != 0 {
-		return ChainError{Chain: "FORWARD", Output: output}
 	}
 
-	if output, err := Raw("-t", string(Filter), string(action), c.Name,
+	args = []string{
 		"!", "-i", bridgeName,
 		"-o", bridgeName,
 		"-p", proto,
 		"-d", destAddr,
 		"--dport", strconv.Itoa(destPort),
-		"-j", "ACCEPT"); err != nil {
+		"-j", "ACCEPT",
+	}
+	if err := ProgramRule(Filter, c.Name, action, args); err != nil {
 		return err
-	} else if len(output) != 0 {
-		return ChainError{Chain: "FORWARD", Output: output}
 	}
 
-	if output, err := Raw("-t", string(Nat), string(action), "POSTROUTING",
+	args = []string{
 		"-p", proto,
 		"-s", destAddr,
 		"-d", destAddr,
 		"--dport", strconv.Itoa(destPort),
-		"-j", "MASQUERADE"); err != nil {
+		"-j", "MASQUERADE",
+	}
+	if err := ProgramRule(Nat, "POSTROUTING", action, args); err != nil {
 		return err
-	} else if len(output) != 0 {
-		return ChainError{Chain: "FORWARD", Output: output}
 	}
 
 	return nil
@@ -250,29 +249,35 @@ func (c *ChainInfo) Forward(action Action, ip net.IP, port int, proto, destAddr 
 // Link adds reciprocal ACCEPT rule for two supplied IP addresses.
 // Traffic is allowed from ip1 to ip2 and vice-versa
 func (c *ChainInfo) Link(action Action, ip1, ip2 net.IP, port int, proto string, bridgeName string) error {
-	if output, err := Raw("-t", string(Filter), string(action), c.Name,
+	// forward
+	args := []string{
 		"-i", bridgeName, "-o", bridgeName,
 		"-p", proto,
 		"-s", ip1.String(),
 		"-d", ip2.String(),
 		"--dport", strconv.Itoa(port),
-		"-j", "ACCEPT"); err != nil {
-		return err
-	} else if len(output) != 0 {
-		return fmt.Errorf("Error iptables forward: %s", output)
+		"-j", "ACCEPT",
 	}
-	if output, err := Raw("-t", string(Filter), string(action), c.Name,
-		"-i", bridgeName, "-o", bridgeName,
-		"-p", proto,
-		"-s", ip2.String(),
-		"-d", ip1.String(),
-		"--sport", strconv.Itoa(port),
-		"-j", "ACCEPT"); err != nil {
+	if err := ProgramRule(Filter, c.Name, action, args); err != nil {
 		return err
-	} else if len(output) != 0 {
-		return fmt.Errorf("Error iptables forward: %s", output)
+	}
+	// reverse
+	args[7], args[9] = args[9], args[7]
+	args[10] = "--sport"
+	if err := ProgramRule(Filter, c.Name, action, args); err != nil {
+		return err
 	}
 	return nil
+}
+
+// ProgramRule adds the rule specified by args only if the
+// rule is not already present in the chain. Reciprocally,
+// it removes the rule only if present.
+func ProgramRule(table Table, chain string, action Action, args []string) error {
+	if Exists(table, chain, args...) != (action == Delete) {
+		return nil
+	}
+	return RawCombinedOutput(append([]string{"-t", string(table), string(action), chain}, args...)...)
 }
 
 // Prerouting adds linking rule to nat/PREROUTING chain.

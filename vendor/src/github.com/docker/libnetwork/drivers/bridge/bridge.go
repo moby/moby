@@ -1318,6 +1318,12 @@ func (d *driver) RevokeExternalConnectivity(nid, eid string) error {
 		logrus.Warn(err)
 	}
 
+	endpoint.portMapping = nil
+
+	if err = d.storeUpdate(endpoint); err != nil {
+		return fmt.Errorf("failed to update bridge endpoint %s to store: %v", endpoint.id[0:7], err)
+	}
+
 	return nil
 }
 
