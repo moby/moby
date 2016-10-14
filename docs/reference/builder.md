@@ -1,13 +1,8 @@
-<!--[metadata]>
-+++
-title = "Dockerfile reference"
-description = "Dockerfiles use a simple DSL which allows you to automate the steps you would normally manually take to create an image."
-keywords = ["builder, docker, Dockerfile, automation,  image creation"]
-[menu.main]
-parent = "engine_ref"
-weight=-90
-+++
-<![end-metadata]-->
+---
+title: "Dockerfile reference"
+description: "Dockerfiles use a simple DSL which allows you to automate the steps you would normally manually take to create an image."
+keywords: ["builder, docker, Dockerfile, automation,  image creation"]
+---
 
 # Dockerfile reference
 
@@ -698,7 +693,7 @@ To view an image's labels, use the `docker inspect` command.
 
     MAINTAINER <name>
 
-The `MAINTAINER` instruction sets the *Author* field of the generated images. 
+The `MAINTAINER` instruction sets the *Author* field of the generated images.
 The `LABEL` instruction is a much more flexible version of this and you should use
 it instead, as it enables setting any metadata you require, and can be viewed
 easily, for example with `docker inspect`. To set a label corresponding to the

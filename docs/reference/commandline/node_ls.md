@@ -1,12 +1,8 @@
-<!--[metadata]>
-+++
-title = "node ls"
-description = "The node ls command description and usage"
-keywords = ["node, list"]
-[menu.main]
-parent = "smn_cli"
-+++
-<![end-metadata]-->
+---
+title: "node ls"
+description: "The node ls command description and usage"
+keywords: ["node, list"]
+---
 
 # node ls
 

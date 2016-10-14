@@ -1,12 +1,8 @@
-<!--[metadata]>
-+++
-title = "volume prune"
-description = "Remove unused volumes"
-keywords = [volume, prune, delete]
-[menu.main]
-parent = "smn_cli"
-+++
-<![end-metadata]-->
+---
+title: "volume prune"
+description: "Remove unused volumes"
+keywords: [volume, prune, delete]
+---
 
 # volume prune
 

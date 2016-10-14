@@ -1,13 +1,11 @@
-<!--[metadata]>
-+++
-title = "stack rm"
-description = "The stack rm command description and usage"
-keywords = ["stack, rm, remove, down"]
-advisory = "experimental"
-[menu.main]
-parent = "smn_cli"
-+++
-<![end-metadata]-->
+---
+title: "stack rm"
+description: "The stack rm command description and usage"
+keywords: ["stack, rm, remove, down"]
+advisory: "experimental"
+
+
+---
 
 # stack rm (experimental)
 

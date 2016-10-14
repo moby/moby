@@ -1,13 +1,8 @@
-<!--[metadata]>
-+++
-title = "Docker run reference"
-description = "Configure containers at runtime"
-keywords = ["docker, run, configure,  runtime"]
-[menu.main]
-parent = "engine_ref"
-weight=-80
-+++
-<![end-metadata]-->
+---
+title: "Docker run reference"
+description: "Configure containers at runtime"
+keywords: ["docker, run, configure,  runtime"]
+---
 
 # Docker run reference
 
@@ -181,7 +176,7 @@ Images using the v2 or later image format have a content-addressable identifier
 called a digest. As long as the input used to generate the image is unchanged,
 the digest value is predictable and referenceable.
 
-The following example runs a container from the `alpine` image with the 
+The following example runs a container from the `alpine` image with the
 `sha256:9cacb71397b640eca97488cf08582ae4e4068513101088e9f96c9814bfda95e0` digest:
 
     $ docker run alpine@sha256:9cacb71397b640eca97488cf08582ae4e4068513101088e9f96c9814bfda95e0 date

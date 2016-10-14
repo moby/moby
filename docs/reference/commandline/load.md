@@ -1,12 +1,8 @@
-<!--[metadata]>
-+++
-title = "load"
-description = "The load command description and usage"
-keywords = ["stdin, tarred, repository"]
-[menu.main]
-parent = "smn_cli"
-+++
-<![end-metadata]-->
+---
+title: "load"
+description: "The load command description and usage"
+keywords: ["stdin, tarred, repository"]
+---
 
 # load
 

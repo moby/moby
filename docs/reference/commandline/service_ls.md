@@ -1,12 +1,8 @@
-<!--[metadata]>
-+++
-title = "service ls"
-description = "The service ls command description and usage"
-keywords = ["service, ls"]
-[menu.main]
-parent = "smn_cli"
-+++
-<![end-metadata]-->
+---
+title: "service ls"
+description: "The service ls command description and usage"
+keywords: ["service, ls"]
+---
 
 # service ls
 

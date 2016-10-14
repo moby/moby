@@ -1,13 +1,8 @@
-<!--[metadata]>
-+++
-title = "Remote API v1.24"
-description = "API Documentation for Docker"
-keywords = ["API, Docker, rcli, REST,  documentation"]
-[menu.main]
-parent="engine_remoteapi"
-weight=-5
-+++
-<![end-metadata]-->
+---
+title: "Remote API v1.24"
+description: "API Documentation for Docker"
+keywords: ["API, Docker, rcli, REST,  documentation"]
+---
 
 # Docker Remote API v1.24
 
@@ -2702,7 +2697,7 @@ See the [image tarball format](#image-tarball-format) for more details.
 
 **Example response**:
 
-If the "quiet" query parameter is set to `true` / `1` (`?quiet=1`), progress 
+If the "quiet" query parameter is set to `true` / `1` (`?quiet=1`), progress
 details are suppressed, and only a confirmation message is returned once the
 action completes.
 

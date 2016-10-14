@@ -1,12 +1,8 @@
-<!--[metadata]>
-+++
-title = "swarm join"
-description = "The swarm join command description and usage"
-keywords = ["swarm, join"]
-[menu.main]
-parent = "smn_cli"
-+++
-<![end-metadata]-->
+---
+title: "swarm join"
+description: "The swarm join command description and usage"
+keywords: ["swarm, join"]
+---
 
 # swarm join
 

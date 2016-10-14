@@ -1,12 +1,8 @@
-<!--[metadata]>
-+++
-title = "inspect"
-description = "The inspect command description and usage"
-keywords = ["inspect, container, json"]
-[menu.main]
-parent = "smn_cli"
-+++
-<![end-metadata]-->
+---
+title: "inspect"
+description: "The inspect command description and usage"
+keywords: ["inspect, container, json"]
+---
 
 # inspect
 

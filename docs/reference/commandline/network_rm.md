@@ -1,12 +1,8 @@
-<!--[metadata]>
-+++
-title = "network rm"
-description = "the network rm command description and usage"
-keywords = ["network, rm, user-defined"]
-[menu.main]
-parent = "smn_cli"
-+++
-<![end-metadata]-->
+---
+title: "network rm"
+description: "the network rm command description and usage"
+keywords: ["network, rm, user-defined"]
+---
 
 # network rm
 

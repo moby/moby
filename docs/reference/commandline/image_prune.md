@@ -1,12 +1,8 @@
-<!--[metadata]>
-+++
-title = "image prune"
-description = "Remove all stopped images"
-keywords = [image, prune, delete, remove]
-[menu.main]
-parent = "smn_cli"
-+++
-<![end-metadata]-->
+---
+title: "image prune"
+description: "Remove all stopped images"
+keywords: [image, prune, delete, remove]
+---
 
 # image prune
 

@@ -1,13 +1,8 @@
-<!--[metadata]>
-+++
-title = "Docker Glossary"
-description = "Glossary of terms used around Docker"
-keywords = ["glossary, docker, terms,  definitions"]
-[menu.main]
-parent = "mn_about"
-weight = "50"
-+++
-<![end-metadata]-->
+---
+title: "Docker Glossary"
+description: "Glossary of terms used around Docker"
+keywords: ["glossary, docker, terms,  definitions"]
+---
 
 # Glossary
 

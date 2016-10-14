@@ -1,13 +1,9 @@
-<!--[metadata]>
-+++
-draft = true
-title = "The Docker Hub and the Registry v1"
-description = "Documentation for docker Registry and Registry API"
-keywords = ["docker, registry, api,  hub"]
-[menu.main]
-parent="smn_hub_ref"
-+++
-<![end-metadata]-->
+---
+published: false
+title: "The Docker Hub and the Registry v1"
+description: "Documentation for docker Registry and Registry API"
+keywords: ["docker, registry, api,  hub"]
+---
 
 # The Docker Hub and the Registry v1
 

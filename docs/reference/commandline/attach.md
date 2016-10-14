@@ -1,12 +1,8 @@
-<!--[metadata]>
-+++
-title = "attach"
-description = "The attach command description and usage"
-keywords = ["attach, running, container"]
-[menu.main]
-parent = "smn_cli"
-+++
-<![end-metadata]-->
+---
+title: "attach"
+description: "The attach command description and usage"
+keywords: ["attach, running, container"]
+---
 
 # attach
 

@@ -1,13 +1,9 @@
-<!--[metadata]>
-+++
-title = "node ps"
-description = "The node ps command description and usage"
-keywords = ["node, tasks", "ps"]
-aliases = ["/engine/reference/commandline/node_tasks/"]
-[menu.main]
-parent = "smn_cli"
-+++
-<![end-metadata]-->
+---
+title: "node ps"
+description: "The node ps command description and usage"
+keywords: ["node, tasks", "ps"]
+aliases: ["/engine/reference/commandline/node_tasks/"]
+---
 
 # node ps
 

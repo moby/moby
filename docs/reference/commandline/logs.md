@@ -1,12 +1,8 @@
-<!--[metadata]>
-+++
-title = "logs"
-description = "The logs command description and usage"
-keywords = ["logs, retrieve, docker"]
-[menu.main]
-parent = "smn_cli"
-+++
-<![end-metadata]-->
+---
+title: "logs"
+description: "The logs command description and usage"
+keywords: ["logs, retrieve, docker"]
+---
 
 # logs
 

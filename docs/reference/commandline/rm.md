@@ -1,12 +1,8 @@
-<!--[metadata]>
-+++
-title = "rm"
-description = "The rm command description and usage"
-keywords = ["remove, Docker, container"]
-[menu.main]
-parent = "smn_cli"
-+++
-<![end-metadata]-->
+---
+title: "rm"
+description: "The rm command description and usage"
+keywords: ["remove, Docker, container"]
+---
 
 # rm
 
