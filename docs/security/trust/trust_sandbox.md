@@ -34,7 +34,7 @@ Finally, you'll need to have a text editor installed on your local system or VM.
 ## What is in the sandbox?
 
 If you are just using trust out-of-the-box you only need your Docker Engine
-client and access to the Docker hub. The sandbox mimics a
+client and access to the Docker Hub. The sandbox mimics a
 production trust environment, and sets up these additional components.
 
 | Container       | Description                                                                                                                                 |
@@ -70,8 +70,8 @@ the `trustsandbox` container, the Notary server, and the Registry server.
 
 1. Create a new `trustsandbox` directory and change into it.
 
-        $ mkdir `trustsandbox`
-        $ cd `trustsandbox`
+        $ mkdir trustsandbox
+        $ cd trustsandbox
 
 2. Create a filed called `docker-compose.yml` with your favorite editor.  For example, using vim:
 
