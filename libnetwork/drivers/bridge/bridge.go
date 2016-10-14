@@ -779,6 +779,20 @@ func (d *driver) DeleteNetwork(nid string) error {
 	config := n.config
 	n.Unlock()
 
+	// delele endpoints belong to this network
+	for _, ep := range n.endpoints {
+		if err := n.releasePorts(ep); err != nil {
+			logrus.Warn(err)
+		}
+		if link, err := d.nlh.LinkByName(ep.srcName); err == nil {
+			d.nlh.LinkDel(link)
+		}
+
+		if err := d.storeDelete(ep); err != nil {
+			logrus.Warnf("Failed to remove bridge endpoint %s from store: %v", ep.id[0:7], err)
+		}
+	}
+
 	d.Lock()
 	delete(d.networks, nid)
 	d.Unlock()
