@@ -447,12 +447,81 @@ func (clnt *client) Resize(containerID, processFriendlyName string, width, heigh
 
 // Pause handles pause requests for containers
 func (clnt *client) Pause(containerID string) error {
-	return errors.New("Windows: Containers cannot be paused")
+	unlockContainer := true
+	// Get the libcontainerd container object
+	clnt.lock(containerID)
+	defer func() {
+		if unlockContainer {
+			clnt.unlock(containerID)
+		}
+	}()
+	container, err := clnt.getContainer(containerID)
+	if err != nil {
+		return err
+	}
+
+	for _, option := range container.options {
+		if h, ok := option.(*HyperVIsolationOption); ok {
+			if !h.IsHyperV {
+				return errors.New("cannot pause Windows Server Containers")
+			}
+			break
+		}
+	}
+
+	err = container.hcsContainer.Pause()
+	if err != nil {
+		return err
+	}
+
+	// Unlock container before calling back into the daemon
+	unlockContainer = false
+	clnt.unlock(containerID)
+
+	return clnt.backend.StateChanged(containerID, StateInfo{
+		CommonStateInfo: CommonStateInfo{
+			State: StatePause,
+		}})
 }
 
 // Resume handles resume requests for containers
 func (clnt *client) Resume(containerID string) error {
-	return errors.New("Windows: Containers cannot be paused")
+	unlockContainer := true
+	// Get the libcontainerd container object
+	clnt.lock(containerID)
+	defer func() {
+		if unlockContainer {
+			clnt.unlock(containerID)
+		}
+	}()
+	container, err := clnt.getContainer(containerID)
+	if err != nil {
+		return err
+	}
+
+	// This should never happen, since Windows Server Containers cannot be paused
+	for _, option := range container.options {
+		if h, ok := option.(*HyperVIsolationOption); ok {
+			if !h.IsHyperV {
+				return errors.New("cannot resume Windows Server Containers")
+			}
+			break
+		}
+	}
+
+	err = container.hcsContainer.Resume()
+	if err != nil {
+		return err
+	}
+
+	// Unlock container before calling back into the daemon
+	unlockContainer = false
+	clnt.unlock(containerID)
+
+	return clnt.backend.StateChanged(containerID, StateInfo{
+		CommonStateInfo: CommonStateInfo{
+			State: StateResume,
+		}})
 }
 
 // Stats handles stats requests for containers

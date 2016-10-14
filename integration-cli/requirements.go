@@ -201,6 +201,24 @@ var (
 		},
 		"Test cannot be run when remapping root",
 	}
+	IsPausable = testRequirement{
+		func() bool {
+			if daemonPlatform == "windows" {
+				return isolation == "hyperv"
+			}
+			return true
+		},
+		"Test requires containers are pausable.",
+	}
+	NotPausable = testRequirement{
+		func() bool {
+			if daemonPlatform == "windows" {
+				return isolation == "process"
+			}
+			return false
+		},
+		"Test requires containers are not pausable.",
+	}
 )
 
 // testRequires checks if the environment satisfies the requirements
