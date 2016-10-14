@@ -153,13 +153,15 @@ func (daemon *Daemon) restore() error {
 	removeContainers := make(map[string]*container.Container)
 	restartContainers := make(map[*container.Container]chan struct{})
 	activeSandboxes := make(map[string]interface{})
-	for _, c := range containers {
+	for id, c := range containers {
 		if err := daemon.registerName(c); err != nil {
 			logrus.Errorf("Failed to register container %s: %s", c.ID, err)
+			delete(containers, id)
 			continue
 		}
 		if err := daemon.Register(c); err != nil {
 			logrus.Errorf("Failed to register container %s: %s", c.ID, err)
+			delete(containers, id)
 			continue
 		}
 
