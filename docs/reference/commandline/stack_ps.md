@@ -1,26 +1,26 @@
 <!--[metadata]>
 +++
-title = "stack tasks"
-description = "The stack tasks command description and usage"
-keywords = ["stack, tasks"]
+title = "stack ps"
+description = "The stack ps command description and usage"
+keywords = ["stack, ps"]
 advisory = "experimental"
 [menu.main]
 parent = "smn_cli"
 +++
 <![end-metadata]-->
 
-# stack tasks (experimental)
+# stack ps (experimental)
 
 ```markdown
-Usage:  docker stack tasks [OPTIONS] STACK
+Usage:  docker stack ps [OPTIONS] STACK
 
 List the tasks in the stack
 
 Options:
   -a, --all            Display all tasks
   -f, --filter value   Filter output based on conditions provided
-      --help           Print usage
       --no-resolve     Do not map IDs to Names
+      --no-trunc       Do not truncate output
 ```
 
 Lists the tasks that are running as part of the specified stack. This
