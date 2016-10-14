@@ -318,6 +318,8 @@ main() {
 		bundle "$bundle"
 		echo
 	done
+
+	make manpages
 }
 
 main "$@"
