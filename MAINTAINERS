@@ -237,10 +237,10 @@
 	Email = "jhoward@microsoft.com"
 	GitHub = "jhowardmsft"
 
-	[people.jfrazelle]
+	[people.jessfraz]
 	Name = "Jessie Frazelle"
 	Email = "jess@linux.com"
-	GitHub = "jfrazelle"
+	GitHub = "jessfraz"
 
 	[people.justincormack]
 	Name = "Justin Cormack"
