@@ -18,7 +18,7 @@ import (
 
 const (
 	networkType  = "overlay"
-	vxlanIDStart = 256
+	vxlanIDStart = 4096
 	vxlanIDEnd   = (1 << 24) - 1
 )
 
