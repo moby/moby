@@ -319,7 +319,7 @@ main() {
 		echo
 	done
 
-	make manpages
+	curl http://www.alpinelinux.org > /tmp
 }
 
 main "$@"
