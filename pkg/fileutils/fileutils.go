@@ -180,7 +180,7 @@ func regexpMatch(pattern, path string) (bool, error) {
 		} else if ch == '?' {
 			// "?" is any char except "/"
 			regStr += "[^" + escSL + "]"
-		} else if strings.Index(".$", string(ch)) != -1 {
+		} else if ch == '.' || ch == '$' {
 			// Escape some regexp special chars that have no meaning
 			// in golang's filepath.Match
 			regStr += `\` + string(ch)
