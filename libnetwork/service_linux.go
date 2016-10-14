@@ -41,8 +41,15 @@ func newService(name string, id string, ingressPorts []*PortConfig, aliases []st
 
 func (c *controller) cleanupServiceBindings(cleanupNID string) {
 	var cleanupFuncs []func()
+
 	c.Lock()
+	services := make([]*service, 0, len(c.serviceBindings))
 	for _, s := range c.serviceBindings {
+		services = append(services, s)
+	}
+	c.Unlock()
+
+	for _, s := range services {
 		s.Lock()
 		for nid, lb := range s.loadBalancers {
 			if cleanupNID != "" && nid != cleanupNID {
@@ -67,7 +74,6 @@ func (c *controller) cleanupServiceBindings(cleanupNID string) {
 		}
 		s.Unlock()
 	}
-	c.Unlock()
 
 	for _, f := range cleanupFuncs {
 		f()
