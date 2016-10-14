@@ -496,14 +496,14 @@ func (nDB *NetworkDB) addNetworkNode(nid string, nodeName string) {
 // this
 func (nDB *NetworkDB) deleteNetworkNode(nid string, nodeName string) {
 	nodes := nDB.networkNodes[nid]
-	for i, name := range nodes {
+	newNodes := make([]string, 0, len(nodes)-1)
+	for _, name := range nodes {
 		if name == nodeName {
-			nodes[i] = nodes[len(nodes)-1]
-			nodes = nodes[:len(nodes)-1]
-			break
+			continue
 		}
+		newNodes = append(newNodes, name)
 	}
-	nDB.networkNodes[nid] = nodes
+	nDB.networkNodes[nid] = newNodes
 }
 
 // findCommonnetworks find the networks that both this node and the
