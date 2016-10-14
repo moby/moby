@@ -163,11 +163,10 @@ func runStats(dockerCli *command.DockerCli, opts *statsOptions) error {
 		var errs []string
 		cStats.mu.Lock()
 		for _, c := range cStats.cs {
-			c.Mu.Lock()
-			if c.Err != nil {
-				errs = append(errs, fmt.Sprintf("%s: %v", c.Name, c.Err))
+			cErr := c.GetError()
+			if cErr != nil {
+				errs = append(errs, fmt.Sprintf("%s: %v", c.Name, cErr))
 			}
-			c.Mu.Unlock()
 		}
 		cStats.mu.Unlock()
 		if len(errs) > 0 {
@@ -186,7 +185,7 @@ func runStats(dockerCli *command.DockerCli, opts *statsOptions) error {
 		Format: formatter.NewStatsFormat(f, daemonOSType),
 	}
 
-	cleanHeader := func() {
+	cleanScreen := func() {
 		if !opts.noStream {
 			fmt.Fprint(dockerCli.Out(), "\033[2J")
 			fmt.Fprint(dockerCli.Out(), "\033[H")
@@ -195,14 +194,17 @@ func runStats(dockerCli *command.DockerCli, opts *statsOptions) error {
 
 	var err error
 	for range time.Tick(500 * time.Millisecond) {
-		cleanHeader()
-		cStats.mu.RLock()
-		csLen := len(cStats.cs)
-		if err = formatter.ContainerStatsWrite(statsCtx, cStats.cs); err != nil {
+		cleanScreen()
+		ccstats := []formatter.StatsEntry{}
+		cStats.mu.Lock()
+		for _, c := range cStats.cs {
+			ccstats = append(ccstats, c.GetStatistics())
+		}
+		cStats.mu.Unlock()
+		if err = formatter.ContainerStatsWrite(statsCtx, ccstats); err != nil {
 			break
 		}
-		cStats.mu.RUnlock()
-		if csLen == 0 && !showAll {
+		if len(cStats.cs) == 0 && !showAll {
 			break
 		}
 		if opts.noStream {

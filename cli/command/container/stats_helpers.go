@@ -17,7 +17,7 @@ import (
 
 type stats struct {
 	ostype string
-	mu     sync.RWMutex
+	mu     sync.Mutex
 	cs     []*formatter.ContainerStats
 }
 
@@ -72,9 +72,7 @@ func collect(s *formatter.ContainerStats, ctx context.Context, cli client.APICli
 
 	response, err := cli.ContainerStats(ctx, s.Name, streamStats)
 	if err != nil {
-		s.Mu.Lock()
-		s.Err = err
-		s.Mu.Unlock()
+		s.SetError(err)
 		return
 	}
 	defer response.Body.Close()
@@ -88,6 +86,9 @@ func collect(s *formatter.ContainerStats, ctx context.Context, cli client.APICli
 				cpuPercent        = 0.0
 				blkRead, blkWrite uint64 // Only used on Linux
 				mem               = 0.0
+				memLimit          = 0.0
+				memPerc           = 0.0
+				pidsStatsCurrent  uint64
 			)
 
 			if err := dec.Decode(&v); err != nil {
@@ -113,26 +114,27 @@ func collect(s *formatter.ContainerStats, ctx context.Context, cli client.APICli
 				cpuPercent = calculateCPUPercentUnix(previousCPU, previousSystem, v)
 				blkRead, blkWrite = calculateBlockIO(v.BlkioStats)
 				mem = float64(v.MemoryStats.Usage)
-
+				memLimit = float64(v.MemoryStats.Limit)
+				memPerc = memPercent
+				pidsStatsCurrent = v.PidsStats.Current
 			} else {
 				cpuPercent = calculateCPUPercentWindows(v)
 				blkRead = v.StorageStats.ReadSizeBytes
 				blkWrite = v.StorageStats.WriteSizeBytes
 				mem = float64(v.MemoryStats.PrivateWorkingSet)
 			}
-
-			s.Mu.Lock()
-			s.CPUPercentage = cpuPercent
-			s.Memory = mem
-			s.NetworkRx, s.NetworkTx = calculateNetwork(v.Networks)
-			s.BlockRead = float64(blkRead)
-			s.BlockWrite = float64(blkWrite)
-			if daemonOSType != "windows" {
-				s.MemoryLimit = float64(v.MemoryStats.Limit)
-				s.MemoryPercentage = memPercent
-				s.PidsCurrent = v.PidsStats.Current
-			}
-			s.Mu.Unlock()
+			netRx, netTx := calculateNetwork(v.Networks)
+			s.SetStatistics(formatter.StatsEntry{
+				CPUPercentage:    cpuPercent,
+				Memory:           mem,
+				MemoryPercentage: memPerc,
+				MemoryLimit:      memLimit,
+				NetworkRx:        netRx,
+				NetworkTx:        netTx,
+				BlockRead:        float64(blkRead),
+				BlockWrite:       float64(blkWrite),
+				PidsCurrent:      pidsStatsCurrent,
+			})
 			u <- nil
 			if !streamStats {
 				return
@@ -144,18 +146,7 @@ func collect(s *formatter.ContainerStats, ctx context.Context, cli client.APICli
 		case <-time.After(2 * time.Second):
 			// zero out the values if we have not received an update within
 			// the specified duration.
-			s.Mu.Lock()
-			s.CPUPercentage = 0
-			s.Memory = 0
-			s.MemoryPercentage = 0
-			s.MemoryLimit = 0
-			s.NetworkRx = 0
-			s.NetworkTx = 0
-			s.BlockRead = 0
-			s.BlockWrite = 0
-			s.PidsCurrent = 0
-			s.Err = errors.New("timeout waiting for stats")
-			s.Mu.Unlock()
+			s.SetErrorAndReset(errors.New("timeout waiting for stats"))
 			// if this is the first stat you get, release WaitGroup
 			if !getFirst {
 				getFirst = true
@@ -163,12 +154,10 @@ func collect(s *formatter.ContainerStats, ctx context.Context, cli client.APICli
 			}
 		case err := <-u:
 			if err != nil {
-				s.Mu.Lock()
-				s.Err = err
-				s.Mu.Unlock()
+				s.SetError(err)
 				continue
 			}
-			s.Err = nil
+			s.SetError(nil)
 			// if this is the first stat you get, release WaitGroup
 			if !getFirst {
 				getFirst = true
