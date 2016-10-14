@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"sync"
 	"syscall"
 
 	containerd "github.com/docker/containerd/api/grpc/types"
@@ -52,12 +53,17 @@ func (p *process) openFifos(terminal bool) (*IOPipe, error) {
 		io.Stderr = emptyReader{}
 	}
 
+	var stdinOnce sync.Once
+
 	io.Stdin = ioutils.NewWriteCloserWrapper(stdinf, func() error {
-		stdinf.Close()
-		_, err := p.client.remote.apiClient.UpdateProcess(context.Background(), &containerd.UpdateProcessRequest{
-			Id:         p.containerID,
-			Pid:        p.friendlyName,
-			CloseStdin: true,
+		var err error
+		stdinOnce.Do(func() {
+			stdinf.Close()
+			_, err = p.client.remote.apiClient.UpdateProcess(context.Background(), &containerd.UpdateProcessRequest{
+				Id:         p.containerID,
+				Pid:        p.friendlyName,
+				CloseStdin: true,
+			})
 		})
 		return err
 	})
