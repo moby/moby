@@ -18,8 +18,9 @@ import (
 const name = "journald"
 
 type journald struct {
-	vars    map[string]string // additional variables and values to send to the journal along with the log message
-	readers readerList
+	vars           map[string]string // additional variables and values to send to the journal along with the log message
+	gatewayAddress string
+	readers        readerList
 }
 
 type readerList struct {
@@ -85,7 +86,11 @@ func New(ctx logger.Context) (logger.Logger, error) {
 	for k, v := range extraAttrs {
 		vars[k] = v
 	}
-	return &journald{vars: vars, readers: readerList{readers: make(map[*logger.LogWatcher]*logger.LogWatcher)}}, nil
+	return &journald{
+		vars:           vars,
+		gatewayAddress: ctx.Config["journal-gateway-address"],
+		readers:        readerList{readers: make(map[*logger.LogWatcher]*logger.LogWatcher)},
+	}, nil
 }
 
 // We don't actually accept any options, but we have to supply a callback for
@@ -96,6 +101,7 @@ func validateLogOpt(cfg map[string]string) error {
 		case "labels":
 		case "env":
 		case "tag":
+		case "journal-gateway-address":
 		default:
 			return fmt.Errorf("unknown log opt '%s' for journald log driver", key)
 		}

@@ -42,6 +42,9 @@ You can set the logging driver for a specific container by using the
 Users can use the `--log-opt NAME=VALUE` flag to specify additional
 journald logging driver options.
 
+Users can use the `--log-opt journal-gateway-address=host:port` option to
+specify the `systemd-journal-gatewayd` address where the driver connects to.
+
 ### tag
 
 Specify template to set `CONTAINER_TAG` value in journald logs. Refer to
