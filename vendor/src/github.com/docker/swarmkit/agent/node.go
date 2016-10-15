@@ -101,6 +101,21 @@ type Node struct {
 	roleChangeReq        chan api.NodeRole // used to send role updates from the dispatcher api on promotion/demotion
 }
 
+// RemoteAPIAddr returns address on which remote manager api listens.
+// Returns nil if node is not manager.
+func (n *Node) RemoteAPIAddr() (string, error) {
+	n.RLock()
+	defer n.RUnlock()
+	if n.manager == nil {
+		return "", errors.Errorf("node is not manager")
+	}
+	addr := n.manager.Addr()
+	if addr == nil {
+		return "", errors.Errorf("manager addr is not set")
+	}
+	return addr.String(), nil
+}
+
 // NewNode returns new Node instance.
 func NewNode(c *NodeConfig) (*Node, error) {
 	if err := os.MkdirAll(c.StateDir, 0700); err != nil {
@@ -627,7 +642,12 @@ func (n *Node) runManager(ctx context.Context, securityConfig *ca.SecurityConfig
 			go func(ready chan struct{}) {
 				select {
 				case <-ready:
-					n.remotes.Observe(api.Peer{NodeID: n.NodeID(), Addr: n.config.ListenRemoteAPI}, remotes.DefaultObservationWeight)
+					addr, err := n.RemoteAPIAddr()
+					if err != nil {
+						log.G(ctx).WithError(err).Errorf("get remote api addr")
+					} else {
+						n.remotes.Observe(api.Peer{NodeID: n.NodeID(), Addr: addr}, remotes.DefaultObservationWeight)
+					}
 				case <-connCtx.Done():
 				}
 			}(ready)

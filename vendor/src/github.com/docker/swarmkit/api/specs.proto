@@ -189,7 +189,7 @@ message ContainerSpec {
 	// PullOptions parameterize the behavior of image pulls.
 	PullOptions pull_options = 10;
 
-	// Secrets contains references to zero or more secrets that
+	// SecretReference contains references to zero or more secrets that
 	// will be exposed to the container.
 	repeated SecretReference secrets = 12;
 }

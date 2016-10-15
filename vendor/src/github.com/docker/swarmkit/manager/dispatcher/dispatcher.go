@@ -759,6 +759,7 @@ func (d *Dispatcher) Assignments(r *api.AssignmentsRequest, stream api.Dispatche
 		initial   api.AssignmentsMessage
 	)
 	tasksMap := make(map[string]*api.Task)
+	tasksUsingSecret := make(map[string]map[string]struct{})
 
 	sendMessage := func(msg api.AssignmentsMessage, assignmentType api.AssignmentsMessage_Type) error {
 		sequence++
@@ -771,6 +772,45 @@ func (d *Dispatcher) Assignments(r *api.AssignmentsRequest, stream api.Dispatche
 			return err
 		}
 		return nil
+	}
+
+	// returns a slice of new secrets to send down
+	addSecretsForTask := func(readTx store.ReadTx, t *api.Task) []*api.Secret {
+		container := t.Spec.GetContainer()
+		if container == nil {
+			return nil
+		}
+		var newSecrets []*api.Secret
+		for _, secretRef := range container.Secrets {
+			secretID := secretRef.SecretID
+			log := log.WithFields(logrus.Fields{
+				"secret.id":   secretID,
+				"secret.name": secretRef.SecretName,
+			})
+
+			if tasksUsingSecret[secretID] == nil {
+				tasksUsingSecret[secretID] = make(map[string]struct{})
+
+				secrets, err := store.FindSecrets(readTx, store.ByIDPrefix(secretID))
+				if err != nil {
+					log.WithError(err).Errorf("error retrieving secret")
+					continue
+				}
+				if len(secrets) != 1 {
+					log.Debugf("secret not found")
+					continue
+				}
+
+				// If the secret was found and there was one result
+				// (there should never be more than one because of the
+				// uniqueness constraint), add this secret to our
+				// initial set that we send down.
+				newSecrets = append(newSecrets, secrets[0])
+			}
+			tasksUsingSecret[secretID][t.ID] = struct{}{}
+		}
+
+		return newSecrets
 	}
 
 	// TODO(aaronl): Also send node secrets that should be exposed to
@@ -794,7 +834,31 @@ func (d *Dispatcher) Assignments(r *api.AssignmentsRequest, stream api.Dispatche
 				}
 
 				tasksMap[t.ID] = t
-				initial.UpdateTasks = append(initial.UpdateTasks, t)
+				taskChange := &api.AssignmentChange{
+					Assignment: &api.Assignment{
+						Item: &api.Assignment_Task{
+							Task: t,
+						},
+					},
+					Action: api.AssignmentChange_AssignmentActionUpdate,
+				}
+				initial.Changes = append(initial.Changes, taskChange)
+				// Only send secrets down if these tasks are in < RUNNING
+				if t.Status.State <= api.TaskStateRunning {
+					newSecrets := addSecretsForTask(readTx, t)
+					for _, secret := range newSecrets {
+						secretChange := &api.AssignmentChange{
+							Assignment: &api.Assignment{
+								Item: &api.Assignment_Secret{
+									Secret: secret,
+								},
+							},
+							Action: api.AssignmentChange_AssignmentActionUpdate,
+						}
+
+						initial.Changes = append(initial.Changes, secretChange)
+					}
+				}
 			}
 			return nil
 		},
@@ -802,6 +866,8 @@ func (d *Dispatcher) Assignments(r *api.AssignmentsRequest, stream api.Dispatche
 			Checks: []state.TaskCheckFunc{state.TaskCheckNodeID}},
 		state.EventDeleteTask{Task: &api.Task{NodeID: nodeID},
 			Checks: []state.TaskCheckFunc{state.TaskCheckNodeID}},
+		state.EventUpdateSecret{},
+		state.EventDeleteSecret{},
 	)
 	if err != nil {
 		return err
@@ -825,7 +891,9 @@ func (d *Dispatcher) Assignments(r *api.AssignmentsRequest, stream api.Dispatche
 			batchingTimer   *time.Timer
 			batchingTimeout <-chan time.Time
 			updateTasks     = make(map[string]*api.Task)
+			updateSecrets   = make(map[string]*api.Secret)
 			removeTasks     = make(map[string]struct{})
+			removeSecrets   = make(map[string]struct{})
 		)
 
 		oneModification := func() {
@@ -837,6 +905,28 @@ func (d *Dispatcher) Assignments(r *api.AssignmentsRequest, stream api.Dispatche
 				batchingTimer = time.NewTimer(batchingWaitTime)
 				batchingTimeout = batchingTimer.C
 			}
+		}
+
+		// Release the secrets references from this task
+		releaseSecretsForTask := func(t *api.Task) bool {
+			var modified bool
+			container := t.Spec.GetContainer()
+			if container == nil {
+				return modified
+			}
+
+			for _, secretRef := range container.Secrets {
+				secretID := secretRef.SecretID
+				delete(tasksUsingSecret[secretID], t.ID)
+				if len(tasksUsingSecret[secretID]) == 0 {
+					// No tasks are using the secret anymore
+					delete(tasksUsingSecret, secretID)
+					removeSecrets[secretID] = struct{}{}
+					modified = true
+				}
+			}
+
+			return modified
 		}
 
 		// The batching loop waits for 50 ms after the most recent
@@ -867,7 +957,28 @@ func (d *Dispatcher) Assignments(r *api.AssignmentsRequest, stream api.Dispatche
 						if equality.TasksEqualStable(oldTask, v.Task) && v.Task.Status.State > api.TaskStateAssigned {
 							// this update should not trigger a task change for the agent
 							tasksMap[v.Task.ID] = v.Task
+							// If this task got updated to a final state, let's release
+							// the secrets that are being used by the task
+							if v.Task.Status.State > api.TaskStateRunning {
+								// If releasing the secrets caused a secret to be
+								// removed from an agent, mark one modification
+								if releaseSecretsForTask(v.Task) {
+									oneModification()
+								}
+							}
 							continue
+						}
+					} else if v.Task.Status.State <= api.TaskStateRunning {
+						// If this task wasn't part of the assignment set before, and it's <= RUNNING
+						// add the secrets it references to the secrets assignment.
+						// Task states > RUNNING are worker reported only, are never created in
+						// a > RUNNING state.
+						var newSecrets []*api.Secret
+						d.store.View(func(readTx store.ReadTx) {
+							newSecrets = addSecretsForTask(readTx, v.Task)
+						})
+						for _, secret := range newSecrets {
+							updateSecrets[secret.ID] = secret
 						}
 					}
 					tasksMap[v.Task.ID] = v.Task
@@ -875,7 +986,6 @@ func (d *Dispatcher) Assignments(r *api.AssignmentsRequest, stream api.Dispatche
 
 					oneModification()
 				case state.EventDeleteTask:
-
 					if _, exists := tasksMap[v.Task.ID]; !exists {
 						continue
 					}
@@ -884,7 +994,28 @@ func (d *Dispatcher) Assignments(r *api.AssignmentsRequest, stream api.Dispatche
 
 					delete(tasksMap, v.Task.ID)
 
+					// Release the secrets being used by this task
+					// Ignoring the return here. We will always mark
+					// this as a modification, since a task is being
+					// removed.
+					releaseSecretsForTask(v.Task)
+
 					oneModification()
+				// TODO(aaronl): For node secrets, we'll need to handle
+				// EventCreateSecret.
+				case state.EventUpdateSecret:
+					if _, exists := tasksUsingSecret[v.Secret.ID]; !exists {
+						continue
+					}
+					log.Debugf("Secret %s (ID: %d) was updated though it was still referenced by one or more tasks",
+						v.Secret.Spec.Annotations.Name, v.Secret.ID)
+
+				case state.EventDeleteSecret:
+					if _, exists := tasksUsingSecret[v.Secret.ID]; !exists {
+						continue
+					}
+					log.Debugf("Secret %s (ID: %d) was deleted though it was still referenced by one or more tasks",
+						v.Secret.Spec.Annotations.Name, v.Secret.ID)
 				}
 			case <-batchingTimeout:
 				break batchingLoop
@@ -902,12 +1033,57 @@ func (d *Dispatcher) Assignments(r *api.AssignmentsRequest, stream api.Dispatche
 		if modificationCnt > 0 {
 			for id, task := range updateTasks {
 				if _, ok := removeTasks[id]; !ok {
-					update.UpdateTasks = append(update.UpdateTasks, task)
+					taskChange := &api.AssignmentChange{
+						Assignment: &api.Assignment{
+							Item: &api.Assignment_Task{
+								Task: task,
+							},
+						},
+						Action: api.AssignmentChange_AssignmentActionUpdate,
+					}
+
+					update.Changes = append(update.Changes, taskChange)
+				}
+			}
+			for id, secret := range updateSecrets {
+				if _, ok := removeSecrets[id]; !ok {
+					secretChange := &api.AssignmentChange{
+						Assignment: &api.Assignment{
+							Item: &api.Assignment_Secret{
+								Secret: secret,
+							},
+						},
+						Action: api.AssignmentChange_AssignmentActionUpdate,
+					}
+
+					update.Changes = append(update.Changes, secretChange)
 				}
 			}
 			for id := range removeTasks {
-				update.RemoveTasks = append(update.RemoveTasks, id)
+				taskChange := &api.AssignmentChange{
+					Assignment: &api.Assignment{
+						Item: &api.Assignment_Task{
+							Task: &api.Task{ID: id},
+						},
+					},
+					Action: api.AssignmentChange_AssignmentActionRemove,
+				}
+
+				update.Changes = append(update.Changes, taskChange)
 			}
+			for id := range removeSecrets {
+				secretChange := &api.AssignmentChange{
+					Assignment: &api.Assignment{
+						Item: &api.Assignment_Secret{
+							Secret: &api.Secret{ID: id},
+						},
+					},
+					Action: api.AssignmentChange_AssignmentActionRemove,
+				}
+
+				update.Changes = append(update.Changes, secretChange)
+			}
+
 			if err := sendMessage(update, api.AssignmentsMessage_INCREMENTAL); err != nil {
 				return err
 			}

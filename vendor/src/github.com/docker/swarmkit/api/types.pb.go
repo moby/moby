@@ -133,6 +133,8 @@
 		TasksRequest
 		TasksMessage
 		AssignmentsRequest
+		Assignment
+		AssignmentChange
 		AssignmentsMessage
 		NodeCertificateStatusRequest
 		NodeCertificateStatusResponse
@@ -1053,8 +1055,8 @@ func _TaskStatus_OneofSizer(msg proto.Message) (n int) {
 // instructing Swarm on how this service should work on the particular
 // network.
 type NetworkAttachmentConfig struct {
-	// Target specifies the target network for attachment. This value may be a
-	// network name or identifier. Only identifiers are supported at this time.
+	// Target specifies the target network for attachment. This value must be a
+	// network ID.
 	Target string `protobuf:"bytes,1,opt,name=target,proto3" json:"target,omitempty"`
 	// Aliases specifies a list of discoverable alternate names for the service on this Target.
 	Aliases []string `protobuf:"bytes,2,rep,name=aliases" json:"aliases,omitempty"`
