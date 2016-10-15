@@ -1786,7 +1786,7 @@ a base64-encoded AuthConfig object.
 
         ```
     {
-            "registrytoken": "9cbaf023786cd7..."
+            "identitytoken": "9cbaf023786cd7..."
     }
         ```
 
