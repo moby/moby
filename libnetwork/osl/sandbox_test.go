@@ -1,3 +1,5 @@
+// +build !solaris
+
 package osl
 
 import (
