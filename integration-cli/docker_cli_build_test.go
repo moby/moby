@@ -6632,6 +6632,19 @@ func (s *DockerSuite) TestBuildLabelsOverride(c *check.C) {
 		c.Fatalf("Labels %s, expected %s", res, expected)
 	}
 
+	// Command line option labels with env var
+	name = "scratchz"
+	expected = `{"bar":"$PATH"}`
+	_, err = buildImage(name,
+		`FROM scratch`,
+		true, "--label", "bar=$PATH")
+	c.Assert(err, check.IsNil)
+
+	res = inspectFieldJSON(c, name, "Config.Labels")
+	if res != expected {
+		c.Fatalf("Labels %s, expected %s", res, expected)
+	}
+
 }
 
 // Test case for #22855
