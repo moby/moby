@@ -16,12 +16,12 @@ import (
 func CheckBlobDescriptorCache(t *testing.T, provider cache.BlobDescriptorCacheProvider) {
 	ctx := context.Background()
 
-	checkBlobDescriptorCacheEmptyRepository(t, ctx, provider)
-	checkBlobDescriptorCacheSetAndRead(t, ctx, provider)
-	checkBlobDescriptorCacheClear(t, ctx, provider)
+	checkBlobDescriptorCacheEmptyRepository(ctx, t, provider)
+	checkBlobDescriptorCacheSetAndRead(ctx, t, provider)
+	checkBlobDescriptorCacheClear(ctx, t, provider)
 }
 
-func checkBlobDescriptorCacheEmptyRepository(t *testing.T, ctx context.Context, provider cache.BlobDescriptorCacheProvider) {
+func checkBlobDescriptorCacheEmptyRepository(ctx context.Context, t *testing.T, provider cache.BlobDescriptorCacheProvider) {
 	if _, err := provider.Stat(ctx, "sha384:abc111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111"); err != distribution.ErrBlobUnknown {
 		t.Fatalf("expected unknown blob error with empty store: %v", err)
 	}
@@ -59,7 +59,7 @@ func checkBlobDescriptorCacheEmptyRepository(t *testing.T, ctx context.Context, 
 	}
 }
 
-func checkBlobDescriptorCacheSetAndRead(t *testing.T, ctx context.Context, provider cache.BlobDescriptorCacheProvider) {
+func checkBlobDescriptorCacheSetAndRead(ctx context.Context, t *testing.T, provider cache.BlobDescriptorCacheProvider) {
 	localDigest := digest.Digest("sha384:abc111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111")
 	expected := distribution.Descriptor{
 		Digest:    "sha256:abc1111111111111111111111111111111111111111111111111111111111111",
@@ -143,7 +143,7 @@ func checkBlobDescriptorCacheSetAndRead(t *testing.T, ctx context.Context, provi
 	}
 }
 
-func checkBlobDescriptorCacheClear(t *testing.T, ctx context.Context, provider cache.BlobDescriptorCacheProvider) {
+func checkBlobDescriptorCacheClear(ctx context.Context, t *testing.T, provider cache.BlobDescriptorCacheProvider) {
 	localDigest := digest.Digest("sha384:def111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111")
 	expected := distribution.Descriptor{
 		Digest:    "sha256:def1111111111111111111111111111111111111111111111111111111111111",
