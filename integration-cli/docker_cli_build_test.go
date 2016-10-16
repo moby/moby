@@ -6636,7 +6636,7 @@ func (s *DockerSuite) TestBuildLabelsOverride(c *check.C) {
 	name = "scratchz"
 	expected = `{"bar":"$PATH"}`
 	_, err = buildImage(name,
-		`FROM scratch`,
+		`FROM `+minimalBaseImage(),
 		true, "--label", "bar=$PATH")
 	c.Assert(err, check.IsNil)
 
