@@ -13,6 +13,17 @@ For more information about reporting issues, see
 https://github.com/docker/docker/blob/master/CONTRIBUTING.md#reporting-other-issues
 
 ---------------------------------------------------
+GENERAL SUPPORT INFORMATION
+---------------------------------------------------
+
+The GitHub issue tracker is for bug reports and feature requests.
+General support can be found at the following locations:
+
+- Docker Support Forums - https://forums.docker.com
+- IRC - irc.freenode.net #docker channel
+- Post a question on StackOverflow, using the Docker tag
+
+---------------------------------------------------
 BUG REPORT INFORMATION
 ---------------------------------------------------
 Use the commands below to provide key information from your environment:
