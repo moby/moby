@@ -237,3 +237,26 @@ func (s *DockerDaemonSuite) TestInfoLabels(c *check.C) {
 	c.Assert(err, checker.IsNil)
 	c.Assert(out, checker.Contains, "WARNING: labels with duplicate keys and conflicting values have been deprecated")
 }
+
+func (s *DockerDaemonSuite) TestInfoLoggingDriver(c *check.C) {
+	testRequires(c, SameHostDaemon, DaemonIsLinux)
+
+	loggingDriver := "json-file"
+	loggingConfig := map[string]string{
+		"max-file": "5",
+		"labels":   "label1,label2,label3",
+		"env":      "ENV1,ENV2,ENV3",
+	}
+	s.d.Start(c, "--log-driver", loggingDriver,
+		"--log-opt", "max-file="+loggingConfig["max-file"],
+		"--log-opt", "labels="+loggingConfig["labels"],
+		"--log-opt", "env="+loggingConfig["env"])
+
+	out, err := s.d.Cmd("info")
+	c.Assert(err, checker.IsNil)
+	c.Assert(out, checker.Contains, fmt.Sprintf("Logging Driver: %s\n", loggingDriver))
+	c.Assert(out, checker.Contains, "Logging Config:\n")
+	c.Assert(out, checker.Contains, fmt.Sprintf(" max-file: %s\n", loggingConfig["max-file"]))
+	c.Assert(out, checker.Contains, fmt.Sprintf(" labels: %s\n", loggingConfig["labels"]))
+	c.Assert(out, checker.Contains, fmt.Sprintf(" env: %s\n", loggingConfig["env"]))
+}

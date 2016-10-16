@@ -80,6 +80,12 @@ func prettyPrintInfo(dockerCli *command.DockerCli, info types.Info) error {
 		}
 	}
 	ioutils.FprintfIfNotEmpty(dockerCli.Out(), "Logging Driver: %s\n", info.LoggingDriver)
+	if len(info.LoggingConfig) > 0 {
+		fmt.Fprintf(dockerCli.Out(), "Logging Config:\n")
+		for k, v := range info.LoggingConfig {
+			fmt.Fprintf(dockerCli.Out(), " %s: %s\n", k, v)
+		}
+	}
 	ioutils.FprintfIfNotEmpty(dockerCli.Out(), "Cgroup Driver: %s\n", info.CgroupDriver)
 
 	fmt.Fprintf(dockerCli.Out(), "Plugins: \n")
