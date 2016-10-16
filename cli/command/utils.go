@@ -58,14 +58,14 @@ func PrettyPrint(i interface{}) string {
 	}
 }
 
-// PromptForConfirmation request and check confirmation from user.
+// PromptForConfirmation requests and checks confirmation from user.
 // This will display the provided message followed by ' [y/N] '. If
 // the user input 'y' or 'Y' it returns true other false.  If no
-// message is provided "Are you sure you want to proceeed? [y/N] "
+// message is provided "Are you sure you want to proceed? [y/N] "
 // will be used instead.
 func PromptForConfirmation(ins *InStream, outs *OutStream, message string) bool {
 	if message == "" {
-		message = "Are you sure you want to proceeed?"
+		message = "Are you sure you want to proceed?"
 	}
 	message += " [y/N] "
 
