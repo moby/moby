@@ -848,8 +848,9 @@ func (n *network) addEndpoint(ep *endpoint) error {
 
 func (n *network) CreateEndpoint(name string, options ...EndpointOption) (Endpoint, error) {
 	var err error
-	if !config.IsValidName(name) {
-		return nil, ErrInvalidName(name)
+
+	if err = config.ValidateName(name); err != nil {
+		return nil, ErrInvalidName(err.Error())
 	}
 
 	if _, err = n.EndpointByName(name); err == nil {
