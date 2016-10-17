@@ -22,7 +22,7 @@ func TestVolumeContext(t *testing.T) {
 	}{
 		{volumeContext{
 			v: types.Volume{Name: volumeName},
-		}, volumeName, nameHeader, ctx.Name},
+		}, volumeName, volumeNameHeader, ctx.Name},
 		{volumeContext{
 			v: types.Volume{Driver: "driver_name"},
 		}, "driver_name", driverHeader, ctx.Driver},
@@ -76,7 +76,7 @@ func TestVolumeContextWrite(t *testing.T) {
 		// Table format
 		{
 			Context{Format: NewVolumeFormat("table", false)},
-			`DRIVER              NAME
+			`DRIVER              VOLUME NAME
 foo                 foobar_baz
 bar                 foobar_bar
 `,
@@ -89,14 +89,14 @@ foobar_bar
 		},
 		{
 			Context{Format: NewVolumeFormat("table {{.Name}}", false)},
-			`NAME
+			`VOLUME NAME
 foobar_baz
 foobar_bar
 `,
 		},
 		{
 			Context{Format: NewVolumeFormat("table {{.Name}}", true)},
-			`NAME
+			`VOLUME NAME
 foobar_baz
 foobar_bar
 `,
