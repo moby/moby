@@ -98,6 +98,7 @@ or pipe the file in via `STDIN`. To pipe a Dockerfile from `STDIN`:
 
 ```bash
 $ docker build http://server/context.tar.gz
+```
 
 The download operation will be performed on the host the Docker daemon is
 running on, which is not necessarily the same host from which the build command
