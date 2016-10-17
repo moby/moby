@@ -12,6 +12,7 @@ const (
 	defaultVolumeQuietFormat = "{{.Name}}"
 	defaultVolumeTableFormat = "table {{.Driver}}\t{{.Name}}"
 
+	volumeNameHeader = "VOLUME NAME"
 	mountpointHeader = "MOUNTPOINT"
 	linksHeader      = "LINKS"
 	// Status header ?
@@ -53,7 +54,7 @@ type volumeContext struct {
 }
 
 func (c *volumeContext) Name() string {
-	c.AddHeader(nameHeader)
+	c.AddHeader(volumeNameHeader)
 	return c.v.Name
 }
 
