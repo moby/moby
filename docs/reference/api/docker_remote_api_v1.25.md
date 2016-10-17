@@ -3295,7 +3295,8 @@ Return low-level information about the `exec` command `id`.
         "tty": true,
         "user": "1000"
       },
-      "Running": false
+      "Running": false,
+      "Pid": "42000"
     }
 
 **Status codes**:

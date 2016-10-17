@@ -133,6 +133,7 @@ This section lists each version from latest to oldest.  Each listing includes a 
 * `GET /networks/(name)` now returns `Created`.
 * `POST /containers/(id or name)/exec` now accepts an `Env` field, which holds a list of environment variables to be set in the context of the command execution.
 * `GET /volumes`, `GET /volumes/(name)`, and `POST /volumes/create` now return the `Options` field which holds the driver specific options to use for when creating the volume.
+* `GET /exec/(id)/json` now returns `Pid`, which is the system pid for the exec'd process.
 
 ### v1.24 API changes
 
