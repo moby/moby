@@ -7,8 +7,11 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/libcontainerd"
 	"github.com/docker/docker/pkg/broadcaster"
 	"github.com/docker/docker/pkg/ioutils"
+	"github.com/docker/docker/pkg/pools"
 )
 
 // StreamConfig holds information about I/O streams managed together.
@@ -106,4 +109,35 @@ func (streamConfig *StreamConfig) CloseStreams() error {
 	}
 
 	return nil
+}
+
+// CopyToPipe connects streamconfig with a libcontainerd.IOPipe
+func (streamConfig *StreamConfig) CopyToPipe(iop libcontainerd.IOPipe) {
+	copyFunc := func(w io.Writer, r io.Reader) {
+		streamConfig.Add(1)
+		go func() {
+			if _, err := pools.Copy(w, r); err != nil {
+				logrus.Errorf("stream copy error: %+v", err)
+			}
+			streamConfig.Done()
+		}()
+	}
+
+	if iop.Stdout != nil {
+		copyFunc(streamConfig.Stdout(), iop.Stdout)
+	}
+	if iop.Stderr != nil {
+		copyFunc(streamConfig.Stderr(), iop.Stderr)
+	}
+
+	if stdin := streamConfig.Stdin(); stdin != nil {
+		if iop.Stdin != nil {
+			go func() {
+				pools.Copy(iop.Stdin, stdin)
+				if err := iop.Stdin.Close(); err != nil {
+					logrus.Error("failed to clise stdin: %+v", err)
+				}
+			}()
+		}
+	}
 }

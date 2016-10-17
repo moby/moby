@@ -38,7 +38,7 @@ const defaultOwner = "docker"
 
 // Create is the entrypoint to create a container from a spec, and if successfully
 // created, start it too.
-func (clnt *client) Create(containerID string, spec Spec, options ...CreateOption) error {
+func (clnt *client) Create(containerID string, spec Spec, attachStdio StdioCallback, options ...CreateOption) error {
 	logrus.Debugln("libcontainerd: client.Create() with spec", spec)
 
 	configuration := &hcsshim.ContainerConfig{
@@ -143,7 +143,8 @@ func (clnt *client) Create(containerID string, spec Spec, options ...CreateOptio
 				},
 				commandLine: strings.Join(spec.Process.Args, " "),
 			},
-			processes: make(map[string]*process),
+			processes:   make(map[string]*process),
+			attachStdio: attachStdio,
 		},
 		ociSpec:      spec,
 		hcsContainer: hcsContainer,
@@ -160,7 +161,7 @@ func (clnt *client) Create(containerID string, spec Spec, options ...CreateOptio
 	// internal structure, start will keep HCS in sync by deleting the
 	// container there.
 	logrus.Debugf("libcontainerd: Create() id=%s, Calling start()", containerID)
-	if err := container.start(); err != nil {
+	if err := container.start(attachStdio); err != nil {
 		clnt.deleteContainer(containerID)
 		return err
 	}
@@ -172,7 +173,7 @@ func (clnt *client) Create(containerID string, spec Spec, options ...CreateOptio
 
 // AddProcess is the handler for adding a process to an already running
 // container. It's called through docker exec.
-func (clnt *client) AddProcess(ctx context.Context, containerID, processFriendlyName string, procToAdd Process) error {
+func (clnt *client) AddProcess(ctx context.Context, containerID, processFriendlyName string, procToAdd Process, attachStdio StdioCallback) error {
 	clnt.lock(containerID)
 	defer clnt.unlock(containerID)
 	container, err := clnt.getContainer(containerID)
@@ -251,17 +252,10 @@ func (clnt *client) AddProcess(ctx context.Context, containerID, processFriendly
 	// Add the process to the container's list of processes
 	container.processes[processFriendlyName] = proc
 
-	// Make sure the lock is not held while calling back into the daemon
-	clnt.unlock(containerID)
-
 	// Tell the engine to attach streams back to the client
-	if err := clnt.backend.AttachStreams(processFriendlyName, *iopipe); err != nil {
-		clnt.lock(containerID)
+	if err := attachStdio(*iopipe); err != nil {
 		return err
 	}
-
-	// Lock again so that the defer unlock doesn't fail. (I really don't like this code)
-	clnt.lock(containerID)
 
 	// Spin up a go routine waiting for exit to handle cleanup
 	go container.waitExit(proc, false)
@@ -371,7 +365,7 @@ func (clnt *client) Stats(containerID string) (*Stats, error) {
 }
 
 // Restore is the handler for restoring a container
-func (clnt *client) Restore(containerID string, unusedOnWindows ...CreateOption) error {
+func (clnt *client) Restore(containerID string, _ StdioCallback, unusedOnWindows ...CreateOption) error {
 	// TODO Windows: Implement this. For now, just tell the backend the container exited.
 	logrus.Debugf("libcontainerd: Restore(%s)", containerID)
 	return clnt.backend.StateChanged(containerID, StateInfo{
