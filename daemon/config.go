@@ -45,6 +45,7 @@ var flatOptions = map[string]bool{
 	"cluster-store-opts": true,
 	"log-opts":           true,
 	"runtimes":           true,
+	"default-ulimits":    true,
 }
 
 // LogConfig represents the default log configuration.
