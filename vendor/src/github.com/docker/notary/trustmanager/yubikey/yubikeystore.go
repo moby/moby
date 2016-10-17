@@ -17,10 +17,11 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/notary/passphrase"
+	"github.com/docker/notary"
 	"github.com/docker/notary/trustmanager"
 	"github.com/docker/notary/tuf/data"
 	"github.com/docker/notary/tuf/signed"
+	"github.com/docker/notary/tuf/utils"
 	"github.com/miekg/pkcs11"
 )
 
@@ -132,7 +133,7 @@ type yubiSlot struct {
 // YubiPrivateKey represents a private key inside of a yubikey
 type YubiPrivateKey struct {
 	data.ECDSAPublicKey
-	passRetriever passphrase.Retriever
+	passRetriever notary.PassRetriever
 	slot          []byte
 	libLoader     pkcs11LibLoader
 }
@@ -143,9 +144,9 @@ type yubikeySigner struct {
 }
 
 // NewYubiPrivateKey returns a YubiPrivateKey, which implements the data.PrivateKey
-// interface except that the private material is inacessible
+// interface except that the private material is inaccessible
 func NewYubiPrivateKey(slot []byte, pubKey data.ECDSAPublicKey,
-	passRetriever passphrase.Retriever) *YubiPrivateKey {
+	passRetriever notary.PassRetriever) *YubiPrivateKey {
 
 	return &YubiPrivateKey{
 		ECDSAPublicKey: pubKey,
@@ -228,7 +229,7 @@ func addECDSAKey(
 	session pkcs11.SessionHandle,
 	privKey data.PrivateKey,
 	pkcs11KeyID []byte,
-	passRetriever passphrase.Retriever,
+	passRetriever notary.PassRetriever,
 	role string,
 ) error {
 	logrus.Debugf("Attempting to add key to yubikey with ID: %s", privKey.ID())
@@ -249,7 +250,7 @@ func addECDSAKey(
 
 	// Hard-coded policy: the generated certificate expires in 10 years.
 	startTime := time.Now()
-	template, err := trustmanager.NewCertificate(role, startTime, startTime.AddDate(10, 0, 0))
+	template, err := utils.NewCertificate(role, startTime, startTime.AddDate(10, 0, 0))
 	if err != nil {
 		return fmt.Errorf("failed to create the certificate template: %v", err)
 	}
@@ -345,7 +346,7 @@ func getECDSAKey(ctx IPKCS11Ctx, session pkcs11.SessionHandle, pkcs11KeyID []byt
 }
 
 // sign returns a signature for a given signature request
-func sign(ctx IPKCS11Ctx, session pkcs11.SessionHandle, pkcs11KeyID []byte, passRetriever passphrase.Retriever, payload []byte) ([]byte, error) {
+func sign(ctx IPKCS11Ctx, session pkcs11.SessionHandle, pkcs11KeyID []byte, passRetriever notary.PassRetriever, payload []byte) ([]byte, error) {
 	err := login(ctx, session, passRetriever, pkcs11.CKU_USER, UserPin)
 	if err != nil {
 		return nil, fmt.Errorf("error logging in: %v", err)
@@ -404,7 +405,7 @@ func sign(ctx IPKCS11Ctx, session pkcs11.SessionHandle, pkcs11KeyID []byte, pass
 	return sig[:], nil
 }
 
-func yubiRemoveKey(ctx IPKCS11Ctx, session pkcs11.SessionHandle, pkcs11KeyID []byte, passRetriever passphrase.Retriever, keyID string) error {
+func yubiRemoveKey(ctx IPKCS11Ctx, session pkcs11.SessionHandle, pkcs11KeyID []byte, passRetriever notary.PassRetriever, keyID string) error {
 	err := login(ctx, session, passRetriever, pkcs11.CKU_SO, SOUserPin)
 	if err != nil {
 		return err
@@ -615,7 +616,7 @@ func getNextEmptySlot(ctx IPKCS11Ctx, session pkcs11.SessionHandle) ([]byte, err
 
 // YubiStore is a KeyStore for private keys inside a Yubikey
 type YubiStore struct {
-	passRetriever passphrase.Retriever
+	passRetriever notary.PassRetriever
 	keys          map[string]yubiSlot
 	backupStore   trustmanager.KeyStore
 	libLoader     pkcs11LibLoader
@@ -623,7 +624,7 @@ type YubiStore struct {
 
 // NewYubiStore returns a YubiStore, given a backup key store to write any
 // generated keys to (usually a KeyFileStore)
-func NewYubiStore(backupStore trustmanager.KeyStore, passphraseRetriever passphrase.Retriever) (
+func NewYubiStore(backupStore trustmanager.KeyStore, passphraseRetriever notary.PassRetriever) (
 	*YubiStore, error) {
 
 	s := &YubiStore{
@@ -653,7 +654,7 @@ func (s *YubiStore) ListKeys() map[string]trustmanager.KeyInfo {
 	}
 	ctx, session, err := SetupHSMEnv(pkcs11Lib, s.libLoader)
 	if err != nil {
-		logrus.Debugf("Failed to initialize PKCS11 environment: %s", err.Error())
+		logrus.Debugf("No yubikey found, using alternative key storage: %s", err.Error())
 		return nil
 	}
 	defer cleanup(ctx, session)
@@ -697,7 +698,7 @@ func (s *YubiStore) addKey(keyID, role string, privKey data.PrivateKey) (
 
 	ctx, session, err := SetupHSMEnv(pkcs11Lib, s.libLoader)
 	if err != nil {
-		logrus.Debugf("Failed to initialize PKCS11 environment: %s", err.Error())
+		logrus.Debugf("No yubikey found, using alternative key storage: %s", err.Error())
 		return false, err
 	}
 	defer cleanup(ctx, session)
@@ -735,7 +736,7 @@ func (s *YubiStore) addKey(keyID, role string, privKey data.PrivateKey) (
 func (s *YubiStore) GetKey(keyID string) (data.PrivateKey, string, error) {
 	ctx, session, err := SetupHSMEnv(pkcs11Lib, s.libLoader)
 	if err != nil {
-		logrus.Debugf("Failed to initialize PKCS11 environment: %s", err.Error())
+		logrus.Debugf("No yubikey found, using alternative key storage: %s", err.Error())
 		if _, ok := err.(errHSMNotPresent); ok {
 			err = trustmanager.ErrKeyNotFound{KeyID: keyID}
 		}
@@ -770,7 +771,7 @@ func (s *YubiStore) GetKey(keyID string) (data.PrivateKey, string, error) {
 func (s *YubiStore) RemoveKey(keyID string) error {
 	ctx, session, err := SetupHSMEnv(pkcs11Lib, s.libLoader)
 	if err != nil {
-		logrus.Debugf("Failed to initialize PKCS11 environment: %s", err.Error())
+		logrus.Debugf("No yubikey found, using alternative key storage: %s", err.Error())
 		return nil
 	}
 	defer cleanup(ctx, session)
@@ -787,12 +788,6 @@ func (s *YubiStore) RemoveKey(keyID string) error {
 	}
 
 	return err
-}
-
-// ExportKey doesn't work, because you can't export data from a Yubikey
-func (s *YubiStore) ExportKey(keyID string) ([]byte, error) {
-	logrus.Debugf("Attempting to export: %s key inside of YubiStore", keyID)
-	return nil, errors.New("Keys cannot be exported from a Yubikey.")
 }
 
 // GetKeyInfo is not yet implemented
@@ -874,7 +869,7 @@ func IsAccessible() bool {
 	return true
 }
 
-func login(ctx IPKCS11Ctx, session pkcs11.SessionHandle, passRetriever passphrase.Retriever, userFlag uint, defaultPassw string) error {
+func login(ctx IPKCS11Ctx, session pkcs11.SessionHandle, passRetriever notary.PassRetriever, userFlag uint, defaultPassw string) error {
 	// try default password
 	err := ctx.Login(session, userFlag, defaultPassw)
 	if err == nil {
@@ -902,13 +897,12 @@ func login(ctx IPKCS11Ctx, session pkcs11.SessionHandle, passRetriever passphras
 			return trustmanager.ErrAttemptsExceeded{}
 		}
 
-		// Try to convert PEM encoded bytes back to a PrivateKey using the passphrase
+		// attempt to login. Loop if failed
 		err = ctx.Login(session, userFlag, passwd)
 		if err == nil {
 			return nil
 		}
 	}
-	return nil
 }
 
 func buildKeyMap(keys map[string]yubiSlot) map[string]trustmanager.KeyInfo {

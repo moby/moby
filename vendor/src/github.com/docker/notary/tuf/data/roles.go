@@ -86,6 +86,31 @@ func IsDelegation(role string) bool {
 		isClean
 }
 
+// IsBaseRole checks if the role is a base role
+func IsBaseRole(role string) bool {
+	for _, baseRole := range BaseRoles {
+		if role == baseRole {
+			return true
+		}
+	}
+	return false
+}
+
+// IsWildDelegation determines if a role represents a valid wildcard delegation
+// path, i.e. targets/*, targets/foo/*.
+// The wildcard may only appear as the final part of the delegation and must
+// be a whole segment, i.e. targets/foo* is not a valid wildcard delegation.
+func IsWildDelegation(role string) bool {
+	if path.Clean(role) != role {
+		return false
+	}
+	base := path.Dir(role)
+	if !(IsDelegation(base) || base == CanonicalTargetsRole) {
+		return false
+	}
+	return role[len(role)-2:] == "/*"
+}
+
 // BaseRole is an internal representation of a root/targets/snapshot/timestamp role, with its public keys included
 type BaseRole struct {
 	Keys      map[string]PublicKey

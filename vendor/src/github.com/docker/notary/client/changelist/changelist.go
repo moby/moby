@@ -21,6 +21,24 @@ func (cl *memChangelist) Add(c Change) error {
 	return nil
 }
 
+// Remove deletes the changes found at the given indices
+func (cl *memChangelist) Remove(idxs []int) error {
+	remove := make(map[int]struct{})
+	for _, i := range idxs {
+		remove[i] = struct{}{}
+	}
+	var keep []Change
+
+	for i, c := range cl.changes {
+		if _, ok := remove[i]; ok {
+			continue
+		}
+		keep = append(keep, c)
+	}
+	cl.changes = keep
+	return nil
+}
+
 // Clear empties the changelist file.
 func (cl *memChangelist) Clear(archive string) error {
 	// appending to a nil list initializes it.

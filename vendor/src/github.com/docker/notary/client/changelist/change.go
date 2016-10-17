@@ -4,7 +4,7 @@ import (
 	"github.com/docker/notary/tuf/data"
 )
 
-// Scopes for TufChanges are simply the TUF roles.
+// Scopes for TUFChanges are simply the TUF roles.
 // Unfortunately because of targets delegations, we can only
 // cover the base roles.
 const (
@@ -14,7 +14,7 @@ const (
 	ScopeTimestamp = "timestamp"
 )
 
-// Types for TufChanges are namespaced by the Role they
+// Types for TUFChanges are namespaced by the Role they
 // are relevant for. The Root and Targets roles are the
 // only ones for which user action can cause a change, as
 // all changes in Snapshot and Timestamp are programmatically
@@ -23,10 +23,11 @@ const (
 	TypeRootRole          = "role"
 	TypeTargetsTarget     = "target"
 	TypeTargetsDelegation = "delegation"
+	TypeWitness           = "witness"
 )
 
-// TufChange represents a change to a TUF repo
-type TufChange struct {
+// TUFChange represents a change to a TUF repo
+type TUFChange struct {
 	// Abbreviated because Go doesn't permit a field and method of the same name
 	Actn       string `json:"action"`
 	Role       string `json:"role"`
@@ -35,16 +36,16 @@ type TufChange struct {
 	Data       []byte `json:"data"`
 }
 
-// TufRootData represents a modification of the keys associated
+// TUFRootData represents a modification of the keys associated
 // with a role that appears in the root.json
-type TufRootData struct {
+type TUFRootData struct {
 	Keys     data.KeyList `json:"keys"`
 	RoleName string       `json:"role"`
 }
 
-// NewTufChange initializes a tufChange object
-func NewTufChange(action string, role, changeType, changePath string, content []byte) *TufChange {
-	return &TufChange{
+// NewTUFChange initializes a TUFChange object
+func NewTUFChange(action string, role, changeType, changePath string, content []byte) *TUFChange {
+	return &TUFChange{
 		Actn:       action,
 		Role:       role,
 		ChangeType: changeType,
@@ -54,34 +55,34 @@ func NewTufChange(action string, role, changeType, changePath string, content []
 }
 
 // Action return c.Actn
-func (c TufChange) Action() string {
+func (c TUFChange) Action() string {
 	return c.Actn
 }
 
 // Scope returns c.Role
-func (c TufChange) Scope() string {
+func (c TUFChange) Scope() string {
 	return c.Role
 }
 
 // Type returns c.ChangeType
-func (c TufChange) Type() string {
+func (c TUFChange) Type() string {
 	return c.ChangeType
 }
 
 // Path return c.ChangePath
-func (c TufChange) Path() string {
+func (c TUFChange) Path() string {
 	return c.ChangePath
 }
 
 // Content returns c.Data
-func (c TufChange) Content() []byte {
+func (c TUFChange) Content() []byte {
 	return c.Data
 }
 
-// TufDelegation represents a modification to a target delegation
+// TUFDelegation represents a modification to a target delegation
 // this includes creating a delegations. This format is used to avoid
 // unexpected race conditions between humans modifying the same delegation
-type TufDelegation struct {
+type TUFDelegation struct {
 	NewName       string       `json:"new_name,omitempty"`
 	NewThreshold  int          `json:"threshold, omitempty"`
 	AddKeys       data.KeyList `json:"add_keys, omitempty"`
@@ -91,8 +92,8 @@ type TufDelegation struct {
 	ClearAllPaths bool         `json:"clear_paths,omitempty"`
 }
 
-// ToNewRole creates a fresh role object from the TufDelegation data
-func (td TufDelegation) ToNewRole(scope string) (*data.Role, error) {
+// ToNewRole creates a fresh role object from the TUFDelegation data
+func (td TUFDelegation) ToNewRole(scope string) (*data.Role, error) {
 	name := scope
 	if td.NewName != "" {
 		name = td.NewName

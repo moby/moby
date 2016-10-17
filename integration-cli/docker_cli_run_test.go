@@ -3432,16 +3432,16 @@ func (s *DockerTrustSuite) TestTrustedRunFromBadTrustServer(c *check.C) {
 		c.Fatalf("Missing expected output on trusted push:\n%s", out)
 	}
 
-	// Now, try running with the original client from this new trust server. This should fallback to our cached timestamp and metadata.
+	// Now, try running with the original client from this new trust server. This should fail because the new root is invalid.
 	runCmd = exec.Command(dockerBinary, "run", repoName)
 	s.trustedCmd(runCmd)
 	out, _, err = runCommandWithOutput(runCmd)
 
-	if err != nil {
-		c.Fatalf("Error falling back to cached trust data: %s\n%s", err, out)
+	if err == nil {
+		c.Fatalf("Continuing with cached data even though it's an invalid root rotation: %s\n%s", err, out)
 	}
-	if !strings.Contains(string(out), "Error while downloading remote metadata, using cached timestamp") {
-		c.Fatalf("Missing expected output on trusted push:\n%s", out)
+	if !strings.Contains(out, "could not rotate trust to a new trusted root") {
+		c.Fatalf("Missing expected output on trusted run:\n%s", out)
 	}
 }
 

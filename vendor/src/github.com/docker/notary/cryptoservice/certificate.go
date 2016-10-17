@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/docker/notary/trustmanager"
 	"github.com/docker/notary/tuf/data"
+	"github.com/docker/notary/tuf/utils"
 )
 
 // GenerateCertificate generates an X509 Certificate from a template, given a GUN and validity interval
@@ -22,7 +22,7 @@ func GenerateCertificate(rootKey data.PrivateKey, gun string, startTime, endTime
 }
 
 func generateCertificate(signer crypto.Signer, gun string, startTime, endTime time.Time) (*x509.Certificate, error) {
-	template, err := trustmanager.NewCertificate(gun, startTime, endTime)
+	template, err := utils.NewCertificate(gun, startTime, endTime)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create the certificate template for: %s (%v)", gun, err)
 	}

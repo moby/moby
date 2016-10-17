@@ -30,13 +30,14 @@ import (
 	"github.com/docker/docker/reference"
 	"github.com/docker/docker/registry"
 	"github.com/docker/go-connections/tlsconfig"
+	"github.com/docker/notary"
 	"github.com/docker/notary/client"
 	"github.com/docker/notary/passphrase"
+	"github.com/docker/notary/storage"
 	"github.com/docker/notary/trustmanager"
 	"github.com/docker/notary/trustpinning"
 	"github.com/docker/notary/tuf/data"
 	"github.com/docker/notary/tuf/signed"
-	"github.com/docker/notary/tuf/store"
 )
 
 var (
@@ -144,7 +145,7 @@ func trustedPush(ctx context.Context, cli *command.DockerCli, repoInfo *registry
 		}
 
 		// Initialize the notary repository with a remotely managed snapshot key
-		if err := repo.Initialize(rootKeyID, data.CanonicalSnapshotRole); err != nil {
+		if err := repo.Initialize([]string{rootKeyID}, data.CanonicalSnapshotRole); err != nil {
 			return notaryError(repoInfo.FullName(), err)
 		}
 		fmt.Fprintf(cli.Out(), "Finished initializing %q\n", repoInfo.FullName())
@@ -464,7 +465,7 @@ func GetNotaryRepository(streams command.Streams, repoInfo *registry.RepositoryI
 		trustpinning.TrustPinConfig{})
 }
 
-func getPassphraseRetriever(streams command.Streams) passphrase.Retriever {
+func getPassphraseRetriever(streams command.Streams) notary.PassRetriever {
 	aliasMap := map[string]string{
 		"root":     "root",
 		"snapshot": "repository",
@@ -554,11 +555,11 @@ func notaryError(repoName string, err error) error {
 		return fmt.Errorf("Error: remote repository %s out-of-date: %v", repoName, err)
 	case trustmanager.ErrKeyNotFound:
 		return fmt.Errorf("Error: signing keys for remote repository %s not found: %v", repoName, err)
-	case *net.OpError:
+	case storage.NetworkError:
 		return fmt.Errorf("Error: error contacting notary server: %v", err)
-	case store.ErrMetaNotFound:
+	case storage.ErrMetaNotFound:
 		return fmt.Errorf("Error: trust data missing for remote repository %s or remote repository not found: %v", repoName, err)
-	case signed.ErrInvalidKeyType:
+	case trustpinning.ErrRootRotationFail, trustpinning.ErrValidationFail, signed.ErrInvalidKeyType:
 		return fmt.Errorf("Warning: potential malicious behavior - trust data mismatch for remote repository %s: %v", repoName, err)
 	case signed.ErrNoKeys:
 		return fmt.Errorf("Error: could not find signing keys for remote repository %s, or could not decrypt signing key: %v", repoName, err)

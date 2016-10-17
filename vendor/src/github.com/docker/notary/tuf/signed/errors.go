@@ -14,12 +14,17 @@ type ErrInsufficientSignatures struct {
 }
 
 func (e ErrInsufficientSignatures) Error() string {
-	candidates := strings.Join(e.MissingKeyIDs, ", ")
-	if e.FoundKeys == 0 {
-		return fmt.Sprintf("signing keys not available, need %d keys out of: %s", e.NeededKeys, candidates)
+	candidates := ""
+	if len(e.MissingKeyIDs) > 0 {
+		candidates = fmt.Sprintf(" (%s)", strings.Join(e.MissingKeyIDs, ", "))
 	}
-	return fmt.Sprintf("not enough signing keys: got %d of %d needed keys, other candidates: %s",
-		e.FoundKeys, e.NeededKeys, candidates)
+
+	if e.FoundKeys == 0 {
+		return fmt.Sprintf("signing keys not available: need %d keys from %d possible keys%s",
+			e.NeededKeys, len(e.MissingKeyIDs), candidates)
+	}
+	return fmt.Sprintf("not enough signing keys: found %d of %d needed keys - %d other possible keys%s",
+		e.FoundKeys, e.NeededKeys, len(e.MissingKeyIDs), candidates)
 }
 
 // ErrExpired indicates a piece of metadata has expired

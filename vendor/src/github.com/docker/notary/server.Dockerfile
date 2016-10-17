@@ -1,4 +1,4 @@
-FROM golang:1.6.1-alpine
+FROM golang:1.7.1-alpine
 MAINTAINER David Lawrence "david.lawrence@docker.com"
 
 RUN apk add --update git gcc libc-dev && rm -rf /var/cache/apk/*
@@ -13,6 +13,7 @@ COPY . /go/src/${NOTARYPKG}
 
 WORKDIR /go/src/${NOTARYPKG}
 
+ENV SERVICE_NAME=notary_server
 EXPOSE 4443
 
 # Install notary-server

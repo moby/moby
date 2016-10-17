@@ -107,7 +107,10 @@ func (t *SignedTargets) BuildDelegationRole(roleName string) (DelegationRole, er
 				pubKey, ok := t.Signed.Delegations.Keys[keyID]
 				if !ok {
 					// Couldn't retrieve all keys, so stop walking and return invalid role
-					return DelegationRole{}, ErrInvalidRole{Role: roleName, Reason: "delegation does not exist with all specified keys"}
+					return DelegationRole{}, ErrInvalidRole{
+						Role:   roleName,
+						Reason: "role lists unknown key " + keyID + " as a signing key",
+					}
 				}
 				pubKeys[keyID] = pubKey
 			}

@@ -8,7 +8,7 @@
 //   If writing your own server, please have a look at
 //   github.com/docker/distribution/registry/api/errcode
 
-package store
+package storage
 
 import (
 	"bytes"
@@ -31,6 +31,15 @@ import (
 // populate the http error we received
 type ErrServerUnavailable struct {
 	code int
+}
+
+// NetworkError represents any kind of network error when attempting to make a request
+type NetworkError struct {
+	Wrapped error
+}
+
+func (n NetworkError) Error() string {
+	return n.Wrapped.Error()
 }
 
 func (err ErrServerUnavailable) Error() string {
@@ -136,12 +145,12 @@ func translateStatusToError(resp *http.Response, resource string) error {
 	}
 }
 
-// GetMeta downloads the named meta file with the given size. A short body
+// GetSized downloads the named meta file with the given size. A short body
 // is acceptable because in the case of timestamp.json, the size is a cap,
 // not an exact length.
 // If size is "NoSizeLimit", this corresponds to "infinite," but we cut off at a
 // predefined threshold "notary.MaxDownloadSize".
-func (s HTTPStore) GetMeta(name string, size int64) ([]byte, error) {
+func (s HTTPStore) GetSized(name string, size int64) ([]byte, error) {
 	url, err := s.buildMetaURL(name)
 	if err != nil {
 		return nil, err
@@ -152,7 +161,7 @@ func (s HTTPStore) GetMeta(name string, size int64) ([]byte, error) {
 	}
 	resp, err := s.roundTrip.RoundTrip(req)
 	if err != nil {
-		return nil, err
+		return nil, NetworkError{Wrapped: err}
 	}
 	defer resp.Body.Close()
 	if err := translateStatusToError(resp, name); err != nil {
@@ -174,28 +183,15 @@ func (s HTTPStore) GetMeta(name string, size int64) ([]byte, error) {
 	return body, nil
 }
 
-// SetMeta uploads a piece of TUF metadata to the server
-func (s HTTPStore) SetMeta(name string, blob []byte) error {
-	url, err := s.buildMetaURL("")
-	if err != nil {
-		return err
-	}
-	req, err := http.NewRequest("POST", url.String(), bytes.NewReader(blob))
-	if err != nil {
-		return err
-	}
-	resp, err := s.roundTrip.RoundTrip(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-	return translateStatusToError(resp, "POST "+name)
+// Set sends a single piece of metadata to the TUF server
+func (s HTTPStore) Set(name string, blob []byte) error {
+	return s.SetMulti(map[string][]byte{name: blob})
 }
 
-// RemoveMeta always fails, because we should never be able to delete metadata
+// Remove always fails, because we should never be able to delete metadata
 // remotely
-func (s HTTPStore) RemoveMeta(name string) error {
-	return ErrInvalidOperation{msg: "cannot delete metadata"}
+func (s HTTPStore) Remove(name string) error {
+	return ErrInvalidOperation{msg: "cannot delete individual metadata files"}
 }
 
 // NewMultiPartMetaRequest builds a request with the provided metadata updates
@@ -205,6 +201,9 @@ func NewMultiPartMetaRequest(url string, metas map[string][]byte) (*http.Request
 	writer := multipart.NewWriter(body)
 	for role, blob := range metas {
 		part, err := writer.CreateFormFile("files", role)
+		if err != nil {
+			return nil, err
+		}
 		_, err = io.Copy(part, bytes.NewBuffer(blob))
 		if err != nil {
 			return nil, err
@@ -222,10 +221,10 @@ func NewMultiPartMetaRequest(url string, metas map[string][]byte) (*http.Request
 	return req, nil
 }
 
-// SetMultiMeta does a single batch upload of multiple pieces of TUF metadata.
+// SetMulti does a single batch upload of multiple pieces of TUF metadata.
 // This should be preferred for updating a remote server as it enable the server
 // to remain consistent, either accepting or rejecting the complete update.
-func (s HTTPStore) SetMultiMeta(metas map[string][]byte) error {
+func (s HTTPStore) SetMulti(metas map[string][]byte) error {
 	url, err := s.buildMetaURL("")
 	if err != nil {
 		return err
@@ -236,16 +235,29 @@ func (s HTTPStore) SetMultiMeta(metas map[string][]byte) error {
 	}
 	resp, err := s.roundTrip.RoundTrip(req)
 	if err != nil {
-		return err
+		return NetworkError{Wrapped: err}
 	}
 	defer resp.Body.Close()
 	// if this 404's something is pretty wrong
 	return translateStatusToError(resp, "POST metadata endpoint")
 }
 
-// RemoveAll in the interface is not supported, admins should use the DeleteHandler endpoint directly to delete remote data for a GUN
+// RemoveAll will attempt to delete all TUF metadata for a GUN
 func (s HTTPStore) RemoveAll() error {
-	return errors.New("remove all functionality not supported for HTTPStore")
+	url, err := s.buildMetaURL("")
+	if err != nil {
+		return err
+	}
+	req, err := http.NewRequest("DELETE", url.String(), nil)
+	if err != nil {
+		return err
+	}
+	resp, err := s.roundTrip.RoundTrip(req)
+	if err != nil {
+		return NetworkError{Wrapped: err}
+	}
+	defer resp.Body.Close()
+	return translateStatusToError(resp, "DELETE metadata for GUN endpoint")
 }
 
 func (s HTTPStore) buildMetaURL(name string) (*url.URL, error) {
@@ -283,7 +295,7 @@ func (s HTTPStore) GetKey(role string) ([]byte, error) {
 	}
 	resp, err := s.roundTrip.RoundTrip(req)
 	if err != nil {
-		return nil, err
+		return nil, NetworkError{Wrapped: err}
 	}
 	defer resp.Body.Close()
 	if err := translateStatusToError(resp, role+" key"); err != nil {
@@ -294,4 +306,34 @@ func (s HTTPStore) GetKey(role string) ([]byte, error) {
 		return nil, err
 	}
 	return body, nil
+}
+
+// RotateKey rotates a private key and returns the public component from the remote server
+func (s HTTPStore) RotateKey(role string) ([]byte, error) {
+	url, err := s.buildKeyURL(role)
+	if err != nil {
+		return nil, err
+	}
+	req, err := http.NewRequest("POST", url.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := s.roundTrip.RoundTrip(req)
+	if err != nil {
+		return nil, NetworkError{Wrapped: err}
+	}
+	defer resp.Body.Close()
+	if err := translateStatusToError(resp, role+" key"); err != nil {
+		return nil, err
+	}
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	return body, nil
+}
+
+// Location returns a human readable name for the storage location
+func (s HTTPStore) Location() string {
+	return s.baseURL.String()
 }

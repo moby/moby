@@ -1,4 +1,4 @@
-FROM golang:1.6.1
+FROM golang:1.7.1
 
 RUN apt-get update && apt-get install -y \
 	curl \
@@ -8,10 +8,14 @@ RUN apt-get update && apt-get install -y \
 	patch \
 	tar \
 	xz-utils \
+	python \
+	python-pip \
 	--no-install-recommends \
 	&& rm -rf /var/lib/apt/lists/*
 
-RUN go get golang.org/x/tools/cmd/cover
+RUN useradd -ms /bin/bash notary \
+	&& pip install codecov \
+	&& go get golang.org/x/tools/cmd/cover github.com/golang/lint/golint github.com/client9/misspell/cmd/misspell github.com/gordonklaus/ineffassign
 
 # Configure the container for OSX cross compilation
 ENV OSX_SDK MacOSX10.11.sdk
@@ -27,8 +31,7 @@ ENV PATH /osxcross/target/bin:$PATH
 ENV NOTARYDIR /go/src/github.com/docker/notary
 
 COPY . ${NOTARYDIR}
-
-ENV GOPATH ${NOTARYDIR}/Godeps/_workspace:$GOPATH
+RUN chmod -R a+rw /go
 
 WORKDIR ${NOTARYDIR}
 

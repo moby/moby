@@ -4,13 +4,24 @@ import (
 	"crypto/rand"
 	"fmt"
 
+	"crypto/x509"
+	"encoding/pem"
+	"errors"
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/notary"
 	"github.com/docker/notary/trustmanager"
 	"github.com/docker/notary/tuf/data"
+	"github.com/docker/notary/tuf/utils"
 )
 
-const (
-	rsaKeySize = 2048 // Used for snapshots and targets keys
+var (
+	// ErrNoValidPrivateKey is returned if a key being imported doesn't
+	// look like a private key
+	ErrNoValidPrivateKey = errors.New("no valid private key found")
+
+	// ErrRootKeyNotEncrypted is returned if a root key being imported is
+	// unencrypted
+	ErrRootKeyNotEncrypted = errors.New("only encrypted root keys may be imported")
 )
 
 // CryptoService implements Sign and Create, holding a specific GUN and keystore to
@@ -31,17 +42,17 @@ func (cs *CryptoService) Create(role, gun, algorithm string) (data.PublicKey, er
 
 	switch algorithm {
 	case data.RSAKey:
-		privKey, err = trustmanager.GenerateRSAKey(rand.Reader, rsaKeySize)
+		privKey, err = utils.GenerateRSAKey(rand.Reader, notary.MinRSABitSize)
 		if err != nil {
 			return nil, fmt.Errorf("failed to generate RSA key: %v", err)
 		}
 	case data.ECDSAKey:
-		privKey, err = trustmanager.GenerateECDSAKey(rand.Reader)
+		privKey, err = utils.GenerateECDSAKey(rand.Reader)
 		if err != nil {
 			return nil, fmt.Errorf("failed to generate EC key: %v", err)
 		}
 	case data.ED25519Key:
-		privKey, err = trustmanager.GenerateED25519Key(rand.Reader)
+		privKey, err = utils.GenerateED25519Key(rand.Reader)
 		if err != nil {
 			return nil, fmt.Errorf("failed to generate ED25519 key: %v", err)
 		}
@@ -152,4 +163,19 @@ func (cs *CryptoService) ListAllKeys() map[string]string {
 		}
 	}
 	return res
+}
+
+// CheckRootKeyIsEncrypted makes sure the root key is encrypted. We have
+// internal assumptions that depend on this.
+func CheckRootKeyIsEncrypted(pemBytes []byte) error {
+	block, _ := pem.Decode(pemBytes)
+	if block == nil {
+		return ErrNoValidPrivateKey
+	}
+
+	if !x509.IsEncryptedPEMBlock(block) {
+		return ErrRootKeyNotEncrypted
+	}
+
+	return nil
 }
