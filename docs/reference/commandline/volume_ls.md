@@ -99,7 +99,7 @@ regardless of its value.
 ```bash
 $ docker volume ls --filter label=is-timelord
 
-DRIVER              NAME
+DRIVER              VOLUME NAME
 local               daleks
 local               the-doctor
 ```
@@ -112,7 +112,7 @@ Filtering on both `key` *and* `value` of the label, produces the expected result
 ```bash
 $ docker volume ls --filter label=is-timelord=yes
 
-DRIVER              NAME
+DRIVER              VOLUME NAME
 local               the-doctor
 ```
 
@@ -122,7 +122,7 @@ should be met;
 ```bash
 $ docker volume ls --filter label=is-timelord=yes --filter label=is-timelord=no
 
-DRIVER              NAME
+DRIVER              VOLUME NAME
 ```
 
 ### name
