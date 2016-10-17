@@ -19,7 +19,13 @@ import (
  * When the time comes to remove support for V1 plugins, flipping
  * this bool is all that will be needed.
  */
-var allowV1PluginsFallback = true
+const allowV1PluginsFallback bool = true
+
+/* defaultAPIVersion is the version of the plugin API for volume, network,
+   IPAM and authz. This is a very stable API. When we update this API, then
+   pluginType should include a version. eg "networkdriver/2.0".
+*/
+const defaultAPIVersion string = "1.0"
 
 // ErrNotFound indicates that a plugin was not found locally.
 type ErrNotFound string
@@ -208,7 +214,7 @@ func (ps *Store) GetAllByCap(capability string) ([]plugingetter.CompatPlugin, er
 // and ipam drivers during plugin registration. The callback registers the
 // driver with the subsystem (network, ipam).
 func (ps *Store) Handle(capability string, callback func(string, *plugins.Client)) {
-	pluginType := fmt.Sprintf("docker.%s/1", strings.ToLower(capability))
+	pluginType := fmt.Sprintf("docker.%s/%s", strings.ToLower(capability), defaultAPIVersion)
 
 	// Register callback with new plugin model.
 	ps.Lock()
