@@ -270,9 +270,9 @@ func (s *VolumeStore) CreateWithRef(name, driverName, ref string, opts, labels m
 func (s *VolumeStore) Create(name, driverName string, opts, labels map[string]string) (volume.Volume, error) {
 	name = normaliseVolumeName(name)
 
-	if _, exists := s.getNamed(name); exists {
+	if v, exists := s.getNamed(name); exists {
 		// if given name exists, return errNameConflict
-		return nil, errNameConflict
+		return v, errNameConflict
 	}
 
 	return s.CreateWithRef(name, driverName, "", opts, labels)

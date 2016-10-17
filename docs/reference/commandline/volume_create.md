@@ -43,7 +43,7 @@ Multiple containers can use the same volume in the same time period. This is use
 Volume names must be unique. This means you cannot use the same name with two different volumes. If you attempt this `docker` returns an error:
 
 ```
-A volume named hello already exists. Choose a different volume name.
+A volume named  "hello"  already exists with the "some-other" driver. Choose a different volume name.
 ```  
 
 ## Driver specific options
