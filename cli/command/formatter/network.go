@@ -53,6 +53,10 @@ type networkContext struct {
 	n     types.NetworkResource
 }
 
+func (c *networkContext) MarshalJSON() ([]byte, error) {
+	return marshalJSON(c)
+}
+
 func (c *networkContext) ID() string {
 	c.AddHeader(networkIDHeader)
 	if c.trunc {

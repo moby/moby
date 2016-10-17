@@ -2,6 +2,7 @@ package formatter
 
 import (
 	"bytes"
+	"encoding/json"
 	"strings"
 	"testing"
 
@@ -140,5 +141,49 @@ foobar_bar
 		} else {
 			assert.Equal(t, out.String(), testcase.expected)
 		}
+	}
+}
+
+func TestVolumeContextWriteJSON(t *testing.T) {
+	volumes := []*types.Volume{
+		{Driver: "foo", Name: "foobar_baz"},
+		{Driver: "bar", Name: "foobar_bar"},
+	}
+	expectedJSONs := []map[string]interface{}{
+		{"Driver": "foo", "Labels": "", "Links": "N/A", "Mountpoint": "", "Name": "foobar_baz", "Scope": "", "Size": "N/A"},
+		{"Driver": "bar", "Labels": "", "Links": "N/A", "Mountpoint": "", "Name": "foobar_bar", "Scope": "", "Size": "N/A"},
+	}
+	out := bytes.NewBufferString("")
+	err := VolumeWrite(Context{Format: "{{json .}}", Output: out}, volumes)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i, line := range strings.Split(strings.TrimSpace(out.String()), "\n") {
+		t.Logf("Output: line %d: %s", i, line)
+		var m map[string]interface{}
+		if err := json.Unmarshal([]byte(line), &m); err != nil {
+			t.Fatal(err)
+		}
+		assert.DeepEqual(t, m, expectedJSONs[i])
+	}
+}
+
+func TestVolumeContextWriteJSONField(t *testing.T) {
+	volumes := []*types.Volume{
+		{Driver: "foo", Name: "foobar_baz"},
+		{Driver: "bar", Name: "foobar_bar"},
+	}
+	out := bytes.NewBufferString("")
+	err := VolumeWrite(Context{Format: "{{json .Name}}", Output: out}, volumes)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i, line := range strings.Split(strings.TrimSpace(out.String()), "\n") {
+		t.Logf("Output: line %d: %s", i, line)
+		var s string
+		if err := json.Unmarshal([]byte(line), &s); err != nil {
+			t.Fatal(err)
+		}
+		assert.Equal(t, s, volumes[i].Name)
 	}
 }

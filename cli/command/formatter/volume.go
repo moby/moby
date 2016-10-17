@@ -53,6 +53,10 @@ type volumeContext struct {
 	v types.Volume
 }
 
+func (c *volumeContext) MarshalJSON() ([]byte, error) {
+	return marshalJSON(c)
+}
+
 func (c *volumeContext) Name() string {
 	c.AddHeader(volumeNameHeader)
 	return c.v.Name
