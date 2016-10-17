@@ -125,6 +125,11 @@ func setupRemoteNetworkDrivers(c *check.C, mux *http.ServeMux, url, netDrv, ipam
 		fmt.Fprintf(w, "null")
 	})
 
+	mux.HandleFunc(fmt.Sprintf("/%s.EndpointOperInfo", driverapi.NetworkPluginEndpointType), func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/vnd.docker.plugins.v1+json")
+		fmt.Fprintf(w, "null")
+	})
+
 	// IPAM Driver implementation
 	var (
 		poolRequest       remoteipam.RequestPoolRequest
@@ -1770,4 +1775,100 @@ func (s *DockerNetworkSuite) TestDockerNetworkDisconnectFromBridge(c *check.C) {
 
 	_, _, err := dockerCmdWithError("network", "disconnect", network, name)
 	c.Assert(err, check.IsNil)
+}
+
+func (s *DockerNetworkSuite) TestDockerNetworkDriverRunOptions(c *check.C) {
+	// create a test network
+	dockerCmd(c, "network", "create", "-d", dummyNetworkDriver, "testnet")
+	assertNwIsAvailable(c, "testnet")
+	defer func() {
+		dockerCmd(c, "network", "rm", "testnet")
+	}()
+
+	// create a container
+	dockerCmd(c, "run", "-d", "--name", "test", "--net", "testnet", "--network-opt", "a=b", "--network-opt", "1=2", "busybox", "top")
+	c.Assert(waitRun("test"), check.IsNil)
+	defer func() {
+		dockerCmd(c, "stop", "test")
+	}()
+
+	// validate network options
+	netOpts := inspectField(c, "test", "NetworkSettings.Networks.testnet.NetworkOpts")
+	for _, expected := range []string{"a:b", "1:2"} {
+		c.Assert(netOpts, checker.Contains, expected, check.Commentf("Expected to find value %v in netOpts %v but didn't ", expected, netOpts))
+	}
+}
+
+func (s *DockerNetworkSuite) TestDockerNetworkDriverConnectOptions(c *check.C) {
+	// create a test network
+	dockerCmd(c, "network", "create", "-d", dummyNetworkDriver, "testnet")
+	assertNwIsAvailable(c, "testnet")
+	defer func() {
+		dockerCmd(c, "network", "rm", "testnet")
+	}()
+
+	// create a container
+	out, _ := dockerCmd(c, "run", "-d", "--name", "test", "busybox", "top")
+	c.Assert(waitRun("test"), check.IsNil)
+	containerID := strings.TrimSpace(out)
+	defer func() {
+		dockerCmd(c, "stop", "test")
+	}()
+
+	// connect the container to the test network passing network options
+	dockerCmd(c, "network", "connect", "--network-opt", "a=b", "--network-opt", "1=2", "testnet", containerID)
+
+	// validate network options
+	netOpts := inspectField(c, "test", "NetworkSettings.Networks.testnet.NetworkOpts")
+	for _, expected := range []string{"a:b", "1:2"} {
+		c.Assert(netOpts, checker.Contains, expected, check.Commentf("Expected to find value %v in netOpts %v but didn't ", expected, netOpts))
+	}
+}
+
+func (s *DockerNetworkSuite) TestDockerIPAMDriverRunOptions(c *check.C) {
+	// create a test network
+	dockerCmd(c, "network", "create", "-d", dummyNetworkDriver, "--ipam-driver", dummyIPAMDriver, "testnet")
+	assertNwIsAvailable(c, "testnet")
+	defer func() {
+		dockerCmd(c, "network", "rm", "testnet")
+	}()
+
+	// create a container setting link-local-ip so IPAMConfig object is created
+	dockerCmd(c, "run", "-d", "--name=test", "--net=testnet", "--ipam-opt", "a=b", "--ipam-opt", "1=2", "--link-local-ip=169.254.1.1", "busybox", "top")
+	c.Assert(waitRun("test"), check.IsNil)
+	defer func() {
+		dockerCmd(c, "stop", "test")
+	}()
+
+	// validate IPAM options
+	IPAMOpts := inspectField(c, "test", "NetworkSettings.Networks.testnet.IPAMConfig.Options")
+	for _, expected := range []string{"a:b", "1:2"} {
+		c.Assert(IPAMOpts, checker.Contains, expected, check.Commentf("Expected to find value %v in IPAMOpts %v but didn't ", expected, IPAMOpts))
+	}
+}
+
+func (s *DockerNetworkSuite) TestDockerIPAMDriverConnectOptions(c *check.C) {
+	// create a test network
+	dockerCmd(c, "network", "create", "-d", dummyNetworkDriver, "--ipam-driver", dummyIPAMDriver, "testnet")
+	assertNwIsAvailable(c, "testnet")
+	defer func() {
+		dockerCmd(c, "network", "rm", "testnet")
+	}()
+
+	// create a container setting link-local-ip so IPAMConfig object is created
+	out, _ := dockerCmd(c, "run", "-d", "--name", "test", "--link-local-ip=169.254.1.1", "busybox", "top")
+	c.Assert(waitRun("test"), check.IsNil)
+	containerID := strings.TrimSpace(out)
+	defer func() {
+		dockerCmd(c, "stop", "test")
+	}()
+
+	// connect the container to the test network passing IPAM options
+	dockerCmd(c, "network", "connect", "--ipam-opt", "a=b", "--ipam-opt", "1=2", "testnet", containerID)
+
+	// validate IPAM options
+	IPAMOpts := inspectField(c, "test", "NetworkSettings.Networks.testnet.IPAMConfig.Options")
+	for _, expected := range []string{"a:b", "1:2"} {
+		c.Assert(IPAMOpts, checker.Contains, expected, check.Commentf("Expected to find value %v in IPAMOpts %v but didn't ", expected, IPAMOpts))
+	}
 }

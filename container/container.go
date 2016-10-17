@@ -675,11 +675,18 @@ func (container *Container) BuildCreateEndpointOptions(n libnetwork.Network, epC
 				}
 			}
 			createOptions = append(createOptions,
-				libnetwork.CreateOptionIpam(net.ParseIP(ipam.IPv4Address), net.ParseIP(ipam.IPv6Address), ipList, nil))
+				libnetwork.CreateOptionIpam(net.ParseIP(ipam.IPv4Address), net.ParseIP(ipam.IPv6Address), ipList, epConfig.IPAMConfig.Options))
 		}
 
 		for _, alias := range epConfig.Aliases {
 			createOptions = append(createOptions, libnetwork.CreateOptionMyAlias(alias))
+		}
+
+		// Passing network options to driver on EndpointCreate
+		for key, val := range epConfig.NetworkOpts {
+			genericOption := options.Generic{}
+			genericOption[key] = val
+			createOptions = append(createOptions, libnetwork.EndpointOptionGeneric(genericOption))
 		}
 	}
 

@@ -48,6 +48,7 @@ docker-run - Run a command in a new container
 [**--ip**[=*IPv4-ADDRESS*]]
 [**--ip6**[=*IPv6-ADDRESS*]]
 [**--ipc**[=*IPC*]]
+[**--ipam-opt**[=*[]*]]
 [**--isolation**[=*default*]]
 [**--kernel-memory**[=*KERNEL-MEMORY*]]
 [**-l**|**--label**[=*[]*]]
@@ -64,6 +65,7 @@ docker-run - Run a command in a new container
 [**--name**[=*NAME*]]
 [**--network-alias**[=*[]*]]
 [**--network**[=*"bridge"*]]
+[**--network-opt**[=*[]*]]
 [**--oom-kill-disable**]
 [**--oom-score-adj**[=*0*]]
 [**-P**|**--publish-all**]
@@ -345,6 +347,9 @@ redirection on the host system.
 
    It can only be used in conjunction with **--network** for user-defined networks
 
+**--ipam-opt**=[]
+      Add IPAM driver specific options.
+
 **--ipc**=""
    Default is to create a private IPC namespace (POSIX SysV IPC) for the container
                                'container:<name|id>': reuses another container shared memory, semaphores and message queues
@@ -450,6 +455,9 @@ and foreground Docker containers.
 
 **--network-alias**=[]
    Add network-scoped alias for the container
+
+**--network-opt**=[]
+   Add network driver specific options.
 
 **--oom-kill-disable**=*true*|*false*
    Whether to disable OOM Killer for the container or not.

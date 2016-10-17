@@ -60,6 +60,8 @@ type containerOptions struct {
 	storageOpt         opts.ListOpts
 	labelsFile         opts.ListOpts
 	loggingOpts        opts.ListOpts
+	networkOpts        opts.ListOpts
+	ipamOpts           opts.ListOpts
 	privileged         bool
 	pidMode            string
 	utsMode            string
@@ -149,6 +151,8 @@ func addFlags(flags *pflag.FlagSet) *containerOptions {
 		linkLocalIPs:      opts.NewListOpts(nil),
 		links:             opts.NewListOpts(opts.ValidateLink),
 		loggingOpts:       opts.NewListOpts(nil),
+		networkOpts:       opts.NewListOpts(nil),
+		ipamOpts:          opts.NewListOpts(nil),
 		publish:           opts.NewListOpts(nil),
 		securityOpt:       opts.NewListOpts(nil),
 		storageOpt:        opts.NewListOpts(nil),
@@ -216,6 +220,10 @@ func addFlags(flags *pflag.FlagSet) *containerOptions {
 	flags.Var(&copts.aliases, "net-alias", "Add network-scoped alias for the container")
 	flags.Var(&copts.aliases, "network-alias", "Add network-scoped alias for the container")
 	flags.MarkHidden("net-alias")
+	// Network driver specific options
+	flags.Var(&copts.networkOpts, "network-opt", "Set network driver option for a container endpoint")
+	// IPAM driver specific options
+	flags.Var(&copts.ipamOpts, "ipam-opt", "Set IPAM driver option for a container endpoint")
 
 	// Logging and storage
 	flags.StringVar(&copts.loggingDriver, "log-driver", "", "Logging driver for the container")
@@ -656,6 +664,7 @@ func parse(flags *pflag.FlagSet, copts *containerOptions) (*container.Config, *c
 		epConfig.IPAMConfig = &networktypes.EndpointIPAMConfig{
 			IPv4Address: copts.ipv4Address,
 			IPv6Address: copts.ipv6Address,
+			Options:     runconfigopts.ConvertKVStringsToMap(copts.ipamOpts.GetAll()),
 		}
 
 		if copts.linkLocalIPs.Len() > 0 {
@@ -681,6 +690,15 @@ func parse(flags *pflag.FlagSet, copts *containerOptions) (*container.Config, *c
 		}
 		epConfig.Aliases = make([]string, copts.aliases.Len())
 		copy(epConfig.Aliases, copts.aliases.GetAll())
+		networkingConfig.EndpointsConfig[string(hostConfig.NetworkMode)] = epConfig
+	}
+
+	if copts.networkOpts.Len() > 0 {
+		epConfig := networkingConfig.EndpointsConfig[string(hostConfig.NetworkMode)]
+		if epConfig == nil {
+			epConfig = &networktypes.EndpointSettings{}
+		}
+		epConfig.NetworkOpts = runconfigopts.ConvertKVStringsToMap(copts.networkOpts.GetAll())
 		networkingConfig.EndpointsConfig[string(hostConfig.NetworkMode)] = epConfig
 	}
 
