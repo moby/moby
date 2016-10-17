@@ -2,7 +2,10 @@
 
 package daemon
 
-import "github.com/docker/docker/container"
+import (
+	"github.com/docker/docker/container"
+	"github.com/docker/libnetwork"
+)
 
 func (daemon *Daemon) setupLinkedContainers(container *container.Container) ([]string, error) {
 	return nil, nil
@@ -46,4 +49,11 @@ func enableIPOnPredefinedNetwork() bool {
 
 func (daemon *Daemon) isNetworkHotPluggable() bool {
 	return false
+}
+
+func setupPathsAndSandboxOptions(container *container.Container, sboxOptions *[]libnetwork.SandboxOption) error {
+	return nil
+}
+
+func initializeNetworkingPaths(container *container.Container, nc *container.Container) {
 }

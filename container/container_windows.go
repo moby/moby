@@ -17,9 +17,6 @@ import (
 type Container struct {
 	CommonContainer
 
-	HostnamePath   string
-	HostsPath      string
-	ResolvConfPath string
 	// Fields below here are platform specific.
 }
 

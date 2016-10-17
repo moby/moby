@@ -63,17 +63,9 @@ func (daemon *Daemon) buildSandboxOptions(container *container.Container) ([]lib
 		sboxOptions = append(sboxOptions, libnetwork.OptionUseExternalKey())
 	}
 
-	container.HostsPath, err = container.GetRootResourcePath("hosts")
-	if err != nil {
+	if err = setupPathsAndSandboxOptions(container, &sboxOptions); err != nil {
 		return nil, err
 	}
-	sboxOptions = append(sboxOptions, libnetwork.OptionHostsPath(container.HostsPath))
-
-	container.ResolvConfPath, err = container.GetRootResourcePath("resolv.conf")
-	if err != nil {
-		return nil, err
-	}
-	sboxOptions = append(sboxOptions, libnetwork.OptionResolvConfPath(container.ResolvConfPath))
 
 	if len(container.HostConfig.DNS) > 0 {
 		dns = container.HostConfig.DNS
@@ -809,9 +801,7 @@ func (daemon *Daemon) initializeNetworking(container *container.Container) error
 		if err != nil {
 			return err
 		}
-		container.HostnamePath = nc.HostnamePath
-		container.HostsPath = nc.HostsPath
-		container.ResolvConfPath = nc.ResolvConfPath
+		initializeNetworkingPaths(container, nc)
 		container.Config.Hostname = nc.Config.Hostname
 		container.Config.Domainname = nc.Config.Domainname
 		return nil
