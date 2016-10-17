@@ -371,7 +371,7 @@ Create a container
 -   **OpenStdin** - Boolean value, opens `stdin`,
 -   **StdinOnce** - Boolean value, close `stdin` after the 1 attached client disconnects.
 -   **Env** - A list of environment variables in the form of `["VAR=value", ...]`
--   **Labels** - Adds a map of labels to a container. To specify a map: `{"key":"value"[,"key2":"value2"]}`
+-   **Labels** - Adds a map of labels to a container. To specify a map: `{"key":"value", ... }`
 -   **Cmd** - Command to run specified as a string or an array of strings.
 -   **Entrypoint** - Set the entry point for the container as a string or an array
       of strings.
@@ -4105,7 +4105,7 @@ JSON Parameters:
 - **Annotations** – Optional medata to associate with the service.
     - **Name** – User-defined name for the service.
     - **Labels** – A map of labels to associate with the service (e.g.,
-      `{"key":"value"[,"key2":"value2"]}`).
+      `{"key":"value", "key2":"value2"}`).
 - **Role** - Role of the node (worker/manager).
 - **Availability** - Availability of the node (active/pause/drain).
 
@@ -4598,7 +4598,7 @@ image](docker_remote_api_v1.24.md#create-an-image) section for more details.
 **JSON Parameters**:
 
 - **Name** – User-defined name for the service.
-- **Labels** – A map of labels to associate with the service (e.g., `{"key":"value"[,"key2":"value2"]}`).
+- **Labels** – A map of labels to associate with the service (e.g., `{"key":"value", "key2":"value2"}`).
 - **TaskTemplate** – Specification of the tasks to start as part of the new service.
     - **ContainerSpec** - Container settings for containers started as part of this task.
         - **Image** – A string specifying the image name to use for the container.
@@ -4608,7 +4608,7 @@ image](docker_remote_api_v1.24.md#create-an-image) section for more details.
         - **Dir** – A string specifying the working directory for commands to run in.
         - **User** – A string value specifying the user inside the container.
         - **Labels** – A map of labels to associate with the service (e.g.,
-          `{"key":"value"[,"key2":"value2"]}`).
+          `{"key":"value", "key2":"value2"}`).
         - **Mounts** – Specification for mounts to be added to containers
           created as part of the service.
             - **Target** – Container path.
@@ -4838,7 +4838,7 @@ image](docker_remote_api_v1.24.md#create-an-image) section for more details.
 **JSON Parameters**:
 
 - **Name** – User-defined name for the service.
-- **Labels** – A map of labels to associate with the service (e.g., `{"key":"value"[,"key2":"value2"]}`).
+- **Labels** – A map of labels to associate with the service (e.g., `{"key":"value", "key2":"value2"}`).
 - **TaskTemplate** – Specification of the tasks to start as part of the new service.
     - **ContainerSpec** - Container settings for containers started as part of this task.
         - **Image** – A string specifying the image name to use for the container.
@@ -4848,7 +4848,7 @@ image](docker_remote_api_v1.24.md#create-an-image) section for more details.
         - **Dir** – A string specifying the working directory for commands to run in.
         - **User** – A string value specifying the user inside the container.
         - **Labels** – A map of labels to associate with the service (e.g.,
-          `{"key":"value"[,"key2":"value2"]}`).
+          `{"key":"value", "key2":"value2"}`).
         - **Mounts** – Specification for mounts to be added to containers created as part of the new
           service.
             - **Target** – Container path.
