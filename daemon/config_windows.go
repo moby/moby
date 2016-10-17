@@ -2,14 +2,15 @@ package daemon
 
 import (
 	"os"
+	"path/filepath"
 
 	"github.com/docker/docker/api/types"
 	"github.com/spf13/pflag"
 )
 
 var (
-	defaultPidFile = os.Getenv("programdata") + string(os.PathSeparator) + "docker.pid"
-	defaultGraph   = os.Getenv("programdata") + string(os.PathSeparator) + "docker"
+	defaultPidFile string
+	defaultGraph   = filepath.Join(os.Getenv("programdata"), "docker")
 )
 
 // bridgeConfig stores all the bridge driver specific
