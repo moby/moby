@@ -31,4 +31,4 @@ Remove one or more volumes. You cannot remove a volume that is in use by a conta
 * [volume inspect](volume_inspect.md)
 * [volume ls](volume_ls.md)
 * [volume prune](volume_prune.md)
-* [Understand Data Volumes](../../tutorials/dockervolumes.md)
+* [Understand Data Volumes](https://docs.docker.com/engine/tutorials/dockervolumes/)

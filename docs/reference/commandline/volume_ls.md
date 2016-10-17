@@ -171,4 +171,4 @@ vol3: local
 * [volume inspect](volume_inspect.md)
 * [volume rm](volume_rm.md)
 * [volume prune](volume_prune.md)
-* [Understand Data Volumes](../../tutorials/dockervolumes.md)
+* [Understand Data Volumes](https://docs.docker.com/engine/tutorials/dockervolumes/)
