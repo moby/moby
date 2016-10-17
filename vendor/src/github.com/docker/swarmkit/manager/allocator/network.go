@@ -489,6 +489,28 @@ func taskUpdateEndpoint(t *api.Task, endpoint *api.Endpoint) {
 	t.Endpoint = endpoint.Copy()
 }
 
+func isIngressNetworkNeeded(s *api.Service) bool {
+	if s == nil {
+		return false
+	}
+
+	if s.Spec.Endpoint == nil {
+		return false
+	}
+
+	for _, p := range s.Spec.Endpoint.Ports {
+		// The service to which this task belongs is trying to
+		// expose ports with PublishMode as Ingress to the
+		// external world. Automatically attach the task to
+		// the ingress network.
+		if p.PublishMode == api.PublishModeIngress {
+			return true
+		}
+	}
+
+	return false
+}
+
 func (a *Allocator) taskCreateNetworkAttachments(t *api.Task, s *api.Service) {
 	// If task network attachments have already been filled in no
 	// need to do anything else.
@@ -497,11 +519,7 @@ func (a *Allocator) taskCreateNetworkAttachments(t *api.Task, s *api.Service) {
 	}
 
 	var networks []*api.NetworkAttachment
-
-	// The service to which this task belongs is trying to expose
-	// ports to the external world. Automatically attach the task
-	// to the ingress network.
-	if s != nil && s.Spec.Endpoint != nil && len(s.Spec.Endpoint.Ports) != 0 {
+	if isIngressNetworkNeeded(s) {
 		networks = append(networks, &api.NetworkAttachment{Network: a.netCtx.ingressNetwork})
 	}
 
@@ -638,7 +656,7 @@ func (a *Allocator) allocateService(ctx context.Context, s *api.Service) error {
 		// The service is trying to expose ports to the external
 		// world. Automatically attach the service to the ingress
 		// network only if it is not already done.
-		if len(s.Spec.Endpoint.Ports) != 0 {
+		if isIngressNetworkNeeded(s) {
 			var found bool
 			for _, vip := range s.Endpoint.VirtualIPs {
 				if vip.NetworkID == nc.ingressNetwork.ID {
@@ -668,7 +686,7 @@ func (a *Allocator) allocateService(ctx context.Context, s *api.Service) error {
 	// If the service doesn't expose ports any more and if we have
 	// any lingering virtual IP references for ingress network
 	// clean them up here.
-	if s.Spec.Endpoint == nil || len(s.Spec.Endpoint.Ports) == 0 {
+	if !isIngressNetworkNeeded(s) {
 		if s.Endpoint != nil {
 			for i, vip := range s.Endpoint.VirtualIPs {
 				if vip.NetworkID == nc.ingressNetwork.ID {
@@ -755,7 +773,10 @@ func (a *Allocator) allocateTask(ctx context.Context, t *api.Task) (err error) {
 					return
 				}
 
-				taskUpdateEndpoint(t, s.Endpoint)
+				if s.Endpoint != nil {
+					taskUpdateEndpoint(t, s.Endpoint)
+					taskUpdated = true
+				}
 			}
 
 			for _, na := range t.Networks {
@@ -781,6 +802,7 @@ func (a *Allocator) allocateTask(ctx context.Context, t *api.Task) (err error) {
 				taskUpdated = true
 			}
 		})
+
 		if err != nil {
 			return err
 		}
