@@ -236,6 +236,7 @@ This section lists each version from latest to oldest.  Each listing includes a 
 * `GET /info` now lists engine version information and return the information of `CPUShares` and `Cpuset`.
 * `GET /containers/json` will return `ImageID` of the image used by container.
 * `POST /exec/(name)/start` will now return an HTTP 409 when the container is either stopped or paused.
+* `POST /containers/create` now takes `KernelMemory` in HostConfig to specify kernel memory limit.
 * `GET /containers/(name)/json` now accepts a `size` parameter. Setting this parameter to '1' returns container size information in the `SizeRw` and `SizeRootFs` fields.
 * `GET /containers/(name)/json` now returns a `NetworkSettings.Networks` field,
   detailing network settings per network. This field deprecates the
