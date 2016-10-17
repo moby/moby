@@ -25,6 +25,7 @@ import (
 	"github.com/docker/docker/daemon/network"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
+	"github.com/docker/docker/libcontainerd"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/promise"
@@ -1011,4 +1012,47 @@ func (container *Container) CancelAttachContext() {
 		container.attachContext.ctx = nil
 	}
 	container.attachContext.mu.Unlock()
+}
+
+func (container *Container) startLogging() error {
+	if container.HostConfig.LogConfig.Type == "none" {
+		return nil // do not start logging routines
+	}
+
+	l, err := container.StartLogger(container.HostConfig.LogConfig)
+	if err != nil {
+		return fmt.Errorf("Failed to initialize logging driver: %v", err)
+	}
+
+	copier := logger.NewCopier(map[string]io.Reader{"stdout": container.StdoutPipe(), "stderr": container.StderrPipe()}, l)
+	container.LogCopier = copier
+	copier.Run()
+	container.LogDriver = l
+
+	// set LogPath field only for json-file logdriver
+	if jl, ok := l.(*jsonfilelog.JSONFileLogger); ok {
+		container.LogPath = jl.LogPath()
+	}
+
+	return nil
+}
+
+// InitializeStdio is called by libcontainerd to connect the stdio.
+func (container *Container) InitializeStdio(iop libcontainerd.IOPipe) error {
+	if err := container.startLogging(); err != nil {
+		container.Reset(false)
+		return err
+	}
+
+	container.StreamConfig.CopyToPipe(iop)
+
+	if container.Stdin() == nil && !container.Config.Tty {
+		if iop.Stdin != nil {
+			if err := iop.Stdin.Close(); err != nil {
+				logrus.Error("error closing stdin: %+v", err)
+			}
+		}
+	}
+
+	return nil
 }

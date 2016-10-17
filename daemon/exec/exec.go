@@ -1,8 +1,11 @@
 package exec
 
 import (
+	"runtime"
 	"sync"
 
+	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/libcontainerd"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/runconfig"
 )
@@ -37,6 +40,21 @@ func NewConfig() *Config {
 		ID:           stringid.GenerateNonCryptoID(),
 		StreamConfig: runconfig.NewStreamConfig(),
 	}
+}
+
+// InitializeStdio is called by libcontainerd to connect the stdio.
+func (c *Config) InitializeStdio(iop libcontainerd.IOPipe) error {
+	c.StreamConfig.CopyToPipe(iop)
+
+	if c.Stdin() == nil && !c.Tty && runtime.GOOS == "windows" {
+		if iop.Stdin != nil {
+			if err := iop.Stdin.Close(); err != nil {
+				logrus.Error("error closing exec stdin: %+v", err)
+			}
+		}
+	}
+
+	return nil
 }
 
 // Store keeps track of the exec configurations.

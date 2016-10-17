@@ -34,7 +34,7 @@ type client struct {
 // AddProcess is the handler for adding a process to an already running
 // container. It's called through docker exec. It returns the system pid of the
 // exec'd process.
-func (clnt *client) AddProcess(ctx context.Context, containerID, processFriendlyName string, specp Process) (int, error) {
+func (clnt *client) AddProcess(ctx context.Context, containerID, processFriendlyName string, specp Process, attachStdio StdioCallback) (int, error) {
 	clnt.lock(containerID)
 	defer clnt.unlock(containerID)
 	container, err := clnt.getContainer(containerID)
@@ -116,14 +116,10 @@ func (clnt *client) AddProcess(ctx context.Context, containerID, processFriendly
 
 	container.processes[processFriendlyName] = p
 
-	clnt.unlock(containerID)
-
-	if err := clnt.backend.AttachStreams(processFriendlyName, *iopipe); err != nil {
-		clnt.lock(containerID)
+	if err := attachStdio(*iopipe); err != nil {
 		p.closeFifos(iopipe)
 		return -1, err
 	}
-	clnt.lock(containerID)
 
 	return int(resp.SystemPid), nil
 }
@@ -153,7 +149,7 @@ func (clnt *client) prepareBundleDir(uid, gid int) (string, error) {
 	return p, nil
 }
 
-func (clnt *client) Create(containerID string, checkpoint string, checkpointDir string, spec specs.Spec, options ...CreateOption) (err error) {
+func (clnt *client) Create(containerID string, checkpoint string, checkpointDir string, spec specs.Spec, attachStdio StdioCallback, options ...CreateOption) (err error) {
 	clnt.lock(containerID)
 	defer clnt.unlock(containerID)
 
@@ -195,7 +191,7 @@ func (clnt *client) Create(containerID string, checkpoint string, checkpointDir 
 		return err
 	}
 
-	return container.start(checkpoint, checkpointDir)
+	return container.start(checkpoint, checkpointDir, attachStdio)
 }
 
 func (clnt *client) Signal(containerID string, sig int) error {
@@ -404,7 +400,7 @@ func (clnt *client) getOrCreateExitNotifier(containerID string) *exitNotifier {
 	return w
 }
 
-func (clnt *client) restore(cont *containerd.Container, lastEvent *containerd.Event, options ...CreateOption) (err error) {
+func (clnt *client) restore(cont *containerd.Container, lastEvent *containerd.Event, attachStdio StdioCallback, options ...CreateOption) (err error) {
 	clnt.lock(cont.Id)
 	defer clnt.unlock(cont.Id)
 
@@ -445,7 +441,7 @@ func (clnt *client) restore(cont *containerd.Container, lastEvent *containerd.Ev
 		return err
 	})
 
-	if err := clnt.backend.AttachStreams(containerID, *iopipe); err != nil {
+	if err := attachStdio(*iopipe); err != nil {
 		container.closeFifos(iopipe)
 		return err
 	}
@@ -537,7 +533,7 @@ func (clnt *client) getContainerLastEvent(id string) (*containerd.Event, error) 
 	return ev, err
 }
 
-func (clnt *client) Restore(containerID string, options ...CreateOption) error {
+func (clnt *client) Restore(containerID string, attachStdio StdioCallback, options ...CreateOption) error {
 	// Synchronize with live events
 	clnt.remote.Lock()
 	defer clnt.remote.Unlock()
@@ -585,7 +581,7 @@ func (clnt *client) Restore(containerID string, options ...CreateOption) error {
 
 	// container is still alive
 	if clnt.liveRestore {
-		if err := clnt.restore(cont, ev, options...); err != nil {
+		if err := clnt.restore(cont, ev, attachStdio, options...); err != nil {
 			logrus.Errorf("libcontainerd: error restoring %s: %v", containerID, err)
 		}
 		return nil
