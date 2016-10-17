@@ -357,26 +357,51 @@ func (daemon *Daemon) findAndAttachNetwork(container *container.Container, idOrN
 		}
 	}
 
-	// In all other cases, attempt to attach to the network to
-	// trigger attachment in the swarm cluster manager.
-	var config *networktypes.NetworkingConfig
-	if daemon.clusterProvider != nil {
-		var err error
-		config, err = daemon.clusterProvider.AttachNetwork(idOrName, container.ID, addresses)
-		if err != nil {
-			return nil, nil, err
-		}
-	}
+	var (
+		config     *networktypes.NetworkingConfig
+		retryCount int
+	)
 
-	n, err = daemon.FindNetwork(idOrName)
-	if err != nil {
+	for {
+		// In all other cases, attempt to attach to the network to
+		// trigger attachment in the swarm cluster manager.
 		if daemon.clusterProvider != nil {
-			if err := daemon.clusterProvider.DetachNetwork(idOrName, container.ID); err != nil {
-				logrus.Warnf("Could not rollback attachment for container %s to network %s: %v", container.ID, idOrName, err)
+			var err error
+			config, err = daemon.clusterProvider.AttachNetwork(idOrName, container.ID, addresses)
+			if err != nil {
+				return nil, nil, err
 			}
 		}
 
-		return nil, nil, err
+		n, err = daemon.FindNetwork(idOrName)
+		if err != nil {
+			if daemon.clusterProvider != nil {
+				if err := daemon.clusterProvider.DetachNetwork(idOrName, container.ID); err != nil {
+					logrus.Warnf("Could not rollback attachment for container %s to network %s: %v", container.ID, idOrName, err)
+				}
+			}
+
+			// Retry network attach again if we failed to
+			// find the network after successfull
+			// attachment because the only reason that
+			// would happen is if some other container
+			// attached to the swarm scope network went down
+			// and removed the network while we were in
+			// the process of attaching.
+			if config != nil {
+				if _, ok := err.(libnetwork.ErrNoSuchNetwork); ok {
+					if retryCount >= 5 {
+						return nil, nil, fmt.Errorf("could not find network %s after successful attachment", idOrName)
+					}
+					retryCount++
+					continue
+				}
+			}
+
+			return nil, nil, err
+		}
+
+		break
 	}
 
 	// This container has attachment to a swarm scope
