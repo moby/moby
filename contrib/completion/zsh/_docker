@@ -57,7 +57,7 @@ __docker_get_containers() {
     type=$1; shift
     [[ $kind = (stopped|all) ]] && args=($args -a)
 
-    lines=(${(f)"$(_call_program commands docker $docker_options ps --format 'table' --no-trunc $args)"})
+    lines=(${(f)${:-"$(_call_program commands docker $docker_options ps --format 'table' --no-trunc $args)"$'\n'}})
 
     # Parse header line to find columns
     local i=1 j=1 k header=${lines[1]}
@@ -153,7 +153,7 @@ __docker_images() {
     [[ $PREFIX = -* ]] && return 1
     integer ret=1
     declare -a images
-    images=(${${${(f)"$(_call_program commands docker $docker_options images)"}[2,-1]}/(#b)([^ ]##) ##([^ ]##) ##([^ ]##)*/${match[3]}:${(r:15:: :::)match[2]} in ${match[1]}})
+    images=(${${${(f)${:-"$(_call_program commands docker $docker_options images)"$'\n'}}[2,-1]}/(#b)([^ ]##) ##([^ ]##) ##([^ ]##)*/${match[3]}:${(r:15:: :::)match[2]} in ${match[1]}})
     _describe -t docker-images "images" images && ret=0
     __docker_repositories_with_tags && ret=0
     return ret
@@ -162,7 +162,7 @@ __docker_images() {
 __docker_repositories() {
     [[ $PREFIX = -* ]] && return 1
     declare -a repos
-    repos=(${${${(f)"$(_call_program commands docker $docker_options images)"}%% *}[2,-1]})
+    repos=(${${${(f)${:-"$(_call_program commands docker $docker_options images)"$'\n'}}%% *}[2,-1]})
     repos=(${repos#<none>})
     _describe -t docker-repos "repositories" repos
 }
@@ -172,7 +172,7 @@ __docker_repositories_with_tags() {
     integer ret=1
     declare -a repos onlyrepos matched
     declare m
-    repos=(${${${${(f)"$(_call_program commands docker $docker_options images)"}[2,-1]}/ ##/:::}%% *})
+    repos=(${${${${(f)${:-"$(_call_program commands docker $docker_options images)"$'\n'}}[2,-1]}/ ##/:::}%% *})
     repos=(${${repos%:::<none>}#<none>})
     # Check if we have a prefix-match for the current prefix.
     onlyrepos=(${repos%::*})
@@ -208,7 +208,7 @@ __docker_search() {
     if ( [[ ${(P)+cachename} -eq 0 ]] || _cache_invalid ${cachename#_} ) \
         && ! _retrieve_cache ${cachename#_}; then
         _message "Searching for ${searchterm}..."
-        result=(${${${(f)"$(_call_program commands docker $docker_options search $searchterm)"}%% *}[2,-1]})
+        result=(${${${(f)${:-"$(_call_program commands docker $docker_options search $searchterm)"$'\n'}}%% *}[2,-1]})
         _store_cache ${cachename#_} result
     fi
     _wanted dockersearch expl 'available images' compadd -a result
@@ -507,7 +507,7 @@ __docker_get_networks() {
 
     type=$1; shift
 
-    lines=(${(f)"$(_call_program commands docker $docker_options network ls)"})
+    lines=(${(f)${:-"$(_call_program commands docker $docker_options network ls)"$'\n'}})
 
     # Parse header line to find columns
     local i=1 j=1 k header=${lines[1]}
@@ -723,7 +723,7 @@ __docker_nodes() {
     filter=$1; shift
     [[ $filter != "none" ]] && args=("-f $filter")
 
-    lines=(${(f)"$(_call_program commands docker $docker_options node ls $args)"})
+    lines=(${(f)${:-"$(_call_program commands docker $docker_options node ls $args)"$'\n'}})
     # Parse header line to find columns
     local i=1 j=1 k header=${lines[1]}
     declare -A begin end
@@ -884,7 +884,7 @@ __docker_complete_plugins() {
     local line s
     declare -a lines plugins
 
-    lines=(${(f)"$(_call_program commands docker $docker_options plugin ls)"})
+    lines=(${(f)${:-"$(_call_program commands docker $docker_options plugin ls)"$'\n'}})
 
     # Parse header line to find columns
     local i=1 j=1 k header=${lines[1]}
@@ -1010,7 +1010,7 @@ __docker_services() {
 
     type=$1; shift
 
-    lines=(${(f)"$(_call_program commands docker $docker_options service ls)"})
+    lines=(${(f)${:-"$(_call_program commands docker $docker_options service ls)"$'\n'}})
 
     # Parse header line to find columns
     local i=1 j=1 k header=${lines[1]}
@@ -1296,7 +1296,7 @@ __docker_volumes() {
     integer ret=1
     declare -a lines volumes
 
-    lines=(${(f)"$(_call_program commands docker $docker_options volume ls)"})
+    lines=(${(f)${:-"$(_call_program commands docker $docker_options volume ls)"$'\n'}})
 
     # Parse header line to find columns
     local i=1 j=1 k header=${lines[1]}
