@@ -9,7 +9,7 @@
 //       for both xfs/ext4 for kernel version >= v4.5
 //
 
-package graphdriver
+package quota
 
 /*
 #include <stdlib.h>

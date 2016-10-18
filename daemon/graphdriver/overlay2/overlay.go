@@ -17,6 +17,7 @@ import (
 	"github.com/Sirupsen/logrus"
 
 	"github.com/docker/docker/daemon/graphdriver"
+	"github.com/docker/docker/daemon/graphdriver/quota"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/chrootarchive"
 	"github.com/docker/docker/pkg/directory"
@@ -79,7 +80,7 @@ const (
 
 type overlayOptions struct {
 	overrideKernelCheck bool
-	quota               graphdriver.Quota
+	quota               quota.Quota
 }
 
 // Driver contains information about the home directory and the list of active mounts that are created using this driver.
@@ -88,7 +89,7 @@ type Driver struct {
 	uidMaps  []idtools.IDMap
 	gidMaps  []idtools.IDMap
 	ctr      *graphdriver.RefCounter
-	quotaCtl *graphdriver.QuotaCtl
+	quotaCtl *quota.QuotaCtl
 	options  overlayOptions
 }
 
@@ -163,7 +164,7 @@ func Init(home string, options []string, uidMaps, gidMaps []idtools.IDMap) (grap
 
 	if backingFs == "xfs" {
 		// Try to enable project quota support over xfs.
-		if d.quotaCtl, err = graphdriver.NewQuotaCtl(home); err == nil {
+		if d.quotaCtl, err = quota.NewQuotaCtl(home); err == nil {
 			projectQuotaSupported = true
 		}
 	}
