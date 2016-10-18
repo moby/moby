@@ -9,7 +9,7 @@
 //       for both xfs/ext4 for kernel version >= v4.5
 //
 
-package graphdriver
+package quota
 
 /*
 #include <stdlib.h>
@@ -66,15 +66,15 @@ type Quota struct {
 	Size uint64
 }
 
-// QuotaCtl - Context to be used by storage driver (e.g. overlay)
+// Control - Context to be used by storage driver (e.g. overlay)
 // who wants to apply project quotas to container dirs
-type QuotaCtl struct {
+type Control struct {
 	backingFsBlockDev string
 	nextProjectID     uint32
 	quotas            map[string]uint32
 }
 
-// NewQuotaCtl - initialize project quota support.
+// NewControl - initialize project quota support.
 // Test to make sure that quota can be set on a test dir and find
 // the first project id to be used for the next container create.
 //
@@ -96,7 +96,7 @@ type QuotaCtl struct {
 // on it. If that works, continue to scan existing containers to map allocated
 // project ids.
 //
-func NewQuotaCtl(basePath string) (*QuotaCtl, error) {
+func NewControl(basePath string) (*Control, error) {
 	//
 	// Get project id of parent dir as minimal id to be used by driver
 	//
@@ -125,7 +125,7 @@ func NewQuotaCtl(basePath string) (*QuotaCtl, error) {
 		return nil, err
 	}
 
-	q := QuotaCtl{
+	q := Control{
 		backingFsBlockDev: backingFsBlockDev,
 		nextProjectID:     minProjectID + 1,
 		quotas:            make(map[string]uint32),
@@ -139,13 +139,13 @@ func NewQuotaCtl(basePath string) (*QuotaCtl, error) {
 		return nil, err
 	}
 
-	logrus.Debugf("NewQuotaCtl(%s): nextProjectID = %d", basePath, q.nextProjectID)
+	logrus.Debugf("NewControl(%s): nextProjectID = %d", basePath, q.nextProjectID)
 	return &q, nil
 }
 
 // SetQuota - assign a unique project id to directory and set the quota limits
 // for that project id
-func (q *QuotaCtl) SetQuota(targetPath string, quota Quota) error {
+func (q *Control) SetQuota(targetPath string, quota Quota) error {
 
 	projectID, ok := q.quotas[targetPath]
 	if !ok {
@@ -196,7 +196,7 @@ func setProjectQuota(backingFsBlockDev string, projectID uint32, quota Quota) er
 }
 
 // GetQuota - get the quota limits of a directory that was configured with SetQuota
-func (q *QuotaCtl) GetQuota(targetPath string, quota *Quota) error {
+func (q *Control) GetQuota(targetPath string, quota *Quota) error {
 
 	projectID, ok := q.quotas[targetPath]
 	if !ok {
@@ -268,7 +268,7 @@ func setProjectID(targetPath string, projectID uint32) error {
 
 // findNextProjectID - find the next project id to be used for containers
 // by scanning driver home directory to find used project ids
-func (q *QuotaCtl) findNextProjectID(home string) error {
+func (q *Control) findNextProjectID(home string) error {
 	files, err := ioutil.ReadDir(home)
 	if err != nil {
 		return fmt.Errorf("read directory failed : %s", home)
