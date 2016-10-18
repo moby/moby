@@ -27,7 +27,6 @@ type Service interface {
 	LookupPullEndpoints(hostname string) (endpoints []APIEndpoint, err error)
 	LookupPushEndpoints(hostname string) (endpoints []APIEndpoint, err error)
 	ResolveRepository(name reference.Named) (*RepositoryInfo, error)
-	ResolveIndex(name string) (*registrytypes.IndexInfo, error)
 	Search(ctx context.Context, term string, limit int, authConfig *types.AuthConfig, userAgent string, headers map[string][]string) (*registrytypes.SearchResults, error)
 	ServiceConfig() *registrytypes.ServiceConfig
 	TLSConfig(hostname string) (*tls.Config, error)
@@ -187,11 +186,6 @@ func (s *DefaultService) Search(ctx context.Context, term string, limit int, aut
 // and configuration of the associated registry.
 func (s *DefaultService) ResolveRepository(name reference.Named) (*RepositoryInfo, error) {
 	return newRepositoryInfo(s.config, name)
-}
-
-// ResolveIndex takes indexName and returns index info
-func (s *DefaultService) ResolveIndex(name string) (*registrytypes.IndexInfo, error) {
-	return newIndexInfo(s.config, name)
 }
 
 // APIEndpoint represents a remote API endpoint
