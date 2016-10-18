@@ -2430,6 +2430,7 @@ _docker_run() {
 		--security-opt
 		--shm-size
 		--stop-signal
+		--stop-timeout
 		--storage-opt
 		--tmpfs
 		--sysctl
