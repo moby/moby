@@ -169,7 +169,14 @@ func (s *containerRouter) postContainersStop(ctx context.Context, w http.Respons
 		return err
 	}
 
-	seconds, _ := strconv.Atoi(r.Form.Get("t"))
+	var seconds *int
+	if tmpSeconds := r.Form.Get("t"); tmpSeconds != "" {
+		valSeconds, err := strconv.Atoi(tmpSeconds)
+		if err != nil {
+			return err
+		}
+		seconds = &valSeconds
+	}
 
 	if err := s.backend.ContainerStop(vars["name"], seconds); err != nil {
 		return err
@@ -223,9 +230,16 @@ func (s *containerRouter) postContainersRestart(ctx context.Context, w http.Resp
 		return err
 	}
 
-	timeout, _ := strconv.Atoi(r.Form.Get("t"))
+	var seconds *int
+	if tmpSeconds := r.Form.Get("t"); tmpSeconds != "" {
+		valSeconds, err := strconv.Atoi(tmpSeconds)
+		if err != nil {
+			return err
+		}
+		seconds = &valSeconds
+	}
 
-	if err := s.backend.ContainerRestart(vars["name"], timeout); err != nil {
+	if err := s.backend.ContainerRestart(vars["name"], seconds); err != nil {
 		return err
 	}
 

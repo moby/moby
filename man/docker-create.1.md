@@ -68,6 +68,7 @@ docker-create - Create a new container
 [**--security-opt**[=*[]*]]
 [**--storage-opt**[=*[]*]]
 [**--stop-signal**[=*SIGNAL*]]
+[**--stop-timeout**[=*TIMEOUT*]]
 [**--shm-size**[=*[]*]]
 [**--sysctl**[=*[]*]]
 [**-t**|**--tty**]
@@ -351,6 +352,9 @@ unit, `b` is used. Set LIMIT to `-1` to enable unlimited swap.
   
 **--stop-signal**=*SIGTERM*
   Signal to stop a container. Default is SIGTERM.
+
+**--stop-timeout**=*10*
+  Timeout (in seconds) to stop a container. Default is 10.
 
 **--sysctl**=SYSCTL
   Configure namespaced kernel parameters at runtime

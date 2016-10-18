@@ -13,15 +13,20 @@ import (
 // timeout, ContainerRestart will wait forever until a graceful
 // stop. Returns an error if the container cannot be found, or if
 // there is an underlying error at any stage of the restart.
-func (daemon *Daemon) ContainerRestart(name string, seconds int) error {
+func (daemon *Daemon) ContainerRestart(name string, seconds *int) error {
 	container, err := daemon.GetContainer(name)
 	if err != nil {
 		return err
 	}
-	if err := daemon.containerRestart(container, seconds); err != nil {
+	if seconds == nil {
+		stopTimeout := container.StopTimeout()
+		seconds = &stopTimeout
+	}
+	if err := daemon.containerRestart(container, *seconds); err != nil {
 		return fmt.Errorf("Cannot restart container %s: %v", name, err)
 	}
 	return nil
+
 }
 
 // containerRestart attempts to gracefully stop and then start the
