@@ -45,14 +45,16 @@ func runRemove(dockerCli *command.DockerCli, opts *rmOptions) error {
 	for _, name := range opts.plugins {
 		named, err := reference.ParseNamed(name) // FIXME: validate
 		if err != nil {
-			return err
+			errs = append(errs, err)
+			continue
 		}
 		if reference.IsNameOnly(named) {
 			named = reference.WithDefaultTag(named)
 		}
 		ref, ok := named.(reference.NamedTagged)
 		if !ok {
-			return fmt.Errorf("invalid name: %s", named.String())
+			errs = append(errs, fmt.Errorf("invalid name: %s", named.String()))
+			continue
 		}
 		// TODO: pass names to api instead of making multiple api calls
 		if err := dockerCli.Client().PluginRemove(ctx, ref.String(), types.PluginRemoveOptions{Force: opts.force}); err != nil {
