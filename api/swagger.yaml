@@ -1075,6 +1075,16 @@ definitions:
     example:
       message: "Something went wrong."
 
+  IdResponse:
+    description: "Response to an API call that returns just an Id"
+    type: "object"
+    required: ["Id"]
+    properties:
+      Id:
+        description: "The id of the newly created object."
+        type: "string"
+        x-nullable: false
+
   EndpointSettings:
     description: "Configuration for a network endpoint."
     type: "object"
@@ -5194,19 +5204,7 @@ paths:
         201:
           description: "no error"
           schema:
-            type: "object"
-            properties:
-              Id:
-                description: "The ID of the exec instance created."
-                type: "string"
-              Warnings:
-                type: "array"
-                items:
-                  type: "string"
-          examples:
-            application/json:
-              Id: "f90e34656806"
-              Warnings: []
+            $ref: "#/definitions/IdResponse"
         404:
           description: "no such container"
           schema:

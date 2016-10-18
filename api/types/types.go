@@ -13,13 +13,6 @@ import (
 	"github.com/docker/go-connections/nat"
 )
 
-// ContainerExecCreateResponse contains response of Remote API:
-// POST "/containers/{name:.*}/exec"
-type ContainerExecCreateResponse struct {
-	// ID is the exec ID.
-	ID string `json:"Id"`
-}
-
 // ContainerUpdateResponse contains response of Remote API:
 // POST "/containers/{name:.*}/update"
 type ContainerUpdateResponse struct {
