@@ -9,7 +9,6 @@ import (
 	"time"
 
 	containerd "github.com/docker/containerd/api/grpc/types"
-	"github.com/docker/docker/pkg/ioutils"
 	"github.com/tonistiigi/fifo"
 	"golang.org/x/net/context"
 )
@@ -37,14 +36,14 @@ func (p *process) openFifos(terminal bool) (pipe *IOPipe, err error) {
 
 	io := &IOPipe{}
 
-	stdin, err := fifo.OpenFifo(ctx, p.fifo(syscall.Stdin), syscall.O_WRONLY|syscall.O_CREAT|syscall.O_NONBLOCK, 0700)
+	io.Stdin, err = fifo.OpenFifo(ctx, p.fifo(syscall.Stdin), syscall.O_WRONLY|syscall.O_CREAT|syscall.O_NONBLOCK, 0700)
 	if err != nil {
 		return nil, err
 	}
 
 	defer func() {
 		if err != nil {
-			stdin.Close()
+			io.Stdin.Close()
 		}
 	}()
 
@@ -73,17 +72,16 @@ func (p *process) openFifos(terminal bool) (pipe *IOPipe, err error) {
 		io.Stderr = ioutil.NopCloser(emptyReader{})
 	}
 
-	io.Stdin = ioutils.NewWriteCloserWrapper(stdin, func() error {
-		stdin.Close()
-		_, err := p.client.remote.apiClient.UpdateProcess(context.Background(), &containerd.UpdateProcessRequest{
-			Id:         p.containerID,
-			Pid:        p.friendlyName,
-			CloseStdin: true,
-		})
-		return err
-	})
-
 	return io, nil
+}
+
+func (p *process) sendCloseStdin() error {
+	_, err := p.client.remote.apiClient.UpdateProcess(context.Background(), &containerd.UpdateProcessRequest{
+		Id:         p.containerID,
+		Pid:        p.friendlyName,
+		CloseStdin: true,
+	})
+	return err
 }
 
 func (p *process) closeFifos(io *IOPipe) {
