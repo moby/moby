@@ -179,8 +179,25 @@ __docker_complete_containers_in_network() {
 	COMPREPLY=( $(compgen -W "$containers" -- "$cur") )
 }
 
+# Returns a list of all volumes. Additional arguments to `docker volume ls`
+# may be specified in order to filter the list, e.g.
+# `__docker_volumes --filter dangling=true`
+# Because volumes do not have IDs, this function does not distinguish between
+# IDs and names.
+__docker_volumes() {
+	__docker_q volume ls -q "$@"
+}
+
+# Applies completion of volumes based on the current value of `$cur` or
+# the value of the optional first option `--cur`, if given.
+# Additional filters may be appended, see `__docker_volumes`.
 __docker_complete_volumes() {
-	COMPREPLY=( $(compgen -W "$(__docker_q volume ls -q)" -- "$cur") )
+	local current="$cur"
+	if [ "$1" = "--cur" ] ; then
+		current="$2"
+		shift 2
+	fi
+	COMPREPLY=( $(compgen -W "$(__docker_volumes "$@")" -- "$current") )
 }
 
 __docker_plugins() {
@@ -1150,8 +1167,7 @@ _docker_events() {
 			return
 			;;
 		volume)
-			cur="${cur##*=}"
-			__docker_complete_volumes
+			__docker_complete_volumes --cur "${cur##*=}"
 			return
 			;;
 	esac
@@ -2209,8 +2225,7 @@ _docker_ps() {
 			return
 			;;
 		volume)
-			cur="${cur##*=}"
-			__docker_complete_volumes
+			__docker_complete_volumes --cur "${cur##*=}"
 			return
 			;;
 	esac
@@ -2855,8 +2870,7 @@ _docker_volume_ls() {
 			return
 			;;
 		name)
-			cur=${cur##*=}
-			__docker_complete_volumes
+			__docker_complete_volumes --cur "${cur##*=}"
 			return
 			;;
 	esac
