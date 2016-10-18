@@ -848,8 +848,9 @@ func (sb *sandbox) clearNetworkResources(origEp *endpoint) error {
 		releaseOSSboxResources(osSbox, ep)
 	}
 
-	delete(sb.populatedEndpoints, ep.ID())
 	sb.Lock()
+	delete(sb.populatedEndpoints, ep.ID())
+
 	if len(sb.endpoints) == 0 {
 		// sb.endpoints should never be empty and this is unexpected error condition
 		// We log an error message to note this down for debugging purposes.
