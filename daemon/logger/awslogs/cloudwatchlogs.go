@@ -19,6 +19,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/cloudwatchlogs"
 	"github.com/docker/docker/daemon/logger"
+	"github.com/docker/docker/daemon/logger/loggerutils"
 	"github.com/docker/docker/dockerversion"
 )
 
@@ -87,10 +88,18 @@ func init() {
 // AWS_SECRET_ACCESS_KEY, the shared credentials file (~/.aws/credentials), and
 // the EC2 Instance Metadata Service.
 func New(ctx logger.Context) (logger.Logger, error) {
+	var err error
 	logGroupName := ctx.Config[logGroupKey]
+	logGroupName, err = loggerutils.ParseLogTag(ctx, ctx.Config[logGroupKey])
+	if err != nil {
+		return nil, err
+	}
 	logStreamName := ctx.ContainerID
 	if ctx.Config[logStreamKey] != "" {
-		logStreamName = ctx.Config[logStreamKey]
+		logStreamName, err = loggerutils.ParseLogTag(ctx, ctx.Config[logStreamKey])
+		if err != nil {
+			return nil, err
+		}
 	}
 	client, err := newAWSLogsClient(ctx)
 	if err != nil {
