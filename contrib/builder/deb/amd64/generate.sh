@@ -23,7 +23,7 @@ for version in "${versions[@]}"; do
 	from="${distro}:${suite}"
 
 	case "$from" in
-		debian:wheezy)
+		debian:wheezy|debian:jessie)
 			# add -backports, like our users have to
 			from+='-backports'
 			;;
@@ -41,6 +41,13 @@ for version in "${versions[@]}"; do
 
 	echo >> "$version/Dockerfile"
 
+	if [ "$from" = "ubuntu:trusty" ]; then
+		cat >> "$version/Dockerfile" <<-'EOF'
+			RUN awk '$1 ~ "^deb" { $3 = $3 "-backports"; print; exit }' /etc/apt/sources.list > /etc/apt/sources.list.d/backports.list
+		EOF
+		echo "" >> "$version/Dockerfile"
+	fi
+
 	if [ "$distro" = "debian" ]; then
 		cat >> "$version/Dockerfile" <<-'EOF'
 			# allow replacing httpredir mirror
@@ -48,7 +55,7 @@ for version in "${versions[@]}"; do
 			RUN sed -i s/httpredir.debian.org/$APT_MIRROR/g /etc/apt/sources.list
 		EOF
 
-		if [ "$suite" = "wheezy" ]; then
+		if [ "$suite" = "wheezy" ] || [ "$suite" = "jessie" ]; then
 			cat >> "$version/Dockerfile" <<-'EOF'
 				RUN sed -i s/httpredir.debian.org/$APT_MIRROR/g /etc/apt/sources.list.d/backports.list
 			EOF
@@ -86,11 +93,17 @@ for version in "${versions[@]}"; do
 	esac
 
 	# debian wheezy & ubuntu precise do not have the right libseccomp libs
-	# debian jessie & ubuntu trusty have a libseccomp < 2.2.1 :(
+	# debian jessie & ubuntu trusty have a libseccomp < 2.2.1, but backports
+	# has the correct version
 	case "$suite" in
-		precise|wheezy|jessie|trusty)
+		precise|wheezy)
 			packages=( "${packages[@]/libseccomp-dev}" )
 			runcBuildTags="apparmor selinux"
+			;;
+		trusty|jessie)
+			packages=( "${packages[@]/libseccomp-dev}" )
+			extraBuildTags+=' seccomp'
+			runcBuildTags="apparmor seccomp selinux"
 			;;
 		*)
 			extraBuildTags+=' seccomp'
@@ -119,6 +132,16 @@ for version in "${versions[@]}"; do
 		# pull a couple packages from backports explicitly
 		# (build failures otherwise)
 		backportsPackages=( btrfs-tools )
+		for pkg in "${backportsPackages[@]}"; do
+			packages=( "${packages[@]/$pkg}" )
+		done
+		echo "RUN apt-get update && apt-get install -y -t $suite-backports ${backportsPackages[*]} --no-install-recommends && rm -rf /var/lib/apt/lists/*" >> "$version/Dockerfile"
+	fi
+
+	if [ "$suite" = 'jessie' ] || [ "$suite" = 'trusty' ]; then
+		# pull a couple packages from backports explicitly
+		# (build failures otherwise)
+		backportsPackages=( libseccomp-dev )
 		for pkg in "${backportsPackages[@]}"; do
 			packages=( "${packages[@]/$pkg}" )
 		done

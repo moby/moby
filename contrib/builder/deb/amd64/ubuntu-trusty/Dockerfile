@@ -4,6 +4,9 @@
 
 FROM ubuntu:trusty
 
+RUN awk '$1 ~ "^deb" { $3 = $3 "-backports"; print; exit }' /etc/apt/sources.list > /etc/apt/sources.list.d/backports.list
+
+RUN apt-get update && apt-get install -y -t trusty-backports libseccomp-dev --no-install-recommends && rm -rf /var/lib/apt/lists/*
 RUN apt-get update && apt-get install -y apparmor bash-completion btrfs-tools build-essential curl ca-certificates debhelper dh-apparmor dh-systemd git libapparmor-dev libdevmapper-dev libltdl-dev  libsqlite3-dev pkg-config libsystemd-journal-dev --no-install-recommends && rm -rf /var/lib/apt/lists/*
 
 ENV GO_VERSION 1.7.1
@@ -12,5 +15,5 @@ ENV PATH $PATH:/usr/local/go/bin
 
 ENV AUTO_GOPATH 1
 
-ENV DOCKER_BUILDTAGS apparmor pkcs11 selinux
-ENV RUNC_BUILDTAGS apparmor selinux
+ENV DOCKER_BUILDTAGS apparmor pkcs11 seccomp selinux
+ENV RUNC_BUILDTAGS apparmor seccomp selinux
