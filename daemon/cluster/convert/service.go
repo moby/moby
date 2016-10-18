@@ -12,35 +12,11 @@ import (
 
 // ServiceFromGRPC converts a grpc Service to a Service.
 func ServiceFromGRPC(s swarmapi.Service) types.Service {
-	spec := s.Spec
-	containerConfig := spec.Task.Runtime.(*swarmapi.TaskSpec_Container).Container
-
-	serviceNetworks := make([]types.NetworkAttachmentConfig, 0, len(spec.Networks))
-	for _, n := range spec.Networks {
-		serviceNetworks = append(serviceNetworks, types.NetworkAttachmentConfig{Target: n.Target, Aliases: n.Aliases})
-	}
-
-	taskNetworks := make([]types.NetworkAttachmentConfig, 0, len(spec.Task.Networks))
-	for _, n := range spec.Task.Networks {
-		taskNetworks = append(taskNetworks, types.NetworkAttachmentConfig{Target: n.Target, Aliases: n.Aliases})
-	}
-
 	service := types.Service{
-		ID: s.ID,
+		ID:           s.ID,
+		Spec:         *serviceSpecFromGRPC(&s.Spec),
+		PreviousSpec: serviceSpecFromGRPC(s.PreviousSpec),
 
-		Spec: types.ServiceSpec{
-			TaskTemplate: types.TaskSpec{
-				ContainerSpec: containerSpecFromGRPC(containerConfig),
-				Resources:     resourcesFromGRPC(s.Spec.Task.Resources),
-				RestartPolicy: restartPolicyFromGRPC(s.Spec.Task.Restart),
-				Placement:     placementFromGRPC(s.Spec.Task.Placement),
-				LogDriver:     driverFromGRPC(s.Spec.Task.LogDriver),
-				Networks:      taskNetworks,
-			},
-
-			Networks:     serviceNetworks,
-			EndpointSpec: endpointSpecFromGRPC(s.Spec.Endpoint),
-		},
 		Endpoint: endpointFromGRPC(s.Endpoint),
 	}
 
@@ -48,36 +24,6 @@ func ServiceFromGRPC(s swarmapi.Service) types.Service {
 	service.Version.Index = s.Meta.Version.Index
 	service.CreatedAt, _ = ptypes.Timestamp(s.Meta.CreatedAt)
 	service.UpdatedAt, _ = ptypes.Timestamp(s.Meta.UpdatedAt)
-
-	// Annotations
-	service.Spec.Name = s.Spec.Annotations.Name
-	service.Spec.Labels = s.Spec.Annotations.Labels
-
-	// UpdateConfig
-	if s.Spec.Update != nil {
-		service.Spec.UpdateConfig = &types.UpdateConfig{
-			Parallelism: s.Spec.Update.Parallelism,
-		}
-
-		service.Spec.UpdateConfig.Delay, _ = ptypes.Duration(&s.Spec.Update.Delay)
-
-		switch s.Spec.Update.FailureAction {
-		case swarmapi.UpdateConfig_PAUSE:
-			service.Spec.UpdateConfig.FailureAction = types.UpdateFailureActionPause
-		case swarmapi.UpdateConfig_CONTINUE:
-			service.Spec.UpdateConfig.FailureAction = types.UpdateFailureActionContinue
-		}
-	}
-
-	// Mode
-	switch t := s.Spec.GetMode().(type) {
-	case *swarmapi.ServiceSpec_Global:
-		service.Spec.Mode.Global = &types.GlobalService{}
-	case *swarmapi.ServiceSpec_Replicated:
-		service.Spec.Mode.Replicated = &types.ReplicatedService{
-			Replicas: &t.Replicated.Replicas,
-		}
-	}
 
 	// UpdateStatus
 	service.UpdateStatus = types.UpdateStatus{}
@@ -97,6 +43,74 @@ func ServiceFromGRPC(s swarmapi.Service) types.Service {
 	}
 
 	return service
+}
+
+func serviceSpecFromGRPC(spec *swarmapi.ServiceSpec) *types.ServiceSpec {
+	if spec == nil {
+		return nil
+	}
+
+	serviceNetworks := make([]types.NetworkAttachmentConfig, 0, len(spec.Networks))
+	for _, n := range spec.Networks {
+		serviceNetworks = append(serviceNetworks, types.NetworkAttachmentConfig{Target: n.Target, Aliases: n.Aliases})
+	}
+
+	taskNetworks := make([]types.NetworkAttachmentConfig, 0, len(spec.Task.Networks))
+	for _, n := range spec.Task.Networks {
+		taskNetworks = append(taskNetworks, types.NetworkAttachmentConfig{Target: n.Target, Aliases: n.Aliases})
+	}
+
+	containerConfig := spec.Task.Runtime.(*swarmapi.TaskSpec_Container).Container
+	convertedSpec := &types.ServiceSpec{
+		Annotations: types.Annotations{
+			Name:   spec.Annotations.Name,
+			Labels: spec.Annotations.Labels,
+		},
+
+		TaskTemplate: types.TaskSpec{
+			ContainerSpec: containerSpecFromGRPC(containerConfig),
+			Resources:     resourcesFromGRPC(spec.Task.Resources),
+			RestartPolicy: restartPolicyFromGRPC(spec.Task.Restart),
+			Placement:     placementFromGRPC(spec.Task.Placement),
+			LogDriver:     driverFromGRPC(spec.Task.LogDriver),
+			Networks:      taskNetworks,
+		},
+
+		Networks:     serviceNetworks,
+		EndpointSpec: endpointSpecFromGRPC(spec.Endpoint),
+	}
+
+	// UpdateConfig
+	if spec.Update != nil {
+		convertedSpec.UpdateConfig = &types.UpdateConfig{
+			Parallelism:     spec.Update.Parallelism,
+			MaxFailureRatio: spec.Update.MaxFailureRatio,
+		}
+
+		convertedSpec.UpdateConfig.Delay, _ = ptypes.Duration(&spec.Update.Delay)
+		if spec.Update.Monitor != nil {
+			convertedSpec.UpdateConfig.Monitor, _ = ptypes.Duration(spec.Update.Monitor)
+		}
+
+		switch spec.Update.FailureAction {
+		case swarmapi.UpdateConfig_PAUSE:
+			convertedSpec.UpdateConfig.FailureAction = types.UpdateFailureActionPause
+		case swarmapi.UpdateConfig_CONTINUE:
+			convertedSpec.UpdateConfig.FailureAction = types.UpdateFailureActionContinue
+		}
+	}
+
+	// Mode
+	switch t := spec.GetMode().(type) {
+	case *swarmapi.ServiceSpec_Global:
+		convertedSpec.Mode.Global = &types.GlobalService{}
+	case *swarmapi.ServiceSpec_Replicated:
+		convertedSpec.Mode.Replicated = &types.ReplicatedService{
+			Replicas: &t.Replicated.Replicas,
+		}
+	}
+
+	return convertedSpec
 }
 
 // ServiceSpecToGRPC converts a ServiceSpec to a grpc ServiceSpec.
@@ -158,9 +172,13 @@ func ServiceSpecToGRPC(s types.ServiceSpec) (swarmapi.ServiceSpec, error) {
 			return swarmapi.ServiceSpec{}, fmt.Errorf("unrecongized update failure action %s", s.UpdateConfig.FailureAction)
 		}
 		spec.Update = &swarmapi.UpdateConfig{
-			Parallelism:   s.UpdateConfig.Parallelism,
-			Delay:         *ptypes.DurationProto(s.UpdateConfig.Delay),
-			FailureAction: failureAction,
+			Parallelism:     s.UpdateConfig.Parallelism,
+			Delay:           *ptypes.DurationProto(s.UpdateConfig.Delay),
+			FailureAction:   failureAction,
+			MaxFailureRatio: s.UpdateConfig.MaxFailureRatio,
+		}
+		if s.UpdateConfig.Monitor != 0 {
+			spec.Update.Monitor = ptypes.DurationProto(s.UpdateConfig.Monitor)
 		}
 	}
 

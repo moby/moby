@@ -1809,9 +1809,12 @@ _docker_service_update() {
 		--restart-delay
 		--restart-max-attempts
 		--restart-window
+		--rollback
 		--stop-grace-period
 		--update-delay
 		--update-failure-action
+		--update-max-failure-ratio
+		--update-monitor
 		--update-parallelism
 		--user -u
 		--workdir -w

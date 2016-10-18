@@ -12,36 +12,38 @@ Usage:  docker service create [OPTIONS] IMAGE [COMMAND] [ARG...]
 Create a new service
 
 Options:
-      --constraint value               Placement constraints (default [])
-      --container-label value          Service container labels (default [])
-      --endpoint-mode string           Endpoint mode (vip or dnsrr)
-  -e, --env value                      Set environment variables (default [])
-      --group-add value                Add additional user groups to the container (default [])
-      --help                           Print usage
-  -l, --label value                    Service labels (default [])
-      --limit-cpu value                Limit CPUs (default 0.000)
-      --limit-memory value             Limit Memory (default 0 B)
-      --log-driver string              Logging driver for service
-      --log-opt value                  Logging driver options (default [])
-      --mode string                    Service mode (replicated or global) (default "replicated")
-      --mount value                    Attach a mount to the service
-      --name string                    Service name
-      --network value                  Network attachments (default [])
-  -p, --publish value                  Publish a port as a node port (default [])
-      --replicas value                 Number of tasks (default none)
-      --reserve-cpu value              Reserve CPUs (default 0.000)
-      --reserve-memory value           Reserve Memory (default 0 B)
-      --restart-condition string       Restart when condition is met (none, on-failure, or any)
-      --restart-delay value            Delay between restart attempts (default none)
-      --restart-max-attempts value     Maximum number of restarts before giving up (default none)
-      --restart-window value           Window used to evaluate the restart policy (default none)
-      --stop-grace-period value        Time to wait before force killing a container (default none)
-      --update-delay duration          Delay between updates
-      --update-failure-action string   Action on update failure (pause|continue) (default "pause")
-      --update-parallelism uint        Maximum number of tasks updated simultaneously (0 to update all at once) (default 1)
-  -u, --user string                    Username or UID (format: <name|uid>[:<group|gid>])
-      --with-registry-auth             Send registry authentication details to Swarm agents
-  -w, --workdir string                 Working directory inside the container
+      --constraint value                 Placement constraints (default [])
+      --container-label value            Service container labels (default [])
+      --endpoint-mode string             Endpoint mode (vip or dnsrr)
+  -e, --env value                        Set environment variables (default [])
+      --group-add value                  Add additional user groups to the container (default [])
+      --help                             Print usage
+  -l, --label value                      Service labels (default [])
+      --limit-cpu value                  Limit CPUs (default 0.000)
+      --limit-memory value               Limit Memory (default 0 B)
+      --log-driver string                Logging driver for service
+      --log-opt value                    Logging driver options (default [])
+      --mode string                      Service mode (replicated or global) (default "replicated")
+      --mount value                      Attach a mount to the service
+      --name string                      Service name
+      --network value                    Network attachments (default [])
+  -p, --publish value                    Publish a port as a node port (default [])
+      --replicas value                   Number of tasks (default none)
+      --reserve-cpu value                Reserve CPUs (default 0.000)
+      --reserve-memory value             Reserve Memory (default 0 B)
+      --restart-condition string         Restart when condition is met (none, on-failure, or any)
+      --restart-delay value              Delay between restart attempts (default none)
+      --restart-max-attempts value       Maximum number of restarts before giving up (default none)
+      --restart-window value             Window used to evaluate the restart policy (default none)
+      --stop-grace-period value          Time to wait before force killing a container (default none)
+      --update-delay duration            Delay between updates
+      --update-failure-action string     Action on update failure (pause|continue) (default "pause")
+      --update-max-failure-ratio value   Failure rate to tolerate during an update
+      --update-monitor duration          Duration after each task update to monitor for failure (default 0s)
+      --update-parallelism uint          Maximum number of tasks updated simultaneously (0 to update all at once) (default 1)
+  -u, --user string                      Username or UID (format: <name|uid>[:<group|gid>])
+      --with-registry-auth               Send registry authentication details to Swarm agents
+  -w, --workdir string                   Working directory inside the container
 ```
 
 Creates a service as described by the specified parameters. You must run this

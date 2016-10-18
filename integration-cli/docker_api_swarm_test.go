@@ -310,6 +310,63 @@ func (s *DockerSwarmSuite) TestAPISwarmServicesUpdate(c *check.C) {
 	// 3nd batch
 	waitAndAssert(c, defaultReconciliationTimeout, daemons[0].checkRunningTaskImages, checker.DeepEquals,
 		map[string]int{image2: instances})
+
+	// Roll back to the previous version. This uses the CLI because
+	// rollback is a client-side operation.
+	out, err := daemons[0].Cmd("service", "update", "--rollback", id)
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+
+	// first batch
+	waitAndAssert(c, defaultReconciliationTimeout, daemons[0].checkRunningTaskImages, checker.DeepEquals,
+		map[string]int{image2: instances - parallelism, image1: parallelism})
+
+	// 2nd batch
+	waitAndAssert(c, defaultReconciliationTimeout, daemons[0].checkRunningTaskImages, checker.DeepEquals,
+		map[string]int{image2: instances - 2*parallelism, image1: 2 * parallelism})
+
+	// 3nd batch
+	waitAndAssert(c, defaultReconciliationTimeout, daemons[0].checkRunningTaskImages, checker.DeepEquals,
+		map[string]int{image1: instances})
+}
+
+func (s *DockerSwarmSuite) TestApiSwarmServicesFailedUpdate(c *check.C) {
+	const nodeCount = 3
+	var daemons [nodeCount]*SwarmDaemon
+	for i := 0; i < nodeCount; i++ {
+		daemons[i] = s.AddDaemon(c, true, i == 0)
+	}
+	// wait for nodes ready
+	waitAndAssert(c, 5*time.Second, daemons[0].checkNodeReadyCount, checker.Equals, nodeCount)
+
+	// service image at start
+	image1 := "busybox:latest"
+	// target image in update
+	image2 := "busybox:badtag"
+
+	// create service
+	instances := 5
+	id := daemons[0].createService(c, serviceForUpdate, setInstances(instances))
+
+	// wait for tasks ready
+	waitAndAssert(c, defaultReconciliationTimeout, daemons[0].checkRunningTaskImages, checker.DeepEquals,
+		map[string]int{image1: instances})
+
+	// issue service update
+	service := daemons[0].getService(c, id)
+	daemons[0].updateService(c, service, setImage(image2), setFailureAction(swarm.UpdateFailureActionPause), setMaxFailureRatio(0.25), setParallelism(1))
+
+	// should update 2 tasks and then pause
+	waitAndAssert(c, defaultReconciliationTimeout, daemons[0].checkServiceUpdateState(id), checker.Equals, swarm.UpdateStatePaused)
+	v, _ := daemons[0].checkServiceRunningTasks(id)(c)
+	c.Assert(v, checker.Equals, instances-2)
+
+	// Roll back to the previous version. This uses the CLI because
+	// rollback is a client-side operation.
+	out, err := daemons[0].Cmd("service", "update", "--rollback", id)
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+
+	waitAndAssert(c, defaultReconciliationTimeout, daemons[0].checkRunningTaskImages, checker.DeepEquals,
+		map[string]int{image1: instances})
 }
 
 func (s *DockerSwarmSuite) TestAPISwarmServiceConstraintRole(c *check.C) {
@@ -326,7 +383,7 @@ func (s *DockerSwarmSuite) TestAPISwarmServiceConstraintRole(c *check.C) {
 	instances := 3
 	id := daemons[0].createService(c, simpleTestService, setConstraints(constraints), setInstances(instances))
 	// wait for tasks ready
-	waitAndAssert(c, defaultReconciliationTimeout, daemons[0].checkServiceRunningTasks(c, id), checker.Equals, instances)
+	waitAndAssert(c, defaultReconciliationTimeout, daemons[0].checkServiceRunningTasks(id), checker.Equals, instances)
 	// validate tasks are running on worker nodes
 	tasks := daemons[0].getServiceTasks(c, id)
 	for _, task := range tasks {
@@ -340,7 +397,7 @@ func (s *DockerSwarmSuite) TestAPISwarmServiceConstraintRole(c *check.C) {
 	constraints = []string{"node.role!=worker"}
 	id = daemons[0].createService(c, simpleTestService, setConstraints(constraints), setInstances(instances))
 	// wait for tasks ready
-	waitAndAssert(c, defaultReconciliationTimeout, daemons[0].checkServiceRunningTasks(c, id), checker.Equals, instances)
+	waitAndAssert(c, defaultReconciliationTimeout, daemons[0].checkServiceRunningTasks(id), checker.Equals, instances)
 	tasks = daemons[0].getServiceTasks(c, id)
 	// validate tasks are running on manager nodes
 	for _, task := range tasks {
@@ -354,7 +411,7 @@ func (s *DockerSwarmSuite) TestAPISwarmServiceConstraintRole(c *check.C) {
 	constraints = []string{"node.role==nosuchrole"}
 	id = daemons[0].createService(c, simpleTestService, setConstraints(constraints), setInstances(instances))
 	// wait for tasks created
-	waitAndAssert(c, defaultReconciliationTimeout, daemons[0].checkServiceTasks(c, id), checker.Equals, instances)
+	waitAndAssert(c, defaultReconciliationTimeout, daemons[0].checkServiceTasks(id), checker.Equals, instances)
 	// let scheduler try
 	time.Sleep(250 * time.Millisecond)
 	// validate tasks are not assigned to any node
@@ -394,7 +451,7 @@ func (s *DockerSwarmSuite) TestAPISwarmServiceConstraintLabel(c *check.C) {
 	constraints := []string{"node.labels.security==high"}
 	id := daemons[0].createService(c, simpleTestService, setConstraints(constraints), setInstances(instances))
 	// wait for tasks ready
-	waitAndAssert(c, defaultReconciliationTimeout, daemons[0].checkServiceRunningTasks(c, id), checker.Equals, instances)
+	waitAndAssert(c, defaultReconciliationTimeout, daemons[0].checkServiceRunningTasks(id), checker.Equals, instances)
 	tasks := daemons[0].getServiceTasks(c, id)
 	// validate all tasks are running on nodes[0]
 	for _, task := range tasks {
@@ -407,7 +464,7 @@ func (s *DockerSwarmSuite) TestAPISwarmServiceConstraintLabel(c *check.C) {
 	constraints = []string{"node.labels.security!=high"}
 	id = daemons[0].createService(c, simpleTestService, setConstraints(constraints), setInstances(instances))
 	// wait for tasks ready
-	waitAndAssert(c, defaultReconciliationTimeout, daemons[0].checkServiceRunningTasks(c, id), checker.Equals, instances)
+	waitAndAssert(c, defaultReconciliationTimeout, daemons[0].checkServiceRunningTasks(id), checker.Equals, instances)
 	tasks = daemons[0].getServiceTasks(c, id)
 	// validate all tasks are NOT running on nodes[0]
 	for _, task := range tasks {
@@ -419,7 +476,7 @@ func (s *DockerSwarmSuite) TestAPISwarmServiceConstraintLabel(c *check.C) {
 	constraints = []string{"node.labels.security==medium"}
 	id = daemons[0].createService(c, simpleTestService, setConstraints(constraints), setInstances(instances))
 	// wait for tasks created
-	waitAndAssert(c, defaultReconciliationTimeout, daemons[0].checkServiceTasks(c, id), checker.Equals, instances)
+	waitAndAssert(c, defaultReconciliationTimeout, daemons[0].checkServiceTasks(id), checker.Equals, instances)
 	// let scheduler try
 	time.Sleep(250 * time.Millisecond)
 	tasks = daemons[0].getServiceTasks(c, id)
@@ -437,7 +494,7 @@ func (s *DockerSwarmSuite) TestAPISwarmServiceConstraintLabel(c *check.C) {
 	}
 	id = daemons[0].createService(c, simpleTestService, setConstraints(constraints), setInstances(instances))
 	// wait for tasks created
-	waitAndAssert(c, defaultReconciliationTimeout, daemons[0].checkServiceTasks(c, id), checker.Equals, instances)
+	waitAndAssert(c, defaultReconciliationTimeout, daemons[0].checkServiceTasks(id), checker.Equals, instances)
 	// let scheduler try
 	time.Sleep(250 * time.Millisecond)
 	tasks = daemons[0].getServiceTasks(c, id)
@@ -452,7 +509,7 @@ func (s *DockerSwarmSuite) TestAPISwarmServiceConstraintLabel(c *check.C) {
 		}
 	})
 	// wait for tasks ready
-	waitAndAssert(c, defaultReconciliationTimeout, daemons[0].checkServiceRunningTasks(c, id), checker.Equals, instances)
+	waitAndAssert(c, defaultReconciliationTimeout, daemons[0].checkServiceRunningTasks(id), checker.Equals, instances)
 	tasks = daemons[0].getServiceTasks(c, id)
 	for _, task := range tasks {
 		c.Assert(task.NodeID, checker.Equals, nodes[1].ID)
@@ -1019,6 +1076,24 @@ func setInstances(replicas int) serviceConstructor {
 func setImage(image string) serviceConstructor {
 	return func(s *swarm.Service) {
 		s.Spec.TaskTemplate.ContainerSpec.Image = image
+	}
+}
+
+func setFailureAction(failureAction string) serviceConstructor {
+	return func(s *swarm.Service) {
+		s.Spec.UpdateConfig.FailureAction = failureAction
+	}
+}
+
+func setMaxFailureRatio(maxFailureRatio float32) serviceConstructor {
+	return func(s *swarm.Service) {
+		s.Spec.UpdateConfig.MaxFailureRatio = maxFailureRatio
+	}
+}
+
+func setParallelism(parallelism uint64) serviceConstructor {
+	return func(s *swarm.Service) {
+		s.Spec.UpdateConfig.Parallelism = parallelism
 	}
 }
 

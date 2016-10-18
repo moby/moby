@@ -15,7 +15,7 @@ type Backend interface {
 	GetServices(basictypes.ServiceListOptions) ([]types.Service, error)
 	GetService(string) (types.Service, error)
 	CreateService(types.ServiceSpec, string) (string, error)
-	UpdateService(string, uint64, types.ServiceSpec, string) error
+	UpdateService(string, uint64, types.ServiceSpec, string, string) error
 	RemoveService(string) error
 	GetNodes(basictypes.NodeListOptions) ([]types.Node, error)
 	GetNode(string) (types.Node, error)

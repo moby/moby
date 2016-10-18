@@ -129,6 +129,7 @@ This section lists each version from latest to oldest.  Each listing includes a 
 * `GET /containers/json` now supports a `is-task` filter to filter
   containers that are tasks (part of a service in swarm mode).
 * `POST /containers/create` now takes `StopTimeout` field.
+* `POST /services/create` and `POST /services/(id or name)/update` now accept `Monitor` and `MaxFailureRatio` parameters, which control the response to failures during service updates.
 
 ### v1.24 API changes
 

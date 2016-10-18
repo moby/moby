@@ -4877,7 +4877,9 @@ List services
           },
           "UpdateConfig": {
             "Parallelism": 1,
-            "FailureAction": "pause"
+            "FailureAction": "pause",
+            "Monitor": 15000000000,
+            "MaxFailureRatio": 0.15
           },
           "EndpointSpec": {
             "Mode": "vip",
@@ -5077,8 +5079,8 @@ image](#create-an-image) section for more details.
     - **RestartPolicy** – Specification for the restart policy which applies to containers created
       as part of this service.
         - **Condition** – Condition for restart (`none`, `on-failure`, or `any`).
-        - **Delay** – Delay between restart attempts.
-        - **Attempts** – Maximum attempts to restart a given container before giving up (default value
+        - **Delay** – Delay between restart attempts, in nanoseconds.
+        - **MaxAttempts** – Maximum attempts to restart a given container before giving up (default value
           is 0, which is ignored).
         - **Window** – Windows is the time window used to evaluate the restart policy (default value is
           0, which is unbounded).
@@ -5087,9 +5089,12 @@ image](#create-an-image) section for more details.
 - **UpdateConfig** – Specification for the update strategy of the service.
     - **Parallelism** – Maximum number of tasks to be updated in one iteration (0 means unlimited
       parallelism).
-    - **Delay** – Amount of time between updates.
+    - **Delay** – Amount of time between updates, in nanoseconds.
     - **FailureAction** - Action to take if an updated task fails to run, or stops running during the
       update. Values are `continue` and `pause`.
+    - **Monitor** - Amount of time to monitor each updated task for failures, in nanoseconds.
+    - **MaxFailureRatio** - The fraction of tasks that may fail during an update before the
+      failure action is invoked, specified as a floating point number between 0 and 1. The default is 0.
 - **Networks** – Array of network names or IDs to attach the service to.
 - **EndpointSpec** – Properties that can be configured to access and load balance a service.
     - **Mode** – The mode of resolution to use for internal load balancing
@@ -5259,7 +5264,9 @@ image](#create-an-image) section for more details.
         }
       },
       "UpdateConfig": {
-        "Parallelism": 1
+        "Parallelism": 1,
+        "Monitor": 15000000000,
+        "MaxFailureRatio": 0.15
       },
       "EndpointSpec": {
         "Mode": "vip"
@@ -5314,7 +5321,7 @@ image](#create-an-image) section for more details.
     - **RestartPolicy** – Specification for the restart policy which applies to containers created
       as part of this service.
         - **Condition** – Condition for restart (`none`, `on-failure`, or `any`).
-        - **Delay** – Delay between restart attempts.
+        - **Delay** – Delay between restart attempts, in nanoseconds.
         - **MaxAttempts** – Maximum attempts to restart a given container before giving up (default value
           is 0, which is ignored).
         - **Window** – Windows is the time window used to evaluate the restart policy (default value is
@@ -5324,7 +5331,12 @@ image](#create-an-image) section for more details.
 - **UpdateConfig** – Specification for the update strategy of the service.
     - **Parallelism** – Maximum number of tasks to be updated in one iteration (0 means unlimited
       parallelism).
-    - **Delay** – Amount of time between updates.
+    - **Delay** – Amount of time between updates, in nanoseconds.
+    - **FailureAction** - Action to take if an updated task fails to run, or stops running during the
+      update. Values are `continue` and `pause`.
+    - **Monitor** - Amount of time to monitor each updated task for failures, in nanoseconds.
+    - **MaxFailureRatio** - The fraction of tasks that may fail during an update before the
+      failure action is invoked, specified as a floating point number between 0 and 1. The default is 0.
 - **Networks** – Array of network names or IDs to attach the service to.
 - **EndpointSpec** – Properties that can be configured to access and load balance a service.
     - **Mode** – The mode of resolution to use for internal load balancing
@@ -5338,6 +5350,10 @@ image](#create-an-image) section for more details.
 
 - **version** – The version number of the service object being updated. This is
   required to avoid conflicting writes.
+- **registryAuthFrom** - If the X-Registry-Auth header is not specified, this
+  parameter indicates where to find registry authorization credentials. The
+  valid values are `spec` and `previous-spec`. If unspecified, the default is
+  `spec`.
 
 **Request Headers**:
 
