@@ -132,7 +132,7 @@ clone git github.com/go-ini/ini 060d7da055ba6ec5ea7a31f116332fe5efa04ce0
 clone git github.com/jmespath/go-jmespath 0b12d6b521d83fc7f755e7cfc1b1fbdd35a01a74
 
 # logentries
-clone git github.com/bsphere/le_go d3308aafe090956bc89a65f0769f58251a1b4f03 
+clone git github.com/bsphere/le_go d3308aafe090956bc89a65f0769f58251a1b4f03
 
 # gcplogs deps
 clone git golang.org/x/oauth2 2baa8a1b9338cf13d9eeb27696d761155fa480be https://github.com/golang/oauth2.git
@@ -170,7 +170,7 @@ clone git github.com/pkg/errors 01fa4104b9c248c8945d14d9f128454d5b28d595
 
 # cli
 clone git github.com/spf13/cobra v1.4.1 https://github.com/dnephin/cobra.git
-clone git github.com/spf13/pflag cb88ea77998c3f024757528e3305022ab50b43be
+clone git github.com/spf13/pflag dabebe21bf790f782ea4c7bbd2efc430de182afd
 clone git github.com/inconshreveable/mousetrap 76626ae9c91c4f2a10f34cad8ce83ea42c93bb75
 clone git github.com/flynn-archive/go-shlex 3f9db97f856818214da2e1057f8ad84803971cff
 
