@@ -6,6 +6,7 @@ TOMLV_COMMIT=9baf8a8a9f2ed20a8e54160840c492f937eeaf9a
 RUNC_COMMIT=02f8fa7863dd3f82909a73e2061897828460d52f
 CONTAINERD_COMMIT=52ef1ceb4b660c42cf4ea9013180a5663968d4c7
 GRIMES_COMMIT=74341e923bdf06cfb6b70cf54089c4d3ac87ec2d
+LIBNETWORK_COMMIT=0f534354b813003a754606689722fe253101bc4e
 
 export GOPATH="$(mktemp -d)"
 
@@ -66,8 +67,16 @@ do
 			cp init /usr/local/bin/docker-init
 			;;
 
+		proxy)
+			echo "Install docker-proxy version $LIBNETWORK_COMMIT"
+			git clone https://github.com/docker/libnetwork.git "$GOPATH/src/github.com/docker/libnetwork"
+			cd "$GOPATH/src/github.com/docker/libnetwork"
+			git checkout -q "$LIBNETWORK_COMMIT"
+			CGO_ENABLED=0 go build -v -o /usr/local/bin/docker-proxy github.com/docker/libnetwork/cmd/proxy
+			;;
+
 		*)
-			echo echo "Usage: $0 [tomlv|runc|containerd|grimes]"
+			echo echo "Usage: $0 [tomlv|runc|containerd|grimes|proxy]"
 			exit 1
 
 	esac

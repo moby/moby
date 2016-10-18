@@ -126,7 +126,9 @@ export DOCKER_GITCOMMIT=%{_gitcommit}
 install -d $RPM_BUILD_ROOT/%{_bindir}
 install -p -m 755 bundles/%{_origversion}/dynbinary-client/docker-%{_origversion} $RPM_BUILD_ROOT/%{_bindir}/docker
 install -p -m 755 bundles/%{_origversion}/dynbinary-daemon/dockerd-%{_origversion} $RPM_BUILD_ROOT/%{_bindir}/dockerd
-install -p -m 755 bundles/%{_origversion}/dynbinary-daemon/docker-proxy-%{_origversion} $RPM_BUILD_ROOT/%{_bindir}/docker-proxy
+
+# install proxy
+install -p -m 755 /usr/local/bin/docker-proxy $RPM_BUILD_ROOT/%{_bindir}/docker-proxy
 
 # install containerd
 install -p -m 755 /usr/local/bin/docker-containerd $RPM_BUILD_ROOT/%{_bindir}/docker-containerd
@@ -135,6 +137,9 @@ install -p -m 755 /usr/local/bin/docker-containerd-ctr $RPM_BUILD_ROOT/%{_bindir
 
 # install runc
 install -p -m 755 /usr/local/bin/docker-runc $RPM_BUILD_ROOT/%{_bindir}/docker-runc
+
+# install grimes
+install -p -m 755 /usr/local/bin/docker-init $RPM_BUILD_ROOT/%{_bindir}/docker-init
 
 # install udev rules
 install -d $RPM_BUILD_ROOT/%{_sysconfdir}/udev/rules.d

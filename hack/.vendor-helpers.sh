@@ -124,9 +124,6 @@ clean() {
 		findArgs+=( -path "vendor/src/$import" )
 	done
 
-	# The docker proxy command is built from libnetwork
-	findArgs+=( -or -path vendor/src/github.com/docker/libnetwork/cmd/proxy )
-
 	local IFS=$'\n'
 	local prune=( $($find vendor -depth -type d -not '(' "${findArgs[@]}" ')') )
 	unset IFS
