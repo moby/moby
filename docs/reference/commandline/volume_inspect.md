@@ -44,4 +44,5 @@ Example output:
 * [volume create](volume_create.md)
 * [volume ls](volume_ls.md)
 * [volume rm](volume_rm.md)
+* [volume prune](volume_prune.md)
 * [Understand Data Volumes](../../tutorials/dockervolumes.md)
