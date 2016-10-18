@@ -47,7 +47,7 @@ Docker networks report the following events:
    Stream events until this timestamp
 
 **--format**=""
-   Format the output using the given go template
+   Format the output using the given Go template
 
 The `--since` and `--until` parameters can be Unix timestamps, date formatted
 timestamps, or Go duration strings (e.g. `10m`, `1h30m`) computed

@@ -25,7 +25,7 @@ Options:
   -q, --quiet          Only display volume names
 ```
 
-Lists all the volumes Docker knows about. You can filter using the `-f` or `--filter` flag. Refer to the [filtering](#filtering) section for more information about available filter options.
+List all the volumes Docker knows about. You can filter using the `-f` or `--filter` flag. Refer to the [filtering](#filtering) section for more information about available filter options.
 
 Example output:
 
@@ -170,4 +170,5 @@ vol3: local
 * [volume create](volume_create.md)
 * [volume inspect](volume_inspect.md)
 * [volume rm](volume_rm.md)
+* [volume prune](volume_prune.md)
 * [Understand Data Volumes](../../tutorials/dockervolumes.md)

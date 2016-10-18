@@ -78,4 +78,5 @@ $ docker volume create --driver local --opt type=nfs --opt o=addr=192.168.1.1,rw
 * [volume inspect](volume_inspect.md)
 * [volume ls](volume_ls.md)
 * [volume rm](volume_rm.md)
+* [volume prune](volume_prune.md)
 * [Understand Data Volumes](../../tutorials/dockervolumes.md)

@@ -12,7 +12,7 @@ Usage:  docker info [OPTIONS]
 Display system-wide information
 
 Options:
-  -f, --format string   Format the output using the given go template
+  -f, --format string   Format the output using the given Go template
       --help            Print usage
 ```
 

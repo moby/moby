@@ -45,7 +45,7 @@ func NewEventsCommand(dockerCli *command.DockerCli) *cobra.Command {
 	flags.StringVar(&opts.since, "since", "", "Show all events created since timestamp")
 	flags.StringVar(&opts.until, "until", "", "Stream events until this timestamp")
 	flags.VarP(&opts.filter, "filter", "f", "Filter output based on conditions provided")
-	flags.StringVar(&opts.format, "format", "", "Format the output using the given go template")
+	flags.StringVar(&opts.format, "format", "", "Format the output using the given Go template")
 
 	return cmd
 }

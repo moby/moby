@@ -12,7 +12,7 @@ Usage:  docker volume inspect [OPTIONS] VOLUME [VOLUME...]
 Display detailed information on one or more volumes
 
 Options:
-  -f, --format string   Format the output using the given go template
+  -f, --format string   Format the output using the given Go template
       --help            Print usage
 ```
 
@@ -44,4 +44,5 @@ Example output:
 * [volume create](volume_create.md)
 * [volume ls](volume_ls.md)
 * [volume rm](volume_rm.md)
+* [volume prune](volume_prune.md)
 * [Understand Data Volumes](../../tutorials/dockervolumes.md)
