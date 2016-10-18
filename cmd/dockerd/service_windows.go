@@ -49,6 +49,7 @@ func installServiceFlags(flags *pflag.FlagSet) {
 	flRegisterService = flags.Bool("register-service", false, "Register the service and exit")
 	flUnregisterService = flags.Bool("unregister-service", false, "Unregister the service and exit")
 	flRunService = flags.Bool("run-service", false, "")
+	flags.MarkHidden("run-service")
 }
 
 type handler struct {
