@@ -150,28 +150,40 @@ __docker_complete_containers_and_images() {
 	COMPREPLY+=( "${containers[@]}" )
 }
 
-# Returns the names and optionally IDs of networks.
-# The selection can be narrowed by an optional filter parameter, e.g. 'type=custom'
+# Returns a list of all networks. Additional arguments to `docker network ls`
+# may be specified in order to filter the list, e.g.
+# `__docker_networks --filter type=custom`
+# By default, only names are returned.
+# Set DOCKER_COMPLETION_SHOW_NETWORK_IDS=yes to also complete IDs.
+# An optional first option `--id|--name` may be used to limit the
+# output to the IDs or names of matching items. This setting takes
+# precedence over the environment setting.
 __docker_networks() {
-	local filter="$1"
-	# By default, only network names are completed.
-	# Set DOCKER_COMPLETION_SHOW_NETWORK_IDS=yes to also complete network IDs.
-	local fields='$2'
-	[ "${DOCKER_COMPLETION_SHOW_NETWORK_IDS}" = yes ] && fields='$1,$2'
-	__docker_q network ls --no-trunc ${filter:+-f "$filter"} | awk "NR>1 {print $fields}"
-	#__docker_q network ls --no-trunc | awk "NR>1 {print $fields}"
+	local format
+	if [ "$1" = "--id" ] ; then
+		format='{{.ID}}'
+		shift
+	elif [ "$1" = "--name" ] ; then
+		format='{{.Name}}'
+		shift
+	elif [ "${DOCKER_COMPLETION_SHOW_NETWORK_IDS}" = yes ] ; then
+		format='{{.ID}} {{.Name}}'
+	else
+		format='{{.Name}}'
+	fi
+	__docker_q network ls --format "$format" "$@"
 }
 
+# Applies completion of networks based on the current value of `$cur` or
+# the value of the optional first option `--cur`, if given.
+# Additional filters may be appended, see `__docker_networks`.
 __docker_complete_networks() {
-	COMPREPLY=( $(compgen -W "$(__docker_networks $@)" -- "$cur") )
-}
-
-__docker_complete_network_ids() {
-	COMPREPLY=( $(compgen -W "$(__docker_q network ls -q --no-trunc)" -- "$cur") )
-}
-
-__docker_complete_network_names() {
-	COMPREPLY=( $(compgen -W "$(__docker_q network ls | awk 'NR>1 {print $2}')" -- "$cur") )
+	local current="$cur"
+	if [ "$1" = "--cur" ] ; then
+		current="$2"
+		shift 2
+	fi
+	COMPREPLY=( $(compgen -W "$(__docker_networks "$@")" -- "$current") )
 }
 
 __docker_complete_containers_in_network() {
@@ -1158,8 +1170,7 @@ _docker_events() {
 			return
 			;;
 		network)
-			cur="${cur##*=}"
-			__docker_complete_networks
+			__docker_complete_networks --cur "${cur##*=}"
 			return
 			;;
 		type)
@@ -1553,13 +1564,11 @@ _docker_network_ls() {
 			return
 			;;
 		id)
-			cur="${cur##*=}"
-			__docker_complete_network_ids
+			__docker_complete_networks --cur "${cur##*=}" --id
 			return
 			;;
 		name)
-			cur="${cur##*=}"
-			__docker_complete_network_names
+			__docker_complete_networks --cur "${cur##*=}" --name
 			return
 			;;
 		type)
@@ -1592,7 +1601,7 @@ _docker_network_rm() {
 			COMPREPLY=( $( compgen -W "--help" -- "$cur" ) )
 			;;
 		*)
-			__docker_complete_networks type=custom
+			__docker_complete_networks --filter type=custom
 	esac
 }
 
@@ -2211,8 +2220,7 @@ _docker_ps() {
 			return
 			;;
 		network)
-			cur="${cur##*=}"
-			__docker_complete_networks
+			__docker_complete_networks --cur "${cur##*=}"
 			return
 			;;
 		since)
