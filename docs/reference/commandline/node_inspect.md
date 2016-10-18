@@ -12,7 +12,7 @@ Usage:  docker node inspect [OPTIONS] self|NODE [NODE...]
 Display detailed information on one or more nodes
 
 Options:
-  -f, --format string   Format the output using the given go template
+  -f, --format string   Format the output using the given Go template
       --help            Print usage
       --pretty          Print the information in a human friendly format.
 ```

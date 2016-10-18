@@ -12,7 +12,7 @@ Usage:  docker network inspect [OPTIONS] NETWORK [NETWORK...]
 Display detailed information on one or more networks
 
 Options:
-  -f, --format string   Format the output using the given go template
+  -f, --format string   Format the output using the given Go template
       --help            Print usage
 ```
 

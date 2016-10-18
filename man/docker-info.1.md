@@ -33,7 +33,7 @@ available on the volume where `/var/lib/docker` is mounted.
   Print usage statement
 
 **-f**, **--format**=""
-  Format the output using the given go template
+  Format the output using the given Go template
 
 # EXAMPLES
 
