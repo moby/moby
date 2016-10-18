@@ -131,6 +131,9 @@ clone git github.com/aws/aws-sdk-go v1.1.30
 clone git github.com/go-ini/ini 060d7da055ba6ec5ea7a31f116332fe5efa04ce0
 clone git github.com/jmespath/go-jmespath 0b12d6b521d83fc7f755e7cfc1b1fbdd35a01a74
 
+# logentries
+clone git github.com/bsphere/le_go d3308aafe090956bc89a65f0769f58251a1b4f03 
+
 # gcplogs deps
 clone git golang.org/x/oauth2 2baa8a1b9338cf13d9eeb27696d761155fa480be https://github.com/golang/oauth2.git
 clone git google.golang.org/api dc6d2353af16e2a2b0ff6986af051d473a4ed468 https://code.googlesource.com/google-api-go-client
