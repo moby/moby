@@ -59,6 +59,11 @@ func (w *Writer) Write(b []byte) (int, error) {
 	return w.writeAndRetry(w.priority, string(b))
 }
 
+// WriteWithPriority sends a log message with a custom priority
+func (w *Writer) WriteWithPriority(p Priority, b []byte) (int, error) {
+	return w.writeAndRetry(p, string(b))
+}
+
 // Close closes a connection to the syslog daemon.
 func (w *Writer) Close() error {
 	w.Lock()
