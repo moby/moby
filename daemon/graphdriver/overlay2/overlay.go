@@ -89,7 +89,7 @@ type Driver struct {
 	uidMaps  []idtools.IDMap
 	gidMaps  []idtools.IDMap
 	ctr      *graphdriver.RefCounter
-	quotaCtl *quota.QuotaCtl
+	quotaCtl *quota.Control
 	options  overlayOptions
 }
 
@@ -164,7 +164,7 @@ func Init(home string, options []string, uidMaps, gidMaps []idtools.IDMap) (grap
 
 	if backingFs == "xfs" {
 		// Try to enable project quota support over xfs.
-		if d.quotaCtl, err = quota.NewQuotaCtl(home); err == nil {
+		if d.quotaCtl, err = quota.NewControl(home); err == nil {
 			projectQuotaSupported = true
 		}
 	}
