@@ -57,7 +57,7 @@ func runPrune(dockerCli *command.DockerCli, opts pruneOptions) (spaceReclaimed u
 	}
 
 	if len(report.ContainersDeleted) > 0 {
-		output = "Deleted Containers:"
+		output = "Deleted Containers:\n"
 		for _, id := range report.ContainersDeleted {
 			output += id + "\n"
 		}

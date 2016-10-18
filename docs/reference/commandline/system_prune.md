@@ -28,7 +28,8 @@ WARNING! This will remove:
 	- all volumes not used by at least one container
 	- all images without at least one container associated to them
 Are you sure you want to continue? [y/N] y
-Deleted Containers:0998aa37185a1a7036b0e12cf1ac1b6442dcfa30a5c9650a42ed5010046f195b
+Deleted Containers:
+0998aa37185a1a7036b0e12cf1ac1b6442dcfa30a5c9650a42ed5010046f195b
 73958bfb884fa81fa4cc6baf61055667e940ea2357b4036acbbe25a60f442a4d
 
 Deleted Volumes:
