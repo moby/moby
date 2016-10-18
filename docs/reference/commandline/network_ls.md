@@ -214,4 +214,5 @@ d1584f8dc718: host
 * [network create](network_create.md)
 * [network inspect](network_inspect.md)
 * [network rm](network_rm.md)
+* [network prune](network_prune.md)
 * [Understand Docker container networks](https://docs.docker.com/engine/userguide/networking/)
