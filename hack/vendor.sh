@@ -118,7 +118,7 @@ clone git github.com/golang/protobuf 1f49d83d9aa00e6ce4fc8258c71cc7786aec968a
 # gelf logging driver deps
 clone git github.com/Graylog2/go-gelf aab2f594e4585d43468ac57287b0dece9d806883
 
-clone git github.com/fluent/fluent-logger-golang v1.2.0
+clone git github.com/fluent/fluent-logger-golang v1.2.1
 # fluent-logger-golang deps
 clone git github.com/philhofer/fwd 899e4efba8eaa1fea74175308f3fae18ff3319fa
 clone git github.com/tinylib/msgp 75ee40d2601edf122ef667e2a07d600d4c44490c
