@@ -10,7 +10,7 @@ RUN apt-get update && apt-get install -y apparmor bash-completion btrfs-tools bu
 # ppc64le doesn't have official go binaries, so use the version of go installed from the image
 # to build go from source.
 # NOTE: ppc64le has compatibility issues with older versions of go, so make sure the version >= 1.6
-ENV GO_VERSION 1.7.1
+ENV GO_VERSION 1.7.3
 ENV GO_DOWNLOAD_URL https://storage.googleapis.com/golang/go${GO_VERSION}.src.tar.gz
 ENV GOROOT_BOOTSTRAP /usr/lib/go-1.6
 
