@@ -13,17 +13,6 @@ import (
 	"github.com/docker/go-connections/nat"
 )
 
-// AuthResponse contains response of Remote API:
-// POST "/auth"
-type AuthResponse struct {
-	// Status is the authentication status
-	Status string `json:"Status"`
-
-	// IdentityToken is an opaque token used for authenticating
-	// a user after a successful login.
-	IdentityToken string `json:"IdentityToken,omitempty"`
-}
-
 // ContainerWaitResponse contains response of Remote API:
 // POST "/containers/"+containerID+"/wait"
 type ContainerWaitResponse struct {

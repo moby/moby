@@ -4612,23 +4612,24 @@ paths:
     post:
       summary: "Check auth configuration"
       description: "Validate credentials for a registry and, if available, get an identity token for accessing the registry without password."
-      operationId: "checkAuthentication"
-      consumes:
-        - "application/json"
-      produces:
-        - "application/json"
+      operationId: "Authenticate"
+      consumes: ["application/json"]
+      produces: ["application/json"]
       responses:
         200:
-          description: "No error"
+          description: "An identity token was generated successfully."
           schema:
             type: "object"
+            required: [Status]
             properties:
               Status:
                 description: "The status of the authentication"
                 type: "string"
+                x-nullable: false
               IdentityToken:
                 description: "An opaque token used to authenticate a user after a successful login"
                 type: "string"
+                x-nullable: false
           examples:
             application/json:
               Status: "Login Succeeded"
@@ -4645,8 +4646,7 @@ paths:
           description: "Authentication to check"
           schema:
             $ref: "#/definitions/AuthConfig"
-      tags:
-        - "Misc"
+      tags: ["Registry"]
   /info:
     get:
       summary: "Get system information"
