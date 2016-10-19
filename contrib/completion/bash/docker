@@ -1065,7 +1065,17 @@ _docker_container_exec() {
 }
 
 _docker_container_export() {
-	_docker_export
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "--help" -- "$cur" ) )
+			;;
+		*)
+			local counter=$(__docker_pos_first_nonflag)
+			if [ $cword -eq $counter ]; then
+				__docker_complete_containers_all
+			fi
+			;;
+	esac
 }
 
 _docker_container_inspect() {
@@ -1441,17 +1451,7 @@ _docker_exec() {
 }
 
 _docker_export() {
-	case "$cur" in
-		-*)
-			COMPREPLY=( $( compgen -W "--help" -- "$cur" ) )
-			;;
-		*)
-			local counter=$(__docker_pos_first_nonflag)
-			if [ $cword -eq $counter ]; then
-				__docker_complete_containers_all
-			fi
-			;;
-	esac
+	_docker_container_export
 }
 
 _docker_help() {
