@@ -854,6 +854,7 @@ func (daemon *Daemon) Unmount(container *container.Container) error {
 		logrus.Errorf("Error unmounting container %s: %s", container.ID, err)
 		return err
 	}
+
 	return nil
 }
 

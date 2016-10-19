@@ -37,4 +37,5 @@ type ContainerSpec struct {
 	StopGracePeriod *time.Duration          `json:",omitempty"`
 	Healthcheck     *container.HealthConfig `json:",omitempty"`
 	DNSConfig       *DNSConfig              `json:",omitempty"`
+	Secrets         []*SecretReference      `json:",omitempty"`
 }

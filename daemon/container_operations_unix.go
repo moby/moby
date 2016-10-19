@@ -4,6 +4,7 @@ package daemon
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -18,6 +19,7 @@ import (
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/runconfig"
+	"github.com/docker/engine-api/types/mount"
 	"github.com/docker/libnetwork"
 	"github.com/opencontainers/runc/libcontainer/configs"
 	"github.com/opencontainers/runc/libcontainer/devices"
@@ -139,6 +141,43 @@ func (daemon *Daemon) setupIpcDirs(c *container.Container) error {
 
 	return nil
 }
+
+func (daemon *Daemon) setupSecretDir(c *container.Container) error {
+	localMountPath := c.SecretMountPath()
+	logrus.Debugf("secrets: setting up secret dir: %s", localMountPath)
+
+	// create tmpfs
+	if err := os.MkdirAll(localMountPath, 0700); err != nil {
+		return fmt.Errorf("error creating secret local mount path: %s", err)
+	}
+	if err := mount.Mount("tmpfs", localMountPath, "tmpfs", "nodev"); err != nil {
+		return fmt.Errorf("unable to setup secret mount: %s", err)
+	}
+
+	for _, s := range c.Secrets {
+		fPath := filepath.Join(localMountPath, s.Target)
+		if err := os.MkdirAll(filepath.Dir(fPath), 0700); err != nil {
+			return fmt.Errorf("error creating secret mount path: %s", err)
+		}
+
+		logrus.Debugf("injecting secret: name=%s path=%s", s.Name, fPath)
+		if err := ioutil.WriteFile(fPath, s.Data, s.Mode); err != nil {
+			return fmt.Errorf("error injecting secret: %s", err)
+		}
+
+		if err := os.Chown(fPath, s.Uid, s.Gid); err != nil {
+			return fmt.Errorf("error setting ownership for secret: %s", err)
+		}
+	}
+
+	// remount secrets ro
+	if err := mount.Mount("tmpfs", localMountPath, "tmpfs", "remount,ro"); err != nil {
+		return fmt.Errorf("unable to remount secret dir as readonly: %s", err)
+	}
+
+	return nil
+}
+
 func killProcessDirectly(container *container.Container) error {
 	if _, err := container.WaitStop(10 * time.Second); err != nil {
 		// Ensure that we don't kill ourselves

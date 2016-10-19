@@ -33,8 +33,8 @@ type controller struct {
 var _ exec.Controller = &controller{}
 
 // NewController returns a docker exec runner for the provided task.
-func newController(b executorpkg.Backend, task *api.Task) (*controller, error) {
-	adapter, err := newContainerAdapter(b, task)
+func newController(b executorpkg.Backend, task *api.Task, secrets exec.SecretProvider) (*controller, error) {
+	adapter, err := newContainerAdapter(b, task, secrets)
 	if err != nil {
 		return nil, err
 	}

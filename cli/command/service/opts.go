@@ -191,6 +191,19 @@ func convertNetworks(networks []string) []swarm.NetworkAttachmentConfig {
 	return nets
 }
 
+func convertSecrets(secrets []string) []*swarm.SecretReference {
+	sec := []*swarm.SecretReference{}
+	for _, s := range secrets {
+		sec = append(sec, &swarm.SecretReference{
+			SecretID: s,
+			Mode:     swarm.SecretReferenceFile,
+			Target:   "",
+		})
+	}
+
+	return sec
+}
+
 type endpointOptions struct {
 	mode  string
 	ports opts.ListOpts
@@ -337,6 +350,7 @@ type serviceOptions struct {
 	logDriver logDriverOptions
 
 	healthcheck healthCheckOptions
+	secrets     []string
 }
 
 func newServiceOptions() *serviceOptions {
@@ -403,6 +417,7 @@ func (opts *serviceOptions) ToService() (swarm.ServiceSpec, error) {
 					Options:     opts.dnsOptions.GetAll(),
 				},
 				StopGracePeriod: opts.stopGrace.Value(),
+				Secrets:         convertSecrets(opts.secrets),
 			},
 			Networks:      convertNetworks(opts.networks.GetAll()),
 			Resources:     opts.resources.ToResourceRequirements(),
@@ -488,6 +503,7 @@ func addServiceFlags(cmd *cobra.Command, opts *serviceOptions) {
 	flags.BoolVar(&opts.healthcheck.noHealthcheck, flagNoHealthcheck, false, "Disable any container-specified HEALTHCHECK")
 
 	flags.BoolVarP(&opts.tty, flagTTY, "t", false, "Allocate a pseudo-TTY")
+	flags.StringSliceVar(&opts.secrets, flagSecret, []string{}, "Specify secrets to expose to the service")
 }
 
 const (
@@ -553,4 +569,5 @@ const (
 	flagHealthRetries         = "health-retries"
 	flagHealthTimeout         = "health-timeout"
 	flagNoHealthcheck         = "no-healthcheck"
+	flagSecret                = "secret"
 )

@@ -34,6 +34,7 @@ type Backend interface {
 	ContainerWaitWithContext(ctx context.Context, name string) error
 	ContainerRm(name string, config *types.ContainerRmConfig) error
 	ContainerKill(name string, sig uint64) error
+	SetContainerSecrets(name string, secrets []*container.ContainerSecret) error
 	SystemInfo() (*types.Info, error)
 	VolumeCreate(name, driverName string, opts, labels map[string]string) (*types.Volume, error)
 	Containers(config *types.ContainerListOptions) ([]*types.Container, error)

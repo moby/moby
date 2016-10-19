@@ -17,6 +17,7 @@ import (
 	"github.com/docker/docker/api/types/versions"
 	executorpkg "github.com/docker/docker/daemon/cluster/executor"
 	"github.com/docker/libnetwork"
+	"github.com/docker/swarmkit/agent/exec"
 	"github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/log"
 	"golang.org/x/net/context"
@@ -29,9 +30,10 @@ import (
 type containerAdapter struct {
 	backend   executorpkg.Backend
 	container *containerConfig
+	secrets   exec.SecretProvider
 }
 
-func newContainerAdapter(b executorpkg.Backend, task *api.Task) (*containerAdapter, error) {
+func newContainerAdapter(b executorpkg.Backend, task *api.Task, secrets exec.SecretProvider) (*containerAdapter, error) {
 	ctnr, err := newContainerConfig(task)
 	if err != nil {
 		return nil, err
@@ -40,6 +42,7 @@ func newContainerAdapter(b executorpkg.Backend, task *api.Task) (*containerAdapt
 	return &containerAdapter{
 		container: ctnr,
 		backend:   b,
+		secrets:   secrets,
 	}, nil
 }
 
@@ -213,6 +216,35 @@ func (c *containerAdapter) create(ctx context.Context) error {
 				return err
 			}
 		}
+	}
+
+	secrets := []*containertypes.ContainerSecret{}
+	for _, s := range c.container.task.Spec.GetContainer().Secrets {
+		sec := c.secrets.Get(s.SecretID)
+		if sec == nil {
+			logrus.Warnf("unable to get secret %s from provider", s.SecretID)
+			continue
+		}
+
+		name := sec.Spec.Annotations.Name
+		target := s.Target
+		if target == "" {
+			target = name
+		}
+		secrets = append(secrets, &containertypes.ContainerSecret{
+			Name:   name,
+			Target: target,
+			Data:   sec.Spec.Data,
+			// TODO (ehazlett): enable configurable uid, gid, mode
+			Uid:  0,
+			Gid:  0,
+			Mode: 0444,
+		})
+	}
+
+	// configure secrets
+	if err := c.backend.SetContainerSecrets(cr.ID, secrets); err != nil {
+		return err
 	}
 
 	if err := c.backend.UpdateContainerServiceConfig(cr.ID, c.container.serviceConfig()); err != nil {

@@ -58,6 +58,13 @@ func runCreate(dockerCli *command.DockerCli, opts *serviceOptions) error {
 		return err
 	}
 
+	// parse and validate secrets
+	secrets, err := parseSecrets(apiClient, opts.secrets)
+	if err != nil {
+		return err
+	}
+	service.TaskTemplate.ContainerSpec.Secrets = secrets
+
 	ctx := context.Background()
 
 	// only send auth if flag was set

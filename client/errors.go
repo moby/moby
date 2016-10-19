@@ -217,3 +217,25 @@ func (cli *Client) NewVersionError(APIrequired, feature string) error {
 	}
 	return nil
 }
+
+// secretNotFoundError implements an error returned when a secret is not found.
+type secretNotFoundError struct {
+	name string
+}
+
+// Error returns a string representation of a secretNotFoundError
+func (e secretNotFoundError) Error() string {
+	return fmt.Sprintf("Error: No such secret: %s", e.name)
+}
+
+// NoFound indicates that this error type is of NotFound
+func (e secretNotFoundError) NotFound() bool {
+	return true
+}
+
+// IsErrSecretNotFound returns true if the error is caused
+// when a secret is not found.
+func IsErrSecretNotFound(err error) bool {
+	_, ok := err.(secretNotFoundError)
+	return ok
+}

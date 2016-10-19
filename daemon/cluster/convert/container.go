@@ -23,6 +23,7 @@ func containerSpecFromGRPC(c *swarmapi.ContainerSpec) types.ContainerSpec {
 		User:     c.User,
 		Groups:   c.Groups,
 		TTY:      c.TTY,
+		Secrets:  secretReferencesFromGRPC(c.Secrets),
 	}
 
 	if c.DNSConfig != nil {
@@ -75,6 +76,47 @@ func containerSpecFromGRPC(c *swarmapi.ContainerSpec) types.ContainerSpec {
 	return containerSpec
 }
 
+func secretReferencesToGRPC(sr []*types.SecretReference) []*swarmapi.SecretReference {
+	refs := []*swarmapi.SecretReference{}
+	for _, s := range sr {
+		var mode swarmapi.SecretReference_Mode
+		switch s.Mode {
+		case types.SecretReferenceSystem:
+			mode = swarmapi.SecretReference_SYSTEM
+		default:
+			mode = swarmapi.SecretReference_FILE
+		}
+		refs = append(refs, &swarmapi.SecretReference{
+			SecretID:   s.SecretID,
+			SecretName: s.SecretName,
+			Target:     s.Target,
+			Mode:       mode,
+		})
+	}
+
+	return refs
+}
+func secretReferencesFromGRPC(sr []*swarmapi.SecretReference) []*types.SecretReference {
+	refs := []*types.SecretReference{}
+	for _, s := range sr {
+		var mode types.SecretReferenceMode
+		switch s.Mode {
+		case swarmapi.SecretReference_SYSTEM:
+			mode = types.SecretReferenceSystem
+		default:
+			mode = types.SecretReferenceFile
+		}
+		refs = append(refs, &types.SecretReference{
+			SecretID:   s.SecretID,
+			SecretName: s.SecretName,
+			Target:     s.Target,
+			Mode:       mode,
+		})
+	}
+
+	return refs
+}
+
 func containerToGRPC(c types.ContainerSpec) (*swarmapi.ContainerSpec, error) {
 	containerSpec := &swarmapi.ContainerSpec{
 		Image:    c.Image,
@@ -87,6 +129,7 @@ func containerToGRPC(c types.ContainerSpec) (*swarmapi.ContainerSpec, error) {
 		User:     c.User,
 		Groups:   c.Groups,
 		TTY:      c.TTY,
+		Secrets:  secretReferencesToGRPC(c.Secrets),
 	}
 
 	if c.DNSConfig != nil {
