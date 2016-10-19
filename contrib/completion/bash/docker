@@ -1226,7 +1226,17 @@ _docker_container_pause() {
 }
 
 _docker_container_port() {
-	_docker_port
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "--help" -- "$cur" ) )
+			;;
+		*)
+			local counter=$(__docker_pos_first_nonflag)
+			if [ $cword -eq $counter ]; then
+				__docker_complete_containers_all
+			fi
+			;;
+	esac
 }
 
 # TODO new command
@@ -2453,17 +2463,7 @@ _docker_pause() {
 }
 
 _docker_port() {
-	case "$cur" in
-		-*)
-			COMPREPLY=( $( compgen -W "--help" -- "$cur" ) )
-			;;
-		*)
-			local counter=$(__docker_pos_first_nonflag)
-			if [ $cword -eq $counter ]; then
-				__docker_complete_containers_all
-			fi
-			;;
-	esac
+	_docker_container_port
 }
 
 _docker_ps() {
