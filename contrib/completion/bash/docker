@@ -821,19 +821,7 @@ _docker_docker() {
 }
 
 _docker_attach() {
-	__docker_complete_detach-keys && return
-
- 	case "$cur" in
-		-*)
-			COMPREPLY=( $( compgen -W "--detach-keys --help --no-stdin --sig-proxy=false" -- "$cur" ) )
-			;;
-		*)
-			local counter=$(__docker_pos_first_nonflag '--detach-keys')
-			if [ $cword -eq $counter ]; then
-				__docker_complete_containers_running
-			fi
-			;;
-	esac
+	_docker_container_attach
 }
 
 _docker_build() {
@@ -950,7 +938,19 @@ _docker_container() {
 }
 
 _docker_container_attach() {
-	_docker_attach
+	__docker_complete_detach-keys && return
+
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "--detach-keys --help --no-stdin --sig-proxy=false" -- "$cur" ) )
+			;;
+		*)
+			local counter=$(__docker_pos_first_nonflag '--detach-keys')
+			if [ $cword -eq $counter ]; then
+				__docker_complete_containers_running
+			fi
+			;;
+	esac
 }
 
 _docker_container_commit() {
