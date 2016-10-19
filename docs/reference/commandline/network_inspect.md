@@ -39,6 +39,9 @@ The `network inspect` command shows the containers, by id, in its
 results. For networks backed by multi-host network driver, such as Overlay,
 this command also shows the container endpoints in other hosts in the
 cluster. These endpoints are represented as "ep-{endpoint-id}" in the output.
+However, for swarm-scoped networks, only the endpoints that are local to the
+node are shown.
+
 You can specify an alternate format to execute a given
 template for each result. Go's
 [text/template](http://golang.org/pkg/text/template/) package describes all the
