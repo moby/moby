@@ -1152,7 +1152,63 @@ _docker_container_list() {
 }
 
 _docker_container_ls() {
-	_docker_ps
+	local key=$(__docker_map_key_of_current_option '--filter|-f')
+	case "$key" in
+		ancestor)
+			cur="${cur##*=}"
+			__docker_complete_images
+			return
+			;;
+		before)
+			__docker_complete_containers_all --cur "${cur##*=}"
+			return
+			;;
+		id)
+			__docker_complete_containers_all --cur "${cur##*=}" --id
+			return
+			;;
+		is-task)
+			COMPREPLY=( $( compgen -W "true false" -- "${cur##*=}" ) )
+			return
+			;;
+		name)
+			__docker_complete_containers_all --cur "${cur##*=}" --name
+			return
+			;;
+		network)
+			__docker_complete_networks --cur "${cur##*=}"
+			return
+			;;
+		since)
+			__docker_complete_containers_all --cur "${cur##*=}"
+			return
+			;;
+		status)
+			COMPREPLY=( $( compgen -W "created dead exited paused restarting running removing" -- "${cur##*=}" ) )
+			return
+			;;
+		volume)
+			__docker_complete_volumes --cur "${cur##*=}"
+			return
+			;;
+	esac
+
+	case "$prev" in
+		--filter|-f)
+			COMPREPLY=( $( compgen -S = -W "ancestor before exited id label name network since status volume" -- "$cur" ) )
+			__docker_nospace
+			return
+			;;
+		--format|--last|-n)
+			return
+			;;
+	esac
+
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "--all -a --filter -f --format --help --last -n --latest -l --no-trunc --quiet -q --size -s" -- "$cur" ) )
+			;;
+	esac
 }
 
 _docker_container_pause() {
@@ -2411,63 +2467,7 @@ _docker_port() {
 }
 
 _docker_ps() {
-	local key=$(__docker_map_key_of_current_option '--filter|-f')
-	case "$key" in
-		ancestor)
-			cur="${cur##*=}"
-			__docker_complete_images
-			return
-			;;
-		before)
-			__docker_complete_containers_all --cur "${cur##*=}"
-			return
-			;;
-		id)
-			__docker_complete_containers_all --cur "${cur##*=}" --id
-			return
-			;;
-		is-task)
-			COMPREPLY=( $( compgen -W "true false" -- "${cur##*=}" ) )
-			return
-			;;
-		name)
-			__docker_complete_containers_all --cur "${cur##*=}" --name
-			return
-			;;
-		network)
-			__docker_complete_networks --cur "${cur##*=}"
-			return
-			;;
-		since)
-			__docker_complete_containers_all --cur "${cur##*=}"
-			return
-			;;
-		status)
-			COMPREPLY=( $( compgen -W "created dead exited paused restarting running removing" -- "${cur##*=}" ) )
-			return
-			;;
-		volume)
-			__docker_complete_volumes --cur "${cur##*=}"
-			return
-			;;
-	esac
-
-	case "$prev" in
-		--filter|-f)
-			COMPREPLY=( $( compgen -S = -W "ancestor before exited id label name network since status volume" -- "$cur" ) )
-			__docker_nospace
-			return
-			;;
-		--format|--last|-n)
-			return
-			;;
-	esac
-
-	case "$cur" in
-		-*)
-			COMPREPLY=( $( compgen -W "--all -a --filter -f --format --help --last -n --latest -l --no-trunc --quiet -q --size -s" -- "$cur" ) )
-			;;
-	esac
+	_docker_container_ls
 }
 
 _docker_pull() {
