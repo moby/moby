@@ -59,8 +59,8 @@ __docker_q() {
 	docker ${host:+-H "$host"} ${config:+--config "$config"} 2>/dev/null "$@"
 }
 
-# Returns a list of containers. Additional arguments to `docker ps`
-# may be specified in order to filter the list, e.g.
+# __docker_containers returns a list of containers. Additional options to
+# `docker ps` may be specified in order to filter the list, e.g.
 # `__docker_containers --filter status=running`
 # By default, only names are returned.
 # Set DOCKER_COMPLETION_SHOW_CONTAINER_IDS=yes to also complete IDs.
@@ -83,8 +83,8 @@ __docker_containers() {
 	__docker_q ps --format "$format" "$@"
 }
 
-# Applies completion of containers based on the current value of `$cur` or
-# the value of the optional first option `--cur`, if given.
+# __docker_complete_containers applies completion of containers based on the current
+# value of `$cur` or the value of the optional first option `--cur`, if given.
 # Additional filters may be appended, see `__docker_containers`.
 __docker_complete_containers() {
 	local current="$cur"
@@ -175,8 +175,8 @@ __docker_complete_containers_and_images() {
 	COMPREPLY+=( "${containers[@]}" )
 }
 
-# Returns a list of all networks. Additional arguments to `docker network ls`
-# may be specified in order to filter the list, e.g.
+# __docker_networks returns a list of all networks. Additional options to
+# `docker network ls` may be specified in order to filter the list, e.g.
 # `__docker_networks --filter type=custom`
 # By default, only names are returned.
 # Set DOCKER_COMPLETION_SHOW_NETWORK_IDS=yes to also complete IDs.
@@ -199,8 +199,8 @@ __docker_networks() {
 	__docker_q network ls --format "$format" "$@"
 }
 
-# Applies completion of networks based on the current value of `$cur` or
-# the value of the optional first option `--cur`, if given.
+# __docker_complete_networks applies completion of networks based on the current
+# value of `$cur` or the value of the optional first option `--cur`, if given.
 # Additional filters may be appended, see `__docker_networks`.
 __docker_complete_networks() {
 	local current="$cur"
@@ -216,8 +216,8 @@ __docker_complete_containers_in_network() {
 	COMPREPLY=( $(compgen -W "$containers" -- "$cur") )
 }
 
-# Returns a list of all volumes. Additional arguments to `docker volume ls`
-# may be specified in order to filter the list, e.g.
+# __docker_volumes returns a list of all volumes. Additional options to
+# `docker volume ls` may be specified in order to filter the list, e.g.
 # `__docker_volumes --filter dangling=true`
 # Because volumes do not have IDs, this function does not distinguish between
 # IDs and names.
@@ -225,8 +225,8 @@ __docker_volumes() {
 	__docker_q volume ls -q "$@"
 }
 
-# Applies completion of volumes based on the current value of `$cur` or
-# the value of the optional first option `--cur`, if given.
+# __docker_complete_volumes applies completion of volumes based on the current
+# value of `$cur` or the value of the optional first option `--cur`, if given.
 # Additional filters may be appended, see `__docker_volumes`.
 __docker_complete_volumes() {
 	local current="$cur"
@@ -237,7 +237,7 @@ __docker_complete_volumes() {
 	COMPREPLY=( $(compgen -W "$(__docker_volumes "$@")" -- "$current") )
 }
 
-# Returns a list of all plugins of a given type.
+# __docker_plugins returns a list of all plugins of a given type.
 # The type has to be specified with the mandatory option `--type`.
 # Valid types are: Network, Volume, Authorization.
 # Completions may be added or removed with `--add` and `--remove`
@@ -270,8 +270,8 @@ __docker_plugins() {
 	echo "${plugins[@]} ${add[@]}"
 }
 
-# Applies completion of plugins based on the current value of `$cur` or
-# the value of the optional first option `--cur`, if given.
+# __docker_complete_plugins applies completion of plugins based on the current
+# value of `$cur` or the value of the optional first option `--cur`, if given.
 # The plugin type has to be specified with the next option `--type`.
 __docker_complete_plugins() {
 	local current="$cur"
@@ -290,13 +290,13 @@ __docker_complete_runtimes() {
 	COMPREPLY=( $(compgen -W "$(__docker_runtimes)" -- "$cur") )
 }
 
-# Returns a list of all nodes. Additional arguments to `docker node`
-# may be specified in order to filter the node list, e.g.
+# __docker_nodes returns a list of all nodes. Additional options to
+# `docker node ls` may be specified in order to filter the list, e.g.
 # `__docker_nodes --filter role=manager`
-# By default, only node names are completed.
+# By default, only node names are returned.
 # Set DOCKER_COMPLETION_SHOW_NODE_IDS=yes to also complete node IDs.
-# An optional first argument `--id|--name` may be used to limit
-# the output to the IDs or names of matching nodes. This setting takes
+# An optional first option `--id|--name` may be used to limit the
+# output to the IDs or names of matching items. This setting takes
 # precedence over the environment setting.
 __docker_nodes() {
 	local fields='$2'  # default: node name only
@@ -312,11 +312,11 @@ __docker_nodes() {
 	__docker_q node ls "$@" | tr -d '*' | awk "NR>1 {print $fields}"
 }
 
-# Applies completion of nodes based on the current value of `$cur` or
-# the value of the optional first argument `--cur`, if given.
+# __docker_complete_nodes applies completion of nodes based on the current
+# value of `$cur` or the value of the optional first option `--cur`, if given.
 # Additional filters may be appended, see `__docker_nodes`.
 __docker_complete_nodes() {
-	local current=$cur
+	local current="$cur"
 	if [ "$1" = "--cur" ] ; then
 		current="$2"
 		shift 2
@@ -329,13 +329,13 @@ __docker_complete_nodes_plus_self() {
 	COMPREPLY+=( self )
 }
 
-# Returns a list of all services. Additional arguments to `docker service ls`
-# may be specified in order to filter the service list, e.g.
+# __docker_services returns a list of all services. Additional options to
+# `docker service ls` may be specified in order to filter the list, e.g.
 # `__docker_services --filter name=xxx`
-# By default, only node names are completed.
-# Set DOCKER_COMPLETION_SHOW_SERVICE_IDS=yes to also complete service IDs.
-# An optional first argument `--id|--name` may be used to limit
-# the output to the IDs or names of matching services. This setting takes
+# By default, only node names are returned.
+# Set DOCKER_COMPLETION_SHOW_SERVICE_IDS=yes to also complete IDs.
+# An optional first option `--id|--name` may be used to limit the
+# output to the IDs or names of matching items. This setting takes
 # precedence over the environment setting.
 __docker_services() {
 	local fields='$2'  # default: service name only
@@ -351,11 +351,11 @@ __docker_services() {
         __docker_q service ls "$@" | awk "NR>1 {print $fields}"
 }
 
-# Applies completion of services based on the current value of `$cur` or
-# the value of the optional first argument `--cur`, if given.
+# __docker_complete_services applies completion of services based on the current
+# value of `$cur` or the value of the optional first option `--cur`, if given.
 # Additional filters may be appended, see `__docker_services`.
 __docker_complete_services() {
-	local current=$cur
+	local current="$cur"
 	if [ "$1" = "--cur" ] ; then
 		current="$2"
 		shift 2
@@ -363,16 +363,18 @@ __docker_complete_services() {
 	COMPREPLY=( $(compgen -W "$(__docker_services "$@")" -- "$current") )
 }
 
-# Appends the word passed as an argument to every word in `$COMPREPLY`.
-# Normally you do this with `compgen -S`. This function exists so that you can use
+# __docker_append_to_completions appends the word passed as an argument to every
+# word in `$COMPREPLY`.
+# Normally you do this with `compgen -S` while generating the completions.
+# This function allows you to append a suffix later. It allows you to use
 # the __docker_complete_XXX functions in cases where you need a suffix.
 __docker_append_to_completions() {
 	COMPREPLY=( ${COMPREPLY[@]/%/"$1"} )
 }
 
-# Finds the position of the first word that is neither option nor an option's argument.
-# If there are options that require arguments, you should pass a glob describing those
-# options, e.g. "--option1|-o|--option2"
+# __docker_pos_first_nonflag finds the position of the first word that is neither
+# option nor an option's argument. If there are options that require arguments,
+# you should pass a glob describing those options, e.g. "--option1|-o|--option2"
 # Use this function to restrict completions to exact positions after the argument list.
 __docker_pos_first_nonflag() {
 	local argument_flags=$1
@@ -405,8 +407,8 @@ __docker_pos_first_nonflag() {
 	echo $counter
 }
 
-# If we are currently completing the value of a map option (key=value)
-# which matches the extglob given as an argument, returns key.
+# __docker_map_key_of_current_option returns `key` if we are currently completing the
+# value of a map option (`key=value`) which matches the extglob given as an argument.
 # This function is needed for key-specific completions.
 __docker_map_key_of_current_option() {
 	local glob="$1"
@@ -430,9 +432,9 @@ __docker_map_key_of_current_option() {
 	[[ ${words[$glob_pos]} == @($glob) ]] && echo "$key"
 }
 
-# Returns the value of the first option matching option_glob.
-# Valid values for option_glob are option names like '--log-level' and
-# globs like '--log-level|-l'
+# __docker_value_of_option returns the value of the first option matching `option_glob`.
+# Valid values for `option_glob` are option names like `--log-level` and globs like
+# `--log-level|-l`
 # Only positions between the command and the current word are considered.
 __docker_value_of_option() {
 	local option_extglob=$(__docker_to_extglob "$1")
@@ -449,8 +451,8 @@ __docker_value_of_option() {
 	done
 }
 
-# Transforms a multiline list of strings into a single line string
-# with the words separated by "|".
+# __docker_to_alternatives transforms a multiline list of strings into a single line
+# string with the words separated by `|`.
 # This is used to prepare arguments to __docker_pos_first_nonflag().
 __docker_to_alternatives() {
 	local parts=( $1 )
@@ -458,14 +460,14 @@ __docker_to_alternatives() {
 	echo "${parts[*]}"
 }
 
-# Transforms a multiline list of options into an extglob pattern
+# __docker_to_extglob transforms a multiline list of options into an extglob pattern
 # suitable for use in case statements.
 __docker_to_extglob() {
 	local extglob=$( __docker_to_alternatives "$1" )
 	echo "@($extglob)"
 }
 
-# Subcommand processing.
+# __docker_subcommands processes subcommands
 # Locates the first occurrence of any of the subcommands contained in the
 # first argument. In case of a match, calls the corresponding completion
 # function and returns 0.
@@ -494,7 +496,7 @@ __docker_subcommands() {
 	return 1
 }
 
-# suppress trailing whitespace
+# __docker_nospace suppresses trailing whitespace
 __docker_nospace() {
 	# compopt is not available in ancient bash versions
 	type compopt &>/dev/null && compopt -o nospace
@@ -757,8 +759,8 @@ __docker_complete_restart() {
 	return 1
 }
 
-# a selection of the available signals that is most likely of interest in the
-# context of docker containers.
+# __docker_complete_signals returns a subset of the available signals that is most likely
+# relevant in the context of docker containers
 __docker_complete_signals() {
 	local signals=(
 		SIGCONT
@@ -783,8 +785,8 @@ __docker_complete_user_group() {
 	fi
 }
 
-# global options that may appear after the docker command
 _docker_docker() {
+	# global options that may appear after the docker command
 	local boolean_options="
 		$global_boolean_options
 		--help
