@@ -41,6 +41,7 @@ $ sudo docker network inspect bridge
     {
         "Name": "bridge",
         "Id": "b2b1a2cba717161d984383fd68218cf70bbbd17d328496885f7c921333228b0f",
+        "Created": "2016-10-19T04:33:30.360899459Z",
         "Scope": "local",
         "Driver": "bridge",
         "IPAM": {
@@ -92,6 +93,7 @@ $ docker network inspect simple-network
     {
         "Name": "simple-network",
         "Id": "69568e6336d8c96bbf57869030919f7c69524f71183b44d80948bd3927c87f6a",
+        "Created": "2016-10-19T04:33:30.360899459Z",
         "Scope": "local",
         "Driver": "bridge",
         "IPAM": {

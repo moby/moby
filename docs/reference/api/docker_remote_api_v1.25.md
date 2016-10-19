@@ -3528,6 +3528,7 @@ Content-Type: application/json
   {
     "Name": "bridge",
     "Id": "f2de39df4171b0dc801e8002d1d999b77256983dfc63041c0f34030aa3977566",
+    "Created": "2016-10-19T06:21:00.416543526Z",
     "Scope": "local",
     "Driver": "bridge",
     "EnableIPv6": false,
@@ -3560,6 +3561,7 @@ Content-Type: application/json
   {
     "Name": "none",
     "Id": "e086a3893b05ab69242d3c44e49483a3bbbd3a26b46baa8f61ab797c1088d794",
+    "Created": "0001-01-01T00:00:00Z",
     "Scope": "local",
     "Driver": "null",
     "EnableIPv6": false,
@@ -3574,6 +3576,7 @@ Content-Type: application/json
   {
     "Name": "host",
     "Id": "13e871235c677f196c4e1ecebb9dc733b9b2d2ab589e30c539efeda84a24215e",
+    "Created": "0001-01-01T00:00:00Z",
     "Scope": "local",
     "Driver": "host",
     "EnableIPv6": false,
@@ -3619,6 +3622,7 @@ Content-Type: application/json
 {
   "Name": "net01",
   "Id": "7d86d31b1478e7cca9ebed7e73aa0fdeec46c5ca29497431d3007d2d9e15ed99",
+  "Created": "2016-10-19T04:33:30.360899459Z",
   "Scope": "local",
   "Driver": "bridge",
   "EnableIPv6": false,
