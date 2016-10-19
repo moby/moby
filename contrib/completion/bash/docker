@@ -982,7 +982,48 @@ _docker_container_commit() {
 }
 
 _docker_container_cp() {
-	_docker_cp
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "--follow-link -L --help" -- "$cur" ) )
+			;;
+		*)
+			local counter=$(__docker_pos_first_nonflag)
+			if [ $cword -eq $counter ]; then
+				case "$cur" in
+					*:)
+						return
+						;;
+					*)
+						# combined container and filename completion
+						_filedir
+						local files=( ${COMPREPLY[@]} )
+
+						__docker_complete_containers_all
+						COMPREPLY=( $( compgen -W "${COMPREPLY[*]}" -S ':' ) )
+						local containers=( ${COMPREPLY[@]} )
+
+						COMPREPLY=( $( compgen -W "${files[*]} ${containers[*]}" -- "$cur" ) )
+						if [[ "$COMPREPLY" == *: ]]; then
+							__docker_nospace
+						fi
+						return
+						;;
+				esac
+			fi
+			(( counter++ ))
+
+			if [ $cword -eq $counter ]; then
+				if [ -e "$prev" ]; then
+					__docker_complete_containers_all
+					COMPREPLY=( $( compgen -W "${COMPREPLY[*]}" -S ':' ) )
+					__docker_nospace
+				else
+					_filedir
+				fi
+				return
+			fi
+			;;
+	esac
 }
 
 _docker_container_create() {
@@ -1088,48 +1129,7 @@ _docker_commit() {
 }
 
 _docker_cp() {
-	case "$cur" in
-		-*)
-			COMPREPLY=( $( compgen -W "--follow-link -L --help" -- "$cur" ) )
-			;;
-		*)
-			local counter=$(__docker_pos_first_nonflag)
-			if [ $cword -eq $counter ]; then
-				case "$cur" in
-					*:)
-						return
-						;;
-					*)
-						# combined container and filename completion
-						_filedir
-						local files=( ${COMPREPLY[@]} )
-
-						__docker_complete_containers_all
-						COMPREPLY=( $( compgen -W "${COMPREPLY[*]}" -S ':' ) )
-						local containers=( ${COMPREPLY[@]} )
-
-						COMPREPLY=( $( compgen -W "${files[*]} ${containers[*]}" -- "$cur" ) )
-						if [[ "$COMPREPLY" == *: ]]; then
-							__docker_nospace
-						fi
-						return
-						;;
-				esac
-			fi
-			(( counter++ ))
-
-			if [ $cword -eq $counter ]; then
-				if [ -e "$prev" ]; then
-					__docker_complete_containers_all
-					COMPREPLY=( $( compgen -W "${COMPREPLY[*]}" -S ':' ) )
-					__docker_nospace
-				else
-					_filedir
-				fi
-				return
-			fi
-			;;
-	esac
+	_docker_container_cp
 }
 
 _docker_create() {
