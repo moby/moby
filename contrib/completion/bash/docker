@@ -954,7 +954,31 @@ _docker_container_attach() {
 }
 
 _docker_container_commit() {
-	_docker_commit
+	case "$prev" in
+		--author|-a|--change|-c|--message|-m)
+			return
+			;;
+	esac
+
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "--author -a --change -c --help --message -m --pause=false -p=false" -- "$cur" ) )
+			;;
+		*)
+			local counter=$(__docker_pos_first_nonflag '--author|-a|--change|-c|--message|-m')
+
+			if [ $cword -eq $counter ]; then
+				__docker_complete_containers_all
+				return
+			fi
+			(( counter++ ))
+
+			if [ $cword -eq $counter ]; then
+				__docker_complete_image_repos_and_tags
+				return
+			fi
+			;;
+	esac
 }
 
 _docker_container_cp() {
@@ -1060,31 +1084,7 @@ _docker_container_wait() {
 
 
 _docker_commit() {
-	case "$prev" in
-		--author|-a|--change|-c|--message|-m)
-			return
-			;;
-	esac
-
-	case "$cur" in
-		-*)
-			COMPREPLY=( $( compgen -W "--author -a --change -c --help --message -m --pause=false -p=false" -- "$cur" ) )
-			;;
-		*)
-			local counter=$(__docker_pos_first_nonflag '--author|-a|--change|-c|--message|-m')
-
-			if [ $cword -eq $counter ]; then
-				__docker_complete_containers_all
-				return
-			fi
-			(( counter++ ))
-
-			if [ $cword -eq $counter ]; then
-				__docker_complete_image_repos_and_tags
-				return
-			fi
-			;;
-	esac
+	_docker_container_commit
 }
 
 _docker_cp() {
