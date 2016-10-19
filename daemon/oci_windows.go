@@ -64,9 +64,19 @@ func (daemon *Daemon) createSpec(c *container.Container) (*specs.Spec, error) {
 	s.Process.Terminal = c.Config.Tty
 	s.Process.User.Username = c.Config.User
 
-	// In spec.Root
-	s.Root.Path = c.BaseFS
-	s.Root.Readonly = c.HostConfig.ReadonlyRootfs
+	// In spec.Root. This is not set for Hyper-V containers
+	isHyperV := false
+	if c.HostConfig.Isolation.IsDefault() {
+		// Container using default isolation, so take the default from the daemon configuration
+		isHyperV = daemon.defaultIsolation.IsHyperV()
+	} else {
+		// Container may be requesting an explicit isolation mode.
+		isHyperV = c.HostConfig.Isolation.IsHyperV()
+	}
+	if !isHyperV {
+		s.Root.Path = c.BaseFS
+	}
+	s.Root.Readonly = false // Windows does not support a read-only root filesystem
 
 	// In s.Windows.Resources
 	// @darrenstahlmsft implement these resources
