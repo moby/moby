@@ -904,6 +904,161 @@ _docker_build() {
 	esac
 }
 
+
+_docker_container() {
+	local subcommands="
+		attach
+		commit
+		cp
+		create
+		diff
+		exec
+		export
+		inspect
+		kill
+		logs
+		ls
+		pause
+		port
+		prune
+		rename
+		restart
+		rm
+		run
+		start
+		stats
+		stop
+		top
+		unpause
+		update
+		wait
+	"
+	local aliases="
+		list
+		ps
+	"
+	__docker_subcommands "$subcommands $aliases" && return
+
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "--help" -- "$cur" ) )
+			;;
+		*)
+			COMPREPLY=( $( compgen -W "$subcommands" -- "$cur" ) )
+			;;
+	esac
+}
+
+_docker_container_attach() {
+	_docker_attach
+}
+
+_docker_container_commit() {
+	_docker_commit
+}
+
+_docker_container_cp() {
+	_docker_cp
+}
+
+_docker_container_create() {
+	_docker_create
+}
+
+_docker_container_diff() {
+	_docker_diff
+}
+
+_docker_container_exec() {
+	_docker_exec
+}
+
+_docker_container_export() {
+	_docker_export
+}
+
+_docker_container_inspect() {
+	_docker_inspect
+}
+
+_docker_container_kill() {
+	_docker_kill
+}
+
+_docker_container_logs() {
+	_docker_logs
+}
+
+_docker_container_list() {
+	_docker_container_ls
+}
+
+_docker_container_ls() {
+	_docker_ps
+}
+
+_docker_container_pause() {
+	_docker_pause
+}
+
+_docker_container_port() {
+	_docker_port
+}
+
+# TODO new command
+_docker_container_prune() {
+	:
+}
+
+_docker_container_ps() {
+	_docker_container_ls
+}
+
+_docker_container_rename() {
+	_docker_rename
+}
+
+_docker_container_restart() {
+	_docker_restart
+}
+
+_docker_container_rm() {
+	_docker_rm
+}
+
+_docker_container_run() {
+	_docker_run
+}
+
+_docker_container_start() {
+	_docker_start
+}
+
+_docker_container_stats() {
+	_docker_stats
+}
+
+_docker_container_stop() {
+	_docker_stop
+}
+
+_docker_container_top() {
+	_docker_top
+}
+
+_docker_container_unpause() {
+	_docker_unpause
+}
+
+_docker_container_update() {
+	_docker_update
+}
+
+_docker_container_wait() {
+	_docker_wait
+}
+
+
 _docker_commit() {
 	case "$prev" in
 		--author|-a|--change|-c|--message|-m)
@@ -2494,7 +2649,7 @@ _docker_run() {
 		--tty -t
 	"
 
-	if [ "$command" = "run" ] ; then
+	if [ "$command" = "run" -o "$subcommand" = "run" ] ; then
 		options_with_args="$options_with_args
 			--detach-keys
 			--health-cmd
@@ -3007,6 +3162,7 @@ _docker() {
 		attach
 		build
 		commit
+		container
 		cp
 		create
 		daemon
