@@ -18,6 +18,10 @@ type executor struct {
 	backend executorpkg.Backend
 }
 
+type secretProvider interface {
+	Get(secretID string) *api.Secret
+}
+
 // NewExecutor returns an executor from the docker client.
 func NewExecutor(b executorpkg.Backend) exec.Executor {
 	return &executor{
@@ -120,12 +124,12 @@ func (e *executor) Configure(ctx context.Context, node *api.Node) error {
 }
 
 // Controller returns a docker container runner.
-func (e *executor) Controller(t *api.Task) (exec.Controller, error) {
+func (e *executor) Controller(t *api.Task, secrets exec.SecretProvider) (exec.Controller, error) {
 	if t.Spec.GetAttachment() != nil {
-		return newNetworkAttacherController(e.backend, t)
+		return newNetworkAttacherController(e.backend, t, secrets)
 	}
 
-	ctlr, err := newController(e.backend, t)
+	ctlr, err := newController(e.backend, t, secrets)
 	if err != nil {
 		return nil, err
 	}

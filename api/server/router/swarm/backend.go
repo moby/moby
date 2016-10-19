@@ -23,4 +23,9 @@ type Backend interface {
 	RemoveNode(string, bool) error
 	GetTasks(basictypes.TaskListOptions) ([]types.Task, error)
 	GetTask(string) (types.Task, error)
+	GetSecrets(opts basictypes.SecretListOptions) ([]types.Secret, error)
+	CreateSecret(s types.SecretSpec) (string, error)
+	RemoveSecret(id string) error
+	GetSecret(id string) (types.Secret, error)
+	UpdateSecret(id string, version uint64, spec types.SecretSpec) error
 }

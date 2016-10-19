@@ -23,7 +23,10 @@ import (
 )
 
 // DefaultSHMSize is the default size (64MB) of the SHM which will be mounted in the container
-const DefaultSHMSize int64 = 67108864
+const (
+	DefaultSHMSize           int64 = 67108864
+	containerSecretMountPath       = "/run/secrets"
+)
 
 // Container holds the fields specific to unixen implementations.
 // See CommonContainer for standard fields common to all containers.
@@ -175,6 +178,10 @@ func (container *Container) NetworkMounts() []Mount {
 	return mounts
 }
 
+func (container *Container) SecretMountPath() string {
+	return filepath.Join(container.Root, "secrets")
+}
+
 // CopyImagePathContent copies files in destination to the volume.
 func (container *Container) CopyImagePathContent(v volume.Volume, destination string) error {
 	rootfs, err := symlink.FollowSymlinkInScope(filepath.Join(container.BaseFS, destination), container.BaseFS)
@@ -258,6 +265,26 @@ func (container *Container) IpcMounts() []Mount {
 	}
 
 	return mounts
+}
+
+// SecretMounts returns the list of Secret mounts
+func (container *Container) SecretMounts() []Mount {
+	var mounts []Mount
+
+	if len(container.Secrets) > 0 {
+		mounts = append(mounts, Mount{
+			Source:      container.SecretMountPath(),
+			Destination: containerSecretMountPath,
+			Writable:    false,
+		})
+	}
+
+	return mounts
+}
+
+// UnmountSecrets unmounts the local tmpfs for secrets
+func (container *Container) UnmountSecrets() error {
+	return detachMounted(container.SecretMountPath())
 }
 
 // UpdateContainer updates configuration of a container.
