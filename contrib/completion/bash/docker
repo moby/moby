@@ -1128,7 +1128,23 @@ _docker_container_kill() {
 }
 
 _docker_container_logs() {
-	_docker_logs
+	case "$prev" in
+		--since|--tail)
+			return
+			;;
+	esac
+
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "--details --follow -f --help --since --tail --timestamps -t" -- "$cur" ) )
+			;;
+		*)
+			local counter=$(__docker_pos_first_nonflag '--since|--tail')
+			if [ $cword -eq $counter ]; then
+				__docker_complete_containers_all
+			fi
+			;;
+	esac
 }
 
 _docker_container_list() {
@@ -1648,23 +1664,7 @@ _docker_logout() {
 }
 
 _docker_logs() {
-	case "$prev" in
-		--since|--tail)
-			return
-			;;
-	esac
-
-	case "$cur" in
-		-*)
-			COMPREPLY=( $( compgen -W "--details --follow -f --help --since --tail --timestamps -t" -- "$cur" ) )
-			;;
-		*)
-			local counter=$(__docker_pos_first_nonflag '--since|--tail')
-			if [ $cword -eq $counter ]; then
-				__docker_complete_containers_all
-			fi
-			;;
-	esac
+	_docker_container_logs
 }
 
 _docker_network_connect() {
