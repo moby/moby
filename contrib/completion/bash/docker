@@ -1110,7 +1110,21 @@ _docker_container_inspect() {
 }
 
 _docker_container_kill() {
-	_docker_kill
+	case "$prev" in
+		--signal|-s)
+			__docker_complete_signals
+			return
+			;;
+	esac
+
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "--help --signal -s" -- "$cur" ) )
+			;;
+		*)
+			__docker_complete_containers_running
+			;;
+	esac
 }
 
 _docker_container_logs() {
@@ -1593,21 +1607,7 @@ _docker_inspect() {
 }
 
 _docker_kill() {
-	case "$prev" in
-		--signal|-s)
-			__docker_complete_signals
-			return
-			;;
-	esac
-
-	case "$cur" in
-		-*)
-			COMPREPLY=( $( compgen -W "--help --signal -s" -- "$cur" ) )
-			;;
-		*)
-			__docker_complete_containers_running
-			;;
-	esac
+	_docker_container_kill
 }
 
 _docker_load() {
