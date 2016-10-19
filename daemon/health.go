@@ -251,7 +251,10 @@ func (d *Daemon) initHealthMonitor(c *container.Container) {
 	// This is needed in case we're auto-restarting
 	d.stopHealthchecks(c)
 
-	if c.State.Health == nil {
+	if h := c.State.Health; h != nil {
+		h.Status = types.Starting
+		h.FailingStreak = 0
+	} else {
 		h := &container.Health{}
 		h.Status = types.Starting
 		c.State.Health = h
