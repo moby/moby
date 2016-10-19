@@ -1031,6 +1031,7 @@ _docker_daemon() {
 		--oom-score-adjust
 		--pidfile -p
 		--registry-mirror
+		--shutdown-timeout
 		--storage-driver -s
 		--storage-opt
 		--userns-remap
