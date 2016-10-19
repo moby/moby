@@ -43,7 +43,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
 
   num_nodes.times do |n|
     config.vm.define "net-#{n+1}" do |net|
-      net.vm.box = "ubuntu/vivid64"
+      net.vm.box = "ubuntu/xenial64"
       net_ip = net_ips[n]
       net_index = n+1
       net.vm.hostname = "net-#{net_index}"
