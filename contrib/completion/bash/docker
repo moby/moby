@@ -1027,7 +1027,7 @@ _docker_container_cp() {
 }
 
 _docker_container_create() {
-	_docker_create
+	_docker_container_run
 }
 
 _docker_container_diff() {
@@ -1133,7 +1133,7 @@ _docker_cp() {
 }
 
 _docker_create() {
-	_docker_run
+	_docker_container_run
 }
 
 _docker_daemon() {
