@@ -4,6 +4,15 @@ description: "The service scale command description and usage"
 keywords: ["service, scale"]
 ---
 
+<!-- This file is maintained within the docker/docker Github
+     repository at https://github.com/docker/docker/. Make all
+     pull requests against that repo. If you see this file in
+     another repository, consider it read-only there, as it will
+     periodically be overwritten by the definitive file. Pull
+     requests which include edits to this file in other repositories
+     will be rejected.
+-->
+
 # service scale
 
 ```markdown
@@ -19,8 +28,10 @@ Options:
 
 ### Scale a service
 
-If you scale a service, you set the *desired* number of replicas. Even though
-the command returns directly, actual scaling of the service may take some time.
+The scale command enables you to scale one or more services either up or down to
+the desired number of replicas. The command will return immediately, but the
+actual scaling of the service may take some time. To stop all replicas of a
+service while keeping the service active in the swarm you can set the scale to 0.
 
 For example, the following command scales the "frontend" service to 50 tasks.
 
@@ -30,7 +41,7 @@ frontend scaled to 50
 ```
 
 Directly afterwards, run `docker service ls`, to see the actual number of
-replicas
+replicas.
 
 ```bash
 $ docker service ls --filter name=frontend
@@ -40,7 +51,7 @@ ID            NAME      REPLICAS  IMAGE         COMMAND
 ```
 
 You can also scale a service using the [`docker service update`](service_update.md)
-command. The following commands are therefore equivalent:
+command. The following commands are equivalent:
 
 ```bash
 $ docker service scale frontend=50

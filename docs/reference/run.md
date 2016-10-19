@@ -4,6 +4,15 @@ description: "Configure containers at runtime"
 keywords: ["docker, run, configure,  runtime"]
 ---
 
+<!-- This file is maintained within the docker/docker Github
+     repository at https://github.com/docker/docker/. Make all
+     pull requests against that repo. If you see this file in
+     another repository, consider it read-only there, as it will
+     periodically be overwritten by the definitive file. Pull
+     requests which include edits to this file in other repositories
+     will be rejected.
+-->
+
 # Docker run reference
 
 Docker runs processes in isolated containers. A container is a process
@@ -415,7 +424,7 @@ running the `redis-cli` command and connecting to the Redis server over the
 You can create a network using a Docker network driver or an external network
 driver plugin. You can connect multiple containers to the same network. Once
 connected to a user-defined network, the containers can communicate easily using
-only another container's IP address or name.  
+only another container's IP address or name.
 
 For `overlay` networks or custom plugins that support multi-host connectivity,
 containers connected to the same multi-host network but launched from different
@@ -532,13 +541,17 @@ will try forever to restart the container. The number of (attempted) restarts
 for a container can be obtained via [`docker inspect`](commandline/inspect.md). For example, to get the number of restarts
 for container "my-container";
 
+    {% raw %}
     $ docker inspect -f "{{ .RestartCount }}" my-container
     # 2
+    {% endraw %}
 
 Or, to get the last time the container was (re)started;
 
+    {% raw %}
     $ docker inspect -f "{{ .State.StartedAt }}" my-container
     # 2015-03-04T23:47:07.691840179Z
+    {% endraw %}
 
 
 Combining `--restart` (restart policy) with the `--rm` (clean up) flag results
@@ -1369,34 +1382,12 @@ it will provide a named alias for the container being linked to.
 When a new container is created, Docker will set the following environment
 variables automatically:
 
-<table>
- <tr>
-  <th>Variable</th>
-  <th>Value</th>
- </tr>
- <tr>
-  <td><code>HOME</code></td>
-  <td>
-    Set based on the value of <code>USER</code>
-  </td>
- </tr>
- <tr>
-  <td><code>HOSTNAME</code></td>
-  <td>
-    The hostname associated with the container
-  </td>
- </tr>
- <tr>
-  <td><code>PATH</code></td>
-  <td>
-    Includes popular directories, such as :<br>
-    <code>/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin</code>
-  </td>
- <tr>
-  <td><code>TERM</code></td>
-  <td><code>xterm</code> if the container is allocated a pseudo-TTY</td>
- </tr>
-</table>
+| Variable | Value |
+| -------- | ----- |
+| `HOME` | Set based on the value of `USER` |
+| `HOSTNAME` | The hostname associated with the container |
+| `PATH` | Includes popular directories, such as `:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin` |
+| `TERM` | `xterm` if the container is allocated a pseudo-TTY |
 
 Additionally, the operator can **set any environment variable** in the
 container by using one or more `-e` flags, even overriding those mentioned
@@ -1425,6 +1416,7 @@ Similarly the operator can set the **hostname** with `-h`.
 
 Example:
 
+    {% raw %}
     $ docker run --name=test -d \
         --health-cmd='stat /etc/passwd || exit 1' \
         --health-interval=2s \
@@ -1469,6 +1461,7 @@ Example:
         }
       ]
     }
+    {% endraw %}
 
 The health status is also displayed in the `docker ps` output.
 

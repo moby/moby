@@ -4,6 +4,15 @@ description: "Docker's CLI command description and usage"
 keywords: ["Docker, Docker documentation, CLI,  command line"]
 ---
 
+<!-- This file is maintained within the docker/docker Github
+     repository at https://github.com/docker/docker/. Make all
+     pull requests against that repo. If you see this file in
+     another repository, consider it read-only there, as it will
+     periodically be overwritten by the definitive file. Pull
+     requests which include edits to this file in other repositories
+     will be rejected.
+-->
+
 # Use the Docker command line
 
 To list available commands, either run `docker` with no parameters
@@ -147,6 +156,7 @@ list of supported formatting directives, see the
 
 Following is a sample `config.json` file:
 
+    {% raw %}
     {
       "HttpHeaders": {
         "MyHeader": "MyValue"
@@ -156,6 +166,7 @@ Following is a sample `config.json` file:
       "serviceInspectFormat": "pretty",
       "detachKeys": "ctrl-e,e"
     }
+    {% endraw %}
 
 ### Notary
 

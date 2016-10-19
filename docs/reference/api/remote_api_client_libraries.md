@@ -4,6 +4,15 @@ description: "Various client libraries available to use with the Docker remote A
 keywords: ["API, Docker, index, registry, REST, documentation, clients, C#, Erlang, Go, Groovy, Java, JavaScript, Perl, PHP, Python, Ruby, Rust,  Scala"]
 ---
 
+<!-- This file is maintained within the docker/docker Github
+     repository at https://github.com/docker/docker/. Make all
+     pull requests against that repo. If you see this file in
+     another repository, consider it read-only there, as it will
+     periodically be overwritten by the definitive file. Pull
+     requests which include edits to this file in other repositories
+     will be rejected.
+-->
+
 # Docker Remote API client libraries
 
 These libraries make it easier to build applications on top of the Docker
@@ -44,6 +53,11 @@ with the library maintainers.
       <td>Dart</td>
       <td>bwu_docker</td>
       <td><a class="reference external" href="https://github.com/bwu-dart/bwu_docker">https://github.com/bwu-dart/bwu_docker</a></td>
+    </tr>
+    <tr>
+      <td>Go</td>
+      <td>Docker Go client</td>
+      <td><a class="reference external" href="https://godoc.org/github.com/docker/docker/client">https://godoc.org/github.com/docker/docker/client</a></td>
     </tr>
     <tr>
       <td>Gradle</td>

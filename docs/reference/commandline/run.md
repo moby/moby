@@ -4,6 +4,15 @@ description: "The run command description and usage"
 keywords: ["run, command, container"]
 ---
 
+<!-- This file is maintained within the docker/docker Github
+     repository at https://github.com/docker/docker/. Make all
+     pull requests against that repo. If you see this file in
+     another repository, consider it read-only there, as it will
+     periodically be overwritten by the definitive file. Pull
+     requests which include edits to this file in other repositories
+     will be rejected.
+-->
+
 # run
 
 ```markdown
@@ -618,8 +627,8 @@ or a signal name in the format SIGNAME, for instance SIGKILL.
 
 ### Optional security options (--security-opt)
 
-On Windows, this flag can be used to specify the `credentialspec` option. 
-The `credentialspec` must be in the format `file://spec.txt` or `registry://keyname`. 
+On Windows, this flag can be used to specify the `credentialspec` option.
+The `credentialspec` must be in the format `file://spec.txt` or `registry://keyname`.
 
 ### Stop container with timeout (--stop-timeout)
 
@@ -673,7 +682,7 @@ network namespace, run this command:
 
 
 > **Note**: Not all sysctls are namespaced. Docker does not support changing sysctls
-> inside of a container that also modify the host system. As the kernel 
+> inside of a container that also modify the host system. As the kernel
 > evolves we expect to see more sysctls become namespaced.
 
 #### Currently supported sysctls

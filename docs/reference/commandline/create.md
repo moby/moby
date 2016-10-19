@@ -4,6 +4,15 @@ description: "The create command description and usage"
 keywords: ["docker, create, container"]
 ---
 
+<!-- This file is maintained within the docker/docker Github
+     repository at https://github.com/docker/docker/. Make all
+     pull requests against that repo. If you see this file in
+     another repository, consider it read-only there, as it will
+     periodically be overwritten by the definitive file. Pull
+     requests which include edits to this file in other repositories
+     will be rejected.
+-->
+
 # create
 
 Creates a new container.
@@ -167,7 +176,7 @@ Set storage driver options per container.
 
     $ docker create -it --storage-opt size=120G fedora /bin/bash
 
-This (size) will allow to set the container rootfs size to 120G at creation time. 
+This (size) will allow to set the container rootfs size to 120G at creation time.
 This option is only available for the `devicemapper`, `btrfs`, `overlay2`,
 `windowsfilter` and `zfs` graph drivers.
 For the `devicemapper`, `btrfs`, `windowsfilter` and `zfs` graph drivers,

@@ -4,6 +4,15 @@ description: "The cp command description and usage"
 keywords: ["copy, container, files, folders"]
 ---
 
+<!-- This file is maintained within the docker/docker Github
+     repository at https://github.com/docker/docker/. Make all
+     pull requests against that repo. If you see this file in
+     another repository, consider it read-only there, as it will
+     periodically be overwritten by the definitive file. Pull
+     requests which include edits to this file in other repositories
+     will be rejected.
+-->
+
 # cp
 
 ```markdown
@@ -29,7 +38,7 @@ either the `SRC_PATH` or `DEST_PATH`, you can also stream a tar archive from
 `STDIN` or to `STDOUT`. The `CONTAINER` can be a running or stopped container.
 The `SRC_PATH` or `DEST_PATH` can be a file or directory.
 
-The `docker cp` command assumes container paths are relative to the container's 
+The `docker cp` command assumes container paths are relative to the container's
 `/` (root) directory. This means supplying the initial forward slash is optional;
 The command sees `compassionate_darwin:/tmp/foo/myfile.txt` and
 `compassionate_darwin:tmp/foo/myfile.txt` as identical. Local machine paths can
@@ -74,7 +83,7 @@ argument of `DEST_PATH`, the behavior is as follows:
 
 The command requires `SRC_PATH` and `DEST_PATH` to exist according to the above
 rules. If `SRC_PATH` is local and is a symbolic link, the symbolic link, not
-the target, is copied by default. To copy the link target and not the link, specify 
+the target, is copied by default. To copy the link target and not the link, specify
 the `-L` option.
 
 A colon (`:`) is used as a delimiter between `CONTAINER` and its path. You can

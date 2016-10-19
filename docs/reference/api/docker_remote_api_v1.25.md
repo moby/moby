@@ -4,6 +4,15 @@ description: "API Documentation for Docker"
 keywords: ["API, Docker, rcli, REST,  documentation"]
 ---
 
+<!-- This file is maintained within the docker/docker Github
+     repository at https://github.com/docker/docker/. Make all
+     pull requests against that repo. If you see this file in
+     another repository, consider it read-only there, as it will
+     periodically be overwritten by the definitive file. Pull
+     requests which include edits to this file in other repositories
+     will be rejected.
+-->
+
 # Docker Remote API v1.25
 
 # 1. Brief introduction
@@ -825,7 +834,9 @@ Get `stdout` and `stderr` logs from the container ``id``
      Connection: Upgrade
      Upgrade: tcp
 
+     {% raw %}
      {{ STREAM }}
+     {% endraw %}
 
 **Query parameters**:
 
@@ -903,7 +914,9 @@ Export the contents of container `id`
     HTTP/1.1 200 OK
     Content-Type: application/octet-stream
 
+    {% raw %}
     {{ TAR STREAM }}
+    {% endraw %}
 
 **Status codes**:
 
@@ -1289,7 +1302,9 @@ Attach to the container `id`
     Connection: Upgrade
     Upgrade: tcp
 
+    {% raw %}
     {{ STREAM }}
+    {% endraw %}
 
 **Query parameters**:
 
@@ -1373,7 +1388,9 @@ Implements websocket protocol handshake according to [RFC 6455](http://tools.iet
 
 **Example response**
 
+    {% raw %}
     {{ STREAM }}
+    {% endraw %}
 
 **Query parameters**:
 
@@ -1487,7 +1504,9 @@ Get a tar archive of a resource in the filesystem of container `id`.
     Content-Type: application/x-tar
     X-Docker-Container-Path-Stat: eyJuYW1lIjoicm9vdCIsInNpemUiOjQwOTYsIm1vZGUiOjIxNDc0ODQwOTYsIm10aW1lIjoiMjAxNC0wMi0yN1QyMDo1MToyM1oiLCJsaW5rVGFyZ2V0IjoiIn0=
 
+    {% raw %}
     {{ TAR STREAM }}
+    {% endraw %}
 
 On success, a response header `X-Docker-Container-Path-Stat` will be set to a
 base64-encoded JSON object containing some filesystem header information about
@@ -1542,7 +1561,9 @@ Upload a tar archive to be extracted to a path in the filesystem of container
     PUT /containers/8cce319429b2/archive?path=/vol1 HTTP/1.1
     Content-Type: application/x-tar
 
+    {% raw %}
     {{ TAR STREAM }}
+    {% endraw %}
 
 **Example response**:
 
@@ -1702,7 +1723,9 @@ Build an image from a Dockerfile
 
     POST /build HTTP/1.1
 
+    {% raw %}
     {{ TAR STREAM }}
+    {% endraw %}
 
 **Example response**:
 
@@ -3217,7 +3240,9 @@ interactive session with the `exec` command.
     HTTP/1.1 200 OK
     Content-Type: application/vnd.docker.raw-stream
 
+    {% raw %}
     {{ STREAM }}
+    {% endraw %}
 
 **JSON parameters**:
 

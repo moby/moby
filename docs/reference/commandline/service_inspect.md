@@ -4,6 +4,15 @@ description: "The service inspect command description and usage"
 keywords: ["service, inspect"]
 ---
 
+<!-- This file is maintained within the docker/docker Github
+     repository at https://github.com/docker/docker/. Make all
+     pull requests against that repo. If you see this file in
+     another repository, consider it read-only there, as it will
+     periodically be overwritten by the definitive file. Pull
+     requests which include edits to this file in other repositories
+     will be rejected.
+-->
+
 # service inspect
 
 ```Markdown
@@ -136,10 +145,10 @@ The `--format` option can be used to obtain specific information about a
 service. For example, the following command outputs the number of replicas
 of the "redis" service.
 
-```bash
+```bash{% raw %}
 $ docker service inspect --format='{{.Spec.Mode.Replicated.Replicas}}' redis
 10
-```
+{% endraw %}```
 
 
 ## Related information
