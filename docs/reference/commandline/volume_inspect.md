@@ -1,12 +1,9 @@
-<!--[metadata]>
-+++
-title = "volume inspect"
-description = "The volume inspect command description and usage"
-keywords = ["volume, inspect"]
-[menu.main]
-parent = "smn_cli"
-+++
-<![end-metadata]-->
+---
+description: The volume inspect command description and usage
+keywords:
+- volume, inspect
+title: volume inspect
+---
 
 # volume inspect
 
@@ -40,8 +37,10 @@ Example output:
       }
     ]
 
+    {% raw %}
     $ docker volume inspect --format '{{ .Mountpoint }}' 85bffb0677236974f93955d8ecc4df55ef5070117b0e53333cc1b443777be24d
     /var/lib/docker/volumes/85bffb0677236974f93955d8ecc4df55ef5070117b0e53333cc1b443777be24d/_data
+    {% endraw %}
 
 ## Related information
 

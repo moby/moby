@@ -1,13 +1,12 @@
-<!--[metadata]>
-+++
-title = "Dockerfile reference"
-description = "Dockerfiles use a simple DSL which allows you to automate the steps you would normally manually take to create an image."
-keywords = ["builder, docker, Dockerfile, automation,  image creation"]
-[menu.main]
-parent = "engine_ref"
-weight=-90
-+++
-<![end-metadata]-->
+---
+aliases:
+  - /reference/builder/
+description: Dockerfiles use a simple DSL which allows you to automate the steps you
+  would normally manually take to create an image.
+keywords:
+- builder, docker, Dockerfile, automation,  image creation
+title: Dockerfile reference
+---
 
 # Dockerfile reference
 
@@ -120,7 +119,7 @@ instruction must be \`FROM\`** in order to specify the [*Base
 Image*](glossary.md#base-image) from which you are building.
 
 Docker treats lines that *begin* with `#` as a comment, unless the line is
-a valid [parser directive](builder.md#parser-directives). A `#` marker anywhere
+a valid [parser directive](#parser-directives). A `#` marker anywhere
 else in a line is treated as an argument. This allows statements like:
 
 ```Dockerfile
@@ -502,7 +501,7 @@ default is `/bin/sh -c` on Linux or `cmd /S /C` on Windows)
 - `RUN ["executable", "param1", "param2"]` (*exec* form)
 
 The `RUN` instruction will execute any commands in a new layer on top of the
-current image and commit the results. The resulting comitted image will be
+current image and commit the results. The resulting committed image will be
 used for the next step in the `Dockerfile`.
 
 Layering `RUN` instructions and generating commits conforms to the core
@@ -1247,9 +1246,9 @@ The output of the final `pwd` command in this `Dockerfile` would be
     ARG <name>[=<default value>]
 
 The `ARG` instruction defines a variable that users can pass at build-time to
-the builder with the `docker build` command using the `--build-arg
-<varname>=<value>` flag. If a user specifies a build argument that was not
-defined in the Dockerfile, the build outputs an error.
+the builder with the `docker build` command using the
+`--build-arg <varname>=<value>` flag. If a user specifies a build argument
+that was not defined in the Dockerfile, the build outputs an error.
 
 ```
 One or more build-args were not consumed, failing build.
@@ -1362,8 +1361,11 @@ corresponding `ARG` instruction in the Dockerfile.
 * `NO_PROXY`
 * `no_proxy`
 
-To use these, simply pass them on the command line using the `--build-arg
-<varname>=<value>` flag.
+To use these, simply pass them on the command line using the flag:
+
+```
+--build-arg <varname>=<value>
+```
 
 ### Impact on build caching
 

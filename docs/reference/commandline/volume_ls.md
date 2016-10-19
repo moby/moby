@@ -1,12 +1,9 @@
-<!--[metadata]>
-+++
-title = "volume ls"
-description = "The volume ls command description and usage"
-keywords = ["volume, list"]
-[menu.main]
-parent = "smn_cli"
-+++
-<![end-metadata]-->
+---
+description: The volume ls command description and usage
+keywords:
+- volume, list
+title: volume ls
+---
 
 # volume ls
 
