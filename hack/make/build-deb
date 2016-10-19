@@ -72,23 +72,11 @@ set -e
 				&& ln -snf /usr/src/docker /go/src/github.com/docker/docker
 		EOF
 
-		echo "ENV RUNC_COMMIT $(grep "^RUNC_COMMIT" hack/dockerfile/install-binaries.sh | cut -d"=" -f 2)" >> "$DEST/$version/Dockerfile.build"
-		echo "ENV CONTAINERD_COMMIT $(grep "^CONTAINERD_COMMIT" hack/dockerfile/install-binaries.sh | cut -d"=" -f 2)" >> "$DEST/$version/Dockerfile.build"
-
-		# add runc and containerd compile and install
 		cat >> "$DEST/$version/Dockerfile.build" <<-EOF
-			# Install runc
-			RUN git clone https://github.com/opencontainers/runc.git "/go/src/github.com/opencontainers/runc" \
-					&& cd "/go/src/github.com/opencontainers/runc" \
-					&& git checkout -q "\$RUNC_COMMIT"
-			RUN set -x && export GOPATH="/go" && cd "/go/src/github.com/opencontainers/runc" \
-					&& make BUILDTAGS="\$RUNC_BUILDTAGS" && make install
-			# Install containerd
-			RUN git clone https://github.com/docker/containerd.git "/go/src/github.com/docker/containerd" \
-					&& cd "/go/src/github.com/docker/containerd" \
-					&& git checkout -q "\$CONTAINERD_COMMIT"
-			RUN set -x && export GOPATH="/go" && cd "/go/src/github.com/docker/containerd" && make && make install
+			# Install runc and containerd
+			RUN ./hack/dockerfile/install-binaries.sh runc-dynamic containerd-dynamic
 		EOF
+
 		if [ "$DOCKER_EXPERIMENTAL" ]; then
 			echo 'ENV DOCKER_EXPERIMENTAL 1' >> "$DEST/$version/Dockerfile.build"
 		fi
