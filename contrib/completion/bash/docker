@@ -1045,7 +1045,23 @@ _docker_container_diff() {
 }
 
 _docker_container_exec() {
-	_docker_exec
+	__docker_complete_detach-keys && return
+
+	case "$prev" in
+		--user|-u)
+			__docker_complete_user_group
+			return
+			;;
+	esac
+
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "--detach -d --detach-keys -e --env --help --interactive -i --privileged -t --tty -u --user" -- "$cur" ) )
+			;;
+		*)
+			__docker_complete_containers_running
+			;;
+	esac
 }
 
 _docker_container_export() {
@@ -1421,23 +1437,7 @@ _docker_events() {
 }
 
 _docker_exec() {
-	__docker_complete_detach-keys && return
-
-	case "$prev" in
-		--user|-u)
-			__docker_complete_user_group
-			return
-			;;
-	esac
-
-	case "$cur" in
-		-*)
-			COMPREPLY=( $( compgen -W "--detach -d --detach-keys -e --env --help --interactive -i --privileged -t --tty -u --user" -- "$cur" ) )
-			;;
-		*)
-			__docker_complete_containers_running
-			;;
-	esac
+	_docker_container_exec
 }
 
 _docker_export() {
