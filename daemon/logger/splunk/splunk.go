@@ -14,11 +14,11 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"regexp"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
-	"strings"
-	"regexp"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/logger"

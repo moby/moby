@@ -25,10 +25,10 @@ func TestValidateLogOpt(t *testing.T) {
 		splunkVerifyConnectionKey:     "true",
 		splunkGzipCompressionKey:      "true",
 		splunkGzipCompressionLevelKey: "1",
-		splunkEnvRegexKey: "findme",
-		envKey:    "a",
-		labelsKey: "b",
-		tagKey:    "c",
+		splunkEnvRegexKey:             "findme",
+		envKey:                        "a",
+		labelsKey:                     "b",
+		tagKey:                        "c",
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -45,11 +45,11 @@ func TestValidateLogOpt(t *testing.T) {
 func TestEnvByRegex(t *testing.T) {
 	ctx := logger.Context{
 		Config: map[string]string{
-		splunkEnvRegexKey:	"^FIND_",
+			splunkEnvRegexKey: "^FIND_",
 		},
-		ContainerEnv:       []string{"FIND_ME=HERE"},
+		ContainerEnv: []string{"FIND_ME=HERE"},
 	}
-	attrs,err := envByRegex(ctx)
+	attrs, err := envByRegex(ctx)
 	if err != nil {
 		t.Fatal("Failed with error", err)
 	}
