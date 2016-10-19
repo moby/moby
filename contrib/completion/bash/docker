@@ -1079,7 +1079,34 @@ _docker_container_export() {
 }
 
 _docker_container_inspect() {
-	_docker_inspect
+	case "$prev" in
+		--format|-f)
+			return
+			;;
+		--type)
+                     COMPREPLY=( $( compgen -W "image container" -- "$cur" ) )
+                     return
+                        ;;
+
+	esac
+
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "--format -f --help --size -s --type" -- "$cur" ) )
+			;;
+		*)
+			case $(__docker_value_of_option --type) in
+				'')
+					__docker_complete_containers_and_images
+					;;
+				container)
+					__docker_complete_containers_all
+					;;
+				image)
+					__docker_complete_images
+					;;
+			esac
+	esac
 }
 
 _docker_container_kill() {
@@ -1562,34 +1589,7 @@ _docker_info() {
 }
 
 _docker_inspect() {
-	case "$prev" in
-		--format|-f)
-			return
-			;;
-		--type)
-                     COMPREPLY=( $( compgen -W "image container" -- "$cur" ) )
-                     return
-                        ;;
-
-	esac
-
-	case "$cur" in
-		-*)
-			COMPREPLY=( $( compgen -W "--format -f --help --size -s --type" -- "$cur" ) )
-			;;
-		*)
-			case $(__docker_value_of_option --type) in
-				'')
-					__docker_complete_containers_and_images
-					;;
-				container)
-					__docker_complete_containers_all
-					;;
-				image)
-					__docker_complete_images
-					;;
-			esac
-	esac
+	_docker_container_inspect
 }
 
 _docker_kill() {
