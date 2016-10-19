@@ -56,6 +56,7 @@ dockerd - Enable daemon mode
 [**--registry-mirror**[=*[]*]]
 [**-s**|**--storage-driver**[=*STORAGE-DRIVER*]]
 [**--selinux-enabled**]
+[**--shutdown-timeout**[=*15*]]
 [**--storage-opt**[=*[]*]]
 [**--swarm-default-advertise-addr**[=*IP|INTERFACE*]]
 [**--tls**]
@@ -245,6 +246,9 @@ output otherwise.
 
 **--selinux-enabled**=*true*|*false*
   Enable selinux support. Default is false.
+
+**--shutdown-timeout**=*15*
+  Set the shutdown timeout value in seconds. Default is `15`.
 
 **--storage-opt**=[]
   Set storage driver options. See STORAGE DRIVER OPTIONS.
