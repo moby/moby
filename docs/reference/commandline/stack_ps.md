@@ -40,9 +40,9 @@ Multiple filter flags are combined as an `OR` filter. For example,
 
 The currently supported filters are:
 
-* [id](#id)
-* [name](#name)
-* [desired-state](#desired-state)
+* id
+* name
+* desired-state
 
 ## Related information
 
