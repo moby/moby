@@ -42,7 +42,7 @@ type stateBackend interface {
 	ContainerStart(name string, hostConfig *container.HostConfig, validateHostname bool, checkpoint string, checkpointDir string) error
 	ContainerStop(name string, seconds *int) error
 	ContainerUnpause(name string) error
-	ContainerUpdate(name string, hostConfig *container.HostConfig, validateHostname bool) (types.ContainerUpdateResponse, error)
+	ContainerUpdate(name string, hostConfig *container.HostConfig, validateHostname bool) (container.ContainerUpdateOKBody, error)
 	ContainerWait(name string, timeout time.Duration) (int, error)
 }
 

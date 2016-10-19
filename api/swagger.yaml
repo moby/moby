@@ -3422,14 +3422,12 @@ paths:
     post:
       summary: "Update a container"
       description: "Change various configuration options of a container without having to recreate it."
-      operationId: "PostContainerUpdate"
-      consumes:
-        - "application/json"
-      produces:
-        - "application/json"
+      operationId: "ContainerUpdate"
+      consumes: ["application/json"]
+      produces: ["application/json"]
       responses:
         200:
-          description: "no error"
+          description: "The container has been updated."
           schema:
             type: "object"
             properties:

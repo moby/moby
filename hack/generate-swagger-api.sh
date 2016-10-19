@@ -15,4 +15,5 @@ swagger generate operation -f api/swagger.yaml \
     -T api/templates --skip-responses --skip-parameters --skip-validator \
     -n VolumesList \
     -n VolumesCreate \
-    -n ContainerCreate
+    -n ContainerCreate \
+    -n ContainerUpdate
