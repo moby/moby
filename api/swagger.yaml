@@ -4937,14 +4937,7 @@ paths:
         201:
           description: "no error"
           schema:
-            type: "object"
-            properties:
-              Id:
-                description: "The ID of the image created"
-                type: "string"
-          examples:
-            application/json:
-              Id: "596069db4bf5"
+            $ref: "#/definitions/IdResponse"
         404:
           description: "no such container"
           schema:

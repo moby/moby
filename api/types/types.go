@@ -38,12 +38,6 @@ type ContainerWaitResponse struct {
 	StatusCode int `json:"StatusCode"`
 }
 
-// ContainerCommitResponse contains response of Remote API:
-// POST "/commit?container="+containerID
-type ContainerCommitResponse struct {
-	ID string `json:"Id"`
-}
-
 // ContainerChange contains response of Remote API:
 // GET "/containers/{name:.*}/changes"
 type ContainerChange struct {

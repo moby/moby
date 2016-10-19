@@ -67,7 +67,7 @@ func TestContainerCommit(t *testing.T) {
 			if len(changes) != len(expectedChanges) {
 				return nil, fmt.Errorf("expected container changes size to be '%d', got %d", len(expectedChanges), len(changes))
 			}
-			b, err := json.Marshal(types.ContainerCommitResponse{
+			b, err := json.Marshal(types.IDResponse{
 				ID: "new_container_id",
 			})
 			if err != nil {
