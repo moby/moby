@@ -2,13 +2,12 @@ package main
 
 import (
 	"encoding/binary"
+	"log"
 	"net"
 	"strings"
 	"sync"
 	"syscall"
 	"time"
-
-	"github.com/Sirupsen/logrus"
 )
 
 const (
@@ -112,7 +111,7 @@ func (proxy *UDPProxy) Run() {
 			// ECONNREFUSED like Read do (see comment in
 			// UDPProxy.replyLoop)
 			if !isClosedError(err) {
-				logrus.Printf("Stopping proxy on udp/%v for udp/%v (%s)", proxy.frontendAddr, proxy.backendAddr, err)
+				log.Printf("Stopping proxy on udp/%v for udp/%v (%s)", proxy.frontendAddr, proxy.backendAddr, err)
 			}
 			break
 		}
@@ -123,7 +122,7 @@ func (proxy *UDPProxy) Run() {
 		if !hit {
 			proxyConn, err = net.DialUDP("udp", nil, proxy.backendAddr)
 			if err != nil {
-				logrus.Printf("Can't proxy a datagram to udp/%s: %s\n", proxy.backendAddr, err)
+				log.Printf("Can't proxy a datagram to udp/%s: %s\n", proxy.backendAddr, err)
 				proxy.connTrackLock.Unlock()
 				continue
 			}
@@ -134,7 +133,7 @@ func (proxy *UDPProxy) Run() {
 		for i := 0; i != read; {
 			written, err := proxyConn.Write(readBuf[i:read])
 			if err != nil {
-				logrus.Printf("Can't proxy a datagram to udp/%s: %s\n", proxy.backendAddr, err)
+				log.Printf("Can't proxy a datagram to udp/%s: %s\n", proxy.backendAddr, err)
 				break
 			}
 			i += written
