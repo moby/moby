@@ -32,9 +32,9 @@ Multiple filter flags are combined as an `OR` filter. For example,
 
 The currently supported filters are:
 
-* [id](stack_ps.md#id)
-* [name](stack_ps.md#name)
-* [desired-state](stack_ps.md#desired-state)
+* id
+* name
+* desired-state
 
 ## Related information
 
