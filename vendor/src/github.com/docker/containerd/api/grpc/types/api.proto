@@ -73,7 +73,7 @@ message AddProcessRequest {
 	User user = 3; // User under which process will be run
 	repeated string args = 4; // Arguments for process, first is binary path itself
 	repeated string env = 5; // List of environment variables for process
-	string cwd = 6; // Workind directory of process
+	string cwd = 6; // Working directory of process
 	string pid = 7; // Process ID
 	string stdin = 8; // path to the file where stdin will be read (optional)
 	string stdout = 9; // path to file where stdout will be written (optional)
@@ -98,6 +98,7 @@ message User {
 }
 
 message AddProcessResponse {
+	uint32 systemPid = 1;
 }
 
 message CreateCheckpointRequest {
@@ -150,7 +151,7 @@ message Process {
 	User user = 3; // User under which process will be run
 	repeated string args = 4; // Arguments for process, first is binary path itself
 	repeated string env = 5; // List of environment variables for process
-	string cwd = 6; // Workind directory of process
+	string cwd = 6; // Working directory of process
 	uint32 systemPid = 7;
 	string stdin = 8; // path to the file where stdin will be read (optional)
 	string stdout = 9; // path to file where stdout will be written (optional)

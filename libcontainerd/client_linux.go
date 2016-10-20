@@ -30,17 +30,20 @@ type client struct {
 	liveRestore   bool
 }
 
-func (clnt *client) AddProcess(ctx context.Context, containerID, processFriendlyName string, specp Process) error {
+// AddProcess is the handler for adding a process to an already running
+// container. It's called through docker exec. It returns the system pid of the
+// exec'd process.
+func (clnt *client) AddProcess(ctx context.Context, containerID, processFriendlyName string, specp Process) (int, error) {
 	clnt.lock(containerID)
 	defer clnt.unlock(containerID)
 	container, err := clnt.getContainer(containerID)
 	if err != nil {
-		return err
+		return -1, err
 	}
 
 	spec, err := container.spec()
 	if err != nil {
-		return err
+		return -1, err
 	}
 	sp := spec.Process
 	sp.Args = specp.Args
@@ -88,12 +91,13 @@ func (clnt *client) AddProcess(ctx context.Context, containerID, processFriendly
 
 	iopipe, err := p.openFifos(sp.Terminal)
 	if err != nil {
-		return err
+		return -1, err
 	}
 
-	if _, err := clnt.remote.apiClient.AddProcess(ctx, r); err != nil {
+	resp, err := clnt.remote.apiClient.AddProcess(ctx, r)
+	if err != nil {
 		p.closeFifos(iopipe)
-		return err
+		return -1, err
 	}
 
 	container.processes[processFriendlyName] = p
@@ -102,11 +106,11 @@ func (clnt *client) AddProcess(ctx context.Context, containerID, processFriendly
 
 	if err := clnt.backend.AttachStreams(processFriendlyName, *iopipe); err != nil {
 		clnt.lock(containerID)
-		return err
+		return -1, err
 	}
 	clnt.lock(containerID)
 
-	return nil
+	return int(resp.SystemPid), nil
 }
 
 func (clnt *client) prepareBundleDir(uid, gid int) (string, error) {
