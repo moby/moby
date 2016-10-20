@@ -1280,7 +1280,22 @@ _docker_container_restart() {
 }
 
 _docker_container_rm() {
-	_docker_rm
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "--force -f --help --link -l --volumes -v" -- "$cur" ) )
+			;;
+		*)
+			for arg in "${COMP_WORDS[@]}"; do
+				case "$arg" in
+					--force|-f)
+						__docker_complete_containers_all
+						return
+						;;
+				esac
+			done
+			__docker_complete_containers_stopped
+			;;
+	esac
 }
 
 _docker_container_run() {
@@ -2538,22 +2553,7 @@ _docker_restart() {
 }
 
 _docker_rm() {
-	case "$cur" in
-		-*)
-			COMPREPLY=( $( compgen -W "--force -f --help --link -l --volumes -v" -- "$cur" ) )
-			;;
-		*)
-			for arg in "${COMP_WORDS[@]}"; do
-				case "$arg" in
-					--force|-f)
-						__docker_complete_containers_all
-						return
-						;;
-				esac
-			done
-			__docker_complete_containers_stopped
-			;;
-	esac
+	_docker_container_rm
 }
 
 _docker_rmi() {
