@@ -1249,7 +1249,17 @@ _docker_container_ps() {
 }
 
 _docker_container_rename() {
-	_docker_rename
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "--help" -- "$cur" ) )
+			;;
+		*)
+			local counter=$(__docker_pos_first_nonflag)
+			if [ $cword -eq $counter ]; then
+				__docker_complete_containers_all
+			fi
+			;;
+	esac
 }
 
 _docker_container_restart() {
@@ -2507,17 +2517,7 @@ _docker_push() {
 }
 
 _docker_rename() {
-	case "$cur" in
-		-*)
-			COMPREPLY=( $( compgen -W "--help" -- "$cur" ) )
-			;;
-		*)
-			local counter=$(__docker_pos_first_nonflag)
-			if [ $cword -eq $counter ]; then
-				__docker_complete_containers_all
-			fi
-			;;
-	esac
+	_docker_container_rename
 }
 
 _docker_restart() {
