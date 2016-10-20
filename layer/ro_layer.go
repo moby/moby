@@ -8,6 +8,12 @@ import (
 	"github.com/docker/distribution/digest"
 )
 
+var _ distribution.Describable = &roLayer{}
+
+func (rl *roLayer) Descriptor() distribution.Descriptor {
+	return rl.descriptor
+}
+
 type roLayer struct {
 	chainID    ChainID
 	diffID     DiffID
