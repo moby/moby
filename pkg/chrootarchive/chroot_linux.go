@@ -62,13 +62,6 @@ func chroot(path string) (err error) {
 				err = errCleanup
 			}
 		}
-
-		if errCleanup := syscall.Unmount("/", syscall.MNT_DETACH); errCleanup != nil {
-			if err == nil {
-				err = fmt.Errorf("error unmounting root: %v", errCleanup)
-			}
-			return
-		}
 	}()
 
 	if err := syscall.PivotRoot(path, pivotDir); err != nil {
