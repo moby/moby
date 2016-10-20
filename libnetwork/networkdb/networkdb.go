@@ -107,8 +107,9 @@ type network struct {
 	// Node leave is in progress.
 	leaving bool
 
-	// The time this node knew about the node's network leave.
-	leaveTime time.Time
+	// Number of seconds still left before a deleted network entry gets
+	// removed from networkDB
+	reapTime time.Duration
 
 	// The broadcast queue for table event gossip. This is only
 	// initialized for this node's network attachment entries.
@@ -153,8 +154,9 @@ type entry struct {
 	// the cluster for certain amount of time after deletion.
 	deleting bool
 
-	// The wall clock time when this node learned about this deletion.
-	deleteTime time.Time
+	// Number of seconds still left before a deleted table entry gets
+	// removed from networkDB
+	reapTime time.Duration
 }
 
 // New creates a new instance of NetworkDB using the Config passed by
@@ -286,11 +288,11 @@ func (nDB *NetworkDB) DeleteEntry(tname, nid, key string) error {
 	}
 
 	entry := &entry{
-		ltime:      nDB.tableClock.Increment(),
-		node:       nDB.config.NodeName,
-		value:      value,
-		deleting:   true,
-		deleteTime: time.Now(),
+		ltime:    nDB.tableClock.Increment(),
+		node:     nDB.config.NodeName,
+		value:    value,
+		deleting: true,
+		reapTime: reapInterval,
 	}
 
 	if err := nDB.sendTableEvent(TableEventTypeDelete, nid, tname, key, entry); err != nil {
@@ -339,11 +341,11 @@ func (nDB *NetworkDB) deleteNodeTableEntries(node string) {
 		key := params[2]
 
 		entry := &entry{
-			ltime:      oldEntry.ltime,
-			node:       node,
-			value:      oldEntry.value,
-			deleting:   true,
-			deleteTime: time.Now(),
+			ltime:    oldEntry.ltime,
+			node:     node,
+			value:    oldEntry.value,
+			deleting: true,
+			reapTime: reapInterval,
 		}
 
 		nDB.indexes[byTable].Insert(fmt.Sprintf("/%s/%s/%s", tname, nid, key), entry)
