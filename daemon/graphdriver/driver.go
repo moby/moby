@@ -3,6 +3,7 @@ package graphdriver
 import (
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -82,7 +83,7 @@ type Driver interface {
 	ProtoDriver
 	// Diff produces an archive of the changes between the specified
 	// layer and its parent layer which may be "".
-	Diff(id, parent string) (archive.Archive, error)
+	Diff(id, parent string) (io.ReadCloser, error)
 	// Changes produces a list of changes between the specified layer
 	// and its parent layer. If parent is "", then all changes will be ADD changes.
 	Changes(id, parent string) ([]archive.Change, error)
@@ -90,7 +91,7 @@ type Driver interface {
 	// layer with the specified id and parent, returning the size of the
 	// new layer in bytes.
 	// The archive.Reader must be an uncompressed stream.
-	ApplyDiff(id, parent string, diff archive.Reader) (size int64, err error)
+	ApplyDiff(id, parent string, diff io.Reader) (size int64, err error)
 	// DiffSize calculates the changes between the specified id
 	// and its parent and returns the size in bytes of the changes
 	// relative to its base filesystem directory.

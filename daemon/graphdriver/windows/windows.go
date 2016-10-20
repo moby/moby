@@ -331,7 +331,7 @@ func (d *Driver) Cleanup() error {
 // Diff produces an archive of the changes between the specified
 // layer and its parent layer which may be "".
 // The layer should be mounted when calling this function
-func (d *Driver) Diff(id, parent string) (_ archive.Archive, err error) {
+func (d *Driver) Diff(id, parent string) (_ io.ReadCloser, err error) {
 	rID, err := d.resolveID(id)
 	if err != nil {
 		return
@@ -423,7 +423,7 @@ func (d *Driver) Changes(id, parent string) ([]archive.Change, error) {
 // layer with the specified id and parent, returning the size of the
 // new layer in bytes.
 // The layer should not be mounted when calling this function
-func (d *Driver) ApplyDiff(id, parent string, diff archive.Reader) (int64, error) {
+func (d *Driver) ApplyDiff(id, parent string, diff io.Reader) (int64, error) {
 	var layerChain []string
 	if parent != "" {
 		rPId, err := d.resolveID(parent)
@@ -514,7 +514,7 @@ func writeTarFromLayer(r hcsshim.LayerReader, w io.Writer) error {
 }
 
 // exportLayer generates an archive from a layer based on the given ID.
-func (d *Driver) exportLayer(id string, parentLayerPaths []string) (archive.Archive, error) {
+func (d *Driver) exportLayer(id string, parentLayerPaths []string) (io.ReadCloser, error) {
 	archive, w := io.Pipe()
 	go func() {
 		err := winio.RunWithPrivilege(winio.SeBackupPrivilege, func() error {
@@ -577,7 +577,7 @@ func writeBackupStreamFromTarAndSaveMutatedFiles(buf *bufio.Writer, w io.Writer,
 	return backuptar.WriteBackupStreamFromTarFile(buf, t, hdr)
 }
 
-func writeLayerFromTar(r archive.Reader, w hcsshim.LayerWriter, root string) (int64, error) {
+func writeLayerFromTar(r io.Reader, w hcsshim.LayerWriter, root string) (int64, error) {
 	t := tar.NewReader(r)
 	hdr, err := t.Next()
 	totalSize := int64(0)
@@ -622,7 +622,7 @@ func writeLayerFromTar(r archive.Reader, w hcsshim.LayerWriter, root string) (in
 }
 
 // importLayer adds a new layer to the tag and graph store based on the given data.
-func (d *Driver) importLayer(id string, layerData archive.Reader, parentLayerPaths []string) (size int64, err error) {
+func (d *Driver) importLayer(id string, layerData io.Reader, parentLayerPaths []string) (size int64, err error) {
 	cmd := reexec.Command(append([]string{"docker-windows-write-layer", d.info.HomeDir, id}, parentLayerPaths...)...)
 	output := bytes.NewBuffer(nil)
 	cmd.Stdin = layerData

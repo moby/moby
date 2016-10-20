@@ -89,7 +89,12 @@ func DetectContextFromRemoteURL(r io.ReadCloser, remoteURL string, createProgres
 				dockerfileName = DefaultDockerfileName
 
 				// TODO: return a context without tarsum
-				return archive.Generate(dockerfileName, string(dockerfile))
+				r, err := archive.Generate(dockerfileName, string(dockerfile))
+				if err != nil {
+					return nil, err
+				}
+
+				return ioutil.NopCloser(r), nil
 			},
 			// fallback handler (tar context)
 			"": func(rc io.ReadCloser) (io.ReadCloser, error) {

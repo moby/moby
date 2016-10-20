@@ -5,6 +5,7 @@ package graphdriver
 import (
 	"errors"
 	"fmt"
+	"io"
 
 	"github.com/docker/docker/pkg/archive"
 )
@@ -170,7 +171,7 @@ func (d *graphDriverProxy) Cleanup() error {
 	return nil
 }
 
-func (d *graphDriverProxy) Diff(id, parent string) (archive.Archive, error) {
+func (d *graphDriverProxy) Diff(id, parent string) (io.ReadCloser, error) {
 	args := &graphDriverRequest{
 		ID:     id,
 		Parent: parent,
@@ -179,7 +180,7 @@ func (d *graphDriverProxy) Diff(id, parent string) (archive.Archive, error) {
 	if err != nil {
 		return nil, err
 	}
-	return archive.Archive(body), nil
+	return body, nil
 }
 
 func (d *graphDriverProxy) Changes(id, parent string) ([]archive.Change, error) {
@@ -198,7 +199,7 @@ func (d *graphDriverProxy) Changes(id, parent string) ([]archive.Change, error) 
 	return ret.Changes, nil
 }
 
-func (d *graphDriverProxy) ApplyDiff(id, parent string, diff archive.Reader) (int64, error) {
+func (d *graphDriverProxy) ApplyDiff(id, parent string, diff io.Reader) (int64, error) {
 	var ret graphDriverResponse
 	if err := d.client.SendFile(fmt.Sprintf("GraphDriver.ApplyDiff?id=%s&parent=%s", id, parent), diff, &ret); err != nil {
 		return -1, err

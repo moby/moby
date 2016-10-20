@@ -27,10 +27,6 @@ import (
 )
 
 type (
-	// Archive is a type of io.ReadCloser which has two interfaces Read and Closer.
-	Archive io.ReadCloser
-	// Reader is a type of io.Reader.
-	Reader io.Reader
 	// Compression is the state represents if compressed or not.
 	Compression int
 	// WhiteoutFormat is the format of whiteouts unpacked
@@ -39,6 +35,7 @@ type (
 	TarChownOptions struct {
 		UID, GID int
 	}
+
 	// TarOptions wraps the tar options.
 	TarOptions struct {
 		IncludeFiles     []string
@@ -1106,7 +1103,7 @@ func cmdStream(cmd *exec.Cmd, input io.Reader) (io.ReadCloser, <-chan struct{}, 
 // NewTempArchive reads the content of src into a temporary file, and returns the contents
 // of that file as an archive. The archive can only be read once - as soon as reading completes,
 // the file will be deleted.
-func NewTempArchive(src Archive, dir string) (*TempArchive, error) {
+func NewTempArchive(src io.Reader, dir string) (*TempArchive, error) {
 	f, err := ioutil.TempFile(dir, "")
 	if err != nil {
 		return nil, err

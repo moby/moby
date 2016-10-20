@@ -88,13 +88,13 @@ func SplitPathDirEntry(path string) (dir, base string) {
 // This function acts as a convenient wrapper around TarWithOptions, which
 // requires a directory as the source path. TarResource accepts either a
 // directory or a file path and correctly sets the Tar options.
-func TarResource(sourceInfo CopyInfo) (content Archive, err error) {
+func TarResource(sourceInfo CopyInfo) (content io.ReadCloser, err error) {
 	return TarResourceRebase(sourceInfo.Path, sourceInfo.RebaseName)
 }
 
 // TarResourceRebase is like TarResource but renames the first path element of
 // items in the resulting tar archive to match the given rebaseName if not "".
-func TarResourceRebase(sourcePath, rebaseName string) (content Archive, err error) {
+func TarResourceRebase(sourcePath, rebaseName string) (content io.ReadCloser, err error) {
 	sourcePath = normalizePath(sourcePath)
 	if _, err = os.Lstat(sourcePath); err != nil {
 		// Catches the case where the source does not exist or is not a
@@ -241,7 +241,7 @@ func CopyInfoDestinationPath(path string) (info CopyInfo, err error) {
 // contain the archived resource described by srcInfo, to the destination
 // described by dstInfo. Returns the possibly modified content archive along
 // with the path to the destination directory which it should be extracted to.
-func PrepareArchiveCopy(srcContent Reader, srcInfo, dstInfo CopyInfo) (dstDir string, content Archive, err error) {
+func PrepareArchiveCopy(srcContent io.Reader, srcInfo, dstInfo CopyInfo) (dstDir string, content io.ReadCloser, err error) {
 	// Ensure in platform semantics
 	srcInfo.Path = normalizePath(srcInfo.Path)
 	dstInfo.Path = normalizePath(dstInfo.Path)
@@ -304,7 +304,7 @@ func PrepareArchiveCopy(srcContent Reader, srcInfo, dstInfo CopyInfo) (dstDir st
 
 // RebaseArchiveEntries rewrites the given srcContent archive replacing
 // an occurrence of oldBase with newBase at the beginning of entry names.
-func RebaseArchiveEntries(srcContent Reader, oldBase, newBase string) Archive {
+func RebaseArchiveEntries(srcContent io.Reader, oldBase, newBase string) io.ReadCloser {
 	if oldBase == string(os.PathSeparator) {
 		// If oldBase specifies the root directory, use an empty string as
 		// oldBase instead so that newBase doesn't replace the path separator
@@ -380,7 +380,7 @@ func CopyResource(srcPath, dstPath string, followLink bool) error {
 
 // CopyTo handles extracting the given content whose
 // entries should be sourced from srcInfo to dstPath.
-func CopyTo(content Reader, srcInfo CopyInfo, dstPath string) error {
+func CopyTo(content io.Reader, srcInfo CopyInfo, dstPath string) error {
 	// The destination path need not exist, but CopyInfoDestinationPath will
 	// ensure that at least the parent directory exists.
 	dstInfo, err := CopyInfoDestinationPath(normalizePath(dstPath))

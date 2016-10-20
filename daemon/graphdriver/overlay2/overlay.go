@@ -6,6 +6,7 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -536,7 +537,7 @@ func (d *Driver) Exists(id string) bool {
 }
 
 // ApplyDiff applies the new layer into a root
-func (d *Driver) ApplyDiff(id string, parent string, diff archive.Reader) (size int64, err error) {
+func (d *Driver) ApplyDiff(id string, parent string, diff io.Reader) (size int64, err error) {
 	applyDir := d.getDiffPath(id)
 
 	logrus.Debugf("Applying tar in %s", applyDir)
@@ -567,7 +568,7 @@ func (d *Driver) DiffSize(id, parent string) (size int64, err error) {
 
 // Diff produces an archive of the changes between the specified
 // layer and its parent layer which may be "".
-func (d *Driver) Diff(id, parent string) (archive.Archive, error) {
+func (d *Driver) Diff(id, parent string) (io.ReadCloser, error) {
 	diffPath := d.getDiffPath(id)
 	logrus.Debugf("Tar with options on %s", diffPath)
 	return archive.TarWithOptions(diffPath, &archive.TarOptions{

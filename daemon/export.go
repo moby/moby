@@ -35,7 +35,7 @@ func (daemon *Daemon) ContainerExport(name string, out io.Writer) error {
 	return nil
 }
 
-func (daemon *Daemon) containerExport(container *container.Container) (archive.Archive, error) {
+func (daemon *Daemon) containerExport(container *container.Container) (io.ReadCloser, error) {
 	if err := daemon.Mount(container); err != nil {
 		return nil, err
 	}

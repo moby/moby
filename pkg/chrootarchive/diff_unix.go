@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -81,7 +82,7 @@ func applyLayer() {
 // applyLayerHandler parses a diff in the standard layer format from `layer`, and
 // applies it to the directory `dest`. Returns the size in bytes of the
 // contents of the layer.
-func applyLayerHandler(dest string, layer archive.Reader, options *archive.TarOptions, decompress bool) (size int64, err error) {
+func applyLayerHandler(dest string, layer io.Reader, options *archive.TarOptions, decompress bool) (size int64, err error) {
 	dest = filepath.Clean(dest)
 	if decompress {
 		decompressed, err := archive.DecompressStream(layer)

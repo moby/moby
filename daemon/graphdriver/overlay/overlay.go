@@ -5,6 +5,7 @@ package overlay
 import (
 	"bufio"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -12,11 +13,9 @@ import (
 	"syscall"
 
 	"github.com/Sirupsen/logrus"
-
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/idtools"
-
 	"github.com/docker/docker/pkg/mount"
 	"github.com/opencontainers/runc/libcontainer/label"
 )
@@ -35,7 +34,7 @@ type ApplyDiffProtoDriver interface {
 	graphdriver.ProtoDriver
 	// ApplyDiff writes the diff to the archive for the given id and parent id.
 	// It returns the size in bytes written if successful, an error ErrApplyDiffFallback is returned otherwise.
-	ApplyDiff(id, parent string, diff archive.Reader) (size int64, err error)
+	ApplyDiff(id, parent string, diff io.Reader) (size int64, err error)
 }
 
 type naiveDiffDriverWithApply struct {
@@ -52,7 +51,7 @@ func NaiveDiffDriverWithApply(driver ApplyDiffProtoDriver, uidMaps, gidMaps []id
 }
 
 // ApplyDiff creates a diff layer with either the NaiveDiffDriver or with a fallback.
-func (d *naiveDiffDriverWithApply) ApplyDiff(id, parent string, diff archive.Reader) (int64, error) {
+func (d *naiveDiffDriverWithApply) ApplyDiff(id, parent string, diff io.Reader) (int64, error) {
 	b, err := d.applyDiff.ApplyDiff(id, parent, diff)
 	if err == ErrApplyDiffFallback {
 		return d.Driver.ApplyDiff(id, parent, diff)
@@ -386,7 +385,7 @@ func (d *Driver) Put(id string) error {
 }
 
 // ApplyDiff applies the new layer on top of the root, if parent does not exist with will return an ErrApplyDiffFallback error.
-func (d *Driver) ApplyDiff(id string, parent string, diff archive.Reader) (size int64, err error) {
+func (d *Driver) ApplyDiff(id string, parent string, diff io.Reader) (size int64, err error) {
 	dir := d.dir(id)
 
 	if parent == "" {
