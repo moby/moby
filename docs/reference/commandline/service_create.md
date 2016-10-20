@@ -118,7 +118,7 @@ $ docker service create \
 When you run a [service update](service_update.md), the scheduler updates a
 maximum of 2 tasks at a time, with `10s` between updates. For more information,
 refer to the [rolling updates
-tutorial](../../swarm/swarm-tutorial/rolling-update.md).
+tutorial](https://docs.docker.com/engine/swarm/swarm-tutorial/rolling-update/).
 
 ### Set environment variables (-e, --env)
 
@@ -142,7 +142,7 @@ $ docker service create \
 ```
 
 For more information about labels, refer to [apply custom
-metadata](../../userguide/labels-custom-metadata.md).
+metadata](https://docs.docker.com/engine/userguide/labels-custom-metadata/).
 
 ### Add bind-mounts or volumes
 
@@ -231,7 +231,7 @@ The following options can only be used for named volumes (`type=volume`);
 | Option                | Description
 |:----------------------|:--------------------------------------------------------------------------------------------------------------------
 | **volume-driver**     | Name of the volume-driver plugin to use for the volume. Defaults to ``"local"``, to use the local volume driver to create the volume if the volume does not exist.
-| **volume-label**      | One or more custom metadata ("labels") to apply to the volume upon creation. For example, `volume-label=mylabel=hello-world,my-other-label=hello-mars`. For more information about labels, refer to [apply custom metadata](../../userguide/labels-custom-metadata.md).
+| **volume-label**      | One or more custom metadata ("labels") to apply to the volume upon creation. For example, `volume-label=mylabel=hello-world,my-other-label=hello-mars`. For more information about labels, refer to [apply custom metadata](https://docs.docker.com/engine/userguide/labels-custom-metadata/).
 | **volume-nocopy**     | By default, if you attach an empty volume to a container, and files or directories already existed at the mount-path in the container (`dst`), the Engine copies those files and directories into the volume, allowing the host to access them. Set `volume-nocopy` to disables copying files from the container's filesystem to the volume and mount the empty volume.<br /><br />A value is optional:<ul><li>`true` or `1`: Default if you do not provide a value. Disables copying.</li><li>`false` or `0`: Enables copying.</li></ul>
 | **volume-opt**        | Options specific to a given volume driver, which will be passed to the driver when creating the volume. Options are provided as a comma-separated list of key/value pairs, for example, `volume-opt=some-option=some-value,some-other-option=some-other-value`. For available options for a given driver, refer to that driver's documentation.
 
@@ -390,7 +390,7 @@ $ docker service create \
 The swarm extends my-network to each node running the service.
 
 Containers on the same network can access each other using
-[service discovery](../../swarm/networking.md#use-swarm-mode-service-discovery).
+[service discovery](https://docs.docker.com/engine/swarm/networking/#use-swarm-mode-service-discovery).
 
 ### Publish service ports externally to the swarm (-p, --publish)
 
@@ -410,7 +410,7 @@ $ docker service create --name my_web --replicas 3 --publish 8080:80 nginx
 When you publish a service port, the swarm routing mesh makes the service
 accessible at the target port on every node regardless if there is a task for
 the service running on the node. For more information refer to
-[Use swarm mode routing mesh](../../swarm/ingress.md).
+[Use swarm mode routing mesh](https://docs.docker.com/engine/swarm/ingress/).
 
 ## Related information
 
