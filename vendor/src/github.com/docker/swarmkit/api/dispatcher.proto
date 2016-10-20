@@ -170,6 +170,23 @@ message AssignmentsRequest {
 	string session_id = 1 [(gogoproto.customname) = "SessionID"];
 }
 
+message Assignment {
+	oneof item {
+		Task task = 1;
+		Secret secret = 2;
+	}
+}
+
+message AssignmentChange {
+	enum AssignmentAction {
+		UPDATE = 0 [(gogoproto.enumvalue_customname) = "AssignmentActionUpdate"];
+		REMOVE = 1 [(gogoproto.enumvalue_customname) = "AssignmentActionRemove"];
+	}
+
+	Assignment assignment = 1;
+	AssignmentAction action = 2;
+}
+
 message AssignmentsMessage {
 	// AssignmentType specifies whether this assignment message carries
 	// the full state, or is an update to an existing state.
@@ -192,24 +209,6 @@ message AssignmentsMessage {
 	// against missed messages.
 	string results_in = 3;
 
-	// UpdateTasks is a set of new or updated tasks to run on this node.
-	// In the first assignments message, it contains all of the tasks
-	// to run on this node. Tasks outside of this set running on the node
-	// should be terminated.
-	repeated Task update_tasks = 4;
-
-	// RemoveTasks is a set of previously-assigned task IDs to remove from the
-	// assignment set. It is not used in the first assignments message of
-	// a stream.
-	repeated string remove_tasks = 5;
-
-	// UpdateSecrets is a set of new or updated secrets for this node.
-	// In the first assignments message, it contains all of the secrets
-	// the node needs for itself and its assigned tasks.
-	repeated Secret update_secrets = 6;
-
-	// RemoveSecrets is a set of previously-assigned secret names to remove
-	// from memory. It is not used in the first assignments message of
-	// a stream.
-	repeated string remove_secrets = 7;
+	// AssignmentChange is a set of changes to apply on this node.
+	repeated AssignmentChange changes = 4;
 }

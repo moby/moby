@@ -218,7 +218,12 @@ func (ps *Store) Handle(capability string, callback func(string, *plugins.Client
 
 	// Register callback with new plugin model.
 	ps.Lock()
-	ps.handlers[pluginType] = callback
+	handlers, ok := ps.handlers[pluginType]
+	if !ok {
+		handlers = []func(string, *plugins.Client){}
+	}
+	handlers = append(handlers, callback)
+	ps.handlers[pluginType] = handlers
 	ps.Unlock()
 
 	// Register callback with legacy plugin model.
@@ -230,7 +235,7 @@ func (ps *Store) Handle(capability string, callback func(string, *plugins.Client
 // CallHandler calls the registered callback. It is invoked during plugin enable.
 func (ps *Store) CallHandler(p *v2.Plugin) {
 	for _, typ := range p.GetTypes() {
-		if handler := ps.handlers[typ.String()]; handler != nil {
+		for _, handler := range ps.handlers[typ.String()] {
 			handler(p.Name(), p.Client())
 		}
 	}

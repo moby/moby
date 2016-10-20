@@ -447,8 +447,8 @@ message TaskStatus {
 // instructing Swarm on how this service should work on the particular
 // network.
 message NetworkAttachmentConfig {
-	// Target specifies the target network for attachment. This value may be a
-	// network name or identifier. Only identifiers are supported at this time.
+	// Target specifies the target network for attachment. This value must be a
+	// network ID.
 	string target = 1;
 	// Aliases specifies a list of discoverable alternate names for the service on this Target.
 	repeated string aliases = 2;

@@ -184,6 +184,10 @@ func New(config *Config) (*Manager, error) {
 			} else if err != nil {
 				return nil, err
 			}
+			if proto == "tcp" {
+				// in case of 0 port
+				tcpAddr = l.Addr().String()
+			}
 			listeners[proto] = l
 		}
 	}
@@ -197,7 +201,7 @@ func New(config *Config) (*Manager, error) {
 		raftCfg.HeartbeatTick = int(config.HeartbeatTick)
 	}
 
-	newNodeOpts := raft.NewNodeOptions{
+	newNodeOpts := raft.NodeOptions{
 		ID:              config.SecurityConfig.ClientTLSCreds.NodeID(),
 		Addr:            tcpAddr,
 		JoinAddr:        config.JoinRaft,
@@ -224,6 +228,14 @@ func New(config *Config) (*Manager, error) {
 	}
 
 	return m, nil
+}
+
+// Addr returns tcp address on which remote api listens.
+func (m *Manager) Addr() net.Addr {
+	if l, ok := m.listeners["tcp"]; ok {
+		return l.Addr()
+	}
+	return nil
 }
 
 // Run starts all manager sub-systems and the gRPC server at the configured

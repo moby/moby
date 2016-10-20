@@ -473,7 +473,7 @@ type ContainerSpec struct {
 	StopGracePeriod *docker_swarmkit_v11.Duration `protobuf:"bytes,9,opt,name=stop_grace_period,json=stopGracePeriod" json:"stop_grace_period,omitempty"`
 	// PullOptions parameterize the behavior of image pulls.
 	PullOptions *ContainerSpec_PullOptions `protobuf:"bytes,10,opt,name=pull_options,json=pullOptions" json:"pull_options,omitempty"`
-	// Secrets contains references to zero or more secrets that
+	// SecretReference contains references to zero or more secrets that
 	// will be exposed to the container.
 	Secrets []*SecretReference `protobuf:"bytes,12,rep,name=secrets" json:"secrets,omitempty"`
 }

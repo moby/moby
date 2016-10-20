@@ -26,19 +26,19 @@ import (
 var errNoWAL = errors.New("no WAL present")
 
 func (n *Node) legacyWALDir() string {
-	return filepath.Join(n.StateDir, "wal")
+	return filepath.Join(n.opts.StateDir, "wal")
 }
 
 func (n *Node) walDir() string {
-	return filepath.Join(n.StateDir, "wal-v3")
+	return filepath.Join(n.opts.StateDir, "wal-v3")
 }
 
 func (n *Node) legacySnapDir() string {
-	return filepath.Join(n.StateDir, "snap")
+	return filepath.Join(n.opts.StateDir, "snap")
 }
 
 func (n *Node) snapDir() string {
-	return filepath.Join(n.StateDir, "snap-v3")
+	return filepath.Join(n.opts.StateDir, "snap-v3")
 }
 
 func (n *Node) loadAndStart(ctx context.Context, forceNewCluster bool) error {
@@ -189,7 +189,7 @@ func (n *Node) createWAL(nodeID string) (raft.Peer, error) {
 	raftNode := &api.RaftMember{
 		RaftID: n.Config.ID,
 		NodeID: nodeID,
-		Addr:   n.Address,
+		Addr:   n.opts.Addr,
 	}
 	metadata, err := raftNode.Marshal()
 	if err != nil {
@@ -207,7 +207,7 @@ func (n *Node) createWAL(nodeID string) (raft.Peer, error) {
 // moveWALAndSnap moves away the WAL and snapshot because we were removed
 // from the cluster and will need to recreate them if we are readded.
 func (n *Node) moveWALAndSnap() error {
-	newWALDir, err := ioutil.TempDir(n.StateDir, "wal.")
+	newWALDir, err := ioutil.TempDir(n.opts.StateDir, "wal.")
 	if err != nil {
 		return err
 	}
@@ -216,7 +216,7 @@ func (n *Node) moveWALAndSnap() error {
 		return err
 	}
 
-	newSnapDir, err := ioutil.TempDir(n.StateDir, "snap.")
+	newSnapDir, err := ioutil.TempDir(n.opts.StateDir, "snap.")
 	if err != nil {
 		return err
 	}

@@ -27,11 +27,19 @@ var (
 	ErrCannotUnmarshalConfig = errors.New("membership: cannot unmarshal configuration change")
 )
 
+// deferredConn used to store removed members connection for some time.
+// We need this in case if removed node is redirector or endpoint of ControlAPI call.
+type deferredConn struct {
+	tick int
+	conn *grpc.ClientConn
+}
+
 // Cluster represents a set of active
 // raft Members
 type Cluster struct {
-	mu      sync.RWMutex
-	members map[uint64]*Member
+	mu           sync.RWMutex
+	members      map[uint64]*Member
+	deferedConns map[*deferredConn]struct{}
 
 	// removed contains the list of removed Members,
 	// those ids cannot be reused
@@ -73,16 +81,13 @@ func NewCluster(heartbeatTicks int) *Cluster {
 	return &Cluster{
 		members:        make(map[uint64]*Member),
 		removed:        make(map[uint64]bool),
+		deferedConns:   make(map[*deferredConn]struct{}),
 		heartbeatTicks: heartbeatTicks,
 		PeersBroadcast: watch.NewQueue(),
 	}
 }
 
-// Tick increases ticks for all members. After heartbeatTicks node marked as
-// inactive.
-func (c *Cluster) Tick() {
-	c.mu.Lock()
-	defer c.mu.Unlock()
+func (c *Cluster) handleInactive() {
 	for _, m := range c.members {
 		if !m.active {
 			continue
@@ -95,6 +100,25 @@ func (c *Cluster) Tick() {
 			}
 		}
 	}
+}
+
+func (c *Cluster) handleDeferredConns() {
+	for dc := range c.deferedConns {
+		dc.tick++
+		if dc.tick > c.heartbeatTicks {
+			dc.conn.Close()
+			delete(c.deferedConns, dc)
+		}
+	}
+}
+
+// Tick increases ticks for all members. After heartbeatTicks node marked as
+// inactive.
+func (c *Cluster) Tick() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.handleInactive()
+	c.handleDeferredConns()
 }
 
 // Members returns the list of raft Members in the Cluster.
@@ -177,7 +201,9 @@ func (c *Cluster) clearMember(id uint64) error {
 	m, ok := c.members[id]
 	if ok {
 		if m.Conn != nil {
-			m.Conn.Close()
+			// defer connection close to after heartbeatTicks
+			dConn := &deferredConn{conn: m.Conn}
+			c.deferedConns[dConn] = struct{}{}
 		}
 		delete(c.members, id)
 	}
@@ -232,8 +258,13 @@ func (c *Cluster) Clear() {
 		}
 	}
 
+	for dc := range c.deferedConns {
+		dc.conn.Close()
+	}
+
 	c.members = make(map[uint64]*Member)
 	c.removed = make(map[uint64]bool)
+	c.deferedConns = make(map[*deferredConn]struct{})
 	c.mu.Unlock()
 }
 

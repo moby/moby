@@ -4,10 +4,8 @@ import (
 	"fmt"
 	"net"
 
-	"github.com/docker/libnetwork/ipamapi"
 	"github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/identity"
-	"github.com/docker/swarmkit/manager/allocator/networkallocator"
 	"github.com/docker/swarmkit/manager/state/store"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
@@ -60,10 +58,6 @@ func validateIPAM(ipam *api.IPAMOptions) error {
 		return err
 	}
 
-	if ipam.Driver != nil && ipam.Driver.Name != ipamapi.DefaultIPAM {
-		return grpc.Errorf(codes.InvalidArgument, "invalid IPAM specified")
-	}
-
 	for _, ipamConf := range ipam.Configs {
 		if err := validateIPAMConfiguration(ipamConf); err != nil {
 			return err
@@ -84,10 +78,6 @@ func validateNetworkSpec(spec *api.NetworkSpec) error {
 
 	if err := validateDriver(spec.DriverConfig); err != nil {
 		return err
-	}
-
-	if spec.DriverConfig != nil && spec.DriverConfig.Name != networkallocator.DefaultDriver {
-		return grpc.Errorf(codes.InvalidArgument, "invalid driver specified")
 	}
 
 	if err := validateIPAM(spec.IPAM); err != nil {

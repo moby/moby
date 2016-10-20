@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"sync"
@@ -240,6 +241,7 @@ func init() {
 }
 
 type DockerSwarmSuite struct {
+	server      *httptest.Server
 	ds          *DockerSuite
 	daemons     []*SwarmDaemon
 	daemonsLock sync.Mutex // protect access to daemons
