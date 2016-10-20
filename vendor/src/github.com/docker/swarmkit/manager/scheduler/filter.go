@@ -1,6 +1,8 @@
 package scheduler
 
 import (
+	"fmt"
+
 	"github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/manager/constraint"
 )
@@ -18,6 +20,9 @@ type Filter interface {
 	// into the given node. This function should not be called if SetTask
 	// returned false.
 	Check(*NodeInfo) bool
+
+	// Explain what a failure of this filter means
+	Explain(nodes int) string
 }
 
 // ReadyFilter checks that the node is ready to schedule tasks.
@@ -33,6 +38,14 @@ func (f *ReadyFilter) SetTask(_ *api.Task) bool {
 func (f *ReadyFilter) Check(n *NodeInfo) bool {
 	return n.Status.State == api.NodeStatus_READY &&
 		n.Spec.Availability == api.NodeAvailabilityActive
+}
+
+// Explain returns an explanation of a failure.
+func (f *ReadyFilter) Explain(nodes int) string {
+	if nodes == 1 {
+		return "1 node not available for new tasks"
+	}
+	return fmt.Sprintf("%d nodes not available for new tasks", nodes)
 }
 
 // ResourceFilter checks that the node has enough resources available to run
@@ -65,6 +78,14 @@ func (f *ResourceFilter) Check(n *NodeInfo) bool {
 	}
 
 	return true
+}
+
+// Explain returns an explanation of a failure.
+func (f *ResourceFilter) Explain(nodes int) string {
+	if nodes == 1 {
+		return "insufficient resources on 1 node"
+	}
+	return fmt.Sprintf("insufficient resources on %d nodes", nodes)
 }
 
 // PluginFilter checks that the node has a specific volume plugin installed
@@ -133,6 +154,14 @@ func (f *PluginFilter) pluginExistsOnNode(pluginType string, pluginName string, 
 	return false
 }
 
+// Explain returns an explanation of a failure.
+func (f *PluginFilter) Explain(nodes int) string {
+	if nodes == 1 {
+		return "missing plugin on 1 node"
+	}
+	return fmt.Sprintf("missing plugin on %d nodes", nodes)
+}
+
 // ConstraintFilter selects only nodes that match certain labels.
 type ConstraintFilter struct {
 	constraints []constraint.Constraint
@@ -158,4 +187,12 @@ func (f *ConstraintFilter) SetTask(t *api.Task) bool {
 // Check returns true if the task's constraint is supported by the given node.
 func (f *ConstraintFilter) Check(n *NodeInfo) bool {
 	return constraint.NodeMatches(f.constraints, n.Node)
+}
+
+// Explain returns an explanation of a failure.
+func (f *ConstraintFilter) Explain(nodes int) string {
+	if nodes == 1 {
+		return "scheduling constraints not satisfied on 1 node"
+	}
+	return fmt.Sprintf("scheduling constraints not satisfied on %d nodes", nodes)
 }

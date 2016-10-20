@@ -324,7 +324,7 @@ func (s *Server) useTransportAuthenticator(rawConn net.Conn) (net.Conn, credenti
 // Serve accepts incoming connections on the listener lis, creating a new
 // ServerTransport and service goroutine for each. The service goroutines
 // read gRPC requests and then call the registered handlers to reply to them.
-// Service returns when lis.Accept fails. lis will be closed when
+// Serve returns when lis.Accept fails. lis will be closed when
 // this method returns.
 func (s *Server) Serve(lis net.Listener) error {
 	s.mu.Lock()
@@ -367,7 +367,10 @@ func (s *Server) handleRawConn(rawConn net.Conn) {
 		s.errorf("ServerHandshake(%q) failed: %v", rawConn.RemoteAddr(), err)
 		s.mu.Unlock()
 		grpclog.Printf("grpc: Server.Serve failed to complete security handshake from %q: %v", rawConn.RemoteAddr(), err)
-		rawConn.Close()
+		// If serverHandShake returns ErrConnDispatched, keep rawConn open.
+		if err != credentials.ErrConnDispatched {
+			rawConn.Close()
+		}
 		return
 	}
 
@@ -544,7 +547,7 @@ func (s *Server) processUnaryRPC(t transport.ServerTransport, stream *transport.
 			return err
 		}
 		if err == io.ErrUnexpectedEOF {
-			err = transport.StreamError{Code: codes.Internal, Desc: "io.ErrUnexpectedEOF"}
+			err = Errorf(codes.Internal, io.ErrUnexpectedEOF.Error())
 		}
 		if err != nil {
 			switch err := err.(type) {
@@ -566,8 +569,8 @@ func (s *Server) processUnaryRPC(t transport.ServerTransport, stream *transport.
 
 		if err := checkRecvPayload(pf, stream.RecvCompress(), s.opts.dc); err != nil {
 			switch err := err.(type) {
-			case transport.StreamError:
-				if err := t.WriteStatus(stream, err.Code, err.Desc); err != nil {
+			case *rpcError:
+				if err := t.WriteStatus(stream, err.code, err.desc); err != nil {
 					grpclog.Printf("grpc: Server.processUnaryRPC failed to write status %v", err)
 				}
 			default:
@@ -870,25 +873,28 @@ func SendHeader(ctx context.Context, md metadata.MD) error {
 	}
 	stream, ok := transport.StreamFromContext(ctx)
 	if !ok {
-		return fmt.Errorf("grpc: failed to fetch the stream from the context %v", ctx)
+		return Errorf(codes.Internal, "grpc: failed to fetch the stream from the context %v", ctx)
 	}
 	t := stream.ServerTransport()
 	if t == nil {
 		grpclog.Fatalf("grpc: SendHeader: %v has no ServerTransport to send header metadata.", stream)
 	}
-	return t.WriteHeader(stream, md)
+	if err := t.WriteHeader(stream, md); err != nil {
+		return toRPCErr(err)
+	}
+	return nil
 }
 
 // SetTrailer sets the trailer metadata that will be sent when an RPC returns.
-// It may be called at most once from a unary RPC handler. The ctx is the RPC
-// handler's Context or one derived from it.
+// When called more than once, all the provided metadata will be merged.
+// The ctx is the RPC handler's Context or one derived from it.
 func SetTrailer(ctx context.Context, md metadata.MD) error {
 	if md.Len() == 0 {
 		return nil
 	}
 	stream, ok := transport.StreamFromContext(ctx)
 	if !ok {
-		return fmt.Errorf("grpc: failed to fetch the stream from the context %v", ctx)
+		return Errorf(codes.Internal, "grpc: failed to fetch the stream from the context %v", ctx)
 	}
 	return stream.SetTrailer(md)
 }

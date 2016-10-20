@@ -1,9 +1,13 @@
 package controlapi
 
 import (
+	"crypto/x509"
+	"encoding/pem"
+
 	"github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/manager/state/raft/membership"
 	"github.com/docker/swarmkit/manager/state/store"
+	"github.com/docker/swarmkit/protobuf/ptypes"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -286,6 +290,40 @@ func (s *Server) RemoveNode(ctx context.Context, request *api.RemoveNodeRequest)
 		if !request.Force && node.Status.State == api.NodeStatus_READY {
 			return grpc.Errorf(codes.FailedPrecondition, "node %s is not down and can't be removed", request.NodeID)
 		}
+
+		// lookup the cluster
+		clusters, err := store.FindClusters(tx, store.ByName("default"))
+		if err != nil {
+			return err
+		}
+		if len(clusters) != 1 {
+			return grpc.Errorf(codes.Internal, "could not fetch cluster object")
+		}
+		cluster := clusters[0]
+
+		removedNode := &api.RemovedNode{ID: node.ID}
+
+		// Set an expiry time for this RemovedNode if a certificate
+		// exists and can be parsed.
+		if len(node.Certificate.Certificate) != 0 {
+			certBlock, _ := pem.Decode(node.Certificate.Certificate)
+			if certBlock != nil {
+				X509Cert, err := x509.ParseCertificate(certBlock.Bytes)
+				if err == nil && !X509Cert.NotAfter.IsZero() {
+					expiry, err := ptypes.TimestampProto(X509Cert.NotAfter)
+					if err == nil {
+						removedNode.Expiry = expiry
+					}
+				}
+			}
+		}
+
+		cluster.RemovedNodes = append(cluster.RemovedNodes, removedNode)
+
+		if err := store.UpdateCluster(tx, cluster); err != nil {
+			return err
+		}
+
 		return store.DeleteNode(tx, request.NodeID)
 	})
 	if err != nil {

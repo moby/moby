@@ -1,4 +1,4 @@
-// +build !linux
+// +build !linux,!darwin
 
 package networkallocator
 

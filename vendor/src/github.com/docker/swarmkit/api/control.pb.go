@@ -831,16 +831,12 @@ func (m *ListNodesRequest_Filters) Copy() *ListNodesRequest_Filters {
 
 	if m.Names != nil {
 		o.Names = make([]string, 0, len(m.Names))
-		for _, v := range m.Names {
-			o.Names = append(o.Names, v)
-		}
+		o.Names = append(o.Names, m.Names...)
 	}
 
 	if m.IDPrefixes != nil {
 		o.IDPrefixes = make([]string, 0, len(m.IDPrefixes))
-		for _, v := range m.IDPrefixes {
-			o.IDPrefixes = append(o.IDPrefixes, v)
-		}
+		o.IDPrefixes = append(o.IDPrefixes, m.IDPrefixes...)
 	}
 
 	if m.Labels != nil {
@@ -852,23 +848,17 @@ func (m *ListNodesRequest_Filters) Copy() *ListNodesRequest_Filters {
 
 	if m.Memberships != nil {
 		o.Memberships = make([]NodeSpec_Membership, 0, len(m.Memberships))
-		for _, v := range m.Memberships {
-			o.Memberships = append(o.Memberships, v)
-		}
+		o.Memberships = append(o.Memberships, m.Memberships...)
 	}
 
 	if m.Roles != nil {
 		o.Roles = make([]NodeRole, 0, len(m.Roles))
-		for _, v := range m.Roles {
-			o.Roles = append(o.Roles, v)
-		}
+		o.Roles = append(o.Roles, m.Roles...)
 	}
 
 	if m.NamePrefixes != nil {
 		o.NamePrefixes = make([]string, 0, len(m.NamePrefixes))
-		for _, v := range m.NamePrefixes {
-			o.NamePrefixes = append(o.NamePrefixes, v)
-		}
+		o.NamePrefixes = append(o.NamePrefixes, m.NamePrefixes...)
 	}
 
 	return o
@@ -1007,16 +997,12 @@ func (m *ListTasksRequest_Filters) Copy() *ListTasksRequest_Filters {
 
 	if m.Names != nil {
 		o.Names = make([]string, 0, len(m.Names))
-		for _, v := range m.Names {
-			o.Names = append(o.Names, v)
-		}
+		o.Names = append(o.Names, m.Names...)
 	}
 
 	if m.IDPrefixes != nil {
 		o.IDPrefixes = make([]string, 0, len(m.IDPrefixes))
-		for _, v := range m.IDPrefixes {
-			o.IDPrefixes = append(o.IDPrefixes, v)
-		}
+		o.IDPrefixes = append(o.IDPrefixes, m.IDPrefixes...)
 	}
 
 	if m.Labels != nil {
@@ -1028,30 +1014,22 @@ func (m *ListTasksRequest_Filters) Copy() *ListTasksRequest_Filters {
 
 	if m.ServiceIDs != nil {
 		o.ServiceIDs = make([]string, 0, len(m.ServiceIDs))
-		for _, v := range m.ServiceIDs {
-			o.ServiceIDs = append(o.ServiceIDs, v)
-		}
+		o.ServiceIDs = append(o.ServiceIDs, m.ServiceIDs...)
 	}
 
 	if m.NodeIDs != nil {
 		o.NodeIDs = make([]string, 0, len(m.NodeIDs))
-		for _, v := range m.NodeIDs {
-			o.NodeIDs = append(o.NodeIDs, v)
-		}
+		o.NodeIDs = append(o.NodeIDs, m.NodeIDs...)
 	}
 
 	if m.DesiredStates != nil {
 		o.DesiredStates = make([]TaskState, 0, len(m.DesiredStates))
-		for _, v := range m.DesiredStates {
-			o.DesiredStates = append(o.DesiredStates, v)
-		}
+		o.DesiredStates = append(o.DesiredStates, m.DesiredStates...)
 	}
 
 	if m.NamePrefixes != nil {
 		o.NamePrefixes = make([]string, 0, len(m.NamePrefixes))
-		for _, v := range m.NamePrefixes {
-			o.NamePrefixes = append(o.NamePrefixes, v)
-		}
+		o.NamePrefixes = append(o.NamePrefixes, m.NamePrefixes...)
 	}
 
 	return o
@@ -1191,16 +1169,12 @@ func (m *ListServicesRequest_Filters) Copy() *ListServicesRequest_Filters {
 
 	if m.Names != nil {
 		o.Names = make([]string, 0, len(m.Names))
-		for _, v := range m.Names {
-			o.Names = append(o.Names, v)
-		}
+		o.Names = append(o.Names, m.Names...)
 	}
 
 	if m.IDPrefixes != nil {
 		o.IDPrefixes = make([]string, 0, len(m.IDPrefixes))
-		for _, v := range m.IDPrefixes {
-			o.IDPrefixes = append(o.IDPrefixes, v)
-		}
+		o.IDPrefixes = append(o.IDPrefixes, m.IDPrefixes...)
 	}
 
 	if m.Labels != nil {
@@ -1212,9 +1186,7 @@ func (m *ListServicesRequest_Filters) Copy() *ListServicesRequest_Filters {
 
 	if m.NamePrefixes != nil {
 		o.NamePrefixes = make([]string, 0, len(m.NamePrefixes))
-		for _, v := range m.NamePrefixes {
-			o.NamePrefixes = append(o.NamePrefixes, v)
-		}
+		o.NamePrefixes = append(o.NamePrefixes, m.NamePrefixes...)
 	}
 
 	return o
@@ -1330,16 +1302,12 @@ func (m *ListNetworksRequest_Filters) Copy() *ListNetworksRequest_Filters {
 
 	if m.Names != nil {
 		o.Names = make([]string, 0, len(m.Names))
-		for _, v := range m.Names {
-			o.Names = append(o.Names, v)
-		}
+		o.Names = append(o.Names, m.Names...)
 	}
 
 	if m.IDPrefixes != nil {
 		o.IDPrefixes = make([]string, 0, len(m.IDPrefixes))
-		for _, v := range m.IDPrefixes {
-			o.IDPrefixes = append(o.IDPrefixes, v)
-		}
+		o.IDPrefixes = append(o.IDPrefixes, m.IDPrefixes...)
 	}
 
 	if m.Labels != nil {
@@ -1351,9 +1319,7 @@ func (m *ListNetworksRequest_Filters) Copy() *ListNetworksRequest_Filters {
 
 	if m.NamePrefixes != nil {
 		o.NamePrefixes = make([]string, 0, len(m.NamePrefixes))
-		for _, v := range m.NamePrefixes {
-			o.NamePrefixes = append(o.NamePrefixes, v)
-		}
+		o.NamePrefixes = append(o.NamePrefixes, m.NamePrefixes...)
 	}
 
 	return o
@@ -1421,16 +1387,12 @@ func (m *ListClustersRequest_Filters) Copy() *ListClustersRequest_Filters {
 
 	if m.Names != nil {
 		o.Names = make([]string, 0, len(m.Names))
-		for _, v := range m.Names {
-			o.Names = append(o.Names, v)
-		}
+		o.Names = append(o.Names, m.Names...)
 	}
 
 	if m.IDPrefixes != nil {
 		o.IDPrefixes = make([]string, 0, len(m.IDPrefixes))
-		for _, v := range m.IDPrefixes {
-			o.IDPrefixes = append(o.IDPrefixes, v)
-		}
+		o.IDPrefixes = append(o.IDPrefixes, m.IDPrefixes...)
 	}
 
 	if m.Labels != nil {
@@ -1442,9 +1404,7 @@ func (m *ListClustersRequest_Filters) Copy() *ListClustersRequest_Filters {
 
 	if m.NamePrefixes != nil {
 		o.NamePrefixes = make([]string, 0, len(m.NamePrefixes))
-		for _, v := range m.NamePrefixes {
-			o.NamePrefixes = append(o.NamePrefixes, v)
-		}
+		o.NamePrefixes = append(o.NamePrefixes, m.NamePrefixes...)
 	}
 
 	return o
@@ -1552,16 +1512,12 @@ func (m *ListSecretsRequest_Filters) Copy() *ListSecretsRequest_Filters {
 
 	if m.Names != nil {
 		o.Names = make([]string, 0, len(m.Names))
-		for _, v := range m.Names {
-			o.Names = append(o.Names, v)
-		}
+		o.Names = append(o.Names, m.Names...)
 	}
 
 	if m.IDPrefixes != nil {
 		o.IDPrefixes = make([]string, 0, len(m.IDPrefixes))
-		for _, v := range m.IDPrefixes {
-			o.IDPrefixes = append(o.IDPrefixes, v)
-		}
+		o.IDPrefixes = append(o.IDPrefixes, m.IDPrefixes...)
 	}
 
 	if m.Labels != nil {
@@ -1573,9 +1529,7 @@ func (m *ListSecretsRequest_Filters) Copy() *ListSecretsRequest_Filters {
 
 	if m.NamePrefixes != nil {
 		o.NamePrefixes = make([]string, 0, len(m.NamePrefixes))
-		for _, v := range m.NamePrefixes {
-			o.NamePrefixes = append(o.NamePrefixes, v)
-		}
+		o.NamePrefixes = append(o.NamePrefixes, m.NamePrefixes...)
 	}
 
 	return o

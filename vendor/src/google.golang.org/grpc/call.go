@@ -96,7 +96,7 @@ func sendRequest(ctx context.Context, codec Codec, compressor Compressor, callHd
 	}
 	outBuf, err := encode(codec, args, compressor, cbuf)
 	if err != nil {
-		return nil, transport.StreamErrorf(codes.Internal, "grpc: %v", err)
+		return nil, Errorf(codes.Internal, "grpc: %v", err)
 	}
 	err = t.Write(stream, outBuf, opts)
 	// t.NewStream(...) could lead to an early rejection of the RPC (e.g., the service/method
@@ -112,7 +112,14 @@ func sendRequest(ctx context.Context, codec Codec, compressor Compressor, callHd
 // Invoke sends the RPC request on the wire and returns after response is received.
 // Invoke is called by generated code. Also users can call Invoke directly when it
 // is really needed in their use cases.
-func Invoke(ctx context.Context, method string, args, reply interface{}, cc *ClientConn, opts ...CallOption) (err error) {
+func Invoke(ctx context.Context, method string, args, reply interface{}, cc *ClientConn, opts ...CallOption) error {
+	if cc.dopts.unaryInt != nil {
+		return cc.dopts.unaryInt(ctx, method, args, reply, cc, invoke, opts...)
+	}
+	return invoke(ctx, method, args, reply, cc, opts...)
+}
+
+func invoke(ctx context.Context, method string, args, reply interface{}, cc *ClientConn, opts ...CallOption) (err error) {
 	c := defaultCallInfo
 	for _, o := range opts {
 		if err := o.before(&c); err != nil {

@@ -64,9 +64,14 @@ func filterMatchLabels(match map[string]string, candidates map[string]string) bo
 func validateAnnotations(m api.Annotations) error {
 	if m.Name == "" {
 		return grpc.Errorf(codes.InvalidArgument, "meta: name must be provided")
-	} else if !isValidName.MatchString(m.Name) {
+	}
+	if !isValidName.MatchString(m.Name) {
 		// if the name doesn't match the regex
 		return grpc.Errorf(codes.InvalidArgument, "name must be valid as a DNS name component")
+	}
+	if len(m.Name) > 63 {
+		// DNS labels are limited to 63 characters
+		return grpc.Errorf(codes.InvalidArgument, "name must be 63 characters or fewer")
 	}
 	return nil
 }

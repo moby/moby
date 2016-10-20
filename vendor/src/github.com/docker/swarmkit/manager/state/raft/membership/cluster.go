@@ -53,7 +53,6 @@ type Cluster struct {
 type Member struct {
 	*api.RaftMember
 
-	api.RaftClient
 	Conn         *grpc.ClientConn
 	tick         int
 	active       bool
@@ -211,8 +210,7 @@ func (c *Cluster) clearMember(id uint64) error {
 	return nil
 }
 
-// ReplaceMemberConnection replaces the member's GRPC connection and GRPC
-// client.
+// ReplaceMemberConnection replaces the member's GRPC connection.
 func (c *Cluster) ReplaceMemberConnection(id uint64, oldConn *Member, newConn *Member, newAddr string, force bool) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -236,7 +234,6 @@ func (c *Cluster) ReplaceMemberConnection(id uint64, oldConn *Member, newConn *M
 	newMember.RaftMember = oldMember.RaftMember.Copy()
 	newMember.RaftMember.Addr = newAddr
 	newMember.Conn = newConn.Conn
-	newMember.RaftClient = newConn.RaftClient
 	c.members[id] = &newMember
 
 	return nil

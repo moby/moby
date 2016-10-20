@@ -26,8 +26,8 @@ import (
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/signal"
 	"github.com/docker/docker/runconfig"
-	swarmagent "github.com/docker/swarmkit/agent"
 	swarmapi "github.com/docker/swarmkit/api"
+	swarmnode "github.com/docker/swarmkit/node"
 	"golang.org/x/net/context"
 )
 
@@ -123,7 +123,7 @@ type attacher struct {
 }
 
 type node struct {
-	*swarmagent.Node
+	*swarmnode.Node
 	done           chan struct{}
 	ready          bool
 	conn           *grpc.ClientConn
@@ -279,7 +279,7 @@ func (c *Cluster) startNewNode(forceNewCluster bool, localAddr, remoteAddr, list
 	c.node = nil
 	c.cancelDelay = nil
 	c.stop = false
-	n, err := swarmagent.NewNode(&swarmagent.NodeConfig{
+	n, err := swarmnode.New(&swarmnode.Config{
 		Hostname:           c.config.Name,
 		ForceNewCluster:    forceNewCluster,
 		ListenControlAPI:   filepath.Join(c.runtimeRoot, controlSocket),

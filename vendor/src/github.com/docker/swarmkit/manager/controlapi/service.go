@@ -158,13 +158,25 @@ func validateEndpointSpec(epSpec *api.EndpointSpec) error {
 		return grpc.Errorf(codes.InvalidArgument, "EndpointSpec: ports can't be used with dnsrr mode")
 	}
 
-	portSet := make(map[uint32]struct{})
+	type portSpec struct {
+		publishedPort uint32
+		protocol      api.PortConfig_Protocol
+	}
+
+	portSet := make(map[portSpec]struct{})
 	for _, port := range epSpec.Ports {
-		if _, ok := portSet[port.PublishedPort]; ok {
+		// If published port is not specified, it does not conflict
+		// with any others.
+		if port.PublishedPort == 0 {
+			continue
+		}
+
+		portSpec := portSpec{publishedPort: port.PublishedPort, protocol: port.Protocol}
+		if _, ok := portSet[portSpec]; ok {
 			return grpc.Errorf(codes.InvalidArgument, "EndpointSpec: duplicate published ports provided")
 		}
 
-		portSet[port.PublishedPort] = struct{}{}
+		portSet[portSpec] = struct{}{}
 	}
 
 	return nil

@@ -70,7 +70,7 @@ clone git github.com/RackSec/srslog 365bf33cd9acc21ae1c355209865f17228ca534e
 clone git github.com/imdario/mergo 0.2.1
 
 #get libnetwork packages
-clone git github.com/docker/libnetwork 04025f2a2eebb0d091883e55980dc6916d36842d
+clone git github.com/docker/libnetwork 9fbb4ecbb45af655c4ac3c2f3a849b2294cb447a
 clone git github.com/docker/go-events 18b43f1bc85d9cdd42c05a6cd2d444c7a200a894
 clone git github.com/armon/go-radix e39d623f12e8e41c7b5529e9a9dd67a1e2261f80
 clone git github.com/armon/go-metrics eb0af217e5e9747e41dd5303755356b62d28e3ec
@@ -101,7 +101,7 @@ clone git github.com/pborman/uuid v1.0
 # get desired notary commit, might also need to be updated in Dockerfile
 clone git github.com/docker/notary v0.4.2
 
-clone git google.golang.org/grpc v1.0.1-GA https://github.com/grpc/grpc-go.git
+clone git google.golang.org/grpc v1.0.2 https://github.com/grpc/grpc-go.git
 clone git github.com/miekg/pkcs11 df8ae6ca730422dba20c768ff38ef7d79077a59f
 clone git github.com/docker/go v1.5.1-1-1-gbaf439e
 clone git github.com/agl/ed25519 d2b94fd789ea21d12fac1a4443dd3a3f79cda72c
@@ -146,7 +146,7 @@ clone git github.com/docker/docker-credential-helpers v0.3.0
 clone git github.com/docker/containerd 52ef1ceb4b660c42cf4ea9013180a5663968d4c7
 
 # cluster
-clone git github.com/docker/swarmkit 1fed8d2a2ccd2a9b6d6fb864d4ad3461fc6dc3eb
+clone git github.com/docker/swarmkit 3b221eb0391d34ae0b9dac65df02b5b64de6dff2
 clone git github.com/golang/mock bd3c8e81be01eef76d4b503f5e687d2d1354d2d9
 clone git github.com/gogo/protobuf v0.3
 clone git github.com/cloudflare/cfssl 7fb22c8cba7ecaf98e4082d22d65800cf45e042a

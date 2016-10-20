@@ -1,4 +1,4 @@
-package agent
+package node
 
 import (
 	"crypto/tls"
@@ -14,6 +14,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/boltdb/bolt"
+	"github.com/docker/swarmkit/agent"
 	"github.com/docker/swarmkit/agent/exec"
 	"github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/ca"
@@ -29,8 +30,13 @@ import (
 
 const stateFilename = "state.json"
 
-// NodeConfig provides values for a Node.
-type NodeConfig struct {
+var (
+	errNodeStarted    = errors.New("node: already started")
+	errNodeNotStarted = errors.New("node: not started")
+)
+
+// Config provides values for a Node.
+type Config struct {
 	// Hostname is the name of host for agent instance.
 	Hostname string
 
@@ -80,7 +86,7 @@ type NodeConfig struct {
 // cluster. Node handles workloads and may also run as a manager.
 type Node struct {
 	sync.RWMutex
-	config               *NodeConfig
+	config               *Config
 	remotes              *persistentRemotes
 	role                 string
 	roleCond             *sync.Cond
@@ -96,7 +102,7 @@ type Node struct {
 	certificateRequested chan struct{} // closed when certificate issue request has been sent by node
 	closed               chan struct{}
 	err                  error
-	agent                *Agent
+	agent                *agent.Agent
 	manager              *manager.Manager
 	roleChangeReq        chan api.NodeRole // used to send role updates from the dispatcher api on promotion/demotion
 }
@@ -116,8 +122,8 @@ func (n *Node) RemoteAPIAddr() (string, error) {
 	return addr.String(), nil
 }
 
-// NewNode returns new Node instance.
-func NewNode(c *NodeConfig) (*Node, error) {
+// New returns new Node instance.
+func New(c *Config) (*Node, error) {
 	if err := os.MkdirAll(c.StateDir, 0700); err != nil {
 		return nil, err
 	}
@@ -369,7 +375,7 @@ func (n *Node) runAgent(ctx context.Context, db *bolt.DB, creds credentials.Tran
 		return ctx.Err()
 	}
 
-	agent, err := New(&Config{
+	a, err := agent.New(&agent.Config{
 		Hostname:         n.config.Hostname,
 		Managers:         n.remotes,
 		Executor:         n.config.Executor,
@@ -380,12 +386,12 @@ func (n *Node) runAgent(ctx context.Context, db *bolt.DB, creds credentials.Tran
 	if err != nil {
 		return err
 	}
-	if err := agent.Start(ctx); err != nil {
+	if err := a.Start(ctx); err != nil {
 		return err
 	}
 
 	n.Lock()
-	n.agent = agent
+	n.agent = a
 	n.Unlock()
 
 	defer func() {
@@ -395,13 +401,13 @@ func (n *Node) runAgent(ctx context.Context, db *bolt.DB, creds credentials.Tran
 	}()
 
 	go func() {
-		<-agent.Ready()
+		<-a.Ready()
 		close(ready)
 	}()
 
 	// todo: manually call stop on context cancellation?
 
-	return agent.Err(context.Background())
+	return a.Err(context.Background())
 }
 
 // Ready returns a channel that is closed after node's initialization has
@@ -483,7 +489,7 @@ func (n *Node) Manager() *manager.Manager {
 }
 
 // Agent returns agent instance started by node. May be nil.
-func (n *Node) Agent() *Agent {
+func (n *Node) Agent() *agent.Agent {
 	n.RLock()
 	defer n.RUnlock()
 	return n.agent

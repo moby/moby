@@ -225,6 +225,10 @@ message Cluster {
 	// and agents to unambiguously identify the older key to be deleted when
 	// a new key is allocated on key rotation.
 	uint64 encryption_key_lamport_clock = 6;
+
+	// RemovedNodes is the list of nodes that have been removed from the
+	// swarm. Their certificates should effectively be blacklisted.
+	repeated RemovedNode removed_nodes = 7;
 }
 
 // Secret represents a secret that should be passed to a container or a node,

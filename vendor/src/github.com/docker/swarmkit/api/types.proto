@@ -776,3 +776,13 @@ message SecretReference {
 	// lookup/display purposes.  The secret in the reference will be identified by its ID.
 	string secret_name = 4;
 }
+
+// RemovedNode is a record for a node that has been removed from the swarm.
+message RemovedNode {
+	// ID is the ID of the removed node.
+	string id = 1 [(gogoproto.customname) = "ID"];
+
+	// Expiry is the latest known expiration time of a certificate that
+	// was issued to this node.
+	Timestamp expiry = 2;
+}

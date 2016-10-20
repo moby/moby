@@ -112,6 +112,12 @@ message TaskSpec {
 	// configurations (which specify the network and per-network
 	// aliases) that this task spec is bound to.
 	repeated NetworkAttachmentConfig networks = 7;
+
+	// ForceUpdate is a counter that triggers an update even if no relevant
+	// parameters have been changed. We do this to allow forced restarts
+	// using the same reconcilation-based mechanism that performs rolling
+	// updates.
+	uint64 force_update = 9;
 }
 
 // NetworkAttachmentSpec specifies runtime parameters required to attach
