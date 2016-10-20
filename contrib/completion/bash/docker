@@ -1657,7 +1657,42 @@ _docker_container_unpause() {
 }
 
 _docker_container_update() {
-	_docker_update
+	local options_with_args="
+		--blkio-weight
+		--cpu-period
+		--cpu-quota
+		--cpuset-cpus
+		--cpuset-mems
+		--cpu-shares -c
+		--kernel-memory
+		--memory -m
+		--memory-reservation
+		--memory-swap
+		--restart
+	"
+
+	local boolean_options="
+		--help
+	"
+
+	local all_options="$options_with_args $boolean_options"
+
+	__docker_complete_restart && return
+
+	case "$prev" in
+		$(__docker_to_extglob "$options_with_args") )
+			return
+			;;
+	esac
+
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "$all_options" -- "$cur" ) )
+			;;
+		*)
+			__docker_complete_containers_all
+			;;
+	esac
 }
 
 _docker_container_wait() {
@@ -2993,42 +3028,7 @@ _docker_unpause() {
 }
 
 _docker_update() {
-	local options_with_args="
-		--blkio-weight
-		--cpu-period
-		--cpu-quota
-		--cpuset-cpus
-		--cpuset-mems
-		--cpu-shares -c
-		--kernel-memory
-		--memory -m
-		--memory-reservation
-		--memory-swap
-		--restart
-	"
-
-	local boolean_options="
-		--help
-	"
-
-	local all_options="$options_with_args $boolean_options"
-
-	__docker_complete_restart && return
-
-	case "$prev" in
-		$(__docker_to_extglob "$options_with_args") )
-			return
-			;;
-	esac
-
-	case "$cur" in
-		-*)
-			COMPREPLY=( $( compgen -W "$all_options" -- "$cur" ) )
-			;;
-		*)
-			__docker_complete_containers_all
-			;;
-	esac
+	_docker_container_update
 }
 
 _docker_top() {
