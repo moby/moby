@@ -149,12 +149,12 @@ func (s *VolumeStore) List() ([]volume.Volume, []string, error) {
 		// deleted before we acquire a lock on its name
 		if exists && storedV.DriverName() != v.DriverName() {
 			logrus.Warnf("Volume name %s already exists for driver %s, not including volume returned by %s", v.Name(), storedV.DriverName(), v.DriverName())
-			s.locks.Unlock(v.Name())
+			s.locks.Unlock(name)
 			continue
 		}
 
 		out = append(out, v)
-		s.locks.Unlock(v.Name())
+		s.locks.Unlock(name)
 	}
 	return out, warnings, nil
 }
@@ -226,8 +226,14 @@ func (s *VolumeStore) CreateWithRef(name, driverName, ref string, opts, labels m
 	if err != nil {
 		return nil, &OpErr{Err: err, Name: name, Op: "create"}
 	}
+	vd, err := volumedrivers.GetDriver(driverName)
+	if err != nil {
+		return nil, err
+	}
+	if scope := vd.Scope(); scope != "global" {
+		s.setNamed(v, ref)
+	}
 
-	s.setNamed(v, ref)
 	return v, nil
 }
 
@@ -259,9 +265,13 @@ func (s *VolumeStore) create(name, driverName string, opts, labels map[string]st
 	}
 
 	// Since there isn't a specified driver name, let's see if any of the existing drivers have this volume name
-	if driverName == "" {
+	// and docker volume create without '-d' implies that the driver name is 'local' and checking with just local
+	// driver is not enough in a global scope.
+	if driverName == "" || driverName == "local" {
 		v, _ := s.getVolume(name)
 		if v != nil {
+			// It should be a conflict if 'local' driver tries to create a volume which already exists
+			// with some other driver. But returning a errNameConflict affects the UX.
 			return v, nil
 		}
 	}
@@ -325,10 +335,11 @@ func (s *VolumeStore) GetWithRef(name, driverName, ref string) (volume.Volume, e
 	if err != nil {
 		return nil, &OpErr{Err: err, Name: name, Op: "get"}
 	}
-
-	s.setNamed(v, ref)
-
-	return volumeWrapper{v, s.labels[name], vd.Scope()}, nil
+	scope := vd.Scope()
+	if scope != "global" {
+		s.setNamed(v, ref)
+	}
+	return volumeWrapper{v, s.labels[name], scope}, nil
 }
 
 // Get looks if a volume with the given name exists and returns it if so
@@ -341,7 +352,13 @@ func (s *VolumeStore) Get(name string) (volume.Volume, error) {
 	if err != nil {
 		return nil, &OpErr{Err: err, Name: name, Op: "get"}
 	}
-	s.setNamed(v, "")
+	vd, err := volumedrivers.GetDriver(v.DriverName())
+	if err != nil {
+		return nil, err
+	}
+	if scope := vd.Scope(); scope != "global" {
+		s.setNamed(v, "")
+	}
 	return v, nil
 }
 
