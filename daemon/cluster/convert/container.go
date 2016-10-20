@@ -25,6 +25,14 @@ func containerSpecFromGRPC(c *swarmapi.ContainerSpec) types.ContainerSpec {
 		TTY:      c.TTY,
 	}
 
+	if c.DNSConfig != nil {
+		containerSpec.DNSConfig = &types.DNSConfig{
+			Nameservers: c.DNSConfig.Nameservers,
+			Search:      c.DNSConfig.Search,
+			Options:     c.DNSConfig.Options,
+		}
+	}
+
 	// Mounts
 	for _, m := range c.Mounts {
 		mount := mounttypes.Mount{
@@ -79,6 +87,14 @@ func containerToGRPC(c types.ContainerSpec) (*swarmapi.ContainerSpec, error) {
 		User:     c.User,
 		Groups:   c.Groups,
 		TTY:      c.TTY,
+	}
+
+	if c.DNSConfig != nil {
+		containerSpec.DNSConfig = &swarmapi.ContainerSpec_DNSConfig{
+			Nameservers: c.DNSConfig.Nameservers,
+			Search:      c.DNSConfig.Search,
+			Options:     c.DNSConfig.Options,
+		}
 	}
 
 	if c.StopGracePeriod != nil {

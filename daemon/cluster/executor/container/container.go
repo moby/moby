@@ -327,6 +327,12 @@ func (c *containerConfig) hostConfig() *enginecontainer.HostConfig {
 		GroupAdd:  c.spec().Groups,
 	}
 
+	if c.spec().DNSConfig != nil {
+		hc.DNS = c.spec().DNSConfig.Nameservers
+		hc.DNSSearch = c.spec().DNSConfig.Search
+		hc.DNSOptions = c.spec().DNSConfig.Options
+	}
+
 	if c.task.LogDriver != nil {
 		hc.LogConfig = enginecontainer.LogConfig{
 			Type:   c.task.LogDriver.Name,

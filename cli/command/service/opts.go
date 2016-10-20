@@ -296,6 +296,9 @@ type serviceOptions struct {
 	groups          []string
 	tty             bool
 	mounts          opts.MountOpt
+	dns             opts.ListOpts
+	dnsSearch       opts.ListOpts
+	dnsOptions      opts.ListOpts
 
 	resources resourceOptions
 	stopGrace DurationOpt
@@ -325,7 +328,10 @@ func newServiceOptions() *serviceOptions {
 		endpoint: endpointOptions{
 			ports: opts.NewListOpts(ValidatePort),
 		},
-		logDriver: newLogDriverOptions(),
+		logDriver:  newLogDriverOptions(),
+		dns:        opts.NewListOpts(opts.ValidateIPAddress),
+		dnsOptions: opts.NewListOpts(nil),
+		dnsSearch:  opts.NewListOpts(opts.ValidateDNSSearch),
 	}
 }
 
@@ -358,16 +364,21 @@ func (opts *serviceOptions) ToService() (swarm.ServiceSpec, error) {
 		},
 		TaskTemplate: swarm.TaskSpec{
 			ContainerSpec: swarm.ContainerSpec{
-				Image:           opts.image,
-				Args:            opts.args,
-				Env:             currentEnv,
-				Hostname:        opts.hostname,
-				Labels:          runconfigopts.ConvertKVStringsToMap(opts.containerLabels.GetAll()),
-				Dir:             opts.workdir,
-				User:            opts.user,
-				Groups:          opts.groups,
-				TTY:             opts.tty,
-				Mounts:          opts.mounts.Value(),
+				Image:    opts.image,
+				Args:     opts.args,
+				Env:      currentEnv,
+				Hostname: opts.hostname,
+				Labels:   runconfigopts.ConvertKVStringsToMap(opts.containerLabels.GetAll()),
+				Dir:      opts.workdir,
+				User:     opts.user,
+				Groups:   opts.groups,
+				TTY:      opts.tty,
+				Mounts:   opts.mounts.Value(),
+				DNSConfig: &swarm.DNSConfig{
+					Nameservers: opts.dns.GetAll(),
+					Search:      opts.dnsSearch.GetAll(),
+					Options:     opts.dnsOptions.GetAll(),
+				},
 				StopGracePeriod: opts.stopGrace.Value(),
 			},
 			Networks:      convertNetworks(opts.networks),
@@ -463,6 +474,9 @@ const (
 	flagContainerLabel        = "container-label"
 	flagContainerLabelRemove  = "container-label-rm"
 	flagContainerLabelAdd     = "container-label-add"
+	flagDNS                   = "dns"
+	flagDNSOptions            = "dns-opt"
+	flagDNSSearch             = "dns-search"
 	flagEndpointMode          = "endpoint-mode"
 	flagHostname              = "hostname"
 	flagEnv                   = "env"

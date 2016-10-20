@@ -23,6 +23,9 @@ Create a new service
 Options:
       --constraint value                 Placement constraints (default [])
       --container-label value            Service container labels (default [])
+      --dns list                         Set custom DNS servers (default [])
+      --dns-opt list                     Set DNS options (default [])
+      --dns-search list                  Set custom DNS search domains (default [])
       --endpoint-mode string             Endpoint mode (vip or dnsrr)
   -e, --env value                        Set environment variables (default [])
       --env-file value                   Read in a file of environment variables (default [])
