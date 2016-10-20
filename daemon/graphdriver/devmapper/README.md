@@ -92,5 +92,5 @@ This uses the `dm` prefix and would be used something like `docker daemon --stor
 
 These options are currently documented both in [the man
 page](../../../man/docker.1.md) and in [the online
-documentation](https://docs.docker.com/engine/userguide/storagedriver/device-mapper-driver/).
+documentation](https://docs.docker.com/engine/reference/commandline/dockerd/#/storage-driver-options).
 If you add an options, update both the `man` page and the documentation.
