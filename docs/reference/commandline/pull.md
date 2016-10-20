@@ -32,7 +32,7 @@ If you are behind an HTTP proxy server, for example in corporate settings,
 before open a connect to registry, you may need to configure the Docker
 daemon's proxy settings, using the `HTTP_PROXY`, `HTTPS_PROXY`, and `NO_PROXY`
 environment variables. To set these environment variables on a host using
-`systemd`, refer to the [control and configure Docker with systemd](../../admin/systemd.md#http-proxy)
+`systemd`, refer to the [control and configure Docker with systemd](https://docs.docker.com/engine/admin/systemd/#http-proxy)
 for variables configuration.
 
 ## Examples
@@ -91,7 +91,7 @@ same image, their layers are stored only once and do not consume extra disk
 space.
 
 For more information about images, layers, and the content-addressable store,
-refer to [understand images, containers, and storage drivers](../../userguide/storagedriver/imagesandcontainers.md).
+refer to [understand images, containers, and storage drivers](https://docs.docker.com/engine/userguide/storagedriver/imagesandcontainers/).
 
 
 ## Pull an image by digest (immutable identifier)

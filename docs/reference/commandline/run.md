@@ -133,7 +133,7 @@ of all containers.
 The `docker run` command can be used in combination with `docker commit` to
 [*change the command that a container runs*](commit.md). There is additional detailed information about `docker run` in the [Docker run reference](../run.md).
 
-For information on connecting a container to a network, see the ["*Docker network overview*"](../../userguide/networking/index.md).
+For information on connecting a container to a network, see the ["*Docker network overview*"](https://docs.docker.com/engine/userguide/networking/).
 
 ## Examples
 
@@ -242,7 +242,7 @@ binary (refer to [get the linux binary](
 you give the container the full access to create and manipulate the host's
 Docker daemon.
 
-For in-depth information about volumes, refer to [manage data in containers](../../tutorials/dockervolumes.md)
+For in-depth information about volumes, refer to [manage data in containers](https://docs.docker.com/engine/tutorials/dockervolumes/)
 
 ### Publish or expose port (-p, --expose)
 
@@ -250,7 +250,7 @@ For in-depth information about volumes, refer to [manage data in containers](../
 
 This binds port `8080` of the container to port `80` on `127.0.0.1` of the host
 machine. The [Docker User
-Guide](../../userguide/networking/default_network/dockerlinks.md)
+Guide](https://docs.docker.com/engine/userguide/networking/default_network/dockerlinks/)
 explains in detail how to manipulate ports in Docker.
 
     $ docker run --expose 80 ubuntu bash
@@ -362,7 +362,7 @@ format:
 You can load multiple label-files by supplying multiple  `--label-file` flags.
 
 For additional information on working with labels, see [*Labels - custom
-metadata in Docker*](../../userguide/labels-custom-metadata.md) in the Docker User
+metadata in Docker*](https://docs.docker.com/engine/userguide/labels-custom-metadata/) in the Docker User
 Guide.
 
 ### Connect a container to a network (--network)

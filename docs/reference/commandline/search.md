@@ -23,7 +23,7 @@ Options:
 
 Search [Docker Hub](https://hub.docker.com) for images
 
-See [*Find Public Images on Docker Hub*](../../tutorials/dockerrepos.md#searching-for-images) for
+See [*Find Public Images on Docker Hub*](https://docs.docker.com/engine/tutorials/dockerrepos/#searching-for-images) for
 more details on finding shared images from the command line.
 
 > **Note:**
