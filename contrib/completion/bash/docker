@@ -1696,7 +1696,14 @@ _docker_container_update() {
 }
 
 _docker_container_wait() {
-	_docker_wait
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "--help" -- "$cur" ) )
+			;;
+		*)
+			__docker_complete_containers_all
+			;;
+	esac
 }
 
 
@@ -3144,14 +3151,7 @@ _docker_volume() {
 }
 
 _docker_wait() {
-	case "$cur" in
-		-*)
-			COMPREPLY=( $( compgen -W "--help" -- "$cur" ) )
-			;;
-		*)
-			__docker_complete_containers_all
-			;;
-	esac
+	_docker_container_wait
 }
 
 _docker() {
