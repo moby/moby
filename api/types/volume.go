@@ -23,8 +23,9 @@ type Volume struct {
 	// Required: true
 	Name string `json:"Name"`
 
-	// ref count
-	RefCount int64 `json:"RefCount,omitempty"`
+	// The driver specific options used when creating the volume.
+	// Required: true
+	Options map[string]string `json:"Options"`
 
 	// The level at which the volume exists. Either `global` for cluster-wide, or `local` for machine level.
 	// Required: true
@@ -43,7 +44,7 @@ type Volume struct {
 	UsageData *VolumeUsageData `json:"UsageData,omitempty"`
 }
 
-// VolumeUsageDatavolume usage data
+// VolumeUsageData volume usage data
 // swagger:model VolumeUsageData
 type VolumeUsageData struct {
 

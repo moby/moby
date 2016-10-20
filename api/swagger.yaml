@@ -857,7 +857,7 @@ definitions:
 
   Volume:
     type: "object"
-    required: [Name, Driver, Mountpoint, Labels, Scope]
+    required: [Name, Driver, Mountpoint, Labels, Scope, Options]
     properties:
       Name:
         type: "string"
@@ -894,10 +894,11 @@ definitions:
         default: "local"
         x-nullable: false
         enum: ["local", "global"]
-      RefCount:
-        type: "integer"
-        default: -1
-        x-nullable: false
+      Options:
+        type: "object"
+        description: "The driver specific options used when creating the volume."
+        additionalProperties:
+          type: "string"
       UsageData:
         type: "object"
         required: [Size, RefCount]
@@ -909,6 +910,7 @@ definitions:
             x-nullable: false
           RefCount:
             type: "integer"
+            default: -1
             description: "The number of containers referencing this volume."
             x-nullable: false
 

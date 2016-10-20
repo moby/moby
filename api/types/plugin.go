@@ -31,7 +31,7 @@ type Plugin struct {
 	Tag string `json:"Tag"`
 }
 
-// PluginConfigSettings that can be modified by users.
+// PluginConfig Settings that can be modified by users.
 // swagger:model PluginConfig
 type PluginConfig struct {
 
@@ -52,7 +52,7 @@ type PluginConfig struct {
 	Mounts []PluginMount `json:"Mounts"`
 }
 
-// PluginManifestThe manifest of a plugin.
+// PluginManifest The manifest of a plugin.
 // swagger:model PluginManifest
 type PluginManifest struct {
 
@@ -108,7 +108,7 @@ type PluginManifest struct {
 	Workdir string `json:"Workdir"`
 }
 
-// PluginManifestArgsplugin manifest args
+// PluginManifestArgs plugin manifest args
 // swagger:model PluginManifestArgs
 type PluginManifestArgs struct {
 
@@ -129,7 +129,7 @@ type PluginManifestArgs struct {
 	Value []string `json:"Value"`
 }
 
-// PluginManifestInterfaceThe interface between Docker and the plugin
+// PluginManifestInterface The interface between Docker and the plugin
 // swagger:model PluginManifestInterface
 type PluginManifestInterface struct {
 
@@ -142,7 +142,7 @@ type PluginManifestInterface struct {
 	Types []PluginInterfaceType `json:"Types"`
 }
 
-// PluginManifestNetworkplugin manifest network
+// PluginManifestNetwork plugin manifest network
 // swagger:model PluginManifestNetwork
 type PluginManifestNetwork struct {
 
@@ -151,7 +151,7 @@ type PluginManifestNetwork struct {
 	Type string `json:"Type"`
 }
 
-// PluginManifestUserplugin manifest user
+// PluginManifestUser plugin manifest user
 // swagger:model PluginManifestUser
 type PluginManifestUser struct {
 
