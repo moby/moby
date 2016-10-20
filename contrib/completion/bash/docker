@@ -1263,7 +1263,20 @@ _docker_container_rename() {
 }
 
 _docker_container_restart() {
-	_docker_restart
+	case "$prev" in
+		--time|-t)
+			return
+			;;
+	esac
+
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "--help --time -t" -- "$cur" ) )
+			;;
+		*)
+			__docker_complete_containers_all
+			;;
+	esac
 }
 
 _docker_container_rm() {
@@ -2521,20 +2534,7 @@ _docker_rename() {
 }
 
 _docker_restart() {
-	case "$prev" in
-		--time|-t)
-			return
-			;;
-	esac
-
-	case "$cur" in
-		-*)
-			COMPREPLY=( $( compgen -W "--help --time -t" -- "$cur" ) )
-			;;
-		*)
-			__docker_complete_containers_all
-			;;
-	esac
+	_docker_container_restart
 }
 
 _docker_rm() {
