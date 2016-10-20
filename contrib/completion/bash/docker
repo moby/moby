@@ -1612,7 +1612,20 @@ _docker_container_stats() {
 }
 
 _docker_container_stop() {
-	_docker_stop
+	case "$prev" in
+		--time|-t)
+			return
+			;;
+	esac
+
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "--help --time -t" -- "$cur" ) )
+			;;
+		*)
+			__docker_complete_containers_running
+			;;
+	esac
 }
 
 _docker_container_top() {
@@ -2930,20 +2943,7 @@ _docker_stats() {
 }
 
 _docker_stop() {
-	case "$prev" in
-		--time|-t)
-			return
-			;;
-	esac
-
-	case "$cur" in
-		-*)
-			COMPREPLY=( $( compgen -W "--help --time -t" -- "$cur" ) )
-			;;
-		*)
-			__docker_complete_containers_running
-			;;
-	esac
+	_docker_container_stop
 }
 
 _docker_tag() {
