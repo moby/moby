@@ -15,8 +15,9 @@ import (
 )
 
 type pullOptions struct {
-	remote string
-	all    bool
+	remote             string
+	all                bool
+	insecureRegistries []string
 }
 
 // NewPullCommand creates a new `docker pull` command
@@ -36,6 +37,7 @@ func NewPullCommand(dockerCli *command.DockerCli) *cobra.Command {
 	flags := cmd.Flags()
 
 	flags.BoolVarP(&opts.all, "all-tags", "a", false, "Download all tagged images in the repository")
+	flags.StringSliceVar(&opts.insecureRegistries, "insecure-registry", []string{}, "Allow insecure registry communication with `ENDPOINTS`")
 	command.AddTrustedFlags(flags, true)
 
 	return cmd
@@ -76,11 +78,11 @@ func runPull(dockerCli *command.DockerCli, opts pullOptions) error {
 	authConfig := command.ResolveAuthConfig(ctx, dockerCli, repoInfo.Index)
 	requestPrivilege := command.RegistryAuthenticationPrivilegedFunc(dockerCli, repoInfo.Index, "pull")
 
+	// Check if tag is digest
 	if command.IsTrusted() && !registryRef.HasDigest() {
-		// Check if tag is digest
-		err = trustedPull(ctx, dockerCli, repoInfo, registryRef, authConfig, requestPrivilege)
+		err = trustedPull(ctx, dockerCli, repoInfo, registryRef, authConfig, requestPrivilege, opts.insecureRegistries)
 	} else {
-		err = imagePullPrivileged(ctx, dockerCli, authConfig, distributionRef.String(), requestPrivilege, opts.all)
+		err = imagePullPrivileged(ctx, dockerCli, authConfig, distributionRef.String(), requestPrivilege, opts.all, opts.insecureRegistries)
 	}
 	if err != nil {
 		if strings.Contains(err.Error(), "target is a plugin") {

@@ -233,7 +233,7 @@ func imagePushPrivileged(ctx context.Context, cli *command.DockerCli, authConfig
 }
 
 // trustedPull handles content trust pulling of an image
-func trustedPull(ctx context.Context, cli *command.DockerCli, repoInfo *registry.RepositoryInfo, ref registry.Reference, authConfig types.AuthConfig, requestPrivilege types.RequestPrivilegeFunc) error {
+func trustedPull(ctx context.Context, cli *command.DockerCli, repoInfo *registry.RepositoryInfo, ref registry.Reference, authConfig types.AuthConfig, requestPrivilege types.RequestPrivilegeFunc, insecureRegistries []string) error {
 	var refs []target
 
 	notaryRepo, err := GetNotaryRepository(cli, repoInfo, authConfig, "pull")
@@ -295,7 +295,12 @@ func trustedPull(ctx context.Context, cli *command.DockerCli, repoInfo *registry
 		if err != nil {
 			return err
 		}
-		if err := imagePullPrivileged(ctx, cli, authConfig, ref.String(), requestPrivilege, false); err != nil {
+
+		// TODO(icecrime): Should we allow per-pull insecure registries overrides for trusted pull
+		// operations? It seems contradictory, and would possibly even be better to error out when
+		// `--insecure-registry` is specified for a pull operation with Docker Content Trust
+		// enabled.
+		if err := imagePullPrivileged(ctx, cli, authConfig, ref.String(), requestPrivilege, false, insecureRegistries); err != nil {
 			return err
 		}
 
@@ -318,16 +323,17 @@ func trustedPull(ctx context.Context, cli *command.DockerCli, repoInfo *registry
 }
 
 // imagePullPrivileged pulls the image and displays it to the output
-func imagePullPrivileged(ctx context.Context, cli *command.DockerCli, authConfig types.AuthConfig, ref string, requestPrivilege types.RequestPrivilegeFunc, all bool) error {
+func imagePullPrivileged(ctx context.Context, cli *command.DockerCli, authConfig types.AuthConfig, ref string, requestPrivilege types.RequestPrivilegeFunc, all bool, insecureRegistries []string) error {
 
 	encodedAuth, err := command.EncodeAuthToBase64(authConfig)
 	if err != nil {
 		return err
 	}
 	options := types.ImagePullOptions{
-		RegistryAuth:  encodedAuth,
-		PrivilegeFunc: requestPrivilege,
-		All:           all,
+		RegistryAuth:       encodedAuth,
+		PrivilegeFunc:      requestPrivilege,
+		All:                all,
+		InsecureRegistries: insecureRegistries,
 	}
 
 	responseBody, err := cli.Client().ImagePull(ctx, ref, options)

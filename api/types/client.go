@@ -199,9 +199,10 @@ type ImageLoadResponse struct {
 
 // ImagePullOptions holds information to pull images.
 type ImagePullOptions struct {
-	All           bool
-	RegistryAuth  string // RegistryAuth is the base64 encoded credentials for the registry
-	PrivilegeFunc RequestPrivilegeFunc
+	All                bool
+	RegistryAuth       string // RegistryAuth is the base64 encoded credentials for the registry
+	PrivilegeFunc      RequestPrivilegeFunc
+	InsecureRegistries []string
 }
 
 // RequestPrivilegeFunc is a function interface that

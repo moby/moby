@@ -24,12 +24,16 @@ const (
 // Service is the interface defining what a registry service should implement.
 type Service interface {
 	Auth(ctx context.Context, authConfig *types.AuthConfig, userAgent string) (status, token string, err error)
-	LookupPullEndpoints(hostname string) (endpoints []APIEndpoint, err error)
+	LookupPullEndpoints(hostname string, insecureRegistries []string) (endpoints []APIEndpoint, err error)
 	LookupPushEndpoints(hostname string) (endpoints []APIEndpoint, err error)
 	ResolveRepository(name reference.Named) (*RepositoryInfo, error)
 	Search(ctx context.Context, term string, limit int, authConfig *types.AuthConfig, userAgent string, headers map[string][]string) (*registrytypes.SearchResults, error)
 	ServiceConfig() *registrytypes.ServiceConfig
-	TLSConfig(hostname string) (*tls.Config, error)
+
+	// TLSConfig returns the TLS settings for a particular hostname. TLS
+	// settings are potentially overriden by a local set of insecure registries
+	// specifications, in which case InsecureSkipVerify will be enabled.
+	TLSConfig(hostname string, insecureRegistries []string) (*tls.Config, error)
 }
 
 // DefaultService is a registry service. It tracks configuration data such as a list
@@ -204,26 +208,28 @@ func (e APIEndpoint) ToV1Endpoint(userAgent string, metaHeaders http.Header) (*V
 }
 
 // TLSConfig constructs a client TLS configuration based on server defaults
-func (s *DefaultService) TLSConfig(hostname string) (*tls.Config, error) {
-	return newTLSConfig(hostname, isSecureIndex(s.config, hostname))
+func (s *DefaultService) TLSConfig(hostname string, insecureRegistries []string) (*tls.Config, error) {
+	return newTLSConfig(hostname, isSecureIndex(s.config, hostname, insecureRegistries))
 }
 
 func (s *DefaultService) tlsConfigForMirror(mirrorURL *url.URL) (*tls.Config, error) {
-	return s.TLSConfig(mirrorURL.Host)
+	// There's no insecure registries overrides for registry mirrors.
+	return s.TLSConfig(mirrorURL.Host, []string{})
 }
 
 // LookupPullEndpoints creates a list of endpoints to try to pull from, in order of preference.
 // It gives preference to v2 endpoints over v1, mirrors over the actual
 // registry, and HTTPS over plain HTTP.
-func (s *DefaultService) LookupPullEndpoints(hostname string) (endpoints []APIEndpoint, err error) {
-	return s.lookupEndpoints(hostname)
+func (s *DefaultService) LookupPullEndpoints(hostname string, insecureRegistries []string) (endpoints []APIEndpoint, err error) {
+	return s.lookupEndpoints(hostname, insecureRegistries)
 }
 
 // LookupPushEndpoints creates a list of endpoints to try to push to, in order of preference.
 // It gives preference to v2 endpoints over v1, and HTTPS over plain HTTP.
 // Mirrors are not included.
 func (s *DefaultService) LookupPushEndpoints(hostname string) (endpoints []APIEndpoint, err error) {
-	allEndpoints, err := s.lookupEndpoints(hostname)
+	// There's no insecure registries override for push.
+	allEndpoints, err := s.lookupEndpoints(hostname, []string{})
 	if err == nil {
 		for _, endpoint := range allEndpoints {
 			if !endpoint.Mirror {
@@ -234,8 +240,8 @@ func (s *DefaultService) LookupPushEndpoints(hostname string) (endpoints []APIEn
 	return endpoints, err
 }
 
-func (s *DefaultService) lookupEndpoints(hostname string) (endpoints []APIEndpoint, err error) {
-	endpoints, err = s.lookupV2Endpoints(hostname)
+func (s *DefaultService) lookupEndpoints(hostname string, insecureRegistries []string) (endpoints []APIEndpoint, err error) {
+	endpoints, err = s.lookupV2Endpoints(hostname, insecureRegistries)
 	if err != nil {
 		return nil, err
 	}
@@ -244,7 +250,7 @@ func (s *DefaultService) lookupEndpoints(hostname string) (endpoints []APIEndpoi
 		return endpoints, nil
 	}
 
-	legacyEndpoints, err := s.lookupV1Endpoints(hostname)
+	legacyEndpoints, err := s.lookupV1Endpoints(hostname, insecureRegistries)
 	if err != nil {
 		return nil, err
 	}

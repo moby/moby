@@ -30,7 +30,8 @@ type v1Pusher struct {
 }
 
 func (p *v1Pusher) Push(ctx context.Context) error {
-	tlsConfig, err := p.config.RegistryService.TLSConfig(p.repoInfo.Index.Name)
+	// There's no insecure registries override for push.
+	tlsConfig, err := p.config.RegistryService.TLSConfig(p.repoInfo.Index.Name, []string{})
 	if err != nil {
 		return err
 	}

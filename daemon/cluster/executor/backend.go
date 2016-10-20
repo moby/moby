@@ -22,7 +22,7 @@ type Backend interface {
 	DeleteManagedNetwork(name string) error
 	FindNetwork(idName string) (libnetwork.Network, error)
 	SetupIngress(req clustertypes.NetworkCreateRequest, nodeIP string) error
-	PullImage(ctx context.Context, image, tag string, metaHeaders map[string][]string, authConfig *types.AuthConfig, outStream io.Writer) error
+	PullImage(ctx context.Context, image, tag string, metaHeaders map[string][]string, authConfig *types.AuthConfig, insecureRegistries []string, outStream io.Writer) error
 	CreateManagedContainer(config types.ContainerCreateConfig, validateHostname bool) (types.ContainerCreateResponse, error)
 	ContainerStart(name string, hostConfig *container.HostConfig, validateHostname bool, checkpoint string) error
 	ContainerStop(name string, seconds *int) error

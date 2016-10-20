@@ -4,6 +4,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strings"
 
 	"golang.org/x/net/context"
 
@@ -29,6 +30,9 @@ func (cli *Client) ImagePull(ctx context.Context, ref string, options types.Imag
 	query.Set("fromImage", repository)
 	if tag != "" && !options.All {
 		query.Set("tag", tag)
+	}
+	if len(options.InsecureRegistries) > 0 {
+		query.Set("insecure-registries", strings.Join(options.InsecureRegistries, ","))
 	}
 
 	resp, err := cli.tryImageCreate(ctx, query, options.RegistryAuth)

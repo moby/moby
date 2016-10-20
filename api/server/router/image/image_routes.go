@@ -75,12 +75,13 @@ func (s *imageRouter) postImagesCreate(ctx context.Context, w http.ResponseWrite
 	}
 
 	var (
-		image   = r.Form.Get("fromImage")
-		repo    = r.Form.Get("repo")
-		tag     = r.Form.Get("tag")
-		message = r.Form.Get("message")
-		err     error
-		output  = ioutils.NewWriteFlusher(w)
+		image              = r.Form.Get("fromImage")
+		repo               = r.Form.Get("repo")
+		tag                = r.Form.Get("tag")
+		message            = r.Form.Get("message")
+		insecureRegistries = strings.Split(r.Form.Get("insecure-registries"), ",")
+		err                error
+		output             = ioutils.NewWriteFlusher(w)
 	)
 	defer output.Close()
 
@@ -105,7 +106,7 @@ func (s *imageRouter) postImagesCreate(ctx context.Context, w http.ResponseWrite
 			}
 		}
 
-		err = s.backend.PullImage(ctx, image, tag, metaHeaders, authConfig, output)
+		err = s.backend.PullImage(ctx, image, tag, metaHeaders, authConfig, insecureRegistries, output)
 	} else { //import
 		src := r.Form.Get("fromSrc")
 		// 'err' MUST NOT be defined within this block, we need any error
