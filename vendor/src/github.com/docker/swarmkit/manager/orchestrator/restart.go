@@ -2,6 +2,7 @@ package orchestrator
 
 import (
 	"container/list"
+	"errors"
 	"sync"
 	"time"
 
@@ -76,6 +77,9 @@ func (r *RestartSupervisor) waitRestart(ctx context.Context, oldDelay *delayedSt
 		if t == nil {
 			return nil
 		}
+		if t.DesiredState > api.TaskStateRunning {
+			return nil
+		}
 		service := store.GetService(tx, t.ServiceID)
 		if service == nil {
 			return nil
@@ -107,6 +111,13 @@ func (r *RestartSupervisor) Restart(ctx context.Context, tx store.Tx, cluster *a
 		return nil
 	}
 	r.mu.Unlock()
+
+	// Sanity check: was the task shut down already by a separate call to
+	// Restart? If so, we must avoid restarting it, because this will create
+	// an extra task. This should never happen unless there is a bug.
+	if t.DesiredState > api.TaskStateRunning {
+		return errors.New("Restart called on task that was already shut down")
+	}
 
 	t.DesiredState = api.TaskStateShutdown
 	err := store.UpdateTask(tx, &t)
