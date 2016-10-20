@@ -2,6 +2,7 @@ package node
 
 import (
 	"fmt"
+	"strings"
 
 	"golang.org/x/net/context"
 
@@ -35,12 +36,21 @@ func newRemoveCommand(dockerCli *command.DockerCli) *cobra.Command {
 func runRemove(dockerCli *command.DockerCli, args []string, opts removeOptions) error {
 	client := dockerCli.Client()
 	ctx := context.Background()
+
+	var errs []string
+
 	for _, nodeID := range args {
 		err := client.NodeRemove(ctx, nodeID, types.NodeRemoveOptions{Force: opts.force})
 		if err != nil {
-			return err
+			errs = append(errs, err.Error())
+			continue
 		}
 		fmt.Fprintf(dockerCli.Out(), "%s\n", nodeID)
 	}
+
+	if len(errs) > 0 {
+		return fmt.Errorf("%s", strings.Join(errs, "\n"))
+	}
+
 	return nil
 }
