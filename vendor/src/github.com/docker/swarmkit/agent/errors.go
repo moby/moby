@@ -10,8 +10,6 @@ var (
 	ErrClosed = errors.New("agent: closed")
 
 	errNodeNotRegistered = fmt.Errorf("node not registered")
-	errNodeStarted       = errors.New("node: already started")
-	errNodeNotStarted    = errors.New("node: not started")
 
 	errAgentStarted    = errors.New("agent: already started")
 	errAgentNotStarted = errors.New("agent: not started")

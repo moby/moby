@@ -16,15 +16,19 @@ var (
 // parameters for random identifier generation. We can tweak this when there is
 // time for further analysis.
 const (
-	randomIDEntropyBytes = 16
+	randomIDEntropyBytes = 17
 	randomIDBase         = 36
 
 	// To ensure that all identifiers are fixed length, we make sure they
-	// get padded out to 25 characters, which is the maximum for the base36
-	// representation of 128-bit identifiers.
+	// get padded out or truncated to 25 characters.
 	//
 	// For academics,  f5lxx1zz5pnorynqglhzmsp33  == 2^128 - 1. This value
 	// was calculated from floor(log(2^128-1, 36)) + 1.
+	//
+	// While 128 bits is the largest whole-byte size that fits into 25
+	// base-36 characters, we generate an extra byte of entropy to fill
+	// in the high bits, which would otherwise be 0. This gives us a more
+	// even distribution of the first character.
 	//
 	// See http://mathworld.wolfram.com/NumberLength.html for more information.
 	maxRandomIDLength = 25
@@ -34,7 +38,7 @@ const (
 // collision probability are required.
 //
 // With the parameters in this package, the generated identifier will provide
-// 128 bits of entropy encoded with base36. Leading padding is added if the
+// ~129 bits of entropy encoded with base36. Leading padding is added if the
 // string is less 25 bytes. We do not intend to maintain this interface, so
 // identifiers should be treated opaquely.
 func NewID() string {
@@ -44,7 +48,6 @@ func NewID() string {
 		panic(fmt.Errorf("failed to read random bytes: %v", err))
 	}
 
-	var nn big.Int
-	nn.SetBytes(p[:])
-	return fmt.Sprintf("%0[1]*s", maxRandomIDLength, nn.Text(randomIDBase))
+	p[0] |= 0x80 // set high bit to avoid the need for padding
+	return (&big.Int{}).SetBytes(p[:]).Text(randomIDBase)[1 : maxRandomIDLength+1]
 }

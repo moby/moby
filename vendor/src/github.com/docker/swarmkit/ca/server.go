@@ -3,6 +3,7 @@ package ca
 import (
 	"crypto/subtle"
 	"sync"
+	"time"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/swarmkit/api"
@@ -17,18 +18,27 @@ import (
 	"google.golang.org/grpc/codes"
 )
 
+const (
+	defaultReconciliationRetryInterval = 10 * time.Second
+)
+
 // Server is the CA and NodeCA API gRPC server.
-// TODO(diogo): At some point we may want to have separate implementations of
+// TODO(aaronl): At some point we may want to have separate implementations of
 // CA, NodeCA, and other hypothetical future CA services. At the moment,
 // breaking it apart doesn't seem worth it.
 type Server struct {
-	mu             sync.Mutex
-	wg             sync.WaitGroup
-	ctx            context.Context
-	cancel         func()
-	store          *store.MemoryStore
-	securityConfig *SecurityConfig
-	joinTokens     *api.JoinTokens
+	mu                          sync.Mutex
+	wg                          sync.WaitGroup
+	ctx                         context.Context
+	cancel                      func()
+	store                       *store.MemoryStore
+	securityConfig              *SecurityConfig
+	joinTokens                  *api.JoinTokens
+	reconciliationRetryInterval time.Duration
+
+	// pending is a map of nodes with pending certificates issuance or
+	// renewal. They are indexed by node ID.
+	pending map[string]*api.Node
 
 	// Started is a channel which gets closed once the server is running
 	// and able to service RPCs.
@@ -45,10 +55,18 @@ func DefaultCAConfig() api.CAConfig {
 // NewServer creates a CA API server.
 func NewServer(store *store.MemoryStore, securityConfig *SecurityConfig) *Server {
 	return &Server{
-		store:          store,
-		securityConfig: securityConfig,
-		started:        make(chan struct{}),
+		store:                       store,
+		securityConfig:              securityConfig,
+		pending:                     make(map[string]*api.Node),
+		started:                     make(chan struct{}),
+		reconciliationRetryInterval: defaultReconciliationRetryInterval,
 	}
+}
+
+// SetReconciliationRetryInterval changes the time interval between
+// reconciliation attempts. This function must be called before Run.
+func (s *Server) SetReconciliationRetryInterval(reconciliationRetryInterval time.Duration) {
+	s.reconciliationRetryInterval = reconciliationRetryInterval
 }
 
 // NodeCertificateStatus returns the current issuance status of an issuance request identified by the nodeID
@@ -149,16 +167,33 @@ func (s *Server) IssueNodeCertificate(ctx context.Context, request *api.IssueNod
 	}
 	defer s.doneTask()
 
+	var (
+		removedNodes []*api.RemovedNode
+		clusters     []*api.Cluster
+		err          error
+	)
+
+	s.store.View(func(readTx store.ReadTx) {
+		clusters, err = store.FindClusters(readTx, store.ByName("default"))
+
+	})
+
+	// Not having a cluster object yet means we can't check
+	// the blacklist.
+	if err == nil && len(clusters) == 1 {
+		removedNodes = clusters[0].RemovedNodes
+	}
+
 	// If the remote node is a worker (either forwarded by a manager, or calling directly),
 	// issue a renew worker certificate entry with the correct ID
-	nodeID, err := AuthorizeForwardedRoleAndOrg(ctx, []string{WorkerRole}, []string{ManagerRole}, s.securityConfig.ClientTLSCreds.Organization())
+	nodeID, err := AuthorizeForwardedRoleAndOrg(ctx, []string{WorkerRole}, []string{ManagerRole}, s.securityConfig.ClientTLSCreds.Organization(), removedNodes)
 	if err == nil {
 		return s.issueRenewCertificate(ctx, nodeID, request.CSR)
 	}
 
 	// If the remote node is a manager (either forwarded by another manager, or calling directly),
 	// issue a renew certificate entry with the correct ID
-	nodeID, err = AuthorizeForwardedRoleAndOrg(ctx, []string{ManagerRole}, []string{ManagerRole}, s.securityConfig.ClientTLSCreds.Organization())
+	nodeID, err = AuthorizeForwardedRoleAndOrg(ctx, []string{ManagerRole}, []string{ManagerRole}, s.securityConfig.ClientTLSCreds.Organization(), removedNodes)
 	if err == nil {
 		return s.issueRenewCertificate(ctx, nodeID, request.CSR)
 	}
@@ -240,7 +275,6 @@ func (s *Server) issueRenewCertificate(ctx context.Context, nodeID string, csr [
 		node *api.Node
 	)
 	err := s.store.Update(func(tx store.Tx) error {
-
 		// Attempt to retrieve the node with nodeID
 		node = store.GetNode(tx, nodeID)
 		if node == nil {
@@ -356,6 +390,9 @@ func (s *Server) Run(ctx context.Context) error {
 		}).WithError(err).Errorf("error attempting to reconcile certificates")
 	}
 
+	ticker := time.NewTicker(s.reconciliationRetryInterval)
+	defer ticker.Stop()
+
 	// Watch for new nodes being created, new nodes being updated, and changes
 	// to the cluster
 	for {
@@ -373,7 +410,16 @@ func (s *Server) Run(ctx context.Context) error {
 			case state.EventUpdateCluster:
 				s.updateCluster(ctx, v.Cluster)
 			}
-
+		case <-ticker.C:
+			for _, node := range s.pending {
+				if err := s.evaluateAndSignNodeCert(ctx, node); err != nil {
+					// If this sign operation did not succeed, the rest are
+					// unlikely to. Yield so that we don't hammer an external CA.
+					// Since the map iteration order is randomized, there is no
+					// risk of getting stuck on a problematic CSR.
+					break
+				}
+			}
 		case <-ctx.Done():
 			return ctx.Err()
 		case <-s.ctx.Done():
@@ -493,28 +539,29 @@ func (s *Server) updateCluster(ctx context.Context, cluster *api.Cluster) {
 }
 
 // evaluateAndSignNodeCert implements the logic of which certificates to sign
-func (s *Server) evaluateAndSignNodeCert(ctx context.Context, node *api.Node) {
+func (s *Server) evaluateAndSignNodeCert(ctx context.Context, node *api.Node) error {
 	// If the desired membership and actual state are in sync, there's
 	// nothing to do.
 	if node.Spec.Membership == api.NodeMembershipAccepted && node.Certificate.Status.State == api.IssuanceStateIssued {
-		return
+		return nil
 	}
 
 	// If the certificate state is renew, then it is a server-sided accepted cert (cert renewals)
 	if node.Certificate.Status.State == api.IssuanceStateRenew {
-		s.signNodeCert(ctx, node)
-		return
+		return s.signNodeCert(ctx, node)
 	}
 
 	// Sign this certificate if a user explicitly changed it to Accepted, and
 	// the certificate is in pending state
 	if node.Spec.Membership == api.NodeMembershipAccepted && node.Certificate.Status.State == api.IssuanceStatePending {
-		s.signNodeCert(ctx, node)
+		return s.signNodeCert(ctx, node)
 	}
+
+	return nil
 }
 
 // signNodeCert does the bulk of the work for signing a certificate
-func (s *Server) signNodeCert(ctx context.Context, node *api.Node) {
+func (s *Server) signNodeCert(ctx context.Context, node *api.Node) error {
 	rootCA := s.securityConfig.RootCA()
 	externalCA := s.securityConfig.externalCA
 
@@ -527,8 +574,10 @@ func (s *Server) signNodeCert(ctx context.Context, node *api.Node) {
 			"node.id": node.ID,
 			"method":  "(*Server).signNodeCert",
 		}).WithError(err).Errorf("failed to parse role")
-		return
+		return errors.New("failed to parse role")
 	}
+
+	s.pending[node.ID] = node
 
 	// Attempt to sign the CSR
 	var (
@@ -550,16 +599,19 @@ func (s *Server) signNodeCert(ctx context.Context, node *api.Node) {
 			"node.id": node.ID,
 			"method":  "(*Server).signNodeCert",
 		}).WithError(err).Errorf("failed to sign CSR")
-		// If this error is due the lack of signer, maybe some other
-		// manager in the future will pick it up. Return without
-		// changing the state of the certificate.
-		if err == ErrNoValidSigner {
-			return
-		}
+
 		// If the current state is already Failed, no need to change it
 		if node.Certificate.Status.State == api.IssuanceStateFailed {
-			return
+			delete(s.pending, node.ID)
+			return errors.New("failed to sign CSR")
 		}
+
+		if _, ok := err.(recoverableErr); ok {
+			// Return without changing the state of the certificate. We may
+			// retry signing it in the future.
+			return errors.New("failed to sign CSR")
+		}
+
 		// We failed to sign this CSR, change the state to FAILED
 		err = s.store.Update(func(tx store.Tx) error {
 			node := store.GetNode(tx, nodeID)
@@ -580,7 +632,9 @@ func (s *Server) signNodeCert(ctx context.Context, node *api.Node) {
 				"method":  "(*Server).signNodeCert",
 			}).WithError(err).Errorf("transaction failed when setting state to FAILED")
 		}
-		return
+
+		delete(s.pending, node.ID)
+		return errors.New("failed to sign CSR")
 	}
 
 	// We were able to successfully sign the new CSR. Let's try to update the nodeStore
@@ -606,6 +660,7 @@ func (s *Server) signNodeCert(ctx context.Context, node *api.Node) {
 				"node.role": node.Certificate.Role,
 				"method":    "(*Server).signNodeCert",
 			}).Debugf("certificate issued")
+			delete(s.pending, node.ID)
 			break
 		}
 		if err == store.ErrSequenceConflict {
@@ -616,8 +671,9 @@ func (s *Server) signNodeCert(ctx context.Context, node *api.Node) {
 			"node.id": nodeID,
 			"method":  "(*Server).signNodeCert",
 		}).WithError(err).Errorf("transaction failed")
-		return
+		return errors.New("transaction failed")
 	}
+	return nil
 }
 
 // reconcileNodeCertificates is a helper method that calles evaluateAndSignNodeCert on all the

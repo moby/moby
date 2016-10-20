@@ -202,6 +202,7 @@ func redactClusters(clusters []*api.Cluster) []*api.Cluster {
 				CACertHash: cluster.RootCA.CACertHash,
 				JoinTokens: cluster.RootCA.JoinTokens,
 			},
+			RemovedNodes: cluster.RemovedNodes,
 		}
 
 		redactedClusters = append(redactedClusters, newCluster)

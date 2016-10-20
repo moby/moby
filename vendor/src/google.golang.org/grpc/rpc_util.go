@@ -303,10 +303,10 @@ func checkRecvPayload(pf payloadFormat, recvCompress string, dc Decompressor) er
 	case compressionNone:
 	case compressionMade:
 		if dc == nil || recvCompress != dc.Type() {
-			return transport.StreamErrorf(codes.Unimplemented, "grpc: Decompressor is not installed for grpc-encoding %q", recvCompress)
+			return Errorf(codes.Unimplemented, "grpc: Decompressor is not installed for grpc-encoding %q", recvCompress)
 		}
 	default:
-		return transport.StreamErrorf(codes.Internal, "grpc: received unexpected payload format %d", pf)
+		return Errorf(codes.Internal, "grpc: received unexpected payload format %d", pf)
 	}
 	return nil
 }

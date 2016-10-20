@@ -16,7 +16,7 @@ type ResourceAllocator interface {
 	// given a target network and a unique ID representing the
 	// connecting entity and optionally a list of ipv4/ipv6
 	// addresses to be assigned to the attachment. AttachNetwork
-	// returns a unique ID for the attachment if successfull or an
+	// returns a unique ID for the attachment if successful or an
 	// error in case of failure.
 	AttachNetwork(ctx context.Context, id, target string, addresses []string) (string, error)
 

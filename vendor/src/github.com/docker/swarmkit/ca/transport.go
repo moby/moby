@@ -44,6 +44,26 @@ func (c *MutableTLSCreds) Info() credentials.ProtocolInfo {
 	}
 }
 
+// Clone returns new MutableTLSCreds created from underlying *tls.Config.
+// It panics if validation of underlying config fails.
+func (c *MutableTLSCreds) Clone() credentials.TransportCredentials {
+	c.Lock()
+	newCfg, err := NewMutableTLS(c.config)
+	if err != nil {
+		panic("validation error on Clone")
+	}
+	c.Unlock()
+	return newCfg
+}
+
+// OverrideServerName overrides *tls.Config.ServerName.
+func (c *MutableTLSCreds) OverrideServerName(name string) error {
+	c.Lock()
+	c.config.ServerName = name
+	c.Unlock()
+	return nil
+}
+
 // GetRequestMetadata implements the credentials.TransportCredentials interface
 func (c *MutableTLSCreds) GetRequestMetadata(ctx context.Context, uri ...string) (map[string]string, error) {
 	return nil, nil

@@ -76,7 +76,13 @@ func newSession(ctx context.Context, agent *Agent, delay time.Duration, sessionI
 }
 
 func (s *session) run(ctx context.Context, delay time.Duration, description *api.NodeDescription) {
-	time.Sleep(delay) // delay before registering.
+	timer := time.NewTimer(delay) // delay before registering.
+	defer timer.Stop()
+	select {
+	case <-timer.C:
+	case <-ctx.Done():
+		return
+	}
 
 	if err := s.start(ctx, description); err != nil {
 		select {

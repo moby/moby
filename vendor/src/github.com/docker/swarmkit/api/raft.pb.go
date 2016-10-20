@@ -528,9 +528,7 @@ func (m *JoinResponse) Copy() *JoinResponse {
 
 	if m.RemovedMembers != nil {
 		o.RemovedMembers = make([]uint64, 0, len(m.RemovedMembers))
-		for _, v := range m.RemovedMembers {
-			o.RemovedMembers = append(o.RemovedMembers, v)
-		}
+		o.RemovedMembers = append(o.RemovedMembers, m.RemovedMembers...)
 	}
 
 	return o

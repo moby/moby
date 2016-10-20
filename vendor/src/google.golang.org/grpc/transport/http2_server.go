@@ -111,12 +111,12 @@ func newHTTP2Server(conn net.Conn, maxStreams uint32, authInfo credentials.AuthI
 			Val: uint32(initialWindowSize)})
 	}
 	if err := framer.writeSettings(true, settings...); err != nil {
-		return nil, ConnectionErrorf(true, err, "transport: %v", err)
+		return nil, connectionErrorf(true, err, "transport: %v", err)
 	}
 	// Adjust the connection flow control window if needed.
 	if delta := uint32(initialConnWindowSize - defaultWindowSize); delta > 0 {
 		if err := framer.writeWindowUpdate(true, 0, delta); err != nil {
-			return nil, ConnectionErrorf(true, err, "transport: %v", err)
+			return nil, connectionErrorf(true, err, "transport: %v", err)
 		}
 	}
 	var buf bytes.Buffer
@@ -448,7 +448,7 @@ func (t *http2Server) writeHeaders(s *Stream, b *bytes.Buffer, endStream bool) e
 		}
 		if err != nil {
 			t.Close()
-			return ConnectionErrorf(true, err, "transport: %v", err)
+			return connectionErrorf(true, err, "transport: %v", err)
 		}
 	}
 	return nil
@@ -544,7 +544,7 @@ func (t *http2Server) Write(s *Stream, data []byte, opts *Options) error {
 	s.mu.Lock()
 	if s.state == streamDone {
 		s.mu.Unlock()
-		return StreamErrorf(codes.Unknown, "the stream has been done")
+		return streamErrorf(codes.Unknown, "the stream has been done")
 	}
 	if !s.headerOk {
 		writeHeaderFrame = true
@@ -568,7 +568,7 @@ func (t *http2Server) Write(s *Stream, data []byte, opts *Options) error {
 		}
 		if err := t.framer.writeHeaders(false, p); err != nil {
 			t.Close()
-			return ConnectionErrorf(true, err, "transport: %v", err)
+			return connectionErrorf(true, err, "transport: %v", err)
 		}
 		t.writableChan <- 0
 	}
@@ -642,7 +642,7 @@ func (t *http2Server) Write(s *Stream, data []byte, opts *Options) error {
 		}
 		if err := t.framer.writeData(forceFlush, s.id, false, p); err != nil {
 			t.Close()
-			return ConnectionErrorf(true, err, "transport: %v", err)
+			return connectionErrorf(true, err, "transport: %v", err)
 		}
 		if t.framer.adjustNumWriters(-1) == 0 {
 			t.framer.flushWrite()

@@ -518,7 +518,7 @@ func (na *NetworkAllocator) allocateNetworkIPs(nAttach *api.NetworkAttachment) e
 	}
 
 	addresses := nAttach.Addresses
-	if addresses == nil {
+	if len(addresses) == 0 {
 		addresses = []string{""}
 	}
 

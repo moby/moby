@@ -485,7 +485,7 @@ func (n *Node) saveSnapshot(snapshot raftpb.Snapshot, keepOldSnapshots uint64) e
 	return nil
 }
 
-func (n *Node) doSnapshot(raftConfig *api.RaftConfig) {
+func (n *Node) doSnapshot(ctx context.Context, raftConfig api.RaftConfig) {
 	snapshot := api.Snapshot{Version: api.Snapshot_V0}
 	for _, member := range n.cluster.Members() {
 		snapshot.Membership.Members = append(snapshot.Membership.Members,
@@ -515,19 +515,19 @@ func (n *Node) doSnapshot(raftConfig *api.RaftConfig) {
 			snapshot.Store = *storeSnapshot
 		})
 		if err != nil {
-			n.Config.Logger.Error(err)
+			log.G(ctx).WithError(err).Error("failed to read snapshot from store")
 			return
 		}
 
 		d, err := snapshot.Marshal()
 		if err != nil {
-			n.Config.Logger.Error(err)
+			log.G(ctx).WithError(err).Error("failed to marshal snapshot")
 			return
 		}
 		snap, err := n.raftStore.CreateSnapshot(appliedIndex, &n.confState, d)
 		if err == nil {
 			if err := n.saveSnapshot(snap, raftConfig.KeepOldSnapshots); err != nil {
-				n.Config.Logger.Error(err)
+				log.G(ctx).WithError(err).Error("failed to save snapshot")
 				return
 			}
 			snapshotIndex = appliedIndex
@@ -535,11 +535,11 @@ func (n *Node) doSnapshot(raftConfig *api.RaftConfig) {
 			if appliedIndex > raftConfig.LogEntriesForSlowFollowers {
 				err := n.raftStore.Compact(appliedIndex - raftConfig.LogEntriesForSlowFollowers)
 				if err != nil && err != raft.ErrCompacted {
-					n.Config.Logger.Error(err)
+					log.G(ctx).WithError(err).Error("failed to compact snapshot")
 				}
 			}
 		} else if err != raft.ErrSnapOutOfDate {
-			n.Config.Logger.Error(err)
+			log.G(ctx).WithError(err).Error("failed to create snapshot")
 		}
 	}(n.appliedIndex, n.snapshotIndex)
 

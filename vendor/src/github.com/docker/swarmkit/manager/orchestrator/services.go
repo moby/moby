@@ -168,6 +168,9 @@ func (r *ReplicatedOrchestrator) reconcile(ctx context.Context, service *api.Ser
 			r.deleteTasksMap(ctx, batch, deadSlots)
 			return nil
 		})
+		if err != nil {
+			log.G(ctx).WithError(err).Errorf("reconcile batch failed")
+		}
 		// Simple update, no scaling - update all tasks.
 		r.updater.Update(ctx, r.cluster, service, slotsSlice)
 	}

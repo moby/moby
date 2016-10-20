@@ -1283,8 +1283,3 @@ func (d *Dispatcher) Session(r *api.SessionRequest, stream api.Dispatcher_Sessio
 		}
 	}
 }
-
-// NodeCount returns number of nodes which connected to this dispatcher.
-func (d *Dispatcher) NodeCount() int {
-	return d.nodes.Len()
-}

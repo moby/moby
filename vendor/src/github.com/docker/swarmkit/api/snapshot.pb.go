@@ -151,9 +151,7 @@ func (m *ClusterSnapshot) Copy() *ClusterSnapshot {
 
 	if m.Removed != nil {
 		o.Removed = make([]uint64, 0, len(m.Removed))
-		for _, v := range m.Removed {
-			o.Removed = append(o.Removed, v)
-		}
+		o.Removed = append(o.Removed, m.Removed...)
 	}
 
 	return o

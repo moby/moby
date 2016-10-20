@@ -7,6 +7,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 
+	"github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/log"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
@@ -79,7 +80,7 @@ func certSubjectFromContext(ctx context.Context) (pkix.Name, error) {
 
 // AuthorizeOrgAndRole takes in a context and a list of roles, and returns
 // the Node ID of the node.
-func AuthorizeOrgAndRole(ctx context.Context, org string, ou ...string) (string, error) {
+func AuthorizeOrgAndRole(ctx context.Context, org string, removedNodes []*api.RemovedNode, ou ...string) (string, error) {
 	certSubj, err := certSubjectFromContext(ctx)
 	if err != nil {
 		return "", err
@@ -87,18 +88,19 @@ func AuthorizeOrgAndRole(ctx context.Context, org string, ou ...string) (string,
 	// Check if the current certificate has an OU that authorizes
 	// access to this method
 	if intersectArrays(certSubj.OrganizationalUnit, ou) {
-		return authorizeOrg(ctx, org)
+		return authorizeOrg(certSubj, org, removedNodes)
 	}
 
 	return "", grpc.Errorf(codes.PermissionDenied, "Permission denied: remote certificate not part of OUs: %v", ou)
 }
 
-// authorizeOrg takes in a context and an organization, and returns
+// authorizeOrg takes in a certificate subject and an organization, and returns
 // the Node ID of the node.
-func authorizeOrg(ctx context.Context, org string) (string, error) {
-	certSubj, err := certSubjectFromContext(ctx)
-	if err != nil {
-		return "", err
+func authorizeOrg(certSubj pkix.Name, org string, removedNodes []*api.RemovedNode) (string, error) {
+	for _, removedNode := range removedNodes {
+		if removedNode.ID == certSubj.CommonName {
+			return "", grpc.Errorf(codes.PermissionDenied, "Permission denied: node %s was removed from swarm", certSubj.CommonName)
+		}
 	}
 
 	if len(certSubj.Organization) > 0 && certSubj.Organization[0] == org {
@@ -112,9 +114,9 @@ func authorizeOrg(ctx context.Context, org string) (string, error) {
 // been proxied by a manager, in which case the manager is authenticated and
 // so is the certificate information that it forwarded. It returns the node ID
 // of the original client.
-func AuthorizeForwardedRoleAndOrg(ctx context.Context, authorizedRoles, forwarderRoles []string, org string) (string, error) {
+func AuthorizeForwardedRoleAndOrg(ctx context.Context, authorizedRoles, forwarderRoles []string, org string, removedNodes []*api.RemovedNode) (string, error) {
 	if isForwardedRequest(ctx) {
-		_, err := AuthorizeOrgAndRole(ctx, org, forwarderRoles...)
+		_, err := AuthorizeOrgAndRole(ctx, org, removedNodes, forwarderRoles...)
 		if err != nil {
 			return "", grpc.Errorf(codes.PermissionDenied, "Permission denied: unauthorized forwarder role: %v", err)
 		}
@@ -140,7 +142,7 @@ func AuthorizeForwardedRoleAndOrg(ctx context.Context, authorizedRoles, forwarde
 	}
 
 	// There wasn't any node being forwarded, check if this is a direct call by the expected role
-	nodeID, err := AuthorizeOrgAndRole(ctx, org, authorizedRoles...)
+	nodeID, err := AuthorizeOrgAndRole(ctx, org, removedNodes, authorizedRoles...)
 	if err == nil {
 		return nodeID, nil
 	}

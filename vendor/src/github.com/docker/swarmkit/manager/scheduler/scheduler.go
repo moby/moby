@@ -298,7 +298,9 @@ func (s *Scheduler) processPreassignedTasks(ctx context.Context) {
 	successful, failed := s.applySchedulingDecisions(ctx, schedulingDecisions)
 
 	for _, decision := range successful {
-		delete(s.preassignedTasks, decision.old.ID)
+		if decision.new.Status.State == api.TaskStateAssigned {
+			delete(s.preassignedTasks, decision.old.ID)
+		}
 	}
 	for _, decision := range failed {
 		s.allTasks[decision.old.ID] = decision.old
@@ -381,9 +383,33 @@ func (s *Scheduler) applySchedulingDecisions(ctx context.Context, schedulingDeci
 
 					t := store.GetTask(tx, taskID)
 					if t == nil {
-						// Task no longer exists. Do nothing.
-						failed = append(failed, decision)
+						// Task no longer exists
+						nodeInfo, err := s.nodeSet.nodeInfo(decision.new.NodeID)
+						if err == nil && nodeInfo.removeTask(decision.new) {
+							s.nodeSet.updateNode(nodeInfo)
+						}
+						delete(s.allTasks, decision.old.ID)
+
 						continue
+					}
+
+					if t.Status.State == decision.new.Status.State && t.Status.Message == decision.new.Status.Message {
+						// No changes, ignore
+						continue
+					}
+
+					if t.Status.State >= api.TaskStateAssigned {
+						nodeInfo, err := s.nodeSet.nodeInfo(decision.new.NodeID)
+						if err != nil {
+							failed = append(failed, decision)
+							continue
+						}
+						node := store.GetNode(tx, decision.new.NodeID)
+						if node == nil || node.Meta.Version != nodeInfo.Meta.Version {
+							// node is out of date
+							failed = append(failed, decision)
+							continue
+						}
 					}
 
 					if err := store.UpdateTask(tx, decision.new); err != nil {
@@ -418,12 +444,16 @@ func (s *Scheduler) taskFitNode(ctx context.Context, t *api.Task, nodeID string)
 		// node does not exist in set (it may have been deleted)
 		return nil
 	}
+	newT := *t
 	s.pipeline.SetTask(t)
 	if !s.pipeline.Process(&nodeInfo) {
 		// this node cannot accommodate this task
-		return nil
+		newT.Status.Timestamp = ptypes.MustTimestampProto(time.Now())
+		newT.Status.Message = s.pipeline.Explain()
+		s.allTasks[t.ID] = &newT
+
+		return &newT
 	}
-	newT := *t
 	newT.Status = api.TaskStatus{
 		State:     api.TaskStateAssigned,
 		Timestamp: ptypes.MustTimestampProto(time.Now()),
@@ -468,10 +498,7 @@ func (s *Scheduler) scheduleTaskGroup(ctx context.Context, taskGroup map[string]
 
 	nodes := s.nodeSet.findBestNodes(len(taskGroup), s.pipeline.Process, nodeLess)
 	if len(nodes) == 0 {
-		for _, t := range taskGroup {
-			log.G(ctx).WithField("task.id", t.ID).Debug("no suitable node available for task")
-			s.enqueue(t)
-		}
+		s.noSuitableNode(ctx, taskGroup, schedulingDecisions)
 		return
 	}
 
@@ -518,13 +545,29 @@ func (s *Scheduler) scheduleTaskGroup(ctx context.Context, taskGroup map[string]
 			nodeIter++
 			if nodeIter-origNodeIter == len(nodes) {
 				// None of the nodes meet the constraints anymore.
-				for _, t := range taskGroup {
-					log.G(ctx).WithField("task.id", t.ID).Debug("no suitable node available for task")
-					s.enqueue(t)
-				}
+				s.noSuitableNode(ctx, taskGroup, schedulingDecisions)
 				return
 			}
 		}
+	}
+}
+
+func (s *Scheduler) noSuitableNode(ctx context.Context, taskGroup map[string]*api.Task, schedulingDecisions map[string]schedulingDecision) {
+	explanation := s.pipeline.Explain()
+	for _, t := range taskGroup {
+		log.G(ctx).WithField("task.id", t.ID).Debug("no suitable node available for task")
+
+		newT := *t
+		newT.Status.Timestamp = ptypes.MustTimestampProto(time.Now())
+		if explanation != "" {
+			newT.Status.Message = "no suitable node (" + explanation + ")"
+		} else {
+			newT.Status.Message = "no suitable node"
+		}
+		s.allTasks[t.ID] = &newT
+		schedulingDecisions[t.ID] = schedulingDecision{old: t, new: &newT}
+
+		s.enqueue(&newT)
 	}
 }
 

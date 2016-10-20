@@ -48,7 +48,6 @@ func (s *Server) GetSecret(ctx context.Context, request *api.GetSecretRequest) (
 		return nil, grpc.Errorf(codes.NotFound, "secret %s not found", request.SecretID)
 	}
 
-	secret.Spec.Data = nil // clean the actual secret data so it's never returned
 	return &api.GetSecretResponse{Secret: secret}, nil
 }
 

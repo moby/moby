@@ -374,11 +374,13 @@ func (g *GlobalOrchestrator) reconcileServicesOneNode(ctx context.Context, servi
 				continue
 			}
 
-			meetsConstraints := constraint.NodeMatches(service.constraints, node)
+			if !constraint.NodeMatches(service.constraints, node) {
+				continue
+			}
 
 			// if restart policy considers this node has finished its task
 			// it should remove all running tasks
-			if completed[serviceID] || !meetsConstraints {
+			if completed[serviceID] {
 				g.removeTasks(ctx, batch, tasks[serviceID])
 				continue
 			}

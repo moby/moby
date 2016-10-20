@@ -99,23 +99,23 @@ func (eca *ExternalCA) Sign(req signer.SignRequest) (cert []byte, err error) {
 func makeExternalSignRequest(client *http.Client, url string, csrJSON []byte) (cert []byte, err error) {
 	resp, err := client.Post(url, "application/json", bytes.NewReader(csrJSON))
 	if err != nil {
-		return nil, errors.Wrap(err, "unable to perform certificate signing request")
+		return nil, recoverableErr{err: errors.Wrap(err, "unable to perform certificate signing request")}
 	}
 	defer resp.Body.Close()
 
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return nil, errors.Wrap(err, "unable to read CSR response body")
+		return nil, recoverableErr{err: errors.Wrap(err, "unable to read CSR response body")}
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, errors.Errorf("unexpected status code in CSR response: %d - %s", resp.StatusCode, string(body))
+		return nil, recoverableErr{err: errors.Errorf("unexpected status code in CSR response: %d - %s", resp.StatusCode, string(body))}
 	}
 
 	var apiResponse api.Response
 	if err := json.Unmarshal(body, &apiResponse); err != nil {
 		log.Debugf("unable to JSON-parse CFSSL API response body: %s", string(body))
-		return nil, errors.Wrap(err, "unable to parse JSON response")
+		return nil, recoverableErr{err: errors.Wrap(err, "unable to parse JSON response")}
 	}
 
 	if !apiResponse.Success || apiResponse.Result == nil {
