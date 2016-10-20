@@ -25,10 +25,10 @@ override_dh_auto_install:
 	cp -aT "$$(readlink -f bundles/$(VERSION)/dynbinary-client/docker)" debian/docker-engine/usr/bin/docker
 	cp -aT "$$(readlink -f bundles/$(VERSION)/dynbinary-daemon/dockerd)" debian/docker-engine/usr/bin/dockerd
 	cp -aT "$$(readlink -f bundles/$(VERSION)/dynbinary-daemon/docker-proxy)" debian/docker-engine/usr/bin/docker-proxy
-	cp -aT /usr/local/bin/containerd debian/docker-engine/usr/bin/docker-containerd
-	cp -aT /usr/local/bin/containerd-shim debian/docker-engine/usr/bin/docker-containerd-shim
-	cp -aT /usr/local/bin/ctr debian/docker-engine/usr/bin/docker-containerd-ctr
-	cp -aT /usr/local/sbin/runc debian/docker-engine/usr/bin/docker-runc
+	cp -aT /usr/local/bin/docker-containerd debian/docker-engine/usr/bin/docker-containerd
+	cp -aT /usr/local/bin/docker-containerd-shim debian/docker-engine/usr/bin/docker-containerd-shim
+	cp -aT /usr/local/bin/docker-containerd-ctr debian/docker-engine/usr/bin/docker-containerd-ctr
+	cp -aT /usr/local/bin/docker-runc debian/docker-engine/usr/bin/docker-runc
 	mkdir -p debian/docker-engine/usr/lib/docker
 
 override_dh_installinit:

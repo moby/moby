@@ -9,6 +9,28 @@ GRIMES_COMMIT=74341e923bdf06cfb6b70cf54089c4d3ac87ec2d
 
 export GOPATH="$(mktemp -d)"
 
+RUNC_BUILDTAGS="${RUNC_BUILDTAGS:-"seccomp apparmor selinux"}"
+
+install_runc() {
+	echo "Install runc version $RUNC_COMMIT"
+	git clone https://github.com/opencontainers/runc.git "$GOPATH/src/github.com/opencontainers/runc"
+	cd "$GOPATH/src/github.com/opencontainers/runc"
+	git checkout -q "$RUNC_COMMIT"
+	make BUILDTAGS="$RUNC_BUILDTAGS" $1
+	cp runc /usr/local/bin/docker-runc
+}
+
+install_containerd() {
+	echo "Install containerd version $CONTAINERD_COMMIT"
+	git clone https://github.com/docker/containerd.git "$GOPATH/src/github.com/docker/containerd"
+	cd "$GOPATH/src/github.com/docker/containerd"
+	git checkout -q "$CONTAINERD_COMMIT"
+	make $1
+	cp bin/containerd /usr/local/bin/docker-containerd
+	cp bin/containerd-shim /usr/local/bin/docker-containerd-shim
+	cp bin/ctr /usr/local/bin/docker-containerd-ctr
+}
+
 for prog in "$@"
 do
 	case $prog in
@@ -20,23 +42,19 @@ do
 			;;
 
 		runc)
-			echo "Install runc version $RUNC_COMMIT"
-			git clone https://github.com/opencontainers/runc.git "$GOPATH/src/github.com/opencontainers/runc"
-			cd "$GOPATH/src/github.com/opencontainers/runc"
-			git checkout -q "$RUNC_COMMIT"
-			make static BUILDTAGS="seccomp apparmor selinux"
-			cp runc /usr/local/bin/docker-runc
+			install_runc static
+			;;
+
+		runc-dynamic)
+			install_runc
 			;;
 
 		containerd)
-			echo "Install containerd version $CONTAINERD_COMMIT"
-			git clone https://github.com/docker/containerd.git "$GOPATH/src/github.com/docker/containerd"
-			cd "$GOPATH/src/github.com/docker/containerd"
-			git checkout -q "$CONTAINERD_COMMIT"
-			make static
-			cp bin/containerd /usr/local/bin/docker-containerd
-			cp bin/containerd-shim /usr/local/bin/docker-containerd-shim
-			cp bin/ctr /usr/local/bin/docker-containerd-ctr
+			install_containerd static
+			;;
+
+		containerd-dynamic)
+			install_containerd
 			;;
 
 		grimes)
