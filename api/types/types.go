@@ -13,13 +13,6 @@ import (
 	"github.com/docker/go-connections/nat"
 )
 
-// ContainerWaitResponse contains response of Remote API:
-// POST "/containers/"+containerID+"/wait"
-type ContainerWaitResponse struct {
-	// StatusCode is the status code of the wait job
-	StatusCode int `json:"StatusCode"`
-}
-
 // ContainerChange contains response of Remote API:
 // GET "/containers/{name:.*}/changes"
 type ContainerChange struct {

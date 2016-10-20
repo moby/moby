@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 
 	"golang.org/x/net/context"
 )
@@ -36,7 +36,7 @@ func TestContainerWait(t *testing.T) {
 			if !strings.HasPrefix(req.URL.Path, expectedURL) {
 				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
 			}
-			b, err := json.Marshal(types.ContainerWaitResponse{
+			b, err := json.Marshal(container.ContainerWaitOKBody{
 				StatusCode: 15,
 			})
 			if err != nil {

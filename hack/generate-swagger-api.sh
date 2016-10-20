@@ -17,4 +17,5 @@ swagger generate operation -f api/swagger.yaml \
     -n VolumesCreate \
     -n ContainerCreate \
     -n ContainerUpdate \
-    -n Authenticate
+    -n Authenticate \
+    -n ContainerWait

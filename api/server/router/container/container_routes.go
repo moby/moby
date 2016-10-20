@@ -283,8 +283,8 @@ func (s *containerRouter) postContainersWait(ctx context.Context, w http.Respons
 		return err
 	}
 
-	return httputils.WriteJSON(w, http.StatusOK, &types.ContainerWaitResponse{
-		StatusCode: status,
+	return httputils.WriteJSON(w, http.StatusOK, &container.ContainerWaitOKBody{
+		StatusCode: int64(status),
 	})
 }
 

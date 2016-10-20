@@ -3780,18 +3780,19 @@ paths:
     post:
       summary: "Wait for a container"
       description: "Block until a container stops, then returns the exit code."
-      operationId: "PostContainerWait"
-      produces:
-        - "application/json"
+      operationId: "ContainerWait"
+      produces: ["application/json"]
       responses:
         200:
-          description: "no error"
+          description: "The container has exit."
           schema:
             type: "object"
+            required: [StatusCode]
             properties:
               StatusCode:
                 description: "Exit code of the container"
                 type: "integer"
+                x-nullable: false
         404:
           description: "no such container"
           schema:
