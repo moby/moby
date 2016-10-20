@@ -14,6 +14,7 @@ import (
 	_ "github.com/docker/docker/pkg/discovery/memory"
 	"github.com/docker/docker/pkg/registrar"
 	"github.com/docker/docker/pkg/truncindex"
+	"github.com/docker/docker/registry"
 	"github.com/docker/docker/volume"
 	volumedrivers "github.com/docker/docker/volume/drivers"
 	"github.com/docker/docker/volume/local"
@@ -328,10 +329,99 @@ func TestDaemonReloadLabels(t *testing.T) {
 		},
 	}
 
-	daemon.Reload(newConfig)
+	if err := daemon.Reload(newConfig); err != nil {
+		t.Fatal(err)
+	}
+
 	label := daemon.configStore.Labels[0]
 	if label != "foo:baz" {
 		t.Fatalf("Expected daemon label `foo:baz`, got %s", label)
+	}
+}
+
+func TestDaemonReloadInsecureRegistries(t *testing.T) {
+	daemon := &Daemon{}
+	// initialize daemon with existing insecure registries: "127.0.0.0/8", "10.10.1.11:5000", "10.10.1.22:5000"
+	daemon.RegistryService = registry.NewService(registry.ServiceOptions{
+		InsecureRegistries: []string{
+			"127.0.0.0/8",
+			"10.10.1.11:5000",
+			"10.10.1.22:5000", // this will be removed when reloading
+			"docker1.com",
+			"docker2.com", // this will be removed when reloading
+		},
+	})
+
+	daemon.configStore = &Config{}
+
+	insecureRegistries := []string{
+		"127.0.0.0/8",     // this will be kept
+		"10.10.1.11:5000", // this will be kept
+		"10.10.1.33:5000", // this will be newly added
+		"docker1.com",     // this will be kept
+		"docker3.com",     // this will be newly added
+	}
+
+	valuesSets := make(map[string]interface{})
+	valuesSets["insecure-registries"] = insecureRegistries
+
+	newConfig := &Config{
+		CommonConfig: CommonConfig{
+			ServiceOptions: registry.ServiceOptions{
+				InsecureRegistries: insecureRegistries,
+			},
+			valuesSet: valuesSets,
+		},
+	}
+
+	if err := daemon.Reload(newConfig); err != nil {
+		t.Fatal(err)
+	}
+
+	// After Reload, daemon.RegistryService will be changed which is useful
+	// for registry communication in daemon.
+	registries := daemon.RegistryService.ServiceConfig()
+
+	// After Reload(), newConfig has come to registries.InsecureRegistryCIDRs and registries.IndexConfigs in daemon.
+	// Then collect registries.InsecureRegistryCIDRs in dataMap.
+	// When collecting, we need to convert CIDRS into string as a key,
+	// while the times of key appears as value.
+	dataMap := map[string]int{}
+	for _, value := range registries.InsecureRegistryCIDRs {
+		if _, ok := dataMap[value.String()]; !ok {
+			dataMap[value.String()] = 1
+		} else {
+			dataMap[value.String()]++
+		}
+	}
+
+	for _, value := range registries.IndexConfigs {
+		if _, ok := dataMap[value.Name]; !ok {
+			dataMap[value.Name] = 1
+		} else {
+			dataMap[value.Name]++
+		}
+	}
+
+	// Finally compare dataMap with the original insecureRegistries.
+	// Each value in insecureRegistries should appear in daemon's insecure registries,
+	// and each can only appear exactly ONCE.
+	for _, r := range insecureRegistries {
+		if value, ok := dataMap[r]; !ok {
+			t.Fatalf("Expected daemon insecure registry %s, got none", r)
+		} else if value != 1 {
+			t.Fatalf("Expected only 1 daemon insecure registry %s, got %d", r, value)
+		}
+	}
+
+	// assert if "10.10.1.22:5000" is removed when reloading
+	if value, ok := dataMap["10.10.1.22:5000"]; ok {
+		t.Fatalf("Expected no insecure registry of 10.10.1.22:5000, got %d", value)
+	}
+
+	// assert if "docker2.com" is removed when reloading
+	if value, ok := dataMap["docker2.com"]; ok {
+		t.Fatalf("Expected no insecure registry of docker2.com, got %d", value)
 	}
 }
 
@@ -353,7 +443,10 @@ func TestDaemonReloadNotAffectOthers(t *testing.T) {
 		},
 	}
 
-	daemon.Reload(newConfig)
+	if err := daemon.Reload(newConfig); err != nil {
+		t.Fatal(err)
+	}
+
 	label := daemon.configStore.Labels[0]
 	if label != "foo:baz" {
 		t.Fatalf("Expected daemon label `foo:baz`, got %s", label)
