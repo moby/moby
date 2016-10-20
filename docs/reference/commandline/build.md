@@ -4,6 +4,15 @@ description: "The build command description and usage"
 keywords: ["build, docker, image"]
 ---
 
+<!-- This file is maintained within the docker/docker Github
+     repository at https://github.com/docker/docker/. Make all
+     pull requests against that repo. If you see this file in
+     another repository, consider it read-only there, as it will
+     periodically be overwritten by the definitive file. Pull
+     requests which include edits to this file in other repositories
+     will be rejected.
+-->
+
 # build
 
 ```markdown
@@ -397,9 +406,9 @@ For detailed information on using `ARG` and `ENV` instructions, see the
 
 ### Optional security options (--security-opt)
 
-This flag is only supported on a daemon running on Windows, and only supports 
+This flag is only supported on a daemon running on Windows, and only supports
 the `credentialspec` option. The `credentialspec` must be in the format
-`file://spec.txt` or `registry://keyname`. 
+`file://spec.txt` or `registry://keyname`.
 
 ### Specify isolation technology for container (--isolation)
 

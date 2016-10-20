@@ -4,6 +4,15 @@ description: "The inspect command description and usage"
 keywords: ["inspect, container, json"]
 ---
 
+<!-- This file is maintained within the docker/docker Github
+     repository at https://github.com/docker/docker/. Make all
+     pull requests against that repo. If you see this file in
+     another repository, consider it read-only there, as it will
+     periodically be overwritten by the definitive file. Pull
+     requests which include edits to this file in other repositories
+     will be rejected.
+-->
+
 # inspect
 
 ```markdown
@@ -34,29 +43,39 @@ describes all the details of the format.
 For the most part, you can pick out any field from the JSON in a fairly
 straightforward manner.
 
+    {% raw %}
     $ docker inspect --format='{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $INSTANCE_ID
+    {% endraw %}
 
 **Get an instance's MAC address:**
 
 For the most part, you can pick out any field from the JSON in a fairly
 straightforward manner.
 
+    {% raw %}
     $ docker inspect --format='{{range .NetworkSettings.Networks}}{{.MacAddress}}{{end}}' $INSTANCE_ID
+    {% endraw %}
 
 **Get an instance's log path:**
 
+    {% raw %}
     $ docker inspect --format='{{.LogPath}}' $INSTANCE_ID
+    {% endraw %}
 
 **Get a Task's image name:**
 
+    {% raw %}
     $ docker inspect --format='{{.Container.Spec.Image}}' $INSTANCE_ID
+    {% endraw %}
 
 **List all port bindings:**
 
 One can loop over arrays and maps in the results to produce simple text
 output:
 
+    {% raw %}
     $ docker inspect --format='{{range $p, $conf := .NetworkSettings.Ports}} {{$p}} -> {{(index $conf 0).HostPort}} {{end}}' $INSTANCE_ID
+    {% endraw %}
 
 **Find a specific port mapping:**
 
@@ -68,7 +87,9 @@ numeric public port, you use `index` to find the specific port map, and
 then `index` 0 contains the first object inside of that. Then we ask for
 the `HostPort` field to get the public address.
 
+    {% raw %}
     $ docker inspect --format='{{(index (index .NetworkSettings.Ports "8787/tcp") 0).HostPort}}' $INSTANCE_ID
+    {% endraw %}
 
 **Get a subsection in JSON format:**
 
@@ -77,4 +98,6 @@ fields, by default you get a Go-style dump of the inner values.
 Docker adds a template function, `json`, which can be applied to get
 results in JSON format.
 
+    {% raw %}
     $ docker inspect --format='{{json .Config}}' $INSTANCE_ID
+    {% endraw %}

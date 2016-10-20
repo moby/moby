@@ -4,6 +4,15 @@ description: "Dockerfiles use a simple DSL which allows you to automate the step
 keywords: ["builder, docker, Dockerfile, automation,  image creation"]
 ---
 
+<!-- This file is maintained within the docker/docker Github
+     repository at https://github.com/docker/docker/. Make all
+     pull requests against that repo. If you see this file in
+     another repository, consider it read-only there, as it will
+     periodically be overwritten by the definitive file. Pull
+     requests which include edits to this file in other repositories
+     will be rejected.
+-->
+
 # Dockerfile reference
 
 Docker can build images automatically by reading the instructions from a
@@ -129,7 +138,7 @@ instruction must be \`FROM\`** in order to specify the [*Base
 Image*](glossary.md#base-image) from which you are building.
 
 Docker treats lines that *begin* with `#` as a comment, unless the line is
-a valid [parser directive](builder.md#parser-directives). A `#` marker anywhere
+a valid [parser directive](#parser-directives). A `#` marker anywhere
 else in a line is treated as an argument. This allows statements like:
 
 ```Dockerfile
@@ -1265,9 +1274,9 @@ The output of the final `pwd` command in this `Dockerfile` would be
     ARG <name>[=<default value>]
 
 The `ARG` instruction defines a variable that users can pass at build-time to
-the builder with the `docker build` command using the `--build-arg
-<varname>=<value>` flag. If a user specifies a build argument that was not
-defined in the Dockerfile, the build outputs an error.
+the builder with the `docker build` command using the
+`--build-arg <varname>=<value>` flag. If a user specifies a build argument
+that was not defined in the Dockerfile, the build outputs an error.
 
 ```
 One or more build-args were not consumed, failing build.
@@ -1380,8 +1389,11 @@ corresponding `ARG` instruction in the Dockerfile.
 * `NO_PROXY`
 * `no_proxy`
 
-To use these, simply pass them on the command line using the `--build-arg
-<varname>=<value>` flag.
+To use these, simply pass them on the command line using the flag:
+
+```
+--build-arg <varname>=<value>
+```
 
 ### Impact on build caching
 

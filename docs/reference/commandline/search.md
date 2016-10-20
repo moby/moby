@@ -4,6 +4,15 @@ description: "The search command description and usage"
 keywords: ["search, hub, images"]
 ---
 
+<!-- This file is maintained within the docker/docker Github
+     repository at https://github.com/docker/docker/. Make all
+     pull requests against that repo. If you see this file in
+     another repository, consider it read-only there, as it will
+     periodically be overwritten by the definitive file. Pull
+     requests which include edits to this file in other repositories
+     will be rejected.
+-->
+
 # search
 
 ```markdown
@@ -76,7 +85,7 @@ at least 3 stars and the description isn't truncated in the output:
 
 ## Limit search results (--limit)
 
-The flag `--limit` is the maximium number of results returned by a search. This value could
+The flag `--limit` is the maximum number of results returned by a search. This value could
 be in the range between 1 and 100. The default value of `--limit` is 25.
 
 
