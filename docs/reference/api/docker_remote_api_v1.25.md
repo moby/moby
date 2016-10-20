@@ -2661,6 +2661,7 @@ Return docker data usage information
                     "Mountpoint": "",
                     "Labels": null,
                     "Scope": "",
+                    "Options": null
                     "UsageData": {
                         "Size": 0,
                         "RefCount": 0
@@ -3328,7 +3329,12 @@ Return low-level information about the `exec` command `id`.
             "com.example.some-label": "some-value",
             "com.example.some-other-label": "some-other-value"
           },
-          "Scope": "local"
+          "Scope": "local",
+          "Options": {
+            "device": "tmpfs",
+            "o": "size=100m,uid=1000",
+            "type": "tmpfs"
+          }
         }
       ],
       "Warnings": []
@@ -3382,7 +3388,8 @@ Create a volume
         "com.example.some-label": "some-value",
         "com.example.some-other-label": "some-other-value"
       },
-      "Scope": "local"
+      "Scope": "local",
+      "Options": null
     }
 
 **Status codes**:
@@ -3429,7 +3436,11 @@ Return low-level information on the volume `name`
           "com.example.some-label": "some-value",
           "com.example.some-other-label": "some-other-value"
       },
-      "Scope": "local"
+      "Scope": "local",
+      "Options": {
+          "some-key": "some-value",
+          "some-other-key": "some-other-value"
+      },
     }
 
 **Status codes**:
@@ -3454,6 +3465,7 @@ response.
 - **Labels** - Labels set on the volume, specified as a map: `{"key":"value","key2":"value2"}`.
 - **Scope** - Scope describes the level at which the volume exists, can be one of
     `global` for cluster-wide or `local` for machine level. The default is `local`.
+- **Options** - Options holds the driver specific options to use for when creating the volume.
 
 ### Remove a volume
 
