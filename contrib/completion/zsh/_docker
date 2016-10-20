@@ -1185,6 +1185,7 @@ __docker_service_subcommand() {
                 "($help)--arg=[Service command args]:arguments: _normal" \
                 "($help)*--container-label-add=[Add or update container labels]:label: " \
                 "($help)*--container-label-rm=[Remove a container label by its key]:label: " \
+                "($help)--force[Force update]" \
                 "($help)*--group-rm=[Remove previously added user groups from the container]:group:_groups" \
                 "($help)--image=[Service image tag]:image:__docker_repositories" \
                 "($help)--rollback[Rollback to previous specification]" \

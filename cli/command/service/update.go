@@ -37,6 +37,7 @@ func newUpdateCommand(dockerCli *command.DockerCli) *cobra.Command {
 	flags.String("image", "", "Service image tag")
 	flags.String("args", "", "Service command args")
 	flags.Bool("rollback", false, "Rollback to previous specification")
+	flags.Bool("force", false, "Force update even if no changes require it")
 	addServiceFlags(cmd, opts)
 
 	flags.Var(newListOptsVar(), flagEnvRemove, "Remove an environment variable")
@@ -255,6 +256,15 @@ func updateService(flags *pflag.FlagSet, spec *swarm.ServiceSpec) error {
 
 	if err := updateLogDriver(flags, &spec.TaskTemplate); err != nil {
 		return err
+	}
+
+	force, err := flags.GetBool("force")
+	if err != nil {
+		return err
+	}
+
+	if force {
+		spec.TaskTemplate.ForceUpdate++
 	}
 
 	return nil

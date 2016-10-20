@@ -74,6 +74,7 @@ func serviceSpecFromGRPC(spec *swarmapi.ServiceSpec) *types.ServiceSpec {
 			Placement:     placementFromGRPC(spec.Task.Placement),
 			LogDriver:     driverFromGRPC(spec.Task.LogDriver),
 			Networks:      taskNetworks,
+			ForceUpdate:   spec.Task.ForceUpdate,
 		},
 
 		Networks:     serviceNetworks,
@@ -136,9 +137,10 @@ func ServiceSpecToGRPC(s types.ServiceSpec) (swarmapi.ServiceSpec, error) {
 			Labels: s.Labels,
 		},
 		Task: swarmapi.TaskSpec{
-			Resources: resourcesToGRPC(s.TaskTemplate.Resources),
-			LogDriver: driverToGRPC(s.TaskTemplate.LogDriver),
-			Networks:  taskNetworks,
+			Resources:   resourcesToGRPC(s.TaskTemplate.Resources),
+			LogDriver:   driverToGRPC(s.TaskTemplate.LogDriver),
+			Networks:    taskNetworks,
+			ForceUpdate: s.TaskTemplate.ForceUpdate,
 		},
 		Networks: serviceNetworks,
 	}

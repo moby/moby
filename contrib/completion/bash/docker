@@ -2473,6 +2473,7 @@ _docker_service_update() {
 		--constraint
 		--endpoint-mode
 		--env -e
+		--force
 		--group-add
 		--label -l
 		--limit-cpu

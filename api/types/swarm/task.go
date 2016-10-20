@@ -61,6 +61,10 @@ type TaskSpec struct {
 	// spec. If not present, the one on cluster default on swarm.Spec will be
 	// used, finally falling back to the engine default if not specified.
 	LogDriver *Driver `json:",omitempty"`
+
+	// ForceUpdate is a counter that triggers an update even if no relevant
+	// parameters have been changed.
+	ForceUpdate uint64
 }
 
 // Resources represents resources (CPU/Memory).

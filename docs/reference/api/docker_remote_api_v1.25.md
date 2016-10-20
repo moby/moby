@@ -4915,7 +4915,8 @@ List services
               "Condition": "any",
               "MaxAttempts": 0
             },
-            "Placement": {}
+            "Placement": {},
+            "ForceUpdate": 0
           },
           "Mode": {
             "Replicated": {
@@ -5038,7 +5039,8 @@ image](#create-an-image) section for more details.
           "Condition": "on-failure",
           "Delay": 10000000000.0,
           "MaxAttempts": 10
-        }
+        },
+        "ForceUpdate": 0
       },
       "Mode": {
         "Replicated": {
@@ -5132,6 +5134,7 @@ image](#create-an-image) section for more details.
         - **Window** – Windows is the time window used to evaluate the restart policy (default value is
           0, which is unbounded).
     - **Placement** – An array of constraints.
+    - **ForceUpdate**: A counter that triggers an update even if no relevant parameters have been changed.
 - **Mode** – Scheduling mode for the service (`replicated` or `global`, defaults to `replicated`).
 - **UpdateConfig** – Specification for the update strategy of the service.
     - **Parallelism** – Maximum number of tasks to be updated in one iteration (0 means unlimited
@@ -5303,7 +5306,8 @@ image](#create-an-image) section for more details.
           "Condition": "any",
           "MaxAttempts": 0
         },
-        "Placement": {}
+        "Placement": {},
+        "ForceUpdate": 0
       },
       "Mode": {
         "Replicated": {
@@ -5374,6 +5378,7 @@ image](#create-an-image) section for more details.
         - **Window** – Windows is the time window used to evaluate the restart policy (default value is
           0, which is unbounded).
     - **Placement** – An array of constraints.
+    - **ForceUpdate**: A counter that triggers an update even if no relevant parameters have been changed.
 - **Mode** – Scheduling mode for the service (`replicated` or `global`, defaults to `replicated`).
 - **UpdateConfig** – Specification for the update strategy of the service.
     - **Parallelism** – Maximum number of tasks to be updated in one iteration (0 means unlimited
