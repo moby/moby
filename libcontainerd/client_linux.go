@@ -45,7 +45,7 @@ func (clnt *client) AddProcess(ctx context.Context, containerID, processFriendly
 	sp := spec.Process
 	sp.Args = specp.Args
 	sp.Terminal = specp.Terminal
-	if specp.Env != nil {
+	if len(specp.Env) > 0 {
 		sp.Env = specp.Env
 	}
 	if specp.Cwd != nil {
