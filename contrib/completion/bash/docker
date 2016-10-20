@@ -1643,7 +1643,17 @@ _docker_container_top() {
 }
 
 _docker_container_unpause() {
-	_docker_unpause
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "--help" -- "$cur" ) )
+			;;
+		*)
+			local counter=$(__docker_pos_first_nonflag)
+			if [ $cword -eq $counter ]; then
+				__docker_complete_containers_unpauseable
+			fi
+			;;
+	esac
 }
 
 _docker_container_update() {
@@ -2979,17 +2989,7 @@ _docker_tag() {
 }
 
 _docker_unpause() {
-	case "$cur" in
-		-*)
-			COMPREPLY=( $( compgen -W "--help" -- "$cur" ) )
-			;;
-		*)
-			local counter=$(__docker_pos_first_nonflag)
-			if [ $cword -eq $counter ]; then
-				__docker_complete_containers_unpauseable
-			fi
-			;;
-	esac
+	_docker_container_unpause
 }
 
 _docker_update() {
