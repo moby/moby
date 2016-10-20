@@ -1582,7 +1582,16 @@ _docker_container_run() {
 }
 
 _docker_container_start() {
-	_docker_start
+	__docker_complete_detach-keys && return
+
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "--attach -a --detach-keys --help --interactive -i" -- "$cur" ) )
+			;;
+		*)
+			__docker_complete_containers_stopped
+			;;
+	esac
 }
 
 _docker_container_stats() {
@@ -2900,16 +2909,7 @@ _docker_search() {
 }
 
 _docker_start() {
-	__docker_complete_detach-keys && return
-
-	case "$cur" in
-		-*)
-			COMPREPLY=( $( compgen -W "--attach -a --detach-keys --help --interactive -i" -- "$cur" ) )
-			;;
-		*)
-			__docker_complete_containers_stopped
-			;;
-	esac
+	_docker_container_start
 }
 
 _docker_stats() {
