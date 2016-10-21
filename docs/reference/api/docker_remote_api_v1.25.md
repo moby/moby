@@ -4564,7 +4564,7 @@ List nodes
 ### Inspect a node
 
 
-`GET /nodes/<id>`
+`GET /nodes/(id or name)`
 
 Return low-level information on the node `id`
 
@@ -4647,9 +4647,9 @@ Return low-level information on the node `id`
 ### Remove a node
 
 
-`DELETE /nodes/(id)`
+`DELETE /nodes/(id or name)`
 
-Remove a node [`id`] from the swarm.
+Remove a node from the swarm.
 
 **Example request**:
 
@@ -4675,9 +4675,9 @@ Remove a node [`id`] from the swarm.
 ### Update a node
 
 
-`POST /nodes/(id)/update`
+`POST /nodes/(id or name)/update`
 
-Update the node `id`.
+Update a node.
 
 The payload of the `POST` request is the new `NodeSpec` and
 overrides the current `NodeSpec` for the specified node.

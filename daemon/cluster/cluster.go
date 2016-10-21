@@ -1369,7 +1369,7 @@ func (c *Cluster) GetNode(input string) (types.Node, error) {
 }
 
 // UpdateNode updates existing nodes properties.
-func (c *Cluster) UpdateNode(nodeID string, version uint64, spec types.NodeSpec) error {
+func (c *Cluster) UpdateNode(input string, version uint64, spec types.NodeSpec) error {
 	c.RLock()
 	defer c.RUnlock()
 
@@ -1385,10 +1385,15 @@ func (c *Cluster) UpdateNode(nodeID string, version uint64, spec types.NodeSpec)
 	ctx, cancel := c.getRequestContext()
 	defer cancel()
 
+	currentNode, err := getNode(ctx, c.client, input)
+	if err != nil {
+		return err
+	}
+
 	_, err = c.client.UpdateNode(
 		ctx,
 		&swarmapi.UpdateNodeRequest{
-			NodeID: nodeID,
+			NodeID: currentNode.ID,
 			Spec:   &nodeSpec,
 			NodeVersion: &swarmapi.Version{
 				Index: version,
