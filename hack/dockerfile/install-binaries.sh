@@ -3,7 +3,7 @@ set -e
 set -x
 
 TOMLV_COMMIT=9baf8a8a9f2ed20a8e54160840c492f937eeaf9a
-RUNC_COMMIT=02f8fa7863dd3f82909a73e2061897828460d52f
+RUNC_COMMIT=ac031b5bf1cc92239461125f4c1ffb760522bbf2
 CONTAINERD_COMMIT=52ef1ceb4b660c42cf4ea9013180a5663968d4c7
 GRIMES_COMMIT=fe069a03affd2547fdb05e5b8b07202d2e41735b
 LIBNETWORK_COMMIT=0f534354b813003a754606689722fe253101bc4e
@@ -20,11 +20,12 @@ else
 	export GOPATH="$TMP_GOPATH"
 fi
 
+# Do not build with ambient capabilities support
 RUNC_BUILDTAGS="${RUNC_BUILDTAGS:-"seccomp apparmor selinux"}"
 
 install_runc() {
 	echo "Install runc version $RUNC_COMMIT"
-	git clone https://github.com/opencontainers/runc.git "$GOPATH/src/github.com/opencontainers/runc"
+	git clone https://github.com/docker/runc.git "$GOPATH/src/github.com/opencontainers/runc"
 	cd "$GOPATH/src/github.com/opencontainers/runc"
 	git checkout -q "$RUNC_COMMIT"
 	make BUILDTAGS="$RUNC_BUILDTAGS" $1

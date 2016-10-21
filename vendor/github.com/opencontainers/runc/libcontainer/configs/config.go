@@ -85,11 +85,6 @@ type Config struct {
 	// that the parent process dies.
 	ParentDeathSignal int `json:"parent_death_signal"`
 
-	// PivotDir allows a custom directory inside the container's root filesystem to be used as pivot, when NoPivotRoot is not set.
-	// When a custom PivotDir not set, a temporary dir inside the root filesystem will be used. The pivot dir needs to be writeable.
-	// This is required when using read only root filesystems. In these cases, a read/writeable path can be (bind) mounted somewhere inside the root filesystem to act as pivot.
-	PivotDir string `json:"pivot_dir"`
-
 	// Path to a directory containing the container's root filesystem.
 	Rootfs string `json:"rootfs"`
 

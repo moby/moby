@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -53,15 +54,14 @@ func ensureSyscallTest(c *check.C) {
 	gcc, err := exec.LookPath("gcc")
 	c.Assert(err, checker.IsNil, check.Commentf("could not find gcc"))
 
-	out, err := exec.Command(gcc, "-g", "-Wall", "-static", "../contrib/syscall-test/userns.c", "-o", tmp+"/"+"userns-test").CombinedOutput()
-	c.Assert(err, checker.IsNil, check.Commentf(string(out)))
-	out, err = exec.Command(gcc, "-g", "-Wall", "-static", "../contrib/syscall-test/ns.c", "-o", tmp+"/"+"ns-test").CombinedOutput()
-	c.Assert(err, checker.IsNil, check.Commentf(string(out)))
-	out, err = exec.Command(gcc, "-g", "-Wall", "-static", "../contrib/syscall-test/acct.c", "-o", tmp+"/"+"acct-test").CombinedOutput()
-	c.Assert(err, checker.IsNil, check.Commentf(string(out)))
+	tests := []string{"userns", "ns", "acct", "setuid", "setgid", "socket", "raw"}
+	for _, test := range tests {
+		out, err := exec.Command(gcc, "-g", "-Wall", "-static", fmt.Sprintf("../contrib/syscall-test/%s.c", test), "-o", fmt.Sprintf("%s/%s-test", tmp, test)).CombinedOutput()
+		c.Assert(err, checker.IsNil, check.Commentf(string(out)))
+	}
 
 	if runtime.GOOS == "linux" && runtime.GOARCH == "amd64" {
-		out, err = exec.Command(gcc, "-s", "-m32", "-nostdlib", "../contrib/syscall-test/exit32.s", "-o", tmp+"/"+"exit32-test").CombinedOutput()
+		out, err := exec.Command(gcc, "-s", "-m32", "-nostdlib", "../contrib/syscall-test/exit32.s", "-o", tmp+"/"+"exit32-test").CombinedOutput()
 		c.Assert(err, checker.IsNil, check.Commentf(string(out)))
 	}
 
