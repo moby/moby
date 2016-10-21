@@ -61,7 +61,7 @@ type CreateOption interface {
 // IOPipe contains the stdio streams.
 type IOPipe struct {
 	Stdin    io.WriteCloser
-	Stdout   io.Reader
-	Stderr   io.Reader
+	Stdout   io.ReadCloser
+	Stderr   io.ReadCloser
 	Terminal bool // Whether stderr is connected on Windows
 }

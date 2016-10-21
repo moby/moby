@@ -6,12 +6,15 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"sync"
 	"syscall"
+	"time"
 
 	"github.com/Sirupsen/logrus"
 	containerd "github.com/docker/containerd/api/grpc/types"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/opencontainers/runtime-spec/specs-go"
+	"github.com/tonistiigi/fifo"
 	"golang.org/x/net/context"
 )
 
@@ -90,22 +93,37 @@ func (ctr *container) start(checkpoint string, checkpointDir string) error {
 	if err != nil {
 		return nil
 	}
-	createChan := make(chan struct{})
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	ready := make(chan struct{})
+
 	iopipe, err := ctr.openFifos(spec.Process.Terminal)
 	if err != nil {
 		return err
 	}
+
+	var stdinOnce sync.Once
 
 	// we need to delay stdin closure after container start or else "stdin close"
 	// event will be rejected by containerd.
 	// stdin closure happens in AttachStreams
 	stdin := iopipe.Stdin
 	iopipe.Stdin = ioutils.NewWriteCloserWrapper(stdin, func() error {
-		go func() {
-			<-createChan
-			stdin.Close()
-		}()
-		return nil
+		var err error
+		stdinOnce.Do(func() { // on error from attach we don't know if stdin was already closed
+			err = stdin.Close()
+			go func() {
+				select {
+				case <-ready:
+					if err := ctr.sendCloseStdin(); err != nil {
+						logrus.Warnf("failed to close stdin: %+v")
+					}
+				case <-ctx.Done():
+				}
+			}()
+		})
+		return err
 	})
 
 	r := &containerd.CreateContainerRequest{
@@ -124,19 +142,17 @@ func (ctr *container) start(checkpoint string, checkpointDir string) error {
 	ctr.client.appendContainer(ctr)
 
 	if err := ctr.client.backend.AttachStreams(ctr.containerID, *iopipe); err != nil {
-		close(createChan)
 		ctr.closeFifos(iopipe)
 		return err
 	}
 
 	resp, err := ctr.client.remote.apiClient.CreateContainer(context.Background(), r)
 	if err != nil {
-		close(createChan)
 		ctr.closeFifos(iopipe)
 		return err
 	}
 	ctr.systemPid = systemPid(resp.Container)
-	close(createChan)
+	close(ready)
 
 	return ctr.client.backend.StateChanged(ctr.containerID, StateInfo{
 		CommonStateInfo: CommonStateInfo{
@@ -207,15 +223,15 @@ func (ctr *container) handleEvent(e *containerd.Event) error {
 // discardFifos attempts to fully read the container fifos to unblock processes
 // that may be blocked on the writer side.
 func (ctr *container) discardFifos() {
+	ctx, _ := context.WithTimeout(context.Background(), 3*time.Second)
 	for _, i := range []int{syscall.Stdout, syscall.Stderr} {
-		f := ctr.fifo(i)
-		c := make(chan struct{})
+		f, err := fifo.OpenFifo(ctx, ctr.fifo(i), syscall.O_RDONLY|syscall.O_NONBLOCK, 0)
+		if err != nil {
+			logrus.Warnf("error opening fifo %v for discarding: %+v", f, err)
+			continue
+		}
 		go func() {
-			r := openReaderFromFifo(f)
-			close(c) // this channel is used to not close the writer too early, before readonly open has been called.
-			io.Copy(ioutil.Discard, r)
+			io.Copy(ioutil.Discard, f)
 		}()
-		<-c
-		closeReaderFifo(f) // avoid blocking permanently on open if there is no writer side
 	}
 }
