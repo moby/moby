@@ -20,14 +20,13 @@ import (
 	"github.com/coreos/etcd/pkg/idutil"
 	"github.com/coreos/etcd/raft"
 	"github.com/coreos/etcd/raft/raftpb"
-	"github.com/coreos/etcd/snap"
-	"github.com/coreos/etcd/wal"
 	"github.com/docker/go-events"
 	"github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/ca"
 	"github.com/docker/swarmkit/log"
 	"github.com/docker/swarmkit/manager/raftselector"
 	"github.com/docker/swarmkit/manager/state/raft/membership"
+	"github.com/docker/swarmkit/manager/state/raft/storage"
 	"github.com/docker/swarmkit/manager/state/store"
 	"github.com/docker/swarmkit/watch"
 	"github.com/gogo/protobuf/proto"
@@ -75,6 +74,21 @@ const (
 	IsFollower
 )
 
+// EncryptionKeys are the current and, if necessary, pending DEKs with which to
+// encrypt raft data
+type EncryptionKeys struct {
+	CurrentDEK []byte
+	PendingDEK []byte
+}
+
+// EncryptionKeyRotator is an interface to find out if any keys need rotating.
+type EncryptionKeyRotator interface {
+	GetKeys() EncryptionKeys
+	UpdateKeys(EncryptionKeys) error
+	NeedsRotation() bool
+	RotationNotify() chan struct{}
+}
+
 // Node represents the Raft Node useful
 // configuration.
 type Node struct {
@@ -87,8 +101,6 @@ type Node struct {
 	opts                NodeOptions
 	reqIDGen            *idutil.Generator
 	wait                *wait
-	wal                 *wal.WAL
-	snapshotter         *snap.Snapshotter
 	campaignWhenAble    bool
 	signalledLeadership uint32
 	isMember            uint32
@@ -122,6 +134,9 @@ type Node struct {
 	stopped chan struct{}
 
 	lastSendToMember map[uint64]chan struct{}
+	raftLogger       *storage.EncryptedRaftLogger
+	keyRotator       EncryptionKeyRotator
+	rotationQueued   bool
 }
 
 // NodeOptions provides node-level options.
@@ -150,6 +165,8 @@ type NodeOptions struct {
 	// nodes. Leave this as 0 to get the default value.
 	SendTimeout    time.Duration
 	TLSCredentials credentials.TransportCredentials
+
+	KeyRotator EncryptionKeyRotator
 }
 
 func init() {
@@ -188,6 +205,7 @@ func NewNode(opts NodeOptions) *Node {
 		stopped:             make(chan struct{}),
 		leadershipBroadcast: watch.NewQueue(),
 		lastSendToMember:    make(map[uint64]chan struct{}),
+		keyRotator:          opts.KeyRotator,
 	}
 	n.memoryStore = store.NewMemoryStore(n)
 
@@ -238,7 +256,7 @@ func (n *Node) JoinAndStart(ctx context.Context) (err error) {
 	}()
 
 	loadAndStartErr := n.loadAndStart(ctx, n.opts.ForceNewCluster)
-	if loadAndStartErr != nil && loadAndStartErr != errNoWAL {
+	if loadAndStartErr != nil && loadAndStartErr != storage.ErrNoWAL {
 		return loadAndStartErr
 	}
 
@@ -252,7 +270,7 @@ func (n *Node) JoinAndStart(ctx context.Context) (err error) {
 	n.appliedIndex = snapshot.Metadata.Index
 	n.snapshotIndex = snapshot.Metadata.Index
 
-	if loadAndStartErr == errNoWAL {
+	if loadAndStartErr == storage.ErrNoWAL {
 		if n.opts.JoinAddr != "" {
 			c, err := n.ConnectToMember(n.opts.JoinAddr, 10*time.Second)
 			if err != nil {
@@ -274,22 +292,20 @@ func (n *Node) JoinAndStart(ctx context.Context) (err error) {
 
 			n.Config.ID = resp.RaftID
 
-			if _, err := n.createWAL(n.opts.ID); err != nil {
+			if _, err := n.newRaftLogs(n.opts.ID); err != nil {
 				return err
 			}
 
 			n.raftNode = raft.StartNode(n.Config, []raft.Peer{})
 
 			if err := n.registerNodes(resp.Members); err != nil {
-				if walErr := n.wal.Close(); err != nil {
-					log.G(ctx).WithError(walErr).Error("raft: error closing WAL")
-				}
+				n.raftLogger.Close(ctx)
 				return err
 			}
 		} else {
 			// First member in the cluster, self-assign ID
 			n.Config.ID = uint64(rand.Int63()) + 1
-			peer, err := n.createWAL(n.opts.ID)
+			peer, err := n.newRaftLogs(n.opts.ID)
 			if err != nil {
 				return err
 			}
@@ -367,8 +383,12 @@ func (n *Node) Run(ctx context.Context) error {
 		if nodeRemoved {
 			// Move WAL and snapshot out of the way, since
 			// they are no longer usable.
-			if err := n.moveWALAndSnap(); err != nil {
+			if err := n.raftLogger.Clear(ctx); err != nil {
 				log.G(ctx).WithError(err).Error("failed to move wal after node removal")
+			}
+			// clear out the DEKs
+			if err := n.keyRotator.UpdateKeys(EncryptionKeys{}); err != nil {
+				log.G(ctx).WithError(err).Error("could not remove DEKs")
 			}
 		}
 		n.done()
@@ -382,16 +402,10 @@ func (n *Node) Run(ctx context.Context) error {
 			n.raftNode.Tick()
 			n.cluster.Tick()
 		case rd := <-n.raftNode.Ready():
-			raftConfig := DefaultRaftConfig()
-			n.memoryStore.View(func(readTx store.ReadTx) {
-				clusters, err := store.FindClusters(readTx, store.ByName(store.DefaultClusterName))
-				if err == nil && len(clusters) == 1 {
-					raftConfig = clusters[0].Spec.Raft
-				}
-			})
+			raftConfig := n.getCurrentRaftConfig()
 
 			// Save entries to storage
-			if err := n.saveToStorage(&raftConfig, rd.HardState, rd.Entries, rd.Snapshot); err != nil {
+			if err := n.saveToStorage(ctx, &raftConfig, rd.HardState, rd.Entries, rd.Snapshot); err != nil {
 				log.G(ctx).WithError(err).Error("failed to save entries to storage")
 			}
 
@@ -459,8 +473,8 @@ func (n *Node) Run(ctx context.Context) error {
 
 			// Trigger a snapshot every once in awhile
 			if n.snapshotInProgress == nil &&
-				raftConfig.SnapshotInterval > 0 &&
-				n.appliedIndex-n.snapshotIndex >= raftConfig.SnapshotInterval {
+				(n.keyRotator.NeedsRotation() || raftConfig.SnapshotInterval > 0 &&
+					n.appliedIndex-n.snapshotIndex >= raftConfig.SnapshotInterval) {
 				n.doSnapshot(ctx, raftConfig)
 			}
 
@@ -496,6 +510,24 @@ func (n *Node) Run(ctx context.Context) error {
 				n.snapshotIndex = snapshotIndex
 			}
 			n.snapshotInProgress = nil
+			if n.rotationQueued {
+				// there was a key rotation that took place before while the snapshot
+				// was in progress - we have to take another snapshot and encrypt with the new key
+				n.doSnapshot(ctx, n.getCurrentRaftConfig())
+			}
+		case <-n.keyRotator.RotationNotify():
+			// There are 2 separate checks:  rotationQueued, and keyRotator.NeedsRotation().
+			// We set rotationQueued so that when we are notified of a rotation, we try to
+			// do a snapshot as soon as possible.  However, if there is an error while doing
+			// the snapshot, we don't want to hammer the node attempting to do snapshots over
+			// and over.  So if doing a snapshot fails, wait until the next entry comes in to
+			// try again.
+			switch {
+			case n.snapshotInProgress != nil:
+				n.rotationQueued = true
+			case n.keyRotator.NeedsRotation():
+				n.doSnapshot(ctx, n.getCurrentRaftConfig())
+			}
 		case <-n.removeRaftCh:
 			nodeRemoved = true
 			// If the node was removed from other members,
@@ -506,6 +538,17 @@ func (n *Node) Run(ctx context.Context) error {
 			return nil
 		}
 	}
+}
+
+func (n *Node) getCurrentRaftConfig() api.RaftConfig {
+	raftConfig := DefaultRaftConfig()
+	n.memoryStore.View(func(readTx store.ReadTx) {
+		clusters, err := store.FindClusters(readTx, store.ByName(store.DefaultClusterName))
+		if err == nil && len(clusters) == 1 {
+			raftConfig = clusters[0].Spec.Raft
+		}
+	})
+	return raftConfig
 }
 
 // Done returns channel which is closed when raft node is fully stopped.
@@ -524,9 +567,7 @@ func (n *Node) stop(ctx context.Context) {
 
 	n.raftNode.Stop()
 	n.ticker.Stop()
-	if err := n.wal.Close(); err != nil {
-		log.G(ctx).WithError(err).Error("raft: failed to close WAL")
-	}
+	n.raftLogger.Close(ctx)
 	atomic.StoreUint32(&n.isMember, 0)
 	// TODO(stevvooe): Handle ctx.Done()
 }
@@ -1123,17 +1164,27 @@ func (n *Node) canSubmitProposal() bool {
 }
 
 // Saves a log entry to our Store
-func (n *Node) saveToStorage(raftConfig *api.RaftConfig, hardState raftpb.HardState, entries []raftpb.Entry, snapshot raftpb.Snapshot) (err error) {
+func (n *Node) saveToStorage(
+	ctx context.Context,
+	raftConfig *api.RaftConfig,
+	hardState raftpb.HardState,
+	entries []raftpb.Entry,
+	snapshot raftpb.Snapshot,
+) (err error) {
+
 	if !raft.IsEmptySnap(snapshot) {
-		if err := n.saveSnapshot(snapshot, raftConfig.KeepOldSnapshots); err != nil {
+		if err := n.raftLogger.SaveSnapshot(snapshot); err != nil {
 			return ErrApplySnapshot
+		}
+		if err := n.raftLogger.GC(snapshot.Metadata.Index, snapshot.Metadata.Term, raftConfig.KeepOldSnapshots); err != nil {
+			log.G(ctx).WithError(err).Error("unable to clean old snapshots and WALs")
 		}
 		if err = n.raftStore.ApplySnapshot(snapshot); err != nil {
 			return ErrApplySnapshot
 		}
 	}
 
-	if err := n.wal.Save(hardState, entries); err != nil {
+	if err := n.raftLogger.SaveEntries(hardState, entries); err != nil {
 		// TODO(aaronl): These error types should really wrap more
 		// detailed errors.
 		return ErrApplySnapshot

@@ -323,6 +323,9 @@ message ClusterSpec {
 
 	// TaskDefaults specifies the default values to use for task creation.
 	TaskDefaults task_defaults = 7 [(gogoproto.nullable) = false];
+
+	// EncryptionConfig defines the cluster's encryption settings.
+	EncryptionConfig encryption_config = 8 [(gogoproto.nullable) = false];
 }
 
 // SecretSpec specifies a user-provided secret.

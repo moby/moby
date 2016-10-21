@@ -313,12 +313,17 @@ message ListClustersResponse {
 	repeated Cluster clusters = 1;
 }
 
-message JoinTokenRotation {
-	// RotateWorkerToken tells UpdateCluster to rotate the worker secret.
-	bool rotate_worker_token = 1;
+// KeyRotation tells UpdateCluster what items to rotate
+message KeyRotation {
+	// WorkerJoinToken tells UpdateCluster to rotate the worker secret token.
+	bool worker_join_token = 1;
 
-	// RotateManagerSecret tells UpdateCluster to rotate the manager secret.
-	bool rotate_manager_token = 2;
+	// ManagerJoinToken tells UpdateCluster to rotate the manager secret token.
+	bool manager_join_token = 2;
+
+	// ManagerUnlockKey tells UpdateCluster to rotate the manager unlock key
+	bool manager_unlock_key = 3;
+
 }
 
 message UpdateClusterRequest {
@@ -331,8 +336,8 @@ message UpdateClusterRequest {
 	// Spec is the new spec to apply to the cluster.
 	ClusterSpec spec = 3;
 
-	// Rotation contains flags for join token rotation
-	JoinTokenRotation rotation = 4 [(gogoproto.nullable) = false];
+	// Rotation contains flags for join token and unlock key rotation
+	KeyRotation rotation = 4 [(gogoproto.nullable) = false];
 }
 
 message UpdateClusterResponse {
