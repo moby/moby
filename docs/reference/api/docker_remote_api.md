@@ -193,6 +193,7 @@ This section lists each version from latest to oldest.  Each listing includes a 
 * `POST /plugins/(plugin name)/push` push a plugin.
 * `POST /plugins/create?name=(plugin name)` create a plugin.
 * `DELETE /plugins/(plugin name)` delete a plugin.
+* `POST /node/(id or name)/update` now accepts both `id` or `name` to identify the node to update.
 
 
 ### v1.24 API changes
