@@ -1089,6 +1089,8 @@ definitions:
         Driver: "default"
         Config:
           - Subnet: "172.19.0.0/16"
+        State:
+          - Subnet: "172.19.0.0/16"
             Gateway: "172.19.0.1"
         Options:
           foo: "bar"
@@ -1119,6 +1121,13 @@ definitions:
         default: "default"
       Config:
         description: "List of IPAM configuration options, specified as a map: `{\"Subnet\": <CIDR>, \"IPRange\": <CIDR>, \"Gateway\": <IP address>, \"AuxAddress\": <device_name:IP address>}`"
+        type: "array"
+        items:
+          type: "object"
+          additionalProperties:
+            type: "string"
+      State:
+        description: "Current IPAM state, specified as a map: `{\"Subnet\": <CIDR>, \"Gateway\": <IP address>}`"
         type: "array"
         items:
           type: "object"

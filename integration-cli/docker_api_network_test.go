@@ -122,6 +122,9 @@ func (s *DockerSuite) TestAPINetworkInspect(c *check.C) {
 	c.Assert(nr.IPAM.Config[0].Subnet, checker.Equals, "172.28.0.0/16")
 	c.Assert(nr.IPAM.Config[0].IPRange, checker.Equals, "172.28.5.0/24")
 	c.Assert(nr.IPAM.Config[0].Gateway, checker.Equals, "172.28.5.254")
+	c.Assert(len(nr.IPAM.State), checker.Equals, 1)
+	c.Assert(nr.IPAM.State[0].Subnet, checker.Equals, "172.28.0.0/16")
+	c.Assert(nr.IPAM.State[0].Gateway, checker.Equals, "172.28.5.254")
 	c.Assert(nr.Options["foo"], checker.Equals, "bar")
 	c.Assert(nr.Options["opts"], checker.Equals, "dopts")
 

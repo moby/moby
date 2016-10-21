@@ -228,56 +228,27 @@ func buildPeerInfoResources(peers []networkdb.PeerInfo) []network.PeerInfo {
 }
 
 func buildIpamResources(r *types.NetworkResource, nwInfo libnetwork.NetworkInfo) {
-	id, opts, ipv4conf, ipv6conf := nwInfo.IpamConfig()
-
+	var ipv4Conf, ipv6Conf []*libnetwork.IpamConf
+	r.IPAM.Driver, r.IPAM.Options, ipv4Conf, ipv6Conf = nwInfo.IpamConfig()
 	ipv4Info, ipv6Info := nwInfo.IpamInfo()
 
-	r.IPAM.Driver = id
-
-	r.IPAM.Options = opts
-
-	r.IPAM.Config = []network.IPAMConfig{}
-	for _, ip4 := range ipv4conf {
-		if ip4.PreferredPool == "" {
-			continue
-		}
-		iData := network.IPAMConfig{}
-		iData.Subnet = ip4.PreferredPool
-		iData.IPRange = ip4.SubPool
-		iData.Gateway = ip4.Gateway
-		iData.AuxAddress = ip4.AuxAddresses
-		r.IPAM.Config = append(r.IPAM.Config, iData)
-	}
-
-	if len(r.IPAM.Config) == 0 {
-		for _, ip4Info := range ipv4Info {
-			iData := network.IPAMConfig{}
-			iData.Subnet = ip4Info.IPAMData.Pool.String()
-			iData.Gateway = ip4Info.IPAMData.Gateway.IP.String()
-			r.IPAM.Config = append(r.IPAM.Config, iData)
+	for _, conf := range [][]*libnetwork.IpamConf{ipv4Conf, ipv6Conf} {
+		for _, c := range conf {
+			r.IPAM.Config = append(r.IPAM.Config, network.IPAMConfig{
+				Subnet:     c.PreferredPool,
+				Gateway:    c.Gateway,
+				IPRange:    c.SubPool,
+				AuxAddress: c.AuxAddresses,
+			})
 		}
 	}
 
-	hasIpv6Conf := false
-	for _, ip6 := range ipv6conf {
-		if ip6.PreferredPool == "" {
-			continue
-		}
-		hasIpv6Conf = true
-		iData := network.IPAMConfig{}
-		iData.Subnet = ip6.PreferredPool
-		iData.IPRange = ip6.SubPool
-		iData.Gateway = ip6.Gateway
-		iData.AuxAddress = ip6.AuxAddresses
-		r.IPAM.Config = append(r.IPAM.Config, iData)
-	}
-
-	if !hasIpv6Conf {
-		for _, ip6Info := range ipv6Info {
-			iData := network.IPAMConfig{}
-			iData.Subnet = ip6Info.IPAMData.Pool.String()
-			iData.Gateway = ip6Info.IPAMData.Gateway.String()
-			r.IPAM.Config = append(r.IPAM.Config, iData)
+	for _, data := range [][]*libnetwork.IpamInfo{ipv4Info, ipv6Info} {
+		for _, d := range data {
+			r.IPAM.State = append(r.IPAM.State, network.IPAMConfig{
+				Subnet:  d.IPAMData.Pool.String(),
+				Gateway: d.IPAMData.Gateway.IP.String(),
+			})
 		}
 	}
 }
