@@ -347,6 +347,7 @@ Placeholder   | Description
 `.Labels`     | All labels assigned to the container.
 `.Label`      | Value of a specific label for this container. For example `'{% raw %}{{.Label "com.docker.swarm.cpu"}}{% endraw %}'`
 `.Mounts`     | Names of the volumes mounted in this container.
+`.Networks`   | Names of the networks attached to this container.
 
 When using the `--format` option, the `ps` command will either output the data
 exactly as the template declares or, when using the `table` directive, includes
