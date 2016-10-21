@@ -43,14 +43,14 @@ for version in "${versions[@]}"; do
 
 	if [ "$distro" = "debian" ]; then
 		cat >> "$version/Dockerfile" <<-'EOF'
-			# allow replacing httpredir mirror
-			ARG APT_MIRROR=httpredir.debian.org
-			RUN sed -i s/httpredir.debian.org/$APT_MIRROR/g /etc/apt/sources.list
+			# allow replacing httpredir or deb mirror
+			ARG APT_MIRROR=deb.debian.org
+			RUN sed -ri "s/(httpredir|deb).debian.org/$APT_MIRROR/g" /etc/apt/sources.list
 		EOF
 
 		if [ "$suite" = "wheezy" ]; then
 			cat >> "$version/Dockerfile" <<-'EOF'
-				RUN sed -i s/httpredir.debian.org/$APT_MIRROR/g /etc/apt/sources.list.d/backports.list
+				RUN sed -ri "s/(httpredir|deb).debian.org/$APT_MIRROR/g" /etc/apt/sources.list.d/backports.list
 			EOF
 		fi
 
