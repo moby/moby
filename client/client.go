@@ -212,12 +212,13 @@ func (cli *Client) getAPIPath(p string, query url.Values) string {
 // ClientVersion returns the version string associated with this
 // instance of the Client. Note that this value can be changed
 // via the DOCKER_API_VERSION env var.
+// This operation doesn't acquire a mutex.
 func (cli *Client) ClientVersion() string {
 	return cli.version
 }
 
 // UpdateClientVersion updates the version string associated with this
-// instance of the Client.
+// instance of the Client. This operation doesn't acquire a mutex.
 func (cli *Client) UpdateClientVersion(v string) {
 	if !cli.manualOverride {
 		cli.version = v
@@ -243,4 +244,20 @@ func ParseHost(host string) (string, string, string, error) {
 		basePath = parsed.Path
 	}
 	return proto, addr, basePath, nil
+}
+
+// CustomHTTPHeaders returns the custom http headers associated with this
+// instance of the Client. This operation doesn't acquire a mutex.
+func (cli *Client) CustomHTTPHeaders() map[string]string {
+	m := make(map[string]string)
+	for k, v := range cli.customHTTPHeaders {
+		m[k] = v
+	}
+	return m
+}
+
+// SetCustomHTTPHeaders updates the custom http headers associated with this
+// instance of the Client. This operation doesn't acquire a mutex.
+func (cli *Client) SetCustomHTTPHeaders(headers map[string]string) {
+	cli.customHTTPHeaders = headers
 }
