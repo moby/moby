@@ -78,7 +78,7 @@ func New(config Config) (f *Fluent, err error) {
 	}
 	if config.AsyncConnect {
 		f = &Fluent{Config: config, reconnecting: true}
-		f.reconnect()
+		go f.reconnect()
 	} else {
 		f = &Fluent{Config: config, reconnecting: false}
 		err = f.connect()
@@ -254,7 +254,7 @@ func (f *Fluent) connect() (err error) {
 		err = net.UnknownNetworkError(f.Config.FluentNetwork)
 	}
 
-	if err != nil {
+	if err == nil {
 		f.reconnecting = false
 	}
 	return
