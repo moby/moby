@@ -6884,6 +6884,42 @@ func (s *DockerSuite) TestBuildShellWindowsPowershell(c *check.C) {
 	}
 }
 
+// Verify that escape is being correctly applied to words when escape directive is not \.
+// Tests WORKDIR, ADD
+func (s *DockerSuite) TestBuildEscapeNotBackslashWordTest(c *check.C) {
+	testRequires(c, DaemonIsWindows)
+	name := "testbuildescapenotbackslashwordtesta"
+	_, out, err := buildImageWithOut(name,
+		`# escape= `+"`"+`
+		FROM `+minimalBaseImage()+`
+        WORKDIR c:\windows
+		RUN dir /w`,
+		true)
+	if err != nil {
+		c.Fatal(err)
+	}
+	if !strings.Contains(strings.ToLower(out), "[system32]") {
+		c.Fatalf("Line with '[windows]' not found in output %q", out)
+	}
+
+	name = "testbuildescapenotbackslashwordtestb"
+	_, out, err = buildImageWithOut(name,
+		`# escape= `+"`"+`
+		FROM `+minimalBaseImage()+`
+		SHELL ["powershell.exe"]
+        WORKDIR c:\foo
+		ADD Dockerfile c:\foo\
+		RUN dir Dockerfile`,
+		true)
+	if err != nil {
+		c.Fatal(err)
+	}
+	if !strings.Contains(strings.ToLower(out), "-a----") {
+		c.Fatalf("Line with '-a----' not found in output %q", out)
+	}
+
+}
+
 // #22868. Make sure shell-form CMD is marked as escaped in the config of the image
 func (s *DockerSuite) TestBuildCmdShellArgsEscaped(c *check.C) {
 	testRequires(c, DaemonIsWindows)

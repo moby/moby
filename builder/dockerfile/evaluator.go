@@ -169,13 +169,13 @@ func (b *Builder) dispatch(stepN int, stepTotal int, ast *parser.Node) error {
 			var words []string
 
 			if allowWordExpansion[cmd] {
-				words, err = ProcessWords(str, envs)
+				words, err = ProcessWords(str, envs, b.directive.EscapeToken)
 				if err != nil {
 					return err
 				}
 				strList = append(strList, words...)
 			} else {
-				str, err = ProcessWord(str, envs)
+				str, err = ProcessWord(str, envs, b.directive.EscapeToken)
 				if err != nil {
 					return err
 				}
