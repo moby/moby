@@ -26,7 +26,12 @@ func chroot(path string) (err error) {
 		return fmt.Errorf("Error creating mount namespace before pivot: %v", err)
 	}
 
-	if err := mount.MakeRPrivate(path); err != nil {
+	// make everything in new ns private
+	if err := mount.MakeRPrivate("/"); err != nil {
+		return err
+	}
+	// ensure path is a mountpoint
+	if err := mount.MakePrivate(path); err != nil {
 		return err
 	}
 
@@ -56,13 +61,6 @@ func chroot(path string) (err error) {
 			if err == nil {
 				err = errCleanup
 			}
-		}
-
-		if errCleanup := syscall.Unmount("/", syscall.MNT_DETACH); errCleanup != nil {
-			if err == nil {
-				err = fmt.Errorf("error unmounting root: %v", errCleanup)
-			}
-			return
 		}
 	}()
 
