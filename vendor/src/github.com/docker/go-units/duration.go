@@ -26,7 +26,7 @@ func HumanDuration(d time.Duration) string {
 		return fmt.Sprintf("%d hours", hours)
 	} else if hours < 24*7*2 {
 		return fmt.Sprintf("%d days", hours/24)
-	} else if hours < 24*30*3 {
+	} else if hours < 24*30*2 {
 		return fmt.Sprintf("%d weeks", hours/24/7)
 	} else if hours < 24*365*2 {
 		return fmt.Sprintf("%d months", hours/24/30)
