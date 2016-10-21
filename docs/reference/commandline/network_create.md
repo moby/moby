@@ -68,7 +68,7 @@ The `dockerd` options that support the `overlay` network are:
 * `--cluster-advertise`
 
 To read more about these options and how to configure them, see ["*Get started
-with multi-host network*"](../../userguide/networking/get-started-overlay.md).
+with multi-host network*"](https://docs.docker.com/engine/userguide/networking/get-started-overlay).
 
 While not required, it is a good idea to install Docker Swarm to
 manage the cluster that makes up your network. Swarm provides sophisticated
@@ -197,4 +197,4 @@ to create an externally isolated `overlay` network, you can specify the
 * [network disconnect](network_disconnect.md)
 * [network ls](network_ls.md)
 * [network rm](network_rm.md)
-* [Understand Docker container networks](../../userguide/networking/index.md)
+* [Understand Docker container networks](https://docs.docker.com/engine/userguide/networking/)

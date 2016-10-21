@@ -39,4 +39,4 @@ Disconnects a container from a network. The container must be running to disconn
 * [network create](network_create.md)
 * [network ls](network_ls.md)
 * [network rm](network_rm.md)
-* [Understand Docker container networks](../../userguide/networking/index.md)
+* [Understand Docker container networks](https://docs.docker.com/engine/userguide/networking/)
