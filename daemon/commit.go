@@ -3,6 +3,7 @@ package daemon
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"runtime"
 	"strings"
 	"time"
@@ -14,7 +15,6 @@ import (
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
-	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/reference"
 	"github.com/docker/go-connections/nat"
@@ -247,7 +247,7 @@ func (daemon *Daemon) Commit(name string, c *backend.ContainerCommitConfig) (str
 	return id.String(), nil
 }
 
-func (daemon *Daemon) exportContainerRw(container *container.Container) (archive.Archive, error) {
+func (daemon *Daemon) exportContainerRw(container *container.Container) (io.ReadCloser, error) {
 	if err := daemon.Mount(container); err != nil {
 		return nil, err
 	}

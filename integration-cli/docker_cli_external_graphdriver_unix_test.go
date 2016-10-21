@@ -287,7 +287,7 @@ func (s *DockerExternalGraphdriverSuite) setUpPlugin(c *check.C, name string, ex
 
 	mux.HandleFunc("/GraphDriver.ApplyDiff", func(w http.ResponseWriter, r *http.Request) {
 		s.ec[ext].applydiff++
-		var diff archive.Reader = r.Body
+		var diff io.Reader = r.Body
 		defer r.Body.Close()
 
 		id := r.URL.Query().Get("id")

@@ -25,6 +25,7 @@ package aufs
 import (
 	"bufio"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -428,7 +429,7 @@ func (a *Driver) Put(id string) error {
 
 // Diff produces an archive of the changes between the specified
 // layer and its parent layer which may be "".
-func (a *Driver) Diff(id, parent string) (archive.Archive, error) {
+func (a *Driver) Diff(id, parent string) (io.ReadCloser, error) {
 	// AUFS doesn't need the parent layer to produce a diff.
 	return archive.TarWithOptions(path.Join(a.rootPath(), "diff", id), &archive.TarOptions{
 		Compression:     archive.Uncompressed,
@@ -453,7 +454,7 @@ func (a *Driver) DiffGetter(id string) (graphdriver.FileGetCloser, error) {
 	return fileGetNilCloser{storage.NewPathFileGetter(p)}, nil
 }
 
-func (a *Driver) applyDiff(id string, diff archive.Reader) error {
+func (a *Driver) applyDiff(id string, diff io.Reader) error {
 	return chrootarchive.UntarUncompressed(diff, path.Join(a.rootPath(), "diff", id), &archive.TarOptions{
 		UIDMaps: a.uidMaps,
 		GIDMaps: a.gidMaps,
@@ -471,7 +472,7 @@ func (a *Driver) DiffSize(id, parent string) (size int64, err error) {
 // ApplyDiff extracts the changeset from the given diff into the
 // layer with the specified id and parent, returning the size of the
 // new layer in bytes.
-func (a *Driver) ApplyDiff(id, parent string, diff archive.Reader) (size int64, err error) {
+func (a *Driver) ApplyDiff(id, parent string, diff io.Reader) (size int64, err error) {
 	// AUFS doesn't need the parent id to apply the diff.
 	if err = a.applyDiff(id, diff); err != nil {
 		return
