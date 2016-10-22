@@ -1048,6 +1048,12 @@ _docker_container_exec() {
 	__docker_complete_detach-keys && return
 
 	case "$prev" in
+		--env|-e)
+			# we do not append a "=" here because "-e VARNAME" is legal systax, too
+			COMPREPLY=( $( compgen -e -- "$cur" ) )
+			__docker_nospace
+			return
+			;;
 		--user|-u)
 			__docker_complete_user_group
 			return
@@ -1056,7 +1062,7 @@ _docker_container_exec() {
 
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "--detach -d --detach-keys -e --env --help --interactive -i --privileged -t --tty -u --user" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "--detach -d --detach-keys --env -e --help --interactive -i --privileged -t --tty -u --user" -- "$cur" ) )
 			;;
 		*)
 			__docker_complete_containers_running
