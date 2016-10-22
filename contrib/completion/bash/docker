@@ -2078,7 +2078,18 @@ _docker_image_inspect() {
 }
 
 _docker_image_load() {
-	_docker_load
+	case "$prev" in
+		--input|-i)
+			_filedir
+			return
+			;;
+	esac
+
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "--help --input -i --quiet -q" -- "$cur" ) )
+			;;
+	esac
 }
 
 _docker_image_list() {
@@ -2236,18 +2247,7 @@ _docker_kill() {
 }
 
 _docker_load() {
-	case "$prev" in
-		--input|-i)
-			_filedir
-			return
-			;;
-	esac
-
-	case "$cur" in
-		-*)
-			COMPREPLY=( $( compgen -W "--help --input -i --quiet -q" -- "$cur" ) )
-			;;
-	esac
+	_docker_image_load
 }
 
 _docker_login() {
