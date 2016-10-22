@@ -61,6 +61,6 @@ Title capitalizes a string.
 
 ### Upper
 
-Upper turms a string into its upper case representation.
+Upper turns a string into its upper case representation.
 
 	$ docker inspect --format "{{upper .Name}}" container
