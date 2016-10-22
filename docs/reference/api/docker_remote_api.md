@@ -149,6 +149,7 @@ This section lists each version from latest to oldest.  Each listing includes a 
   containers that are tasks (part of a service in swarm mode).
 * `POST /containers/create` now takes `StopTimeout` field.
 * `POST /services/create` and `POST /services/(id or name)/update` now accept `Monitor` and `MaxFailureRatio` parameters, which control the response to failures during service updates.
+* `POST /services/(id or name)/update` now accepts a `ForceUpdate` parameter inside the `TaskTemplate`, which causes the service to be updated even if there are no changes which would ordinarily trigger an update.
 * `GET /networks/(name)` now returns field `Created` in response to show network created time.
 * `POST /containers/(id or name)/exec` now accepts an `Env` field, which holds a list of environment variables to be set in the context of the command execution.
 * `GET /volumes`, `GET /volumes/(name)`, and `POST /volumes/create` now return the `Options` field which holds the driver specific options to use for when creating the volume.

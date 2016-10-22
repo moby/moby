@@ -29,6 +29,7 @@ Options:
       --endpoint-mode string             Endpoint mode (vip or dnsrr)
       --env-add value                    Add or update environment variables (default [])
       --env-rm value                     Remove an environment variable (default [])
+      --force                            Force update even if no changes require it
       --group-add value                  Add additional user groups to the container (default [])
       --group-rm value                   Remove previously added user groups from the container (default [])
       --help                             Print usage
@@ -67,6 +68,12 @@ Updates a service as described by the specified parameters. This command has to 
 The parameters are the same as [`docker service create`](service_create.md). Please look at the description there
 for further information.
 
+Normally, updating a service will only cause the service's tasks to be replaced with new ones if a change to the
+service requires recreating the tasks for it to take effect. For example, only changing the
+`--update-parallelism` setting will not recreate the tasks, because the individual tasks are not affected by this
+setting. However, the `--force` flag will cause the tasks to be recreated anyway. This can be used to perform a
+rolling restart without any changes to the service parameters.
+
 ## Examples
 
 ### Update a service
@@ -74,6 +81,19 @@ for further information.
 ```bash
 $ docker service update --limit-cpu 2 redis
 ```
+
+### Perform a rolling restart with no parameter changes
+
+```bash
+$ docker service update --force --update-parallelism 1 --update-delay 30s redis
+```
+
+In this example, the `--force` flag causes the service's tasks to be shut down
+and replaced with new ones even though none of the other parameters would
+normally cause that to happen. The `--update-parallelism 1` setting ensures
+that only one task is replaced at a time (this is the default behavior). The
+`--update-delay 30s` setting introduces a 30 second delay between tasks, so
+that the rolling restart happens gradually.
 
 ### Adding and removing mounts
 
