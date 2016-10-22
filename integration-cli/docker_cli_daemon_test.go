@@ -1265,49 +1265,6 @@ func (s *DockerDaemonSuite) TestDaemonLoggingDriverNoneLogsError(c *check.C) {
 	c.Assert(out, checker.Contains, expected)
 }
 
-func (s *DockerDaemonSuite) TestDaemonDots(c *check.C) {
-	if err := s.d.StartWithBusybox(); err != nil {
-		c.Fatal(err)
-	}
-
-	// Now create 4 containers
-	if _, err := s.d.Cmd("create", "busybox"); err != nil {
-		c.Fatalf("Error creating container: %q", err)
-	}
-	if _, err := s.d.Cmd("create", "busybox"); err != nil {
-		c.Fatalf("Error creating container: %q", err)
-	}
-	if _, err := s.d.Cmd("create", "busybox"); err != nil {
-		c.Fatalf("Error creating container: %q", err)
-	}
-	if _, err := s.d.Cmd("create", "busybox"); err != nil {
-		c.Fatalf("Error creating container: %q", err)
-	}
-
-	s.d.Stop()
-
-	s.d.Start("--log-level=debug")
-	s.d.Stop()
-	content, _ := ioutil.ReadFile(s.d.logFile.Name())
-	if strings.Contains(string(content), "....") {
-		c.Fatalf("Debug level should not have ....\n%s", string(content))
-	}
-
-	s.d.Start("--log-level=error")
-	s.d.Stop()
-	content, _ = ioutil.ReadFile(s.d.logFile.Name())
-	if strings.Contains(string(content), "....") {
-		c.Fatalf("Error level should not have ....\n%s", string(content))
-	}
-
-	s.d.Start("--log-level=info")
-	s.d.Stop()
-	content, _ = ioutil.ReadFile(s.d.logFile.Name())
-	if !strings.Contains(string(content), "....") {
-		c.Fatalf("Info level should have ....\n%s", string(content))
-	}
-}
-
 func (s *DockerDaemonSuite) TestDaemonUnixSockCleanedUp(c *check.C) {
 	dir, err := ioutil.TempDir("", "socket-cleanup-test")
 	if err != nil {
