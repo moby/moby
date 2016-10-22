@@ -440,3 +440,28 @@ func (s *DockerSuite) TestVolumeCliInspectWithVolumeOpts(c *check.C) {
 	c.Assert(strings.TrimSpace(out), checker.Contains, fmt.Sprintf("%s:%s", k2, v2))
 	c.Assert(strings.TrimSpace(out), checker.Contains, fmt.Sprintf("%s:%s", k3, v3))
 }
+
+func (s *DockerSuite) TestVolumeCliCreateNonIdempotency(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+
+	// Without options
+	name1 := "test1"
+	dockerCmd(c, "volume", "create", "-d", "local", name1)
+	out, _, err := dockerCmdWithError("volume", "create", "-d", "local", name1)
+	c.Assert(err, check.Not(check.IsNil))
+	c.Assert(err.Error(), checker.Contains, fmt.Sprintf("volume '%s' has already been created", name1))
+	c.Assert(out, checker.Contains, fmt.Sprintf("volume '%s' has already been created", name1))
+
+	// With options
+	name2 := "test2"
+	dockerCmd(c, "volume", "create", "-d", "local", name2, "--opt", "type=tmpfs", "--opt", "o=size=1m,uid=1000")
+	out, _, err = dockerCmdWithError("volume", "create", "-d", "local", name2, "--opt", "type=tmpfs", "--opt", "o=size=1m,uid=1000")
+	c.Assert(err, check.Not(check.IsNil))
+	c.Assert(err.Error(), checker.Contains, fmt.Sprintf("volume '%s' has already been created", name2))
+	c.Assert(out, checker.Contains, fmt.Sprintf("volume '%s' has already been created", name2))
+
+	out, _, err = dockerCmdWithError("volume", "create", "-d", "local", name2, "--opt", "type=tmpfs", "--opt", "o=size=2m,uid=1000")
+	c.Assert(err, check.Not(check.IsNil))
+	c.Assert(err.Error(), checker.Contains, fmt.Sprintf("volume '%s' has already been created", name2))
+	c.Assert(out, checker.Contains, fmt.Sprintf("volume '%s' has already been created", name2))
+}

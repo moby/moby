@@ -3,6 +3,7 @@ package store
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"sync"
@@ -269,7 +270,8 @@ func (s *VolumeStore) create(name, driverName string, opts, labels map[string]st
 		if v.DriverName() != driverName && driverName != "" && driverName != volume.DefaultDriverName {
 			return nil, errNameConflict
 		}
-		return v, nil
+		// In case a volume has already been created, we will return an error for non-idempotency
+		return nil, fmt.Errorf("volume '%s' has already been created", name)
 	}
 
 	// Since there isn't a specified driver name, let's see if any of the existing drivers have this volume name
