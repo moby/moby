@@ -3,7 +3,7 @@
 source "${MAKEDIR}/.validate"
 
 IFS=$'\n'
-files=( $(validate_diff --diff-filter=ACMR --name-only -- '*.go' | grep -v '^vendor/' || true) )
+files=( $(validate_diff --diff-filter=ACMR --name-only -- '*.go' | grep -v '^vendor/' | grep -v '^api/types/' || true) )
 unset IFS
 
 errors=()

@@ -137,3 +137,9 @@ validate: build ## validate DCO, Seccomp profile generation, gofmt,\n./pkg/ isol
 
 win: build ## cross build the binary for windows
 	$(DOCKER_RUN_DOCKER) hack/make.sh win
+
+.PHONY: swagger-gen
+swagger-gen:
+	docker run --rm -v $(PWD):/work -w /work \
+		--entrypoint hack/generate-swagger-api.sh \
+		quay.io/goswagger/swagger

@@ -314,3 +314,12 @@ type TaskListOptions struct {
 type PluginRemoveOptions struct {
 	Force bool
 }
+
+// PluginInstallOptions holds parameters to install a plugin.
+type PluginInstallOptions struct {
+	Disabled              bool
+	AcceptAllPermissions  bool
+	RegistryAuth          string // RegistryAuth is the base64 encoded credentials for the registry
+	PrivilegeFunc         RequestPrivilegeFunc
+	AcceptPermissionsFunc func(PluginPrivileges) (bool, error)
+}
