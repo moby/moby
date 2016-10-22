@@ -1,6 +1,7 @@
 package cluster
 
 import (
+	"crypto/x509"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -12,10 +13,8 @@ import (
 	"sync"
 	"time"
 
-	"google.golang.org/grpc"
-
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/docker/api/errors"
+	apierrors "github.com/docker/docker/api/errors"
 	apitypes "github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/network"
@@ -29,7 +28,9 @@ import (
 	"github.com/docker/docker/runconfig"
 	swarmapi "github.com/docker/swarmkit/api"
 	swarmnode "github.com/docker/swarmkit/node"
+	"github.com/pkg/errors"
 	"golang.org/x/net/context"
+	"google.golang.org/grpc"
 )
 
 const swarmDirName = "swarm"
@@ -55,6 +56,9 @@ var ErrPendingSwarmExists = fmt.Errorf("This node is processing an existing join
 
 // ErrSwarmJoinTimeoutReached is returned when cluster join could not complete before timeout was reached.
 var ErrSwarmJoinTimeoutReached = fmt.Errorf("Timeout was reached before node was joined. The attempt to join the swarm will continue in the background. Use the \"docker info\" command to see the current swarm status of your node.")
+
+// ErrSwarmLocked is returned if the swarm is encrypted and needs a key to unlock it.
+var ErrSwarmLocked = fmt.Errorf("Swarm is encrypted and needs to be unlocked before it can be used. Please use \"docker swarm unlock\" to unlock it.")
 
 // NetworkSubnetsProvider exposes functions for retrieving the subnets
 // of networks managed by Docker, so they can be filtered.
@@ -92,6 +96,8 @@ type Cluster struct {
 	err             error
 	cancelDelay     func()
 	attachers       map[string]*attacher
+	locked          bool
+	lastNodeConfig  *nodeStartConfig
 }
 
 // attacher manages the in-memory attachment state of a container
@@ -133,6 +139,7 @@ type nodeStartConfig struct {
 	joinAddr        string
 	forceNewCluster bool
 	joinToken       string
+	lockKey         []byte
 }
 
 // New creates a new Cluster instance using provided config.
@@ -165,6 +172,12 @@ func New(config Config) (*Cluster, error) {
 
 	n, err := c.startNewNode(*nodeConfig)
 	if err != nil {
+		if errors.Cause(err) == ErrSwarmLocked {
+			logrus.Warnf("swarm component could not be started: %v", err)
+			c.locked = true
+			c.lastNodeConfig = nodeConfig
+			return c, nil
+		}
 		return nil, err
 	}
 
@@ -300,8 +313,16 @@ func (c *Cluster) startNewNode(conf nodeStartConfig) (*node, error) {
 		Executor:           container.NewExecutor(c.config.Backend),
 		HeartbeatTick:      1,
 		ElectionTick:       3,
+		UnlockKey:          conf.lockKey,
 	})
+
 	if err != nil {
+		err = detectLockedError(err)
+		if errors.Cause(err) == ErrSwarmLocked {
+			c.locked = true
+			confClone := conf
+			c.lastNodeConfig = &confClone
+		}
 		return nil, err
 	}
 	ctx := context.Background()
@@ -365,7 +386,7 @@ func (c *Cluster) startNewNode(conf nodeStartConfig) (*node, error) {
 // Init initializes new cluster from user provided request.
 func (c *Cluster) Init(req types.InitRequest) (string, error) {
 	c.Lock()
-	if node := c.node; node != nil {
+	if node := c.node; node != nil || c.locked {
 		if !req.ForceNewCluster {
 			c.Unlock()
 			return "", ErrSwarmExists
@@ -422,12 +443,18 @@ func (c *Cluster) Init(req types.InitRequest) (string, error) {
 		localAddr = advertiseIP.String()
 	}
 
+	var key []byte
+	if len(req.LockKey) > 0 {
+		key = []byte(req.LockKey)
+	}
+
 	// todo: check current state existing
 	n, err := c.startNewNode(nodeStartConfig{
 		forceNewCluster: req.ForceNewCluster,
 		LocalAddr:       localAddr,
 		ListenAddr:      net.JoinHostPort(listenHost, listenPort),
 		AdvertiseAddr:   net.JoinHostPort(advertiseHost, advertisePort),
+		lockKey:         key,
 	})
 	if err != nil {
 		c.Unlock()
@@ -457,7 +484,7 @@ func (c *Cluster) Init(req types.InitRequest) (string, error) {
 // Join makes current Cluster part of an existing swarm cluster.
 func (c *Cluster) Join(req types.JoinRequest) error {
 	c.Lock()
-	if node := c.node; node != nil {
+	if node := c.node; node != nil || c.locked {
 		c.Unlock()
 		return ErrSwarmExists
 	}
@@ -518,6 +545,60 @@ func (c *Cluster) Join(req types.JoinRequest) error {
 	}
 }
 
+// GetUnlockKey returns the unlock key for the swarm.
+func (c *Cluster) GetUnlockKey() (string, error) {
+	c.RLock()
+	defer c.RUnlock()
+
+	if !c.isActiveManager() {
+		return "", c.errNoManager()
+	}
+
+	ctx, cancel := c.getRequestContext()
+	defer cancel()
+
+	client := swarmapi.NewCAClient(c.conn)
+
+	r, err := client.GetUnlockKey(ctx, &swarmapi.GetUnlockKeyRequest{})
+	if err != nil {
+		return "", err
+	}
+
+	return encryption.HumanReadableKey(r.UnlockKey), nil
+}
+
+// UnlockSwarm provides a key to decrypt data that is encrypted at rest.
+func (c *Cluster) UnlockSwarm(req types.UnlockRequest) error {
+	if len(req.LockKey) == 0 {
+		return errors.New("unlock key can't be empty")
+	}
+
+	c.Lock()
+	if c.node != nil || c.locked != true {
+		c.Unlock()
+		return errors.New("swarm is not locked")
+	}
+
+	config := *c.lastNodeConfig
+	config.lockKey = []byte(req.LockKey)
+	n, err := c.startNewNode(config)
+	if err != nil {
+		c.Unlock()
+		if errors.Cause(err) == ErrSwarmLocked {
+			return errors.New("swarm could not be unlocked: invalid key provided")
+		}
+		return err
+	}
+	c.Unlock()
+	select {
+	case <-n.Ready():
+	case <-n.done:
+		return fmt.Errorf("swarm component could not be started: %v", c.err)
+	}
+	go c.reconnectOnFailure(n)
+	return nil
+}
+
 // stopNode is a helper that stops the active c.node and waits until it has
 // shut down. Call while keeping the cluster lock.
 func (c *Cluster) stopNode() error {
@@ -555,47 +636,53 @@ func (c *Cluster) Leave(force bool) error {
 	c.Lock()
 	node := c.node
 	if node == nil {
-		c.Unlock()
-		return ErrNoSwarm
-	}
-
-	if node.Manager() != nil && !force {
-		msg := "You are attempting to leave the swarm on a node that is participating as a manager. "
-		if c.isActiveManager() {
-			active, reachable, unreachable, err := c.managerStats()
-			if err == nil {
-				if active && removingManagerCausesLossOfQuorum(reachable, unreachable) {
-					if isLastManager(reachable, unreachable) {
-						msg += "Removing the last manager erases all current state of the swarm. Use `--force` to ignore this message. "
-						c.Unlock()
-						return fmt.Errorf(msg)
-					}
-					msg += fmt.Sprintf("Removing this node leaves %v managers out of %v. Without a Raft quorum your swarm will be inaccessible. ", reachable-1, reachable+unreachable)
-				}
-			}
+		if c.locked {
+			c.locked = false
+			c.lastNodeConfig = nil
+			c.Unlock()
 		} else {
-			msg += "Doing so may lose the consensus of your cluster. "
+			c.Unlock()
+			return ErrNoSwarm
 		}
+	} else {
+		if node.Manager() != nil && !force {
+			msg := "You are attempting to leave the swarm on a node that is participating as a manager. "
+			if c.isActiveManager() {
+				active, reachable, unreachable, err := c.managerStats()
+				if err == nil {
+					if active && removingManagerCausesLossOfQuorum(reachable, unreachable) {
+						if isLastManager(reachable, unreachable) {
+							msg += "Removing the last manager erases all current state of the swarm. Use `--force` to ignore this message. "
+							c.Unlock()
+							return fmt.Errorf(msg)
+						}
+						msg += fmt.Sprintf("Removing this node leaves %v managers out of %v. Without a Raft quorum your swarm will be inaccessible. ", reachable-1, reachable+unreachable)
+					}
+				}
+			} else {
+				msg += "Doing so may lose the consensus of your cluster. "
+			}
 
-		msg += "The only way to restore a swarm that has lost consensus is to reinitialize it with `--force-new-cluster`. Use `--force` to suppress this message."
-		c.Unlock()
-		return fmt.Errorf(msg)
-	}
-	if err := c.stopNode(); err != nil {
-		logrus.Errorf("failed to shut down cluster node: %v", err)
-		signal.DumpStacks("")
-		c.Unlock()
-		return err
-	}
-	c.Unlock()
-	if nodeID := node.NodeID(); nodeID != "" {
-		nodeContainers, err := c.listContainerForNode(nodeID)
-		if err != nil {
+			msg += "The only way to restore a swarm that has lost consensus is to reinitialize it with `--force-new-cluster`. Use `--force` to suppress this message."
+			c.Unlock()
+			return fmt.Errorf(msg)
+		}
+		if err := c.stopNode(); err != nil {
+			logrus.Errorf("failed to shut down cluster node: %v", err)
+			signal.DumpStacks("")
+			c.Unlock()
 			return err
 		}
-		for _, id := range nodeContainers {
-			if err := c.config.Backend.ContainerRm(id, &apitypes.ContainerRmConfig{ForceRemove: true}); err != nil {
-				logrus.Errorf("error removing %v: %v", id, err)
+		c.Unlock()
+		if nodeID := node.NodeID(); nodeID != "" {
+			nodeContainers, err := c.listContainerForNode(nodeID)
+			if err != nil {
+				return err
+			}
+			for _, id := range nodeContainers {
+				if err := c.config.Backend.ContainerRm(id, &apitypes.ContainerRmConfig{ForceRemove: true}); err != nil {
+					logrus.Errorf("error removing %v: %v", id, err)
+				}
 			}
 		}
 	}
@@ -786,6 +873,9 @@ func (c *Cluster) Info() types.Info {
 		if c.cancelDelay != nil {
 			info.LocalNodeState = types.LocalNodeStateError
 		}
+		if c.locked {
+			info.LocalNodeState = types.LocalNodeStateLocked
+		}
 	} else {
 		info.LocalNodeState = types.LocalNodeStatePending
 		if c.ready == true {
@@ -838,6 +928,9 @@ func (c *Cluster) isActiveManager() bool {
 // Call with read lock.
 func (c *Cluster) errNoManager() error {
 	if c.node == nil {
+		if c.locked {
+			return ErrSwarmLocked
+		}
 		return fmt.Errorf("This node is not a swarm manager. Use \"docker swarm init\" or \"docker swarm join\" to connect this node to swarm and try again.")
 	}
 	if c.node.Manager() != nil {
@@ -1396,7 +1489,7 @@ func (c *Cluster) CreateNetwork(s apitypes.NetworkCreateRequest) (string, error)
 
 	if runconfig.IsPreDefinedNetwork(s.Name) {
 		err := fmt.Errorf("%s is a pre-defined network and cannot be created", s.Name)
-		return "", errors.NewRequestForbiddenError(err)
+		return "", apierrors.NewRequestForbiddenError(err)
 	}
 
 	ctx, cancel := c.getRequestContext()
@@ -1447,7 +1540,7 @@ func (c *Cluster) populateNetworkID(ctx context.Context, client swarmapi.Control
 		if err != nil {
 			if ln, _ := c.config.Backend.FindNetwork(n.Target); ln != nil && !ln.Info().Dynamic() {
 				err = fmt.Errorf("network %s is not eligible for docker services", ln.Name())
-				return errors.NewRequestForbiddenError(err)
+				return apierrors.NewRequestForbiddenError(err)
 			}
 			return err
 		}
@@ -1612,4 +1705,11 @@ func initClusterSpec(node *node, spec types.Spec) error {
 		}
 	}
 	return ctx.Err()
+}
+
+func detectLockedError(err error) error {
+	if errors.Cause(err) == x509.IncorrectPasswordError || errors.Cause(err).Error() == "tls: failed to parse private key" { // todo: better to export typed error
+		return errors.WithStack(ErrSwarmLocked)
+	}
+	return err
 }

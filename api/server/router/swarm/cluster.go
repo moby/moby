@@ -29,6 +29,7 @@ func (sr *swarmRouter) initRoutes() {
 		router.NewPostRoute("/swarm/leave", sr.leaveCluster),
 		router.NewGetRoute("/swarm", sr.inspectCluster),
 		router.NewPostRoute("/swarm/update", sr.updateCluster),
+		router.NewPostRoute("/swarm/unlock", sr.unlockCluster),
 		router.NewGetRoute("/services", sr.getServices),
 		router.NewGetRoute("/services/{id:.*}", sr.getService),
 		router.NewPostRoute("/services/create", sr.createService),

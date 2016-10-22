@@ -26,6 +26,7 @@ const (
 	flagExternalCA          = "external-ca"
 	flagMaxSnapshots        = "max-snapshots"
 	flagSnapshotInterval    = "snapshot-interval"
+	flagLockKey             = "lock-key"
 )
 
 type swarmOptions struct {

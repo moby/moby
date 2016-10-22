@@ -96,7 +96,7 @@ func prettyPrintInfo(dockerCli *command.DockerCli, info types.Info) error {
 	}
 
 	fmt.Fprintf(dockerCli.Out(), "Swarm: %v\n", info.Swarm.LocalNodeState)
-	if info.Swarm.LocalNodeState != swarm.LocalNodeStateInactive {
+	if info.Swarm.LocalNodeState != swarm.LocalNodeStateInactive && info.Swarm.LocalNodeState != swarm.LocalNodeStateLocked {
 		fmt.Fprintf(dockerCli.Out(), " NodeID: %s\n", info.Swarm.NodeID)
 		if info.Swarm.Error != "" {
 			fmt.Fprintf(dockerCli.Out(), " Error: %v\n", info.Swarm.Error)

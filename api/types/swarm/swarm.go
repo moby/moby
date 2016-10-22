@@ -125,6 +125,7 @@ type InitRequest struct {
 	AdvertiseAddr   string
 	ForceNewCluster bool
 	Spec            Spec
+	LockKey         string
 }
 
 // JoinRequest is the request used to join a swarm.
@@ -133,6 +134,11 @@ type JoinRequest struct {
 	AdvertiseAddr string
 	RemoteAddrs   []string
 	JoinToken     string // accept by secret
+}
+
+// UnlockRequest is the request used to unlock a swarm.
+type UnlockRequest struct {
+	LockKey string
 }
 
 // LocalNodeState represents the state of the local node.
@@ -147,6 +153,8 @@ const (
 	LocalNodeStateActive LocalNodeState = "active"
 	// LocalNodeStateError ERROR
 	LocalNodeStateError LocalNodeState = "error"
+	// LocalNodeStateLocked LOCKED
+	LocalNodeStateLocked LocalNodeState = "locked"
 )
 
 // Info represents generic information about swarm.

@@ -94,6 +94,19 @@ func (sr *swarmRouter) updateCluster(ctx context.Context, w http.ResponseWriter,
 	return nil
 }
 
+func (sr *swarmRouter) unlockCluster(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	var req types.UnlockRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		return err
+	}
+
+	if err := sr.backend.UnlockSwarm(req); err != nil {
+		logrus.Errorf("Error unlocking swarm: %+v", err)
+		return err
+	}
+	return nil
+}
+
 func (sr *swarmRouter) getServices(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
 		return err
