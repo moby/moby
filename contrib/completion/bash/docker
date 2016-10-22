@@ -1021,34 +1021,7 @@ _docker_container_export() {
 }
 
 _docker_container_inspect() {
-	case "$prev" in
-		--format|-f)
-			return
-			;;
-		--type)
-                     COMPREPLY=( $( compgen -W "image container" -- "$cur" ) )
-                     return
-                        ;;
-
-	esac
-
-	case "$cur" in
-		-*)
-			COMPREPLY=( $( compgen -W "--format -f --help --size -s --type" -- "$cur" ) )
-			;;
-		*)
-			case $(__docker_value_of_option --type) in
-				'')
-					__docker_complete_containers_and_images
-					;;
-				container)
-					__docker_complete_containers_all
-					;;
-				image)
-					__docker_complete_images
-					;;
-			esac
-	esac
+	_docker_inspect --type container
 }
 
 _docker_container_kill() {
@@ -2101,7 +2074,7 @@ _docker_image_import() {
 }
 
 _docker_image_inspect() {
-	_docker_inspect
+	_docker_inspect --type image
 }
 
 _docker_image_load() {
@@ -2215,7 +2188,47 @@ _docker_info() {
 }
 
 _docker_inspect() {
-	_docker_container_inspect
+	local type
+
+	if [ "$1" = "--type" ] ; then
+		type="$2"
+	else
+		type=$(__docker_value_of_option --type)
+	fi
+
+	case "$prev" in
+		--format|-f)
+			return
+			;;
+		--type)
+			if [ -z "$type" ] ; then
+				COMPREPLY=( $( compgen -W "image container" -- "$cur" ) )
+			fi
+			return
+			;;
+	esac
+
+	case "$cur" in
+		-*)
+			local options="--format -f --help --size -s"
+			if [ -z "$type" ] ; then
+				options+=" --type"
+			fi
+			COMPREPLY=( $( compgen -W "$options" -- "$cur" ) )
+			;;
+		*)
+			case "$type" in
+				'')
+					__docker_complete_containers_and_images
+					;;
+				container)
+					__docker_complete_containers_all
+					;;
+				image)
+					__docker_complete_images
+					;;
+			esac
+	esac
 }
 
 _docker_kill() {
