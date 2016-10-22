@@ -43,6 +43,7 @@ systemctl restart docker` to reload changes and (re)start the docker daemon.
 * Reset health status to starting when a container is restarted [#27387](https://github.com/docker/docker/pull/27387)
 * Properly handle shared mount propagation in storage directory [#27609](https://github.com/docker/docker/pull/27609)
 - Fix docker exec [#27610](https://github.com/docker/docker/pull/27610)
+- Fix backward compatibility with containerd’s events log [#27693](https://github.com/docker/docker/pull/27693)
 
 ### Swarm Mode
 
