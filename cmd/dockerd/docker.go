@@ -3,6 +3,8 @@ package main
 import (
 	"fmt"
 	"os"
+	"path/filepath"
+	"runtime"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/cli"
@@ -60,6 +62,11 @@ func runDaemon(opts daemonOptions) error {
 	}
 
 	daemonCli := NewDaemonCli()
+
+	// On Windows, if there's no explicit pidfile set, set to under the daemon root
+	if runtime.GOOS == "windows" && opts.daemonConfig.Pidfile == "" {
+		opts.daemonConfig.Pidfile = filepath.Join(opts.daemonConfig.Root, "docker.pid")
+	}
 
 	// On Windows, this may be launching as a service or with an option to
 	// register the service.
