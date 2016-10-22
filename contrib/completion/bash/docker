@@ -2028,6 +2028,106 @@ _docker_history() {
 	esac
 }
 
+
+_docker_image() {
+	local subcommands="
+		build
+		history
+		import
+		inspect
+		load
+		ls
+		prune
+		pull
+		push
+		rm
+		save
+		tag
+	"
+	local aliases="
+		images
+		list
+		remove
+		rmi
+	"
+	__docker_subcommands "$subcommands $aliases" && return
+
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "--help" -- "$cur" ) )
+			;;
+		*)
+			COMPREPLY=( $( compgen -W "$subcommands" -- "$cur" ) )
+			;;
+	esac
+}
+
+_docker_image_build() {
+	_docker_build
+}
+
+_docker_image_history() {
+	_docker_history
+}
+
+_docker_image_images() {
+	_docker_image_ls
+}
+
+_docker_image_import() {
+	_docker_import
+}
+
+_docker_image_inspect() {
+	_docker_inspect
+}
+
+_docker_image_load() {
+	_docker_load
+}
+
+_docker_image_list() {
+	_docker_image_ls
+}
+
+_docker_image_ls() {
+	_docker_images
+}
+
+# TODO new command
+_docker_image_prune() {
+	:
+}
+
+_docker_image_pull() {
+	_docker_pull
+}
+
+_docker_image_push() {
+	_docker_push
+}
+
+_docker_image_remove() {
+	_docker_image_rm
+}
+
+_docker_image_rm() {
+	_docker_rmi
+}
+
+_docker_image_rmi() {
+	_docker_image_rm
+}
+
+_docker_image_save() {
+	_docker_save
+}
+
+_docker_image_tag() {
+	_docker_tag
+}
+
+
 _docker_images() {
 	local key=$(__docker_map_key_of_current_option '--filter|-f')
 	case "$key" in
@@ -3178,6 +3278,7 @@ _docker() {
 		exec
 		export
 		history
+		image
 		images
 		import
 		info
