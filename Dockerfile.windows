@@ -106,6 +106,12 @@
 # The downloaded files are not cleared from the image. go.zip is used by the Windows
 # CI servers to ensure the host and image are running consistent versions of go.
 #
+# The GIT installer isn't very good at unattended install. We use techniques described
+# at the links below to force it to set the path and other options accordingly. 
+# >> http://superuser.com/questions/944576/git-for-windows-silent-install-silent-arguments 
+# and follow through to installer at
+# >> https://github.com/ferventcoder/chocolatey-packages/blob/master/automatic/git.install/tools/chocolateyInstall.ps1
+
 
 # -----------------------------------------------------------------------------------------
 
@@ -116,14 +122,14 @@ FROM microsoft/windowsservercore
 #  - GO_VERSION must consistent with 'Dockerfile' used by Linux'.
 #  - FROM_DOCKERFILE is used for detection of building within a container.
 ENV GO_VERSION=1.7.3 `
-    GIT_LOCATION=https://github.com/git-for-windows/git/releases/download/v2.7.2.windows.1/Git-2.7.2-64-bit.exe `
+    GIT_LOCATION=https://github.com/git-for-windows/git/releases/download/v2.10.1.windows.1/Git-2.10.1-64-bit.exe `
     GOPATH=C:/go;C:/go/src/github.com/docker/docker/vendor `
     FROM_DOCKERFILE=1
 
 WORKDIR c:/
 
 RUN `
- setx /M Path "c:\git\cmd;c:\git\bin;c:\git\usr\bin;%Path%;c:\gcc\bin;c:\go\bin;" && `
+ setx /M Path "%Path%;c:\gcc\bin;c:\go\bin;" && `
  setx GOROOT "c:\go" && `
  powershell -command `
   $ErrorActionPreference = 'Stop'; `
@@ -147,6 +153,13 @@ RUN `
   Download-File https://raw.githubusercontent.com/jhowardmsft/docker-tdmgcc/master/binutils.zip binutils.zip; `
   `
   Write-Host INFO: Installing git...; `
+  $installPath = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall'; `
+  $installItem = 'Git_is1'; `
+  New-Item -Path $installPath -Name $installItem -Force; `
+  $installKey = $installPath+'\'+$installItem; `
+  New-ItemProperty $installKey -Name 'Inno Setup CodeFile: Path Option' -Value 'CmdTools' -PropertyType 'String' -Force; `
+  New-ItemProperty $installKey -Name 'Inno Setup CodeFile: Bash Terminal Option' -Value 'ConHost' -PropertyType 'String' -Force; `
+  New-ItemProperty $installKey -Name 'Inno Setup CodeFile: CRLF Option' -Value 'CRLFCommitAsIs' -PropertyType 'String' -Force; `
   Start-Process gitsetup.exe -ArgumentList '/VERYSILENT /SUPPRESSMSGBOXES /CLOSEAPPLICATIONS /DIR=c:\git\' -Wait; `
   `
   Write-Host INFO: Expanding go..."; `
