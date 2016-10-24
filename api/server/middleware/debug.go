@@ -35,7 +35,7 @@ func DebugRequestMiddleware(handler func(ctx context.Context, w http.ResponseWri
 
 		b, err := bufReader.Peek(maxBodySize)
 		if err != io.EOF {
-			// either there was an error reading, or the buffer is full (in which case the request is too large)
+			// Either there was an error reading, or the buffer is full (in which case the request is too large)
 			return handler(ctx, w, r, vars)
 		}
 
