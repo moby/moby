@@ -3,6 +3,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -849,4 +850,71 @@ func (s *DockerSwarmSuite) TestDNSConfigUpdate(c *check.C) {
 	out, err := d.Cmd("service", "inspect", "--format", "{{ .Spec.TaskTemplate.ContainerSpec.DNSConfig }}", name)
 	c.Assert(err, checker.IsNil)
 	c.Assert(strings.TrimSpace(out), checker.Equals, "{[1.2.3.4] [example.com] [timeout:3]}")
+}
+
+func (s *DockerSwarmSuite) TestSwarmInitLocked(c *check.C) {
+	d := s.AddDaemon(c, false, false)
+
+	cmd := d.command("swarm", "init", "--lock-key")
+	cmd.Stdin = bytes.NewBufferString("my-secret-key")
+	out, err := cmd.CombinedOutput()
+	c.Assert(err, checker.IsNil, check.Commentf("out: %v", string(out)))
+
+	c.Assert(string(out), checker.Contains, "docker swarm unlock")
+
+	info, err := d.info()
+	c.Assert(err, checker.IsNil)
+	c.Assert(info.LocalNodeState, checker.Equals, swarm.LocalNodeStateActive)
+
+	c.Assert(d.Stop(), checker.IsNil)
+	c.Assert(d.Start(), checker.IsNil)
+
+	info, err = d.info()
+	c.Assert(err, checker.IsNil)
+	c.Assert(info.LocalNodeState, checker.Equals, swarm.LocalNodeStateLocked)
+
+	cmd = d.command("swarm", "unlock")
+	cmd.Stdin = bytes.NewBufferString("wrong-secret-key")
+	out, err = cmd.CombinedOutput()
+	c.Assert(err, checker.NotNil, check.Commentf("out: %v", string(out)))
+	c.Assert(string(out), checker.Contains, "invalid key")
+
+	cmd = d.command("swarm", "unlock")
+	cmd.Stdin = bytes.NewBufferString("my-secret-key")
+	out, err = cmd.CombinedOutput()
+	c.Assert(err, checker.IsNil, check.Commentf("out: %v", string(out)))
+
+	info, err = d.info()
+	c.Assert(err, checker.IsNil)
+	c.Assert(info.LocalNodeState, checker.Equals, swarm.LocalNodeStateActive)
+}
+
+func (s *DockerSwarmSuite) TestSwarmLeaveLocked(c *check.C) {
+	d := s.AddDaemon(c, false, false)
+
+	cmd := d.command("swarm", "init", "--lock-key")
+	cmd.Stdin = bytes.NewBufferString("foobar")
+	out, err := cmd.CombinedOutput()
+	c.Assert(err, checker.IsNil, check.Commentf("out: %v", string(out)))
+
+	c.Assert(d.Stop(), checker.IsNil)
+	c.Assert(d.Start(), checker.IsNil)
+
+	info, err := d.info()
+	c.Assert(err, checker.IsNil)
+	c.Assert(info.LocalNodeState, checker.Equals, swarm.LocalNodeStateLocked)
+
+	outs, err := d.Cmd("swarm", "leave", "--force")
+	c.Assert(err, checker.IsNil, check.Commentf("out: %v", outs))
+
+	info, err = d.info()
+	c.Assert(err, checker.IsNil)
+	c.Assert(info.LocalNodeState, checker.Equals, swarm.LocalNodeStateInactive)
+
+	outs, err = d.Cmd("swarm", "init")
+	c.Assert(err, checker.IsNil, check.Commentf("out: %v", outs))
+
+	info, err = d.info()
+	c.Assert(err, checker.IsNil)
+	c.Assert(info.LocalNodeState, checker.Equals, swarm.LocalNodeStateActive)
 }
