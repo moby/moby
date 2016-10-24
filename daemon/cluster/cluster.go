@@ -632,10 +632,6 @@ func (c *Cluster) Inspect() (types.Swarm, error) {
 		return types.Swarm{}, err
 	}
 
-	if err != nil {
-		return types.Swarm{}, err
-	}
-
 	return convert.SwarmFromGRPC(*swarm), nil
 }
 
