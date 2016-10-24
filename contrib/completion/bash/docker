@@ -2097,44 +2097,6 @@ _docker_image_list() {
 }
 
 _docker_image_ls() {
-	_docker_images
-}
-
-# TODO new command
-_docker_image_prune() {
-	:
-}
-
-_docker_image_pull() {
-	_docker_pull
-}
-
-_docker_image_push() {
-	_docker_push
-}
-
-_docker_image_remove() {
-	_docker_image_rm
-}
-
-_docker_image_rm() {
-	_docker_rmi
-}
-
-_docker_image_rmi() {
-	_docker_image_rm
-}
-
-_docker_image_save() {
-	_docker_save
-}
-
-_docker_image_tag() {
-	_docker_tag
-}
-
-
-_docker_images() {
 	local key=$(__docker_map_key_of_current_option '--filter|-f')
 	case "$key" in
 		before)
@@ -2178,6 +2140,44 @@ _docker_images() {
 			__docker_complete_image_repos
 			;;
 	esac
+}
+
+# TODO new command
+_docker_image_prune() {
+	:
+}
+
+_docker_image_pull() {
+	_docker_pull
+}
+
+_docker_image_push() {
+	_docker_push
+}
+
+_docker_image_remove() {
+	_docker_image_rm
+}
+
+_docker_image_rm() {
+	_docker_rmi
+}
+
+_docker_image_rmi() {
+	_docker_image_rm
+}
+
+_docker_image_save() {
+	_docker_save
+}
+
+_docker_image_tag() {
+	_docker_tag
+}
+
+
+_docker_images() {
+	_docker_image_ls
 }
 
 _docker_import() {
