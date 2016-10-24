@@ -25,7 +25,7 @@ type Credentials struct {
 func Serve(helper Helper) {
 	var err error
 	if len(os.Args) != 2 {
-		err = fmt.Errorf("Usage: %s <store|get|erase>", os.Args[0])
+		err = fmt.Errorf("Usage: %s <store|get|erase|list>", os.Args[0])
 	}
 
 	if err == nil {
@@ -47,6 +47,8 @@ func HandleCommand(helper Helper, key string, in io.Reader, out io.Writer) error
 		return Get(helper, in, out)
 	case "erase":
 		return Erase(helper, in)
+	case "list":
+		return List(helper, out)
 	}
 	return fmt.Errorf("Unknown credential action `%s`", key)
 }
@@ -126,4 +128,14 @@ func Erase(helper Helper, reader io.Reader) error {
 	serverURL := strings.TrimSpace(buffer.String())
 
 	return helper.Delete(serverURL)
+}
+
+//List returns all the serverURLs of keys in
+//the OS store as a list of strings
+func List(helper Helper, writer io.Writer) error {
+	accts, err := helper.List()
+	if err != nil {
+		return err
+	}
+	return json.NewEncoder(writer).Encode(accts)
 }

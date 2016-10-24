@@ -140,7 +140,7 @@ clone git google.golang.org/api dc6d2353af16e2a2b0ff6986af051d473a4ed468 https:/
 clone git google.golang.org/cloud dae7e3d993bc3812a2185af60552bb6b847e52a0 https://code.googlesource.com/gocloud
 
 # native credentials
-clone git github.com/docker/docker-credential-helpers v0.3.0
+clone git github.com/docker/docker-credential-helpers f72c04f1d8e71959a6d103f808c50ccbad79b9fd
 
 # containerd
 clone git github.com/docker/containerd 52ef1ceb4b660c42cf4ea9013180a5663968d4c7
