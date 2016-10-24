@@ -68,7 +68,17 @@ func (daemon *Daemon) killWithSignal(container *container.Container, sig int) er
 		return errNotRunning{container.ID}
 	}
 
-	container.ExitOnNext()
+	if container.Config.StopSignal != "" {
+		containerStopSignal, err := signal.ParseSignal(container.Config.StopSignal)
+		if err != nil {
+			return err
+		}
+		if containerStopSignal == syscall.Signal(sig) {
+			container.ExitOnNext()
+		}
+	} else {
+		container.ExitOnNext()
+	}
 
 	if !daemon.IsShuttingDown() {
 		container.HasBeenManuallyStopped = true
