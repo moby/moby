@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"strconv"
+	"sync"
 	"time"
 
 	"golang.org/x/net/context"
@@ -19,10 +20,38 @@ import (
 	"github.com/docker/docker/pkg/stdcopy"
 )
 
+type loggerStore struct {
+	loggers map[string]logger.Logger
+	mu      sync.Mutex
+}
+
+func newLoggerStore() *loggerStore {
+	return &loggerStore{loggers: make(map[string]logger.Logger)}
+}
+
+func (s *loggerStore) Add(id string, l logger.Logger) {
+	s.mu.Lock()
+	s.loggers[id] = l
+	s.mu.Unlock()
+}
+
+func (s *loggerStore) Remove(id string) {
+	s.mu.Lock()
+	delete(s.loggers, id)
+	s.mu.Unlock()
+}
+
+func (s *loggerStore) Get(id string) logger.Logger {
+	s.mu.Lock()
+	l := s.loggers[id]
+	s.mu.Unlock()
+	return l
+}
+
 // ContainerLogs hooks up a container's stdout and stderr streams
 // configured with the given struct.
 func (daemon *Daemon) ContainerLogs(ctx context.Context, containerName string, config *backend.ContainerLogsConfig, started chan struct{}) error {
-	container, err := daemon.GetContainer(containerName)
+	c, err := daemon.GetContainer(containerName)
 	if err != nil {
 		return err
 	}
@@ -31,16 +60,23 @@ func (daemon *Daemon) ContainerLogs(ctx context.Context, containerName string, c
 		return fmt.Errorf("You must choose at least one stream")
 	}
 
-	cLog, err := daemon.getLogger(container)
+	cLog, err := daemon.getLogger(c)
 	if err != nil {
 		return err
 	}
+	defer func() {
+		if cLog != daemon.loggers.Get(c.ID) {
+			logrus.Debugf("closing logger")
+			cLog.Close()
+		}
+	}()
+
 	logReader, ok := cLog.(logger.LogReader)
 	if !ok {
 		return logger.ErrReadLogsNotSupported
 	}
 
-	follow := config.Follow && container.IsRunning()
+	follow := config.Follow && c.IsRunning()
 	tailLines, err := strconv.Atoi(config.Tail)
 	if err != nil {
 		tailLines = -1
@@ -56,12 +92,14 @@ func (daemon *Daemon) ContainerLogs(ctx context.Context, containerName string, c
 		}
 		since = time.Unix(s, n)
 	}
+
 	readConfig := logger.ReadConfig{
 		Since:  since,
 		Tail:   tailLines,
 		Follow: follow,
 	}
 	logs := logReader.ReadLogs(readConfig)
+	defer logs.Close()
 
 	wf := ioutils.NewWriteFlusher(config.OutStream)
 	defer wf.Close()
@@ -71,10 +109,11 @@ func (daemon *Daemon) ContainerLogs(ctx context.Context, containerName string, c
 	var outStream io.Writer
 	outStream = wf
 	errStream := outStream
-	if !container.Config.Tty {
+	if !c.Config.Tty {
 		errStream = stdcopy.NewStdWriter(outStream, stdcopy.Stderr)
 		outStream = stdcopy.NewStdWriter(outStream, stdcopy.Stdout)
 	}
+	defer logrus.Debug("logs: end stream")
 
 	for {
 		select {
@@ -82,19 +121,9 @@ func (daemon *Daemon) ContainerLogs(ctx context.Context, containerName string, c
 			logrus.Errorf("Error streaming logs: %v", err)
 			return nil
 		case <-ctx.Done():
-			logs.Close()
 			return nil
 		case msg, ok := <-logs.Msg:
 			if !ok {
-				logrus.Debug("logs: end stream")
-				logs.Close()
-				if cLog != container.LogDriver {
-					// Since the logger isn't cached in the container, which occurs if it is running, it
-					// must get explicitly closed here to avoid leaking it and any file handles it has.
-					if err := cLog.Close(); err != nil {
-						logrus.Errorf("Error closing logger: %v", err)
-					}
-				}
 				return nil
 			}
 			logLine := msg.Line
@@ -115,31 +144,49 @@ func (daemon *Daemon) ContainerLogs(ctx context.Context, containerName string, c
 }
 
 func (daemon *Daemon) getLogger(container *container.Container) (logger.Logger, error) {
-	if container.LogDriver != nil && container.IsRunning() {
-		return container.LogDriver, nil
+	if l := daemon.loggers.Get(container.ID); l != nil {
+		return l, nil
 	}
 	return container.StartLogger(container.HostConfig.LogConfig)
 }
 
+const loggerCloseTimeout = 10 * time.Second
+
 // StartLogging initializes and starts the container logging stream.
-func (daemon *Daemon) StartLogging(container *container.Container) error {
-	if container.HostConfig.LogConfig.Type == "none" {
+func (daemon *Daemon) StartLogging(c *container.Container) error {
+	if c.HostConfig.LogConfig.Type == "none" {
 		return nil // do not start logging routines
 	}
 
-	l, err := container.StartLogger(container.HostConfig.LogConfig)
+	l, err := daemon.getLogger(c)
 	if err != nil {
 		return fmt.Errorf("Failed to initialize logging driver: %v", err)
 	}
+	daemon.loggers.Add(c.ID, l)
 
-	copier := logger.NewCopier(map[string]io.Reader{"stdout": container.StdoutPipe(), "stderr": container.StderrPipe()}, l)
-	container.LogCopier = copier
+	copier := logger.NewCopier(map[string]io.Reader{"stdout": c.StdoutPipe(), "stderr": c.StderrPipe()}, l)
+
+	go func() {
+		c.WaitWithContext(context.Background())
+		exit := make(chan struct{})
+		go func() {
+			copier.Wait()
+			close(exit)
+		}()
+		select {
+		case <-time.After(loggerCloseTimeout):
+			logrus.Warn("Logger didn't exit in time: logs may be truncated")
+		case <-exit:
+		}
+		daemon.loggers.Remove(c.ID)
+		l.Close()
+		logrus.Debugf("Stopped logger for container: %s", c.ID)
+	}()
+
 	copier.Run()
-	container.LogDriver = l
-
 	// set LogPath field only for json-file logdriver
 	if jl, ok := l.(*jsonfilelog.JSONFileLogger); ok {
-		container.LogPath = jl.LogPath()
+		c.LogPath = jl.LogPath()
 	}
 
 	return nil

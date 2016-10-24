@@ -1,14 +1,6 @@
 package container
 
-import (
-	"time"
-
-	"github.com/Sirupsen/logrus"
-)
-
-const (
-	loggerCloseTimeout = 10 * time.Second
-)
+import "github.com/Sirupsen/logrus"
 
 // Reset puts a container into a state where it can be restarted again.
 func (container *Container) Reset(lock bool) {
@@ -24,23 +16,5 @@ func (container *Container) Reset(lock bool) {
 	// Re-create a brand new stdin pipe once the container exited
 	if container.Config.OpenStdin {
 		container.NewInputPipes()
-	}
-
-	if container.LogDriver != nil {
-		if container.LogCopier != nil {
-			exit := make(chan struct{})
-			go func() {
-				container.LogCopier.Wait()
-				close(exit)
-			}()
-			select {
-			case <-time.After(loggerCloseTimeout):
-				logrus.Warn("Logger didn't exit in time: logs may be truncated")
-			case <-exit:
-			}
-		}
-		container.LogDriver.Close()
-		container.LogCopier = nil
-		container.LogDriver = nil
 	}
 }
