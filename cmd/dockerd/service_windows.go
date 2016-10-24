@@ -9,6 +9,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"syscall"
+	"time"
+	"unsafe"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/spf13/pflag"
@@ -183,6 +185,40 @@ func registerService() error {
 		return err
 	}
 	defer s.Close()
+
+	// See http://stackoverflow.com/questions/35151052/how-do-i-configure-failure-actions-of-a-windows-service-written-in-go
+	const (
+		scActionNone       = 0
+		scActionRestart    = 1
+		scActionReboot     = 2
+		scActionRunCommand = 3
+
+		serviceConfigFailureActions = 2
+	)
+
+	type serviceFailureActions struct {
+		ResetPeriod  uint32
+		RebootMsg    *uint16
+		Command      *uint16
+		ActionsCount uint32
+		Actions      uintptr
+	}
+
+	type scAction struct {
+		Type  uint32
+		Delay uint32
+	}
+	t := []scAction{
+		{Type: scActionRestart, Delay: uint32(60 * time.Second / time.Millisecond)},
+		{Type: scActionRestart, Delay: uint32(60 * time.Second / time.Millisecond)},
+		{Type: scActionNone},
+	}
+	lpInfo := serviceFailureActions{ResetPeriod: uint32(24 * time.Hour / time.Second), ActionsCount: uint32(3), Actions: uintptr(unsafe.Pointer(&t[0]))}
+	err = windows.ChangeServiceConfig2(s.Handle, serviceConfigFailureActions, (*byte)(unsafe.Pointer(&lpInfo)))
+	if err != nil {
+		return err
+	}
+
 	err = eventlog.Install(*flServiceName, p, false, eventlog.Info|eventlog.Warning|eventlog.Error)
 	if err != nil {
 		return err
