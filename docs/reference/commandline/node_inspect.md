@@ -88,7 +88,8 @@ Example output:
             }
         },
         "Status": {
-            "State": "ready"
+            "State": "ready",
+            "Addr": "168.0.32.137"
         },
         "ManagerStatus": {
             "Leader": true,
@@ -110,6 +111,7 @@ Example output:
     Status:
      State:                 Ready
      Availability:          Active
+     Address:               172.17.0.2
     Manager Status:
      Address:               172.17.0.2:2377
      Raft Status:           Reachable

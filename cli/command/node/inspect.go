@@ -95,6 +95,7 @@ func printNode(out io.Writer, node swarm.Node) {
 	fmt.Fprintf(out, " State:\t\t\t%s\n", command.PrettyPrint(node.Status.State))
 	ioutils.FprintfIfNotEmpty(out, " Message:\t\t%s\n", command.PrettyPrint(node.Status.Message))
 	fmt.Fprintf(out, " Availability:\t\t%s\n", command.PrettyPrint(node.Spec.Availability))
+	ioutils.FprintfIfNotEmpty(out, " Address:\t\t%s\n", command.PrettyPrint(node.Status.Addr))
 
 	if node.ManagerStatus != nil {
 		fmt.Fprintln(out, "Manager Status:")
