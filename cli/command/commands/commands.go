@@ -24,8 +24,6 @@ func AddCommands(cmd *cobra.Command, dockerCli *command.DockerCli) {
 	cmd.AddCommand(
 		node.NewNodeCommand(dockerCli),
 		service.NewServiceCommand(dockerCli),
-		stack.NewStackCommand(dockerCli),
-		stack.NewTopLevelDeployCommand(dockerCli),
 		swarm.NewSwarmCommand(dockerCli),
 		container.NewContainerCommand(dockerCli),
 		image.NewImageCommand(dockerCli),
@@ -72,9 +70,17 @@ func AddCommands(cmd *cobra.Command, dockerCli *command.DockerCli) {
 		hide(image.NewSaveCommand(dockerCli)),
 		hide(image.NewTagCommand(dockerCli)),
 		hide(system.NewInspectCommand(dockerCli)),
-		checkpoint.NewCheckpointCommand(dockerCli),
-		plugin.NewPluginCommand(dockerCli),
 	)
+
+	if dockerCli.HasExperimental() {
+		cmd.AddCommand(
+			stack.NewStackCommand(dockerCli),
+			stack.NewTopLevelDeployCommand(dockerCli),
+			checkpoint.NewCheckpointCommand(dockerCli),
+			plugin.NewPluginCommand(dockerCli),
+		)
+	}
+
 }
 
 func hide(cmd *cobra.Command) *cobra.Command {

@@ -61,6 +61,10 @@ var (
 	volumesConfigPath    string
 	containerStoragePath string
 
+	// experimentalDaemon tell whether the main daemon has
+	// experimental features enabled or not
+	experimentalDaemon bool
+
 	// daemonStorageDriver is held globally so that tests can know the storage
 	// driver of the daemon. This is initialized in docker_utils by sending
 	// a version call to the daemon and examining the response header.
@@ -128,13 +132,15 @@ func init() {
 	// /info endpoint for the specific root dir
 	dockerBasePath = "/var/lib/docker"
 	type Info struct {
-		DockerRootDir string
+		DockerRootDir     string
+		ExperimentalBuild bool
 	}
 	var i Info
 	status, b, err := sockRequest("GET", "/info", nil)
 	if err == nil && status == 200 {
 		if err = json.Unmarshal(b, &i); err == nil {
 			dockerBasePath = i.DockerRootDir
+			experimentalDaemon = i.ExperimentalBuild
 		}
 	}
 	volumesConfigPath = dockerBasePath + "/volumes"

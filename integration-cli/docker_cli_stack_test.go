@@ -1,5 +1,3 @@
-// +build experimental
-
 package main
 
 import (
@@ -11,6 +9,7 @@ import (
 )
 
 func (s *DockerSwarmSuite) TestStackRemove(c *check.C) {
+	testRequires(c, ExperimentalDaemon)
 	d := s.AddDaemon(c, true, true)
 
 	stackArgs := append([]string{"stack", "remove", "UNKNOWN_STACK"})
@@ -21,6 +20,7 @@ func (s *DockerSwarmSuite) TestStackRemove(c *check.C) {
 }
 
 func (s *DockerSwarmSuite) TestStackTasks(c *check.C) {
+	testRequires(c, ExperimentalDaemon)
 	d := s.AddDaemon(c, true, true)
 
 	stackArgs := append([]string{"stack", "ps", "UNKNOWN_STACK"})
@@ -31,6 +31,7 @@ func (s *DockerSwarmSuite) TestStackTasks(c *check.C) {
 }
 
 func (s *DockerSwarmSuite) TestStackServices(c *check.C) {
+	testRequires(c, ExperimentalDaemon)
 	d := s.AddDaemon(c, true, true)
 
 	stackArgs := append([]string{"stack", "services", "UNKNOWN_STACK"})
@@ -59,6 +60,7 @@ const testDAB = `{
 }`
 
 func (s *DockerSwarmSuite) TestStackWithDAB(c *check.C) {
+	testRequires(c, ExperimentalDaemon)
 	// setup
 	testStackName := "test"
 	testDABFileName := testStackName + ".dab"
@@ -92,6 +94,7 @@ func (s *DockerSwarmSuite) TestStackWithDAB(c *check.C) {
 }
 
 func (s *DockerSwarmSuite) TestStackWithDABExtension(c *check.C) {
+	testRequires(c, ExperimentalDaemon)
 	// setup
 	testStackName := "test.dab"
 	testDABFileName := testStackName

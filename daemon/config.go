@@ -153,6 +153,8 @@ type CommonConfig struct {
 
 	reloadLock sync.Mutex
 	valuesSet  map[string]interface{}
+
+	Experimental bool `json:"experimental"` // Experimental indicates whether experimental features should be exposed or not
 }
 
 // InstallCommonFlags adds flags to the pflag.FlagSet to configure the daemon
@@ -187,6 +189,7 @@ func (config *Config) InstallCommonFlags(flags *pflag.FlagSet) {
 	flags.IntVar(&config.ShutdownTimeout, "shutdown-timeout", defaultShutdownTimeout, "Set the default shutdown timeout")
 
 	flags.StringVar(&config.SwarmDefaultAdvertiseAddr, "swarm-default-advertise-addr", "", "Set default address or interface for swarm advertised address")
+	flags.BoolVar(&config.Experimental, "experimental", false, "Enable experimental features")
 
 	config.MaxConcurrentDownloads = &maxConcurrentDownloads
 	config.MaxConcurrentUploads = &maxConcurrentUploads

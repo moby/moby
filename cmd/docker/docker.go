@@ -91,11 +91,7 @@ func main() {
 }
 
 func showVersion() {
-	if utils.ExperimentalBuild() {
-		fmt.Printf("Docker version %s, build %s, experimental\n", dockerversion.Version, dockerversion.GitCommit)
-	} else {
-		fmt.Printf("Docker version %s, build %s\n", dockerversion.Version, dockerversion.GitCommit)
-	}
+	fmt.Printf("Docker version %s, build %s\n", dockerversion.Version, dockerversion.GitCommit)
 }
 
 func dockerPreRun(opts *cliflags.ClientOptions) {

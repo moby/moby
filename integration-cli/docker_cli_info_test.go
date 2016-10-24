@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"github.com/docker/docker/pkg/integration/checker"
-	"github.com/docker/docker/utils"
 	"github.com/go-check/check"
 )
 
@@ -44,8 +43,10 @@ func (s *DockerSuite) TestInfoEnsureSucceeds(c *check.C) {
 		stringsToCheck = append(stringsToCheck, "Runtimes:", "Default Runtime: runc")
 	}
 
-	if utils.ExperimentalBuild() {
+	if experimentalDaemon {
 		stringsToCheck = append(stringsToCheck, "Experimental: true")
+	} else {
+		stringsToCheck = append(stringsToCheck, "Experimental: false")
 	}
 
 	for _, linePrefix := range stringsToCheck {

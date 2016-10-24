@@ -225,7 +225,7 @@ func prettyPrintInfo(dockerCli *command.DockerCli, info types.Info) error {
 		}
 	}
 
-	ioutils.FprintfIfTrue(dockerCli.Out(), "Experimental: %v\n", info.ExperimentalBuild)
+	fmt.Fprintf(dockerCli.Out(), "Experimental: %v\n", info.ExperimentalBuild)
 	if info.ClusterStore != "" {
 		fmt.Fprintf(dockerCli.Out(), "Cluster Store: %s\n", info.ClusterStore)
 	}
