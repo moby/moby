@@ -150,6 +150,13 @@ type Version struct {
 	BuildTime     string `json:",omitempty"`
 }
 
+// Commit records a external tool actual commit id version along the
+// one expect by dockerd as set at build time
+type Commit struct {
+	ID       string
+	Expected string
+}
+
 // InfoBase contains the base response of Remote API:
 // GET "/info"
 type InfoBase struct {
@@ -207,6 +214,10 @@ type InfoBase struct {
 	// running containers are detected
 	LiveRestoreEnabled bool
 	Isolation          container.Isolation
+	InitBinary         string
+	ContainerdCommit   Commit
+	RuncCommit         Commit
+	InitCommit         Commit
 }
 
 // SecurityOpt holds key/value pair about a security option

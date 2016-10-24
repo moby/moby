@@ -66,6 +66,9 @@ var (
 	// containerd if none is specified
 	DefaultRuntimeBinary = "docker-runc"
 
+	// DefaultInitBinary is the name of the default init binary
+	DefaultInitBinary = "docker-init"
+
 	errSystemNotSupported = fmt.Errorf("The Docker daemon is not supported on this platform.")
 )
 

@@ -1,8 +1,11 @@
 package daemon
 
 import (
+	"context"
 	"os"
+	"os/exec"
 	"runtime"
+	"strings"
 	"sync/atomic"
 	"time"
 
@@ -147,6 +150,47 @@ func (daemon *Daemon) SystemInfo() (*types.Info, error) {
 		v.CPUSet = sysInfo.Cpuset
 		v.Runtimes = daemon.configStore.GetAllRuntimes()
 		v.DefaultRuntime = daemon.configStore.GetDefaultRuntimeName()
+		v.InitBinary = daemon.configStore.GetInitPath()
+
+		v.ContainerdCommit.Expected = dockerversion.ContainerdCommitID
+		if sv, err := daemon.containerd.GetServerVersion(context.Background()); err == nil {
+			v.ContainerdCommit.ID = sv.Revision
+		} else {
+			logrus.Warnf("failed to retrieve containerd version: %v", err)
+			v.ContainerdCommit.ID = "N/A"
+		}
+
+		v.RuncCommit.Expected = dockerversion.RuncCommitID
+		if rv, err := exec.Command(DefaultRuntimeBinary, "--version").Output(); err == nil {
+			parts := strings.Split(strings.TrimSpace(string(rv)), "\n")
+			if len(parts) == 3 {
+				parts = strings.Split(parts[1], ": ")
+				if len(parts) == 2 {
+					v.RuncCommit.ID = strings.TrimSpace(parts[1])
+				}
+			}
+		} else {
+			logrus.Warnf("failed to retrieve %s version: %v", DefaultRuntimeBinary, err)
+			v.RuncCommit.ID = "N/A"
+		}
+		if v.RuncCommit.ID == "" {
+			logrus.Warnf("failed to retrieve %s version: unknown output format", DefaultRuntimeBinary)
+			v.RuncCommit.ID = "N/A"
+		}
+
+		v.InitCommit.Expected = dockerversion.InitCommitID
+		if rv, err := exec.Command(DefaultInitBinary, "--version").Output(); err == nil {
+			parts := strings.Split(string(rv), " ")
+			if len(parts) == 3 {
+				v.InitCommit.ID = strings.TrimSpace(parts[2])
+			} else {
+				logrus.Warnf("failed to retrieve %s version: unknown output format", DefaultInitBinary)
+				v.InitCommit.ID = "N/A"
+			}
+		} else {
+			logrus.Warnf("failed to retrieve %s version", DefaultInitBinary)
+			v.InitCommit.ID = "N/A"
+		}
 	}
 
 	hostname := ""

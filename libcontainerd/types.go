@@ -3,6 +3,7 @@ package libcontainerd
 import (
 	"io"
 
+	containerd "github.com/docker/containerd/api/grpc/types"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"golang.org/x/net/context"
 )
@@ -33,6 +34,7 @@ type Backend interface {
 
 // Client provides access to containerd features.
 type Client interface {
+	GetServerVersion(ctx context.Context) (*ServerVersion, error)
 	Create(containerID string, checkpoint string, checkpointDir string, spec specs.Spec, attachStdio StdioCallback, options ...CreateOption) error
 	Signal(containerID string, sig int) error
 	SignalProcess(containerID string, processFriendlyName string, sig int) error
@@ -64,4 +66,10 @@ type IOPipe struct {
 	Stdout   io.ReadCloser
 	Stderr   io.ReadCloser
 	Terminal bool // Whether stderr is connected on Windows
+}
+
+// ServerVersion contains version information as retrieved from the
+// server
+type ServerVersion struct {
+	containerd.GetServerVersionResponse
 }

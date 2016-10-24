@@ -36,7 +36,7 @@ func (s *DockerSuite) TestInfoEnsureSucceeds(c *check.C) {
 	}
 
 	if daemonPlatform == "linux" {
-		stringsToCheck = append(stringsToCheck, "Security Options:")
+		stringsToCheck = append(stringsToCheck, "Init Binary:", "Security Options:", "containerd version:", "runc version:", "init version:")
 	}
 
 	if DaemonIsLinux.Condition() {

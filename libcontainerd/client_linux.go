@@ -28,6 +28,20 @@ type client struct {
 	liveRestore   bool
 }
 
+// GetServerVersion returns the connected server version information
+func (clnt *client) GetServerVersion(ctx context.Context) (*ServerVersion, error) {
+	resp, err := clnt.remote.apiClient.GetServerVersion(ctx, &containerd.GetServerVersionRequest{})
+	if err != nil {
+		return nil, err
+	}
+
+	sv := &ServerVersion{
+		GetServerVersionResponse: *resp,
+	}
+
+	return sv, nil
+}
+
 // AddProcess is the handler for adding a process to an already running
 // container. It's called through docker exec. It returns the system pid of the
 // exec'd process.
