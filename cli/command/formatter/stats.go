@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"sync"
 
-	units "src/github.com/docker/go-units"
+	units "github.com/docker/go-units"
 )
 
 const (
