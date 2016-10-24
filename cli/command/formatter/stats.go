@@ -167,7 +167,7 @@ func (c *containerStatsContext) MemUsage() string {
 func (c *containerStatsContext) MemPerc() string {
 	header := memPercHeader
 	c.AddHeader(header)
-	if c.s.IsInvalid {
+	if c.s.IsInvalid || c.s.OSType == winOSType {
 		return fmt.Sprintf("--")
 	}
 	return fmt.Sprintf("%.2f%%", c.s.MemoryPercentage)
