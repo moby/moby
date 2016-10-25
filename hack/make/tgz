@@ -57,6 +57,12 @@ for d in "$CROSS/"*/*; do
 	# copy over all the extra binaries
 	copy_binaries $TAR_PATH
 
+	# add completions
+	for s in bash fish powershell zsh; do
+		mkdir -p $TAR_PATH/completion/$s
+		cp -L contrib/completion/$s/*docker* $TAR_PATH/completion/$s/
+	done
+
 	if [ "$IS_TAR" == "true" ]; then
 		echo "Creating tgz from $BUILD_PATH and naming it $TGZ"
 		tar --numeric-owner --owner 0 -C "$BUILD_PATH" -czf "$TGZ" $TAR_BASE_DIRECTORY
