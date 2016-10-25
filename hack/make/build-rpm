@@ -93,8 +93,8 @@ set -e
 		EOF
 
 		cat >> "$DEST/$version/Dockerfile.build" <<-EOF
-			# Install runc and containerd
-			RUN ./hack/dockerfile/install-binaries.sh runc-dynamic containerd-dynamic
+			# Install runc, containerd, proxy and grimes
+			RUN ./hack/dockerfile/install-binaries.sh runc-dynamic containerd-dynamic proxy grimes
 		EOF
 		if [[ "$VERSION" == *-dev ]] || [ -n "$(git status --porcelain)" ]; then
 			echo 'ENV DOCKER_EXPERIMENTAL 1' >> "$DEST/$version/Dockerfile.build"
