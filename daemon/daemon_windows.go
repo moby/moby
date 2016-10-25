@@ -495,9 +495,6 @@ func (daemon *Daemon) setDefaultIsolation() error {
 				daemon.defaultIsolation = containertypes.Isolation("hyperv")
 			}
 			if containertypes.Isolation(val).IsProcess() {
-				if system.IsWindowsClient() {
-					return fmt.Errorf("Windows client operating systems only support Hyper-V containers")
-				}
 				daemon.defaultIsolation = containertypes.Isolation("process")
 			}
 		default:
