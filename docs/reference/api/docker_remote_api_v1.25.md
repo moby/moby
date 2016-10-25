@@ -3881,6 +3881,36 @@ Instruct the driver to remove the network (`id`).
 -   **404** - no such network
 -   **500** - server error
 
+### Prune unused networks
+
+`POST /networks/prune`
+
+Delete unused networks
+
+**Example request**:
+
+    POST /networks/prune HTTP/1.1
+    Content-Type: application/json
+
+    {
+    }
+
+**Example response**:
+
+    HTTP/1.1 200 OK
+    Content-Type: application/json
+
+    {
+        "NetworksDeleted": [
+            "n1"
+        ],
+    }
+
+**Status codes**:
+
+-   **200** – no error
+-   **500** – server error
+
 ## 3.6 Plugins
 
 ### List plugins

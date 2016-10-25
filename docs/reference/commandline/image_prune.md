@@ -67,4 +67,5 @@ Total reclaimed space: 16.43 MB
 * [system df](system_df.md)
 * [container prune](container_prune.md)
 * [volume prune](volume_prune.md)
+* [network prune](network_prune.md)
 * [system prune](system_prune.md)

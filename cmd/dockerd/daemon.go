@@ -279,6 +279,7 @@ func (cli *DaemonCli) start(opts daemonOptions) (err error) {
 
 	// initMiddlewares needs cli.d to be populated. Dont change this init order.
 	cli.initMiddlewares(api, serverConfig)
+	d.SetCluster(c)
 	initRouter(api, d, c)
 
 	cli.setupConfigReloadTrap()

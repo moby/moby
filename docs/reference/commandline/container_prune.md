@@ -43,4 +43,5 @@ Total reclaimed space: 212 B
 * [system df](system_df.md)
 * [volume prune](volume_prune.md)
 * [image prune](image_prune.md)
+* [network prune](network_prune.md)
 * [system prune](system_prune.md)

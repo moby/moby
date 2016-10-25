@@ -17,4 +17,5 @@ type Backend interface {
 	ConnectContainerToNetwork(containerName, networkName string, endpointConfig *network.EndpointSettings) error
 	DisconnectContainerFromNetwork(containerName string, networkName string, force bool) error
 	DeleteNetwork(name string) error
+	NetworksPrune(config *types.NetworksPruneConfig) (*types.NetworksPruneReport, error)
 }

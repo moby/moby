@@ -197,4 +197,5 @@ to create an externally isolated `overlay` network, you can specify the
 * [network disconnect](network_disconnect.md)
 * [network ls](network_ls.md)
 * [network rm](network_rm.md)
+* [network prune](network_prune.md)
 * [Understand Docker container networks](https://docs.docker.com/engine/userguide/networking/)
