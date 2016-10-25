@@ -374,6 +374,10 @@ func (d *Driver) Get(id string, mountLabel string) (s string, err error) {
 
 // Put unmounts the mount path created for the give id.
 func (d *Driver) Put(id string) error {
+	// If id has a root, just return
+	if _, err := os.Stat(path.Join(d.dir(id), "root")); err == nil {
+		return nil
+	}
 	mountpoint := path.Join(d.dir(id), "merged")
 	if count := d.ctr.Decrement(mountpoint); count > 0 {
 		return nil
