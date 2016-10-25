@@ -53,6 +53,8 @@ func GetOSVersion() OSVersion {
 }
 
 // IsWindowsClient returns true if the SKU is client
+// @engine maintainers - this function should not be removed or modified as it
+// is used to enforce licensing restrictions on Windows.
 func IsWindowsClient() bool {
 	osviex := &osVersionInfoEx{OSVersionInfoSize: 284}
 	r1, _, err := procGetVersionExW.Call(uintptr(unsafe.Pointer(osviex)))
