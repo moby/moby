@@ -10,17 +10,16 @@ import (
 const (
 	winOSType                  = "windows"
 	defaultStatsTableFormat    = "table {{.Container}}\t{{.CPUPerc}}\t{{.MemUsage}}\t{{.MemPerc}}\t{{.NetIO}}\t{{.BlockIO}}\t{{.PIDs}}"
-	winDefaultStatsTableFormat = "table {{.Container}}\t{{.CPUPerc}}\t{{{.MemUsage}}\t{.NetIO}}\t{{.BlockIO}}"
-	emptyStatsTableFormat      = "Waiting for statistics..."
+	winDefaultStatsTableFormat = "table {{.Container}}\t{{.CPUPerc}}\t{{.MemUsage}}\t{{.NetIO}}\t{{.BlockIO}}"
 
-	containerHeader  = "CONTAINER"
-	cpuPercHeader    = "CPU %"
-	netIOHeader      = "NET I/O"
-	blockIOHeader    = "BLOCK I/O"
-	winMemPercHeader = "PRIV WORKING SET"  // Used only on Window
-	memPercHeader    = "MEM %"             // Used only on Linux
-	memUseHeader     = "MEM USAGE / LIMIT" // Used only on Linux
-	pidsHeader       = "PIDS"              // Used only on Linux
+	containerHeader = "CONTAINER"
+	cpuPercHeader   = "CPU %"
+	netIOHeader     = "NET I/O"
+	blockIOHeader   = "BLOCK I/O"
+	memPercHeader   = "MEM %"             // Used only on Linux
+	winMemUseHeader = "PRIV WORKING SET"  // Used only on Windows
+	memUseHeader    = "MEM USAGE / LIMIT" // Used only on Linux
+	pidsHeader      = "PIDS"              // Used only on Linux
 )
 
 // StatsEntry represents represents the statistics data collected from a container
@@ -151,18 +150,22 @@ func (c *containerStatsContext) CPUPerc() string {
 }
 
 func (c *containerStatsContext) MemUsage() string {
-	c.AddHeader(memUseHeader)
-	if c.s.IsInvalid || c.s.OSType == winOSType {
+	header := memUseHeader
+	if c.s.OSType == winOSType {
+		header = winMemUseHeader
+	}
+	c.AddHeader(header)
+	if c.s.IsInvalid {
 		return fmt.Sprintf("-- / --")
+	}
+	if c.s.OSType == winOSType {
+		return fmt.Sprintf("%s", units.BytesSize(c.s.Memory))
 	}
 	return fmt.Sprintf("%s / %s", units.BytesSize(c.s.Memory), units.BytesSize(c.s.MemoryLimit))
 }
 
 func (c *containerStatsContext) MemPerc() string {
 	header := memPercHeader
-	if c.s.OSType == winOSType {
-		header = winMemPercHeader
-	}
 	c.AddHeader(header)
 	if c.s.IsInvalid {
 		return fmt.Sprintf("--")
