@@ -29,10 +29,12 @@ type Plugin struct {
 const defaultPluginRuntimeDestination = "/run/docker/plugins"
 
 // ErrInadequateCapability indicates that the plugin did not have the requested capability.
-type ErrInadequateCapability string
+type ErrInadequateCapability struct {
+	cap string
+}
 
-func (cap ErrInadequateCapability) Error() string {
-	return fmt.Sprintf("plugin does not provide %q capability", cap)
+func (e ErrInadequateCapability) Error() string {
+	return fmt.Sprintf("plugin does not provide %q capability", e.cap)
 }
 
 func newPluginObj(name, id, tag string) types.Plugin {
@@ -75,7 +77,7 @@ func (p *Plugin) FilterByCap(capability string) (*Plugin, error) {
 			return p, nil
 		}
 	}
-	return nil, ErrInadequateCapability(capability)
+	return nil, ErrInadequateCapability{capability}
 }
 
 // RemoveFromDisk deletes the plugin's runtime files from disk.
