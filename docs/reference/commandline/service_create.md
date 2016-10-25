@@ -38,7 +38,7 @@ Options:
       --log-driver string                Logging driver for service
       --log-opt value                    Logging driver options (default [])
       --mode string                      Service mode (replicated or global) (default "replicated")
-      --mount value                      Attach a mount to the service
+      --mount value                      Attach a filesystem mount to the service
       --name string                      Service name
       --network value                    Network attachments (default [])
       --no-healthcheck                   Disable any container-specified HEALTHCHECK

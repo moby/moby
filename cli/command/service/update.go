@@ -404,7 +404,7 @@ func removeItems(
 
 func updateMounts(flags *pflag.FlagSet, mounts *[]mounttypes.Mount) {
 	if flags.Changed(flagMountAdd) {
-		values := flags.Lookup(flagMountAdd).Value.(*MountOpt).Value()
+		values := flags.Lookup(flagMountAdd).Value.(*opts.MountOpt).Value()
 		*mounts = append(*mounts, values...)
 	}
 	toRemove := buildToRemoveSet(flags, flagMountRemove)
