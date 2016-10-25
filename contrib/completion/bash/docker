@@ -1223,10 +1223,7 @@ _docker_container_pause() {
 			COMPREPLY=( $( compgen -W "--help" -- "$cur" ) )
 			;;
 		*)
-			local counter=$(__docker_pos_first_nonflag)
-			if [ $cword -eq $counter ]; then
-				__docker_complete_containers_running
-			fi
+			__docker_complete_containers_running
 			;;
 	esac
 }
