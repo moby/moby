@@ -329,7 +329,7 @@ func (s *DockerSwarmSuite) TestAPISwarmServicesUpdate(c *check.C) {
 		map[string]int{image1: instances})
 }
 
-func (s *DockerSwarmSuite) TestApiSwarmServicesFailedUpdate(c *check.C) {
+func (s *DockerSwarmSuite) TestAPISwarmServicesFailedUpdate(c *check.C) {
 	const nodeCount = 3
 	var daemons [nodeCount]*SwarmDaemon
 	for i := 0; i < nodeCount; i++ {
