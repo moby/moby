@@ -91,6 +91,12 @@ type NetworkDB struct {
 	keyring *memberlist.Keyring
 }
 
+// PeerInfo represents the peer (gossip cluster) nodes of a network
+type PeerInfo struct {
+	Name string
+	IP   string
+}
+
 type node struct {
 	memberlist.Node
 	ltime serf.LamportTime
@@ -198,6 +204,20 @@ func (nDB *NetworkDB) Close() {
 	if err := nDB.clusterLeave(); err != nil {
 		logrus.Errorf("Could not close DB %s: %v", nDB.config.NodeName, err)
 	}
+}
+
+// Peers returns the gossip peers for a given network.
+func (nDB *NetworkDB) Peers(nid string) []PeerInfo {
+	nDB.RLock()
+	defer nDB.RUnlock()
+	peers := make([]PeerInfo, 0, len(nDB.networkNodes[nid]))
+	for _, nodeName := range nDB.networkNodes[nid] {
+		peers = append(peers, PeerInfo{
+			Name: nDB.nodes[nodeName].Name,
+			IP:   nDB.nodes[nodeName].Addr.String(),
+		})
+	}
+	return peers
 }
 
 // GetEntry retrieves the value of a table entry in a given (network,
