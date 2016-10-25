@@ -4539,6 +4539,16 @@ func (s *DockerSuite) TestRunCredentialSpecFailures(c *check.C) {
 	}
 }
 
+// Windows specific test to validate credential specs with a well-formed spec.
+// Note it won't actually do anything in CI configuration with the spec, but
+// it should not fail to run a container.
+func (s *DockerSuite) TestRunCredentialSpecWellFormed(c *check.C) {
+	testRequires(c, DaemonIsWindows, SameHostDaemon)
+	validCS := readFile(`fixtures\credentialspecs\valid.json`, c)
+	writeFile(filepath.Join(dockerBasePath, `credentialspecs\valid.json`), validCS, c)
+	dockerCmd(c, "run", `--security-opt=credentialspec=file://valid.json`, "busybox", "true")
+}
+
 // Windows specific test to ensure that a servicing app container is started
 // if necessary once a container exits. It does this by forcing a no-op
 // servicing event and verifying the event from Hyper-V-Compute
