@@ -44,12 +44,12 @@ job=test-unit:
     command: "hack/make.sh test-unit"
     description: "Run the unit test suite"
 
-job=binary:
+job=binary-client:
     use: builder
     mounts: [source]
-    command: "hack/make.sh binary"
-    description: "Build the linux binary"
-    # TODO: set the artifact paths
+    command: "hack/make.sh binary-client"
+    description: "Build the linux client binary"
+    artifact: bundles/latest/binary-client/docker
 
 job=shell:
     use: builder

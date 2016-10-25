@@ -54,3 +54,5 @@ WORKDIR /go/src/github.com/docker/docker
 # Used to detect running from within a container
 ENV FROM_DOCKERFILE=1
 ENV DOCKER_BUILDTAGS apparmor pkcs11 seccomp selinux
+# Used to inform hack/make.sh that this is running in a container
+ENV DOCKER_CROSSPLATFORMS=stub
