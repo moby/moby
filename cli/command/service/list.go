@@ -17,7 +17,7 @@ import (
 )
 
 const (
-	listItemFmt = "%s\t%s\t%s\t%s\n"
+	listItemFmt = "%s\t%s\t%s\t%s\t%s\n"
 )
 
 type listOptions struct {
@@ -74,7 +74,7 @@ func runList(dockerCli *command.DockerCli, opts listOptions) error {
 
 		PrintNotQuiet(out, services, nodes, tasks)
 	} else if !opts.quiet {
-		// no services and not quiet, print only one line with columns ID, NAME, REPLICAS...
+		// no services and not quiet, print only one line with columns ID, NAME, MODE, REPLICAS...
 		PrintNotQuiet(out, services, []swarm.Node{}, []swarm.Task{})
 	} else {
 		PrintQuiet(out, services)
@@ -94,34 +94,45 @@ func PrintNotQuiet(out io.Writer, services []swarm.Service, nodes []swarm.Node, 
 	}
 
 	running := map[string]int{}
+	tasksNoShutdown := map[string]int{}
+
 	for _, task := range tasks {
-		if _, nodeActive := activeNodes[task.NodeID]; nodeActive && task.Status.State == "running" {
+		if task.DesiredState != swarm.TaskStateShutdown {
+			tasksNoShutdown[task.ServiceID]++
+		}
+
+		if _, nodeActive := activeNodes[task.NodeID]; nodeActive && task.Status.State == swarm.TaskStateRunning {
 			running[task.ServiceID]++
 		}
 	}
 
-	printTable(out, services, running)
+	printTable(out, services, running, tasksNoShutdown)
 }
 
-func printTable(out io.Writer, services []swarm.Service, running map[string]int) {
+func printTable(out io.Writer, services []swarm.Service, running, tasksNoShutdown map[string]int) {
 	writer := tabwriter.NewWriter(out, 0, 4, 2, ' ', 0)
 
 	// Ignore flushing errors
 	defer writer.Flush()
 
-	fmt.Fprintf(writer, listItemFmt, "ID", "NAME", "REPLICAS", "IMAGE")
+	fmt.Fprintf(writer, listItemFmt, "ID", "NAME", "MODE", "REPLICAS", "IMAGE")
+
 	for _, service := range services {
+		mode := ""
 		replicas := ""
 		if service.Spec.Mode.Replicated != nil && service.Spec.Mode.Replicated.Replicas != nil {
+			mode = "replicated"
 			replicas = fmt.Sprintf("%d/%d", running[service.ID], *service.Spec.Mode.Replicated.Replicas)
 		} else if service.Spec.Mode.Global != nil {
-			replicas = "global"
+			mode = "global"
+			replicas = fmt.Sprintf("%d/%d", running[service.ID], tasksNoShutdown[service.ID])
 		}
 		fmt.Fprintf(
 			writer,
 			listItemFmt,
 			stringid.TruncateID(service.ID),
 			service.Spec.Name,
+			mode,
 			replicas,
 			service.Spec.TaskTemplate.ContainerSpec.Image)
 	}
