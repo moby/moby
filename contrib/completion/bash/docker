@@ -1071,9 +1071,16 @@ _docker_container_exec() {
 }
 
 _docker_container_export() {
+	case "$prev" in
+		--output|-o)
+			_filedir
+			return
+			;;
+	esac
+
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "--help" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "--help --output -o" -- "$cur" ) )
 			;;
 		*)
 			local counter=$(__docker_pos_first_nonflag)
