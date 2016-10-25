@@ -14,19 +14,21 @@ import (
 )
 
 type shellWord struct {
-	word    string
-	scanner scanner.Scanner
-	envs    []string
-	pos     int
+	word        string
+	scanner     scanner.Scanner
+	envs        []string
+	pos         int
+	escapeToken rune
 }
 
 // ProcessWord will use the 'env' list of environment variables,
 // and replace any env var references in 'word'.
-func ProcessWord(word string, env []string) (string, error) {
+func ProcessWord(word string, env []string, escapeToken rune) (string, error) {
 	sw := &shellWord{
-		word: word,
-		envs: env,
-		pos:  0,
+		word:        word,
+		envs:        env,
+		pos:         0,
+		escapeToken: escapeToken,
 	}
 	sw.scanner.Init(strings.NewReader(word))
 	word, _, err := sw.process()
@@ -40,11 +42,12 @@ func ProcessWord(word string, env []string) (string, error) {
 // this splitting is done **after** the env var substitutions are done.
 // Note, each one is trimmed to remove leading and trailing spaces (unless
 // they are quoted", but ProcessWord retains spaces between words.
-func ProcessWords(word string, env []string) ([]string, error) {
+func ProcessWords(word string, env []string, escapeToken rune) ([]string, error) {
 	sw := &shellWord{
-		word: word,
-		envs: env,
-		pos:  0,
+		word:        word,
+		envs:        env,
+		pos:         0,
+		escapeToken: escapeToken,
 	}
 	sw.scanner.Init(strings.NewReader(word))
 	_, words, err := sw.process()
@@ -138,8 +141,8 @@ func (sw *shellWord) processStopOn(stopChar rune) (string, []string, error) {
 			// Not special, just add it to the result
 			ch = sw.scanner.Next()
 
-			if ch == '\\' {
-				// '\' escapes, except end of line
+			if ch == sw.escapeToken {
+				// '\' (default escape token, but ` allowed) escapes, except end of line
 
 				ch = sw.scanner.Next()
 
@@ -179,7 +182,7 @@ func (sw *shellWord) processSingleQuote() (string, error) {
 
 func (sw *shellWord) processDoubleQuote() (string, error) {
 	// All chars up to the next " are taken as-is, even ', except any $ chars
-	// But you can escape " with a \
+	// But you can escape " with a \ (or ` if escape token set accordingly)
 	var result string
 
 	sw.scanner.Next()
@@ -198,7 +201,7 @@ func (sw *shellWord) processDoubleQuote() (string, error) {
 			result += tmp
 		} else {
 			ch = sw.scanner.Next()
-			if ch == '\\' {
+			if ch == sw.escapeToken {
 				chNext := sw.scanner.Peek()
 
 				if chNext == scanner.EOF {

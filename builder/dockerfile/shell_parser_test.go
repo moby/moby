@@ -40,7 +40,7 @@ func TestShellParser4EnvVars(t *testing.T) {
 		words[0] = strings.TrimSpace(words[0])
 		words[1] = strings.TrimSpace(words[1])
 
-		newWord, err := ProcessWord(words[0], envs)
+		newWord, err := ProcessWord(words[0], envs, '\\')
 
 		if err != nil {
 			newWord = "error"
@@ -83,7 +83,7 @@ func TestShellParser4Words(t *testing.T) {
 		test := strings.TrimSpace(words[0])
 		expected := strings.Split(strings.TrimLeft(words[1], " "), ",")
 
-		result, err := ProcessWords(test, envs)
+		result, err := ProcessWords(test, envs, '\\')
 
 		if err != nil {
 			result = []string{"error"}
