@@ -26,7 +26,7 @@ func (pm *Manager) enable(p *v2.Plugin, force bool) error {
 	p.Lock()
 	p.Restart = true
 	p.Unlock()
-	if err := pm.containerdClient.Create(p.GetID(), "", "", specs.Spec(*spec)); err != nil {
+	if err := pm.containerdClient.Create(p.GetID(), "", "", specs.Spec(*spec), attachToLog(p.GetID())); err != nil {
 		return err
 	}
 
@@ -45,7 +45,7 @@ func (pm *Manager) enable(p *v2.Plugin, force bool) error {
 }
 
 func (pm *Manager) restore(p *v2.Plugin) error {
-	return pm.containerdClient.Restore(p.GetID())
+	return pm.containerdClient.Restore(p.GetID(), attachToLog(p.GetID()))
 }
 
 func (pm *Manager) disable(p *v2.Plugin) error {

@@ -98,24 +98,6 @@ func (pm *Manager) StateChanged(id string, e libcontainerd.StateInfo) error {
 	return nil
 }
 
-// AttachStreams attaches io streams to the plugin
-func (pm *Manager) AttachStreams(id string, iop libcontainerd.IOPipe) error {
-	iop.Stdin.Close()
-
-	logger := logrus.New()
-	logger.Hooks.Add(logHook{id})
-	// TODO: cache writer per id
-	w := logger.Writer()
-	go func() {
-		io.Copy(w, iop.Stdout)
-	}()
-	go func() {
-		// TODO: update logrus and use logger.WriterLevel
-		io.Copy(w, iop.Stderr)
-	}()
-	return nil
-}
-
 func (pm *Manager) init() error {
 	dt, err := os.Open(filepath.Join(pm.libRoot, "plugins.json"))
 	if err != nil {
@@ -166,4 +148,23 @@ func (logHook) Levels() []logrus.Level {
 func (l logHook) Fire(entry *logrus.Entry) error {
 	entry.Data = logrus.Fields{"plugin": l.id}
 	return nil
+}
+
+func attachToLog(id string) func(libcontainerd.IOPipe) error {
+	return func(iop libcontainerd.IOPipe) error {
+		iop.Stdin.Close()
+
+		logger := logrus.New()
+		logger.Hooks.Add(logHook{id})
+		// TODO: cache writer per id
+		w := logger.Writer()
+		go func() {
+			io.Copy(w, iop.Stdout)
+		}()
+		go func() {
+			// TODO: update logrus and use logger.WriterLevel
+			io.Copy(w, iop.Stderr)
+		}()
+		return nil
+	}
 }

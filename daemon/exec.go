@@ -212,7 +212,7 @@ func (d *Daemon) ContainerExecStart(ctx context.Context, name string, stdin io.R
 
 	attachErr := container.AttachStreams(ctx, ec.StreamConfig, ec.OpenStdin, true, ec.Tty, cStdin, cStdout, cStderr, ec.DetachKeys)
 
-	systemPid, err := d.containerd.AddProcess(ctx, c.ID, name, p)
+	systemPid, err := d.containerd.AddProcess(ctx, c.ID, name, p, ec.InitializeStdio)
 	if err != nil {
 		return err
 	}

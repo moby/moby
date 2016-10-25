@@ -88,7 +88,7 @@ func (ctr *container) spec() (*specs.Spec, error) {
 	return &spec, nil
 }
 
-func (ctr *container) start(checkpoint string, checkpointDir string) error {
+func (ctr *container) start(checkpoint string, checkpointDir string, attachStdio StdioCallback) error {
 	spec, err := ctr.spec()
 	if err != nil {
 		return nil
@@ -107,7 +107,7 @@ func (ctr *container) start(checkpoint string, checkpointDir string) error {
 
 	// we need to delay stdin closure after container start or else "stdin close"
 	// event will be rejected by containerd.
-	// stdin closure happens in AttachStreams
+	// stdin closure happens in attachStdio
 	stdin := iopipe.Stdin
 	iopipe.Stdin = ioutils.NewWriteCloserWrapper(stdin, func() error {
 		var err error
@@ -141,7 +141,7 @@ func (ctr *container) start(checkpoint string, checkpointDir string) error {
 	}
 	ctr.client.appendContainer(ctr)
 
-	if err := ctr.client.backend.AttachStreams(ctr.containerID, *iopipe); err != nil {
+	if err := attachStdio(*iopipe); err != nil {
 		ctr.closeFifos(iopipe)
 		return err
 	}
