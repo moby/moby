@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -12,6 +13,7 @@ import (
 	"github.com/aanand/compose-file/loader"
 	composetypes "github.com/aanand/compose-file/types"
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/mount"
 	networktypes "github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/cli"
@@ -92,7 +94,14 @@ func getConfigFile(filename string) (*composetypes.ConfigFile, error) {
 	if err != nil {
 		return nil, err
 	}
-	return loader.ParseYAML(bytes, filename)
+	config, err := loader.ParseYAML(bytes)
+	if err != nil {
+		return nil, err
+	}
+	return &composetypes.ConfigFile{
+		Filename: filename,
+		Config:   config,
+	}, nil
 }
 
 func createNetworks(
@@ -114,7 +123,7 @@ func createNetworks(
 	}
 
 	for internalName, network := range networks {
-		if network.ExternalName != "" {
+		if network.External.Name != "" {
 			continue
 		}
 
@@ -163,6 +172,80 @@ func convertNetworks(
 		})
 	}
 	return nets
+}
+
+func convertVolumes(
+	serviceVolumes []string,
+	stackVolumes map[string]composetypes.VolumeConfig,
+	namespace string,
+) ([]mount.Mount, error) {
+	var mounts []mount.Mount
+
+	for _, volumeString := range serviceVolumes {
+		var (
+			source, target string
+			mountType      mount.Type
+			readOnly       bool
+			volumeOptions  *mount.VolumeOptions
+		)
+
+		// TODO: split Windows path mappings properly
+		parts := strings.SplitN(volumeString, ":", 3)
+
+		if len(parts) == 3 {
+			source = parts[0]
+			target = parts[1]
+			if parts[2] == "ro" {
+				readOnly = true
+			}
+		} else if len(parts) == 2 {
+			source = parts[0]
+			target = parts[1]
+		} else if len(parts) == 1 {
+			target = parts[0]
+		}
+
+		// TODO: catch Windows paths here
+		if strings.HasPrefix(source, "/") {
+			mountType = mount.TypeBind
+		} else {
+			mountType = mount.TypeVolume
+
+			stackVolume, exists := stackVolumes[source]
+			if !exists {
+				// TODO: better error message (include service name)
+				return nil, fmt.Errorf("Undefined volume: %s", source)
+			}
+
+			if stackVolume.External.Name != "" {
+				source = stackVolume.External.Name
+			} else {
+				volumeOptions = &mount.VolumeOptions{
+					Labels: stackVolume.Labels,
+				}
+
+				if stackVolume.Driver != "" {
+					volumeOptions.DriverConfig = &mount.Driver{
+						Name:    stackVolume.Driver,
+						Options: stackVolume.DriverOpts,
+					}
+				}
+
+				// TODO: remove this duplication
+				source = fmt.Sprintf("%s_%s", namespace, source)
+			}
+		}
+
+		mounts = append(mounts, mount.Mount{
+			Type:          mountType,
+			Source:        source,
+			Target:        target,
+			ReadOnly:      readOnly,
+			VolumeOptions: volumeOptions,
+		})
+	}
+
+	return mounts, nil
 }
 
 func deployServices(
@@ -255,6 +338,11 @@ func convertService(
 		return swarm.ServiceSpec{}, err
 	}
 
+	mounts, err := convertVolumes(service.Volumes, volumes, namespace)
+	if err != nil {
+		return swarm.ServiceSpec{}, err
+	}
+
 	serviceSpec := swarm.ServiceSpec{
 		Annotations: swarm.Annotations{
 			Name:   name,
@@ -262,13 +350,15 @@ func convertService(
 		},
 		TaskTemplate: swarm.TaskSpec{
 			ContainerSpec: swarm.ContainerSpec{
-				Image:   service.Image,
-				Command: service.Entrypoint,
-				Args:    service.Command,
-				Env:     convertEnvironment(service.Environment),
-				Labels:  getStackLabels(namespace, service.Deploy.Labels),
-				Dir:     service.WorkingDir,
-				User:    service.User,
+				Image:    service.Image,
+				Command:  service.Entrypoint,
+				Args:     service.Command,
+				Hostname: service.Hostname,
+				Env:      convertEnvironment(service.Environment),
+				Labels:   getStackLabels(namespace, service.Deploy.Labels),
+				Dir:      service.WorkingDir,
+				User:     service.User,
+				Mounts:   mounts,
 			},
 			Placement: &swarm.Placement{
 				Constraints: service.Deploy.Placement.Constraints,
