@@ -153,6 +153,9 @@ func (d *Daemon) StartWithLogFile(out *os.File, providedArgs ...string) error {
 		"--pidfile", fmt.Sprintf("%s/docker.pid", d.folder),
 		fmt.Sprintf("--userland-proxy=%t", d.userlandProxy),
 	)
+	if experimentalDaemon {
+		args = append(args, "--experimental")
+	}
 	if !(d.useDefaultHost || d.useDefaultTLSHost) {
 		args = append(args, []string{"--host", d.sock()}...)
 	}

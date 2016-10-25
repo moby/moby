@@ -364,6 +364,9 @@ func (daemon *Daemon) GetNetworkDriverList() []string {
 
 	pluginList := daemon.netController.BuiltinDrivers()
 	pluginMap := make(map[string]bool)
+	for _, plugin := range pluginList {
+		pluginMap[plugin] = true
+	}
 
 	networks := daemon.netController.Networks()
 

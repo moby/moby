@@ -109,7 +109,7 @@ func (daemon *Daemon) SystemInfo() (*types.Info, error) {
 		MemTotal:           meminfo.MemTotal,
 		DockerRootDir:      daemon.configStore.Root,
 		Labels:             daemon.configStore.Labels,
-		ExperimentalBuild:  utils.ExperimentalBuild(),
+		ExperimentalBuild:  daemon.configStore.Experimental,
 		ServerVersion:      dockerversion.Version,
 		ClusterStore:       daemon.configStore.ClusterStore,
 		ClusterAdvertise:   daemon.configStore.ClusterAdvertise,
@@ -158,7 +158,7 @@ func (daemon *Daemon) SystemVersion() types.Version {
 		Os:           runtime.GOOS,
 		Arch:         runtime.GOARCH,
 		BuildTime:    dockerversion.BuildTime,
-		Experimental: utils.ExperimentalBuild(),
+		Experimental: daemon.configStore.Experimental,
 	}
 
 	kernelVersion := "<unknown>"

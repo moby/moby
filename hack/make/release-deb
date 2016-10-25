@@ -39,7 +39,7 @@ if [[ "$VERSION" == *-rc* ]]; then
 	component="testing"
 fi
 
-if [ "$DOCKER_EXPERIMENTAL" ] || [[ "$VERSION" == *-dev ]] || [ -n "$(git status --porcelain)" ]; then
+if [[ "$VERSION" == *-dev ]] || [ -n "$(git status --porcelain)" ]; then
 	component="experimental"
 fi
 

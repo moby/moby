@@ -127,6 +127,7 @@ type SystemAPIClient interface {
 	Info(ctx context.Context) (types.Info, error)
 	RegistryLogin(ctx context.Context, auth types.AuthConfig) (types.AuthResponse, error)
 	DiskUsage(ctx context.Context) (types.DiskUsage, error)
+	Ping(ctx context.Context) (bool, error)
 }
 
 // VolumeAPIClient defines API client methods for the volumes

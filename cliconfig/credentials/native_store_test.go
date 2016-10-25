@@ -70,6 +70,8 @@ func (m *mockCommand) Output() ([]byte, error) {
 		default:
 			return []byte("program failed"), errCommandExited
 		}
+	case "list":
+		return []byte(fmt.Sprintf(`{"%s": "%s", "%s": "%s"}`, validServerAddress, "foo", validServerAddress2, "<token>")), nil
 	}
 
 	return []byte(fmt.Sprintf("unknown argument %q with %q", m.arg, inS)), errCommandExited
@@ -225,9 +227,6 @@ func TestNativeStoreGetAll(t *testing.T) {
 		validServerAddress: {
 			Email: "foo@example.com",
 		},
-		validServerAddress2: {
-			Email: "foo@example2.com",
-		},
 	})
 	f.CredentialsStore = "mock"
 
@@ -265,8 +264,8 @@ func TestNativeStoreGetAll(t *testing.T) {
 	if as[validServerAddress2].IdentityToken != "abcd1234" {
 		t.Fatalf("expected identity token `abcd1324` for %s, got %s", validServerAddress2, as[validServerAddress2].IdentityToken)
 	}
-	if as[validServerAddress2].Email != "foo@example2.com" {
-		t.Fatalf("expected email `foo@example2.com` for %s, got %s", validServerAddress2, as[validServerAddress2].Email)
+	if as[validServerAddress2].Email != "" {
+		t.Fatalf("expected no email for %s, got %s", validServerAddress2, as[validServerAddress2].Email)
 	}
 }
 

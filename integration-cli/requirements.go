@@ -9,7 +9,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/docker/docker/utils"
 	"github.com/go-check/check"
 )
 
@@ -31,11 +30,11 @@ var (
 		"Test requires a Linux daemon",
 	}
 	ExperimentalDaemon = testRequirement{
-		func() bool { return utils.ExperimentalBuild() },
+		func() bool { return experimentalDaemon },
 		"Test requires an experimental daemon",
 	}
 	NotExperimentalDaemon = testRequirement{
-		func() bool { return !utils.ExperimentalBuild() },
+		func() bool { return !experimentalDaemon },
 		"Test requires a non experimental daemon",
 	}
 	IsAmd64 = testRequirement{
