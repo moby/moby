@@ -31,9 +31,9 @@ Options:
       --env-file value                   Read in a file of environment variables (default [])
       --group value                      Set one or more supplementary user groups for the container (default [])
       --health-cmd string                Command to run to check health
-      --health-interval duration         Time between running the check
+      --health-interval duration         Time between running the check (ns|us|ms|s|m|h) (default 0s)
       --health-retries int               Consecutive failures needed to report unhealthy
-      --health-timeout duration          Maximum time to allow one check to run
+      --health-timeout duration          Maximum time to allow one check to run (ns|us|ms|s|m|h) (default 0s)
       --help                             Print usage
       --hostname                         Service containers hostname
   -l, --label value                      Service labels (default [])
@@ -56,10 +56,10 @@ Options:
       --restart-window value             Window used to evaluate the restart policy (default none)
       --stop-grace-period value          Time to wait before force killing a container (default none)
   -t, --tty                              Allocate a pseudo-TTY
-      --update-delay duration            Delay between updates
+      --update-delay duration            Delay between updates (ns|us|ms|s|m|h) (default 0s)
       --update-failure-action string     Action on update failure (pause|continue) (default "pause")
       --update-max-failure-ratio value   Failure rate to tolerate during an update
-      --update-monitor duration          Duration after each task update to monitor for failure (default 0s)
+      --update-monitor duration          Duration after each task update to monitor for failure (ns|us|ms|s|m|h) (default 0s)
       --update-parallelism uint          Maximum number of tasks updated simultaneously (0 to update all at once) (default 1)
   -u, --user string                      Username or UID (format: <name|uid>[:<group|gid>])
       --with-registry-auth               Send registry authentication details to Swarm agents

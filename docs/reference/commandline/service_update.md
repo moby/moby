@@ -39,9 +39,9 @@ Options:
       --group-add stringSlice              Add an additional supplementary user group to the container
       --group-rm list                      Remove a previously added supplementary user group from the container (default [])
       --health-cmd string                  Command to run to check health
-      --health-interval duration-ptr       Time between running the check (default none)
+      --health-interval duration           Time between running the check (ns|us|ms|s|m|h) (default 0s)
       --health-retries int                 Consecutive failures needed to report unhealthy
-      --health-timeout duration-ptr        Maximum time to allow one check to run (default none)
+      --health-timeout duration            Maximum time to allow one check to run (ns|us|ms|s|m|h) (default 0s)
       --help                               Print usage
       --image string                       Service image tag
       --label-add list                     Add or update a service label (default [])
@@ -65,10 +65,10 @@ Options:
       --rollback                           Rollback to previous specification
       --stop-grace-period duration-ptr     Time to wait before force killing a container (default none)
   -t, --tty                                Allocate a pseudo-TTY
-      --update-delay duration              Delay between updates
+      --update-delay duration              Delay between updates (ns|us|ms|s|m|h) (default 0s)
       --update-failure-action string       Action on update failure (pause|continue) (default "pause")
       --update-max-failure-ratio float32   Failure rate to tolerate during an update
-      --update-monitor duration            Duration after each task update to monitor for failure
+      --update-monitor duration            Duration after each task update to monitor for failure (ns|us|ms|s|m|h) (default 0s)
       --update-parallelism uint            Maximum number of tasks updated simultaneously (0 to update all at once) (default 1)
   -u, --user string                        Username or UID (format: <name|uid>[:<group|gid>])
       --with-registry-auth                 Send registry authentication details to swarm agents
