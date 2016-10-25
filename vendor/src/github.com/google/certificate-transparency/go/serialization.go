@@ -6,9 +6,11 @@ import (
 	"crypto"
 	"encoding/asn1"
 	"encoding/binary"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"strings"
 )
 
 // Variable size structure prefix-header byte lengths
@@ -18,6 +20,7 @@ const (
 	ExtensionsLengthBytes       = 2
 	CertificateChainLengthBytes = 3
 	SignatureLengthBytes        = 2
+	JSONLengthBytes             = 3
 )
 
 // Max lengths
@@ -144,10 +147,49 @@ func ReadTimestampedEntryInto(r io.Reader, t *TimestampedEntry) error {
 		if t.PrecertEntry.TBSCertificate, err = readVarBytes(r, PreCertificateLengthBytes); err != nil {
 			return err
 		}
+	case XJSONLogEntryType:
+		if t.JSONData, err = readVarBytes(r, JSONLengthBytes); err != nil {
+			return err
+		}
 	default:
 		return fmt.Errorf("unknown EntryType: %d", t.EntryType)
 	}
 	t.Extensions, err = readVarBytes(r, ExtensionsLengthBytes)
+	return nil
+}
+
+// SerializeTimestampedEntry writes timestamped entry to Writer.
+// In case of error, w may contain garbage.
+func SerializeTimestampedEntry(w io.Writer, t *TimestampedEntry) error {
+	if err := binary.Write(w, binary.BigEndian, t.Timestamp); err != nil {
+		return err
+	}
+	if err := binary.Write(w, binary.BigEndian, t.EntryType); err != nil {
+		return err
+	}
+	switch t.EntryType {
+	case X509LogEntryType:
+		if err := writeVarBytes(w, t.X509Entry, CertificateLengthBytes); err != nil {
+			return err
+		}
+	case PrecertLogEntryType:
+		if err := binary.Write(w, binary.BigEndian, t.PrecertEntry.IssuerKeyHash); err != nil {
+			return err
+		}
+		if err := writeVarBytes(w, t.PrecertEntry.TBSCertificate, PreCertificateLengthBytes); err != nil {
+			return err
+		}
+	case XJSONLogEntryType:
+		// TODO: Pending google/certificate-transparency#1243, replace
+		// with ObjectHash once supported by CT server.
+		//jsonhash := objecthash.CommonJSONHash(string(t.JSONData))
+		if err := writeVarBytes(w, []byte(t.JSONData), JSONLengthBytes); err != nil {
+			return err
+		}
+	default:
+		return fmt.Errorf("unknown EntryType: %d", t.EntryType)
+	}
+	writeVarBytes(w, t.Extensions, ExtensionsLengthBytes)
 	return nil
 }
 
@@ -299,6 +341,29 @@ func serializeV1CertSCTSignatureInput(timestamp uint64, cert ASN1Cert, ext CTExt
 	return buf.Bytes(), nil
 }
 
+func serializeV1JSONSCTSignatureInput(timestamp uint64, j []byte) ([]byte, error) {
+	var buf bytes.Buffer
+	if err := binary.Write(&buf, binary.BigEndian, V1); err != nil {
+		return nil, err
+	}
+	if err := binary.Write(&buf, binary.BigEndian, CertificateTimestampSignatureType); err != nil {
+		return nil, err
+	}
+	if err := binary.Write(&buf, binary.BigEndian, timestamp); err != nil {
+		return nil, err
+	}
+	if err := binary.Write(&buf, binary.BigEndian, XJSONLogEntryType); err != nil {
+		return nil, err
+	}
+	if err := writeVarBytes(&buf, j, JSONLengthBytes); err != nil {
+		return nil, err
+	}
+	if err := writeVarBytes(&buf, nil, ExtensionsLengthBytes); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
+}
+
 func serializeV1PrecertSCTSignatureInput(timestamp uint64, issuerKeyHash [issuerKeyHashLength]byte, tbs []byte, ext CTExtensions) ([]byte, error) {
 	if err := checkCertificateFormat(tbs); err != nil {
 		return nil, err
@@ -345,6 +410,8 @@ func serializeV1SCTSignatureInput(sct SignedCertificateTimestamp, entry LogEntry
 		return serializeV1PrecertSCTSignatureInput(sct.Timestamp, entry.Leaf.TimestampedEntry.PrecertEntry.IssuerKeyHash,
 			entry.Leaf.TimestampedEntry.PrecertEntry.TBSCertificate,
 			entry.Leaf.TimestampedEntry.Extensions)
+	case XJSONLogEntryType:
+		return serializeV1JSONSCTSignatureInput(sct.Timestamp, entry.Leaf.TimestampedEntry.JSONData)
 	default:
 		return nil, fmt.Errorf("unknown TimestampedEntryLeafType %s", entry.Leaf.TimestampedEntry.EntryType)
 	}
@@ -459,6 +526,7 @@ func deserializeSCTV1(r io.Reader, sct *SignedCertificateTimestamp) error {
 	return nil
 }
 
+// DeserializeSCT reads an SCT from Reader.
 func DeserializeSCT(r io.Reader) (*SignedCertificateTimestamp, error) {
 	var sct SignedCertificateTimestamp
 	if err := binary.Read(r, binary.BigEndian, &sct.SCTVersion); err != nil {
@@ -560,4 +628,64 @@ func SerializeSCTList(scts []SignedCertificateTimestamp) ([]byte, error) {
 		}
 	}
 	return asn1.Marshal(buf.Bytes()) // transform to Octet String
+}
+
+// SerializeMerkleTreeLeaf writes MerkleTreeLeaf to Writer.
+// In case of error, w may contain garbage.
+func SerializeMerkleTreeLeaf(w io.Writer, m *MerkleTreeLeaf) error {
+	if m.Version != V1 {
+		return fmt.Errorf("unknown Version %d", m.Version)
+	}
+	if err := binary.Write(w, binary.BigEndian, m.Version); err != nil {
+		return err
+	}
+	if m.LeafType != TimestampedEntryLeafType {
+		return fmt.Errorf("unknown LeafType %d", m.LeafType)
+	}
+	if err := binary.Write(w, binary.BigEndian, m.LeafType); err != nil {
+		return err
+	}
+	if err := SerializeTimestampedEntry(w, &m.TimestampedEntry); err != nil {
+		return err
+	}
+	return nil
+}
+
+// CreateX509MerkleTreeLeaf generates a MerkleTreeLeaf for an X509 cert
+func CreateX509MerkleTreeLeaf(cert ASN1Cert, timestamp uint64) *MerkleTreeLeaf {
+	return &MerkleTreeLeaf{
+		Version:  V1,
+		LeafType: TimestampedEntryLeafType,
+		TimestampedEntry: TimestampedEntry{
+			Timestamp: timestamp,
+			EntryType: X509LogEntryType,
+			X509Entry: cert,
+		},
+	}
+}
+
+// CreateJSONMerkleTreeLeaf creates the merkle tree leaf for json data.
+func CreateJSONMerkleTreeLeaf(data interface{}, timestamp uint64) *MerkleTreeLeaf {
+	jsonData, err := json.Marshal(AddJSONRequest{Data: data})
+	if err != nil {
+		return nil
+	}
+	// Match the JSON serialization implemented by json-c
+	jsonStr := strings.Replace(string(jsonData), ":", ": ", -1)
+	jsonStr = strings.Replace(jsonStr, ",", ", ", -1)
+	jsonStr = strings.Replace(jsonStr, "{", "{ ", -1)
+	jsonStr = strings.Replace(jsonStr, "}", " }", -1)
+	jsonStr = strings.Replace(jsonStr, "/", `\/`, -1)
+	// TODO: Pending google/certificate-transparency#1243, replace with
+	// ObjectHash once supported by CT server.
+
+	return &MerkleTreeLeaf{
+		Version:  V1,
+		LeafType: TimestampedEntryLeafType,
+		TimestampedEntry: TimestampedEntry{
+			Timestamp: timestamp,
+			EntryType: XJSONLogEntryType,
+			JSONData:  []byte(jsonStr),
+		},
+	}
 }
