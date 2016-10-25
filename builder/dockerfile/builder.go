@@ -71,7 +71,6 @@ type Builder struct {
 	disableCommit    bool
 	cacheBusted      bool
 	allowedBuildArgs map[string]bool // list of build-time args that are allowed for expansion/substitution and passing to commands in 'run'.
-	directive        parser.Directive
 
 	// TODO: remove once docker.Commit can receive a tag
 	id string
@@ -133,19 +132,13 @@ func NewBuilder(clientCtx context.Context, config *types.ImageBuildOptions, back
 		tmpContainers:    map[string]struct{}{},
 		id:               stringid.GenerateNonCryptoID(),
 		allowedBuildArgs: make(map[string]bool),
-		directive: parser.Directive{
-			EscapeSeen:           false,
-			LookingForDirectives: true,
-		},
 	}
 	if icb, ok := backend.(builder.ImageCacheBuilder); ok {
 		b.imageCache = icb.MakeImageCache(config.CacheFrom)
 	}
 
-	parser.SetEscapeToken(parser.DefaultEscapeToken, &b.directive) // Assume the default token for escape
-
 	if dockerfile != nil {
-		b.dockerfile, err = parser.Parse(dockerfile, &b.directive)
+		b.dockerfile, err = parser.Parse(dockerfile)
 		if err != nil {
 			return nil, err
 		}
@@ -231,7 +224,7 @@ func (b *Builder) build(stdout io.Writer, stderr io.Writer, out io.Writer) (stri
 		for k, v := range b.options.Labels {
 			line += fmt.Sprintf("%q='%s' ", k, v)
 		}
-		_, node, err := parser.ParseLine(line, &b.directive)
+		_, node, err := parser.ParseLine(line, parser.DefaultDirectives())
 		if err != nil {
 			return "", err
 		}
@@ -317,7 +310,7 @@ func BuildFromConfig(config *container.Config, changes []string) (*container.Con
 		return nil, err
 	}
 
-	ast, err := parser.Parse(bytes.NewBufferString(strings.Join(changes, "\n")), &b.directive)
+	ast, err := parser.Parse(bytes.NewBufferString(strings.Join(changes, "\n")))
 	if err != nil {
 		return nil, err
 	}

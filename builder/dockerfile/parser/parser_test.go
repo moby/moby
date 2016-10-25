@@ -40,9 +40,7 @@ func TestTestNegative(t *testing.T) {
 		}
 		defer df.Close()
 
-		d := Directive{LookingForDirectives: true}
-		SetEscapeToken(DefaultEscapeToken, &d)
-		_, err = Parse(df, &d)
+		_, err = Parse(df)
 		if err == nil {
 			t.Fatalf("No error parsing broken dockerfile for %s", dir)
 		}
@@ -60,9 +58,7 @@ func TestTestData(t *testing.T) {
 		}
 		defer df.Close()
 
-		d := Directive{LookingForDirectives: true}
-		SetEscapeToken(DefaultEscapeToken, &d)
-		ast, err := Parse(df, &d)
+		ast, err := Parse(df)
 		if err != nil {
 			t.Fatalf("Error parsing %s's dockerfile: %v", dir, err)
 		}
@@ -122,9 +118,7 @@ func TestParseWords(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		d := Directive{LookingForDirectives: true}
-		SetEscapeToken(DefaultEscapeToken, &d)
-		words := parseWords(test["input"][0], &d)
+		words := parseWords(test["input"][0], DefaultDirectives())
 		if len(words) != len(test["expect"]) {
 			t.Fatalf("length check failed. input: %v, expect: %q, output: %q", test["input"][0], test["expect"], words)
 		}
@@ -143,15 +137,13 @@ func TestLineInformation(t *testing.T) {
 	}
 	defer df.Close()
 
-	d := Directive{LookingForDirectives: true}
-	SetEscapeToken(DefaultEscapeToken, &d)
-	ast, err := Parse(df, &d)
+	ast, err := Parse(df)
 	if err != nil {
 		t.Fatalf("Error parsing dockerfile %s: %v", testFileLineInfo, err)
 	}
 
-	if ast.StartLine != 5 || ast.EndLine != 31 {
-		fmt.Fprintf(os.Stderr, "Wrong root line information: expected(%d-%d), actual(%d-%d)\n", 5, 31, ast.StartLine, ast.EndLine)
+	if ast.startLine != 5 || ast.endLine != 31 {
+		fmt.Fprintf(os.Stderr, "Wrong root line information: expected(%d-%d), actual(%d-%d)\n", 5, 31, ast.startLine, ast.endLine)
 		t.Fatalf("Root line information doesn't match result.")
 	}
 	if len(ast.Children) != 3 {
@@ -164,9 +156,9 @@ func TestLineInformation(t *testing.T) {
 		{17, 31},
 	}
 	for i, child := range ast.Children {
-		if child.StartLine != expected[i][0] || child.EndLine != expected[i][1] {
+		if child.startLine != expected[i][0] || child.endLine != expected[i][1] {
 			t.Logf("Wrong line information for child %d: expected(%d-%d), actual(%d-%d)\n",
-				i, expected[i][0], expected[i][1], child.StartLine, child.EndLine)
+				i, expected[i][0], expected[i][1], child.startLine, child.endLine)
 			t.Fatalf("Root line information doesn't match result.")
 		}
 	}

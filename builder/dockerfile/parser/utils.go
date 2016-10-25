@@ -36,7 +36,7 @@ func (node *Node) Dump() string {
 
 // performs the dispatch based on the two primal strings, cmd and args. Please
 // look at the dispatch table in parser.go to see how these dispatchers work.
-func fullDispatch(cmd, args string, d *Directive) (*Node, map[string]bool, error) {
+func fullDispatch(cmd, args string, d Directives) (*Node, map[string]bool, error) {
 	fn := dispatch[cmd]
 
 	// Ignore invalid Dockerfile instructions
