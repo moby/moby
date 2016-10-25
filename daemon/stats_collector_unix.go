@@ -12,7 +12,7 @@ import (
 	"github.com/opencontainers/runc/libcontainer/system"
 )
 
-// platformNewStatsCollector performs platform specific initialisation of the
+// platformNewStatsCollector performs platform specific initialization of the
 // statsCollector structure.
 func platformNewStatsCollector(s *statsCollector) {
 	s.clockTicksPerSecond = uint64(system.GetClockTicks())
