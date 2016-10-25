@@ -1,7 +1,6 @@
 package fifo
 
 import (
-	"context"
 	"io"
 	"os"
 	"runtime"
@@ -9,6 +8,8 @@ import (
 	"syscall"
 
 	"github.com/pkg/errors"
+	"golang.org/x/net/context"
+	"golang.org/x/sys/unix"
 )
 
 type fifo struct {
@@ -38,7 +39,7 @@ var leakCheckWg *sync.WaitGroup
 func OpenFifo(ctx context.Context, fn string, flag int, perm os.FileMode) (io.ReadWriteCloser, error) {
 	if _, err := os.Stat(fn); err != nil {
 		if os.IsNotExist(err) && flag&syscall.O_CREAT != 0 {
-			if err := syscall.Mkfifo(fn, uint32(perm&os.ModePerm)); err != nil && !os.IsExist(err) {
+			if err := unix.Mkfifo(fn, uint32(perm&os.ModePerm)); err != nil && !os.IsExist(err) {
 				return nil, errors.Wrapf(err, "error creating fifo %v", fn)
 			}
 		} else {
