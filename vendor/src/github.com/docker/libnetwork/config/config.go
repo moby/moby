@@ -38,10 +38,11 @@ type DaemonCfg struct {
 
 // ClusterCfg represents cluster configuration
 type ClusterCfg struct {
-	Watcher   discovery.Watcher
-	Address   string
-	Discovery string
-	Heartbeat uint64
+	Watcher     discovery.Watcher
+	Address     string
+	BindAddress string
+	Discovery   string
+	Heartbeat   uint64
 }
 
 // LoadDefaultScopes loads default scope configs for scopes which
@@ -190,6 +191,13 @@ func OptionDiscoveryWatcher(watcher discovery.Watcher) Option {
 func OptionDiscoveryAddress(address string) Option {
 	return func(c *Config) {
 		c.Cluster.Address = address
+	}
+}
+
+// OptionDiscoveryBindAddress function returns an option setter for self discovery bind address
+func OptionDiscoveryBindAddress(address string) Option {
+	return func(c *Config) {
+		c.Cluster.BindAddress = address
 	}
 }
 

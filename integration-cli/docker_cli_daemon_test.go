@@ -2931,3 +2931,44 @@ func (s *DockerDaemonSuite) TestDaemonShutdownTimeoutWithConfigFile(c *check.C) 
 	content, _ := ioutil.ReadFile(s.d.logFile.Name())
 	c.Assert(string(content), checker.Contains, expectedMessage)
 }
+
+func (s *DockerDaemonSuite) TestDaemonDiscoveryListenConfigReload(c *check.C) {
+	testRequires(c, SameHostDaemon, DaemonIsLinux)
+
+	// daemon config file
+	configFilePath := "test.json"
+	configFile, err := os.Create(configFilePath)
+	c.Assert(err, checker.IsNil)
+	defer os.Remove(configFilePath)
+
+	daemonConfig := `{ }`
+	fmt.Fprintf(configFile, "%s", daemonConfig)
+	configFile.Close()
+	c.Assert(s.d.Start(fmt.Sprintf("--config-file=%s", configFilePath)), check.IsNil)
+	c.Assert(err, checker.IsNil)
+
+	// daemon config file
+	daemonConfig = `{
+              "cluster-store": "consul://consuladdr:consulport/some/path",
+              "cluster-advertise": "192.168.56.100:0",
+              "cluster-listen": "10.2.3.4:0"
+        }`
+
+	configFile.Close()
+	os.Remove(configFilePath)
+
+	configFile, err = os.Create(configFilePath)
+	c.Assert(err, checker.IsNil)
+	defer os.Remove(configFilePath)
+	fmt.Fprintf(configFile, "%s", daemonConfig)
+	configFile.Close()
+
+	err = syscall.Kill(s.d.cmd.Process.Pid, syscall.SIGHUP)
+	time.Sleep(3 * time.Second)
+
+	out, err := s.d.Cmd("info")
+	c.Assert(err, checker.IsNil)
+	c.Assert(out, checker.Contains, fmt.Sprintf("Cluster Store: consul://consuladdr:consulport/some/path"))
+	c.Assert(out, checker.Contains, fmt.Sprintf("Cluster Advertise: 192.168.56.100:0"))
+	c.Assert(out, checker.Contains, fmt.Sprintf("Cluster Listen Address: 10.2.3.4:0"))
+}

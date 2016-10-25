@@ -239,6 +239,7 @@ type Info struct {
 	ServerVersion      string
 	ClusterStore       string
 	ClusterAdvertise   string
+	ClusterListen      string
 	SecurityOptions    []string
 	Runtimes           map[string]Runtime
 	DefaultRuntime     string

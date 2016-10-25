@@ -211,10 +211,14 @@ func (d *driver) Type() string {
 	return networkType
 }
 
-func validateSelf(node string) error {
+func validateSelfAndBind(node, bind string) error {
 	advIP := net.ParseIP(node)
 	if advIP == nil {
 		return fmt.Errorf("invalid self address (%s)", node)
+	}
+	advIP = net.ParseIP(bind)
+	if advIP == nil {
+		return fmt.Errorf("invalid self bind address (%s)", bind)
 	}
 
 	addrs, err := net.InterfaceAddrs()
@@ -227,7 +231,10 @@ func validateSelf(node string) error {
 			return nil
 		}
 	}
-	return fmt.Errorf("Multi-Host overlay networking requires cluster-advertise(%s) to be configured with a local ip-address that is reachable within the cluster", advIP.String())
+	if net.ParseIP("0.0.0.0").Equal(advIP) {
+		return nil
+	}
+	return fmt.Errorf("Multi-Host overlay networking requires cluster-listen(%s) to be configured with a local ip-address that is reachable within the cluster", advIP.String())
 }
 
 func (d *driver) nodeJoin(advertiseAddress, bindAddress string, self bool) {
@@ -239,7 +246,7 @@ func (d *driver) nodeJoin(advertiseAddress, bindAddress string, self bool) {
 
 		// If there is no cluster store there is no need to start serf.
 		if d.store != nil {
-			if err := validateSelf(advertiseAddress); err != nil {
+			if err := validateSelfAndBind(advertiseAddress, bindAddress); err != nil {
 				logrus.Warnf("%s", err.Error())
 			}
 			err := d.serfInit()

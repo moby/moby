@@ -542,10 +542,16 @@ func (c *controller) processNodeDiscovery(nodes []net.IP, add bool) {
 }
 
 func (c *controller) pushNodeDiscovery(d driverapi.Driver, cap driverapi.Capability, nodes []net.IP, add bool) {
-	var self net.IP
+	var self, bind net.IP
 	if c.cfg != nil {
 		addr := strings.Split(c.cfg.Cluster.Address, ":")
 		self = net.ParseIP(addr[0])
+		if len(c.cfg.Cluster.BindAddress) != 0 {
+			addr = strings.Split(c.cfg.Cluster.BindAddress, ":")
+			bind = net.ParseIP(addr[0])
+		} else {
+			bind = self
+		}
 	}
 
 	if d == nil || cap.DataScope != datastore.GlobalScope || nodes == nil {
@@ -553,7 +559,10 @@ func (c *controller) pushNodeDiscovery(d driverapi.Driver, cap driverapi.Capabil
 	}
 
 	for _, node := range nodes {
-		nodeData := discoverapi.NodeDiscoveryData{Address: node.String(), Self: node.Equal(self)}
+		if !node.Equal(self) {
+			bind = node
+		}
+		nodeData := discoverapi.NodeDiscoveryData{Address: node.String(), BindAddress: bind.String(), Self: node.Equal(self)}
 		var err error
 		if add {
 			err = d.DiscoverNew(discoverapi.NodeDiscovery, nodeData)

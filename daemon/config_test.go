@@ -34,18 +34,33 @@ func TestDaemonBrokenConfiguration(t *testing.T) {
 	}
 }
 
-func TestParseClusterAdvertiseSettings(t *testing.T) {
-	_, err := parseClusterAdvertiseSettings("something", "")
+func TestParseClusterAdvertiseAndListenSettings(t *testing.T) {
+	_, _, err := parseClusterAdvertiseAndListenSettings("something", "", "")
 	if err != errDiscoveryDisabled {
 		t.Fatalf("expected discovery disabled error, got %v\n", err)
 	}
 
-	_, err = parseClusterAdvertiseSettings("", "something")
+	_, _, err = parseClusterAdvertiseAndListenSettings("", "something", "something2")
 	if err == nil {
 		t.Fatalf("expected discovery store error, got %v\n", err)
 	}
 
-	_, err = parseClusterAdvertiseSettings("etcd", "127.0.0.1:8080")
+	_, _, err = parseClusterAdvertiseAndListenSettings("", "", "something2")
+	if err == nil {
+		t.Fatalf("expected discovery store error, got %v\n", err)
+	}
+
+	_, _, err = parseClusterAdvertiseAndListenSettings("etcd", "", "something2")
+	if err == nil {
+		t.Fatalf("expected discovery store error, got %v\n", err)
+	}
+
+	_, _, err = parseClusterAdvertiseAndListenSettings("etcd", "127.0.0.1:8080", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, _, err = parseClusterAdvertiseAndListenSettings("etcd", "127.0.0.1:8080", "0.0.0.0:8080")
 	if err != nil {
 		t.Fatal(err)
 	}

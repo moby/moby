@@ -119,6 +119,10 @@ type CommonConfig struct {
 	// reachable by other hosts.
 	ClusterAdvertise string `json:"cluster-advertise,omitempty"`
 
+	// ClusterListen is the network endpoint that the Engine bind to.
+	// This should be a 'host:port' combination on which that daemon instance is able to listen.
+	ClusterListen string `json:"cluster-listen,omitempty"`
+
 	// MaxConcurrentDownloads is the maximum number of downloads that
 	// may take place at a time for each pull.
 	MaxConcurrentDownloads *int `json:"max-concurrent-downloads,omitempty"`
@@ -181,6 +185,7 @@ func (config *Config) InstallCommonFlags(flags *pflag.FlagSet) {
 	flags.StringVar(&config.LogConfig.Type, "log-driver", "json-file", "Default driver for container logs")
 	flags.Var(opts.NewNamedMapOpts("log-opts", config.LogConfig.Config, nil), "log-opt", "Default log driver options for containers")
 	flags.StringVar(&config.ClusterAdvertise, "cluster-advertise", "", "Address or interface name to advertise")
+	flags.StringVar(&config.ClusterListen, "cluster-listen", "", "Address or interface name to listen")
 	flags.StringVar(&config.ClusterStore, "cluster-store", "", "URL of the distributed storage backend")
 	flags.Var(opts.NewNamedMapOpts("cluster-store-opts", config.ClusterOpts, nil), "cluster-store-opt", "Set cluster store options")
 	flags.StringVar(&config.CorsHeaders, "api-cors-header", "", "Set CORS headers in the remote API")
@@ -217,19 +222,30 @@ func NewConfig() *Config {
 	return &config
 }
 
-func parseClusterAdvertiseSettings(clusterStore, clusterAdvertise string) (string, error) {
+func parseClusterAdvertiseAndListenSettings(clusterStore, clusterAdvertise, clusterListen string) (string, string, error) {
+	if clusterAdvertise == "" && clusterListen == "" {
+		return "", "", errDiscoveryDisabled
+	}
 	if clusterAdvertise == "" {
-		return "", errDiscoveryDisabled
+		return "", "", fmt.Errorf("invalid cluster configuration. --cluster-listen must be accompanied by --cluster-store and --cluster-advertise configurations")
 	}
 	if clusterStore == "" {
-		return "", fmt.Errorf("invalid cluster configuration. --cluster-advertise must be accompanied by --cluster-store configuration")
+		return "", "", fmt.Errorf("invalid cluster configuration. --cluster-advertise must be accompanied by --cluster-store configuration")
 	}
 
 	advertise, err := discovery.ParseAdvertise(clusterAdvertise)
 	if err != nil {
-		return "", fmt.Errorf("discovery advertise parsing failed (%v)", err)
+		return "", "", fmt.Errorf("discovery advertise parsing failed (%v)", err)
 	}
-	return advertise, nil
+
+	if clusterListen == "" {
+		return advertise, advertise, nil
+	}
+	listen, err := discovery.ParseAdvertise(clusterListen)
+	if err != nil {
+		return "", "", fmt.Errorf("discovery listen parsing failed (%v)", err)
+	}
+	return advertise, listen, nil
 }
 
 // ReloadConfiguration reads the configuration in the host and reloads the daemon and server.

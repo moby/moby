@@ -234,6 +234,10 @@ func prettyPrintInfo(dockerCli *command.DockerCli, info types.Info) error {
 		fmt.Fprintf(dockerCli.Out(), "Cluster Advertise: %s\n", info.ClusterAdvertise)
 	}
 
+	if info.ClusterListen != "" {
+		fmt.Fprintf(dockerCli.Out(), "Cluster Listen Address: %s\n", info.ClusterListen)
+	}
+
 	if info.RegistryConfig != nil && (len(info.RegistryConfig.InsecureRegistryCIDRs) > 0 || len(info.RegistryConfig.IndexConfigs) > 0) {
 		fmt.Fprintln(dockerCli.Out(), "Insecure Registries:")
 		for _, registry := range info.RegistryConfig.IndexConfigs {
