@@ -55,7 +55,7 @@ type Canonical interface {
 func ParseNamed(s string) (Named, error) {
 	named, err := distreference.ParseNamed(s)
 	if err != nil {
-		return nil, fmt.Errorf("Error parsing reference: %q is not a valid repository/tag", s)
+		return nil, fmt.Errorf("Error parsing reference: %q is not a valid repository/tag: %s", s, err)
 	}
 	r, err := WithName(named.Name())
 	if err != nil {
@@ -153,6 +153,19 @@ func IsNameOnly(ref Named) bool {
 		return false
 	}
 	return true
+}
+
+// ParseIDOrReference parses string for an image ID or a reference. ID can be
+// without a default prefix.
+func ParseIDOrReference(idOrRef string) (digest.Digest, Named, error) {
+	if err := v1.ValidateID(idOrRef); err == nil {
+		idOrRef = "sha256:" + idOrRef
+	}
+	if dgst, err := digest.ParseDigest(idOrRef); err == nil {
+		return dgst, nil, nil
+	}
+	ref, err := ParseNamed(idOrRef)
+	return "", ref, err
 }
 
 // splitHostname splits a repository name to hostname and remotename string.

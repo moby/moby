@@ -3,15 +3,24 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"strconv"
 
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/pkg/reexec"
 )
 
 var (
-	// the docker binary to use
+	// the docker client binary to use
 	dockerBinary = "docker"
+	// the docker daemon binary to use
+	dockerdBinary = "dockerd"
+
+	// path to containerd's ctr binary
+	ctrBinary = "docker-containerd-ctr"
 
 	// the private registry image to use for tests involving the registry
 	registryImageName = "registry"
@@ -21,8 +30,7 @@ var (
 
 	// TODO Windows CI. These are incorrect and need fixing into
 	// platform specific pieces.
-	runtimePath    = "/var/run/docker"
-	execDriverPath = runtimePath + "/execdriver/native"
+	runtimePath = "/var/run/docker"
 
 	workingDirectory string
 
@@ -38,8 +46,8 @@ var (
 
 	// windowsDaemonKV is used on Windows to distinguish between different
 	// versions. This is necessary to enable certain tests based on whether
-	// the platform supports it. For example, Windows Server 2016 TP3 does
-	// not support volumes, but TP4 does.
+	// the platform supports it. For example, Windows Server 2016 TP3 did
+	// not support volumes, but TP4 did.
 	windowsDaemonKV int
 
 	// daemonDefaultImage is the name of the default image to use when running
@@ -52,12 +60,28 @@ var (
 	dockerBasePath       string
 	volumesConfigPath    string
 	containerStoragePath string
+
+	// experimentalDaemon tell whether the main daemon has
+	// experimental features enabled or not
+	experimentalDaemon bool
+
+	// daemonStorageDriver is held globally so that tests can know the storage
+	// driver of the daemon. This is initialized in docker_utils by sending
+	// a version call to the daemon and examining the response header.
+	daemonStorageDriver string
+
+	// WindowsBaseImage is the name of the base image for Windows testing
+	// Environment variable WINDOWS_BASE_IMAGE can override this
+	WindowsBaseImage = "microsoft/windowsservercore"
+
+	// isolation is the isolation mode of the daemon under test
+	isolation container.Isolation
+
+	// daemonPid is the pid of the main test daemon
+	daemonPid int
 )
 
 const (
-	// WindowsBaseImage is the name of the base image for Windows testing
-	WindowsBaseImage = "windowsservercore"
-
 	// DefaultImage is the name of the base image for the majority of tests that
 	// are run across suites
 	DefaultImage = "busybox"
@@ -71,7 +95,7 @@ func init() {
 	var err error
 	dockerBinary, err = exec.LookPath(dockerBinary)
 	if err != nil {
-		fmt.Printf("ERROR: couldn't resolve full path to the Docker binary (%v)", err)
+		fmt.Printf("ERROR: couldn't resolve full path to the Docker binary (%v)\n", err)
 		os.Exit(1)
 	}
 	if registryImage := os.Getenv("REGISTRY_IMAGE"); registryImage != "" {
@@ -108,15 +132,30 @@ func init() {
 	// /info endpoint for the specific root dir
 	dockerBasePath = "/var/lib/docker"
 	type Info struct {
-		DockerRootDir string
+		DockerRootDir     string
+		ExperimentalBuild bool
 	}
 	var i Info
 	status, b, err := sockRequest("GET", "/info", nil)
 	if err == nil && status == 200 {
 		if err = json.Unmarshal(b, &i); err == nil {
 			dockerBasePath = i.DockerRootDir
+			experimentalDaemon = i.ExperimentalBuild
 		}
 	}
 	volumesConfigPath = dockerBasePath + "/volumes"
 	containerStoragePath = dockerBasePath + "/containers"
+
+	if len(os.Getenv("WINDOWS_BASE_IMAGE")) > 0 {
+		WindowsBaseImage = os.Getenv("WINDOWS_BASE_IMAGE")
+		fmt.Println("INFO: Windows Base image is ", WindowsBaseImage)
+	}
+
+	dest := os.Getenv("DEST")
+	b, err = ioutil.ReadFile(filepath.Join(dest, "docker.pid"))
+	if err == nil {
+		if p, err := strconv.ParseInt(string(b), 10, 32); err == nil {
+			daemonPid = int(p)
+		}
+	}
 }

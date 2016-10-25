@@ -2,9 +2,12 @@ package daemon
 
 import (
 	"strings"
+	"time"
 
+	"github.com/docker/docker/api/types/events"
+	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/container"
-	"github.com/docker/engine-api/types/events"
+	daemonevents "github.com/docker/docker/daemon/events"
 	"github.com/docker/libnetwork"
 )
 
@@ -28,12 +31,12 @@ func (daemon *Daemon) LogContainerEventWithAttributes(container *container.Conta
 	daemon.EventsService.Log(action, events.ContainerEventType, actor)
 }
 
-// LogImageEvent generates an event related to a container with only the default attributes.
+// LogImageEvent generates an event related to an image with only the default attributes.
 func (daemon *Daemon) LogImageEvent(imageID, refName, action string) {
 	daemon.LogImageEventWithAttributes(imageID, refName, action, map[string]string{})
 }
 
-// LogImageEventWithAttributes generates an event related to a container with specific given attributes.
+// LogImageEventWithAttributes generates an event related to an image with specific given attributes.
 func (daemon *Daemon) LogImageEventWithAttributes(imageID, refName, action string, attributes map[string]string) {
 	img, err := daemon.GetImage(imageID)
 	if err == nil && img.Config != nil {
@@ -50,6 +53,21 @@ func (daemon *Daemon) LogImageEventWithAttributes(imageID, refName, action strin
 	}
 
 	daemon.EventsService.Log(action, events.ImageEventType, actor)
+}
+
+// LogPluginEvent generates an event related to a plugin with only the default attributes.
+func (daemon *Daemon) LogPluginEvent(pluginID, refName, action string) {
+	daemon.LogPluginEventWithAttributes(pluginID, refName, action, map[string]string{})
+}
+
+// LogPluginEventWithAttributes generates an event related to a plugin with specific given attributes.
+func (daemon *Daemon) LogPluginEventWithAttributes(pluginID, refName, action string, attributes map[string]string) {
+	attributes["name"] = refName
+	actor := events.Actor{
+		ID:         pluginID,
+		Attributes: attributes,
+	}
+	daemon.EventsService.Log(action, events.PluginEventType, actor)
 }
 
 // LogVolumeEvent generates an event related to a volume.
@@ -75,6 +93,32 @@ func (daemon *Daemon) LogNetworkEventWithAttributes(nw libnetwork.Network, actio
 		Attributes: attributes,
 	}
 	daemon.EventsService.Log(action, events.NetworkEventType, actor)
+}
+
+// LogDaemonEventWithAttributes generates an event related to the daemon itself with specific given attributes.
+func (daemon *Daemon) LogDaemonEventWithAttributes(action string, attributes map[string]string) {
+	if daemon.EventsService != nil {
+		if info, err := daemon.SystemInfo(); err == nil && info.Name != "" {
+			attributes["name"] = info.Name
+		}
+		actor := events.Actor{
+			ID:         daemon.ID,
+			Attributes: attributes,
+		}
+		daemon.EventsService.Log(action, events.DaemonEventType, actor)
+	}
+}
+
+// SubscribeToEvents returns the currently record of events, a channel to stream new events from, and a function to cancel the stream of events.
+func (daemon *Daemon) SubscribeToEvents(since, until time.Time, filter filters.Args) ([]events.Message, chan interface{}) {
+	ef := daemonevents.NewFilter(filter)
+	return daemon.EventsService.SubscribeTopic(since, until, ef)
+}
+
+// UnsubscribeFromEvents stops the event subscription for a client by closing the
+// channel where the daemon sends events to.
+func (daemon *Daemon) UnsubscribeFromEvents(listener chan interface{}) {
+	daemon.EventsService.Evict(listener)
 }
 
 // copyAttributes guarantees that labels are not mutated by event triggers.

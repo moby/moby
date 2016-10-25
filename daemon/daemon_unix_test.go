@@ -5,10 +5,15 @@ package daemon
 import (
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"testing"
 
+	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/container"
-	containertypes "github.com/docker/engine-api/types/container"
+	"github.com/docker/docker/volume"
+	"github.com/docker/docker/volume/drivers"
+	"github.com/docker/docker/volume/local"
+	"github.com/docker/docker/volume/store"
 )
 
 // Unix test as uses settings which are not available on Windows
@@ -90,12 +95,12 @@ func TestAdjustCPUSharesNoAdjustment(t *testing.T) {
 }
 
 // Unix test as uses settings which are not available on Windows
-func TestParseSecurityOpt(t *testing.T) {
+func TestParseSecurityOptWithDeprecatedColon(t *testing.T) {
 	container := &container.Container{}
 	config := &containertypes.HostConfig{}
 
 	// test apparmor
-	config.SecurityOpt = []string{"apparmor:test_profile"}
+	config.SecurityOpt = []string{"apparmor=test_profile"}
 	if err := parseSecurityOpt(container, config); err != nil {
 		t.Fatalf("Unexpected parseSecurityOpt error: %v", err)
 	}
@@ -105,7 +110,7 @@ func TestParseSecurityOpt(t *testing.T) {
 
 	// test seccomp
 	sp := "/path/to/seccomp_test.json"
-	config.SecurityOpt = []string{"seccomp:" + sp}
+	config.SecurityOpt = []string{"seccomp=" + sp}
 	if err := parseSecurityOpt(container, config); err != nil {
 		t.Fatalf("Unexpected parseSecurityOpt error: %v", err)
 	}
@@ -114,7 +119,49 @@ func TestParseSecurityOpt(t *testing.T) {
 	}
 
 	// test valid label
-	config.SecurityOpt = []string{"label:user:USER"}
+	config.SecurityOpt = []string{"label=user:USER"}
+	if err := parseSecurityOpt(container, config); err != nil {
+		t.Fatalf("Unexpected parseSecurityOpt error: %v", err)
+	}
+
+	// test invalid label
+	config.SecurityOpt = []string{"label"}
+	if err := parseSecurityOpt(container, config); err == nil {
+		t.Fatal("Expected parseSecurityOpt error, got nil")
+	}
+
+	// test invalid opt
+	config.SecurityOpt = []string{"test"}
+	if err := parseSecurityOpt(container, config); err == nil {
+		t.Fatal("Expected parseSecurityOpt error, got nil")
+	}
+}
+
+func TestParseSecurityOpt(t *testing.T) {
+	container := &container.Container{}
+	config := &containertypes.HostConfig{}
+
+	// test apparmor
+	config.SecurityOpt = []string{"apparmor=test_profile"}
+	if err := parseSecurityOpt(container, config); err != nil {
+		t.Fatalf("Unexpected parseSecurityOpt error: %v", err)
+	}
+	if container.AppArmorProfile != "test_profile" {
+		t.Fatalf("Unexpected AppArmorProfile, expected: \"test_profile\", got %q", container.AppArmorProfile)
+	}
+
+	// test seccomp
+	sp := "/path/to/seccomp_test.json"
+	config.SecurityOpt = []string{"seccomp=" + sp}
+	if err := parseSecurityOpt(container, config); err != nil {
+		t.Fatalf("Unexpected parseSecurityOpt error: %v", err)
+	}
+	if container.SeccompProfile != sp {
+		t.Fatalf("Unexpected SeccompProfile, expected: %q, got %q", sp, container.SeccompProfile)
+	}
+
+	// test valid label
+	config.SecurityOpt = []string{"label=user:USER"}
 	if err := parseSecurityOpt(container, config); err != nil {
 		t.Fatalf("Unexpected parseSecurityOpt error: %v", err)
 	}
@@ -141,7 +188,7 @@ func TestNetworkOptions(t *testing.T) {
 		},
 	}
 
-	if _, err := daemon.networkOptions(dconfigCorrect); err != nil {
+	if _, err := daemon.networkOptions(dconfigCorrect, nil, nil); err != nil {
 		t.Fatalf("Expect networkOptions success, got error: %v", err)
 	}
 
@@ -151,7 +198,86 @@ func TestNetworkOptions(t *testing.T) {
 		},
 	}
 
-	if _, err := daemon.networkOptions(dconfigWrong); err == nil {
+	if _, err := daemon.networkOptions(dconfigWrong, nil, nil); err == nil {
 		t.Fatalf("Expected networkOptions error, got nil")
+	}
+}
+
+func TestMigratePre17Volumes(t *testing.T) {
+	rootDir, err := ioutil.TempDir("", "test-daemon-volumes")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(rootDir)
+
+	volumeRoot := filepath.Join(rootDir, "volumes")
+	err = os.MkdirAll(volumeRoot, 0755)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	containerRoot := filepath.Join(rootDir, "containers")
+	cid := "1234"
+	err = os.MkdirAll(filepath.Join(containerRoot, cid), 0755)
+
+	vid := "5678"
+	vfsPath := filepath.Join(rootDir, "vfs", "dir", vid)
+	err = os.MkdirAll(vfsPath, 0755)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	config := []byte(`
+		{
+			"ID": "` + cid + `",
+			"Volumes": {
+				"/foo": "` + vfsPath + `",
+				"/bar": "/foo",
+				"/quux": "/quux"
+			},
+			"VolumesRW": {
+				"/foo": true,
+				"/bar": true,
+				"/quux": false
+			}
+		}
+	`)
+
+	volStore, err := store.New(volumeRoot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	drv, err := local.New(volumeRoot, 0, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	volumedrivers.Register(drv, volume.DefaultDriverName)
+
+	daemon := &Daemon{root: rootDir, repository: containerRoot, volumes: volStore}
+	err = ioutil.WriteFile(filepath.Join(containerRoot, cid, "config.v2.json"), config, 600)
+	if err != nil {
+		t.Fatal(err)
+	}
+	c, err := daemon.load(cid)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := daemon.verifyVolumesInfo(c); err != nil {
+		t.Fatal(err)
+	}
+
+	expected := map[string]volume.MountPoint{
+		"/foo":  {Destination: "/foo", RW: true, Name: vid},
+		"/bar":  {Source: "/foo", Destination: "/bar", RW: true},
+		"/quux": {Source: "/quux", Destination: "/quux", RW: false},
+	}
+	for id, mp := range c.MountPoints {
+		x, exists := expected[id]
+		if !exists {
+			t.Fatal("volume not migrated")
+		}
+		if mp.Source != x.Source || mp.Destination != x.Destination || mp.RW != x.RW || mp.Name != x.Name {
+			t.Fatalf("got unexpected mountpoint, expected: %+v, got: %+v", x, mp)
+		}
 	}
 }

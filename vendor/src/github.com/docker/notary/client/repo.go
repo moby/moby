@@ -6,15 +6,17 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/docker/notary/passphrase"
+	"github.com/docker/notary"
 	"github.com/docker/notary/trustmanager"
+	"github.com/docker/notary/trustpinning"
 )
 
 // NewNotaryRepository is a helper method that returns a new notary repository.
 // It takes the base directory under where all the trust files will be stored
-// (usually ~/.docker/trust/).
+// (This is normally defaults to "~/.notary" or "~/.docker/trust" when enabling
+// docker content trust).
 func NewNotaryRepository(baseDir, gun, baseURL string, rt http.RoundTripper,
-	retriever passphrase.Retriever) (
+	retriever notary.PassRetriever, trustPinning trustpinning.TrustPinConfig) (
 	*NotaryRepository, error) {
 
 	fileKeyStore, err := trustmanager.NewKeyFileStore(baseDir, retriever)
@@ -23,5 +25,5 @@ func NewNotaryRepository(baseDir, gun, baseURL string, rt http.RoundTripper,
 	}
 
 	return repositoryFromKeystores(baseDir, gun, baseURL, rt,
-		[]trustmanager.KeyStore{fileKeyStore})
+		[]trustmanager.KeyStore{fileKeyStore}, trustPinning)
 }

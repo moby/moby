@@ -8,6 +8,7 @@ docker-exec - Run a command in a running container
 **docker exec**
 [**-d**|**--detach**]
 [**--detach-keys**[=*[]*]]
+[**-e**|**--env**[=*[]*]]
 [**--help**]
 [**-i**|**--interactive**]
 [**--privileged**]
@@ -31,6 +32,12 @@ container is unpaused, and then run
 
 **--detach-keys**=""
   Override the key sequence for detaching a container. Format is a single character `[a-Z]` or `ctrl-<value>` where `<value>` is one of: `a-z`, `@`, `^`, `[`, `,` or `_`.
+
+**-e**, **--env**=[]
+   Set environment variables
+
+   This option allows you to specify arbitrary environment variables that are
+available for the command to be executed.
 
 **--help**
   Print usage statement

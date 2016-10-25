@@ -32,6 +32,13 @@ sign_packages(){
 					--batch --yes \
 					--output "$F.gpg" "$F"
 			fi
+			inRelease="$(dirname "$F")/InRelease"
+			if test "$F" -nt "$inRelease" ; then
+				gpg -u "$GPG_KEYID" --passphrase "$GPG_PASSPHRASE" \
+					--clearsign \
+					--batch --yes \
+					--output "$inRelease" "$F"
+			fi
 		done
 	fi
 

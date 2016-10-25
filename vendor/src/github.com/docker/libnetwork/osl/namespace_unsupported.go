@@ -10,3 +10,7 @@ func GC() {
 func GetSandboxForExternalKey(path string, key string) (Sandbox, error) {
 	return nil, nil
 }
+
+// SetBasePath sets the base url prefix for the ns path
+func SetBasePath(path string) {
+}

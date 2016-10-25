@@ -1,29 +1,48 @@
-<!--[metadata]>
-+++
-title = "Use the Docker command line"
-description = "Docker's CLI command description and usage"
-keywords = ["Docker, Docker documentation, CLI,  command line"]
-[menu.main]
-parent = "smn_cli"
-weight = -2
-+++
-<![end-metadata]-->
+---
+title: "Use the Docker command line"
+description: "Docker's CLI command description and usage"
+keywords: ["Docker, Docker documentation, CLI,  command line"]
+---
+
+<!-- This file is maintained within the docker/docker Github
+     repository at https://github.com/docker/docker/. Make all
+     pull requests against that repo. If you see this file in
+     another repository, consider it read-only there, as it will
+     periodically be overwritten by the definitive file. Pull
+     requests which include edits to this file in other repositories
+     will be rejected.
+-->
 
 # Use the Docker command line
 
 To list available commands, either run `docker` with no parameters
 or execute `docker help`:
 
-    $ docker
-      Usage: docker [OPTIONS] COMMAND [arg...]
-             docker daemon [ --help | ... ]
-             docker [ --help | -v | --version ]
+```bash
+$ docker
+Usage: docker [OPTIONS] COMMAND [arg...]
+       docker [ --help | -v | --version ]
 
-        -H, --host=[]: The socket(s) to talk to the Docker daemon in the format of tcp://host:port/path, unix:///path/to/socket, fd://* or fd://socketfd.
+A self-sufficient runtime for containers.
 
-      A self-sufficient runtime for Linux containers.
+Options:
 
-      ...
+      --config string      Location of client config files (default "/root/.docker")
+  -D, --debug              Enable debug mode
+      --help               Print usage
+  -H, --host value         Daemon socket(s) to connect to (default [])
+  -l, --log-level string   Set the logging level (debug, info, warn, error, fatal) (default "info")
+      --tls                Use TLS; implied by --tlsverify
+      --tlscacert string   Trust certs signed only by this CA (default "/root/.docker/ca.pem")
+      --tlscert string     Path to TLS certificate file (default "/root/.docker/cert.pem")
+      --tlskey string      Path to TLS key file (default "/root/.docker/key.pem")
+      --tlsverify          Use TLS and verify the remote
+  -v, --version            Print version information and quit
+
+Commands:
+    attach    Attach to a running container
+    # […]
+```
 
 Depending on your Docker system configuration, you may be required to preface
 each `docker` command with `sudo`. To avoid having to use `sudo` with the
@@ -31,7 +50,7 @@ each `docker` command with `sudo`. To avoid having to use `sudo` with the
 `docker` and add users to it.
 
 For more information about installing Docker or `sudo` configuration, refer to
-the [installation](../../installation/index.md) instructions for your operating system.
+the [installation](https://docs.docker.com/engine/installation/) instructions for your operating system.
 
 ## Environment variables
 
@@ -67,7 +86,7 @@ variables.
 ## Configuration files
 
 By default, the Docker command line stores its configuration files in a
-directory called `.docker` within your `HOME` directory. However, you can
+directory called `.docker` within your `$HOME` directory. However, you can
 specify a different location via the `DOCKER_CONFIG` environment variable
 or the `--config` command line option. If both are specified, then the
 `--config` option overrides the `DOCKER_CONFIG` environment variable.
@@ -107,7 +126,7 @@ directives, see the
 Once attached to a container, users detach from it and leave it running using
 the using `CTRL-p CTRL-q` key sequence. This detach key sequence is customizable
 using the `detachKeys` property. Specify a `<sequence>` value for the
-property. The format of the `<sequence>` is a comma-separated list of either 
+property. The format of the `<sequence>` is a comma-separated list of either
 a letter [a-Z], or the `ctrl-` combined with any of the following:
 
 * `a-z` (a single lowercase alpha character )
@@ -128,16 +147,26 @@ Docker's client uses this property. If this property is not set, the client
 falls back to the default table format. For a list of supported formatting
 directives, see the [**Formatting** section in the `docker images` documentation](images.md)
 
+The property `serviceInspectFormat` specifies the default format for `docker
+service inspect` output. When the `--format` flag is not provided with the
+`docker service inspect` command, Docker's client uses this property. If this
+property is not set, the client falls back to the default json format. For a
+list of supported formatting directives, see the
+[**Formatting** section in the `docker service inspect` documentation](service_inspect.md)
+
 Following is a sample `config.json` file:
 
+    {% raw %}
     {
       "HttpHeaders": {
         "MyHeader": "MyValue"
       },
       "psFormat": "table {{.ID}}\\t{{.Image}}\\t{{.Command}}\\t{{.Labels}}",
       "imagesFormat": "table {{.ID}}\\t{{.Repository}}\\t{{.Tag}}\\t{{.CreatedAt}}",
+      "serviceInspectFormat": "pretty",
       "detachKeys": "ctrl-e,e"
     }
+    {% endraw %}
 
 ### Notary
 
@@ -159,8 +188,9 @@ To list the help on any command just execute the command, followed by the
 
     Run a command in a new container
 
-      -a, --attach=[]            Attach to STDIN, STDOUT or STDERR
-      --cpu-shares=0             CPU shares (relative weight)
+    Options:
+          --add-host value             Add a custom host-to-IP mapping (host:ip) (default [])
+      -a, --attach value               Attach to STDIN, STDOUT or STDERR (default [])
     ...
 
 ## Option types

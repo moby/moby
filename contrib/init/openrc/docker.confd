@@ -7,7 +7,7 @@
 #DOCKER_PIDFILE="/run/docker.pid"
 
 # where the docker daemon itself is run from
-#DOCKER_BINARY="/usr/bin/docker"
+#DOCKERD_BINARY="/usr/bin/dockerd"
 
 # any other random options you want to pass to docker
 DOCKER_OPTS=""

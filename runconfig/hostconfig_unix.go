@@ -1,4 +1,4 @@
-// +build !windows
+// +build !windows,!solaris
 
 package runconfig
 
@@ -7,7 +7,7 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/docker/engine-api/types/container"
+	"github.com/docker/docker/api/types/container"
 )
 
 // DefaultDaemonNetworkMode returns the default network stack the daemon should
@@ -19,7 +19,7 @@ func DefaultDaemonNetworkMode() container.NetworkMode {
 // IsPreDefinedNetwork indicates if a network is predefined by the daemon
 func IsPreDefinedNetwork(network string) bool {
 	n := container.NetworkMode(network)
-	return n.IsBridge() || n.IsHost() || n.IsNone() || n.IsDefault()
+	return n.IsBridge() || n.IsHost() || n.IsNone() || n.IsDefault() || network == "ingress"
 }
 
 // ValidateNetMode ensures that the various combinations of requested
@@ -36,8 +36,12 @@ func ValidateNetMode(c *container.Config, hc *container.HostConfig) error {
 		}
 	}
 
-	if (hc.NetworkMode.IsHost() || hc.NetworkMode.IsContainer()) && c.Hostname != "" {
+	if hc.NetworkMode.IsContainer() && c.Hostname != "" {
 		return ErrConflictNetworkHostname
+	}
+
+	if hc.UTSMode.IsHost() && c.Hostname != "" {
+		return ErrConflictUTSHostname
 	}
 
 	if hc.NetworkMode.IsHost() && len(hc.Links) > 0 {
@@ -48,11 +52,11 @@ func ValidateNetMode(c *container.Config, hc *container.HostConfig) error {
 		return ErrConflictContainerNetworkAndLinks
 	}
 
-	if (hc.NetworkMode.IsHost() || hc.NetworkMode.IsContainer()) && len(hc.DNS) > 0 {
+	if hc.NetworkMode.IsContainer() && len(hc.DNS) > 0 {
 		return ErrConflictNetworkAndDNS
 	}
 
-	if (hc.NetworkMode.IsContainer() || hc.NetworkMode.IsHost()) && len(hc.ExtraHosts) > 0 {
+	if hc.NetworkMode.IsContainer() && len(hc.ExtraHosts) > 0 {
 		return ErrConflictNetworkHosts
 	}
 
@@ -80,6 +84,23 @@ func ValidateIsolation(hc *container.HostConfig) error {
 	}
 	if !hc.Isolation.IsValid() {
 		return fmt.Errorf("invalid --isolation: %q - %s only supports 'default'", hc.Isolation, runtime.GOOS)
+	}
+	return nil
+}
+
+// ValidateQoS performs platform specific validation of the QoS settings
+func ValidateQoS(hc *container.HostConfig) error {
+	// We may not be passed a host config, such as in the case of docker commit
+	if hc == nil {
+		return nil
+	}
+
+	if hc.IOMaximumBandwidth != 0 {
+		return fmt.Errorf("invalid QoS settings: %s does not support --io-maxbandwidth", runtime.GOOS)
+	}
+
+	if hc.IOMaximumIOps != 0 {
+		return fmt.Errorf("invalid QoS settings: %s does not support --io-maxiops", runtime.GOOS)
 	}
 	return nil
 }

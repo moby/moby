@@ -1,12 +1,12 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"net"
 	"strings"
 
 	"github.com/docker/docker/pkg/integration/checker"
-	"github.com/docker/docker/utils"
 	"github.com/go-check/check"
 )
 
@@ -22,7 +22,6 @@ func (s *DockerSuite) TestInfoEnsureSucceeds(c *check.C) {
 		" Paused:",
 		" Stopped:",
 		"Images:",
-		"Execution Driver:",
 		"OSType:",
 		"Architecture:",
 		"Logging Driver:",
@@ -33,15 +32,37 @@ func (s *DockerSuite) TestInfoEnsureSucceeds(c *check.C) {
 		"Storage Driver:",
 		"Volume:",
 		"Network:",
+		"Live Restore Enabled:",
 	}
 
-	if utils.ExperimentalBuild() {
+	if daemonPlatform == "linux" {
+		stringsToCheck = append(stringsToCheck, "Security Options:")
+	}
+
+	if DaemonIsLinux.Condition() {
+		stringsToCheck = append(stringsToCheck, "Runtimes:", "Default Runtime: runc")
+	}
+
+	if experimentalDaemon {
 		stringsToCheck = append(stringsToCheck, "Experimental: true")
+	} else {
+		stringsToCheck = append(stringsToCheck, "Experimental: false")
 	}
 
 	for _, linePrefix := range stringsToCheck {
 		c.Assert(out, checker.Contains, linePrefix, check.Commentf("couldn't find string %v in output", linePrefix))
 	}
+}
+
+// TestInfoFormat tests `docker info --format`
+func (s *DockerSuite) TestInfoFormat(c *check.C) {
+	out, status := dockerCmd(c, "info", "--format", "{{json .}}")
+	c.Assert(status, checker.Equals, 0)
+	var m map[string]interface{}
+	err := json.Unmarshal([]byte(out), &m)
+	c.Assert(err, checker.IsNil)
+	_, _, err = dockerCmdWithError("info", "--format", "{{.badString}}")
+	c.Assert(err, checker.NotNil)
 }
 
 // TestInfoDiscoveryBackend verifies that a daemon run with `--cluster-advertise` and
@@ -58,8 +79,8 @@ func (s *DockerSuite) TestInfoDiscoveryBackend(c *check.C) {
 
 	out, err := d.Cmd("info")
 	c.Assert(err, checker.IsNil)
-	c.Assert(out, checker.Contains, fmt.Sprintf("Cluster store: %s\n", discoveryBackend))
-	c.Assert(out, checker.Contains, fmt.Sprintf("Cluster advertise: %s\n", discoveryAdvertise))
+	c.Assert(out, checker.Contains, fmt.Sprintf("Cluster Store: %s\n", discoveryBackend))
+	c.Assert(out, checker.Contains, fmt.Sprintf("Cluster Advertise: %s\n", discoveryAdvertise))
 }
 
 // TestInfoDiscoveryInvalidAdvertise verifies that a daemon run with
@@ -102,8 +123,8 @@ func (s *DockerSuite) TestInfoDiscoveryAdvertiseInterfaceName(c *check.C) {
 
 	out, err := d.Cmd("info")
 	c.Assert(err, checker.IsNil)
-	c.Assert(out, checker.Contains, fmt.Sprintf("Cluster store: %s\n", discoveryBackend))
-	c.Assert(out, checker.Contains, fmt.Sprintf("Cluster advertise: %s:2375\n", ip.String()))
+	c.Assert(out, checker.Contains, fmt.Sprintf("Cluster Store: %s\n", discoveryBackend))
+	c.Assert(out, checker.Contains, fmt.Sprintf("Cluster Advertise: %s:2375\n", ip.String()))
 }
 
 func (s *DockerSuite) TestInfoDisplaysRunningContainers(c *check.C) {
@@ -118,9 +139,9 @@ func (s *DockerSuite) TestInfoDisplaysRunningContainers(c *check.C) {
 }
 
 func (s *DockerSuite) TestInfoDisplaysPausedContainers(c *check.C) {
-	testRequires(c, DaemonIsLinux)
+	testRequires(c, IsPausable)
 
-	out, _ := dockerCmd(c, "run", "-d", "busybox", "top")
+	out, _ := runSleepingContainer(c, "-d")
 	cleanedContainerID := strings.TrimSpace(out)
 
 	dockerCmd(c, "pause", cleanedContainerID)
@@ -157,11 +178,57 @@ func (s *DockerSuite) TestInfoDebug(c *check.C) {
 
 	out, err := d.Cmd("--debug", "info")
 	c.Assert(err, checker.IsNil)
-	c.Assert(out, checker.Contains, "Debug mode (client): true\n")
-	c.Assert(out, checker.Contains, "Debug mode (server): true\n")
+	c.Assert(out, checker.Contains, "Debug Mode (client): true\n")
+	c.Assert(out, checker.Contains, "Debug Mode (server): true\n")
 	c.Assert(out, checker.Contains, "File Descriptors")
 	c.Assert(out, checker.Contains, "Goroutines")
 	c.Assert(out, checker.Contains, "System Time")
 	c.Assert(out, checker.Contains, "EventsListeners")
 	c.Assert(out, checker.Contains, "Docker Root Dir")
+}
+
+func (s *DockerSuite) TestInsecureRegistries(c *check.C) {
+	testRequires(c, SameHostDaemon, DaemonIsLinux)
+
+	registryCIDR := "192.168.1.0/24"
+	registryHost := "insecurehost.com:5000"
+
+	d := NewDaemon(c)
+	err := d.Start("--insecure-registry="+registryCIDR, "--insecure-registry="+registryHost)
+	c.Assert(err, checker.IsNil)
+	defer d.Stop()
+
+	out, err := d.Cmd("info")
+	c.Assert(err, checker.IsNil)
+	c.Assert(out, checker.Contains, "Insecure Registries:\n")
+	c.Assert(out, checker.Contains, fmt.Sprintf(" %s\n", registryHost))
+	c.Assert(out, checker.Contains, fmt.Sprintf(" %s\n", registryCIDR))
+}
+
+func (s *DockerDaemonSuite) TestRegistryMirrors(c *check.C) {
+	testRequires(c, SameHostDaemon, DaemonIsLinux)
+
+	registryMirror1 := "https://192.168.1.2"
+	registryMirror2 := "http://registry.mirror.com:5000"
+
+	err := s.d.Start("--registry-mirror="+registryMirror1, "--registry-mirror="+registryMirror2)
+	c.Assert(err, checker.IsNil)
+
+	out, err := s.d.Cmd("info")
+	c.Assert(err, checker.IsNil)
+	c.Assert(out, checker.Contains, "Registry Mirrors:\n")
+	c.Assert(out, checker.Contains, fmt.Sprintf(" %s", registryMirror1))
+	c.Assert(out, checker.Contains, fmt.Sprintf(" %s", registryMirror2))
+}
+
+// Test case for #24392
+func (s *DockerDaemonSuite) TestInfoLabels(c *check.C) {
+	testRequires(c, SameHostDaemon, DaemonIsLinux)
+
+	err := s.d.Start("--label", `test.empty=`, "--label", `test.empty=`, "--label", `test.label="1"`, "--label", `test.label="2"`)
+	c.Assert(err, checker.IsNil)
+
+	out, err := s.d.Cmd("info")
+	c.Assert(err, checker.IsNil)
+	c.Assert(out, checker.Contains, "WARNING: labels with duplicate keys and conflicting values have been deprecated")
 }

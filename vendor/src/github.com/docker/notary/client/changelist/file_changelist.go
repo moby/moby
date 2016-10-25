@@ -5,12 +5,12 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"path"
 	"sort"
 	"time"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/uuid"
+	"path/filepath"
 )
 
 // FileChangelist stores all the changes as files
@@ -46,13 +46,14 @@ func getFileNames(dirName string) ([]os.FileInfo, error) {
 		}
 		fileInfos = append(fileInfos, f)
 	}
+	sort.Sort(fileChanges(fileInfos))
 	return fileInfos, nil
 }
 
-// Read a JSON formatted file from disk; convert to TufChange struct
-func unmarshalFile(dirname string, f os.FileInfo) (*TufChange, error) {
-	c := &TufChange{}
-	raw, err := ioutil.ReadFile(path.Join(dirname, f.Name()))
+// Read a JSON formatted file from disk; convert to TUFChange struct
+func unmarshalFile(dirname string, f os.FileInfo) (*TUFChange, error) {
+	c := &TUFChange{}
+	raw, err := ioutil.ReadFile(filepath.Join(dirname, f.Name()))
 	if err != nil {
 		return c, err
 	}
@@ -70,7 +71,6 @@ func (cl FileChangelist) List() []Change {
 	if err != nil {
 		return changes
 	}
-	sort.Sort(fileChanges(fileInfos))
 	for _, f := range fileInfos {
 		c, err := unmarshalFile(cl.dir, f)
 		if err != nil {
@@ -89,10 +89,32 @@ func (cl FileChangelist) Add(c Change) error {
 		return err
 	}
 	filename := fmt.Sprintf("%020d_%s.change", time.Now().UnixNano(), uuid.Generate())
-	return ioutil.WriteFile(path.Join(cl.dir, filename), cJSON, 0644)
+	return ioutil.WriteFile(filepath.Join(cl.dir, filename), cJSON, 0644)
+}
+
+// Remove deletes the changes found at the given indices
+func (cl FileChangelist) Remove(idxs []int) error {
+	fileInfos, err := getFileNames(cl.dir)
+	if err != nil {
+		return err
+	}
+	remove := make(map[int]struct{})
+	for _, i := range idxs {
+		remove[i] = struct{}{}
+	}
+	for i, c := range fileInfos {
+		if _, ok := remove[i]; ok {
+			file := filepath.Join(cl.dir, c.Name())
+			if err := os.Remove(file); err != nil {
+				logrus.Errorf("could not remove change %d: %s", i, err.Error())
+			}
+		}
+	}
+	return nil
 }
 
 // Clear clears the change list
+// N.B. archiving not currently implemented
 func (cl FileChangelist) Clear(archive string) error {
 	dir, err := os.Open(cl.dir)
 	if err != nil {
@@ -104,7 +126,7 @@ func (cl FileChangelist) Clear(archive string) error {
 		return err
 	}
 	for _, f := range files {
-		os.Remove(path.Join(cl.dir, f.Name()))
+		os.Remove(filepath.Join(cl.dir, f.Name()))
 	}
 	return nil
 }
@@ -121,7 +143,6 @@ func (cl FileChangelist) NewIterator() (ChangeIterator, error) {
 	if err != nil {
 		return &FileChangeListIterator{}, err
 	}
-	sort.Sort(fileChanges(fileInfos))
 	return &FileChangeListIterator{dirname: cl.dir, collection: fileInfos}, nil
 }
 

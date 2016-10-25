@@ -9,9 +9,9 @@ import (
 	"testing"
 
 	"github.com/docker/distribution/registry/client/transport"
+	"github.com/docker/docker/api/types"
+	registrytypes "github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/reference"
-	"github.com/docker/engine-api/types"
-	registrytypes "github.com/docker/engine-api/types/registry"
 )
 
 var (
@@ -25,7 +25,7 @@ const (
 
 func spawnTestRegistrySession(t *testing.T) *Session {
 	authConfig := &types.AuthConfig{}
-	endpoint, err := NewEndpoint(makeIndex("/v1/"), "", nil, APIVersionUnknown)
+	endpoint, err := NewV1Endpoint(makeIndex("/v1/"), "", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -53,7 +53,7 @@ func spawnTestRegistrySession(t *testing.T) *Session {
 
 func TestPingRegistryEndpoint(t *testing.T) {
 	testPing := func(index *registrytypes.IndexInfo, expectedStandalone bool, assertMessage string) {
-		ep, err := NewEndpoint(index, "", nil, APIVersionUnknown)
+		ep, err := NewV1Endpoint(index, "", nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -72,8 +72,8 @@ func TestPingRegistryEndpoint(t *testing.T) {
 
 func TestEndpoint(t *testing.T) {
 	// Simple wrapper to fail test if err != nil
-	expandEndpoint := func(index *registrytypes.IndexInfo) *Endpoint {
-		endpoint, err := NewEndpoint(index, "", nil, APIVersionUnknown)
+	expandEndpoint := func(index *registrytypes.IndexInfo) *V1Endpoint {
+		endpoint, err := NewV1Endpoint(index, "", nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -82,7 +82,7 @@ func TestEndpoint(t *testing.T) {
 
 	assertInsecureIndex := func(index *registrytypes.IndexInfo) {
 		index.Secure = true
-		_, err := NewEndpoint(index, "", nil, APIVersionUnknown)
+		_, err := NewV1Endpoint(index, "", nil)
 		assertNotEqual(t, err, nil, index.Name+": Expected error for insecure index")
 		assertEqual(t, strings.Contains(err.Error(), "insecure-registry"), true, index.Name+": Expected insecure-registry  error for insecure index")
 		index.Secure = false
@@ -90,7 +90,7 @@ func TestEndpoint(t *testing.T) {
 
 	assertSecureIndex := func(index *registrytypes.IndexInfo) {
 		index.Secure = true
-		_, err := NewEndpoint(index, "", nil, APIVersionUnknown)
+		_, err := NewV1Endpoint(index, "", nil)
 		assertNotEqual(t, err, nil, index.Name+": Expected cert error for secure index")
 		assertEqual(t, strings.Contains(err.Error(), "certificate signed by unknown authority"), true, index.Name+": Expected cert error for secure index")
 		index.Secure = false
@@ -100,51 +100,33 @@ func TestEndpoint(t *testing.T) {
 	index.Name = makeURL("/v1/")
 	endpoint := expandEndpoint(index)
 	assertEqual(t, endpoint.String(), index.Name, "Expected endpoint to be "+index.Name)
-	if endpoint.Version != APIVersion1 {
-		t.Fatal("Expected endpoint to be v1")
-	}
 	assertInsecureIndex(index)
 
 	index.Name = makeURL("")
 	endpoint = expandEndpoint(index)
 	assertEqual(t, endpoint.String(), index.Name+"/v1/", index.Name+": Expected endpoint to be "+index.Name+"/v1/")
-	if endpoint.Version != APIVersion1 {
-		t.Fatal("Expected endpoint to be v1")
-	}
 	assertInsecureIndex(index)
 
 	httpURL := makeURL("")
 	index.Name = strings.SplitN(httpURL, "://", 2)[1]
 	endpoint = expandEndpoint(index)
 	assertEqual(t, endpoint.String(), httpURL+"/v1/", index.Name+": Expected endpoint to be "+httpURL+"/v1/")
-	if endpoint.Version != APIVersion1 {
-		t.Fatal("Expected endpoint to be v1")
-	}
 	assertInsecureIndex(index)
 
 	index.Name = makeHTTPSURL("/v1/")
 	endpoint = expandEndpoint(index)
 	assertEqual(t, endpoint.String(), index.Name, "Expected endpoint to be "+index.Name)
-	if endpoint.Version != APIVersion1 {
-		t.Fatal("Expected endpoint to be v1")
-	}
 	assertSecureIndex(index)
 
 	index.Name = makeHTTPSURL("")
 	endpoint = expandEndpoint(index)
 	assertEqual(t, endpoint.String(), index.Name+"/v1/", index.Name+": Expected endpoint to be "+index.Name+"/v1/")
-	if endpoint.Version != APIVersion1 {
-		t.Fatal("Expected endpoint to be v1")
-	}
 	assertSecureIndex(index)
 
 	httpsURL := makeHTTPSURL("")
 	index.Name = strings.SplitN(httpsURL, "://", 2)[1]
 	endpoint = expandEndpoint(index)
 	assertEqual(t, endpoint.String(), httpsURL+"/v1/", index.Name+": Expected endpoint to be "+httpsURL+"/v1/")
-	if endpoint.Version != APIVersion1 {
-		t.Fatal("Expected endpoint to be v1")
-	}
 	assertSecureIndex(index)
 
 	badEndpoints := []string{
@@ -156,7 +138,7 @@ func TestEndpoint(t *testing.T) {
 	}
 	for _, address := range badEndpoints {
 		index.Name = address
-		_, err := NewEndpoint(index, "", nil, APIVersionUnknown)
+		_, err := NewV1Endpoint(index, "", nil)
 		checkNotEqual(t, err, nil, "Expected error while expanding bad endpoint")
 	}
 }
@@ -189,7 +171,7 @@ func TestGetRemoteImageJSON(t *testing.T) {
 		t.Fatal(err)
 	}
 	assertEqual(t, size, int64(154), "Expected size 154")
-	if len(json) <= 0 {
+	if len(json) == 0 {
 		t.Fatal("Expected non-empty json")
 	}
 
@@ -541,7 +523,7 @@ func TestParseRepositoryInfo(t *testing.T) {
 }
 
 func TestNewIndexInfo(t *testing.T) {
-	testIndexInfo := func(config *registrytypes.ServiceConfig, expectedIndexInfos map[string]*registrytypes.IndexInfo) {
+	testIndexInfo := func(config *serviceConfig, expectedIndexInfos map[string]*registrytypes.IndexInfo) {
 		for indexName, expectedIndexInfo := range expectedIndexInfos {
 			index, err := newIndexInfo(config, indexName)
 			if err != nil {
@@ -555,7 +537,7 @@ func TestNewIndexInfo(t *testing.T) {
 		}
 	}
 
-	config := NewServiceConfig(nil)
+	config := newServiceConfig(ServiceOptions{})
 	noMirrors := []string{}
 	expectedIndexInfos := map[string]*registrytypes.IndexInfo{
 		IndexName: {
@@ -679,13 +661,13 @@ func TestMirrorEndpointLookup(t *testing.T) {
 		}
 		return false
 	}
-	s := Service{Config: makeServiceConfig([]string{"my.mirror"}, nil)}
+	s := DefaultService{config: makeServiceConfig([]string{"my.mirror"}, nil)}
 
 	imageName, err := reference.WithName(IndexName + "/test/image")
 	if err != nil {
 		t.Error(err)
 	}
-	pushAPIEndpoints, err := s.LookupPushEndpoints(imageName)
+	pushAPIEndpoints, err := s.LookupPushEndpoints(imageName.Hostname())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -693,7 +675,7 @@ func TestMirrorEndpointLookup(t *testing.T) {
 		t.Fatal("Push endpoint should not contain mirror")
 	}
 
-	pullAPIEndpoints, err := s.LookupPullEndpoints(imageName)
+	pullAPIEndpoints, err := s.LookupPullEndpoints(imageName.Hostname())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -748,7 +730,7 @@ func TestPushImageJSONIndex(t *testing.T) {
 
 func TestSearchRepositories(t *testing.T) {
 	r := spawnTestRegistrySession(t)
-	results, err := r.SearchRepositories("fakequery")
+	results, err := r.SearchRepositories("fakequery", 25)
 	if err != nil {
 		t.Fatal(err)
 	}

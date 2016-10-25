@@ -13,50 +13,73 @@ package signed
 
 import (
 	"crypto/rand"
-	"fmt"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/notary/trustmanager"
 	"github.com/docker/notary/tuf/data"
 	"github.com/docker/notary/tuf/utils"
 )
 
-// Sign takes a data.Signed and a key, calculated and adds the signature
-// to the data.Signed
-func Sign(service CryptoService, s *data.Signed, keys ...data.PublicKey) error {
-	logrus.Debugf("sign called with %d keys", len(keys))
+// Sign takes a data.Signed and a cryptoservice containing private keys,
+// calculates and adds at least minSignature signatures using signingKeys the
+// data.Signed.  It will also clean up any signatures that are not in produced
+// by either a signingKey or an otherWhitelistedKey.
+// Note that in most cases, otherWhitelistedKeys should probably be null. They
+// are for keys you don't want to sign with, but you also don't want to remove
+// existing signatures by those keys.  For instance, if you want to call Sign
+// multiple times with different sets of signing keys without undoing removing
+// signatures produced by the previous call to Sign.
+func Sign(service CryptoService, s *data.Signed, signingKeys []data.PublicKey,
+	minSignatures int, otherWhitelistedKeys []data.PublicKey) error {
+
+	logrus.Debugf("sign called with %d/%d required keys", minSignatures, len(signingKeys))
 	signatures := make([]data.Signature, 0, len(s.Signatures)+1)
 	signingKeyIDs := make(map[string]struct{})
-	ids := make([]string, 0, len(keys))
+	tufIDs := make(map[string]data.PublicKey)
 
 	privKeys := make(map[string]data.PrivateKey)
 
 	// Get all the private key objects related to the public keys
-	for _, key := range keys {
+	missingKeyIDs := []string{}
+	for _, key := range signingKeys {
 		canonicalID, err := utils.CanonicalKeyID(key)
-		ids = append(ids, canonicalID)
+		tufIDs[key.ID()] = key
 		if err != nil {
-			continue
+			return err
 		}
 		k, _, err := service.GetPrivateKey(canonicalID)
 		if err != nil {
-			continue
+			if _, ok := err.(trustmanager.ErrKeyNotFound); ok {
+				missingKeyIDs = append(missingKeyIDs, canonicalID)
+				continue
+			}
+			return err
 		}
 		privKeys[key.ID()] = k
 	}
 
-	// Check to ensure we have at least one signing key
-	if len(privKeys) == 0 {
-		return ErrNoKeys{KeyIDs: ids}
+	// include the list of otherWhitelistedKeys
+	for _, key := range otherWhitelistedKeys {
+		if _, ok := tufIDs[key.ID()]; !ok {
+			tufIDs[key.ID()] = key
+		}
 	}
 
+	// Check to ensure we have enough signing keys
+	if len(privKeys) < minSignatures {
+		return ErrInsufficientSignatures{FoundKeys: len(privKeys),
+			NeededKeys: minSignatures, MissingKeyIDs: missingKeyIDs}
+	}
+
+	emptyStruct := struct{}{}
 	// Do signing and generate list of signatures
 	for keyID, pk := range privKeys {
-		sig, err := pk.Sign(rand.Reader, s.Signed, nil)
+		sig, err := pk.Sign(rand.Reader, *s.Signed, nil)
 		if err != nil {
 			logrus.Debugf("Failed to sign with key: %s. Reason: %v", keyID, err)
-			continue
+			return err
 		}
-		signingKeyIDs[keyID] = struct{}{}
+		signingKeyIDs[keyID] = emptyStruct
 		signatures = append(signatures, data.Signature{
 			KeyID:     keyID,
 			Method:    pk.SignatureAlgorithm(),
@@ -64,20 +87,25 @@ func Sign(service CryptoService, s *data.Signed, keys ...data.PublicKey) error {
 		})
 	}
 
-	// Check we produced at least on signature
-	if len(signatures) < 1 {
-		return ErrInsufficientSignatures{
-			Name: fmt.Sprintf(
-				"cryptoservice failed to produce any signatures for keys with IDs: %v",
-				ids),
-		}
-	}
-
 	for _, sig := range s.Signatures {
 		if _, ok := signingKeyIDs[sig.KeyID]; ok {
 			// key is in the set of key IDs for which a signature has been created
 			continue
 		}
+		var (
+			k  data.PublicKey
+			ok bool
+		)
+		if k, ok = tufIDs[sig.KeyID]; !ok {
+			// key is no longer a valid signing key
+			continue
+		}
+		if err := VerifySignature(*s.Signed, &sig, k); err != nil {
+			// signature is no longer valid
+			continue
+		}
+		// keep any signatures that still represent valid keys and are
+		// themselves valid
 		signatures = append(signatures, sig)
 	}
 	s.Signatures = signatures

@@ -1,10 +1,10 @@
 package daemon
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/docker/docker/container"
-	derr "github.com/docker/docker/errors"
 	volumestore "github.com/docker/docker/volume/store"
 )
 
@@ -27,7 +27,7 @@ func (daemon *Daemon) removeMountPoints(container *container.Container, rm bool)
 		if rm {
 			// Do not remove named mountpoints
 			// these are mountpoints specified like `docker run -v <name>:/foo`
-			if m.Named {
+			if m.Spec.Source != "" {
 				continue
 			}
 			err := daemon.volumes.Remove(m.Volume)
@@ -42,7 +42,7 @@ func (daemon *Daemon) removeMountPoints(container *container.Container, rm bool)
 		}
 	}
 	if len(rmErrors) > 0 {
-		return derr.ErrorCodeRemovingVolume.WithArgs(strings.Join(rmErrors, "\n"))
+		return fmt.Errorf("Error removing volumes:\n%v", strings.Join(rmErrors, "\n"))
 	}
 	return nil
 }

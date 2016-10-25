@@ -62,7 +62,7 @@ func getAddressVersion(ip net.IP) ipVersion {
 }
 
 // Adds the ordinal IP to the current array
-// 192.168.0.0 + 53 => 192.168.53
+// 192.168.0.0 + 53 => 192.168.0.53
 func addIntToIP(array []byte, ordinal uint64) {
 	for i := len(array) - 1; i >= 0; i-- {
 		array[i] |= (byte)(ordinal & 0xff)

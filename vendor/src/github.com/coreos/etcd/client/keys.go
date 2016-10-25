@@ -1,4 +1,4 @@
-// Copyright 2015 CoreOS, Inc.
+// Copyright 2015 The etcd Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@
 
 package client
 
-//go:generate codecgen -r "Node|Response" -o keys.generated.go keys.go
+//go:generate codecgen -d 1819 -r "Node|Response|Nodes" -o keys.generated.go keys.go
 
 import (
 	"encoding/json"
@@ -26,9 +26,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/coreos/etcd/pkg/pathutil"
 	"github.com/ugorji/go/codec"
 	"golang.org/x/net/context"
-	"github.com/coreos/etcd/pkg/pathutil"
 )
 
 const (
@@ -106,7 +106,7 @@ type KeysAPI interface {
 
 	// Set assigns a new value to a Node identified by a given key. The caller
 	// may define a set of conditions in the SetOptions. If SetOptions.Dir=true
-	// than value is ignored.
+	// then value is ignored.
 	Set(ctx context.Context, key, value string, opts *SetOptions) (*Response, error)
 
 	// Delete removes a Node identified by the given key, optionally destroying
@@ -184,6 +184,11 @@ type SetOptions struct {
 	// a TTL of 0.
 	TTL time.Duration
 
+	// Refresh set to true means a TTL value can be updated
+	// without firing a watch or changing the node value. A
+	// value must not be provided when refreshing a key.
+	Refresh bool
+
 	// Dir specifies whether or not this Node should be created as a directory.
 	Dir bool
 }
@@ -234,7 +239,7 @@ type DeleteOptions struct {
 
 type Watcher interface {
 	// Next blocks until an etcd event occurs, then returns a Response
-	// represeting that event. The behavior of Next depends on the
+	// representing that event. The behavior of Next depends on the
 	// WatcherOptions used to construct the Watcher. Next is designed to
 	// be called repeatedly, each time blocking until a subsequent event
 	// is available.
@@ -279,7 +284,7 @@ type Node struct {
 	// Nodes holds the children of this Node, only if this Node is a directory.
 	// This slice of will be arbitrarily deep (children, grandchildren, great-
 	// grandchildren, etc.) if a recursive Get or Watch request were made.
-	Nodes []*Node `json:"nodes"`
+	Nodes Nodes `json:"nodes"`
 
 	// CreatedIndex is the etcd index at-which this Node was created.
 	CreatedIndex uint64 `json:"createdIndex"`
@@ -303,6 +308,14 @@ func (n *Node) TTLDuration() time.Duration {
 	return time.Duration(n.TTL) * time.Second
 }
 
+type Nodes []*Node
+
+// interfaces for sorting
+
+func (ns Nodes) Len() int           { return len(ns) }
+func (ns Nodes) Less(i, j int) bool { return ns[i].Key < ns[j].Key }
+func (ns Nodes) Swap(i, j int)      { ns[i], ns[j] = ns[j], ns[i] }
+
 type httpKeysAPI struct {
 	client httpClient
 	prefix string
@@ -320,10 +333,15 @@ func (k *httpKeysAPI) Set(ctx context.Context, key, val string, opts *SetOptions
 		act.PrevIndex = opts.PrevIndex
 		act.PrevExist = opts.PrevExist
 		act.TTL = opts.TTL
+		act.Refresh = opts.Refresh
 		act.Dir = opts.Dir
 	}
 
-	resp, body, err := k.client.Do(ctx, act)
+	doCtx := ctx
+	if act.PrevExist == PrevNoExist {
+		doCtx = context.WithValue(doCtx, &oneShotCtxValue, &oneShotCtxValue)
+	}
+	resp, body, err := k.client.Do(doCtx, act)
 	if err != nil {
 		return nil, err
 	}
@@ -371,7 +389,8 @@ func (k *httpKeysAPI) Delete(ctx context.Context, key string, opts *DeleteOption
 		act.Recursive = opts.Recursive
 	}
 
-	resp, body, err := k.client.Do(ctx, act)
+	doCtx := context.WithValue(ctx, &oneShotCtxValue, &oneShotCtxValue)
+	resp, body, err := k.client.Do(doCtx, act)
 	if err != nil {
 		return nil, err
 	}
@@ -511,6 +530,7 @@ type setAction struct {
 	PrevIndex uint64
 	PrevExist PrevExistType
 	TTL       time.Duration
+	Refresh   bool
 	Dir       bool
 }
 
@@ -540,6 +560,10 @@ func (a *setAction) HTTPRequest(ep url.URL) *http.Request {
 	}
 	if a.TTL > 0 {
 		form.Add("ttl", strconv.FormatUint(uint64(a.TTL.Seconds()), 10))
+	}
+
+	if a.Refresh {
+		form.Add("refresh", "true")
 	}
 
 	u.RawQuery = params.Encode()

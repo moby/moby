@@ -1,9 +1,11 @@
 package build
 
 import (
-	"github.com/docker/docker/builder"
-	"github.com/docker/engine-api/types"
 	"io"
+
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/backend"
+	"golang.org/x/net/context"
 )
 
 // Backend abstracts an image builder whose only purpose is to build an image referenced by an imageID.
@@ -14,5 +16,5 @@ type Backend interface {
 	// by the caller.
 	//
 	// TODO: make this return a reference instead of string
-	Build(config *types.ImageBuildOptions, context builder.Context, stdout io.Writer, stderr io.Writer, out io.Writer, clientGone <-chan bool) (string, error)
+	BuildFromContext(ctx context.Context, src io.ReadCloser, remote string, buildOptions *types.ImageBuildOptions, pg backend.ProgressWriter) (string, error)
 }

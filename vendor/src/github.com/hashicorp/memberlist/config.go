@@ -2,6 +2,7 @@ package memberlist
 
 import (
 	"io"
+	"log"
 	"os"
 	"time"
 )
@@ -85,6 +86,11 @@ type Config struct {
 	ProbeInterval time.Duration
 	ProbeTimeout  time.Duration
 
+	// DisableTcpPings will turn off the fallback TCP pings that are attempted
+	// if the direct UDP ping fails. These get pipelined along with the
+	// indirect UDP pings.
+	DisableTcpPings bool
+
 	// GossipInterval and GossipNodes are used to configure the gossip
 	// behavior of memberlist.
 	//
@@ -111,6 +117,8 @@ type Config struct {
 	// the first key used while attempting to decrypt messages. Providing a
 	// value for this primary key will enable message-level encryption and
 	// verification, and automatically install the key onto the keyring.
+	// The value should be either 16, 24, or 32 bytes to select AES-128,
+	// AES-192, or AES-256.
 	SecretKey []byte
 
 	// The keyring holds all of the encryption keys used internally. It is
@@ -132,16 +140,29 @@ type Config struct {
 	Events                  EventDelegate
 	Conflict                ConflictDelegate
 	Merge                   MergeDelegate
+	Ping                    PingDelegate
+	Alive                   AliveDelegate
+
+	// DNSConfigPath points to the system's DNS config file, usually located
+	// at /etc/resolv.conf. It can be overridden via config for easier testing.
+	DNSConfigPath string
 
 	// LogOutput is the writer where logs should be sent. If this is not
-	// set, logging will go to stderr by default.
+	// set, logging will go to stderr by default. You cannot specify both LogOutput
+	// and Logger at the same time.
 	LogOutput io.Writer
+
+	// Logger is a custom logger which you provide. If Logger is set, it will use
+	// this for the internal logger. If Logger is not set, it will fall back to the
+	// behavior for using LogOutput. You cannot specify both LogOutput and Logger
+	// at the same time.
+	Logger *log.Logger
 }
 
 // DefaultLANConfig returns a sane set of configurations for Memberlist.
 // It uses the hostname as the node name, and otherwise sets very conservative
 // values that are sane for most LAN environments. The default configuration
-// errs on the side on the side of caution, choosing values that are optimized
+// errs on the side of caution, choosing values that are optimized
 // for higher convergence at the cost of higher bandwidth usage. Regardless,
 // these values are a good starting point when getting started with memberlist.
 func DefaultLANConfig() *Config {
@@ -152,7 +173,7 @@ func DefaultLANConfig() *Config {
 		BindPort:         7946,
 		AdvertiseAddr:    "",
 		AdvertisePort:    7946,
-		ProtocolVersion:  ProtocolVersionMax,
+		ProtocolVersion:  ProtocolVersion2Compatible,
 		TCPTimeout:       10 * time.Second,       // Timeout after 10 seconds
 		IndirectChecks:   3,                      // Use 3 nodes for the indirect ping
 		RetransmitMult:   4,                      // Retransmit a message 4 * log(N+1) nodes
@@ -160,6 +181,7 @@ func DefaultLANConfig() *Config {
 		PushPullInterval: 30 * time.Second,       // Low frequency
 		ProbeTimeout:     500 * time.Millisecond, // Reasonable RTT time for LAN
 		ProbeInterval:    1 * time.Second,        // Failure check every second
+		DisableTcpPings:  false,                  // TCP pings are safe, even with mixed versions
 
 		GossipNodes:    3,                      // Gossip to 3 nodes
 		GossipInterval: 200 * time.Millisecond, // Gossip more rapidly
@@ -167,8 +189,9 @@ func DefaultLANConfig() *Config {
 		EnableCompression: true, // Enable compression by default
 
 		SecretKey: nil,
+		Keyring:   nil,
 
-		Keyring: nil,
+		DNSConfigPath: "/etc/resolv.conf",
 	}
 }
 

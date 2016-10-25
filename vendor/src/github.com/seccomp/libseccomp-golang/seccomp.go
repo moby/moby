@@ -3,7 +3,7 @@
 // Public API specification for libseccomp Go bindings
 // Contains public API for the bindings
 
-// Package seccomp rovides bindings for libseccomp, a library wrapping the Linux
+// Package seccomp provides bindings for libseccomp, a library wrapping the Linux
 // seccomp syscall. Seccomp enables an application to restrict system call use
 // for itself and its children.
 package seccomp
@@ -20,7 +20,7 @@ import (
 
 // C wrapping code
 
-// #cgo LDFLAGS: -lseccomp
+// #cgo pkg-config: libseccomp
 // #include <stdlib.h>
 // #include <seccomp.h>
 import "C"
@@ -85,6 +85,16 @@ const (
 	// ArchMIPSEL64N32 represents 64-bit MIPS syscalls (little endian,
 	// 32-bit pointers)
 	ArchMIPSEL64N32 ScmpArch = iota
+	// ArchPPC represents 32-bit POWERPC syscalls
+	ArchPPC ScmpArch = iota
+	// ArchPPC64 represents 64-bit POWER syscalls (big endian)
+	ArchPPC64 ScmpArch = iota
+	// ArchPPC64LE represents 64-bit POWER syscalls (little endian)
+	ArchPPC64LE ScmpArch = iota
+	// ArchS390 represents 31-bit System z/390 syscalls
+	ArchS390 ScmpArch = iota
+	// ArchS390X represents 64-bit System z/390 syscalls
+	ArchS390X ScmpArch = iota
 )
 
 const (
@@ -164,6 +174,16 @@ func GetArchFromString(arch string) (ScmpArch, error) {
 		return ArchMIPSEL64, nil
 	case "mipsel64n32":
 		return ArchMIPSEL64N32, nil
+	case "ppc":
+		return ArchPPC, nil
+	case "ppc64":
+		return ArchPPC64, nil
+	case "ppc64le":
+		return ArchPPC64LE, nil
+	case "s390":
+		return ArchS390, nil
+	case "s390x":
+		return ArchS390X, nil
 	default:
 		return ArchInvalid, fmt.Errorf("cannot convert unrecognized string %s", arch)
 	}
@@ -194,6 +214,16 @@ func (a ScmpArch) String() string {
 		return "mipsel64"
 	case ArchMIPSEL64N32:
 		return "mipsel64n32"
+	case ArchPPC:
+		return "ppc"
+	case ArchPPC64:
+		return "ppc64"
+	case ArchPPC64LE:
+		return "ppc64le"
+	case ArchS390:
+		return "s390"
+	case ArchS390X:
+		return "s390x"
 	case ArchNative:
 		return "native"
 	case ArchInvalid:

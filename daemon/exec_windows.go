@@ -2,11 +2,12 @@ package daemon
 
 import (
 	"github.com/docker/docker/container"
-	"github.com/docker/docker/daemon/execdriver"
-	"github.com/docker/engine-api/types"
+	"github.com/docker/docker/daemon/exec"
+	"github.com/docker/docker/libcontainerd"
 )
 
-// setPlatformSpecificExecProcessConfig sets platform-specific fields in the
-// ProcessConfig structure. This is a no-op on Windows
-func setPlatformSpecificExecProcessConfig(config *types.ExecConfig, container *container.Container, pc *execdriver.ProcessConfig) {
+func execSetPlatformOpt(c *container.Container, ec *exec.Config, p *libcontainerd.Process) error {
+	// Process arguments need to be escaped before sending to OCI.
+	p.Args = escapeArgs(p.Args)
+	return nil
 }

@@ -9,9 +9,12 @@ import (
 	"os"
 	"time"
 
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/backend"
+	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/image"
 	"github.com/docker/docker/reference"
-	"github.com/docker/engine-api/types"
-	"github.com/docker/engine-api/types/container"
+	"golang.org/x/net/context"
 )
 
 const (
@@ -104,27 +107,27 @@ func (fi *HashedFileInfo) SetHash(h string) {
 type Backend interface {
 	// TODO: use digest reference instead of name
 
-	// GetImage looks up a Docker image referenced by `name`.
+	// GetImageOnBuild looks up a Docker image referenced by `name`.
 	GetImageOnBuild(name string) (Image, error)
-	// Tag an image with newTag
-	TagImage(newTag reference.Named, imageName string) error
-	// Pull tells Docker to pull image referenced by `name`.
-	PullOnBuild(name string, authConfigs map[string]types.AuthConfig, output io.Writer) (Image, error)
-	// ContainerAttach attaches to container.
+	// TagImage tags an image with newTag
+	TagImageWithReference(image.ID, reference.Named) error
+	// PullOnBuild tells Docker to pull image referenced by `name`.
+	PullOnBuild(ctx context.Context, name string, authConfigs map[string]types.AuthConfig, output io.Writer) (Image, error)
+	// ContainerAttachRaw attaches to container.
 	ContainerAttachRaw(cID string, stdin io.ReadCloser, stdout, stderr io.Writer, stream bool) error
 	// ContainerCreate creates a new Docker container and returns potential warnings
-	ContainerCreate(types.ContainerCreateConfig) (types.ContainerCreateResponse, error)
+	ContainerCreate(config types.ContainerCreateConfig, validateHostname bool) (types.ContainerCreateResponse, error)
 	// ContainerRm removes a container specified by `id`.
 	ContainerRm(name string, config *types.ContainerRmConfig) error
 	// Commit creates a new Docker image from an existing Docker container.
-	Commit(string, *types.ContainerCommitConfig) (string, error)
-	// Kill stops the container execution abruptly.
+	Commit(string, *backend.ContainerCommitConfig) (string, error)
+	// ContainerKill stops the container execution abruptly.
 	ContainerKill(containerID string, sig uint64) error
-	// Start starts a new container
-	ContainerStart(containerID string, hostConfig *container.HostConfig) error
+	// ContainerStart starts a new container
+	ContainerStart(containerID string, hostConfig *container.HostConfig, validateHostname bool, checkpoint string) error
 	// ContainerWait stops processing until the given container is stopped.
 	ContainerWait(containerID string, timeout time.Duration) (int, error)
-	// ContainerUpdateCmd updates container.Path and container.Args
+	// ContainerUpdateCmdOnBuild updates container.Path and container.Args
 	ContainerUpdateCmdOnBuild(containerID string, cmd []string) error
 
 	// ContainerCopy copies/extracts a source FileInfo to a destination path inside a container
@@ -143,10 +146,16 @@ type Image interface {
 	RunConfig() *container.Config
 }
 
-// ImageCache abstracts an image cache store.
+// ImageCacheBuilder represents a generator for stateful image cache.
+type ImageCacheBuilder interface {
+	// MakeImageCache creates a stateful image cache.
+	MakeImageCache(cacheFrom []string) ImageCache
+}
+
+// ImageCache abstracts an image cache.
 // (parent image, child runconfig) -> child image
 type ImageCache interface {
 	// GetCachedImageOnBuild returns a reference to a cached image whose parent equals `parent`
 	// and runconfig equals `cfg`. A cache miss is expected to return an empty ID and a nil error.
-	GetCachedImageOnBuild(parentID string, cfg *container.Config) (imageID string, err error)
+	GetCache(parentID string, cfg *container.Config) (imageID string, err error)
 }

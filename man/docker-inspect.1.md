@@ -2,23 +2,23 @@
 % Docker Community
 % JUNE 2014
 # NAME
-docker-inspect - Return low-level information on a container or image
+docker-inspect - Return low-level information on docker objects
 
 # SYNOPSIS
 **docker inspect**
 [**--help**]
 [**-f**|**--format**[=*FORMAT*]]
 [**-s**|**--size**]
-[**--type**=*container*|*image*]
-CONTAINER|IMAGE [CONTAINER|IMAGE...]
+[**--type**=*container*|*image*|*network*|*node*|*service*|*task*|*volume*]
+NAME|ID [NAME|ID...]
 
 # DESCRIPTION
 
-This displays all the information available in Docker for a given
-container or image. By default, this will render all results in a JSON
-array. If the container and image have the same name, this will return 
-container JSON for unspecified type. If a format is specified, the given
-template will be executed for each result.
+This displays all the information available in Docker for one or multiple given
+containers, images, volumes, networks, nodes, services, or tasks. By default,
+this will render all results in a JSON array. If the container and image have
+the same name, this will return container JSON for unspecified type. If a format
+is specified, the given template will be executed for each result.
 
 # OPTIONS
 **--help**
@@ -30,8 +30,9 @@ template will be executed for each result.
 **-s**, **--size**
     Display total file sizes if the type is container.
 
-**--type**="*container*|*image*"
-    Return JSON for specified type, permissible values are "image" or "container"
+**--type**=*container*|*image*|*network*|*node*|*service*|*task*|*volume*
+    Return JSON for specified type, permissible values are "image", "container",
+    "network", "node", "service", "task", and "volume".
 
 # EXAMPLES
 
@@ -110,7 +111,6 @@ To get information on a container use its ID or instance name:
     "Name": "/adoring_wozniak",
     "RestartCount": 0,
     "Driver": "devicemapper",
-    "ExecDriver": "native-0.2",
     "MountLabel": "",
     "ProcessLabel": "",
     "Mounts": [
@@ -224,7 +224,7 @@ output:
 You can get more information about how to write a Go template from:
 https://golang.org/pkg/text/template/.
 
-## Getting size information on an container
+## Getting size information on a container
 
     $ docker inspect -s d2cc496561d6
     [

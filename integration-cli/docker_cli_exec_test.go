@@ -8,14 +8,15 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"reflect"
+	"runtime"
 	"sort"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/docker/docker/pkg/integration/checker"
+	icmd "github.com/docker/docker/pkg/integration/cmd"
 	"github.com/go-check/check"
 )
 
@@ -67,7 +68,6 @@ func (s *DockerSuite) TestExecInteractive(c *check.C) {
 }
 
 func (s *DockerSuite) TestExecAfterContainerRestart(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	out, _ := runSleepingContainer(c)
 	cleanedContainerID := strings.TrimSpace(out)
 	c.Assert(waitRun(cleanedContainerID), check.IsNil)
@@ -119,21 +119,29 @@ func (s *DockerSuite) TestExecEnv(c *check.C) {
 	c.Assert(out, checker.Contains, "HOME=/root")
 }
 
+func (s *DockerSuite) TestExecSetEnv(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+	runSleepingContainer(c, "-e", "HOME=/root", "-d", "--name", "testing")
+	c.Assert(waitRun("testing"), check.IsNil)
+
+	out, _ := dockerCmd(c, "exec", "-e", "HOME=/another", "-e", "ABC=xyz", "testing", "env")
+	c.Assert(out, checker.Not(checker.Contains), "HOME=/root")
+	c.Assert(out, checker.Contains, "HOME=/another")
+	c.Assert(out, checker.Contains, "ABC=xyz")
+}
+
 func (s *DockerSuite) TestExecExitStatus(c *check.C) {
 	runSleepingContainer(c, "-d", "--name", "top")
 
-	// Test normal (non-detached) case first
-	cmd := exec.Command(dockerBinary, "exec", "top", "sh", "-c", "exit 23")
-	ec, _ := runCommand(cmd)
-	c.Assert(ec, checker.Equals, 23)
+	result := icmd.RunCommand(dockerBinary, "exec", "top", "sh", "-c", "exit 23")
+	c.Assert(result, icmd.Matches, icmd.Expected{ExitCode: 23, Error: "exit status 23"})
 }
 
 func (s *DockerSuite) TestExecPausedContainer(c *check.C) {
-	// Windows does not support pause
-	testRequires(c, DaemonIsLinux)
+	testRequires(c, IsPausable)
 	defer unpauseAllContainers()
 
-	out, _ := dockerCmd(c, "run", "-d", "--name", "testing", "busybox", "top")
+	out, _ := runSleepingContainer(c, "-d", "--name", "testing")
 	ContainerID := strings.TrimSpace(out)
 
 	dockerCmd(c, "pause", "testing")
@@ -167,8 +175,6 @@ func (s *DockerSuite) TestExecTTYCloseStdin(c *check.C) {
 }
 
 func (s *DockerSuite) TestExecTTYWithoutStdin(c *check.C) {
-	// TODO Windows CI: This requires some work to port to Windows.
-	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-d", "-ti", "busybox")
 	id := strings.TrimSpace(out)
 	c.Assert(waitRun(id), checker.IsNil)
@@ -183,7 +189,10 @@ func (s *DockerSuite) TestExecTTYWithoutStdin(c *check.C) {
 			return
 		}
 
-		expected := "cannot enable tty mode"
+		expected := "the input device is not a TTY"
+		if runtime.GOOS == "windows" {
+			expected += ".  If you are using mintty, try prefixing the command with 'winpty'"
+		}
 		if out, _, err := runCommandWithOutput(cmd); err == nil {
 			errChan <- fmt.Errorf("exec should have failed")
 			return
@@ -211,7 +220,7 @@ func (s *DockerSuite) TestExecParseError(c *check.C) {
 	cmd := exec.Command(dockerBinary, "exec", "top")
 	_, stderr, _, err := runCommandWithStdoutStderr(cmd)
 	c.Assert(err, checker.NotNil)
-	c.Assert(stderr, checker.Contains, "See '"+dockerBinary+" exec --help'")
+	c.Assert(stderr, checker.Contains, "See 'docker exec --help'")
 }
 
 func (s *DockerSuite) TestExecStopNotHanging(c *check.C) {
@@ -313,13 +322,12 @@ func (s *DockerSuite) TestExecInspectID(c *check.C) {
 	tries := 10
 	for i := 0; i < tries; i++ {
 		// Since its still running we should see exec as part of the container
-		out = inspectField(c, id, "ExecIDs")
+		out = strings.TrimSpace(inspectField(c, id, "ExecIDs"))
 
-		out = strings.TrimSuffix(out, "\n")
 		if out != "[]" && out != "<no value>" {
 			break
 		}
-		c.Assert(i+1, checker.Not(checker.Equals), tries, check.Commentf("ExecIDs should be empty, got: %s", out))
+		c.Assert(i+1, checker.Not(checker.Equals), tries, check.Commentf("ExecIDs still empty after 10 second"))
 		time.Sleep(1 * time.Second)
 	}
 
@@ -336,11 +344,17 @@ func (s *DockerSuite) TestExecInspectID(c *check.C) {
 	// Wait for 1st exec to complete
 	cmd.Wait()
 
-	// All execs for the container should be gone now
-	out = inspectField(c, id, "ExecIDs")
+	// Give the exec 10 chances/seconds to stop then give up and stop the test
+	for i := 0; i < tries; i++ {
+		// Since its still running we should see exec as part of the container
+		out = strings.TrimSpace(inspectField(c, id, "ExecIDs"))
 
-	out = strings.TrimSuffix(out, "\n")
-	c.Assert(out == "[]" || out == "<no value>", checker.True)
+		if out == "[]" {
+			break
+		}
+		c.Assert(i+1, checker.Not(checker.Equals), tries, check.Commentf("ExecIDs still not empty after 10 second"))
+		time.Sleep(1 * time.Second)
+	}
 
 	// But we should still be able to query the execID
 	sc, body, err := sockRequest("GET", "/exec/"+execID+"/json", nil)
@@ -368,57 +382,6 @@ func (s *DockerSuite) TestLinksPingLinkedContainersOnRename(c *check.C) {
 	dockerCmd(c, "exec", "container2", "ping", "-c", "1", "alias1", "-W", "1")
 	dockerCmd(c, "rename", "container1", "container_new")
 	dockerCmd(c, "exec", "container2", "ping", "-c", "1", "alias1", "-W", "1")
-}
-
-func (s *DockerSuite) TestExecDir(c *check.C) {
-	// TODO Windows CI. This requires some work to port as it uses execDriverPath
-	// which is currently (and incorrectly) hard coded as a string assuming
-	// the daemon is running Linux :(
-	testRequires(c, SameHostDaemon, DaemonIsLinux)
-
-	out, _ := runSleepingContainer(c, "-d")
-	id := strings.TrimSpace(out)
-
-	execDir := filepath.Join(execDriverPath, id)
-	stateFile := filepath.Join(execDir, "state.json")
-
-	{
-		fi, err := os.Stat(execDir)
-		c.Assert(err, checker.IsNil)
-		if !fi.IsDir() {
-			c.Fatalf("%q must be a directory", execDir)
-		}
-		fi, err = os.Stat(stateFile)
-		c.Assert(err, checker.IsNil)
-	}
-
-	dockerCmd(c, "stop", id)
-	{
-		_, err := os.Stat(execDir)
-		c.Assert(err, checker.NotNil)
-		c.Assert(err, checker.NotNil, check.Commentf("Exec directory %q exists for removed container!", execDir))
-		if !os.IsNotExist(err) {
-			c.Fatalf("Error should be about non-existing, got %s", err)
-		}
-	}
-	dockerCmd(c, "start", id)
-	{
-		fi, err := os.Stat(execDir)
-		c.Assert(err, checker.IsNil)
-		if !fi.IsDir() {
-			c.Fatalf("%q must be a directory", execDir)
-		}
-		fi, err = os.Stat(stateFile)
-		c.Assert(err, checker.IsNil)
-	}
-	dockerCmd(c, "rm", "-f", id)
-	{
-		_, err := os.Stat(execDir)
-		c.Assert(err, checker.NotNil, check.Commentf("Exec directory %q exists for removed container!", execDir))
-		if !os.IsNotExist(err) {
-			c.Fatalf("Error should be about non-existing, got %s", err)
-		}
-	}
 }
 
 func (s *DockerSuite) TestRunMutableNetworkFiles(c *check.C) {
@@ -532,6 +495,17 @@ func (s *DockerSuite) TestExecOnReadonlyContainer(c *check.C) {
 	dockerCmd(c, "exec", "parent", "true")
 }
 
+func (s *DockerSuite) TestExecUlimits(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+	name := "testexeculimits"
+	runSleepingContainer(c, "-d", "--ulimit", "nproc=21", "--name", name)
+	c.Assert(waitRun(name), checker.IsNil)
+
+	out, _, err := dockerCmdWithError("exec", name, "sh", "-c", "ulimit -p")
+	c.Assert(err, checker.IsNil)
+	c.Assert(strings.TrimSpace(out), checker.Equals, "21")
+}
+
 // #15750
 func (s *DockerSuite) TestExecStartFails(c *check.C) {
 	// TODO Windows CI. This test should be portable. Figure out why it fails
@@ -544,4 +518,24 @@ func (s *DockerSuite) TestExecStartFails(c *check.C) {
 	out, _, err := dockerCmdWithError("exec", name, "no-such-cmd")
 	c.Assert(err, checker.NotNil, check.Commentf(out))
 	c.Assert(out, checker.Contains, "executable file not found")
+}
+
+// Fix regression in https://github.com/docker/docker/pull/26461#issuecomment-250287297
+func (s *DockerSuite) TestExecWindowsPathNotWiped(c *check.C) {
+	testRequires(c, DaemonIsWindows)
+	out, _ := dockerCmd(c, "run", "-d", "--name", "testing", minimalBaseImage(), "powershell", "start-sleep", "60")
+	c.Assert(waitRun(strings.TrimSpace(out)), check.IsNil)
+
+	out, _ = dockerCmd(c, "exec", "testing", "powershell", "write-host", "$env:PATH")
+	out = strings.ToLower(strings.Trim(out, "\r\n"))
+	c.Assert(out, checker.Contains, `windowspowershell\v1.0`)
+}
+
+func (s *DockerSuite) TestExecEnvLinksHost(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+	runSleepingContainer(c, "-d", "--name", "foo")
+	runSleepingContainer(c, "-d", "--link", "foo:db", "--hostname", "myhost", "--name", "bar")
+	out, _ := dockerCmd(c, "exec", "bar", "env")
+	c.Assert(out, checker.Contains, "HOSTNAME=myhost")
+	c.Assert(out, checker.Contains, "DB_NAME=/bar/db")
 }

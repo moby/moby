@@ -7,15 +7,25 @@ import (
 	"github.com/aws/aws-sdk-go/aws/credentials"
 )
 
-// The default number of retries for a service. The value of -1 indicates that
-// the service specific retry default will be used.
-const DefaultRetries = -1
+// UseServiceDefaultRetries instructs the config to use the service's own default
+// number of retries. This will be the default action if Config.MaxRetries
+// is nil also.
+const UseServiceDefaultRetries = -1
+
+// RequestRetryer is an alias for a type that implements the request.Retryer interface.
+type RequestRetryer interface{}
 
 // A Config provides service configuration for service clients. By default,
 // all clients will use the {defaults.DefaultConfig} structure.
 type Config struct {
+	// Enables verbose error printing of all credential chain errors.
+	// Should be used when wanting to see all errors while attempting to retreive
+	// credentials.
+	CredentialsChainVerboseErrors *bool
+
 	// The credentials object to use when signing requests. Defaults to
-	// {defaults.DefaultChainCredentials}.
+	// a chain of credential providers to search for credentials in environment
+	// variables, shared credential file, and EC2 Instance Roles.
 	Credentials *credentials.Credentials
 
 	// An optional endpoint URL (hostname only or fully qualified URI)
@@ -57,6 +67,21 @@ type Config struct {
 	// configuration.
 	MaxRetries *int
 
+	// Retryer guides how HTTP requests should be retried in case of recoverable failures.
+	//
+	// When nil or the value does not implement the request.Retryer interface,
+	// the request.DefaultRetryer will be used.
+	//
+	// When both Retryer and MaxRetries are non-nil, the former is used and
+	// the latter ignored.
+	//
+	// To set the Retryer field in a type-safe manner and with chaining, use
+	// the request.WithRetryer helper function:
+	//
+	//   cfg := request.WithRetryer(aws.NewConfig(), myRetryer)
+	//
+	Retryer RequestRetryer
+
 	// Disables semantic parameter validation, which validates input for missing
 	// required fields and/or other semantic request input errors.
 	DisableParamValidation *bool
@@ -75,6 +100,45 @@ type Config struct {
 	//   Amazon S3: Virtual Hosting of Buckets
 	S3ForcePathStyle *bool
 
+	// Set this to `true` to disable the SDK adding the `Expect: 100-Continue`
+	// header to PUT requests over 2MB of content. 100-Continue instructs the
+	// HTTP client not to send the body until the service responds with a
+	// `continue` status. This is useful to prevent sending the request body
+	// until after the request is authenticated, and validated.
+	//
+	// http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectPUT.html
+	//
+	// 100-Continue is only enabled for Go 1.6 and above. See `http.Transport`'s
+	// `ExpectContinueTimeout` for information on adjusting the continue wait timeout.
+	// https://golang.org/pkg/net/http/#Transport
+	//
+	// You should use this flag to disble 100-Continue if you experiance issues
+	// with proxies or thrid party S3 compatible services.
+	S3Disable100Continue *bool
+
+	// Set this to `true` to enable S3 Accelerate feature. For all operations compatible
+	// with S3 Accelerate will use the accelerate endpoint for requests. Requests not compatible
+	// will fall back to normal S3 requests.
+	//
+	// The bucket must be enable for accelerate to be used with S3 client with accelerate
+	// enabled. If the bucket is not enabled for accelerate an error will be returned.
+	// The bucket name must be DNS compatible to also work with accelerate.
+	S3UseAccelerate *bool
+
+	// Set this to `true` to disable the EC2Metadata client from overriding the
+	// default http.Client's Timeout. This is helpful if you do not want the EC2Metadata
+	// client to create a new http.Client. This options is only meaningful if you're not
+	// already using a custom HTTP client with the SDK. Enabled by default.
+	//
+	// Must be set and provided to the session.New() in order to disable the EC2Metadata
+	// overriding the timeout for default credentials chain.
+	//
+	// Example:
+	//    sess := session.New(aws.NewConfig().WithEC2MetadataDiableTimeoutOverride(true))
+	//    svc := s3.New(sess)
+	//
+	EC2MetadataDisableTimeoutOverride *bool
+
 	SleepDelay func(time.Duration)
 }
 
@@ -85,6 +149,13 @@ type Config struct {
 //
 func NewConfig() *Config {
 	return &Config{}
+}
+
+// WithCredentialsChainVerboseErrors sets a config verbose errors boolean and returning
+// a Config pointer.
+func (c *Config) WithCredentialsChainVerboseErrors(verboseErrs bool) *Config {
+	c.CredentialsChainVerboseErrors = &verboseErrs
+	return c
 }
 
 // WithCredentials sets a config Credentials value returning a Config pointer
@@ -164,6 +235,27 @@ func (c *Config) WithS3ForcePathStyle(force bool) *Config {
 	return c
 }
 
+// WithS3Disable100Continue sets a config S3Disable100Continue value returning
+// a Config pointer for chaining.
+func (c *Config) WithS3Disable100Continue(disable bool) *Config {
+	c.S3Disable100Continue = &disable
+	return c
+}
+
+// WithS3UseAccelerate sets a config S3UseAccelerate value returning a Config
+// pointer for chaining.
+func (c *Config) WithS3UseAccelerate(enable bool) *Config {
+	c.S3UseAccelerate = &enable
+	return c
+}
+
+// WithEC2MetadataDisableTimeoutOverride sets a config EC2MetadataDisableTimeoutOverride value
+// returning a Config pointer for chaining.
+func (c *Config) WithEC2MetadataDisableTimeoutOverride(enable bool) *Config {
+	c.EC2MetadataDisableTimeoutOverride = &enable
+	return c
+}
+
 // WithSleepDelay overrides the function used to sleep while waiting for the
 // next retry. Defaults to time.Sleep.
 func (c *Config) WithSleepDelay(fn func(time.Duration)) *Config {
@@ -171,15 +263,21 @@ func (c *Config) WithSleepDelay(fn func(time.Duration)) *Config {
 	return c
 }
 
-// Merge returns a new Config with the other Config's attribute values merged into
-// this Config. If the other Config's attribute is nil it will not be merged into
-// the new Config to be returned.
-func (c Config) Merge(other *Config) *Config {
+// MergeIn merges the passed in configs into the existing config object.
+func (c *Config) MergeIn(cfgs ...*Config) {
+	for _, other := range cfgs {
+		mergeInConfig(c, other)
+	}
+}
+
+func mergeInConfig(dst *Config, other *Config) {
 	if other == nil {
-		return &c
+		return
 	}
 
-	dst := c
+	if other.CredentialsChainVerboseErrors != nil {
+		dst.CredentialsChainVerboseErrors = other.CredentialsChainVerboseErrors
+	}
 
 	if other.Credentials != nil {
 		dst.Credentials = other.Credentials
@@ -213,6 +311,10 @@ func (c Config) Merge(other *Config) *Config {
 		dst.MaxRetries = other.MaxRetries
 	}
 
+	if other.Retryer != nil {
+		dst.Retryer = other.Retryer
+	}
+
 	if other.DisableParamValidation != nil {
 		dst.DisableParamValidation = other.DisableParamValidation
 	}
@@ -225,15 +327,32 @@ func (c Config) Merge(other *Config) *Config {
 		dst.S3ForcePathStyle = other.S3ForcePathStyle
 	}
 
+	if other.S3Disable100Continue != nil {
+		dst.S3Disable100Continue = other.S3Disable100Continue
+	}
+
+	if other.S3UseAccelerate != nil {
+		dst.S3UseAccelerate = other.S3UseAccelerate
+	}
+
+	if other.EC2MetadataDisableTimeoutOverride != nil {
+		dst.EC2MetadataDisableTimeoutOverride = other.EC2MetadataDisableTimeoutOverride
+	}
+
 	if other.SleepDelay != nil {
 		dst.SleepDelay = other.SleepDelay
 	}
-
-	return &dst
 }
 
-// Copy will return a shallow copy of the Config object.
-func (c Config) Copy() *Config {
-	dst := c
-	return &dst
+// Copy will return a shallow copy of the Config object. If any additional
+// configurations are provided they will be merged into the new config returned.
+func (c *Config) Copy(cfgs ...*Config) *Config {
+	dst := &Config{}
+	dst.MergeIn(c)
+
+	for _, cfg := range cfgs {
+		dst.MergeIn(cfg)
+	}
+
+	return dst
 }

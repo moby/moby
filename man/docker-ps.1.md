@@ -32,10 +32,12 @@ the running containers.
    - status=(created|restarting|running|paused|exited|dead)
    - name=<string> a container's name
    - id=<ID> a container's ID
+   - is-task=(true|false) - containers that are a task (part of a service managed by swarm)
    - before=(<container-name>|<container-id>)
    - since=(<container-name>|<container-id>)
    - ancestor=(<image-name>[:tag]|<image-id>|<image@digest>) - containers created from an image or a descendant.
    - volume=(<volume-name>|<mount-point-destination>)
+   - network=(<network-name>|<network-id>) - containers connected to the provided network
 
 **--format**="*TEMPLATE*"
    Pretty-print containers using a Go template.

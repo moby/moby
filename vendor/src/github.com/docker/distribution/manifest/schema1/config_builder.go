@@ -110,7 +110,8 @@ func (mb *configManifestBuilder) Build(ctx context.Context) (m distribution.Mani
 		ContainerConfig struct {
 			Cmd []string
 		} `json:"container_config,omitempty"`
-		ThrowAway bool `json:"throwaway,omitempty"`
+		Author    string `json:"author,omitempty"`
+		ThrowAway bool   `json:"throwaway,omitempty"`
 	}
 
 	fsLayerList := make([]FSLayer, len(img.History))
@@ -145,6 +146,7 @@ func (mb *configManifestBuilder) Build(ctx context.Context) (m distribution.Mani
 			Parent:  parent,
 			Comment: h.Comment,
 			Created: h.Created,
+			Author:  h.Author,
 		}
 		v1Compatibility.ContainerConfig.Cmd = []string{img.History[i].CreatedBy}
 		if h.EmptyLayer {

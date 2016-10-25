@@ -2,6 +2,7 @@ package serf
 
 import (
 	"fmt"
+
 	"github.com/armon/go-metrics"
 )
 
@@ -170,6 +171,12 @@ func (d *delegate) LocalState(join bool) []byte {
 }
 
 func (d *delegate) MergeRemoteState(buf []byte, isJoin bool) {
+	// Ensure we have a message
+	if len(buf) == 0 {
+		d.serf.logger.Printf("[ERR] serf: Remote state is zero bytes")
+		return
+	}
+
 	// Check the message type
 	if messageType(buf[0]) != messagePushPullType {
 		d.serf.logger.Printf("[ERR] serf: Remote state has bad type prefix: %v", buf[0])

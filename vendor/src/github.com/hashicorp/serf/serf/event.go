@@ -152,8 +152,8 @@ func (q *Query) Respond(buf []byte) error {
 	}
 
 	// Check the size limit
-	if len(raw) > QueryResponseSizeLimit {
-		return fmt.Errorf("response exceeds limit of %d bytes", QueryResponseSizeLimit)
+	if len(raw) > q.serf.config.QueryResponseSizeLimit {
+		return fmt.Errorf("response exceeds limit of %d bytes", q.serf.config.QueryResponseSizeLimit)
 	}
 
 	// Send the response

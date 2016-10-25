@@ -1,11 +1,11 @@
-// Package layer is package for managing read only
+// Package layer is package for managing read-only
 // and read-write mounts on the union file system
 // driver. Read-only mounts are referenced using a
 // content hash and are protected from mutation in
 // the exposed interface. The tar format is used
-// to create read only layers and export both
-// read only and writable layers. The exported
-// tar data for a read only layer should match
+// to create read-only layers and export both
+// read-only and writable layers. The exported
+// tar data for a read-only layer should match
 // the tar used to create the layer.
 package layer
 
@@ -14,6 +14,7 @@ import (
 	"io"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/distribution"
 	"github.com/docker/distribution/digest"
 	"github.com/docker/docker/pkg/archive"
 )
@@ -49,6 +50,10 @@ var (
 	// to be created which would result in a layer depth
 	// greater than the 125 max.
 	ErrMaxDepthExceeded = errors.New("max depth exceeded")
+
+	// ErrNotSupported is used when the action is not supported
+	// on the current platform
+	ErrNotSupported = errors.New("not support on this platform")
 )
 
 // ChainID is the content-addressable ID of a layer.
@@ -75,7 +80,7 @@ type TarStreamer interface {
 	TarStream() (io.ReadCloser, error)
 }
 
-// Layer represents a read only layer
+// Layer represents a read-only layer
 type Layer interface {
 	TarStreamer
 
@@ -138,7 +143,7 @@ type RWLayer interface {
 }
 
 // Metadata holds information about a
-// read only layer
+// read-only layer
 type Metadata struct {
 	// ChainID is the content hash of the layer
 	ChainID ChainID
@@ -165,15 +170,23 @@ type MountInit func(root string) error
 type Store interface {
 	Register(io.Reader, ChainID) (Layer, error)
 	Get(ChainID) (Layer, error)
+	Map() map[ChainID]Layer
 	Release(Layer) ([]Metadata, error)
 
-	CreateRWLayer(id string, parent ChainID, mountLabel string, initFunc MountInit) (RWLayer, error)
+	CreateRWLayer(id string, parent ChainID, mountLabel string, initFunc MountInit, storageOpt map[string]string) (RWLayer, error)
 	GetRWLayer(id string) (RWLayer, error)
+	GetMountID(id string) (string, error)
 	ReleaseRWLayer(RWLayer) ([]Metadata, error)
 
 	Cleanup() error
 	DriverStatus() [][2]string
 	DriverName() string
+}
+
+// DescribableStore represents a layer store capable of storing
+// descriptors for layers.
+type DescribableStore interface {
+	RegisterWithDescriptor(io.Reader, ChainID, distribution.Descriptor) (Layer, error)
 }
 
 // MetadataTransaction represents functions for setting layer metadata
@@ -183,6 +196,7 @@ type MetadataTransaction interface {
 	SetParent(parent ChainID) error
 	SetDiffID(DiffID) error
 	SetCacheID(string) error
+	SetDescriptor(distribution.Descriptor) error
 	TarSplitWriter(compressInput bool) (io.WriteCloser, error)
 
 	Commit(ChainID) error
@@ -202,6 +216,7 @@ type MetadataStore interface {
 	GetParent(ChainID) (ChainID, error)
 	GetDiffID(ChainID) (DiffID, error)
 	GetCacheID(ChainID) (string, error)
+	GetDescriptor(ChainID) (distribution.Descriptor, error)
 	TarSplitReader(ChainID) (io.ReadCloser, error)
 
 	SetMountID(string, string) error
@@ -247,7 +262,7 @@ func ReleaseAndLog(ls Store, l Layer) {
 	LogReleaseMetadata(metadata)
 }
 
-// LogReleaseMetadata logs a metadata array, use this to
+// LogReleaseMetadata logs a metadata array, uses this to
 // ensure consistent logging for release metadata
 func LogReleaseMetadata(metadatas []Metadata) {
 	for _, metadata := range metadatas {

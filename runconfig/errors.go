@@ -2,6 +2,8 @@ package runconfig
 
 import (
 	"fmt"
+
+	"github.com/docker/docker/api/errors"
 )
 
 var (
@@ -35,4 +37,10 @@ var (
 	ErrUnsupportedNetworkNoSubnetAndIP = fmt.Errorf("User specified IP address is supported only when connecting to networks with user configured subnets")
 	// ErrUnsupportedNetworkAndAlias conflict between network mode and alias
 	ErrUnsupportedNetworkAndAlias = fmt.Errorf("Network-scoped alias is supported only for containers in user defined networks")
+	// ErrConflictUTSHostname conflict between the hostname and the UTS mode
+	ErrConflictUTSHostname = fmt.Errorf("Conflicting options: hostname and the UTS mode")
 )
+
+func conflictError(err error) error {
+	return errors.NewRequestConflictError(err)
+}

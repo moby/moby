@@ -4,7 +4,7 @@ Want to hack on Docker? Awesome!  We have a contributor's guide that explains
 [setting up a Docker development environment and the contribution
 process](https://docs.docker.com/opensource/project/who-written-for/). 
 
-![Contributors guide](docs/static_files/contributors.png)
+[![Contributors guide](docs/static_files/contributors.png)](https://docs.docker.com/opensource/project/who-written-for/)
 
 This page contains information about reporting issues as well as some tips and
 guidelines useful to experienced open source contributors. Finally, make sure
@@ -58,51 +58,11 @@ When sending lengthy log-files, consider posting them as a gist (https://gist.gi
 Don't forget to remove sensitive data from your logfiles before posting (you can
 replace those parts with "REDACTED").
 
-**Issue Report Template**:
-
-```
-Description of problem:
-
-
-`docker version`:
-
-
-`docker info`:
-
-
-`uname -a`:
-
-
-Environment details (AWS, VirtualBox, physical, etc.):
-
-
-How reproducible:
-
-
-Steps to Reproduce:
-1.
-2.
-3.
-
-
-Actual Results:
-
-
-Expected Results:
-
-
-Additional info:
-
-
-
-```
-
-
-##Quick contribution tips and guidelines
+## Quick contribution tips and guidelines
 
 This section gives the experienced contributor some tips and guidelines.
 
-###Pull requests are always welcome
+### Pull requests are always welcome
 
 Not sure if that typo is worth a pull request? Found a bug and know how to fix
 it? Do it! We will appreciate it. Any significant improvement should be
@@ -133,6 +93,14 @@ However, there might be a way to implement that feature *on top of* Docker.
   <col width="45%">
   <col width="65%">
   <tr>
+    <td>Forums</td>
+    <td>
+      A public forum for users to discuss questions and explore current design patterns and
+      best practices about Docker and related projects in the Docker Ecosystem. To participate,
+      just log in with your Docker Hub account on <a href="https://forums.docker.com" target="_blank">https://forums.docker.com</a>.
+    </td>
+  </tr>
+  <tr>
     <td>Internet&nbsp;Relay&nbsp;Chat&nbsp;(IRC)</td>
     <td>
       <p>
@@ -142,18 +110,20 @@ However, there might be a way to implement that feature *on top of* Docker.
         IRC is a rich chat protocol but it can overwhelm new users. You can search
         <a href="https://botbot.me/freenode/docker/#" target="_blank">our chat archives</a>.
       </p>
-      Read our <a href="https://docs.docker.com/opensource/get-help/#irc-quickstart" target="_blank">IRC quickstart guide</a> for an easy way to get started.
+      <p>
+        Read our <a href="https://docs.docker.com/opensource/get-help/#irc-quickstart" target="_blank">IRC quickstart guide</a>
+        for an easy way to get started.
+      </p>
     </td>
   </tr>
   <tr>
-    <td>Google Groups</td>
+    <td>Google Group</td>
     <td>
-      There are two groups.
-      <a href="https://groups.google.com/forum/#!forum/docker-user" target="_blank">Docker-user</a>
-      is for people using Docker containers.
       The <a href="https://groups.google.com/forum/#!forum/docker-dev" target="_blank">docker-dev</a>
-      group is for contributors and other people contributing to the Docker
-      project.
+      group is for contributors and other people contributing to the Docker project.
+      You can join them without a google account by sending an email to 
+      <a href="mailto:docker-dev+subscribe@googlegroups.com">docker-dev+subscribe@googlegroups.com</a>.
+      After receiving the join-request message, you can simply reply to that to confirm the subscribtion.
     </td>
   </tr>
   <tr>
@@ -264,8 +234,9 @@ Developer Certificate of Origin
 Version 1.1
 
 Copyright (C) 2004, 2006 The Linux Foundation and its contributors.
-660 York Street, Suite 102,
-San Francisco, CA 94110 USA
+1 Letterman Drive
+Suite D4700
+San Francisco, CA, 94129
 
 Everyone is permitted to copy and distribute verbatim copies of this
 license document, but changing it is not allowed.
@@ -305,10 +276,6 @@ Use your real name (sorry, no pseudonyms or anonymous contributions.)
 
 If you set your `user.name` and `user.email` git configs, you can sign your
 commit automatically with `git commit -s`.
-
-Note that the old-style `Docker-DCO-1.1-Signed-off-by: ...` format is still
-accepted, so there is no need to update outstanding pull requests to the new
-format right away, but please do adjust your processes for future contributions.
 
 ### How can I become a maintainer?
 
@@ -412,7 +379,7 @@ The rules:
 5. Document _all_ declarations and methods, even private ones. Declare
    expectations, caveats and anything else that may be important. If a type
    gets exported, having the comments already there will ensure it's ready.
-6. Variable name length should be proportional to it's context and no longer.
+6. Variable name length should be proportional to its context and no longer.
    `noCommaALongVariableNameLikeThisIsNotMoreClearWhenASimpleCommentWouldDo`.
    In practice, short methods will have short variable names and globals will
    have longer names.
@@ -420,7 +387,7 @@ The rules:
    and re-examine why you need a compound name. If you still think you need a
    compound name, lose the underscore.
 8. No utils or helpers packages. If a function is not general enough to
-   warrant it's own package, it has not been written generally enough to be a
+   warrant its own package, it has not been written generally enough to be a
    part of a util package. Just leave it unexported and well-documented.
 9. All tests should run with `go test` and outside tooling should not be
    required. No, we don't need another unit testing framework. Assertion
@@ -429,6 +396,6 @@ The rules:
     guidelines. Since you've read all the rules, you now know that.
 
 If you are having trouble getting into the mood of idiomatic Go, we recommend
-reading through [Effective Go](http://golang.org/doc/effective_go.html). The
-[Go Blog](http://blog.golang.org/) is also a great resource. Drinking the
+reading through [Effective Go](https://golang.org/doc/effective_go.html). The
+[Go Blog](https://blog.golang.org) is also a great resource. Drinking the
 kool-aid is a lot easier than going thirsty.

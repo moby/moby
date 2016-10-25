@@ -15,7 +15,7 @@ create network namespaces and allocate interfaces for containers to use.
 
 	// Create a network for containers to join.
 	// NewNetwork accepts Variadic optional arguments that libnetwork and Drivers can make use of
-	network, err := controller.NewNetwork(networkType, "network1")
+	network, err := controller.NewNetwork(networkType, "network1", "")
 	if err != nil {
 		return
 	}
@@ -49,15 +49,20 @@ import (
 	"net"
 	"strings"
 	"sync"
+	"time"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/discovery"
+	"github.com/docker/docker/pkg/locker"
+	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/docker/pkg/plugins"
 	"github.com/docker/docker/pkg/stringid"
+	"github.com/docker/libnetwork/cluster"
 	"github.com/docker/libnetwork/config"
 	"github.com/docker/libnetwork/datastore"
 	"github.com/docker/libnetwork/discoverapi"
 	"github.com/docker/libnetwork/driverapi"
+	"github.com/docker/libnetwork/drvregistry"
 	"github.com/docker/libnetwork/hostdiscovery"
 	"github.com/docker/libnetwork/ipamapi"
 	"github.com/docker/libnetwork/netlabel"
@@ -68,14 +73,17 @@ import (
 // NetworkController provides the interface for controller instance which manages
 // networks.
 type NetworkController interface {
-	// ID provides an unique identity for the controller
+	// ID provides a unique identity for the controller
 	ID() string
+
+	// BuiltinDrivers returns list of builtin drivers
+	BuiltinDrivers() []string
 
 	// Config method returns the bootup configuration for the controller
 	Config() config.Config
 
 	// Create a new network. The options parameter carries network specific options.
-	NewNetwork(networkType, name string, options ...NetworkOption) (Network, error)
+	NewNetwork(networkType, name string, id string, options ...NetworkOption) (Network, error)
 
 	// Networks returns the list of Network(s) managed by this controller.
 	Networks() []Network
@@ -89,13 +97,13 @@ type NetworkController interface {
 	// NetworkByID returns the Network which has the passed id. If not found, the error ErrNoSuchNetwork is returned.
 	NetworkByID(id string) (Network, error)
 
-	// NewSandbox cretes a new network sandbox for the passed container id
+	// NewSandbox creates a new network sandbox for the passed container id
 	NewSandbox(containerID string, options ...SandboxOption) (Sandbox, error)
 
 	// Sandboxes returns the list of Sandbox(s) managed by this controller.
 	Sandboxes() []Sandbox
 
-	// WlakSandboxes uses the provided function to walk the Sandbox(s) managed by this controller.
+	// WalkSandboxes uses the provided function to walk the Sandbox(s) managed by this controller.
 	WalkSandboxes(walker SandboxWalker)
 
 	// SandboxByID returns the Sandbox which has the passed id. If not found, a types.NotFoundError is returned.
@@ -109,6 +117,15 @@ type NetworkController interface {
 
 	// ReloadCondfiguration updates the controller configuration
 	ReloadConfiguration(cfgOptions ...config.Option) error
+
+	// SetClusterProvider sets cluster provider
+	SetClusterProvider(provider cluster.Provider)
+
+	// Wait for agent initialization complete in libnetwork controller
+	AgentInitWait()
+
+	// SetKeys configures the encryption key for gossip and overlay data path
+	SetKeys(keys []*types.EncryptionKey) error
 }
 
 // NetworkWalker is a client provided function which will be used to walk the Networks.
@@ -119,80 +136,252 @@ type NetworkWalker func(nw Network) bool
 // When the function returns true, the walk will stop.
 type SandboxWalker func(sb Sandbox) bool
 
-type driverData struct {
-	driver     driverapi.Driver
-	capability driverapi.Capability
-}
-
-type ipamData struct {
-	driver     ipamapi.Ipam
-	capability *ipamapi.Capability
-	// default address spaces are provided by ipam driver at registration time
-	defaultLocalAddressSpace, defaultGlobalAddressSpace string
-}
-
-type driverTable map[string]*driverData
-type ipamTable map[string]*ipamData
 type sandboxTable map[string]*sandbox
 
 type controller struct {
-	id             string
-	drivers        driverTable
-	ipamDrivers    ipamTable
-	sandboxes      sandboxTable
-	cfg            *config.Config
-	stores         []datastore.DataStore
-	discovery      hostdiscovery.HostDiscovery
-	extKeyListener net.Listener
-	watchCh        chan *endpoint
-	unWatchCh      chan *endpoint
-	svcDb          map[string]svcInfo
-	nmap           map[string]*netWatch
-	defOsSbox      osl.Sandbox
-	sboxOnce       sync.Once
+	id                     string
+	drvRegistry            *drvregistry.DrvRegistry
+	sandboxes              sandboxTable
+	cfg                    *config.Config
+	stores                 []datastore.DataStore
+	discovery              hostdiscovery.HostDiscovery
+	extKeyListener         net.Listener
+	watchCh                chan *endpoint
+	unWatchCh              chan *endpoint
+	svcRecords             map[string]svcInfo
+	nmap                   map[string]*netWatch
+	serviceBindings        map[serviceKey]*service
+	defOsSbox              osl.Sandbox
+	ingressSandbox         *sandbox
+	sboxOnce               sync.Once
+	agent                  *agent
+	networkLocker          *locker.Locker
+	agentInitDone          chan struct{}
+	keys                   []*types.EncryptionKey
+	clusterConfigAvailable bool
 	sync.Mutex
+}
+
+type initializer struct {
+	fn    drvregistry.InitFunc
+	ntype string
 }
 
 // New creates a new instance of network controller.
 func New(cfgOptions ...config.Option) (NetworkController, error) {
 	c := &controller{
-		id:          stringid.GenerateRandomID(),
-		cfg:         config.ParseConfigOptions(cfgOptions...),
-		sandboxes:   sandboxTable{},
-		drivers:     driverTable{},
-		ipamDrivers: ipamTable{},
-		svcDb:       make(map[string]svcInfo),
+		id:              stringid.GenerateRandomID(),
+		cfg:             config.ParseConfigOptions(cfgOptions...),
+		sandboxes:       sandboxTable{},
+		svcRecords:      make(map[string]svcInfo),
+		serviceBindings: make(map[serviceKey]*service),
+		agentInitDone:   make(chan struct{}),
+		networkLocker:   locker.New(),
 	}
 
 	if err := c.initStores(); err != nil {
 		return nil, err
 	}
 
+	drvRegistry, err := drvregistry.New(c.getStore(datastore.LocalScope), c.getStore(datastore.GlobalScope), c.RegisterDriver, nil, c.cfg.PluginGetter)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, i := range getInitializers() {
+		var dcfg map[string]interface{}
+
+		// External plugins don't need config passed through daemon. They can
+		// bootstrap themselves
+		if i.ntype != "remote" {
+			dcfg = c.makeDriverConfig(i.ntype)
+		}
+
+		if err := drvRegistry.AddDriver(i.ntype, i.fn, dcfg); err != nil {
+			return nil, err
+		}
+	}
+
+	if err = initIPAMDrivers(drvRegistry, nil, c.getStore(datastore.GlobalScope)); err != nil {
+		return nil, err
+	}
+
+	c.drvRegistry = drvRegistry
+
 	if c.cfg != nil && c.cfg.Cluster.Watcher != nil {
 		if err := c.initDiscovery(c.cfg.Cluster.Watcher); err != nil {
-			// Failing to initalize discovery is a bad situation to be in.
+			// Failing to initialize discovery is a bad situation to be in.
 			// But it cannot fail creating the Controller
 			log.Errorf("Failed to Initialize Discovery : %v", err)
 		}
 	}
 
-	if err := initDrivers(c); err != nil {
-		return nil, err
-	}
+	c.WalkNetworks(populateSpecial)
 
-	if err := initIpams(c, c.getStore(datastore.LocalScope),
-		c.getStore(datastore.GlobalScope)); err != nil {
-		return nil, err
-	}
+	// Reserve pools first before doing cleanup. Otherwise the
+	// cleanups of endpoint/network and sandbox below will
+	// generate many unnecessary warnings
+	c.reservePools()
 
-	c.sandboxCleanup()
+	// Cleanup resources
+	c.sandboxCleanup(c.cfg.ActiveSandboxes)
 	c.cleanupLocalEndpoints()
+	c.networkCleanup()
 
 	if err := c.startExternalKeyListener(); err != nil {
 		return nil, err
 	}
 
 	return c, nil
+}
+
+func (c *controller) SetClusterProvider(provider cluster.Provider) {
+	c.Lock()
+	defer c.Unlock()
+	c.cfg.Daemon.ClusterProvider = provider
+	if provider != nil {
+		go c.clusterAgentInit()
+	} else {
+		c.cfg.Daemon.DisableProvider <- struct{}{}
+	}
+}
+
+func isValidClusteringIP(addr string) bool {
+	return addr != "" && !net.ParseIP(addr).IsLoopback() && !net.ParseIP(addr).IsUnspecified()
+}
+
+// libnetwork side of agent depends on the keys. On the first receipt of
+// keys setup the agent. For subsequent key set handle the key change
+func (c *controller) SetKeys(keys []*types.EncryptionKey) error {
+	c.Lock()
+	existingKeys := c.keys
+	clusterConfigAvailable := c.clusterConfigAvailable
+	agent := c.agent
+	c.Unlock()
+
+	subsysKeys := make(map[string]int)
+	for _, key := range keys {
+		if key.Subsystem != subsysGossip &&
+			key.Subsystem != subsysIPSec {
+			return fmt.Errorf("key received for unrecognized subsystem")
+		}
+		subsysKeys[key.Subsystem]++
+	}
+	for s, count := range subsysKeys {
+		if count != keyringSize {
+			return fmt.Errorf("incorrect number of keys for susbsystem %v", s)
+		}
+	}
+
+	if len(existingKeys) == 0 {
+		c.Lock()
+		c.keys = keys
+		c.Unlock()
+		if agent != nil {
+			return (fmt.Errorf("libnetwork agent setup without keys"))
+		}
+		if clusterConfigAvailable {
+			return c.agentSetup()
+		}
+		log.Debugf("received encryption keys before cluster config")
+		return nil
+	}
+	if agent == nil {
+		c.Lock()
+		c.keys = keys
+		c.Unlock()
+		return nil
+	}
+	return c.handleKeyChange(keys)
+}
+
+func (c *controller) clusterAgentInit() {
+	clusterProvider := c.cfg.Daemon.ClusterProvider
+	for {
+		select {
+		case <-clusterProvider.ListenClusterEvents():
+			if !c.isDistributedControl() {
+				c.Lock()
+				c.clusterConfigAvailable = true
+				keys := c.keys
+				c.Unlock()
+				// agent initialization needs encyrption keys and bind/remote IP which
+				// comes from the daemon cluster events
+				if len(keys) > 0 {
+					c.agentSetup()
+				}
+			}
+		case <-c.cfg.Daemon.DisableProvider:
+			c.Lock()
+			c.clusterConfigAvailable = false
+			c.agentInitDone = make(chan struct{})
+			c.keys = nil
+			c.Unlock()
+
+			// We are leaving the cluster. Make sure we
+			// close the gossip so that we stop all
+			// incoming gossip updates before cleaning up
+			// any remaining service bindings. But before
+			// deleting the networks since the networks
+			// should still be present when cleaning up
+			// service bindings
+			c.agentClose()
+			c.cleanupServiceBindings("")
+
+			c.clearIngress(true)
+
+			return
+		}
+	}
+}
+
+// AgentInitWait waits for agent initialization to be completed in the
+// controller.
+func (c *controller) AgentInitWait() {
+	c.Lock()
+	agentInitDone := c.agentInitDone
+	c.Unlock()
+
+	if agentInitDone != nil {
+		<-agentInitDone
+	}
+}
+
+func (c *controller) makeDriverConfig(ntype string) map[string]interface{} {
+	if c.cfg == nil {
+		return nil
+	}
+
+	config := make(map[string]interface{})
+
+	for _, label := range c.cfg.Daemon.Labels {
+		if !strings.HasPrefix(netlabel.Key(label), netlabel.DriverPrefix+"."+ntype) {
+			continue
+		}
+
+		config[netlabel.Key(label)] = netlabel.Value(label)
+	}
+
+	drvCfg, ok := c.cfg.Daemon.DriverCfg[ntype]
+	if ok {
+		for k, v := range drvCfg.(map[string]interface{}) {
+			config[k] = v
+		}
+	}
+
+	for k, v := range c.cfg.Scopes {
+		if !v.IsValid() {
+			continue
+		}
+		config[netlabel.MakeKVClient(k)] = discoverapi.DatastoreConfigData{
+			Scope:    k,
+			Provider: v.Client.Provider,
+			Address:  v.Client.Address,
+			Config:   v.Client.Config,
+		}
+	}
+
+	return config
 }
 
 var procReloadConfig = make(chan (bool), 1)
@@ -205,6 +394,7 @@ func (c *controller) ReloadConfiguration(cfgOptions ...config.Option) error {
 	// Refuse the configuration if it alters an existing datastore client configuration.
 	update := false
 	cfg := config.ParseConfigOptions(cfgOptions...)
+
 	for s := range c.cfg.Scopes {
 		if _, ok := cfg.Scopes[s]; !ok {
 			return types.ForbiddenErrorf("cannot accept new configuration because it removes an existing datastore client")
@@ -217,6 +407,9 @@ func (c *controller) ReloadConfiguration(cfgOptions ...config.Option) error {
 				return types.ForbiddenErrorf("cannot accept new configuration because it modifies an existing datastore client")
 			}
 		} else {
+			if err := c.initScopedStore(s, nSCfg); err != nil {
+				return err
+			}
 			update = true
 		}
 	}
@@ -227,16 +420,6 @@ func (c *controller) ReloadConfiguration(cfgOptions ...config.Option) error {
 	c.Lock()
 	c.cfg = cfg
 	c.Unlock()
-
-	if err := c.initStores(); err != nil {
-		return err
-	}
-
-	if c.discovery == nil && c.cfg.Cluster.Watcher != nil {
-		if err := c.initDiscovery(c.cfg.Cluster.Watcher); err != nil {
-			log.Errorf("Failed to Initialize Discovery after configuration update: %v", err)
-		}
-	}
 
 	var dsConfig *discoverapi.DatastoreConfigData
 	for scope, sCfg := range cfg.Scopes {
@@ -255,17 +438,25 @@ func (c *controller) ReloadConfiguration(cfgOptions ...config.Option) error {
 		return nil
 	}
 
-	for nm, id := range c.getIpamDrivers() {
-		err := id.driver.DiscoverNew(discoverapi.DatastoreConfig, *dsConfig)
+	c.drvRegistry.WalkIPAMs(func(name string, driver ipamapi.Ipam, cap *ipamapi.Capability) bool {
+		err := driver.DiscoverNew(discoverapi.DatastoreConfig, *dsConfig)
 		if err != nil {
-			log.Errorf("Failed to set datastore in driver %s: %v", nm, err)
+			log.Errorf("Failed to set datastore in driver %s: %v", name, err)
 		}
-	}
+		return false
+	})
 
-	for nm, id := range c.getNetDrivers() {
-		err := id.driver.DiscoverNew(discoverapi.DatastoreConfig, *dsConfig)
+	c.drvRegistry.WalkDrivers(func(name string, driver driverapi.Driver, capability driverapi.Capability) bool {
+		err := driver.DiscoverNew(discoverapi.DatastoreConfig, *dsConfig)
 		if err != nil {
-			log.Errorf("Failed to set datastore in driver %s: %v", nm, err)
+			log.Errorf("Failed to set datastore in driver %s: %v", name, err)
+		}
+		return false
+	})
+
+	if c.discovery == nil && c.cfg.Cluster.Watcher != nil {
+		if err := c.initDiscovery(c.cfg.Cluster.Watcher); err != nil {
+			log.Errorf("Failed to Initialize Discovery after configuration update: %v", err)
 		}
 	}
 
@@ -274,6 +465,17 @@ func (c *controller) ReloadConfiguration(cfgOptions ...config.Option) error {
 
 func (c *controller) ID() string {
 	return c.id
+}
+
+func (c *controller) BuiltinDrivers() []string {
+	drivers := []string{}
+	for _, i := range getInitializers() {
+		if i.ntype == "remote" {
+			continue
+		}
+		drivers = append(drivers, i.ntype)
+	}
+	return drivers
 }
 
 func (c *controller) validateHostDiscoveryConfig() bool {
@@ -333,34 +535,30 @@ func (c *controller) hostLeaveCallback(nodes []net.IP) {
 }
 
 func (c *controller) processNodeDiscovery(nodes []net.IP, add bool) {
-	c.Lock()
-	drivers := []*driverData{}
-	for _, d := range c.drivers {
-		drivers = append(drivers, d)
-	}
-	c.Unlock()
-
-	for _, d := range drivers {
-		c.pushNodeDiscovery(d, nodes, add)
-	}
+	c.drvRegistry.WalkDrivers(func(name string, driver driverapi.Driver, capability driverapi.Capability) bool {
+		c.pushNodeDiscovery(driver, capability, nodes, add)
+		return false
+	})
 }
 
-func (c *controller) pushNodeDiscovery(d *driverData, nodes []net.IP, add bool) {
+func (c *controller) pushNodeDiscovery(d driverapi.Driver, cap driverapi.Capability, nodes []net.IP, add bool) {
 	var self net.IP
 	if c.cfg != nil {
 		addr := strings.Split(c.cfg.Cluster.Address, ":")
 		self = net.ParseIP(addr[0])
 	}
-	if d == nil || d.capability.DataScope != datastore.GlobalScope || nodes == nil {
+
+	if d == nil || cap.DataScope != datastore.GlobalScope || nodes == nil {
 		return
 	}
+
 	for _, node := range nodes {
 		nodeData := discoverapi.NodeDiscoveryData{Address: node.String(), Self: node.Equal(self)}
 		var err error
 		if add {
-			err = d.driver.DiscoverNew(discoverapi.NodeDiscovery, nodeData)
+			err = d.DiscoverNew(discoverapi.NodeDiscovery, nodeData)
 		} else {
-			err = d.driver.DiscoverDelete(discoverapi.NodeDiscovery, nodeData)
+			err = d.DiscoverDelete(discoverapi.NodeDiscovery, nodeData)
 		}
 		if err != nil {
 			log.Debugf("discovery notification error : %v", err)
@@ -377,65 +575,63 @@ func (c *controller) Config() config.Config {
 	return *c.cfg
 }
 
-func (c *controller) RegisterDriver(networkType string, driver driverapi.Driver, capability driverapi.Capability) error {
-	if !config.IsValidName(networkType) {
-		return ErrInvalidName(networkType)
-	}
-
+func (c *controller) isManager() bool {
 	c.Lock()
-	if _, ok := c.drivers[networkType]; ok {
-		c.Unlock()
-		return driverapi.ErrActiveRegistration(networkType)
+	defer c.Unlock()
+	if c.cfg == nil || c.cfg.Daemon.ClusterProvider == nil {
+		return false
 	}
-	dData := &driverData{driver, capability}
-	c.drivers[networkType] = dData
+	return c.cfg.Daemon.ClusterProvider.IsManager()
+}
+
+func (c *controller) isAgent() bool {
+	c.Lock()
+	defer c.Unlock()
+	if c.cfg == nil || c.cfg.Daemon.ClusterProvider == nil {
+		return false
+	}
+	return c.cfg.Daemon.ClusterProvider.IsAgent()
+}
+
+func (c *controller) isDistributedControl() bool {
+	return !c.isManager() && !c.isAgent()
+}
+
+func (c *controller) GetPluginGetter() plugingetter.PluginGetter {
+	return c.drvRegistry.GetPluginGetter()
+}
+
+func (c *controller) RegisterDriver(networkType string, driver driverapi.Driver, capability driverapi.Capability) error {
+	c.Lock()
 	hd := c.discovery
 	c.Unlock()
 
 	if hd != nil {
-		c.pushNodeDiscovery(dData, hd.Fetch(), true)
+		c.pushNodeDiscovery(driver, capability, hd.Fetch(), true)
 	}
 
+	c.agentDriverNotify(driver)
 	return nil
-}
-
-func (c *controller) registerIpamDriver(name string, driver ipamapi.Ipam, caps *ipamapi.Capability) error {
-	if !config.IsValidName(name) {
-		return ErrInvalidName(name)
-	}
-
-	c.Lock()
-	_, ok := c.ipamDrivers[name]
-	c.Unlock()
-	if ok {
-		return types.ForbiddenErrorf("ipam driver %q already registered", name)
-	}
-	locAS, glbAS, err := driver.GetDefaultAddressSpaces()
-	if err != nil {
-		return types.InternalErrorf("ipam driver %q failed to return default address spaces: %v", name, err)
-	}
-	c.Lock()
-	c.ipamDrivers[name] = &ipamData{driver: driver, defaultLocalAddressSpace: locAS, defaultGlobalAddressSpace: glbAS, capability: caps}
-	c.Unlock()
-
-	log.Debugf("Registering ipam driver: %q", name)
-
-	return nil
-}
-
-func (c *controller) RegisterIpamDriver(name string, driver ipamapi.Ipam) error {
-	return c.registerIpamDriver(name, driver, &ipamapi.Capability{})
-}
-
-func (c *controller) RegisterIpamDriverWithCapabilities(name string, driver ipamapi.Ipam, caps *ipamapi.Capability) error {
-	return c.registerIpamDriver(name, driver, caps)
 }
 
 // NewNetwork creates a new network of the specified network type. The options
 // are network specific and modeled in a generic way.
-func (c *controller) NewNetwork(networkType, name string, options ...NetworkOption) (Network, error) {
+func (c *controller) NewNetwork(networkType, name string, id string, options ...NetworkOption) (Network, error) {
+	if id != "" {
+		c.networkLocker.Lock(id)
+		defer c.networkLocker.Unlock(id)
+
+		if _, err := c.NetworkByID(id); err == nil {
+			return nil, NetworkNameError(id)
+		}
+	}
+
 	if !config.IsValidName(name) {
 		return nil, ErrInvalidName(name)
+	}
+
+	if id == "" {
+		id = stringid.GenerateRandomID()
 	}
 
 	// Construct the network object
@@ -444,7 +640,8 @@ func (c *controller) NewNetwork(networkType, name string, options ...NetworkOpti
 		networkType: networkType,
 		generic:     map[string]interface{}{netlabel.GenericData: make(map[string]string)},
 		ipamType:    ipamapi.DefaultIPAM,
-		id:          stringid.GenerateRandomID(),
+		id:          id,
+		created:     time.Now(),
 		ctrlr:       c,
 		persist:     true,
 		drvOnce:     &sync.Once{},
@@ -452,13 +649,27 @@ func (c *controller) NewNetwork(networkType, name string, options ...NetworkOpti
 
 	network.processOptions(options...)
 
+	_, cap, err := network.resolveDriver(networkType, true)
+	if err != nil {
+		return nil, err
+	}
+
+	if cap.DataScope == datastore.GlobalScope && !c.isDistributedControl() && !network.dynamic {
+		if c.isManager() {
+			// For non-distributed controlled environment, globalscoped non-dynamic networks are redirected to Manager
+			return nil, ManagerRedirectError(name)
+		}
+
+		return nil, types.ForbiddenErrorf("Cannot create a multi-host network from a worker node. Please create the network from a manager node.")
+	}
+
 	// Make sure we have a driver available for this network type
 	// before we allocate anything.
 	if _, err := network.driver(true); err != nil {
 		return nil, err
 	}
 
-	err := network.ipamAllocate()
+	err = network.ipamAllocate()
 	if err != nil {
 		return nil, err
 	}
@@ -468,7 +679,8 @@ func (c *controller) NewNetwork(networkType, name string, options ...NetworkOpti
 		}
 	}()
 
-	if err = c.addNetwork(network); err != nil {
+	err = c.addNetwork(network)
+	if err != nil {
 		return nil, err
 	}
 	defer func() {
@@ -479,23 +691,107 @@ func (c *controller) NewNetwork(networkType, name string, options ...NetworkOpti
 		}
 	}()
 
-	if err = c.updateToStore(network); err != nil {
+	// First store the endpoint count, then the network. To avoid to
+	// end up with a datastore containing a network and not an epCnt,
+	// in case of an ungraceful shutdown during this function call.
+	epCnt := &endpointCnt{n: network}
+	if err = c.updateToStore(epCnt); err != nil {
 		return nil, err
 	}
 	defer func() {
 		if err != nil {
-			if e := c.deleteFromStore(network); e != nil {
-				log.Warnf("couldnt rollback from store, network %s on failure (%v): %v", network.name, err, e)
+			if e := c.deleteFromStore(epCnt); e != nil {
+				log.Warnf("couldnt rollback from store, epCnt %v on failure (%v): %v", epCnt, err, e)
 			}
 		}
 	}()
 
-	network.epCnt = &endpointCnt{n: network}
-	if err = c.updateToStore(network.epCnt); err != nil {
+	network.epCnt = epCnt
+	if err = c.updateToStore(network); err != nil {
 		return nil, err
 	}
 
+	joinCluster(network)
+	if !c.isDistributedControl() {
+		arrangeIngressFilterRule()
+	}
+
 	return network, nil
+}
+
+var joinCluster NetworkWalker = func(nw Network) bool {
+	n := nw.(*network)
+	if err := n.joinCluster(); err != nil {
+		log.Errorf("Failed to join network %s (%s) into agent cluster: %v", n.Name(), n.ID(), err)
+	}
+	n.addDriverWatches()
+	return false
+}
+
+func (c *controller) reservePools() {
+	networks, err := c.getNetworksForScope(datastore.LocalScope)
+	if err != nil {
+		log.Warnf("Could not retrieve networks from local store during ipam allocation for existing networks: %v", err)
+		return
+	}
+
+	for _, n := range networks {
+		if !doReplayPoolReserve(n) {
+			continue
+		}
+		// Construct pseudo configs for the auto IP case
+		autoIPv4 := (len(n.ipamV4Config) == 0 || (len(n.ipamV4Config) == 1 && n.ipamV4Config[0].PreferredPool == "")) && len(n.ipamV4Info) > 0
+		autoIPv6 := (len(n.ipamV6Config) == 0 || (len(n.ipamV6Config) == 1 && n.ipamV6Config[0].PreferredPool == "")) && len(n.ipamV6Info) > 0
+		if autoIPv4 {
+			n.ipamV4Config = []*IpamConf{{PreferredPool: n.ipamV4Info[0].Pool.String()}}
+		}
+		if n.enableIPv6 && autoIPv6 {
+			n.ipamV6Config = []*IpamConf{{PreferredPool: n.ipamV6Info[0].Pool.String()}}
+		}
+		// Account current network gateways
+		for i, c := range n.ipamV4Config {
+			if c.Gateway == "" && n.ipamV4Info[i].Gateway != nil {
+				c.Gateway = n.ipamV4Info[i].Gateway.IP.String()
+			}
+		}
+		if n.enableIPv6 {
+			for i, c := range n.ipamV6Config {
+				if c.Gateway == "" && n.ipamV6Info[i].Gateway != nil {
+					c.Gateway = n.ipamV6Info[i].Gateway.IP.String()
+				}
+			}
+		}
+		// Reserve pools
+		if err := n.ipamAllocate(); err != nil {
+			log.Warnf("Failed to allocate ipam pool(s) for network %q (%s): %v", n.Name(), n.ID(), err)
+		}
+		// Reserve existing endpoints' addresses
+		ipam, _, err := n.getController().getIPAMDriver(n.ipamType)
+		if err != nil {
+			log.Warnf("Failed to retrieve ipam driver for network %q (%s) during address reservation", n.Name(), n.ID())
+			continue
+		}
+		epl, err := n.getEndpointsFromStore()
+		if err != nil {
+			log.Warnf("Failed to retrieve list of current endpoints on network %q (%s)", n.Name(), n.ID())
+			continue
+		}
+		for _, ep := range epl {
+			if err := ep.assignAddress(ipam, true, ep.Iface().AddressIPv6() != nil); err != nil {
+				log.Warnf("Failed to reserve current adress for endpoint %q (%s) on network %q (%s)",
+					ep.Name(), ep.ID(), n.Name(), n.ID())
+			}
+		}
+	}
+}
+
+func doReplayPoolReserve(n *network) bool {
+	_, caps, err := n.getController().getIPAMDriver(n.ipamType)
+	if err != nil {
+		log.Warnf("Failed to retrieve ipam driver for network %q (%s): %v", n.Name(), n.ID(), err)
+		return false
+	}
+	return caps.RequiresRequestReplay
 }
 
 func (c *controller) addNetwork(n *network) error {
@@ -505,9 +801,11 @@ func (c *controller) addNetwork(n *network) error {
 	}
 
 	// Create the network
-	if err := d.CreateNetwork(n.id, n.generic, n.getIPData(4), n.getIPData(6)); err != nil {
+	if err := d.CreateNetwork(n.id, n.generic, n, n.getIPData(4), n.getIPData(6)); err != nil {
 		return err
 	}
+
+	n.startResolver()
 
 	return nil
 }
@@ -521,6 +819,9 @@ func (c *controller) Networks() []Network {
 	}
 
 	for _, n := range networks {
+		if n.inDelete {
+			continue
+		}
 		list = append(list, n)
 	}
 
@@ -572,9 +873,7 @@ func (c *controller) NetworkByID(id string) (Network, error) {
 }
 
 // NewSandbox creates a new sandbox for the passed container id
-func (c *controller) NewSandbox(containerID string, options ...SandboxOption) (Sandbox, error) {
-	var err error
-
+func (c *controller) NewSandbox(containerID string, options ...SandboxOption) (sBox Sandbox, err error) {
 	if containerID == "" {
 		return nil, types.BadRequestErrorf("invalid container ID")
 	}
@@ -585,8 +884,9 @@ func (c *controller) NewSandbox(containerID string, options ...SandboxOption) (S
 		if s.containerID == containerID {
 			// If not a stub, then we already have a complete sandbox.
 			if !s.isStub {
+				sbID := s.ID()
 				c.Unlock()
-				return nil, types.BadRequestErrorf("container %s is already present: %v", containerID, s)
+				return nil, types.ForbiddenErrorf("container %s is already present in sandbox %s", containerID, sbID)
 			}
 
 			// We already have a stub sandbox from the
@@ -603,18 +903,41 @@ func (c *controller) NewSandbox(containerID string, options ...SandboxOption) (S
 	// Create sandbox and process options first. Key generation depends on an option
 	if sb == nil {
 		sb = &sandbox{
-			id:          stringid.GenerateRandomID(),
-			containerID: containerID,
-			endpoints:   epHeap{},
-			epPriority:  map[string]int{},
-			config:      containerConfig{},
-			controller:  c,
+			id:                 stringid.GenerateRandomID(),
+			containerID:        containerID,
+			endpoints:          epHeap{},
+			epPriority:         map[string]int{},
+			populatedEndpoints: map[string]struct{}{},
+			config:             containerConfig{},
+			controller:         c,
 		}
 	}
+	sBox = sb
 
 	heap.Init(&sb.endpoints)
 
 	sb.processOptions(options...)
+
+	c.Lock()
+	if sb.ingress && c.ingressSandbox != nil {
+		c.Unlock()
+		return nil, types.ForbiddenErrorf("ingress sandbox already present")
+	}
+
+	if sb.ingress {
+		c.ingressSandbox = sb
+		sb.id = "ingress_sbox"
+	}
+	c.Unlock()
+	defer func() {
+		if err != nil {
+			c.Lock()
+			if sb.ingress {
+				c.ingressSandbox = nil
+			}
+			c.Unlock()
+		}
+	}()
 
 	if err = sb.setupResolutionFiles(); err != nil {
 		return nil, err
@@ -622,7 +945,7 @@ func (c *controller) NewSandbox(containerID string, options ...SandboxOption) (S
 
 	if sb.config.useDefaultSandBox {
 		c.sboxOnce.Do(func() {
-			c.defOsSbox, err = osl.NewSandbox(sb.Key(), false)
+			c.defOsSbox, err = osl.NewSandbox(sb.Key(), false, false)
 		})
 
 		if err != nil {
@@ -634,7 +957,7 @@ func (c *controller) NewSandbox(containerID string, options ...SandboxOption) (S
 	}
 
 	if sb.osSbox == nil && !sb.config.useExternalKey {
-		if sb.osSbox, err = osl.NewSandbox(sb.Key(), !sb.config.useDefaultSandBox); err != nil {
+		if sb.osSbox, err = osl.NewSandbox(sb.Key(), !sb.config.useDefaultSandBox, false); err != nil {
 			return nil, fmt.Errorf("failed to create new osl sandbox: %v", err)
 		}
 	}
@@ -738,82 +1061,76 @@ func SandboxKeyWalker(out *Sandbox, key string) SandboxWalker {
 	}
 }
 
-func (c *controller) loadDriver(networkType string) (*driverData, error) {
+func (c *controller) loadDriver(networkType string) error {
 	// Plugins pkg performs lazy loading of plugins that acts as remote drivers.
 	// As per the design, this Get call will result in remote driver discovery if there is a corresponding plugin available.
 	_, err := plugins.Get(networkType, driverapi.NetworkPluginEndpointType)
 	if err != nil {
 		if err == plugins.ErrNotFound {
-			return nil, types.NotFoundErrorf(err.Error())
+			return types.NotFoundErrorf(err.Error())
 		}
-		return nil, err
+		return err
 	}
-	c.Lock()
-	defer c.Unlock()
-	dd, ok := c.drivers[networkType]
-	if !ok {
-		return nil, ErrInvalidNetworkDriver(networkType)
-	}
-	return dd, nil
+
+	return nil
 }
 
-func (c *controller) loadIpamDriver(name string) (*ipamData, error) {
-	if _, err := plugins.Get(name, ipamapi.PluginEndpointType); err != nil {
+func (c *controller) loadIPAMDriver(name string) error {
+	if _, err := c.GetPluginGetter().Get(name, ipamapi.PluginEndpointType, plugingetter.LOOKUP); err != nil {
 		if err == plugins.ErrNotFound {
-			return nil, types.NotFoundErrorf(err.Error())
+			return types.NotFoundErrorf(err.Error())
 		}
-		return nil, err
+		return err
 	}
-	c.Lock()
-	id, ok := c.ipamDrivers[name]
-	c.Unlock()
-	if !ok {
-		return nil, types.BadRequestErrorf("invalid ipam driver: %q", name)
-	}
-	return id, nil
+
+	return nil
 }
 
-func (c *controller) getIPAM(name string) (id *ipamData, err error) {
-	var ok bool
-	c.Lock()
-	id, ok = c.ipamDrivers[name]
-	c.Unlock()
-	if !ok {
-		id, err = c.loadIpamDriver(name)
-	}
-	return id, err
-}
+func (c *controller) getIPAMDriver(name string) (ipamapi.Ipam, *ipamapi.Capability, error) {
+	id, cap := c.drvRegistry.IPAM(name)
+	if id == nil {
+		// Might be a plugin name. Try loading it
+		if err := c.loadIPAMDriver(name); err != nil {
+			return nil, nil, err
+		}
 
-func (c *controller) getIpamDriver(name string) (ipamapi.Ipam, error) {
-	id, err := c.getIPAM(name)
-	if err != nil {
-		return nil, err
+		// Now that we resolved the plugin, try again looking up the registry
+		id, cap = c.drvRegistry.IPAM(name)
+		if id == nil {
+			return nil, nil, types.BadRequestErrorf("invalid ipam driver: %q", name)
+		}
 	}
-	return id.driver, nil
-}
 
-func (c *controller) getIpamDrivers() ipamTable {
-	c.Lock()
-	defer c.Unlock()
-	table := ipamTable{}
-	for i, d := range c.ipamDrivers {
-		table[i] = d
-	}
-	return table
-}
-
-func (c *controller) getNetDrivers() driverTable {
-	c.Lock()
-	defer c.Unlock()
-	table := driverTable{}
-	for i, d := range c.drivers {
-		table[i] = d
-	}
-	return table
+	return id, cap, nil
 }
 
 func (c *controller) Stop() {
+	c.clearIngress(false)
 	c.closeStores()
 	c.stopExternalKeyListener()
 	osl.GC()
+}
+
+func (c *controller) clearIngress(clusterLeave bool) {
+	c.Lock()
+	ingressSandbox := c.ingressSandbox
+	c.ingressSandbox = nil
+	c.Unlock()
+
+	if ingressSandbox != nil {
+		if err := ingressSandbox.Delete(); err != nil {
+			log.Warnf("Could not delete ingress sandbox while leaving: %v", err)
+		}
+	}
+
+	n, err := c.NetworkByName("ingress")
+	if err != nil && clusterLeave {
+		log.Warnf("Could not find ingress network while leaving: %v", err)
+	}
+
+	if n != nil {
+		if err := n.Delete(); err != nil {
+			log.Warnf("Could not delete ingress network while leaving: %v", err)
+		}
+	}
 }

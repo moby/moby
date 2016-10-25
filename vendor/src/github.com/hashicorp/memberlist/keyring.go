@@ -34,6 +34,9 @@ func (k *Keyring) init() {
 // keyring. If creating a keyring with multiple keys, one key must be designated
 // primary by passing it as the primaryKey. If the primaryKey does not exist in
 // the list of secondary keys, it will be automatically added at position 0.
+//
+// A key should be either 16, 24, or 32 bytes to select AES-128,
+// AES-192, or AES-256.
 func NewKeyring(keys [][]byte, primaryKey []byte) (*Keyring, error) {
 	keyring := &Keyring{}
 	keyring.init()
@@ -58,10 +61,12 @@ func NewKeyring(keys [][]byte, primaryKey []byte) (*Keyring, error) {
 // AddKey will install a new key on the ring. Adding a key to the ring will make
 // it available for use in decryption. If the key already exists on the ring,
 // this function will just return noop.
+//
+// key should be either 16, 24, or 32 bytes to select AES-128,
+// AES-192, or AES-256.
 func (k *Keyring) AddKey(key []byte) error {
-	// Encorce 16-byte key size
-	if len(key) != 16 {
-		return fmt.Errorf("key size must be 16 bytes")
+	if l := len(key); l != 16 && l != 24 && l != 32 {
+		return fmt.Errorf("key size must be 16, 24 or 32 bytes")
 	}
 
 	// No-op if key is already installed

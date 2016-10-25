@@ -3,21 +3,40 @@ package daemon
 import (
 	"errors"
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/filters"
+	networktypes "github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/volume"
-	"github.com/docker/engine-api/types"
-	"github.com/docker/engine-api/types/filters"
-	networktypes "github.com/docker/engine-api/types/network"
 	"github.com/docker/go-connections/nat"
 )
 
 var acceptedVolumeFilterTags = map[string]bool{
 	"dangling": true,
+	"name":     true,
+	"driver":   true,
+	"label":    true,
+}
+
+var acceptedPsFilterTags = map[string]bool{
+	"ancestor":  true,
+	"before":    true,
+	"exited":    true,
+	"id":        true,
+	"isolation": true,
+	"label":     true,
+	"name":      true,
+	"status":    true,
+	"since":     true,
+	"volume":    true,
+	"network":   true,
+	"is-task":   true,
 }
 
 // iterationAction represents possible outcomes happening during the container iteration.
@@ -60,25 +79,88 @@ type listContext struct {
 	// exitAllowed is a list of exit codes allowed to filter with
 	exitAllowed []int
 
-	// FIXME Remove this for 1.12 as --since and --before are deprecated
-	// beforeContainer is a filter to ignore containers that appear before the one given
-	beforeContainer *container.Container
-	// sinceContainer is a filter to stop the filtering when the iterator arrive to the given container
-	sinceContainer *container.Container
-
 	// beforeFilter is a filter to ignore containers that appear before the one given
-	// this is used for --filter=before= and --before=, the latter is deprecated.
 	beforeFilter *container.Container
 	// sinceFilter is a filter to stop the filtering when the iterator arrive to the given container
-	// this is used for --filter=since= and --since=, the latter is deprecated.
 	sinceFilter *container.Container
+
+	// taskFilter tells if we should filter based on wether a container is part of a task
+	taskFilter bool
+	// isTask tells us if the we should filter container that are a task (true) or not (false)
+	isTask bool
 	// ContainerListOptions is the filters set by the user
 	*types.ContainerListOptions
+}
+
+// byContainerCreated is a temporary type used to sort a list of containers by creation time.
+type byContainerCreated []*container.Container
+
+func (r byContainerCreated) Len() int      { return len(r) }
+func (r byContainerCreated) Swap(i, j int) { r[i], r[j] = r[j], r[i] }
+func (r byContainerCreated) Less(i, j int) bool {
+	return r[i].Created.UnixNano() < r[j].Created.UnixNano()
 }
 
 // Containers returns the list of containers to show given the user's filtering.
 func (daemon *Daemon) Containers(config *types.ContainerListOptions) ([]*types.Container, error) {
 	return daemon.reduceContainers(config, daemon.transformContainer)
+}
+
+func (daemon *Daemon) filterByNameIDMatches(ctx *listContext) []*container.Container {
+	idSearch := false
+	names := ctx.filters.Get("name")
+	ids := ctx.filters.Get("id")
+	if len(names)+len(ids) == 0 {
+		// if name or ID filters are not in use, return to
+		// standard behavior of walking the entire container
+		// list from the daemon's in-memory store
+		return daemon.List()
+	}
+
+	// idSearch will determine if we limit name matching to the IDs
+	// matched from any IDs which were specified as filters
+	if len(ids) > 0 {
+		idSearch = true
+	}
+
+	matches := make(map[string]bool)
+	// find ID matches; errors represent "not found" and can be ignored
+	for _, id := range ids {
+		if fullID, err := daemon.idIndex.Get(id); err == nil {
+			matches[fullID] = true
+		}
+	}
+
+	// look for name matches; if ID filtering was used, then limit the
+	// search space to the matches map only; errors represent "not found"
+	// and can be ignored
+	if len(names) > 0 {
+		for id, idNames := range ctx.names {
+			// if ID filters were used and no matches on that ID were
+			// found, continue to next ID in the list
+			if idSearch && !matches[id] {
+				continue
+			}
+			for _, eachName := range idNames {
+				if ctx.filters.Match("name", eachName) {
+					matches[id] = true
+				}
+			}
+		}
+	}
+
+	cntrs := make([]*container.Container, 0, len(matches))
+	for id := range matches {
+		if c := daemon.containers.Get(id); c != nil {
+			cntrs = append(cntrs, c)
+		}
+	}
+
+	// Restore sort-order after filtering
+	// Created gives us nanosec resolution for sorting
+	sort.Sort(sort.Reverse(byContainerCreated(cntrs)))
+
+	return cntrs
 }
 
 // reduceContainers parses the user's filtering options and generates the list of containers to return based on a reducer.
@@ -90,7 +172,12 @@ func (daemon *Daemon) reduceContainers(config *types.ContainerListOptions, reduc
 		return nil, err
 	}
 
-	for _, container := range daemon.List() {
+	// fastpath to only look at a subset of containers if specific name
+	// or ID matches were provided by the user--otherwise we potentially
+	// end up locking and querying many more containers than intended
+	containerList := daemon.filterByNameIDMatches(ctx)
+
+	for _, container := range containerList {
 		t, err := daemon.reducePsContainer(container, ctx, reducer)
 		if err != nil {
 			if err != errStopIteration {
@@ -128,7 +215,12 @@ func (daemon *Daemon) reducePsContainer(container *container.Container, ctx *lis
 func (daemon *Daemon) foldFilter(config *types.ContainerListOptions) (*listContext, error) {
 	psFilters := config.Filter
 
+	if err := psFilters.Validate(acceptedPsFilterTags); err != nil {
+		return nil, err
+	}
+
 	var filtExited []int
+
 	err := psFilters.WalkValues("exited", func(value string) error {
 		code, err := strconv.Atoi(value)
 		if err != nil {
@@ -153,9 +245,20 @@ func (daemon *Daemon) foldFilter(config *types.ContainerListOptions) (*listConte
 		return nil, err
 	}
 
+	var taskFilter, isTask bool
+	if psFilters.Include("is-task") {
+		if psFilters.ExactMatch("is-task", "true") {
+			taskFilter = true
+			isTask = true
+		} else if psFilters.ExactMatch("is-task", "false") {
+			taskFilter = true
+			isTask = false
+		} else {
+			return nil, fmt.Errorf("Invalid filter 'is-task=%s'", psFilters.Get("is-task"))
+		}
+	}
+
 	var beforeContFilter, sinceContFilter *container.Container
-	// FIXME remove this for 1.12 as --since and --before are deprecated
-	var beforeContainer, sinceContainer *container.Container
 
 	err = psFilters.WalkValues("before", func(value string) error {
 		beforeContFilter, err = daemon.GetContainer(value)
@@ -193,80 +296,23 @@ func (daemon *Daemon) foldFilter(config *types.ContainerListOptions) (*listConte
 		})
 	}
 
-	// FIXME remove this for 1.12 as --since and --before are deprecated
-	if config.Before != "" {
-		beforeContainer, err = daemon.GetContainer(config.Before)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	// FIXME remove this for 1.12 as --since and --before are deprecated
-	if config.Since != "" {
-		sinceContainer, err = daemon.GetContainer(config.Since)
-		if err != nil {
-			return nil, err
-		}
-	}
-
 	return &listContext{
 		filters:              psFilters,
 		ancestorFilter:       ancestorFilter,
 		images:               imagesFilter,
 		exitAllowed:          filtExited,
-		beforeContainer:      beforeContainer,
-		sinceContainer:       sinceContainer,
 		beforeFilter:         beforeContFilter,
 		sinceFilter:          sinceContFilter,
+		taskFilter:           taskFilter,
+		isTask:               isTask,
 		ContainerListOptions: config,
 		names:                daemon.nameIndex.GetAll(),
 	}, nil
 }
 
-// includeContainerInList decides whether a containers should be include in the output or not based in the filter.
+// includeContainerInList decides whether a container should be included in the output or not based in the filter.
 // It also decides if the iteration should be stopped or not.
 func includeContainerInList(container *container.Container, ctx *listContext) iterationAction {
-	// Do not include container if it's stopped and we're not filters
-	// FIXME remove the ctx.beforContainer part of the condition for 1.12 as --since and --before are deprecated
-	if !container.Running && !ctx.All && ctx.Limit <= 0 && ctx.beforeContainer == nil && ctx.sinceContainer == nil {
-		return excludeContainer
-	}
-
-	// Do not include container if the name doesn't match
-	if !ctx.filters.Match("name", container.Name) {
-		return excludeContainer
-	}
-
-	// Do not include container if the id doesn't match
-	if !ctx.filters.Match("id", container.ID) {
-		return excludeContainer
-	}
-
-	// Do not include container if any of the labels don't match
-	if !ctx.filters.MatchKVList("label", container.Config.Labels) {
-		return excludeContainer
-	}
-
-	// Do not include container if isolation doesn't match
-	if excludeContainer == excludeByIsolation(container, ctx) {
-		return excludeContainer
-	}
-
-	// FIXME remove this for 1.12 as --since and --before are deprecated
-	if ctx.beforeContainer != nil {
-		if container.ID == ctx.beforeContainer.ID {
-			ctx.beforeContainer = nil
-		}
-		return excludeContainer
-	}
-
-	// FIXME remove this for 1.12 as --since and --before are deprecated
-	if ctx.sinceContainer != nil {
-		if container.ID == ctx.sinceContainer.ID {
-			return stopIteration
-		}
-	}
-
 	// Do not include container if it's in the list before the filter container.
 	// Set the filter container to nil to include the rest of containers after this one.
 	if ctx.beforeFilter != nil {
@@ -283,6 +329,37 @@ func includeContainerInList(container *container.Container, ctx *listContext) it
 		}
 	}
 
+	// Do not include container if it's stopped and we're not filters
+	if !container.Running && !ctx.All && ctx.Limit <= 0 {
+		return excludeContainer
+	}
+
+	// Do not include container if the name doesn't match
+	if !ctx.filters.Match("name", container.Name) {
+		return excludeContainer
+	}
+
+	// Do not include container if the id doesn't match
+	if !ctx.filters.Match("id", container.ID) {
+		return excludeContainer
+	}
+
+	if ctx.taskFilter {
+		if ctx.isTask != container.Managed {
+			return excludeContainer
+		}
+	}
+
+	// Do not include container if any of the labels don't match
+	if !ctx.filters.MatchKVList("label", container.Config.Labels) {
+		return excludeContainer
+	}
+
+	// Do not include container if isolation doesn't match
+	if excludeContainer == excludeByIsolation(container, ctx) {
+		return excludeContainer
+	}
+
 	// Stop iteration when the index is over the limit
 	if ctx.Limit > 0 && ctx.idx == ctx.Limit {
 		return stopIteration
@@ -292,7 +369,7 @@ func includeContainerInList(container *container.Container, ctx *listContext) it
 	if len(ctx.exitAllowed) > 0 {
 		shouldSkip := true
 		for _, code := range ctx.exitAllowed {
-			if code == container.ExitCode && !container.Running {
+			if code == container.ExitCode() && !container.Running && !container.StartedAt.IsZero() {
 				shouldSkip = false
 				break
 			}
@@ -310,7 +387,11 @@ func includeContainerInList(container *container.Container, ctx *listContext) it
 	if ctx.filters.Include("volume") {
 		volumesByName := make(map[string]*volume.MountPoint)
 		for _, m := range container.MountPoints {
-			volumesByName[m.Name] = m
+			if m.Name != "" {
+				volumesByName[m.Name] = m
+			} else {
+				volumesByName[m.Source] = m
+			}
 		}
 
 		volumeExist := fmt.Errorf("volume mounted in container")
@@ -337,6 +418,27 @@ func includeContainerInList(container *container.Container, ctx *listContext) it
 		}
 	}
 
+	networkExist := fmt.Errorf("container part of network")
+	if ctx.filters.Include("network") {
+		err := ctx.filters.WalkValues("network", func(value string) error {
+			if _, ok := container.NetworkSettings.Networks[value]; ok {
+				return networkExist
+			}
+			for _, nw := range container.NetworkSettings.Networks {
+				if nw.EndpointSettings == nil {
+					continue
+				}
+				if nw.NetworkID == value {
+					return networkExist
+				}
+			}
+			return nil
+		})
+		if err != networkExist {
+			return excludeContainer
+		}
+	}
+
 	return includeContainer
 }
 
@@ -348,7 +450,7 @@ func (daemon *Daemon) transformContainer(container *container.Container, ctx *li
 		ImageID: container.ImageID.String(),
 	}
 	if newC.Names == nil {
-		// Dead containers will often have no name, so make sure the response isn't  null
+		// Dead containers will often have no name, so make sure the response isn't null
 		newC.Names = []string{}
 	}
 
@@ -386,7 +488,7 @@ func (daemon *Daemon) transformContainer(container *container.Container, ctx *li
 	// copy networks to avoid races
 	networks := make(map[string]*networktypes.EndpointSettings)
 	for name, network := range container.NetworkSettings.Networks {
-		if network == nil {
+		if network == nil || network.EndpointSettings == nil {
 			continue
 		}
 		networks[name] = &networktypes.EndpointSettings{
@@ -398,6 +500,7 @@ func (daemon *Daemon) transformContainer(container *container.Container, ctx *li
 			GlobalIPv6Address:   network.GlobalIPv6Address,
 			GlobalIPv6PrefixLen: network.GlobalIPv6PrefixLen,
 			MacAddress:          network.MacAddress,
+			NetworkID:           network.NetworkID,
 		}
 		if network.IPAMConfig != nil {
 			networks[name].IPAMConfig = &networktypes.EndpointIPAMConfig{
@@ -416,7 +519,7 @@ func (daemon *Daemon) transformContainer(container *container.Container, ctx *li
 		}
 		if len(bindings) == 0 {
 			newC.Ports = append(newC.Ports, types.Port{
-				PrivatePort: p,
+				PrivatePort: uint16(p),
 				Type:        port.Proto(),
 			})
 			continue
@@ -427,8 +530,8 @@ func (daemon *Daemon) transformContainer(container *container.Container, ctx *li
 				return nil, err
 			}
 			newC.Ports = append(newC.Ports, types.Port{
-				PrivatePort: p,
-				PublicPort:  h,
+				PrivatePort: uint16(p),
+				PublicPort:  uint16(h),
 				Type:        port.Proto(),
 				IP:          binding.HostIP,
 			})
@@ -450,8 +553,7 @@ func (daemon *Daemon) transformContainer(container *container.Container, ctx *li
 // of volumes returned.
 func (daemon *Daemon) Volumes(filter string) ([]*types.Volume, []string, error) {
 	var (
-		volumesOut   []*types.Volume
-		danglingOnly = false
+		volumesOut []*types.Volume
 	)
 	volFilters, err := filters.FromParam(filter)
 	if err != nil {
@@ -462,25 +564,70 @@ func (daemon *Daemon) Volumes(filter string) ([]*types.Volume, []string, error) 
 		return nil, nil, err
 	}
 
-	if volFilters.Include("dangling") {
-		if volFilters.ExactMatch("dangling", "true") || volFilters.ExactMatch("dangling", "1") {
-			danglingOnly = true
-		} else if !volFilters.ExactMatch("dangling", "false") && !volFilters.ExactMatch("dangling", "0") {
-			return nil, nil, fmt.Errorf("Invalid filter 'dangling=%s'", volFilters.Get("dangling"))
-		}
-	}
-
 	volumes, warnings, err := daemon.volumes.List()
 	if err != nil {
 		return nil, nil, err
 	}
-	if volFilters.Include("dangling") {
-		volumes = daemon.volumes.FilterByUsed(volumes, !danglingOnly)
+
+	filterVolumes, err := daemon.filterVolumes(volumes, volFilters)
+	if err != nil {
+		return nil, nil, err
 	}
-	for _, v := range volumes {
-		volumesOut = append(volumesOut, volumeToAPIType(v))
+	for _, v := range filterVolumes {
+		apiV := volumeToAPIType(v)
+		if vv, ok := v.(interface {
+			CachedPath() string
+		}); ok {
+			apiV.Mountpoint = vv.CachedPath()
+		} else {
+			apiV.Mountpoint = v.Path()
+		}
+		volumesOut = append(volumesOut, apiV)
 	}
 	return volumesOut, warnings, nil
+}
+
+// filterVolumes filters volume list according to user specified filter
+// and returns user chosen volumes
+func (daemon *Daemon) filterVolumes(vols []volume.Volume, filter filters.Args) ([]volume.Volume, error) {
+	// if filter is empty, return original volume list
+	if filter.Len() == 0 {
+		return vols, nil
+	}
+
+	var retVols []volume.Volume
+	for _, vol := range vols {
+		if filter.Include("name") {
+			if !filter.Match("name", vol.Name()) {
+				continue
+			}
+		}
+		if filter.Include("driver") {
+			if !filter.Match("driver", vol.DriverName()) {
+				continue
+			}
+		}
+		if filter.Include("label") {
+			v, ok := vol.(volume.DetailedVolume)
+			if !ok {
+				continue
+			}
+			if !filter.MatchKVList("label", v.Labels()) {
+				continue
+			}
+		}
+		retVols = append(retVols, vol)
+	}
+	danglingOnly := false
+	if filter.Include("dangling") {
+		if filter.ExactMatch("dangling", "true") || filter.ExactMatch("dangling", "1") {
+			danglingOnly = true
+		} else if !filter.ExactMatch("dangling", "false") && !filter.ExactMatch("dangling", "0") {
+			return nil, fmt.Errorf("Invalid filter 'dangling=%s'", filter.Get("dangling"))
+		}
+		retVols = daemon.volumes.FilterByUsed(retVols, !danglingOnly)
+	}
+	return retVols, nil
 }
 
 func populateImageFilterByParents(ancestorMap map[image.ID]bool, imageID image.ID, getChildren func(image.ID) []image.ID) {

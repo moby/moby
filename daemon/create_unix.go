@@ -3,14 +3,15 @@
 package daemon
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 
 	"github.com/Sirupsen/logrus"
+	containertypes "github.com/docker/docker/api/types/container"
+	mounttypes "github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/container"
-	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/pkg/stringid"
-	containertypes "github.com/docker/engine-api/types/container"
 	"github.com/opencontainers/runc/libcontainer/label"
 )
 
@@ -21,7 +22,8 @@ func (daemon *Daemon) createContainerPlatformSpecificSettings(container *contain
 	}
 	defer daemon.Unmount(container)
 
-	if err := container.SetupWorkingDirectory(); err != nil {
+	rootUID, rootGID := daemon.GetRemappedUIDGID()
+	if err := container.SetupWorkingDirectory(rootUID, rootGID); err != nil {
 		return err
 	}
 
@@ -41,10 +43,10 @@ func (daemon *Daemon) createContainerPlatformSpecificSettings(container *contain
 
 		stat, err := os.Stat(path)
 		if err == nil && !stat.IsDir() {
-			return derr.ErrorCodeMountOverFile.WithArgs(path)
+			return fmt.Errorf("cannot mount volume over existing file, file exists %s", path)
 		}
 
-		v, err := daemon.volumes.CreateWithRef(name, hostConfig.VolumeDriver, container.ID, nil)
+		v, err := daemon.volumes.CreateWithRef(name, hostConfig.VolumeDriver, container.ID, nil, nil)
 		if err != nil {
 			return err
 		}
@@ -62,8 +64,11 @@ func (daemon *Daemon) createContainerPlatformSpecificSettings(container *contain
 // this is only called when the container is created.
 func (daemon *Daemon) populateVolumes(c *container.Container) error {
 	for _, mnt := range c.MountPoints {
-		// skip binds and volumes referenced by other containers (ie, volumes-from)
-		if mnt.Driver == "" || mnt.Volume == nil || len(daemon.volumes.Refs(mnt.Volume)) > 1 {
+		if mnt.Volume == nil {
+			continue
+		}
+
+		if mnt.Type != mounttypes.TypeVolume || !mnt.CopyData {
 			continue
 		}
 

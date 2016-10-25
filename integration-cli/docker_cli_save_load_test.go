@@ -167,6 +167,16 @@ func (s *DockerSuite) TestSaveAndLoadRepoFlags(c *check.C) {
 	c.Assert(before, checker.Equals, after, check.Commentf("inspect is not the same after a save / load"))
 }
 
+func (s *DockerSuite) TestSaveWithNoExistImage(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+
+	imgName := "foobar-non-existing-image"
+
+	out, _, err := dockerCmdWithError("save", "-o", "test-img.tar", imgName)
+	c.Assert(err, checker.NotNil, check.Commentf("save image should fail for non-existing image"))
+	c.Assert(out, checker.Contains, fmt.Sprintf("No such image: %s", imgName))
+}
+
 func (s *DockerSuite) TestSaveMultipleNames(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	repoName := "foobar-save-multi-name-test"
@@ -273,6 +283,7 @@ func (s *DockerSuite) TestSaveDirectoryPermissions(c *check.C) {
 
 			f, err := os.Open(layerPath)
 			c.Assert(err, checker.IsNil, check.Commentf("failed to open %s: %s", layerPath, err))
+			defer f.Close()
 
 			entries, err := listTar(f)
 			for _, e := range entries {
@@ -300,4 +311,73 @@ func (s *DockerSuite) TestLoadZeroSizeLayer(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 
 	dockerCmd(c, "load", "-i", "fixtures/load/emptyLayer.tar")
+}
+
+func (s *DockerSuite) TestSaveLoadParents(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+
+	makeImage := func(from string, addfile string) string {
+		var (
+			out string
+		)
+		out, _ = dockerCmd(c, "run", "-d", from, "touch", addfile)
+		cleanedContainerID := strings.TrimSpace(out)
+
+		out, _ = dockerCmd(c, "commit", cleanedContainerID)
+		imageID := strings.TrimSpace(out)
+
+		dockerCmd(c, "rm", "-f", cleanedContainerID)
+		return imageID
+	}
+
+	idFoo := makeImage("busybox", "foo")
+	idBar := makeImage(idFoo, "bar")
+
+	tmpDir, err := ioutil.TempDir("", "save-load-parents")
+	c.Assert(err, checker.IsNil)
+	defer os.RemoveAll(tmpDir)
+
+	c.Log("tmpdir", tmpDir)
+
+	outfile := filepath.Join(tmpDir, "out.tar")
+
+	dockerCmd(c, "save", "-o", outfile, idBar, idFoo)
+	dockerCmd(c, "rmi", idBar)
+	dockerCmd(c, "load", "-i", outfile)
+
+	inspectOut := inspectField(c, idBar, "Parent")
+	c.Assert(inspectOut, checker.Equals, idFoo)
+
+	inspectOut = inspectField(c, idFoo, "Parent")
+	c.Assert(inspectOut, checker.Equals, "")
+}
+
+func (s *DockerSuite) TestSaveLoadNoTag(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+
+	name := "saveloadnotag"
+
+	_, err := buildImage(name, "FROM busybox\nENV foo=bar", true)
+	c.Assert(err, checker.IsNil, check.Commentf("%v", err))
+
+	id := inspectField(c, name, "Id")
+
+	// Test to make sure that save w/o name just shows imageID during load
+	out, _, err := runCommandPipelineWithOutput(
+		exec.Command(dockerBinary, "save", id),
+		exec.Command(dockerBinary, "load"))
+	c.Assert(err, checker.IsNil, check.Commentf("failed to save and load repo: %s, %v", out, err))
+
+	// Should not show 'name' but should show the image ID during the load
+	c.Assert(out, checker.Not(checker.Contains), "Loaded image: ")
+	c.Assert(out, checker.Contains, "Loaded image ID:")
+	c.Assert(out, checker.Contains, id)
+
+	// Test to make sure that save by name shows that name during load
+	out, _, err = runCommandPipelineWithOutput(
+		exec.Command(dockerBinary, "save", name),
+		exec.Command(dockerBinary, "load"))
+	c.Assert(err, checker.IsNil, check.Commentf("failed to save and load repo: %s, %v", out, err))
+	c.Assert(out, checker.Contains, "Loaded image: "+name+":latest")
+	c.Assert(out, checker.Not(checker.Contains), "Loaded image ID:")
 }

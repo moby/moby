@@ -8,9 +8,9 @@ import (
 func getInitializers() []initializer {
 	return []initializer{
 		{null.Init, "null"},
-		{windows.GetInit("Transparent"), "Transparent"},
-		{windows.GetInit("L2Bridge"), "L2Bridge"},
-		{windows.GetInit("L2Tunnel"), "L2Tunnel"},
-		{windows.GetInit("NAT"), "NAT"},
+		{windows.GetInit("transparent"), "transparent"},
+		{windows.GetInit("l2bridge"), "l2bridge"},
+		{windows.GetInit("l2tunnel"), "l2tunnel"},
+		{windows.GetInit("nat"), "nat"},
 	}
 }

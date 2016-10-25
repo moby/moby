@@ -29,6 +29,16 @@ func ValidateContextDirectory(srcPath string, excludes []string) error {
 		return err
 	}
 	return filepath.Walk(contextRoot, func(filePath string, f os.FileInfo, err error) error {
+		if err != nil {
+			if os.IsPermission(err) {
+				return fmt.Errorf("can't stat '%s'", filePath)
+			}
+			if os.IsNotExist(err) {
+				return nil
+			}
+			return err
+		}
+
 		// skip this directory/file if it's not in the path, it won't get added to the context
 		if relFilePath, err := filepath.Rel(contextRoot, filePath); err != nil {
 			return err
@@ -39,16 +49,6 @@ func ValidateContextDirectory(srcPath string, excludes []string) error {
 				return filepath.SkipDir
 			}
 			return nil
-		}
-
-		if err != nil {
-			if os.IsPermission(err) {
-				return fmt.Errorf("can't stat '%s'", filePath)
-			}
-			if os.IsNotExist(err) {
-				return nil
-			}
-			return err
 		}
 
 		// skip checking if symlinks point to non-existing files, such symlinks can be useful
@@ -174,7 +174,7 @@ func GetContextFromLocalDir(localDir, dockerfileName string) (absContextDir, rel
 // the dockerfile in that context directory, and a non-nil error on success.
 func getDockerfileRelPath(givenContextDir, givenDockerfile string) (absContextDir, relDockerfile string, err error) {
 	if absContextDir, err = filepath.Abs(givenContextDir); err != nil {
-		return "", "", fmt.Errorf("unable to get absolute context directory: %v", err)
+		return "", "", fmt.Errorf("unable to get absolute context directory of given context directory %q: %v", givenContextDir, err)
 	}
 
 	// The context dir might be a symbolic link, so follow it to the actual

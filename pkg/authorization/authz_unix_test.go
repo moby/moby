@@ -6,15 +6,16 @@
 package authorization
 
 import (
+	"bytes"
 	"encoding/json"
 	"io/ioutil"
-	"log"
 	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/docker/docker/pkg/plugins"
@@ -22,11 +23,13 @@ import (
 	"github.com/gorilla/mux"
 )
 
-const pluginAddress = "authzplugin.sock"
+const (
+	pluginAddress = "authz-test-plugin.sock"
+)
 
 func TestAuthZRequestPluginError(t *testing.T) {
 	server := authZPluginTestServer{t: t}
-	go server.start()
+	server.start()
 	defer server.stop()
 
 	authZPlugin := createTestPlugin(t)
@@ -34,7 +37,7 @@ func TestAuthZRequestPluginError(t *testing.T) {
 	request := Request{
 		User:           "user",
 		RequestBody:    []byte("sample body"),
-		RequestURI:     "www.authz.com",
+		RequestURI:     "www.authz.com/auth",
 		RequestMethod:  "GET",
 		RequestHeaders: map[string]string{"header": "value"},
 	}
@@ -48,16 +51,16 @@ func TestAuthZRequestPluginError(t *testing.T) {
 	}
 
 	if !reflect.DeepEqual(server.replayResponse, *actualResponse) {
-		t.Fatalf("Response must be equal")
+		t.Fatal("Response must be equal")
 	}
 	if !reflect.DeepEqual(request, server.recordedRequest) {
-		t.Fatalf("Requests must be equal")
+		t.Fatal("Requests must be equal")
 	}
 }
 
 func TestAuthZRequestPlugin(t *testing.T) {
 	server := authZPluginTestServer{t: t}
-	go server.start()
+	server.start()
 	defer server.stop()
 
 	authZPlugin := createTestPlugin(t)
@@ -65,7 +68,7 @@ func TestAuthZRequestPlugin(t *testing.T) {
 	request := Request{
 		User:           "user",
 		RequestBody:    []byte("sample body"),
-		RequestURI:     "www.authz.com",
+		RequestURI:     "www.authz.com/auth",
 		RequestMethod:  "GET",
 		RequestHeaders: map[string]string{"header": "value"},
 	}
@@ -80,22 +83,23 @@ func TestAuthZRequestPlugin(t *testing.T) {
 	}
 
 	if !reflect.DeepEqual(server.replayResponse, *actualResponse) {
-		t.Fatalf("Response must be equal")
+		t.Fatal("Response must be equal")
 	}
 	if !reflect.DeepEqual(request, server.recordedRequest) {
-		t.Fatalf("Requests must be equal")
+		t.Fatal("Requests must be equal")
 	}
 }
 
 func TestAuthZResponsePlugin(t *testing.T) {
 	server := authZPluginTestServer{t: t}
-	go server.start()
+	server.start()
 	defer server.stop()
 
 	authZPlugin := createTestPlugin(t)
 
 	request := Request{
 		User:        "user",
+		RequestURI:  "someting.com/auth",
 		RequestBody: []byte("sample body"),
 	}
 	server.replayResponse = Response{
@@ -109,10 +113,10 @@ func TestAuthZResponsePlugin(t *testing.T) {
 	}
 
 	if !reflect.DeepEqual(server.replayResponse, *actualResponse) {
-		t.Fatalf("Response must be equal")
+		t.Fatal("Response must be equal")
 	}
 	if !reflect.DeepEqual(request, server.recordedRequest) {
-		t.Fatalf("Requests must be equal")
+		t.Fatal("Requests must be equal")
 	}
 }
 
@@ -121,7 +125,7 @@ func TestResponseModifier(t *testing.T) {
 	m := NewResponseModifier(r)
 	m.Header().Set("h1", "v1")
 	m.Write([]byte("body"))
-	m.WriteHeader(500)
+	m.WriteHeader(http.StatusInternalServerError)
 
 	m.FlushAll()
 	if r.Header().Get("h1") != "v1" {
@@ -130,8 +134,41 @@ func TestResponseModifier(t *testing.T) {
 	if !reflect.DeepEqual(r.Body.Bytes(), []byte("body")) {
 		t.Fatalf("Body value must exists %s", r.Body.Bytes())
 	}
-	if r.Code != 500 {
+	if r.Code != http.StatusInternalServerError {
 		t.Fatalf("Status code must be correct %d", r.Code)
+	}
+}
+
+func TestDrainBody(t *testing.T) {
+	tests := []struct {
+		length             int // length is the message length send to drainBody
+		expectedBodyLength int // expectedBodyLength is the expected body length after drainBody is called
+	}{
+		{10, 10}, // Small message size
+		{maxBodySize - 1, maxBodySize - 1}, // Max message size
+		{maxBodySize * 2, 0},               // Large message size (skip copying body)
+
+	}
+
+	for _, test := range tests {
+		msg := strings.Repeat("a", test.length)
+		body, closer, err := drainBody(ioutil.NopCloser(bytes.NewReader([]byte(msg))))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(body) != test.expectedBodyLength {
+			t.Fatalf("Body must be copied, actual length: '%d'", len(body))
+		}
+		if closer == nil {
+			t.Fatal("Closer must not be nil")
+		}
+		modified, err := ioutil.ReadAll(closer)
+		if err != nil {
+			t.Fatalf("Error must not be nil: '%v'", err)
+		}
+		if len(modified) != len(msg) {
+			t.Fatalf("Result should not be truncated. Original length: '%d', new length: '%d'", len(msg), len(modified))
+		}
 	}
 }
 
@@ -140,7 +177,7 @@ func TestResponseModifierOverride(t *testing.T) {
 	m := NewResponseModifier(r)
 	m.Header().Set("h1", "v1")
 	m.Write([]byte("body"))
-	m.WriteHeader(500)
+	m.WriteHeader(http.StatusInternalServerError)
 
 	overrideHeader := make(http.Header)
 	overrideHeader.Add("h1", "v2")
@@ -151,7 +188,7 @@ func TestResponseModifierOverride(t *testing.T) {
 
 	m.OverrideHeader(overrideHeaderBytes)
 	m.OverrideBody([]byte("override body"))
-	m.OverrideStatusCode(404)
+	m.OverrideStatusCode(http.StatusNotFound)
 	m.FlushAll()
 	if r.Header().Get("h1") != "v2" {
 		t.Fatalf("Header value must exists %s", r.Header().Get("h1"))
@@ -159,25 +196,24 @@ func TestResponseModifierOverride(t *testing.T) {
 	if !reflect.DeepEqual(r.Body.Bytes(), []byte("override body")) {
 		t.Fatalf("Body value must exists %s", r.Body.Bytes())
 	}
-	if r.Code != 404 {
+	if r.Code != http.StatusNotFound {
 		t.Fatalf("Status code must be correct %d", r.Code)
 	}
 }
 
 // createTestPlugin creates a new sample authorization plugin
 func createTestPlugin(t *testing.T) *authorizationPlugin {
-	plugin := &plugins.Plugin{Name: "authz"}
 	pwd, err := os.Getwd()
 	if err != nil {
-		log.Fatal(err)
+		t.Fatal(err)
 	}
 
-	plugin.Client, err = plugins.NewClient("unix:///"+path.Join(pwd, pluginAddress), tlsconfig.Options{InsecureSkipVerify: true})
+	client, err := plugins.NewClient("unix:///"+path.Join(pwd, pluginAddress), &tlsconfig.Options{InsecureSkipVerify: true})
 	if err != nil {
 		t.Fatalf("Failed to create client %v", err)
 	}
 
-	return &authorizationPlugin{name: "plugin", plugin: plugin}
+	return &authorizationPlugin{name: "plugin", plugin: client}
 }
 
 // AuthZPluginTestServer is a simple server that implements the authZ plugin interface
@@ -188,28 +224,33 @@ type authZPluginTestServer struct {
 	recordedRequest Request
 	// response stores the response sent from the plugin to the daemon
 	replayResponse Response
+	server         *httptest.Server
 }
 
 // start starts the test server that implements the plugin
 func (t *authZPluginTestServer) start() {
 	r := mux.NewRouter()
-	os.Remove(pluginAddress)
-	l, err := net.ListenUnix("unix", &net.UnixAddr{Name: pluginAddress, Net: "unix"})
+	l, err := net.Listen("unix", pluginAddress)
 	if err != nil {
-		t.t.Fatalf("Failed to listen %v", err)
+		t.t.Fatal(err)
 	}
 	t.listener = l
-
 	r.HandleFunc("/Plugin.Activate", t.activate)
 	r.HandleFunc("/"+AuthZApiRequest, t.auth)
 	r.HandleFunc("/"+AuthZApiResponse, t.auth)
-	t.listener, err = net.Listen("tcp", pluginAddress)
-	server := http.Server{Handler: r, Addr: pluginAddress}
-	server.Serve(l)
+	t.server = &httptest.Server{
+		Listener: l,
+		Config: &http.Server{
+			Handler: r,
+			Addr:    pluginAddress,
+		},
+	}
+	t.server.Start()
 }
 
 // stop stops the test server that implements the plugin
 func (t *authZPluginTestServer) stop() {
+	t.server.Close()
 	os.Remove(pluginAddress)
 	if t.listener != nil {
 		t.listener.Close()
@@ -219,12 +260,15 @@ func (t *authZPluginTestServer) stop() {
 // auth is a used to record/replay the authentication api messages
 func (t *authZPluginTestServer) auth(w http.ResponseWriter, r *http.Request) {
 	t.recordedRequest = Request{}
-	defer r.Body.Close()
 	body, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		t.t.Fatal(err)
+	}
+	r.Body.Close()
 	json.Unmarshal(body, &t.recordedRequest)
 	b, err := json.Marshal(t.replayResponse)
 	if err != nil {
-		log.Fatal(err)
+		t.t.Fatal(err)
 	}
 	w.Write(b)
 }
@@ -232,7 +276,7 @@ func (t *authZPluginTestServer) auth(w http.ResponseWriter, r *http.Request) {
 func (t *authZPluginTestServer) activate(w http.ResponseWriter, r *http.Request) {
 	b, err := json.Marshal(plugins.Manifest{Implements: []string{AuthZApiImplements}})
 	if err != nil {
-		log.Fatal(err)
+		t.t.Fatal(err)
 	}
 	w.Write(b)
 }

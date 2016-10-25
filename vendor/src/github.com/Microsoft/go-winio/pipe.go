@@ -2,6 +2,7 @@ package winio
 
 import (
 	"errors"
+	"io"
 	"net"
 	"os"
 	"syscall"
@@ -13,6 +14,8 @@ import (
 //sys createNamedPipe(name string, flags uint32, pipeMode uint32, maxInstances uint32, outSize uint32, inSize uint32, defaultTimeout uint32, sa *securityAttributes) (handle syscall.Handle, err error)  [failretval==syscall.InvalidHandle] = CreateNamedPipeW
 //sys createFile(name string, access uint32, mode uint32, sa *securityAttributes, createmode uint32, attrs uint32, templatefile syscall.Handle) (handle syscall.Handle, err error) [failretval==syscall.InvalidHandle] = CreateFileW
 //sys waitNamedPipe(name string, timeout uint32) (err error) = WaitNamedPipeW
+//sys getNamedPipeInfo(pipe syscall.Handle, flags *uint32, outSize *uint32, inSize *uint32, maxInstances *uint32) (err error) = GetNamedPipeInfo
+//sys getNamedPipeHandleState(pipe syscall.Handle, state *uint32, curInstances *uint32, maxCollectionCount *uint32, collectDataTimeout *uint32, userName *uint16, maxUserNameSize uint32) (err error) = GetNamedPipeHandleStateW
 
 type securityAttributes struct {
 	Length             uint32
@@ -36,16 +39,29 @@ const (
 
 	cNMPWAIT_USE_DEFAULT_WAIT = 0
 	cNMPWAIT_NOWAIT           = 1
+
+	cPIPE_TYPE_MESSAGE = 4
+
+	cPIPE_READMODE_MESSAGE = 2
 )
 
 var (
-	// This error should match net.errClosing since docker takes a dependency on its text
+	// ErrPipeListenerClosed is returned for pipe operations on listeners that have been closed.
+	// This error should match net.errClosing since docker takes a dependency on its text.
 	ErrPipeListenerClosed = errors.New("use of closed network connection")
+
+	errPipeWriteClosed = errors.New("pipe has been closed for write")
 )
 
 type win32Pipe struct {
 	*win32File
 	path string
+}
+
+type win32MessageBytePipe struct {
+	win32Pipe
+	writeClosed bool
+	readEOF     bool
 }
 
 type pipeAddress string
@@ -64,20 +80,55 @@ func (f *win32Pipe) SetDeadline(t time.Time) error {
 	return nil
 }
 
+// CloseWrite closes the write side of a message pipe in byte mode.
+func (f *win32MessageBytePipe) CloseWrite() error {
+	if f.writeClosed {
+		return errPipeWriteClosed
+	}
+	_, err := f.win32File.Write(nil)
+	if err != nil {
+		return err
+	}
+	f.writeClosed = true
+	return nil
+}
+
+// Write writes bytes to a message pipe in byte mode. Zero-byte writes are ignored, since
+// they are used to implement CloseWrite().
+func (f *win32MessageBytePipe) Write(b []byte) (int, error) {
+	if f.writeClosed {
+		return 0, errPipeWriteClosed
+	}
+	if len(b) == 0 {
+		return 0, nil
+	}
+	return f.win32File.Write(b)
+}
+
+// Read reads bytes from a message pipe in byte mode. A read of a zero-byte message on a message
+// mode pipe will return io.EOF, as will all subsequent reads.
+func (f *win32MessageBytePipe) Read(b []byte) (int, error) {
+	if f.readEOF {
+		return 0, io.EOF
+	}
+	n, err := f.win32File.Read(b)
+	if err == io.EOF {
+		// If this was the result of a zero-byte read, then
+		// it is possible that the read was due to a zero-size
+		// message. Since we are simulating CloseWrite with a
+		// zero-byte message, ensure that all future Read() calls
+		// also return EOF.
+		f.readEOF = true
+	}
+	return n, err
+}
+
 func (s pipeAddress) Network() string {
 	return "pipe"
 }
 
 func (s pipeAddress) String() string {
 	return string(s)
-}
-
-func makeWin32Pipe(h syscall.Handle, path string) (*win32Pipe, error) {
-	f, err := makeWin32File(h)
-	if err != nil {
-		return nil, err
-	}
-	return &win32Pipe{f, path}, nil
 }
 
 // DialPipe connects to a named pipe by path, timing out if the connection
@@ -113,18 +164,43 @@ func DialPipe(path string, timeout *time.Duration) (net.Conn, error) {
 		}
 	}
 	if err != nil {
-		return nil, &os.PathError{"open", path, err}
+		return nil, &os.PathError{Op: "open", Path: path, Err: err}
 	}
-	p, err := makeWin32Pipe(h, path)
+
+	var flags uint32
+	err = getNamedPipeInfo(h, &flags, nil, nil, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var state uint32
+	err = getNamedPipeHandleState(h, &state, nil, nil, nil, nil, 0)
+	if err != nil {
+		return nil, err
+	}
+
+	if state&cPIPE_READMODE_MESSAGE != 0 {
+		return nil, &os.PathError{Op: "open", Path: path, Err: errors.New("message readmode pipes not supported")}
+	}
+
+	f, err := makeWin32File(h)
 	if err != nil {
 		syscall.Close(h)
 		return nil, err
 	}
-	return p, nil
+
+	// If the pipe is in message mode, return a message byte pipe, which
+	// supports CloseWrite().
+	if flags&cPIPE_TYPE_MESSAGE != 0 {
+		return &win32MessageBytePipe{
+			win32Pipe: win32Pipe{win32File: f, path: path},
+		}, nil
+	}
+	return &win32Pipe{win32File: f, path: path}, nil
 }
 
 type acceptResponse struct {
-	p   *win32Pipe
+	f   *win32File
 	err error
 }
 
@@ -132,39 +208,46 @@ type win32PipeListener struct {
 	firstHandle        syscall.Handle
 	path               string
 	securityDescriptor []byte
+	config             PipeConfig
 	acceptCh           chan (chan acceptResponse)
 	closeCh            chan int
 	doneCh             chan int
 }
 
-func makeServerPipeHandle(path string, securityDescriptor []byte, first bool) (syscall.Handle, error) {
+func makeServerPipeHandle(path string, securityDescriptor []byte, c *PipeConfig, first bool) (syscall.Handle, error) {
 	var flags uint32 = cPIPE_ACCESS_DUPLEX | syscall.FILE_FLAG_OVERLAPPED
 	if first {
 		flags |= cFILE_FLAG_FIRST_PIPE_INSTANCE
 	}
+
+	var mode uint32 = cPIPE_REJECT_REMOTE_CLIENTS
+	if c.MessageMode {
+		mode |= cPIPE_TYPE_MESSAGE
+	}
+
 	var sa securityAttributes
 	sa.Length = uint32(unsafe.Sizeof(sa))
 	if securityDescriptor != nil {
 		sa.SecurityDescriptor = &securityDescriptor[0]
 	}
-	h, err := createNamedPipe(path, flags, cPIPE_REJECT_REMOTE_CLIENTS, cPIPE_UNLIMITED_INSTANCES, 4096, 4096, 0, &sa)
+	h, err := createNamedPipe(path, flags, mode, cPIPE_UNLIMITED_INSTANCES, uint32(c.OutputBufferSize), uint32(c.InputBufferSize), 0, &sa)
 	if err != nil {
-		return 0, &os.PathError{"open", path, err}
+		return 0, &os.PathError{Op: "open", Path: path, Err: err}
 	}
 	return h, nil
 }
 
-func (l *win32PipeListener) makeServerPipe() (*win32Pipe, error) {
-	h, err := makeServerPipeHandle(l.path, l.securityDescriptor, false)
+func (l *win32PipeListener) makeServerPipe() (*win32File, error) {
+	h, err := makeServerPipeHandle(l.path, l.securityDescriptor, &l.config, false)
 	if err != nil {
 		return nil, err
 	}
-	p, err := makeWin32Pipe(h, l.path)
+	f, err := makeWin32File(h)
 	if err != nil {
 		syscall.Close(h)
 		return nil, err
 	}
-	return p, nil
+	return f, nil
 }
 
 func (l *win32PipeListener) listenerRoutine() {
@@ -207,18 +290,43 @@ func (l *win32PipeListener) listenerRoutine() {
 	close(l.doneCh)
 }
 
-func ListenPipe(path, sddl string) (net.Listener, error) {
+// PipeConfig contain configuration for the pipe listener.
+type PipeConfig struct {
+	// SecurityDescriptor contains a Windows security descriptor in SDDL format.
+	SecurityDescriptor string
+
+	// MessageMode determines whether the pipe is in byte or message mode. In either
+	// case the pipe is read in byte mode by default. The only practical difference in
+	// this implementation is that CloseWrite() is only supported for message mode pipes;
+	// CloseWrite() is implemented as a zero-byte write, but zero-byte writes are only
+	// transferred to the reader (and returned as io.EOF in this implementation)
+	// when the pipe is in message mode.
+	MessageMode bool
+
+	// InputBufferSize specifies the size the input buffer, in bytes.
+	InputBufferSize int32
+
+	// OutputBufferSize specifies the size the input buffer, in bytes.
+	OutputBufferSize int32
+}
+
+// ListenPipe creates a listener on a Windows named pipe path, e.g. \\.\pipe\mypipe.
+// The pipe must not already exist.
+func ListenPipe(path string, c *PipeConfig) (net.Listener, error) {
 	var (
 		sd  []byte
 		err error
 	)
-	if sddl != "" {
-		sd, err = sddlToSecurityDescriptor(sddl)
+	if c == nil {
+		c = &PipeConfig{}
+	}
+	if c.SecurityDescriptor != "" {
+		sd, err = SddlToSecurityDescriptor(c.SecurityDescriptor)
 		if err != nil {
 			return nil, err
 		}
 	}
-	h, err := makeServerPipeHandle(path, sd, true)
+	h, err := makeServerPipeHandle(path, sd, c, true)
 	if err != nil {
 		return nil, err
 	}
@@ -234,6 +342,7 @@ func ListenPipe(path, sddl string) (net.Listener, error) {
 		firstHandle:        h,
 		path:               path,
 		securityDescriptor: sd,
+		config:             *c,
 		acceptCh:           make(chan (chan acceptResponse)),
 		closeCh:            make(chan int),
 		doneCh:             make(chan int),
@@ -242,7 +351,7 @@ func ListenPipe(path, sddl string) (net.Listener, error) {
 	return l, nil
 }
 
-func connectPipe(p *win32Pipe) error {
+func connectPipe(p *win32File) error {
 	c, err := p.prepareIo()
 	if err != nil {
 		return err
@@ -260,7 +369,16 @@ func (l *win32PipeListener) Accept() (net.Conn, error) {
 	select {
 	case l.acceptCh <- ch:
 		response := <-ch
-		return response.p, response.err
+		err := response.err
+		if err != nil {
+			return nil, err
+		}
+		if l.config.MessageMode {
+			return &win32MessageBytePipe{
+				win32Pipe: win32Pipe{win32File: response.f, path: l.path},
+			}, nil
+		}
+		return &win32Pipe{win32File: response.f, path: l.path}, nil
 	case <-l.doneCh:
 		return nil, ErrPipeListenerClosed
 	}

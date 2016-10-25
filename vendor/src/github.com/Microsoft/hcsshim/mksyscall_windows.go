@@ -294,6 +294,9 @@ func (r *Rets) SetErrorCode() string {
 	const code = `if r0 != 0 {
 		%s = %sErrno(r0)
 	}`
+	const hrCode = `if int32(r0) < 0 {
+		%s = %sErrno(win32FromHresult(r0))
+	}`
 	if r.Name == "" && !r.ReturnsError {
 		return ""
 	}
@@ -301,7 +304,11 @@ func (r *Rets) SetErrorCode() string {
 		return r.useLongHandleErrorCode("r1")
 	}
 	if r.Type == "error" {
-		return fmt.Sprintf(code, r.Name, syscalldot())
+		if r.Name == "hr" {
+			return fmt.Sprintf(hrCode, r.Name, syscalldot())
+		} else {
+			return fmt.Sprintf(code, r.Name, syscalldot())
+		}
 	}
 	s := ""
 	switch {
@@ -591,6 +598,19 @@ func (f *Fn) HasStringParam() bool {
 	return false
 }
 
+var uniqDllFuncName = make(map[string]bool)
+
+// IsNotDuplicate is true if f is not a duplicated function
+func (f *Fn) IsNotDuplicate() bool {
+	funcName := f.DLLFuncName()
+	if uniqDllFuncName[funcName] == false {
+		uniqDllFuncName[funcName] = true
+		return true
+	}
+
+	return false
+}
+
 // HelperName returns name of function f helper.
 func (f *Fn) HelperName() string {
 	if !f.HasStringParam() {
@@ -741,6 +761,7 @@ const srcTemplate = `
 
 package {{packagename}}
 
+import "github.com/Microsoft/go-winio"
 import "unsafe"{{if syscalldot}}
 import "syscall"{{end}}
 
@@ -757,7 +778,7 @@ var (
 {{define "dlls"}}{{range .DLLs}}	mod{{.}} = {{syscalldot}}NewLazyDLL("{{.}}.dll")
 {{end}}{{end}}
 
-{{define "funcnames"}}{{range .Funcs}}	proc{{.DLLFuncName}} = mod{{.DLLName}}.NewProc("{{.DLLFuncName}}")
+{{define "funcnames"}}{{range .Funcs}}{{if .IsNotDuplicate}}	proc{{.DLLFuncName}} = mod{{.DLLName}}.NewProc("{{.DLLFuncName}}"){{end}}
 {{end}}{{end}}
 
 {{define "helperbody"}}

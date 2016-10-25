@@ -1,3 +1,10 @@
+# 0.10.0
+
+* feature: Add a test hook (#180)
+* feature: `ParseLevel` is now case-insensitive (#326)
+* feature: `FieldLogger` interface that generalizes `Logger` and `Entry` (#308)
+* performance: avoid re-allocations on `WithFields` (#335)
+
 # 0.9.0
 
 * logrus/text_formatter: don't emit empty msg

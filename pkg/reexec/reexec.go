@@ -12,7 +12,7 @@ var registeredInitializers = make(map[string]func())
 // Register adds an initialization func under the specified name
 func Register(name string, initializer func()) {
 	if _, exists := registeredInitializers[name]; exists {
-		panic(fmt.Sprintf("reexec func already registred under name %q", name))
+		panic(fmt.Sprintf("reexec func already registered under name %q", name))
 	}
 
 	registeredInitializers[name] = initializer

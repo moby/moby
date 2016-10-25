@@ -8,217 +8,358 @@ import (
 	"path"
 	"strconv"
 	"strings"
+	"time"
 
+	"github.com/docker/docker/api/types/container"
+	networktypes "github.com/docker/docker/api/types/network"
+	"github.com/docker/docker/api/types/strslice"
 	"github.com/docker/docker/opts"
-	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/signal"
-	"github.com/docker/engine-api/types/container"
-	networktypes "github.com/docker/engine-api/types/network"
-	"github.com/docker/engine-api/types/strslice"
 	"github.com/docker/go-connections/nat"
-	"github.com/docker/go-units"
+	units "github.com/docker/go-units"
+	"github.com/spf13/pflag"
 )
 
-// Parse parses the specified args for the specified command and generates a Config,
-// a HostConfig and returns them with the specified command.
-// If the specified args are not valid, it will return an error.
-func Parse(cmd *flag.FlagSet, args []string) (*container.Config, *container.HostConfig, *networktypes.NetworkingConfig, *flag.FlagSet, error) {
-	var (
-		// FIXME: use utils.ListOpts for attach and volumes?
-		flAttach            = opts.NewListOpts(ValidateAttach)
-		flVolumes           = opts.NewListOpts(nil)
-		flTmpfs             = opts.NewListOpts(nil)
-		flBlkioWeightDevice = NewWeightdeviceOpt(ValidateWeightDevice)
-		flDeviceReadBps     = NewThrottledeviceOpt(ValidateThrottleBpsDevice)
-		flDeviceWriteBps    = NewThrottledeviceOpt(ValidateThrottleBpsDevice)
-		flLinks             = opts.NewListOpts(ValidateLink)
-		flAliases           = opts.NewListOpts(nil)
-		flDeviceReadIOps    = NewThrottledeviceOpt(ValidateThrottleIOpsDevice)
-		flDeviceWriteIOps   = NewThrottledeviceOpt(ValidateThrottleIOpsDevice)
-		flEnv               = opts.NewListOpts(ValidateEnv)
-		flLabels            = opts.NewListOpts(ValidateEnv)
-		flDevices           = opts.NewListOpts(ValidateDevice)
+// ContainerOptions is a data object with all the options for creating a container
+type ContainerOptions struct {
+	attach            opts.ListOpts
+	volumes           opts.ListOpts
+	tmpfs             opts.ListOpts
+	blkioWeightDevice WeightdeviceOpt
+	deviceReadBps     ThrottledeviceOpt
+	deviceWriteBps    ThrottledeviceOpt
+	links             opts.ListOpts
+	aliases           opts.ListOpts
+	linkLocalIPs      opts.ListOpts
+	deviceReadIOps    ThrottledeviceOpt
+	deviceWriteIOps   ThrottledeviceOpt
+	env               opts.ListOpts
+	labels            opts.ListOpts
+	devices           opts.ListOpts
+	ulimits           *UlimitOpt
+	sysctls           *opts.MapOpts
+	publish           opts.ListOpts
+	expose            opts.ListOpts
+	dns               opts.ListOpts
+	dnsSearch         opts.ListOpts
+	dnsOptions        opts.ListOpts
+	extraHosts        opts.ListOpts
+	volumesFrom       opts.ListOpts
+	envFile           opts.ListOpts
+	capAdd            opts.ListOpts
+	capDrop           opts.ListOpts
+	groupAdd          opts.ListOpts
+	securityOpt       opts.ListOpts
+	storageOpt        opts.ListOpts
+	labelsFile        opts.ListOpts
+	loggingOpts       opts.ListOpts
+	privileged        bool
+	pidMode           string
+	utsMode           string
+	usernsMode        string
+	publishAll        bool
+	stdin             bool
+	tty               bool
+	oomKillDisable    bool
+	oomScoreAdj       int
+	containerIDFile   string
+	entrypoint        string
+	hostname          string
+	memoryString      string
+	memoryReservation string
+	memorySwap        string
+	kernelMemory      string
+	user              string
+	workingDir        string
+	cpuShares         int64
+	cpuPercent        int64
+	cpuPeriod         int64
+	cpuQuota          int64
+	cpusetCpus        string
+	cpusetMems        string
+	blkioWeight       uint16
+	ioMaxBandwidth    string
+	ioMaxIOps         uint64
+	swappiness        int64
+	netMode           string
+	macAddress        string
+	ipv4Address       string
+	ipv6Address       string
+	ipcMode           string
+	pidsLimit         int64
+	restartPolicy     string
+	readonlyRootfs    bool
+	loggingDriver     string
+	cgroupParent      string
+	volumeDriver      string
+	stopSignal        string
+	stopTimeout       int
+	isolation         string
+	shmSize           string
+	noHealthcheck     bool
+	healthCmd         string
+	healthInterval    time.Duration
+	healthTimeout     time.Duration
+	healthRetries     int
+	runtime           string
+	autoRemove        bool
+	init              bool
+	initPath          string
+	credentialSpec    string
 
-		flUlimits = NewUlimitOpt(nil)
+	Image string
+	Args  []string
+}
 
-		flPublish           = opts.NewListOpts(nil)
-		flExpose            = opts.NewListOpts(nil)
-		flDNS               = opts.NewListOpts(opts.ValidateIPAddress)
-		flDNSSearch         = opts.NewListOpts(opts.ValidateDNSSearch)
-		flDNSOptions        = opts.NewListOpts(nil)
-		flExtraHosts        = opts.NewListOpts(ValidateExtraHost)
-		flVolumesFrom       = opts.NewListOpts(nil)
-		flEnvFile           = opts.NewListOpts(nil)
-		flCapAdd            = opts.NewListOpts(nil)
-		flCapDrop           = opts.NewListOpts(nil)
-		flGroupAdd          = opts.NewListOpts(nil)
-		flSecurityOpt       = opts.NewListOpts(nil)
-		flLabelsFile        = opts.NewListOpts(nil)
-		flLoggingOpts       = opts.NewListOpts(nil)
-		flPrivileged        = cmd.Bool([]string{"-privileged"}, false, "Give extended privileges to this container")
-		flPidMode           = cmd.String([]string{"-pid"}, "", "PID namespace to use")
-		flUTSMode           = cmd.String([]string{"-uts"}, "", "UTS namespace to use")
-		flPublishAll        = cmd.Bool([]string{"P", "-publish-all"}, false, "Publish all exposed ports to random ports")
-		flStdin             = cmd.Bool([]string{"i", "-interactive"}, false, "Keep STDIN open even if not attached")
-		flTty               = cmd.Bool([]string{"t", "-tty"}, false, "Allocate a pseudo-TTY")
-		flOomKillDisable    = cmd.Bool([]string{"-oom-kill-disable"}, false, "Disable OOM Killer")
-		flOomScoreAdj       = cmd.Int([]string{"-oom-score-adj"}, 0, "Tune host's OOM preferences (-1000 to 1000)")
-		flContainerIDFile   = cmd.String([]string{"-cidfile"}, "", "Write the container ID to the file")
-		flEntrypoint        = cmd.String([]string{"-entrypoint"}, "", "Overwrite the default ENTRYPOINT of the image")
-		flHostname          = cmd.String([]string{"h", "-hostname"}, "", "Container host name")
-		flMemoryString      = cmd.String([]string{"m", "-memory"}, "", "Memory limit")
-		flMemoryReservation = cmd.String([]string{"-memory-reservation"}, "", "Memory soft limit")
-		flMemorySwap        = cmd.String([]string{"-memory-swap"}, "", "Swap limit equal to memory plus swap: '-1' to enable unlimited swap")
-		flKernelMemory      = cmd.String([]string{"-kernel-memory"}, "", "Kernel memory limit")
-		flUser              = cmd.String([]string{"u", "-user"}, "", "Username or UID (format: <name|uid>[:<group|gid>])")
-		flWorkingDir        = cmd.String([]string{"w", "-workdir"}, "", "Working directory inside the container")
-		flCPUShares         = cmd.Int64([]string{"#c", "-cpu-shares"}, 0, "CPU shares (relative weight)")
-		flCPUPeriod         = cmd.Int64([]string{"-cpu-period"}, 0, "Limit CPU CFS (Completely Fair Scheduler) period")
-		flCPUQuota          = cmd.Int64([]string{"-cpu-quota"}, 0, "Limit CPU CFS (Completely Fair Scheduler) quota")
-		flCpusetCpus        = cmd.String([]string{"-cpuset-cpus"}, "", "CPUs in which to allow execution (0-3, 0,1)")
-		flCpusetMems        = cmd.String([]string{"-cpuset-mems"}, "", "MEMs in which to allow execution (0-3, 0,1)")
-		flBlkioWeight       = cmd.Uint16([]string{"-blkio-weight"}, 0, "Block IO (relative weight), between 10 and 1000")
-		flSwappiness        = cmd.Int64([]string{"-memory-swappiness"}, -1, "Tune container memory swappiness (0 to 100)")
-		flNetMode           = cmd.String([]string{"-net"}, "default", "Connect a container to a network")
-		flMacAddress        = cmd.String([]string{"-mac-address"}, "", "Container MAC address (e.g. 92:d0:c6:0a:29:33)")
-		flIPv4Address       = cmd.String([]string{"-ip"}, "", "Container IPv4 address (e.g. 172.30.100.104)")
-		flIPv6Address       = cmd.String([]string{"-ip6"}, "", "Container IPv6 address (e.g. 2001:db8::33)")
-		flIpcMode           = cmd.String([]string{"-ipc"}, "", "IPC namespace to use")
-		flRestartPolicy     = cmd.String([]string{"-restart"}, "no", "Restart policy to apply when a container exits")
-		flReadonlyRootfs    = cmd.Bool([]string{"-read-only"}, false, "Mount the container's root filesystem as read only")
-		flLoggingDriver     = cmd.String([]string{"-log-driver"}, "", "Logging driver for container")
-		flCgroupParent      = cmd.String([]string{"-cgroup-parent"}, "", "Optional parent cgroup for the container")
-		flVolumeDriver      = cmd.String([]string{"-volume-driver"}, "", "Optional volume driver for the container")
-		flStopSignal        = cmd.String([]string{"-stop-signal"}, signal.DefaultStopSignal, fmt.Sprintf("Signal to stop a container, %v by default", signal.DefaultStopSignal))
-		flIsolation         = cmd.String([]string{"-isolation"}, "", "Container isolation technology")
-		flShmSize           = cmd.String([]string{"-shm-size"}, "", "Size of /dev/shm, default value is 64MB")
-	)
-
-	cmd.Var(&flAttach, []string{"a", "-attach"}, "Attach to STDIN, STDOUT or STDERR")
-	cmd.Var(&flBlkioWeightDevice, []string{"-blkio-weight-device"}, "Block IO weight (relative device weight)")
-	cmd.Var(&flDeviceReadBps, []string{"-device-read-bps"}, "Limit read rate (bytes per second) from a device")
-	cmd.Var(&flDeviceWriteBps, []string{"-device-write-bps"}, "Limit write rate (bytes per second) to a device")
-	cmd.Var(&flDeviceReadIOps, []string{"-device-read-iops"}, "Limit read rate (IO per second) from a device")
-	cmd.Var(&flDeviceWriteIOps, []string{"-device-write-iops"}, "Limit write rate (IO per second) to a device")
-	cmd.Var(&flVolumes, []string{"v", "-volume"}, "Bind mount a volume")
-	cmd.Var(&flTmpfs, []string{"-tmpfs"}, "Mount a tmpfs directory")
-	cmd.Var(&flLinks, []string{"-link"}, "Add link to another container")
-	cmd.Var(&flAliases, []string{"-net-alias"}, "Add network-scoped alias for the container")
-	cmd.Var(&flDevices, []string{"-device"}, "Add a host device to the container")
-	cmd.Var(&flLabels, []string{"l", "-label"}, "Set meta data on a container")
-	cmd.Var(&flLabelsFile, []string{"-label-file"}, "Read in a line delimited file of labels")
-	cmd.Var(&flEnv, []string{"e", "-env"}, "Set environment variables")
-	cmd.Var(&flEnvFile, []string{"-env-file"}, "Read in a file of environment variables")
-	cmd.Var(&flPublish, []string{"p", "-publish"}, "Publish a container's port(s) to the host")
-	cmd.Var(&flExpose, []string{"-expose"}, "Expose a port or a range of ports")
-	cmd.Var(&flDNS, []string{"-dns"}, "Set custom DNS servers")
-	cmd.Var(&flDNSSearch, []string{"-dns-search"}, "Set custom DNS search domains")
-	cmd.Var(&flDNSOptions, []string{"-dns-opt"}, "Set DNS options")
-	cmd.Var(&flExtraHosts, []string{"-add-host"}, "Add a custom host-to-IP mapping (host:ip)")
-	cmd.Var(&flVolumesFrom, []string{"-volumes-from"}, "Mount volumes from the specified container(s)")
-	cmd.Var(&flCapAdd, []string{"-cap-add"}, "Add Linux capabilities")
-	cmd.Var(&flCapDrop, []string{"-cap-drop"}, "Drop Linux capabilities")
-	cmd.Var(&flGroupAdd, []string{"-group-add"}, "Add additional groups to join")
-	cmd.Var(&flSecurityOpt, []string{"-security-opt"}, "Security Options")
-	cmd.Var(flUlimits, []string{"-ulimit"}, "Ulimit options")
-	cmd.Var(&flLoggingOpts, []string{"-log-opt"}, "Log driver options")
-
-	cmd.Require(flag.Min, 1)
-
-	if err := cmd.ParseFlags(args, true); err != nil {
-		return nil, nil, nil, cmd, err
+// AddFlags adds all command line flags that will be used by Parse to the FlagSet
+func AddFlags(flags *pflag.FlagSet) *ContainerOptions {
+	copts := &ContainerOptions{
+		aliases:           opts.NewListOpts(nil),
+		attach:            opts.NewListOpts(ValidateAttach),
+		blkioWeightDevice: NewWeightdeviceOpt(ValidateWeightDevice),
+		capAdd:            opts.NewListOpts(nil),
+		capDrop:           opts.NewListOpts(nil),
+		dns:               opts.NewListOpts(opts.ValidateIPAddress),
+		dnsOptions:        opts.NewListOpts(nil),
+		dnsSearch:         opts.NewListOpts(opts.ValidateDNSSearch),
+		deviceReadBps:     NewThrottledeviceOpt(ValidateThrottleBpsDevice),
+		deviceReadIOps:    NewThrottledeviceOpt(ValidateThrottleIOpsDevice),
+		deviceWriteBps:    NewThrottledeviceOpt(ValidateThrottleBpsDevice),
+		deviceWriteIOps:   NewThrottledeviceOpt(ValidateThrottleIOpsDevice),
+		devices:           opts.NewListOpts(ValidateDevice),
+		env:               opts.NewListOpts(ValidateEnv),
+		envFile:           opts.NewListOpts(nil),
+		expose:            opts.NewListOpts(nil),
+		extraHosts:        opts.NewListOpts(ValidateExtraHost),
+		groupAdd:          opts.NewListOpts(nil),
+		labels:            opts.NewListOpts(ValidateEnv),
+		labelsFile:        opts.NewListOpts(nil),
+		linkLocalIPs:      opts.NewListOpts(nil),
+		links:             opts.NewListOpts(ValidateLink),
+		loggingOpts:       opts.NewListOpts(nil),
+		publish:           opts.NewListOpts(nil),
+		securityOpt:       opts.NewListOpts(nil),
+		storageOpt:        opts.NewListOpts(nil),
+		sysctls:           opts.NewMapOpts(nil, opts.ValidateSysctl),
+		tmpfs:             opts.NewListOpts(nil),
+		ulimits:           NewUlimitOpt(nil),
+		volumes:           opts.NewListOpts(nil),
+		volumesFrom:       opts.NewListOpts(nil),
 	}
 
+	// General purpose flags
+	flags.VarP(&copts.attach, "attach", "a", "Attach to STDIN, STDOUT or STDERR")
+	flags.Var(&copts.devices, "device", "Add a host device to the container")
+	flags.VarP(&copts.env, "env", "e", "Set environment variables")
+	flags.Var(&copts.envFile, "env-file", "Read in a file of environment variables")
+	flags.StringVar(&copts.entrypoint, "entrypoint", "", "Overwrite the default ENTRYPOINT of the image")
+	flags.Var(&copts.groupAdd, "group-add", "Add additional groups to join")
+	flags.StringVarP(&copts.hostname, "hostname", "h", "", "Container host name")
+	flags.BoolVarP(&copts.stdin, "interactive", "i", false, "Keep STDIN open even if not attached")
+	flags.VarP(&copts.labels, "label", "l", "Set meta data on a container")
+	flags.Var(&copts.labelsFile, "label-file", "Read in a line delimited file of labels")
+	flags.BoolVar(&copts.readonlyRootfs, "read-only", false, "Mount the container's root filesystem as read only")
+	flags.StringVar(&copts.restartPolicy, "restart", "no", "Restart policy to apply when a container exits")
+	flags.StringVar(&copts.stopSignal, "stop-signal", signal.DefaultStopSignal, fmt.Sprintf("Signal to stop a container, %v by default", signal.DefaultStopSignal))
+	flags.IntVar(&copts.stopTimeout, "stop-timeout", 0, "Timeout (in seconds) to stop a container")
+	flags.Var(copts.sysctls, "sysctl", "Sysctl options")
+	flags.BoolVarP(&copts.tty, "tty", "t", false, "Allocate a pseudo-TTY")
+	flags.Var(copts.ulimits, "ulimit", "Ulimit options")
+	flags.StringVarP(&copts.user, "user", "u", "", "Username or UID (format: <name|uid>[:<group|gid>])")
+	flags.StringVarP(&copts.workingDir, "workdir", "w", "", "Working directory inside the container")
+	flags.BoolVar(&copts.autoRemove, "rm", false, "Automatically remove the container when it exits")
+
+	// Security
+	flags.Var(&copts.capAdd, "cap-add", "Add Linux capabilities")
+	flags.Var(&copts.capDrop, "cap-drop", "Drop Linux capabilities")
+	flags.BoolVar(&copts.privileged, "privileged", false, "Give extended privileges to this container")
+	flags.Var(&copts.securityOpt, "security-opt", "Security Options")
+	flags.StringVar(&copts.usernsMode, "userns", "", "User namespace to use")
+	flags.StringVar(&copts.credentialSpec, "credentialspec", "", "Credential spec for managed service account (Windows only)")
+
+	// Network and port publishing flag
+	flags.Var(&copts.extraHosts, "add-host", "Add a custom host-to-IP mapping (host:ip)")
+	flags.Var(&copts.dns, "dns", "Set custom DNS servers")
+	flags.Var(&copts.dnsOptions, "dns-opt", "Set DNS options")
+	flags.Var(&copts.dnsSearch, "dns-search", "Set custom DNS search domains")
+	flags.Var(&copts.expose, "expose", "Expose a port or a range of ports")
+	flags.StringVar(&copts.ipv4Address, "ip", "", "Container IPv4 address (e.g. 172.30.100.104)")
+	flags.StringVar(&copts.ipv6Address, "ip6", "", "Container IPv6 address (e.g. 2001:db8::33)")
+	flags.Var(&copts.links, "link", "Add link to another container")
+	flags.Var(&copts.linkLocalIPs, "link-local-ip", "Container IPv4/IPv6 link-local addresses")
+	flags.StringVar(&copts.macAddress, "mac-address", "", "Container MAC address (e.g. 92:d0:c6:0a:29:33)")
+	flags.VarP(&copts.publish, "publish", "p", "Publish a container's port(s) to the host")
+	flags.BoolVarP(&copts.publishAll, "publish-all", "P", false, "Publish all exposed ports to random ports")
+	// We allow for both "--net" and "--network", although the latter is the recommended way.
+	flags.StringVar(&copts.netMode, "net", "default", "Connect a container to a network")
+	flags.StringVar(&copts.netMode, "network", "default", "Connect a container to a network")
+	flags.MarkHidden("net")
+	// We allow for both "--net-alias" and "--network-alias", although the latter is the recommended way.
+	flags.Var(&copts.aliases, "net-alias", "Add network-scoped alias for the container")
+	flags.Var(&copts.aliases, "network-alias", "Add network-scoped alias for the container")
+	flags.MarkHidden("net-alias")
+
+	// Logging and storage
+	flags.StringVar(&copts.loggingDriver, "log-driver", "", "Logging driver for the container")
+	flags.StringVar(&copts.volumeDriver, "volume-driver", "", "Optional volume driver for the container")
+	flags.Var(&copts.loggingOpts, "log-opt", "Log driver options")
+	flags.Var(&copts.storageOpt, "storage-opt", "Storage driver options for the container")
+	flags.Var(&copts.tmpfs, "tmpfs", "Mount a tmpfs directory")
+	flags.Var(&copts.volumesFrom, "volumes-from", "Mount volumes from the specified container(s)")
+	flags.VarP(&copts.volumes, "volume", "v", "Bind mount a volume")
+
+	// Health-checking
+	flags.StringVar(&copts.healthCmd, "health-cmd", "", "Command to run to check health")
+	flags.DurationVar(&copts.healthInterval, "health-interval", 0, "Time between running the check")
+	flags.IntVar(&copts.healthRetries, "health-retries", 0, "Consecutive failures needed to report unhealthy")
+	flags.DurationVar(&copts.healthTimeout, "health-timeout", 0, "Maximum time to allow one check to run")
+	flags.BoolVar(&copts.noHealthcheck, "no-healthcheck", false, "Disable any container-specified HEALTHCHECK")
+
+	// Resource management
+	flags.Uint16Var(&copts.blkioWeight, "blkio-weight", 0, "Block IO (relative weight), between 10 and 1000")
+	flags.Var(&copts.blkioWeightDevice, "blkio-weight-device", "Block IO weight (relative device weight)")
+	flags.StringVar(&copts.containerIDFile, "cidfile", "", "Write the container ID to the file")
+	flags.StringVar(&copts.cpusetCpus, "cpuset-cpus", "", "CPUs in which to allow execution (0-3, 0,1)")
+	flags.StringVar(&copts.cpusetMems, "cpuset-mems", "", "MEMs in which to allow execution (0-3, 0,1)")
+	flags.Int64Var(&copts.cpuPercent, "cpu-percent", 0, "CPU percent (Windows only)")
+	flags.Int64Var(&copts.cpuPeriod, "cpu-period", 0, "Limit CPU CFS (Completely Fair Scheduler) period")
+	flags.Int64Var(&copts.cpuQuota, "cpu-quota", 0, "Limit CPU CFS (Completely Fair Scheduler) quota")
+	flags.Int64VarP(&copts.cpuShares, "cpu-shares", "c", 0, "CPU shares (relative weight)")
+	flags.Var(&copts.deviceReadBps, "device-read-bps", "Limit read rate (bytes per second) from a device")
+	flags.Var(&copts.deviceReadIOps, "device-read-iops", "Limit read rate (IO per second) from a device")
+	flags.Var(&copts.deviceWriteBps, "device-write-bps", "Limit write rate (bytes per second) to a device")
+	flags.Var(&copts.deviceWriteIOps, "device-write-iops", "Limit write rate (IO per second) to a device")
+	flags.StringVar(&copts.ioMaxBandwidth, "io-maxbandwidth", "", "Maximum IO bandwidth limit for the system drive (Windows only)")
+	flags.Uint64Var(&copts.ioMaxIOps, "io-maxiops", 0, "Maximum IOps limit for the system drive (Windows only)")
+	flags.StringVar(&copts.kernelMemory, "kernel-memory", "", "Kernel memory limit")
+	flags.StringVarP(&copts.memoryString, "memory", "m", "", "Memory limit")
+	flags.StringVar(&copts.memoryReservation, "memory-reservation", "", "Memory soft limit")
+	flags.StringVar(&copts.memorySwap, "memory-swap", "", "Swap limit equal to memory plus swap: '-1' to enable unlimited swap")
+	flags.Int64Var(&copts.swappiness, "memory-swappiness", -1, "Tune container memory swappiness (0 to 100)")
+	flags.BoolVar(&copts.oomKillDisable, "oom-kill-disable", false, "Disable OOM Killer")
+	flags.IntVar(&copts.oomScoreAdj, "oom-score-adj", 0, "Tune host's OOM preferences (-1000 to 1000)")
+	flags.Int64Var(&copts.pidsLimit, "pids-limit", 0, "Tune container pids limit (set -1 for unlimited)")
+
+	// Low-level execution (cgroups, namespaces, ...)
+	flags.StringVar(&copts.cgroupParent, "cgroup-parent", "", "Optional parent cgroup for the container")
+	flags.StringVar(&copts.ipcMode, "ipc", "", "IPC namespace to use")
+	flags.StringVar(&copts.isolation, "isolation", "", "Container isolation technology")
+	flags.StringVar(&copts.pidMode, "pid", "", "PID namespace to use")
+	flags.StringVar(&copts.shmSize, "shm-size", "", "Size of /dev/shm, default value is 64MB")
+	flags.StringVar(&copts.utsMode, "uts", "", "UTS namespace to use")
+	flags.StringVar(&copts.runtime, "runtime", "", "Runtime to use for this container")
+
+	flags.BoolVar(&copts.init, "init", false, "Run an init inside the container that forwards signals and reaps processes")
+	flags.StringVar(&copts.initPath, "init-path", "", "Path to the docker-init binary")
+	return copts
+}
+
+// Parse parses the args for the specified command and generates a Config,
+// a HostConfig and returns them with the specified command.
+// If the specified args are not valid, it will return an error.
+func Parse(flags *pflag.FlagSet, copts *ContainerOptions) (*container.Config, *container.HostConfig, *networktypes.NetworkingConfig, error) {
 	var (
-		attachStdin  = flAttach.Get("stdin")
-		attachStdout = flAttach.Get("stdout")
-		attachStderr = flAttach.Get("stderr")
+		attachStdin  = copts.attach.Get("stdin")
+		attachStdout = copts.attach.Get("stdout")
+		attachStderr = copts.attach.Get("stderr")
 	)
 
 	// Validate the input mac address
-	if *flMacAddress != "" {
-		if _, err := ValidateMACAddress(*flMacAddress); err != nil {
-			return nil, nil, nil, cmd, fmt.Errorf("%s is not a valid mac address", *flMacAddress)
+	if copts.macAddress != "" {
+		if _, err := ValidateMACAddress(copts.macAddress); err != nil {
+			return nil, nil, nil, fmt.Errorf("%s is not a valid mac address", copts.macAddress)
 		}
 	}
-	if *flStdin {
+	if copts.stdin {
 		attachStdin = true
 	}
-	// If -a is not set attach to the output stdio
-	if flAttach.Len() == 0 {
+	// If -a is not set, attach to stdout and stderr
+	if copts.attach.Len() == 0 {
 		attachStdout = true
 		attachStderr = true
 	}
 
 	var err error
 
-	var flMemory int64
-	if *flMemoryString != "" {
-		flMemory, err = units.RAMInBytes(*flMemoryString)
+	var memory int64
+	if copts.memoryString != "" {
+		memory, err = units.RAMInBytes(copts.memoryString)
 		if err != nil {
-			return nil, nil, nil, cmd, err
+			return nil, nil, nil, err
 		}
 	}
 
-	var MemoryReservation int64
-	if *flMemoryReservation != "" {
-		MemoryReservation, err = units.RAMInBytes(*flMemoryReservation)
+	var memoryReservation int64
+	if copts.memoryReservation != "" {
+		memoryReservation, err = units.RAMInBytes(copts.memoryReservation)
 		if err != nil {
-			return nil, nil, nil, cmd, err
+			return nil, nil, nil, err
 		}
 	}
 
 	var memorySwap int64
-	if *flMemorySwap != "" {
-		if *flMemorySwap == "-1" {
+	if copts.memorySwap != "" {
+		if copts.memorySwap == "-1" {
 			memorySwap = -1
 		} else {
-			memorySwap, err = units.RAMInBytes(*flMemorySwap)
+			memorySwap, err = units.RAMInBytes(copts.memorySwap)
 			if err != nil {
-				return nil, nil, nil, cmd, err
+				return nil, nil, nil, err
 			}
 		}
 	}
 
-	var KernelMemory int64
-	if *flKernelMemory != "" {
-		KernelMemory, err = units.RAMInBytes(*flKernelMemory)
+	var kernelMemory int64
+	if copts.kernelMemory != "" {
+		kernelMemory, err = units.RAMInBytes(copts.kernelMemory)
 		if err != nil {
-			return nil, nil, nil, cmd, err
+			return nil, nil, nil, err
 		}
 	}
 
-	swappiness := *flSwappiness
+	swappiness := copts.swappiness
 	if swappiness != -1 && (swappiness < 0 || swappiness > 100) {
-		return nil, nil, nil, cmd, fmt.Errorf("invalid value: %d. Valid memory swappiness range is 0-100", swappiness)
+		return nil, nil, nil, fmt.Errorf("invalid value: %d. Valid memory swappiness range is 0-100", swappiness)
 	}
 
 	var shmSize int64
-	if *flShmSize != "" {
-		shmSize, err = units.RAMInBytes(*flShmSize)
+	if copts.shmSize != "" {
+		shmSize, err = units.RAMInBytes(copts.shmSize)
 		if err != nil {
-			return nil, nil, nil, cmd, err
+			return nil, nil, nil, err
+		}
+	}
+
+	// TODO FIXME units.RAMInBytes should have a uint64 version
+	var maxIOBandwidth int64
+	if copts.ioMaxBandwidth != "" {
+		maxIOBandwidth, err = units.RAMInBytes(copts.ioMaxBandwidth)
+		if err != nil {
+			return nil, nil, nil, err
+		}
+		if maxIOBandwidth < 0 {
+			return nil, nil, nil, fmt.Errorf("invalid value: %s. Maximum IO Bandwidth must be positive", copts.ioMaxBandwidth)
 		}
 	}
 
 	var binds []string
 	// add any bind targets to the list of container volumes
-	for bind := range flVolumes.GetMap() {
+	for bind := range copts.volumes.GetMap() {
 		if arr := volumeSplitN(bind, 2); len(arr) > 1 {
-			// after creating the bind mount we want to delete it from the flVolumes values because
+			// after creating the bind mount we want to delete it from the copts.volumes values because
 			// we do not want bind mounts being committed to image configs
 			binds = append(binds, bind)
-			flVolumes.Delete(bind)
+			copts.volumes.Delete(bind)
 		}
 	}
 
 	// Can't evaluate options passed into --tmpfs until we actually mount
 	tmpfs := make(map[string]string)
-	for _, t := range flTmpfs.GetAll() {
+	for _, t := range copts.tmpfs.GetAll() {
 		if arr := strings.SplitN(t, ":", 2); len(arr) > 1 {
 			if _, _, err := mount.ParseTmpfsOptions(arr[1]); err != nil {
-				return nil, nil, nil, cmd, err
+				return nil, nil, nil, err
 			}
 			tmpfs[arr[0]] = arr[1]
 		} else {
@@ -227,37 +368,30 @@ func Parse(cmd *flag.FlagSet, args []string) (*container.Config, *container.Host
 	}
 
 	var (
-		parsedArgs = cmd.Args()
-		runCmd     *strslice.StrSlice
-		entrypoint *strslice.StrSlice
-		image      = cmd.Arg(0)
+		runCmd     strslice.StrSlice
+		entrypoint strslice.StrSlice
 	)
-	if len(parsedArgs) > 1 {
-		runCmd = strslice.New(parsedArgs[1:]...)
-	}
-	if *flEntrypoint != "" {
-		entrypoint = strslice.New(*flEntrypoint)
+
+	if len(copts.Args) > 0 {
+		runCmd = strslice.StrSlice(copts.Args)
 	}
 
-	var (
-		domainname string
-		hostname   = *flHostname
-		parts      = strings.SplitN(hostname, ".", 2)
-	)
-	if len(parts) > 1 {
-		hostname = parts[0]
-		domainname = parts[1]
+	if copts.entrypoint != "" {
+		entrypoint = strslice.StrSlice{copts.entrypoint}
+	} else if flags.Changed("entrypoint") {
+		// if `--entrypoint=` is parsed then Entrypoint is reset
+		entrypoint = []string{""}
 	}
 
-	ports, portBindings, err := nat.ParsePortSpecs(flPublish.GetAll())
+	ports, portBindings, err := nat.ParsePortSpecs(copts.publish.GetAll())
 	if err != nil {
-		return nil, nil, nil, cmd, err
+		return nil, nil, nil, err
 	}
 
 	// Merge in exposed ports to the map of published ports
-	for _, e := range flExpose.GetAll() {
+	for _, e := range copts.expose.GetAll() {
 		if strings.Contains(e, ":") {
-			return nil, nil, nil, cmd, fmt.Errorf("invalid port format for --expose: %s", e)
+			return nil, nil, nil, fmt.Errorf("invalid port format for --expose: %s", e)
 		}
 		//support two formats for expose, original format <portnum>/[<proto>] or <startport-endport>/[<proto>]
 		proto, port := nat.SplitProtoPort(e)
@@ -265,12 +399,12 @@ func Parse(cmd *flag.FlagSet, args []string) (*container.Config, *container.Host
 		//if expose a port, the start and end port are the same
 		start, end, err := nat.ParsePortRange(port)
 		if err != nil {
-			return nil, nil, nil, cmd, fmt.Errorf("invalid range format for --expose: %s, error: %s", e, err)
+			return nil, nil, nil, fmt.Errorf("invalid range format for --expose: %s, error: %s", e, err)
 		}
 		for i := start; i <= end; i++ {
 			p, err := nat.NewPort(proto, strconv.FormatUint(i, 10))
 			if err != nil {
-				return nil, nil, nil, cmd, err
+				return nil, nil, nil, err
 			}
 			if _, exists := ports[p]; !exists {
 				ports[p] = struct{}{}
@@ -280,140 +414,200 @@ func Parse(cmd *flag.FlagSet, args []string) (*container.Config, *container.Host
 
 	// parse device mappings
 	deviceMappings := []container.DeviceMapping{}
-	for _, device := range flDevices.GetAll() {
+	for _, device := range copts.devices.GetAll() {
 		deviceMapping, err := ParseDevice(device)
 		if err != nil {
-			return nil, nil, nil, cmd, err
+			return nil, nil, nil, err
 		}
 		deviceMappings = append(deviceMappings, deviceMapping)
 	}
 
 	// collect all the environment variables for the container
-	envVariables, err := readKVStrings(flEnvFile.GetAll(), flEnv.GetAll())
+	envVariables, err := readKVStrings(copts.envFile.GetAll(), copts.env.GetAll())
 	if err != nil {
-		return nil, nil, nil, cmd, err
+		return nil, nil, nil, err
 	}
 
 	// collect all the labels for the container
-	labels, err := readKVStrings(flLabelsFile.GetAll(), flLabels.GetAll())
+	labels, err := readKVStrings(copts.labelsFile.GetAll(), copts.labels.GetAll())
 	if err != nil {
-		return nil, nil, nil, cmd, err
+		return nil, nil, nil, err
 	}
 
-	ipcMode := container.IpcMode(*flIpcMode)
+	ipcMode := container.IpcMode(copts.ipcMode)
 	if !ipcMode.Valid() {
-		return nil, nil, nil, cmd, fmt.Errorf("--ipc: invalid IPC mode")
+		return nil, nil, nil, fmt.Errorf("--ipc: invalid IPC mode")
 	}
 
-	pidMode := container.PidMode(*flPidMode)
+	pidMode := container.PidMode(copts.pidMode)
 	if !pidMode.Valid() {
-		return nil, nil, nil, cmd, fmt.Errorf("--pid: invalid PID mode")
+		return nil, nil, nil, fmt.Errorf("--pid: invalid PID mode")
 	}
 
-	utsMode := container.UTSMode(*flUTSMode)
+	utsMode := container.UTSMode(copts.utsMode)
 	if !utsMode.Valid() {
-		return nil, nil, nil, cmd, fmt.Errorf("--uts: invalid UTS mode")
+		return nil, nil, nil, fmt.Errorf("--uts: invalid UTS mode")
 	}
 
-	restartPolicy, err := ParseRestartPolicy(*flRestartPolicy)
-	if err != nil {
-		return nil, nil, nil, cmd, err
+	usernsMode := container.UsernsMode(copts.usernsMode)
+	if !usernsMode.Valid() {
+		return nil, nil, nil, fmt.Errorf("--userns: invalid USER mode")
 	}
 
-	loggingOpts, err := parseLoggingOpts(*flLoggingDriver, flLoggingOpts.GetAll())
+	restartPolicy, err := ParseRestartPolicy(copts.restartPolicy)
 	if err != nil {
-		return nil, nil, nil, cmd, err
+		return nil, nil, nil, err
 	}
 
-	securityOpts, err := parseSecurityOpts(flSecurityOpt.GetAll())
+	loggingOpts, err := parseLoggingOpts(copts.loggingDriver, copts.loggingOpts.GetAll())
 	if err != nil {
-		return nil, nil, nil, cmd, err
+		return nil, nil, nil, err
+	}
+
+	securityOpts, err := parseSecurityOpts(copts.securityOpt.GetAll())
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	storageOpts, err := parseStorageOpts(copts.storageOpt.GetAll())
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	// Healthcheck
+	var healthConfig *container.HealthConfig
+	haveHealthSettings := copts.healthCmd != "" ||
+		copts.healthInterval != 0 ||
+		copts.healthTimeout != 0 ||
+		copts.healthRetries != 0
+	if copts.noHealthcheck {
+		if haveHealthSettings {
+			return nil, nil, nil, fmt.Errorf("--no-healthcheck conflicts with --health-* options")
+		}
+		test := strslice.StrSlice{"NONE"}
+		healthConfig = &container.HealthConfig{Test: test}
+	} else if haveHealthSettings {
+		var probe strslice.StrSlice
+		if copts.healthCmd != "" {
+			args := []string{"CMD-SHELL", copts.healthCmd}
+			probe = strslice.StrSlice(args)
+		}
+		if copts.healthInterval < 0 {
+			return nil, nil, nil, fmt.Errorf("--health-interval cannot be negative")
+		}
+		if copts.healthTimeout < 0 {
+			return nil, nil, nil, fmt.Errorf("--health-timeout cannot be negative")
+		}
+
+		healthConfig = &container.HealthConfig{
+			Test:     probe,
+			Interval: copts.healthInterval,
+			Timeout:  copts.healthTimeout,
+			Retries:  copts.healthRetries,
+		}
 	}
 
 	resources := container.Resources{
-		CgroupParent:         *flCgroupParent,
-		Memory:               flMemory,
-		MemoryReservation:    MemoryReservation,
+		CgroupParent:         copts.cgroupParent,
+		Memory:               memory,
+		MemoryReservation:    memoryReservation,
 		MemorySwap:           memorySwap,
-		MemorySwappiness:     flSwappiness,
-		KernelMemory:         KernelMemory,
-		OomKillDisable:       flOomKillDisable,
-		CPUShares:            *flCPUShares,
-		CPUPeriod:            *flCPUPeriod,
-		CpusetCpus:           *flCpusetCpus,
-		CpusetMems:           *flCpusetMems,
-		CPUQuota:             *flCPUQuota,
-		BlkioWeight:          *flBlkioWeight,
-		BlkioWeightDevice:    flBlkioWeightDevice.GetList(),
-		BlkioDeviceReadBps:   flDeviceReadBps.GetList(),
-		BlkioDeviceWriteBps:  flDeviceWriteBps.GetList(),
-		BlkioDeviceReadIOps:  flDeviceReadIOps.GetList(),
-		BlkioDeviceWriteIOps: flDeviceWriteIOps.GetList(),
-		Ulimits:              flUlimits.GetList(),
+		MemorySwappiness:     &copts.swappiness,
+		KernelMemory:         kernelMemory,
+		OomKillDisable:       &copts.oomKillDisable,
+		CPUPercent:           copts.cpuPercent,
+		CPUShares:            copts.cpuShares,
+		CPUPeriod:            copts.cpuPeriod,
+		CpusetCpus:           copts.cpusetCpus,
+		CpusetMems:           copts.cpusetMems,
+		CPUQuota:             copts.cpuQuota,
+		PidsLimit:            copts.pidsLimit,
+		BlkioWeight:          copts.blkioWeight,
+		BlkioWeightDevice:    copts.blkioWeightDevice.GetList(),
+		BlkioDeviceReadBps:   copts.deviceReadBps.GetList(),
+		BlkioDeviceWriteBps:  copts.deviceWriteBps.GetList(),
+		BlkioDeviceReadIOps:  copts.deviceReadIOps.GetList(),
+		BlkioDeviceWriteIOps: copts.deviceWriteIOps.GetList(),
+		IOMaximumIOps:        copts.ioMaxIOps,
+		IOMaximumBandwidth:   uint64(maxIOBandwidth),
+		Ulimits:              copts.ulimits.GetList(),
 		Devices:              deviceMappings,
 	}
 
 	config := &container.Config{
-		Hostname:     hostname,
-		Domainname:   domainname,
+		Hostname:     copts.hostname,
 		ExposedPorts: ports,
-		User:         *flUser,
-		Tty:          *flTty,
+		User:         copts.user,
+		Tty:          copts.tty,
 		// TODO: deprecated, it comes from -n, --networking
 		// it's still needed internally to set the network to disabled
 		// if e.g. bridge is none in daemon opts, and in inspect
 		NetworkDisabled: false,
-		OpenStdin:       *flStdin,
+		OpenStdin:       copts.stdin,
 		AttachStdin:     attachStdin,
 		AttachStdout:    attachStdout,
 		AttachStderr:    attachStderr,
 		Env:             envVariables,
 		Cmd:             runCmd,
-		Image:           image,
-		Volumes:         flVolumes.GetMap(),
-		MacAddress:      *flMacAddress,
+		Image:           copts.Image,
+		Volumes:         copts.volumes.GetMap(),
+		MacAddress:      copts.macAddress,
 		Entrypoint:      entrypoint,
-		WorkingDir:      *flWorkingDir,
+		WorkingDir:      copts.workingDir,
 		Labels:          ConvertKVStringsToMap(labels),
+		Healthcheck:     healthConfig,
 	}
-	if cmd.IsSet("-stop-signal") {
-		config.StopSignal = *flStopSignal
+	if flags.Changed("stop-signal") {
+		config.StopSignal = copts.stopSignal
+	}
+	if flags.Changed("stop-timeout") {
+		config.StopTimeout = &copts.stopTimeout
 	}
 
 	hostConfig := &container.HostConfig{
 		Binds:           binds,
-		ContainerIDFile: *flContainerIDFile,
-		OomScoreAdj:     *flOomScoreAdj,
-		Privileged:      *flPrivileged,
+		ContainerIDFile: copts.containerIDFile,
+		OomScoreAdj:     copts.oomScoreAdj,
+		AutoRemove:      copts.autoRemove,
+		Privileged:      copts.privileged,
 		PortBindings:    portBindings,
-		Links:           flLinks.GetAll(),
-		PublishAllPorts: *flPublishAll,
+		Links:           copts.links.GetAll(),
+		PublishAllPorts: copts.publishAll,
 		// Make sure the dns fields are never nil.
 		// New containers don't ever have those fields nil,
 		// but pre created containers can still have those nil values.
 		// See https://github.com/docker/docker/pull/17779
 		// for a more detailed explanation on why we don't want that.
-		DNS:            flDNS.GetAllOrEmpty(),
-		DNSSearch:      flDNSSearch.GetAllOrEmpty(),
-		DNSOptions:     flDNSOptions.GetAllOrEmpty(),
-		ExtraHosts:     flExtraHosts.GetAll(),
-		VolumesFrom:    flVolumesFrom.GetAll(),
-		NetworkMode:    container.NetworkMode(*flNetMode),
+		DNS:            copts.dns.GetAllOrEmpty(),
+		DNSSearch:      copts.dnsSearch.GetAllOrEmpty(),
+		DNSOptions:     copts.dnsOptions.GetAllOrEmpty(),
+		ExtraHosts:     copts.extraHosts.GetAll(),
+		VolumesFrom:    copts.volumesFrom.GetAll(),
+		NetworkMode:    container.NetworkMode(copts.netMode),
 		IpcMode:        ipcMode,
 		PidMode:        pidMode,
 		UTSMode:        utsMode,
-		CapAdd:         strslice.New(flCapAdd.GetAll()...),
-		CapDrop:        strslice.New(flCapDrop.GetAll()...),
-		GroupAdd:       flGroupAdd.GetAll(),
+		UsernsMode:     usernsMode,
+		CapAdd:         strslice.StrSlice(copts.capAdd.GetAll()),
+		CapDrop:        strslice.StrSlice(copts.capDrop.GetAll()),
+		GroupAdd:       copts.groupAdd.GetAll(),
 		RestartPolicy:  restartPolicy,
 		SecurityOpt:    securityOpts,
-		ReadonlyRootfs: *flReadonlyRootfs,
-		LogConfig:      container.LogConfig{Type: *flLoggingDriver, Config: loggingOpts},
-		VolumeDriver:   *flVolumeDriver,
-		Isolation:      container.Isolation(*flIsolation),
+		StorageOpt:     storageOpts,
+		ReadonlyRootfs: copts.readonlyRootfs,
+		LogConfig:      container.LogConfig{Type: copts.loggingDriver, Config: loggingOpts},
+		VolumeDriver:   copts.volumeDriver,
+		Isolation:      container.Isolation(copts.isolation),
 		ShmSize:        shmSize,
 		Resources:      resources,
 		Tmpfs:          tmpfs,
+		Sysctls:        copts.sysctls.GetAll(),
+		Runtime:        copts.runtime,
+	}
+
+	// only set this value if the user provided the flag, else it should default to nil
+	if flags.Changed("init") {
+		hostConfig.Init = &copts.init
 	}
 
 	// When allocating stdin in attached mode, close stdin at client disconnect
@@ -425,12 +619,18 @@ func Parse(cmd *flag.FlagSet, args []string) (*container.Config, *container.Host
 		EndpointsConfig: make(map[string]*networktypes.EndpointSettings),
 	}
 
-	if *flIPv4Address != "" || *flIPv6Address != "" {
-		networkingConfig.EndpointsConfig[string(hostConfig.NetworkMode)] = &networktypes.EndpointSettings{
-			IPAMConfig: &networktypes.EndpointIPAMConfig{
-				IPv4Address: *flIPv4Address,
-				IPv6Address: *flIPv6Address,
-			},
+	if copts.ipv4Address != "" || copts.ipv6Address != "" || copts.linkLocalIPs.Len() > 0 {
+		epConfig := &networktypes.EndpointSettings{}
+		networkingConfig.EndpointsConfig[string(hostConfig.NetworkMode)] = epConfig
+
+		epConfig.IPAMConfig = &networktypes.EndpointIPAMConfig{
+			IPv4Address: copts.ipv4Address,
+			IPv6Address: copts.ipv6Address,
+		}
+
+		if copts.linkLocalIPs.Len() > 0 {
+			epConfig.IPAMConfig.LinkLocalIPs = make([]string, copts.linkLocalIPs.Len())
+			copy(epConfig.IPAMConfig.LinkLocalIPs, copts.linkLocalIPs.GetAll())
 		}
 	}
 
@@ -444,20 +644,21 @@ func Parse(cmd *flag.FlagSet, args []string) (*container.Config, *container.Host
 		networkingConfig.EndpointsConfig[string(hostConfig.NetworkMode)] = epConfig
 	}
 
-	if flAliases.Len() > 0 {
+	if copts.aliases.Len() > 0 {
 		epConfig := networkingConfig.EndpointsConfig[string(hostConfig.NetworkMode)]
 		if epConfig == nil {
 			epConfig = &networktypes.EndpointSettings{}
 		}
-		epConfig.Aliases = make([]string, flAliases.Len())
-		copy(epConfig.Aliases, flAliases.GetAll())
+		epConfig.Aliases = make([]string, copts.aliases.Len())
+		copy(epConfig.Aliases, copts.aliases.GetAll())
 		networkingConfig.EndpointsConfig[string(hostConfig.NetworkMode)] = epConfig
 	}
 
-	return config, hostConfig, networkingConfig, cmd, nil
+	return config, hostConfig, networkingConfig, nil
 }
 
-// reads a file of line terminated key=value pairs and override that with override parameter
+// reads a file of line terminated key=value pairs, and overrides any keys
+// present in the file with additional pairs specified in the override parameter
 func readKVStrings(files []string, override []string) ([]string, error) {
 	envVariables := []string{}
 	for _, ef := range files {
@@ -499,9 +700,13 @@ func parseLoggingOpts(loggingDriver string, loggingOpts []string) (map[string]st
 // takes a local seccomp daemon, reads the file contents for sending to the daemon
 func parseSecurityOpts(securityOpts []string) ([]string, error) {
 	for key, opt := range securityOpts {
-		con := strings.SplitN(opt, ":", 2)
-		if len(con) == 1 {
-			return securityOpts, fmt.Errorf("invalid --security-opt: %q", opt)
+		con := strings.SplitN(opt, "=", 2)
+		if len(con) == 1 && con[0] != "no-new-privileges" {
+			if strings.Contains(opt, ":") {
+				con = strings.SplitN(opt, ":", 2)
+			} else {
+				return securityOpts, fmt.Errorf("Invalid --security-opt: %q", opt)
+			}
 		}
 		if con[0] == "seccomp" && con[1] != "unconfined" {
 			f, err := ioutil.ReadFile(con[1])
@@ -512,11 +717,25 @@ func parseSecurityOpts(securityOpts []string) ([]string, error) {
 			if err := json.Compact(b, f); err != nil {
 				return securityOpts, fmt.Errorf("compacting json for seccomp profile (%s) failed: %v", con[1], err)
 			}
-			securityOpts[key] = fmt.Sprintf("seccomp:%s", b.Bytes())
+			securityOpts[key] = fmt.Sprintf("seccomp=%s", b.Bytes())
 		}
 	}
 
 	return securityOpts, nil
+}
+
+// parses storage options per container into a map
+func parseStorageOpts(storageOpts []string) (map[string]string, error) {
+	m := make(map[string]string)
+	for _, option := range storageOpts {
+		if strings.Contains(option, "=") {
+			opt := strings.SplitN(option, "=", 2)
+			m[opt[0]] = opt[1]
+		} else {
+			return nil, fmt.Errorf("Invalid storage option.")
+		}
+	}
+	return m, nil
 }
 
 // ParseRestartPolicy returns the parsed policy or an error indicating what is incorrect
@@ -527,34 +746,21 @@ func ParseRestartPolicy(policy string) (container.RestartPolicy, error) {
 		return p, nil
 	}
 
-	var (
-		parts = strings.Split(policy, ":")
-		name  = parts[0]
-	)
+	parts := strings.Split(policy, ":")
 
-	p.Name = name
-	switch name {
-	case "always", "unless-stopped":
-		if len(parts) > 1 {
-			return p, fmt.Errorf("maximum restart count not valid with restart policy of \"%s\"", name)
-		}
-	case "no":
-		// do nothing
-	case "on-failure":
-		if len(parts) > 2 {
-			return p, fmt.Errorf("restart count format is not valid, usage: 'on-failure:N' or 'on-failure'")
-		}
-		if len(parts) == 2 {
-			count, err := strconv.Atoi(parts[1])
-			if err != nil {
-				return p, err
-			}
-
-			p.MaximumRetryCount = count
-		}
-	default:
-		return p, fmt.Errorf("invalid restart policy %s", name)
+	if len(parts) > 2 {
+		return p, fmt.Errorf("invalid restart policy format")
 	}
+	if len(parts) == 2 {
+		count, err := strconv.Atoi(parts[1])
+		if err != nil {
+			return p, fmt.Errorf("maximum retry count must be an integer")
+		}
+
+		p.MaximumRetryCount = count
+	}
+
+	p.Name = parts[0]
 
 	return p, nil
 }
@@ -606,7 +812,7 @@ func ParseLink(val string) (string, string, error) {
 	if len(arr) == 1 {
 		return val, val, nil
 	}
-	// This is kept because we can actually get an HostConfig with links
+	// This is kept because we can actually get a HostConfig with links
 	// from an already created container and the format is not `foo:bar`
 	// but `/foo:/c1/bar`
 	if strings.HasPrefix(arr[0], "/") {
@@ -693,8 +899,12 @@ func validatePath(val string, validator func(string) bool) (string, error) {
 }
 
 // volumeSplitN splits raw into a maximum of n parts, separated by a separator colon.
-// A separator colon is the last `:` character in the regex `[/:\\]?[a-zA-Z]:` (note `\\` is `\` escaped).
-// This allows to correctly split strings such as `C:\foo:D:\:rw`.
+// A separator colon is the last `:` character in the regex `[:\\]?[a-zA-Z]:` (note `\\` is `\` escaped).
+// In Windows driver letter appears in two situations:
+// a. `^[a-zA-Z]:` (A colon followed  by `^[a-zA-Z]:` is OK as colon is the separator in volume option)
+// b. A string in the format like `\\?\C:\Windows\...` (UNC).
+// Therefore, a driver letter can only follow either a `:` or `\\`
+// This allows to correctly split strings such as `C:\foo:D:\:rw` or `/tmp/q:/foo`.
 func volumeSplitN(raw string, n int) []string {
 	var array []string
 	if len(raw) == 0 || raw[0] == ':' {
@@ -719,7 +929,8 @@ func volumeSplitN(raw string, n int) []string {
 		if (potentialDriveLetter >= 'A' && potentialDriveLetter <= 'Z') || (potentialDriveLetter >= 'a' && potentialDriveLetter <= 'z') {
 			if right > 1 {
 				beforePotentialDriveLetter := raw[right-2]
-				if beforePotentialDriveLetter != ':' && beforePotentialDriveLetter != '/' && beforePotentialDriveLetter != '\\' {
+				// Only `:` or `\\` are checked (`/` could fall into the case of `/tmp/q:/foo`)
+				if beforePotentialDriveLetter != ':' && beforePotentialDriveLetter != '\\' {
 					// e.g. `C:` is not preceded by any delimiter, therefore it was not a drive letter but a path ending with `C:`.
 					array = append(array, raw[left:right])
 					left = right + 1

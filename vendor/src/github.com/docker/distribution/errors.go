@@ -8,6 +8,10 @@ import (
 	"github.com/docker/distribution/digest"
 )
 
+// ErrAccessDenied is returned when an access to a requested resource is
+// denied.
+var ErrAccessDenied = errors.New("access denied")
+
 // ErrManifestNotModified is returned when a conditional manifest GetByTag
 // returns nil due to the client indicating it has the latest version
 var ErrManifestNotModified = errors.New("manifest not modified")

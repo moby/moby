@@ -6,7 +6,6 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
-	"os"
 	"time"
 
 	"github.com/docker/distribution"
@@ -104,21 +103,8 @@ func (hbu *httpBlobUpload) Write(p []byte) (n int, err error) {
 
 }
 
-func (hbu *httpBlobUpload) Seek(offset int64, whence int) (int64, error) {
-	newOffset := hbu.offset
-
-	switch whence {
-	case os.SEEK_CUR:
-		newOffset += int64(offset)
-	case os.SEEK_END:
-		newOffset += int64(offset)
-	case os.SEEK_SET:
-		newOffset = int64(offset)
-	}
-
-	hbu.offset = newOffset
-
-	return hbu.offset, nil
+func (hbu *httpBlobUpload) Size() int64 {
+	return hbu.offset
 }
 
 func (hbu *httpBlobUpload) ID() string {

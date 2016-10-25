@@ -1,28 +1,11 @@
 package registry
 
 import (
-	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
-)
 
-var (
-	// DefaultV1Registry is the URI of the default v1 registry
-	DefaultV1Registry = &url.URL{
-		Scheme: "https",
-		Host:   "registry-win-tp3.docker.io",
-	}
-
-	// DefaultV2Registry is the URI of the default (official) v2 registry.
-	// This is the windows-specific endpoint.
-	//
-	// Currently it is a TEMPORARY link that allows Microsoft to continue
-	// development of Docker Engine for Windows.
-	DefaultV2Registry = &url.URL{
-		Scheme: "https",
-		Host:   "registry-win-tp3.docker.io",
-	}
+	"github.com/spf13/pflag"
 )
 
 // CertsDir is the directory where certificates are stored
@@ -34,4 +17,9 @@ var CertsDir = os.Getenv("programdata") + `\docker\certs.d`
 // which contain those characters (such as : on Windows)
 func cleanPath(s string) string {
 	return filepath.FromSlash(strings.Replace(s, ":", "", -1))
+}
+
+// installCliPlatformFlags handles any platform specific flags for the service.
+func (options *ServiceOptions) installCliPlatformFlags(flags *pflag.FlagSet) {
+	// No Windows specific flags.
 }

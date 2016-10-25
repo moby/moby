@@ -16,7 +16,8 @@ CONTAINER [REPOSITORY[:TAG]]
 # DESCRIPTION
 Create a new image from an existing container specified by name or
 container ID.  The new image will contain the contents of the
-container filesystem, *excluding* any data volumes.
+container filesystem, *excluding* any data volumes. Refer to **docker-tag(1)**
+for more information about valid image and tag names.
 
 While the `docker commit` command is a convenient way of extending an
 existing image, you should prefer the use of a Dockerfile and `docker

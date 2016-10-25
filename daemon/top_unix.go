@@ -3,50 +3,49 @@
 package daemon
 
 import (
+	"fmt"
 	"os/exec"
+	"regexp"
 	"strconv"
 	"strings"
 
-	derr "github.com/docker/docker/errors"
-	"github.com/docker/engine-api/types"
+	"github.com/docker/docker/api/types"
 )
 
-// ContainerTop lists the processes running inside of the given
-// container by calling ps with the given args, or with the flags
-// "-ef" if no args are given.  An error is returned if the container
-// is not found, or is not running, or if there are any problems
-// running ps, or parsing the output.
-func (daemon *Daemon) ContainerTop(name string, psArgs string) (*types.ContainerProcessList, error) {
-	if psArgs == "" {
-		psArgs = "-ef"
+func validatePSArgs(psArgs string) error {
+	// NOTE: \\s does not detect unicode whitespaces.
+	// So we use fieldsASCII instead of strings.Fields in parsePSOutput.
+	// See https://github.com/docker/docker/pull/24358
+	re := regexp.MustCompile("\\s+([^\\s]*)=\\s*(PID[^\\s]*)")
+	for _, group := range re.FindAllStringSubmatch(psArgs, -1) {
+		if len(group) >= 3 {
+			k := group[1]
+			v := group[2]
+			if k != "pid" {
+				return fmt.Errorf("specifying \"%s=%s\" is not allowed", k, v)
+			}
+		}
 	}
+	return nil
+}
 
-	container, err := daemon.GetContainer(name)
-	if err != nil {
-		return nil, err
+// fieldsASCII is similar to strings.Fields but only allows ASCII whitespaces
+func fieldsASCII(s string) []string {
+	fn := func(r rune) bool {
+		switch r {
+		case '\t', '\n', '\f', '\r', ' ':
+			return true
+		}
+		return false
 	}
+	return strings.FieldsFunc(s, fn)
+}
 
-	if !container.IsRunning() {
-		return nil, derr.ErrorCodeNotRunning.WithArgs(name)
-	}
-
-	if container.IsRestarting() {
-		return nil, derr.ErrorCodeContainerRestarting.WithArgs(name)
-	}
-	pids, err := daemon.ExecutionDriver().GetPidsForContainer(container.ID)
-	if err != nil {
-		return nil, err
-	}
-
-	output, err := exec.Command("ps", strings.Split(psArgs, " ")...).Output()
-	if err != nil {
-		return nil, derr.ErrorCodePSError.WithArgs(err)
-	}
-
+func parsePSOutput(output []byte, pids []int) (*types.ContainerProcessList, error) {
 	procList := &types.ContainerProcessList{}
 
 	lines := strings.Split(string(output), "\n")
-	procList.Titles = strings.Fields(lines[0])
+	procList.Titles = fieldsASCII(lines[0])
 
 	pidIndex := -1
 	for i, name := range procList.Titles {
@@ -55,7 +54,7 @@ func (daemon *Daemon) ContainerTop(name string, psArgs string) (*types.Container
 		}
 	}
 	if pidIndex == -1 {
-		return nil, derr.ErrorCodeNoPID
+		return nil, fmt.Errorf("Couldn't find PID field in ps output")
 	}
 
 	// loop through the output and extract the PID from each line
@@ -63,10 +62,10 @@ func (daemon *Daemon) ContainerTop(name string, psArgs string) (*types.Container
 		if len(line) == 0 {
 			continue
 		}
-		fields := strings.Fields(line)
+		fields := fieldsASCII(line)
 		p, err := strconv.Atoi(fields[pidIndex])
 		if err != nil {
-			return nil, derr.ErrorCodeBadPID.WithArgs(fields[pidIndex], err)
+			return nil, fmt.Errorf("Unexpected pid '%s': %s", fields[pidIndex], err)
 		}
 
 		for _, pid := range pids {
@@ -78,6 +77,49 @@ func (daemon *Daemon) ContainerTop(name string, psArgs string) (*types.Container
 				procList.Processes = append(procList.Processes, process)
 			}
 		}
+	}
+	return procList, nil
+}
+
+// ContainerTop lists the processes running inside of the given
+// container by calling ps with the given args, or with the flags
+// "-ef" if no args are given.  An error is returned if the container
+// is not found, or is not running, or if there are any problems
+// running ps, or parsing the output.
+func (daemon *Daemon) ContainerTop(name string, psArgs string) (*types.ContainerProcessList, error) {
+	if psArgs == "" {
+		psArgs = "-ef"
+	}
+
+	if err := validatePSArgs(psArgs); err != nil {
+		return nil, err
+	}
+
+	container, err := daemon.GetContainer(name)
+	if err != nil {
+		return nil, err
+	}
+
+	if !container.IsRunning() {
+		return nil, errNotRunning{container.ID}
+	}
+
+	if container.IsRestarting() {
+		return nil, errContainerIsRestarting(container.ID)
+	}
+
+	pids, err := daemon.containerd.GetPidsForContainer(container.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	output, err := exec.Command("ps", strings.Split(psArgs, " ")...).Output()
+	if err != nil {
+		return nil, fmt.Errorf("Error running ps: %v", err)
+	}
+	procList, err := parsePSOutput(output, pids)
+	if err != nil {
+		return nil, err
 	}
 	daemon.LogContainerEvent(container, "top")
 	return procList, nil

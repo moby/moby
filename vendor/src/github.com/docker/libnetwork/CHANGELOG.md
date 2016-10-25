@@ -1,5 +1,96 @@
 # Changelog
 
+## 0.8.0-dev.2 (2016-05-07)
+- Fix an issue which may arise during sandbox cleanup (https://github.com/docker/libnetwork/pull/1157)
+- Fix cleanup logic in case of ipv6 allocation failure
+- Don't add /etc/hosts record if container's ip is empty (--net=none)
+- Fix default gw logic for internal networks
+- Error when updating IPv6 gateway (https://github.com/docker/libnetwork/issues/1142)
+- Fixes https://github.com/docker/libnetwork/issues/1113
+- Fixes https://github.com/docker/libnetwork/issues/1069
+- Fxies https://github.com/docker/libnetwork/issues/1117
+- Increase the concurrent query rate-limit count
+- Changes to build libnetwork in Solaris
+
+## 0.8.0-dev.1 (2016-04-16)
+- Fixes docker/docker#16964
+- Added maximum egress bandwidth qos for Windows
+
+## 0.7.0-rc.6 (2016-04-10)
+- Flush cached resolver socket on default gateway change
+
+## 0.7.0-rc.5 (2016-04-08)
+- Persist ipam driver options
+- Fixes https://github.com/docker/libnetwork/issues/1087
+- Use go vet from go tool
+- Godep update to pick up latest docker/docker packages
+- Validate remote driver response using docker plugins package method.
+
+## 0.7.0-rc.4 (2016-04-06)
+- Fix the handling for default gateway Endpoint join/leave.
+
+## 0.7.0-rc.3 (2016-04-05)
+- Revert fix for default gateway endoint join/leave. Needs to be reworked.
+- Persist the network internal mode for bridge networks
+
+## 0.7.0-rc.2 (2016-04-05)
+- Fixes https://github.com/docker/libnetwork/issues/1070
+- Move IPAM resource initialization out of init()
+- Initialize overlay driver before network delete
+- Fix the handling for default gateway Endpoint join/lean
+
+## 0.7.0-rc.1 (2016-03-30)
+- Fixes https://github.com/docker/libnetwork/issues/985
+- Fixes https://github.com/docker/libnetwork/issues/945
+- Log time taken to set sandbox key
+- Limit number of concurrent DNS queries
+
+## 0.7.0-dev.10 (2016-03-21)
+- Add IPv6 service discovery (AAAA records) in embedded DNS server
+- Honor enableIPv6 flag in network create for the IP allocation
+- Avoid V6 queries in docker domain going to external nameservers
+
+## 0.7.0-dev.9 (2016-03-18)
+- Support labels on networks
+
+## 0.7.0-dev.8 (2016-03-16)
+- Windows driver to respect user set MAC address.
+- Fix possible nil pointer reference in ServeDNS() with concurrent go routines.
+- Fix netns path setting from hook (for containerd integration)
+- Clear cached udp connections on resolver Stop()
+- Avoid network/endpoint count inconsistences and remove stale networks after ungraceful shutdown
+- Fix possible endpoint count inconsistency after ungraceful shutdown
+- Reject a null v4 IPAM slice in exp vlan drivers
+- Removed experimental drivers modprobe check
+
+## 0.7.0-dev.7 (2016-03-11)
+- Bumped up the minimum kernel version for ipvlan to 4.2
+- Removed modprobe from macvlan/ipvlan drivers to resolve docker IT failures
+- Close dbus connection if firewalld is not started
+
+## 0.7.0-dev.6 (2016-03-10)
+- Experimental support for macvlan and ipvlan drivers
+
+## 0.7.0-dev.5 (2016-03-08)
+- Fixes https://github.com/docker/docker/issues/20847
+- Fixes https://github.com/docker/docker/issues/20997
+- Fixes issues unveiled by docker integ test over 0.7.0-dev.4
+
+## 0.7.0-dev.4 (2016-03-07)
+- Changed ownership of exposed ports and port-mapping options from Endpoint to Sandbox
+- Implement DNS RR in the Docker embedded DNS server
+- Fixes https://github.com/docker/libnetwork/issues/984 (multi container overlay veth leak)
+- Libnetwork to program container's interface MAC address
+- Fixed bug in iptables.Exists() logic
+- Fixes https://github.com/docker/docker/issues/20694
+- Source external DNS queries from container namespace
+- Added inbuilt nil IPAM driver
+- Windows drivers integration fixes
+- Extract hostname from (hostname.domainname). Related to https://github.com/docker/docker/issues/14282
+- Fixed race in sandbox statistics read
+- Fixes https://github.com/docker/libnetwork/issues/892 (docker start fails when ipv6.disable=1)
+- Fixed error message on bridge network creation conflict
+
 ## 0.7.0-dev.3 (2016-02-17)
 - Fixes https://github.com/docker/docker/issues/20350
 - Fixes https://github.com/docker/docker/issues/20145
@@ -90,7 +181,7 @@
 - DEPRECATE service discovery from default bridge network
 - Introduced new network UX
 - Support for multiple networks in bridge driver
-- Local persistance with boltdb
+- Local persistence with boltdb
 
 ## 0.4.0 (2015-07-24)
 

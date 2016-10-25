@@ -1,7 +1,13 @@
 package nl
 
+import (
+	"unsafe"
+)
+
 const (
 	DEFAULT_CHANGE = 0xFFFFFFFF
+	// doesn't exist in syscall
+	IFLA_VFINFO_LIST = 0x16
 )
 
 const (
@@ -182,3 +188,209 @@ const (
 	GRE_FLAGS   = 0x00F8
 	GRE_VERSION = 0x0007
 )
+
+const (
+	IFLA_VF_INFO_UNSPEC = iota
+	IFLA_VF_INFO
+	IFLA_VF_INFO_MAX = IFLA_VF_INFO
+)
+
+const (
+	IFLA_VF_UNSPEC = iota
+	IFLA_VF_MAC    /* Hardware queue specific attributes */
+	IFLA_VF_VLAN
+	IFLA_VF_TX_RATE      /* Max TX Bandwidth Allocation */
+	IFLA_VF_SPOOFCHK     /* Spoof Checking on/off switch */
+	IFLA_VF_LINK_STATE   /* link state enable/disable/auto switch */
+	IFLA_VF_RATE         /* Min and Max TX Bandwidth Allocation */
+	IFLA_VF_RSS_QUERY_EN /* RSS Redirection Table and Hash Key query
+	 * on/off switch
+	 */
+	IFLA_VF_STATS /* network device statistics */
+	IFLA_VF_MAX   = IFLA_VF_STATS
+)
+
+const (
+	IFLA_VF_LINK_STATE_AUTO    = iota /* link state of the uplink */
+	IFLA_VF_LINK_STATE_ENABLE         /* link always up */
+	IFLA_VF_LINK_STATE_DISABLE        /* link always down */
+	IFLA_VF_LINK_STATE_MAX     = IFLA_VF_LINK_STATE_DISABLE
+)
+
+const (
+	IFLA_VF_STATS_RX_PACKETS = iota
+	IFLA_VF_STATS_TX_PACKETS
+	IFLA_VF_STATS_RX_BYTES
+	IFLA_VF_STATS_TX_BYTES
+	IFLA_VF_STATS_BROADCAST
+	IFLA_VF_STATS_MULTICAST
+	IFLA_VF_STATS_MAX = IFLA_VF_STATS_MULTICAST
+)
+
+const (
+	SizeofVfMac        = 0x24
+	SizeofVfVlan       = 0x0c
+	SizeofVfTxRate     = 0x08
+	SizeofVfRate       = 0x0c
+	SizeofVfSpoofchk   = 0x08
+	SizeofVfLinkState  = 0x08
+	SizeofVfRssQueryEn = 0x08
+)
+
+// struct ifla_vf_mac {
+//   __u32 vf;
+//   __u8 mac[32]; /* MAX_ADDR_LEN */
+// };
+
+type VfMac struct {
+	Vf  uint32
+	Mac [32]byte
+}
+
+func (msg *VfMac) Len() int {
+	return SizeofVfMac
+}
+
+func DeserializeVfMac(b []byte) *VfMac {
+	return (*VfMac)(unsafe.Pointer(&b[0:SizeofVfMac][0]))
+}
+
+func (msg *VfMac) Serialize() []byte {
+	return (*(*[SizeofVfMac]byte)(unsafe.Pointer(msg)))[:]
+}
+
+// struct ifla_vf_vlan {
+//   __u32 vf;
+//   __u32 vlan; /* 0 - 4095, 0 disables VLAN filter */
+//   __u32 qos;
+// };
+
+type VfVlan struct {
+	Vf   uint32
+	Vlan uint32
+	Qos  uint32
+}
+
+func (msg *VfVlan) Len() int {
+	return SizeofVfVlan
+}
+
+func DeserializeVfVlan(b []byte) *VfVlan {
+	return (*VfVlan)(unsafe.Pointer(&b[0:SizeofVfVlan][0]))
+}
+
+func (msg *VfVlan) Serialize() []byte {
+	return (*(*[SizeofVfVlan]byte)(unsafe.Pointer(msg)))[:]
+}
+
+// struct ifla_vf_tx_rate {
+//   __u32 vf;
+//   __u32 rate; /* Max TX bandwidth in Mbps, 0 disables throttling */
+// };
+
+type VfTxRate struct {
+	Vf   uint32
+	Rate uint32
+}
+
+func (msg *VfTxRate) Len() int {
+	return SizeofVfTxRate
+}
+
+func DeserializeVfTxRate(b []byte) *VfTxRate {
+	return (*VfTxRate)(unsafe.Pointer(&b[0:SizeofVfTxRate][0]))
+}
+
+func (msg *VfTxRate) Serialize() []byte {
+	return (*(*[SizeofVfTxRate]byte)(unsafe.Pointer(msg)))[:]
+}
+
+// struct ifla_vf_rate {
+//   __u32 vf;
+//   __u32 min_tx_rate; /* Min Bandwidth in Mbps */
+//   __u32 max_tx_rate; /* Max Bandwidth in Mbps */
+// };
+
+type VfRate struct {
+	Vf        uint32
+	MinTxRate uint32
+	MaxTxRate uint32
+}
+
+func (msg *VfRate) Len() int {
+	return SizeofVfRate
+}
+
+func DeserializeVfRate(b []byte) *VfRate {
+	return (*VfRate)(unsafe.Pointer(&b[0:SizeofVfRate][0]))
+}
+
+func (msg *VfRate) Serialize() []byte {
+	return (*(*[SizeofVfRate]byte)(unsafe.Pointer(msg)))[:]
+}
+
+// struct ifla_vf_spoofchk {
+//   __u32 vf;
+//   __u32 setting;
+// };
+
+type VfSpoofchk struct {
+	Vf      uint32
+	Setting uint32
+}
+
+func (msg *VfSpoofchk) Len() int {
+	return SizeofVfSpoofchk
+}
+
+func DeserializeVfSpoofchk(b []byte) *VfSpoofchk {
+	return (*VfSpoofchk)(unsafe.Pointer(&b[0:SizeofVfSpoofchk][0]))
+}
+
+func (msg *VfSpoofchk) Serialize() []byte {
+	return (*(*[SizeofVfSpoofchk]byte)(unsafe.Pointer(msg)))[:]
+}
+
+// struct ifla_vf_link_state {
+//   __u32 vf;
+//   __u32 link_state;
+// };
+
+type VfLinkState struct {
+	Vf        uint32
+	LinkState uint32
+}
+
+func (msg *VfLinkState) Len() int {
+	return SizeofVfLinkState
+}
+
+func DeserializeVfLinkState(b []byte) *VfLinkState {
+	return (*VfLinkState)(unsafe.Pointer(&b[0:SizeofVfLinkState][0]))
+}
+
+func (msg *VfLinkState) Serialize() []byte {
+	return (*(*[SizeofVfLinkState]byte)(unsafe.Pointer(msg)))[:]
+}
+
+// struct ifla_vf_rss_query_en {
+//   __u32 vf;
+//   __u32 setting;
+// };
+
+type VfRssQueryEn struct {
+	Vf      uint32
+	Setting uint32
+}
+
+func (msg *VfRssQueryEn) Len() int {
+	return SizeofVfRssQueryEn
+}
+
+func DeserializeVfRssQueryEn(b []byte) *VfRssQueryEn {
+	return (*VfRssQueryEn)(unsafe.Pointer(&b[0:SizeofVfRssQueryEn][0]))
+}
+
+func (msg *VfRssQueryEn) Serialize() []byte {
+	return (*(*[SizeofVfRssQueryEn]byte)(unsafe.Pointer(msg)))[:]
+}

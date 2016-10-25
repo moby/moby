@@ -1,20 +1,10 @@
-Instructions
-============
+Go-check
+========
 
-Install the package with:
+This is a fork of https://github.com/go-check/check
 
-    go get gopkg.in/check.v1
-    
-Import it with:
+The intention of this fork is not to change any of the original behavior, but add
+some specific behaviors needed for some of my projects already using this test suite.
+For documentation on the main behavior of go-check see the aforementioned repo.
 
-    import "gopkg.in/check.v1"
-
-and use _check_ as the package name inside the code.
-
-For more details, visit the project page:
-
-* http://labix.org/gocheck
-
-and the API documentation:
-
-* https://gopkg.in/check.v1
+The original branch is intact at `orig_v1`

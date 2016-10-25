@@ -134,7 +134,7 @@ func (s *DockerSuite) TestRmiImgIDForce(c *check.C) {
 	// rmi tagged in multiple repos should have failed without force
 	c.Assert(err, checker.NotNil)
 	// rmi tagged in multiple repos should have failed without force
-	c.Assert(out, checker.Contains, "(must be forced) - image is referenced in one or more repositories", check.Commentf("out: %s; err: %v;", out, err))
+	c.Assert(out, checker.Contains, "(must be forced) - image is referenced in multiple repositories", check.Commentf("out: %s; err: %v;", out, err))
 
 	dockerCmd(c, "rmi", "-f", imgID)
 	{
@@ -226,18 +226,11 @@ func (s *DockerSuite) TestRmiForceWithMultipleRepositories(c *check.C) {
 }
 
 func (s *DockerSuite) TestRmiBlank(c *check.C) {
-	// try to delete a blank image name
-	out, _, err := dockerCmdWithError("rmi", "")
-	// Should have failed to delete '' image
+	out, _, err := dockerCmdWithError("rmi", " ")
+	// Should have failed to delete ' ' image
 	c.Assert(err, checker.NotNil)
 	// Wrong error message generated
 	c.Assert(out, checker.Not(checker.Contains), "no such id", check.Commentf("out: %s", out))
-	// Expected error message not generated
-	c.Assert(out, checker.Contains, "image name cannot be blank", check.Commentf("out: %s", out))
-
-	out, _, err = dockerCmdWithError("rmi", " ")
-	// Should have failed to delete ' ' image
-	c.Assert(err, checker.NotNil)
 	// Expected error message not generated
 	c.Assert(out, checker.Contains, "image name cannot be blank", check.Commentf("out: %s", out))
 }
@@ -270,7 +263,7 @@ func (s *DockerSuite) TestRmiContainerImageNotFound(c *check.C) {
 // #13422
 func (s *DockerSuite) TestRmiUntagHistoryLayer(c *check.C) {
 	image := "tmp1"
-	// Build a image for testing.
+	// Build an image for testing.
 	dockerfile := `FROM busybox
 MAINTAINER foo
 RUN echo 0 #layer0
@@ -315,8 +308,13 @@ RUN echo 2 #layer2
 }
 
 func (*DockerSuite) TestRmiParentImageFail(c *check.C) {
-	parent := inspectField(c, "busybox", "Parent")
-	out, _, err := dockerCmdWithError("rmi", parent)
+	_, err := buildImage("test", `
+	FROM busybox
+	RUN echo hello`, false)
+	c.Assert(err, checker.IsNil)
+
+	id := inspectField(c, "busybox", "ID")
+	out, _, err := dockerCmdWithError("rmi", id)
 	c.Assert(err, check.NotNil)
 	if !strings.Contains(out, "image has dependent child images") {
 		c.Fatalf("rmi should have failed because it's a parent image, got %s", out)
@@ -324,10 +322,6 @@ func (*DockerSuite) TestRmiParentImageFail(c *check.C) {
 }
 
 func (s *DockerSuite) TestRmiWithParentInUse(c *check.C) {
-	// TODO Windows. There is a bug either in Windows TP4, or the TP4 compatible
-	// docker which means this test fails. It has been verified to have been fixed
-	// in TP5 and docker/master, hence enable it once CI switch to TP5.
-	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "create", "busybox")
 	cID := strings.TrimSpace(out)
 
@@ -345,10 +339,6 @@ func (s *DockerSuite) TestRmiWithParentInUse(c *check.C) {
 
 // #18873
 func (s *DockerSuite) TestRmiByIDHardConflict(c *check.C) {
-	// TODO Windows CI. This will work on a TP5 compatible docker which
-	// has content addressibility fixes. Do not run this on TP4 as it
-	// will end up deleting the busybox image causing subsequent tests to fail.
-	testRequires(c, DaemonIsLinux)
 	dockerCmd(c, "create", "busybox")
 
 	imgID := inspectField(c, "busybox:latest", "Id")

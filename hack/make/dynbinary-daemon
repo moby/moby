@@ -1,0 +1,16 @@
+#!/bin/bash
+set -e
+
+(
+	export BINARY_SHORT_NAME='dockerd'
+	export SOURCE_PATH='./cmd/dockerd'
+	export IAMSTATIC='false'
+	export LDFLAGS_STATIC_DOCKER=''
+	export BUILDFLAGS=( "${BUILDFLAGS[@]/netgo /}" ) # disable netgo, since we don't need it for a dynamic binary
+	export BUILDFLAGS=( "${BUILDFLAGS[@]/static_build /}" ) # we're not building a "static" binary here
+	source "${MAKEDIR}/.binary"
+	export BINARY_SHORT_NAME='docker-proxy'
+	export SOURCE_PATH='./vendor/src/github.com/docker/libnetwork/cmd/proxy'
+	export LDFLAGS_STATIC_DOCKER='-linkmode=external'
+	source "${MAKEDIR}/.binary"
+)

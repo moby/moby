@@ -9,7 +9,7 @@ import (
 	"github.com/go-check/check"
 )
 
-func (s *DockerSuite) TestApiUpdateContainer(c *check.C) {
+func (s *DockerSuite) TestAPIUpdateContainer(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	testRequires(c, memoryLimitSupport)
 	testRequires(c, swapMemorySupport)

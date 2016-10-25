@@ -12,7 +12,7 @@ import (
 )
 
 // #16665
-func (s *DockerSuite) TestInspectApiCpusetInConfigPre120(c *check.C) {
+func (s *DockerSuite) TestInspectAPICpusetInConfigPre120(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	testRequires(c, cgroupCpuset)
 
@@ -31,5 +31,5 @@ func (s *DockerSuite) TestInspectApiCpusetInConfigPre120(c *check.C) {
 	c.Assert(ok, checker.True, check.Commentf("Unable to find 'Config'"))
 	cfg := config.(map[string]interface{})
 	_, ok = cfg["Cpuset"]
-	c.Assert(ok, checker.True, check.Commentf("Api version 1.19 expected to include Cpuset in 'Config'"))
+	c.Assert(ok, checker.True, check.Commentf("API version 1.19 expected to include Cpuset in 'Config'"))
 }

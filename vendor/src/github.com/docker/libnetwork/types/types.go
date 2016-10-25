@@ -9,10 +9,31 @@ import (
 	"strings"
 )
 
+// constants for the IP address type
+const (
+	IP = iota // IPv4 and IPv6
+	IPv4
+	IPv6
+)
+
+// EncryptionKey is the libnetwork representation of the key distributed by the lead
+// manager.
+type EncryptionKey struct {
+	Subsystem   string
+	Algorithm   int32
+	Key         []byte
+	LamportTime uint64
+}
+
 // UUID represents a globally unique ID of various resources like network and endpoint
 type UUID string
 
-// TransportPort represent a local Layer 4 endpoint
+// QosPolicy represents a quality of service policy on an endpoint
+type QosPolicy struct {
+	MaxEgressBandwidth uint64
+}
+
+// TransportPort represents a local Layer 4 endpoint
 type TransportPort struct {
 	Proto Protocol
 	Port  uint16
@@ -58,7 +79,7 @@ func (t *TransportPort) FromString(s string) error {
 	return BadRequestErrorf("invalid format for transport port: %s", s)
 }
 
-// PortBinding represent a port binding between the container and the host
+// PortBinding represents a port binding between the container and the host
 type PortBinding struct {
 	Proto       Protocol
 	IP          net.IP
@@ -104,7 +125,7 @@ func (p *PortBinding) GetCopy() PortBinding {
 	}
 }
 
-// String return the PortBinding structure in string form
+// String returns the PortBinding structure in string form
 func (p *PortBinding) String() string {
 	ret := fmt.Sprintf("%s/", p.Proto)
 	if p.IP != nil {
@@ -214,7 +235,7 @@ const (
 	UDP = 17
 )
 
-// Protocol represents a IP protocol number
+// Protocol represents an IP protocol number
 type Protocol uint8
 
 func (p Protocol) String() string {
@@ -318,6 +339,12 @@ func GetMinimalIPNet(nw *net.IPNet) *net.IPNet {
 	return nw
 }
 
+// IsIPNetValid returns true if the ipnet is a valid network/mask
+// combination. Otherwise returns false.
+func IsIPNetValid(nw *net.IPNet) bool {
+	return nw.String() != "0.0.0.0/0"
+}
+
 var v4inV6MaskPrefix = []byte{0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff}
 
 // compareIPMask checks if the passed ip and mask are semantically compatible.
@@ -389,7 +416,7 @@ const (
 	// NEXTHOP indicates a StaticRoute with an IP next hop.
 	NEXTHOP = iota
 
-	// CONNECTED indicates a StaticRoute with a interface for directly connected peers.
+	// CONNECTED indicates a StaticRoute with an interface for directly connected peers.
 	CONNECTED
 )
 
@@ -458,25 +485,25 @@ type NotFoundError interface {
 	NotFound()
 }
 
-// ForbiddenError is an interface for errors which denote an valid request that cannot be honored
+// ForbiddenError is an interface for errors which denote a valid request that cannot be honored
 type ForbiddenError interface {
 	// Forbidden makes implementer into ForbiddenError type
 	Forbidden()
 }
 
-// NoServiceError  is an interface for errors returned when the required service is not available
+// NoServiceError is an interface for errors returned when the required service is not available
 type NoServiceError interface {
 	// NoService makes implementer into NoServiceError type
 	NoService()
 }
 
-// TimeoutError  is an interface for errors raised because of timeout
+// TimeoutError is an interface for errors raised because of timeout
 type TimeoutError interface {
 	// Timeout makes implementer into TimeoutError type
 	Timeout()
 }
 
-// NotImplementedError  is an interface for errors raised because of requested functionality is not yet implemented
+// NotImplementedError is an interface for errors raised because of requested functionality is not yet implemented
 type NotImplementedError interface {
 	// NotImplemented makes implementer into NotImplementedError type
 	NotImplemented()

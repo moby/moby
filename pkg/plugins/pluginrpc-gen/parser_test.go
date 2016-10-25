@@ -47,7 +47,7 @@ func TestParseWithMultipleFuncs(t *testing.T) {
 	}
 
 	assertName(t, "foo", pkg.Name)
-	assertNum(t, 6, len(pkg.Functions))
+	assertNum(t, 7, len(pkg.Functions))
 
 	f := pkg.Functions[0]
 	assertName(t, "Foo", f.Name)
@@ -105,6 +105,35 @@ func TestParseWithMultipleFuncs(t *testing.T) {
 	arg = f.Returns[0]
 	assertName(t, "w", arg.Name)
 	assertName(t, "wobble", arg.ArgType)
+
+	f = pkg.Functions[6]
+	assertName(t, "WiggleWobble", f.Name)
+	assertNum(t, 6, len(f.Args))
+	assertNum(t, 6, len(f.Returns))
+	expectedArgs := [][]string{
+		{"a", "[]*wobble"},
+		{"b", "[]wobble"},
+		{"c", "map[string]*wobble"},
+		{"d", "map[*wobble]wobble"},
+		{"e", "map[string][]wobble"},
+		{"f", "[]*otherfixture.Spaceship"},
+	}
+	for i, arg := range f.Args {
+		assertName(t, expectedArgs[i][0], arg.Name)
+		assertName(t, expectedArgs[i][1], arg.ArgType)
+	}
+	expectedReturns := [][]string{
+		{"g", "map[*wobble]wobble"},
+		{"h", "[][]*wobble"},
+		{"i", "otherfixture.Spaceship"},
+		{"j", "*otherfixture.Spaceship"},
+		{"k", "map[*otherfixture.Spaceship]otherfixture.Spaceship"},
+		{"l", "[]otherfixture.Spaceship"},
+	}
+	for i, ret := range f.Returns {
+		assertName(t, expectedReturns[i][0], ret.Name)
+		assertName(t, expectedReturns[i][1], ret.ArgType)
+	}
 }
 
 func TestParseWithUnamedReturn(t *testing.T) {
@@ -148,6 +177,31 @@ func TestEmbeddedInterface(t *testing.T) {
 	arg = f.Returns[1]
 	assertName(t, "err", arg.Name)
 	assertName(t, "error", arg.ArgType)
+}
+
+func TestParsedImports(t *testing.T) {
+	cases := []string{"Fooer6", "Fooer7", "Fooer8", "Fooer9", "Fooer10", "Fooer11"}
+	for _, testCase := range cases {
+		pkg, err := Parse(testFixture, testCase)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		assertNum(t, 1, len(pkg.Imports))
+		importPath := strings.Split(pkg.Imports[0].Path, "/")
+		assertName(t, "otherfixture\"", importPath[len(importPath)-1])
+		assertName(t, "", pkg.Imports[0].Name)
+	}
+}
+
+func TestAliasedImports(t *testing.T) {
+	pkg, err := Parse(testFixture, "Fooer12")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	assertNum(t, 1, len(pkg.Imports))
+	assertName(t, "aliasedio", pkg.Imports[0].Name)
 }
 
 func assertName(t *testing.T, expected, actual string) {

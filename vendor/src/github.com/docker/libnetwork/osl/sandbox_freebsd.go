@@ -15,7 +15,7 @@ func GenerateKey(containerID string) string {
 
 // NewSandbox provides a new sandbox instance created in an os specific way
 // provided a key which uniquely identifies the sandbox
-func NewSandbox(key string, osCreate bool) (Sandbox, error) {
+func NewSandbox(key string, osCreate, isRestore bool) (Sandbox, error) {
 	return nil, nil
 }
 
@@ -37,4 +37,8 @@ func InitOSContext() func() {
 // SetupTestOSContext sets up a separate test  OS context in which tests will be executed.
 func SetupTestOSContext(t *testing.T) func() {
 	return func() {}
+}
+
+// SetBasePath sets the base url prefix for the ns path
+func SetBasePath(path string) {
 }

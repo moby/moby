@@ -8,7 +8,7 @@ import (
 	"github.com/docker/libnetwork/datastore"
 )
 
-// Idm manages the reservation/release of numerical ids from a contiguos set
+// Idm manages the reservation/release of numerical ids from a contiguous set
 type Idm struct {
 	start  uint64
 	end    uint64

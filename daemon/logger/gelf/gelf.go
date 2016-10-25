@@ -6,9 +6,12 @@ package gelf
 
 import (
 	"bytes"
+	"compress/flate"
+	"encoding/json"
 	"fmt"
 	"net"
 	"net/url"
+	"strconv"
 	"time"
 
 	"github.com/Graylog2/go-gelf/gelf"
@@ -24,7 +27,7 @@ type gelfLogger struct {
 	writer   *gelf.Writer
 	ctx      logger.Context
 	hostname string
-	extra    map[string]interface{}
+	rawExtra json.RawMessage
 }
 
 func init() {
@@ -37,8 +40,7 @@ func init() {
 }
 
 // New creates a gelf logger using the configuration passed in on the
-// context. Supported context configuration variables are
-// gelf-address, & gelf-tag.
+// context. The supported context configuration variable is gelf-address.
 func New(ctx logger.Context) (logger.Logger, error) {
 	// parse gelf address
 	address, err := parseAddress(ctx.Config["gelf-address"])
@@ -56,7 +58,7 @@ func New(ctx logger.Context) (logger.Logger, error) {
 	containerName := bytes.TrimLeft([]byte(ctx.ContainerName), "/")
 
 	// parse log tag
-	tag, err := loggerutils.ParseLogTag(ctx, "")
+	tag, err := loggerutils.ParseLogTag(ctx, loggerutils.DefaultTemplate)
 	if err != nil {
 		return nil, err
 	}
@@ -81,17 +83,43 @@ func New(ctx logger.Context) (logger.Logger, error) {
 		extra[k] = v
 	}
 
+	rawExtra, err := json.Marshal(extra)
+	if err != nil {
+		return nil, err
+	}
+
 	// create new gelfWriter
 	gelfWriter, err := gelf.NewWriter(address)
 	if err != nil {
 		return nil, fmt.Errorf("gelf: cannot connect to GELF endpoint: %s %v", address, err)
 	}
 
+	if v, ok := ctx.Config["gelf-compression-type"]; ok {
+		switch v {
+		case "gzip":
+			gelfWriter.CompressionType = gelf.CompressGzip
+		case "zlib":
+			gelfWriter.CompressionType = gelf.CompressZlib
+		case "none":
+			gelfWriter.CompressionType = gelf.CompressNone
+		default:
+			return nil, fmt.Errorf("gelf: invalid compression type %q", v)
+		}
+	}
+
+	if v, ok := ctx.Config["gelf-compression-level"]; ok {
+		val, err := strconv.Atoi(v)
+		if err != nil {
+			return nil, fmt.Errorf("gelf: invalid compression level %s, err %v", v, err)
+		}
+		gelfWriter.CompressionLevel = val
+	}
+
 	return &gelfLogger{
 		writer:   gelfWriter,
 		ctx:      ctx,
 		hostname: hostname,
-		extra:    extra,
+		rawExtra: rawExtra,
 	}, nil
 }
 
@@ -107,7 +135,7 @@ func (s *gelfLogger) Log(msg *logger.Message) error {
 		Short:    string(msg.Line),
 		TimeUnix: float64(msg.Timestamp.UnixNano()/int64(time.Millisecond)) / 1000.0,
 		Level:    level,
-		Extra:    s.extra,
+		RawExtra: s.rawExtra,
 	}
 
 	if err := s.writer.WriteMessage(&m); err != nil {
@@ -124,18 +152,27 @@ func (s *gelfLogger) Name() string {
 	return name
 }
 
-// ValidateLogOpt looks for gelf specific log options gelf-address, &
-// gelf-tag.
+// ValidateLogOpt looks for gelf specific log option gelf-address.
 func ValidateLogOpt(cfg map[string]string) error {
-	for key := range cfg {
+	for key, val := range cfg {
 		switch key {
 		case "gelf-address":
-		case "gelf-tag":
 		case "tag":
 		case "labels":
 		case "env":
+		case "gelf-compression-level":
+			i, err := strconv.Atoi(val)
+			if err != nil || i < flate.DefaultCompression || i > flate.BestCompression {
+				return fmt.Errorf("unknown value %q for log opt %q for gelf log driver", val, key)
+			}
+		case "gelf-compression-type":
+			switch val {
+			case "gzip", "zlib", "none":
+			default:
+				return fmt.Errorf("unknown value %q for log opt %q for gelf log driver", val, key)
+			}
 		default:
-			return fmt.Errorf("unknown log opt '%s' for gelf log driver", key)
+			return fmt.Errorf("unknown log opt %q for gelf log driver", key)
 		}
 	}
 

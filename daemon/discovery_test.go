@@ -18,6 +18,18 @@ func TestDiscoveryOpts(t *testing.T) {
 		t.Fatalf("discovery.ttl == discovery.heartbeat must fail")
 	}
 
+	clusterOpts = map[string]string{"discovery.heartbeat": "-10", "discovery.ttl": "10"}
+	heartbeat, ttl, err = discoveryOpts(clusterOpts)
+	if err == nil {
+		t.Fatalf("negative discovery.heartbeat must fail")
+	}
+
+	clusterOpts = map[string]string{"discovery.heartbeat": "10", "discovery.ttl": "-10"}
+	heartbeat, ttl, err = discoveryOpts(clusterOpts)
+	if err == nil {
+		t.Fatalf("negative discovery.ttl must fail")
+	}
+
 	clusterOpts = map[string]string{"discovery.heartbeat": "invalid"}
 	heartbeat, ttl, err = discoveryOpts(clusterOpts)
 	if err == nil {
@@ -37,7 +49,7 @@ func TestDiscoveryOpts(t *testing.T) {
 	}
 
 	if heartbeat != 10*time.Second {
-		t.Fatalf("Heatbeat - Expected : %v, Actual : %v", 10*time.Second, heartbeat)
+		t.Fatalf("Heartbeat - Expected : %v, Actual : %v", 10*time.Second, heartbeat)
 	}
 
 	if ttl != 20*time.Second {
@@ -51,7 +63,7 @@ func TestDiscoveryOpts(t *testing.T) {
 	}
 
 	if heartbeat != 10*time.Second {
-		t.Fatalf("Heatbeat - Expected : %v, Actual : %v", 10*time.Second, heartbeat)
+		t.Fatalf("Heartbeat - Expected : %v, Actual : %v", 10*time.Second, heartbeat)
 	}
 
 	expected := 10 * defaultDiscoveryTTLFactor * time.Second
@@ -71,7 +83,7 @@ func TestDiscoveryOpts(t *testing.T) {
 
 	expected = 30 * time.Second / defaultDiscoveryTTLFactor
 	if heartbeat != expected {
-		t.Fatalf("Heatbeat - Expected : %v, Actual : %v", expected, heartbeat)
+		t.Fatalf("Heartbeat - Expected : %v, Actual : %v", expected, heartbeat)
 	}
 
 	clusterOpts = map[string]string{}
@@ -81,7 +93,7 @@ func TestDiscoveryOpts(t *testing.T) {
 	}
 
 	if heartbeat != defaultDiscoveryHeartbeat {
-		t.Fatalf("Heatbeat - Expected : %v, Actual : %v", defaultDiscoveryHeartbeat, heartbeat)
+		t.Fatalf("Heartbeat - Expected : %v, Actual : %v", defaultDiscoveryHeartbeat, heartbeat)
 	}
 
 	expected = defaultDiscoveryHeartbeat * defaultDiscoveryTTLFactor

@@ -13,38 +13,34 @@ import (
 // This is a heisen-test.  Because the created timestamp of images and the behavior of
 // sort is not predictable it doesn't always fail.
 func (s *DockerSuite) TestBuildHistory(c *check.C) {
-	testRequires(c, DaemonIsLinux) // TODO Windows: This test passes on Windows,
-	// but currently adds a disproportionate amount of time for the value it has.
-	// Removing it from Windows CI for now, but this will be revisited in the
-	// TP5 timeframe when perf is better.
 	name := "testbuildhistory"
-	_, err := buildImage(name, `FROM busybox
-RUN echo "A"
-RUN echo "B"
-RUN echo "C"
-RUN echo "D"
-RUN echo "E"
-RUN echo "F"
-RUN echo "G"
-RUN echo "H"
-RUN echo "I"
-RUN echo "J"
-RUN echo "K"
-RUN echo "L"
-RUN echo "M"
-RUN echo "N"
-RUN echo "O"
-RUN echo "P"
-RUN echo "Q"
-RUN echo "R"
-RUN echo "S"
-RUN echo "T"
-RUN echo "U"
-RUN echo "V"
-RUN echo "W"
-RUN echo "X"
-RUN echo "Y"
-RUN echo "Z"`,
+	_, err := buildImage(name, `FROM `+minimalBaseImage()+`
+LABEL label.A="A"
+LABEL label.B="B"
+LABEL label.C="C"
+LABEL label.D="D"
+LABEL label.E="E"
+LABEL label.F="F"
+LABEL label.G="G"
+LABEL label.H="H"
+LABEL label.I="I"
+LABEL label.J="J"
+LABEL label.K="K"
+LABEL label.L="L"
+LABEL label.M="M"
+LABEL label.N="N"
+LABEL label.O="O"
+LABEL label.P="P"
+LABEL label.Q="Q"
+LABEL label.R="R"
+LABEL label.S="S"
+LABEL label.T="T"
+LABEL label.U="U"
+LABEL label.V="V"
+LABEL label.W="W"
+LABEL label.X="X"
+LABEL label.Y="Y"
+LABEL label.Z="Z"`,
 		true)
 
 	c.Assert(err, checker.IsNil)
@@ -54,7 +50,7 @@ RUN echo "Z"`,
 	expectedValues := [26]string{"Z", "Y", "X", "W", "V", "U", "T", "S", "R", "Q", "P", "O", "N", "M", "L", "K", "J", "I", "H", "G", "F", "E", "D", "C", "B", "A"}
 
 	for i := 0; i < 26; i++ {
-		echoValue := fmt.Sprintf("echo \"%s\"", expectedValues[i])
+		echoValue := fmt.Sprintf("LABEL label.%s=%s", expectedValues[i], expectedValues[i])
 		actualValue := actualValues[i]
 		c.Assert(actualValue, checker.Contains, echoValue)
 	}
@@ -73,7 +69,7 @@ func (s *DockerSuite) TestHistoryNonExistentImage(c *check.C) {
 func (s *DockerSuite) TestHistoryImageWithComment(c *check.C) {
 	name := "testhistoryimagewithcomment"
 
-	// make a image through docker commit <container id> [ -m messages ]
+	// make an image through docker commit <container id> [ -m messages ]
 
 	dockerCmd(c, "run", "--name", name, "busybox", "true")
 	dockerCmd(c, "wait", name)

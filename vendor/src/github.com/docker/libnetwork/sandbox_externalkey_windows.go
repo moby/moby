@@ -11,7 +11,7 @@ import (
 
 // processSetKeyReexec is a private function that must be called only on an reexec path
 // It expects 3 args { [0] = "libnetwork-setkey", [1] = <container-id>, [2] = <controller-id> }
-// It also expects libcontainer.State as a json string in <stdin>
+// It also expects configs.HookState as a json string in <stdin>
 // Refer to https://github.com/opencontainers/runc/pull/160/ for more information
 func processSetKeyReexec() {
 }

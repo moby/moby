@@ -99,7 +99,7 @@ func (errorReaderCloser) Read(p []byte) (n int, err error) {
 	return 0, fmt.Errorf("An error occurred")
 }
 
-// If a an unknown error is encountered, return 0, nil and log it
+// If an unknown error is encountered, return 0, nil and log it
 func TestResumableRequestReaderWithReadError(t *testing.T) {
 	var req *http.Request
 	req, err := http.NewRequest("GET", "", nil)

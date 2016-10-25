@@ -69,6 +69,9 @@ type Descriptor struct {
 	// against against this digest.
 	Digest digest.Digest `json:"digest,omitempty"`
 
+	// URLs contains the source URLs of this content.
+	URLs []string `json:"urls,omitempty"`
+
 	// NOTE: Before adding a field here, please ensure that all
 	// other options have been exhausted. Much of the type relationships
 	// depend on the simplicity of this type.
@@ -97,6 +100,11 @@ type BlobDeleter interface {
 	Delete(ctx context.Context, dgst digest.Digest) error
 }
 
+// BlobEnumerator enables iterating over blobs from storage
+type BlobEnumerator interface {
+	Enumerate(ctx context.Context, ingester func(dgst digest.Digest) error) error
+}
+
 // BlobDescriptorService manages metadata about a blob by digest. Most
 // implementations will not expose such an interface explicitly. Such mappings
 // should be maintained by interacting with the BlobIngester. Hence, this is
@@ -117,6 +125,11 @@ type BlobDescriptorService interface {
 
 	// Clear enables descriptors to be unlinked
 	Clear(ctx context.Context, dgst digest.Digest) error
+}
+
+// BlobDescriptorServiceFactory creates middleware for BlobDescriptorService.
+type BlobDescriptorServiceFactory interface {
+	BlobAccessController(svc BlobDescriptorService) BlobDescriptorService
 }
 
 // ReadSeekCloser is the primary reader type for blob data, combining
@@ -179,14 +192,28 @@ type BlobCreateOption interface {
 	Apply(interface{}) error
 }
 
+// CreateOptions is a collection of blob creation modifiers relevant to general
+// blob storage intended to be configured by the BlobCreateOption.Apply method.
+type CreateOptions struct {
+	Mount struct {
+		ShouldMount bool
+		From        reference.Canonical
+		// Stat allows to pass precalculated descriptor to link and return.
+		// Blob access check will be skipped if set.
+		Stat *Descriptor
+	}
+}
+
 // BlobWriter provides a handle for inserting data into a blob store.
 // Instances should be obtained from BlobWriteService.Writer and
 // BlobWriteService.Resume. If supported by the store, a writer can be
 // recovered with the id.
 type BlobWriter interface {
-	io.WriteSeeker
+	io.WriteCloser
 	io.ReaderFrom
-	io.Closer
+
+	// Size returns the number of bytes written to this blob.
+	Size() int64
 
 	// ID returns the identifier for this writer. The ID can be used with the
 	// Blob service to later resume the write.
@@ -211,9 +238,6 @@ type BlobWriter interface {
 	// result in a no-op. This allows use of Cancel in a defer statement,
 	// increasing the assurance that it is correctly called.
 	Cancel(ctx context.Context) error
-
-	// Get a reader to the blob being written by this BlobWriter
-	Reader() (io.ReadCloser, error)
 }
 
 // BlobService combines the operations to access, read and write blobs. This

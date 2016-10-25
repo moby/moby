@@ -14,7 +14,6 @@ import (
 	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/daemon/logger/loggerutils"
 	"github.com/docker/docker/pkg/jsonlog"
-	"github.com/docker/docker/pkg/pubsub"
 	"github.com/docker/go-units"
 )
 
@@ -23,13 +22,11 @@ const Name = "json-file"
 
 // JSONFileLogger is Logger implementation for default Docker logging.
 type JSONFileLogger struct {
-	buf           *bytes.Buffer
-	writer        *loggerutils.RotateFileWriter
-	mu            sync.Mutex
-	ctx           logger.Context
-	readers       map[*logger.LogWatcher]struct{} // stores the active log followers
-	extra         []byte                          // json-encoded extra attributes
-	writeNotifier *pubsub.Publisher
+	buf     *bytes.Buffer
+	writer  *loggerutils.RotateFileWriter
+	mu      sync.Mutex
+	readers map[*logger.LogWatcher]struct{} // stores the active log followers
+	extra   []byte                          // json-encoded extra attributes
 }
 
 func init() {
@@ -79,11 +76,10 @@ func New(ctx logger.Context) (logger.Logger, error) {
 	}
 
 	return &JSONFileLogger{
-		buf:           bytes.NewBuffer(nil),
-		writer:        writer,
-		readers:       make(map[*logger.LogWatcher]struct{}),
-		extra:         extra,
-		writeNotifier: pubsub.NewPublisher(0, 10),
+		buf:     bytes.NewBuffer(nil),
+		writer:  writer,
+		readers: make(map[*logger.LogWatcher]struct{}),
+		extra:   extra,
 	}, nil
 }
 
@@ -94,21 +90,25 @@ func (l *JSONFileLogger) Log(msg *logger.Message) error {
 		return err
 	}
 	l.mu.Lock()
-	defer l.mu.Unlock()
+	logline := msg.Line
+	if !msg.Partial {
+		logline = append(msg.Line, '\n')
+	}
 	err = (&jsonlog.JSONLogs{
-		Log:      append(msg.Line, '\n'),
+		Log:      logline,
 		Stream:   msg.Source,
 		Created:  timestamp,
 		RawAttrs: l.extra,
 	}).MarshalJSONBuf(l.buf)
 	if err != nil {
+		l.mu.Unlock()
 		return err
 	}
 
 	l.buf.WriteByte('\n')
 	_, err = l.writer.Write(l.buf.Bytes())
-	l.writeNotifier.Publish(struct{}{})
 	l.buf.Reset()
+	l.mu.Unlock()
 
 	return err
 }
@@ -141,7 +141,6 @@ func (l *JSONFileLogger) Close() error {
 		r.Close()
 		delete(l.readers, r)
 	}
-	l.writeNotifier.Close()
 	l.mu.Unlock()
 	return err
 }

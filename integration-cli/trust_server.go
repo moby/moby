@@ -12,19 +12,23 @@ import (
 	"time"
 
 	"github.com/docker/docker/cliconfig"
-	"github.com/docker/docker/pkg/tlsconfig"
-	"github.com/docker/notary/client"
-	"github.com/docker/notary/passphrase"
-	"github.com/docker/notary/tuf/data"
+	"github.com/docker/docker/pkg/integration/checker"
+	"github.com/docker/go-connections/tlsconfig"
 	"github.com/go-check/check"
 )
 
-var notaryBinary = "notary-server"
-var notaryClientBinary = "notary"
+var notaryBinary = "notary"
+var notaryServerBinary = "notary-server"
+
+type keyPair struct {
+	Public  string
+	Private string
+}
 
 type testNotary struct {
-	cmd *exec.Cmd
-	dir string
+	cmd  *exec.Cmd
+	dir  string
+	keys []keyPair
 }
 
 const notaryHost = "localhost:4443"
@@ -57,10 +61,10 @@ func newTestNotary(c *check.C) (*testNotary, error) {
 	}
 	confPath := filepath.Join(tmp, "config.json")
 	config, err := os.Create(confPath)
-	defer config.Close()
 	if err != nil {
 		return nil, err
 	}
+	defer config.Close()
 
 	workingDir, err := os.Getwd()
 	if err != nil {
@@ -74,10 +78,11 @@ func newTestNotary(c *check.C) (*testNotary, error) {
 	// generate client config
 	clientConfPath := filepath.Join(tmp, "client-config.json")
 	clientConfig, err := os.Create(clientConfPath)
-	defer clientConfig.Close()
 	if err != nil {
 		return nil, err
 	}
+	defer clientConfig.Close()
+
 	template = `{
 	"trust_dir" : "%s",
 	"remote_server": {
@@ -90,8 +95,17 @@ func newTestNotary(c *check.C) (*testNotary, error) {
 		return nil, err
 	}
 
+	// load key fixture filenames
+	var keys []keyPair
+	for i := 1; i < 5; i++ {
+		keys = append(keys, keyPair{
+			Public:  filepath.Join(workingDir, fmt.Sprintf("fixtures/notary/delgkey%v.crt", i)),
+			Private: filepath.Join(workingDir, fmt.Sprintf("fixtures/notary/delgkey%v.key", i)),
+		})
+	}
+
 	// run notary-server
-	cmd := exec.Command(notaryBinary, "-config", confPath)
+	cmd := exec.Command(notaryServerBinary, "-config", confPath)
 	if err := cmd.Start(); err != nil {
 		os.RemoveAll(tmp)
 		if os.IsNotExist(err) {
@@ -101,8 +115,9 @@ func newTestNotary(c *check.C) (*testNotary, error) {
 	}
 
 	testNotary := &testNotary{
-		cmd: cmd,
-		dir: tmp,
+		cmd:  cmd,
+		dir:  tmp,
+		keys: keys,
 	}
 
 	// Wait for notary to be ready to serve requests.
@@ -121,7 +136,7 @@ func newTestNotary(c *check.C) (*testNotary, error) {
 }
 
 func (t *testNotary) Ping() error {
-	tlsConfig := tlsconfig.ClientDefault
+	tlsConfig := tlsconfig.ClientDefault()
 	tlsConfig.InsecureSkipVerify = true
 	client := http.Client{
 		Transport: &http.Transport{
@@ -131,14 +146,14 @@ func (t *testNotary) Ping() error {
 				KeepAlive: 30 * time.Second,
 			}).Dial,
 			TLSHandshakeTimeout: 10 * time.Second,
-			TLSClientConfig:     &tlsConfig,
+			TLSClientConfig:     tlsConfig,
 		},
 	}
 	resp, err := client.Get(fmt.Sprintf("%s/v2/", notaryURL))
 	if err != nil {
 		return err
 	}
-	if resp.StatusCode != 200 {
+	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("notary ping replied with an unexpected status code %d", resp.StatusCode)
 	}
 	return nil
@@ -163,28 +178,12 @@ func (s *DockerTrustSuite) trustedCmdWithPassphrases(cmd *exec.Cmd, rootPwd, rep
 	trustCmdEnv(cmd, notaryURL, rootPwd, repositoryPwd)
 }
 
-func (s *DockerTrustSuite) trustedCmdWithDeprecatedEnvPassphrases(cmd *exec.Cmd, offlinePwd, taggingPwd string) {
-	trustCmdDeprecatedEnv(cmd, notaryURL, offlinePwd, taggingPwd)
-}
-
 func trustCmdEnv(cmd *exec.Cmd, server, rootPwd, repositoryPwd string) {
 	env := []string{
 		"DOCKER_CONTENT_TRUST=1",
 		fmt.Sprintf("DOCKER_CONTENT_TRUST_SERVER=%s", server),
 		fmt.Sprintf("DOCKER_CONTENT_TRUST_ROOT_PASSPHRASE=%s", rootPwd),
 		fmt.Sprintf("DOCKER_CONTENT_TRUST_REPOSITORY_PASSPHRASE=%s", repositoryPwd),
-	}
-	cmd.Env = append(os.Environ(), env...)
-}
-
-// Helper method to test the old env variables OFFLINE and TAGGING that will
-// be deprecated by 1.10
-func trustCmdDeprecatedEnv(cmd *exec.Cmd, server, offlinePwd, taggingPwd string) {
-	env := []string{
-		"DOCKER_CONTENT_TRUST=1",
-		fmt.Sprintf("DOCKER_CONTENT_TRUST_SERVER=%s", server),
-		fmt.Sprintf("DOCKER_CONTENT_TRUST_OFFLINE_PASSPHRASE=%s", offlinePwd),
-		fmt.Sprintf("DOCKER_CONTENT_TRUST_TAGGING_PASSPHRASE=%s", taggingPwd),
 	}
 	cmd.Env = append(os.Environ(), env...)
 }
@@ -197,6 +196,7 @@ func (s *DockerTrustSuite) setupTrustedImage(c *check.C, name string) string {
 	pushCmd := exec.Command(dockerBinary, "push", repoName)
 	s.trustedCmd(pushCmd)
 	out, _, err := runCommandWithOutput(pushCmd)
+
 	if err != nil {
 		c.Fatalf("Error running trusted push: %s\n%s", err, out)
 	}
@@ -211,42 +211,111 @@ func (s *DockerTrustSuite) setupTrustedImage(c *check.C, name string) string {
 	return repoName
 }
 
-func notaryClientEnv(cmd *exec.Cmd, rootPwd, repositoryPwd string) {
+func notaryClientEnv(cmd *exec.Cmd) {
+	pwd := "12345678"
 	env := []string{
-		fmt.Sprintf("NOTARY_ROOT_PASSPHRASE=%s", rootPwd),
-		fmt.Sprintf("NOTARY_TARGETS_PASSPHRASE=%s", repositoryPwd),
-		fmt.Sprintf("NOTARY_SNAPSHOT_PASSPHRASE=%s", repositoryPwd),
+		fmt.Sprintf("NOTARY_ROOT_PASSPHRASE=%s", pwd),
+		fmt.Sprintf("NOTARY_TARGETS_PASSPHRASE=%s", pwd),
+		fmt.Sprintf("NOTARY_SNAPSHOT_PASSPHRASE=%s", pwd),
+		fmt.Sprintf("NOTARY_DELEGATION_PASSPHRASE=%s", pwd),
 	}
 	cmd.Env = append(os.Environ(), env...)
 }
 
-func (s *DockerTrustSuite) setupDelegations(c *check.C, repoName, pwd string) {
-	initCmd := exec.Command(notaryClientBinary, "-c", filepath.Join(s.not.dir, "client-config.json"), "init", repoName)
-	notaryClientEnv(initCmd, pwd, pwd)
+func (s *DockerTrustSuite) notaryInitRepo(c *check.C, repoName string) {
+	initCmd := exec.Command(notaryBinary, "-c", filepath.Join(s.not.dir, "client-config.json"), "init", repoName)
+	notaryClientEnv(initCmd)
 	out, _, err := runCommandWithOutput(initCmd)
 	if err != nil {
 		c.Fatalf("Error initializing notary repository: %s\n", out)
 	}
+}
 
-	// no command line for this, so build by hand
-	nRepo, err := client.NewNotaryRepository(filepath.Join(cliconfig.ConfigDir(), "trust"), repoName, notaryURL, nil, passphrase.ConstantRetriever(pwd))
-	if err != nil {
-		c.Fatalf("Error creating notary repository: %s\n", err)
-	}
-	delgKey, err := nRepo.CryptoService.Create("targets/releases", data.ECDSAKey)
-	if err != nil {
-		c.Fatalf("Error creating delegation key: %s\n", err)
-	}
-	err = nRepo.AddDelegation("targets/releases", 1, []data.PublicKey{delgKey}, []string{""})
-	if err != nil {
-		c.Fatalf("Error creating delegation: %s\n", err)
+func (s *DockerTrustSuite) notaryCreateDelegation(c *check.C, repoName, role string, pubKey string, paths ...string) {
+	pathsArg := "--all-paths"
+	if len(paths) > 0 {
+		pathsArg = "--paths=" + strings.Join(paths, ",")
 	}
 
-	// publishing first simulates the client pushing to a repo that they have been given delegated access to
-	pubCmd := exec.Command(notaryClientBinary, "-c", filepath.Join(s.not.dir, "client-config.json"), "publish", repoName)
-	notaryClientEnv(pubCmd, pwd, pwd)
-	out, _, err = runCommandWithOutput(pubCmd)
+	delgCmd := exec.Command(notaryBinary, "-c", filepath.Join(s.not.dir, "client-config.json"),
+		"delegation", "add", repoName, role, pubKey, pathsArg)
+	notaryClientEnv(delgCmd)
+	out, _, err := runCommandWithOutput(delgCmd)
+	if err != nil {
+		c.Fatalf("Error adding %s role to notary repository: %s\n", role, out)
+	}
+}
+
+func (s *DockerTrustSuite) notaryPublish(c *check.C, repoName string) {
+	pubCmd := exec.Command(notaryBinary, "-c", filepath.Join(s.not.dir, "client-config.json"), "publish", repoName)
+	notaryClientEnv(pubCmd)
+	out, _, err := runCommandWithOutput(pubCmd)
 	if err != nil {
 		c.Fatalf("Error publishing notary repository: %s\n", out)
+	}
+}
+
+func (s *DockerTrustSuite) notaryImportKey(c *check.C, repoName, role string, privKey string) {
+	impCmd := exec.Command(notaryBinary, "-c", filepath.Join(s.not.dir, "client-config.json"), "key",
+		"import", privKey, "-g", repoName, "-r", role)
+	notaryClientEnv(impCmd)
+	out, _, err := runCommandWithOutput(impCmd)
+	if err != nil {
+		c.Fatalf("Error importing key to notary repository: %s\n", out)
+	}
+}
+
+func (s *DockerTrustSuite) notaryListTargetsInRole(c *check.C, repoName, role string) map[string]string {
+	listCmd := exec.Command(notaryBinary, "-c", filepath.Join(s.not.dir, "client-config.json"), "list",
+		repoName, "-r", role)
+	notaryClientEnv(listCmd)
+	out, _, err := runCommandWithOutput(listCmd)
+	if err != nil {
+		c.Fatalf("Error listing targets in notary repository: %s\n", out)
+	}
+
+	// should look something like:
+	//    NAME                                 DIGEST                                SIZE (BYTES)    ROLE
+	// ------------------------------------------------------------------------------------------------------
+	//   latest   24a36bbc059b1345b7e8be0df20f1b23caa3602e85d42fff7ecd9d0bd255de56   1377           targets
+
+	targets := make(map[string]string)
+
+	// no target
+	lines := strings.Split(strings.TrimSpace(out), "\n")
+	if len(lines) == 1 && strings.Contains(out, "No targets present in this repository.") {
+		return targets
+	}
+
+	// otherwise, there is at least one target
+	c.Assert(len(lines), checker.GreaterOrEqualThan, 3)
+
+	for _, line := range lines[2:] {
+		tokens := strings.Fields(line)
+		c.Assert(tokens, checker.HasLen, 4)
+		targets[tokens[0]] = tokens[3]
+	}
+
+	return targets
+}
+
+func (s *DockerTrustSuite) assertTargetInRoles(c *check.C, repoName, target string, roles ...string) {
+	// check all the roles
+	for _, role := range roles {
+		targets := s.notaryListTargetsInRole(c, repoName, role)
+		roleName, ok := targets[target]
+		c.Assert(ok, checker.True)
+		c.Assert(roleName, checker.Equals, role)
+	}
+}
+
+func (s *DockerTrustSuite) assertTargetNotInRoles(c *check.C, repoName, target string, roles ...string) {
+	targets := s.notaryListTargetsInRole(c, repoName, "targets")
+
+	roleName, ok := targets[target]
+	if ok {
+		for _, role := range roles {
+			c.Assert(roleName, checker.Not(checker.Equals), role)
+		}
 	}
 }

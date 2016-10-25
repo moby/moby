@@ -43,12 +43,16 @@ type InterfaceInfo interface {
 
 	// AddressIPv6 returns the IPv6 address assigned to the endpoint.
 	AddressIPv6() *net.IPNet
+
+	// LinkLocalAddresses returns the list of link-local (IPv4/IPv6) addresses assigned to the endpoint.
+	LinkLocalAddresses() []*net.IPNet
 }
 
 type endpointInterface struct {
 	mac       net.HardwareAddr
 	addr      *net.IPNet
 	addrv6    *net.IPNet
+	llAddrs   []*net.IPNet
 	srcName   string
 	dstPrefix string
 	routes    []*net.IPNet
@@ -66,6 +70,13 @@ func (epi *endpointInterface) MarshalJSON() ([]byte, error) {
 	}
 	if epi.addrv6 != nil {
 		epMap["addrv6"] = epi.addrv6.String()
+	}
+	if len(epi.llAddrs) != 0 {
+		list := make([]string, 0, len(epi.llAddrs))
+		for _, ll := range epi.llAddrs {
+			list = append(list, ll.String())
+		}
+		epMap["llAddrs"] = list
 	}
 	epMap["srcName"] = epi.srcName
 	epMap["dstPrefix"] = epi.dstPrefix
@@ -102,7 +113,17 @@ func (epi *endpointInterface) UnmarshalJSON(b []byte) error {
 			return types.InternalErrorf("failed to decode endpoint interface ipv6 address after json unmarshal: %v", err)
 		}
 	}
-
+	if v, ok := epMap["llAddrs"]; ok {
+		list := v.([]string)
+		epi.llAddrs = make([]*net.IPNet, 0, len(list))
+		for _, llS := range list {
+			ll, err := types.ParseCIDR(llS)
+			if err != nil {
+				return types.InternalErrorf("failed to decode endpoint interface link-local address (%s) after json unmarshal: %v", llS, err)
+			}
+			epi.llAddrs = append(epi.llAddrs, ll)
+		}
+	}
 	epi.srcName = epMap["srcName"].(string)
 	epi.dstPrefix = epMap["dstPrefix"].(string)
 
@@ -131,6 +152,12 @@ func (epi *endpointInterface) CopyTo(dstEpi *endpointInterface) error {
 	dstEpi.dstPrefix = epi.dstPrefix
 	dstEpi.v4PoolID = epi.v4PoolID
 	dstEpi.v6PoolID = epi.v6PoolID
+	if len(epi.llAddrs) != 0 {
+		dstEpi.llAddrs = make([]*net.IPNet, 0, len(epi.llAddrs))
+		for _, ll := range epi.llAddrs {
+			dstEpi.llAddrs = append(dstEpi.llAddrs, ll)
+		}
+	}
 
 	for _, route := range epi.routes {
 		dstEpi.routes = append(dstEpi.routes, types.GetIPNetCopy(route))
@@ -143,7 +170,14 @@ type endpointJoinInfo struct {
 	gw                    net.IP
 	gw6                   net.IP
 	StaticRoutes          []*types.StaticRoute
+	driverTableEntries    []*tableEntry
 	disableGatewayService bool
+}
+
+type tableEntry struct {
+	tableName string
+	key       string
+	value     []byte
 }
 
 func (ep *endpoint) Info() EndpointInfo {
@@ -259,6 +293,10 @@ func (epi *endpointInterface) AddressIPv6() *net.IPNet {
 	return types.GetIPNetCopy(epi.addrv6)
 }
 
+func (epi *endpointInterface) LinkLocalAddresses() []*net.IPNet {
+	return epi.llAddrs
+}
+
 func (epi *endpointInterface) SetNames(srcName string, dstPrefix string) error {
 	epi.srcName = srcName
 	epi.dstPrefix = dstPrefix
@@ -289,6 +327,19 @@ func (ep *endpoint) AddStaticRoute(destination *net.IPNet, routeType int, nextHo
 		// If the route doesn't specify a next-hop, it must be a connected route, bound to an interface.
 		ep.iface.routes = append(ep.iface.routes, r.Destination)
 	}
+	return nil
+}
+
+func (ep *endpoint) AddTableEntry(tableName, key string, value []byte) error {
+	ep.Lock()
+	defer ep.Unlock()
+
+	ep.joinInfo.driverTableEntries = append(ep.joinInfo.driverTableEntries, &tableEntry{
+		tableName: tableName,
+		key:       key,
+		value:     value,
+	})
+
 	return nil
 }
 
@@ -362,4 +413,59 @@ func (ep *endpoint) DisableGatewayService() {
 	defer ep.Unlock()
 
 	ep.joinInfo.disableGatewayService = true
+}
+
+func (epj *endpointJoinInfo) MarshalJSON() ([]byte, error) {
+	epMap := make(map[string]interface{})
+	if epj.gw != nil {
+		epMap["gw"] = epj.gw.String()
+	}
+	if epj.gw6 != nil {
+		epMap["gw6"] = epj.gw6.String()
+	}
+	epMap["disableGatewayService"] = epj.disableGatewayService
+	epMap["StaticRoutes"] = epj.StaticRoutes
+	return json.Marshal(epMap)
+}
+
+func (epj *endpointJoinInfo) UnmarshalJSON(b []byte) error {
+	var (
+		err   error
+		epMap map[string]interface{}
+	)
+	if err = json.Unmarshal(b, &epMap); err != nil {
+		return err
+	}
+	if v, ok := epMap["gw"]; ok {
+		epj.gw6 = net.ParseIP(v.(string))
+	}
+	if v, ok := epMap["gw6"]; ok {
+		epj.gw6 = net.ParseIP(v.(string))
+	}
+	epj.disableGatewayService = epMap["disableGatewayService"].(bool)
+
+	var tStaticRoute []types.StaticRoute
+	if v, ok := epMap["StaticRoutes"]; ok {
+		tb, _ := json.Marshal(v)
+		var tStaticRoute []types.StaticRoute
+		json.Unmarshal(tb, &tStaticRoute)
+	}
+	var StaticRoutes []*types.StaticRoute
+	for _, r := range tStaticRoute {
+		StaticRoutes = append(StaticRoutes, &r)
+	}
+	epj.StaticRoutes = StaticRoutes
+
+	return nil
+}
+
+func (epj *endpointJoinInfo) CopyTo(dstEpj *endpointJoinInfo) error {
+	dstEpj.disableGatewayService = epj.disableGatewayService
+	dstEpj.StaticRoutes = make([]*types.StaticRoute, len(epj.StaticRoutes))
+	copy(dstEpj.StaticRoutes, epj.StaticRoutes)
+	dstEpj.driverTableEntries = make([]*tableEntry, len(epj.driverTableEntries))
+	copy(dstEpj.driverTableEntries, epj.driverTableEntries)
+	dstEpj.gw = types.GetIPCopy(epj.gw)
+	dstEpj.gw = types.GetIPCopy(epj.gw6)
+	return nil
 }

@@ -48,7 +48,7 @@ int main(int argc, char **argv)
 	child_stack = stack + STACK_SIZE;	/* Assume stack grows downward */
 
 	// the result of this call is that our child_exec will be run in another
-	// process returning it's pid
+	// process returning its pid
 	pid_t pid = clone(child_exec, child_stack, clone_flags, &args);
 	if (pid < 0) {
 		fprintf(stderr, "clone failed: %s\n", strerror(errno));

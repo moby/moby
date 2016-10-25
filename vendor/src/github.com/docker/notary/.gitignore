@@ -1,3 +1,4 @@
+/.vscode
 /cmd/notary-server/notary-server
 /cmd/notary-server/local.config.json
 /cmd/notary-signer/local.config.json
@@ -8,4 +9,5 @@ cross
 *.swp
 .idea
 *.iml
+*.test
 coverage.out

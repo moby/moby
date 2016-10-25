@@ -20,12 +20,14 @@ type epState struct {
 }
 
 type sbState struct {
-	ID       string
-	Cid      string
-	c        *controller
-	dbIndex  uint64
-	dbExists bool
-	Eps      []epState
+	ID         string
+	Cid        string
+	c          *controller
+	dbIndex    uint64
+	dbExists   bool
+	Eps        []epState
+	EpPriority map[string]int
+	ExtDNS     []string
 }
 
 func (sbs *sbState) Key() []string {
@@ -106,9 +108,14 @@ func (sbs *sbState) CopyTo(o datastore.KVObject) error {
 	dstSbs.Cid = sbs.Cid
 	dstSbs.dbIndex = sbs.dbIndex
 	dstSbs.dbExists = sbs.dbExists
+	dstSbs.EpPriority = sbs.EpPriority
 
 	for _, eps := range sbs.Eps {
 		dstSbs.Eps = append(dstSbs.Eps, eps)
+	}
+
+	for _, dns := range sbs.ExtDNS {
+		dstSbs.ExtDNS = append(dstSbs.ExtDNS, dns)
 	}
 
 	return nil
@@ -120,9 +127,11 @@ func (sbs *sbState) DataScope() string {
 
 func (sb *sandbox) storeUpdate() error {
 	sbs := &sbState{
-		c:   sb.controller,
-		ID:  sb.id,
-		Cid: sb.containerID,
+		c:          sb.controller,
+		ID:         sb.id,
+		Cid:        sb.containerID,
+		EpPriority: sb.epPriority,
+		ExtDNS:     sb.extDNS,
 	}
 
 retry:
@@ -166,7 +175,7 @@ func (sb *sandbox) storeDelete() error {
 	return sb.controller.deleteFromStore(sbs)
 }
 
-func (c *controller) sandboxCleanup() {
+func (c *controller) sandboxCleanup(activeSandboxes map[string]interface{}) {
 	store := c.getStore(datastore.LocalScope)
 	if store == nil {
 		logrus.Errorf("Could not find local scope store while trying to cleanup sandboxes")
@@ -188,19 +197,33 @@ func (c *controller) sandboxCleanup() {
 		sbs := kvo.(*sbState)
 
 		sb := &sandbox{
-			id:          sbs.ID,
-			controller:  sbs.c,
-			containerID: sbs.Cid,
-			endpoints:   epHeap{},
-			epPriority:  map[string]int{},
-			dbIndex:     sbs.dbIndex,
-			isStub:      true,
-			dbExists:    true,
+			id:                 sbs.ID,
+			controller:         sbs.c,
+			containerID:        sbs.Cid,
+			endpoints:          epHeap{},
+			populatedEndpoints: map[string]struct{}{},
+			dbIndex:            sbs.dbIndex,
+			isStub:             true,
+			dbExists:           true,
+			extDNS:             sbs.ExtDNS,
 		}
 
-		sb.osSbox, err = osl.NewSandbox(sb.Key(), true)
+		msg := " for cleanup"
+		create := true
+		isRestore := false
+		if val, ok := activeSandboxes[sb.ID()]; ok {
+			msg = ""
+			sb.isStub = false
+			isRestore = true
+			opts := val.([]SandboxOption)
+			sb.processOptions(opts...)
+			sb.restorePath()
+			create = !sb.config.useDefaultSandBox
+			heap.Init(&sb.endpoints)
+		}
+		sb.osSbox, err = osl.NewSandbox(sb.Key(), create, isRestore)
 		if err != nil {
-			logrus.Errorf("failed to create new osl sandbox while trying to build sandbox for cleanup: %v", err)
+			logrus.Errorf("failed to create osl sandbox while trying to restore sandbox %s%s: %v", sb.ID()[0:7], msg, err)
 			continue
 		}
 
@@ -213,7 +236,7 @@ func (c *controller) sandboxCleanup() {
 			var ep *endpoint
 			if err != nil {
 				logrus.Errorf("getNetworkFromStore for nid %s failed while trying to build sandbox for cleanup: %v", eps.Nid, err)
-				n = &network{id: eps.Nid, ctrlr: c, drvOnce: &sync.Once{}}
+				n = &network{id: eps.Nid, ctrlr: c, drvOnce: &sync.Once{}, persist: true}
 				ep = &endpoint{id: eps.Eid, network: n, sandboxID: sbs.ID}
 			} else {
 				ep, err = n.getEndpointFromStore(eps.Eid)
@@ -222,12 +245,38 @@ func (c *controller) sandboxCleanup() {
 					ep = &endpoint{id: eps.Eid, network: n, sandboxID: sbs.ID}
 				}
 			}
-
+			if _, ok := activeSandboxes[sb.ID()]; ok && err != nil {
+				logrus.Errorf("failed to restore endpoint %s in %s for container %s due to %v", eps.Eid, eps.Nid, sb.ContainerID(), err)
+				continue
+			}
 			heap.Push(&sb.endpoints, ep)
 		}
 
-		if err := sb.delete(true); err != nil {
-			logrus.Errorf("failed to delete sandbox %s while trying to cleanup: %v", sb.id, err)
+		if _, ok := activeSandboxes[sb.ID()]; !ok {
+			logrus.Infof("Removing stale sandbox %s (%s)", sb.id, sb.containerID)
+			if err := sb.delete(true); err != nil {
+				logrus.Errorf("Failed to delete sandbox %s while trying to cleanup: %v", sb.id, err)
+			}
+			continue
+		}
+
+		// reconstruct osl sandbox field
+		if !sb.config.useDefaultSandBox {
+			if err := sb.restoreOslSandbox(); err != nil {
+				logrus.Errorf("failed to populate fields for osl sandbox %s", sb.ID())
+				continue
+			}
+		} else {
+			c.sboxOnce.Do(func() {
+				c.defOsSbox = sb.osSbox
+			})
+		}
+
+		for _, ep := range sb.endpoints {
+			// Watch for service records
+			if !c.isAgent() {
+				c.watchSvcRecord(ep)
+			}
 		}
 	}
 }

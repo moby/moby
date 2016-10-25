@@ -14,7 +14,7 @@ import (
 	"github.com/go-check/check"
 )
 
-func (s *DockerSuite) TestEventsApiEmptyOutput(c *check.C) {
+func (s *DockerSuite) TestEventsAPIEmptyOutput(c *check.C) {
 	type apiResp struct {
 		resp *http.Response
 		err  error
@@ -35,11 +35,11 @@ func (s *DockerSuite) TestEventsApiEmptyOutput(c *check.C) {
 	}
 }
 
-func (s *DockerSuite) TestEventsApiBackwardsCompatible(c *check.C) {
+func (s *DockerSuite) TestEventsAPIBackwardsCompatible(c *check.C) {
 	since := daemonTime(c).Unix()
 	ts := strconv.FormatInt(since, 10)
 
-	out, _ := dockerCmd(c, "run", "--name=foo", "-d", "busybox", "top")
+	out, _ := runSleepingContainer(c, "--name=foo", "-d")
 	containerID := strings.TrimSpace(out)
 	c.Assert(waitRun(containerID), checker.IsNil)
 

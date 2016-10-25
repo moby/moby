@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 )
@@ -21,7 +20,7 @@ func checkPIDFileAlreadyExists(path string) error {
 	if pidByte, err := ioutil.ReadFile(path); err == nil {
 		pidString := strings.TrimSpace(string(pidByte))
 		if pid, err := strconv.Atoi(pidString); err == nil {
-			if _, err := os.Stat(filepath.Join("/proc", strconv.Itoa(pid))); err == nil {
+			if processExists(pid) {
 				return fmt.Errorf("pid file found, ensure docker is not running or delete %s", path)
 			}
 		}

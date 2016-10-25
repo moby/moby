@@ -5,14 +5,14 @@ import (
 	"net/http"
 	"path/filepath"
 
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/pkg/integration/checker"
-	"github.com/docker/engine-api/types"
 	"github.com/go-check/check"
 )
 
-func (s *DockerSuite) TestVolumesApiList(c *check.C) {
+func (s *DockerSuite) TestVolumesAPIList(c *check.C) {
 	prefix, _ := getPrefixAndSlashFromDaemonPlatform()
-	dockerCmd(c, "run", "-d", "-v", prefix+"/foo", "busybox")
+	dockerCmd(c, "run", "-v", prefix+"/foo", "busybox")
 
 	status, b, err := sockRequest("GET", "/volumes", nil)
 	c.Assert(err, checker.IsNil)
@@ -24,7 +24,7 @@ func (s *DockerSuite) TestVolumesApiList(c *check.C) {
 	c.Assert(len(volumes.Volumes), checker.Equals, 1, check.Commentf("\n%v", volumes.Volumes))
 }
 
-func (s *DockerSuite) TestVolumesApiCreate(c *check.C) {
+func (s *DockerSuite) TestVolumesAPICreate(c *check.C) {
 	config := types.VolumeCreateRequest{
 		Name: "test",
 	}
@@ -39,9 +39,9 @@ func (s *DockerSuite) TestVolumesApiCreate(c *check.C) {
 	c.Assert(filepath.Base(filepath.Dir(vol.Mountpoint)), checker.Equals, config.Name)
 }
 
-func (s *DockerSuite) TestVolumesApiRemove(c *check.C) {
+func (s *DockerSuite) TestVolumesAPIRemove(c *check.C) {
 	prefix, _ := getPrefixAndSlashFromDaemonPlatform()
-	dockerCmd(c, "run", "-d", "-v", prefix+"/foo", "--name=test", "busybox")
+	dockerCmd(c, "run", "-v", prefix+"/foo", "--name=test", "busybox")
 
 	status, b, err := sockRequest("GET", "/volumes", nil)
 	c.Assert(err, checker.IsNil)
@@ -63,7 +63,7 @@ func (s *DockerSuite) TestVolumesApiRemove(c *check.C) {
 
 }
 
-func (s *DockerSuite) TestVolumesApiInspect(c *check.C) {
+func (s *DockerSuite) TestVolumesAPIInspect(c *check.C) {
 	config := types.VolumeCreateRequest{
 		Name: "test",
 	}

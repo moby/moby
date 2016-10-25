@@ -1,4 +1,4 @@
-# memberlist
+# memberlist [![GoDoc](https://godoc.org/github.com/hashicorp/memberlist?status.png)](https://godoc.org/github.com/hashicorp/memberlist)
 
 memberlist is a [Go](http://www.golang.org) library that manages cluster
 membership and member failure detection using a gossip based protocol.
@@ -64,7 +64,7 @@ For complete documentation, see the associated [Godoc](http://godoc.org/github.c
 ## Protocol
 
 memberlist is based on ["SWIM: Scalable Weakly-consistent Infection-style Process Group Membership Protocol"](http://www.cs.cornell.edu/~asdas/research/dsn02-swim.pdf),
-with a few minor adaptations, mostly to increase propogation speed and
+with a few minor adaptations, mostly to increase propagation speed and
 convergence rate.
 
 A high level overview of the memberlist protocol (based on SWIM) is
@@ -93,15 +93,22 @@ be disabled entirely.
 
 Failure detection is done by periodic random probing using a configurable interval.
 If the node fails to ack within a reasonable time (typically some multiple
-of RTT), then an indirect probe is attempted. An indirect probe asks a
-configurable number of random nodes to probe the same node, in case there
-are network issues causing our own node to fail the probe. If both our
-probe and the indirect probes fail within a reasonable time, then the
-node is marked "suspicious" and this knowledge is gossiped to the cluster.
-A suspicious node is still considered a member of cluster. If the suspect member
-of the cluster does not disputes the suspicion within a configurable period of
-time, the node is finally considered dead, and this state is then gossiped
-to the cluster.
+of RTT), then an indirect probe as well as a direct TCP probe are attempted. An
+indirect probe asks a configurable number of random nodes to probe the same node,
+in case there are network issues causing our own node to fail the probe. The direct
+TCP probe is used to help identify the common situation where networking is
+misconfigured to allow TCP but not UDP. Without the TCP probe, a UDP-isolated node
+would think all other nodes were suspect and could cause churn in the cluster when
+it attempts a TCP-based state exchange with another node. It is not desirable to
+operate with only TCP connectivity because convergence will be much slower, but it
+is enabled so that memberlist can detect this situation and alert operators.
+
+If both our probe, the indirect probes, and the direct TCP probe fail within a
+configurable time, then the node is marked "suspicious" and this knowledge is
+gossiped to the cluster. A suspicious node is still considered a member of
+cluster. If the suspect member of the cluster does not dispute the suspicion
+within a configurable period of time, the node is finally considered dead,
+and this state is then gossiped to the cluster.
 
 This is a brief and incomplete description of the protocol. For a better idea,
 please read the
@@ -111,7 +118,7 @@ in its entirety, along with the memberlist source code.
 ### Changes from SWIM
 
 As mentioned earlier, the memberlist protocol is based on SWIM but includes
-minor changes, mostly to increase propogation speed and convergence rates.
+minor changes, mostly to increase propagation speed and convergence rates.
 
 The changes from SWIM are noted here:
 
@@ -127,7 +134,7 @@ The changes from SWIM are noted here:
   also will periodically send out dedicated gossip messages on their own. This
   feature lets you have a higher gossip rate (for example once per 200ms)
   and a slower failure detection rate (such as once per second), resulting
-  in overall faster convergence rates and data propogation speeds. This feature
+  in overall faster convergence rates and data propagation speeds. This feature
   can be totally disabed as well, if you wish.
 
 * memberlist stores around the state of dead nodes for a set amount of time,

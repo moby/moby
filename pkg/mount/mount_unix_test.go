@@ -137,3 +137,26 @@ func TestGetMounts(t *testing.T) {
 		t.Fatal("/ should be mounted at least")
 	}
 }
+
+func TestMergeTmpfsOptions(t *testing.T) {
+	options := []string{"noatime", "ro", "size=10k", "defaults", "atime", "defaults", "rw", "rprivate", "size=1024k", "slave"}
+	expected := []string{"atime", "rw", "size=1024k", "slave"}
+	merged, err := MergeTmpfsOptions(options)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(expected) != len(merged) {
+		t.Fatalf("Expected %s got %s", expected, merged)
+	}
+	for index := range merged {
+		if merged[index] != expected[index] {
+			t.Fatalf("Expected %s for the %dth option, got %s", expected, index, merged)
+		}
+	}
+
+	options = []string{"noatime", "ro", "size=10k", "atime", "rw", "rprivate", "size=1024k", "slave", "size"}
+	_, err = MergeTmpfsOptions(options)
+	if err == nil {
+		t.Fatal("Expected error got nil")
+	}
+}

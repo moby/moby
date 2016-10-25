@@ -1,8 +1,9 @@
 package daemon
 
 import (
+	"fmt"
+
 	"github.com/docker/docker/container"
-	derr "github.com/docker/docker/errors"
 )
 
 // ContainerPause pauses a container
@@ -27,23 +28,22 @@ func (daemon *Daemon) containerPause(container *container.Container) error {
 
 	// We cannot Pause the container which is not running
 	if !container.Running {
-		return derr.ErrorCodeNotRunning.WithArgs(container.ID)
+		return errNotRunning{container.ID}
 	}
 
 	// We cannot Pause the container which is already paused
 	if container.Paused {
-		return derr.ErrorCodeAlreadyPaused.WithArgs(container.ID)
+		return fmt.Errorf("Container %s is already paused", container.ID)
 	}
 
 	// We cannot Pause the container which is restarting
 	if container.Restarting {
-		return derr.ErrorCodeContainerRestarting.WithArgs(container.ID)
+		return errContainerIsRestarting(container.ID)
 	}
 
-	if err := daemon.execDriver.Pause(container.Command); err != nil {
-		return derr.ErrorCodeCantPause.WithArgs(container.ID, err)
+	if err := daemon.containerd.Pause(container.ID); err != nil {
+		return fmt.Errorf("Cannot pause container %s: %s", container.ID, err)
 	}
-	container.Paused = true
-	daemon.LogContainerEvent(container, "pause")
+
 	return nil
 }

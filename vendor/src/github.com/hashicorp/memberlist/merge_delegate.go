@@ -8,6 +8,7 @@ package memberlist
 // as part of the push-pull anti-entropy.
 type MergeDelegate interface {
 	// NotifyMerge is invoked when a merge could take place.
-	// Provides a list of the nodes known by the peer.
-	NotifyMerge(peers []*Node) (cancel bool)
+	// Provides a list of the nodes known by the peer. If
+	// the return value is non-nil, the merge is canceled.
+	NotifyMerge(peers []*Node) error
 }

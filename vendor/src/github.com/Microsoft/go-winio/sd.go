@@ -8,6 +8,7 @@ import (
 //sys lookupAccountName(systemName *uint16, accountName string, sid *byte, sidSize *uint32, refDomain *uint16, refDomainSize *uint32, sidNameUse *uint32) (err error) = advapi32.LookupAccountNameW
 //sys convertSidToStringSid(sid *byte, str **uint16) (err error) = advapi32.ConvertSidToStringSidW
 //sys convertStringSecurityDescriptorToSecurityDescriptor(str string, revision uint32, sd *uintptr, size *uint32) (err error) = advapi32.ConvertStringSecurityDescriptorToSecurityDescriptorW
+//sys convertSecurityDescriptorToStringSecurityDescriptor(sd *byte, revision uint32, secInfo uint32, sddl **uint16, sddlSize *uint32) (err error) = advapi32.ConvertSecurityDescriptorToStringSecurityDescriptorW
 //sys localFree(mem uintptr) = LocalFree
 //sys getSecurityDescriptorLength(sd uintptr) (len uint32) = advapi32.GetSecurityDescriptorLength
 
@@ -70,7 +71,7 @@ func LookupSidByName(name string) (sid string, err error) {
 	return sid, nil
 }
 
-func sddlToSecurityDescriptor(sddl string) ([]byte, error) {
+func SddlToSecurityDescriptor(sddl string) ([]byte, error) {
 	var sdBuffer uintptr
 	err := convertStringSecurityDescriptorToSecurityDescriptor(sddl, 1, &sdBuffer, nil)
 	if err != nil {
@@ -78,6 +79,18 @@ func sddlToSecurityDescriptor(sddl string) ([]byte, error) {
 	}
 	defer localFree(sdBuffer)
 	sd := make([]byte, getSecurityDescriptorLength(sdBuffer))
-	copy(sd, (*[1 << 30]byte)(unsafe.Pointer(sdBuffer))[:len(sd)])
+	copy(sd, (*[0xffff]byte)(unsafe.Pointer(sdBuffer))[:len(sd)])
 	return sd, nil
+}
+
+func SecurityDescriptorToSddl(sd []byte) (string, error) {
+	var sddl *uint16
+	// The returned string length seems to including an aribtrary number of terminating NULs.
+	// Don't use it.
+	err := convertSecurityDescriptorToStringSecurityDescriptor(&sd[0], 1, 0xff, &sddl, nil)
+	if err != nil {
+		return "", err
+	}
+	defer localFree(uintptr(unsafe.Pointer(sddl)))
+	return syscall.UTF16ToString((*[0xffff]uint16)(unsafe.Pointer(sddl))[:]), nil
 }

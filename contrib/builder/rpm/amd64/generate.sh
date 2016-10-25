@@ -25,6 +25,9 @@ for version in "${versions[@]}"; do
 	if [[ "$distro" == "fedora" ]]; then
 		installer=dnf
 	fi
+	if [[ "$distro" == "photon" ]]; then
+		installer=tdnf
+	fi
 
 	mkdir -p "$version"
 	echo "$version -> FROM $from"
@@ -38,7 +41,19 @@ for version in "${versions[@]}"; do
 
 	echo >> "$version/Dockerfile"
 
-	extraBuildTags=
+	extraBuildTags='pkcs11'
+	runcBuildTags=
+
+	case "$from" in
+		oraclelinux:6)
+			# We need a known version of the kernel-uek-devel headers to set CGO_CPPFLAGS, so grab the UEKR4 GA version
+			# This requires using yum-config-manager from yum-utils to enable the UEKR4 yum repo
+			echo "RUN yum install -y yum-utils && curl -o /etc/yum.repos.d/public-yum-ol6.repo http://yum.oracle.com/public-yum-ol6.repo && yum-config-manager -q --enable ol6_UEKR4"  >> "$version/Dockerfile"
+			echo "RUN yum install -y kernel-uek-devel-4.1.12-32.el6uek"  >> "$version/Dockerfile"
+			echo >> "$version/Dockerfile"
+			;;
+		*) ;;
+	esac
 
 	case "$from" in
 		centos:*)
@@ -57,6 +72,9 @@ for version in "${versions[@]}"; do
 		opensuse:*)
 			# get rpm-build and curl packages and dependencies
 			echo 'RUN zypper --non-interactive install ca-certificates* curl gzip rpm-build' >> "$version/Dockerfile"
+			;;
+		photon:*)
+			echo "RUN ${installer} install -y wget curl ca-certificates gzip make rpm-build sed gcc linux-api-headers glibc-devel binutils libseccomp libltdl-devel elfutils" >> "$version/Dockerfile"
 			;;
 		*)
 			echo "RUN ${installer} install -y @development-tools fedora-packager" >> "$version/Dockerfile"
@@ -77,6 +95,7 @@ for version in "${versions[@]}"; do
 		sqlite-devel # for "sqlite3.h"
 		systemd-devel # for "sd-journal.h" and libraries
 		tar # older versions of dev-tools do not have tar
+		git # required for containerd and runc clone
 	)
 
 	case "$from" in
@@ -94,13 +113,14 @@ for version in "${versions[@]}"; do
 	esac
 
 	# opensuse & oraclelinx:6 do not have the right libseccomp libs
-	# centos:7 and oraclelinux:7 have a libseccomp < 2.2.1 :(
 	case "$from" in
-		opensuse:*|oraclelinux:*|centos:7)
+		opensuse:*|oraclelinux:6)
 			packages=( "${packages[@]/libseccomp-devel}" )
+			runcBuildTags="selinux"
 			;;
 		*)
 			extraBuildTags+=' seccomp'
+			runcBuildTags="seccomp selinux"
 			;;
 	esac
 
@@ -115,23 +135,16 @@ for version in "${versions[@]}"; do
 			# use zypper
 			echo "RUN zypper --non-interactive install ${packages[*]}" >> "$version/Dockerfile"
 			;;
+		photon:*)
+			packages=( "${packages[@]/pkgconfig/pkg-config}" )
+			echo "RUN ${installer} install -y ${packages[*]}" >> "$version/Dockerfile"
+			;;
 		*)
 			echo "RUN ${installer} install -y ${packages[*]}" >> "$version/Dockerfile"
 			;;
 	esac
 
 	echo >> "$version/Dockerfile"
-
-	case "$from" in
-		oraclelinux:6)
-			# We need a known version of the kernel-uek-devel headers to set CGO_CPPFLAGS, so grab the UEKR4 GA version
-			# This requires using yum-config-manager from yum-utils to enable the UEKR4 yum repo
-			echo "RUN yum install -y yum-utils && curl -o /etc/yum.repos.d/public-yum-ol6.repo http://yum.oracle.com/public-yum-ol6.repo && yum-config-manager -q --enable ol6_UEKR4"  >> "$version/Dockerfile"
-			echo "RUN yum install -y kernel-uek-devel-4.1.12-32.el6uek"  >> "$version/Dockerfile"
-			echo >> "$version/Dockerfile"
-			;;
-		*) ;;
-	esac
 
 
 	awk '$1 == "ENV" && $2 == "GO_VERSION" { print; exit }' ../../../../Dockerfile >> "$version/Dockerfile"
@@ -148,6 +161,7 @@ for version in "${versions[@]}"; do
 	buildTags=$( echo "selinux $extraBuildTags" | xargs -n1 | sort -n | tr '\n' ' ' | sed -e 's/[[:space:]]*$//' )
 
 	echo "ENV DOCKER_BUILDTAGS $buildTags" >> "$version/Dockerfile"
+	echo "ENV RUNC_BUILDTAGS $runcBuildTags" >> "$version/Dockerfile"
 	echo >> "$version/Dockerfile"
 
 	case "$from" in

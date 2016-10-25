@@ -1,10 +1,10 @@
 package utils
 
 import (
-	"bytes"
 	"crypto/sha256"
 	"crypto/sha512"
 	"crypto/tls"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"net/http"
@@ -33,24 +33,6 @@ func Upload(url string, body io.Reader) (*http.Response, error) {
 	return client.Post(url, "application/json", body)
 }
 
-// ValidateTarget ensures that the data read from reader matches
-// the known metadata
-func ValidateTarget(r io.Reader, m *data.FileMeta) error {
-	h := sha256.New()
-	length, err := io.Copy(h, r)
-	if err != nil {
-		return err
-	}
-	if length != m.Length {
-		return fmt.Errorf("Size of downloaded target did not match targets entry.\nExpected: %d\nReceived: %d\n", m.Length, length)
-	}
-	hashDigest := h.Sum(nil)
-	if bytes.Compare(m.Hashes["sha256"], hashDigest[:]) != 0 {
-		return fmt.Errorf("Hash of downloaded target did not match targets entry.\nExpected: %x\nReceived: %x\n", m.Hashes["sha256"], hashDigest)
-	}
-	return nil
-}
-
 // StrSliceContains checks if the given string appears in the slice
 func StrSliceContains(ss []string, s string) bool {
 	for _, v := range ss {
@@ -59,6 +41,17 @@ func StrSliceContains(ss []string, s string) bool {
 		}
 	}
 	return false
+}
+
+// StrSliceRemove removes the the given string from the slice, returning a new slice
+func StrSliceRemove(ss []string, s string) []string {
+	res := []string{}
+	for _, v := range ss {
+		if v != s {
+			res = append(res, v)
+		}
+	}
+	return res
 }
 
 // StrSliceContainsI checks if the given string appears in the slice
@@ -145,4 +138,15 @@ func FindRoleIndex(rs []*data.Role, name string) int {
 		}
 	}
 	return -1
+}
+
+// ConsistentName generates the appropriate HTTP URL path for the role,
+// based on whether the repo is marked as consistent. The RemoteStore
+// is responsible for adding file extensions.
+func ConsistentName(role string, hashSha256 []byte) string {
+	if len(hashSha256) > 0 {
+		hash := hex.EncodeToString(hashSha256)
+		return fmt.Sprintf("%s.%s", role, hash)
+	}
+	return role
 }

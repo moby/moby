@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/docker/distribution"
@@ -62,7 +63,7 @@ func checkHTTPRedirect(req *http.Request, via []*http.Request) error {
 
 // NewRegistry creates a registry namespace which can be used to get a listing of repositories
 func NewRegistry(ctx context.Context, baseURL string, transport http.RoundTripper) (Registry, error) {
-	ub, err := v2.NewURLBuilderFromString(baseURL)
+	ub, err := v2.NewURLBuilderFromString(baseURL, false)
 	if err != nil {
 		return nil, err
 	}
@@ -133,7 +134,7 @@ func (r *registry) Repositories(ctx context.Context, entries []string, last stri
 
 // NewRepository creates a new Repository for the given repository name and base URL.
 func NewRepository(ctx context.Context, name reference.Named, baseURL string, transport http.RoundTripper) (distribution.Repository, error) {
-	ub, err := v2.NewURLBuilderFromString(baseURL)
+	ub, err := v2.NewURLBuilderFromString(baseURL, false)
 	if err != nil {
 		return nil, err
 	}
@@ -213,28 +214,35 @@ func (t *tags) All(ctx context.Context) ([]string, error) {
 		return tags, err
 	}
 
-	resp, err := t.client.Get(u)
-	if err != nil {
-		return tags, err
-	}
-	defer resp.Body.Close()
-
-	if SuccessStatus(resp.StatusCode) {
-		b, err := ioutil.ReadAll(resp.Body)
+	for {
+		resp, err := t.client.Get(u)
 		if err != nil {
 			return tags, err
 		}
+		defer resp.Body.Close()
 
-		tagsResponse := struct {
-			Tags []string `json:"tags"`
-		}{}
-		if err := json.Unmarshal(b, &tagsResponse); err != nil {
-			return tags, err
+		if SuccessStatus(resp.StatusCode) {
+			b, err := ioutil.ReadAll(resp.Body)
+			if err != nil {
+				return tags, err
+			}
+
+			tagsResponse := struct {
+				Tags []string `json:"tags"`
+			}{}
+			if err := json.Unmarshal(b, &tagsResponse); err != nil {
+				return tags, err
+			}
+			tags = append(tags, tagsResponse.Tags...)
+			if link := resp.Header.Get("Link"); link != "" {
+				u = strings.Trim(strings.Split(link, ";")[0], "<>")
+			} else {
+				return tags, nil
+			}
+		} else {
+			return tags, HandleErrorResponse(resp)
 		}
-		tags = tagsResponse.Tags
-		return tags, nil
 	}
-	return tags, HandleErrorResponse(resp)
 }
 
 func descriptorFromResponse(response *http.Response) (distribution.Descriptor, error) {
@@ -292,19 +300,38 @@ func (t *tags) Get(ctx context.Context, tag string) (distribution.Descriptor, er
 	if err != nil {
 		return distribution.Descriptor{}, err
 	}
-	var attempts int
-	resp, err := t.client.Head(u)
 
+	req, err := http.NewRequest("HEAD", u, nil)
+	if err != nil {
+		return distribution.Descriptor{}, err
+	}
+
+	for _, t := range distribution.ManifestMediaTypes() {
+		req.Header.Add("Accept", t)
+	}
+
+	var attempts int
+	resp, err := t.client.Do(req)
 check:
 	if err != nil {
 		return distribution.Descriptor{}, err
 	}
+	defer resp.Body.Close()
 
 	switch {
 	case resp.StatusCode >= 200 && resp.StatusCode < 400:
 		return descriptorFromResponse(resp)
 	case resp.StatusCode == http.StatusMethodNotAllowed:
-		resp, err = t.client.Get(u)
+		req, err = http.NewRequest("GET", u, nil)
+		if err != nil {
+			return distribution.Descriptor{}, err
+		}
+
+		for _, t := range distribution.ManifestMediaTypes() {
+			req.Header.Add("Accept", t)
+		}
+
+		resp, err = t.client.Do(req)
 		attempts++
 		if attempts > 1 {
 			return distribution.Descriptor{}, err
@@ -375,20 +402,37 @@ func (o etagOption) Apply(ms distribution.ManifestService) error {
 	return fmt.Errorf("etag options is a client-only option")
 }
 
+// ReturnContentDigest allows a client to set a the content digest on
+// a successful request from the 'Docker-Content-Digest' header. This
+// returned digest is represents the digest which the registry uses
+// to refer to the content and can be used to delete the content.
+func ReturnContentDigest(dgst *digest.Digest) distribution.ManifestServiceOption {
+	return contentDigestOption{dgst}
+}
+
+type contentDigestOption struct{ digest *digest.Digest }
+
+func (o contentDigestOption) Apply(ms distribution.ManifestService) error {
+	return nil
+}
+
 func (ms *manifests) Get(ctx context.Context, dgst digest.Digest, options ...distribution.ManifestServiceOption) (distribution.Manifest, error) {
 	var (
 		digestOrTag string
 		ref         reference.Named
 		err         error
+		contentDgst *digest.Digest
 	)
 
 	for _, option := range options {
-		if opt, ok := option.(withTagOption); ok {
-			digestOrTag = opt.tag
-			ref, err = reference.WithTag(ms.name, opt.tag)
+		if opt, ok := option.(distribution.WithTagOption); ok {
+			digestOrTag = opt.Tag
+			ref, err = reference.WithTag(ms.name, opt.Tag)
 			if err != nil {
 				return nil, err
 			}
+		} else if opt, ok := option.(contentDigestOption); ok {
+			contentDgst = opt.digest
 		} else {
 			err := option.Apply(ms)
 			if err != nil {
@@ -431,6 +475,12 @@ func (ms *manifests) Get(ctx context.Context, dgst digest.Digest, options ...dis
 	if resp.StatusCode == http.StatusNotModified {
 		return nil, distribution.ErrManifestNotModified
 	} else if SuccessStatus(resp.StatusCode) {
+		if contentDgst != nil {
+			dgst, err := digest.ParseDigest(resp.Header.Get("Docker-Content-Digest"))
+			if err == nil {
+				*contentDgst = dgst
+			}
+		}
 		mt := resp.Header.Get("Content-Type")
 		body, err := ioutil.ReadAll(resp.Body)
 
@@ -446,21 +496,6 @@ func (ms *manifests) Get(ctx context.Context, dgst digest.Digest, options ...dis
 	return nil, HandleErrorResponse(resp)
 }
 
-// WithTag allows a tag to be passed into Put which enables the client
-// to build a correct URL.
-func WithTag(tag string) distribution.ManifestServiceOption {
-	return withTagOption{tag}
-}
-
-type withTagOption struct{ tag string }
-
-func (o withTagOption) Apply(m distribution.ManifestService) error {
-	if _, ok := m.(*manifests); ok {
-		return nil
-	}
-	return fmt.Errorf("withTagOption is a client-only option")
-}
-
 // Put puts a manifest.  A tag can be specified using an options parameter which uses some shared state to hold the
 // tag name in order to build the correct upload URL.
 func (ms *manifests) Put(ctx context.Context, m distribution.Manifest, options ...distribution.ManifestServiceOption) (digest.Digest, error) {
@@ -468,9 +503,9 @@ func (ms *manifests) Put(ctx context.Context, m distribution.Manifest, options .
 	var tagged bool
 
 	for _, option := range options {
-		if opt, ok := option.(withTagOption); ok {
+		if opt, ok := option.(distribution.WithTagOption); ok {
 			var err error
-			ref, err = reference.WithTag(ref, opt.tag)
+			ref, err = reference.WithTag(ref, opt.Tag)
 			if err != nil {
 				return "", err
 			}
@@ -645,15 +680,6 @@ func (bs *blobs) Put(ctx context.Context, mediaType string, p []byte) (distribut
 	return writer.Commit(ctx, desc)
 }
 
-// createOptions is a collection of blob creation modifiers relevant to general
-// blob storage intended to be configured by the BlobCreateOption.Apply method.
-type createOptions struct {
-	Mount struct {
-		ShouldMount bool
-		From        reference.Canonical
-	}
-}
-
 type optionFunc func(interface{}) error
 
 func (f optionFunc) Apply(v interface{}) error {
@@ -664,7 +690,7 @@ func (f optionFunc) Apply(v interface{}) error {
 // mounted from the given canonical reference.
 func WithMountFrom(ref reference.Canonical) distribution.BlobCreateOption {
 	return optionFunc(func(v interface{}) error {
-		opts, ok := v.(*createOptions)
+		opts, ok := v.(*distribution.CreateOptions)
 		if !ok {
 			return fmt.Errorf("unexpected options type: %T", v)
 		}
@@ -677,7 +703,7 @@ func WithMountFrom(ref reference.Canonical) distribution.BlobCreateOption {
 }
 
 func (bs *blobs) Create(ctx context.Context, options ...distribution.BlobCreateOption) (distribution.BlobWriter, error) {
-	var opts createOptions
+	var opts distribution.CreateOptions
 
 	for _, option := range options {
 		err := option.Apply(&opts)

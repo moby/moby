@@ -10,6 +10,7 @@ docker-events - Get real time events from the server
 [**-f**|**--filter**[=*[]*]]
 [**--since**[=*SINCE*]]
 [**--until**[=*UNTIL*]]
+[**--format**[=*FORMAT*]]
 
 
 # DESCRIPTION
@@ -18,11 +19,19 @@ information and real-time information.
 
 Docker containers will report the following events:
 
-    attach, commit, copy, create, destroy, die, exec_create, exec_start, export, kill, oom, pause, rename, resize, restart, start, stop, top, unpause
+    attach, commit, copy, create, destroy, detach, die, exec_create, exec_detach, exec_start, export, kill, oom, pause, rename, resize, restart, start, stop, top, unpause, update
 
-and Docker images will report:
+Docker images report the following events:
 
-    delete, import, pull, push, tag, untag
+    delete, import, load, pull, push, save, tag, untag
+
+Docker volumes report the following events:
+
+    create, mount, unmount, destroy
+
+Docker networks report the following events:
+
+    create, connect, disconnect, destroy
 
 # OPTIONS
 **--help**
@@ -37,9 +46,12 @@ and Docker images will report:
 **--until**=""
    Stream events until this timestamp
 
+**--format**=""
+   Format the output using the given Go template
+
 The `--since` and `--until` parameters can be Unix timestamps, date formatted
 timestamps, or Go duration strings (e.g. `10m`, `1h30m`) computed
-relative to the client machine’s time. If you do not provide the --since option,
+relative to the client machine's time. If you do not provide the `--since` option,
 the command returns only new and/or live events.  Supported formats for date
 formatted time stamps include RFC3339Nano, RFC3339, `2006-01-02T15:04:05`,
 `2006-01-02T15:04:05.999999999`, `2006-01-02Z07:00`, and `2006-01-02`. The local
@@ -87,6 +99,31 @@ relative to the current time on the client machine:
 
 If you do not provide the --since option, the command returns only new and/or
 live events.
+
+## Format
+
+If a format (`--format`) is specified, the given template will be executed
+instead of the default format. Go's **text/template** package describes all the
+details of the format.
+
+    # docker events --filter 'type=container' --format 'Type={{.Type}}  Status={{.Status}}  ID={{.ID}}'
+    Type=container  Status=create  ID=2ee349dac409e97974ce8d01b70d250b85e0ba8189299c126a87812311951e26
+    Type=container  Status=attach  ID=2ee349dac409e97974ce8d01b70d250b85e0ba8189299c126a87812311951e26
+    Type=container  Status=start  ID=2ee349dac409e97974ce8d01b70d250b85e0ba8189299c126a87812311951e26
+    Type=container  Status=resize  ID=2ee349dac409e97974ce8d01b70d250b85e0ba8189299c126a87812311951e26
+    Type=container  Status=die  ID=2ee349dac409e97974ce8d01b70d250b85e0ba8189299c126a87812311951e26
+    Type=container  Status=destroy  ID=2ee349dac409e97974ce8d01b70d250b85e0ba8189299c126a87812311951e26
+
+If a format is set to `{{json .}}`, the events are streamed as valid JSON
+Lines. For information about JSON Lines, please refer to http://jsonlines.org/ .
+
+    # docker events --format '{{json .}}'
+    {"status":"create","id":"196016a57679bf42424484918746a9474cd905dd993c4d0f4..
+    {"status":"attach","id":"196016a57679bf42424484918746a9474cd905dd993c4d0f4..
+    {"Type":"network","Action":"connect","Actor":{"ID":"1b50a5bf755f6021dfa78e..
+    {"status":"start","id":"196016a57679bf42424484918746a9474cd905dd993c4d0f42..
+    {"status":"resize","id":"196016a57679bf42424484918746a9474cd905dd993c4d0f4..
+
 
 # HISTORY
 April 2014, Originally compiled by William Henry (whenry at redhat dot com)

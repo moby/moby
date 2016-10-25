@@ -15,7 +15,7 @@ import (
 // Get the seccomp header in scope
 // Need stdlib.h for free() on cstrings
 
-// #cgo LDFLAGS: -lseccomp
+// #cgo pkg-config: libseccomp
 /*
 #include <stdlib.h>
 #include <seccomp.h>
@@ -58,6 +58,26 @@ const uint32_t C_ARCH_BAD = ARCH_BAD;
 #define SCMP_ARCH_MIPSEL64N32 ARCH_BAD
 #endif
 
+#ifndef SCMP_ARCH_PPC
+#define SCMP_ARCH_PPC ARCH_BAD
+#endif
+
+#ifndef SCMP_ARCH_PPC64
+#define SCMP_ARCH_PPC64 ARCH_BAD
+#endif
+
+#ifndef SCMP_ARCH_PPC64LE
+#define SCMP_ARCH_PPC64LE ARCH_BAD
+#endif
+
+#ifndef SCMP_ARCH_S390
+#define SCMP_ARCH_S390 ARCH_BAD
+#endif
+
+#ifndef SCMP_ARCH_S390X
+#define SCMP_ARCH_S390X ARCH_BAD
+#endif
+
 const uint32_t C_ARCH_NATIVE       = SCMP_ARCH_NATIVE;
 const uint32_t C_ARCH_X86          = SCMP_ARCH_X86;
 const uint32_t C_ARCH_X86_64       = SCMP_ARCH_X86_64;
@@ -70,6 +90,11 @@ const uint32_t C_ARCH_MIPS64N32    = SCMP_ARCH_MIPS64N32;
 const uint32_t C_ARCH_MIPSEL       = SCMP_ARCH_MIPSEL;
 const uint32_t C_ARCH_MIPSEL64     = SCMP_ARCH_MIPSEL64;
 const uint32_t C_ARCH_MIPSEL64N32  = SCMP_ARCH_MIPSEL64N32;
+const uint32_t C_ARCH_PPC          = SCMP_ARCH_PPC;
+const uint32_t C_ARCH_PPC64        = SCMP_ARCH_PPC64;
+const uint32_t C_ARCH_PPC64LE      = SCMP_ARCH_PPC64LE;
+const uint32_t C_ARCH_S390         = SCMP_ARCH_S390;
+const uint32_t C_ARCH_S390X        = SCMP_ARCH_S390X;
 
 const uint32_t C_ACT_KILL          = SCMP_ACT_KILL;
 const uint32_t C_ACT_TRAP          = SCMP_ACT_TRAP;
@@ -140,7 +165,7 @@ const (
 	scmpError C.int = -1
 	// Comparison boundaries to check for architecture validity
 	archStart ScmpArch = ArchNative
-	archEnd   ScmpArch = ArchMIPSEL64N32
+	archEnd   ScmpArch = ArchS390X
 	// Comparison boundaries to check for action validity
 	actionStart ScmpAction = ActKill
 	actionEnd   ScmpAction = ActAllow
@@ -349,6 +374,16 @@ func archFromNative(a C.uint32_t) (ScmpArch, error) {
 		return ArchMIPSEL64, nil
 	case C.C_ARCH_MIPSEL64N32:
 		return ArchMIPSEL64N32, nil
+	case C.C_ARCH_PPC:
+		return ArchPPC, nil
+	case C.C_ARCH_PPC64:
+		return ArchPPC64, nil
+	case C.C_ARCH_PPC64LE:
+		return ArchPPC64LE, nil
+	case C.C_ARCH_S390:
+		return ArchS390, nil
+	case C.C_ARCH_S390X:
+		return ArchS390X, nil
 	default:
 		return 0x0, fmt.Errorf("unrecognized architecture")
 	}
@@ -379,6 +414,16 @@ func (a ScmpArch) toNative() C.uint32_t {
 		return C.C_ARCH_MIPSEL64
 	case ArchMIPSEL64N32:
 		return C.C_ARCH_MIPSEL64N32
+	case ArchPPC:
+		return C.C_ARCH_PPC
+	case ArchPPC64:
+		return C.C_ARCH_PPC64
+	case ArchPPC64LE:
+		return C.C_ARCH_PPC64LE
+	case ArchS390:
+		return C.C_ARCH_S390
+	case ArchS390X:
+		return C.C_ARCH_S390X
 	case ArchNative:
 		return C.C_ARCH_NATIVE
 	default:

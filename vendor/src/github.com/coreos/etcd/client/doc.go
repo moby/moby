@@ -1,4 +1,4 @@
-// Copyright 2015 CoreOS, Inc.
+// Copyright 2015 The etcd Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -33,6 +33,8 @@ Create a Config and exchange it for a Client:
 	if err != nil {
 		// handle error
 	}
+
+Clients are safe for concurrent use by multiple goroutines.
 
 Create a KeysAPI using the Client, then use it to interact with etcd:
 

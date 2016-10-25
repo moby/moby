@@ -64,7 +64,7 @@ func (i *IPAMData) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// Validate checks wheter the IPAMData structure contains congruent data
+// Validate checks whether the IPAMData structure contains congruent data
 func (i *IPAMData) Validate() error {
 	var isV6 bool
 	if i.Pool == nil {
@@ -93,7 +93,7 @@ func (i *IPAMData) Validate() error {
 	return nil
 }
 
-// IsV6 returns wheter this is an IPv6 IPAMData structure
+// IsV6 returns whether this is an IPv6 IPAMData structure
 func (i *IPAMData) IsV6() bool {
 	return nil == i.Pool.IP.To4()
 }

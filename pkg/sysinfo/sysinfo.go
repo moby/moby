@@ -14,15 +14,16 @@ type SysInfo struct {
 	cgroupCPUInfo
 	cgroupBlkioInfo
 	cgroupCpusetInfo
+	cgroupPids
 
 	// Whether IPv4 forwarding is supported or not, if this was disabled, networking will not work
 	IPv4ForwardingDisabled bool
 
 	// Whether bridge-nf-call-iptables is supported or not
-	BridgeNfCallIptablesDisabled bool
+	BridgeNFCallIPTablesDisabled bool
 
 	// Whether bridge-nf-call-ip6tables is supported or not
-	BridgeNfCallIP6tablesDisabled bool
+	BridgeNFCallIP6TablesDisabled bool
 
 	// Whether the cgroup has the mountpoint of "devices" or not
 	CgroupDevicesEnabled bool
@@ -90,6 +91,11 @@ type cgroupCpusetInfo struct {
 	Mems string
 }
 
+type cgroupPids struct {
+	// Whether Pids Limit is supported or not
+	PidsLimit bool
+}
+
 // IsCpusetCpusAvailable returns `true` if the provided string set is contained
 // in cgroup's cpuset.cpus set, `false` otherwise.
 // If error is not nil a parsing error occurred.
@@ -119,4 +125,14 @@ func isCpusetListAvailable(provided, available string) (bool, error) {
 		}
 	}
 	return true, nil
+}
+
+// Returns bit count of 1, used by NumCPU
+func popcnt(x uint64) (n byte) {
+	x -= (x >> 1) & 0x5555555555555555
+	x = (x>>2)&0x3333333333333333 + x&0x3333333333333333
+	x += x >> 4
+	x &= 0x0f0f0f0f0f0f0f0f
+	x *= 0x0101010101010101
+	return byte(x >> 56)
 }

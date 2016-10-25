@@ -20,13 +20,13 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/registry/api/errcode"
+	"github.com/docker/docker/api/types"
+	registrytypes "github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/pkg/httputils"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/pkg/tarsum"
 	"github.com/docker/docker/reference"
-	"github.com/docker/engine-api/types"
-	registrytypes "github.com/docker/engine-api/types/registry"
 )
 
 var (
@@ -37,7 +37,7 @@ var (
 
 // A Session is used to communicate with a V1 registry
 type Session struct {
-	indexEndpoint *Endpoint
+	indexEndpoint *V1Endpoint
 	client        *http.Client
 	// TODO(tiborvass): remove authConfig
 	authConfig *types.AuthConfig
@@ -95,7 +95,7 @@ func cloneRequest(r *http.Request) *http.Request {
 	return r2
 }
 
-// RoundTrip changes a HTTP request's headers to add the necessary
+// RoundTrip changes an HTTP request's headers to add the necessary
 // authentication-related headers
 func (tr *authTransport) RoundTrip(orig *http.Request) (*http.Response, error) {
 	// Authorization should not be set on 302 redirect for untrusted locations.
@@ -161,24 +161,15 @@ func (tr *authTransport) CancelRequest(req *http.Request) {
 	}
 }
 
-// NewSession creates a new session
-// TODO(tiborvass): remove authConfig param once registry client v2 is vendored
-func NewSession(client *http.Client, authConfig *types.AuthConfig, endpoint *Endpoint) (r *Session, err error) {
-	r = &Session{
-		authConfig:    authConfig,
-		client:        client,
-		indexEndpoint: endpoint,
-		id:            stringid.GenerateRandomID(),
-	}
-
+func authorizeClient(client *http.Client, authConfig *types.AuthConfig, endpoint *V1Endpoint) error {
 	var alwaysSetBasicAuth bool
 
 	// If we're working with a standalone private registry over HTTPS, send Basic Auth headers
 	// alongside all our requests.
-	if endpoint.VersionString(1) != IndexServer && endpoint.URL.Scheme == "https" {
+	if endpoint.String() != IndexServer && endpoint.URL.Scheme == "https" {
 		info, err := endpoint.Ping()
 		if err != nil {
-			return nil, err
+			return err
 		}
 		if info.Standalone && authConfig != nil {
 			logrus.Debugf("Endpoint %s is eligible for private registry. Enabling decorator.", endpoint.String())
@@ -192,11 +183,30 @@ func NewSession(client *http.Client, authConfig *types.AuthConfig, endpoint *End
 
 	jar, err := cookiejar.New(nil)
 	if err != nil {
-		return nil, errors.New("cookiejar.New is not supposed to return an error")
+		return errors.New("cookiejar.New is not supposed to return an error")
 	}
 	client.Jar = jar
 
-	return r, nil
+	return nil
+}
+
+func newSession(client *http.Client, authConfig *types.AuthConfig, endpoint *V1Endpoint) *Session {
+	return &Session{
+		authConfig:    authConfig,
+		client:        client,
+		indexEndpoint: endpoint,
+		id:            stringid.GenerateRandomID(),
+	}
+}
+
+// NewSession creates a new session
+// TODO(tiborvass): remove authConfig param once registry client v2 is vendored
+func NewSession(client *http.Client, authConfig *types.AuthConfig, endpoint *V1Endpoint) (*Session, error) {
+	if err := authorizeClient(client, authConfig, endpoint); err != nil {
+		return nil, err
+	}
+
+	return newSession(client, authConfig, endpoint), nil
 }
 
 // ID returns this registry session's ID.
@@ -284,6 +294,7 @@ func (r *Session) GetRemoteImageLayer(imgID, registry string, imgSize int64) (io
 	res, err = r.client.Do(req)
 	if err != nil {
 		logrus.Debugf("Error contacting registry %s: %v", registry, err)
+		// the only case err != nil && res != nil is https://golang.org/src/net/http/client.go#L515
 		if res != nil {
 			if res.Body != nil {
 				res.Body.Close()
@@ -301,10 +312,10 @@ func (r *Session) GetRemoteImageLayer(imgID, registry string, imgSize int64) (io
 	}
 
 	if res.Header.Get("Accept-Ranges") == "bytes" && imgSize > 0 {
-		logrus.Debugf("server supports resume")
+		logrus.Debug("server supports resume")
 		return httputils.ResumableRequestReaderWithInitialResponse(r.client, req, 5, imgSize, res), nil
 	}
-	logrus.Debugf("server doesn't support resume")
+	logrus.Debug("server doesn't support resume")
 	return res.Body, nil
 }
 
@@ -405,7 +416,7 @@ func buildEndpointsList(headers []string, indexEp string) ([]string, error) {
 
 // GetRepositoryData returns lists of images and endpoints for the repository
 func (r *Session) GetRepositoryData(name reference.Named) (*RepositoryData, error) {
-	repositoryTarget := fmt.Sprintf("%srepositories/%s/images", r.indexEndpoint.VersionString(1), name.RemoteName())
+	repositoryTarget := fmt.Sprintf("%srepositories/%s/images", r.indexEndpoint.String(), name.RemoteName())
 
 	logrus.Debugf("[registry] Calling GET %s", repositoryTarget)
 
@@ -444,7 +455,7 @@ func (r *Session) GetRepositoryData(name reference.Named) (*RepositoryData, erro
 
 	var endpoints []string
 	if res.Header.Get("X-Docker-Endpoints") != "" {
-		endpoints, err = buildEndpointsList(res.Header["X-Docker-Endpoints"], r.indexEndpoint.VersionString(1))
+		endpoints, err = buildEndpointsList(res.Header["X-Docker-Endpoints"], r.indexEndpoint.String())
 		if err != nil {
 			return nil, err
 		}
@@ -634,7 +645,7 @@ func (r *Session) PushImageJSONIndex(remote reference.Named, imgList []*ImgData,
 	if validate {
 		suffix = "images"
 	}
-	u := fmt.Sprintf("%srepositories/%s/%s", r.indexEndpoint.VersionString(1), remote.RemoteName(), suffix)
+	u := fmt.Sprintf("%srepositories/%s/%s", r.indexEndpoint.String(), remote.RemoteName(), suffix)
 	logrus.Debugf("[registry] PUT %s", u)
 	logrus.Debugf("Image list pushed to index:\n%s", imgListJSON)
 	headers := map[string][]string{
@@ -680,7 +691,7 @@ func (r *Session) PushImageJSONIndex(remote reference.Named, imgList []*ImgData,
 		if res.Header.Get("X-Docker-Endpoints") == "" {
 			return nil, fmt.Errorf("Index response didn't contain any endpoints")
 		}
-		endpoints, err = buildEndpointsList(res.Header["X-Docker-Endpoints"], r.indexEndpoint.VersionString(1))
+		endpoints, err = buildEndpointsList(res.Header["X-Docker-Endpoints"], r.indexEndpoint.String())
 		if err != nil {
 			return nil, err
 		}
@@ -720,9 +731,12 @@ func shouldRedirect(response *http.Response) bool {
 }
 
 // SearchRepositories performs a search against the remote repository
-func (r *Session) SearchRepositories(term string) (*registrytypes.SearchResults, error) {
+func (r *Session) SearchRepositories(term string, limit int) (*registrytypes.SearchResults, error) {
+	if limit < 1 || limit > 100 {
+		return nil, fmt.Errorf("Limit %d is outside the range of [1, 100]", limit)
+	}
 	logrus.Debugf("Index server: %s", r.indexEndpoint)
-	u := r.indexEndpoint.VersionString(1) + "search?q=" + url.QueryEscape(term)
+	u := r.indexEndpoint.String() + "search?q=" + url.QueryEscape(term) + "&n=" + url.QueryEscape(fmt.Sprintf("%d", limit))
 
 	req, err := http.NewRequest("GET", u, nil)
 	if err != nil {
@@ -752,7 +766,6 @@ func (r *Session) GetAuthConfig(withPasswd bool) *types.AuthConfig {
 	return &types.AuthConfig{
 		Username: r.authConfig.Username,
 		Password: password,
-		Email:    r.authConfig.Email,
 	}
 }
 

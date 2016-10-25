@@ -1,25 +1,38 @@
-<!--[metadata]>
-+++
-title = "images"
-description = "The images command description and usage"
-keywords = ["list, docker, images"]
-[menu.main]
-parent = "smn_cli"
-+++
-<![end-metadata]-->
+---
+title: "images"
+description: "The images command description and usage"
+keywords: ["list, docker, images"]
+---
+
+<!-- This file is maintained within the docker/docker Github
+     repository at https://github.com/docker/docker/. Make all
+     pull requests against that repo. If you see this file in
+     another repository, consider it read-only there, as it will
+     periodically be overwritten by the definitive file. Pull
+     requests which include edits to this file in other repositories
+     will be rejected.
+-->
 
 # images
 
-    Usage: docker images [OPTIONS] [REPOSITORY[:TAG]]
+```markdown
+Usage:  docker images [OPTIONS] [REPOSITORY[:TAG]]
 
-    List images
+List images
 
-      -a, --all            Show all images (default hides intermediate images)
-      --digests            Show digests
-      -f, --filter=[]      Filter output based on conditions provided
-      --help               Print usage
-      --no-trunc           Don't truncate output
-      -q, --quiet          Only show numeric IDs
+Options:
+  -a, --all             Show all images (default hides intermediate images)
+      --digests         Show digests
+  -f, --filter value    Filter output based on conditions provided (default [])
+                        - dangling=(true|false)
+                        - label=<key> or label=<key>=<value>
+                        - before=(<image-name>[:tag]|<image-id>|<image@digest>)
+                        - since=(<image-name>[:tag]|<image-id>|<image@digest>)
+      --format string   Pretty-print images using a Go template
+      --help            Print usage
+      --no-trunc        Don't truncate output
+  -q, --quiet           Only show numeric IDs
+```
 
 The default `docker images` will show all top level
 images, their repository and tags, and their size.
@@ -85,16 +98,16 @@ If nothing matches `REPOSITORY[:TAG]`, the list is empty.
 ## Listing the full length image IDs
 
     $ docker images --no-trunc
-    REPOSITORY                    TAG                 IMAGE ID                                                           CREATED             SIZE
-    <none>                        <none>              77af4d6b9913e693e8d0b4b294fa62ade6054e6b2f1ffb617ac955dd63fb0182   19 hours ago        1.089 GB
-    committest                    latest              b6fa739cedf5ea12a620a439402b6004d057da800f91c7524b5086a5e4749c9f   19 hours ago        1.089 GB
-    <none>                        <none>              78a85c484f71509adeaace20e72e941f6bdd2b25b4c75da8693efd9f61a37921   19 hours ago        1.089 GB
-    docker                        latest              30557a29d5abc51e5f1d5b472e79b7e296f595abcf19fe6b9199dbbc809c6ff4   20 hours ago        1.089 GB
-    <none>                        <none>              0124422dd9f9cf7ef15c0617cda3931ee68346455441d66ab8bdc5b05e9fdce5   20 hours ago        1.089 GB
-    <none>                        <none>              18ad6fad340262ac2a636efd98a6d1f0ea775ae3d45240d3418466495a19a81b   22 hours ago        1.082 GB
-    <none>                        <none>              f9f1e26352f0a3ba6a0ff68167559f64f3e21ff7ada60366e2d44a04befd1d3a   23 hours ago        1.089 GB
-    tryout                        latest              2629d1fa0b81b222fca63371ca16cbf6a0772d07759ff80e8d1369b926940074   23 hours ago        131.5 MB
-    <none>                        <none>              5ed6274db6ceb2397844896966ea239290555e74ef307030ebb01ff91b1914df   24 hours ago        1.089 GB
+    REPOSITORY                    TAG                 IMAGE ID                                                                  CREATED             SIZE
+    <none>                        <none>              sha256:77af4d6b9913e693e8d0b4b294fa62ade6054e6b2f1ffb617ac955dd63fb0182   19 hours ago        1.089 GB
+    committest                    latest              sha256:b6fa739cedf5ea12a620a439402b6004d057da800f91c7524b5086a5e4749c9f   19 hours ago        1.089 GB
+    <none>                        <none>              sha256:78a85c484f71509adeaace20e72e941f6bdd2b25b4c75da8693efd9f61a37921   19 hours ago        1.089 GB
+    docker                        latest              sha256:30557a29d5abc51e5f1d5b472e79b7e296f595abcf19fe6b9199dbbc809c6ff4   20 hours ago        1.089 GB
+    <none>                        <none>              sha256:0124422dd9f9cf7ef15c0617cda3931ee68346455441d66ab8bdc5b05e9fdce5   20 hours ago        1.089 GB
+    <none>                        <none>              sha256:18ad6fad340262ac2a636efd98a6d1f0ea775ae3d45240d3418466495a19a81b   22 hours ago        1.082 GB
+    <none>                        <none>              sha256:f9f1e26352f0a3ba6a0ff68167559f64f3e21ff7ada60366e2d44a04befd1d3a   23 hours ago        1.089 GB
+    tryout                        latest              sha256:2629d1fa0b81b222fca63371ca16cbf6a0772d07759ff80e8d1369b926940074   23 hours ago        131.5 MB
+    <none>                        <none>              sha256:5ed6274db6ceb2397844896966ea239290555e74ef307030ebb01ff91b1914df   24 hours ago        1.089 GB
 
 ## Listing image digests
 
@@ -121,6 +134,8 @@ The currently supported filters are:
 
 * dangling (boolean - true or false)
 * label (`label=<key>` or `label=<key>=<value>`)
+* before (`<image-name>[:<tag>]`,  `<image id>` or `<image@digest>`) - filters images created before given id or references
+* since (`<image-name>[:<tag>]`,  `<image id>` or `<image@digest>`) - filters images created since given id or references
 
 ##### Untagged images (dangling)
 
@@ -165,18 +180,55 @@ The following filter matches images with the `com.example.version` label regardl
 
     REPOSITORY          TAG                 IMAGE ID            CREATED              SIZE
     match-me-1          latest              eeae25ada2aa        About a minute ago   188.3 MB
-    match-me-2          latest              eeae25ada2aa        About a minute ago   188.3 MB
+    match-me-2          latest              dea752e4e117        About a minute ago   188.3 MB
 
 The following filter matches images with the `com.example.version` label with the `1.0` value.
 
     $ docker images --filter "label=com.example.version=1.0"
     REPOSITORY          TAG                 IMAGE ID            CREATED              SIZE
-    match-me            latest              eeae25ada2aa        About a minute ago   188.3 MB
+    match-me            latest              511136ea3c5a        About a minute ago   188.3 MB
 
 In this example, with the `0.1` value, it returns an empty set because no matches were found.
 
     $ docker images --filter "label=com.example.version=0.1"
     REPOSITORY          TAG                 IMAGE ID            CREATED              SIZE
+
+#### Before
+
+The `before` filter shows only images created before the image with
+given id or reference. For example, having these images:
+
+    $ docker images
+    REPOSITORY          TAG                 IMAGE ID            CREATED              SIZE
+    image1              latest              eeae25ada2aa        4 minutes ago        188.3 MB
+    image2              latest              dea752e4e117        9 minutes ago        188.3 MB
+    image3              latest              511136ea3c5a        25 minutes ago       188.3 MB
+
+Filtering with `before` would give:
+
+    $ docker images --filter "before=image1"
+    REPOSITORY          TAG                 IMAGE ID            CREATED              SIZE
+    image2              latest              dea752e4e117        9 minutes ago        188.3 MB
+    image3              latest              511136ea3c5a        25 minutes ago       188.3 MB
+
+#### Since
+
+The `since` filter shows only images created after the image with
+given id or reference. For example, having these images:
+
+    $ docker images
+    REPOSITORY          TAG                 IMAGE ID            CREATED              SIZE
+    image1              latest              eeae25ada2aa        4 minutes ago        188.3 MB
+    image2              latest              dea752e4e117        9 minutes ago        188.3 MB
+    image3              latest              511136ea3c5a        25 minutes ago       188.3 MB
+
+Filtering with `since` would give:
+
+    $ docker images --filter "since=image3"
+    REPOSITORY          TAG                 IMAGE ID            CREATED              SIZE
+    image1              latest              eeae25ada2aa        4 minutes ago        188.3 MB
+    image2              latest              dea752e4e117        9 minutes ago        188.3 MB
+
 
 ## Formatting
 
@@ -202,6 +254,7 @@ output the data exactly as the template declares or, when using the
 The following example uses a template without headers and outputs the
 `ID` and `Repository` entries separated by a colon for all images:
 
+    {% raw %}
     $ docker images --format "{{.ID}}: {{.Repository}}"
     77af4d6b9913: <none>
     b6fa739cedf5: committ
@@ -212,10 +265,12 @@ The following example uses a template without headers and outputs the
     746b819f315e: postgres
     746b819f315e: postgres
     746b819f315e: postgres
+    {% endraw %}
 
 To list all images with their repository and tag in a table format you
 can use:
 
+    {% raw %}
     $ docker images --format "table {{.ID}}\t{{.Repository}}\t{{.Tag}}"
     IMAGE ID            REPOSITORY                TAG
     77af4d6b9913        <none>                    <none>
@@ -227,3 +282,4 @@ can use:
     746b819f315e        postgres                  9.3
     746b819f315e        postgres                  9.3.5
     746b819f315e        postgres                  latest
+    {% endraw %}

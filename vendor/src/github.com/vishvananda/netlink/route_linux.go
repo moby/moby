@@ -6,9 +6,18 @@ import (
 	"syscall"
 
 	"github.com/vishvananda/netlink/nl"
+	"github.com/vishvananda/netns"
 )
 
 // RtAttr is shared so it is in netlink_linux.go
+
+const (
+	SCOPE_UNIVERSE Scope = syscall.RT_SCOPE_UNIVERSE
+	SCOPE_SITE     Scope = syscall.RT_SCOPE_SITE
+	SCOPE_LINK     Scope = syscall.RT_SCOPE_LINK
+	SCOPE_HOST     Scope = syscall.RT_SCOPE_HOST
+	SCOPE_NOWHERE  Scope = syscall.RT_SCOPE_NOWHERE
+)
 
 const (
 	RT_FILTER_PROTOCOL uint64 = 1 << (1 + iota)
@@ -23,21 +32,53 @@ const (
 	RT_FILTER_TABLE
 )
 
+const (
+	FLAG_ONLINK    NextHopFlag = syscall.RTNH_F_ONLINK
+	FLAG_PERVASIVE NextHopFlag = syscall.RTNH_F_PERVASIVE
+)
+
+var testFlags = []flagString{
+	{f: FLAG_ONLINK, s: "onlink"},
+	{f: FLAG_PERVASIVE, s: "pervasive"},
+}
+
+func (r *Route) ListFlags() []string {
+	var flags []string
+	for _, tf := range testFlags {
+		if r.Flags&int(tf.f) != 0 {
+			flags = append(flags, tf.s)
+		}
+	}
+	return flags
+}
+
 // RouteAdd will add a route to the system.
 // Equivalent to: `ip route add $route`
 func RouteAdd(route *Route) error {
-	req := nl.NewNetlinkRequest(syscall.RTM_NEWROUTE, syscall.NLM_F_CREATE|syscall.NLM_F_EXCL|syscall.NLM_F_ACK)
-	return routeHandle(route, req, nl.NewRtMsg())
+	return pkgHandle.RouteAdd(route)
+}
+
+// RouteAdd will add a route to the system.
+// Equivalent to: `ip route add $route`
+func (h *Handle) RouteAdd(route *Route) error {
+	req := h.newNetlinkRequest(syscall.RTM_NEWROUTE, syscall.NLM_F_CREATE|syscall.NLM_F_EXCL|syscall.NLM_F_ACK)
+	return h.routeHandle(route, req, nl.NewRtMsg())
 }
 
 // RouteDel will delete a route from the system.
 // Equivalent to: `ip route del $route`
 func RouteDel(route *Route) error {
-	req := nl.NewNetlinkRequest(syscall.RTM_DELROUTE, syscall.NLM_F_ACK)
-	return routeHandle(route, req, nl.NewRtDelMsg())
+	return pkgHandle.RouteDel(route)
 }
 
-func routeHandle(route *Route, req *nl.NetlinkRequest, msg *nl.RtMsg) error {
+// RouteDel will delete a route from the system.
+// Equivalent to: `ip route del $route`
+func (h *Handle) RouteDel(route *Route) error {
+	req := h.newNetlinkRequest(syscall.RTM_DELROUTE, syscall.NLM_F_ACK)
+	return h.routeHandle(route, req, nl.NewRtDelMsg())
+}
+
+func (h *Handle) routeHandle(route *Route, req *nl.NetlinkRequest, msg *nl.RtMsg) error {
 	if (route.Dst == nil || route.Dst.IP == nil) && route.Src == nil && route.Gw == nil {
 		return fmt.Errorf("one of Dst.IP, Src, or Gw must not be nil")
 	}
@@ -90,6 +131,37 @@ func routeHandle(route *Route, req *nl.NetlinkRequest, msg *nl.RtMsg) error {
 		rtAttrs = append(rtAttrs, nl.NewRtAttr(syscall.RTA_GATEWAY, gwData))
 	}
 
+	if len(route.MultiPath) > 0 {
+		buf := []byte{}
+		for _, nh := range route.MultiPath {
+			rtnh := &nl.RtNexthop{
+				RtNexthop: syscall.RtNexthop{
+					Hops:    uint8(nh.Hops),
+					Ifindex: int32(nh.LinkIndex),
+					Len:     uint16(syscall.SizeofRtNexthop),
+				},
+			}
+			var gwData []byte
+			if nh.Gw != nil {
+				gwFamily := nl.GetIPFamily(nh.Gw)
+				if family != -1 && family != gwFamily {
+					return fmt.Errorf("gateway, source, and destination ip are not the same IP family")
+				}
+				var gw *nl.RtAttr
+				if gwFamily == FAMILY_V4 {
+					gw = nl.NewRtAttr(syscall.RTA_GATEWAY, []byte(nh.Gw.To4()))
+				} else {
+					gw = nl.NewRtAttr(syscall.RTA_GATEWAY, []byte(nh.Gw.To16()))
+				}
+				gwData := gw.Serialize()
+				rtnh.Len += uint16(len(gwData))
+			}
+			buf = append(buf, rtnh.Serialize()...)
+			buf = append(buf, gwData...)
+		}
+		rtAttrs = append(rtAttrs, nl.NewRtAttr(syscall.RTA_MULTIPATH, buf))
+	}
+
 	if route.Table > 0 {
 		if route.Table >= 256 {
 			msg.Table = syscall.RT_TABLE_UNSPEC
@@ -116,6 +188,7 @@ func routeHandle(route *Route, req *nl.NetlinkRequest, msg *nl.RtMsg) error {
 		msg.Type = uint8(route.Type)
 	}
 
+	msg.Flags = uint32(route.Flags)
 	msg.Scope = uint8(route.Scope)
 	msg.Family = uint8(family)
 	req.AddData(msg)
@@ -139,19 +212,32 @@ func routeHandle(route *Route, req *nl.NetlinkRequest, msg *nl.RtMsg) error {
 // Equivalent to: `ip route show`.
 // The list can be filtered by link and ip family.
 func RouteList(link Link, family int) ([]Route, error) {
+	return pkgHandle.RouteList(link, family)
+}
+
+// RouteList gets a list of routes in the system.
+// Equivalent to: `ip route show`.
+// The list can be filtered by link and ip family.
+func (h *Handle) RouteList(link Link, family int) ([]Route, error) {
 	var routeFilter *Route
 	if link != nil {
 		routeFilter = &Route{
 			LinkIndex: link.Attrs().Index,
 		}
 	}
-	return RouteListFiltered(family, routeFilter, RT_FILTER_OIF)
+	return h.RouteListFiltered(family, routeFilter, RT_FILTER_OIF)
 }
 
 // RouteListFiltered gets a list of routes in the system filtered with specified rules.
 // All rules must be defined in RouteFilter struct
 func RouteListFiltered(family int, filter *Route, filterMask uint64) ([]Route, error) {
-	req := nl.NewNetlinkRequest(syscall.RTM_GETROUTE, syscall.NLM_F_DUMP)
+	return pkgHandle.RouteListFiltered(family, filter, filterMask)
+}
+
+// RouteListFiltered gets a list of routes in the system filtered with specified rules.
+// All rules must be defined in RouteFilter struct
+func (h *Handle) RouteListFiltered(family int, filter *Route, filterMask uint64) ([]Route, error) {
+	req := h.newNetlinkRequest(syscall.RTM_GETROUTE, syscall.NLM_F_DUMP)
 	infmsg := nl.NewIfInfomsg(family)
 	req.AddData(infmsg)
 
@@ -249,6 +335,40 @@ func deserializeRoute(m []byte) (Route, error) {
 			route.Priority = int(native.Uint32(attr.Value[0:4]))
 		case syscall.RTA_TABLE:
 			route.Table = int(native.Uint32(attr.Value[0:4]))
+		case syscall.RTA_MULTIPATH:
+			parseRtNexthop := func(value []byte) (*NexthopInfo, []byte, error) {
+				if len(value) < syscall.SizeofRtNexthop {
+					return nil, nil, fmt.Errorf("Lack of bytes")
+				}
+				nh := nl.DeserializeRtNexthop(value)
+				if len(value) < int(nh.RtNexthop.Len) {
+					return nil, nil, fmt.Errorf("Lack of bytes")
+				}
+				info := &NexthopInfo{
+					LinkIndex: int(nh.RtNexthop.Ifindex),
+					Hops:      int(nh.RtNexthop.Hops),
+				}
+				attrs, err := nl.ParseRouteAttr(value[syscall.SizeofRtNexthop:int(nh.RtNexthop.Len)])
+				if err != nil {
+					return nil, nil, err
+				}
+				for _, attr := range attrs {
+					switch attr.Attr.Type {
+					case syscall.RTA_GATEWAY:
+						info.Gw = net.IP(attr.Value)
+					}
+				}
+				return info, value[int(nh.RtNexthop.Len):], nil
+			}
+			rest := attr.Value
+			for len(rest) > 0 {
+				info, buf, err := parseRtNexthop(rest)
+				if err != nil {
+					return route, err
+				}
+				route.MultiPath = append(route.MultiPath, info)
+				rest = buf
+			}
 		}
 	}
 	return route, nil
@@ -257,7 +377,13 @@ func deserializeRoute(m []byte) (Route, error) {
 // RouteGet gets a route to a specific destination from the host system.
 // Equivalent to: 'ip route get'.
 func RouteGet(destination net.IP) ([]Route, error) {
-	req := nl.NewNetlinkRequest(syscall.RTM_GETROUTE, syscall.NLM_F_REQUEST)
+	return pkgHandle.RouteGet(destination)
+}
+
+// RouteGet gets a route to a specific destination from the host system.
+// Equivalent to: 'ip route get'.
+func (h *Handle) RouteGet(destination net.IP) ([]Route, error) {
+	req := h.newNetlinkRequest(syscall.RTM_GETROUTE, syscall.NLM_F_REQUEST)
 	family := nl.GetIPFamily(destination)
 	var destinationData []byte
 	var bitlen uint8
@@ -296,7 +422,17 @@ func RouteGet(destination net.IP) ([]Route, error) {
 // RouteSubscribe takes a chan down which notifications will be sent
 // when routes are added or deleted. Close the 'done' chan to stop subscription.
 func RouteSubscribe(ch chan<- RouteUpdate, done <-chan struct{}) error {
-	s, err := nl.Subscribe(syscall.NETLINK_ROUTE, syscall.RTNLGRP_IPV4_ROUTE, syscall.RTNLGRP_IPV6_ROUTE)
+	return routeSubscribeAt(netns.None(), netns.None(), ch, done)
+}
+
+// RouteSubscribeAt works like RouteSubscribe plus it allows the caller
+// to choose the network namespace in which to subscribe (ns).
+func RouteSubscribeAt(ns netns.NsHandle, ch chan<- RouteUpdate, done <-chan struct{}) error {
+	return routeSubscribeAt(ns, netns.None(), ch, done)
+}
+
+func routeSubscribeAt(newNs, curNs netns.NsHandle, ch chan<- RouteUpdate, done <-chan struct{}) error {
+	s, err := nl.SubscribeAt(newNs, curNs, syscall.NETLINK_ROUTE, syscall.RTNLGRP_IPV4_ROUTE, syscall.RTNLGRP_IPV6_ROUTE)
 	if err != nil {
 		return err
 	}

@@ -4,23 +4,23 @@ import (
 	"encoding/json"
 	"errors"
 	"runtime"
+	"time"
 
+	"golang.org/x/net/context"
+
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
-	"github.com/docker/docker/daemon/execdriver"
+	"github.com/docker/docker/api/types/versions"
+	"github.com/docker/docker/api/types/versions/v1p20"
+	"github.com/docker/docker/container"
 	"github.com/docker/docker/pkg/ioutils"
-	"github.com/docker/docker/pkg/version"
-	"github.com/docker/engine-api/types"
-	"github.com/docker/engine-api/types/versions/v1p20"
 )
 
 // ContainerStats writes information about the container to the stream
 // given in the config object.
-func (daemon *Daemon) ContainerStats(prefixOrName string, config *backend.ContainerStatsConfig) error {
-	if runtime.GOOS == "windows" {
-		return errors.New("Windows does not support stats")
-	}
+func (daemon *Daemon) ContainerStats(ctx context.Context, prefixOrName string, config *backend.ContainerStatsConfig) error {
 	// Remote API version (used for backwards compatibility)
-	apiVersion := version.Version(config.Version)
+	apiVersion := config.Version
 
 	container, err := daemon.GetContainer(prefixOrName)
 	if err != nil {
@@ -41,15 +41,14 @@ func (daemon *Daemon) ContainerStats(prefixOrName string, config *backend.Contai
 	}
 
 	var preCPUStats types.CPUStats
+	var preRead time.Time
 	getStatJSON := func(v interface{}) *types.StatsJSON {
-		update := v.(*execdriver.ResourceStats)
-		ss := convertStatsToAPITypes(update.Stats)
+		ss := v.(types.StatsJSON)
 		ss.PreCPUStats = preCPUStats
-		ss.MemoryStats.Limit = uint64(update.MemoryLimit)
-		ss.Read = update.Read
-		ss.CPUStats.SystemUsage = update.SystemUsage
+		ss.PreRead = preRead
 		preCPUStats = ss.CPUStats
-		return ss
+		preRead = ss.Read
+		return &ss
 	}
 
 	enc := json.NewEncoder(outStream)
@@ -67,7 +66,10 @@ func (daemon *Daemon) ContainerStats(prefixOrName string, config *backend.Contai
 
 			var statsJSON interface{}
 			statsJSONPost120 := getStatJSON(v)
-			if apiVersion.LessThan("1.21") {
+			if versions.LessThan(apiVersion, "1.21") {
+				if runtime.GOOS == "windows" {
+					return errors.New("API versions pre v1.21 do not support stats on Windows")
+				}
 				var (
 					rxBytes   uint64
 					rxPackets uint64
@@ -118,8 +120,33 @@ func (daemon *Daemon) ContainerStats(prefixOrName string, config *backend.Contai
 			if !config.Stream {
 				return nil
 			}
-		case <-config.Stop:
+		case <-ctx.Done():
 			return nil
 		}
 	}
+}
+
+func (daemon *Daemon) subscribeToContainerStats(c *container.Container) chan interface{} {
+	return daemon.statsCollector.collect(c)
+}
+
+func (daemon *Daemon) unsubscribeToContainerStats(c *container.Container, ch chan interface{}) {
+	daemon.statsCollector.unsubscribe(c, ch)
+}
+
+// GetContainerStats collects all the stats published by a container
+func (daemon *Daemon) GetContainerStats(container *container.Container) (*types.StatsJSON, error) {
+	stats, err := daemon.stats(container)
+	if err != nil {
+		return nil, err
+	}
+
+	// We already have the network stats on Windows directly from HCS.
+	if !container.Config.NetworkDisabled && runtime.GOOS != "windows" {
+		if stats.Networks, err = daemon.getNetworkStats(container); err != nil {
+			return nil, err
+		}
+	}
+
+	return stats, nil
 }

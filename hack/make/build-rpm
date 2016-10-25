@@ -51,8 +51,7 @@ set -e
 	rpmDate="$(date +'%a %b %d %Y')"
 
 	# if go-md2man is available, pre-generate the man pages
-	./man/md2man-all.sh -q || true
-	# TODO decide if it's worth getting go-md2man in _each_ builder environment to avoid this
+	make manpages
 
 	# Convert the CHANGELOG.md file into RPM changelog format
 	VERSION_REGEX="^\W\W (.*) \((.*)\)$"
@@ -71,7 +70,10 @@ set -e
 	builderDir="contrib/builder/rpm/${PACKAGE_ARCH}"
 	pkgs=( $(find "${builderDir}/"*/ -type d) )
 	if [ ! -z "$DOCKER_BUILD_PKGS" ]; then
-		pkgs=( $(echo ${DOCKER_BUILD_PKGS[@]/#/$builderDir\/}) )
+		pkgs=()
+		for p in $DOCKER_BUILD_PKGS; do
+			pkgs+=( "$builderDir/$p" )
+		done
 	fi
 	for dir in "${pkgs[@]}"; do
 		[ -d "$dir" ] || { echo >&2 "skipping nonexistent $dir"; continue; }
@@ -87,8 +89,14 @@ set -e
 		cat > "$DEST/$version/Dockerfile.build" <<-EOF
 			FROM $image
 			COPY . /usr/src/${rpmName}
+			RUN mkdir -p /go/src/github.com/docker && mkdir -p /go/src/github.com/opencontainers
 		EOF
-		if [ "$DOCKER_EXPERIMENTAL" ]; then
+
+		cat >> "$DEST/$version/Dockerfile.build" <<-EOF
+			# Install runc and containerd
+			RUN ./hack/dockerfile/install-binaries.sh runc-dynamic containerd-dynamic
+		EOF
+		if [[ "$VERSION" == *-dev ]] || [ -n "$(git status --porcelain)" ]; then
 			echo 'ENV DOCKER_EXPERIMENTAL 1' >> "$DEST/$version/Dockerfile.build"
 		fi
 		cat >> "$DEST/$version/Dockerfile.build" <<-EOF
@@ -97,7 +105,10 @@ set -e
 			WORKDIR /root/rpmbuild
 			RUN ln -sfv /usr/src/${rpmName}/hack/make/.build-rpm SPECS
 			WORKDIR /root/rpmbuild/SPECS
-			RUN tar -cz -C /usr/src -f /root/rpmbuild/SOURCES/${rpmName}.tar.gz ${rpmName}
+			RUN tar --exclude .git -r -C /usr/src -f /root/rpmbuild/SOURCES/${rpmName}.tar ${rpmName}
+			RUN tar --exclude .git -r -C /go/src/github.com/docker -f /root/rpmbuild/SOURCES/${rpmName}.tar containerd
+			RUN tar --exclude .git -r -C /go/src/github.com/opencontainers -f /root/rpmbuild/SOURCES/${rpmName}.tar runc
+			RUN gzip /root/rpmbuild/SOURCES/${rpmName}.tar
 			RUN { cat /usr/src/${rpmName}/contrib/builder/rpm/${PACKAGE_ARCH}/changelog; } >> ${rpmName}.spec && tail >&2 ${rpmName}.spec
 			RUN rpmbuild -ba \
 				--define '_gitcommit $DOCKER_GITCOMMIT' \
@@ -110,8 +121,12 @@ set -e
 		# selinux policy referencing systemd things won't work on non-systemd versions
 		# of centos or rhel, which we don't support anyways
 		if [ "${suite%.*}" -gt 6 ] && [[ "$version" != opensuse* ]]; then
+			selinuxDir="selinux"
+			if [ -d "./contrib/selinux-$version" ]; then
+				selinuxDir="selinux-${version}"
+			fi
 			cat >> "$DEST/$version/Dockerfile.build" <<-EOF
-				RUN tar -cz -C /usr/src/${rpmName}/contrib -f /root/rpmbuild/SOURCES/${rpmName}-selinux.tar.gz ${rpmName}-selinux
+				RUN tar -cz -C /usr/src/${rpmName}/contrib/${selinuxDir} -f /root/rpmbuild/SOURCES/${rpmName}-selinux.tar.gz ${rpmName}-selinux
 				RUN rpmbuild -ba \
 						--define '_gitcommit $DOCKER_GITCOMMIT' \
 						--define '_release $rpmRelease' \

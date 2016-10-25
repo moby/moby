@@ -1,0 +1,25 @@
+syntax = "proto2";
+
+package docker.protobuf.plugin;
+
+import "google/protobuf/descriptor.proto";
+
+extend google.protobuf.MessageOptions {
+	optional bool deepcopy = 70000 [default=true];
+}
+
+message TLSAuthorization {
+	// Roles contains the acceptable TLS OU roles for the handler.
+	repeated string roles = 1;
+
+	// Insecure is set to true if this method does not require
+	// authorization. NOTE: Specifying both "insecure" and a nonempty
+	// list of roles is invalid. This would fail at codegen time.
+	optional bool insecure = 2;
+}
+
+extend google.protobuf.MethodOptions {
+	// TLSAuthorization contains the authorization parameters for this
+	// method.
+	optional TLSAuthorization tls_authorization = 73626345;
+}

@@ -4,15 +4,22 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/pkg/archive"
-	"github.com/docker/engine-api/types"
+	"github.com/docker/docker/pkg/system"
 )
 
 // ResolvePath resolves the given path in the container to a resource on the
 // host. Returns a resolved path (absolute path to the resource on the host),
 // the absolute path to the resource relative to the container's rootfs, and
-// a error if the path points to outside the container's rootfs.
+// an error if the path points to outside the container's rootfs.
 func (container *Container) ResolvePath(path string) (resolvedPath, absPath string, err error) {
+	// Check if a drive letter supplied, it must be the system drive. No-op except on Windows
+	path, err = system.CheckSystemDriveAndRemoveDriveLetter(path)
+	if err != nil {
+		return "", "", err
+	}
+
 	// Consider the given path as an absolute path in the container.
 	absPath = archive.PreserveTrailingDotOrSeparator(filepath.Join(string(filepath.Separator), path), path)
 

@@ -7,13 +7,14 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/chrootarchive"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/ioutils"
-	"github.com/docker/engine-api/types"
+	"github.com/docker/docker/pkg/system"
 )
 
 // ErrExtractPointNotDirectory is used to convey that the operation to extract
@@ -184,6 +185,12 @@ func (daemon *Daemon) containerExtractToDir(container *container.Container, path
 
 	err = daemon.mountVolumes(container)
 	defer container.UnmountVolumes(true, daemon.LogVolumeEvent)
+	if err != nil {
+		return err
+	}
+
+	// Check if a drive letter supplied, it must be the system drive. No-op except on Windows
+	path, err = system.CheckSystemDriveAndRemoveDriveLetter(path)
 	if err != nil {
 		return err
 	}

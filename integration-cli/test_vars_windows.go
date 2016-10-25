@@ -13,5 +13,3 @@ const (
 	// on `sleep` with a high duration.
 	defaultSleepImage = "busybox"
 )
-
-var defaultSleepCommand = []string{"sleep", "60"}

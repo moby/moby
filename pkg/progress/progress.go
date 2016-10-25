@@ -38,7 +38,7 @@ func (out chanOutput) WriteProgress(p Progress) error {
 	return nil
 }
 
-// ChanOutput returns a Output that writes progress updates to the
+// ChanOutput returns an Output that writes progress updates to the
 // supplied channel.
 func ChanOutput(progressChan chan<- Progress) Output {
 	return chanOutput(progressChan)

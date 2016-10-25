@@ -13,6 +13,19 @@ func printArgs(args []arg) string {
 	return strings.Join(argStr, ", ")
 }
 
+func buildImports(specs []importSpec) string {
+	if len(specs) == 0 {
+		return `import "errors"`
+	}
+	imports := "import(\n"
+	imports += "\t\"errors\"\n"
+	for _, i := range specs {
+		imports += "\t" + i.String() + "\n"
+	}
+	imports += ")"
+	return imports
+}
+
 func marshalType(t string) string {
 	switch t {
 	case "error":
@@ -42,8 +55,16 @@ var templFuncs = template.FuncMap{
 	"marshalType": marshalType,
 	"isErr":       isErr,
 	"lower":       strings.ToLower,
-	"title":       strings.Title,
+	"title":       title,
 	"tag":         buildTag,
+	"imports":     buildImports,
+}
+
+func title(s string) string {
+	if strings.ToLower(s) == "id" {
+		return "ID"
+	}
+	return strings.Title(s)
 }
 
 var generatedTempl = template.Must(template.New("rpc_cient").Funcs(templFuncs).Parse(`
@@ -53,7 +74,7 @@ var generatedTempl = template.Must(template.New("rpc_cient").Funcs(templFuncs).P
 
 package {{ .Name }}
 
-import "errors"
+{{ imports .Imports }}
 
 type client interface{
 	Call(string, interface{}, interface{}) error

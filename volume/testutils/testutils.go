@@ -1,4 +1,4 @@
-package volumetestutils
+package testutils
 
 import (
 	"fmt"
@@ -19,35 +19,42 @@ func (NoopVolume) DriverName() string { return "noop" }
 func (NoopVolume) Path() string { return "noop" }
 
 // Mount mounts the volume in the container
-func (NoopVolume) Mount() (string, error) { return "noop", nil }
+func (NoopVolume) Mount(_ string) (string, error) { return "noop", nil }
 
 // Unmount unmounts the volume from the container
-func (NoopVolume) Unmount() error { return nil }
+func (NoopVolume) Unmount(_ string) error { return nil }
+
+// Status proivdes low-level details about the volume
+func (NoopVolume) Status() map[string]interface{} { return nil }
 
 // FakeVolume is a fake volume with a random name
 type FakeVolume struct {
-	name string
+	name       string
+	driverName string
 }
 
 // NewFakeVolume creates a new fake volume for testing
-func NewFakeVolume(name string) volume.Volume {
-	return FakeVolume{name: name}
+func NewFakeVolume(name string, driverName string) volume.Volume {
+	return FakeVolume{name: name, driverName: driverName}
 }
 
 // Name is the name of the volume
 func (f FakeVolume) Name() string { return f.name }
 
 // DriverName is the name of the driver
-func (FakeVolume) DriverName() string { return "fake" }
+func (f FakeVolume) DriverName() string { return f.driverName }
 
 // Path is the filesystem path to the volume
 func (FakeVolume) Path() string { return "fake" }
 
 // Mount mounts the volume in the container
-func (FakeVolume) Mount() (string, error) { return "fake", nil }
+func (FakeVolume) Mount(_ string) (string, error) { return "fake", nil }
 
 // Unmount unmounts the volume from the container
-func (FakeVolume) Unmount() error { return nil }
+func (FakeVolume) Unmount(_ string) error { return nil }
+
+// Status proivdes low-level details about the volume
+func (FakeVolume) Status() map[string]interface{} { return nil }
 
 // FakeDriver is a driver that generates fake volumes
 type FakeDriver struct {
@@ -72,7 +79,7 @@ func (d *FakeDriver) Create(name string, opts map[string]string) (volume.Volume,
 	if opts != nil && opts["error"] != "" {
 		return nil, fmt.Errorf(opts["error"])
 	}
-	v := NewFakeVolume(name)
+	v := NewFakeVolume(name, d.name)
 	d.vols[name] = v
 	return v, nil
 }
@@ -101,4 +108,9 @@ func (d *FakeDriver) Get(name string) (volume.Volume, error) {
 		return v, nil
 	}
 	return nil, fmt.Errorf("no such volume")
+}
+
+// Scope returns the local scope
+func (*FakeDriver) Scope() string {
+	return "local"
 }

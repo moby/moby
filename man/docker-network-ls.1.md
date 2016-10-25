@@ -7,6 +7,7 @@ docker-network-ls - list networks
 # SYNOPSIS
 **docker network ls**
 [**-f**|**--filter**[=*[]*]]
+[**--format**=*"TEMPLATE"*]
 [**--no-trunc**[=*true*|*false*]]
 [**-q**|**--quiet**[=*true*|*false*]]
 [**--help**]
@@ -46,9 +47,92 @@ Multiple filter flags are combined as an `OR` filter. For example,
 
 The currently supported filters are:
 
+* driver
 * id (network's id)
+* label (`label=<key>` or `label=<key>=<value>`)
 * name (network's name)
 * type (custom|builtin)
+
+#### Driver
+
+The `driver` filter matches networks based on their driver.
+
+The following example matches networks with the `bridge` driver:
+
+```bash
+$ docker network ls --filter driver=bridge
+NETWORK ID          NAME                DRIVER
+db9db329f835        test1               bridge
+f6e212da9dfd        test2               bridge
+```
+
+#### ID
+
+The `id` filter matches on all or part of a network's ID.
+
+The following filter matches all networks with an ID containing the
+`63d1ff1f77b0...` string.
+
+```bash
+$ docker network ls --filter id=63d1ff1f77b07ca51070a8c227e962238358bd310bde1529cf62e6c307ade161
+NETWORK ID          NAME                DRIVER
+63d1ff1f77b0        dev                 bridge
+```
+
+You can also filter for a substring in an ID as this shows:
+
+```bash
+$ docker network ls --filter id=95e74588f40d
+NETWORK ID          NAME                DRIVER
+95e74588f40d        foo                 bridge
+
+$ docker network ls --filter id=95e
+NETWORK ID          NAME                DRIVER
+95e74588f40d        foo                 bridge
+```
+
+#### Label
+
+The `label` filter matches networks based on the presence of a `label` alone or a `label` and a
+value.
+
+The following filter matches networks with the `usage` label regardless of its value.
+
+```bash
+$ docker network ls -f "label=usage"
+NETWORK ID          NAME                DRIVER
+db9db329f835        test1               bridge              
+f6e212da9dfd        test2               bridge
+```
+
+The following filter matches networks with the `usage` label with the `prod` value.
+
+```bash
+$ docker network ls -f "label=usage=prod"
+NETWORK ID          NAME                DRIVER
+f6e212da9dfd        test2               bridge
+```
+
+#### Name
+
+The `name` filter matches on all or part of a network's name.
+
+The following filter matches all networks with a name containing the `foobar` string.
+
+```bash
+$ docker network ls --filter name=foobar
+NETWORK ID          NAME                DRIVER
+06e7eef0a170        foobar              bridge
+```
+
+You can also filter for a substring in a name as this shows:
+
+```bash
+$ docker network ls --filter name=foo
+NETWORK ID          NAME                DRIVER
+95e74588f40d        foo                 bridge
+06e7eef0a170        foobar              bridge
+```
 
 #### Type
 
@@ -74,62 +158,28 @@ $ docker network rm `docker network ls --filter type=custom -q`
 A warning will be issued when trying to remove a network that has containers
 attached.
 
-#### Name
-
-The `name` filter matches on all or part of a network's name.
-
-The following filter matches all networks with a name containing the `foobar` string.
-
-```bash
-$ docker network ls --filter name=foobar
-NETWORK ID          NAME                DRIVER
-06e7eef0a170        foobar              bridge
-```
-
-You can also filter for a substring in a name as this shows:
-
-```bash
-$ docker ps --filter name=foo
-NETWORK ID          NAME                DRIVER
-95e74588f40d        foo                 bridge
-06e7eef0a170        foobar              bridge
-```
-
-#### ID
-
-The `id` filter matches on all or part of a network's ID.
-
-The following filter matches all networks with a name containing the
-`06e7eef01700` string.
-
-```bash
-$ docker network ls --filter id=63d1ff1f77b07ca51070a8c227e962238358bd310bde1529cf62e6c307ade161
-NETWORK ID          NAME                DRIVER
-63d1ff1f77b0        dev                 bridge
-```
-
-You can also filter for a substring in a ID as this shows:
-
-```bash
-$ docker ps --filter id=95e74588f40d
-NETWORK ID          NAME                DRIVER
-95e74588f40d        foo                 bridge
-
-$ docker ps --filter id=95e
-NETWORK ID          NAME                DRIVER
-95e74588f40d        foo                 bridge
-```
-
 # OPTIONS
 
 **-f**, **--filter**=*[]*
   filter output based on conditions provided. 
 
+**--format**="*TEMPLATE*"
+  Pretty-print networks using a Go template.
+  Valid placeholders:
+     .ID - Network ID
+     .Name - Network name
+     .Driver - Network driver
+     .Scope - Network scope (local, global)
+     .IPv6 - Whether IPv6 is enabled on the network or not
+     .Internal - Whether the network is internal or not
+     .Labels - All labels assigned to the network
+     .Label - Value of a specific label for this network. For example `{{.Label "project.version"}}`
+
 **--no-trunc**=*true*|*false*
   Do not truncate the output
 
 **-q**, **--quiet**=*true*|*false*
-  Only display numeric IDs
+  Only display network IDs
 
 **--help**
   Print usage statement

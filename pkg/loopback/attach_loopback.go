@@ -47,7 +47,7 @@ func openNextAvailableLoopback(index int, sparseFile *os.File) (loopFile *os.Fil
 		fi, err := os.Stat(target)
 		if err != nil {
 			if os.IsNotExist(err) {
-				logrus.Errorf("There are no more loopback devices available.")
+				logrus.Error("There are no more loopback devices available.")
 			}
 			return nil, ErrAttachLoopbackDevice
 		}
@@ -127,7 +127,7 @@ func AttachLoopDevice(sparseName string) (loop *os.File, err error) {
 
 		// If the call failed, then free the loopback device
 		if err := ioctlLoopClrFd(loopFile.Fd()); err != nil {
-			logrus.Errorf("Error while cleaning up the loopback device")
+			logrus.Error("Error while cleaning up the loopback device")
 		}
 		loopFile.Close()
 		return nil, ErrAttachLoopbackDevice

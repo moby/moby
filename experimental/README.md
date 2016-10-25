@@ -2,7 +2,7 @@
 
 This page contains a list of features in the Docker engine which are
 experimental. Experimental features are **not** ready for production. They are
-provided for test and evaluation in your sandbox environments.  
+provided for test and evaluation in your sandbox environments.
 
 The information below describes each feature and the GitHub pull requests and
 issues associated with it. If necessary, links are provided to additional
@@ -49,12 +49,12 @@ refined or entirely removed.
 To download the latest experimental `docker` binary for Linux,
 use the following URLs:
 
-    https://experimental.docker.com/builds/Linux/i386/docker-latest
+    https://experimental.docker.com/builds/Linux/i386/docker-latest.tgz
 
-    https://experimental.docker.com/builds/Linux/x86_64/docker-latest
+    https://experimental.docker.com/builds/Linux/x86_64/docker-latest.tgz
 
 After downloading the appropriate binary, you can follow the instructions
-[here](https://docs.docker.com/installation/binaries/#get-the-docker-binary) to run the `docker` daemon.
+[here](https://docs.docker.com/engine/installation/binaries/#/get-the-docker-engine-binaries) to run the `docker` daemon.
 
 > **Note**
 >
@@ -72,10 +72,12 @@ to build a Docker binary with the experimental features enabled:
 ## Current experimental features
 
  * [External graphdriver plugins](plugins_graphdriver.md)
- * The user namespaces feature has graduated from experimental.
+ * [Ipvlan Network Drivers](vlan-networks.md)
+ * [Docker Stacks and Distributed Application Bundles](docker-stacks-and-bundles.md)
+ * [Checkpoint & Restore](checkpoint-restore.md)
 
 ## How to comment on an experimental feature
 
-Each feature's documentation includes a list of proposal pull requests or PRs associated with the feature. If you want to comment on or suggest a change to a feature, please add it to the existing feature PR.  
+Each feature's documentation includes a list of proposal pull requests or PRs associated with the feature. If you want to comment on or suggest a change to a feature, please add it to the existing feature PR.
 
-Issues or problems with a feature? Inquire for help on the `#docker` IRC channel or in on the [Docker Google group](https://groups.google.com/forum/#!forum/docker-user).  
+Issues or problems with a feature? Inquire for help on the `#docker` IRC channel or in on the [Docker Google group](https://groups.google.com/forum/#!forum/docker-user).

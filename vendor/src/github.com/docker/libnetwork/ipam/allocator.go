@@ -3,6 +3,7 @@ package ipam
 import (
 	"fmt"
 	"net"
+	"sort"
 	"sync"
 
 	log "github.com/Sirupsen/logrus"
@@ -58,9 +59,6 @@ func NewAllocator(lcDs, glDs datastore.DataStore) (*Allocator, error) {
 		{localAddressSpace, lcDs},
 		{globalAddressSpace, glDs},
 	} {
-		if aspc.ds == nil {
-			continue
-		}
 		a.initializeAddressSpace(aspc.as, aspc.ds)
 	}
 
@@ -143,15 +141,22 @@ func (a *Allocator) checkConsistency(as string) {
 }
 
 func (a *Allocator) initializeAddressSpace(as string, ds datastore.DataStore) error {
+	scope := ""
+	if ds != nil {
+		scope = ds.Scope()
+	}
+
 	a.Lock()
-	if _, ok := a.addrSpaces[as]; ok {
-		a.Unlock()
-		return types.ForbiddenErrorf("tried to add an axisting address space: %s", as)
+	if currAS, ok := a.addrSpaces[as]; ok {
+		if currAS.ds != nil {
+			a.Unlock()
+			return types.ForbiddenErrorf("a datastore is already configured for the address space %s", as)
+		}
 	}
 	a.addrSpaces[as] = &addrSpace{
 		subnets: map[SubnetKey]*PoolData{},
 		id:      dsConfigKey + "/" + as,
-		scope:   ds.Scope(),
+		scope:   scope,
 		ds:      ds,
 		alloc:   a,
 	}
@@ -313,10 +318,6 @@ func (a *Allocator) insertBitMask(key SubnetKey, pool *net.IPNet) error {
 	//log.Debugf("Inserting bitmask (%s, %s)", key.String(), pool.String())
 
 	store := a.getStore(key.AddressSpace)
-	if store == nil {
-		return types.InternalErrorf("could not find store for address space %s while inserting bit mask", key.AddressSpace)
-	}
-
 	ipVer := getAddressVersion(pool.IP)
 	ones, bits := pool.Mask.Size()
 	numAddresses := uint64(1 << uint(bits-ones))
@@ -401,13 +402,6 @@ func (a *Allocator) getPredefinedPool(as string, ipV6 bool) (*net.IPNet, error) 
 		}
 
 		if !aSpace.contains(as, nw) {
-			if as == localAddressSpace {
-				// Check if nw overlap with system routes, name servers
-				if _, err := ipamutils.FindAvailableNetwork([]*net.IPNet{nw}); err == nil {
-					return nw, nil
-				}
-				continue
-			}
 			return nw, nil
 		}
 	}
@@ -563,13 +557,18 @@ func (a *Allocator) getAddress(nw *net.IPNet, bitmask *bitseq.Handle, prefAddres
 func (a *Allocator) DumpDatabase() string {
 	a.Lock()
 	aspaces := make(map[string]*addrSpace, len(a.addrSpaces))
+	orderedAS := make([]string, 0, len(a.addrSpaces))
 	for as, aSpace := range a.addrSpaces {
+		orderedAS = append(orderedAS, as)
 		aspaces[as] = aSpace
 	}
 	a.Unlock()
 
+	sort.Strings(orderedAS)
+
 	var s string
-	for as, aSpace := range aspaces {
+	for _, as := range orderedAS {
+		aSpace := aspaces[as]
 		s = fmt.Sprintf("\n\n%s Config", as)
 		aSpace.Lock()
 		for k, config := range aSpace.subnets {

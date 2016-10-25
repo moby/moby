@@ -3,14 +3,15 @@ package v1
 import (
 	"encoding/json"
 	"fmt"
+	"reflect"
 	"regexp"
 	"strings"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/digest"
+	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
-	"github.com/docker/docker/pkg/version"
 )
 
 var validHex = regexp.MustCompile(`^([a-f0-9]{64})$`)
@@ -18,7 +19,7 @@ var validHex = regexp.MustCompile(`^([a-f0-9]{64})$`)
 // noFallbackMinVersion is the minimum version for which v1compatibility
 // information will not be marshaled through the Image struct to remove
 // blank fields.
-var noFallbackMinVersion = version.Version("1.8.3")
+var noFallbackMinVersion = "1.8.3"
 
 // HistoryFromConfig creates a History struct from v1 configuration JSON
 func HistoryFromConfig(imageJSON []byte, emptyLayer bool) (image.History, error) {
@@ -31,7 +32,7 @@ func HistoryFromConfig(imageJSON []byte, emptyLayer bool) (image.History, error)
 	return image.History{
 		Author:     v1Image.Author,
 		Created:    v1Image.Created,
-		CreatedBy:  strings.Join(v1Image.ContainerConfig.Cmd.Slice(), " "),
+		CreatedBy:  strings.Join(v1Image.ContainerConfig.Cmd, " "),
 		Comment:    v1Image.Comment,
 		EmptyLayer: emptyLayer,
 	}, nil
@@ -76,7 +77,7 @@ func MakeConfigFromV1Config(imageJSON []byte, rootfs *image.RootFS, history []im
 		return nil, err
 	}
 
-	useFallback := version.Version(dver.DockerVersion).LessThan(noFallbackMinVersion)
+	useFallback := versions.LessThan(dver.DockerVersion, noFallbackMinVersion)
 
 	if useFallback {
 		var v1Image image.V1Image
@@ -118,8 +119,15 @@ func MakeV1ConfigFromConfig(img *image.Image, v1ID, parentV1ID string, throwaway
 	}
 
 	// Delete fields that didn't exist in old manifest
-	delete(configAsMap, "rootfs")
-	delete(configAsMap, "history")
+	imageType := reflect.TypeOf(img).Elem()
+	for i := 0; i < imageType.NumField(); i++ {
+		f := imageType.Field(i)
+		jsonName := strings.Split(f.Tag.Get("json"), ",")[0]
+		// Parent is handled specially below.
+		if jsonName != "" && jsonName != "parent" {
+			delete(configAsMap, jsonName)
+		}
+	}
 	configAsMap["id"] = rawJSON(v1ID)
 	if parentV1ID != "" {
 		configAsMap["parent"] = rawJSON(parentV1ID)
@@ -142,7 +150,7 @@ func rawJSON(value interface{}) *json.RawMessage {
 // ValidateID checks whether an ID string is a valid image ID.
 func ValidateID(id string) error {
 	if ok := validHex.MatchString(id); !ok {
-		return fmt.Errorf("image ID '%s' is invalid ", id)
+		return fmt.Errorf("image ID %q is invalid", id)
 	}
 	return nil
 }

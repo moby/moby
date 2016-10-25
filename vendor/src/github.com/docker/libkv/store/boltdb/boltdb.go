@@ -19,8 +19,6 @@ var (
 	// ErrMultipleEndpointsUnsupported is thrown when multiple endpoints specified for
 	// BoltDB. Endpoint has to be a local file path
 	ErrMultipleEndpointsUnsupported = errors.New("boltdb supports one endpoint and should be a file path")
-	// ErrBoltBucketNotFound is thrown when specified BoltBD bucket doesn't exist in the DB
-	ErrBoltBucketNotFound = errors.New("boltdb bucket doesn't exist")
 	// ErrBoltBucketOptionMissing is thrown when boltBcuket config option is missing
 	ErrBoltBucketOptionMissing = errors.New("boltBucket config option missing")
 )
@@ -141,7 +139,7 @@ func (b *BoltDB) Get(key string) (*store.KVPair, error) {
 	err = db.View(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket(b.boltBucket)
 		if bucket == nil {
-			return ErrBoltBucketNotFound
+			return store.ErrKeyNotFound
 		}
 
 		v := bucket.Get([]byte(key))
@@ -217,7 +215,7 @@ func (b *BoltDB) Delete(key string) error {
 	err = db.Update(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket(b.boltBucket)
 		if bucket == nil {
-			return ErrBoltBucketNotFound
+			return store.ErrKeyNotFound
 		}
 		err := bucket.Delete([]byte(key))
 		return err
@@ -243,7 +241,7 @@ func (b *BoltDB) Exists(key string) (bool, error) {
 	err = db.View(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket(b.boltBucket)
 		if bucket == nil {
-			return ErrBoltBucketNotFound
+			return store.ErrKeyNotFound
 		}
 
 		val = bucket.Get([]byte(key))
@@ -276,7 +274,7 @@ func (b *BoltDB) List(keyPrefix string) ([]*store.KVPair, error) {
 	err = db.View(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket(b.boltBucket)
 		if bucket == nil {
-			return ErrBoltBucketNotFound
+			return store.ErrKeyNotFound
 		}
 
 		cursor := bucket.Cursor()
@@ -326,7 +324,7 @@ func (b *BoltDB) AtomicDelete(key string, previous *store.KVPair) (bool, error) 
 	err = db.Update(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket(b.boltBucket)
 		if bucket == nil {
-			return ErrBoltBucketNotFound
+			return store.ErrKeyNotFound
 		}
 
 		val = bucket.Get([]byte(key))
@@ -370,7 +368,7 @@ func (b *BoltDB) AtomicPut(key string, value []byte, previous *store.KVPair, opt
 		bucket := tx.Bucket(b.boltBucket)
 		if bucket == nil {
 			if previous != nil {
-				return ErrBoltBucketNotFound
+				return store.ErrKeyNotFound
 			}
 			bucket, err = tx.CreateBucket(b.boltBucket)
 			if err != nil {
@@ -381,7 +379,7 @@ func (b *BoltDB) AtomicPut(key string, value []byte, previous *store.KVPair, opt
 		// doesn't exist in the DB.
 		val = bucket.Get([]byte(key))
 		if previous == nil && len(val) != 0 {
-			return store.ErrKeyModified
+			return store.ErrKeyExists
 		}
 		if previous != nil {
 			if len(val) == 0 {
@@ -440,7 +438,7 @@ func (b *BoltDB) DeleteTree(keyPrefix string) error {
 	err = db.Update(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket(b.boltBucket)
 		if bucket == nil {
-			return ErrBoltBucketNotFound
+			return store.ErrKeyNotFound
 		}
 
 		cursor := bucket.Cursor()

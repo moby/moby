@@ -9,7 +9,7 @@ import (
 )
 
 func TestBytesPipeRead(t *testing.T) {
-	buf := NewBytesPipe(nil)
+	buf := NewBytesPipe()
 	buf.Write([]byte("12"))
 	buf.Write([]byte("34"))
 	buf.Write([]byte("56"))
@@ -49,14 +49,14 @@ func TestBytesPipeRead(t *testing.T) {
 }
 
 func TestBytesPipeWrite(t *testing.T) {
-	buf := NewBytesPipe(nil)
+	buf := NewBytesPipe()
 	buf.Write([]byte("12"))
 	buf.Write([]byte("34"))
 	buf.Write([]byte("56"))
 	buf.Write([]byte("78"))
 	buf.Write([]byte("90"))
-	if string(buf.buf[0]) != "1234567890" {
-		t.Fatalf("Buffer %s, must be %s", buf.buf, "1234567890")
+	if buf.buf[0].String() != "1234567890" {
+		t.Fatalf("Buffer %q, must be %q", buf.buf[0].String(), "1234567890")
 	}
 }
 
@@ -86,7 +86,7 @@ func TestBytesPipeWriteRandomChunks(t *testing.T) {
 		expected := hex.EncodeToString(hash.Sum(nil))
 
 		// write/read through buffer
-		buf := NewBytesPipe(nil)
+		buf := NewBytesPipe()
 		hash.Reset()
 
 		done := make(chan struct{})
@@ -124,9 +124,10 @@ func TestBytesPipeWriteRandomChunks(t *testing.T) {
 }
 
 func BenchmarkBytesPipeWrite(b *testing.B) {
+	testData := []byte("pretty short line, because why not?")
 	for i := 0; i < b.N; i++ {
 		readBuf := make([]byte, 1024)
-		buf := NewBytesPipe(nil)
+		buf := NewBytesPipe()
 		go func() {
 			var err error
 			for err == nil {
@@ -134,7 +135,7 @@ func BenchmarkBytesPipeWrite(b *testing.B) {
 			}
 		}()
 		for j := 0; j < 1000; j++ {
-			buf.Write([]byte("pretty short line, because why not?"))
+			buf.Write(testData)
 		}
 		buf.Close()
 	}
@@ -144,7 +145,7 @@ func BenchmarkBytesPipeRead(b *testing.B) {
 	rd := make([]byte, 512)
 	for i := 0; i < b.N; i++ {
 		b.StopTimer()
-		buf := NewBytesPipe(nil)
+		buf := NewBytesPipe()
 		for j := 0; j < 500; j++ {
 			buf.Write(make([]byte, 1024))
 		}

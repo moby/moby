@@ -15,7 +15,7 @@ var (
 	ErrNoSuchKey = errors.New("provided key does not exist")
 )
 
-// Registrar stores indexes a list of keys and their registered names as well as indexes names and the key that they are registred to
+// Registrar stores indexes a list of keys and their registered names as well as indexes names and the key that they are registered to
 // Names must be unique.
 // Registrar is safe for concurrent access.
 type Registrar struct {

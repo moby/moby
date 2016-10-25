@@ -8,7 +8,7 @@
 // 3. logman stop -ets DockerContainerLogs
 // 4. You can then convert the etl log file to XML using: tracerpt -y trace.etl
 //
-// Each container log message generates a ETW event that also contains:
+// Each container log message generates an ETW event that also contains:
 // the container name and ID, the timestamp, and the stream type.
 package etwlogs
 

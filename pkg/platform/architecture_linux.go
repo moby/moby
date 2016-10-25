@@ -6,7 +6,7 @@ import (
 	"syscall"
 )
 
-// runtimeArchitecture get the name of the current architecture (x86, x86_64, …)
+// runtimeArchitecture gets the name of the current architecture (x86, x86_64, …)
 func runtimeArchitecture() (string, error) {
 	utsname := &syscall.Utsname{}
 	if err := syscall.Uname(utsname); err != nil {

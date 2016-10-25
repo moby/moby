@@ -53,12 +53,12 @@ type ManifestService interface {
 	// Delete removes the manifest specified by the given digest. Deleting
 	// a manifest that doesn't exist will return ErrManifestNotFound
 	Delete(ctx context.Context, dgst digest.Digest) error
+}
 
-	// Enumerate fills 'manifests' with the manifests in this service up
-	// to the size of 'manifests' and returns 'n' for the number of entries
-	// which were filled.  'last' contains an offset in the manifest set
-	// and can be used to resume iteration.
-	//Enumerate(ctx context.Context, manifests []Manifest, last Manifest) (n int, err error)
+// ManifestEnumerator enables iterating over manifests
+type ManifestEnumerator interface {
+	// Enumerate calls ingester for each manifest.
+	Enumerate(ctx context.Context, ingester func(digest.Digest) error) error
 }
 
 // Describable is an interface for descriptors

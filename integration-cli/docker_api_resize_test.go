@@ -8,7 +8,7 @@ import (
 	"github.com/go-check/check"
 )
 
-func (s *DockerSuite) TestResizeApiResponse(c *check.C) {
+func (s *DockerSuite) TestResizeAPIResponse(c *check.C) {
 	out, _ := runSleepingContainer(c, "-d")
 	cleanedContainerID := strings.TrimSpace(out)
 
@@ -18,7 +18,7 @@ func (s *DockerSuite) TestResizeApiResponse(c *check.C) {
 	c.Assert(err, check.IsNil)
 }
 
-func (s *DockerSuite) TestResizeApiHeightWidthNoInt(c *check.C) {
+func (s *DockerSuite) TestResizeAPIHeightWidthNoInt(c *check.C) {
 	out, _ := runSleepingContainer(c, "-d")
 	cleanedContainerID := strings.TrimSpace(out)
 
@@ -28,7 +28,7 @@ func (s *DockerSuite) TestResizeApiHeightWidthNoInt(c *check.C) {
 	c.Assert(err, check.IsNil)
 }
 
-func (s *DockerSuite) TestResizeApiResponseWhenContainerNotStarted(c *check.C) {
+func (s *DockerSuite) TestResizeAPIResponseWhenContainerNotStarted(c *check.C) {
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "true")
 	cleanedContainerID := strings.TrimSpace(out)
 
@@ -40,5 +40,5 @@ func (s *DockerSuite) TestResizeApiResponseWhenContainerNotStarted(c *check.C) {
 	c.Assert(status, check.Equals, http.StatusInternalServerError)
 	c.Assert(err, check.IsNil)
 
-	c.Assert(string(body), checker.Contains, "is not running", check.Commentf("resize should fail with message 'Container is not running'"))
+	c.Assert(getErrorMessage(c, body), checker.Contains, "is not running", check.Commentf("resize should fail with message 'Container is not running'"))
 }

@@ -91,7 +91,7 @@ $ docker network inspect simple-network
             "Config": [
                 {
                     "Subnet": "172.22.0.0/16",
-                    "Gateway": "172.22.0.1/16"
+                    "Gateway": "172.22.0.1"
                 }
             ]
         },
@@ -103,7 +103,7 @@ $ docker network inspect simple-network
 
 # OPTIONS
 **-f**, **--format**=""
-  Format the output using the given go template.
+  Format the output using the given Go template.
 
 **--help**
   Print usage statement

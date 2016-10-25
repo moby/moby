@@ -5,6 +5,8 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+
+	"github.com/docker/docker/pkg/ioutils"
 )
 
 // Store implements a K/V store for mapping distribution-related IDs
@@ -56,14 +58,10 @@ func (store *FSMetadataStore) Set(namespace, key string, value []byte) error {
 	defer store.Unlock()
 
 	path := store.path(namespace, key)
-	tempFilePath := path + ".tmp"
 	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
 		return err
 	}
-	if err := ioutil.WriteFile(tempFilePath, value, 0644); err != nil {
-		return err
-	}
-	return os.Rename(tempFilePath, path)
+	return ioutils.AtomicWriteFile(path, value, 0644)
 }
 
 // Delete removes data indexed by namespace and key. The data file named after

@@ -1,4 +1,4 @@
-// +build linux freebsd
+// +build linux freebsd solaris darwin
 
 package builtin
 
@@ -8,6 +8,7 @@ import (
 	"github.com/docker/libnetwork/datastore"
 	"github.com/docker/libnetwork/ipam"
 	"github.com/docker/libnetwork/ipamapi"
+	"github.com/docker/libnetwork/ipamutils"
 )
 
 // Init registers the built-in ipam service with libnetwork
@@ -28,10 +29,15 @@ func Init(ic ipamapi.Callback, l, g interface{}) error {
 			return fmt.Errorf("incorrect global datastore passed to built-in ipam init")
 		}
 	}
+
+	ipamutils.InitNetworks()
+
 	a, err := ipam.NewAllocator(localDs, globalDs)
 	if err != nil {
 		return err
 	}
 
-	return ic.RegisterIpamDriver(ipamapi.DefaultIPAM, a)
+	cps := &ipamapi.Capability{RequiresRequestReplay: true}
+
+	return ic.RegisterIpamDriverWithCapabilities(ipamapi.DefaultIPAM, a, cps)
 }

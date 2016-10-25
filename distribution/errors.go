@@ -8,6 +8,7 @@ import (
 	"github.com/docker/distribution/registry/api/errcode"
 	"github.com/docker/distribution/registry/api/v2"
 	"github.com/docker/distribution/registry/client"
+	"github.com/docker/distribution/registry/client/auth"
 	"github.com/docker/docker/distribution/xfer"
 )
 
@@ -39,7 +40,11 @@ type fallbackError struct {
 
 // Error renders the FallbackError as a string.
 func (f fallbackError) Error() string {
-	return f.err.Error()
+	return f.Cause().Error()
+}
+
+func (f fallbackError) Cause() error {
+	return f.err
 }
 
 // shouldV2Fallback returns true if this error is a reason to fall back to v1.
@@ -83,13 +88,19 @@ func continueOnError(err error) bool {
 func retryOnError(err error) error {
 	switch v := err.(type) {
 	case errcode.Errors:
-		return retryOnError(v[0])
+		if len(v) != 0 {
+			return retryOnError(v[0])
+		}
 	case errcode.Error:
 		switch v.Code {
-		case errcode.ErrorCodeUnauthorized, errcode.ErrorCodeUnsupported, errcode.ErrorCodeDenied:
+		case errcode.ErrorCodeUnauthorized, errcode.ErrorCodeUnsupported, errcode.ErrorCodeDenied, errcode.ErrorCodeTooManyRequests, v2.ErrorCodeNameUnknown:
 			return xfer.DoNotRetry{Err: err}
 		}
 	case *url.Error:
+		switch v.Err {
+		case auth.ErrNoBasicAuthCredentials, auth.ErrNoToken:
+			return xfer.DoNotRetry{Err: v.Err}
+		}
 		return retryOnError(v.Err)
 	case *client.UnexpectedHTTPResponseError:
 		return xfer.DoNotRetry{Err: err}

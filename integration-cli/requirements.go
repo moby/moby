@@ -29,13 +29,33 @@ var (
 		func() bool { return daemonPlatform == "linux" },
 		"Test requires a Linux daemon",
 	}
+	ExperimentalDaemon = testRequirement{
+		func() bool { return experimentalDaemon },
+		"Test requires an experimental daemon",
+	}
+	NotExperimentalDaemon = testRequirement{
+		func() bool { return !experimentalDaemon },
+		"Test requires a non experimental daemon",
+	}
+	IsAmd64 = testRequirement{
+		func() bool { return os.Getenv("DOCKER_ENGINE_GOARCH") == "amd64" },
+		"Test requires a daemon running on amd64",
+	}
 	NotArm = testRequirement{
 		func() bool { return os.Getenv("DOCKER_ENGINE_GOARCH") != "arm" },
 		"Test requires a daemon not running on ARM",
 	}
+	NotArm64 = testRequirement{
+		func() bool { return os.Getenv("DOCKER_ENGINE_GOARCH") != "arm64" },
+		"Test requires a daemon not running on arm64",
+	}
 	NotPpc64le = testRequirement{
 		func() bool { return os.Getenv("DOCKER_ENGINE_GOARCH") != "ppc64le" },
 		"Test requires a daemon not running on ppc64le",
+	}
+	NotS390X = testRequirement{
+		func() bool { return os.Getenv("DOCKER_ENGINE_GOARCH") != "s390x" },
+		"Test requires a daemon not running on s390x",
 	}
 	SameHostDaemon = testRequirement{
 		func() bool { return isLocalDaemon },
@@ -92,29 +112,31 @@ var (
 			// for now notary binary is built only if we're running inside
 			// container through `make test`. Figure that out by testing if
 			// notary-server binary is in PATH.
-			_, err := exec.LookPath(notaryBinary)
+			_, err := exec.LookPath(notaryServerBinary)
 			return err == nil
 		},
-		fmt.Sprintf("Test requires an environment that can host %s in the same host", notaryBinary),
+		fmt.Sprintf("Test requires an environment that can host %s in the same host", notaryServerBinary),
+	}
+	NotaryServerHosting = testRequirement{
+		func() bool {
+			// for now notary-server binary is built only if we're running inside
+			// container through `make test`. Figure that out by testing if
+			// notary-server binary is in PATH.
+			_, err := exec.LookPath(notaryServerBinary)
+			return err == nil
+		},
+		fmt.Sprintf("Test requires an environment that can host %s in the same host", notaryServerBinary),
 	}
 	NotOverlay = testRequirement{
 		func() bool {
-			cmd := exec.Command("grep", "^overlay / overlay", "/proc/mounts")
-			if err := cmd.Run(); err != nil {
-				return true
-			}
-			return false
+			return !strings.HasPrefix(daemonStorageDriver, "overlay")
 		},
 		"Test requires underlying root filesystem not be backed by overlay.",
 	}
 
 	Devicemapper = testRequirement{
 		func() bool {
-			cmd := exec.Command("grep", "^devicemapper / devicemapper", "/proc/mounts")
-			if err := cmd.Run(); err != nil {
-				return false
-			}
-			return true
+			return strings.HasPrefix(daemonStorageDriver, "devicemapper")
 		},
 		"Test requires underlying root filesystem to be backed by devicemapper.",
 	}
@@ -130,15 +152,43 @@ var (
 		},
 		"Test requires support for IPv6",
 	}
-	NotGCCGO = testRequirement{
+	UserNamespaceROMount = testRequirement{
 		func() bool {
-			out, err := exec.Command("go", "version").Output()
-			if err == nil && strings.Contains(string(out), "gccgo") {
+			// quick case--userns not enabled in this test run
+			if os.Getenv("DOCKER_REMAP_ROOT") == "" {
+				return true
+			}
+			if _, _, err := dockerCmdWithError("run", "--rm", "--read-only", "busybox", "date"); err != nil {
 				return false
 			}
 			return true
 		},
-		"Test requires native Golang compiler instead of GCCGO",
+		"Test cannot be run if user namespaces enabled but readonly mounts fail on this kernel.",
+	}
+	UserNamespaceInKernel = testRequirement{
+		func() bool {
+			if _, err := os.Stat("/proc/self/uid_map"); os.IsNotExist(err) {
+				/*
+				 * This kernel-provided file only exists if user namespaces are
+				 * supported
+				 */
+				return false
+			}
+
+			// We need extra check on redhat based distributions
+			if f, err := os.Open("/sys/module/user_namespace/parameters/enable"); err == nil {
+				defer f.Close()
+				b := make([]byte, 1)
+				_, _ = f.Read(b)
+				if string(b) == "N" {
+					return false
+				}
+				return true
+			}
+
+			return true
+		},
+		"Kernel must have user namespaces configured and enabled.",
 	}
 	NotUserNamespace = testRequirement{
 		func() bool {
@@ -149,6 +199,24 @@ var (
 			return true
 		},
 		"Test cannot be run when remapping root",
+	}
+	IsPausable = testRequirement{
+		func() bool {
+			if daemonPlatform == "windows" {
+				return isolation == "hyperv"
+			}
+			return true
+		},
+		"Test requires containers are pausable.",
+	}
+	NotPausable = testRequirement{
+		func() bool {
+			if daemonPlatform == "windows" {
+				return isolation == "process"
+			}
+			return false
+		},
+		"Test requires containers are not pausable.",
 	}
 )
 

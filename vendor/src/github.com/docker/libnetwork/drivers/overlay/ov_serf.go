@@ -12,8 +12,8 @@ import (
 
 type ovNotify struct {
 	action string
-	eid    string
-	nid    string
+	ep     *endpoint
+	nw     *network
 }
 
 type logWriter struct{}
@@ -40,7 +40,7 @@ func (d *driver) serfInit() error {
 
 	config := serf.DefaultConfig()
 	config.Init()
-	config.MemberlistConfig.BindAddr = d.bindAddress
+	config.MemberlistConfig.BindAddr = d.advertiseAddress
 
 	d.eventCh = make(chan serf.Event, 4)
 	config.EventCh = d.eventCh
@@ -81,13 +81,12 @@ func (d *driver) serfJoin(neighIP string) error {
 }
 
 func (d *driver) notifyEvent(event ovNotify) {
-	n := d.network(event.nid)
-	ep := n.endpoint(event.eid)
+	ep := event.ep
 
 	ePayload := fmt.Sprintf("%s %s %s %s", event.action, ep.addr.IP.String(),
 		net.IP(ep.addr.Mask).String(), ep.mac.String())
 	eName := fmt.Sprintf("jl %s %s %s", d.serfInstance.LocalMember().Addr.String(),
-		event.nid, event.eid)
+		event.nw.id, ep.id)
 
 	if err := d.serfInstance.UserEvent(eName, []byte(ePayload), true); err != nil {
 		logrus.Errorf("Sending user event failed: %v\n", err)

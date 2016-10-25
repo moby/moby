@@ -16,14 +16,19 @@ type DiscoveryType int
 const (
 	// NodeDiscovery represents Node join/leave events provided by discovery
 	NodeDiscovery = iota + 1
-	// DatastoreConfig represents a add/remove datastore event
+	// DatastoreConfig represents an add/remove datastore event
 	DatastoreConfig
+	// EncryptionKeysConfig represents the initial key(s) for performing datapath encryption
+	EncryptionKeysConfig
+	// EncryptionKeysUpdate represents an update to the datapath encryption key(s)
+	EncryptionKeysUpdate
 )
 
 // NodeDiscoveryData represents the structure backing the node discovery data json string
 type NodeDiscoveryData struct {
-	Address string
-	Self    bool
+	Address     string
+	BindAddress string
+	Self        bool
 }
 
 // DatastoreConfigData is the data for the datastore update event message
@@ -32,4 +37,24 @@ type DatastoreConfigData struct {
 	Provider string
 	Address  string
 	Config   interface{}
+}
+
+// DriverEncryptionConfig contains the initial datapath encryption key(s)
+// Key in first position is the primary key, the one to be used in tx.
+// Original key and tag types are []byte and uint64
+type DriverEncryptionConfig struct {
+	Keys [][]byte
+	Tags []uint64
+}
+
+// DriverEncryptionUpdate carries an update to the encryption key(s) as:
+// a new key and/or set a primary key and/or a removal of an existing key.
+// Original key and tag types are []byte and uint64
+type DriverEncryptionUpdate struct {
+	Key        []byte
+	Tag        uint64
+	Primary    []byte
+	PrimaryTag uint64
+	Prune      []byte
+	PruneTag   uint64
 }

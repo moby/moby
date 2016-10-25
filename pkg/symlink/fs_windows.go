@@ -23,8 +23,7 @@ func toShort(path string) (string, error) {
 	}
 	if n > uint32(len(b)) {
 		b = make([]uint16, n)
-		n, err = syscall.GetShortPathName(&p[0], &b[0], uint32(len(b)))
-		if err != nil {
+		if _, err = syscall.GetShortPathName(&p[0], &b[0], uint32(len(b))); err != nil {
 			return "", err
 		}
 	}
@@ -153,4 +152,18 @@ func walkSymlinks(path string) (string, error) {
 		path = dest + string(filepath.Separator) + path
 	}
 	return filepath.Clean(b.String()), nil
+}
+
+func isDriveOrRoot(p string) bool {
+	if p == string(filepath.Separator) {
+		return true
+	}
+
+	length := len(p)
+	if length >= 2 {
+		if p[length-1] == ':' && (('a' <= p[length-2] && p[length-2] <= 'z') || ('A' <= p[length-2] && p[length-2] <= 'Z')) {
+			return true
+		}
+	}
+	return false
 }

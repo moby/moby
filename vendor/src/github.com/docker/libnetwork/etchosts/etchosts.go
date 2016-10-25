@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"os"
 	"regexp"
+	"strings"
 	"sync"
 )
 
@@ -78,10 +79,17 @@ func Build(path, IP, hostname, domainname string, extraContent []Record) error {
 		//set main record
 		var mainRec Record
 		mainRec.IP = IP
+		// User might have provided a FQDN in hostname or split it across hostname
+		// and domainname.  We want the FQDN and the bare hostname.
+		fqdn := hostname
 		if domainname != "" {
-			mainRec.Hosts = fmt.Sprintf("%s.%s %s", hostname, domainname, hostname)
+			fqdn = fmt.Sprintf("%s.%s", fqdn, domainname)
+		}
+		parts := strings.SplitN(fqdn, ".", 2)
+		if len(parts) == 2 {
+			mainRec.Hosts = fmt.Sprintf("%s %s", fqdn, parts[0])
 		} else {
-			mainRec.Hosts = hostname
+			mainRec.Hosts = fqdn
 		}
 		if _, err := mainRec.WriteTo(content); err != nil {
 			return err
@@ -111,25 +119,34 @@ func Add(path string, recs []Record) error {
 		return nil
 	}
 
-	f, err := os.Open(path)
+	b, err := mergeRecords(path, recs)
 	if err != nil {
 		return err
 	}
 
+	return ioutil.WriteFile(path, b, 0644)
+}
+
+func mergeRecords(path string, recs []Record) ([]byte, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+
 	content := bytes.NewBuffer(nil)
 
-	_, err = content.ReadFrom(f)
-	if err != nil {
-		return err
+	if _, err := content.ReadFrom(f); err != nil {
+		return nil, err
 	}
 
 	for _, r := range recs {
 		if _, err := r.WriteTo(content); err != nil {
-			return err
+			return nil, err
 		}
 	}
 
-	return ioutil.WriteFile(path, content.Bytes(), 0644)
+	return content.Bytes(), nil
 }
 
 // Delete deletes an arbitrary number of Records already existing in /etc/hosts file
@@ -151,6 +168,10 @@ func Delete(path string, recs []Record) error {
 loop:
 	for s.Scan() {
 		b := s.Bytes()
+		if len(b) == 0 {
+			continue
+		}
+
 		if b[0] == '#' {
 			buf.Write(b)
 			buf.Write(eol)

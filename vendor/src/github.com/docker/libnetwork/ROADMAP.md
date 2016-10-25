@@ -4,7 +4,7 @@ This document defines the high-level goals of the libnetwork project. See [Proje
 
 ## Long-term Goal
 
-libnetwork project will follow Docker and Linux philosophy of delivering small, highly modular and composable tools that works well independently. 
+libnetwork project will follow Docker and Linux philosophy of delivering small, highly modular and composable tools that work well independently. 
 libnetwork aims to satisfy that composable need for Networking in Containers.
 
 ## Short-term Goals

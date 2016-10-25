@@ -3,8 +3,8 @@ package container
 import (
 	"testing"
 
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/pkg/signal"
-	"github.com/docker/engine-api/types/container"
 )
 
 func TestContainerStopSignal(t *testing.T) {
@@ -32,5 +32,29 @@ func TestContainerStopSignal(t *testing.T) {
 	s = c.StopSignal()
 	if s != 9 {
 		t.Fatalf("Expected 9, got %v", s)
+	}
+}
+
+func TestContainerStopTimeout(t *testing.T) {
+	c := &Container{
+		CommonContainer: CommonContainer{
+			Config: &container.Config{},
+		},
+	}
+
+	s := c.StopTimeout()
+	if s != DefaultStopTimeout {
+		t.Fatalf("Expected %v, got %v", DefaultStopTimeout, s)
+	}
+
+	stopTimeout := 15
+	c = &Container{
+		CommonContainer: CommonContainer{
+			Config: &container.Config{StopTimeout: &stopTimeout},
+		},
+	}
+	s = c.StopSignal()
+	if s != 15 {
+		t.Fatalf("Expected 15, got %v", s)
 	}
 }

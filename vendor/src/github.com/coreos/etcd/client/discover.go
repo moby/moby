@@ -1,4 +1,4 @@
-// Copyright 2015 CoreOS, Inc.
+// Copyright 2015 The etcd Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,6 +16,6 @@ package client
 
 // Discoverer is an interface that wraps the Discover method.
 type Discoverer interface {
-	// Dicover looks up the etcd servers for the domain.
+	// Discover looks up the etcd servers for the domain.
 	Discover(domain string) ([]string, error)
 }

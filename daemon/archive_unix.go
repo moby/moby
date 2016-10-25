@@ -3,9 +3,10 @@
 package daemon
 
 import (
-	"github.com/docker/docker/container"
 	"os"
 	"path/filepath"
+
+	"github.com/docker/docker/container"
 )
 
 // checkIfPathIsInAVolume checks if the path is in a volume. If it is, it

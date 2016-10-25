@@ -39,7 +39,7 @@ func (mj *JSONLogs) MarshalJSONBuf(buf *bytes.Buffer) error {
 		ffjsonWriteJSONString(buf, mj.Stream)
 	}
 	if len(mj.RawAttrs) > 0 {
-		if first == true {
+		if first {
 			first = false
 		} else {
 			buf.WriteString(`,`)
@@ -47,9 +47,7 @@ func (mj *JSONLogs) MarshalJSONBuf(buf *bytes.Buffer) error {
 		buf.WriteString(`"attrs":`)
 		buf.Write(mj.RawAttrs)
 	}
-	if first == true {
-		first = false
-	} else {
+	if !first {
 		buf.WriteString(`,`)
 	}
 	buf.WriteString(`"time":`)

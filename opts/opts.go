@@ -5,6 +5,8 @@ import (
 	"net"
 	"regexp"
 	"strings"
+
+	"github.com/docker/docker/api/types/filters"
 )
 
 var (
@@ -36,7 +38,7 @@ func (opts *ListOpts) String() string {
 	return fmt.Sprintf("%v", []string((*opts.values)))
 }
 
-// Set validates if needed the input value and add it to the
+// Set validates if needed the input value and adds it to the
 // internal slice.
 func (opts *ListOpts) Set(value string) error {
 	if opts.validator != nil {
@@ -100,6 +102,11 @@ func (opts *ListOpts) Len() int {
 	return len((*opts.values))
 }
 
+// Type returns a string name for this Option type
+func (opts *ListOpts) Type() string {
+	return "list"
+}
+
 // NamedOption is an interface that list and map options
 // with names implement.
 type NamedOption interface {
@@ -129,7 +136,7 @@ func (o *NamedListOpts) Name() string {
 	return o.name
 }
 
-//MapOpts holds a map of values and a validation function.
+// MapOpts holds a map of values and a validation function.
 type MapOpts struct {
 	values    map[string]string
 	validator ValidatorFctType
@@ -161,6 +168,11 @@ func (opts *MapOpts) GetAll() map[string]string {
 
 func (opts *MapOpts) String() string {
 	return fmt.Sprintf("%v", map[string]string((opts.values)))
+}
+
+// Type returns a string name for this Option type
+func (opts *MapOpts) Type() string {
+	return "map"
 }
 
 // NewMapOpts creates a new MapOpts with the specified map of values and a validator.
@@ -239,4 +251,71 @@ func ValidateLabel(val string) (string, error) {
 		return "", fmt.Errorf("bad attribute format: %s", val)
 	}
 	return val, nil
+}
+
+// ValidateSysctl validates a sysctl and returns it.
+func ValidateSysctl(val string) (string, error) {
+	validSysctlMap := map[string]bool{
+		"kernel.msgmax":          true,
+		"kernel.msgmnb":          true,
+		"kernel.msgmni":          true,
+		"kernel.sem":             true,
+		"kernel.shmall":          true,
+		"kernel.shmmax":          true,
+		"kernel.shmmni":          true,
+		"kernel.shm_rmid_forced": true,
+	}
+	validSysctlPrefixes := []string{
+		"net.",
+		"fs.mqueue.",
+	}
+	arr := strings.Split(val, "=")
+	if len(arr) < 2 {
+		return "", fmt.Errorf("sysctl '%s' is not whitelisted", val)
+	}
+	if validSysctlMap[arr[0]] {
+		return val, nil
+	}
+
+	for _, vp := range validSysctlPrefixes {
+		if strings.HasPrefix(arr[0], vp) {
+			return val, nil
+		}
+	}
+	return "", fmt.Errorf("sysctl '%s' is not whitelisted", val)
+}
+
+// FilterOpt is a flag type for validating filters
+type FilterOpt struct {
+	filter filters.Args
+}
+
+// NewFilterOpt returns a new FilterOpt
+func NewFilterOpt() FilterOpt {
+	return FilterOpt{filter: filters.NewArgs()}
+}
+
+func (o *FilterOpt) String() string {
+	repr, err := filters.ToParam(o.filter)
+	if err != nil {
+		return "invalid filters"
+	}
+	return repr
+}
+
+// Set sets the value of the opt by parsing the command line value
+func (o *FilterOpt) Set(value string) error {
+	var err error
+	o.filter, err = filters.ParseFlag(value, o.filter)
+	return err
+}
+
+// Type returns the option type
+func (o *FilterOpt) Type() string {
+	return "filter"
+}
+
+// Value returns the value of this option
+func (o *FilterOpt) Value() filters.Args {
+	return o.filter
 }

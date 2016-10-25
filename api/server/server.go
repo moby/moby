@@ -2,15 +2,16 @@ package server
 
 import (
 	"crypto/tls"
+	"fmt"
 	"net"
 	"net/http"
 	"strings"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/api/errors"
 	"github.com/docker/docker/api/server/httputils"
+	"github.com/docker/docker/api/server/middleware"
 	"github.com/docker/docker/api/server/router"
-	"github.com/docker/docker/pkg/authorization"
-	"github.com/docker/docker/utils"
 	"github.com/gorilla/mux"
 	"golang.org/x/net/context"
 )
@@ -21,13 +22,12 @@ const versionMatcher = "/v{version:[0-9.]+}"
 
 // Config provides the configuration for the API server
 type Config struct {
-	Logging                  bool
-	EnableCors               bool
-	CorsHeaders              string
-	AuthorizationPluginNames []string
-	Version                  string
-	SocketGroup              string
-	TLSConfig                *tls.Config
+	Logging     bool
+	EnableCors  bool
+	CorsHeaders string
+	Version     string
+	SocketGroup string
+	TLSConfig   *tls.Config
 }
 
 // Server contains instance details for the server
@@ -35,8 +35,8 @@ type Server struct {
 	cfg           *Config
 	servers       []*HTTPServer
 	routers       []router.Router
-	authZPlugins  []authorization.Plugin
 	routerSwapper *routerSwapper
+	middlewares   []middleware.Middleware
 }
 
 // New returns a new instance of the server based on the specified configuration.
@@ -45,6 +45,12 @@ func New(cfg *Config) *Server {
 	return &Server{
 		cfg: cfg,
 	}
+}
+
+// UseMiddleware appends a new middleware to the request chain.
+// This needs to be called before the API routes are configured.
+func (s *Server) UseMiddleware(m middleware.Middleware) {
+	s.middlewares = append(s.middlewares, m)
 }
 
 // Accept sets a listener the server accepts connections into.
@@ -70,7 +76,7 @@ func (s *Server) Close() {
 }
 
 // serveAPI loops through all initialized servers and spawns goroutine
-// with Server method for each. It sets createMux() as Handler also.
+// with Serve method for each. It sets createMux() as Handler also.
 func (s *Server) serveAPI() error {
 	var chErrors = make(chan error, len(s.servers))
 	for _, srv := range s.servers {
@@ -113,18 +119,8 @@ func (s *HTTPServer) Close() error {
 	return s.l.Close()
 }
 
-func writeCorsHeaders(w http.ResponseWriter, r *http.Request, corsHeaders string) {
-	logrus.Debugf("CORS header is enabled and set to: %s", corsHeaders)
-	w.Header().Add("Access-Control-Allow-Origin", corsHeaders)
-	w.Header().Add("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, X-Registry-Auth")
-	w.Header().Add("Access-Control-Allow-Methods", "HEAD, GET, POST, DELETE, PUT, OPTIONS")
-}
-
 func (s *Server) makeHTTPHandler(handler httputils.APIFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		// log the handler call
-		logrus.Debugf("Calling %s %s", r.Method, r.URL.Path)
-
 		// Define the context that we'll pass around to share info
 		// like the docker-request-id.
 		//
@@ -133,7 +129,7 @@ func (s *Server) makeHTTPHandler(handler httputils.APIFunc) http.HandlerFunc {
 		// immediate function being called should still be passed
 		// as 'args' on the function call.
 		ctx := context.Background()
-		handlerFunc := s.handleWithGlobalMiddlewares(handler)
+		handlerFunc := s.handlerWithGlobalMiddlewares(handler)
 
 		vars := mux.Vars(r)
 		if vars == nil {
@@ -141,8 +137,8 @@ func (s *Server) makeHTTPHandler(handler httputils.APIFunc) http.HandlerFunc {
 		}
 
 		if err := handlerFunc(ctx, w, r, vars); err != nil {
-			logrus.Errorf("Handler for %s %s returned error: %s", r.Method, r.URL.Path, utils.GetErrorMessage(err))
-			httputils.WriteError(w, err)
+			logrus.Errorf("Handler for %s %s returned error: %v", r.Method, r.URL.Path, err)
+			httputils.MakeErrorHandler(err)(w, r)
 		}
 	}
 }
@@ -150,9 +146,7 @@ func (s *Server) makeHTTPHandler(handler httputils.APIFunc) http.HandlerFunc {
 // InitRouter initializes the list of routers for the server.
 // This method also enables the Go profiler if enableProfiler is true.
 func (s *Server) InitRouter(enableProfiler bool, routers ...router.Router) {
-	for _, r := range routers {
-		s.routers = append(s.routers, r)
-	}
+	s.routers = append(s.routers, routers...)
 
 	m := s.createMux()
 	if enableProfiler {
@@ -167,7 +161,7 @@ func (s *Server) InitRouter(enableProfiler bool, routers ...router.Router) {
 func (s *Server) createMux() *mux.Router {
 	m := mux.NewRouter()
 
-	logrus.Debugf("Registering routers")
+	logrus.Debug("Registering routers")
 	for _, apiRouter := range s.routers {
 		for _, r := range apiRouter.Routes() {
 			f := s.makeHTTPHandler(r.Handler())
@@ -177,6 +171,11 @@ func (s *Server) createMux() *mux.Router {
 			m.Path(r.Path()).Methods(r.Method()).Handler(f)
 		}
 	}
+
+	err := errors.NewRequestNotFoundError(fmt.Errorf("page not found"))
+	notFoundHandler := httputils.MakeErrorHandler(err)
+	m.HandleFunc(versionMatcher+"/{path:.*}", notFoundHandler)
+	m.NotFoundHandler = notFoundHandler
 
 	return m
 }

@@ -50,15 +50,15 @@ command. The use that name as follows:
 
 ## Removing a container and all associated volumes
 
-  $ docker rm -v redis
-  redis
+    $ docker rm -v redis
+    redis
 
 This command will remove the container and any volumes associated with it.
 Note that if a volume was specified with a name, it will not be removed.
 
-  $ docker create -v awesome:/foo -v /bar --name hello redis
-  hello
-  $ docker rm -v hello
+    $ docker create -v awesome:/foo -v /bar --name hello redis
+    hello
+    $ docker rm -v hello
 
 In this example, the volume for `/foo` will remain in tact, but the volume for
 `/bar` will be removed. The same behavior holds for volumes inherited with

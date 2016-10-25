@@ -149,6 +149,14 @@ type Config struct {
 	//
 	QueryTimeoutMult int
 
+	// QueryResponseSizeLimit and QuerySizeLimit limit the inbound and
+	// outbound payload sizes for queries, respectively. These must fit
+	// in a UDP packet with some additional overhead, so tuning these
+	// past the default values of 1024 will depend on your network
+	// configuration.
+	QueryResponseSizeLimit int
+	QuerySizeLimit         int
+
 	// MemberlistConfig is the memberlist configuration that Serf will
 	// use to do the underlying membership management and gossip. Some
 	// fields in the MemberlistConfig will be overwritten by Serf no
@@ -188,6 +196,12 @@ type Config struct {
 	// Name -> IP:Port mapping. If there is a simple majority of votes, that
 	// node stays while the other node will leave the cluster and exit.
 	EnableNameConflictResolution bool
+
+	// DisableCoordinates controls if Serf will maintain an estimate of this
+	// node's network coordinate internally. A network coordinate is useful
+	// for estimating the network distance (i.e. round trip time) between
+	// two nodes. Enabling this option adds some overhead to ping messages.
+	DisableCoordinates bool
 
 	// KeyringFile provides the location of a writable file where Serf can
 	// persist changes to the encryption keyring.
@@ -229,6 +243,9 @@ func DefaultConfig() *Config {
 		TombstoneTimeout:             24 * time.Hour,
 		MemberlistConfig:             memberlist.DefaultLANConfig(),
 		QueryTimeoutMult:             16,
+		QueryResponseSizeLimit:       1024,
+		QuerySizeLimit:               1024,
 		EnableNameConflictResolution: true,
+		DisableCoordinates:           false,
 	}
 }
