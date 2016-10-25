@@ -1583,21 +1583,22 @@ __docker_subcommand() {
                 "($help -b --bridge)"{-b=,--bridge=}"[Attach containers to a network bridge]:bridge:_net_interfaces" \
                 "($help)--bip=[Network bridge IP]:IP address: " \
                 "($help)--cgroup-parent=[Parent cgroup for all containers]:cgroup: " \
+                "($help)--cluster-advertise=[Address or interface name to advertise]:Instance to advertise (host\:port): " \
+                "($help)--cluster-store=[URL of the distributed storage backend]:Cluster Store:->cluster-store" \
+                "($help)*--cluster-store-opt=[Cluster store options]:Cluster options:->cluster-store-options" \
                 "($help)--config-file=[Path to daemon configuration file]:Config File:_files" \
                 "($help)--containerd=[Path to containerd socket]:socket:_files -g \"*.sock\"" \
                 "($help -D --debug)"{-D,--debug}"[Enable debug mode]" \
                 "($help)--default-gateway[Container default gateway IPv4 address]:IPv4 address: " \
                 "($help)--default-gateway-v6[Container default gateway IPv6 address]:IPv6 address: " \
-                "($help)--cluster-store=[URL of the distributed storage backend]:Cluster Store:->cluster-store" \
-                "($help)--cluster-advertise=[Address or interface name to advertise]:Instance to advertise (host\:port): " \
-                "($help)*--cluster-store-opt=[Cluster store options]:Cluster options:->cluster-store-options" \
-                "($help)*--dns=[DNS server to use]:DNS: " \
-                "($help)*--dns-search=[DNS search domains to use]:DNS search: " \
-                "($help)*--dns-opt=[DNS options to use]:DNS option: " \
                 "($help)*--default-ulimit=[Default ulimits for containers]:ulimit: " \
                 "($help)--disable-legacy-registry[Disable contacting legacy registries]" \
+                "($help)*--dns=[DNS server to use]:DNS: " \
+                "($help)*--dns-opt=[DNS options to use]:DNS option: " \
+                "($help)*--dns-search=[DNS search domains to use]:DNS search: " \
                 "($help)*--exec-opt=[Runtime execution options]:runtime execution options: " \
                 "($help)--exec-root=[Root directory for execution state files]:path:_directories" \
+                "($help)--experimental[Enable experimental features]" \
                 "($help)--fixed-cidr=[IPv4 subnet for fixed IPs]:IPv4 subnet: " \
                 "($help)--fixed-cidr-v6=[IPv6 subnet for fixed IPs]:IPv6 subnet: " \
                 "($help -G --group)"{-G=,--group=}"[Group for the unix socket]:group:_groups" \
