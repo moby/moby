@@ -3,6 +3,9 @@ package scheduler
 import (
 	"container/heap"
 	"errors"
+	"time"
+
+	"github.com/docker/swarmkit/api"
 )
 
 var errNodeNotFound = errors.New("node not found in scheduler dataset")
@@ -27,6 +30,16 @@ func (ns *nodeSet) nodeInfo(nodeID string) (NodeInfo, error) {
 // addOrUpdateNode sets the number of tasks for a given node. It adds the node
 // to the set if it wasn't already tracked.
 func (ns *nodeSet) addOrUpdateNode(n NodeInfo) {
+	if n.Tasks == nil {
+		n.Tasks = make(map[string]*api.Task)
+	}
+	if n.DesiredRunningTasksCountByService == nil {
+		n.DesiredRunningTasksCountByService = make(map[string]int)
+	}
+	if n.recentFailures == nil {
+		n.recentFailures = make(map[string][]time.Time)
+	}
+
 	ns.nodes[n.ID] = n
 }
 

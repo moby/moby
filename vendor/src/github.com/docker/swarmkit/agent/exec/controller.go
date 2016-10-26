@@ -277,7 +277,7 @@ func Do(ctx context.Context, task *api.Task, ctlr Controller) (*api.TaskStatus, 
 	}
 
 	switch status.State {
-	case api.TaskStateNew, api.TaskStateAllocated, api.TaskStateAssigned:
+	case api.TaskStateNew, api.TaskStatePending, api.TaskStateAssigned:
 		return transition(api.TaskStateAccepted, "accepted")
 	case api.TaskStateAccepted:
 		return transition(api.TaskStatePreparing, "preparing")

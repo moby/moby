@@ -128,6 +128,7 @@ message NetworkAttachmentSpec {
 	string container_id = 1 [(gogoproto.customname) = "ContainerID"];
 }
 
+
 // Container specifies runtime parameters for a container.
 message ContainerSpec {
 	// image defines the image reference, as specified in the
@@ -159,6 +160,10 @@ message ContainerSpec {
 	// If Command and Args are provided, Args will be appended to Command.
 	repeated string args = 4;
 
+	// Hostname specifies the hostname that will be set on containers created by docker swarm.
+	// All containers for a given service will have the same hostname
+	string hostname = 14;
+
 	// Env specifies the environment variables for the container in NAME=VALUE
 	// format. These must be compliant with  [IEEE Std
 	// 1003.1-2001](http://pubs.opengroup.org/onlinepubs/009695399/basedefs/xbd_chap08.html).
@@ -176,6 +181,10 @@ message ContainerSpec {
 
 	// Groups specifies supplementary groups available to the user.
 	repeated string groups = 11;
+
+	// TTY declares that a TTY should be attached to the standard streams,
+	// including stdin if it is still open.
+	bool tty = 13 [(gogoproto.customname) = "TTY"];
 
 	repeated Mount mounts = 8 [(gogoproto.nullable) = false];
 
@@ -198,6 +207,24 @@ message ContainerSpec {
 	// SecretReference contains references to zero or more secrets that
 	// will be exposed to the container.
 	repeated SecretReference secrets = 12;
+
+	// DNSConfig specifies DNS related configurations in resolver configuration file (resolv.conf)
+	// Detailed documentation is available in:
+	// http://man7.org/linux/man-pages/man5/resolv.conf.5.html
+	// TODO: domain is not supported yet
+	message DNSConfig {
+		// Nameservers specifies the IP addresses of the name servers
+		repeated string nameservers = 1;
+
+		// Search specifies the search list for host-name lookup
+		repeated string search = 2;
+
+		// Options allows certain internal resolver variables to be modified
+		repeated string options = 3;
+	}
+
+	// DNSConfig allows one to specify DNS related configuration in resolv.conf
+	DNSConfig dns_config = 15 [(gogoproto.customname) = "DNSConfig"];
 }
 
 // EndpointSpec defines the properties that can be configured to

@@ -24,8 +24,8 @@ type Config struct {
 	// DB used for task storage. Must be open for the lifetime of the agent.
 	DB *bolt.DB
 
-	// NotifyRoleChange channel receives new roles from session messages.
-	NotifyRoleChange chan<- api.NodeRole
+	// NotifyNodeChange channel receives new node changes from session messages.
+	NotifyNodeChange chan<- *api.Node
 
 	// Credentials is credentials for grpc connection to manager.
 	Credentials credentials.TransportCredentials

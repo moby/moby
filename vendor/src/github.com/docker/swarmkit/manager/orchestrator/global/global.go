@@ -1,9 +1,12 @@
-package orchestrator
+package global
 
 import (
 	"github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/log"
 	"github.com/docker/swarmkit/manager/constraint"
+	"github.com/docker/swarmkit/manager/orchestrator"
+	"github.com/docker/swarmkit/manager/orchestrator/restart"
+	"github.com/docker/swarmkit/manager/orchestrator/update"
 	"github.com/docker/swarmkit/manager/state"
 	"github.com/docker/swarmkit/manager/state/store"
 	"golang.org/x/net/context"
@@ -16,9 +19,9 @@ type globalService struct {
 	constraints []constraint.Constraint
 }
 
-// GlobalOrchestrator runs a reconciliation loop to create and destroy
-// tasks as necessary for global services.
-type GlobalOrchestrator struct {
+// Orchestrator runs a reconciliation loop to create and destroy tasks as
+// necessary for global services.
+type Orchestrator struct {
 	store *store.MemoryStore
 	// nodes is the set of non-drained nodes in the cluster, indexed by node ID
 	nodes map[string]*api.Node
@@ -30,17 +33,17 @@ type GlobalOrchestrator struct {
 	// doneChan is closed when the state machine terminates.
 	doneChan chan struct{}
 
-	updater  *UpdateSupervisor
-	restarts *RestartSupervisor
+	updater  *update.Supervisor
+	restarts *restart.Supervisor
 
 	cluster *api.Cluster // local instance of the cluster
 }
 
-// NewGlobalOrchestrator creates a new GlobalOrchestrator
-func NewGlobalOrchestrator(store *store.MemoryStore) *GlobalOrchestrator {
-	restartSupervisor := NewRestartSupervisor(store)
-	updater := NewUpdateSupervisor(store, restartSupervisor)
-	return &GlobalOrchestrator{
+// NewGlobalOrchestrator creates a new global Orchestrator
+func NewGlobalOrchestrator(store *store.MemoryStore) *Orchestrator {
+	restartSupervisor := restart.NewSupervisor(store)
+	updater := update.NewSupervisor(store, restartSupervisor)
+	return &Orchestrator{
 		store:          store,
 		nodes:          make(map[string]*api.Node),
 		globalServices: make(map[string]globalService),
@@ -51,8 +54,8 @@ func NewGlobalOrchestrator(store *store.MemoryStore) *GlobalOrchestrator {
 	}
 }
 
-// Run contains the GlobalOrchestrator event loop
-func (g *GlobalOrchestrator) Run(ctx context.Context) error {
+// Run contains the global orchestrator event loop
+func (g *Orchestrator) Run(ctx context.Context) error {
 	defer close(g.doneChan)
 
 	// Watch changes to services and tasks
@@ -98,7 +101,7 @@ func (g *GlobalOrchestrator) Run(ctx context.Context) error {
 
 	var reconcileServiceIDs []string
 	for _, s := range existingServices {
-		if isGlobalService(s) {
+		if orchestrator.IsGlobalService(s) {
 			g.updateService(s)
 			reconcileServiceIDs = append(reconcileServiceIDs, s.ID)
 		}
@@ -113,22 +116,22 @@ func (g *GlobalOrchestrator) Run(ctx context.Context) error {
 			case state.EventUpdateCluster:
 				g.cluster = v.Cluster
 			case state.EventCreateService:
-				if !isGlobalService(v.Service) {
+				if !orchestrator.IsGlobalService(v.Service) {
 					continue
 				}
 				g.updateService(v.Service)
 				g.reconcileServices(ctx, []string{v.Service.ID})
 			case state.EventUpdateService:
-				if !isGlobalService(v.Service) {
+				if !orchestrator.IsGlobalService(v.Service) {
 					continue
 				}
 				g.updateService(v.Service)
 				g.reconcileServices(ctx, []string{v.Service.ID})
 			case state.EventDeleteService:
-				if !isGlobalService(v.Service) {
+				if !orchestrator.IsGlobalService(v.Service) {
 					continue
 				}
-				deleteServiceTasks(ctx, g.store, v.Service)
+				orchestrator.DeleteServiceTasks(ctx, g.store, v.Service)
 				// delete the service from service map
 				delete(g.globalServices, v.Service.ID)
 				g.restarts.ClearServiceHistory(v.Service.ID)
@@ -172,14 +175,14 @@ func (g *GlobalOrchestrator) Run(ctx context.Context) error {
 }
 
 // Stop stops the orchestrator.
-func (g *GlobalOrchestrator) Stop() {
+func (g *Orchestrator) Stop() {
 	close(g.stopChan)
 	<-g.doneChan
 	g.updater.CancelAll()
 	g.restarts.CancelAll()
 }
 
-func (g *GlobalOrchestrator) removeTasksFromNode(ctx context.Context, node *api.Node) {
+func (g *Orchestrator) removeTasksFromNode(ctx context.Context, node *api.Node) {
 	var (
 		tasks []*api.Task
 		err   error
@@ -194,7 +197,7 @@ func (g *GlobalOrchestrator) removeTasksFromNode(ctx context.Context, node *api.
 
 	_, err = g.store.Batch(func(batch *store.Batch) error {
 		for _, t := range tasks {
-			// GlobalOrchestrator only removes tasks from globalServices
+			// Global orchestrator only removes tasks from globalServices
 			if _, exists := g.globalServices[t.ServiceID]; exists {
 				g.removeTask(ctx, batch, t)
 			}
@@ -206,7 +209,7 @@ func (g *GlobalOrchestrator) removeTasksFromNode(ctx context.Context, node *api.
 	}
 }
 
-func (g *GlobalOrchestrator) reconcileServices(ctx context.Context, serviceIDs []string) {
+func (g *Orchestrator) reconcileServices(ctx context.Context, serviceIDs []string) {
 	nodeCompleted := make(map[string]map[string]struct{})
 	nodeTasks := make(map[string]map[string][]*api.Task)
 
@@ -229,7 +232,7 @@ func (g *GlobalOrchestrator) reconcileServices(ctx context.Context, serviceIDs [
 					nodeTasks[serviceID][t.NodeID] = append(nodeTasks[serviceID][t.NodeID], t)
 				} else {
 					// for finished tasks, check restartPolicy
-					if isTaskCompleted(t, restartCondition(t)) {
+					if isTaskCompleted(t, orchestrator.RestartCondition(t)) {
 						nodeCompleted[serviceID][t.NodeID] = struct{}{}
 					}
 				}
@@ -238,7 +241,7 @@ func (g *GlobalOrchestrator) reconcileServices(ctx context.Context, serviceIDs [
 	})
 
 	_, err := g.store.Batch(func(batch *store.Batch) error {
-		var updateTasks []slot
+		var updateTasks []orchestrator.Slot
 		for _, serviceID := range serviceIDs {
 			if _, exists := nodeTasks[serviceID]; !exists {
 				continue
@@ -290,7 +293,7 @@ func (g *GlobalOrchestrator) reconcileServices(ctx context.Context, serviceIDs [
 }
 
 // updateNode updates g.nodes based on the current node value
-func (g *GlobalOrchestrator) updateNode(node *api.Node) {
+func (g *Orchestrator) updateNode(node *api.Node) {
 	if node.Spec.Availability == api.NodeAvailabilityDrain {
 		delete(g.nodes, node.ID)
 	} else {
@@ -299,7 +302,7 @@ func (g *GlobalOrchestrator) updateNode(node *api.Node) {
 }
 
 // updateService updates g.globalServices based on the current service value
-func (g *GlobalOrchestrator) updateService(service *api.Service) {
+func (g *Orchestrator) updateService(service *api.Service) {
 	var constraints []constraint.Constraint
 
 	if service.Spec.Task.Placement != nil && len(service.Spec.Task.Placement.Constraints) != 0 {
@@ -313,7 +316,7 @@ func (g *GlobalOrchestrator) updateService(service *api.Service) {
 }
 
 // reconcileOneNode checks all global services on one node
-func (g *GlobalOrchestrator) reconcileOneNode(ctx context.Context, node *api.Node) {
+func (g *Orchestrator) reconcileOneNode(ctx context.Context, node *api.Node) {
 	if node.Spec.Availability == api.NodeAvailabilityDrain {
 		log.G(ctx).Debugf("global orchestrator: node %s in drain state, removing tasks from it", node.ID)
 		g.removeTasksFromNode(ctx, node)
@@ -328,7 +331,7 @@ func (g *GlobalOrchestrator) reconcileOneNode(ctx context.Context, node *api.Nod
 }
 
 // reconcileServicesOneNode checks the specified services on one node
-func (g *GlobalOrchestrator) reconcileServicesOneNode(ctx context.Context, serviceIDs []string, nodeID string) {
+func (g *Orchestrator) reconcileServicesOneNode(ctx context.Context, serviceIDs []string, nodeID string) {
 	node, exists := g.nodes[nodeID]
 	if !exists {
 		return
@@ -360,7 +363,7 @@ func (g *GlobalOrchestrator) reconcileServicesOneNode(ctx context.Context, servi
 			if isTaskRunning(t) {
 				tasks[serviceID] = append(tasks[serviceID], t)
 			} else {
-				if isTaskCompleted(t, restartCondition(t)) {
+				if isTaskCompleted(t, orchestrator.RestartCondition(t)) {
 					completed[serviceID] = true
 				}
 			}
@@ -413,7 +416,7 @@ func (g *GlobalOrchestrator) reconcileServicesOneNode(ctx context.Context, servi
 				)
 
 				for _, t := range tasks[serviceID] {
-					if isTaskDirty(service.Service, t) {
+					if orchestrator.IsTaskDirty(service.Service, t) {
 						dirtyTasks = append(dirtyTasks, t)
 					} else {
 						cleanTasks = append(cleanTasks, t)
@@ -438,7 +441,7 @@ func (g *GlobalOrchestrator) reconcileServicesOneNode(ctx context.Context, servi
 // restartTask calls the restart supervisor's Restart function, which
 // sets a task's desired state to shutdown and restarts it if the restart
 // policy calls for it to be restarted.
-func (g *GlobalOrchestrator) restartTask(ctx context.Context, taskID string, serviceID string) {
+func (g *Orchestrator) restartTask(ctx context.Context, taskID string, serviceID string) {
 	err := g.store.Update(func(tx store.Tx) error {
 		t := store.GetTask(tx, taskID)
 		if t == nil || t.DesiredState > api.TaskStateRunning {
@@ -455,7 +458,7 @@ func (g *GlobalOrchestrator) restartTask(ctx context.Context, taskID string, ser
 	}
 }
 
-func (g *GlobalOrchestrator) removeTask(ctx context.Context, batch *store.Batch, t *api.Task) {
+func (g *Orchestrator) removeTask(ctx context.Context, batch *store.Batch, t *api.Task) {
 	// set existing task DesiredState to TaskStateShutdown
 	// TODO(aaronl): optimistic update?
 	err := batch.Update(func(tx store.Tx) error {
@@ -471,8 +474,8 @@ func (g *GlobalOrchestrator) removeTask(ctx context.Context, batch *store.Batch,
 	}
 }
 
-func (g *GlobalOrchestrator) addTask(ctx context.Context, batch *store.Batch, service *api.Service, nodeID string) {
-	task := newTask(g.cluster, service, 0, nodeID)
+func (g *Orchestrator) addTask(ctx context.Context, batch *store.Batch, service *api.Service, nodeID string) {
+	task := orchestrator.NewTask(g.cluster, service, 0, nodeID)
 
 	err := batch.Update(func(tx store.Tx) error {
 		return store.CreateTask(tx, task)
@@ -482,7 +485,7 @@ func (g *GlobalOrchestrator) addTask(ctx context.Context, batch *store.Batch, se
 	}
 }
 
-func (g *GlobalOrchestrator) removeTasks(ctx context.Context, batch *store.Batch, tasks []*api.Task) {
+func (g *Orchestrator) removeTasks(ctx context.Context, batch *store.Batch, tasks []*api.Task) {
 	for _, t := range tasks {
 		g.removeTask(ctx, batch, t)
 	}
@@ -502,12 +505,4 @@ func isTaskCompleted(t *api.Task, restartPolicy api.RestartPolicy_RestartConditi
 
 func isTaskTerminated(t *api.Task) bool {
 	return t != nil && t.Status.State > api.TaskStateRunning
-}
-
-func isGlobalService(service *api.Service) bool {
-	if service == nil {
-		return false
-	}
-	_, ok := service.Spec.GetMode().(*api.ServiceSpec_Global)
-	return ok
 }

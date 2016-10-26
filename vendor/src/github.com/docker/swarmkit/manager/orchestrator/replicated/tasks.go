@@ -1,4 +1,4 @@
-package orchestrator
+package replicated
 
 import (
 	"time"
@@ -6,6 +6,7 @@ import (
 	"github.com/docker/go-events"
 	"github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/log"
+	"github.com/docker/swarmkit/manager/orchestrator"
 	"github.com/docker/swarmkit/manager/state"
 	"github.com/docker/swarmkit/manager/state/store"
 	"github.com/docker/swarmkit/protobuf/ptypes"
@@ -23,7 +24,7 @@ func invalidNode(n *api.Node) bool {
 		n.Spec.Availability == api.NodeAvailabilityDrain
 }
 
-func (r *ReplicatedOrchestrator) initTasks(ctx context.Context, readTx store.ReadTx) error {
+func (r *Orchestrator) initTasks(ctx context.Context, readTx store.ReadTx) error {
 	tasks, err := store.FindTasks(readTx, store.All)
 	if err != nil {
 		return err
@@ -56,16 +57,16 @@ func (r *ReplicatedOrchestrator) initTasks(ctx context.Context, readTx store.Rea
 				continue
 			}
 			// TODO(aluzzardi): This is shady. We should have a more generic condition.
-			if t.DesiredState != api.TaskStateReady || !isReplicatedService(service) {
+			if t.DesiredState != api.TaskStateReady || !orchestrator.IsReplicatedService(service) {
 				continue
 			}
-			restartDelay := defaultRestartDelay
+			restartDelay := orchestrator.DefaultRestartDelay
 			if t.Spec.Restart != nil && t.Spec.Restart.Delay != nil {
 				var err error
 				restartDelay, err = ptypes.Duration(t.Spec.Restart.Delay)
 				if err != nil {
 					log.G(ctx).WithError(err).Error("invalid restart delay")
-					restartDelay = defaultRestartDelay
+					restartDelay = orchestrator.DefaultRestartDelay
 				}
 			}
 			if restartDelay != 0 {
@@ -107,7 +108,7 @@ func (r *ReplicatedOrchestrator) initTasks(ctx context.Context, readTx store.Rea
 	return err
 }
 
-func (r *ReplicatedOrchestrator) handleTaskEvent(ctx context.Context, event events.Event) {
+func (r *Orchestrator) handleTaskEvent(ctx context.Context, event events.Event) {
 	switch v := event.(type) {
 	case state.EventDeleteNode:
 		r.restartTasksByNodeID(ctx, v.Node.ID)
@@ -118,7 +119,7 @@ func (r *ReplicatedOrchestrator) handleTaskEvent(ctx context.Context, event even
 	case state.EventDeleteTask:
 		if v.Task.DesiredState <= api.TaskStateRunning {
 			service := r.resolveService(ctx, v.Task)
-			if !isReplicatedService(service) {
+			if !orchestrator.IsReplicatedService(service) {
 				return
 			}
 			r.reconcileServices[service.ID] = service
@@ -131,7 +132,7 @@ func (r *ReplicatedOrchestrator) handleTaskEvent(ctx context.Context, event even
 	}
 }
 
-func (r *ReplicatedOrchestrator) tickTasks(ctx context.Context) {
+func (r *Orchestrator) tickTasks(ctx context.Context) {
 	if len(r.restartTasks) > 0 {
 		_, err := r.store.Batch(func(batch *store.Batch) error {
 			for taskID := range r.restartTasks {
@@ -144,7 +145,7 @@ func (r *ReplicatedOrchestrator) tickTasks(ctx context.Context) {
 						}
 
 						service := store.GetService(tx, t.ServiceID)
-						if !isReplicatedService(service) {
+						if !orchestrator.IsReplicatedService(service) {
 							return nil
 						}
 
@@ -156,7 +157,7 @@ func (r *ReplicatedOrchestrator) tickTasks(ctx context.Context) {
 					return nil
 				})
 				if err != nil {
-					log.G(ctx).WithError(err).Errorf("ReplicatedOrchestrator task reaping transaction failed")
+					log.G(ctx).WithError(err).Errorf("Orchestrator task reaping transaction failed")
 				}
 			}
 			return nil
@@ -170,7 +171,7 @@ func (r *ReplicatedOrchestrator) tickTasks(ctx context.Context) {
 	}
 }
 
-func (r *ReplicatedOrchestrator) restartTasksByNodeID(ctx context.Context, nodeID string) {
+func (r *Orchestrator) restartTasksByNodeID(ctx context.Context, nodeID string) {
 	var err error
 	r.store.View(func(tx store.ReadTx) {
 		var tasks []*api.Task
@@ -184,7 +185,7 @@ func (r *ReplicatedOrchestrator) restartTasksByNodeID(ctx context.Context, nodeI
 				continue
 			}
 			service := store.GetService(tx, t.ServiceID)
-			if isReplicatedService(service) {
+			if orchestrator.IsReplicatedService(service) {
 				r.restartTasks[t.ID] = struct{}{}
 			}
 		}
@@ -194,7 +195,7 @@ func (r *ReplicatedOrchestrator) restartTasksByNodeID(ctx context.Context, nodeI
 	}
 }
 
-func (r *ReplicatedOrchestrator) handleNodeChange(ctx context.Context, n *api.Node) {
+func (r *Orchestrator) handleNodeChange(ctx context.Context, n *api.Node) {
 	if !invalidNode(n) {
 		return
 	}
@@ -202,7 +203,7 @@ func (r *ReplicatedOrchestrator) handleNodeChange(ctx context.Context, n *api.No
 	r.restartTasksByNodeID(ctx, n.ID)
 }
 
-func (r *ReplicatedOrchestrator) handleTaskChange(ctx context.Context, t *api.Task) {
+func (r *Orchestrator) handleTaskChange(ctx context.Context, t *api.Task) {
 	// If we already set the desired state past TaskStateRunning, there is no
 	// further action necessary.
 	if t.DesiredState > api.TaskStateRunning {
@@ -222,7 +223,7 @@ func (r *ReplicatedOrchestrator) handleTaskChange(ctx context.Context, t *api.Ta
 		}
 	})
 
-	if !isReplicatedService(service) {
+	if !orchestrator.IsReplicatedService(service) {
 		return
 	}
 

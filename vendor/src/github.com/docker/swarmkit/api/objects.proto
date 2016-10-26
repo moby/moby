@@ -226,9 +226,10 @@ message Cluster {
 	// a new key is allocated on key rotation.
 	uint64 encryption_key_lamport_clock = 6;
 
-	// RemovedNodes is the list of nodes that have been removed from the
+	// BlacklistedCertificates tracks certificates that should no longer
+	// be honored. It's a mapping from CN -> BlacklistedCertificate.
 	// swarm. Their certificates should effectively be blacklisted.
-	repeated RemovedNode removed_nodes = 7;
+	map<string, BlacklistedCertificate> blacklisted_certificates = 8;
 }
 
 // Secret represents a secret that should be passed to a container or a node,

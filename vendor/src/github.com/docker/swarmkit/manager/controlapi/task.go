@@ -2,6 +2,7 @@ package controlapi
 
 import (
 	"github.com/docker/swarmkit/api"
+	"github.com/docker/swarmkit/api/naming"
 	"github.com/docker/swarmkit/manager/state/store"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
@@ -104,10 +105,10 @@ func (s *Server) ListTasks(ctx context.Context, request *api.ListTasksRequest) (
 	if request.Filters != nil {
 		tasks = filterTasks(tasks,
 			func(e *api.Task) bool {
-				return filterContains(store.TaskName(e), request.Filters.Names)
+				return filterContains(naming.Task(e), request.Filters.Names)
 			},
 			func(e *api.Task) bool {
-				return filterContainsPrefix(store.TaskName(e), request.Filters.NamePrefixes)
+				return filterContainsPrefix(naming.Task(e), request.Filters.NamePrefixes)
 			},
 			func(e *api.Task) bool {
 				return filterContainsPrefix(e.ID, request.Filters.IDPrefixes)

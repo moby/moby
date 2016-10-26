@@ -1,4 +1,4 @@
-package orchestrator
+package update
 
 import (
 	"errors"
@@ -12,6 +12,8 @@ import (
 	"github.com/docker/go-events"
 	"github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/log"
+	"github.com/docker/swarmkit/manager/orchestrator"
+	"github.com/docker/swarmkit/manager/orchestrator/restart"
 	"github.com/docker/swarmkit/manager/state"
 	"github.com/docker/swarmkit/manager/state/store"
 	"github.com/docker/swarmkit/manager/state/watch"
@@ -20,18 +22,18 @@ import (
 
 const defaultMonitor = 30 * time.Second
 
-// UpdateSupervisor supervises a set of updates. It's responsible for keeping track of updates,
+// Supervisor supervises a set of updates. It's responsible for keeping track of updates,
 // shutting them down and replacing them.
-type UpdateSupervisor struct {
+type Supervisor struct {
 	store    *store.MemoryStore
-	restarts *RestartSupervisor
+	restarts *restart.Supervisor
 	updates  map[string]*Updater
 	l        sync.Mutex
 }
 
-// NewUpdateSupervisor creates a new UpdateSupervisor.
-func NewUpdateSupervisor(store *store.MemoryStore, restartSupervisor *RestartSupervisor) *UpdateSupervisor {
-	return &UpdateSupervisor{
+// NewSupervisor creates a new UpdateSupervisor.
+func NewSupervisor(store *store.MemoryStore, restartSupervisor *restart.Supervisor) *Supervisor {
+	return &Supervisor{
 		store:    store,
 		updates:  make(map[string]*Updater),
 		restarts: restartSupervisor,
@@ -45,7 +47,7 @@ func NewUpdateSupervisor(store *store.MemoryStore, restartSupervisor *RestartSup
 // and the new task was started before the old one was shut down. If an update
 // for that service was already in progress, it will be cancelled before the
 // new one starts.
-func (u *UpdateSupervisor) Update(ctx context.Context, cluster *api.Cluster, service *api.Service, slots []slot) {
+func (u *Supervisor) Update(ctx context.Context, cluster *api.Cluster, service *api.Service, slots []orchestrator.Slot) {
 	u.l.Lock()
 	defer u.l.Unlock()
 
@@ -72,7 +74,7 @@ func (u *UpdateSupervisor) Update(ctx context.Context, cluster *api.Cluster, ser
 }
 
 // CancelAll cancels all current updates.
-func (u *UpdateSupervisor) CancelAll() {
+func (u *Supervisor) CancelAll() {
 	u.l.Lock()
 	defer u.l.Unlock()
 
@@ -85,7 +87,7 @@ func (u *UpdateSupervisor) CancelAll() {
 type Updater struct {
 	store      *store.MemoryStore
 	watchQueue *watch.Queue
-	restarts   *RestartSupervisor
+	restarts   *restart.Supervisor
 
 	cluster    *api.Cluster
 	newService *api.Service
@@ -100,7 +102,7 @@ type Updater struct {
 }
 
 // NewUpdater creates a new Updater.
-func NewUpdater(store *store.MemoryStore, restartSupervisor *RestartSupervisor, cluster *api.Cluster, newService *api.Service) *Updater {
+func NewUpdater(store *store.MemoryStore, restartSupervisor *restart.Supervisor, cluster *api.Cluster, newService *api.Service) *Updater {
 	return &Updater{
 		store:        store,
 		watchQueue:   store.WatchQueue(),
@@ -120,7 +122,7 @@ func (u *Updater) Cancel() {
 }
 
 // Run starts the update and returns only once its complete or cancelled.
-func (u *Updater) Run(ctx context.Context, slots []slot) {
+func (u *Updater) Run(ctx context.Context, slots []orchestrator.Slot) {
 	defer close(u.doneChan)
 
 	service := u.newService
@@ -132,7 +134,7 @@ func (u *Updater) Run(ctx context.Context, slots []slot) {
 		return
 	}
 
-	var dirtySlots []slot
+	var dirtySlots []orchestrator.Slot
 	for _, slot := range slots {
 		if u.isSlotDirty(slot) {
 			dirtySlots = append(dirtySlots, slot)
@@ -164,7 +166,7 @@ func (u *Updater) Run(ctx context.Context, slots []slot) {
 	}
 
 	// Start the workers.
-	slotQueue := make(chan slot)
+	slotQueue := make(chan orchestrator.Slot)
 	wg := sync.WaitGroup{}
 	wg.Add(parallelism)
 	for i := 0; i < parallelism; i++ {
@@ -300,7 +302,7 @@ slotsLoop:
 	}
 }
 
-func (u *Updater) worker(ctx context.Context, queue <-chan slot) {
+func (u *Updater) worker(ctx context.Context, queue <-chan orchestrator.Slot) {
 	for slot := range queue {
 		// Do we have a task with the new spec in desired state = RUNNING?
 		// If so, all we have to do to complete the update is remove the
@@ -331,9 +333,9 @@ func (u *Updater) worker(ctx context.Context, queue <-chan slot) {
 				log.G(ctx).WithError(err).Error("update failed")
 			}
 		} else {
-			updated := newTask(u.cluster, u.newService, slot[0].Slot, "")
-			if isGlobalService(u.newService) {
-				updated = newTask(u.cluster, u.newService, slot[0].Slot, slot[0].NodeID)
+			updated := orchestrator.NewTask(u.cluster, u.newService, slot[0].Slot, "")
+			if orchestrator.IsGlobalService(u.newService) {
+				updated = orchestrator.NewTask(u.cluster, u.newService, slot[0].Slot, slot[0].NodeID)
 			}
 			updated.DesiredState = api.TaskStateReady
 
@@ -357,7 +359,7 @@ func (u *Updater) worker(ctx context.Context, queue <-chan slot) {
 	}
 }
 
-func (u *Updater) updateTask(ctx context.Context, slot slot, updated *api.Task) error {
+func (u *Updater) updateTask(ctx context.Context, slot orchestrator.Slot, updated *api.Task) error {
 	// Kick off the watch before even creating the updated task. This is in order to avoid missing any event.
 	taskUpdates, cancel := state.Watch(u.watchQueue, state.EventUpdateTask{
 		Task:   &api.Task{ID: updated.ID},
@@ -421,7 +423,7 @@ func (u *Updater) updateTask(ctx context.Context, slot slot, updated *api.Task) 
 	}
 }
 
-func (u *Updater) useExistingTask(ctx context.Context, slot slot, existing *api.Task) error {
+func (u *Updater) useExistingTask(ctx context.Context, slot orchestrator.Slot, existing *api.Task) error {
 	var removeTasks []*api.Task
 	for _, t := range slot {
 		if t != existing {
@@ -489,16 +491,11 @@ func (u *Updater) removeOldTasks(ctx context.Context, batch *store.Batch, remove
 	return removedTask, nil
 }
 
-func isTaskDirty(s *api.Service, t *api.Task) bool {
-	return !reflect.DeepEqual(s.Spec.Task, t.Spec) ||
-		(t.Endpoint != nil && !reflect.DeepEqual(s.Spec.Endpoint, t.Endpoint.Spec))
-}
-
 func (u *Updater) isTaskDirty(t *api.Task) bool {
-	return isTaskDirty(u.newService, t)
+	return orchestrator.IsTaskDirty(u.newService, t)
 }
 
-func (u *Updater) isSlotDirty(slot slot) bool {
+func (u *Updater) isSlotDirty(slot orchestrator.Slot) bool {
 	return len(slot) > 1 || (len(slot) == 1 && u.isTaskDirty(slot[0]))
 }
 

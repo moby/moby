@@ -83,6 +83,15 @@ service Control {
 		option (docker.protobuf.plugin.tls_authorization) = { roles: "swarm-manager" };
 	}
 
+	// UpdateSecret returns a `UpdateSecretResponse` with a `Secret` with the same
+	// id as `GetSecretRequest.SecretID`
+	// - Returns `NotFound` if the Secret with the given id is not found.
+	// - Returns `InvalidArgument` if the `GetSecretRequest.SecretID` is empty.
+	// - Returns an error if updating fails.
+	rpc UpdateSecret(UpdateSecretRequest) returns (UpdateSecretResponse) {
+		option (docker.protobuf.plugin.tls_authorization) = { roles: "swarm-manager" };
+	};
+
 	// ListSecrets returns a `ListSecretResponse` with a list all non-internal `Secret`s being
 	// managed, or all secrets matching any name in `ListSecretsRequest.Names`, any
 	// name prefix in `ListSecretsRequest.NamePrefixes`, any id in
@@ -341,6 +350,23 @@ message GetSecretRequest {
 message GetSecretResponse {
 	Secret secret = 1;
 }
+
+message UpdateSecretRequest {
+	// SecretID is the secret ID to update.
+	string secret_id = 1 [(gogoproto.customname) = "SecretID"];
+
+	// SecretVersion is the version of the secret being updated.
+	Version secret_version = 2;
+
+	// Spec is the new spec to apply to the Secret
+	// Only some fields are allowed to be updated.
+	SecretSpec spec = 3;
+}
+
+message UpdateSecretResponse {
+	Secret secret = 1;
+}
+
 
 // ListSecretRequest is the request to list all non-internal secrets in the secret store,
 // or all secrets filtered by (name or name prefix or id prefix) and labels.

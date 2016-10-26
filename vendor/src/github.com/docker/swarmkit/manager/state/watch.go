@@ -563,12 +563,17 @@ func Watch(queue *watch.Queue, specifiers ...Event) (eventq chan events.Event, c
 	if len(specifiers) == 0 {
 		return queue.Watch()
 	}
-	return queue.CallbackWatch(events.MatcherFunc(func(event events.Event) bool {
+	return queue.CallbackWatch(Matcher(specifiers...))
+}
+
+// Matcher returns an events.Matcher that matches the specifiers with OR logic.
+func Matcher(specifiers ...Event) events.MatcherFunc {
+	return events.MatcherFunc(func(event events.Event) bool {
 		for _, s := range specifiers {
 			if s.matches(event) {
 				return true
 			}
 		}
 		return false
-	}))
+	})
 }

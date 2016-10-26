@@ -147,7 +147,7 @@ clone git github.com/docker/containerd 52ef1ceb4b660c42cf4ea9013180a5663968d4c7
 clone git github.com/tonistiigi/fifo 8c56881ce5e63e19e2dfc495c8af0fb90916467d
 
 # cluster
-clone git github.com/docker/swarmkit 3b221eb0391d34ae0b9dac65df02b5b64de6dff2
+clone git github.com/docker/swarmkit 0ec7c6ee4b3185ec4e3d6bd65f8f5542b1761421
 clone git github.com/golang/mock bd3c8e81be01eef76d4b503f5e687d2d1354d2d9
 clone git github.com/gogo/protobuf v0.3
 clone git github.com/cloudflare/cfssl 7fb22c8cba7ecaf98e4082d22d65800cf45e042a

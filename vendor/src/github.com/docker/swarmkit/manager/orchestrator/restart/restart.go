@@ -1,4 +1,4 @@
-package orchestrator
+package restart
 
 import (
 	"container/list"
@@ -9,6 +9,7 @@ import (
 	"github.com/docker/go-events"
 	"github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/log"
+	"github.com/docker/swarmkit/manager/orchestrator"
 	"github.com/docker/swarmkit/manager/state"
 	"github.com/docker/swarmkit/manager/state/store"
 	"github.com/docker/swarmkit/protobuf/ptypes"
@@ -16,7 +17,6 @@ import (
 )
 
 const defaultOldTaskTimeout = time.Minute
-const defaultRestartDelay = 5 * time.Second
 
 type restartedInstance struct {
 	timestamp time.Time
@@ -41,29 +41,35 @@ type delayedStart struct {
 	waiter bool
 }
 
-// RestartSupervisor initiates and manages restarts. It's responsible for
+type instanceTuple struct {
+	instance  uint64 // unset for global tasks
+	serviceID string
+	nodeID    string // unset for replicated tasks
+}
+
+// Supervisor initiates and manages restarts. It's responsible for
 // delaying restarts when applicable.
-type RestartSupervisor struct {
+type Supervisor struct {
 	mu               sync.Mutex
 	store            *store.MemoryStore
 	delays           map[string]*delayedStart
 	history          map[instanceTuple]*instanceRestartInfo
 	historyByService map[string]map[instanceTuple]struct{}
-	taskTimeout      time.Duration
+	TaskTimeout      time.Duration
 }
 
-// NewRestartSupervisor creates a new RestartSupervisor.
-func NewRestartSupervisor(store *store.MemoryStore) *RestartSupervisor {
-	return &RestartSupervisor{
+// NewSupervisor creates a new RestartSupervisor.
+func NewSupervisor(store *store.MemoryStore) *Supervisor {
+	return &Supervisor{
 		store:            store,
 		delays:           make(map[string]*delayedStart),
 		history:          make(map[instanceTuple]*instanceRestartInfo),
 		historyByService: make(map[string]map[instanceTuple]struct{}),
-		taskTimeout:      defaultOldTaskTimeout,
+		TaskTimeout:      defaultOldTaskTimeout,
 	}
 }
 
-func (r *RestartSupervisor) waitRestart(ctx context.Context, oldDelay *delayedStart, cluster *api.Cluster, taskID string) {
+func (r *Supervisor) waitRestart(ctx context.Context, oldDelay *delayedStart, cluster *api.Cluster, taskID string) {
 	// Wait for the last restart delay to elapse.
 	select {
 	case <-oldDelay.doneCh:
@@ -94,7 +100,7 @@ func (r *RestartSupervisor) waitRestart(ctx context.Context, oldDelay *delayedSt
 
 // Restart initiates a new task to replace t if appropriate under the service's
 // restart policy.
-func (r *RestartSupervisor) Restart(ctx context.Context, tx store.Tx, cluster *api.Cluster, service *api.Service, t api.Task) error {
+func (r *Supervisor) Restart(ctx context.Context, tx store.Tx, cluster *api.Cluster, service *api.Service, t api.Task) error {
 	// TODO(aluzzardi): This function should not depend on `service`.
 
 	// Is the old task still in the process of restarting? If so, wait for
@@ -132,10 +138,10 @@ func (r *RestartSupervisor) Restart(ctx context.Context, tx store.Tx, cluster *a
 
 	var restartTask *api.Task
 
-	if isReplicatedService(service) {
-		restartTask = newTask(cluster, service, t.Slot, "")
-	} else if isGlobalService(service) {
-		restartTask = newTask(cluster, service, 0, t.NodeID)
+	if orchestrator.IsReplicatedService(service) {
+		restartTask = orchestrator.NewTask(cluster, service, t.Slot, "")
+	} else if orchestrator.IsGlobalService(service) {
+		restartTask = orchestrator.NewTask(cluster, service, 0, t.NodeID)
 	} else {
 		log.G(ctx).Error("service not supported by restart supervisor")
 		return nil
@@ -153,10 +159,10 @@ func (r *RestartSupervisor) Restart(ctx context.Context, tx store.Tx, cluster *a
 			restartDelay, err = ptypes.Duration(t.Spec.Restart.Delay)
 			if err != nil {
 				log.G(ctx).WithError(err).Error("invalid restart delay; using default")
-				restartDelay = defaultRestartDelay
+				restartDelay = orchestrator.DefaultRestartDelay
 			}
 		} else {
-			restartDelay = defaultRestartDelay
+			restartDelay = orchestrator.DefaultRestartDelay
 		}
 	}
 
@@ -179,10 +185,10 @@ func (r *RestartSupervisor) Restart(ctx context.Context, tx store.Tx, cluster *a
 	return nil
 }
 
-func (r *RestartSupervisor) shouldRestart(ctx context.Context, t *api.Task, service *api.Service) bool {
+func (r *Supervisor) shouldRestart(ctx context.Context, t *api.Task, service *api.Service) bool {
 	// TODO(aluzzardi): This function should not depend on `service`.
 
-	condition := restartCondition(t)
+	condition := orchestrator.RestartCondition(t)
 
 	if condition != api.RestartOnAny &&
 		(condition != api.RestartOnFailure || t.Status.State == api.TaskStateCompleted) {
@@ -200,7 +206,7 @@ func (r *RestartSupervisor) shouldRestart(ctx context.Context, t *api.Task, serv
 
 	// Instance is not meaningful for "global" tasks, so they need to be
 	// indexed by NodeID.
-	if isGlobalService(service) {
+	if orchestrator.IsGlobalService(service) {
 		instanceTuple.nodeID = t.NodeID
 	}
 
@@ -246,7 +252,7 @@ func (r *RestartSupervisor) shouldRestart(ctx context.Context, t *api.Task, serv
 	return numRestarts < t.Spec.Restart.MaxAttempts
 }
 
-func (r *RestartSupervisor) recordRestartHistory(restartTask *api.Task) {
+func (r *Supervisor) recordRestartHistory(restartTask *api.Task) {
 	if restartTask.Spec.Restart == nil || restartTask.Spec.Restart.MaxAttempts == 0 {
 		// No limit on the number of restarts, so no need to record
 		// history.
@@ -292,7 +298,7 @@ func (r *RestartSupervisor) recordRestartHistory(restartTask *api.Task) {
 // It must be called during an Update transaction to ensure that it does not
 // miss events. The purpose of the store.Tx argument is to avoid accidental
 // calls outside an Update transaction.
-func (r *RestartSupervisor) DelayStart(ctx context.Context, _ store.Tx, oldTask *api.Task, newTaskID string, delay time.Duration, waitStop bool) <-chan struct{} {
+func (r *Supervisor) DelayStart(ctx context.Context, _ store.Tx, oldTask *api.Task, newTaskID string, delay time.Duration, waitStop bool) <-chan struct{} {
 	ctx, cancel := context.WithCancel(context.Background())
 	doneCh := make(chan struct{})
 
@@ -345,7 +351,7 @@ func (r *RestartSupervisor) DelayStart(ctx context.Context, _ store.Tx, oldTask 
 			close(doneCh)
 		}()
 
-		oldTaskTimer := time.NewTimer(r.taskTimeout)
+		oldTaskTimer := time.NewTimer(r.TaskTimeout)
 		defer oldTaskTimer.Stop()
 
 		// Wait for the delay to elapse, if one is specified.
@@ -383,7 +389,7 @@ func (r *RestartSupervisor) DelayStart(ctx context.Context, _ store.Tx, oldTask 
 
 // StartNow moves the task into the RUNNING state so it will proceed to start
 // up.
-func (r *RestartSupervisor) StartNow(tx store.Tx, taskID string) error {
+func (r *Supervisor) StartNow(tx store.Tx, taskID string) error {
 	t := store.GetTask(tx, taskID)
 	if t == nil || t.DesiredState >= api.TaskStateRunning {
 		return nil
@@ -393,7 +399,7 @@ func (r *RestartSupervisor) StartNow(tx store.Tx, taskID string) error {
 }
 
 // Cancel cancels a pending restart.
-func (r *RestartSupervisor) Cancel(taskID string) {
+func (r *Supervisor) Cancel(taskID string) {
 	r.mu.Lock()
 	delay, ok := r.delays[taskID]
 	r.mu.Unlock()
@@ -408,7 +414,7 @@ func (r *RestartSupervisor) Cancel(taskID string) {
 
 // CancelAll aborts all pending restarts and waits for any instances of
 // StartNow that have already triggered to complete.
-func (r *RestartSupervisor) CancelAll() {
+func (r *Supervisor) CancelAll() {
 	var cancelled []delayedStart
 
 	r.mu.Lock()
@@ -423,7 +429,7 @@ func (r *RestartSupervisor) CancelAll() {
 }
 
 // ClearServiceHistory forgets restart history related to a given service ID.
-func (r *RestartSupervisor) ClearServiceHistory(serviceID string) {
+func (r *Supervisor) ClearServiceHistory(serviceID string) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
