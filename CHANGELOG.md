@@ -5,7 +5,7 @@ information on the list of deprecated flags and APIs please have a look at
 https://docs.docker.com/engine/deprecated/ where target removal dates can also
 be found.
 
-## 1.12.3 (2016-10-24)
+## 1.12.3 (2016-10-26)
 
 **IMPORTANT**: Docker 1.12 ships with an updated systemd unit file for rpm
 based installs (which includes RHEL, Fedora, CentOS, and Oracle Linux 7). When
@@ -50,8 +50,8 @@ systemctl restart docker` to reload changes and (re)start the docker daemon.
 - Fix conversion of restart-policy [#27062](https://github.com/docker/docker/pull/27062)
 * Update Swarmkit [#27554](https://github.com/docker/docker/pull/27554)
  * Avoid restarting a task that has already been restarted [docker/swarmkit#1305](https://github.com/docker/swarmkit/pull/1305)
- * Allow duplicate published ports when they use different protocols [docker/swarmkit#1632](https://github.com/docker/swarmkit/pull/1632
- * Allow multiple randomly assigned published ports on service [docker/swarmkit#1657](https://github.com/docker/swarmkit/pull/1657
+ * Allow duplicate published ports when they use different protocols [docker/swarmkit#1632](https://github.com/docker/swarmkit/pull/1632)
+ * Allow multiple randomly assigned published ports on service [docker/swarmkit#1657](https://github.com/docker/swarmkit/pull/1657)
  - Fix panic when allocations happen at init time [docker/swarmkit#1651](https://github.com/docker/swarmkit/pull/1651)
 
 ### Networking
