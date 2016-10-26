@@ -578,21 +578,21 @@ func (f *FakeContext) Add(file, content string) error {
 }
 
 func (f *FakeContext) addFile(file string, content []byte) error {
-	filepath := path.Join(f.Dir, file)
-	dirpath := path.Dir(filepath)
+	fp := filepath.Join(f.Dir, filepath.FromSlash(file))
+	dirpath := filepath.Dir(fp)
 	if dirpath != "." {
 		if err := os.MkdirAll(dirpath, 0755); err != nil {
 			return err
 		}
 	}
-	return ioutil.WriteFile(filepath, content, 0644)
+	return ioutil.WriteFile(fp, content, 0644)
 
 }
 
 // Delete a file at a path
 func (f *FakeContext) Delete(file string) error {
-	filepath := path.Join(f.Dir, file)
-	return os.RemoveAll(filepath)
+	fp := filepath.Join(f.Dir, filepath.FromSlash(file))
+	return os.RemoveAll(fp)
 }
 
 // Close deletes the context

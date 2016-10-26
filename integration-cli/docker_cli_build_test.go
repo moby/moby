@@ -590,6 +590,39 @@ ADD %s/file /`
 
 }
 
+// Regression for https://github.com/docker/docker/pull/27805
+// Makes sure that we don't use the cache if the contents of
+// a file in a subfolder of the context is modified and we re-build.
+func (s *DockerSuite) TestBuildModifyFileInFolder(c *check.C) {
+	name := "testbuildmodifyfileinfolder"
+
+	ctx, err := fakeContext(`FROM busybox
+RUN ["mkdir", "/test"]
+ADD folder/file /test/changetarget`,
+		map[string]string{})
+	if err != nil {
+		c.Fatal(err)
+	}
+	defer ctx.Close()
+	if err := ctx.Add("folder/file", "first"); err != nil {
+		c.Fatal(err)
+	}
+	id1, err := buildImageFromContext(name, ctx, true)
+	if err != nil {
+		c.Fatal(err)
+	}
+	if err := ctx.Add("folder/file", "second"); err != nil {
+		c.Fatal(err)
+	}
+	id2, err := buildImageFromContext(name, ctx, true)
+	if err != nil {
+		c.Fatal(err)
+	}
+	if id1 == id2 {
+		c.Fatal("cache was used even though file contents in folder was changed")
+	}
+}
+
 func (s *DockerSuite) TestBuildAddSingleFileToRoot(c *check.C) {
 	testRequires(c, DaemonIsLinux) // Linux specific test
 	name := "testaddimg"
