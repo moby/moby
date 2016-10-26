@@ -40,13 +40,11 @@ The mount is created inside the container's `/world` directory. Docker does not 
 
 Multiple containers can use the same volume in the same time period. This is useful if two containers need access to shared data. For example, if one container writes and the other reads the data.
 
-Volume names must be unique among drivers.  This means you cannot use the same volume name with two different drivers.  If you attempt this `docker` returns an error:
+Volume names must be unique. This means you cannot use the same name with two different volumes. If you attempt this `docker` returns an error:
 
 ```
 A volume named  "hello"  already exists with the "some-other" driver. Choose a different volume name.
-```
-
-If you specify a volume name already in use on the current driver, Docker assumes you want to re-use the existing volume and does not return an error.   
+```  
 
 ## Driver specific options
 

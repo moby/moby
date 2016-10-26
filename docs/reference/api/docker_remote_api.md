@@ -160,6 +160,7 @@ This section lists each version from latest to oldest.  Each listing includes a 
 * `POST /volumes/prune` prunes unused volumes.
 * `POST /networks/prune` prunes unused networks.
 * Every API response now includes a `Docker-Experimental` header specifying if experimental features are enabled (value can be `true` or `false`).
+* `POST /volumes/create` now returns an error if the given volume name already exists. 
 
 
 ### v1.24 API changes

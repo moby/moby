@@ -220,7 +220,7 @@ func (daemon *Daemon) VolumeCreate(name, driverName string, opts, labels map[str
 	v, err := daemon.volumes.Create(name, driverName, opts, labels)
 	if err != nil {
 		if volumestore.IsNameConflict(err) {
-			return nil, fmt.Errorf("A volume named %s already exists. Choose a different volume name.", name)
+			return nil, fmt.Errorf("A volume named \"%s\" already exists with the \"%s\" driver. Choose a different volume name.", name, v.DriverName())
 		}
 		return nil, err
 	}
