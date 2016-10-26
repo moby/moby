@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"path/filepath"
 	"strings"
 
 	"github.com/docker/docker/api/types"
@@ -31,6 +32,13 @@ func parseSecretString(secretString string) (string, string, error) {
 	} else {
 		targetName = secretName
 	}
+
+	// ensure target is a filename only; no paths allowed
+	tDir, _ := filepath.Split(targetName)
+	if tDir != "" {
+		return "", "", fmt.Errorf("target must not have a path")
+	}
+
 	return secretName, targetName, nil
 }
 

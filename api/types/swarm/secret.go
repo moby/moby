@@ -11,7 +11,7 @@ type Secret struct {
 
 type SecretSpec struct {
 	Annotations
-	Data []byte `json",omitempty"`
+	Data []byte `json:",omitempty"`
 }
 
 type SecretReferenceMode int
