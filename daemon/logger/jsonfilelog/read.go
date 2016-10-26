@@ -113,7 +113,8 @@ func (l *JSONFileLogger) readLogs(logWatcher *logger.LogWatcher, config logger.R
 }
 
 func tailFile(f io.ReadSeeker, logWatcher *logger.LogWatcher, tail int, since time.Time) {
-	var rdr io.Reader = f
+	var rdr io.Reader
+	rdr = f
 	if tail > 0 {
 		ls, err := tailfile.TailFile(f, tail)
 		if err != nil {
