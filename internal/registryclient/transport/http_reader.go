@@ -181,6 +181,7 @@ func (hrs *httpReadSeeker) reader() (io.Reader, error) {
 		// context.GetLogger(hrs.context).Infof("Range: %s", req.Header.Get("Range"))
 	}
 
+	req.Header.Add("Accept-Encoding", "identity")
 	resp, err := hrs.client.Do(req)
 	if err != nil {
 		return nil, err
