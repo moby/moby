@@ -79,12 +79,9 @@ func containerSpecFromGRPC(c *swarmapi.ContainerSpec) types.ContainerSpec {
 func secretReferencesToGRPC(sr []*types.SecretReference) []*swarmapi.SecretReference {
 	refs := []*swarmapi.SecretReference{}
 	for _, s := range sr {
-		var mode swarmapi.SecretReference_Mode
-		switch s.Mode {
-		case types.SecretReferenceSystem:
+		mode := swarmapi.SecretReference_FILE
+		if s.Mode == types.SecretReferenceSystem {
 			mode = swarmapi.SecretReference_SYSTEM
-		default:
-			mode = swarmapi.SecretReference_FILE
 		}
 		refs = append(refs, &swarmapi.SecretReference{
 			SecretID:   s.SecretID,

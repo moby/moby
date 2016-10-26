@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/cloudflare/cfssl/log"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/links"
@@ -25,6 +26,7 @@ import (
 	"github.com/opencontainers/runc/libcontainer/devices"
 	"github.com/opencontainers/runc/libcontainer/label"
 	"github.com/opencontainers/runtime-spec/specs-go"
+	"github.com/pkg/errors"
 )
 
 func u32Ptr(i int64) *uint32     { u := uint32(i); return &u }
@@ -146,36 +148,58 @@ func (daemon *Daemon) setupSecretDir(c *container.Container) error {
 	localMountPath := c.SecretMountPath()
 	logrus.Debugf("secrets: setting up secret dir: %s", localMountPath)
 
+	var setupErr error
+
+	defer func(err error) {
+		if err != nil {
+			// cleanup
+			_ = detachMounted(localMountPath)
+
+			if err := os.RemoveAll(localMountPath); err != nil {
+				log.Errorf("error cleaning up secret mount: %s", err)
+			}
+		}
+	}(setupErr)
+
 	// create tmpfs
 	if err := os.MkdirAll(localMountPath, 0700); err != nil {
-		return fmt.Errorf("error creating secret local mount path: %s", err)
+		setupErr = errors.Wrap(err, "error creating secret local mount path")
 	}
 	if err := mount.Mount("tmpfs", localMountPath, "tmpfs", "nodev"); err != nil {
-		return fmt.Errorf("unable to setup secret mount: %s", err)
+		setupErr = errors.Wrap(err, "unable to setup secret mount")
 	}
 
 	for _, s := range c.Secrets {
-		fPath := filepath.Join(localMountPath, s.Target)
-		if err := os.MkdirAll(filepath.Dir(fPath), 0700); err != nil {
-			return fmt.Errorf("error creating secret mount path: %s", err)
+		// ensure that the target is a filename only; no paths allowed
+		tDir, tPath := filepath.Split(s.Target)
+		if tDir != "" {
+			setupErr = fmt.Errorf("error creating secret: secret must not have a path")
 		}
 
-		logrus.Debugf("injecting secret: name=%s path=%s", s.Name, fPath)
+		fPath := filepath.Join(localMountPath, tPath)
+		if err := os.MkdirAll(filepath.Dir(fPath), 0700); err != nil {
+			setupErr = errors.Wrap(err, "error creating secret mount path")
+		}
+
+		logrus.WithFields(logrus.Fields{
+			"name": s.Name,
+			"path": fPath,
+		}).Debug("injecting secret")
 		if err := ioutil.WriteFile(fPath, s.Data, s.Mode); err != nil {
-			return fmt.Errorf("error injecting secret: %s", err)
+			setupErr = errors.Wrap(err, "error injecting secret")
 		}
 
 		if err := os.Chown(fPath, s.Uid, s.Gid); err != nil {
-			return fmt.Errorf("error setting ownership for secret: %s", err)
+			setupErr = errors.Wrap(err, "error setting ownership for secret")
 		}
 	}
 
 	// remount secrets ro
 	if err := mount.Mount("tmpfs", localMountPath, "tmpfs", "remount,ro"); err != nil {
-		return fmt.Errorf("unable to remount secret dir as readonly: %s", err)
+		setupErr = errors.Wrap(err, "unable to remount secret dir as readonly")
 	}
 
-	return nil
+	return setupErr
 }
 
 func killProcessDirectly(container *container.Container) error {

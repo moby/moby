@@ -1,7 +1,6 @@
 package convert
 
 import (
-	"github.com/Sirupsen/logrus"
 	swarmtypes "github.com/docker/docker/api/types/swarm"
 	swarmapi "github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/protobuf/ptypes"
@@ -9,7 +8,6 @@ import (
 
 // SecretFromGRPC converts a grpc Secret to a Secret.
 func SecretFromGRPC(s *swarmapi.Secret) swarmtypes.Secret {
-	logrus.Debugf("%+v", s)
 	secret := swarmtypes.Secret{
 		ID:         s.ID,
 		Digest:     s.Digest,
@@ -33,14 +31,12 @@ func SecretFromGRPC(s *swarmapi.Secret) swarmtypes.Secret {
 }
 
 // SecretSpecToGRPC converts Secret to a grpc Secret.
-func SecretSpecToGRPC(s swarmtypes.SecretSpec) (swarmapi.SecretSpec, error) {
-	spec := swarmapi.SecretSpec{
+func SecretSpecToGRPC(s swarmtypes.SecretSpec) swarmapi.SecretSpec {
+	return swarmapi.SecretSpec{
 		Annotations: swarmapi.Annotations{
 			Name:   s.Name,
 			Labels: s.Labels,
 		},
 		Data: s.Data,
 	}
-
-	return spec, nil
 }

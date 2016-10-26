@@ -22,8 +22,8 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-// DefaultSHMSize is the default size (64MB) of the SHM which will be mounted in the container
 const (
+	// DefaultSHMSize is the default size (64MB) of the SHM which will be mounted in the container
 	DefaultSHMSize           int64 = 67108864
 	containerSecretMountPath       = "/run/secrets"
 )
@@ -178,6 +178,7 @@ func (container *Container) NetworkMounts() []Mount {
 	return mounts
 }
 
+// SecretMountPath returns the path of the secret mount for the container
 func (container *Container) SecretMountPath() string {
 	return filepath.Join(container.Root, "secrets")
 }
@@ -267,19 +268,19 @@ func (container *Container) IpcMounts() []Mount {
 	return mounts
 }
 
-// SecretMounts returns the list of Secret mounts
-func (container *Container) SecretMounts() []Mount {
-	var mounts []Mount
+// SecretMount returns the list of Secret mounts
+func (container *Container) SecretMount() Mount {
+	var mount Mount
 
 	if len(container.Secrets) > 0 {
-		mounts = append(mounts, Mount{
+		mount = Mount{
 			Source:      container.SecretMountPath(),
 			Destination: containerSecretMountPath,
 			Writable:    false,
-		})
+		}
 	}
 
-	return mounts
+	return mount
 }
 
 // UnmountSecrets unmounts the local tmpfs for secrets

@@ -63,10 +63,7 @@ func (c *Cluster) CreateSecret(s types.SecretSpec) (string, error) {
 	ctx, cancel := c.getRequestContext()
 	defer cancel()
 
-	secretSpec, err := convert.SecretSpecToGRPC(s)
-	if err != nil {
-		return "", err
-	}
+	secretSpec := convert.SecretSpecToGRPC(s)
 
 	r, err := c.node.client.CreateSecret(ctx,
 		&swarmapi.CreateSecretRequest{Spec: &secretSpec})
@@ -111,10 +108,7 @@ func (c *Cluster) UpdateSecret(id string, version uint64, spec types.SecretSpec)
 	ctx, cancel := c.getRequestContext()
 	defer cancel()
 
-	secretSpec, err := convert.SecretSpecToGRPC(spec)
-	if err != nil {
-		return err
-	}
+	secretSpec := convert.SecretSpecToGRPC(spec)
 
 	if _, err := c.client.UpdateSecret(ctx,
 		&swarmapi.UpdateSecretRequest{
