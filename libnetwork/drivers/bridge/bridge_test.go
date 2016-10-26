@@ -169,13 +169,13 @@ func compareBindings(a, b []types.PortBinding) bool {
 
 func getIPv4Data(t *testing.T, iface string) []driverapi.IPAMData {
 	ipd := driverapi.IPAMData{AddressSpace: "full"}
-	nw, _, err := netutils.ElectInterfaceAddresses(iface)
+	nws, _, err := netutils.ElectInterfaceAddresses(iface)
 	if err != nil {
 		t.Fatal(err)
 	}
-	ipd.Pool = nw
+	ipd.Pool = nws[0]
 	// Set network gateway to X.X.X.1
-	ipd.Gateway = types.GetIPNetCopy(nw)
+	ipd.Gateway = types.GetIPNetCopy(nws[0])
 	ipd.Gateway.IP[len(ipd.Gateway.IP)-1] = 1
 	return []driverapi.IPAMData{ipd}
 }
@@ -1054,12 +1054,12 @@ func TestCreateWithExistingBridge(t *testing.T) {
 		t.Fatalf("Failed to getNetwork(%s): %v", brName, err)
 	}
 
-	addr4, _, err := nw.bridge.addresses()
+	addrs4, _, err := nw.bridge.addresses()
 	if err != nil {
 		t.Fatalf("Failed to get the bridge network's address: %v", err)
 	}
 
-	if !addr4.IP.Equal(ip) {
+	if !addrs4[0].IP.Equal(ip) {
 		t.Fatal("Creating bridge network with existing bridge interface unexpectedly modified the IP address of the bridge")
 	}
 

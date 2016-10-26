@@ -5,6 +5,7 @@ package netutils
 import (
 	"bytes"
 	"net"
+	"sort"
 	"testing"
 
 	"github.com/docker/libnetwork/ipamutils"
@@ -265,6 +266,43 @@ func TestNetworkRequest(t *testing.T) {
 	}
 }
 
+func TestElectInterfaceAddressMultipleAddresses(t *testing.T) {
+	defer testutils.SetupTestOSContext(t)()
+	ipamutils.InitNetworks()
+
+	nws := []string{"172.101.202.254/16", "172.102.202.254/16"}
+	createInterface(t, "test", nws...)
+
+	ipv4NwList, ipv6NwList, err := ElectInterfaceAddresses("test")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(ipv4NwList) == 0 {
+		t.Fatalf("unexpected empty ipv4 network addresses")
+	}
+
+	if len(ipv6NwList) == 0 {
+		t.Fatalf("unexpected empty ipv6 network addresses")
+	}
+
+	nwList := []string{}
+	for _, ipv4Nw := range ipv4NwList {
+		nwList = append(nwList, ipv4Nw.String())
+	}
+	sort.Strings(nws)
+	sort.Strings(nwList)
+
+	if len(nws) != len(nwList) {
+		t.Fatalf("expected %v. got %v", nws, nwList)
+	}
+	for i, nw := range nws {
+		if nw != nwList[i] {
+			t.Fatalf("expected %v. got %v", nw, nwList[i])
+		}
+	}
+}
+
 func TestElectInterfaceAddress(t *testing.T) {
 	defer testutils.SetupTestOSContext(t)()
 	ipamutils.InitNetworks()
@@ -277,37 +315,43 @@ func TestElectInterfaceAddress(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if ipv4Nw == nil {
+	if len(ipv4Nw) == 0 {
 		t.Fatalf("unexpected empty ipv4 network addresses")
 	}
 
 	if len(ipv6Nw) == 0 {
-		t.Fatalf("unexpected empty ipv4 network addresses")
+		t.Fatalf("unexpected empty ipv6 network addresses")
 	}
 
-	if nws != ipv4Nw.String() {
-		t.Fatalf("expected %s. got %s", nws, ipv4Nw)
+	if nws != ipv4Nw[0].String() {
+		t.Fatalf("expected %s. got %s", nws, ipv4Nw[0])
 	}
 }
 
-func createInterface(t *testing.T, name, nw string) {
+func createInterface(t *testing.T, name string, nws ...string) {
 	// Add interface
 	link := &netlink.Bridge{
 		LinkAttrs: netlink.LinkAttrs{
 			Name: "test",
 		},
 	}
-	bip, err := types.ParseCIDR(nw)
-	if err != nil {
-		t.Fatal(err)
+	bips := []*net.IPNet{}
+	for _, nw := range nws {
+		bip, err := types.ParseCIDR(nw)
+		if err != nil {
+			t.Fatal(err)
+		}
+		bips = append(bips, bip)
 	}
-	if err = netlink.LinkAdd(link); err != nil {
+	if err := netlink.LinkAdd(link); err != nil {
 		t.Fatalf("Failed to create interface via netlink: %v", err)
 	}
-	if err := netlink.AddrAdd(link, &netlink.Addr{IPNet: bip}); err != nil {
-		t.Fatal(err)
+	for _, bip := range bips {
+		if err := netlink.AddrAdd(link, &netlink.Addr{IPNet: bip}); err != nil {
+			t.Fatal(err)
+		}
 	}
-	if err = netlink.LinkSetUp(link); err != nil {
+	if err := netlink.LinkSetUp(link); err != nil {
 		t.Fatal(err)
 	}
 }

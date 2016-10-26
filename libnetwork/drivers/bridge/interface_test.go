@@ -37,12 +37,12 @@ func TestAddressesEmptyInterface(t *testing.T) {
 		t.Fatalf("newInterface() failed: %v", err)
 	}
 
-	addrv4, addrsv6, err := inf.addresses()
+	addrsv4, addrsv6, err := inf.addresses()
 	if err != nil {
 		t.Fatalf("Failed to get addresses of default interface: %v", err)
 	}
-	if expected := (netlink.Addr{}); addrv4 != expected {
-		t.Fatalf("Default interface has unexpected IPv4: %s", addrv4)
+	if len(addrsv4) != 0 {
+		t.Fatalf("Default interface has unexpected IPv4: %s", addrsv4)
 	}
 	if len(addrsv6) != 0 {
 		t.Fatalf("Default interface has unexpected IPv6: %v", addrsv6)

@@ -507,11 +507,11 @@ func encodeData(data interface{}) (*bytes.Buffer, error) {
 }
 
 func ipamOption(bridgeName string) libnetwork.NetworkOption {
-	if nw, _, err := netutils.ElectInterfaceAddresses(bridgeName); err == nil {
-		ipamV4Conf := &libnetwork.IpamConf{PreferredPool: nw.String()}
-		hip, _ := types.GetHostPartIP(nw.IP, nw.Mask)
+	if nws, _, err := netutils.ElectInterfaceAddresses(bridgeName); err == nil {
+		ipamV4Conf := &libnetwork.IpamConf{PreferredPool: nws[0].String()}
+		hip, _ := types.GetHostPartIP(nws[0].IP, nws[0].Mask)
 		if hip.IsGlobalUnicast() {
-			ipamV4Conf.Gateway = nw.IP.String()
+			ipamV4Conf.Gateway = nws[0].IP.String()
 		}
 		return libnetwork.NetworkOptionIpam("default", "", []*libnetwork.IpamConf{ipamV4Conf}, nil, nil)
 	}
