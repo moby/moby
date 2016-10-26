@@ -117,7 +117,7 @@ func (ctr *container) start(checkpoint string, checkpointDir string, attachStdio
 				select {
 				case <-ready:
 					if err := ctr.sendCloseStdin(); err != nil {
-						logrus.Warnf("failed to close stdin: %+v")
+						logrus.Warnf("failed to close stdin: %+v", err)
 					}
 				case <-ctx.Done():
 				}
