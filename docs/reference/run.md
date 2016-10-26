@@ -243,7 +243,7 @@ $ docker run --name my-redis -d redis
 Debug the redis container by running another container that has strace in it:
 
 ```bash
-$ docker run --it --pid=container:my-redis bash
+$ docker run -it --pid=container:my-redis my_strace_docker_image bash
 $ strace -p 1
 ```
 
