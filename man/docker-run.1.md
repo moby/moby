@@ -388,7 +388,7 @@ string name. The name is useful when defining links (see **--link**) (or any
 other place you need to identify a container). This works for both background
 and foreground Docker containers.
 
-**--net**="*bridge*"
+**--network**="*bridge*"
    Set the Network mode for the container
                                'bridge': create a network stack on the default Docker bridge
                                'none': no networking
