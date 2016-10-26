@@ -1,6 +1,12 @@
 package scheduler
 
-import "github.com/docker/swarmkit/api"
+import (
+	"time"
+
+	"github.com/docker/swarmkit/api"
+	"github.com/docker/swarmkit/log"
+	"golang.org/x/net/context"
+)
 
 // NodeInfo contains a node and some additional metadata.
 type NodeInfo struct {
@@ -9,6 +15,13 @@ type NodeInfo struct {
 	DesiredRunningTasksCount          int
 	DesiredRunningTasksCountByService map[string]int
 	AvailableResources                api.Resources
+
+	// recentFailures is a map from service ID to the timestamps of the
+	// most recent failures the node has experienced from replicas of that
+	// service.
+	// TODO(aaronl): When spec versioning is supported, this should track
+	// the version of the spec that failed.
+	recentFailures map[string][]time.Time
 }
 
 func newNodeInfo(n *api.Node, tasks map[string]*api.Task, availableResources api.Resources) NodeInfo {
@@ -17,6 +30,7 @@ func newNodeInfo(n *api.Node, tasks map[string]*api.Task, availableResources api
 		Tasks: make(map[string]*api.Task),
 		DesiredRunningTasksCountByService: make(map[string]int),
 		AvailableResources:                availableResources,
+		recentFailures:                    make(map[string][]time.Time),
 	}
 
 	for _, t := range tasks {
@@ -28,9 +42,6 @@ func newNodeInfo(n *api.Node, tasks map[string]*api.Task, availableResources api
 // addTask removes a task from nodeInfo if it's tracked there, and returns true
 // if nodeInfo was modified.
 func (nodeInfo *NodeInfo) removeTask(t *api.Task) bool {
-	if nodeInfo.Tasks == nil {
-		return false
-	}
 	oldTask, ok := nodeInfo.Tasks[t.ID]
 	if !ok {
 		return false
@@ -52,13 +63,6 @@ func (nodeInfo *NodeInfo) removeTask(t *api.Task) bool {
 // addTask adds or updates a task on nodeInfo, and returns true if nodeInfo was
 // modified.
 func (nodeInfo *NodeInfo) addTask(t *api.Task) bool {
-	if nodeInfo.Tasks == nil {
-		nodeInfo.Tasks = make(map[string]*api.Task)
-	}
-	if nodeInfo.DesiredRunningTasksCountByService == nil {
-		nodeInfo.DesiredRunningTasksCountByService = make(map[string]int)
-	}
-
 	oldTask, ok := nodeInfo.Tasks[t.ID]
 	if ok {
 		if t.DesiredState == api.TaskStateRunning && oldTask.DesiredState != api.TaskStateRunning {
@@ -93,4 +97,36 @@ func taskReservations(spec api.TaskSpec) (reservations api.Resources) {
 		reservations = *spec.Resources.Reservations
 	}
 	return
+}
+
+// taskFailed records a task failure from a given service.
+func (nodeInfo *NodeInfo) taskFailed(ctx context.Context, serviceID string) {
+	expired := 0
+	now := time.Now()
+	for _, timestamp := range nodeInfo.recentFailures[serviceID] {
+		if now.Sub(timestamp) < monitorFailures {
+			break
+		}
+		expired++
+	}
+
+	if len(nodeInfo.recentFailures[serviceID])-expired == maxFailures-1 {
+		log.G(ctx).Warnf("underweighting node %s for service %s because it experienced %d failures or rejections within %s", nodeInfo.ID, serviceID, maxFailures, monitorFailures.String())
+	}
+
+	nodeInfo.recentFailures[serviceID] = append(nodeInfo.recentFailures[serviceID][expired:], now)
+}
+
+// countRecentFailures returns the number of times the service has failed on
+// this node within the lookback window monitorFailures.
+func (nodeInfo *NodeInfo) countRecentFailures(now time.Time, serviceID string) int {
+	recentFailureCount := len(nodeInfo.recentFailures[serviceID])
+	for i := recentFailureCount - 1; i >= 0; i-- {
+		if now.Sub(nodeInfo.recentFailures[serviceID][i]) > monitorFailures {
+			recentFailureCount -= i + 1
+			break
+		}
+	}
+
+	return recentFailureCount
 }

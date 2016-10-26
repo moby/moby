@@ -371,8 +371,7 @@ enum TaskState {
 	option (gogoproto.goproto_enum_prefix) = false;
 	option (gogoproto.enum_customname) = "TaskState";
 	NEW = 0 [(gogoproto.enumvalue_customname)="TaskStateNew"];
-	ALLOCATED = 64 [(gogoproto.enumvalue_customname)="TaskStateAllocated"]; // successful allocation of resources that the task needs
-	PENDING = 128 [(gogoproto.enumvalue_customname) = "TaskStatePending"]; // observed by scheduler but unassigned.
+	PENDING = 64 [(gogoproto.enumvalue_customname)="TaskStatePending"]; // waiting for scheduling decision
 	ASSIGNED = 192 [(gogoproto.enumvalue_customname)="TaskStateAssigned"];
 	ACCEPTED = 256 [(gogoproto.enumvalue_customname)="TaskStateAccepted"]; // task has been accepted by an agent.
 	PREPARING = 320 [(gogoproto.enumvalue_customname)="TaskStatePreparing"];
@@ -506,6 +505,21 @@ message PortConfig {
 		UDP = 1 [(gogoproto.enumvalue_customname) = "ProtocolUDP"];
 	}
 
+	// PublishMode controls how ports are published on the swarm.
+	enum PublishMode {
+		option (gogoproto.enum_customname) = "PublishMode";
+		option (gogoproto.goproto_enum_prefix) = false;
+
+		// PublishModeIngress exposes the port across the cluster on all nodes.
+		INGRESS = 0 [(gogoproto.enumvalue_customname) = "PublishModeIngress"];
+
+		// PublishModeHost exposes the port on just the target host.  If the
+		// published port is undefined, an ephemeral port will be allocated. If
+		// the published port is defined, the node will attempt to allocate it,
+		// erroring the task if it fails.
+		HOST = 1 [(gogoproto.enumvalue_customname) = "PublishModeHost"];
+	}
+
 	// Name for the port. If provided the port information can
 	// be queried using the name as in a DNS SRV query.
 	string name = 1;
@@ -516,11 +530,13 @@ message PortConfig {
 	// The port which the application is exposing and is bound to.
 	uint32 target_port = 3;
 
-	// PublishedPort specifies the port on which the service is
-	// exposed. If specified, the port must be
-	// within the available range. If not specified, an available
-	// port is automatically assigned.
+	// PublishedPort specifies the port on which the service is exposed. If
+	// specified, the port must be within the available range. If not specified
+	// (value is zero), an available port is automatically assigned.
 	uint32 published_port = 4;
+
+	// PublishMode controls how the port is published.
+	PublishMode publish_mode = 5;
 }
 
 // Driver is a generic driver type to be used throughout the API. For now, a
@@ -556,10 +572,17 @@ message IssuanceStatus {
 		option (gogoproto.goproto_enum_prefix) = false;
 
 		UNKNOWN = 0 [(gogoproto.enumvalue_customname) = "IssuanceStateUnknown"];
-		RENEW = 1 [(gogoproto.enumvalue_customname)="IssuanceStateRenew"]; // Certificate should be issued
-		PENDING = 2 [(gogoproto.enumvalue_customname)="IssuanceStatePending"]; // Certificate is pending acceptance
-		ISSUED = 3 [(gogoproto.enumvalue_customname)="IssuanceStateIssued"]; // successful completion certificate issuance
-		FAILED = 4 [(gogoproto.enumvalue_customname)="IssuanceStateFailed"]; // Certificate issuance failed
+		// A new certificate should be issued
+		RENEW = 1 [(gogoproto.enumvalue_customname)="IssuanceStateRenew"];
+		// Certificate is pending acceptance
+		PENDING = 2 [(gogoproto.enumvalue_customname)="IssuanceStatePending"];
+		// successful completion certificate issuance
+		ISSUED = 3 [(gogoproto.enumvalue_customname)="IssuanceStateIssued"];
+		// Certificate issuance failed
+		FAILED = 4 [(gogoproto.enumvalue_customname)="IssuanceStateFailed"];
+		// Signals workers to renew their certificate. From the CA's perspective
+		// this is equivalent to IssuanceStateIssued: a noop.
+		ROTATE = 5 [(gogoproto.enumvalue_customname)="IssuanceStateRotate"];
 	}
 	State state = 1;
 
@@ -777,12 +800,10 @@ message SecretReference {
 	string secret_name = 4;
 }
 
-// RemovedNode is a record for a node that has been removed from the swarm.
-message RemovedNode {
-	// ID is the ID of the removed node.
-	string id = 1 [(gogoproto.customname) = "ID"];
-
+// BlacklistedCertificate is a record for a blacklisted certificate. It does not
+// contain the certificate's CN, because these records are indexed by CN.
+message BlacklistedCertificate {
 	// Expiry is the latest known expiration time of a certificate that
-	// was issued to this node.
-	Timestamp expiry = 2;
+	// was issued for the given CN.
+	Timestamp expiry = 1;
 }

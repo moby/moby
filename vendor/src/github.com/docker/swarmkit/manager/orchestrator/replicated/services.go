@@ -1,4 +1,4 @@
-package orchestrator
+package replicated
 
 import (
 	"sort"
@@ -6,6 +6,7 @@ import (
 	"github.com/docker/go-events"
 	"github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/log"
+	"github.com/docker/swarmkit/manager/orchestrator"
 	"github.com/docker/swarmkit/manager/state"
 	"github.com/docker/swarmkit/manager/state/store"
 	"golang.org/x/net/context"
@@ -16,7 +17,7 @@ import (
 // specifications. This is different from task-level orchestration, which
 // responds to changes in individual tasks (or nodes which run them).
 
-func (r *ReplicatedOrchestrator) initCluster(readTx store.ReadTx) error {
+func (r *Orchestrator) initCluster(readTx store.ReadTx) error {
 	clusters, err := store.FindClusters(readTx, store.ByName("default"))
 	if err != nil {
 		return err
@@ -31,41 +32,41 @@ func (r *ReplicatedOrchestrator) initCluster(readTx store.ReadTx) error {
 	return nil
 }
 
-func (r *ReplicatedOrchestrator) initServices(readTx store.ReadTx) error {
+func (r *Orchestrator) initServices(readTx store.ReadTx) error {
 	services, err := store.FindServices(readTx, store.All)
 	if err != nil {
 		return err
 	}
 	for _, s := range services {
-		if isReplicatedService(s) {
+		if orchestrator.IsReplicatedService(s) {
 			r.reconcileServices[s.ID] = s
 		}
 	}
 	return nil
 }
 
-func (r *ReplicatedOrchestrator) handleServiceEvent(ctx context.Context, event events.Event) {
+func (r *Orchestrator) handleServiceEvent(ctx context.Context, event events.Event) {
 	switch v := event.(type) {
 	case state.EventDeleteService:
-		if !isReplicatedService(v.Service) {
+		if !orchestrator.IsReplicatedService(v.Service) {
 			return
 		}
-		deleteServiceTasks(ctx, r.store, v.Service)
+		orchestrator.DeleteServiceTasks(ctx, r.store, v.Service)
 		r.restarts.ClearServiceHistory(v.Service.ID)
 	case state.EventCreateService:
-		if !isReplicatedService(v.Service) {
+		if !orchestrator.IsReplicatedService(v.Service) {
 			return
 		}
 		r.reconcileServices[v.Service.ID] = v.Service
 	case state.EventUpdateService:
-		if !isReplicatedService(v.Service) {
+		if !orchestrator.IsReplicatedService(v.Service) {
 			return
 		}
 		r.reconcileServices[v.Service.ID] = v.Service
 	}
 }
 
-func (r *ReplicatedOrchestrator) tickServices(ctx context.Context) {
+func (r *Orchestrator) tickServices(ctx context.Context) {
 	if len(r.reconcileServices) > 0 {
 		for _, s := range r.reconcileServices {
 			r.reconcile(ctx, s)
@@ -74,7 +75,7 @@ func (r *ReplicatedOrchestrator) tickServices(ctx context.Context) {
 	}
 }
 
-func (r *ReplicatedOrchestrator) resolveService(ctx context.Context, task *api.Task) *api.Service {
+func (r *Orchestrator) resolveService(ctx context.Context, task *api.Task) *api.Service {
 	if task.ServiceID == "" {
 		return nil
 	}
@@ -85,8 +86,8 @@ func (r *ReplicatedOrchestrator) resolveService(ctx context.Context, task *api.T
 	return service
 }
 
-func (r *ReplicatedOrchestrator) reconcile(ctx context.Context, service *api.Service) {
-	runningSlots, deadSlots, err := getRunnableAndDeadSlots(r.store, service.ID)
+func (r *Orchestrator) reconcile(ctx context.Context, service *api.Service) {
+	runningSlots, deadSlots, err := orchestrator.GetRunnableAndDeadSlots(r.store, service.ID)
 	if err != nil {
 		log.G(ctx).WithError(err).Errorf("reconcile failed finding tasks")
 		return
@@ -94,7 +95,7 @@ func (r *ReplicatedOrchestrator) reconcile(ctx context.Context, service *api.Ser
 
 	numSlots := len(runningSlots)
 
-	slotsSlice := make([]slot, 0, numSlots)
+	slotsSlice := make([]orchestrator.Slot, 0, numSlots)
 	for _, slot := range runningSlots {
 		slotsSlice = append(slotsSlice, slot)
 	}
@@ -148,7 +149,7 @@ func (r *ReplicatedOrchestrator) reconcile(ctx context.Context, service *api.Ser
 
 		sort.Sort(slotsWithIndices)
 
-		sortedSlots := make([]slot, 0, numSlots)
+		sortedSlots := make([]orchestrator.Slot, 0, numSlots)
 		for _, slot := range slotsWithIndices {
 			sortedSlots = append(sortedSlots, slot.slot)
 		}
@@ -176,7 +177,7 @@ func (r *ReplicatedOrchestrator) reconcile(ctx context.Context, service *api.Ser
 	}
 }
 
-func (r *ReplicatedOrchestrator) addTasks(ctx context.Context, batch *store.Batch, service *api.Service, runningSlots map[uint64]slot, deadSlots map[uint64]slot, count int) {
+func (r *Orchestrator) addTasks(ctx context.Context, batch *store.Batch, service *api.Service, runningSlots map[uint64]orchestrator.Slot, deadSlots map[uint64]orchestrator.Slot, count int) {
 	slot := uint64(0)
 	for i := 0; i < count; i++ {
 		// Find an slot number that is missing a running task
@@ -189,7 +190,7 @@ func (r *ReplicatedOrchestrator) addTasks(ctx context.Context, batch *store.Batc
 
 		delete(deadSlots, slot)
 		err := batch.Update(func(tx store.Tx) error {
-			return store.CreateTask(tx, newTask(r.cluster, service, slot, ""))
+			return store.CreateTask(tx, orchestrator.NewTask(r.cluster, service, slot, ""))
 		})
 		if err != nil {
 			log.G(ctx).Errorf("Failed to create task: %v", err)
@@ -197,7 +198,7 @@ func (r *ReplicatedOrchestrator) addTasks(ctx context.Context, batch *store.Batc
 	}
 }
 
-func (r *ReplicatedOrchestrator) deleteTasks(ctx context.Context, batch *store.Batch, slots []slot) {
+func (r *Orchestrator) deleteTasks(ctx context.Context, batch *store.Batch, slots []orchestrator.Slot) {
 	for _, slot := range slots {
 		for _, t := range slot {
 			r.deleteTask(ctx, batch, t)
@@ -205,7 +206,7 @@ func (r *ReplicatedOrchestrator) deleteTasks(ctx context.Context, batch *store.B
 	}
 }
 
-func (r *ReplicatedOrchestrator) deleteTasksMap(ctx context.Context, batch *store.Batch, slots map[uint64]slot) {
+func (r *Orchestrator) deleteTasksMap(ctx context.Context, batch *store.Batch, slots map[uint64]orchestrator.Slot) {
 	for _, slot := range slots {
 		for _, t := range slot {
 			r.deleteTask(ctx, batch, t)
@@ -213,44 +214,11 @@ func (r *ReplicatedOrchestrator) deleteTasksMap(ctx context.Context, batch *stor
 	}
 }
 
-func (r *ReplicatedOrchestrator) deleteTask(ctx context.Context, batch *store.Batch, t *api.Task) {
+func (r *Orchestrator) deleteTask(ctx context.Context, batch *store.Batch, t *api.Task) {
 	err := batch.Update(func(tx store.Tx) error {
 		return store.DeleteTask(tx, t.ID)
 	})
 	if err != nil {
 		log.G(ctx).WithError(err).Errorf("deleting task %s failed", t.ID)
 	}
-}
-
-// getRunnableAndDeadSlots returns two maps of slots. The first contains slots
-// that have at least one task with a desired state above NEW and lesser or
-// equal to RUNNING. The second is for slots that only contain tasks with a
-// desired state above RUNNING.
-func getRunnableAndDeadSlots(s *store.MemoryStore, serviceID string) (map[uint64]slot, map[uint64]slot, error) {
-	var (
-		tasks []*api.Task
-		err   error
-	)
-	s.View(func(tx store.ReadTx) {
-		tasks, err = store.FindTasks(tx, store.ByServiceID(serviceID))
-	})
-	if err != nil {
-		return nil, nil, err
-	}
-
-	runningSlots := make(map[uint64]slot)
-	for _, t := range tasks {
-		if t.DesiredState <= api.TaskStateRunning {
-			runningSlots[t.Slot] = append(runningSlots[t.Slot], t)
-		}
-	}
-
-	deadSlots := make(map[uint64]slot)
-	for _, t := range tasks {
-		if _, exists := runningSlots[t.Slot]; !exists {
-			deadSlots[t.Slot] = append(deadSlots[t.Slot], t)
-		}
-	}
-
-	return runningSlots, deadSlots, nil
 }

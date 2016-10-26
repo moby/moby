@@ -1,4 +1,4 @@
-package orchestrator
+package taskreaper
 
 import (
 	"sort"
@@ -36,8 +36,8 @@ type TaskReaper struct {
 	doneChan    chan struct{}
 }
 
-// NewTaskReaper creates a new TaskReaper.
-func NewTaskReaper(store *store.MemoryStore) *TaskReaper {
+// New creates a new TaskReaper.
+func New(store *store.MemoryStore) *TaskReaper {
 	watcher, cancel := state.Watch(store.WatchQueue(), state.EventCreateTask{}, state.EventUpdateCluster{})
 
 	return &TaskReaper{

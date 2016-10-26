@@ -2,6 +2,7 @@ package controlapi
 
 import (
 	"strings"
+	"time"
 
 	"github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/ca"
@@ -10,6 +11,12 @@ import (
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+)
+
+const (
+	// expiredCertGrace is the amount of time to keep a node in the
+	// blacklist beyond its certificate expiration timestamp.
+	expiredCertGrace = 24 * time.Hour * 7
 )
 
 func validateClusterSpec(spec *api.ClusterSpec) error {
@@ -97,6 +104,8 @@ func (s *Server) UpdateCluster(ctx context.Context, request *api.UpdateClusterRe
 		}
 		cluster.Meta.Version = *request.ClusterVersion
 		cluster.Spec = *request.Spec.Copy()
+
+		expireBlacklistedCerts(cluster)
 
 		if request.Rotation.RotateWorkerToken {
 			cluster.RootCA.JoinTokens.Worker = ca.GenerateJoinToken(s.rootCA)
@@ -202,11 +211,26 @@ func redactClusters(clusters []*api.Cluster) []*api.Cluster {
 				CACertHash: cluster.RootCA.CACertHash,
 				JoinTokens: cluster.RootCA.JoinTokens,
 			},
-			RemovedNodes: cluster.RemovedNodes,
+			BlacklistedCertificates: cluster.BlacklistedCertificates,
 		}
 
 		redactedClusters = append(redactedClusters, newCluster)
 	}
 
 	return redactedClusters
+}
+
+func expireBlacklistedCerts(cluster *api.Cluster) {
+	nowMinusGrace := time.Now().Add(-expiredCertGrace)
+
+	for cn, blacklistedCert := range cluster.BlacklistedCertificates {
+		if blacklistedCert.Expiry == nil {
+			continue
+		}
+
+		expiry, err := ptypes.Timestamp(blacklistedCert.Expiry)
+		if err == nil && nowMinusGrace.After(expiry) {
+			delete(cluster.BlacklistedCertificates, cn)
+		}
+	}
 }

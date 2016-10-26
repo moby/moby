@@ -755,6 +755,9 @@ func (n *Node) Leave(ctx context.Context, req *api.LeaveRequest) (*api.LeaveResp
 		return nil, err
 	}
 
+	ctx, cancel := n.WithContext(ctx)
+	defer cancel()
+
 	fields := logrus.Fields{
 		"node.id": nodeInfo.NodeID,
 		"method":  "(*Node).Leave",
@@ -765,20 +768,7 @@ func (n *Node) Leave(ctx context.Context, req *api.LeaveRequest) (*api.LeaveResp
 	}
 	log.G(ctx).WithFields(fields).Debug("")
 
-	// can't stop the raft node while an async RPC is in progress
-	n.stopMu.RLock()
-	defer n.stopMu.RUnlock()
-
-	if !n.IsMember() {
-		return nil, ErrNoRaftMember
-	}
-
-	if !n.isLeader() {
-		return nil, ErrLostLeadership
-	}
-
-	err = n.RemoveMember(ctx, req.Node.RaftID)
-	if err != nil {
+	if err := n.removeMember(ctx, req.Node.RaftID); err != nil {
 		return nil, err
 	}
 
@@ -791,12 +781,21 @@ func (n *Node) CanRemoveMember(id uint64) bool {
 	return n.cluster.CanRemoveMember(n.Config.ID, id)
 }
 
-// RemoveMember submits a configuration change to remove a member from the raft cluster
-// after checking if the operation would not result in a loss of quorum.
-func (n *Node) RemoveMember(ctx context.Context, id uint64) error {
+func (n *Node) removeMember(ctx context.Context, id uint64) error {
+	// can't stop the raft node while an async RPC is in progress
+	n.stopMu.RLock()
+	defer n.stopMu.RUnlock()
+
+	if !n.IsMember() {
+		return ErrNoRaftMember
+	}
+
+	if !n.isLeader() {
+		return ErrLostLeadership
+	}
+
 	n.membershipLock.Lock()
 	defer n.membershipLock.Unlock()
-
 	if n.cluster.CanRemoveMember(n.Config.ID, id) {
 		cc := raftpb.ConfChange{
 			ID:      id,
@@ -804,13 +803,19 @@ func (n *Node) RemoveMember(ctx context.Context, id uint64) error {
 			NodeID:  id,
 			Context: []byte(""),
 		}
-		ctx, cancel := n.WithContext(ctx)
 		err := n.configure(ctx, cc)
-		cancel()
 		return err
 	}
 
 	return ErrCannotRemoveMember
+}
+
+// RemoveMember submits a configuration change to remove a member from the raft cluster
+// after checking if the operation would not result in a loss of quorum.
+func (n *Node) RemoveMember(ctx context.Context, id uint64) error {
+	ctx, cancel := n.WithContext(ctx)
+	defer cancel()
+	return n.removeMember(ctx, id)
 }
 
 // ProcessRaftMessage calls 'Step' which advances the

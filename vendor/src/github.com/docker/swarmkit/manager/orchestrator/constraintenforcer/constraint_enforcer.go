@@ -1,4 +1,4 @@
-package orchestrator
+package constraintenforcer
 
 import (
 	"github.com/docker/swarmkit/api"
@@ -16,8 +16,8 @@ type ConstraintEnforcer struct {
 	doneChan chan struct{}
 }
 
-// NewConstraintEnforcer creates a new ConstraintEnforcer.
-func NewConstraintEnforcer(store *store.MemoryStore) *ConstraintEnforcer {
+// New creates a new ConstraintEnforcer.
+func New(store *store.MemoryStore) *ConstraintEnforcer {
 	return &ConstraintEnforcer{
 		store:    store,
 		stopChan: make(chan struct{}),

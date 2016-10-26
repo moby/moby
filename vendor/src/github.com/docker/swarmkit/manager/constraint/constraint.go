@@ -125,6 +125,26 @@ func NodeMatches(constraints []Constraint, n *api.Node) bool {
 			if !constraint.Match(n.Spec.Role.String()) {
 				return false
 			}
+		case strings.EqualFold(constraint.key, "node.platform.os"):
+			if n.Description == nil || n.Description.Platform == nil {
+				if !constraint.Match("") {
+					return false
+				}
+				continue
+			}
+			if !constraint.Match(n.Description.Platform.OS) {
+				return false
+			}
+		case strings.EqualFold(constraint.key, "node.platform.arch"):
+			if n.Description == nil || n.Description.Platform == nil {
+				if !constraint.Match("") {
+					return false
+				}
+				continue
+			}
+			if !constraint.Match(n.Description.Platform.Architecture) {
+				return false
+			}
 
 		// node labels constraint in form like 'node.labels.key==value'
 		case len(constraint.key) > len(nodeLabelPrefix) && strings.EqualFold(constraint.key[:len(nodeLabelPrefix)], nodeLabelPrefix):
