@@ -22,7 +22,7 @@ func (s *DockerSuite) TestGetContainersAttachWebsocket(c *check.C) {
 
 	cleanedContainerID := strings.TrimSpace(out)
 	config, err := websocket.NewConfig(
-		"/containers/"+cleanedContainerID+"/attach/ws?stream=1&stdin=1&stdout=1&stderr=1",
+		"/v"+defaultAPIVersion+"/containers/"+cleanedContainerID+"/attach/ws?stream=1&stdin=1&stdout=1&stderr=1",
 		"http://localhost",
 	)
 	c.Assert(err, checker.IsNil)

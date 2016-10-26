@@ -1148,7 +1148,7 @@ func (s *DockerSuite) TestContainerAPIChunkedEncoding(c *check.C) {
 	b, err := json.Marshal(config)
 	c.Assert(err, checker.IsNil)
 
-	req, err := http.NewRequest("POST", "/containers/create", bytes.NewBuffer(b))
+	req, err := http.NewRequest("POST", "/v"+defaultAPIVersion+"/containers/create", bytes.NewBuffer(b))
 	c.Assert(err, checker.IsNil)
 	req.Header.Set("Content-Type", "application/json")
 	// This is a cheat to make the http request do chunked encoding

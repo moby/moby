@@ -225,7 +225,7 @@ func (d *Daemon) StartWithLogFile(out *os.File, providedArgs ...string) error {
 				Transport: clientConfig.transport,
 			}
 
-			req, err := http.NewRequest("GET", "/_ping", nil)
+			req, err := http.NewRequest("GET", "/v"+defaultAPIVersion+"/_ping", nil)
 			d.c.Assert(err, check.IsNil, check.Commentf("[%s] could not create new request", d.id))
 			req.URL.Host = clientConfig.addr
 			req.URL.Scheme = clientConfig.scheme
@@ -401,7 +401,7 @@ func (d *Daemon) queryRootDir() (string, error) {
 		Transport: clientConfig.transport,
 	}
 
-	req, err := http.NewRequest("GET", "/info", nil)
+	req, err := http.NewRequest("GET", "/v"+defaultAPIVersion+"/info", nil)
 	if err != nil {
 		return "", err
 	}

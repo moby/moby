@@ -18,6 +18,7 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -211,6 +212,11 @@ func newRequestClient(method, endpoint string, data io.Reader, ct, daemon string
 	}
 
 	client := httputil.NewClientConn(c, nil)
+
+	// Add version to URL if it hasn't already
+	if !regexp.MustCompile(`^/v[\d\.]+/`).MatchString(endpoint) {
+		endpoint = "/v" + defaultAPIVersion + endpoint
+	}
 
 	req, err := http.NewRequest(method, endpoint, data)
 	if err != nil {

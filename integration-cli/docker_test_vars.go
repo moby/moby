@@ -85,6 +85,10 @@ const (
 	// DefaultImage is the name of the base image for the majority of tests that
 	// are run across suites
 	DefaultImage = "busybox"
+
+	// defaultAPIVersion is the version of the API to use in tests unless
+	// otherwise specified.
+	defaultAPIVersion = "1.25"
 )
 
 func init() {
