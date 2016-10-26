@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/api/errors"
 	"github.com/docker/docker/api/server/httputils"
 	basictypes "github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
@@ -319,18 +320,18 @@ func (sr *swarmRouter) getSecret(ctx context.Context, w http.ResponseWriter, r *
 func (sr *swarmRouter) updateSecret(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	var secret types.SecretSpec
 	if err := json.NewDecoder(r.Body).Decode(&secret); err != nil {
-		return err
+		return errors.NewBadRequestError(err)
 	}
 
 	rawVersion := r.URL.Query().Get("version")
 	version, err := strconv.ParseUint(rawVersion, 10, 64)
 	if err != nil {
-		return fmt.Errorf("Invalid secret version '%s': %s", rawVersion, err.Error())
+		return errors.NewBadRequestError(fmt.Errorf("invalid secret version"))
 	}
 
 	id := vars["id"]
 	if err := sr.backend.UpdateSecret(id, version, secret); err != nil {
-		return fmt.Errorf("Error updating secret: %s", err)
+		return errors.NewErrorWithStatusCode(err, http.StatusInternalServerError)
 	}
 
 	return nil
