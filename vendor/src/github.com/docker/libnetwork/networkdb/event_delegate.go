@@ -29,6 +29,8 @@ func (e *eventDelegate) NotifyLeave(mn *memberlist.Node) {
 	e.nDB.Lock()
 	if n, ok := e.nDB.nodes[mn.Name]; ok {
 		delete(e.nDB.nodes, mn.Name)
+
+		n.reapTime = reapInterval
 		e.nDB.failedNodes[mn.Name] = n
 	}
 	e.nDB.Unlock()

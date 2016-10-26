@@ -62,15 +62,15 @@ func GenerateIfaceName(nlh *netlink.Handle, prefix string, len int) (string, err
 }
 
 // ElectInterfaceAddresses looks for an interface on the OS with the
-// specified name and returns its IPv4 and IPv6 addresses in CIDR
-// form. If the interface does not exist, it chooses from a predefined
+// specified name and returns returns all its IPv4 and IPv6 addresses in CIDR notation.
+// If a failure in retrieving the addresses or no IPv4 address is found, an error is returned.
+// If the interface does not exist, it chooses from a predefined
 // list the first IPv4 address which does not conflict with other
 // interfaces on the system.
-func ElectInterfaceAddresses(name string) (*net.IPNet, []*net.IPNet, error) {
+func ElectInterfaceAddresses(name string) ([]*net.IPNet, []*net.IPNet, error) {
 	var (
-		v4Net  *net.IPNet
+		v4Nets []*net.IPNet
 		v6Nets []*net.IPNet
-		err    error
 	)
 
 	defer osl.InitOSContext()()
@@ -85,23 +85,24 @@ func ElectInterfaceAddresses(name string) (*net.IPNet, []*net.IPNet, error) {
 		if err != nil {
 			return nil, nil, err
 		}
-		if len(v4addr) > 0 {
-			v4Net = v4addr[0].IPNet
+		for _, nlAddr := range v4addr {
+			v4Nets = append(v4Nets, nlAddr.IPNet)
 		}
 		for _, nlAddr := range v6addr {
 			v6Nets = append(v6Nets, nlAddr.IPNet)
 		}
 	}
 
-	if link == nil || v4Net == nil {
+	if link == nil || len(v4Nets) == 0 {
 		// Choose from predefined broad networks
-		v4Net, err = FindAvailableNetwork(ipamutils.PredefinedBroadNetworks)
+		v4Net, err := FindAvailableNetwork(ipamutils.PredefinedBroadNetworks)
 		if err != nil {
 			return nil, nil, err
 		}
+		v4Nets = append(v4Nets, v4Net)
 	}
 
-	return v4Net, v6Nets, nil
+	return v4Nets, v6Nets, nil
 }
 
 // FindAvailableNetwork returns a network from the passed list which does not
