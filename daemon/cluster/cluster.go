@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net"
 	"os"
@@ -16,20 +17,24 @@ import (
 	"github.com/Sirupsen/logrus"
 	apierrors "github.com/docker/docker/api/errors"
 	apitypes "github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/network"
 	types "github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/daemon/cluster/convert"
 	executorpkg "github.com/docker/docker/daemon/cluster/executor"
 	"github.com/docker/docker/daemon/cluster/executor/container"
+	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/signal"
+	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/docker/docker/reference"
 	"github.com/docker/docker/runconfig"
 	swarmapi "github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/manager/encryption"
 	swarmnode "github.com/docker/swarmkit/node"
+	"github.com/docker/swarmkit/protobuf/ptypes"
 	"github.com/pkg/errors"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
@@ -45,6 +50,7 @@ const defaultAddr = "0.0.0.0:2377"
 const (
 	initialReconnectDelay = 100 * time.Millisecond
 	maxReconnectDelay     = 30 * time.Second
+	contextPrefix         = "com.docker.swarm"
 )
 
 // ErrNoSwarm is returned on leaving a cluster that was never initialized
@@ -120,6 +126,7 @@ type node struct {
 	ready          bool
 	conn           *grpc.ClientConn
 	client         swarmapi.ControlClient
+	logs           swarmapi.LogsClient
 	reconnectDelay time.Duration
 	config         nodeStartConfig
 }
@@ -371,8 +378,10 @@ func (c *Cluster) startNewNode(conf nodeStartConfig) (*node, error) {
 			if node.conn != conn {
 				if conn == nil {
 					node.client = nil
+					node.logs = nil
 				} else {
 					node.client = swarmapi.NewControlClient(conn)
+					node.logs = swarmapi.NewLogsClient(conn)
 				}
 			}
 			node.conn = conn
@@ -1203,6 +1212,88 @@ func (c *Cluster) RemoveService(input string) error {
 		return err
 	}
 	return nil
+}
+
+// ServiceLogs collects service logs and writes them back to `config.OutStream`
+func (c *Cluster) ServiceLogs(ctx context.Context, input string, config *backend.ContainerLogsConfig, started chan struct{}) error {
+	c.RLock()
+	if !c.isActiveManager() {
+		c.RUnlock()
+		return c.errNoManager()
+	}
+
+	service, err := getService(ctx, c.client, input)
+	if err != nil {
+		c.RUnlock()
+		return err
+	}
+
+	stream, err := c.logs.SubscribeLogs(ctx, &swarmapi.SubscribeLogsRequest{
+		Selector: &swarmapi.LogSelector{
+			ServiceIDs: []string{service.ID},
+		},
+		Options: &swarmapi.LogSubscriptionOptions{
+			Follow: true,
+		},
+	})
+	if err != nil {
+		c.RUnlock()
+		return err
+	}
+
+	wf := ioutils.NewWriteFlusher(config.OutStream)
+	defer wf.Close()
+	close(started)
+	wf.Flush()
+
+	outStream := stdcopy.NewStdWriter(wf, stdcopy.Stdout)
+	errStream := stdcopy.NewStdWriter(wf, stdcopy.Stderr)
+
+	// Release the lock before starting the stream.
+	c.RUnlock()
+	for {
+		// Check the context before doing anything.
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
+
+		subscribeMsg, err := stream.Recv()
+		if err == io.EOF {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+
+		for _, msg := range subscribeMsg.Messages {
+			data := []byte{}
+
+			if config.Timestamps {
+				ts, err := ptypes.Timestamp(msg.Timestamp)
+				if err != nil {
+					return err
+				}
+				data = append(data, []byte(ts.Format(logger.TimeFormat)+" ")...)
+			}
+
+			data = append(data, []byte(fmt.Sprintf("%s.node.id=%s,%s.service.id=%s,%s.task.id=%s ",
+				contextPrefix, msg.Context.NodeID,
+				contextPrefix, msg.Context.ServiceID,
+				contextPrefix, msg.Context.TaskID,
+			))...)
+
+			data = append(data, msg.Data...)
+
+			switch msg.Stream {
+			case swarmapi.LogStreamStdout:
+				outStream.Write(data)
+			case swarmapi.LogStreamStderr:
+				errStream.Write(data)
+			}
+		}
+	}
 }
 
 // GetNodes returns a list of all nodes known to a cluster.
