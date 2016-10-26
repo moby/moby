@@ -17,6 +17,8 @@ docker-create - Create a new container
 [**--cidfile**[=*CIDFILE*]]
 [**--cpu-period**[=*0*]]
 [**--cpu-quota**[=*0*]]
+[**--cpu-rt-period**[=*0*]]
+[**--cpu-rt-runtime**[=*0*]]
 [**--cpuset-cpus**[=*CPUSET-CPUS*]]
 [**--cpuset-mems**[=*CPUSET-MEMS*]]
 [**--device**[=*[]*]]
@@ -123,6 +125,8 @@ The initial status of the container created with **docker create** is 'created'.
 **--cpu-period**=*0*
     Limit the CPU CFS (Completely Fair Scheduler) period
 
+    Limit the container's CPU usage. This flag tell the kernel to restrict the container's CPU usage to the period you specify.
+
 **--cpuset-cpus**=""
    CPUs in which to allow execution (0-3, 0,1)
 
@@ -135,6 +139,19 @@ two memory nodes.
 
 **--cpu-quota**=*0*
    Limit the CPU CFS (Completely Fair Scheduler) quota
+
+**--cpu-rt-period**=0
+   Limit the CPU real-time period in microseconds
+
+   Limit the container's Real Time CPU usage. This flag tell the kernel to restrict the container's Real Time CPU usage to the period you specify.
+
+**--cpu-rt-runtime**=0
+   Limit the CPU real-time runtime in microseconds
+
+   Limit the containers Real Time CPU usage. This flag tells the kernel to limit the amount of time in a given CPU period Real Time tasks may consume. Ex:
+   Period of 1,000,000us and Runtime of 950,000us means that this container could consume 95% of available CPU and leave the remaining 5% to normal priority tasks.
+
+   The sum of all runtimes across containers cannot exceed the amount alotted to the parent cgroup.
 
 **--device**=[]
    Add a host device to the container (e.g. --device=/dev/sdc:/dev/xvdc:rwm)

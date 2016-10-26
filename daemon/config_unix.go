@@ -34,6 +34,8 @@ type Config struct {
 	Ulimits              map[string]*units.Ulimit `json:"default-ulimits,omitempty"`
 	Runtimes             map[string]types.Runtime `json:"runtimes,omitempty"`
 	DefaultRuntime       string                   `json:"default-runtime,omitempty"`
+	CPURealtimePeriod    int64                    `json:"cpu-rt-period,omitempty"`
+	CPURealtimeRuntime   int64                    `json:"cpu-rt-runtime,omitempty"`
 	OOMScoreAdjust       int                      `json:"oom-score-adjust,omitempty"`
 	Init                 bool                     `json:"init,omitempty"`
 	InitPath             string                   `json:"init-path,omitempty"`
@@ -97,6 +99,8 @@ func (config *Config) InstallFlags(flags *pflag.FlagSet) {
 	flags.IntVar(&config.OOMScoreAdjust, "oom-score-adjust", -500, "Set the oom_score_adj for the daemon")
 	flags.BoolVar(&config.Init, "init", false, "Run an init in the container to forward signals and reap processes")
 	flags.StringVar(&config.InitPath, "init-path", "", "Path to the docker-init binary")
+	flags.Int64Var(&config.CPURealtimePeriod, "cpu-rt-period", 0, "Limit the CPU real-time period in microseconds")
+	flags.Int64Var(&config.CPURealtimeRuntime, "cpu-rt-runtime", 0, "Limit the CPU real-time runtime in microseconds")
 
 	config.attachExperimentalFlags(flags)
 }

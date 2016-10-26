@@ -23,90 +23,92 @@ import (
 
 // ContainerOptions is a data object with all the options for creating a container
 type ContainerOptions struct {
-	attach            opts.ListOpts
-	volumes           opts.ListOpts
-	tmpfs             opts.ListOpts
-	blkioWeightDevice WeightdeviceOpt
-	deviceReadBps     ThrottledeviceOpt
-	deviceWriteBps    ThrottledeviceOpt
-	links             opts.ListOpts
-	aliases           opts.ListOpts
-	linkLocalIPs      opts.ListOpts
-	deviceReadIOps    ThrottledeviceOpt
-	deviceWriteIOps   ThrottledeviceOpt
-	env               opts.ListOpts
-	labels            opts.ListOpts
-	devices           opts.ListOpts
-	ulimits           *UlimitOpt
-	sysctls           *opts.MapOpts
-	publish           opts.ListOpts
-	expose            opts.ListOpts
-	dns               opts.ListOpts
-	dnsSearch         opts.ListOpts
-	dnsOptions        opts.ListOpts
-	extraHosts        opts.ListOpts
-	volumesFrom       opts.ListOpts
-	envFile           opts.ListOpts
-	capAdd            opts.ListOpts
-	capDrop           opts.ListOpts
-	groupAdd          opts.ListOpts
-	securityOpt       opts.ListOpts
-	storageOpt        opts.ListOpts
-	labelsFile        opts.ListOpts
-	loggingOpts       opts.ListOpts
-	privileged        bool
-	pidMode           string
-	utsMode           string
-	usernsMode        string
-	publishAll        bool
-	stdin             bool
-	tty               bool
-	oomKillDisable    bool
-	oomScoreAdj       int
-	containerIDFile   string
-	entrypoint        string
-	hostname          string
-	memoryString      string
-	memoryReservation string
-	memorySwap        string
-	kernelMemory      string
-	user              string
-	workingDir        string
-	cpuShares         int64
-	cpuPercent        int64
-	cpuPeriod         int64
-	cpuQuota          int64
-	cpusetCpus        string
-	cpusetMems        string
-	blkioWeight       uint16
-	ioMaxBandwidth    string
-	ioMaxIOps         uint64
-	swappiness        int64
-	netMode           string
-	macAddress        string
-	ipv4Address       string
-	ipv6Address       string
-	ipcMode           string
-	pidsLimit         int64
-	restartPolicy     string
-	readonlyRootfs    bool
-	loggingDriver     string
-	cgroupParent      string
-	volumeDriver      string
-	stopSignal        string
-	stopTimeout       int
-	isolation         string
-	shmSize           string
-	noHealthcheck     bool
-	healthCmd         string
-	healthInterval    time.Duration
-	healthTimeout     time.Duration
-	healthRetries     int
-	runtime           string
-	autoRemove        bool
-	init              bool
-	initPath          string
-	credentialSpec    string
+	attach             opts.ListOpts
+	volumes            opts.ListOpts
+	tmpfs              opts.ListOpts
+	blkioWeightDevice  WeightdeviceOpt
+	deviceReadBps      ThrottledeviceOpt
+	deviceWriteBps     ThrottledeviceOpt
+	links              opts.ListOpts
+	aliases            opts.ListOpts
+	linkLocalIPs       opts.ListOpts
+	deviceReadIOps     ThrottledeviceOpt
+	deviceWriteIOps    ThrottledeviceOpt
+	env                opts.ListOpts
+	labels             opts.ListOpts
+	devices            opts.ListOpts
+	ulimits            *UlimitOpt
+	sysctls            *opts.MapOpts
+	publish            opts.ListOpts
+	expose             opts.ListOpts
+	dns                opts.ListOpts
+	dnsSearch          opts.ListOpts
+	dnsOptions         opts.ListOpts
+	extraHosts         opts.ListOpts
+	volumesFrom        opts.ListOpts
+	envFile            opts.ListOpts
+	capAdd             opts.ListOpts
+	capDrop            opts.ListOpts
+	groupAdd           opts.ListOpts
+	securityOpt        opts.ListOpts
+	storageOpt         opts.ListOpts
+	labelsFile         opts.ListOpts
+	loggingOpts        opts.ListOpts
+	privileged         bool
+	pidMode            string
+	utsMode            string
+	usernsMode         string
+	publishAll         bool
+	stdin              bool
+	tty                bool
+	oomKillDisable     bool
+	oomScoreAdj        int
+	containerIDFile    string
+	entrypoint         string
+	hostname           string
+	memoryString       string
+	memoryReservation  string
+	memorySwap         string
+	kernelMemory       string
+	user               string
+	workingDir         string
+	cpuShares          int64
+	cpuPercent         int64
+	cpuPeriod          int64
+	cpuRealtimePeriod  int64
+	cpuRealtimeRuntime int64
+	cpuQuota           int64
+	cpusetCpus         string
+	cpusetMems         string
+	blkioWeight        uint16
+	ioMaxBandwidth     string
+	ioMaxIOps          uint64
+	swappiness         int64
+	netMode            string
+	macAddress         string
+	ipv4Address        string
+	ipv6Address        string
+	ipcMode            string
+	pidsLimit          int64
+	restartPolicy      string
+	readonlyRootfs     bool
+	loggingDriver      string
+	cgroupParent       string
+	volumeDriver       string
+	stopSignal         string
+	stopTimeout        int
+	isolation          string
+	shmSize            string
+	noHealthcheck      bool
+	healthCmd          string
+	healthInterval     time.Duration
+	healthTimeout      time.Duration
+	healthRetries      int
+	runtime            string
+	autoRemove         bool
+	init               bool
+	initPath           string
+	credentialSpec     string
 
 	Image string
 	Args  []string
@@ -225,6 +227,8 @@ func AddFlags(flags *pflag.FlagSet) *ContainerOptions {
 	flags.Int64Var(&copts.cpuPercent, "cpu-percent", 0, "CPU percent (Windows only)")
 	flags.Int64Var(&copts.cpuPeriod, "cpu-period", 0, "Limit CPU CFS (Completely Fair Scheduler) period")
 	flags.Int64Var(&copts.cpuQuota, "cpu-quota", 0, "Limit CPU CFS (Completely Fair Scheduler) quota")
+	flags.Int64Var(&copts.cpuRealtimePeriod, "cpu-rt-period", 0, "Limit CPU real-time period in microseconds")
+	flags.Int64Var(&copts.cpuRealtimeRuntime, "cpu-rt-runtime", 0, "Limit CPU real-time runtime in microseconds")
 	flags.Int64VarP(&copts.cpuShares, "cpu-shares", "c", 0, "CPU shares (relative weight)")
 	flags.Var(&copts.deviceReadBps, "device-read-bps", "Limit read rate (bytes per second) from a device")
 	flags.Var(&copts.deviceReadIOps, "device-read-iops", "Limit read rate (IO per second) from a device")
@@ -521,6 +525,8 @@ func Parse(flags *pflag.FlagSet, copts *ContainerOptions) (*container.Config, *c
 		CpusetCpus:           copts.cpusetCpus,
 		CpusetMems:           copts.cpusetMems,
 		CPUQuota:             copts.cpuQuota,
+		CPURealtimePeriod:    copts.cpuRealtimePeriod,
+		CPURealtimeRuntime:   copts.cpuRealtimeRuntime,
 		PidsLimit:            copts.pidsLimit,
 		BlkioWeight:          copts.blkioWeight,
 		BlkioWeightDevice:    copts.blkioWeightDevice.GetList(),

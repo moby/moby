@@ -304,6 +304,8 @@ Create a container
              "CpuPercent": 80,
              "CpuShares": 512,
              "CpuPeriod": 100000,
+             "CpuRealtimePeriod": 1000000,
+             "CpuRealtimeRuntime": 10000,
              "CpuQuota": 50000,
              "CpusetCpus": "0,1",
              "CpusetMems": "0,1",
@@ -426,6 +428,8 @@ Create a container
     -   **CpuShares** - An integer value containing the container's CPU Shares
           (ie. the relative weight vs other containers).
     -   **CpuPeriod** - The length of a CPU period in microseconds.
+    -   **CpuRealtimePeriod** - The length of a CPU real-time period in microseconds (0=no time allocated for rt tasks)
+    -   **CpuRealtimeRuntime** - The length of a CPU real-time runtime in microseconds (0=no time allocated for rt tasks)
     -   **CpuQuota** - Microseconds of CPU time that the container can get in a CPU period.
     -   **CpusetCpus** - String value containing the `cgroups CpusetCpus` to use.
     -   **CpusetMems** - Memory nodes (MEMs) in which to allow execution (0-3, 0,1). Only effective on NUMA systems.
@@ -615,6 +619,8 @@ Return low-level information on the container `id`
 			"CpuPercent": 80,
 			"CpuShares": 0,
 			"CpuPeriod": 100000,
+			"CpuRealtimePeriod": 1000000,
+			"CpuRealtimeRuntime": 10000,
 			"Devices": [],
 			"Dns": null,
 			"DnsOptions": null,
@@ -1191,6 +1197,8 @@ Update configuration of one or more containers.
          "BlkioWeight": 300,
          "CpuShares": 512,
          "CpuPeriod": 100000,
+         "CpuRealtimePeriod": 1000000,
+         "CpuRealtimeRuntime": 10000,
          "CpuQuota": 50000,
          "CpusetCpus": "0,1",
          "CpusetMems": "0",
