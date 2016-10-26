@@ -2573,7 +2573,6 @@ _docker_service_update() {
 		--endpoint-mode
 		--env -e
 		--force
-		--group-add
 		--health-cmd
 		--health-interval
 		--health-retries
@@ -2616,6 +2615,7 @@ _docker_service_update() {
 		options_with_args="$options_with_args
 			--container-label
 			--env-file
+			--group
 			--mode
 			--name
 		"
@@ -2629,6 +2629,10 @@ _docker_service_update() {
 				COMPREPLY=( $( compgen -W "global replicated" -- "$cur" ) )
 				return
 				;;
+			--group)
+			COMPREPLY=( $(compgen -g -- "$cur") )
+			return
+			;;
 		esac
 	fi
 	if [ "$subcommand" = "update" ] ; then
@@ -2636,11 +2640,16 @@ _docker_service_update() {
 			--arg
 			--container-label-add
 			--container-label-rm
+			--group-add
 			--group-rm
 			--image
 		"
 
 		case "$prev" in
+			--group-add)
+				COMPREPLY=( $(compgen -g -- "$cur") )
+				return
+				;;
 			--group-rm)
 				COMPREPLY=( $(compgen -g -- "$cur") )
 				return
@@ -2661,10 +2670,6 @@ _docker_service_update() {
 			# we do not append a "=" here because "-e VARNAME" is legal systax, too
 			COMPREPLY=( $( compgen -e -- "$cur" ) )
 			__docker_nospace
-			return
-			;;
-		--group-add)
-			COMPREPLY=( $(compgen -g -- "$cur") )
 			return
 			;;
 		--log-driver)

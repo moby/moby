@@ -26,7 +26,7 @@ Options:
       --endpoint-mode string             Endpoint mode (vip or dnsrr)
   -e, --env value                        Set environment variables (default [])
       --env-file value                   Read in a file of environment variables (default [])
-      --group-add value                  Add additional user groups to the container (default [])
+      --group value                      Set one or more supplementary user groups for the container (default [])
       --health-cmd string                Command to run to check health
       --health-interval duration         Time between running the check
       --health-retries int               Consecutive failures needed to report unhealthy

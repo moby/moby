@@ -30,8 +30,8 @@ Options:
       --env-add value                    Add or update environment variables (default [])
       --env-rm value                     Remove an environment variable (default [])
       --force                            Force update even if no changes require it
-      --group-add value                  Add additional user groups to the container (default [])
-      --group-rm value                   Remove previously added user groups from the container (default [])
+      --group-add value                  Add additional supplementary user groups to the container (default [])
+      --group-rm value                   Remove previously added supplementary user groups from the container (default [])
       --health-cmd string                Command to run to check health
       --health-interval duration         Time between running the check
       --health-retries int               Consecutive failures needed to report unhealthy

@@ -42,7 +42,7 @@ func newUpdateCommand(dockerCli *command.DockerCli) *cobra.Command {
 	addServiceFlags(cmd, opts)
 
 	flags.Var(newListOptsVar(), flagEnvRemove, "Remove an environment variable")
-	flags.Var(newListOptsVar(), flagGroupRemove, "Remove previously added user groups from the container")
+	flags.Var(newListOptsVar(), flagGroupRemove, "Remove previously added supplementary user groups from the container")
 	flags.Var(newListOptsVar(), flagLabelRemove, "Remove a label by its key")
 	flags.Var(newListOptsVar(), flagContainerLabelRemove, "Remove a container label by its key")
 	flags.Var(newListOptsVar(), flagMountRemove, "Remove a mount by its target path")
@@ -54,6 +54,7 @@ func newUpdateCommand(dockerCli *command.DockerCli) *cobra.Command {
 	flags.Var(&opts.mounts, flagMountAdd, "Add or update a mount on a service")
 	flags.StringSliceVar(&opts.constraints, flagConstraintAdd, []string{}, "Add or update placement constraints")
 	flags.Var(&opts.endpoint.ports, flagPublishAdd, "Add or update a published port")
+	flags.StringSliceVar(&opts.groups, flagGroupAdd, []string{}, "Add additional supplementary user groups to the container")
 	return cmd
 }
 
