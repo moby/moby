@@ -2,9 +2,12 @@ package opts
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"os"
 	"strings"
+	"unicode"
+	"unicode/utf8"
 )
 
 // ParseEnvFile reads a file with environment variables enumerated by lines
@@ -29,9 +32,20 @@ func ParseEnvFile(filename string) ([]string, error) {
 
 	lines := []string{}
 	scanner := bufio.NewScanner(fh)
+	currentLine := 0
+	utf8bom := []byte{0xEF, 0xBB, 0xBF}
 	for scanner.Scan() {
+		scannedBytes := scanner.Bytes()
+		if !utf8.Valid(scannedBytes) {
+			return []string{}, fmt.Errorf("env file %s contains invalid utf8 bytes at line %d: %v", filename, currentLine+1, scannedBytes)
+		}
+		// We trim UTF8 BOM
+		if currentLine == 0 {
+			scannedBytes = bytes.TrimPrefix(scannedBytes, utf8bom)
+		}
 		// trim the line from all leading whitespace first
-		line := strings.TrimLeft(scanner.Text(), whiteSpaces)
+		line := strings.TrimLeftFunc(string(scannedBytes), unicode.IsSpace)
+		currentLine++
 		// line is not empty, and not starting with '#'
 		if len(line) > 0 && !strings.HasPrefix(line, "#") {
 			data := strings.SplitN(line, "=", 2)
