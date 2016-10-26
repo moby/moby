@@ -2,6 +2,7 @@ package authorization
 
 import (
 	"net/http"
+	"strings"
 	"sync"
 
 	"github.com/Sirupsen/logrus"
@@ -59,6 +60,11 @@ func (m *Middleware) WrapHandler(handler func(ctx context.Context, w http.Respon
 
 		if err := authCtx.AuthZRequest(w, r); err != nil {
 			logrus.Errorf("AuthZRequest for %s %s returned error: %s", r.Method, r.RequestURI, err)
+			if strings.Contains(err.Error(), ErrInvalidPlugin.Error()) {
+				m.mu.Lock()
+				m.plugins = authCtx.plugins
+				m.mu.Unlock()
+			}
 			return err
 		}
 
@@ -72,6 +78,11 @@ func (m *Middleware) WrapHandler(handler func(ctx context.Context, w http.Respon
 
 		if err := authCtx.AuthZResponse(rw, r); errD == nil && err != nil {
 			logrus.Errorf("AuthZResponse for %s %s returned error: %s", r.Method, r.RequestURI, err)
+			if strings.Contains(err.Error(), ErrInvalidPlugin.Error()) {
+				m.mu.Lock()
+				m.plugins = authCtx.plugins
+				m.mu.Unlock()
+			}
 			return err
 		}
 
