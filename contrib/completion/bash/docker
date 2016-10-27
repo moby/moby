@@ -1824,93 +1824,7 @@ _docker_diff() {
 }
 
 _docker_events() {
-	local key=$(__docker_map_key_of_current_option '-f|--filter')
-	case "$key" in
-		container)
-			__docker_complete_containers_all --cur "${cur##*=}"
-			return
-			;;
-		daemon)
-			local name=$(__docker_q info | sed -n 's/^\(ID\|Name\): //p')
-			COMPREPLY=( $( compgen -W "$name" -- "${cur##*=}" ) )
-			return
-			;;
-		event)
-			COMPREPLY=( $( compgen -W "
-				attach
-				commit
-				connect
-				copy
-				create
-				delete
-				destroy
-				detach
-				die
-				disconnect
-				exec_create
-				exec_detach
-				exec_start
-				export
-				health_status
-				import
-				kill
-				load
-				mount
-				oom
-				pause
-				pull
-				push
-				reload
-				rename
-				resize
-				restart
-				save
-				start
-				stop
-				tag
-				top
-				unmount
-				unpause
-				untag
-				update
-			" -- "${cur##*=}" ) )
-			return
-			;;
-		image)
-			cur="${cur##*=}"
-			__docker_complete_images
-			return
-			;;
-		network)
-			__docker_complete_networks --cur "${cur##*=}"
-			return
-			;;
-		type)
-			COMPREPLY=( $( compgen -W "container daemon image network volume" -- "${cur##*=}" ) )
-			return
-			;;
-		volume)
-			__docker_complete_volumes --cur "${cur##*=}"
-			return
-			;;
-	esac
-
-	case "$prev" in
-		--filter|-f)
-			COMPREPLY=( $( compgen -S = -W "container daemon event image label network type volume" -- "$cur" ) )
-			__docker_nospace
-			return
-			;;
-		--since|--until)
-			return
-			;;
-	esac
-
-	case "$cur" in
-		-*)
-			COMPREPLY=( $( compgen -W "--filter -f --help --since --until --format" -- "$cur" ) )
-			;;
-	esac
+	_docker_system_events
 }
 
 _docker_exec() {
@@ -2257,17 +2171,7 @@ _docker_import() {
 }
 
 _docker_info() {
-	case "$prev" in
-		--format|-f)
-			return
-			;;
-	esac
-
-	case "$cur" in
-		-*)
-			COMPREPLY=( $( compgen -W "--format -f --help" -- "$cur" ) )
-			;;
-	esac
+	_docker_system_info
 }
 
 _docker_inspect() {
@@ -3151,6 +3055,141 @@ _docker_stop() {
 	_docker_container_stop
 }
 
+
+_docker_system() {
+	local subcommands="
+		df
+		events
+		info
+		prune
+	"
+	__docker_subcommands "$subcommands $aliases" && return
+
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "--help" -- "$cur" ) )
+			;;
+		*)
+			COMPREPLY=( $( compgen -W "$subcommands" -- "$cur" ) )
+			;;
+	esac
+}
+
+# TODO new command
+_docker_system_df() {
+	:
+}
+
+_docker_system_events() {
+	local key=$(__docker_map_key_of_current_option '-f|--filter')
+	case "$key" in
+		container)
+			__docker_complete_containers_all --cur "${cur##*=}"
+			return
+			;;
+		daemon)
+			local name=$(__docker_q info | sed -n 's/^\(ID\|Name\): //p')
+			COMPREPLY=( $( compgen -W "$name" -- "${cur##*=}" ) )
+			return
+			;;
+		event)
+			COMPREPLY=( $( compgen -W "
+				attach
+				commit
+				connect
+				copy
+				create
+				delete
+				destroy
+				detach
+				die
+				disconnect
+				exec_create
+				exec_detach
+				exec_start
+				export
+				health_status
+				import
+				kill
+				load
+				mount
+				oom
+				pause
+				pull
+				push
+				reload
+				rename
+				resize
+				restart
+				save
+				start
+				stop
+				tag
+				top
+				unmount
+				unpause
+				untag
+				update
+			" -- "${cur##*=}" ) )
+			return
+			;;
+		image)
+			cur="${cur##*=}"
+			__docker_complete_images
+			return
+			;;
+		network)
+			__docker_complete_networks --cur "${cur##*=}"
+			return
+			;;
+		type)
+			COMPREPLY=( $( compgen -W "container daemon image network volume" -- "${cur##*=}" ) )
+			return
+			;;
+		volume)
+			__docker_complete_volumes --cur "${cur##*=}"
+			return
+			;;
+	esac
+
+	case "$prev" in
+		--filter|-f)
+			COMPREPLY=( $( compgen -S = -W "container daemon event image label network type volume" -- "$cur" ) )
+			__docker_nospace
+			return
+			;;
+		--since|--until)
+			return
+			;;
+	esac
+
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "--filter -f --help --since --until --format" -- "$cur" ) )
+			;;
+	esac
+}
+
+_docker_system_info() {
+	case "$prev" in
+		--format|-f)
+			return
+			;;
+	esac
+
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "--format -f --help" -- "$cur" ) )
+			;;
+	esac
+}
+
+# TODO new command
+_docker_system_prune() {
+	:
+}
+
+
 _docker_tag() {
 	_docker_image_tag
 }
@@ -3325,6 +3364,7 @@ _docker() {
 		stats
 		stop
 		swarm
+		system
 		tag
 		top
 		unpause
