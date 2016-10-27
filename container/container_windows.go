@@ -44,6 +44,16 @@ func (container *Container) IpcMounts() []Mount {
 	return nil
 }
 
+// SecretMount returns the mount for the secret path
+func (container *Container) SecretMount() *Mount {
+	return nil
+}
+
+// UnmountSecrets unmounts the fs for secrets
+func (container *Container) UnmountSecrets() error {
+	return nil
+}
+
 // UnmountVolumes explicitly unmounts volumes from the container.
 func (container *Container) UnmountVolumes(forceSyscall bool, volumeEventLog func(name, action string, attributes map[string]string)) error {
 	var (
