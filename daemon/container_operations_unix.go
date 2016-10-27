@@ -144,11 +144,9 @@ func (daemon *Daemon) setupIpcDirs(c *container.Container) error {
 	return nil
 }
 
-func (daemon *Daemon) setupSecretDir(c *container.Container) error {
+func (daemon *Daemon) setupSecretDir(c *container.Container) (setupErr error) {
 	localMountPath := c.SecretMountPath()
 	logrus.Debugf("secrets: setting up secret dir: %s", localMountPath)
-
-	var setupErr error
 
 	defer func(err error) {
 		if err != nil {
@@ -163,22 +161,22 @@ func (daemon *Daemon) setupSecretDir(c *container.Container) error {
 
 	// create tmpfs
 	if err := os.MkdirAll(localMountPath, 0700); err != nil {
-		setupErr = errors.Wrap(err, "error creating secret local mount path")
+		return errors.Wrap(err, "error creating secret local mount path")
 	}
 	if err := mount.Mount("tmpfs", localMountPath, "tmpfs", "nodev"); err != nil {
-		setupErr = errors.Wrap(err, "unable to setup secret mount")
+		return errors.Wrap(err, "unable to setup secret mount")
 	}
 
 	for _, s := range c.Secrets {
 		// ensure that the target is a filename only; no paths allowed
 		tDir, tPath := filepath.Split(s.Target)
 		if tDir != "" {
-			setupErr = fmt.Errorf("error creating secret: secret must not have a path")
+			return fmt.Errorf("error creating secret: secret must not have a path")
 		}
 
 		fPath := filepath.Join(localMountPath, tPath)
 		if err := os.MkdirAll(filepath.Dir(fPath), 0700); err != nil {
-			setupErr = errors.Wrap(err, "error creating secret mount path")
+			return errors.Wrap(err, "error creating secret mount path")
 		}
 
 		logrus.WithFields(logrus.Fields{
@@ -186,20 +184,20 @@ func (daemon *Daemon) setupSecretDir(c *container.Container) error {
 			"path": fPath,
 		}).Debug("injecting secret")
 		if err := ioutil.WriteFile(fPath, s.Data, s.Mode); err != nil {
-			setupErr = errors.Wrap(err, "error injecting secret")
+			return errors.Wrap(err, "error injecting secret")
 		}
 
 		if err := os.Chown(fPath, s.Uid, s.Gid); err != nil {
-			setupErr = errors.Wrap(err, "error setting ownership for secret")
+			return errors.Wrap(err, "error setting ownership for secret")
 		}
 	}
 
 	// remount secrets ro
 	if err := mount.Mount("tmpfs", localMountPath, "tmpfs", "remount,ro"); err != nil {
-		setupErr = errors.Wrap(err, "unable to remount secret dir as readonly")
+		return errors.Wrap(err, "unable to remount secret dir as readonly")
 	}
 
-	return setupErr
+	return nil
 }
 
 func killProcessDirectly(container *container.Container) error {
