@@ -27,6 +27,8 @@ func newCreateCommand(dockerCli *command.DockerCli) *cobra.Command {
 	}
 	flags := cmd.Flags()
 	flags.StringVar(&opts.mode, flagMode, "replicated", "Service mode (replicated or global)")
+	flags.StringVar(&opts.name, flagName, "", "Service name")
+
 	addServiceFlags(cmd, opts)
 
 	flags.VarP(&opts.labels, flagLabel, "l", "Service labels")

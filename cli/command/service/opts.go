@@ -511,7 +511,6 @@ func (opts *serviceOptions) ToService() (swarm.ServiceSpec, error) {
 // Any flags that are not common are added separately in the individual command
 func addServiceFlags(cmd *cobra.Command, opts *serviceOptions) {
 	flags := cmd.Flags()
-	flags.StringVar(&opts.name, flagName, "", "Service name")
 
 	flags.StringVarP(&opts.workdir, flagWorkdir, "w", "", "Working directory inside the container")
 	flags.StringVarP(&opts.user, flagUser, "u", "", "Username or UID (format: <name|uid>[:<group|gid>])")
