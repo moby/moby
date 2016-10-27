@@ -49,7 +49,7 @@ func (c *Config) InitializeStdio(iop libcontainerd.IOPipe) error {
 	if c.Stdin() == nil && !c.Tty && runtime.GOOS == "windows" {
 		if iop.Stdin != nil {
 			if err := iop.Stdin.Close(); err != nil {
-				logrus.Error("error closing exec stdin: %+v", err)
+				logrus.Errorf("error closing exec stdin: %+v", err)
 			}
 		}
 	}
