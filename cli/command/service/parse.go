@@ -18,7 +18,7 @@ func parseSecretString(secretString string) (string, string, error) {
 	tokens := strings.Split(secretString, ":")
 
 	secretName := strings.TrimSpace(tokens[0])
-	targetName := ""
+	targetName := secretName
 
 	if secretName == "" {
 		return "", "", fmt.Errorf("invalid secret name provided")
@@ -29,8 +29,6 @@ func parseSecretString(secretString string) (string, string, error) {
 		if targetName == "" {
 			return "", "", fmt.Errorf("invalid presentation name provided")
 		}
-	} else {
-		targetName = secretName
 	}
 
 	// ensure target is a filename only; no paths allowed
@@ -77,22 +75,22 @@ func parseSecrets(client client.APIClient, requestedSecrets []string) ([]*swarmt
 		return nil, err
 	}
 
-	foundSecrets := make(map[string]*swarmtypes.Secret)
+	foundSecrets := make(map[string]string)
 	for _, secret := range secrets {
-		foundSecrets[secret.Spec.Annotations.Name] = &secret
+		foundSecrets[secret.Spec.Annotations.Name] = secret.ID
 	}
 
 	addedSecrets := []*swarmtypes.SecretReference{}
 
 	for secretName, secretRef := range needSecrets {
-		s, ok := foundSecrets[secretName]
+		id, ok := foundSecrets[secretName]
 		if !ok {
 			return nil, fmt.Errorf("secret not found: %s", secretName)
 		}
 
 		// set the id for the ref to properly assign in swarm
 		// since swarm needs the ID instead of the name
-		secretRef.SecretID = s.ID
+		secretRef.SecretID = id
 		addedSecrets = append(addedSecrets, secretRef)
 	}
 

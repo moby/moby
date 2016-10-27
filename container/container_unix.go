@@ -269,18 +269,16 @@ func (container *Container) IpcMounts() []Mount {
 }
 
 // SecretMount returns the list of Secret mounts
-func (container *Container) SecretMount() Mount {
-	var mount Mount
-
+func (container *Container) SecretMount() *Mount {
 	if len(container.Secrets) > 0 {
-		mount = Mount{
+		return &Mount{
 			Source:      container.SecretMountPath(),
 			Destination: containerSecretMountPath,
 			Writable:    false,
 		}
 	}
 
-	return mount
+	return nil
 }
 
 // UnmountSecrets unmounts the local tmpfs for secrets

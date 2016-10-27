@@ -191,19 +191,6 @@ func convertNetworks(networks []string) []swarm.NetworkAttachmentConfig {
 	return nets
 }
 
-func convertSecrets(secrets []string) []*swarm.SecretReference {
-	sec := []*swarm.SecretReference{}
-	for _, s := range secrets {
-		sec = append(sec, &swarm.SecretReference{
-			SecretID: s,
-			Mode:     swarm.SecretReferenceFile,
-			Target:   "",
-		})
-	}
-
-	return sec
-}
-
 type endpointOptions struct {
 	mode  string
 	ports opts.ListOpts
@@ -417,7 +404,7 @@ func (opts *serviceOptions) ToService() (swarm.ServiceSpec, error) {
 					Options:     opts.dnsOptions.GetAll(),
 				},
 				StopGracePeriod: opts.stopGrace.Value(),
-				Secrets:         convertSecrets(opts.secrets),
+				Secrets:         nil,
 			},
 			Networks:      convertNetworks(opts.networks.GetAll()),
 			Resources:     opts.resources.ToResourceRequirements(),

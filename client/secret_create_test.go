@@ -25,7 +25,7 @@ func TestSecretCreateError(t *testing.T) {
 }
 
 func TestSecretCreate(t *testing.T) {
-	expectedURL := "/secrets/create"
+	expectedURL := "/secrets"
 	client := &Client{
 		client: newMockClient(func(req *http.Request) (*http.Response, error) {
 			if !strings.HasPrefix(req.URL.Path, expectedURL) {

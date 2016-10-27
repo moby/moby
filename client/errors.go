@@ -225,7 +225,7 @@ type secretNotFoundError struct {
 
 // Error returns a string representation of a secretNotFoundError
 func (e secretNotFoundError) Error() string {
-	return fmt.Sprintf("Error: No such secret: %s", e.name)
+	return fmt.Sprintf("Error: no such secret: %s", e.name)
 }
 
 // NoFound indicates that this error type is of NotFound
