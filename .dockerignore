@@ -2,3 +2,4 @@ bundles
 .gopath
 vendor/pkg
 .go-pkg-cache
+.git
