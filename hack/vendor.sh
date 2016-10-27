@@ -48,7 +48,7 @@ esac
 
 # the following lines are in sorted order, FYI
 clone git github.com/Azure/go-ansiterm 388960b655244e76e24c75f48631564eaefade62
-clone git github.com/Microsoft/hcsshim v0.5.1
+clone git github.com/Microsoft/hcsshim v0.5.2
 clone git github.com/Microsoft/go-winio v0.3.5
 clone git github.com/Sirupsen/logrus f76d643702a30fbffecdfe50831e11881c96ceb3 https://github.com/aaronlehmann/logrus
 clone git github.com/docker/libtrust 9cbd2a1374f46905c68a4eb3694a130610adc62a

@@ -1,6 +1,12 @@
 package hcsshim
 
-import "github.com/Sirupsen/logrus"
+import (
+	"sync"
+
+	"github.com/Sirupsen/logrus"
+)
+
+var prepareLayerLock sync.Mutex
 
 // PrepareLayer finds a mounted read-write layer matching layerId and enables the
 // the filesystem filter for use on that layer.  This requires the paths to all
@@ -24,6 +30,10 @@ func PrepareLayer(info DriverInfo, layerId string, parentLayerPaths []string) er
 		return err
 	}
 
+	// This lock is a temporary workaround for a Windows bug. Only allowing one
+	// call to prepareLayer at a time vastly reduces the chance of a timeout.
+	prepareLayerLock.Lock()
+	defer prepareLayerLock.Unlock()
 	err = prepareLayer(&infop, layerId, layers)
 	if err != nil {
 		err = makeErrorf(err, title, "layerId=%s flavour=%d", layerId, info.Flavour)
