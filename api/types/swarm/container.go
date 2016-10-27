@@ -13,6 +13,7 @@ type ContainerSpec struct {
 	Labels          map[string]string       `json:",omitempty"`
 	Command         []string                `json:",omitempty"`
 	Args            []string                `json:",omitempty"`
+	Hostname        string                  `json:",omitempty"`
 	Env             []string                `json:",omitempty"`
 	Dir             string                  `json:",omitempty"`
 	User            string                  `json:",omitempty"`
