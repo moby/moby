@@ -132,6 +132,7 @@ for dir in bundles/$VERSION/build-deb/*/; do
 
 	# update the filelist for this codename/component
 	find "$APTDIR/pool/$component" \
+		-name *~${codename}*.deb -o \
 		-name *~${codename#*-}*.deb > "$APTDIR/dists/$codename/$component/filelist"
 done
 
