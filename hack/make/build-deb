@@ -74,7 +74,7 @@ set -e
 
 		cat >> "$DEST/$version/Dockerfile.build" <<-EOF
 			# Install runc, containerd, proxy and grimes
-			RUN ./hack/dockerfile/install-binaries.sh runc-dynamic containerd-dynamic proxy grimes
+			RUN ./hack/dockerfile/install-binaries.sh runc-dynamic containerd-dynamic proxy-dynamic grimes
 		EOF
 		cat >> "$DEST/$version/Dockerfile.build" <<-EOF
 			RUN cp -aL hack/make/.build-deb debian

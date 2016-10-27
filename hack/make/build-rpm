@@ -89,12 +89,13 @@ set -e
 		cat > "$DEST/$version/Dockerfile.build" <<-EOF
 			FROM $image
 			COPY . /usr/src/${rpmName}
+			WORKDIR /usr/src/${rpmName}
 			RUN mkdir -p /go/src/github.com/docker && mkdir -p /go/src/github.com/opencontainers
 		EOF
 
 		cat >> "$DEST/$version/Dockerfile.build" <<-EOF
 			# Install runc, containerd, proxy and grimes
-			RUN ./hack/dockerfile/install-binaries.sh runc-dynamic containerd-dynamic proxy grimes
+			RUN TMP_GOPATH="/go" ./hack/dockerfile/install-binaries.sh runc-dynamic containerd-dynamic proxy-dynamic grimes
 		EOF
 		if [[ "$VERSION" == *-dev ]] || [ -n "$(git status --porcelain)" ]; then
 			echo 'ENV DOCKER_EXPERIMENTAL 1' >> "$DEST/$version/Dockerfile.build"
@@ -107,7 +108,9 @@ set -e
 			WORKDIR /root/rpmbuild/SPECS
 			RUN tar --exclude .git -r -C /usr/src -f /root/rpmbuild/SOURCES/${rpmName}.tar ${rpmName}
 			RUN tar --exclude .git -r -C /go/src/github.com/docker -f /root/rpmbuild/SOURCES/${rpmName}.tar containerd
+			RUN tar --exclude .git -r -C /go/src/github.com/docker/libnetwork/cmd -f /root/rpmbuild/SOURCES/${rpmName}.tar proxy
 			RUN tar --exclude .git -r -C /go/src/github.com/opencontainers -f /root/rpmbuild/SOURCES/${rpmName}.tar runc
+			RUN tar --exclude .git -r -C /go/ -f /root/rpmbuild/SOURCES/${rpmName}.tar grimes
 			RUN gzip /root/rpmbuild/SOURCES/${rpmName}.tar
 			RUN { cat /usr/src/${rpmName}/contrib/builder/rpm/${PACKAGE_ARCH}/changelog; } >> ${rpmName}.spec && tail >&2 ${rpmName}.spec
 			RUN rpmbuild -ba \
