@@ -268,7 +268,7 @@ func (container *Container) IpcMounts() []Mount {
 	return mounts
 }
 
-// SecretMount returns the list of Secret mounts
+// SecretMount returns the mount for the secret path
 func (container *Container) SecretMount() *Mount {
 	if len(container.Secrets) > 0 {
 		return &Mount{

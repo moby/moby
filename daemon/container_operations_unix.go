@@ -148,8 +148,8 @@ func (daemon *Daemon) setupSecretDir(c *container.Container) (setupErr error) {
 	localMountPath := c.SecretMountPath()
 	logrus.Debugf("secrets: setting up secret dir: %s", localMountPath)
 
-	defer func(err error) {
-		if err != nil {
+	defer func() {
+		if setupErr != nil {
 			// cleanup
 			_ = detachMounted(localMountPath)
 
@@ -157,13 +157,13 @@ func (daemon *Daemon) setupSecretDir(c *container.Container) (setupErr error) {
 				log.Errorf("error cleaning up secret mount: %s", err)
 			}
 		}
-	}(setupErr)
+	}()
 
 	// create tmpfs
 	if err := os.MkdirAll(localMountPath, 0700); err != nil {
 		return errors.Wrap(err, "error creating secret local mount path")
 	}
-	if err := mount.Mount("tmpfs", localMountPath, "tmpfs", "nodev"); err != nil {
+	if err := mount.Mount("tmpfs", localMountPath, "tmpfs", "nodev,nosuid,noexec"); err != nil {
 		return errors.Wrap(err, "unable to setup secret mount")
 	}
 
