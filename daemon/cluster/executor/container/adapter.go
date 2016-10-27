@@ -30,10 +30,10 @@ import (
 type containerAdapter struct {
 	backend   executorpkg.Backend
 	container *containerConfig
-	secrets   exec.SecretProvider
+	secrets   exec.SecretGetter
 }
 
-func newContainerAdapter(b executorpkg.Backend, task *api.Task, secrets exec.SecretProvider) (*containerAdapter, error) {
+func newContainerAdapter(b executorpkg.Backend, task *api.Task, secrets exec.SecretGetter) (*containerAdapter, error) {
 	ctnr, err := newContainerConfig(task)
 	if err != nil {
 		return nil, err
