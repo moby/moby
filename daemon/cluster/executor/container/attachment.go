@@ -20,7 +20,7 @@ type networkAttacherController struct {
 	closed  chan struct{}
 }
 
-func newNetworkAttacherController(b executorpkg.Backend, task *api.Task, secrets exec.SecretProvider) (*networkAttacherController, error) {
+func newNetworkAttacherController(b executorpkg.Backend, task *api.Task, secrets exec.SecretGetter) (*networkAttacherController, error) {
 	adapter, err := newContainerAdapter(b, task, secrets)
 	if err != nil {
 		return nil, err
