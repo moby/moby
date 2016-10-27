@@ -120,6 +120,7 @@ func merge(userConf, imageConf *containertypes.Config) error {
 // Commit creates a new filesystem image from the current state of a container.
 // The image can optionally be tagged into a repository.
 func (daemon *Daemon) Commit(name string, c *backend.ContainerCommitConfig) (string, error) {
+	start := time.Now()
 	container, err := daemon.GetContainer(name)
 	if err != nil {
 		return "", err
@@ -244,6 +245,7 @@ func (daemon *Daemon) Commit(name string, c *backend.ContainerCommitConfig) (str
 		"comment": c.Comment,
 	}
 	daemon.LogContainerEventWithAttributes(container, "commit", attributes)
+	containerActions.WithValues("commit").UpdateSince(start)
 	return id.String(), nil
 }
 

@@ -175,4 +175,7 @@ clone git github.com/spf13/pflag dabebe21bf790f782ea4c7bbd2efc430de182afd
 clone git github.com/inconshreveable/mousetrap 76626ae9c91c4f2a10f34cad8ce83ea42c93bb75
 clone git github.com/flynn-archive/go-shlex 3f9db97f856818214da2e1057f8ad84803971cff
 
+# metrics
+clone git github.com/docker/go-metrics 86138d05f285fd9737a99bee2d9be30866b59d72
+
 clean
