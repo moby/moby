@@ -24,6 +24,8 @@ type fluentd struct {
 	tag           string
 	containerID   string
 	containerName string
+	imageID       string
+	imageName     string
 	writer        *fluent.Fluent
 	extra         map[string]string
 }
@@ -139,6 +141,8 @@ func New(info logger.Info) (logger.Logger, error) {
 		tag:           tag,
 		containerID:   info.ContainerID,
 		containerName: info.ContainerName,
+		imageID:       info.ContainerImageID,
+		imageName:     info.ContainerImageName,
 		writer:        log,
 		extra:         extra,
 	}, nil
@@ -148,6 +152,8 @@ func (f *fluentd) Log(msg *logger.Message) error {
 	data := map[string]string{
 		"container_id":   f.containerID,
 		"container_name": f.containerName,
+		"image_id":       f.imageID,
+		"image_name":     f.imageName,
 		"source":         msg.Source,
 		"log":            string(msg.Line),
 	}
