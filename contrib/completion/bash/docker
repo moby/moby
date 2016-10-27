@@ -3151,6 +3151,45 @@ _docker_stop() {
 	_docker_container_stop
 }
 
+
+_docker_system() {
+	local subcommands="
+		df
+		events
+		info
+		prune
+	"
+	__docker_subcommands "$subcommands $aliases" && return
+
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "--help" -- "$cur" ) )
+			;;
+		*)
+			COMPREPLY=( $( compgen -W "$subcommands" -- "$cur" ) )
+			;;
+	esac
+}
+
+# TODO new command
+_docker_system_df() {
+	:
+}
+
+_docker_system_events() {
+	_docker_events
+}
+
+_docker_system_info() {
+	_docker_info
+}
+
+# TODO new command
+_docker_system_prune() {
+	:
+}
+
+
 _docker_tag() {
 	_docker_image_tag
 }
@@ -3325,6 +3364,7 @@ _docker() {
 		stats
 		stop
 		swarm
+		system
 		tag
 		top
 		unpause
