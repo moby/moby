@@ -2171,17 +2171,7 @@ _docker_import() {
 }
 
 _docker_info() {
-	case "$prev" in
-		--format|-f)
-			return
-			;;
-	esac
-
-	case "$cur" in
-		-*)
-			COMPREPLY=( $( compgen -W "--format -f --help" -- "$cur" ) )
-			;;
-	esac
+	_docker_system_info
 }
 
 _docker_inspect() {
@@ -3181,7 +3171,17 @@ _docker_system_events() {
 }
 
 _docker_system_info() {
-	_docker_info
+	case "$prev" in
+		--format|-f)
+			return
+			;;
+	esac
+
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "--format -f --help" -- "$cur" ) )
+			;;
+	esac
 }
 
 # TODO new command
