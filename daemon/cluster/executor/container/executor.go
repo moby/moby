@@ -18,10 +18,6 @@ type executor struct {
 	backend executorpkg.Backend
 }
 
-type secretProvider interface {
-	Get(secretID string) *api.Secret
-}
-
 // NewExecutor returns an executor from the docker client.
 func NewExecutor(b executorpkg.Backend) exec.Executor {
 	return &executor{

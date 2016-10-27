@@ -19,7 +19,7 @@ func SecretFromGRPC(s *swarmapi.Secret) swarmtypes.Secret {
 	secret.CreatedAt, _ = ptypes.Timestamp(s.Meta.CreatedAt)
 	secret.UpdatedAt, _ = ptypes.Timestamp(s.Meta.UpdatedAt)
 
-	secret.Spec = &swarmtypes.SecretSpec{
+	secret.Spec = swarmtypes.SecretSpec{
 		Annotations: swarmtypes.Annotations{
 			Name:   s.Spec.Annotations.Name,
 			Labels: s.Spec.Annotations.Labels,

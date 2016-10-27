@@ -4,14 +4,14 @@ package swarm
 type Secret struct {
 	ID string
 	Meta
-	Spec       *SecretSpec `json:",omitempty"`
-	Digest     string      `json:",omitempty"`
-	SecretSize int64       `json:",omitempty"`
+	Spec       SecretSpec
+	Digest     string
+	SecretSize int64
 }
 
 type SecretSpec struct {
 	Annotations
-	Data []byte `json:",omitempty"`
+	Data []byte
 }
 
 type SecretReferenceMode int
@@ -23,8 +23,8 @@ const (
 )
 
 type SecretReference struct {
-	SecretID   string              `json:",omitempty"`
-	Mode       SecretReferenceMode `json:",omitempty"`
-	Target     string              `json:",omitempty"`
-	SecretName string              `json:",omitempty"`
+	SecretID   string
+	Mode       SecretReferenceMode
+	Target     string
+	SecretName string
 }

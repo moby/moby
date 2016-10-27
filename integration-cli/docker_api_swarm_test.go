@@ -1271,19 +1271,3 @@ func (s *DockerSwarmSuite) TestAPISwarmSecretsEmptyList(c *check.C) {
 	c.Assert(secrets, checker.NotNil)
 	c.Assert(len(secrets), checker.Equals, 0, check.Commentf("secrets: %#v", secrets))
 }
-
-//func (s *DockerSwarmSuite) TestAPISwarmServicesCreate(c *check.C) {
-//	d := s.AddDaemon(c, true, true)
-//
-//	instances := 2
-//	id := d.createService(c, simpleTestService, setInstances(instances))
-//	waitAndAssert(c, defaultReconciliationTimeout, d.checkActiveContainerCount, checker.Equals, instances)
-//
-//	service := d.getService(c, id)
-//	instances = 5
-//	d.updateService(c, service, setInstances(instances))
-//	waitAndAssert(c, defaultReconciliationTimeout, d.checkActiveContainerCount, checker.Equals, instances)
-//
-//	d.removeService(c, service.ID)
-//	waitAndAssert(c, defaultReconciliationTimeout, d.checkActiveContainerCount, checker.Equals, 0)
-//}
