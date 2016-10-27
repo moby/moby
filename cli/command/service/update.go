@@ -48,6 +48,9 @@ func newUpdateCommand(dockerCli *command.DockerCli) *cobra.Command {
 	flags.Var(newListOptsVar(), flagMountRemove, "Remove a mount by its target path")
 	flags.Var(newListOptsVar(), flagPublishRemove, "Remove a published port by its target port")
 	flags.Var(newListOptsVar(), flagConstraintRemove, "Remove a constraint")
+	flags.Var(newListOptsVar(), flagDNSRemove, "Remove custom DNS servers")
+	flags.Var(newListOptsVar(), flagDNSOptionsRemove, "Remove DNS options")
+	flags.Var(newListOptsVar(), flagDNSSearchRemove, "Remove DNS search domains")
 	flags.Var(&opts.labels, flagLabelAdd, "Add or update a service label")
 	flags.Var(&opts.containerLabels, flagContainerLabelAdd, "Add or update a container label")
 	flags.Var(&opts.env, flagEnvAdd, "Add or update an environment variable")
@@ -55,6 +58,10 @@ func newUpdateCommand(dockerCli *command.DockerCli) *cobra.Command {
 	flags.StringSliceVar(&opts.constraints, flagConstraintAdd, []string{}, "Add or update a placement constraint")
 	flags.Var(&opts.endpoint.ports, flagPublishAdd, "Add or update a published port")
 	flags.StringSliceVar(&opts.groups, flagGroupAdd, []string{}, "Add an additional supplementary user group to the container")
+	flags.Var(&opts.dns, flagDNSAdd, "Add or update custom DNS servers")
+	flags.Var(&opts.dnsOptions, flagDNSOptionsAdd, "Add or update DNS options")
+	flags.Var(&opts.dnsSearch, flagDNSSearchAdd, "Add or update custom DNS search domains")
+
 	return cmd
 }
 
@@ -253,6 +260,15 @@ func updateService(flags *pflag.FlagSet, spec *swarm.ServiceSpec) error {
 			spec.EndpointSpec = &swarm.EndpointSpec{}
 		}
 		if err := updatePorts(flags, &spec.EndpointSpec.Ports); err != nil {
+			return err
+		}
+	}
+
+	if anyChanged(flags, flagDNSAdd, flagDNSRemove, flagDNSOptionsAdd, flagDNSOptionsRemove, flagDNSSearchAdd, flagDNSSearchRemove) {
+		if cspec.DNSConfig == nil {
+			cspec.DNSConfig = &swarm.DNSConfig{}
+		}
+		if err := updateDNSConfig(flags, &cspec.DNSConfig); err != nil {
 			return err
 		}
 	}
@@ -481,6 +497,71 @@ func updateGroups(flags *pflag.FlagSet, groups *[]string) error {
 	sort.Strings(newGroups)
 
 	*groups = newGroups
+	return nil
+}
+
+func removeDuplicates(entries []string) []string {
+	hit := map[string]bool{}
+	newEntries := []string{}
+	for _, v := range entries {
+		if !hit[v] {
+			newEntries = append(newEntries, v)
+			hit[v] = true
+		}
+	}
+	return newEntries
+}
+
+func updateDNSConfig(flags *pflag.FlagSet, config **swarm.DNSConfig) error {
+	newConfig := &swarm.DNSConfig{}
+
+	nameservers := (*config).Nameservers
+	if flags.Changed(flagDNSAdd) {
+		values := flags.Lookup(flagDNSAdd).Value.(*opts.ListOpts).GetAll()
+		nameservers = append(nameservers, values...)
+	}
+	nameservers = removeDuplicates(nameservers)
+	toRemove := buildToRemoveSet(flags, flagDNSRemove)
+	for _, nameserver := range nameservers {
+		if _, exists := toRemove[nameserver]; !exists {
+			newConfig.Nameservers = append(newConfig.Nameservers, nameserver)
+
+		}
+	}
+	// Sort so that result is predictable.
+	sort.Strings(newConfig.Nameservers)
+
+	search := (*config).Search
+	if flags.Changed(flagDNSSearchAdd) {
+		values := flags.Lookup(flagDNSSearchAdd).Value.(*opts.ListOpts).GetAll()
+		search = append(search, values...)
+	}
+	search = removeDuplicates(search)
+	toRemove = buildToRemoveSet(flags, flagDNSSearchRemove)
+	for _, entry := range search {
+		if _, exists := toRemove[entry]; !exists {
+			newConfig.Search = append(newConfig.Search, entry)
+		}
+	}
+	// Sort so that result is predictable.
+	sort.Strings(newConfig.Search)
+
+	options := (*config).Options
+	if flags.Changed(flagDNSOptionsAdd) {
+		values := flags.Lookup(flagDNSOptionsAdd).Value.(*opts.ListOpts).GetAll()
+		options = append(options, values...)
+	}
+	options = removeDuplicates(options)
+	toRemove = buildToRemoveSet(flags, flagDNSOptionsRemove)
+	for _, option := range options {
+		if _, exists := toRemove[option]; !exists {
+			newConfig.Options = append(newConfig.Options, option)
+		}
+	}
+	// Sort so that result is predictable.
+	sort.Strings(newConfig.Options)
+
+	*config = newConfig
 	return nil
 }
 

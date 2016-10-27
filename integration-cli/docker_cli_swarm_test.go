@@ -795,7 +795,7 @@ func (s *DockerSwarmSuite) TestDNSConfig(c *check.C) {
 
 	// Create a service
 	name := "top"
-	_, err := d.Cmd("service", "create", "--name", name, "--dns=1.2.3.4", "--dns-search=example.com", "--dns-opt=timeout:3", "busybox", "top")
+	_, err := d.Cmd("service", "create", "--name", name, "--dns=1.2.3.4", "--dns-search=example.com", "--dns-options=timeout:3", "busybox", "top")
 	c.Assert(err, checker.IsNil)
 
 	// Make sure task has been deployed.
@@ -815,4 +815,23 @@ func (s *DockerSwarmSuite) TestDNSConfig(c *check.C) {
 	c.Assert(out, checker.Contains, expectedOutput1, check.Commentf("Expected '%s', but got %q", expectedOutput1, out))
 	c.Assert(out, checker.Contains, expectedOutput2, check.Commentf("Expected '%s', but got %q", expectedOutput2, out))
 	c.Assert(out, checker.Contains, expectedOutput3, check.Commentf("Expected '%s', but got %q", expectedOutput3, out))
+}
+
+func (s *DockerSwarmSuite) TestDNSConfigUpdate(c *check.C) {
+	d := s.AddDaemon(c, true, true)
+
+	// Create a service
+	name := "top"
+	_, err := d.Cmd("service", "create", "--name", name, "busybox", "top")
+	c.Assert(err, checker.IsNil)
+
+	// Make sure task has been deployed.
+	waitAndAssert(c, defaultReconciliationTimeout, d.checkActiveContainerCount, checker.Equals, 1)
+
+	_, err = d.Cmd("service", "update", "--dns-add=1.2.3.4", "--dns-search-add=example.com", "--dns-options-add=timeout:3", name)
+	c.Assert(err, checker.IsNil)
+
+	out, err := d.Cmd("service", "inspect", "--format", "{{ .Spec.TaskTemplate.ContainerSpec.DNSConfig }}", name)
+	c.Assert(err, checker.IsNil)
+	c.Assert(strings.TrimSpace(out), checker.Equals, "{[1.2.3.4] [example.com] [timeout:3]}")
 }
