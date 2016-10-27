@@ -5,6 +5,73 @@ information on the list of deprecated flags and APIs please have a look at
 https://docs.docker.com/engine/deprecated/ where target removal dates can also
 be found.
 
+## 1.12.3 (2016-10-26)
+
+**IMPORTANT**: Docker 1.12 ships with an updated systemd unit file for rpm
+based installs (which includes RHEL, Fedora, CentOS, and Oracle Linux 7). When
+upgrading from an older version of docker, the upgrade process may not
+automatically install the updated version of the unit file, or fail to start
+the docker service if;
+
+- the systemd unit file (`/usr/lib/systemd/system/docker.service`) contains local changes, or
+- a systemd drop-in file is present, and contains `-H fd://` in the `ExecStart` directive
+
+Starting the docker service will produce an error:
+
+    Failed to start docker.service: Unit docker.socket failed to load: No such file or directory.
+
+or
+
+    no sockets found via socket activation: make sure the service was started by systemd.
+
+To resolve this:
+
+- Backup the current version of the unit file, and replace the file with the
+  [version that ships with docker 1.12](https://raw.githubusercontent.com/docker/docker/v1.12.0/contrib/init/systemd/docker.service.rpm)
+- Remove the `Requires=docker.socket` directive from the `/usr/lib/systemd/system/docker.service` file if present
+- Remove `-H fd://` from the `ExecStart` directive (both in the main unit file, and in any drop-in files present).
+
+After making those changes, run `sudo systemctl daemon-reload`, and `sudo
+systemctl restart docker` to reload changes and (re)start the docker daemon.
+
+
+### Runtime
+
+- Fix ambient capability usage in containers (CVE-2016-8867) [#27610](https://github.com/docker/docker/pull/27610)
+- Prevent a deadlock in libcontainerd for Windows [#27136](https://github.com/docker/docker/pull/27136)
+- Fix error reporting in CopyFileWithTar [#27075](https://github.com/docker/docker/pull/27075)
+* Reset health status to starting when a container is restarted [#27387](https://github.com/docker/docker/pull/27387)
+* Properly handle shared mount propagation in storage directory [#27609](https://github.com/docker/docker/pull/27609)
+- Fix docker exec [#27610](https://github.com/docker/docker/pull/27610)
+- Fix backward compatibility with containerd’s events log [#27693](https://github.com/docker/docker/pull/27693)
+
+### Swarm Mode
+
+- Fix conversion of restart-policy [#27062](https://github.com/docker/docker/pull/27062)
+* Update Swarmkit [#27554](https://github.com/docker/docker/pull/27554)
+ * Avoid restarting a task that has already been restarted [docker/swarmkit#1305](https://github.com/docker/swarmkit/pull/1305)
+ * Allow duplicate published ports when they use different protocols [docker/swarmkit#1632](https://github.com/docker/swarmkit/pull/1632)
+ * Allow multiple randomly assigned published ports on service [docker/swarmkit#1657](https://github.com/docker/swarmkit/pull/1657)
+ - Fix panic when allocations happen at init time [docker/swarmkit#1651](https://github.com/docker/swarmkit/pull/1651)
+
+### Networking
+
+* Update libnetwork [#27559](https://github.com/docker/docker/pull/27559)
+ - Fix race in serializing sandbox to string [docker/libnetwork#1495](https://github.com/docker/libnetwork/pull/1495)
+ - Fix race during deletion [docker/libnetwork#1503](https://github.com/docker/libnetwork/pull/1503)
+ * Reset endpoint port info on connectivity revoke in bridge driver [docker/libnetwork#1504](https://github.com/docker/libnetwork/pull/1504)
+ - Fix a deadlock in networking code [docker/libnetwork#1507](https://github.com/docker/libnetwork/pull/1507)
+ - Fix a race in load balancer state [docker/libnetwork#1512](https://github.com/docker/libnetwork/pull/1512)
+
+### Logging
+
+* Update fluent-logger-golang to v1.2.1 [#27474](https://github.com/docker/docker/pull/27474)
+
+### Contrib
+
+* Update buildtags for armhf ubuntu-trusty [#27327](https://github.com/docker/docker/pull/27327)
+* Add AppArmor to runc buildtags for armhf [#27421](https://github.com/docker/docker/pull/27421)
+
 ## 1.12.2 (2016-10-11)
 
 **IMPORTANT**: Docker 1.12 ships with an updated systemd unit file for rpm
