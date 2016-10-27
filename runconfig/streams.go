@@ -135,7 +135,7 @@ func (streamConfig *StreamConfig) CopyToPipe(iop libcontainerd.IOPipe) {
 			go func() {
 				pools.Copy(iop.Stdin, stdin)
 				if err := iop.Stdin.Close(); err != nil {
-					logrus.Error("failed to clise stdin: %+v", err)
+					logrus.Errorf("failed to close stdin: %+v", err)
 				}
 			}()
 		}
