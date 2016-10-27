@@ -537,4 +537,6 @@ const (
 	flagHealthTimeout         = "health-timeout"
 	flagNoHealthcheck         = "no-healthcheck"
 	flagSecret                = "secret"
+	flagSecretAdd             = "secret-add"
+	flagSecretRemove          = "secret-rm"
 )
