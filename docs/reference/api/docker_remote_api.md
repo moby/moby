@@ -161,7 +161,7 @@ This section lists each version from latest to oldest.  Each listing includes a 
 * `POST /networks/prune` prunes unused networks.
 * Every API response now includes a `Docker-Experimental` header specifying if experimental features are enabled (value can be `true` or `false`).
 * The `hostConfig` option now accepts the fields `CpuRealtimePeriod` and `CpuRtRuntime` to allocate cpu runtime to rt tasks when `CONFIG_RT_GROUP_SCHED` is enabled in the kernel.
-
+* The `SecurityOptions` field within the `GET /info` response now includes `userns` if user namespaces are enabled in the daemon.
 
 ### v1.24 API changes
 
