@@ -147,15 +147,25 @@ semverParse() {
 }
 
 do_install() {
-	case "$(uname -m)" in
-		*64)
+	architecture=$(uname -m)
+	case $architecture in
+		# officially supported
+		amd64|x86_64)
 			;;
+		# unofficially supported with available repositories
 		armv6l|armv7l)
 			;;
+		# unofficially supported without available repositories
+		aarch64|arm64|ppc64le|s390x)
+			cat 1>&2 <<-EOF
+			Error: Docker doesn't officially support $architecture and no Docker $architecture repository exists.
+			EOF
+			exit 1
+			;;
+		# not supported
 		*)
-			cat >&2 <<-'EOF'
-			Error: you are not using a 64bit platform or a Raspberry Pi (armv6l/armv7l).
-			Docker currently only supports 64bit platforms or a Raspberry Pi (armv6l/armv7l).
+			cat >&2 <<-EOF
+			Error: $architecture is not a recognized platform.
 			EOF
 			exit 1
 			;;
