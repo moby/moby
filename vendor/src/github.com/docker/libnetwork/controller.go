@@ -1062,9 +1062,14 @@ func SandboxKeyWalker(out *Sandbox, key string) SandboxWalker {
 }
 
 func (c *controller) loadDriver(networkType string) error {
-	// Plugins pkg performs lazy loading of plugins that acts as remote drivers.
-	// As per the design, this Get call will result in remote driver discovery if there is a corresponding plugin available.
-	_, err := plugins.Get(networkType, driverapi.NetworkPluginEndpointType)
+	var err error
+
+	if pg := c.GetPluginGetter(); pg != nil {
+		_, err = pg.Get(networkType, driverapi.NetworkPluginEndpointType, plugingetter.LOOKUP)
+	} else {
+		_, err = plugins.Get(networkType, driverapi.NetworkPluginEndpointType)
+	}
+
 	if err != nil {
 		if err == plugins.ErrNotFound {
 			return types.NotFoundErrorf(err.Error())
@@ -1076,7 +1081,15 @@ func (c *controller) loadDriver(networkType string) error {
 }
 
 func (c *controller) loadIPAMDriver(name string) error {
-	if _, err := c.GetPluginGetter().Get(name, ipamapi.PluginEndpointType, plugingetter.LOOKUP); err != nil {
+	var err error
+
+	if pg := c.GetPluginGetter(); pg != nil {
+		_, err = pg.Get(name, ipamapi.PluginEndpointType, plugingetter.LOOKUP)
+	} else {
+		_, err = plugins.Get(name, ipamapi.PluginEndpointType)
+	}
+
+	if err != nil {
 		if err == plugins.ErrNotFound {
 			return types.NotFoundErrorf(err.Error())
 		}

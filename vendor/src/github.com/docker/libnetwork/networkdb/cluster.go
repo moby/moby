@@ -16,9 +16,11 @@ import (
 )
 
 const (
-	reapInterval  = 60 * time.Second
-	reapPeriod    = 5 * time.Second
-	retryInterval = 1 * time.Second
+	reapInterval     = 60 * time.Second
+	reapPeriod       = 5 * time.Second
+	retryInterval    = 1 * time.Second
+	nodeReapInterval = 24 * time.Hour
+	nodeReapPeriod   = 2 * time.Hour
 )
 
 type logWriter struct{}
@@ -147,6 +149,7 @@ func (nDB *NetworkDB) clusterInit() error {
 		{config.GossipInterval, nDB.gossip},
 		{config.PushPullInterval, nDB.bulkSyncTables},
 		{retryInterval, nDB.reconnectNode},
+		{nodeReapPeriod, nDB.reapDeadNode},
 	} {
 		t := time.NewTicker(trigger.interval)
 		go nDB.triggerFunc(trigger.interval, t.C, nDB.stopCh, trigger.fn)
@@ -231,6 +234,19 @@ func (nDB *NetworkDB) triggerFunc(stagger time.Duration, C <-chan time.Time, sto
 		case <-stop:
 			return
 		}
+	}
+}
+
+func (nDB *NetworkDB) reapDeadNode() {
+	nDB.Lock()
+	defer nDB.Unlock()
+	for id, n := range nDB.failedNodes {
+		if n.reapTime > 0 {
+			n.reapTime -= reapPeriod
+			continue
+		}
+		logrus.Debugf("Removing failed node %v from gossip cluster", n.Name)
+		delete(nDB.failedNodes, id)
 	}
 }
 

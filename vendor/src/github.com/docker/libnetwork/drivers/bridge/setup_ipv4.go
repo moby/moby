@@ -3,6 +3,7 @@ package bridge
 import (
 	"fmt"
 	"io/ioutil"
+	"net"
 	"path/filepath"
 
 	log "github.com/Sirupsen/logrus"
@@ -10,11 +11,27 @@ import (
 	"github.com/vishvananda/netlink"
 )
 
+func selectIPv4Address(addresses []netlink.Addr, selector *net.IPNet) (netlink.Addr, error) {
+	if len(addresses) == 0 {
+		return netlink.Addr{}, fmt.Errorf("unable to select an address as the address pool is empty")
+	}
+	if selector != nil {
+		for _, addr := range addresses {
+			if selector.Contains(addr.IP) {
+				return addr, nil
+			}
+		}
+	}
+	return addresses[0], nil
+}
+
 func setupBridgeIPv4(config *networkConfiguration, i *bridgeInterface) error {
-	addrv4, _, err := i.addresses()
+	addrv4List, _, err := i.addresses()
 	if err != nil {
 		return fmt.Errorf("failed to retrieve bridge interface addresses: %v", err)
 	}
+
+	addrv4, _ := selectIPv4Address(addrv4List, config.AddressIPv4)
 
 	if !types.CompareIPNet(addrv4.IPNet, config.AddressIPv4) {
 		if addrv4.IPNet != nil {
