@@ -57,6 +57,8 @@ Options:
       --restart-max-attempts value       Maximum number of restarts before giving up (default none)
       --restart-window value             Window used to evaluate the restart policy (default none)
       --rollback                         Rollback to previous specification
+      --secret-add list                  Add a secret (default [])
+      --secret-rm list                   Remove a secret (default [])
       --stop-grace-period value          Time to wait before force killing a container (default none)
       --update-delay duration            Delay between updates
       --update-failure-action string     Action on update failure (pause|continue) (default "pause")
@@ -137,6 +139,20 @@ myservice
 $ docker service update --mount-rm /somewhere myservice
 
 myservice
+```
+
+### Adding and removing secrets
+
+Use the `--secret-add` or `--secret-rm` options add or remove a service's
+secrets.
+
+The following example adds a secret named `ssh-2` and removes `ssh-1`:
+
+```bash
+$ docker service update \
+    --secret-add ssh-2 \
+    --secret-rm ssh-1 \
+    myservice
 ```
 
 ## Related information
