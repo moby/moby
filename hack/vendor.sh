@@ -91,7 +91,7 @@ clone git github.com/boltdb/bolt fff57c100f4dea1905678da7e90d92429dff2904
 clone git github.com/miekg/dns 75e6e86cc601825c5dbcd4e0c209eab180997cd7
 
 # get graph and distribution packages
-clone git github.com/docker/distribution 77b9d2997abcded79a5314970fe69a44c93c25fb
+clone git github.com/docker/distribution fbb70dc3a14ca65cdac3aaf5e5122b03b42f6fbc
 clone git github.com/vbatts/tar-split v0.10.1
 
 # get go-zfs packages
