@@ -87,6 +87,15 @@ func (sr *swarmRouter) updateCluster(ctx context.Context, w http.ResponseWriter,
 		flags.RotateManagerToken = rot
 	}
 
+	if value := r.URL.Query().Get("rotateManagerUnlockKey"); value != "" {
+		rot, err := strconv.ParseBool(value)
+		if err != nil {
+			return fmt.Errorf("invalid value for rotateManagerUnlockKey: %s", value)
+		}
+
+		flags.RotateManagerUnlockKey = rot
+	}
+
 	if err := sr.backend.Update(version, swarm, flags); err != nil {
 		logrus.Errorf("Error configuring swarm: %v", err)
 		return err

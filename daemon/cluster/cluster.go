@@ -558,6 +558,11 @@ func (c *Cluster) GetUnlockKey() (string, error) {
 		return "", err
 	}
 
+	if len(r.UnlockKey) == 0 {
+		// no key
+		return "", nil
+	}
+
 	return encryption.HumanReadableKey(r.UnlockKey), nil
 }
 
