@@ -43,11 +43,9 @@ func parseSecretString(secretString string) (string, string, error) {
 // parseSecrets retrieves the secrets from the requested names and converts
 // them to secret references to use with the spec
 func parseSecrets(client client.APIClient, requestedSecrets []string) ([]*swarmtypes.SecretReference, error) {
-	lookupSecretNames := []string{}
-	neededSecrets := make(map[string]*swarmtypes.SecretReference)
+	secretRefs := make(map[string]*swarmtypes.SecretReference)
 	ctx := context.Background()
 
-	neededLookup := map[string]string{}
 	for _, secret := range requestedSecrets {
 		n, t, err := parseSecretString(secret)
 		if err != nil {
@@ -60,14 +58,15 @@ func parseSecrets(client client.APIClient, requestedSecrets []string) ([]*swarmt
 			Target:     t,
 		}
 
-		lookupSecretNames = append(lookupSecretNames, n)
-		neededLookup[t] = n
-		neededSecrets[t] = secretRef
+		if _, exists := secretRefs[t]; exists {
+			return nil, fmt.Errorf("duplicate secret target for %s not allowed", n)
+		}
+		secretRefs[t] = secretRef
 	}
 
 	args := filters.NewArgs()
-	for _, s := range lookupSecretNames {
-		args.Add("names", s)
+	for _, s := range secretRefs {
+		args.Add("names", s.SecretName)
 	}
 
 	secrets, err := client.SecretList(ctx, types.SecretListOptions{
@@ -84,21 +83,16 @@ func parseSecrets(client client.APIClient, requestedSecrets []string) ([]*swarmt
 
 	addedSecrets := []*swarmtypes.SecretReference{}
 
-	for target, secretName := range neededLookup {
-		id, ok := foundSecrets[secretName]
+	for _, ref := range secretRefs {
+		id, ok := foundSecrets[ref.SecretName]
 		if !ok {
-			return nil, fmt.Errorf("secret not found: %s", secretName)
-		}
-
-		secretRef, ok := neededSecrets[target]
-		if !ok {
-			return nil, fmt.Errorf("secret reference not found: %s", secretName)
+			return nil, fmt.Errorf("secret not found: %s", ref.SecretName)
 		}
 
 		// set the id for the ref to properly assign in swarm
 		// since swarm needs the ID instead of the name
-		secretRef.SecretID = id
-		addedSecrets = append(addedSecrets, secretRef)
+		ref.SecretID = id
+		addedSecrets = append(addedSecrets, ref)
 	}
 
 	return addedSecrets, nil
