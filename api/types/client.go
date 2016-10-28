@@ -12,8 +12,20 @@ import (
 
 // CheckpointCreateOptions holds parameters to create a checkpoint from a container
 type CheckpointCreateOptions struct {
-	CheckpointID string
-	Exit         bool
+	CheckpointID  string
+	CheckpointDir string
+	Exit          bool
+}
+
+// CheckpointListOptions holds parameters to list checkpoints for a container
+type CheckpointListOptions struct {
+	CheckpointDir string
+}
+
+// CheckpointDeleteOptions holds parameters to delete a checkpoint from a container
+type CheckpointDeleteOptions struct {
+	CheckpointID  string
+	CheckpointDir string
 }
 
 // ContainerAttachOptions holds parameters to attach to a container.
@@ -77,7 +89,8 @@ type ContainerRemoveOptions struct {
 
 // ContainerStartOptions holds parameters to start containers.
 type ContainerStartOptions struct {
-	CheckpointID string
+	CheckpointID  string
+	CheckpointDir string
 }
 
 // CopyToContainerOptions holds information

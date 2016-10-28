@@ -6,27 +6,44 @@ import (
 
 	"golang.org/x/net/context"
 
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cli/command"
 	"github.com/spf13/cobra"
 )
 
+type listOptions struct {
+	checkpointDir string
+}
+
 func newListCommand(dockerCli *command.DockerCli) *cobra.Command {
-	return &cobra.Command{
+	var opts listOptions
+
+	cmd := &cobra.Command{
 		Use:     "ls CONTAINER",
 		Aliases: []string{"list"},
 		Short:   "List checkpoints for a container",
 		Args:    cli.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runList(dockerCli, args[0])
+			return runList(dockerCli, args[0], opts)
 		},
 	}
+
+	flags := cmd.Flags()
+	flags.StringVarP(&opts.checkpointDir, "checkpoint-dir", "", "", "use a custom checkpoint storage directory")
+
+	return cmd
+
 }
 
-func runList(dockerCli *command.DockerCli, container string) error {
+func runList(dockerCli *command.DockerCli, container string, opts listOptions) error {
 	client := dockerCli.Client()
 
-	checkpoints, err := client.CheckpointList(context.Background(), container)
+	listOpts := types.CheckpointListOptions{
+		CheckpointDir: opts.checkpointDir,
+	}
+
+	checkpoints, err := client.CheckpointList(context.Background(), container, listOpts)
 	if err != nil {
 		return err
 	}

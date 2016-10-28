@@ -21,7 +21,14 @@ func (daemon *Daemon) CheckpointCreate(name string, config types.CheckpointCreat
 		return fmt.Errorf("Container %s not running", name)
 	}
 
-	err = daemon.containerd.CreateCheckpoint(container.ID, config.CheckpointID, container.CheckpointDir(), config.Exit)
+	var checkpointDir string
+	if config.CheckpointDir != "" {
+		checkpointDir = config.CheckpointDir
+	} else {
+		checkpointDir = container.CheckpointDir()
+	}
+
+	err = daemon.containerd.CreateCheckpoint(container.ID, config.CheckpointID, checkpointDir, config.Exit)
 	if err != nil {
 		return fmt.Errorf("Cannot checkpoint container %s: %s", name, err)
 	}
@@ -32,18 +39,24 @@ func (daemon *Daemon) CheckpointCreate(name string, config types.CheckpointCreat
 }
 
 // CheckpointDelete deletes the specified checkpoint
-func (daemon *Daemon) CheckpointDelete(name string, checkpoint string) error {
+func (daemon *Daemon) CheckpointDelete(name string, config types.CheckpointDeleteOptions) error {
 	container, err := daemon.GetContainer(name)
 	if err != nil {
 		return err
 	}
 
-	checkpointDir := container.CheckpointDir()
-	return os.RemoveAll(filepath.Join(checkpointDir, checkpoint))
+	var checkpointDir string
+	if config.CheckpointDir != "" {
+		checkpointDir = config.CheckpointDir
+	} else {
+		checkpointDir = container.CheckpointDir()
+	}
+
+	return os.RemoveAll(filepath.Join(checkpointDir, config.CheckpointID))
 }
 
 // CheckpointList lists all checkpoints of the specified container
-func (daemon *Daemon) CheckpointList(name string) ([]types.Checkpoint, error) {
+func (daemon *Daemon) CheckpointList(name string, config types.CheckpointListOptions) ([]types.Checkpoint, error) {
 	var out []types.Checkpoint
 
 	container, err := daemon.GetContainer(name)
@@ -51,7 +64,13 @@ func (daemon *Daemon) CheckpointList(name string) ([]types.Checkpoint, error) {
 		return nil, err
 	}
 
-	checkpointDir := container.CheckpointDir()
+	var checkpointDir string
+	if config.CheckpointDir != "" {
+		checkpointDir = config.CheckpointDir
+	} else {
+		checkpointDir = container.CheckpointDir()
+	}
+
 	if err := os.MkdirAll(checkpointDir, 0755); err != nil {
 		return nil, err
 	}

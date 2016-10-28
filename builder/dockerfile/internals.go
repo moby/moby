@@ -537,7 +537,7 @@ func (b *Builder) run(cID string) (err error) {
 		}
 	}()
 
-	if err := b.docker.ContainerStart(cID, nil, true, ""); err != nil {
+	if err := b.docker.ContainerStart(cID, nil, true, "", ""); err != nil {
 		close(finished)
 		if cancelErr := <-cancelErrCh; cancelErr != nil {
 			logrus.Debugf("Build cancelled (%v) and got an error from ContainerStart: %v",
