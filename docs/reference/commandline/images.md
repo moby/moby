@@ -134,8 +134,8 @@ The currently supported filters are:
 
 * dangling (boolean - true or false)
 * label (`label=<key>` or `label=<key>=<value>`)
-* before (`<image-name>[:<tag>]`,  `<image id>` or `<image@digest>`) - filters images created before given id or references
-* since (`<image-name>[:<tag>]`,  `<image id>` or `<image@digest>`) - filters images created since given id or references
+* before (`<image-name>[:<tag>]`,  `<image id>` or `<image@digest>`) - filter images created before given id or references
+* since (`<image-name>[:<tag>]`,  `<image id>` or `<image@digest>`) - filter images created since given id or references
 
 ##### Untagged images (dangling)
 
@@ -243,9 +243,9 @@ Placeholder | Description
 `.Repository` | Image repository
 `.Tag` | Image tag
 `.Digest` | Image digest
-`.CreatedSince` | Elapsed time since the image was created.
-`.CreatedAt` | Time when the image was created.
-`.Size` | Image disk size.
+`.CreatedSince` | Elapsed time since the image was created
+`.CreatedAt` | Time when the image was created
+`.Size` | Image disk size
 
 When using the `--format` option, the `image` command will either
 output the data exactly as the template declares or, when using the
