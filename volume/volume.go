@@ -286,6 +286,8 @@ func ParseMountSpec(cfg mounttypes.Mount, options ...func(*validateOpts)) (*Moun
 				mp.Propagation = cfg.BindOptions.Propagation
 			}
 		}
+	case mounttypes.TypeTmpfs:
+		// NOP
 	}
 	return mp, nil
 }

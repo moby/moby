@@ -87,6 +87,13 @@ func validateMountConfig(mnt *mount.Mount, options ...func(*validateOpts)) error
 				return &errMountConfig{mnt, err}
 			}
 		}
+	case mount.TypeTmpfs:
+		if len(mnt.Source) != 0 {
+			return &errMountConfig{mnt, errExtraField("Source")}
+		}
+		if _, err := ConvertTmpfsOptions(mnt.TmpfsOptions); err != nil {
+			return &errMountConfig{mnt, err}
+		}
 	default:
 		return &errMountConfig{mnt, errors.New("mount type unknown")}
 	}
