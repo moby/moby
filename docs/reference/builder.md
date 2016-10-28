@@ -23,7 +23,7 @@ instructions in succession.
 
 This page describes the commands you can use in a `Dockerfile`. When you are
 done reading this page, refer to the [`Dockerfile` Best
-Practices](../userguide/eng-image/dockerfile_best-practices.md) for a tip-oriented guide.
+Practices](https://docs.docker.com/engine/userguide/eng-image/dockerfile_best-practices/) for a tip-oriented guide.
 
 ## Usage
 
@@ -92,7 +92,7 @@ instructions.
 Whenever possible, Docker will re-use the intermediate images (cache),
 to accelerate the `docker build` process significantly. This is indicated by
 the `Using cache` message in the console output.
-(For more information, see the [Build cache section](../userguide/eng-image/dockerfile_best-practices.md#build-cache)) in the
+(For more information, see the [Build cache section](https://docs.docker.com/engine/userguide/eng-image/dockerfile_best-practices/#/build-cache)) in the
 `Dockerfile` best practices guide:
 
     $ docker build -t svendowideit/ambassador .
@@ -573,7 +573,7 @@ cache for `RUN` instructions can be invalidated by using the `--no-cache`
 flag, for example `docker build --no-cache`.
 
 See the [`Dockerfile` Best Practices
-guide](../userguide/eng-image/dockerfile_best-practices.md#build-cache) for more information.
+guide](https://docs.docker.com/engine/userguide/eng-image/dockerfile_best-practices/#/build-cache) for more information.
 
 The cache for `RUN` instructions can be invalidated by `ADD` instructions. See
 [below](#add) for details.
@@ -728,7 +728,7 @@ To set up port redirection on the host system, see [using the -P
 flag](run.md#expose-incoming-ports). The Docker network feature supports
 creating networks without the need to expose ports within the network, for
 detailed information see the  [overview of this
-feature](../userguide/networking/index.md)).
+feature](https://docs.docker.com/engine/userguide/networking/)).
 
 ## ENV
 
@@ -829,7 +829,7 @@ of whether or not the file has changed and the cache should be updated.
 > following instructions from the Dockerfile if the contents of `<src>` have
 > changed. This includes invalidating the cache for `RUN` instructions.
 > See the [`Dockerfile` Best Practices
-guide](../userguide/eng-image/dockerfile_best-practices.md#build-cache) for more information.
+guide](https://docs.docker.com/engine/userguide/eng-image/dockerfile_best-practices/#/build-cache) for more information.
 
 
 `ADD` obeys the following rules:

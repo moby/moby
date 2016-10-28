@@ -37,7 +37,7 @@ n2
 * [network ls](network_ls.md)
 * [network inspect](network_inspect.md)
 * [network rm](network_rm.md)
-* [Understand Docker container networks](../../userguide/networking/index.md)
+* [Understand Docker container networks](https://docs.docker.com/engine/userguide/networking/)
 * [system df](system_df.md)
 * [container prune](container_prune.md)
 * [image prune](image_prune.md)
