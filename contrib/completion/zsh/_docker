@@ -1088,7 +1088,6 @@ __docker_service_subcommand() {
         "($help)*--constraint=[Placement constraints]:constraint: "
         "($help)--endpoint-mode=[Placement constraints]:mode:(dnsrr vip)"
         "($help)*"{-e=,--env=}"[Set environment variables]:env: "
-        "($help)*--group-add=[Add additional user groups to the container]:group:_groups"
         "($help)--health-cmd=[Command to run to check health]:command: "
         "($help)--health-interval=[Time between running the check]:time: "
         "($help)--health-retries=[Consecutive failures needed to report unhealthy]:retries:(1 2 3 4 5)"
@@ -1192,7 +1191,8 @@ __docker_service_subcommand() {
                 "($help)*--container-label-add=[Add or update container labels]:label: " \
                 "($help)*--container-label-rm=[Remove a container label by its key]:label: " \
                 "($help)--force[Force update]" \
-                "($help)*--group-rm=[Remove previously added user groups from the container]:group:_groups" \
+                "($help)*--group-add=[Add additional supplementary user groups to the container]:group:_groups" \
+                "($help)*--group-rm=[Remove previously added supplementary user groups from the container]:group:_groups" \
                 "($help)--image=[Service image tag]:image:__docker_repositories" \
                 "($help)--rollback[Rollback to previous specification]" \
                 "($help -)1:service:__docker_complete_services" && ret=0
@@ -1465,7 +1465,7 @@ __docker_subcommand() {
         "($help)--entrypoint=[Overwrite the default entrypoint of the image]:entry point: "
         "($help)*--env-file=[Read environment variables from a file]:environment file:_files"
         "($help)*--expose=[Expose a port from the container without publishing it]: "
-        "($help)*--group-add=[Add additional groups to run as]:group:_groups"
+        "($help)*--group=[Set one or more supplementary user groups for the container]:group:_groups"
         "($help -h --hostname)"{-h=,--hostname=}"[Container host name]:hostname:_hosts"
         "($help -i --interactive)"{-i,--interactive}"[Keep stdin open even if not attached]"
         "($help)--ip=[Container IPv4 address]:IPv4: "
