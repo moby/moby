@@ -12,6 +12,7 @@ type Backend interface {
 	Leave(force bool) error
 	Inspect() (types.Swarm, error)
 	Update(uint64, types.Spec, types.UpdateFlags) error
+	GetUnlockKey() (string, error)
 	UnlockSwarm(req types.UnlockRequest) error
 	GetServices(basictypes.ServiceListOptions) ([]types.Service, error)
 	GetService(string) (types.Service, error)

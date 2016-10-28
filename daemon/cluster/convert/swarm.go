@@ -26,6 +26,9 @@ func SwarmFromGRPC(c swarmapi.Cluster) types.Swarm {
 					HeartbeatTick:              int(c.Spec.Raft.HeartbeatTick),
 					ElectionTick:               int(c.Spec.Raft.ElectionTick),
 				},
+				EncryptionConfig: types.EncryptionConfig{
+					AutoLockManagers: c.Spec.EncryptionConfig.AutoLockManagers,
+				},
 			},
 		},
 		JoinTokens: types.JoinTokens{
@@ -112,6 +115,8 @@ func MergeSwarmSpecToGRPC(s types.Spec, spec swarmapi.ClusterSpec) (swarmapi.Clu
 			Options:  ca.Options,
 		})
 	}
+
+	spec.EncryptionConfig.AutoLockManagers = s.EncryptionConfig.AutoLockManagers
 
 	return spec, nil
 }

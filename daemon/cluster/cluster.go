@@ -1,7 +1,6 @@
 package cluster
 
 import (
-	"crypto/x509"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -27,6 +26,7 @@ import (
 	"github.com/docker/docker/pkg/signal"
 	"github.com/docker/docker/runconfig"
 	swarmapi "github.com/docker/swarmkit/api"
+	"github.com/docker/swarmkit/manager/encryption"
 	swarmnode "github.com/docker/swarmkit/node"
 	"github.com/pkg/errors"
 	"golang.org/x/net/context"
@@ -140,6 +140,7 @@ type nodeStartConfig struct {
 	forceNewCluster bool
 	joinToken       string
 	lockKey         []byte
+	autolock        bool
 }
 
 // New creates a new Cluster instance using provided config.
@@ -172,12 +173,6 @@ func New(config Config) (*Cluster, error) {
 
 	n, err := c.startNewNode(*nodeConfig)
 	if err != nil {
-		if errors.Cause(err) == ErrSwarmLocked {
-			logrus.Warnf("swarm component could not be started: %v", err)
-			c.locked = true
-			c.lastNodeConfig = nodeConfig
-			return c, nil
-		}
 		return nil, err
 	}
 
@@ -186,6 +181,10 @@ func New(config Config) (*Cluster, error) {
 		logrus.Error("swarm component could not be started before timeout was reached")
 	case <-n.Ready():
 	case <-n.done:
+		if errors.Cause(c.err) == ErrSwarmLocked {
+			return c, nil
+		}
+
 		return nil, fmt.Errorf("swarm component could not be started: %v", c.err)
 	}
 	go c.reconnectOnFailure(n)
@@ -314,15 +313,10 @@ func (c *Cluster) startNewNode(conf nodeStartConfig) (*node, error) {
 		HeartbeatTick:      1,
 		ElectionTick:       3,
 		UnlockKey:          conf.lockKey,
+		AutoLockManagers:   conf.autolock,
 	})
 
 	if err != nil {
-		err = detectLockedError(err)
-		if errors.Cause(err) == ErrSwarmLocked {
-			c.locked = true
-			confClone := conf
-			c.lastNodeConfig = &confClone
-		}
 		return nil, err
 	}
 	ctx := context.Background()
@@ -341,13 +335,18 @@ func (c *Cluster) startNewNode(conf nodeStartConfig) (*node, error) {
 
 	c.config.Backend.SetClusterProvider(c)
 	go func() {
-		err := n.Err(ctx)
+		err := detectLockedError(n.Err(ctx))
 		if err != nil {
 			logrus.Errorf("cluster exited with error: %v", err)
 		}
 		c.Lock()
 		c.node = nil
 		c.err = err
+		if errors.Cause(err) == ErrSwarmLocked {
+			c.locked = true
+			confClone := conf
+			c.lastNodeConfig = &confClone
+		}
 		c.Unlock()
 		close(node.done)
 	}()
@@ -443,18 +442,13 @@ func (c *Cluster) Init(req types.InitRequest) (string, error) {
 		localAddr = advertiseIP.String()
 	}
 
-	var key []byte
-	if len(req.LockKey) > 0 {
-		key = []byte(req.LockKey)
-	}
-
 	// todo: check current state existing
 	n, err := c.startNewNode(nodeStartConfig{
 		forceNewCluster: req.ForceNewCluster,
+		autolock:        req.AutoLockManagers,
 		LocalAddr:       localAddr,
 		ListenAddr:      net.JoinHostPort(listenHost, listenPort),
 		AdvertiseAddr:   net.JoinHostPort(advertiseHost, advertisePort),
-		lockKey:         key,
 	})
 	if err != nil {
 		c.Unlock()
@@ -569,8 +563,9 @@ func (c *Cluster) GetUnlockKey() (string, error) {
 
 // UnlockSwarm provides a key to decrypt data that is encrypted at rest.
 func (c *Cluster) UnlockSwarm(req types.UnlockRequest) error {
-	if len(req.LockKey) == 0 {
-		return errors.New("unlock key can't be empty")
+	key, err := encryption.ParseHumanReadableKey(req.UnlockKey)
+	if err != nil {
+		return err
 	}
 
 	c.Lock()
@@ -580,7 +575,7 @@ func (c *Cluster) UnlockSwarm(req types.UnlockRequest) error {
 	}
 
 	config := *c.lastNodeConfig
-	config.lockKey = []byte(req.LockKey)
+	config.lockKey = key
 	n, err := c.startNewNode(config)
 	if err != nil {
 		c.Unlock()
@@ -779,9 +774,10 @@ func (c *Cluster) Update(version uint64, spec types.Spec, flags types.UpdateFlag
 			ClusterVersion: &swarmapi.Version{
 				Index: version,
 			},
-			Rotation: swarmapi.JoinTokenRotation{
-				RotateWorkerToken:  flags.RotateWorkerToken,
-				RotateManagerToken: flags.RotateManagerToken,
+			Rotation: swarmapi.KeyRotation{
+				WorkerJoinToken:  flags.RotateWorkerToken,
+				ManagerJoinToken: flags.RotateManagerToken,
+				ManagerUnlockKey: flags.RotateManagerUnlockKey,
 			},
 		},
 	)
@@ -1708,7 +1704,7 @@ func initClusterSpec(node *node, spec types.Spec) error {
 }
 
 func detectLockedError(err error) error {
-	if errors.Cause(err) == x509.IncorrectPasswordError || errors.Cause(err).Error() == "tls: failed to parse private key" { // todo: better to export typed error
+	if err == swarmnode.ErrInvalidUnlockKey {
 		return errors.WithStack(ErrSwarmLocked)
 	}
 	return err

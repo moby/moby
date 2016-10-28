@@ -101,10 +101,22 @@ func (sr *swarmRouter) unlockCluster(ctx context.Context, w http.ResponseWriter,
 	}
 
 	if err := sr.backend.UnlockSwarm(req); err != nil {
-		logrus.Errorf("Error unlocking swarm: %+v", err)
+		logrus.Errorf("Error unlocking swarm: %v", err)
 		return err
 	}
 	return nil
+}
+
+func (sr *swarmRouter) getUnlockKey(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	unlockKey, err := sr.backend.GetUnlockKey()
+	if err != nil {
+		logrus.WithError(err).Errorf("Error retrieving swarm unlock key")
+		return err
+	}
+
+	return httputils.WriteJSON(w, http.StatusOK, &basictypes.SwarmUnlockKeyResponse{
+		UnlockKey: unlockKey,
+	})
 }
 
 func (sr *swarmRouter) getServices(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {

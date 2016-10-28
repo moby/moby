@@ -349,3 +349,10 @@ type SecretRequestOption struct {
 	GID    string
 	Mode   os.FileMode
 }
+
+// SwarmUnlockKeyResponse contains the response for Remote API:
+// GET /swarm/unlockkey
+type SwarmUnlockKeyResponse struct {
+	// UnlockKey is the unlock key in ASCII-armored format.
+	UnlockKey string
+}
