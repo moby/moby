@@ -5,7 +5,6 @@ import (
 	"io/ioutil"
 	"os"
 	"strings"
-	"time"
 
 	"github.com/spf13/cobra"
 	"golang.org/x/net/context"
@@ -19,6 +18,8 @@ import (
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cli/command"
 	servicecmd "github.com/docker/docker/cli/command/service"
+	runconfigopts "github.com/docker/docker/runconfig/opts"
+	"github.com/docker/docker/opts"
 	"github.com/docker/go-connections/nat"
 )
 
@@ -343,23 +344,37 @@ func convertService(
 		return swarm.ServiceSpec{}, err
 	}
 
+	resources, err := convertResources(service.Deploy.Resources)
+	if err != nil {
+		return swarm.ServiceSpec{}, err
+	}
+
+	restartPolicy, err := convertRestartPolicy(
+		service.Restart, service.Deploy.RestartPolicy)
+	if err != nil {
+		return swarm.ServiceSpec{}, err
+	}
+
 	serviceSpec := swarm.ServiceSpec{
 		Annotations: swarm.Annotations{
 			Name:   name,
-			Labels: getStackLabels(namespace, service.Labels),
+			Labels: getStackLabels(namespace, service.Deploy.Labels),
 		},
 		TaskTemplate: swarm.TaskSpec{
 			ContainerSpec: swarm.ContainerSpec{
-				Image:    service.Image,
-				Command:  service.Entrypoint,
-				Args:     service.Command,
-				Hostname: service.Hostname,
-				Env:      convertEnvironment(service.Environment),
-				Labels:   getStackLabels(namespace, service.Deploy.Labels),
-				Dir:      service.WorkingDir,
-				User:     service.User,
-				Mounts:   mounts,
+				Image:           service.Image,
+				Command:         service.Entrypoint,
+				Args:            service.Command,
+				Hostname:        service.Hostname,
+				Env:             convertEnvironment(service.Environment),
+				Labels:          getStackLabels(namespace, service.Labels),
+				Dir:             service.WorkingDir,
+				User:            service.User,
+				Mounts:          mounts,
+				StopGracePeriod: service.StopGracePeriod,
 			},
+			Resources:     resources,
+			RestartPolicy: restartPolicy,
 			Placement: &swarm.Placement{
 				Constraints: service.Deploy.Placement.Constraints,
 			},
@@ -367,18 +382,75 @@ func convertService(
 		EndpointSpec: endpoint,
 		Mode:         mode,
 		Networks:     convertNetworks(service.Networks, namespace, service.Name),
+		UpdateConfig: convertUpdateConfig(service.Deploy.UpdateConfig),
 	}
 
-	if service.StopGracePeriod != nil {
-		stopGrace, err := time.ParseDuration(*service.StopGracePeriod)
-		if err != nil {
-			return swarm.ServiceSpec{}, err
-		}
-		serviceSpec.TaskTemplate.ContainerSpec.StopGracePeriod = &stopGrace
-	}
-
-	// TODO: convert mounts
 	return serviceSpec, nil
+}
+
+func convertRestartPolicy(restart string, source *composetypes.RestartPolicy) (*swarm.RestartPolicy, error) {
+	// TODO: log if restart is being ignored
+	if source == nil {
+		policy, err := runconfigopts.ParseRestartPolicy(restart)
+		if err != nil {
+			return nil, err
+		}
+		// TODO: is this an accurate convertion?
+		switch {
+		case policy.IsNone(), policy.IsAlways(), policy.IsUnlessStopped():
+			return nil, nil
+		case policy.IsOnFailure():
+			attempts := uint64(policy.MaximumRetryCount)
+			return &swarm.RestartPolicy{
+				Condition:   swarm.RestartPolicyConditionOnFailure,
+				MaxAttempts: &attempts,
+			}, nil
+		}
+	}
+	return &swarm.RestartPolicy{
+		Condition:   swarm.RestartPolicyCondition(source.Condition),
+		Delay:       source.Delay,
+		MaxAttempts: source.MaxAttempts,
+		Window:      source.Window,
+	}, nil
+}
+
+func convertUpdateConfig(source *composetypes.UpdateConfig) *swarm.UpdateConfig {
+	if source == nil {
+		return nil
+	}
+	return &swarm.UpdateConfig{
+		Parallelism:     source.Parallelism,
+		Delay:           source.Delay,
+		FailureAction:   source.FailureAction,
+		Monitor:         source.Monitor,
+		MaxFailureRatio: source.MaxFailureRatio,
+	}
+}
+
+func convertResources(source composetypes.Resources) (*swarm.ResourceRequirements, error) {
+	resources := &swarm.ResourceRequirements{}
+	if source.Limits != nil {
+		cpus, err := opts.ParseCPUs(source.Limits.NanoCPUs)
+		if err != nil {
+			return nil, err
+		}
+		resources.Limits = &swarm.Resources{
+			NanoCPUs:    cpus,
+			MemoryBytes: int64(source.Limits.MemoryBytes),
+		}
+	}
+	if source.Reservations != nil {
+		cpus, err := opts.ParseCPUs(source.Reservations.NanoCPUs)
+		if err != nil {
+			return nil, err
+		}
+		resources.Reservations = &swarm.Resources{
+			NanoCPUs:    cpus,
+			MemoryBytes: int64(source.Reservations.MemoryBytes),
+		}
+	}
+	return resources, nil
 }
 
 func convertEndpointSpec(source []string) (*swarm.EndpointSpec, error) {
@@ -407,17 +479,17 @@ func convertEnvironment(source map[string]string) []string {
 	return output
 }
 
-func convertDeployMode(mode string, replicas uint64) (swarm.ServiceMode, error) {
+func convertDeployMode(mode string, replicas *uint64) (swarm.ServiceMode, error) {
 	serviceMode := swarm.ServiceMode{}
 
 	switch mode {
 	case "global":
-		if replicas != 0 {
+		if replicas != nil {
 			return serviceMode, fmt.Errorf("replicas can only be used with replicated mode")
 		}
 		serviceMode.Global = &swarm.GlobalService{}
 	case "replicated":
-		serviceMode.Replicated = &swarm.ReplicatedService{Replicas: &replicas}
+		serviceMode.Replicated = &swarm.ReplicatedService{Replicas: replicas}
 	default:
 		return serviceMode, fmt.Errorf("Unknown mode: %s", mode)
 	}
