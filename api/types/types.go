@@ -501,3 +501,23 @@ type ImagesPruneReport struct {
 type NetworksPruneReport struct {
 	NetworksDeleted []string
 }
+
+// BandwidthCreateRequest is the request message sent to the server for setting or removal of rule
+type BandwidthCreateRequest struct {
+	Driver     string
+	Container  string
+	EgressMin  int32
+	EgressMax  int32
+	IngressMin int32
+	IngressMax int32
+
+	SpeedTypeIn   string
+	InterfaceName string
+	Remove        bool
+}
+
+// NetworkCreateResponse is the response message sent by the server for network create call
+type BandwidthCreateResponse struct {
+	ID      string `json:"Id"`
+	Warning string
+}

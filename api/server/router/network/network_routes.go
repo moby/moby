@@ -295,3 +295,25 @@ func (n *networkRouter) postNetworksPrune(ctx context.Context, w http.ResponseWr
 	}
 	return httputils.WriteJSON(w, http.StatusOK, pruneReport)
 }
+
+func (n *networkRouter) postBandwidthCreate(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	var create types.BandwidthCreateRequest
+
+	if err := httputils.ParseForm(r); err != nil {
+		return err
+	}
+
+	if err := httputils.CheckForJSON(r); err != nil {
+		return err
+	}
+	if err := json.NewDecoder(r.Body).Decode(&create); err != nil {
+		return err
+	}
+
+	bw, err := n.backend.ManageNetworkBandwidth(create)
+	if err != nil {
+		return err
+	}
+
+	return httputils.WriteJSON(w, http.StatusCreated, bw)
+}

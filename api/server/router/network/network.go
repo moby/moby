@@ -38,6 +38,7 @@ func (r *networkRouter) initRoutes() {
 		router.NewPostRoute("/networks/{id:.*}/connect", r.postNetworkConnect),
 		router.NewPostRoute("/networks/{id:.*}/disconnect", r.postNetworkDisconnect),
 		router.NewPostRoute("/networks/prune", r.postNetworksPrune),
+		router.NewPostRoute("/networks/bandwidth", r.postBandwidthCreate),
 		// DELETE
 		router.NewDeleteRoute("/networks/{id:.*}", r.deleteNetwork),
 	}
