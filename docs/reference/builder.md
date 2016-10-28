@@ -118,7 +118,7 @@ image you can specify it with `--cache-from` option. Images specified with
 registries.
 
 When you're done with your build, you're ready to look into [*Pushing a
-repository to its registry*](../tutorials/dockerrepos.md#contributing-to-docker-hub).
+repository to its registry*](https://docs.docker.com/engine/tutorials/dockerrepos/#/contributing-to-docker-hub).
 
 ## Format
 
@@ -491,7 +491,7 @@ Or
 The `FROM` instruction sets the [*Base Image*](glossary.md#base-image)
 for subsequent instructions. As such, a valid `Dockerfile` must have `FROM` as
 its first instruction. The image can be any valid image – it is especially easy
-to start by **pulling an image** from the [*Public Repositories*](../tutorials/dockerrepos.md).
+to start by **pulling an image** from the [*Public Repositories*](https://docs.docker.com/engine/tutorials/dockerrepos/).
 
 - `FROM` must be the first non-comment instruction in the `Dockerfile`.
 
@@ -1204,7 +1204,7 @@ containers. The value can be a JSON array, `VOLUME ["/var/log/"]`, or a plain
 string with multiple arguments, such as `VOLUME /var/log` or `VOLUME /var/log
 /var/db`. For more information/examples and mounting instructions via the
 Docker client, refer to
-[*Share Directories via Volumes*](../tutorials/dockervolumes.md#mount-a-host-directory-as-a-data-volume)
+[*Share Directories via Volumes*](https://docs.docker.com/engine/tutorials/dockervolumes/#/mount-a-host-directory-as-a-data-volume)
 documentation.
 
 The `docker run` command initializes the newly created volume with any data
@@ -1697,7 +1697,7 @@ The `SHELL` feature was added in Docker 1.12.
 ## Dockerfile examples
 
 Below you can see some examples of Dockerfile syntax. If you're interested in
-something more realistic, take a look at the list of [Dockerization examples](../examples/index.md).
+something more realistic, take a look at the list of [Dockerization examples](https://docs.docker.com/engine/examples/).
 
 ```
 # Nginx

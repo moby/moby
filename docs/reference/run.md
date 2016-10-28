@@ -1253,7 +1253,7 @@ container's logging driver. The following options are supported:
 
 The `docker logs` command is available only for the `json-file` and `journald`
 logging drivers.  For detailed information on working with logging drivers, see
-[Configure a logging driver](../admin/logging/overview.md).
+[Configure a logging driver](https://docs.docker.com/engine/admin/logging/overview/).
 
 
 ## Overriding Dockerfile image defaults
@@ -1507,7 +1507,7 @@ The example below mounts an empty tmpfs into the container with the `rw`,
 
 The volumes commands are complex enough to have their own documentation
 in section [*Manage data in
-containers*](../tutorials/dockervolumes.md). A developer can define
+containers*](https://docs.docker.com/engine/tutorials/dockervolumes/). A developer can define
 one or more `VOLUME`'s associated with an image, but only the operator
 can give access from one container to another (or from a container to a
 volume mounted on the host).
