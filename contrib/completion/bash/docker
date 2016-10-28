@@ -2606,11 +2606,16 @@ _docker_service_update() {
 	if [ "$subcommand" = "create" ] ; then
 		options_with_args="$options_with_args
 			--container-label
+			--env-file
 			--mode
 			--name
 		"
 
 		case "$prev" in
+			--env-file)
+				_filedir
+				return
+				;;
 			--mode)
 				COMPREPLY=( $( compgen -W "global replicated" -- "$cur" ) )
 				return
