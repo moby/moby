@@ -8,7 +8,16 @@ CONTAINERD_COMMIT=52ef1ceb4b660c42cf4ea9013180a5663968d4c7
 GRIMES_COMMIT=74341e923bdf06cfb6b70cf54089c4d3ac87ec2d
 LIBNETWORK_COMMIT=0f534354b813003a754606689722fe253101bc4e
 
-export GOPATH="$(mktemp -d)"
+RM_GOPATH=0
+
+TMP_GOPATH=${TMP_GOPATH:-""}
+
+if [ -z "$TMP_GOPATH" ]; then
+	export GOPATH="$(mktemp -d)"
+	RM_GOPATH=1
+else
+	export GOPATH="$TMP_GOPATH"
+fi
 
 RUNC_BUILDTAGS="${RUNC_BUILDTAGS:-"seccomp apparmor selinux"}"
 
@@ -30,6 +39,14 @@ install_containerd() {
 	cp bin/containerd /usr/local/bin/docker-containerd
 	cp bin/containerd-shim /usr/local/bin/docker-containerd-shim
 	cp bin/ctr /usr/local/bin/docker-containerd-ctr
+}
+
+install_proxy() {
+	echo "Install docker-proxy version $LIBNETWORK_COMMIT"
+	git clone https://github.com/docker/libnetwork.git "$GOPATH/src/github.com/docker/libnetwork"
+	cd "$GOPATH/src/github.com/docker/libnetwork"
+	git checkout -q "$LIBNETWORK_COMMIT"
+	go build -ldflags="$PROXY_LDFLAGS" -o /usr/local/bin/docker-proxy github.com/docker/libnetwork/cmd/proxy
 }
 
 for prog in "$@"
@@ -68,11 +85,12 @@ do
 			;;
 
 		proxy)
-			echo "Install docker-proxy version $LIBNETWORK_COMMIT"
-			git clone https://github.com/docker/libnetwork.git "$GOPATH/src/github.com/docker/libnetwork"
-			cd "$GOPATH/src/github.com/docker/libnetwork"
-			git checkout -q "$LIBNETWORK_COMMIT"
-			CGO_ENABLED=0 go build -v -o /usr/local/bin/docker-proxy github.com/docker/libnetwork/cmd/proxy
+			export CGO_ENABLED=0
+			install_proxy
+			;;
+
+		proxy-dynamic)
+			PROXY_LDFLAGS="-linkmode=external" install_proxy
 			;;
 
 		*)
@@ -82,4 +100,6 @@ do
 	esac
 done
 
-rm -rf "$GOPATH"
+if [ $RM_GOPATH -eq 1 ]; then
+	rm -rf "$GOPATH"
+fi
