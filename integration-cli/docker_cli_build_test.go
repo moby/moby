@@ -7237,3 +7237,33 @@ func (s *DockerSuite) TestBuildSquashParent(c *check.C) {
 	c.Assert(err, checker.IsNil)
 	c.Assert(strings.TrimSpace(out), checker.Equals, "3")
 }
+
+func (s *DockerSuite) TestBuildContChar(c *check.C) {
+	name := "testbuildcontchar"
+
+	_, out, err := buildImageWithOut(name,
+		`FROM busybox\`, true)
+	c.Assert(err, checker.IsNil)
+	c.Assert(out, checker.Contains, "Step 1/1 : FROM busybox")
+
+	_, out, err = buildImageWithOut(name,
+		`FROM busybox
+		 RUN echo hi \`, true)
+	c.Assert(err, checker.IsNil)
+	c.Assert(out, checker.Contains, "Step 1/2 : FROM busybox")
+	c.Assert(out, checker.Contains, "Step 2/2 : RUN echo hi\n")
+
+	_, out, err = buildImageWithOut(name,
+		`FROM busybox
+		 RUN echo hi \\`, true)
+	c.Assert(err, checker.IsNil)
+	c.Assert(out, checker.Contains, "Step 1/2 : FROM busybox")
+	c.Assert(out, checker.Contains, "Step 2/2 : RUN echo hi \\\n")
+
+	_, out, err = buildImageWithOut(name,
+		`FROM busybox
+		 RUN echo hi \\\`, true)
+	c.Assert(err, checker.IsNil)
+	c.Assert(out, checker.Contains, "Step 1/2 : FROM busybox")
+	c.Assert(out, checker.Contains, "Step 2/2 : RUN echo hi \\\\\n")
+}
