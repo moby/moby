@@ -28,6 +28,7 @@ type ConfigFile struct {
 	ImagesFormat         string                      `json:"imagesFormat,omitempty"`
 	NetworksFormat       string                      `json:"networksFormat,omitempty"`
 	VolumesFormat        string                      `json:"volumesFormat,omitempty"`
+	StatsFormat          string                      `json:"statsFormat,omitempty"`
 	DetachKeys           string                      `json:"detachKeys,omitempty"`
 	CredentialsStore     string                      `json:"credsStore,omitempty"`
 	Filename             string                      `json:"-"` // Note: for internal use only

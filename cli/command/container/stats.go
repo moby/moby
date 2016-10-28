@@ -186,13 +186,17 @@ func runStats(dockerCli *command.DockerCli, opts *statsOptions) error {
 
 	// before print to screen, make sure each container get at least one valid stat data
 	waitFirst.Wait()
-	f := "table"
-	if len(opts.format) > 0 {
-		f = opts.format
+	format := opts.format
+	if len(format) == 0 {
+		if len(dockerCli.ConfigFile().StatsFormat) > 0 {
+			format = dockerCli.ConfigFile().StatsFormat
+		} else {
+			format = formatter.TableFormatKey
+		}
 	}
 	statsCtx := formatter.Context{
 		Output: dockerCli.Out(),
-		Format: formatter.NewStatsFormat(f, daemonOSType),
+		Format: formatter.NewStatsFormat(format, daemonOSType),
 	}
 	cleanScreen := func() {
 		if !opts.noStream {
