@@ -6,6 +6,7 @@ import (
 	"encoding/xml"
 	"fmt"
 	"io/ioutil"
+        "os"
 	"os/exec"
 	"strconv"
 
@@ -22,7 +23,6 @@ type BootConfig struct {
 	Memory           int
         DiskPath         string
         OriginalDiskPath string
-        MemoryPath       string
 }
 
 func (container *Container) InitDriver() *LibvirtDriver {
@@ -170,13 +170,17 @@ type disktarget struct {
         Bus  string     `xml:"bus,attr"`
 }
 
+type readonly struct {
+}
+
 type disk struct {
 	Type         string       `xml:"type,attr"`
 	Device       string       `xml:"device,attr"`
 	Driver       diskdriver   `xml:"driver"`
 	Source       disksource   `xml:"source"`
-        BackingStore backingstore `xml:"backingStore"`
+        BackingStore *backingstore `xml:"backingstore,omitempty"`
 	Target       disktarget   `xml:"target"`
+        Readonly     *readonly     `xml:"readonly,omitempty"`
 }
 
 type console struct {
@@ -215,13 +219,75 @@ type domain struct {
 	SecLabel   seclab   `xml:"seclabel"`
 }
 
+func (lc *LibvirtContext) createSeedImage() (string, error) {
+        cloudLocaladsPath, err := exec.LookPath("cloud-localds")
+	if err != nil {
+		return "", fmt.Errorf("cloud-localads is not installed on your PATH. Please, install it to run isolated container")
+	}
+
+        // Create directory for seed.img
+        seedDirectory := fmt.Sprintf("/var/run/docker-qemu/%s", lc.container.ID)
+
+        err = os.MkdirAll(seedDirectory, 0777)
+	if err != nil {
+		return "", fmt.Errorf("Could not create directory /var/run/docker-qemu/%s", lc.container.ID)
+	}
+
+        // Create user-data to be included in seed.img
+        data := `#cloud-config
+password: passw0rd
+chpasswd: { expire: False }
+ssh_pwauth: True
+runcmd:
+ - [ sh, -c, "%s" ]
+`
+
+        logrus.Infof("The data is: %s", fmt.Sprintf(data, lc.container.Path))
+        userData := []byte(fmt.Sprintf(data, lc.container.Path))
+
+        currentDir, err := os.Getwd()
+        if err != nil {
+                return "", fmt.Errorf("Could not determine the current directory")
+        }
+
+        err = os.Chdir(seedDirectory)
+        if err != nil {
+                return "", fmt.Errorf("Could not changed to directory %s", seedDirectory)
+        }
+
+logrus.Infof("Test1111")
+        writeError := ioutil.WriteFile("user-data", userData, 0700)
+	if writeError != nil {
+		return "", fmt.Errorf("Could not write user-data to /var/run/docker-qemu/%s", lc.container.ID)
+	}
+        logrus.Infof("cloud-localads path: %s", cloudLocaladsPath)
+
+        err = exec.Command(cloudLocaladsPath, "seed.img", "user-data").Run()
+        if err != nil {
+                return "", fmt.Errorf("Could not execute cloud-localads")
+        }
+
+        err = os.Chdir(currentDir)
+        if err != nil {
+                return "", fmt.Errorf("Could not changed to directory %s", currentDir)
+        }
+
+        return seedDirectory+"/seed.img", nil
+}
+
 func (lc *LibvirtContext) domainXml() (string, error) {
+        seedImageLocation, err := lc.createSeedImage()
+        if err != nil {
+                return "", fmt.Errorf("Could not create seed image")
+        }
+
+        logrus.Infof("Seed image location: %s", seedImageLocation)
+
 	boot := &BootConfig{
 	         CPU:              1,
                  DefaultMaxCpus:   2,
                  DefaultMaxMem:    128,
 		 Memory:           128,
-                 MemoryPath:       fmt.Sprintf("/var/lib/docker/libvirt/%s", lc.container.ID),
                  DiskPath:         "/home/abhishek/Documents/Works/cloudInit/alpine-delta.img",
                  OriginalDiskPath: "/home/abhishek/Documents/Works/cloudInit/alpine.img.orig",
 		}
@@ -267,7 +333,7 @@ func (lc *LibvirtContext) domainXml() (string, error) {
 		Source: disksource{
 			File: boot.DiskPath,
 		},
-		BackingStore: backingstore{
+		BackingStore: &backingstore{
 			      Type: "file",
                               Index: "1",
                               Format: diskformat{
@@ -283,6 +349,24 @@ func (lc *LibvirtContext) domainXml() (string, error) {
 		},
 	}
 	dom.Devices.Disks = append(dom.Devices.Disks, diskimage)
+
+	seedimage := disk{
+		Type:       "file",
+		Device:     "cdrom",
+		Driver: diskdriver{
+                        Name: "qemu",
+			Type: "raw",
+		},
+		Source: disksource{
+			File: seedImageLocation,
+		},
+		Target: disktarget{
+			Dev:     "hdb",
+			Bus:     "ide",
+		},
+                Readonly: &readonly{},
+	}
+	dom.Devices.Disks = append(dom.Devices.Disks, seedimage)
 
         dom.Devices.Graphics = graphics{
               Type:     "vnc",

@@ -143,14 +143,6 @@ func (daemon *Daemon) containerStart(container *container.Container, checkpoint 
 		return err
 	}
 
-        if container.HostConfig.Isolation == "qemu" {
-          if container.IsolatedContainerContext != nil {
-            container.IsolatedContainerContext.Launch()
-          } else {
-            return fmt.Errorf("container.IsolatedContainerContext is not set")
-          }
-        }
-
 	spec, err := daemon.createSpec(container)
 	if err != nil {
 		return err
@@ -164,6 +156,15 @@ func (daemon *Daemon) containerStart(container *container.Container, checkpoint 
 	if resetRestartManager {
 		container.ResetRestartManager(true)
 	}
+
+        if container.HostConfig.Isolation == "qemu" {
+          if container.IsolatedContainerContext != nil {
+            container.IsolatedContainerContext.Launch()
+            return nil
+          } else {
+            return fmt.Errorf("container.IsolatedContainerContext is not set")
+          }
+        }
 
 	if checkpointDir == "" {
 		checkpointDir = container.CheckpointDir()
