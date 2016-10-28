@@ -92,10 +92,38 @@ set -e
 			RUN mkdir -p /go/src/github.com/docker && mkdir -p /go/src/github.com/opencontainers
 		EOF
 
+		echo "ENV RUNC_COMMIT $(grep "^RUNC_COMMIT" hack/dockerfile/install-binaries.sh | cut -d"=" -f 2)" >> "$DEST/$version/Dockerfile.build"
+		echo "ENV CONTAINERD_COMMIT $(grep "^CONTAINERD_COMMIT" hack/dockerfile/install-binaries.sh | cut -d"=" -f 2)" >> "$DEST/$version/Dockerfile.build"
+		echo "ENV LIBNETWORK_COMMIT $(grep "^LIBNETWORK_COMMIT" hack/dockerfile/install-binaries.sh | cut -d"=" -f 2)" >> "$DEST/$version/Dockerfile.build"
+		echo "ENV GRIMES_COMMIT $(grep "^GRIMES_COMMIT" hack/dockerfile/install-binaries.sh | cut -d"=" -f 2)" >> "$DEST/$version/Dockerfile.build"
+
+		# add runc and containerd compile and install
+		# keep this (instead of install-binaries.sh) because you need the source later
 		cat >> "$DEST/$version/Dockerfile.build" <<-EOF
-			# Install runc, containerd, proxy and grimes
-			RUN ./hack/dockerfile/install-binaries.sh runc-dynamic containerd-dynamic proxy grimes
+			# Install runc
+			RUN git clone https://github.com/opencontainers/runc.git "/go/src/github.com/opencontainers/runc" \
+					&& cd "/go/src/github.com/opencontainers/runc" \
+					&& git checkout -q "\$RUNC_COMMIT"
+			RUN set -x && export GOPATH="/go" && cd "/go/src/github.com/opencontainers/runc" \
+					&& make BUILDTAGS="\$RUNC_BUILDTAGS" && make install
+			# Install containerd
+			RUN git clone https://github.com/docker/containerd.git "/go/src/github.com/docker/containerd" \
+					&& cd "/go/src/github.com/docker/containerd" \
+					&& git checkout -q "\$CONTAINERD_COMMIT"
+			RUN set -x && export GOPATH="/go" && cd "/go/src/github.com/docker/containerd" && make && make install
+			# Install proxy
+			RUN git clone https://github.com/docker/libnetwork.git /usr/local/go/src/github.com/docker/libnetwork \
+					&& cd "/usr/local/go/src/github.com/docker/libnetwork" \
+					&& git checkout -q "$LIBNETWORK_COMMIT" \
+					&& CGO_ENABLED=0 go build -v -o /usr/local/bin/docker-proxy github.com/docker/libnetwork/cmd/proxy
+			# Install grimes
+			RUN git clone https://github.com/crosbymichael/grimes.git /go/src/github.com/crosbymichael/grimes \
+					&& cd "/go/src/github.com/crosbymichael/grimes" \
+					&& git checkout -q "$GRIMES_COMMIT" \
+					&& make \
+					&& cp init /usr/local/bin/docker-init
 		EOF
+
 		if [[ "$VERSION" == *-dev ]] || [ -n "$(git status --porcelain)" ]; then
 			echo 'ENV DOCKER_EXPERIMENTAL 1' >> "$DEST/$version/Dockerfile.build"
 		fi
