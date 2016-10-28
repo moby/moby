@@ -230,7 +230,7 @@ CONTAINER ID        IMAGE               COMMAND             CREATED             
 ```
 
 The following matches containers based on the layer `d0e008c6cf02` or an image
-that have this layer in it's layer stack.
+that have this layer in its layer stack.
 
 ```bash
 $ docker ps --filter ancestor=d0e008c6cf02
