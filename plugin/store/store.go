@@ -73,17 +73,6 @@ func (ps *Store) SetAll(plugins map[string]*v2.Plugin) {
 	ps.plugins = plugins
 }
 
-func (ps *Store) getByCap(name string, capability string) (*v2.Plugin, error) {
-	ps.RLock()
-	defer ps.RUnlock()
-
-	p, err := ps.GetByName(name)
-	if err != nil {
-		return nil, err
-	}
-	return p.FilterByCap(capability)
-}
-
 func (ps *Store) getAllByCap(capability string) []plugingetter.CompatPlugin {
 	ps.RLock()
 	defer ps.RUnlock()
