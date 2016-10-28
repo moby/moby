@@ -67,26 +67,26 @@ Networks consist of *many* endpoints.
 
 Consumers of the CNM, like Docker for example, interact through the CNM Objects and its APIs to network the containers that they manage.
 
-0. `Drivers` registers with `NetworkController`. Build-in drivers registers inside of LibNetwork, while remote Drivers registers with LibNetwork via Plugin mechanism. (*plugin-mechanism is WIP*). Each `driver` handles a particular `networkType`.
+1. `Drivers` registers with `NetworkController`. Build-in drivers registers inside of LibNetwork, while remote Drivers registers with LibNetwork via Plugin mechanism. (*plugin-mechanism is WIP*). Each `driver` handles a particular `networkType`.
 
-1. `NetworkController` object is created using `libnetwork.New()` API to manage the allocation of Networks and optionally configure a `Driver` with driver specific `Options`.
+2. `NetworkController` object is created using `libnetwork.New()` API to manage the allocation of Networks and optionally configure a `Driver` with driver specific `Options`.
 
-2. `Network` is created using the controller's `NewNetwork()` API by providing a `name` and `networkType`. `networkType` parameter helps to choose a corresponding `Driver` and binds the created `Network` to that `Driver`. From this point, any operation on `Network` will be handled by that `Driver`.
+3. `Network` is created using the controller's `NewNetwork()` API by providing a `name` and `networkType`. `networkType` parameter helps to choose a corresponding `Driver` and binds the created `Network` to that `Driver`. From this point, any operation on `Network` will be handled by that `Driver`.
 
-3. `controller.NewNetwork()` API also takes in optional `options` parameter which carries Driver-specific options and `Labels`, which the Drivers can make use of for its purpose.
+4. `controller.NewNetwork()` API also takes in optional `options` parameter which carries Driver-specific options and `Labels`, which the Drivers can make use of for its purpose.
 
-4. `network.CreateEndpoint()` can be called to create a new Endpoint in a given network. This API also accepts optional `options` parameter which drivers can make use of. These 'options' carry both well-known labels and driver-specific labels. Drivers will in turn be called with `driver.CreateEndpoint` and it can choose to reserve IPv4/IPv6 addresses when an `Endpoint` is created in a `Network`. The `Driver` will assign these addresses using `InterfaceInfo` interface defined in the `driverapi`. The IP/IPv6 are needed to complete the endpoint as service definition along with the ports the endpoint exposes since essentially a service endpoint is nothing but a network address and the port number that the application container is listening on.
+5. `network.CreateEndpoint()` can be called to create a new Endpoint in a given network. This API also accepts optional `options` parameter which drivers can make use of. These 'options' carry both well-known labels and driver-specific labels. Drivers will in turn be called with `driver.CreateEndpoint` and it can choose to reserve IPv4/IPv6 addresses when an `Endpoint` is created in a `Network`. The `Driver` will assign these addresses using `InterfaceInfo` interface defined in the `driverapi`. The IP/IPv6 are needed to complete the endpoint as service definition along with the ports the endpoint exposes since essentially a service endpoint is nothing but a network address and the port number that the application container is listening on.
 
-5. `endpoint.Join()` can be used to attach a container to an `Endpoint`. The Join operation will create a `Sandbox` if it doesn't exist already for that container. The Drivers can make use of the Sandbox Key to identify multiple endpoints attached to a same container. This API also accepts optional `options` parameter which drivers can make use of.
+6. `endpoint.Join()` can be used to attach a container to an `Endpoint`. The Join operation will create a `Sandbox` if it doesn't exist already for that container. The Drivers can make use of the Sandbox Key to identify multiple endpoints attached to a same container. This API also accepts optional `options` parameter which drivers can make use of.
   * Though it is not a direct design issue of LibNetwork, it is highly encouraged to have users like `Docker` to call the endpoint.Join() during Container's `Start()` lifecycle that is invoked *before* the container is made operational. As part of Docker integration, this will be taken care of.
   * One of a FAQ on endpoint join() API is that, why do we need an API to create an Endpoint and another to join the endpoint.
     - The answer is based on the fact that Endpoint represents a Service which may or may not be backed by a Container. When an Endpoint is created, it will have its resources reserved so that any container can get attached to the endpoint later and get a consistent networking behaviour.
 
-6. `endpoint.Leave()` can be invoked when a container is stopped. The `Driver` can cleanup the states that it allocated during the `Join()` call. LibNetwork will delete the `Sandbox` when the last referencing endpoint leaves the network. But LibNetwork keeps hold of the IP addresses as long as the endpoint is still present and will be reused when the container(or any container) joins again. This ensures that the container's resources are reused when they are Stopped and Started again.
+7. `endpoint.Leave()` can be invoked when a container is stopped. The `Driver` can cleanup the states that it allocated during the `Join()` call. LibNetwork will delete the `Sandbox` when the last referencing endpoint leaves the network. But LibNetwork keeps hold of the IP addresses as long as the endpoint is still present and will be reused when the container(or any container) joins again. This ensures that the container's resources are reused when they are Stopped and Started again.
 
-7. `endpoint.Delete()` is used to delete an endpoint from a network. This results in deleting an endpoint and cleaning up the cached `sandbox.Info`.
+8. `endpoint.Delete()` is used to delete an endpoint from a network. This results in deleting an endpoint and cleaning up the cached `sandbox.Info`.
 
-8. `network.Delete()` is used to delete a network. LibNetwork will not allow the delete to proceed if there are any existing endpoints attached to the Network.
+9. `network.Delete()` is used to delete a network. LibNetwork will not allow the delete to proceed if there are any existing endpoints attached to the Network.
 
 
 ## Implementation Details
