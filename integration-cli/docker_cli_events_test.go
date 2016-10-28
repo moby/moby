@@ -641,6 +641,37 @@ func (s *DockerSuite) TestEventsFilterType(c *check.C) {
 	c.Assert(len(events), checker.GreaterOrEqualThan, 1, check.Commentf("Events == %s", events))
 }
 
+// #25798
+func (s *DockerSuite) TestEventsSpecialFiltersWithExecCreate(c *check.C) {
+	since := daemonUnixTime(c)
+	runSleepingContainer(c, "--name", "test-container", "-d")
+	waitRun("test-container")
+
+	dockerCmd(c, "exec", "test-container", "echo", "hello-world")
+
+	out, _ := dockerCmd(
+		c,
+		"events",
+		"--since", since,
+		"--until", daemonUnixTime(c),
+		"--filter",
+		"event='exec_create: echo hello-world'",
+	)
+
+	events := strings.Split(strings.TrimSpace(out), "\n")
+	c.Assert(len(events), checker.Equals, 1, check.Commentf(out))
+
+	out, _ = dockerCmd(
+		c,
+		"events",
+		"--since", since,
+		"--until", daemonUnixTime(c),
+		"--filter",
+		"event=exec_create",
+	)
+	c.Assert(len(events), checker.Equals, 1, check.Commentf(out))
+}
+
 func (s *DockerSuite) TestEventsFilterImageInContainerAction(c *check.C) {
 	since := daemonUnixTime(c)
 	dockerCmd(c, "run", "--name", "test-container", "-d", "busybox", "true")
