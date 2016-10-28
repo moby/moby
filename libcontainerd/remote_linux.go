@@ -32,7 +32,6 @@ import (
 
 const (
 	maxConnectionRetryCount      = 3
-	connectionRetryDelay         = 3 * time.Second
 	containerdHealthCheckTimeout = 3 * time.Second
 	containerdShutdownTimeout    = 15 * time.Second
 	containerdBinary             = "docker-containerd"
