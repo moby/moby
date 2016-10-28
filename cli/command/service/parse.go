@@ -44,9 +44,10 @@ func parseSecretString(secretString string) (string, string, error) {
 // them to secret references to use with the spec
 func parseSecrets(client client.APIClient, requestedSecrets []string) ([]*swarmtypes.SecretReference, error) {
 	lookupSecretNames := []string{}
-	needSecrets := make(map[string]*swarmtypes.SecretReference)
+	neededSecrets := make(map[string]*swarmtypes.SecretReference)
 	ctx := context.Background()
 
+	neededLookup := map[string]string{}
 	for _, secret := range requestedSecrets {
 		n, t, err := parseSecretString(secret)
 		if err != nil {
@@ -60,7 +61,8 @@ func parseSecrets(client client.APIClient, requestedSecrets []string) ([]*swarmt
 		}
 
 		lookupSecretNames = append(lookupSecretNames, n)
-		needSecrets[n] = secretRef
+		neededLookup[t] = n
+		neededSecrets[t] = secretRef
 	}
 
 	args := filters.NewArgs()
@@ -82,10 +84,15 @@ func parseSecrets(client client.APIClient, requestedSecrets []string) ([]*swarmt
 
 	addedSecrets := []*swarmtypes.SecretReference{}
 
-	for secretName, secretRef := range needSecrets {
+	for target, secretName := range neededLookup {
 		id, ok := foundSecrets[secretName]
 		if !ok {
 			return nil, fmt.Errorf("secret not found: %s", secretName)
+		}
+
+		secretRef, ok := neededSecrets[target]
+		if !ok {
+			return nil, fmt.Errorf("secret reference not found: %s", secretName)
 		}
 
 		// set the id for the ref to properly assign in swarm
