@@ -6,4 +6,5 @@
 (run "echo hi   world  goodnight")
 (run "echo goodbyefrog")
 (run "echo goodbyefrog")
-(run "echo hello this is some more useful stuff")
+(run "echo hello")
+(run "echo this is some more useful stuff")
