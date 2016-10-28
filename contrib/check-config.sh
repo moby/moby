@@ -238,14 +238,20 @@ flags=(
 )
 check_flags "${flags[@]}"
 
-check_flags EXT3_FS EXT3_FS_XATTR EXT3_FS_POSIX_ACL EXT3_FS_SECURITY
-if ! is_set EXT3_FS || ! is_set EXT3_FS_XATTR || ! is_set EXT3_FS_POSIX_ACL || ! is_set EXT3_FS_SECURITY; then
-	echo "    $(wrap_color '(enable these ext3 configs if you are using ext3 as backing filesystem)' bold black)"
+if ! is_set EXT4_USE_FOR_EXT2; then
+	check_flags EXT3_FS EXT3_FS_XATTR EXT3_FS_POSIX_ACL EXT3_FS_SECURITY
+	if ! is_set EXT3_FS || ! is_set EXT3_FS_XATTR || ! is_set EXT3_FS_POSIX_ACL || ! is_set EXT3_FS_SECURITY; then
+		echo "    $(wrap_color '(enable these ext3 configs if you are using ext3 as backing filesystem)' bold black)"
+	fi
 fi
 
 check_flags EXT4_FS EXT4_FS_POSIX_ACL EXT4_FS_SECURITY
 if ! is_set EXT4_FS || ! is_set EXT4_FS_POSIX_ACL || ! is_set EXT4_FS_SECURITY; then
-	echo "    $(wrap_color 'enable these ext4 configs if you are using ext4 as backing filesystem' bold black)"
+	if is_set EXT4_USE_FOR_EXT2; then
+		echo "    $(wrap_color 'enable these ext4 configs if you are using ext3 or ext4 as backing filesystem' bold black)"
+	else
+		echo "    $(wrap_color 'enable these ext4 configs if you are using ext4 as backing filesystem' bold black)"
+	fi
 fi
 
 echo '- Network Drivers:'
