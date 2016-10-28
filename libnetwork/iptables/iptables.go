@@ -16,6 +16,9 @@ import (
 // Action signifies the iptable action.
 type Action string
 
+// Policy is the default iptable policies
+type Policy string
+
 // Table refers to Nat, Filter or Mangle.
 type Table string
 
@@ -32,6 +35,10 @@ const (
 	Filter Table = "filter"
 	// Mangle table is used for mangling the packet.
 	Mangle Table = "mangle"
+	// Drop is the default iptables DROP policy
+	Drop Policy = "DROP"
+	// Accept is the default iptables ACCEPT policy
+	Accept Policy = "ACCEPT"
 )
 
 var (
@@ -420,6 +427,14 @@ func GetVersion() (major, minor, micro int, err error) {
 		major, minor, micro = parseVersionNumbers(string(out))
 	}
 	return
+}
+
+// SetDefaultPolicy sets the passed default policy for the table/chain
+func SetDefaultPolicy(table Table, chain string, policy Policy) error {
+	if err := RawCombinedOutput("-t", string(table), "-P", chain, string(policy)); err != nil {
+		return fmt.Errorf("setting default policy to %v in %v chain failed: %v", policy, chain, err)
+	}
+	return nil
 }
 
 func parseVersionNumbers(input string) (major, minor, micro int) {

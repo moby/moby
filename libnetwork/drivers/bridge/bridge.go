@@ -380,13 +380,6 @@ func (d *driver) configure(option map[string]interface{}) error {
 		return &ErrInvalidDriverConfig{}
 	}
 
-	if config.EnableIPForwarding {
-		err = setupIPForwarding()
-		if err != nil {
-			return err
-		}
-	}
-
 	if config.EnableIPTables {
 		if _, err := os.Stat("/proc/sys/net/bridge"); err != nil {
 			if out, err := exec.Command("modprobe", "-va", "bridge", "br_netfilter").CombinedOutput(); err != nil {
@@ -400,6 +393,14 @@ func (d *driver) configure(option map[string]interface{}) error {
 		}
 		// Make sure on firewall reload, first thing being re-played is chains creation
 		iptables.OnReloaded(func() { logrus.Debugf("Recreating iptables chains on firewall reload"); setupIPChains(config) })
+	}
+
+	if config.EnableIPForwarding {
+		err = setupIPForwarding(config.EnableIPTables)
+		if err != nil {
+			logrus.Warn(err)
+			return err
+		}
 	}
 
 	d.Lock()
