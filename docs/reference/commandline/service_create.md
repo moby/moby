@@ -27,6 +27,10 @@ Options:
   -e, --env value                        Set environment variables (default [])
       --env-file value                   Read in a file of environment variables (default [])
       --group-add value                  Add additional user groups to the container (default [])
+      --health-cmd string                Command to run to check health
+      --health-interval duration         Time between running the check
+      --health-retries int               Consecutive failures needed to report unhealthy
+      --health-timeout duration          Maximum time to allow one check to run
       --help                             Print usage
   -l, --label value                      Service labels (default [])
       --limit-cpu value                  Limit CPUs (default 0.000)
@@ -37,6 +41,7 @@ Options:
       --mount value                      Attach a mount to the service
       --name string                      Service name
       --network value                    Network attachments (default [])
+      --no-healthcheck                   Disable any container-specified HEALTHCHECK
   -p, --publish value                    Publish a port as a node port (default [])
       --replicas value                   Number of tasks (default none)
       --reserve-cpu value                Reserve CPUs (default 0.000)

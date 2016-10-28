@@ -225,6 +225,12 @@ message ContainerSpec {
 
 	// DNSConfig allows one to specify DNS related configuration in resolv.conf
 	DNSConfig dns_config = 15 [(gogoproto.customname) = "DNSConfig"];
+
+	// Healthcheck describes how to check the container is healthy. If the
+	// container is considered unhealthy, it will be destroyed, its creating
+	// task will exit and a new task will be rescheduled elsewhere. A container
+	// is considered unhealthy after `Retries` number of consecutive failures.
+	HealthConfig healthcheck = 16;
 }
 
 // EndpointSpec defines the properties that can be configured to

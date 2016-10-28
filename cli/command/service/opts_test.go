@@ -1,9 +1,11 @@
 package service
 
 import (
+	"reflect"
 	"testing"
 	"time"
 
+	"github.com/docker/docker/api/types/container"
 	mounttypes "github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/pkg/testutil/assert"
 )
@@ -40,6 +42,15 @@ func TestDurationOptSetAndValue(t *testing.T) {
 	var duration DurationOpt
 	assert.NilError(t, duration.Set("300s"))
 	assert.Equal(t, *duration.Value(), time.Duration(300*10e8))
+	assert.NilError(t, duration.Set("-300s"))
+	assert.Equal(t, *duration.Value(), time.Duration(-300*10e8))
+}
+
+func TestPositiveDurationOptSetAndValue(t *testing.T) {
+	var duration PositiveDurationOpt
+	assert.NilError(t, duration.Set("300s"))
+	assert.Equal(t, *duration.Value(), time.Duration(300*10e8))
+	assert.Error(t, duration.Set("-300s"), "cannot be negative")
 }
 
 func TestUint64OptString(t *testing.T) {
@@ -200,4 +211,42 @@ func TestMountOptTypeConflict(t *testing.T) {
 	var m MountOpt
 	assert.Error(t, m.Set("type=bind,target=/foo,source=/foo,volume-nocopy=true"), "cannot mix")
 	assert.Error(t, m.Set("type=volume,target=/foo,source=/foo,bind-propagation=rprivate"), "cannot mix")
+}
+
+func TestHealthCheckOptionsToHealthConfig(t *testing.T) {
+	dur := time.Second
+	opt := healthCheckOptions{
+		cmd:      "curl",
+		interval: PositiveDurationOpt{DurationOpt{value: &dur}},
+		timeout:  PositiveDurationOpt{DurationOpt{value: &dur}},
+		retries:  10,
+	}
+	config, err := opt.toHealthConfig()
+	assert.NilError(t, err)
+	assert.Equal(t, reflect.DeepEqual(config, &container.HealthConfig{
+		Test:     []string{"CMD-SHELL", "curl"},
+		Interval: time.Second,
+		Timeout:  time.Second,
+		Retries:  10,
+	}), true)
+}
+
+func TestHealthCheckOptionsToHealthConfigNoHealthcheck(t *testing.T) {
+	opt := healthCheckOptions{
+		noHealthcheck: true,
+	}
+	config, err := opt.toHealthConfig()
+	assert.NilError(t, err)
+	assert.Equal(t, reflect.DeepEqual(config, &container.HealthConfig{
+		Test: []string{"NONE"},
+	}), true)
+}
+
+func TestHealthCheckOptionsToHealthConfigConflict(t *testing.T) {
+	opt := healthCheckOptions{
+		cmd:           "curl",
+		noHealthcheck: true,
+	}
+	_, err := opt.toHealthConfig()
+	assert.Error(t, err, "--no-healthcheck conflicts with --health-* options")
 }

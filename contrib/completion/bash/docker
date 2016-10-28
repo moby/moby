@@ -2574,6 +2574,10 @@ _docker_service_update() {
 		--env -e
 		--force
 		--group-add
+		--health-cmd
+		--health-interval
+		--health-retries
+		--health-timeout
 		--label -l
 		--limit-cpu
 		--limit-memory
@@ -2581,6 +2585,7 @@ _docker_service_update() {
 		--log-opt
 		--mount
 		--network
+		--no-healthcheck
 		--publish -p
 		--replicas
 		--reserve-cpu

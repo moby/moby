@@ -408,6 +408,12 @@ message ContainerStatus {
 	int32 exit_code = 3;
 }
 
+// PortStatus specifies the actual allocated runtime state of a list
+// of port configs.
+message PortStatus {
+	repeated PortConfig ports = 1;
+}
+
 message TaskStatus {
 	Timestamp timestamp = 1;
 
@@ -438,6 +444,10 @@ message TaskStatus {
 	oneof runtime_status {
 		ContainerStatus container = 5;
 	}
+
+	// HostPorts provides a list of ports allocated at the host
+	// level.
+	PortStatus port_status = 6;
 }
 
 // NetworkAttachmentConfig specifies how a service should be attached to a particular network.
@@ -806,4 +816,27 @@ message BlacklistedCertificate {
 	// Expiry is the latest known expiration time of a certificate that
 	// was issued for the given CN.
 	Timestamp expiry = 1;
+}
+
+// HealthConfig holds configuration settings for the HEALTHCHECK feature.
+message HealthConfig {
+	// Test is the test to perform to check that the container is healthy.
+	// An empty slice means to inherit the default.
+	// The options are:
+	// {} : inherit healthcheck
+	// {"NONE"} : disable healthcheck
+	// {"CMD", args...} : exec arguments directly
+	// {"CMD-SHELL", command} : run command with system's default shell
+	repeated string test = 1;
+
+	// Interval is the time to wait between checks. Zero means inherit.
+	Duration interval = 2;
+
+	// Timeout is the time to wait before considering the check to have hung.
+	// Zero means inherit.
+	Duration timeout = 3;
+
+	// Retries is the number of consecutive failures needed to consider a
+	// container as unhealthy. Zero means inherit.
+	int32 retries = 4;
 }

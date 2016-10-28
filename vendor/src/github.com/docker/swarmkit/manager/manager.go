@@ -131,11 +131,13 @@ func New(config *Config) (*Manager, error) {
 	// externally-reachable address.
 	tcpAddr := config.AdvertiseAddr
 
+	var tcpAddrPort string
 	if tcpAddr == "" {
 		// Otherwise, we know we are joining an existing swarm. Use a
 		// wildcard address to trigger remote autodetection of our
 		// address.
-		_, tcpAddrPort, err := net.SplitHostPort(config.ProtoAddr["tcp"])
+		var err error
+		_, tcpAddrPort, err = net.SplitHostPort(config.ProtoAddr["tcp"])
 		if err != nil {
 			return nil, fmt.Errorf("missing or invalid listen address %s", config.ProtoAddr["tcp"])
 		}
@@ -189,7 +191,7 @@ func New(config *Config) (*Manager, error) {
 			} else if err != nil {
 				return nil, err
 			}
-			if proto == "tcp" {
+			if proto == "tcp" && tcpAddrPort == "0" {
 				// in case of 0 port
 				tcpAddr = l.Addr().String()
 			}
