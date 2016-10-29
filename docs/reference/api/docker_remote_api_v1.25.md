@@ -2507,7 +2507,8 @@ Display system-wide information
         "SecurityOptions": [
             "apparmor",
             "seccomp",
-            "selinux"
+            "selinux",
+            "userns"
         ],
         "ServerVersion": "1.9.0",
         "SwapLimit": false,
