@@ -472,6 +472,134 @@ __docker_complete_events_filter() {
     return ret
 }
 
+# BO container
+
+__docker_container_commands() {
+    local -a _docker_container_subcommands
+    _docker_container_subcommands=(
+        "attach:Attach to a running container"
+        "commit:Create a new image from a container's changes"
+        "cp:Copy files/folders between a container and the local filesystem"
+        "create:Create a new container"
+        "diff:Inspect changes on a container's filesystem"
+        "exec:Run a command in a running container"
+        "export:Export a container's filesystem as a tar archive"
+        "inspect:Display detailed information on one or more containers"
+        "kill:Kill one or more running containers"
+        "logs:Fetch the logs of a container"
+        "ls:List containers"
+        "pause:Pause all processes within one or more containers"
+        "port:List port mappings or a specific mapping for the container"
+        "prune:Remove all stopped containers"
+        "rename:Rename a container"
+        "restart:Restart one or more containers"
+        "rm:Remove one or more containers"
+        "run:Run a command in a new container"
+        "start:Start one or more stopped containers"
+        "stats:Display a live stream of container(s) resource usage statistics"
+        "stop:Stop one or more running containers"
+        "top:Display the running processes of a container"
+        "unpause:Unpause all processes within one or more containers"
+        "update:Update configuration of one or more containers"
+        "wait:Block until one or more containers stop, then print their exit codes"
+    )
+    _describe -t docker-container-commands "docker container command" _docker_container_subcommands
+}
+
+__docker_container_subcommand() {
+    local -a _command_args opts_help
+    local expl help="--help"
+    integer ret=1
+
+    opts_help=("(: -)--help[Print usage]")
+
+    case "$words[1]" in
+        (attach)
+            __docker_subcommand && ret=0
+            ;;
+        (commit)
+            __docker_subcommand && ret=0
+            ;;
+        (cp)
+            __docker_subcommand && ret=0
+            ;;
+        (create)
+            __docker_subcommand && ret=0
+            ;;
+        (diff)
+            __docker_subcommand && ret=0
+            ;;
+        (exec)
+            __docker_subcommand && ret=0
+            ;;
+        (export)
+            __docker_subcommand && ret=0
+            ;;
+        (inspect)
+            __docker_subcommand && ret=0
+            ;;
+        (kill)
+            __docker_subcommand && ret=0
+            ;;
+        (logs)
+            __docker_subcommand && ret=0
+            ;;
+        (ls|list)
+            words[1]="ps"
+            __docker_subcommand && ret=0
+            ;;
+        (pause)
+            __docker_subcommand && ret=0
+            ;;
+        (port)
+            __docker_subcommand && ret=0
+            ;;
+        (prune)
+            # @TODO
+            ;;
+        (rename)
+            __docker_subcommand && ret=0
+            ;;
+        (restart)
+            __docker_subcommand && ret=0
+            ;;
+        (rm)
+            __docker_subcommand && ret=0
+            ;;
+        (run)
+            __docker_subcommand && ret=0
+            ;;
+        (start)
+            __docker_subcommand && ret=0
+            ;;
+        (stats)
+            __docker_subcommand && ret=0
+            ;;
+        (stop)
+            __docker_subcommand && ret=0
+            ;;
+        (top)
+            __docker_subcommand && ret=0
+            ;;
+        (unpause)
+            __docker_subcommand && ret=0
+            ;;
+        (update)
+            __docker_subcommand && ret=0
+            ;;
+        (wait)
+            __docker_subcommand && ret=0
+            ;;
+        (help)
+            _arguments $(__docker_arguments) ":subcommand:__docker_container_commands" && ret=0
+            ;;
+    esac
+
+    return ret
+}
+
+# EO container
+
 # BO network
 
 __docker_network_complete_ls_filters() {
@@ -1418,7 +1546,7 @@ __docker_commands() {
     then
         local -a lines
         lines=(${(f)"$(_call_program commands docker 2>&1)"})
-        _docker_subcommands=(${${${lines[$((${lines[(i)Commands:]} + 1)),${lines[(I)    *]}]}## #}/ ##/:})
+        _docker_subcommands=(${${${(M)${lines[$((${lines[(i)*Commands:]} + 1)),-1]}:# *}## #}/ ##/:})
         _docker_subcommands=($_docker_subcommands 'daemon:Enable daemon mode' 'help:Show help for a command')
         (( $#_docker_subcommands > 2 )) && _store_cache docker_subcommands _docker_subcommands
     fi
@@ -1549,6 +1677,23 @@ __docker_subcommand() {
                 "($help -p --pause)"{-p,--pause}"[Pause container during commit]" \
                 "($help -):container:__docker_complete_containers" \
                 "($help -): :__docker_repositories_with_tags" && ret=0
+            ;;
+        (container)
+            local curcontext="$curcontext" state
+            _arguments $(__docker_arguments) \
+                $opts_help \
+                "($help -): :->command" \
+                "($help -)*:: :->option-or-argument" && ret=0
+
+            case $state in
+                (command)
+                    __docker_container_commands && ret=0
+                    ;;
+                (option-or-argument)
+                    curcontext=${curcontext%:*:*}:docker-${words[-1]}:
+                    __docker_container_subcommand && ret=0
+                    ;;
+            esac
             ;;
         (cp)
             _arguments $(__docker_arguments) \
