@@ -44,7 +44,7 @@ type Error interface {
 
 // BatchError is a batch of errors which also wraps lower level errors with
 // code, message, and original errors. Calling Error() will include all errors
-// that occured in the batch.
+// that occurred in the batch.
 //
 // Deprecated: Replaced with BatchedErrors. Only defined for backwards
 // compatibility.
@@ -64,7 +64,7 @@ type BatchError interface {
 
 // BatchedErrors is a batch of errors which also wraps lower level errors with
 // code, message, and original errors. Calling Error() will include all errors
-// that occured in the batch.
+// that occurred in the batch.
 //
 // Replaces BatchError
 type BatchedErrors interface {
