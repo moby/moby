@@ -4031,7 +4031,7 @@ paths:
     post:
       summary: "Build an image"
       description: |
-        Build an image from a tar achive with a Dockerfile in it.
+        Build an image from a tar archive with a Dockerfile in it.
 
         The Dockerfile specifies how the image is built from the tar archive. It is typically in the archive's root, but can be at a different path or have a different name by specifying the `dockerfile` parameter. [See the Dockerfile reference for more information](https://docs.docker.com/engine/reference/builder/).
 

@@ -4201,7 +4201,7 @@ func (s *DockerSuite) TestRunVolumesMountedAsSlave(c *check.C) {
 	}
 
 	// Prepare a source directory with file in it. We will bind mount this
-	// direcotry and see if file shows up.
+	// directory and see if file shows up.
 	tmpDir2, err := ioutil.TempDir("", "volume-source2")
 	if err != nil {
 		c.Fatal(err)

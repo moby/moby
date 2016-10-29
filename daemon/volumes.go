@@ -190,7 +190,7 @@ func (daemon *Daemon) registerMountPoints(container *container.Container, hostCo
 			mp.Name = v.Name()
 			mp.Driver = v.DriverName()
 
-			// only use the cached path here since getting the path is not neccessary right now and calling `Path()` may be slow
+			// only use the cached path here since getting the path is not necessary right now and calling `Path()` may be slow
 			if cv, ok := v.(interface {
 				CachedPath() string
 			}); ok {

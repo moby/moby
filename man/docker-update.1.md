@@ -62,7 +62,7 @@ a running container with kernel memory initialized.
    Limit the containers Real Time CPU usage. This flag tells the kernel to limit the amount of time in a given CPU period Real Time tasks may consume. Ex:
    Period of 1,000,000us and Runtime of 950,000us means that this container could consume 95% of available CPU and leave the remaining 5% to normal priority tasks.
 
-   The sum of all runtimes across containers cannot exceed the amount alotted to the parent cgroup.
+   The sum of all runtimes across containers cannot exceed the amount allotted to the parent cgroup.
 
 **--cpuset-cpus**=""
    CPUs in which to allow execution (0-3, 0,1)

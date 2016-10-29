@@ -46,7 +46,7 @@ func newJoinTokenCommand(dockerCli *command.DockerCli) *cobra.Command {
 					return err
 				}
 				if !quiet {
-					fmt.Fprintf(dockerCli.Out(), "Succesfully rotated %s join token.\n\n", args[0])
+					fmt.Fprintf(dockerCli.Out(), "Successfully rotated %s join token.\n\n", args[0])
 				}
 			}
 
