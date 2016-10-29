@@ -38,6 +38,7 @@ the running containers.
    - ancestor=(<image-name>[:tag]|<image-id>|<image@digest>) - containers created from an image or a descendant.
    - volume=(<volume-name>|<mount-point-destination>)
    - network=(<network-name>|<network-id>) - containers connected to the provided network
+   - health=(starting|healthy|unhealthy|none) - filters containers based on healthcheck status
 
 **--format**="*TEMPLATE*"
    Pretty-print containers using a Go template.
@@ -141,3 +142,4 @@ June 2014, updated by Sven Dowideit <SvenDowideit@home.org.au>
 August 2014, updated by Sven Dowideit <SvenDowideit@home.org.au>
 November 2014, updated by Sven Dowideit <SvenDowideit@home.org.au>
 February 2015, updated by André Martins <martins@noironetworks.com>
+October 2016, updated by Josh Horwitz <horwitzja@gmail.com>
