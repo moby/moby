@@ -23,6 +23,10 @@
     "us-gov-west-1/ec2metadata": {
       "endpoint": "http://169.254.169.254/latest"
     },
+    "*/budgets": {
+      "endpoint": "budgets.amazonaws.com",
+      "signingRegion": "us-east-1"
+    },
     "*/cloudfront": {
       "endpoint": "cloudfront.amazonaws.com",
       "signingRegion": "us-east-1"
@@ -64,6 +68,9 @@
     },
     "*/s3": {
       "endpoint": "s3-{region}.amazonaws.com"
+    },
+    "*/s3/dualstack": {
+      "endpoint": "s3.dualstack.{region}.amazonaws.com"
     },
     "us-east-1/s3": {
       "endpoint": "s3.amazonaws.com"

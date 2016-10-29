@@ -98,7 +98,7 @@ func (b baseError) OrigErr() error {
 			return NewBatchError(err.Code(), err.Message(), b.errs[1:])
 		}
 		return NewBatchError("BatchedErrors",
-			"multiple errors occured", b.errs)
+			"multiple errors occurred", b.errs)
 	}
 }
 
