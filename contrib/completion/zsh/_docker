@@ -649,7 +649,25 @@ __docker_container_subcommand() {
                 "($help -)*:containers:__docker_complete_containers" && ret=0
             ;;
         (exec)
-            __docker_subcommand && ret=0
+            local state
+            _arguments $(__docker_arguments) \
+                $opts_help \
+                $opts_attach_exec_run_start \
+                "($help -d --detach)"{-d,--detach}"[Detached mode: leave the container running in the background]" \
+                "($help)*"{-e=,--env=}"[Set environment variables]:environment variable: " \
+                "($help -i --interactive)"{-i,--interactive}"[Keep stdin open even if not attached]" \
+                "($help)--privileged[Give extended Linux capabilities to the command]" \
+                "($help -t --tty)"{-t,--tty}"[Allocate a pseudo-tty]" \
+                "($help -u --user)"{-u=,--user=}"[Username or UID]:user:_users" \
+                "($help -):containers:__docker_complete_running_containers" \
+                "($help -)*::command:->anycommand" && ret=0
+            case $state in
+                (anycommand)
+                    shift 1 words
+                    (( CURRENT-- ))
+                    _normal && ret=0
+                    ;;
+            esac
             ;;
         (export)
             __docker_subcommand && ret=0
@@ -1673,7 +1691,7 @@ __docker_commands() {
 }
 
 __docker_subcommand() {
-    local -a _command_args opts_help opts_build_run opts_build_run_update opts_run opts_run_update opts_exec_run_start
+    local -a _command_args opts_help opts_build_run opts_build_run_update opts_run opts_run_update opts_run_start
     local expl help="--help"
     integer ret=1
 
@@ -1697,7 +1715,7 @@ __docker_subcommand() {
         "($help -m --memory)"{-m=,--memory=}"[Memory limit]:Memory limit: "
         "($help)--memory-swap=[Total memory limit with swap]:Memory limit: "
     )
-    opts_exec_run_start=(
+    opts_run_start=(
         "($help)--detach-keys=[Escape key sequence used to detach a container]:sequence:__docker_complete_detach_keys"
     )
     opts_run=(
@@ -1909,26 +1927,7 @@ __docker_subcommand() {
                 "($help)--format=[Format the output using the given go template]:template: " && ret=0
             ;;
         (exec)
-            local state
-            _arguments $(__docker_arguments) \
-                $opts_help \
-                $opts_attach_exec_run_start \
-                "($help -d --detach)"{-d,--detach}"[Detached mode: leave the container running in the background]" \
-                "($help)*"{-e=,--env=}"[Set environment variables]:environment variable: " \
-                "($help -i --interactive)"{-i,--interactive}"[Keep stdin open even if not attached]" \
-                "($help)--privileged[Give extended Linux capabilities to the command]" \
-                "($help -t --tty)"{-t,--tty}"[Allocate a pseudo-tty]" \
-                "($help -u --user)"{-u=,--user=}"[Username or UID]:user:_users" \
-                "($help -):containers:__docker_complete_running_containers" \
-                "($help -)*::command:->anycommand" && ret=0
-
-            case $state in
-                (anycommand)
-                    shift 1 words
-                    (( CURRENT-- ))
-                    _normal && ret=0
-                    ;;
-            esac
+            __docker_container_subcommand && ret=0
             ;;
         (export)
             _arguments $(__docker_arguments) \
@@ -2242,7 +2241,7 @@ __docker_subcommand() {
         (start)
             _arguments $(__docker_arguments) \
                 $opts_help \
-                $opts_exec_run_start \
+                $opts_run_start \
                 "($help -a --attach)"{-a,--attach}"[Attach container's stdout/stderr and forward all signals]" \
                 "($help -i --interactive)"{-i,--interactive}"[Attach container's stding]" \
                 "($help -)*:containers:__docker_complete_stopped_containers" && ret=0
