@@ -1089,6 +1089,10 @@ _docker_container_ls() {
 			__docker_complete_containers_all --cur "${cur##*=}" --id
 			return
 			;;
+		health)
+			COMPREPLY=( $( compgen -W "healthy starting none unhealthy" -- "${cur##*=}" ) )
+			return
+			;;
 		is-task)
 			COMPREPLY=( $( compgen -W "true false" -- "${cur##*=}" ) )
 			return
@@ -1117,7 +1121,7 @@ _docker_container_ls() {
 
 	case "$prev" in
 		--filter|-f)
-			COMPREPLY=( $( compgen -S = -W "ancestor before exited id label name network since status volume" -- "$cur" ) )
+			COMPREPLY=( $( compgen -S = -W "ancestor before exited health id label name network since status volume" -- "$cur" ) )
 			__docker_nospace
 			return
 			;;
