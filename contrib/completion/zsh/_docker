@@ -332,6 +332,10 @@ __docker_complete_ps_filters() {
             (before|since)
                 __docker_containers && ret=0
                 ;;
+            (health)
+                health_opts=('healthy' 'none' 'starting' 'unhealthy')
+                _describe -t health-filter-opts "health filter options" health_opts && ret=0
+                ;;
             (id)
                 __docker_containers_ids && ret=0
                 ;;
@@ -346,7 +350,7 @@ __docker_complete_ps_filters() {
                 ;;
             (status)
                 status_opts=('created' 'dead' 'exited' 'paused' 'restarting' 'running' 'removing')
-                _describe -t status-filter-opts "Status Filter Options" status_opts && ret=0
+                _describe -t status-filter-opts "status filter options" status_opts && ret=0
                 ;;
             (volume)
                 __docker_volumes && ret=0
@@ -356,7 +360,7 @@ __docker_complete_ps_filters() {
                 ;;
         esac
     else
-        opts=('ancestor' 'before' 'exited' 'id' 'label' 'name' 'network' 'since' 'status' 'volume')
+        opts=('ancestor' 'before' 'exited' 'health' 'id' 'label' 'name' 'network' 'since' 'status' 'volume')
         _describe -t filter-opts "Filter Options" opts -qS "=" && ret=0
     fi
 
