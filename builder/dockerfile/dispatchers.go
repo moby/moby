@@ -278,6 +278,11 @@ func workdir(b *Builder, args []string, attributes map[string]bool, original str
 		return err
 	}
 
+	// NOTE: You won't find the "mkdir" for the directory in here. Rather we
+	// just set the value in the image's runConfig.WorkingDir property
+	// and container.SetupWorkingDirectory() will create it automatically
+	// for us the next time the image is used to create a container.
+
 	return b.commit("", b.runConfig.Cmd, fmt.Sprintf("WORKDIR %v", b.runConfig.WorkingDir))
 }
 
