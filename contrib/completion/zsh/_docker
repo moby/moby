@@ -113,27 +113,27 @@ __docker_get_containers() {
     return ret
 }
 
-__docker_stoppedcontainers() {
+__docker_complete_stopped_containers() {
     [[ $PREFIX = -* ]] && return 1
     __docker_get_containers stopped all "$@"
 }
 
-__docker_runningcontainers() {
+__docker_complete_running_containers() {
     [[ $PREFIX = -* ]] && return 1
     __docker_get_containers running all "$@"
 }
 
-__docker_containers() {
+__docker_complete_containers() {
     [[ $PREFIX = -* ]] && return 1
     __docker_get_containers all all "$@"
 }
 
-__docker_containers_ids() {
+__docker_complete_containers_ids() {
     [[ $PREFIX = -* ]] && return 1
     __docker_get_containers all ids "$@"
 }
 
-__docker_containers_names() {
+__docker_complete_containers_names() {
     [[ $PREFIX = -* ]] && return 1
     __docker_get_containers all names "$@"
 }
@@ -295,7 +295,7 @@ __docker_complete_pid() {
     if compset -P '*:'; then
         case "${${words[-1]%:*}#*=}" in
             (container)
-                __docker_runningcontainers && ret=0
+                __docker_complete_running_containers && ret=0
                 ;;
             *)
                 _message 'value' && ret=0
@@ -330,20 +330,20 @@ __docker_complete_ps_filters() {
                 __docker_images && ret=0
                 ;;
             (before|since)
-                __docker_containers && ret=0
+                __docker_complete_containers && ret=0
                 ;;
             (health)
                 health_opts=('healthy' 'none' 'starting' 'unhealthy')
                 _describe -t health-filter-opts "health filter options" health_opts && ret=0
                 ;;
             (id)
-                __docker_containers_ids && ret=0
+                __docker_complete_containers_ids && ret=0
                 ;;
             (is-task)
                 _describe -t boolean-filter-opts "filter options" boolean_opts && ret=0
                 ;;
             (name)
-                __docker_containers_names && ret=0
+                __docker_complete_containers_names && ret=0
                 ;;
             (network)
                 __docker_networks && ret=0
@@ -428,7 +428,7 @@ __docker_complete_events_filter() {
     if compset -P '*='; then
         case "${${words[-1]%=*}#*=}" in
             (container)
-                __docker_containers && ret=0
+                __docker_complete_containers && ret=0
                 ;;
             (daemon)
                 emulate -L zsh
@@ -595,14 +595,14 @@ __docker_network_subcommand() {
                 "($help)*--link=[Add a link to another container]:link:->link" \
                 "($help)*--link-local-ip=[Add a link-local address for the container]:IPv4/IPv6: " \
                 "($help -)1:network:__docker_networks" \
-                "($help -)2:containers:__docker_containers" && ret=0
+                "($help -)2:containers:__docker_complete_containers" && ret=0
 
             case $state in
                 (link)
                     if compset -P "*:"; then
                         _wanted alias expl "Alias" compadd -E "" && ret=0
                     else
-                        __docker_runningcontainers -qS ":" && ret=0
+                        __docker_complete_running_containers -qS ":" && ret=0
                     fi
                     ;;
             esac
@@ -627,7 +627,7 @@ __docker_network_subcommand() {
             _arguments $(__docker_arguments) \
                 $opts_help \
                 "($help -)1:network:__docker_networks" \
-                "($help -)2:containers:__docker_containers" && ret=0
+                "($help -)2:containers:__docker_complete_containers" && ret=0
             ;;
         (inspect)
             _arguments $(__docker_arguments) \
@@ -1521,7 +1521,7 @@ __docker_subcommand() {
                 $opts_attach_exec_run_start \
                 "($help)--no-stdin[Do not attach stdin]" \
                 "($help)--sig-proxy[Proxy all received signals to the process (non-TTY mode only)]" \
-                "($help -):containers:__docker_runningcontainers" && ret=0
+                "($help -):containers:__docker_complete_running_containers" && ret=0
             ;;
         (build)
             _arguments $(__docker_arguments) \
@@ -1547,7 +1547,7 @@ __docker_subcommand() {
                 "($help)*"{-c=,--change=}"[Apply Dockerfile instruction to the created image]:Dockerfile:_files" \
                 "($help -m --message)"{-m=,--message=}"[Commit message]:message: " \
                 "($help -p --pause)"{-p,--pause}"[Pause container during commit]" \
-                "($help -):container:__docker_containers" \
+                "($help -):container:__docker_complete_containers" \
                 "($help -): :__docker_repositories_with_tags" && ret=0
             ;;
         (cp)
@@ -1561,7 +1561,7 @@ __docker_subcommand() {
                     if compset -P "*:"; then
                         _files && ret=0
                     else
-                        __docker_containers -qS ":" && ret=0
+                        __docker_complete_containers -qS ":" && ret=0
                     fi
                     ;;
             esac
@@ -1582,7 +1582,7 @@ __docker_subcommand() {
                     if compset -P "*:"; then
                         _wanted alias expl "Alias" compadd -E "" && ret=0
                     else
-                        __docker_runningcontainers -qS ":" && ret=0
+                        __docker_complete_running_containers -qS ":" && ret=0
                     fi
                     ;;
             esac
@@ -1680,7 +1680,7 @@ __docker_subcommand() {
         (diff)
             _arguments $(__docker_arguments) \
                 $opts_help \
-                "($help -)*:containers:__docker_containers" && ret=0
+                "($help -)*:containers:__docker_complete_containers" && ret=0
             ;;
         (events)
             _arguments $(__docker_arguments) \
@@ -1701,7 +1701,7 @@ __docker_subcommand() {
                 "($help)--privileged[Give extended Linux capabilities to the command]" \
                 "($help -t --tty)"{-t,--tty}"[Allocate a pseudo-tty]" \
                 "($help -u --user)"{-u=,--user=}"[Username or UID]:user:_users" \
-                "($help -):containers:__docker_runningcontainers" \
+                "($help -):containers:__docker_complete_running_containers" \
                 "($help -)*::command:->anycommand" && ret=0
 
             case $state in
@@ -1716,7 +1716,7 @@ __docker_subcommand() {
             _arguments $(__docker_arguments) \
                 $opts_help \
                 "($help -o --output)"{-o=,--output=}"[Write to a file, instead of stdout]:output file:_files" \
-                "($help -)*:containers:__docker_containers" && ret=0
+                "($help -)*:containers:__docker_complete_containers" && ret=0
             ;;
         (history)
             _arguments $(__docker_arguments) \
@@ -1768,11 +1768,11 @@ __docker_subcommand() {
             case $state in
                 (values)
                     if [[ ${words[(r)--type=container]} == --type=container ]]; then
-                        __docker_containers && ret=0
+                        __docker_complete_containers && ret=0
                     elif [[ ${words[(r)--type=image]} == --type=image ]]; then
                         __docker_images && ret=0
                     else
-                        __docker_images && __docker_containers && ret=0
+                        __docker_images && __docker_complete_containers && ret=0
                     fi
                     ;;
             esac
@@ -1781,7 +1781,7 @@ __docker_subcommand() {
             _arguments $(__docker_arguments) \
                 $opts_help \
                 "($help -s --signal)"{-s=,--signal=}"[Signal to send]:signal:_signals" \
-                "($help -)*:containers:__docker_runningcontainers" && ret=0
+                "($help -)*:containers:__docker_complete_running_containers" && ret=0
             ;;
         (load)
             _arguments $(__docker_arguments) \
@@ -1809,7 +1809,7 @@ __docker_subcommand() {
                 "($help -s --since)"{-s=,--since=}"[Show logs since this timestamp]:timestamp: " \
                 "($help -t --timestamps)"{-t,--timestamps}"[Show timestamps]" \
                 "($help)--tail=[Output the last K lines]:lines:(1 10 20 50 all)" \
-                "($help -)*:containers:__docker_containers" && ret=0
+                "($help -)*:containers:__docker_complete_containers" && ret=0
             ;;
         (network)
             local curcontext="$curcontext" state
@@ -1848,7 +1848,7 @@ __docker_subcommand() {
         (pause|unpause)
             _arguments $(__docker_arguments) \
                 $opts_help \
-                "($help -)*:containers:__docker_runningcontainers" && ret=0
+                "($help -)*:containers:__docker_complete_running_containers" && ret=0
             ;;
         (plugin)
             local curcontext="$curcontext" state
@@ -1870,14 +1870,14 @@ __docker_subcommand() {
         (port)
             _arguments $(__docker_arguments) \
                 $opts_help \
-                "($help -)1:containers:__docker_runningcontainers" \
+                "($help -)1:containers:__docker_complete_running_containers" \
                 "($help -)2:port:_ports" && ret=0
             ;;
         (ps)
             _arguments $(__docker_arguments) \
                 $opts_help \
                 "($help -a --all)"{-a,--all}"[Show all containers]" \
-                "($help)--before=[Show only container created before...]:containers:__docker_containers" \
+                "($help)--before=[Show only container created before...]:containers:__docker_complete_containers" \
                 "($help)*"{-f=,--filter=}"[Filter values]:filter:__docker_complete_ps_filters" \
                 "($help)--format=[Pretty-print containers using a Go template]:template: " \
                 "($help -l --latest)"{-l,--latest}"[Show only the latest created container]" \
@@ -1885,7 +1885,7 @@ __docker_subcommand() {
                 "($help)--no-trunc[Do not truncate output]" \
                 "($help -q --quiet)"{-q,--quiet}"[Only show numeric IDs]" \
                 "($help -s --size)"{-s,--size}"[Display total file sizes]" \
-                "($help)--since=[Show only containers created since...]:containers:__docker_containers" && ret=0
+                "($help)--since=[Show only containers created since...]:containers:__docker_complete_containers" && ret=0
             ;;
         (pull)
             _arguments $(__docker_arguments) \
@@ -1903,20 +1903,20 @@ __docker_subcommand() {
         (rename)
             _arguments $(__docker_arguments) \
                 $opts_help \
-                "($help -):old name:__docker_containers" \
+                "($help -):old name:__docker_complete_containers" \
                 "($help -):new name: " && ret=0
             ;;
         (stop)
             _arguments $(__docker_arguments) \
                 $opts_help \
                 "($help -t --time)"{-t=,--time=}"[Number of seconds to try to stop for before killing the container]:seconds to before killing:(1 5 10 30 60)" \
-                "($help -)*:containers:__docker_runningcontainers" && ret=0
+                "($help -)*:containers:__docker_complete_running_containers" && ret=0
             ;;
         (restart)
             _arguments $(__docker_arguments) \
                 $opts_help \
                 "($help -t --time)"{-t=,--time=}"[Number of seconds to try to stop for before killing the container]:seconds to before killing:(1 5 10 30 60)" \
-                "($help -)*:containers:__docker_containers_ids" && ret=0
+                "($help -)*:containers:__docker_complete_containers_ids" && ret=0
             ;;
         (rm)
             _arguments $(__docker_arguments) \
@@ -1928,9 +1928,9 @@ __docker_subcommand() {
             case $state in
                 (values)
                     if [[ ${words[(r)-f]} == -f || ${words[(r)--force]} == --force ]]; then
-                        __docker_containers && ret=0
+                        __docker_complete_containers && ret=0
                     else
-                        __docker_stoppedcontainers && ret=0
+                        __docker_complete_stopped_containers && ret=0
                     fi
                     ;;
             esac
@@ -1970,7 +1970,7 @@ __docker_subcommand() {
                     if compset -P "*:"; then
                         _wanted alias expl "Alias" compadd -E "" && ret=0
                     else
-                        __docker_runningcontainers -qS ":" && ret=0
+                        __docker_complete_running_containers -qS ":" && ret=0
                     fi
                     ;;
                 (storage-opt)
@@ -2027,7 +2027,7 @@ __docker_subcommand() {
                 $opts_attach_exec_run_start \
                 "($help -a --attach)"{-a,--attach}"[Attach container's stdout/stderr and forward all signals]" \
                 "($help -i --interactive)"{-i,--interactive}"[Attach container's stding]" \
-                "($help -)*:containers:__docker_stoppedcontainers" && ret=0
+                "($help -)*:containers:__docker_complete_stopped_containers" && ret=0
             ;;
         (stats)
             _arguments $(__docker_arguments) \
@@ -2035,7 +2035,7 @@ __docker_subcommand() {
                 "($help -a --all)"{-a,--all}"[Show all containers (default shows just running)]" \
                 "($help)--format=[Pretty-print images using a Go template]:template: " \
                 "($help)--no-stream[Disable streaming stats and only pull the first result]" \
-                "($help -)*:containers:__docker_runningcontainers" && ret=0
+                "($help -)*:containers:__docker_complete_running_containers" && ret=0
             ;;
         (swarm)
             local curcontext="$curcontext" state
@@ -2063,7 +2063,7 @@ __docker_subcommand() {
         (top)
             _arguments $(__docker_arguments) \
                 $opts_help \
-                "($help -)1:containers:__docker_runningcontainers" \
+                "($help -)1:containers:__docker_complete_running_containers" \
                 "($help -)*:: :->ps-arguments" && ret=0
             case $state in
                 (ps-arguments)
@@ -2082,9 +2082,9 @@ __docker_subcommand() {
             case $state in
                 (values)
                     if [[ ${words[(r)--kernel-memory*]} = (--kernel-memory*) ]]; then
-                        __docker_stoppedcontainers && ret=0
+                        __docker_complete_stopped_containers && ret=0
                     else
-                        __docker_containers && ret=0
+                        __docker_complete_containers && ret=0
                     fi
                     ;;
             esac
@@ -2109,7 +2109,7 @@ __docker_subcommand() {
         (wait)
             _arguments $(__docker_arguments) \
                 $opts_help \
-                "($help -)*:containers:__docker_runningcontainers" && ret=0
+                "($help -)*:containers:__docker_complete_running_containers" && ret=0
             ;;
         (help)
             _arguments $(__docker_arguments) ":subcommand:__docker_commands" && ret=0
