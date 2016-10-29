@@ -145,6 +145,10 @@ func (daemon *Daemon) setupIpcDirs(c *container.Container) error {
 }
 
 func (daemon *Daemon) setupSecretDir(c *container.Container) (setupErr error) {
+	if len(c.Secrets) == 0 {
+		return nil
+	}
+
 	localMountPath := c.SecretMountPath()
 	logrus.Debugf("secrets: setting up secret dir: %s", localMountPath)
 
