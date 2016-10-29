@@ -85,7 +85,7 @@ if command -v git &> /dev/null && [ -d .git ] && git rev-parse &> /dev/null; the
 		echo "#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 		echo "# GITCOMMIT = $GITCOMMIT"
 		echo "# The version you are building is listed as unsupported because"
-		echo "# there are some files in the git repository that are in an uncommited state."
+		echo "# there are some files in the git repository that are in an uncommitted state."
 		echo "# Commit these changes, or add to .gitignore to remove the -unsupported from the version."
 		echo "# Here is the current list:"
 		git status --porcelain --untracked-files=no

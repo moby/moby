@@ -54,7 +54,7 @@ type NodeDescription struct {
 	Engine    EngineDescription `json:",omitempty"`
 }
 
-// Platform represents the platfrom (Arch/OS).
+// Platform represents the platform (Arch/OS).
 type Platform struct {
 	Architecture string `json:",omitempty"`
 	OS           string `json:",omitempty"`

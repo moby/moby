@@ -1273,7 +1273,7 @@ Server containers or Hyper-V containers. For Hyper-V containers, the engine
 is, for architectural reasons, unable to create the directory if it does not
 previously exist. For Windows Server containers, the directory is created
 if it does not exist. Hence, for consistency between Windows Server and 
-Hyper-V containers, it is strongly recommended to include an explict instruction
+Hyper-V containers, it is strongly recommended to include an explicit instruction
 to create the directory in the Dockerfile. For example:
 
     # escape=`

@@ -206,7 +206,7 @@ release_build() {
 			s3Os=Linux
 			;;
 		windows)
-			# this is windows use the .zip and .exe extentions for the files.
+			# this is windows use the .zip and .exe extensions for the files.
 			s3Os=Windows
 			zipExt=".zip"
 			binaryExt=".exe"

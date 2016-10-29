@@ -1287,7 +1287,7 @@ by another client (#15489)
 #### Security
 - Fix tar breakout vulnerability
 * Extractions are now sandboxed chroot
-- Security options are no longer comitted to images
+- Security options are no longer committed to images
 
 #### Runtime
 - Fix deadlock in `docker ps -f exited=1`
