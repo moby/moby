@@ -283,6 +283,14 @@ func (container *Container) SecretMount() *Mount {
 
 // UnmountSecrets unmounts the local tmpfs for secrets
 func (container *Container) UnmountSecrets() error {
+	if _, err := os.Stat(container.SecretMountPath()); err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		} else {
+			return err
+		}
+	}
+
 	return detachMounted(container.SecretMountPath())
 }
 
