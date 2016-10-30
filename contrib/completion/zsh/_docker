@@ -865,6 +865,83 @@ __docker_container_subcommand() {
 
 # EO container
 
+# BO image
+
+__docker_image_commands() {
+    local -a _docker_image_subcommands
+    _docker_image_subcommands=(
+        "build:Build an image from a Dockerfile"
+        "history:Show the history of an image"
+        "import:Import the contents from a tarball to create a filesystem image"
+        "inspect:Display detailed information on one or more images"
+        "load:Load an image from a tar archive or STDIN"
+        "ls:List images"
+        "prune:Remove unused images"
+        "pull:Pull an image or a repository from a registry"
+        "push:Push an image or a repository to a registry"
+        "rm:Remove one or more images"
+        "save:Save one or more images to a tar archive (streamed to STDOUT by default)"
+        "tag:Tag an image into a repository"
+    )
+    _describe -t docker-image-commands "docker image command" _docker_image_subcommands
+}
+
+__docker_image_subcommand() {
+    local -a _command_args opts_help
+    local expl help="--help"
+    integer ret=1
+
+    opts_help=("(: -)--help[Print usage]")
+
+    case "$words[1]" in
+        (build)
+            __docker_subcommand && ret=0
+            ;;
+        (history)
+            __docker_subcommand && ret=0
+            ;;
+        (import)
+            __docker_subcommand && ret=0
+            ;;
+        (inspect)
+            __docker_subcommand && ret=0
+            ;;
+        (load)
+            __docker_subcommand && ret=0
+            ;;
+        (ls|list)
+            words[1]='images'
+            __docker_subcommand && ret=0
+            ;;
+        (prune)
+            # @TODO
+            ;;
+        (pull)
+            __docker_subcommand && ret=0
+            ;;
+        (push)
+            __docker_subcommand && ret=0
+            ;;
+        (rm)
+            words[1]='rmi'
+            __docker_subcommand && ret=0
+            ;;
+        (save)
+            __docker_subcommand && ret=0
+            ;;
+        (tag)
+            __docker_subcommand && ret=0
+            ;;
+        (help)
+            _arguments $(__docker_arguments) ":subcommand:__docker_container_commands" && ret=0
+            ;;
+    esac
+
+    return ret
+}
+
+# EO image
+
 # BO network
 
 __docker_network_complete_ls_filters() {
@@ -1980,6 +2057,23 @@ __docker_subcommand() {
                 "($help)--no-trunc[Do not truncate output]" \
                 "($help -q --quiet)"{-q,--quiet}"[Only show numeric IDs]" \
                 "($help -)*: :__docker_complete_images" && ret=0
+            ;;
+        (image)
+            local curcontext="$curcontext" state
+            _arguments $(__docker_arguments) \
+                $opts_help \
+                "($help -): :->command" \
+                "($help -)*:: :->option-or-argument" && ret=0
+
+            case $state in
+                (command)
+                    __docker_image_commands && ret=0
+                    ;;
+                (option-or-argument)
+                    curcontext=${curcontext%:*:*}:docker-${words[-1]}:
+                    __docker_image_subcommand && ret=0
+                    ;;
+            esac
             ;;
         (images)
             _arguments $(__docker_arguments) \
