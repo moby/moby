@@ -819,7 +819,16 @@ __docker_container_subcommand() {
                 "($help -)*:containers:__docker_complete_running_containers" && ret=0
             ;;
         (top)
-            __docker_subcommand && ret=0
+            local state
+            _arguments $(__docker_arguments) \
+                $opts_help \
+                "($help -)1:containers:__docker_complete_running_containers" \
+                "($help -)*:: :->ps-arguments" && ret=0
+            case $state in
+                (ps-arguments)
+                    _ps && ret=0
+                    ;;
+            esac
             ;;
         (update)
             __docker_subcommand && ret=0
@@ -2221,16 +2230,7 @@ __docker_subcommand() {
                 "($help -):destination:__docker_repositories_with_tags" && ret=0
             ;;
         (top)
-            _arguments $(__docker_arguments) \
-                $opts_help \
-                "($help -)1:containers:__docker_complete_running_containers" \
-                "($help -)*:: :->ps-arguments" && ret=0
-            case $state in
-                (ps-arguments)
-                    _ps && ret=0
-                    ;;
-            esac
-
+            __docker_container_subcommand && ret=0
             ;;
         (update)
             _arguments $(__docker_arguments) \
