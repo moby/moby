@@ -847,7 +847,9 @@ __docker_container_subcommand() {
             esac
             ;;
         (wait)
-            __docker_subcommand && ret=0
+            _arguments $(__docker_arguments) \
+                $opts_help \
+                "($help -)*:containers:__docker_complete_running_containers" && ret=0
             ;;
         (help)
             _arguments $(__docker_arguments) ":subcommand:__docker_container_commands" && ret=0
@@ -2257,9 +2259,7 @@ __docker_subcommand() {
             esac
             ;;
         (wait)
-            _arguments $(__docker_arguments) \
-                $opts_help \
-                "($help -)*:containers:__docker_complete_running_containers" && ret=0
+            __docker_container_subcommand && ret=0
             ;;
         (help)
             _arguments $(__docker_arguments) ":subcommand:__docker_commands" && ret=0
