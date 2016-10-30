@@ -999,7 +999,10 @@ __docker_image_subcommand() {
                 "($help -)*: :__docker_complete_images" && ret=0
             ;;
         (tag)
-            __docker_subcommand && ret=0
+            _arguments $(__docker_arguments) \
+                $opts_help \
+                "($help -):source:__docker_complete_images"\
+                "($help -):destination:__docker_complete_repositories_with_tags" && ret=0
             ;;
         (help)
             _arguments $(__docker_arguments) ":subcommand:__docker_container_commands" && ret=0
@@ -2277,10 +2280,7 @@ __docker_subcommand() {
             esac
             ;;
         (tag)
-            _arguments $(__docker_arguments) \
-                $opts_help \
-                "($help -):source:__docker_complete_images"\
-                "($help -):destination:__docker_complete_repositories_with_tags" && ret=0
+            __docker_image_subcommand && ret=0
             ;;
         (volume)
             local curcontext="$curcontext" state
