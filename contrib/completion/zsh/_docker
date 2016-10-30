@@ -149,25 +149,27 @@ __docker_complete_info_plugins() {
     return ret
 }
 
-__docker_images() {
+__docker_complete_images() {
     [[ $PREFIX = -* ]] && return 1
     integer ret=1
     declare -a images
     images=(${${${(f)${:-"$(_call_program commands docker $docker_options images)"$'\n'}}[2,-1]}/(#b)([^ ]##) ##([^ ]##) ##([^ ]##)*/${match[3]}:${(r:15:: :::)match[2]} in ${match[1]}})
     _describe -t docker-images "images" images && ret=0
-    __docker_repositories_with_tags && ret=0
+    __docker_complete_repositories_with_tags && ret=0
     return ret
 }
 
-__docker_repositories() {
+__docker_complete_repositories() {
     [[ $PREFIX = -* ]] && return 1
+    integer ret=1
     declare -a repos
     repos=(${${${(f)${:-"$(_call_program commands docker $docker_options images)"$'\n'}}%% *}[2,-1]})
     repos=(${repos#<none>})
-    _describe -t docker-repos "repositories" repos
+    _describe -t docker-repos "repositories" repos && ret=0
+    return ret
 }
 
-__docker_repositories_with_tags() {
+__docker_complete_repositories_with_tags() {
     [[ $PREFIX = -* ]] && return 1
     integer ret=1
     declare -a repos onlyrepos matched
@@ -244,7 +246,7 @@ __docker_get_log_options() {
     return ret
 }
 
-__docker_log_drivers() {
+__docker_complete_log_drivers() {
     [[ $PREFIX = -*  ]] && return 1
     integer ret=1
     drivers=(awslogs etwlogs fluentd gcplogs gelf journald json-file none splunk syslog)
@@ -252,7 +254,7 @@ __docker_log_drivers() {
     return ret
 }
 
-__docker_log_options() {
+__docker_complete_log_options() {
     [[ $PREFIX = -* ]] && return 1
     integer ret=1
 
@@ -327,7 +329,7 @@ __docker_complete_ps_filters() {
     if compset -P '*='; then
         case "${${words[-1]%=*}#*=}" in
             (ancestor)
-                __docker_images && ret=0
+                __docker_complete_images && ret=0
                 ;;
             (before|since)
                 __docker_complete_containers && ret=0
@@ -402,7 +404,7 @@ __docker_complete_images_filters() {
     if compset -P '*='; then
         case "${${words[-1]%=*}#*=}" in
             (before|since)
-                __docker_images && ret=0
+                __docker_complete_images && ret=0
                 ;;
             (dangling)
                 _describe -t boolean-filter-opts "filter options" boolean_opts && ret=0
@@ -448,7 +450,7 @@ __docker_complete_events_filter() {
                 _describe -t event-filter-opts "event filter options" event_opts && ret=0
                 ;;
             (image)
-                __docker_images && ret=0
+                __docker_complete_images && ret=0
                 ;;
             (network)
                 __docker_networks && ret=0
@@ -545,8 +547,8 @@ __docker_container_subcommand() {
         "($help)*--link=[Add link to another container]:link:->link"
         "($help)*--link-local-ip=[Add a link-local address for the container]:IPv4/IPv6: "
         "($help)*"{-l=,--label=}"[Container metadata]:label: "
-        "($help)--log-driver=[Default driver for container logs]:logging driver:__docker_log_drivers"
-        "($help)*--log-opt=[Log driver specific options]:log driver options:__docker_log_options"
+        "($help)--log-driver=[Default driver for container logs]:logging driver:__docker_complete_log_drivers"
+        "($help)*--log-opt=[Log driver specific options]:log driver options:__docker_complete_log_options"
         "($help)--mac-address=[Container MAC address]:MAC address: "
         "($help)*--mount=[Attach a filesystem mount to the container]:mount: "
         "($help)--name=[Container name]:name: "
@@ -608,7 +610,7 @@ __docker_container_subcommand() {
                 "($help -m --message)"{-m=,--message=}"[Commit message]:message: " \
                 "($help -p --pause)"{-p,--pause}"[Pause container during commit]" \
                 "($help -):container:__docker_complete_containers" \
-                "($help -): :__docker_repositories_with_tags" && ret=0
+                "($help -): :__docker_complete_repositories_with_tags" && ret=0
             ;;
         (cp)
             local state
@@ -633,7 +635,7 @@ __docker_container_subcommand() {
                 $opts_help \
                 $opts_create_run \
                 $opts_create_run_update \
-                "($help -): :__docker_images" \
+                "($help -): :__docker_complete_images" \
                 "($help -):command: _command_names -e" \
                 "($help -)*::arguments: _normal" && ret=0
             case $state in
@@ -777,7 +779,7 @@ __docker_container_subcommand() {
                 "($help)--sig-proxy[Proxy all received signals to the process (non-TTY mode only)]" \
                 "($help)--stop-signal=[Signal to kill a container]:signal:_signals" \
                 "($help)--storage-opt=[Storage driver options for the container]:storage options:->storage-opt" \
-                "($help -): :__docker_images" \
+                "($help -): :__docker_complete_images" \
                 "($help -):command: _command_names -e" \
                 "($help -)*::arguments: _normal" && ret=0
             case $state in
@@ -1490,8 +1492,8 @@ __docker_service_subcommand() {
         "($help)*--label=[Service labels]:label: "
         "($help)--limit-cpu=[Limit CPUs]:value: "
         "($help)--limit-memory=[Limit Memory]:value: "
-        "($help)--log-driver=[Logging driver for service]:logging driver:__docker_log_drivers"
-        "($help)*--log-opt=[Logging driver options]:log driver options:__docker_log_options"
+        "($help)--log-driver=[Logging driver for service]:logging driver:__docker_complete_log_drivers"
+        "($help)*--log-opt=[Logging driver options]:log driver options:__docker_complete_log_options"
         "($help)*--mount=[Attach a filesystem mount to the service]:mount: "
         "($help)*--network=[Network attachments]:network: "
         "($help)--no-healthcheck[Disable any container-specified HEALTHCHECK]"
@@ -1523,7 +1525,7 @@ __docker_service_subcommand() {
                 "($help)*--env-file=[Read environment variables from a file]:environment file:_files" \
                 "($help)--mode=[Service Mode]:mode:(global replicated)" \
                 "($help)--name=[Service name]:name: " \
-                "($help -): :__docker_images" \
+                "($help -): :__docker_complete_images" \
                 "($help -):command: _command_names -e" \
                 "($help -)*::arguments: _normal" && ret=0
             ;;
@@ -1588,7 +1590,7 @@ __docker_service_subcommand() {
                 "($help)--force[Force update]" \
                 "($help)*--group-add=[Add additional supplementary user groups to the container]:group:_groups" \
                 "($help)*--group-rm=[Remove previously added supplementary user groups from the container]:group:_groups" \
-                "($help)--image=[Service image tag]:image:__docker_repositories" \
+                "($help)--image=[Service image tag]:image:__docker_complete_repositories" \
                 "($help)--rollback[Rollback to previous specification]" \
                 "($help -)1:service:__docker_complete_services" && ret=0
             ;;
@@ -1852,7 +1854,7 @@ __docker_subcommand() {
                 "($help -q --quiet)"{-q,--quiet}"[Suppress verbose build output]" \
                 "($help)--rm[Remove intermediate containers after a successful build]" \
                 "($help)*--shm-size=[Size of '/dev/shm' (format is '<number><unit>')]:shm size: " \
-                "($help -t --tag)*"{-t=,--tag=}"[Repository, name and tag for the image]: :__docker_repositories_with_tags" \
+                "($help -t --tag)*"{-t=,--tag=}"[Repository, name and tag for the image]: :__docker_complete_repositories_with_tags" \
                 "($help)*--ulimit=[ulimit options]:ulimit: " \
                 "($help)--userns=[Container user namespace]:user namespace:(host)" \
                 "($help -):path or URL:_directories" && ret=0
@@ -1915,8 +1917,8 @@ __docker_subcommand() {
                 "($help -l --log-level)"{-l=,--log-level=}"[Logging level]:level:(debug info warn error fatal)" \
                 "($help)*--label=[Key=value labels]:label: " \
                 "($help)--live-restore[Enable live restore of docker when containers are still running]" \
-                "($help)--log-driver=[Default driver for container logs]:logging driver:__docker_log_drivers" \
-                "($help)*--log-opt=[Default log driver options for containers]:log driver options:__docker_log_options" \
+                "($help)--log-driver=[Default driver for container logs]:logging driver:__docker_complete_log_drivers" \
+                "($help)*--log-opt=[Default log driver options for containers]:log driver options:__docker_complete_log_options" \
                 "($help)--max-concurrent-downloads[Set the max concurrent downloads for each pull]" \
                 "($help)--max-concurrent-uploads[Set the max concurrent uploads for each push]" \
                 "($help)--mtu=[Network MTU]:mtu:(0 576 1420 1500 9000)" \
@@ -1977,7 +1979,7 @@ __docker_subcommand() {
                 "($help -H --human)"{-H,--human}"[Print sizes and dates in human readable format]" \
                 "($help)--no-trunc[Do not truncate output]" \
                 "($help -q --quiet)"{-q,--quiet}"[Only show numeric IDs]" \
-                "($help -)*: :__docker_images" && ret=0
+                "($help -)*: :__docker_complete_images" && ret=0
             ;;
         (images)
             _arguments $(__docker_arguments) \
@@ -1988,7 +1990,7 @@ __docker_subcommand() {
                 "($help)--format=[Pretty-print images using a Go template]:template: " \
                 "($help)--no-trunc[Do not truncate output]" \
                 "($help -q --quiet)"{-q,--quiet}"[Only show numeric IDs]" \
-                "($help -): :__docker_repositories" && ret=0
+                "($help -): :__docker_complete_repositories" && ret=0
 
             case $state in
                 (filter-options)
@@ -2002,7 +2004,7 @@ __docker_subcommand() {
                 "($help)*"{-c=,--change=}"[Apply Dockerfile instruction to the created image]:Dockerfile:_files" \
                 "($help -m --message)"{-m=,--message=}"[Commit message for imported image]:message: " \
                 "($help -):URL:(- http:// file://)" \
-                "($help -): :__docker_repositories_with_tags" && ret=0
+                "($help -): :__docker_complete_repositories_with_tags" && ret=0
             ;;
         (info|version)
             _arguments $(__docker_arguments) \
@@ -2023,9 +2025,9 @@ __docker_subcommand() {
                     if [[ ${words[(r)--type=container]} == --type=container ]]; then
                         __docker_complete_containers && ret=0
                     elif [[ ${words[(r)--type=image]} == --type=image ]]; then
-                        __docker_images && ret=0
+                        __docker_complete_images && ret=0
                     else
-                        __docker_images && __docker_complete_containers && ret=0
+                        __docker_complete_images && __docker_complete_containers && ret=0
                     fi
                     ;;
             esac
@@ -2114,20 +2116,20 @@ __docker_subcommand() {
             _arguments $(__docker_arguments) \
                 $opts_help \
                 "($help)--disable-content-trust[Skip image signing]" \
-                "($help -): :__docker_images" && ret=0
+                "($help -): :__docker_complete_images" && ret=0
             ;;
         (rmi)
             _arguments $(__docker_arguments) \
                 $opts_help \
                 "($help -f --force)"{-f,--force}"[Force removal]" \
                 "($help)--no-prune[Do not delete untagged parents]" \
-                "($help -)*: :__docker_images" && ret=0
+                "($help -)*: :__docker_complete_images" && ret=0
             ;;
         (save)
             _arguments $(__docker_arguments) \
                 $opts_help \
                 "($help -o --output)"{-o=,--output=}"[Write to file]:file:_files" \
-                "($help -)*: :__docker_images" && ret=0
+                "($help -)*: :__docker_complete_images" && ret=0
             ;;
         (search)
             _arguments $(__docker_arguments) \
@@ -2180,8 +2182,8 @@ __docker_subcommand() {
         (tag)
             _arguments $(__docker_arguments) \
                 $opts_help \
-                "($help -):source:__docker_images"\
-                "($help -):destination:__docker_repositories_with_tags" && ret=0
+                "($help -):source:__docker_complete_images"\
+                "($help -):destination:__docker_complete_repositories_with_tags" && ret=0
             ;;
         (volume)
             local curcontext="$curcontext" state
