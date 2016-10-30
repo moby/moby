@@ -699,8 +699,18 @@ __docker_container_subcommand() {
                 "($help -)*:containers:__docker_complete_containers" && ret=0
             ;;
         (ls|list)
-            words[1]="ps"
-            __docker_subcommand && ret=0
+            _arguments $(__docker_arguments) \
+                $opts_help \
+                "($help -a --all)"{-a,--all}"[Show all containers]" \
+                "($help)--before=[Show only container created before...]:containers:__docker_complete_containers" \
+                "($help)*"{-f=,--filter=}"[Filter values]:filter:__docker_complete_ps_filters" \
+                "($help)--format=[Pretty-print containers using a Go template]:template: " \
+                "($help -l --latest)"{-l,--latest}"[Show only the latest created container]" \
+                "($help -n --last)"{-n=,--last=}"[Show n last created containers (includes all states)]:n:(1 5 10 25 50)" \
+                "($help)--no-trunc[Do not truncate output]" \
+                "($help -q --quiet)"{-q,--quiet}"[Only show numeric IDs]" \
+                "($help -s --size)"{-s,--size}"[Display total file sizes]" \
+                "($help)--since=[Show only containers created since...]:containers:__docker_complete_containers" && ret=0
             ;;
         (pause)
             __docker_subcommand && ret=0
@@ -2095,18 +2105,8 @@ __docker_subcommand() {
                 "($help -)2:port:_ports" && ret=0
             ;;
         (ps)
-            _arguments $(__docker_arguments) \
-                $opts_help \
-                "($help -a --all)"{-a,--all}"[Show all containers]" \
-                "($help)--before=[Show only container created before...]:containers:__docker_complete_containers" \
-                "($help)*"{-f=,--filter=}"[Filter values]:filter:__docker_complete_ps_filters" \
-                "($help)--format=[Pretty-print containers using a Go template]:template: " \
-                "($help -l --latest)"{-l,--latest}"[Show only the latest created container]" \
-                "($help -n --last)"{-n=,--last=}"[Show n last created containers (includes all states)]:n:(1 5 10 25 50)" \
-                "($help)--no-trunc[Do not truncate output]" \
-                "($help -q --quiet)"{-q,--quiet}"[Only show numeric IDs]" \
-                "($help -s --size)"{-s,--size}"[Display total file sizes]" \
-                "($help)--since=[Show only containers created since...]:containers:__docker_complete_containers" && ret=0
+            words[1]='ls'
+            __docker_container_subcommand && ret=0
             ;;
         (pull)
             _arguments $(__docker_arguments) \
