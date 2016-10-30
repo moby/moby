@@ -797,7 +797,12 @@ __docker_container_subcommand() {
             esac
             ;;
         (start)
-            __docker_subcommand && ret=0
+            _arguments $(__docker_arguments) \
+                $opts_help \
+                $opts_attach_exec_run_start \
+                "($help -a --attach)"{-a,--attach}"[Attach container's stdout/stderr and forward all signals]" \
+                "($help -i --interactive)"{-i,--interactive}"[Attach container's stding]" \
+                "($help -)*:containers:__docker_complete_stopped_containers" && ret=0
             ;;
         (stats)
             __docker_subcommand && ret=0
@@ -1802,9 +1807,6 @@ __docker_subcommand() {
         "($help -m --memory)"{-m=,--memory=}"[Memory limit]:Memory limit: "
         "($help)--memory-swap=[Total memory limit with swap]:Memory limit: "
     )
-    opts_start=(
-        "($help)--detach-keys=[Escape key sequence used to detach a container]:sequence:__docker_complete_detach_keys"
-    )
     opts_update=(
         "($help)--blkio-weight=[Block IO (relative weight), between 10 and 1000]:Block IO weight:(10 100 500 1000)"
         "($help)--kernel-memory=[Kernel memory limit in bytes]:Memory limit: "
@@ -2185,12 +2187,7 @@ __docker_subcommand() {
             esac
             ;;
         (start)
-            _arguments $(__docker_arguments) \
-                $opts_help \
-                $opts_start \
-                "($help -a --attach)"{-a,--attach}"[Attach container's stdout/stderr and forward all signals]" \
-                "($help -i --interactive)"{-i,--interactive}"[Attach container's stding]" \
-                "($help -)*:containers:__docker_complete_stopped_containers" && ret=0
+            __docker_container_subcommand && ret=0
             ;;
         (stats)
             _arguments $(__docker_arguments) \
