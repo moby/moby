@@ -718,7 +718,10 @@ __docker_container_subcommand() {
                 "($help -)*:containers:__docker_complete_running_containers" && ret=0
             ;;
         (port)
-            __docker_subcommand && ret=0
+            _arguments $(__docker_arguments) \
+                $opts_help \
+                "($help -)1:containers:__docker_complete_running_containers" \
+                "($help -)2:port:_ports" && ret=0
             ;;
         (prune)
             # @TODO
@@ -2096,10 +2099,7 @@ __docker_subcommand() {
             esac
             ;;
         (port)
-            _arguments $(__docker_arguments) \
-                $opts_help \
-                "($help -)1:containers:__docker_complete_running_containers" \
-                "($help -)2:port:_ports" && ret=0
+            __docker_container_subcommand && ret=0
             ;;
         (ps)
             words[1]='ls'
