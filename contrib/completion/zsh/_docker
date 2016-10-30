@@ -676,7 +676,11 @@ __docker_container_subcommand() {
                 "($help -)*:containers:__docker_complete_containers" && ret=0
             ;;
         (inspect)
-            __docker_subcommand && ret=0
+            _arguments $(__docker_arguments) \
+                $opts_help \
+                "($help -f --format)"{-f=,--format=}"[Format the output using the given go template]:template: " \
+                "($help -s --size)"{-s,--size}"[Display total file sizes]" \
+                "($help -)*:containers:__docker_complete_containers" && ret=0
             ;;
         (kill)
             __docker_subcommand && ret=0
