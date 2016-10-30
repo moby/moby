@@ -895,7 +895,34 @@ __docker_image_subcommand() {
 
     case "$words[1]" in
         (build)
-            __docker_subcommand && ret=0
+            _arguments $(__docker_arguments) \
+                $opts_help \
+                "($help)*--build-arg[Build-time variables]:<varname>=<value>: " \
+                "($help -c --cpu-shares)"{-c=,--cpu-shares=}"[CPU shares (relative weight)]:CPU shares:(0 10 100 200 500 800 1000)" \
+                "($help)--cgroup-parent=[Parent cgroup for the container]:cgroup: " \
+                "($help)--compress[Compress the build context using gzip]" \
+                "($help)--cpu-period=[Limit the CPU CFS (Completely Fair Scheduler) period]:CPU period: " \
+                "($help)--cpu-quota=[Limit the CPU CFS (Completely Fair Scheduler) quota]:CPU quota: " \
+                "($help)--cpu-rt-period=[Limit the CPU real-time period]:CPU real-time period in microseconds: " \
+                "($help)--cpu-rt-runtime=[Limit the CPU real-time runtime]:CPU real-time runtime in microseconds: " \
+                "($help)--cpuset-cpus=[CPUs in which to allow execution]:CPUs: " \
+                "($help)--cpuset-mems=[MEMs in which to allow execution]:MEMs: " \
+                "($help)--disable-content-trust[Skip image verification]" \
+                "($help -f --file)"{-f=,--file=}"[Name of the Dockerfile]:Dockerfile:_files" \
+                "($help)--force-rm[Always remove intermediate containers]" \
+                "($help)--isolation=[Container isolation technology]:isolation:(default hyperv process)" \
+                "($help)*--label=[Set metadata for an image]:label=value: " \
+                "($help -m --memory)"{-m=,--memory=}"[Memory limit]:Memory limit: " \
+                "($help)--memory-swap=[Total memory limit with swap]:Memory limit: " \
+                "($help)--no-cache[Do not use cache when building the image]" \
+                "($help)--pull[Attempt to pull a newer version of the image]" \
+                "($help -q --quiet)"{-q,--quiet}"[Suppress verbose build output]" \
+                "($help)--rm[Remove intermediate containers after a successful build]" \
+                "($help)*--shm-size=[Size of '/dev/shm' (format is '<number><unit>')]:shm size: " \
+                "($help -t --tag)*"{-t=,--tag=}"[Repository, name and tag for the image]: :__docker_complete_repositories_with_tags" \
+                "($help)*--ulimit=[ulimit options]:ulimit: " \
+                "($help)--userns=[Container user namespace]:user namespace:(host)" \
+                "($help -):path or URL:_directories" && ret=0
             ;;
         (history)
             __docker_subcommand && ret=0
@@ -1907,34 +1934,7 @@ __docker_subcommand() {
             __docker_container_subcommand && ret=0
             ;;
         (build)
-            _arguments $(__docker_arguments) \
-                $opts_help \
-                "($help)*--build-arg[Build-time variables]:<varname>=<value>: " \
-                "($help -c --cpu-shares)"{-c=,--cpu-shares=}"[CPU shares (relative weight)]:CPU shares:(0 10 100 200 500 800 1000)" \
-                "($help)--cgroup-parent=[Parent cgroup for the container]:cgroup: " \
-                "($help)--compress[Compress the build context using gzip]" \
-                "($help)--cpu-period=[Limit the CPU CFS (Completely Fair Scheduler) period]:CPU period: " \
-                "($help)--cpu-quota=[Limit the CPU CFS (Completely Fair Scheduler) quota]:CPU quota: " \
-                "($help)--cpu-rt-period=[Limit the CPU real-time period]:CPU real-time period in microseconds: " \
-                "($help)--cpu-rt-runtime=[Limit the CPU real-time runtime]:CPU real-time runtime in microseconds: " \
-                "($help)--cpuset-cpus=[CPUs in which to allow execution]:CPUs: " \
-                "($help)--cpuset-mems=[MEMs in which to allow execution]:MEMs: " \
-                "($help)--disable-content-trust[Skip image verification]" \
-                "($help -f --file)"{-f=,--file=}"[Name of the Dockerfile]:Dockerfile:_files" \
-                "($help)--force-rm[Always remove intermediate containers]" \
-                "($help)--isolation=[Container isolation technology]:isolation:(default hyperv process)" \
-                "($help)*--label=[Set metadata for an image]:label=value: " \
-                "($help -m --memory)"{-m=,--memory=}"[Memory limit]:Memory limit: " \
-                "($help)--memory-swap=[Total memory limit with swap]:Memory limit: " \
-                "($help)--no-cache[Do not use cache when building the image]" \
-                "($help)--pull[Attempt to pull a newer version of the image]" \
-                "($help -q --quiet)"{-q,--quiet}"[Suppress verbose build output]" \
-                "($help)--rm[Remove intermediate containers after a successful build]" \
-                "($help)*--shm-size=[Size of '/dev/shm' (format is '<number><unit>')]:shm size: " \
-                "($help -t --tag)*"{-t=,--tag=}"[Repository, name and tag for the image]: :__docker_complete_repositories_with_tags" \
-                "($help)*--ulimit=[ulimit options]:ulimit: " \
-                "($help)--userns=[Container user namespace]:user namespace:(host)" \
-                "($help -):path or URL:_directories" && ret=0
+            __docker_image_subcommand && ret=0
             ;;
         (container)
             local curcontext="$curcontext" state
