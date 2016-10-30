@@ -733,7 +733,10 @@ __docker_container_subcommand() {
                 "($help -):new name: " && ret=0
             ;;
         (restart)
-            __docker_subcommand && ret=0
+            _arguments $(__docker_arguments) \
+                $opts_help \
+                "($help -t --time)"{-t=,--time=}"[Number of seconds to try to stop for before killing the container]:seconds to before killing:(1 5 10 30 60)" \
+                "($help -)*:containers:__docker_complete_containers_ids" && ret=0
             ;;
         (rm)
             __docker_subcommand && ret=0
@@ -2131,10 +2134,7 @@ __docker_subcommand() {
                 "($help -)*:containers:__docker_complete_running_containers" && ret=0
             ;;
         (restart)
-            _arguments $(__docker_arguments) \
-                $opts_help \
-                "($help -t --time)"{-t=,--time=}"[Number of seconds to try to stop for before killing the container]:seconds to before killing:(1 5 10 30 60)" \
-                "($help -)*:containers:__docker_complete_containers_ids" && ret=0
+            __docker_container_subcommand && ret=0
             ;;
         (rm)
             _arguments $(__docker_arguments) \
