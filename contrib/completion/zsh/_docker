@@ -805,7 +805,12 @@ __docker_container_subcommand() {
                 "($help -)*:containers:__docker_complete_stopped_containers" && ret=0
             ;;
         (stats)
-            __docker_subcommand && ret=0
+            _arguments $(__docker_arguments) \
+                $opts_help \
+                "($help -a --all)"{-a,--all}"[Show all containers (default shows just running)]" \
+                "($help)--format=[Pretty-print images using a Go template]:template: " \
+                "($help)--no-stream[Disable streaming stats and only pull the first result]" \
+                "($help -)*:containers:__docker_complete_running_containers" && ret=0
             ;;
         (stop)
             __docker_subcommand && ret=0
@@ -2190,12 +2195,7 @@ __docker_subcommand() {
             __docker_container_subcommand && ret=0
             ;;
         (stats)
-            _arguments $(__docker_arguments) \
-                $opts_help \
-                "($help -a --all)"{-a,--all}"[Show all containers (default shows just running)]" \
-                "($help)--format=[Pretty-print images using a Go template]:template: " \
-                "($help)--no-stream[Disable streaming stats and only pull the first result]" \
-                "($help -)*:containers:__docker_complete_running_containers" && ret=0
+            __docker_container_subcommand && ret=0
             ;;
         (swarm)
             local curcontext="$curcontext" state
