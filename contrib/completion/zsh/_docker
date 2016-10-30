@@ -993,7 +993,10 @@ __docker_image_subcommand() {
                 "($help -)*: :__docker_complete_images" && ret=0
             ;;
         (save)
-            __docker_subcommand && ret=0
+            _arguments $(__docker_arguments) \
+                $opts_help \
+                "($help -o --output)"{-o=,--output=}"[Write to file]:file:_files" \
+                "($help -)*: :__docker_complete_images" && ret=0
             ;;
         (tag)
             __docker_subcommand && ret=0
@@ -2223,10 +2226,7 @@ __docker_subcommand() {
             __docker_image_subcommand && ret=0
             ;;
         (save)
-            _arguments $(__docker_arguments) \
-                $opts_help \
-                "($help -o --output)"{-o=,--output=}"[Write to file]:file:_files" \
-                "($help -)*: :__docker_complete_images" && ret=0
+            __docker_image_subcommand && ret=0
             ;;
         (search)
             _arguments $(__docker_arguments) \
