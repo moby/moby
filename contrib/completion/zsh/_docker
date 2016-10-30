@@ -925,7 +925,12 @@ __docker_image_subcommand() {
                 "($help -):path or URL:_directories" && ret=0
             ;;
         (history)
-            __docker_subcommand && ret=0
+            _arguments $(__docker_arguments) \
+                $opts_help \
+                "($help -H --human)"{-H,--human}"[Print sizes and dates in human readable format]" \
+                "($help)--no-trunc[Do not truncate output]" \
+                "($help -q --quiet)"{-q,--quiet}"[Only show numeric IDs]" \
+                "($help -)*: :__docker_complete_images" && ret=0
             ;;
         (import)
             __docker_subcommand && ret=0
@@ -2051,12 +2056,7 @@ __docker_subcommand() {
                 "($help)--format=[Format the output using the given go template]:template: " && ret=0
             ;;
         (history)
-            _arguments $(__docker_arguments) \
-                $opts_help \
-                "($help -H --human)"{-H,--human}"[Print sizes and dates in human readable format]" \
-                "($help)--no-trunc[Do not truncate output]" \
-                "($help -q --quiet)"{-q,--quiet}"[Only show numeric IDs]" \
-                "($help -)*: :__docker_complete_images" && ret=0
+            __docker_image_subcommand && ret=0
             ;;
         (image)
             local curcontext="$curcontext" state
