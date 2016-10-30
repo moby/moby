@@ -953,8 +953,21 @@ __docker_image_subcommand() {
                 "($help -q --quiet)"{-q,--quiet}"[Suppress the load output]" && ret=0
             ;;
         (ls|list)
-            words[1]='images'
-            __docker_subcommand && ret=0
+            local state
+            _arguments $(__docker_arguments) \
+                $opts_help \
+                "($help -a --all)"{-a,--all}"[Show all images]" \
+                "($help)--digests[Show digests]" \
+                "($help)*"{-f=,--filter=}"[Filter values]:filter:->filter-options" \
+                "($help)--format=[Pretty-print images using a Go template]:template: " \
+                "($help)--no-trunc[Do not truncate output]" \
+                "($help -q --quiet)"{-q,--quiet}"[Only show numeric IDs]" \
+                "($help -): :__docker_complete_repositories" && ret=0
+            case $state in
+                (filter-options)
+                    __docker_complete_images_filters && ret=0
+                    ;;
+            esac
             ;;
         (prune)
             # @TODO
@@ -2087,21 +2100,8 @@ __docker_subcommand() {
             esac
             ;;
         (images)
-            _arguments $(__docker_arguments) \
-                $opts_help \
-                "($help -a --all)"{-a,--all}"[Show all images]" \
-                "($help)--digests[Show digests]" \
-                "($help)*"{-f=,--filter=}"[Filter values]:filter:->filter-options" \
-                "($help)--format=[Pretty-print images using a Go template]:template: " \
-                "($help)--no-trunc[Do not truncate output]" \
-                "($help -q --quiet)"{-q,--quiet}"[Only show numeric IDs]" \
-                "($help -): :__docker_complete_repositories" && ret=0
-
-            case $state in
-                (filter-options)
-                    __docker_complete_images_filters && ret=0
-                    ;;
-            esac
+            words[1]='ls'
+            __docker_image_subcommand && ret=0
             ;;
         (import)
             __docker_image_subcommand && ret=0
