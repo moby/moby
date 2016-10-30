@@ -941,7 +941,10 @@ __docker_image_subcommand() {
                 "($help -): :__docker_complete_repositories_with_tags" && ret=0
             ;;
         (inspect)
-            __docker_subcommand && ret=0
+            _arguments $(__docker_arguments) \
+                $opts_help \
+                "($help -f --format)"{-f=,--format=}"[Format the output using the given go template]:template: " \
+                "($help -)*:images:__docker_complete_images" && ret=0
             ;;
         (load)
             __docker_subcommand && ret=0
