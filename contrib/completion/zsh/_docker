@@ -739,7 +739,22 @@ __docker_container_subcommand() {
                 "($help -)*:containers:__docker_complete_containers_ids" && ret=0
             ;;
         (rm)
-            __docker_subcommand && ret=0
+            local state
+            _arguments $(__docker_arguments) \
+                $opts_help \
+                "($help -f --force)"{-f,--force}"[Force removal]" \
+                "($help -l --link)"{-l,--link}"[Remove the specified link and not the underlying container]" \
+                "($help -v --volumes)"{-v,--volumes}"[Remove the volumes associated to the container]" \
+                "($help -)*:containers:->values" && ret=0
+            case $state in
+                (values)
+                    if [[ ${words[(r)-f]} == -f || ${words[(r)--force]} == --force ]]; then
+                        __docker_complete_containers && ret=0
+                    else
+                        __docker_complete_stopped_containers && ret=0
+                    fi
+                    ;;
+            esac
             ;;
         (run)
             __docker_subcommand && ret=0
@@ -2137,21 +2152,7 @@ __docker_subcommand() {
             __docker_container_subcommand && ret=0
             ;;
         (rm)
-            _arguments $(__docker_arguments) \
-                $opts_help \
-                "($help -f --force)"{-f,--force}"[Force removal]" \
-                "($help -l --link)"{-l,--link}"[Remove the specified link and not the underlying container]" \
-                "($help -v --volumes)"{-v,--volumes}"[Remove the volumes associated to the container]" \
-                "($help -)*:containers:->values" && ret=0
-            case $state in
-                (values)
-                    if [[ ${words[(r)-f]} == -f || ${words[(r)--force]} == --force ]]; then
-                        __docker_complete_containers && ret=0
-                    else
-                        __docker_complete_stopped_containers && ret=0
-                    fi
-                    ;;
-            esac
+            __docker_container_subcommand && ret=0
             ;;
         (rmi)
             _arguments $(__docker_arguments) \
