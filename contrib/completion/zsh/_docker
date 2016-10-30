@@ -947,7 +947,10 @@ __docker_image_subcommand() {
                 "($help -)*:images:__docker_complete_images" && ret=0
             ;;
         (load)
-            __docker_subcommand && ret=0
+            _arguments $(__docker_arguments) \
+                $opts_help \
+                "($help -i --input)"{-i=,--input=}"[Read from tar archive file]:archive file:_files -g \"*.((tar|TAR)(.gz|.GZ|.Z|.bz2|.lzma|.xz|)|(tbz|tgz|txz))(-.)\"" \
+                "($help -q --quiet)"{-q,--quiet}"[Suppress the load output]" && ret=0
             ;;
         (ls|list)
             words[1]='images'
@@ -2130,10 +2133,7 @@ __docker_subcommand() {
             esac
             ;;
         (load)
-            _arguments $(__docker_arguments) \
-                $opts_help \
-                "($help -i --input)"{-i=,--input=}"[Read from tar archive file]:archive file:_files -g \"*.((tar|TAR)(.gz|.GZ|.Z|.bz2|.lzma|.xz|)|(tbz|tgz|txz))(-.)\"" \
-                "($help -q --quiet)"{-q,--quiet}"[Suppress the load output]" && ret=0
+            __docker_image_subcommand && ret=0
             ;;
         (login)
             _arguments $(__docker_arguments) \
