@@ -973,7 +973,11 @@ __docker_image_subcommand() {
             # @TODO
             ;;
         (pull)
-            __docker_subcommand && ret=0
+            _arguments $(__docker_arguments) \
+                $opts_help \
+                "($help -a --all-tags)"{-a,--all-tags}"[Download all tagged images]" \
+                "($help)--disable-content-trust[Skip image verification]" \
+                "($help -):name:__docker_search" && ret=0
             ;;
         (push)
             __docker_subcommand && ret=0
@@ -2203,11 +2207,7 @@ __docker_subcommand() {
             __docker_container_subcommand && ret=0
             ;;
         (pull)
-            _arguments $(__docker_arguments) \
-                $opts_help \
-                "($help -a --all-tags)"{-a,--all-tags}"[Download all tagged images]" \
-                "($help)--disable-content-trust[Skip image verification]" \
-                "($help -):name:__docker_search" && ret=0
+            __docker_image_subcommand && ret=0
             ;;
         (push)
             _arguments $(__docker_arguments) \
