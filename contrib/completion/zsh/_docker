@@ -980,7 +980,10 @@ __docker_image_subcommand() {
                 "($help -):name:__docker_search" && ret=0
             ;;
         (push)
-            __docker_subcommand && ret=0
+            _arguments $(__docker_arguments) \
+                $opts_help \
+                "($help)--disable-content-trust[Skip image signing]" \
+                "($help -): :__docker_complete_images" && ret=0
             ;;
         (rm)
             words[1]='rmi'
@@ -2210,10 +2213,7 @@ __docker_subcommand() {
             __docker_image_subcommand && ret=0
             ;;
         (push)
-            _arguments $(__docker_arguments) \
-                $opts_help \
-                "($help)--disable-content-trust[Skip image signing]" \
-                "($help -): :__docker_complete_images" && ret=0
+            __docker_image_subcommand && ret=0
             ;;
         (rmi)
             _arguments $(__docker_arguments) \
