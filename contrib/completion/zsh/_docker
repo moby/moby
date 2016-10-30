@@ -831,7 +831,20 @@ __docker_container_subcommand() {
             esac
             ;;
         (update)
-            __docker_subcommand && ret=0
+            local state
+            _arguments $(__docker_arguments) \
+                $opts_help \
+                opts_create_run_update \
+                "($help -)*: :->values" && ret=0
+            case $state in
+                (values)
+                    if [[ ${words[(r)--kernel-memory*]} = (--kernel-memory*) ]]; then
+                        __docker_complete_stopped_containers && ret=0
+                    else
+                        __docker_complete_containers && ret=0
+                    fi
+                    ;;
+            esac
             ;;
         (wait)
             __docker_subcommand && ret=0
@@ -1800,35 +1813,27 @@ __docker_commands() {
 }
 
 __docker_subcommand() {
-    local -a _command_args opts_help opts_build opts_build_update opts_update
+    local -a _command_args opts_help opts_build
     local expl help="--help"
     integer ret=1
 
     opts_help=("(: -)--help[Print usage]")
     opts_build=(
-        "($help)--cgroup-parent=[Parent cgroup for the container]:cgroup: "
-        "($help)--isolation=[Container isolation technology]:isolation:(default hyperv process)"
-        "($help)--disable-content-trust[Skip image verification]"
-        "($help)*--shm-size=[Size of '/dev/shm' (format is '<number><unit>')]:shm size: "
-        "($help)*--ulimit=[ulimit options]:ulimit: "
-        "($help)--userns=[Container user namespace]:user namespace:(host)"
-    )
-    opts_build_update=(
         "($help -c --cpu-shares)"{-c=,--cpu-shares=}"[CPU shares (relative weight)]:CPU shares:(0 10 100 200 500 800 1000)"
+        "($help)--cgroup-parent=[Parent cgroup for the container]:cgroup: "
         "($help)--cpu-period=[Limit the CPU CFS (Completely Fair Scheduler) period]:CPU period: "
         "($help)--cpu-quota=[Limit the CPU CFS (Completely Fair Scheduler) quota]:CPU quota: "
         "($help)--cpu-rt-period=[Limit the CPU real-time period]:CPU real-time period in microseconds: "
         "($help)--cpu-rt-runtime=[Limit the CPU real-time runtime]:CPU real-time runtime in microseconds: "
         "($help)--cpuset-cpus=[CPUs in which to allow execution]:CPUs: "
         "($help)--cpuset-mems=[MEMs in which to allow execution]:MEMs: "
+        "($help)--disable-content-trust[Skip image verification]"
+        "($help)--isolation=[Container isolation technology]:isolation:(default hyperv process)"
         "($help -m --memory)"{-m=,--memory=}"[Memory limit]:Memory limit: "
         "($help)--memory-swap=[Total memory limit with swap]:Memory limit: "
-    )
-    opts_update=(
-        "($help)--blkio-weight=[Block IO (relative weight), between 10 and 1000]:Block IO weight:(10 100 500 1000)"
-        "($help)--kernel-memory=[Kernel memory limit in bytes]:Memory limit: "
-        "($help)--memory-reservation=[Memory soft limit]:Memory limit: "
-        "($help)--restart=[Restart policy]:restart policy:(no on-failure always unless-stopped)"
+        "($help)*--shm-size=[Size of '/dev/shm' (format is '<number><unit>')]:shm size: "
+        "($help)*--ulimit=[ulimit options]:ulimit: "
+        "($help)--userns=[Container user namespace]:user namespace:(host)"
     )
 
     case "$words[1]" in
@@ -1839,7 +1844,6 @@ __docker_subcommand() {
             _arguments $(__docker_arguments) \
                 $opts_help \
                 $opts_build \
-                $opts_build_update \
                 "($help)*--build-arg[Build-time variables]:<varname>=<value>: " \
                 "($help)--compress[Compress the build context using gzip]" \
                 "($help -f --file)"{-f=,--file=}"[Name of the Dockerfile]:Dockerfile:_files" \
@@ -2233,21 +2237,7 @@ __docker_subcommand() {
             __docker_container_subcommand && ret=0
             ;;
         (update)
-            _arguments $(__docker_arguments) \
-                $opts_help \
-                $opts_update \
-                $opts_build_update \
-                "($help -)*: :->values" && ret=0
-
-            case $state in
-                (values)
-                    if [[ ${words[(r)--kernel-memory*]} = (--kernel-memory*) ]]; then
-                        __docker_complete_stopped_containers && ret=0
-                    else
-                        __docker_complete_containers && ret=0
-                    fi
-                    ;;
-            esac
+            __docker_container_subcommand && ret=0
             ;;
         (volume)
             local curcontext="$curcontext" state
