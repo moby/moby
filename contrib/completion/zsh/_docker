@@ -611,6 +611,7 @@ __docker_container_subcommand() {
                 "($help -): :__docker_repositories_with_tags" && ret=0
             ;;
         (cp)
+            local state
             _arguments $(__docker_arguments) \
                 $opts_help \
                 "($help -L --follow-link)"{-L,--follow-link}"[Always follow symbol link]" \
@@ -627,6 +628,7 @@ __docker_container_subcommand() {
             esac
             ;;
         (create)
+            local state
             _arguments $(__docker_arguments) \
                 $opts_help \
                 $opts_create_run \
@@ -1815,51 +1817,45 @@ __docker_commands() {
 }
 
 __docker_subcommand() {
-    local -a _command_args opts_help opts_build
+    local -a _command_args opts_help
     local expl help="--help"
     integer ret=1
 
     opts_help=("(: -)--help[Print usage]")
-    opts_build=(
-        "($help -c --cpu-shares)"{-c=,--cpu-shares=}"[CPU shares (relative weight)]:CPU shares:(0 10 100 200 500 800 1000)"
-        "($help)--cgroup-parent=[Parent cgroup for the container]:cgroup: "
-        "($help)--cpu-period=[Limit the CPU CFS (Completely Fair Scheduler) period]:CPU period: "
-        "($help)--cpu-quota=[Limit the CPU CFS (Completely Fair Scheduler) quota]:CPU quota: "
-        "($help)--cpu-rt-period=[Limit the CPU real-time period]:CPU real-time period in microseconds: "
-        "($help)--cpu-rt-runtime=[Limit the CPU real-time runtime]:CPU real-time runtime in microseconds: "
-        "($help)--cpuset-cpus=[CPUs in which to allow execution]:CPUs: "
-        "($help)--cpuset-mems=[MEMs in which to allow execution]:MEMs: "
-        "($help)--disable-content-trust[Skip image verification]"
-        "($help)--isolation=[Container isolation technology]:isolation:(default hyperv process)"
-        "($help -m --memory)"{-m=,--memory=}"[Memory limit]:Memory limit: "
-        "($help)--memory-swap=[Total memory limit with swap]:Memory limit: "
-        "($help)*--shm-size=[Size of '/dev/shm' (format is '<number><unit>')]:shm size: "
-        "($help)*--ulimit=[ulimit options]:ulimit: "
-        "($help)--userns=[Container user namespace]:user namespace:(host)"
-    )
 
     case "$words[1]" in
-        (attach)
+        (attach|commit|cp|create|diff|exec|export|kill|logs|pause|unpause|port|rename|restart|rm|run|start|stats|stop|top|update|wait)
             __docker_container_subcommand && ret=0
             ;;
         (build)
             _arguments $(__docker_arguments) \
                 $opts_help \
-                $opts_build \
                 "($help)*--build-arg[Build-time variables]:<varname>=<value>: " \
+                "($help -c --cpu-shares)"{-c=,--cpu-shares=}"[CPU shares (relative weight)]:CPU shares:(0 10 100 200 500 800 1000)" \
+                "($help)--cgroup-parent=[Parent cgroup for the container]:cgroup: " \
                 "($help)--compress[Compress the build context using gzip]" \
+                "($help)--cpu-period=[Limit the CPU CFS (Completely Fair Scheduler) period]:CPU period: " \
+                "($help)--cpu-quota=[Limit the CPU CFS (Completely Fair Scheduler) quota]:CPU quota: " \
+                "($help)--cpu-rt-period=[Limit the CPU real-time period]:CPU real-time period in microseconds: " \
+                "($help)--cpu-rt-runtime=[Limit the CPU real-time runtime]:CPU real-time runtime in microseconds: " \
+                "($help)--cpuset-cpus=[CPUs in which to allow execution]:CPUs: " \
+                "($help)--cpuset-mems=[MEMs in which to allow execution]:MEMs: " \
+                "($help)--disable-content-trust[Skip image verification]" \
                 "($help -f --file)"{-f=,--file=}"[Name of the Dockerfile]:Dockerfile:_files" \
                 "($help)--force-rm[Always remove intermediate containers]" \
+                "($help)--isolation=[Container isolation technology]:isolation:(default hyperv process)" \
                 "($help)*--label=[Set metadata for an image]:label=value: " \
+                "($help -m --memory)"{-m=,--memory=}"[Memory limit]:Memory limit: " \
+                "($help)--memory-swap=[Total memory limit with swap]:Memory limit: " \
                 "($help)--no-cache[Do not use cache when building the image]" \
                 "($help)--pull[Attempt to pull a newer version of the image]" \
                 "($help -q --quiet)"{-q,--quiet}"[Suppress verbose build output]" \
                 "($help)--rm[Remove intermediate containers after a successful build]" \
+                "($help)*--shm-size=[Size of '/dev/shm' (format is '<number><unit>')]:shm size: " \
                 "($help -t --tag)*"{-t=,--tag=}"[Repository, name and tag for the image]: :__docker_repositories_with_tags" \
+                "($help)*--ulimit=[ulimit options]:ulimit: " \
+                "($help)--userns=[Container user namespace]:user namespace:(host)" \
                 "($help -):path or URL:_directories" && ret=0
-            ;;
-        (commit)
-            __docker_container_subcommand && ret=0
             ;;
         (container)
             local curcontext="$curcontext" state
@@ -1877,12 +1873,6 @@ __docker_subcommand() {
                     __docker_container_subcommand && ret=0
                     ;;
             esac
-            ;;
-        (cp)
-            __docker_container_subcommand && ret=0
-            ;;
-        (create)
-            __docker_container_subcommand && ret=0
             ;;
         (daemon)
             _arguments $(__docker_arguments) \
@@ -1973,9 +1963,6 @@ __docker_subcommand() {
                     ;;
             esac
             ;;
-        (diff)
-            __docker_container_subcommand && ret=0
-            ;;
         (events)
             _arguments $(__docker_arguments) \
                 $opts_help \
@@ -1983,12 +1970,6 @@ __docker_subcommand() {
                 "($help)--since=[Events created since this timestamp]:timestamp: " \
                 "($help)--until=[Events created until this timestamp]:timestamp: " \
                 "($help)--format=[Format the output using the given go template]:template: " && ret=0
-            ;;
-        (exec)
-            __docker_container_subcommand && ret=0
-            ;;
-        (export)
-            __docker_container_subcommand && ret=0
             ;;
         (history)
             _arguments $(__docker_arguments) \
@@ -2049,9 +2030,6 @@ __docker_subcommand() {
                     ;;
             esac
             ;;
-        (kill)
-            __docker_container_subcommand && ret=0
-            ;;
         (load)
             _arguments $(__docker_arguments) \
                 $opts_help \
@@ -2069,9 +2047,6 @@ __docker_subcommand() {
             _arguments $(__docker_arguments) \
                 $opts_help \
                 "($help -)1:server: " && ret=0
-            ;;
-        (logs)
-            __docker_container_subcommand && ret=0
             ;;
         (network)
             local curcontext="$curcontext" state
@@ -2107,9 +2082,6 @@ __docker_subcommand() {
                     ;;
             esac
             ;;
-        (pause|unpause)
-            __docker_container_subcommand && ret=0
-            ;;
         (plugin)
             local curcontext="$curcontext" state
             _arguments $(__docker_arguments) \
@@ -2126,9 +2098,6 @@ __docker_subcommand() {
                     __docker_plugin_subcommand && ret=0
                     ;;
             esac
-            ;;
-        (port)
-            __docker_container_subcommand && ret=0
             ;;
         (ps)
             words[1]='ls'
@@ -2147,24 +2116,12 @@ __docker_subcommand() {
                 "($help)--disable-content-trust[Skip image signing]" \
                 "($help -): :__docker_images" && ret=0
             ;;
-        (rename)
-            __docker_container_subcommand && ret=0
-            ;;
-        (restart)
-            __docker_container_subcommand && ret=0
-            ;;
-        (rm)
-            __docker_container_subcommand && ret=0
-            ;;
         (rmi)
             _arguments $(__docker_arguments) \
                 $opts_help \
                 "($help -f --force)"{-f,--force}"[Force removal]" \
                 "($help)--no-prune[Do not delete untagged parents]" \
                 "($help -)*: :__docker_images" && ret=0
-            ;;
-        (run)
-            __docker_container_subcommand && ret=0
             ;;
         (save)
             _arguments $(__docker_arguments) \
@@ -2203,15 +2160,6 @@ __docker_subcommand() {
                     ;;
             esac
             ;;
-        (start)
-            __docker_container_subcommand && ret=0
-            ;;
-        (stats)
-            __docker_container_subcommand && ret=0
-            ;;
-        (stop)
-            __docker_container_subcommand && ret=0
-            ;;
         (swarm)
             local curcontext="$curcontext" state
             _arguments $(__docker_arguments) \
@@ -2235,12 +2183,6 @@ __docker_subcommand() {
                 "($help -):source:__docker_images"\
                 "($help -):destination:__docker_repositories_with_tags" && ret=0
             ;;
-        (top)
-            __docker_container_subcommand && ret=0
-            ;;
-        (update)
-            __docker_container_subcommand && ret=0
-            ;;
         (volume)
             local curcontext="$curcontext" state
             _arguments $(__docker_arguments) \
@@ -2257,9 +2199,6 @@ __docker_subcommand() {
                     __docker_volume_subcommand && ret=0
                     ;;
             esac
-            ;;
-        (wait)
-            __docker_container_subcommand && ret=0
             ;;
         (help)
             _arguments $(__docker_arguments) ":subcommand:__docker_commands" && ret=0
