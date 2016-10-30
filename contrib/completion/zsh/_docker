@@ -683,7 +683,10 @@ __docker_container_subcommand() {
                 "($help -)*:containers:__docker_complete_containers" && ret=0
             ;;
         (kill)
-            __docker_subcommand && ret=0
+            _arguments $(__docker_arguments) \
+                $opts_help \
+                "($help -s --signal)"{-s=,--signal=}"[Signal to send]:signal:_signals" \
+                "($help -)*:containers:__docker_complete_running_containers" && ret=0
             ;;
         (logs)
             __docker_subcommand && ret=0
@@ -1999,10 +2002,7 @@ __docker_subcommand() {
             esac
             ;;
         (kill)
-            _arguments $(__docker_arguments) \
-                $opts_help \
-                "($help -s --signal)"{-s=,--signal=}"[Signal to send]:signal:_signals" \
-                "($help -)*:containers:__docker_complete_running_containers" && ret=0
+            __docker_container_subcommand && ret=0
             ;;
         (load)
             _arguments $(__docker_arguments) \
