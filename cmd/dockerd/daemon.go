@@ -35,6 +35,7 @@ import (
 	"github.com/docker/docker/pkg/jsonlog"
 	"github.com/docker/docker/pkg/listeners"
 	"github.com/docker/docker/pkg/pidfile"
+	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/docker/pkg/signal"
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/registry"
@@ -287,7 +288,9 @@ func (cli *DaemonCli) start(opts daemonOptions) (err error) {
 	cli.d = d
 
 	// initMiddlewares needs cli.d to be populated. Dont change this init order.
-	cli.initMiddlewares(api, serverConfig)
+	if err := cli.initMiddlewares(api, serverConfig); err != nil {
+		logrus.Fatalf("Error creating middlewares: %v", err)
+	}
 	d.SetCluster(c)
 	initRouter(api, d, c)
 
@@ -318,7 +321,11 @@ func (cli *DaemonCli) start(opts daemonOptions) (err error) {
 func (cli *DaemonCli) reloadConfig() {
 	reload := func(config *daemon.Config) {
 
-		// Reload the authorization plugin
+		// Revalidate and reload the authorization plugins
+		if err := validateAuthzPlugins(config.AuthorizationPlugins, cli.d.PluginStore); err != nil {
+			logrus.Fatalf("Error validating authorization plugin: %v", err)
+			return
+		}
 		cli.authzMiddleware.SetPlugins(config.AuthorizationPlugins)
 
 		if err := cli.d.Reload(config); err != nil {
@@ -459,7 +466,7 @@ func initRouter(s *apiserver.Server, d *daemon.Daemon, c *cluster.Cluster) {
 	s.InitRouter(utils.IsDebugEnabled(), routers...)
 }
 
-func (cli *DaemonCli) initMiddlewares(s *apiserver.Server, cfg *apiserver.Config) {
+func (cli *DaemonCli) initMiddlewares(s *apiserver.Server, cfg *apiserver.Config) error {
 	v := cfg.Version
 
 	exp := middleware.NewExperimentalMiddleware(cli.d.HasExperimental())
@@ -476,6 +483,21 @@ func (cli *DaemonCli) initMiddlewares(s *apiserver.Server, cfg *apiserver.Config
 	u := middleware.NewUserAgentMiddleware(v)
 	s.UseMiddleware(u)
 
+	if err := validateAuthzPlugins(cli.Config.AuthorizationPlugins, cli.d.PluginStore); err != nil {
+		return fmt.Errorf("Error validating authorization plugin: %v", err)
+	}
 	cli.authzMiddleware = authorization.NewMiddleware(cli.Config.AuthorizationPlugins, cli.d.PluginStore)
 	s.UseMiddleware(cli.authzMiddleware)
+	return nil
+}
+
+// validates that the plugins requested with the --authorization-plugin flag are valid AuthzDriver
+// plugins present on the host and available to the daemon
+func validateAuthzPlugins(requestedPlugins []string, pg plugingetter.PluginGetter) error {
+	for _, reqPlugin := range requestedPlugins {
+		if _, err := pg.Get(reqPlugin, authorization.AuthZApiImplements, plugingetter.LOOKUP); err != nil {
+			return err
+		}
+	}
+	return nil
 }
