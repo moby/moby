@@ -2,7 +2,7 @@ package aws
 
 import "time"
 
-// String returns a pointer to of the string value passed in.
+// String returns a pointer to the string value passed in.
 func String(v string) *string {
 	return &v
 }
@@ -61,7 +61,7 @@ func StringValueMap(src map[string]*string) map[string]string {
 	return dst
 }
 
-// Bool returns a pointer to of the bool value passed in.
+// Bool returns a pointer to the bool value passed in.
 func Bool(v bool) *bool {
 	return &v
 }
@@ -120,7 +120,7 @@ func BoolValueMap(src map[string]*bool) map[string]bool {
 	return dst
 }
 
-// Int returns a pointer to of the int value passed in.
+// Int returns a pointer to the int value passed in.
 func Int(v int) *int {
 	return &v
 }
@@ -179,7 +179,7 @@ func IntValueMap(src map[string]*int) map[string]int {
 	return dst
 }
 
-// Int64 returns a pointer to of the int64 value passed in.
+// Int64 returns a pointer to the int64 value passed in.
 func Int64(v int64) *int64 {
 	return &v
 }
@@ -238,7 +238,7 @@ func Int64ValueMap(src map[string]*int64) map[string]int64 {
 	return dst
 }
 
-// Float64 returns a pointer to of the float64 value passed in.
+// Float64 returns a pointer to the float64 value passed in.
 func Float64(v float64) *float64 {
 	return &v
 }
@@ -297,7 +297,7 @@ func Float64ValueMap(src map[string]*float64) map[string]float64 {
 	return dst
 }
 
-// Time returns a pointer to of the time.Time value passed in.
+// Time returns a pointer to the time.Time value passed in.
 func Time(v time.Time) *time.Time {
 	return &v
 }

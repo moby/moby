@@ -30,13 +30,22 @@ func NewStaticCredentials(id, secret, token string) *Credentials {
 	}})
 }
 
+// NewStaticCredentialsFromCreds returns a pointer to a new Credentials object
+// wrapping the static credentials value provide. Same as NewStaticCredentials
+// but takes the creds Value instead of individual fields
+func NewStaticCredentialsFromCreds(creds Value) *Credentials {
+	return NewCredentials(&StaticProvider{Value: creds})
+}
+
 // Retrieve returns the credentials or error if the credentials are invalid.
 func (s *StaticProvider) Retrieve() (Value, error) {
 	if s.AccessKeyID == "" || s.SecretAccessKey == "" {
 		return Value{ProviderName: StaticProviderName}, ErrStaticCredentialsEmpty
 	}
 
-	s.Value.ProviderName = StaticProviderName
+	if len(s.Value.ProviderName) == 0 {
+		s.Value.ProviderName = StaticProviderName
+	}
 	return s.Value, nil
 }
 
