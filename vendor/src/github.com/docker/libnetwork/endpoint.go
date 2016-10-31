@@ -513,14 +513,22 @@ func (ep *endpoint) sbJoin(sb *sandbox, options ...EndpointOption) error {
 	if moveExtConn {
 		if extEp != nil {
 			log.Debugf("Revoking external connectivity on endpoint %s (%s)", extEp.Name(), extEp.ID())
-			if err = d.RevokeExternalConnectivity(extEp.network.ID(), extEp.ID()); err != nil {
+			extN, err := extEp.getNetworkFromStore()
+			if err != nil {
+				return fmt.Errorf("failed to get network from store during join: %v", err)
+			}
+			extD, err := extN.driver(true)
+			if err != nil {
+				return fmt.Errorf("failed to join endpoint: %v", err)
+			}
+			if err = extD.RevokeExternalConnectivity(extEp.network.ID(), extEp.ID()); err != nil {
 				return types.InternalErrorf(
 					"driver failed revoking external connectivity on endpoint %s (%s): %v",
 					extEp.Name(), extEp.ID(), err)
 			}
 			defer func() {
 				if err != nil {
-					if e := d.ProgramExternalConnectivity(extEp.network.ID(), extEp.ID(), sb.Labels()); e != nil {
+					if e := extD.ProgramExternalConnectivity(extEp.network.ID(), extEp.ID(), sb.Labels()); e != nil {
 						log.Warnf("Failed to roll-back external connectivity on endpoint %s (%s): %v",
 							extEp.Name(), extEp.ID(), e)
 					}
@@ -699,7 +707,15 @@ func (ep *endpoint) sbLeave(sb *sandbox, force bool, options ...EndpointOption) 
 	extEp = sb.getGatewayEndpoint()
 	if moveExtConn && extEp != nil {
 		log.Debugf("Programming external connectivity on endpoint %s (%s)", extEp.Name(), extEp.ID())
-		if err := d.ProgramExternalConnectivity(extEp.network.ID(), extEp.ID(), sb.Labels()); err != nil {
+		extN, err := extEp.getNetworkFromStore()
+		if err != nil {
+			return fmt.Errorf("failed to get network from store during leave: %v", err)
+		}
+		extD, err := extN.driver(true)
+		if err != nil {
+			return fmt.Errorf("failed to leave endpoint: %v", err)
+		}
+		if err := extD.ProgramExternalConnectivity(extEp.network.ID(), extEp.ID(), sb.Labels()); err != nil {
 			log.Warnf("driver failed programming external connectivity on endpoint %s: (%s) %v",
 				extEp.Name(), extEp.ID(), err)
 		}

@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -234,7 +235,7 @@ func (s *DockerSwarmSuite) TestSwarmServiceWithGroup(c *check.C) {
 	d := s.AddDaemon(c, true, true)
 
 	name := "top"
-	out, err := d.Cmd("service", "create", "--name", name, "--user", "root:root", "--group-add", "wheel", "--group-add", "audio", "--group-add", "staff", "--group-add", "777", "busybox", "top")
+	out, err := d.Cmd("service", "create", "--name", name, "--user", "root:root", "--group", "wheel", "--group", "audio", "--group", "staff", "--group", "777", "busybox", "top")
 	c.Assert(err, checker.IsNil)
 	c.Assert(strings.TrimSpace(out), checker.Not(checker.Equals), "")
 
@@ -567,4 +568,23 @@ func (s *DockerSwarmSuite) TestSwarmNetworkPlugin(c *check.C) {
 	out, err = d.Cmd("service", "inspect", "--format", "{{range .Spec.Networks}}{{.Target}}{{end}}", name)
 	c.Assert(err, checker.IsNil)
 	c.Assert(strings.TrimSpace(out), checker.Equals, "foo")
+}
+
+// Test case for #24712
+func (s *DockerSwarmSuite) TestSwarmServiceEnvFile(c *check.C) {
+	d := s.AddDaemon(c, true, true)
+
+	path := filepath.Join(d.folder, "env.txt")
+	err := ioutil.WriteFile(path, []byte("VAR1=A\nVAR2=A\n"), 0644)
+	c.Assert(err, checker.IsNil)
+
+	name := "worker"
+	out, err := d.Cmd("service", "create", "--env-file", path, "--env", "VAR1=B", "--env", "VAR1=C", "--env", "VAR2=", "--env", "VAR2", "--name", name, "busybox", "top")
+	c.Assert(err, checker.IsNil)
+	c.Assert(strings.TrimSpace(out), checker.Not(checker.Equals), "")
+
+	// The complete env is [VAR1=A VAR2=A VAR1=B VAR1=C VAR2= VAR2] and duplicates will be removed => [VAR1=C VAR2]
+	out, err = d.Cmd("inspect", "--format", "{{ .Spec.TaskTemplate.ContainerSpec.Env }}", name)
+	c.Assert(err, checker.IsNil)
+	c.Assert(out, checker.Contains, "[VAR1=C VAR2]")
 }

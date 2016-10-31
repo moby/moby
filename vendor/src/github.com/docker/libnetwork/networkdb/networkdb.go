@@ -94,6 +94,8 @@ type NetworkDB struct {
 type node struct {
 	memberlist.Node
 	ltime serf.LamportTime
+	// Number of hours left before the reaper removes the node
+	reapTime time.Duration
 }
 
 // network describes the node/network attachment.

@@ -7,10 +7,12 @@ import (
 )
 
 // ElectInterfaceAddresses looks for an interface on the OS with the specified name
-// and returns its IPv4 and IPv6 addresses in CIDR form. If the interface does not exist,
-// it chooses from a predifined list the first IPv4 address which does not conflict
-// with other interfaces on the system.
-func ElectInterfaceAddresses(name string) (*net.IPNet, []*net.IPNet, error) {
+// and returns returns all its IPv4 and IPv6 addresses in CIDR notation.
+// If a failure in retrieving the addresses or no IPv4 address is found, an error is returned.
+// If the interface does not exist, it chooses from a predefined
+// list the first IPv4 address which does not conflict with other
+// interfaces on the system.
+func ElectInterfaceAddresses(name string) ([]*net.IPNet, []*net.IPNet, error) {
 	return nil, nil, types.NotImplementedErrorf("not supported on windows")
 }
 

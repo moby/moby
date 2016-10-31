@@ -243,7 +243,7 @@ $ docker run --name my-redis -d redis
 Debug the redis container by running another container that has strace in it:
 
 ```bash
-$ docker run --it --pid=container:my-redis bash
+$ docker run -it --pid=container:my-redis my_strace_docker_image bash
 $ strace -p 1
 ```
 
@@ -690,6 +690,8 @@ container:
 | `--cpuset-cpus=""`         | CPUs in which to allow execution (0-3, 0,1)                                                                                                     |
 | `--cpuset-mems=""`         | Memory nodes (MEMs) in which to allow execution (0-3, 0,1). Only effective on NUMA systems.                                                     |
 | `--cpu-quota=0`            | Limit the CPU CFS (Completely Fair Scheduler) quota                                                                                             |
+| `--cpu-rt-period=0`        | Limit the CPU real-time period. In microseconds. Requires parent cgroups be set and cannot be higher than parent. Also check rtprio ulimits.    |
+| `--cpu-rt-runtime=0`       | Limit the CPU real-time runtime. In microseconds. Requires parent cgroups be set and cannot be higher than parent. Also check rtprio ulimits.   |
 | `--blkio-weight=0`         | Block IO weight (relative weight) accepts a weight value between 10 and 1000.                                                                   |
 | `--blkio-weight-device=""` | Block IO weight (relative device weight, format: `DEVICE_NAME:WEIGHT`)                                                                          |
 | `--device-read-bps=""`     | Limit read rate from a device (format: `<device-path>:<number>[<unit>]`). Number is a positive integer. Unit can be one of `kb`, `mb`, or `gb`. |
@@ -1251,7 +1253,7 @@ container's logging driver. The following options are supported:
 
 The `docker logs` command is available only for the `json-file` and `journald`
 logging drivers.  For detailed information on working with logging drivers, see
-[Configure a logging driver](../admin/logging/overview.md).
+[Configure a logging driver](https://docs.docker.com/engine/admin/logging/overview/).
 
 
 ## Overriding Dockerfile image defaults
@@ -1374,7 +1376,7 @@ If the operator uses `--link` when starting a new client container in the
 default bridge network, then the client container can access the exposed
 port via a private networking interface.
 If `--link` is used when starting a container in a user-defined network as
-described in [*Docker network overview*](../userguide/networking/index.md),
+described in [*Docker network overview*](https://docs.docker.com/engine/userguide/networking/),
 it will provide a named alias for the container being linked to.
 
 ### ENV (environment variables)
@@ -1505,7 +1507,7 @@ The example below mounts an empty tmpfs into the container with the `rw`,
 
 The volumes commands are complex enough to have their own documentation
 in section [*Manage data in
-containers*](../tutorials/dockervolumes.md). A developer can define
+containers*](https://docs.docker.com/engine/tutorials/dockervolumes/). A developer can define
 one or more `VOLUME`'s associated with an image, but only the operator
 can give access from one container to another (or from a container to a
 volume mounted on the host).

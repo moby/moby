@@ -332,6 +332,10 @@ __docker_complete_ps_filters() {
             (before|since)
                 __docker_containers && ret=0
                 ;;
+            (health)
+                health_opts=('healthy' 'none' 'starting' 'unhealthy')
+                _describe -t health-filter-opts "health filter options" health_opts && ret=0
+                ;;
             (id)
                 __docker_containers_ids && ret=0
                 ;;
@@ -346,7 +350,7 @@ __docker_complete_ps_filters() {
                 ;;
             (status)
                 status_opts=('created' 'dead' 'exited' 'paused' 'restarting' 'running' 'removing')
-                _describe -t status-filter-opts "Status Filter Options" status_opts && ret=0
+                _describe -t status-filter-opts "status filter options" status_opts && ret=0
                 ;;
             (volume)
                 __docker_volumes && ret=0
@@ -356,7 +360,7 @@ __docker_complete_ps_filters() {
                 ;;
         esac
     else
-        opts=('ancestor' 'before' 'exited' 'id' 'label' 'name' 'network' 'since' 'status' 'volume')
+        opts=('ancestor' 'before' 'exited' 'health' 'id' 'label' 'name' 'network' 'since' 'status' 'volume')
         _describe -t filter-opts "Filter Options" opts -qS "=" && ret=0
     fi
 
@@ -1088,15 +1092,18 @@ __docker_service_subcommand() {
         "($help)*--constraint=[Placement constraints]:constraint: "
         "($help)--endpoint-mode=[Placement constraints]:mode:(dnsrr vip)"
         "($help)*"{-e=,--env=}"[Set environment variables]:env: "
-        "($help)*--group-add=[Add additional user groups to the container]:group:_groups"
+        "($help)--health-cmd=[Command to run to check health]:command: "
+        "($help)--health-interval=[Time between running the check]:time: "
+        "($help)--health-retries=[Consecutive failures needed to report unhealthy]:retries:(1 2 3 4 5)"
+        "($help)--health-timeout=[Maximum time to allow one check to run]:time: "
         "($help)*--label=[Service labels]:label: "
         "($help)--limit-cpu=[Limit CPUs]:value: "
         "($help)--limit-memory=[Limit Memory]:value: "
         "($help)--log-driver=[Logging driver for service]:logging driver:__docker_log_drivers"
         "($help)*--log-opt=[Logging driver options]:log driver options:__docker_log_options"
         "($help)*--mount=[Attach a mount to the service]:mount: "
-        "($help)--name=[Service name]:name: "
         "($help)*--network=[Network attachments]:network: "
+        "($help)--no-healthcheck[Disable any container-specified HEALTHCHECK]"
         "($help)*"{-p=,--publish=}"[Publish a port as a node port]:port: "
         "($help)--replicas=[Number of tasks]:replicas: "
         "($help)--reserve-cpu=[Reserve CPUs]:value: "
@@ -1122,7 +1129,9 @@ __docker_service_subcommand() {
                 $opts_help \
                 $opts_create_update \
                 "($help)*--container-label=[Container labels]:label: " \
+                "($help)*--env-file=[Read environment variables from a file]:environment file:_files" \
                 "($help)--mode=[Service Mode]:mode:(global replicated)" \
+                "($help)--name=[Service name]:name: " \
                 "($help -): :__docker_images" \
                 "($help -):command: _command_names -e" \
                 "($help -)*::arguments: _normal" && ret=0
@@ -1167,10 +1176,10 @@ __docker_service_subcommand() {
         (ps)
             _arguments $(__docker_arguments) \
                 $opts_help \
-                "($help -a --all)"{-a,--all}"[Display all tasks]" \
                 "($help)*"{-f=,--filter=}"[Provide filter values]:filter:->filter-options" \
                 "($help)--no-resolve[Do not map IDs to Names]" \
                 "($help)--no-trunc[Do not truncate output]" \
+                "($help -q --quiet)"{-q,--quiet}"[Only display task IDs]" \
                 "($help -)1:service:__docker_complete_services" && ret=0
             case $state in
                 (filter-options)
@@ -1186,7 +1195,8 @@ __docker_service_subcommand() {
                 "($help)*--container-label-add=[Add or update container labels]:label: " \
                 "($help)*--container-label-rm=[Remove a container label by its key]:label: " \
                 "($help)--force[Force update]" \
-                "($help)*--group-rm=[Remove previously added user groups from the container]:group:_groups" \
+                "($help)*--group-add=[Add additional supplementary user groups to the container]:group:_groups" \
+                "($help)*--group-rm=[Remove previously added supplementary user groups from the container]:group:_groups" \
                 "($help)--image=[Service image tag]:image:__docker_repositories" \
                 "($help)--rollback[Rollback to previous specification]" \
                 "($help -)1:service:__docker_complete_services" && ret=0
@@ -1433,6 +1443,8 @@ __docker_subcommand() {
         "($help -c --cpu-shares)"{-c=,--cpu-shares=}"[CPU shares (relative weight)]:CPU shares:(0 10 100 200 500 800 1000)"
         "($help)--cpu-period=[Limit the CPU CFS (Completely Fair Scheduler) period]:CPU period: "
         "($help)--cpu-quota=[Limit the CPU CFS (Completely Fair Scheduler) quota]:CPU quota: "
+        "($help)--cpu-rt-period=[Limit the CPU real-time period]:CPU real-time period in microseconds: "
+        "($help)--cpu-rt-runtime=[Limit the CPU real-time runtime]:CPU real-time runtime in microseconds: "
         "($help)--cpuset-cpus=[CPUs in which to allow execution]:CPUs: "
         "($help)--cpuset-mems=[MEMs in which to allow execution]:MEMs: "
         "($help -m --memory)"{-m=,--memory=}"[Memory limit]:Memory limit: "
@@ -1457,7 +1469,7 @@ __docker_subcommand() {
         "($help)--entrypoint=[Overwrite the default entrypoint of the image]:entry point: "
         "($help)*--env-file=[Read environment variables from a file]:environment file:_files"
         "($help)*--expose=[Expose a port from the container without publishing it]: "
-        "($help)*--group-add=[Add additional groups to run as]:group:_groups"
+        "($help)*--group=[Set one or more supplementary user groups for the container]:group:_groups"
         "($help -h --hostname)"{-h=,--hostname=}"[Container host name]:hostname:_hosts"
         "($help -i --interactive)"{-i,--interactive}"[Keep stdin open even if not attached]"
         "($help)--ip=[Container IPv4 address]:IPv4: "
@@ -1481,6 +1493,7 @@ __docker_subcommand() {
         "($help)--privileged[Give extended privileges to this container]"
         "($help)--read-only[Mount the container's root filesystem as read only]"
         "($help)*--security-opt=[Security options]:security option: "
+        "($help)--stop-timeout=[Timeout (in seconds) to stop a container]:time: "
         "($help)*--sysctl=-[sysctl options]:sysctl: "
         "($help -t --tty)"{-t,--tty}"[Allocate a pseudo-tty]"
         "($help -u --user)"{-u=,--user=}"[Username or UID]:user:_users"
@@ -1583,21 +1596,22 @@ __docker_subcommand() {
                 "($help -b --bridge)"{-b=,--bridge=}"[Attach containers to a network bridge]:bridge:_net_interfaces" \
                 "($help)--bip=[Network bridge IP]:IP address: " \
                 "($help)--cgroup-parent=[Parent cgroup for all containers]:cgroup: " \
+                "($help)--cluster-advertise=[Address or interface name to advertise]:Instance to advertise (host\:port): " \
+                "($help)--cluster-store=[URL of the distributed storage backend]:Cluster Store:->cluster-store" \
+                "($help)*--cluster-store-opt=[Cluster store options]:Cluster options:->cluster-store-options" \
                 "($help)--config-file=[Path to daemon configuration file]:Config File:_files" \
                 "($help)--containerd=[Path to containerd socket]:socket:_files -g \"*.sock\"" \
                 "($help -D --debug)"{-D,--debug}"[Enable debug mode]" \
                 "($help)--default-gateway[Container default gateway IPv4 address]:IPv4 address: " \
                 "($help)--default-gateway-v6[Container default gateway IPv6 address]:IPv6 address: " \
-                "($help)--cluster-store=[URL of the distributed storage backend]:Cluster Store:->cluster-store" \
-                "($help)--cluster-advertise=[Address or interface name to advertise]:Instance to advertise (host\:port): " \
-                "($help)*--cluster-store-opt=[Cluster store options]:Cluster options:->cluster-store-options" \
-                "($help)*--dns=[DNS server to use]:DNS: " \
-                "($help)*--dns-search=[DNS search domains to use]:DNS search: " \
-                "($help)*--dns-opt=[DNS options to use]:DNS option: " \
                 "($help)*--default-ulimit=[Default ulimits for containers]:ulimit: " \
                 "($help)--disable-legacy-registry[Disable contacting legacy registries]" \
+                "($help)*--dns=[DNS server to use]:DNS: " \
+                "($help)*--dns-opt=[DNS options to use]:DNS option: " \
+                "($help)*--dns-search=[DNS search domains to use]:DNS search: " \
                 "($help)*--exec-opt=[Runtime execution options]:runtime execution options: " \
                 "($help)--exec-root=[Root directory for execution state files]:path:_directories" \
+                "($help)--experimental[Enable experimental features]" \
                 "($help)--fixed-cidr=[IPv4 subnet for fixed IPs]:IPv4 subnet: " \
                 "($help)--fixed-cidr-v6=[IPv6 subnet for fixed IPs]:IPv6 subnet: " \
                 "($help -G --group)"{-G=,--group=}"[Group for the unix socket]:group:_groups" \
@@ -1625,6 +1639,7 @@ __docker_subcommand() {
                 "($help)*--registry-mirror=[Preferred Docker registry mirror]:registry mirror: " \
                 "($help -s --storage-driver)"{-s=,--storage-driver=}"[Storage driver to use]:driver:(aufs btrfs devicemapper overlay overlay2 vfs zfs)" \
                 "($help)--selinux-enabled[Enable selinux support]" \
+                "($help)--shutdown-timeout=[Set the shutdown timeout value in seconds]:time: " \
                 "($help)*--storage-opt=[Storage driver options]:storage driver options: " \
                 "($help)--tls[Use TLS]" \
                 "($help)--tlscacert=[Trust certs signed only by this CA]:PEM file:_files -g \"*.(pem|crt)\"" \
@@ -1680,7 +1695,7 @@ __docker_subcommand() {
                 $opts_help \
                 $opts_attach_exec_run_start \
                 "($help -d --detach)"{-d,--detach}"[Detached mode: leave the container running in the background]" \
-                "($help -e --env)"{-e,--env}"[Set environment variables]" \
+                "($help)*"{-e=,--env=}"[Set environment variables]:environment variable: " \
                 "($help -i --interactive)"{-i,--interactive}"[Keep stdin open even if not attached]" \
                 "($help)--privileged[Give extended Linux capabilities to the command]" \
                 "($help -t --tty)"{-t,--tty}"[Allocate a pseudo-tty]" \

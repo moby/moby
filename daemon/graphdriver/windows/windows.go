@@ -366,7 +366,7 @@ func (d *Driver) Diff(id, parent string) (_ io.ReadCloser, err error) {
 
 // Changes produces a list of changes between the specified layer
 // and its parent layer. If parent is "", then all changes will be ADD changes.
-// The layer should be mounted when calling this function
+// The layer should not be mounted when calling this function.
 func (d *Driver) Changes(id, parent string) ([]archive.Change, error) {
 	rID, err := d.resolveID(id)
 	if err != nil {
@@ -377,13 +377,12 @@ func (d *Driver) Changes(id, parent string) ([]archive.Change, error) {
 		return nil, err
 	}
 
-	// this is assuming that the layer is unmounted
-	if err := hcsshim.UnprepareLayer(d.info, rID); err != nil {
+	if err := hcsshim.ActivateLayer(d.info, rID); err != nil {
 		return nil, err
 	}
 	defer func() {
-		if err := hcsshim.PrepareLayer(d.info, rID, parentChain); err != nil {
-			logrus.Warnf("Failed to Deactivate %s: %s", rID, err)
+		if err2 := hcsshim.DeactivateLayer(d.info, rID); err2 != nil {
+			logrus.Errorf("changes() failed to DeactivateLayer %s %s: %s", id, rID, err2)
 		}
 	}()
 

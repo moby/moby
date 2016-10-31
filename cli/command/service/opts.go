@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/docker/docker/api/types/container"
 	mounttypes "github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/opts"
@@ -66,6 +67,25 @@ func (c *nanoCPUs) Type() string {
 
 func (c *nanoCPUs) Value() int64 {
 	return int64(*c)
+}
+
+// PositiveDurationOpt is an option type for time.Duration that uses a pointer.
+// It bahave similarly to DurationOpt but only allows positive duration values.
+type PositiveDurationOpt struct {
+	DurationOpt
+}
+
+// Set a new value on the option. Setting a negative duration value will cause
+// an error to be returned.
+func (d *PositiveDurationOpt) Set(s string) error {
+	err := d.DurationOpt.Set(s)
+	if err != nil {
+		return err
+	}
+	if *d.DurationOpt.value < 0 {
+		return fmt.Errorf("duration cannot be negative")
+	}
+	return nil
 }
 
 // DurationOpt is an option type for time.Duration that uses a pointer. This
@@ -377,6 +397,47 @@ func (ldo *logDriverOptions) toLogDriver() *swarm.Driver {
 	}
 }
 
+type healthCheckOptions struct {
+	cmd           string
+	interval      PositiveDurationOpt
+	timeout       PositiveDurationOpt
+	retries       int
+	noHealthcheck bool
+}
+
+func (opts *healthCheckOptions) toHealthConfig() (*container.HealthConfig, error) {
+	var healthConfig *container.HealthConfig
+	haveHealthSettings := opts.cmd != "" ||
+		opts.interval.Value() != nil ||
+		opts.timeout.Value() != nil ||
+		opts.retries != 0
+	if opts.noHealthcheck {
+		if haveHealthSettings {
+			return nil, fmt.Errorf("--%s conflicts with --health-* options", flagNoHealthcheck)
+		}
+		healthConfig = &container.HealthConfig{Test: []string{"NONE"}}
+	} else if haveHealthSettings {
+		var test []string
+		if opts.cmd != "" {
+			test = []string{"CMD-SHELL", opts.cmd}
+		}
+		var interval, timeout time.Duration
+		if ptr := opts.interval.Value(); ptr != nil {
+			interval = *ptr
+		}
+		if ptr := opts.timeout.Value(); ptr != nil {
+			timeout = *ptr
+		}
+		healthConfig = &container.HealthConfig{
+			Test:     test,
+			Interval: interval,
+			Timeout:  timeout,
+			Retries:  opts.retries,
+		}
+	}
+	return healthConfig, nil
+}
+
 // ValidatePort validates a string is in the expected format for a port definition
 func ValidatePort(value string) (string, error) {
 	portMappings, err := nat.ParsePortSpec(value)
@@ -395,6 +456,7 @@ type serviceOptions struct {
 	image           string
 	args            []string
 	env             opts.ListOpts
+	envFile         opts.ListOpts
 	workdir         string
 	user            string
 	groups          []string
@@ -415,6 +477,8 @@ type serviceOptions struct {
 	registryAuth bool
 
 	logDriver logDriverOptions
+
+	healthcheck healthCheckOptions
 }
 
 func newServiceOptions() *serviceOptions {
@@ -422,6 +486,7 @@ func newServiceOptions() *serviceOptions {
 		labels:          opts.NewListOpts(runconfigopts.ValidateEnv),
 		containerLabels: opts.NewListOpts(runconfigopts.ValidateEnv),
 		env:             opts.NewListOpts(runconfigopts.ValidateEnv),
+		envFile:         opts.NewListOpts(nil),
 		endpoint: endpointOptions{
 			ports: opts.NewListOpts(ValidatePort),
 		},
@@ -432,6 +497,25 @@ func newServiceOptions() *serviceOptions {
 func (opts *serviceOptions) ToService() (swarm.ServiceSpec, error) {
 	var service swarm.ServiceSpec
 
+	envVariables, err := runconfigopts.ReadKVStrings(opts.envFile.GetAll(), opts.env.GetAll())
+	if err != nil {
+		return service, err
+	}
+
+	currentEnv := make([]string, 0, len(envVariables))
+	for _, env := range envVariables { // need to process each var, in order
+		k := strings.SplitN(env, "=", 2)[0]
+		for i, current := range currentEnv { // remove duplicates
+			if current == env {
+				continue // no update required, may hide this behind flag to preserve order of envVariables
+			}
+			if strings.HasPrefix(current, k+"=") {
+				currentEnv = append(currentEnv[:i], currentEnv[i+1:]...)
+			}
+		}
+		currentEnv = append(currentEnv, env)
+	}
+
 	service = swarm.ServiceSpec{
 		Annotations: swarm.Annotations{
 			Name:   opts.name,
@@ -441,7 +525,7 @@ func (opts *serviceOptions) ToService() (swarm.ServiceSpec, error) {
 			ContainerSpec: swarm.ContainerSpec{
 				Image:           opts.image,
 				Args:            opts.args,
-				Env:             opts.env.GetAll(),
+				Env:             currentEnv,
 				Labels:          runconfigopts.ConvertKVStringsToMap(opts.containerLabels.GetAll()),
 				Dir:             opts.workdir,
 				User:            opts.user,
@@ -469,6 +553,12 @@ func (opts *serviceOptions) ToService() (swarm.ServiceSpec, error) {
 		EndpointSpec: opts.endpoint.ToEndpointSpec(),
 	}
 
+	healthConfig, err := opts.healthcheck.toHealthConfig()
+	if err != nil {
+		return service, err
+	}
+	service.TaskTemplate.ContainerSpec.Healthcheck = healthConfig
+
 	switch opts.mode {
 	case "global":
 		if opts.replicas.Value() != nil {
@@ -490,11 +580,9 @@ func (opts *serviceOptions) ToService() (swarm.ServiceSpec, error) {
 // Any flags that are not common are added separately in the individual command
 func addServiceFlags(cmd *cobra.Command, opts *serviceOptions) {
 	flags := cmd.Flags()
-	flags.StringVar(&opts.name, flagName, "", "Service name")
 
 	flags.StringVarP(&opts.workdir, flagWorkdir, "w", "", "Working directory inside the container")
 	flags.StringVarP(&opts.user, flagUser, "u", "", "Username or UID (format: <name|uid>[:<group|gid>])")
-	flags.StringSliceVar(&opts.groups, flagGroupAdd, []string{}, "Add additional user groups to the container")
 
 	flags.Var(&opts.resources.limitCPU, flagLimitCPU, "Limit CPUs")
 	flags.Var(&opts.resources.limitMemBytes, flagLimitMemory, "Limit Memory")
@@ -521,6 +609,12 @@ func addServiceFlags(cmd *cobra.Command, opts *serviceOptions) {
 
 	flags.StringVar(&opts.logDriver.name, flagLogDriver, "", "Logging driver for service")
 	flags.Var(&opts.logDriver.opts, flagLogOpt, "Logging driver options")
+
+	flags.StringVar(&opts.healthcheck.cmd, flagHealthCmd, "", "Command to run to check health")
+	flags.Var(&opts.healthcheck.interval, flagHealthInterval, "Time between running the check")
+	flags.Var(&opts.healthcheck.timeout, flagHealthTimeout, "Maximum time to allow one check to run")
+	flags.IntVar(&opts.healthcheck.retries, flagHealthRetries, 0, "Consecutive failures needed to report unhealthy")
+	flags.BoolVar(&opts.healthcheck.noHealthcheck, flagNoHealthcheck, false, "Disable any container-specified HEALTHCHECK")
 }
 
 const (
@@ -532,8 +626,10 @@ const (
 	flagContainerLabelAdd     = "container-label-add"
 	flagEndpointMode          = "endpoint-mode"
 	flagEnv                   = "env"
+	flagEnvFile               = "env-file"
 	flagEnvRemove             = "env-rm"
 	flagEnvAdd                = "env-add"
+	flagGroup                 = "group"
 	flagGroupAdd              = "group-add"
 	flagGroupRemove           = "group-rm"
 	flagLabel                 = "label"
@@ -568,4 +664,9 @@ const (
 	flagRegistryAuth          = "with-registry-auth"
 	flagLogDriver             = "log-driver"
 	flagLogOpt                = "log-opt"
+	flagHealthCmd             = "health-cmd"
+	flagHealthInterval        = "health-interval"
+	flagHealthRetries         = "health-retries"
+	flagHealthTimeout         = "health-timeout"
+	flagNoHealthcheck         = "no-healthcheck"
 )

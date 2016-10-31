@@ -18,7 +18,7 @@ func NewFilter(filter filters.Args) *Filter {
 
 // Include returns true when the event ev is included by the filters
 func (ef *Filter) Include(ev events.Message) bool {
-	return ef.filter.ExactMatch("event", ev.Action) &&
+	return ef.matchEvent(ev) &&
 		ef.filter.ExactMatch("type", ev.Type) &&
 		ef.matchDaemon(ev) &&
 		ef.matchContainer(ev) &&
@@ -27,6 +27,24 @@ func (ef *Filter) Include(ev events.Message) bool {
 		ef.matchNetwork(ev) &&
 		ef.matchImage(ev) &&
 		ef.matchLabels(ev.Actor.Attributes)
+}
+
+func (ef *Filter) matchEvent(ev events.Message) bool {
+	// #25798 if an event filter contains either health_status, exec_create or exec_start without a colon
+	// Let's to a FuzzyMatch instead of an ExactMatch.
+	if ef.filterContains("event", map[string]struct{}{"health_status": {}, "exec_create": {}, "exec_start": {}}) {
+		return ef.filter.FuzzyMatch("event", ev.Action)
+	}
+	return ef.filter.ExactMatch("event", ev.Action)
+}
+
+func (ef *Filter) filterContains(field string, values map[string]struct{}) bool {
+	for _, v := range ef.filter.Get(field) {
+		if _, ok := values[v]; ok {
+			return true
+		}
+	}
+	return false
 }
 
 func (ef *Filter) matchLabels(attributes map[string]string) bool {

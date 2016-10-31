@@ -3,6 +3,7 @@ package daemon
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/docker/docker/api/errors"
 	"github.com/docker/docker/api/types"
@@ -61,6 +62,7 @@ const (
 // package. This would require that we no longer need the daemon to determine
 // whether images are being used by a stopped or running container.
 func (daemon *Daemon) ImageDelete(imageRef string, force, prune bool) ([]types.ImageDelete, error) {
+	start := time.Now()
 	records := []types.ImageDelete{}
 
 	imgID, err := daemon.GetImageID(imageRef)
@@ -168,7 +170,13 @@ func (daemon *Daemon) ImageDelete(imageRef string, force, prune bool) ([]types.I
 		}
 	}
 
-	return records, daemon.imageDeleteHelper(imgID, &records, force, prune, removedRepositoryRef)
+	if err := daemon.imageDeleteHelper(imgID, &records, force, prune, removedRepositoryRef); err != nil {
+		return nil, err
+	}
+
+	imageActions.WithValues("delete").UpdateSince(start)
+
+	return records, nil
 }
 
 // isSingleReference returns true when all references are from one repository

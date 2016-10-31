@@ -8,6 +8,7 @@ import (
 	"path"
 	"runtime"
 	"strings"
+	"time"
 
 	"github.com/Sirupsen/logrus"
 	derr "github.com/docker/docker/api/errors"
@@ -284,8 +285,11 @@ func (daemon *Daemon) updateEndpointNetworkSettings(container *container.Contain
 // UpdateNetwork is used to update the container's network (e.g. when linked containers
 // get removed/unlinked).
 func (daemon *Daemon) updateNetwork(container *container.Container) error {
-	ctrl := daemon.netController
-	sid := container.NetworkSettings.SandboxID
+	var (
+		start = time.Now()
+		ctrl  = daemon.netController
+		sid   = container.NetworkSettings.SandboxID
+	)
 
 	sb, err := ctrl.SandboxByID(sid)
 	if err != nil {
@@ -318,6 +322,8 @@ func (daemon *Daemon) updateNetwork(container *container.Container) error {
 	if err := sb.Refresh(options...); err != nil {
 		return fmt.Errorf("Update network failed: Failure in refresh sandbox %s: %v", sid, err)
 	}
+
+	networkActions.WithValues("update").UpdateSince(start)
 
 	return nil
 }
@@ -452,6 +458,7 @@ func (daemon *Daemon) updateContainerNetworkSettings(container *container.Contai
 }
 
 func (daemon *Daemon) allocateNetwork(container *container.Container) error {
+	start := time.Now()
 	controller := daemon.netController
 
 	if daemon.netController == nil {
@@ -503,7 +510,11 @@ func (daemon *Daemon) allocateNetwork(container *container.Container) error {
 		}
 	}
 
-	return container.WriteHostConfig()
+	if err := container.WriteHostConfig(); err != nil {
+		return err
+	}
+	networkActions.WithValues("allocate").UpdateSince(start)
+	return nil
 }
 
 func (daemon *Daemon) getNetworkSandbox(container *container.Container) libnetwork.Sandbox {
@@ -613,16 +624,15 @@ func (daemon *Daemon) updateNetworkConfig(container *container.Container, n libn
 }
 
 func (daemon *Daemon) connectToNetwork(container *container.Container, idOrName string, endpointConfig *networktypes.EndpointSettings, updateSettings bool) (err error) {
+	start := time.Now()
 	if container.HostConfig.NetworkMode.IsContainer() {
 		return runconfig.ErrConflictSharedNetwork
 	}
-
 	if containertypes.NetworkMode(idOrName).IsBridge() &&
 		daemon.configStore.DisableBridge {
 		container.Config.NetworkDisabled = true
 		return nil
 	}
-
 	if endpointConfig == nil {
 		endpointConfig = &networktypes.EndpointSettings{}
 	}
@@ -714,6 +724,7 @@ func (daemon *Daemon) connectToNetwork(container *container.Container, idOrName 
 	container.NetworkSettings.Ports = getPortMapInfo(sb)
 
 	daemon.LogNetworkEventWithAttributes(n, "connect", map[string]string{"container": container.ID})
+	networkActions.WithValues("connect").UpdateSince(start)
 	return nil
 }
 
@@ -835,6 +846,7 @@ func (daemon *Daemon) getNetworkedContainer(containerID, connectedContainerID st
 }
 
 func (daemon *Daemon) releaseNetwork(container *container.Container) {
+	start := time.Now()
 	if daemon.netController == nil {
 		return
 	}
@@ -885,6 +897,7 @@ func (daemon *Daemon) releaseNetwork(container *container.Container) {
 		}
 		daemon.LogNetworkEventWithAttributes(nw, "disconnect", attributes)
 	}
+	networkActions.WithValues("release").UpdateSince(start)
 }
 
 func errRemovalContainer(containerID string) error {

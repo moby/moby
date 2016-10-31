@@ -48,9 +48,11 @@ func New(config *Config) (*Agent, error) {
 		return nil, err
 	}
 
+	worker := newWorker(config.DB, config.Executor)
+
 	a := &Agent{
 		config:   config,
-		worker:   newWorker(config.DB, config.Executor),
+		worker:   worker,
 		sessionq: make(chan sessionOperation),
 		started:  make(chan struct{}),
 		stopped:  make(chan struct{}),
@@ -278,8 +280,8 @@ func (a *Agent) handleSessionMessage(ctx context.Context, message *api.SessionMe
 
 	if message.Node != nil {
 		if a.node == nil || !nodesEqual(a.node, message.Node) {
-			if a.config.NotifyRoleChange != nil {
-				a.config.NotifyRoleChange <- message.Node.Spec.Role
+			if a.config.NotifyNodeChange != nil {
+				a.config.NotifyNodeChange <- message.Node.Copy()
 			}
 			a.node = message.Node.Copy()
 			if err := a.config.Executor.Configure(ctx, a.node); err != nil {

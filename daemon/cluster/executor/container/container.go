@@ -18,6 +18,7 @@ import (
 	"github.com/docker/docker/reference"
 	"github.com/docker/swarmkit/agent/exec"
 	"github.com/docker/swarmkit/api"
+	"github.com/docker/swarmkit/protobuf/ptypes"
 )
 
 const (
@@ -104,8 +105,13 @@ func (c *containerConfig) name() string {
 		return c.task.Annotations.Name
 	}
 
+	slot := fmt.Sprint(c.task.Slot)
+	if slot == "" || c.task.Slot == 0 {
+		slot = c.task.NodeID
+	}
+
 	// fallback to service.slot.id.
-	return strings.Join([]string{c.task.ServiceAnnotations.Name, fmt.Sprint(c.task.Slot), c.task.ID}, ".")
+	return fmt.Sprintf("%s.%s.%s", c.task.ServiceAnnotations.Name, slot, c.task.ID)
 }
 
 func (c *containerConfig) image() string {
@@ -119,12 +125,13 @@ func (c *containerConfig) image() string {
 
 func (c *containerConfig) config() *enginecontainer.Config {
 	config := &enginecontainer.Config{
-		Labels:     c.labels(),
-		User:       c.spec().User,
-		Env:        c.spec().Env,
-		WorkingDir: c.spec().Dir,
-		Image:      c.image(),
-		Volumes:    c.volumes(),
+		Labels:      c.labels(),
+		User:        c.spec().User,
+		Env:         c.spec().Env,
+		WorkingDir:  c.spec().Dir,
+		Image:       c.image(),
+		Volumes:     c.volumes(),
+		Healthcheck: c.healthcheck(),
 	}
 
 	if len(c.spec().Command) > 0 {
@@ -143,19 +150,11 @@ func (c *containerConfig) config() *enginecontainer.Config {
 }
 
 func (c *containerConfig) labels() map[string]string {
-	taskName := c.task.Annotations.Name
-	if taskName == "" {
-		if c.task.Slot != 0 {
-			taskName = fmt.Sprintf("%v.%v.%v", c.task.ServiceAnnotations.Name, c.task.Slot, c.task.ID)
-		} else {
-			taskName = fmt.Sprintf("%v.%v.%v", c.task.ServiceAnnotations.Name, c.task.NodeID, c.task.ID)
-		}
-	}
 	var (
 		system = map[string]string{
 			"task":         "", // mark as cluster task
 			"task.id":      c.task.ID,
-			"task.name":    taskName,
+			"task.name":    c.name(),
 			"node.id":      c.task.NodeID,
 			"service.id":   c.task.ServiceID,
 			"service.name": c.task.ServiceAnnotations.Name,
@@ -225,6 +224,21 @@ func (c *containerConfig) binds() []string {
 		}
 	}
 	return r
+}
+
+func (c *containerConfig) healthcheck() *enginecontainer.HealthConfig {
+	hcSpec := c.spec().Healthcheck
+	if hcSpec == nil {
+		return nil
+	}
+	interval, _ := ptypes.Duration(hcSpec.Interval)
+	timeout, _ := ptypes.Duration(hcSpec.Timeout)
+	return &enginecontainer.HealthConfig{
+		Test:     hcSpec.Test,
+		Interval: interval,
+		Timeout:  timeout,
+		Retries:  int(hcSpec.Retries),
+	}
 }
 
 func getMountMask(m *api.Mount) string {

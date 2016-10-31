@@ -9,6 +9,7 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 	mounttypes "github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/cli"
@@ -41,7 +42,7 @@ func newUpdateCommand(dockerCli *command.DockerCli) *cobra.Command {
 	addServiceFlags(cmd, opts)
 
 	flags.Var(newListOptsVar(), flagEnvRemove, "Remove an environment variable")
-	flags.Var(newListOptsVar(), flagGroupRemove, "Remove previously added user groups from the container")
+	flags.Var(newListOptsVar(), flagGroupRemove, "Remove previously added supplementary user groups from the container")
 	flags.Var(newListOptsVar(), flagLabelRemove, "Remove a label by its key")
 	flags.Var(newListOptsVar(), flagContainerLabelRemove, "Remove a container label by its key")
 	flags.Var(newListOptsVar(), flagMountRemove, "Remove a mount by its target path")
@@ -53,6 +54,7 @@ func newUpdateCommand(dockerCli *command.DockerCli) *cobra.Command {
 	flags.Var(&opts.mounts, flagMountAdd, "Add or update a mount on a service")
 	flags.StringSliceVar(&opts.constraints, flagConstraintAdd, []string{}, "Add or update placement constraints")
 	flags.Var(&opts.endpoint.ports, flagPublishAdd, "Add or update a published port")
+	flags.StringSliceVar(&opts.groups, flagGroupAdd, []string{}, "Add additional supplementary user groups to the container")
 	return cmd
 }
 
@@ -172,7 +174,6 @@ func updateService(flags *pflag.FlagSet, spec *swarm.ServiceSpec) error {
 		return task.Resources
 	}
 
-	updateString(flagName, &spec.Name)
 	updateLabels(flags, &spec.Labels)
 	updateContainerLabels(flags, &cspec.Labels)
 	updateString("image", &cspec.Image)
@@ -265,6 +266,10 @@ func updateService(flags *pflag.FlagSet, spec *swarm.ServiceSpec) error {
 
 	if force {
 		spec.TaskTemplate.ForceUpdate++
+	}
+
+	if err := updateHealthcheck(flags, cspec); err != nil {
+		return err
 	}
 
 	return nil
@@ -536,5 +541,50 @@ func updateLogDriver(flags *pflag.FlagSet, taskTemplate *swarm.TaskSpec) error {
 		Options: runconfigopts.ConvertKVStringsToMap(flags.Lookup(flagLogOpt).Value.(*opts.ListOpts).GetAll()),
 	}
 
+	return nil
+}
+
+func updateHealthcheck(flags *pflag.FlagSet, containerSpec *swarm.ContainerSpec) error {
+	if !anyChanged(flags, flagNoHealthcheck, flagHealthCmd, flagHealthInterval, flagHealthRetries, flagHealthTimeout) {
+		return nil
+	}
+	if containerSpec.Healthcheck == nil {
+		containerSpec.Healthcheck = &container.HealthConfig{}
+	}
+	noHealthcheck, err := flags.GetBool(flagNoHealthcheck)
+	if err != nil {
+		return err
+	}
+	if noHealthcheck {
+		if !anyChanged(flags, flagHealthCmd, flagHealthInterval, flagHealthRetries, flagHealthTimeout) {
+			containerSpec.Healthcheck = &container.HealthConfig{
+				Test: []string{"NONE"},
+			}
+			return nil
+		}
+		return fmt.Errorf("--%s conflicts with --health-* options", flagNoHealthcheck)
+	}
+	if len(containerSpec.Healthcheck.Test) > 0 && containerSpec.Healthcheck.Test[0] == "NONE" {
+		containerSpec.Healthcheck.Test = nil
+	}
+	if flags.Changed(flagHealthInterval) {
+		val := *flags.Lookup(flagHealthInterval).Value.(*PositiveDurationOpt).Value()
+		containerSpec.Healthcheck.Interval = val
+	}
+	if flags.Changed(flagHealthTimeout) {
+		val := *flags.Lookup(flagHealthTimeout).Value.(*PositiveDurationOpt).Value()
+		containerSpec.Healthcheck.Timeout = val
+	}
+	if flags.Changed(flagHealthRetries) {
+		containerSpec.Healthcheck.Retries, _ = flags.GetInt(flagHealthRetries)
+	}
+	if flags.Changed(flagHealthCmd) {
+		cmd, _ := flags.GetString(flagHealthCmd)
+		if cmd != "" {
+			containerSpec.Healthcheck.Test = []string{"CMD-SHELL", cmd}
+		} else {
+			containerSpec.Healthcheck.Test = nil
+		}
+	}
 	return nil
 }

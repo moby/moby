@@ -28,6 +28,7 @@ import (
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/events"
 	"github.com/docker/docker/daemon/exec"
+	"github.com/docker/docker/dockerversion"
 	"github.com/docker/libnetwork/cluster"
 	// register graph drivers
 	_ "github.com/docker/docker/daemon/graphdriver/register"
@@ -102,6 +103,7 @@ type Daemon struct {
 	containerdRemote          libcontainerd.Remote
 	defaultIsolation          containertypes.Isolation // Default isolation mode on Windows
 	clusterProvider           cluster.Provider
+	cluster                   Cluster
 }
 
 // HasExperimental returns whether the experimental features of the daemon are enabled or not
@@ -193,7 +195,7 @@ func (daemon *Daemon) restore() error {
 
 			if c.IsRunning() || c.IsPaused() {
 				c.RestartManager().Cancel() // manually start containers because some need to wait for swarm networking
-				if err := daemon.containerd.Restore(c.ID); err != nil {
+				if err := daemon.containerd.Restore(c.ID, c.InitializeStdio); err != nil {
 					logrus.Errorf("Failed to restore %s with containerd: %s", c.ID, err)
 					return
 				}
@@ -303,7 +305,7 @@ func (daemon *Daemon) restore() error {
 
 			// Make sure networks are available before starting
 			daemon.waitForNetworks(c)
-			if err := daemon.containerStart(c, "", true); err != nil {
+			if err := daemon.containerStart(c, "", "", true); err != nil {
 				logrus.Errorf("Failed to start container %s: %s", c.ID, err)
 			}
 			close(chNotify)
@@ -370,7 +372,7 @@ func (daemon *Daemon) RestartSwarmContainers() {
 				group.Add(1)
 				go func(c *container.Container) {
 					defer group.Done()
-					if err := daemon.containerStart(c, "", true); err != nil {
+					if err := daemon.containerStart(c, "", "", true); err != nil {
 						logrus.Error(err)
 					}
 				}(c)
@@ -683,12 +685,25 @@ func NewDaemon(config *Config, registryService registry.Service, containerdRemot
 		return nil, err
 	}
 
+	// FIXME: this method never returns an error
+	info, _ := d.SystemInfo()
+
+	engineVersion.WithValues(
+		dockerversion.Version,
+		dockerversion.GitCommit,
+		info.Architecture,
+		info.Driver,
+		info.KernelVersion,
+		info.OperatingSystem,
+	).Set(1)
+	engineCpus.Set(float64(info.NCPU))
+	engineMemory.Set(float64(info.MemTotal))
+
 	return d, nil
 }
 
 func (daemon *Daemon) shutdownContainer(c *container.Container) error {
 	stopTimeout := c.StopTimeout()
-
 	// TODO(windows): Handle docker restart with paused containers
 	if c.IsPaused() {
 		// To terminate a process in freezer cgroup, we should send
@@ -1233,4 +1248,14 @@ func copyBlkioEntry(entries []*containerd.BlkioStatsEntry) []types.BlkioStatEntr
 		}
 	}
 	return out
+}
+
+// GetCluster returns the cluster
+func (daemon *Daemon) GetCluster() Cluster {
+	return daemon.cluster
+}
+
+// SetCluster sets the cluster
+func (daemon *Daemon) SetCluster(cluster Cluster) {
+	daemon.cluster = cluster
 }

@@ -12,8 +12,13 @@ import (
 // references and an optional target
 type Manifest interface {
 	// References returns a list of objects which make up this manifest.
-	// The references are strictly ordered from base to head. A reference
-	// is anything which can be represented by a distribution.Descriptor
+	// A reference is anything which can be represented by a
+	// distribution.Descriptor. These can consist of layers, resources or other
+	// manifests.
+	//
+	// While no particular order is required, implementations should return
+	// them from highest to lowest priority. For example, one might want to
+	// return the base layer before the top layer.
 	References() []Descriptor
 
 	// Payload provides the serialized format of the manifest, in addition to
@@ -36,6 +41,9 @@ type ManifestBuilder interface {
 	// AppendReference includes the given object in the manifest after any
 	// existing dependencies. If the add fails, such as when adding an
 	// unsupported dependency, an error may be returned.
+	//
+	// The destination of the reference is dependent on the manifest type and
+	// the dependency type.
 	AppendReference(dependency Describable) error
 }
 

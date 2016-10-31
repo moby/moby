@@ -308,7 +308,7 @@ func (ta *tarAppender) addTarFile(path, name string) error {
 	}
 
 	// if it's not a directory and has more than 1 link,
-	// it's hardlinked, so set the type flag accordingly
+	// it's hard linked, so set the type flag accordingly
 	if !fi.IsDir() && hasHardlinks(fi) {
 		// a link should have a name that it links too
 		// and that linked name should be first in the tar archive

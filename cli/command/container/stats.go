@@ -80,6 +80,16 @@ func runStats(dockerCli *command.DockerCli, opts *statsOptions) error {
 		}
 	}
 
+	// Get the daemonOSType if not set already
+	if daemonOSType == "" {
+		svctx := context.Background()
+		sv, err := dockerCli.Client().ServerVersion(svctx)
+		if err != nil {
+			return err
+		}
+		daemonOSType = sv.Os
+	}
+
 	// waitFirst is a WaitGroup to wait first stat data's reach for each container
 	waitFirst := &sync.WaitGroup{}
 
@@ -184,7 +194,6 @@ func runStats(dockerCli *command.DockerCli, opts *statsOptions) error {
 		Output: dockerCli.Out(),
 		Format: formatter.NewStatsFormat(f, daemonOSType),
 	}
-
 	cleanScreen := func() {
 		if !opts.noStream {
 			fmt.Fprint(dockerCli.Out(), "\033[2J")

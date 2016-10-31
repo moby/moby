@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/pkg/sysinfo"
 )
 
 // DefaultDaemonNetworkMode returns the default network stack the daemon should
@@ -43,5 +44,10 @@ func ValidateIsolation(hc *container.HostConfig) error {
 
 // ValidateQoS performs platform specific validation of the QoS settings
 func ValidateQoS(hc *container.HostConfig) error {
+	return nil
+}
+
+// ValidateResources performs platform specific validation of the resource settings
+func ValidateResources(hc *container.HostConfig, si *sysinfo.SysInfo) error {
 	return nil
 }

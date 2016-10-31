@@ -19,7 +19,7 @@ This repository contains the following components:
 | **registry**       | An implementation of the [Docker Registry HTTP API V2](docs/spec/api.md) for use with docker 1.6+.                                                                                                  |
 | **libraries**      | A rich set of libraries for interacting with distribution components. Please see [godoc](https://godoc.org/github.com/docker/distribution) for details. **Note**: These libraries are **unstable**. |
 | **specifications** | _Distribution_ related specifications are available in [docs/spec](docs/spec)                                                                                                                        |
-| **documentation**  | Docker's full documentation set is available at [docs.docker.com](https://docs.docker.com). This repository [contains the subset](docs/index.md) related just to the registry.                                                                                                                                          |
+| **documentation**  | Docker's full documentation set is available at [docs.docker.com](https://docs.docker.com). This repository [contains the subset](docs/) related just to the registry.                                                                                                                                          |
 
 ### How does this integrate with Docker engine?
 
@@ -60,15 +60,15 @@ For information on upcoming functionality, please see [ROADMAP.md](ROADMAP.md).
 By default, Docker users pull images from Docker's public registry instance.
 [Installing Docker](https://docs.docker.com/engine/installation/) gives users this
 ability. Users can also push images to a repository on Docker's public registry,
-if they have a [Docker Hub](https://hub.docker.com/) account. 
+if they have a [Docker Hub](https://hub.docker.com/) account.
 
 For some users and even companies, this default behavior is sufficient. For
-others, it is not. 
+others, it is not.
 
 For example, users with their own software products may want to maintain a
 registry for private, company images. Also, you may wish to deploy your own
 image repository for images used to test or in continuous integration. For these
-use cases and others, [deploying your own registry instance](docs/deploying.md)
+use cases and others, [deploying your own registry instance](https://github.com/docker/docker.github.io/blob/master/registry/deploying.md)
 may be the better choice.
 
 ### Migration to Registry 2.0
@@ -83,7 +83,7 @@ created. For more information see [docker/migrator]
 
 Please see [CONTRIBUTING.md](CONTRIBUTING.md) for details on how to contribute
 issues, fixes, and patches to this project. If you are contributing code, see
-the instructions for [building a development environment](docs/recipes/building.md).
+the instructions for [building a development environment](BUILDING.md).
 
 ## Support
 

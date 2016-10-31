@@ -168,9 +168,9 @@ func (s *Server) IssueNodeCertificate(ctx context.Context, request *api.IssueNod
 	defer s.doneTask()
 
 	var (
-		removedNodes []*api.RemovedNode
-		clusters     []*api.Cluster
-		err          error
+		blacklistedCerts map[string]*api.BlacklistedCertificate
+		clusters         []*api.Cluster
+		err              error
 	)
 
 	s.store.View(func(readTx store.ReadTx) {
@@ -181,19 +181,19 @@ func (s *Server) IssueNodeCertificate(ctx context.Context, request *api.IssueNod
 	// Not having a cluster object yet means we can't check
 	// the blacklist.
 	if err == nil && len(clusters) == 1 {
-		removedNodes = clusters[0].RemovedNodes
+		blacklistedCerts = clusters[0].BlacklistedCertificates
 	}
 
 	// If the remote node is a worker (either forwarded by a manager, or calling directly),
 	// issue a renew worker certificate entry with the correct ID
-	nodeID, err := AuthorizeForwardedRoleAndOrg(ctx, []string{WorkerRole}, []string{ManagerRole}, s.securityConfig.ClientTLSCreds.Organization(), removedNodes)
+	nodeID, err := AuthorizeForwardedRoleAndOrg(ctx, []string{WorkerRole}, []string{ManagerRole}, s.securityConfig.ClientTLSCreds.Organization(), blacklistedCerts)
 	if err == nil {
 		return s.issueRenewCertificate(ctx, nodeID, request.CSR)
 	}
 
 	// If the remote node is a manager (either forwarded by another manager, or calling directly),
 	// issue a renew certificate entry with the correct ID
-	nodeID, err = AuthorizeForwardedRoleAndOrg(ctx, []string{ManagerRole}, []string{ManagerRole}, s.securityConfig.ClientTLSCreds.Organization(), removedNodes)
+	nodeID, err = AuthorizeForwardedRoleAndOrg(ctx, []string{ManagerRole}, []string{ManagerRole}, s.securityConfig.ClientTLSCreds.Organization(), blacklistedCerts)
 	if err == nil {
 		return s.issueRenewCertificate(ctx, nodeID, request.CSR)
 	}
@@ -542,18 +542,20 @@ func (s *Server) updateCluster(ctx context.Context, cluster *api.Cluster) {
 func (s *Server) evaluateAndSignNodeCert(ctx context.Context, node *api.Node) error {
 	// If the desired membership and actual state are in sync, there's
 	// nothing to do.
-	if node.Spec.Membership == api.NodeMembershipAccepted && node.Certificate.Status.State == api.IssuanceStateIssued {
+	certState := node.Certificate.Status.State
+	if node.Spec.Membership == api.NodeMembershipAccepted &&
+		(certState == api.IssuanceStateIssued || certState == api.IssuanceStateRotate) {
 		return nil
 	}
 
 	// If the certificate state is renew, then it is a server-sided accepted cert (cert renewals)
-	if node.Certificate.Status.State == api.IssuanceStateRenew {
+	if certState == api.IssuanceStateRenew {
 		return s.signNodeCert(ctx, node)
 	}
 
 	// Sign this certificate if a user explicitly changed it to Accepted, and
 	// the certificate is in pending state
-	if node.Spec.Membership == api.NodeMembershipAccepted && node.Certificate.Status.State == api.IssuanceStatePending {
+	if node.Spec.Membership == api.NodeMembershipAccepted && certState == api.IssuanceStatePending {
 		return s.signNodeCert(ctx, node)
 	}
 
@@ -688,7 +690,8 @@ func (s *Server) reconcileNodeCertificates(ctx context.Context, nodes []*api.Nod
 
 // A successfully issued certificate and a failed certificate are our current final states
 func isFinalState(status api.IssuanceStatus) bool {
-	if status.State == api.IssuanceStateIssued || status.State == api.IssuanceStateFailed {
+	if status.State == api.IssuanceStateIssued || status.State == api.IssuanceStateFailed ||
+		status.State == api.IssuanceStateRotate {
 		return true
 	}
 

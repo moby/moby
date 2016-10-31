@@ -7,8 +7,11 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
+
+	"github.com/docker/docker/pkg/system"
 )
 
 // PIDFile is a file used to store the process ID of a running process.
@@ -31,6 +34,10 @@ func checkPIDFileAlreadyExists(path string) error {
 // New creates a PIDfile using the specified path.
 func New(path string) (*PIDFile, error) {
 	if err := checkPIDFileAlreadyExists(path); err != nil {
+		return nil, err
+	}
+	// Note MkdirAll returns nil if a directory already exists
+	if err := system.MkdirAll(filepath.Dir(path), os.FileMode(0755)); err != nil {
 		return nil, err
 	}
 	if err := ioutil.WriteFile(path, []byte(fmt.Sprintf("%d", os.Getpid())), 0644); err != nil {

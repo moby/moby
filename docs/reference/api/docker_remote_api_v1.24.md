@@ -3267,10 +3267,11 @@ Content-Type: application/json
 
 {
   "Name":"isolated_nw",
-  "CheckDuplicate":false,
+  "CheckDuplicate":true,
   "Driver":"bridge",
   "EnableIPv6": true,
   "IPAM":{
+    "Driver": "default",
     "Config":[
       {
         "Subnet":"172.20.0.0/16",
@@ -3323,10 +3324,14 @@ Content-Type: application/json
 **JSON parameters**:
 
 - **Name** - The new network's name. this is a mandatory field
-- **CheckDuplicate** - Requests daemon to check for networks with same name
+- **CheckDuplicate** - Requests daemon to check for networks with same name. Defaults to `false`
 - **Driver** - Name of the network driver plugin to use. Defaults to `bridge` driver
 - **Internal** - Restrict external access to the network
 - **IPAM** - Optional custom IP scheme for the network
+  - **Driver** - Name of the IPAM driver to use. Defaults to `default` driver
+  - **Config** - List of IPAM configuration options, specified as a map:
+      `{"Subnet": <CIDR>, "IPRange": <CIDR>, "Gateway": <IP address>, "AuxAddress": <device_name:IP address>}`
+  - **Options** - Driver-specific options, specified as a map: `{"option":"value" [,"option2":"value2"]}`
 - **EnableIPv6** - Enable IPv6 on the network
 - **Options** - Network specific options to be used by the drivers
 - **Labels** - Labels to set on the network, specified as a map: `{"key":"value" [,"key2":"value2"]}`
@@ -4846,7 +4851,7 @@ image](#create-an-image) section for more details.
 
 **JSON Parameters**:
 
-- **Name** – User-defined name for the service.
+- **Name** – User-defined name for the service. Note that renaming services is not supported.
 - **Labels** – A map of labels to associate with the service (e.g., `{"key":"value", "key2":"value2"}`).
 - **TaskTemplate** – Specification of the tasks to start as part of the new service.
     - **ContainerSpec** - Container settings for containers started as part of this task.

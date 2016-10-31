@@ -4201,7 +4201,7 @@ func (s *DockerSuite) TestRunVolumesMountedAsSlave(c *check.C) {
 	}
 
 	// Prepare a source directory with file in it. We will bind mount this
-	// direcotry and see if file shows up.
+	// directory and see if file shows up.
 	tmpDir2, err := ioutil.TempDir("", "volume-source2")
 	if err != nil {
 		c.Fatal(err)
@@ -4537,6 +4537,16 @@ func (s *DockerSuite) TestRunCredentialSpecFailures(c *check.C) {
 		c.Assert(err, checker.NotNil, check.Commentf("%s expected non-nil err", attempt.value))
 		c.Assert(err.Error(), checker.Contains, attempt.expectedError, check.Commentf("%s expected %s got %s", attempt.value, attempt.expectedError, err))
 	}
+}
+
+// Windows specific test to validate credential specs with a well-formed spec.
+// Note it won't actually do anything in CI configuration with the spec, but
+// it should not fail to run a container.
+func (s *DockerSuite) TestRunCredentialSpecWellFormed(c *check.C) {
+	testRequires(c, DaemonIsWindows, SameHostDaemon)
+	validCS := readFile(`fixtures\credentialspecs\valid.json`, c)
+	writeFile(filepath.Join(dockerBasePath, `credentialspecs\valid.json`), validCS, c)
+	dockerCmd(c, "run", `--security-opt=credentialspec=file://valid.json`, "busybox", "true")
 }
 
 // Windows specific test to ensure that a servicing app container is started

@@ -36,10 +36,12 @@ import (
 	"github.com/docker/libnetwork/options"
 	lntypes "github.com/docker/libnetwork/types"
 	"github.com/golang/protobuf/ptypes"
+	"github.com/opencontainers/runc/libcontainer/cgroups"
 	"github.com/opencontainers/runc/libcontainer/label"
 	rsystem "github.com/opencontainers/runc/libcontainer/system"
 	"github.com/opencontainers/runc/libcontainer/user"
-	"github.com/opencontainers/runtime-spec/specs-go"
+	specs "github.com/opencontainers/runtime-spec/specs-go"
+	"github.com/pkg/errors"
 	"github.com/vishvananda/netlink"
 )
 
@@ -116,6 +118,16 @@ func getCPUResources(config containertypes.Resources) *specs.CPU {
 	if config.CPUQuota != 0 {
 		quota := uint64(config.CPUQuota)
 		cpu.Quota = &quota
+	}
+
+	if config.CPURealtimePeriod != 0 {
+		period := uint64(config.CPURealtimePeriod)
+		cpu.RealtimePeriod = &period
+	}
+
+	if config.CPURealtimeRuntime != 0 {
+		runtime := uint64(config.CPURealtimeRuntime)
+		cpu.RealtimeRuntime = &runtime
 	}
 
 	return &cpu
@@ -699,13 +711,30 @@ func initBridgeDriver(controller libnetwork.NetworkController, config *Config) e
 
 	ipamV4Conf = &libnetwork.IpamConf{AuxAddresses: make(map[string]string)}
 
-	nw, nw6List, err := netutils.ElectInterfaceAddresses(bridgeName)
-	if err == nil {
-		ipamV4Conf.PreferredPool = lntypes.GetIPNetCanonical(nw).String()
-		hip, _ := lntypes.GetHostPartIP(nw.IP, nw.Mask)
-		if hip.IsGlobalUnicast() {
-			ipamV4Conf.Gateway = nw.IP.String()
+	nwList, nw6List, err := netutils.ElectInterfaceAddresses(bridgeName)
+	if err != nil {
+		return errors.Wrap(err, "list bridge addresses failed")
+	}
+
+	nw := nwList[0]
+	if len(nwList) > 1 && config.bridgeConfig.FixedCIDR != "" {
+		_, fCIDR, err := net.ParseCIDR(config.bridgeConfig.FixedCIDR)
+		if err != nil {
+			return errors.Wrap(err, "parse CIDR failed")
 		}
+		// Iterate through in case there are multiple addresses for the bridge
+		for _, entry := range nwList {
+			if fCIDR.Contains(entry.IP) {
+				nw = entry
+				break
+			}
+		}
+	}
+
+	ipamV4Conf.PreferredPool = lntypes.GetIPNetCanonical(nw).String()
+	hip, _ := lntypes.GetHostPartIP(nw.IP, nw.Mask)
+	if hip.IsGlobalUnicast() {
+		ipamV4Conf.Gateway = nw.IP.String()
 	}
 
 	if config.bridgeConfig.IP != "" {
@@ -1183,4 +1212,35 @@ func setupOOMScoreAdj(score int) error {
 	}
 	f.Close()
 	return err
+}
+
+func (daemon *Daemon) initCgroupsPath(path string) error {
+	if path == "/" || path == "." {
+		return nil
+	}
+
+	daemon.initCgroupsPath(filepath.Dir(path))
+
+	_, root, err := cgroups.FindCgroupMountpointAndRoot("cpu")
+	if err != nil {
+		return err
+	}
+
+	path = filepath.Join(root, path)
+	sysinfo := sysinfo.New(false)
+	if err := os.MkdirAll(path, 0755); err != nil && !os.IsExist(err) {
+		return err
+	}
+	if sysinfo.CPURealtimePeriod && daemon.configStore.CPURealtimePeriod != 0 {
+		if err := ioutil.WriteFile(filepath.Join(path, "cpu.rt_period_us"), []byte(strconv.FormatInt(daemon.configStore.CPURealtimePeriod, 10)), 0700); err != nil {
+			return err
+		}
+	}
+	if sysinfo.CPURealtimeRuntime && daemon.configStore.CPURealtimeRuntime != 0 {
+		if err := ioutil.WriteFile(filepath.Join(path, "cpu.rt_runtime_us"), []byte(strconv.FormatInt(daemon.configStore.CPURealtimeRuntime, 10)), 0700); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }

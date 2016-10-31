@@ -240,7 +240,7 @@ func (s *MemoryStore) update(proposer state.Proposer, cb func(Tx) error) error {
 			sa, err = tx.changelistStoreActions()
 
 			if err == nil {
-				if sa != nil {
+				if len(sa) != 0 {
 					err = proposer.ProposeValue(context.Background(), sa, func() {
 						memDBTx.Commit()
 					})
@@ -350,7 +350,7 @@ func (batch *Batch) commit() error {
 		sa, batch.err = batch.tx.changelistStoreActions()
 
 		if batch.err == nil {
-			if sa != nil {
+			if len(sa) != 0 {
 				batch.err = batch.store.proposer.ProposeValue(context.Background(), sa, func() {
 					batch.tx.memDBTx.Commit()
 				})

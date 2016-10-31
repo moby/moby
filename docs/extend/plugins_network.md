@@ -30,7 +30,7 @@ kind of protocol.
 ## Network driver plugins and swarm mode
 
 Docker 1.12 adds support for cluster management and orchestration called
-[swarm mode](../swarm/index.md). Docker Engine running in swarm mode currently
+[swarm mode](https://docs.docker.com/engine/swarm/). Docker Engine running in swarm mode currently
 only supports the built-in overlay driver for networking. Therefore existing
 networking plugins will not work in swarm mode.
 
@@ -73,5 +73,5 @@ documented as part of libnetwork:
 
 To interact with the Docker maintainers and other interested users, see the IRC channel `#docker-network`.
 
--  [Docker networks feature overview](../userguide/networking/index.md)
+-  [Docker networks feature overview](https://docs.docker.com/engine/userguide/networking/)
 -  The [LibNetwork](https://github.com/docker/libnetwork) project

@@ -280,9 +280,10 @@ type HealthcheckResult struct {
 
 // Health states
 const (
-	Starting  = "starting"  // Starting indicates that the container is not yet ready
-	Healthy   = "healthy"   // Healthy indicates that the container is running correctly
-	Unhealthy = "unhealthy" // Unhealthy indicates that the container has a problem
+	NoHealthcheck = "none"      // Indicates there is no healthcheck
+	Starting      = "starting"  // Starting indicates that the container is not yet ready
+	Healthy       = "healthy"   // Healthy indicates that the container is running correctly
+	Unhealthy     = "unhealthy" // Unhealthy indicates that the container has a problem
 )
 
 // Health stores information about the container's healthcheck results
@@ -522,6 +523,11 @@ type ContainersPruneConfig struct {
 type VolumesPruneConfig struct {
 }
 
+// NetworksPruneConfig contains the configuration for Remote API:
+// POST "/networks/prune"
+type NetworksPruneConfig struct {
+}
+
 // ContainersPruneReport contains the response for Remote API:
 // POST "/containers/prune"
 type ContainersPruneReport struct {
@@ -541,4 +547,10 @@ type VolumesPruneReport struct {
 type ImagesPruneReport struct {
 	ImagesDeleted  []ImageDelete
 	SpaceReclaimed uint64
+}
+
+// NetworksPruneReport contains the response for Remote API:
+// POST "/networks/prune"
+type NetworksPruneReport struct {
+	NetworksDeleted []string
 }

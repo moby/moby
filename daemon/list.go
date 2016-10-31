@@ -33,6 +33,7 @@ var acceptedPsFilterTags = map[string]bool{
 	"label":     true,
 	"name":      true,
 	"status":    true,
+	"health":    true,
 	"since":     true,
 	"volume":    true,
 	"network":   true,
@@ -165,7 +166,9 @@ func (daemon *Daemon) filterByNameIDMatches(ctx *listContext) []*container.Conta
 
 // reduceContainers parses the user's filtering options and generates the list of containers to return based on a reducer.
 func (daemon *Daemon) reduceContainers(config *types.ContainerListOptions, reducer containerReducer) ([]*types.Container, error) {
-	containers := []*types.Container{}
+	var (
+		containers = []*types.Container{}
+	)
 
 	ctx, err := daemon.foldFilter(config)
 	if err != nil {
@@ -190,6 +193,7 @@ func (daemon *Daemon) reduceContainers(config *types.ContainerListOptions, reduc
 			ctx.idx++
 		}
 	}
+
 	return containers, nil
 }
 
@@ -256,6 +260,17 @@ func (daemon *Daemon) foldFilter(config *types.ContainerListOptions) (*listConte
 		} else {
 			return nil, fmt.Errorf("Invalid filter 'is-task=%s'", psFilters.Get("is-task"))
 		}
+	}
+
+	err = psFilters.WalkValues("health", func(value string) error {
+		if !container.IsValidHealthString(value) {
+			return fmt.Errorf("Unrecognised filter value for health: %s", value)
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
 	}
 
 	var beforeContFilter, sinceContFilter *container.Container
@@ -381,6 +396,11 @@ func includeContainerInList(container *container.Container, ctx *listContext) it
 
 	// Do not include container if its status doesn't match the filter
 	if !ctx.filters.Match("status", container.State.StateString()) {
+		return excludeContainer
+	}
+
+	// Do not include container if its health doesn't match the filter
+	if !ctx.filters.ExactMatch("health", container.State.HealthString()) {
 		return excludeContainer
 	}
 

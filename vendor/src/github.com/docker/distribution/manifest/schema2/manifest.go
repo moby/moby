@@ -18,7 +18,7 @@ const (
 	MediaTypeConfig = "application/vnd.docker.container.image.v1+json"
 
 	// MediaTypePluginConfig specifies the mediaType for plugin configuration.
-	MediaTypePluginConfig = "application/vnd.docker.plugin.v0+json"
+	MediaTypePluginConfig = "application/vnd.docker.plugin.image.v0+json"
 
 	// MediaTypeLayer is the mediaType used for layers referenced by the
 	// manifest.
@@ -69,7 +69,10 @@ type Manifest struct {
 
 // References returnes the descriptors of this manifests references.
 func (m Manifest) References() []distribution.Descriptor {
-	return m.Layers
+	references := make([]distribution.Descriptor, 0, 1+len(m.Layers))
+	references = append(references, m.Config)
+	references = append(references, m.Layers...)
+	return references
 }
 
 // Target returns the target of this signed manifest.

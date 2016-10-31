@@ -48,7 +48,7 @@ esac
 
 # the following lines are in sorted order, FYI
 clone git github.com/Azure/go-ansiterm 388960b655244e76e24c75f48631564eaefade62
-clone git github.com/Microsoft/hcsshim v0.5.1
+clone git github.com/Microsoft/hcsshim v0.5.2
 clone git github.com/Microsoft/go-winio v0.3.5
 clone git github.com/Sirupsen/logrus f76d643702a30fbffecdfe50831e11881c96ceb3 https://github.com/aaronlehmann/logrus
 clone git github.com/docker/libtrust 9cbd2a1374f46905c68a4eb3694a130610adc62a
@@ -64,13 +64,13 @@ clone git github.com/vdemeester/shakers 24d7f1d6a71aa5d9cbe7390e4afb66b7eef9e1b3
 clone git golang.org/x/net 2beffdc2e92c8a3027590f898fe88f69af48a3f8 https://github.com/tonistiigi/net.git
 clone git golang.org/x/sys eb2c74142fd19a79b3f237334c7384d5167b1b46 https://github.com/golang/sys.git
 clone git github.com/docker/go-units 8a7beacffa3009a9ac66bad506b18ffdd110cf97
-clone git github.com/docker/go-connections 988efe982fdecb46f01d53465878ff1f2ff411ce
+clone git github.com/docker/go-connections 1494b6df4050e60923d68cd8cc6a19e7af9f1c01
 
 clone git github.com/RackSec/srslog 365bf33cd9acc21ae1c355209865f17228ca534e
 clone git github.com/imdario/mergo 0.2.1
 
 #get libnetwork packages
-clone git github.com/docker/libnetwork 9fbb4ecbb45af655c4ac3c2f3a849b2294cb447a
+clone git github.com/docker/libnetwork f4338b6f1085ccfe5972e655cca8a1d15d73439d
 clone git github.com/docker/go-events 18b43f1bc85d9cdd42c05a6cd2d444c7a200a894
 clone git github.com/armon/go-radix e39d623f12e8e41c7b5529e9a9dd67a1e2261f80
 clone git github.com/armon/go-metrics eb0af217e5e9747e41dd5303755356b62d28e3ec
@@ -91,7 +91,7 @@ clone git github.com/boltdb/bolt fff57c100f4dea1905678da7e90d92429dff2904
 clone git github.com/miekg/dns 75e6e86cc601825c5dbcd4e0c209eab180997cd7
 
 # get graph and distribution packages
-clone git github.com/docker/distribution 77b9d2997abcded79a5314970fe69a44c93c25fb
+clone git github.com/docker/distribution fbb70dc3a14ca65cdac3aaf5e5122b03b42f6fbc
 clone git github.com/vbatts/tar-split v0.10.1
 
 # get go-zfs packages
@@ -147,11 +147,11 @@ clone git github.com/docker/containerd 52ef1ceb4b660c42cf4ea9013180a5663968d4c7
 clone git github.com/tonistiigi/fifo 8c56881ce5e63e19e2dfc495c8af0fb90916467d
 
 # cluster
-clone git github.com/docker/swarmkit 3b221eb0391d34ae0b9dac65df02b5b64de6dff2
+clone git github.com/docker/swarmkit 72981f443024da2c57d54b915eae0477be6dada5
 clone git github.com/golang/mock bd3c8e81be01eef76d4b503f5e687d2d1354d2d9
 clone git github.com/gogo/protobuf v0.3
 clone git github.com/cloudflare/cfssl 7fb22c8cba7ecaf98e4082d22d65800cf45e042a
-clone git github.com/google/certificate-transparency 0f6e3d1d1ba4d03fdaab7cd716f36255c2e48341
+clone git github.com/google/certificate-transparency d90e65c3a07988180c5b1ece71791c0b6506826e
 clone git golang.org/x/crypto 3fbbcd23f1cb824e69491a5930cfeff09b12f4d2 https://github.com/golang/crypto.git
 clone git golang.org/x/time a4bde12657593d5e90d0533a3e4fd95e635124cb https://github.com/golang/time.git
 clone git github.com/mreiferson/go-httpclient 63fe23f7434723dc904c901043af07931f293c47
@@ -174,5 +174,8 @@ clone git github.com/spf13/cobra v1.4.1 https://github.com/dnephin/cobra.git
 clone git github.com/spf13/pflag dabebe21bf790f782ea4c7bbd2efc430de182afd
 clone git github.com/inconshreveable/mousetrap 76626ae9c91c4f2a10f34cad8ce83ea42c93bb75
 clone git github.com/flynn-archive/go-shlex 3f9db97f856818214da2e1057f8ad84803971cff
+
+# metrics
+clone git github.com/docker/go-metrics 86138d05f285fd9737a99bee2d9be30866b59d72
 
 clean

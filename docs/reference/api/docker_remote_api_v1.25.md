@@ -241,7 +241,8 @@ List containers
   -   `since`=(`<container id>` or `<container name>`)
   -   `volume`=(`<volume name>` or `<mount point destination>`)
   -   `network`=(`<network id>` or `<network name>`)
-
+  -   `health`=(`starting`|`healthy`|`unhealthy`|`none`)
+ 
 **Status codes**:
 
 -   **200** – no error
@@ -304,6 +305,8 @@ Create a container
              "CpuPercent": 80,
              "CpuShares": 512,
              "CpuPeriod": 100000,
+             "CpuRealtimePeriod": 1000000,
+             "CpuRealtimeRuntime": 10000,
              "CpuQuota": 50000,
              "CpusetCpus": "0,1",
              "CpusetMems": "0,1",
@@ -426,6 +429,8 @@ Create a container
     -   **CpuShares** - An integer value containing the container's CPU Shares
           (ie. the relative weight vs other containers).
     -   **CpuPeriod** - The length of a CPU period in microseconds.
+    -   **CpuRealtimePeriod** - The length of a CPU real-time period in microseconds (0=no time allocated for rt tasks)
+    -   **CpuRealtimeRuntime** - The length of a CPU real-time runtime in microseconds (0=no time allocated for rt tasks)
     -   **CpuQuota** - Microseconds of CPU time that the container can get in a CPU period.
     -   **CpusetCpus** - String value containing the `cgroups CpusetCpus` to use.
     -   **CpusetMems** - Memory nodes (MEMs) in which to allow execution (0-3, 0,1). Only effective on NUMA systems.
@@ -507,10 +512,11 @@ Create a container
     -   **Mounts** – Specification for mounts to be added to the container.
         - **Target** – Container path.
         - **Source** – Mount source (e.g. a volume name, a host path).
-        - **Type** – The mount type (`bind`, or `volume`).
+        - **Type** – The mount type (`bind`, `volume`, or `tmpfs`).
           Available types (for the `Type` field):
           - **bind** - Mounts a file or directory from the host into the container. Must exist prior to creating the container.
           - **volume** - Creates a volume with the given name and options (or uses a pre-existing volume with the same name and options). These are **not** removed when the container is removed.
+          - **tmpfs** - Create a tmpfs with the given options. The mount source cannot be specified for tmpfs.
         - **ReadOnly** – A boolean indicating whether the mount should be read-only.
         - **BindOptions** - Optional configuration for the `bind` type.
           - **Propagation** – A propagation mode with the value `[r]private`, `[r]shared`, or `[r]slave`.
@@ -521,6 +527,9 @@ Create a container
             - **DriverConfig** – Map of driver-specific options.
               - **Name** - Name of the driver to use to create the volume.
               - **Options** - key/value map of driver specific options.
+        - **TmpfsOptions** – Optional configuration for the `tmpfs` type.
+            - **SizeBytes** – The size for the tmpfs mount in bytes.
+            - **Mode** – The permission mode for the tmpfs mount in an integer.
 
 
 **Query parameters**:
@@ -615,6 +624,8 @@ Return low-level information on the container `id`
 			"CpuPercent": 80,
 			"CpuShares": 0,
 			"CpuPeriod": 100000,
+			"CpuRealtimePeriod": 1000000,
+			"CpuRealtimeRuntime": 10000,
 			"Devices": [],
 			"Dns": null,
 			"DnsOptions": null,
@@ -1191,6 +1202,8 @@ Update configuration of one or more containers.
          "BlkioWeight": 300,
          "CpuShares": 512,
          "CpuPeriod": 100000,
+         "CpuRealtimePeriod": 1000000,
+         "CpuRealtimeRuntime": 10000,
          "CpuQuota": 50000,
          "CpusetCpus": "0,1",
          "CpusetMems": "0",
@@ -1788,6 +1801,11 @@ or being killed.
         passing secret values. [Read more about the buildargs instruction](../../reference/builder.md#arg)
 -   **shmsize** - Size of `/dev/shm` in bytes. The size must be greater than 0.  If omitted the system uses 64MB.
 -   **labels** – JSON map of string pairs for labels to set on the image.
+-   **networkmode** - Sets the networking mode for the run commands during
+        build. Supported standard values are: `bridge`, `host`, `none`, and
+        `container:<name|id>`. Any other value is taken as a custom network's
+        name to which this container should connect to.
+
 
 **Request Headers**:
 
@@ -2490,7 +2508,8 @@ Display system-wide information
         "SecurityOptions": [
             "apparmor",
             "seccomp",
-            "selinux"
+            "selinux",
+            "userns"
         ],
         "ServerVersion": "1.9.0",
         "SwapLimit": false,
@@ -3725,10 +3744,11 @@ Content-Type: application/json
 
 {
   "Name":"isolated_nw",
-  "CheckDuplicate":false,
+  "CheckDuplicate":true,
   "Driver":"bridge",
   "EnableIPv6": true,
   "IPAM":{
+    "Driver": "default",
     "Config":[
       {
         "Subnet":"172.20.0.0/16",
@@ -3781,10 +3801,14 @@ Content-Type: application/json
 **JSON parameters**:
 
 - **Name** - The new network's name. this is a mandatory field
-- **CheckDuplicate** - Requests daemon to check for networks with same name
+- **CheckDuplicate** - Requests daemon to check for networks with same name. Defaults to `false`
 - **Driver** - Name of the network driver plugin to use. Defaults to `bridge` driver
 - **Internal** - Restrict external access to the network
 - **IPAM** - Optional custom IP scheme for the network
+  - **Driver** - Name of the IPAM driver to use. Defaults to `default` driver
+  - **Config** - List of IPAM configuration options, specified as a map:
+      `{"Subnet": <CIDR>, "IPRange": <CIDR>, "Gateway": <IP address>, "AuxAddress": <device_name:IP address>}`
+  - **Options** - Driver-specific options, specified as a map: `{"option":"value" [,"option2":"value2"]}`
 - **EnableIPv6** - Enable IPv6 on the network
 - **Options** - Network specific options to be used by the drivers
 - **Labels** - Labels to set on the network, specified as a map: `{"key":"value" [,"key2":"value2"]}`
@@ -3880,6 +3904,36 @@ Instruct the driver to remove the network (`id`).
 -   **204** - no error
 -   **404** - no such network
 -   **500** - server error
+
+### Prune unused networks
+
+`POST /networks/prune`
+
+Delete unused networks
+
+**Example request**:
+
+    POST /networks/prune HTTP/1.1
+    Content-Type: application/json
+
+    {
+    }
+
+**Example response**:
+
+    HTTP/1.1 200 OK
+    Content-Type: application/json
+
+    {
+        "NetworksDeleted": [
+            "n1"
+        ],
+    }
+
+**Status codes**:
+
+-   **200** – no error
+-   **500** – server error
 
 ## 3.6 Plugins
 
@@ -5332,7 +5386,7 @@ image](#create-an-image) section for more details.
 
 **JSON Parameters**:
 
-- **Name** – User-defined name for the service.
+- **Name** – User-defined name for the service. Note that renaming services is not supported.
 - **Labels** – A map of labels to associate with the service (e.g., `{"key":"value", "key2":"value2"}`).
 - **TaskTemplate** – Specification of the tasks to start as part of the new service.
     - **ContainerSpec** - Container settings for containers started as part of this task.

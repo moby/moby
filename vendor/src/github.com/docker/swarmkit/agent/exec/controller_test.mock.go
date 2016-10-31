@@ -141,3 +141,35 @@ func (_m *MockContainerStatuser) ContainerStatus(ctx context.Context) (*api.Cont
 func (_mr *_MockContainerStatuserRecorder) ContainerStatus(arg0 interface{}) *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "ContainerStatus", arg0)
 }
+
+// Mock of PortStatuser interface
+type MockPortStatuser struct {
+	ctrl     *gomock.Controller
+	recorder *_MockPortStatuserRecorder
+}
+
+// Recorder for MockPortStatuser (not exported)
+type _MockPortStatuserRecorder struct {
+	mock *MockPortStatuser
+}
+
+func NewMockPortStatuser(ctrl *gomock.Controller) *MockPortStatuser {
+	mock := &MockPortStatuser{ctrl: ctrl}
+	mock.recorder = &_MockPortStatuserRecorder{mock}
+	return mock
+}
+
+func (_m *MockPortStatuser) EXPECT() *_MockPortStatuserRecorder {
+	return _m.recorder
+}
+
+func (_m *MockPortStatuser) PortStatus(ctx context.Context) (*api.PortStatus, error) {
+	ret := _m.ctrl.Call(_m, "PortStatus", ctx)
+	ret0, _ := ret[0].(*api.PortStatus)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+func (_mr *_MockPortStatuserRecorder) PortStatus(arg0 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "PortStatus", arg0)
+}

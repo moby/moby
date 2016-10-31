@@ -301,7 +301,7 @@ func (s *Server) RemoveNode(ctx context.Context, request *api.RemoveNodeRequest)
 		}
 		cluster := clusters[0]
 
-		removedNode := &api.RemovedNode{ID: node.ID}
+		blacklistedCert := &api.BlacklistedCertificate{}
 
 		// Set an expiry time for this RemovedNode if a certificate
 		// exists and can be parsed.
@@ -312,13 +312,18 @@ func (s *Server) RemoveNode(ctx context.Context, request *api.RemoveNodeRequest)
 				if err == nil && !X509Cert.NotAfter.IsZero() {
 					expiry, err := ptypes.TimestampProto(X509Cert.NotAfter)
 					if err == nil {
-						removedNode.Expiry = expiry
+						blacklistedCert.Expiry = expiry
 					}
 				}
 			}
 		}
 
-		cluster.RemovedNodes = append(cluster.RemovedNodes, removedNode)
+		if cluster.BlacklistedCertificates == nil {
+			cluster.BlacklistedCertificates = make(map[string]*api.BlacklistedCertificate)
+		}
+		cluster.BlacklistedCertificates[node.ID] = blacklistedCert
+
+		expireBlacklistedCerts(cluster)
 
 		if err := store.UpdateCluster(tx, cluster); err != nil {
 			return err

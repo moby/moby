@@ -23,7 +23,7 @@ instructions in succession.
 
 This page describes the commands you can use in a `Dockerfile`. When you are
 done reading this page, refer to the [`Dockerfile` Best
-Practices](../userguide/eng-image/dockerfile_best-practices.md) for a tip-oriented guide.
+Practices](https://docs.docker.com/engine/userguide/eng-image/dockerfile_best-practices/) for a tip-oriented guide.
 
 ## Usage
 
@@ -92,7 +92,7 @@ instructions.
 Whenever possible, Docker will re-use the intermediate images (cache),
 to accelerate the `docker build` process significantly. This is indicated by
 the `Using cache` message in the console output.
-(For more information, see the [Build cache section](../userguide/eng-image/dockerfile_best-practices.md#build-cache)) in the
+(For more information, see the [Build cache section](https://docs.docker.com/engine/userguide/eng-image/dockerfile_best-practices/#/build-cache)) in the
 `Dockerfile` best practices guide:
 
     $ docker build -t svendowideit/ambassador .
@@ -118,7 +118,7 @@ image you can specify it with `--cache-from` option. Images specified with
 registries.
 
 When you're done with your build, you're ready to look into [*Pushing a
-repository to its registry*](../tutorials/dockerrepos.md#contributing-to-docker-hub).
+repository to its registry*](https://docs.docker.com/engine/tutorials/dockerrepos/#/contributing-to-docker-hub).
 
 ## Format
 
@@ -255,7 +255,7 @@ of this dockerfile is that second and third lines are considered a single
 instruction:
 
 ```Dockerfile
-FROM windowsservercore
+FROM microsoft/nanoserver
 COPY testfile.txt c:\\
 RUN dir c:\
 ```
@@ -264,9 +264,9 @@ Results in:
 
     PS C:\John> docker build -t cmd .
     Sending build context to Docker daemon 3.072 kB
-    Step 1 : FROM windowsservercore
-     ---> dbfee88ee9fd
-    Step 2 : COPY testfile.txt c:RUN dir c:
+    Step 1/2 : FROM microsoft/nanoserver
+     ---> 22738ff49c6d
+    Step 2/2 : COPY testfile.txt c:\RUN dir c:
     GetFileAttributesEx c:RUN: The system cannot find the file specified.
     PS C:\John>
 
@@ -280,7 +280,7 @@ expected with the use of natural platform semantics for file paths on `Windows`:
 
     # escape=`
 
-    FROM windowsservercore
+    FROM microsoft/nanoserver
     COPY testfile.txt c:\
     RUN dir c:\
 
@@ -288,30 +288,29 @@ Results in:
 
     PS C:\John> docker build -t succeeds --no-cache=true .
     Sending build context to Docker daemon 3.072 kB
-    Step 1 : FROM windowsservercore
-     ---> dbfee88ee9fd
-    Step 2 : COPY testfile.txt c:\
-     ---> 99ceb62e90df
-    Removing intermediate container 62afbe726221
-    Step 3 : RUN dir c:\
-     ---> Running in a5ff53ad6323
+    Step 1/3 : FROM microsoft/nanoserver
+     ---> 22738ff49c6d
+    Step 2/3 : COPY testfile.txt c:\
+     ---> 96655de338de
+    Removing intermediate container 4db9acbb1682
+    Step 3/3 : RUN dir c:\
+     ---> Running in a2c157f842f5
      Volume in drive C has no label.
-     Volume Serial Number is 1440-27FA
-
+     Volume Serial Number is 7E6D-E0F7
+    
      Directory of c:\
-
-    03/25/2016  05:28 AM    <DIR>          inetpub
-    03/25/2016  04:22 AM    <DIR>          PerfLogs
-    04/22/2016  10:59 PM    <DIR>          Program Files
-    03/25/2016  04:22 AM    <DIR>          Program Files (x86)
-    04/18/2016  09:26 AM                 4 testfile.txt
-    04/22/2016  10:59 PM    <DIR>          Users
-    04/22/2016  10:59 PM    <DIR>          Windows
-                   1 File(s)              4 bytes
-                   6 Dir(s)  21,252,689,920 bytes free
-     ---> 2569aa19abef
-    Removing intermediate container a5ff53ad6323
-    Successfully built 2569aa19abef
+    
+    10/05/2016  05:04 PM             1,894 License.txt
+    10/05/2016  02:22 PM    <DIR>          Program Files
+    10/05/2016  02:14 PM    <DIR>          Program Files (x86)
+    10/28/2016  11:18 AM                62 testfile.txt
+    10/28/2016  11:20 AM    <DIR>          Users
+    10/28/2016  11:20 AM    <DIR>          Windows
+               2 File(s)          1,956 bytes
+               4 Dir(s)  21,259,096,064 bytes free
+     ---> 01c7f3bef04f
+    Removing intermediate container a2c157f842f5
+    Successfully built 01c7f3bef04f
     PS C:\John>
 
 ## Environment replacement
@@ -492,7 +491,7 @@ Or
 The `FROM` instruction sets the [*Base Image*](glossary.md#base-image)
 for subsequent instructions. As such, a valid `Dockerfile` must have `FROM` as
 its first instruction. The image can be any valid image – it is especially easy
-to start by **pulling an image** from the [*Public Repositories*](../tutorials/dockerrepos.md).
+to start by **pulling an image** from the [*Public Repositories*](https://docs.docker.com/engine/tutorials/dockerrepos/).
 
 - `FROM` must be the first non-comment instruction in the `Dockerfile`.
 
@@ -574,7 +573,7 @@ cache for `RUN` instructions can be invalidated by using the `--no-cache`
 flag, for example `docker build --no-cache`.
 
 See the [`Dockerfile` Best Practices
-guide](../userguide/eng-image/dockerfile_best-practices.md#build-cache) for more information.
+guide](https://docs.docker.com/engine/userguide/eng-image/dockerfile_best-practices/#/build-cache) for more information.
 
 The cache for `RUN` instructions can be invalidated by `ADD` instructions. See
 [below](#add) for details.
@@ -729,7 +728,7 @@ To set up port redirection on the host system, see [using the -P
 flag](run.md#expose-incoming-ports). The Docker network feature supports
 creating networks without the need to expose ports within the network, for
 detailed information see the  [overview of this
-feature](../userguide/networking/index.md)).
+feature](https://docs.docker.com/engine/userguide/networking/)).
 
 ## ENV
 
@@ -830,7 +829,7 @@ of whether or not the file has changed and the cache should be updated.
 > following instructions from the Dockerfile if the contents of `<src>` have
 > changed. This includes invalidating the cache for `RUN` instructions.
 > See the [`Dockerfile` Best Practices
-guide](../userguide/eng-image/dockerfile_best-practices.md#build-cache) for more information.
+guide](https://docs.docker.com/engine/userguide/eng-image/dockerfile_best-practices/#/build-cache) for more information.
 
 
 `ADD` obeys the following rules:
@@ -1205,7 +1204,7 @@ containers. The value can be a JSON array, `VOLUME ["/var/log/"]`, or a plain
 string with multiple arguments, such as `VOLUME /var/log` or `VOLUME /var/log
 /var/db`. For more information/examples and mounting instructions via the
 Docker client, refer to
-[*Share Directories via Volumes*](../tutorials/dockervolumes.md#mount-a-host-directory-as-a-data-volume)
+[*Share Directories via Volumes*](https://docs.docker.com/engine/tutorials/dockervolumes/#/mount-a-host-directory-as-a-data-volume)
 documentation.
 
 The `docker run` command initializes the newly created volume with any data
@@ -1268,6 +1267,19 @@ For example:
 
 The output of the final `pwd` command in this `Dockerfile` would be
 `/path/$DIRNAME`
+
+On Windows, `WORKDIR` behaves differently depending on whether using Windows
+Server containers or Hyper-V containers. For Hyper-V containers, the engine
+is, for architectural reasons, unable to create the directory if it does not
+previously exist. For Windows Server containers, the directory is created
+if it does not exist. Hence, for consistency between Windows Server and 
+Hyper-V containers, it is strongly recommended to include an explicit instruction
+to create the directory in the Dockerfile. For example:
+
+    # escape=`
+    FROM microsoft/nanoserver
+    RUN mkdir c:\myapp
+    WORKDIR c:\myapp
 
 ## ARG
 
@@ -1596,7 +1608,7 @@ well as alternate shells available including `sh`.
 The `SHELL` instruction can appear multiple times. Each `SHELL` instruction overrides
 all previous `SHELL` instructions, and affects all subsequent instructions. For example:
 
-    FROM windowsservercore
+    FROM microsoft/windowsservercore
 
     # Executed as cmd /S /C echo default
     RUN echo default
@@ -1645,7 +1657,7 @@ the `escape` parser directive:
 
     # escape=`
 
-    FROM windowsservercore
+    FROM microsoft/nanoserver
     SHELL ["powershell","-command"]
     RUN New-Item -ItemType Directory C:\Example
     ADD Execute-MyCmdlet.ps1 c:\example\
@@ -1654,36 +1666,36 @@ the `escape` parser directive:
 Resulting in:
 
     PS E:\docker\build\shell> docker build -t shell .
-    Sending build context to Docker daemon 3.584 kB
-    Step 1 : FROM windowsservercore
-     ---> 5bc36a335344
-    Step 2 : SHELL powershell -command
-     ---> Running in 87d7a64c9751
-     ---> 4327358436c1
-    Removing intermediate container 87d7a64c9751
-    Step 3 : RUN New-Item -ItemType Directory C:\Example
-     ---> Running in 3e6ba16b8df9
-
-
+    Sending build context to Docker daemon 4.096 kB
+    Step 1/5 : FROM microsoft/nanoserver
+     ---> 22738ff49c6d
+    Step 2/5 : SHELL powershell -command
+     ---> Running in 6fcdb6855ae2
+     ---> 6331462d4300
+    Removing intermediate container 6fcdb6855ae2
+    Step 3/5 : RUN New-Item -ItemType Directory C:\Example
+     ---> Running in d0eef8386e97
+    
+    
         Directory: C:\
-
-
+    
+    
     Mode                LastWriteTime         Length Name
     ----                -------------         ------ ----
-    d-----         6/2/2016   2:59 PM                Example
-
-
-     ---> 1f1dfdcec085
-    Removing intermediate container 3e6ba16b8df9
-    Step 4 : ADD Execute-MyCmdlet.ps1 c:\example\
-     ---> 6770b4c17f29
-    Removing intermediate container b139e34291dc
-    Step 5 : RUN c:\example\Execute-MyCmdlet -sample 'hello world'
-     ---> Running in abdcf50dfd1f
-    Hello from Execute-MyCmdlet.ps1 - passed hello world
-     ---> ba0e25255fda
-    Removing intermediate container abdcf50dfd1f
-    Successfully built ba0e25255fda
+    d-----       10/28/2016  11:26 AM                Example
+    
+    
+     ---> 3f2fbf1395d9
+    Removing intermediate container d0eef8386e97
+    Step 4/5 : ADD Execute-MyCmdlet.ps1 c:\example\
+     ---> a955b2621c31
+    Removing intermediate container b825593d39fc
+    Step 5/5 : RUN c:\example\Execute-MyCmdlet 'hello world'
+     ---> Running in be6d8e63fe75
+    hello world
+     ---> 8e559e9bf424
+    Removing intermediate container be6d8e63fe75
+    Successfully built 8e559e9bf424
     PS E:\docker\build\shell>
 
 The `SHELL` instruction could also be used to modify the way in which
@@ -1698,7 +1710,7 @@ The `SHELL` feature was added in Docker 1.12.
 ## Dockerfile examples
 
 Below you can see some examples of Dockerfile syntax. If you're interested in
-something more realistic, take a look at the list of [Dockerization examples](../examples/index.md).
+something more realistic, take a look at the list of [Dockerization examples](https://docs.docker.com/engine/examples/).
 
 ```
 # Nginx

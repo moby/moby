@@ -26,7 +26,7 @@ Options:
       --help    Print usage
 ```
 
-Remove all unused containers, volumes and images (both dangling and unreferenced).
+Remove all unused containers, volumes, networks and images (both dangling and unreferenced).
 
 Example output:
 
@@ -35,6 +35,7 @@ $ docker system prune -a
 WARNING! This will remove:
 	- all stopped containers
 	- all volumes not used by at least one container
+	- all networks not used by at least one container
 	- all images without at least one container associated to them
 Are you sure you want to continue? [y/N] y
 Deleted Containers:
@@ -74,4 +75,5 @@ Total reclaimed space: 13.5 MB
 * [system df](system_df.md)
 * [container prune](container_prune.md)
 * [image prune](image_prune.md)
+* [network prune](network_prune.md)
 * [system prune](system_prune.md)

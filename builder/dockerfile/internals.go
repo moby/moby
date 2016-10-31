@@ -410,7 +410,7 @@ func (b *Builder) processImageFrom(img builder.Image) error {
 		fmt.Fprintf(b.Stderr, "# Executing %d build %s...\n", nTriggers, word)
 	}
 
-	// Copy the ONBUILD triggers, and remove them from the config, since the config will be comitted.
+	// Copy the ONBUILD triggers, and remove them from the config, since the config will be committed.
 	onBuildTriggers := b.runConfig.OnBuild
 	b.runConfig.OnBuild = []string{}
 
@@ -487,6 +487,7 @@ func (b *Builder) create() (string, error) {
 		Isolation:   b.options.Isolation,
 		ShmSize:     b.options.ShmSize,
 		Resources:   resources,
+		NetworkMode: container.NetworkMode(b.options.NetworkMode),
 	}
 
 	config := *b.runConfig
@@ -536,7 +537,7 @@ func (b *Builder) run(cID string) (err error) {
 		}
 	}()
 
-	if err := b.docker.ContainerStart(cID, nil, true, ""); err != nil {
+	if err := b.docker.ContainerStart(cID, nil, true, "", ""); err != nil {
 		close(finished)
 		if cancelErr := <-cancelErrCh; cancelErr != nil {
 			logrus.Debugf("Build cancelled (%v) and got an error from ContainerStart: %v",

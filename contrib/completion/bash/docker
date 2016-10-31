@@ -825,71 +825,7 @@ _docker_attach() {
 }
 
 _docker_build() {
-	local options_with_args="
-		--build-arg
-		--cgroup-parent
-		--cpuset-cpus
-		--cpuset-mems
-		--cpu-shares -c
-		--cpu-period
-		--cpu-quota
-		--file -f
-		--isolation
-		--label
-		--memory -m
-		--memory-swap
-		--shm-size
-		--tag -t
-		--ulimit
-	"
-
-	local boolean_options="
-		--compress
-		--disable-content-trust=false
-		--force-rm
-		--help
-		--no-cache
-		--pull
-		--quiet -q
-		--rm
-	"
-
-	local all_options="$options_with_args $boolean_options"
-
-	case "$prev" in
-		--build-arg)
-			COMPREPLY=( $( compgen -e -- "$cur" ) )
-			__docker_nospace
-			return
-			;;
-		--file|-f)
-			_filedir
-			return
-			;;
-		--isolation)
-			__docker_complete_isolation
-			return
-			;;
-		--tag|-t)
-			__docker_complete_image_repos_and_tags
-			return
-			;;
-		$(__docker_to_extglob "$options_with_args") )
-			return
-			;;
-	esac
-
-	case "$cur" in
-		-*)
-			COMPREPLY=( $( compgen -W "$all_options" -- "$cur" ) )
-			;;
-		*)
-			local counter=$( __docker_pos_first_nonflag $( __docker_to_alternatives "$options_with_args" ) )
-			if [ $cword -eq $counter ]; then
-				_filedir -d
-			fi
-			;;
-	esac
+	_docker_image_build
 }
 
 
@@ -1071,9 +1007,16 @@ _docker_container_exec() {
 }
 
 _docker_container_export() {
+	case "$prev" in
+		--output|-o)
+			_filedir
+			return
+			;;
+	esac
+
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "--help" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "--help --output -o" -- "$cur" ) )
 			;;
 		*)
 			local counter=$(__docker_pos_first_nonflag)
@@ -1085,34 +1028,7 @@ _docker_container_export() {
 }
 
 _docker_container_inspect() {
-	case "$prev" in
-		--format|-f)
-			return
-			;;
-		--type)
-                     COMPREPLY=( $( compgen -W "image container" -- "$cur" ) )
-                     return
-                        ;;
-
-	esac
-
-	case "$cur" in
-		-*)
-			COMPREPLY=( $( compgen -W "--format -f --help --size -s --type" -- "$cur" ) )
-			;;
-		*)
-			case $(__docker_value_of_option --type) in
-				'')
-					__docker_complete_containers_and_images
-					;;
-				container)
-					__docker_complete_containers_all
-					;;
-				image)
-					__docker_complete_images
-					;;
-			esac
-	esac
+	_docker_inspect --type container
 }
 
 _docker_container_kill() {
@@ -1173,6 +1089,10 @@ _docker_container_ls() {
 			__docker_complete_containers_all --cur "${cur##*=}" --id
 			return
 			;;
+		health)
+			COMPREPLY=( $( compgen -W "healthy starting none unhealthy" -- "${cur##*=}" ) )
+			return
+			;;
 		is-task)
 			COMPREPLY=( $( compgen -W "true false" -- "${cur##*=}" ) )
 			return
@@ -1201,7 +1121,7 @@ _docker_container_ls() {
 
 	case "$prev" in
 		--filter|-f)
-			COMPREPLY=( $( compgen -S = -W "ancestor before exited id label name network since status volume" -- "$cur" ) )
+			COMPREPLY=( $( compgen -S = -W "ancestor before exited health id label name network since status volume" -- "$cur" ) )
 			__docker_nospace
 			return
 			;;
@@ -1223,10 +1143,7 @@ _docker_container_pause() {
 			COMPREPLY=( $( compgen -W "--help" -- "$cur" ) )
 			;;
 		*)
-			local counter=$(__docker_pos_first_nonflag)
-			if [ $cword -eq $counter ]; then
-				__docker_complete_containers_running
-			fi
+			__docker_complete_containers_running
 			;;
 	esac
 }
@@ -1316,6 +1233,8 @@ _docker_container_run() {
 		--cidfile
 		--cpu-period
 		--cpu-quota
+		--cpu-rt-period
+		--cpu-rt-runtime
 		--cpuset-cpus
 		--cpuset-mems
 		--cpu-shares -c
@@ -1667,6 +1586,8 @@ _docker_container_update() {
 		--blkio-weight
 		--cpu-period
 		--cpu-quota
+		--cpu-rt-period
+		--cpu-rt-runtime
 		--cpuset-cpus
 		--cpuset-mems
 		--cpu-shares -c
@@ -1729,6 +1650,7 @@ _docker_daemon() {
 	local boolean_options="
 		$global_boolean_options
 		--disable-legacy-registry
+		--experimental
 		--help
 		--icc=false
 		--ip-forward=false
@@ -1910,93 +1832,7 @@ _docker_diff() {
 }
 
 _docker_events() {
-	local key=$(__docker_map_key_of_current_option '-f|--filter')
-	case "$key" in
-		container)
-			__docker_complete_containers_all --cur "${cur##*=}"
-			return
-			;;
-		daemon)
-			local name=$(__docker_q info | sed -n 's/^\(ID\|Name\): //p')
-			COMPREPLY=( $( compgen -W "$name" -- "${cur##*=}" ) )
-			return
-			;;
-		event)
-			COMPREPLY=( $( compgen -W "
-				attach
-				commit
-				connect
-				copy
-				create
-				delete
-				destroy
-				detach
-				die
-				disconnect
-				exec_create
-				exec_detach
-				exec_start
-				export
-				health_status
-				import
-				kill
-				load
-				mount
-				oom
-				pause
-				pull
-				push
-				reload
-				rename
-				resize
-				restart
-				save
-				start
-				stop
-				tag
-				top
-				unmount
-				unpause
-				untag
-				update
-			" -- "${cur##*=}" ) )
-			return
-			;;
-		image)
-			cur="${cur##*=}"
-			__docker_complete_images
-			return
-			;;
-		network)
-			__docker_complete_networks --cur "${cur##*=}"
-			return
-			;;
-		type)
-			COMPREPLY=( $( compgen -W "container daemon image network volume" -- "${cur##*=}" ) )
-			return
-			;;
-		volume)
-			__docker_complete_volumes --cur "${cur##*=}"
-			return
-			;;
-	esac
-
-	case "$prev" in
-		--filter|-f)
-			COMPREPLY=( $( compgen -S = -W "container daemon event image label network type volume" -- "$cur" ) )
-			__docker_nospace
-			return
-			;;
-		--since|--until)
-			return
-			;;
-	esac
-
-	case "$cur" in
-		-*)
-			COMPREPLY=( $( compgen -W "--filter -f --help --since --until --format" -- "$cur" ) )
-			;;
-	esac
+	_docker_system_events
 }
 
 _docker_exec() {
@@ -2015,6 +1851,112 @@ _docker_help() {
 }
 
 _docker_history() {
+	_docker_image_history
+}
+
+
+_docker_image() {
+	local subcommands="
+		build
+		history
+		import
+		inspect
+		load
+		ls
+		prune
+		pull
+		push
+		rm
+		save
+		tag
+	"
+	local aliases="
+		images
+		list
+		remove
+		rmi
+	"
+	__docker_subcommands "$subcommands $aliases" && return
+
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "--help" -- "$cur" ) )
+			;;
+		*)
+			COMPREPLY=( $( compgen -W "$subcommands" -- "$cur" ) )
+			;;
+	esac
+}
+
+_docker_image_build() {
+	local options_with_args="
+		--build-arg
+		--cgroup-parent
+		--cpuset-cpus
+		--cpuset-mems
+		--cpu-shares -c
+		--cpu-period
+		--cpu-quota
+		--file -f
+		--isolation
+		--label
+		--memory -m
+		--memory-swap
+		--shm-size
+		--tag -t
+		--ulimit
+	"
+
+	local boolean_options="
+		--compress
+		--disable-content-trust=false
+		--force-rm
+		--help
+		--no-cache
+		--pull
+		--quiet -q
+		--rm
+	"
+
+	local all_options="$options_with_args $boolean_options"
+
+	case "$prev" in
+		--build-arg)
+			COMPREPLY=( $( compgen -e -- "$cur" ) )
+			__docker_nospace
+			return
+			;;
+		--file|-f)
+			_filedir
+			return
+			;;
+		--isolation)
+			__docker_complete_isolation
+			return
+			;;
+		--tag|-t)
+			__docker_complete_image_repos_and_tags
+			return
+			;;
+		$(__docker_to_extglob "$options_with_args") )
+			return
+			;;
+	esac
+
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "$all_options" -- "$cur" ) )
+			;;
+		*)
+			local counter=$( __docker_pos_first_nonflag $( __docker_to_alternatives "$options_with_args" ) )
+			if [ $cword -eq $counter ]; then
+				_filedir -d
+			fi
+			;;
+	esac
+}
+
+_docker_image_history() {
 	case "$cur" in
 		-*)
 			COMPREPLY=( $( compgen -W "--help --human=false -H=false --no-trunc --quiet -q" -- "$cur" ) )
@@ -2028,7 +1970,60 @@ _docker_history() {
 	esac
 }
 
-_docker_images() {
+_docker_image_images() {
+	_docker_image_ls
+}
+
+_docker_image_import() {
+	case "$prev" in
+		--change|-c|--message|-m)
+			return
+			;;
+	esac
+
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "--change -c --help --message -m" -- "$cur" ) )
+			;;
+		*)
+			local counter=$(__docker_pos_first_nonflag '--change|-c|--message|-m')
+			if [ $cword -eq $counter ]; then
+				return
+			fi
+			(( counter++ ))
+
+			if [ $cword -eq $counter ]; then
+				__docker_complete_image_repos_and_tags
+				return
+			fi
+			;;
+	esac
+}
+
+_docker_image_inspect() {
+	_docker_inspect --type image
+}
+
+_docker_image_load() {
+	case "$prev" in
+		--input|-i)
+			_filedir
+			return
+			;;
+	esac
+
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "--help --input -i --quiet -q" -- "$cur" ) )
+			;;
+	esac
+}
+
+_docker_image_list() {
+	_docker_image_ls
+}
+
+_docker_image_ls() {
 	local key=$(__docker_map_key_of_current_option '--filter|-f')
 	case "$key" in
 		before)
@@ -2074,20 +2069,94 @@ _docker_images() {
 	esac
 }
 
-_docker_import() {
+# TODO new command
+_docker_image_prune() {
+	:
+}
+
+_docker_image_pull() {
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "--all-tags -a --disable-content-trust=false --help" -- "$cur" ) )
+			;;
+		*)
+			local counter=$(__docker_pos_first_nonflag)
+			if [ $cword -eq $counter ]; then
+				for arg in "${COMP_WORDS[@]}"; do
+					case "$arg" in
+						--all-tags|-a)
+							__docker_complete_image_repos
+							return
+							;;
+					esac
+				done
+				__docker_complete_image_repos_and_tags
+			fi
+			;;
+	esac
+}
+
+_docker_image_push() {
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "--disable-content-trust=false --help" -- "$cur" ) )
+			;;
+		*)
+			local counter=$(__docker_pos_first_nonflag)
+			if [ $cword -eq $counter ]; then
+				__docker_complete_image_repos_and_tags
+			fi
+			;;
+	esac
+}
+
+_docker_image_remove() {
+	_docker_image_rm
+}
+
+_docker_image_rm() {
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "--force -f --help --no-prune" -- "$cur" ) )
+			;;
+		*)
+			__docker_complete_images
+			;;
+	esac
+}
+
+_docker_image_rmi() {
+	_docker_image_rm
+}
+
+_docker_image_save() {
 	case "$prev" in
-		--change|-c|--message|-m)
+		--output|-o)
+			_filedir
 			return
 			;;
 	esac
 
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "--change -c --help --message -m" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "--help --output -o" -- "$cur" ) )
 			;;
 		*)
-			local counter=$(__docker_pos_first_nonflag '--change|-c|--message|-m')
+			__docker_complete_images
+			;;
+	esac
+}
+
+_docker_image_tag() {
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "--help" -- "$cur" ) )
+			;;
+		*)
+			local counter=$(__docker_pos_first_nonflag)
+
 			if [ $cword -eq $counter ]; then
+				__docker_complete_image_repos_and_tags
 				return
 			fi
 			(( counter++ ))
@@ -2100,22 +2169,61 @@ _docker_import() {
 	esac
 }
 
+
+_docker_images() {
+	_docker_image_ls
+}
+
+_docker_import() {
+	_docker_image_import
+}
+
 _docker_info() {
+	_docker_system_info
+}
+
+_docker_inspect() {
+	local type
+
+	if [ "$1" = "--type" ] ; then
+		type="$2"
+	else
+		type=$(__docker_value_of_option --type)
+	fi
+
 	case "$prev" in
 		--format|-f)
+			return
+			;;
+		--type)
+			if [ -z "$type" ] ; then
+				COMPREPLY=( $( compgen -W "image container" -- "$cur" ) )
+			fi
 			return
 			;;
 	esac
 
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "--format -f --help" -- "$cur" ) )
+			local options="--format -f --help --size -s"
+			if [ -z "$type" ] ; then
+				options+=" --type"
+			fi
+			COMPREPLY=( $( compgen -W "$options" -- "$cur" ) )
 			;;
+		*)
+			case "$type" in
+				'')
+					__docker_complete_containers_and_images
+					;;
+				container)
+					__docker_complete_containers_all
+					;;
+				image)
+					__docker_complete_images
+					;;
+			esac
 	esac
-}
-
-_docker_inspect() {
-	_docker_container_inspect
 }
 
 _docker_kill() {
@@ -2123,18 +2231,7 @@ _docker_kill() {
 }
 
 _docker_load() {
-	case "$prev" in
-		--input|-i)
-			_filedir
-			return
-			;;
-	esac
-
-	case "$cur" in
-		-*)
-			COMPREPLY=( $( compgen -W "--help --input -i --quiet -q" -- "$cur" ) )
-			;;
-	esac
+	_docker_image_load
 }
 
 _docker_login() {
@@ -2461,7 +2558,7 @@ _docker_service_ps() {
 
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "--all -a --filter -f --help --no-resolve --no-trunc" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "--filter -f --help --no-resolve --no-trunc --quiet -q" -- "$cur" ) )
 			;;
 		*)
 			local counter=$(__docker_pos_first_nonflag '--filter|-f')
@@ -2480,15 +2577,18 @@ _docker_service_update() {
 		--endpoint-mode
 		--env -e
 		--force
-		--group-add
+		--health-cmd
+		--health-interval
+		--health-retries
+		--health-timeout
 		--label -l
 		--limit-cpu
 		--limit-memory
 		--log-driver
 		--log-opt
 		--mount
-		--name
 		--network
+		--no-healthcheck
 		--publish -p
 		--replicas
 		--reserve-cpu
@@ -2518,14 +2618,25 @@ _docker_service_update() {
 	if [ "$subcommand" = "create" ] ; then
 		options_with_args="$options_with_args
 			--container-label
+			--env-file
+			--group
 			--mode
+			--name
 		"
 
 		case "$prev" in
+			--env-file)
+				_filedir
+				return
+				;;
 			--mode)
 				COMPREPLY=( $( compgen -W "global replicated" -- "$cur" ) )
 				return
 				;;
+			--group)
+			COMPREPLY=( $(compgen -g -- "$cur") )
+			return
+			;;
 		esac
 	fi
 	if [ "$subcommand" = "update" ] ; then
@@ -2533,11 +2644,16 @@ _docker_service_update() {
 			--arg
 			--container-label-add
 			--container-label-rm
+			--group-add
 			--group-rm
 			--image
 		"
 
 		case "$prev" in
+			--group-add)
+				COMPREPLY=( $(compgen -g -- "$cur") )
+				return
+				;;
 			--group-rm)
 				COMPREPLY=( $(compgen -g -- "$cur") )
 				return
@@ -2558,10 +2674,6 @@ _docker_service_update() {
 			# we do not append a "=" here because "-e VARNAME" is legal systax, too
 			COMPREPLY=( $( compgen -e -- "$cur" ) )
 			__docker_nospace
-			return
-			;;
-		--group-add)
-			COMPREPLY=( $(compgen -g -- "$cur") )
 			return
 			;;
 		--log-driver)
@@ -2892,39 +3004,11 @@ _docker_ps() {
 }
 
 _docker_pull() {
-	case "$cur" in
-		-*)
-			COMPREPLY=( $( compgen -W "--all-tags -a --disable-content-trust=false --help" -- "$cur" ) )
-			;;
-		*)
-			local counter=$(__docker_pos_first_nonflag)
-			if [ $cword -eq $counter ]; then
-				for arg in "${COMP_WORDS[@]}"; do
-					case "$arg" in
-						--all-tags|-a)
-							__docker_complete_image_repos
-							return
-							;;
-					esac
-				done
-				__docker_complete_image_repos_and_tags
-			fi
-			;;
-	esac
+	_docker_image_pull
 }
 
 _docker_push() {
-	case "$cur" in
-		-*)
-			COMPREPLY=( $( compgen -W "--disable-content-trust=false --help" -- "$cur" ) )
-			;;
-		*)
-			local counter=$(__docker_pos_first_nonflag)
-			if [ $cword -eq $counter ]; then
-				__docker_complete_image_repos_and_tags
-			fi
-			;;
-	esac
+	_docker_image_push
 }
 
 _docker_rename() {
@@ -2940,14 +3024,7 @@ _docker_rm() {
 }
 
 _docker_rmi() {
-	case "$cur" in
-		-*)
-			COMPREPLY=( $( compgen -W "--force -f --help --no-prune" -- "$cur" ) )
-			;;
-		*)
-			__docker_complete_images
-			;;
-	esac
+	_docker_image_rm
 }
 
 _docker_run() {
@@ -2955,21 +3032,7 @@ _docker_run() {
 }
 
 _docker_save() {
-	case "$prev" in
-		--output|-o)
-			_filedir
-			return
-			;;
-	esac
-
-	case "$cur" in
-		-*)
-			COMPREPLY=( $( compgen -W "--help --output -o" -- "$cur" ) )
-			;;
-		*)
-			__docker_complete_images
-			;;
-	esac
+	_docker_image_save
 }
 
 _docker_search() {
@@ -3015,26 +3078,143 @@ _docker_stop() {
 	_docker_container_stop
 }
 
-_docker_tag() {
+
+_docker_system() {
+	local subcommands="
+		df
+		events
+		info
+		prune
+	"
+	__docker_subcommands "$subcommands $aliases" && return
+
 	case "$cur" in
 		-*)
 			COMPREPLY=( $( compgen -W "--help" -- "$cur" ) )
 			;;
 		*)
-			local counter=$(__docker_pos_first_nonflag)
-
-			if [ $cword -eq $counter ]; then
-				__docker_complete_image_repos_and_tags
-				return
-			fi
-			(( counter++ ))
-
-			if [ $cword -eq $counter ]; then
-				__docker_complete_image_repos_and_tags
-				return
-			fi
+			COMPREPLY=( $( compgen -W "$subcommands" -- "$cur" ) )
 			;;
 	esac
+}
+
+# TODO new command
+_docker_system_df() {
+	:
+}
+
+_docker_system_events() {
+	local key=$(__docker_map_key_of_current_option '-f|--filter')
+	case "$key" in
+		container)
+			__docker_complete_containers_all --cur "${cur##*=}"
+			return
+			;;
+		daemon)
+			local name=$(__docker_q info | sed -n 's/^\(ID\|Name\): //p')
+			COMPREPLY=( $( compgen -W "$name" -- "${cur##*=}" ) )
+			return
+			;;
+		event)
+			COMPREPLY=( $( compgen -W "
+				attach
+				commit
+				connect
+				copy
+				create
+				delete
+				destroy
+				detach
+				die
+				disconnect
+				exec_create
+				exec_detach
+				exec_start
+				export
+				health_status
+				import
+				kill
+				load
+				mount
+				oom
+				pause
+				pull
+				push
+				reload
+				rename
+				resize
+				restart
+				save
+				start
+				stop
+				tag
+				top
+				unmount
+				unpause
+				untag
+				update
+			" -- "${cur##*=}" ) )
+			return
+			;;
+		image)
+			cur="${cur##*=}"
+			__docker_complete_images
+			return
+			;;
+		network)
+			__docker_complete_networks --cur "${cur##*=}"
+			return
+			;;
+		type)
+			COMPREPLY=( $( compgen -W "container daemon image network volume" -- "${cur##*=}" ) )
+			return
+			;;
+		volume)
+			__docker_complete_volumes --cur "${cur##*=}"
+			return
+			;;
+	esac
+
+	case "$prev" in
+		--filter|-f)
+			COMPREPLY=( $( compgen -S = -W "container daemon event image label network type volume" -- "$cur" ) )
+			__docker_nospace
+			return
+			;;
+		--since|--until)
+			return
+			;;
+	esac
+
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "--filter -f --help --since --until --format" -- "$cur" ) )
+			;;
+	esac
+}
+
+_docker_system_info() {
+	case "$prev" in
+		--format|-f)
+			return
+			;;
+	esac
+
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "--format -f --help" -- "$cur" ) )
+			;;
+	esac
+}
+
+# TODO new command
+_docker_system_prune() {
+	:
+}
+
+
+_docker_tag() {
+	_docker_image_tag
 }
 
 _docker_unpause() {
@@ -3178,6 +3358,7 @@ _docker() {
 		exec
 		export
 		history
+		image
 		images
 		import
 		info
@@ -3206,6 +3387,7 @@ _docker() {
 		stats
 		stop
 		swarm
+		system
 		tag
 		top
 		unpause

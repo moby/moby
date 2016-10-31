@@ -38,6 +38,13 @@ Options:
       --label value             Set metadata for an image (default [])
   -m, --memory string           Memory limit
       --memory-swap string      Swap limit equal to memory plus swap: '-1' to enable unlimited swap
+      --network string          Set the networking mode for the run commands
+                                during build.
+                                'bridge': use default Docker bridge
+                                'none': no networking
+                                'container:<name|id>': reuse another container's network stack
+                                'host': use the Docker host network stack
+                                '<network-name>|<network-id>': connect to a user-defined network
       --no-cache                Do not use cache when building the image
       --pull                    Always attempt to pull a newer version of the image
   -q, --quiet                   Suppress the build output and print image ID on success

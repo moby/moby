@@ -85,7 +85,7 @@ if command -v git &> /dev/null && [ -d .git ] && git rev-parse &> /dev/null; the
 		echo "#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 		echo "# GITCOMMIT = $GITCOMMIT"
 		echo "# The version you are building is listed as unsupported because"
-		echo "# there are some files in the git repository that are in an uncommited state."
+		echo "# there are some files in the git repository that are in an uncommitted state."
 		echo "# Commit these changes, or add to .gitignore to remove the -unsupported from the version."
 		echo "# Here is the current list:"
 		git status --porcelain --untracked-files=no
@@ -257,7 +257,7 @@ copy_binaries() {
 	if [ "$(go env GOOS)/$(go env GOARCH)" == "$(go env GOHOSTOS)/$(go env GOHOSTARCH)" ]; then
 		if [ -x /usr/local/bin/docker-runc ]; then
 			echo "Copying nested executables into $dir"
-			for file in containerd containerd-shim containerd-ctr runc init; do
+			for file in containerd containerd-shim containerd-ctr runc init proxy; do
 				cp `which "docker-$file"` "$dir/"
 				if [ "$2" == "hash" ]; then
 					hash_files "$dir/docker-$file"

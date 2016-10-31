@@ -58,7 +58,7 @@ Use the `--rotate` flag to generate a new join token for the specified role:
 
 ```bash
 $ docker swarm join-token --rotate worker
-Succesfully rotated worker join token.
+Successfully rotated worker join token.
 
 To add a worker to this swarm, run the following command:
 

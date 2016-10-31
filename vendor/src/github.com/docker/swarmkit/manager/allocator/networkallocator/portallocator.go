@@ -128,8 +128,12 @@ func (pa *portAllocator) serviceAllocatePorts(s *api.Service) (err error) {
 	for _, portConfig := range portConfigs {
 		// Make a copy of port config to create runtime state
 		portState := portConfig.Copy()
-		if err = pa.portSpaces[portState.Protocol].allocate(portState); err != nil {
-			return
+
+		// Do an actual allocation only if the PublishMode is Ingress
+		if portConfig.PublishMode == api.PublishModeIngress {
+			if err = pa.portSpaces[portState.Protocol].allocate(portState); err != nil {
+				return
+			}
 		}
 
 		if s.Endpoint == nil {
@@ -148,6 +152,12 @@ func (pa *portAllocator) serviceDeallocatePorts(s *api.Service) {
 	}
 
 	for _, portState := range s.Endpoint.Ports {
+		// Do an actual free only if the PublishMode is
+		// Ingress
+		if portState.PublishMode != api.PublishModeIngress {
+			continue
+		}
+
 		pa.portSpaces[portState.Protocol].free(portState)
 	}
 
@@ -177,6 +187,11 @@ func (pa *portAllocator) isPortsAllocated(s *api.Service) bool {
 	}
 
 	for i, portConfig := range s.Spec.Endpoint.Ports {
+		// Ignore ports which are not PublishModeIngress
+		if portConfig.PublishMode != api.PublishModeIngress {
+			continue
+		}
+
 		// The port configuration slice and port state slice
 		// are expected to be in the same order.
 		portState := s.Endpoint.Ports[i]

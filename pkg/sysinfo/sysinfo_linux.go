@@ -135,10 +135,23 @@ func checkCgroupCPU(cgMounts map[string]string, quiet bool) cgroupCPUInfo {
 	if !quiet && !cpuCfsQuota {
 		logrus.Warn("Your kernel does not support cgroup cfs quotas")
 	}
+
+	cpuRealtimePeriod := cgroupEnabled(mountPoint, "cpu.rt_period_us")
+	if !quiet && !cpuRealtimePeriod {
+		logrus.Warn("Your kernel does not support cgroup rt period")
+	}
+
+	cpuRealtimeRuntime := cgroupEnabled(mountPoint, "cpu.rt_runtime_us")
+	if !quiet && !cpuRealtimeRuntime {
+		logrus.Warn("Your kernel does not support cgroup rt runtime")
+	}
+
 	return cgroupCPUInfo{
-		CPUShares:    cpuShares,
-		CPUCfsPeriod: cpuCfsPeriod,
-		CPUCfsQuota:  cpuCfsQuota,
+		CPUShares:          cpuShares,
+		CPUCfsPeriod:       cpuCfsPeriod,
+		CPUCfsQuota:        cpuCfsQuota,
+		CPURealtimePeriod:  cpuRealtimePeriod,
+		CPURealtimeRuntime: cpuRealtimeRuntime,
 	}
 }
 

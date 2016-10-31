@@ -248,6 +248,15 @@ func (cli *DaemonCli) start(opts daemonOptions) (err error) {
 		return fmt.Errorf("Error starting daemon: %v", err)
 	}
 
+	if cli.Config.MetricsAddress != "" {
+		if !d.HasExperimental() {
+			return fmt.Errorf("metrics-addr is only supported when experimental is enabled")
+		}
+		if err := startMetricsServer(cli.Config.MetricsAddress); err != nil {
+			return err
+		}
+	}
+
 	name, _ := os.Hostname()
 
 	c, err := cluster.New(cluster.Config{
@@ -279,6 +288,7 @@ func (cli *DaemonCli) start(opts daemonOptions) (err error) {
 
 	// initMiddlewares needs cli.d to be populated. Dont change this init order.
 	cli.initMiddlewares(api, serverConfig)
+	d.SetCluster(c)
 	initRouter(api, d, c)
 
 	cli.setupConfigReloadTrap()

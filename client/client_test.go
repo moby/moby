@@ -162,6 +162,11 @@ func TestGetAPIPath(t *testing.T) {
 		if g != cs.e {
 			t.Fatalf("Expected %s, got %s", cs.e, g)
 		}
+
+		err = c.Close()
+		if nil != err {
+			t.Fatalf("close client failed, error message: %s", err)
+		}
 	}
 }
 

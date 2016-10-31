@@ -379,7 +379,7 @@ func (s *DockerExternalGraphdriverSuite) testExternalGraphDriver(name string, ex
 	c.Assert(s.ec[ext].removals >= 1, check.Equals, true)
 	c.Assert(s.ec[ext].gets >= 1, check.Equals, true)
 	c.Assert(s.ec[ext].puts >= 1, check.Equals, true)
-	c.Assert(s.ec[ext].stats, check.Equals, 3)
+	c.Assert(s.ec[ext].stats, check.Equals, 5)
 	c.Assert(s.ec[ext].cleanups, check.Equals, 2)
 	c.Assert(s.ec[ext].applydiff >= 1, check.Equals, true)
 	c.Assert(s.ec[ext].changes, check.Equals, 1)

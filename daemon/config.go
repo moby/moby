@@ -146,6 +146,7 @@ type CommonConfig struct {
 	// given to the /swarm/init endpoint and no advertise address is
 	// specified.
 	SwarmDefaultAdvertiseAddr string `json:"swarm-default-advertise-addr"`
+	MetricsAddress            string `json:"metrics-addr"`
 
 	LogConfig
 	bridgeConfig // bridgeConfig holds bridge network specific configuration.
@@ -190,6 +191,8 @@ func (config *Config) InstallCommonFlags(flags *pflag.FlagSet) {
 
 	flags.StringVar(&config.SwarmDefaultAdvertiseAddr, "swarm-default-advertise-addr", "", "Set default address or interface for swarm advertised address")
 	flags.BoolVar(&config.Experimental, "experimental", false, "Enable experimental features")
+
+	flags.StringVar(&config.MetricsAddress, "metrics-addr", "", "Set default address and port to serve the metrics api on")
 
 	config.MaxConcurrentDownloads = &maxConcurrentDownloads
 	config.MaxConcurrentUploads = &maxConcurrentUploads

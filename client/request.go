@@ -143,6 +143,20 @@ func (cli *Client) sendClientRequest(ctx context.Context, method, path string, q
 			}
 		}
 
+		// Although there's not a strongly typed error for this in go-winio,
+		// lots of people are using the default configuration for the docker
+		// daemon on Windows where the daemon is listening on a named pipe
+		// `//./pipe/docker_engine, and the client must be running elevated.
+		// Give users a clue rather than the not-overly useful message
+		// such as `error during connect: Get http://%2F%2F.%2Fpipe%2Fdocker_engine/v1.25/info:
+		// open //./pipe/docker_engine: The system cannot find the file specified.`.
+		// Note we can't string compare "The system cannot find the file specified" as
+		// this is localised - for example in French the error would be
+		// `open //./pipe/docker_engine: Le fichier spécifié est introuvable.`
+		if strings.Contains(err.Error(), `open //./pipe/docker_engine`) {
+			err = errors.New(err.Error() + " In the default daemon configuration on Windows, the docker client must be run elevated to connect. This error may also indicate that the docker daemon is not running.")
+		}
+
 		return serverResp, errors.Wrap(err, "error during connect")
 	}
 

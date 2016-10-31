@@ -48,7 +48,48 @@ func (s *Server) GetSecret(ctx context.Context, request *api.GetSecretRequest) (
 		return nil, grpc.Errorf(codes.NotFound, "secret %s not found", request.SecretID)
 	}
 
+	secret.Spec.Data = nil // clean the actual secret data so it's never returned
 	return &api.GetSecretResponse{Secret: secret}, nil
+}
+
+// UpdateSecret updates a Secret referenced by SecretID with the given SecretSpec.
+// - Returns `NotFound` if the Secret is not found.
+// - Returns `InvalidArgument` if the SecretSpec is malformed or anything other than Labels is changed
+// - Returns an error if the update fails.
+func (s *Server) UpdateSecret(ctx context.Context, request *api.UpdateSecretRequest) (*api.UpdateSecretResponse, error) {
+	if request.SecretID == "" || request.SecretVersion == nil {
+		return nil, grpc.Errorf(codes.InvalidArgument, errInvalidArgument.Error())
+	}
+
+	var secret *api.Secret
+	err := s.store.Update(func(tx store.Tx) error {
+		secret = store.GetSecret(tx, request.SecretID)
+		if secret == nil {
+			return nil
+		}
+
+		if secret.Spec.Annotations.Name != request.Spec.Annotations.Name || request.Spec.Data != nil {
+			return grpc.Errorf(codes.InvalidArgument, "only updates to Labels are allowed")
+		}
+
+		// We only allow updating Labels
+		secret.Meta.Version = *request.SecretVersion
+		secret.Spec.Annotations.Labels = request.Spec.Annotations.Labels
+
+		return store.UpdateSecret(tx, secret)
+	})
+	if err != nil {
+		return nil, err
+	}
+	if secret == nil {
+		return nil, grpc.Errorf(codes.NotFound, "secret %s not found", request.SecretID)
+	}
+
+	// WARN: we should never return the actual secret data here. We need to redact the private fields first.
+	secret.Spec.Data = nil
+	return &api.UpdateSecretResponse{
+		Secret: secret,
+	}, nil
 }
 
 // ListSecrets returns a `ListSecretResponse` with a list all non-internal `Secret`s being

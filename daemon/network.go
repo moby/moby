@@ -292,6 +292,7 @@ func (daemon *Daemon) createNetwork(create types.NetworkCreateRequest, id string
 	}
 
 	daemon.LogNetworkEvent(n, "create")
+
 	return &types.NetworkCreateResponse{
 		ID:      n.ID(),
 		Warning: warning,

@@ -2,60 +2,45 @@ package orchestrator
 
 import (
 	"github.com/docker/swarmkit/api"
+	"github.com/docker/swarmkit/manager/state/store"
 )
 
-// slot is a list of the running tasks occupying a certain slot. Generally this
+// Slot is a list of the running tasks occupying a certain slot. Generally this
 // will only be one task, but some rolling update situations involve
 // temporarily having two running tasks in the same slot. Note that this use of
 // "slot" is more generic than the Slot number for replicated services - a node
 // is also considered a slot for global services.
-type slot []*api.Task
+type Slot []*api.Task
 
-type slotsByRunningState []slot
+// GetRunnableAndDeadSlots returns two maps of slots. The first contains slots
+// that have at least one task with a desired state above NEW and lesser or
+// equal to RUNNING. The second is for slots that only contain tasks with a
+// desired state above RUNNING.
+func GetRunnableAndDeadSlots(s *store.MemoryStore, serviceID string) (map[uint64]Slot, map[uint64]Slot, error) {
+	var (
+		tasks []*api.Task
+		err   error
+	)
+	s.View(func(tx store.ReadTx) {
+		tasks, err = store.FindTasks(tx, store.ByServiceID(serviceID))
+	})
+	if err != nil {
+		return nil, nil, err
+	}
 
-func (is slotsByRunningState) Len() int      { return len(is) }
-func (is slotsByRunningState) Swap(i, j int) { is[i], is[j] = is[j], is[i] }
-
-func (is slotsByRunningState) Less(i, j int) bool {
-	iRunning := false
-	jRunning := false
-
-	for _, ii := range is[i] {
-		if ii.Status.State == api.TaskStateRunning {
-			iRunning = true
-			break
+	runningSlots := make(map[uint64]Slot)
+	for _, t := range tasks {
+		if t.DesiredState <= api.TaskStateRunning {
+			runningSlots[t.Slot] = append(runningSlots[t.Slot], t)
 		}
 	}
-	for _, ij := range is[j] {
-		if ij.Status.State == api.TaskStateRunning {
-			jRunning = true
-			break
+
+	deadSlots := make(map[uint64]Slot)
+	for _, t := range tasks {
+		if _, exists := runningSlots[t.Slot]; !exists {
+			deadSlots[t.Slot] = append(deadSlots[t.Slot], t)
 		}
 	}
 
-	return iRunning && !jRunning
-}
-
-type slotWithIndex struct {
-	slot slot
-
-	// index is a counter that counts this task as the nth instance of
-	// the service on its node. This is used for sorting the tasks so that
-	// when scaling down we leave tasks more evenly balanced.
-	index int
-}
-
-type slotsByIndex []slotWithIndex
-
-func (is slotsByIndex) Len() int      { return len(is) }
-func (is slotsByIndex) Swap(i, j int) { is[i], is[j] = is[j], is[i] }
-
-func (is slotsByIndex) Less(i, j int) bool {
-	if is[i].index < 0 && is[j].index >= 0 {
-		return false
-	}
-	if is[j].index < 0 && is[i].index >= 0 {
-		return true
-	}
-	return is[i].index < is[j].index
+	return runningSlots, deadSlots, nil
 }

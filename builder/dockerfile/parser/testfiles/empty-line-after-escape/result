@@ -1,0 +1,3 @@
+(from "busybox")
+(run "foo")
+(bar "")

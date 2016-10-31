@@ -268,7 +268,7 @@ func (s *DockerSuite) TestCpToSymlinkToDirectory(c *check.C) {
 
 	containerID := strings.TrimSpace(out)
 
-	// Create a temp directory to hold a test file nested in a direcotry.
+	// Create a temp directory to hold a test file nested in a directory.
 	testDir, err := ioutil.TempDir("", "test-cp-to-symlink-to-dir-")
 	c.Assert(err, checker.IsNil)
 	defer os.RemoveAll(testDir)

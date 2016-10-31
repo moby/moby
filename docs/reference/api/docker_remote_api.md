@@ -130,15 +130,17 @@ This section lists each version from latest to oldest.  Each listing includes a 
 
 [Docker Remote API v1.25](docker_remote_api_v1.25.md) documentation
 
+* `POST /build` accepts `networkmode` parameter to specify network used during build.
 * `GET /images/(name)/json` now returns `OsVersion` if populated
 * `GET /info` now returns `Isolation`.
 * `POST /containers/create` now takes `AutoRemove` in HostConfig, to enable auto-removal of the container on daemon side when the container's process exits.
 * `GET /containers/json` and `GET /containers/(id or name)/json` now return `"removing"` as a value for the `State.Status` field if the container is being removed. Previously, "exited" was returned as status.
 * `GET /containers/json` now accepts `removing` as a valid value for the `status` filter.
+* `GET /containers/json` now supports filtering containers by `health` status. 
 * `DELETE /volumes/(name)` now accepts a `force` query parameter to force removal of volumes that were already removed out of band by the volume driver plugin.
 * `POST /containers/create/` and `POST /containers/(name)/update` now validates restart policies.
 * `POST /containers/create` now validates IPAMConfig in NetworkingConfig, and returns error for invalid IPv4 and IPv6 addresses (`--ip` and `--ip6` in `docker create/run`).
-* `POST /containers/create` now takes a `Mounts` field in `HostConfig` which replaces `Binds` and `Volumes`. *note*: `Binds` and `Volumes` are still available but are exclusive with `Mounts`
+* `POST /containers/create` now takes a `Mounts` field in `HostConfig` which replaces `Binds`, `Volumes`, and `Tmpfs`. *note*: `Binds`, `Volumes`, and `Tmpfs` are still available and can be combined with `Mounts`.
 * `POST /build` now performs a preliminary validation of the `Dockerfile` before starting the build, and returns an error if the syntax is incorrect. Note that this change is _unversioned_ and applied to all API versions.
 * `POST /build` accepts `cachefrom` parameter to specify images used for build cache.
 * `GET /networks/` endpoint now correctly returns a list of *all* networks,
@@ -157,7 +159,10 @@ This section lists each version from latest to oldest.  Each listing includes a 
 * `POST /containers/prune` prunes stopped containers.
 * `POST /images/prune` prunes unused images.
 * `POST /volumes/prune` prunes unused volumes.
+* `POST /networks/prune` prunes unused networks.
 * Every API response now includes a `Docker-Experimental` header specifying if experimental features are enabled (value can be `true` or `false`).
+* The `hostConfig` option now accepts the fields `CpuRealtimePeriod` and `CpuRtRuntime` to allocate cpu runtime to rt tasks when `CONFIG_RT_GROUP_SCHED` is enabled in the kernel.
+* The `SecurityOptions` field within the `GET /info` response now includes `userns` if user namespaces are enabled in the daemon.
 
 ### v1.24 API changes
 

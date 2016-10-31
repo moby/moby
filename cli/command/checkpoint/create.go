@@ -10,9 +10,10 @@ import (
 )
 
 type createOptions struct {
-	container    string
-	checkpoint   string
-	leaveRunning bool
+	container     string
+	checkpoint    string
+	checkpointDir string
+	leaveRunning  bool
 }
 
 func newCreateCommand(dockerCli *command.DockerCli) *cobra.Command {
@@ -31,6 +32,7 @@ func newCreateCommand(dockerCli *command.DockerCli) *cobra.Command {
 
 	flags := cmd.Flags()
 	flags.BoolVar(&opts.leaveRunning, "leave-running", false, "leave the container running after checkpoint")
+	flags.StringVarP(&opts.checkpointDir, "checkpoint-dir", "", "", "use a custom checkpoint storage directory")
 
 	return cmd
 }
@@ -39,8 +41,9 @@ func runCreate(dockerCli *command.DockerCli, opts createOptions) error {
 	client := dockerCli.Client()
 
 	checkpointOpts := types.CheckpointCreateOptions{
-		CheckpointID: opts.checkpoint,
-		Exit:         !opts.leaveRunning,
+		CheckpointID:  opts.checkpoint,
+		CheckpointDir: opts.checkpointDir,
+		Exit:          !opts.leaveRunning,
 	}
 
 	err := client.CheckpointCreate(context.Background(), opts.container, checkpointOpts)

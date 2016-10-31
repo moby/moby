@@ -28,6 +28,9 @@ func (cli *Client) ContainerAttach(ctx context.Context, container string, option
 	if options.DetachKeys != "" {
 		query.Set("detachKeys", options.DetachKeys)
 	}
+	if options.Logs {
+		query.Set("logs", "1")
+	}
 
 	headers := map[string][]string{"Content-Type": {"text/plain"}}
 	return cli.postHijacked(ctx, "/containers/"+container+"/attach", query, nil, headers)
