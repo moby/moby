@@ -326,6 +326,21 @@ func (c *ChainInfo) Remove() error {
 
 // Exists checks if a rule exists
 func Exists(table Table, chain string, rule ...string) bool {
+	return exists(false, table, chain, rule...)
+}
+
+// ExistsNative behaves as Exists with the difference it
+// will always invoke `iptables` binary.
+func ExistsNative(table Table, chain string, rule ...string) bool {
+	return exists(true, table, chain, rule...)
+}
+
+func exists(native bool, table Table, chain string, rule ...string) bool {
+	f := Raw
+	if native {
+		f = raw
+	}
+
 	if string(table) == "" {
 		table = Filter
 	}
@@ -334,7 +349,7 @@ func Exists(table Table, chain string, rule ...string) bool {
 
 	if supportsCOpt {
 		// if exit status is 0 then return true, the rule exists
-		_, err := Raw(append([]string{"-t", string(table), "-C", chain}, rule...)...)
+		_, err := f(append([]string{"-t", string(table), "-C", chain}, rule...)...)
 		return err == nil
 	}
 
