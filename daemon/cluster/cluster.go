@@ -584,15 +584,15 @@ func (c *Cluster) UnlockSwarm(req types.UnlockRequest) error {
 	n, err := c.startNewNode(config)
 	if err != nil {
 		c.Unlock()
-		if errors.Cause(err) == ErrSwarmLocked {
-			return errors.New("swarm could not be unlocked: invalid key provided")
-		}
 		return err
 	}
 	c.Unlock()
 	select {
 	case <-n.Ready():
 	case <-n.done:
+		if errors.Cause(c.err) == ErrSwarmLocked {
+			return errors.New("swarm could not be unlocked: invalid key provided")
+		}
 		return fmt.Errorf("swarm component could not be started: %v", c.err)
 	}
 	go c.reconnectOnFailure(n)
@@ -881,6 +881,8 @@ func (c *Cluster) Info() types.Info {
 		info.LocalNodeState = types.LocalNodeStatePending
 		if c.ready == true {
 			info.LocalNodeState = types.LocalNodeStateActive
+		} else if c.locked {
+			info.LocalNodeState = types.LocalNodeStateLocked
 		}
 	}
 	if c.err != nil {

@@ -855,56 +855,86 @@ func (s *DockerSwarmSuite) TestDNSConfigUpdate(c *check.C) {
 func (s *DockerSwarmSuite) TestSwarmInitLocked(c *check.C) {
 	d := s.AddDaemon(c, false, false)
 
-	cmd := d.command("swarm", "init", "--lock-key")
-	cmd.Stdin = bytes.NewBufferString("my-secret-key")
-	out, err := cmd.CombinedOutput()
-	c.Assert(err, checker.IsNil, check.Commentf("out: %v", string(out)))
+	outs, err := d.Cmd("swarm", "init", "--autolock")
+	c.Assert(err, checker.IsNil, check.Commentf("out: %v", outs))
 
-	c.Assert(string(out), checker.Contains, "docker swarm unlock")
+	c.Assert(outs, checker.Contains, "docker swarm unlock")
+
+	var unlockKey string
+	for _, line := range strings.Split(outs, "\n") {
+		if strings.Contains(line, "SWMKEY") {
+			unlockKey = strings.TrimSpace(line)
+			break
+		}
+	}
+
+	c.Assert(unlockKey, checker.Not(checker.Equals), "")
+
+	outs, err = d.Cmd("swarm", "unlock-key", "-q")
+	c.Assert(outs, checker.Equals, unlockKey+"\n")
 
 	info, err := d.info()
 	c.Assert(err, checker.IsNil)
 	c.Assert(info.LocalNodeState, checker.Equals, swarm.LocalNodeStateActive)
 
-	c.Assert(d.Stop(), checker.IsNil)
-	c.Assert(d.Start(), checker.IsNil)
+	c.Assert(d.Restart(), checker.IsNil)
 
 	info, err = d.info()
 	c.Assert(err, checker.IsNil)
 	c.Assert(info.LocalNodeState, checker.Equals, swarm.LocalNodeStateLocked)
 
-	cmd = d.command("swarm", "unlock")
+	cmd := d.command("swarm", "unlock")
 	cmd.Stdin = bytes.NewBufferString("wrong-secret-key")
-	out, err = cmd.CombinedOutput()
+	out, err := cmd.CombinedOutput()
 	c.Assert(err, checker.NotNil, check.Commentf("out: %v", string(out)))
 	c.Assert(string(out), checker.Contains, "invalid key")
 
 	cmd = d.command("swarm", "unlock")
-	cmd.Stdin = bytes.NewBufferString("my-secret-key")
+	cmd.Stdin = bytes.NewBufferString(unlockKey)
 	out, err = cmd.CombinedOutput()
 	c.Assert(err, checker.IsNil, check.Commentf("out: %v", string(out)))
 
 	info, err = d.info()
 	c.Assert(err, checker.IsNil)
 	c.Assert(info.LocalNodeState, checker.Equals, swarm.LocalNodeStateActive)
+
+	outs, err = d.Cmd("node", "ls")
+	c.Assert(err, checker.IsNil)
+	c.Assert(outs, checker.Not(checker.Contains), "Swarm is encrypted and needs to be unlocked")
+
+	outs, err = d.Cmd("swarm", "update", "--autolock=false")
+	c.Assert(err, checker.IsNil, check.Commentf("out: %v", outs))
+
+	// Wait for autolock to be turned off
+	time.Sleep(time.Second)
+
+	c.Assert(d.Restart(), checker.IsNil)
+
+	info, err = d.info()
+	c.Assert(err, checker.IsNil)
+	c.Assert(info.LocalNodeState, checker.Equals, swarm.LocalNodeStateActive)
+
+	outs, err = d.Cmd("node", "ls")
+	c.Assert(err, checker.IsNil)
+	c.Assert(outs, checker.Not(checker.Contains), "Swarm is encrypted and needs to be unlocked")
 }
 
 func (s *DockerSwarmSuite) TestSwarmLeaveLocked(c *check.C) {
 	d := s.AddDaemon(c, false, false)
 
-	cmd := d.command("swarm", "init", "--lock-key")
-	cmd.Stdin = bytes.NewBufferString("foobar")
-	out, err := cmd.CombinedOutput()
-	c.Assert(err, checker.IsNil, check.Commentf("out: %v", string(out)))
+	outs, err := d.Cmd("swarm", "init", "--autolock")
+	c.Assert(err, checker.IsNil, check.Commentf("out: %v", outs))
 
-	c.Assert(d.Stop(), checker.IsNil)
-	c.Assert(d.Start(), checker.IsNil)
+	c.Assert(d.Restart("--swarm-default-advertise-addr=lo"), checker.IsNil)
 
 	info, err := d.info()
 	c.Assert(err, checker.IsNil)
 	c.Assert(info.LocalNodeState, checker.Equals, swarm.LocalNodeStateLocked)
 
-	outs, err := d.Cmd("swarm", "leave", "--force")
+	outs, _ = d.Cmd("node", "ls")
+	c.Assert(outs, checker.Contains, "Swarm is encrypted and needs to be unlocked")
+
+	outs, err = d.Cmd("swarm", "leave", "--force")
 	c.Assert(err, checker.IsNil, check.Commentf("out: %v", outs))
 
 	info, err = d.info()
@@ -917,4 +947,84 @@ func (s *DockerSwarmSuite) TestSwarmLeaveLocked(c *check.C) {
 	info, err = d.info()
 	c.Assert(err, checker.IsNil)
 	c.Assert(info.LocalNodeState, checker.Equals, swarm.LocalNodeStateActive)
+}
+
+func (s *DockerSwarmSuite) TestSwarmRotateUnlockKey(c *check.C) {
+	d := s.AddDaemon(c, true, true)
+
+	outs, err := d.Cmd("swarm", "update", "--autolock")
+	c.Assert(err, checker.IsNil, check.Commentf("out: %v", outs))
+
+	c.Assert(outs, checker.Contains, "docker swarm unlock")
+
+	var unlockKey string
+	for _, line := range strings.Split(outs, "\n") {
+		if strings.Contains(line, "SWMKEY") {
+			unlockKey = strings.TrimSpace(line)
+			break
+		}
+	}
+
+	c.Assert(unlockKey, checker.Not(checker.Equals), "")
+
+	outs, err = d.Cmd("swarm", "unlock-key", "-q")
+	c.Assert(outs, checker.Equals, unlockKey+"\n")
+
+	// Rotate multiple times
+	for i := 0; i != 3; i++ {
+		outs, err = d.Cmd("swarm", "unlock-key", "-q", "--rotate")
+		c.Assert(err, checker.IsNil, check.Commentf("out: %v", outs))
+		// Strip \n
+		newUnlockKey := outs[:len(outs)-1]
+		c.Assert(newUnlockKey, checker.Not(checker.Equals), "")
+
+		c.Assert(d.Restart(), checker.IsNil)
+
+		info, err := d.info()
+		c.Assert(err, checker.IsNil)
+		c.Assert(info.LocalNodeState, checker.Equals, swarm.LocalNodeStateLocked)
+
+		outs, _ = d.Cmd("node", "ls")
+		c.Assert(outs, checker.Contains, "Swarm is encrypted and needs to be unlocked")
+
+		cmd := d.command("swarm", "unlock")
+		cmd.Stdin = bytes.NewBufferString(unlockKey)
+		out, err := cmd.CombinedOutput()
+
+		if err == nil {
+			// On occasion, the daemon may not have finished
+			// rotating the KEK before restarting. The test is
+			// intentionally written to explore this behavior.
+			// When this happens, unlocking with the old key will
+			// succeed. If we wait for the rotation to happen and
+			// restart again, the new key should be required this
+			// time.
+
+			time.Sleep(3 * time.Second)
+
+			c.Assert(d.Restart(), checker.IsNil)
+
+			cmd = d.command("swarm", "unlock")
+			cmd.Stdin = bytes.NewBufferString(unlockKey)
+			out, err = cmd.CombinedOutput()
+		}
+		c.Assert(err, checker.NotNil, check.Commentf("out: %v", string(out)))
+		c.Assert(string(out), checker.Contains, "invalid key")
+
+		outs, _ = d.Cmd("node", "ls")
+		c.Assert(outs, checker.Contains, "Swarm is encrypted and needs to be unlocked")
+
+		cmd = d.command("swarm", "unlock")
+		cmd.Stdin = bytes.NewBufferString(newUnlockKey)
+		out, err = cmd.CombinedOutput()
+		c.Assert(err, checker.IsNil, check.Commentf("out: %v", string(out)))
+
+		info, err = d.info()
+		c.Assert(err, checker.IsNil)
+		c.Assert(info.LocalNodeState, checker.Equals, swarm.LocalNodeStateActive)
+
+		outs, err = d.Cmd("node", "ls")
+		c.Assert(err, checker.IsNil)
+		c.Assert(outs, checker.Not(checker.Contains), "Swarm is encrypted and needs to be unlocked")
+	}
 }
