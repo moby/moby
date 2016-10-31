@@ -976,7 +976,7 @@ func (s *DockerSuite) TestContainerAPICopyNotExistsAnyMore(c *check.C) {
 }
 
 func (s *DockerSuite) TestContainerAPICopyPre124(c *check.C) {
-
+	testRequires(c, DaemonIsLinux) // Windows only supports 1.25 or later
 	name := "test-container-api-copy"
 	dockerCmd(c, "run", "--name", name, "busybox", "touch", "/test.txt")
 
@@ -1006,6 +1006,7 @@ func (s *DockerSuite) TestContainerAPICopyPre124(c *check.C) {
 }
 
 func (s *DockerSuite) TestContainerAPICopyResourcePathEmptyPr124(c *check.C) {
+	testRequires(c, DaemonIsLinux) // Windows only supports 1.25 or later
 	name := "test-container-api-copy-resource-empty"
 	dockerCmd(c, "run", "--name", name, "busybox", "touch", "/test.txt")
 
@@ -1020,6 +1021,7 @@ func (s *DockerSuite) TestContainerAPICopyResourcePathEmptyPr124(c *check.C) {
 }
 
 func (s *DockerSuite) TestContainerAPICopyResourcePathNotFoundPre124(c *check.C) {
+	testRequires(c, DaemonIsLinux) // Windows only supports 1.25 or later
 	name := "test-container-api-copy-resource-not-found"
 	dockerCmd(c, "run", "--name", name, "busybox")
 
@@ -1034,6 +1036,7 @@ func (s *DockerSuite) TestContainerAPICopyResourcePathNotFoundPre124(c *check.C)
 }
 
 func (s *DockerSuite) TestContainerAPICopyContainerNotFoundPr124(c *check.C) {
+	testRequires(c, DaemonIsLinux) // Windows only supports 1.25 or later
 	postData := types.CopyConfig{
 		Resource: "/something",
 	}
@@ -1245,6 +1248,7 @@ func (s *DockerSuite) TestPostContainersCreateWithStringOrSliceCapAddDrop(c *che
 
 // #14915
 func (s *DockerSuite) TestContainerAPICreateNoHostConfig118(c *check.C) {
+	testRequires(c, DaemonIsLinux) // Windows only support 1.25 or later
 	config := struct {
 		Image string
 	}{"busybox"}

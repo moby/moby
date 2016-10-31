@@ -28,7 +28,7 @@ func (s *DockerSuite) TestInspectAPIContainerResponse(c *check.C) {
 
 	if daemonPlatform == "windows" {
 		cases = []acase{
-			{"v1.20", append(keysBase, "Mounts")},
+			{"v1.25", append(keysBase, "Mounts")},
 		}
 
 	} else {
@@ -84,23 +84,23 @@ func (s *DockerSuite) TestInspectAPIContainerVolumeDriver(c *check.C) {
 
 	cleanedContainerID := strings.TrimSpace(out)
 
-	body := getInspectBody(c, "v1.21", cleanedContainerID)
+	body := getInspectBody(c, "v1.25", cleanedContainerID)
 
 	var inspectJSON map[string]interface{}
 	err := json.Unmarshal(body, &inspectJSON)
-	c.Assert(err, checker.IsNil, check.Commentf("Unable to unmarshal body for version 1.21"))
+	c.Assert(err, checker.IsNil, check.Commentf("Unable to unmarshal body for version 1.25"))
 
 	config, ok := inspectJSON["Config"]
 	c.Assert(ok, checker.True, check.Commentf("Unable to find 'Config'"))
 	cfg := config.(map[string]interface{})
 	_, ok = cfg["VolumeDriver"]
-	c.Assert(ok, checker.False, check.Commentf("API version 1.21 expected to not include VolumeDriver in 'Config'"))
+	c.Assert(ok, checker.False, check.Commentf("API version 1.25 expected to not include VolumeDriver in 'Config'"))
 
 	config, ok = inspectJSON["HostConfig"]
 	c.Assert(ok, checker.True, check.Commentf("Unable to find 'HostConfig'"))
 	cfg = config.(map[string]interface{})
 	_, ok = cfg["VolumeDriver"]
-	c.Assert(ok, checker.True, check.Commentf("API version 1.21 expected to include VolumeDriver in 'HostConfig'"))
+	c.Assert(ok, checker.True, check.Commentf("API version 1.25 expected to include VolumeDriver in 'HostConfig'"))
 }
 
 func (s *DockerSuite) TestInspectAPIImageResponse(c *check.C) {

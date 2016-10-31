@@ -90,6 +90,7 @@ func (s *DockerSuite) TestExecAPIStart(c *check.C) {
 }
 
 func (s *DockerSuite) TestExecAPIStartBackwardsCompatible(c *check.C) {
+	testRequires(c, DaemonIsLinux) // Windows only supports 1.25 or later
 	runSleepingContainer(c, "-d", "--name", "test")
 	id := createExec(c, "test")
 

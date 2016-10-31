@@ -116,6 +116,7 @@ func (s *DockerSuite) TestKillWithInvalidSignal(c *check.C) {
 }
 
 func (s *DockerSuite) TestKillStoppedContainerAPIPre120(c *check.C) {
+	testRequires(c, DaemonIsLinux) // Windows only supports 1.25 or later
 	runSleepingContainer(c, "--name", "docker-kill-test-api", "-d")
 	dockerCmd(c, "stop", "docker-kill-test-api")
 
