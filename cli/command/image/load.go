@@ -1,6 +1,7 @@
 package image
 
 import (
+	"fmt"
 	"io"
 	"os"
 
@@ -41,6 +42,9 @@ func NewLoadCommand(dockerCli *command.DockerCli) *cobra.Command {
 func runLoad(dockerCli *command.DockerCli, opts loadOptions) error {
 
 	var input io.Reader = dockerCli.In()
+	if opts.input == "" && opts.quiet == false && dockerCli.In().IsTerminal() {
+		return fmt.Errorf("docker load : No stdin")
+	}
 	if opts.input != "" {
 		file, err := os.Open(opts.input)
 		if err != nil {
