@@ -11,8 +11,6 @@ import (
 
 // ConvertTmpfsOptions converts *mounttypes.TmpfsOptions to the raw option string
 // for mount(2).
-// The logic is copy-pasted from daemon/cluster/executer/container.getMountMask.
-// It will be deduplicated when we migrated the cluster to the new mount scheme.
 func ConvertTmpfsOptions(opt *mounttypes.TmpfsOptions, readOnly bool) (string, error) {
 	var rawOpts []string
 	if readOnly {
