@@ -27,8 +27,7 @@ Options:
   -q, --quiet          Only display IDs
 ```
 
-This command when run targeting a manager, lists secrets in the
-swarm.
+Run this command from a manager to list the secrets in the Swarm.
 
 On a manager node:
 

@@ -30,7 +30,7 @@ Options:
 Removes the specified secrets from the swarm. This command has to be run
 targeting a manager node.
 
-For example, to remove secret:
+This example removes a secret:
 
 ```bash
 $ docker secret rm sapth4csdo5b6wz2p5uimh5xg
