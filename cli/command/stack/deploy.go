@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"sort"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -62,7 +63,24 @@ func runDeploy(dockerCli *command.DockerCli, opts deployOptions) error {
 
 	config, err := loader.Load(configDetails)
 	if err != nil {
+		if fpe, ok := err.(*loader.ForbiddenPropertiesError); ok {
+			return fmt.Errorf("Compose file contains unsupported options:\n\n%s\n",
+				propertyWarnings(fpe.Properties))
+		}
+
 		return err
+	}
+
+	unsupportedProperties := loader.GetUnsupportedProperties(configDetails)
+	if len(unsupportedProperties) > 0 {
+		fmt.Printf("Ignoring unsupported options: %s\n\n",
+			strings.Join(unsupportedProperties, ", "))
+	}
+
+	deprecatedProperties := loader.GetDeprecatedProperties(configDetails)
+	if len(deprecatedProperties) > 0 {
+		fmt.Printf("Ignoring deprecated options:\n\n%s\n\n",
+			propertyWarnings(deprecatedProperties))
 	}
 
 	ctx := context.Background()
@@ -70,6 +88,15 @@ func runDeploy(dockerCli *command.DockerCli, opts deployOptions) error {
 		return err
 	}
 	return deployServices(ctx, dockerCli, config, opts.namespace, opts.sendRegistryAuth)
+}
+
+func propertyWarnings(properties map[string]string) string {
+	var msgs []string
+	for name, description := range properties {
+		msgs = append(msgs, fmt.Sprintf("%s: %s", name, description))
+	}
+	sort.Strings(msgs)
+	return strings.Join(msgs, "\n\n")
 }
 
 func getConfigDetails(opts deployOptions) (composetypes.ConfigDetails, error) {
@@ -407,10 +434,11 @@ func convertRestartPolicy(restart string, source *composetypes.RestartPolicy) (*
 			}, nil
 		}
 	}
+	attempts := uint64(*source.MaxAttempts)
 	return &swarm.RestartPolicy{
 		Condition:   swarm.RestartPolicyCondition(source.Condition),
 		Delay:       source.Delay,
-		MaxAttempts: source.MaxAttempts,
+		MaxAttempts: &attempts,
 		Window:      source.Window,
 	}, nil
 }
