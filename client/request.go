@@ -38,21 +38,29 @@ func (cli *Client) get(ctx context.Context, path string, query url.Values, heade
 
 // postWithContext sends an http request to the docker API using the method POST with a specific go context.
 func (cli *Client) post(ctx context.Context, path string, query url.Values, obj interface{}, headers map[string][]string) (serverResponse, error) {
-	return cli.sendRequest(ctx, "POST", path, query, obj, headers)
+	body, headers, err := encodeBody(obj, headers)
+	if err != nil {
+		return serverResponse{}, err
+	}
+	return cli.sendRequest(ctx, "POST", path, query, body, headers)
 }
 
 func (cli *Client) postRaw(ctx context.Context, path string, query url.Values, body io.Reader, headers map[string][]string) (serverResponse, error) {
-	return cli.sendClientRequest(ctx, "POST", path, query, body, headers)
+	return cli.sendRequest(ctx, "POST", path, query, body, headers)
 }
 
 // put sends an http request to the docker API using the method PUT.
 func (cli *Client) put(ctx context.Context, path string, query url.Values, obj interface{}, headers map[string][]string) (serverResponse, error) {
-	return cli.sendRequest(ctx, "PUT", path, query, obj, headers)
+	body, headers, err := encodeBody(obj, headers)
+	if err != nil {
+		return serverResponse{}, err
+	}
+	return cli.sendRequest(ctx, "PUT", path, query, body, headers)
 }
 
 // put sends an http request to the docker API using the method PUT.
 func (cli *Client) putRaw(ctx context.Context, path string, query url.Values, body io.Reader, headers map[string][]string) (serverResponse, error) {
-	return cli.sendClientRequest(ctx, "PUT", path, query, body, headers)
+	return cli.sendRequest(ctx, "PUT", path, query, body, headers)
 }
 
 // delete sends an http request to the docker API using the method DELETE.
@@ -60,39 +68,35 @@ func (cli *Client) delete(ctx context.Context, path string, query url.Values, he
 	return cli.sendRequest(ctx, "DELETE", path, query, nil, headers)
 }
 
-func (cli *Client) sendRequest(ctx context.Context, method, path string, query url.Values, obj interface{}, headers map[string][]string) (serverResponse, error) {
-	var body io.Reader
+type headers map[string][]string
 
-	if obj != nil {
-		var err error
-		body, err = encodeData(obj)
-		if err != nil {
-			return serverResponse{}, err
-		}
-		if headers == nil {
-			headers = make(map[string][]string)
-		}
-		headers["Content-Type"] = []string{"application/json"}
+func encodeBody(obj interface{}, headers headers) (io.Reader, headers, error) {
+	if obj == nil {
+		return nil, headers, nil
 	}
 
-	return cli.sendClientRequest(ctx, method, path, query, body, headers)
+	body, err := encodeData(obj)
+	if err != nil {
+		return nil, headers, err
+	}
+	if headers == nil {
+		headers = make(map[string][]string)
+	}
+	headers["Content-Type"] = []string{"application/json"}
+	return body, headers, nil
 }
 
-func (cli *Client) sendClientRequest(ctx context.Context, method, path string, query url.Values, body io.Reader, headers map[string][]string) (serverResponse, error) {
-	serverResp := serverResponse{
-		body:       nil,
-		statusCode: -1,
-	}
-
+func (cli *Client) buildRequest(method, path string, body io.Reader, headers headers) (*http.Request, error) {
 	expectedPayload := (method == "POST" || method == "PUT")
 	if expectedPayload && body == nil {
 		body = bytes.NewReader([]byte{})
 	}
 
-	req, err := cli.newRequest(method, path, query, body, headers)
+	req, err := http.NewRequest(method, path, body)
 	if err != nil {
-		return serverResp, err
+		return nil, err
 	}
+	req = cli.addHeaders(req, headers)
 
 	if cli.proto == "unix" || cli.proto == "npipe" {
 		// For local communications, it doesn't matter what the host is. We just
@@ -106,6 +110,19 @@ func (cli *Client) sendClientRequest(ctx context.Context, method, path string, q
 	if expectedPayload && req.Header.Get("Content-Type") == "" {
 		req.Header.Set("Content-Type", "text/plain")
 	}
+	return req, nil
+}
+
+func (cli *Client) sendRequest(ctx context.Context, method, path string, query url.Values, body io.Reader, headers headers) (serverResponse, error) {
+	req, err := cli.buildRequest(method, cli.getAPIPath(path, query), body, headers)
+	if err != nil {
+		return serverResponse{}, err
+	}
+	return cli.doRequest(ctx, req)
+}
+
+func (cli *Client) doRequest(ctx context.Context, req *http.Request) (serverResponse, error) {
+	serverResp := serverResponse{statusCode: -1}
 
 	resp, err := ctxhttp.Do(ctx, cli.client, req)
 	if err != nil {
@@ -193,13 +210,7 @@ func (cli *Client) sendClientRequest(ctx context.Context, method, path string, q
 	return serverResp, nil
 }
 
-func (cli *Client) newRequest(method, path string, query url.Values, body io.Reader, headers map[string][]string) (*http.Request, error) {
-	apiPath := cli.getAPIPath(path, query)
-	req, err := http.NewRequest(method, apiPath, body)
-	if err != nil {
-		return nil, err
-	}
-
+func (cli *Client) addHeaders(req *http.Request, headers headers) *http.Request {
 	// Add CLI Config's HTTP Headers BEFORE we set the Docker headers
 	// then the user can't change OUR headers
 	for k, v := range cli.customHTTPHeaders {
@@ -211,8 +222,7 @@ func (cli *Client) newRequest(method, path string, query url.Values, body io.Rea
 			req.Header[k] = v
 		}
 	}
-
-	return req, nil
+	return req
 }
 
 func encodeData(data interface{}) (*bytes.Buffer, error) {
