@@ -71,8 +71,8 @@ $ docker secret inspect mhv17xfe3gh6xc4rij5orpfds
 
 ### Formatting secret output
 
-The `--format` option can be used to obtain specific information about a
-secret. For example, the following command outputs the digest of the
+You can use the --format option to obtain specific information about a
+secret. The following example command outputs the digest of the
 secret.
 
 ```bash{% raw %}
