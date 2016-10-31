@@ -7,7 +7,7 @@ set -e
 (
 	source "${MAKEDIR}/.binary-setup"
 	export BINARY_SHORT_NAME="$DOCKER_DAEMON_BINARY_NAME"
-	export SOURCE_PATH='./cmd/dockerd'
+	export GO_PACKAGE='github.com/docker/docker/cmd/dockerd'
 	source "${MAKEDIR}/.binary"
 	copy_binaries "$DEST" 'hash'
 )

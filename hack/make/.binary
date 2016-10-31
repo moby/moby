@@ -39,7 +39,7 @@ go build \
 		$LDFLAGS
 		$LDFLAGS_STATIC_DOCKER
 	" \
-	$SOURCE_PATH
+	$GO_PACKAGE
 )
 
 echo "Created binary: $DEST/$BINARY_FULLNAME"

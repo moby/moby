@@ -7,6 +7,7 @@ RUNC_COMMIT=02f8fa7863dd3f82909a73e2061897828460d52f
 CONTAINERD_COMMIT=52ef1ceb4b660c42cf4ea9013180a5663968d4c7
 GRIMES_COMMIT=fe069a03affd2547fdb05e5b8b07202d2e41735b
 LIBNETWORK_COMMIT=0f534354b813003a754606689722fe253101bc4e
+VNDR_COMMIT=f56bd4504b4fad07a357913687fb652ee54bb3b0
 
 RM_GOPATH=0
 
@@ -91,6 +92,14 @@ do
 
 		proxy-dynamic)
 			PROXY_LDFLAGS="-linkmode=external" install_proxy
+			;;
+
+		vndr)
+			echo "Install vndr version $VNDR_COMMIT"
+			git clone https://github.com/LK4D4/vndr.git "$GOPATH/src/github.com/LK4D4/vndr"
+			cd "$GOPATH/src/github.com/LK4D4/vndr"
+			git checkout -q "$VNDR_COMMIT"
+			go build -v -o /usr/local/bin/vndr .
 			;;
 
 		*)

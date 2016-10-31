@@ -18,7 +18,7 @@ COPY    glide.yaml /manvendor/
 COPY    glide.lock /manvendor/
 WORKDIR /manvendor/
 RUN     glide install && mv vendor src
-ENV     GOPATH=$GOPATH:/go/src/github.com/docker/docker/vendor:/manvendor
+ENV     GOPATH=$GOPATH:/manvendor
 RUN     go build -o /usr/bin/go-md2man github.com/cpuguy83/go-md2man
 
 WORKDIR /go/src/github.com/docker/docker/
