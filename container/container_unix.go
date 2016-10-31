@@ -286,9 +286,8 @@ func (container *Container) UnmountSecrets() error {
 	if _, err := os.Stat(container.SecretMountPath()); err != nil {
 		if os.IsNotExist(err) {
 			return nil
-		} else {
-			return err
 		}
+		return err
 	}
 
 	return detachMounted(container.SecretMountPath())
