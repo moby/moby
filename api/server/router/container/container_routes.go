@@ -83,7 +83,10 @@ func (s *containerRouter) getContainersStatsAll(ctx context.Context, w http.Resp
 	if !stream {
 		w.Header().Set("Content-Type", "application/json")
 	}
-	all := httputils.BoolValueOrDefault(r, "all", false)
+	filter, err := filters.FromParam(r.Form.Get("filters"))
+	if err != nil {
+		return err
+	}
 
 	config := &backend.ContainerStatsAllConfig{
 		ContainerStatsConfig: backend.ContainerStatsConfig{
@@ -91,7 +94,7 @@ func (s *containerRouter) getContainersStatsAll(ctx context.Context, w http.Resp
 			OutStream: w,
 			Version:   string(httputils.VersionFromContext(ctx)),
 		},
-		All: all,
+		Filters: filter,
 	}
 
 	return s.backend.ContainerStatsAll(ctx, config)

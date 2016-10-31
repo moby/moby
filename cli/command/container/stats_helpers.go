@@ -11,6 +11,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/cli/command/formatter"
 	"github.com/docker/docker/client"
 	"golang.org/x/net/context"
@@ -96,9 +97,14 @@ func (s *stats) collectAll(ctx context.Context, cli client.APIClient, all, strea
 		}
 	}()
 
+	filter := filters.NewArgs()
+	if !all {
+		filter.Add("status", "running")
+	}
+
 	options := types.StatsAllOptions{
-		All:    all,
-		Stream: streamStats,
+		Filters: filter,
+		Stream:  streamStats,
 	}
 	response, err := cli.ContainerStatsAll(ctx, options)
 	if err != nil {

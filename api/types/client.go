@@ -258,8 +258,8 @@ type ResizeOptions struct {
 
 // StatsAllOptions holds parameters to get stats of all containers
 type StatsAllOptions struct {
-	All    bool // get all including exited
-	Stream bool // stream the output
+	Filters filters.Args
+	Stream  bool // stream the output
 }
 
 // VersionResponse holds version information for the client and the server

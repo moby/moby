@@ -4,6 +4,7 @@ import (
 	"net/url"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/filters"
 	"golang.org/x/net/context"
 )
 
@@ -33,8 +34,15 @@ func (cli *Client) ContainerStatsAll(ctx context.Context, options types.StatsAll
 	if options.Stream {
 		query.Set("stream", "1")
 	}
-	if options.All {
-		query.Set("all", "1")
+
+	if options.Filters.Len() > 0 {
+		filterJSON, err := filters.ToParamWithVersion(cli.version, options.Filters)
+
+		if err != nil {
+			return types.ContainerStats{}, err
+		}
+
+		query.Set("filters", filterJSON)
 	}
 
 	resp, err := cli.get(ctx, "/containers/-/stats", query, nil)

@@ -5,6 +5,7 @@ import (
 	"io"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/pkg/streamformatter"
 )
 
@@ -44,7 +45,7 @@ type ContainerStatsConfig struct {
 // behavior of a backend.ContainerStatsAll() call.
 type ContainerStatsAllConfig struct {
 	ContainerStatsConfig
-	All bool
+	Filters filters.Args
 }
 
 // ExecInspect holds information about a running process started
