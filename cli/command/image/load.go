@@ -1,6 +1,7 @@
 package image
 
 import (
+	"fmt"
 	"io"
 	"os"
 
@@ -49,6 +50,13 @@ func runLoad(dockerCli *command.DockerCli, opts loadOptions) error {
 		defer file.Close()
 		input = file
 	}
+
+	// To avoid getting stuck, verify that a tar file is given either in
+	// the input flag or through stdin and if not display an error message and exit.
+	if opts.input == "" && dockerCli.In().IsTerminal() {
+		return fmt.Errorf("requested load from stdin, but stdin is empty")
+	}
+
 	if !dockerCli.Out().IsTerminal() {
 		opts.quiet = true
 	}
