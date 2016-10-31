@@ -11,6 +11,7 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
+	volumetypes "github.com/docker/docker/api/types/volume"
 	"golang.org/x/net/context"
 )
 
@@ -68,7 +69,7 @@ func TestVolumeList(t *testing.T) {
 				if actualFilters != listCase.expectedFilters {
 					return nil, fmt.Errorf("filters not set in URL query properly. Expected '%s', got %s", listCase.expectedFilters, actualFilters)
 				}
-				content, err := json.Marshal(types.VolumesListResponse{
+				content, err := json.Marshal(volumetypes.VolumesListOKBody{
 					Volumes: []*types.Volume{
 						{
 							Name:   "volume",

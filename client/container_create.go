@@ -5,7 +5,6 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
 	"golang.org/x/net/context"
@@ -19,8 +18,8 @@ type configWrapper struct {
 
 // ContainerCreate creates a new container based in the given configuration.
 // It can be associated with a name, but it's not mandatory.
-func (cli *Client) ContainerCreate(ctx context.Context, config *container.Config, hostConfig *container.HostConfig, networkingConfig *network.NetworkingConfig, containerName string) (types.ContainerCreateResponse, error) {
-	var response types.ContainerCreateResponse
+func (cli *Client) ContainerCreate(ctx context.Context, config *container.Config, hostConfig *container.HostConfig, networkingConfig *network.NetworkingConfig, containerName string) (container.ContainerCreateCreatedBody, error) {
+	var response container.ContainerCreateCreatedBody
 	query := url.Values{}
 	if containerName != "" {
 		query.Set("name", containerName)

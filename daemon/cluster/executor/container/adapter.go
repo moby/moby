@@ -12,6 +12,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/api/types"
+	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/versions"
 	executorpkg "github.com/docker/docker/daemon/cluster/executor"
@@ -187,7 +188,7 @@ func (c *containerAdapter) waitForDetach(ctx context.Context) error {
 }
 
 func (c *containerAdapter) create(ctx context.Context) error {
-	var cr types.ContainerCreateResponse
+	var cr containertypes.ContainerCreateCreatedBody
 	var err error
 	version := httputils.VersionFromContext(ctx)
 	validateHostname := versions.GreaterThanOrEqualTo(version, "1.24")

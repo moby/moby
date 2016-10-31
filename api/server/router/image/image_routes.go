@@ -63,7 +63,7 @@ func (s *imageRouter) postCommit(ctx context.Context, w http.ResponseWriter, r *
 		return err
 	}
 
-	return httputils.WriteJSON(w, http.StatusCreated, &types.ContainerCommitResponse{
+	return httputils.WriteJSON(w, http.StatusCreated, &types.IDResponse{
 		ID: string(imgID),
 	})
 }

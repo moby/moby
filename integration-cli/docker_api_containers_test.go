@@ -574,7 +574,7 @@ func (s *DockerSuite) TestContainerAPICreateWithHostName(c *check.C) {
 	c.Assert(err, checker.IsNil)
 	c.Assert(status, checker.Equals, http.StatusCreated)
 
-	var container types.ContainerCreateResponse
+	var container containertypes.ContainerCreateCreatedBody
 	c.Assert(json.Unmarshal(body, &container), checker.IsNil)
 
 	status, body, err = sockRequest("GET", "/containers/"+container.ID+"/json", nil)
@@ -597,7 +597,7 @@ func (s *DockerSuite) TestContainerAPICreateWithDomainName(c *check.C) {
 	c.Assert(err, checker.IsNil)
 	c.Assert(status, checker.Equals, http.StatusCreated)
 
-	var container types.ContainerCreateResponse
+	var container containertypes.ContainerCreateCreatedBody
 	c.Assert(json.Unmarshal(body, &container), checker.IsNil)
 
 	status, body, err = sockRequest("GET", "/containers/"+container.ID+"/json", nil)
@@ -632,7 +632,7 @@ func UtilCreateNetworkMode(c *check.C, networkMode string) {
 	c.Assert(err, checker.IsNil)
 	c.Assert(status, checker.Equals, http.StatusCreated)
 
-	var container types.ContainerCreateResponse
+	var container containertypes.ContainerCreateCreatedBody
 	c.Assert(json.Unmarshal(body, &container), checker.IsNil)
 
 	status, body, err = sockRequest("GET", "/containers/"+container.ID+"/json", nil)
@@ -657,7 +657,7 @@ func (s *DockerSuite) TestContainerAPICreateWithCpuSharesCpuset(c *check.C) {
 	c.Assert(err, checker.IsNil)
 	c.Assert(status, checker.Equals, http.StatusCreated)
 
-	var container types.ContainerCreateResponse
+	var container containertypes.ContainerCreateCreatedBody
 	c.Assert(json.Unmarshal(body, &container), checker.IsNil)
 
 	status, body, err = sockRequest("GET", "/containers/"+container.ID+"/json", nil)
@@ -957,9 +957,9 @@ func (s *DockerSuite) TestContainerAPIWait(c *check.C) {
 	c.Assert(status, checker.Equals, http.StatusOK)
 	c.Assert(waitInspect(name, "{{ .State.Running  }}", "false", 60*time.Second), checker.IsNil)
 
-	var waitres types.ContainerWaitResponse
+	var waitres containertypes.ContainerWaitOKBody
 	c.Assert(json.Unmarshal(body, &waitres), checker.IsNil)
-	c.Assert(waitres.StatusCode, checker.Equals, 0)
+	c.Assert(waitres.StatusCode, checker.Equals, int64(0))
 }
 
 func (s *DockerSuite) TestContainerAPICopyNotExistsAnyMore(c *check.C) {
@@ -1349,7 +1349,7 @@ func (s *DockerSuite) TestPostContainersCreateShmSizeHostConfigOmitted(c *check.
 	c.Assert(err, check.IsNil)
 	c.Assert(status, check.Equals, http.StatusCreated)
 
-	var container types.ContainerCreateResponse
+	var container containertypes.ContainerCreateCreatedBody
 	c.Assert(json.Unmarshal(body, &container), check.IsNil)
 
 	status, body, err = sockRequest("GET", "/containers/"+container.ID+"/json", nil)
@@ -1381,7 +1381,7 @@ func (s *DockerSuite) TestPostContainersCreateShmSizeOmitted(c *check.C) {
 	c.Assert(err, check.IsNil)
 	c.Assert(status, check.Equals, http.StatusCreated)
 
-	var container types.ContainerCreateResponse
+	var container containertypes.ContainerCreateCreatedBody
 	c.Assert(json.Unmarshal(body, &container), check.IsNil)
 
 	status, body, err = sockRequest("GET", "/containers/"+container.ID+"/json", nil)
@@ -1413,7 +1413,7 @@ func (s *DockerSuite) TestPostContainersCreateWithShmSize(c *check.C) {
 	c.Assert(err, check.IsNil)
 	c.Assert(status, check.Equals, http.StatusCreated)
 
-	var container types.ContainerCreateResponse
+	var container containertypes.ContainerCreateCreatedBody
 	c.Assert(json.Unmarshal(body, &container), check.IsNil)
 
 	status, body, err = sockRequest("GET", "/containers/"+container.ID+"/json", nil)
@@ -1443,7 +1443,7 @@ func (s *DockerSuite) TestPostContainersCreateMemorySwappinessHostConfigOmitted(
 	c.Assert(err, check.IsNil)
 	c.Assert(status, check.Equals, http.StatusCreated)
 
-	var container types.ContainerCreateResponse
+	var container containertypes.ContainerCreateCreatedBody
 	c.Assert(json.Unmarshal(body, &container), check.IsNil)
 
 	status, body, err = sockRequest("GET", "/containers/"+container.ID+"/json", nil)

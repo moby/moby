@@ -32,7 +32,7 @@ type copyBackend interface {
 
 // stateBackend includes functions to implement to provide container state lifecycle functionality.
 type stateBackend interface {
-	ContainerCreate(config types.ContainerCreateConfig, validateHostname bool) (types.ContainerCreateResponse, error)
+	ContainerCreate(config types.ContainerCreateConfig, validateHostname bool) (container.ContainerCreateCreatedBody, error)
 	ContainerKill(name string, sig uint64) error
 	ContainerPause(name string) error
 	ContainerRename(oldName, newName string) error
@@ -42,7 +42,7 @@ type stateBackend interface {
 	ContainerStart(name string, hostConfig *container.HostConfig, validateHostname bool, checkpoint string, checkpointDir string) error
 	ContainerStop(name string, seconds *int) error
 	ContainerUnpause(name string) error
-	ContainerUpdate(name string, hostConfig *container.HostConfig, validateHostname bool) (types.ContainerUpdateResponse, error)
+	ContainerUpdate(name string, hostConfig *container.HostConfig, validateHostname bool) (container.ContainerUpdateOKBody, error)
 	ContainerWait(name string, timeout time.Duration) (int, error)
 }
 

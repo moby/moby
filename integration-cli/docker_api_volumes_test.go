@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 
 	"github.com/docker/docker/api/types"
+	volumetypes "github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/pkg/integration/checker"
 	"github.com/go-check/check"
 )
@@ -18,14 +19,14 @@ func (s *DockerSuite) TestVolumesAPIList(c *check.C) {
 	c.Assert(err, checker.IsNil)
 	c.Assert(status, checker.Equals, http.StatusOK)
 
-	var volumes types.VolumesListResponse
+	var volumes volumetypes.VolumesListOKBody
 	c.Assert(json.Unmarshal(b, &volumes), checker.IsNil)
 
 	c.Assert(len(volumes.Volumes), checker.Equals, 1, check.Commentf("\n%v", volumes.Volumes))
 }
 
 func (s *DockerSuite) TestVolumesAPICreate(c *check.C) {
-	config := types.VolumeCreateRequest{
+	config := volumetypes.VolumesCreateBody{
 		Name: "test",
 	}
 	status, b, err := sockRequest("POST", "/volumes/create", config)
@@ -47,7 +48,7 @@ func (s *DockerSuite) TestVolumesAPIRemove(c *check.C) {
 	c.Assert(err, checker.IsNil)
 	c.Assert(status, checker.Equals, http.StatusOK)
 
-	var volumes types.VolumesListResponse
+	var volumes volumetypes.VolumesListOKBody
 	c.Assert(json.Unmarshal(b, &volumes), checker.IsNil)
 	c.Assert(len(volumes.Volumes), checker.Equals, 1, check.Commentf("\n%v", volumes.Volumes))
 
@@ -64,7 +65,7 @@ func (s *DockerSuite) TestVolumesAPIRemove(c *check.C) {
 }
 
 func (s *DockerSuite) TestVolumesAPIInspect(c *check.C) {
-	config := types.VolumeCreateRequest{
+	config := volumetypes.VolumesCreateBody{
 		Name: "test",
 	}
 	status, b, err := sockRequest("POST", "/volumes/create", config)
@@ -75,7 +76,7 @@ func (s *DockerSuite) TestVolumesAPIInspect(c *check.C) {
 	c.Assert(err, checker.IsNil)
 	c.Assert(status, checker.Equals, http.StatusOK, check.Commentf(string(b)))
 
-	var volumes types.VolumesListResponse
+	var volumes volumetypes.VolumesListOKBody
 	c.Assert(json.Unmarshal(b, &volumes), checker.IsNil)
 	c.Assert(len(volumes.Volumes), checker.Equals, 1, check.Commentf("\n%v", volumes.Volumes))
 

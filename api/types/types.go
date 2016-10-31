@@ -13,54 +13,6 @@ import (
 	"github.com/docker/go-connections/nat"
 )
 
-// ContainerCreateResponse contains the information returned to a client on the
-// creation of a new container.
-type ContainerCreateResponse struct {
-	// ID is the ID of the created container.
-	ID string `json:"Id"`
-
-	// Warnings are any warnings encountered during the creation of the container.
-	Warnings []string `json:"Warnings"`
-}
-
-// ContainerExecCreateResponse contains response of Remote API:
-// POST "/containers/{name:.*}/exec"
-type ContainerExecCreateResponse struct {
-	// ID is the exec ID.
-	ID string `json:"Id"`
-}
-
-// ContainerUpdateResponse contains response of Remote API:
-// POST "/containers/{name:.*}/update"
-type ContainerUpdateResponse struct {
-	// Warnings are any warnings encountered during the updating of the container.
-	Warnings []string `json:"Warnings"`
-}
-
-// AuthResponse contains response of Remote API:
-// POST "/auth"
-type AuthResponse struct {
-	// Status is the authentication status
-	Status string `json:"Status"`
-
-	// IdentityToken is an opaque token used for authenticating
-	// a user after a successful login.
-	IdentityToken string `json:"IdentityToken,omitempty"`
-}
-
-// ContainerWaitResponse contains response of Remote API:
-// POST "/containers/"+containerID+"/wait"
-type ContainerWaitResponse struct {
-	// StatusCode is the status code of the wait job
-	StatusCode int `json:"StatusCode"`
-}
-
-// ContainerCommitResponse contains response of Remote API:
-// POST "/commit?container="+containerID
-type ContainerCommitResponse struct {
-	ID string `json:"Id"`
-}
-
 // ContainerChange contains response of Remote API:
 // GET "/containers/{name:.*}/changes"
 type ContainerChange struct {
@@ -408,22 +360,6 @@ type MountPoint struct {
 	Mode        string
 	RW          bool
 	Propagation mount.Propagation
-}
-
-// VolumesListResponse contains the response for the remote API:
-// GET "/volumes"
-type VolumesListResponse struct {
-	Volumes  []*Volume // Volumes is the list of volumes being returned
-	Warnings []string  // Warnings is a list of warnings that occurred when getting the list from the volume drivers
-}
-
-// VolumeCreateRequest contains the request for the remote API:
-// POST "/volumes/create"
-type VolumeCreateRequest struct {
-	Name       string            // Name is the requested name of the volume
-	Driver     string            // Driver is the name of the driver that should be used to create the volume
-	DriverOpts map[string]string // DriverOpts holds the driver specific options to use for when creating the volume.
-	Labels     map[string]string // Labels holds metadata specific to the volume being created.
 }
 
 // NetworkResource is the body of the "get network" http response message

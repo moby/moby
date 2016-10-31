@@ -9,7 +9,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"golang.org/x/net/context"
 )
@@ -54,7 +53,7 @@ func TestContainerCreateWithName(t *testing.T) {
 			if name != "container_name" {
 				return nil, fmt.Errorf("container name not set in URL query properly. Expected `container_name`, got %s", name)
 			}
-			b, err := json.Marshal(types.ContainerCreateResponse{
+			b, err := json.Marshal(container.ContainerCreateCreatedBody{
 				ID: "container_id",
 			})
 			if err != nil {
