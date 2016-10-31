@@ -1,12 +1,9 @@
-<!--[metadata]>
-+++
-title = "node ls"
-description = "The node ls command description and usage"
-keywords = ["node, list"]
-[menu.main]
-parent = "smn_cli"
-+++
-<![end-metadata]-->
+---
+description: The node ls command description and usage
+keywords:
+- node, list
+title: node ls
+---
 
 **Warning:** this command is part of the Swarm management feature introduced in Docker 1.12, and might be subject to non backward-compatible changes.
 

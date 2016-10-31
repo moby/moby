@@ -1,13 +1,10 @@
-<!--[metadata]>
-+++
-title = "Remote API client libraries"
-description = "Various client libraries available to use with the Docker remote API"
-keywords = ["API, Docker, index, registry, REST, documentation, clients, C#, Erlang, Go, Groovy, Java, JavaScript, Perl, PHP, Python, Ruby, Rust,  Scala"]
-[menu.main]
-parent="engine_remoteapi"
-weight = 90
-+++
-<![end-metadata]-->
+---
+description: Various client libraries available to use with the Docker remote API
+keywords:
+- API, Docker, index, registry, REST, documentation, clients, C#, Erlang, Go, Groovy,
+  Java, JavaScript, Perl, PHP, Python, Ruby, Rust,  Scala
+title: Remote API client libraries
+---
 
 # Docker Remote API client libraries
 
@@ -52,8 +49,8 @@ with the library maintainers.
     </tr>
     <tr>
       <td>Go</td>
-      <td>engine-api</td>
-      <td><a class="reference external" href="https://github.com/docker/engine-api">https://github.com/docker/engine-api</a></td>
+      <td>Docker Go client</td>
+      <td><a class="reference external" href="https://godoc.org/github.com/docker/docker/client">https://godoc.org/github.com/docker/docker/client</a></td>
     </tr>
     <tr>
       <td>Gradle</td>

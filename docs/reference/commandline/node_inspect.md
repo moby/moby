@@ -1,12 +1,9 @@
-<!--[metadata]>
-+++
-title = "node inspect"
-description = "The node inspect command description and usage"
-keywords = ["node, inspect"]
-[menu.main]
-parent = "smn_cli"
-+++
-<![end-metadata]-->
+---
+description: The node inspect command description and usage
+keywords:
+- node, inspect
+title: node inspect
+---
 
 **Warning:** this command is part of the Swarm management feature introduced in Docker 1.12, and might be subject to non backward-compatible changes.
 
@@ -95,8 +92,10 @@ Example output:
     }
     ]
 
+    {% raw %}
     $ docker node inspect --format '{{ .ManagerStatus.Leader }}' self
     false
+    {% endraw %}
 
     $ docker node inspect --pretty self
     ID:                     e216jshn25ckzbvmwlnh5jr3g

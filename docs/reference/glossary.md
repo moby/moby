@@ -1,13 +1,11 @@
-<!--[metadata]>
-+++
-title = "Docker Glossary"
-description = "Glossary of terms used around Docker"
-keywords = ["glossary, docker, terms,  definitions"]
-[menu.main]
-parent = "mn_about"
-weight = "50"
-+++
-<![end-metadata]-->
+---
+aliases:
+  - /reference/glossary/
+description: Glossary of terms used around Docker
+keywords:
+- glossary, docker, terms,  definitions
+title: Docker Glossary
+---
 
 # Glossary
 
@@ -115,7 +113,7 @@ Examples :
 
 - Linux : ext4, aufs, btrfs, zfs
 - Windows : NTFS
-- OS X : HFS+
+- macOS : HFS+
 
 ## image
 

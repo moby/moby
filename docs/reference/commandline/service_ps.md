@@ -1,13 +1,12 @@
-<!--[metadata]>
-+++
-title = "service ps"
-description = "The service ps command description and usage"
-keywords = ["service, tasks", "ps"]
-aliases = ["/engine/reference/commandline/service_tasks/"]
-[menu.main]
-parent = "smn_cli"
-+++
-<![end-metadata]-->
+---
+aliases:
+- /engine/reference/commandline/service_tasks/
+description: The service ps command description and usage
+keywords:
+- service, tasks
+- ps
+title: service ps
+---
 
 **Warning:** this command is part of the Swarm management feature introduced in Docker 1.12, and might be subject to non backward-compatible changes.
 
