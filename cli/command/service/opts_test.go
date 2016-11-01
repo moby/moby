@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/testutil/assert"
 )
 
@@ -21,12 +22,12 @@ func TestMemBytesSetAndValue(t *testing.T) {
 }
 
 func TestNanoCPUsString(t *testing.T) {
-	var cpus nanoCPUs = 6100000000
+	var cpus opts.NanoCPUs = 6100000000
 	assert.Equal(t, cpus.String(), "6.100")
 }
 
 func TestNanoCPUsSetAndValue(t *testing.T) {
-	var cpus nanoCPUs
+	var cpus opts.NanoCPUs
 	assert.NilError(t, cpus.Set("0.35"))
 	assert.Equal(t, cpus.Value(), int64(350000000))
 }

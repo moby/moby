@@ -35,6 +35,7 @@ Options:
       --cpu-period int              Limit CPU CFS (Completely Fair Scheduler) period
       --cpu-quota int               Limit CPU CFS (Completely Fair Scheduler) quota
   -c, --cpu-shares int              CPU shares (relative weight)
+      --cpus NanoCPUs               Number of CPUs (default 0.000)
       --cpu-rt-period int           Limit the CPU real-time period in microseconds
       --cpu-rt-runtime int          Limit the CPU real-time runtime in microseconds
       --cpuset-cpus string          CPUs in which to allow execution (0-3, 0,1)

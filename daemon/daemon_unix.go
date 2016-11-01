@@ -15,6 +15,7 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/types"
@@ -108,6 +109,16 @@ func getCPUResources(config containertypes.Resources) *specs.CPU {
 	if config.CpusetMems != "" {
 		cpuset := config.CpusetMems
 		cpu.Mems = &cpuset
+	}
+
+	if config.NanoCPUs > 0 {
+		// Use the default setting of 100ms, as is specified in:
+		// https://www.kernel.org/doc/Documentation/scheduler/sched-bwc.txt
+		//    	cpu.cfs_period_us=100ms
+		period := uint64(100 * time.Millisecond / time.Microsecond)
+		quota := uint64(config.NanoCPUs) * period / 1e9
+		cpu.Period = &period
+		cpu.Quota = &quota
 	}
 
 	if config.CPUPeriod != 0 {
@@ -341,6 +352,19 @@ func verifyContainerResources(resources *containertypes.Resources, sysInfo *sysi
 	}
 
 	// cpu subsystem checks and adjustments
+	if resources.NanoCPUs > 0 && resources.CPUPeriod > 0 {
+		return warnings, fmt.Errorf("Conflicting options: Nano CPUs and CPU Period cannot both be set")
+	}
+	if resources.NanoCPUs > 0 && resources.CPUQuota > 0 {
+		return warnings, fmt.Errorf("Conflicting options: Nano CPUs and CPU Quota cannot both be set")
+	}
+	if resources.NanoCPUs > 0 && (!sysInfo.CPUCfsPeriod || !sysInfo.CPUCfsQuota) {
+		return warnings, fmt.Errorf("NanoCPUs can not be set, as your kernel does not support CPU cfs period/quota or the cgroup is not mounted")
+	}
+	if resources.NanoCPUs < 0 || resources.NanoCPUs > int64(sysinfo.NumCPU())*1e9 {
+		return warnings, fmt.Errorf("Range of Nano CPUs is from 1 to %d", int64(sysinfo.NumCPU())*1e9)
+	}
+
 	if resources.CPUShares > 0 && !sysInfo.CPUShares {
 		warnings = append(warnings, "Your kernel does not support CPU shares or the cgroup is not mounted. Shares discarded.")
 		logrus.Warn("Your kernel does not support CPU shares or the cgroup is not mounted. Shares discarded.")

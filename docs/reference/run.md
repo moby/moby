@@ -686,6 +686,7 @@ container:
 | `--memory-reservation=""`  | Memory soft limit (format: `<number>[<unit>]`). Number is a positive integer. Unit can be one of `b`, `k`, `m`, or `g`.                         |
 | `--kernel-memory=""`       | Kernel memory limit (format: `<number>[<unit>]`). Number is a positive integer. Unit can be one of `b`, `k`, `m`, or `g`. Minimum is 4M.        |
 | `-c`, `--cpu-shares=0`     | CPU shares (relative weight)                                                                                                                    |
+| `--cpus=0.000`             | Number of CPUs. Number is a fractional number. 0.000 means no limit.                                                                            |
 | `--cpu-period=0`           | Limit the CPU CFS (Completely Fair Scheduler) period                                                                                            |
 | `--cpuset-cpus=""`         | CPUs in which to allow execution (0-3, 0,1)                                                                                                     |
 | `--cpuset-mems=""`         | Memory nodes (MEMs) in which to allow execution (0-3, 0,1). Only effective on NUMA systems.                                                     |
@@ -969,6 +970,13 @@ Examples:
     $ docker run -it --cpu-period=50000 --cpu-quota=25000 ubuntu:14.04 /bin/bash
 
 If there is 1 CPU, this means the container can get 50% CPU worth of run-time every 50ms.
+
+In addition to use `--cpu-period` and `--cpu-quota` for setting CPU period constraints,
+it is possible to specify `--cpus` with a float number to achieve the same purpose.
+For example, if there is 1 CPU, then `--cpus=0.5` will achieve the same result as
+setting `--cpu-period=50000` and `--cpu-quota=25000` (50% CPU).
+
+The default value for `--cpus` is `0.000`, which means there is no limit.
 
 For more information, see the [CFS documentation on bandwidth limiting](https://www.kernel.org/doc/Documentation/scheduler/sched-bwc.txt).
 
