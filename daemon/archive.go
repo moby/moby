@@ -257,7 +257,7 @@ func (daemon *Daemon) containerExtractToDir(container *container.Container, path
 		return ErrRootFSReadOnly
 	}
 
-	uid, gid := daemon.GetRemappedUIDGID()
+	uid, gid := daemon.GetRemappedRootUIDGID()
 	options := &archive.TarOptions{
 		NoOverwriteDirNonDir: noOverwriteDirNonDir,
 		ChownOpts: &archive.TarChownOptions{
@@ -342,11 +342,12 @@ func (daemon *Daemon) containerCopy(container *container.Container, resource str
 // specified by a container object.
 // TODO: make sure callers don't unnecessarily convert destPath with filepath.FromSlash (Copy does it already).
 // CopyOnBuild should take in abstract paths (with slashes) and the implementation should convert it to OS-specific paths.
-func (daemon *Daemon) CopyOnBuild(cID string, destPath string, src builder.FileInfo, decompress bool) error {
+func (daemon *Daemon) CopyOnBuild(cID string, destPath string, src builder.FileInfo, decompress bool, usergrp string) error {
 	srcPath := src.Path()
 	destExists := true
 	destDir := false
-	rootUID, rootGID := daemon.GetRemappedUIDGID()
+	uid := 0
+	gid := 0
 
 	// Work in daemon-local OS specific file paths
 	destPath = filepath.FromSlash(destPath)
@@ -360,6 +361,17 @@ func (daemon *Daemon) CopyOnBuild(cID string, destPath string, src builder.FileI
 		return err
 	}
 	defer daemon.Unmount(c)
+
+	if usergrp != "" {
+		execUser, err := c.ParseUserGrp(usergrp)
+		if err != nil {
+			return err
+		}
+		uid = execUser.Uid
+		gid = execUser.Gid
+	}
+
+	uid, gid = daemon.GetRemappedUIDGID(uid, gid)
 
 	dest, err := c.GetResourcePath(destPath)
 	if err != nil {
@@ -396,7 +408,7 @@ func (daemon *Daemon) CopyOnBuild(cID string, destPath string, src builder.FileI
 		if err := archiver.CopyWithTar(srcPath, destPath); err != nil {
 			return err
 		}
-		return fixPermissions(srcPath, destPath, rootUID, rootGID, destExists)
+		return fixPermissions(srcPath, destPath, uid, gid, destExists)
 	}
 	if decompress && archive.IsArchivePath(srcPath) {
 		// Only try to untar if it is a file and that we've been told to decompress (when ADD-ing a remote file)
@@ -425,12 +437,12 @@ func (daemon *Daemon) CopyOnBuild(cID string, destPath string, src builder.FileI
 		destPath = filepath.Join(destPath, src.Name())
 	}
 
-	if err := idtools.MkdirAllNewAs(filepath.Dir(destPath), 0755, rootUID, rootGID); err != nil {
+	if err := idtools.MkdirAllNewAs(filepath.Dir(destPath), 0755, uid, gid); err != nil {
 		return err
 	}
 	if err := archiver.CopyFileWithTar(srcPath, destPath); err != nil {
 		return err
 	}
 
-	return fixPermissions(srcPath, destPath, rootUID, rootGID, destExists)
+	return fixPermissions(srcPath, destPath, uid, gid, destExists)
 }

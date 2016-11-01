@@ -137,7 +137,7 @@ type Backend interface {
 	// with Context.Walk
 	//ContainerCopy(name string, res string) (io.ReadCloser, error)
 	// TODO: use copyBackend api
-	CopyOnBuild(containerID string, destPath string, src FileInfo, decompress bool) error
+	CopyOnBuild(containerID string, destPath string, src FileInfo, decompress bool, usergrp string) error
 }
 
 // Image represents a Docker image used by the builder.
