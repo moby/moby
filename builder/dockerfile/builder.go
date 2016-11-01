@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/Sirupsen/logrus"
+	apierrors "github.com/docker/docker/api/errors"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/container"
@@ -18,6 +19,7 @@ import (
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/reference"
+	perrors "github.com/pkg/errors"
 	"golang.org/x/net/context"
 )
 
@@ -77,6 +79,7 @@ type Builder struct {
 	id string
 
 	imageCache builder.ImageCache
+	from       builder.Image
 }
 
 // BuildManager implements builder.Backend and is shared across all Builder objects.
@@ -91,6 +94,9 @@ func NewBuildManager(b builder.Backend) (bm *BuildManager) {
 
 // BuildFromContext builds a new image from a given context.
 func (bm *BuildManager) BuildFromContext(ctx context.Context, src io.ReadCloser, remote string, buildOptions *types.ImageBuildOptions, pg backend.ProgressWriter) (string, error) {
+	if buildOptions.Squash && !bm.backend.HasExperimental() {
+		return "", apierrors.NewBadRequestError(errors.New("squash is only supported with experimental mode"))
+	}
 	buildContext, dockerfileName, err := builder.DetectContextFromRemoteURL(src, remote, pg.ProgressReaderFunc)
 	if err != nil {
 		return "", err
@@ -100,6 +106,7 @@ func (bm *BuildManager) BuildFromContext(ctx context.Context, src io.ReadCloser,
 			logrus.Debugf("[BUILDER] failed to remove temporary context: %v", err)
 		}
 	}()
+
 	if len(dockerfileName) > 0 {
 		buildOptions.Dockerfile = dockerfileName
 	}
@@ -285,6 +292,17 @@ func (b *Builder) build(stdout io.Writer, stderr io.Writer, out io.Writer) (stri
 
 	if b.image == "" {
 		return "", fmt.Errorf("No image was generated. Is your Dockerfile empty?")
+	}
+
+	if b.options.Squash {
+		var fromID string
+		if b.from != nil {
+			fromID = b.from.ImageID()
+		}
+		b.image, err = b.docker.SquashImage(b.image, fromID)
+		if err != nil {
+			return "", perrors.Wrap(err, "error squashing image")
+		}
 	}
 
 	imageID := image.ID(b.image)

@@ -424,7 +424,7 @@ func TestChanges(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	changes, err = d.Changes("3", "")
+	changes, err = d.Changes("3", "2")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -530,7 +530,7 @@ func TestChildDiffSize(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	diffSize, err = d.DiffSize("2", "")
+	diffSize, err = d.DiffSize("2", "1")
 	if err != nil {
 		t.Fatal(err)
 	}

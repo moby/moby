@@ -406,6 +406,9 @@ type mockLayer struct {
 func (l *mockLayer) TarStream() (io.ReadCloser, error) {
 	return nil, nil
 }
+func (l *mockLayer) TarStreamFrom(layer.ChainID) (io.ReadCloser, error) {
+	return nil, nil
+}
 
 func (l *mockLayer) ChainID() layer.ChainID {
 	return layer.CreateChainID(l.diffIDs)

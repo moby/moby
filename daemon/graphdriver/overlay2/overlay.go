@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"syscall"
@@ -44,7 +45,7 @@ var (
 
 // Each container/image has at least a "diff" directory and "link" file.
 // If there is also a "lower" file when there are diff layers
-// below  as well as "merged" and "work" directories. The "diff" directory
+// below as well as "merged" and "work" directories. The "diff" directory
 // has the upper layer of the overlay and is used to capture any
 // changes to the layer. The "lower" file contains all the lower layer
 // mounts separated by ":" and ordered from uppermost to lowermost
@@ -86,12 +87,13 @@ type overlayOptions struct {
 
 // Driver contains information about the home directory and the list of active mounts that are created using this driver.
 type Driver struct {
-	home     string
-	uidMaps  []idtools.IDMap
-	gidMaps  []idtools.IDMap
-	ctr      *graphdriver.RefCounter
-	quotaCtl *quota.Control
-	options  overlayOptions
+	home      string
+	uidMaps   []idtools.IDMap
+	gidMaps   []idtools.IDMap
+	ctr       *graphdriver.RefCounter
+	quotaCtl  *quota.Control
+	options   overlayOptions
+	naiveDiff graphdriver.DiffDriver
 }
 
 var (
@@ -162,6 +164,8 @@ func Init(home string, options []string, uidMaps, gidMaps []idtools.IDMap) (grap
 		gidMaps: gidMaps,
 		ctr:     graphdriver.NewRefCounter(graphdriver.NewFsChecker(graphdriver.FsMagicOverlay)),
 	}
+
+	d.naiveDiff = graphdriver.NewNaiveDiffDriver(d, uidMaps, gidMaps)
 
 	if backingFs == "xfs" {
 		// Try to enable project quota support over xfs.
@@ -525,7 +529,7 @@ func (d *Driver) Put(id string) error {
 		return nil
 	}
 	if err := syscall.Unmount(mountpoint, 0); err != nil {
-		logrus.Debugf("Failed to unmount %s overlay: %v", id, err)
+		logrus.Debugf("Failed to unmount %s overlay: %s - %v", id, mountpoint, err)
 	}
 	return nil
 }
@@ -536,8 +540,33 @@ func (d *Driver) Exists(id string) bool {
 	return err == nil
 }
 
+// isParent returns if the passed in parent is the direct parent of the passed in layer
+func (d *Driver) isParent(id, parent string) bool {
+	lowers, err := d.getLowerDirs(id)
+	if err != nil {
+		return false
+	}
+	if parent == "" && len(lowers) > 0 {
+		return false
+	}
+
+	parentDir := d.dir(parent)
+	var ld string
+	if len(lowers) > 0 {
+		ld = filepath.Dir(lowers[0])
+	}
+	if ld == "" && parent == "" {
+		return true
+	}
+	return ld == parentDir
+}
+
 // ApplyDiff applies the new layer into a root
 func (d *Driver) ApplyDiff(id string, parent string, diff io.Reader) (size int64, err error) {
+	if !d.isParent(id, parent) {
+		return d.naiveDiff.ApplyDiff(id, parent, diff)
+	}
+
 	applyDir := d.getDiffPath(id)
 
 	logrus.Debugf("Applying tar in %s", applyDir)
@@ -563,12 +592,19 @@ func (d *Driver) getDiffPath(id string) string {
 // and its parent and returns the size in bytes of the changes
 // relative to its base filesystem directory.
 func (d *Driver) DiffSize(id, parent string) (size int64, err error) {
+	if !d.isParent(id, parent) {
+		return d.naiveDiff.DiffSize(id, parent)
+	}
 	return directory.Size(d.getDiffPath(id))
 }
 
 // Diff produces an archive of the changes between the specified
 // layer and its parent layer which may be "".
 func (d *Driver) Diff(id, parent string) (io.ReadCloser, error) {
+	if !d.isParent(id, parent) {
+		return d.naiveDiff.Diff(id, parent)
+	}
+
 	diffPath := d.getDiffPath(id)
 	logrus.Debugf("Tar with options on %s", diffPath)
 	return archive.TarWithOptions(diffPath, &archive.TarOptions{
@@ -582,6 +618,9 @@ func (d *Driver) Diff(id, parent string) (io.ReadCloser, error) {
 // Changes produces a list of changes between the specified layer
 // and its parent layer. If parent is "", then all changes will be ADD changes.
 func (d *Driver) Changes(id, parent string) ([]archive.Change, error) {
+	if !d.isParent(id, parent) {
+		return d.naiveDiff.Changes(id, parent)
+	}
 	// Overlay doesn't have snapshots, so we need to get changes from all parent
 	// layers.
 	diffPath := d.getDiffPath(id)

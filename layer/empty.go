@@ -3,6 +3,7 @@ package layer
 import (
 	"archive/tar"
 	"bytes"
+	"fmt"
 	"io"
 	"io/ioutil"
 )
@@ -21,6 +22,10 @@ func (el *emptyLayer) TarStream() (io.ReadCloser, error) {
 	tarWriter := tar.NewWriter(buf)
 	tarWriter.Close()
 	return ioutil.NopCloser(buf), nil
+}
+
+func (el *emptyLayer) TarStreamFrom(ChainID) (io.ReadCloser, error) {
+	return nil, fmt.Errorf("can't get parent tar stream of an empty layer")
 }
 
 func (el *emptyLayer) ChainID() ChainID {

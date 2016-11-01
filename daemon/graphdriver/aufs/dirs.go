@@ -29,7 +29,7 @@ func loadIds(root string) ([]string, error) {
 //
 // If there are no lines in the file then the id has no parent
 // and an empty slice is returned.
-func getParentIds(root, id string) ([]string, error) {
+func getParentIDs(root, id string) ([]string, error) {
 	f, err := os.Open(path.Join(root, "layers", id))
 	if err != nil {
 		return nil, err

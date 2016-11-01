@@ -54,6 +54,7 @@ Options:
                                 The format is `<number><unit>`. `number` must be greater than `0`.
                                 Unit is optional and can be `b` (bytes), `k` (kilobytes), `m` (megabytes),
                                 or `g` (gigabytes). If you omit the unit, the system uses bytes.
+  --squash                      Squash newly built layers into a single new layer (**Experimental Only**) 
   -t, --tag value               Name and optionally a tag in the 'name:tag' format (default [])
       --ulimit value            Ulimit options (default [])
 ```
@@ -432,3 +433,20 @@ Linux namespaces. On Microsoft Windows, you can specify these values:
 | `hyperv`  | Hyper-V hypervisor partition-based isolation.                                                                                                                 |
 
 Specifying the `--isolation` flag without a value is the same as setting `--isolation="default"`.
+
+
+### Squash an image's layers (--squash) **Experimental Only**
+
+Once the image is built, squash the new layers into a new image with a single
+new layer. Squashing does not destroy any existing image, rather it creates a new
+image with the content of the squshed layers. This effectively makes it look
+like all `Dockerfile` commands were created with a single layer. The build
+cache is preserved with this method.
+
+**Note**: using this option means the new image will not be able to take
+advantage of layer sharing with other images and may use significantly more
+space.
+
+**Note**: using this option you may see significantly more space used due to
+storing two copies of the image, one for the build cache with all the cache
+layers in tact, and one for the squashed version.

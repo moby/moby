@@ -59,6 +59,7 @@ type buildOptions struct {
 	compress       bool
 	securityOpt    []string
 	networkMode    string
+	squash         bool
 }
 
 // NewBuildCommand creates a new `docker build` command
@@ -109,6 +110,10 @@ func NewBuildCommand(dockerCli *command.DockerCli) *cobra.Command {
 	flags.StringVar(&options.networkMode, "network", "default", "Connect a container to a network")
 
 	command.AddTrustedFlags(flags, true)
+
+	if dockerCli.HasExperimental() {
+		flags.BoolVar(&options.squash, "squash", false, "Squash newly built layers into a single new layer")
+	}
 
 	return cmd
 }
@@ -305,6 +310,7 @@ func runBuild(dockerCli *command.DockerCli, options buildOptions) error {
 		CacheFrom:      options.cacheFrom,
 		SecurityOpt:    options.securityOpt,
 		NetworkMode:    options.networkMode,
+		Squash:         options.squash,
 	}
 
 	response, err := dockerCli.Client().ImageBuild(ctx, body, buildOptions)

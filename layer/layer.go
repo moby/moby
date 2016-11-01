@@ -78,6 +78,9 @@ type TarStreamer interface {
 	// TarStream returns a tar archive stream
 	// for the contents of a layer.
 	TarStream() (io.ReadCloser, error)
+	// TarStreamFrom returns a tar archive stream for all the layer chain with
+	// arbitrary depth.
+	TarStreamFrom(ChainID) (io.ReadCloser, error)
 }
 
 // Layer represents a read-only layer

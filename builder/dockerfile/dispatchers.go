@@ -221,6 +221,7 @@ func from(b *Builder, args []string, attributes map[string]bool, original string
 			}
 		}
 	}
+	b.from = image
 
 	return b.processImageFrom(image)
 }
