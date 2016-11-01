@@ -54,8 +54,13 @@ func parseSecrets(client client.APIClient, requestedSecrets []string) ([]*swarmt
 
 		secretRef := &swarmtypes.SecretReference{
 			SecretName: n,
-			Mode:       swarmtypes.SecretReferenceFile,
-			Target:     t,
+			// TODO (ehazlett): parse these from cli request
+			Target: swarmtypes.SecretReferenceFileTarget{
+				Name: t,
+				UID:  "0",
+				GID:  "0",
+				Mode: 0444,
+			},
 		}
 
 		if _, exists := secretRefs[t]; exists {

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -227,18 +228,29 @@ func (c *containerAdapter) create(ctx context.Context) error {
 		}
 
 		name := sec.Spec.Annotations.Name
-		target := s.Target
-		if target == "" {
-			target = name
+		target := s.GetFile()
+		if target == nil {
+			logrus.Warnf("secret target was not a file: secret=%s", s.SecretID)
+			continue
 		}
+		// convert uid / gid string to int
+		uid, err := strconv.Atoi(target.UID)
+		if err != nil {
+			return err
+		}
+
+		gid, err := strconv.Atoi(target.GID)
+		if err != nil {
+			return err
+		}
+
 		secrets = append(secrets, &containertypes.ContainerSecret{
 			Name:   name,
-			Target: target,
+			Target: target.Name,
 			Data:   sec.Spec.Data,
-			// TODO (ehazlett): enable configurable uid, gid, mode
-			Uid:  0,
-			Gid:  0,
-			Mode: 0444,
+			UID:    uid,
+			GID:    gid,
+			Mode:   target.Mode,
 		})
 	}
 
