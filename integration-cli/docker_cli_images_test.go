@@ -116,6 +116,24 @@ func (s *DockerSuite) TestImagesFilterLabelWithCommit(c *check.C) {
 	c.Assert(out, check.Equals, imageID)
 }
 
+func (s *DockerSuite) TestImagesFilterName(c *check.C) {
+	imageID1, err := buildImage("image1:test_a", `FROM busybox LABEL number=1`, true)
+	c.Assert(err, check.IsNil)
+	imageID2, err := buildImage("image2:test_a", `FROM busybox LABEL number=2`, true)
+	c.Assert(err, check.IsNil)
+	imageID3, err := buildImage("image3:test_b", `FROM busybox LABEL number=2`, true)
+	c.Assert(err, check.IsNil)
+
+	out, _ := dockerCmd(c, "images", "--no-trunc", "-q", "-f", "name=*:test_a")
+	out = strings.TrimSpace(out)
+	c.Assert(out, check.Equals, imageID1)
+	c.Assert(out, check.Equals, imageID2)
+
+	out, _ := dockerCmd(c, "images", "--no-trunc", "-q", "-f", "name=image1:test_a")
+	out = strings.TrimSpace(out)
+	c.Assert(out, check.Equals, imageID1)
+}
+
 func (s *DockerSuite) TestImagesFilterSinceAndBefore(c *check.C) {
 	imageID1, err := buildImage("image:1", `FROM `+minimalBaseImage()+`
 LABEL number=1`, true)

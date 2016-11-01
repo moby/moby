@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"path"
 	"sort"
+	"strings"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
@@ -18,6 +19,8 @@ var acceptedImageFilterTags = map[string]bool{
 	"label":    true,
 	"before":   true,
 	"since":    true,
+	"name":     true,
+	"tag":      true,
 }
 
 // byCreated is a temporary type used to sort a list of images by creation
@@ -120,6 +123,19 @@ func (daemon *Daemon) Images(filterArgs, filter string, all bool, withExtraAttrs
 			// We are now sure image.Config is not nil
 			if !imageFilters.MatchKVList("label", img.Config.Labels) {
 				continue
+			}
+		}
+
+		if imageFilters.Include("name") {
+			tab := strings.SplitN(img.Config.Image, ":", 2)
+			if tab[0] != "*" {
+				if !imageFilters.Match("name", img.Config.Image) {
+					continue
+				}
+			} else {
+				if !imageFilters.Match("tag", strings.TrimSpace(tab[1])) {
+					continue
+				}
 			}
 		}
 
