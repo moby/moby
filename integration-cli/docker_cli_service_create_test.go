@@ -70,5 +70,6 @@ func (s *DockerSwarmSuite) TestServiceCreateWithSecret(c *check.C) {
 	c.Assert(refs, checker.HasLen, 1)
 
 	c.Assert(refs[0].SecretName, checker.Equals, testName)
-	c.Assert(refs[0].Target, checker.Equals, testTarget)
+	c.Assert(refs[0].Target, checker.Not(checker.IsNil))
+	c.Assert(refs[0].Target.Name, checker.Equals, testTarget)
 }
