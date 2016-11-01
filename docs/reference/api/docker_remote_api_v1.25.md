@@ -303,6 +303,7 @@ Create a container
              "MemoryReservation": 0,
              "KernelMemory": 0,
              "NanoCPUs": 500000,
+             "CpuCount": 4,
              "CpuPercent": 80,
              "CpuShares": 512,
              "CpuPeriod": 100000,
@@ -427,7 +428,14 @@ Create a container
     -   **MemoryReservation** - Memory soft limit in bytes.
     -   **KernelMemory** - Kernel memory limit in bytes.
     -   **NanoCPUs** - CPU quota in units of 10<sup>-9</sup> CPUs.
-    -   **CpuPercent** - An integer value containing the usable percentage of the available CPUs. (Windows daemon only)
+    -   **CpuCount** - An integer value containing the number of usable CPUs.
+          Windows daemon only. On Windows Server containers,
+          the processor resource controls are mutually exclusive, the order of precedence
+          is CPUCount first, then CPUShares, and CPUPercent last.
+    -   **CpuPercent** - An integer value containing the usable percentage of
+          the available CPUs. Windows daemon only. On Windows Server containers,
+          the processor resource controls are mutually exclusive, the order of precedence
+          is CPUCount first, then CPUShares, and CPUPercent last.
     -   **CpuShares** - An integer value containing the container's CPU Shares
           (ie. the relative weight vs other containers).
     -   **CpuPeriod** - The length of a CPU period in microseconds.
@@ -623,6 +631,7 @@ Return low-level information on the container `id`
 			"ContainerIDFile": "",
 			"CpusetCpus": "",
 			"CpusetMems": "",
+			"CpuCount": 4,
 			"CpuPercent": 80,
 			"CpuShares": 0,
 			"CpuPeriod": 100000,

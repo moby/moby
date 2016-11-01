@@ -218,6 +218,18 @@ var (
 		},
 		"Test requires containers are not pausable.",
 	}
+	IsolationIsHyperv = testRequirement{
+		func() bool {
+			return daemonPlatform == "windows" && isolation == "hyperv"
+		},
+		"Test requires a Windows daemon running default isolation mode of hyperv.",
+	}
+	IsolationIsProcess = testRequirement{
+		func() bool {
+			return daemonPlatform == "windows" && isolation == "process"
+		},
+		"Test requires a Windows daemon running default isolation mode of process.",
+	}
 )
 
 // testRequires checks if the environment satisfies the requirements

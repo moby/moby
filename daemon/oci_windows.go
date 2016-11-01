@@ -86,11 +86,13 @@ func (daemon *Daemon) createSpec(c *container.Container) (*specs.Spec, error) {
 	if c.HostConfig.NanoCPUs > 0 {
 		cpuPercent = uint8(c.HostConfig.NanoCPUs * 100 / int64(sysinfo.NumCPU()) / 1e9)
 	}
+	cpuCount := uint64(c.HostConfig.CPUCount)
 	memoryLimit := uint64(c.HostConfig.Memory)
 	s.Windows.Resources = &specs.WindowsResources{
 		CPU: &specs.WindowsCPUResources{
 			Percent: &cpuPercent,
 			Shares:  &cpuShares,
+			Count:   &cpuCount,
 		},
 		Memory: &specs.WindowsMemoryResources{
 			Limit: &memoryLimit,
