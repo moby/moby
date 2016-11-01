@@ -96,7 +96,7 @@ List containers
                  },
                  "Mounts": [
                          {
-                                  "Name": "fac362...80535",
+                                  "Name": "7973ac4fabfad54797e4bb4ae91e4144758ff3bfdb5265518c6707448b769131",
                                   "Source": "/data",
                                   "Destination": "/data",
                                   "Driver": "local",
@@ -724,7 +724,7 @@ Return low-level information on the container `id`
 		},
 		"Mounts": [
 			{
-				"Name": "fac362...80535",
+				"Name": "7973ac4fabfad54797e4bb4ae91e4144758ff3bfdb5265518c6707448b769131",
 				"Source": "/data",
 				"Destination": "/data",
 				"Driver": "local",
