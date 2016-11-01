@@ -55,6 +55,12 @@ func (daemon *Daemon) LogImageEventWithAttributes(imageID, refName, action strin
 	daemon.EventsService.Log(action, events.ImageEventType, actor)
 }
 
+// LogBuildEvent generates an event related to an image build with only the default attributes.
+func (daemon *Daemon) LogBuildEvent(action string) {
+	actor := events.Actor{}
+	daemon.EventsService.Log(action, "", actor)
+}
+
 // LogPluginEvent generates an event related to a plugin with only the default attributes.
 func (daemon *Daemon) LogPluginEvent(pluginID, refName, action string) {
 	daemon.LogPluginEventWithAttributes(pluginID, refName, action, map[string]string{})

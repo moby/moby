@@ -138,6 +138,9 @@ type Backend interface {
 	//ContainerCopy(name string, res string) (io.ReadCloser, error)
 	// TODO: use copyBackend api
 	CopyOnBuild(containerID string, destPath string, src FileInfo, decompress bool) error
+
+	//LogBuildEvent generates an event related to an image build operation
+	LogBuildEvent(action string)
 }
 
 // Image represents a Docker image used by the builder.

@@ -2857,6 +2857,10 @@ Docker images report the following events:
 
     delete, import, load, pull, push, save, tag, untag
 
+Docker builds report the following event:
+
+    build
+
 Docker volumes report the following events:
 
     create, mount, unmount, destroy

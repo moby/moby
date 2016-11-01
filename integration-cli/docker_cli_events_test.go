@@ -275,6 +275,27 @@ func (s *DockerSuite) TestEventsImageLoad(c *check.C) {
 	c.Assert(matches["action"], checker.Equals, "save", check.Commentf("matches: %v\nout:\n%s\n", matches, out))
 }
 
+func (s *DockerSuite) TestEventsBuild(c *check.C) {
+	name := "testimageeventsbuild"
+	since := daemonUnixTime(c)
+	_, err := buildImage(name,
+		`FROM scratch
+		MAINTAINER "docker"`, true)
+	c.Assert(err, checker.IsNil, check.Commentf("Couldn't create image"))
+
+	out, _ := dockerCmd(c, "events", "--since", since, "--until", daemonUnixTime(c))
+	events := strings.Split(strings.TrimSuffix(out, "\n"), "\n")
+
+	nEvents := len(events)
+	c.Assert(nEvents, checker.GreaterOrEqualThan, 5)
+
+	c.Assert(parseEventAction(c, events[nEvents-5]), checker.Equals, "build")
+	c.Assert(parseEventAction(c, events[nEvents-4]), checker.Equals, "create")
+	c.Assert(parseEventAction(c, events[nEvents-3]), checker.Equals, "commit")
+	c.Assert(parseEventAction(c, events[nEvents-2]), checker.Equals, "destroy")
+	c.Assert(parseEventAction(c, events[nEvents-1]), checker.Equals, "image")
+}
+
 func (s *DockerSuite) TestEventsPluginOps(c *check.C) {
 	testRequires(c, DaemonIsLinux, ExperimentalDaemon)
 
