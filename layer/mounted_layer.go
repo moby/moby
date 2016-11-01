@@ -1,7 +1,6 @@
 package layer
 
 import (
-	"fmt"
 	"io"
 
 	"github.com/docker/docker/pkg/archive"
@@ -30,13 +29,6 @@ func (ml *mountedLayer) cacheParent() string {
 
 func (ml *mountedLayer) TarStream() (io.ReadCloser, error) {
 	return ml.layerStore.driver.Diff(ml.mountID, ml.cacheParent())
-}
-
-func (ml *mountedLayer) TarStreamFrom(parent ChainID) (io.ReadCloser, error) {
-	// Not supported since this will include the init layer as well
-	// This can already be acheived with mount + tar.
-	// Should probably never reach this point, but error out here.
-	return nil, fmt.Errorf("getting a layer diff from an arbitrary parent is not supported on mounted layer")
 }
 
 func (ml *mountedLayer) Name() string {
