@@ -2,7 +2,6 @@ package v2
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -24,6 +23,7 @@ type Plugin struct {
 	RefCount          int             `json:"-"`
 	Restart           bool            `json:"-"`
 	ExitChan          chan bool       `json:"-"`
+	LibRoot           string          `json:"-"`
 }
 
 const defaultPluginRuntimeDestination = "/run/docker/plugins"
@@ -42,10 +42,11 @@ func newPluginObj(name, id, tag string) types.Plugin {
 }
 
 // NewPlugin creates a plugin.
-func NewPlugin(name, id, runRoot, tag string) *Plugin {
+func NewPlugin(name, id, runRoot, libRoot, tag string) *Plugin {
 	return &Plugin{
 		PluginObj:         newPluginObj(name, id, tag),
 		RuntimeSourcePath: filepath.Join(runRoot, id),
+		LibRoot:           libRoot,
 	}
 }
 
@@ -86,8 +87,8 @@ func (p *Plugin) RemoveFromDisk() error {
 }
 
 // InitPlugin populates the plugin object from the plugin manifest file.
-func (p *Plugin) InitPlugin(libRoot string) error {
-	dt, err := os.Open(filepath.Join(libRoot, p.PluginObj.ID, "manifest.json"))
+func (p *Plugin) InitPlugin() error {
+	dt, err := os.Open(filepath.Join(p.LibRoot, p.PluginObj.ID, "manifest.json"))
 	if err != nil {
 		return err
 	}
@@ -109,7 +110,11 @@ func (p *Plugin) InitPlugin(libRoot string) error {
 	}
 	copy(p.PluginObj.Config.Args, p.PluginObj.Manifest.Args.Value)
 
-	f, err := os.Create(filepath.Join(libRoot, p.PluginObj.ID, "plugin-config.json"))
+	return p.writeConfig()
+}
+
+func (p *Plugin) writeConfig() error {
+	f, err := os.Create(filepath.Join(p.LibRoot, p.PluginObj.ID, "plugin-config.json"))
 	if err != nil {
 		return err
 	}
@@ -120,15 +125,43 @@ func (p *Plugin) InitPlugin(libRoot string) error {
 
 // Set is used to pass arguments to the plugin.
 func (p *Plugin) Set(args []string) error {
-	m := make(map[string]string, len(args))
-	for _, arg := range args {
-		i := strings.Index(arg, "=")
-		if i < 0 {
-			return fmt.Errorf("No equal sign '=' found in %s", arg)
-		}
-		m[arg[:i]] = arg[i+1:]
+	p.Lock()
+	defer p.Unlock()
+
+	if p.PluginObj.Enabled {
+		return fmt.Errorf("cannot set on an active plugin, disable plugin before setting")
 	}
-	return errors.New("not implemented")
+
+	sets, err := newSettables(args)
+	if err != nil {
+		return err
+	}
+
+next:
+	for _, s := range sets {
+		// range over all the envs in the manifest
+		for _, env := range p.PluginObj.Manifest.Env {
+			// found the env in the manifest
+			if env.Name == s.name {
+				// is it settable ?
+				if ok, err := s.isSettable(allowedSettableFieldsEnv, env.Settable); err != nil {
+					return err
+				} else if !ok {
+					return fmt.Errorf("%q is not settable", s.prettyName())
+				}
+				// is it, so lets update the config in memory
+				updateConfigEnv(&p.PluginObj.Config.Env, &s)
+				continue next
+			}
+		}
+
+		//TODO: check devices, mount and args
+
+		return fmt.Errorf("setting %q not found in the plugin configuration", s.name)
+	}
+
+	// update the config on disk
+	return p.writeConfig()
 }
 
 // ComputePrivileges takes the manifest file and computes the list of access necessary

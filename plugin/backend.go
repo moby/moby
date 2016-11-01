@@ -85,8 +85,8 @@ func (pm *Manager) Pull(name string, metaHeader http.Header, authConfig *types.A
 	}
 
 	tag := distribution.GetTag(ref)
-	p := v2.NewPlugin(ref.Name(), pluginID, pm.runRoot, tag)
-	if err := p.InitPlugin(pm.libRoot); err != nil {
+	p := v2.NewPlugin(ref.Name(), pluginID, pm.runRoot, pm.libRoot, tag)
+	if err := p.InitPlugin(); err != nil {
 		return nil, err
 	}
 	pm.pluginStore.Add(p)

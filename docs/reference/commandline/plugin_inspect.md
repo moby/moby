@@ -159,3 +159,4 @@ $ docker plugin inspect -f '{{.Id}}' tiborvass/no-remove:latest
 * [plugin disable](plugin_disable.md)
 * [plugin install](plugin_install.md)
 * [plugin rm](plugin_rm.md)
+* [plugin set](plugin_set.md)

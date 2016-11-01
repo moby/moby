@@ -1,7 +1,7 @@
 ---
-title: "plugin ls"
-description: "The plugin ls command description and usage"
-keywords: "plugin, list"
+title: "plugin set"
+description: "the plugin set command description and usage"
+keywords: "plugin, set"
 advisory: "experimental"
 ---
 
@@ -14,38 +14,38 @@ advisory: "experimental"
      will be rejected.
 -->
 
-# plugin ls (experimental)
+# plugin set (experimental)
 
 ```markdown
-Usage:  docker plugin ls [OPTIONS]
+Usage:  docker plugin set PLUGIN key1=value1 [key2=value2...]
 
-List plugins
-
-Aliases:
-  ls, list
+Change settings for a plugin
 
 Options:
-      --help	   Print usage
-      --no-trunc   Don't truncate output
+      --help                    Print usage
 ```
 
-Lists all the plugins that are currently installed. You can install plugins
-using the [`docker plugin install`](plugin_install.md) command.
+Change settings for a plugin. The plugin must be disabled.
 
-Example output:
+
+The following example installs change the env variable `DEBUG` of the
+`no-remove` plugin.
 
 ```bash
-$ docker plugin ls
+$ docker plugin inspect -f {{.Config.Env}} tiborvass/no-remove
+[DEBUG=0]
 
-NAME                  TAG                 DESCRIPTION                ENABLED
-tiborvass/no-remove   latest              A test plugin for Docker   true
+$ docker plugin set DEBUG=1 tiborvass/no-remove
+
+$ docker plugin inspect -f {{.Config.Env}} tiborvass/no-remove
+[DEBUG=1]
 ```
 
 ## Related information
 
+* [plugin ls](plugin_ls.md)
 * [plugin enable](plugin_enable.md)
 * [plugin disable](plugin_disable.md)
 * [plugin inspect](plugin_inspect.md)
 * [plugin install](plugin_install.md)
 * [plugin rm](plugin_rm.md)
-* [plugin set](plugin_set.md)
