@@ -1,0 +1,7 @@
+#!/bin/bash
+#
+# This file is a stub. It exists because windowsRS1 calls this script directly 
+# instead of using a proper interface. It should be removed once windows CI is 
+# fixed.
+#
+$SCRIPTDIR/validate/pkg-imports
