@@ -303,6 +303,40 @@ func getAllNetworks() ([]types.NetworkResource, error) {
 	return networks, nil
 }
 
+func deleteAllPlugins() error {
+	plugins, err := getAllPlugins()
+	if err != nil {
+		return err
+	}
+	var errors []string
+	for _, p := range plugins {
+		status, b, err := sockRequest("DELETE", "/plugins/"+p.Name+":"+p.Tag+"?force=1", nil)
+		if err != nil {
+			errors = append(errors, err.Error())
+			continue
+		}
+		if status != http.StatusNoContent {
+			errors = append(errors, fmt.Sprintf("error deleting plugin %s: %s", p.Name, string(b)))
+		}
+	}
+	if len(errors) > 0 {
+		return fmt.Errorf(strings.Join(errors, "\n"))
+	}
+	return nil
+}
+
+func getAllPlugins() (types.PluginsListResponse, error) {
+	var plugins types.PluginsListResponse
+	_, b, err := sockRequest("GET", "/plugins", nil)
+	if err != nil {
+		return nil, err
+	}
+	if err := json.Unmarshal(b, &plugins); err != nil {
+		return nil, err
+	}
+	return plugins, nil
+}
+
 func deleteAllVolumes() error {
 	volumes, err := getAllVolumes()
 	if err != nil {
