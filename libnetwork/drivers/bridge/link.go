@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"net"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/libnetwork/iptables"
 	"github.com/docker/libnetwork/types"
 )
@@ -44,7 +44,7 @@ func (l *link) Disable() {
 	// -D == iptables delete flag
 	err := linkContainers("-D", l.parentIP, l.childIP, l.ports, l.bridge, true)
 	if err != nil {
-		log.Errorf("Error removing IPTables rules for a link %s due to %s", l.String(), err.Error())
+		logrus.Errorf("Error removing IPTables rules for a link %s due to %s", l.String(), err.Error())
 	}
 	// Return proper error once we move to use a proper iptables package
 	// that returns typed errors

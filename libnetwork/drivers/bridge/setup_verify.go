@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/libnetwork/ns"
 	"github.com/docker/libnetwork/types"
 	"github.com/vishvananda/netlink"
@@ -39,7 +39,7 @@ func setupVerifyAndReconcile(config *networkConfiguration, i *bridgeInterface) e
 	for _, addrv6 := range addrsv6 {
 		if addrv6.IP.IsGlobalUnicast() && !types.CompareIPNet(addrv6.IPNet, i.bridgeIPv6) {
 			if err := i.nlh.AddrDel(i.Link, &addrv6); err != nil {
-				log.Warnf("Failed to remove residual IPv6 address %s from bridge: %v", addrv6.IPNet, err)
+				logrus.Warnf("Failed to remove residual IPv6 address %s from bridge: %v", addrv6.IPNet, err)
 			}
 		}
 	}

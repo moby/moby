@@ -4,7 +4,7 @@ import (
 	"net"
 	"sync"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 
 	mapset "github.com/deckarep/golang-set"
 	"github.com/docker/docker/pkg/discovery"
@@ -54,7 +54,7 @@ func (h *hostDiscovery) monitorDiscovery(ch <-chan discovery.Entries, errCh <-ch
 			h.processCallback(entries, activeCallback, joinCallback, leaveCallback)
 		case err := <-errCh:
 			if err != nil {
-				log.Errorf("discovery error: %v", err)
+				logrus.Errorf("discovery error: %v", err)
 			}
 		case <-h.stopChan:
 			return

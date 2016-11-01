@@ -6,7 +6,7 @@ import (
 
 	"encoding/json"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 
 	"github.com/Microsoft/hcsshim"
 	"github.com/docker/libnetwork/types"
@@ -44,7 +44,7 @@ func (d *driver) pushLocalDb() {
 func (d *driver) peerAdd(nid, eid string, peerIP net.IP, peerIPMask net.IPMask,
 	peerMac net.HardwareAddr, vtep net.IP, updateDb bool) error {
 
-	log.Debugf("WINOVERLAY: Enter peerAdd for ca ip %s with ca mac %s", peerIP.String(), peerMac.String())
+	logrus.Debugf("WINOVERLAY: Enter peerAdd for ca ip %s with ca mac %s", peerIP.String(), peerMac.String())
 
 	if err := validateID(nid, eid); err != nil {
 		return err
@@ -56,7 +56,7 @@ func (d *driver) peerAdd(nid, eid string, peerIP net.IP, peerIPMask net.IPMask,
 	}
 
 	if updateDb {
-		log.Info("WINOVERLAY: peerAdd: notifying HNS of the REMOTE endpoint")
+		logrus.Info("WINOVERLAY: peerAdd: notifying HNS of the REMOTE endpoint")
 
 		hnsEndpoint := &hcsshim.HNSEndpoint{
 			VirtualNetwork:   n.hnsId,
@@ -121,7 +121,7 @@ func (d *driver) peerAdd(nid, eid string, peerIP net.IP, peerIPMask net.IPMask,
 func (d *driver) peerDelete(nid, eid string, peerIP net.IP, peerIPMask net.IPMask,
 	peerMac net.HardwareAddr, vtep net.IP, updateDb bool) error {
 
-	log.Infof("WINOVERLAY: Enter peerDelete for endpoint %s and peer ip %s", eid, peerIP.String())
+	logrus.Infof("WINOVERLAY: Enter peerDelete for endpoint %s and peer ip %s", eid, peerIP.String())
 
 	if err := validateID(nid, eid); err != nil {
 		return err
@@ -146,7 +146,7 @@ func (d *driver) peerDelete(nid, eid string, peerIP net.IP, peerIPMask net.IPMas
 		n.deleteEndpoint(eid)
 
 		if err := d.deleteEndpointFromStore(ep); err != nil {
-			log.Debugf("Failed to delete stale overlay endpoint (%s) from store", ep.id[0:7])
+			logrus.Debugf("Failed to delete stale overlay endpoint (%s) from store", ep.id[0:7])
 		}
 	}
 

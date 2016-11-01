@@ -14,7 +14,7 @@ import (
 	"strings"
 	"testing"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/reexec"
 	"github.com/docker/libnetwork"
 	"github.com/docker/libnetwork/ipamapi"
@@ -471,7 +471,7 @@ func externalKeyTest(t *testing.T, reexec bool) {
 	} else {
 		defer func() {
 			if err := extOsBox.Destroy(); err != nil {
-				log.Warnf("Failed to remove os sandbox: %v", err)
+				logrus.Warnf("Failed to remove os sandbox: %v", err)
 			}
 		}()
 	}

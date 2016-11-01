@@ -8,7 +8,7 @@ import (
 	"sync"
 	"syscall"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netns"
 )
@@ -24,11 +24,11 @@ func Init() {
 	var err error
 	initNs, err = netns.Get()
 	if err != nil {
-		log.Errorf("could not get initial namespace: %v", err)
+		logrus.Errorf("could not get initial namespace: %v", err)
 	}
 	initNl, err = netlink.NewHandle(getSupportedNlFamilies()...)
 	if err != nil {
-		log.Errorf("could not create netlink handle on initial namespace: %v", err)
+		logrus.Errorf("could not create netlink handle on initial namespace: %v", err)
 	}
 }
 
@@ -70,7 +70,7 @@ func getSupportedNlFamilies() []int {
 	fams := []int{syscall.NETLINK_ROUTE}
 	if err := loadXfrmModules(); err != nil {
 		if checkXfrmSocket() != nil {
-			log.Warnf("Could not load necessary modules for IPSEC rules: %v", err)
+			logrus.Warnf("Could not load necessary modules for IPSEC rules: %v", err)
 			return fams
 		}
 	}

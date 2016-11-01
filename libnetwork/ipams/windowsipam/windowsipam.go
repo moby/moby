@@ -3,7 +3,7 @@ package windowsipam
 import (
 	"net"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/libnetwork/discoverapi"
 	"github.com/docker/libnetwork/ipamapi"
 	"github.com/docker/libnetwork/netlabel"
@@ -39,7 +39,7 @@ func (a *allocator) GetDefaultAddressSpaces() (string, string, error) {
 // RequestPool returns an address pool along with its unique id. This is a null ipam driver. It allocates the
 // subnet user asked and does not validate anything. Doesn't support subpool allocation
 func (a *allocator) RequestPool(addressSpace, pool, subPool string, options map[string]string, v6 bool) (string, *net.IPNet, map[string]string, error) {
-	log.Debugf("RequestPool(%s, %s, %s, %v, %t)", addressSpace, pool, subPool, options, v6)
+	logrus.Debugf("RequestPool(%s, %s, %s, %v, %t)", addressSpace, pool, subPool, options, v6)
 	if subPool != "" || v6 {
 		return "", nil, nil, types.InternalErrorf("This request is not supported by null ipam driver")
 	}
@@ -61,14 +61,14 @@ func (a *allocator) RequestPool(addressSpace, pool, subPool string, options map[
 
 // ReleasePool releases the address pool - always succeeds
 func (a *allocator) ReleasePool(poolID string) error {
-	log.Debugf("ReleasePool(%s)", poolID)
+	logrus.Debugf("ReleasePool(%s)", poolID)
 	return nil
 }
 
 // RequestAddress returns an address from the specified pool ID.
 // Always allocate the 0.0.0.0/32 ip if no preferred address was specified
 func (a *allocator) RequestAddress(poolID string, prefAddress net.IP, opts map[string]string) (*net.IPNet, map[string]string, error) {
-	log.Debugf("RequestAddress(%s, %v, %v)", poolID, prefAddress, opts)
+	logrus.Debugf("RequestAddress(%s, %v, %v)", poolID, prefAddress, opts)
 	_, ipNet, err := net.ParseCIDR(poolID)
 
 	if err != nil {
@@ -88,7 +88,7 @@ func (a *allocator) RequestAddress(poolID string, prefAddress net.IP, opts map[s
 
 // ReleaseAddress releases the address - always succeeds
 func (a *allocator) ReleaseAddress(poolID string, address net.IP) error {
-	log.Debugf("ReleaseAddress(%s, %v)", poolID, address)
+	logrus.Debugf("ReleaseAddress(%s, %v)", poolID, address)
 	return nil
 }
 

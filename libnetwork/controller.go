@@ -51,7 +51,7 @@ import (
 	"sync"
 	"time"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/discovery"
 	"github.com/docker/docker/pkg/locker"
 	"github.com/docker/docker/pkg/plugingetter"
@@ -212,7 +212,7 @@ func New(cfgOptions ...config.Option) (NetworkController, error) {
 		if err := c.initDiscovery(c.cfg.Cluster.Watcher); err != nil {
 			// Failing to initialize discovery is a bad situation to be in.
 			// But it cannot fail creating the Controller
-			log.Errorf("Failed to Initialize Discovery : %v", err)
+			logrus.Errorf("Failed to Initialize Discovery : %v", err)
 		}
 	}
 
@@ -283,7 +283,7 @@ func (c *controller) SetKeys(keys []*types.EncryptionKey) error {
 		if clusterConfigAvailable {
 			return c.agentSetup()
 		}
-		log.Debugf("received encryption keys before cluster config")
+		logrus.Debug("received encryption keys before cluster config")
 		return nil
 	}
 	if agent == nil {
@@ -441,7 +441,7 @@ func (c *controller) ReloadConfiguration(cfgOptions ...config.Option) error {
 	c.drvRegistry.WalkIPAMs(func(name string, driver ipamapi.Ipam, cap *ipamapi.Capability) bool {
 		err := driver.DiscoverNew(discoverapi.DatastoreConfig, *dsConfig)
 		if err != nil {
-			log.Errorf("Failed to set datastore in driver %s: %v", name, err)
+			logrus.Errorf("Failed to set datastore in driver %s: %v", name, err)
 		}
 		return false
 	})
@@ -449,14 +449,14 @@ func (c *controller) ReloadConfiguration(cfgOptions ...config.Option) error {
 	c.drvRegistry.WalkDrivers(func(name string, driver driverapi.Driver, capability driverapi.Capability) bool {
 		err := driver.DiscoverNew(discoverapi.DatastoreConfig, *dsConfig)
 		if err != nil {
-			log.Errorf("Failed to set datastore in driver %s: %v", name, err)
+			logrus.Errorf("Failed to set datastore in driver %s: %v", name, err)
 		}
 		return false
 	})
 
 	if c.discovery == nil && c.cfg.Cluster.Watcher != nil {
 		if err := c.initDiscovery(c.cfg.Cluster.Watcher); err != nil {
-			log.Errorf("Failed to Initialize Discovery after configuration update: %v", err)
+			logrus.Errorf("Failed to Initialize Discovery after configuration update: %v", err)
 		}
 	}
 
@@ -561,7 +561,7 @@ func (c *controller) pushNodeDiscovery(d driverapi.Driver, cap driverapi.Capabil
 			err = d.DiscoverDelete(discoverapi.NodeDiscovery, nodeData)
 		}
 		if err != nil {
-			log.Debugf("discovery notification error : %v", err)
+			logrus.Debugf("discovery notification error : %v", err)
 		}
 	}
 }
@@ -687,7 +687,7 @@ func (c *controller) NewNetwork(networkType, name string, id string, options ...
 	defer func() {
 		if err != nil {
 			if e := network.deleteNetwork(); e != nil {
-				log.Warnf("couldn't roll back driver network on network %s creation failure: %v", network.name, err)
+				logrus.Warnf("couldn't roll back driver network on network %s creation failure: %v", network.name, err)
 			}
 		}
 	}()
@@ -702,7 +702,7 @@ func (c *controller) NewNetwork(networkType, name string, id string, options ...
 	defer func() {
 		if err != nil {
 			if e := c.deleteFromStore(epCnt); e != nil {
-				log.Warnf("could not rollback from store, epCnt %v on failure (%v): %v", epCnt, err, e)
+				logrus.Warnf("could not rollback from store, epCnt %v on failure (%v): %v", epCnt, err, e)
 			}
 		}
 	}()
@@ -723,7 +723,7 @@ func (c *controller) NewNetwork(networkType, name string, id string, options ...
 var joinCluster NetworkWalker = func(nw Network) bool {
 	n := nw.(*network)
 	if err := n.joinCluster(); err != nil {
-		log.Errorf("Failed to join network %s (%s) into agent cluster: %v", n.Name(), n.ID(), err)
+		logrus.Errorf("Failed to join network %s (%s) into agent cluster: %v", n.Name(), n.ID(), err)
 	}
 	n.addDriverWatches()
 	return false
@@ -732,7 +732,7 @@ var joinCluster NetworkWalker = func(nw Network) bool {
 func (c *controller) reservePools() {
 	networks, err := c.getNetworksForScope(datastore.LocalScope)
 	if err != nil {
-		log.Warnf("Could not retrieve networks from local store during ipam allocation for existing networks: %v", err)
+		logrus.Warnf("Could not retrieve networks from local store during ipam allocation for existing networks: %v", err)
 		return
 	}
 
@@ -764,22 +764,22 @@ func (c *controller) reservePools() {
 		}
 		// Reserve pools
 		if err := n.ipamAllocate(); err != nil {
-			log.Warnf("Failed to allocate ipam pool(s) for network %q (%s): %v", n.Name(), n.ID(), err)
+			logrus.Warnf("Failed to allocate ipam pool(s) for network %q (%s): %v", n.Name(), n.ID(), err)
 		}
 		// Reserve existing endpoints' addresses
 		ipam, _, err := n.getController().getIPAMDriver(n.ipamType)
 		if err != nil {
-			log.Warnf("Failed to retrieve ipam driver for network %q (%s) during address reservation", n.Name(), n.ID())
+			logrus.Warnf("Failed to retrieve ipam driver for network %q (%s) during address reservation", n.Name(), n.ID())
 			continue
 		}
 		epl, err := n.getEndpointsFromStore()
 		if err != nil {
-			log.Warnf("Failed to retrieve list of current endpoints on network %q (%s)", n.Name(), n.ID())
+			logrus.Warnf("Failed to retrieve list of current endpoints on network %q (%s)", n.Name(), n.ID())
 			continue
 		}
 		for _, ep := range epl {
 			if err := ep.assignAddress(ipam, true, ep.Iface().AddressIPv6() != nil); err != nil {
-				log.Warnf("Failed to reserve current adress for endpoint %q (%s) on network %q (%s)",
+				logrus.Warnf("Failed to reserve current adress for endpoint %q (%s) on network %q (%s)",
 					ep.Name(), ep.ID(), n.Name(), n.ID())
 			}
 		}
@@ -789,7 +789,7 @@ func (c *controller) reservePools() {
 func doReplayPoolReserve(n *network) bool {
 	_, caps, err := n.getController().getIPAMDriver(n.ipamType)
 	if err != nil {
-		log.Warnf("Failed to retrieve ipam driver for network %q (%s): %v", n.Name(), n.ID(), err)
+		logrus.Warnf("Failed to retrieve ipam driver for network %q (%s): %v", n.Name(), n.ID(), err)
 		return false
 	}
 	return caps.RequiresRequestReplay
@@ -816,7 +816,7 @@ func (c *controller) Networks() []Network {
 
 	networks, err := c.getNetworksFromStore()
 	if err != nil {
-		log.Error(err)
+		logrus.Error(err)
 	}
 
 	for _, n := range networks {
@@ -1133,18 +1133,18 @@ func (c *controller) clearIngress(clusterLeave bool) {
 
 	if ingressSandbox != nil {
 		if err := ingressSandbox.Delete(); err != nil {
-			log.Warnf("Could not delete ingress sandbox while leaving: %v", err)
+			logrus.Warnf("Could not delete ingress sandbox while leaving: %v", err)
 		}
 	}
 
 	n, err := c.NetworkByName("ingress")
 	if err != nil && clusterLeave {
-		log.Warnf("Could not find ingress network while leaving: %v", err)
+		logrus.Warnf("Could not find ingress network while leaving: %v", err)
 	}
 
 	if n != nil {
 		if err := n.Delete(); err != nil {
-			log.Warnf("Could not delete ingress network while leaving: %v", err)
+			logrus.Warnf("Could not delete ingress network while leaving: %v", err)
 		}
 	}
 }

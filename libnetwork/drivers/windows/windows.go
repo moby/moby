@@ -20,7 +20,7 @@ import (
 	"sync"
 
 	"github.com/Microsoft/hcsshim"
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/libnetwork/datastore"
 	"github.com/docker/libnetwork/discoverapi"
 	"github.com/docker/libnetwork/driverapi"
@@ -271,7 +271,7 @@ func (d *driver) CreateNetwork(id string, option map[string]interface{}, nInfo d
 		}
 
 		configuration := string(configurationb)
-		log.Debugf("HNSNetwork Request =%v Address Space=%v", configuration, subnets)
+		logrus.Debugf("HNSNetwork Request =%v Address Space=%v", configuration, subnets)
 
 		hnsresponse, err := hcsshim.HNSNetworkRequest("POST", "", configuration)
 		if err != nil {

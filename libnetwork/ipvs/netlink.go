@@ -64,7 +64,7 @@ func setup() {
 
 		ipvsFamily, err = getIPVSFamily()
 		if err != nil {
-			logrus.Errorf("Could not get ipvs family information from the kernel. It is possible that ipvs is not enabled in your kernel. Native loadbalancing will not work until this is fixed.")
+			logrus.Error("Could not get ipvs family information from the kernel. It is possible that ipvs is not enabled in your kernel. Native loadbalancing will not work until this is fixed.")
 		}
 	})
 }

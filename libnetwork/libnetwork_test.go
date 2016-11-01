@@ -10,7 +10,7 @@ import (
 	"sync"
 	"testing"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/plugins"
 	"github.com/docker/docker/pkg/reexec"
 	"github.com/docker/libnetwork"
@@ -37,7 +37,7 @@ func TestMain(m *testing.M) {
 	}
 
 	if err := createController(); err != nil {
-		log.Errorf("Error creating controller: %v", err)
+		logrus.Errorf("Error creating controller: %v", err)
 		os.Exit(1)
 	}
 
