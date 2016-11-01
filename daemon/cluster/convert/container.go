@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/Sirupsen/logrus"
 	container "github.com/docker/docker/api/types/container"
 	mounttypes "github.com/docker/docker/api/types/mount"
 	types "github.com/docker/docker/api/types/swarm"
@@ -79,15 +80,17 @@ func containerSpecFromGRPC(c *swarmapi.ContainerSpec) types.ContainerSpec {
 func secretReferencesToGRPC(sr []*types.SecretReference) []*swarmapi.SecretReference {
 	refs := []*swarmapi.SecretReference{}
 	for _, s := range sr {
-		mode := swarmapi.SecretReference_FILE
-		if s.Mode == types.SecretReferenceSystem {
-			mode = swarmapi.SecretReference_SYSTEM
-		}
 		refs = append(refs, &swarmapi.SecretReference{
 			SecretID:   s.SecretID,
 			SecretName: s.SecretName,
-			Target:     s.Target,
-			Mode:       mode,
+			Target: &swarmapi.SecretReference_File{
+				File: &swarmapi.SecretReference_FileTarget{
+					Name: s.Target.Name,
+					UID:  s.Target.UID,
+					GID:  s.Target.GID,
+					Mode: s.Target.Mode,
+				},
+			},
 		})
 	}
 
@@ -96,18 +99,21 @@ func secretReferencesToGRPC(sr []*types.SecretReference) []*swarmapi.SecretRefer
 func secretReferencesFromGRPC(sr []*swarmapi.SecretReference) []*types.SecretReference {
 	refs := []*types.SecretReference{}
 	for _, s := range sr {
-		var mode types.SecretReferenceMode
-		switch s.Mode {
-		case swarmapi.SecretReference_SYSTEM:
-			mode = types.SecretReferenceSystem
-		default:
-			mode = types.SecretReferenceFile
+		target := s.GetFile()
+		if target == nil {
+			// not a file target
+			logrus.Warnf("secret target not a file: secret=%s", s.SecretID)
+			continue
 		}
 		refs = append(refs, &types.SecretReference{
 			SecretID:   s.SecretID,
 			SecretName: s.SecretName,
-			Target:     s.Target,
-			Mode:       mode,
+			Target: types.SecretReferenceFileTarget{
+				Name: target.Name,
+				UID:  target.UID,
+				GID:  target.GID,
+				Mode: target.Mode,
+			},
 		})
 	}
 

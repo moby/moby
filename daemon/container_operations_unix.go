@@ -191,7 +191,7 @@ func (daemon *Daemon) setupSecretDir(c *container.Container) (setupErr error) {
 			return errors.Wrap(err, "error injecting secret")
 		}
 
-		if err := os.Chown(fPath, s.Uid, s.Gid); err != nil {
+		if err := os.Chown(fPath, s.UID, s.GID); err != nil {
 			return errors.Wrap(err, "error setting ownership for secret")
 		}
 	}

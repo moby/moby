@@ -6,7 +6,7 @@ type ContainerSecret struct {
 	Name   string
 	Target string
 	Data   []byte
-	Uid    int
-	Gid    int
+	UID    int
+	GID    int
 	Mode   os.FileMode
 }
