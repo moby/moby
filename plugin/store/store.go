@@ -79,8 +79,10 @@ func (ps *Store) getAllByCap(capability string) []plugingetter.CompatPlugin {
 
 	result := make([]plugingetter.CompatPlugin, 0, 1)
 	for _, p := range ps.plugins {
-		if _, err := p.FilterByCap(capability); err == nil {
-			result = append(result, p)
+		if p.IsEnabled() {
+			if _, err := p.FilterByCap(capability); err == nil {
+				result = append(result, p)
+			}
 		}
 	}
 	return result
