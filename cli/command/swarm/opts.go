@@ -33,7 +33,7 @@ type swarmOptions struct {
 	externalCA          ExternalCAOption
 }
 
-// NodeAddrOption is a pflag.Value for listen and remote addresses
+// NodeAddrOption is a pflag.Value for listening addresses
 type NodeAddrOption struct {
 	addr string
 }
