@@ -162,20 +162,15 @@ func (s *DockerSuite) TestAPIStatsNetworkStats(c *check.C) {
 }
 
 func (s *DockerSuite) TestAPIStatsNetworkStatsVersioning(c *check.C) {
-	testRequires(c, SameHostDaemon)
+	// Windows doesn't support API versions less than 1.25, so no point testing 1.17 .. 1.21
+	testRequires(c, SameHostDaemon, DaemonIsLinux)
 
 	out, _ := runSleepingContainer(c)
 	id := strings.TrimSpace(out)
 	c.Assert(waitRun(id), checker.IsNil)
 	wg := sync.WaitGroup{}
 
-	// Windows API versions prior to 1.21 doesn't support stats.
-	startAt := 17
-	if daemonPlatform == "windows" {
-		startAt = 21
-	}
-
-	for i := startAt; i <= 21; i++ {
+	for i := 17; i <= 21; i++ {
 		wg.Add(1)
 		go func(i int) {
 			defer wg.Done()
