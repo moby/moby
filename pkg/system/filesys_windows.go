@@ -131,3 +131,106 @@ func IsAbs(path string) bool {
 	}
 	return true
 }
+
+// The origin of the functions below here are the golang OS and syscall packages,
+// slightly modified to only cope with files, not directories due to the
+// specific use case.
+//
+// The alteration is to allow a file on Windows to be opened with
+// FILE_FLAG_SEQUENTIAL_SCAN (particular for docker load), to avoid eating
+// the standby list, particularly when accessing large files such as layer.tar.
+
+// CreateSequential creates the named file with mode 0666 (before umask), truncating
+// it if it already exists. If successful, methods on the returned
+// File can be used for I/O; the associated file descriptor has mode
+// O_RDWR.
+// If there is an error, it will be of type *PathError.
+func CreateSequential(name string) (*os.File, error) {
+	return OpenFileSequential(name, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0)
+}
+
+// OpenSequential opens the named file for reading. If successful, methods on
+// the returned file can be used for reading; the associated file
+// descriptor has mode O_RDONLY.
+// If there is an error, it will be of type *PathError.
+func OpenSequential(name string) (*os.File, error) {
+	return OpenFileSequential(name, os.O_RDONLY, 0)
+}
+
+// OpenFileSequential is the generalized open call; most users will use Open
+// or Create instead.
+// If there is an error, it will be of type *PathError.
+func OpenFileSequential(name string, flag int, _ os.FileMode) (*os.File, error) {
+	if name == "" {
+		return nil, &os.PathError{"open", name, syscall.ENOENT}
+	}
+	r, errf := syscallOpenFileSequential(name, flag, 0)
+	if errf == nil {
+		return r, nil
+	}
+	return nil, &os.PathError{"open", name, errf}
+}
+
+func syscallOpenFileSequential(name string, flag int, _ os.FileMode) (file *os.File, err error) {
+	r, e := syscallOpenSequential(name, flag|syscall.O_CLOEXEC, 0)
+	if e != nil {
+		return nil, e
+	}
+	return os.NewFile(uintptr(r), name), nil
+}
+
+func makeInheritSa() *syscall.SecurityAttributes {
+	var sa syscall.SecurityAttributes
+	sa.Length = uint32(unsafe.Sizeof(sa))
+	sa.InheritHandle = 1
+	return &sa
+}
+
+func syscallOpenSequential(path string, mode int, _ uint32) (fd syscall.Handle, err error) {
+	if len(path) == 0 {
+		return syscall.InvalidHandle, syscall.ERROR_FILE_NOT_FOUND
+	}
+	pathp, err := syscall.UTF16PtrFromString(path)
+	if err != nil {
+		return syscall.InvalidHandle, err
+	}
+	var access uint32
+	switch mode & (syscall.O_RDONLY | syscall.O_WRONLY | syscall.O_RDWR) {
+	case syscall.O_RDONLY:
+		access = syscall.GENERIC_READ
+	case syscall.O_WRONLY:
+		access = syscall.GENERIC_WRITE
+	case syscall.O_RDWR:
+		access = syscall.GENERIC_READ | syscall.GENERIC_WRITE
+	}
+	if mode&syscall.O_CREAT != 0 {
+		access |= syscall.GENERIC_WRITE
+	}
+	if mode&syscall.O_APPEND != 0 {
+		access &^= syscall.GENERIC_WRITE
+		access |= syscall.FILE_APPEND_DATA
+	}
+	sharemode := uint32(syscall.FILE_SHARE_READ | syscall.FILE_SHARE_WRITE)
+	var sa *syscall.SecurityAttributes
+	if mode&syscall.O_CLOEXEC == 0 {
+		sa = makeInheritSa()
+	}
+	var createmode uint32
+	switch {
+	case mode&(syscall.O_CREAT|syscall.O_EXCL) == (syscall.O_CREAT | syscall.O_EXCL):
+		createmode = syscall.CREATE_NEW
+	case mode&(syscall.O_CREAT|syscall.O_TRUNC) == (syscall.O_CREAT | syscall.O_TRUNC):
+		createmode = syscall.CREATE_ALWAYS
+	case mode&syscall.O_CREAT == syscall.O_CREAT:
+		createmode = syscall.OPEN_ALWAYS
+	case mode&syscall.O_TRUNC == syscall.O_TRUNC:
+		createmode = syscall.TRUNCATE_EXISTING
+	default:
+		createmode = syscall.OPEN_EXISTING
+	}
+	// Use FILE_FLAG_SEQUENTIAL_SCAN rather than FILE_ATTRIBUTE_NORMAL as implemented in golang.
+	//https://msdn.microsoft.com/en-us/library/windows/desktop/aa363858(v=vs.85).aspx
+	const fileFlagSequentialScan = 0x08000000 // FILE_FLAG_SEQUENTIAL_SCAN
+	h, e := syscall.CreateFile(pathp, access, sharemode, sa, createmode, fileFlagSequentialScan, 0)
+	return h, e
+}
