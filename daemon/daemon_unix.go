@@ -636,7 +636,7 @@ func (daemon *Daemon) initNetworkController(config *Config, activeSandboxes map[
 	}
 
 	if len(activeSandboxes) > 0 {
-		logrus.Infof("There are old running containers, the network config will not take affect")
+		logrus.Info("There are old running containers, the network config will not take affect")
 		return controller, nil
 	}
 

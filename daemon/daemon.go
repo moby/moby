@@ -190,7 +190,7 @@ func (daemon *Daemon) restore() error {
 		go func(c *container.Container) {
 			defer wg.Done()
 			if err := backportMountSpec(c); err != nil {
-				logrus.Errorf("Failed to migrate old mounts to use new spec format")
+				logrus.Error("Failed to migrate old mounts to use new spec format")
 			}
 
 			if c.IsRunning() || c.IsPaused() {

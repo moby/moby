@@ -344,7 +344,7 @@ func (a *Driver) Remove(id string) error {
 	tmpMntPath := path.Join(a.mntPath(), fmt.Sprintf("%s-removing", id))
 	if err := os.Rename(mountpoint, tmpMntPath); err != nil && !os.IsNotExist(err) {
 		if err == syscall.EBUSY {
-			logrus.Warnf("os.Rename err due to EBUSY")
+			logrus.Warn("os.Rename err due to EBUSY")
 			out, debugErr := debugEBusy(mountpoint)
 			if debugErr == nil {
 				logrus.Warnf("debugEBusy returned %v", out)
