@@ -1508,3 +1508,50 @@ func (s *DockerTrustedSwarmSuite) TestTrustedServiceUpdate(c *check.C) {
 	c.Assert(err, check.NotNil, check.Commentf(out))
 	c.Assert(string(out), checker.Contains, "Error: remote trust data does not exist", check.Commentf(out))
 }
+
+// Test case for issue #27866, which did not allow NW name that is the prefix of a swarm NW ID.
+// e.g. if the ingress ID starts with "n1", it was impossible to create a NW named "n1".
+func (s *DockerSwarmSuite) TestSwarmNetworkCreateIssue27866(c *check.C) {
+	d := s.AddDaemon(c, true, true)
+	out, err := d.Cmd("network", "inspect", "-f", "{{.Id}}", "ingress")
+	c.Assert(err, checker.IsNil, check.Commentf("out: %v", out))
+	ingressID := strings.TrimSpace(out)
+	c.Assert(ingressID, checker.Not(checker.Equals), "")
+
+	// create a network of which name is the prefix of the ID of an overlay network
+	// (ingressID in this case)
+	newNetName := ingressID[0:2]
+	out, err = d.Cmd("network", "create", "--driver", "overlay", newNetName)
+	// In #27866, it was failing because of "network with name %s already exists"
+	c.Assert(err, checker.IsNil, check.Commentf("out: %v", out))
+	out, err = d.Cmd("network", "rm", newNetName)
+	c.Assert(err, checker.IsNil, check.Commentf("out: %v", out))
+}
+
+// Test case for https://github.com/docker/docker/pull/27938#issuecomment-265768303
+// This test creates two networks with the same name sequentially, with various drivers.
+// Since the operations in this test are done sequentially, the 2nd call should fail with
+// "network with name FOO already exists".
+// Note that it is to ok have multiple networks with the same name if the operations are done
+// in parallel. (#18864)
+func (s *DockerSwarmSuite) TestSwarmNetworkCreateDup(c *check.C) {
+	d := s.AddDaemon(c, true, true)
+	drivers := []string{"bridge", "overlay"}
+	for i, driver1 := range drivers {
+		nwName := fmt.Sprintf("network-test-%d", i)
+		for _, driver2 := range drivers {
+			c.Logf("Creating a network named %q with %q, then %q",
+				nwName, driver1, driver2)
+			out, err := d.Cmd("network", "create", "--driver", driver1, nwName)
+			c.Assert(err, checker.IsNil, check.Commentf("out: %v", out))
+			out, err = d.Cmd("network", "create", "--driver", driver2, nwName)
+			c.Assert(out, checker.Contains,
+				fmt.Sprintf("network with name %s already exists", nwName))
+			c.Assert(err, checker.NotNil)
+			c.Logf("As expected, the attempt to network %q with %q failed: %s",
+				nwName, driver2, out)
+			out, err = d.Cmd("network", "rm", nwName)
+			c.Assert(err, checker.IsNil, check.Commentf("out: %v", out))
+		}
+	}
+}

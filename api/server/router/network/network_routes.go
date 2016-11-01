@@ -80,7 +80,7 @@ func (n *networkRouter) postNetworkCreate(ctx context.Context, w http.ResponseWr
 		return err
 	}
 
-	if _, err := n.clusterProvider.GetNetwork(create.Name); err == nil {
+	if nws, err := n.clusterProvider.GetNetworksByName(create.Name); err == nil && len(nws) > 0 {
 		return libnetwork.NetworkNameError(create.Name)
 	}
 
