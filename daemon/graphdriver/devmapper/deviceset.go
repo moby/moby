@@ -85,7 +85,7 @@ type devInfo struct {
 
 type metaData struct {
 	Devices map[string]*devInfo `json:"Devices"`
-	lock sync.RWMutex	// Protect metaData.Devices
+	lock    sync.RWMutex        // Protect metaData.Devices
 }
 
 // DeviceSet holds information about list of devices
@@ -666,7 +666,7 @@ func (devices *DeviceSet) cleanupDeletedDevices() error {
 		devices.Unlock()
 		return nil
 	}
-	
+
 	devices.Unlock()
 
 	var deletedDevices []*devInfo
@@ -680,7 +680,6 @@ func (devices *DeviceSet) cleanupDeletedDevices() error {
 		deletedDevices = append(deletedDevices, info)
 	}
 	devices.metaData.lock.RUnlock()
-
 
 	// Delete the deleted devices. DeleteDevice() first takes the info lock
 	// and then devices.Lock(). So drop it to avoid deadlock.
