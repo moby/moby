@@ -55,10 +55,10 @@ func TestBuildContainerListOptions(t *testing.T) {
 		assert.Equal(t, c.expectedAll, options.All)
 		assert.Equal(t, c.expectedSize, options.Size)
 		assert.Equal(t, c.expectedLimit, options.Limit)
-		assert.Equal(t, options.Filter.Len(), len(c.expectedFilters))
+		assert.Equal(t, options.Filters.Len(), len(c.expectedFilters))
 
 		for k, v := range c.expectedFilters {
-			f := options.Filter
+			f := options.Filters
 			if !f.ExactMatch(k, v) {
 				t.Fatalf("Expected filter with key %s to be %s but got %s", k, v, f.Get(k))
 			}

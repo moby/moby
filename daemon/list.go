@@ -217,7 +217,7 @@ func (daemon *Daemon) reducePsContainer(container *container.Container, ctx *lis
 
 // foldFilter generates the container filter based on the user's filtering options.
 func (daemon *Daemon) foldFilter(config *types.ContainerListOptions) (*listContext, error) {
-	psFilters := config.Filter
+	psFilters := config.Filters
 
 	if err := psFilters.Validate(acceptedPsFilterTags); err != nil {
 		return nil, err

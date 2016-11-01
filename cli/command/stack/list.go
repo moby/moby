@@ -87,7 +87,7 @@ func getStacks(
 
 	services, err := apiclient.ServiceList(
 		ctx,
-		types.ServiceListOptions{Filter: filter})
+		types.ServiceListOptions{Filters: filter})
 	if err != nil {
 		return nil, err
 	}

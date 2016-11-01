@@ -79,10 +79,10 @@ func (p *preProcessor) Networks() bool {
 
 func buildContainerListOptions(opts *psOptions) (*types.ContainerListOptions, error) {
 	options := &types.ContainerListOptions{
-		All:    opts.all,
-		Limit:  opts.last,
-		Size:   opts.size,
-		Filter: opts.filter.Value(),
+		All:     opts.all,
+		Limit:   opts.last,
+		Size:    opts.size,
+		Filters: opts.filter.Value(),
 	}
 
 	if opts.nLatest && opts.last == -1 {

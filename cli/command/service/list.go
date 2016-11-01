@@ -51,7 +51,7 @@ func runList(dockerCli *command.DockerCli, opts listOptions) error {
 	client := dockerCli.Client()
 	out := dockerCli.Out()
 
-	services, err := client.ServiceList(ctx, types.ServiceListOptions{Filter: opts.filter.Value()})
+	services, err := client.ServiceList(ctx, types.ServiceListOptions{Filters: opts.filter.Value()})
 	if err != nil {
 		return err
 	}
@@ -63,7 +63,7 @@ func runList(dockerCli *command.DockerCli, opts listOptions) error {
 			taskFilter.Add("service", service.ID)
 		}
 
-		tasks, err := client.TaskList(ctx, types.TaskListOptions{Filter: taskFilter})
+		tasks, err := client.TaskList(ctx, types.TaskListOptions{Filters: taskFilter})
 		if err != nil {
 			return err
 		}

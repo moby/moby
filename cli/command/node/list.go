@@ -50,7 +50,7 @@ func runList(dockerCli *command.DockerCli, opts listOptions) error {
 
 	nodes, err := client.NodeList(
 		ctx,
-		types.NodeListOptions{Filter: opts.filter.Value()})
+		types.NodeListOptions{Filters: opts.filter.Value()})
 	if err != nil {
 		return err
 	}

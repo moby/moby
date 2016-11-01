@@ -34,7 +34,7 @@ func getServices(
 ) ([]swarm.Service, error) {
 	return apiclient.ServiceList(
 		ctx,
-		types.ServiceListOptions{Filter: getStackFilter(namespace)})
+		types.ServiceListOptions{Filters: getStackFilter(namespace)})
 }
 
 func getNetworks(
