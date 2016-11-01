@@ -125,7 +125,7 @@ func Init(home string, options []string, uidMaps, gidMaps []idtools.IDMap) (grap
 		if !opts.overrideKernelCheck {
 			return nil, graphdriver.ErrNotSupported
 		}
-		logrus.Warnf("Using pre-4.0.0 kernel for overlay2, mount failures may require kernel update")
+		logrus.Warn("Using pre-4.0.0 kernel for overlay2, mount failures may require kernel update")
 	}
 
 	fsMagic, err := graphdriver.GetFSMagic(home)

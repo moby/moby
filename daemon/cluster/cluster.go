@@ -169,7 +169,7 @@ func New(config Config) (*Cluster, error) {
 
 	select {
 	case <-time.After(swarmConnectTimeout):
-		logrus.Errorf("swarm component could not be started before timeout was reached")
+		logrus.Error("swarm component could not be started before timeout was reached")
 	case <-n.Ready():
 	case <-n.done:
 		return nil, fmt.Errorf("swarm component could not be started: %v", c.err)

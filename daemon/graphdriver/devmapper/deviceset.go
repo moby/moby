@@ -410,8 +410,8 @@ func (devices *DeviceSet) lookupDeviceWithLock(hash string) (*devInfo, error) {
 // This function relies on that device hash map has been loaded in advance.
 // Should be called with devices.Lock() held.
 func (devices *DeviceSet) constructDeviceIDMap() {
-	logrus.Debugf("devmapper: constructDeviceIDMap()")
-	defer logrus.Debugf("devmapper: constructDeviceIDMap() END")
+	logrus.Debug("devmapper: constructDeviceIDMap()")
+	defer logrus.Debug("devmapper: constructDeviceIDMap() END")
 
 	for _, info := range devices.Devices {
 		devices.markDeviceIDUsed(info.DeviceID)
@@ -459,8 +459,8 @@ func (devices *DeviceSet) deviceFileWalkFunction(path string, finfo os.FileInfo)
 }
 
 func (devices *DeviceSet) loadDeviceFilesOnStart() error {
-	logrus.Debugf("devmapper: loadDeviceFilesOnStart()")
-	defer logrus.Debugf("devmapper: loadDeviceFilesOnStart() END")
+	logrus.Debug("devmapper: loadDeviceFilesOnStart()")
+	defer logrus.Debug("devmapper: loadDeviceFilesOnStart() END")
 
 	var scan = func(path string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -1713,9 +1713,9 @@ func (devices *DeviceSet) initDevmapper(doInit bool) error {
 	// https://github.com/docker/docker/issues/4036
 	if supported := devicemapper.UdevSetSyncSupport(true); !supported {
 		if dockerversion.IAmStatic == "true" {
-			logrus.Errorf("devmapper: Udev sync is not supported. This will lead to data loss and unexpected behavior. Install a dynamic binary to use devicemapper or select a different storage driver. For more information, see https://docs.docker.com/engine/reference/commandline/daemon/#daemon-storage-driver-option")
+			logrus.Error("devmapper: Udev sync is not supported. This will lead to data loss and unexpected behavior. Install a dynamic binary to use devicemapper or select a different storage driver. For more information, see https://docs.docker.com/engine/reference/commandline/daemon/#daemon-storage-driver-option")
 		} else {
-			logrus.Errorf("devmapper: Udev sync is not supported. This will lead to data loss and unexpected behavior. Install a more recent version of libdevmapper or select a different storage driver. For more information, see https://docs.docker.com/engine/reference/commandline/daemon/#daemon-storage-driver-option")
+			logrus.Error("devmapper: Udev sync is not supported. This will lead to data loss and unexpected behavior. Install a more recent version of libdevmapper or select a different storage driver. For more information, see https://docs.docker.com/engine/reference/commandline/daemon/#daemon-storage-driver-option")
 		}
 
 		if !devices.overrideUdevSyncCheck {

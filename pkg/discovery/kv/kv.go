@@ -73,7 +73,7 @@ func (s *Discovery) Initialize(uris string, heartbeat time.Duration, ttl time.Du
 
 	var config *store.Config
 	if clusterOpts["kv.cacertfile"] != "" && clusterOpts["kv.certfile"] != "" && clusterOpts["kv.keyfile"] != "" {
-		logrus.Infof("Initializing discovery with TLS")
+		logrus.Info("Initializing discovery with TLS")
 		tlsConfig, err := tlsconfig.Client(tlsconfig.Options{
 			CAFile:   clusterOpts["kv.cacertfile"],
 			CertFile: clusterOpts["kv.certfile"],
@@ -93,7 +93,7 @@ func (s *Discovery) Initialize(uris string, heartbeat time.Duration, ttl time.Du
 			TLS: tlsConfig,
 		}
 	} else {
-		logrus.Infof("Initializing discovery without TLS")
+		logrus.Info("Initializing discovery without TLS")
 	}
 
 	// Creates a new store, will ignore options given

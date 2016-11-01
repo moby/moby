@@ -62,7 +62,7 @@ func (pm *Manager) Pull(name string, metaHeader http.Header, authConfig *types.A
 	name = ref.String()
 
 	if p, _ := pm.pluginStore.GetByName(name); p != nil {
-		logrus.Debugf("plugin already exists")
+		logrus.Debug("plugin already exists")
 		return nil, fmt.Errorf("%s exists", name)
 	}
 
