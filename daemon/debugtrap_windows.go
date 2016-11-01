@@ -35,7 +35,12 @@ func setupDumpStackTrap(root string) {
 		logrus.Debugf("Stackdump - waiting signal at %s", ev)
 		for {
 			syscall.WaitForSingleObject(h, syscall.INFINITE)
-			signal.DumpStacks(root)
+			path, err := signal.DumpStacks(root)
+			if err != nil {
+				logrus.WithError(err).Error("failed to write goroutines dump")
+				continue
+			}
+			logrus.Infof("goroutine stacks written to %s", path)
 		}
 	}()
 }
