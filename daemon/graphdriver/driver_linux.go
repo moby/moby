@@ -56,8 +56,9 @@ var (
 		"aufs",
 		"btrfs",
 		"zfs",
-		"devicemapper",
+		"overlay2",
 		"overlay",
+		"devicemapper",
 		"vfs",
 	}
 
