@@ -271,15 +271,16 @@ func (b *Builder) build(stdout io.Writer, stderr io.Writer, out io.Writer) (stri
 	}
 
 	// check if there are any leftover build-args that were passed but not
-	// consumed during build. Return an error, if there are any.
+	// consumed during build. Return a warning, if there are any.
 	leftoverArgs := []string{}
 	for arg := range b.options.BuildArgs {
 		if !b.isBuildArgAllowed(arg) {
 			leftoverArgs = append(leftoverArgs, arg)
 		}
 	}
+
 	if len(leftoverArgs) > 0 {
-		return "", fmt.Errorf("One or more build-args %v were not consumed, failing build.", leftoverArgs)
+		fmt.Fprintf(b.Stderr, "[Warning] One or more build-args %v were not consumed\n", leftoverArgs)
 	}
 
 	if b.image == "" {

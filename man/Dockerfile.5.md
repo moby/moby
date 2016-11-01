@@ -26,7 +26,7 @@ For example:
 
 # DESCRIPTION
 
-A Dockerfile is a file that automates the steps of creating a Docker image. 
+A Dockerfile is a file that automates the steps of creating a Docker image.
 A Dockerfile is similar to a Makefile.
 
 # USAGE
@@ -71,10 +71,10 @@ A Dockerfile is similar to a Makefile.
   multiple images. Make a note of the last image ID output by the commit before
   each new **FROM** command.
 
-  -- If no tag is given to the **FROM** instruction, Docker applies the 
+  -- If no tag is given to the **FROM** instruction, Docker applies the
   `latest` tag. If the used tag does not exist, an error is returned.
 
-  -- If no digest is given to the **FROM** instruction, Docker applies the 
+  -- If no digest is given to the **FROM** instruction, Docker applies the
   `latest` tag. If the used tag does not exist, an error is returned.
 
 **MAINTAINER**
@@ -148,7 +148,7 @@ A Dockerfile is similar to a Makefile.
   ```
 
   -- To make the container run the same executable every time, use **ENTRYPOINT** in
-  combination with **CMD**. 
+  combination with **CMD**.
   If the user specifies arguments to `docker run`, the specified commands
   override the default in **CMD**.
   Do not confuse **RUN** with **CMD**. **RUN** runs a command and commits the result.
@@ -156,7 +156,7 @@ A Dockerfile is similar to a Makefile.
   the image.
 
 **LABEL**
-  -- `LABEL <key>=<value> [<key>=<value> ...]`or 
+  -- `LABEL <key>=<value> [<key>=<value> ...]`or
   ```
   LABEL <key>[ <value>]
   LABEL <key>[ <value>]
@@ -176,8 +176,8 @@ A Dockerfile is similar to a Makefile.
   ```
 
   An image can have more than one label. To specify multiple labels, separate
-  each key-value pair by a space. 
-  
+  each key-value pair by a space.
+
   Labels are additive including `LABEL`s in `FROM` images. As the system
   encounters and then applies a new label, new `key`s override any previous
   labels with identical keys.
@@ -194,7 +194,7 @@ A Dockerfile is similar to a Makefile.
 **ENV**
   -- `ENV <key> <value>`
   The **ENV** instruction sets the environment variable <key> to
-  the value `<value>`. This value is passed to all future 
+  the value `<value>`. This value is passed to all future
   **RUN**, **ENTRYPOINT**, and **CMD** instructions. This is
   functionally equivalent to prefixing the command with `<key>=<value>`.  The
   environment variables that are set with **ENV** persist when a container is run
@@ -243,7 +243,7 @@ A Dockerfile is similar to a Makefile.
   being built (the context of the build) or a remote file URL. The `<dest>` is an
   absolute path, or a path relative to **WORKDIR**, into which the source will
   be copied inside the target container. If you **COPY** an archive file it will
-  land in the container exactly as it appears in the build context without any 
+  land in the container exactly as it appears in the build context without any
   attempt to unpack it.  All new files and directories are created with mode **0755**
   and with the uid and gid of **0**.
 
@@ -326,10 +326,10 @@ A Dockerfile is similar to a Makefile.
   The `ARG` instruction defines a variable that users can pass at build-time to
   the builder with the `docker build` command using the `--build-arg
   <varname>=<value>` flag. If a user specifies a build argument that was not
-  defined in the Dockerfile, the build outputs an error.
+  defined in the Dockerfile, the build outputs a warning.
 
   ```
-  One or more build-args were not consumed, failing build.
+  [Warning] One or more build-args [foo] were not consumed
   ```
 
   The Dockerfile author can define a single variable by specifying `ARG` once or many
@@ -454,7 +454,7 @@ A Dockerfile is similar to a Makefile.
   you are defining an image to use as a base for building other images. For
   example, if you are defining an application build environment or a daemon that
   is customized with a user-specific configuration.  
-  
+
   Consider an image intended as a reusable python application builder. It must
   add application source code to a particular directory, and might need a build
   script called after that. You can't just call **ADD** and **RUN** now, because
@@ -470,4 +470,5 @@ A Dockerfile is similar to a Makefile.
 # HISTORY
 *May 2014, Compiled by Zac Dover (zdover at redhat dot com) based on docker.com Dockerfile documentation.
 *Feb 2015, updated by Brian Goff (cpuguy83@gmail.com) for readability
-*Sept 2015, updated by Sally O'Malley (somalley@redhat.com) 
+*Sept 2015, updated by Sally O'Malley (somalley@redhat.com)
+*Oct 2016, updated by Addam Hardy (addam.hardy@gmail.com)

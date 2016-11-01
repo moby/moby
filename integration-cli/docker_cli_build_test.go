@@ -6056,11 +6056,12 @@ func (s *DockerSuite) TestBuildBuildTimeArgUnconsumedArg(c *check.C) {
 		RUN echo $%s
 		CMD echo $%s`, envKey, envKey)
 
-	errStr := "One or more build-args"
-	if _, out, err := buildImageWithOut(imgName, dockerfile, true, args...); err == nil {
-		c.Fatalf("build succeeded, expected to fail. Output: %v", out)
-	} else if !strings.Contains(out, errStr) {
-		c.Fatalf("Unexpected error. output: %q, expected error: %q", out, errStr)
+	warnStr := "[Warning] One or more build-args"
+
+	if _, out, err := buildImageWithOut(imgName, dockerfile, true, args...); !strings.Contains(out, warnStr) {
+		c.Fatalf("build completed without warning: %q %q", out, err)
+	} else if err != nil {
+		c.Fatalf("build failed to complete: %q %q", out, err)
 	}
 
 }
