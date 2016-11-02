@@ -412,7 +412,7 @@ func (d *Driver) getLowerDirs(id string) ([]string, error) {
 			if err != nil {
 				return nil, err
 			}
-			lowersArray = append(lowersArray, path.Clean(path.Join(d.home, "link", lp)))
+			lowersArray = append(lowersArray, path.Clean(path.Join(d.home, linkDir, lp)))
 		}
 	} else if !os.IsNotExist(err) {
 		return nil, err
