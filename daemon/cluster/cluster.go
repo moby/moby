@@ -7,6 +7,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -277,13 +278,20 @@ func (c *Cluster) startNewNode(conf nodeStartConfig) (*node, error) {
 		}
 	}
 
+	var control string
+	if runtime.GOOS == "windows" {
+		control = `\\.\pipe\` + controlSocket
+	} else {
+		control = filepath.Join(c.runtimeRoot, controlSocket)
+	}
+
 	c.node = nil
 	c.cancelDelay = nil
 	c.stop = false
 	n, err := swarmnode.New(&swarmnode.Config{
 		Hostname:           c.config.Name,
 		ForceNewCluster:    conf.forceNewCluster,
-		ListenControlAPI:   filepath.Join(c.runtimeRoot, controlSocket),
+		ListenControlAPI:   control,
 		ListenRemoteAPI:    conf.ListenAddr,
 		AdvertiseRemoteAPI: conf.AdvertiseAddr,
 		JoinAddr:           conf.joinAddr,
