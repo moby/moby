@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/http/httputil"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -64,6 +65,12 @@ func (s *DockerSuite) TestAPIClientVersionNewerThanServer(c *check.C) {
 }
 
 func (s *DockerSuite) TestAPIClientVersionOldNotSupported(c *check.C) {
+	if daemonPlatform != runtime.GOOS {
+		c.Skip("Daemon platform doesn't match test platform")
+	}
+	if api.MinVersion == api.DefaultVersion {
+		c.Skip("API MinVersion==DefaultVersion")
+	}
 	v := strings.Split(api.MinVersion, ".")
 	vMinInt, err := strconv.Atoi(v[1])
 	c.Assert(err, checker.IsNil)
