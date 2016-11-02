@@ -14,8 +14,8 @@ import (
 func (cli *Client) ServiceList(ctx context.Context, options types.ServiceListOptions) ([]swarm.Service, error) {
 	query := url.Values{}
 
-	if options.Filter.Len() > 0 {
-		filterJSON, err := filters.ToParam(options.Filter)
+	if options.Filters.Len() > 0 {
+		filterJSON, err := filters.ToParam(options.Filters)
 		if err != nil {
 			return nil, err
 		}

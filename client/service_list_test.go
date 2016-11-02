@@ -45,7 +45,7 @@ func TestServiceList(t *testing.T) {
 		},
 		{
 			options: types.ServiceListOptions{
-				Filter: filters,
+				Filters: filters,
 			},
 			expectedQueryParams: map[string]string{
 				"filters": `{"label":{"label1":true,"label2":true}}`,

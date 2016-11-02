@@ -82,10 +82,10 @@ func TestContainerList(t *testing.T) {
 	filters.Add("label", "label2")
 	filters.Add("before", "container")
 	containers, err := client.ContainerList(context.Background(), types.ContainerListOptions{
-		Size:   true,
-		All:    true,
-		Since:  "container",
-		Filter: filters,
+		Size:    true,
+		All:     true,
+		Since:   "container",
+		Filters: filters,
 	})
 	if err != nil {
 		t.Fatal(err)

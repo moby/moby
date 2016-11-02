@@ -72,7 +72,7 @@ func runPs(dockerCli *command.DockerCli, opts psOptions) error {
 		filter := opts.filter.Value()
 		filter.Add("node", node.ID)
 
-		nodeTasks, err := client.TaskList(ctx, types.TaskListOptions{Filter: filter})
+		nodeTasks, err := client.TaskList(ctx, types.TaskListOptions{Filters: filter})
 		if err != nil {
 			errs = append(errs, err.Error())
 			continue
