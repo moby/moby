@@ -1,7 +1,7 @@
 ---
 title: "node ps"
 description: "The node ps command description and usage"
-keywords: ["node, tasks", "ps"]
+keywords: node, tasks, ps
 aliases: ["/engine/reference/commandline/node_tasks/"]
 ---
 
