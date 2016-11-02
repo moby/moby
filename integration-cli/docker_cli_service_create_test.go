@@ -59,7 +59,7 @@ func (s *DockerSwarmSuite) TestServiceCreateWithSecret(c *check.C) {
 	c.Assert(id, checker.Not(checker.Equals), "", check.Commentf("secrets: %s", id))
 	testTarget := "testing"
 
-	out, err := d.Cmd("service", "create", "--name", serviceName, "--secret", fmt.Sprintf("%s:%s", testName, testTarget), "busybox", "top")
+	out, err := d.Cmd("service", "create", "--name", serviceName, "--secret", fmt.Sprintf("source=%s,target=%s", testName, testTarget), "busybox", "top")
 	c.Assert(err, checker.IsNil, check.Commentf(out))
 
 	out, err = d.Cmd("service", "inspect", "--format", "{{ json .Spec.TaskTemplate.ContainerSpec.Secrets }}", serviceName)

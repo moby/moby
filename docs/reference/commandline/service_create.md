@@ -126,7 +126,7 @@ Use the `--secret` flag to give a container access to a
 with two secrets named `ssh-key` and `app-key`:
 
 ```bash
-$ docker service create --name redis --secret ssh-key:ssh --secret app-key:app redis:3.0.6
+$ docker service create --name redis --secret source=ssh-key,target=ssh --secret source=app-key,target=app,uid=1000,gid=1001,mode=0400 redis:3.0.6
 4cdgfyky7ozwh3htjfw0d12qv
 ```
 

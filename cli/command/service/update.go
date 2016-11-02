@@ -56,7 +56,7 @@ func newUpdateCommand(dockerCli *command.DockerCli) *cobra.Command {
 	flags.Var(&opts.containerLabels, flagContainerLabelAdd, "Add or update a container label")
 	flags.Var(&opts.env, flagEnvAdd, "Add or update an environment variable")
 	flags.Var(newListOptsVar(), flagSecretRemove, "Remove a secret")
-	flags.StringSliceVar(&opts.secrets, flagSecretAdd, []string{}, "Add a secret")
+	flags.Var(&opts.secrets, flagSecretAdd, "Add or update a secret on a service")
 	flags.Var(&opts.mounts, flagMountAdd, "Add or update a mount on a service")
 	flags.Var(&opts.constraints, flagConstraintAdd, "Add or update a placement constraint")
 	flags.Var(&opts.endpoint.ports, flagPublishAdd, "Add or update a published port")
@@ -413,10 +413,7 @@ func updateEnvironment(flags *pflag.FlagSet, field *[]string) {
 
 func getUpdatedSecrets(apiClient client.APIClient, flags *pflag.FlagSet, secrets []*swarm.SecretReference) ([]*swarm.SecretReference, error) {
 	if flags.Changed(flagSecretAdd) {
-		values, err := flags.GetStringSlice(flagSecretAdd)
-		if err != nil {
-			return nil, err
-		}
+		values := flags.Lookup(flagSecretAdd).Value.(*SecretOpt).Value()
 
 		addSecrets, err := parseSecrets(apiClient, values)
 		if err != nil {

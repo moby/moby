@@ -157,7 +157,7 @@ The following example adds a secret named `ssh-2` and removes `ssh-1`:
 
 ```bash
 $ docker service update \
-    --secret-add ssh-2 \
+    --secret-add source=ssh-2,target=ssh-2 \
     --secret-rm ssh-1 \
     myservice
 ```
