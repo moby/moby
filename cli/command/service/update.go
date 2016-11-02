@@ -631,7 +631,7 @@ func updatePorts(flags *pflag.FlagSet, portConfig *[]swarm.PortConfig) error {
 		ports, portBindings, _ := nat.ParsePortSpecs(values)
 
 		for port := range ports {
-			newConfigs := convertPortToPortConfig(port, portBindings)
+			newConfigs := ConvertPortToPortConfig(port, portBindings)
 			for _, entry := range newConfigs {
 				if v, ok := portSet[portConfigToString(&entry)]; ok && v != entry {
 					return fmt.Errorf("conflicting port mapping between %v:%v/%s and %v:%v/%s", entry.PublishedPort, entry.TargetPort, entry.Protocol, v.PublishedPort, v.TargetPort, v.Protocol)

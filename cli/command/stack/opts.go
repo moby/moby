@@ -9,11 +9,12 @@ import (
 	"github.com/spf13/pflag"
 )
 
+func addComposefileFlag(opt *string, flags *pflag.FlagSet) {
+	flags.StringVar(opt, "compose-file", "", "Path to a Compose file")
+}
+
 func addBundlefileFlag(opt *string, flags *pflag.FlagSet) {
-	flags.StringVar(
-		opt,
-		"file", "",
-		"Path to a Distributed Application Bundle file (Default: STACK.dab)")
+	flags.StringVar(opt, "bundle-file", "", "Path to a Distributed Application Bundle file")
 }
 
 func addRegistryAuthFlag(opt *bool, flags *pflag.FlagSet) {
