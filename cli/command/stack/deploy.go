@@ -516,7 +516,7 @@ func convertDeployMode(mode string, replicas *uint64) (swarm.ServiceMode, error)
 			return serviceMode, fmt.Errorf("replicas can only be used with replicated mode")
 		}
 		serviceMode.Global = &swarm.GlobalService{}
-	case "replicated":
+	case "replicated", "":
 		serviceMode.Replicated = &swarm.ReplicatedService{Replicas: replicas}
 	default:
 		return serviceMode, fmt.Errorf("Unknown mode: %s", mode)
