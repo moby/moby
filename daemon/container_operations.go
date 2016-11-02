@@ -655,7 +655,9 @@ func (daemon *Daemon) connectToNetwork(container *container.Container, idOrName 
 				operIPAM = true
 			}
 
-			endpointConfig = epConfig
+			// copy IPAMConfig and NetworkID from epConfig via AttachNetwork
+			endpointConfig.IPAMConfig = epConfig.IPAMConfig
+			endpointConfig.NetworkID = epConfig.NetworkID
 		}
 	}
 

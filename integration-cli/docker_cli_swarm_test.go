@@ -275,6 +275,26 @@ func (s *DockerSwarmSuite) TestSwarmContainerAutoStart(c *check.C) {
 	c.Assert(strings.TrimSpace(out), checker.Not(checker.Equals), "")
 }
 
+func (s *DockerSwarmSuite) TestSwarmContainerEndpointOptions(c *check.C) {
+	d := s.AddDaemon(c, true, true)
+
+	out, err := d.Cmd("network", "create", "--attachable", "-d", "overlay", "foo")
+	c.Assert(err, checker.IsNil)
+	c.Assert(strings.TrimSpace(out), checker.Not(checker.Equals), "")
+
+	_, err = d.Cmd("run", "-d", "--net=foo", "--name=first", "--net-alias=first-alias", "busybox", "top")
+	c.Assert(err, checker.IsNil)
+
+	_, err = d.Cmd("run", "-d", "--net=foo", "--name=second", "busybox", "top")
+	c.Assert(err, checker.IsNil)
+
+	// ping first container and its alias
+	_, err = d.Cmd("exec", "second", "ping", "-c", "1", "first")
+	c.Assert(err, check.IsNil)
+	_, err = d.Cmd("exec", "second", "ping", "-c", "1", "first-alias")
+	c.Assert(err, check.IsNil)
+}
+
 func (s *DockerSwarmSuite) TestSwarmRemoveInternalNetwork(c *check.C) {
 	d := s.AddDaemon(c, true, true)
 
