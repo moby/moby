@@ -161,6 +161,7 @@ type ImageBuildOptions struct {
 	Dockerfile     string
 	Ulimits        []*units.Ulimit
 	BuildArgs      map[string]string
+	BuildSecrets   []*SecretRequestOption
 	AuthConfigs    map[string]AuthConfig
 	Context        io.Reader
 	Labels         map[string]string

@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -13,6 +14,7 @@ import (
 
 	"golang.org/x/net/context"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
@@ -60,6 +62,7 @@ type buildOptions struct {
 	securityOpt    []string
 	networkMode    string
 	squash         bool
+	buildSecrets   opts.SecretOpt
 }
 
 // NewBuildCommand creates a new `docker build` command
@@ -86,6 +89,7 @@ func NewBuildCommand(dockerCli *command.DockerCli) *cobra.Command {
 
 	flags.VarP(&options.tags, "tag", "t", "Name and optionally a tag in the 'name:tag' format")
 	flags.Var(&options.buildArgs, "build-arg", "Set build-time variables")
+	flags.Var(&options.buildSecrets, "build-secret", "Set build secrets")
 	flags.Var(options.ulimits, "ulimit", "Ulimit options")
 	flags.StringVarP(&options.dockerfileName, "file", "f", "", "Name of the Dockerfile (Default is 'PATH/Dockerfile')")
 	flags.StringVarP(&options.memory, "memory", "m", "", "Memory limit")
@@ -246,6 +250,12 @@ func runBuild(dockerCli *command.DockerCli, options buildOptions) error {
 		buildCtx = replaceDockerfileTarWrapper(ctx, buildCtx, relDockerfile, translator, &resolvedTags)
 	}
 
+	secrets := options.buildSecrets.Value()
+
+	if len(secrets) > 0 {
+		buildCtx = secretsTarWrapper(ctx, buildCtx, secrets)
+	}
+
 	// Setup an upload progress bar
 	progressOutput := streamformatter.NewStreamFormatter().NewProgressOutput(progBuff, true)
 	if !dockerCli.Out().IsTerminal() {
@@ -305,6 +315,7 @@ func runBuild(dockerCli *command.DockerCli, options buildOptions) error {
 		ShmSize:        shmSize,
 		Ulimits:        options.ulimits.GetList(),
 		BuildArgs:      runconfigopts.ConvertKVStringsToMap(options.buildArgs.GetAll()),
+		BuildSecrets:   secrets,
 		AuthConfigs:    authConfig,
 		Labels:         runconfigopts.ConvertKVStringsToMap(options.labels.GetAll()),
 		CacheFrom:      options.cacheFrom,
@@ -465,6 +476,69 @@ func replaceDockerfileTarWrapper(ctx context.Context, inputTarStream io.ReadClos
 				content = bytes.NewBuffer(newDockerfile)
 			}
 
+			if err := tarWriter.WriteHeader(hdr); err != nil {
+				pipeWriter.CloseWithError(err)
+				return
+			}
+
+			if _, err := io.Copy(tarWriter, content); err != nil {
+				pipeWriter.CloseWithError(err)
+				return
+			}
+		}
+	}()
+
+	return pipeReader
+}
+
+func secretsTarWrapper(ctx context.Context, inputTarStream io.ReadCloser, secrets []*types.SecretRequestOption) io.ReadCloser {
+	pipeReader, pipeWriter := io.Pipe()
+	go func() {
+		tarReader := tar.NewReader(inputTarStream)
+		tarWriter := tar.NewWriter(pipeWriter)
+
+		defer inputTarStream.Close()
+
+		// add secrets
+		for _, s := range secrets {
+			logrus.Debugf("adding secret to context source=%s", s.Source)
+			fPath := filepath.Base(s.Source)
+			data, err := ioutil.ReadFile(s.Source)
+			if err != nil {
+				logrus.Errorf("error reading secret path: %s", err)
+				continue
+			}
+			hdr := &tar.Header{
+				Name: filepath.Join(".secrets", fPath),
+				Mode: int64(s.Mode),
+				Size: int64(len(data)),
+			}
+			if err := tarWriter.WriteHeader(hdr); err != nil {
+				pipeWriter.CloseWithError(err)
+				return
+			}
+
+			content := bytes.NewBuffer(data)
+			if _, err := io.Copy(tarWriter, content); err != nil {
+				pipeWriter.CloseWithError(err)
+				return
+			}
+		}
+
+		for {
+			hdr, err := tarReader.Next()
+			if err == io.EOF {
+				// Signals end of archive.
+				tarWriter.Close()
+				pipeWriter.Close()
+				return
+			}
+			if err != nil {
+				pipeWriter.CloseWithError(err)
+				return
+			}
+
+			var content = tarReader
 			if err := tarWriter.WriteHeader(hdr); err != nil {
 				pipeWriter.CloseWithError(err)
 				return

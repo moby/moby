@@ -22,6 +22,7 @@ Build an image from a Dockerfile
 
 Options:
       --build-arg value         Set build-time variables (default [])
+      --build-secret secret     Set build secrets
       --cache-from value        Images to consider as cache sources (default [])
       --cgroup-parent string    Optional parent cgroup for the container
       --compress                Compress the build context using gzip
@@ -54,7 +55,7 @@ Options:
                                 The format is `<number><unit>`. `number` must be greater than `0`.
                                 Unit is optional and can be `b` (bytes), `k` (kilobytes), `m` (megabytes),
                                 or `g` (gigabytes). If you omit the unit, the system uses bytes.
-  --squash                      Squash newly built layers into a single new layer (**Experimental Only**) 
+  --squash                      Squash newly built layers into a single new layer (**Experimental Only**)
   -t, --tag value               Name and optionally a tag in the 'name:tag' format (default [])
       --ulimit value            Ulimit options (default [])
 ```
@@ -373,6 +374,21 @@ the command line.
 > directory (and its children) for security reasons, and to ensure
 > repeatable builds on remote Docker hosts. This is also the reason why
 > `ADD ../file` will not work.
+
+### Build with Secrets
+
+Build Secrets can be specified to provide private data such as keys or
+passwords.
+
+Build an image using secrets:
+
+```bash
+docker build -t app \
+    --secret source=/path/to/github-key,target=git.key .
+```
+
+This will expose the contents of `github-key` in the container during build
+as `/run/secrets/git.key`.
 
 ### Optional parent cgroup (--cgroup-parent)
 
