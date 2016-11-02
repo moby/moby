@@ -69,7 +69,7 @@ func (ii ErrInvalidID) Error() string {
 func (ii ErrInvalidID) BadRequest() {}
 
 // ErrInvalidName is returned when a query-by-name or resource create method is
-// invoked with an empty name parameter
+// invoked with an invalid name parameter
 type ErrInvalidName string
 
 func (in ErrInvalidName) Error() string {
