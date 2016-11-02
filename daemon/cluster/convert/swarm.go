@@ -21,7 +21,7 @@ func SwarmFromGRPC(c swarmapi.Cluster) types.Swarm {
 				},
 				Raft: types.RaftConfig{
 					SnapshotInterval:           c.Spec.Raft.SnapshotInterval,
-					KeepOldSnapshots:           c.Spec.Raft.KeepOldSnapshots,
+					KeepOldSnapshots:           &c.Spec.Raft.KeepOldSnapshots,
 					LogEntriesForSlowFollowers: c.Spec.Raft.LogEntriesForSlowFollowers,
 					HeartbeatTick:              int(c.Spec.Raft.HeartbeatTick),
 					ElectionTick:               int(c.Spec.Raft.ElectionTick),
@@ -82,8 +82,8 @@ func MergeSwarmSpecToGRPC(s types.Spec, spec swarmapi.ClusterSpec) (swarmapi.Clu
 	if s.Raft.SnapshotInterval != 0 {
 		spec.Raft.SnapshotInterval = s.Raft.SnapshotInterval
 	}
-	if s.Raft.KeepOldSnapshots != 0 {
-		spec.Raft.KeepOldSnapshots = s.Raft.KeepOldSnapshots
+	if s.Raft.KeepOldSnapshots != nil {
+		spec.Raft.KeepOldSnapshots = *s.Raft.KeepOldSnapshots
 	}
 	if s.Raft.LogEntriesForSlowFollowers != 0 {
 		spec.Raft.LogEntriesForSlowFollowers = s.Raft.LogEntriesForSlowFollowers
