@@ -143,6 +143,7 @@ func (c *containerConfig) config() *enginecontainer.Config {
 		User:        c.spec().User,
 		Hostname:    c.spec().Hostname,
 		Env:         c.spec().Env,
+		Hostname:    c.spec().Hostname,
 		WorkingDir:  c.spec().Dir,
 		Image:       c.image(),
 		Volumes:     c.volumes(),
