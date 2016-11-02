@@ -34,9 +34,23 @@ func runSecretInspect(dockerCli *command.DockerCli, opts inspectOptions) error {
 	client := dockerCli.Client()
 	ctx := context.Background()
 
-	getRef := func(name string) (interface{}, []byte, error) {
-		return client.SecretInspectWithRaw(ctx, name)
+	// attempt to lookup secret by name
+	secrets, err := getSecrets(client, ctx, []string{opts.name})
+	if err != nil {
+		return err
 	}
 
-	return inspect.Inspect(dockerCli.Out(), []string{opts.name}, opts.format, getRef)
+	id := opts.name
+	for _, s := range secrets {
+		if s.Spec.Annotations.Name == opts.name {
+			id = s.ID
+			break
+		}
+	}
+
+	getRef := func(name string) (interface{}, []byte, error) {
+		return client.SecretInspectWithRaw(ctx, id)
+	}
+
+	return inspect.Inspect(dockerCli.Out(), []string{id}, opts.format, getRef)
 }

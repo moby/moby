@@ -31,7 +31,30 @@ func runSecretRemove(dockerCli *command.DockerCli, opts removeOptions) error {
 	client := dockerCli.Client()
 	ctx := context.Background()
 
-	for _, id := range opts.ids {
+	// attempt to lookup secret by name
+	secrets, err := getSecrets(client, ctx, opts.ids)
+	if err != nil {
+		return err
+	}
+
+	ids := opts.ids
+
+	names := make(map[string]int)
+	for _, id := range ids {
+		names[id] = 1
+	}
+
+	if len(secrets) > 0 {
+		ids = []string{}
+
+		for _, s := range secrets {
+			if _, ok := names[s.Spec.Annotations.Name]; ok {
+				ids = append(ids, s.ID)
+			}
+		}
+	}
+
+	for _, id := range ids {
 		if err := client.SecretRemove(ctx, id); err != nil {
 			return err
 		}
