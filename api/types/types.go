@@ -133,6 +133,7 @@ type ContainerProcessList struct {
 type Version struct {
 	Version       string
 	APIVersion    string `json:"ApiVersion"`
+	MinAPIVersion string `json:"MinAPIVersion,omitempty"`
 	GitCommit     string
 	GoVersion     string
 	Os            string

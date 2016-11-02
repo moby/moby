@@ -130,6 +130,7 @@ This section lists each version from latest to oldest.  Each listing includes a 
 
 [Docker Remote API v1.25](docker_remote_api_v1.25.md) documentation
 
+* `GET /version` now returns `MinAPIVersion`.
 * `POST /build` accepts `networkmode` parameter to specify network used during build.
 * `GET /images/(name)/json` now returns `OsVersion` if populated
 * `GET /info` now returns `Isolation`.
