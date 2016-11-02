@@ -73,13 +73,13 @@ func runDeploy(dockerCli *command.DockerCli, opts deployOptions) error {
 
 	unsupportedProperties := loader.GetUnsupportedProperties(configDetails)
 	if len(unsupportedProperties) > 0 {
-		fmt.Printf("Ignoring unsupported options: %s\n\n",
+		fmt.Fprintf(dockerCli.Err(), "Ignoring unsupported options: %s\n\n",
 			strings.Join(unsupportedProperties, ", "))
 	}
 
 	deprecatedProperties := loader.GetDeprecatedProperties(configDetails)
 	if len(deprecatedProperties) > 0 {
-		fmt.Printf("Ignoring deprecated options:\n\n%s\n\n",
+		fmt.Fprintf(dockerCli.Err(), "Ignoring deprecated options:\n\n%s\n\n",
 			propertyWarnings(deprecatedProperties))
 	}
 
@@ -434,11 +434,10 @@ func convertRestartPolicy(restart string, source *composetypes.RestartPolicy) (*
 			}, nil
 		}
 	}
-	attempts := uint64(*source.MaxAttempts)
 	return &swarm.RestartPolicy{
 		Condition:   swarm.RestartPolicyCondition(source.Condition),
 		Delay:       source.Delay,
-		MaxAttempts: &attempts,
+		MaxAttempts: source.MaxAttempts,
 		Window:      source.Window,
 	}, nil
 }
