@@ -6176,7 +6176,7 @@ paths:
           required: true
         - name: "force"
           in: "query"
-          description: "Force remove an active node"
+          description: "Force remove a node from the swarm"
           default: false
           type: "boolean"
       tags:

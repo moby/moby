@@ -4589,7 +4589,7 @@ Remove a node [`id`] from the swarm.
 
 **Query parameters**:
 
--   **force** - 1/True/true or 0/False/false, Force remove an active node.
+-   **force** - 1/True/true or 0/False/false, Force remove a node from the swarm.
         Default `false`.
 
 **Status codes**:
