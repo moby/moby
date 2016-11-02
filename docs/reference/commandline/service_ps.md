@@ -1,7 +1,7 @@
 ---
 title: "service ps"
 description: "The service ps command description and usage"
-keywords: ["service, tasks", "ps"]
+keywords: service, tasks, ps
 aliases: ["/engine/reference/commandline/service_tasks/"]
 ---
 
