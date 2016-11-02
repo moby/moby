@@ -33,7 +33,7 @@ func (cli *Client) ContainerRemove(ctx context.Context, containerID string, opti
 func removeCidFile(cli *Client, ctx context.Context, containerID string) {
 	cj, _ := cli.ContainerInspect(ctx, containerID)
 
-	if cj.ContainerJSONBase != nil  && cj.HostConfig != nil {
+	if cj.ContainerJSONBase != nil && cj.HostConfig != nil {
 		cidfile := cj.HostConfig.ContainerIDFile
 		if len(cidfile) > 0 {
 			os.Remove(cidfile)
