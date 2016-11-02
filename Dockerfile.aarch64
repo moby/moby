@@ -52,11 +52,6 @@ RUN apt-get update && apt-get install -y \
 	iputils-ping \
 	--no-install-recommends
 
-# Install armhf loader to use armv6 binaries on armv8
-RUN dpkg --add-architecture armhf \
-	&& apt-get update \
-	&& apt-get install -y libc6:armhf
-
 # Get lvm2 source for compiling statically
 ENV LVM2_VERSION 2.02.103
 RUN mkdir -p /usr/local/lvm2 \
