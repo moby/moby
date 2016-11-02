@@ -348,13 +348,16 @@ func Parse(flags *pflag.FlagSet, copts *ContainerOptions) (*container.Config, *c
 	}
 
 	var binds []string
+	volumes := copts.volumes.GetMap()
 	// add any bind targets to the list of container volumes
 	for bind := range copts.volumes.GetMap() {
 		if arr := volumeSplitN(bind, 2); len(arr) > 1 {
 			// after creating the bind mount we want to delete it from the copts.volumes values because
 			// we do not want bind mounts being committed to image configs
 			binds = append(binds, bind)
-			copts.volumes.Delete(bind)
+			// We should delete from the map (`volumes`) here, as deleting from copts.volumes will not work if
+			// there are duplicates entries.
+			delete(volumes, bind)
 		}
 	}
 
@@ -556,7 +559,7 @@ func Parse(flags *pflag.FlagSet, copts *ContainerOptions) (*container.Config, *c
 		Env:             envVariables,
 		Cmd:             runCmd,
 		Image:           copts.Image,
-		Volumes:         copts.volumes.GetMap(),
+		Volumes:         volumes,
 		MacAddress:      copts.macAddress,
 		Entrypoint:      entrypoint,
 		WorkingDir:      copts.workingDir,

@@ -4567,3 +4567,24 @@ func (s *DockerSuite) TestRunServicingContainer(c *check.C) {
 	c.Assert(out2, checker.Contains, `Windows Container (Servicing)`, check.Commentf("Didn't find 'Windows Container (Servicing): %s", out2))
 	c.Assert(out2, checker.Contains, containerID+"_servicing", check.Commentf("Didn't find '%s_servicing': %s", containerID+"_servicing", out2))
 }
+
+func (s *DockerSuite) TestRunDuplicateMount(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+
+	tmpFile, err := ioutil.TempFile("", "touch-me")
+	c.Assert(err, checker.IsNil)
+	defer tmpFile.Close()
+
+	data := "touch-me-foo-bar\n"
+	if _, err := tmpFile.Write([]byte(data)); err != nil {
+		c.Fatal(err)
+	}
+
+	name := "test"
+	out, _ := dockerCmd(c, "run", "--name", name, "-v", "/tmp:/tmp", "-v", "/tmp:/tmp", "busybox", "sh", "-c", "cat "+tmpFile.Name()+" && ls /")
+	c.Assert(out, checker.Not(checker.Contains), "tmp:")
+	c.Assert(out, checker.Contains, data)
+
+	out = inspectFieldJSON(c, name, "Config.Volumes")
+	c.Assert(out, checker.Contains, "null")
+}
