@@ -107,6 +107,15 @@ func newImageBuildOptions(ctx context.Context, r *http.Request) (*types.ImageBui
 		options.BuildArgs = buildArgs
 	}
 
+	var buildSecrets = []*types.SecretRequestOption{}
+	buildSecretJSON := r.FormValue("buildsecrets")
+	if buildSecretJSON != "" {
+		if err := json.Unmarshal([]byte(buildSecretJSON), &buildSecrets); err != nil {
+			return nil, err
+		}
+		options.BuildSecrets = buildSecrets
+	}
+
 	var labels = map[string]string{}
 	labelsJSON := r.FormValue("labels")
 	if labelsJSON != "" {

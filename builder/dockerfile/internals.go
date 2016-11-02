@@ -500,6 +500,7 @@ func (b *Builder) create() (string, error) {
 		// Set a log config to override any default value set on the daemon
 		LogConfig:  defaultLogConfig,
 		ExtraHosts: b.options.ExtraHosts,
+		Binds:      b.bindMounts,
 	}
 
 	config := *b.runConfig
@@ -678,4 +679,31 @@ func (b *Builder) isBuildArgAllowed(arg string) bool {
 		return true
 	}
 	return false
+}
+
+// inject secret is used to create a file in a temporary directory to be
+// used during build
+func injectSecret(mountPath string, src io.ReadCloser, targetName string, mode os.FileMode) error {
+	destPath := filepath.Join(mountPath, targetName)
+	logrus.Debugf("[BUILDER] creating secret: %s", destPath)
+
+	if err := os.MkdirAll(filepath.Dir(destPath), 0755); err != nil {
+		return err
+	}
+
+	df, err := os.Create(destPath)
+	if err != nil {
+		return err
+	}
+	defer df.Close()
+
+	if _, err := io.Copy(df, src); err != nil {
+		return err
+	}
+
+	if err := df.Chmod(mode); err != nil {
+		return err
+	}
+
+	return nil
 }

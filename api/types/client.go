@@ -164,10 +164,11 @@ type ImageBuildOptions struct {
 	// we can tell the difference between "" (empty string) and no value
 	// at all (nil). See the parsing of buildArgs in
 	// api/server/router/build/build_routes.go for even more info.
-	BuildArgs   map[string]*string
-	AuthConfigs map[string]AuthConfig
-	Context     io.Reader
-	Labels      map[string]string
+	BuildArgs    map[string]*string
+	AuthConfigs  map[string]AuthConfig
+	Context      io.Reader
+	Labels       map[string]string
+	BuildSecrets []*SecretRequestOption
 	// squash the resulting image's layers to the parent
 	// preserves the original image and creates a new one from the parent with all
 	// the changes applied to a single layer

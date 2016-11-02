@@ -108,10 +108,16 @@ func (cli *Client) imageBuildOptionsToQuery(options types.ImageBuildOptions) (ur
 	}
 	query.Set("buildargs", string(buildArgsJSON))
 
+	buildSecretsJSON, err := json.Marshal(options.BuildSecrets)
+	if err != nil {
+		return query, err
+	}
+	query.Set("buildsecrets", string(buildSecretsJSON))
 	labelsJSON, err := json.Marshal(options.Labels)
 	if err != nil {
 		return query, err
 	}
+
 	query.Set("labels", string(labelsJSON))
 
 	cacheFromJSON, err := json.Marshal(options.CacheFrom)
