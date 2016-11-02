@@ -31,14 +31,11 @@ const (
 	defaultHost        = "127.0.0.1"
 	defaultPort        = 24224
 	defaultBufferLimit = 1024 * 1024
-	defaultTagPrefix   = "docker"
 
 	// logger tries to reconnect 2**32 - 1 times
 	// failed (and panic) after 204 years [ 1.5 ** (2**32 - 1) - 1 seconds]
-	defaultRetryWait              = 1000
-	defaultTimeout                = 3 * time.Second
-	defaultMaxRetries             = math.MaxInt32
-	defaultReconnectWaitIncreRate = 1.5
+	defaultRetryWait  = 1000
+	defaultMaxRetries = math.MaxInt32
 
 	addressKey      = "fluentd-address"
 	bufferLimitKey  = "fluentd-buffer-limit"
