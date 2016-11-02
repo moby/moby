@@ -12,6 +12,8 @@ basePath: "/v1.25"
 info:
   title: "Docker Remote API"
   version: "1.25"
+  x-logo:
+    url: "https://docs.docker.com/images/logo-docker-main.png"
   description: |
     The Docker API is an HTTP REST API served by Docker Engine. It is the API the Docker client uses to communicate with the Engine, so everything the Docker client can do can be done with the API.
 
