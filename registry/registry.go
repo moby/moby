@@ -3,7 +3,6 @@ package registry
 
 import (
 	"crypto/tls"
-	"crypto/x509"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -64,8 +63,11 @@ func ReadCertsDirectory(tlsConfig *tls.Config, directory string) error {
 	for _, f := range fs {
 		if strings.HasSuffix(f.Name(), ".crt") {
 			if tlsConfig.RootCAs == nil {
-				// TODO(dmcgowan): Copy system pool
-				tlsConfig.RootCAs = x509.NewCertPool()
+				systemPool, err := tlsconfig.SystemCertPool()
+				if err != nil {
+					return fmt.Errorf("unable to get system cert pool: %v", err)
+				}
+				tlsConfig.RootCAs = systemPool
 			}
 			logrus.Debugf("crt: %s", filepath.Join(directory, f.Name()))
 			data, err := ioutil.ReadFile(filepath.Join(directory, f.Name()))
