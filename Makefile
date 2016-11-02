@@ -140,6 +140,8 @@ win: build ## cross build the binary for windows
 
 .PHONY: swagger-gen
 swagger-gen:
-	docker run --rm -v $(PWD):/work -w /work \
+	docker run --rm -v $(PWD):/go/src/github.com/docker/docker \
+		-w /go/src/github.com/docker/docker \
 		--entrypoint hack/generate-swagger-api.sh \
+		-e GOPATH=/go \
 		quay.io/goswagger/swagger
