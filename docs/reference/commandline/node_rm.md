@@ -24,7 +24,7 @@ Aliases:
   rm, remove
 
 Options:
-      --force  Force remove an active node
+      --force  Force remove a node from the swarm
       --help   Print usage
 ```
 
