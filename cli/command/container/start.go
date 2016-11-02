@@ -45,10 +45,8 @@ func NewStartCommand(dockerCli *command.DockerCli) *cobra.Command {
 	flags.BoolVarP(&opts.openStdin, "interactive", "i", false, "Attach container's STDIN")
 	flags.StringVar(&opts.detachKeys, "detach-keys", "", "Override the key sequence for detaching a container")
 
-	if dockerCli.HasExperimental() {
-		flags.StringVar(&opts.checkpoint, "checkpoint", "", "Restore from this checkpoint")
-		flags.StringVar(&opts.checkpointDir, "checkpoint-dir", "", "Use a custom checkpoint storage directory")
-	}
+	flags.StringVar(&opts.checkpoint, "checkpoint", "", command.PrependExperimental("Restore from this checkpoint"))
+	flags.StringVar(&opts.checkpointDir, "checkpoint-dir", "", command.PrependExperimental("Use a custom checkpoint storage directory"))
 
 	return cmd
 }
