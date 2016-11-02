@@ -45,12 +45,20 @@ var (
 		"UtilityVM/Files/EFI/Microsoft/Boot/BCD.LOG1": "bcd.log1.bak",
 		"UtilityVM/Files/EFI/Microsoft/Boot/BCD.LOG2": "bcd.log2.bak",
 	}
+	noreexec = false
 )
 
 // init registers the windows graph drivers to the register.
 func init() {
 	graphdriver.Register("windowsfilter", InitFilter)
-	reexec.Register("docker-windows-write-layer", writeLayer)
+	// DOCKER_WINDOWSFILTER_NOREEXEC allows for inline processing which makes
+	// debugging issues in the re-exec codepath significantly easier.
+	if os.Getenv("DOCKER_WINDOWSFILTER_NOREEXEC") != "" {
+		logrus.Warnf("WindowsGraphDriver is set to not re-exec. This is intended for debugging purposes only.")
+		noreexec = true
+	} else {
+		reexec.Register("docker-windows-write-layer", writeLayerReexec)
+	}
 }
 
 type checker struct {
@@ -632,63 +640,73 @@ func writeLayerFromTar(r io.Reader, w hcsshim.LayerWriter, root string) (int64, 
 
 // importLayer adds a new layer to the tag and graph store based on the given data.
 func (d *Driver) importLayer(id string, layerData io.Reader, parentLayerPaths []string) (size int64, err error) {
-	cmd := reexec.Command(append([]string{"docker-windows-write-layer", d.info.HomeDir, id}, parentLayerPaths...)...)
-	output := bytes.NewBuffer(nil)
-	cmd.Stdin = layerData
-	cmd.Stdout = output
-	cmd.Stderr = output
+	if !noreexec {
+		cmd := reexec.Command(append([]string{"docker-windows-write-layer", d.info.HomeDir, id}, parentLayerPaths...)...)
+		output := bytes.NewBuffer(nil)
+		cmd.Stdin = layerData
+		cmd.Stdout = output
+		cmd.Stderr = output
 
-	if err = cmd.Start(); err != nil {
-		return
+		if err = cmd.Start(); err != nil {
+			return
+		}
+
+		if err = cmd.Wait(); err != nil {
+			return 0, fmt.Errorf("re-exec error: %v: output: %s", err, output)
+		}
+
+		return strconv.ParseInt(output.String(), 10, 64)
 	}
-
-	if err = cmd.Wait(); err != nil {
-		return 0, fmt.Errorf("re-exec error: %v: output: %s", err, output)
-	}
-
-	return strconv.ParseInt(output.String(), 10, 64)
+	return writeLayer(layerData, d.info.HomeDir, id, parentLayerPaths...)
 }
 
-// writeLayer is the re-exec entry point for writing a layer from a tar file
-func writeLayer() {
-	home := os.Args[1]
-	id := os.Args[2]
-	parentLayerPaths := os.Args[3:]
-
-	err := func() error {
-		err := winio.EnableProcessPrivileges([]string{winio.SeBackupPrivilege, winio.SeRestorePrivilege})
-		if err != nil {
-			return err
-		}
-
-		info := hcsshim.DriverInfo{
-			Flavour: filterDriver,
-			HomeDir: home,
-		}
-
-		w, err := hcsshim.NewLayerWriter(info, id, parentLayerPaths)
-		if err != nil {
-			return err
-		}
-
-		size, err := writeLayerFromTar(os.Stdin, w, filepath.Join(home, id))
-		if err != nil {
-			return err
-		}
-
-		err = w.Close()
-		if err != nil {
-			return err
-		}
-
-		fmt.Fprint(os.Stdout, size)
-		return nil
-	}()
-
+// writeLayerReexec is the re-exec entry point for writing a layer from a tar file
+func writeLayerReexec() {
+	size, err := writeLayer(os.Stdin, os.Args[1], os.Args[2], os.Args[3:]...)
 	if err != nil {
 		fmt.Fprint(os.Stderr, err)
 		os.Exit(1)
 	}
+	fmt.Fprint(os.Stdout, size)
+}
+
+// writeLayer writes a layer from a tar file.
+func writeLayer(layerData io.Reader, home string, id string, parentLayerPaths ...string) (int64, error) {
+	err := winio.EnableProcessPrivileges([]string{winio.SeBackupPrivilege, winio.SeRestorePrivilege})
+	if err != nil {
+		return 0, err
+	}
+	if noreexec {
+		defer func() {
+			if err := winio.DisableProcessPrivileges([]string{winio.SeBackupPrivilege, winio.SeRestorePrivilege}); err != nil {
+				// This should never happen, but just in case when in debugging mode.
+				// See https://github.com/docker/docker/pull/28002#discussion_r86259241 for rationale.
+				panic("Failed to disabled process privileges while in non re-exec mode")
+			}
+		}()
+	}
+
+	info := hcsshim.DriverInfo{
+		Flavour: filterDriver,
+		HomeDir: home,
+	}
+
+	w, err := hcsshim.NewLayerWriter(info, id, parentLayerPaths)
+	if err != nil {
+		return 0, err
+	}
+
+	size, err := writeLayerFromTar(layerData, w, filepath.Join(home, id))
+	if err != nil {
+		return 0, err
+	}
+
+	err = w.Close()
+	if err != nil {
+		return 0, err
+	}
+
+	return size, nil
 }
 
 // resolveID computes the layerID information based on the given id.
