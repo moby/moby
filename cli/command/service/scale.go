@@ -16,7 +16,7 @@ import (
 func newScaleCommand(dockerCli *command.DockerCli) *cobra.Command {
 	return &cobra.Command{
 		Use:   "scale SERVICE=REPLICAS [SERVICE=REPLICAS...]",
-		Short: "Scale one or multiple services",
+		Short: "Scale one or multiple replicated services",
 		Args:  scaleArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runScale(dockerCli, args)
