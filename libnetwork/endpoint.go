@@ -789,7 +789,7 @@ func (ep *endpoint) Delete(force bool) error {
 	ep.releaseAddress()
 
 	if err := n.getEpCnt().DecEndpointCnt(); err != nil {
-		log.Warnf("failed to decrement endpoint coint for ep %s: %v", ep.ID(), err)
+		log.Warnf("failed to decrement endpoint count for ep %s: %v", ep.ID(), err)
 	}
 
 	return nil

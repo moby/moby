@@ -1,6 +1,6 @@
 package discoverapi
 
-// Discover is an interface to be implemented by the componenet interested in receiving discover events
+// Discover is an interface to be implemented by the component interested in receiving discover events
 // like new node joining the cluster or datastore updates
 type Discover interface {
 	// DiscoverNew is a notification for a new discovery event, Example:a new node joining a cluster

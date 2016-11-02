@@ -11,7 +11,7 @@ Instead of attaching container network interfaces to a Docker host Linux bridge 
 
 When using traditional Linux bridges there are two common techniques to get traffic out of a container and into the physical network and vice versa. The first method to connect containers to the underlying network is to use Iptable rules which perform a NAT translation from a bridge that represents the Docker network to the physical Ethernet connection such as `eth0`. The upside of Iptables using the Docker built-in bridge driver is that the NIC does not have to be in promiscuous mode. The second bridge driver method is to move a host's external Ethernet connection into the bridge. Moving the host Ethernet connection can at times be unforgiving. Common mistakes such as cutting oneself off from the host, or worse, creating bridging loops that can cripple a VLAN throughout a data center can open a network design up to potential risks as the infrastructure grows.
 
-Connecting containers without any NATing is where the VLAN drivers accel. Rather then having to manage a bridge for each Docker network containers are connected directly to a `parent` interface such as `eth0` that attaches the container to the same broadcast domain as the parent interface. A simple example is if a host's `eth0` is on the network `192.168.1.0/24` with a gateway of `192.168.1.1` then a Macvlan Docker network can start containers on the addresses `192.168.1.2 - 192.168.1.254`. Containers use the same network as the parent `-o parent` that is specified in the `docker network create` command.
+Connecting containers without any NATing is where the VLAN drivers accel. Rather than having to manage a bridge for each Docker network containers are connected directly to a `parent` interface such as `eth0` that attaches the container to the same broadcast domain as the parent interface. A simple example is if a host's `eth0` is on the network `192.168.1.0/24` with a gateway of `192.168.1.1` then a Macvlan Docker network can start containers on the addresses `192.168.1.2 - 192.168.1.254`. Containers use the same network as the parent `-o parent` that is specified in the `docker network create` command.
 
 There are positive performance implication as a result of bypassing the Linux bridge, along with the simplicity of less moving parts, which is also attractive. Macvlan containers are easy to troubleshoot. The actual MAC and IP address of the container is bridged into the upstream network making a problematic application easy for operators to trace from the network. Existing underlay network management and monitoring tools remain relevant.
 
@@ -138,7 +138,7 @@ For more on Docker networking commands see: [Working with Docker network command
 
 VLANs have long been a primary means of virtualizing data center networks and are still in virtually all existing networks today. VLANs work by tagging a Layer-2 isolation domain with a 12-bit identifier ranging from 1-4094. The VLAN tag is inserted into a packet header that enables a logical grouping of a single subnet or multiple subnets of IPv4 and/or IPv6. It is very common for network operators to separate traffic using VLANs based on a subnet(s) function or security profile such as `web`, `db` or any other isolation requirements.
 
-It is very common to have a compute host requirement of running multiple virtual networks concurrently on a host. Linux networking has long supported VLAN tagging, also known by it's standard 802.1Q, for maintaining datapath isolation between networks. The Ethernet link connected to a Docker host can be configured to support the 802.1q VLAN IDs by creating Linux sub-interfaces, each sub-interface being allocated a unique VLAN ID.
+It is very common to have a compute host requirement of running multiple virtual networks concurrently on a host. Linux networking has long supported VLAN tagging, also known by its standard 802.1Q, for maintaining datapath isolation between networks. The Ethernet link connected to a Docker host can be configured to support the 802.1q VLAN IDs by creating Linux sub-interfaces, each sub-interface being allocated a unique VLAN ID.
 
 ![Simple Macvlan Mode Example](images/multi_tenant_8021q_vlans.png)
 
@@ -164,7 +164,7 @@ In the next example, the network is tagged and isolated by the Docker host. A pa
 
 ```
 # now add networks and hosts as you would normally by attaching to the master (sub)interface that is tagged
-docker network  create  -d macvlan \
+docker network create -d macvlan \
     --subnet=192.168.50.0/24 \
     --gateway=192.168.50.1 \
     -o parent=eth0.50 macvlan50
@@ -180,7 +180,7 @@ In the second network, tagged and isolated by the Docker host, `eth0.60` is the 
 
 ```
 # now add networks and hosts as you would normally by attaching to the master (sub)interface that is tagged.
-docker network  create  -d macvlan \
+docker network create -d macvlan \
     --subnet=192.168.60.0/24 \
     --gateway=192.168.60.1 \
     -o parent=eth0.60 -o \
@@ -197,7 +197,7 @@ The same as the example before except there is an additional subnet bound to the
 
 
 ```
-docker network  create  -d macvlan \
+docker network create -d macvlan \
     --subnet=10.1.20.0/24 --subnet=10.1.10.0/24 \
     --gateway=10.1.20.1 --gateway=10.1.10.1 \
     -o parent=eth0.101 mcv101

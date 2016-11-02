@@ -66,7 +66,7 @@ func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo,
 	return nil
 }
 
-// DeleteEndpoint remove the endpoint and associated netlink interface
+// DeleteEndpoint removes the endpoint and associated netlink interface
 func (d *driver) DeleteEndpoint(nid, eid string) error {
 	defer osl.InitOSContext()()
 	if err := validateID(nid, eid); err != nil {

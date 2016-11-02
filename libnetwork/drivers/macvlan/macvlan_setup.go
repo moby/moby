@@ -64,7 +64,7 @@ func setMacVlanMode(mode string) (netlink.MacvlanMode, error) {
 	}
 }
 
-// parentExists check if the specified interface exists in the default namespace
+// parentExists checks if the specified interface exists in the default namespace
 func parentExists(ifaceStr string) bool {
 	_, err := ns.NlHandle().LinkByName(ifaceStr)
 	if err != nil {

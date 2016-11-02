@@ -124,7 +124,7 @@ func (d *driver) createNetwork(config *configuration) error {
 	return nil
 }
 
-// DeleteNetwork the network for the specified driver type
+// DeleteNetwork deletes the network for the specified driver type
 func (d *driver) DeleteNetwork(nid string) error {
 	defer osl.InitOSContext()()
 	n := d.network(nid)
@@ -171,7 +171,7 @@ func (d *driver) DeleteNetwork(nid string) error {
 	return nil
 }
 
-// parseNetworkOptions parse docker network options
+// parseNetworkOptions parses docker network options
 func parseNetworkOptions(id string, option options.Generic) (*configuration, error) {
 	var (
 		err    error
@@ -193,7 +193,7 @@ func parseNetworkOptions(id string, option options.Generic) (*configuration, err
 	return config, nil
 }
 
-// parseNetworkGenericOptions parse generic driver docker network options
+// parseNetworkGenericOptions parses generic driver docker network options
 func parseNetworkGenericOptions(data interface{}) (*configuration, error) {
 	var (
 		err    error
