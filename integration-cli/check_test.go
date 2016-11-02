@@ -49,6 +49,7 @@ func (s *DockerSuite) TearDownTest(c *check.C) {
 	deleteAllImages()
 	deleteAllVolumes()
 	deleteAllNetworks()
+	deleteAllPlugins()
 }
 
 func init() {
