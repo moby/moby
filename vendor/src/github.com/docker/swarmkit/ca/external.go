@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"sync"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/cloudflare/cfssl/api"
 	"github.com/cloudflare/cfssl/signer"
 	"github.com/pkg/errors"
@@ -90,7 +90,7 @@ func (eca *ExternalCA) Sign(req signer.SignRequest) (cert []byte, err error) {
 			return eca.rootCA.AppendFirstRootPEM(cert)
 		}
 
-		log.Debugf("unable to proxy certificate signing request to %s: %s", url, err)
+		logrus.Debugf("unable to proxy certificate signing request to %s: %s", url, err)
 	}
 
 	return nil, err
@@ -114,7 +114,7 @@ func makeExternalSignRequest(client *http.Client, url string, csrJSON []byte) (c
 
 	var apiResponse api.Response
 	if err := json.Unmarshal(body, &apiResponse); err != nil {
-		log.Debugf("unable to JSON-parse CFSSL API response body: %s", string(body))
+		logrus.Debugf("unable to JSON-parse CFSSL API response body: %s", string(body))
 		return nil, recoverableErr{err: errors.Wrap(err, "unable to parse JSON response")}
 	}
 

@@ -22,6 +22,7 @@ import (
 	"github.com/docker/swarmkit/log"
 	"github.com/docker/swarmkit/manager"
 	"github.com/docker/swarmkit/remotes"
+	"github.com/docker/swarmkit/xnet"
 	"github.com/pkg/errors"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
@@ -116,10 +117,10 @@ func (n *Node) RemoteAPIAddr() (string, error) {
 		return "", errors.Errorf("node is not manager")
 	}
 	addr := n.manager.Addr()
-	if addr == nil {
+	if addr == "" {
 		return "", errors.Errorf("manager addr is not set")
 	}
-	return addr.String(), nil
+	return addr, nil
 }
 
 // New returns new Node instance.
@@ -554,12 +555,10 @@ func (n *Node) initManagerConnection(ctx context.Context, ready chan<- struct{})
 	opts := []grpc.DialOption{}
 	insecureCreds := credentials.NewTLS(&tls.Config{InsecureSkipVerify: true})
 	opts = append(opts, grpc.WithTransportCredentials(insecureCreds))
-	// Using listen address instead of advertised address because this is a
-	// local connection.
 	addr := n.config.ListenControlAPI
 	opts = append(opts, grpc.WithDialer(
 		func(addr string, timeout time.Duration) (net.Conn, error) {
-			return net.DialTimeout("unix", addr, timeout)
+			return xnet.DialTimeoutLocal(addr, timeout)
 		}))
 	conn, err := grpc.Dial(addr, opts...)
 	if err != nil {
@@ -623,11 +622,11 @@ func (n *Node) runManager(ctx context.Context, securityConfig *ca.SecurityConfig
 		remoteAddr, _ := n.remotes.Select(n.NodeID())
 		m, err := manager.New(&manager.Config{
 			ForceNewCluster: n.config.ForceNewCluster,
-			ProtoAddr: map[string]string{
-				"tcp":  n.config.ListenRemoteAPI,
-				"unix": n.config.ListenControlAPI,
+			RemoteAPI: manager.RemoteAddrs{
+				ListenAddr:    n.config.ListenRemoteAPI,
+				AdvertiseAddr: n.config.AdvertiseRemoteAPI,
 			},
-			AdvertiseAddr:  n.config.AdvertiseRemoteAPI,
+			ControlAPI:     n.config.ListenControlAPI,
 			SecurityConfig: securityConfig,
 			ExternalCAs:    n.config.ExternalCAs,
 			JoinRaft:       remoteAddr.Addr,

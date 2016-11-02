@@ -73,6 +73,17 @@ func newPortSpace(protocol api.PortConfig_Protocol) (*portSpace, error) {
 	}, nil
 }
 
+// getPortConfigkey returns a map key for doing set operations with
+// ports. The key consists of name, protocol and target port which
+// uniquely identifies a port within a single Endpoint.
+func getPortConfigKey(p *api.PortConfig) api.PortConfig {
+	return api.PortConfig{
+		Name:       p.Name,
+		Protocol:   p.Protocol,
+		TargetPort: p.TargetPort,
+	}
+}
+
 func reconcilePortConfigs(s *api.Service) []*api.PortConfig {
 	// If runtime state hasn't been created or if port config has
 	// changed from port state return the port config from Spec.
@@ -80,15 +91,31 @@ func reconcilePortConfigs(s *api.Service) []*api.PortConfig {
 		return s.Spec.Endpoint.Ports
 	}
 
+	allocatedPorts := make(map[api.PortConfig]*api.PortConfig)
+	for _, portState := range s.Endpoint.Ports {
+		if portState.PublishMode != api.PublishModeIngress {
+			continue
+		}
+
+		allocatedPorts[getPortConfigKey(portState)] = portState
+	}
+
 	var portConfigs []*api.PortConfig
-	for i, portConfig := range s.Spec.Endpoint.Ports {
-		portState := s.Endpoint.Ports[i]
+	for _, portConfig := range s.Spec.Endpoint.Ports {
+		// If the PublishMode is not Ingress simply pick up
+		// the port config.
+		if portConfig.PublishMode != api.PublishModeIngress {
+			portConfigs = append(portConfigs, portConfig)
+			continue
+		}
+
+		portState, ok := allocatedPorts[getPortConfigKey(portConfig)]
 
 		// If the portConfig is exactly the same as portState
 		// except if SwarmPort is not user-define then prefer
 		// portState to ensure sticky allocation of the same
 		// port that was allocated before.
-		if portConfig.Name == portState.Name &&
+		if ok && portConfig.Name == portState.Name &&
 			portConfig.TargetPort == portState.TargetPort &&
 			portConfig.Protocol == portState.Protocol &&
 			portConfig.PublishedPort == 0 {
@@ -186,21 +213,26 @@ func (pa *portAllocator) isPortsAllocated(s *api.Service) bool {
 		return false
 	}
 
-	for i, portConfig := range s.Spec.Endpoint.Ports {
+	allocatedPorts := make(map[api.PortConfig]*api.PortConfig)
+	for _, portState := range s.Endpoint.Ports {
+		if portState.PublishMode != api.PublishModeIngress {
+			continue
+		}
+
+		allocatedPorts[getPortConfigKey(portState)] = portState
+	}
+
+	for _, portConfig := range s.Spec.Endpoint.Ports {
 		// Ignore ports which are not PublishModeIngress
 		if portConfig.PublishMode != api.PublishModeIngress {
 			continue
 		}
 
-		// The port configuration slice and port state slice
-		// are expected to be in the same order.
-		portState := s.Endpoint.Ports[i]
+		portState, ok := allocatedPorts[getPortConfigKey(portConfig)]
 
 		// If name, port, protocol values don't match then we
 		// are not allocated.
-		if portConfig.Name != portState.Name ||
-			portConfig.TargetPort != portState.TargetPort ||
-			portConfig.Protocol != portState.Protocol {
+		if !ok {
 			return false
 		}
 

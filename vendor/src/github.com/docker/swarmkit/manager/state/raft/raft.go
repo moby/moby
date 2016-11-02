@@ -1689,7 +1689,7 @@ func getIDs(snap *raftpb.Snapshot, ents []raftpb.Entry) []uint64 {
 		case raftpb.ConfChangeUpdateNode:
 			// do nothing
 		default:
-			log.L.Panic("ConfChange Type should be either ConfChangeAddNode or ConfChangeRemoveNode!")
+			log.L.Panic("ConfChange Type should be either ConfChangeAddNode, or ConfChangeRemoveNode, or ConfChangeUpdateNode!")
 		}
 	}
 	var sids []uint64

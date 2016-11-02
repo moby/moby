@@ -205,7 +205,7 @@ func (g *Orchestrator) removeTasksFromNode(ctx context.Context, node *api.Node) 
 		return nil
 	})
 	if err != nil {
-		log.G(ctx).WithError(err).Errorf("global orchestrator: removeTasksFromNode failed")
+		log.G(ctx).WithError(err).Errorf("global orchestrator: removeTasksFromNode failed batching tasks")
 	}
 }
 

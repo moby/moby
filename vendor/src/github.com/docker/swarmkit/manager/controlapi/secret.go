@@ -3,9 +3,11 @@ package controlapi
 import (
 	"regexp"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/digest"
 	"github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/identity"
+	"github.com/docker/swarmkit/log"
 	"github.com/docker/swarmkit/manager/state/store"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
@@ -84,6 +86,12 @@ func (s *Server) UpdateSecret(ctx context.Context, request *api.UpdateSecretRequ
 	if secret == nil {
 		return nil, grpc.Errorf(codes.NotFound, "secret %s not found", request.SecretID)
 	}
+
+	log.G(ctx).WithFields(logrus.Fields{
+		"secret.ID":   request.SecretID,
+		"secret.Name": request.Spec.Annotations.Name,
+		"method":      "UpdateSecret",
+	}).Debugf("secret updated")
 
 	// WARN: we should never return the actual secret data here. We need to redact the private fields first.
 	secret.Spec.Data = nil
@@ -169,6 +177,11 @@ func (s *Server) CreateSecret(ctx context.Context, request *api.CreateSecretRequ
 		return nil, grpc.Errorf(codes.AlreadyExists, "secret %s already exists", request.Spec.Annotations.Name)
 	case nil:
 		secret.Spec.Data = nil // clean the actual secret data so it's never returned
+		log.G(ctx).WithFields(logrus.Fields{
+			"secret.Name": request.Spec.Annotations.Name,
+			"method":      "CreateSecret",
+		}).Debugf("secret created")
+
 		return &api.CreateSecretResponse{Secret: secret}, nil
 	default:
 		return nil, err
@@ -191,6 +204,11 @@ func (s *Server) RemoveSecret(ctx context.Context, request *api.RemoveSecretRequ
 	case store.ErrNotExist:
 		return nil, grpc.Errorf(codes.NotFound, "secret %s not found", request.SecretID)
 	case nil:
+		log.G(ctx).WithFields(logrus.Fields{
+			"secret.ID": request.SecretID,
+			"method":    "RemoveSecret",
+		}).Debugf("secret removed")
+
 		return &api.RemoveSecretResponse{}, nil
 	default:
 		return nil, err
