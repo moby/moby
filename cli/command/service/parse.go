@@ -3,8 +3,6 @@ package service
 import (
 	"context"
 	"fmt"
-	"path/filepath"
-	"strings"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
@@ -12,61 +10,27 @@ import (
 	"github.com/docker/docker/client"
 )
 
-// parseSecretString parses the requested secret and returns the secret name
-// and target.  Expects format SECRET_NAME:TARGET
-func parseSecretString(secretString string) (string, string, error) {
-	tokens := strings.Split(secretString, ":")
-
-	secretName := strings.TrimSpace(tokens[0])
-	targetName := secretName
-
-	if secretName == "" {
-		return "", "", fmt.Errorf("invalid secret name provided")
-	}
-
-	if len(tokens) > 1 {
-		targetName = strings.TrimSpace(tokens[1])
-		if targetName == "" {
-			return "", "", fmt.Errorf("invalid presentation name provided")
-		}
-	}
-
-	// ensure target is a filename only; no paths allowed
-	tDir, _ := filepath.Split(targetName)
-	if tDir != "" {
-		return "", "", fmt.Errorf("target must not have a path")
-	}
-
-	return secretName, targetName, nil
-}
-
 // parseSecrets retrieves the secrets from the requested names and converts
 // them to secret references to use with the spec
-func parseSecrets(client client.APIClient, requestedSecrets []string) ([]*swarmtypes.SecretReference, error) {
+func parseSecrets(client client.APIClient, requestedSecrets []*SecretRequestSpec) ([]*swarmtypes.SecretReference, error) {
 	secretRefs := make(map[string]*swarmtypes.SecretReference)
 	ctx := context.Background()
 
 	for _, secret := range requestedSecrets {
-		n, t, err := parseSecretString(secret)
-		if err != nil {
-			return nil, err
-		}
-
 		secretRef := &swarmtypes.SecretReference{
-			SecretName: n,
-			// TODO (ehazlett): parse these from cli request
+			SecretName: secret.source,
 			Target: swarmtypes.SecretReferenceFileTarget{
-				Name: t,
-				UID:  "0",
-				GID:  "0",
-				Mode: 0444,
+				Name: secret.target,
+				UID:  secret.uid,
+				GID:  secret.gid,
+				Mode: secret.mode,
 			},
 		}
 
-		if _, exists := secretRefs[t]; exists {
-			return nil, fmt.Errorf("duplicate secret target for %s not allowed", n)
+		if _, exists := secretRefs[secret.target]; exists {
+			return nil, fmt.Errorf("duplicate secret target for %s not allowed", secret.source)
 		}
-		secretRefs[t] = secretRef
+		secretRefs[secret.target] = secretRef
 	}
 
 	args := filters.NewArgs()
