@@ -629,6 +629,7 @@ func GetRemoteSignedCertificate(ctx context.Context, csr []byte, token string, r
 	issueRequest := &api.IssueNodeCertificateRequest{CSR: csr, Token: token}
 	issueResponse, err := caClient.IssueNodeCertificate(ctx, issueRequest)
 	if err != nil {
+		r.Observe(peer, -remotes.DefaultObservationWeight)
 		return nil, err
 	}
 

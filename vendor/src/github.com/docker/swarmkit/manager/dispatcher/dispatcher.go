@@ -2,6 +2,7 @@ package dispatcher
 
 import (
 	"fmt"
+	"net"
 	"strconv"
 	"sync"
 	"time"
@@ -313,17 +314,16 @@ func (d *Dispatcher) markNodesUnknown(ctx context.Context) error {
 				if node.Status.State == api.NodeStatus_DOWN {
 					return nil
 				}
-				node.Status = api.NodeStatus{
-					State:   api.NodeStatus_UNKNOWN,
-					Message: `Node moved to "unknown" state due to leadership change in cluster`,
-				}
+
+				node.Status.State = api.NodeStatus_UNKNOWN
+				node.Status.Message = `Node moved to "unknown" state due to leadership change in cluster`
+
 				nodeID := node.ID
 
 				expireFunc := func() {
 					log := log.WithField("node", nodeID)
-					nodeStatus := api.NodeStatus{State: api.NodeStatus_DOWN, Message: `heartbeat failure for node in "unknown" state`}
 					log.Debugf("heartbeat expiration for unknown node")
-					if err := d.nodeRemove(nodeID, nodeStatus); err != nil {
+					if err := d.markNodeNotReady(nodeID, api.NodeStatus_DOWN, `heartbeat failure for node in "unknown" state`); err != nil {
 						log.WithError(err).Errorf(`failed deregistering node after heartbeat expiration for node in "unknown" state`)
 					}
 				}
@@ -356,12 +356,18 @@ func (d *Dispatcher) isRunning() bool {
 	return true
 }
 
-// updateNode updates the description of a node and sets status to READY
+// markNodeReady updates the description of a node, updates its address, and sets status to READY
 // this is used during registration when a new node description is provided
 // and during node updates when the node description changes
-func (d *Dispatcher) updateNode(nodeID string, description *api.NodeDescription) error {
+func (d *Dispatcher) markNodeReady(nodeID string, description *api.NodeDescription, addr string) error {
 	d.nodeUpdatesLock.Lock()
-	d.nodeUpdates[nodeID] = nodeUpdate{status: &api.NodeStatus{State: api.NodeStatus_READY}, description: description}
+	d.nodeUpdates[nodeID] = nodeUpdate{
+		status: &api.NodeStatus{
+			State: api.NodeStatus_READY,
+			Addr:  addr,
+		},
+		description: description,
+	}
 	numUpdates := len(d.nodeUpdates)
 	d.nodeUpdatesLock.Unlock()
 
@@ -387,6 +393,19 @@ func (d *Dispatcher) updateNode(nodeID string, description *api.NodeDescription)
 	return nil
 }
 
+// gets the node IP from the context of a grpc call
+func nodeIPFromContext(ctx context.Context) (string, error) {
+	nodeInfo, err := ca.RemoteNode(ctx)
+	if err != nil {
+		return "", err
+	}
+	addr, _, err := net.SplitHostPort(nodeInfo.RemoteAddr)
+	if err != nil {
+		return "", errors.Wrap(err, "unable to get ip from addr:port")
+	}
+	return addr, nil
+}
+
 // register is used for registration of node with particular dispatcher.
 func (d *Dispatcher) register(ctx context.Context, nodeID string, description *api.NodeDescription) (string, error) {
 	// prevent register until we're ready to accept it
@@ -407,14 +426,18 @@ func (d *Dispatcher) register(ctx context.Context, nodeID string, description *a
 		return "", ErrNodeNotFound
 	}
 
-	if err := d.updateNode(nodeID, description); err != nil {
+	addr, err := nodeIPFromContext(ctx)
+	if err != nil {
+		log.G(ctx).Debugf(err.Error())
+	}
+
+	if err := d.markNodeReady(nodeID, description, addr); err != nil {
 		return "", err
 	}
 
 	expireFunc := func() {
-		nodeStatus := api.NodeStatus{State: api.NodeStatus_DOWN, Message: "heartbeat failure"}
 		log.G(ctx).Debugf("heartbeat expiration")
-		if err := d.nodeRemove(nodeID, nodeStatus); err != nil {
+		if err := d.markNodeNotReady(nodeID, api.NodeStatus_DOWN, "heartbeat failure"); err != nil {
 			log.G(ctx).WithError(err).Errorf("failed deregistering node after heartbeat expiration")
 		}
 	}
@@ -575,7 +598,11 @@ func (d *Dispatcher) processUpdates() {
 				}
 
 				if nodeUpdate.status != nil {
-					node.Status = *nodeUpdate.status
+					node.Status.State = nodeUpdate.status.State
+					node.Status.Message = nodeUpdate.status.Message
+					if nodeUpdate.status.Addr != "" {
+						node.Status.Addr = nodeUpdate.status.Addr
+					}
 				}
 				if nodeUpdate.description != nil {
 					node.Description = nodeUpdate.description
@@ -782,13 +809,18 @@ func (d *Dispatcher) Assignments(r *api.AssignmentsRequest, stream api.Dispatche
 		}
 		var newSecrets []*api.Secret
 		for _, secretRef := range container.Secrets {
+			// Empty ID prefix will return all secrets. Bail if there is no SecretID
+			if secretRef.SecretID == "" {
+				log.Debugf("invalid secret reference")
+				continue
+			}
 			secretID := secretRef.SecretID
 			log := log.WithFields(logrus.Fields{
 				"secret.id":   secretID,
 				"secret.name": secretRef.SecretName,
 			})
 
-			if tasksUsingSecret[secretID] == nil {
+			if len(tasksUsingSecret[secretID]) == 0 {
 				tasksUsingSecret[secretID] = make(map[string]struct{})
 
 				secrets, err := store.FindSecrets(readTx, store.ByIDPrefix(secretID))
@@ -1046,18 +1078,24 @@ func (d *Dispatcher) Assignments(r *api.AssignmentsRequest, stream api.Dispatche
 				}
 			}
 			for id, secret := range updateSecrets {
-				if _, ok := removeSecrets[id]; !ok {
-					secretChange := &api.AssignmentChange{
-						Assignment: &api.Assignment{
-							Item: &api.Assignment_Secret{
-								Secret: secret,
-							},
-						},
-						Action: api.AssignmentChange_AssignmentActionUpdate,
-					}
-
-					update.Changes = append(update.Changes, secretChange)
+				// If, due to multiple updates, this secret is no longer in use,
+				// don't send it down.
+				if len(tasksUsingSecret[id]) == 0 {
+					// delete this secret for the secrets to be updated
+					// so that deleteSecrets knows the current list
+					delete(updateSecrets, id)
+					continue
 				}
+				secretChange := &api.AssignmentChange{
+					Assignment: &api.Assignment{
+						Item: &api.Assignment_Secret{
+							Secret: secret,
+						},
+					},
+					Action: api.AssignmentChange_AssignmentActionUpdate,
+				}
+
+				update.Changes = append(update.Changes, secretChange)
 			}
 			for id := range removeTasks {
 				taskChange := &api.AssignmentChange{
@@ -1072,6 +1110,12 @@ func (d *Dispatcher) Assignments(r *api.AssignmentsRequest, stream api.Dispatche
 				update.Changes = append(update.Changes, taskChange)
 			}
 			for id := range removeSecrets {
+				// If this secret is also being sent on the updated set
+				// don't also add it to the removed set
+				if _, ok := updateSecrets[id]; ok {
+					continue
+				}
+
 				secretChange := &api.AssignmentChange{
 					Assignment: &api.Assignment{
 						Item: &api.Assignment_Secret{
@@ -1091,13 +1135,22 @@ func (d *Dispatcher) Assignments(r *api.AssignmentsRequest, stream api.Dispatche
 	}
 }
 
-func (d *Dispatcher) nodeRemove(id string, status api.NodeStatus) error {
+// markNodeNotReady sets the node state to some state other than READY
+func (d *Dispatcher) markNodeNotReady(id string, state api.NodeStatus_State, message string) error {
 	if err := d.isRunningLocked(); err != nil {
 		return err
 	}
 
+	status := &api.NodeStatus{
+		State:   state,
+		Message: message,
+	}
+
 	d.nodeUpdatesLock.Lock()
-	d.nodeUpdates[id] = nodeUpdate{status: status.Copy(), description: d.nodeUpdates[id].description}
+	// pluck the description out of nodeUpdates. this protects against a case
+	// where a node is marked ready and a description is added, but then the
+	// node is immediately marked not ready. this preserves that description
+	d.nodeUpdates[id] = nodeUpdate{status: status, description: d.nodeUpdates[id].description}
 	numUpdates := len(d.nodeUpdates)
 	d.nodeUpdatesLock.Unlock()
 
@@ -1159,14 +1212,19 @@ func (d *Dispatcher) Session(r *api.SessionRequest, stream api.Dispatcher_Sessio
 	var sessionID string
 	if _, err := d.nodes.GetWithSession(nodeID, r.SessionID); err != nil {
 		// register the node.
-		sessionID, err = d.register(stream.Context(), nodeID, r.Description)
+		sessionID, err = d.register(ctx, nodeID, r.Description)
 		if err != nil {
 			return err
 		}
 	} else {
 		sessionID = r.SessionID
+		// get the node IP addr
+		addr, err := nodeIPFromContext(stream.Context())
+		if err != nil {
+			log.G(ctx).Debugf(err.Error())
+		}
 		// update the node description
-		if err := d.updateNode(nodeID, r.Description); err != nil {
+		if err := d.markNodeReady(nodeID, r.Description, addr); err != nil {
 			return err
 		}
 	}
@@ -1226,8 +1284,7 @@ func (d *Dispatcher) Session(r *api.SessionRequest, stream api.Dispatcher_Sessio
 			}
 		}
 
-		nodeStatus := api.NodeStatus{State: api.NodeStatus_DISCONNECTED, Message: "node is currently trying to find new manager"}
-		if err := d.nodeRemove(nodeID, nodeStatus); err != nil {
+		if err := d.markNodeNotReady(nodeID, api.NodeStatus_DISCONNECTED, "node is currently trying to find new manager"); err != nil {
 			log.WithError(err).Error("failed to remove node")
 		}
 		// still return an abort if the transport closure was ineffective.
