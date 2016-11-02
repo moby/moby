@@ -768,6 +768,30 @@ func (s *DockerNetworkSuite) TestDockerNetworkDriverOptions(c *check.C) {
 
 }
 
+func (s *DockerNetworkSuite) TestDockerPluginV2NetworkDriver(c *check.C) {
+	testRequires(c, DaemonIsLinux, ExperimentalDaemon, Network)
+
+	var (
+		npName        = "mavenugo/test-docker-netplugin"
+		npTag         = "latest"
+		npNameWithTag = npName + ":" + npTag
+	)
+	_, _, err := dockerCmdWithError("plugin", "install", "--grant-all-permissions", npNameWithTag)
+	c.Assert(err, checker.IsNil)
+
+	out, _, err := dockerCmdWithError("plugin", "ls")
+	c.Assert(err, checker.IsNil)
+	c.Assert(out, checker.Contains, npName)
+	c.Assert(out, checker.Contains, npTag)
+	c.Assert(out, checker.Contains, "true")
+
+	dockerCmd(c, "network", "create", "-d", npNameWithTag, "v2net")
+	assertNwIsAvailable(c, "v2net")
+	dockerCmd(c, "network", "rm", "v2net")
+	assertNwNotAvailable(c, "v2net")
+
+}
+
 func (s *DockerDaemonSuite) TestDockerNetworkNoDiscoveryDefaultBridgeNetwork(c *check.C) {
 	testRequires(c, ExecSupport)
 	// On default bridge network built-in service discovery should not happen
