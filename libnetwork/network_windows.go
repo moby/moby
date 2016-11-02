@@ -30,6 +30,10 @@ func (n *network) startResolver() {
 		options := n.Info().DriverOptions()
 		hnsid := options[windows.HNSID]
 
+		if hnsid == "" {
+			return
+		}
+
 		hnsresponse, err := hcsshim.HNSNetworkRequest("GET", hnsid, "")
 		if err != nil {
 			log.Errorf("Resolver Setup/Start failed for container %s, %q", n.Name(), err)
