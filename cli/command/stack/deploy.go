@@ -84,10 +84,11 @@ func runDeploy(dockerCli *command.DockerCli, opts deployOptions) error {
 	}
 
 	ctx := context.Background()
-	if err := createNetworks(ctx, dockerCli, config.Networks, opts.namespace); err != nil {
+	namespace := namespace{name: opts.namespace}
+	if err := createNetworks(ctx, dockerCli, config.Networks, namespace); err != nil {
 		return err
 	}
-	return deployServices(ctx, dockerCli, config, opts.namespace, opts.sendRegistryAuth)
+	return deployServices(ctx, dockerCli, config, namespace, opts.sendRegistryAuth)
 }
 
 func propertyWarnings(properties map[string]string) string {
@@ -136,11 +137,11 @@ func createNetworks(
 	ctx context.Context,
 	dockerCli *command.DockerCli,
 	networks map[string]composetypes.NetworkConfig,
-	namespace string,
+	namespace namespace,
 ) error {
 	client := dockerCli.Client()
 
-	existingNetworks, err := getNetworks(ctx, client, namespace)
+	existingNetworks, err := getNetworks(ctx, client, namespace.name)
 	if err != nil {
 		return err
 	}
@@ -158,13 +159,13 @@ func createNetworks(
 			continue
 		}
 
-		name := fmt.Sprintf("%s_%s", namespace, internalName)
+		name := namespace.scope(internalName)
 		if _, exists := existingNetworkMap[name]; exists {
 			continue
 		}
 
 		createOpts := types.NetworkCreate{
-			Labels:  getStackLabels(namespace, network.Labels),
+			Labels:  getStackLabels(namespace.name, network.Labels),
 			Driver:  network.Driver,
 			Options: network.DriverOpts,
 		}
@@ -190,14 +191,13 @@ func createNetworks(
 
 func convertNetworks(
 	networks map[string]*composetypes.ServiceNetworkConfig,
-	namespace string,
+	namespace namespace,
 	name string,
 ) []swarm.NetworkAttachmentConfig {
 	if len(networks) == 0 {
 		return []swarm.NetworkAttachmentConfig{
 			{
-				// TODO: only do this name mangling in one function
-				Target:  namespace + "_" + "default",
+				Target:  namespace.scope("default"),
 				Aliases: []string{name},
 			},
 		}
@@ -206,8 +206,7 @@ func convertNetworks(
 	nets := []swarm.NetworkAttachmentConfig{}
 	for networkName, network := range networks {
 		nets = append(nets, swarm.NetworkAttachmentConfig{
-			// TODO: only do this name mangling in one function
-			Target:  namespace + "_" + networkName,
+			Target:  namespace.scope(networkName),
 			Aliases: append(network.Aliases, name),
 		})
 	}
@@ -217,7 +216,7 @@ func convertNetworks(
 func convertVolumes(
 	serviceVolumes []string,
 	stackVolumes map[string]composetypes.VolumeConfig,
-	namespace string,
+	namespace namespace,
 ) ([]mount.Mount, error) {
 	var mounts []mount.Mount
 
@@ -271,8 +270,7 @@ func convertVolumes(
 					}
 				}
 
-				// TODO: remove this duplication
-				source = fmt.Sprintf("%s_%s", namespace, source)
+				source = namespace.scope(source)
 			}
 		}
 
@@ -292,7 +290,7 @@ func deployServices(
 	ctx context.Context,
 	dockerCli *command.DockerCli,
 	config *composetypes.Config,
-	namespace string,
+	namespace namespace,
 	sendAuth bool,
 ) error {
 	apiClient := dockerCli.Client()
@@ -300,7 +298,7 @@ func deployServices(
 	services := config.Services
 	volumes := config.Volumes
 
-	existingServices, err := getServices(ctx, apiClient, namespace)
+	existingServices, err := getServices(ctx, apiClient, namespace.name)
 	if err != nil {
 		return err
 	}
@@ -311,7 +309,7 @@ func deployServices(
 	}
 
 	for _, service := range services {
-		name := fmt.Sprintf("%s_%s", namespace, service.Name)
+		name := namespace.scope(service.Name)
 
 		serviceSpec, err := convertService(namespace, service, volumes)
 		if err != nil {
@@ -361,12 +359,11 @@ func deployServices(
 }
 
 func convertService(
-	namespace string,
+	namespace namespace,
 	service composetypes.ServiceConfig,
 	volumes map[string]composetypes.VolumeConfig,
 ) (swarm.ServiceSpec, error) {
-	// TODO: remove this duplication
-	name := fmt.Sprintf("%s_%s", namespace, service.Name)
+	name := namespace.scope(service.Name)
 
 	endpoint, err := convertEndpointSpec(service.Ports)
 	if err != nil {
@@ -397,7 +394,7 @@ func convertService(
 	serviceSpec := swarm.ServiceSpec{
 		Annotations: swarm.Annotations{
 			Name:   name,
-			Labels: getStackLabels(namespace, service.Deploy.Labels),
+			Labels: getStackLabels(namespace.name, service.Deploy.Labels),
 		},
 		TaskTemplate: swarm.TaskSpec{
 			ContainerSpec: swarm.ContainerSpec{
@@ -406,7 +403,7 @@ func convertService(
 				Args:            service.Command,
 				Hostname:        service.Hostname,
 				Env:             convertEnvironment(service.Environment),
-				Labels:          getStackLabels(namespace, service.Labels),
+				Labels:          getStackLabels(namespace.name, service.Labels),
 				Dir:             service.WorkingDir,
 				User:            service.User,
 				Mounts:          mounts,

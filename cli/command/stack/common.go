@@ -46,3 +46,11 @@ func getNetworks(
 		ctx,
 		types.NetworkListOptions{Filters: getStackFilter(namespace)})
 }
+
+type namespace struct {
+	name string
+}
+
+func (n namespace) scope(name string) string {
+	return n.name + "_" + name
+}
