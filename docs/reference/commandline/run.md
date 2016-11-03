@@ -96,7 +96,7 @@ Options:
       --oom-kill-disable            Disable OOM Killer
       --oom-score-adj int           Tune host's OOM preferences (-1000 to 1000)
       --pid string                  PID namespace to use
-      --pids-limit int              Tune container pids limit (set -1 for unlimited)
+      --pids-limit int              Tune container pids limit (set < 0 for unlimited)
       --privileged                  Give extended privileges to this container
   -p, --publish value               Publish a container's port(s) to the host (default [])
   -P, --publish-all                 Publish all exposed ports to random ports
