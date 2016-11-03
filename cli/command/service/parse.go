@@ -12,25 +12,25 @@ import (
 
 // parseSecrets retrieves the secrets from the requested names and converts
 // them to secret references to use with the spec
-func parseSecrets(client client.APIClient, requestedSecrets []*SecretRequestSpec) ([]*swarmtypes.SecretReference, error) {
+func parseSecrets(client client.APIClient, requestedSecrets []*types.SecretRequestOptions) ([]*swarmtypes.SecretReference, error) {
 	secretRefs := make(map[string]*swarmtypes.SecretReference)
 	ctx := context.Background()
 
 	for _, secret := range requestedSecrets {
 		secretRef := &swarmtypes.SecretReference{
-			SecretName: secret.source,
+			SecretName: secret.Source,
 			Target: swarmtypes.SecretReferenceFileTarget{
-				Name: secret.target,
-				UID:  secret.uid,
-				GID:  secret.gid,
-				Mode: secret.mode,
+				Name: secret.Target,
+				UID:  secret.UID,
+				GID:  secret.GID,
+				Mode: secret.Mode,
 			},
 		}
 
-		if _, exists := secretRefs[secret.target]; exists {
-			return nil, fmt.Errorf("duplicate secret target for %s not allowed", secret.source)
+		if _, exists := secretRefs[secret.Target]; exists {
+			return nil, fmt.Errorf("duplicate secret target for %s not allowed", secret.Source)
 		}
-		secretRefs[secret.target] = secretRef
+		secretRefs[secret.Target] = secretRef
 	}
 
 	args := filters.NewArgs()
