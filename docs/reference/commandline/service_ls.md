@@ -34,7 +34,7 @@ swarm.
 
 On a manager node:
 ```bash
-ID            NAME      REPLICAS  IMAGE         COMMAND
+ID            NAME      REPLICAS  IMAGE
 c8wgl7q4ndfd  frontend  5/5       nginx:alpine
 dmu1ept4cxcf  redis     3/3       redis:3.0.6
 ```
@@ -60,7 +60,7 @@ The `id` filter matches all or part of a service's id.
 
 ```bash
 $ docker service ls -f "id=0bcjw"
-ID            NAME   REPLICAS  IMAGE        COMMAND
+ID            NAME   REPLICAS  IMAGE
 0bcjwfh8ychr  redis  1/1       redis:3.0.6
 ```
 
@@ -74,7 +74,7 @@ its value:
 
 ```bash
 $ docker service ls --filter label=project
-ID            NAME       REPLICAS  IMAGE         COMMAND
+ID            NAME       REPLICAS  IMAGE
 01sl1rp6nj5u  frontend2  1/1       nginx:alpine
 36xvvwwauej0  frontend   5/5       nginx:alpine
 74nzcxxjv6fq  backend    3/3       redis:3.0.6
@@ -85,7 +85,7 @@ The following filter matches only services with the `project` label with the
 
 ```bash
 $ docker service ls --filter label=project=project-a
-ID            NAME      REPLICAS  IMAGE         COMMAND
+ID            NAME      REPLICAS  IMAGE
 36xvvwwauej0  frontend  5/5       nginx:alpine
 74nzcxxjv6fq  backend   3/3       redis:3.0.6
 ```
@@ -99,7 +99,7 @@ The following filter matches services with a name containing `redis`.
 
 ```bash
 $ docker service ls --filter name=redis
-ID            NAME   REPLICAS  IMAGE        COMMAND
+ID            NAME   REPLICAS  IMAGE
 0bcjwfh8ychr  redis  1/1       redis:3.0.6
 ```
 

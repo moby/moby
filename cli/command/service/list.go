@@ -3,7 +3,6 @@ package service
 import (
 	"fmt"
 	"io"
-	"strings"
 	"text/tabwriter"
 
 	"github.com/docker/docker/api/types"
@@ -18,7 +17,7 @@ import (
 )
 
 const (
-	listItemFmt = "%s\t%s\t%s\t%s\t%s\n"
+	listItemFmt = "%s\t%s\t%s\t%s\n"
 )
 
 type listOptions struct {
@@ -110,7 +109,7 @@ func printTable(out io.Writer, services []swarm.Service, running map[string]int)
 	// Ignore flushing errors
 	defer writer.Flush()
 
-	fmt.Fprintf(writer, listItemFmt, "ID", "NAME", "REPLICAS", "IMAGE", "COMMAND")
+	fmt.Fprintf(writer, listItemFmt, "ID", "NAME", "REPLICAS", "IMAGE")
 	for _, service := range services {
 		replicas := ""
 		if service.Spec.Mode.Replicated != nil && service.Spec.Mode.Replicated.Replicas != nil {
@@ -124,8 +123,7 @@ func printTable(out io.Writer, services []swarm.Service, running map[string]int)
 			stringid.TruncateID(service.ID),
 			service.Spec.Name,
 			replicas,
-			service.Spec.TaskTemplate.ContainerSpec.Image,
-			strings.Join(service.Spec.TaskTemplate.ContainerSpec.Args, " "))
+			service.Spec.TaskTemplate.ContainerSpec.Image)
 	}
 }
 

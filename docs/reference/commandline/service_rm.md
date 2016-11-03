@@ -36,7 +36,7 @@ For example, to remove the redis service:
 $ docker service rm redis
 redis
 $ docker service ls
-ID            NAME   SCALE  IMAGE        COMMAND
+ID            NAME   SCALE  IMAGE
 ```
 
 > **Warning**: Unlike `docker rm`, this command does not ask for confirmation

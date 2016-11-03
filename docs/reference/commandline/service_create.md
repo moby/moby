@@ -73,7 +73,7 @@ $ docker service create --name redis redis:3.0.6
 dmu1ept4cxcfe8k8lhtux3ro3
 
 $ docker service ls
-ID            NAME   REPLICAS  IMAGE        COMMAND
+ID            NAME   REPLICAS  IMAGE
 dmu1ept4cxcf  redis  1/1       redis:3.0.6
 ```
 
@@ -97,7 +97,7 @@ number of `RUNNING` tasks is `3`:
 
 ```bash
 $ docker service ls
-ID            NAME    REPLICAS  IMAGE        COMMAND
+ID            NAME    REPLICAS  IMAGE
 4cdgfyky7ozw  redis   3/5       redis:3.0.7
 ```
 
@@ -106,7 +106,7 @@ equal to the desired number:
 
 ```bash
 $ docker service ls
-ID            NAME    REPLICAS  IMAGE        COMMAND
+ID            NAME    REPLICAS  IMAGE
 4cdgfyky7ozw  redis   5/5       redis:3.0.7
 ```
 
