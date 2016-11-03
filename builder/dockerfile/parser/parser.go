@@ -95,7 +95,7 @@ func init() {
 }
 
 // ParseLine parses a line and returns the remainder.
-func ParseLine(line string, d *Directive) (string, *Node, error) {
+func ParseLine(line string, d *Directive, ignoreCont bool) (string, *Node, error) {
 	// Handle the parser directive '# escape=<char>. Parser directives must precede
 	// any builder instruction or other comments, and cannot be repeated.
 	if d.LookingForDirectives {
@@ -122,7 +122,7 @@ func ParseLine(line string, d *Directive) (string, *Node, error) {
 		return "", nil, nil
 	}
 
-	if d.LineContinuationRegex.MatchString(line) {
+	if !ignoreCont && d.LineContinuationRegex.MatchString(line) {
 		line = d.LineContinuationRegex.ReplaceAllString(line, "")
 		return line, nil, nil
 	}
@@ -165,7 +165,7 @@ func Parse(rwc io.Reader, d *Directive) (*Node, error) {
 		}
 		scannedLine := strings.TrimLeftFunc(string(scannedBytes), unicode.IsSpace)
 		currentLine++
-		line, child, err := ParseLine(scannedLine, d)
+		line, child, err := ParseLine(scannedLine, d, false)
 		if err != nil {
 			return nil, err
 		}
@@ -187,7 +187,7 @@ func Parse(rwc io.Reader, d *Directive) (*Node, error) {
 				if strings.TrimSpace(newline) == "" {
 					break
 				}
-				line, child, err = ParseLine(line+newline, d)
+				line, child, err = ParseLine(line+newline, d, false)
 				if err != nil {
 					return nil, err
 				}
@@ -197,7 +197,13 @@ func Parse(rwc io.Reader, d *Directive) (*Node, error) {
 				}
 			}
 			if child == nil && line != "" {
-				_, child, err = ParseLine(line, d)
+				// When we call ParseLine we'll pass in 'true' for
+				// the ignoreCont param if we're at the EOF. This will
+				// prevent the func from returning immediately w/o
+				// parsing the line thinking that there's more input
+				// to come.
+
+				_, child, err = ParseLine(line, d, scanner.Err() == nil)
 				if err != nil {
 					return nil, err
 				}

@@ -238,7 +238,7 @@ func (b *Builder) build(stdout io.Writer, stderr io.Writer, out io.Writer) (stri
 		for k, v := range b.options.Labels {
 			line += fmt.Sprintf("%q='%s' ", k, v)
 		}
-		_, node, err := parser.ParseLine(line, &b.directive)
+		_, node, err := parser.ParseLine(line, &b.directive, false)
 		if err != nil {
 			return "", err
 		}
