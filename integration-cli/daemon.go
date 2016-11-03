@@ -154,7 +154,7 @@ func (d *Daemon) StartWithLogFile(out *os.File, providedArgs ...string) error {
 		fmt.Sprintf("--userland-proxy=%t", d.userlandProxy),
 	)
 	if experimentalDaemon {
-		args = append(args, "--experimental")
+		args = append(args, "--experimental", "--init")
 	}
 	if !(d.useDefaultHost || d.useDefaultTLSHost) {
 		args = append(args, []string{"--host", d.sock()}...)

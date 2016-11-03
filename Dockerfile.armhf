@@ -27,6 +27,7 @@ RUN apt-get update && apt-get install -y \
 	build-essential \
 	createrepo \
 	curl \
+	cmake \
 	dpkg-sig \
 	git \
 	iptables \
@@ -46,6 +47,7 @@ RUN apt-get update && apt-get install -y \
 	python-websocket \
 	xfsprogs \
 	tar \
+	vim-common \
 	--no-install-recommends \
 	&& pip install awscli==1.10.15
 
@@ -164,10 +166,10 @@ RUN ./contrib/download-frozen-image-v2.sh /docker-frozen-images \
 	armhf/hello-world:latest@sha256:161dcecea0225975b2ad5f768058212c1e0d39e8211098666ffa1ac74cfb7791
 # See also "hack/make/.ensure-frozen-images" (which needs to be updated any time this list is)
 
-# Install tomlv, vndr, runc, containerd, grimes, docker-proxy
+# Install tomlv, vndr, runc, containerd, tini, docker-proxy
 # Please edit hack/dockerfile/install-binaries.sh to update them.
 COPY hack/dockerfile/install-binaries.sh /tmp/install-binaries.sh
-RUN /tmp/install-binaries.sh tomlv vndr runc containerd grimes proxy
+RUN /tmp/install-binaries.sh tomlv vndr runc containerd tini proxy
 
 ENTRYPOINT ["hack/dind"]
 
