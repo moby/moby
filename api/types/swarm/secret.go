@@ -26,5 +26,5 @@ type SecretReferenceFileTarget struct {
 type SecretReference struct {
 	SecretID   string
 	SecretName string
-	Target     SecretReferenceFileTarget
+	Target     *SecretReferenceFileTarget
 }

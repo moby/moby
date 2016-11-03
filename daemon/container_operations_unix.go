@@ -172,13 +172,13 @@ func (daemon *Daemon) setupSecretDir(c *container.Container) (setupErr error) {
 	}
 
 	for _, s := range c.Secrets {
+		targetPath := filepath.Clean(s.Target)
 		// ensure that the target is a filename only; no paths allowed
-		tDir, tPath := filepath.Split(s.Target)
-		if tDir != "" {
-			return fmt.Errorf("error creating secret: secret must not have a path")
+		if targetPath != filepath.Base(targetPath) {
+			return fmt.Errorf("error creating secret: secret must not be a path")
 		}
 
-		fPath := filepath.Join(localMountPath, tPath)
+		fPath := filepath.Join(localMountPath, targetPath)
 		if err := os.MkdirAll(filepath.Dir(fPath), 0700); err != nil {
 			return errors.Wrap(err, "error creating secret mount path")
 		}

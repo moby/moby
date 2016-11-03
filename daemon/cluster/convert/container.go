@@ -108,7 +108,7 @@ func secretReferencesFromGRPC(sr []*swarmapi.SecretReference) []*types.SecretRef
 		refs = append(refs, &types.SecretReference{
 			SecretID:   s.SecretID,
 			SecretName: s.SecretName,
-			Target: types.SecretReferenceFileTarget{
+			Target: &types.SecretReferenceFileTarget{
 				Name: target.Name,
 				UID:  target.UID,
 				GID:  target.GID,

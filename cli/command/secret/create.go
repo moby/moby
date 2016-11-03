@@ -9,29 +9,37 @@ import (
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cli/command"
+	"github.com/docker/docker/opts"
+	runconfigopts "github.com/docker/docker/runconfig/opts"
 	"github.com/spf13/cobra"
 )
 
 type createOptions struct {
-	name string
+	name   string
+	labels opts.ListOpts
 }
 
 func newSecretCreateCommand(dockerCli *command.DockerCli) *cobra.Command {
-	return &cobra.Command{
+	createOpts := createOptions{
+		labels: opts.NewListOpts(runconfigopts.ValidateEnv),
+	}
+
+	cmd := &cobra.Command{
 		Use:   "create [name]",
 		Short: "Create a secret using stdin as content",
-		Args:  cli.ExactArgs(1),
+		Args:  cli.RequiresMinArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			opts := createOptions{
-				name: args[0],
-			}
-
-			return runSecretCreate(dockerCli, opts)
+			createOpts.name = args[0]
+			return runSecretCreate(dockerCli, createOpts)
 		},
 	}
+	flags := cmd.Flags()
+	flags.VarP(&createOpts.labels, "label", "l", "Secret labels")
+
+	return cmd
 }
 
-func runSecretCreate(dockerCli *command.DockerCli, opts createOptions) error {
+func runSecretCreate(dockerCli *command.DockerCli, options createOptions) error {
 	client := dockerCli.Client()
 	ctx := context.Background()
 
@@ -42,7 +50,8 @@ func runSecretCreate(dockerCli *command.DockerCli, opts createOptions) error {
 
 	spec := swarm.SecretSpec{
 		Annotations: swarm.Annotations{
-			Name: opts.name,
+			Name:   options.name,
+			Labels: runconfigopts.ConvertKVStringsToMap(options.labels.GetAll()),
 		},
 		Data: secretData,
 	}
