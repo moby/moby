@@ -20,6 +20,9 @@ const (
 	ipv6ForwardConfAll     = "/proc/sys/net/ipv6/conf/all/forwarding"
 )
 
+// Map for storing child endpoints link information.
+var mapChildEndpoints map[string]*link
+
 func init() {
 	// We allow ourselves to panic in this special case because we indicate a
 	// failure to parse a compile-time define constant.
@@ -27,6 +30,7 @@ func init() {
 	if bridgeIPv6, err = types.ParseCIDR(bridgeIPv6Str); err != nil {
 		panic(fmt.Sprintf("Cannot parse default bridge IPv6 address %q: %v", bridgeIPv6Str, err))
 	}
+	mapChildEndpoints = make(map[string]*link)
 }
 
 func setupBridgeIPv6(config *networkConfiguration, i *bridgeInterface) error {
