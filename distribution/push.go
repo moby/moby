@@ -3,8 +3,10 @@ package distribution
 import (
 	"bufio"
 	"compress/gzip"
+	"errors"
 	"fmt"
 	"io"
+	"strings"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/types"
@@ -113,7 +115,7 @@ func Push(ctx context.Context, ref reference.Named, imagePushConfig *ImagePushCo
 	}
 
 	var (
-		lastErr error
+		fullErr []string
 
 		// confirmedV2 is set to true if a push attempt managed to
 		// confirm that it was talking to a v2 registry. This will
@@ -143,7 +145,7 @@ func Push(ctx context.Context, ref reference.Named, imagePushConfig *ImagePushCo
 
 		pusher, err := NewPusher(ref, endpoint, repoInfo, imagePushConfig)
 		if err != nil {
-			lastErr = err
+			fullErr = append(fullErr, err.Error())
 			continue
 		}
 		if err := pusher.Push(ctx); err != nil {
@@ -158,24 +160,25 @@ func Push(ctx context.Context, ref reference.Named, imagePushConfig *ImagePushCo
 						confirmedTLSRegistries[endpoint.URL.Host] = struct{}{}
 					}
 					err = fallbackErr.err
-					lastErr = err
+					fullErr = append(fullErr, err.Error())
 					logrus.Errorf("Attempting next endpoint for push after error: %v", err)
 					continue
 				}
 			}
 
 			logrus.Errorf("Not continuing with push after error: %v", err)
-			return err
+			fullErr = append(fullErr, err.Error())
+			return errors.New(strings.Join(fullErr, "\n"))
 		}
 
 		imagePushConfig.ImageEventLogger(ref.String(), repoInfo.Name(), "push")
 		return nil
 	}
 
-	if lastErr == nil {
-		lastErr = fmt.Errorf("no endpoints found for %s", repoInfo.FullName())
+	if len(fullErr) == 0 {
+		fullErr = append(fullErr, fmt.Sprintf("no endpoints found for %s", repoInfo.FullName()))
 	}
-	return lastErr
+	return errors.New(strings.Join(fullErr, "\n"))
 }
 
 // compress returns an io.ReadCloser which will supply a compressed version of

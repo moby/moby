@@ -1,7 +1,9 @@
 package distribution
 
 import (
+	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/digest"
@@ -95,7 +97,7 @@ func Pull(ctx context.Context, ref reference.Named, imagePullConfig *ImagePullCo
 	}
 
 	var (
-		lastErr error
+		fullErr []string
 
 		// discardNoSupportErrors is used to track whether an endpoint encountered an error of type registry.ErrNoSupport
 		// By default it is false, which means that if an ErrNoSupport error is encountered, it will be saved in lastErr.
@@ -133,7 +135,7 @@ func Pull(ctx context.Context, ref reference.Named, imagePullConfig *ImagePullCo
 
 		puller, err := newPuller(endpoint, repoInfo, imagePullConfig)
 		if err != nil {
-			lastErr = err
+			fullErr = append(fullErr, err.Error())
 			continue
 		}
 		if err := puller.Pull(ctx, ref); err != nil {
@@ -157,29 +159,30 @@ func Pull(ctx context.Context, ref reference.Named, imagePullConfig *ImagePullCo
 					// Because we found an error that's not ErrNoSupport, discard all subsequent ErrNoSupport errors.
 					discardNoSupportErrors = true
 					// append subsequent errors
-					lastErr = err
+					fullErr = append(fullErr, err.Error())
 				} else if !discardNoSupportErrors {
 					// Save the ErrNoSupport error, because it's either the first error or all encountered errors
 					// were also ErrNoSupport errors.
 					// append subsequent errors
-					lastErr = err
+					fullErr = append(fullErr, err.Error())
 				}
 				logrus.Errorf("Attempting next endpoint for pull after error: %v", err)
 				continue
 			}
 			logrus.Errorf("Not continuing with pull after error: %v", err)
-			return err
+			fullErr = append(fullErr, err.Error())
+			return errors.New(strings.Join(fullErr, "\n"))
 		}
 
 		imagePullConfig.ImageEventLogger(ref.String(), repoInfo.Name(), "pull")
 		return nil
 	}
 
-	if lastErr == nil {
-		lastErr = fmt.Errorf("no endpoints found for %s", ref.String())
+	if len(fullErr) == 0 {
+		fullErr = append(fullErr, fmt.Sprintf("no endpoints found for %s", ref.String()))
 	}
 
-	return lastErr
+	return errors.New(strings.Join(fullErr, "\n"))
 }
 
 // writeStatus writes a status message to out. If layersDownloaded is true, the
