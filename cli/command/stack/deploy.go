@@ -150,6 +150,9 @@ func createNetworks(
 		existingNetworkMap[network.Name] = network
 	}
 
+	// TODO: only add default network if it's used
+	networks["default"] = composetypes.NetworkConfig{}
+
 	for internalName, network := range networks {
 		if network.External.Name != "" {
 			continue
@@ -161,8 +164,7 @@ func createNetworks(
 		}
 
 		createOpts := types.NetworkCreate{
-			// TODO: support network labels from compose file
-			Labels:  getStackLabels(namespace, nil),
+			Labels:  getStackLabels(namespace, network.Labels),
 			Driver:  network.Driver,
 			Options: network.DriverOpts,
 		}
@@ -191,6 +193,16 @@ func convertNetworks(
 	namespace string,
 	name string,
 ) []swarm.NetworkAttachmentConfig {
+	if len(networks) == 0 {
+		return []swarm.NetworkAttachmentConfig{
+			{
+				// TODO: only do this name mangling in one function
+				Target:  namespace + "_" + "default",
+				Aliases: []string{name},
+			},
+		}
+	}
+
 	nets := []swarm.NetworkAttachmentConfig{}
 	for networkName, network := range networks {
 		nets = append(nets, swarm.NetworkAttachmentConfig{
