@@ -78,7 +78,7 @@ func containerSpecFromGRPC(c *swarmapi.ContainerSpec) types.ContainerSpec {
 }
 
 func secretReferencesToGRPC(sr []*types.SecretReference) []*swarmapi.SecretReference {
-	refs := []*swarmapi.SecretReference{}
+	refs := make([]*swarmapi.SecretReference, 0, len(sr))
 	for _, s := range sr {
 		refs = append(refs, &swarmapi.SecretReference{
 			SecretID:   s.SecretID,
@@ -97,7 +97,7 @@ func secretReferencesToGRPC(sr []*types.SecretReference) []*swarmapi.SecretRefer
 	return refs
 }
 func secretReferencesFromGRPC(sr []*swarmapi.SecretReference) []*types.SecretReference {
-	refs := []*types.SecretReference{}
+	refs := make([]*types.SecretReference, 0, len(sr))
 	for _, s := range sr {
 		target := s.GetFile()
 		if target == nil {

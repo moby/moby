@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -219,7 +218,11 @@ func (c *containerAdapter) create(ctx context.Context) error {
 		}
 	}
 
-	secrets := []*containertypes.ContainerSecret{}
+	container := c.container.task.Spec.GetContainer()
+	if container == nil {
+		return fmt.Errorf("unable to get container from task spec")
+	}
+	secrets := make([]*containertypes.ContainerSecret, 0, len(container.Secrets))
 	for _, s := range c.container.task.Spec.GetContainer().Secrets {
 		sec := c.secrets.Get(s.SecretID)
 		if sec == nil {
@@ -233,23 +236,13 @@ func (c *containerAdapter) create(ctx context.Context) error {
 			logrus.Warnf("secret target was not a file: secret=%s", s.SecretID)
 			continue
 		}
-		// convert uid / gid string to int
-		uid, err := strconv.Atoi(target.UID)
-		if err != nil {
-			return err
-		}
-
-		gid, err := strconv.Atoi(target.GID)
-		if err != nil {
-			return err
-		}
 
 		secrets = append(secrets, &containertypes.ContainerSecret{
 			Name:   name,
 			Target: target.Name,
 			Data:   sec.Spec.Data,
-			UID:    uid,
-			GID:    gid,
+			UID:    target.UID,
+			GID:    target.GID,
 			Mode:   target.Mode,
 		})
 	}

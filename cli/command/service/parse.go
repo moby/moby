@@ -1,13 +1,13 @@
 package service
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	swarmtypes "github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/client"
+	"golang.org/x/net/context"
 )
 
 // parseSecrets retrieves the secrets from the requested names and converts
@@ -39,7 +39,7 @@ func parseSecrets(client client.APIClient, requestedSecrets []*types.SecretReque
 	}
 
 	secrets, err := client.SecretList(ctx, types.SecretListOptions{
-		Filter: args,
+		Filters: args,
 	})
 	if err != nil {
 		return nil, err

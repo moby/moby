@@ -520,5 +520,5 @@ type SecretCreateResponse struct {
 
 // SecretListOptions holds parameters to list secrets
 type SecretListOptions struct {
-	Filter filters.Args
+	Filters filters.Args
 }

@@ -267,14 +267,13 @@ func (sr *swarmRouter) getSecrets(ctx context.Context, w http.ResponseWriter, r 
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
-	filter, err := filters.FromParam(r.Form.Get("filters"))
+	filters, err := filters.FromParam(r.Form.Get("filters"))
 	if err != nil {
 		return err
 	}
 
-	secrets, err := sr.backend.GetSecrets(basictypes.SecretListOptions{Filter: filter})
+	secrets, err := sr.backend.GetSecrets(basictypes.SecretListOptions{Filters: filters})
 	if err != nil {
-		logrus.Errorf("Error getting secrets: %v", err)
 		return err
 	}
 
@@ -289,7 +288,6 @@ func (sr *swarmRouter) createSecret(ctx context.Context, w http.ResponseWriter, 
 
 	id, err := sr.backend.CreateSecret(secret)
 	if err != nil {
-		logrus.Errorf("Error creating secret %s: %v", id, err)
 		return err
 	}
 
@@ -300,7 +298,6 @@ func (sr *swarmRouter) createSecret(ctx context.Context, w http.ResponseWriter, 
 
 func (sr *swarmRouter) removeSecret(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := sr.backend.RemoveSecret(vars["id"]); err != nil {
-		logrus.Errorf("Error removing secret %s: %v", vars["id"], err)
 		return err
 	}
 
@@ -310,7 +307,6 @@ func (sr *swarmRouter) removeSecret(ctx context.Context, w http.ResponseWriter, 
 func (sr *swarmRouter) getSecret(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	secret, err := sr.backend.GetSecret(vars["id"])
 	if err != nil {
-		logrus.Errorf("Error getting secret %s: %v", vars["id"], err)
 		return err
 	}
 

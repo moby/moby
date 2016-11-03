@@ -45,7 +45,7 @@ func TestSecretList(t *testing.T) {
 		},
 		{
 			options: types.SecretListOptions{
-				Filter: filters,
+				Filters: filters,
 			},
 			expectedQueryParams: map[string]string{
 				"filters": `{"label":{"label1":true,"label2":true}}`,

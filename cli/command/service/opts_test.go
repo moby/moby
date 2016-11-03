@@ -108,45 +108,45 @@ func TestHealthCheckOptionsToHealthConfigConflict(t *testing.T) {
 }
 
 func TestSecretOptionsSimple(t *testing.T) {
-	var opt SecretOpt
+	var opt opts.SecretOpt
 
-	testCase := "source=/foo,target=testing"
+	testCase := "source=foo,target=testing"
 	assert.NilError(t, opt.Set(testCase))
 
 	reqs := opt.Value()
 	assert.Equal(t, len(reqs), 1)
 	req := reqs[0]
-	assert.Equal(t, req.source, "/foo")
-	assert.Equal(t, req.target, "testing")
+	assert.Equal(t, req.Source, "foo")
+	assert.Equal(t, req.Target, "testing")
 }
 
 func TestSecretOptionsCustomUidGid(t *testing.T) {
-	var opt SecretOpt
+	var opt opts.SecretOpt
 
-	testCase := "source=/foo,target=testing,uid=1000,gid=1001"
+	testCase := "source=foo,target=testing,uid=1000,gid=1001"
 	assert.NilError(t, opt.Set(testCase))
 
 	reqs := opt.Value()
 	assert.Equal(t, len(reqs), 1)
 	req := reqs[0]
-	assert.Equal(t, req.source, "/foo")
-	assert.Equal(t, req.target, "testing")
-	assert.Equal(t, req.uid, "1000")
-	assert.Equal(t, req.gid, "1001")
+	assert.Equal(t, req.Source, "foo")
+	assert.Equal(t, req.Target, "testing")
+	assert.Equal(t, req.UID, "1000")
+	assert.Equal(t, req.GID, "1001")
 }
 
 func TestSecretOptionsCustomMode(t *testing.T) {
-	var opt SecretOpt
+	var opt opts.SecretOpt
 
-	testCase := "source=/foo,target=testing,uid=1000,gid=1001,mode=0444"
+	testCase := "source=foo,target=testing,uid=1000,gid=1001,mode=0444"
 	assert.NilError(t, opt.Set(testCase))
 
 	reqs := opt.Value()
 	assert.Equal(t, len(reqs), 1)
 	req := reqs[0]
-	assert.Equal(t, req.source, "/foo")
-	assert.Equal(t, req.target, "testing")
-	assert.Equal(t, req.uid, "1000")
-	assert.Equal(t, req.gid, "1001")
-	assert.Equal(t, req.mode, os.FileMode(0444))
+	assert.Equal(t, req.Source, "foo")
+	assert.Equal(t, req.Target, "testing")
+	assert.Equal(t, req.UID, "1000")
+	assert.Equal(t, req.GID, "1001")
+	assert.Equal(t, req.Mode, os.FileMode(0444))
 }
