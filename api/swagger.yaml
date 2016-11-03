@@ -236,7 +236,7 @@ definitions:
       BlkioWeight:
         description: "Block IO weight (relative weight)."
         type: "integer"
-        minimum: 10
+        minimum: 0
         maximum: 1000
       BlkioWeightDevice:
         description: |
@@ -1694,6 +1694,7 @@ definitions:
         $ref: "#/definitions/SwarmSpec"
   TaskSpec:
     description: "User modifiable task configuration."
+    type: "object"
     properties:
       ContainerSpec:
         type: "object"
@@ -2279,9 +2280,6 @@ paths:
                 NetworkSettings:
                   Networks:
                     bridge:
-                      IPAMConfig: null
-                      Links: null
-                      Aliases: null
                       NetworkID: "7ea29fc1412292a2d7bba362f9253545fecdfa8ce9a6e37dd10ba8bee7129812"
                       EndpointID: "2cdc4edb1ded3631c81f57966563e5c8525b81121bb3706a9a9a3ae102711f3f"
                       Gateway: "172.17.0.1"
@@ -2317,9 +2315,6 @@ paths:
                 NetworkSettings:
                   Networks:
                     bridge:
-                      IPAMConfig: null
-                      Links: null
-                      Aliases: null
                       NetworkID: "7ea29fc1412292a2d7bba362f9253545fecdfa8ce9a6e37dd10ba8bee7129812"
                       EndpointID: "88eaed7b37b38c2a3f0c4bc796494fdf51b270c2d22656412a2ca5d559a64d7a"
                       Gateway: "172.17.0.1"
@@ -2348,9 +2343,6 @@ paths:
                 NetworkSettings:
                   Networks:
                     bridge:
-                      IPAMConfig: null
-                      Links: null
-                      Aliases: null
                       NetworkID: "7ea29fc1412292a2d7bba362f9253545fecdfa8ce9a6e37dd10ba8bee7129812"
                       EndpointID: "8b27c041c30326d59cd6e6f510d4f8d1d570a228466f956edf7815508f78e30d"
                       Gateway: "172.17.0.1"
@@ -2379,9 +2371,6 @@ paths:
                 NetworkSettings:
                   Networks:
                     bridge:
-                      IPAMConfig: null
-                      Links: null
-                      Aliases: null
                       NetworkID: "7ea29fc1412292a2d7bba362f9253545fecdfa8ce9a6e37dd10ba8bee7129812"
                       EndpointID: "d91c7b2f0644403d7ef3095985ea0e2370325cd2332ff3a3225c4247328e66e9"
                       Gateway: "172.17.0.1"
@@ -2723,10 +2712,8 @@ paths:
                   - "-c"
                   - "exit 9"
                 Domainname: ""
-                Entrypoint: null
                 Env:
                   - "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
-                ExposedPorts: null
                 Hostname: "ba033ac44011"
                 Image: "ubuntu"
                 Labels:
@@ -2735,7 +2722,6 @@ paths:
                   com.example.version: "1.0"
                 MacAddress: ""
                 NetworkDisabled: false
-                OnBuild: null
                 OpenStdin: false
                 StdinOnce: false
                 Tty: false
@@ -2746,9 +2732,7 @@ paths:
                 StopSignal: "SIGTERM"
               Created: "2015-01-06T15:47:31.485331387Z"
               Driver: "devicemapper"
-              ExecIDs: null
               HostConfig:
-                Binds: null
                 MaximumIOps: 0
                 MaximumIOBps: 0
                 BlkioWeight: 0
@@ -2762,8 +2746,6 @@ paths:
                   - {}
                 BlkioDeviceWriteIOps:
                   - {}
-                CapAdd: null
-                CapDrop: null
                 ContainerIDFile: ""
                 CpusetCpus: ""
                 CpusetMems: ""
@@ -2771,12 +2753,7 @@ paths:
                 CpuShares: 0
                 CpuPeriod: 100000
                 Devices: []
-                Dns: null
-                DnsOptions: null
-                DnsSearch: null
-                ExtraHosts: null
                 IpcMode: ""
-                Links: null
                 LxcConf: []
                 Memory: 0
                 MemorySwap: 0
@@ -2794,13 +2771,9 @@ paths:
                   MaximumRetryCount: 2
                   Name: "on-failure"
                 LogConfig:
-                  Config: null
                   Type: "json-file"
-                SecurityOpt: null
                 Sysctls:
                   net.ipv4.ip_forward: "1"
-                StorageOpt: null
-                VolumesFrom: null
                 Ulimits:
                   - {}
                 VolumeDriver: ""
@@ -2818,7 +2791,6 @@ paths:
                 HairpinMode: false
                 LinkLocalIPv6Address: ""
                 LinkLocalIPv6PrefixLen: 0
-                Ports: null
                 SandboxKey: ""
                 SecondaryIPAddresses: null
                 SecondaryIPv6Addresses: null
@@ -3867,18 +3839,25 @@ paths:
               type: "string"
               description: "TODO"
         400:
-          description: "client error, bad parameter, details in JSON response body, one of: must specify path parameter (path cannot be empty) not a directory (path was asserted to be a directory but exists as a file)"
+          description: "Bad parameter"
           schema:
-            $ref: "#/definitions/ErrorResponse"
+            allOf:
+              - $ref: "#/definitions/ErrorResponse"
+              - type: "object"
+                properties:
+                  message:
+                    description: "The error message. Either \"must specify path parameter\" (path cannot be empty) or \"not a directory\" (path was asserted to be a directory but exists as a file)."
+                    type: "string"
+                    x-nullable: false
         404:
-          description: "client error, resource not found, one of: 1) no such container (container id does not exist) 2) no such file or directory (path resource does not exist)"
+          description: "Container or path does not exist"
           schema:
             $ref: "#/definitions/ErrorResponse"
           examples:
             application/json:
               message: "No such container: c2ada9df5af8"
         500:
-          description: "server error"
+          description: "Server error"
           schema:
             $ref: "#/definitions/ErrorResponse"
       parameters:
@@ -3904,11 +3883,18 @@ paths:
         200:
           description: "no error"
         400:
-          description: "client error, bad parameter, details in JSON response body, one of: must specify path parameter (path cannot be empty) not a directory (path was asserted to be a directory but exists as a file)"
+          description: "Bad parameter"
           schema:
-            $ref: "#/definitions/ErrorResponse"
+            allOf:
+              - $ref: "#/definitions/ErrorResponse"
+              - type: "object"
+                properties:
+                  message:
+                    description: "The error message. Either \"must specify path parameter\" (path cannot be empty) or \"not a directory\" (path was asserted to be a directory but exists as a file)."
+                    type: "string"
+                    x-nullable: false
         404:
-          description: "client error, resource not found, one of: 1) no such container (container id does not exist) 2) no such file or directory (path resource does not exist)"
+          description: "Container or path does not exist"
           schema:
             $ref: "#/definitions/ErrorResponse"
           examples:
@@ -3999,25 +3985,33 @@ paths:
               $ref: "#/definitions/ImageSummary"
           examples:
             application/json:
-              - RepoTags:
+              - Id: "sha256:e216a057b1cb1efc11f8a268f37ef62083e70b1b38323ba252e25ac88904a7e8"
+                ParentId: ""
+                RepoTags:
                   - "ubuntu:12.04"
                   - "ubuntu:precise"
-                  - "ubuntu:latest"
-                Id: "8dbd9e392a964056420e5d58ca5cc376ef18e2de93b5cc90e868a1bbc8318c1c"
-                Created: 1365714795
-                Size: 131506275
-                VirtualSize: 131506275
+                RepoDigests:
+                  - "ubuntu@sha256:992069aee4016783df6345315302fa59681aae51a8eeb2f889dea59290f21787"
+                Created: 1474925151
+                Size: 103579269
+                VirtualSize: 103579269
+                SharedSize: 0
                 Labels: {}
-              - RepoTags:
+                Containers: 2
+              - Id: "sha256:3e314f95dcace0f5e4fd37b10862fe8398e3c60ed36600bc0ca5fda78b087175"
+                ParentId: ""
+                RepoTags:
                   - "ubuntu:12.10"
                   - "ubuntu:quantal"
-                ParentId: "27cf784147099545"
-                Id: "b750fe79269d2ec9a3c593ef05b4332b1d1a02a62b4accb2c21d589ff2f5f2dc"
-                Created: 1364102658
-                Size: 24653
-                VirtualSize: 180116135
-                Labels:
-                  com.example.version: "v1"
+                RepoDigests:
+                  - "ubuntu@sha256:002fba3e3255af10be97ea26e476692a7ebed0bb074a9ab960b2e7a1526b15d7"
+                  - "ubuntu@sha256:68ea0200f0b90df725d99d823905b04cf844f6039ef60c60bf3e019915017bd3"
+                Created: 1403128455
+                Size: 172064416
+                VirtualSize: 172064416
+                SharedSize: 0
+                Labels: {}
+                Containers: 5
         500:
           description: "server error"
           schema:
@@ -4243,7 +4237,6 @@ paths:
               ContainerConfig:
                 Tty: false
                 Hostname: "e611e15f9c9d"
-                Volumes: null
                 Domainname: ""
                 AttachStdout: false
                 PublishService: ""
@@ -4255,7 +4248,6 @@ paths:
                 Image: "91e54dfb11794fad694460162bf0cb0a4fa710cfa3f60979c177d920813e267c"
                 User: ""
                 WorkingDir: ""
-                Entrypoint: null
                 MacAddress: ""
                 AttachStderr: false
                 Labels:
@@ -4264,7 +4256,6 @@ paths:
                   com.example.vendor: "Acme"
                 Env:
                   - "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
-                ExposedPorts: null
                 Cmd:
                   - "/bin/sh"
                   - "-c"
@@ -4276,7 +4267,6 @@ paths:
               Created: "2015-09-10T08:30:53.26995814Z"
               GraphDriver:
                 Name: "aufs"
-                Data: null
               RepoDigests:
                 - "localhost:5000/test/busybox/example@sha256:cbbf2f9a99b47fc460d422812b6a5adff7dfee951d8fa2e4a98caa0382cfbdbf"
               RepoTags:
@@ -4295,17 +4285,14 @@ paths:
                 AttachStdout: false
                 Tty: false
                 Hostname: "e611e15f9c9d"
-                Volumes: null
                 Cmd:
                   - "/bin/bash"
-                ExposedPorts: null
                 Env:
                   - "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
                 Labels:
                   com.example.vendor: "Acme"
                   com.example.version: "1.0"
                   com.example.license: "GPL"
-                Entrypoint: null
                 MacAddress: ""
                 AttachStderr: false
                 WorkingDir: ""
@@ -4378,7 +4365,7 @@ paths:
               - Id: "6cfa4d1f33fb861d4d114f43b25abd0ac737509268065cdfd69d544a59c85ab8"
                 Created: 1398108222
                 CreatedBy: "/bin/sh -c #(nop) MAINTAINER Tianon Gravi <admwiggin@gmail.com> - mkimage-debootstrap.sh -i iproute,iputils-ping,ubuntu-minimal -t lucid.tar.xz lucid http://archive.ubuntu.com/ubuntu/"
-                Tags: null
+                Tags: []
                 Size: 0
                 Comment: ""
               - Id: "511136ea3c5a64f264b78b5433614aec563103b4d4702f3ba7d4d2698e22c158"
@@ -4836,7 +4823,6 @@ paths:
               RegistryConfig:
                 IndexConfigs:
                   docker.io:
-                    Mirrors: null
                     Name: "docker.io"
                     Official: true
                     Secure: true
@@ -5037,6 +5023,7 @@ paths:
               timeNano:
                 description: "Timestamp of event, with nanosecond accuracy"
                 type: "integer"
+                format: "int64"
           examples:
             application/json:
               Type: "container"
@@ -5048,7 +5035,6 @@ paths:
                   image: "alpine"
                   name: "my-container"
               time: 1461943101
-              timeNano: 1461943101381709551
         500:
           description: "server error"
           schema:
@@ -5427,6 +5413,7 @@ paths:
                     com.example.some-label: "some-value"
                     com.example.some-other-label: "some-other-value"
                   Scope: "local"
+                  Options: {}
               Warnings: []
         500:
           description: "Server error"
@@ -6498,7 +6485,8 @@ paths:
           schema:
             allOf:
               - $ref: "#/definitions/ServiceSpec"
-              - example:
+              - type: "object"
+                example:
                   Name: "web"
                   TaskTemplate:
                     ContainerSpec:
@@ -6623,7 +6611,8 @@ paths:
           schema:
             allOf:
               - $ref: "#/definitions/ServiceSpec"
-              - example:
+              - type: "object"
+                example:
                   Name: "top"
                   TaskTemplate:
                     ContainerSpec:
