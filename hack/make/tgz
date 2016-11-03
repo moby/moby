@@ -58,7 +58,7 @@ for d in "$CROSS/"*/*; do
 	copy_binaries $TAR_PATH
 
 	# add completions
-	for s in bash fish powershell zsh; do
+	for s in bash fish zsh; do
 		mkdir -p $TAR_PATH/completion/$s
 		cp -L contrib/completion/$s/*docker* $TAR_PATH/completion/$s/
 	done
