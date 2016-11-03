@@ -295,6 +295,34 @@ func (s *DockerSwarmSuite) TestSwarmContainerEndpointOptions(c *check.C) {
 	c.Assert(err, check.IsNil)
 }
 
+func (s *DockerSwarmSuite) TestSwarmContainerAttachByNetworkId(c *check.C) {
+	d := s.AddDaemon(c, true, true)
+
+	out, err := d.Cmd("network", "create", "--attachable", "-d", "overlay", "testnet")
+	c.Assert(err, checker.IsNil)
+	c.Assert(strings.TrimSpace(out), checker.Not(checker.Equals), "")
+	networkID := strings.TrimSpace(out)
+
+	out, err = d.Cmd("run", "-d", "--net", networkID, "busybox", "top")
+	c.Assert(err, checker.IsNil)
+	cID := strings.TrimSpace(out)
+	d.waitRun(cID)
+
+	_, err = d.Cmd("rm", "-f", cID)
+	c.Assert(err, checker.IsNil)
+
+	out, err = d.Cmd("network", "rm", "testnet")
+	c.Assert(err, checker.IsNil)
+
+	checkNetwork := func(*check.C) (interface{}, check.CommentInterface) {
+		out, err := d.Cmd("network", "ls")
+		c.Assert(err, checker.IsNil)
+		return out, nil
+	}
+
+	waitAndAssert(c, 3*time.Second, checkNetwork, checker.Not(checker.Contains), "testnet")
+}
+
 func (s *DockerSwarmSuite) TestSwarmRemoveInternalNetwork(c *check.C) {
 	d := s.AddDaemon(c, true, true)
 

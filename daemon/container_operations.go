@@ -793,7 +793,10 @@ func (daemon *Daemon) disconnectFromNetwork(container *container.Container, n li
 
 	if daemon.clusterProvider != nil && n.Info().Dynamic() && !container.Managed {
 		if err := daemon.clusterProvider.DetachNetwork(n.Name(), container.ID); err != nil {
-			logrus.Warnf("error detaching from network %s: %v", n, err)
+			logrus.Warnf("error detaching from network %s: %v", n.Name(), err)
+			if err := daemon.clusterProvider.DetachNetwork(n.ID(), container.ID); err != nil {
+				logrus.Warnf("error detaching from network %s: %v", n.ID(), err)
+			}
 		}
 	}
 
@@ -891,6 +894,9 @@ func (daemon *Daemon) releaseNetwork(container *container.Container) {
 		if daemon.clusterProvider != nil && nw.Info().Dynamic() && !container.Managed {
 			if err := daemon.clusterProvider.DetachNetwork(nw.Name(), container.ID); err != nil {
 				logrus.Warnf("error detaching from network %s: %v", nw.Name(), err)
+				if err := daemon.clusterProvider.DetachNetwork(nw.ID(), container.ID); err != nil {
+					logrus.Warnf("error detaching from network %s: %v", nw.ID(), err)
+				}
 			}
 		}
 
