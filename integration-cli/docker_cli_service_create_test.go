@@ -45,7 +45,37 @@ func (s *DockerSwarmSuite) TestServiceCreateMountVolume(c *check.C) {
 	c.Assert(mounts[0].RW, checker.Equals, true)
 }
 
-func (s *DockerSwarmSuite) TestServiceCreateWithSecret(c *check.C) {
+func (s *DockerSwarmSuite) TestServiceCreateWithSecretSimple(c *check.C) {
+	d := s.AddDaemon(c, true, true)
+
+	serviceName := "test-service-secret"
+	testName := "test_secret"
+	id := d.createSecret(c, swarm.SecretSpec{
+		swarm.Annotations{
+			Name: testName,
+		},
+		[]byte("TESTINGDATA"),
+	})
+	c.Assert(id, checker.Not(checker.Equals), "", check.Commentf("secrets: %s", id))
+
+	out, err := d.Cmd("service", "create", "--name", serviceName, "--secret", testName, "busybox", "top")
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+
+	out, err = d.Cmd("service", "inspect", "--format", "{{ json .Spec.TaskTemplate.ContainerSpec.Secrets }}", serviceName)
+	c.Assert(err, checker.IsNil)
+
+	var refs []swarm.SecretReference
+	c.Assert(json.Unmarshal([]byte(out), &refs), checker.IsNil)
+	c.Assert(refs, checker.HasLen, 1)
+
+	c.Assert(refs[0].SecretName, checker.Equals, testName)
+	c.Assert(refs[0].Target, checker.Not(checker.IsNil))
+	c.Assert(refs[0].Target.Name, checker.Equals, testName)
+	c.Assert(refs[0].Target.UID, checker.Equals, "0")
+	c.Assert(refs[0].Target.GID, checker.Equals, "0")
+}
+
+func (s *DockerSwarmSuite) TestServiceCreateWithSecretSourceTarget(c *check.C) {
 	d := s.AddDaemon(c, true, true)
 
 	serviceName := "test-service-secret"

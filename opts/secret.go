@@ -32,6 +32,14 @@ func (o *SecretOpt) Set(value string) error {
 		Mode:   0444,
 	}
 
+	// support a simple syntax of --secret foo
+	if len(fields) == 1 {
+		options.Source = fields[0]
+		options.Target = fields[0]
+		o.values = append(o.values, options)
+		return nil
+	}
+
 	for _, field := range fields {
 		parts := strings.SplitN(field, "=", 2)
 		key := strings.ToLower(parts[0])
@@ -62,7 +70,11 @@ func (o *SecretOpt) Set(value string) error {
 
 			options.Mode = os.FileMode(m)
 		default:
-			return fmt.Errorf("invalid field in secret request: %s", key)
+			if len(fields) == 1 && value == "" {
+
+			} else {
+				return fmt.Errorf("invalid field in secret request: %s", key)
+			}
 		}
 	}
 

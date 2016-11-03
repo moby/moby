@@ -122,11 +122,22 @@ ID            NAME   MODE        REPLICAS  IMAGE
 
 ### Create a service with secrets
 Use the `--secret` flag to give a container access to a
-[secret](secret_create.md).  The following command will create a service
-with two secrets named `ssh-key` and `app-key`:
+[secret](secret_create.md).
+
+Create a service specifying a secret:
 
 ```bash
-$ docker service create --name redis --secret source=ssh-key,target=ssh --secret source=app-key,target=app,uid=1000,gid=1001,mode=0400 redis:3.0.6
+$ docker service create --name redis --secret secret.json redis:3.0.6
+4cdgfyky7ozwh3htjfw0d12qv
+```
+
+Create a service specifying the secret, target, user/group ID and mode:
+
+```bash
+$ docker service create --name redis \
+    --secret source=ssh-key,target=ssh \
+    --secret source=app-key,target=app,uid=1000,gid=1001,mode=0400 \
+    redis:3.0.6
 4cdgfyky7ozwh3htjfw0d12qv
 ```
 
