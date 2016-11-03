@@ -1,7 +1,7 @@
 ---
 title: "tag"
 description: "The tag command description and usage"
-keywords: ["tag, name, image"]
+keywords: "tag, name, image"
 ---
 
 <!-- This file is maintained within the docker/docker Github

@@ -1,7 +1,7 @@
 ---
 title: "system prune"
 description: "Remove unused data"
-keywords: [system, prune, delete, remove]
+keywords: "system, prune, delete, remove"
 ---
 
 <!-- This file is maintained within the docker/docker Github

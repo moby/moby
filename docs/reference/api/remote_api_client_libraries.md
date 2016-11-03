@@ -1,7 +1,7 @@
 ---
 title: "Remote API client libraries"
 description: "Various client libraries available to use with the Docker remote API"
-keywords: ["API, Docker, index, registry, REST, documentation, clients, C#, Erlang, Go, Groovy, Java, JavaScript, Perl, PHP, Python, Ruby, Rust,  Scala"]
+keywords: "API, Docker, index, registry, REST, documentation, clients, C#, Erlang, Go, Groovy, Java, JavaScript, Perl, PHP, Python, Ruby, Rust, Scala"
 ---
 
 <!-- This file is maintained within the docker/docker Github

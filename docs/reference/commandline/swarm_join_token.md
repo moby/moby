@@ -1,7 +1,7 @@
 ---
 title: "swarm join-token"
 description: "The swarm join-token command description and usage"
-keywords: ["swarm, join-token"]
+keywords: "swarm, join-token"
 ---
 
 <!-- This file is maintained within the docker/docker Github

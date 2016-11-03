@@ -1,7 +1,7 @@
 ---
 title: "node promote"
 description: "The node promote command description and usage"
-keywords: ["node, promote"]
+keywords: "node, promote"
 ---
 
 <!-- This file is maintained within the docker/docker Github

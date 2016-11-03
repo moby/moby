@@ -1,7 +1,7 @@
 ---
 title: "save"
 description: "The save command description and usage"
-keywords: ["tarred, repository, backup"]
+keywords: "tarred, repository, backup"
 ---
 
 <!-- This file is maintained within the docker/docker Github

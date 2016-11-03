@@ -1,7 +1,7 @@
 ---
 title: "export"
 description: "The export command description and usage"
-keywords: ["export, file, system, container"]
+keywords: "export, file, system, container"
 ---
 
 <!-- This file is maintained within the docker/docker Github

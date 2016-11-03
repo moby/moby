@@ -1,7 +1,7 @@
 ---
 title: "inspect"
 description: "The inspect command description and usage"
-keywords: ["inspect, container, json"]
+keywords: "inspect, container, json"
 ---
 
 <!-- This file is maintained within the docker/docker Github

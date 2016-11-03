@@ -1,7 +1,7 @@
 ---
 title: "stop"
 description: "The stop command description and usage"
-keywords: ["stop, SIGKILL, SIGTERM"]
+keywords: "stop, SIGKILL, SIGTERM"
 ---
 
 <!-- This file is maintained within the docker/docker Github

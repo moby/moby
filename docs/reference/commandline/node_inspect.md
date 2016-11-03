@@ -1,7 +1,7 @@
 ---
 title: "node inspect"
 description: "The node inspect command description and usage"
-keywords: ["node, inspect"]
+keywords: "node, inspect"
 ---
 
 <!-- This file is maintained within the docker/docker Github

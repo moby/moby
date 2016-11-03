@@ -1,7 +1,7 @@
 ---
 title: "swarm update"
 description: "The swarm update command description and usage"
-keywords: ["swarm, update"]
+keywords: "swarm, update"
 ---
 
 <!-- This file is maintained within the docker/docker Github

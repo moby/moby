@@ -1,7 +1,7 @@
 ---
 title: "cp"
 description: "The cp command description and usage"
-keywords: ["copy, container, files, folders"]
+keywords: "copy, container, files, folders"
 ---
 
 <!-- This file is maintained within the docker/docker Github

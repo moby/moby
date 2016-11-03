@@ -1,7 +1,7 @@
 ---
 title: "port"
 description: "The port command description and usage"
-keywords: ["port, mapping, container"]
+keywords: "port, mapping, container"
 ---
 
 <!-- This file is maintained within the docker/docker Github

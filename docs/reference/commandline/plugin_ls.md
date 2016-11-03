@@ -1,7 +1,7 @@
 ---
 title: "plugin ls"
 description: "The plugin ls command description and usage"
-keywords: ["plugin, list"]
+keywords: "plugin, list"
 advisory: "experimental"
 ---
 

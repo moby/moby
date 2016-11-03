@@ -1,7 +1,7 @@
 ---
 title: "stack services"
 description: "The stack services command description and usage"
-keywords: ["stack, services"]
+keywords: "stack, services"
 advisory: "experimental"
 ---
 

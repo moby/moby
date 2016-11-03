@@ -1,7 +1,7 @@
 ---
 title: "plugin inspect"
 description: "The plugin inspect command description and usage"
-keywords: ["plugin, inspect"]
+keywords: "plugin, inspect"
 advisory: "experimental"
 ---
 

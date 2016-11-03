@@ -1,7 +1,7 @@
 ---
 title: "swarm init"
 description: "The swarm init command description and usage"
-keywords: ["swarm, init"]
+keywords: "swarm, init"
 ---
 
 <!-- This file is maintained within the docker/docker Github

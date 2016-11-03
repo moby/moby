@@ -1,7 +1,7 @@
 ---
 title: "network connect"
 description: "The network connect command description and usage"
-keywords: ["network, connect, user-defined"]
+keywords: "network, connect, user-defined"
 ---
 
 <!-- This file is maintained within the docker/docker Github

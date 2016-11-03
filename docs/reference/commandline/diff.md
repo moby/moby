@@ -1,7 +1,7 @@
 ---
 title: "diff"
 description: "The diff command description and usage"
-keywords: ["list, changed, files, container"]
+keywords: "list, changed, files, container"
 ---
 
 <!-- This file is maintained within the docker/docker Github

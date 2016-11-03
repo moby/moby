@@ -1,7 +1,7 @@
 ---
 title: "import"
 description: "The import command description and usage"
-keywords: ["import, file, system, container"]
+keywords: "import, file, system, container"
 ---
 
 <!-- This file is maintained within the docker/docker Github

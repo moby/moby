@@ -1,7 +1,7 @@
 ---
 title: "stack ls"
 description: "The stack ls command description and usage"
-keywords: ["stack, ls"]
+keywords: "stack, ls"
 advisory: "experimental"
 ---
 

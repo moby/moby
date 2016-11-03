@@ -1,7 +1,7 @@
 ---
 title: "volume create"
 description: "The volume create command description and usage"
-keywords: ["volume, create"]
+keywords: "volume, create"
 ---
 
 <!-- This file is maintained within the docker/docker Github

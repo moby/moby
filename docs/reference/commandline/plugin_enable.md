@@ -1,7 +1,7 @@
 ---
 title: "plugin enable"
 description: "the plugin enable command description and usage"
-keywords: ["plugin, enable"]
+keywords: "plugin, enable"
 advisory: "experimental"
 ---
 

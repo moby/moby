@@ -1,7 +1,7 @@
 ---
 title: "images"
 description: "The images command description and usage"
-keywords: ["list, docker, images"]
+keywords: "list, docker, images"
 ---
 
 <!-- This file is maintained within the docker/docker Github

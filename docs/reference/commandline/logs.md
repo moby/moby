@@ -1,7 +1,7 @@
 ---
 title: "logs"
 description: "The logs command description and usage"
-keywords: ["logs, retrieve, docker"]
+keywords: "logs, retrieve, docker"
 ---
 
 <!-- This file is maintained within the docker/docker Github

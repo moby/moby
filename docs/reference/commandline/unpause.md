@@ -1,7 +1,7 @@
 ---
 title: "unpause"
 description: "The unpause command description and usage"
-keywords: ["cgroups, suspend, container"]
+keywords: "cgroups, suspend, container"
 ---
 
 <!-- This file is maintained within the docker/docker Github

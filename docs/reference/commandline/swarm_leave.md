@@ -1,7 +1,7 @@
 ---
 title: "swarm leave"
 description: "The swarm leave command description and usage"
-keywords: ["swarm, leave"]
+keywords: "swarm, leave"
 ---
 
 <!-- This file is maintained within the docker/docker Github

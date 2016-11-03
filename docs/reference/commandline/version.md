@@ -1,7 +1,7 @@
 ---
 title: "version"
 description: "The version command description and usage"
-keywords: ["version, architecture, api"]
+keywords: "version, architecture, api"
 ---
 
 <!-- This file is maintained within the docker/docker Github

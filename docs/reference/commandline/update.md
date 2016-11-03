@@ -1,7 +1,7 @@
 ---
 title: "update"
 description: "The update command description and usage"
-keywords: ["resources, update, dynamically"]
+keywords: "resources, update, dynamically"
 ---
 
 <!-- This file is maintained within the docker/docker Github

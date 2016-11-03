@@ -1,7 +1,7 @@
 ---
 title: "logout"
 description: "The logout command description and usage"
-keywords: ["logout, docker, registry"]
+keywords: "logout, docker, registry"
 ---
 
 <!-- This file is maintained within the docker/docker Github

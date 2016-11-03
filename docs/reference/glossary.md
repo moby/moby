@@ -1,7 +1,7 @@
 ---
 title: "Docker Glossary"
 description: "Glossary of terms used around Docker"
-keywords: ["glossary, docker, terms,  definitions"]
+keywords: "glossary, docker, terms, definitions"
 ---
 
 <!-- This file is maintained within the docker/docker Github

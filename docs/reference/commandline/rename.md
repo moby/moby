@@ -1,7 +1,7 @@
 ---
 title: "rename"
 description: "The rename command description and usage"
-keywords: ["rename, docker, container"]
+keywords: "rename, docker, container"
 ---
 
 <!-- This file is maintained within the docker/docker Github

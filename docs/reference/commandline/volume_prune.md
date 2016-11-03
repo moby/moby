@@ -1,7 +1,7 @@
 ---
 title: "volume prune"
 description: "Remove unused volumes"
-keywords: [volume, prune, delete]
+keywords: "volume, prune, delete"
 ---
 
 <!-- This file is maintained within the docker/docker Github

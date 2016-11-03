@@ -1,7 +1,7 @@
 ---
 title: "load"
 description: "The load command description and usage"
-keywords: ["stdin, tarred, repository"]
+keywords: "stdin, tarred, repository"
 ---
 
 <!-- This file is maintained within the docker/docker Github

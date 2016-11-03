@@ -1,7 +1,7 @@
 ---
 title: "stack config"
 description: "The stack config command description and usage"
-keywords: ["stack, config"]
+keywords: "stack, config"
 advisory: "experimental"
 ---
 

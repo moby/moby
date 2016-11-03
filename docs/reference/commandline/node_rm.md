@@ -1,7 +1,7 @@
 ---
 title: "node rm"
 description: "The node rm command description and usage"
-keywords: ["node, remove"]
+keywords: "node, remove"
 ---
 
 <!-- This file is maintained within the docker/docker Github

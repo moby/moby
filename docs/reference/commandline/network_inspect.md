@@ -1,7 +1,7 @@
 ---
 title: "network inspect"
 description: "The network inspect command description and usage"
-keywords: ["network, inspect, user-defined"]
+keywords: "network, inspect, user-defined"
 ---
 
 <!-- This file is maintained within the docker/docker Github

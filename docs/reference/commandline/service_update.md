@@ -1,7 +1,7 @@
 ---
 title: "service update"
 description: "The service update command description and usage"
-keywords: ["service, update"]
+keywords: "service, update"
 ---
 
 <!-- This file is maintained within the docker/docker Github

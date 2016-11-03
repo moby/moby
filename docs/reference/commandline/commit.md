@@ -1,7 +1,7 @@
 ---
 title: "commit"
 description: "The commit command description and usage"
-keywords: ["commit, file, changes"]
+keywords: "commit, file, changes"
 ---
 
 <!-- This file is maintained within the docker/docker Github

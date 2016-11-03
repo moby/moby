@@ -1,7 +1,7 @@
 ---
 title: "rmi"
 description: "The rmi command description and usage"
-keywords: ["remove, image, Docker"]
+keywords: "remove, image, Docker"
 ---
 
 <!-- This file is maintained within the docker/docker Github

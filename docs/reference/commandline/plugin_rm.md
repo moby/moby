@@ -1,7 +1,7 @@
 ---
 title: "plugin rm"
 description: "the plugin rm command description and usage"
-keywords: ["plugin, rm"]
+keywords: "plugin, rm"
 advisory: "experimental"
 ---
 

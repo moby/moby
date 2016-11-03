@@ -1,7 +1,7 @@
 ---
 title: "network ls"
 description: "The network ls command description and usage"
-keywords: ["network, list, user-defined"]
+keywords: "network, list, user-defined"
 ---
 
 <!-- This file is maintained within the docker/docker Github

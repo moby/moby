@@ -1,7 +1,7 @@
 ---
 title: "volume inspect"
 description: "The volume inspect command description and usage"
-keywords: ["volume, inspect"]
+keywords: "volume, inspect"
 ---
 
 <!-- This file is maintained within the docker/docker Github

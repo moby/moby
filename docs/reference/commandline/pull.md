@@ -1,7 +1,7 @@
 ---
 title: "pull"
 description: "The pull command description and usage"
-keywords: ["pull, image, hub, docker"]
+keywords: "pull, image, hub, docker"
 ---
 
 <!-- This file is maintained within the docker/docker Github

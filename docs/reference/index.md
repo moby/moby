@@ -1,7 +1,7 @@
 ---
 title: "Engine reference"
 description: "Docker Engine reference"
-keywords: ["Engine"]
+keywords: "Engine"
 ---
 
 <!-- This file is maintained within the docker/docker Github

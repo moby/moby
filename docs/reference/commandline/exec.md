@@ -1,7 +1,7 @@
 ---
 title: "exec"
 description: "The exec command description and usage"
-keywords: ["command, container, run, execute"]
+keywords: "command, container, run, execute"
 ---
 
 <!-- This file is maintained within the docker/docker Github

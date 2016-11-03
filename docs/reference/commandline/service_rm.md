@@ -1,7 +1,7 @@
 ---
 title: "service rm"
 description: "The service rm command description and usage"
-keywords: ["service, rm"]
+keywords: "service, rm"
 ---
 
 <!-- This file is maintained within the docker/docker Github

@@ -1,7 +1,7 @@
 ---
 title: "restart"
 description: "The restart command description and usage"
-keywords: ["restart, container, Docker"]
+keywords: "restart, container, Docker"
 ---
 
 <!-- This file is maintained within the docker/docker Github

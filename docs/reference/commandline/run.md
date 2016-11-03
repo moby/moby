@@ -1,7 +1,7 @@
 ---
 title: "run"
 description: "The run command description and usage"
-keywords: ["run, command, container"]
+keywords: "run, command, container"
 ---
 
 <!-- This file is maintained within the docker/docker Github
