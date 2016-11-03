@@ -397,6 +397,20 @@ func ValidatePort(value string) (string, error) {
 	return value, err
 }
 
+// convertExtraHostsToSwarmHosts converts an array of extra hosts in cli
+//     <host>:<ip>
+// into a swarmkit host format:
+//     IP_address canonical_hostname [aliases...]
+// This assumes input value (<host>:<ip>) has already been validated
+func convertExtraHostsToSwarmHosts(extraHosts []string) []string {
+	hosts := []string{}
+	for _, extraHost := range extraHosts {
+		parts := strings.SplitN(extraHost, ":", 2)
+		hosts = append(hosts, fmt.Sprintf("%s %s", parts[1], parts[0]))
+	}
+	return hosts
+}
+
 type serviceOptions struct {
 	name            string
 	labels          opts.ListOpts
@@ -414,6 +428,7 @@ type serviceOptions struct {
 	dns             opts.ListOpts
 	dnsSearch       opts.ListOpts
 	dnsOption       opts.ListOpts
+	hosts           opts.ListOpts
 
 	resources resourceOptions
 	stopGrace DurationOpt
@@ -450,6 +465,7 @@ func newServiceOptions() *serviceOptions {
 		dns:       opts.NewListOpts(opts.ValidateIPAddress),
 		dnsOption: opts.NewListOpts(nil),
 		dnsSearch: opts.NewListOpts(opts.ValidateDNSSearch),
+		hosts:     opts.NewListOpts(runconfigopts.ValidateExtraHost),
 		networks:  opts.NewListOpts(nil),
 	}
 }
@@ -498,6 +514,7 @@ func (opts *serviceOptions) ToService() (swarm.ServiceSpec, error) {
 					Search:      opts.dnsSearch.GetAll(),
 					Options:     opts.dnsOption.GetAll(),
 				},
+				Hosts:           convertExtraHostsToSwarmHosts(opts.hosts.GetAll()),
 				StopGracePeriod: opts.stopGrace.Value(),
 				Secrets:         nil,
 			},
@@ -604,6 +621,9 @@ const (
 	flagDNSSearchRemove       = "dns-search-rm"
 	flagDNSSearchAdd          = "dns-search-add"
 	flagEndpointMode          = "endpoint-mode"
+	flagHost                  = "host"
+	flagHostAdd               = "host-add"
+	flagHostRemove            = "host-rm"
 	flagHostname              = "hostname"
 	flagEnv                   = "env"
 	flagEnvFile               = "env-file"

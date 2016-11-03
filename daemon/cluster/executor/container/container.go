@@ -345,6 +345,20 @@ func (c *containerConfig) hostConfig() *enginecontainer.HostConfig {
 		hc.DNSOptions = c.spec().DNSConfig.Options
 	}
 
+	// The format of extra hosts on swarmkit is specified in:
+	// http://man7.org/linux/man-pages/man5/hosts.5.html
+	//    IP_address canonical_hostname [aliases...]
+	// However, the format of ExtraHosts in HostConfig is
+	//    <host>:<ip>
+	// We need to do the conversion here
+	// (Alias is ignored for now)
+	for _, entry := range c.spec().Hosts {
+		parts := strings.Fields(entry)
+		if len(parts) > 1 {
+			hc.ExtraHosts = append(hc.ExtraHosts, fmt.Sprintf("%s:%s", parts[1], parts[0]))
+		}
+	}
+
 	if c.task.LogDriver != nil {
 		hc.LogConfig = enginecontainer.LogConfig{
 			Type:   c.task.LogDriver.Name,
