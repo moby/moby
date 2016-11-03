@@ -56,15 +56,6 @@ echo
 
 # List of bundles to create when no argument is passed
 DEFAULT_BUNDLES=(
-	validate-dco
-	validate-default-seccomp
-	validate-gofmt
-	validate-lint
-	validate-pkg
-	validate-test
-	validate-toml
-	validate-vet
-
 	binary-client
 	binary-daemon
 	dynbinary

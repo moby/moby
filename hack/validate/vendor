@@ -1,6 +1,7 @@
 #!/bin/bash
 
-source "${MAKEDIR}/.validate"
+export SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+source "${SCRIPTDIR}/.validate"
 
 IFS=$'\n'
 files=( $(validate_diff --diff-filter=ACMR --name-only -- 'hack/vendor.sh' 'hack/.vendor-helpers.sh' 'vendor/' || true) ) 
@@ -24,4 +25,6 @@ if [ ${#files[@]} -gt 0 ]; then
 	else
 		echo 'Congratulations! All vendoring changes are done the right way.'
 	fi
+else
+    echo 'No vendor changes in diff.'
 fi

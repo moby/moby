@@ -1,6 +1,7 @@
 #!/bin/bash
 
-source "${MAKEDIR}/.validate"
+export SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+source "${SCRIPTDIR}/.validate"
 
 IFS=$'\n'
 files=( $(validate_diff --diff-filter=ACMR --name-only -- 'MAINTAINERS' || true) )

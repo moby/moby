@@ -75,7 +75,7 @@ DOCKER_RUN_DOCKER := $(DOCKER_FLAGS) "$(DOCKER_IMAGE)"
 default: binary
 
 all: build ## validate all checks, build linux binaries, run all tests\ncross build non-linux binaries and generate archives
-	$(DOCKER_RUN_DOCKER) hack/make.sh
+	$(DOCKER_RUN_DOCKER) bash -c 'hack/validate/default && hack/make.sh'
 
 binary: build ## build the linux binaries
 	$(DOCKER_RUN_DOCKER) hack/make.sh binary
@@ -133,7 +133,7 @@ tgz: build ## build the archives (.zip on windows and .tgz\notherwise) containin
 	$(DOCKER_RUN_DOCKER) hack/make.sh dynbinary binary cross tgz
 
 validate: build ## validate DCO, Seccomp profile generation, gofmt,\n./pkg/ isolation, golint, tests, tomls, go vet and vendor
-	$(DOCKER_RUN_DOCKER) hack/make.sh validate-dco validate-default-seccomp validate-gofmt validate-pkg validate-lint validate-test validate-toml validate-vet validate-vendor
+	$(DOCKER_RUN_DOCKER) hack/validate/all
 
 win: build ## cross build the binary for windows
 	$(DOCKER_RUN_DOCKER) hack/make.sh win
