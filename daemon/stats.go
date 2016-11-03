@@ -60,7 +60,7 @@ func (daemon *Daemon) ContainerStats(ctx context.Context, prefixOrName string, c
 
 			statsJSON, ok := allStats[container.ID]
 			if !ok || statsJSON == nil {
-				return fmt.Errorf("can't get stats data for %q", container.ID[:12])
+				return nil
 			}
 
 			// this is for backward compatibity with API Pre 1.21
@@ -326,7 +326,6 @@ func (daemon *Daemon) GetContainerStatsAllRunning() map[string]*types.StatsJSON 
 func (daemon *Daemon) reduceStatsContainers(filter filters.Args) ([]*types.Container, error) {
 	config := &types.ContainerListOptions{
 		All:     true,
-		Size:    true,
 		Filters: filter,
 	}
 

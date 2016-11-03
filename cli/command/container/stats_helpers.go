@@ -24,6 +24,10 @@ type stats struct {
 	err    error
 }
 
+var (
+	errNotRunning = errors.New("container isn't running")
+)
+
 type containerStatsList []*formatter.ContainerStats
 
 func (sl containerStatsList) Len() int {
@@ -135,7 +139,7 @@ func (s *stats) collectAll(ctx context.Context, cli client.APIClient, all, strea
 				// a running container will never have zero memory limit
 				// so a memory limit of 0 indicates the container isn't running
 				if statsJSON.MemoryStats.Limit == 0 {
-					fs.SetError(errors.New("container isn't running"))
+					fs.SetError(errNotRunning)
 				} else {
 					calculateContainerStats(fs, statsJSON)
 				}
@@ -160,16 +164,15 @@ func (s *stats) collectAll(ctx context.Context, cli client.APIClient, all, strea
 			s.err = errors.New("timeout waiting for stats")
 			s.mu.Unlock()
 		case err := <-u:
+			s.mu.Lock()
+			s.err = err
+			s.mu.Unlock()
 			if err != nil {
 				if err == io.EOF {
 					return err
 				}
-				s.mu.Lock()
-				s.err = err
-				s.mu.Unlock()
 				continue
 			}
-			s.err = nil
 			// if this is the first stat you get, release WaitGroup
 			if !getFirst {
 				getFirst = true
@@ -208,8 +211,10 @@ func collect(ctx context.Context, s *formatter.ContainerStats, cli client.APICli
 	go func() {
 		for {
 			var v *types.StatsJSON
+			var err error
 
-			if err := dec.Decode(&v); err != nil {
+			err = dec.Decode(&v)
+			if err != nil {
 				dec = json.NewDecoder(io.MultiReader(dec.Buffered(), response.Body))
 				u <- err
 				if err == io.EOF {
@@ -220,8 +225,15 @@ func collect(ctx context.Context, s *formatter.ContainerStats, cli client.APICli
 			}
 
 			s.OSType = response.OSType
-			calculateContainerStats(s, v)
-			u <- nil
+
+			// a running container will never have zero memory limit
+			// so a memory limit of 0 indicates the container isn't running
+			if v.MemoryStats.Limit == 0 {
+				err = errNotRunning
+			} else {
+				calculateContainerStats(s, v)
+			}
+			u <- err
 			if !streamStats {
 				return
 			}
@@ -239,11 +251,20 @@ func collect(ctx context.Context, s *formatter.ContainerStats, cli client.APICli
 				waitFirst.Done()
 			}
 		case err := <-u:
+			s.SetError(err)
+
+			// we get containers stats, but container isn't running
+			// so we set the error and release the waitFirst WaitGroup
+			if err == errNotRunning {
+				// if this is the first stat you get, release WaitGroup
+				if !getFirst {
+					getFirst = true
+					waitFirst.Done()
+				}
+			}
 			if err != nil {
-				s.SetError(err)
 				continue
 			}
-			s.SetError(nil)
 			// if this is the first stat you get, release WaitGroup
 			if !getFirst {
 				getFirst = true
