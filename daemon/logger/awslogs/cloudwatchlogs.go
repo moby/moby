@@ -19,6 +19,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/cloudwatchlogs"
 	"github.com/docker/docker/daemon/logger"
+	"github.com/docker/docker/daemon/logger/loggerutils"
 	"github.com/docker/docker/dockerversion"
 )
 
@@ -28,6 +29,7 @@ const (
 	regionEnvKey          = "AWS_REGION"
 	logGroupKey           = "awslogs-group"
 	logStreamKey          = "awslogs-stream"
+	tagKey                = "tag"
 	batchPublishFrequency = 5 * time.Second
 
 	// See: http://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_PutLogEvents.html
@@ -88,7 +90,11 @@ func init() {
 // the EC2 Instance Metadata Service.
 func New(ctx logger.Context) (logger.Logger, error) {
 	logGroupName := ctx.Config[logGroupKey]
-	logStreamName := ctx.ContainerID
+	logStreamName, err := loggerutils.ParseLogTag(ctx, "{{.FullID}}")
+	if err != nil {
+		return nil, err
+	}
+
 	if ctx.Config[logStreamKey] != "" {
 		logStreamName = ctx.Config[logStreamKey]
 	}
@@ -350,6 +356,7 @@ func ValidateLogOpt(cfg map[string]string) error {
 		case logGroupKey:
 		case logStreamKey:
 		case regionKey:
+		case tagKey:
 		default:
 			return fmt.Errorf("unknown log opt '%s' for %s log driver", key, name)
 		}

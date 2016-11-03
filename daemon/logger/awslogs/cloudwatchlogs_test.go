@@ -15,6 +15,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/service/cloudwatchlogs"
 	"github.com/docker/docker/daemon/logger"
+	"github.com/docker/docker/daemon/logger/loggerutils"
 	"github.com/docker/docker/dockerversion"
 )
 
@@ -689,5 +690,35 @@ func TestCollectBatchWithDuplicateTimestamps(t *testing.T) {
 		if !reflect.DeepEqual(*argument.LogEvents[i], *expectedEvents[i]) {
 			t.Errorf("Expected event to be %v but was %v", *expectedEvents[i], *argument.LogEvents[i])
 		}
+	}
+}
+
+func TestCreateTagSuccess(t *testing.T) {
+	mockClient := newMockClient()
+	ctx := logger.Context{
+		ContainerName: "/test-container",
+		ContainerID:   "container-abcdefghijklmnopqrstuvwxyz01234567890",
+		Config:        map[string]string{"tag": "{{.Name}}/{{.FullID}}"},
+	}
+	logStreamName, e := loggerutils.ParseLogTag(ctx, loggerutils.DefaultTemplate)
+	if e != nil {
+		t.Errorf("Error generating tag: %q", e)
+	}
+	stream := &logStream{
+		client:        mockClient,
+		logGroupName:  groupName,
+		logStreamName: logStreamName,
+	}
+	mockClient.createLogStreamResult <- &createLogStreamResult{}
+
+	err := stream.create()
+
+	if err != nil {
+		t.Errorf("Received unexpected err: %v\n", err)
+	}
+	argument := <-mockClient.createLogStreamArgument
+
+	if *argument.LogStreamName != "test-container/container-abcdefghijklmnopqrstuvwxyz01234567890" {
+		t.Errorf("Expected LogStreamName to be %s", "test-container/container-abcdefghijklmnopqrstuvwxyz01234567890")
 	}
 }
