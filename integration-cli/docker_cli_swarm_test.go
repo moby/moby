@@ -1051,3 +1051,24 @@ func (s *DockerSwarmSuite) TestExtraHosts(c *check.C) {
 	c.Assert(err, checker.IsNil)
 	c.Assert(out, checker.Contains, expectedOutput, check.Commentf("Expected '%s', but got %q", expectedOutput, out))
 }
+
+func (s *DockerSwarmSuite) TestSwarmManagerAddress(c *check.C) {
+	d1 := s.AddDaemon(c, true, true)
+	d2 := s.AddDaemon(c, true, false)
+	d3 := s.AddDaemon(c, true, false)
+
+	// Manager Addresses will always show Node 1's address
+	expectedOutput := fmt.Sprintf("Manager Addresses:\n  127.0.0.1:%d\n", d1.port)
+
+	out, err := d1.Cmd("info")
+	c.Assert(err, checker.IsNil)
+	c.Assert(out, checker.Contains, expectedOutput)
+
+	out, err = d2.Cmd("info")
+	c.Assert(err, checker.IsNil)
+	c.Assert(out, checker.Contains, expectedOutput)
+
+	out, err = d3.Cmd("info")
+	c.Assert(err, checker.IsNil)
+	c.Assert(out, checker.Contains, expectedOutput)
+}
