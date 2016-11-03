@@ -77,6 +77,7 @@ type PluginDescription struct {
 type NodeStatus struct {
 	State   NodeState `json:",omitempty"`
 	Message string    `json:",omitempty"`
+	Addr    string    `json:",omitempty"`
 }
 
 // Reachability represents the reachability of a node.

@@ -4464,7 +4464,8 @@ List nodes
           }
         },
         "Status": {
-          "State": "ready"
+          "State": "ready",
+          "Addr": "172.17.0.2"
         },
         "ManagerStatus": {
           "Leader": true,
@@ -4555,7 +4556,8 @@ Return low-level information on the node `id`
         }
       },
       "Status": {
-        "State": "ready"
+        "State": "ready",
+        "Addr": "172.17.0.2"
       },
       "ManagerStatus": {
         "Leader": true,
