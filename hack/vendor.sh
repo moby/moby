@@ -51,6 +51,7 @@ clone git github.com/Azure/go-ansiterm 388960b655244e76e24c75f48631564eaefade62
 clone git github.com/Microsoft/hcsshim v0.5.2
 clone git github.com/Microsoft/go-winio v0.3.5
 clone git github.com/Sirupsen/logrus f76d643702a30fbffecdfe50831e11881c96ceb3 https://github.com/aaronlehmann/logrus
+clone git github.com/davecgh/go-spew 6d212800a42e8ab5c146b8ace3490ee17e5225f9
 clone git github.com/docker/libtrust 9cbd2a1374f46905c68a4eb3694a130610adc62a
 clone git github.com/go-check/check 4ed411733c5785b40214c70bce814c3a3a689609 https://github.com/cpuguy83/check.git
 clone git github.com/gorilla/context v1.1

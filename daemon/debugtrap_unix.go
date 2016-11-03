@@ -7,12 +7,11 @@ import (
 	"os/signal"
 	"syscall"
 
-	stackdump "github.com/docker/docker/pkg/signal"
-
 	"github.com/Sirupsen/logrus"
+	stackdump "github.com/docker/docker/pkg/signal"
 )
 
-func setupDumpStackTrap(root string) {
+func (d *Daemon) setupDumpStackTrap(root string) {
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, syscall.SIGUSR1)
 	go func() {
@@ -20,9 +19,15 @@ func setupDumpStackTrap(root string) {
 			path, err := stackdump.DumpStacks(root)
 			if err != nil {
 				logrus.WithError(err).Error("failed to write goroutines dump")
-				continue
+			} else {
+				logrus.Infof("goroutine stacks written to %s", path)
 			}
-			logrus.Infof("goroutine stacks written to %s", path)
+			path, err = d.dumpDaemon(root)
+			if err != nil {
+				logrus.WithError(err).Error("failed to write daemon datastructure dump")
+			} else {
+				logrus.Infof("daemon datastructure dump written to %s", path)
+			}
 		}
 	}()
 }
