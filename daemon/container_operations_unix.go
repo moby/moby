@@ -175,6 +175,19 @@ func (daemon *Daemon) setupIpcDirs(c *container.Container) error {
 	return nil
 }
 
+func getMountInfo(s string) (*mount.Info, error) {
+	minfos, err := mount.GetMounts()
+	if err != nil {
+		return nil, err
+	}
+	for _, mi := range minfos {
+		if mi.Mountpoint == s {
+			return mi, nil
+		}
+	}
+	return nil, fmt.Errorf("Mount info for %s not found", s)
+}
+
 func (daemon *Daemon) mountVolumes(container *container.Container) error {
 	mounts, err := daemon.setupMounts(container)
 	if err != nil {
@@ -182,6 +195,20 @@ func (daemon *Daemon) mountVolumes(container *container.Container) error {
 	}
 
 	for _, m := range mounts {
+		if strings.HasPrefix(m.Source, "/dev") {
+			mi, err := getMountInfo("/")
+			if err != nil {
+				logrus.Warn(err)
+				continue
+			}
+			if !strings.HasPrefix(mi.Optional, "master:") {
+				logrus.Warnf("Cannot mount %s when / is not slave-mounted. "+
+					"Please start the daemon from systemd with \"MountFlags=slave\". "+
+					"If systemd is not available in your system, please start the daemon from unshared(1).",
+					m.Source)
+				continue
+			}
+		}
 		dest, err := container.GetResourcePath(m.Destination)
 		if err != nil {
 			return err
