@@ -170,6 +170,9 @@ type Stats struct {
 type StatsJSON struct {
 	Stats
 
+	Name string `json:"name,omitempty"`
+	ID   string `json:"id,omitempty"`
+
 	// Networks request version >=1.21
 	Networks map[string]NetworkStats `json:"networks,omitempty"`
 }
