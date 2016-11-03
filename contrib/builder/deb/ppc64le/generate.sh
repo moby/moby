@@ -99,7 +99,7 @@ for version in "${versions[@]}"; do
 	# ppc64le doesn't have an official downloadable binary as of go 1.6.2. so use the
 	# older packaged go(v1.6.1) to bootstrap latest go, then remove the packaged go
 	echo "# Install Go" >> "$version/Dockerfile"
-	echo "# ppc64le doesn't have official go binaries, so use the version of go installed from the image" >> "$version/Dockerfile"
+	echo "# ppc64le doesn't have official go binaries, so use a distro packaged version of go" >> "$version/Dockerfile"
 	echo "# to build go from source." >> "$version/Dockerfile"
 	echo "# NOTE: ppc64le has compatibility issues with older versions of go, so make sure the version >= 1.6" >> "$version/Dockerfile"
 	
