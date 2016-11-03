@@ -17,6 +17,7 @@ import (
 	"github.com/docker/libnetwork/ipamapi"
 	"github.com/docker/libnetwork/netlabel"
 	"github.com/docker/libnetwork/netutils"
+	"github.com/docker/libnetwork/networkdb"
 	"github.com/docker/libnetwork/options"
 	"github.com/docker/libnetwork/types"
 )
@@ -34,7 +35,7 @@ type Network interface {
 	Type() string
 
 	// Create a new endpoint to this network symbolically identified by the
-	// specified unique name. The options parameter carry driver specific options.
+	// specified unique name. The options parameter carries driver specific options.
 	CreateEndpoint(name string, options ...EndpointOption) (Endpoint, error)
 
 	// Delete the network.
@@ -67,6 +68,11 @@ type NetworkInfo interface {
 	Labels() map[string]string
 	Dynamic() bool
 	Created() time.Time
+	// Peers returns a slice of PeerInfo structures which has the information about the peer
+	// nodes participating in the same overlay network. This is currently the per-network
+	// gossip cluster. For non-dynamic overlay networks and bridge networks it returns an
+	// empty slice
+	Peers() []networkdb.PeerInfo
 }
 
 // EndpointWalker is a client provided function which will be used to walk the Endpoints.
@@ -848,8 +854,9 @@ func (n *network) addEndpoint(ep *endpoint) error {
 
 func (n *network) CreateEndpoint(name string, options ...EndpointOption) (Endpoint, error) {
 	var err error
-	if !config.IsValidName(name) {
-		return nil, ErrInvalidName(name)
+
+	if err = config.ValidateName(name); err != nil {
+		return nil, ErrInvalidName(err.Error())
 	}
 
 	if _, err = n.EndpointByName(name); err == nil {
@@ -1457,6 +1464,24 @@ func (n *network) deriveAddressSpace() (string, error) {
 
 func (n *network) Info() NetworkInfo {
 	return n
+}
+
+func (n *network) Peers() []networkdb.PeerInfo {
+	if !n.Dynamic() {
+		return []networkdb.PeerInfo{}
+	}
+
+	var nDB *networkdb.NetworkDB
+	n.ctrlr.Lock()
+	if n.ctrlr.agentInitDone == nil && n.ctrlr.agent != nil {
+		nDB = n.ctrlr.agent.networkDB
+	}
+	n.ctrlr.Unlock()
+
+	if nDB != nil {
+		return n.ctrlr.agent.networkDB.Peers(n.id)
+	}
+	return []networkdb.PeerInfo{}
 }
 
 func (n *network) DriverOptions() map[string]string {

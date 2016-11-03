@@ -71,7 +71,7 @@ clone git github.com/RackSec/srslog 365bf33cd9acc21ae1c355209865f17228ca534e
 clone git github.com/imdario/mergo 0.2.1
 
 #get libnetwork packages
-clone git github.com/docker/libnetwork f4338b6f1085ccfe5972e655cca8a1d15d73439d
+clone git github.com/docker/libnetwork 9ab6e136fa628b5bb4af4a75f76609ef2c21c024
 clone git github.com/docker/go-events 18b43f1bc85d9cdd42c05a6cd2d444c7a200a894
 clone git github.com/armon/go-radix e39d623f12e8e41c7b5529e9a9dd67a1e2261f80
 clone git github.com/armon/go-metrics eb0af217e5e9747e41dd5303755356b62d28e3ec

@@ -328,22 +328,26 @@ func (c *controller) agentDriverNotify(d driverapi.Driver) {
 }
 
 func (c *controller) agentClose() {
-	if c.agent == nil {
+	// Acquire current agent instance and reset its pointer
+	// then run closing functions
+	c.Lock()
+	agent := c.agent
+	c.agent = nil
+	c.Unlock()
+
+	if agent == nil {
 		return
 	}
 
-	for _, cancelFuncs := range c.agent.driverCancelFuncs {
+	for _, cancelFuncs := range agent.driverCancelFuncs {
 		for _, cancel := range cancelFuncs {
 			cancel()
 		}
 	}
-	c.agent.epTblCancel()
 
-	c.agent.networkDB.Close()
+	agent.epTblCancel()
 
-	c.Lock()
-	c.agent = nil
-	c.Unlock()
+	agent.networkDB.Close()
 }
 
 func (n *network) isClusterEligible() bool {

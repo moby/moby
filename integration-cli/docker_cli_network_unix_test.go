@@ -1655,17 +1655,16 @@ func (s *DockerSuite) TestDockerNetworkInternalMode(c *check.C) {
 	c.Assert(err, check.IsNil)
 }
 
-// Test for #21401
+// Test for special characters in network names. only [a-zA-Z0-9][a-zA-Z0-9_.-] are
+// valid characters
 func (s *DockerNetworkSuite) TestDockerNetworkCreateDeleteSpecialCharacters(c *check.C) {
-	dockerCmd(c, "network", "create", "test@#$")
-	assertNwIsAvailable(c, "test@#$")
-	dockerCmd(c, "network", "rm", "test@#$")
-	assertNwNotAvailable(c, "test@#$")
+	_, _, err := dockerCmdWithError("network", "create", "test@#$")
+	c.Assert(err, check.NotNil)
 
-	dockerCmd(c, "network", "create", "kiwl$%^")
-	assertNwIsAvailable(c, "kiwl$%^")
-	dockerCmd(c, "network", "rm", "kiwl$%^")
-	assertNwNotAvailable(c, "kiwl$%^")
+	dockerCmd(c, "network", "create", "test-1_0.net")
+	assertNwIsAvailable(c, "test-1_0.net")
+	dockerCmd(c, "network", "rm", "test-1_0.net")
+	assertNwNotAvailable(c, "test-1_0.net")
 }
 
 func (s *DockerDaemonSuite) TestDaemonRestartRestoreBridgeNetwork(t *check.C) {

@@ -469,12 +469,14 @@ func (ep *endpoint) sbJoin(sb *sandbox, options ...EndpointOption) error {
 		n.getController().watchSvcRecord(ep)
 	}
 
-	address := ""
-	if ip := ep.getFirstInterfaceAddress(); ip != nil {
-		address = ip.String()
-	}
-	if err = sb.updateHostsFile(address); err != nil {
-		return err
+	if doUpdateHostsFile(n, sb) {
+		address := ""
+		if ip := ep.getFirstInterfaceAddress(); ip != nil {
+			address = ip.String()
+		}
+		if err = sb.updateHostsFile(address); err != nil {
+			return err
+		}
 	}
 	if err = sb.updateDNS(n.enableIPv6); err != nil {
 		return err
@@ -554,6 +556,10 @@ func (ep *endpoint) sbJoin(sb *sandbox, options ...EndpointOption) error {
 	}
 
 	return nil
+}
+
+func doUpdateHostsFile(n *network, sb *sandbox) bool {
+	return !n.ingress && n.Name() != libnGWNetwork
 }
 
 func (ep *endpoint) rename(name string) error {
@@ -783,7 +789,7 @@ func (ep *endpoint) Delete(force bool) error {
 	ep.releaseAddress()
 
 	if err := n.getEpCnt().DecEndpointCnt(); err != nil {
-		log.Warnf("failed to decrement endpoint coint for ep %s: %v", ep.ID(), err)
+		log.Warnf("failed to decrement endpoint count for ep %s: %v", ep.ID(), err)
 	}
 
 	return nil
@@ -1124,4 +1130,21 @@ func (c *controller) cleanupLocalEndpoints() {
 			n.getEpCnt().setCnt(uint64(len(epl)))
 		}
 	}
+}
+
+func (ep *endpoint) setAliasIP(sb *sandbox, ip net.IP, add bool) error {
+	sb.Lock()
+	sbox := sb.osSbox
+	sb.Unlock()
+
+	for _, i := range sbox.Info().Interfaces() {
+		if ep.hasInterface(i.SrcName()) {
+			ipNet := &net.IPNet{IP: ip, Mask: []byte{255, 255, 255, 255}}
+			if err := i.SetAliasIP(ipNet, add); err != nil {
+				return err
+			}
+			break
+		}
+	}
+	return nil
 }
