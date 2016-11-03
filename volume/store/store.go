@@ -3,6 +3,7 @@ package store
 import (
 	"bytes"
 	"encoding/json"
+	"net"
 	"os"
 	"path/filepath"
 	"sync"
@@ -251,6 +252,72 @@ func (s *VolumeStore) Create(name, driverName string, opts, labels map[string]st
 	return s.CreateWithRef(name, driverName, "", opts, labels)
 }
 
+// checkConflict checks the local cache for name collisions with the passed in name,
+// for existing volumes with the same name.
+// This is used by `Create` as a best effort to prevent name collisions for volumes.
+// If a matching volume is found that is not a conflict that is returned so the caller
+// does not need to perform an additional lookup.
+// When no matching volume is found, both returns will be nil
+//
+// Note: This does not probe all the drivers for name collisions because v1 plugins
+// are very slow, particularly if the plugin is down, and cause other issues,
+// particularly around locking the store.
+// TODO(cpuguy83): With v2 plugins this shouldn't be a problem. Could also potentially
+// use a connect timeout for this kind of check to ensure we aren't blocking for a
+// long time.
+func (s *VolumeStore) checkConflict(name, driverName string) (volume.Volume, error) {
+	// check the local cache
+	v, _ := s.getNamed(name)
+	if v != nil {
+		if driverName != "" {
+			// we have what looks like a conflict
+			// let's see if there are existing refs to this volume, if so we don't need
+			// to go any further since we can assume the volume is legit.
+			vDriverName := v.DriverName()
+			if len(s.refs[name]) > 0 {
+				return nil, errors.Wrapf(errNameConflict, "driver '%s' already has volume '%s'", vDriverName, name)
+			}
+
+			// looks like there is a conflict, but nothing is referencing it...
+			// let's check if the found volume ref
+			// is stale by checking with the driver if it still exists
+			vd, err := volumedrivers.GetDriver(vDriverName)
+			if err != nil {
+				// play it safe and return the error
+				// TODO(cpuguy83): maybe when when v2 plugins are ubiquitous, we should
+				// just purge this from the cache
+				return nil, errors.Wrapf(errNameConflict, "found reference to volume '%s' in driver '%s', but got an error while checking the driver: %v", name, vDriverName, err)
+			}
+
+			// now check if it still exists in the driver
+			v2, err := vd.Get(name)
+			err = errors.Cause(err)
+			if err != nil {
+				if _, ok := err.(net.Error); ok {
+					// got some error related to the driver connectivity
+					// play it safe and return the error
+					// TODO(cpuguy83): When when v2 plugins are ubiquitous, maybe we should
+					// just purge this from the cache
+					return nil, errors.Wrapf(errNameConflict, "found reference to volume '%s' in driver '%s', but got an error while checking the driver: %v", name, vDriverName, err)
+				}
+
+				// a driver can return whatever it wants, so let's make sure this is nil
+				if v2 == nil {
+					// purge this reference from the cache
+					s.Purge(name)
+					return nil, nil
+				}
+			}
+			if v2 != nil {
+				return nil, errors.Wrapf(errNameConflict, "driver '%s' already has volume '%s' - %s", vDriverName, name, driverName)
+			}
+		}
+		return v, nil
+	}
+
+	return nil, nil
+}
+
 // create asks the given driver to create a volume with the name/opts.
 // If a volume with the name is already known, it will ask the stored driver for the volume.
 // If the passed in driver name does not match the driver name which is stored for the given volume name, an error is returned.
@@ -265,10 +332,11 @@ func (s *VolumeStore) create(name, driverName string, opts, labels map[string]st
 		return nil, &OpErr{Err: errInvalidName, Name: name, Op: "create"}
 	}
 
-	if v, exists := s.getNamed(name); exists {
-		if v.DriverName() != driverName && driverName != "" && driverName != volume.DefaultDriverName {
-			return nil, errNameConflict
-		}
+	v, err := s.checkConflict(name, driverName)
+	if err != nil {
+		return nil, err
+	}
+	if v != nil {
 		return v, nil
 	}
 
@@ -291,7 +359,7 @@ func (s *VolumeStore) create(name, driverName string, opts, labels map[string]st
 	if v, _ := vd.Get(name); v != nil {
 		return v, nil
 	}
-	v, err := vd.Create(name, opts)
+	v, err = vd.Create(name, opts)
 	if err != nil {
 		return nil, err
 	}
