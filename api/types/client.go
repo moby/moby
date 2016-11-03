@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"io"
 	"net"
+	"os"
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
@@ -338,4 +339,13 @@ type PluginInstallOptions struct {
 	PrivilegeFunc         RequestPrivilegeFunc
 	AcceptPermissionsFunc func(PluginPrivileges) (bool, error)
 	Args                  []string
+}
+
+// SecretRequestOptions is a type for requesting secrets
+type SecretRequestOptions struct {
+	Source string
+	Target string
+	UID    string
+	GID    string
+	Mode   os.FileMode
 }

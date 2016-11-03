@@ -432,7 +432,7 @@ type serviceOptions struct {
 	logDriver logDriverOptions
 
 	healthcheck healthCheckOptions
-	secrets     SecretOpt
+	secrets     opts.SecretOpt
 }
 
 func newServiceOptions() *serviceOptions {
