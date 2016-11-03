@@ -7,7 +7,7 @@ FROM ppc64le/ubuntu:xenial
 RUN apt-get update && apt-get install -y apparmor bash-completion btrfs-tools build-essential curl ca-certificates debhelper dh-apparmor dh-systemd git libapparmor-dev libdevmapper-dev libltdl-dev libsqlite3-dev pkg-config golang-go libseccomp-dev libsystemd-dev --no-install-recommends && rm -rf /var/lib/apt/lists/*
 
 # Install Go
-# ppc64le doesn't have official go binaries, so use the version of go installed from the image
+# ppc64le doesn't have official go binaries, so use a distro packaged version of go
 # to build go from source.
 # NOTE: ppc64le has compatibility issues with older versions of go, so make sure the version >= 1.6
 ENV GO_VERSION 1.7.3
