@@ -37,7 +37,7 @@ describes all the details of the format.
 
 ## Examples
 
-### Inspecting a secret  by name or ID
+### Inspecting a secret by name or ID
 
 You can inspect a secret, either by its *name*, or *ID*
 
@@ -45,12 +45,12 @@ For example, given the following secret:
 
 ```bash
 $ docker secret ls
-ID                          NAME                CREATED                                   UPDATED                                   SIZE
-mhv17xfe3gh6xc4rij5orpfds   ssh-dev             2016-10-27 23:25:43.909181089 +0000 UTC   2016-10-27 23:25:43.909181089 +0000 UTC   1679
+ID                          NAME                    CREATED                                   UPDATED                                   SIZE
+mhv17xfe3gh6xc4rij5orpfds   secret.json             2016-10-27 23:25:43.909181089 +0000 UTC   2016-10-27 23:25:43.909181089 +0000 UTC   1679
 ```
 
 ```bash
-$ docker secret inspect mhv17xfe3gh6xc4rij5orpfds
+$ docker secret inspect secret.json
 [
     {
         "ID": "mhv17xfe3gh6xc4rij5orpfds",
@@ -60,7 +60,7 @@ $ docker secret inspect mhv17xfe3gh6xc4rij5orpfds
         "CreatedAt": "2016-10-27T23:25:43.909181089Z",
         "UpdatedAt": "2016-10-27T23:25:43.909181089Z",
         "Spec": {
-            "Name": "ssh-dev",
+            "Name": "secret.json",
             "Data": null
         },
         "Digest": "sha256:8281c6d924520986e3c6af23ed8926710a611c90339db582c2a9ac480ba622b7",

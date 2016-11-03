@@ -19,7 +19,7 @@ func parseSecrets(client client.APIClient, requestedSecrets []*types.SecretReque
 	for _, secret := range requestedSecrets {
 		secretRef := &swarmtypes.SecretReference{
 			SecretName: secret.Source,
-			Target: swarmtypes.SecretReferenceFileTarget{
+			Target: &swarmtypes.SecretReferenceFileTarget{
 				Name: secret.Target,
 				UID:  secret.UID,
 				GID:  secret.GID,

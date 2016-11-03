@@ -33,7 +33,7 @@ targeting a manager node.
 This example removes a secret:
 
 ```bash
-$ docker secret rm sapth4csdo5b6wz2p5uimh5xg
+$ docker secret rm secret.json
 sapth4csdo5b6wz2p5uimh5xg
 ```
 

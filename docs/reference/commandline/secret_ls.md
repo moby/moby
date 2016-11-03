@@ -33,8 +33,8 @@ On a manager node:
 
 ```bash
 $ docker secret ls
-ID                          NAME                CREATED                                   UPDATED                                   SIZE
-mhv17xfe3gh6xc4rij5orpfds   ssh-dev             2016-10-27 23:25:43.909181089 +0000 UTC   2016-10-27 23:25:43.909181089 +0000 UTC   1679
+ID                          NAME                    CREATED                                   UPDATED                                   SIZE
+mhv17xfe3gh6xc4rij5orpfds   secret.json             2016-10-27 23:25:43.909181089 +0000 UTC   2016-10-27 23:25:43.909181089 +0000 UTC   1679
 ```
 ## Related information
 
