@@ -24,7 +24,10 @@ func (el *emptyLayer) TarStream() (io.ReadCloser, error) {
 	return ioutil.NopCloser(buf), nil
 }
 
-func (el *emptyLayer) TarStreamFrom(ChainID) (io.ReadCloser, error) {
+func (el *emptyLayer) TarStreamFrom(p ChainID) (io.ReadCloser, error) {
+	if p == "" {
+		return el.TarStream()
+	}
 	return nil, fmt.Errorf("can't get parent tar stream of an empty layer")
 }
 
