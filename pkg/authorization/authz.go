@@ -78,6 +78,13 @@ func (ctx *Ctx) AuthZRequest(w http.ResponseWriter, r *http.Request) error {
 		RequestHeaders:  headers(r.Header),
 	}
 
+	if r.TLS != nil {
+		for _, c := range r.TLS.PeerCertificates {
+			pc := PeerCertificate(*c)
+			ctx.authReq.RequestPeerCertificates = append(ctx.authReq.RequestPeerCertificates, &pc)
+		}
+	}
+
 	for i, plugin := range ctx.plugins {
 		logrus.Debugf("AuthZ request using plugin %s", plugin.Name())
 
