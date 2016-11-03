@@ -9,7 +9,7 @@
             git remote set-url origin https://code.googlesource.com/gocloud
 1. Make changes and create a change by running `git codereview change <name>`,
 provide a command message, and use `git codereview mail` to create a Gerrit CL.
-1. Keep amending to the change and mail as your recieve feedback.
+1. Keep amending to the change and mail as your receive feedback.
 
 ## Integration Tests
 
