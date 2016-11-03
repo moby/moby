@@ -855,6 +855,14 @@ func (f *fakeSandbox) Endpoints() []libnetwork.Endpoint {
 	return nil
 }
 
+func (f *fakeSandbox) EnableService() error {
+	return nil
+}
+
+func (f *fakeSandbox) DisableService() error {
+	return nil
+}
+
 func TestEndpointDeleteWithActiveContainer(t *testing.T) {
 	if !testutils.IsRunningInContainer() {
 		defer testutils.SetupTestOSContext(t)()
