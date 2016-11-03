@@ -88,6 +88,18 @@ Manifest provides the base accessible fields for working with V0 plugin format
       	- **host**
       	- **none**
 
+- **`history`** *PluginHistory*
+
+   history describing how the plugin was created, layer by layer, struct consisting of the following fields
+
+    - **`created`** *string*
+
+          time when the layer was created (ex. 2016-05-03T20:59:07.698108647Z)
+
+    - **`created_by`** *string*
+
+          how was the layer created
+
 - **`capabilities`** *array*
 
    capabilities of the plugin (*Linux only*), see list [`here`](https://github.com/opencontainers/runc/blob/master/libcontainer/SPEC.md#security)
