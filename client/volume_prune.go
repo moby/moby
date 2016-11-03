@@ -12,6 +12,10 @@ import (
 func (cli *Client) VolumesPrune(ctx context.Context, cfg types.VolumesPruneConfig) (types.VolumesPruneReport, error) {
 	var report types.VolumesPruneReport
 
+	if err := cli.NewVersionError("1.25", "volume prune"); err != nil {
+		return report, err
+	}
+
 	serverResp, err := cli.post(ctx, "/volumes/prune", nil, cfg, nil)
 	if err != nil {
 		return report, err

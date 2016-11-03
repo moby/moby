@@ -1,8 +1,6 @@
 package stack
 
 import (
-	"fmt"
-
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cli/command"
 	"github.com/spf13/cobra"
@@ -15,9 +13,10 @@ func NewStackCommand(dockerCli *command.DockerCli) *cobra.Command {
 		Short: "Manage Docker stacks",
 		Args:  cli.NoArgs,
 		Run: func(cmd *cobra.Command, args []string) {
-			fmt.Fprintf(dockerCli.Err(), "\n"+cmd.UsageString())
+			cmd.SetOutput(dockerCli.Err())
+			cmd.HelpFunc()(cmd, args)
 		},
-		Tags: map[string]string{"experimental": ""},
+		Tags: map[string]string{"experimental": "", "version": "1.25"},
 	}
 	cmd.AddCommand(
 		newConfigCommand(dockerCli),

@@ -480,9 +480,6 @@ func (cli *DaemonCli) initMiddlewares(s *apiserver.Server, cfg *apiserver.Config
 		s.UseMiddleware(c)
 	}
 
-	u := middleware.NewUserAgentMiddleware(v)
-	s.UseMiddleware(u)
-
 	if err := validateAuthzPlugins(cli.Config.AuthorizationPlugins, cli.d.PluginStore); err != nil {
 		return fmt.Errorf("Error validating authorization plugin: %v", err)
 	}

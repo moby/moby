@@ -12,6 +12,10 @@ import (
 func (cli *Client) ContainersPrune(ctx context.Context, cfg types.ContainersPruneConfig) (types.ContainersPruneReport, error) {
 	var report types.ContainersPruneReport
 
+	if err := cli.NewVersionError("1.25", "container prune"); err != nil {
+		return report, err
+	}
+
 	serverResp, err := cli.post(ctx, "/containers/prune", nil, cfg, nil)
 	if err != nil {
 		return report, err

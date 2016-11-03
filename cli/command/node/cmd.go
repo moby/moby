@@ -1,8 +1,6 @@
 package node
 
 import (
-	"fmt"
-
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cli/command"
 	apiclient "github.com/docker/docker/client"
@@ -17,7 +15,8 @@ func NewNodeCommand(dockerCli *command.DockerCli) *cobra.Command {
 		Short: "Manage Swarm nodes",
 		Args:  cli.NoArgs,
 		Run: func(cmd *cobra.Command, args []string) {
-			fmt.Fprintf(dockerCli.Err(), "\n"+cmd.UsageString())
+			cmd.SetOutput(dockerCli.Err())
+			cmd.HelpFunc()(cmd, args)
 		},
 	}
 	cmd.AddCommand(
