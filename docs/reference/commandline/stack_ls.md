@@ -40,3 +40,4 @@ myapp              2
 * [stack deploy](stack_deploy.md)
 * [stack rm](stack_rm.md)
 * [stack ps](stack_ps.md)
+* [stack services](stack_services.md)
