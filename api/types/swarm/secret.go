@@ -28,12 +28,3 @@ type SecretReference struct {
 	SecretName string
 	Target     SecretReferenceFileTarget
 }
-
-// SecretRequestSpec is a type for requesting secrets
-type SecretRequestSpec struct {
-	Source string
-	Target string
-	UID    string
-	GID    string
-	Mode   os.FileMode
-}
