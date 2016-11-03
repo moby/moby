@@ -1402,8 +1402,8 @@ func waitForContainer(contID string, args ...string) error {
 }
 
 // waitRun will wait for the specified container to be running, maximum 5 seconds.
-func waitRun(contID string) error {
-	return waitInspect(contID, "{{.State.Running}}", "true", 5*time.Second)
+func waitRun(contID string, arg ...string) error {
+	return waitInspectWithArgs(contID, "{{.State.Running}}", "true", 5*time.Second, arg...)
 }
 
 // waitExited will wait for the specified container to state exit, subject
