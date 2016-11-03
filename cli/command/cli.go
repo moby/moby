@@ -45,7 +45,7 @@ type DockerCli struct {
 func (cli *DockerCli) HasExperimental() bool {
 	if cli.hasExperimental == nil {
 		if cli.client == nil {
-			cli.Initialize(cliflags.NewClientOptions())
+			return false
 		}
 		enabled := false
 		cli.hasExperimental = &enabled
