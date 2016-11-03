@@ -168,7 +168,6 @@ func (s *Server) createMux() *mux.Router {
 
 			logrus.Debugf("Registering %s, %s", r.Method(), r.Path())
 			m.Path(versionMatcher + r.Path()).Methods(r.Method()).Handler(f)
-			m.Path(r.Path()).Methods(r.Method()).Handler(f)
 		}
 	}
 

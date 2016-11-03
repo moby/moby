@@ -288,7 +288,7 @@ func (s *DockerAuthzSuite) TestAuthZPluginAPIDenyResponse(c *check.C) {
 	conn, err := net.DialTimeout(daemonURL.Scheme, daemonURL.Path, time.Second*10)
 	c.Assert(err, check.IsNil)
 	client := httputil.NewClientConn(conn, nil)
-	req, err := http.NewRequest("GET", "/version", nil)
+	req, err := http.NewRequest("GET", "/v"+defaultAPIVersion+"/version", nil)
 	c.Assert(err, check.IsNil)
 	resp, err := client.Do(req)
 
