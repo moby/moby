@@ -41,8 +41,8 @@
 #
 # 1. Clone the sources from github.com:
 #
-#    >>   git clone https://github.com/docker/docker.git c:\go\src\github.com\docker\docker
-#    >>   Cloning into 'c:\go\src\github.com\docker\docker'...
+#    >>   git clone https://github.com/docker/docker.git C:\go\src\github.com\docker\docker
+#    >>   Cloning into 'C:\go\src\github.com\docker\docker'...
 #    >>   remote: Counting objects: 186216, done.
 #    >>   remote: Compressing objects: 100% (21/21), done.
 #    >>   remote: Total 186216 (delta 5), reused 0 (delta 0), pack-reused 186195
@@ -55,7 +55,7 @@
 #
 # 2. Change directory to the cloned docker sources:
 #
-#    >>   cd c:\go\src\github.com\docker\docker 
+#    >>   cd C:\go\src\github.com\docker\docker 
 #
 #
 # 3. Build a docker image with the components required to build the docker binaries from source:
@@ -72,9 +72,9 @@
 #    folder on the host system where you want the binaries to be located.
 #
 #    >>   $v=$(Get-Content ".\VERSION" -raw).ToString().Replace("`n","").Trim()
-#    >>   docker cp binaries:c:\go\src\github.com\docker\docker\bundles\$v\binary-client\docker-$v.exe c:\HostPath\docker.exe
-#    >>   docker cp binaries:c:\go\src\github.com\docker\docker\bundles\$v\binary-daemon\dockerd.exe c:\HostPath\dockerd.exe
-#    >>   docker cp binaries:c:\go\src\github.com\docker\docker\bundles\$v\binary-daemon\docker-proxy-$v.exe c:\HostPath\docker-proxy.exe
+#    >>   docker cp binaries:C:\go\src\github.com\docker\docker\bundles\$v\binary-client\docker-$v.exe C:\HostPath\docker.exe
+#    >>   docker cp binaries:C:\go\src\github.com\docker\docker\bundles\$v\binary-daemon\dockerd.exe C:\HostPath\dockerd.exe
+#    >>   docker cp binaries:C:\go\src\github.com\docker\docker\bundles\$v\binary-daemon\docker-proxy-$v.exe C:\HostPath\docker-proxy.exe
 #
 #
 # 6. (Optional) Remove the interim container holding the built executable binaries:
@@ -118,30 +118,33 @@
 # The number of build steps below are explicitly minimised to improve performance.
 FROM microsoft/windowsservercore
 
+# Use PowerShell as the default shell
+SHELL ["powershell", "-command"]
+
 # Environment variable notes:
-#  - GO_VERSION must consistent with 'Dockerfile' used by Linux'.
+#  - GO_VERSION must be consistent with 'Dockerfile' used by Linux.
 #  - FROM_DOCKERFILE is used for detection of building within a container.
 ENV GO_VERSION=1.7.3 `
     GIT_LOCATION=https://github.com/git-for-windows/git/releases/download/v2.10.1.windows.1/Git-2.10.1-64-bit.exe `
-    GOPATH=C:/go;C:/go/src/github.com/docker/docker/vendor `
+    GOPATH=C:\go;C:\go\src\github.com\docker\docker\vendor `
+    GOROOT=C:\go `
     FROM_DOCKERFILE=1
 
-WORKDIR c:/
+WORKDIR C:\
 
 RUN `
- setx /M Path "%Path%;c:\gcc\bin;c:\go\bin;" && `
- setx GOROOT "c:\go" && `
- powershell -command `
+  setx /M Path $($Env:PATH+';C:\gcc\bin;C:\go\bin'); `
+  `
   $ErrorActionPreference = 'Stop'; `
   Function Download-File([string] $source, [string] $target) { `
-   $wc = New-Object net.webclient; $wc.Downloadfile($source, $target) `
+    $wc = New-Object net.webclient; $wc.Downloadfile($source, $target) `
   } `
   `
   Write-Host INFO: Downloading git...; `
-  Download-File %GIT_LOCATION% gitsetup.exe; `
+  Download-File $Env:GIT_LOCATION gitsetup.exe; `
   `
   Write-Host INFO: Downloading go...; `
-  Download-File https://golang.org/dl/go%GO_VERSION%.windows-amd64.zip go.zip; `
+  Download-File $('https://golang.org/dl/go'+$Env:GO_VERSION+'.windows-amd64.zip') go.zip; `
   `
   Write-Host INFO: Downloading compiler 1 of 3...; `
   Download-File https://raw.githubusercontent.com/jhowardmsft/docker-tdmgcc/master/gcc.zip gcc.zip; `
@@ -160,18 +163,18 @@ RUN `
   New-ItemProperty $installKey -Name 'Inno Setup CodeFile: Path Option' -Value 'CmdTools' -PropertyType 'String' -Force; `
   New-ItemProperty $installKey -Name 'Inno Setup CodeFile: Bash Terminal Option' -Value 'ConHost' -PropertyType 'String' -Force; `
   New-ItemProperty $installKey -Name 'Inno Setup CodeFile: CRLF Option' -Value 'CRLFCommitAsIs' -PropertyType 'String' -Force; `
-  Start-Process gitsetup.exe -ArgumentList '/VERYSILENT /SUPPRESSMSGBOXES /CLOSEAPPLICATIONS /DIR=c:\git\' -Wait; `
+  Start-Process gitsetup.exe -ArgumentList '/VERYSILENT /SUPPRESSMSGBOXES /CLOSEAPPLICATIONS /DIR=C:\git\' -Wait; `
   `
-  Write-Host INFO: Expanding go..."; `
-  Expand-Archive c:\go.zip -DestinationPath c:\; `
+  Write-Host INFO: Expanding go...; `
+  Expand-Archive C:\go.zip -DestinationPath C:\; `
   `
   Write-Host INFO: Expanding compiler...; `
-  Expand-Archive c:\gcc.zip -DestinationPath c:\gcc -Force; `
-  Expand-Archive c:\runtime.zip -DestinationPath c:\gcc -Force; `
-  Expand-Archive c:\binutils.zip -DestinationPath c:\gcc -Force; `
+  Expand-Archive C:\gcc.zip -DestinationPath C:\gcc -Force; `
+  Expand-Archive C:\runtime.zip -DestinationPath C:\gcc -Force; `
+  Expand-Archive C:\binutils.zip -DestinationPath C:\gcc -Force; `
   `
   Write-Host INFO: Completed
 
 # Prepare for building
-COPY . /go/src/github.com/docker/docker
+COPY . C:\go\src\github.com\docker\docker
 
