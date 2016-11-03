@@ -30,9 +30,11 @@ func chroot(path string) (err error) {
 	if err := mount.MakeRPrivate("/"); err != nil {
 		return err
 	}
-	// ensure path is a mountpoint
-	if err := mount.MakePrivate(path); err != nil {
-		return err
+
+	if mounted, _ := mount.Mounted(path); !mounted {
+		if err := mount.Mount(path, path, "bind", "rbind,rw"); err != nil {
+			return realChroot(path)
+		}
 	}
 
 	// setup oldRoot for pivot_root
