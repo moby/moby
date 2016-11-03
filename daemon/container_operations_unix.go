@@ -196,12 +196,7 @@ func (daemon *Daemon) mountVolumes(container *container.Container) error {
 			return err
 		}
 
-		opts := "rbind,ro"
-		if m.Writable {
-			opts = "rbind,rw"
-		}
-
-		if err := mount.Mount(m.Source, dest, "bind", opts); err != nil {
+		if err := mount.BindTree(m.Source, dest, m.Writable); err != nil {
 			return err
 		}
 
@@ -313,7 +308,7 @@ func getDevicesFromPath(deviceMapping containertypes.DeviceMapping) (devs []spec
 }
 
 func detachMounted(path string) error {
-	return syscall.Unmount(path, syscall.MNT_DETACH)
+	return mount.UnbindTree(path)
 }
 
 func isLinkable(child *container.Container) bool {
