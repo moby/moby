@@ -3,7 +3,6 @@ package daemon
 import (
 	"encoding/json"
 	"fmt"
-	"path"
 	"sort"
 	"time"
 
@@ -150,7 +149,7 @@ func (daemon *Daemon) Images(filterArgs, filter string, all bool, withExtraAttrs
 					if ref.String() != filter {
 						continue
 					}
-				} else if matched, err := path.Match(filter, ref.Name()); !matched || err != nil { // name only match, FIXME: docs say exact
+				} else if ref.Name() != filter { // name only match
 					continue
 				}
 			}
