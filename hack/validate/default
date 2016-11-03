@@ -9,6 +9,7 @@ export SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 . $SCRIPTDIR/gofmt
 . $SCRIPTDIR/lint
 . $SCRIPTDIR/pkg-imports
+. $SCRIPTDIR/swagger
 . $SCRIPTDIR/test-imports
 . $SCRIPTDIR/toml
 . $SCRIPTDIR/vet
