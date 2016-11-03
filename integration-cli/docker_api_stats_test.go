@@ -74,7 +74,7 @@ func (s *DockerSuite) TestApiStatsAllNoStreamGetCpu(c *check.C) {
 	c.Assert(resp.StatusCode, checker.Equals, http.StatusOK)
 	c.Assert(resp.Header.Get("Content-Type"), checker.Equals, "application/json")
 
-	var v map[string]*types.Stats
+	var v map[string]*types.StatsJSON
 	err = json.NewDecoder(body).Decode(&v)
 	c.Assert(err, checker.IsNil)
 	body.Close()
