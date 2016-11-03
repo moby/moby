@@ -1075,7 +1075,7 @@ __docker_service_commands() {
         "inspect:Display detailed information on one or more services"
         "ls:List services"
         "rm:Remove one or more services"
-        "scale:Scale one or multiple services"
+        "scale:Scale one or multiple replicated services"
         "ps:List the tasks of a service"
         "update:Update a service"
     )
