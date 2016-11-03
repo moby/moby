@@ -35,7 +35,7 @@ func newCreateCommand(dockerCli *command.DockerCli) *cobra.Command {
 	flags.Var(&opts.containerLabels, flagContainerLabel, "Container labels")
 	flags.VarP(&opts.env, flagEnv, "e", "Set environment variables")
 	flags.Var(&opts.envFile, flagEnvFile, "Read in a file of environment variables")
-	flags.Var(&opts.mounts, flagMount, "Attach a mount to the service")
+	flags.Var(&opts.mounts, flagMount, "Attach a filesystem mount to the service")
 	flags.StringSliceVar(&opts.constraints, flagConstraint, []string{}, "Placement constraints")
 	flags.StringSliceVar(&opts.networks, flagNetwork, []string{}, "Network attachments")
 	flags.VarP(&opts.endpoint.ports, flagPublish, "p", "Publish a port as a node port")
