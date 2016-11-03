@@ -35,7 +35,7 @@ func runSecretInspect(dockerCli *command.DockerCli, opts inspectOptions) error {
 	ctx := context.Background()
 
 	// attempt to lookup secret by name
-	secrets, err := getSecrets(client, ctx, []string{opts.name})
+	secrets, err := getSecretsByName(client, ctx, []string{opts.name})
 	if err != nil {
 		return err
 	}

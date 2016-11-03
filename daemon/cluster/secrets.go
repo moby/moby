@@ -29,7 +29,7 @@ func (c *Cluster) GetSecrets(options apitypes.SecretListOptions) ([]types.Secret
 		return nil, c.errNoManager()
 	}
 
-	filters, err := newListSecretsFilters(options.Filter)
+	filters, err := newListSecretsFilters(options.Filters)
 	if err != nil {
 		return nil, err
 	}
@@ -97,6 +97,7 @@ func (c *Cluster) RemoveSecret(id string) error {
 }
 
 // UpdateSecret updates a secret in a managed swarm cluster.
+// Note: this is not exposed to the CLI but is available from the API only
 func (c *Cluster) UpdateSecret(id string, version uint64, spec types.SecretSpec) error {
 	c.RLock()
 	defer c.RUnlock()
