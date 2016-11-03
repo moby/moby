@@ -317,6 +317,14 @@ func (sb *sandbox) populateLoadbalancers(ep *endpoint) {
 		for _, ip := range lb.backEnds {
 			sb.addLBBackend(ip, lb.vip, lb.fwMark, lb.service.ingressPorts,
 				eIP, gwIP, addService, n.ingress)
+			// For a new service program the vip as an alias on the task's sandbox interface
+			// connected to this network.
+			if !addService {
+				continue
+			}
+			if err := ep.setAliasIP(sb, lb.vip, true); err != nil {
+				logrus.Errorf("Adding Service VIP %v to ep %v(%v) failed: %v", lb.vip, ep.ID(), ep.Name(), err)
+			}
 			addService = false
 		}
 		lb.service.Unlock()
@@ -340,8 +348,16 @@ func (n *network) addLBBackend(ip, vip net.IP, fwMark uint32, ingressPorts []*Po
 			}
 
 			sb.addLBBackend(ip, vip, fwMark, ingressPorts, ep.Iface().Address(), gwIP, addService, n.ingress)
-		}
 
+			// For a new service program the vip as an alias on the task's sandbox interface
+			// connected to this network.
+			if !addService {
+				return false
+			}
+			if err := ep.setAliasIP(sb, vip, true); err != nil {
+				logrus.Errorf("Adding Service VIP %v to ep %v(%v) failed: %v", vip, ep.ID(), ep.Name(), err)
+			}
+		}
 		return false
 	})
 }
@@ -363,8 +379,16 @@ func (n *network) rmLBBackend(ip, vip net.IP, fwMark uint32, ingressPorts []*Por
 			}
 
 			sb.rmLBBackend(ip, vip, fwMark, ingressPorts, ep.Iface().Address(), gwIP, rmService, n.ingress)
-		}
 
+			// If the service is being remove its vip alias on on the task's sandbox interface
+			// has to be removed as well.
+			if !rmService {
+				return false
+			}
+			if err := ep.setAliasIP(sb, vip, false); err != nil {
+				logrus.Errorf("Removing Service VIP %v from ep %v(%v) failed: %v", vip, ep.ID(), ep.Name(), err)
+			}
+		}
 		return false
 	})
 }
@@ -935,6 +959,14 @@ func redirecter() {
 		rule := strings.Fields(fmt.Sprintf("-t nat -A PREROUTING -d %s -p %s --dport %d -j REDIRECT --to-port %d",
 			eIP.String(), strings.ToLower(PortConfig_Protocol_name[int32(iPort.Protocol)]), iPort.PublishedPort, iPort.TargetPort))
 		rules = append(rules, rule)
+		// Allow only incoming connections to exposed ports
+		iRule := strings.Fields(fmt.Sprintf("-I INPUT -d %s -p %s --dport %d -m conntrack --ctstate NEW,ESTABLISHED -j ACCEPT",
+			eIP.String(), strings.ToLower(PortConfig_Protocol_name[int32(iPort.Protocol)]), iPort.TargetPort))
+		rules = append(rules, iRule)
+		// Allow only outgoing connections from exposed ports
+		oRule := strings.Fields(fmt.Sprintf("-I OUTPUT -s %s -p %s --sport %d -m conntrack --ctstate ESTABLISHED -j ACCEPT",
+			eIP.String(), strings.ToLower(PortConfig_Protocol_name[int32(iPort.Protocol)]), iPort.TargetPort))
+		rules = append(rules, oRule)
 	}
 
 	ns, err := netns.GetFromPath(os.Args[1])
@@ -952,7 +984,31 @@ func redirecter() {
 	for _, rule := range rules {
 		if err := iptables.RawCombinedOutputNative(rule...); err != nil {
 			logrus.Errorf("setting up rule failed, %v: %v", rule, err)
-			os.Exit(5)
+			os.Exit(6)
+		}
+	}
+
+	if len(ingressPorts) == 0 {
+		return
+	}
+
+	// Ensure blocking rules for anything else in/to ingress network
+	for _, rule := range [][]string{
+		{"-d", eIP.String(), "-p", "udp", "-j", "DROP"},
+		{"-d", eIP.String(), "-p", "tcp", "-j", "DROP"},
+	} {
+		if !iptables.ExistsNative(iptables.Filter, "INPUT", rule...) {
+			if err := iptables.RawCombinedOutputNative(append([]string{"-A", "INPUT"}, rule...)...); err != nil {
+				logrus.Errorf("setting up rule failed, %v: %v", rule, err)
+				os.Exit(7)
+			}
+		}
+		rule[0] = "-s"
+		if !iptables.ExistsNative(iptables.Filter, "OUTPUT", rule...) {
+			if err := iptables.RawCombinedOutputNative(append([]string{"-A", "OUTPUT"}, rule...)...); err != nil {
+				logrus.Errorf("setting up rule failed, %v: %v", rule, err)
+				os.Exit(8)
+			}
 		}
 	}
 }
