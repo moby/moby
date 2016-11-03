@@ -163,8 +163,8 @@ func TestParseMountRawSplit(t *testing.T) {
 			{`name:d::rw`, "local", `d:`, ``, `name`, "local", true, false},
 			{`name:d:`, "local", `d:`, ``, `name`, "local", true, false},
 			// TODO Windows post TP5 - Add readonly support {`name:d::ro`, "local", `d:`, ``, `name`, "local", false, false},
-			{`name:c:`, "", ``, ``, ``, DefaultDriverName, true, true},
-			{`driver/name:c:`, "", ``, ``, ``, DefaultDriverName, true, true},
+			{`name:c:`, "", ``, ``, ``, "", true, true},
+			{`driver/name:c:`, "", ``, ``, ``, "", true, true},
 		}
 	} else {
 		cases = []testParseMountRaw{
@@ -172,10 +172,10 @@ func TestParseMountRawSplit(t *testing.T) {
 			{"/tmp:/tmp2:ro", "", "/tmp2", "/tmp", "", "", false, false},
 			{"/tmp:/tmp3:rw", "", "/tmp3", "/tmp", "", "", true, false},
 			{"/tmp:/tmp4:foo", "", "", "", "", "", false, true},
-			{"name:/named1", "", "/named1", "", "name", DefaultDriverName, true, false},
+			{"name:/named1", "", "/named1", "", "name", "", true, false},
 			{"name:/named2", "external", "/named2", "", "name", "external", true, false},
 			{"name:/named3:ro", "local", "/named3", "", "name", "local", false, false},
-			{"local/name:/tmp:rw", "", "/tmp", "", "local/name", DefaultDriverName, true, false},
+			{"local/name:/tmp:rw", "", "/tmp", "", "local/name", "", true, false},
 			{"/tmp:tmp", "", "", "", "", "", true, true},
 		}
 	}
@@ -207,7 +207,7 @@ func TestParseMountRawSplit(t *testing.T) {
 			t.Fatalf("Expected name '%s', was '%s' for spec '%s'", c.expName, m.Name, c.bind)
 		}
 
-		if (m.Driver != c.expDriver) || (m.Driver == DefaultDriverName && c.expDriver == "") {
+		if m.Driver != c.expDriver {
 			t.Fatalf("Expected driver '%s', was '%s', for spec '%s'", c.expDriver, m.Driver, c.bind)
 		}
 
@@ -233,8 +233,8 @@ func TestParseMountSpec(t *testing.T) {
 		{mount.Mount{Type: mount.TypeBind, Source: testDir, Target: testDestinationPath}, MountPoint{Type: mount.TypeBind, Source: testDir, Destination: testDestinationPath, RW: true}},
 		{mount.Mount{Type: mount.TypeBind, Source: testDir + string(os.PathSeparator), Target: testDestinationPath, ReadOnly: true}, MountPoint{Type: mount.TypeBind, Source: testDir, Destination: testDestinationPath}},
 		{mount.Mount{Type: mount.TypeBind, Source: testDir, Target: testDestinationPath + string(os.PathSeparator), ReadOnly: true}, MountPoint{Type: mount.TypeBind, Source: testDir, Destination: testDestinationPath}},
-		{mount.Mount{Type: mount.TypeVolume, Target: testDestinationPath}, MountPoint{Type: mount.TypeVolume, Destination: testDestinationPath, RW: true, Driver: DefaultDriverName, CopyData: DefaultCopyMode}},
-		{mount.Mount{Type: mount.TypeVolume, Target: testDestinationPath + string(os.PathSeparator)}, MountPoint{Type: mount.TypeVolume, Destination: testDestinationPath, RW: true, Driver: DefaultDriverName, CopyData: DefaultCopyMode}},
+		{mount.Mount{Type: mount.TypeVolume, Target: testDestinationPath}, MountPoint{Type: mount.TypeVolume, Destination: testDestinationPath, RW: true, CopyData: DefaultCopyMode}},
+		{mount.Mount{Type: mount.TypeVolume, Target: testDestinationPath + string(os.PathSeparator)}, MountPoint{Type: mount.TypeVolume, Destination: testDestinationPath, RW: true, CopyData: DefaultCopyMode}},
 	}
 
 	for i, c := range cases {
