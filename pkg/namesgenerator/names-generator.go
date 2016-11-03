@@ -66,6 +66,7 @@ var (
 		"sad",
 		"serene",
 		"sharp",
+		"small",
 		"sick",
 		"silly",
 		"sleepy",
@@ -127,6 +128,9 @@ var (
 
 		// Alexander Graham Bell - an eminent Scottish-born scientist, inventor, engineer and innovator who is credited with inventing the first practical telephone - https://en.wikipedia.org/wiki/Alexander_Graham_Bell
 		"bell",
+	
+		// Jeffrey Preston "Jeff" Bezos is an American entrepreneur and investor. https://en.wikipedia.org/wiki/Jeff_Bezos
+		"bezos",
 
 		// Homi J Bhabha - was an Indian nuclear physicist, founding director, and professor of physics at the Tata Institute of Fundamental Research. Colloquially known as "father of Indian nuclear programme"- https://en.wikipedia.org/wiki/Homi_J._Bhabha
 		"bhabha",
@@ -189,6 +193,9 @@ var (
 
 		// Marie Curie discovered radioactivity. https://en.wikipedia.org/wiki/Marie_Curie.
 		"curie",
+	
+		// Rick Dalzell was the Chief Information Officer and Senior Vice President of Amazon.com from 1997 until November 2007. https://en.wikipedia.org/wiki/Rick_Dalzell
+		"dalzell",
 
 		// Charles Darwin established the principles of natural evolution. https://en.wikipedia.org/wiki/Charles_Darwin.
 		"darwin",
@@ -237,6 +244,9 @@ var (
 
 		// Galileo was a founding father of modern astronomy, and faced politics and obscurantism to establish scientific truth.  https://en.wikipedia.org/wiki/Galileo_Galilei
 		"galileo",
+	
+		// William Henry "Bill" Gates III is an American business magnate, philanthropist, investor, computer programmer, and inventor. https://en.wikipedia.org/wiki/Bill_Gates
+		"gates",
 
 		// William Henry "Bill" Gates III is an American business magnate, philanthropist, investor, computer programmer, and inventor. https://en.wikipedia.org/wiki/Bill_Gates
 		"gates",
@@ -294,6 +304,9 @@ var (
 
 		// Mary Lou Jepsen, was the founder and chief technology officer of One Laptop Per Child (OLPC), and the founder of Pixel Qi. https://en.wikipedia.org/wiki/Mary_Lou_Jepsen
 		"jepsen",
+	
+		// Steven Paul Jobs was an American businessman. https://en.wikipedia.org/wiki/Steve_Jobs
+		"jobs",
 
 		// Irène Joliot-Curie - French scientist who was awarded the Nobel Prize for Chemistry in 1935. Daughter of Marie and Pierre Curie. https://en.wikipedia.org/wiki/Ir%C3%A8ne_Joliot-Curie
 		"joliot",
