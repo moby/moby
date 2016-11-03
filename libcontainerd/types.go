@@ -9,15 +9,13 @@ import (
 
 // State constants used in state change reporting.
 const (
-	StateStart        = "start-container"
-	StatePause        = "pause"
-	StateResume       = "resume"
-	StateExit         = "exit"
-	StateRestore      = "restore"
-	StateStartProcess = "start-process"
-	StateExitProcess  = "exit-process"
-	StateOOM          = "oom" // fake state
-	stateLive         = "live"
+	StateStart       = "start-container"
+	StatePause       = "pause"
+	StateResume      = "resume"
+	StateExit        = "exit"
+	StateRestore     = "restore"
+	StateExitProcess = "exit-process"
+	StateOOM         = "oom" // fake state
 )
 
 // CommonStateInfo contains the state info common to all platforms.
