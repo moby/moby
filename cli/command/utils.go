@@ -79,3 +79,12 @@ func PromptForConfirmation(ins *InStream, outs *OutStream, message string) bool 
 
 	return true
 }
+
+// PrependExperimental prepends [experimental] to the string if
+// DOCKER_EXPERIMENTAL != 1
+func PrependExperimental(usage string) string {
+	if os.Getenv("DOCKER_EXPERIMENTAL") == "1" {
+		return usage
+	}
+	return "[experimental] " + usage
+}

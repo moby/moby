@@ -70,17 +70,11 @@ func AddCommands(cmd *cobra.Command, dockerCli *command.DockerCli) {
 		hide(image.NewSaveCommand(dockerCli)),
 		hide(image.NewTagCommand(dockerCli)),
 		hide(system.NewInspectCommand(dockerCli)),
+		experimental(stack.NewStackCommand(dockerCli)),
+		experimental(stack.NewTopLevelDeployCommand(dockerCli)),
+		experimental(checkpoint.NewCheckpointCommand(dockerCli)),
+		experimental(plugin.NewPluginCommand(dockerCli)),
 	)
-
-	if dockerCli.HasExperimental() {
-		cmd.AddCommand(
-			stack.NewStackCommand(dockerCli),
-			stack.NewTopLevelDeployCommand(dockerCli),
-			checkpoint.NewCheckpointCommand(dockerCli),
-			plugin.NewPluginCommand(dockerCli),
-		)
-	}
-
 }
 
 func hide(cmd *cobra.Command) *cobra.Command {
@@ -91,4 +85,18 @@ func hide(cmd *cobra.Command) *cobra.Command {
 	cmdCopy.Hidden = true
 	cmdCopy.Aliases = []string{}
 	return &cmdCopy
+}
+
+func experimental(cmd *cobra.Command) *cobra.Command {
+	if os.Getenv("DOCKER_EXPERIMENTAL") == "1" {
+		return cmd
+	}
+	cmdCopy := *cmd
+	cmdCopy.Short = "[experimental] " + cmd.Short
+	cmdCopy.RemoveCommand(cmd.Commands()...)
+	for _, ccmd := range cmd.Commands() {
+		cmdCopy.AddCommand(experimental(ccmd))
+	}
+	return &cmdCopy
+
 }
