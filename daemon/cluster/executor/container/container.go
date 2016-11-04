@@ -141,7 +141,6 @@ func (c *containerConfig) config() *enginecontainer.Config {
 		Labels:      c.labels(),
 		Tty:         c.spec().TTY,
 		User:        c.spec().User,
-		Hostname:    c.spec().Hostname,
 		Env:         c.spec().Env,
 		Hostname:    c.spec().Hostname,
 		WorkingDir:  c.spec().Dir,
