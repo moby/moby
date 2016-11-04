@@ -427,7 +427,7 @@ Create a container
           You must use this with `memory` and make the swap value larger than `memory`.
     -   **MemoryReservation** - Memory soft limit in bytes.
     -   **KernelMemory** - Kernel memory limit in bytes.
-    -   **NanoCPUs** - CPU quota in units of 10<sup>-9</sup> CPUs.
+    -   **NanoCPUs** - CPU quota in units of 10<sup>-9</sup> CPUs. The default value is 0, which means there is no limit.
     -   **CpuCount** - An integer value containing the number of usable CPUs.
           Windows daemon only. On Windows Server containers,
           the processor resource controls are mutually exclusive, the order of precedence
