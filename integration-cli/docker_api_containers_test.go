@@ -215,7 +215,7 @@ func (s *DockerSuite) TestGetContainerStatsRmRunning(c *check.C) {
 	out, _ := runSleepingContainer(c)
 	id := strings.TrimSpace(out)
 
-	buf := &testutil.ChannelBuffer{make(chan []byte, 1)}
+	buf := &testutil.ChannelBuffer{make(chan []byte, 128)}
 	defer buf.Close()
 
 	_, body, err := request.SockRequestRaw("GET", "/containers/"+id+"/stats?stream=1", nil, "application/json", daemonHost())
