@@ -124,6 +124,63 @@ $ docker network inspect simple-network
 ]
 ```
 
+For swarm mode overlay networks `network inspect` also shows the IP address and node name 
+of the peers. Peers are the nodes in the swarm cluster which have at least one task attached 
+to the network. Node name is of the format `<hostname>-<unique ID>`.
+
+```bash
+$ docker network inspect ingress
+[
+    {
+        "Name": "ingress",
+        "Id": "j0izitrut30h975vk4m1u5kk3",
+        "Created": "2016-11-08T06:49:59.803387552Z",
+        "Scope": "swarm",
+        "Driver": "overlay",
+        "EnableIPv6": false,
+        "IPAM": {
+            "Driver": "default",
+            "Options": null,
+            "Config": [
+                {
+                    "Subnet": "10.255.0.0/16",
+                    "Gateway": "10.255.0.1"
+                }
+            ]
+        },
+        "Internal": false,
+        "Attachable": false,
+        "Containers": {
+            "ingress-sbox": {
+                "Name": "ingress-endpoint",
+                "EndpointID": "40e002d27b7e5d75f60bc72199d8cae3344e1896abec5eddae9743755fe09115",
+                "MacAddress": "02:42:0a:ff:00:03",
+                "IPv4Address": "10.255.0.3/16",
+                "IPv6Address": ""
+            }
+        },
+        "Options": {
+            "com.docker.network.driver.overlay.vxlanid_list": "256"
+        },
+        "Labels": {},
+        "Peers": [
+            {
+                "Name": "net-1-1d22adfe4d5c",
+                "IP": "192.168.33.11"
+            },
+            {
+                "Name": "net-2-d55d838b34af",
+                "IP": "192.168.33.12"
+            },
+            {
+                "Name": "net-3-8473f8140bd9",
+                "IP": "192.168.33.13"
+            }
+        ]
+    }
+]
+```
+
 ## Related information
 
 * [network disconnect ](network_disconnect.md)
