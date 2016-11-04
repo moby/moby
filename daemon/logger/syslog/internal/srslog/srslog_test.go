@@ -40,7 +40,24 @@ func runPktSyslog(c net.PacketConn, done chan<- string) {
 	done <- rcvd
 }
 
-var crashy = false
+type Crashy struct {
+	sync.RWMutex
+	is bool
+}
+
+func (c *Crashy) IsCrashy() bool {
+	c.RLock()
+	defer c.RUnlock()
+	return c.is
+}
+
+func (c *Crashy) Set(is bool) {
+	c.Lock()
+	c.is = is
+	c.Unlock()
+}
+
+var crashy = Crashy{is: false}
 
 func testableNetwork(network string) bool {
 	switch network {
@@ -70,7 +87,7 @@ func runStreamSyslog(l net.Listener, done chan<- string, wg *sync.WaitGroup) {
 			defer wg.Done()
 			c.SetReadDeadline(time.Now().Add(5 * time.Second))
 			b := bufio.NewReader(c)
-			for ct := 1; !crashy || ct&7 != 0; ct++ {
+			for ct := 1; !crashy.IsCrashy() || ct&7 != 0; ct++ {
 				s, err := b.ReadString('\n')
 				if err != nil {
 					break
@@ -453,8 +470,8 @@ func TestConcurrentWrite(t *testing.T) {
 }
 
 func TestConcurrentReconnect(t *testing.T) {
-	crashy = true
-	defer func() { crashy = false }()
+	crashy.Set(true)
+	defer func() { crashy.Set(false) }()
 
 	const N = 10
 	const M = 100
