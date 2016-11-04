@@ -9,13 +9,25 @@ import (
 
 // Indexer is an interface used for defining indexes
 type Indexer interface {
-	// FromObject is used to extract an index value from an
-	// object or to indicate that the index value is missing.
-	FromObject(raw interface{}) (bool, []byte, error)
-
 	// ExactFromArgs is used to build an exact index lookup
 	// based on arguments
 	FromArgs(args ...interface{}) ([]byte, error)
+}
+
+// SingleIndexer is an interface used for defining indexes
+// generating a single entry per object
+type SingleIndexer interface {
+	// FromObject is used to extract an index value from an
+	// object or to indicate that the index value is missing.
+	FromObject(raw interface{}) (bool, []byte, error)
+}
+
+// MultiIndexer is an interface used for defining indexes
+// generating multiple entries per object
+type MultiIndexer interface {
+	// FromObject is used to extract index values from an
+	// object or to indicate that the index value is missing.
+	FromObject(raw interface{}) (bool, [][]byte, error)
 }
 
 // PrefixIndexer can optionally be implemented for any
@@ -75,6 +87,79 @@ func (s *StringFieldIndex) FromArgs(args ...interface{}) ([]byte, error) {
 }
 
 func (s *StringFieldIndex) PrefixFromArgs(args ...interface{}) ([]byte, error) {
+	val, err := s.FromArgs(args...)
+	if err != nil {
+		return nil, err
+	}
+
+	// Strip the null terminator, the rest is a prefix
+	n := len(val)
+	if n > 0 {
+		return val[:n-1], nil
+	}
+	return val, nil
+}
+
+// StringSliceFieldIndex is used to extract a field from an object
+// using reflection and builds an index on that field.
+type StringSliceFieldIndex struct {
+	Field     string
+	Lowercase bool
+}
+
+func (s *StringSliceFieldIndex) FromObject(obj interface{}) (bool, [][]byte, error) {
+	v := reflect.ValueOf(obj)
+	v = reflect.Indirect(v) // Dereference the pointer if any
+
+	fv := v.FieldByName(s.Field)
+	if !fv.IsValid() {
+		return false, nil,
+			fmt.Errorf("field '%s' for %#v is invalid", s.Field, obj)
+	}
+
+	if fv.Kind() != reflect.Slice || fv.Type().Elem().Kind() != reflect.String {
+		return false, nil, fmt.Errorf("field '%s' is not a string slice", s.Field)
+	}
+
+	length := fv.Len()
+	vals := make([][]byte, 0, length)
+	for i := 0; i < fv.Len(); i++ {
+		val := fv.Index(i).String()
+		if val == "" {
+			continue
+		}
+
+		if s.Lowercase {
+			val = strings.ToLower(val)
+		}
+
+		// Add the null character as a terminator
+		val += "\x00"
+		vals = append(vals, []byte(val))
+	}
+	if len(vals) == 0 {
+		return false, nil, nil
+	}
+	return true, vals, nil
+}
+
+func (s *StringSliceFieldIndex) FromArgs(args ...interface{}) ([]byte, error) {
+	if len(args) != 1 {
+		return nil, fmt.Errorf("must provide only a single argument")
+	}
+	arg, ok := args[0].(string)
+	if !ok {
+		return nil, fmt.Errorf("argument must be a string: %#v", args[0])
+	}
+	if s.Lowercase {
+		arg = strings.ToLower(arg)
+	}
+	// Add the null character as a terminator
+	arg += "\x00"
+	return []byte(arg), nil
+}
+
+func (s *StringSliceFieldIndex) PrefixFromArgs(args ...interface{}) ([]byte, error) {
 	val, err := s.FromArgs(args...)
 	if err != nil {
 		return nil, err
@@ -270,7 +355,11 @@ type CompoundIndex struct {
 
 func (c *CompoundIndex) FromObject(raw interface{}) (bool, []byte, error) {
 	var out []byte
-	for i, idx := range c.Indexes {
+	for i, idxRaw := range c.Indexes {
+		idx, ok := idxRaw.(SingleIndexer)
+		if !ok {
+			return false, nil, fmt.Errorf("sub-index %d error: %s", i, "sub-index must be a SingleIndexer")
+		}
 		ok, val, err := idx.FromObject(raw)
 		if err != nil {
 			return false, nil, fmt.Errorf("sub-index %d error: %v", i, err)
@@ -291,6 +380,10 @@ func (c *CompoundIndex) FromArgs(args ...interface{}) ([]byte, error) {
 	if len(args) != len(c.Indexes) {
 		return nil, fmt.Errorf("less arguments than index fields")
 	}
+	return c.PrefixFromArgs(args...)
+}
+
+func (c *CompoundIndex) PrefixFromArgs(args ...interface{}) ([]byte, error) {
 	var out []byte
 	for i, arg := range args {
 		val, err := c.Indexes[i].FromArgs(arg)
@@ -298,33 +391,6 @@ func (c *CompoundIndex) FromArgs(args ...interface{}) ([]byte, error) {
 			return nil, fmt.Errorf("sub-index %d error: %v", i, err)
 		}
 		out = append(out, val...)
-	}
-	return out, nil
-}
-
-func (c *CompoundIndex) PrefixFromArgs(args ...interface{}) ([]byte, error) {
-	if len(args) > len(c.Indexes) {
-		return nil, fmt.Errorf("more arguments than index fields")
-	}
-	var out []byte
-	for i, arg := range args {
-		if i+1 < len(args) {
-			val, err := c.Indexes[i].FromArgs(arg)
-			if err != nil {
-				return nil, fmt.Errorf("sub-index %d error: %v", i, err)
-			}
-			out = append(out, val...)
-		} else {
-			prefixIndexer, ok := c.Indexes[i].(PrefixIndexer)
-			if !ok {
-				return nil, fmt.Errorf("sub-index %d does not support prefix scanning", i)
-			}
-			val, err := prefixIndexer.PrefixFromArgs(arg)
-			if err != nil {
-				return nil, fmt.Errorf("sub-index %d error: %v", i, err)
-			}
-			out = append(out, val...)
-		}
 	}
 	return out, nil
 }

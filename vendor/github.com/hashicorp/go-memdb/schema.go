@@ -46,6 +46,9 @@ func (s *TableSchema) Validate() error {
 	if !s.Indexes["id"].Unique {
 		return fmt.Errorf("id index must be unique")
 	}
+	if _, ok := s.Indexes["id"].Indexer.(SingleIndexer); !ok {
+		return fmt.Errorf("id index must be a SingleIndexer")
+	}
 	for name, index := range s.Indexes {
 		if name != index.Name {
 			return fmt.Errorf("index name mis-match for '%s'", name)
@@ -71,6 +74,12 @@ func (s *IndexSchema) Validate() error {
 	}
 	if s.Indexer == nil {
 		return fmt.Errorf("missing index function for '%s'", s.Name)
+	}
+	switch s.Indexer.(type) {
+	case SingleIndexer:
+	case MultiIndexer:
+	default:
+		return fmt.Errorf("indexer for '%s' must be a SingleIndexer or MultiIndexer", s.Name)
 	}
 	return nil
 }
