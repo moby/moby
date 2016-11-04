@@ -302,6 +302,7 @@ Create a container
              "MemorySwap": 0,
              "MemoryReservation": 0,
              "KernelMemory": 0,
+             "NanoCPUs": 500000,
              "CpuPercent": 80,
              "CpuShares": 512,
              "CpuPeriod": 100000,
@@ -425,6 +426,7 @@ Create a container
           You must use this with `memory` and make the swap value larger than `memory`.
     -   **MemoryReservation** - Memory soft limit in bytes.
     -   **KernelMemory** - Kernel memory limit in bytes.
+    -   **NanoCPUs** - CPU quota in units of 10<sup>-9</sup> CPUs.
     -   **CpuPercent** - An integer value containing the usable percentage of the available CPUs. (Windows daemon only)
     -   **CpuShares** - An integer value containing the container's CPU Shares
           (ie. the relative weight vs other containers).

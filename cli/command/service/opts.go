@@ -2,7 +2,6 @@ package service
 
 import (
 	"fmt"
-	"math/big"
 	"strconv"
 	"strings"
 	"time"
@@ -38,33 +37,6 @@ func (m *memBytes) Type() string {
 
 func (m *memBytes) Value() int64 {
 	return int64(*m)
-}
-
-type nanoCPUs int64
-
-func (c *nanoCPUs) String() string {
-	return big.NewRat(c.Value(), 1e9).FloatString(3)
-}
-
-func (c *nanoCPUs) Set(value string) error {
-	cpu, ok := new(big.Rat).SetString(value)
-	if !ok {
-		return fmt.Errorf("Failed to parse %v as a rational number", value)
-	}
-	nano := cpu.Mul(cpu, big.NewRat(1e9, 1))
-	if !nano.IsInt() {
-		return fmt.Errorf("value is too precise")
-	}
-	*c = nanoCPUs(nano.Num().Int64())
-	return nil
-}
-
-func (c *nanoCPUs) Type() string {
-	return "NanoCPUs"
-}
-
-func (c *nanoCPUs) Value() int64 {
-	return int64(*c)
 }
 
 // PositiveDurationOpt is an option type for time.Duration that uses a pointer.
@@ -156,9 +128,9 @@ type updateOptions struct {
 }
 
 type resourceOptions struct {
-	limitCPU      nanoCPUs
+	limitCPU      opts.NanoCPUs
 	limitMemBytes memBytes
-	resCPU        nanoCPUs
+	resCPU        opts.NanoCPUs
 	resMemBytes   memBytes
 }
 

@@ -103,6 +103,17 @@ func verifyContainerResources(resources *containertypes.Resources, sysInfo *sysi
 		return warnings, fmt.Errorf("Conflicting options: CPU Shares and CPU Percent cannot both be set")
 	}
 
+	if resources.NanoCPUs > 0 && resources.CPUPercent > 0 {
+		return warnings, fmt.Errorf("Conflicting options: Nano CPUs and CPU Percent cannot both be set")
+	}
+
+	if resources.NanoCPUs > 0 && resources.CPUShares > 0 {
+		return warnings, fmt.Errorf("Conflicting options: Nano CPUs and CPU Shares cannot both be set")
+	}
+	if resources.NanoCPUs < 0 || resources.NanoCPUs > int64(sysinfo.NumCPU())*1e9 {
+		return warnings, fmt.Errorf("Range of Nano CPUs is from 1 to %d", int64(sysinfo.NumCPU())*1e9)
+	}
+
 	// TODO Windows: Add more validation of resource settings not supported on Windows
 
 	if resources.BlkioWeight > 0 {
