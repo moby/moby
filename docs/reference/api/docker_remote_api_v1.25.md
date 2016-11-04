@@ -5102,7 +5102,8 @@ image](#create-an-image) section for more details.
               }
             }
           ],
-          "User": "33"
+          "User": "33",
+          "TTY": false
         },
         "LogDriver": {
           "Name": "json-file",
@@ -5179,6 +5180,7 @@ image](#create-an-image) section for more details.
         - **User** – A string value specifying the user inside the container.
         - **Labels** – A map of labels to associate with the service (e.g.,
           `{"key":"value", "key2":"value2"}`).
+        - **TTY** – A boolean indicating whether a pseudo-TTY should be allocated.
         - **Mounts** – Specification for mounts to be added to containers
           created as part of the service.
             - **Target** – Container path.
@@ -5380,7 +5382,8 @@ image](#create-an-image) section for more details.
           "Image": "busybox",
           "Args": [
             "top"
-          ]
+          ],
+          "TTY": true
         },
         "Resources": {
           "Limits": {},
@@ -5428,6 +5431,7 @@ image](#create-an-image) section for more details.
         - **User** – A string value specifying the user inside the container.
         - **Labels** – A map of labels to associate with the service (e.g.,
           `{"key":"value", "key2":"value2"}`).
+        - **TTY** – A boolean indicating whether a pseudo-TTY should be allocated.
         - **Mounts** – Specification for mounts to be added to containers created as part of the new
           service.
             - **Target** – Container path.

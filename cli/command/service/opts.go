@@ -294,6 +294,7 @@ type serviceOptions struct {
 	workdir         string
 	user            string
 	groups          []string
+	tty             bool
 	mounts          opts.MountOpt
 
 	resources resourceOptions
@@ -365,6 +366,7 @@ func (opts *serviceOptions) ToService() (swarm.ServiceSpec, error) {
 				Dir:             opts.workdir,
 				User:            opts.user,
 				Groups:          opts.groups,
+				TTY:             opts.tty,
 				Mounts:          opts.mounts.Value(),
 				StopGracePeriod: opts.stopGrace.Value(),
 			},
@@ -450,6 +452,8 @@ func addServiceFlags(cmd *cobra.Command, opts *serviceOptions) {
 	flags.Var(&opts.healthcheck.timeout, flagHealthTimeout, "Maximum time to allow one check to run")
 	flags.IntVar(&opts.healthcheck.retries, flagHealthRetries, 0, "Consecutive failures needed to report unhealthy")
 	flags.BoolVar(&opts.healthcheck.noHealthcheck, flagNoHealthcheck, false, "Disable any container-specified HEALTHCHECK")
+
+	flags.BoolVarP(&opts.tty, flagTTY, "t", false, "Allocate a pseudo-TTY")
 }
 
 const (
@@ -490,6 +494,7 @@ const (
 	flagRestartMaxAttempts    = "restart-max-attempts"
 	flagRestartWindow         = "restart-window"
 	flagStopGracePeriod       = "stop-grace-period"
+	flagTTY                   = "tty"
 	flagUpdateDelay           = "update-delay"
 	flagUpdateFailureAction   = "update-failure-action"
 	flagUpdateMaxFailureRatio = "update-max-failure-ratio"

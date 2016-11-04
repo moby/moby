@@ -274,6 +274,14 @@ func updateService(flags *pflag.FlagSet, spec *swarm.ServiceSpec) error {
 		return err
 	}
 
+	if flags.Changed(flagTTY) {
+		tty, err := flags.GetBool(flagTTY)
+		if err != nil {
+			return err
+		}
+		cspec.TTY = tty
+	}
+
 	return nil
 }
 

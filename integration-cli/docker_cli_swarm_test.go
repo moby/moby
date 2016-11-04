@@ -718,3 +718,74 @@ func (s *DockerSwarmSuite) TestSwarmServiceEnvFile(c *check.C) {
 	c.Assert(err, checker.IsNil)
 	c.Assert(out, checker.Contains, "[VAR1=C VAR2]")
 }
+
+func (s *DockerSwarmSuite) TestSwarmServiceTTY(c *check.C) {
+	d := s.AddDaemon(c, true, true)
+
+	name := "top"
+
+	ttyCheck := "if [ -t 0 ]; then echo TTY > /status && top; else echo none > /status && top; fi"
+
+	// Without --tty
+	expectedOutput := "none"
+	out, err := d.Cmd("service", "create", "--name", name, "busybox", "sh", "-c", ttyCheck)
+	c.Assert(err, checker.IsNil)
+
+	// Make sure task has been deployed.
+	waitAndAssert(c, defaultReconciliationTimeout, d.checkActiveContainerCount, checker.Equals, 1)
+
+	// We need to get the container id.
+	out, err = d.Cmd("ps", "-a", "-q", "--no-trunc")
+	c.Assert(err, checker.IsNil)
+	id := strings.TrimSpace(out)
+
+	out, err = d.Cmd("exec", id, "cat", "/status")
+	c.Assert(err, checker.IsNil)
+	c.Assert(out, checker.Contains, expectedOutput, check.Commentf("Expected '%s', but got %q", expectedOutput, out))
+
+	// Remove service
+	out, err = d.Cmd("service", "rm", name)
+	c.Assert(err, checker.IsNil)
+	// Make sure container has been destroyed.
+	waitAndAssert(c, defaultReconciliationTimeout, d.checkActiveContainerCount, checker.Equals, 0)
+
+	// With --tty
+	expectedOutput = "TTY"
+	out, err = d.Cmd("service", "create", "--name", name, "--tty", "busybox", "sh", "-c", ttyCheck)
+	c.Assert(err, checker.IsNil)
+
+	// Make sure task has been deployed.
+	waitAndAssert(c, defaultReconciliationTimeout, d.checkActiveContainerCount, checker.Equals, 1)
+
+	// We need to get the container id.
+	out, err = d.Cmd("ps", "-a", "-q", "--no-trunc")
+	c.Assert(err, checker.IsNil)
+	id = strings.TrimSpace(out)
+
+	out, err = d.Cmd("exec", id, "cat", "/status")
+	c.Assert(err, checker.IsNil)
+	c.Assert(out, checker.Contains, expectedOutput, check.Commentf("Expected '%s', but got %q", expectedOutput, out))
+}
+
+func (s *DockerSwarmSuite) TestSwarmServiceTTYUpdate(c *check.C) {
+	d := s.AddDaemon(c, true, true)
+
+	// Create a service
+	name := "top"
+	_, err := d.Cmd("service", "create", "--name", name, "busybox", "top")
+	c.Assert(err, checker.IsNil)
+
+	// Make sure task has been deployed.
+	waitAndAssert(c, defaultReconciliationTimeout, d.checkActiveContainerCount, checker.Equals, 1)
+
+	out, err := d.Cmd("service", "inspect", "--format", "{{ .Spec.TaskTemplate.ContainerSpec.TTY }}", name)
+	c.Assert(err, checker.IsNil)
+	c.Assert(strings.TrimSpace(out), checker.Equals, "false")
+
+	_, err = d.Cmd("service", "update", "--tty", name)
+	c.Assert(err, checker.IsNil)
+
+	out, err = d.Cmd("service", "inspect", "--format", "{{ .Spec.TaskTemplate.ContainerSpec.TTY }}", name)
+	c.Assert(err, checker.IsNil)
+	c.Assert(strings.TrimSpace(out), checker.Equals, "true")
+}

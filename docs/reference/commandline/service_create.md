@@ -52,6 +52,7 @@ Options:
       --restart-max-attempts value       Maximum number of restarts before giving up (default none)
       --restart-window value             Window used to evaluate the restart policy (default none)
       --stop-grace-period value          Time to wait before force killing a container (default none)
+  -t, --tty                              Allocate a pseudo-TTY
       --update-delay duration            Delay between updates
       --update-failure-action string     Action on update failure (pause|continue) (default "pause")
       --update-max-failure-ratio value   Failure rate to tolerate during an update

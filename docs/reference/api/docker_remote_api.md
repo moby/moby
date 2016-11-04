@@ -167,6 +167,7 @@ This section lists each version from latest to oldest.  Each listing includes a 
 * The `HostConfig` field now includes `NanoCPUs` that represents CPU quota in units of 10<sup>-9</sup> CPUs.
 * `GET /info` now returns more structured information about security options.
 * The `HostConfig` field now includes `CpuCount` that represents the number of CPUs available for execution by the container. Windows daemon only.
+* `POST /services/create` and `POST /services/(id or name)/update` now accept the `TTY` parameter, which allocate a pseudo-TTY in container.
 
 ### v1.24 API changes
 
