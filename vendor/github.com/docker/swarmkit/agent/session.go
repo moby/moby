@@ -33,12 +33,13 @@ type session struct {
 	conn *grpc.ClientConn
 	addr string
 
-	agent       *Agent
-	sessionID   string
-	session     api.Dispatcher_SessionClient
-	errs        chan error
-	messages    chan *api.SessionMessage
-	assignments chan *api.AssignmentsMessage
+	agent         *Agent
+	sessionID     string
+	session       api.Dispatcher_SessionClient
+	errs          chan error
+	messages      chan *api.SessionMessage
+	assignments   chan *api.AssignmentsMessage
+	subscriptions chan *api.SubscriptionMessage
 
 	registered chan struct{} // closed registration
 	closed     chan struct{}
@@ -47,14 +48,19 @@ type session struct {
 
 func newSession(ctx context.Context, agent *Agent, delay time.Duration, sessionID string, description *api.NodeDescription) *session {
 	s := &session{
-		agent:       agent,
-		sessionID:   sessionID,
-		errs:        make(chan error, 1),
-		messages:    make(chan *api.SessionMessage),
-		assignments: make(chan *api.AssignmentsMessage),
-		registered:  make(chan struct{}),
-		closed:      make(chan struct{}),
+		agent:         agent,
+		sessionID:     sessionID,
+		errs:          make(chan error, 1),
+		messages:      make(chan *api.SessionMessage),
+		assignments:   make(chan *api.AssignmentsMessage),
+		subscriptions: make(chan *api.SubscriptionMessage),
+		registered:    make(chan struct{}),
+		closed:        make(chan struct{}),
 	}
+
+	// TODO(stevvooe): Need to move connection management up a level or create
+	// independent connection for log broker client.
+
 	peer, err := agent.config.Managers.Select()
 	if err != nil {
 		s.errs <- err
@@ -98,6 +104,7 @@ func (s *session) run(ctx context.Context, delay time.Duration, description *api
 	go runctx(ctx, s.closed, s.errs, s.heartbeat)
 	go runctx(ctx, s.closed, s.errs, s.watch)
 	go runctx(ctx, s.closed, s.errs, s.listen)
+	go runctx(ctx, s.closed, s.errs, s.logSubscriptions)
 
 	close(s.registered)
 }
@@ -210,6 +217,33 @@ func (s *session) handleSessionMessage(ctx context.Context, msg *api.SessionMess
 		return errSessionClosed
 	case <-ctx.Done():
 		return ctx.Err()
+	}
+}
+
+func (s *session) logSubscriptions(ctx context.Context) error {
+	log := log.G(ctx).WithFields(logrus.Fields{"method": "(*session).logSubscriptions"})
+	log.Debugf("")
+
+	client := api.NewLogBrokerClient(s.conn)
+	subscriptions, err := client.ListenSubscriptions(ctx, &api.ListenSubscriptionsRequest{})
+	if err != nil {
+		return err
+	}
+	defer subscriptions.CloseSend()
+
+	for {
+		resp, err := subscriptions.Recv()
+		if err != nil {
+			return err
+		}
+
+		select {
+		case s.subscriptions <- resp:
+		case <-s.closed:
+			return errSessionClosed
+		case <-ctx.Done():
+			return ctx.Err()
+		}
 	}
 }
 

@@ -110,6 +110,100 @@ func (_mr *_MockControllerRecorder) Close() *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "Close")
 }
 
+// Mock of ControllerLogs interface
+type MockControllerLogs struct {
+	ctrl     *gomock.Controller
+	recorder *_MockControllerLogsRecorder
+}
+
+// Recorder for MockControllerLogs (not exported)
+type _MockControllerLogsRecorder struct {
+	mock *MockControllerLogs
+}
+
+func NewMockControllerLogs(ctrl *gomock.Controller) *MockControllerLogs {
+	mock := &MockControllerLogs{ctrl: ctrl}
+	mock.recorder = &_MockControllerLogsRecorder{mock}
+	return mock
+}
+
+func (_m *MockControllerLogs) EXPECT() *_MockControllerLogsRecorder {
+	return _m.recorder
+}
+
+func (_m *MockControllerLogs) Logs(ctx context.Context, publisher LogPublisher, options api.LogSubscriptionOptions) error {
+	ret := _m.ctrl.Call(_m, "Logs", ctx, publisher, options)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+func (_mr *_MockControllerLogsRecorder) Logs(arg0, arg1, arg2 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "Logs", arg0, arg1, arg2)
+}
+
+// Mock of LogPublisher interface
+type MockLogPublisher struct {
+	ctrl     *gomock.Controller
+	recorder *_MockLogPublisherRecorder
+}
+
+// Recorder for MockLogPublisher (not exported)
+type _MockLogPublisherRecorder struct {
+	mock *MockLogPublisher
+}
+
+func NewMockLogPublisher(ctrl *gomock.Controller) *MockLogPublisher {
+	mock := &MockLogPublisher{ctrl: ctrl}
+	mock.recorder = &_MockLogPublisherRecorder{mock}
+	return mock
+}
+
+func (_m *MockLogPublisher) EXPECT() *_MockLogPublisherRecorder {
+	return _m.recorder
+}
+
+func (_m *MockLogPublisher) Publish(ctx context.Context, message api.LogMessage) error {
+	ret := _m.ctrl.Call(_m, "Publish", ctx, message)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+func (_mr *_MockLogPublisherRecorder) Publish(arg0, arg1 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "Publish", arg0, arg1)
+}
+
+// Mock of LogPublisherProvider interface
+type MockLogPublisherProvider struct {
+	ctrl     *gomock.Controller
+	recorder *_MockLogPublisherProviderRecorder
+}
+
+// Recorder for MockLogPublisherProvider (not exported)
+type _MockLogPublisherProviderRecorder struct {
+	mock *MockLogPublisherProvider
+}
+
+func NewMockLogPublisherProvider(ctrl *gomock.Controller) *MockLogPublisherProvider {
+	mock := &MockLogPublisherProvider{ctrl: ctrl}
+	mock.recorder = &_MockLogPublisherProviderRecorder{mock}
+	return mock
+}
+
+func (_m *MockLogPublisherProvider) EXPECT() *_MockLogPublisherProviderRecorder {
+	return _m.recorder
+}
+
+func (_m *MockLogPublisherProvider) Publisher(ctx context.Context, subscriptionID string) (LogPublisher, error) {
+	ret := _m.ctrl.Call(_m, "Publisher", ctx, subscriptionID)
+	ret0, _ := ret[0].(LogPublisher)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+func (_mr *_MockLogPublisherProviderRecorder) Publisher(arg0, arg1 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "Publisher", arg0, arg1)
+}
+
 // Mock of ContainerStatuser interface
 type MockContainerStatuser struct {
 	ctrl     *gomock.Controller

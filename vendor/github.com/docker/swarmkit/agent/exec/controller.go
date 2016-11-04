@@ -45,6 +45,33 @@ type Controller interface {
 	Close() error
 }
 
+// ControllerLogs defines a component that makes logs accessible.
+//
+// Can usually be accessed on a controller instance via type assertion.
+type ControllerLogs interface {
+	// Logs will write publisher until the context is cancelled or an error
+	// occurs.
+	Logs(ctx context.Context, publisher LogPublisher, options api.LogSubscriptionOptions) error
+}
+
+// LogPublisher defines the protocol for receiving a log message.
+type LogPublisher interface {
+	Publish(ctx context.Context, message api.LogMessage) error
+}
+
+// LogPublisherFunc implements publisher with just a function.
+type LogPublisherFunc func(ctx context.Context, message api.LogMessage) error
+
+// Publish calls the wrapped function.
+func (fn LogPublisherFunc) Publish(ctx context.Context, message api.LogMessage) error {
+	return fn(ctx, message)
+}
+
+// LogPublisherProvider defines the protocol for receiving a log publisher
+type LogPublisherProvider interface {
+	Publisher(ctx context.Context, subscriptionID string) (LogPublisher, error)
+}
+
 // ContainerStatuser reports status of a container.
 //
 // This can be implemented by controllers or error types.

@@ -53,6 +53,7 @@ func (r *Orchestrator) handleServiceEvent(ctx context.Context, event events.Even
 		}
 		orchestrator.DeleteServiceTasks(ctx, r.store, v.Service)
 		r.restarts.ClearServiceHistory(v.Service.ID)
+		delete(r.reconcileServices, v.Service.ID)
 	case state.EventCreateService:
 		if !orchestrator.IsReplicatedService(v.Service) {
 			return

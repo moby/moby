@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/docker/swarmkit/agent/exec"
 	"github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/log"
 	"golang.org/x/net/context"
@@ -48,11 +49,8 @@ func New(config *Config) (*Agent, error) {
 		return nil, err
 	}
 
-	worker := newWorker(config.DB, config.Executor)
-
 	a := &Agent{
 		config:   config,
-		worker:   worker,
 		sessionq: make(chan sessionOperation),
 		started:  make(chan struct{}),
 		stopped:  make(chan struct{}),
@@ -60,6 +58,7 @@ func New(config *Config) (*Agent, error) {
 		ready:    make(chan struct{}),
 	}
 
+	a.worker = newWorker(config.DB, config.Executor, a)
 	return a, nil
 }
 
@@ -147,11 +146,12 @@ func (a *Agent) run(ctx context.Context) {
 	defer nodeUpdateTicker.Stop()
 
 	var (
-		backoff    time.Duration
-		session    = newSession(ctx, a, backoff, "", nodeDescription) // start the initial session
-		registered = session.registered
-		ready      = a.ready // first session ready
-		sessionq   chan sessionOperation
+		backoff       time.Duration
+		session       = newSession(ctx, a, backoff, "", nodeDescription) // start the initial session
+		registered    = session.registered
+		ready         = a.ready // first session ready
+		sessionq      chan sessionOperation
+		subscriptions = map[string]context.CancelFunc{}
 	)
 
 	if err := a.worker.Init(ctx); err != nil {
@@ -159,6 +159,7 @@ func (a *Agent) run(ctx context.Context) {
 		a.err = err
 		return // fatal?
 	}
+	defer a.worker.Close()
 
 	// setup a reliable reporter to call back to us.
 	reporter := newStatusReporter(ctx, a)
@@ -186,6 +187,23 @@ func (a *Agent) run(ctx context.Context) {
 			if err := a.handleSessionMessage(ctx, msg); err != nil {
 				log.G(ctx).WithError(err).Error("session message handler failed")
 			}
+		case sub := <-session.subscriptions:
+			if sub.Close {
+				if cancel, ok := subscriptions[sub.ID]; ok {
+					cancel()
+				}
+				delete(subscriptions, sub.ID)
+				continue
+			}
+
+			if _, ok := subscriptions[sub.ID]; ok {
+				// Duplicate subscription
+				continue
+			}
+
+			subCtx, subCancel := context.WithCancel(ctx)
+			subscriptions[sub.ID] = subCancel
+			go a.worker.Subscribe(subCtx, sub)
 		case <-registered:
 			log.G(ctx).Debugln("agent: registered")
 			if ready != nil {
@@ -385,6 +403,40 @@ func (a *Agent) UpdateTaskStatus(ctx context.Context, taskID string, status *api
 	case <-ctx.Done():
 		return ctx.Err()
 	}
+}
+
+// Publisher returns a LogPublisher for the given subscription
+func (a *Agent) Publisher(ctx context.Context, subscriptionID string) (exec.LogPublisher, error) {
+	// TODO(stevvooe): The level of coordination here is WAY too much for logs.
+	// These should only be best effort and really just buffer until a session is
+	// ready. Ideally, they would use a separate connection completely.
+
+	var (
+		err    error
+		client api.LogBroker_PublishLogsClient
+	)
+
+	err = a.withSession(ctx, func(session *session) error {
+		client, err = api.NewLogBrokerClient(session.conn).PublishLogs(ctx)
+		return err
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return exec.LogPublisherFunc(func(ctx context.Context, message api.LogMessage) error {
+		select {
+		case <-ctx.Done():
+			client.CloseSend()
+			return ctx.Err()
+		default:
+		}
+
+		return client.Send(&api.PublishLogsMessage{
+			SubscriptionID: subscriptionID,
+			Messages:       []api.LogMessage{message},
+		})
+	}), nil
 }
 
 // nodeDescriptionWithHostname retrieves node description, and overrides hostname if available

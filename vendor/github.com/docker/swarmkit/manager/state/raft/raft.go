@@ -29,7 +29,7 @@ import (
 	"github.com/docker/swarmkit/manager/raftselector"
 	"github.com/docker/swarmkit/manager/state/raft/membership"
 	"github.com/docker/swarmkit/manager/state/store"
-	"github.com/docker/swarmkit/manager/state/watch"
+	"github.com/docker/swarmkit/watch"
 	"github.com/gogo/protobuf/proto"
 	"github.com/pivotal-golang/clock"
 	"github.com/pkg/errors"

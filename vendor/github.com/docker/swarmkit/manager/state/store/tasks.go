@@ -47,6 +47,16 @@ func init() {
 					Name:    indexDesiredState,
 					Indexer: taskIndexerByDesiredState{},
 				},
+				indexNetwork: {
+					Name:         indexNetwork,
+					AllowMissing: true,
+					Indexer:      taskIndexerByNetwork{},
+				},
+				indexSecret: {
+					Name:         indexSecret,
+					AllowMissing: true,
+					Indexer:      taskIndexerBySecret{},
+				},
 			},
 		},
 		Save: func(tx ReadTx, snapshot *api.StoreSnapshot) error {
@@ -176,7 +186,7 @@ func GetTask(tx ReadTx, id string) *api.Task {
 func FindTasks(tx ReadTx, by By) ([]*api.Task, error) {
 	checkType := func(by By) error {
 		switch by.(type) {
-		case byName, byNamePrefix, byIDPrefix, byDesiredState, byNode, byService, bySlot:
+		case byName, byNamePrefix, byIDPrefix, byDesiredState, byNode, byService, bySlot, byReferencedNetworkID, byReferencedSecretID:
 			return nil
 		default:
 			return ErrInvalidFindBy
@@ -288,16 +298,65 @@ func (ti taskIndexerBySlot) FromObject(obj interface{}) (bool, []byte, error) {
 
 type taskIndexerByDesiredState struct{}
 
-func (ni taskIndexerByDesiredState) FromArgs(args ...interface{}) ([]byte, error) {
+func (ti taskIndexerByDesiredState) FromArgs(args ...interface{}) ([]byte, error) {
 	return fromArgs(args...)
 }
 
-func (ni taskIndexerByDesiredState) FromObject(obj interface{}) (bool, []byte, error) {
-	n, ok := obj.(taskEntry)
+func (ti taskIndexerByDesiredState) FromObject(obj interface{}) (bool, []byte, error) {
+	t, ok := obj.(taskEntry)
 	if !ok {
 		panic("unexpected type passed to FromObject")
 	}
 
 	// Add the null character as a terminator
-	return true, []byte(strconv.FormatInt(int64(n.DesiredState), 10) + "\x00"), nil
+	return true, []byte(strconv.FormatInt(int64(t.DesiredState), 10) + "\x00"), nil
+}
+
+type taskIndexerByNetwork struct{}
+
+func (ti taskIndexerByNetwork) FromArgs(args ...interface{}) ([]byte, error) {
+	return fromArgs(args...)
+}
+
+func (ti taskIndexerByNetwork) FromObject(obj interface{}) (bool, [][]byte, error) {
+	t, ok := obj.(taskEntry)
+	if !ok {
+		panic("unexpected type passed to FromObject")
+	}
+
+	var networkIDs [][]byte
+
+	for _, na := range t.Spec.Networks {
+		// Add the null character as a terminator
+		networkIDs = append(networkIDs, []byte(na.Target+"\x00"))
+	}
+
+	return len(networkIDs) != 0, networkIDs, nil
+}
+
+type taskIndexerBySecret struct{}
+
+func (ti taskIndexerBySecret) FromArgs(args ...interface{}) ([]byte, error) {
+	return fromArgs(args...)
+}
+
+func (ti taskIndexerBySecret) FromObject(obj interface{}) (bool, [][]byte, error) {
+	t, ok := obj.(taskEntry)
+	if !ok {
+		panic("unexpected type passed to FromObject")
+	}
+
+	container := t.Spec.GetContainer()
+	if container == nil {
+		return false, nil, nil
+	}
+
+	var secretIDs [][]byte
+
+	for _, secretRef := range container.Secrets {
+		// Add the null character as a terminator
+		secretIDs = append(secretIDs, []byte(secretRef.SecretID+"\x00"))
+	}
+
+	return len(secretIDs) != 0, secretIDs, nil
 }

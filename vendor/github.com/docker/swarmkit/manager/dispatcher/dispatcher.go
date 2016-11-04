@@ -19,9 +19,9 @@ import (
 	"github.com/docker/swarmkit/log"
 	"github.com/docker/swarmkit/manager/state"
 	"github.com/docker/swarmkit/manager/state/store"
-	"github.com/docker/swarmkit/manager/state/watch"
 	"github.com/docker/swarmkit/protobuf/ptypes"
 	"github.com/docker/swarmkit/remotes"
+	"github.com/docker/swarmkit/watch"
 	"github.com/pkg/errors"
 	"golang.org/x/net/context"
 )
