@@ -1155,23 +1155,184 @@ func (s *DockerSuite) TestRunNoNewPrivSetuid(c *check.C) {
 	}
 }
 
-func (s *DockerSuite) TestRunAmbientCapabilities(c *check.C) {
-	testRequires(c, DaemonIsLinux, ambientCapabilities)
+func (s *DockerSuite) TestUserNoEffectiveCapabilitiesChown(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+	ensureSyscallTest(c)
 
-	// test that a non root user can gain capabilities
-	runCmd := exec.Command(dockerBinary, "run", "--user", "1000", "--cap-add", "chown", "busybox", "chown", "100", "/tmp")
+	// test that a root user has default capability CAP_CHOWN
+	runCmd := exec.Command(dockerBinary, "run", "busybox", "chown", "100", "/tmp")
 	_, _, err := runCommandWithOutput(runCmd)
 	c.Assert(err, check.IsNil)
-	// test that non root user has default capabilities
-	runCmd = exec.Command(dockerBinary, "run", "--user", "1000", "busybox", "chown", "100", "/tmp")
-	_, _, err = runCommandWithOutput(runCmd)
-	c.Assert(err, check.IsNil)
-	// test this fails without cap_chown
-	runCmd = exec.Command(dockerBinary, "run", "--user", "1000", "--cap-drop", "chown", "busybox", "chown", "100", "/tmp")
+	// test that non root user does not have default capability CAP_CHOWN
+	runCmd = exec.Command(dockerBinary, "run", "--user", "1000:1000", "busybox", "chown", "100", "/tmp")
 	out, _, err := runCommandWithOutput(runCmd)
 	c.Assert(err, checker.NotNil, check.Commentf(out))
-	c.Assert(strings.TrimSpace(out), checker.Equals, "chown: /tmp: Operation not permitted")
+	c.Assert(out, checker.Contains, "Operation not permitted")
+	// test that root user can drop default capability CAP_CHOWN
+	runCmd = exec.Command(dockerBinary, "run", "--cap-drop", "chown", "busybox", "chown", "100", "/tmp")
+	out, _, err = runCommandWithOutput(runCmd)
+	c.Assert(err, checker.NotNil, check.Commentf(out))
+	c.Assert(out, checker.Contains, "Operation not permitted")
 }
+
+func (s *DockerSuite) TestUserNoEffectiveCapabilitiesDacOverride(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+	ensureSyscallTest(c)
+
+	// test that a root user has default capability CAP_DAC_OVERRIDE
+	runCmd := exec.Command(dockerBinary, "run", "busybox", "sh", "-c", "echo test > /etc/passwd")
+	_, _, err := runCommandWithOutput(runCmd)
+	c.Assert(err, check.IsNil)
+	// test that non root user does not have default capability CAP_DAC_OVERRIDE
+	runCmd = exec.Command(dockerBinary, "run", "--user", "1000:1000", "busybox", "sh", "-c", "echo test > /etc/passwd")
+	out, _, err := runCommandWithOutput(runCmd)
+	c.Assert(err, checker.NotNil, check.Commentf(out))
+	c.Assert(out, checker.Contains, "Permission denied")
+	// TODO test that root user can drop default capability CAP_DAC_OVERRIDE
+}
+
+func (s *DockerSuite) TestUserNoEffectiveCapabilitiesFowner(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+	ensureSyscallTest(c)
+
+	// test that a root user has default capability CAP_FOWNER
+	runCmd := exec.Command(dockerBinary, "run", "busybox", "chmod", "777", "/etc/passwd")
+	_, _, err := runCommandWithOutput(runCmd)
+	c.Assert(err, check.IsNil)
+	// test that non root user does not have default capability CAP_FOWNER
+	runCmd = exec.Command(dockerBinary, "run", "--user", "1000:1000", "busybox", "chmod", "777", "/etc/passwd")
+	out, _, err := runCommandWithOutput(runCmd)
+	c.Assert(err, checker.NotNil, check.Commentf(out))
+	c.Assert(out, checker.Contains, "Operation not permitted")
+	// TODO test that root user can drop default capability CAP_FOWNER
+}
+
+// TODO CAP_KILL
+
+func (s *DockerSuite) TestUserNoEffectiveCapabilitiesSetuid(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+	ensureSyscallTest(c)
+
+	// test that a root user has default capability CAP_SETUID
+	runCmd := exec.Command(dockerBinary, "run", "syscall-test", "setuid-test")
+	_, _, err := runCommandWithOutput(runCmd)
+	c.Assert(err, check.IsNil)
+	// test that non root user does not have default capability CAP_SETUID
+	runCmd = exec.Command(dockerBinary, "run", "--user", "1000:1000", "syscall-test", "setuid-test")
+	out, _, err := runCommandWithOutput(runCmd)
+	c.Assert(err, checker.NotNil, check.Commentf(out))
+	c.Assert(out, checker.Contains, "Operation not permitted")
+	// test that root user can drop default capability CAP_SETUID
+	runCmd = exec.Command(dockerBinary, "run", "--cap-drop", "setuid", "syscall-test", "setuid-test")
+	out, _, err = runCommandWithOutput(runCmd)
+	c.Assert(err, checker.NotNil, check.Commentf(out))
+	c.Assert(out, checker.Contains, "Operation not permitted")
+}
+
+func (s *DockerSuite) TestUserNoEffectiveCapabilitiesSetgid(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+	ensureSyscallTest(c)
+
+	// test that a root user has default capability CAP_SETGID
+	runCmd := exec.Command(dockerBinary, "run", "syscall-test", "setgid-test")
+	_, _, err := runCommandWithOutput(runCmd)
+	c.Assert(err, check.IsNil)
+	// test that non root user does not have default capability CAP_SETGID
+	runCmd = exec.Command(dockerBinary, "run", "--user", "1000:1000", "syscall-test", "setgid-test")
+	out, _, err := runCommandWithOutput(runCmd)
+	c.Assert(err, checker.NotNil, check.Commentf(out))
+	c.Assert(out, checker.Contains, "Operation not permitted")
+	// test that root user can drop default capability CAP_SETGID
+	runCmd = exec.Command(dockerBinary, "run", "--cap-drop", "setgid", "syscall-test", "setgid-test")
+	out, _, err = runCommandWithOutput(runCmd)
+	c.Assert(err, checker.NotNil, check.Commentf(out))
+	c.Assert(out, checker.Contains, "Operation not permitted")
+}
+
+// TODO CAP_SETPCAP
+
+func (s *DockerSuite) TestUserNoEffectiveCapabilitiesNetBindService(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+	ensureSyscallTest(c)
+
+	// test that a root user has default capability CAP_NET_BIND_SERVICE
+	runCmd := exec.Command(dockerBinary, "run", "syscall-test", "socket-test")
+	_, _, err := runCommandWithOutput(runCmd)
+	c.Assert(err, check.IsNil)
+	// test that non root user does not have default capability CAP_NET_BIND_SERVICE
+	runCmd = exec.Command(dockerBinary, "run", "--user", "1000:1000", "syscall-test", "socket-test")
+	out, _, err := runCommandWithOutput(runCmd)
+	c.Assert(err, checker.NotNil, check.Commentf(out))
+	c.Assert(out, checker.Contains, "Permission denied")
+	// test that root user can drop default capability CAP_NET_BIND_SERVICE
+	runCmd = exec.Command(dockerBinary, "run", "--cap-drop", "net_bind_service", "syscall-test", "socket-test")
+	out, _, err = runCommandWithOutput(runCmd)
+	c.Assert(err, checker.NotNil, check.Commentf(out))
+	c.Assert(out, checker.Contains, "Permission denied")
+}
+
+func (s *DockerSuite) TestUserNoEffectiveCapabilitiesNetRaw(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+	ensureSyscallTest(c)
+
+	// test that a root user has default capability CAP_NET_RAW
+	runCmd := exec.Command(dockerBinary, "run", "syscall-test", "raw-test")
+	_, _, err := runCommandWithOutput(runCmd)
+	c.Assert(err, check.IsNil)
+	// test that non root user does not have default capability CAP_NET_RAW
+	runCmd = exec.Command(dockerBinary, "run", "--user", "1000:1000", "syscall-test", "raw-test")
+	out, _, err := runCommandWithOutput(runCmd)
+	c.Assert(err, checker.NotNil, check.Commentf(out))
+	c.Assert(out, checker.Contains, "Operation not permitted")
+	// test that root user can drop default capability CAP_NET_RAW
+	runCmd = exec.Command(dockerBinary, "run", "--cap-drop", "net_raw", "syscall-test", "raw-test")
+	out, _, err = runCommandWithOutput(runCmd)
+	c.Assert(err, checker.NotNil, check.Commentf(out))
+	c.Assert(out, checker.Contains, "Operation not permitted")
+}
+
+func (s *DockerSuite) TestUserNoEffectiveCapabilitiesChroot(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+	ensureSyscallTest(c)
+
+	// test that a root user has default capability CAP_SYS_CHROOT
+	runCmd := exec.Command(dockerBinary, "run", "busybox", "chroot", "/", "/bin/true")
+	_, _, err := runCommandWithOutput(runCmd)
+	c.Assert(err, check.IsNil)
+	// test that non root user does not have default capability CAP_SYS_CHROOT
+	runCmd = exec.Command(dockerBinary, "run", "--user", "1000:1000", "busybox", "chroot", "/", "/bin/true")
+	out, _, err := runCommandWithOutput(runCmd)
+	c.Assert(err, checker.NotNil, check.Commentf(out))
+	c.Assert(out, checker.Contains, "Operation not permitted")
+	// test that root user can drop default capability CAP_SYS_CHROOT
+	runCmd = exec.Command(dockerBinary, "run", "--cap-drop", "sys_chroot", "busybox", "chroot", "/", "/bin/true")
+	out, _, err = runCommandWithOutput(runCmd)
+	c.Assert(err, checker.NotNil, check.Commentf(out))
+	c.Assert(out, checker.Contains, "Operation not permitted")
+}
+
+func (s *DockerSuite) TestUserNoEffectiveCapabilitiesMknod(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+	ensureSyscallTest(c)
+
+	// test that a root user has default capability CAP_MKNOD
+	runCmd := exec.Command(dockerBinary, "run", "busybox", "mknod", "/tmp/node", "b", "1", "2")
+	_, _, err := runCommandWithOutput(runCmd)
+	c.Assert(err, check.IsNil)
+	// test that non root user does not have default capability CAP_MKNOD
+	runCmd = exec.Command(dockerBinary, "run", "--user", "1000:1000", "busybox", "mknod", "/tmp/node", "b", "1", "2")
+	out, _, err := runCommandWithOutput(runCmd)
+	c.Assert(err, checker.NotNil, check.Commentf(out))
+	c.Assert(out, checker.Contains, "Operation not permitted")
+	// test that root user can drop default capability CAP_MKNOD
+	runCmd = exec.Command(dockerBinary, "run", "--cap-drop", "mknod", "busybox", "mknod", "/tmp/node", "b", "1", "2")
+	out, _, err = runCommandWithOutput(runCmd)
+	c.Assert(err, checker.NotNil, check.Commentf(out))
+	c.Assert(out, checker.Contains, "Operation not permitted")
+}
+
+// TODO CAP_AUDIT_WRITE
+// TODO CAP_SETFCAP
 
 func (s *DockerSuite) TestRunApparmorProcDirectory(c *check.C) {
 	testRequires(c, SameHostDaemon, Apparmor)
