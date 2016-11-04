@@ -52,8 +52,6 @@ type Ctx struct {
 }
 
 // AuthZRequest authorized the request to the docker daemon using authZ plugins
-// Side effect: If the authz plugin is invalid, then update ctx.plugins, so that
-// the caller(middleware) can update its list and stop retrying with invalid plugins.
 func (ctx *Ctx) AuthZRequest(w http.ResponseWriter, r *http.Request) error {
 	var body []byte
 	if sendBody(ctx.requestURI, r.Header) && r.ContentLength > 0 && r.ContentLength < maxBodySize {
@@ -85,14 +83,11 @@ func (ctx *Ctx) AuthZRequest(w http.ResponseWriter, r *http.Request) error {
 		}
 	}
 
-	for i, plugin := range ctx.plugins {
+	for _, plugin := range ctx.plugins {
 		logrus.Debugf("AuthZ request using plugin %s", plugin.Name())
 
 		authRes, err := plugin.AuthZRequest(ctx.authReq)
 		if err != nil {
-			if err == ErrInvalidPlugin {
-				ctx.plugins = append(ctx.plugins[:i], ctx.plugins[i+1:]...)
-			}
 			return fmt.Errorf("plugin %s failed with error: %s", plugin.Name(), err)
 		}
 
@@ -105,8 +100,6 @@ func (ctx *Ctx) AuthZRequest(w http.ResponseWriter, r *http.Request) error {
 }
 
 // AuthZResponse authorized and manipulates the response from docker daemon using authZ plugins
-// Side effect: If the authz plugin is invalid, then update ctx.plugins, so that
-// the caller(middleware) can update its list and stop retrying with invalid plugins.
 func (ctx *Ctx) AuthZResponse(rm ResponseModifier, r *http.Request) error {
 	ctx.authReq.ResponseStatusCode = rm.StatusCode()
 	ctx.authReq.ResponseHeaders = headers(rm.Header())
@@ -115,14 +108,11 @@ func (ctx *Ctx) AuthZResponse(rm ResponseModifier, r *http.Request) error {
 		ctx.authReq.ResponseBody = rm.RawBody()
 	}
 
-	for i, plugin := range ctx.plugins {
+	for _, plugin := range ctx.plugins {
 		logrus.Debugf("AuthZ response using plugin %s", plugin.Name())
 
 		authRes, err := plugin.AuthZResponse(ctx.authReq)
 		if err != nil {
-			if err == ErrInvalidPlugin {
-				ctx.plugins = append(ctx.plugins[:i], ctx.plugins[i+1:]...)
-			}
 			return fmt.Errorf("plugin %s failed with error: %s", plugin.Name(), err)
 		}
 
