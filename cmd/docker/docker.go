@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"os"
-	"strings"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/cli"
@@ -134,8 +133,7 @@ func hideExperimentalFeatures(cmd *cobra.Command) {
 
 	for _, subcmd := range cmd.Commands() {
 		// hide subcommands
-		name := strings.Split(subcmd.Use, " ")[0]
-		if name == "stack" || name == "deploy" || name == "checkpoint" || name == "plugin" {
+		if _, ok := subcmd.Tags["experimental"]; ok {
 			subcmd.Hidden = true
 		}
 	}
