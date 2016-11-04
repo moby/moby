@@ -13,7 +13,7 @@ import (
 
 // SecretOpt is a Value type for parsing secrets
 type SecretOpt struct {
-	values []*types.SecretRequestOptions
+	values []*types.SecretRequestOption
 }
 
 // Set a new secret value
@@ -24,7 +24,7 @@ func (o *SecretOpt) Set(value string) error {
 		return err
 	}
 
-	options := &types.SecretRequestOptions{
+	options := &types.SecretRequestOption{
 		Source: "",
 		Target: "",
 		UID:    "0",
@@ -102,6 +102,6 @@ func (o *SecretOpt) String() string {
 }
 
 // Value returns the secret requests
-func (o *SecretOpt) Value() []*types.SecretRequestOptions {
+func (o *SecretOpt) Value() []*types.SecretRequestOption {
 	return o.values
 }

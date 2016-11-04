@@ -341,8 +341,8 @@ type PluginInstallOptions struct {
 	Args                  []string
 }
 
-// SecretRequestOptions is a type for requesting secrets
-type SecretRequestOptions struct {
+// SecretRequestOption is a type for requesting secrets
+type SecretRequestOption struct {
 	Source string
 	Target string
 	UID    string
