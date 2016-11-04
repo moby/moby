@@ -489,21 +489,6 @@ func NewDaemon(config *Config, registryService registry.Service, containerdRemot
 		return nil, err
 	}
 
-	// get the canonical path to the Docker root directory
-	var realRoot string
-	if _, err := os.Stat(config.Root); err != nil && os.IsNotExist(err) {
-		realRoot = config.Root
-	} else {
-		realRoot, err = fileutils.ReadSymlinkedDirectory(config.Root)
-		if err != nil {
-			return nil, fmt.Errorf("Unable to get the full path to root (%s): %s", config.Root, err)
-		}
-	}
-
-	if err := setupDaemonRoot(config, realRoot, rootUID, rootGID); err != nil {
-		return nil, err
-	}
-
 	if err := setupDaemonProcess(config); err != nil {
 		return nil, err
 	}
@@ -552,7 +537,7 @@ func NewDaemon(config *Config, registryService registry.Service, containerdRemot
 	}
 
 	if runtime.GOOS == "windows" {
-		if err := idtools.MkdirAllAs(filepath.Join(config.Root, "credentialspecs"), 0700, rootUID, rootGID); err != nil && !os.IsExist(err) {
+		if err := system.MkdirAll(filepath.Join(config.Root, "credentialspecs"), 0); err != nil && !os.IsExist(err) {
 			return nil, err
 		}
 	}
@@ -1280,4 +1265,33 @@ func (daemon *Daemon) pluginShutdown() {
 	if manager != nil {
 		manager.Shutdown()
 	}
+}
+
+// CreateDaemonRoot creates the root for the daemon
+func CreateDaemonRoot(config *Config) error {
+	// get the canonical path to the Docker root directory
+	var realRoot string
+	if _, err := os.Stat(config.Root); err != nil && os.IsNotExist(err) {
+		realRoot = config.Root
+	} else {
+		realRoot, err = fileutils.ReadSymlinkedDirectory(config.Root)
+		if err != nil {
+			return fmt.Errorf("Unable to get the full path to root (%s): %s", config.Root, err)
+		}
+	}
+
+	uidMaps, gidMaps, err := setupRemappedRoot(config)
+	if err != nil {
+		return err
+	}
+	rootUID, rootGID, err := idtools.GetRootUIDGID(uidMaps, gidMaps)
+	if err != nil {
+		return err
+	}
+
+	if err := setupDaemonRoot(config, realRoot, rootUID, rootGID); err != nil {
+		return err
+	}
+
+	return nil
 }

@@ -62,9 +62,14 @@ func runDaemon(opts daemonOptions) error {
 
 	daemonCli := NewDaemonCli()
 
-	// On Windows, if there's no explicit pidfile set, set to under the daemon root
-	if runtime.GOOS == "windows" && opts.daemonConfig.Pidfile == "" {
-		opts.daemonConfig.Pidfile = filepath.Join(opts.daemonConfig.Root, "docker.pid")
+	// Windows specific settings as these are not defaulted.
+	if runtime.GOOS == "windows" {
+		if opts.daemonConfig.Pidfile == "" {
+			opts.daemonConfig.Pidfile = filepath.Join(opts.daemonConfig.Root, "docker.pid")
+		}
+		if opts.configFile == "" {
+			opts.configFile = filepath.Join(opts.daemonConfig.Root, `config\daemon.json`)
+		}
 	}
 
 	// On Windows, this may be launching as a service or with an option to

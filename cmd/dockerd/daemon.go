@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 
@@ -67,10 +68,15 @@ func NewDaemonCli() *DaemonCli {
 	return &DaemonCli{}
 }
 
-func migrateKey() (err error) {
+func migrateKey(config *daemon.Config) (err error) {
+	// No migration necessary on Windows
+	if runtime.GOOS == "windows" {
+		return nil
+	}
+
 	// Migrate trust key if exists at ~/.docker/key.json and owned by current user
 	oldPath := filepath.Join(cliconfig.ConfigDir(), cliflags.DefaultTrustKeyFile)
-	newPath := filepath.Join(getDaemonConfDir(), cliflags.DefaultTrustKeyFile)
+	newPath := filepath.Join(getDaemonConfDir(config.Root), cliflags.DefaultTrustKeyFile)
 	if _, statErr := os.Stat(newPath); os.IsNotExist(statErr) && currentUserIsOwner(oldPath) {
 		defer func() {
 			// Ensure old path is removed if no error occurred
@@ -82,7 +88,7 @@ func migrateKey() (err error) {
 			}
 		}()
 
-		if err := system.MkdirAll(getDaemonConfDir(), os.FileMode(0644)); err != nil {
+		if err := system.MkdirAll(getDaemonConfDir(config.Root), os.FileMode(0644)); err != nil {
 			return fmt.Errorf("Unable to create daemon configuration directory: %s", err)
 		}
 
@@ -117,16 +123,17 @@ func (cli *DaemonCli) start(opts daemonOptions) (err error) {
 
 	opts.common.SetDefaultOptions(opts.flags)
 
-	if opts.common.TrustKey == "" {
-		opts.common.TrustKey = filepath.Join(
-			getDaemonConfDir(),
-			cliflags.DefaultTrustKeyFile)
-	}
 	if cli.Config, err = loadDaemonCliConfig(opts); err != nil {
 		return err
 	}
 	cli.configFile = &opts.configFile
 	cli.flags = opts.flags
+
+	if opts.common.TrustKey == "" {
+		opts.common.TrustKey = filepath.Join(
+			getDaemonConfDir(cli.Config.Root),
+			cliflags.DefaultTrustKeyFile)
+	}
 
 	if cli.Config.Debug {
 		utils.EnableDebug()
@@ -149,6 +156,12 @@ func (cli *DaemonCli) start(opts daemonOptions) (err error) {
 		if err := logger.ValidateLogOpts(cli.LogConfig.Type, cli.LogConfig.Config); err != nil {
 			return fmt.Errorf("Failed to set log opts: %v", err)
 		}
+	}
+
+	// Create the daemon root before we create ANY other files (PID, or migrate keys)
+	// to ensure the appropriate ACL is set (particularly relevant on Windows)
+	if err := daemon.CreateDaemonRoot(cli.Config); err != nil {
+		return err
 	}
 
 	if cli.Pidfile != "" {
@@ -230,9 +243,10 @@ func (cli *DaemonCli) start(opts daemonOptions) (err error) {
 		api.Accept(addr, ls...)
 	}
 
-	if err := migrateKey(); err != nil {
+	if err := migrateKey(cli.Config); err != nil {
 		return err
 	}
+
 	// FIXME: why is this down here instead of with the other TrustKey logic above?
 	cli.TrustKeyPath = opts.common.TrustKey
 

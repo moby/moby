@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"path/filepath"
 	"syscall"
 
 	"github.com/Sirupsen/logrus"
@@ -11,7 +12,7 @@ import (
 	"github.com/docker/docker/pkg/system"
 )
 
-var defaultDaemonConfigFile = os.Getenv("programdata") + string(os.PathSeparator) + "docker" + string(os.PathSeparator) + "config" + string(os.PathSeparator) + "daemon.json"
+var defaultDaemonConfigFile = ""
 
 // currentUserIsOwner checks whether the current user is the owner of the given
 // file.
@@ -24,8 +25,8 @@ func setDefaultUmask() error {
 	return nil
 }
 
-func getDaemonConfDir() string {
-	return os.Getenv("PROGRAMDATA") + `\docker\config`
+func getDaemonConfDir(root string) string {
+	return filepath.Join(root, `\config`)
 }
 
 // notifySystem sends a message to the host when the server is ready to be used
