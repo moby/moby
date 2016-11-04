@@ -78,8 +78,10 @@ func (daemon *Daemon) ContainerStart(name string, hostConfig *containertypes.Hos
 	}
 	// Adapt for old containers in case we have updates in this function and
 	// old containers never have chance to call the new function in create stage.
-	if err := daemon.adaptContainerSettings(container.HostConfig, false); err != nil {
-		return err
+	if hostConfig != nil {
+		if err := daemon.adaptContainerSettings(container.HostConfig, false); err != nil {
+			return err
+		}
 	}
 
 	return daemon.containerStart(container, checkpoint, checkpointDir, true)
