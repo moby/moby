@@ -63,7 +63,7 @@ clone git github.com/tchap/go-patricia v2.2.6
 clone git github.com/vdemeester/shakers 24d7f1d6a71aa5d9cbe7390e4afb66b7eef9e1b3
 # forked golang.org/x/net package includes a patch for lazy loading trace templates
 clone git golang.org/x/net 2beffdc2e92c8a3027590f898fe88f69af48a3f8 https://github.com/tonistiigi/net.git
-clone git golang.org/x/sys eb2c74142fd19a79b3f237334c7384d5167b1b46 https://github.com/golang/sys.git
+clone git golang.org/x/sys 8f0908ab3b2457e2e15403d3697c9ef5cb4b57a9 https://github.com/golang/sys.git
 clone git github.com/docker/go-units 8a7beacffa3009a9ac66bad506b18ffdd110cf97
 clone git github.com/docker/go-connections f512407a188ecb16f31a33dbc9c4e4814afc1b03
 
@@ -145,7 +145,7 @@ clone git github.com/docker/docker-credential-helpers f72c04f1d8e71959a6d103f808
 
 # containerd
 clone git github.com/docker/containerd 52ef1ceb4b660c42cf4ea9013180a5663968d4c7
-clone git github.com/tonistiigi/fifo 8c56881ce5e63e19e2dfc495c8af0fb90916467d
+clone git github.com/tonistiigi/fifo b4c3a126bac4051ae3fa83bfcb3c60ab7a9da0dd
 
 # cluster
 clone git github.com/docker/swarmkit 4dfc88ccce14ced6f0a6ea82d46dca004c6de0e2

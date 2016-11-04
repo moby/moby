@@ -3,6 +3,7 @@ package daemon
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"runtime"
 	"time"
 
@@ -19,6 +20,9 @@ import (
 // ContainerStats writes information about the container to the stream
 // given in the config object.
 func (daemon *Daemon) ContainerStats(ctx context.Context, prefixOrName string, config *backend.ContainerStatsConfig) error {
+	if runtime.GOOS == "solaris" {
+		return fmt.Errorf("%+v does not support stats", runtime.GOOS)
+	}
 	// Remote API version (used for backwards compatibility)
 	apiVersion := config.Version
 

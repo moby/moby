@@ -221,6 +221,9 @@ func NewConfig() *Config {
 }
 
 func parseClusterAdvertiseSettings(clusterStore, clusterAdvertise string) (string, error) {
+	if runtime.GOOS == "solaris" && (clusterAdvertise != "" || clusterStore != "") {
+		return "", fmt.Errorf("Cluster Advertise Settings not supported on Solaris\n")
+	}
 	if clusterAdvertise == "" {
 		return "", errDiscoveryDisabled
 	}
