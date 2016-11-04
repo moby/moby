@@ -223,7 +223,7 @@ func (c *containerAdapter) create(ctx context.Context) error {
 		return fmt.Errorf("unable to get container from task spec")
 	}
 	secrets := make([]*containertypes.ContainerSecret, 0, len(container.Secrets))
-	for _, s := range c.container.task.Spec.GetContainer().Secrets {
+	for _, s := range container.Secrets {
 		sec := c.secrets.Get(s.SecretID)
 		if sec == nil {
 			logrus.Warnf("unable to get secret %s from provider", s.SecretID)
