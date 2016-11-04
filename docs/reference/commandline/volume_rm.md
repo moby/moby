@@ -1,7 +1,7 @@
 ---
 title: "volume rm"
 description: "the volume rm command description and usage"
-keywords: ["volume, rm"]
+keywords: "volume, rm"
 ---
 
 <!-- This file is maintained within the docker/docker Github

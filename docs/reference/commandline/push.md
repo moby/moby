@@ -1,7 +1,7 @@
 ---
 title: "push"
 description: "The push command description and usage"
-keywords: ["share, push, image"]
+keywords: "share, push, image"
 ---
 
 <!-- This file is maintained within the docker/docker Github

@@ -1,7 +1,7 @@
 ---
 title: "build"
 description: "The build command description and usage"
-keywords: ["build, docker, image"]
+keywords: "build, docker, image"
 ---
 
 <!-- This file is maintained within the docker/docker Github

@@ -1,7 +1,7 @@
 ---
 title: "wait"
 description: "The wait command description and usage"
-keywords: ["container, stop, wait"]
+keywords: "container, stop, wait"
 ---
 
 <!-- This file is maintained within the docker/docker Github

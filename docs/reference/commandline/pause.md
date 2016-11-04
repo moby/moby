@@ -1,7 +1,7 @@
 ---
 title: "pause"
 description: "The pause command description and usage"
-keywords: ["cgroups, container, suspend, SIGSTOP"]
+keywords: "cgroups, container, suspend, SIGSTOP"
 ---
 
 <!-- This file is maintained within the docker/docker Github

@@ -1,7 +1,7 @@
 ---
 title: "rm"
 description: "The rm command description and usage"
-keywords: ["remove, Docker, container"]
+keywords: "remove, Docker, container"
 ---
 
 <!-- This file is maintained within the docker/docker Github

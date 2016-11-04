@@ -1,7 +1,7 @@
 ---
 title: "container prune"
 description: "Remove all stopped containers"
-keywords: [container, prune, delete, remove]
+keywords: container, prune, delete, remove
 ---
 
 <!-- This file is maintained within the docker/docker Github

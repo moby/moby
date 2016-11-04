@@ -1,7 +1,7 @@
 ---
 title: "history"
 description: "The history command description and usage"
-keywords: ["docker, image, history"]
+keywords: "docker, image, history"
 ---
 
 <!-- This file is maintained within the docker/docker Github

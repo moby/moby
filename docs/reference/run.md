@@ -1,7 +1,7 @@
 ---
 title: "Docker run reference"
 description: "Configure containers at runtime"
-keywords: ["docker, run, configure,  runtime"]
+keywords: "docker, run, configure, runtime"
 ---
 
 <!-- This file is maintained within the docker/docker Github

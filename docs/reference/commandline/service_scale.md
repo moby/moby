@@ -1,7 +1,7 @@
 ---
 title: "service scale"
 description: "The service scale command description and usage"
-keywords: ["service, scale"]
+keywords: "service, scale"
 ---
 
 <!-- This file is maintained within the docker/docker Github

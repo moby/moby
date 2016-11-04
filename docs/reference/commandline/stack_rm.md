@@ -1,7 +1,7 @@
 ---
 title: "stack rm"
 description: "The stack rm command description and usage"
-keywords: ["stack, rm, remove, down"]
+keywords: "stack, rm, remove, down"
 advisory: "experimental"
 ---
 

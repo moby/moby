@@ -1,7 +1,7 @@
 ---
 title: "stats"
 description: "The stats command description and usage"
-keywords: ["container, resource, statistics"]
+keywords: "container, resource, statistics"
 ---
 
 <!-- This file is maintained within the docker/docker Github

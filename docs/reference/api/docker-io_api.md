@@ -2,7 +2,7 @@
 published: false
 title: "Docker Hub API"
 description: "API Documentation for the Docker Hub API"
-keywords: ["API, Docker, index, REST, documentation, Docker Hub,  registry"]
+keywords: "API, Docker, index, REST, documentation, Docker Hub, registry"
 ---
 
 <!-- This file is maintained within the docker/docker Github

@@ -1,7 +1,7 @@
 ---
 title: "network rm"
 description: "the network rm command description and usage"
-keywords: ["network, rm, user-defined"]
+keywords: "network, rm, user-defined"
 ---
 
 <!-- This file is maintained within the docker/docker Github

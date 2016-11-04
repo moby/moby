@@ -1,7 +1,7 @@
 ---
 title: "node ls"
 description: "The node ls command description and usage"
-keywords: ["node, list"]
+keywords: "node, list"
 ---
 
 <!-- This file is maintained within the docker/docker Github

@@ -1,7 +1,7 @@
 ---
 title: "Use the Docker command line"
 description: "Docker's CLI command description and usage"
-keywords: ["Docker, Docker documentation, CLI,  command line"]
+keywords: "Docker, Docker documentation, CLI, command line"
 ---
 
 <!-- This file is maintained within the docker/docker Github

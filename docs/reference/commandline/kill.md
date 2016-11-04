@@ -1,7 +1,7 @@
 ---
 title: "kill"
 description: "The kill command description and usage"
-keywords: ["container, kill, signal"]
+keywords: "container, kill, signal"
 ---
 
 <!-- This file is maintained within the docker/docker Github

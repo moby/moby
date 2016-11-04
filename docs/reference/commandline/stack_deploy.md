@@ -1,7 +1,7 @@
 ---
 title: "stack deploy"
 description: "The stack deploy command description and usage"
-keywords: ["stack, deploy, up"]
+keywords: "stack, deploy, up"
 advisory: "experimental"
 ---
 

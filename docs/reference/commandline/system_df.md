@@ -1,7 +1,7 @@
 ---
 title: "system df"
 description: "The system df command description and usage"
-keywords: [system, data, usage, disk]
+keywords: "system, data, usage, disk"
 ---
 
 <!-- This file is maintained within the docker/docker Github

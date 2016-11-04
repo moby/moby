@@ -1,7 +1,7 @@
 ---
 title: "network disconnect"
 description: "The network disconnect command description and usage"
-keywords: ["network, disconnect, user-defined"]
+keywords: "network, disconnect, user-defined"
 ---
 
 <!-- This file is maintained within the docker/docker Github

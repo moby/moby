@@ -1,7 +1,7 @@
 ---
 title: "events"
 description: "The events command description and usage"
-keywords: ["events, container, report"]
+keywords: "events, container, report"
 ---
 
 <!-- This file is maintained within the docker/docker Github

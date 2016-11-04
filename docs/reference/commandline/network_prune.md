@@ -1,7 +1,7 @@
 ---
 title: "network prune"
 description: "Remove unused networks"
-keywords: [network, prune, delete]
+keywords: "network, prune, delete"
 ---
 
 # network prune

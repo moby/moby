@@ -1,7 +1,7 @@
 ---
 title: "service inspect"
 description: "The service inspect command description and usage"
-keywords: ["service, inspect"]
+keywords: "service, inspect"
 ---
 
 <!-- This file is maintained within the docker/docker Github

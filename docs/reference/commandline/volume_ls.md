@@ -1,7 +1,7 @@
 ---
 title: "volume ls"
 description: "The volume ls command description and usage"
-keywords: ["volume, list"]
+keywords: "volume, list"
 ---
 
 <!-- This file is maintained within the docker/docker Github

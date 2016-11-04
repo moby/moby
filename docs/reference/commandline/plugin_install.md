@@ -1,7 +1,7 @@
 ---
 title: "plugin install"
 description: "the plugin install command description and usage"
-keywords: ["plugin, install"]
+keywords: "plugin, install"
 advisory: "experimental"
 ---
 

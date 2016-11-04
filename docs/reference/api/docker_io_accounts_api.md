@@ -1,7 +1,7 @@
 ---
 title: "docker.io accounts API"
 description: "API Documentation for docker.io accounts."
-keywords: ["API, Docker, accounts, REST,  documentation"]
+keywords: "API, Docker, accounts, REST, documentation"
 ---
 
 <!-- This file is maintained within the docker/docker Github

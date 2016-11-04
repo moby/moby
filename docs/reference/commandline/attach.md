@@ -1,7 +1,7 @@
 ---
 title: "attach"
 description: "The attach command description and usage"
-keywords: ["attach, running, container"]
+keywords: "attach, running, container"
 ---
 
 <!-- This file is maintained within the docker/docker Github

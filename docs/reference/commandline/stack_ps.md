@@ -1,7 +1,7 @@
 ---
 title: "stack ps"
 description: "The stack ps command description and usage"
-keywords: ["stack, ps"]
+keywords: "stack, ps"
 advisory: "experimental"
 ---
 

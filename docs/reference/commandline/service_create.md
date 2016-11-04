@@ -1,7 +1,7 @@
 ---
 title: "service create"
 description: "The service create command description and usage"
-keywords: ["service, create"]
+keywords: "service, create"
 ---
 
 <!-- This file is maintained within the docker/docker Github

@@ -1,7 +1,7 @@
 ---
 title: "search"
 description: "The search command description and usage"
-keywords: ["search, hub, images"]
+keywords: "search, hub, images"
 ---
 
 <!-- This file is maintained within the docker/docker Github

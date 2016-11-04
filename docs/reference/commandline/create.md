@@ -1,7 +1,7 @@
 ---
 title: "create"
 description: "The create command description and usage"
-keywords: ["docker, create, container"]
+keywords: "docker, create, container"
 ---
 
 <!-- This file is maintained within the docker/docker Github

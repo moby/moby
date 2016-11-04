@@ -1,7 +1,7 @@
 ---
 title: "API Reference"
 description: "Reference"
-keywords: ["Engine"]
+keywords: "Engine"
 identifier: "engine_remoteapi"
 ---
 

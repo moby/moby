@@ -1,7 +1,7 @@
 ---
 title: "plugin disable"
 description: "the plugin disable command description and usage"
-keywords: ["plugin, disable"]
+keywords: "plugin, disable"
 advisory: "experimental"
 ---
 

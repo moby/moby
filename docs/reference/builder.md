@@ -1,7 +1,7 @@
 ---
 title: "Dockerfile reference"
 description: "Dockerfiles use a simple DSL which allows you to automate the steps you would normally manually take to create an image."
-keywords: ["builder, docker, Dockerfile, automation,  image creation"]
+keywords: "builder, docker, Dockerfile, automation, image creation"
 ---
 
 <!-- This file is maintained within the docker/docker Github

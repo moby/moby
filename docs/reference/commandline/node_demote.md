@@ -1,7 +1,7 @@
 ---
 title: "node demote"
 description: "The node demote command description and usage"
-keywords: ["node, demote"]
+keywords: "node, demote"
 ---
 
 <!-- This file is maintained within the docker/docker Github

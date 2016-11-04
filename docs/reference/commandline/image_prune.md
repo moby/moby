@@ -1,7 +1,7 @@
 ---
 title: "image prune"
 description: "Remove all stopped images"
-keywords: [image, prune, delete, remove]
+keywords: "image, prune, delete, remove"
 ---
 
 <!-- This file is maintained within the docker/docker Github

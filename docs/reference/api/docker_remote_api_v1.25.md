@@ -1,7 +1,7 @@
 ---
 title: "Remote API v1.25"
 description: "API Documentation for Docker"
-keywords: ["API, Docker, rcli, REST,  documentation"]
+keywords: "API, Docker, rcli, REST, documentation"
 ---
 
 <!-- This file is maintained within the docker/docker Github

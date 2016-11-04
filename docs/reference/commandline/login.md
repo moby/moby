@@ -1,7 +1,7 @@
 ---
 title: "login"
 description: "The login command description and usage"
-keywords: ["registry, login, image"]
+keywords: "registry, login, image"
 ---
 
 <!-- This file is maintained within the docker/docker Github

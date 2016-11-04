@@ -1,7 +1,7 @@
 ---
 title: "info"
 description: "The info command description and usage"
-keywords: ["display, docker, information"]
+keywords: "display, docker, information"
 ---
 
 <!-- This file is maintained within the docker/docker Github

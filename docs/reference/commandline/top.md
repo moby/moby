@@ -1,7 +1,7 @@
 ---
 title: "top"
 description: "The top command description and usage"
-keywords: ["container, running, processes"]
+keywords: "container, running, processes"
 ---
 
 <!-- This file is maintained within the docker/docker Github

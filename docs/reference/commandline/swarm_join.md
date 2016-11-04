@@ -1,7 +1,7 @@
 ---
 title: "swarm join"
 description: "The swarm join command description and usage"
-keywords: ["swarm, join"]
+keywords: "swarm, join"
 ---
 
 <!-- This file is maintained within the docker/docker Github

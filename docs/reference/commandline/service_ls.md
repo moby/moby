@@ -1,7 +1,7 @@
 ---
 title: "service ls"
 description: "The service ls command description and usage"
-keywords: ["service, ls"]
+keywords: "service, ls"
 ---
 
 <!-- This file is maintained within the docker/docker Github

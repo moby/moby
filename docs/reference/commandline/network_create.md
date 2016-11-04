@@ -1,7 +1,7 @@
 ---
 title: "network create"
 description: "The network create command description and usage"
-keywords: ["network, create"]
+keywords: "network, create"
 ---
 
 <!-- This file is maintained within the docker/docker Github
