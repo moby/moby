@@ -2509,10 +2509,26 @@ Display system-wide information
             ]
         },
         "SecurityOptions": [
-            "apparmor",
-            "seccomp",
-            "selinux",
-            "userns"
+            {
+                "Key": "Name",
+                "Value": "seccomp"
+            },
+            {
+                "Key": "Profile",
+                "Value": "default"
+            },
+            {
+                "Key": "Name",
+                "Value": "apparmor"
+            },
+            {
+                "Key": "Name",
+                "Value": "selinux"
+            },
+            {
+                "Key": "Name",
+                "Value": "userns"
+            }
         ],
         "ServerVersion": "1.9.0",
         "SwapLimit": false,

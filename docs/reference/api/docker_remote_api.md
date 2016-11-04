@@ -165,6 +165,7 @@ This section lists each version from latest to oldest.  Each listing includes a 
 * The `SecurityOptions` field within the `GET /info` response now includes `userns` if user namespaces are enabled in the daemon.
 * `GET /nodes` and `GET /node/(id or name)` now return `Addr` as part of a node's `Status`, which is the address that that node connects to the manager from.
 * The `HostConfig` field now includes `NanoCPUs` that represents CPU quota in units of 10<sup>-9</sup> CPUs.
+* `GET /info` now returns more structured information about security options.
 
 ### v1.24 API changes
 
