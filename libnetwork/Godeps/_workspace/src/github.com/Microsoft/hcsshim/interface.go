@@ -10,13 +10,14 @@ import (
 type ProcessConfig struct {
 	ApplicationName  string
 	CommandLine      string
+	User             string
 	WorkingDirectory string
 	Environment      map[string]string
 	EmulateConsole   bool
 	CreateStdInPipe  bool
 	CreateStdOutPipe bool
 	CreateStdErrPipe bool
-	ConsoleSize      [2]int
+	ConsoleSize      [2]uint
 }
 
 type Layer struct {
@@ -25,9 +26,11 @@ type Layer struct {
 }
 
 type MappedDir struct {
-	HostPath      string
-	ContainerPath string
-	ReadOnly      bool
+	HostPath         string
+	ContainerPath    string
+	ReadOnly         bool
+	BandwidthMaximum uint64
+	IOPSMaximum      uint64
 }
 
 type HvRuntime struct {
@@ -42,10 +45,10 @@ type ContainerConfig struct {
 	Name                     string      // Name of the container. We use the docker ID.
 	Owner                    string      // The management platform that created this container
 	IsDummy                  bool        // Used for development purposes.
-	VolumePath               string      // Windows volume path for scratch space
+	VolumePath               string      `json:",omitempty"` // Windows volume path for scratch space. Used by Windows Server Containers only. Format \\?\\Volume{GUID}
 	IgnoreFlushesDuringBoot  bool        // Optimization hint for container startup in Windows
-	LayerFolderPath          string      // Where the layer folders are located
-	Layers                   []Layer     // List of storage layers
+	LayerFolderPath          string      `json:",omitempty"` // Where the layer folders are located. Used by Windows Server Containers only. Format  %root%\windowsfilter\containerID
+	Layers                   []Layer     // List of storage layers. Required for Windows Server and Hyper-V Containers. Format ID=GUID;Path=%root%\windowsfilter\layerID
 	Credentials              string      `json:",omitempty"` // Credentials information
 	ProcessorCount           uint32      `json:",omitempty"` // Number of processors to assign to the container.
 	ProcessorWeight          uint64      `json:",omitempty"` // CPU Shares 0..10000 on Windows; where 0 will be omitted and HCS will default.
@@ -56,12 +59,19 @@ type ContainerConfig struct {
 	MemoryMaximumInMB        int64       `json:",omitempty"` // Maximum memory available to the container in Megabytes
 	HostName                 string      // Hostname
 	MappedDirectories        []MappedDir // List of mapped directories (volumes/mounts)
-	SandboxPath              string      // Location of unmounted sandbox (used for Hyper-V containers)
+	SandboxPath              string      `json:",omitempty"` // Location of unmounted sandbox. Used by Hyper-V containers only. Format %root%\windowsfilter
 	HvPartition              bool        // True if it a Hyper-V Container
 	EndpointList             []string    // List of networking endpoints to be attached to container
-	HvRuntime                *HvRuntime  // Hyper-V container settings
+	HvRuntime                *HvRuntime  `json:",omitempty"` // Hyper-V container settings. Used by Hyper-V containers only. Format ImagePath=%root%\BaseLayerID\UtilityVM
 	Servicing                bool        // True if this container is for servicing
 	AllowUnqualifiedDNSQuery bool        // True to allow unqualified DNS name resolution
+}
+
+type ComputeSystemQuery struct {
+	IDs    []string `json:"Ids,omitempty"`
+	Types  []string `json:",omitempty"`
+	Names  []string `json:",omitempty"`
+	Owners []string `json:",omitempty"`
 }
 
 // Container represents a created (but not necessarily running) container.

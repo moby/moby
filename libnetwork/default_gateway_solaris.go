@@ -7,6 +7,12 @@ import (
 	"github.com/docker/libnetwork/drivers/solaris/bridge"
 )
 
+const libnGWNetwork = "docker_gwbridge"
+
+func getPlatformOption() EndpointOption {
+	return nil
+}
+
 func (c *controller) createGWNetwork() (Network, error) {
 	netOption := map[string]string{
 		bridge.BridgeName:         libnGWNetwork,

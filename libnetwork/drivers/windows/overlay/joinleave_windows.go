@@ -44,8 +44,6 @@ func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo,
 		logrus.Errorf("overlay: Failed adding table entry to joininfo: %v", err)
 	}
 
-	jinfo.DisableGatewayService()
-
 	d.pushLocalEndpointEvent("join", nid, eid)
 
 	return nil

@@ -26,8 +26,8 @@
 		},
 		{
 			"ImportPath": "github.com/Microsoft/hcsshim",
-			"Comment": "v0.5.1",
-			"Rev": "523023ef1ef8ec08b23bbff88ab68552c5f1a6d7"
+			"Comment": "v0.5.6",
+			"Rev": "e439b7d2b63f036d3a50c93a9e0b154a0d50e788"
 		},
 		{
 			"ImportPath": "github.com/Sirupsen/logrus",

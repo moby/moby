@@ -52,7 +52,7 @@ type MacPool struct {
 
 // HNSNetwork represents a network in HNS
 type HNSNetwork struct {
-	Id                   string            `json:",omitempty"`
+	Id                   string            `json:"ID,omitempty"`
 	Name                 string            `json:",omitempty"`
 	Type                 string            `json:",omitempty"`
 	NetworkAdapterName   string            `json:",omitempty"`
@@ -68,7 +68,7 @@ type HNSNetwork struct {
 
 // HNSEndpoint represents a network endpoint in HNS
 type HNSEndpoint struct {
-	Id                 string            `json:",omitempty"`
+	Id                 string            `json:"ID,omitempty"`
 	Name               string            `json:",omitempty"`
 	VirtualNetwork     string            `json:",omitempty"`
 	VirtualNetworkName string            `json:",omitempty"`
@@ -79,6 +79,7 @@ type HNSEndpoint struct {
 	DNSServerList      string            `json:",omitempty"`
 	GatewayAddress     string            `json:",omitempty"`
 	EnableInternalDNS  bool              `json:",omitempty"`
+	DisableICC         bool              `json:",omitempty"`
 	PrefixLength       uint8             `json:",omitempty"`
 	IsRemoteEndpoint   bool              `json:",omitempty"`
 }
