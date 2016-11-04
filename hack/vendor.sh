@@ -12,4 +12,6 @@ if ! hash vndr; then
 	exit 1
 fi
 
+cd cmd/
+
 vndr "$@"
