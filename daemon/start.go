@@ -180,7 +180,11 @@ func (daemon *Daemon) containerStart(container *container.Container, checkpoint 
 
 		// attempted to mount a file onto a directory, or a directory onto a file, maybe from user specified bind mounts
 		if strings.Contains(errDesc, syscall.ENOTDIR.Error()) {
-			errDesc += ": Are you trying to mount a directory onto a file (or vice-versa)? Check if the specified host path exists and is the expected type"
+			errDesc += ": Are you trying to mount a directory onto a file (or vice-versa)? Check if the specified host path exists and is the expected type\n"
+			for _, mntPoint := range container.MountPoints {
+				errDesc += "host path: " + mntPoint.Source + "\n"
+				errDesc += "container path: " + mntPoint.Destination + "\n"
+			}
 			container.SetExitCode(127)
 		}
 
