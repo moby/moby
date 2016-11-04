@@ -10,10 +10,13 @@ import (
 	"unsafe"
 )
 
+//go:cgo_import_dynamic libc_pipe pipe "libc.so"
 //go:cgo_import_dynamic libc_getsockname getsockname "libsocket.so"
 //go:cgo_import_dynamic libc_getcwd getcwd "libc.so"
 //go:cgo_import_dynamic libc_getgroups getgroups "libc.so"
 //go:cgo_import_dynamic libc_setgroups setgroups "libc.so"
+//go:cgo_import_dynamic libc_wait4 wait4 "libc.so"
+//go:cgo_import_dynamic libc_gethostname gethostname "libc.so"
 //go:cgo_import_dynamic libc_utimes utimes "libc.so"
 //go:cgo_import_dynamic libc_utimensat utimensat "libc.so"
 //go:cgo_import_dynamic libc_fcntl fcntl "libc.so"
@@ -125,10 +128,13 @@ import (
 //go:cgo_import_dynamic libc_recvfrom recvfrom "libsocket.so"
 //go:cgo_import_dynamic libc_sysconf sysconf "libc.so"
 
+//go:linkname procpipe libc_pipe
 //go:linkname procgetsockname libc_getsockname
 //go:linkname procGetcwd libc_getcwd
 //go:linkname procgetgroups libc_getgroups
 //go:linkname procsetgroups libc_setgroups
+//go:linkname procwait4 libc_wait4
+//go:linkname procgethostname libc_gethostname
 //go:linkname procutimes libc_utimes
 //go:linkname procutimensat libc_utimensat
 //go:linkname procfcntl libc_fcntl
@@ -241,10 +247,13 @@ import (
 //go:linkname procsysconf libc_sysconf
 
 var (
+	procpipe,
 	procgetsockname,
 	procGetcwd,
 	procgetgroups,
 	procsetgroups,
+	procwait4,
+	procgethostname,
 	procutimes,
 	procutimensat,
 	procfcntl,
@@ -357,6 +366,15 @@ var (
 	procsysconf syscallFunc
 )
 
+func pipe(p *[2]_C_int) (n int, err error) {
+	r0, _, e1 := rawSysvicall6(uintptr(unsafe.Pointer(&procpipe)), 1, uintptr(unsafe.Pointer(p)), 0, 0, 0, 0, 0)
+	n = int(r0)
+	if e1 != 0 {
+		err = e1
+	}
+	return
+}
+
 func getsockname(fd int, rsa *RawSockaddrAny, addrlen *_Socklen) (err error) {
 	_, _, e1 := sysvicall6(uintptr(unsafe.Pointer(&procgetsockname)), 3, uintptr(fd), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)), 0, 0, 0)
 	if e1 != 0 {
@@ -389,6 +407,28 @@ func getgroups(ngid int, gid *_Gid_t) (n int, err error) {
 
 func setgroups(ngid int, gid *_Gid_t) (err error) {
 	_, _, e1 := rawSysvicall6(uintptr(unsafe.Pointer(&procsetgroups)), 2, uintptr(ngid), uintptr(unsafe.Pointer(gid)), 0, 0, 0, 0)
+	if e1 != 0 {
+		err = e1
+	}
+	return
+}
+
+func wait4(pid int32, statusp *_C_int, options int, rusage *Rusage) (wpid int32, err error) {
+	r0, _, e1 := sysvicall6(uintptr(unsafe.Pointer(&procwait4)), 4, uintptr(pid), uintptr(unsafe.Pointer(statusp)), uintptr(options), uintptr(unsafe.Pointer(rusage)), 0, 0)
+	wpid = int32(r0)
+	if e1 != 0 {
+		err = e1
+	}
+	return
+}
+
+func gethostname(buf []byte) (n int, err error) {
+	var _p0 *byte
+	if len(buf) > 0 {
+		_p0 = &buf[0]
+	}
+	r0, _, e1 := sysvicall6(uintptr(unsafe.Pointer(&procgethostname)), 2, uintptr(unsafe.Pointer(_p0)), uintptr(len(buf)), 0, 0, 0, 0)
+	n = int(r0)
 	if e1 != 0 {
 		err = e1
 	}
