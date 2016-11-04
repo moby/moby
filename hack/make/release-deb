@@ -114,7 +114,7 @@ for dir in bundles/$VERSION/build-deb/*/; do
 			# if we have a $GPG_PASSPHRASE we may as well
 			# dpkg-sign before copying the deb into the pool
 			if [ ! -z "$GPG_PASSPHRASE" ]; then
-				dpkg-sig -g "--no-tty --passphrase '$GPG_PASSPHRASE'" \
+				dpkg-sig -g "--no-tty  --digest-algo 'sha512' --passphrase '$GPG_PASSPHRASE'" \
 					-k "$GPG_KEYID" --sign builder "$tempdir/$d"
 			fi
 			mv "$tempdir/$d" "$APTDIR/pool/$component/d/docker-engine/"
