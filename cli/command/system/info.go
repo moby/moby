@@ -147,8 +147,8 @@ func prettyPrintInfo(dockerCli *command.DockerCli, info types.Info) error {
 				case "Name":
 					fmt.Fprintf(dockerCli.Out(), " %s\n", o.Value)
 				case "Profile":
-					if o.Key != "default" {
-						fmt.Fprintf(dockerCli.Err(), "  WARNING: You're not using the Docker's default seccomp profile\n")
+					if o.Value != "default" {
+						fmt.Fprintf(dockerCli.Err(), "  WARNING: You're not using the default seccomp profile\n")
 					}
 					fmt.Fprintf(dockerCli.Out(), "  %s: %s\n", o.Key, o.Value)
 				}
