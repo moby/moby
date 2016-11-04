@@ -15,6 +15,9 @@ const (
 	globalAddressSpace = "GlobalDefault"
 )
 
+// DefaultIPAM defines the default ipam-driver for local-scoped windows networks
+const DefaultIPAM = "windows"
+
 var (
 	defaultPool, _ = types.ParseCIDR("0.0.0.0/0")
 )

@@ -634,12 +634,13 @@ func (c *controller) NewNetwork(networkType, name string, id string, options ...
 		id = stringid.GenerateRandomID()
 	}
 
+	defaultIpam := defaultIpamForNetworkType(networkType)
 	// Construct the network object
 	network := &network{
 		name:        name,
 		networkType: networkType,
 		generic:     map[string]interface{}{netlabel.GenericData: make(map[string]string)},
-		ipamType:    ipamapi.DefaultIPAM,
+		ipamType:    defaultIpam,
 		id:          id,
 		created:     time.Now(),
 		ctrlr:       c,

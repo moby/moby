@@ -75,7 +75,8 @@ type driver struct {
 	sync.Mutex
 }
 
-func isValidNetworkType(networkType string) bool {
+// IsBuiltinWindowsDriver vaidates if network-type is a builtin local-scoped driver
+func IsBuiltinLocalDriver(networkType string) bool {
 	if "l2bridge" == networkType || "l2tunnel" == networkType || "nat" == networkType || "ics" == networkType || "transparent" == networkType {
 		return true
 	}
@@ -91,7 +92,7 @@ func newDriver(networkType string) *driver {
 // GetInit returns an initializer for the given network type
 func GetInit(networkType string) func(dc driverapi.DriverCallback, config map[string]interface{}) error {
 	return func(dc driverapi.DriverCallback, config map[string]interface{}) error {
-		if !isValidNetworkType(networkType) {
+		if !IsBuiltinLocalDriver(networkType) {
 			return types.BadRequestErrorf("Network type not supported: %s", networkType)
 		}
 

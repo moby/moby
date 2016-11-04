@@ -633,6 +633,9 @@ func NetworkOptionIpam(ipamDriver string, addrSpace string, ipV4 []*IpamConf, ip
 	return func(n *network) {
 		if ipamDriver != "" {
 			n.ipamType = ipamDriver
+			if ipamDriver == ipamapi.DefaultIPAM {
+				n.ipamType = defaultIpamForNetworkType(n.Type())
+			}
 		}
 		n.ipamOptions = opts
 		n.addrSpace = addrSpace

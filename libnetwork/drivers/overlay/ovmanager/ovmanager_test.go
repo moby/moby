@@ -70,7 +70,7 @@ func TestNetworkAllocateUserDefinedVNIs(t *testing.T) {
 
 	options := make(map[string]string)
 	// Intentionally add mode vnis than subnets
-	options[netlabel.OverlayVxlanIDList] = fmt.Sprintf("%d,%d,%d", 256, 257, 258)
+	options[netlabel.OverlayVxlanIDList] = fmt.Sprintf("%d,%d,%d", vxlanIDStart, vxlanIDStart+1, vxlanIDStart+2)
 
 	vals, err := d.NetworkAllocate("testnetwork", options, ipamData, nil)
 	require.NoError(t, err)
@@ -81,7 +81,7 @@ func TestNetworkAllocateUserDefinedVNIs(t *testing.T) {
 	// We should only get exactly the same number of vnis as
 	// subnets. No more, no less, even if we passed more vnis.
 	assert.Equal(t, 2, len(strings.Split(vxlanIDs, ",")))
-	assert.Equal(t, fmt.Sprintf("%d,%d", 256, 257), vxlanIDs)
+	assert.Equal(t, fmt.Sprintf("%d,%d", vxlanIDStart, vxlanIDStart+1), vxlanIDs)
 
 	err = d.NetworkFree("testnetwork")
 	require.NoError(t, err)
