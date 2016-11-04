@@ -36,6 +36,7 @@ func newDeployCommand(dockerCli *command.DockerCli) *cobra.Command {
 			opts.namespace = strings.TrimSuffix(args[0], ".dab")
 			return runDeploy(dockerCli, opts)
 		},
+		Tags: map[string]string{"experimental": ""},
 	}
 
 	flags := cmd.Flags()

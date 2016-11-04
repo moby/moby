@@ -111,9 +111,8 @@ func NewBuildCommand(dockerCli *command.DockerCli) *cobra.Command {
 
 	command.AddTrustedFlags(flags, true)
 
-	if dockerCli.HasExperimental() {
-		flags.BoolVar(&options.squash, "squash", false, "Squash newly built layers into a single new layer")
-	}
+	flags.BoolVar(&options.squash, "squash", false, "Squash newly built layers into a single new layer")
+	flags.SetAnnotation("squash", "experimental", nil)
 
 	return cmd
 }

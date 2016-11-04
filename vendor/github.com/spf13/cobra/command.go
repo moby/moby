@@ -59,6 +59,9 @@ type Command struct {
 	Deprecated string
 	// Is this command hidden and should NOT show up in the list of available commands?
 	Hidden bool
+	// Tags are key/value pairs that can be used by applications to identify or
+	// group commands
+	Tags map[string]string
 	// Full set of flags
 	flags *flag.FlagSet
 	// Set of flags childrens of this command will inherit
@@ -111,10 +114,10 @@ type Command struct {
 
 	flagErrorBuf *bytes.Buffer
 
-	args          []string                 // actual args parsed from flags
-	output        *io.Writer               // nil means stderr; use Out() method instead
-	usageFunc     func(*Command) error     // Usage can be defined by application
-	usageTemplate string                   // Can be defined by Application
+	args          []string             // actual args parsed from flags
+	output        *io.Writer           // nil means stderr; use Out() method instead
+	usageFunc     func(*Command) error // Usage can be defined by application
+	usageTemplate string               // Can be defined by Application
 	flagErrorFunc func(*Command, error) error
 	helpTemplate  string                   // Can be defined by Application
 	helpFunc      func(*Command, []string) // Help can be defined by application
@@ -417,7 +420,7 @@ func argsMinusFirstX(args []string, x string) []string {
 
 func isFlagArg(arg string) bool {
 	return ((len(arg) >= 3 && arg[1] == '-') ||
-	        (len(arg) >= 2 && arg[0] == '-' && arg[1] != '-'))
+		(len(arg) >= 2 && arg[0] == '-' && arg[1] != '-'))
 }
 
 // Find the target command given the args and command tree
@@ -820,7 +823,7 @@ func (c commandSorterByName) Less(i, j int) bool { return c[i].Name() < c[j].Nam
 // Commands returns a sorted slice of child commands.
 func (c *Command) Commands() []*Command {
 	// do not sort commands if it already sorted or sorting was disabled
-	if EnableCommandSorting && !c.commandsAreSorted{
+	if EnableCommandSorting && !c.commandsAreSorted {
 		sort.Sort(commandSorterByName(c.commands))
 		c.commandsAreSorted = true
 	}

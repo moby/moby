@@ -32,27 +32,21 @@ type Streams interface {
 // DockerCli represents the docker command line client.
 // Instances of the client can be returned from NewDockerCli.
 type DockerCli struct {
-	configFile      *configfile.ConfigFile
-	in              *InStream
-	out             *OutStream
-	err             io.Writer
-	keyFile         string
-	client          client.APIClient
-	hasExperimental *bool
+	configFile *configfile.ConfigFile
+	in         *InStream
+	out        *OutStream
+	err        io.Writer
+	keyFile    string
+	client     client.APIClient
 }
 
 // HasExperimental returns true if experimental features are accessible
 func (cli *DockerCli) HasExperimental() bool {
-	if cli.hasExperimental == nil {
-		if cli.client == nil {
-			cli.Initialize(cliflags.NewClientOptions())
-		}
-		enabled := false
-		cli.hasExperimental = &enabled
-		enabled, _ = cli.client.Ping(context.Background())
+	if cli.client == nil {
+		return false
 	}
-
-	return *cli.hasExperimental
+	enabled, _ := cli.client.Ping(context.Background())
+	return enabled
 }
 
 // Client returns the APIClient

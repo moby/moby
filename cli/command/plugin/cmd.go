@@ -17,6 +17,7 @@ func NewPluginCommand(dockerCli *command.DockerCli) *cobra.Command {
 		Run: func(cmd *cobra.Command, args []string) {
 			fmt.Fprintf(dockerCli.Err(), "\n"+cmd.UsageString())
 		},
+		Tags: map[string]string{"experimental": ""},
 	}
 
 	cmd.AddCommand(

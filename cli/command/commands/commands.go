@@ -70,16 +70,11 @@ func AddCommands(cmd *cobra.Command, dockerCli *command.DockerCli) {
 		hide(image.NewSaveCommand(dockerCli)),
 		hide(image.NewTagCommand(dockerCli)),
 		hide(system.NewInspectCommand(dockerCli)),
+		stack.NewStackCommand(dockerCli),
+		stack.NewTopLevelDeployCommand(dockerCli),
+		checkpoint.NewCheckpointCommand(dockerCli),
+		plugin.NewPluginCommand(dockerCli),
 	)
-
-	if dockerCli.HasExperimental() {
-		cmd.AddCommand(
-			stack.NewStackCommand(dockerCli),
-			stack.NewTopLevelDeployCommand(dockerCli),
-			checkpoint.NewCheckpointCommand(dockerCli),
-			plugin.NewPluginCommand(dockerCli),
-		)
-	}
 
 }
 
