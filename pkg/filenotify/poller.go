@@ -9,7 +9,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 
-	"gopkg.in/fsnotify.v1"
+	"github.com/fsnotify/fsnotify"
 )
 
 var (

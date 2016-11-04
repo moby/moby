@@ -9,8 +9,8 @@ import (
 	"os"
 	"time"
 
+	"github.com/fsnotify/fsnotify"
 	"golang.org/x/net/context"
-	"gopkg.in/fsnotify.v1"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/logger"
