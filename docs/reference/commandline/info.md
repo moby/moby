@@ -111,7 +111,7 @@ information about the devicemapper storage driver is shown:
      Running: 3
      Paused: 1
      Stopped: 10
-    Untagged Images: 52
+    Images: 52
     Server Version: 1.10.3
     Storage Driver: devicemapper
      Pool Name: docker-202:2-25583803-pool
