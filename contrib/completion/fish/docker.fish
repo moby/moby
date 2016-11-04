@@ -65,7 +65,7 @@ complete -c docker -f -n '__fish_docker_no_subcommand' -l ip-forward -d 'Enable 
 complete -c docker -f -n '__fish_docker_no_subcommand' -l ip-masq -d "Enable IP masquerading for bridge's IP range"
 complete -c docker -f -n '__fish_docker_no_subcommand' -l iptables -d "Enable Docker's addition of iptables rules"
 complete -c docker -f -n '__fish_docker_no_subcommand' -l ipv6 -d 'Enable IPv6 networking'
-complete -c docker -f -n '__fish_docker_no_subcommand' -s l -l log-level -d 'Set the logging level (debug, info, warn, error, fatal)'
+complete -c docker -f -n '__fish_docker_no_subcommand' -s l -l log-level -d 'Set the logging level ("debug", "info", "warn", "error", "fatal")'
 complete -c docker -f -n '__fish_docker_no_subcommand' -l label -d 'Set key=value labels to the daemon (displayed in `docker info`)'
 complete -c docker -f -n '__fish_docker_no_subcommand' -l mtu -d 'Set the containers network MTU'
 complete -c docker -f -n '__fish_docker_no_subcommand' -s p -l pidfile -d 'Path to use for daemon PID file'
