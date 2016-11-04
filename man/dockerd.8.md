@@ -56,6 +56,7 @@ dockerd - Enable daemon mode
 [**--raw-logs**]
 [**--registry-mirror**[=*[]*]]
 [**-s**|**--storage-driver**[=*STORAGE-DRIVER*]]
+[**--seccomp-profile**[=*SECCOMP-PROFILE-PATH*]]
 [**--selinux-enabled**]
 [**--shutdown-timeout**[=*15*]]
 [**--storage-opt**[=*[]*]]
@@ -247,6 +248,9 @@ output otherwise.
 
 **-s**, **--storage-driver**=""
   Force the Docker runtime to use a specific storage driver.
+
+**--seccomp-profile**=""
+  Path to seccomp profile.
 
 **--selinux-enabled**=*true*|*false*
   Enable selinux support. Default is false.

@@ -39,6 +39,7 @@ type Config struct {
 	OOMScoreAdjust       int                      `json:"oom-score-adjust,omitempty"`
 	Init                 bool                     `json:"init,omitempty"`
 	InitPath             string                   `json:"init-path,omitempty"`
+	SeccompProfile       string                   `json:"seccomp-profile,omitempty"`
 }
 
 // bridgeConfig stores all the bridge driver specific
@@ -101,6 +102,7 @@ func (config *Config) InstallFlags(flags *pflag.FlagSet) {
 	flags.StringVar(&config.InitPath, "init-path", "", "Path to the docker-init binary")
 	flags.Int64Var(&config.CPURealtimePeriod, "cpu-rt-period", 0, "Limit the CPU real-time period in microseconds")
 	flags.Int64Var(&config.CPURealtimeRuntime, "cpu-rt-runtime", 0, "Limit the CPU real-time runtime in microseconds")
+	flags.StringVar(&config.SeccompProfile, "seccomp-profile", "", "Path to seccomp profile")
 
 	config.attachExperimentalFlags(flags)
 }

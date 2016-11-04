@@ -68,22 +68,29 @@ func (daemon *Daemon) SystemInfo() (*types.Info, error) {
 		}
 	})
 
-	var securityOptions []string
+	securityOptions := []types.SecurityOpt{}
 	if sysInfo.AppArmor {
-		securityOptions = append(securityOptions, "apparmor")
+		securityOptions = append(securityOptions, types.SecurityOpt{Key: "Name", Value: "apparmor"})
 	}
 	if sysInfo.Seccomp && supportsSeccomp {
-		securityOptions = append(securityOptions, "seccomp")
+		profile := daemon.seccompProfilePath
+		if profile == "" {
+			profile = "default"
+		}
+		securityOptions = append(securityOptions,
+			types.SecurityOpt{Key: "Name", Value: "seccomp"},
+			types.SecurityOpt{Key: "Profile", Value: profile},
+		)
 	}
 	if selinuxEnabled() {
-		securityOptions = append(securityOptions, "selinux")
+		securityOptions = append(securityOptions, types.SecurityOpt{Key: "Name", Value: "selinux"})
 	}
 	uid, gid := daemon.GetRemappedUIDGID()
 	if uid != 0 || gid != 0 {
-		securityOptions = append(securityOptions, "userns")
+		securityOptions = append(securityOptions, types.SecurityOpt{Key: "Name", Value: "userns"})
 	}
 
-	v := &types.Info{
+	v := &types.InfoBase{
 		ID:                 daemon.ID,
 		Containers:         int(cRunning + cPaused + cStopped),
 		ContainersRunning:  int(cRunning),
@@ -120,7 +127,6 @@ func (daemon *Daemon) SystemInfo() (*types.Info, error) {
 		HTTPProxy:          sockets.GetProxyEnv("http_proxy"),
 		HTTPSProxy:         sockets.GetProxyEnv("https_proxy"),
 		NoProxy:            sockets.GetProxyEnv("no_proxy"),
-		SecurityOptions:    securityOptions,
 		LiveRestoreEnabled: daemon.configStore.LiveRestoreEnabled,
 		Isolation:          daemon.defaultIsolation,
 	}
@@ -150,7 +156,12 @@ func (daemon *Daemon) SystemInfo() (*types.Info, error) {
 	}
 	v.Name = hostname
 
-	return v, nil
+	i := &types.Info{
+		InfoBase:        v,
+		SecurityOptions: securityOptions,
+	}
+
+	return i, nil
 }
 
 // SystemVersion returns version information about the daemon.

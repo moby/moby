@@ -177,3 +177,7 @@ func setupDaemonProcess(config *Config) error {
 func (daemon *Daemon) verifyVolumesInfo(container *container.Container) error {
 	return nil
 }
+
+func (daemon *Daemon) setupSeccompProfile() error {
+	return nil
+}
