@@ -42,6 +42,12 @@ type Sandbox interface {
 	// ResolveService returns all the backend details about the containers or hosts
 	// backing a service. Its purpose is to satisfy an SRV query
 	ResolveService(name string) ([]*net.SRV, []net.IP)
+	// EnableService  makes a managed container's service available by adding the
+	// endpoint to the service load balancer and service discovery
+	EnableService() error
+	// DisableService removes a managed contianer's endpoints from the load balancer
+	// and service discovery
+	DisableService() error
 }
 
 // SandboxOption is an option setter function type used to pass various options to
@@ -650,6 +656,30 @@ func (sb *sandbox) SetKey(basePath string) error {
 	for _, ep := range sb.getConnectedEndpoints() {
 		if err = sb.populateNetworkResources(ep); err != nil {
 			return err
+		}
+	}
+	return nil
+}
+
+func (sb *sandbox) EnableService() error {
+	for _, ep := range sb.getConnectedEndpoints() {
+		if ep.enableService(true) {
+			if err := ep.addToCluster(); err != nil {
+				ep.enableService(false)
+				return fmt.Errorf("could not update state for endpoint %s into cluster: %v", ep.Name(), err)
+			}
+		}
+	}
+	return nil
+}
+
+func (sb *sandbox) DisableService() error {
+	for _, ep := range sb.getConnectedEndpoints() {
+		if ep.enableService(false) {
+			if err := ep.deleteFromCluster(); err != nil {
+				ep.enableService(true)
+				return fmt.Errorf("could not delete state for endpoint %s from cluster: %v", ep.Name(), err)
+			}
 		}
 	}
 	return nil
