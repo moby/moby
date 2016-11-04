@@ -11,7 +11,7 @@ RUN apt-get update && apt-get install -y apparmor bash-completion btrfs-tools bu
 # to build go from source.
 # NOTE: ppc64le has compatibility issues with older versions of go, so make sure the version >= 1.6
 ENV GO_VERSION 1.7.3
-ENV GO_DOWNLOAD_URL https://storage.googleapis.com/golang/go${GO_VERSION}.src.tar.gz
+ENV GO_DOWNLOAD_URL https://golang.org/dl/go${GO_VERSION}.src.tar.gz
 ENV GOROOT_BOOTSTRAP /usr/lib/go-1.6
 
 RUN curl -fsSL "$GO_DOWNLOAD_URL" -o golang.tar.gz \

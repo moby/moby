@@ -7,7 +7,7 @@ FROM ubuntu:precise
 RUN apt-get update && apt-get install -y apparmor bash-completion  build-essential curl ca-certificates debhelper dh-apparmor  git libapparmor-dev  libltdl-dev  libsqlite3-dev pkg-config --no-install-recommends && rm -rf /var/lib/apt/lists/*
 
 ENV GO_VERSION 1.7.3
-RUN curl -fSL "https://storage.googleapis.com/golang/go${GO_VERSION}.linux-amd64.tar.gz" | tar xzC /usr/local
+RUN curl -fSL "https://golang.org/dl/go${GO_VERSION}.linux-amd64.tar.gz" | tar xzC /usr/local
 ENV PATH $PATH:/usr/local/go/bin
 
 ENV AUTO_GOPATH 1
