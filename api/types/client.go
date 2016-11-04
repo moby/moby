@@ -340,8 +340,8 @@ type PluginInstallOptions struct {
 	AcceptPermissionsFunc func(PluginPrivileges) (bool, error)
 }
 
-// SecretRequestOptions is a type for requesting secrets
-type SecretRequestOptions struct {
+// SecretRequestOption is a type for requesting secrets
+type SecretRequestOption struct {
 	Source string
 	Target string
 	UID    string
