@@ -32,6 +32,7 @@ Options:
       --health-retries int               Consecutive failures needed to report unhealthy
       --health-timeout duration          Maximum time to allow one check to run
       --help                             Print usage
+      --hostname                         Service containers hostname
   -l, --label value                      Service labels (default [])
       --limit-cpu value                  Limit CPUs (default 0.000)
       --limit-memory value               Limit Memory (default 0 B)
@@ -134,6 +135,12 @@ This sets environmental variables for all tasks in a service. For example:
 $ docker service create --name redis_2 --replicas 5 --env MYVAR=foo redis:3.0.6
 ```
 
+### Create a docker service with specific hostname (--hostname)
+
+This option sets the docker service containers hostname to a specific string. For example:
+```bash
+$ docker service create --name redis --hostname myredis redis:3.0.6
+```
 ### Set metadata on a service (-l, --label)
 
 A label is a `key=value` pair that applies metadata to a service. To label a

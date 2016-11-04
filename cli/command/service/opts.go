@@ -316,6 +316,7 @@ type serviceOptions struct {
 	containerLabels opts.ListOpts
 	image           string
 	args            []string
+	hostname        string
 	env             opts.ListOpts
 	envFile         opts.ListOpts
 	workdir         string
@@ -387,6 +388,7 @@ func (opts *serviceOptions) ToService() (swarm.ServiceSpec, error) {
 				Image:           opts.image,
 				Args:            opts.args,
 				Env:             currentEnv,
+				Hostname:        opts.hostname,
 				Labels:          runconfigopts.ConvertKVStringsToMap(opts.containerLabels.GetAll()),
 				Dir:             opts.workdir,
 				User:            opts.user,
@@ -486,6 +488,7 @@ const (
 	flagContainerLabelRemove  = "container-label-rm"
 	flagContainerLabelAdd     = "container-label-add"
 	flagEndpointMode          = "endpoint-mode"
+	flagHostname              = "hostname"
 	flagEnv                   = "env"
 	flagEnvFile               = "env-file"
 	flagEnvRemove             = "env-rm"

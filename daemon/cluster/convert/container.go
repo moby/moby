@@ -13,14 +13,15 @@ import (
 
 func containerSpecFromGRPC(c *swarmapi.ContainerSpec) types.ContainerSpec {
 	containerSpec := types.ContainerSpec{
-		Image:   c.Image,
-		Labels:  c.Labels,
-		Command: c.Command,
-		Args:    c.Args,
-		Env:     c.Env,
-		Dir:     c.Dir,
-		User:    c.User,
-		Groups:  c.Groups,
+		Image:    c.Image,
+		Labels:   c.Labels,
+		Command:  c.Command,
+		Args:     c.Args,
+		Hostname: c.Hostname,
+		Env:      c.Env,
+		Dir:      c.Dir,
+		User:     c.User,
+		Groups:   c.Groups,
 	}
 
 	// Mounts
@@ -67,14 +68,15 @@ func containerSpecFromGRPC(c *swarmapi.ContainerSpec) types.ContainerSpec {
 
 func containerToGRPC(c types.ContainerSpec) (*swarmapi.ContainerSpec, error) {
 	containerSpec := &swarmapi.ContainerSpec{
-		Image:   c.Image,
-		Labels:  c.Labels,
-		Command: c.Command,
-		Args:    c.Args,
-		Env:     c.Env,
-		Dir:     c.Dir,
-		User:    c.User,
-		Groups:  c.Groups,
+		Image:    c.Image,
+		Labels:   c.Labels,
+		Command:  c.Command,
+		Args:     c.Args,
+		Hostname: c.Hostname,
+		Env:      c.Env,
+		Dir:      c.Dir,
+		User:     c.User,
+		Groups:   c.Groups,
 	}
 
 	if c.StopGracePeriod != nil {
