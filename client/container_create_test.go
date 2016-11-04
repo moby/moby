@@ -19,7 +19,7 @@ func TestContainerCreateError(t *testing.T) {
 	}
 	_, err := client.ContainerCreate(context.Background(), nil, nil, nil, "nothing")
 	if err == nil || err.Error() != "Error response from daemon: Server error" {
-		t.Fatalf("expected a Server Error, got %v", err)
+		t.Fatalf("expected a Server Error while testing StatusInternalServerError, got %v", err)
 	}
 
 	// 404 doesn't automagitally means an unknown image
@@ -28,7 +28,7 @@ func TestContainerCreateError(t *testing.T) {
 	}
 	_, err = client.ContainerCreate(context.Background(), nil, nil, nil, "nothing")
 	if err == nil || err.Error() != "Error response from daemon: Server error" {
-		t.Fatalf("expected a Server Error, got %v", err)
+		t.Fatalf("expected a Server Error while testing StatusNotFound, got %v", err)
 	}
 }
 
