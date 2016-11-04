@@ -166,6 +166,7 @@ This section lists each version from latest to oldest.  Each listing includes a 
 * `GET /nodes` and `GET /node/(id or name)` now return `Addr` as part of a node's `Status`, which is the address that that node connects to the manager from.
 * The `HostConfig` field now includes `NanoCPUs` that represents CPU quota in units of 10<sup>-9</sup> CPUs.
 * `GET /info` now returns more structured information about security options.
+* The `HostConfig` field now includes `CpuCount` that represents the number of CPUs available for execution by the container. Windows daemon only.
 
 ### v1.24 API changes
 

@@ -4766,3 +4766,67 @@ func (s *DockerSuite) TestRunMount(c *check.C) {
 		}
 	}
 }
+
+func (s *DockerSuite) TestRunWindowsWithCPUCount(c *check.C) {
+	testRequires(c, DaemonIsWindows)
+
+	out, _ := dockerCmd(c, "run", "--cpu-count=1", "--name", "test", "busybox", "echo", "testing")
+	c.Assert(strings.TrimSpace(out), checker.Equals, "testing")
+
+	out = inspectField(c, "test", "HostConfig.CPUCount")
+	c.Assert(out, check.Equals, "1")
+}
+
+func (s *DockerSuite) TestRunWindowsWithCPUShares(c *check.C) {
+	testRequires(c, DaemonIsWindows)
+
+	out, _ := dockerCmd(c, "run", "--cpu-shares=1000", "--name", "test", "busybox", "echo", "testing")
+	c.Assert(strings.TrimSpace(out), checker.Equals, "testing")
+
+	out = inspectField(c, "test", "HostConfig.CPUShares")
+	c.Assert(out, check.Equals, "1000")
+}
+
+func (s *DockerSuite) TestRunWindowsWithCPUPercent(c *check.C) {
+	testRequires(c, DaemonIsWindows)
+
+	out, _ := dockerCmd(c, "run", "--cpu-percent=80", "--name", "test", "busybox", "echo", "testing")
+	c.Assert(strings.TrimSpace(out), checker.Equals, "testing")
+
+	out = inspectField(c, "test", "HostConfig.CPUPercent")
+	c.Assert(out, check.Equals, "80")
+}
+
+func (s *DockerSuite) TestRunProcessIsolationWithCPUCountCPUSharesAndCPUPercent(c *check.C) {
+	testRequires(c, DaemonIsWindows, IsolationIsProcess)
+
+	out, _ := dockerCmd(c, "run", "--cpu-count=1", "--cpu-shares=1000", "--cpu-percent=80", "--name", "test", "busybox", "echo", "testing")
+	c.Assert(strings.TrimSpace(out), checker.Contains, "WARNING: Conflicting options: CPU count takes priority over CPU shares on Windows Server Containers. CPU shares discarded")
+	c.Assert(strings.TrimSpace(out), checker.Contains, "WARNING: Conflicting options: CPU count takes priority over CPU percent on Windows Server Containers. CPU percent discarded")
+	c.Assert(strings.TrimSpace(out), checker.Contains, "testing")
+
+	out = inspectField(c, "test", "HostConfig.CPUCount")
+	c.Assert(out, check.Equals, "1")
+
+	out = inspectField(c, "test", "HostConfig.CPUShares")
+	c.Assert(out, check.Equals, "0")
+
+	out = inspectField(c, "test", "HostConfig.CPUPercent")
+	c.Assert(out, check.Equals, "0")
+}
+
+func (s *DockerSuite) TestRunHypervIsolationWithCPUCountCPUSharesAndCPUPercent(c *check.C) {
+	testRequires(c, DaemonIsWindows, IsolationIsHyperv)
+
+	out, _ := dockerCmd(c, "run", "--cpu-count=1", "--cpu-shares=1000", "--cpu-percent=80", "--name", "test", "busybox", "echo", "testing")
+	c.Assert(strings.TrimSpace(out), checker.Contains, "testing")
+
+	out = inspectField(c, "test", "HostConfig.CPUCount")
+	c.Assert(out, check.Equals, "1")
+
+	out = inspectField(c, "test", "HostConfig.CPUShares")
+	c.Assert(out, check.Equals, "1000")
+
+	out = inspectField(c, "test", "HostConfig.CPUPercent")
+	c.Assert(out, check.Equals, "80")
+}

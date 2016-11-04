@@ -15,6 +15,8 @@ docker-run - Run a command in a new container
 [**--cap-drop**[=*[]*]]
 [**--cgroup-parent**[=*CGROUP-PATH*]]
 [**--cidfile**[=*CIDFILE*]]
+[**--cpu-count**[=*0*]]
+[**--cpu-percent**[=*0*]]
 [**--cpu-period**[=*0*]]
 [**--cpu-quota**[=*0*]]
 [**--cpu-rt-period**[=*0*]]
@@ -173,6 +175,18 @@ division of CPU shares:
 
 **--cidfile**=""
    Write the container ID to the file
+
+**--cpu-count**=*0*
+    Limit the number of CPUs available for execution by the container.
+    
+    On Windows Server containers, this is approximated as a percentage of total CPU usage.
+
+    On Windows Server containers, the processor resource controls are mutually exclusive, the order of precedence is CPUCount first, then CPUShares, and CPUPercent last.
+
+**--cpu-percent**=*0*
+    Limit the percentage of CPU available for execution by a container running on a Windows daemon.
+
+    On Windows Server containers, the processor resource controls are mutually exclusive, the order of precedence is CPUCount first, then CPUShares, and CPUPercent last.
 
 **--cpu-period**=*0*
    Limit the CPU CFS (Completely Fair Scheduler) period

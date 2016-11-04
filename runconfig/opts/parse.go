@@ -73,6 +73,7 @@ type ContainerOptions struct {
 	kernelMemory       string
 	user               string
 	workingDir         string
+	cpuCount           int64
 	cpuShares          int64
 	cpuPercent         int64
 	cpuPeriod          int64
@@ -227,6 +228,7 @@ func AddFlags(flags *pflag.FlagSet) *ContainerOptions {
 	flags.StringVar(&copts.containerIDFile, "cidfile", "", "Write the container ID to the file")
 	flags.StringVar(&copts.cpusetCpus, "cpuset-cpus", "", "CPUs in which to allow execution (0-3, 0,1)")
 	flags.StringVar(&copts.cpusetMems, "cpuset-mems", "", "MEMs in which to allow execution (0-3, 0,1)")
+	flags.Int64Var(&copts.cpuCount, "cpu-count", 0, "CPU count (Windows only)")
 	flags.Int64Var(&copts.cpuPercent, "cpu-percent", 0, "CPU percent (Windows only)")
 	flags.Int64Var(&copts.cpuPeriod, "cpu-period", 0, "Limit CPU CFS (Completely Fair Scheduler) period")
 	flags.Int64Var(&copts.cpuQuota, "cpu-quota", 0, "Limit CPU CFS (Completely Fair Scheduler) quota")
@@ -529,6 +531,7 @@ func Parse(flags *pflag.FlagSet, copts *ContainerOptions) (*container.Config, *c
 		KernelMemory:         kernelMemory,
 		OomKillDisable:       &copts.oomKillDisable,
 		NanoCPUs:             copts.cpus.Value(),
+		CPUCount:             copts.cpuCount,
 		CPUPercent:           copts.cpuPercent,
 		CPUShares:            copts.cpuShares,
 		CPUPeriod:            copts.cpuPeriod,
