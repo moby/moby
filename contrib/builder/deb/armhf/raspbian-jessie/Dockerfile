@@ -9,7 +9,7 @@ RUN apt-get update && apt-get install -y apparmor bash-completion btrfs-tools bu
 ENV GO_VERSION 1.7.3
 # GOARM is the ARM architecture version which is unrelated to the above Golang version
 ENV GOARM 6
-RUN curl -fSL "https://storage.googleapis.com/golang/go${GO_VERSION}.linux-armv6l.tar.gz" | tar xzC /usr/local
+RUN curl -fSL "https://golang.org/dl/go${GO_VERSION}.linux-armv6l.tar.gz" | tar xzC /usr/local
 ENV PATH $PATH:/usr/local/go/bin
 
 ENV AUTO_GOPATH 1

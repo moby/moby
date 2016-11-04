@@ -104,7 +104,7 @@ for version in "${versions[@]}"; do
 	echo "# NOTE: ppc64le has compatibility issues with older versions of go, so make sure the version >= 1.6" >> "$version/Dockerfile"
 	
 	awk '$1 == "ENV" && $2 == "GO_VERSION" { print; exit }' ../../../../Dockerfile.ppc64le >> "$version/Dockerfile"
-	echo 'ENV GO_DOWNLOAD_URL https://storage.googleapis.com/golang/go${GO_VERSION}.src.tar.gz' >> "$version/Dockerfile"
+	echo 'ENV GO_DOWNLOAD_URL https://golang.org/dl/go${GO_VERSION}.src.tar.gz' >> "$version/Dockerfile"
 	echo 'ENV GOROOT_BOOTSTRAP /usr/lib/go-1.6' >> "$version/Dockerfile"
 	echo >> "$version/Dockerfile"
 	
