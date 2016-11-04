@@ -478,6 +478,9 @@ func (g *Orchestrator) addTask(ctx context.Context, batch *store.Batch, service 
 	task := orchestrator.NewTask(g.cluster, service, 0, nodeID)
 
 	err := batch.Update(func(tx store.Tx) error {
+		if store.GetService(tx, service.ID) == nil {
+			return nil
+		}
 		return store.CreateTask(tx, task)
 	})
 	if err != nil {

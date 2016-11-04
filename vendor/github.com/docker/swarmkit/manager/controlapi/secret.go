@@ -2,6 +2,7 @@ package controlapi
 
 import (
 	"regexp"
+	"strings"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/digest"
@@ -191,6 +192,7 @@ func (s *Server) CreateSecret(ctx context.Context, request *api.CreateSecretRequ
 // RemoveSecret removes the secret referenced by `RemoveSecretRequest.ID`.
 // - Returns `InvalidArgument` if `RemoveSecretRequest.ID` is empty.
 // - Returns `NotFound` if the a secret named `RemoveSecretRequest.ID` is not found.
+// - Returns `SecretInUse` if the secret is currently in use
 // - Returns an error if the deletion fails.
 func (s *Server) RemoveSecret(ctx context.Context, request *api.RemoveSecretRequest) (*api.RemoveSecretResponse, error) {
 	if request.SecretID == "" {
@@ -198,6 +200,34 @@ func (s *Server) RemoveSecret(ctx context.Context, request *api.RemoveSecretRequ
 	}
 
 	err := s.store.Update(func(tx store.Tx) error {
+		// Check if the secret exists
+		secret := store.GetSecret(tx, request.SecretID)
+		if secret == nil {
+			return grpc.Errorf(codes.NotFound, "could not find secret %s", request.SecretID)
+		}
+
+		// Check if any services currently reference this secret, return error if so
+		services, err := store.FindServices(tx, store.ByReferencedSecretID(request.SecretID))
+		if err != nil {
+			return grpc.Errorf(codes.Internal, "could not find services using secret %s: %v", request.SecretID, err)
+		}
+
+		if len(services) != 0 {
+			serviceNames := make([]string, 0, len(services))
+			for _, service := range services {
+				serviceNames = append(serviceNames, service.Spec.Annotations.Name)
+			}
+
+			secretName := secret.Spec.Annotations.Name
+			serviceNameStr := strings.Join(serviceNames, ", ")
+			serviceStr := "services"
+			if len(serviceNames) == 1 {
+				serviceStr = "service"
+			}
+
+			return grpc.Errorf(codes.InvalidArgument, "secret '%s' is in use by the following %s: %v", secretName, serviceStr, serviceNameStr)
+		}
+
 		return store.DeleteSecret(tx, request.SecretID)
 	})
 	switch err {

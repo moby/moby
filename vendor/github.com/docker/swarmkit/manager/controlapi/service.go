@@ -6,6 +6,7 @@ import (
 	"reflect"
 	"regexp"
 	"strconv"
+	"strings"
 
 	"github.com/docker/distribution/reference"
 	"github.com/docker/swarmkit/api"
@@ -208,6 +209,47 @@ func validateEndpointSpec(epSpec *api.EndpointSpec) error {
 	return nil
 }
 
+// validateSecretRefsSpec finds if the secrets passed in spec are valid and have no
+// conflicting targets.
+func validateSecretRefsSpec(spec *api.ServiceSpec) error {
+	container := spec.Task.GetContainer()
+	if container == nil {
+		return nil
+	}
+
+	// Keep a map to track all the targets that will be exposed
+	// The string returned is only used for logging. It could as well be struct{}{}
+	existingTargets := make(map[string]string)
+	for _, secretRef := range container.Secrets {
+		// SecretID and SecretName are mandatory, we have invalid references without them
+		if secretRef.SecretID == "" || secretRef.SecretName == "" {
+			return grpc.Errorf(codes.InvalidArgument, "malformed secret reference")
+		}
+
+		// Every secret referece requires a Target
+		if secretRef.GetTarget() == nil {
+			return grpc.Errorf(codes.InvalidArgument, "malformed secret reference, no target provided")
+		}
+
+		// If this is a file target, we will ensure filename uniqueness
+		if secretRef.GetFile() != nil {
+			fileName := secretRef.GetFile().Name
+			// Validate the file name
+			if fileName == "" || fileName != filepath.Base(filepath.Clean(fileName)) {
+				return grpc.Errorf(codes.InvalidArgument, "malformed file secret reference, invalid target file name provided")
+			}
+
+			// If this target is already in use, we have conflicting targets
+			if prevSecretName, ok := existingTargets[fileName]; ok {
+				return grpc.Errorf(codes.InvalidArgument, "secret references '%s' and '%s' have a conflicting target: '%s'", prevSecretName, secretRef.SecretName, fileName)
+			}
+
+			existingTargets[fileName] = secretRef.SecretName
+		}
+	}
+
+	return nil
+}
 func (s *Server) validateNetworks(networks []*api.NetworkAttachmentConfig) error {
 	for _, na := range networks {
 		var network *api.Network
@@ -242,6 +284,11 @@ func validateServiceSpec(spec *api.ServiceSpec) error {
 	if err := validateEndpointSpec(spec.Endpoint); err != nil {
 		return err
 	}
+	// Check to see if the Secret Reference portion of the spec is valid
+	if err := validateSecretRefsSpec(spec); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -305,42 +352,30 @@ func (s *Server) checkPortConflicts(spec *api.ServiceSpec, serviceID string) err
 	return nil
 }
 
-// checkSecretValidity finds if the secrets passed in spec have any conflicting targets.
-func (s *Server) checkSecretValidity(spec *api.ServiceSpec) error {
+// checkSecretExistence finds if the secret exists
+func (s *Server) checkSecretExistence(tx store.Tx, spec *api.ServiceSpec) error {
 	container := spec.Task.GetContainer()
 	if container == nil {
 		return nil
 	}
 
-	// Keep a map to track all the targets that will be exposed
-	// The string returned is only used for logging. It could as well be struct{}{}
-	existingTargets := make(map[string]string)
+	var failedSecrets []string
 	for _, secretRef := range container.Secrets {
-		// SecretID and SecretName are mandatory, we have invalid references without them
-		if secretRef.SecretID == "" || secretRef.SecretName == "" {
-			return grpc.Errorf(codes.InvalidArgument, "malformed secret reference")
+		secret := store.GetSecret(tx, secretRef.SecretID)
+		// Check to see if the secret exists and secretRef.SecretName matches the actual secretName
+		if secret == nil || secret.Spec.Annotations.Name != secretRef.SecretName {
+			failedSecrets = append(failedSecrets, secretRef.SecretName)
+		}
+	}
+
+	if len(failedSecrets) > 0 {
+		secretStr := "secrets"
+		if len(failedSecrets) == 1 {
+			secretStr = "secret"
 		}
 
-		// Every secret referece requires a Target
-		if secretRef.GetTarget() == nil {
-			return grpc.Errorf(codes.InvalidArgument, "malformed secret reference, no target provided")
-		}
+		return grpc.Errorf(codes.InvalidArgument, "%s not found: %v", secretStr, strings.Join(failedSecrets, ", "))
 
-		// If this is a file target, we will ensure filename uniqueness
-		if secretRef.GetFile() != nil {
-			fileName := secretRef.GetFile().Name
-			// Validate the file name
-			if fileName == "" || fileName != filepath.Base(filepath.Clean(fileName)) {
-				return grpc.Errorf(codes.InvalidArgument, "malformed file secret reference, invalid target file name provided")
-			}
-
-			// If this target is already in use, we have conflicting targets
-			if prevSecretName, ok := existingTargets[fileName]; ok {
-				return grpc.Errorf(codes.InvalidArgument, "secret references '%s' and '%s' have a conflicting target: '%s'", prevSecretName, secretRef.SecretName, fileName)
-			}
-
-			existingTargets[fileName] = secretRef.SecretName
-		}
 	}
 
 	return nil
@@ -364,10 +399,6 @@ func (s *Server) CreateService(ctx context.Context, request *api.CreateServiceRe
 		return nil, err
 	}
 
-	if err := s.checkSecretValidity(request.Spec); err != nil {
-		return nil, err
-	}
-
 	// TODO(aluzzardi): Consider using `Name` as a primary key to handle
 	// duplicate creations. See #65
 	service := &api.Service{
@@ -376,6 +407,13 @@ func (s *Server) CreateService(ctx context.Context, request *api.CreateServiceRe
 	}
 
 	err := s.store.Update(func(tx store.Tx) error {
+		// Check to see if all the secrets being added exist as objects
+		// in our datastore
+		err := s.checkSecretExistence(tx, request.Spec)
+		if err != nil {
+			return err
+		}
+
 		return store.CreateService(tx, service)
 	})
 	if err != nil {
@@ -435,10 +473,6 @@ func (s *Server) UpdateService(ctx context.Context, request *api.UpdateServiceRe
 		}
 	}
 
-	if err := s.checkSecretValidity(request.Spec); err != nil {
-		return nil, err
-	}
-
 	err := s.store.Update(func(tx store.Tx) error {
 		service = store.GetService(tx, request.ServiceID)
 		if service == nil {
@@ -457,6 +491,13 @@ func (s *Server) UpdateService(ctx context.Context, request *api.UpdateServiceRe
 
 		if !reflect.DeepEqual(requestSpecNetworks, specNetworks) {
 			return errNetworkUpdateNotSupported
+		}
+
+		// Check to see if all the secrets being added exist as objects
+		// in our datastore
+		err := s.checkSecretExistence(tx, request.Spec)
+		if err != nil {
+			return err
 		}
 
 		// orchestrator is designed to be stateless, so it should not deal

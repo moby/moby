@@ -26,6 +26,16 @@ func init() {
 					Unique:  true,
 					Indexer: serviceIndexerByName{},
 				},
+				indexNetwork: {
+					Name:         indexNetwork,
+					AllowMissing: true,
+					Indexer:      serviceIndexerByNetwork{},
+				},
+				indexSecret: {
+					Name:         indexSecret,
+					AllowMissing: true,
+					Indexer:      serviceIndexerBySecret{},
+				},
 			},
 		},
 		Save: func(tx ReadTx, snapshot *api.StoreSnapshot) error {
@@ -167,7 +177,7 @@ func GetService(tx ReadTx, id string) *api.Service {
 func FindServices(tx ReadTx, by By) ([]*api.Service, error) {
 	checkType := func(by By) error {
 		switch by.(type) {
-		case byName, byNamePrefix, byIDPrefix:
+		case byName, byNamePrefix, byIDPrefix, byReferencedNetworkID, byReferencedSecretID:
 			return nil
 		default:
 			return ErrInvalidFindBy
@@ -222,4 +232,59 @@ func (si serviceIndexerByName) FromObject(obj interface{}) (bool, []byte, error)
 
 func (si serviceIndexerByName) PrefixFromArgs(args ...interface{}) ([]byte, error) {
 	return prefixFromArgs(args...)
+}
+
+type serviceIndexerByNetwork struct{}
+
+func (si serviceIndexerByNetwork) FromArgs(args ...interface{}) ([]byte, error) {
+	return fromArgs(args...)
+}
+
+func (si serviceIndexerByNetwork) FromObject(obj interface{}) (bool, [][]byte, error) {
+	s, ok := obj.(serviceEntry)
+	if !ok {
+		panic("unexpected type passed to FromObject")
+	}
+
+	var networkIDs [][]byte
+
+	specNetworks := s.Spec.Task.Networks
+
+	if len(specNetworks) == 0 {
+		specNetworks = s.Spec.Networks
+	}
+
+	for _, na := range specNetworks {
+		// Add the null character as a terminator
+		networkIDs = append(networkIDs, []byte(na.Target+"\x00"))
+	}
+
+	return len(networkIDs) != 0, networkIDs, nil
+}
+
+type serviceIndexerBySecret struct{}
+
+func (si serviceIndexerBySecret) FromArgs(args ...interface{}) ([]byte, error) {
+	return fromArgs(args...)
+}
+
+func (si serviceIndexerBySecret) FromObject(obj interface{}) (bool, [][]byte, error) {
+	s, ok := obj.(serviceEntry)
+	if !ok {
+		panic("unexpected type passed to FromObject")
+	}
+
+	container := s.Spec.Task.GetContainer()
+	if container == nil {
+		return false, nil, nil
+	}
+
+	var secretIDs [][]byte
+
+	for _, secretRef := range container.Secrets {
+		// Add the null character as a terminator
+		secretIDs = append(secretIDs, []byte(secretRef.SecretID+"\x00"))
+	}
+
+	return len(secretIDs) != 0, secretIDs, nil
 }

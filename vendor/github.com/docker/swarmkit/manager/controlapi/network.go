@@ -145,36 +145,29 @@ func (s *Server) GetNetwork(ctx context.Context, request *api.GetNetworkRequest)
 // - Returns `NotFound` if the Network is not found.
 // - Returns an error if the deletion fails.
 func (s *Server) RemoveNetwork(ctx context.Context, request *api.RemoveNetworkRequest) (*api.RemoveNetworkResponse, error) {
-	var (
-		services []*api.Service
-		err      error
-	)
-
 	if request.NetworkID == "" {
 		return nil, grpc.Errorf(codes.InvalidArgument, errInvalidArgument.Error())
 	}
 
-	s.store.View(func(tx store.ReadTx) {
-		services, err = store.FindServices(tx, store.All)
-	})
-	if err != nil {
-		return nil, grpc.Errorf(codes.Internal, "could not find services using network %s", request.NetworkID)
-	}
-
-	for _, s := range services {
-		specNetworks := s.Spec.Task.Networks
-		if len(specNetworks) == 0 {
-			specNetworks = s.Spec.Networks
+	err := s.store.Update(func(tx store.Tx) error {
+		services, err := store.FindServices(tx, store.ByReferencedNetworkID(request.NetworkID))
+		if err != nil {
+			return grpc.Errorf(codes.Internal, "could not find services using network %s: %v", request.NetworkID, err)
 		}
 
-		for _, na := range specNetworks {
-			if na.Target == request.NetworkID {
-				return nil, grpc.Errorf(codes.FailedPrecondition, "network %s is in use", request.NetworkID)
-			}
+		if len(services) != 0 {
+			return grpc.Errorf(codes.FailedPrecondition, "network %s is in use by service %s", request.NetworkID, services[0].ID)
 		}
-	}
 
-	err = s.store.Update(func(tx store.Tx) error {
+		tasks, err := store.FindTasks(tx, store.ByReferencedNetworkID(request.NetworkID))
+		if err != nil {
+			return grpc.Errorf(codes.Internal, "could not find tasks using network %s: %v", request.NetworkID, err)
+		}
+
+		if len(tasks) != 0 {
+			return grpc.Errorf(codes.FailedPrecondition, "network %s is in use by task %s", request.NetworkID, tasks[0].ID)
+		}
+
 		nw := store.GetNetwork(tx, request.NetworkID)
 		if _, ok := nw.Spec.Annotations.Labels["com.docker.swarm.internal"]; ok {
 			networkDescription := nw.ID

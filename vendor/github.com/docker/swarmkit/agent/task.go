@@ -64,6 +64,18 @@ func (tm *taskManager) Close() error {
 	}
 }
 
+func (tm *taskManager) Logs(ctx context.Context, options api.LogSubscriptionOptions, publisher exec.LogPublisher) {
+	ctx = log.WithModule(ctx, "taskmanager")
+
+	logCtlr, ok := tm.ctlr.(exec.ControllerLogs)
+	if !ok {
+		return // no logs available
+	}
+	if err := logCtlr.Logs(ctx, publisher, options); err != nil {
+		log.G(ctx).WithError(err).Errorf("logs call failed")
+	}
+}
+
 func (tm *taskManager) run(ctx context.Context) {
 	ctx, cancelAll := context.WithCancel(ctx)
 	defer cancelAll() // cancel all child operations on exit.

@@ -16,8 +16,8 @@ import (
 	"github.com/docker/swarmkit/manager/orchestrator/restart"
 	"github.com/docker/swarmkit/manager/state"
 	"github.com/docker/swarmkit/manager/state/store"
-	"github.com/docker/swarmkit/manager/state/watch"
 	"github.com/docker/swarmkit/protobuf/ptypes"
+	"github.com/docker/swarmkit/watch"
 )
 
 const defaultMonitor = 30 * time.Second
@@ -383,6 +383,10 @@ func (u *Updater) updateTask(ctx context.Context, slot orchestrator.Slot, update
 		}
 
 		err = batch.Update(func(tx store.Tx) error {
+			if store.GetService(tx, updated.ServiceID) == nil {
+				return errors.New("service was deleted")
+			}
+
 			if err := store.CreateTask(tx, updated); err != nil {
 				return err
 			}

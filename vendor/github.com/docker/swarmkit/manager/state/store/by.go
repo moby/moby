@@ -121,3 +121,25 @@ func (b byMembership) isBy() {
 func ByMembership(membership api.NodeSpec_Membership) By {
 	return byMembership(membership)
 }
+
+type byReferencedNetworkID string
+
+func (b byReferencedNetworkID) isBy() {
+}
+
+// ByReferencedNetworkID creates an object to pass to Find to search for a
+// service or task that references a network with the given ID.
+func ByReferencedNetworkID(networkID string) By {
+	return byReferencedNetworkID(networkID)
+}
+
+type byReferencedSecretID string
+
+func (b byReferencedSecretID) isBy() {
+}
+
+// ByReferencedSecretID creates an object to pass to Find to search for a
+// service or task that references a secret with the given ID.
+func ByReferencedSecretID(secretID string) By {
+	return byReferencedSecretID(secretID)
+}

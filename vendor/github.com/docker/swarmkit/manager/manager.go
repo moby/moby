@@ -22,6 +22,7 @@ import (
 	"github.com/docker/swarmkit/manager/dispatcher"
 	"github.com/docker/swarmkit/manager/health"
 	"github.com/docker/swarmkit/manager/keymanager"
+	"github.com/docker/swarmkit/manager/logbroker"
 	"github.com/docker/swarmkit/manager/orchestrator/constraintenforcer"
 	"github.com/docker/swarmkit/manager/orchestrator/global"
 	"github.com/docker/swarmkit/manager/orchestrator/replicated"
@@ -96,6 +97,7 @@ type Manager struct {
 
 	caserver               *ca.Server
 	dispatcher             *dispatcher.Dispatcher
+	logbroker              *logbroker.LogBroker
 	replicatedOrchestrator *replicated.Orchestrator
 	globalOrchestrator     *global.Orchestrator
 	taskReaper             *taskreaper.TaskReaper
@@ -234,6 +236,7 @@ func New(config *Config) (*Manager, error) {
 		listeners:   listeners,
 		caserver:    ca.NewServer(raftNode.MemoryStore(), config.SecurityConfig),
 		dispatcher:  dispatcher.New(raftNode, dispatcherConfig),
+		logbroker:   logbroker.New(),
 		server:      grpc.NewServer(opts...),
 		localserver: grpc.NewServer(opts...),
 		raftNode:    raftNode,
@@ -292,6 +295,8 @@ func (m *Manager) Run(parent context.Context) error {
 
 	authenticatedControlAPI := api.NewAuthenticatedWrapperControlServer(baseControlAPI, authorize)
 	authenticatedResourceAPI := api.NewAuthenticatedWrapperResourceAllocatorServer(baseResourceAPI, authorize)
+	authenticatedLogsServerAPI := api.NewAuthenticatedWrapperLogsServer(m.logbroker, authorize)
+	authenticatedLogBrokerAPI := api.NewAuthenticatedWrapperLogBrokerServer(m.logbroker, authorize)
 	authenticatedDispatcherAPI := api.NewAuthenticatedWrapperDispatcherServer(m.dispatcher, authorize)
 	authenticatedCAAPI := api.NewAuthenticatedWrapperCAServer(m.caserver, authorize)
 	authenticatedNodeCAAPI := api.NewAuthenticatedWrapperNodeCAServer(m.caserver, authorize)
@@ -304,6 +309,7 @@ func (m *Manager) Run(parent context.Context) error {
 	proxyNodeCAAPI := api.NewRaftProxyNodeCAServer(authenticatedNodeCAAPI, m.raftNode, ca.WithMetadataForwardTLSInfo)
 	proxyRaftMembershipAPI := api.NewRaftProxyRaftMembershipServer(authenticatedRaftMembershipAPI, m.raftNode, ca.WithMetadataForwardTLSInfo)
 	proxyResourceAPI := api.NewRaftProxyResourceAllocatorServer(authenticatedResourceAPI, m.raftNode, ca.WithMetadataForwardTLSInfo)
+	proxyLogBrokerAPI := api.NewRaftProxyLogBrokerServer(authenticatedLogBrokerAPI, m.raftNode, ca.WithMetadataForwardTLSInfo)
 
 	// localProxyControlAPI is a special kind of proxy. It is only wired up
 	// to receive requests from a trusted local socket, and these requests
@@ -313,6 +319,7 @@ func (m *Manager) Run(parent context.Context) error {
 	// information to put in the metadata map).
 	forwardAsOwnRequest := func(ctx context.Context) (context.Context, error) { return ctx, nil }
 	localProxyControlAPI := api.NewRaftProxyControlServer(baseControlAPI, m.raftNode, forwardAsOwnRequest)
+	localProxyLogsAPI := api.NewRaftProxyLogsServer(m.logbroker, m.raftNode, forwardAsOwnRequest)
 
 	// Everything registered on m.server should be an authenticated
 	// wrapper, or a proxy wrapping an authenticated wrapper!
@@ -322,10 +329,13 @@ func (m *Manager) Run(parent context.Context) error {
 	api.RegisterHealthServer(m.server, authenticatedHealthAPI)
 	api.RegisterRaftMembershipServer(m.server, proxyRaftMembershipAPI)
 	api.RegisterControlServer(m.server, authenticatedControlAPI)
+	api.RegisterLogsServer(m.server, authenticatedLogsServerAPI)
+	api.RegisterLogBrokerServer(m.server, proxyLogBrokerAPI)
 	api.RegisterResourceAllocatorServer(m.server, proxyResourceAPI)
 	api.RegisterDispatcherServer(m.server, proxyDispatcherAPI)
 
 	api.RegisterControlServer(m.localserver, localProxyControlAPI)
+	api.RegisterLogsServer(m.localserver, localProxyLogsAPI)
 	api.RegisterHealthServer(m.localserver, localHealthServer)
 
 	healthServer.SetServingStatus("Raft", api.HealthCheckResponse_NOT_SERVING)
@@ -419,6 +429,7 @@ func (m *Manager) Stop(ctx context.Context) {
 	}()
 
 	m.dispatcher.Stop()
+	m.logbroker.Stop()
 	m.caserver.Stop()
 
 	if m.allocator != nil {
@@ -664,6 +675,12 @@ func (m *Manager) becomeLeader(ctx context.Context) {
 		}
 	}(m.dispatcher)
 
+	go func(lb *logbroker.LogBroker) {
+		if err := lb.Run(ctx); err != nil {
+			log.G(ctx).WithError(err).Error("LogBroker exited with an error")
+		}
+	}(m.logbroker)
+
 	go func(server *ca.Server) {
 		if err := server.Run(ctx); err != nil {
 			log.G(ctx).WithError(err).Error("CA signer exited with an error")
@@ -712,6 +729,7 @@ func (m *Manager) becomeLeader(ctx context.Context) {
 // becomeFollower shuts down the subsystems that are only run by the leader.
 func (m *Manager) becomeFollower() {
 	m.dispatcher.Stop()
+	m.logbroker.Stop()
 	m.caserver.Stop()
 
 	if m.allocator != nil {
