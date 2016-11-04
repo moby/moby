@@ -250,7 +250,7 @@ specified volumes for the container.
 
 By bind-mounting the docker unix socket and statically linked docker
 binary (refer to [get the linux binary](
-../../installation/binaries.md#get-the-linux-binary)),
+https://docs.docker.com/engine/installation/binaries/#/get-the-linux-binary)),
 you give the container the full access to create and manipulate the host's
 Docker daemon.
 
