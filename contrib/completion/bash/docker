@@ -2184,9 +2184,11 @@ _docker_info() {
 }
 
 _docker_inspect() {
+	local preselected_type
 	local type
 
 	if [ "$1" = "--type" ] ; then
+		preselected_type=yes
 		type="$2"
 	else
 		type=$(__docker_value_of_option --type)
@@ -2197,17 +2199,17 @@ _docker_inspect() {
 			return
 			;;
 		--type)
-			if [ -z "$type" ] ; then
+			if [ -z "$preselected_type" ] ; then
 				COMPREPLY=( $( compgen -W "image container" -- "$cur" ) )
+				return
 			fi
-			return
 			;;
 	esac
 
 	case "$cur" in
 		-*)
 			local options="--format -f --help --size -s"
-			if [ -z "$type" ] ; then
+			if [ -z "$preselected_type" ] ; then
 				options+=" --type"
 			fi
 			COMPREPLY=( $( compgen -W "$options" -- "$cur" ) )
