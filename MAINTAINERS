@@ -78,6 +78,8 @@
 	# - close an issue or pull request when it's inappropriate or off-topic
 
 		people = [
+			"aboch",
+			"andrewhsu",
 			"ehazlett",
 			"mgoelzer",
 			"programmerq",
@@ -168,6 +170,11 @@
 	Email = "aaron.lehmann@docker.com"
 	GitHub = "aaronlehmann"
 
+	[people.aboch]
+	Name = "Alessandro Boch"
+	Email = "aboch@docker.com"
+	GitHub = "aboch"
+
 	[people.akihirosuda]
 	Name = "Akihiro Suda"
 	Email = "suda.akihiro@lab.ntt.co.jp"
@@ -177,6 +184,11 @@
 	Name = "Andrea Luzzardi"
 	Email = "al@docker.com"
 	GitHub = "aluzzardi"
+
+	[people.andrewhsu]
+	Name = "Andrew Hsu"
+	Email = "andrewhsu@docker.com"
+	GitHub = "andrewhsu"
 
 	[people.anusha]
 	Name = "Anusha Ragunathan"
