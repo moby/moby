@@ -36,19 +36,15 @@ var (
 	// that carries Registry version info
 	DefaultRegistryVersionHeader = "Docker-Distribution-Api-Version"
 
-	// IndexServer is the v1 registry server used for user auth + account creation
-	IndexServer = DefaultV1Registry.String() + "/v1/"
+	// IndexHostname is the index hostname
+	IndexHostname = "index.docker.io"
+	// IndexServer is used for user auth and image search
+	IndexServer = "https://" + IndexHostname + "/v1/"
 	// IndexName is the name of the index
 	IndexName = "docker.io"
 
 	// NotaryServer is the endpoint serving the Notary trust server
 	NotaryServer = "https://notary.docker.io"
-
-	// DefaultV1Registry is the URI of the default v1 registry
-	DefaultV1Registry = &url.URL{
-		Scheme: "https",
-		Host:   "index.docker.io",
-	}
 
 	// DefaultV2Registry is the URI of the default v2 registry
 	DefaultV2Registry = &url.URL{
