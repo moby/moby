@@ -74,38 +74,24 @@ func PrintQuiet(dockerCli *command.DockerCli, tasks []swarm.Task) error {
 }
 
 func print(out io.Writer, ctx context.Context, tasks []swarm.Task, resolver *idresolver.IDResolver, noTrunc bool) error {
-	prevServiceName := ""
+	prevService := ""
 	prevSlot := 0
 	for _, task := range tasks {
-		serviceName, err := resolver.Resolve(ctx, swarm.Service{}, task.ServiceID)
-		if err != nil {
-			return err
-		}
+		name, err := resolver.Resolve(ctx, task, task.ID)
+
 		nodeValue, err := resolver.Resolve(ctx, swarm.Node{}, task.NodeID)
 		if err != nil {
 			return err
-		}
-
-		name := task.Annotations.Name
-		// TODO: This is the fallback <ServiceName>.<Slot>.<taskID> in case task name is not present in
-		// Annotations (upgraded from 1.12).
-		// We may be able to remove the following in the future.
-		if name == "" {
-			if task.Slot != 0 {
-				name = fmt.Sprintf("%v.%v.%v", serviceName, task.Slot, task.ID)
-			} else {
-				name = fmt.Sprintf("%v.%v.%v", serviceName, task.NodeID, task.ID)
-			}
 		}
 
 		// Indent the name if necessary
 		indentedName := name
 		// Since the new format of the task name is <ServiceName>.<Slot>.<taskID>, we should only compare
 		// <ServiceName> and <Slot> here.
-		if prevServiceName == serviceName && prevSlot == task.Slot {
+		if prevService == task.ServiceID && prevSlot == task.Slot {
 			indentedName = fmt.Sprintf(" \\_ %s", indentedName)
 		}
-		prevServiceName = serviceName
+		prevService = task.ServiceID
 		prevSlot = task.Slot
 
 		// Trim and quote the error message.

@@ -7,6 +7,7 @@ import (
 
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/client"
+	"github.com/docker/docker/pkg/stringid"
 )
 
 // IDResolver provides ID to Name resolution.
@@ -26,7 +27,7 @@ func New(client client.APIClient, noResolve bool) *IDResolver {
 }
 
 func (r *IDResolver) get(ctx context.Context, t interface{}, id string) (string, error) {
-	switch t.(type) {
+	switch t := t.(type) {
 	case swarm.Node:
 		node, _, err := r.client.NodeInspectWithRaw(ctx, id)
 		if err != nil {
@@ -45,6 +46,25 @@ func (r *IDResolver) get(ctx context.Context, t interface{}, id string) (string,
 			return id, nil
 		}
 		return service.Spec.Annotations.Name, nil
+	case swarm.Task:
+		// If the caller passes the full task there's no need to do a lookup.
+		if t.ID == "" {
+			var err error
+
+			t, _, err = r.client.TaskInspectWithRaw(ctx, id)
+			if err != nil {
+				return id, nil
+			}
+		}
+		taskID := stringid.TruncateID(t.ID)
+		if t.ServiceID == "" {
+			return taskID, nil
+		}
+		service, err := r.Resolve(ctx, swarm.Service{}, t.ServiceID)
+		if err != nil {
+			return "", err
+		}
+		return fmt.Sprintf("%s.%d.%s", service, t.Slot, taskID), nil
 	default:
 		return "", fmt.Errorf("unsupported type")
 	}
