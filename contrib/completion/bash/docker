@@ -3100,9 +3100,12 @@ _docker_system() {
 	esac
 }
 
-# TODO new command
 _docker_system_df() {
-	:
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "--help --verbose -v" -- "$cur" ) )
+			;;
+	esac
 }
 
 _docker_system_events() {
