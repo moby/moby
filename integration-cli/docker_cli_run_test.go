@@ -4830,3 +4830,22 @@ func (s *DockerSuite) TestRunHypervIsolationWithCPUCountCPUSharesAndCPUPercent(c
 	out = inspectField(c, "test", "HostConfig.CPUPercent")
 	c.Assert(out, check.Equals, "80")
 }
+
+// Test for #25099
+func (s *DockerSuite) TestRunEmptyEnv(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+
+	expectedOutput := "invalid environment variable:"
+
+	out, _, err := dockerCmdWithError("run", "-e", "", "busybox", "true")
+	c.Assert(err, checker.NotNil)
+	c.Assert(out, checker.Contains, expectedOutput)
+
+	out, _, err = dockerCmdWithError("run", "-e", "=", "busybox", "true")
+	c.Assert(err, checker.NotNil)
+	c.Assert(out, checker.Contains, expectedOutput)
+
+	out, _, err = dockerCmdWithError("run", "-e", "=foo", "busybox", "true")
+	c.Assert(err, checker.NotNil)
+	c.Assert(out, checker.Contains, expectedOutput)
+}
