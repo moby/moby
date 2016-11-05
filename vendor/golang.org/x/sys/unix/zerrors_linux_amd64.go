@@ -216,6 +216,7 @@ const (
 	CLONE_FILES                      = 0x400
 	CLONE_FS                         = 0x200
 	CLONE_IO                         = 0x80000000
+	CLONE_NEWCGROUP                  = 0x2000000
 	CLONE_NEWIPC                     = 0x8000000
 	CLONE_NEWNET                     = 0x40000000
 	CLONE_NEWNS                      = 0x20000
@@ -826,6 +827,7 @@ const (
 	O_RDWR                           = 0x2
 	O_RSYNC                          = 0x101000
 	O_SYNC                           = 0x101000
+	O_TMPFILE                        = 0x410000
 	O_TRUNC                          = 0x200
 	O_WRONLY                         = 0x1
 	PACKET_ADD_MEMBERSHIP            = 0x1

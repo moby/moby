@@ -31,6 +31,10 @@ type DLL struct {
 }
 
 // LoadDLL loads DLL file into memory.
+//
+// Warning: using LoadDLL without an absolute path name is subject to
+// DLL preloading attacks. To safely load a system DLL, use LazyDLL
+// with System set to true, or use LoadLibraryEx directly.
 func LoadDLL(name string) (dll *DLL, err error) {
 	namep, err := UTF16PtrFromString(name)
 	if err != nil {
@@ -110,6 +114,8 @@ func (p *Proc) Addr() uintptr {
 	return p.addr
 }
 
+//go:uintptrescapes
+
 // Call executes procedure p with arguments a. It will panic, if more then 15 arguments
 // are supplied.
 //
@@ -162,29 +168,48 @@ func (p *Proc) Call(a ...uintptr) (r1, r2 uintptr, lastErr error) {
 // call to its Handle method or to one of its
 // LazyProc's Addr method.
 type LazyDLL struct {
-	mu   sync.Mutex
-	dll  *DLL // non nil once DLL is loaded
 	Name string
+
+	// System determines whether the DLL must be loaded from the
+	// Windows System directory, bypassing the normal DLL search
+	// path.
+	System bool
+
+	mu  sync.Mutex
+	dll *DLL // non nil once DLL is loaded
 }
 
 // Load loads DLL file d.Name into memory. It returns an error if fails.
 // Load will not try to load DLL, if it is already loaded into memory.
 func (d *LazyDLL) Load() error {
 	// Non-racy version of:
-	// if d.dll == nil {
-	if atomic.LoadPointer((*unsafe.Pointer)(unsafe.Pointer(&d.dll))) == nil {
-		d.mu.Lock()
-		defer d.mu.Unlock()
-		if d.dll == nil {
-			dll, e := LoadDLL(d.Name)
-			if e != nil {
-				return e
-			}
-			// Non-racy version of:
-			// d.dll = dll
-			atomic.StorePointer((*unsafe.Pointer)(unsafe.Pointer(&d.dll)), unsafe.Pointer(dll))
-		}
+	// if d.dll != nil {
+	if atomic.LoadPointer((*unsafe.Pointer)(unsafe.Pointer(&d.dll))) != nil {
+		return nil
 	}
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	if d.dll != nil {
+		return nil
+	}
+
+	// kernel32.dll is special, since it's where LoadLibraryEx comes from.
+	// The kernel already special-cases its name, so it's always
+	// loaded from system32.
+	var dll *DLL
+	var err error
+	if d.Name == "kernel32.dll" {
+		dll, err = LoadDLL(d.Name)
+	} else {
+		dll, err = loadLibraryEx(d.Name, d.System)
+	}
+	if err != nil {
+		return err
+	}
+
+	// Non-racy version of:
+	// d.dll = dll
+	atomic.StorePointer((*unsafe.Pointer)(unsafe.Pointer(&d.dll)), unsafe.Pointer(dll))
 	return nil
 }
 
@@ -212,11 +237,19 @@ func NewLazyDLL(name string) *LazyDLL {
 	return &LazyDLL{Name: name}
 }
 
+// NewLazySystemDLL is like NewLazyDLL, but will only
+// search Windows System directory for the DLL if name is
+// a base name (like "advapi32.dll").
+func NewLazySystemDLL(name string) *LazyDLL {
+	return &LazyDLL{Name: name, System: true}
+}
+
 // A LazyProc implements access to a procedure inside a LazyDLL.
 // It delays the lookup until the Addr method is called.
 type LazyProc struct {
-	mu   sync.Mutex
 	Name string
+
+	mu   sync.Mutex
 	l    *LazyDLL
 	proc *Proc
 }
@@ -262,6 +295,8 @@ func (p *LazyProc) Addr() uintptr {
 	return p.proc.Addr()
 }
 
+//go:uintptrescapes
+
 // Call executes procedure p with arguments a. It will panic, if more then 15 arguments
 // are supplied.
 //
@@ -273,3 +308,71 @@ func (p *LazyProc) Call(a ...uintptr) (r1, r2 uintptr, lastErr error) {
 	p.mustFind()
 	return p.proc.Call(a...)
 }
+
+var canDoSearchSystem32Once struct {
+	sync.Once
+	v bool
+}
+
+func initCanDoSearchSystem32() {
+	// https://msdn.microsoft.com/en-us/library/ms684179(v=vs.85).aspx says:
+	// "Windows 7, Windows Server 2008 R2, Windows Vista, and Windows
+	// Server 2008: The LOAD_LIBRARY_SEARCH_* flags are available on
+	// systems that have KB2533623 installed. To determine whether the
+	// flags are available, use GetProcAddress to get the address of the
+	// AddDllDirectory, RemoveDllDirectory, or SetDefaultDllDirectories
+	// function. If GetProcAddress succeeds, the LOAD_LIBRARY_SEARCH_*
+	// flags can be used with LoadLibraryEx."
+	canDoSearchSystem32Once.v = (modkernel32.NewProc("AddDllDirectory").Find() == nil)
+}
+
+func canDoSearchSystem32() bool {
+	canDoSearchSystem32Once.Do(initCanDoSearchSystem32)
+	return canDoSearchSystem32Once.v
+}
+
+func isBaseName(name string) bool {
+	for _, c := range name {
+		if c == ':' || c == '/' || c == '\\' {
+			return false
+		}
+	}
+	return true
+}
+
+// loadLibraryEx wraps the Windows LoadLibraryEx function.
+//
+// See https://msdn.microsoft.com/en-us/library/windows/desktop/ms684179(v=vs.85).aspx
+//
+// If name is not an absolute path, LoadLibraryEx searches for the DLL
+// in a variety of automatic locations unless constrained by flags.
+// See: https://msdn.microsoft.com/en-us/library/ff919712%28VS.85%29.aspx
+func loadLibraryEx(name string, system bool) (*DLL, error) {
+	loadDLL := name
+	var flags uintptr
+	if system {
+		if canDoSearchSystem32() {
+			const LOAD_LIBRARY_SEARCH_SYSTEM32 = 0x00000800
+			flags = LOAD_LIBRARY_SEARCH_SYSTEM32
+		} else if isBaseName(name) {
+			// WindowsXP or unpatched Windows machine
+			// trying to load "foo.dll" out of the system
+			// folder, but LoadLibraryEx doesn't support
+			// that yet on their system, so emulate it.
+			windir, _ := Getenv("WINDIR") // old var; apparently works on XP
+			if windir == "" {
+				return nil, errString("%WINDIR% not defined")
+			}
+			loadDLL = windir + "\\System32\\" + name
+		}
+	}
+	h, err := LoadLibraryEx(loadDLL, 0, flags)
+	if err != nil {
+		return nil, err
+	}
+	return &DLL{Name: name, Handle: h}, nil
+}
+
+type errString string
+
+func (s errString) Error() string { return string(s) }
