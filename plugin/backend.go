@@ -162,6 +162,7 @@ func (pm *Manager) Remove(name string, config *types.PluginRmConfig) error {
 	}
 
 	pm.pluginStore.Remove(p)
+	os.RemoveAll(filepath.Join(pm.libRoot, p.GetID()))
 	pm.pluginEventLogger(p.GetID(), name, "remove")
 	return nil
 }
