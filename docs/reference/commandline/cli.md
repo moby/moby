@@ -20,7 +20,7 @@ or execute `docker help`:
 
 ```bash
 $ docker
-Usage: docker [OPTIONS] COMMAND [arg...]
+Usage: docker [OPTIONS] COMMAND [ARG...]
        docker [ --help | -v | --version ]
 
 A self-sufficient runtime for containers.
