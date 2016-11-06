@@ -27,7 +27,7 @@ func (lum *LayerUploadManager) SetConcurrency(concurrency int) {
 // NewLayerUploadManager returns a new LayerUploadManager.
 func NewLayerUploadManager(concurrencyLimit int) *LayerUploadManager {
 	return &LayerUploadManager{
-		tm: NewTransferManager(concurrencyLimit),
+		tm: NewTransferManager(concurrencyLimit, ""),
 	}
 }
 

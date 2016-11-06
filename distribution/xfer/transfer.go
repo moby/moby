@@ -317,13 +317,15 @@ type transferManager struct {
 	activeTransfers  int
 	transfers        map[string]Transfer
 	waitingTransfers []chan struct{}
+	cacheRoot        string
 }
 
 // NewTransferManager returns a new TransferManager.
-func NewTransferManager(concurrencyLimit int) TransferManager {
+func NewTransferManager(concurrencyLimit int, cacheRoot string) TransferManager {
 	return &transferManager{
 		concurrencyLimit: concurrencyLimit,
 		transfers:        make(map[string]Transfer),
+		cacheRoot:        cacheRoot,
 	}
 }
 
@@ -336,10 +338,6 @@ func (tm *transferManager) SetConcurrency(concurrency int) {
 
 var cacheSubdir = "resumable_downloads"
 
-func cacheRootPath() string {
-	return filepath.Join(os.Getenv("TMPDIR"), cacheSubdir)
-}
-
 // hashKey hashes the key to create the directory name because otherwise tche path
 // would be too long. This hash needs to be secure or else multiple downloads could
 // share the same cache directory and cause unexpected and potentially malicious behaviour.
@@ -351,35 +349,53 @@ func hashKey(key string) string {
 	return string(encoded)
 }
 
-func cachePathForKeyHash(keyHash string) string {
-	return filepath.Join(cacheRootPath(), keyHash)
+func (tm *transferManager) cachePathForKeyHash(keyHash string) string {
+	return filepath.Join(tm.cacheRoot, keyHash)
 }
 
-func cleanUpByKeyHash(keyHash string) error {
-	return os.RemoveAll(cachePathForKeyHash(keyHash))
+func (tm *transferManager) cleanUpByKeyHash(keyHash string) error {
+	return os.RemoveAll(tm.cachePathForKeyHash(keyHash))
 }
 
 // CollectGarbage purges the cache directory of any caches for transfers
 // that are not in progress
 func (tm *transferManager) CollectGarbage() error {
+	if tm.cacheRoot == "" {
+		return nil
+	}
+
 	tm.mu.Lock()
 	defer tm.mu.Unlock()
 
 	// mark
 	allKeyHashes := map[string]struct{}{}
-	cacheDirs, err := ioutil.ReadDir(cacheRootPath())
+	cacheDirs, err := ioutil.ReadDir(tm.cacheRoot)
 	if err != nil {
-		logrus.Warnf("Failed to list %s: %s", cacheRootPath(), err)
+		logrus.Warnf("Failed to list %s: %s", tm.cacheRoot, err)
 	}
 	for _, cacheDir := range cacheDirs {
 		cacheDirName := cacheDir.Name()
 		keyHash := filepath.Base(cacheDirName)
+
+		// safety check to make sure we don't delete anything that's not a hash
+		// we created
+		decoded := make([]byte, sha256.Size)
+		l, err := hex.Decode(decoded, []byte(keyHash))
+		if err != nil {
+			logrus.Debug("Ignoring unexpected cache directory %s: %s", cacheDirName, err)
+			continue
+		}
+		if l != sha256.Size {
+			logrus.Debug("Ignoring unexpected cache directory %s because the hash's decoded length is %s, not %s", l, sha256.Size)
+			continue
+		}
+
 		allKeyHashes[keyHash] = struct{}{}
 	}
 
 	// set subtraction allKeyHashes = allKeyHashes - tm.transfers
 	for key := range tm.transfers {
-		cacheDirName := cachePathForKeyHash(hashKey(key))
+		cacheDirName := tm.cachePathForKeyHash(hashKey(key))
 		keyHash := filepath.Base(cacheDirName)
 		delete(allKeyHashes, keyHash)
 	}
@@ -387,7 +403,7 @@ func (tm *transferManager) CollectGarbage() error {
 	// sweep
 	errs := []error{}
 	for keyHash := range allKeyHashes {
-		err = cleanUpByKeyHash(keyHash)
+		err = tm.cleanUpByKeyHash(keyHash)
 		if err != nil {
 			errs = append(errs, err)
 		}
@@ -446,7 +462,10 @@ func (tm *transferManager) Transfer(key string, xferFunc DoFunc, progressOutput 
 	}
 
 	masterProgressChan := make(chan progress.Progress)
-	cachePath := cachePathForKeyHash(hashKey(key))
+	var cachePath string
+	if tm.cacheRoot != "" {
+		cachePath = tm.cachePathForKeyHash(hashKey(key))
+	}
 	xfer := xferFunc(masterProgressChan, start, inactive, cachePath)
 	watcher := xfer.Watch(progressOutput)
 	go xfer.Broadcast(masterProgressChan)
@@ -468,7 +487,7 @@ func (tm *transferManager) Transfer(key string, xferFunc DoFunc, progressOutput 
 				}
 				delete(tm.transfers, key)
 				if xfer.IsSuccess() {
-					err := cleanUpByKeyHash(hashKey(key))
+					err := tm.cleanUpByKeyHash(hashKey(key))
 					if err != nil {
 						logrus.Errorf("error cleaning up transfer cache for key %s: %s", key, err)
 					}

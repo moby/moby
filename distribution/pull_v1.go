@@ -4,10 +4,10 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net"
 	"net/url"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -299,6 +299,8 @@ func (ld *v1LayerDescriptor) DiffID() (layer.DiffID, error) {
 	return ld.v1IDService.Get(ld.v1LayerID, ld.indexName)
 }
 
+var v1LayerDataFilename = "v1data"
+
 func (ld *v1LayerDescriptor) Download(ctx context.Context, progressOutput progress.Output, cacheDir string) (io.ReadCloser, int64, error) {
 	progress.Update(progressOutput, ld.ID(), "Pulling fs layer")
 	layerReader, err := ld.session.GetRemoteImageLayer(ld.v1LayerID, ld.endpoint, ld.layerSize)
@@ -314,8 +316,12 @@ func (ld *v1LayerDescriptor) Download(ctx context.Context, progressOutput progre
 	}
 	*ld.layersDownloaded = true
 
-	// TODO: use the cache dir???
-	ld.tmpFile, err = ioutil.TempFile("", "GetImageBlob")
+	err = os.MkdirAll(cacheDir, 700)
+	if err != nil {
+		layerReader.Close()
+		return nil, 0, err
+	}
+	ld.tmpFile, err = os.Create(filepath.Join(cacheDir, v1LayerDataFilename))
 	if err != nil {
 		layerReader.Close()
 		return nil, 0, err

@@ -4,6 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/Sirupsen/logrus"
@@ -38,9 +40,7 @@ func NewLayerDownloadManager(layerStore layer.Store, concurrencyLimit int) *Laye
 	// up
 	return &LayerDownloadManager{
 		layerStore: layerStore,
-		// TODO: prefix the cache for the transfer manager to keep the upload
-		// and download caches separate
-		tm: NewTransferManager(concurrencyLimit),
+		tm:         NewTransferManager(concurrencyLimit, filepath.Join(os.Getenv("TMPDIR"), "resumable_downloads")),
 	}
 }
 

@@ -855,10 +855,10 @@ func fixManifestLayers(m *schema1.Manifest) error {
 	return nil
 }
 
-var layerDataFilename = "data"
+var v2LayerDataFilename = "v2data"
 
 func resumeOrCreateDownloadFile(cachePath string, dgst digest.Digest) (int64, *os.File, digest.Verifier, error) {
-	dataPath := filepath.Join(cachePath, layerDataFilename)
+	dataPath := filepath.Join(cachePath, v2LayerDataFilename)
 	_, err := os.Stat(dataPath)
 	if err == nil {
 		return resumeDownloadFile(cachePath, dgst)
@@ -874,7 +874,7 @@ func resumeOrCreateDownloadFile(cachePath string, dgst digest.Digest) (int64, *o
 }
 
 func resumeDownloadFile(cachePath string, dgst digest.Digest) (int64, *os.File, digest.Verifier, error) {
-	dataPath := filepath.Join(cachePath, layerDataFilename)
+	dataPath := filepath.Join(cachePath, v2LayerDataFilename)
 	verifier, err := digest.NewDigestVerifier(dgst)
 	if err != nil {
 		return 0, nil, nil, err
@@ -900,7 +900,7 @@ func resumeDownloadFile(cachePath string, dgst digest.Digest) (int64, *os.File, 
 }
 
 func createDownloadFile(cachePath string) (*os.File, error) {
-	dataPath := filepath.Join(cachePath, layerDataFilename)
+	dataPath := filepath.Join(cachePath, v2LayerDataFilename)
 
 	if err := os.MkdirAll(cachePath, 700); err != nil {
 		return nil, err
