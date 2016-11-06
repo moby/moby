@@ -1668,7 +1668,7 @@ Build an image from a Dockerfile
     HTTP/1.1 200 OK
     Content-Type: application/json
 
-    {"stream": "Step 1..."}
+    {"stream": "Step 1/5..."}
     {"stream": "..."}
     {"error": "Error...", "errorDetail": {"code": 123, "message": "Error..."}}
 
