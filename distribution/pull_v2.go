@@ -886,12 +886,9 @@ func resumeDownloadFile(cachePath string, dgst digest.Digest) (int64, *os.File, 
 		return 0, nil, nil, err
 	}
 
-	// TODO make a mechanism for storing the partial digest and offset atomically
+	// TODO(vikstrous) make a mechanism for storing the partial digest and offset atomically
 	// and resuming using that instead of re-hashing everything up to the current
 	// offset
-	// I can use a tee reader during download fed into a checkpointer that
-	// atomically writes out the current verifier hash and offset, then I can
-	// load from the file when reading
 	offset, err := io.Copy(verifier, file)
 	if err != nil {
 		return 0, nil, nil, err

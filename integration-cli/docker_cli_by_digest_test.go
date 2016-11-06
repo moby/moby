@@ -639,6 +639,10 @@ func (s *DockerRegistrySuite) TestPullFailsWithAlteredLayer(c *check.C) {
 	if err := os.RemoveAll(filepath.Join(dockerBasePath, "image", s.d.storageDriver, "distribution")); err != nil {
 		c.Fatalf("error clearing distribution cache: %v", err)
 	}
+	// Also remove cached download data
+	if err := os.RemoveAll(filepath.Join(dockerBasePath, "tmp", "resumable_downloads")); err != nil {
+		c.Fatalf("error clearing resumable downloads cache: %v", err)
+	}
 
 	// Pull from the registry using the <name>@<digest> reference.
 	imageReference := fmt.Sprintf("%s@%s", repoName, manifestDigest)
