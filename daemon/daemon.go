@@ -28,6 +28,7 @@ import (
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/events"
 	"github.com/docker/docker/daemon/exec"
+	"github.com/docker/docker/distribution"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/libnetwork/cluster"
 	// register graph drivers
@@ -104,6 +105,7 @@ type Daemon struct {
 	defaultIsolation          containertypes.Isolation // Default isolation mode on Windows
 	clusterProvider           cluster.Provider
 	cluster                   Cluster
+	imagePuller               distribution.ImagePuller
 
 	seccompProfile     []byte
 	seccompProfilePath string
@@ -705,6 +707,15 @@ func NewDaemon(config *Config, registryService registry.Service, containerdRemot
 	// set up SIGUSR1 handler on Unix-like systems, or a Win32 global event
 	// on Windows to dump Go routine stacks
 	d.setupDumpStackTrap(config.Root)
+
+	d.imagePuller = distribution.NewImagePuller(distribution.ImagePullerConfig{
+		RegistryService:  d.RegistryService,
+		ImageEventLogger: d.LogImageEvent,
+		MetadataStore:    d.distributionMetadataStore,
+		ImageStore:       d.imageStore,
+		ReferenceStore:   d.referenceStore,
+		DownloadManager:  d.downloadManager,
+	})
 
 	return d, nil
 }

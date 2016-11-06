@@ -52,7 +52,10 @@ func (e ImageConfigPullError) Error() string {
 type v2Puller struct {
 	V2MetadataService metadata.V2MetadataService
 	endpoint          registry.APIEndpoint
+	referenceStore    reference.Store
+	downloadManager   *xfer.LayerDownloadManager
 	config            *ImagePullConfig
+	imageStore        image.Store
 	repoInfo          *registry.RepositoryInfo
 	repo              distribution.Repository
 	// confirmedV2 is set to true if we confirm we're talking to a v2
@@ -397,24 +400,24 @@ func (p *v2Puller) pullV2Tag(ctx context.Context, ref reference.Named) (tagUpdat
 
 	progress.Message(p.config.ProgressOutput, "", "Digest: "+manifestDigest.String())
 
-	oldTagID, err := p.config.ReferenceStore.Get(ref)
+	oldTagID, err := p.referenceStore.Get(ref)
 	if err == nil {
 		if oldTagID == id {
-			return false, addDigestReference(p.config.ReferenceStore, ref, manifestDigest, id)
+			return false, addDigestReference(p.referenceStore, ref, manifestDigest, id)
 		}
 	} else if err != reference.ErrDoesNotExist {
 		return false, err
 	}
 
 	if canonical, ok := ref.(reference.Canonical); ok {
-		if err = p.config.ReferenceStore.AddDigest(canonical, id, true); err != nil {
+		if err = p.referenceStore.AddDigest(canonical, id, true); err != nil {
 			return false, err
 		}
 	} else {
-		if err = addDigestReference(p.config.ReferenceStore, ref, manifestDigest, id); err != nil {
+		if err = addDigestReference(p.referenceStore, ref, manifestDigest, id); err != nil {
 			return false, err
 		}
-		if err = p.config.ReferenceStore.AddTag(ref, id, true); err != nil {
+		if err = p.referenceStore.AddTag(ref, id, true); err != nil {
 			return false, err
 		}
 	}
@@ -473,7 +476,7 @@ func (p *v2Puller) pullSchema1(ctx context.Context, ref reference.Named, unverif
 		descriptors = append(descriptors, layerDescriptor)
 	}
 
-	resultRootFS, release, err := p.config.DownloadManager.Download(ctx, *rootFS, descriptors, p.config.ProgressOutput)
+	resultRootFS, release, err := p.downloadManager.Download(ctx, *rootFS, descriptors, p.config.ProgressOutput)
 	if err != nil {
 		return "", "", err
 	}
@@ -484,7 +487,7 @@ func (p *v2Puller) pullSchema1(ctx context.Context, ref reference.Named, unverif
 		return "", "", err
 	}
 
-	imageID, err := p.config.ImageStore.Create(config)
+	imageID, err := p.imageStore.Create(config)
 	if err != nil {
 		return "", "", err
 	}
@@ -501,7 +504,7 @@ func (p *v2Puller) pullSchema2(ctx context.Context, ref reference.Named, mfst *s
 	}
 
 	target := mfst.Target()
-	if _, err := p.config.ImageStore.Get(image.IDFromDigest(target.Digest)); err == nil {
+	if _, err := p.imageStore.Get(image.IDFromDigest(target.Digest)); err == nil {
 		// If the image already exists locally, no need to pull
 		// anything.
 		return target.Digest, manifestDigest, nil
@@ -570,7 +573,7 @@ func (p *v2Puller) pullSchema2(ctx context.Context, ref reference.Named, mfst *s
 
 	downloadRootFS = *image.NewRootFS()
 
-	rootFS, release, err := p.config.DownloadManager.Download(ctx, downloadRootFS, descriptors, p.config.ProgressOutput)
+	rootFS, release, err := p.downloadManager.Download(ctx, downloadRootFS, descriptors, p.config.ProgressOutput)
 	if err != nil {
 		if configJSON != nil {
 			// Already received the config
@@ -614,7 +617,7 @@ func (p *v2Puller) pullSchema2(ctx context.Context, ref reference.Named, mfst *s
 		}
 	}
 
-	imageID, err := p.config.ImageStore.Create(configJSON)
+	imageID, err := p.imageStore.Create(configJSON)
 	if err != nil {
 		return "", "", err
 	}
