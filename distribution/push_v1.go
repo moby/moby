@@ -434,7 +434,7 @@ func (p *v1Pusher) pushImage(ctx context.Context, v1Image v1Image, ep string) (c
 	// Send the layer
 	logrus.Debugf("rendered layer for %s of [%d] size", v1ID, size)
 
-	reader := progress.NewProgressReader(ioutils.NewCancelReadCloser(ctx, arch), p.config.ProgressOutput, size, truncID, "Pushing")
+	reader := progress.NewProgressReader(ioutils.NewCancelReadCloser(ctx, arch), p.config.ProgressOutput, 0, size, truncID, "Pushing")
 	defer reader.Close()
 
 	checksum, checksumPayload, err := p.session.PushImageLayerRegistry(v1ID, reader, ep, jsonRaw)

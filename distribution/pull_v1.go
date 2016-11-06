@@ -327,7 +327,7 @@ func (ld *v1LayerDescriptor) Download(ctx context.Context, progressOutput progre
 		return nil, 0, err
 	}
 
-	reader := progress.NewProgressReader(ioutils.NewCancelReadCloser(ctx, layerReader), progressOutput, ld.layerSize, ld.ID(), "Downloading")
+	reader := progress.NewProgressReader(ioutils.NewCancelReadCloser(ctx, layerReader), progressOutput, 0, ld.layerSize, ld.ID(), "Downloading")
 	defer reader.Close()
 
 	_, err = io.Copy(ld.tmpFile, reader)

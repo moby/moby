@@ -231,7 +231,7 @@ func (ld *v2LayerDescriptor) Download(ctx context.Context, progressOutput progre
 			}
 		}
 
-		reader := progress.NewProgressReader(ioutils.NewCancelReadCloser(ctx, layerDownload), progressOutput, size-offset, ld.ID(), "Downloading")
+		reader := progress.NewProgressReader(ioutils.NewCancelReadCloser(ctx, layerDownload), progressOutput, offset, size, ld.ID(), "Downloading")
 		defer reader.Close()
 
 		if ld.verifier == nil {

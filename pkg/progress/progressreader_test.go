@@ -12,7 +12,7 @@ func TestOutputOnPrematureClose(t *testing.T) {
 	reader := ioutil.NopCloser(bytes.NewReader(content))
 	progressChan := make(chan Progress, 10)
 
-	pr := NewProgressReader(reader, ChanOutput(progressChan), int64(len(content)), "Test", "Read")
+	pr := NewProgressReader(reader, ChanOutput(progressChan), 0, int64(len(content)), "Test", "Read")
 
 	part := make([]byte, 4, 4)
 	_, err := io.ReadFull(pr, part)
@@ -44,7 +44,7 @@ func TestCompleteSilently(t *testing.T) {
 	reader := ioutil.NopCloser(bytes.NewReader(content))
 	progressChan := make(chan Progress, 10)
 
-	pr := NewProgressReader(reader, ChanOutput(progressChan), int64(len(content)), "Test", "Read")
+	pr := NewProgressReader(reader, ChanOutput(progressChan), 0, int64(len(content)), "Test", "Read")
 
 	out, err := ioutil.ReadAll(pr)
 	if err != nil {
