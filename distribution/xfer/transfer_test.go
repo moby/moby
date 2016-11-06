@@ -10,7 +10,7 @@ import (
 
 func TestTransfer(t *testing.T) {
 	makeXferFunc := func(id string) DoFunc {
-		return func(progressChan chan<- progress.Progress, start <-chan struct{}, inactive chan<- struct{}) Transfer {
+		return func(progressChan chan<- progress.Progress, start <-chan struct{}, inactive chan<- struct{}, cacheDir string) Transfer {
 			select {
 			case <-start:
 			default:
@@ -72,7 +72,7 @@ func TestConcurrencyLimit(t *testing.T) {
 	var runningJobs int32
 
 	makeXferFunc := func(id string) DoFunc {
-		return func(progressChan chan<- progress.Progress, start <-chan struct{}, inactive chan<- struct{}) Transfer {
+		return func(progressChan chan<- progress.Progress, start <-chan struct{}, inactive chan<- struct{}, cacheDir string) Transfer {
 			xfer := NewTransfer()
 			go func() {
 				<-start
@@ -131,7 +131,7 @@ func TestInactiveJobs(t *testing.T) {
 	testDone := make(chan struct{})
 
 	makeXferFunc := func(id string) DoFunc {
-		return func(progressChan chan<- progress.Progress, start <-chan struct{}, inactive chan<- struct{}) Transfer {
+		return func(progressChan chan<- progress.Progress, start <-chan struct{}, inactive chan<- struct{}, cacheDir string) Transfer {
 			xfer := NewTransfer()
 			go func() {
 				<-start
@@ -191,7 +191,7 @@ func TestWatchRelease(t *testing.T) {
 	ready := make(chan struct{})
 
 	makeXferFunc := func(id string) DoFunc {
-		return func(progressChan chan<- progress.Progress, start <-chan struct{}, inactive chan<- struct{}) Transfer {
+		return func(progressChan chan<- progress.Progress, start <-chan struct{}, inactive chan<- struct{}, cacheDir string) Transfer {
 			xfer := NewTransfer()
 			go func() {
 				defer func() {
@@ -280,7 +280,7 @@ func TestWatchRelease(t *testing.T) {
 
 func TestWatchFinishedTransfer(t *testing.T) {
 	makeXferFunc := func(id string) DoFunc {
-		return func(progressChan chan<- progress.Progress, start <-chan struct{}, inactive chan<- struct{}) Transfer {
+		return func(progressChan chan<- progress.Progress, start <-chan struct{}, inactive chan<- struct{}, cacheDir string) Transfer {
 			xfer := NewTransfer()
 			go func() {
 				// Finish immediately
@@ -322,7 +322,7 @@ func TestDuplicateTransfer(t *testing.T) {
 	var xferFuncCalls int32
 
 	makeXferFunc := func(id string) DoFunc {
-		return func(progressChan chan<- progress.Progress, start <-chan struct{}, inactive chan<- struct{}) Transfer {
+		return func(progressChan chan<- progress.Progress, start <-chan struct{}, inactive chan<- struct{}, cacheDir string) Transfer {
 			atomic.AddInt32(&xferFuncCalls, 1)
 			xfer := NewTransfer()
 			go func() {
