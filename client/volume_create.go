@@ -2,6 +2,8 @@ package client
 
 import (
 	"encoding/json"
+	"fmt"
+	"net/http"
 
 	"github.com/docker/docker/api/types"
 	volumetypes "github.com/docker/docker/api/types/volume"
@@ -12,6 +14,9 @@ import (
 func (cli *Client) VolumeCreate(ctx context.Context, options volumetypes.VolumesCreateBody) (types.Volume, error) {
 	var volume types.Volume
 	resp, err := cli.post(ctx, "/volumes/create", nil, options, nil)
+	if resp.statusCode == http.StatusNotModified {
+		return volume, fmt.Errorf("A volume named %s has already been created.", options.Name)
+	}
 	if err != nil {
 		return volume, err
 	}

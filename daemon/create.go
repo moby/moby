@@ -21,6 +21,7 @@ import (
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/runconfig"
+	volumestore "github.com/docker/docker/volume/store"
 	"github.com/opencontainers/selinux/go-selinux/label"
 )
 
@@ -260,6 +261,8 @@ func (daemon *Daemon) setRWLayer(container *container.Container) error {
 }
 
 // VolumeCreate creates a volume with the specified name, driver, and opts
+// In case a volume already exists with the same name and driver, an errAlreadyExists error
+// will be returned with the already created volume details.
 // This is called directly from the Engine API
 func (daemon *Daemon) VolumeCreate(name, driverName string, opts, labels map[string]string) (*types.Volume, error) {
 	if name == "" {
@@ -268,13 +271,19 @@ func (daemon *Daemon) VolumeCreate(name, driverName string, opts, labels map[str
 
 	v, err := daemon.volumes.Create(name, driverName, opts, labels)
 	if err != nil {
-		return nil, err
+		if volumestore.IsNameConflict(err) {
+			return nil, fmt.Errorf("A volume named %s already exists. Choose a different volume name.", name)
+		}
+		// An error will be returned immediately if it is not errAlreadyExists
+		if !volumestore.IsAlreadyExists(err) {
+			return nil, err
+		}
 	}
 
 	daemon.LogVolumeEvent(v.Name(), "create", map[string]string{"driver": v.DriverName()})
 	apiV := volumeToAPIType(v)
 	apiV.Mountpoint = v.Path()
-	return apiV, nil
+	return apiV, err
 }
 
 func (daemon *Daemon) mergeAndVerifyConfig(config *containertypes.Config, img *image.Image) error {

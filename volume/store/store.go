@@ -268,17 +268,19 @@ func (s *VolumeStore) list() ([]volume.Volume, []string, error) {
 
 // CreateWithRef creates a volume with the given name and driver and stores the ref
 // This ensures there's no race between creating a volume and then storing a reference.
-func (s *VolumeStore) CreateWithRef(name, driverName, ref string, opts, labels map[string]string) (volume.Volume, error) {
+// In case a volume has already been created with the same name and driver, the already
+// created volumes will be returned
+func (s *VolumeStore) CreateWithRef(name, driverName, ref string, opts, labels map[string]string, found ...func(v volume.Volume) error) (volume.Volume, error) {
 	name = normaliseVolumeName(name)
 	s.locks.Lock(name)
 	defer s.locks.Unlock(name)
 
-	v, err := s.create(name, driverName, opts, labels)
+	v, err := s.create(name, driverName, opts, labels, found...)
 	if err != nil {
 		if _, ok := err.(*OpErr); ok {
-			return nil, err
+			return v, err
 		}
-		return nil, &OpErr{Err: err, Name: name, Op: "create"}
+		return v, &OpErr{Err: err, Name: name, Op: "create"}
 	}
 
 	s.setNamed(v, ref)
@@ -286,9 +288,12 @@ func (s *VolumeStore) CreateWithRef(name, driverName, ref string, opts, labels m
 }
 
 // Create creates a volume with the given name and driver.
-// This is just like CreateWithRef() except we don't store a reference while holding the lock.
+// In case a volume has already been created with the same name and driver, the already
+// created volumes will be returned together with the errAlreadyExists error.
 func (s *VolumeStore) Create(name, driverName string, opts, labels map[string]string) (volume.Volume, error) {
-	return s.CreateWithRef(name, driverName, "", opts, labels)
+	return s.CreateWithRef(name, driverName, "", opts, labels, func(volume.Volume) error {
+		return errAlreadyExists
+	})
 }
 
 // checkConflict checks the local cache for name collisions with the passed in name,
@@ -367,7 +372,8 @@ func volumeExists(v volume.Volume) (bool, error) {
 //  for the given volume name, an error is returned after checking if the reference is stale.
 // If the reference is stale, it will be purged and this create can continue.
 // It is expected that callers of this function hold any necessary locks.
-func (s *VolumeStore) create(name, driverName string, opts, labels map[string]string) (volume.Volume, error) {
+// found is the functional options that is called when an existing volume has been found
+func (s *VolumeStore) create(name, driverName string, opts, labels map[string]string, found ...func(v volume.Volume) error) (volume.Volume, error) {
 	// Validate the name in a platform-specific manner
 	valid, err := volume.IsVolumeNameValid(name)
 	if err != nil {
@@ -383,6 +389,11 @@ func (s *VolumeStore) create(name, driverName string, opts, labels map[string]st
 	}
 
 	if v != nil {
+		for _, f := range found {
+			if err := f(v); err != nil {
+				return v, err
+			}
+		}
 		return v, nil
 	}
 
@@ -390,6 +401,11 @@ func (s *VolumeStore) create(name, driverName string, opts, labels map[string]st
 	if driverName == "" {
 		v, _ := s.getVolume(name)
 		if v != nil {
+			for _, f := range found {
+				if err := f(v); err != nil {
+					return v, err
+				}
+			}
 			return v, nil
 		}
 	}

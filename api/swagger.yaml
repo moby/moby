@@ -6215,6 +6215,8 @@ paths:
           description: "The volume was created successfully"
           schema:
             $ref: "#/definitions/Volume"
+        304:
+          description: "The volume has already been created"
         500:
           description: "Server error"
           schema:

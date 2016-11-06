@@ -15,6 +15,8 @@ var (
 	errInvalidName = errors.New("volume name is not valid on this platform")
 	// errNameConflict is a typed error returned on create when a volume exists with the given name, but for a different driver
 	errNameConflict = errors.New("volume name must be unique")
+	// errAlreadyExists is a typed error returned on create when a volume already exists with the same name and same driver
+	errAlreadyExists = errors.New("volume already exists")
 )
 
 // OpErr is the error type returned by functions in the store package. It describes
@@ -62,6 +64,12 @@ func IsNotExist(err error) bool {
 // volume name is already taken
 func IsNameConflict(err error) bool {
 	return isErr(err, errNameConflict)
+}
+
+// IsAlreadyExists returns a boolean indicating whether the error indicates that a
+// volume already exists
+func IsAlreadyExists(err error) bool {
+	return isErr(err, errAlreadyExists)
 }
 
 func isErr(err error, expected error) bool {

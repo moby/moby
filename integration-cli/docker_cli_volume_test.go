@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	volumetypes "github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/integration-cli/cli/build"
 	"github.com/docker/docker/integration-cli/request"
@@ -640,4 +641,55 @@ func (s *DockerSuite) TestDuplicateMountpointsForVolumesFromAndMounts(c *check.C
 	out, _ = dockerCmd(c, "volume", "ls", "-q")
 	c.Assert(strings.TrimSpace(out), checker.Not(checker.Contains), data1)
 	c.Assert(strings.TrimSpace(out), checker.Not(checker.Contains), data2)
+}
+
+func (s *DockerSuite) TestVolumeCliCreateNonIdempotency(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+
+	// Without options
+	name := "test"
+	dockerCmd(c, "volume", "create", "-d", "local", name)
+	out, _, err := dockerCmdWithError("volume", "create", "-d", "local", name)
+	c.Assert(err, check.Not(check.IsNil))
+	c.Assert(err.Error(), checker.Contains, fmt.Sprintf("A volume named %s has already been created", name))
+	c.Assert(out, checker.Contains, fmt.Sprintf("A volume named %s has already been created", name))
+	// Old remote API will remain idempotent
+	status, b, err := request.SockRequest("POST", "/v1.25/volumes/create", volumetypes.VolumesCreateBody{
+		Driver: "local",
+		Name:   name,
+	}, daemonHost())
+	c.Assert(err, check.IsNil)
+	c.Assert(status, check.Equals, http.StatusCreated, check.Commentf(string(b)))
+}
+
+func (s *DockerSuite) TestVolumeCliCreateNonIdempotencyWithOptions(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+
+	// With options
+	name := "testwithoptions"
+
+	dockerCmd(c, "volume", "create", "-d", "local", name, "--opt", "type=tmpfs", "--opt", "o=size=1m,uid=1000")
+
+	// Repeat the volume creation with the same option will return an error
+	out, _, err := dockerCmdWithError("volume", "create", "-d", "local", name, "--opt", "type=tmpfs", "--opt", "o=size=1m,uid=1000")
+	c.Assert(err, check.Not(check.IsNil))
+	c.Assert(err.Error(), checker.Contains, fmt.Sprintf("A volume named %s has already been created", name))
+	c.Assert(out, checker.Contains, fmt.Sprintf("A volume named %s has already been created", name))
+	// Old remote API will remain idempotent
+	status, b, err := request.SockRequest("POST", "/v1.25/volumes/create", volumetypes.VolumesCreateBody{
+		Driver: "local",
+		Name:   name,
+		DriverOpts: map[string]string{
+			"type": "tmpfs",
+			"o":    "size=1m,uid=1000",
+		},
+	}, daemonHost())
+	c.Assert(err, check.IsNil)
+	c.Assert(status, check.Equals, http.StatusCreated, check.Commentf(string(b)))
+
+	// Another test where the volume creation with differnet option will return an error as well.
+	out, _, err = dockerCmdWithError("volume", "create", "-d", "local", name, "--opt", "type=tmpfs", "--opt", "o=size=2m,uid=1000")
+	c.Assert(err, check.Not(check.IsNil))
+	c.Assert(err.Error(), checker.Contains, fmt.Sprintf("A volume named %s has already been created", name))
+	c.Assert(out, checker.Contains, fmt.Sprintf("A volume named %s has already been created", name))
 }
