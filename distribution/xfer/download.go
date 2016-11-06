@@ -33,9 +33,14 @@ func (ldm *LayerDownloadManager) SetConcurrency(concurrency int) {
 
 // NewLayerDownloadManager returns a new LayerDownloadManager.
 func NewLayerDownloadManager(layerStore layer.Store, concurrencyLimit int) *LayerDownloadManager {
+	// TODO: here read the state of partially downloaded layers and grab the
+	// correct references from the layerStore to prevent them from being cleaned
+	// up
 	return &LayerDownloadManager{
 		layerStore: layerStore,
-		tm:         NewTransferManager(concurrencyLimit),
+		// TODO: prefix the cache for the transfer manager to keep the upload
+		// and download caches separate
+		tm: NewTransferManager(concurrencyLimit),
 	}
 }
 
@@ -64,7 +69,7 @@ type DownloadDescriptor interface {
 	// before).
 	DiffID() (layer.DiffID, error)
 	// Download is called to perform the download.
-	Download(ctx context.Context, progressOutput progress.Output) (io.ReadCloser, int64, error)
+	Download(ctx context.Context, progressOutput progress.Output, cacheDir string) (io.ReadCloser, int64, error)
 	// Close is called when the download manager is finished with this
 	// descriptor and will not call Download again or read from the reader
 	// that Download returned.
@@ -79,6 +84,13 @@ type DownloadDescriptor interface {
 type DownloadDescriptorWithRegistered interface {
 	DownloadDescriptor
 	Registered(diffID layer.DiffID)
+}
+
+// CollectGarbage removes any cached layers associated with downloads that are
+// still in progress
+func (ldm *LayerDownloadManager) CollectGarbage() error {
+	// TODO: collect garbage manifests/layers as well
+	return ldm.tm.CollectGarbage()
 }
 
 // Download is a blocking function which ensures the requested layers are
@@ -202,7 +214,7 @@ func (ldm *LayerDownloadManager) Download(ctx context.Context, initialRootFS ima
 // on top of parentDownload's resulting layer. Otherwise, it registers the
 // layer on top of the ChainID given by parentLayer.
 func (ldm *LayerDownloadManager) makeDownloadFunc(descriptor DownloadDescriptor, parentLayer layer.ChainID, parentDownload *downloadTransfer) DoFunc {
-	return func(progressChan chan<- progress.Progress, start <-chan struct{}, inactive chan<- struct{}) Transfer {
+	return func(progressChan chan<- progress.Progress, start <-chan struct{}, inactive chan<- struct{}, cachePath string) Transfer {
 		d := &downloadTransfer{
 			Transfer:   NewTransfer(),
 			layerStore: ldm.layerStore,
@@ -246,7 +258,7 @@ func (ldm *LayerDownloadManager) makeDownloadFunc(descriptor DownloadDescriptor,
 			defer descriptor.Close()
 
 			for {
-				downloadReader, size, err = descriptor.Download(d.Transfer.Context(), progressOutput)
+				downloadReader, size, err = descriptor.Download(d.Transfer.Context(), progressOutput, cachePath)
 				if err == nil {
 					break
 				}
@@ -344,6 +356,12 @@ func (ldm *LayerDownloadManager) makeDownloadFunc(descriptor DownloadDescriptor,
 				withRegistered.Registered(d.layer.DiffID())
 			}
 
+			// if we've gotten this far, mark the transfer as successful so the
+			// cache directory can be cleaned up
+			if d.layer != nil {
+				d.Transfer.SetSuccess()
+			}
+
 			// Doesn't actually need to be its own goroutine, but
 			// done like this so we can defer close(c).
 			go func() {
@@ -366,7 +384,7 @@ func (ldm *LayerDownloadManager) makeDownloadFunc(descriptor DownloadDescriptor,
 // interfere with the progress reporting for sourceDownload, which has the same
 // Key.
 func (ldm *LayerDownloadManager) makeDownloadFuncFromDownload(descriptor DownloadDescriptor, sourceDownload *downloadTransfer, parentDownload *downloadTransfer) DoFunc {
-	return func(progressChan chan<- progress.Progress, start <-chan struct{}, inactive chan<- struct{}) Transfer {
+	return func(progressChan chan<- progress.Progress, start <-chan struct{}, inactive chan<- struct{}, cachePath string) Transfer {
 		d := &downloadTransfer{
 			Transfer:   NewTransfer(),
 			layerStore: ldm.layerStore,
