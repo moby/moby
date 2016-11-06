@@ -194,7 +194,7 @@ func (d *mockDownloadDescriptor) mockTarStream() io.ReadCloser {
 }
 
 // Download is called to perform the download.
-func (d *mockDownloadDescriptor) Download(ctx context.Context, progressOutput progress.Output) (io.ReadCloser, int64, error) {
+func (d *mockDownloadDescriptor) Download(ctx context.Context, progressOutput progress.Output, cacheDir string) (io.ReadCloser, int64, error) {
 	if d.currentDownloads != nil {
 		defer atomic.AddInt32(d.currentDownloads, -1)
 

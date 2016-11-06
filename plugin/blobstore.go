@@ -132,7 +132,22 @@ func (dm *downloadManager) Download(ctx context.Context, initialRootFS image.Roo
 			return initialRootFS, nil, err
 		}
 		defer b.Close()
-		rc, _, err := l.Download(ctx, progressOutput)
+		// TODO: for resumable downloads, we need to make this directory
+		// deterministically chosen and do all the caching logic from
+		// distribution/xfer 's download manager. We should try to reuse it
+		// instead of this one anyway because it has many other features such as
+		// deduplicating concurrent layer downloads, etc.
+		tmpDir, err := ioutil.TempDir("", "PullPluginBlob")
+		if err != nil {
+			return initialRootFS, nil, errors.Wrap(err, "failed to create cache dir for layer during download")
+		}
+		defer func() {
+			err = os.RemoveAll(tmpDir)
+			if err != nil {
+				logrus.Warnf("failed to clean up tmp dir after download: %s", err)
+			}
+		}()
+		rc, _, err := l.Download(ctx, progressOutput, tmpDir)
 		if err != nil {
 			return initialRootFS, nil, errors.Wrap(err, "failed to download")
 		}

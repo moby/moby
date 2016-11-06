@@ -470,13 +470,23 @@ type Runtime struct {
 	Args []string `json:"runtimeArgs,omitempty"`
 }
 
+// DownloadCacheUsage contains information about the disk usage of the download
+// cache
+type DownloadCacheUsage struct {
+	TotalNumber  int64
+	TotalBytes   int64
+	ActiveNumber int64
+	ActiveBytes  int64
+}
+
 // DiskUsage contains response of Engine API:
 // GET "/system/df"
 type DiskUsage struct {
-	LayersSize int64
-	Images     []*ImageSummary
-	Containers []*Container
-	Volumes    []*Volume
+	LayersSize         int64
+	Images             []*ImageSummary
+	DownloadCacheUsage DownloadCacheUsage
+	Containers         []*Container
+	Volumes            []*Volume
 }
 
 // ContainersPruneReport contains the response for Engine API:
@@ -496,7 +506,9 @@ type VolumesPruneReport struct {
 // ImagesPruneReport contains the response for Engine API:
 // POST "/images/prune"
 type ImagesPruneReport struct {
-	ImagesDeleted  []ImageDeleteResponseItem
+	ImagesDeleted       []ImageDeleteResponseItem
+	CacheSpaceReclaimed uint64
+	// SpaceReclaimed is a total, including CacheSpaceReclaimed
 	SpaceReclaimed uint64
 }
 

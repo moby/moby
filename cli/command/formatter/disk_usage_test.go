@@ -19,13 +19,14 @@ func TestDiskUsageContextFormatWrite(t *testing.T) {
 Images              0                   0                   0B                  0B
 Containers          0                   0                   0B                  0B
 Local Volumes       0                   0                   0B                  0B
+Download Cache      0                   0                   0B                  0B
 `,
 		},
 		{
 			DiskUsageContext{Verbose: true},
 			`Images space usage:
 
-REPOSITORY          TAG                 IMAGE ID            CREATED ago         SIZE                SHARED SIZE         UNIQUE SiZE         CONTAINERS
+REPOSITORY          TAG                 IMAGE ID            CREATED ago         SIZE                SHARED SIZE         UNIQUE SIZE         CONTAINERS
 
 Containers space usage:
 
@@ -34,6 +35,11 @@ CONTAINER ID        IMAGE               COMMAND             LOCAL VOLUMES       
 Local Volumes space usage:
 
 VOLUME NAME         LINKS               SIZE
+
+Download Cache space usage:
+
+TYPE                TOTAL               ACTIVE              SIZE                RECLAIMABLE
+Download Cache      0                   0                   0B                  0B
 `,
 		},
 	}

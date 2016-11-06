@@ -31,7 +31,14 @@ type Watcher struct {
 	// running remains open as long as the watcher is watching the
 	// transfer. It gets closed if the transfer finishes or the
 	// watcher is detached.
-	running chan struct{}
+	running    chan struct{}
+	isOriginal bool
+}
+
+// IsOriginal is true when the download function will be called and false if the
+// watcher is just following an existing download
+func (w Watcher) IsOriginal() bool {
+	return w.isOriginal
 }
 
 // Transfer represents an in-progress transfer.
@@ -356,6 +363,7 @@ func (tm *transferManager) Transfer(key string, xferFunc DoFunc, progressOutput 
 	masterProgressChan := make(chan progress.Progress)
 	xfer := xferFunc(masterProgressChan, start, inactive)
 	watcher := xfer.Watch(progressOutput)
+	watcher.isOriginal = true
 	go xfer.Broadcast(masterProgressChan)
 	tm.transfers[key] = xfer
 

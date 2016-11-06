@@ -3,6 +3,7 @@ package formatter
 import (
 	"bytes"
 	"fmt"
+	"strconv"
 	"strings"
 	"text/template"
 
@@ -23,17 +24,18 @@ const (
 	reclaimableHeader = "RECLAIMABLE"
 	containersHeader  = "CONTAINERS"
 	sharedSizeHeader  = "SHARED SIZE"
-	uniqueSizeHeader  = "UNIQUE SiZE"
+	uniqueSizeHeader  = "UNIQUE SIZE"
 )
 
 // DiskUsageContext contains disk usage specific information required by the formatter, encapsulate a Context struct.
 type DiskUsageContext struct {
 	Context
-	Verbose    bool
-	LayersSize int64
-	Images     []*types.ImageSummary
-	Containers []*types.Container
-	Volumes    []*types.Volume
+	Verbose            bool
+	LayersSize         int64
+	DownloadCacheUsage types.DownloadCacheUsage
+	Images             []*types.ImageSummary
+	Containers         []*types.Container
+	Volumes            []*types.Volume
 }
 
 func (ctx *DiskUsageContext) startSubsection(format string) (*template.Template, error) {
@@ -72,6 +74,13 @@ func (ctx *DiskUsageContext) Write() {
 
 		err = ctx.contextFormat(tmpl, &diskUsageVolumesContext{
 			volumes: ctx.Volumes,
+		})
+		if err != nil {
+			return
+		}
+
+		err = ctx.contextFormat(tmpl, &diskUsageDownloadCacheContext{
+			DownloadCacheUsage: ctx.DownloadCacheUsage,
 		})
 		if err != nil {
 			return
@@ -158,6 +167,50 @@ func (ctx *DiskUsageContext) Write() {
 		}
 	}
 	ctx.postFormat(tmpl, newVolumeContext())
+
+	// And download cache
+	ctx.Output.Write([]byte("\nDownload Cache space usage:\n\n"))
+	tmpl, err = ctx.startSubsection(defaultDiskUsageTableFormat)
+	err = ctx.contextFormat(tmpl, &diskUsageDownloadCacheContext{
+		DownloadCacheUsage: ctx.DownloadCacheUsage,
+	})
+	if err != nil {
+		return
+	}
+	ctx.postFormat(tmpl, newDiskUsageDownloadCacheContext())
+}
+
+type diskUsageDownloadCacheContext struct {
+	HeaderContext
+	types.DownloadCacheUsage
+}
+
+func newDiskUsageDownloadCacheContext() *diskUsageDownloadCacheContext {
+	diskUsageDownloadCacheCtx := &diskUsageDownloadCacheContext{}
+	diskUsageDownloadCacheCtx.header = map[string]string{
+		"Type":        typeHeader,
+		"TotalCount":  totalHeader,
+		"Active":      activeHeader,
+		"Size":        sizeHeader,
+		"Reclaimable": reclaimableHeader,
+	}
+	return diskUsageDownloadCacheCtx
+}
+
+func (c *diskUsageDownloadCacheContext) Type() string {
+	return "Download Cache"
+}
+func (c *diskUsageDownloadCacheContext) TotalCount() string {
+	return strconv.FormatInt(c.TotalNumber, 10)
+}
+func (c *diskUsageDownloadCacheContext) Active() string {
+	return strconv.FormatInt(c.ActiveNumber, 10)
+}
+func (c *diskUsageDownloadCacheContext) Size() string {
+	return units.HumanSize(float64(c.TotalBytes))
+}
+func (c *diskUsageDownloadCacheContext) Reclaimable() string {
+	return units.HumanSize(float64(c.TotalBytes - c.ActiveBytes))
 }
 
 type diskUsageImagesContext struct {
@@ -175,7 +228,7 @@ func (c *diskUsageImagesContext) Type() string {
 }
 
 func (c *diskUsageImagesContext) TotalCount() string {
-	return fmt.Sprintf("%d", len(c.images))
+	return strconv.FormatInt(int64(len(c.images)), 10)
 }
 
 func (c *diskUsageImagesContext) Active() string {
@@ -186,7 +239,7 @@ func (c *diskUsageImagesContext) Active() string {
 		}
 	}
 
-	return fmt.Sprintf("%d", used)
+	return strconv.FormatInt(int64(used), 10)
 }
 
 func (c *diskUsageImagesContext) Size() string {
@@ -210,7 +263,7 @@ func (c *diskUsageImagesContext) Reclaimable() string {
 	if c.totalSize > 0 {
 		return fmt.Sprintf("%s (%v%%)", units.HumanSize(float64(reclaimable)), (reclaimable*100)/c.totalSize)
 	}
-	return fmt.Sprintf("%s", units.HumanSize(float64(reclaimable)))
+	return units.HumanSize(float64(reclaimable))
 }
 
 type diskUsageContainersContext struct {
@@ -228,7 +281,7 @@ func (c *diskUsageContainersContext) Type() string {
 }
 
 func (c *diskUsageContainersContext) TotalCount() string {
-	return fmt.Sprintf("%d", len(c.containers))
+	return strconv.FormatInt(int64(len(c.containers)), 10)
 }
 
 func (c *diskUsageContainersContext) isActive(container types.Container) bool {
@@ -245,7 +298,7 @@ func (c *diskUsageContainersContext) Active() string {
 		}
 	}
 
-	return fmt.Sprintf("%d", used)
+	return strconv.FormatInt(int64(used), 10)
 }
 
 func (c *diskUsageContainersContext) Size() string {
@@ -273,7 +326,7 @@ func (c *diskUsageContainersContext) Reclaimable() string {
 		return fmt.Sprintf("%s (%v%%)", units.HumanSize(float64(reclaimable)), (reclaimable*100)/totalSize)
 	}
 
-	return fmt.Sprintf("%s", units.HumanSize(float64(reclaimable)))
+	return units.HumanSize(float64(reclaimable))
 }
 
 type diskUsageVolumesContext struct {
@@ -291,7 +344,7 @@ func (c *diskUsageVolumesContext) Type() string {
 }
 
 func (c *diskUsageVolumesContext) TotalCount() string {
-	return fmt.Sprintf("%d", len(c.volumes))
+	return strconv.FormatInt(int64(len(c.volumes)), 10)
 }
 
 func (c *diskUsageVolumesContext) Active() string {
@@ -303,7 +356,7 @@ func (c *diskUsageVolumesContext) Active() string {
 		}
 	}
 
-	return fmt.Sprintf("%d", used)
+	return strconv.FormatInt(int64(used), 10)
 }
 
 func (c *diskUsageVolumesContext) Size() string {
@@ -335,5 +388,5 @@ func (c *diskUsageVolumesContext) Reclaimable() string {
 		return fmt.Sprintf("%s (%v%%)", units.HumanSize(float64(reclaimable)), (reclaimable*100)/totalSize)
 	}
 
-	return fmt.Sprintf("%s", units.HumanSize(float64(reclaimable)))
+	return units.HumanSize(float64(reclaimable))
 }
