@@ -12,20 +12,19 @@ func SecretFromGRPC(s *swarmapi.Secret) swarmtypes.Secret {
 		ID:         s.ID,
 		Digest:     s.Digest,
 		SecretSize: s.SecretSize,
+		Spec: swarmtypes.SecretSpec{
+			Annotations: swarmtypes.Annotations{
+				Name:   s.Spec.Annotations.Name,
+				Labels: s.Spec.Annotations.Labels,
+			},
+			Data: s.Spec.Data,
+		},
 	}
 
-	// Meta
 	secret.Version.Index = s.Meta.Version.Index
+	// Meta
 	secret.CreatedAt, _ = ptypes.Timestamp(s.Meta.CreatedAt)
 	secret.UpdatedAt, _ = ptypes.Timestamp(s.Meta.UpdatedAt)
-
-	secret.Spec = swarmtypes.SecretSpec{
-		Annotations: swarmtypes.Annotations{
-			Name:   s.Spec.Annotations.Name,
-			Labels: s.Spec.Annotations.Labels,
-		},
-		Data: s.Spec.Data,
-	}
 
 	return secret
 }
