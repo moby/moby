@@ -127,7 +127,6 @@ SHELL ["powershell", "-command"]
 ENV GO_VERSION=1.7.3 `
     GIT_LOCATION=https://github.com/git-for-windows/git/releases/download/v2.10.1.windows.1/Git-2.10.1-64-bit.exe `
     GOPATH=C:\go `
-    GOROOT=C:\go `
     FROM_DOCKERFILE=1
 
 WORKDIR C:\
