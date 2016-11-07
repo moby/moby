@@ -46,7 +46,7 @@ For example, given the following service;
 
 ```bash
 $ docker service ls
-ID            NAME      REPLICAS  IMAGE         COMMAND
+ID            NAME      REPLICAS  IMAGE
 dmu1ept4cxcf  redis     3/3       redis:3.0.6
 ```
 
