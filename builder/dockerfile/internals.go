@@ -488,6 +488,7 @@ func (b *Builder) create() (string, error) {
 		ShmSize:     b.options.ShmSize,
 		Resources:   resources,
 		NetworkMode: container.NetworkMode(b.options.NetworkMode),
+		Binds:       b.bindMounts,
 	}
 
 	config := *b.runConfig
@@ -666,4 +667,26 @@ func (b *Builder) isBuildArgAllowed(arg string) bool {
 		return true
 	}
 	return false
+}
+
+// inject secret is used to create a file in a temporary directory to be
+// used during build
+func injectSecret(mountPath string, src builder.FileInfo) error {
+	destPath := filepath.Join(mountPath, src.Name())
+	logrus.Debugf("[BUILDER] creating secret: %s -> %s", src.Name(), destPath)
+
+	if err := os.MkdirAll(filepath.Dir(destPath), 0755); err != nil {
+		return err
+	}
+
+	data, err := ioutil.ReadFile(src.Path())
+	if err != nil {
+		return err
+	}
+
+	if err := ioutil.WriteFile(destPath, data, src.Mode()); err != nil {
+		return err
+	}
+
+	return nil
 }

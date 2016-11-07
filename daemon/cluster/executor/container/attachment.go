@@ -2,6 +2,7 @@ package container
 
 import (
 	executorpkg "github.com/docker/docker/daemon/cluster/executor"
+	"github.com/docker/swarmkit/agent/exec"
 	"github.com/docker/swarmkit/api"
 	"golang.org/x/net/context"
 )
@@ -19,8 +20,8 @@ type networkAttacherController struct {
 	closed  chan struct{}
 }
 
-func newNetworkAttacherController(b executorpkg.Backend, task *api.Task) (*networkAttacherController, error) {
-	adapter, err := newContainerAdapter(b, task)
+func newNetworkAttacherController(b executorpkg.Backend, task *api.Task, secrets exec.SecretGetter) (*networkAttacherController, error) {
+	adapter, err := newContainerAdapter(b, task, secrets)
 	if err != nil {
 		return nil, err
 	}

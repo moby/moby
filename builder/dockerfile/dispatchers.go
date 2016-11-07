@@ -9,6 +9,7 @@ package dockerfile
 
 import (
 	"fmt"
+	"path/filepath"
 	"regexp"
 	"runtime"
 	"sort"
@@ -24,6 +25,7 @@ import (
 	"github.com/docker/docker/pkg/signal"
 	runconfigopts "github.com/docker/docker/runconfig/opts"
 	"github.com/docker/go-connections/nat"
+	"github.com/pkg/errors"
 )
 
 // ENV foo bar
@@ -386,6 +388,53 @@ func run(b *Builder, args []string, attributes map[string]bool, original string)
 	b.runConfig.Env = append(b.runConfig.Env, cmdBuildEnv...)
 	// set config as already being escaped, this prevents double escaping on windows
 	b.runConfig.ArgsEscaped = true
+
+	if len(b.options.BuildSecrets) > 0 {
+		// secrets
+		m, err := setupSecretMount()
+		if err != nil {
+			return errors.Wrap(err, "unable to setup secret mount")
+		}
+
+		// inject secrets from context
+		logrus.Debug("[BUILDER] setting up secrets")
+		if err := b.context.Walk(".secrets", func(path string, fi builder.FileInfo, err error) error {
+			if fi.IsDir() {
+				return nil
+			}
+
+			// we build the path here so the file ends up
+			// in /run/secret/xx
+			// the actual mount in the container for the tmpfs
+			// is in /run to prevent /run/secrets from being
+			// committed to the layer
+			secretPath := filepath.Join(m.Source, "secrets")
+			if err := injectSecret(secretPath, fi); err != nil {
+				return err
+			}
+
+			return nil
+		}); err != nil {
+			return err
+		}
+
+		defer func() {
+			if err := cleanupSecretMount(m.Source); err != nil {
+				logrus.Errorf("[BUILDER] %s", err)
+			}
+
+			// reset bind mounts
+			b.bindMounts = []string{}
+		}()
+
+		// create mount for containers
+		if m != nil {
+			bind := fmt.Sprintf("%s:%s", m.Source, m.Target)
+			b.bindMounts = append(b.bindMounts, bind)
+		}
+
+		logrus.Debugf("[BUILDER] host binds: %+v", b.bindMounts)
+	}
 
 	logrus.Debugf("[BUILDER] Command to be executed: %v", b.runConfig.Cmd)
 

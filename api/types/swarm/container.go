@@ -22,4 +22,5 @@ type ContainerSpec struct {
 	Mounts          []mount.Mount           `json:",omitempty"`
 	StopGracePeriod *time.Duration          `json:",omitempty"`
 	Healthcheck     *container.HealthConfig `json:",omitempty"`
+	Secrets         []*SecretReference      `json:",omitempty"`
 }

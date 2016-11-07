@@ -2,11 +2,13 @@ package dockerfile
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
 
 	"github.com/docker/docker/pkg/system"
+	"github.com/pkg/errors"
 )
 
 // normaliseDest normalises the destination of a COPY/ADD command in a
@@ -63,4 +65,30 @@ func containsWildcards(name string) bool {
 		}
 	}
 	return false
+}
+
+// setupSecretMount is used to setup a tmpfs filesystem as a host mount
+func setupSecretMount() (*mounttypes.Mount, error) {
+	tempDir, err := ioutil.TempDir("", "docker-build-secrets-")
+	if err != nil {
+		return nil, errors.Wrap(err, "unable to create temp directory for secrets")
+	}
+
+	// TODO (ehazlett): find a way to use tmpfs on windows.  for now
+	// it's just a regular directory
+
+	return &mounttypes.Mount{
+		Type:   mounttypes.TypeBind,
+		Source: tempDir,
+		Target: secretContainerPath,
+	}, nil
+}
+
+// cleanupSecretMount unmounts the secret mount and removes the directory
+func cleanupSecretMount(dir string) error {
+	if err := os.RemoveAll(dir); err != nil {
+		return err
+	}
+
+	return nil
 }

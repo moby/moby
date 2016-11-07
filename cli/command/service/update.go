@@ -14,6 +14,7 @@ import (
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cli/command"
+	"github.com/docker/docker/client"
 	"github.com/docker/docker/opts"
 	runconfigopts "github.com/docker/docker/runconfig/opts"
 	"github.com/docker/go-connections/nat"
@@ -48,10 +49,12 @@ func newUpdateCommand(dockerCli *command.DockerCli) *cobra.Command {
 	flags.Var(newListOptsVar(), flagMountRemove, "Remove a mount by its target path")
 	flags.Var(newListOptsVar(), flagPublishRemove, "Remove a published port by its target port")
 	flags.Var(newListOptsVar(), flagConstraintRemove, "Remove a constraint")
+	flags.Var(newListOptsVar(), flagSecretRemove, "Remove a secret")
 	flags.Var(&opts.labels, flagLabelAdd, "Add or update service labels")
 	flags.Var(&opts.containerLabels, flagContainerLabelAdd, "Add or update container labels")
 	flags.Var(&opts.env, flagEnvAdd, "Add or update environment variables")
 	flags.Var(&opts.mounts, flagMountAdd, "Add or update a mount on a service")
+	flags.Var(&opts.secrets, flagSecretAdd, "Add or update a secret on a service")
 	flags.StringSliceVar(&opts.constraints, flagConstraintAdd, []string{}, "Add or update placement constraints")
 	flags.Var(&opts.endpoint.ports, flagPublishAdd, "Add or update a published port")
 	flags.StringSliceVar(&opts.groups, flagGroupAdd, []string{}, "Add additional supplementary user groups to the container")
@@ -89,6 +92,13 @@ func runUpdate(dockerCli *command.DockerCli, flags *pflag.FlagSet, serviceID str
 	if err != nil {
 		return err
 	}
+
+	updatedSecrets, err := getUpdatedSecrets(apiClient, flags, spec.TaskTemplate.ContainerSpec.Secrets)
+	if err != nil {
+		return err
+	}
+
+	spec.TaskTemplate.ContainerSpec.Secrets = updatedSecrets
 
 	// only send auth if flag was set
 	sendAuth, err := flags.GetBool(flagRegistryAuth)
@@ -364,6 +374,27 @@ func updateEnvironment(flags *pflag.FlagSet, field *[]string) {
 
 	toRemove := buildToRemoveSet(flags, flagEnvRemove)
 	*field = removeItems(*field, toRemove, envKey)
+}
+
+func getUpdatedSecrets(apiClient client.APIClient, flags *pflag.FlagSet, secrets []*swarm.SecretReference) ([]*swarm.SecretReference, error) {
+	if flags.Changed(flagSecretAdd) {
+		values := flags.Lookup(flagSecretAdd).Value.(*opts.SecretOpt).Value()
+
+		addSecrets, err := parseSecrets(apiClient, values)
+		if err != nil {
+			return nil, err
+		}
+		secrets = append(secrets, addSecrets...)
+	}
+	toRemove := buildToRemoveSet(flags, flagSecretRemove)
+	newSecrets := []*swarm.SecretReference{}
+	for _, secret := range secrets {
+		if _, exists := toRemove[secret.SecretName]; !exists {
+			newSecrets = append(newSecrets, secret)
+		}
+	}
+
+	return newSecrets, nil
 }
 
 func envKey(value string) string {

@@ -26,7 +26,7 @@ func newTestControllerWithMount(m api.Mount) (*controller, error) {
 				},
 			},
 		},
-	})
+	}, nil)
 }
 
 func TestControllerValidateMountBind(t *testing.T) {

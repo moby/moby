@@ -4,6 +4,7 @@ package daemon
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -12,6 +13,7 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/cloudflare/cfssl/log"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/links"
@@ -25,6 +27,7 @@ import (
 	"github.com/opencontainers/runc/libcontainer/devices"
 	"github.com/opencontainers/runc/libcontainer/label"
 	"github.com/opencontainers/runtime-spec/specs-go"
+	"github.com/pkg/errors"
 )
 
 func u32Ptr(i int64) *uint32     { u := uint32(i); return &u }
@@ -170,6 +173,75 @@ func (daemon *Daemon) setupIpcDirs(c *container.Container) error {
 			}
 		}
 
+	}
+
+	return nil
+}
+
+func (daemon *Daemon) setupSecretDir(c *container.Container) (setupErr error) {
+	if len(c.Secrets) == 0 {
+		return nil
+	}
+
+	localMountPath := c.SecretMountPath()
+	logrus.Debugf("secrets: setting up secret dir: %s", localMountPath)
+
+	defer func() {
+		if setupErr != nil {
+			// cleanup
+			_ = detachMounted(localMountPath)
+
+			if err := os.RemoveAll(localMountPath); err != nil {
+				log.Errorf("error cleaning up secret mount: %s", err)
+			}
+		}
+	}()
+
+	// create tmpfs
+	if err := os.MkdirAll(localMountPath, 0700); err != nil {
+		return errors.Wrap(err, "error creating secret local mount path")
+	}
+	if err := mount.Mount("tmpfs", localMountPath, "tmpfs", "nodev,nosuid,noexec"); err != nil {
+		return errors.Wrap(err, "unable to setup secret mount")
+	}
+
+	for _, s := range c.Secrets {
+		targetPath := filepath.Clean(s.Target)
+		// ensure that the target is a filename only; no paths allowed
+		if targetPath != filepath.Base(targetPath) {
+			return fmt.Errorf("error creating secret: secret must not be a path")
+		}
+
+		fPath := filepath.Join(localMountPath, targetPath)
+		if err := os.MkdirAll(filepath.Dir(fPath), 0700); err != nil {
+			return errors.Wrap(err, "error creating secret mount path")
+		}
+
+		logrus.WithFields(logrus.Fields{
+			"name": s.Name,
+			"path": fPath,
+		}).Debug("injecting secret")
+		if err := ioutil.WriteFile(fPath, s.Data, s.Mode); err != nil {
+			return errors.Wrap(err, "error injecting secret")
+		}
+
+		uid, err := strconv.Atoi(s.UID)
+		if err != nil {
+			return err
+		}
+		gid, err := strconv.Atoi(s.GID)
+		if err != nil {
+			return err
+		}
+
+		if err := os.Chown(fPath, uid, gid); err != nil {
+			return errors.Wrap(err, "error setting ownership for secret")
+		}
+	}
+
+	// remount secrets ro
+	if err := mount.Mount("tmpfs", localMountPath, "tmpfs", "remount,ro"); err != nil {
+		return errors.Wrap(err, "unable to remount secret dir as readonly")
 	}
 
 	return nil
