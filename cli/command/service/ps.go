@@ -2,6 +2,7 @@ package service
 
 import (
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cli/command"
 	"github.com/docker/docker/cli/command/idresolver"
@@ -14,6 +15,7 @@ import (
 
 type psOptions struct {
 	serviceID string
+	all       bool
 	quiet     bool
 	noResolve bool
 	noTrunc   bool
@@ -37,6 +39,7 @@ func newPsCommand(dockerCli *command.DockerCli) *cobra.Command {
 	flags.BoolVar(&opts.noTrunc, "no-trunc", false, "Do not truncate output")
 	flags.BoolVar(&opts.noResolve, "no-resolve", false, "Do not map IDs to Names")
 	flags.VarP(&opts.filter, "filter", "f", "Filter output based on conditions provided")
+	flags.BoolVarP(&opts.all, "all", "a", false, "Show all tasks (default shows tasks that are or will be running)")
 
 	return cmd
 }
@@ -62,6 +65,11 @@ func runPS(dockerCli *command.DockerCli, opts psOptions) error {
 			filter.Del("node", nodeFilter)
 			filter.Add("node", nodeReference)
 		}
+	}
+
+	if !opts.all && !filter.Include("desired-state") {
+		filter.Add("desired-state", string(swarm.TaskStateRunning))
+		filter.Add("desired-state", string(swarm.TaskStateAccepted))
 	}
 
 	tasks, err := client.TaskList(ctx, types.TaskListOptions{Filters: filter})

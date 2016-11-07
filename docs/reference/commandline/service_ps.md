@@ -22,6 +22,7 @@ Usage:  docker service ps [OPTIONS] SERVICE
 List the tasks of a service
 
 Options:
+  -a, --all             Show all tasks (default shows tasks that are or will be running)
   -f, --filter filter   Filter output based on conditions provided
       --help            Print usage
       --no-resolve      Do not map IDs to Names
