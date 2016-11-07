@@ -1162,9 +1162,12 @@ _docker_container_port() {
 	esac
 }
 
-# TODO new command
 _docker_container_prune() {
-	:
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "--force -f --help" -- "$cur" ) )
+			;;
+	esac
 }
 
 _docker_container_ps() {
@@ -2070,9 +2073,12 @@ _docker_image_ls() {
 	esac
 }
 
-# TODO new command
 _docker_image_prune() {
-	:
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "--all -a --force -f --help" -- "$cur" ) )
+			;;
+	esac
 }
 
 _docker_image_pull() {
@@ -2406,6 +2412,14 @@ _docker_network_ls() {
 	esac
 }
 
+_docker_network_prune() {
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "--force -f --help" -- "$cur" ) )
+			;;
+	esac
+}
+
 _docker_network_rm() {
 	case "$cur" in
 		-*)
@@ -2423,6 +2437,7 @@ _docker_network() {
 		disconnect
 		inspect
 		ls
+		prune
 		rm
 	"
 	__docker_subcommands "$subcommands" && return
@@ -3211,9 +3226,12 @@ _docker_system_info() {
 	esac
 }
 
-# TODO new command
 _docker_system_prune() {
-	:
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "--all -a --force -f --help" -- "$cur" ) )
+			;;
+	esac
 }
 
 
@@ -3311,6 +3329,14 @@ _docker_volume_ls() {
 	esac
 }
 
+_docker_volume_prune() {
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "--force -f --help" -- "$cur" ) )
+			;;
+	esac
+}
+
 _docker_volume_rm() {
 	case "$cur" in
 		-*)
@@ -3327,6 +3353,7 @@ _docker_volume() {
 		create
 		inspect
 		ls
+		prune
 		rm
 	"
 	__docker_subcommands "$subcommands" && return
