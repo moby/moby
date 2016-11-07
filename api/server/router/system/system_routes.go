@@ -16,6 +16,7 @@ import (
 	"github.com/docker/docker/api/types/registry"
 	timetypes "github.com/docker/docker/api/types/time"
 	"github.com/docker/docker/api/types/versions"
+	"github.com/docker/docker/api/types/versions/v1p24"
 	"github.com/docker/docker/pkg/ioutils"
 	"golang.org/x/net/context"
 )
@@ -41,21 +42,16 @@ func (s *systemRouter) getInfo(ctx context.Context, w http.ResponseWriter, r *ht
 
 	if versions.LessThan(httputils.VersionFromContext(ctx), "1.25") {
 		// TODO: handle this conversion in engine-api
-		type oldInfo struct {
-			*types.InfoBase
-			ExecutionDriver string
-			SecurityOptions []string
-		}
-		old := &oldInfo{
+		oldInfo := &v1p24.Info{
 			InfoBase:        info.InfoBase,
 			ExecutionDriver: "<not supported>",
 		}
 		for _, s := range info.SecurityOptions {
 			if s.Key == "Name" {
-				old.SecurityOptions = append(old.SecurityOptions, s.Value)
+				oldInfo.SecurityOptions = append(oldInfo.SecurityOptions, s.Value)
 			}
 		}
-		return httputils.WriteJSON(w, http.StatusOK, old)
+		return httputils.WriteJSON(w, http.StatusOK, oldInfo)
 	}
 	return httputils.WriteJSON(w, http.StatusOK, info)
 }
