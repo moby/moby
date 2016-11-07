@@ -22,7 +22,7 @@ func newDockerCommand(dockerCli *command.DockerCli) *cobra.Command {
 	var flags *pflag.FlagSet
 
 	cmd := &cobra.Command{
-		Use:              "docker [OPTIONS] COMMAND [arg...]",
+		Use:              "docker [OPTIONS] COMMAND [ARG...]",
 		Short:            "A self-sufficient runtime for containers",
 		SilenceUsage:     true,
 		SilenceErrors:    true,
