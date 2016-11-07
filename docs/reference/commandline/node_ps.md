@@ -22,10 +22,12 @@ Usage:  docker node ps [OPTIONS] [NODE...]
 List tasks running on one or more nodes, defaults to current node.
 
 Options:
-  -f, --filter value   Filter output based on conditions provided
-      --help           Print usage
-      --no-resolve     Do not map IDs to Names
-      --no-trunc       Do not truncate output
+  -f, --filter filter   Filter output based on conditions provided
+      --format string   Pretty-print tasks using a Go template
+      --help            Print usage
+      --no-resolve      Do not map IDs to Names
+      --no-trunc        Do not truncate output
+  -q, --quiet           Only display task IDs
 ```
 
 ## Description
@@ -104,6 +106,37 @@ redis.7.bg8c07zzg87di2mufeq51a2qp  redis:3.0.6  swarm-manager1  Running        R
 
 The `desired-state` filter can take the values `running`, `shutdown`, and `accepted`.
 
+
+### Formatting
+
+The formatting options (`--format`) pretty-prints tasks output
+using a Go template.
+
+Valid placeholders for the Go template are listed below:
+
+Placeholder     | Description
+----------------|------------------------------------------------------------------------------------------
+`.Name`         | Task name
+`.Image`        | Task image
+`.Node`         | Node ID
+`.DesiredState` | Desired state of the task (`running`, `shutdown`, and `accepted`)
+`.CurrentState` | Current state of the task
+`.Error`        | Error
+`.Ports`        | Task published ports
+
+When using the `--format` option, the `node ps` command will either
+output the data exactly as the template declares or, when using the
+`table` directive, includes column headers as well.
+
+The following example uses a template without headers and outputs the
+`ID` and `Driver` entries separated by a colon for all tasks:
+
+```bash
+$ docker node ps --format "{{.Name}}: {{.Image}}"
+top.1: busybox
+top.2: busybox
+top.3: busybox
+```
 
 ## Related commands
 

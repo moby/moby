@@ -8,6 +8,7 @@ import (
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cli/command"
+	"github.com/docker/docker/cli/command/formatter"
 	"github.com/docker/docker/cli/command/idresolver"
 	"github.com/docker/docker/cli/command/task"
 	"github.com/docker/docker/opts"
@@ -19,6 +20,8 @@ type psOptions struct {
 	nodeIDs   []string
 	noResolve bool
 	noTrunc   bool
+	quiet     bool
+	format    string
 	filter    opts.FilterOpt
 }
 
@@ -43,6 +46,8 @@ func newPsCommand(dockerCli command.Cli) *cobra.Command {
 	flags.BoolVar(&opts.noTrunc, "no-trunc", false, "Do not truncate output")
 	flags.BoolVar(&opts.noResolve, "no-resolve", false, "Do not map IDs to Names")
 	flags.VarP(&opts.filter, "filter", "f", "Filter output based on conditions provided")
+	flags.StringVar(&opts.format, "format", "", "Pretty-print tasks using a Go template")
+	flags.BoolVarP(&opts.quiet, "quiet", "q", false, "Only display task IDs")
 
 	return cmd
 }
@@ -81,7 +86,16 @@ func runPs(dockerCli command.Cli, opts psOptions) error {
 		tasks = append(tasks, nodeTasks...)
 	}
 
-	if err := task.Print(dockerCli, ctx, tasks, idresolver.New(client, opts.noResolve), opts.noTrunc); err != nil {
+	format := opts.format
+	if len(format) == 0 {
+		if dockerCli.ConfigFile() != nil && len(dockerCli.ConfigFile().TasksFormat) > 0 && !opts.quiet {
+			format = dockerCli.ConfigFile().TasksFormat
+		} else {
+			format = formatter.TableFormatKey
+		}
+	}
+
+	if err := task.Print(dockerCli, ctx, tasks, idresolver.New(client, opts.noResolve), !opts.noTrunc, opts.quiet, format); err != nil {
 		errs = append(errs, err.Error())
 	}
 

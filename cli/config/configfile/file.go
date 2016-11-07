@@ -36,6 +36,7 @@ type ConfigFile struct {
 	Filename             string                      `json:"-"` // Note: for internal use only
 	ServiceInspectFormat string                      `json:"serviceInspectFormat,omitempty"`
 	ServicesFormat       string                      `json:"servicesFormat,omitempty"`
+	TasksFormat          string                      `json:"tasksFormat,omitempty"`
 }
 
 // LegacyLoadFromReader reads the non-nested configuration data given and sets up the
