@@ -35,6 +35,20 @@ func (ps *Store) GetByName(name string) (*v2.Plugin, error) {
 	ps.RLock()
 	defer ps.RUnlock()
 
+	named, err := reference.ParseNamed(name)
+	if err != nil {
+		return nil, err
+	}
+
+	if reference.IsNameOnly(named) {
+		named = reference.WithDefaultTag(named)
+	}
+	ref, ok := named.(reference.NamedTagged)
+	if !ok {
+		return nil, fmt.Errorf("invalid plugin name: %s", named)
+	}
+	name = ref.String()
+
 	id, nameOk := ps.nameToID[name]
 	if !nameOk {
 		return nil, ErrNotFound(name)
