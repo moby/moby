@@ -331,6 +331,14 @@ func (c *containerAdapter) createVolumes(ctx context.Context) error {
 	return nil
 }
 
+func (c *containerAdapter) activateServiceBinding() error {
+	return c.backend.ActivateContainerServiceBinding(c.container.name())
+}
+
+func (c *containerAdapter) deactivateServiceBinding() error {
+	return c.backend.DeactivateContainerServiceBinding(c.container.name())
+}
+
 // todo: typed/wrapped errors
 func isContainerCreateNameConflict(err error) bool {
 	return strings.Contains(err.Error(), "Conflict. The name")

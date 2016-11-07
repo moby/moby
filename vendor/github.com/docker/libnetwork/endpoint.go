@@ -74,6 +74,7 @@ type endpoint struct {
 	ingressPorts      []*PortConfig
 	dbIndex           uint64
 	dbExists          bool
+	serviceEnabled    bool
 	sync.Mutex
 }
 
@@ -303,6 +304,18 @@ func (ep *endpoint) isAnonymous() bool {
 	return ep.anonymous
 }
 
+// enableService sets ep's serviceEnabled to the passed value if it's not in the
+// current state and returns true; false otherwise.
+func (ep *endpoint) enableService(state bool) bool {
+	ep.Lock()
+	defer ep.Unlock()
+	if ep.serviceEnabled != state {
+		ep.serviceEnabled = state
+		return true
+	}
+	return false
+}
+
 func (ep *endpoint) needResolver() bool {
 	ep.Lock()
 	defer ep.Unlock()
@@ -500,10 +513,6 @@ func (ep *endpoint) sbJoin(sb *sandbox, options ...EndpointOption) error {
 
 	if err = sb.populateNetworkResources(ep); err != nil {
 		return err
-	}
-
-	if e := ep.addToCluster(); e != nil {
-		log.Errorf("Could not update state for endpoint %s into cluster: %v", ep.Name(), e)
 	}
 
 	if sb.needDefaultGW() && sb.getEndpointInGWNetwork() == nil {
