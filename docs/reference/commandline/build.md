@@ -174,9 +174,9 @@ $ docker build -t fail .
 
 Sending build context to Docker daemon 2.048 kB
 Sending build context to Docker daemon
-Step 1 : FROM busybox
+Step 1/3 : FROM busybox
  ---> 4986bf8c1536
-Step 2 : RUN exit 13
+Step 2/3 : RUN exit 13
  ---> Running in e26670ec7a0a
 INFO[0000] The command [/bin/sh -c exit 13] returned a non-zero code: 13
 $ echo $?
@@ -195,10 +195,10 @@ See also:
 $ docker build .
 
 Uploading context 10240 bytes
-Step 1 : FROM busybox
+Step 1/3 : FROM busybox
 Pulling repository busybox
  ---> e9aa60c60128MB/2.284 MB (100%) endpoint: https://cdn-registry-1.docker.io/v1/
-Step 2 : RUN ls -lh /
+Step 2/3 : RUN ls -lh /
  ---> Running in 9c9e81692ae9
 total 24
 drwxr-xr-x    2 root     root        4.0K Mar 12  2013 bin
@@ -212,7 +212,7 @@ dr-xr-xr-x   13 root     root           0 Nov 15 23:34 sys
 drwxr-xr-x    2 root     root        4.0K Mar 12  2013 tmp
 drwxr-xr-x    2 root     root        4.0K Nov 15 23:34 usr
  ---> b35f4035db3f
-Step 3 : CMD echo Hello world
+Step 3/3 : CMD echo Hello world
  ---> Running in 02071fceb21b
  ---> f52f38b7823e
 Successfully built f52f38b7823e
@@ -248,12 +248,12 @@ specify an arbitrary Git repository by using the `git://` or `git@` scheme.
 $ docker build -f ctx/Dockerfile http://server/ctx.tar.gz
 
 Downloading context: http://server/ctx.tar.gz [===================>]    240 B/240 B
-Step 1 : FROM busybox
+Step 1/3 : FROM busybox
  ---> 8c2e06607696
-Step 2 : ADD ctx/container.cfg /
+Step 2/3 : ADD ctx/container.cfg /
  ---> e7829950cee3
 Removing intermediate container b35224abf821
-Step 3 : CMD /bin/ls
+Step 3/3 : CMD /bin/ls
  ---> Running in fbc63d321d73
  ---> 3286931702ad
 Removing intermediate container fbc63d321d73
@@ -293,9 +293,9 @@ $ docker build .
 
 Uploading context 18.829 MB
 Uploading context
-Step 1 : FROM busybox
+Step 1/2 : FROM busybox
  ---> 769b9341d937
-Step 2 : CMD echo Hello world
+Step 2/2 : CMD echo Hello world
  ---> Using cache
  ---> 99cc1ad10469
 Successfully built 99cc1ad10469
@@ -303,9 +303,9 @@ $ echo ".git" > .dockerignore
 $ docker build .
 Uploading context  6.76 MB
 Uploading context
-Step 1 : FROM busybox
+Step 1/2 : FROM busybox
  ---> 769b9341d937
-Step 2 : CMD echo Hello world
+Step 2/2 : CMD echo Hello world
  ---> Using cache
  ---> 99cc1ad10469
 Successfully built 99cc1ad10469
