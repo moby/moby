@@ -136,20 +136,16 @@ func (out *lastProgressOutput) WriteProgress(prog progress.Progress) error {
 func runBuild(dockerCli *command.DockerCli, options buildOptions) error {
 
 	var (
-		buildCtx io.ReadCloser
-		err      error
-	)
-
-	specifiedContext := options.context
-
-	var (
+		buildCtx      io.ReadCloser
+		err           error
 		contextDir    string
 		tempDir       string
 		relDockerfile string
 		progBuff      io.Writer
 		buildBuff     io.Writer
 	)
-
+	
+	specifiedContext := options.context
 	progBuff = dockerCli.Out()
 	buildBuff = dockerCli.Out()
 	if options.quiet {
