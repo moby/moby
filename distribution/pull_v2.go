@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -162,7 +163,7 @@ func (ld *v2LayerDescriptor) Download(ctx context.Context, progressOutput progre
 	)
 
 	if ld.tmpFile == nil {
-		offset, ld.tmpFile, ld.verifier, err = resumeOrCreateDownloadFile(cachePath, ld.digest)
+		offset, ld.tmpFile, ld.verifier, err = resumeOrCreateDownloadFile(progressOutput, cachePath, ld.digest, ld.ID())
 		if err != nil {
 			return nil, 0, xfer.DoNotRetry{Err: err}
 		}
@@ -189,6 +190,7 @@ func (ld *v2LayerDescriptor) Download(ctx context.Context, progressOutput progre
 	tmpFile := ld.tmpFile
 
 	if ld.verifier == nil || !ld.verifier.Verified() {
+		progress.Update(progressOutput, ld.ID(), "Connecting")
 		layerDownload, err := ld.open(ctx)
 		if err != nil {
 			logrus.Errorf("Error initiating layer download: %v", err)
@@ -859,11 +861,11 @@ func fixManifestLayers(m *schema1.Manifest) error {
 
 var v2LayerDataFilename = "v2data"
 
-func resumeOrCreateDownloadFile(cachePath string, dgst digest.Digest) (int64, *os.File, digest.Verifier, error) {
+func resumeOrCreateDownloadFile(progressOutput progress.Output, cachePath string, dgst digest.Digest, id string) (int64, *os.File, digest.Verifier, error) {
 	dataPath := filepath.Join(cachePath, v2LayerDataFilename)
 	_, err := os.Stat(dataPath)
 	if err == nil {
-		return resumeDownloadFile(cachePath, dgst)
+		return resumeDownloadFile(progressOutput, cachePath, dgst, id)
 	}
 	if os.IsNotExist(err) {
 		tmpFile, err := createDownloadFile(cachePath)
@@ -875,7 +877,7 @@ func resumeOrCreateDownloadFile(cachePath string, dgst digest.Digest) (int64, *o
 	return 0, nil, nil, err
 }
 
-func resumeDownloadFile(cachePath string, dgst digest.Digest) (int64, *os.File, digest.Verifier, error) {
+func resumeDownloadFile(progressOutput progress.Output, cachePath string, dgst digest.Digest, id string) (int64, *os.File, digest.Verifier, error) {
 	dataPath := filepath.Join(cachePath, v2LayerDataFilename)
 	verifier, err := digest.NewDigestVerifier(dgst)
 	if err != nil {
@@ -887,15 +889,23 @@ func resumeDownloadFile(cachePath string, dgst digest.Digest) (int64, *os.File, 
 	if err != nil {
 		return 0, nil, nil, err
 	}
+	info, err := file.Stat()
+	if err != nil {
+		return 0, nil, nil, err
+	}
+	size := info.Size()
 
 	// TODO(vikstrous) make a mechanism for storing the partial digest and offset atomically
 	// and resuming using that instead of re-hashing everything up to the current
 	// offset
-	offset, err := io.Copy(verifier, file)
+	reader := progress.NewProgressReader(ioutil.NopCloser(file), progressOutput, 0, size, id, "Rehashing")
+	defer reader.Close()
+
+	_, err = io.Copy(verifier, reader)
 	if err != nil {
 		return 0, nil, nil, err
 	}
-	return offset, file, verifier, nil
+	return size, file, verifier, nil
 }
 
 func createDownloadFile(cachePath string) (*os.File, error) {
