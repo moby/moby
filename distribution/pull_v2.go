@@ -269,6 +269,8 @@ func (ld *v2LayerDescriptor) Download(ctx context.Context, progressOutput progre
 			}
 			return nil, 0, xfer.DoNotRetry{Err: err}
 		}
+	} else {
+		size = offset
 	}
 
 	progress.Update(progressOutput, ld.ID(), "Download complete")
