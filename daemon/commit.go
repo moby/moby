@@ -226,6 +226,7 @@ func (daemon *Daemon) Commit(name string, c *backend.ContainerCommitConfig) (str
 		}
 	}
 
+	imageRef := ""
 	if c.Repo != "" {
 		newTag, err := reference.WithName(c.Repo) // todo: should move this to API layer
 		if err != nil {
@@ -239,10 +240,13 @@ func (daemon *Daemon) Commit(name string, c *backend.ContainerCommitConfig) (str
 		if err := daemon.TagImageWithReference(id, newTag); err != nil {
 			return "", err
 		}
+		imageRef = newTag.String()
 	}
 
 	attributes := map[string]string{
 		"comment": c.Comment,
+		"imageID": id.String(),
+		"imageRef": imageRef,
 	}
 	daemon.LogContainerEventWithAttributes(container, "commit", attributes)
 	containerActions.WithValues("commit").UpdateSince(start)
