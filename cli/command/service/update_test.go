@@ -122,18 +122,36 @@ func TestUpdateGroups(t *testing.T) {
 
 func TestUpdateMounts(t *testing.T) {
 	flags := newUpdateCommand(nil).Flags()
-	flags.Set("mount-add", "type=volume,target=/toadd")
+	flags.Set("mount-add", "type=volume,source=vol2,target=/toadd")
 	flags.Set("mount-rm", "/toremove")
 
 	mounts := []mounttypes.Mount{
-		{Target: "/toremove", Type: mounttypes.TypeBind},
-		{Target: "/tokeep", Type: mounttypes.TypeBind},
+		{Target: "/toremove", Source: "vol1", Type: mounttypes.TypeBind},
+		{Target: "/tokeep", Source: "vol3", Type: mounttypes.TypeBind},
 	}
 
 	updateMounts(flags, &mounts)
 	assert.Equal(t, len(mounts), 2)
-	assert.Equal(t, mounts[0].Target, "/tokeep")
-	assert.Equal(t, mounts[1].Target, "/toadd")
+	assert.Equal(t, mounts[0].Target, "/toadd")
+	assert.Equal(t, mounts[1].Target, "/tokeep")
+
+}
+
+func TestUpdateMountsWithDuplicateMounts(t *testing.T) {
+	flags := newUpdateCommand(nil).Flags()
+	flags.Set("mount-add", "type=volume,source=vol4,target=/toadd")
+
+	mounts := []mounttypes.Mount{
+		{Target: "/tokeep1", Source: "vol1", Type: mounttypes.TypeBind},
+		{Target: "/toadd", Source: "vol2", Type: mounttypes.TypeBind},
+		{Target: "/tokeep2", Source: "vol3", Type: mounttypes.TypeBind},
+	}
+
+	updateMounts(flags, &mounts)
+	assert.Equal(t, len(mounts), 3)
+	assert.Equal(t, mounts[0].Target, "/tokeep1")
+	assert.Equal(t, mounts[1].Target, "/tokeep2")
+	assert.Equal(t, mounts[2].Target, "/toadd")
 }
 
 func TestUpdatePorts(t *testing.T) {
