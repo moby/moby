@@ -7,4 +7,9 @@ RUN     go get github.com/golang/lint/golint && \
         cp /go/bin/golint /usr/bin/ && \
         rm -rf /go/src/* /go/pkg/* /go/bin/*
 
+RUN     go get github.com/lk4d4/vndr && \
+        cp /go/bin/vndr /usr/bin/ && \
+        rm -rf /go/src/* /go/pkg/* /go/bin/*
+
+
 WORKDIR /go/src/github.com/docker/docker

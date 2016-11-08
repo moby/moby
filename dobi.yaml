@@ -34,8 +34,8 @@ job=validate-vendor:
 job=validate:
     use: validator
     mounts: [source]
-    command: hack/validate/all
-    description: "Run all validation checks"
+    command: hack/validate/default
+    description: "Run default validation checks"
 
 job=test-unit:
     use: builder
