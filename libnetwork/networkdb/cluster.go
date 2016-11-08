@@ -139,7 +139,6 @@ func (nDB *NetworkDB) clusterInit() error {
 
 	nDB.stopCh = make(chan struct{})
 	nDB.memberlist = mlist
-	nDB.mConfig = config
 
 	for _, trigger := range []struct {
 		interval time.Duration
