@@ -3,6 +3,7 @@ package hcsshim
 import (
 	"encoding/json"
 	"io"
+	"runtime"
 	"sync"
 	"syscall"
 	"time"
@@ -73,7 +74,7 @@ func (process *process) Kill() error {
 	logrus.Debugf(title+" processid=%d", process.processID)
 
 	if process.handle == 0 {
-		return makeProcessError(process, operation, "", ErrInvalidHandle)
+		return makeProcessError(process, operation, "", ErrAlreadyClosed)
 	}
 
 	var resultp *uint16
@@ -128,7 +129,7 @@ func (process *process) ExitCode() (int, error) {
 	logrus.Debugf(title+" processid=%d", process.processID)
 
 	if process.handle == 0 {
-		return 0, makeProcessError(process, operation, "", ErrInvalidHandle)
+		return 0, makeProcessError(process, operation, "", ErrAlreadyClosed)
 	}
 
 	properties, err := process.properties()
@@ -157,7 +158,7 @@ func (process *process) ResizeConsole(width, height uint16) error {
 	logrus.Debugf(title+" processid=%d", process.processID)
 
 	if process.handle == 0 {
-		return makeProcessError(process, operation, "", ErrInvalidHandle)
+		return makeProcessError(process, operation, "", ErrAlreadyClosed)
 	}
 
 	modifyRequest := processModifyRequest{
@@ -226,7 +227,7 @@ func (process *process) Stdio() (io.WriteCloser, io.ReadCloser, io.ReadCloser, e
 	logrus.Debugf(title+" processid=%d", process.processID)
 
 	if process.handle == 0 {
-		return nil, nil, nil, makeProcessError(process, operation, "", ErrInvalidHandle)
+		return nil, nil, nil, makeProcessError(process, operation, "", ErrAlreadyClosed)
 	}
 
 	var stdIn, stdOut, stdErr syscall.Handle
@@ -270,7 +271,7 @@ func (process *process) CloseStdin() error {
 	logrus.Debugf(title+" processid=%d", process.processID)
 
 	if process.handle == 0 {
-		return makeProcessError(process, operation, "", ErrInvalidHandle)
+		return makeProcessError(process, operation, "", ErrAlreadyClosed)
 	}
 
 	modifyRequest := processModifyRequest{
@@ -321,6 +322,7 @@ func (process *process) Close() error {
 	}
 
 	process.handle = 0
+	runtime.SetFinalizer(process, nil)
 
 	logrus.Debugf(title+" succeeded processid=%d", process.processID)
 	return nil

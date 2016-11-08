@@ -10,6 +10,7 @@ import (
 type ProcessConfig struct {
 	ApplicationName  string
 	CommandLine      string
+	User             string
 	WorkingDirectory string
 	Environment      map[string]string
 	EmulateConsole   bool
@@ -64,6 +65,13 @@ type ContainerConfig struct {
 	HvRuntime                *HvRuntime  `json:",omitempty"` // Hyper-V container settings. Used by Hyper-V containers only. Format ImagePath=%root%\BaseLayerID\UtilityVM
 	Servicing                bool        // True if this container is for servicing
 	AllowUnqualifiedDNSQuery bool        // True to allow unqualified DNS name resolution
+}
+
+type ComputeSystemQuery struct {
+	IDs    []string `json:"Ids,omitempty"`
+	Types  []string `json:",omitempty"`
+	Names  []string `json:",omitempty"`
+	Owners []string `json:",omitempty"`
 }
 
 // Container represents a created (but not necessarily running) container.

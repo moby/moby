@@ -27,7 +27,8 @@ type container struct {
 	callbackNumber uintptr
 }
 
-type containerProperties struct {
+// ContainerProperties holds the properties for a container and the processes running in that container
+type ContainerProperties struct {
 	ID                string `json:"Id"`
 	Name              string
 	SystemType        string
@@ -35,6 +36,8 @@ type containerProperties struct {
 	SiloGUID          string            `json:"SiloGuid,omitempty"`
 	IsDummy           bool              `json:",omitempty"`
 	RuntimeID         string            `json:"RuntimeId,omitempty"`
+	IsRuntimeTemplate bool              `json:",omitempty"`
+	RuntimeImagePath  string            `json:",omitempty"`
 	Stopped           bool              `json:",omitempty"`
 	ExitType          string            `json:",omitempty"`
 	AreUpdatesPending bool              `json:",omitempty"`
@@ -161,9 +164,45 @@ func OpenContainer(id string) (Container, error) {
 
 	container.handle = handle
 
+	if err := container.registerCallback(); err != nil {
+		return nil, makeContainerError(container, operation, "", err)
+	}
+
 	logrus.Debugf(title+" succeeded id=%s handle=%d", id, handle)
 	runtime.SetFinalizer(container, closeContainer)
 	return container, nil
+}
+
+// GetContainers gets a list of the containers on the system that match the query
+func GetContainers(q ComputeSystemQuery) ([]ContainerProperties, error) {
+	operation := "GetContainers"
+	title := "HCSShim::" + operation
+
+	queryb, err := json.Marshal(q)
+	if err != nil {
+		return nil, err
+	}
+
+	query := string(queryb)
+	logrus.Debugf(title+" query=%s", query)
+
+	var (
+		resultp         *uint16
+		computeSystemsp *uint16
+	)
+	err = hcsEnumerateComputeSystems(query, &computeSystemsp, &resultp)
+	err = processHcsResult(err, resultp)
+	if computeSystemsp == nil {
+		return nil, ErrUnexpectedValue
+	}
+	computeSystemsRaw := convertAndFreeCoTaskMemBytes(computeSystemsp)
+	computeSystems := []ContainerProperties{}
+	if err := json.Unmarshal(computeSystemsRaw, &computeSystems); err != nil {
+		return nil, err
+	}
+
+	logrus.Debugf(title + " succeeded")
+	return computeSystems, nil
 }
 
 // Start synchronously starts the container.
@@ -175,7 +214,7 @@ func (container *container) Start() error {
 	logrus.Debugf(title+" id=%s", container.id)
 
 	if container.handle == 0 {
-		return makeContainerError(container, operation, "", ErrInvalidHandle)
+		return makeContainerError(container, operation, "", ErrAlreadyClosed)
 	}
 
 	var resultp *uint16
@@ -199,7 +238,7 @@ func (container *container) Shutdown() error {
 	logrus.Debugf(title+" id=%s", container.id)
 
 	if container.handle == 0 {
-		return makeContainerError(container, operation, "", ErrInvalidHandle)
+		return makeContainerError(container, operation, "", ErrAlreadyClosed)
 	}
 
 	var resultp *uint16
@@ -223,7 +262,7 @@ func (container *container) Terminate() error {
 	logrus.Debugf(title+" id=%s", container.id)
 
 	if container.handle == 0 {
-		return makeContainerError(container, operation, "", ErrInvalidHandle)
+		return makeContainerError(container, operation, "", ErrAlreadyClosed)
 	}
 
 	var resultp *uint16
@@ -268,7 +307,7 @@ func (container *container) WaitTimeout(timeout time.Duration) error {
 	return nil
 }
 
-func (container *container) properties(query string) (*containerProperties, error) {
+func (container *container) properties(query string) (*ContainerProperties, error) {
 	var (
 		resultp     *uint16
 		propertiesp *uint16
@@ -283,7 +322,7 @@ func (container *container) properties(query string) (*containerProperties, erro
 		return nil, ErrUnexpectedValue
 	}
 	propertiesRaw := convertAndFreeCoTaskMemBytes(propertiesp)
-	properties := &containerProperties{}
+	properties := &ContainerProperties{}
 	if err := json.Unmarshal(propertiesRaw, properties); err != nil {
 		return nil, err
 	}
@@ -299,7 +338,7 @@ func (container *container) HasPendingUpdates() (bool, error) {
 	logrus.Debugf(title+" id=%s", container.id)
 
 	if container.handle == 0 {
-		return false, makeContainerError(container, operation, "", ErrInvalidHandle)
+		return false, makeContainerError(container, operation, "", ErrAlreadyClosed)
 	}
 
 	properties, err := container.properties(pendingUpdatesQuery)
@@ -320,7 +359,7 @@ func (container *container) Statistics() (Statistics, error) {
 	logrus.Debugf(title+" id=%s", container.id)
 
 	if container.handle == 0 {
-		return Statistics{}, makeContainerError(container, operation, "", ErrInvalidHandle)
+		return Statistics{}, makeContainerError(container, operation, "", ErrAlreadyClosed)
 	}
 
 	properties, err := container.properties(statisticsQuery)
@@ -341,7 +380,7 @@ func (container *container) ProcessList() ([]ProcessListItem, error) {
 	logrus.Debugf(title+" id=%s", container.id)
 
 	if container.handle == 0 {
-		return nil, makeContainerError(container, operation, "", ErrInvalidHandle)
+		return nil, makeContainerError(container, operation, "", ErrAlreadyClosed)
 	}
 
 	properties, err := container.properties(processListQuery)
@@ -362,7 +401,7 @@ func (container *container) Pause() error {
 	logrus.Debugf(title+" id=%s", container.id)
 
 	if container.handle == 0 {
-		return makeContainerError(container, operation, "", ErrInvalidHandle)
+		return makeContainerError(container, operation, "", ErrAlreadyClosed)
 	}
 
 	var resultp *uint16
@@ -385,7 +424,7 @@ func (container *container) Resume() error {
 	logrus.Debugf(title+" id=%s", container.id)
 
 	if container.handle == 0 {
-		return makeContainerError(container, operation, "", ErrInvalidHandle)
+		return makeContainerError(container, operation, "", ErrAlreadyClosed)
 	}
 
 	var resultp *uint16
@@ -412,7 +451,7 @@ func (container *container) CreateProcess(c *ProcessConfig) (Process, error) {
 	)
 
 	if container.handle == 0 {
-		return nil, makeContainerError(container, operation, "", ErrInvalidHandle)
+		return nil, makeContainerError(container, operation, "", ErrAlreadyClosed)
 	}
 
 	// If we are not emulating a console, ignore any console size passed to us
@@ -468,7 +507,7 @@ func (container *container) OpenProcess(pid int) (Process, error) {
 	)
 
 	if container.handle == 0 {
-		return nil, makeContainerError(container, operation, "", ErrInvalidHandle)
+		return nil, makeContainerError(container, operation, "", ErrAlreadyClosed)
 	}
 
 	err := hcsOpenProcess(container.handle, uint32(pid), &processHandle, &resultp)
@@ -514,6 +553,7 @@ func (container *container) Close() error {
 	}
 
 	container.handle = 0
+	runtime.SetFinalizer(container, nil)
 
 	logrus.Debugf(title+" succeeded id=%s", container.id)
 	return nil
