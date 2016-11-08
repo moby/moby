@@ -131,6 +131,15 @@ func (s *DockerSuite) TestPluginSet(c *check.C) {
 	c.Assert(strings.TrimSpace(env), checker.Equals, "[DEBUG=1]")
 }
 
+func (s *DockerSuite) TestPluginInstallArgs(c *check.C) {
+	testRequires(c, DaemonIsLinux, ExperimentalDaemon, Network)
+	out, _ := dockerCmd(c, "plugin", "install", "--grant-all-permissions", "--disable", pName, "DEBUG=1")
+	c.Assert(strings.TrimSpace(out), checker.Contains, pName)
+
+	env, _ := dockerCmd(c, "plugin", "inspect", "-f", "{{.Config.Env}}", pName)
+	c.Assert(strings.TrimSpace(env), checker.Equals, "[DEBUG=1]")
+}
+
 func (s *DockerSuite) TestPluginInstallImage(c *check.C) {
 	testRequires(c, DaemonIsLinux, ExperimentalDaemon)
 	out, _, err := dockerCmdWithError("plugin", "install", "redis")

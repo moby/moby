@@ -18,16 +18,20 @@ type pluginOptions struct {
 	name       string
 	grantPerms bool
 	disable    bool
+	args       []string
 }
 
 func newInstallCommand(dockerCli *command.DockerCli) *cobra.Command {
 	var options pluginOptions
 	cmd := &cobra.Command{
-		Use:   "install [OPTIONS] PLUGIN",
+		Use:   "install [OPTIONS] PLUGIN [KEY=VALUE...]",
 		Short: "Install a plugin",
-		Args:  cli.ExactArgs(1), // TODO: allow for set args
+		Args:  cli.RequiresMinArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			options.name = args[0]
+			if len(args) > 1 {
+				options.args = args[1:]
+			}
 			return runInstall(dockerCli, options)
 		},
 	}
@@ -75,6 +79,7 @@ func runInstall(dockerCli *command.DockerCli, opts pluginOptions) error {
 		AcceptPermissionsFunc: acceptPrivileges(dockerCli, opts.name),
 		// TODO: Rename PrivilegeFunc, it has nothing to do with privileges
 		PrivilegeFunc: registryAuthFunc,
+		Args:          opts.args,
 	}
 	if err := dockerCli.Client().PluginInstall(ctx, ref.String(), options); err != nil {
 		return err
