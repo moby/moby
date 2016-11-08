@@ -104,3 +104,41 @@ func (daemon *Daemon) pullImageWithReference(ctx context.Context, ref reference.
 	<-writesDone
 	return err
 }
+
+func (daemon *Daemon) ResolveTagToDigest(ctx context.Context, ref reference.NamedTagged, authConfig *types.AuthConfig) (string, error) {
+	// get repository info
+	repoInfo, err := daemon.RegistryService.ResolveRepository(ref)
+	if err != nil {
+		return "", err
+	}
+	// makes sure name is not empty or `scratch`
+	if err := distribution.ValidateRepoName(repoInfo.Name()); err != nil {
+		return "", err
+	}
+
+	// get endpoints
+	endpoints, err := daemon.RegistryService.LookupPullEndpoints(repoInfo.Hostname())
+	if err != nil {
+		return "", err
+	}
+
+	// retrieve repository
+	// TODO(nishanttotla): More sophisticated selection of endpoint
+	repo, confirmedV2, err := distribution.NewV2Repository(ctx, repoInfo, endpoints[0], nil, authConfig, "pull")
+
+	if err != nil {
+		return "", err
+	}
+	digest := ""
+
+	// only retrieve digest if the repo is v2
+	if confirmedV2 {
+		dscrptr, err := repo.Tags(ctx).Get(ctx, ref.Tag())
+		if err != nil {
+			return "", err
+		} else {
+			digest = dscrptr.Digest.String()
+		}
+	}
+	return digest, nil
+}

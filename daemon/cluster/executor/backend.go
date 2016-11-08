@@ -10,6 +10,7 @@ import (
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/network"
 	clustertypes "github.com/docker/docker/daemon/cluster/provider"
+	"github.com/docker/docker/reference"
 	"github.com/docker/libnetwork"
 	"github.com/docker/libnetwork/cluster"
 	networktypes "github.com/docker/libnetwork/types"
@@ -44,4 +45,5 @@ type Backend interface {
 	UnsubscribeFromEvents(listener chan interface{})
 	UpdateAttachment(string, string, string, *network.NetworkingConfig) error
 	WaitForDetachment(context.Context, string, string, string, string) error
+	ResolveTagToDigest(context.Context, reference.NamedTagged, *types.AuthConfig) (string, error)
 }
