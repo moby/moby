@@ -498,8 +498,15 @@ func (c *Cluster) Join(req types.JoinRequest) error {
 
 	select {
 	case <-time.After(swarmConnectTimeout):
-		// attempt to connect will continue in background, also reconnecting
-		go c.reconnectOnFailure(n)
+		// attempt to connect will continue in background, but reconnect only if it didn't fail
+		go func() {
+			select {
+			case <-n.Ready():
+				c.reconnectOnFailure(n)
+			case <-n.done:
+				logrus.Errorf("failed to join the cluster: %+v", c.err)
+			}
+		}()
 		return ErrSwarmJoinTimeoutReached
 	case <-n.Ready():
 		go c.reconnectOnFailure(n)
