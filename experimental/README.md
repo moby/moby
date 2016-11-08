@@ -37,7 +37,7 @@ refined or entirely removed.
 	>command fails for the Docker repo during installation. To work around this,
 	>add the key directly using the following:
 	>
-	>       $ curl -sSL https://experimental.docker.com/gpg | sudo apt-key add -
+	>   $ curl -sSL https://experimental.docker.com/gpg | sudo apt-key add -
 
 3. Verify `docker` is installed correctly.
 
@@ -46,7 +46,7 @@ refined or entirely removed.
     This command downloads a test image and runs it in a container.
 
 ### Get the Linux binary
-To download the latest experimental `docker` binary for Linux,
+To download the latest experimental Docker binary for Linux,
 use the following URLs:
 
     https://experimental.docker.com/builds/Linux/i386/docker-latest.tgz
@@ -54,7 +54,7 @@ use the following URLs:
     https://experimental.docker.com/builds/Linux/x86_64/docker-latest.tgz
 
 After downloading the appropriate binary, you can follow the instructions
-[here](https://docs.docker.com/engine/installation/binaries/#/get-the-docker-engine-binaries) to run the `docker` daemon.
+[here](https://docs.docker.com/engine/installation/binaries/#/get-the-docker-engine-binaries) to run the Docker daemon.
 
 > **Note**
 >
