@@ -18,6 +18,7 @@ type handle struct {
 	dev       uint64
 	ino       uint64
 	closeOnce sync.Once
+	name      string
 }
 
 func getHandle(fn string) (*handle, error) {
@@ -33,9 +34,10 @@ func getHandle(fn string) (*handle, error) {
 	}
 
 	h := &handle{
-		f:   f,
-		dev: stat.Dev,
-		ino: stat.Ino,
+		f:    f,
+		name: fn,
+		dev:  stat.Dev,
+		ino:  stat.Ino,
 	}
 
 	// check /proc just in case
@@ -49,6 +51,10 @@ func getHandle(fn string) (*handle, error) {
 
 func (h *handle) procPath() string {
 	return fmt.Sprintf("/proc/self/fd/%d", h.f.Fd())
+}
+
+func (h *handle) Name() string {
+	return h.name
 }
 
 func (h *handle) Path() (string, error) {

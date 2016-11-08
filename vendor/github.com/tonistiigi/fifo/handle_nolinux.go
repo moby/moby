@@ -35,9 +35,13 @@ func (h *handle) Path() (string, error) {
 		return "", errors.Wrapf(err, "path %v could not be statted", h.fn)
 	}
 	if uint64(stat.Dev) != h.dev || stat.Ino != h.ino {
-		return "", errors.Errorf("failed to verify handle %v/%v %v/%v", stat.Dev, h.dev, stat.Ino, h.ino)
+		return "", errors.Errorf("failed to verify handle %v/%v %v/%v for %v", stat.Dev, h.dev, stat.Ino, h.ino, h.fn)
 	}
 	return h.fn, nil
+}
+
+func (h *handle) Name() string {
+	return h.fn
 }
 
 func (h *handle) Close() error {
