@@ -458,7 +458,7 @@ func NewDaemon(config *Config, registryService registry.Service, containerdRemot
 
 	// Ensure that we have a correct root key limit for launching containers.
 	if err := ModifyRootKeyLimit(); err != nil {
-		logrus.Warnf("unable to modify root key limit, number of containers could be limitied by this quota: %v", err)
+		logrus.Warnf("unable to modify root key limit, number of containers could be limited by this quota: %v", err)
 	}
 
 	// Ensure we have compatible and valid configuration options
