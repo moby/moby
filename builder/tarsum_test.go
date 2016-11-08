@@ -192,7 +192,7 @@ func TestRemoveDirectory(t *testing.T) {
 	}
 }
 
-func TestMakeSumTarContext(t *testing.T) {
+func TestMakeTarSumContext(t *testing.T) {
 	contextDir, cleanup := createTestTempDir(t, "", "builder-tarsum-test")
 	defer cleanup()
 
@@ -209,7 +209,7 @@ func TestMakeSumTarContext(t *testing.T) {
 	tarSum, err := MakeTarSumContext(tarStream)
 
 	if err != nil {
-		t.Fatalf("Error when executing MakeSumContext: %s", err)
+		t.Fatalf("Error when executing MakeTarSumContext: %s", err)
 	}
 
 	if tarSum == nil {
