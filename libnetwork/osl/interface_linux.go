@@ -8,7 +8,7 @@ import (
 	"syscall"
 	"time"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/libnetwork/ns"
 	"github.com/docker/libnetwork/types"
 	"github.com/vishvananda/netlink"
@@ -167,7 +167,7 @@ func (i *nwIface) Remove() error {
 
 	err = nlh.LinkSetName(iface, i.SrcName())
 	if err != nil {
-		log.Debugf("LinkSetName failed for interface %s: %v", i.SrcName(), err)
+		logrus.Debugf("LinkSetName failed for interface %s: %v", i.SrcName(), err)
 		return err
 	}
 
@@ -179,7 +179,7 @@ func (i *nwIface) Remove() error {
 	} else if !isDefault {
 		// Move the network interface to caller namespace.
 		if err := nlh.LinkSetNsFd(iface, ns.ParseHandlerInt()); err != nil {
-			log.Debugf("LinkSetNsPid failed for interface %s: %v", i.SrcName(), err)
+			logrus.Debugf("LinkSetNsPid failed for interface %s: %v", i.SrcName(), err)
 			return err
 		}
 	}
@@ -315,7 +315,7 @@ func (n *networkNamespace) AddInterface(srcName, dstPrefix string, options ...If
 	// Up the interface.
 	cnt := 0
 	for err = nlh.LinkSetUp(iface); err != nil && cnt < 3; cnt++ {
-		log.Debugf("retrying link setup because of: %v", err)
+		logrus.Debugf("retrying link setup because of: %v", err)
 		time.Sleep(10 * time.Millisecond)
 		err = nlh.LinkSetUp(iface)
 	}

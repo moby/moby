@@ -5,7 +5,7 @@ import (
 	"net"
 	"syscall"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/libnetwork/driverapi"
 	"github.com/docker/libnetwork/ns"
 	"github.com/docker/libnetwork/types"
@@ -109,7 +109,7 @@ func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo,
 			continue
 		}
 		if err := jinfo.AddStaticRoute(sub.subnetIP, types.NEXTHOP, s.gwIP.IP); err != nil {
-			log.Errorf("Adding subnet %s static route in network %q failed\n", s.subnetIP, n.id)
+			logrus.Errorf("Adding subnet %s static route in network %q failed\n", s.subnetIP, n.id)
 		}
 	}
 
@@ -124,7 +124,7 @@ func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo,
 		net.ParseIP(d.advertiseAddress), true)
 
 	if err := d.checkEncryption(nid, nil, n.vxlanID(s), true, true); err != nil {
-		log.Warn(err)
+		logrus.Warn(err)
 	}
 
 	buf, err := proto.Marshal(&PeerRecord{
@@ -137,7 +137,7 @@ func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo,
 	}
 
 	if err := jinfo.AddTableEntry(ovPeerTable, eid, buf); err != nil {
-		log.Errorf("overlay: Failed adding table entry to joininfo: %v", err)
+		logrus.Errorf("overlay: Failed adding table entry to joininfo: %v", err)
 	}
 
 	d.pushLocalEndpointEvent("join", nid, eid)
@@ -147,7 +147,7 @@ func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo,
 
 func (d *driver) EventNotify(etype driverapi.EventType, nid, tableName, key string, value []byte) {
 	if tableName != ovPeerTable {
-		log.Errorf("Unexpected table notification for table %s received", tableName)
+		logrus.Errorf("Unexpected table notification for table %s received", tableName)
 		return
 	}
 
@@ -155,7 +155,7 @@ func (d *driver) EventNotify(etype driverapi.EventType, nid, tableName, key stri
 
 	var peer PeerRecord
 	if err := proto.Unmarshal(value, &peer); err != nil {
-		log.Errorf("Failed to unmarshal peer record: %v", err)
+		logrus.Errorf("Failed to unmarshal peer record: %v", err)
 		return
 	}
 
@@ -167,19 +167,19 @@ func (d *driver) EventNotify(etype driverapi.EventType, nid, tableName, key stri
 
 	addr, err := types.ParseCIDR(peer.EndpointIP)
 	if err != nil {
-		log.Errorf("Invalid peer IP %s received in event notify", peer.EndpointIP)
+		logrus.Errorf("Invalid peer IP %s received in event notify", peer.EndpointIP)
 		return
 	}
 
 	mac, err := net.ParseMAC(peer.EndpointMAC)
 	if err != nil {
-		log.Errorf("Invalid mac %s received in event notify", peer.EndpointMAC)
+		logrus.Errorf("Invalid mac %s received in event notify", peer.EndpointMAC)
 		return
 	}
 
 	vtep := net.ParseIP(peer.TunnelEndpointIP)
 	if vtep == nil {
-		log.Errorf("Invalid VTEP %s received in event notify", peer.TunnelEndpointIP)
+		logrus.Errorf("Invalid VTEP %s received in event notify", peer.TunnelEndpointIP)
 		return
 	}
 
@@ -219,7 +219,7 @@ func (d *driver) Leave(nid, eid string) error {
 	n.leaveSandbox()
 
 	if err := d.checkEncryption(nid, nil, 0, true, false); err != nil {
-		log.Warn(err)
+		logrus.Warn(err)
 	}
 
 	return nil

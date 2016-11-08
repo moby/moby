@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/libnetwork/etchosts"
 	"github.com/docker/libnetwork/netlabel"
 	"github.com/docker/libnetwork/osl"
@@ -213,18 +213,18 @@ func (sb *sandbox) delete(force bool) error {
 			if c.isDistributedControl() {
 				retain = true
 			}
-			log.Warnf("Failed getting network for ep %s during sandbox %s delete: %v", ep.ID(), sb.ID(), err)
+			logrus.Warnf("Failed getting network for ep %s during sandbox %s delete: %v", ep.ID(), sb.ID(), err)
 			continue
 		}
 
 		if !force {
 			if err := ep.Leave(sb); err != nil {
-				log.Warnf("Failed detaching sandbox %s from endpoint %s: %v\n", sb.ID(), ep.ID(), err)
+				logrus.Warnf("Failed detaching sandbox %s from endpoint %s: %v\n", sb.ID(), ep.ID(), err)
 			}
 		}
 
 		if err := ep.Delete(force); err != nil {
-			log.Warnf("Failed deleting endpoint %s: %v\n", ep.ID(), err)
+			logrus.Warnf("Failed deleting endpoint %s: %v\n", ep.ID(), err)
 		}
 	}
 
@@ -247,7 +247,7 @@ func (sb *sandbox) delete(force bool) error {
 	}
 
 	if err := sb.storeDelete(); err != nil {
-		log.Warnf("Failed to delete sandbox %s from store: %v", sb.ID(), err)
+		logrus.Warnf("Failed to delete sandbox %s from store: %v", sb.ID(), err)
 	}
 
 	c.Lock()
@@ -291,7 +291,7 @@ func (sb *sandbox) Refresh(options ...SandboxOption) error {
 	// Detach from all endpoints
 	for _, ep := range epList {
 		if err := ep.Leave(sb); err != nil {
-			log.Warnf("Failed detaching sandbox %s from endpoint %s: %v\n", sb.ID(), ep.ID(), err)
+			logrus.Warnf("Failed detaching sandbox %s from endpoint %s: %v\n", sb.ID(), ep.ID(), err)
 		}
 	}
 
@@ -307,7 +307,7 @@ func (sb *sandbox) Refresh(options ...SandboxOption) error {
 	// Re-connect to all endpoints
 	for _, ep := range epList {
 		if err := ep.Join(sb); err != nil {
-			log.Warnf("Failed attach sandbox %s to endpoint %s: %v\n", sb.ID(), ep.ID(), err)
+			logrus.Warnf("Failed attach sandbox %s to endpoint %s: %v\n", sb.ID(), ep.ID(), err)
 		}
 	}
 
@@ -413,7 +413,7 @@ func (sb *sandbox) updateGateway(ep *endpoint) error {
 
 func (sb *sandbox) ResolveIP(ip string) string {
 	var svc string
-	log.Debugf("IP To resolve %v", ip)
+	logrus.Debugf("IP To resolve %v", ip)
 
 	for _, ep := range sb.getConnectedEndpoints() {
 		n := ep.getNetwork()
@@ -434,7 +434,7 @@ func (sb *sandbox) ResolveService(name string) ([]*net.SRV, []net.IP) {
 	srv := []*net.SRV{}
 	ip := []net.IP{}
 
-	log.Debugf("Service name To resolve: %v", name)
+	logrus.Debugf("Service name To resolve: %v", name)
 
 	// There are DNS implementaions that allow SRV queries for names not in
 	// the format defined by RFC 2782. Hence specific validations checks are
@@ -497,7 +497,7 @@ func (sb *sandbox) ResolveName(name string, ipType int) ([]net.IP, bool) {
 	// {a.b in network c.d},
 	// {a in network b.c.d},
 
-	log.Debugf("Name To resolve: %v", name)
+	logrus.Debugf("Name To resolve: %v", name)
 	name = strings.TrimSuffix(name, ".")
 	reqName := []string{name}
 	networkName := []string{""}
@@ -605,7 +605,7 @@ func (sb *sandbox) resolveName(req string, networkName string, epList []*endpoin
 func (sb *sandbox) SetKey(basePath string) error {
 	start := time.Now()
 	defer func() {
-		log.Debugf("sandbox set key processing took %s for container %s", time.Now().Sub(start), sb.ContainerID())
+		logrus.Debugf("sandbox set key processing took %s for container %s", time.Now().Sub(start), sb.ContainerID())
 	}()
 
 	if basePath == "" {
@@ -646,10 +646,10 @@ func (sb *sandbox) SetKey(basePath string) error {
 
 		if err := sb.osSbox.InvokeFunc(sb.resolver.SetupFunc(0)); err == nil {
 			if err := sb.resolver.Start(); err != nil {
-				log.Errorf("Resolver Start failed for container %s, %q", sb.ContainerID(), err)
+				logrus.Errorf("Resolver Start failed for container %s, %q", sb.ContainerID(), err)
 			}
 		} else {
-			log.Errorf("Resolver Setup Function failed for container %s, %q", sb.ContainerID(), err)
+			logrus.Errorf("Resolver Setup Function failed for container %s, %q", sb.ContainerID(), err)
 		}
 	}
 
@@ -690,7 +690,7 @@ func releaseOSSboxResources(osSbox osl.Sandbox, ep *endpoint) {
 		// Only remove the interfaces owned by this endpoint from the sandbox.
 		if ep.hasInterface(i.SrcName()) {
 			if err := i.Remove(); err != nil {
-				log.Debugf("Remove interface %s failed: %v", i.SrcName(), err)
+				logrus.Debugf("Remove interface %s failed: %v", i.SrcName(), err)
 			}
 		}
 	}
@@ -706,7 +706,7 @@ func releaseOSSboxResources(osSbox osl.Sandbox, ep *endpoint) {
 	// Remove non-interface routes.
 	for _, r := range joinInfo.StaticRoutes {
 		if err := osSbox.RemoveStaticRoute(r); err != nil {
-			log.Debugf("Remove route failed: %v", err)
+			logrus.Debugf("Remove route failed: %v", err)
 		}
 	}
 }
@@ -741,7 +741,7 @@ func (sb *sandbox) restoreOslSandbox() error {
 		ep.Unlock()
 
 		if i == nil {
-			log.Errorf("error restoring endpoint %s for container %s", ep.Name(), sb.ContainerID())
+			logrus.Errorf("error restoring endpoint %s for container %s", ep.Name(), sb.ContainerID())
 			continue
 		}
 
@@ -876,7 +876,7 @@ func (sb *sandbox) clearNetworkResources(origEp *endpoint) error {
 	if len(sb.endpoints) == 0 {
 		// sb.endpoints should never be empty and this is unexpected error condition
 		// We log an error message to note this down for debugging purposes.
-		log.Errorf("No endpoints in sandbox while trying to remove endpoint %s", ep.Name())
+		logrus.Errorf("No endpoints in sandbox while trying to remove endpoint %s", ep.Name())
 		sb.Unlock()
 		return nil
 	}

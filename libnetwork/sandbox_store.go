@@ -178,7 +178,7 @@ func (sb *sandbox) storeDelete() error {
 func (c *controller) sandboxCleanup(activeSandboxes map[string]interface{}) {
 	store := c.getStore(datastore.LocalScope)
 	if store == nil {
-		logrus.Errorf("Could not find local scope store while trying to cleanup sandboxes")
+		logrus.Error("Could not find local scope store while trying to cleanup sandboxes")
 		return
 	}
 
