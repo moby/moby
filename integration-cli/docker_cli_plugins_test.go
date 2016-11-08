@@ -117,6 +117,20 @@ func (s *DockerSuite) TestPluginInstallDisableVolumeLs(c *check.C) {
 	dockerCmd(c, "volume", "ls")
 }
 
+func (s *DockerSuite) TestPluginSet(c *check.C) {
+	testRequires(c, DaemonIsLinux, ExperimentalDaemon, Network)
+	out, _ := dockerCmd(c, "plugin", "install", "--grant-all-permissions", "--disable", pName)
+	c.Assert(strings.TrimSpace(out), checker.Contains, pName)
+
+	env, _ := dockerCmd(c, "plugin", "inspect", "-f", "{{.Config.Env}}", pName)
+	c.Assert(strings.TrimSpace(env), checker.Equals, "[DEBUG=0]")
+
+	dockerCmd(c, "plugin", "set", pName, "DEBUG=1")
+
+	env, _ = dockerCmd(c, "plugin", "inspect", "-f", "{{.Config.Env}}", pName)
+	c.Assert(strings.TrimSpace(env), checker.Equals, "[DEBUG=1]")
+}
+
 func (s *DockerSuite) TestPluginInstallImage(c *check.C) {
 	testRequires(c, DaemonIsLinux, ExperimentalDaemon)
 	out, _, err := dockerCmdWithError("plugin", "install", "redis")

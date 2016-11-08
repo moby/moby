@@ -8,7 +8,7 @@ import (
 )
 
 func TestFilterByCapNeg(t *testing.T) {
-	p := v2.NewPlugin("test", "1234567890", "/run/docker", "latest")
+	p := v2.NewPlugin("test", "1234567890", "/run/docker", "/var/lib/docker/plugins", "latest")
 
 	iType := types.PluginInterfaceType{"volumedriver", "docker", "1.0"}
 	i := types.PluginManifestInterface{"plugins.sock", []types.PluginInterfaceType{iType}}
@@ -21,7 +21,7 @@ func TestFilterByCapNeg(t *testing.T) {
 }
 
 func TestFilterByCapPos(t *testing.T) {
-	p := v2.NewPlugin("test", "1234567890", "/run/docker", "latest")
+	p := v2.NewPlugin("test", "1234567890", "/run/docker", "/var/lib/docker/plugins", "latest")
 
 	iType := types.PluginInterfaceType{"volumedriver", "docker", "1.0"}
 	i := types.PluginManifestInterface{"plugins.sock", []types.PluginInterfaceType{iType}}

@@ -4290,16 +4290,26 @@ Content-Type: application/json
 -   **200** - no error
 -   **404** - plugin not installed
 
-<!-- TODO Document "docker plugin set" endpoint once implemented
 ### Configure a plugin
 
-`POST /plugins/(plugin name)/set`
+POST /plugins/(plugin name)/set`
+
+**Example request**:
+
+
+    POST /plugins/tiborvass/no-remove/set
+    Content-Type: application/json
+
+    ["DEBUG=1"]
+
+**Example response**:
+
+    HTTP/1.1 204 No Content
 
 **Status codes**:
 
--   **500** - not implemented
-
--->
+-   **204** - no error
+-   **404** - plugin not installed
 
 ### Enable a plugin
 

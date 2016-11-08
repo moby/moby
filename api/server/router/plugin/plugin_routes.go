@@ -89,7 +89,11 @@ func (pr *pluginRouter) setPlugin(ctx context.Context, w http.ResponseWriter, r 
 	if err := json.NewDecoder(r.Body).Decode(&args); err != nil {
 		return err
 	}
-	return pr.backend.Set(vars["name"], args)
+	if err := pr.backend.Set(vars["name"], args); err != nil {
+		return err
+	}
+	w.WriteHeader(http.StatusNoContent)
+	return nil
 }
 
 func (pr *pluginRouter) listPlugins(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {

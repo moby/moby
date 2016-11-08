@@ -51,3 +51,4 @@ tiborvass/no-remove
 * [plugin disable](plugin_disable.md)
 * [plugin inspect](plugin_inspect.md)
 * [plugin install](plugin_install.md)
+* [plugin set](plugin_set.md)
