@@ -18,6 +18,7 @@ import (
 	opttypes "github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/promise"
 	"github.com/docker/docker/pkg/signal"
+	"github.com/docker/docker/utils"
 	runconfigopts "github.com/docker/docker/runconfig/opts"
 	"github.com/docker/libnetwork/resolvconf/dns"
 	"github.com/spf13/cobra"
@@ -86,6 +87,54 @@ func runRun(dockerCli *command.DockerCli, flags *pflag.FlagSet, opts *runOptions
 		reportError(stderr, cmdPath, err.Error(), true)
 		return cli.StatusError{StatusCode: 125}
 	}
+
+        if (hostConfig.Isolation == "qemu") {
+	        ctx, cancelFun := context.WithCancel(context.Background())
+
+	        createResponse, err := createContainer(ctx, dockerCli, config, hostConfig, networkingConfig, hostConfig.ContainerIDFile, opts.name)
+	        if err != nil {
+		  reportError(stderr, cmdPath, err.Error(), true)
+		  return runStartContainerErr(err)
+	        }
+
+	        //start the container
+	        if err := client.ContainerStart(ctx, createResponse.ID, types.ContainerStartOptions{}); err != nil {
+                  cancelFun()
+
+		  reportError(stderr, cmdPath, err.Error(), false)
+		  return runStartContainerErr(err)
+	        }
+
+                qemuDirectory := fmt.Sprintf("/var/run/docker-qemu/%s/", createResponse.ID)
+                appConsoleSockName := qemuDirectory + "appconsole.sock"
+
+		conn, err := utils.UnixSocketConnect(appConsoleSockName)
+		if err != nil {
+				fmt.Fprint(stderr, "failed to connect to ", appConsoleSockName, " ", err.Error(), "\n")
+				return nil
+		}
+
+		tc, err := utils.NewConn(conn)
+		if err != nil {
+				fmt.Fprint(stderr, "fail to init telnet connection to ", appConsoleSockName, ": ", err.Error(), "\n")
+				return nil
+		}
+
+		cout := make(chan string, 128)
+		go consolePrinter(tc, cout)
+
+		for {
+				line, ok := <-cout
+				if ok {
+						fmt.Fprintln(stdout, line)
+				} else {
+						fmt.Fprintln(stdout, "console output end")
+						break
+				}
+		}
+
+                return nil
+        }
 
 	if hostConfig.AutoRemove && !hostConfig.RestartPolicy.IsNone() {
 		return ErrConflictRestartPolicyAndAutoRemove
@@ -282,4 +331,36 @@ func runStartContainerErr(err error) error {
 	}
 
 	return statusError
+}
+
+// Move, Move, Move
+func consolePrinter(conn io.Reader, output chan string) {
+	buf := make([]byte, 1)
+	line := []byte{}
+	cr := false
+	emit := false
+	for {
+
+		nr, err := conn.Read(buf)
+		if err != nil || nr < 1 {
+			close(output)
+			return
+		}
+		switch buf[0] {
+		case '\n':
+			emit = !cr
+			cr = false
+		case '\r':
+			emit = true
+			cr = true
+		default:
+			cr = false
+			line = append(line, buf[0])
+		}
+		if emit {
+			output <- string(line)
+			line = []byte{}
+			emit = false
+		}
+	}
 }

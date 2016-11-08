@@ -9,6 +9,7 @@ import (
         "os"
 	"os/exec"
 	"strconv"
+        "strings"
 
 	libvirtgo "github.com/rgbkrk/libvirt-go"
         "github.com/Sirupsen/logrus"
@@ -58,54 +59,6 @@ func (ld *LibvirtDriver) checkConnection() error {
 	return fmt.Errorf("connection is alive")
 }
 
-func CreateTemplateQemuWrapper(execPath, qemuPath string, boot *BootConfig) error {
-	templateQemuWrapper := `#!/bin/bash
-
-# qemu wrapper for libvirt driver for templating
-# Do NOT modify
-
-memsize="%d"          # template memory size
-maxcpuid="%d"         # MaxCpus-1
-qemupath="%s"         # qemu real path, exec.LookPath("qemu-system-x86_64")
-
-argv=()
-
-while true
-do
-	arg="$1"
-	shift || break
-
-	# wrap qemu after we see the -numa argument
-	if [ "x${arg}" = "x-numa" ]; then
-		if [ "next_arg=$1" != "next_arg=node,nodeid=0,cpus=0-${maxcpuid},mem=${memsize}" ]; then
-			echo "unexpected numa argument: $1" >&2
-			exit 1
-		fi
-
-		if [ -e "${statepath}" ]; then
-			argv+=("-incoming" "exec:cat $statepath")
-			share=off
-		else
-			share=on
-		fi
-
-		#argv+=(-global kvm-pit.lost_tick_policy=discard)
-		argv+=("-object" "memory-backend-file,id=isolated-template-memory,size=${memsize}M,mem-path=${mempath},share=${share}")
-		argv+=("-numa" "node,nodeid=0,cpus=0-${maxcpuid},memdev=isolated-template-memory")
-		shift # skip next arg
-	else
-		argv+=("${arg}")
-	fi
-done
-
-exec "${qemupath}" "${argv[@]}"
-`
-
-	data := []byte(fmt.Sprintf(templateQemuWrapper, boot.Memory, boot.DefaultMaxCpus-1, qemuPath))
-
-	return ioutil.WriteFile(execPath, data, 0700)
-}
-
 type memory struct {
 	Unit    string `xml:"unit,attr"`
 	Content int    `xml:",chardata"`
@@ -143,6 +96,17 @@ type ostype struct {
 type domainos struct {
 	Supported string    `xml:"supported,attr"`
 	Type      ostype    `xml:"type"`
+}
+
+type fspath struct {
+	Dir string `xml:"dir,attr"`
+}
+
+type filesystem struct {
+	Type       string   `xml:"type,attr"`
+	Accessmode string   `xml:"accessmode,attr"`
+	Source     fspath   `xml:"source"`
+	Target     fspath   `xml:"target"`
 }
 
 type diskdriver struct {
@@ -183,20 +147,27 @@ type disk struct {
         Readonly     *readonly     `xml:"readonly,omitempty"`
 }
 
-type console struct {
-	Type   string   `xml:"type,attr"`
+type channsrc struct {
+	Mode string `xml:"mode,attr"`
+	Path string `xml:"path,attr"`
 }
 
-type graphics struct {
+type constgt struct {
+	Type string `xml:"type,attr,omitempty"`
+	Port string `xml:"port,attr"`
+}
+
+type console struct {
 	Type   string   `xml:"type,attr"`
-	Port   string   `xml:"port,attr"`
+	Source channsrc `xml:"source"`
+        Target constgt `xml:"target"`
 }
 
 type device struct {
 	Emulator    string       `xml:"emulator"`
+        Filesystems []filesystem `xml:"filesystem"`
 	Disks       []disk       `xml:"disk"`
-	Console     console      `xml:"console"`
-        Graphics    graphics     `xml:"graphics"`
+	Consoles    []console    `xml:"console"`
 }
 
 type seclab struct {
@@ -239,11 +210,20 @@ password: passw0rd
 chpasswd: { expire: False }
 ssh_pwauth: True
 runcmd:
- - [ sh, -c, "%s" ]
+ - mount -t 9p -o trans=virtio share_dir /mnt
+ - chroot /mnt %s > /dev/hvc1
+ 
 `
 
-        logrus.Infof("The data is: %s", fmt.Sprintf(data, lc.container.Path))
-        userData := []byte(fmt.Sprintf(data, lc.container.Path))
+        path := lc.container.Path
+
+        args := strings.TrimPrefix(fmt.Sprint(lc.container.Args), "[")
+        args = strings.TrimSuffix(args, "]")
+
+        entrypoint := path + " " + args
+
+        logrus.Infof("The data is: %s", fmt.Sprintf(data, entrypoint))
+        userData := []byte(fmt.Sprintf(data, entrypoint))
 
         currentDir, err := os.Getwd()
         if err != nil {
@@ -255,7 +235,6 @@ runcmd:
                 return "", fmt.Errorf("Could not changed to directory %s", seedDirectory)
         }
 
-logrus.Infof("Test1111")
         writeError := ioutil.WriteFile("user-data", userData, 0700)
 	if writeError != nil {
 		return "", fmt.Errorf("Could not write user-data to /var/run/docker-qemu/%s", lc.container.ID)
@@ -288,8 +267,8 @@ func (lc *LibvirtContext) domainXml() (string, error) {
                  DefaultMaxCpus:   2,
                  DefaultMaxMem:    128,
 		 Memory:           128,
-                 DiskPath:         "/home/abhishek/Documents/Works/cloudInit/alpine-delta.img",
-                 OriginalDiskPath: "/home/abhishek/Documents/Works/cloudInit/alpine.img.orig",
+                 DiskPath:         "/home/abhishek/Documents/Works/cloudInit/disk.img",
+                 OriginalDiskPath: "/home/abhishek/Documents/Works/cloudInit/disk.img.orig",
 		}
 
 	dom := &domain{
@@ -368,14 +347,59 @@ func (lc *LibvirtContext) domainXml() (string, error) {
 	}
 	dom.Devices.Disks = append(dom.Devices.Disks, seedimage)
 
-        dom.Devices.Graphics = graphics{
-              Type:     "vnc",
-              Port:     "-1",
-        }
+	fs := filesystem{
+		Type:       "mount",
+		Accessmode:     "passthrough",
+		Source: fspath{
+			Dir: lc.container.BaseFS,
+		},
+		Target: fspath{
+			Dir:     "share_dir",
+		},
+	}
+	dom.Devices.Filesystems = append(dom.Devices.Filesystems, fs)
 
-        dom.Devices.Console = console{
-              Type:     "pty",
+        serialConsole := console{
+             Type: "unix",
+	     Source: channsrc{
+		Mode: "bind",
+		Path: lc.container.Config.SerialConsoleSockName,
+		},
+	     Target: constgt{
+		Type: "serial",
+		Port: "0",
+	     },
         }
+	dom.Devices.Consoles = append(dom.Devices.Consoles, serialConsole)
+        logrus.Infof("Serial console socket location: %s", lc.container.Config.SerialConsoleSockName)
+
+        ubuntuConsole := console{
+             Type: "unix",
+	     Source: channsrc{
+		Mode: "bind",
+		Path: "/arbritary.sock",
+		},
+	     Target: constgt{
+		Type: "virtio",
+		Port: "1",
+	     },
+        }
+	dom.Devices.Consoles = append(dom.Devices.Consoles, ubuntuConsole)
+
+        appConsole := console{
+             Type: "unix",
+	     Source: channsrc{
+		Mode: "bind",
+		Path: lc.container.Config.AppConsoleSockName,
+		},
+	     Target: constgt{
+		Type: "virtio",
+		Port: "2",
+	     },
+        }
+	dom.Devices.Consoles = append(dom.Devices.Consoles, appConsole)
+
+        logrus.Infof("Serial console socket location: %s", lc.container.Config.AppConsoleSockName)
 
 	data, err := xml.Marshal(dom)
 	if err != nil {

@@ -156,10 +156,18 @@ func (daemon *Daemon) create(params types.ContainerCreateConfig, managed bool) (
 	}
 
         if params.HostConfig.Isolation == "qemu" {
+                qemuDirectory := fmt.Sprintf("/var/run/docker-qemu/%s/", container.ID)
+                container.Config.SerialConsoleSockName = qemuDirectory + "serialconsole.sock"
+                container.Config.AppConsoleSockName = qemuDirectory + "appconsole.sock"
+
+                logrus.Printf("Console location: %s", container.Config.AppConsoleSockName)
+
                 ld := container.InitDriver()
                 lc := ld.InitContext(container)
                 lc.Create()
                 container.IsolatedContainerContext = lc
+
+                return container, nil
         }
 
 	daemon.LogContainerEvent(container, "create")

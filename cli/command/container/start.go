@@ -69,6 +69,7 @@ func runStart(dockerCli *command.DockerCli, opts *startOptions) error {
 			return err
 		}
 
+                fmt.Printf("The Isolation is: %s\n", c.HostConfig.Isolation)
 		// We always use c.ID instead of container to maintain consistency during `docker start`
 		if !c.Config.Tty {
 			sigc := ForwardAllSignals(ctx, dockerCli, c.ID)
