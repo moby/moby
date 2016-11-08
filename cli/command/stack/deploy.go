@@ -58,98 +58,16 @@ func newDeployCommand(dockerCli *command.DockerCli) *cobra.Command {
 }
 
 func runDeploy(dockerCli *command.DockerCli, opts deployOptions) error {
-	if opts.bundlefile == "" && opts.composefile == "" {
+	switch {
+	case opts.bundlefile == "" && opts.composefile == "":
 		return fmt.Errorf("Please specify either a bundle file (with --bundle-file) or a Compose file (with --compose-file).")
-	}
-
-	if opts.bundlefile != "" && opts.composefile != "" {
+	case opts.bundlefile != "" && opts.composefile != "":
 		return fmt.Errorf("You cannot specify both a bundle file and a Compose file.")
-	}
-
-	info, err := dockerCli.Client().Info(context.Background())
-	if err != nil {
-		return err
-	}
-	if !info.Swarm.ControlAvailable {
-		return fmt.Errorf("This node is not a swarm manager. Use \"docker swarm init\" or \"docker swarm join\" to connect this node to swarm and try again.")
-	}
-
-	if opts.bundlefile != "" {
+	case opts.bundlefile != "":
 		return deployBundle(dockerCli, opts)
-	} else {
+	default:
 		return deployCompose(dockerCli, opts)
 	}
-}
-
-func deployBundle(dockerCli *command.DockerCli, opts deployOptions) error {
-	bundle, err := loadBundlefile(dockerCli.Err(), opts.namespace, opts.bundlefile)
-	if err != nil {
-		return err
-	}
-
-	namespace := namespace{name: opts.namespace}
-
-	networks := make(map[string]types.NetworkCreate)
-	for _, service := range bundle.Services {
-		for _, networkName := range service.Networks {
-			networks[networkName] = types.NetworkCreate{
-				Labels: getStackLabels(namespace.name, nil),
-			}
-		}
-	}
-
-	services := make(map[string]swarm.ServiceSpec)
-	for internalName, service := range bundle.Services {
-		name := namespace.scope(internalName)
-
-		var ports []swarm.PortConfig
-		for _, portSpec := range service.Ports {
-			ports = append(ports, swarm.PortConfig{
-				Protocol:   swarm.PortConfigProtocol(portSpec.Protocol),
-				TargetPort: portSpec.Port,
-			})
-		}
-
-		nets := []swarm.NetworkAttachmentConfig{}
-		for _, networkName := range service.Networks {
-			nets = append(nets, swarm.NetworkAttachmentConfig{
-				Target:  namespace.scope(networkName),
-				Aliases: []string{networkName},
-			})
-		}
-
-		serviceSpec := swarm.ServiceSpec{
-			Annotations: swarm.Annotations{
-				Name:   name,
-				Labels: getStackLabels(namespace.name, service.Labels),
-			},
-			TaskTemplate: swarm.TaskSpec{
-				ContainerSpec: swarm.ContainerSpec{
-					Image:   service.Image,
-					Command: service.Command,
-					Args:    service.Args,
-					Env:     service.Env,
-					// Service Labels will not be copied to Containers
-					// automatically during the deployment so we apply
-					// it here.
-					Labels: getStackLabels(namespace.name, nil),
-				},
-			},
-			EndpointSpec: &swarm.EndpointSpec{
-				Ports: ports,
-			},
-			Networks: nets,
-		}
-
-		services[internalName] = serviceSpec
-	}
-
-	ctx := context.Background()
-
-	if err := createNetworks(ctx, dockerCli, namespace, networks); err != nil {
-		return err
-	}
-	return deployServices(ctx, dockerCli, services, namespace, opts.sendRegistryAuth)
 }
 
 func deployCompose(dockerCli *command.DockerCli, opts deployOptions) error {
