@@ -155,13 +155,13 @@ func runStart(dockerCli *command.DockerCli, opts *startOptions) error {
 	} else {
 		// We're not going to attach to anything.
 		// Start as many containers as we want.
-		return startContainersWithoutAttachments(dockerCli, ctx, opts.containers)
+		return startContainersWithoutAttachments(ctx, dockerCli, opts.containers)
 	}
 
 	return nil
 }
 
-func startContainersWithoutAttachments(dockerCli *command.DockerCli, ctx context.Context, containers []string) error {
+func startContainersWithoutAttachments(ctx context.Context, dockerCli *command.DockerCli, containers []string) error {
 	var failedContainers []string
 	for _, container := range containers {
 		if err := dockerCli.Client().ContainerStart(ctx, container, types.ContainerStartOptions{}); err != nil {
