@@ -702,7 +702,7 @@ func (c *controller) NewNetwork(networkType, name string, id string, options ...
 	defer func() {
 		if err != nil {
 			if e := c.deleteFromStore(epCnt); e != nil {
-				log.Warnf("couldnt rollback from store, epCnt %v on failure (%v): %v", epCnt, err, e)
+				log.Warnf("could not rollback from store, epCnt %v on failure (%v): %v", epCnt, err, e)
 			}
 		}
 	}()
