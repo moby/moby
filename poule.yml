@@ -46,6 +46,13 @@
   operations:
       - type:       rebuild
         settings: {
+            # When configurations are empty, the `rebuild` operation rebuilds all the currently
+            # known statuses for that pull request.
+            configurations: [],
+            label:          "rebuild/*",
+        }
+      - type:       rebuild
+        settings: {
             configurations: [ arm ],
             label:          "rebuild/arm",
         }
