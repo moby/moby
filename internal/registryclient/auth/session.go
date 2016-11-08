@@ -12,6 +12,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/registry/client"
+	"github.com/docker/distribution/registry/client/auth/challenge"
 	"github.com/docker/distribution/registry/client/transport"
 )
 
@@ -58,7 +59,7 @@ type CredentialStore interface {
 // schemes. The handlers are tried in order, the higher priority authentication
 // methods should be first. The challengeMap holds a list of challenges for
 // a given root API endpoint (for example "https://registry-1.docker.io/v2/").
-func NewAuthorizer(manager ChallengeManager, handlers ...AuthenticationHandler) transport.RequestModifier {
+func NewAuthorizer(manager challenge.Manager, handlers ...AuthenticationHandler) transport.RequestModifier {
 	return &endpointAuthorizer{
 		challenges: manager,
 		handlers:   handlers,
@@ -66,7 +67,7 @@ func NewAuthorizer(manager ChallengeManager, handlers ...AuthenticationHandler) 
 }
 
 type endpointAuthorizer struct {
-	challenges ChallengeManager
+	challenges challenge.Manager
 	handlers   []AuthenticationHandler
 	transport  http.RoundTripper
 }
@@ -94,11 +95,11 @@ func (ea *endpointAuthorizer) ModifyRequest(req *http.Request) error {
 
 	if len(challenges) > 0 {
 		for _, handler := range ea.handlers {
-			for _, challenge := range challenges {
-				if challenge.Scheme != handler.Scheme() {
+			for _, c := range challenges {
+				if c.Scheme != handler.Scheme() {
 					continue
 				}
-				if err := handler.AuthorizeRequest(req, challenge.Parameters); err != nil {
+				if err := handler.AuthorizeRequest(req, c.Parameters); err != nil {
 					return err
 				}
 			}

@@ -1,4 +1,4 @@
-package auth
+package challenge
 
 import (
 	"fmt"
@@ -18,12 +18,12 @@ type Challenge struct {
 	Parameters map[string]string
 }
 
-// ChallengeManager manages the challenges for endpoints.
+// Manager manages the challenges for endpoints.
 // The challenges are pulled out of HTTP responses. Only
 // responses which expect challenges should be added to
 // the manager, since a non-unauthorized request will be
 // viewed as not requiring challenges.
-type ChallengeManager interface {
+type Manager interface {
 	// GetChallenges returns the challenges for the given
 	// endpoint URL.
 	GetChallenges(endpoint url.URL) ([]Challenge, error)
@@ -37,19 +37,19 @@ type ChallengeManager interface {
 	AddResponse(resp *http.Response) error
 }
 
-// NewSimpleChallengeManager returns an instance of
-// ChallengeManger which only maps endpoints to challenges
+// NewSimpleManager returns an instance of
+// Manger which only maps endpoints to challenges
 // based on the responses which have been added the
 // manager. The simple manager will make no attempt to
 // perform requests on the endpoints or cache the responses
 // to a backend.
-func NewSimpleChallengeManager() ChallengeManager {
-	return &simpleChallengeManager{
+func NewSimpleManager() Manager {
+	return &simpleManager{
 		Challanges: make(map[string][]Challenge),
 	}
 }
 
-type simpleChallengeManager struct {
+type simpleManager struct {
 	sync.RWMutex
 	Challanges map[string][]Challenge
 }
@@ -59,7 +59,7 @@ func normalizeURL(endpoint *url.URL) {
 	endpoint.Host = canonicalAddr(endpoint)
 }
 
-func (m *simpleChallengeManager) GetChallenges(endpoint url.URL) ([]Challenge, error) {
+func (m *simpleManager) GetChallenges(endpoint url.URL) ([]Challenge, error) {
 	normalizeURL(&endpoint)
 
 	m.RLock()
@@ -68,7 +68,7 @@ func (m *simpleChallengeManager) GetChallenges(endpoint url.URL) ([]Challenge, e
 	return challenges, nil
 }
 
-func (m *simpleChallengeManager) AddResponse(resp *http.Response) error {
+func (m *simpleManager) AddResponse(resp *http.Response) error {
 	challenges := ResponseChallenges(resp)
 	if resp.Request == nil {
 		return fmt.Errorf("missing request reference")
