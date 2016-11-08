@@ -14,7 +14,7 @@ import (
 	containerd "github.com/docker/containerd/api/grpc/types"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/restartmanager"
-	"github.com/opencontainers/specs/specs-go"
+	specs "github.com/opencontainers/specs/specs-go"
 	"github.com/tonistiigi/fifo"
 	"golang.org/x/net/context"
 )
@@ -69,7 +69,7 @@ func (ctr *container) clean() error {
 func (ctr *container) cleanProcess(id string) {
 	if p, ok := ctr.processes[id]; ok {
 		for _, i := range []int{syscall.Stdin, syscall.Stdout, syscall.Stderr} {
-			if err := os.Remove(p.fifo(i)); err != nil {
+			if err := os.Remove(p.fifo(i)); err != nil && !os.IsNotExist(err) {
 				logrus.Warnf("libcontainerd: failed to remove %v for process %v: %v", p.fifo(i), id, err)
 			}
 		}
