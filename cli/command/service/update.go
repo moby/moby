@@ -42,19 +42,19 @@ func newUpdateCommand(dockerCli *command.DockerCli) *cobra.Command {
 	addServiceFlags(cmd, opts)
 
 	flags.Var(newListOptsVar(), flagEnvRemove, "Remove an environment variable")
-	flags.Var(newListOptsVar(), flagGroupRemove, "Remove previously added supplementary user groups from the container")
+	flags.Var(newListOptsVar(), flagGroupRemove, "Remove a previously added supplementary user group from the container")
 	flags.Var(newListOptsVar(), flagLabelRemove, "Remove a label by its key")
 	flags.Var(newListOptsVar(), flagContainerLabelRemove, "Remove a container label by its key")
 	flags.Var(newListOptsVar(), flagMountRemove, "Remove a mount by its target path")
 	flags.Var(newListOptsVar(), flagPublishRemove, "Remove a published port by its target port")
 	flags.Var(newListOptsVar(), flagConstraintRemove, "Remove a constraint")
-	flags.Var(&opts.labels, flagLabelAdd, "Add or update service labels")
-	flags.Var(&opts.containerLabels, flagContainerLabelAdd, "Add or update container labels")
-	flags.Var(&opts.env, flagEnvAdd, "Add or update environment variables")
+	flags.Var(&opts.labels, flagLabelAdd, "Add or update a service label")
+	flags.Var(&opts.containerLabels, flagContainerLabelAdd, "Add or update a container label")
+	flags.Var(&opts.env, flagEnvAdd, "Add or update an environment variable")
 	flags.Var(&opts.mounts, flagMountAdd, "Add or update a mount on a service")
-	flags.StringSliceVar(&opts.constraints, flagConstraintAdd, []string{}, "Add or update placement constraints")
+	flags.StringSliceVar(&opts.constraints, flagConstraintAdd, []string{}, "Add or update a placement constraint")
 	flags.Var(&opts.endpoint.ports, flagPublishAdd, "Add or update a published port")
-	flags.StringSliceVar(&opts.groups, flagGroupAdd, []string{}, "Add additional supplementary user groups to the container")
+	flags.StringSliceVar(&opts.groups, flagGroupAdd, []string{}, "Add an additional supplementary user group to the container")
 	return cmd
 }
 
