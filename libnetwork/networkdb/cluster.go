@@ -242,7 +242,7 @@ func (nDB *NetworkDB) reapDeadNode() {
 	defer nDB.Unlock()
 	for id, n := range nDB.failedNodes {
 		if n.reapTime > 0 {
-			n.reapTime -= reapPeriod
+			n.reapTime -= nodeReapPeriod
 			continue
 		}
 		logrus.Debugf("Removing failed node %v from gossip cluster", n.Name)
