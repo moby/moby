@@ -172,6 +172,8 @@ or write from files or directories on other containers or the host operating
 system. These types are _data volumes_ (often referred to simply as volumes) and
 _bind-mounts_.
 
+Additionally, Docker also supports tmpfs mounts.
+
 A **bind-mount** makes a file or directory on the host available to the
 container it is mounted within. A bind-mount may be either read-only or
 read-write. For example, a container might share its host's DNS information by
@@ -187,6 +189,8 @@ even when no container is currently using it. Data in named volumes can be
 shared between a container and the host machine, as well as between multiple
 containers. Docker uses a _volume driver_ to create, manage, and mount volumes.
 You can back up or restore volumes using Docker commands.
+
+A **tmpfs** mounts a tmpfs inside a container for volatile data.
 
 Consider a situation where your image starts a lightweight web server. You could
 use that image as a base image, copy in your website's HTML files, and package
@@ -204,8 +208,8 @@ volumes in a service:
 
 | Option                                   | Required                  | Description
 |:-----------------------------------------|:--------------------------|:-----------------------------------------------------------------------------------------
-| **type**                                 |                           | The type of mount, can be either `volume`, or `bind`. Defaults to `volume` if no type is specified.<ul><li>`volume`: mounts a [managed volume](volume_create.md) into the container.</li><li>`bind`: bind-mounts a directory or file from the host into the container.</li></ul>
-| **src** or **source**                    | for `type=bind`&nbsp;only | <ul><li>`type=volume`: `src` is an optional way to specify the name of the volume (for example, `src=my-volume`). If the named volume does not exist, it is automatically created. If no `src` is specified, the volume is assigned a random name which is guaranteed to be unique on the host, but may not be unique cluster-wide. A randomly-named volume has the same lifecycle as its container and is destroyed when the *container* is destroyed (which is upon `service update`, or when scaling or re-balancing the service).</li><li>`type=bind`: `src` is required, and specifies an absolute path to the file or directory to bind-mount (for example, `src=/path/on/host/`).  An error is produced if the file or directory does not exist.</li></ul>
+| **type**                                 |                           | The type of mount, can be either `volume`, `bind`, or `tmpfs`. Defaults to `volume` if no type is specified.<ul><li>`volume`: mounts a [managed volume](volume_create.md) into the container.</li><li>`bind`: bind-mounts a directory or file from the host into the container.</li><li>`tmpfs`: mount a tmpfs in the container</li></ul>
+| **src** or **source**                    | for `type=bind`&nbsp;only | <ul><li>`type=volume`: `src` is an optional way to specify the name of the volume (for example, `src=my-volume`). If the named volume does not exist, it is automatically created. If no `src` is specified, the volume is assigned a random name which is guaranteed to be unique on the host, but may not be unique cluster-wide. A randomly-named volume has the same lifecycle as its container and is destroyed when the *container* is destroyed (which is upon `service update`, or when scaling or re-balancing the service).</li><li>`type=bind`: `src` is required, and specifies an absolute path to the file or directory to bind-mount (for example, `src=/path/on/host/`).  An error is produced if the file or directory does not exist.</li><li>`type=tmpfs`: `src` is not supported.</li></ul>
 | **dst** or **destination** or **target** | yes                       | Mount path inside the container, for example `/some/path/in/container/`. If the path does not exist in the container's filesystem, the Engine creates a directory at the specified location before mounting the volume or bind-mount.
 | **readonly** or **ro**                   |                           | The Engine mounts binds and volumes `read-write` unless `readonly` option is given when mounting the bind or volume.<br /><br /><ul><li>`true` or `1` or no value: Mounts the bind or volume read-only.</li><li>`false` or `0`: Mounts the bind or volume read-write.</li></ul>
 
@@ -255,6 +259,14 @@ The following options can only be used for named volumes (`type=volume`);
 | **volume-label**      | One or more custom metadata ("labels") to apply to the volume upon creation. For example, `volume-label=mylabel=hello-world,my-other-label=hello-mars`. For more information about labels, refer to [apply custom metadata](https://docs.docker.com/engine/userguide/labels-custom-metadata/).
 | **volume-nocopy**     | By default, if you attach an empty volume to a container, and files or directories already existed at the mount-path in the container (`dst`), the Engine copies those files and directories into the volume, allowing the host to access them. Set `volume-nocopy` to disables copying files from the container's filesystem to the volume and mount the empty volume.<br /><br />A value is optional:<ul><li>`true` or `1`: Default if you do not provide a value. Disables copying.</li><li>`false` or `0`: Enables copying.</li></ul>
 | **volume-opt**        | Options specific to a given volume driver, which will be passed to the driver when creating the volume. Options are provided as a comma-separated list of key/value pairs, for example, `volume-opt=some-option=some-value,some-other-option=some-other-value`. For available options for a given driver, refer to that driver's documentation.
+
+#### Options for tmpfs
+The following options can only be used for tmpfs mounts (`type=tmpfs`);
+
+| Option                | Description
+|:----------------------|:--------------------------------------------------------------------------------------------------------------------
+| **tmpfs-size**        | Size of the tmpfs mount in bytes. Unlimited by default in Linux.
+| **tmpfs-mode**        | File mode of the tmpfs in octal. (e.g. `"700"` or `"0700"`.) Defaults to ``"1777"`` in Linux.
 
 #### Differences between "--mount" and "--volume"
 

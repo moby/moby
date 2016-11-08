@@ -1,6 +1,7 @@
 package opts
 
 import (
+	"os"
 	"testing"
 
 	mounttypes "github.com/docker/docker/api/types/mount"
@@ -150,4 +151,34 @@ func TestMountOptTypeConflict(t *testing.T) {
 	var m MountOpt
 	assert.Error(t, m.Set("type=bind,target=/foo,source=/foo,volume-nocopy=true"), "cannot mix")
 	assert.Error(t, m.Set("type=volume,target=/foo,source=/foo,bind-propagation=rprivate"), "cannot mix")
+}
+
+func TestMountOptSetTmpfsNoError(t *testing.T) {
+	for _, testcase := range []string{
+		// tests several aliases that should have same result.
+		"type=tmpfs,target=/target,tmpfs-size=1m,tmpfs-mode=0700",
+		"type=tmpfs,target=/target,tmpfs-size=1MB,tmpfs-mode=700",
+	} {
+		var mount MountOpt
+
+		assert.NilError(t, mount.Set(testcase))
+
+		mounts := mount.Value()
+		assert.Equal(t, len(mounts), 1)
+		assert.DeepEqual(t, mounts[0], mounttypes.Mount{
+			Type:   mounttypes.TypeTmpfs,
+			Target: "/target",
+			TmpfsOptions: &mounttypes.TmpfsOptions{
+				SizeBytes: 1024 * 1024, // not 1000 * 1000
+				Mode:      os.FileMode(0700),
+			},
+		})
+	}
+}
+
+func TestMountOptSetTmpfsError(t *testing.T) {
+	var m MountOpt
+	assert.Error(t, m.Set("type=tmpfs,target=/foo,tmpfs-size=foo"), "invalid value for tmpfs-size")
+	assert.Error(t, m.Set("type=tmpfs,target=/foo,tmpfs-mode=foo"), "invalid value for tmpfs-mode")
+	assert.Error(t, m.Set("type=tmpfs"), "target is required")
 }
