@@ -72,7 +72,7 @@ func TestBuilderFlags(t *testing.T) {
 	bf.Args = []string{"--str1"}
 
 	if err = bf.Parse(); err == nil {
-		t.Fatalf("Test %q was supposed to fail", bf.Args)
+		t.Fatalf("Test5 %q was supposed to fail", bf.Args)
 	}
 
 	// ---
@@ -82,7 +82,7 @@ func TestBuilderFlags(t *testing.T) {
 	bf.Args = []string{"--str1="}
 
 	if err = bf.Parse(); err != nil {
-		t.Fatalf("Test %q was supposed to work: %s", bf.Args, err)
+		t.Fatalf("Test6 %q was supposed to work: %s", bf.Args, err)
 	}
 
 	expected = ""
@@ -97,7 +97,7 @@ func TestBuilderFlags(t *testing.T) {
 	bf.Args = []string{"--str1=BYE"}
 
 	if err = bf.Parse(); err != nil {
-		t.Fatalf("Test %q was supposed to work: %s", bf.Args, err)
+		t.Fatalf("Test7 %q was supposed to work: %s", bf.Args, err)
 	}
 
 	expected = "BYE"
@@ -112,7 +112,7 @@ func TestBuilderFlags(t *testing.T) {
 	bf.Args = []string{"--bool1"}
 
 	if err = bf.Parse(); err != nil {
-		t.Fatalf("Test %q was supposed to work: %s", bf.Args, err)
+		t.Fatalf("Test8 %q was supposed to work: %s", bf.Args, err)
 	}
 
 	if !flBool1.IsTrue() {
@@ -126,7 +126,7 @@ func TestBuilderFlags(t *testing.T) {
 	bf.Args = []string{"--bool1=true"}
 
 	if err = bf.Parse(); err != nil {
-		t.Fatalf("Test %q was supposed to work: %s", bf.Args, err)
+		t.Fatalf("Test9 %q was supposed to work: %s", bf.Args, err)
 	}
 
 	if !flBool1.IsTrue() {
@@ -140,7 +140,7 @@ func TestBuilderFlags(t *testing.T) {
 	bf.Args = []string{"--bool1=false"}
 
 	if err = bf.Parse(); err != nil {
-		t.Fatalf("Test %q was supposed to work: %s", bf.Args, err)
+		t.Fatalf("Test10 %q was supposed to work: %s", bf.Args, err)
 	}
 
 	if flBool1.IsTrue() {
@@ -154,7 +154,7 @@ func TestBuilderFlags(t *testing.T) {
 	bf.Args = []string{"--bool1=false1"}
 
 	if err = bf.Parse(); err == nil {
-		t.Fatalf("Test %q was supposed to fail", bf.Args)
+		t.Fatalf("Test11 %q was supposed to fail", bf.Args)
 	}
 
 	// ---
@@ -164,7 +164,7 @@ func TestBuilderFlags(t *testing.T) {
 	bf.Args = []string{"--bool2"}
 
 	if err = bf.Parse(); err == nil {
-		t.Fatalf("Test %q was supposed to fail", bf.Args)
+		t.Fatalf("Test12 %q was supposed to fail", bf.Args)
 	}
 
 	// ---
@@ -175,7 +175,7 @@ func TestBuilderFlags(t *testing.T) {
 	bf.Args = []string{"--bool1", "--str1=BYE"}
 
 	if err = bf.Parse(); err != nil {
-		t.Fatalf("Test %q was supposed to work: %s", bf.Args, err)
+		t.Fatalf("Test13 %q was supposed to work: %s", bf.Args, err)
 	}
 
 	if flStr1.Value != "BYE" {
