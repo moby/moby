@@ -45,9 +45,17 @@ func (cli *Client) PluginInstall(ctx context.Context, name string, options types
 			return pluginPermissionDenied{name}
 		}
 	}
+
+	if len(options.Args) > 0 {
+		if err := cli.PluginSet(ctx, name, options.Args); err != nil {
+			return err
+		}
+	}
+
 	if options.Disabled {
 		return nil
 	}
+
 	return cli.PluginEnable(ctx, name)
 }
 

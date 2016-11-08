@@ -17,7 +17,7 @@ advisory: "experimental"
 # plugin set (experimental)
 
 ```markdown
-Usage:  docker plugin set PLUGIN key1=value1 [key2=value2...]
+Usage:  docker plugin set PLUGIN KEY=VALUE [KEY=VALUE...]
 
 Change settings for a plugin
 

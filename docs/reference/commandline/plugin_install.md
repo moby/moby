@@ -17,7 +17,7 @@ advisory: "experimental"
 # plugin install (experimental)
 
 ```markdown
-Usage:  docker plugin install [OPTIONS] PLUGIN
+Usage:  docker plugin install [OPTIONS] PLUGIN [KEY=VALUE...]
 
 Install a plugin
 
@@ -33,12 +33,13 @@ the registry. Note that the minimum required registry version to distribute
 plugins is 2.3.0
 
 
-The following example installs `no-remove` plugin. Install consists of pulling the
-plugin from Docker Hub, prompting the user to accept the list of privileges that
-the plugin needs and enabling the plugin.
+The following example installs `no-remove` plugin and [set](plugin_set.md) it's env variable
+`DEBUG` to 1. Install consists of pulling the plugin from Docker Hub, prompting
+the user to accept the list of privileges that the plugin needs, settings parameters
+ and enabling the plugin.
 
 ```bash
-$ docker plugin install tiborvass/no-remove
+$ docker plugin install tiborvass/no-remove DEBUG=1
 
 Plugin "tiborvass/no-remove" is requesting the following privileges:
  - network: [host]
