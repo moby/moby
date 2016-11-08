@@ -156,6 +156,16 @@ definitions:
       ReadOnly:
         description: "Whether the mount should be read-only."
         type: "boolean"
+      MaxBandwidth:
+        description: "Maximum Bandwidth (Windows only)"
+        type: "integer"
+        format: "int64"
+        minimum: 0
+      MaxIOps:
+        description: "Maximum IOPS (Windows only)"
+        type: "integer"
+        format: "int64"
+        minimum: 0
       BindOptions:
         description: "Optional configuration for the `bind` type."
         type: "object"

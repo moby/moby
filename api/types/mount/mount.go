@@ -23,9 +23,11 @@ type Mount struct {
 	// Source specifies the name of the mount. Depending on mount type, this
 	// may be a volume name or a host path, or even ignored.
 	// Source is not supported for tmpfs (must be an empty value)
-	Source   string `json:",omitempty"`
-	Target   string `json:",omitempty"`
-	ReadOnly bool   `json:",omitempty"`
+	Source       string `json:",omitempty"`
+	Target       string `json:",omitempty"`
+	ReadOnly     bool   `json:",omitempty"`
+	MaxBandwidth uint64 `json:",omitempty"`
+	MaxIOps      uint64 `json:",omitempty"`
 
 	BindOptions   *BindOptions   `json:",omitempty"`
 	VolumeOptions *VolumeOptions `json:",omitempty"`
