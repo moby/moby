@@ -29,10 +29,6 @@ type NetworkDB struct {
 	// NetworkDB configuration.
 	config *Config
 
-	// local copy of memberlist config that we use to driver
-	// network scoped gossip and bulk sync.
-	mConfig *memberlist.Config
-
 	// All the tree index (byTable, byNetwork) that we maintain
 	// the db.
 	indexes map[int]*radix.Tree
@@ -57,7 +53,6 @@ type NetworkDB struct {
 
 	// A map of nodes which are participating in a given
 	// network. The key is a network ID.
-
 	networkNodes map[string][]string
 
 	// A table of ack channels for every node from which we are
