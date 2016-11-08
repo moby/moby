@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/testutil/assert"
 )
 

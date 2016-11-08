@@ -14,7 +14,7 @@ type Secret struct {
 // SecretSpec represents a secret specification from a secret in swarm
 type SecretSpec struct {
 	Annotations
-	Data []byte
+	Data []byte `json:",omitempty"`
 }
 
 // SecretReferenceFileTarget is a file target in a secret reference

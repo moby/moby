@@ -327,7 +327,7 @@ func (sr *swarmRouter) updateSecret(ctx context.Context, w http.ResponseWriter, 
 
 	id := vars["id"]
 	if err := sr.backend.UpdateSecret(id, version, secret); err != nil {
-		return errors.NewErrorWithStatusCode(err, http.StatusInternalServerError)
+		return err
 	}
 
 	return nil

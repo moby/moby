@@ -585,7 +585,6 @@ func addServiceFlags(cmd *cobra.Command, opts *serviceOptions) {
 	flags.BoolVar(&opts.healthcheck.noHealthcheck, flagNoHealthcheck, false, "Disable any container-specified HEALTHCHECK")
 
 	flags.BoolVarP(&opts.tty, flagTTY, "t", false, "Allocate a pseudo-TTY")
-	flags.StringSliceVar(&opts.secrets, flagSecret, []string{}, "Specify secrets to expose to the service")
 }
 
 const (
