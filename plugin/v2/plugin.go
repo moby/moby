@@ -137,6 +137,8 @@ func (p *Plugin) Set(args []string) error {
 		return err
 	}
 
+	// TODO(vieux): lots of code duplication here, needs to be refactored.
+
 next:
 	for _, s := range sets {
 		// range over all the envs in the config
@@ -150,12 +152,58 @@ next:
 					return fmt.Errorf("%q is not settable", s.prettyName())
 				}
 				// is it, so lets update the settings in memory
-				updateConfigEnv(&p.PluginObj.Settings.Env, &s)
+				updateSettingsEnv(&p.PluginObj.Settings.Env, &s)
 				continue next
 			}
 		}
 
-		//TODO: check devices, mount and args
+		// range over all the mounts in the config
+		for _, mount := range p.PluginObj.Config.Mounts {
+			// found the mount in the config
+			if mount.Name == s.name {
+				// is it settable ?
+				if ok, err := s.isSettable(allowedSettableFieldsMounts, mount.Settable); err != nil {
+					return err
+				} else if !ok {
+					return fmt.Errorf("%q is not settable", s.prettyName())
+				}
+
+				// it is, so lets update the settings in memory
+				*mount.Source = s.value
+				continue next
+			}
+		}
+
+		// range over all the devices in the config
+		for _, device := range p.PluginObj.Config.Devices {
+			// found the device in the config
+			if device.Name == s.name {
+				// is it settable ?
+				if ok, err := s.isSettable(allowedSettableFieldsDevices, device.Settable); err != nil {
+					return err
+				} else if !ok {
+					return fmt.Errorf("%q is not settable", s.prettyName())
+				}
+
+				// it is, so lets update the settings in memory
+				*device.Path = s.value
+				continue next
+			}
+		}
+
+		// found the name in the config
+		if p.PluginObj.Config.Args.Name == s.name {
+			// is it settable ?
+			if ok, err := s.isSettable(allowedSettableFieldsArgs, p.PluginObj.Config.Args.Settable); err != nil {
+				return err
+			} else if !ok {
+				return fmt.Errorf("%q is not settable", s.prettyName())
+			}
+
+			// it is, so lets update the settings in memory
+			p.PluginObj.Settings.Args = strings.Split(s.value, " ")
+			continue next
+		}
 
 		return fmt.Errorf("setting %q not found in the plugin configuration", s.name)
 	}
