@@ -4,6 +4,7 @@ import (
 	"io"
 	"time"
 
+	"github.com/docker/distribution"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/events"
@@ -45,5 +46,5 @@ type Backend interface {
 	UnsubscribeFromEvents(listener chan interface{})
 	UpdateAttachment(string, string, string, *network.NetworkingConfig) error
 	WaitForDetachment(context.Context, string, string, string, string) error
-	ResolveTagToDigest(context.Context, reference.NamedTagged, *types.AuthConfig) (string, error)
+	GetRepository(context.Context, reference.NamedTagged, *types.AuthConfig) (distribution.Repository, bool, error)
 }

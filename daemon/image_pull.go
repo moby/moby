@@ -4,6 +4,7 @@ import (
 	"io"
 	"strings"
 
+	dist "github.com/docker/distribution"
 	"github.com/docker/distribution/digest"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/builder"
@@ -105,40 +106,39 @@ func (daemon *Daemon) pullImageWithReference(ctx context.Context, ref reference.
 	return err
 }
 
-func (daemon *Daemon) ResolveTagToDigest(ctx context.Context, ref reference.NamedTagged, authConfig *types.AuthConfig) (string, error) {
+func (daemon *Daemon) GetRepository(ctx context.Context, ref reference.NamedTagged, authConfig *types.AuthConfig) (dist.Repository, bool, error) {
 	// get repository info
 	repoInfo, err := daemon.RegistryService.ResolveRepository(ref)
 	if err != nil {
-		return "", err
+		return nil, false, err
 	}
 	// makes sure name is not empty or `scratch`
 	if err := distribution.ValidateRepoName(repoInfo.Name()); err != nil {
-		return "", err
+		return nil, false, err
 	}
 
 	// get endpoints
 	endpoints, err := daemon.RegistryService.LookupPullEndpoints(repoInfo.Hostname())
 	if err != nil {
-		return "", err
+		return nil, false, err
 	}
 
 	// retrieve repository
-	// TODO(nishanttotla): More sophisticated selection of endpoint
-	repo, confirmedV2, err := distribution.NewV2Repository(ctx, repoInfo, endpoints[0], nil, authConfig, "pull")
+	var (
+		confirmedV2 bool
+		repository  dist.Repository
+		lastError   error
+	)
 
-	if err != nil {
-		return "", err
-	}
-	digest := ""
+	for _, endpoint := range endpoints {
+		if endpoint.Version == registry.APIVersion1 {
+			continue
+		}
 
-	// only retrieve digest if the repo is v2
-	if confirmedV2 {
-		dscrptr, err := repo.Tags(ctx).Get(ctx, ref.Tag())
-		if err != nil {
-			return "", err
-		} else {
-			digest = dscrptr.Digest.String()
+		repository, confirmedV2, lastError = distribution.NewV2Repository(ctx, repoInfo, endpoint, nil, authConfig, "pull")
+		if lastError == nil && confirmedV2 {
+			break
 		}
 	}
-	return digest, nil
+	return repository, confirmedV2, lastError
 }
