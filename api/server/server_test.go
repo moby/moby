@@ -7,8 +7,8 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api"
-	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/api/server/middleware"
+	"github.com/docker/docker/dockerversion"
 
 	"golang.org/x/net/context"
 )
@@ -28,7 +28,7 @@ func TestMiddlewares(t *testing.T) {
 	ctx := context.Background()
 
 	localHandler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-		if httputils.VersionFromContext(ctx) == "" {
+		if dockerversion.FromContext(ctx) == "" {
 			t.Fatalf("Expected version, got empty string")
 		}
 

@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/docker/docker/api/server/httputils"
+	"github.com/docker/docker/dockerversion"
 	"golang.org/x/net/context"
 )
 
@@ -11,7 +12,7 @@ import (
 func (s *containerRouter) getContainersByName(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	displaySize := httputils.BoolValue(r, "size")
 
-	version := httputils.VersionFromContext(ctx)
+	version := dockerversion.FromContext(ctx)
 	json, err := s.backend.ContainerInspect(vars["name"], displaySize, version)
 	if err != nil {
 		return err

@@ -18,6 +18,7 @@ import (
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/versions"
+	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/pkg/streamformatter"
@@ -26,7 +27,7 @@ import (
 )
 
 func newImageBuildOptions(ctx context.Context, r *http.Request) (*types.ImageBuildOptions, error) {
-	version := httputils.VersionFromContext(ctx)
+	version := dockerversion.FromContext(ctx)
 	options := &types.ImageBuildOptions{}
 	if httputils.BoolValue(r, "forcerm") && versions.GreaterThanOrEqualTo(version, "1.12") {
 		options.Remove = true

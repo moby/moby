@@ -85,6 +85,7 @@ Options:
       --tlscert string                        Path to TLS certificate file (default "/root/.docker/cert.pem")
       --tlskey string                         Path to TLS key file (default "/root/.docker/key.pem")
       --tlsverify                             Use TLS and verify the remote
+      --user-agent                            Set custom user-agent annotation
       --userland-proxy                        Use userland proxy for loopback traffic (default true)
       --userland-proxy-path string            Path to the userland proxy binary
       --userns-remap string                   User/Group setting for user namespaces
@@ -1201,6 +1202,7 @@ This is a full example of the allowed configuration options on Linux:
 	"disable-legacy-registry": false,
 	"default-runtime": "runc",
 	"oom-score-adjust": -500,
+	"user-agent": "",
 	"runtimes": {
 		"runc": {
 			"path": "runc"

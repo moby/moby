@@ -21,7 +21,7 @@ type FakeService struct {
 	results []registrytypes.SearchResult
 }
 
-func (s *FakeService) Search(ctx context.Context, term string, limit int, authConfig *types.AuthConfig, userAgent string, headers map[string][]string) (*registrytypes.SearchResults, error) {
+func (s *FakeService) Search(ctx context.Context, term string, limit int, authConfig *types.AuthConfig, headers map[string][]string) (*registrytypes.SearchResults, error) {
 	if s.shouldReturnError {
 		return nil, fmt.Errorf("Search unknown error")
 	}

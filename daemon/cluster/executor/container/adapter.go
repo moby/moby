@@ -10,12 +10,12 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/versions"
 	executorpkg "github.com/docker/docker/daemon/cluster/executor"
+	"github.com/docker/docker/dockerversion"
 	"github.com/docker/libnetwork"
 	"github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/log"
@@ -190,7 +190,7 @@ func (c *containerAdapter) waitForDetach(ctx context.Context) error {
 func (c *containerAdapter) create(ctx context.Context) error {
 	var cr containertypes.ContainerCreateCreatedBody
 	var err error
-	version := httputils.VersionFromContext(ctx)
+	version := dockerversion.FromContext(ctx)
 	validateHostname := versions.GreaterThanOrEqualTo(version, "1.24")
 
 	if cr, err = c.backend.CreateManagedContainer(types.ContainerCreateConfig{
@@ -223,7 +223,7 @@ func (c *containerAdapter) create(ctx context.Context) error {
 }
 
 func (c *containerAdapter) start(ctx context.Context) error {
-	version := httputils.VersionFromContext(ctx)
+	version := dockerversion.FromContext(ctx)
 	validateHostname := versions.GreaterThanOrEqualTo(version, "1.24")
 	return c.backend.ContainerStart(c.container.name(), nil, validateHostname, "", "")
 }

@@ -7,6 +7,7 @@ import (
 
 	"github.com/docker/docker/api/errors"
 	"github.com/docker/docker/api/types/versions"
+	"github.com/docker/docker/dockerversion"
 	"golang.org/x/net/context"
 )
 
@@ -45,7 +46,7 @@ func (v VersionMiddleware) WrapHandler(handler func(ctx context.Context, w http.
 
 		header := fmt.Sprintf("Docker/%s (%s)", v.serverVersion, runtime.GOOS)
 		w.Header().Set("Server", header)
-		ctx = context.WithValue(ctx, "api-version", apiVersion)
+		ctx = dockerversion.NewContext(ctx, apiVersion)
 		return handler(ctx, w, r, vars)
 	}
 

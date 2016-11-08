@@ -11,6 +11,7 @@ import (
 	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/versions"
+	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/pkg/stdcopy"
 	"golang.org/x/net/context"
 )
@@ -60,7 +61,7 @@ func (s *containerRouter) postContainerExecStart(ctx context.Context, w http.Res
 		return err
 	}
 
-	version := httputils.VersionFromContext(ctx)
+	version := dockerversion.FromContext(ctx)
 	if versions.GreaterThan(version, "1.21") {
 		if err := httputils.CheckForJSON(r); err != nil {
 			return err

@@ -4,16 +4,14 @@ import (
 	"fmt"
 	"runtime"
 
-	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/pkg/parsers/kernel"
 	"github.com/docker/docker/pkg/useragent"
-	"golang.org/x/net/context"
 )
 
 // DockerUserAgent is the User-Agent the Docker client uses to identify itself.
 // In accordance with RFC 7231 (5.5.3) is of the form:
 //    [docker client's UA] UpstreamClient([upstream client's UA])
-func DockerUserAgent(ctx context.Context) string {
+func DockerUserAgent(upstreamUA string, customUA string) string {
 	httpVersion := make([]useragent.VersionInfo, 0, 6)
 	httpVersion = append(httpVersion, useragent.VersionInfo{Name: "docker", Version: Version})
 	httpVersion = append(httpVersion, useragent.VersionInfo{Name: "go", Version: runtime.Version()})
@@ -24,25 +22,17 @@ func DockerUserAgent(ctx context.Context) string {
 	httpVersion = append(httpVersion, useragent.VersionInfo{Name: "os", Version: runtime.GOOS})
 	httpVersion = append(httpVersion, useragent.VersionInfo{Name: "arch", Version: runtime.GOARCH})
 
-	dockerUA := useragent.AppendVersions("", httpVersion...)
-	upstreamUA := getUserAgentFromContext(ctx)
-	if len(upstreamUA) > 0 {
-		ret := insertUpstreamUserAgent(upstreamUA, dockerUA)
-		return ret
+	if len(customUA) > 0 {
+		httpVersion = append(httpVersion, useragent.VersionInfo{Name: "custom", Version: customUA})
 	}
-	return dockerUA
-}
 
-// getUserAgentFromContext returns the previously saved user-agent context stored in ctx, if one exists
-func getUserAgentFromContext(ctx context.Context) string {
-	var upstreamUA string
-	if ctx != nil {
-		var ki interface{} = ctx.Value(httputils.UAStringKey)
-		if ki != nil {
-			upstreamUA = ctx.Value(httputils.UAStringKey).(string)
-		}
+	dockerUA := useragent.AppendVersions("", httpVersion...)
+
+	if len(upstreamUA) > 0 {
+		dockerUA = insertUpstreamUserAgent(upstreamUA, dockerUA)
 	}
-	return upstreamUA
+
+	return dockerUA
 }
 
 // escapeStr returns s with every rune in charsToEscape escaped by a backslash

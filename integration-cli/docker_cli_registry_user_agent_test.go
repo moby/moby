@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"regexp"
+	"strings"
 
 	"github.com/go-check/check"
 )
@@ -44,6 +45,9 @@ func regexpCheckUA(c *check.C, ua string) {
 	reUpstreamUA := regexp.MustCompile("^\\(Docker-Client/[0-9A-Za-z+]")
 	bMatchUpstreamUA := reUpstreamUA.MatchString(upstreamUA)
 	c.Assert(bMatchUpstreamUA, check.Equals, true, check.Commentf("(Upstream) Docker Client User-Agent malformed"))
+
+	// check that --user-agent annotation is present
+	c.Assert(strings.Contains(ua, "custom/my-annotation"), check.Equals, true, check.Commentf("Docker Engine User-Agent missing custom annotation"))
 }
 
 func registerUserAgentHandler(reg *testRegistry, result *string) {
@@ -90,6 +94,7 @@ func (s *DockerRegistrySuite) TestUserAgentPassThrough(c *check.C) {
 	registerUserAgentHandler(loginReg, &loginUA)
 
 	err = s.d.Start(
+		"--user-agent", "my-annotation",
 		"--insecure-registry", buildReg.hostport,
 		"--insecure-registry", pullReg.hostport,
 		"--insecure-registry", pushReg.hostport,

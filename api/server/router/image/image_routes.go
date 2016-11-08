@@ -14,6 +14,7 @@ import (
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/versions"
+	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/docker/registry"
@@ -32,7 +33,7 @@ func (s *imageRouter) postCommit(ctx context.Context, w http.ResponseWriter, r *
 	cname := r.Form.Get("container")
 
 	pause := httputils.BoolValue(r, "pause")
-	version := httputils.VersionFromContext(ctx)
+	version := dockerversion.FromContext(ctx)
 	if r.FormValue("pause") == "" && versions.GreaterThanOrEqualTo(version, "1.13") {
 		pause = true
 	}

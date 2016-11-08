@@ -4,7 +4,12 @@ package useragent
 
 import (
 	"strings"
+
+	"golang.org/x/net/context"
 )
+
+// UAStringKey is used as key type for the user-agent string in net/context struct.
+const UAStringKey = "user-agent"
 
 // VersionInfo is used to model UserAgent versions.
 type VersionInfo struct {
@@ -52,4 +57,17 @@ func AppendVersions(base string, versions ...VersionInfo) string {
 		verstrs = append(verstrs, v.Name+"/"+v.Version)
 	}
 	return strings.Join(verstrs, " ")
+}
+
+// FromContext returns the user-agent stored in ctx, if one exists.
+func FromContext(ctx context.Context) (ua string) {
+	if ua, ok := ctx.Value(UAStringKey).(string); ok {
+		return ua
+	}
+	return
+}
+
+// NewContext returns a new Context that carries the user-agent.
+func NewContext(ctx context.Context, ua string) context.Context {
+	return context.WithValue(ctx, UAStringKey, ua)
 }
