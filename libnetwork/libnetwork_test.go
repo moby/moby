@@ -882,6 +882,20 @@ func TestEndpointDeleteWithActiveContainer(t *testing.T) {
 		}
 	}()
 
+	n2, err := createTestNetwork(bridgeNetType, "testnetwork2", options.Generic{
+		netlabel.GenericData: options.Generic{
+			"BridgeName": "testnetwork2",
+		},
+	}, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		if err := n2.Delete(); err != nil {
+			t.Fatal(err)
+		}
+	}()
+
 	ep, err := n.CreateEndpoint("ep1")
 	if err != nil {
 		t.Fatal(err)
@@ -1012,12 +1026,26 @@ func TestLeaveAll(t *testing.T) {
 		}
 	}()
 
+	n2, err := createTestNetwork(bridgeNetType, "testnetwork2", options.Generic{
+		netlabel.GenericData: options.Generic{
+			"BridgeName": "testnetwork2",
+		},
+	}, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		if err := n2.Delete(); err != nil {
+			t.Fatal(err)
+		}
+	}()
+
 	ep1, err := n.CreateEndpoint("ep1")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	ep2, err := n.CreateEndpoint("ep2")
+	ep2, err := n2.CreateEndpoint("ep2")
 	if err != nil {
 		t.Fatal(err)
 	}

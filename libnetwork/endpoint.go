@@ -495,10 +495,6 @@ func (ep *endpoint) sbJoin(sb *sandbox, options ...EndpointOption) error {
 		return err
 	}
 
-	if err = n.getController().updateToStore(ep); err != nil {
-		return err
-	}
-
 	// Current endpoint providing external connectivity for the sandbox
 	extEp := sb.getGatewayEndpoint()
 
@@ -512,6 +508,10 @@ func (ep *endpoint) sbJoin(sb *sandbox, options ...EndpointOption) error {
 	}()
 
 	if err = sb.populateNetworkResources(ep); err != nil {
+		return err
+	}
+
+	if err = n.getController().updateToStore(ep); err != nil {
 		return err
 	}
 
