@@ -81,6 +81,7 @@ func (ctr *container) start(attachStdio StdioCallback) error {
 	// Configure the environment for the process
 	createProcessParms.Environment = setupEnvironmentVariables(ctr.ociSpec.Process.Env)
 	createProcessParms.CommandLine = strings.Join(ctr.ociSpec.Process.Args, " ")
+	createProcessParms.User = ctr.ociSpec.Process.User.Username
 
 	// Start the command running in the container.
 	newProcess, err := ctr.hcsContainer.CreateProcess(createProcessParms)
