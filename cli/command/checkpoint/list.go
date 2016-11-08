@@ -20,7 +20,7 @@ func newListCommand(dockerCli *command.DockerCli) *cobra.Command {
 	var opts listOptions
 
 	cmd := &cobra.Command{
-		Use:     "ls CONTAINER",
+		Use:     "ls [OPTIONS] CONTAINER",
 		Aliases: []string{"list"},
 		Short:   "List checkpoints for a container",
 		Args:    cli.ExactArgs(1),
@@ -30,7 +30,7 @@ func newListCommand(dockerCli *command.DockerCli) *cobra.Command {
 	}
 
 	flags := cmd.Flags()
-	flags.StringVarP(&opts.checkpointDir, "checkpoint-dir", "", "", "use a custom checkpoint storage directory")
+	flags.StringVarP(&opts.checkpointDir, "checkpoint-dir", "", "", "Use a custom checkpoint storage directory")
 
 	return cmd
 

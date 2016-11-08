@@ -33,7 +33,7 @@ migration of a server from one machine to another. This is possible with the
 current implementation, but not currently a priority (and so the workflow is
 not optimized for the task).
 
-## Using Checkpoint & Restore
+## Using checkpoint & restore
 
 A new top level command `docker checkpoint` is introduced, with three subcommands:
 - `create` (creates a new checkpoint)
@@ -48,7 +48,8 @@ The options for checkpoint create:
 
     Create a checkpoint from a running container
 
-      --leave-running=false    leave the container running after checkpoint
+      --leave-running=false    Leave the container running after checkpoint
+      --checkpoint-dir         Use a custom checkpoint storage directory
 
 And to restore a container:
 
@@ -71,7 +72,7 @@ in between running/checkpoint/restoring you should see that the counter
 increases while the process is running, stops while it's checkpointed, and
 resumes from the point it left off once you restore.
 
-## Current Limitation
+## Current limitation
 
 seccomp is only supported by CRIU in very up to date kernels.
 

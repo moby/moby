@@ -20,7 +20,7 @@ func newCreateCommand(dockerCli *command.DockerCli) *cobra.Command {
 	var opts createOptions
 
 	cmd := &cobra.Command{
-		Use:   "create CONTAINER CHECKPOINT",
+		Use:   "create [OPTIONS] CONTAINER CHECKPOINT",
 		Short: "Create a checkpoint from a running container",
 		Args:  cli.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -31,8 +31,8 @@ func newCreateCommand(dockerCli *command.DockerCli) *cobra.Command {
 	}
 
 	flags := cmd.Flags()
-	flags.BoolVar(&opts.leaveRunning, "leave-running", false, "leave the container running after checkpoint")
-	flags.StringVarP(&opts.checkpointDir, "checkpoint-dir", "", "", "use a custom checkpoint storage directory")
+	flags.BoolVar(&opts.leaveRunning, "leave-running", false, "Leave the container running after checkpoint")
+	flags.StringVarP(&opts.checkpointDir, "checkpoint-dir", "", "", "Use a custom checkpoint storage directory")
 
 	return cmd
 }
