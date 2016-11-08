@@ -1,14 +1,11 @@
-<!--[metadata]>
-+++
-title = "rename"
-description = "The rename command description and usage"
-keywords = ["rename, docker, container"]
-[menu.main]
-parent = "smn_cli"
-+++
-<![end-metadata]-->
-
-# rename
+---
+redirect_from:
+  - /reference/commandline/rename/
+description: The rename command description and usage
+keywords:
+- rename, docker, container
+title: docker rename
+---
 
 ```markdown
 Usage:  docker rename CONTAINER NEW_NAME

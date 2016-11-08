@@ -1,15 +1,12 @@
-<!--[metadata]>
-+++
-title = "stack rm"
-description = "The stack rm command description and usage"
-keywords = ["stack, rm, remove, down"]
-advisory = "experimental"
-[menu.main]
-parent = "smn_cli"
-+++
-<![end-metadata]-->
-
-# stack rm (experimental)
+---
+redirect_from:
+  - /reference/commandline/stack_rm/
+advisory: experimental
+description: The stack rm command description and usage
+keywords:
+- stack, rm, remove, down
+title: docker stack rm (experimental)
+---
 
 ```markdown
 Usage:  docker stack rm STACK

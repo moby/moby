@@ -1,14 +1,11 @@
-<!--[metadata]>
-+++
-title = "port"
-description = "The port command description and usage"
-keywords = ["port, mapping, container"]
-[menu.main]
-parent = "smn_cli"
-+++
-<![end-metadata]-->
-
-# port
+---
+redirect_from:
+  - /reference/commandline/port/
+description: The port command description and usage
+keywords:
+- port, mapping, container
+title: docker port
+---
 
 ```markdown
 Usage:  docker port CONTAINER [PRIVATE_PORT[/PROTO]]

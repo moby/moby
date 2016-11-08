@@ -1,16 +1,13 @@
-<!--[metadata]>
-+++
-title = "swarm join"
-description = "The swarm join command description and usage"
-keywords = ["swarm, join"]
-[menu.main]
-parent = "smn_cli"
-+++
-<![end-metadata]-->
+---
+redirect_from:
+  - /reference/commandline/swarm_join/
+description: The swarm join command description and usage
+keywords:
+- swarm, join
+title: docker swarm join
+---
 
 **Warning:** this command is part of the Swarm management feature introduced in Docker 1.12, and might be subject to non backward-compatible changes.
-
-# swarm join
 
 ```markdown
 Usage:  docker swarm join [OPTIONS] HOST:PORT

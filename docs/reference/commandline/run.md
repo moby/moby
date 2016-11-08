@@ -1,14 +1,11 @@
-<!--[metadata]>
-+++
-title = "run"
-description = "The run command description and usage"
-keywords = ["run, command, container"]
-[menu.main]
-parent = "smn_cli"
-+++
-<![end-metadata]-->
-
-# run
+---
+redirect_from:
+  - /reference/commandline/run/
+description: The run command description and usage
+keywords:
+- run, command, container
+title: docker run
+---
 
 ```markdown
 Usage:  docker run [OPTIONS] IMAGE [COMMAND] [ARG...]
@@ -197,8 +194,8 @@ The `-w` lets the command being executed inside directory given, here
 
     $ docker run -it --storage-opt size=120G fedora /bin/bash
 
-This (size) will allow to set the container rootfs size to 120G at creation time. 
-User cannot pass a size less than the Default BaseFS Size. This option is only 
+This (size) will allow to set the container rootfs size to 120G at creation time.
+User cannot pass a size less than the Default BaseFS Size. This option is only
 available for the `devicemapper`, `btrfs`, and `zfs` graph drivers.
 
 ### Mount tmpfs (--tmpfs)
@@ -661,7 +658,7 @@ network namespace, run this command:
 
 
 > **Note**: Not all sysctls are namespaced. Docker does not support changing sysctls
-> inside of a container that also modify the host system. As the kernel 
+> inside of a container that also modify the host system. As the kernel
 > evolves we expect to see more sysctls become namespaced.
 
 #### Currently supported sysctls

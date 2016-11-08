@@ -1,14 +1,11 @@
-<!--[metadata]>
-+++
-title = "network inspect"
-description = "The network inspect command description and usage"
-keywords = ["network, inspect, user-defined"]
-[menu.main]
-parent = "smn_cli"
-+++
-<![end-metadata]-->
-
-# network inspect
+---
+redirect_from:
+  - /reference/commandline/network_inspect/
+description: The network inspect command description and usage
+keywords:
+- network, inspect, user-defined
+title: docker network inspect
+---
 
 ```markdown
 Usage:  docker network inspect [OPTIONS] NETWORK [NETWORK...]

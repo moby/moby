@@ -1,15 +1,12 @@
-<!--[metadata]>
-+++
-title = "stack tasks"
-description = "The stack tasks command description and usage"
-keywords = ["stack, tasks"]
-advisory = "experimental"
-[menu.main]
-parent = "smn_cli"
-+++
-<![end-metadata]-->
-
-# stack tasks (experimental)
+---
+redirect_from:
+  - /reference/commandline/stack_tasks/
+advisory: experimental
+description: The stack tasks command description and usage
+keywords:
+- stack, tasks
+title: docker stack tasks (experimental)
+---
 
 ```markdown
 Usage:  docker stack tasks [OPTIONS] STACK
@@ -35,9 +32,9 @@ Multiple filter flags are combined as an `OR` filter. For example,
 
 The currently supported filters are:
 
-* [id](#id)
-* [name](#name)
-* [desired-state](#desired-state)
+* [id](stack_tasks.md#id)
+* [name](stack_tasks.md#name)
+* [desired-state](stack_tasks.md#desired-state)
 
 ## Related information
 

@@ -1,17 +1,15 @@
-<!--[metadata]>
-+++
-title = "service ps"
-description = "The service ps command description and usage"
-keywords = ["service, tasks", "ps"]
-aliases = ["/engine/reference/commandline/service_tasks/"]
-[menu.main]
-parent = "smn_cli"
-+++
-<![end-metadata]-->
+---
+redirect_from:
+- /reference/commandline/service_ps/
+- /engine/reference/commandline/service_tasks/
+description: The service ps command description and usage
+keywords:
+- service, tasks
+- ps
+title: docker service ps
+---
 
 **Warning:** this command is part of the Swarm management feature introduced in Docker 1.12, and might be subject to non backward-compatible changes.
-
-# service ps
 
 ```Markdown
 Usage:	docker service ps [OPTIONS] SERVICE
@@ -60,9 +58,9 @@ Multiple filter flags are combined as an `OR` filter. For example,
 
 The currently supported filters are:
 
-* [id](#id)
-* [name](#name)
-* [desired-state](#desired-state)
+* [id](service_ps.md#id)
+* [name](service_ps.md#name)
+* [desired-state](service_ps.md#desired-state)
 
 
 #### ID

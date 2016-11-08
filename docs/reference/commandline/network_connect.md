@@ -1,14 +1,11 @@
-<!--[metadata]>
-+++
-title = "network connect"
-description = "The network connect command description and usage"
-keywords = ["network, connect, user-defined"]
-[menu.main]
-parent = "smn_cli"
-+++
-<![end-metadata]-->
-
-# network connect
+---
+redirect_from:
+  - /reference/commandline/network_connect/
+description: The network connect command description and usage
+keywords:
+- network, connect, user-defined
+title: docker network connect
+---
 
 ```markdown
 Usage:  docker network connect [OPTIONS] NETWORK CONTAINER

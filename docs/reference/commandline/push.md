@@ -1,14 +1,11 @@
-<!--[metadata]>
-+++
-title = "push"
-description = "The push command description and usage"
-keywords = ["share, push, image"]
-[menu.main]
-parent = "smn_cli"
-+++
-<![end-metadata]-->
-
-# push
+---
+redirect_from:
+  - /reference/commandline/push/
+description: The push command description and usage
+keywords:
+- share, push, image
+title: docker push
+---
 
 ```markdown
 Usage:  docker push [OPTIONS] NAME[:TAG]

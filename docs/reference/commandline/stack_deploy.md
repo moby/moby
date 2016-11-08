@@ -1,15 +1,12 @@
-<!--[metadata]>
-+++
-title = "stack deploy"
-description = "The stack deploy command description and usage"
-keywords = ["stack, deploy, up"]
-advisory = "experimental"
-[menu.main]
-parent = "smn_cli"
-+++
-<![end-metadata]-->
-
-# stack deploy (experimental)
+---
+redirect_from:
+  - /reference/commandline/stack_deploy/
+advisory: experimental
+description: The stack deploy command description and usage
+keywords:
+- stack, deploy, up
+title: docker stack deploy (experimental)
+---
 
 ```markdown
 Usage:  docker stack deploy [OPTIONS] STACK

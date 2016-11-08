@@ -1,14 +1,11 @@
-<!--[metadata]>
-+++
-title = "build"
-description = "The build command description and usage"
-keywords = ["build, docker, image"]
-[menu.main]
-parent = "smn_cli"
-+++
-<![end-metadata]-->
-
-# build
+---
+redirect_from:
+  - /reference/commandline/build/
+description: The build command description and usage
+keywords:
+- build, docker, image
+title: docker build
+---
 
 ```markdown
 Usage:  docker build [OPTIONS] PATH | URL | -
@@ -94,11 +91,9 @@ Build Syntax Suffix             | Commit Used           | Build Context Used
 
 If you pass an URL to a remote tarball, the URL itself is sent to the daemon:
 
-Instead of specifying a context, you can pass a single Dockerfile in the `URL`
-or pipe the file in via `STDIN`. To pipe a Dockerfile from `STDIN`:
-
 ```bash
 $ docker build http://server/context.tar.gz
+```
 
 The download operation will be performed on the host the Docker daemon is
 running on, which is not necessarily the same host from which the build command

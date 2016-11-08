@@ -1,16 +1,12 @@
-<!--[metadata]>
-+++
-draft = true
-title = "Remote API v1.25"
-description = "API Documentation for Docker"
-keywords = ["API, Docker, rcli, REST,  documentation"]
-[menu.main]
-parent="engine_remoteapi"
-weight=-6
-+++
-<![end-metadata]-->
-
-# Docker Remote API v1.25
+---
+redirect_from:
+  - /reference/api/docker_remote_api_v1.25/
+description: API Documentation for Docker
+published: false
+keywords:
+- API, Docker, rcli, REST,  documentation
+title: Docker Remote API v1.25
+---
 
 # 1. Brief introduction
 
@@ -805,7 +801,9 @@ Get `stdout` and `stderr` logs from the container ``id``
      Connection: Upgrade
      Upgrade: tcp
 
+     {% raw %}
      {{ STREAM }}
+     {% endraw %}
 
 **Query parameters**:
 
@@ -883,7 +881,9 @@ Export the contents of container `id`
     HTTP/1.1 200 OK
     Content-Type: application/octet-stream
 
+    {% raw %}
     {{ TAR STREAM }}
+    {% endraw %}
 
 **Status codes**:
 
@@ -1269,7 +1269,9 @@ Attach to the container `id`
     Connection: Upgrade
     Upgrade: tcp
 
+    {% raw %}
     {{ STREAM }}
+    {% endraw %}
 
 **Query parameters**:
 
@@ -1299,7 +1301,7 @@ Attach to the container `id`
 
 When using the TTY setting is enabled in
 [`POST /containers/create`
-](#create-a-container),
+](docker_remote_api_v1.25.md#create-a-container),
 the stream is the raw data from the process PTY and client's `stdin`.
 When the TTY is disabled, then the stream is multiplexed to separate
 `stdout` and `stderr`.
@@ -1353,7 +1355,9 @@ Implements websocket protocol handshake according to [RFC 6455](http://tools.iet
 
 **Example response**
 
+    {% raw %}
     {{ STREAM }}
+    {% endraw %}
 
 **Query parameters**:
 
@@ -1467,7 +1471,9 @@ Get a tar archive of a resource in the filesystem of container `id`.
     Content-Type: application/x-tar
     X-Docker-Container-Path-Stat: eyJuYW1lIjoicm9vdCIsInNpemUiOjQwOTYsIm1vZGUiOjIxNDc0ODQwOTYsIm10aW1lIjoiMjAxNC0wMi0yN1QyMDo1MToyM1oiLCJsaW5rVGFyZ2V0IjoiIn0=
 
+    {% raw %}
     {{ TAR STREAM }}
+    {% endraw %}
 
 On success, a response header `X-Docker-Container-Path-Stat` will be set to a
 base64-encoded JSON object containing some filesystem header information about
@@ -1522,7 +1528,9 @@ Upload a tar archive to be extracted to a path in the filesystem of container
     PUT /containers/8cce319429b2/archive?path=/vol1 HTTP/1.1
     Content-Type: application/x-tar
 
+    {% raw %}
     {{ TAR STREAM }}
+    {% endraw %}
 
 **Example response**:
 
@@ -1650,7 +1658,9 @@ Build an image from a Dockerfile
 
     POST /build HTTP/1.1
 
+    {% raw %}
     {{ TAR STREAM }}
+    {% endraw %}
 
 **Example response**:
 
@@ -2638,7 +2648,7 @@ If `name` is a specific name and tag (e.g. ubuntu:latest), then only that image
 image (and its parents) are returned, but with the exclusion of the
 'repositories' file in the tarball, as there were no image names referenced.
 
-See the [image tarball format](#image-tarball-format) for more details.
+See the [image tarball format](docker_remote_api_v1.25.md#image-tarball-format) for more details.
 
 **Example request**
 
@@ -2667,7 +2677,7 @@ For each value of the `names` parameter: if it is a specific name and tag (e.g.
 an image ID, similarly only that image (and its parents) are returned and there
 would be no names referenced in the 'repositories' file for this image ID.
 
-See the [image tarball format](#image-tarball-format) for more details.
+See the [image tarball format](docker_remote_api_v1.25.md#image-tarball-format) for more details.
 
 **Example request**
 
@@ -2690,7 +2700,7 @@ See the [image tarball format](#image-tarball-format) for more details.
 `POST /images/load`
 
 Load a set of images and tags into a Docker repository.
-See the [image tarball format](#image-tarball-format) for more details.
+See the [image tarball format](docker_remote_api_v1.25.md#image-tarball-format) for more details.
 
 **Example request**
 
@@ -2832,7 +2842,9 @@ interactive session with the `exec` command.
     HTTP/1.1 200 OK
     Content-Type: application/vnd.docker.raw-stream
 
+    {% raw %}
     {{ STREAM }}
+    {% endraw %}
 
 **JSON parameters**:
 
@@ -3016,7 +3028,7 @@ Create a volume
 
 **JSON fields in response**:
 
-Refer to the [inspect a volume](#inspect-a-volume) section or details about the
+Refer to the [inspect a volume](docker_remote_api_v1.25.md#inspect-a-volume) section or details about the
 JSON fields returned in the response.
 
 ### Inspect a volume
@@ -3555,7 +3567,7 @@ Content-Type: application/json
 `POST /plugins/pull?name=<plugin name>`
 
 Pulls and installs a plugin. After the plugin is installed, it can be enabled
-using the [`POST /plugins/(plugin name)/enable` endpoint](#enable-a-plugin).
+using the [`POST /plugins/(plugin name)/enable` endpoint](docker_remote_api_v1.25.md#enable-a-plugin).
 
 **Example request**:
 
@@ -3566,7 +3578,7 @@ POST /plugins/pull?name=tiborvass/no-remove:latest HTTP/1.1
 The `:latest` tag is optional, and is used as default if omitted. When using
 this endpoint to pull a plugin from the registry, the `X-Registry-Auth` header
 can be used to include a base64-encoded AuthConfig object. Refer to the [create
-an image](#create-an-image) section for more details.
+an image](docker_remote_api_v1.25.md#create-an-image) section for more details.
 
 **Example response**:
 
@@ -3863,7 +3875,7 @@ POST /plugins/tiborvass/no-remove:latest HTTP/1.1
 The `:latest` tag is optional, and is used as default if omitted. When using
 this endpoint to push a plugin to the registry, the `X-Registry-Auth` header
 can be used to include a base64-encoded AuthConfig object. Refer to the [create
-an image](#create-an-image) section for more details.
+an image](docker_remote_api_v1.25.md#create-an-image) section for more details.
 
 **Example response**:
 
@@ -4525,7 +4537,7 @@ List services
 Create a service. When using this endpoint to create a service using a private
 repository from the registry, the `X-Registry-Auth` header must be used to
 include a base64-encoded AuthConfig object. Refer to the [create an
-image](#create-an-image) section for more details.
+image](docker_remote_api_v1.25.md#create-an-image) section for more details.
 
 **Example request**:
 
@@ -4687,7 +4699,7 @@ image](#create-an-image) section for more details.
 
 - **Content-type** – Set to `"application/json"`.
 - **X-Registry-Auth** – base64-encoded AuthConfig object, containing either
-  login information, or a token. Refer to the [create an image](#create-an-image)
+  login information, or a token. Refer to the [create an image](docker_remote_api_v1.25.md#create-an-image)
   section for more details.
 
 
@@ -4704,9 +4716,7 @@ Stop and remove the service `id`
 
 **Example response**:
 
-    HTTP/1.1 200 OK
-    Content-Length: 0
-    Content-Type: text/plain; charset=utf-8
+    HTTP/1.1 200 No Content
 
 **Status codes**:
 
@@ -4811,7 +4821,7 @@ Update a service. When using this endpoint to create a service using a
 private repository from the registry, the `X-Registry-Auth` header can be used
 to update the authentication information for that is stored for the service.
 The header contains a base64-encoded AuthConfig object. Refer to the [create an
-image](#create-an-image) section for more details.
+image](docker_remote_api_v1.25.md#create-an-image) section for more details.
 
 **Example request**:
 
@@ -4927,7 +4937,7 @@ image](#create-an-image) section for more details.
 
 - **Content-type** – Set to `"application/json"`.
 - **X-Registry-Auth** – base64-encoded AuthConfig object, containing either
-  login information, or a token. Refer to the [create an image](#create-an-image)
+  login information, or a token. Refer to the [create an image](docker_remote_api_v1.25.md#create-an-image)
   section for more details.
 
 **Status codes**:

@@ -1,14 +1,11 @@
-<!--[metadata]>
-+++
-title = "stats"
-description = "The stats command description and usage"
-keywords = ["container, resource, statistics"]
-[menu.main]
-parent = "smn_cli"
-+++
-<![end-metadata]-->
-
-# stats
+---
+redirect_from:
+  - /reference/commandline/stats/
+description: The stats command description and usage
+keywords:
+- container, resource, statistics
+title: docker stats
+---
 
 ```markdown
 Usage:  docker stats [OPTIONS] [CONTAINER...]
@@ -23,7 +20,7 @@ Options:
 
 The `docker stats` command returns a live data stream for running containers. To limit data to one or more specific containers, specify a list of container names or ids separated by a space. You can specify a stopped container but stopped containers do not return any data.
 
-If you want more detailed information about a container's resource usage, use the `/containers/(id)/stats` API endpoint. 
+If you want more detailed information about a container's resource usage, use the `/containers/(id)/stats` API endpoint.
 
 ## Examples
 

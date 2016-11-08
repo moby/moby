@@ -1,14 +1,11 @@
-<!--[metadata]>
-+++
-title = "tag"
-description = "The tag command description and usage"
-keywords = ["tag, name, image"]
-[menu.main]
-parent = "smn_cli"
-+++
-<![end-metadata]-->
-
-# tag
+---
+redirect_from:
+  - /reference/commandline/tag/
+description: The tag command description and usage
+keywords:
+- tag, name, image
+title: docker tag
+---
 
 ```markdown
 Usage:  docker tag IMAGE[:TAG] IMAGE[:TAG]

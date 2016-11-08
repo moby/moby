@@ -1,15 +1,12 @@
-<!--[metadata]>
-+++
-title = "plugin disable"
-description = "the plugin disable command description and usage"
-keywords = ["plugin, disable"]
-advisory = "experimental"
-[menu.main]
-parent = "smn_cli"
-+++
-<![end-metadata]-->
-
-# plugin disable (experimental)
+---
+redirect_from:
+  - /reference/commandline/plugin_disable/
+advisory: experimental
+description: the plugin disable command description and usage
+keywords:
+- plugin, disable
+title: docker plugin disable (experimental)
+---
 
 ```markdown
 Usage:  docker plugin disable PLUGIN
