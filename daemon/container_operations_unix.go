@@ -15,9 +15,7 @@ import (
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/links"
-	"github.com/docker/docker/pkg/fileutils"
 	"github.com/docker/docker/pkg/idtools"
-	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/libnetwork"
@@ -61,39 +59,6 @@ func (daemon *Daemon) setupLinkedContainers(container *container.Container) ([]s
 	}
 
 	return env, nil
-}
-
-// getSize returns the real size & virtual size of the container.
-func (daemon *Daemon) getSize(container *container.Container) (int64, int64) {
-	var (
-		sizeRw, sizeRootfs int64
-		err                error
-	)
-
-	if err := daemon.Mount(container); err != nil {
-		logrus.Errorf("Failed to compute size of container rootfs %s: %s", container.ID, err)
-		return sizeRw, sizeRootfs
-	}
-	defer daemon.Unmount(container)
-
-	sizeRw, err = container.RWLayer.Size()
-	if err != nil {
-		logrus.Errorf("Driver %s couldn't return diff size of container %s: %s",
-			daemon.GraphDriverName(), container.ID, err)
-		// FIXME: GetSize should return an error. Not changing it now in case
-		// there is a side-effect.
-		sizeRw = -1
-	}
-
-	if parent := container.RWLayer.Parent(); parent != nil {
-		sizeRootfs, err = parent.Size()
-		if err != nil {
-			sizeRootfs = -1
-		} else if sizeRw != -1 {
-			sizeRootfs += sizeRw
-		}
-	}
-	return sizeRw, sizeRootfs
 }
 
 func (daemon *Daemon) getIpcContainer(container *container.Container) (*container.Container, error) {
@@ -174,54 +139,6 @@ func (daemon *Daemon) setupIpcDirs(c *container.Container) error {
 
 	return nil
 }
-
-func (daemon *Daemon) mountVolumes(container *container.Container) error {
-	mounts, err := daemon.setupMounts(container)
-	if err != nil {
-		return err
-	}
-
-	for _, m := range mounts {
-		dest, err := container.GetResourcePath(m.Destination)
-		if err != nil {
-			return err
-		}
-
-		var stat os.FileInfo
-		stat, err = os.Stat(m.Source)
-		if err != nil {
-			return err
-		}
-		if err = fileutils.CreateIfNotExists(dest, stat.IsDir()); err != nil {
-			return err
-		}
-
-		opts := "rbind,ro"
-		if m.Writable {
-			opts = "rbind,rw"
-		}
-
-		if err := mount.Mount(m.Source, dest, "bind", opts); err != nil {
-			return err
-		}
-
-		// mountVolumes() seems to be called for temporary mounts
-		// outside the container. Soon these will be unmounted with
-		// lazy unmount option and given we have mounted the rbind,
-		// all the submounts will propagate if these are shared. If
-		// daemon is running in host namespace and has / as shared
-		// then these unmounts will propagate and unmount original
-		// mount as well. So make all these mounts rprivate.
-		// Do not use propagation property of volume as that should
-		// apply only when mounting happen inside the container.
-		if err := mount.MakeRPrivate(dest); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
 func killProcessDirectly(container *container.Container) error {
 	if _, err := container.WaitStop(10 * time.Second); err != nil {
 		// Ensure that we don't kill ourselves

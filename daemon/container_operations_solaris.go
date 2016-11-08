@@ -2,22 +2,17 @@
 
 package daemon
 
-import "github.com/docker/docker/container"
+import (
+	"github.com/docker/docker/container"
+	"github.com/docker/docker/runconfig"
+	"github.com/docker/libnetwork"
+)
 
 func (daemon *Daemon) setupLinkedContainers(container *container.Container) ([]string, error) {
 	return nil, nil
 }
 
-// getSize returns real size & virtual size
-func (daemon *Daemon) getSize(container *container.Container) (int64, int64) {
-	return 0, 0
-}
-
 func (daemon *Daemon) setupIpcDirs(container *container.Container) error {
-	return nil
-}
-
-func (daemon *Daemon) mountVolumes(container *container.Container) error {
 	return nil
 }
 
@@ -30,9 +25,22 @@ func detachMounted(path string) error {
 }
 
 func isLinkable(child *container.Container) bool {
+	// A container is linkable only if it belongs to the default network
+	_, ok := child.NetworkSettings.Networks[runconfig.DefaultDaemonNetworkMode().NetworkName()]
+	return ok
+}
+
+func enableIPOnPredefinedNetwork() bool {
 	return false
 }
 
 func (daemon *Daemon) isNetworkHotPluggable() bool {
 	return false
+}
+
+func setupPathsAndSandboxOptions(container *container.Container, sboxOptions *[]libnetwork.SandboxOption) error {
+	return nil
+}
+
+func initializeNetworkingPaths(container *container.Container, nc *container.Container) {
 }

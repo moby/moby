@@ -1,9 +1,6 @@
 package runconfig
 
 import (
-	"fmt"
-	"strings"
-
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/pkg/sysinfo"
 )
@@ -11,7 +8,7 @@ import (
 // DefaultDaemonNetworkMode returns the default network stack the daemon should
 // use.
 func DefaultDaemonNetworkMode() container.NetworkMode {
-	return container.NetworkMode("default")
+	return container.NetworkMode("bridge")
 }
 
 // IsPreDefinedNetwork indicates if a network is predefined by the daemon
@@ -23,15 +20,6 @@ func IsPreDefinedNetwork(network string) bool {
 // network settings are valid.
 func ValidateNetMode(c *container.Config, hc *container.HostConfig) error {
 	// We may not be passed a host config, such as in the case of docker commit
-	if hc == nil {
-		return nil
-	}
-	parts := strings.Split(string(hc.NetworkMode), ":")
-	switch mode := parts[0]; mode {
-	case "default", "none":
-	default:
-		return fmt.Errorf("invalid --net: %s", hc.NetworkMode)
-	}
 	return nil
 }
 

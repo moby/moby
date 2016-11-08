@@ -3,11 +3,14 @@ package daemon
 import (
 	"fmt"
 	"net"
+	"runtime"
 	"strings"
 	"time"
 
+	"github.com/pkg/errors"
+
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/docker/api/errors"
+	apierrors "github.com/docker/docker/api/errors"
 	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
 	networktypes "github.com/docker/docker/api/types/network"
@@ -77,6 +80,10 @@ func (daemon *Daemon) create(params types.ContainerCreateConfig, managed bool) (
 		img, err = daemon.GetImage(params.Config.Image)
 		if err != nil {
 			return nil, err
+		}
+
+		if runtime.GOOS == "solaris" && img.OS != "solaris " {
+			return nil, errors.New("Platform on which parent image was created is not Solaris")
 		}
 		imgID = img.ID()
 	}
@@ -260,14 +267,14 @@ func (daemon *Daemon) verifyNetworkingConfig(nwConfig *networktypes.NetworkingCo
 		for _, v := range nwConfig.EndpointsConfig {
 			if v != nil && v.IPAMConfig != nil {
 				if v.IPAMConfig.IPv4Address != "" && net.ParseIP(v.IPAMConfig.IPv4Address).To4() == nil {
-					return errors.NewBadRequestError(fmt.Errorf("invalid IPv4 address: %s", v.IPAMConfig.IPv4Address))
+					return apierrors.NewBadRequestError(fmt.Errorf("invalid IPv4 address: %s", v.IPAMConfig.IPv4Address))
 				}
 				if v.IPAMConfig.IPv6Address != "" {
 					n := net.ParseIP(v.IPAMConfig.IPv6Address)
 					// if the address is an invalid network address (ParseIP == nil) or if it is
 					// an IPv4 address (To4() != nil), then it is an invalid IPv6 address
 					if n == nil || n.To4() != nil {
-						return errors.NewBadRequestError(fmt.Errorf("invalid IPv6 address: %s", v.IPAMConfig.IPv6Address))
+						return apierrors.NewBadRequestError(fmt.Errorf("invalid IPv6 address: %s", v.IPAMConfig.IPv6Address))
 					}
 				}
 			}
@@ -279,5 +286,5 @@ func (daemon *Daemon) verifyNetworkingConfig(nwConfig *networktypes.NetworkingCo
 		l = append(l, k)
 	}
 	err := fmt.Errorf("Container cannot be connected to network endpoints: %s", strings.Join(l, ", "))
-	return errors.NewBadRequestError(err)
+	return apierrors.NewBadRequestError(err)
 }

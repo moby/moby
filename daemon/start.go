@@ -11,7 +11,7 @@ import (
 	"google.golang.org/grpc"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/docker/api/errors"
+	apierrors "github.com/docker/docker/api/errors"
 	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/container"
@@ -21,7 +21,7 @@ import (
 // ContainerStart starts a container.
 func (daemon *Daemon) ContainerStart(name string, hostConfig *containertypes.HostConfig, validateHostname bool, checkpoint string, checkpointDir string) error {
 	if checkpoint != "" && !daemon.HasExperimental() {
-		return errors.NewBadRequestError(fmt.Errorf("checkpoint is only supported in experimental mode"))
+		return apierrors.NewBadRequestError(fmt.Errorf("checkpoint is only supported in experimental mode"))
 	}
 
 	container, err := daemon.GetContainer(name)
@@ -35,7 +35,7 @@ func (daemon *Daemon) ContainerStart(name string, hostConfig *containertypes.Hos
 
 	if container.IsRunning() {
 		err := fmt.Errorf("Container already started")
-		return errors.NewErrorWithStatusCode(err, http.StatusNotModified)
+		return apierrors.NewErrorWithStatusCode(err, http.StatusNotModified)
 	}
 
 	// Windows does not have the backwards compatibility issue here.

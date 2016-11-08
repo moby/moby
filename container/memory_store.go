@@ -1,6 +1,8 @@
 package container
 
-import "sync"
+import (
+	"sync"
+)
 
 // memoryStore implements a Store in memory.
 type memoryStore struct {
@@ -25,8 +27,9 @@ func (c *memoryStore) Add(id string, cont *Container) {
 
 // Get returns a container from the store by id.
 func (c *memoryStore) Get(id string) *Container {
+	var res *Container
 	c.RLock()
-	res := c.s[id]
+	res = c.s[id]
 	c.RUnlock()
 	return res
 }
