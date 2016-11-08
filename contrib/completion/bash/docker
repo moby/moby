@@ -2629,6 +2629,7 @@ _docker_service_update() {
 
 	local boolean_options="
 		--help
+		--tty -t
 		--with-registry-auth
 	"
 
