@@ -21,48 +21,48 @@ Usage:  docker service create [OPTIONS] IMAGE [COMMAND] [ARG...]
 Create a new service
 
 Options:
-      --constraint value                 Placement constraints (default [])
-      --container-label value            Service container labels (default [])
+      --constraint list                  Placement constraints (default [])
+      --container-label list             Container labels (default [])
       --dns list                         Set custom DNS servers (default [])
       --dns-options list                 Set DNS options (default [])
       --dns-search list                  Set custom DNS search domains (default [])
       --endpoint-mode string             Endpoint mode (vip or dnsrr)
-  -e, --env value                        Set environment variables (default [])
-      --env-file value                   Read in a file of environment variables (default [])
-      --group value                      Set one or more supplementary user groups for the container (default [])
+  -e, --env list                         Set environment variables (default [])
+      --env-file list                    Read in a file of environment variables (default [])
+      --group list                       Set one or more supplementary user groups for the container (default [])
       --health-cmd string                Command to run to check health
-      --health-interval duration         Time between running the check (ns|us|ms|s|m|h) (default 0s)
+      --health-interval duration         Time between running the check (default none)
       --health-retries int               Consecutive failures needed to report unhealthy
-      --health-timeout duration          Maximum time to allow one check to run (ns|us|ms|s|m|h) (default 0s)
+      --health-timeout duration          Maximum time to allow one check to run (default none)
       --help                             Print usage
-      --hostname                         Service containers hostname
-  -l, --label value                      Service labels (default [])
-      --limit-cpu value                  Limit CPUs (default 0.000)
-      --limit-memory value               Limit Memory (default 0 B)
+      --hostname string                  Container hostname
+  -l, --label list                       Service labels (default [])
+      --limit-cpu decimal                Limit CPUs (default 0.000)
+      --limit-memory bytes               Limit Memory (default 0 B)
       --log-driver string                Logging driver for service
-      --log-opt value                    Logging driver options (default [])
+      --log-opt list                     Logging driver options (default [])
       --mode string                      Service mode (replicated or global) (default "replicated")
-      --mount value                      Attach a filesystem mount to the service
+      --mount mount                      Attach a filesystem mount to the service
       --name string                      Service name
-      --network value                    Network attachments (default [])
+      --network list                     Network attachments (default [])
       --no-healthcheck                   Disable any container-specified HEALTHCHECK
-  -p, --publish value                    Publish a port as a node port (default [])
-      --replicas value                   Number of tasks (default none)
-      --reserve-cpu value                Reserve CPUs (default 0.000)
-      --reserve-memory value             Reserve Memory (default 0 B)
+  -p, --publish list                     Publish a port as a node port (default [])
+      --replicas uint                    Number of tasks (default none)
+      --reserve-cpu decimal              Reserve CPUs (default 0.000)
+      --reserve-memory bytes             Reserve Memory (default 0 B)
       --restart-condition string         Restart when condition is met (none, on-failure, or any)
-      --restart-delay value              Delay between restart attempts (default none)
-      --restart-max-attempts value       Maximum number of restarts before giving up (default none)
-      --restart-window value             Window used to evaluate the restart policy (default none)
-      --stop-grace-period value          Time to wait before force killing a container (default none)
+      --restart-delay duration           Delay between restart attempts (default none)
+      --restart-max-attempts uint        Maximum number of restarts before giving up (default none)
+      --restart-window duration          Window used to evaluate the restart policy (default none)
+      --stop-grace-period duration       Time to wait before force killing a container (default none)
   -t, --tty                              Allocate a pseudo-TTY
       --update-delay duration            Delay between updates (ns|us|ms|s|m|h) (default 0s)
       --update-failure-action string     Action on update failure (pause|continue) (default "pause")
-      --update-max-failure-ratio value   Failure rate to tolerate during an update
+      --update-max-failure-ratio float   Failure rate to tolerate during an update
       --update-monitor duration          Duration after each task update to monitor for failure (ns|us|ms|s|m|h) (default 0s)
       --update-parallelism uint          Maximum number of tasks updated simultaneously (0 to update all at once) (default 1)
   -u, --user string                      Username or UID (format: <name|uid>[:<group|gid>])
-      --with-registry-auth               Send registry authentication details to Swarm agents
+      --with-registry-auth               Send registry authentication details to swarm agents
   -w, --workdir string                   Working directory inside the container
 ```
 

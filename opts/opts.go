@@ -345,7 +345,7 @@ func (c *NanoCPUs) Set(value string) error {
 
 // Type returns the type
 func (c *NanoCPUs) Type() string {
-	return "NanoCPUs"
+	return "decimal"
 }
 
 // Value returns the value in int64

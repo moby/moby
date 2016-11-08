@@ -32,7 +32,7 @@ func (m *memBytes) Set(value string) error {
 }
 
 func (m *memBytes) Type() string {
-	return "MemoryBytes"
+	return "bytes"
 }
 
 func (m *memBytes) Value() int64 {
@@ -71,9 +71,9 @@ func (d *DurationOpt) Set(s string) error {
 	return err
 }
 
-// Type returns the type of this option
+// Type returns the type of this option, which will be displayed in `--help` output
 func (d *DurationOpt) Type() string {
-	return "duration-ptr"
+	return "duration"
 }
 
 // String returns a string repr of this option
@@ -101,9 +101,9 @@ func (i *Uint64Opt) Set(s string) error {
 	return err
 }
 
-// Type returns the type of this option
+// Type returns the type of this option, which will be displayed in `--help` output
 func (i *Uint64Opt) Type() string {
-	return "uint64-ptr"
+	return "uint"
 }
 
 // String returns a string repr of this option
@@ -119,12 +119,32 @@ func (i *Uint64Opt) Value() *uint64 {
 	return i.value
 }
 
+type floatValue float32
+
+func (f *floatValue) Set(s string) error {
+	v, err := strconv.ParseFloat(s, 32)
+	*f = floatValue(v)
+	return err
+}
+
+func (f *floatValue) Type() string {
+	return "float"
+}
+
+func (f *floatValue) String() string {
+	return strconv.FormatFloat(float64(*f), 'g', -1, 32)
+}
+
+func (f *floatValue) Value() float32 {
+	return float32(*f)
+}
+
 type updateOptions struct {
 	parallelism     uint64
 	delay           time.Duration
 	monitor         time.Duration
 	onFailure       string
-	maxFailureRatio float32
+	maxFailureRatio floatValue
 }
 
 type resourceOptions struct {
@@ -293,7 +313,7 @@ type serviceOptions struct {
 	envFile         opts.ListOpts
 	workdir         string
 	user            string
-	groups          []string
+	groups          opts.ListOpts
 	tty             bool
 	mounts          opts.MountOpt
 	dns             opts.ListOpts
@@ -307,9 +327,9 @@ type serviceOptions struct {
 	mode     string
 
 	restartPolicy restartPolicyOptions
-	constraints   []string
+	constraints   opts.ListOpts
 	update        updateOptions
-	networks      []string
+	networks      opts.ListOpts
 	endpoint      endpointOptions
 
 	registryAuth bool
@@ -322,16 +342,19 @@ type serviceOptions struct {
 func newServiceOptions() *serviceOptions {
 	return &serviceOptions{
 		labels:          opts.NewListOpts(runconfigopts.ValidateEnv),
+		constraints:     opts.NewListOpts(nil),
 		containerLabels: opts.NewListOpts(runconfigopts.ValidateEnv),
 		env:             opts.NewListOpts(runconfigopts.ValidateEnv),
 		envFile:         opts.NewListOpts(nil),
 		endpoint: endpointOptions{
 			ports: opts.NewListOpts(ValidatePort),
 		},
+		groups:     opts.NewListOpts(nil),
 		logDriver:  newLogDriverOptions(),
 		dns:        opts.NewListOpts(opts.ValidateIPAddress),
 		dnsOptions: opts.NewListOpts(nil),
 		dnsSearch:  opts.NewListOpts(opts.ValidateDNSSearch),
+		networks:   opts.NewListOpts(nil),
 	}
 }
 
@@ -371,7 +394,7 @@ func (opts *serviceOptions) ToService() (swarm.ServiceSpec, error) {
 				Labels:   runconfigopts.ConvertKVStringsToMap(opts.containerLabels.GetAll()),
 				Dir:      opts.workdir,
 				User:     opts.user,
-				Groups:   opts.groups,
+				Groups:   opts.groups.GetAll(),
 				TTY:      opts.tty,
 				Mounts:   opts.mounts.Value(),
 				DNSConfig: &swarm.DNSConfig{
@@ -381,22 +404,22 @@ func (opts *serviceOptions) ToService() (swarm.ServiceSpec, error) {
 				},
 				StopGracePeriod: opts.stopGrace.Value(),
 			},
-			Networks:      convertNetworks(opts.networks),
+			Networks:      convertNetworks(opts.networks.GetAll()),
 			Resources:     opts.resources.ToResourceRequirements(),
 			RestartPolicy: opts.restartPolicy.ToRestartPolicy(),
 			Placement: &swarm.Placement{
-				Constraints: opts.constraints,
+				Constraints: opts.constraints.GetAll(),
 			},
 			LogDriver: opts.logDriver.toLogDriver(),
 		},
-		Networks: convertNetworks(opts.networks),
+		Networks: convertNetworks(opts.networks.GetAll()),
 		Mode:     swarm.ServiceMode{},
 		UpdateConfig: &swarm.UpdateConfig{
 			Parallelism:     opts.update.parallelism,
 			Delay:           opts.update.delay,
 			Monitor:         opts.update.monitor,
 			FailureAction:   opts.update.onFailure,
-			MaxFailureRatio: opts.update.maxFailureRatio,
+			MaxFailureRatio: opts.update.maxFailureRatio.Value(),
 		},
 		EndpointSpec: opts.endpoint.ToEndpointSpec(),
 	}
@@ -449,7 +472,7 @@ func addServiceFlags(cmd *cobra.Command, opts *serviceOptions) {
 	flags.DurationVar(&opts.update.delay, flagUpdateDelay, time.Duration(0), "Delay between updates (ns|us|ms|s|m|h) (default 0s)")
 	flags.DurationVar(&opts.update.monitor, flagUpdateMonitor, time.Duration(0), "Duration after each task update to monitor for failure (ns|us|ms|s|m|h) (default 0s)")
 	flags.StringVar(&opts.update.onFailure, flagUpdateFailureAction, "pause", "Action on update failure (pause|continue)")
-	flags.Float32Var(&opts.update.maxFailureRatio, flagUpdateMaxFailureRatio, 0, "Failure rate to tolerate during an update")
+	flags.Var(&opts.update.maxFailureRatio, flagUpdateMaxFailureRatio, "Failure rate to tolerate during an update")
 
 	flags.StringVar(&opts.endpoint.mode, flagEndpointMode, "", "Endpoint mode (vip or dnsrr)")
 
