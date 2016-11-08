@@ -11,7 +11,6 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/docker/docker/pkg/integration/cmd"
 	"github.com/docker/docker/pkg/system"
 	"github.com/opencontainers/runc/libcontainer/user"
 )
@@ -187,7 +186,7 @@ func callGetent(args string) (io.Reader, error) {
 	}
 	out, err := execCmd(getentCmd, args)
 	if err != nil {
-		exitCode, errC := cmd.GetExitCode(err)
+		exitCode, errC := system.GetExitCode(err)
 		if errC != nil {
 			return nil, err
 		}
