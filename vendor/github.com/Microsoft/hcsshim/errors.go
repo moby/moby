@@ -16,8 +16,8 @@ var (
 	// ErrHandleClose is an error encountered when the handle generating the notification being waited on has been closed
 	ErrHandleClose = errors.New("hcsshim: the handle generating this notification has been closed")
 
-	// ErrInvalidHandle is an error encountered when using an invalid handle
-	ErrInvalidHandle = errors.New("hcsshim: the handle is invalid")
+	// ErrAlreadyClosed is an error encountered when using a handle that has been closed by the Close method
+	ErrAlreadyClosed = errors.New("hcsshim: the handle has already been closed")
 
 	// ErrInvalidNotificationType is an error encountered when an invalid notification type is used
 	ErrInvalidNotificationType = errors.New("hcsshim: invalid notification type")
@@ -157,6 +157,13 @@ func IsNotExist(err error) bool {
 	return err == ErrComputeSystemDoesNotExist ||
 		err == ErrElementNotFound ||
 		err == ErrProcNotFound
+}
+
+// IsAlreadyClosed checks if an error is caused by the Container or Process having been
+// already closed by a call to the Close() method.
+func IsAlreadyClosed(err error) bool {
+	err = getInnerError(err)
+	return err == ErrAlreadyClosed
 }
 
 // IsPending returns a boolean indicating whether the error is that
