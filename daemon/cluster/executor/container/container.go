@@ -127,6 +127,7 @@ func (c *containerConfig) image() string {
 func (c *containerConfig) config() *enginecontainer.Config {
 	config := &enginecontainer.Config{
 		Labels:      c.labels(),
+		Tty:         c.spec().TTY,
 		User:        c.spec().User,
 		Hostname:    c.spec().Hostname,
 		Env:         c.spec().Env,
