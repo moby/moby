@@ -4569,7 +4569,7 @@ func (s *DockerSuite) TestRunServicingContainer(c *check.C) {
 }
 
 func (s *DockerSuite) TestRunDuplicateMount(c *check.C) {
-	testRequires(c, DaemonIsLinux)
+	testRequires(c, SameHostDaemon, DaemonIsLinux)
 
 	tmpFile, err := ioutil.TempFile("", "touch-me")
 	c.Assert(err, checker.IsNil)
