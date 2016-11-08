@@ -74,9 +74,13 @@ command on a manager node.
 $ docker service create --name redis redis:3.0.6
 dmu1ept4cxcfe8k8lhtux3ro3
 
+$ docker service create --mode global --name redis2 redis:3.0.6
+a8q9dasaafudfs8q8w32udass
+
 $ docker service ls
-ID            NAME   REPLICAS  IMAGE
-dmu1ept4cxcf  redis  1/1       redis:3.0.6
+ID            NAME    MODE        REPLICAS  IMAGE
+dmu1ept4cxcf  redis   replicated  1/1       redis:3.0.6
+a8q9dasaafud  redis2  global      1/1       redis:3.0.6
 ```
 
 ### Create a service with 5 replica tasks (--replicas)
@@ -99,8 +103,8 @@ number of `RUNNING` tasks is `3`:
 
 ```bash
 $ docker service ls
-ID            NAME    REPLICAS  IMAGE
-4cdgfyky7ozw  redis   3/5       redis:3.0.7
+ID            NAME   MODE        REPLICAS  IMAGE
+4cdgfyky7ozw  redis  replicated  3/5       redis:3.0.7
 ```
 
 Once all the tasks are created and `RUNNING`, the actual number of tasks is
@@ -108,8 +112,8 @@ equal to the desired number:
 
 ```bash
 $ docker service ls
-ID            NAME    REPLICAS  IMAGE
-4cdgfyky7ozw  redis   5/5       redis:3.0.7
+ID            NAME   MODE        REPLICAS  IMAGE
+4cdgfyky7ozw  redis  replicated  5/5       redis:3.0.7
 ```
 
 ### Create a service with a rolling update policy
