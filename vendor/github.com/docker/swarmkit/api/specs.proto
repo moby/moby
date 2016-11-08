@@ -208,6 +208,16 @@ message ContainerSpec {
 	// will be exposed to the container.
 	repeated SecretReference secrets = 12;
 
+	// Hosts allow additional entries to be specified in /etc/hosts
+	// that associates IP addresses with hostnames.
+	// Detailed documentation is available in:
+	// http://man7.org/linux/man-pages/man5/hosts.5.html
+	// The format of the Hosts here could be:
+	// <hostname>:<ip> (separated by `:`)
+	// <hostname>=<ip> (separated by `=`)
+	// <hostname> <ip> (separated by ` `)
+	repeated string hosts = 17;
+
 	// DNSConfig specifies DNS related configurations in resolver configuration file (resolv.conf)
 	// Detailed documentation is available in:
 	// http://man7.org/linux/man-pages/man5/resolv.conf.5.html
