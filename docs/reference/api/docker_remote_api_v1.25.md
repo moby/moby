@@ -2768,6 +2768,7 @@ Show the docker version information
          "GitCommit": "deadbee",
          "Arch": "amd64",
          "ApiVersion": "1.25",
+         "MinAPIVersion": "1.12",
          "BuildTime": "2016-06-14T07:09:13.444803460+00:00",
          "Experimental": true
     }
