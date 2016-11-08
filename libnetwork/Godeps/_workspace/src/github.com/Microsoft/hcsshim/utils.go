@@ -7,12 +7,6 @@ import (
 	"github.com/Microsoft/go-winio"
 )
 
-var (
-	vmcomputedll          = syscall.NewLazyDLL("vmcompute.dll")
-	hcsCallbackAPI        = vmcomputedll.NewProc("HcsRegisterComputeSystemCallback")
-	hcsCallbacksSupported = hcsCallbackAPI.Find() == nil
-)
-
 // makeOpenFiles calls winio.MakeOpenFile for each handle in a slice but closes all the handles
 // if there is an error.
 func makeOpenFiles(hs []syscall.Handle) (_ []io.ReadWriteCloser, err error) {

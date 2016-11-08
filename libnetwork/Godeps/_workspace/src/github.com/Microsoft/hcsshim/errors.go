@@ -16,6 +16,9 @@ var (
 	// ErrHandleClose is an error encountered when the handle generating the notification being waited on has been closed
 	ErrHandleClose = errors.New("hcsshim: the handle generating this notification has been closed")
 
+	// ErrAlreadyClosed is an error encountered when using a handle that has been closed by the Close method
+	ErrAlreadyClosed = errors.New("hcsshim: the handle has already been closed")
+
 	// ErrInvalidNotificationType is an error encountered when an invalid notification type is used
 	ErrInvalidNotificationType = errors.New("hcsshim: invalid notification type")
 
@@ -80,8 +83,13 @@ func (e *ContainerError) Error() string {
 		s += " encountered an error during " + e.Operation
 	}
 
-	if e.Err != nil {
-		s += fmt.Sprintf(" failed in Win32: %s (0x%x)", e.Err, win32FromError(e.Err))
+	switch e.Err.(type) {
+	case nil:
+		break
+	case syscall.Errno:
+		s += fmt.Sprintf(": failure in a Windows system call: %s (0x%x)", e.Err, win32FromError(e.Err))
+	default:
+		s += fmt.Sprintf(": %s", e.Err.Error())
 	}
 
 	if e.ExtraInfo != "" {
@@ -116,16 +124,16 @@ func (e *ProcessError) Error() string {
 	}
 
 	if e.Operation != "" {
-		s += " " + e.Operation
+		s += " encountered an error during " + e.Operation
 	}
 
 	switch e.Err.(type) {
 	case nil:
 		break
 	case syscall.Errno:
-		s += fmt.Sprintf(" failed in Win32: %s (0x%x)", e.Err, win32FromError(e.Err))
+		s += fmt.Sprintf(": failure in a Windows system call: %s (0x%x)", e.Err, win32FromError(e.Err))
 	default:
-		s += fmt.Sprintf(" failed: %s", e.Error())
+		s += fmt.Sprintf(": %s", e.Err.Error())
 	}
 
 	return s
@@ -149,6 +157,13 @@ func IsNotExist(err error) bool {
 	return err == ErrComputeSystemDoesNotExist ||
 		err == ErrElementNotFound ||
 		err == ErrProcNotFound
+}
+
+// IsAlreadyClosed checks if an error is caused by the Container or Process having been
+// already closed by a call to the Close() method.
+func IsAlreadyClosed(err error) bool {
+	err = getInnerError(err)
+	return err == ErrAlreadyClosed
 }
 
 // IsPending returns a boolean indicating whether the error is that

@@ -2,13 +2,14 @@ package libnetwork
 
 import (
 	"fmt"
+	"strings"
 
+	"github.com/docker/libnetwork/netlabel"
 	"github.com/docker/libnetwork/types"
 )
 
 const (
-	libnGWNetwork = "docker_gwbridge"
-	gwEPlen       = 12
+	gwEPlen = 12
 )
 
 var procGwNetwork = make(chan (bool), 1)
@@ -50,6 +51,21 @@ func (sb *sandbox) setupDefaultGW() error {
 	eplen := gwEPlen
 	if len(sb.containerID) < gwEPlen {
 		eplen = len(sb.containerID)
+	}
+
+	sbLabels := sb.Labels()
+
+	if sbLabels[netlabel.PortMap] != nil {
+		createOptions = append(createOptions, CreateOptionPortMapping(sbLabels[netlabel.PortMap].([]types.PortBinding)))
+	}
+
+	if sbLabels[netlabel.ExposedPorts] != nil {
+		createOptions = append(createOptions, CreateOptionExposedPorts(sbLabels[netlabel.ExposedPorts].([]types.TransportPort)))
+	}
+
+	epOption := getPlatformOption()
+	if epOption != nil {
+		createOptions = append(createOptions, epOption)
 	}
 
 	newEp, err := n.CreateEndpoint("gateway_"+sb.containerID[0:eplen], createOptions...)
@@ -119,7 +135,7 @@ func (sb *sandbox) needDefaultGW() bool {
 
 func (sb *sandbox) getEndpointInGWNetwork() *endpoint {
 	for _, ep := range sb.getConnectedEndpoints() {
-		if ep.getNetwork().name == libnGWNetwork {
+		if ep.getNetwork().name == libnGWNetwork && strings.HasPrefix(ep.Name(), "gateway_") {
 			return ep
 		}
 	}
@@ -127,7 +143,7 @@ func (sb *sandbox) getEndpointInGWNetwork() *endpoint {
 }
 
 func (ep *endpoint) endpointInGWNetwork() bool {
-	if ep.getNetwork().name == libnGWNetwork {
+	if ep.getNetwork().name == libnGWNetwork && strings.HasPrefix(ep.Name(), "gateway_") {
 		return true
 	}
 	return false

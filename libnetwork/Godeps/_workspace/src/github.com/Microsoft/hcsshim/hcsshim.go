@@ -1,4 +1,4 @@
-// Shim for the Host Compute Service (HSC) to manage Windows Server
+// Shim for the Host Compute Service (HCS) to manage Windows Server
 // containers and Hyper-V containers.
 
 package hcsshim
@@ -44,16 +44,6 @@ import (
 //sys exportLayerRead(context uintptr, buffer []byte, bytesRead *uint32) (hr error) = vmcompute.ExportLayerRead?
 //sys exportLayerEnd(context uintptr) (hr error) = vmcompute.ExportLayerEnd?
 
-//sys createComputeSystem(id string, configuration string) (hr error) = vmcompute.CreateComputeSystem?
-//sys createProcessWithStdHandlesInComputeSystem(id string, paramsJson string, pid *uint32, stdin *syscall.Handle, stdout *syscall.Handle, stderr *syscall.Handle) (hr error) = vmcompute.CreateProcessWithStdHandlesInComputeSystem?
-//sys resizeConsoleInComputeSystem(id string, pid uint32, height uint16, width uint16, flags uint32) (hr error) = vmcompute.ResizeConsoleInComputeSystem?
-//sys shutdownComputeSystem(id string, timeout uint32) (hr error) = vmcompute.ShutdownComputeSystem?
-//sys startComputeSystem(id string) (hr error) = vmcompute.StartComputeSystem?
-//sys terminateComputeSystem(id string) (hr error) = vmcompute.TerminateComputeSystem?
-//sys terminateProcessInComputeSystem(id string, pid uint32) (hr error) = vmcompute.TerminateProcessInComputeSystem?
-//sys waitForProcessInComputeSystem(id string, pid uint32, timeout uint32, exitCode *uint32) (hr error) = vmcompute.WaitForProcessInComputeSystem?
-//sys getComputeSystemProperties(id string, flags uint32, properties **uint16) (hr error) = vmcompute.GetComputeSystemProperties?
-
 //sys hcsEnumerateComputeSystems(query string, computeSystems **uint16, result **uint16) (hr error) = vmcompute.HcsEnumerateComputeSystems?
 //sys hcsCreateComputeSystem(id string, configuration string, identity syscall.Handle, computeSystem *hcsSystem, result **uint16) (hr error) = vmcompute.HcsCreateComputeSystem?
 //sys hcsOpenComputeSystem(id string, computeSystem *hcsSystem, result **uint16) (hr error) = vmcompute.HcsOpenComputeSystem?
@@ -65,7 +55,9 @@ import (
 //sys hcsResumeComputeSystem(computeSystem hcsSystem, options string, result **uint16) (hr error) = vmcompute.HcsResumeComputeSystem?
 //sys hcsGetComputeSystemProperties(computeSystem hcsSystem, propertyQuery string, properties **uint16, result **uint16) (hr error) = vmcompute.HcsGetComputeSystemProperties?
 //sys hcsModifyComputeSystem(computeSystem hcsSystem, configuration string, result **uint16) (hr error) = vmcompute.HcsModifyComputeSystem?
-//sys hcsCreateComputeSystemWait(computeSystem hcsSystem, exitEvent *syscall.Handle, result **uint16) (hr error) = vmcompute.HcsCreateComputeSystemWait?
+//sys hcsRegisterComputeSystemCallback(computeSystem hcsSystem, callback uintptr, context uintptr, callbackHandle *hcsCallback) (hr error) = vmcompute.HcsRegisterComputeSystemCallback?
+//sys hcsUnregisterComputeSystemCallback(callbackHandle hcsCallback) (hr error) = vmcompute.HcsUnregisterComputeSystemCallback?
+
 //sys hcsCreateProcess(computeSystem hcsSystem, processParameters string, processInformation *hcsProcessInformation, process *hcsProcess, result **uint16) (hr error) = vmcompute.HcsCreateProcess?
 //sys hcsOpenProcess(computeSystem hcsSystem, pid uint32, process *hcsProcess, result **uint16) (hr error) = vmcompute.HcsOpenProcess?
 //sys hcsCloseProcess(process hcsProcess) (hr error) = vmcompute.HcsCloseProcess?
@@ -73,20 +65,11 @@ import (
 //sys hcsGetProcessInfo(process hcsProcess, processInformation *hcsProcessInformation, result **uint16) (hr error) = vmcompute.HcsGetProcessInfo?
 //sys hcsGetProcessProperties(process hcsProcess, processProperties **uint16, result **uint16) (hr error) = vmcompute.HcsGetProcessProperties?
 //sys hcsModifyProcess(process hcsProcess, settings string, result **uint16) (hr error) = vmcompute.HcsModifyProcess?
-//sys hcsCreateProcessWait(process hcsProcess, settings *syscall.Handle, result **uint16) (hr error) = vmcompute.HcsCreateProcessWait?
 //sys hcsGetServiceProperties(propertyQuery string, properties **uint16, result **uint16) (hr error) = vmcompute.HcsGetServiceProperties?
-//sys hcsModifyServiceSettings(settings string, result **uint16) (hr error) = vmcompute.HcsModifyServiceSettings?
-
-//sys hcsCreateComputeSystemTP5(id string, configuration string, computeSystem *hcsSystem, result **uint16) (hr error) = vmcompute.HcsCreateComputeSystem?
-//sys hcsStartComputeSystemTP5(computeSystem hcsSystem, options *uint16, result **uint16) (hr error) = vmcompute.HcsStartComputeSystem?
-//sys hcsShutdownComputeSystemTP5(computeSystem hcsSystem, options *uint16, result **uint16) (hr error) = vmcompute.HcsShutdownComputeSystem?
-//sys hcsTerminateComputeSystemTP5(computeSystem hcsSystem, options *uint16, result **uint16) (hr error) = vmcompute.HcsTerminateComputeSystem?
-//sys hcsPauseComputeSystemTP5(computeSystem hcsSystem, options *uint16, result **uint16) (hr error) = vmcompute.HcsPauseComputeSystem?
-//sys hcsResumeComputeSystemTP5(computeSystem hcsSystem, options *uint16, result **uint16) (hr error) = vmcompute.HcsResumeComputeSystem?
-//sys hcsRegisterComputeSystemCallback(computeSystem hcsSystem, callback uintptr, context uintptr, callbackHandle *hcsCallback) (hr error) = vmcompute.HcsRegisterComputeSystemCallback?
-//sys hcsUnregisterComputeSystemCallback(callbackHandle hcsCallback) (hr error) = vmcompute.HcsUnregisterComputeSystemCallback?
 //sys hcsRegisterProcessCallback(process hcsProcess, callback uintptr, context uintptr, callbackHandle *hcsCallback) (hr error) = vmcompute.HcsRegisterProcessCallback?
 //sys hcsUnregisterProcessCallback(callbackHandle hcsCallback) (hr error) = vmcompute.HcsUnregisterProcessCallback?
+
+//sys hcsModifyServiceSettings(settings string, result **uint16) (hr error) = vmcompute.HcsModifyServiceSettings?
 
 //sys _hnsCall(method string, path string, object string, response **uint16) (hr error) = vmcompute.HNSCall?
 
