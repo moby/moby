@@ -29,6 +29,7 @@ const (
 )
 
 type deployOptions struct {
+	bundlefile       string
 	composefile      string
 	namespace        string
 	sendRegistryAuth bool
@@ -50,12 +51,108 @@ func newDeployCommand(dockerCli *command.DockerCli) *cobra.Command {
 	}
 
 	flags := cmd.Flags()
+	addBundlefileFlag(&opts.bundlefile, flags)
 	addComposefileFlag(&opts.composefile, flags)
 	addRegistryAuthFlag(&opts.sendRegistryAuth, flags)
 	return cmd
 }
 
 func runDeploy(dockerCli *command.DockerCli, opts deployOptions) error {
+	if opts.bundlefile == "" && opts.composefile == "" {
+		return fmt.Errorf("Please specify either a bundle file (with --bundle-file) or a Compose file (with --compose-file).")
+	}
+
+	if opts.bundlefile != "" && opts.composefile != "" {
+		return fmt.Errorf("You cannot specify both a bundle file and a Compose file.")
+	}
+
+	info, err := dockerCli.Client().Info(context.Background())
+	if err != nil {
+		return err
+	}
+	if !info.Swarm.ControlAvailable {
+		return fmt.Errorf("This node is not a swarm manager. Use \"docker swarm init\" or \"docker swarm join\" to connect this node to swarm and try again.")
+	}
+
+	if opts.bundlefile != "" {
+		return deployBundle(dockerCli, opts)
+	} else {
+		return deployCompose(dockerCli, opts)
+	}
+}
+
+func deployBundle(dockerCli *command.DockerCli, opts deployOptions) error {
+	bundle, err := loadBundlefile(dockerCli.Err(), opts.namespace, opts.bundlefile)
+	if err != nil {
+		return err
+	}
+
+	namespace := namespace{name: opts.namespace}
+
+	networks := make(map[string]types.NetworkCreate)
+	for _, service := range bundle.Services {
+		for _, networkName := range service.Networks {
+			networks[networkName] = types.NetworkCreate{
+				Labels: getStackLabels(namespace.name, nil),
+			}
+		}
+	}
+
+	services := make(map[string]swarm.ServiceSpec)
+	for internalName, service := range bundle.Services {
+		name := namespace.scope(internalName)
+
+		var ports []swarm.PortConfig
+		for _, portSpec := range service.Ports {
+			ports = append(ports, swarm.PortConfig{
+				Protocol:   swarm.PortConfigProtocol(portSpec.Protocol),
+				TargetPort: portSpec.Port,
+			})
+		}
+
+		nets := []swarm.NetworkAttachmentConfig{}
+		for _, networkName := range service.Networks {
+			nets = append(nets, swarm.NetworkAttachmentConfig{
+				Target:  namespace.scope(networkName),
+				Aliases: []string{networkName},
+			})
+		}
+
+		serviceSpec := swarm.ServiceSpec{
+			Annotations: swarm.Annotations{
+				Name:   name,
+				Labels: getStackLabels(namespace.name, service.Labels),
+			},
+			TaskTemplate: swarm.TaskSpec{
+				ContainerSpec: swarm.ContainerSpec{
+					Image:   service.Image,
+					Command: service.Command,
+					Args:    service.Args,
+					Env:     service.Env,
+					// Service Labels will not be copied to Containers
+					// automatically during the deployment so we apply
+					// it here.
+					Labels: getStackLabels(namespace.name, nil),
+				},
+			},
+			EndpointSpec: &swarm.EndpointSpec{
+				Ports: ports,
+			},
+			Networks: nets,
+		}
+
+		services[internalName] = serviceSpec
+	}
+
+	ctx := context.Background()
+
+	if err := createNetworks(ctx, dockerCli, namespace, networks); err != nil {
+		return err
+	}
+	return deployServices(ctx, dockerCli, services, namespace, opts.sendRegistryAuth)
+}
+
+func deployCompose(dockerCli *command.DockerCli, opts deployOptions) error {
 	configDetails, err := getConfigDetails(opts)
 	if err != nil {
 		return err
@@ -86,14 +183,15 @@ func runDeploy(dockerCli *command.DockerCli, opts deployOptions) error {
 	ctx := context.Background()
 	namespace := namespace{name: opts.namespace}
 
-	networks := config.Networks
-	if networks == nil {
-		networks = make(map[string]composetypes.NetworkConfig)
-	}
-	if err := createNetworks(ctx, dockerCli, networks, namespace); err != nil {
+	networks := convertNetworks(namespace, config.Networks)
+	if err := createNetworks(ctx, dockerCli, namespace, networks); err != nil {
 		return err
 	}
-	return deployServices(ctx, dockerCli, config, namespace, opts.sendRegistryAuth)
+	services, err := convertServices(namespace, config)
+	if err != nil {
+		return err
+	}
+	return deployServices(ctx, dockerCli, services, namespace, opts.sendRegistryAuth)
 }
 
 func propertyWarnings(properties map[string]string) string {
@@ -138,34 +236,21 @@ func getConfigFile(filename string) (*composetypes.ConfigFile, error) {
 	}, nil
 }
 
-func createNetworks(
-	ctx context.Context,
-	dockerCli *command.DockerCli,
-	networks map[string]composetypes.NetworkConfig,
+func convertNetworks(
 	namespace namespace,
-) error {
-	client := dockerCli.Client()
-
-	existingNetworks, err := getNetworks(ctx, client, namespace.name)
-	if err != nil {
-		return err
-	}
-
-	existingNetworkMap := make(map[string]types.NetworkResource)
-	for _, network := range existingNetworks {
-		existingNetworkMap[network.Name] = network
+	networks map[string]composetypes.NetworkConfig,
+) map[string]types.NetworkCreate {
+	if networks == nil {
+		networks = make(map[string]composetypes.NetworkConfig)
 	}
 
 	// TODO: only add default network if it's used
 	networks["default"] = composetypes.NetworkConfig{}
 
+	result := make(map[string]types.NetworkCreate)
+
 	for internalName, network := range networks {
 		if network.External.Name != "" {
-			continue
-		}
-
-		name := namespace.scope(internalName)
-		if _, exists := existingNetworkMap[name]; exists {
 			continue
 		}
 
@@ -182,6 +267,36 @@ func createNetworks(
 		}
 		// TODO: IPAMConfig.Config
 
+		result[internalName] = createOpts
+	}
+
+	return result
+}
+
+func createNetworks(
+	ctx context.Context,
+	dockerCli *command.DockerCli,
+	namespace namespace,
+	networks map[string]types.NetworkCreate,
+) error {
+	client := dockerCli.Client()
+
+	existingNetworks, err := getNetworks(ctx, client, namespace.name)
+	if err != nil {
+		return err
+	}
+
+	existingNetworkMap := make(map[string]types.NetworkResource)
+	for _, network := range existingNetworks {
+		existingNetworkMap[network.Name] = network
+	}
+
+	for internalName, createOpts := range networks {
+		name := namespace.scope(internalName)
+		if _, exists := existingNetworkMap[name]; exists {
+			continue
+		}
+
 		if createOpts.Driver == "" {
 			createOpts.Driver = defaultNetworkDriver
 		}
@@ -191,10 +306,11 @@ func createNetworks(
 			return err
 		}
 	}
+
 	return nil
 }
 
-func convertNetworks(
+func convertServiceNetworks(
 	networks map[string]*composetypes.ServiceNetworkConfig,
 	namespace namespace,
 	name string,
@@ -294,14 +410,12 @@ func convertVolumes(
 func deployServices(
 	ctx context.Context,
 	dockerCli *command.DockerCli,
-	config *composetypes.Config,
+	services map[string]swarm.ServiceSpec,
 	namespace namespace,
 	sendAuth bool,
 ) error {
 	apiClient := dockerCli.Client()
 	out := dockerCli.Out()
-	services := config.Services
-	volumes := config.Volumes
 
 	existingServices, err := getServices(ctx, apiClient, namespace.name)
 	if err != nil {
@@ -313,13 +427,8 @@ func deployServices(
 		existingServiceMap[service.Spec.Name] = service
 	}
 
-	for _, service := range services {
-		name := namespace.scope(service.Name)
-
-		serviceSpec, err := convertService(namespace, service, volumes)
-		if err != nil {
-			return err
-		}
+	for internalName, serviceSpec := range services {
+		name := namespace.scope(internalName)
 
 		encodedAuth := ""
 		if sendAuth {
@@ -361,6 +470,26 @@ func deployServices(
 	}
 
 	return nil
+}
+
+func convertServices(
+	namespace namespace,
+	config *composetypes.Config,
+) (map[string]swarm.ServiceSpec, error) {
+	result := make(map[string]swarm.ServiceSpec)
+
+	services := config.Services
+	volumes := config.Volumes
+
+	for _, service := range services {
+		serviceSpec, err := convertService(namespace, service, volumes)
+		if err != nil {
+			return nil, err
+		}
+		result[service.Name] = serviceSpec
+	}
+
+	return result, nil
 }
 
 func convertService(
@@ -422,7 +551,7 @@ func convertService(
 		},
 		EndpointSpec: endpoint,
 		Mode:         mode,
-		Networks:     convertNetworks(service.Networks, namespace, service.Name),
+		Networks:     convertServiceNetworks(service.Networks, namespace, service.Name),
 		UpdateConfig: convertUpdateConfig(service.Deploy.UpdateConfig),
 	}
 
