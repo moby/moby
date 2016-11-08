@@ -91,7 +91,7 @@ func validateMountConfig(mnt *mount.Mount, options ...func(*validateOpts)) error
 		if len(mnt.Source) != 0 {
 			return &errMountConfig{mnt, errExtraField("Source")}
 		}
-		if _, err := ConvertTmpfsOptions(mnt.TmpfsOptions); err != nil {
+		if _, err := ConvertTmpfsOptions(mnt.TmpfsOptions, mnt.ReadOnly); err != nil {
 			return &errMountConfig{mnt, err}
 		}
 	default:

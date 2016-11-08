@@ -414,7 +414,7 @@ func (container *Container) TmpfsMounts() ([]Mount, error) {
 	}
 	for dest, mnt := range container.MountPoints {
 		if mnt.Type == mounttypes.TypeTmpfs {
-			data, err := volume.ConvertTmpfsOptions(mnt.Spec.TmpfsOptions)
+			data, err := volume.ConvertTmpfsOptions(mnt.Spec.TmpfsOptions, mnt.Spec.ReadOnly)
 			if err != nil {
 				return nil, err
 			}
