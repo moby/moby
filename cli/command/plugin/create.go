@@ -24,14 +24,14 @@ func validateTag(rawRepo string) error {
 	return err
 }
 
-// validateManifest ensures that a valid manifest.json is available in the given path
-func validateManifest(path string) error {
-	dt, err := os.Open(filepath.Join(path, "manifest.json"))
+// validateConfig ensures that a valid config.json is available in the given path
+func validateConfig(path string) error {
+	dt, err := os.Open(filepath.Join(path, "config.json"))
 	if err != nil {
 		return err
 	}
 
-	m := types.PluginManifest{}
+	m := types.PluginConfig{}
 	err = json.NewDecoder(dt).Decode(&m)
 	dt.Close()
 
@@ -64,8 +64,8 @@ func newCreateCommand(dockerCli *command.DockerCli) *cobra.Command {
 	options := pluginCreateOptions{}
 
 	cmd := &cobra.Command{
-		Use:   "create [OPTIONS] reponame[:tag] PATH-TO-ROOTFS (rootfs + manifest.json)",
-		Short: "Create a plugin from a rootfs and manifest",
+		Use:   "create [OPTIONS] reponame[:tag] PATH-TO-ROOTFS (rootfs + config.json)",
+		Short: "Create a plugin from a rootfs and config",
 		Args:  cli.RequiresMinArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			options.repoName = args[0]
@@ -96,7 +96,7 @@ func runCreate(dockerCli *command.DockerCli, options pluginCreateOptions) error 
 		return err
 	}
 
-	if err := validateManifest(options.context); err != nil {
+	if err := validateConfig(options.context); err != nil {
 		return err
 	}
 

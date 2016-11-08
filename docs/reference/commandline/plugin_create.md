@@ -17,7 +17,7 @@ advisory: "experimental"
 ```markdown
 Usage:  docker plugin create [OPTIONS] reponame[:tag] PATH-TO-ROOTFS
 
-create a plugin from the given PATH-TO-ROOTFS, which contains the plugin's root filesystem and the manifest file, manifest.json
+create a plugin from the given PATH-TO-ROOTFS, which contains the plugin's root filesystem and the config file, config.json
 
 Options:
       --compress   Compress the context using gzip 
@@ -25,7 +25,7 @@ Options:
 ```
 
 Creates a plugin. Before creating the plugin, prepare the plugin's root filesystem as well as
-the manifest.json (https://github.com/docker/docker/blob/master/docs/extend/manifest.md)
+the config.json (https://github.com/docker/docker/blob/master/docs/extend/config.md)
 
 
 The following example shows how to create a sample `plugin`.
@@ -34,7 +34,7 @@ The following example shows how to create a sample `plugin`.
 
 $ ls -ls /home/pluginDir
 
-4 -rw-r--r--  1 root root 431 Nov  7 01:40 manifest.json
+4 -rw-r--r--  1 root root 431 Nov  7 01:40 config.json
 0 drwxr-xr-x 19 root root 420 Nov  7 01:40 rootfs
 
 $ docker plugin create plugin /home/pluginDir

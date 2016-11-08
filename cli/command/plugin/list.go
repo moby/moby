@@ -47,7 +47,7 @@ func runList(dockerCli *command.DockerCli, opts listOptions) error {
 	fmt.Fprintf(w, "\n")
 
 	for _, p := range plugins {
-		desc := strings.Replace(p.Manifest.Description, "\n", " ", -1)
+		desc := strings.Replace(p.Config.Description, "\n", " ", -1)
 		desc = strings.Replace(desc, "\r", " ", -1)
 		if !opts.noTrunc {
 			desc = stringutils.Ellipsis(desc, 45)

@@ -20,7 +20,7 @@ import (
 	"golang.org/x/net/context"
 )
 
-// PullData is the plugin manifest and the rootfs
+// PullData is the plugin config and the rootfs
 type PullData interface {
 	Config() ([]byte, error)
 	Layer() (io.ReadCloser, error)
@@ -183,7 +183,7 @@ func WritePullData(pd PullData, dest string, extract bool) error {
 	}
 
 	if extract {
-		if err := ioutil.WriteFile(filepath.Join(dest, "manifest.json"), config, 0600); err != nil {
+		if err := ioutil.WriteFile(filepath.Join(dest, "config.json"), config, 0600); err != nil {
 			return err
 		}
 

@@ -1213,7 +1213,7 @@ definitions:
   Plugin:
     description: "A plugin for the Remote API"
     type: "object"
-    required: [Config, Enabled, Manifest, Name, Tag]
+    required: [Settings, Enabled, Config, Name, Tag]
     properties:
       Id:
         type: "string"
@@ -1227,7 +1227,7 @@ definitions:
         description: "True when the plugin is running. False when the plugin is not running, only installed."
         type: "boolean"
         x-nullable: false
-      Config:
+      Settings:
         description: "Settings that can be modified by users."
         type: "object"
         x-nullable: false
@@ -1249,12 +1249,11 @@ definitions:
             type: "array"
             items:
               $ref: "#/definitions/PluginDevice"
-      Manifest:
-        description: "The manifest of a plugin."
+      Config:
+        description: "The config of a plugin."
         type: "object"
         x-nullable: false
         required:
-          - ManifestVersion
           - Description
           - Documentation
           - Interface
@@ -1267,9 +1266,6 @@ definitions:
           - Env
           - Args
         properties:
-          ManifestVersion:
-            type: "string"
-            x-nullable: false
           Description:
             type: "string"
             x-nullable: false
