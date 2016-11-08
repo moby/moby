@@ -1,7 +1,6 @@
 package fifo
 
 import (
-	"context"
 	"io"
 	"os"
 	"runtime"
@@ -9,6 +8,7 @@ import (
 	"syscall"
 
 	"github.com/pkg/errors"
+	"golang.org/x/net/context"
 )
 
 type fifo struct {
@@ -38,7 +38,7 @@ var leakCheckWg *sync.WaitGroup
 func OpenFifo(ctx context.Context, fn string, flag int, perm os.FileMode) (io.ReadWriteCloser, error) {
 	if _, err := os.Stat(fn); err != nil {
 		if os.IsNotExist(err) && flag&syscall.O_CREAT != 0 {
-			if err := syscall.Mkfifo(fn, uint32(perm&os.ModePerm)); err != nil && !os.IsExist(err) {
+			if err := mkfifo(fn, uint32(perm&os.ModePerm)); err != nil && !os.IsExist(err) {
 				return nil, errors.Wrapf(err, "error creating fifo %v", fn)
 			}
 		} else {
@@ -96,7 +96,7 @@ func OpenFifo(ctx context.Context, fn string, flag int, perm os.FileMode) (io.Re
 				case <-ctx.Done():
 					err = ctx.Err()
 				default:
-					err = errors.Errorf("fifo %v was closed before opening", fn)
+					err = errors.Errorf("fifo %v was closed before opening", h.Name())
 				}
 				if file != nil {
 					file.Close()
@@ -162,17 +162,18 @@ func (f *fifo) Write(b []byte) (int, error) {
 
 // Close the fifo. Next reads/writes will error. This method can also be used
 // before open(2) has returned and fifo was never opened.
-func (f *fifo) Close() error {
+func (f *fifo) Close() (retErr error) {
 	for {
 		select {
 		case <-f.closed:
 			f.handle.Close()
-			return f.err
+			return
 		default:
 			select {
 			case <-f.opened:
 				f.closedOnce.Do(func() {
-					f.err = f.file.Close()
+					retErr = f.file.Close()
+					f.err = retErr
 					close(f.closed)
 				})
 			default:
