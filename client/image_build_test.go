@@ -222,7 +222,7 @@ func TestGetDockerOS(t *testing.T) {
 		"Foo/v1.22 (bar)":        "",
 	}
 	for header, os := range cases {
-		g := GetDockerOS(header)
+		g := getDockerOS(header)
 		if g != os {
 			t.Fatalf("Expected %s, got %s", os, g)
 		}

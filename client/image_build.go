@@ -6,7 +6,6 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"regexp"
 	"strconv"
 
 	"golang.org/x/net/context"
@@ -14,8 +13,6 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 )
-
-var headerRegexp = regexp.MustCompile(`\ADocker/.+\s\((.+)\)\z`)
 
 // ImageBuild sends request to the daemon to build images.
 // The Body in the response implement an io.ReadCloser and it's up to the caller to
@@ -39,7 +36,7 @@ func (cli *Client) ImageBuild(ctx context.Context, buildContext io.Reader, optio
 		return types.ImageBuildResponse{}, err
 	}
 
-	osType := GetDockerOS(serverResp.header.Get("Server"))
+	osType := getDockerOS(serverResp.header.Get("Server"))
 
 	return types.ImageBuildResponse{
 		Body:   serverResp.body,
@@ -123,14 +120,4 @@ func (cli *Client) imageBuildOptionsToQuery(options types.ImageBuildOptions) (ur
 	query.Set("cachefrom", string(cacheFromJSON))
 
 	return query, nil
-}
-
-// GetDockerOS returns the operating system based on the server header from the daemon.
-func GetDockerOS(serverHeader string) string {
-	var osType string
-	matches := headerRegexp.FindStringSubmatch(serverHeader)
-	if len(matches) > 0 {
-		osType = matches[1]
-	}
-	return osType
 }
