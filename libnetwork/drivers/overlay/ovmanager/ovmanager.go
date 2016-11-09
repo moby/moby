@@ -57,7 +57,7 @@ func Init(dc driverapi.DriverCallback, config map[string]interface{}) error {
 		config:   config,
 	}
 
-	d.vxlanIdm, err = idm.New(nil, "vxlan-id", vxlanIDStart, vxlanIDEnd)
+	d.vxlanIdm, err = idm.New(nil, "vxlan-id", 1, vxlanIDEnd)
 	if err != nil {
 		return fmt.Errorf("failed to initialize vxlan id manager: %v", err)
 	}
@@ -164,7 +164,7 @@ func (n *network) obtainVxlanID(s *subnet) error {
 	n.Unlock()
 
 	if vni == 0 {
-		vni, err = n.driver.vxlanIdm.GetID()
+		vni, err = n.driver.vxlanIdm.GetIDInRange(vxlanIDStart, vxlanIDEnd)
 		if err != nil {
 			return err
 		}
