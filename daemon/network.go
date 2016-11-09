@@ -17,6 +17,10 @@ import (
 	networktypes "github.com/docker/libnetwork/types"
 	"github.com/pkg/errors"
 	"golang.org/x/net/context"
+
+	"github.com/docker/go-connections/nat"
+	bw "github.com/docker/libnetwork/drivers/network_bandwidth"
+	"os"
 )
 
 // NetworkControllerEnabled checks if the networking stack is enabled.
@@ -426,4 +430,145 @@ func (daemon *Daemon) deleteNetwork(networkID string, dynamic bool) error {
 // GetNetworks returns a list of all networks
 func (daemon *Daemon) GetNetworks() []libnetwork.Network {
 	return daemon.getAllNetworks()
+}
+
+// ManageNetworkBandwidth can set and remote bandwidth rule for a container
+func (daemon *Daemon) ManageNetworkBandwidth(create types.BandwidthCreateRequest) (*types.BandwidthCreateResponse, error) {
+
+	logrus.Printf("In ManageNetworkBandwidth : ", create)
+	if create.Remove == true {
+		r1 := &bw.Rules{}
+		logrus.Printf(" trying to remove container Bandiwdth rule for:%s", create.Container)
+
+		// remove the bandwidth
+		err := r1.RemoveBandwidth(create.Container, create.InterfaceName)
+		if err != nil {
+			return &types.BandwidthCreateResponse{
+				ID:      create.Container,
+				Warning: "Error while removing Bandwidth rule",
+			}, err
+		}
+		return &types.BandwidthCreateResponse{
+			ID:      create.Container,
+			Warning: "Successfully removed Bandwidth rule",
+		}, err
+
+	}
+	resp, err := daemon.setBandwidth(create, false)
+	if err != nil {
+		return resp, err
+	}
+	return resp, err
+}
+
+func (daemon *Daemon) setBandwidth(create types.BandwidthCreateRequest, agent bool) (*types.BandwidthCreateResponse, error) {
+
+	driver := create.Driver
+	if driver == "" {
+		return &types.BandwidthCreateResponse{
+			ID:      create.Container,
+			Warning: "Failed to setBandwidth due to invalid driver",
+		}, nil
+	}
+
+	logrus.Printf("Enter create bandwidth in daemon network.go :create,  agent \n ", create, agent)
+	//shiva newBandwidth
+
+	//TODO: take container lock to protect from stop or delete ???
+	container, err := daemon.GetContainer(create.Container)
+	if err != nil {
+		//TODO update error
+		logrus.Printf("Failed to find the container while in setBandwidth")
+		return &types.BandwidthCreateResponse{
+			ID:      create.Container,
+			Warning: "Failed to setBandwidth to an invalid container",
+		}, nil
+	}
+
+	CgroupParent := container.HostConfig.CgroupParent
+	logrus.Println("CgroupParent path in setBandwidth:", CgroupParent)
+	if CgroupParent == "" {
+
+		//CgroupParent = daemon.configStore.CgroupParent
+		logrus.Println("CgroupParent path from daemon.configstore.CgroupParent:", CgroupParent)
+
+	}
+	if CgroupParent == "" {
+		CgroupParent = "/sys/fs/cgroup"
+	}
+	net_cls_path := CgroupParent + "/" + "net_cls" + "/" + "docker" + "/" + container.ID
+
+	_, err = os.Stat(net_cls_path)
+	if err != nil {
+		logrus.Printf("Container net_cls cgroup path not found")
+		err = fmt.Errorf(" Container net_cls cgroup path not found")
+		return &types.BandwidthCreateResponse{
+			ID:      create.Container,
+			Warning: "Failed to setBandwidth due to net_cls cgroup path not found",
+		}, err
+	}
+
+	var (
+		bindings = make(nat.PortMap)
+	)
+	if container.HostConfig.PortBindings != nil {
+		for p, b := range container.HostConfig.PortBindings {
+			bindings[p] = []nat.PortBinding{}
+			for _, bb := range b {
+				bindings[p] = append(bindings[p], nat.PortBinding{
+					HostIP:   bb.HostIP,
+					HostPort: bb.HostPort,
+				})
+			}
+		}
+	}
+	portSpecs := container.Config.ExposedPorts
+	ports := make([]nat.Port, len(portSpecs))
+	var i int
+	for p := range portSpecs {
+		ports[i] = p
+		i++
+	}
+	var FirstHostPort string
+	nat.SortPortMap(ports, bindings)
+	for _, port := range ports {
+		binding := bindings[port]
+		for i := 0; i < len(binding); i++ {
+			FirstHostPort = binding[i].HostPort
+			//break
+		}
+	}
+	logrus.Printf("FirstHostPort :%s\n", FirstHostPort)
+
+	//logrus.Printf("container nw sandboxid %s\n",container.NetworkSettings.SandboxID)
+	// logrus.Printf("container nw host port%s\n",container.NetworkSettings.Ports.Hostport)
+	//logrus.Printf("container .nw settings: %s\n",container.NetworkSettings.Networks.bridge.IPaddress)
+
+	if !container.IsRunning() {
+		err = fmt.Errorf("Container %s is already stopped", create.Container)
+	}
+
+	if err == nil {
+		//shiva hack, calling new bandwidth driver function
+		//  request docker team to extend DriverApi
+		r1 := &bw.Rules{}
+		logrus.Printf(" in setBandiwdth after r1 set:", r1)
+
+		// Create the bandwidth
+		err = r1.CreateBandwidth(create, net_cls_path, FirstHostPort)
+	}
+	if err != nil {
+		logrus.Printf("failed to set bandwidth \n")
+		return &types.BandwidthCreateResponse{
+			ID:      create.Container,
+			Warning: " Failed to set container bandwidth ",
+		}, err
+	} else {
+		return &types.BandwidthCreateResponse{
+			ID:      create.Container,
+			Warning: "Successful in setting container bandwidth ",
+		}, err
+
+	}
+
 }

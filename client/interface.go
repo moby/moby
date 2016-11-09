@@ -93,6 +93,7 @@ type NetworkAPIClient interface {
 	NetworkList(ctx context.Context, options types.NetworkListOptions) ([]types.NetworkResource, error)
 	NetworkRemove(ctx context.Context, networkID string) error
 	NetworksPrune(ctx context.Context, cfg types.NetworksPruneConfig) (types.NetworksPruneReport, error)
+	BandwidthCreateRequest(ctx context.Context, name string, options types.BandwidthCreateRequest) (types.BandwidthCreateResponse, error)
 }
 
 // NodeAPIClient defines API client methods for the nodes
