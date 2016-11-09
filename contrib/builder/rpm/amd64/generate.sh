@@ -81,7 +81,6 @@ for version in "${versions[@]}"; do
 			;;
 	esac
 
-	# this list is sorted alphabetically; please keep it that way
 	packages=(
 		btrfs-progs-devel # for "btrfs/ioctl.h" (and "version.h" if possible)
 		device-mapper-devel # for "libdevmapper.h"
@@ -96,6 +95,8 @@ for version in "${versions[@]}"; do
 		systemd-devel # for "sd-journal.h" and libraries
 		tar # older versions of dev-tools do not have tar
 		git # required for containerd and runc clone
+		cmake # tini build
+		vim-common # tini build
 	)
 
 	case "$from" in

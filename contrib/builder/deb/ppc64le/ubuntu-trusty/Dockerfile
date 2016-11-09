@@ -4,7 +4,7 @@
 
 FROM ppc64le/ubuntu:trusty
 
-RUN apt-get update && apt-get install -y apparmor bash-completion btrfs-tools build-essential curl ca-certificates debhelper dh-apparmor dh-systemd git libapparmor-dev libdevmapper-dev libltdl-dev libsqlite3-dev pkg-config golang-1.6 libsystemd-journal-dev --no-install-recommends && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y apparmor bash-completion btrfs-tools build-essential cmake curl ca-certificates debhelper dh-apparmor dh-systemd git libapparmor-dev libdevmapper-dev libltdl-dev libsqlite3-dev pkg-config vim-common golang-1.6 libsystemd-journal-dev --no-install-recommends && rm -rf /var/lib/apt/lists/*
 
 # Install Go
 # ppc64le doesn't have official go binaries, so use a distro packaged version of go

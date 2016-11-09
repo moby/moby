@@ -66,6 +66,7 @@ for version in "${versions[@]}"; do
 		bash-completion # for bash-completion debhelper integration
 		btrfs-tools # for "btrfs/ioctl.h" (and "version.h" if possible)
 		build-essential # "essential for building Debian packages"
+		cmake # tini dep
 		curl ca-certificates # for downloading Go
 		debhelper # for easy ".deb" building
 		dh-apparmor # for apparmor debhelper
@@ -77,6 +78,7 @@ for version in "${versions[@]}"; do
 		libseccomp-dev  # for "seccomp.h" & "libseccomp.so"
 		libsqlite3-dev # for "sqlite3.h"
 		pkg-config # for detecting things like libsystemd-journal dynamically
+		vim-common # tini dep
 	)
 	# packaging for "sd-journal.h" and libraries varies
 	case "$suite" in
