@@ -1248,7 +1248,7 @@ _docker_container_run() {
 		--device-write-bps
 		--device-write-iops
 		--dns
-		--dns-opt
+		--dns-option
 		--dns-search
 		--entrypoint
 		--env -e

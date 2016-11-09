@@ -24,7 +24,7 @@ Options:
       --constraint list                  Placement constraints (default [])
       --container-label list             Container labels (default [])
       --dns list                         Set custom DNS servers (default [])
-      --dns-options list                 Set DNS options (default [])
+      --dns-option list                  Set DNS options (default [])
       --dns-search list                  Set custom DNS search domains (default [])
       --endpoint-mode string             Endpoint mode (vip or dnsrr)
   -e, --env list                         Set environment variables (default [])

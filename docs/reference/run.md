@@ -388,7 +388,7 @@ network mode a container has its own UTS namespace by default. As such
 `--hostname` is allowed in `host` network mode and will only change the
 hostname inside the container.
 Similar to `--hostname`, the `--add-host`, `--dns`, `--dns-search`, and
-`--dns-opt` options can be used in `host` network mode. These options update
+`--dns-option` options can be used in `host` network mode. These options update
 `/etc/hosts` or `/etc/resolv.conf` inside the container. No change are made to
 `/etc/hosts` and `/etc/resolv.conf` on the host.
 
@@ -407,7 +407,7 @@ or a High Performance Web Server.
 With the network set to `container` a container will share the
 network stack of another container.  The other container's name must be
 provided in the format of `--network container:<name|id>`. Note that `--add-host`
-`--hostname` `--dns` `--dns-search` `--dns-opt` and `--mac-address` are
+`--hostname` `--dns` `--dns-search` `--dns-option` and `--mac-address` are
 invalid in `container` netmode, and `--publish` `--publish-all` `--expose` are
 also invalid in `container` netmode.
 

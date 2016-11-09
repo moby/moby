@@ -318,7 +318,7 @@ type serviceOptions struct {
 	mounts          opts.MountOpt
 	dns             opts.ListOpts
 	dnsSearch       opts.ListOpts
-	dnsOptions      opts.ListOpts
+	dnsOption       opts.ListOpts
 
 	resources resourceOptions
 	stopGrace DurationOpt
@@ -349,12 +349,12 @@ func newServiceOptions() *serviceOptions {
 		endpoint: endpointOptions{
 			ports: opts.NewListOpts(ValidatePort),
 		},
-		groups:     opts.NewListOpts(nil),
-		logDriver:  newLogDriverOptions(),
-		dns:        opts.NewListOpts(opts.ValidateIPAddress),
-		dnsOptions: opts.NewListOpts(nil),
-		dnsSearch:  opts.NewListOpts(opts.ValidateDNSSearch),
-		networks:   opts.NewListOpts(nil),
+		groups:    opts.NewListOpts(nil),
+		logDriver: newLogDriverOptions(),
+		dns:       opts.NewListOpts(opts.ValidateIPAddress),
+		dnsOption: opts.NewListOpts(nil),
+		dnsSearch: opts.NewListOpts(opts.ValidateDNSSearch),
+		networks:  opts.NewListOpts(nil),
 	}
 }
 
@@ -400,7 +400,7 @@ func (opts *serviceOptions) ToService() (swarm.ServiceSpec, error) {
 				DNSConfig: &swarm.DNSConfig{
 					Nameservers: opts.dns.GetAll(),
 					Search:      opts.dnsSearch.GetAll(),
-					Options:     opts.dnsOptions.GetAll(),
+					Options:     opts.dnsOption.GetAll(),
 				},
 				StopGracePeriod: opts.stopGrace.Value(),
 			},
@@ -500,9 +500,9 @@ const (
 	flagDNS                   = "dns"
 	flagDNSRemove             = "dns-rm"
 	flagDNSAdd                = "dns-add"
-	flagDNSOptions            = "dns-options"
-	flagDNSOptionsRemove      = "dns-options-rm"
-	flagDNSOptionsAdd         = "dns-options-add"
+	flagDNSOption             = "dns-option"
+	flagDNSOptionRemove       = "dns-option-rm"
+	flagDNSOptionAdd          = "dns-option-add"
 	flagDNSSearch             = "dns-search"
 	flagDNSSearchRemove       = "dns-search-rm"
 	flagDNSSearchAdd          = "dns-search-add"

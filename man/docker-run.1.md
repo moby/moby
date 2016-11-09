@@ -32,7 +32,7 @@ docker-run - Run a command in a new container
 [**--device-write-bps**[=*[]*]]
 [**--device-write-iops**[=*[]*]]
 [**--dns**[=*[]*]]
-[**--dns-opt**[=*[]*]]
+[**--dns-option**[=*[]*]]
 [**--dns-search**[=*[]*]]
 [**-e**|**--env**[=*[]*]]
 [**--entrypoint**[=*ENTRYPOINT*]]
@@ -260,7 +260,7 @@ See **config-json(5)** for documentation on using a configuration file.
 **--dns-search**=[]
    Set custom DNS search domains (Use --dns-search=. if you don't wish to set the search domain)
 
-**--dns-opt**=[]
+**--dns-option**=[]
    Set custom DNS options
 
 **--dns**=[]
