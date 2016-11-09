@@ -1,6 +1,7 @@
 package cluster
 
 import (
+	"crypto/x509"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -61,6 +62,9 @@ var ErrSwarmJoinTimeoutReached = fmt.Errorf("Timeout was reached before node was
 
 // ErrSwarmLocked is returned if the swarm is encrypted and needs a key to unlock it.
 var ErrSwarmLocked = fmt.Errorf("Swarm is encrypted and needs to be unlocked before it can be used. Please use \"docker swarm unlock\" to unlock it.")
+
+// ErrSwarmCertificatesExipred is returned if docker was not started for the whole validity period and they had no chance to renew automatically.
+var ErrSwarmCertificatesExpired = errors.New("Swarm certificates have expired. To replace them, leave the swarm and join again.")
 
 // NetworkSubnetsProvider exposes functions for retrieving the subnets
 // of networks managed by Docker, so they can be filtered.
@@ -186,7 +190,10 @@ func New(config Config) (*Cluster, error) {
 		if errors.Cause(c.err) == ErrSwarmLocked {
 			return c, nil
 		}
-
+		if err, ok := errors.Cause(c.err).(x509.CertificateInvalidError); ok && err.Reason == x509.Expired {
+			c.err = ErrSwarmCertificatesExpired
+			return c, nil
+		}
 		return nil, fmt.Errorf("swarm component could not be started: %v", c.err)
 	}
 	go c.reconnectOnFailure(n)
@@ -387,7 +394,7 @@ func (c *Cluster) startNewNode(conf nodeStartConfig) (*node, error) {
 // Init initializes new cluster from user provided request.
 func (c *Cluster) Init(req types.InitRequest) (string, error) {
 	c.Lock()
-	if node := c.node; node != nil || c.locked {
+	if c.swarmExists() {
 		if !req.ForceNewCluster {
 			c.Unlock()
 			return "", ErrSwarmExists
@@ -480,7 +487,7 @@ func (c *Cluster) Init(req types.InitRequest) (string, error) {
 // Join makes current Cluster part of an existing swarm cluster.
 func (c *Cluster) Join(req types.JoinRequest) error {
 	c.Lock()
-	if node := c.node; node != nil || c.locked {
+	if c.swarmExists() {
 		c.Unlock()
 		return ErrSwarmExists
 	}
@@ -641,6 +648,9 @@ func (c *Cluster) Leave(force bool) error {
 		if c.locked {
 			c.locked = false
 			c.lastNodeConfig = nil
+			c.Unlock()
+		} else if c.err == ErrSwarmCertificatesExpired {
+			c.err = nil
 			c.Unlock()
 		} else {
 			c.Unlock()
@@ -878,6 +888,8 @@ func (c *Cluster) Info() types.Info {
 		}
 		if c.locked {
 			info.LocalNodeState = types.LocalNodeStateLocked
+		} else if c.err == ErrSwarmCertificatesExpired {
+			info.LocalNodeState = types.LocalNodeStateError
 		}
 	} else {
 		info.LocalNodeState = types.LocalNodeStatePending
@@ -929,12 +941,20 @@ func (c *Cluster) isActiveManager() bool {
 	return c.node != nil && c.conn != nil
 }
 
+// swarmExists should not be called without a read lock
+func (c *Cluster) swarmExists() bool {
+	return c.node != nil || c.locked || c.err == ErrSwarmCertificatesExpired
+}
+
 // errNoManager returns error describing why manager commands can't be used.
 // Call with read lock.
 func (c *Cluster) errNoManager() error {
 	if c.node == nil {
 		if c.locked {
 			return ErrSwarmLocked
+		}
+		if c.err == ErrSwarmCertificatesExpired {
+			return ErrSwarmCertificatesExpired
 		}
 		return fmt.Errorf("This node is not a swarm manager. Use \"docker swarm init\" or \"docker swarm join\" to connect this node to swarm and try again.")
 	}
