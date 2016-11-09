@@ -22,7 +22,6 @@ type BootConfig struct {
         DefaultMaxCpus   int
         DefaultMaxMem    int
 	Memory           int
-        DiskPath         string
         OriginalDiskPath string
 }
 
@@ -96,6 +95,13 @@ type ostype struct {
 type domainos struct {
 	Supported string    `xml:"supported,attr"`
 	Type      ostype    `xml:"type"`
+}
+
+type feature struct {
+        Acpi acpi           `xml:"acpi"`
+}
+
+type acpi struct {
 }
 
 type fspath struct {
@@ -175,33 +181,26 @@ type seclab struct {
 }
 
 type domain struct {
-	XMLName    xml.Name `xml:"domain"`
-	Type       string   `xml:"type,attr"`
-	Name       string   `xml:"name"`
-	Memory     memory   `xml:"memory"`
-	MaxMem     *maxmem  `xml:"maxMemory,omitempty"`
-	VCpu       vcpu     `xml:"vcpu"`
-	OS         domainos `xml:"os"`
-	CPU        cpu      `xml:"cpu"`
-	OnPowerOff string   `xml:"on_poweroff"`
-	OnReboot   string   `xml:"on_reboot"`
-	OnCrash    string   `xml:"on_crash"`
-	Devices    device   `xml:"devices"`
-	SecLabel   seclab   `xml:"seclabel"`
+	XMLName    xml.Name   `xml:"domain"`
+	Type       string     `xml:"type,attr"`
+	Name       string     `xml:"name"`
+	Memory     memory     `xml:"memory"`
+	MaxMem     *maxmem    `xml:"maxMemory,omitempty"`
+	VCpu       vcpu       `xml:"vcpu"`
+	OS         domainos   `xml:"os"`
+        Features   []feature `xml:"features"`
+	CPU        cpu        `xml:"cpu"`
+	OnPowerOff string     `xml:"on_poweroff"`
+	OnReboot   string     `xml:"on_reboot"`
+	OnCrash    string     `xml:"on_crash"`
+	Devices    device     `xml:"devices"`
+	SecLabel   seclab     `xml:"seclabel"`
 }
 
-func (lc *LibvirtContext) createSeedImage() (string, error) {
+func (lc *LibvirtContext) createSeedImage(seedDirectory string) (string, error) {
         cloudLocaladsPath, err := exec.LookPath("cloud-localds")
 	if err != nil {
 		return "", fmt.Errorf("cloud-localads is not installed on your PATH. Please, install it to run isolated container")
-	}
-
-        // Create directory for seed.img
-        seedDirectory := fmt.Sprintf("/var/run/docker-qemu/%s", lc.container.ID)
-
-        err = os.MkdirAll(seedDirectory, 0777)
-	if err != nil {
-		return "", fmt.Errorf("Could not create directory /var/run/docker-qemu/%s", lc.container.ID)
 	}
 
         // Create user-data to be included in seed.img
@@ -212,9 +211,9 @@ ssh_pwauth: True
 runcmd:
  - mount -t 9p -o trans=virtio share_dir /mnt
  - chroot /mnt %s > /dev/hvc1
+ - init 0
  
 `
-
         path := lc.container.Path
 
         args := strings.TrimPrefix(fmt.Sprint(lc.container.Args), "[")
@@ -254,23 +253,67 @@ runcmd:
         return seedDirectory+"/seed.img", nil
 }
 
+func (lc *LibvirtContext) createDeltaDiskImage(deltaDiskDirectory, diskPath string) (string, error) {
+        deltaImagePath, err := exec.LookPath("qemu-img")
+	if err != nil {
+		return "", fmt.Errorf("qemu-img is not installed on your PATH. Please, install it to run isolated container")
+	}
+
+        currentDir, err := os.Getwd()
+        if err != nil {
+                return "", fmt.Errorf("Could not determine the current directory")
+        }
+
+        err = os.Chdir(deltaDiskDirectory)
+        if err != nil {
+                return "", fmt.Errorf("Could not changed to directory %s", deltaDiskDirectory)
+        }
+
+        err = exec.Command(deltaImagePath, "create", "-f", "qcow2", "-b", diskPath, "disk.img").Run()
+        if err != nil {
+                return "", fmt.Errorf("Could not execute qemu-img")
+        }
+
+        err = os.Chdir(currentDir)
+        if err != nil {
+                return "", fmt.Errorf("Could not changed to directory %s", currentDir)
+        }
+
+        return deltaDiskDirectory+"/disk.img", nil
+}
+
 func (lc *LibvirtContext) domainXml() (string, error) {
-        seedImageLocation, err := lc.createSeedImage()
+	boot := &BootConfig{
+	         CPU:              1,
+                 DefaultMaxCpus:   2,
+                 DefaultMaxMem:    128,
+		 Memory:           128,
+                 OriginalDiskPath: "/home/abhishek/Documents/Works/cloudInit/disk.img.orig",
+		}
+
+        // Create directory for seed image and delta disk image
+        directory := fmt.Sprintf("/var/run/docker-qemu/%s", lc.container.ID)
+
+        err := os.MkdirAll(directory, 0700)
+	if err != nil {
+		return "", fmt.Errorf("Could not create directory /var/run/docker-qemu/%s", lc.container.ID)
+	}
+
+        seedImageLocation, err := lc.createSeedImage(directory)
         if err != nil {
                 return "", fmt.Errorf("Could not create seed image")
         }
 
         logrus.Infof("Seed image location: %s", seedImageLocation)
 
-	boot := &BootConfig{
-	         CPU:              1,
-                 DefaultMaxCpus:   2,
-                 DefaultMaxMem:    128,
-		 Memory:           128,
-                 DiskPath:         "/home/abhishek/Documents/Works/cloudInit/disk.img",
-                 OriginalDiskPath: "/home/abhishek/Documents/Works/cloudInit/disk.img.orig",
-		}
+        deltaDiskImageLocation, err := lc.createDeltaDiskImage(directory, boot.OriginalDiskPath)
+        if err != nil {
+                return "", fmt.Errorf("Could not create delta disk image")
+        }
 
+        logrus.Infof("Delta disk image location: %s", deltaDiskImageLocation)
+
+        // Domain XML Formation
 	dom := &domain{
 		Type: "kvm",
 		Name: lc.container.ID[0:12],
@@ -287,6 +330,11 @@ func (lc *LibvirtContext) domainXml() (string, error) {
 	dom.OS.Type.Arch = "x86_64"
 	dom.OS.Type.Machine = "pc-i440fx-2.0"
 	dom.OS.Type.Content = "hvm"
+
+        acpiFeature := feature{
+                    Acpi: acpi{},
+                    }
+	dom.Features = append(dom.Features, acpiFeature)
 
 	dom.SecLabel.Type = "none"
 
@@ -310,7 +358,7 @@ func (lc *LibvirtContext) domainXml() (string, error) {
 			Type: "qcow2",
 		},
 		Source: disksource{
-			File: boot.DiskPath,
+			File: deltaDiskImageLocation,
 		},
 		BackingStore: &backingstore{
 			      Type: "file",

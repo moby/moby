@@ -128,7 +128,6 @@ func runRun(dockerCli *command.DockerCli, flags *pflag.FlagSet, opts *runOptions
 				if ok {
 						fmt.Fprintln(stdout, line)
 				} else {
-						fmt.Fprintln(stdout, "console output end")
 						break
 				}
 		}
