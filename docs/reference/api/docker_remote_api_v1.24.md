@@ -3952,9 +3952,10 @@ List nodes
 - **filters** – a JSON encoded value of the filters (a `map[string][]string`) to process on the
   nodes list. Available filters:
   - `id=<node id>`
+  - `label=<engine label>`
+  - `membership=`(`accepted`|`pending`)`
   - `name=<node name>`
-  - `membership=`(`pending`|`accepted`|`rejected`)`
-  - `role=`(`worker`|`manager`)`
+  - `role=`(`manager`|`worker`)`
 
 **Status codes**:
 
@@ -4501,8 +4502,9 @@ List services
 
 - **filters** – a JSON encoded value of the filters (a `map[string][]string`) to process on the
   services list. Available filters:
-  - `id=<node id>`
-  - `name=<node name>`
+  - `id=<service id>`
+  - `label=<service label>`
+  - `name=<service name>`
 
 **Status codes**:
 
