@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/api/types/registry"
@@ -128,7 +129,7 @@ type ContainerProcessList struct {
 	Titles    []string
 }
 
-// Info contains response of Remote API:
+// Ping contains response of Remote API:
 // GET "/_ping"
 type Ping struct {
 	APIVersion   string
@@ -508,4 +509,16 @@ type ImagesPruneReport struct {
 // POST "/networks/prune"
 type NetworksPruneReport struct {
 	NetworksDeleted []string
+}
+
+// SecretCreateResponse contains the information returned to a client
+// on the creation of a new secret.
+type SecretCreateResponse struct {
+	// ID is the id of the created secret.
+	ID string
+}
+
+// SecretListOptions holds parameters to list secrets
+type SecretListOptions struct {
+	Filters filters.Args
 }

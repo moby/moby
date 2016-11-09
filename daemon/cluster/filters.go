@@ -96,3 +96,21 @@ func newListTasksFilters(filter filters.Args, transformFunc func(filters.Args) e
 
 	return f, nil
 }
+
+func newListSecretsFilters(filter filters.Args) (*swarmapi.ListSecretsRequest_Filters, error) {
+	accepted := map[string]bool{
+		"names": true,
+		"name":  true,
+		"id":    true,
+		"label": true,
+	}
+	if err := filter.Validate(accepted); err != nil {
+		return nil, err
+	}
+	return &swarmapi.ListSecretsRequest_Filters{
+		Names:        filter.Get("names"),
+		NamePrefixes: filter.Get("name"),
+		IDPrefixes:   filter.Get("id"),
+		Labels:       runconfigopts.ConvertKVStringsToMap(filter.Get("label")),
+	}, nil
+}

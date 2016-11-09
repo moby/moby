@@ -212,6 +212,10 @@ func (daemon *Daemon) Cleanup(container *container.Container) {
 		}
 	}
 
+	if err := container.UnmountSecrets(); err != nil {
+		logrus.Warnf("%s cleanup: failed to unmount secrets: %s", container.ID, err)
+	}
+
 	for _, eConfig := range container.ExecCommands.Commands() {
 		daemon.unregisterExecCommand(container, eConfig)
 	}

@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/api/errors"
 	"github.com/docker/docker/api/server/httputils"
 	basictypes "github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
@@ -260,4 +261,74 @@ func (sr *swarmRouter) getTask(ctx context.Context, w http.ResponseWriter, r *ht
 	}
 
 	return httputils.WriteJSON(w, http.StatusOK, task)
+}
+
+func (sr *swarmRouter) getSecrets(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if err := httputils.ParseForm(r); err != nil {
+		return err
+	}
+	filters, err := filters.FromParam(r.Form.Get("filters"))
+	if err != nil {
+		return err
+	}
+
+	secrets, err := sr.backend.GetSecrets(basictypes.SecretListOptions{Filters: filters})
+	if err != nil {
+		return err
+	}
+
+	return httputils.WriteJSON(w, http.StatusOK, secrets)
+}
+
+func (sr *swarmRouter) createSecret(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	var secret types.SecretSpec
+	if err := json.NewDecoder(r.Body).Decode(&secret); err != nil {
+		return err
+	}
+
+	id, err := sr.backend.CreateSecret(secret)
+	if err != nil {
+		return err
+	}
+
+	return httputils.WriteJSON(w, http.StatusCreated, &basictypes.SecretCreateResponse{
+		ID: id,
+	})
+}
+
+func (sr *swarmRouter) removeSecret(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if err := sr.backend.RemoveSecret(vars["id"]); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (sr *swarmRouter) getSecret(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	secret, err := sr.backend.GetSecret(vars["id"])
+	if err != nil {
+		return err
+	}
+
+	return httputils.WriteJSON(w, http.StatusOK, secret)
+}
+
+func (sr *swarmRouter) updateSecret(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	var secret types.SecretSpec
+	if err := json.NewDecoder(r.Body).Decode(&secret); err != nil {
+		return errors.NewBadRequestError(err)
+	}
+
+	rawVersion := r.URL.Query().Get("version")
+	version, err := strconv.ParseUint(rawVersion, 10, 64)
+	if err != nil {
+		return errors.NewBadRequestError(fmt.Errorf("invalid secret version"))
+	}
+
+	id := vars["id"]
+	if err := sr.backend.UpdateSecret(id, version, secret); err != nil {
+		return err
+	}
+
+	return nil
 }

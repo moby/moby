@@ -54,6 +54,7 @@ Options:
       --restart-delay duration           Delay between restart attempts (default none)
       --restart-max-attempts uint        Maximum number of restarts before giving up (default none)
       --restart-window duration          Window used to evaluate the restart policy (default none)
+      --secret value                     Specify secrets to expose to the service (default [])
       --stop-grace-period duration       Time to wait before force killing a container (default none)
   -t, --tty                              Allocate a pseudo-TTY
       --update-delay duration            Delay between updates (ns|us|ms|s|m|h) (default 0s)
@@ -118,6 +119,33 @@ $ docker service ls
 ID            NAME   MODE        REPLICAS  IMAGE
 4cdgfyky7ozw  redis  replicated  5/5       redis:3.0.7
 ```
+
+### Create a service with secrets
+Use the `--secret` flag to give a container access to a
+[secret](secret_create.md).
+
+Create a service specifying a secret:
+
+```bash
+$ docker service create --name redis --secret secret.json redis:3.0.6
+4cdgfyky7ozwh3htjfw0d12qv
+```
+
+Create a service specifying the secret, target, user/group ID and mode:
+
+```bash
+$ docker service create --name redis \
+    --secret source=ssh-key,target=ssh \
+    --secret source=app-key,target=app,uid=1000,gid=1001,mode=0400 \
+    redis:3.0.6
+4cdgfyky7ozwh3htjfw0d12qv
+```
+
+Secrets are located in `/run/secrets` in the container.  If no target is
+specified, the name of the secret will be used as the in memory file in the
+container.  If a target is specified, that will be the filename.  In the
+example above, two files will be created: `/run/secrets/ssh` and
+`/run/secrets/app` for each of the secret targets specified.
 
 ### Create a service with a rolling update policy
 

@@ -22,8 +22,11 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-// DefaultSHMSize is the default size (64MB) of the SHM which will be mounted in the container
-const DefaultSHMSize int64 = 67108864
+const (
+	// DefaultSHMSize is the default size (64MB) of the SHM which will be mounted in the container
+	DefaultSHMSize           int64 = 67108864
+	containerSecretMountPath       = "/run/secrets"
+)
 
 // Container holds the fields specific to unixen implementations.
 // See CommonContainer for standard fields common to all containers.
@@ -175,6 +178,11 @@ func (container *Container) NetworkMounts() []Mount {
 	return mounts
 }
 
+// SecretMountPath returns the path of the secret mount for the container
+func (container *Container) SecretMountPath() string {
+	return filepath.Join(container.Root, "secrets")
+}
+
 // CopyImagePathContent copies files in destination to the volume.
 func (container *Container) CopyImagePathContent(v volume.Volume, destination string) error {
 	rootfs, err := symlink.FollowSymlinkInScope(filepath.Join(container.BaseFS, destination), container.BaseFS)
@@ -258,6 +266,31 @@ func (container *Container) IpcMounts() []Mount {
 	}
 
 	return mounts
+}
+
+// SecretMount returns the mount for the secret path
+func (container *Container) SecretMount() *Mount {
+	if len(container.Secrets) > 0 {
+		return &Mount{
+			Source:      container.SecretMountPath(),
+			Destination: containerSecretMountPath,
+			Writable:    false,
+		}
+	}
+
+	return nil
+}
+
+// UnmountSecrets unmounts the local tmpfs for secrets
+func (container *Container) UnmountSecrets() error {
+	if _, err := os.Stat(container.SecretMountPath()); err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return err
+	}
+
+	return detachMounted(container.SecretMountPath())
 }
 
 // UpdateContainer updates configuration of a container.

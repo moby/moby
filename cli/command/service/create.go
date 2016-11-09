@@ -39,6 +39,7 @@ func newCreateCommand(dockerCli *command.DockerCli) *cobra.Command {
 	flags.Var(&opts.mounts, flagMount, "Attach a filesystem mount to the service")
 	flags.Var(&opts.constraints, flagConstraint, "Placement constraints")
 	flags.Var(&opts.networks, flagNetwork, "Network attachments")
+	flags.Var(&opts.secrets, flagSecret, "Specify secrets to expose to the service")
 	flags.VarP(&opts.endpoint.ports, flagPublish, "p", "Publish a port as a node port")
 	flags.Var(&opts.groups, flagGroup, "Set one or more supplementary user groups for the container")
 	flags.Var(&opts.dns, flagDNS, "Set custom DNS servers")
@@ -57,6 +58,13 @@ func runCreate(dockerCli *command.DockerCli, opts *serviceOptions) error {
 	if err != nil {
 		return err
 	}
+
+	// parse and validate secrets
+	secrets, err := parseSecrets(apiClient, opts.secrets.Value())
+	if err != nil {
+		return err
+	}
+	service.TaskTemplate.ContainerSpec.Secrets = secrets
 
 	ctx := context.Background()
 

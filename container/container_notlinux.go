@@ -11,3 +11,13 @@ func detachMounted(path string) error {
 	// Therefore there are separate definitions for this.
 	return unix.Unmount(path, 0)
 }
+
+// SecretMount returns the mount for the secret path
+func (container *Container) SecretMount() *Mount {
+	return nil
+}
+
+// UnmountSecrets unmounts the fs for secrets
+func (container *Container) UnmountSecrets() error {
+	return nil
+}

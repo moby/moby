@@ -10,18 +10,21 @@ import (
 	clustertypes "github.com/docker/docker/daemon/cluster/provider"
 	networktypes "github.com/docker/libnetwork/types"
 	"github.com/docker/swarmkit/agent/exec"
+	"github.com/docker/swarmkit/agent/secrets"
 	"github.com/docker/swarmkit/api"
 	"golang.org/x/net/context"
 )
 
 type executor struct {
 	backend executorpkg.Backend
+	secrets exec.SecretsManager
 }
 
 // NewExecutor returns an executor from the docker client.
 func NewExecutor(b executorpkg.Backend) exec.Executor {
 	return &executor{
 		backend: b,
+		secrets: secrets.NewManager(),
 	}
 }
 
@@ -122,10 +125,10 @@ func (e *executor) Configure(ctx context.Context, node *api.Node) error {
 // Controller returns a docker container runner.
 func (e *executor) Controller(t *api.Task) (exec.Controller, error) {
 	if t.Spec.GetAttachment() != nil {
-		return newNetworkAttacherController(e.backend, t)
+		return newNetworkAttacherController(e.backend, t, e.secrets)
 	}
 
-	ctlr, err := newController(e.backend, t)
+	ctlr, err := newController(e.backend, t, e.secrets)
 	if err != nil {
 		return nil, err
 	}
@@ -148,6 +151,10 @@ func (e *executor) SetNetworkBootstrapKeys(keys []*api.EncryptionKey) error {
 	e.backend.SetNetworkBootstrapKeys(nwKeys)
 
 	return nil
+}
+
+func (e *executor) Secrets() exec.SecretsManager {
+	return e.secrets
 }
 
 type sortedPlugins []api.PluginDescription

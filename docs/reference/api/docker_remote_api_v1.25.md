@@ -240,7 +240,7 @@ List containers
   -   `volume`=(`<volume name>` or `<mount point destination>`)
   -   `network`=(`<network id>` or `<network name>`)
   -   `health`=(`starting`|`healthy`|`unhealthy`|`none`)
- 
+
 **Status codes**:
 
 -   **200** – no error
@@ -5841,6 +5841,134 @@ Get details on a task
 - **200** – no error
 - **404** – unknown task
 - **500** – server error
+
+## 3.11 Secrets
+
+**Note**: Secret operations require the engine to be part of a swarm.
+
+### List secrets
+
+`GET /secrets`
+
+List secrets
+
+**Example request**:
+
+    GET /secrets HTTP/1.1
+
+**Example response**:
+
+    [
+      {
+        "ID": "ktnbjxoalbkvbvedmg1urrz8h",
+        "Version": {
+          "Index": 11
+        },
+        "CreatedAt": "2016-11-05T01:20:17.327670065Z",
+        "UpdatedAt": "2016-11-05T01:20:17.327670065Z",
+        "Spec": {
+          "Name": "app-dev.crt"
+        },
+        "Digest": "sha256:11d7c6f38253b73e608153c9f662a191ae605e1a3d9b756b0b3426388f91d3fa",
+        "SecretSize": 31
+      }
+    ]
+
+
+**Query parameters**:
+
+-   **filters** - a JSON encoded value of the filters (a `map[string][]string`) to process on the secrets list. Available filters:
+  -   `names=<secret name>`
+
+**Status codes**:
+
+-   **200** – no error
+
+### Create a secret
+
+`POST /secrets/create`
+
+Create a secret
+
+**Example request**:
+
+    POST /secrets/create HTTP/1.1
+    Content-Type: application/json
+
+    {
+      "Name": "app-key.crt",
+      "Labels": {
+        "foo": "bar"
+      },
+      "Data": "VEhJUyBJUyBOT1QgQSBSRUFMIENFUlRJRklDQVRFCg=="
+    }
+
+**Example response**:
+
+    HTTP/1.1 201 Created
+    Content-Type: application/json
+
+    {
+      "ID": "ktnbjxoalbkvbvedmg1urrz8h"
+    }
+
+**Status codes**:
+
+- **201** – no error
+- **406** – server error or node is not part of a swarm
+- **409** – name conflicts with an existing object
+
+**JSON Parameters**:
+
+- **Name** – User-defined name for the secret.
+- **Labels** – A map of labels to associate with the secret (e.g., `{"key":"value", "key2":"value2"}`).
+- **Data** – Base64-url-safe-encoded secret data
+
+### Inspect a secret
+
+`GET /secrets/(secret id)`
+
+Get details on a secret
+
+**Example request**:
+
+    GET /secrets/ktnbjxoalbkvbvedmg1urrz8h HTTP/1.1
+
+**Example response**:
+
+    {
+      "ID": "ktnbjxoalbkvbvedmg1urrz8h",
+      "Version": {
+        "Index": 11
+      },
+      "CreatedAt": "2016-11-05T01:20:17.327670065Z",
+      "UpdatedAt": "2016-11-05T01:20:17.327670065Z",
+      "Spec": {
+        "Name": "app-dev.crt"
+      },
+      "Digest": "sha256:11d7c6f38253b73e608153c9f662a191ae605e1a3d9b756b0b3426388f91d3fa",
+      "SecretSize": 31
+    }
+
+**Status codes**:
+
+- **200** – no error
+- **404** – unknown secret
+- **500** – server error
+
+### Remove a secret
+
+`DELETE /secrets/(id)`
+
+Remove the secret `id` from the secret store
+
+**Example request**:
+
+    DELETE /secrets/ktnbjxoalbkvbvedmg1urrz8h HTTP/1.1
+
+**Example response**:
+
+    HTTP/1.1 204 No Content
 
 # 4. Going further
 
