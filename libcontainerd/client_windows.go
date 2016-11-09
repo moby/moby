@@ -14,6 +14,7 @@ import (
 
 	"github.com/Microsoft/hcsshim"
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/pkg/sysinfo"
 	"github.com/opencontainers/runtime-spec/specs-go"
 )
 
@@ -111,7 +112,16 @@ func (clnt *client) Create(containerID string, checkpoint string, checkpointDir 
 	if spec.Windows.Resources != nil {
 		if spec.Windows.Resources.CPU != nil {
 			if spec.Windows.Resources.CPU.Count != nil {
-				configuration.ProcessorCount = uint32(*spec.Windows.Resources.CPU.Count)
+				// This check is being done here rather than in adaptContainerSettings
+				// because we don't want to update the HostConfig in case this container
+				// is moved to a host with more CPUs than this one.
+				cpuCount := *spec.Windows.Resources.CPU.Count
+				hostCPUCount := uint64(sysinfo.NumCPU())
+				if cpuCount > hostCPUCount {
+					logrus.Warnf("Changing requested CPUCount of %d to current number of processors, %d", cpuCount, hostCPUCount)
+					cpuCount = hostCPUCount
+				}
+				configuration.ProcessorCount = uint32(cpuCount)
 			}
 			if spec.Windows.Resources.CPU.Shares != nil {
 				configuration.ProcessorWeight = uint64(*spec.Windows.Resources.CPU.Shares)
