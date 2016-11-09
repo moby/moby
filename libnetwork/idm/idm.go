@@ -54,6 +54,19 @@ func (i *Idm) GetSpecificID(id uint64) error {
 	return i.handle.Set(id - i.start)
 }
 
+// GetIDInRange returns the first available id in the set within a range
+func (i *Idm) GetIDInRange(start, end uint64) (uint64, error) {
+	if i.handle == nil {
+		return 0, fmt.Errorf("ID set is not initialized")
+	}
+
+	if start < i.start || end > i.end {
+		return 0, fmt.Errorf("Requested range does not belong to the set")
+	}
+
+	return i.handle.SetAnyInRange(start, end-start)
+}
+
 // Release releases the specified id
 func (i *Idm) Release(id uint64) {
 	i.handle.Unset(id - i.start)
