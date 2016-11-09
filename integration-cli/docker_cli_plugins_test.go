@@ -27,6 +27,7 @@ func (s *DockerSuite) TestPluginBasicOps(c *check.C) {
 	c.Assert(out, checker.Contains, "true")
 
 	id, _, err := dockerCmdWithError("plugin", "inspect", "-f", "{{.Id}}", pNameWithTag)
+	id = strings.TrimSpace(id)
 	c.Assert(err, checker.IsNil)
 
 	out, _, err = dockerCmdWithError("plugin", "remove", pNameWithTag)
