@@ -184,6 +184,7 @@ func ValidateLogOpt(cfg map[string]string) error {
 	for key := range cfg {
 		switch key {
 		case "env":
+		case "env-regex":
 		case "labels":
 		case "syslog-address":
 		case "syslog-facility":

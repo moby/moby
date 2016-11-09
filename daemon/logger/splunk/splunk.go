@@ -39,6 +39,7 @@ const (
 	splunkGzipCompressionKey      = "splunk-gzip"
 	splunkGzipCompressionLevelKey = "splunk-gzip-level"
 	envKey                        = "env"
+	envRegexKey                   = "env-regex"
 	labelsKey                     = "labels"
 	tagKey                        = "tag"
 )
@@ -235,7 +236,10 @@ func New(info logger.Info) (logger.Logger, error) {
 		}
 	}
 
-	attrs := info.ExtraAttributes(nil)
+	attrs, err := info.ExtraAttributes(nil)
+	if err != nil {
+		return nil, err
+	}
 
 	var (
 		postMessagesFrequency = getAdvancedOptionDuration(envVarPostMessagesFrequency, defaultPostMessagesFrequency)
@@ -538,6 +542,7 @@ func ValidateLogOpt(cfg map[string]string) error {
 		case splunkGzipCompressionKey:
 		case splunkGzipCompressionLevelKey:
 		case envKey:
+		case envRegexKey:
 		case labelsKey:
 		case tagKey:
 		default:

@@ -3,6 +3,7 @@ package logger
 import (
 	"fmt"
 	"os"
+	"regexp"
 	"strings"
 	"time"
 )
@@ -26,7 +27,7 @@ type Info struct {
 // ExtraAttributes returns the user-defined extra attributes (labels,
 // environment variables) in key-value format. This can be used by log drivers
 // that support metadata to add more context to a log.
-func (info *Info) ExtraAttributes(keyMod func(string) string) map[string]string {
+func (info *Info) ExtraAttributes(keyMod func(string) string) (map[string]string, error) {
 	extra := make(map[string]string)
 	labels, ok := info.Config["labels"]
 	if ok && len(labels) > 0 {
@@ -40,14 +41,15 @@ func (info *Info) ExtraAttributes(keyMod func(string) string) map[string]string 
 		}
 	}
 
+	envMapping := make(map[string]string)
+	for _, e := range info.ContainerEnv {
+		if kv := strings.SplitN(e, "=", 2); len(kv) == 2 {
+			envMapping[kv[0]] = kv[1]
+		}
+	}
+
 	env, ok := info.Config["env"]
 	if ok && len(env) > 0 {
-		envMapping := make(map[string]string)
-		for _, e := range info.ContainerEnv {
-			if kv := strings.SplitN(e, "=", 2); len(kv) == 2 {
-				envMapping[kv[0]] = kv[1]
-			}
-		}
 		for _, l := range strings.Split(env, ",") {
 			if v, ok := envMapping[l]; ok {
 				if keyMod != nil {
@@ -58,7 +60,23 @@ func (info *Info) ExtraAttributes(keyMod func(string) string) map[string]string 
 		}
 	}
 
-	return extra
+	envRegex, ok := info.Config["env-regex"]
+	if ok && len(envRegex) > 0 {
+		re, err := regexp.Compile(envRegex)
+		if err != nil {
+			return nil, err
+		}
+		for k, v := range envMapping {
+			if re.MatchString(k) {
+				if keyMod != nil {
+					k = keyMod(k)
+				}
+				extra[k] = v
+			}
+		}
+	}
+
+	return extra, nil
 }
 
 // Hostname returns the hostname from the underlying OS.

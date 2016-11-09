@@ -25,9 +25,10 @@ func TestValidateLogOpt(t *testing.T) {
 		splunkVerifyConnectionKey:     "true",
 		splunkGzipCompressionKey:      "true",
 		splunkGzipCompressionLevelKey: "1",
-		envKey:    "a",
-		labelsKey: "b",
-		tagKey:    "c",
+		envKey:      "a",
+		envRegexKey: "^foo",
+		labelsKey:   "b",
+		tagKey:      "c",
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -215,8 +216,9 @@ func TestInlineFormatWithNonDefaultOptions(t *testing.T) {
 			splunkIndexKey:           "myindex",
 			splunkFormatKey:          splunkFormatInline,
 			splunkGzipCompressionKey: "true",
-			tagKey:    "{{.ImageName}}/{{.Name}}",
-			labelsKey: "a",
+			tagKey:      "{{.ImageName}}/{{.Name}}",
+			labelsKey:   "a",
+			envRegexKey: "^foo",
 		},
 		ContainerID:        "containeriid",
 		ContainerName:      "/container_name",
@@ -225,6 +227,7 @@ func TestInlineFormatWithNonDefaultOptions(t *testing.T) {
 		ContainerLabels: map[string]string{
 			"a": "b",
 		},
+		ContainerEnv: []string{"foo_finder=bar"},
 	}
 
 	hostname, err := info.Hostname()
@@ -295,6 +298,7 @@ func TestInlineFormatWithNonDefaultOptions(t *testing.T) {
 			event["source"] != "stdout" ||
 			event["tag"] != "container_image_name/container_name" ||
 			event["attrs"].(map[string]interface{})["a"] != "b" ||
+			event["attrs"].(map[string]interface{})["foo_finder"] != "bar" ||
 			len(event) != 4 {
 			t.Fatalf("Unexpected event in message %v", event)
 		}

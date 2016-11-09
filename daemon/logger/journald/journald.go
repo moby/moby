@@ -75,7 +75,10 @@ func New(info logger.Info) (logger.Logger, error) {
 		"CONTAINER_NAME":    info.Name(),
 		"CONTAINER_TAG":     tag,
 	}
-	extraAttrs := info.ExtraAttributes(sanitizeKeyMod)
+	extraAttrs, err := info.ExtraAttributes(sanitizeKeyMod)
+	if err != nil {
+		return nil, err
+	}
 	for k, v := range extraAttrs {
 		vars[k] = v
 	}
@@ -89,6 +92,7 @@ func validateLogOpt(cfg map[string]string) error {
 		switch key {
 		case "labels":
 		case "env":
+		case "env-regex":
 		case "tag":
 		default:
 			return fmt.Errorf("unknown log opt '%s' for journald log driver", key)
