@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"sync"
 
 	"github.com/pkg/errors"
@@ -348,4 +349,16 @@ func validateOpts(opts map[string]string) error {
 
 func (v *localVolume) Status() map[string]interface{} {
 	return nil
+}
+
+// getAddress finds out address/hostname from options
+func getAddress(opts string) string {
+	optsList := strings.Split(opts, ",")
+	for i := 0; i < len(optsList); i++ {
+		if strings.HasPrefix(optsList[i], "addr=") {
+			addr := (strings.SplitN(optsList[i], "=", 2)[1])
+			return addr
+		}
+	}
+	return ""
 }

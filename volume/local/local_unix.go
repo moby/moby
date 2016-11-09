@@ -7,6 +7,7 @@ package local
 
 import (
 	"fmt"
+	"net"
 	"path/filepath"
 	"strings"
 
@@ -71,6 +72,16 @@ func (v *localVolume) mount() error {
 	if v.opts.MountDevice == "" {
 		return fmt.Errorf("missing device in volume options")
 	}
-	err := mount.Mount(v.opts.MountDevice, v.path, v.opts.MountType, v.opts.MountOpts)
+	mountOpts := v.opts.MountOpts
+	if v.opts.MountType == "nfs" {
+		if addrValue := getAddress(v.opts.MountOpts); addrValue != "" && net.ParseIP(addrValue).To4() == nil {
+			ipAddr, err := net.ResolveIPAddr("ip", addrValue)
+			if err != nil {
+				return errors.Wrapf(err, "error resolving passed in nfs address")
+			}
+			mountOpts = strings.Replace(mountOpts, "addr="+addrValue, "addr="+ipAddr.String(), 1)
+		}
+	}
+	err := mount.Mount(v.opts.MountDevice, v.path, v.opts.MountType, mountOpts)
 	return errors.Wrapf(err, "error while mounting volume with options: %s", v.opts)
 }
