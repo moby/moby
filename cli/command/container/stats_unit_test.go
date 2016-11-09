@@ -6,7 +6,7 @@ import (
 	"github.com/docker/docker/api/types"
 )
 
-func TestCalculBlockIO(t *testing.T) {
+func TestCalculateBlockIO(t *testing.T) {
 	blkio := types.BlkioStats{
 		IoServiceBytesRecursive: []types.BlkioStatEntry{{8, 0, "read", 1234}, {8, 1, "read", 4567}, {8, 0, "write", 123}, {8, 1, "write", 456}},
 	}
