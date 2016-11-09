@@ -25,6 +25,8 @@ Options:
       --dispatcher-heartbeat duration   Dispatcher heartbeat period (default 5s)
       --external-ca value               Specifications of one or more certificate signing endpoints
       --help                            Print usage
+      --max-snapshots int               Number of additional Raft snapshots to retain
+      --snapshot-interval int           Number of log entries between Raft snapshots
       --task-history-limit int          Task history retention limit (default 5)
 ```
 

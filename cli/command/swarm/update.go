@@ -39,10 +39,7 @@ func runUpdate(dockerCli *command.DockerCli, flags *pflag.FlagSet, opts swarmOpt
 		return err
 	}
 
-	err = mergeSwarm(&swarm, flags)
-	if err != nil {
-		return err
-	}
+	opts.mergeSwarmSpec(&swarm.Spec, flags)
 
 	err = client.SwarmUpdate(ctx, swarm.Version, swarm.Spec, updateFlags)
 	if err != nil {
@@ -50,34 +47,6 @@ func runUpdate(dockerCli *command.DockerCli, flags *pflag.FlagSet, opts swarmOpt
 	}
 
 	fmt.Fprintln(dockerCli.Out(), "Swarm updated.")
-
-	return nil
-}
-
-func mergeSwarm(swarm *swarm.Swarm, flags *pflag.FlagSet) error {
-	spec := &swarm.Spec
-
-	if flags.Changed(flagTaskHistoryLimit) {
-		taskHistoryRetentionLimit, _ := flags.GetInt64(flagTaskHistoryLimit)
-		spec.Orchestration.TaskHistoryRetentionLimit = &taskHistoryRetentionLimit
-	}
-
-	if flags.Changed(flagDispatcherHeartbeat) {
-		if v, err := flags.GetDuration(flagDispatcherHeartbeat); err == nil {
-			spec.Dispatcher.HeartbeatPeriod = v
-		}
-	}
-
-	if flags.Changed(flagCertExpiry) {
-		if v, err := flags.GetDuration(flagCertExpiry); err == nil {
-			spec.CAConfig.NodeCertExpiry = v
-		}
-	}
-
-	if flags.Changed(flagExternalCA) {
-		value := flags.Lookup(flagExternalCA).Value.(*ExternalCAOption)
-		spec.CAConfig.ExternalCAs = value.Value()
-	}
 
 	return nil
 }

@@ -28,6 +28,8 @@ Options:
       --force-new-cluster               Force create a new cluster from current state
       --help                            Print usage
       --listen-addr value               Listen address (format: <ip|interface>[:port])
+      --max-snapshots int               Number of additional Raft snapshots to retain
+      --snapshot-interval int           Number of log entries between Raft snapshots
       --task-history-limit int          Task history retention limit (default 5)
 ```
 
@@ -64,7 +66,7 @@ This flag sets the validity period for node certificates.
 This flags sets the frequency with which nodes are told to use as a
 period to report their health.
 
-### `--external-ca value`
+### `--external-ca`
 
 This flag sets up the swarm to use an external CA to issue node certificates. The value takes
 the form `protocol=X,url=Y`. The value for `protocol` specifies what protocol should be used
@@ -75,7 +77,7 @@ The URL specifies the endpoint where signing requests should be submitted.
 
 This flag forces an existing node that was part of a quorum that was lost to restart as a single node Manager without losing its data.
 
-### `--listen-addr value`
+### `--listen-addr`
 
 The node listens for inbound swarm manager traffic on this address. The default is to listen on
 0.0.0.0:2377. It is also possible to specify a network interface to listen on that interface's
@@ -84,7 +86,7 @@ address; for example `--listen-addr eth0:2377`.
 Specifying a port is optional. If the value is a bare IP address or interface
 name, the default port 2377 will be used.
 
-### `--advertise-addr value`
+### `--advertise-addr`
 
 This flag specifies the address that will be advertised to other members of the
 swarm for API access and overlay networking. If unspecified, Docker will check
@@ -102,6 +104,21 @@ name, the default port 2377 will be used.
 ### `--task-history-limit`
 
 This flag sets up task history retention limit.
+
+### `--max-snapshots`
+
+This flag sets the number of old Raft snapshots to retain in addition to the
+current Raft snapshots. By default, no old snapshots are retained. This option
+may be used for debugging, or to store old snapshots of the swarm state for
+disaster recovery purposes.
+
+### `--snapshot-interval`
+
+This flag specifies how many log entries to allow in between Raft snapshots.
+Setting this to a higher number will trigger snapshots less frequently.
+Snapshots compact the Raft log and allow for more efficient transfer of the
+state to new managers. However, there is a performance cost to taking snapshots
+frequently.
 
 ## Related information
 

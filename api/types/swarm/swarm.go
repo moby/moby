@@ -60,7 +60,7 @@ type RaftConfig struct {
 
 	// KeepOldSnapshots is the number of snapshots to keep beyond the
 	// current snapshot.
-	KeepOldSnapshots uint64 `json:",omitempty"`
+	KeepOldSnapshots *uint64 `json:",omitempty"`
 
 	// LogEntriesForSlowFollowers is the number of log entries to keep
 	// around to sync up slow followers after a snapshot is created.

@@ -1630,7 +1630,10 @@ __docker_swarm_subcommand() {
                 "($help)--advertise-addr[Advertised address]:ip\:port: " \
                 "($help)*--external-ca=[Specifications of one or more certificate signing endpoints]:endpoint: " \
                 "($help)--force-new-cluster[Force create a new cluster from current state]" \
-                "($help)--listen-addr=[Listen address]:ip\:port: " && ret=0
+                "($help)--listen-addr=[Listen address]:ip\:port: " \
+                "($help)--max-snapshots[Number of additional Raft snapshots to retain]" \
+                "($help)--snapshot-interval[Number of log entries between Raft snapshots]" \
+                "($help)--task-history-limit=[Task history retention limit]:limit: " && ret=0
             ;;
         (join)
             _arguments $(__docker_arguments) \
@@ -1655,7 +1658,10 @@ __docker_swarm_subcommand() {
             _arguments $(__docker_arguments) \
                 $opts_help \
                 "($help)--cert-expiry=[Validity period for node certificates]:duration: " \
+                "($help)*--external-ca=[Specifications of one or more certificate signing endpoints]:endpoint: " \
                 "($help)--dispatcher-heartbeat=[Dispatcher heartbeat period]:duration: " \
+                "($help)--max-snapshots[Number of additional Raft snapshots to retain]" \
+                "($help)--snapshot-interval[Number of log entries between Raft snapshots]" \
                 "($help)--task-history-limit=[Task history retention limit]:limit: " && ret=0
             ;;
         (help)
