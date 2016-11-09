@@ -15,6 +15,7 @@ import (
 	"github.com/docker/docker/pkg/signal"
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/pkg/truncindex"
+	"github.com/docker/docker/runconfig/opts"
 	"github.com/docker/go-connections/nat"
 )
 
@@ -230,6 +231,13 @@ func (daemon *Daemon) verifyContainerSettings(hostConfig *containertypes.HostCon
 			matched, _ := regexp.MatchString("^(([[:alnum:]]|[[:alnum:]][[:alnum:]\\-]*[[:alnum:]])\\.)*([[:alnum:]]|[[:alnum:]][[:alnum:]\\-]*[[:alnum:]])$", config.Hostname)
 			if len(config.Hostname) > 63 || !matched {
 				return nil, fmt.Errorf("invalid hostname format: %s", config.Hostname)
+			}
+		}
+
+		// Validate if Env contains empty variable or not (e.g., ``, `=foo`)
+		for _, env := range config.Env {
+			if _, err := opts.ValidateEnv(env); err != nil {
+				return nil, err
 			}
 		}
 	}

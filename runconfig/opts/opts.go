@@ -26,8 +26,13 @@ func ValidateAttach(val string) (string, error) {
 // As on ParseEnvFile and related to #16585, environment variable names
 // are not validate what so ever, it's up to application inside docker
 // to validate them or not.
+//
+// The only validation here is to check if name is empty, per #25099
 func ValidateEnv(val string) (string, error) {
 	arr := strings.Split(val, "=")
+	if arr[0] == "" {
+		return "", fmt.Errorf("invalid environment variable: %s", val)
+	}
 	if len(arr) > 1 {
 		return val, nil
 	}
