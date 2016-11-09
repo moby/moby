@@ -16,7 +16,7 @@ keywords: "node, remove"
 # node rm
 
 ```markdown
-Usage:  docker node rm [OPTIONS] NODE [NODE...]
+Usage:	docker node rm [OPTIONS] NODE [NODE...]
 
 Remove one or more nodes from the swarm
 
@@ -24,8 +24,8 @@ Aliases:
   rm, remove
 
 Options:
-      --force  Force remove a node from the swarm
-      --help   Print usage
+  -f, --force   Force remove a node from the swarm
+      --help    Print usage
 ```
 
 When run from a manager node, removes the specified nodes from a swarm.

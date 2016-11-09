@@ -27,7 +27,7 @@ func newLeaveCommand(dockerCli *command.DockerCli) *cobra.Command {
 	}
 
 	flags := cmd.Flags()
-	flags.BoolVar(&opts.force, "force", false, "Force this node to leave the swarm, ignoring warnings")
+	flags.BoolVarP(&opts.force, "force", "f", false, "Force this node to leave the swarm, ignoring warnings")
 	return cmd
 }
 
