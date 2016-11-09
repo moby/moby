@@ -19,10 +19,12 @@ import (
 	"github.com/Sirupsen/logrus"
 
 	"github.com/docker/docker/daemon/graphdriver"
+	"github.com/docker/docker/daemon/graphdriver/overlayutils"
 	"github.com/docker/docker/daemon/graphdriver/quota"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/chrootarchive"
 	"github.com/docker/docker/pkg/directory"
+	"github.com/docker/docker/pkg/fsutils"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/parsers"
@@ -87,13 +89,14 @@ type overlayOptions struct {
 
 // Driver contains information about the home directory and the list of active mounts that are created using this driver.
 type Driver struct {
-	home      string
-	uidMaps   []idtools.IDMap
-	gidMaps   []idtools.IDMap
-	ctr       *graphdriver.RefCounter
-	quotaCtl  *quota.Control
-	options   overlayOptions
-	naiveDiff graphdriver.DiffDriver
+	home          string
+	uidMaps       []idtools.IDMap
+	gidMaps       []idtools.IDMap
+	ctr           *graphdriver.RefCounter
+	quotaCtl      *quota.Control
+	options       overlayOptions
+	naiveDiff     graphdriver.DiffDriver
+	supportsDType bool
 }
 
 var (
@@ -158,11 +161,21 @@ func Init(home string, options []string, uidMaps, gidMaps []idtools.IDMap) (grap
 		return nil, err
 	}
 
+	supportsDType, err := fsutils.SupportsDType(home)
+	if err != nil {
+		return nil, err
+	}
+	if !supportsDType {
+		// not a fatal error until v1.16 (#27443)
+		logrus.Warn(overlayutils.ErrDTypeNotSupported("overlay2", backingFs))
+	}
+
 	d := &Driver{
-		home:    home,
-		uidMaps: uidMaps,
-		gidMaps: gidMaps,
-		ctr:     graphdriver.NewRefCounter(graphdriver.NewFsChecker(graphdriver.FsMagicOverlay)),
+		home:          home,
+		uidMaps:       uidMaps,
+		gidMaps:       gidMaps,
+		ctr:           graphdriver.NewRefCounter(graphdriver.NewFsChecker(graphdriver.FsMagicOverlay)),
+		supportsDType: supportsDType,
 	}
 
 	d.naiveDiff = graphdriver.NewNaiveDiffDriver(d, uidMaps, gidMaps)
@@ -231,6 +244,7 @@ func (d *Driver) String() string {
 func (d *Driver) Status() [][2]string {
 	return [][2]string{
 		{"Backing Filesystem", backingFs},
+		{"Supports d_type", strconv.FormatBool(d.supportsDType)},
 	}
 }
 
