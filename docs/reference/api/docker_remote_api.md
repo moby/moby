@@ -36,23 +36,34 @@ following:
 When using cUrl 7.50 or later:
 
 ```console
-$ curl --unix-socket /var/run/docker.sock http://localhost/containers/json
+$ curl --unix-socket /var/run/docker.sock http://localhost/v1.25/containers/json
 ```
 
 When using cURL 7.40, `localhost` must be omitted:
 
 ```console
-$ curl --unix-socket /var/run/docker.sock http://containers/json
+$ curl --unix-socket /var/run/docker.sock http://v1.25/containers/json
 ```
 
 If you have bound the Docker daemon to a different socket path or TCP
 port, you would reference that in your cURL rather than the
 default.
 
-The current version of the API is v1.25 which means calling `/info` is the same
-as calling `/v1.25/info`. To call an older version of the API use
-`/v1.24/info`. If a newer daemon is installed, new properties may be returned
-even when calling older versions of the API.
+## Versioning
+
+It is required to to supply a version to API calls. This is done by prefixing
+the URL with the version number.
+
+The current version of the API is 1.25, so to call the `/info` endpoint, you
+would send a request to the URL `/v1.25/info`. To call, for example, version
+1.24 of the API instead, you would request `/v1.24/info`.
+
+If a newer daemon is installed, new properties may be returned even when
+calling older versions of the API.
+
+In previous versions of Docker, it was possible to access the API without
+providing a version. This behaviour is now deprecated will be removed in a
+future version of Docker.
 
 Use the table below to find the API version for a Docker version:
 
@@ -97,11 +108,11 @@ API requests, for example:
 curl --insecure \
      --cert $DOCKER_CERT_PATH/cert.pem \
      --key $DOCKER_CERT_PATH/key.pem \
-     https://YOUR_VM_IP:2376/images/json
+     https://YOUR_VM_IP:2376/v1.25/images/json
 
 wget --no-check-certificate --certificate=$DOCKER_CERT_PATH/cert.pem \
      --private-key=$DOCKER_CERT_PATH/key.pem \
-     https://YOUR_VM_IP:2376/images/json -O - -q
+     https://YOUR_VM_IP:2376/v1.25/images/json -O - -q
 ```
 
 ## Docker Events
@@ -130,6 +141,7 @@ This section lists each version from latest to oldest.  Each listing includes a 
 
 [Docker Remote API v1.25](docker_remote_api_v1.25.md) documentation
 
+* The API version is now required in all API calls. Instead of just requesting, for example, the URL `/containers/json`, you must now request `/v1.25/containers/json`.
 * `GET /version` now returns `MinAPIVersion`.
 * `POST /build` accepts `networkmode` parameter to specify network used during build.
 * `GET /images/(name)/json` now returns `OsVersion` if populated

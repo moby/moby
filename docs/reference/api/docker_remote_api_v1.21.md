@@ -38,7 +38,7 @@ List containers
 
 **Example request**:
 
-    GET /containers/json?all=1&before=8dfafdbc3a40&size=1 HTTP/1.1
+    GET /v1.21/containers/json?all=1&before=8dfafdbc3a40&size=1 HTTP/1.1
 
 **Example response**:
 
@@ -135,7 +135,7 @@ Create a container
 
 **Example request**:
 
-    POST /containers/create HTTP/1.1
+    POST /v1.21/containers/create HTTP/1.1
     Content-Type: application/json
 
     {
@@ -353,7 +353,7 @@ Return low-level information on the container `id`
 
 **Example request**:
 
-      GET /containers/4fa6e0f0c678/json HTTP/1.1
+      GET /v1.21/containers/4fa6e0f0c678/json HTTP/1.1
 
 **Example response**:
 
@@ -511,7 +511,7 @@ Return low-level information on the container `id`
 
 **Example request, with size information**:
 
-    GET /containers/4fa6e0f0c678/json?size=1 HTTP/1.1
+    GET /v1.21/containers/4fa6e0f0c678/json?size=1 HTTP/1.1
 
 **Example response, with size information**:
 
@@ -545,7 +545,7 @@ supported on Windows.
 
 **Example request**:
 
-    GET /containers/4fa6e0f0c678/top HTTP/1.1
+    GET /v1.21/containers/4fa6e0f0c678/top HTTP/1.1
 
 **Example response**:
 
@@ -568,7 +568,7 @@ supported on Windows.
 
 **Example request**:
 
-    GET /containers/4fa6e0f0c678/top?ps_args=aux HTTP/1.1
+    GET /v1.21/containers/4fa6e0f0c678/top?ps_args=aux HTTP/1.1
 
 **Example response**:
 
@@ -610,7 +610,7 @@ Get `stdout` and `stderr` logs from the container ``id``
 
 **Example request**:
 
-     GET /containers/4fa6e0f0c678/logs?stderr=1&stdout=1&timestamps=1&follow=1&tail=10&since=1428990821 HTTP/1.1
+     GET /v1.21/containers/4fa6e0f0c678/logs?stderr=1&stdout=1&timestamps=1&follow=1&tail=10&since=1428990821 HTTP/1.1
 
 **Example response**:
 
@@ -649,7 +649,7 @@ Inspect changes on container `id`'s filesystem
 
 **Example request**:
 
-    GET /containers/4fa6e0f0c678/changes HTTP/1.1
+    GET /v1.21/containers/4fa6e0f0c678/changes HTTP/1.1
 
 **Example response**:
 
@@ -691,7 +691,7 @@ Export the contents of container `id`
 
 **Example request**:
 
-    GET /containers/4fa6e0f0c678/export HTTP/1.1
+    GET /v1.21/containers/4fa6e0f0c678/export HTTP/1.1
 
 **Example response**:
 
@@ -716,7 +716,7 @@ This endpoint returns a live stream of a container's resource usage statistics.
 
 **Example request**:
 
-    GET /containers/redis1/stats HTTP/1.1
+    GET /v1.21/containers/redis1/stats HTTP/1.1
 
 **Example response**:
 
@@ -837,7 +837,7 @@ Resize the TTY for container with  `id`. The unit is number of characters. You m
 
 **Example request**:
 
-      POST /containers/4fa6e0f0c678/resize?h=40&w=80 HTTP/1.1
+      POST /v1.21/containers/4fa6e0f0c678/resize?h=40&w=80 HTTP/1.1
 
 **Example response**:
 
@@ -868,7 +868,7 @@ Start the container `id`
 
 **Example request**:
 
-    POST /containers/e90e34656806/start HTTP/1.1
+    POST /v1.21/containers/e90e34656806/start HTTP/1.1
 
 **Example response**:
 
@@ -889,7 +889,7 @@ Stop the container `id`
 
 **Example request**:
 
-    POST /containers/e90e34656806/stop?t=5 HTTP/1.1
+    POST /v1.21/containers/e90e34656806/stop?t=5 HTTP/1.1
 
 **Example response**:
 
@@ -914,7 +914,7 @@ Restart the container `id`
 
 **Example request**:
 
-    POST /containers/e90e34656806/restart?t=5 HTTP/1.1
+    POST /v1.21/containers/e90e34656806/restart?t=5 HTTP/1.1
 
 **Example response**:
 
@@ -938,7 +938,7 @@ Kill the container `id`
 
 **Example request**:
 
-    POST /containers/e90e34656806/kill HTTP/1.1
+    POST /v1.21/containers/e90e34656806/kill HTTP/1.1
 
 **Example response**:
 
@@ -963,7 +963,7 @@ Rename the container `id` to a `new_name`
 
 **Example request**:
 
-    POST /containers/e90e34656806/rename?name=new_name HTTP/1.1
+    POST /v1.21/containers/e90e34656806/rename?name=new_name HTTP/1.1
 
 **Example response**:
 
@@ -988,7 +988,7 @@ Pause the container `id`
 
 **Example request**:
 
-    POST /containers/e90e34656806/pause HTTP/1.1
+    POST /v1.21/containers/e90e34656806/pause HTTP/1.1
 
 **Example response**:
 
@@ -1008,7 +1008,7 @@ Unpause the container `id`
 
 **Example request**:
 
-    POST /containers/e90e34656806/unpause HTTP/1.1
+    POST /v1.21/containers/e90e34656806/unpause HTTP/1.1
 
 **Example response**:
 
@@ -1028,7 +1028,7 @@ Attach to the container `id`
 
 **Example request**:
 
-    POST /containers/16253994b7c4/attach?logs=1&stream=0&stdout=1 HTTP/1.1
+    POST /v1.21/containers/16253994b7c4/attach?logs=1&stream=0&stdout=1 HTTP/1.1
 
 **Example response**:
 
@@ -1115,7 +1115,7 @@ Implements websocket protocol handshake according to [RFC 6455](http://tools.iet
 
 **Example request**
 
-    GET /containers/e90e34656806/attach/ws?logs=0&stream=1&stdin=1&stdout=1&stderr=1 HTTP/1.1
+    GET /v1.21/containers/e90e34656806/attach/ws?logs=0&stream=1&stdin=1&stdout=1&stderr=1 HTTP/1.1
 
 **Example response**
 
@@ -1150,7 +1150,7 @@ Block until container `id` stops, then returns the exit code
 
 **Example request**:
 
-    POST /containers/16253994b7c4/wait HTTP/1.1
+    POST /v1.21/containers/16253994b7c4/wait HTTP/1.1
 
 **Example response**:
 
@@ -1204,7 +1204,7 @@ Copy files or folders of container `id`
 
 **Example request**:
 
-    POST /containers/4fa6e0f0c678/copy HTTP/1.1
+    POST /v1.21/containers/4fa6e0f0c678/copy HTTP/1.1
     Content-Type: application/json
 
     {
@@ -1256,7 +1256,7 @@ Get a tar archive of a resource in the filesystem of container `id`.
 
 **Example request**:
 
-    GET /containers/8cce319429b2/archive?path=/root HTTP/1.1
+    GET /v1.21/containers/8cce319429b2/archive?path=/root HTTP/1.1
 
 **Example response**:
 
@@ -1354,7 +1354,7 @@ Upload a tar archive to be extracted to a path in the filesystem of container
 
 **Example request**:
 
-    GET /images/json?all=0 HTTP/1.1
+    GET /v1.21/images/json?all=0 HTTP/1.1
 
 **Example response**:
 
@@ -1392,7 +1392,7 @@ Upload a tar archive to be extracted to a path in the filesystem of container
 
 **Example request, with digest information**:
 
-    GET /images/json?digests=1 HTTP/1.1
+    GET /v1.21/images/json?digests=1 HTTP/1.1
 
 **Example response, with digest information**:
 
@@ -1447,7 +1447,7 @@ Build an image from a Dockerfile
 
 **Example request**:
 
-    POST /build HTTP/1.1
+    POST /v1.21/build HTTP/1.1
 
     {% raw %}
     {{ TAR STREAM }}
@@ -1551,7 +1551,7 @@ Create an image either by pulling it from the registry or by importing it
 
 **Example request**:
 
-    POST /images/create?fromImage=busybox&tag=latest HTTP/1.1
+    POST /v1.21/images/create?fromImage=busybox&tag=latest HTTP/1.1
 
 **Example response**:
 
@@ -1599,7 +1599,7 @@ Return low-level information on the image `name`
 
 **Example request**:
 
-    GET /images/example/json HTTP/1.1
+    GET /v1.21/images/example/json HTTP/1.1
 
 **Example response**:
 
@@ -1710,7 +1710,7 @@ Return the history of the image `name`
 
 **Example request**:
 
-    GET /images/ubuntu/history HTTP/1.1
+    GET /v1.21/images/ubuntu/history HTTP/1.1
 
 **Example response**:
 
@@ -1764,7 +1764,7 @@ Push the image `name` on the registry
 
 **Example request**:
 
-    POST /images/test/push HTTP/1.1
+    POST /v1.21/images/test/push HTTP/1.1
 
 **Example response**:
 
@@ -1782,7 +1782,7 @@ then be used in the URL. This duplicates the command line's flow.
 
 **Example request**:
 
-    POST /images/registry.acme.com:5000/test/push HTTP/1.1
+    POST /v1.21/images/registry.acme.com:5000/test/push HTTP/1.1
 
 
 **Query parameters**:
@@ -1807,7 +1807,7 @@ Tag the image `name` into a repository
 
 **Example request**:
 
-    POST /images/test/tag?repo=myrepo&force=0&tag=v42 HTTP/1.1
+    POST /v1.21/images/test/tag?repo=myrepo&force=0&tag=v42 HTTP/1.1
 
 **Example response**:
 
@@ -1872,7 +1872,7 @@ Search for an image on [Docker Hub](https://hub.docker.com).
 
 **Example request**:
 
-    GET /images/search?term=sshd HTTP/1.1
+    GET /v1.21/images/search?term=sshd HTTP/1.1
 
 **Example response**:
 
@@ -1923,7 +1923,7 @@ Get the default username and email
 
 **Example request**:
 
-    POST /auth HTTP/1.1
+    POST /v1.21/auth HTTP/1.1
     Content-Type: application/json
 
     {
@@ -1951,7 +1951,7 @@ Display system-wide information
 
 **Example request**:
 
-    GET /info HTTP/1.1
+    GET /v1.21/info HTTP/1.1
 
 **Example response**:
 
@@ -2022,7 +2022,7 @@ Show the docker version information
 
 **Example request**:
 
-    GET /version HTTP/1.1
+    GET /v1.21/version HTTP/1.1
 
 **Example response**:
 
@@ -2053,7 +2053,7 @@ Ping the docker server
 
 **Example request**:
 
-    GET /_ping HTTP/1.1
+    GET /v1.21/_ping HTTP/1.1
 
 **Example response**:
 
@@ -2075,7 +2075,7 @@ Create a new image from a container's changes
 
 **Example request**:
 
-    POST /commit?container=44c004db4b17&comment=message&repo=myrepo HTTP/1.1
+    POST /v1.21/commit?container=44c004db4b17&comment=message&repo=myrepo HTTP/1.1
     Content-Type: application/json
 
     {
@@ -2293,7 +2293,7 @@ Sets up an exec instance in a running container `id`
 
 **Example request**:
 
-    POST /containers/e90e34656806/exec HTTP/1.1
+    POST /v1.21/containers/e90e34656806/exec HTTP/1.1
     Content-Type: application/json
 
     {
@@ -2345,7 +2345,7 @@ interactive session with the `exec` command.
 
 **Example request**:
 
-    POST /exec/e90e34656806/start HTTP/1.1
+    POST /v1.21/exec/e90e34656806/start HTTP/1.1
     Content-Type: application/json
 
     {
@@ -2386,7 +2386,7 @@ This API is valid only if `tty` was specified as part of creating and starting t
 
 **Example request**:
 
-    POST /exec/e90e34656806/resize?h=40&w=80 HTTP/1.1
+    POST /v1.21/exec/e90e34656806/resize?h=40&w=80 HTTP/1.1
     Content-Type: text/plain
 
 **Example response**:
@@ -2412,7 +2412,7 @@ Return low-level information about the `exec` command `id`.
 
 **Example request**:
 
-    GET /exec/11fb006128e8ceb3942e7c58d77750f24210e35f879dd204ac975c184b820b39/json HTTP/1.1
+    GET /v1.21/exec/11fb006128e8ceb3942e7c58d77750f24210e35f879dd204ac975c184b820b39/json HTTP/1.1
 
 **Example response**:
 
@@ -2538,7 +2538,7 @@ Return low-level information about the `exec` command `id`.
 
 **Example request**:
 
-    GET /volumes HTTP/1.1
+    GET /v1.21/volumes HTTP/1.1
 
 **Example response**:
 
@@ -2572,7 +2572,7 @@ Create a volume
 
 **Example request**:
 
-    POST /volumes/create HTTP/1.1
+    POST /v1.21/volumes/create HTTP/1.1
     Content-Type: application/json
 
     {
@@ -2658,7 +2658,7 @@ Instruct the driver to remove the volume (`name`).
 
 **Example request**:
 
-    GET /networks HTTP/1.1
+    GET /v1.21/networks HTTP/1.1
 
 **Example response**:
 
@@ -2739,7 +2739,7 @@ Content-Type: application/json
 
 **Example request**:
 
-    GET /networks/f2de39df4171b0dc801e8002d1d999b77256983dfc63041c0f34030aa3977566 HTTP/1.1
+    GET /v1.21/networks/f2de39df4171b0dc801e8002d1d999b77256983dfc63041c0f34030aa3977566 HTTP/1.1
 
 **Example response**:
 
@@ -2793,7 +2793,7 @@ Create a network
 **Example request**:
 
 ```
-POST /networks/create HTTP/1.1
+POST /v1.21/networks/create HTTP/1.1
 Content-Type: application/json
 
 {
@@ -2851,7 +2851,7 @@ Connect a container to a network
 **Example request**:
 
 ```
-POST /networks/22be93d5babb089c5aab8dbc369042fad48ff791584ca2da2100db837a1c7c30/connect HTTP/1.1
+POST /v1.21/networks/22be93d5babb089c5aab8dbc369042fad48ff791584ca2da2100db837a1c7c30/connect HTTP/1.1
 Content-Type: application/json
 
 {
@@ -2882,7 +2882,7 @@ Disconnect a container from a network
 **Example request**:
 
 ```
-POST /networks/22be93d5babb089c5aab8dbc369042fad48ff791584ca2da2100db837a1c7c30/disconnect HTTP/1.1
+POST /v1.21/networks/22be93d5babb089c5aab8dbc369042fad48ff791584ca2da2100db837a1c7c30/disconnect HTTP/1.1
 Content-Type: application/json
 
 {
