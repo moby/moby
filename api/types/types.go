@@ -128,6 +128,13 @@ type ContainerProcessList struct {
 	Titles    []string
 }
 
+// Info contains response of Remote API:
+// GET "/_ping"
+type Ping struct {
+	APIVersion   string
+	Experimental bool
+}
+
 // Version contains response of Remote API:
 // GET "/version"
 type Version struct {

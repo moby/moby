@@ -4,11 +4,9 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"net/http/httputil"
 	"runtime"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/pkg/integration/checker"
@@ -32,36 +30,6 @@ func (s *DockerSuite) TestAPIGetEnabledCORS(c *check.C) {
 	//c.Log(res.Header)
 	//c.Assert(res.Header.Get("Access-Control-Allow-Origin"), check.Equals, "*")
 	//c.Assert(res.Header.Get("Access-Control-Allow-Headers"), check.Equals, "Origin, X-Requested-With, Content-Type, Accept, X-Registry-Auth")
-}
-
-func (s *DockerSuite) TestAPIVersionStatusCode(c *check.C) {
-	conn, err := sockConn(time.Duration(10*time.Second), "")
-	c.Assert(err, checker.IsNil)
-
-	client := httputil.NewClientConn(conn, nil)
-	defer client.Close()
-
-	req, err := http.NewRequest("GET", "/v999.0/version", nil)
-	c.Assert(err, checker.IsNil)
-	req.Header.Set("User-Agent", "Docker-Client/999.0 (os)")
-
-	res, err := client.Do(req)
-	c.Assert(res.StatusCode, checker.Equals, http.StatusBadRequest)
-}
-
-func (s *DockerSuite) TestAPIClientVersionNewerThanServer(c *check.C) {
-	v := strings.Split(api.DefaultVersion, ".")
-	vMinInt, err := strconv.Atoi(v[1])
-	c.Assert(err, checker.IsNil)
-	vMinInt++
-	v[1] = strconv.Itoa(vMinInt)
-	version := strings.Join(v, ".")
-
-	status, body, err := sockRequest("GET", "/v"+version+"/version", nil)
-	c.Assert(err, checker.IsNil)
-	c.Assert(status, checker.Equals, http.StatusBadRequest)
-	expected := fmt.Sprintf("client is newer than server (client API version: %s, server API version: %s)", version, api.DefaultVersion)
-	c.Assert(getErrorMessage(c, body), checker.Equals, expected)
 }
 
 func (s *DockerSuite) TestAPIClientVersionOldNotSupported(c *check.C) {
@@ -90,6 +58,7 @@ func (s *DockerSuite) TestAPIDockerAPIVersion(c *check.C) {
 
 	server := httptest.NewServer(http.HandlerFunc(
 		func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("API-Version", api.DefaultVersion)
 			url := r.URL.Path
 			svrVersion = url
 		}))

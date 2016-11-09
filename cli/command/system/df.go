@@ -23,6 +23,7 @@ func NewDiskUsageCommand(dockerCli *command.DockerCli) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runDiskUsage(dockerCli, opts)
 		},
+		Tags: map[string]string{"version": "1.25"},
 	}
 
 	flags := cmd.Flags()

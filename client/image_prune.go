@@ -12,6 +12,10 @@ import (
 func (cli *Client) ImagesPrune(ctx context.Context, cfg types.ImagesPruneConfig) (types.ImagesPruneReport, error) {
 	var report types.ImagesPruneReport
 
+	if err := cli.NewVersionError("1.25", "image prune"); err != nil {
+		return report, err
+	}
+
 	serverResp, err := cli.post(ctx, "/images/prune", nil, cfg, nil)
 	if err != nil {
 		return report, err

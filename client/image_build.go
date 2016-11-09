@@ -21,7 +21,7 @@ var headerRegexp = regexp.MustCompile(`\ADocker/.+\s\((.+)\)\z`)
 // The Body in the response implement an io.ReadCloser and it's up to the caller to
 // close it.
 func (cli *Client) ImageBuild(ctx context.Context, buildContext io.Reader, options types.ImageBuildOptions) (types.ImageBuildResponse, error) {
-	query, err := imageBuildOptionsToQuery(options)
+	query, err := cli.imageBuildOptionsToQuery(options)
 	if err != nil {
 		return types.ImageBuildResponse{}, err
 	}
@@ -47,7 +47,7 @@ func (cli *Client) ImageBuild(ctx context.Context, buildContext io.Reader, optio
 	}, nil
 }
 
-func imageBuildOptionsToQuery(options types.ImageBuildOptions) (url.Values, error) {
+func (cli *Client) imageBuildOptionsToQuery(options types.ImageBuildOptions) (url.Values, error) {
 	query := url.Values{
 		"t":           options.Tags,
 		"securityopt": options.SecurityOpt,
@@ -76,6 +76,9 @@ func imageBuildOptionsToQuery(options types.ImageBuildOptions) (url.Values, erro
 	}
 
 	if options.Squash {
+		if err := cli.NewVersionError("1.25", "squash"); err != nil {
+			return query, err
+		}
 		query.Set("squash", "1")
 	}
 

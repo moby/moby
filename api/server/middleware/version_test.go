@@ -54,10 +54,4 @@ func TestVersionMiddlewareWithErrors(t *testing.T) {
 	if !strings.Contains(err.Error(), "client version 0.1 is too old. Minimum supported API version is 1.2.0") {
 		t.Fatalf("Expected too old client error, got %v", err)
 	}
-
-	vars["version"] = "100000"
-	err = h(ctx, resp, req, vars)
-	if !strings.Contains(err.Error(), "client is newer than server") {
-		t.Fatalf("Expected client newer than server error, got %v", err)
-	}
 }

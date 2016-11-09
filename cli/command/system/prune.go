@@ -26,6 +26,7 @@ func NewPruneCommand(dockerCli *command.DockerCli) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runPrune(dockerCli, opts)
 		},
+		Tags: map[string]string{"version": "1.25"},
 	}
 
 	flags := cmd.Flags()

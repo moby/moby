@@ -113,6 +113,7 @@ func NewBuildCommand(dockerCli *command.DockerCli) *cobra.Command {
 
 	flags.BoolVar(&options.squash, "squash", false, "Squash newly built layers into a single new layer")
 	flags.SetAnnotation("squash", "experimental", nil)
+	flags.SetAnnotation("squash", "version", []string{"1.25"})
 
 	return cmd
 }
@@ -144,7 +145,7 @@ func runBuild(dockerCli *command.DockerCli, options buildOptions) error {
 		progBuff      io.Writer
 		buildBuff     io.Writer
 	)
-	
+
 	specifiedContext := options.context
 	progBuff = dockerCli.Out()
 	buildBuff = dockerCli.Out()

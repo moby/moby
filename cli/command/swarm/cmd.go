@@ -1,8 +1,6 @@
 package swarm
 
 import (
-	"fmt"
-
 	"github.com/spf13/cobra"
 
 	"github.com/docker/docker/cli"
@@ -16,7 +14,8 @@ func NewSwarmCommand(dockerCli *command.DockerCli) *cobra.Command {
 		Short: "Manage Swarm",
 		Args:  cli.NoArgs,
 		Run: func(cmd *cobra.Command, args []string) {
-			fmt.Fprintf(dockerCli.Err(), "\n"+cmd.UsageString())
+			cmd.SetOutput(dockerCli.Err())
+			cmd.HelpFunc()(cmd, args)
 		},
 	}
 	cmd.AddCommand(

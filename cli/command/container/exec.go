@@ -59,6 +59,7 @@ func NewExecCommand(dockerCli *command.DockerCli) *cobra.Command {
 	flags.StringVarP(&opts.user, "user", "u", "", "Username or UID (format: <name|uid>[:<group|gid>])")
 	flags.BoolVarP(&opts.privileged, "privileged", "", false, "Give extended privileges to the command")
 	flags.VarP(opts.env, "env", "e", "Set environment variables")
+	flags.SetAnnotation("env", "version", []string{"1.25"})
 
 	return cmd
 }

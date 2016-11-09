@@ -1,8 +1,6 @@
 package volume
 
 import (
-	"fmt"
-
 	"github.com/spf13/cobra"
 
 	"github.com/docker/docker/cli"
@@ -17,7 +15,8 @@ func NewVolumeCommand(dockerCli *command.DockerCli) *cobra.Command {
 		Long:  volumeDescription,
 		Args:  cli.NoArgs,
 		Run: func(cmd *cobra.Command, args []string) {
-			fmt.Fprintf(dockerCli.Err(), "\n"+cmd.UsageString())
+			cmd.SetOutput(dockerCli.Err())
+			cmd.HelpFunc()(cmd, args)
 		},
 	}
 	cmd.AddCommand(

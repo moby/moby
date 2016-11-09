@@ -79,6 +79,8 @@ type Client struct {
 	version string
 	// custom http headers configured by users.
 	customHTTPHeaders map[string]string
+	// manualOverride is set to true when the version was set by users.
+	manualOverride bool
 }
 
 // NewEnvClient initializes a new API client based on environment variables.
@@ -111,13 +113,19 @@ func NewEnvClient() (*Client, error) {
 	if host == "" {
 		host = DefaultDockerHost
 	}
-
 	version := os.Getenv("DOCKER_API_VERSION")
 	if version == "" {
 		version = DefaultVersion
 	}
 
-	return NewClient(host, version, client, nil)
+	cli, err := NewClient(host, version, client, nil)
+	if err != nil {
+		return cli, err
+	}
+	if version != "" {
+		cli.manualOverride = true
+	}
+	return cli, nil
 }
 
 // NewClient initializes a new API client for the given host and API version.
@@ -211,7 +219,10 @@ func (cli *Client) ClientVersion() string {
 // UpdateClientVersion updates the version string associated with this
 // instance of the Client.
 func (cli *Client) UpdateClientVersion(v string) {
-	cli.version = v
+	if !cli.manualOverride {
+		cli.version = v
+	}
+
 }
 
 // ParseHost verifies that the given host strings is valid.

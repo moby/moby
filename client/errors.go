@@ -3,6 +3,8 @@ package client
 import (
 	"errors"
 	"fmt"
+
+	"github.com/docker/docker/api/types/versions"
 )
 
 // ErrConnectionFailed is an error raised when the connection between the client and the server failed.
@@ -205,4 +207,13 @@ func (e pluginPermissionDenied) Error() string {
 func IsErrPluginPermissionDenied(err error) bool {
 	_, ok := err.(pluginPermissionDenied)
 	return ok
+}
+
+// NewVersionError returns an error if the APIVersion required
+// if less than the current supported version
+func (cli *Client) NewVersionError(APIrequired, feature string) error {
+	if versions.LessThan(cli.version, APIrequired) {
+		return fmt.Errorf("%q requires API version %s, but the Docker server is version %s", feature, APIrequired, cli.version)
+	}
+	return nil
 }

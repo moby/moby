@@ -10,6 +10,7 @@ import (
 	"runtime"
 
 	"github.com/docker/docker/api"
+	"github.com/docker/docker/api/types/versions"
 	cliflags "github.com/docker/docker/cli/flags"
 	"github.com/docker/docker/cliconfig"
 	"github.com/docker/docker/cliconfig/configfile"
@@ -32,21 +33,24 @@ type Streams interface {
 // DockerCli represents the docker command line client.
 // Instances of the client can be returned from NewDockerCli.
 type DockerCli struct {
-	configFile *configfile.ConfigFile
-	in         *InStream
-	out        *OutStream
-	err        io.Writer
-	keyFile    string
-	client     client.APIClient
+	configFile      *configfile.ConfigFile
+	in              *InStream
+	out             *OutStream
+	err             io.Writer
+	keyFile         string
+	client          client.APIClient
+	hasExperimental bool
+	defaultVersion  string
 }
 
-// HasExperimental returns true if experimental features are accessible
+// HasExperimental returns true if experimental features are accessible.
 func (cli *DockerCli) HasExperimental() bool {
-	if cli.client == nil {
-		return false
-	}
-	enabled, _ := cli.client.Ping(context.Background())
-	return enabled
+	return cli.hasExperimental
+}
+
+// DefaultVersion returns api.defaultVersion of DOCKER_API_VERSION if specified.
+func (cli *DockerCli) DefaultVersion() string {
+	return cli.defaultVersion
 }
 
 // Client returns the APIClient
@@ -93,12 +97,28 @@ func (cli *DockerCli) Initialize(opts *cliflags.ClientOptions) error {
 	if err != nil {
 		return err
 	}
+
+	cli.defaultVersion = cli.client.ClientVersion()
+
 	if opts.Common.TrustKey == "" {
 		cli.keyFile = filepath.Join(cliconfig.ConfigDir(), cliflags.DefaultTrustKeyFile)
 	} else {
 		cli.keyFile = opts.Common.TrustKey
 	}
 
+	if ping, err := cli.client.Ping(context.Background()); err == nil {
+		cli.hasExperimental = ping.Experimental
+
+		// since the new header was added in 1.25, assume server is 1.24 if header is not present.
+		if ping.APIVersion == "" {
+			ping.APIVersion = "1.24"
+		}
+
+		// if server version is lower than the current cli, downgrade
+		if versions.LessThan(ping.APIVersion, cli.client.ClientVersion()) {
+			cli.client.UpdateClientVersion(ping.APIVersion)
+		}
+	}
 	return nil
 }
 

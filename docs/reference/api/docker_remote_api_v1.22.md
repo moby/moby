@@ -15,7 +15,7 @@ keywords: "API, Docker, rcli, REST, documentation"
 
 # Docker Remote API v1.22
 
-## 1. Brief introduction
+# 1. Brief introduction
 
  - The Remote API has replaced `rcli`.
  - The daemon listens on `unix:///var/run/docker.sock` but you can
@@ -23,8 +23,6 @@ keywords: "API, Docker, rcli, REST, documentation"
  - The API tends to be REST. However, for some complex commands, like `attach`
    or `pull`, the HTTP connection is hijacked to transport `stdout`,
    `stdin` and `stderr`.
- - When the client API version is newer than the daemon's, these calls return an HTTP
-   `400 Bad Request` error message.
 
 # 2. Endpoints
 

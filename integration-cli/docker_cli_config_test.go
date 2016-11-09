@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"runtime"
 
+	"github.com/docker/docker/api"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/pkg/homedir"
 	"github.com/docker/docker/pkg/integration/checker"
@@ -25,6 +26,7 @@ func (s *DockerSuite) TestConfigHTTPHeader(c *check.C) {
 
 	server := httptest.NewServer(http.HandlerFunc(
 		func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("API-Version", api.DefaultVersion)
 			headers = r.Header
 		}))
 	defer server.Close()
