@@ -163,23 +163,26 @@ func (daemon *Daemon) containerStart(container *container.Container, checkpoint 
 
 	if err := daemon.containerd.Create(container.ID, checkpoint, checkpointDir, *spec, container.InitializeStdio, createOptions...); err != nil {
 		errDesc := grpc.ErrorDesc(err)
+		contains := func(s1, s2 string) bool {
+			return strings.Contains(strings.ToLower(s1), s2)
+		}
 		logrus.Errorf("Create container failed with error: %s", errDesc)
 		// if we receive an internal error from the initial start of a container then lets
 		// return it instead of entering the restart loop
 		// set to 127 for container cmd not found/does not exist)
-		if strings.Contains(errDesc, container.Path) &&
-			(strings.Contains(errDesc, "executable file not found") ||
-				strings.Contains(errDesc, "no such file or directory") ||
-				strings.Contains(errDesc, "system cannot find the file specified")) {
+		if contains(errDesc, container.Path) &&
+			(contains(errDesc, "executable file not found") ||
+				contains(errDesc, "no such file or directory") ||
+				contains(errDesc, "system cannot find the file specified")) {
 			container.SetExitCode(127)
 		}
 		// set to 126 for container cmd can't be invoked errors
-		if strings.Contains(errDesc, syscall.EACCES.Error()) {
+		if contains(errDesc, syscall.EACCES.Error()) {
 			container.SetExitCode(126)
 		}
 
 		// attempted to mount a file onto a directory, or a directory onto a file, maybe from user specified bind mounts
-		if strings.Contains(errDesc, syscall.ENOTDIR.Error()) {
+		if contains(errDesc, syscall.ENOTDIR.Error()) {
 			errDesc += ": Are you trying to mount a directory onto a file (or vice-versa)? Check if the specified host path exists and is the expected type"
 			container.SetExitCode(127)
 		}
