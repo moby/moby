@@ -149,10 +149,12 @@ definitions:
 
           - `bind` Mounts a file or directory from the host into the container. Must exist prior to creating the container.
           - `volume` Creates a volume with the given name and options (or uses a pre-existing volume with the same name and options). These are **not** removed when the container is removed.
+          - `tmpfs` Create a tmpfs with the given options. The mount source cannot be specified for tmpfs.
         type: "string"
         enum:
           - "bind"
           - "volume"
+          - "tmpfs"
       ReadOnly:
         description: "Whether the mount should be read-only."
         type: "boolean"
@@ -178,7 +180,7 @@ definitions:
             type: "boolean"
             default: false
           Labels:
-            description: "User-defined name and labels for the volume as key/value pairs."
+            description: "User-defined key/value metadata."
             type: "object"
             additionalProperties:
               type: "string"
@@ -194,7 +196,17 @@ definitions:
                 type: "object"
                 additionalProperties:
                   type: "string"
-
+      TmpfsOptions:
+        description: "Optional configuration for the `tmpfs` type."
+        type: "object"
+        properties:
+          SizeBytes:
+            description: "The size for the tmpfs mount in bytes."
+            type: "integer"
+            format: "int64"
+          Mode:
+            description: "The permission mode for the tmpfs mount in an integer."
+            type: "integer"
   RestartPolicy:
     description: |
       The behavior to apply when the container exits. The default is not to restart.
@@ -277,9 +289,19 @@ definitions:
       CpuPeriod:
         description: "The length of a CPU period in microseconds."
         type: "integer"
+        format: "int64"
       CpuQuota:
         description: "Microseconds of CPU time that the container can get in a CPU period."
         type: "integer"
+        format: "int64"
+      CpuRealtimePeriod:
+        description: "The length of a CPU real-time period in microseconds. Set to 0 to allocate no time allocated to real-time tasks."
+        type: "integer"
+        format: "int64"
+      CpuRealtimeRuntime:
+        description: "The length of a CPU real-time runtime in microseconds. Set to 0 to allocate no time allocated to real-time tasks."
+        type: "integer"
+        format: "int64"
       CpusetCpus:
         description: "CPUs in which to allow execution (e.g., `0-3`, `0,1`)"
         type: "string"
@@ -313,6 +335,10 @@ definitions:
         format: "int64"
         minimum: 0
         maximum: 100
+      NanoCPUs:
+        description: "CPU quota in units of 10<sup>-9</sup> CPUs."
+        type: "integer"
+        format: "int64"
       OomKillDisable:
         description: "Disable OOM Killer for the container."
         type: "boolean"
@@ -338,11 +364,17 @@ definitions:
               type: "integer"
       # Applicable to Windows
       CpuCount:
-        description: "CPU count (Windows only)"
+        description: |
+          The number of usable CPUs (Windows only).
+
+          On Windows Server containers, the processor resource controls are mutually exclusive. The order of precedence is `CPUCount` first, then `CPUShares`, and `CPUPercent` last.
         type: "integer"
         format: "int64"
       CpuPercent:
-        description: "CPU percent (Windows only)"
+        description: |
+          The usable percentage of the available CPUs (Windows only).
+
+          On Windows Server containers, the processor resource controls are mutually exclusive. The order of precedence is `CPUCount` first, then `CPUShares`, and `CPUPercent` last.
         type: "integer"
         format: "int64"
       IOMaximumIOps:
@@ -527,7 +559,7 @@ definitions:
           Sysctls:
             type: "object"
             description: |
-              A list of kernel parameters (sysctls) to set in the container. For example: `{ "net.ipv4.ip_forward": "1" }`
+              A list of kernel parameters (sysctls) to set in the container. For example: `{"net.ipv4.ip_forward": "1"}`
             additionalProperties:
               type: "string"
           Runtime:
@@ -564,15 +596,15 @@ definitions:
         description: "The user that commands are run as inside the container."
         type: "string"
       AttachStdin:
-        description: "Whether to attach to stdin."
+        description: "Whether to attach to `stdin`."
         type: "boolean"
         default: false
       AttachStdout:
-        description: "Whether to attach to stdout."
+        description: "Whether to attach to `stdout`."
         type: "boolean"
         default: true
       AttachStderr:
-        description: "Whether to attach to stderr."
+        description: "Whether to attach to `stderr`."
         type: "boolean"
         default: true
       ExposedPorts:
@@ -587,20 +619,20 @@ definitions:
             - {}
           default: {}
       Tty:
-        description: "Attach standard streams to a TTY, including stdin if it is not closed."
+        description: "Attach standard streams to a TTY, including `stdin` if it is not closed."
         type: "boolean"
         default: false
       OpenStdin:
-        description: "Open stdin"
+        description: "Open `stdin`"
         type: "boolean"
         default: false
       StdinOnce:
-        description: "Close stdin after one attached client disconnects"
+        description: "Close `stdin` after one attached client disconnects"
         type: "boolean"
         default: false
       Env:
         description: |
-          A list of environment variables to set inside the container in the form `["VAR=value"[,"VAR2=value2"]]`
+          A list of environment variables to set inside the container in the form `["VAR=value", ...]`
         type: "array"
         items:
           type: "string"
@@ -657,7 +689,7 @@ definitions:
         description: |
           The entry point for the container as a string or an array of strings.
 
-          If the array consists of exactly one empty string (`[""]`) then the entry point is reset to system default (i.e., the entry point used by docker when there is no `ENTRYPOINT` instruction in the Dockerfile).
+          If the array consists of exactly one empty string (`[""]`) then the entry point is reset to system default (i.e., the entry point used by docker when there is no `ENTRYPOINT` instruction in the `Dockerfile`).
         type:
           - "array"
           - "string"
@@ -675,7 +707,7 @@ definitions:
         items:
           type: "string"
       Labels:
-        description: "User-defined key/value data attached to the container."
+        description: "User-defined key/value metadata."
         type: "object"
         additionalProperties:
           type: "string"
@@ -683,6 +715,10 @@ definitions:
         description: "Signal to stop a container as a string or unsigned integer."
         type: "string"
         default: "SIGTERM"
+      StopTimeout:
+        description: "Timeout to stop a container in seconds."
+        type: "integer"
+        default: 10
       Shell:
         description: "Shell for when `RUN`, `CMD`, and `ENTRYPOINT` uses a shell."
         type: "array"
@@ -886,7 +922,7 @@ definitions:
           type: "object"
       Labels:
         type: "object"
-        description: "A mapping of abitrary key/value data set on this volume."
+        description: "User-defined key/value metadata."
         x-nullable: false
         additionalProperties:
           type: "string"
@@ -934,6 +970,9 @@ definitions:
         type: "string"
       Id:
         type: "string"
+      Created:
+        type: "string"
+        format: "dateTime"
       Scope:
         type: "string"
       Driver:
@@ -959,6 +998,7 @@ definitions:
     example:
       Name: "net01"
       Id: "7d86d31b1478e7cca9ebed7e73aa0fdeec46c5ca29497431d3007d2d9e15ed99"
+      Created: "2016-10-19T04:33:30.360899459Z"
       Scope: "local"
       Driver: "bridge"
       EnableIPv6: false
@@ -990,13 +1030,24 @@ definitions:
   IPAM:
     type: "object"
     properties:
+      Driver:
+        description: "Name of the IPAM driver to use."
+        type: "string"
+        default: "default"
       Config:
+        description: "List of IPAM configuration options, specified as a map: `{\"Subnet\": <CIDR>, \"IPRange\": <CIDR>, \"Gateway\": <IP address>, \"AuxAddress\": <device_name:IP address>}`"
         type: "array"
         items:
           type: "object"
           additionalProperties:
             type: "string"
-
+      Options:
+        description: "Driver-specific options, specified as a map."
+        type: "array"
+        items:
+          type: "object"
+          additionalProperties:
+            type: "string"
   NetworkContainer:
     type: "object"
     properties:
@@ -1530,7 +1581,7 @@ definitions:
           NanoCPUs: 4000000000
           MemoryBytes: 8272408576
         Engine:
-          EngineVersion: "1.12.0-dev"
+          EngineVersion: "1.13.0"
           Labels:
             foo: "bar"
           Plugins:
@@ -1544,6 +1595,7 @@ definitions:
               Name: "overlay"
       Status:
         State: "ready"
+        Addr: "172.17.0.2"
       ManagerStatus:
         Leader: true
         Reachability: "reachable"
@@ -1619,8 +1671,7 @@ definitions:
               type: "object"
               properties:
                 Protocol:
-                  description: "Protocol for communication with the external CA
-          (currently only `cfssl` is supported)."
+                  description: "Protocol for communication with the external CA (currently only `cfssl` is supported)."
                   type: "string"
                   enum:
                     - "cfssl"
@@ -1720,10 +1771,13 @@ definitions:
             description: "The user inside the container."
             type: "string"
           Labels:
-            description: "A map of labels to associate with the service."
+            description: "User-defined key/value data."
             type: "object"
             additionalProperties:
               type: "string"
+          TTY:
+            description: "Whether a pseudo-TTY should be allocated."
+            type: "boolean"
           Mounts:
             description: "Specification for mounts to be added to containers created as part of the service."
             type: "array"
@@ -1793,6 +1847,9 @@ definitions:
             type: "array"
             items:
               type: "string"
+      ForceUpdate:
+        description: "A counter that triggers an update even if no relevant parameters have been changed."
+        type: "integer"
       Networks:
         type: "array"
         items:
@@ -1979,7 +2036,7 @@ definitions:
             type: "integer"
             format: "int64"
           Delay:
-            description: "Amount of time between updates."
+            description: "Amount of time between updates, in nanoseconds."
             type: "integer"
             format: "int64"
           FailureAction:
@@ -1988,6 +2045,14 @@ definitions:
             enum:
               - "continue"
               - "pause"
+          Monitor:
+            description: "Amount of time to monitor each updated task for failures, in nanoseconds."
+            type: "integer"
+            format: "int64"
+          MaxFailureRatio:
+            description: "The fraction of tasks that may fail during an update before the failure action is invoked, specified as a floating point number between 0 and 1."
+            type: "number"
+            default: 0
       Networks:
         description: "Array of network names or IDs to attach the service to."
         type: "array"
@@ -2108,12 +2173,15 @@ definitions:
             Condition: "any"
             MaxAttempts: 0
           Placement: {}
+          ForceUpdate: 0
         Mode:
           Replicated:
             Replicas: 1
         UpdateConfig:
           Parallelism: 1
           FailureAction: "pause"
+          Monitor: 15000000000
+          MaxFailureRatio: 0.15
         EndpointSpec:
           Mode: "vip"
           Ports:
@@ -2191,7 +2259,7 @@ definitions:
           type: "integer"
           format: "int64"
         Labels:
-          description: "Labels that have been applied to this container"
+          description: "User-defined key/value metadata."
           type: "object"
           additionalProperties:
             type: "string"
@@ -2466,6 +2534,7 @@ paths:
               ExposedPorts:
                 22/tcp: {}
               StopSignal: "SIGTERM"
+              StopTimeout: 10
               HostConfig:
                 Binds:
                   - "/tmp:/tmp"
@@ -2475,9 +2544,12 @@ paths:
                 MemorySwap: 0
                 MemoryReservation: 0
                 KernelMemory: 0
+                NanoCPUs: 500000
                 CpuPercent: 80
                 CpuShares: 512
                 CpuPeriod: 100000
+                CpuRealtimePeriod: 1000000
+                CpuRealtimeRuntime: 10000
                 CpuQuota: 50000
                 CpusetCpus: "0,1"
                 CpusetMems: "0,1"
@@ -2742,6 +2814,7 @@ paths:
                   /volumes/data: {}
                 WorkingDir: ""
                 StopSignal: "SIGTERM"
+                StopTimeout: 10
               Created: "2015-01-06T15:47:31.485331387Z"
               Driver: "devicemapper"
               HostConfig:
@@ -2764,6 +2837,8 @@ paths:
                 CpuPercent: 80
                 CpuShares: 0
                 CpuPeriod: 100000
+                CpuRealtimePeriod: 1000000
+                CpuRealtimeRuntime: 10000
                 Devices: []
                 IpcMode: ""
                 LxcConf: []
@@ -2954,7 +3029,7 @@ paths:
     get:
       summary: "Get container logs"
       description: |
-        Get stdout and stderr logs from a container.
+        Get `stdout` and `stderr` logs from a container.
 
         Note: This endpoint works only for containers with the `json-file` or `journald` logging driver.
       operationId: "GetContainerLogs"
@@ -2995,12 +3070,12 @@ paths:
           default: false
         - name: "stdout"
           in: "query"
-          description: "Return logs from stdout"
+          description: "Return logs from `stdout`"
           type: "boolean"
           default: false
         - name: "stderr"
           in: "query"
-          description: "Return logs from stderr"
+          description: "Return logs from `stderr`"
           type: "boolean"
           default: false
         - name: "since"
@@ -3453,6 +3528,8 @@ paths:
               CpuShares: 512
               CpuPeriod: 100000
               CpuQuota: 50000
+              CpuRealtimePeriod: 1000000
+              CpuRealtimeRuntime: 10000
               CpusetCpus: "0,1"
               CpusetMems: "0"
               Memory: 314572800
@@ -3686,17 +3763,17 @@ paths:
           default: false
         - name: "stdin"
           in: "query"
-          description: "Attach to stdin"
+          description: "Attach to `stdin`"
           type: "boolean"
           default: false
         - name: "stdout"
           in: "query"
-          description: "Attach to stdout"
+          description: "Attach to `stdout`"
           type: "boolean"
           default: false
         - name: "stderr"
           in: "query"
-          description: "Attach to stderr"
+          description: "Attach to `stderr`"
           type: "boolean"
           default: false
       tags:
@@ -3747,17 +3824,17 @@ paths:
           default: false
         - name: "stdin"
           in: "query"
-          description: "Attach to stdin"
+          description: "Attach to `stdin`"
           type: "boolean"
           default: false
         - name: "stdout"
           in: "query"
-          description: "Attach to stdout"
+          description: "Attach to `stdout`"
           type: "boolean"
           default: false
         - name: "stderr"
           in: "query"
-          description: "Attach to stderr"
+          description: "Attach to `stderr`"
           type: "boolean"
           default: false
       tags:
@@ -4082,9 +4159,11 @@ paths:
     post:
       summary: "Build an image"
       description: |
-        Build an image from a tar archive with a Dockerfile in it.
+        Build an image from a tar archive with a `Dockerfile` in it.
 
-        The Dockerfile specifies how the image is built from the tar archive. It is typically in the archive's root, but can be at a different path or have a different name by specifying the `dockerfile` parameter. [See the Dockerfile reference for more information](https://docs.docker.com/engine/reference/builder/).
+        The `Dockerfile` specifies how the image is built from the tar archive. It is typically in the archive's root, but can be at a different path or have a different name by specifying the `dockerfile` parameter. [See the `Dockerfile` reference for more information](https://docs.docker.com/engine/reference/builder/).
+
+        The Docker daemon performs a preliminary validation of the `Dockerfile` before starting the build, and returns an error if the syntax is incorrect. After that, each instruction is run one-by-one until the ID of the new image is output.
 
         The build is canceled if the client drops the connection by quitting or being killed.
       operationId: "PostImageBuild"
@@ -4101,7 +4180,7 @@ paths:
             format: "binary"
         - name: "dockerfile"
           in: "query"
-          description: "Path within the build context to the `Dockerfile`. This is ignored if `remote` is specified and points to an individual filename."
+          description: "Path within the build context to the `Dockerfile`. This is ignored if `remote` is specified and points to an external `Dockerfile`."
           type: "string"
           default: "Dockerfile"
         - name: "t"
@@ -4122,6 +4201,10 @@ paths:
           description: "Do not use the cache when building the image."
           type: "boolean"
           default: false
+        - name: "cachefrom"
+          in: "query"
+          description: "JSON array of images used for build cache resolution."
+          type: "string"
         - name: "pull"
           in: "query"
           description: "Attempt to pull the image even if an older image exists locally."
@@ -4162,15 +4245,26 @@ paths:
           type: "integer"
         - name: "buildargs"
           in: "query"
-          description: "JSON map of string pairs for build-time variables. Users pass these values at build-time. Docker uses the buildargs as the environment context for commands run via the Dockerfile’s RUN instruction, or for variable expansion in other Dockerfile instructions. This is not meant for passing secret values. [Read more about the buildargs instruction.](https://docs.docker.com/engine/reference/builder/#arg)"
+          description: "JSON map of string pairs for build-time variables. Users pass these values at build-time. Docker uses the buildargs as the environment context for commands run via the `Dockerfile` RUN instruction, or for variable expansion in other `Dockerfile` instructions. This is not meant for passing secret values. [Read more about the buildargs instruction.](https://docs.docker.com/engine/reference/builder/#arg)"
           type: "integer"
         - name: "shmsize"
           in: "query"
           description: "Size of `/dev/shm` in bytes. The size must be greater than 0. If omitted the system uses 64MB."
           type: "integer"
+        - name: "squash"
+          in: "query"
+          description: "Squash the resulting images layers into a single layer. *(Experimental release only.)*"
+          type: "boolean"
         - name: "labels"
           in: "query"
           description: "Arbitrary key/value labels to set on the image, as a JSON map of string pairs."
+          type: "string"
+        - name: "networkmode"
+          in: "query"
+          description: "Sets the networking mode for the run commands during
+        build. Supported standard values are: `bridge`, `host`, `none`, and
+        `container:<name|id>`. Any other value is taken as a custom network's
+        name to which this container should connect to."
           type: "string"
         - name: "Content-type"
           in: "header"
@@ -4241,7 +4335,7 @@ paths:
           type: "string"
         - name: "tag"
           in: "query"
-          description: "Tag or digest."
+          description: "Tag or digest. If empty when pulling an image, this causes all tags for the given image to be pulled."
           type: "string"
         - name: "inputImage"
           in: "body"
@@ -4767,8 +4861,6 @@ paths:
                     type: "array"
                     items:
                       type: "string"
-              ExecutionDriver:
-                type: "string"
               ExperimentalBuild:
                 type: "boolean"
               HttpProxy:
@@ -4902,9 +4994,16 @@ paths:
                 InsecureRegistryCIDRs:
                   - "127.0.0.0/8"
               SecurityOptions:
-                - "apparmor"
-                - "seccomp"
-                - "selinux"
+                - Key: "Name"
+                  Value: "seccomp"
+                - Key: "Profile"
+                  Value: "default"
+                - Key: "Name"
+                  Value: "apparmor"
+                - Key: "Name"
+                  Value: "selinux"
+                - Key: "Name"
+                  Value: "userns"
               ServerVersion: "1.9.0"
               SwapLimit: false
               SystemStatus:
@@ -4935,6 +5034,8 @@ paths:
                 type: "string"
               ApiVersion:
                 type: "string"
+              MinAPIVersion:
+                type: "string"
               GitCommit:
                 type: "string"
               GoVersion:
@@ -4958,6 +5059,7 @@ paths:
               GitCommit: "deadbee"
               Arch: "amd64"
               ApiVersion: "1.25"
+              MinAPIVersion: "1.12"
               BuildTime: "2016-06-14T07:09:13.444803460+00:00"
               Experimental: true
         500:
@@ -5042,7 +5144,7 @@ paths:
           default: true
         - name: "changes"
           in: "query"
-          description: "Dockerfile instructions to apply while committing"
+          description: "`Dockerfile` instructions to apply while committing"
           type: "string"
       tags:
         - "Image"
@@ -5115,11 +5217,11 @@ paths:
       parameters:
         - name: "since"
           in: "query"
-          description: "Show events created since this timestamp then stream new events"
+          description: "Show events created since this timestamp then stream new events."
           type: "string"
         - name: "until"
           in: "query"
-          description: "Show events created until this timestamp then stop streaming"
+          description: "Show events created until this timestamp then stop streaming."
           type: "string"
         - name: "filters"
           in: "query"
@@ -5162,64 +5264,64 @@ paths:
                 items:
                   $ref: "#/definitions/Volume"
             example:
-                LayersSize: 1092588
-                Images:
-                  -
-                    Id: "sha256:2b8fd9751c4c0f5dd266fcae00707e67a2545ef34f9a29354585f93dac906749"
-                    ParentId: ""
-                    RepoTags:
-                      - "busybox:latest"
-                    RepoDigests:
-                      - "busybox@sha256:a59906e33509d14c036c8678d687bd4eec81ed7c4b8ce907b888c607f6a1e0e6"
-                    Created: 1466724217
-                    Size: 1092588
-                    SharedSize: 0
-                    VirtualSize: 1092588
-                    Labels: {}
-                    Containers: 1
-                Containers:
-                  -
-                    Id: "e575172ed11dc01bfce087fb27bee502db149e1a0fad7c296ad300bbff178148"
-                    Names:
-                      - "/top"
-                    Image: "busybox"
-                    ImageID: "sha256:2b8fd9751c4c0f5dd266fcae00707e67a2545ef34f9a29354585f93dac906749"
-                    Command: "top"
-                    Created: 1472592424
-                    Ports: []
-                    SizeRootFs: 1092588
-                    Labels: {}
-                    State: "exited"
-                    Status: "Exited (0) 56 minutes ago"
-                    HostConfig:
-                      NetworkMode: "default"
-                    NetworkSettings:
-                      Networks:
-                        bridge:
-                          IPAMConfig: null
-                          Links: null
-                          Aliases: null
-                          NetworkID: "d687bc59335f0e5c9ee8193e5612e8aee000c8c62ea170cfb99c098f95899d92"
-                          EndpointID: "8ed5115aeaad9abb174f68dcf135b49f11daf597678315231a32ca28441dec6a"
-                          Gateway: "172.18.0.1"
-                          IPAddress: "172.18.0.2"
-                          IPPrefixLen: 16
-                          IPv6Gateway: ""
-                          GlobalIPv6Address: ""
-                          GlobalIPv6PrefixLen: 0
-                          MacAddress: "02:42:ac:12:00:02"
-                    Mounts: []
-                Volumes:
-                  -
-                    Name: "my-volume"
-                    Driver: "local"
-                    Mountpoint: ""
-                    Labels: null
-                    Scope: ""
-                    Options: null
-                    UsageData:
-                      Size: 0
-                      RefCount: 0
+              LayersSize: 1092588
+              Images:
+                -
+                  Id: "sha256:2b8fd9751c4c0f5dd266fcae00707e67a2545ef34f9a29354585f93dac906749"
+                  ParentId: ""
+                  RepoTags:
+                    - "busybox:latest"
+                  RepoDigests:
+                    - "busybox@sha256:a59906e33509d14c036c8678d687bd4eec81ed7c4b8ce907b888c607f6a1e0e6"
+                  Created: 1466724217
+                  Size: 1092588
+                  SharedSize: 0
+                  VirtualSize: 1092588
+                  Labels: {}
+                  Containers: 1
+              Containers:
+                -
+                  Id: "e575172ed11dc01bfce087fb27bee502db149e1a0fad7c296ad300bbff178148"
+                  Names:
+                    - "/top"
+                  Image: "busybox"
+                  ImageID: "sha256:2b8fd9751c4c0f5dd266fcae00707e67a2545ef34f9a29354585f93dac906749"
+                  Command: "top"
+                  Created: 1472592424
+                  Ports: []
+                  SizeRootFs: 1092588
+                  Labels: {}
+                  State: "exited"
+                  Status: "Exited (0) 56 minutes ago"
+                  HostConfig:
+                    NetworkMode: "default"
+                  NetworkSettings:
+                    Networks:
+                      bridge:
+                        IPAMConfig: null
+                        Links: null
+                        Aliases: null
+                        NetworkID: "d687bc59335f0e5c9ee8193e5612e8aee000c8c62ea170cfb99c098f95899d92"
+                        EndpointID: "8ed5115aeaad9abb174f68dcf135b49f11daf597678315231a32ca28441dec6a"
+                        Gateway: "172.18.0.1"
+                        IPAddress: "172.18.0.2"
+                        IPPrefixLen: 16
+                        IPv6Gateway: ""
+                        GlobalIPv6Address: ""
+                        GlobalIPv6PrefixLen: 0
+                        MacAddress: "02:42:ac:12:00:02"
+                  Mounts: []
+              Volumes:
+                -
+                  Name: "my-volume"
+                  Driver: "local"
+                  Mountpoint: ""
+                  Labels: null
+                  Scope: ""
+                  Options: null
+                  UsageData:
+                    Size: 0
+                    RefCount: 0
         500:
           description: "server error"
           schema:
@@ -5331,6 +5433,11 @@ paths:
           schema:
             type: "string"
             format: "binary"
+        - name: "quiet"
+          in: "query"
+          description: "Suppress progress details during load."
+          type: "boolean"
+          default: false
       tags:
         - "Image"
   /containers/{id}/exec:
@@ -5384,11 +5491,23 @@ paths:
               Tty:
                 type: "boolean"
                 description: "Allocate a pseudo-TTY."
+              Env:
+                description: "A list of environment variables in the form `[\"VAR=value\", ...]`."
+                type: "array"
+                items:
+                  type: "string"
               Cmd:
                 type: "array"
                 description: "Command to run, as a string or array of strings."
                 items:
                   type: "string"
+              Privileged:
+                type: "boolean"
+                description: "Runs the exec process with extended privileges."
+                default: false
+              User:
+                type: "string"
+                description: "The user, and optionally, group to run the exec process inside the container. Format is one of: `user`, `user:group`, `uid`, or `uid:gid`."
             example:
               AttachStdin: false
               AttachStdout: true
@@ -5397,6 +5516,9 @@ paths:
               Tty: false
               Cmd:
                 - "date"
+              Env:
+                - "FOO=bar"
+                - "BAZ=quux"
           required: true
         - name: "id"
           in: "path"
@@ -5504,6 +5626,9 @@ paths:
                 type: "boolean"
               ContainerID:
                 type: "string"
+              Pid:
+                type: "integer"
+                description: "The system process ID for the exec process."
           examples:
             application/json:
               CanRemove: false
@@ -5523,6 +5648,7 @@ paths:
                 tty: true
                 user: "1000"
               Running: false
+              Pid: 42000
         404:
           description: "No such exec instance"
           schema:
@@ -5575,7 +5701,10 @@ paths:
                     com.example.some-label: "some-value"
                     com.example.some-other-label: "some-other-value"
                   Scope: "local"
-                  Options: {}
+                  Options:
+                    device: "tmpfs"
+                    o: "size=100m,uid=1000"
+                    type: "tmpfs"
               Warnings: []
         500:
           description: "Server error"
@@ -5637,7 +5766,7 @@ paths:
                 additionalProperties:
                   type: "string"
               Labels:
-                description: "A mapping of arbitrary key/value data to set on the volume."
+                description: "User-defined key/value metadata."
                 type: "object"
                 additionalProperties:
                   type: "string"
@@ -5700,6 +5829,11 @@ paths:
           required: true
           description: "Volume name or ID"
           type: "string"
+        - name: "force"
+          in: "query"
+          description: "Force the removal of the volume"
+          type: "boolean"
+          default: false
       tags: ["Volume"]
   /volumes/prune:
     post:
@@ -5747,6 +5881,7 @@ paths:
             application/json:
               - Name: "bridge"
                 Id: "f2de39df4171b0dc801e8002d1d999b77256983dfc63041c0f34030aa3977566"
+                Created: "2016-10-19T06:21:00.416543526Z"
                 Scope: "local"
                 Driver: "bridge"
                 EnableIPv6: false
@@ -5771,6 +5906,7 @@ paths:
                   com.docker.network.driver.mtu: "1500"
               - Name: "none"
                 Id: "e086a3893b05ab69242d3c44e49483a3bbbd3a26b46baa8f61ab797c1088d794"
+                Created: "0001-01-01T00:00:00Z"
                 Scope: "local"
                 Driver: "null"
                 EnableIPv6: false
@@ -5782,6 +5918,7 @@ paths:
                 Options: {}
               - Name: "host"
                 Id: "13e871235c677f196c4e1ecebb9dc733b9b2d2ab589e30c539efeda84a24215e"
+                Created: "0001-01-01T00:00:00Z"
                 Scope: "local"
                 Driver: "host"
                 EnableIPv6: false
@@ -5918,7 +6055,7 @@ paths:
                 additionalProperties:
                   type: "string"
               Labels:
-                description: "Arbitrary key/value metadata to attach to the network."
+                description: "User-defined key/value metadata."
                 type: "object"
                 additionalProperties:
                   type: "string"
@@ -5928,6 +6065,7 @@ paths:
               Driver: "bridge"
               EnableIPv6: true
               IPAM:
+                Driver: "default"
                 Config:
                   - Subnet: "172.20.0.0/16"
                     IPRange: "172.20.10.0/24"
@@ -6897,11 +7035,14 @@ paths:
                       Condition: "any"
                       MaxAttempts: 0
                     Placement: {}
+                    ForceUpdate: 0
                   Mode:
                     Replicated:
                       Replicas: 1
                   UpdateConfig:
                     Parallelism: 1
+                    Monitor: 15000000000
+                    MaxFailureRatio: 0.15
                   EndpointSpec:
                     Mode: "vip"
 
@@ -6910,6 +7051,13 @@ paths:
           description: "The version number of the service object being updated. This is required to avoid conflicting writes."
           required: true
           type: "integer"
+        - name: "registryAuthFrom"
+          in: "query"
+          type: "string"
+          description: "If the X-Registry-Auth header is not specified, this
+  parameter indicates where to find registry authorization credentials. The
+  valid values are `spec` and `previous-spec`."
+          default: "spec"
         - name: "X-Registry-Auth"
           in: "header"
           description: "A base64-encoded auth configuration for pulling from private registries. [See the authentication section for details.](#section/Authentication)"
@@ -7056,7 +7204,7 @@ paths:
             - `id=<task id>`
             - `name=<task name>`
             - `service=<service name>`
-            - `node=<node id>`
+            - `node=<node id or name>`
             - `label=key` or `label="key=value"`
             - `desired-state=(running | shutdown | accepted)`
       tags:
