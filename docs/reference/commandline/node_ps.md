@@ -1,17 +1,15 @@
-<!--[metadata]>
-+++
-title = "node ps"
-description = "The node ps command description and usage"
-keywords = ["node, tasks", "ps"]
-aliases = ["/engine/reference/commandline/node_tasks/"]
-[menu.main]
-parent = "smn_cli"
-+++
-<![end-metadata]-->
+---
+redirect_from:
+  - /reference/commandline/node_ps/
+  - /engine/reference/commandline/node_tasks/
+description: The node ps command description and usage
+keywords:
+- node, tasks
+- ps
+title: docker node ps
+---
 
 **Warning:** this command is part of the Swarm management feature introduced in Docker 1.12, and might be subject to non backward-compatible changes.
-
-# node ps
 
 ```markdown
 Usage:  docker node ps [OPTIONS] self|NODE
@@ -25,7 +23,7 @@ Options:
       --no-resolve     Do not map IDs to Names
 ```
 
-Lists all the tasks on a Node that Docker knows about. You can filter using the `-f` or `--filter` flag. Refer to the [filtering](#filtering) section for more information about available filter options.
+Lists all the tasks on a Node that Docker knows about. You can filter using the `-f` or `--filter` flag. Refer to the [filtering](node_ps.md#filtering) section for more information about available filter options.
 
 Example output:
 
@@ -45,10 +43,10 @@ than one filter, then pass multiple flags (e.g., `--filter "foo=bar" --filter "b
 
 The currently supported filters are:
 
-* [name](#name)
-* [id](#id)
-* [label](#label)
-* [desired-state](#desired-state)
+* [name](node_ps.md#name)
+* [id](node_ps.md#id)
+* [label](node_ps.md#label)
+* [desired-state](node_ps.md#desired-state)
 
 #### name
 

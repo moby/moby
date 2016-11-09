@@ -1,14 +1,11 @@
-<!--[metadata]>
-+++
-title = "logs"
-description = "The logs command description and usage"
-keywords = ["logs, retrieve, docker"]
-[menu.main]
-parent = "smn_cli"
-+++
-<![end-metadata]-->
-
-# logs
+---
+redirect_from:
+  - /reference/commandline/logs/
+description: The logs command description and usage
+keywords:
+- logs, retrieve, docker
+title: docker logs
+---
 
 ```markdown
 Usage:  docker logs [OPTIONS] CONTAINER

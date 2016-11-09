@@ -1,16 +1,13 @@
-<!--[metadata]>
-+++
-title = "node rm"
-description = "The node rm command description and usage"
-keywords = ["node, remove"]
-[menu.main]
-parent = "smn_cli"
-+++
-<![end-metadata]-->
+---
+redirect_from:
+  - /reference/commandline/node_rm/
+description: The node rm command description and usage
+keywords:
+- node, remove
+title: docker node rm
+---
 
 **Warning:** this command is part of the Swarm management feature introduced in Docker 1.12, and might be subject to non backward-compatible changes.
-
-# node rm
 
 ```markdown
 Usage:  docker node rm [OPTIONS] NODE [NODE...]

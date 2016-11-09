@@ -1,15 +1,11 @@
-<!--[metadata]>
-+++
-title = "Remote API"
-description = "API Documentation for Docker"
-keywords = ["API, Docker, rcli, REST,  documentation"]
-[menu.main]
-parent = "engine_remoteapi"
-weight=-99
-+++
-<![end-metadata]-->
-
-# Docker Remote API
+---
+redirect_from:
+  - /reference/api/docker_remote_api/
+description: API Documentation for Docker
+keywords:
+- API, Docker, rcli, REST,  documentation
+title: Docker Remote API
+---
 
 Docker's Remote API uses an open schema model.  In this model, unknown
 properties in incoming messages are ignored. Client applications need to take

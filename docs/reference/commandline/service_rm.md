@@ -1,16 +1,13 @@
-<!--[metadata]>
-+++
-title = "service rm"
-description = "The service rm command description and usage"
-keywords = ["service, rm"]
-[menu.main]
-parent = "smn_cli"
-+++
-<![end-metadata]-->
+---
+redirect_from:
+  - /reference/commandline/service_rm/
+description: The service rm command description and usage
+keywords:
+- service, rm
+title: docker service rm
+---
 
 **Warning:** this command is part of the Swarm management feature introduced in Docker 1.12, and might be subject to non backward-compatible changes.
-
-# service rm
 
 ```Markdown
 Usage:	docker service rm [OPTIONS] SERVICE [SERVICE...]

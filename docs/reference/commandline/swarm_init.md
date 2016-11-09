@@ -1,16 +1,13 @@
-<!--[metadata]>
-+++
-title = "swarm init"
-description = "The swarm init command description and usage"
-keywords = ["swarm, init"]
-[menu.main]
-parent = "smn_cli"
-+++
-<![end-metadata]-->
+---
+redirect_from:
+  - /reference/commandline/swarm_init/
+description: The swarm init command description and usage
+keywords:
+- swarm, init
+title: docker swarm init
+---
 
 **Warning:** this command is part of the Swarm management feature introduced in Docker 1.12, and might be subject to non backward-compatible changes.
-
-# swarm init
 
 ```markdown
 Usage:  docker swarm init [OPTIONS]

@@ -1,16 +1,13 @@
-<!--[metadata]>
-+++
-title = "service create"
-description = "The service create command description and usage"
-keywords = ["service, create"]
-[menu.main]
-parent = "smn_cli"
-+++
-<![end-metadata]-->
+---
+redirect_from:
+  - /reference/commandline/service_create/
+description: The service create command description and usage
+keywords:
+- service, create
+title: docker service create
+---
 
 **Warning:** this command is part of the Swarm management feature introduced in Docker 1.12, and might be subject to non backward-compatible changes.
-
-# service create
 
 ```Markdown
 Usage:  docker service create [OPTIONS] IMAGE [COMMAND] [ARG...]
@@ -170,23 +167,52 @@ your web server containers when they start. To update the website, you just
 update the named volume.
 
 For more information about named volumes, see
-[Data Volumes](https://docs.docker.com/engine/tutorials/dockervolumes/).
+[Data Volumes](/engine/tutorials/dockervolumes/).
 
 The following table describes options which apply to both bind-mounts and named
 volumes in a service:
 
-| Option                                   | Required                  | Description
-|:-----------------------------------------|:--------------------------|:-----------------------------------------------------------------------------------------
-| **type**                                 |                           | The type of mount, can be either `volume`, or `bind`. Defaults to `volume` if no type is specified.<ul><li>`volume`: mounts a [managed volume](volume_create.md) into the container.</li><li>`bind`: bind-mounts a directory or file from the host into the container.</li></ul>
-| **src** or **source**                    | for `type=bind`&nbsp;only | <ul><li>`type=volume`: `src` is an optional way to specify the name of the volume (for example, `src=my-volume`). If the named volume does not exist, it is automatically created. If no `src` is specified, the volume is assigned a random name which is guaranteed to be unique on the host, but may not be unique cluster-wide. A randomly-named volume has the same lifecycle as its container and is destroyed when the *container* is destroyed (which is upon `service update`, or when scaling or re-balancing the service).</li><li>`type=bind`: `src` is required, and specifies an absolute path to the file or directory to bind-mount (for example, `src=/path/on/host/`).  An error is produced if the file or directory does not exist.</li></ul>
-| **dst** or **destination** or **target** | yes                       | Mount path inside the container, for example `/some/path/in/container/`. If the path does not exist in the container's filesystem, the Engine creates a directory at the specified location before mounting the volume or bind-mount.
-| **readonly** or **ro**                   |                           | The Engine mounts binds and volumes `read-write` unless `readonly` option is given when mounting the bind or volume.<br /><br /><ul><li>`true` or `1` or no value: Mounts the bind or volume read-only.</li><li>`false` or `0`: Mounts the bind or volume read-write.</li></ul>
+<table>
+<thead>
+<tr>
+<th align="left">Option</th>
+<th align="left">Required</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td align="left"><strong>type</strong></td>
+<td align="left"></td>
+<td align="left">The type of mount, can be either <code>volume</code>, or <code>bind</code>. Defaults to <code>volume</code> if no type is specified.<ul><li><code>volume</code>: mounts a <a href="../../../../engine/reference/commandline/volume_create/">managed volume</a> into the container.</li><li><code>bind</code>: bind-mounts a directory or file from the host into the container.</li></ul></td>
+</tr>
+
+<tr>
+<td align="left"><strong>src</strong> or <strong>source</strong></td>
+<td align="left">for <code>type=bind</code>&nbsp;only</td>
+<td align="left"><ul><li><code>type=volume</code>: <code>src</code> is an optional way to specify the name of the volume (for example, <code>src=my-volume</code>). If the named volume does not exist, it is automatically created. If no <code>src</code> is specified, the volume is assigned a random name which is guaranteed to be unique on the host, but may not be unique cluster-wide. A randomly-named volume has the same lifecycle as its container and is destroyed when the <em>container</em> is destroyed (which is upon <code>service update</code>, or when scaling or re-balancing the service).</li><li><code>type=bind</code>: <code>src</code> is required, and specifies an absolute path to the file or directory to bind-mount (for example, <code>src=/path/on/host/</code>).  An error is produced if the file or directory does not exist.</li></ul></td>
+</tr>
+
+<tr>
+<td align="left"><strong>dst</strong> or <strong>destination</strong> or <strong>target</strong></td>
+<td align="left">yes</td>
+<td align="left">Mount path inside the container, for example <code>/some/path/in/container/</code>. If the path does not exist in the container&rsquo;s filesystem, the Engine creates a directory at the specified location before mounting the volume or bind-mount.</td>
+</tr>
+
+<tr>
+<td align="left"><strong>readonly</strong> or <strong>ro</strong></td>
+<td align="left"></td>
+<td align="left">The Engine mounts binds and volumes <code>read-write</code> unless <code>readonly</code> option is given when mounting the bind or volume.<br /><br /><ul><li><code>true</code> or <code>1</code> or no value: Mounts the bind or volume read-only.</li><li><code>false</code> or <code>0</code>: Mounts the bind or volume read-write.</li></ul></td>
+</tr>
+</tbody>
+</table>
 
 #### Bind Propagation
 
 Bind propagation refers to whether or not mounts created within a given
 bind-mount or named volume can be propagated to replicas of that mount. Consider
-a mount point `/mnt`, which is also mounted on `/tmp`. The propation settings
+a mount point `/mnt`, which is also mounted on `/tmp`. The propagation settings
 control whether a mount on `/tmp/a` would also be available on `/mnt/a`. Each
 propagation setting has a recursive counterpoint. In the case of recursion,
 consider that `/tmp/a` is also mounted as `/foo`. The propagation settings
@@ -222,12 +248,37 @@ For more information about bind propagation, see the
 #### Options for Named Volumes
 The following options can only be used for named volumes (`type=volume`);
 
-| Option                | Description
-|:----------------------|:--------------------------------------------------------------------------------------------------------------------
-| **volume-driver**     | Name of the volume-driver plugin to use for the volume. Defaults to ``"local"``, to use the local volume driver to create the volume if the volume does not exist.
-| **volume-label**      | One or more custom metadata ("labels") to apply to the volume upon creation. For example, `volume-label=mylabel=hello-world,my-other-label=hello-mars`. For more information about labels, refer to [apply custom metadata](../../userguide/labels-custom-metadata.md).
-| **volume-nocopy**     | By default, if you attach an empty volume to a container, and files or directories already existed at the mount-path in the container (`dst`), the Engine copies those files and directories into the volume, allowing the host to access them. Set `volume-nocopy` to disables copying files from the container's filesystem to the volume and mount the empty volume.<br /><br />A value is optional:<ul><li>`true` or `1`: Default if you do not provide a value. Disables copying.</li><li>`false` or `0`: Enables copying.</li></ul>
-| **volume-opt**        | Options specific to a given volume driver, which will be passed to the driver when creating the volume. Options are provided as a comma-separated list of key/value pairs, for example, `volume-opt=some-option=some-value,some-other-option=some-other-value`. For available options for a given driver, refer to that driver's documentation.
+<table>
+<thead>
+<tr>
+<th align="left">Option</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td align="left"><strong>volume-driver</strong></td>
+<td align="left">Name of the volume-driver plugin to use for the volume. Defaults to <code>&quot;local&quot;</code>, to use the local volume driver to create the volume if the volume does not exist.</td>
+</tr>
+
+<tr>
+<td align="left"><strong>volume-label</strong></td>
+<td align="left">One or more custom metadata (&ldquo;labels&rdquo;) to apply to the volume upon creation. For example, <code>volume-label=mylabel=hello-world,my-other-label=hello-mars</code>. For more information about labels, refer to <a href="../../../../engine/userguide/labels-custom-metadata/">apply custom metadata</a>.</td>
+</tr>
+
+<tr>
+<td align="left"><strong>volume-nocopy</strong></td>
+<td align="left">By default, if you attach an empty volume to a container, and files or directories already existed at the mount-path in the container (<code>dst</code>), the Engine copies those files and directories into the volume, allowing the host to access them. Set <code>volume-nocopy</code> to disables copying files from the container&rsquo;s filesystem to the volume and mount the empty volume.<br /><br />A value is optional:<ul><li><code>true</code> or <code>1</code>: Default if you do not provide a value. Disables copying.</li><li><code>false</code> or <code>0</code>: Enables copying.</li></ul></td>
+</tr>
+
+<tr>
+<td align="left"><strong>volume-opt</strong></td>
+<td align="left">Options specific to a given volume driver, which will be passed to the driver when creating the volume. Options are provided as a comma-separated list of key/value pairs, for example, <code>volume-opt=some-option=some-value,some-other-option=some-other-value</code>. For available options for a given driver, refer to that driver&rsquo;s documentation.</td>
+</tr>
+</tbody>
+</table>
+
 
 #### Differences between "--mount" and "--volume"
 

@@ -1,15 +1,12 @@
-<!--[metadata]>
-+++
-title = "stack config"
-description = "The stack config command description and usage"
-keywords = ["stack, config"]
-advisory = "experimental"
-[menu.main]
-parent = "smn_cli"
-+++
-<![end-metadata]-->
-
-# stack config (experimental)
+---
+redirect_from:
+  - /reference/commandline/stack_config/
+advisory: experimental
+description: The stack config command description and usage
+keywords:
+- stack, config
+title: docker stack config (experimental)
+---
 
 ```markdown
 Usage:  docker stack config [OPTIONS] STACK

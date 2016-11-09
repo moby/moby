@@ -1,16 +1,13 @@
-<!--[metadata]>
-+++
-title = "service inspect"
-description = "The service inspect command description and usage"
-keywords = ["service, inspect"]
-[menu.main]
-parent = "smn_cli"
-+++
-<![end-metadata]-->
+---
+redirect_from:
+  - /reference/commandline/service_inspect/
+description: The service inspect command description and usage
+keywords:
+- service, inspect
+title: docker service inspect
+---
 
 **Warning:** this command is part of the Swarm management feature introduced in Docker 1.12, and might be subject to non backward-compatible changes.
-
-# service inspect
 
 ```Markdown
 Usage:  docker service inspect [OPTIONS] SERVICE [SERVICE...]
@@ -139,10 +136,10 @@ The `--format` option can be used to obtain specific information about a
 service. For example, the following command outputs the number of replicas
 of the "redis" service.
 
-```bash
+```bash{% raw %}
 $ docker service inspect --format='{{.Spec.Mode.Replicated.Replicas}}' redis
 10
-```
+{% endraw %}```
 
 
 ## Related information

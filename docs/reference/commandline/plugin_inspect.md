@@ -1,15 +1,12 @@
-<!--[metadata]>
-+++
-title = "plugin inspect"
-description = "The plugin inspect command description and usage"
-keywords = ["plugin, inspect"]
-advisory = "experimental"
-[menu.main]
-parent = "smn_cli"
-+++
-<![end-metadata]-->
-
-# plugin inspect (experimental)
+---
+redirect_from:
+  - /reference/commandline/plugin_inspect/
+advisory: experimental
+description: The plugin inspect command description and usage
+keywords:
+- plugin, inspect
+title: docker plugin inspect (experimental)
+---
 
 ```markdown
 Usage:  docker plugin inspect [OPTIONS] PLUGIN [PLUGIN...]

@@ -1,21 +1,17 @@
-<!--[metadata]>
-+++
-title = "Docker Glossary"
-description = "Glossary of terms used around Docker"
-keywords = ["glossary, docker, terms,  definitions"]
-[menu.main]
-parent = "mn_about"
-weight = "50"
-+++
-<![end-metadata]-->
-
-# Glossary
+---
+redirect_from:
+  - /reference/glossary/
+description: Glossary of terms used around Docker
+keywords:
+- glossary, docker, terms,  definitions
+title: Docker glossary
+---
 
 A list of terms used around the Docker project.
 
 ## aufs
 
-aufs (advanced multi layered unification filesystem) is a Linux [filesystem](#filesystem) that
+aufs (advanced multi layered unification filesystem) is a Linux [filesystem](glossary.md#filesystem) that
 Docker supports as a storage backend. It implements the
 [union mount](http://en.wikipedia.org/wiki/Union_mount) for Linux file systems.
 
@@ -26,17 +22,17 @@ An image that has no parent is a **base image**.
 ## boot2docker
 
 [boot2docker](http://boot2docker.io/) is a lightweight Linux distribution made
-specifically to run Docker containers. The boot2docker management tool for Mac and Windows was deprecated and replaced by [`docker-machine`](#machine) which you can install with the Docker Toolbox.
+specifically to run Docker containers. The boot2docker management tool for Mac and Windows was deprecated and replaced by [`docker-machine`](glossary.md#machine) which you can install with the Docker Toolbox.
 
 ## btrfs
 
-btrfs (B-tree file system) is a Linux [filesystem](#filesystem) that Docker
+btrfs (B-tree file system) is a Linux [filesystem](glossary.md#filesystem) that Docker
 supports as a storage backend. It is a [copy-on-write](http://en.wikipedia.org/wiki/Copy-on-write)
 filesystem.
 
 ## build
 
-build is the process of building Docker images using a [Dockerfile](#dockerfile).
+build is the process of building Docker images using a [Dockerfile](glossary.md#dockerfile).
 The build uses a Dockerfile and a "context". The context is the set of files in the
 directory in which the image is built.
 
@@ -60,7 +56,7 @@ be done to get it running.
 
 ## container
 
-A container is a runtime instance of a [docker image](#image).
+A container is a runtime instance of a [docker image](glossary.md#image).
 
 A Docker container consists of
 
@@ -115,11 +111,11 @@ Examples :
 
 - Linux : ext4, aufs, btrfs, zfs
 - Windows : NTFS
-- OS X : HFS+
+- macOS : HFS+
 
 ## image
 
-Docker images are the basis of [containers](#container). An Image is an
+Docker images are the basis of [containers](glossary.md#container). An Image is an
 ordered collection of root filesystem changes and the corresponding
 execution parameters for use within a container runtime. An image typically
 contains a union of layered filesystems stacked on top of each other. An image
@@ -170,23 +166,23 @@ for docker containers in a cluster.
 
 ## overlay storage driver
 
-OverlayFS is a [filesystem](#filesystem) service for Linux which implements a
+OverlayFS is a [filesystem](glossary.md#filesystem) service for Linux which implements a
 [union mount](http://en.wikipedia.org/wiki/Union_mount) for other file systems.
 It is supported by the Docker daemon as a storage driver.
 
 ## registry
 
-A Registry is a hosted service containing [repositories](#repository) of [images](#image)
+A Registry is a hosted service containing [repositories](glossary.md#repository) of [images](glossary.md#image)
 which responds to the Registry API.
 
-The default registry can be accessed using a browser at [Docker Hub](#docker-hub)
+The default registry can be accessed using a browser at [Docker Hub](glossary.md#docker-hub)
 or using the `docker search` command.
 
 ## repository
 
 A repository is a set of Docker images. A repository can be shared by pushing it
-to a [registry](#registry) server. The different images in the repository can be
-labeled using [tags](#tag).
+to a [registry](glossary.md#registry) server. The different images in the repository can be
+labeled using [tags](glossary.md#tag).
 
 Here is an example of the shared [nginx repository](https://hub.docker.com/_/nginx/)
 and its [tags](https://hub.docker.com/r/library/nginx/tags/)
@@ -220,11 +216,11 @@ automatically distributes requests to the service VIP among the active tasks.
 
 ## swarm
 
-A [swarm](../swarm/index.md) is a cluster of one or more Docker Engines running in [swarm mode](#swarm-mode).
+A [swarm](../swarm/index.md) is a cluster of one or more Docker Engines running in [swarm mode](glossary.md#swarm-mode).
 
 ## Swarm
 
-Do not confuse [Docker Swarm](https://github.com/docker/swarm) with the [swarm mode](#swarm-mode) features in Docker Engine.
+Do not confuse [Docker Swarm](https://github.com/docker/swarm) with the [swarm mode](glossary.md#swarm-mode) features in Docker Engine.
 
 Docker Swarm is the name of a standalone native clustering tool for Docker.
 Docker Swarm pools together several Docker hosts and exposes them as a single
@@ -241,7 +237,7 @@ join nodes to a swarm, the Docker Engine runs in swarm mode.
 
 ## tag
 
-A tag is a label applied to a Docker image in a [repository](#repository).
+A tag is a label applied to a Docker image in a [repository](glossary.md#repository).
 tags are how various images in a repository are distinguished from each other.
 
 *Note : This label is not related to the key=value labels set for docker daemon*
@@ -276,7 +272,7 @@ A virtual machine is a program that emulates a complete computer and imitates de
 It shares physical hardware resources with other users but isolates the operating system. The
 end user has the same experience on a Virtual Machine as they would have on dedicated hardware.
 
-Compared to to containers, a virtual machine is heavier to run, provides more isolation,
+Compared to containers, a virtual machine is heavier to run, provides more isolation,
 gets its own set of resources and does minimal sharing.
 
 *Also known as : VM*
