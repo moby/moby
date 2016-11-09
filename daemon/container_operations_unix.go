@@ -163,11 +163,14 @@ func (daemon *Daemon) setupSecretDir(c *container.Container) (setupErr error) {
 		}
 	}()
 
+	// retrieve possible remapped range start for root UID, GID
+	rootUID, rootGID := daemon.GetRemappedUIDGID()
 	// create tmpfs
-	if err := os.MkdirAll(localMountPath, 0700); err != nil {
+	if err := idtools.MkdirAllAs(localMountPath, 0700, rootUID, rootGID); err != nil {
 		return errors.Wrap(err, "error creating secret local mount path")
 	}
-	if err := mount.Mount("tmpfs", localMountPath, "tmpfs", "nodev,nosuid,noexec"); err != nil {
+	tmpfsOwnership := fmt.Sprintf("uid=%d,gid=%d", rootUID, rootGID)
+	if err := mount.Mount("tmpfs", localMountPath, "tmpfs", "nodev,nosuid,noexec,"+tmpfsOwnership); err != nil {
 		return errors.Wrap(err, "unable to setup secret mount")
 	}
 
@@ -179,7 +182,7 @@ func (daemon *Daemon) setupSecretDir(c *container.Container) (setupErr error) {
 		}
 
 		fPath := filepath.Join(localMountPath, targetPath)
-		if err := os.MkdirAll(filepath.Dir(fPath), 0700); err != nil {
+		if err := idtools.MkdirAllAs(filepath.Dir(fPath), 0700, rootUID, rootGID); err != nil {
 			return errors.Wrap(err, "error creating secret mount path")
 		}
 
@@ -200,13 +203,13 @@ func (daemon *Daemon) setupSecretDir(c *container.Container) (setupErr error) {
 			return err
 		}
 
-		if err := os.Chown(fPath, uid, gid); err != nil {
+		if err := os.Chown(fPath, rootUID+uid, rootGID+gid); err != nil {
 			return errors.Wrap(err, "error setting ownership for secret")
 		}
 	}
 
 	// remount secrets ro
-	if err := mount.Mount("tmpfs", localMountPath, "tmpfs", "remount,ro"); err != nil {
+	if err := mount.Mount("tmpfs", localMountPath, "tmpfs", "remount,ro,"+tmpfsOwnership); err != nil {
 		return errors.Wrap(err, "unable to remount secret dir as readonly")
 	}
 
