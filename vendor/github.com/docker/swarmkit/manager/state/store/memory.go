@@ -27,6 +27,7 @@ const (
 	indexSlot         = "slot"
 	indexCN           = "cn"
 	indexDesiredState = "desiredstate"
+	indexTaskState    = "taskstate"
 	indexRole         = "role"
 	indexMembership   = "membership"
 	indexNetwork      = "network"
@@ -610,6 +611,12 @@ func (tx readTx) findIterators(table string, by By, checkType func(By) error) ([
 		return []memdb.ResultIterator{it}, nil
 	case byDesiredState:
 		it, err := tx.memDBTx.Get(table, indexDesiredState, strconv.FormatInt(int64(v), 10))
+		if err != nil {
+			return nil, err
+		}
+		return []memdb.ResultIterator{it}, nil
+	case byTaskState:
+		it, err := tx.memDBTx.Get(table, indexTaskState, strconv.FormatInt(int64(v), 10))
 		if err != nil {
 			return nil, err
 		}

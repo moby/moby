@@ -102,6 +102,16 @@ func ByDesiredState(state api.TaskState) By {
 	return byDesiredState(state)
 }
 
+type byTaskState api.TaskState
+
+func (b byTaskState) isBy() {
+}
+
+// ByTaskState creates an object to pass to Find to select by task state.
+func ByTaskState(state api.TaskState) By {
+	return byTaskState(state)
+}
+
 type byRole api.NodeRole
 
 func (b byRole) isBy() {

@@ -46,6 +46,11 @@ const (
 
 	modificationBatchLimit = 100
 	batchingWaitTime       = 100 * time.Millisecond
+
+	// defaultNodeDownPeriod specifies the default time period we
+	// wait before moving tasks assigned to down nodes to ORPHANED
+	// state.
+	defaultNodeDownPeriod = 24 * time.Hour
 )
 
 var (
@@ -118,6 +123,8 @@ type Dispatcher struct {
 	nodeUpdates     map[string]nodeUpdate // indexed by node ID
 	nodeUpdatesLock sync.Mutex
 
+	downNodes *nodeStore
+
 	processUpdatesTrigger chan struct{}
 
 	// for waiting for the next task/node batch update
@@ -130,6 +137,7 @@ type Dispatcher struct {
 func New(cluster Cluster, c *Config) *Dispatcher {
 	d := &Dispatcher{
 		nodes:                 newNodeStore(c.HeartbeatPeriod, c.HeartbeatEpsilon, c.GracePeriodMultiplier, c.RateLimitPeriod),
+		downNodes:             newNodeStore(defaultNodeDownPeriod, 0, 1, 0),
 		store:                 cluster.MemoryStore(),
 		cluster:               cluster,
 		taskUpdates:           make(map[string]*api.TaskStatus),
@@ -312,6 +320,16 @@ func (d *Dispatcher) markNodesUnknown(ctx context.Context) error {
 				}
 				// do not try to resurrect down nodes
 				if node.Status.State == api.NodeStatus_DOWN {
+					nodeCopy := node
+					expireFunc := func() {
+						if err := d.moveTasksToOrphaned(nodeCopy.ID); err != nil {
+							log.WithError(err).Error(`failed to move all tasks to "ORPHANED" state`)
+						}
+
+						d.downNodes.Delete(nodeCopy.ID)
+					}
+
+					d.downNodes.Add(nodeCopy, expireFunc)
 					return nil
 				}
 
@@ -370,6 +388,10 @@ func (d *Dispatcher) markNodeReady(nodeID string, description *api.NodeDescripti
 	}
 	numUpdates := len(d.nodeUpdates)
 	d.nodeUpdatesLock.Unlock()
+
+	// Node is marked ready. Remove the node from down nodes if it
+	// is there.
+	d.downNodes.Delete(nodeID)
 
 	if numUpdates >= maxBatchItems {
 		select {
@@ -1135,11 +1157,75 @@ func (d *Dispatcher) Assignments(r *api.AssignmentsRequest, stream api.Dispatche
 	}
 }
 
+func (d *Dispatcher) moveTasksToOrphaned(nodeID string) error {
+	_, err := d.store.Batch(func(batch *store.Batch) error {
+		var (
+			tasks []*api.Task
+			err   error
+		)
+
+		d.store.View(func(tx store.ReadTx) {
+			tasks, err = store.FindTasks(tx, store.ByNodeID(nodeID))
+		})
+		if err != nil {
+			return err
+		}
+
+		for _, task := range tasks {
+			if task.Status.State < api.TaskStateOrphaned {
+				task.Status.State = api.TaskStateOrphaned
+			}
+
+			if err := batch.Update(func(tx store.Tx) error {
+				err := store.UpdateTask(tx, task)
+				if err != nil {
+					return err
+				}
+
+				return nil
+			}); err != nil {
+				return err
+			}
+
+		}
+
+		return nil
+	})
+
+	return err
+}
+
 // markNodeNotReady sets the node state to some state other than READY
 func (d *Dispatcher) markNodeNotReady(id string, state api.NodeStatus_State, message string) error {
 	if err := d.isRunningLocked(); err != nil {
 		return err
 	}
+
+	// Node is down. Add it to down nodes so that we can keep
+	// track of tasks assigned to the node.
+	var (
+		node *api.Node
+		err  error
+	)
+	d.store.View(func(readTx store.ReadTx) {
+		node = store.GetNode(readTx, id)
+		if node == nil {
+			err = fmt.Errorf("could not find node %s while trying to add to down nodes store", id)
+		}
+	})
+	if err != nil {
+		return err
+	}
+
+	expireFunc := func() {
+		if err := d.moveTasksToOrphaned(id); err != nil {
+			log.G(context.TODO()).WithError(err).Error(`failed to move all tasks to "ORPHANED" state`)
+		}
+
+		d.downNodes.Delete(id)
+	}
+
+	d.downNodes.Add(node, expireFunc)
 
 	status := &api.NodeStatus{
 		State:   state,
