@@ -5114,7 +5114,12 @@ image](#create-an-image) section for more details.
             }
           ],
           "User": "33",
-          "TTY": false
+          "TTY": false,
+          "DNSConfig": {
+            "Nameservers": ["8.8.8.8"],
+            "Search": ["example.org"],
+            "Options": ["timeout:3"]
+          }
         },
         "LogDriver": {
           "Name": "json-file",
@@ -5209,6 +5214,11 @@ image](#create-an-image) section for more details.
                   - **Options** - key/value map of driver specific options.
         - **StopGracePeriod** – Amount of time to wait for the container to terminate before
           forcefully killing it.
+        - **DNSConfig** – Specification for DNS related configurations in
+          resolver configuration file (resolv.conf).
+            - **Nameservers** – A list of the IP addresses of the name servers.
+            - **Search** – A search list for host-name lookup.
+            - **Options** – A list of internal resolver variables to be modified (e.g., `debug`, `ndots:3`, etc.).
     - **LogDriver** - Log configuration for containers created as part of the
       service.
         - **Name** - Name of the logging driver to use (`json-file`, `syslog`,
@@ -5394,7 +5404,12 @@ image](#create-an-image) section for more details.
           "Args": [
             "top"
           ],
-          "TTY": true
+          "TTY": true,
+          "DNSConfig": {
+            "Nameservers": ["8.8.8.8"],
+            "Search": ["example.org"],
+            "Options": ["timeout:3"]
+          }
         },
         "Resources": {
           "Limits": {},
@@ -5460,6 +5475,11 @@ image](#create-an-image) section for more details.
                   - **Options** - key/value map of driver specific options
         - **StopGracePeriod** – Amount of time to wait for the container to terminate before
           forcefully killing it.
+        - **DNSConfig** – Specification for DNS related configurations in
+          resolver configuration file (resolv.conf).
+            - **Nameservers** – A list of the IP addresses of the name servers.
+            - **Search** – A search list for host-name lookup.
+            - **Options** – A list of internal resolver variables to be modified (e.g., `debug`, `ndots:3`, etc.).
     - **Resources** – Resource requirements which apply to each individual container created as part
       of the service.
         - **Limits** – Define resources limits.
