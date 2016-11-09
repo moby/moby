@@ -68,7 +68,7 @@ func (s *DockerSuite) TestKillWithSignal(c *check.C) {
 func (s *DockerSuite) TestKillWithStopSignalWithSameSignalShouldDisableRestartPolicy(c *check.C) {
 	// Cannot port to Windows - does not support signals int the same way as Linux does
 	testRequires(c, DaemonIsLinux)
-	out, _ := dockerCmd(c, "run", "-d", "--stop-signal=TERM", "busybox", "top")
+	out, _ := dockerCmd(c, "run", "-d", "--stop-signal=TERM", "--restart=always", "busybox", "top")
 	cid := strings.TrimSpace(out)
 	c.Assert(waitRun(cid), check.IsNil)
 
@@ -84,7 +84,7 @@ func (s *DockerSuite) TestKillWithStopSignalWithSameSignalShouldDisableRestartPo
 func (s *DockerSuite) TestKillWithStopSignalWithDifferentSignalShouldKeepRestartPolicy(c *check.C) {
 	// Cannot port to Windows - does not support signals int the same way as Linux does
 	testRequires(c, DaemonIsLinux)
-	out, _ := dockerCmd(c, "run", "-d", "--stop-signal=CONT", "busybox", "top")
+	out, _ := dockerCmd(c, "run", "-d", "--stop-signal=CONT", "--restart=always", "busybox", "top")
 	cid := strings.TrimSpace(out)
 	c.Assert(waitRun(cid), check.IsNil)
 
