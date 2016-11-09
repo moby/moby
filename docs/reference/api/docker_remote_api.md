@@ -183,6 +183,7 @@ This section lists each version from latest to oldest.  Each listing includes a 
 * The `HostConfig` field now includes `CpuCount` that represents the number of CPUs available for execution by the container. Windows daemon only.
 * `POST /services/create` and `POST /services/(id or name)/update` now accept the `TTY` parameter, which allocate a pseudo-TTY in container.
 * `POST /services/create` and `POST /services/(id or name)/update` now accept the `DNSConfig` parameter, which specifies DNS related configurations in resolver configuration file (resolv.conf) through `Nameservers`, `Search`, and `Options`.
+* `GET /networks/(id or name)` now includes IP and name of all peers nodes for swarm mode overlay networks.
 
 ### v1.24 API changes
 

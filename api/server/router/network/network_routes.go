@@ -11,6 +11,7 @@ import (
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/libnetwork"
+	"github.com/docker/libnetwork/networkdb"
 )
 
 func (n *networkRouter) getNetworksList(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
@@ -177,6 +178,11 @@ func (n *networkRouter) buildNetworkResource(nw libnetwork.Network) *types.Netwo
 	r.Internal = info.Internal()
 	r.Labels = info.Labels()
 
+	peers := info.Peers()
+	if len(peers) != 0 {
+		r.Peers = buildPeerInfoResources(peers)
+	}
+
 	epl := nw.Endpoints()
 	for _, e := range epl {
 		ei := e.Info()
@@ -193,6 +199,17 @@ func (n *networkRouter) buildNetworkResource(nw libnetwork.Network) *types.Netwo
 		r.Containers[key] = buildEndpointResource(tmpID, e.Name(), ei)
 	}
 	return r
+}
+
+func buildPeerInfoResources(peers []networkdb.PeerInfo) []network.PeerInfo {
+	peerInfo := make([]network.PeerInfo, 0, len(peers))
+	for _, peer := range peers {
+		peerInfo = append(peerInfo, network.PeerInfo{
+			Name: peer.Name,
+			IP:   peer.IP,
+		})
+	}
+	return peerInfo
 }
 
 func buildIpamResources(r *types.NetworkResource, nwInfo libnetwork.NetworkInfo) {
