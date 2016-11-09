@@ -2141,6 +2141,84 @@ definitions:
           -
             NetworkID: "4qvuz4ko70xaltuqbt8956gd1"
             Addr: "10.255.0.3/16"
+  ImageDeleteResponse:
+    type: "object"
+    properties:
+      Untagged:
+        description: "The image ID of an image that was untagged"
+        type: "string"
+      Deleted:
+        description: "The image ID of an image that was deleted"
+        type: "string"
+  ContainerSummary:
+    type: "array"
+    items:
+      type: "object"
+      properties:
+        Id:
+          description: "The ID of this container"
+          type: "string"
+          x-go-name: "ID"
+        Names:
+          description: "The names that this container has been given"
+          type: "array"
+          items:
+            type: "string"
+        Image:
+          description: "The name of the image used when creating this container"
+          type: "string"
+        ImageID:
+          description: "The ID of the image that this container was created from"
+          type: "string"
+        Command:
+          description: "Command to run when starting the container"
+          type: "string"
+        Created:
+          description: "When the container was created"
+          type: "integer"
+          format: "int64"
+        Ports:
+          description: "The ports exposed by this container"
+          type: "array"
+          items:
+            $ref: "#/definitions/Port"
+        SizeRw:
+          description: "The size of files that have been created or changed by this container"
+          type: "integer"
+          format: "int64"
+        SizeRootFs:
+          description: "The total size of all the files in this container"
+          type: "integer"
+          format: "int64"
+        Labels:
+          description: "Labels that have been applied to this container"
+          type: "object"
+          additionalProperties:
+            type: "string"
+        State:
+          description: "The state of this container (e.g. `Exited`)"
+          type: "string"
+        Status:
+          description: "Additional human-readable status of this container (e.g. `Exit 0`)"
+          type: "string"
+        HostConfig:
+          type: "object"
+          properties:
+            NetworkMode:
+              type: "string"
+        NetworkSettings:
+          description: "A summary of the container's network settings"
+          type: "object"
+          properties:
+            Networks:
+              type: "object"
+              additionalProperties:
+                $ref: "#/definitions/EndpointSettings"
+        Mounts:
+          type: "array"
+          items:
+            $ref: "#/definitions/Mount"
+
 paths:
   /containers/json:
     get:
@@ -2170,86 +2248,24 @@ paths:
 
             Available filters:
             - `exited=<int>` containers with exit code of `<int>`
-            - `status=`(`created`|`restarting`|`running`|`paused`|`exited`|`dead`)
+            - `status=`(`created`|`restarting`|`running`|`removing`|`paused`|`exited`|`dead`)
             - `label=key` or `label="key=value"` of a container label
             - `isolation=`(`default`|`process`|`hyperv`) (Windows daemon only)
+            - `id=<ID>` a container's ID
+            - `name=<name>` a container's name
+            - `is-task=`(`true`|`false`)
             - `ancestor`=(`<image-name>[:<tag>]`, `<image id>`, or `<image@digest>`)
             - `before`=(`<container id>` or `<container name>`)
             - `since`=(`<container id>` or `<container name>`)
             - `volume`=(`<volume name>` or `<mount point destination>`)
             - `network`=(`<network id>` or `<network name>`)
+            - `health`=(`starting`|`healthy`|`unhealthy`|`none`)
           type: "string"
       responses:
         200:
           description: "no error"
           schema:
-            type: "array"
-            items:
-              type: "object"
-              properties:
-                Id:
-                  description: "The ID of this container"
-                  type: "string"
-                  x-go-name: "ID"
-                Names:
-                  description: "The names that this container has been given"
-                  type: "array"
-                  items:
-                    type: "string"
-                Image:
-                  description: "The name of the image used when creating this container"
-                  type: "string"
-                ImageID:
-                  description: "The ID of the image that this container was created from"
-                  type: "string"
-                Command:
-                  description: "Command to run when starting the container"
-                  type: "string"
-                Created:
-                  description: "When the container was created"
-                  type: "integer"
-                  format: "int64"
-                Ports:
-                  description: "The ports exposed by this container"
-                  type: "array"
-                  items:
-                    $ref: "#/definitions/Port"
-                SizeRw:
-                  description: "The size of files that have been created or changed by this container"
-                  type: "integer"
-                  format: "int64"
-                SizeRootFs:
-                  description: "The total size of all the files in this container"
-                  type: "integer"
-                  format: "int64"
-                Labels:
-                  description: "Labels that have been applied to this container"
-                  type: "object"
-                  additionalProperties:
-                    type: "string"
-                State:
-                  description: "The state of this container (e.g. `Exited`)"
-                  type: "string"
-                Status:
-                  description: "Additional human-readable status of this container (e.g. `Exit 0`)"
-                  type: "string"
-                HostConfig:
-                  type: "object"
-                  properties:
-                    NetworkMode:
-                      type: "string"
-                NetworkSettings:
-                  description: "A summary of the container's network settings"
-                  type: "object"
-                  properties:
-                    Networks:
-                      type: "object"
-                      additionalProperties:
-                        $ref: "#/definitions/EndpointSettings"
-                Mounts:
-                  type: "array"
-                  items:
-                    $ref: "#/definitions/Mount"
+            $ref: "#/definitions/ContainerSummary"
           examples:
             application/json:
               - Id: "8dfafdbc3a40"
@@ -3965,6 +3981,35 @@ paths:
             type: "string"
       tags:
         - "Container"
+  /containers/prune:
+    post:
+      summary: "Delete stopped containers"
+      consumes:
+        - "application/json"
+      produces:
+        - "application/json"
+      operationId: "ContainerPrune"
+      responses:
+        200:
+          description: "No error"
+          schema:
+            type: "object"
+            properties:
+              ContainersDeleted:
+                description: "Container IDs that were deleted"
+                type: "array"
+                items:
+                  type: "string"
+              SpaceReclaimed:
+                description: "Disk space reclaimed in bytes"
+                type: "integer"
+                format: "int64"
+        500:
+          description: "Server error"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+      tags:
+        - "Container"
   /images/json:
     get:
       summary: "List Images"
@@ -4484,14 +4529,7 @@ paths:
           schema:
             type: "array"
             items:
-              type: "object"
-              properties:
-                Untagged:
-                  description: "The image ID of an image that was untagged"
-                  type: "string"
-                Deleted:
-                  description: "The image ID of an image that was deleted"
-                  type: "string"
+              $ref: "#/definitions/ImageDeleteResponse"
           examples:
             application/json:
               - Untagged: "3e2f21a89f"
@@ -4592,6 +4630,45 @@ paths:
             - `is-automated=(true|false)`
             - `is-official=(true|false)`
           type: "string"
+      tags:
+        - "Image"
+  /images/prune:
+    post:
+      summary: "Delete unused images"
+      consumes:
+        - "application/json"
+      produces:
+        - "application/json"
+      operationId: "ImagePrune"
+      parameters:
+        - name: "body"
+          in: "body"
+          schema:
+            type: "object"
+            properties:
+              DanglingOnly:
+                description: "Only delete unused *and* untagged images"
+                type: "boolean"
+                default: false
+      responses:
+        200:
+          description: "No error"
+          schema:
+            type: "object"
+            properties:
+              ImagesDeleted:
+                description: "Images that were deleted"
+                type: "array"
+                items:
+                  $ref: "#/definitions/ImageDeleteResponse"
+              SpaceReclaimed:
+                description: "Disk space reclaimed in bytes"
+                type: "integer"
+                format: "int64"
+        500:
+          description: "Server error"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
       tags:
         - "Image"
   /auth:
@@ -5058,6 +5135,95 @@ paths:
             - `network=<string>` network name or ID
             - `daemon=<string>` daemon name or ID
           type: "string"
+      tags:
+        - "Misc"
+  /system/df:
+    get:
+      summary: "Get data usage information"
+      responses:
+        200:
+          description: "no error"
+          schema:
+            type: "object"
+            properties:
+              LayersSize:
+                type: "integer"
+                format: "int64"
+              Images:
+                type: "array"
+                items:
+                  $ref: "#/definitions/ImageSummary"
+              Containers:
+                type: "array"
+                items:
+                  $ref: "#/definitions/ContainerSummary"
+              Volumes:
+                type: "array"
+                items:
+                  $ref: "#/definitions/Volume"
+            example:
+                LayersSize: 1092588
+                Images:
+                  -
+                    Id: "sha256:2b8fd9751c4c0f5dd266fcae00707e67a2545ef34f9a29354585f93dac906749"
+                    ParentId: ""
+                    RepoTags:
+                      - "busybox:latest"
+                    RepoDigests:
+                      - "busybox@sha256:a59906e33509d14c036c8678d687bd4eec81ed7c4b8ce907b888c607f6a1e0e6"
+                    Created: 1466724217
+                    Size: 1092588
+                    SharedSize: 0
+                    VirtualSize: 1092588
+                    Labels: {}
+                    Containers: 1
+                Containers:
+                  -
+                    Id: "e575172ed11dc01bfce087fb27bee502db149e1a0fad7c296ad300bbff178148"
+                    Names:
+                      - "/top"
+                    Image: "busybox"
+                    ImageID: "sha256:2b8fd9751c4c0f5dd266fcae00707e67a2545ef34f9a29354585f93dac906749"
+                    Command: "top"
+                    Created: 1472592424
+                    Ports: []
+                    SizeRootFs: 1092588
+                    Labels: {}
+                    State: "exited"
+                    Status: "Exited (0) 56 minutes ago"
+                    HostConfig:
+                      NetworkMode: "default"
+                    NetworkSettings:
+                      Networks:
+                        bridge:
+                          IPAMConfig: null
+                          Links: null
+                          Aliases: null
+                          NetworkID: "d687bc59335f0e5c9ee8193e5612e8aee000c8c62ea170cfb99c098f95899d92"
+                          EndpointID: "8ed5115aeaad9abb174f68dcf135b49f11daf597678315231a32ca28441dec6a"
+                          Gateway: "172.18.0.1"
+                          IPAddress: "172.18.0.2"
+                          IPPrefixLen: 16
+                          IPv6Gateway: ""
+                          GlobalIPv6Address: ""
+                          GlobalIPv6PrefixLen: 0
+                          MacAddress: "02:42:ac:12:00:02"
+                    Mounts: []
+                Volumes:
+                  -
+                    Name: "my-volume"
+                    Driver: "local"
+                    Mountpoint: ""
+                    Labels: null
+                    Scope: ""
+                    Options: null
+                    UsageData:
+                      Size: 0
+                      RefCount: 0
+        500:
+          description: "server error"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
       tags:
         - "Misc"
   /images/{name}/get:
@@ -5535,7 +5701,35 @@ paths:
           description: "Volume name or ID"
           type: "string"
       tags: ["Volume"]
-
+  /volumes/prune:
+    post:
+      summary: "Delete unused volumes"
+      consumes:
+        - "application/json"
+      produces:
+        - "application/json"
+      operationId: "VolumePrune"
+      responses:
+        200:
+          description: "No error"
+          schema:
+            type: "object"
+            properties:
+              VolumesDeleted:
+                description: "Volumes that were deleted"
+                type: "array"
+                items:
+                  type: "string"
+              SpaceReclaimed:
+                description: "Disk space reclaimed in bytes"
+                type: "integer"
+                format: "int64"
+        500:
+          description: "Server error"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+      tags:
+        - "Volume"
   /networks:
     get:
       summary: "List networks"
@@ -5841,7 +6035,31 @@ paths:
                 type: "boolean"
                 description: "Force the container to disconnect from the network."
       tags: ["Network"]
-
+  /networks/prune:
+    post:
+      summary: "Delete unused networks"
+      consumes:
+        - "application/json"
+      produces:
+        - "application/json"
+      operationId: "NetworkPrune"
+      responses:
+        200:
+          description: "No error"
+          schema:
+            type: "object"
+            properties:
+              VolumesDeleted:
+                description: "Networks that were deleted"
+                type: "array"
+                items:
+                  type: "string"
+        500:
+          description: "Server error"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+      tags:
+        - "Network"
   /plugins:
     get:
       summary: "List plugins"
