@@ -3,6 +3,7 @@ package jsonmessage
 import (
 	"bytes"
 	"fmt"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -132,7 +133,7 @@ func TestJSONMessageDisplay(t *testing.T) {
 			Progress: &JSONProgress{Current: 1},
 		}: {
 			"",
-			fmt.Sprintf("%c[2K\rstatus      1 B\r", 27),
+			fmt.Sprintf("%c[1K%c[K\rstatus      1 B\r", 27, 27),
 		},
 	}
 
@@ -140,7 +141,7 @@ func TestJSONMessageDisplay(t *testing.T) {
 	for jsonMessage, expectedMessages := range messages {
 		// Without terminal
 		data := bytes.NewBuffer([]byte{})
-		if err := jsonMessage.Display(data, false); err != nil {
+		if err := jsonMessage.Display(data, nil); err != nil {
 			t.Fatal(err)
 		}
 		if data.String() != expectedMessages[0] {
@@ -148,7 +149,7 @@ func TestJSONMessageDisplay(t *testing.T) {
 		}
 		// With terminal
 		data = bytes.NewBuffer([]byte{})
-		if err := jsonMessage.Display(data, true); err != nil {
+		if err := jsonMessage.Display(data, &noTermInfo{}); err != nil {
 			t.Fatal(err)
 		}
 		if data.String() != expectedMessages[1] {
@@ -162,13 +163,13 @@ func TestJSONMessageDisplayWithJSONError(t *testing.T) {
 	data := bytes.NewBuffer([]byte{})
 	jsonMessage := JSONMessage{Error: &JSONError{404, "Can't find it"}}
 
-	err := jsonMessage.Display(data, true)
+	err := jsonMessage.Display(data, &noTermInfo{})
 	if err == nil || err.Error() != "Can't find it" {
 		t.Fatalf("Expected a JSONError 404, got %q", err)
 	}
 
 	jsonMessage = JSONMessage{Error: &JSONError{401, "Anything"}}
-	err = jsonMessage.Display(data, true)
+	err = jsonMessage.Display(data, &noTermInfo{})
 	if err == nil || err.Error() != "Authentication is required." {
 		t.Fatalf("Expected an error \"Authentication is required.\", got %q", err)
 	}
@@ -215,9 +216,15 @@ func TestDisplayJSONMessagesStream(t *testing.T) {
 		// With progressDetail
 		"{ \"id\": \"ID\", \"status\": \"status\", \"progressDetail\": { \"Current\": 1} }": {
 			"", // progressbar is disabled in non-terminal
-			fmt.Sprintf("\n%c[%dA%c[2K\rID: status      1 B\r%c[%dB", 27, 1, 27, 27, 1),
+			fmt.Sprintf("\n%c[%dA%c[1K%c[K\rID: status      1 B\r%c[%dB", 27, 1, 27, 27, 27, 1),
 		},
 	}
+
+	// Use $TERM which is unlikely to exist, forcing DisplayJSONMessageStream to
+	// (hopefully) use &noTermInfo.
+	origTerm := os.Getenv("TERM")
+	os.Setenv("TERM", "xyzzy-non-existent-terminfo")
+
 	for jsonMessage, expectedMessages := range messages {
 		data := bytes.NewBuffer([]byte{})
 		reader := strings.NewReader(jsonMessage)
@@ -241,5 +248,6 @@ func TestDisplayJSONMessagesStream(t *testing.T) {
 			t.Fatalf("\nExpected %q\n     got %q", expectedMessages[1], data.String())
 		}
 	}
+	os.Setenv("TERM", origTerm)
 
 }
