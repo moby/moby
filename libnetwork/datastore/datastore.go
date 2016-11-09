@@ -6,6 +6,7 @@ import (
 	"reflect"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/docker/libkv"
 	"github.com/docker/libkv/store"
@@ -134,7 +135,8 @@ func makeDefaultScopes() map[string]*ScopeCfg {
 			Provider: string(store.BOLTDB),
 			Address:  defaultPrefix + "/local-kv.db",
 			Config: &store.Config{
-				Bucket: "libnetwork",
+				Bucket:            "libnetwork",
+				ConnectionTimeout: time.Minute,
 			},
 		},
 	}

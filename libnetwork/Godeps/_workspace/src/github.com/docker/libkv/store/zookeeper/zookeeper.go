@@ -252,7 +252,7 @@ func (s *Zookeeper) List(directory string) ([]*store.KVPair, error) {
 		pair, err := s.Get(strings.TrimSuffix(directory, "/") + s.normalize(key))
 		if err != nil {
 			// If node is not found: List is out of date, retry
-			if err == zk.ErrNoNode {
+			if err == store.ErrKeyNotFound {
 				return s.List(directory)
 			}
 			return nil, err
