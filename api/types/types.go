@@ -17,12 +17,6 @@ import (
 	"github.com/docker/go-connections/nat"
 )
 
-// ContainerChange contains response of Engine API:
-// GET "/containers/{name:.*}/changes"
-type ContainerChange struct {
-	Kind int
-	Path string
-}
 
 // ImageHistory contains response of Engine API:
 // GET "/images/{name:.*}/history"
