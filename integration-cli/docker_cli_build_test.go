@@ -7267,3 +7267,23 @@ func (s *DockerSuite) TestBuildContChar(c *check.C) {
 	c.Assert(out, checker.Contains, "Step 1/2 : FROM busybox")
 	c.Assert(out, checker.Contains, "Step 2/2 : RUN echo hi \\\\\n")
 }
+
+// TestBuildOpaqueDirectory tests that a build succeeds which
+// creates opaque directories.
+// See https://github.com/docker/docker/issues/25244
+func (s *DockerSuite) TestBuildOpaqueDirectory(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+
+	dockerFile := `
+		FROM busybox
+		RUN mkdir /dir1 && touch /dir1/f1
+		RUN rm -rf /dir1 && mkdir /dir1 && touch /dir1/f2
+		RUN touch /dir1/f3
+		RUN [ -f /dir1/f2 ]
+		`
+
+	// Test that build succeeds, last command fails if opaque directory
+	// was not handled correctly
+	_, err := buildImage("testopaquedirectory", dockerFile, false)
+	c.Assert(err, checker.IsNil)
+}
