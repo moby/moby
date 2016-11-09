@@ -4,10 +4,12 @@ import (
 	"context"
 	"fmt"
 	"text/tabwriter"
+	"time"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cli/command"
+	"github.com/docker/go-units"
 	"github.com/spf13/cobra"
 )
 
@@ -52,7 +54,11 @@ func runSecretList(dockerCli *command.DockerCli, opts listOptions) error {
 		fmt.Fprintf(w, "\n")
 
 		for _, s := range secrets {
-			fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%d\n", s.ID, s.Spec.Annotations.Name, s.Meta.CreatedAt, s.Meta.UpdatedAt, s.SecretSize)
+			created := units.HumanDuration(time.Now().UTC().Sub(s.Meta.CreatedAt)) + " ago"
+			updated := units.HumanDuration(time.Now().UTC().Sub(s.Meta.UpdatedAt)) + " ago"
+			size := units.HumanSizeWithPrecision(float64(s.SecretSize), 3)
+
+			fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", s.ID, s.Spec.Annotations.Name, created, updated, size)
 		}
 	}
 
