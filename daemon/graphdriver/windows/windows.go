@@ -153,13 +153,21 @@ func (d *Driver) Exists(id string) bool {
 
 // CreateReadWrite creates a layer that is writable for use as a container
 // file system.
-func (d *Driver) CreateReadWrite(id, parent, mountLabel string, storageOpt map[string]string) error {
-	return d.create(id, parent, mountLabel, false, storageOpt)
+func (d *Driver) CreateReadWrite(id, parent string, opts *graphdriver.CreateOpts) error {
+	if opts != nil {
+		return d.create(id, parent, opts.MountLabel, false, opts.StorageOpt)
+	} else {
+		return d.create(id, parent, "", false, nil)
+	}
 }
 
 // Create creates a new read-only layer with the given id.
-func (d *Driver) Create(id, parent, mountLabel string, storageOpt map[string]string) error {
-	return d.create(id, parent, mountLabel, true, storageOpt)
+func (d *Driver) Create(id, parent string, opts *graphdriver.CreateOpts) error {
+	if opts != nil {
+		return d.create(id, parent, opts.MountLabel, true, opts.StorageOpt)
+	} else {
+		return d.create(id, parent, "", true, nil)
+	}
 }
 
 func (d *Driver) create(id, parent, mountLabel string, readOnly bool, storageOpt map[string]string) error {

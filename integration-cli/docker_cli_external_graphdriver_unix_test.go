@@ -145,7 +145,7 @@ func (s *DockerExternalGraphdriverSuite) setUpPlugin(c *check.C, name string, ex
 		if err := decReq(r.Body, &req, w); err != nil {
 			return
 		}
-		if err := driver.CreateReadWrite(req.ID, req.Parent, "", nil); err != nil {
+		if err := driver.CreateReadWrite(req.ID, req.Parent, nil); err != nil {
 			respond(w, err)
 			return
 		}
@@ -159,7 +159,7 @@ func (s *DockerExternalGraphdriverSuite) setUpPlugin(c *check.C, name string, ex
 		if err := decReq(r.Body, &req, w); err != nil {
 			return
 		}
-		if err := driver.Create(req.ID, req.Parent, "", nil); err != nil {
+		if err := driver.Create(req.ID, req.Parent, nil); err != nil {
 			respond(w, err)
 			return
 		}

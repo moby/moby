@@ -36,6 +36,13 @@ var (
 	ErrIncompatibleFS = fmt.Errorf("backing file system is unsupported for this graph driver")
 )
 
+//CreateOpts contains optional arguments for Create() and CreateReadWrite()
+// methods.
+type CreateOpts struct {
+	MountLabel string
+	StorageOpt map[string]string
+}
+
 // InitFunc initializes the storage driver.
 type InitFunc func(root string, options []string, uidMaps, gidMaps []idtools.IDMap) (Driver, error)
 
@@ -49,11 +56,13 @@ type ProtoDriver interface {
 	// String returns a string representation of this driver.
 	String() string
 	// CreateReadWrite creates a new, empty filesystem layer that is ready
-	// to be used as the storage for a container.
-	CreateReadWrite(id, parent, mountLabel string, storageOpt map[string]string) error
+	// to be used as the storage for a container. Additional options can
+	// be passed in opts. parent may be "" and opts may be nil.
+	CreateReadWrite(id, parent string, opts *CreateOpts) error
 	// Create creates a new, empty, filesystem layer with the
-	// specified id and parent and mountLabel. Parent and mountLabel may be "".
-	Create(id, parent, mountLabel string, storageOpt map[string]string) error
+	// specified id and parent and options passed in opts. Parent
+	// may be "" and opts may be nil.
+	Create(id, parent string, opts *CreateOpts) error
 	// Remove attempts to remove the filesystem layer with this id.
 	Remove(id string) error
 	// Get returns the mountpoint for the layered filesystem referred

@@ -205,15 +205,15 @@ func (a *Driver) Exists(id string) bool {
 
 // CreateReadWrite creates a layer that is writable for use as a container
 // file system.
-func (a *Driver) CreateReadWrite(id, parent, mountLabel string, storageOpt map[string]string) error {
-	return a.Create(id, parent, mountLabel, storageOpt)
+func (a *Driver) CreateReadWrite(id, parent string, opts *graphdriver.CreateOpts) error {
+	return a.Create(id, parent, opts)
 }
 
 // Create three folders for each id
 // mnt, layers, and diff
-func (a *Driver) Create(id, parent, mountLabel string, storageOpt map[string]string) error {
+func (a *Driver) Create(id, parent string, opts *graphdriver.CreateOpts) error {
 
-	if len(storageOpt) != 0 {
+	if opts != nil && len(opts.StorageOpt) != 0 {
 		return fmt.Errorf("--storage-opt is not supported for aufs")
 	}
 
