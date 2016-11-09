@@ -17,18 +17,6 @@ import (
 	"github.com/docker/go-connections/nat"
 )
 
-
-// ImageHistory contains response of Engine API:
-// GET "/images/{name:.*}/history"
-type ImageHistory struct {
-	ID        string `json:"Id"`
-	Created   int64
-	CreatedBy string
-	Tags      []string
-	Size      int64
-	Comment   string
-}
-
 // ImageDelete contains response of Engine API:
 // DELETE "/images/{name:.*}"
 type ImageDelete struct {

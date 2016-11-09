@@ -14,10 +14,11 @@ swagger generate model -f api/swagger.yaml \
 swagger generate operation -f api/swagger.yaml \
     -t api -a types -m types -C api/swagger-gen.yaml \
     -T api/templates --skip-responses --skip-parameters --skip-validator \
-    -n VolumesList \
-    -n VolumesCreate \
+    -n Authenticate \
     -n ContainerChanges \
     -n ContainerCreate \
     -n ContainerUpdate \
-    -n Authenticate \
-    -n ContainerWait
+    -n ContainerWait \
+    -n ImageHistory \
+    -n VolumesCreate \
+    -n VolumesList

@@ -4627,23 +4627,27 @@ paths:
       summary: "Get the history of an image"
       description: "Return parent layers of an image."
       operationId: "ImageHistory"
-      produces:
-        - "application/json"
+      produces: ["application/json"]
       responses:
         200:
-          description: "No error"
+          description: "List of image layers"
           schema:
             type: "array"
             items:
               type: "object"
+              x-go-name: HistoryResponseItem
+              required: [Id, Created, CreatedBy, Tags, Size, Comment]
               properties:
                 Id:
                   type: "string"
+                  x-nullable: false
                 Created:
                   type: "integer"
                   format: "int64"
+                  x-nullable: false
                 CreatedBy:
                   type: "string"
+                  x-nullable: false
                 Tags:
                   type: "array"
                   items:
@@ -4651,8 +4655,10 @@ paths:
                 Size:
                   type: "integer"
                   format: "int64"
+                  x-nullable: false
                 Comment:
                   type: "string"
+                  x-nullable: false
           examples:
             application/json:
               - Id: "3db9c44f45209632d6050b35958829c3a2aa256d81b9a7be45b362ff85c54710"
