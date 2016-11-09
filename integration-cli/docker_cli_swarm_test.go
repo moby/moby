@@ -118,6 +118,21 @@ func (s *DockerSwarmSuite) TestSwarmNodeListHostname(c *check.C) {
 	c.Assert(strings.Split(out, "\n")[0], checker.Contains, "HOSTNAME")
 }
 
+func (s *DockerSwarmSuite) TestSwarmServiceTemplatingHostname(c *check.C) {
+	d := s.AddDaemon(c, true, true)
+
+	out, err := d.Cmd("service", "create", "--name", "test", "--hostname", "{{.Service.Name}}-{{.Task.Slot}}", "busybox", "top")
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+
+	// make sure task has been deployed.
+	waitAndAssert(c, defaultReconciliationTimeout, d.checkActiveContainerCount, checker.Equals, 1)
+
+	containers := d.activeContainers()
+	out, err = d.Cmd("inspect", "--type", "container", "--format", "{{.Config.Hostname}}", containers[0])
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+	c.Assert(strings.Split(out, "\n")[0], checker.Equals, "test-1", check.Commentf("hostname with templating invalid"))
+}
+
 // Test case for #24270
 func (s *DockerSwarmSuite) TestSwarmServiceListFilter(c *check.C) {
 	d := s.AddDaemon(c, true, true)
@@ -343,17 +358,17 @@ func (s *DockerSwarmSuite) TestSwarmContainerAutoStart(c *check.C) {
 	c.Assert(strings.TrimSpace(out), checker.Not(checker.Equals), "")
 
 	out, err = d.Cmd("run", "-id", "--restart=always", "--net=foo", "--name=test", "busybox", "top")
-	c.Assert(err, checker.IsNil)
+	c.Assert(err, checker.IsNil, check.Commentf(out))
 	c.Assert(strings.TrimSpace(out), checker.Not(checker.Equals), "")
 
 	out, err = d.Cmd("ps", "-q")
-	c.Assert(err, checker.IsNil)
+	c.Assert(err, checker.IsNil, check.Commentf(out))
 	c.Assert(strings.TrimSpace(out), checker.Not(checker.Equals), "")
 
 	d.Restart()
 
 	out, err = d.Cmd("ps", "-q")
-	c.Assert(err, checker.IsNil)
+	c.Assert(err, checker.IsNil, check.Commentf(out))
 	c.Assert(strings.TrimSpace(out), checker.Not(checker.Equals), "")
 }
 
@@ -361,20 +376,20 @@ func (s *DockerSwarmSuite) TestSwarmContainerEndpointOptions(c *check.C) {
 	d := s.AddDaemon(c, true, true)
 
 	out, err := d.Cmd("network", "create", "--attachable", "-d", "overlay", "foo")
-	c.Assert(err, checker.IsNil)
+	c.Assert(err, checker.IsNil, check.Commentf(out))
 	c.Assert(strings.TrimSpace(out), checker.Not(checker.Equals), "")
 
 	_, err = d.Cmd("run", "-d", "--net=foo", "--name=first", "--net-alias=first-alias", "busybox", "top")
-	c.Assert(err, checker.IsNil)
+	c.Assert(err, checker.IsNil, check.Commentf(out))
 
 	_, err = d.Cmd("run", "-d", "--net=foo", "--name=second", "busybox", "top")
-	c.Assert(err, checker.IsNil)
+	c.Assert(err, checker.IsNil, check.Commentf(out))
 
 	// ping first container and its alias
 	_, err = d.Cmd("exec", "second", "ping", "-c", "1", "first")
-	c.Assert(err, check.IsNil)
+	c.Assert(err, check.IsNil, check.Commentf(out))
 	_, err = d.Cmd("exec", "second", "ping", "-c", "1", "first-alias")
-	c.Assert(err, check.IsNil)
+	c.Assert(err, check.IsNil, check.Commentf(out))
 }
 
 func (s *DockerSwarmSuite) TestSwarmContainerAttachByNetworkId(c *check.C) {
