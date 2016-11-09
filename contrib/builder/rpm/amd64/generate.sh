@@ -22,6 +22,12 @@ for version in "${versions[@]}"; do
 	suite="${version##*-}"
 	from="${distro}:${suite}"
 	installer=yum
+
+	# TODO remove when offical image is available
+	if [[ "$from" == "fedora:25" ]]; then
+		from="andrewh5u/fedora-docker-base-25_beta:1.1"
+	fi
+
 	if [[ "$distro" == "fedora" ]]; then
 		installer=dnf
 	fi

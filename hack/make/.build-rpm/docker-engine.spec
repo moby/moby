@@ -24,9 +24,15 @@ Packager: Docker <support@docker.com>
 BuildRequires: systemd-rpm-macros
 %{?systemd_requires}
 %else
+%if 0%{?fedora} >= 25
+# Systemd 230 and up no longer have libsystemd-journal (see https://bugzilla.redhat.com/show_bug.cgi?id=1350301)
+BuildRequires: pkgconfig(systemd)
+Requires: systemd-units
+%else
 BuildRequires: pkgconfig(systemd)
 Requires: systemd-units
 BuildRequires: pkgconfig(libsystemd-journal)
+%endif
 %endif
 %else
 Requires(post): chkconfig
