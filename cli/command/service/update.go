@@ -55,9 +55,9 @@ func newUpdateCommand(dockerCli *command.DockerCli) *cobra.Command {
 	flags.Var(&opts.containerLabels, flagContainerLabelAdd, "Add or update a container label")
 	flags.Var(&opts.env, flagEnvAdd, "Add or update an environment variable")
 	flags.Var(&opts.mounts, flagMountAdd, "Add or update a mount on a service")
-	flags.StringSliceVar(&opts.constraints, flagConstraintAdd, []string{}, "Add or update a placement constraint")
+	flags.Var(&opts.constraints, flagConstraintAdd, "Add or update a placement constraint")
 	flags.Var(&opts.endpoint.ports, flagPublishAdd, "Add or update a published port")
-	flags.StringSliceVar(&opts.groups, flagGroupAdd, []string{}, "Add an additional supplementary user group to the container")
+	flags.Var(&opts.groups, flagGroupAdd, "Add an additional supplementary user group to the container")
 	flags.Var(&opts.dns, flagDNSAdd, "Add or update custom DNS servers")
 	flags.Var(&opts.dnsOptions, flagDNSOptionsAdd, "Add or update DNS options")
 	flags.Var(&opts.dnsSearch, flagDNSSearchAdd, "Add or update custom DNS search domains")
@@ -139,9 +139,9 @@ func updateService(flags *pflag.FlagSet, spec *swarm.ServiceSpec) error {
 		}
 	}
 
-	updateFloat32 := func(flag string, field *float32) {
+	updateFloatValue := func(flag string, field *float32) {
 		if flags.Changed(flag) {
-			*field, _ = flags.GetFloat32(flag)
+			*field = flags.Lookup(flag).Value.(*floatValue).Value()
 		}
 	}
 
@@ -238,7 +238,7 @@ func updateService(flags *pflag.FlagSet, spec *swarm.ServiceSpec) error {
 		updateDuration(flagUpdateDelay, &spec.UpdateConfig.Delay)
 		updateDuration(flagUpdateMonitor, &spec.UpdateConfig.Monitor)
 		updateString(flagUpdateFailureAction, &spec.UpdateConfig.FailureAction)
-		updateFloat32(flagUpdateMaxFailureRatio, &spec.UpdateConfig.MaxFailureRatio)
+		updateFloatValue(flagUpdateMaxFailureRatio, &spec.UpdateConfig.MaxFailureRatio)
 	}
 
 	if flags.Changed(flagEndpointMode) {
@@ -322,11 +322,22 @@ func anyChanged(flags *pflag.FlagSet, fields ...string) bool {
 }
 
 func updatePlacement(flags *pflag.FlagSet, placement *swarm.Placement) {
-	field, _ := flags.GetStringSlice(flagConstraintAdd)
-	placement.Constraints = append(placement.Constraints, field...)
-
+	if flags.Changed(flagConstraintAdd) {
+		values := flags.Lookup(flagConstraintAdd).Value.(*opts.ListOpts).GetAll()
+		placement.Constraints = append(placement.Constraints, values...)
+	}
 	toRemove := buildToRemoveSet(flags, flagConstraintRemove)
-	placement.Constraints = removeItems(placement.Constraints, toRemove, itemKey)
+
+	newConstraints := []string{}
+	for _, constraint := range placement.Constraints {
+		if _, exists := toRemove[constraint]; !exists {
+			newConstraints = append(newConstraints, constraint)
+		}
+	}
+	// Sort so that result is predictable.
+	sort.Strings(newConstraints)
+
+	placement.Constraints = newConstraints
 }
 
 func updateContainerLabels(flags *pflag.FlagSet, field *map[string]string) {
@@ -479,10 +490,7 @@ func updateMounts(flags *pflag.FlagSet, mounts *[]mounttypes.Mount) error {
 
 func updateGroups(flags *pflag.FlagSet, groups *[]string) error {
 	if flags.Changed(flagGroupAdd) {
-		values, err := flags.GetStringSlice(flagGroupAdd)
-		if err != nil {
-			return err
-		}
+		values := flags.Lookup(flagGroupAdd).Value.(*opts.ListOpts).GetAll()
 		*groups = append(*groups, values...)
 	}
 	toRemove := buildToRemoveSet(flags, flagGroupRemove)
