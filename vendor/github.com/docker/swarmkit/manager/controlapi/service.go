@@ -14,6 +14,7 @@ import (
 	"github.com/docker/swarmkit/manager/constraint"
 	"github.com/docker/swarmkit/manager/state/store"
 	"github.com/docker/swarmkit/protobuf/ptypes"
+	"github.com/docker/swarmkit/template"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -168,7 +169,28 @@ func validateTask(taskSpec api.TaskSpec) error {
 		return grpc.Errorf(codes.Unimplemented, "RuntimeSpec: unimplemented runtime in service spec")
 	}
 
-	if err := validateContainerSpec(taskSpec.GetContainer()); err != nil {
+	// Building a empty/dummy Task to validate the templating and
+	// the resulting container spec as well. This is a *best effort*
+	// validation.
+	preparedSpec, err := template.ExpandContainerSpec(&api.Task{
+		Spec:      taskSpec,
+		ServiceID: "serviceid",
+		Slot:      1,
+		NodeID:    "nodeid",
+		Networks:  []*api.NetworkAttachment{},
+		Annotations: api.Annotations{
+			Name: "taskname",
+		},
+		ServiceAnnotations: api.Annotations{
+			Name: "servicename",
+		},
+		Endpoint:  &api.Endpoint{},
+		LogDriver: taskSpec.LogDriver,
+	})
+	if err != nil {
+		return grpc.Errorf(codes.InvalidArgument, err.Error())
+	}
+	if err := validateContainerSpec(preparedSpec); err != nil {
 		return err
 	}
 

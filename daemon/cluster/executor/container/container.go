@@ -20,6 +20,7 @@ import (
 	"github.com/docker/swarmkit/agent/exec"
 	"github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/protobuf/ptypes"
+	"github.com/docker/swarmkit/template"
 )
 
 const (
@@ -68,6 +69,17 @@ func (c *containerConfig) setTask(t *api.Task) error {
 	}
 
 	c.task = t
+
+	if t.Spec.GetContainer() != nil {
+		preparedSpec, err := template.ExpandContainerSpec(t)
+		if err != nil {
+			return err
+		}
+		c.task.Spec.Runtime = &api.TaskSpec_Container{
+			Container: preparedSpec,
+		}
+	}
+
 	return nil
 }
 

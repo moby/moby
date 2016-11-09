@@ -47,6 +47,10 @@ func init() {
 					Name:    indexDesiredState,
 					Indexer: taskIndexerByDesiredState{},
 				},
+				indexTaskState: {
+					Name:    indexTaskState,
+					Indexer: taskIndexerByTaskState{},
+				},
 				indexNetwork: {
 					Name:         indexNetwork,
 					AllowMissing: true,
@@ -186,7 +190,7 @@ func GetTask(tx ReadTx, id string) *api.Task {
 func FindTasks(tx ReadTx, by By) ([]*api.Task, error) {
 	checkType := func(by By) error {
 		switch by.(type) {
-		case byName, byNamePrefix, byIDPrefix, byDesiredState, byNode, byService, bySlot, byReferencedNetworkID, byReferencedSecretID:
+		case byName, byNamePrefix, byIDPrefix, byDesiredState, byTaskState, byNode, byService, bySlot, byReferencedNetworkID, byReferencedSecretID:
 			return nil
 		default:
 			return ErrInvalidFindBy
@@ -359,4 +363,20 @@ func (ti taskIndexerBySecret) FromObject(obj interface{}) (bool, [][]byte, error
 	}
 
 	return len(secretIDs) != 0, secretIDs, nil
+}
+
+type taskIndexerByTaskState struct{}
+
+func (ts taskIndexerByTaskState) FromArgs(args ...interface{}) ([]byte, error) {
+	return fromArgs(args...)
+}
+
+func (ts taskIndexerByTaskState) FromObject(obj interface{}) (bool, []byte, error) {
+	t, ok := obj.(taskEntry)
+	if !ok {
+		panic("unexpected type passed to FromObject")
+	}
+
+	// Add the null character as a terminator
+	return true, []byte(strconv.FormatInt(int64(t.Status.State), 10) + "\x00"), nil
 }

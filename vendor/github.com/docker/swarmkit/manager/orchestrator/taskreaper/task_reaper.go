@@ -6,8 +6,10 @@ import (
 
 	"github.com/docker/go-events"
 	"github.com/docker/swarmkit/api"
+	"github.com/docker/swarmkit/log"
 	"github.com/docker/swarmkit/manager/state"
 	"github.com/docker/swarmkit/manager/state/store"
+	"golang.org/x/net/context"
 )
 
 const (
@@ -30,6 +32,7 @@ type TaskReaper struct {
 	// taskHistory is the number of tasks to keep
 	taskHistory int64
 	dirty       map[instanceTuple]struct{}
+	orphaned    []string
 	watcher     chan events.Event
 	cancelWatch func()
 	stopChan    chan struct{}
@@ -38,7 +41,7 @@ type TaskReaper struct {
 
 // New creates a new TaskReaper.
 func New(store *store.MemoryStore) *TaskReaper {
-	watcher, cancel := state.Watch(store.WatchQueue(), state.EventCreateTask{}, state.EventUpdateCluster{})
+	watcher, cancel := state.Watch(store.WatchQueue(), state.EventCreateTask{}, state.EventUpdateTask{}, state.EventUpdateCluster{})
 
 	return &TaskReaper{
 		store:       store,
@@ -54,12 +57,35 @@ func New(store *store.MemoryStore) *TaskReaper {
 func (tr *TaskReaper) Run() {
 	defer close(tr.doneChan)
 
+	var tasks []*api.Task
 	tr.store.View(func(readTx store.ReadTx) {
+		var err error
+
 		clusters, err := store.FindClusters(readTx, store.ByName(store.DefaultClusterName))
 		if err == nil && len(clusters) == 1 {
 			tr.taskHistory = clusters[0].Spec.Orchestration.TaskHistoryRetentionLimit
 		}
+
+		tasks, err = store.FindTasks(readTx, store.ByTaskState(api.TaskStateOrphaned))
+		if err != nil {
+			log.G(context.TODO()).WithError(err).Error("failed to find Orphaned tasks in task reaper init")
+		}
 	})
+
+	if len(tasks) > 0 {
+		for _, t := range tasks {
+			// Do not reap service tasks immediately
+			if t.ServiceID != "" {
+				continue
+			}
+
+			tr.orphaned = append(tr.orphaned, t.ID)
+		}
+
+		if len(tr.orphaned) > 0 {
+			tr.tick()
+		}
+	}
 
 	timer := time.NewTimer(reaperBatchingInterval)
 
@@ -74,14 +100,20 @@ func (tr *TaskReaper) Run() {
 					serviceID: t.ServiceID,
 					nodeID:    t.NodeID,
 				}] = struct{}{}
-				if len(tr.dirty) > maxDirty {
-					timer.Stop()
-					tr.tick()
-				} else {
-					timer.Reset(reaperBatchingInterval)
+			case state.EventUpdateTask:
+				t := v.Task
+				if t.Status.State >= api.TaskStateOrphaned && t.ServiceID == "" {
+					tr.orphaned = append(tr.orphaned, t.ID)
 				}
 			case state.EventUpdateCluster:
 				tr.taskHistory = v.Cluster.Spec.Orchestration.TaskHistoryRetentionLimit
+			}
+
+			if len(tr.dirty)+len(tr.orphaned) > maxDirty {
+				timer.Stop()
+				tr.tick()
+			} else {
+				timer.Reset(reaperBatchingInterval)
 			}
 		case <-timer.C:
 			timer.Stop()
@@ -94,16 +126,16 @@ func (tr *TaskReaper) Run() {
 }
 
 func (tr *TaskReaper) tick() {
-	if len(tr.dirty) == 0 {
+	if len(tr.dirty) == 0 && len(tr.orphaned) == 0 {
 		return
 	}
 
 	defer func() {
 		tr.dirty = make(map[instanceTuple]struct{})
+		tr.orphaned = nil
 	}()
 
-	var deleteTasks []string
-
+	deleteTasks := tr.orphaned
 	tr.store.View(func(tx store.ReadTx) {
 		for dirty := range tr.dirty {
 			service := store.GetService(tx, dirty.serviceID)
