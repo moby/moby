@@ -6330,6 +6330,36 @@ paths:
             format: "binary"
       tags:
         - "Plugins"
+  /plugins/{name}/set:
+    post:
+      summary: "Configure a plugin"
+      operationId: "PluginsSet"
+      parameters:
+        - name: "name"
+          in: "path"
+          description: "The name of the plugin. The `:latest` tag is optional, and is the default if omitted."
+          required: true
+          type: "string"
+        - name: "body"
+          in: "body"
+          schema:
+            type: "array"
+            items:
+              type: "string"
+            example: ["DEBUG=1"]
+      responses:
+        204:
+          description: "No error"
+        404:
+          description: "Plugin not installed"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        500:
+          description: "Server error"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+      tags:
+        - "Plugins"
   /nodes:
     get:
       summary: "List nodes"
