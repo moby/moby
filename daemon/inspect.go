@@ -213,19 +213,6 @@ func (daemon *Daemon) ContainerExecInspect(id string) (*backend.ExecInspect, err
 	}, nil
 }
 
-// VolumeInspect looks up a volume by name. An error is returned if
-// the volume cannot be found.
-func (daemon *Daemon) VolumeInspect(name string) (*types.Volume, error) {
-	v, err := daemon.volumes.Get(name)
-	if err != nil {
-		return nil, err
-	}
-	apiV := volumeToAPIType(v)
-	apiV.Mountpoint = v.Path()
-	apiV.Status = v.Status()
-	return apiV, nil
-}
-
 func (daemon *Daemon) getBackwardsCompatibleNetworkSettings(settings *network.Settings) *v1p20.NetworkSettings {
 	result := &v1p20.NetworkSettings{
 		NetworkSettingsBase: types.NetworkSettingsBase{

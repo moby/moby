@@ -26,6 +26,9 @@ var (
 
 type mounts []container.Mount
 
+// VolumeWalker is a client provided function which will be used to walk the Volumes.
+type VolumeWalker func(vol volume.Volume) bool
+
 // volumeToAPIType converts a volume.Volume to the type used by the remote API
 func volumeToAPIType(v volume.Volume) *types.Volume {
 	tv := &types.Volume{
@@ -300,4 +303,60 @@ func (daemon *Daemon) traverseLocalVolumes(fn func(volume.Volume) error) error {
 	}
 
 	return nil
+}
+
+// VolumeInspect looks up a volume by name. An error is returned if
+// the volume cannot be found.
+func (daemon *Daemon) VolumeInspect(name string) (*types.Volume, error) {
+	vList, err := daemon.GetVolumesByName(name)
+	if err != nil {
+		return nil, err
+	}
+	v := vList[0]
+	apiV := volumeToAPIType(v)
+	apiV.Mountpoint = v.Path()
+	apiV.Status = v.Status()
+	return apiV, nil
+}
+
+// GetVolumesByName returns a list of volumes whose Name partially matches zero or more volumes
+func (daemon *Daemon) GetVolumesByName(prefixOrName string) ([]volume.Volume, error) {
+	if len(strings.TrimSpace(prefixOrName)) == 0 {
+		return []volume.Volume{}, fmt.Errorf("Input Invalid. Please provide non-empty string input for prefix/name ")
+	}
+	// Match by complete name
+	v, _ := daemon.volumes.Get(prefixOrName)
+
+	//Match by complete name found
+	if v != nil {
+		return []volume.Volume{v}, nil
+	}
+
+	list := []volume.Volume{}
+
+	l := func(v volume.Volume) bool {
+
+		if strings.HasPrefix(v.Name(), prefixOrName) {
+			list = append(list, v)
+		}
+		return false
+	}
+
+	daemon.WalkVolumes(l)
+
+	if len(list) == 0 {
+		return list, fmt.Errorf("No such volume: %s", prefixOrName)
+	}
+
+	return list, nil
+}
+
+// WalkVolumes will traverse the volumes with passed volume walker function and returns the first instance that returns true
+func (daemon *Daemon) WalkVolumes(walker VolumeWalker) {
+	volumes, _, _ := daemon.volumes.List()
+	for _, volume := range volumes {
+		if walker(volume) {
+			return
+		}
+	}
 }
