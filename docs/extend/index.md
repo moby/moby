@@ -1,19 +1,11 @@
-<!--[metadata]>
-+++
-aliases = [
-"/engine/extend/"
-]
-title = "Managed plugin system"
-description = "How develop and use a plugin with the managed plugin system"
-keywords = ["API, Usage, plugins, documentation, developer"]
-advisory = "experimental"
-[menu.main]
-parent = "engine_extend"
-weight=1
-+++
-<![end-metadata]-->
-
-# Docker Engine managed plugin system
+---
+redirect_from:
+- "/engine/extend/"
+title: "Docker Engine managed plugin system"
+description: "How develop and use a plugin with the managed plugin system"
+keywords: "API, Usage, plugins, documentation, developer"
+advisory: "experimental"
+---
 
 This document describes the plugin system available today in the **experimental
 build** of Docker 1.12:

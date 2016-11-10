@@ -1,19 +1,9 @@
-<!--[metadata]>
-+++
-aliases = [
-"/engine/extend/"
-]
-title = "Plugin manifest"
-description = "How develop and use a plugin with the managed plugin system"
-keywords = ["API, Usage, plugins, documentation, developer"]
-advisory = "experimental"
-[menu.main]
-parent = "engine_extend"
-weight=1
-+++
-<![end-metadata]-->
-
-# Plugin Manifest Version 0 of Plugin V2
+---
+title: "Plugin Manifest Version 0 of Plugin V2t"
+description: "How to develop and use a plugin with the managed plugin system"
+keywords: "API, Usage, plugins, documentation, developer"
+advisory: "experimental"
+---
 
 This document outlines the format of the V0 plugin manifest. The plugin
 manifest described herein was introduced in the Docker daemon (experimental version) in the [v1.12.0
@@ -47,7 +37,7 @@ Manifest provides the base accessible fields for working with V0 plugin format
 - **`interface`** *PluginInterface*
 
    interface implemented by the plugins, struct consisting of the following fields
-      
+
     - **`types`** *string array*
 
       types indicate what interface(s) the plugin currently implements.
@@ -55,9 +45,9 @@ Manifest provides the base accessible fields for working with V0 plugin format
       currently supported:
 
       	- **docker.volumedriver/1.0**
-      
+
     - **`socket`** *string*
-      
+
       socket is the name of the socket the engine should use to communicate with the plugins.
       the socket will be created in `/run/docker/plugins`.
 
@@ -73,7 +63,7 @@ Manifest provides the base accessible fields for working with V0 plugin format
 - **`network`** *PluginNetwork*
 
    network of the plugin, struct consisting of the following fields
-      
+
     - **`type`** *string*
 
       network type.
@@ -83,11 +73,11 @@ Manifest provides the base accessible fields for working with V0 plugin format
       	- **bridge**
       	- **host**
       	- **none**
-      
+
 - **`capabilities`** *array*
 
    capabilities of the plugin (*Linux only*), see list [`here`](https://github.com/opencontainers/runc/blob/master/libcontainer/SPEC.md#security)
-    
+
 - **`mounts`** *PluginMount array*
 
    mount of the plugin, struct consisting of the following fields, see [`MOUNTS`](https://github.com/opencontainers/runtime-spec/blob/master/config.md#mounts)
@@ -95,27 +85,27 @@ Manifest provides the base accessible fields for working with V0 plugin format
     - **`name`** *string*
 
 	  name of the mount.
-      
+
     - **`description`** *string*
-	
+
       description of the mount.
-   
+
     - **`source`** *string*
 
 	  source of the mount.
-    
+
     - **`destination`** *string*
 
 	  destination of the mount.
-   
+
     - **`type`** *string*
 
       mount type.
-      
+
     - **`options`** *string array*
 
 	  options of the mount.
-      
+
 - **`devices`** *PluginDevice array*
 
     device of the plugin, (*Linux only*), struct consisting of the following fields, see [`DEVICES`](https://github.com/opencontainers/runtime-spec/blob/master/config-linux.md#devices)
@@ -123,11 +113,11 @@ Manifest provides the base accessible fields for working with V0 plugin format
     - **`name`** *string*
 
 	  name of the device.
-      
+
     - **`description`** *string*
 
       description of the device.
-      
+
     - **`path`** *string*
 
 	  path of the device.
@@ -139,15 +129,15 @@ Manifest provides the base accessible fields for working with V0 plugin format
     - **`name`** *string*
 
 	  name of the env.
-      
+
     - **`description`** *string*
-	
+
       description of the env.
-   
+
     - **`value`** *string*
 
 	  value of the env.
-    
+
 - **`args`** *PluginArgs*
 
    args of the plugin, struct consisting of the following fields
@@ -155,16 +145,16 @@ Manifest provides the base accessible fields for working with V0 plugin format
     - **`name`** *string*
 
 	  name of the env.
-      
+
     - **`description`** *string*
-	
+
       description of the env.
-   
+
     - **`value`** *string array*
 
 	  values of the args.
-    
-    
+
+
 ## Example Manifest
 
 *Example showing the 'tiborvass/no-remove' plugin manifest.*
