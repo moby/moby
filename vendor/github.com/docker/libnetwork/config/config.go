@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/BurntSushi/toml"
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/discovery"
 	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/go-connections/tlsconfig"
@@ -100,7 +100,7 @@ type Option func(c *Config)
 // OptionDefaultNetwork function returns an option setter for a default network
 func OptionDefaultNetwork(dn string) Option {
 	return func(c *Config) {
-		log.Debugf("Option DefaultNetwork: %s", dn)
+		logrus.Debugf("Option DefaultNetwork: %s", dn)
 		c.Daemon.DefaultNetwork = strings.TrimSpace(dn)
 	}
 }
@@ -108,7 +108,7 @@ func OptionDefaultNetwork(dn string) Option {
 // OptionDefaultDriver function returns an option setter for default driver
 func OptionDefaultDriver(dd string) Option {
 	return func(c *Config) {
-		log.Debugf("Option DefaultDriver: %s", dd)
+		logrus.Debugf("Option DefaultDriver: %s", dd)
 		c.Daemon.DefaultDriver = strings.TrimSpace(dd)
 	}
 }
@@ -134,7 +134,7 @@ func OptionLabels(labels []string) Option {
 // OptionKVProvider function returns an option setter for kvstore provider
 func OptionKVProvider(provider string) Option {
 	return func(c *Config) {
-		log.Debugf("Option OptionKVProvider: %s", provider)
+		logrus.Debugf("Option OptionKVProvider: %s", provider)
 		if _, ok := c.Scopes[datastore.GlobalScope]; !ok {
 			c.Scopes[datastore.GlobalScope] = &datastore.ScopeCfg{}
 		}
@@ -145,7 +145,7 @@ func OptionKVProvider(provider string) Option {
 // OptionKVProviderURL function returns an option setter for kvstore url
 func OptionKVProviderURL(url string) Option {
 	return func(c *Config) {
-		log.Debugf("Option OptionKVProviderURL: %s", url)
+		logrus.Debugf("Option OptionKVProviderURL: %s", url)
 		if _, ok := c.Scopes[datastore.GlobalScope]; !ok {
 			c.Scopes[datastore.GlobalScope] = &datastore.ScopeCfg{}
 		}
@@ -157,14 +157,14 @@ func OptionKVProviderURL(url string) Option {
 func OptionKVOpts(opts map[string]string) Option {
 	return func(c *Config) {
 		if opts["kv.cacertfile"] != "" && opts["kv.certfile"] != "" && opts["kv.keyfile"] != "" {
-			log.Info("Option Initializing KV with TLS")
+			logrus.Info("Option Initializing KV with TLS")
 			tlsConfig, err := tlsconfig.Client(tlsconfig.Options{
 				CAFile:   opts["kv.cacertfile"],
 				CertFile: opts["kv.certfile"],
 				KeyFile:  opts["kv.keyfile"],
 			})
 			if err != nil {
-				log.Errorf("Unable to set up TLS: %s", err)
+				logrus.Errorf("Unable to set up TLS: %s", err)
 				return
 			}
 			if _, ok := c.Scopes[datastore.GlobalScope]; !ok {
@@ -182,7 +182,7 @@ func OptionKVOpts(opts map[string]string) Option {
 				KeyFile:    opts["kv.keyfile"],
 			}
 		} else {
-			log.Info("Option Initializing KV without TLS")
+			logrus.Info("Option Initializing KV without TLS")
 		}
 	}
 }
@@ -242,7 +242,7 @@ func ValidateName(name string) error {
 // OptionLocalKVProvider function returns an option setter for kvstore provider
 func OptionLocalKVProvider(provider string) Option {
 	return func(c *Config) {
-		log.Debugf("Option OptionLocalKVProvider: %s", provider)
+		logrus.Debugf("Option OptionLocalKVProvider: %s", provider)
 		if _, ok := c.Scopes[datastore.LocalScope]; !ok {
 			c.Scopes[datastore.LocalScope] = &datastore.ScopeCfg{}
 		}
@@ -253,7 +253,7 @@ func OptionLocalKVProvider(provider string) Option {
 // OptionLocalKVProviderURL function returns an option setter for kvstore url
 func OptionLocalKVProviderURL(url string) Option {
 	return func(c *Config) {
-		log.Debugf("Option OptionLocalKVProviderURL: %s", url)
+		logrus.Debugf("Option OptionLocalKVProviderURL: %s", url)
 		if _, ok := c.Scopes[datastore.LocalScope]; !ok {
 			c.Scopes[datastore.LocalScope] = &datastore.ScopeCfg{}
 		}
@@ -264,7 +264,7 @@ func OptionLocalKVProviderURL(url string) Option {
 // OptionLocalKVProviderConfig function returns an option setter for kvstore config
 func OptionLocalKVProviderConfig(config *store.Config) Option {
 	return func(c *Config) {
-		log.Debugf("Option OptionLocalKVProviderConfig: %v", config)
+		logrus.Debugf("Option OptionLocalKVProviderConfig: %v", config)
 		if _, ok := c.Scopes[datastore.LocalScope]; !ok {
 			c.Scopes[datastore.LocalScope] = &datastore.ScopeCfg{}
 		}

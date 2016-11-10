@@ -139,7 +139,6 @@ func (nDB *NetworkDB) clusterInit() error {
 
 	nDB.stopCh = make(chan struct{})
 	nDB.memberlist = mlist
-	nDB.mConfig = config
 
 	for _, trigger := range []struct {
 		interval time.Duration
@@ -242,7 +241,7 @@ func (nDB *NetworkDB) reapDeadNode() {
 	defer nDB.Unlock()
 	for id, n := range nDB.failedNodes {
 		if n.reapTime > 0 {
-			n.reapTime -= reapPeriod
+			n.reapTime -= nodeReapPeriod
 			continue
 		}
 		logrus.Debugf("Removing failed node %v from gossip cluster", n.Name)

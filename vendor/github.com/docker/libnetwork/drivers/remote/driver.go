@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"net"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/plugins"
 	"github.com/docker/libnetwork/datastore"
 	"github.com/docker/libnetwork/discoverapi"
@@ -39,11 +39,11 @@ func Init(dc driverapi.DriverCallback, config map[string]interface{}) error {
 		d := newDriver(name, client)
 		c, err := d.(*driver).getCapabilities()
 		if err != nil {
-			log.Errorf("error getting capability for %s due to %v", name, err)
+			logrus.Errorf("error getting capability for %s due to %v", name, err)
 			return
 		}
 		if err = dc.RegisterDriver(name, d, *c); err != nil {
-			log.Errorf("error registering driver for %s due to %v", name, err)
+			logrus.Errorf("error registering driver for %s due to %v", name, err)
 		}
 	})
 	return nil

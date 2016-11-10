@@ -9,7 +9,7 @@ import (
 	"fmt"
 	"sync"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/libnetwork/datastore"
 	"github.com/docker/libnetwork/types"
 )
@@ -286,7 +286,7 @@ func (h *Handle) CheckConsistency() error {
 			continue
 		}
 
-		log.Infof("Fixed inconsistent bit sequence in datastore:\n%s\n%s", h, nh)
+		logrus.Infof("Fixed inconsistent bit sequence in datastore:\n%s\n%s", h, nh)
 
 		h.Lock()
 		h.head = nh.head

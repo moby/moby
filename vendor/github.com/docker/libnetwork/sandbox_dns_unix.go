@@ -11,7 +11,7 @@ import (
 	"strconv"
 	"strings"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/libnetwork/etchosts"
 	"github.com/docker/libnetwork/resolvconf"
 	"github.com/docker/libnetwork/types"
@@ -40,19 +40,19 @@ func (sb *sandbox) startResolver(restore bool) {
 		if !restore {
 			err = sb.rebuildDNS()
 			if err != nil {
-				log.Errorf("Updating resolv.conf failed for container %s, %q", sb.ContainerID(), err)
+				logrus.Errorf("Updating resolv.conf failed for container %s, %q", sb.ContainerID(), err)
 				return
 			}
 		}
 		sb.resolver.SetExtServers(sb.extDNS)
 
 		if err = sb.osSbox.InvokeFunc(sb.resolver.SetupFunc(0)); err != nil {
-			log.Errorf("Resolver Setup function failed for container %s, %q", sb.ContainerID(), err)
+			logrus.Errorf("Resolver Setup function failed for container %s, %q", sb.ContainerID(), err)
 			return
 		}
 
 		if err = sb.resolver.Start(); err != nil {
-			log.Errorf("Resolver Start failed for container %s, %q", sb.ContainerID(), err)
+			logrus.Errorf("Resolver Start failed for container %s, %q", sb.ContainerID(), err)
 		}
 	})
 }
@@ -125,13 +125,13 @@ func (sb *sandbox) updateHostsFile(ifaceIP string) error {
 
 func (sb *sandbox) addHostsEntries(recs []etchosts.Record) {
 	if err := etchosts.Add(sb.config.hostsPath, recs); err != nil {
-		log.Warnf("Failed adding service host entries to the running container: %v", err)
+		logrus.Warnf("Failed adding service host entries to the running container: %v", err)
 	}
 }
 
 func (sb *sandbox) deleteHostsEntries(recs []etchosts.Record) {
 	if err := etchosts.Delete(sb.config.hostsPath, recs); err != nil {
-		log.Warnf("Failed deleting service host entries to the running container: %v", err)
+		logrus.Warnf("Failed deleting service host entries to the running container: %v", err)
 	}
 }
 
@@ -261,7 +261,7 @@ func (sb *sandbox) updateDNS(ipv6Enabled bool) error {
 	if currHash != "" && currHash != currRC.Hash {
 		// Seems the user has changed the container resolv.conf since the last time
 		// we checked so return without doing anything.
-		//log.Infof("Skipping update of resolv.conf file with ipv6Enabled: %t because file was touched by user", ipv6Enabled)
+		//logrus.Infof("Skipping update of resolv.conf file with ipv6Enabled: %t because file was touched by user", ipv6Enabled)
 		return nil
 	}
 

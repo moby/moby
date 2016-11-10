@@ -19,6 +19,7 @@ import (
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/libnetwork"
 	nwconfig "github.com/docker/libnetwork/config"
+	"github.com/docker/libnetwork/datastore"
 	winlibnetwork "github.com/docker/libnetwork/drivers/windows"
 	"github.com/docker/libnetwork/netlabel"
 	"github.com/docker/libnetwork/options"
@@ -263,9 +264,12 @@ func (daemon *Daemon) initNetworkController(config *Config, activeSandboxes map[
 		}
 
 		if !found {
-			err = v.Delete()
-			if err != nil {
-				return nil, err
+			// global networks should not be deleted by local HNS
+			if v.Info().Scope() != datastore.GlobalScope {
+				err = v.Delete()
+				if err != nil {
+					logrus.Errorf("Error occurred when removing network %v", err)
+				}
 			}
 		}
 	}
@@ -302,6 +306,10 @@ func (daemon *Daemon) initNetworkController(config *Config, activeSandboxes map[
 
 		controller.WalkNetworks(s)
 		if n != nil {
+			// global networks should not be deleted by local HNS
+			if n.Info().Scope() == datastore.GlobalScope {
+				continue
+			}
 			v.Name = n.Name()
 			// This will not cause network delete from HNS as the network
 			// is not yet populated in the libnetwork windows driver

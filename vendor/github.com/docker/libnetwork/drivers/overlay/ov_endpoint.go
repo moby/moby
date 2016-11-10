@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"net"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/libnetwork/datastore"
 	"github.com/docker/libnetwork/driverapi"
 	"github.com/docker/libnetwork/netutils"
@@ -116,7 +116,7 @@ func (d *driver) DeleteEndpoint(nid, eid string) error {
 	n.deleteEndpoint(eid)
 
 	if err := d.deleteEndpointFromStore(ep); err != nil {
-		log.Warnf("Failed to delete overlay endpoint %s from local store: %v", ep.id[0:7], err)
+		logrus.Warnf("Failed to delete overlay endpoint %s from local store: %v", ep.id[0:7], err)
 	}
 
 	if ep.ifName == "" {
@@ -125,11 +125,11 @@ func (d *driver) DeleteEndpoint(nid, eid string) error {
 
 	link, err := nlh.LinkByName(ep.ifName)
 	if err != nil {
-		log.Debugf("Failed to retrieve interface (%s)'s link on endpoint (%s) delete: %v", ep.ifName, ep.id, err)
+		logrus.Debugf("Failed to retrieve interface (%s)'s link on endpoint (%s) delete: %v", ep.ifName, ep.id, err)
 		return nil
 	}
 	if err := nlh.LinkDel(link); err != nil {
-		log.Debugf("Failed to delete interface (%s)'s link on endpoint (%s) delete: %v", ep.ifName, ep.id, err)
+		logrus.Debugf("Failed to delete interface (%s)'s link on endpoint (%s) delete: %v", ep.ifName, ep.id, err)
 	}
 
 	return nil
