@@ -1,7 +1,6 @@
 package secret
 
 import (
-	"context"
 	"fmt"
 	"text/tabwriter"
 	"time"
@@ -11,6 +10,7 @@ import (
 	"github.com/docker/docker/cli/command"
 	"github.com/docker/go-units"
 	"github.com/spf13/cobra"
+	"golang.org/x/net/context"
 )
 
 type listOptions struct {
