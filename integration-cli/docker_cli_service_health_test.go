@@ -22,16 +22,16 @@ func (s *DockerSwarmSuite) TestServiceHealthRun(c *check.C) {
 	// build image with health-check
 	// note: use `daemon.buildImageWithOut` to build, do not use `buildImage` to build
 	imageName := "testhealth"
-	_, _, err := d.buildImageWithOut(imageName,
+	out, _, err := d.buildImageWithOut(imageName,
 		`FROM busybox
 		RUN touch /status
 		HEALTHCHECK --interval=1s --timeout=1s --retries=1\
 		  CMD cat /status`,
 		true)
-	c.Check(err, check.IsNil)
+	c.Assert(err, check.IsNil, check.Commentf(out))
 
 	serviceName := "healthServiceRun"
-	out, err := d.Cmd("service", "create", "--name", serviceName, imageName, "top")
+	out, err = d.Cmd("service", "create", "--name", serviceName, imageName, "top")
 	c.Assert(err, checker.IsNil, check.Commentf(out))
 	id := strings.TrimSpace(out)
 
@@ -84,15 +84,15 @@ func (s *DockerSwarmSuite) TestServiceHealthStart(c *check.C) {
 
 	// service started from this image won't pass health check
 	imageName := "testhealth"
-	_, _, err := d.buildImageWithOut(imageName,
+	out, _, err := d.buildImageWithOut(imageName,
 		`FROM busybox
 		HEALTHCHECK --interval=1s --timeout=1s --retries=1024\
 		  CMD cat /status`,
 		true)
-	c.Check(err, check.IsNil)
+	c.Assert(err, check.IsNil, check.Commentf(out))
 
 	serviceName := "healthServiceStart"
-	out, err := d.Cmd("service", "create", "--name", serviceName, imageName, "top")
+	out, err = d.Cmd("service", "create", "--name", serviceName, imageName, "top")
 	c.Assert(err, checker.IsNil, check.Commentf(out))
 	id := strings.TrimSpace(out)
 
@@ -142,15 +142,15 @@ func (s *DockerSwarmSuite) TestServiceHealthUpdate(c *check.C) {
 
 	// service started from this image won't pass health check
 	imageName := "testhealth"
-	_, _, err := d.buildImageWithOut(imageName,
+	out, _, err := d.buildImageWithOut(imageName,
 		`FROM busybox
 		HEALTHCHECK --interval=1s --timeout=1s --retries=1024\
 		  CMD cat /status`,
 		true)
-	c.Check(err, check.IsNil)
+	c.Assert(err, check.IsNil, check.Commentf(out))
 
 	serviceName := "healthServiceStart"
-	out, err := d.Cmd("service", "create", "--name", serviceName, imageName, "top")
+	out, err = d.Cmd("service", "create", "--name", serviceName, imageName, "top")
 	c.Assert(err, checker.IsNil, check.Commentf(out))
 	id := strings.TrimSpace(out)
 
