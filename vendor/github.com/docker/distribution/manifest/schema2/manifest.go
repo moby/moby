@@ -18,7 +18,7 @@ const (
 	MediaTypeConfig = "application/vnd.docker.container.image.v1+json"
 
 	// MediaTypePluginConfig specifies the mediaType for plugin configuration.
-	MediaTypePluginConfig = "application/vnd.docker.plugin.image.v0+json"
+	MediaTypePluginConfig = "application/vnd.docker.plugin.v1+json"
 
 	// MediaTypeLayer is the mediaType used for layers referenced by the
 	// manifest.

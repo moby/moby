@@ -190,7 +190,7 @@ This section lists each version from latest to oldest.  Each listing includes a 
 * `POST /plugins/(plugin name)/set` configure a plugin.
 * `POST /plugins/(plugin name)/enable` enable a plugin.
 * `POST /plugins/(plugin name)/disable` disable a plugin.
-* `POST /plugins/(plugin name)/push` push a pluging.
+* `POST /plugins/(plugin name)/push` push a plugin.
 * `POST /plugins/create?name=(plugin name)` create a plugin.
 * `DELETE /plugins/(plugin name)` delete a plugin.
 
