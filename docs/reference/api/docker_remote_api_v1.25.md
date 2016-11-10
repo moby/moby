@@ -4724,18 +4724,21 @@ Inspect swarm
           "ElectionTick" : 3
         },
         "TaskDefaults" : {},
+        "EncryptionConfig" : {
+          "AutoLockManagers": false
+        },
         "Name" : "default"
       },
-     "JoinTokens" : {
+      "JoinTokens" : {
         "Worker" : "SWMTKN-1-1h8aps2yszaiqmz2l3oc5392pgk8e49qhx2aj3nyv0ui0hez2a-6qmn92w6bu3jdvnglku58u11a",
         "Manager" : "SWMTKN-1-1h8aps2yszaiqmz2l3oc5392pgk8e49qhx2aj3nyv0ui0hez2a-8llk83c4wm9lwioey2s316r9l"
-     },
-     "ID" : "70ilmkj2f6sp2137c753w2nmt",
-     "UpdatedAt" : "2016-08-15T16:32:09.623207604Z",
-     "Version" : {
-       "Index" : 51
+      },
+      "ID" : "70ilmkj2f6sp2137c753w2nmt",
+      "UpdatedAt" : "2016-08-15T16:32:09.623207604Z",
+      "Version" : {
+        "Index" : 51
+      }
     }
-  }
 
 **Status codes**:
 
@@ -4761,7 +4764,10 @@ Initialize a new swarm. The body of the HTTP response includes the node ID.
         "Orchestration": {},
         "Raft": {},
         "Dispatcher": {},
-        "CAConfig": {}
+        "CAConfig": {},
+        "EncryptionConfig" : {
+          "AutoLockManagers": false
+        }
       }
     }
 
@@ -4816,6 +4822,9 @@ JSON Parameters:
             - **URL** - URL where certificate signing requests should be sent.
             - **Options** - An object with key/value pairs that are interpreted
               as protocol-specific options for the external CA driver.
+    - **EncryptionConfig** – Parameters related to encryption-at-rest.
+        - **AutoLockManagers**: If set, generate a key and use it to lock data stored on the
+          managers.
 
 ### Join an existing swarm
 
@@ -4885,6 +4894,44 @@ Leave a swarm
 - **200** – no error
 - **406** – node is not part of a swarm
 
+### Retrieve the swarm's unlock key
+
+`GET /swarm/unlockkey`
+
+Get unlock key
+
+**Example response**:
+
+    HTTP/1.1 200 OK
+    Content-Type: application/json
+
+    {
+      "UnlockKey": "SWMKEY-1-7c37Cc8654o6p38HnroywCi19pllOnGtbdZEgtKxZu8"
+    }
+
+**Status codes**:
+
+- **200** - no error
+
+### Unlock a locked manager
+
+`POST /swarm/unlock`
+
+Unlock a manager
+
+**Example request**:
+
+    POST /v1.25/swarm/unlock HTTP/1.1
+    Content-Type: application/json
+
+    {
+      "UnlockKey": "SWMKEY-1-7c37Cc8654o6p38HnroywCi19pllOnGtbdZEgtKxZu8"
+    }
+
+**Status codes**:
+
+- **200** - no error
+
 ### Update a swarm
 
 
@@ -4916,6 +4963,9 @@ Update a swarm
       "JoinTokens": {
         "Worker": "SWMTKN-1-3pu6hszjas19xyp7ghgosyx9k8atbfcr8p2is99znpy26u2lkl-1awxwuwd3z9j1z3puu7rcgdbx",
         "Manager": "SWMTKN-1-3pu6hszjas19xyp7ghgosyx9k8atbfcr8p2is99znpy26u2lkl-7p73s1dx5in4tatdymyhg9hu2"
+      },
+      "EncryptionConfig": {
+        "AutoLockManagers": false
       }
     }
 
@@ -4932,6 +4982,7 @@ Update a swarm
   required to avoid conflicting writes.
 - **rotateWorkerToken** - Set to `true` (or `1`) to rotate the worker join token.
 - **rotateManagerToken** - Set to `true` (or `1`) to rotate the manager join token.
+- **rotateManagerUnlockKey** - Set to `true` (or `1`) to rotate the manager unlock key.
 
 **Status codes**:
 
@@ -4965,6 +5016,9 @@ JSON Parameters:
 - **JoinTokens** - Tokens that can be used by other nodes to join the swarm.
     - **Worker** - Token to use for joining as a worker.
     - **Manager** - Token to use for joining as a manager.
+- **EncryptionConfig** – Parameters related to encryption-at-rest.
+    - **AutoLockManagers**: If set, generate a key and use it to lock data stored on the
+      managers.
 
 ## 3.9 Services
 

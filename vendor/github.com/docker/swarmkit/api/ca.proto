@@ -13,6 +13,11 @@ service CA {
 	rpc GetRootCACertificate(GetRootCACertificateRequest) returns (GetRootCACertificateResponse) {
 		option (docker.protobuf.plugin.tls_authorization) = { insecure: true };
 	};
+	// GetUnlockKey returns the current unlock key for the cluster for the role of the client
+	// asking.
+	rpc GetUnlockKey(GetUnlockKeyRequest) returns (GetUnlockKeyResponse) {
+		option (docker.protobuf.plugin.tls_authorization) = { roles: ["swarm-manager"] };
+	};
 }
 
 service NodeCA {
@@ -54,4 +59,11 @@ message GetRootCACertificateRequest {}
 
 message GetRootCACertificateResponse {
 	bytes certificate = 1;
+}
+
+message GetUnlockKeyRequest {}
+
+message GetUnlockKeyResponse {
+	bytes unlock_key = 1;
+	Version version = 2 [(gogoproto.nullable) = false];
 }

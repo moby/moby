@@ -23,12 +23,12 @@ import (
 	"github.com/docker/distribution/digest"
 	"github.com/docker/go-events"
 	"github.com/docker/swarmkit/api"
-	"github.com/docker/swarmkit/identity"
 	"github.com/docker/swarmkit/ioutils"
 	"github.com/docker/swarmkit/remotes"
 	"github.com/pkg/errors"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
 )
 
@@ -122,8 +122,8 @@ func (rca *RootCA) CanSign() bool {
 
 // IssueAndSaveNewCertificates generates a new key-pair, signs it with the local root-ca, and returns a
 // tls certificate
-func (rca *RootCA) IssueAndSaveNewCertificates(paths CertPaths, cn, ou, org string) (*tls.Certificate, error) {
-	csr, key, err := GenerateAndWriteNewKey(paths)
+func (rca *RootCA) IssueAndSaveNewCertificates(kw KeyWriter, cn, ou, org string) (*tls.Certificate, error) {
+	csr, key, err := GenerateNewCSR()
 	if err != nil {
 		return nil, errors.Wrap(err, "error when generating new node certs")
 	}
@@ -138,20 +138,13 @@ func (rca *RootCA) IssueAndSaveNewCertificates(paths CertPaths, cn, ou, org stri
 		return nil, errors.Wrap(err, "failed to sign node certificate")
 	}
 
-	// Ensure directory exists
-	err = os.MkdirAll(filepath.Dir(paths.Cert), 0755)
-	if err != nil {
-		return nil, err
-	}
-
-	// Write the chain to disk
-	if err := ioutils.AtomicWriteFile(paths.Cert, certChain, 0644); err != nil {
-		return nil, err
-	}
-
 	// Create a valid TLSKeyPair out of the PEM encoded private key and certificate
 	tlsKeyPair, err := tls.X509KeyPair(certChain, key)
 	if err != nil {
+		return nil, err
+	}
+
+	if err := kw.Write(certChain, key, nil); err != nil {
 		return nil, err
 	}
 
@@ -160,11 +153,9 @@ func (rca *RootCA) IssueAndSaveNewCertificates(paths CertPaths, cn, ou, org stri
 
 // RequestAndSaveNewCertificates gets new certificates issued, either by signing them locally if a signer is
 // available, or by requesting them from the remote server at remoteAddr.
-func (rca *RootCA) RequestAndSaveNewCertificates(ctx context.Context, paths CertPaths, token string, remotes remotes.Remotes, transport credentials.TransportCredentials, nodeInfo chan<- api.IssueNodeCertificateResponse) (*tls.Certificate, error) {
-	// Create a new key/pair and CSR for the new manager
-	// Write the new CSR and the new key to a temporary location so we can survive crashes on rotation
-	tempPaths := genTempPaths(paths)
-	csr, key, err := GenerateAndWriteNewKey(tempPaths)
+func (rca *RootCA) RequestAndSaveNewCertificates(ctx context.Context, kw KeyWriter, token string, r remotes.Remotes, transport credentials.TransportCredentials, nodeInfo chan<- api.IssueNodeCertificateResponse) (*tls.Certificate, error) {
+	// Create a new key/pair and CSR
+	csr, key, err := GenerateNewCSR()
 	if err != nil {
 		return nil, errors.Wrap(err, "error when generating new node certs")
 	}
@@ -174,7 +165,7 @@ func (rca *RootCA) RequestAndSaveNewCertificates(ctx context.Context, paths Cert
 	// responding properly (for example, it may have just been demoted).
 	var signedCert []byte
 	for i := 0; i != 5; i++ {
-		signedCert, err = GetRemoteSignedCertificate(ctx, csr, token, rca.Pool, remotes, transport, nodeInfo)
+		signedCert, err = GetRemoteSignedCertificate(ctx, csr, token, rca.Pool, r, transport, nodeInfo)
 		if err == nil {
 			break
 		}
@@ -184,7 +175,7 @@ func (rca *RootCA) RequestAndSaveNewCertificates(ctx context.Context, paths Cert
 	}
 
 	// Доверяй, но проверяй.
-	// Before we overwrite our local certificate, let's make sure the server gave us one that is valid
+	// Before we overwrite our local key + certificate, let's make sure the server gave us one that is valid
 	// Create an X509Cert so we can .Verify()
 	certBlock, _ := pem.Decode(signedCert)
 	if certBlock == nil {
@@ -209,23 +200,60 @@ func (rca *RootCA) RequestAndSaveNewCertificates(ctx context.Context, paths Cert
 		return nil, err
 	}
 
-	// Ensure directory exists
-	err = os.MkdirAll(filepath.Dir(paths.Cert), 0755)
+	var kekUpdate *KEKData
+	for i := 0; i < 5; i++ {
+		kekUpdate, err = rca.getKEKUpdate(ctx, X509Cert, tlsKeyPair, r)
+		if err == nil {
+			break
+		}
+	}
 	if err != nil {
 		return nil, err
 	}
 
-	// Write the chain to disk
-	if err := ioutils.AtomicWriteFile(paths.Cert, signedCert, 0644); err != nil {
-		return nil, err
-	}
-
-	// Move the new key to the final location
-	if err := os.Rename(tempPaths.Key, paths.Key); err != nil {
+	if err := kw.Write(signedCert, key, kekUpdate); err != nil {
 		return nil, err
 	}
 
 	return &tlsKeyPair, nil
+}
+
+func (rca *RootCA) getKEKUpdate(ctx context.Context, cert *x509.Certificate, keypair tls.Certificate, r remotes.Remotes) (*KEKData, error) {
+	var managerRole bool
+	for _, ou := range cert.Subject.OrganizationalUnit {
+		if ou == ManagerRole {
+			managerRole = true
+			break
+		}
+	}
+
+	if managerRole {
+		mtlsCreds := credentials.NewTLS(&tls.Config{ServerName: CARole, RootCAs: rca.Pool, Certificates: []tls.Certificate{keypair}})
+		conn, peer, err := getGRPCConnection(mtlsCreds, r)
+		if err != nil {
+			return nil, err
+		}
+		defer conn.Close()
+
+		client := api.NewCAClient(conn)
+		ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+		defer cancel()
+		response, err := client.GetUnlockKey(ctx, &api.GetUnlockKeyRequest{})
+		if err != nil {
+			if grpc.Code(err) == codes.Unimplemented { // if the server does not support keks, return as if no encryption key was specified
+				return &KEKData{}, nil
+			}
+
+			r.Observe(peer, -remotes.DefaultObservationWeight)
+			return nil, err
+		}
+		r.Observe(peer, remotes.DefaultObservationWeight)
+		return &KEKData{KEK: response.UnlockKey, Version: response.Version.Index}, nil
+	}
+
+	// If this is a worker, set to never encrypt. We always want to set to the lock key to nil,
+	// in case this was a manager that was demoted to a worker.
+	return &KEKData{}, nil
 }
 
 // PrepareCSR creates a CFSSL Sign Request based on the given raw CSR and
@@ -388,11 +416,9 @@ func ensureCertKeyMatch(cert *x509.Certificate, key crypto.PublicKey) error {
 
 // GetLocalRootCA validates if the contents of the file are a valid self-signed
 // CA certificate, and returns the PEM-encoded Certificate if so
-func GetLocalRootCA(baseDir string) (RootCA, error) {
-	paths := NewConfigPaths(baseDir)
-
+func GetLocalRootCA(paths CertPaths) (RootCA, error) {
 	// Check if we have a Certificate file
-	cert, err := ioutil.ReadFile(paths.RootCA.Cert)
+	cert, err := ioutil.ReadFile(paths.Cert)
 	if err != nil {
 		if os.IsNotExist(err) {
 			err = ErrNoLocalRootCA
@@ -401,7 +427,7 @@ func GetLocalRootCA(baseDir string) (RootCA, error) {
 		return RootCA{}, err
 	}
 
-	key, err := ioutil.ReadFile(paths.RootCA.Key)
+	key, err := ioutil.ReadFile(paths.Key)
 	if err != nil {
 		if !os.IsNotExist(err) {
 			return RootCA{}, err
@@ -414,24 +440,31 @@ func GetLocalRootCA(baseDir string) (RootCA, error) {
 	return NewRootCA(cert, key, DefaultNodeCertExpiration)
 }
 
-// GetRemoteCA returns the remote endpoint's CA certificate
-func GetRemoteCA(ctx context.Context, d digest.Digest, r remotes.Remotes) (RootCA, error) {
-	// This TLS Config is intentionally using InsecureSkipVerify. Either we're
-	// doing TOFU, in which case we don't validate the remote CA, or we're using
-	// a user supplied hash to check the integrity of the CA certificate.
-	insecureCreds := credentials.NewTLS(&tls.Config{InsecureSkipVerify: true})
+func getGRPCConnection(creds credentials.TransportCredentials, r remotes.Remotes) (*grpc.ClientConn, api.Peer, error) {
+	peer, err := r.Select()
+	if err != nil {
+		return nil, api.Peer{}, err
+	}
+
 	opts := []grpc.DialOption{
-		grpc.WithTransportCredentials(insecureCreds),
+		grpc.WithTransportCredentials(creds),
 		grpc.WithTimeout(5 * time.Second),
 		grpc.WithBackoffMaxDelay(5 * time.Second),
 	}
 
-	peer, err := r.Select()
-	if err != nil {
-		return RootCA{}, err
-	}
-
 	conn, err := grpc.Dial(peer.Addr, opts...)
+	if err != nil {
+		return nil, api.Peer{}, err
+	}
+	return conn, peer, nil
+}
+
+// GetRemoteCA returns the remote endpoint's CA certificate
+func GetRemoteCA(ctx context.Context, d digest.Digest, r remotes.Remotes) (RootCA, error) {
+	// This TLS Config is intentionally using InsecureSkipVerify. We use the
+	// digest instead to check the integrity of the CA certificate.
+	insecureCreds := credentials.NewTLS(&tls.Config{InsecureSkipVerify: true})
+	conn, peer, err := getGRPCConnection(insecureCreds, r)
 	if err != nil {
 		return RootCA{}, err
 	}
@@ -481,9 +514,9 @@ func GetRemoteCA(ctx context.Context, d digest.Digest, r remotes.Remotes) (RootC
 	return RootCA{Cert: response.Certificate, Digest: digest.FromBytes(response.Certificate), Pool: pool}, nil
 }
 
-// CreateAndWriteRootCA creates a Certificate authority for a new Swarm Cluster, potentially
+// CreateRootCA creates a Certificate authority for a new Swarm Cluster, potentially
 // overwriting any existing CAs.
-func CreateAndWriteRootCA(rootCN string, paths CertPaths) (RootCA, error) {
+func CreateRootCA(rootCN string, paths CertPaths) (RootCA, error) {
 	// Create a simple CSR for the CA using the default CA validator and policy
 	req := cfcsr.CertificateRequest{
 		CN:         rootCN,
@@ -497,99 +530,17 @@ func CreateAndWriteRootCA(rootCN string, paths CertPaths) (RootCA, error) {
 		return RootCA{}, err
 	}
 
-	// Ensure directory exists
-	err = os.MkdirAll(filepath.Dir(paths.Cert), 0755)
+	rootCA, err := NewRootCA(cert, key, DefaultNodeCertExpiration)
 	if err != nil {
 		return RootCA{}, err
 	}
 
-	// Write the Private Key and Certificate to disk, using decent permissions
-	if err := ioutils.AtomicWriteFile(paths.Cert, cert, 0644); err != nil {
-		return RootCA{}, err
-	}
-	if err := ioutils.AtomicWriteFile(paths.Key, key, 0600); err != nil {
+	// save the cert to disk
+	if err := saveRootCA(rootCA, paths); err != nil {
 		return RootCA{}, err
 	}
 
-	return NewRootCA(cert, key, DefaultNodeCertExpiration)
-}
-
-// BootstrapCluster receives a directory and creates both new Root CA key material
-// and a ManagerRole key/certificate pair to be used by the initial cluster manager
-func BootstrapCluster(baseCertDir string) error {
-	paths := NewConfigPaths(baseCertDir)
-
-	rootCA, err := CreateAndWriteRootCA(rootCN, paths.RootCA)
-	if err != nil {
-		return err
-	}
-
-	nodeID := identity.NewID()
-	newOrg := identity.NewID()
-	_, err = GenerateAndSignNewTLSCert(rootCA, nodeID, ManagerRole, newOrg, paths.Node)
-
-	return err
-}
-
-// GenerateAndSignNewTLSCert creates a new keypair, signs the certificate using signer,
-// and saves the certificate and key to disk. This method is used to bootstrap the first
-// manager TLS certificates.
-func GenerateAndSignNewTLSCert(rootCA RootCA, cn, ou, org string, paths CertPaths) (*tls.Certificate, error) {
-	// Generate and new keypair and CSR
-	csr, key, err := generateNewCSR()
-	if err != nil {
-		return nil, err
-	}
-
-	// Obtain a signed Certificate
-	certChain, err := rootCA.ParseValidateAndSignCSR(csr, cn, ou, org)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to sign node certificate")
-	}
-
-	// Ensure directory exists
-	err = os.MkdirAll(filepath.Dir(paths.Cert), 0755)
-	if err != nil {
-		return nil, err
-	}
-
-	// Write both the chain and key to disk
-	if err := ioutils.AtomicWriteFile(paths.Cert, certChain, 0644); err != nil {
-		return nil, err
-	}
-	if err := ioutils.AtomicWriteFile(paths.Key, key, 0600); err != nil {
-		return nil, err
-	}
-
-	// Load a valid tls.Certificate from the chain and the key
-	serverCert, err := tls.X509KeyPair(certChain, key)
-	if err != nil {
-		return nil, err
-	}
-
-	return &serverCert, nil
-}
-
-// GenerateAndWriteNewKey generates a new pub/priv key pair, writes it to disk
-// and returns the CSR and the private key material
-func GenerateAndWriteNewKey(paths CertPaths) (csr, key []byte, err error) {
-	// Generate a new key pair
-	csr, key, err = generateNewCSR()
-	if err != nil {
-		return
-	}
-
-	// Ensure directory exists
-	err = os.MkdirAll(filepath.Dir(paths.Key), 0755)
-	if err != nil {
-		return
-	}
-
-	if err = ioutils.AtomicWriteFile(paths.Key, key, 0600); err != nil {
-		return
-	}
-
-	return
+	return rootCA, nil
 }
 
 // GetRemoteSignedCertificate submits a CSR to a remote CA server address,
@@ -605,18 +556,7 @@ func GetRemoteSignedCertificate(ctx context.Context, csr []byte, token string, r
 		creds = credentials.NewTLS(&tls.Config{ServerName: CARole, RootCAs: rootCAPool})
 	}
 
-	peer, err := r.Select()
-	if err != nil {
-		return nil, err
-	}
-
-	opts := []grpc.DialOption{
-		grpc.WithTransportCredentials(creds),
-		grpc.WithTimeout(5 * time.Second),
-		grpc.WithBackoffMaxDelay(5 * time.Second),
-	}
-
-	conn, err := grpc.Dial(peer.Addr, opts...)
+	conn, peer, err := getGRPCConnection(creds, r)
 	if err != nil {
 		return nil, err
 	}
@@ -681,10 +621,10 @@ func GetRemoteSignedCertificate(ctx context.Context, csr []byte, token string, r
 }
 
 // readCertValidity returns the certificate issue and expiration time
-func readCertValidity(paths CertPaths) (time.Time, time.Time, error) {
+func readCertValidity(kr KeyReader) (time.Time, time.Time, error) {
 	var zeroTime time.Time
 	// Read the Cert
-	cert, err := ioutil.ReadFile(paths.Cert)
+	cert, _, err := kr.Read()
 	if err != nil {
 		return zeroTime, zeroTime, err
 	}
@@ -714,7 +654,8 @@ func saveRootCA(rootCA RootCA, paths CertPaths) error {
 	return ioutils.AtomicWriteFile(paths.Cert, rootCA.Cert, 0644)
 }
 
-func generateNewCSR() (csr, key []byte, err error) {
+// GenerateNewCSR returns a newly generated key and CSR signed with said key
+func GenerateNewCSR() (csr, key []byte, err error) {
 	req := &cfcsr.CertificateRequest{
 		KeyRequest: cfcsr.NewBasicKeyRequest(),
 	}

@@ -21,6 +21,7 @@ import (
 	"github.com/docker/swarmkit/ioutils"
 	"github.com/docker/swarmkit/log"
 	"github.com/docker/swarmkit/manager"
+	"github.com/docker/swarmkit/manager/encryption"
 	"github.com/docker/swarmkit/remotes"
 	"github.com/docker/swarmkit/xnet"
 	"github.com/pkg/errors"
@@ -34,6 +35,10 @@ const stateFilename = "state.json"
 var (
 	errNodeStarted    = errors.New("node: already started")
 	errNodeNotStarted = errors.New("node: not started")
+	certDirectory     = "certificates"
+
+	// ErrInvalidUnlockKey is returned when we can't decrypt the TLS certificate
+	ErrInvalidUnlockKey = errors.New("node is locked, and needs a valid unlock key")
 )
 
 // Config provides values for a Node.
@@ -81,6 +86,14 @@ type Config struct {
 	// HeartbeatTick defines the amount of ticks between each
 	// heartbeat sent to other members for health-check purposes
 	HeartbeatTick uint32
+
+	// AutoLockManagers determines whether or not an unlock key will be generated
+	// when bootstrapping a new cluster for the first time
+	AutoLockManagers bool
+
+	// UnlockKey is the key to unlock a node - used for decrypting at rest.  This
+	// only applies to nodes that have already joined a cluster.
+	UnlockKey []byte
 }
 
 // Node implements the primary node functionality for a member of a swarm
@@ -106,6 +119,7 @@ type Node struct {
 	agent                *agent.Agent
 	manager              *manager.Manager
 	notifyNodeChange     chan *api.Node // used to send role updates from the dispatcher api on promotion/demotion
+	unlockKey            []byte
 }
 
 // RemoteAPIAddr returns address on which remote manager api listens.
@@ -150,12 +164,18 @@ func New(c *Config) (*Node, error) {
 		ready:                make(chan struct{}),
 		certificateRequested: make(chan struct{}),
 		notifyNodeChange:     make(chan *api.Node, 1),
+		unlockKey:            c.UnlockKey,
 	}
+
+	if n.config.JoinAddr != "" || n.config.ForceNewCluster {
+		n.remotes = newPersistentRemotes(filepath.Join(n.config.StateDir, stateFilename))
+		if n.config.JoinAddr != "" {
+			n.remotes.Observe(api.Peer{Addr: n.config.JoinAddr}, remotes.DefaultObservationWeight)
+		}
+	}
+
 	n.roleCond = sync.NewCond(n.RLocker())
 	n.connCond = sync.NewCond(n.RLocker())
-	if err := n.loadCertificates(); err != nil {
-		return nil, err
-	}
 	return n, nil
 }
 
@@ -189,46 +209,7 @@ func (n *Node) run(ctx context.Context) (err error) {
 		}
 	}()
 
-	// NOTE: When this node is created by NewNode(), our nodeID is set if
-	// n.loadCertificates() succeeded in loading TLS credentials.
-	if n.config.JoinAddr == "" && n.nodeID == "" {
-		if err := n.bootstrapCA(); err != nil {
-			return err
-		}
-	}
-
-	if n.config.JoinAddr != "" || n.config.ForceNewCluster {
-		n.remotes = newPersistentRemotes(filepath.Join(n.config.StateDir, stateFilename))
-		if n.config.JoinAddr != "" {
-			n.remotes.Observe(api.Peer{Addr: n.config.JoinAddr}, remotes.DefaultObservationWeight)
-		}
-	}
-
-	// Obtain new certs and setup TLS certificates renewal for this node:
-	// - We call LoadOrCreateSecurityConfig which blocks until a valid certificate has been issued
-	// - We retrieve the nodeID from LoadOrCreateSecurityConfig through the info channel. This allows
-	// us to display the ID before the certificate gets issued (for potential approval).
-	// - We wait for LoadOrCreateSecurityConfig to finish since we need a certificate to operate.
-	// - Given a valid certificate, spin a renewal go-routine that will ensure that certificates stay
-	// up to date.
-	issueResponseChan := make(chan api.IssueNodeCertificateResponse, 1)
-	go func() {
-		select {
-		case <-ctx.Done():
-		case resp := <-issueResponseChan:
-			log.G(log.WithModule(ctx, "tls")).WithFields(logrus.Fields{
-				"node.id": resp.NodeID,
-			}).Debugf("requesting certificate")
-			n.Lock()
-			n.nodeID = resp.NodeID
-			n.nodeMembership = resp.NodeMembership
-			n.Unlock()
-			close(n.certificateRequested)
-		}
-	}()
-
-	certDir := filepath.Join(n.config.StateDir, "certificates")
-	securityConfig, err := ca.LoadOrCreateSecurityConfig(ctx, certDir, n.config.JoinToken, ca.ManagerRole, n.remotes, issueResponseChan)
+	securityConfig, err := n.loadSecurityConfig(ctx)
 	if err != nil {
 		return err
 	}
@@ -243,10 +224,6 @@ func (n *Node) run(ctx context.Context) (err error) {
 		return err
 	}
 	defer db.Close()
-
-	if err := n.loadCertificates(); err != nil {
-		return err
-	}
 
 	forceCertRenewal := make(chan struct{})
 	renewCert := func() {
@@ -289,7 +266,7 @@ func (n *Node) run(ctx context.Context) (err error) {
 		}
 	}()
 
-	updates := ca.RenewTLSConfig(ctx, securityConfig, certDir, n.remotes, forceCertRenewal)
+	updates := ca.RenewTLSConfig(ctx, securityConfig, n.remotes, forceCertRenewal)
 	go func() {
 		for {
 			select {
@@ -515,40 +492,100 @@ func (n *Node) Remotes() []api.Peer {
 	return remotes
 }
 
-func (n *Node) loadCertificates() error {
-	certDir := filepath.Join(n.config.StateDir, "certificates")
-	rootCA, err := ca.GetLocalRootCA(certDir)
-	if err != nil {
-		if err == ca.ErrNoLocalRootCA {
-			return nil
-		}
-		return err
+func (n *Node) loadSecurityConfig(ctx context.Context) (*ca.SecurityConfig, error) {
+	paths := ca.NewConfigPaths(filepath.Join(n.config.StateDir, certDirectory))
+	var securityConfig *ca.SecurityConfig
+
+	krw := ca.NewKeyReadWriter(paths.Node, n.unlockKey, &manager.RaftDEKData{})
+	if err := krw.Migrate(); err != nil {
+		return nil, err
 	}
-	configPaths := ca.NewConfigPaths(certDir)
-	clientTLSCreds, _, err := ca.LoadTLSCreds(rootCA, configPaths.Node)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil
+
+	// Check if we already have a valid certificates on disk.
+	rootCA, err := ca.GetLocalRootCA(paths.RootCA)
+	if err != nil && err != ca.ErrNoLocalRootCA {
+		return nil, err
+	}
+	if err == nil {
+		clientTLSCreds, serverTLSCreds, err := ca.LoadTLSCreds(rootCA, krw)
+		_, ok := errors.Cause(err).(ca.ErrInvalidKEK)
+		switch {
+		case err == nil:
+			securityConfig = ca.NewSecurityConfig(&rootCA, krw, clientTLSCreds, serverTLSCreds)
+			log.G(ctx).Debug("loaded CA and TLS certificates")
+		case ok:
+			return nil, ErrInvalidUnlockKey
+		case os.IsNotExist(err):
+			break
+		default:
+			return nil, errors.Wrapf(err, "error while loading TLS certificate in %s", paths.Node.Cert)
+		}
+	}
+
+	if securityConfig == nil {
+		if n.config.JoinAddr == "" {
+			// if we're not joining a cluster, bootstrap a new one - and we have to set the unlock key
+			n.unlockKey = nil
+			if n.config.AutoLockManagers {
+				n.unlockKey = encryption.GenerateSecretKey()
+			}
+			krw = ca.NewKeyReadWriter(paths.Node, n.unlockKey, &manager.RaftDEKData{})
+			rootCA, err = ca.CreateRootCA(ca.DefaultRootCN, paths.RootCA)
+			if err != nil {
+				return nil, err
+			}
+			log.G(ctx).Debug("generated CA key and certificate")
+		} else if err == ca.ErrNoLocalRootCA { // from previous error loading the root CA from disk
+			rootCA, err = ca.DownloadRootCA(ctx, paths.RootCA, n.config.JoinToken, n.remotes)
+			if err != nil {
+				return nil, err
+			}
+			log.G(ctx).Debug("downloaded CA certificate")
 		}
 
-		return errors.Wrapf(err, "error while loading TLS Certificate in %s", configPaths.Node.Cert)
+		// Obtain new certs and setup TLS certificates renewal for this node:
+		// - We call LoadOrCreateSecurityConfig which blocks until a valid certificate has been issued
+		// - We retrieve the nodeID from LoadOrCreateSecurityConfig through the info channel. This allows
+		// us to display the ID before the certificate gets issued (for potential approval).
+		// - We wait for LoadOrCreateSecurityConfig to finish since we need a certificate to operate.
+		// - Given a valid certificate, spin a renewal go-routine that will ensure that certificates stay
+		// up to date.
+		issueResponseChan := make(chan api.IssueNodeCertificateResponse, 1)
+		go func() {
+			select {
+			case <-ctx.Done():
+			case resp := <-issueResponseChan:
+				log.G(log.WithModule(ctx, "tls")).WithFields(logrus.Fields{
+					"node.id": resp.NodeID,
+				}).Debugf("loaded TLS certificate")
+				n.Lock()
+				n.nodeID = resp.NodeID
+				n.nodeMembership = resp.NodeMembership
+				n.Unlock()
+				close(n.certificateRequested)
+			}
+		}()
+
+		// LoadOrCreateSecurityConfig is the point at which a new node joining a cluster will retrieve TLS
+		// certificates and write them to disk
+		securityConfig, err = ca.LoadOrCreateSecurityConfig(
+			ctx, rootCA, n.config.JoinToken, ca.ManagerRole, n.remotes, issueResponseChan, krw)
+		if err != nil {
+			if _, ok := errors.Cause(err).(ca.ErrInvalidKEK); ok {
+				return nil, ErrInvalidUnlockKey
+			}
+			return nil, err
+		}
 	}
-	// todo: try csr if no cert or store nodeID/role in some other way
+
 	n.Lock()
-	n.role = clientTLSCreds.Role()
-	n.nodeID = clientTLSCreds.NodeID()
+	n.role = securityConfig.ClientTLSCreds.Role()
+	n.nodeID = securityConfig.ClientTLSCreds.NodeID()
 	n.nodeMembership = api.NodeMembershipAccepted
 	n.roleCond.Broadcast()
 	n.Unlock()
 
-	return nil
-}
-
-func (n *Node) bootstrapCA() error {
-	if err := ca.BootstrapCluster(filepath.Join(n.config.StateDir, "certificates")); err != nil {
-		return err
-	}
-	return n.loadCertificates()
+	return securityConfig, nil
 }
 
 func (n *Node) initManagerConnection(ctx context.Context, ready chan<- struct{}) error {
@@ -626,13 +663,15 @@ func (n *Node) runManager(ctx context.Context, securityConfig *ca.SecurityConfig
 				ListenAddr:    n.config.ListenRemoteAPI,
 				AdvertiseAddr: n.config.AdvertiseRemoteAPI,
 			},
-			ControlAPI:     n.config.ListenControlAPI,
-			SecurityConfig: securityConfig,
-			ExternalCAs:    n.config.ExternalCAs,
-			JoinRaft:       remoteAddr.Addr,
-			StateDir:       n.config.StateDir,
-			HeartbeatTick:  n.config.HeartbeatTick,
-			ElectionTick:   n.config.ElectionTick,
+			ControlAPI:       n.config.ListenControlAPI,
+			SecurityConfig:   securityConfig,
+			ExternalCAs:      n.config.ExternalCAs,
+			JoinRaft:         remoteAddr.Addr,
+			StateDir:         n.config.StateDir,
+			HeartbeatTick:    n.config.HeartbeatTick,
+			ElectionTick:     n.config.ElectionTick,
+			AutoLockManagers: n.config.AutoLockManagers,
+			UnlockKey:        n.unlockKey,
 		})
 		if err != nil {
 			return err

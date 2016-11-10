@@ -6,6 +6,7 @@ import (
 
 	"github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/ca"
+	"github.com/docker/swarmkit/manager/encryption"
 	"github.com/docker/swarmkit/manager/state/store"
 	"github.com/docker/swarmkit/protobuf/ptypes"
 	"golang.org/x/net/context"
@@ -107,12 +108,38 @@ func (s *Server) UpdateCluster(ctx context.Context, request *api.UpdateClusterRe
 
 		expireBlacklistedCerts(cluster)
 
-		if request.Rotation.RotateWorkerToken {
+		if request.Rotation.WorkerJoinToken {
 			cluster.RootCA.JoinTokens.Worker = ca.GenerateJoinToken(s.rootCA)
 		}
-		if request.Rotation.RotateManagerToken {
+		if request.Rotation.ManagerJoinToken {
 			cluster.RootCA.JoinTokens.Manager = ca.GenerateJoinToken(s.rootCA)
 		}
+
+		var unlockKeys []*api.EncryptionKey
+		var managerKey *api.EncryptionKey
+		for _, eKey := range cluster.UnlockKeys {
+			if eKey.Subsystem == ca.ManagerRole {
+				if !cluster.Spec.EncryptionConfig.AutoLockManagers {
+					continue
+				}
+				managerKey = eKey
+			}
+			unlockKeys = append(unlockKeys, eKey)
+		}
+
+		switch {
+		case !cluster.Spec.EncryptionConfig.AutoLockManagers:
+			break
+		case managerKey == nil:
+			unlockKeys = append(unlockKeys, &api.EncryptionKey{
+				Subsystem: ca.ManagerRole,
+				Key:       encryption.GenerateSecretKey(),
+			})
+		case request.Rotation.ManagerUnlockKey:
+			managerKey.Key = encryption.GenerateSecretKey()
+		}
+		cluster.UnlockKeys = unlockKeys
+
 		return store.UpdateCluster(tx, cluster)
 	})
 	if err != nil {

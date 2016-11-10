@@ -22,6 +22,7 @@ Initialize a swarm
 
 Options:
       --advertise-addr value            Advertised address (format: <ip|interface>[:port])
+      --autolock                        Enable or disable manager autolocking (requiring an unlock key to start a stopped manager)
       --cert-expiry duration            Validity period for node certificates (ns|us|ms|s|m|h) (default 2160h0m0s)
       --dispatcher-heartbeat duration   Dispatcher heartbeat period (ns|us|ms|s|m|h) (default 5s)
       --external-ca value               Specifications of one or more certificate signing endpoints
@@ -56,6 +57,18 @@ to [swarm join](swarm_join.md).
 
 After you create the swarm, you can display or rotate the token using
 [swarm join-token](swarm_join_token.md).
+
+### `--autolock`
+
+This flag enables automatic locking of managers with an encryption key. The
+private keys and data stored by all managers will be protected by the
+encryption key printed in the output, and will not be accessible without it.
+Thus, it is very important to store this key in order to activate a manager
+after it restarts. The key can be passed to `docker swarm unlock` to reactivate
+the manager. Autolock can be disabled by running
+`docker swarm update --autolock=false`. After disabling it, the encryption key
+is no longer required to start the manager, and it will start up on its own
+without user intervention.
 
 ### `--cert-expiry`
 

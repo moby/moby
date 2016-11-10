@@ -29,9 +29,11 @@ import (
 	"github.com/docker/swarmkit/manager/orchestrator/taskreaper"
 	"github.com/docker/swarmkit/manager/resourceapi"
 	"github.com/docker/swarmkit/manager/scheduler"
+	"github.com/docker/swarmkit/manager/state"
 	"github.com/docker/swarmkit/manager/state/raft"
 	"github.com/docker/swarmkit/manager/state/store"
 	"github.com/docker/swarmkit/protobuf/ptypes"
+	"github.com/docker/swarmkit/remotes"
 	"github.com/docker/swarmkit/xnet"
 	"github.com/pkg/errors"
 	"golang.org/x/net/context"
@@ -86,6 +88,17 @@ type Config struct {
 	// HeartbeatTick defines the amount of ticks between each
 	// heartbeat sent to other members for health-check purposes
 	HeartbeatTick uint32
+
+	// AutoLockManagers determines whether or not managers require an unlock key
+	// when starting from a stopped state.  This configuration parameter is only
+	// applicable when bootstrapping a new cluster for the first time.
+	AutoLockManagers bool
+
+	// UnlockKey is the key to unlock a node - used for decrypting manager TLS keys
+	// as well as the raft data encryption key (DEK).  It is applicable when
+	// bootstrapping a cluster for the first time (it's a cluster-wide setting),
+	// and also when loading up any raft data on disk (as a KEK for the raft DEK).
+	UnlockKey []byte
 }
 
 // Manager is the cluster manager for Swarm.
@@ -108,6 +121,7 @@ type Manager struct {
 	server                 *grpc.Server
 	localserver            *grpc.Server
 	raftNode               *raft.Node
+	dekRotator             *RaftDEKManager
 
 	cancelFunc context.CancelFunc
 
@@ -217,6 +231,11 @@ func New(config *Config) (*Manager, error) {
 		raftCfg.HeartbeatTick = int(config.HeartbeatTick)
 	}
 
+	dekRotator, err := NewRaftDEKManager(config.SecurityConfig.KeyWriter())
+	if err != nil {
+		return nil, err
+	}
+
 	newNodeOpts := raft.NodeOptions{
 		ID:              config.SecurityConfig.ClientTLSCreds.NodeID(),
 		Addr:            advertiseAddr,
@@ -225,6 +244,7 @@ func New(config *Config) (*Manager, error) {
 		StateDir:        raftStateDir,
 		ForceNewCluster: config.ForceNewCluster,
 		TLSCredentials:  config.SecurityConfig.ClientTLSCreds,
+		KeyRotator:      dekRotator,
 	}
 	raftNode := raft.NewNode(newNodeOpts)
 
@@ -241,6 +261,7 @@ func New(config *Config) (*Manager, error) {
 		localserver: grpc.NewServer(opts...),
 		raftNode:    raftNode,
 		started:     make(chan struct{}),
+		dekRotator:  dekRotator,
 	}
 
 	return m, nil
@@ -320,6 +341,7 @@ func (m *Manager) Run(parent context.Context) error {
 	forwardAsOwnRequest := func(ctx context.Context) (context.Context, error) { return ctx, nil }
 	localProxyControlAPI := api.NewRaftProxyControlServer(baseControlAPI, m.raftNode, forwardAsOwnRequest)
 	localProxyLogsAPI := api.NewRaftProxyLogsServer(m.logbroker, m.raftNode, forwardAsOwnRequest)
+	localCAAPI := api.NewRaftProxyCAServer(m.caserver, m.raftNode, forwardAsOwnRequest)
 
 	// Everything registered on m.server should be an authenticated
 	// wrapper, or a proxy wrapping an authenticated wrapper!
@@ -337,6 +359,7 @@ func (m *Manager) Run(parent context.Context) error {
 	api.RegisterControlServer(m.localserver, localProxyControlAPI)
 	api.RegisterLogsServer(m.localserver, localProxyLogsAPI)
 	api.RegisterHealthServer(m.localserver, localHealthServer)
+	api.RegisterCAServer(m.localserver, localCAAPI)
 
 	healthServer.SetServingStatus("Raft", api.HealthCheckResponse_NOT_SERVING)
 	localHealthServer.SetServingStatus("ControlAPI", api.HealthCheckResponse_NOT_SERVING)
@@ -362,8 +385,12 @@ func (m *Manager) Run(parent context.Context) error {
 
 	close(m.started)
 
+	watchDone := make(chan struct{})
+	watchCtx, watchCtxCancel := context.WithCancel(parent)
 	go func() {
 		err := m.raftNode.Run(ctx)
+		watchCtxCancel()
+		<-watchDone
 		if err != nil {
 			log.G(ctx).Error(err)
 			m.Stop(ctx)
@@ -379,6 +406,10 @@ func (m *Manager) Run(parent context.Context) error {
 		return err
 	}
 	raftConfig := c.Spec.Raft
+
+	if err := m.watchForKEKChanges(watchCtx, watchDone); err != nil {
+		return err
+	}
 
 	if int(raftConfig.ElectionTick) != m.raftNode.Config.ElectionTick {
 		log.G(ctx).Warningf("election tick value (%ds) is different from the one defined in the cluster config (%vs), the cluster may be unstable", m.raftNode.Config.ElectionTick, raftConfig.ElectionTick)
@@ -473,6 +504,78 @@ func (m *Manager) Stop(ctx context.Context) {
 
 	log.G(ctx).Info("Manager shut down")
 	// mutex is released and Run can return now
+}
+
+func (m *Manager) updateKEK(ctx context.Context, cluster *api.Cluster) error {
+	securityConfig := m.config.SecurityConfig
+	nodeID := m.config.SecurityConfig.ClientTLSCreds.NodeID()
+	logger := log.G(ctx).WithFields(logrus.Fields{
+		"node.id":   nodeID,
+		"node.role": ca.ManagerRole,
+	})
+
+	// we are our own peer from which we get certs - try to connect over the local socket
+	r := remotes.NewRemotes(api.Peer{Addr: m.Addr(), NodeID: nodeID})
+
+	kekData := ca.KEKData{Version: cluster.Meta.Version.Index}
+	for _, encryptionKey := range cluster.UnlockKeys {
+		if encryptionKey.Subsystem == ca.ManagerRole {
+			kekData.KEK = encryptionKey.Key
+			break
+		}
+	}
+	updated, unlockedToLocked, err := m.dekRotator.MaybeUpdateKEK(kekData)
+	if err != nil {
+		logger.WithError(err).Errorf("failed to re-encrypt TLS key with a new KEK")
+		return err
+	}
+	if updated {
+		logger.Debug("successfully rotated KEK")
+	}
+	if unlockedToLocked {
+		// a best effort attempt to update the TLS certificate - if it fails, it'll be updated the next time it renews;
+		// don't wait because it might take a bit
+		go func() {
+			if err := ca.RenewTLSConfigNow(ctx, securityConfig, r); err != nil {
+				logger.WithError(err).Errorf("failed to download new TLS certificate after locking the cluster")
+			}
+		}()
+	}
+	return nil
+}
+
+func (m *Manager) watchForKEKChanges(ctx context.Context, watchDone chan struct{}) error {
+	defer close(watchDone)
+	clusterID := m.config.SecurityConfig.ClientTLSCreds.Organization()
+	clusterWatch, clusterWatchCancel, err := store.ViewAndWatch(m.raftNode.MemoryStore(),
+		func(tx store.ReadTx) error {
+			cluster := store.GetCluster(tx, clusterID)
+			if cluster == nil {
+				return fmt.Errorf("unable to get current cluster")
+			}
+			return m.updateKEK(ctx, cluster)
+		},
+		state.EventUpdateCluster{
+			Cluster: &api.Cluster{ID: clusterID},
+			Checks:  []state.ClusterCheckFunc{state.ClusterCheckID},
+		},
+	)
+	if err != nil {
+		return err
+	}
+	go func() {
+		for {
+			select {
+			case event := <-clusterWatch:
+				clusterEvent := event.(state.EventUpdateCluster)
+				m.updateKEK(ctx, clusterEvent.Cluster)
+			case <-ctx.Done():
+				clusterWatchCancel()
+				return
+			}
+		}
+	}()
+	return nil
 }
 
 // rotateRootCAKEK will attempt to rotate the key-encryption-key for root CA key-material in raft.
@@ -625,12 +728,26 @@ func (m *Manager) becomeLeader(ctx context.Context) {
 	initialCAConfig := ca.DefaultCAConfig()
 	initialCAConfig.ExternalCAs = m.config.ExternalCAs
 
+	var unlockKeys []*api.EncryptionKey
+	if m.config.AutoLockManagers {
+		unlockKeys = []*api.EncryptionKey{{
+			Subsystem: ca.ManagerRole,
+			Key:       m.config.UnlockKey,
+		}}
+	}
+
 	s.Update(func(tx store.Tx) error {
 		// Add a default cluster object to the
 		// store. Don't check the error because
 		// we expect this to fail unless this
 		// is a brand new cluster.
-		store.CreateCluster(tx, defaultClusterObject(clusterID, initialCAConfig, raftCfg, rootCA))
+		store.CreateCluster(tx, defaultClusterObject(
+			clusterID,
+			initialCAConfig,
+			raftCfg,
+			api.EncryptionConfig{AutoLockManagers: m.config.AutoLockManagers},
+			unlockKeys,
+			rootCA))
 		// Add Node entry for ourself, if one
 		// doesn't exist already.
 		store.CreateNode(tx, managerNode(nodeID))
@@ -759,7 +876,14 @@ func (m *Manager) becomeFollower() {
 }
 
 // defaultClusterObject creates a default cluster.
-func defaultClusterObject(clusterID string, initialCAConfig api.CAConfig, raftCfg api.RaftConfig, rootCA *ca.RootCA) *api.Cluster {
+func defaultClusterObject(
+	clusterID string,
+	initialCAConfig api.CAConfig,
+	raftCfg api.RaftConfig,
+	encryptionConfig api.EncryptionConfig,
+	initialUnlockKeys []*api.EncryptionKey,
+	rootCA *ca.RootCA) *api.Cluster {
+
 	return &api.Cluster{
 		ID: clusterID,
 		Spec: api.ClusterSpec{
@@ -772,8 +896,9 @@ func defaultClusterObject(clusterID string, initialCAConfig api.CAConfig, raftCf
 			Dispatcher: api.DispatcherConfig{
 				HeartbeatPeriod: ptypes.DurationProto(dispatcher.DefaultHeartBeatPeriod),
 			},
-			Raft:     raftCfg,
-			CAConfig: initialCAConfig,
+			Raft:             raftCfg,
+			CAConfig:         initialCAConfig,
+			EncryptionConfig: encryptionConfig,
 		},
 		RootCA: api.RootCA{
 			CAKey:      rootCA.Key,
@@ -784,6 +909,7 @@ func defaultClusterObject(clusterID string, initialCAConfig api.CAConfig, raftCf
 				Manager: ca.GenerateJoinToken(rootCA),
 			},
 		},
+		UnlockKeys: initialUnlockKeys,
 	}
 }
 

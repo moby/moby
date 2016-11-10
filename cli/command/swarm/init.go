@@ -1,7 +1,6 @@
 package swarm
 
 import (
-	"errors"
 	"fmt"
 	"strings"
 
@@ -10,6 +9,7 @@ import (
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cli/command"
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 )
@@ -49,10 +49,11 @@ func runInit(dockerCli *command.DockerCli, flags *pflag.FlagSet, opts initOption
 	ctx := context.Background()
 
 	req := swarm.InitRequest{
-		ListenAddr:      opts.listenAddr.String(),
-		AdvertiseAddr:   opts.advertiseAddr,
-		ForceNewCluster: opts.forceNewCluster,
-		Spec:            opts.swarmOptions.ToSpec(flags),
+		ListenAddr:       opts.listenAddr.String(),
+		AdvertiseAddr:    opts.advertiseAddr,
+		ForceNewCluster:  opts.forceNewCluster,
+		Spec:             opts.swarmOptions.ToSpec(flags),
+		AutoLockManagers: opts.swarmOptions.autolock,
 	}
 
 	nodeID, err := client.SwarmInit(ctx, req)
@@ -70,5 +71,14 @@ func runInit(dockerCli *command.DockerCli, flags *pflag.FlagSet, opts initOption
 	}
 
 	fmt.Fprint(dockerCli.Out(), "To add a manager to this swarm, run 'docker swarm join-token manager' and follow the instructions.\n\n")
+
+	if req.AutoLockManagers {
+		unlockKeyResp, err := client.SwarmGetUnlockKey(ctx)
+		if err != nil {
+			return errors.Wrap(err, "could not fetch unlock key")
+		}
+		printUnlockCommand(ctx, dockerCli, unlockKeyResp.UnlockKey)
+	}
+
 	return nil
 }

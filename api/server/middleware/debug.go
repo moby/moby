@@ -64,7 +64,7 @@ func maskSecretKeys(inp interface{}) {
 	if form, ok := inp.(map[string]interface{}); ok {
 	loop0:
 		for k, v := range form {
-			for _, m := range []string{"password", "secret", "jointoken"} {
+			for _, m := range []string{"password", "secret", "jointoken", "unlockkey"} {
 				if strings.EqualFold(m, k) {
 					form[k] = "*****"
 					continue loop0

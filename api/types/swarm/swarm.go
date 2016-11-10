@@ -28,11 +28,12 @@ type JoinTokens struct {
 type Spec struct {
 	Annotations
 
-	Orchestration OrchestrationConfig `json:",omitempty"`
-	Raft          RaftConfig          `json:",omitempty"`
-	Dispatcher    DispatcherConfig    `json:",omitempty"`
-	CAConfig      CAConfig            `json:",omitempty"`
-	TaskDefaults  TaskDefaults        `json:",omitempty"`
+	Orchestration    OrchestrationConfig `json:",omitempty"`
+	Raft             RaftConfig          `json:",omitempty"`
+	Dispatcher       DispatcherConfig    `json:",omitempty"`
+	CAConfig         CAConfig            `json:",omitempty"`
+	TaskDefaults     TaskDefaults        `json:",omitempty"`
+	EncryptionConfig EncryptionConfig    `json:",omitempty"`
 }
 
 // OrchestrationConfig represents orchestration configuration.
@@ -51,6 +52,14 @@ type TaskDefaults struct {
 	// will continue use their previously configured log driver until
 	// recreated.
 	LogDriver *Driver `json:",omitempty"`
+}
+
+// EncryptionConfig controls at-rest encryption of data and keys.
+type EncryptionConfig struct {
+	// AutoLockManagers specifies whether or not managers TLS keys and raft data
+	// should be encrypted at rest in such a way that they must be unlocked
+	// before the manager node starts up again.
+	AutoLockManagers bool
 }
 
 // RaftConfig represents raft configuration.
@@ -121,10 +130,11 @@ type ExternalCA struct {
 
 // InitRequest is the request used to init a swarm.
 type InitRequest struct {
-	ListenAddr      string
-	AdvertiseAddr   string
-	ForceNewCluster bool
-	Spec            Spec
+	ListenAddr       string
+	AdvertiseAddr    string
+	ForceNewCluster  bool
+	Spec             Spec
+	AutoLockManagers bool
 }
 
 // JoinRequest is the request used to join a swarm.
@@ -133,6 +143,12 @@ type JoinRequest struct {
 	AdvertiseAddr string
 	RemoteAddrs   []string
 	JoinToken     string // accept by secret
+}
+
+// UnlockRequest is the request used to unlock a swarm.
+type UnlockRequest struct {
+	// UnlockKey is the unlock key in ASCII-armored format.
+	UnlockKey string
 }
 
 // LocalNodeState represents the state of the local node.
@@ -147,6 +163,8 @@ const (
 	LocalNodeStateActive LocalNodeState = "active"
 	// LocalNodeStateError ERROR
 	LocalNodeStateError LocalNodeState = "error"
+	// LocalNodeStateLocked LOCKED
+	LocalNodeStateLocked LocalNodeState = "locked"
 )
 
 // Info represents generic information about swarm.
@@ -173,6 +191,7 @@ type Peer struct {
 
 // UpdateFlags contains flags for SwarmUpdate.
 type UpdateFlags struct {
-	RotateWorkerToken  bool
-	RotateManagerToken bool
+	RotateWorkerToken      bool
+	RotateManagerToken     bool
+	RotateManagerUnlockKey bool
 }
