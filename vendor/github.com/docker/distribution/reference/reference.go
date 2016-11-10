@@ -24,6 +24,7 @@ package reference
 import (
 	"errors"
 	"fmt"
+	"path"
 	"strings"
 
 	"github.com/docker/distribution/digest"
@@ -218,6 +219,13 @@ func WithTag(name Named, tag string) (NamedTagged, error) {
 	if !anchoredTagRegexp.MatchString(tag) {
 		return nil, ErrTagInvalidFormat
 	}
+	if canonical, ok := name.(Canonical); ok {
+		return reference{
+			name:   name.Name(),
+			tag:    tag,
+			digest: canonical.Digest(),
+		}, nil
+	}
 	return taggedReference{
 		name: name.Name(),
 		tag:  tag,
@@ -230,10 +238,32 @@ func WithDigest(name Named, digest digest.Digest) (Canonical, error) {
 	if !anchoredDigestRegexp.MatchString(digest.String()) {
 		return nil, ErrDigestInvalidFormat
 	}
+	if tagged, ok := name.(Tagged); ok {
+		return reference{
+			name:   name.Name(),
+			tag:    tagged.Tag(),
+			digest: digest,
+		}, nil
+	}
 	return canonicalReference{
 		name:   name.Name(),
 		digest: digest,
 	}, nil
+}
+
+// Match reports whether ref matches the specified pattern.
+// See https://godoc.org/path#Match for supported patterns.
+func Match(pattern string, ref Reference) (bool, error) {
+	matched, err := path.Match(pattern, ref.String())
+	if namedRef, isNamed := ref.(Named); isNamed && !matched {
+		matched, _ = path.Match(pattern, namedRef.Name())
+	}
+	return matched, err
+}
+
+// TrimNamed removes any tag or digest from the named reference.
+func TrimNamed(ref Named) Named {
+	return repository(ref.Name())
 }
 
 func getBestReferenceType(ref reference) Reference {
