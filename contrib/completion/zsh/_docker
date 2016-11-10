@@ -1372,7 +1372,7 @@ __docker_node_subcommand() {
         (rm|remove)
              _arguments $(__docker_arguments) \
                 $opts_help \
-                "($help)--force[Force remove a node from the swarm]" \
+                "($help -f --force)"{-f,--force}"[Force remove a node from the swarm]" \
                 "($help -)*:node:__docker_complete_pending_nodes" && ret=0
             ;;
         (demote)
@@ -1817,7 +1817,8 @@ __docker_swarm_subcommand() {
             ;;
         (leave)
             _arguments $(__docker_arguments) \
-                $opts_help && ret=0
+                $opts_help \
+                "($help -f --force)"{-f,--force}"[Force this node to leave the swarm, ignoring warnings]" && ret=0
             ;;
         (update)
             _arguments $(__docker_arguments) \
