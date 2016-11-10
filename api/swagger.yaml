@@ -6471,7 +6471,9 @@ paths:
   /plugins/{name}/set:
     post:
       summary: "Configure a plugin"
-      operationId: "PluginsSet"
+      operationId: "PostPluginsSet"
+      consumes:
+        - "application/json"
       parameters:
         - name: "name"
           in: "path"

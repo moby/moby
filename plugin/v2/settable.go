@@ -90,7 +90,7 @@ func (set *settable) isSettable(allowedSettableFields []string, settable []strin
 	return false, nil
 }
 
-func updateConfigEnv(env *[]string, set *settable) {
+func updateSettingsEnv(env *[]string, set *settable) {
 	for i, e := range *env {
 		if parts := strings.SplitN(e, "=", 2); parts[0] == set.name {
 			(*env)[i] = fmt.Sprintf("%s=%s", set.name, set.value)

@@ -68,7 +68,7 @@ func TestIsSettable(t *testing.T) {
 	}
 }
 
-func TestUpdateConfigEnv(t *testing.T) {
+func TestUpdateSettinsEnv(t *testing.T) {
 	contexts := []struct {
 		env    []string
 		set    settable
@@ -82,7 +82,7 @@ func TestUpdateConfigEnv(t *testing.T) {
 	}
 
 	for _, c := range contexts {
-		updateConfigEnv(&c.env, &c.set)
+		updateSettingsEnv(&c.env, &c.set)
 
 		if !reflect.DeepEqual(c.env, c.newEnv) {
 			t.Fatalf("expected env to be %q, got %q", c.newEnv, c.env)
