@@ -415,31 +415,32 @@ func (c *Cluster) Init(req types.InitRequest) (string, error) {
 
 	localAddr := listenHost
 
-	// If the advertise address is not one of the system's
-	// addresses, we also require a listen address.
-	listenAddrIP := net.ParseIP(listenHost)
-	if listenAddrIP != nil && listenAddrIP.IsUnspecified() {
+	// If the local address is undetermined, the advertise address
+	// will be used as local address, if it belongs to this system.
+	// If the advertise address is not local, then we try to find
+	// a system address to use as local address. If this fails,
+	// we give up and ask user to pass the listen address.
+	if net.ParseIP(localAddr).IsUnspecified() {
 		advertiseIP := net.ParseIP(advertiseHost)
-		if advertiseIP == nil {
-			// not an IP
-			c.Unlock()
-			return "", errMustSpecifyListenAddr
-		}
-
-		systemIPs := listSystemIPs()
 
 		found := false
-		for _, systemIP := range systemIPs {
+		for _, systemIP := range listSystemIPs() {
 			if systemIP.Equal(advertiseIP) {
+				localAddr = advertiseIP.String()
 				found = true
 				break
 			}
 		}
+
 		if !found {
-			c.Unlock()
-			return "", errMustSpecifyListenAddr
+			ip, err := c.resolveSystemAddr()
+			if err != nil {
+				c.Unlock()
+				logrus.Warnf("Could not find a local address: %v", err)
+				return "", errMustSpecifyListenAddr
+			}
+			localAddr = ip.String()
 		}
-		localAddr = advertiseIP.String()
 	}
 
 	// todo: check current state existing

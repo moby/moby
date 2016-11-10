@@ -9,7 +9,7 @@ import (
 var (
 	errNoSuchInterface         = errors.New("no such interface")
 	errNoIP                    = errors.New("could not find the system's IP address")
-	errMustSpecifyListenAddr   = errors.New("must specify a listening address because the address to advertise is not recognized as a system address")
+	errMustSpecifyListenAddr   = errors.New("must specify a listening address because the address to advertise is not recognized as a system address, and a system's IP address to use could not be uniquely identified")
 	errBadListenAddr           = errors.New("listen address must be an IP address or network interface (with optional port number)")
 	errBadAdvertiseAddr        = errors.New("advertise address must be an IP address or network interface (with optional port number)")
 	errBadDefaultAdvertiseAddr = errors.New("default advertise address must be an IP address or network interface (without a port number)")
