@@ -2,7 +2,6 @@
 title: "plugin install"
 description: "the plugin install command description and usage"
 keywords: "plugin, install"
-advisory: "experimental"
 ---
 
 <!-- This file is maintained within the docker/docker Github
@@ -14,7 +13,7 @@ advisory: "experimental"
      will be rejected.
 -->
 
-# plugin install (experimental)
+# plugin install
 
 ```markdown
 Usage:  docker plugin install [OPTIONS] PLUGIN [KEY=VALUE...]

@@ -2,7 +2,6 @@
 title: "plugin set"
 description: "the plugin set command description and usage"
 keywords: "plugin, set"
-advisory: "experimental"
 ---
 
 <!-- This file is maintained within the docker/docker Github
@@ -14,7 +13,7 @@ advisory: "experimental"
      will be rejected.
 -->
 
-# plugin set (experimental)
+# plugin set
 
 ```markdown
 Usage:  docker plugin set PLUGIN KEY=VALUE [KEY=VALUE...]

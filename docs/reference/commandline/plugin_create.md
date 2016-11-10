@@ -1,8 +1,7 @@
 ---
-title: "plugin create (experimental)"
+title: "plugin create"
 description: "the plugin create command description and usage"
 keywords: "plugin, create"
-advisory: "experimental"
 ---
 
 <!-- This file is maintained within the docker/docker Github
@@ -14,10 +13,12 @@ advisory: "experimental"
      will be rejected.
 -->
 
+# plugin create
+
 ```markdown
 Usage:  docker plugin create [OPTIONS] reponame[:tag] PATH-TO-ROOTFS
 
-create a plugin from the given PATH-TO-ROOTFS, which contains the plugin's root filesystem and the config file, config.json
+Create a plugin from a rootfs and configuration
 
 Options:
       --compress   Compress the context using gzip 

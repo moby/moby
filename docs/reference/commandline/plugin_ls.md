@@ -2,7 +2,6 @@
 title: "plugin ls"
 description: "The plugin ls command description and usage"
 keywords: "plugin, list"
-advisory: "experimental"
 ---
 
 <!-- This file is maintained within the docker/docker Github
@@ -14,7 +13,7 @@ advisory: "experimental"
      will be rejected.
 -->
 
-# plugin ls (experimental)
+# plugin ls
 
 ```markdown
 Usage:  docker plugin ls [OPTIONS]

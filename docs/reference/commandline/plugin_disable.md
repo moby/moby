@@ -2,7 +2,6 @@
 title: "plugin disable"
 description: "the plugin disable command description and usage"
 keywords: "plugin, disable"
-advisory: "experimental"
 ---
 
 <!-- This file is maintained within the docker/docker Github
@@ -14,7 +13,7 @@ advisory: "experimental"
      will be rejected.
 -->
 
-# plugin disable (experimental)
+# plugin disable
 
 ```markdown
 Usage:  docker plugin disable PLUGIN

@@ -184,6 +184,16 @@ This section lists each version from latest to oldest.  Each listing includes a 
 * `POST /services/create` and `POST /services/(id or name)/update` now accept the `TTY` parameter, which allocate a pseudo-TTY in container.
 * `POST /services/create` and `POST /services/(id or name)/update` now accept the `DNSConfig` parameter, which specifies DNS related configurations in resolver configuration file (resolv.conf) through `Nameservers`, `Search`, and `Options`.
 * `GET /networks/(id or name)` now includes IP and name of all peers nodes for swarm mode overlay networks.
+* `GET /plugins` list plugins.
+* `POST /plugins/pull?name=<plugin name>` pulls a plugin.
+* `GET /plugins/(plugin name)` inspect a plugin.
+* `POST /plugins/(plugin name)/set` configure a plugin.
+* `POST /plugins/(plugin name)/enable` enable a plugin.
+* `POST /plugins/(plugin name)/disable` disable a plugin.
+* `POST /plugins/(plugin name)/push` push a pluging.
+* `POST /plugins/create?name=(plugin name)` create a plugin.
+* `DELETE /plugins/(plugin name)` delete a plugin.
+
 
 ### v1.24 API changes
 
