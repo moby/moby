@@ -49,24 +49,13 @@ than one filter, then pass multiple flags (e.g., `--filter "foo=bar" --filter "b
 
 The currently supported filters are:
 
-* name
-* id
-* label
+* [id](node_ls.md#id)
+* [label](node_ls.md#label)
+* [membership](node_ls.md#membership)
+* [name](node_ls.md#name)
+* [role](node_ls.md#role)
 
-### name
-
-The `name` filter matches on all or part of a node name.
-
-The following filter matches the node with a name equal to `swarm-master` string.
-
-```bash
-$ docker node ls -f name=swarm-manager1
-
-ID                           HOSTNAME        STATUS  AVAILABILITY  MANAGER STATUS
-e216jshn25ckzbvmwlnh5jr3g *  swarm-manager1  Ready   Active        Leader
-```
-
-### id
+#### ID
 
 The `id` filter matches all or part of a node's id.
 
@@ -77,12 +66,11 @@ ID                         HOSTNAME       STATUS  AVAILABILITY  MANAGER STATUS
 1bcef6utixb0l0ca7gxuivsj0  swarm-worker2  Ready   Active
 ```
 
-#### label
+#### Label
 
-The `label` filter matches tasks based on the presence of a `label` alone or a `label` and a
-value.
+The `label` filter matches nodes based on engine labels and on the presence of a `label` alone or a `label` and a value. Node labels are currently not used for filtering.
 
-The following filter matches nodes with the `usage` label regardless of its value.
+The following filter matches nodes with the `foo` label regardless of its value.
 
 ```bash
 $ docker node ls -f "label=foo"
@@ -91,6 +79,46 @@ ID                         HOSTNAME       STATUS  AVAILABILITY  MANAGER STATUS
 1bcef6utixb0l0ca7gxuivsj0  swarm-worker2  Ready   Active
 ```
 
+#### Membership
+
+The `membership` filter matches nodes based on the presence of a `membership` and a value
+`accepted` or `pending`.
+
+The following filter matches nodes with the `membership` of `accepted`.
+
+```bash
+$ docker node ls -f "membership=accepted"
+
+ID                           HOSTNAME        STATUS  AVAILABILITY  MANAGER STATUS
+1bcef6utixb0l0ca7gxuivsj0    swarm-worker2   Ready   Active
+38ciaotwjuritcdtn9npbnkuz    swarm-worker1   Ready   Active
+```
+
+#### Name
+
+The `name` filter matches on all or part of a node hostname.
+
+The following filter matches the nodes with a name equal to `swarm-master` string.
+
+```bash
+$ docker node ls -f name=swarm-manager1
+
+ID                           HOSTNAME        STATUS  AVAILABILITY  MANAGER STATUS
+e216jshn25ckzbvmwlnh5jr3g *  swarm-manager1  Ready   Active        Leader
+```
+
+#### Role
+
+The `role` filter matches nodes based on the presence of a `role` and a value `worker` or `manager`.
+
+The following filter matches nodes with the `manager` role.
+
+```bash
+$ docker node ls -f "role=manager"
+
+ID                           HOSTNAME        STATUS  AVAILABILITY  MANAGER STATUS
+e216jshn25ckzbvmwlnh5jr3g *  swarm-manager1  Ready   Active        Leader
+```
 
 ## Related information
 

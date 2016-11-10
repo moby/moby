@@ -51,9 +51,9 @@ than one filter, then pass multiple flags (e.g., `--filter "foo=bar" --filter "b
 
 The currently supported filters are:
 
-* [id](#id)
-* [label](#label)
-* [name](#name)
+* [id](service_ls.md#id)
+* [label](service_ls.md#label)
+* [name](service_ls.md#name)
 
 #### ID
 
@@ -93,7 +93,7 @@ ID            NAME      MODE        REPLICAS  IMAGE
 
 #### Name
 
-The `name` filter matches on all or part of a tasks's name.
+The `name` filter matches on all or part of a service's name.
 
 The following filter matches services with a name containing `redis`.
 
