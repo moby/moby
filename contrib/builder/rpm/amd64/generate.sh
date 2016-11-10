@@ -135,6 +135,7 @@ for version in "${versions[@]}"; do
 		opensuse:*)
 			packages=( "${packages[@]/btrfs-progs-devel/libbtrfs-devel}" )
 			packages=( "${packages[@]/pkgconfig/pkg-config}" )
+			packages=( "${packages[@]/vim-common/vim}" )
 			if [[ "$from" == "opensuse:13."* ]]; then
 				packages+=( systemd-rpm-macros )
 			fi
