@@ -21,7 +21,7 @@ Usage:	docker system prune [OPTIONS]
 Delete unused data
 
 Options:
-  -a, --all     Remove all unused images not just dangling ones
+  -a, --all     Remove all unused data not just dangling ones
   -f, --force   Do not prompt for confirmation
       --help    Print usage
 ```

@@ -729,7 +729,9 @@ __docker_container_subcommand() {
                 "($help -)2:port:_ports" && ret=0
             ;;
         (prune)
-            # @TODO
+            _arguments $(__docker_arguments) \
+                $opts_help \
+                "($help -f --force)"{-f,--force}"[Do not prompt for confirmation]" && ret=0
             ;;
         (rename)
             _arguments $(__docker_arguments) \
@@ -970,7 +972,10 @@ __docker_image_subcommand() {
             esac
             ;;
         (prune)
-            # @TODO
+            _arguments $(__docker_arguments) \
+                $opts_help \
+                "($help -a --all)"{-a,--all}"[Remove all unused images, not just dangling ones]" \
+                "($help -f --force)"{-f,--force}"[Do not prompt for confirmation]" && ret=0
             ;;
         (pull)
             _arguments $(__docker_arguments) \
@@ -1115,6 +1120,7 @@ __docker_network_commands() {
         "disconnect:Disconnects a container from a network"
         "inspect:Displays detailed information on a network"
         "ls:Lists all the networks created by the user"
+        "prune:Remove all unused networks"
         "rm:Deletes one or more networks"
     )
     _describe -t docker-network-commands "docker network command" _docker_network_subcommands
@@ -1189,6 +1195,11 @@ __docker_network_subcommand() {
                     __docker_network_complete_ls_filters && ret=0
                     ;;
             esac
+            ;;
+        (prune)
+            _arguments $(__docker_arguments) \
+                $opts_help \
+                "($help -f --force)"{-f,--force}"[Do not prompt for confirmation]" && ret=0
             ;;
         (rm)
             _arguments $(__docker_arguments) \
@@ -1863,7 +1874,10 @@ __docker_system_subcommand() {
                 "($help -f --format)"{-f=,--format=}"[Format the output using the given go template]:template: " && ret=0
             ;;
         (prune)
-            # @TODO
+            _arguments $(__docker_arguments) \
+                $opts_help \
+                "($help -a --all)"{-a,--all}"[Remove all unused data, not just dangling ones]" \
+                "($help -f --force)"{-f,--force}"[Do not prompt for confirmation]" && ret=0
             ;;
         (help)
             _arguments $(__docker_arguments) ":subcommand:__docker_volume_commands" && ret=0
@@ -1943,6 +1957,7 @@ __docker_volume_commands() {
         "create:Create a volume"
         "inspect:Display detailed information on one or more volumes"
         "ls:List volumes"
+        "prune:Remove all unused volumes"
         "rm:Remove one or more volumes"
     )
     _describe -t docker-volume-commands "docker volume command" _docker_volume_subcommands
@@ -1981,6 +1996,11 @@ __docker_volume_subcommand() {
                     __docker_volume_complete_ls_filters && ret=0
                     ;;
             esac
+            ;;
+        (prune)
+            _arguments $(__docker_arguments) \
+                $opts_help \
+                "($help -f --force)"{-f,--force}"[Do not prompt for confirmation]" && ret=0
             ;;
         (rm)
             _arguments $(__docker_arguments) \
