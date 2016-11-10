@@ -356,3 +356,8 @@ type SwarmUnlockKeyResponse struct {
 	// UnlockKey is the unlock key in ASCII-armored format.
 	UnlockKey string
 }
+
+// PluginCreateOptions hold all options to plugin create.
+type PluginCreateOptions struct {
+	RepoName string
+}
