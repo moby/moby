@@ -17,7 +17,7 @@ func TestSetupIPForwarding(t *testing.T) {
 	}
 
 	// Set IP Forwarding
-	if err := setupIPForwarding(); err != nil {
+	if err := setupIPForwarding(true); err != nil {
 		t.Fatalf("Failed to setup IP forwarding: %v", err)
 	}
 
