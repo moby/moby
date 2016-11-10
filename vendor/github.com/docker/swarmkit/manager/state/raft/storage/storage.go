@@ -160,12 +160,13 @@ func (e *EncryptedRaftLogger) BootstrapNew(metadata []byte) error {
 	encrypter, decrypter := encryption.Defaults(e.EncryptionKey)
 	walFactory := NewWALFactory(encrypter, decrypter)
 
-	for _, dirpath := range []string{e.walDir(), e.snapDir()} {
+	for _, dirpath := range []string{filepath.Dir(e.walDir()), e.snapDir()} {
 		if err := os.MkdirAll(dirpath, 0700); err != nil {
 			return errors.Wrapf(err, "failed to create %s", dirpath)
 		}
 	}
 	var err error
+	// the wal directory must not already exist upon creation
 	e.wal, err = walFactory.Create(e.walDir(), metadata)
 	if err != nil {
 		return errors.Wrap(err, "failed to create WAL")
@@ -373,8 +374,8 @@ func (e *EncryptedRaftLogger) Clear(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	err = os.Rename(e.walDir(), newWALDir)
-	if err != nil {
+	os.RemoveAll(newWALDir)
+	if err = os.Rename(e.walDir(), newWALDir); err != nil {
 		return err
 	}
 
@@ -382,8 +383,8 @@ func (e *EncryptedRaftLogger) Clear(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	err = os.Rename(e.snapDir(), newSnapDir)
-	if err != nil {
+	os.RemoveAll(newSnapDir)
+	if err := os.Rename(e.snapDir(), newSnapDir); err != nil {
 		return err
 	}
 

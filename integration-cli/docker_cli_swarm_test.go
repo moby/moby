@@ -977,6 +977,7 @@ func (s *DockerSwarmSuite) TestSwarmRotateUnlockKey(c *check.C) {
 		// Strip \n
 		newUnlockKey := outs[:len(outs)-1]
 		c.Assert(newUnlockKey, checker.Not(checker.Equals), "")
+		c.Assert(newUnlockKey, checker.Not(checker.Equals), unlockKey)
 
 		c.Assert(d.Restart(), checker.IsNil)
 
@@ -1026,5 +1027,7 @@ func (s *DockerSwarmSuite) TestSwarmRotateUnlockKey(c *check.C) {
 		outs, err = d.Cmd("node", "ls")
 		c.Assert(err, checker.IsNil)
 		c.Assert(outs, checker.Not(checker.Contains), "Swarm is encrypted and needs to be unlocked")
+
+		unlockKey = newUnlockKey
 	}
 }
