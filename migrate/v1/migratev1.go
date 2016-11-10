@@ -331,7 +331,7 @@ func migrateRefs(root, driverName string, rs refAdder, mappings map[string]image
 					continue
 				}
 				if dgst, err := digest.ParseDigest(tag); err == nil {
-					canonical, err := reference.WithDigest(ref, dgst)
+					canonical, err := reference.WithDigest(reference.TrimNamed(ref), dgst)
 					if err != nil {
 						logrus.Errorf("migrate tags: invalid digest %q, %q", dgst, err)
 						continue

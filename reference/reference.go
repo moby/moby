@@ -70,6 +70,11 @@ func ParseNamed(s string) (Named, error) {
 	return r, nil
 }
 
+// TrimNamed removes any tag or digest from the named reference
+func TrimNamed(ref Named) Named {
+	return &namedRef{distreference.TrimNamed(ref)}
+}
+
 // WithName returns a named object representing the given string. If the input
 // is invalid ErrReferenceInvalidFormat will be returned.
 func WithName(name string) (Named, error) {

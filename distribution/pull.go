@@ -206,7 +206,7 @@ func ValidateRepoName(name string) error {
 }
 
 func addDigestReference(store reference.Store, ref reference.Named, dgst digest.Digest, id digest.Digest) error {
-	dgstRef, err := reference.WithDigest(ref, dgst)
+	dgstRef, err := reference.WithDigest(reference.TrimNamed(ref), dgst)
 	if err != nil {
 		return err
 	}
