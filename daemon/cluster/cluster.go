@@ -1,6 +1,7 @@
 package cluster
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -24,6 +25,7 @@ import (
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/signal"
+	"github.com/docker/docker/reference"
 	"github.com/docker/docker/runconfig"
 	swarmapi "github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/manager/encryption"
@@ -974,6 +976,46 @@ func (c *Cluster) GetServices(options apitypes.ServiceListOptions) ([]types.Serv
 	return services, nil
 }
 
+// imageWithDigestString takes an image such as name or name:tag
+// and returns the image pinned to a digest, such as name@sha256:34234...
+func (c *Cluster) imageWithDigestString(ctx context.Context, image string, authConfig *apitypes.AuthConfig) (string, error) {
+	ref, err := reference.ParseNamed(image)
+	if err != nil {
+		return "", err
+	}
+	// only query registry if not a canonical reference (i.e. with digest)
+	if _, ok := ref.(reference.Canonical); !ok {
+		ref = reference.WithDefaultTag(ref)
+
+		namedTaggedRef, ok := ref.(reference.NamedTagged)
+		if !ok {
+			return "", fmt.Errorf("unable to cast image to NamedTagged reference object")
+		}
+
+		repo, _, err := c.config.Backend.GetRepository(ctx, namedTaggedRef, authConfig)
+		if err != nil {
+			return "", err
+		}
+		dscrptr, err := repo.Tags(ctx).Get(ctx, namedTaggedRef.Tag())
+		if err != nil {
+			return "", err
+		}
+
+		// TODO(nishanttotla): Currently, the service would lose the tag while calling WithDigest
+		// To prevent this, we create the image string manually, which is a bad idea in general
+		// This will be fixed when https://github.com/docker/distribution/pull/2044 is vendored
+		// namedDigestedRef, err := reference.WithDigest(ref, dscrptr.Digest)
+		// if err != nil {
+		// 	return "", err
+		// }
+		// return namedDigestedRef.String(), nil
+		return image + "@" + dscrptr.Digest.String(), nil
+	} else {
+		// reference already contains a digest, so just return it
+		return ref.String(), nil
+	}
+}
+
 // CreateService creates a new service in a managed swarm cluster.
 func (c *Cluster) CreateService(s types.ServiceSpec, encodedAuth string) (string, error) {
 	c.RLock()
@@ -996,12 +1038,31 @@ func (c *Cluster) CreateService(s types.ServiceSpec, encodedAuth string) (string
 		return "", err
 	}
 
+	ctnr := serviceSpec.Task.GetContainer()
+	if ctnr == nil {
+		return "", fmt.Errorf("service does not use container tasks")
+	}
+
 	if encodedAuth != "" {
-		ctnr := serviceSpec.Task.GetContainer()
-		if ctnr == nil {
-			return "", fmt.Errorf("service does not use container tasks")
-		}
 		ctnr.PullOptions = &swarmapi.ContainerSpec_PullOptions{RegistryAuth: encodedAuth}
+	}
+
+	// retrieve auth config from encoded auth
+	authConfig := &apitypes.AuthConfig{}
+	if encodedAuth != "" {
+		if err := json.NewDecoder(base64.NewDecoder(base64.URLEncoding, strings.NewReader(encodedAuth))).Decode(authConfig); err != nil {
+			logrus.Warnf("invalid authconfig: %v", err)
+		}
+	}
+	// pin image by digest
+	if os.Getenv("DOCKER_SERVICE_PREFER_OFFLINE_IMAGE") != "1" {
+		digestImage, err := c.imageWithDigestString(ctx, ctnr.Image, authConfig)
+		if err != nil {
+			logrus.Warnf("unable to pin image %s to digest: %s", ctnr.Image, err.Error())
+		} else {
+			logrus.Debugf("pinning image %s by digest: %s", ctnr.Image, digestImage)
+			ctnr.Image = digestImage
+		}
 	}
 
 	r, err := c.client.CreateService(ctx, &swarmapi.CreateServiceRequest{Spec: &serviceSpec})
@@ -1058,12 +1119,13 @@ func (c *Cluster) UpdateService(serviceIDOrName string, version uint64, spec typ
 		return err
 	}
 
+	newCtnr := serviceSpec.Task.GetContainer()
+	if newCtnr == nil {
+		return fmt.Errorf("service does not use container tasks")
+	}
+
 	if encodedAuth != "" {
-		ctnr := serviceSpec.Task.GetContainer()
-		if ctnr == nil {
-			return fmt.Errorf("service does not use container tasks")
-		}
-		ctnr.PullOptions = &swarmapi.ContainerSpec_PullOptions{RegistryAuth: encodedAuth}
+		newCtnr.PullOptions = &swarmapi.ContainerSpec_PullOptions{RegistryAuth: encodedAuth}
 	} else {
 		// this is needed because if the encodedAuth isn't being updated then we
 		// shouldn't lose it, and continue to use the one that was already present
@@ -1082,7 +1144,29 @@ func (c *Cluster) UpdateService(serviceIDOrName string, version uint64, spec typ
 		if ctnr == nil {
 			return fmt.Errorf("service does not use container tasks")
 		}
-		serviceSpec.Task.GetContainer().PullOptions = ctnr.PullOptions
+		newCtnr.PullOptions = ctnr.PullOptions
+		// update encodedAuth so it can be used to pin image by digest
+		if ctnr.PullOptions != nil {
+			encodedAuth = ctnr.PullOptions.RegistryAuth
+		}
+	}
+
+	// retrieve auth config from encoded auth
+	authConfig := &apitypes.AuthConfig{}
+	if encodedAuth != "" {
+		if err := json.NewDecoder(base64.NewDecoder(base64.URLEncoding, strings.NewReader(encodedAuth))).Decode(authConfig); err != nil {
+			logrus.Warnf("invalid authconfig: %v", err)
+		}
+	}
+	// pin image by digest
+	if os.Getenv("DOCKER_SERVICE_PREFER_OFFLINE_IMAGE") != "1" {
+		digestImage, err := c.imageWithDigestString(ctx, newCtnr.Image, authConfig)
+		if err != nil {
+			logrus.Warnf("unable to pin image %s to digest: %s", newCtnr.Image, err.Error())
+		} else if newCtnr.Image != digestImage {
+			logrus.Debugf("pinning image %s by digest: %s", newCtnr.Image, digestImage)
+			newCtnr.Image = digestImage
+		}
 	}
 
 	_, err = c.client.UpdateService(
