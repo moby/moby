@@ -3,10 +3,12 @@ package opts
 import (
 	"encoding/csv"
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
 
 	mounttypes "github.com/docker/docker/api/types/mount"
+	"github.com/docker/go-units"
 )
 
 // MountOpt is a Value type for parsing mounts
@@ -41,6 +43,13 @@ func (m *MountOpt) Set(value string) error {
 			mount.BindOptions = new(mounttypes.BindOptions)
 		}
 		return mount.BindOptions
+	}
+
+	tmpfsOptions := func() *mounttypes.TmpfsOptions {
+		if mount.TmpfsOptions == nil {
+			mount.TmpfsOptions = new(mounttypes.TmpfsOptions)
+		}
+		return mount.TmpfsOptions
 	}
 
 	setValueOnMap := func(target map[string]string, value string) {
@@ -102,6 +111,18 @@ func (m *MountOpt) Set(value string) error {
 				volumeOptions().DriverConfig.Options = make(map[string]string)
 			}
 			setValueOnMap(volumeOptions().DriverConfig.Options, value)
+		case "tmpfs-size":
+			sizeBytes, err := units.RAMInBytes(value)
+			if err != nil {
+				return fmt.Errorf("invalid value for %s: %s", key, value)
+			}
+			tmpfsOptions().SizeBytes = sizeBytes
+		case "tmpfs-mode":
+			ui64, err := strconv.ParseUint(value, 8, 32)
+			if err != nil {
+				return fmt.Errorf("invalid value for %s: %s", key, value)
+			}
+			tmpfsOptions().Mode = os.FileMode(ui64)
 		default:
 			return fmt.Errorf("unexpected key '%s' in '%s'", key, field)
 		}
@@ -115,11 +136,14 @@ func (m *MountOpt) Set(value string) error {
 		return fmt.Errorf("target is required")
 	}
 
-	if mount.Type == mounttypes.TypeBind && mount.VolumeOptions != nil {
-		return fmt.Errorf("cannot mix 'volume-*' options with mount type '%s'", mounttypes.TypeBind)
+	if mount.VolumeOptions != nil && mount.Type != mounttypes.TypeVolume {
+		return fmt.Errorf("cannot mix 'volume-*' options with mount type '%s'", mount.Type)
 	}
-	if mount.Type == mounttypes.TypeVolume && mount.BindOptions != nil {
-		return fmt.Errorf("cannot mix 'bind-*' options with mount type '%s'", mounttypes.TypeVolume)
+	if mount.BindOptions != nil && mount.Type != mounttypes.TypeBind {
+		return fmt.Errorf("cannot mix 'bind-*' options with mount type '%s'", mount.Type)
+	}
+	if mount.TmpfsOptions != nil && mount.Type != mounttypes.TypeTmpfs {
+		return fmt.Errorf("cannot mix 'tmpfs-*' options with mount type '%s'", mount.Type)
 	}
 
 	m.values = append(m.values, mount)
