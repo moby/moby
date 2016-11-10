@@ -32,6 +32,7 @@ func (s *DockerSwarmSuite) TestServiceUpdatePort(c *check.C) {
 			Protocol:      "tcp",
 			PublishedPort: 8082,
 			TargetPort:    8083,
+			PublishMode:   "ingress",
 		},
 	}
 

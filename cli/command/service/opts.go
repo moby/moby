@@ -287,14 +287,15 @@ func convertNetworks(networks []string) []swarm.NetworkAttachmentConfig {
 }
 
 type endpointOptions struct {
-	mode  string
-	ports opts.ListOpts
+	mode          string
+	publishPorts  opts.ListOpts
+	expandedPorts opts.PortOpt
 }
 
 func (e *endpointOptions) ToEndpointSpec() *swarm.EndpointSpec {
 	portConfigs := []swarm.PortConfig{}
 	// We can ignore errors because the format was already validated by ValidatePort
-	ports, portBindings, _ := nat.ParsePortSpecs(e.ports.GetAll())
+	ports, portBindings, _ := nat.ParsePortSpecs(e.publishPorts.GetAll())
 
 	for port := range ports {
 		portConfigs = append(portConfigs, ConvertPortToPortConfig(port, portBindings)...)
@@ -302,7 +303,7 @@ func (e *endpointOptions) ToEndpointSpec() *swarm.EndpointSpec {
 
 	return &swarm.EndpointSpec{
 		Mode:  swarm.ResolutionMode(strings.ToLower(e.mode)),
-		Ports: portConfigs,
+		Ports: append(portConfigs, e.expandedPorts.Value()...),
 	}
 }
 
@@ -459,7 +460,7 @@ func newServiceOptions() *serviceOptions {
 		env:             opts.NewListOpts(runconfigopts.ValidateEnv),
 		envFile:         opts.NewListOpts(nil),
 		endpoint: endpointOptions{
-			ports: opts.NewListOpts(ValidatePort),
+			publishPorts: opts.NewListOpts(ValidatePort),
 		},
 		groups:    opts.NewListOpts(nil),
 		logDriver: newLogDriverOptions(),
@@ -647,6 +648,9 @@ const (
 	flagPublish               = "publish"
 	flagPublishRemove         = "publish-rm"
 	flagPublishAdd            = "publish-add"
+	flagPort                  = "port"
+	flagPortAdd               = "port-add"
+	flagPortRemove            = "port-rm"
 	flagReplicas              = "replicas"
 	flagReserveCPU            = "reserve-cpu"
 	flagReserveMemory         = "reserve-memory"

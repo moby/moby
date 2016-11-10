@@ -93,6 +93,7 @@ func endpointSpecFromGRPC(es *swarmapi.EndpointSpec) *types.EndpointSpec {
 			endpointSpec.Ports = append(endpointSpec.Ports, types.PortConfig{
 				Name:          portState.Name,
 				Protocol:      types.PortConfigProtocol(strings.ToLower(swarmapi.PortConfig_Protocol_name[int32(portState.Protocol)])),
+				PublishMode:   types.PortConfigPublishMode(strings.ToLower(swarmapi.PortConfig_PublishMode_name[int32(portState.PublishMode)])),
 				TargetPort:    portState.TargetPort,
 				PublishedPort: portState.PublishedPort,
 			})
@@ -112,6 +113,7 @@ func endpointFromGRPC(e *swarmapi.Endpoint) types.Endpoint {
 			endpoint.Ports = append(endpoint.Ports, types.PortConfig{
 				Name:          portState.Name,
 				Protocol:      types.PortConfigProtocol(strings.ToLower(swarmapi.PortConfig_Protocol_name[int32(portState.Protocol)])),
+				PublishMode:   types.PortConfigPublishMode(strings.ToLower(swarmapi.PortConfig_PublishMode_name[int32(portState.PublishMode)])),
 				TargetPort:    portState.TargetPort,
 				PublishedPort: portState.PublishedPort,
 			})

@@ -238,7 +238,7 @@ func TestUpdatePortsDuplicateEntries(t *testing.T) {
 func TestUpdatePortsDuplicateKeys(t *testing.T) {
 	// Test case for #25375
 	flags := newUpdateCommand(nil).Flags()
-	flags.Set("publish-add", "80:20")
+	flags.Set("publish-add", "80:80")
 
 	portConfigs := []swarm.PortConfig{
 		{TargetPort: 80, PublishedPort: 80},
@@ -247,21 +247,7 @@ func TestUpdatePortsDuplicateKeys(t *testing.T) {
 	err := updatePorts(flags, &portConfigs)
 	assert.Equal(t, err, nil)
 	assert.Equal(t, len(portConfigs), 1)
-	assert.Equal(t, portConfigs[0].TargetPort, uint32(20))
-}
-
-func TestUpdatePortsConflictingFlags(t *testing.T) {
-	// Test case for #25375
-	flags := newUpdateCommand(nil).Flags()
-	flags.Set("publish-add", "80:80")
-	flags.Set("publish-add", "80:20")
-
-	portConfigs := []swarm.PortConfig{
-		{TargetPort: 80, PublishedPort: 80},
-	}
-
-	err := updatePorts(flags, &portConfigs)
-	assert.Error(t, err, "conflicting port mapping")
+	assert.Equal(t, portConfigs[0].TargetPort, uint32(80))
 }
 
 func TestUpdateHealthcheckTable(t *testing.T) {

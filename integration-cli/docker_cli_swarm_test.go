@@ -321,12 +321,9 @@ func (s *DockerSwarmSuite) TestSwarmPublishAdd(c *check.C) {
 	out, err = d.cmdRetryOutOfSequence("service", "update", "--publish-add", "80:80", "--publish-add", "80:20", name)
 	c.Assert(err, checker.NotNil)
 
-	out, err = d.cmdRetryOutOfSequence("service", "update", "--publish-add", "80:20", name)
-	c.Assert(err, checker.IsNil)
-
 	out, err = d.Cmd("service", "inspect", "--format", "{{ .Spec.EndpointSpec.Ports }}", name)
 	c.Assert(err, checker.IsNil)
-	c.Assert(strings.TrimSpace(out), checker.Equals, "[{ tcp 20 80}]")
+	c.Assert(strings.TrimSpace(out), checker.Equals, "[{ tcp 80 80 ingress}]")
 }
 
 func (s *DockerSwarmSuite) TestSwarmServiceWithGroup(c *check.C) {
