@@ -16,6 +16,7 @@ import (
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/versions"
 	executorpkg "github.com/docker/docker/daemon/cluster/executor"
+	"github.com/docker/docker/reference"
 	"github.com/docker/libnetwork"
 	"github.com/docker/swarmkit/agent/exec"
 	"github.com/docker/swarmkit/api"
@@ -48,6 +49,18 @@ func newContainerAdapter(b executorpkg.Backend, task *api.Task, secrets exec.Sec
 
 func (c *containerAdapter) pullImage(ctx context.Context) error {
 	spec := c.container.spec()
+
+	// Skip pulling if the image is referenced by digest and already
+	// exists locally.
+	named, err := reference.ParseNamed(spec.Image)
+	if err == nil {
+		if _, ok := named.(reference.Canonical); ok {
+			_, err := c.backend.LookupImage(spec.Image)
+			if err == nil {
+				return nil
+			}
+		}
+	}
 
 	// if the image needs to be pulled, the auth config will be retrieved and updated
 	var encodedAuthConfig string
