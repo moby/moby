@@ -48,12 +48,12 @@ func (s *DockerHubPullSuite) TestPullNonExistingImage(c *check.C) {
 	}
 
 	entries := []entry{
-		{"library/asdfasdf", "asdfasdf", "foobar"},
-		{"library/asdfasdf", "library/asdfasdf", "foobar"},
-		{"library/asdfasdf", "asdfasdf", ""},
-		{"library/asdfasdf", "asdfasdf", "latest"},
-		{"library/asdfasdf", "library/asdfasdf", ""},
-		{"library/asdfasdf", "library/asdfasdf", "latest"},
+		{"asdfasdf", "asdfasdf", "foobar"},
+		{"asdfasdf", "library/asdfasdf", "foobar"},
+		{"asdfasdf", "asdfasdf", ""},
+		{"asdfasdf", "asdfasdf", "latest"},
+		{"asdfasdf", "library/asdfasdf", ""},
+		{"asdfasdf", "library/asdfasdf", "latest"},
 	}
 
 	// The option field indicates "-a" or not.
@@ -98,18 +98,11 @@ func (s *DockerHubPullSuite) TestPullNonExistingImage(c *check.C) {
 	for record := range recordChan {
 		if len(record.option) == 0 {
 			c.Assert(record.err, checker.NotNil, check.Commentf("expected non-zero exit status when pulling non-existing image: %s", record.out))
-			// Hub returns 401 rather than 404 for nonexistent repos over
-			// the v2 protocol - but we should end up falling back to v1,
-			// which does return a 404.
-			tag := record.e.tag
-			if tag == "" {
-				tag = "latest"
-			}
-			c.Assert(record.out, checker.Contains, fmt.Sprintf("Error: image %s:%s not found", record.e.repo, tag), check.Commentf("expected image not found error messages"))
+			c.Assert(record.out, checker.Contains, fmt.Sprintf("repository %s not found: does not exist or no read access", record.e.repo), check.Commentf("expected image not found error messages"))
 		} else {
 			// pull -a on a nonexistent registry should fall back as well
 			c.Assert(record.err, checker.NotNil, check.Commentf("expected non-zero exit status when pulling non-existing image: %s", record.out))
-			c.Assert(record.out, checker.Contains, fmt.Sprintf("Error: image %s not found", record.e.repo), check.Commentf("expected image not found error messages"))
+			c.Assert(record.out, checker.Contains, fmt.Sprintf("repository %s not found", record.e.repo), check.Commentf("expected image not found error messages"))
 			c.Assert(record.out, checker.Not(checker.Contains), "unauthorized", check.Commentf(`message should not contain "unauthorized"`))
 		}
 	}
