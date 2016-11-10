@@ -27,18 +27,65 @@ Options:
 
 Change settings for a plugin. The plugin must be disabled.
 
+The settings currently supported are:
+ * env variables
+ * source of mounts
+ * path of devices
+ * args
 
-The following example installs change the env variable `DEBUG` of the
+The following example change the env variable `DEBUG` on the
 `no-remove` plugin.
 
 ```bash
-$ docker plugin inspect -f {{.Config.Env}} tiborvass/no-remove
+$ docker plugin inspect -f {{.Settings.Env}} tiborvass/no-remove
 [DEBUG=0]
 
-$ docker plugin set DEBUG=1 tiborvass/no-remove
+$ docker plugin set tiborvass/no-remove DEBUG=1
 
-$ docker plugin inspect -f {{.Config.Env}} tiborvass/no-remove
+$ docker plugin inspect -f {{.Settings.Env}} tiborvass/no-remove
 [DEBUG=1]
+```
+
+The following example change the source of the `mymount` mount on
+the `myplugin` plugin.
+
+```bash
+$ docker plugin inspect -f '{{with $mount := index .Settings.Mounts 0}}{{$mount.Source}}{{end}}' myplugin
+/foo
+
+$ docker plugins set myplugin mymount.source=/bar
+
+$ docker plugin inspect -f '{{with $mount := index .Settings.Mounts 0}}{{$mount.Source}}{{end}}' myplugin
+/bar
+```
+
+Note: since only `source` is settable in `mymount`, `docker plugins set mymount=/bar myplugin` would work too.
+
+The following example change the path of the `mydevice` device on
+the `myplugin` plugin.
+
+```bash
+$ docker plugin inspect -f '{{with $device := index .Settings.Devices 0}}{{$device.Path}}{{end}}' myplugin
+/dev/foo
+
+$ docker plugins set myplugin mydevice.path=/dev/bar
+
+$ docker plugin inspect -f '{{with $device := index .Settings.Devices 0}}{{$device.Path}}{{end}}' myplugin
+/dev/bar
+```
+
+Note: since only `path` is settable in `mydevice`, `docker plugins set mydevice=/dev/bar myplugin` would work too.
+
+The following example change the source of the args on the `myplugin` plugin.
+
+```bash
+$ docker plugin inspect -f '{{.Settings.Args}}' myplugin
+["foo", "bar"]
+
+$ docker plugins set myplugin args="foo bar baz"
+
+$ docker plugin inspect -f '{{.Settings.Args}}' myplugin
+["foo", "bar", "baz"]
 ```
 
 ## Related information
