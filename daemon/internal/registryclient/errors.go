@@ -38,25 +38,6 @@ func (e *UnexpectedHTTPResponseError) Error() string {
 	return fmt.Sprintf("error parsing HTTP %d response body: %s: %q", e.StatusCode, e.ParseErr.Error(), string(e.Response))
 }
 
-// OAuthError is returned when the request could not be authorized
-// using the provided oauth token. This could represent a lack of
-// permission or invalid token given from a token server.
-// See https://tools.ietf.org/html/rfc6750#section-3
-type OAuthError struct {
-	// ErrorCode is a code defined in https://tools.ietf.org/html/rfc6750#section-3.1
-	ErrorCode string
-
-	// Description is the error description associated with the error code
-	Description string
-}
-
-func (e *OAuthError) Error() string {
-	if e.Description != "" {
-		return fmt.Sprintf("oauth error %q: %s", e.ErrorCode, e.Description)
-	}
-	return fmt.Sprintf("oauth error %q", e.ErrorCode)
-}
-
 func parseHTTPErrorResponse(statusCode int, r io.Reader) error {
 	var errors errcode.Errors
 	body, err := ioutil.ReadAll(r)
@@ -102,6 +83,17 @@ func parseHTTPErrorResponse(statusCode int, r io.Reader) error {
 	return errors
 }
 
+func makeErrorList(err error) []error {
+	if errL, ok := err.(errcode.Errors); ok {
+		return []error(errL)
+	}
+	return []error{err}
+}
+
+func mergeErrors(err1, err2 error) error {
+	return errcode.Errors(append(makeErrorList(err1), makeErrorList(err2)...))
+}
+
 // HandleErrorResponse returns error parsed from HTTP response for an
 // unsuccessful HTTP response code (in the range 400 - 499 inclusive). An
 // UnexpectedHTTPStatusError returned for response code outside of expected
@@ -109,15 +101,26 @@ func parseHTTPErrorResponse(statusCode int, r io.Reader) error {
 func HandleErrorResponse(resp *http.Response) error {
 	if resp.StatusCode >= 400 && resp.StatusCode < 500 {
 		// Check for OAuth errors within the `WWW-Authenticate` header first
+		// See https://tools.ietf.org/html/rfc6750#section-3
 		for _, c := range challenge.ResponseChallenges(resp) {
 			if c.Scheme == "bearer" {
-				errStr := c.Parameters["error"]
-				if errStr != "" {
-					return &OAuthError{
-						ErrorCode:   errStr,
-						Description: c.Parameters["error_description"],
-					}
+				var err errcode.Error
+				// codes defined at https://tools.ietf.org/html/rfc6750#section-3.1
+				switch c.Parameters["error"] {
+				case "invalid_token":
+					err.Code = errcode.ErrorCodeUnauthorized
+				case "insufficient_scope":
+					err.Code = errcode.ErrorCodeDenied
+				default:
+					continue
 				}
+				if description := c.Parameters["error_description"]; description != "" {
+					err.Message = description
+				} else {
+					err.Message = err.Code.Message()
+				}
+
+				return mergeErrors(err, parseHTTPErrorResponse(resp.StatusCode, resp.Body))
 			}
 		}
 		err := parseHTTPErrorResponse(resp.StatusCode, resp.Body)
