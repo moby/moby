@@ -13,8 +13,6 @@ import (
 	"github.com/go-check/check"
 )
 
-var pluginName = "tiborvass/no-remove"
-
 // TestDaemonRestartWithPluginEnabled tests state restore for an enabled plugin
 func (s *DockerDaemonSuite) TestDaemonRestartWithPluginEnabled(c *check.C) {
 	testRequires(c, Network)
@@ -23,15 +21,15 @@ func (s *DockerDaemonSuite) TestDaemonRestartWithPluginEnabled(c *check.C) {
 		c.Fatalf("Could not start daemon: %v", err)
 	}
 
-	if out, err := s.d.Cmd("plugin", "install", "--grant-all-permissions", pluginName); err != nil {
+	if out, err := s.d.Cmd("plugin", "install", "--grant-all-permissions", pName); err != nil {
 		c.Fatalf("Could not install plugin: %v %s", err, out)
 	}
 
 	defer func() {
-		if out, err := s.d.Cmd("plugin", "disable", pluginName); err != nil {
+		if out, err := s.d.Cmd("plugin", "disable", pName); err != nil {
 			c.Fatalf("Could not disable plugin: %v %s", err, out)
 		}
-		if out, err := s.d.Cmd("plugin", "remove", pluginName); err != nil {
+		if out, err := s.d.Cmd("plugin", "remove", pName); err != nil {
 			c.Fatalf("Could not remove plugin: %v %s", err, out)
 		}
 	}()
@@ -44,7 +42,7 @@ func (s *DockerDaemonSuite) TestDaemonRestartWithPluginEnabled(c *check.C) {
 	if err != nil {
 		c.Fatalf("Could not list plugins: %v %s", err, out)
 	}
-	c.Assert(out, checker.Contains, pluginName)
+	c.Assert(out, checker.Contains, pName)
 	c.Assert(out, checker.Contains, "true")
 }
 
@@ -56,12 +54,12 @@ func (s *DockerDaemonSuite) TestDaemonRestartWithPluginDisabled(c *check.C) {
 		c.Fatalf("Could not start daemon: %v", err)
 	}
 
-	if out, err := s.d.Cmd("plugin", "install", "--grant-all-permissions", pluginName, "--disable"); err != nil {
+	if out, err := s.d.Cmd("plugin", "install", "--grant-all-permissions", pName, "--disable"); err != nil {
 		c.Fatalf("Could not install plugin: %v %s", err, out)
 	}
 
 	defer func() {
-		if out, err := s.d.Cmd("plugin", "remove", pluginName); err != nil {
+		if out, err := s.d.Cmd("plugin", "remove", pName); err != nil {
 			c.Fatalf("Could not remove plugin: %v %s", err, out)
 		}
 	}()
@@ -74,7 +72,7 @@ func (s *DockerDaemonSuite) TestDaemonRestartWithPluginDisabled(c *check.C) {
 	if err != nil {
 		c.Fatalf("Could not list plugins: %v %s", err, out)
 	}
-	c.Assert(out, checker.Contains, pluginName)
+	c.Assert(out, checker.Contains, pName)
 	c.Assert(out, checker.Contains, "false")
 }
 
@@ -86,17 +84,17 @@ func (s *DockerDaemonSuite) TestDaemonKillLiveRestoreWithPlugins(c *check.C) {
 	if err := s.d.Start("--live-restore"); err != nil {
 		c.Fatalf("Could not start daemon: %v", err)
 	}
-	if out, err := s.d.Cmd("plugin", "install", "--grant-all-permissions", pluginName); err != nil {
+	if out, err := s.d.Cmd("plugin", "install", "--grant-all-permissions", pName); err != nil {
 		c.Fatalf("Could not install plugin: %v %s", err, out)
 	}
 	defer func() {
 		if err := s.d.Restart("--live-restore"); err != nil {
 			c.Fatalf("Could not restart daemon: %v", err)
 		}
-		if out, err := s.d.Cmd("plugin", "disable", pluginName); err != nil {
+		if out, err := s.d.Cmd("plugin", "disable", pName); err != nil {
 			c.Fatalf("Could not disable plugin: %v %s", err, out)
 		}
-		if out, err := s.d.Cmd("plugin", "remove", pluginName); err != nil {
+		if out, err := s.d.Cmd("plugin", "remove", pName); err != nil {
 			c.Fatalf("Could not remove plugin: %v %s", err, out)
 		}
 	}()
@@ -105,7 +103,7 @@ func (s *DockerDaemonSuite) TestDaemonKillLiveRestoreWithPlugins(c *check.C) {
 		c.Fatalf("Could not kill daemon: %v", err)
 	}
 
-	cmd := exec.Command("pgrep", "-f", "plugin-no-remove")
+	cmd := exec.Command("pgrep", "-f", pluginProcessName)
 	if out, ec, err := runCommandWithOutput(cmd); ec != 0 {
 		c.Fatalf("Expected exit code '0', got %d err: %v output: %s ", ec, err, out)
 	}
@@ -119,17 +117,17 @@ func (s *DockerDaemonSuite) TestDaemonShutdownLiveRestoreWithPlugins(c *check.C)
 	if err := s.d.Start("--live-restore"); err != nil {
 		c.Fatalf("Could not start daemon: %v", err)
 	}
-	if out, err := s.d.Cmd("plugin", "install", "--grant-all-permissions", pluginName); err != nil {
+	if out, err := s.d.Cmd("plugin", "install", "--grant-all-permissions", pName); err != nil {
 		c.Fatalf("Could not install plugin: %v %s", err, out)
 	}
 	defer func() {
 		if err := s.d.Restart("--live-restore"); err != nil {
 			c.Fatalf("Could not restart daemon: %v", err)
 		}
-		if out, err := s.d.Cmd("plugin", "disable", pluginName); err != nil {
+		if out, err := s.d.Cmd("plugin", "disable", pName); err != nil {
 			c.Fatalf("Could not disable plugin: %v %s", err, out)
 		}
-		if out, err := s.d.Cmd("plugin", "remove", pluginName); err != nil {
+		if out, err := s.d.Cmd("plugin", "remove", pName); err != nil {
 			c.Fatalf("Could not remove plugin: %v %s", err, out)
 		}
 	}()
@@ -138,7 +136,7 @@ func (s *DockerDaemonSuite) TestDaemonShutdownLiveRestoreWithPlugins(c *check.C)
 		c.Fatalf("Could not kill daemon: %v", err)
 	}
 
-	cmd := exec.Command("pgrep", "-f", "plugin-no-remove")
+	cmd := exec.Command("pgrep", "-f", pluginProcessName)
 	if out, ec, err := runCommandWithOutput(cmd); ec != 0 {
 		c.Fatalf("Expected exit code '0', got %d err: %v output: %s ", ec, err, out)
 	}
@@ -151,7 +149,7 @@ func (s *DockerDaemonSuite) TestDaemonShutdownWithPlugins(c *check.C) {
 	if err := s.d.Start(); err != nil {
 		c.Fatalf("Could not start daemon: %v", err)
 	}
-	if out, err := s.d.Cmd("plugin", "install", "--grant-all-permissions", pluginName); err != nil {
+	if out, err := s.d.Cmd("plugin", "install", "--grant-all-permissions", pName); err != nil {
 		c.Fatalf("Could not install plugin: %v %s", err, out)
 	}
 
@@ -159,10 +157,10 @@ func (s *DockerDaemonSuite) TestDaemonShutdownWithPlugins(c *check.C) {
 		if err := s.d.Restart(); err != nil {
 			c.Fatalf("Could not restart daemon: %v", err)
 		}
-		if out, err := s.d.Cmd("plugin", "disable", pluginName); err != nil {
+		if out, err := s.d.Cmd("plugin", "disable", pName); err != nil {
 			c.Fatalf("Could not disable plugin: %v %s", err, out)
 		}
-		if out, err := s.d.Cmd("plugin", "remove", pluginName); err != nil {
+		if out, err := s.d.Cmd("plugin", "remove", pName); err != nil {
 			c.Fatalf("Could not remove plugin: %v %s", err, out)
 		}
 	}()
@@ -177,7 +175,7 @@ func (s *DockerDaemonSuite) TestDaemonShutdownWithPlugins(c *check.C) {
 		}
 	}
 
-	cmd := exec.Command("pgrep", "-f", "plugin-no-remove")
+	cmd := exec.Command("pgrep", "-f", pluginProcessName)
 	if out, ec, err := runCommandWithOutput(cmd); ec != 1 {
 		c.Fatalf("Expected exit code '1', got %d err: %v output: %s ", ec, err, out)
 	}
@@ -195,20 +193,20 @@ func (s *DockerDaemonSuite) TestVolumePlugin(c *check.C) {
 	if err := s.d.Start(); err != nil {
 		c.Fatalf("Could not start daemon: %v", err)
 	}
-	out, err := s.d.Cmd("plugin", "install", pluginName, "--grant-all-permissions")
+	out, err := s.d.Cmd("plugin", "install", pName, "--grant-all-permissions")
 	if err != nil {
 		c.Fatalf("Could not install plugin: %v %s", err, out)
 	}
 	defer func() {
-		if out, err := s.d.Cmd("plugin", "disable", pluginName); err != nil {
+		if out, err := s.d.Cmd("plugin", "disable", pName); err != nil {
 			c.Fatalf("Could not disable plugin: %v %s", err, out)
 		}
-		if out, err := s.d.Cmd("plugin", "remove", pluginName); err != nil {
+		if out, err := s.d.Cmd("plugin", "remove", pName); err != nil {
 			c.Fatalf("Could not remove plugin: %v %s", err, out)
 		}
 	}()
 
-	out, err = s.d.Cmd("volume", "create", "-d", pluginName, volName)
+	out, err = s.d.Cmd("volume", "create", "-d", pName, volName)
 	if err != nil {
 		c.Fatalf("Could not create volume: %v %s", err, out)
 	}
@@ -223,7 +221,7 @@ func (s *DockerDaemonSuite) TestVolumePlugin(c *check.C) {
 		c.Fatalf("Could not list volume: %v %s", err, out)
 	}
 	c.Assert(out, checker.Contains, volName)
-	c.Assert(out, checker.Contains, pluginName)
+	c.Assert(out, checker.Contains, pName)
 
 	mountPoint, err := s.d.Cmd("volume", "inspect", volName, "--format", "{{.Mountpoint}}")
 	if err != nil {
