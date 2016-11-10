@@ -567,6 +567,32 @@ func (container *Container) AddMountPointWithVolume(destination string, vol volu
 	}
 }
 
+// UnmountVolumes unmounts all volumes
+func (container *Container) UnmountVolumes(volumeEventLog func(name, action string, attributes map[string]string)) error {
+	var errors []string
+	for _, volumeMount := range container.MountPoints {
+		// Check if the mounpoint has an ID, this is currently the best way to tell if it's actually mounted
+		// TODO(cpuguyh83): there should be a better way to handle this
+		if volumeMount.Volume != nil && volumeMount.ID != "" {
+			if err := volumeMount.Volume.Unmount(volumeMount.ID); err != nil {
+				errors = append(errors, err.Error())
+				continue
+			}
+			volumeMount.ID = ""
+
+			attributes := map[string]string{
+				"driver":    volumeMount.Volume.DriverName(),
+				"container": container.ID,
+			}
+			volumeEventLog(volumeMount.Volume.Name(), "unmount", attributes)
+		}
+	}
+	if len(errors) > 0 {
+		return fmt.Errorf("error while unmounting volumes for container %s: %s", container.ID, strings.Join(errors, "; "))
+	}
+	return nil
+}
+
 // IsDestinationMounted checks whether a path is mounted on the container or not.
 func (container *Container) IsDestinationMounted(destination string) bool {
 	return container.MountPoints[destination] != nil

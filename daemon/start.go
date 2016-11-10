@@ -221,7 +221,7 @@ func (daemon *Daemon) Cleanup(container *container.Container) {
 	}
 
 	if container.BaseFS != "" {
-		if err := container.UnmountVolumes(false, daemon.LogVolumeEvent); err != nil {
+		if err := container.UnmountVolumes(daemon.LogVolumeEvent); err != nil {
 			logrus.Warnf("%s cleanup: Failed to umount volumes: %v", container.ID, err)
 		}
 	}
