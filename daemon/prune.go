@@ -114,7 +114,7 @@ func (daemon *Daemon) ImagesPrune(pruneFilters filters.Args) (*types.ImagesPrune
 			continue
 		}
 
-		deletedImages := []types.ImageDelete{}
+		deletedImages := []types.ImageDeleteResponseItem{}
 		refs := daemon.referenceStore.References(dgst)
 		if len(refs) > 0 {
 			if danglingOnly {

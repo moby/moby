@@ -2337,7 +2337,7 @@ definitions:
           -
             NetworkID: "4qvuz4ko70xaltuqbt8956gd1"
             Addr: "10.255.0.3/16"
-  ImageDeleteResponse:
+  ImageDeleteResponseItem:
     type: "object"
     properties:
       Untagged:
@@ -4780,19 +4780,20 @@ paths:
     delete:
       summary: "Remove an image"
       description: |
-        Remove an image, along with any untagged parent images that were referenced by that image.
+        Remove an image, along with any untagged parent images that were
+        referenced by that image.
 
-        Images can't be removed if they have descendant images, are being used by a running container or are being used by a build.
+        Images can't be removed if they have descendant images, are being
+        used by a running container or are being used by a build.
       operationId: "ImageDelete"
-      produces:
-        - "application/json"
+      produces: ["application/json"]
       responses:
         200:
-          description: "No error"
+          description: "The image was deleted successfully"
           schema:
             type: "array"
             items:
-              $ref: "#/definitions/ImageDeleteResponse"
+              $ref: "#/definitions/ImageDeleteResponseItem"
           examples:
             application/json:
               - Untagged: "3e2f21a89f"
@@ -4920,7 +4921,7 @@ paths:
                 description: "Images that were deleted"
                 type: "array"
                 items:
-                  $ref: "#/definitions/ImageDeleteResponse"
+                  $ref: "#/definitions/ImageDeleteResponseItem"
               SpaceReclaimed:
                 description: "Disk space reclaimed in bytes"
                 type: "integer"

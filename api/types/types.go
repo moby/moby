@@ -17,13 +17,6 @@ import (
 	"github.com/docker/go-connections/nat"
 )
 
-// ImageDelete contains response of Engine API:
-// DELETE "/images/{name:.*}"
-type ImageDelete struct {
-	Untagged string `json:",omitempty"`
-	Deleted  string `json:",omitempty"`
-}
-
 // GraphDriverData returns Image's graph driver config info
 // when calling inspect command
 type GraphDriverData struct {
@@ -508,7 +501,7 @@ type VolumesPruneReport struct {
 // ImagesPruneReport contains the response for Engine API:
 // POST "/images/prune"
 type ImagesPruneReport struct {
-	ImagesDeleted  []ImageDelete
+	ImagesDeleted  []ImageDeleteResponseItem
 	SpaceReclaimed uint64
 }
 
