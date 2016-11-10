@@ -9,7 +9,6 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/coreos/etcd/pkg/fileutil"
 	"github.com/coreos/etcd/raft/raftpb"
 	"github.com/coreos/etcd/wal"
 	"github.com/coreos/etcd/wal/walpb"
@@ -204,16 +203,16 @@ func MigrateWALs(ctx context.Context, oldDir, newDir string, oldFactory, newFact
 	}
 	oldReader.Close()
 
+	if err := os.MkdirAll(filepath.Dir(newDir), 0700); err != nil {
+		return errors.Wrap(err, "could not create parent directory")
+	}
+
 	// keep temporary wal directory so WAL initialization appears atomic
 	tmpdirpath := filepath.Clean(newDir) + ".tmp"
-	if fileutil.Exist(tmpdirpath) {
-		if err := os.RemoveAll(tmpdirpath); err != nil {
-			return errors.Wrap(err, "could not remove temporary WAL directory")
-		}
+	if err := os.RemoveAll(tmpdirpath); err != nil {
+		return errors.Wrap(err, "could not remove temporary WAL directory")
 	}
-	if err := fileutil.CreateDirAll(tmpdirpath); err != nil {
-		return errors.Wrap(err, "could not create temporary WAL directory")
-	}
+	defer os.RemoveAll(tmpdirpath)
 
 	tmpWAL, err := newFactory.Create(tmpdirpath, waldata.Metadata)
 	if err != nil {
@@ -227,6 +226,9 @@ func MigrateWALs(ctx context.Context, oldDir, newDir string, oldFactory, newFact
 
 	if err := tmpWAL.Save(waldata.HardState, waldata.Entries); err != nil {
 		return errors.Wrap(err, "could not migrate WALs to temporary directory")
+	}
+	if err := tmpWAL.Close(); err != nil {
+		return err
 	}
 
 	return os.Rename(tmpdirpath, newDir)
