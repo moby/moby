@@ -1,12 +1,12 @@
 package secret
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cli/command"
 	"github.com/spf13/cobra"
+	"golang.org/x/net/context"
 )
 
 type removeOptions struct {
