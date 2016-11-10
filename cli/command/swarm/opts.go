@@ -176,7 +176,6 @@ func addSwarmFlags(flags *pflag.FlagSet, opts *swarmOptions) {
 	flags.Var(&opts.externalCA, flagExternalCA, "Specifications of one or more certificate signing endpoints")
 	flags.Uint64Var(&opts.maxSnapshots, flagMaxSnapshots, 0, "Number of additional Raft snapshots to retain")
 	flags.Uint64Var(&opts.snapshotInterval, flagSnapshotInterval, 10000, "Number of log entries between Raft snapshots")
-	flags.BoolVar(&opts.autolock, flagAutolock, false, "Enable or disable manager autolocking (requiring an unlock key to start a stopped manager)")
 }
 
 func (opts *swarmOptions) mergeSwarmSpec(spec *swarm.Spec, flags *pflag.FlagSet) {
