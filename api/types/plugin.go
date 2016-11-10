@@ -18,47 +18,26 @@ type Plugin struct {
 	// Id
 	ID string `json:"Id,omitempty"`
 
-	// manifest
-	// Required: true
-	Manifest PluginManifest `json:"Manifest"`
-
 	// name
 	// Required: true
 	Name string `json:"Name"`
+
+	// settings
+	// Required: true
+	Settings PluginSettings `json:"Settings"`
 
 	// tag
 	// Required: true
 	Tag string `json:"Tag"`
 }
 
-// PluginConfig Settings that can be modified by users.
+// PluginConfig The config of a plugin.
 // swagger:model PluginConfig
 type PluginConfig struct {
 
 	// args
 	// Required: true
-	Args []string `json:"Args"`
-
-	// devices
-	// Required: true
-	Devices []PluginDevice `json:"Devices"`
-
-	// env
-	// Required: true
-	Env []string `json:"Env"`
-
-	// mounts
-	// Required: true
-	Mounts []PluginMount `json:"Mounts"`
-}
-
-// PluginManifest The manifest of a plugin.
-// swagger:model PluginManifest
-type PluginManifest struct {
-
-	// args
-	// Required: true
-	Args PluginManifestArgs `json:"Args"`
+	Args PluginConfigArgs `json:"Args"`
 
 	// capabilities
 	// Required: true
@@ -86,11 +65,7 @@ type PluginManifest struct {
 
 	// interface
 	// Required: true
-	Interface PluginManifestInterface `json:"Interface"`
-
-	// manifest version
-	// Required: true
-	ManifestVersion string `json:"ManifestVersion"`
+	Interface PluginConfigInterface `json:"Interface"`
 
 	// mounts
 	// Required: true
@@ -98,19 +73,19 @@ type PluginManifest struct {
 
 	// network
 	// Required: true
-	Network PluginManifestNetwork `json:"Network"`
+	Network PluginConfigNetwork `json:"Network"`
 
 	// user
-	User PluginManifestUser `json:"User,omitempty"`
+	User PluginConfigUser `json:"User,omitempty"`
 
 	// workdir
 	// Required: true
 	Workdir string `json:"Workdir"`
 }
 
-// PluginManifestArgs plugin manifest args
-// swagger:model PluginManifestArgs
-type PluginManifestArgs struct {
+// PluginConfigArgs plugin config args
+// swagger:model PluginConfigArgs
+type PluginConfigArgs struct {
 
 	// description
 	// Required: true
@@ -129,9 +104,9 @@ type PluginManifestArgs struct {
 	Value []string `json:"Value"`
 }
 
-// PluginManifestInterface The interface between Docker and the plugin
-// swagger:model PluginManifestInterface
-type PluginManifestInterface struct {
+// PluginConfigInterface The interface between Docker and the plugin
+// swagger:model PluginConfigInterface
+type PluginConfigInterface struct {
 
 	// socket
 	// Required: true
@@ -142,22 +117,43 @@ type PluginManifestInterface struct {
 	Types []PluginInterfaceType `json:"Types"`
 }
 
-// PluginManifestNetwork plugin manifest network
-// swagger:model PluginManifestNetwork
-type PluginManifestNetwork struct {
+// PluginConfigNetwork plugin config network
+// swagger:model PluginConfigNetwork
+type PluginConfigNetwork struct {
 
 	// type
 	// Required: true
 	Type string `json:"Type"`
 }
 
-// PluginManifestUser plugin manifest user
-// swagger:model PluginManifestUser
-type PluginManifestUser struct {
+// PluginConfigUser plugin config user
+// swagger:model PluginConfigUser
+type PluginConfigUser struct {
 
 	// g ID
 	GID uint32 `json:"GID,omitempty"`
 
 	// UID
 	UID uint32 `json:"UID,omitempty"`
+}
+
+// PluginSettings Settings that can be modified by users.
+// swagger:model PluginSettings
+type PluginSettings struct {
+
+	// args
+	// Required: true
+	Args []string `json:"Args"`
+
+	// devices
+	// Required: true
+	Devices []PluginDevice `json:"Devices"`
+
+	// env
+	// Required: true
+	Env []string `json:"Env"`
+
+	// mounts
+	// Required: true
+	Mounts []PluginMount `json:"Mounts"`
 }

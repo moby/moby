@@ -123,12 +123,12 @@ func (s *DockerSuite) TestPluginSet(c *check.C) {
 	out, _ := dockerCmd(c, "plugin", "install", "--grant-all-permissions", "--disable", pName)
 	c.Assert(strings.TrimSpace(out), checker.Contains, pName)
 
-	env, _ := dockerCmd(c, "plugin", "inspect", "-f", "{{.Config.Env}}", pName)
+	env, _ := dockerCmd(c, "plugin", "inspect", "-f", "{{.Settings.Env}}", pName)
 	c.Assert(strings.TrimSpace(env), checker.Equals, "[DEBUG=0]")
 
 	dockerCmd(c, "plugin", "set", pName, "DEBUG=1")
 
-	env, _ = dockerCmd(c, "plugin", "inspect", "-f", "{{.Config.Env}}", pName)
+	env, _ = dockerCmd(c, "plugin", "inspect", "-f", "{{.Settings.Env}}", pName)
 	c.Assert(strings.TrimSpace(env), checker.Equals, "[DEBUG=1]")
 }
 
@@ -137,7 +137,7 @@ func (s *DockerSuite) TestPluginInstallArgs(c *check.C) {
 	out, _ := dockerCmd(c, "plugin", "install", "--grant-all-permissions", "--disable", pName, "DEBUG=1")
 	c.Assert(strings.TrimSpace(out), checker.Contains, pName)
 
-	env, _ := dockerCmd(c, "plugin", "inspect", "-f", "{{.Config.Env}}", pName)
+	env, _ := dockerCmd(c, "plugin", "inspect", "-f", "{{.Settings.Env}}", pName)
 	c.Assert(strings.TrimSpace(env), checker.Equals, "[DEBUG=1]")
 }
 
