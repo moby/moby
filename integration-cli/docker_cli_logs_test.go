@@ -117,22 +117,28 @@ func (s *DockerSuite) TestLogsTail(c *check.C) {
 	id := strings.TrimSpace(out)
 	dockerCmd(c, "wait", id)
 
-	out, _ = dockerCmd(c, "logs", "--tail", "5", id)
-
+	out, _ = dockerCmd(c, "logs", "--tail", "0", id)
 	lines := strings.Split(out, "\n")
+	c.Assert(lines, checker.HasLen, 1)
 
+	out, _ = dockerCmd(c, "logs", "--tail", "5", id)
+	lines = strings.Split(out, "\n")
 	c.Assert(lines, checker.HasLen, 6)
 
-	out, _ = dockerCmd(c, "logs", "--tail", "all", id)
-
+	out, _ = dockerCmd(c, "logs", "--tail", "99", id)
 	lines = strings.Split(out, "\n")
+	c.Assert(lines, checker.HasLen, 100)
 
+	out, _ = dockerCmd(c, "logs", "--tail", "all", id)
+	lines = strings.Split(out, "\n")
+	c.Assert(lines, checker.HasLen, testLen+1)
+
+	out, _ = dockerCmd(c, "logs", "--tail", "-1", id)
+	lines = strings.Split(out, "\n")
 	c.Assert(lines, checker.HasLen, testLen+1)
 
 	out, _, _ = dockerCmdWithStdoutStderr(c, "logs", "--tail", "random", id)
-
 	lines = strings.Split(out, "\n")
-
 	c.Assert(lines, checker.HasLen, testLen+1)
 }
 
