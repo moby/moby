@@ -608,7 +608,7 @@ func (d *Driver) ApplyDiff(id string, parent string, diff io.Reader) (size int64
 		return 0, err
 	}
 
-	return d.DiffSize(id, parent)
+	return directory.Size(applyDir)
 }
 
 func (d *Driver) getDiffPath(id string) string {
