@@ -103,7 +103,7 @@ func (s *DockerSwarmSuite) TestServiceUpdateSecrets(c *check.C) {
 	c.Assert(err, checker.IsNil, check.Commentf(out))
 
 	// add secret
-	out, err = d.Cmd("service", "update", "test", "--secret-add", fmt.Sprintf("source=%s,target=%s", testName, testTarget))
+	out, err = d.cmdRetryOutOfSequence("service", "update", "test", "--secret-add", fmt.Sprintf("source=%s,target=%s", testName, testTarget))
 	c.Assert(err, checker.IsNil, check.Commentf(out))
 
 	out, err = d.Cmd("service", "inspect", "--format", "{{ json .Spec.TaskTemplate.ContainerSpec.Secrets }}", serviceName)
@@ -118,7 +118,7 @@ func (s *DockerSwarmSuite) TestServiceUpdateSecrets(c *check.C) {
 	c.Assert(refs[0].Target.Name, checker.Equals, testTarget)
 
 	// remove
-	out, err = d.Cmd("service", "update", "test", "--secret-rm", testName)
+	out, err = d.cmdRetryOutOfSequence("service", "update", "test", "--secret-rm", testName)
 	c.Assert(err, checker.IsNil, check.Commentf(out))
 
 	out, err = d.Cmd("service", "inspect", "--format", "{{ json .Spec.TaskTemplate.ContainerSpec.Secrets }}", serviceName)
