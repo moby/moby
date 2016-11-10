@@ -2,7 +2,7 @@
 
 # -----------------------------------------------------------------------------------------
 # This file describes the standard way to build Docker in a container on Windows
-# Server 2016 or Windows 10.
+# Server 2016.
 #
 # Maintainer: @jhowardmsft
 # -----------------------------------------------------------------------------------------
@@ -11,10 +11,10 @@
 # Prerequisites:
 # --------------
 #
-# 1. Windows 10 or Windows Server 2016 with all Windows updates applied. Pre-release
-#    versions of Windows are not supported (eg Windows Server 2016 TP5). The build
-#    number must be at least 14393. This can be confirmed, for example, by running
-#    the following from an elevated PowerShell prompt - this sample output is from a 
+# 1. Windows Server 2016 with all Windows updates applied. Pre-release versions
+#    of Windows are not supported (eg Windows Server 2016 TP5). The build number
+#    must be at least 14393. This can be confirmed, for example, by running the
+#    following from an elevated PowerShell prompt - this sample output is from a 
 #    fully up to date machine as at late October 2016:
 #
 #    >> PS C:\> $(gin).WindowsBuildLabEx
@@ -111,7 +111,10 @@
 # >> http://superuser.com/questions/944576/git-for-windows-silent-install-silent-arguments 
 # and follow through to installer at
 # >> https://github.com/ferventcoder/chocolatey-packages/blob/master/automatic/git.install/tools/chocolateyInstall.ps1
-
+#
+# As of October 2016, this does not work on Windows 10 client, just Windows Server 2016,
+# and only with the default isolation mode (process). It does not work with isolation mode
+# set to Hyper-V containers (hyperv).
 
 # -----------------------------------------------------------------------------------------
 
