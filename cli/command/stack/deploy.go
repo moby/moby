@@ -259,70 +259,107 @@ func convertVolumes(
 ) ([]mount.Mount, error) {
 	var mounts []mount.Mount
 
-	for _, volumeString := range serviceVolumes {
-		var (
-			source, target string
-			mountType      mount.Type
-			readOnly       bool
-			volumeOptions  *mount.VolumeOptions
-		)
-
-		// TODO: split Windows path mappings properly
-		parts := strings.SplitN(volumeString, ":", 3)
-
-		if len(parts) == 3 {
-			source = parts[0]
-			target = parts[1]
-			if parts[2] == "ro" {
-				readOnly = true
-			}
-		} else if len(parts) == 2 {
-			source = parts[0]
-			target = parts[1]
-		} else if len(parts) == 1 {
-			target = parts[0]
+	for _, volumeSpec := range serviceVolumes {
+		mount, err := convertVolumeToMount(volumeSpec, stackVolumes, namespace)
+		if err != nil {
+			return nil, err
 		}
+		mounts = append(mounts, mount)
+	}
+	return mounts, nil
+}
 
-		// TODO: catch Windows paths here
-		if strings.HasPrefix(source, "/") {
-			mountType = mount.TypeBind
-		} else {
-			mountType = mount.TypeVolume
+func convertVolumeToMount(
+	volumeSpec string,
+	stackVolumes map[string]composetypes.VolumeConfig,
+	namespace namespace,
+) (mount.Mount, error) {
+	var source, target string
+	var mode []string
 
-			stackVolume, exists := stackVolumes[source]
-			if !exists {
-				// TODO: better error message (include service name)
-				return nil, fmt.Errorf("Undefined volume: %s", source)
-			}
+	// TODO: split Windows path mappings properly
+	parts := strings.SplitN(volumeSpec, ":", 3)
 
-			if stackVolume.External.Name != "" {
-				source = stackVolume.External.Name
-			} else {
-				volumeOptions = &mount.VolumeOptions{
-					Labels: stackVolume.Labels,
-				}
-
-				if stackVolume.Driver != "" {
-					volumeOptions.DriverConfig = &mount.Driver{
-						Name:    stackVolume.Driver,
-						Options: stackVolume.DriverOpts,
-					}
-				}
-
-				source = namespace.scope(source)
-			}
-		}
-
-		mounts = append(mounts, mount.Mount{
-			Type:          mountType,
-			Source:        source,
-			Target:        target,
-			ReadOnly:      readOnly,
-			VolumeOptions: volumeOptions,
-		})
+	switch len(parts) {
+	case 3:
+		source = parts[0]
+		target = parts[1]
+		mode = strings.Split(parts[2], ",")
+	case 2:
+		source = parts[0]
+		target = parts[1]
+	case 1:
+		target = parts[0]
+	default:
+		return mount.Mount{}, fmt.Errorf("invald volume: %s", volumeSpec)
 	}
 
-	return mounts, nil
+	// TODO: catch Windows paths here
+	if strings.HasPrefix(source, "/") {
+		return mount.Mount{
+			Type:        mount.TypeBind,
+			Source:      source,
+			Target:      target,
+			ReadOnly:    isReadOnly(mode),
+			BindOptions: getBindOptions(mode),
+		}, nil
+	}
+
+	stackVolume, exists := stackVolumes[source]
+	if !exists {
+		return mount.Mount{}, fmt.Errorf("undefined volume: %s", source)
+	}
+
+	var volumeOptions *mount.VolumeOptions
+	if stackVolume.External.Name != "" {
+		source = stackVolume.External.Name
+	} else {
+		volumeOptions = &mount.VolumeOptions{
+			Labels: stackVolume.Labels,
+			NoCopy: isNoCopy(mode),
+		}
+
+		if stackVolume.Driver != "" {
+			volumeOptions.DriverConfig = &mount.Driver{
+				Name:    stackVolume.Driver,
+				Options: stackVolume.DriverOpts,
+			}
+		}
+		source = namespace.scope(source)
+	}
+	return mount.Mount{
+		Type:          mount.TypeVolume,
+		Source:        source,
+		Target:        target,
+		ReadOnly:      isReadOnly(mode),
+		VolumeOptions: volumeOptions,
+	}, nil
+}
+
+func modeHas(mode []string, field string) bool {
+	for _, item := range mode {
+		if item == field {
+			return true
+		}
+	}
+	return false
+}
+
+func isReadOnly(mode []string) bool {
+	return modeHas(mode, "ro")
+}
+
+func isNoCopy(mode []string) bool {
+	return modeHas(mode, "nocopy")
+}
+
+func getBindOptions(mode []string) *mount.BindOptions {
+	for _, item := range mode {
+		if strings.Contains(item, "private") || strings.Contains(item, "shared") || strings.Contains(item, "slave") {
+			return &mount.BindOptions{Propagation: mount.Propagation(item)}
+		}
+	}
+	return nil
 }
 
 func deployServices(
@@ -429,6 +466,7 @@ func convertService(
 
 	mounts, err := convertVolumes(service.Volumes, volumes, namespace)
 	if err != nil {
+		// TODO: better error message (include service name)
 		return swarm.ServiceSpec{}, err
 	}
 
