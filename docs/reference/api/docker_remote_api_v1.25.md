@@ -5629,6 +5629,49 @@ image](#create-an-image) section for more details.
 -   **404** – no such service
 -   **500** – server error
 
+### Get service logs
+
+`GET /services/(id or name)/logs`
+
+Get `stdout` and `stderr` logs from the service ``id``
+
+> **Note**:
+> This endpoint works only for services with the `json-file` or `journald` logging drivers.
+
+**Example request**:
+
+     GET /services/4fa6e0f0c678/logs?stderr=1&stdout=1&timestamps=1&follow=1&tail=10&since=1428990821 HTTP/1.1
+
+**Example response**:
+
+     HTTP/1.1 101 UPGRADED
+     Content-Type: application/vnd.docker.raw-stream
+     Connection: Upgrade
+     Upgrade: tcp
+
+     {% raw %}
+     {{ STREAM }}
+     {% endraw %}
+
+**Query parameters**:
+
+-   **details** - 1/True/true or 0/False/flase, Show extra details provided to logs. Default `false`.
+-   **follow** – 1/True/true or 0/False/false, return stream. Default `false`.
+-   **stdout** – 1/True/true or 0/False/false, show `stdout` log. Default `false`.
+-   **stderr** – 1/True/true or 0/False/false, show `stderr` log. Default `false`.
+-   **since** – UNIX timestamp (integer) to filter logs. Specifying a timestamp
+    will only output log-entries since that timestamp. Default: 0 (unfiltered)
+-   **timestamps** – 1/True/true or 0/False/false, print timestamps for
+        every log line. Default `false`.
+-   **tail** – Output specified number of lines at the end of logs: `all` or `<number>`. Default all.
+
+**Status codes**:
+
+-   **101** – no error, hints proxy about hijacking
+-   **200** – no error, no upgrade header found
+-   **404** – no such service
+-   **500** – server error
+
 ## 3.10 Tasks
 
 **Note**: Task operations require the engine to be part of a swarm.
