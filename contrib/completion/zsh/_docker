@@ -1655,6 +1655,7 @@ __docker_service_subcommand() {
         "($help)--restart-max-attempts=[Maximum number of restarts before giving up]:max-attempts: "
         "($help)--restart-window=[Window used to evaluate the restart policy]:window: "
         "($help)--stop-grace-period=[Time to wait before force killing a container]:grace period: "
+        "($help -t --tty)"{-t,--tty}"[Allocate a pseudo-TTY]"
         "($help)--update-delay=[Delay between updates]:delay: "
         "($help)--update-failure-action=[Action on update failure]:mode:(pause continue)"
         "($help)--update-max-failure-ratio=[Failure rate to tolerate during an update]:fraction: "
