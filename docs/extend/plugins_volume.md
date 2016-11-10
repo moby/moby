@@ -1,15 +1,8 @@
-<!--[metadata]>
-+++
-title = "Volume plugins"
-description = "How to manage data with external volume plugins"
-keywords = ["Examples, Usage, volume, docker, data, volumes, plugin, api"]
-[menu.main]
-parent = "engine_extend"
-weight=6
-+++
-<![end-metadata]-->
-
-# Write a volume plugin
+---
+title: "Write a volume driver plugin"
+description: "How to manage data with external volume plugins"
+keywords: ["Examples, Usage, volume, docker, data, volumes, plugin, api"]
+---
 
 Docker Engine volume plugins enable Engine deployments to be integrated with
 external storage systems, such as Amazon EBS, and enable data volumes to persist
