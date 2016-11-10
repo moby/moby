@@ -178,13 +178,19 @@ func convertNetworks(
 			Options: network.DriverOpts,
 		}
 
-		if network.Ipam.Driver != "" {
-			createOpts.IPAM = &networktypes.IPAM{
-				Driver: network.Ipam.Driver,
-			}
+		if network.Ipam.Driver != "" || len(network.Ipam.Config) > 0 {
+			createOpts.IPAM = &networktypes.IPAM{}
 		}
-		// TODO: IPAMConfig.Config
 
+		if network.Ipam.Driver != "" {
+			createOpts.IPAM.Driver = network.Ipam.Driver
+		}
+		for _, ipamConfig := range network.Ipam.Config {
+			config := networktypes.IPAMConfig{
+				Subnet: ipamConfig.Subnet,
+			}
+			createOpts.IPAM.Config = append(createOpts.IPAM.Config, config)
+		}
 		result[internalName] = createOpts
 	}
 
@@ -523,8 +529,12 @@ func convertRestartPolicy(restart string, source *composetypes.RestartPolicy) (*
 		}
 		// TODO: is this an accurate convertion?
 		switch {
-		case policy.IsNone(), policy.IsAlways(), policy.IsUnlessStopped():
+		case policy.IsNone():
 			return nil, nil
+		case policy.IsAlways(), policy.IsUnlessStopped():
+			return &swarm.RestartPolicy{
+				Condition: swarm.RestartPolicyConditionAny,
+			}, nil
 		case policy.IsOnFailure():
 			attempts := uint64(policy.MaximumRetryCount)
 			return &swarm.RestartPolicy{
