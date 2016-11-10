@@ -9,6 +9,7 @@ import (
 	"net/http"
 
 	"github.com/docker/distribution/registry/api/errcode"
+	"github.com/docker/distribution/registry/client/auth/challenge"
 )
 
 // ErrNoErrorsInBody is returned when an HTTP response body parses to an empty
@@ -35,6 +36,25 @@ type UnexpectedHTTPResponseError struct {
 
 func (e *UnexpectedHTTPResponseError) Error() string {
 	return fmt.Sprintf("error parsing HTTP %d response body: %s: %q", e.StatusCode, e.ParseErr.Error(), string(e.Response))
+}
+
+// OAuthError is returned when the request could not be authorized
+// using the provided oauth token. This could represent a lack of
+// permission or invalid token given from a token server.
+// See https://tools.ietf.org/html/rfc6750#section-3
+type OAuthError struct {
+	// ErrorCode is a code defined in https://tools.ietf.org/html/rfc6750#section-3.1
+	ErrorCode string
+
+	// Description is the error description associated with the error code
+	Description string
+}
+
+func (e *OAuthError) Error() string {
+	if e.Description != "" {
+		return fmt.Sprintf("oauth error %q: %s", e.ErrorCode, e.Description)
+	}
+	return fmt.Sprintf("oauth error %q", e.ErrorCode)
 }
 
 func parseHTTPErrorResponse(statusCode int, r io.Reader) error {
@@ -87,15 +107,24 @@ func parseHTTPErrorResponse(statusCode int, r io.Reader) error {
 // UnexpectedHTTPStatusError returned for response code outside of expected
 // range.
 func HandleErrorResponse(resp *http.Response) error {
-	if resp.StatusCode == 401 {
+	if resp.StatusCode >= 400 && resp.StatusCode < 500 {
+		// Check for OAuth errors within the `WWW-Authenticate` header first
+		for _, c := range challenge.ResponseChallenges(resp) {
+			if c.Scheme == "bearer" {
+				errStr := c.Parameters["error"]
+				if errStr != "" {
+					return &OAuthError{
+						ErrorCode:   errStr,
+						Description: c.Parameters["error_description"],
+					}
+				}
+			}
+		}
 		err := parseHTTPErrorResponse(resp.StatusCode, resp.Body)
-		if uErr, ok := err.(*UnexpectedHTTPResponseError); ok {
+		if uErr, ok := err.(*UnexpectedHTTPResponseError); ok && resp.StatusCode == 401 {
 			return errcode.ErrorCodeUnauthorized.WithDetail(uErr.Response)
 		}
 		return err
-	}
-	if resp.StatusCode >= 400 && resp.StatusCode < 500 {
-		return parseHTTPErrorResponse(resp.StatusCode, resp.Body)
 	}
 	return &UnexpectedHTTPStatusError{Status: resp.Status}
 }
