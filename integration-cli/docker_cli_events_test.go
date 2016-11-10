@@ -278,12 +278,11 @@ func (s *DockerSuite) TestEventsImageLoad(c *check.C) {
 func (s *DockerSuite) TestEventsPluginOps(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 
-	pluginName := "tiborvass/no-remove:latest"
 	since := daemonUnixTime(c)
 
-	dockerCmd(c, "plugin", "install", pluginName, "--grant-all-permissions")
-	dockerCmd(c, "plugin", "disable", pluginName)
-	dockerCmd(c, "plugin", "remove", pluginName)
+	dockerCmd(c, "plugin", "install", pNameWithTag, "--grant-all-permissions")
+	dockerCmd(c, "plugin", "disable", pNameWithTag)
+	dockerCmd(c, "plugin", "remove", pNameWithTag)
 
 	out, _ := dockerCmd(c, "events", "--since", since, "--until", daemonUnixTime(c))
 	events := strings.Split(out, "\n")
@@ -292,7 +291,7 @@ func (s *DockerSuite) TestEventsPluginOps(c *check.C) {
 	nEvents := len(events)
 	c.Assert(nEvents, checker.GreaterOrEqualThan, 4)
 
-	pluginEvents := eventActionsByIDAndType(c, events, pluginName, "plugin")
+	pluginEvents := eventActionsByIDAndType(c, events, pNameWithTag, "plugin")
 	c.Assert(pluginEvents, checker.HasLen, 4, check.Commentf("events: %v", events))
 
 	c.Assert(pluginEvents[0], checker.Equals, "pull", check.Commentf(out))
