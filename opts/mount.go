@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	mounttypes "github.com/docker/docker/api/types/mount"
+	units "github.com/docker/go-units"
 )
 
 // MountOpt is a Value type for parsing mounts
@@ -86,6 +87,19 @@ func (m *MountOpt) Set(value string) error {
 			if err != nil {
 				return fmt.Errorf("invalid value for %s: %s", key, value)
 			}
+		case "max-bandwidth":
+			var bandwidth int64
+			bandwidth, err = units.RAMInBytes(value)
+			if err != nil {
+				return fmt.Errorf("invalid value for %s: %s", key, value)
+			}
+			mount.MaxBandwidth = uint64(bandwidth)
+		case "max-iops":
+			maxiops, err := strconv.Atoi(value)
+			if err != nil {
+				return fmt.Errorf("invalid value for %s: %s", key, value)
+			}
+			mount.MaxIOps = uint64(maxiops)
 		case "bind-propagation":
 			bindOptions().Propagation = mounttypes.Propagation(strings.ToLower(value))
 		case "volume-nocopy":

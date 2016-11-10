@@ -94,6 +94,9 @@ type MountPoint struct {
 	// Note Propagation is not used on Windows
 	Propagation mounttypes.Propagation `json:",omitempty"` // Mount propagation string
 
+	MaxBandwidth uint64
+	MaxIOps      uint64
+
 	// Specifies if data should be copied from the container before the first mount
 	// Use a pointer here so we can tell if the user set this value explicitly
 	// This allows us to error out when the user explicitly enabled copy but we can't copy due to the volume being populated
@@ -255,10 +258,12 @@ func ParseMountSpec(cfg mounttypes.Mount, options ...func(*validateOpts)) (*Moun
 		return nil, err
 	}
 	mp := &MountPoint{
-		RW:          !cfg.ReadOnly,
-		Destination: clean(convertSlash(cfg.Target)),
-		Type:        cfg.Type,
-		Spec:        cfg,
+		RW:           !cfg.ReadOnly,
+		Destination:  clean(convertSlash(cfg.Target)),
+		Type:         cfg.Type,
+		Spec:         cfg,
+		MaxBandwidth: cfg.MaxBandwidth,
+		MaxIOps:      cfg.MaxIOps,
 	}
 
 	switch cfg.Type {

@@ -1,6 +1,7 @@
 package daemon
 
 import (
+	"fmt"
 	"syscall"
 
 	containertypes "github.com/docker/docker/api/types/container"
@@ -39,6 +40,12 @@ func (daemon *Daemon) createSpec(c *container.Container) (*specs.Spec, error) {
 		}
 		if !mount.Writable {
 			m.Options = append(m.Options, "ro")
+		}
+		if mount.MaxBandwidth != 0 {
+			m.Options = append(m.Options, fmt.Sprintf("maximum_bandwidth=%d", mount.MaxBandwidth))
+		}
+		if mount.MaxIOps != 0 {
+			m.Options = append(m.Options, fmt.Sprintf("maximum_iops=%d", mount.MaxIOps))
 		}
 		s.Mounts = append(s.Mounts, m)
 	}

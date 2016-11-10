@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"syscall"
 
@@ -218,6 +219,21 @@ func (clnt *client) Create(containerID string, checkpoint string, checkpointDir 
 		for _, o := range mount.Options {
 			if strings.ToLower(o) == "ro" {
 				mds[i].ReadOnly = true
+			}
+			optionParts := strings.SplitN(o, "=", 2)
+			switch optionParts[0] {
+			case "maximum_bandwidth":
+				bandwidth, err := strconv.Atoi(optionParts[1])
+				if err != nil {
+					return fmt.Errorf("failed to parse maximum_bandwidth: %v", err)
+				}
+				mds[i].BandwidthMaximum = uint64(bandwidth)
+			case "maximum_iops":
+				iops, err := strconv.Atoi(optionParts[1])
+				if err != nil {
+					return fmt.Errorf("failed to parse maximum_iops: %v", err)
+				}
+				mds[i].IOPSMaximum = uint64(iops)
 			}
 		}
 	}

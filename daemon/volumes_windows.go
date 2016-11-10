@@ -9,6 +9,13 @@ import (
 	"github.com/docker/docker/volume"
 )
 
+var (
+	// maximumBandwidth is the maximum bandwidth of a volume
+	maximumBandwidth = "volume.maximum_bandwidth"
+	// maximumIOPS is the maximum IO per second of a volume
+	maximumIOPS = "volume.maximum_iops"
+)
+
 // setupMounts configures the mount points for a container by appending each
 // of the configured mounts on the container to the OCI mount structure
 // which will ultimately be passed into the oci runtime during container creation.
@@ -30,9 +37,11 @@ func (daemon *Daemon) setupMounts(c *container.Container) ([]container.Mount, er
 		}
 
 		mnts = append(mnts, container.Mount{
-			Source:      s,
-			Destination: mount.Destination,
-			Writable:    mount.RW,
+			Source:       s,
+			Destination:  mount.Destination,
+			Writable:     mount.RW,
+			MaxBandwidth: mount.MaxBandwidth,
+			MaxIOps:      mount.MaxIOps,
 		})
 	}
 
