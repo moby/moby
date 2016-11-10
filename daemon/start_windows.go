@@ -62,6 +62,7 @@ func (daemon *Daemon) getLibcontainerdCreateOptions(container *container.Contain
 	// Get endpoints for the libnetwork allocated networks to the container
 	var epList []string
 	AllowUnqualifiedDNSQuery := false
+	gwHNSID := ""
 	if container.NetworkSettings != nil {
 		for n := range container.NetworkSettings.Networks {
 			sn, err := daemon.FindNetwork(n)
@@ -78,6 +79,14 @@ func (daemon *Daemon) getLibcontainerdCreateOptions(container *container.Contain
 			if err != nil {
 				continue
 			}
+
+			if data["GW_INFO"] != nil {
+				gwInfo := data["GW_INFO"].(map[string]interface{})
+				if gwInfo["hnsid"] != nil {
+					gwHNSID = gwInfo["hnsid"].(string)
+				}
+			}
+
 			if data["hnsid"] != nil {
 				epList = append(epList, data["hnsid"].(string))
 			}
@@ -86,6 +95,10 @@ func (daemon *Daemon) getLibcontainerdCreateOptions(container *container.Contain
 				AllowUnqualifiedDNSQuery = true
 			}
 		}
+	}
+
+	if gwHNSID != "" {
+		epList = append(epList, gwHNSID)
 	}
 
 	// Read and add credentials from the security options if a credential spec has been provided.
