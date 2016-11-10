@@ -192,6 +192,10 @@ func GetContainers(q ComputeSystemQuery) ([]ContainerProperties, error) {
 	)
 	err = hcsEnumerateComputeSystems(query, &computeSystemsp, &resultp)
 	err = processHcsResult(err, resultp)
+	if err != nil {
+		return nil, err
+	}
+
 	if computeSystemsp == nil {
 		return nil, ErrUnexpectedValue
 	}
