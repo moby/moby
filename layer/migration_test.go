@@ -78,7 +78,7 @@ func TestLayerMigration(t *testing.T) {
 	}
 
 	graphID1 := stringid.GenerateRandomID()
-	if err := graph.Create(graphID1, "", "", nil); err != nil {
+	if err := graph.Create(graphID1, "", nil); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := graph.ApplyDiff(graphID1, "", bytes.NewReader(tar1)); err != nil {
@@ -123,7 +123,7 @@ func TestLayerMigration(t *testing.T) {
 	}
 
 	graphID2 := stringid.GenerateRandomID()
-	if err := graph.Create(graphID2, graphID1, "", nil); err != nil {
+	if err := graph.Create(graphID2, graphID1, nil); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := graph.ApplyDiff(graphID2, graphID1, bytes.NewReader(tar2)); err != nil {
@@ -165,7 +165,7 @@ func tarFromFilesInGraph(graph graphdriver.Driver, graphID, parentID string, fil
 		return nil, err
 	}
 
-	if err := graph.Create(graphID, parentID, "", nil); err != nil {
+	if err := graph.Create(graphID, parentID, nil); err != nil {
 		return nil, err
 	}
 	if _, err := graph.ApplyDiff(graphID, parentID, bytes.NewReader(t)); err != nil {
@@ -320,14 +320,14 @@ func TestMountMigration(t *testing.T) {
 	containerID := stringid.GenerateRandomID()
 	containerInit := fmt.Sprintf("%s-init", containerID)
 
-	if err := graph.Create(containerInit, graphID1, "", nil); err != nil {
+	if err := graph.Create(containerInit, graphID1, nil); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := graph.ApplyDiff(containerInit, graphID1, bytes.NewReader(initTar)); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := graph.Create(containerID, containerInit, "", nil); err != nil {
+	if err := graph.Create(containerID, containerInit, nil); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := graph.ApplyDiff(containerID, containerInit, bytes.NewReader(mountTar)); err != nil {

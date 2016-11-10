@@ -282,15 +282,15 @@ func (d *Driver) Cleanup() error {
 
 // CreateReadWrite creates a layer that is writable for use as a container
 // file system.
-func (d *Driver) CreateReadWrite(id, parent, mountLabel string, storageOpt map[string]string) error {
-	return d.Create(id, parent, mountLabel, storageOpt)
+func (d *Driver) CreateReadWrite(id, parent string, opts *graphdriver.CreateOpts) error {
+	return d.Create(id, parent, opts)
 }
 
 // Create is used to create the upper, lower, and merge directories required for overlay fs for a given id.
 // The parent filesystem is used to configure these directories for the overlay.
-func (d *Driver) Create(id, parent, mountLabel string, storageOpt map[string]string) (retErr error) {
+func (d *Driver) Create(id, parent string, opts *graphdriver.CreateOpts) (retErr error) {
 
-	if len(storageOpt) != 0 && !projectQuotaSupported {
+	if opts != nil && len(opts.StorageOpt) != 0 && !projectQuotaSupported {
 		return fmt.Errorf("--storage-opt is supported only for overlay over xfs with 'pquota' mount option")
 	}
 
@@ -314,9 +314,9 @@ func (d *Driver) Create(id, parent, mountLabel string, storageOpt map[string]str
 		}
 	}()
 
-	if len(storageOpt) > 0 {
+	if opts != nil && len(opts.StorageOpt) > 0 {
 		driver := &Driver{}
-		if err := d.parseStorageOpt(storageOpt, driver); err != nil {
+		if err := d.parseStorageOpt(opts.StorageOpt, driver); err != nil {
 			return err
 		}
 

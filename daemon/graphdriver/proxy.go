@@ -53,7 +53,12 @@ func (d *graphDriverProxy) String() string {
 	return d.name
 }
 
-func (d *graphDriverProxy) CreateReadWrite(id, parent, mountLabel string, storageOpt map[string]string) error {
+func (d *graphDriverProxy) CreateReadWrite(id, parent string, opts *CreateOpts) error {
+	mountLabel := ""
+	if opts != nil {
+		mountLabel = opts.MountLabel
+	}
+
 	args := &graphDriverRequest{
 		ID:         id,
 		Parent:     parent,
@@ -69,7 +74,11 @@ func (d *graphDriverProxy) CreateReadWrite(id, parent, mountLabel string, storag
 	return nil
 }
 
-func (d *graphDriverProxy) Create(id, parent, mountLabel string, storageOpt map[string]string) error {
+func (d *graphDriverProxy) Create(id, parent string, opts *CreateOpts) error {
+	mountLabel := ""
+	if opts != nil {
+		mountLabel = opts.MountLabel
+	}
 	args := &graphDriverRequest{
 		ID:         id,
 		Parent:     parent,

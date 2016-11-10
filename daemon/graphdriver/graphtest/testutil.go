@@ -275,7 +275,7 @@ func addManyLayers(drv graphdriver.Driver, baseLayer string, count int) (string,
 	lastLayer := baseLayer
 	for i := 1; i <= count; i++ {
 		nextLayer := stringid.GenerateRandomID()
-		if err := drv.Create(nextLayer, lastLayer, "", nil); err != nil {
+		if err := drv.Create(nextLayer, lastLayer, nil); err != nil {
 			return "", err
 		}
 		if err := addLayerFiles(drv, nextLayer, lastLayer, i); err != nil {
