@@ -25,6 +25,7 @@ func newUpdateCommand(dockerCli *command.DockerCli) *cobra.Command {
 		},
 	}
 
+	cmd.Flags().BoolVar(&opts.autolock, flagAutolock, false, "Change manager autolocking setting (true|false)")
 	addSwarmFlags(cmd.Flags(), &opts)
 	return cmd
 }

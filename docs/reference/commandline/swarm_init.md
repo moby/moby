@@ -22,7 +22,7 @@ Initialize a swarm
 
 Options:
       --advertise-addr value            Advertised address (format: <ip|interface>[:port])
-      --autolock                        Enable or disable manager autolocking (requiring an unlock key to start a stopped manager)
+      --autolock                        Enable manager autolocking (requiring an unlock key to start a stopped manager)
       --cert-expiry duration            Validity period for node certificates (ns|us|ms|s|m|h) (default 2160h0m0s)
       --dispatcher-heartbeat duration   Dispatcher heartbeat period (ns|us|ms|s|m|h) (default 5s)
       --external-ca value               Specifications of one or more certificate signing endpoints
