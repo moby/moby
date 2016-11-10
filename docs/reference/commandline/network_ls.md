@@ -35,18 +35,18 @@ Lists all the networks the Engine `daemon` knows about. This includes the
 networks that span across multiple hosts in a cluster, for example:
 
 ```bash
-    $ sudo docker network ls
-    NETWORK ID          NAME                DRIVER          SCOPE
-    7fca4eb8c647        bridge              bridge          local
-    9f904ee27bf5        none                null            local
-    cf03ee007fb4        host                host            local
-    78b03ee04fc4        multi-host          overlay         local
+$ sudo docker network ls
+NETWORK ID          NAME                DRIVER          SCOPE
+7fca4eb8c647        bridge              bridge          local
+9f904ee27bf5        none                null            local
+cf03ee007fb4        host                host            local
+78b03ee04fc4        multi-host          overlay         local
 ```
 
 Use the `--no-trunc` option to display the full network id:
 
 ```bash
-docker network ls --no-trunc
+$ docker network ls --no-trunc
 NETWORK ID                                                         NAME                DRIVER           SCOPE
 18a2866682b85619a026c81b98a5e375bd33e1b0936a26cc497c283d27bae9b3   none                null             local
 c288470c46f6c8949c5f7e5099b5b7947b07eabe8d9a27d79a9cbf111adcbf47   host                host             local
