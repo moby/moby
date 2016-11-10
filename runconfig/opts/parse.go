@@ -187,7 +187,11 @@ func AddFlags(flags *pflag.FlagSet) *ContainerOptions {
 	// Network and port publishing flag
 	flags.Var(&copts.extraHosts, "add-host", "Add a custom host-to-IP mapping (host:ip)")
 	flags.Var(&copts.dns, "dns", "Set custom DNS servers")
+	// We allow for both "--dns-opt" and "--dns-option", although the latter is the recommended way.
+	// This is to be consistent with service create/update
 	flags.Var(&copts.dnsOptions, "dns-opt", "Set DNS options")
+	flags.Var(&copts.dnsOptions, "dns-option", "Set DNS options")
+	flags.MarkHidden("dns-opt")
 	flags.Var(&copts.dnsSearch, "dns-search", "Set custom DNS search domains")
 	flags.Var(&copts.expose, "expose", "Expose a port or a range of ports")
 	flags.StringVar(&copts.ipv4Address, "ip", "", "Container IPv4 address (e.g. 172.30.100.104)")

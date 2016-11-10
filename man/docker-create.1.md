@@ -31,7 +31,7 @@ docker-create - Create a new container
 [**--device-write-iops**[=*[]*]]
 [**--dns**[=*[]*]]
 [**--dns-search**[=*[]*]]
-[**--dns-opt**[=*[]*]]
+[**--dns-option**[=*[]*]]
 [**-e**|**--env**[=*[]*]]
 [**--entrypoint**[=*ENTRYPOINT*]]
 [**--env-file**[=*[]*]]
@@ -190,7 +190,7 @@ two memory nodes.
 **--dns**=[]
    Set custom DNS servers
 
-**--dns-opt**=[]
+**--dns-option**=[]
    Set custom DNS options
 
 **--dns-search**=[]

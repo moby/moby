@@ -49,9 +49,9 @@ func newUpdateCommand(dockerCli *command.DockerCli) *cobra.Command {
 	flags.Var(newListOptsVar(), flagMountRemove, "Remove a mount by its target path")
 	flags.Var(newListOptsVar(), flagPublishRemove, "Remove a published port by its target port")
 	flags.Var(newListOptsVar(), flagConstraintRemove, "Remove a constraint")
-	flags.Var(newListOptsVar(), flagDNSRemove, "Remove custom DNS servers")
-	flags.Var(newListOptsVar(), flagDNSOptionsRemove, "Remove DNS options")
-	flags.Var(newListOptsVar(), flagDNSSearchRemove, "Remove DNS search domains")
+	flags.Var(newListOptsVar(), flagDNSRemove, "Remove a custom DNS server")
+	flags.Var(newListOptsVar(), flagDNSOptionRemove, "Remove a DNS option")
+	flags.Var(newListOptsVar(), flagDNSSearchRemove, "Remove a DNS search domain")
 	flags.Var(&opts.labels, flagLabelAdd, "Add or update a service label")
 	flags.Var(&opts.containerLabels, flagContainerLabelAdd, "Add or update a container label")
 	flags.Var(&opts.env, flagEnvAdd, "Add or update an environment variable")
@@ -61,9 +61,9 @@ func newUpdateCommand(dockerCli *command.DockerCli) *cobra.Command {
 	flags.Var(&opts.constraints, flagConstraintAdd, "Add or update a placement constraint")
 	flags.Var(&opts.endpoint.ports, flagPublishAdd, "Add or update a published port")
 	flags.Var(&opts.groups, flagGroupAdd, "Add an additional supplementary user group to the container")
-	flags.Var(&opts.dns, flagDNSAdd, "Add or update custom DNS servers")
-	flags.Var(&opts.dnsOptions, flagDNSOptionsAdd, "Add or update DNS options")
-	flags.Var(&opts.dnsSearch, flagDNSSearchAdd, "Add or update custom DNS search domains")
+	flags.Var(&opts.dns, flagDNSAdd, "Add or update a custom DNS server")
+	flags.Var(&opts.dnsOption, flagDNSOptionAdd, "Add or update a DNS option")
+	flags.Var(&opts.dnsSearch, flagDNSSearchAdd, "Add or update a custom DNS search domain")
 
 	return cmd
 }
@@ -274,7 +274,7 @@ func updateService(flags *pflag.FlagSet, spec *swarm.ServiceSpec) error {
 		}
 	}
 
-	if anyChanged(flags, flagDNSAdd, flagDNSRemove, flagDNSOptionsAdd, flagDNSOptionsRemove, flagDNSSearchAdd, flagDNSSearchRemove) {
+	if anyChanged(flags, flagDNSAdd, flagDNSRemove, flagDNSOptionAdd, flagDNSOptionRemove, flagDNSSearchAdd, flagDNSSearchRemove) {
 		if cspec.DNSConfig == nil {
 			cspec.DNSConfig = &swarm.DNSConfig{}
 		}
@@ -586,12 +586,12 @@ func updateDNSConfig(flags *pflag.FlagSet, config **swarm.DNSConfig) error {
 	sort.Strings(newConfig.Search)
 
 	options := (*config).Options
-	if flags.Changed(flagDNSOptionsAdd) {
-		values := flags.Lookup(flagDNSOptionsAdd).Value.(*opts.ListOpts).GetAll()
+	if flags.Changed(flagDNSOptionAdd) {
+		values := flags.Lookup(flagDNSOptionAdd).Value.(*opts.ListOpts).GetAll()
 		options = append(options, values...)
 	}
 	options = removeDuplicates(options)
-	toRemove = buildToRemoveSet(flags, flagDNSOptionsRemove)
+	toRemove = buildToRemoveSet(flags, flagDNSOptionRemove)
 	for _, option := range options {
 		if _, exists := toRemove[option]; !exists {
 			newConfig.Options = append(newConfig.Options, option)

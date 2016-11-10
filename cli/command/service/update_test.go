@@ -142,8 +142,8 @@ func TestUpdateDNSConfig(t *testing.T) {
 	// Invalid dns search domain
 	assert.Error(t, flags.Set("dns-search-add", "example$com"), "example$com is not a valid domain")
 
-	flags.Set("dns-options-add", "ndots:9")
-	flags.Set("dns-options-rm", "timeout:3")
+	flags.Set("dns-option-add", "ndots:9")
+	flags.Set("dns-option-rm", "timeout:3")
 
 	config := &swarm.DNSConfig{
 		Nameservers: []string{"3.3.3.3", "5.5.5.5"},

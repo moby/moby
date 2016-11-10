@@ -54,7 +54,7 @@ Options:
       --device-write-iops value     Limit write rate (IO per second) to a device (default [])
       --disable-content-trust       Skip image verification (default true)
       --dns value                   Set custom DNS servers (default [])
-      --dns-opt value               Set DNS options (default [])
+      --dns-option value            Set DNS options (default [])
       --dns-search value            Set custom DNS search domains (default [])
       --entrypoint string           Overwrite the default ENTRYPOINT of the image
   -e, --env value                   Set environment variables (default [])
