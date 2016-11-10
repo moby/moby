@@ -2,7 +2,6 @@ package swarm
 
 import (
 	"bufio"
-	"context"
 	"fmt"
 	"io"
 	"strings"
@@ -13,6 +12,7 @@ import (
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cli/command"
+	"golang.org/x/net/context"
 )
 
 func newUnlockCommand(dockerCli *command.DockerCli) *cobra.Command {
