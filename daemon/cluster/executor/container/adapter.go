@@ -12,6 +12,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/backend"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/versions"
@@ -20,6 +21,7 @@ import (
 	"github.com/docker/swarmkit/agent/exec"
 	"github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/log"
+	"github.com/docker/swarmkit/protobuf/ptypes"
 	"golang.org/x/net/context"
 	"golang.org/x/time/rate"
 )
@@ -374,6 +376,56 @@ func (c *containerAdapter) activateServiceBinding() error {
 
 func (c *containerAdapter) deactivateServiceBinding() error {
 	return c.backend.DeactivateContainerServiceBinding(c.container.name())
+}
+
+func (c *containerAdapter) logs(ctx context.Context, options api.LogSubscriptionOptions) (io.ReadCloser, error) {
+	reader, writer := io.Pipe()
+
+	apiOptions := &backend.ContainerLogsConfig{
+		ContainerLogsOptions: types.ContainerLogsOptions{
+			Follow: options.Follow,
+
+			// TODO(stevvooe): Parse timestamp out of message. This
+			// absolutely needs to be done before going to production with
+			// this, at it is completely redundant.
+			Timestamps: true,
+			Details:    false, // no clue what to do with this, let's just deprecate it.
+		},
+		OutStream: writer,
+	}
+
+	if options.Since != nil {
+		since, err := ptypes.Timestamp(options.Since)
+		if err != nil {
+			return nil, err
+		}
+		apiOptions.Since = since.Format(time.RFC3339Nano)
+	}
+
+	if options.Tail < 0 {
+		// See protobuf documentation for details of how this works.
+		apiOptions.Tail = fmt.Sprint(-options.Tail - 1)
+	} else if options.Tail > 0 {
+		return nil, fmt.Errorf("tail relative to start of logs not supported via docker API")
+	}
+
+	if len(options.Streams) == 0 {
+		// empty == all
+		apiOptions.ShowStdout, apiOptions.ShowStderr = true, true
+	} else {
+		for _, stream := range options.Streams {
+			switch stream {
+			case api.LogStreamStdout:
+				apiOptions.ShowStdout = true
+			case api.LogStreamStderr:
+				apiOptions.ShowStderr = true
+			}
+		}
+	}
+
+	chStarted := make(chan struct{})
+	go c.backend.ContainerLogs(ctx, c.container.name(), apiOptions, chStarted)
+	return reader, nil
 }
 
 // todo: typed/wrapped errors

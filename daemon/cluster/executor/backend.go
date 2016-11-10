@@ -6,6 +6,7 @@ import (
 
 	"github.com/docker/distribution"
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/filters"
@@ -28,6 +29,7 @@ type Backend interface {
 	CreateManagedContainer(config types.ContainerCreateConfig, validateHostname bool) (container.ContainerCreateCreatedBody, error)
 	ContainerStart(name string, hostConfig *container.HostConfig, validateHostname bool, checkpoint string, checkpointDir string) error
 	ContainerStop(name string, seconds *int) error
+	ContainerLogs(context.Context, string, *backend.ContainerLogsConfig, chan struct{}) error
 	ConnectContainerToNetwork(containerName, networkName string, endpointConfig *network.EndpointSettings) error
 	ActivateContainerServiceBinding(containerName string) error
 	DeactivateContainerServiceBinding(containerName string) error
