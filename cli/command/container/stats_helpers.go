@@ -29,7 +29,7 @@ var daemonOSType string
 func (s *stats) add(cs *formatter.ContainerStats) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if _, exists := s.isKnownContainer(cs.Name); !exists {
+	if _, exists := s.isKnownContainer(cs.Container); !exists {
 		s.cs = append(s.cs, cs)
 		return true
 	}
@@ -46,7 +46,7 @@ func (s *stats) remove(id string) {
 
 func (s *stats) isKnownContainer(cid string) (int, bool) {
 	for i, c := range s.cs {
-		if c.Name == cid {
+		if c.Container == cid {
 			return i, true
 		}
 	}
@@ -54,7 +54,7 @@ func (s *stats) isKnownContainer(cid string) (int, bool) {
 }
 
 func collect(s *formatter.ContainerStats, ctx context.Context, cli client.APIClient, streamStats bool, waitFirst *sync.WaitGroup) {
-	logrus.Debugf("collecting stats for %s", s.Name)
+	logrus.Debugf("collecting stats for %s", s.Container)
 	var (
 		getFirst       bool
 		previousCPU    uint64
@@ -70,7 +70,7 @@ func collect(s *formatter.ContainerStats, ctx context.Context, cli client.APICli
 		}
 	}()
 
-	response, err := cli.ContainerStats(ctx, s.Name, streamStats)
+	response, err := cli.ContainerStats(ctx, s.Container, streamStats)
 	if err != nil {
 		s.SetError(err)
 		return
@@ -125,6 +125,8 @@ func collect(s *formatter.ContainerStats, ctx context.Context, cli client.APICli
 			}
 			netRx, netTx := calculateNetwork(v.Networks)
 			s.SetStatistics(formatter.StatsEntry{
+				Name:             v.Name,
+				ID:               v.ID,
 				CPUPercentage:    cpuPercent,
 				Memory:           mem,
 				MemoryPercentage: memPerc,

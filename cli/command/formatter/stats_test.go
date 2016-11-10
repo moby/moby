@@ -18,7 +18,7 @@ func TestContainerStatsContext(t *testing.T) {
 		expHeader string
 		call      func() string
 	}{
-		{StatsEntry{Name: containerID}, containerID, containerHeader, ctx.Container},
+		{StatsEntry{Container: containerID}, containerID, containerHeader, ctx.Container},
 		{StatsEntry{CPUPercentage: 5.5}, "5.50%", cpuPercHeader, ctx.CPUPerc},
 		{StatsEntry{CPUPercentage: 5.5, IsInvalid: true}, "--", cpuPercHeader, ctx.CPUPerc},
 		{StatsEntry{NetworkRx: 0.31, NetworkTx: 12.3}, "0.31 B / 12.3 B", netIOHeader, ctx.NetIO},
@@ -82,7 +82,7 @@ container2  --
 	for _, te := range tt {
 		stats := []StatsEntry{
 			{
-				Name:             "container1",
+				Container:        "container1",
 				CPUPercentage:    20,
 				Memory:           20,
 				MemoryLimit:      20,
@@ -96,7 +96,7 @@ container2  --
 				OSType:           "linux",
 			},
 			{
-				Name:             "container2",
+				Container:        "container2",
 				CPUPercentage:    30,
 				Memory:           30,
 				MemoryLimit:      30,
@@ -150,7 +150,7 @@ container2  --  --
 	for _, te := range tt {
 		stats := []StatsEntry{
 			{
-				Name:             "container1",
+				Container:        "container1",
 				CPUPercentage:    20,
 				Memory:           20,
 				MemoryLimit:      20,
@@ -164,7 +164,7 @@ container2  --  --
 				OSType:           "windows",
 			},
 			{
-				Name:             "container2",
+				Container:        "container2",
 				CPUPercentage:    30,
 				Memory:           30,
 				MemoryLimit:      30,
