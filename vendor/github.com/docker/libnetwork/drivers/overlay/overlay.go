@@ -111,7 +111,7 @@ func Init(dc driverapi.DriverCallback, config map[string]interface{}) error {
 // Endpoints are stored in the local store. Restore them and reconstruct the overlay sandbox
 func (d *driver) restoreEndpoints() error {
 	if d.localStore == nil {
-		logrus.Warnf("Cannot restore overlay endpoints because local datastore is missing")
+		logrus.Warn("Cannot restore overlay endpoints because local datastore is missing")
 		return nil
 	}
 	kvol, err := d.localStore.List(datastore.Key(overlayEndpointPrefix), &endpoint{})

@@ -36,7 +36,7 @@ func addPFRules(epid, bindIntf string, bs []types.PortBinding) {
 	f, err := os.OpenFile(fname,
 		os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0600)
 	if err != nil {
-		logrus.Warnf("cannot open temp pf file")
+		logrus.Warn("cannot open temp pf file")
 		return
 	}
 	for _, b := range bs {

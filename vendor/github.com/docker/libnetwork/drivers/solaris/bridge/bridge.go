@@ -390,7 +390,7 @@ func bridgeSetup(config *networkConfiguration) error {
 			"/usr/bin/grep " + config.DefaultBindingIP.String()
 		out, err := exec.Command("/usr/bin/bash", "-c", ipadmCmd).Output()
 		if err != nil {
-			logrus.Warnf("cannot find binding interface")
+			logrus.Warn("cannot find binding interface")
 			return err
 		}
 		bindingIntf = strings.SplitN(string(out), "/", 2)[0]
@@ -456,21 +456,21 @@ func bridgeCleanup(config *networkConfiguration, logErr bool) {
 
 	err = exec.Command("/usr/sbin/pfctl", "-a", pfAnchor, "-F", "all").Run()
 	if err != nil && logErr {
-		logrus.Warnf("cannot flush firewall rules")
+		logrus.Warn("cannot flush firewall rules")
 	}
 	err = exec.Command("/usr/sbin/ifconfig", gwName, "unplumb").Run()
 	if err != nil && logErr {
-		logrus.Warnf("cannot remove gateway interface")
+		logrus.Warn("cannot remove gateway interface")
 	}
 	err = exec.Command("/usr/sbin/dladm", "delete-vnic",
 		"-t", gwName).Run()
 	if err != nil && logErr {
-		logrus.Warnf("cannot delete vnic")
+		logrus.Warn("cannot delete vnic")
 	}
 	err = exec.Command("/usr/sbin/dladm", "delete-etherstub",
 		"-t", config.BridgeNameInternal).Run()
 	if err != nil && logErr {
-		logrus.Warnf("cannot delete etherstub")
+		logrus.Warn("cannot delete etherstub")
 	}
 	err = exec.Command("/usr/sbin/pfctl", "-a", tableAnchor, "-t", tableName, "-T", "delete", gwIP).Run()
 	if err != nil && logErr {
