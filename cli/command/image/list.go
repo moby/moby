@@ -60,10 +60,14 @@ func newListCommand(dockerCli *command.DockerCli) *cobra.Command {
 func runImages(dockerCli *command.DockerCli, opts imagesOptions) error {
 	ctx := context.Background()
 
+	filters := opts.filter.Value()
+	if opts.matchName != "" {
+		filters.Add("reference", opts.matchName)
+	}
+
 	options := types.ImageListOptions{
-		MatchName: opts.matchName,
-		All:       opts.all,
-		Filters:   opts.filter.Value(),
+		All:     opts.all,
+		Filters: filters,
 	}
 
 	images, err := dockerCli.Client().ImageList(ctx, options)
