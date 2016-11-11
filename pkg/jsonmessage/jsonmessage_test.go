@@ -144,7 +144,7 @@ func TestJSONMessageDisplay(t *testing.T) {
 			t.Fatal(err)
 		}
 		if data.String() != expectedMessages[0] {
-			t.Fatalf("Expected [%v], got [%v]", expectedMessages[0], data.String())
+			t.Fatalf("Expected %q, got %q", expectedMessages[0], data.String())
 		}
 		// With terminal
 		data = bytes.NewBuffer([]byte{})
@@ -152,7 +152,7 @@ func TestJSONMessageDisplay(t *testing.T) {
 			t.Fatal(err)
 		}
 		if data.String() != expectedMessages[1] {
-			t.Fatalf("Expected [%v], got [%v]", expectedMessages[1], data.String())
+			t.Fatalf("Expected %q, got %q", expectedMessages[1], data.String())
 		}
 	}
 }
@@ -164,13 +164,13 @@ func TestJSONMessageDisplayWithJSONError(t *testing.T) {
 
 	err := jsonMessage.Display(data, true)
 	if err == nil || err.Error() != "Can't find it" {
-		t.Fatalf("Expected a JSONError 404, got [%v]", err)
+		t.Fatalf("Expected a JSONError 404, got %q", err)
 	}
 
 	jsonMessage = JSONMessage{Error: &JSONError{401, "Anything"}}
 	err = jsonMessage.Display(data, true)
 	if err == nil || err.Error() != "Authentication is required." {
-		t.Fatalf("Expected an error [Authentication is required.], got [%v]", err)
+		t.Fatalf("Expected an error \"Authentication is required.\", got %q", err)
 	}
 }
 
@@ -183,7 +183,7 @@ func TestDisplayJSONMessagesStreamInvalidJSON(t *testing.T) {
 	inFd, _ = term.GetFdInfo(reader)
 
 	if err := DisplayJSONMessagesStream(reader, data, inFd, false, nil); err == nil && err.Error()[:17] != "invalid character" {
-		t.Fatalf("Should have thrown an error (invalid character in ..), got [%v]", err)
+		t.Fatalf("Should have thrown an error (invalid character in ..), got %q", err)
 	}
 }
 
@@ -228,7 +228,7 @@ func TestDisplayJSONMessagesStream(t *testing.T) {
 			t.Fatal(err)
 		}
 		if data.String() != expectedMessages[0] {
-			t.Fatalf("Expected an [%v], got [%v]", expectedMessages[0], data.String())
+			t.Fatalf("Expected an %q, got %q", expectedMessages[0], data.String())
 		}
 
 		// With terminal
@@ -238,7 +238,7 @@ func TestDisplayJSONMessagesStream(t *testing.T) {
 			t.Fatal(err)
 		}
 		if data.String() != expectedMessages[1] {
-			t.Fatalf("Expected an [%v], got [%v]", expectedMessages[1], data.String())
+			t.Fatalf("Expected an %q, got %q", expectedMessages[1], data.String())
 		}
 	}
 
