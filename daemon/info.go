@@ -169,22 +169,35 @@ func (daemon *Daemon) SystemInfo() (*types.Info, error) {
 					v.RuncCommit.ID = strings.TrimSpace(parts[1])
 				}
 			}
+
+			if v.RuncCommit.ID == "" {
+				logrus.Warnf("failed to retrieve %s version: unknown output format: %s", DefaultRuntimeBinary, string(rv))
+				v.RuncCommit.ID = "N/A"
+			}
 		} else {
 			logrus.Warnf("failed to retrieve %s version: %v", DefaultRuntimeBinary, err)
-			v.RuncCommit.ID = "N/A"
-		}
-		if v.RuncCommit.ID == "" {
-			logrus.Warnf("failed to retrieve %s version: unknown output format", DefaultRuntimeBinary)
 			v.RuncCommit.ID = "N/A"
 		}
 
 		v.InitCommit.Expected = dockerversion.InitCommitID
 		if rv, err := exec.Command(DefaultInitBinary, "--version").Output(); err == nil {
-			parts := strings.Split(string(rv), " ")
-			if len(parts) == 3 {
-				v.InitCommit.ID = strings.TrimSpace(parts[2])
-			} else {
-				logrus.Warnf("failed to retrieve %s version: unknown output format", DefaultInitBinary)
+			parts := strings.Split(strings.TrimSpace(string(rv)), " - ")
+			if len(parts) == 2 {
+				if dockerversion.InitCommitID[0] == 'v' {
+					vs := strings.TrimPrefix(parts[0], "tini version ")
+					v.InitCommit.ID = "v" + vs
+				} else {
+					// Get the sha1
+					gitParts := strings.Split(parts[1], ".")
+					if len(gitParts) == 2 && gitParts[0] == "git" {
+						v.InitCommit.ID = gitParts[1]
+						v.InitCommit.Expected = dockerversion.InitCommitID[0:len(gitParts[1])]
+					}
+				}
+			}
+
+			if v.InitCommit.ID == "" {
+				logrus.Warnf("failed to retrieve %s version: unknown output format: %s", DefaultInitBinary, string(rv))
 				v.InitCommit.ID = "N/A"
 			}
 		} else {
