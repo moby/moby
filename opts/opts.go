@@ -331,16 +331,9 @@ func (c *NanoCPUs) String() string {
 
 // Set sets the value of the NanoCPU by passing a string
 func (c *NanoCPUs) Set(value string) error {
-	cpu, ok := new(big.Rat).SetString(value)
-	if !ok {
-		return fmt.Errorf("Failed to parse %v as a rational number", value)
-	}
-	nano := cpu.Mul(cpu, big.NewRat(1e9, 1))
-	if !nano.IsInt() {
-		return fmt.Errorf("value is too precise")
-	}
-	*c = NanoCPUs(nano.Num().Int64())
-	return nil
+	cpus, err := ParseCPUs(value)
+	*c = NanoCPUs(cpus)
+	return err
 }
 
 // Type returns the type
@@ -351,4 +344,17 @@ func (c *NanoCPUs) Type() string {
 // Value returns the value in int64
 func (c *NanoCPUs) Value() int64 {
 	return int64(*c)
+}
+
+// ParseCPUs takes a string ratio and returns an integer value of nano cpus
+func ParseCPUs(value string) (int64, error) {
+	cpu, ok := new(big.Rat).SetString(value)
+	if !ok {
+		return 0, fmt.Errorf("failed to parse %v as a rational number", value)
+	}
+	nano := cpu.Mul(cpu, big.NewRat(1e9, 1))
+	if !nano.IsInt() {
+		return 0, fmt.Errorf("value is too precise")
+	}
+	return nano.Num().Int64(), nil
 }

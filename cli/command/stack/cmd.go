@@ -19,7 +19,6 @@ func NewStackCommand(dockerCli *command.DockerCli) *cobra.Command {
 		Tags: map[string]string{"experimental": "", "version": "1.25"},
 	}
 	cmd.AddCommand(
-		newConfigCommand(dockerCli),
 		newDeployCommand(dockerCli),
 		newListCommand(dockerCli),
 		newRemoveCommand(dockerCli),
