@@ -288,7 +288,7 @@ func (lc *LibvirtContext) domainXml() (string, error) {
                  DefaultMaxCpus:   2,
                  DefaultMaxMem:    128,
 		 Memory:           128,
-                 OriginalDiskPath: "/home/abhishek/Documents/Works/cloudInit/disk.img.orig",
+                 OriginalDiskPath: "/var/lib/libvirt/images/disk.img.orig",
 		}
 
         // Create directory for seed image and delta disk image
