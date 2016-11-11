@@ -127,13 +127,13 @@ func clearLine(out io.Writer, ti termInfo) {
 	if attr, err := ti.Parse("el1"); err == nil {
 		fmt.Fprintf(out, "%s", attr)
 	} else {
-		fmt.Fprintf(out, "%c[1K", 27)
+		fmt.Fprintf(out, "\x1b[1K")
 	}
 	// Then clear line from cursor to end
 	if attr, err := ti.Parse("el"); err == nil {
 		fmt.Fprintf(out, "%s", attr)
 	} else {
-		fmt.Fprintf(out, "%c[K", 27)
+		fmt.Fprintf(out, "\x1b[K")
 	}
 }
 
@@ -144,7 +144,7 @@ func cursorUp(out io.Writer, ti termInfo, l int) {
 	if attr, err := ti.Parse("cuu", l); err == nil {
 		fmt.Fprintf(out, "%s", attr)
 	} else {
-		fmt.Fprintf(out, "%c[%dA", 27, l)
+		fmt.Fprintf(out, "\x1b[%dA", l)
 	}
 }
 
@@ -155,7 +155,7 @@ func cursorDown(out io.Writer, ti termInfo, l int) {
 	if attr, err := ti.Parse("cud", l); err == nil {
 		fmt.Fprintf(out, "%s", attr)
 	} else {
-		fmt.Fprintf(out, "%c[%dB", 27, l)
+		fmt.Fprintf(out, "\x1b[%dB", l)
 	}
 }
 
