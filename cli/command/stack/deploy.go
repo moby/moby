@@ -498,6 +498,7 @@ func convertService(
 				Command:         service.Entrypoint,
 				Args:            service.Command,
 				Hostname:        service.Hostname,
+				Hosts:           convertExtraHosts(service.ExtraHosts),
 				Env:             convertEnvironment(service.Environment),
 				Labels:          getStackLabels(namespace.name, service.Labels),
 				Dir:             service.WorkingDir,
@@ -519,6 +520,14 @@ func convertService(
 	}
 
 	return serviceSpec, nil
+}
+
+func convertExtraHosts(extraHosts map[string]string) []string {
+	hosts := []string{}
+	for host, ip := range extraHosts {
+		hosts = append(hosts, fmt.Sprintf("%s %s", host, ip))
+	}
+	return hosts
 }
 
 func convertRestartPolicy(restart string, source *composetypes.RestartPolicy) (*swarm.RestartPolicy, error) {
