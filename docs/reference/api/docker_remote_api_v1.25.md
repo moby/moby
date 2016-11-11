@@ -2610,7 +2610,7 @@ Display system-wide information
         "Name": "WIN-V0V70C0LU5P",
         "Labels": null,
         "ExperimentalBuild": false,
-        "ServerVersion": "1.13.0-dev",
+        "ServerVersion": "1.13.0",
         "ClusterStore": "",
         "ClusterAdvertise": "",
         "SecurityOptions": null,
@@ -2904,7 +2904,7 @@ Docker daemon report the following event:
 
     HTTP/1.1 200 OK
     Content-Type: application/json
-    Server: Docker/1.11.0 (linux)
+    Server: Docker/1.13.0 (linux)
     Date: Fri, 29 Apr 2016 15:18:06 GMT
     Transfer-Encoding: chunked
 
@@ -4510,7 +4510,7 @@ List nodes
             "MemoryBytes": 8272408576
           },
           "Engine": {
-            "EngineVersion": "1.12.0-dev",
+            "EngineVersion": "1.13.0",
             "Labels": {
                 "foo": "bar",
             }
@@ -4603,7 +4603,7 @@ Return low-level information on the node `id`
           "MemoryBytes": 8272408576
         },
         "Engine": {
-          "EngineVersion": "1.12.0-dev",
+          "EngineVersion": "1.13.0",
           "Labels": {
               "foo": "bar",
           }
@@ -4813,7 +4813,7 @@ Initialize a new swarm. The body of the HTTP response includes the node ID.
     Content-Length: 28
     Content-Type: application/json
     Date: Thu, 01 Sep 2016 21:49:13 GMT
-    Server: Docker/1.12.0 (linux)
+    Server: Docker/1.13.0 (linux)
 
     "7v2t30z9blmxuhnyo6s4cpenp"
 

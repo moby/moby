@@ -2459,7 +2459,7 @@ Docker daemon report the following event:
 
     HTTP/1.1 200 OK
     Content-Type: application/json
-    Server: Docker/1.11.0 (linux)
+    Server: Docker/1.12.0 (linux)
     Date: Fri, 29 Apr 2016 15:18:06 GMT
     Transfer-Encoding: chunked
 
@@ -3912,7 +3912,7 @@ List nodes
             "MemoryBytes": 8272408576
           },
           "Engine": {
-            "EngineVersion": "1.12.0-dev",
+            "EngineVersion": "1.12.0",
             "Labels": {
                 "foo": "bar",
             }
@@ -4004,7 +4004,7 @@ Return low-level information on the node `id`
           "MemoryBytes": 8272408576
         },
         "Engine": {
-          "EngineVersion": "1.12.0-dev",
+          "EngineVersion": "1.12.0",
           "Labels": {
               "foo": "bar",
           }
