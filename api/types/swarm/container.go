@@ -33,6 +33,7 @@ type ContainerSpec struct {
 	User            string                  `json:",omitempty"`
 	Groups          []string                `json:",omitempty"`
 	TTY             bool                    `json:",omitempty"`
+	OpenStdin       bool                    `json:",omitempty"`
 	Mounts          []mount.Mount           `json:",omitempty"`
 	StopGracePeriod *time.Duration          `json:",omitempty"`
 	Healthcheck     *container.HealthConfig `json:",omitempty"`
