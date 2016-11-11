@@ -103,9 +103,9 @@ func New(rootPath string) (*VolumeStore, error) {
 }
 
 func (s *VolumeStore) getNamed(name string) (volume.Volume, bool) {
-	s.globalLock.Lock()
+	s.globalLock.RLock()
 	v, exists := s.names[name]
-	s.globalLock.Unlock()
+	s.globalLock.RUnlock()
 	return v, exists
 }
 
@@ -121,9 +121,9 @@ func (s *VolumeStore) setNamed(v volume.Volume, ref string) {
 // getRefs gets the list of refs for a given name
 // Callers of this function are expected to hold the name lock.
 func (s *VolumeStore) getRefs(name string) []string {
-	s.globalLock.Lock()
+	s.globalLock.RLock()
 	refs := s.refs[name]
-	s.globalLock.Unlock()
+	s.globalLock.RUnlock()
 	return refs
 }
 
@@ -141,7 +141,7 @@ func (s *VolumeStore) Purge(name string) {
 // VolumeStore is a struct that stores the list of volumes available and keeps track of their usage counts
 type VolumeStore struct {
 	locks      *locker.Locker
-	globalLock sync.Mutex
+	globalLock sync.RWMutex
 	// names stores the volume name -> driver name relationship.
 	// This is used for making lookups faster so we don't have to probe all drivers
 	names map[string]volume.Volume
@@ -210,7 +210,9 @@ func (s *VolumeStore) list() ([]volume.Volume, []string, error) {
 				return
 			}
 			for i, v := range vs {
+				s.globalLock.RLock()
 				vs[i] = volumeWrapper{v, s.labels[v.Name()], d.Scope(), s.options[v.Name()]}
+				s.globalLock.RUnlock()
 			}
 
 			chVols <- vols{vols: vs}
@@ -230,11 +232,13 @@ func (s *VolumeStore) list() ([]volume.Volume, []string, error) {
 	}
 
 	if len(badDrivers) > 0 {
+		s.globalLock.RLock()
 		for _, v := range s.names {
 			if _, exists := badDrivers[v.DriverName()]; exists {
 				ls = append(ls, v)
 			}
 		}
+		s.globalLock.RUnlock()
 	}
 	return ls, warnings, nil
 }
@@ -423,6 +427,8 @@ func (s *VolumeStore) GetWithRef(name, driverName, ref string) (volume.Volume, e
 
 	s.setNamed(v, ref)
 
+	s.globalLock.RLock()
+	defer s.globalLock.RUnlock()
 	return volumeWrapper{v, s.labels[name], vd.Scope(), s.options[name]}, nil
 }
 
@@ -473,9 +479,9 @@ func (s *VolumeStore) getVolume(name string) (volume.Volume, error) {
 	}
 
 	logrus.Debugf("Getting volume reference for name: %s", name)
-	s.globalLock.Lock()
+	s.globalLock.RLock()
 	v, exists := s.names[name]
-	s.globalLock.Unlock()
+	s.globalLock.RUnlock()
 	if exists {
 		vd, err := volumedrivers.GetDriver(v.DriverName())
 		if err != nil {
@@ -536,16 +542,18 @@ func (s *VolumeStore) Dereference(v volume.Volume, ref string) {
 	s.locks.Lock(v.Name())
 	defer s.locks.Unlock(v.Name())
 
-	s.globalLock.Lock()
-	defer s.globalLock.Unlock()
 	var refs []string
-
+	s.globalLock.RLock()
 	for _, r := range s.refs[v.Name()] {
 		if r != ref {
 			refs = append(refs, r)
 		}
 	}
+	s.globalLock.RUnlock()
+
+	s.globalLock.Lock()
 	s.refs[v.Name()] = refs
+	s.globalLock.UnLock()
 }
 
 // Refs gets the current list of refs for the given volume
@@ -571,10 +579,12 @@ func (s *VolumeStore) FilterByDriver(name string) ([]volume.Volume, error) {
 	}
 	for i, v := range ls {
 		options := map[string]string{}
+		s.globalLock.RLock()
 		for key, value := range s.options[v.Name()] {
 			options[key] = value
 		}
 		ls[i] = volumeWrapper{v, s.labels[v.Name()], vd.Scope(), options}
+		s.globalLock.RUnlock()
 	}
 	return ls, nil
 }
