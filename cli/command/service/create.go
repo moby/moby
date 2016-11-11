@@ -62,12 +62,16 @@ func runCreate(dockerCli *command.DockerCli, opts *serviceOptions) error {
 		return err
 	}
 
-	// parse and validate secrets
-	secrets, err := parseSecrets(apiClient, opts.secrets.Value())
-	if err != nil {
-		return err
+	specifiedSecrets := opts.secrets.Value()
+	if len(specifiedSecrets) > 0 {
+		// parse and validate secrets
+		secrets, err := parseSecrets(apiClient, specifiedSecrets)
+		if err != nil {
+			return err
+		}
+		service.TaskTemplate.ContainerSpec.Secrets = secrets
+
 	}
-	service.TaskTemplate.ContainerSpec.Secrets = secrets
 
 	ctx := context.Background()
 
