@@ -50,17 +50,6 @@ func TestImageList(t *testing.T) {
 		},
 		{
 			options: types.ImageListOptions{
-				All:       true,
-				MatchName: "image_name",
-			},
-			expectedQueryParams: map[string]string{
-				"all":     "1",
-				"filter":  "image_name",
-				"filters": "",
-			},
-		},
-		{
-			options: types.ImageListOptions{
 				Filters: filters,
 			},
 			expectedQueryParams: map[string]string{

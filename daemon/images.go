@@ -3,25 +3,25 @@ package daemon
 import (
 	"encoding/json"
 	"fmt"
-	"path"
 	"sort"
 	"time"
 
 	"github.com/pkg/errors"
 
+	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
-	"github.com/docker/docker/reference"
 )
 
 var acceptedImageFilterTags = map[string]bool{
-	"dangling": true,
-	"label":    true,
-	"before":   true,
-	"since":    true,
+	"dangling":  true,
+	"label":     true,
+	"before":    true,
+	"since":     true,
+	"reference": true,
 }
 
 // byCreated is a temporary type used to sort a list of images by creation
@@ -42,17 +42,13 @@ func (daemon *Daemon) Map() map[image.ID]*image.Image {
 // filter is a shell glob string applied to repository names. The argument
 // named all controls whether all images in the graph are filtered, or just
 // the heads.
-func (daemon *Daemon) Images(filterArgs, filter string, all bool, withExtraAttrs bool) ([]*types.ImageSummary, error) {
+func (daemon *Daemon) Images(imageFilters filters.Args, all bool, withExtraAttrs bool) ([]*types.ImageSummary, error) {
 	var (
 		allImages    map[image.ID]*image.Image
 		err          error
 		danglingOnly = false
 	)
 
-	imageFilters, err := filters.FromParam(filterArgs)
-	if err != nil {
-		return nil, err
-	}
 	if err := imageFilters.Validate(acceptedImageFilterTags); err != nil {
 		return nil, err
 	}
@@ -92,16 +88,6 @@ func (daemon *Daemon) Images(filterArgs, filter string, all bool, withExtraAttrs
 	var layerRefs map[layer.ChainID]int
 	var allLayers map[layer.ChainID]layer.Layer
 	var allContainers []*container.Container
-
-	var filterTagged bool
-	if filter != "" {
-		filterRef, err := reference.ParseNamed(filter)
-		if err == nil { // parse error means wildcard repo
-			if _, ok := filterRef.(reference.NamedTagged); ok {
-				filterTagged = true
-			}
-		}
-	}
 
 	for id, img := range allImages {
 		if beforeFilter != nil {
@@ -145,12 +131,16 @@ func (daemon *Daemon) Images(filterArgs, filter string, all bool, withExtraAttrs
 		newImage := newImage(img, size)
 
 		for _, ref := range daemon.referenceStore.References(id.Digest()) {
-			if filter != "" { // filter by tag/repo name
-				if filterTagged { // filter by tag, require full ref match
-					if ref.String() != filter {
-						continue
+			if imageFilters.Include("reference") {
+				var found bool
+				var matchErr error
+				for _, pattern := range imageFilters.Get("reference") {
+					found, matchErr = reference.Match(pattern, ref)
+					if matchErr != nil {
+						return nil, matchErr
 					}
-				} else if matched, err := path.Match(filter, ref.Name()); !matched || err != nil { // name only match, FIXME: docs say exact
+				}
+				if !found {
 					continue
 				}
 			}
@@ -168,7 +158,7 @@ func (daemon *Daemon) Images(filterArgs, filter string, all bool, withExtraAttrs
 					//dangling=false case, so dangling image is not needed
 					continue
 				}
-				if filter != "" { // skip images with no references if filtering by tag
+				if imageFilters.Include("reference") { // skip images with no references if filtering by reference
 					continue
 				}
 				newImage.RepoDigests = []string{"<none>@<none>"}
