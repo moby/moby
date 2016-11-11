@@ -144,7 +144,7 @@ func TestJSONMessageDisplay(t *testing.T) {
 			t.Fatal(err)
 		}
 		if data.String() != expectedMessages[0] {
-			t.Fatalf("Expected %q, got %q", expectedMessages[0], data.String())
+			t.Fatalf("Expected %q,got %q", expectedMessages[0], data.String())
 		}
 		// With terminal
 		data = bytes.NewBuffer([]byte{})
@@ -152,7 +152,7 @@ func TestJSONMessageDisplay(t *testing.T) {
 			t.Fatal(err)
 		}
 		if data.String() != expectedMessages[1] {
-			t.Fatalf("Expected %q, got %q", expectedMessages[1], data.String())
+			t.Fatalf("\nExpected %q\n     got %q", expectedMessages[1], data.String())
 		}
 	}
 }
@@ -238,7 +238,7 @@ func TestDisplayJSONMessagesStream(t *testing.T) {
 			t.Fatal(err)
 		}
 		if data.String() != expectedMessages[1] {
-			t.Fatalf("Expected an %q, got %q", expectedMessages[1], data.String())
+			t.Fatalf("\nExpected %q\n     got %q", expectedMessages[1], data.String())
 		}
 	}
 
