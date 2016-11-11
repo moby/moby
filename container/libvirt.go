@@ -198,9 +198,9 @@ type domain struct {
 }
 
 func (lc *LibvirtContext) createSeedImage(seedDirectory string) (string, error) {
-        cloudLocaladsPath, err := exec.LookPath("cloud-localds")
+        getisoimagePath, err := exec.LookPath("genisoimage")
 	if err != nil {
-		return "", fmt.Errorf("cloud-localads is not installed on your PATH. Please, install it to run isolated container")
+		return "", fmt.Errorf("genisoimage is not installed on your PATH. Please, install it to run isolated container")
 	}
 
         // Create user-data to be included in seed.img
@@ -238,11 +238,11 @@ runcmd:
 	if writeError != nil {
 		return "", fmt.Errorf("Could not write user-data to /var/run/docker-qemu/%s", lc.container.ID)
 	}
-        logrus.Infof("cloud-localads path: %s", cloudLocaladsPath)
+        logrus.Infof("genisoimage path: %s", getisoimagePath)
 
-        err = exec.Command(cloudLocaladsPath, "seed.img", "user-data").Run()
+        err = exec.Command(getisoimagePath, "-output", "seed.img", "-volid", "cidata", "-joliet", "-rock", "user-data").Run()
         if err != nil {
-                return "", fmt.Errorf("Could not execute cloud-localads")
+                return "", fmt.Errorf("Could not execute genisoimage")
         }
 
         err = os.Chdir(currentDir)
