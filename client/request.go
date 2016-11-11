@@ -165,7 +165,7 @@ func (cli *Client) doRequest(ctx context.Context, req *http.Request) (serverResp
 		// daemon on Windows where the daemon is listening on a named pipe
 		// `//./pipe/docker_engine, and the client must be running elevated.
 		// Give users a clue rather than the not-overly useful message
-		// such as `error during connect: Get http://%2F%2F.%2Fpipe%2Fdocker_engine/v1.25/info:
+		// such as `error during connect: Get http://%2F%2F.%2Fpipe%2Fdocker_engine/v1.26/info:
 		// open //./pipe/docker_engine: The system cannot find the file specified.`.
 		// Note we can't string compare "The system cannot find the file specified" as
 		// this is localised - for example in French the error would be

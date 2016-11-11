@@ -3,7 +3,7 @@ Package client is a Go client for the Docker Remote API.
 
 The "docker" command uses this package to communicate with the daemon. It can also
 be used by your own Go applications to do anything the command-line interface does
-– running containers, pulling images, managing swarms, etc.
+- running containers, pulling images, managing swarms, etc.
 
 For more information about the Remote API, see the documentation:
 https://docs.docker.com/engine/reference/api/docker_remote_api/
@@ -58,7 +58,7 @@ import (
 )
 
 // DefaultVersion is the version of the current stable API
-const DefaultVersion string = "1.25"
+const DefaultVersion string = "1.26"
 
 // Client is the API client that performs all operations
 // against a docker server.

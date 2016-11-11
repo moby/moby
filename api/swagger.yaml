@@ -8,10 +8,10 @@ produces:
 consumes:
   - "application/json"
   - "text/plain"
-basePath: "/v1.25"
+basePath: "/v1.26"
 info:
   title: "Docker Remote API"
-  version: "1.25"
+  version: "1.26"
   x-logo:
     url: "https://docs.docker.com/images/logo-docker-main.png"
   description: |
@@ -33,7 +33,7 @@ info:
 
     The API is usually changed in each release of Docker. If you want to write a client that doesn't break when connecting to newer Docker releases, you can lock to a specific API version.
 
-    For Docker 1.13, the API version is 1.25. To lock to this version, you prefix the URL with `/v1.25`. For example, calling `/info` is the same as calling `/v1.25/info`.
+    For Docker 1.14, the API version is 1.26. To lock to this version, you prefix the URL with `/v1.26`. For example, calling `/info` is the same as calling `/v1.26/info`.
 
     The API uses an open schema model, which means server may add extra properties to responses. Likewise, the server will ignore any extra query parameters and request body properties. When you write clients, you need to ignore additional properties in responses to ensure they do not break when talking to newer Docker daemons.
 
@@ -1581,7 +1581,7 @@ definitions:
           NanoCPUs: 4000000000
           MemoryBytes: 8272408576
         Engine:
-          EngineVersion: "1.13.0"
+          EngineVersion: "1.14.0"
           Labels:
             foo: "bar"
           Plugins:
@@ -5052,13 +5052,13 @@ paths:
                 type: "string"
           examples:
             application/json:
-              Version: "1.13.0"
+              Version: "1.14.0"
               Os: "linux"
               KernelVersion: "3.19.0-23-generic"
               GoVersion: "go1.6.3"
               GitCommit: "deadbee"
               Arch: "amd64"
-              ApiVersion: "1.25"
+              ApiVersion: "1.26"
               MinAPIVersion: "1.12"
               BuildTime: "2016-06-14T07:09:13.444803460+00:00"
               Experimental: true
