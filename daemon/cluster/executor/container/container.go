@@ -185,6 +185,7 @@ func (c *containerConfig) config() *enginecontainer.Config {
 	config := &enginecontainer.Config{
 		Labels:       c.labels(),
 		Tty:          c.spec().TTY,
+		OpenStdin:    c.spec().OpenStdin,
 		User:         c.spec().User,
 		Env:          c.spec().Env,
 		Hostname:     c.spec().Hostname,

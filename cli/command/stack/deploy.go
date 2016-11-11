@@ -506,6 +506,7 @@ func convertService(
 				Mounts:          mounts,
 				StopGracePeriod: service.StopGracePeriod,
 				TTY:             service.Tty,
+				OpenStdin:       service.StdinOpen,
 			},
 			Resources:     resources,
 			RestartPolicy: restartPolicy,
