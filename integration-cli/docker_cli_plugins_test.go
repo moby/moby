@@ -60,7 +60,7 @@ func (s *DockerSuite) TestPluginForceRemove(c *check.C) {
 }
 
 func (s *DockerSuite) TestPluginActive(c *check.C) {
-	testRequires(c, DaemonIsLinux, Network)
+	testRequires(c, DaemonIsLinux, Network, IsAmd64)
 	out, _, err := dockerCmdWithError("plugin", "install", "--grant-all-permissions", pNameWithTag)
 	c.Assert(err, checker.IsNil)
 
