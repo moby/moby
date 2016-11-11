@@ -17,6 +17,7 @@ import (
 	"strings"
 	"sync"
 	"syscall"
+	"time"
 	"unsafe"
 
 	"github.com/Microsoft/go-winio"
@@ -260,10 +261,29 @@ func (d *Driver) Remove(id string) error {
 		return err
 	}
 
-	// Get and terminate any template VMs that are currently using the layer
-	computeSystems, err := hcsshim.GetContainers(hcsshim.ComputeSystemQuery{})
-	if err != nil {
-		return err
+	// This retry loop is due to a bug in Windows (Internal bug #9432268)
+	// if GetContainers fails with ErrVmcomputeOperationInvalidState
+	// it is a transient error. Retry until it succeeds.
+	var computeSystems []hcsshim.ContainerProperties
+	retryCount := 0
+	for {
+		// Get and terminate any template VMs that are currently using the layer
+		computeSystems, err = hcsshim.GetContainers(hcsshim.ComputeSystemQuery{})
+		if err != nil {
+			if err == hcsshim.ErrVmcomputeOperationInvalidState {
+				if retryCount >= 5 {
+					// If we are unable to get the list of containers
+					// go ahead and attempt to delete the layer anyway
+					// as it will most likely work.
+					break
+				}
+				retryCount++
+				time.Sleep(2 * time.Second)
+				continue
+			}
+			return err
+		}
+		break
 	}
 
 	for _, computeSystem := range computeSystems {
