@@ -68,8 +68,8 @@ func Load(configDetails types.ConfigDetails) (*types.Config, error) {
 
 	cfg := types.Config{}
 	version := configDict["version"].(string)
-	if version != "3" {
-		return nil, fmt.Errorf("Unsupported version: %#v. The only supported version is 3", version)
+	if version != "3" && version != "3.0" {
+		return nil, fmt.Errorf(`Unsupported Compose file version: %#v. The only version supported is "3" (or "3.0")`, version)
 	}
 
 	if services, ok := configDict["services"]; ok {
