@@ -7,9 +7,8 @@ import (
 )
 
 type arguments struct {
-	options   execOptions
-	container string
-	execCmd   []string
+	options execOptions
+	execCmd []string
 }
 
 func TestParseExec(t *testing.T) {
@@ -73,7 +72,7 @@ func TestParseExec(t *testing.T) {
 	}
 
 	for valid, expectedExecConfig := range valids {
-		execConfig, err := parseExec(&valid.options, valid.container, valid.execCmd)
+		execConfig, err := parseExec(&valid.options, valid.execCmd)
 		if err != nil {
 			t.Fatal(err)
 		}
