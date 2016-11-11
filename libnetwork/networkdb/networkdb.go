@@ -265,7 +265,7 @@ func (nDB *NetworkDB) CreateEntry(tname, nid, key string, value []byte) error {
 	}
 
 	if err := nDB.sendTableEvent(TableEventTypeCreate, nid, tname, key, entry); err != nil {
-		return fmt.Errorf("cannot send table create event: %v", err)
+		return fmt.Errorf("cannot send create event for table %s, %v", tname, err)
 	}
 
 	nDB.Lock()
