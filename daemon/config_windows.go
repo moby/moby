@@ -46,6 +46,11 @@ func (config *Config) GetRuntime(name string) *types.Runtime {
 	return nil
 }
 
+// GetInitPath returns the configure docker-init path
+func (config *Config) GetInitPath() string {
+	return ""
+}
+
 // GetDefaultRuntimeName returns the current default runtime
 func (config *Config) GetDefaultRuntimeName() string {
 	return stockRuntimeName

@@ -60,6 +60,7 @@ ENV CGO_LDFLAGS -L/lib
 
 # Install runc, containerd, tini and docker-proxy
 # Please edit hack/dockerfile/install-binaries.sh to update them.
+COPY hack/dockerfile/binaries-commits /tmp/binaries-commits
 COPY hack/dockerfile/install-binaries.sh /tmp/install-binaries.sh
 RUN /tmp/install-binaries.sh runc containerd tini proxy
 

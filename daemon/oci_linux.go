@@ -596,7 +596,7 @@ func (daemon *Daemon) populateCommonSpec(s *specs.Spec, c *container.Container) 
 			s.Process.Args = append([]string{"/dev/init", c.Path}, c.Args...)
 			var path string
 			if daemon.configStore.InitPath == "" && c.HostConfig.InitPath == "" {
-				path, err = exec.LookPath("docker-init")
+				path, err = exec.LookPath(DefaultInitBinary)
 				if err != nil {
 					return err
 				}

@@ -78,3 +78,13 @@ func (config *Config) GetAllRuntimes() map[string]types.Runtime {
 func (config *Config) GetExecRoot() string {
 	return config.ExecRoot
 }
+
+// GetInitPath returns the configure docker-init path
+func (config *Config) GetInitPath() string {
+	config.reloadLock.Lock()
+	defer config.reloadLock.Unlock()
+	if config.InitPath != "" {
+		return config.InitPath
+	}
+	return DefaultInitBinary
+}

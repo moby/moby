@@ -625,3 +625,7 @@ func (clnt *client) DeleteCheckpoint(containerID string, checkpointID string, ch
 func (clnt *client) ListCheckpoints(containerID string, checkpointDir string) (*Checkpoints, error) {
 	return nil, errors.New("Windows: Containers do not support checkpoints")
 }
+
+func (clnt *client) GetServerVersion(ctx context.Context) (*ServerVersion, error) {
+	return &ServerVersion{}, nil
+}

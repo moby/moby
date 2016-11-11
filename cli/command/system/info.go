@@ -143,6 +143,22 @@ func prettyPrintInfo(dockerCli *command.DockerCli, info types.Info) error {
 	}
 
 	if info.OSType == "linux" {
+		fmt.Fprintf(dockerCli.Out(), "Init Binary: %v\n", info.InitBinary)
+
+		for _, ci := range []struct {
+			Name   string
+			Commit types.Commit
+		}{
+			{"containerd", info.ContainerdCommit},
+			{"runc", info.RuncCommit},
+			{"init", info.InitCommit},
+		} {
+			fmt.Fprintf(dockerCli.Out(), "%s version: %s", ci.Name, ci.Commit.ID)
+			if ci.Commit.ID != ci.Commit.Expected {
+				fmt.Fprintf(dockerCli.Out(), " (expected: %s)", ci.Commit.Expected)
+			}
+			fmt.Fprintf(dockerCli.Out(), "\n")
+		}
 		if len(info.SecurityOptions) != 0 {
 			fmt.Fprintf(dockerCli.Out(), "Security Options:\n")
 			for _, o := range info.SecurityOptions {
