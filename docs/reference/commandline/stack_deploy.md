@@ -25,8 +25,9 @@ Aliases:
   deploy, up
 
 Options:
-      --file   string   Path to a Distributed Application Bundle file (Default: STACK.dab)
-      --help            Print usage
+      --file   string        Path to a Distributed Application Bundle file (Default: STACK.dab)
+      --help                 Print usage
+      --with-registry-auth   Send registry authentication details to swarm agents
 ```
 
 Create and update a stack from a `dab` file on the swarm. This command
