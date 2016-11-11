@@ -192,12 +192,18 @@ func verifyContainerResources(resources *containertypes.Resources, isHyperv bool
 func verifyPlatformContainerSettings(daemon *Daemon, hostConfig *containertypes.HostConfig, config *containertypes.Config, update bool) ([]string, error) {
 	warnings := []string{}
 
-	w, err := verifyContainerResources(&hostConfig.Resources, daemon.runAsHyperVContainer(hostConfig))
+	hyperv := daemon.runAsHyperVContainer(hostConfig)
+	if !hyperv && system.IsWindowsClient() {
+		// @engine maintainers. This block should not be removed. It partially enforces licensing
+		// restrictions on Windows. Ping @jhowardmsft if there are concerns or PRs to change this.
+		return warnings, fmt.Errorf("Windows client operating systems only support Hyper-V containers")
+	}
+
+	w, err := verifyContainerResources(&hostConfig.Resources, hyperv)
 	warnings = append(warnings, w...)
 	if err != nil {
 		return warnings, err
 	}
-
 	return warnings, nil
 }
 
