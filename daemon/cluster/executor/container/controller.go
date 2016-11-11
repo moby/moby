@@ -7,11 +7,14 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/events"
 	executorpkg "github.com/docker/docker/daemon/cluster/executor"
+	"github.com/docker/go-connections/nat"
 	"github.com/docker/libnetwork"
 	"github.com/docker/swarmkit/agent/exec"
 	"github.com/docker/swarmkit/api"
@@ -67,6 +70,19 @@ func (r *controller) ContainerStatus(ctx context.Context) (*api.ContainerStatus,
 		return nil, err
 	}
 	return parseContainerStatus(ctnr)
+}
+
+func (r *controller) PortStatus(ctx context.Context) (*api.PortStatus, error) {
+	ctnr, err := r.adapter.inspect(ctx)
+	if err != nil {
+		if isUnknownContainer(err) {
+			return nil, nil
+		}
+
+		return nil, err
+	}
+
+	return parsePortStatus(ctnr)
 }
 
 // Update tasks a recent task update and applies it to the container.
@@ -551,6 +567,64 @@ func parseContainerStatus(ctnr types.ContainerJSON) (*api.ContainerStatus, error
 	}
 
 	return status, nil
+}
+
+func parsePortStatus(ctnr types.ContainerJSON) (*api.PortStatus, error) {
+	status := &api.PortStatus{}
+
+	if ctnr.NetworkSettings != nil && len(ctnr.NetworkSettings.Ports) > 0 {
+		exposedPorts, err := parsePortMap(ctnr.NetworkSettings.Ports)
+		if err != nil {
+			return nil, err
+		}
+		status.Ports = exposedPorts
+	}
+
+	return status, nil
+}
+
+func parsePortMap(portMap nat.PortMap) ([]*api.PortConfig, error) {
+	exposedPorts := make([]*api.PortConfig, 0, len(portMap))
+
+	for portProtocol, mapping := range portMap {
+		parts := strings.SplitN(string(portProtocol), "/", 2)
+		if len(parts) != 2 {
+			return nil, fmt.Errorf("invalid port mapping: %s", portProtocol)
+		}
+
+		port, err := strconv.ParseUint(parts[0], 10, 16)
+		if err != nil {
+			return nil, err
+		}
+
+		protocol := api.ProtocolTCP
+		switch strings.ToLower(parts[1]) {
+		case "tcp":
+			protocol = api.ProtocolTCP
+		case "udp":
+			protocol = api.ProtocolUDP
+		default:
+			return nil, fmt.Errorf("invalid protocol: %s", parts[1])
+		}
+
+		for _, binding := range mapping {
+			hostPort, err := strconv.ParseUint(binding.HostPort, 10, 16)
+			if err != nil {
+				return nil, err
+			}
+
+			// TODO(aluzzardi): We're losing the port `name` here since
+			// there's no way to retrieve it back from the Engine.
+			exposedPorts = append(exposedPorts, &api.PortConfig{
+				PublishMode:   api.PublishModeHost,
+				Protocol:      protocol,
+				TargetPort:    uint32(port),
+				PublishedPort: uint32(hostPort),
+			})
+		}
+	}
+
+	return exposedPorts, nil
 }
 
 type exitError struct {

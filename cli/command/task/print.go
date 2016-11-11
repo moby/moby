@@ -17,9 +17,24 @@ import (
 )
 
 const (
-	psTaskItemFmt = "%s\t%s\t%s\t%s\t%s %s ago\t%s\n"
+	psTaskItemFmt = "%s\t%s\t%s\t%s\t%s %s ago\t%s\t%s\n"
 	maxErrLength  = 30
 )
+
+type portStatus swarm.PortStatus
+
+func (ps portStatus) String() string {
+	if len(ps.Ports) == 0 {
+		return ""
+	}
+
+	str := fmt.Sprintf("*:%d->%d/%s", ps.Ports[0].PublishedPort, ps.Ports[0].TargetPort, ps.Ports[0].Protocol)
+	for _, pConfig := range ps.Ports[1:] {
+		str += fmt.Sprintf(",*:%d->%d/%s", pConfig.PublishedPort, pConfig.TargetPort, pConfig.Protocol)
+	}
+
+	return str
+}
 
 type tasksBySlot []swarm.Task
 
@@ -51,7 +66,7 @@ func Print(dockerCli *command.DockerCli, ctx context.Context, tasks []swarm.Task
 
 	// Ignore flushing errors
 	defer writer.Flush()
-	fmt.Fprintln(writer, strings.Join([]string{"NAME", "IMAGE", "NODE", "DESIRED STATE", "CURRENT STATE", "ERROR"}, "\t"))
+	fmt.Fprintln(writer, strings.Join([]string{"NAME", "IMAGE", "NODE", "DESIRED STATE", "CURRENT STATE", "ERROR", "PORTS"}, "\t"))
 
 	if err := print(writer, ctx, tasks, resolver, noTrunc); err != nil {
 		return err
@@ -113,6 +128,7 @@ func print(out io.Writer, ctx context.Context, tasks []swarm.Task, resolver *idr
 			command.PrettyPrint(task.Status.State),
 			strings.ToLower(units.HumanDuration(time.Since(task.Status.Timestamp))),
 			taskErr,
+			portStatus(task.Status.PortStatus),
 		)
 	}
 	return nil

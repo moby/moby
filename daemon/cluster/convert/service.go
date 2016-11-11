@@ -199,6 +199,7 @@ func ServiceSpecToGRPC(s types.ServiceSpec) (swarmapi.ServiceSpec, error) {
 			spec.Endpoint.Ports = append(spec.Endpoint.Ports, &swarmapi.PortConfig{
 				Name:          portConfig.Name,
 				Protocol:      swarmapi.PortConfig_Protocol(swarmapi.PortConfig_Protocol_value[strings.ToUpper(string(portConfig.Protocol))]),
+				PublishMode:   swarmapi.PortConfig_PublishMode(swarmapi.PortConfig_PublishMode_value[strings.ToUpper(string(portConfig.PublishMode))]),
 				TargetPort:    portConfig.TargetPort,
 				PublishedPort: portConfig.PublishedPort,
 			})

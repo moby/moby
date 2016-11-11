@@ -48,6 +48,8 @@ func newUpdateCommand(dockerCli *command.DockerCli) *cobra.Command {
 	flags.Var(newListOptsVar(), flagContainerLabelRemove, "Remove a container label by its key")
 	flags.Var(newListOptsVar(), flagMountRemove, "Remove a mount by its target path")
 	flags.Var(newListOptsVar(), flagPublishRemove, "Remove a published port by its target port")
+	flags.MarkHidden(flagPublishRemove)
+	flags.Var(newListOptsVar(), flagPortRemove, "Remove a port(target-port mandatory)")
 	flags.Var(newListOptsVar(), flagConstraintRemove, "Remove a constraint")
 	flags.Var(newListOptsVar(), flagDNSRemove, "Remove a custom DNS server")
 	flags.Var(newListOptsVar(), flagDNSOptionRemove, "Remove a DNS option")
@@ -60,7 +62,9 @@ func newUpdateCommand(dockerCli *command.DockerCli) *cobra.Command {
 	flags.Var(&opts.secrets, flagSecretAdd, "Add or update a secret on a service")
 	flags.Var(&opts.mounts, flagMountAdd, "Add or update a mount on a service")
 	flags.Var(&opts.constraints, flagConstraintAdd, "Add or update a placement constraint")
-	flags.Var(&opts.endpoint.ports, flagPublishAdd, "Add or update a published port")
+	flags.Var(&opts.endpoint.publishPorts, flagPublishAdd, "Add or update a published port")
+	flags.MarkHidden(flagPublishAdd)
+	flags.Var(&opts.endpoint.expandedPorts, flagPortAdd, "Add or update a port")
 	flags.Var(&opts.groups, flagGroupAdd, "Add an additional supplementary user group to the container")
 	flags.Var(&opts.dns, flagDNSAdd, "Add or update a custom DNS server")
 	flags.Var(&opts.dnsOption, flagDNSOptionAdd, "Add or update a DNS option")
@@ -267,7 +271,7 @@ func updateService(flags *pflag.FlagSet, spec *swarm.ServiceSpec) error {
 		}
 	}
 
-	if anyChanged(flags, flagPublishAdd, flagPublishRemove) {
+	if anyChanged(flags, flagPublishAdd, flagPublishRemove, flagPortAdd, flagPortRemove) {
 		if spec.EndpointSpec == nil {
 			spec.EndpointSpec = &swarm.EndpointSpec{}
 		}
@@ -627,7 +631,13 @@ func portConfigToString(portConfig *swarm.PortConfig) string {
 	if protocol == "" {
 		protocol = "tcp"
 	}
-	return fmt.Sprintf("%v/%s", portConfig.PublishedPort, protocol)
+
+	mode := portConfig.PublishMode
+	if mode == "" {
+		mode = "ingress"
+	}
+
+	return fmt.Sprintf("%v:%v/%s/%s", portConfig.PublishedPort, portConfig.TargetPort, protocol, mode)
 }
 
 func updatePorts(flags *pflag.FlagSet, portConfig *[]swarm.PortConfig) error {
@@ -649,6 +659,15 @@ func updatePorts(flags *pflag.FlagSet, portConfig *[]swarm.PortConfig) error {
 		}
 	}
 
+	if flags.Changed(flagPortAdd) {
+		for _, entry := range flags.Lookup(flagPortAdd).Value.(*opts.PortOpt).Value() {
+			if v, ok := portSet[portConfigToString(&entry)]; ok && v != entry {
+				return fmt.Errorf("conflicting port mapping between %v:%v/%s and %v:%v/%s", entry.PublishedPort, entry.TargetPort, entry.Protocol, v.PublishedPort, v.TargetPort, v.Protocol)
+			}
+			portSet[portConfigToString(&entry)] = entry
+		}
+	}
+
 	// Override previous PortConfig in service if there is any duplicate
 	for _, entry := range *portConfig {
 		if _, ok := portSet[portConfigToString(&entry)]; !ok {
@@ -657,6 +676,14 @@ func updatePorts(flags *pflag.FlagSet, portConfig *[]swarm.PortConfig) error {
 	}
 
 	toRemove := flags.Lookup(flagPublishRemove).Value.(*opts.ListOpts).GetAll()
+	removePortCSV := flags.Lookup(flagPortRemove).Value.(*opts.ListOpts).GetAll()
+	removePortOpts := &opts.PortOpt{}
+	for _, portCSV := range removePortCSV {
+		if err := removePortOpts.Set(portCSV); err != nil {
+			return err
+		}
+	}
+
 	newPorts := []swarm.PortConfig{}
 portLoop:
 	for _, port := range portSet {
@@ -666,12 +693,34 @@ portLoop:
 				continue portLoop
 			}
 		}
+
+		for _, pConfig := range removePortOpts.Value() {
+			if equalProtocol(port.Protocol, pConfig.Protocol) &&
+				port.TargetPort == pConfig.TargetPort &&
+				equalPublishMode(port.PublishMode, pConfig.PublishMode) {
+				continue portLoop
+			}
+		}
+
 		newPorts = append(newPorts, port)
 	}
+
 	// Sort the PortConfig to avoid unnecessary updates
 	sort.Sort(byPortConfig(newPorts))
 	*portConfig = newPorts
 	return nil
+}
+
+func equalProtocol(prot1, prot2 swarm.PortConfigProtocol) bool {
+	return prot1 == prot2 ||
+		(prot1 == swarm.PortConfigProtocol("") && prot2 == swarm.PortConfigProtocolTCP) ||
+		(prot2 == swarm.PortConfigProtocol("") && prot1 == swarm.PortConfigProtocolTCP)
+}
+
+func equalPublishMode(mode1, mode2 swarm.PortConfigPublishMode) bool {
+	return mode1 == mode2 ||
+		(mode1 == swarm.PortConfigPublishMode("") && mode2 == swarm.PortConfigPublishModeIngress) ||
+		(mode2 == swarm.PortConfigPublishMode("") && mode1 == swarm.PortConfigPublishModeIngress)
 }
 
 func equalPort(targetPort nat.Port, port swarm.PortConfig) bool {
