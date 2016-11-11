@@ -54,8 +54,8 @@ default.
 It is required to to supply a version to API calls. This is done by prefixing
 the URL with the version number.
 
-The current version of the API is 1.25, so to call the `/info` endpoint, you
-would send a request to the URL `/v1.25/info`. To call, for example, version
+The current version of the API is 1.26, so to call the `/info` endpoint, you
+would send a request to the URL `/v1.26/info`. To call, for example, version
 1.24 of the API instead, you would request `/v1.24/info`.
 
 If a newer daemon is installed, new properties may be returned even when
@@ -69,6 +69,7 @@ Use the table below to find the API version for a Docker version:
 
 Docker version  | API version                        | Changes
 ----------------|------------------------------------|------------------------------------------------------
+1.14.x          | [1.26](docker_remote_api_v1.26.md) | [API changes](docker_remote_api.md#v1-26-api-changes)
 1.13.x          | [1.25](docker_remote_api_v1.25.md) | [API changes](docker_remote_api.md#v1-25-api-changes)
 1.12.x          | [1.24](docker_remote_api_v1.24.md) | [API changes](docker_remote_api.md#v1-24-api-changes)
 1.11.x          | [1.23](docker_remote_api_v1.23.md) | [API changes](docker_remote_api.md#v1-23-api-changes)
@@ -136,6 +137,11 @@ Running `docker rmi` emits an **untag** event when removing an image name.  The 
 ## Version history
 
 This section lists each version from latest to oldest.  Each listing includes a link to the full documentation set and the changes relevant in that release.
+
+### v1.26 API changes
+
+[Docker Remote API v1.26](docker_remote_api_v1.26.md) documentation
+
 
 ### v1.25 API changes
 
