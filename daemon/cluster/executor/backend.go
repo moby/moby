@@ -50,4 +50,5 @@ type Backend interface {
 	UpdateAttachment(string, string, string, *network.NetworkingConfig) error
 	WaitForDetachment(context.Context, string, string, string, string) error
 	GetRepository(context.Context, reference.NamedTagged, *types.AuthConfig) (distribution.Repository, bool, error)
+	LookupImage(name string) (*types.ImageInspect, error)
 }
