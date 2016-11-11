@@ -43,7 +43,7 @@ func setDefaultUmask() error {
 	return nil
 }
 
-func getDaemonConfDir() string {
+func getDaemonConfDir(_ string) string {
 	return "/etc/docker"
 }
 
