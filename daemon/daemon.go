@@ -29,6 +29,7 @@ import (
 	"github.com/docker/docker/daemon/events"
 	"github.com/docker/docker/daemon/exec"
 	"github.com/docker/docker/dockerversion"
+	"github.com/docker/docker/plugin"
 	"github.com/docker/libnetwork/cluster"
 	// register graph drivers
 	_ "github.com/docker/docker/daemon/graphdriver/register"
@@ -1266,4 +1267,17 @@ func (daemon *Daemon) GetCluster() Cluster {
 // SetCluster sets the cluster
 func (daemon *Daemon) SetCluster(cluster Cluster) {
 	daemon.cluster = cluster
+}
+
+func (daemon *Daemon) pluginInit(cfg *Config, remote libcontainerd.Remote) error {
+	return plugin.Init(cfg.Root, daemon.PluginStore, remote, daemon.RegistryService, cfg.LiveRestoreEnabled, daemon.LogPluginEvent)
+}
+
+func (daemon *Daemon) pluginShutdown() {
+	manager := plugin.GetManager()
+	// Check for a valid manager object. In error conditions, daemon init can fail
+	// and shutdown called, before plugin manager is initialized.
+	if manager != nil {
+		manager.Shutdown()
+	}
 }

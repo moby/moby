@@ -769,7 +769,7 @@ func (s *DockerNetworkSuite) TestDockerNetworkDriverOptions(c *check.C) {
 }
 
 func (s *DockerNetworkSuite) TestDockerPluginV2NetworkDriver(c *check.C) {
-	testRequires(c, DaemonIsLinux, ExperimentalDaemon, Network)
+	testRequires(c, DaemonIsLinux, Network)
 
 	var (
 		npName        = "mavenugo/test-docker-netplugin"

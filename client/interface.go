@@ -21,6 +21,7 @@ type CommonAPIClient interface {
 	ImageAPIClient
 	NodeAPIClient
 	NetworkAPIClient
+	PluginAPIClient
 	ServiceAPIClient
 	SwarmAPIClient
 	SecretAPIClient
@@ -102,6 +103,19 @@ type NodeAPIClient interface {
 	NodeList(ctx context.Context, options types.NodeListOptions) ([]swarm.Node, error)
 	NodeRemove(ctx context.Context, nodeID string, options types.NodeRemoveOptions) error
 	NodeUpdate(ctx context.Context, nodeID string, version swarm.Version, node swarm.NodeSpec) error
+}
+
+// PluginAPIClient defines API client methods for the plugins
+type PluginAPIClient interface {
+	PluginList(ctx context.Context) (types.PluginsListResponse, error)
+	PluginRemove(ctx context.Context, name string, options types.PluginRemoveOptions) error
+	PluginEnable(ctx context.Context, name string) error
+	PluginDisable(ctx context.Context, name string) error
+	PluginInstall(ctx context.Context, name string, options types.PluginInstallOptions) error
+	PluginPush(ctx context.Context, name string, registryAuth string) error
+	PluginSet(ctx context.Context, name string, args []string) error
+	PluginInspectWithRaw(ctx context.Context, name string) (*types.Plugin, []byte, error)
+	PluginCreate(ctx context.Context, createContext io.Reader, options types.PluginCreateOptions) error
 }
 
 // ServiceAPIClient defines API client methods for the services

@@ -4291,7 +4291,7 @@ Content-Type: application/json
 
 ### Configure a plugin
 
-POST /plugins/(plugin name)/set`
+`POST /plugins/(plugin name)/set`
 
 **Example request**:
 
@@ -4438,11 +4438,9 @@ Content-Type: text/plain; charset=utf-8
 -   **204** - no error
 -   **500** - server error
 
-<!-- TODO Document "docker plugin push" endpoint once we have "plugin build"
-
 ### Push a plugin
 
-`POST /v1.25/plugins/tiborvass/(plugin name)/push HTTP/1.1`
+`POST /v1.25/plugins/(plugin name)/push`
 
 Pushes a plugin to the registry.
 
@@ -4464,7 +4462,6 @@ an image](#create-an-image) section for more details.
 -   **200** - no error
 -   **404** - plugin not installed
 
--->
 
 ## 3.7 Nodes
 

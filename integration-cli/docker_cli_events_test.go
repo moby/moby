@@ -276,7 +276,7 @@ func (s *DockerSuite) TestEventsImageLoad(c *check.C) {
 }
 
 func (s *DockerSuite) TestEventsPluginOps(c *check.C) {
-	testRequires(c, DaemonIsLinux, ExperimentalDaemon)
+	testRequires(c, DaemonIsLinux)
 
 	pluginName := "tiborvass/no-remove:latest"
 	since := daemonUnixTime(c)

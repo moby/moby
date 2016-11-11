@@ -2,7 +2,6 @@
 title: "plugin enable"
 description: "the plugin enable command description and usage"
 keywords: "plugin, enable"
-advisory: "experimental"
 ---
 
 <!-- This file is maintained within the docker/docker Github
@@ -14,7 +13,7 @@ advisory: "experimental"
      will be rejected.
 -->
 
-# plugin enable (experimental)
+# plugin enable
 
 ```markdown
 Usage:  docker plugin enable PLUGIN

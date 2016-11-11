@@ -358,7 +358,8 @@ func (p *v2Puller) pullV2Tag(ctx context.Context, ref reference.Named) (tagUpdat
 	}
 
 	if m, ok := manifest.(*schema2.DeserializedManifest); ok {
-		if m.Manifest.Config.MediaType == schema2.MediaTypePluginConfig {
+		if m.Manifest.Config.MediaType == schema2.MediaTypePluginConfig ||
+			m.Manifest.Config.MediaType == "application/vnd.docker.plugin.image.v0+json" { //TODO: remove this v0 before 1.13 GA
 			return false, errMediaTypePlugin
 		}
 	}

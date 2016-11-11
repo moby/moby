@@ -2,7 +2,6 @@
 title: "plugin rm"
 description: "the plugin rm command description and usage"
 keywords: "plugin, rm"
-advisory: "experimental"
 ---
 
 <!-- This file is maintained within the docker/docker Github
@@ -14,7 +13,7 @@ advisory: "experimental"
      will be rejected.
 -->
 
-# plugin rm (experimental)
+# plugin rm
 
 ```markdown
 Usage:  docker plugin rm [OPTIONS] PLUGIN [PLUGIN...]
