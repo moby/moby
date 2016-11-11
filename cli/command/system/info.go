@@ -2,6 +2,7 @@ package system
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -131,6 +132,17 @@ func prettyPrintInfo(dockerCli *command.DockerCli, info types.Info) error {
 			}
 		}
 		fmt.Fprintf(dockerCli.Out(), " Node Address: %s\n", info.Swarm.NodeAddr)
+		managers := []string{}
+		for _, entry := range info.Swarm.RemoteManagers {
+			managers = append(managers, entry.Addr)
+		}
+		if len(managers) > 0 {
+			sort.Strings(managers)
+			fmt.Fprintf(dockerCli.Out(), " Manager Addresses:\n")
+			for _, entry := range managers {
+				fmt.Fprintf(dockerCli.Out(), "  %s\n", entry)
+			}
+		}
 	}
 
 	if len(info.Runtimes) > 0 {
