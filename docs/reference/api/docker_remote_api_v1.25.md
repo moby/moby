@@ -1686,7 +1686,7 @@ Delete stopped containers
 
 **Example request, with digest information**:
 
-    GET /v1.25/v1.25/images/json?digests=1 HTTP/1.1
+    GET /v1.25/images/json?digests=1 HTTP/1.1
 
 **Example response, with digest information**:
 
@@ -1743,7 +1743,7 @@ Build an image from a Dockerfile
 
 **Example request**:
 
-    POST /v1.25/v1.25/build HTTP/1.1
+    POST /v1.25/build HTTP/1.1
 
     {% raw %}
     {{ TAR STREAM }}
