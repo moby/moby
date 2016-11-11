@@ -1031,3 +1031,26 @@ func (s *DockerSwarmSuite) TestSwarmRotateUnlockKey(c *check.C) {
 		unlockKey = newUnlockKey
 	}
 }
+
+func (s *DockerSwarmSuite) TestExtraHosts(c *check.C) {
+	d := s.AddDaemon(c, true, true)
+
+	// Create a service
+	name := "top"
+	_, err := d.Cmd("service", "create", "--name", name, "--host=example.com:1.2.3.4", "busybox", "top")
+	c.Assert(err, checker.IsNil)
+
+	// Make sure task has been deployed.
+	waitAndAssert(c, defaultReconciliationTimeout, d.checkActiveContainerCount, checker.Equals, 1)
+
+	// We need to get the container id.
+	out, err := d.Cmd("ps", "-a", "-q", "--no-trunc")
+	c.Assert(err, checker.IsNil)
+	id := strings.TrimSpace(out)
+
+	// Compare against expected output.
+	expectedOutput := "1.2.3.4\texample.com"
+	out, err = d.Cmd("exec", id, "cat", "/etc/hosts")
+	c.Assert(err, checker.IsNil)
+	c.Assert(out, checker.Contains, expectedOutput, check.Commentf("Expected '%s', but got %q", expectedOutput, out))
+}

@@ -43,6 +43,8 @@ Options:
       --health-retries int               Consecutive failures needed to report unhealthy
       --health-timeout duration          Maximum time to allow one check to run (default none)
       --help                             Print usage
+      --host-add list                    Add or update a custom host-to-IP mapping (host:ip) (default [])
+      --host-rm list                     Remove a custom host-to-IP mapping (host:ip) (default [])
       --image string                     Service image tag
       --label-add list                   Add or update a service label (default [])
       --label-rm list                    Remove a label by its key (default [])

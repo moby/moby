@@ -35,6 +35,7 @@ Options:
       --health-retries int               Consecutive failures needed to report unhealthy
       --health-timeout duration          Maximum time to allow one check to run (default none)
       --help                             Print usage
+      --host list                        Set one or more custom host-to-IP mappings (host:ip) (default [])
       --hostname string                  Container hostname
   -l, --label list                       Service labels (default [])
       --limit-cpu decimal                Limit CPUs (default 0.000)

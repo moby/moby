@@ -45,6 +45,7 @@ func newCreateCommand(dockerCli *command.DockerCli) *cobra.Command {
 	flags.Var(&opts.dns, flagDNS, "Set custom DNS servers")
 	flags.Var(&opts.dnsOption, flagDNSOption, "Set DNS options")
 	flags.Var(&opts.dnsSearch, flagDNSSearch, "Set custom DNS search domains")
+	flags.Var(&opts.hosts, flagHost, "Set one or more custom host-to-IP mappings (host:ip)")
 
 	flags.SetInterspersed(false)
 	return cmd

@@ -339,3 +339,23 @@ func TestUpdateHealthcheckTable(t *testing.T) {
 		}
 	}
 }
+
+func TestUpdateHosts(t *testing.T) {
+	flags := newUpdateCommand(nil).Flags()
+	flags.Set("host-add", "example.net:2.2.2.2")
+	flags.Set("host-add", "ipv6.net:2001:db8:abc8::1")
+	// remove with ipv6 should work
+	flags.Set("host-rm", "example.net:2001:db8:abc8::1")
+	// just hostname should work as well
+	flags.Set("host-rm", "example.net")
+	// bad format error
+	assert.Error(t, flags.Set("host-add", "$example.com$"), "bad format for add-host:")
+
+	hosts := []string{"1.2.3.4 example.com", "4.3.2.1 example.org", "2001:db8:abc8::1 example.net"}
+
+	updateHosts(flags, &hosts)
+	assert.Equal(t, len(hosts), 3)
+	assert.Equal(t, hosts[0], "1.2.3.4 example.com")
+	assert.Equal(t, hosts[1], "2001:db8:abc8::1 ipv6.net")
+	assert.Equal(t, hosts[2], "4.3.2.1 example.org")
+}

@@ -52,6 +52,7 @@ func newUpdateCommand(dockerCli *command.DockerCli) *cobra.Command {
 	flags.Var(newListOptsVar(), flagDNSRemove, "Remove a custom DNS server")
 	flags.Var(newListOptsVar(), flagDNSOptionRemove, "Remove a DNS option")
 	flags.Var(newListOptsVar(), flagDNSSearchRemove, "Remove a DNS search domain")
+	flags.Var(newListOptsVar(), flagHostRemove, "Remove a custom host-to-IP mapping (host:ip)")
 	flags.Var(&opts.labels, flagLabelAdd, "Add or update a service label")
 	flags.Var(&opts.containerLabels, flagContainerLabelAdd, "Add or update a container label")
 	flags.Var(&opts.env, flagEnvAdd, "Add or update an environment variable")
@@ -64,6 +65,7 @@ func newUpdateCommand(dockerCli *command.DockerCli) *cobra.Command {
 	flags.Var(&opts.dns, flagDNSAdd, "Add or update a custom DNS server")
 	flags.Var(&opts.dnsOption, flagDNSOptionAdd, "Add or update a DNS option")
 	flags.Var(&opts.dnsSearch, flagDNSSearchAdd, "Add or update a custom DNS search domain")
+	flags.Var(&opts.hosts, flagHostAdd, "Add or update a custom host-to-IP mapping (host:ip)")
 
 	return cmd
 }
@@ -279,6 +281,12 @@ func updateService(flags *pflag.FlagSet, spec *swarm.ServiceSpec) error {
 			cspec.DNSConfig = &swarm.DNSConfig{}
 		}
 		if err := updateDNSConfig(flags, &cspec.DNSConfig); err != nil {
+			return err
+		}
+	}
+
+	if anyChanged(flags, flagHostAdd, flagHostRemove) {
+		if err := updateHosts(flags, &cspec.Hosts); err != nil {
 			return err
 		}
 	}
@@ -680,6 +688,47 @@ func updateReplicas(flags *pflag.FlagSet, serviceMode *swarm.ServiceMode) error 
 		return fmt.Errorf("replicas can only be used with replicated mode")
 	}
 	serviceMode.Replicated.Replicas = flags.Lookup(flagReplicas).Value.(*Uint64Opt).Value()
+	return nil
+}
+
+func updateHosts(flags *pflag.FlagSet, hosts *[]string) error {
+	// Combine existing Hosts (in swarmkit format) with the host to add (convert to swarmkit format)
+	if flags.Changed(flagHostAdd) {
+		values := convertExtraHostsToSwarmHosts(flags.Lookup(flagHostAdd).Value.(*opts.ListOpts).GetAll())
+		*hosts = append(*hosts, values...)
+	}
+	// Remove duplicate
+	*hosts = removeDuplicates(*hosts)
+
+	keysToRemove := make(map[string]struct{})
+	if flags.Changed(flagHostRemove) {
+		var empty struct{}
+		extraHostsToRemove := flags.Lookup(flagHostRemove).Value.(*opts.ListOpts).GetAll()
+		for _, entry := range extraHostsToRemove {
+			key := strings.SplitN(entry, ":", 2)[0]
+			keysToRemove[key] = empty
+		}
+	}
+
+	newHosts := []string{}
+	for _, entry := range *hosts {
+		// Since this is in swarmkit format, we need to find the key, which is canonical_hostname of:
+		// IP_address canonical_hostname [aliases...]
+		parts := strings.Fields(entry)
+		if len(parts) > 1 {
+			key := parts[1]
+			if _, exists := keysToRemove[key]; !exists {
+				newHosts = append(newHosts, entry)
+			}
+		} else {
+			newHosts = append(newHosts, entry)
+		}
+	}
+
+	// Sort so that result is predictable.
+	sort.Strings(newHosts)
+
+	*hosts = newHosts
 	return nil
 }
 
