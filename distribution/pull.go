@@ -168,7 +168,7 @@ func Pull(ctx context.Context, ref reference.Named, imagePullConfig *ImagePullCo
 				continue
 			}
 			logrus.Errorf("Not continuing with pull after error: %v", err)
-			return err
+			return translatePullError(err, ref)
 		}
 
 		imagePullConfig.ImageEventLogger(ref.String(), repoInfo.Name(), "pull")
@@ -179,7 +179,7 @@ func Pull(ctx context.Context, ref reference.Named, imagePullConfig *ImagePullCo
 		lastErr = fmt.Errorf("no endpoints found for %s", ref.String())
 	}
 
-	return lastErr
+	return translatePullError(lastErr, ref)
 }
 
 // writeStatus writes a status message to out. If layersDownloaded is true, the
@@ -206,7 +206,7 @@ func ValidateRepoName(name string) error {
 }
 
 func addDigestReference(store reference.Store, ref reference.Named, dgst digest.Digest, id digest.Digest) error {
-	dgstRef, err := reference.WithDigest(ref, dgst)
+	dgstRef, err := reference.WithDigest(reference.TrimNamed(ref), dgst)
 	if err != nil {
 		return err
 	}

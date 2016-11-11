@@ -10,6 +10,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/registry/client/auth"
+	"github.com/docker/distribution/registry/client/auth/challenge"
 	"github.com/docker/distribution/registry/client/transport"
 	"github.com/docker/docker/api/types"
 	registrytypes "github.com/docker/docker/api/types/registry"
@@ -255,7 +256,7 @@ func (err PingResponseError) Error() string {
 // challenge manager for the supported authentication types and
 // whether v2 was confirmed by the response. If a response is received but
 // cannot be interpreted a PingResponseError will be returned.
-func PingV2Registry(endpoint *url.URL, transport http.RoundTripper) (auth.ChallengeManager, bool, error) {
+func PingV2Registry(endpoint *url.URL, transport http.RoundTripper) (challenge.Manager, bool, error) {
 	var (
 		foundV2   = false
 		v2Version = auth.APIVersion{
@@ -291,7 +292,7 @@ func PingV2Registry(endpoint *url.URL, transport http.RoundTripper) (auth.Challe
 		}
 	}
 
-	challengeManager := auth.NewSimpleChallengeManager()
+	challengeManager := challenge.NewSimpleManager()
 	if err := challengeManager.AddResponse(resp); err != nil {
 		return nil, foundV2, PingResponseError{
 			Err: err,

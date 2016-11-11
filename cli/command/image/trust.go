@@ -20,6 +20,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/digest"
 	"github.com/docker/distribution/registry/client/auth"
+	"github.com/docker/distribution/registry/client/auth/challenge"
 	"github.com/docker/distribution/registry/client/transport"
 	"github.com/docker/docker/api/types"
 	registrytypes "github.com/docker/docker/api/types/registry"
@@ -291,7 +292,7 @@ func trustedPull(ctx context.Context, cli *command.DockerCli, repoInfo *registry
 		}
 		fmt.Fprintf(cli.Out(), "Pull (%d of %d): %s%s@%s\n", i+1, len(refs), repoInfo.Name(), displayTag, r.digest)
 
-		ref, err := reference.WithDigest(repoInfo, r.digest)
+		ref, err := reference.WithDigest(reference.TrimNamed(repoInfo), r.digest)
 		if err != nil {
 			return err
 		}
@@ -305,7 +306,7 @@ func trustedPull(ctx context.Context, cli *command.DockerCli, repoInfo *registry
 			if err != nil {
 				return err
 			}
-			trustedRef, err := reference.WithDigest(repoInfo, r.digest)
+			trustedRef, err := reference.WithDigest(reference.TrimNamed(repoInfo), r.digest)
 			if err != nil {
 				return err
 			}
@@ -434,7 +435,7 @@ func GetNotaryRepository(streams command.Streams, repoInfo *registry.RepositoryI
 		return nil, err
 	}
 
-	challengeManager := auth.NewSimpleChallengeManager()
+	challengeManager := challenge.NewSimpleManager()
 
 	resp, err := pingClient.Do(req)
 	if err != nil {
@@ -523,7 +524,7 @@ func TrustedReference(ctx context.Context, cli *command.DockerCli, ref reference
 
 	}
 
-	return reference.WithDigest(ref, r.digest)
+	return reference.WithDigest(reference.TrimNamed(ref), r.digest)
 }
 
 func convertTarget(t client.Target) (target, error) {

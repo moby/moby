@@ -33,7 +33,7 @@ func (daemon *Daemon) PullImage(ctx context.Context, image, tag string, metaHead
 		var dgst digest.Digest
 		dgst, err = digest.ParseDigest(tag)
 		if err == nil {
-			ref, err = reference.WithDigest(ref, dgst)
+			ref, err = reference.WithDigest(reference.TrimNamed(ref), dgst)
 		} else {
 			ref, err = reference.WithTag(ref, tag)
 		}

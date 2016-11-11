@@ -331,7 +331,7 @@ func (pd *v2PushDescriptor) Upload(ctx context.Context, progressOutput progress.
 				continue
 			}
 
-			canonicalRef, err := distreference.WithDigest(remoteRef, mountCandidate.Digest)
+			canonicalRef, err := distreference.WithDigest(distreference.TrimNamed(remoteRef), mountCandidate.Digest)
 			if err != nil {
 				logrus.Errorf("failed to make canonical reference: %v", err)
 				continue

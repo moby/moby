@@ -671,7 +671,7 @@ func (p *v2Puller) pullManifestList(ctx context.Context, ref reference.Named, mf
 		return "", "", err
 	}
 
-	manifestRef, err := reference.WithDigest(ref, manifestDigest)
+	manifestRef, err := reference.WithDigest(reference.TrimNamed(ref), manifestDigest)
 	if err != nil {
 		return "", "", err
 	}
