@@ -5,7 +5,7 @@ import (
 	"github.com/docker/docker/daemon"
 )
 
-// buildRouter is a router to talk with the build controller
+// swarmRouter is a router to talk with the build controller
 type swarmRouter struct {
 	backend Backend
 	routes  []router.Route
