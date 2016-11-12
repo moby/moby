@@ -108,7 +108,7 @@ func runStats(dockerCli *command.DockerCli, opts *statsOptions) error {
 			s := formatter.NewContainerStats(container.ID[:12], daemonOSType)
 			if cStats.add(s) {
 				waitFirst.Add(1)
-				go collect(s, ctx, dockerCli.Client(), !opts.noStream, waitFirst)
+				go collect(ctx, s, dockerCli.Client(), !opts.noStream, waitFirst)
 			}
 		}
 	}
@@ -125,7 +125,7 @@ func runStats(dockerCli *command.DockerCli, opts *statsOptions) error {
 				s := formatter.NewContainerStats(e.ID[:12], daemonOSType)
 				if cStats.add(s) {
 					waitFirst.Add(1)
-					go collect(s, ctx, dockerCli.Client(), !opts.noStream, waitFirst)
+					go collect(ctx, s, dockerCli.Client(), !opts.noStream, waitFirst)
 				}
 			}
 		})
@@ -134,7 +134,7 @@ func runStats(dockerCli *command.DockerCli, opts *statsOptions) error {
 			s := formatter.NewContainerStats(e.ID[:12], daemonOSType)
 			if cStats.add(s) {
 				waitFirst.Add(1)
-				go collect(s, ctx, dockerCli.Client(), !opts.noStream, waitFirst)
+				go collect(ctx, s, dockerCli.Client(), !opts.noStream, waitFirst)
 			}
 		})
 
@@ -160,7 +160,7 @@ func runStats(dockerCli *command.DockerCli, opts *statsOptions) error {
 			s := formatter.NewContainerStats(name, daemonOSType)
 			if cStats.add(s) {
 				waitFirst.Add(1)
-				go collect(s, ctx, dockerCli.Client(), !opts.noStream, waitFirst)
+				go collect(ctx, s, dockerCli.Client(), !opts.noStream, waitFirst)
 			}
 		}
 
