@@ -31,9 +31,9 @@ Options:
       --env-file list                    Read in a file of environment variables (default [])
       --group list                       Set one or more supplementary user groups for the container (default [])
       --health-cmd string                Command to run to check health
-      --health-interval duration         Time between running the check (default none)
+      --health-interval duration         Time between running the check (ns|us|ms|s|m|h) (default none)
       --health-retries int               Consecutive failures needed to report unhealthy
-      --health-timeout duration          Maximum time to allow one check to run (default none)
+      --health-timeout duration          Maximum time to allow one check to run (ns|us|ms|s|m|h) (default none)
       --help                             Print usage
       --host list                        Set one or more custom host-to-IP mappings (host:ip) (default [])
       --hostname string                  Container hostname
@@ -52,11 +52,11 @@ Options:
       --reserve-cpu decimal              Reserve CPUs (default 0.000)
       --reserve-memory bytes             Reserve Memory (default 0 B)
       --restart-condition string         Restart when condition is met (none, on-failure, or any)
-      --restart-delay duration           Delay between restart attempts (default none)
+      --restart-delay duration           Delay between restart attempts (ns|us|ms|s|m|h) (default none)
       --restart-max-attempts uint        Maximum number of restarts before giving up (default none)
-      --restart-window duration          Window used to evaluate the restart policy (default none)
+      --restart-window duration          Window used to evaluate the restart policy (ns|us|ms|s|m|h) (default none)
       --secret value                     Specify secrets to expose to the service (default [])
-      --stop-grace-period duration       Time to wait before force killing a container (default none)
+      --stop-grace-period duration       Time to wait before force killing a container (ns|us|ms|s|m|h) (default none)
   -t, --tty                              Allocate a pseudo-TTY
       --update-delay duration            Delay between updates (ns|us|ms|s|m|h) (default 0s)
       --update-failure-action string     Action on update failure (pause|continue) (default "pause")
