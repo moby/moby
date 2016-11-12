@@ -1467,7 +1467,7 @@ Remove the container `id` from the filesystem
 
 **Example request**:
 
-    DELETE /containers/16253994b7c4?v=1 HTTP/1.1
+    DELETE /v1.25/containers/16253994b7c4?v=1 HTTP/1.1
 
 **Example response**:
 
@@ -1580,7 +1580,7 @@ Upload a tar archive to be extracted to a path in the filesystem of container
 
 **Example request**:
 
-    PUT /containers/8cce319429b2/archive?path=/vol1 HTTP/1.1
+    PUT /v1.25/containers/8cce319429b2/archive?path=/vol1 HTTP/1.1
     Content-Type: application/x-tar
 
     {% raw %}
@@ -2272,7 +2272,7 @@ Remove the image `name` from the filesystem
 
 **Example request**:
 
-    DELETE /images/test HTTP/1.1
+    DELETE /v1.25/images/test HTTP/1.1
 
 **Example response**:
 
@@ -2898,7 +2898,7 @@ Docker daemon report the following event:
 
 **Example request**:
 
-    GET /events?since=1374067924
+    GET /v1.25/events?since=1374067924
 
 **Example response**:
 
@@ -3091,7 +3091,7 @@ See the [image tarball format](#image-tarball-format) for more details.
 
 **Example request**
 
-    GET /images/ubuntu/get
+    GET /v1.25/images/ubuntu/get
 
 **Example response**:
 
@@ -3120,7 +3120,7 @@ See the [image tarball format](#image-tarball-format) for more details.
 
 **Example request**
 
-    GET /images/get?names=myname%2Fmyapp%3Alatest&names=busybox
+    GET /v1.25/images/get?names=myname%2Fmyapp%3Alatest&names=busybox
 
 **Example response**:
 
@@ -3143,7 +3143,7 @@ See the [image tarball format](#image-tarball-format) for more details.
 
 **Example request**
 
-    POST /images/load
+    POST /v1.25/images/load
     Content-Type: application/x-tar
 
     Tarball in body
@@ -3490,7 +3490,7 @@ Return low-level information on the volume `name`
 
 **Example request**:
 
-    GET /volumes/tardis
+    GET /v1.25/volumes/tardis
 
 **Example response**:
 
@@ -3547,7 +3547,7 @@ Instruct the driver to remove the volume (`name`).
 
 **Example request**:
 
-    DELETE /volumes/tardis HTTP/1.1
+    DELETE /v1.25/volumes/tardis HTTP/1.1
 
 **Example response**:
 
@@ -3920,7 +3920,7 @@ Instruct the driver to remove the network (`id`).
 
 **Example request**:
 
-    DELETE /networks/22be93d5babb089c5aab8dbc369042fad48ff791584ca2da2100db837a1c7c30 HTTP/1.1
+    DELETE /v1.25/networks/22be93d5babb089c5aab8dbc369042fad48ff791584ca2da2100db837a1c7c30 HTTP/1.1
 
 **Example response**:
 
@@ -4296,7 +4296,7 @@ Content-Type: application/json
 **Example request**:
 
 
-    POST /plugins/tiborvass/no-remove/set
+    POST /v1.25/plugins/tiborvass/no-remove/set
     Content-Type: application/json
 
     ["DEBUG=1"]
@@ -4375,7 +4375,7 @@ Removes a plugin
 **Example request**:
 
 ```
-DELETE /plugins/tiborvass/no-remove:latest HTTP/1.1
+DELETE /v1.25/plugins/tiborvass/no-remove:latest HTTP/1.1
 ```
 
 The `:latest` tag is optional, and is used as default if omitted.
@@ -4653,7 +4653,7 @@ Remove a node [`id`] from the swarm.
 
 **Example request**:
 
-    DELETE /nodes/24ifsmvkjbyhk HTTP/1.1
+    DELETE /v1.25/nodes/24ifsmvkjbyhk HTTP/1.1
 
 **Example response**:
 
@@ -5367,7 +5367,7 @@ Stop and remove the service `id`
 
 **Example request**:
 
-    DELETE /services/16253994b7c4 HTTP/1.1
+    DELETE /v1.25/services/16253994b7c4 HTTP/1.1
 
 **Example response**:
 
@@ -5639,7 +5639,7 @@ Get `stdout` and `stderr` logs from the service ``id``
 
 **Example request**:
 
-     GET /services/4fa6e0f0c678/logs?stderr=1&stdout=1&timestamps=1&follow=1&tail=10&since=1428990821 HTTP/1.1
+     GET /v1.25/services/4fa6e0f0c678/logs?stderr=1&stdout=1&timestamps=1&follow=1&tail=10&since=1428990821 HTTP/1.1
 
 **Example response**:
 
@@ -5988,7 +5988,7 @@ List secrets
 
 **Example request**:
 
-    GET /secrets HTTP/1.1
+    GET /v1.25/secrets HTTP/1.1
 
 **Example response**:
 
@@ -6026,7 +6026,7 @@ Create a secret
 
 **Example request**:
 
-    POST /secrets/create HTTP/1.1
+    POST /v1.25/secrets/create HTTP/1.1
     Content-Type: application/json
 
     {
@@ -6066,7 +6066,7 @@ Get details on a secret
 
 **Example request**:
 
-    GET /secrets/ktnbjxoalbkvbvedmg1urrz8h HTTP/1.1
+    GET /v1.25/secrets/ktnbjxoalbkvbvedmg1urrz8h HTTP/1.1
 
 **Example response**:
 
@@ -6098,7 +6098,7 @@ Remove the secret `id` from the secret store
 
 **Example request**:
 
-    DELETE /secrets/ktnbjxoalbkvbvedmg1urrz8h HTTP/1.1
+    DELETE /v1.25/secrets/ktnbjxoalbkvbvedmg1urrz8h HTTP/1.1
 
 **Example response**:
 

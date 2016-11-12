@@ -1411,7 +1411,7 @@ Remove the container `id` from the filesystem
 
 **Example request**:
 
-    DELETE /containers/16253994b7c4?v=1 HTTP/1.1
+    DELETE /v1.24/containers/16253994b7c4?v=1 HTTP/1.1
 
 **Example response**:
 
@@ -1524,7 +1524,7 @@ Upload a tar archive to be extracted to a path in the filesystem of container
 
 **Example request**:
 
-    PUT /containers/8cce319429b2/archive?path=/vol1 HTTP/1.1
+    PUT /v1.24/containers/8cce319429b2/archive?path=/vol1 HTTP/1.1
     Content-Type: application/x-tar
 
     {% raw %}
@@ -2088,7 +2088,7 @@ Remove the image `name` from the filesystem
 
 **Example request**:
 
-    DELETE /images/test HTTP/1.1
+    DELETE /v1.24/images/test HTTP/1.1
 
 **Example response**:
 
@@ -2453,7 +2453,7 @@ Docker daemon report the following event:
 
 **Example request**:
 
-    GET /events?since=1374067924
+    GET /v1.24/events?since=1374067924
 
 **Example response**:
 
@@ -2646,7 +2646,7 @@ See the [image tarball format](#image-tarball-format) for more details.
 
 **Example request**
 
-    GET /images/ubuntu/get
+    GET /v1.24/images/ubuntu/get
 
 **Example response**:
 
@@ -2675,7 +2675,7 @@ See the [image tarball format](#image-tarball-format) for more details.
 
 **Example request**
 
-    GET /images/get?names=myname%2Fmyapp%3Alatest&names=busybox
+    GET /v1.24/images/get?names=myname%2Fmyapp%3Alatest&names=busybox
 
 **Example response**:
 
@@ -2698,7 +2698,7 @@ See the [image tarball format](#image-tarball-format) for more details.
 
 **Example request**
 
-    POST /images/load
+    POST /v1.24/images/load
     Content-Type: application/x-tar
 
     Tarball in body
@@ -3030,7 +3030,7 @@ Return low-level information on the volume `name`
 
 **Example request**:
 
-    GET /volumes/tardis
+    GET /v1.24/volumes/tardis
 
 **Example response**:
 
@@ -3082,7 +3082,7 @@ Instruct the driver to remove the volume (`name`).
 
 **Example request**:
 
-    DELETE /volumes/tardis HTTP/1.1
+    DELETE /v1.24/volumes/tardis HTTP/1.1
 
 **Example response**:
 
@@ -3414,7 +3414,7 @@ Instruct the driver to remove the network (`id`).
 
 **Example request**:
 
-    DELETE /networks/22be93d5babb089c5aab8dbc369042fad48ff791584ca2da2100db837a1c7c30 HTTP/1.1
+    DELETE /v1.24/networks/22be93d5babb089c5aab8dbc369042fad48ff791584ca2da2100db837a1c7c30 HTTP/1.1
 
 **Example response**:
 
@@ -3818,7 +3818,7 @@ Removes a plugin
 **Example request**:
 
 ```
-DELETE /plugins/tiborvass/no-remove:latest HTTP/1.1
+DELETE /v1.24/plugins/tiborvass/no-remove:latest HTTP/1.1
 ```
 
 The `:latest` tag is optional, and is used as default if omitted.
@@ -4053,7 +4053,7 @@ Remove a node [`id`] from the swarm.
 
 **Example request**:
 
-    DELETE /nodes/24ifsmvkjbyhk HTTP/1.1
+    DELETE /v1.24/nodes/24ifsmvkjbyhk HTTP/1.1
 
 **Example response**:
 
@@ -4693,7 +4693,7 @@ Stop and remove the service `id`
 
 **Example request**:
 
-    DELETE /services/16253994b7c4 HTTP/1.1
+    DELETE /v1.24/services/16253994b7c4 HTTP/1.1
 
 **Example response**:
 
