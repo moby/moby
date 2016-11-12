@@ -1083,7 +1083,7 @@ Remove the container `id` from the filesystem
 
 **Example request**:
 
-    DELETE /containers/16253994b7c4?v=1 HTTP/1.1
+    DELETE /v1.19/containers/16253994b7c4?v=1 HTTP/1.1
 
 **Example response**:
 
@@ -1528,7 +1528,7 @@ Remove the image `name` from the filesystem
 
 **Example request**:
 
-    DELETE /images/test HTTP/1.1
+    DELETE /v1.19/images/test HTTP/1.1
 
 **Example response**:
 
@@ -1845,7 +1845,7 @@ Docker images report the following events:
 
 **Example request**:
 
-    GET /events?since=1374067924
+    GET /v1.19/events?since=1374067924
 
 **Example response**:
 
@@ -1887,7 +1887,7 @@ See the [image tarball format](#image-tarball-format) for more details.
 
 **Example request**
 
-    GET /images/ubuntu/get
+    GET /v1.19/images/ubuntu/get
 
 **Example response**:
 
@@ -1916,7 +1916,7 @@ See the [image tarball format](#image-tarball-format) for more details.
 
 **Example request**
 
-    GET /images/get?names=myname%2Fmyapp%3Alatest&names=busybox
+    GET /v1.19/images/get?names=myname%2Fmyapp%3Alatest&names=busybox
 
 **Example response**:
 
@@ -1939,7 +1939,7 @@ See the [image tarball format](#image-tarball-format) for more details.
 
 **Example request**
 
-    POST /images/load
+    POST /v1.19/images/load
     Content-Type: application/x-tar
 
     Tarball in body
