@@ -1,6 +1,7 @@
 package errors
 
 import "net/http"
+import "errors"
 
 // apiError is an error wrapper that also
 // holds information about response status codes.
@@ -19,6 +20,9 @@ func (e apiError) HTTPErrorStatusCode() int {
 // The Server will take that code and set
 // it as the response status.
 func NewErrorWithStatusCode(err error, code int) error {
+	if err == nil {
+		return apiError{errors.New(""), code}
+	}
 	return apiError{err, code}
 }
 
