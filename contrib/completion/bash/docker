@@ -2648,6 +2648,7 @@ _docker_service_update() {
 			--hostname
 			--mode
 			--name
+			--port
 		"
 
 		case "$prev" in
@@ -2673,6 +2674,8 @@ _docker_service_update() {
 			--group-add
 			--group-rm
 			--image
+			--port-add
+			--port-rm
 		"
 
 		case "$prev" in
