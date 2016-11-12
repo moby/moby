@@ -118,7 +118,7 @@ func runAttach(dockerCli *command.DockerCli, opts *attachOptions) error {
 		return errAttach
 	}
 
-	_, status, err := getExitCode(dockerCli, ctx, opts.container)
+	_, status, err := getExitCode(ctx, dockerCli, opts.container)
 	if err != nil {
 		return err
 	}
