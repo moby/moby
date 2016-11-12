@@ -793,7 +793,7 @@ func (daemon *Daemon) Shutdown() error {
 		})
 	}
 
-	// Shutdown plugins after containers. Dont change the order.
+	// Shutdown plugins after containers. Don't change the order.
 	daemon.pluginShutdown()
 
 	// trigger libnetwork Stop only if it's initialized
