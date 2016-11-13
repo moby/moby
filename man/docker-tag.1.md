@@ -2,12 +2,12 @@
 % Docker Community
 % JUNE 2014
 # NAME
-docker-tag - Tag an image into a repository
+docker-tag - Create a tag `TARGET_IMAGE` that refers to `SOURCE_IMAGE`
 
 # SYNOPSIS
 **docker tag**
 [**--help**]
-NAME[:TAG] NAME[:TAG]
+SOURCE_NAME[:TAG] TARGET_NAME[:TAG]
 
 # DESCRIPTION
 Assigns a new alias to an image in a registry. An alias refers to the
