@@ -16,9 +16,9 @@ keywords: "tag, name, image"
 # tag
 
 ```markdown
-Usage:  docker tag IMAGE[:TAG] IMAGE[:TAG]
+Usage:  docker tag SOURCE_IMAGE[:TAG] TARGET_IMAGE[:TAG]
 
-Tag an image into a repository
+Create a tag TARGET_IMAGE that refers to SOURCE_IMAGE
 
 Options:
       --help   Print usage
