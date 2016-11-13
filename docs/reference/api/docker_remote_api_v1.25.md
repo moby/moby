@@ -6060,9 +6060,9 @@ Create a secret
 
 ### Inspect a secret
 
-`GET /secrets/(secret id)`
+`GET /secrets/(id)`
 
-Get details on a secret
+Get details on the secret `id`
 
 **Example request**:
 
@@ -6088,6 +6088,7 @@ Get details on a secret
 
 - **200** – no error
 - **404** – unknown secret
+- **406** – node is not part of a swarm
 - **500** – server error
 
 ### Remove a secret

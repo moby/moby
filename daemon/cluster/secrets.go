@@ -9,6 +9,13 @@ import (
 
 // GetSecret returns a secret from a managed swarm cluster
 func (c *Cluster) GetSecret(id string) (types.Secret, error) {
+	c.RLock()
+	defer c.RUnlock()
+
+	if !c.isActiveManager() {
+		return types.Secret{}, c.errNoManager()
+	}
+
 	ctx, cancel := c.getRequestContext()
 	defer cancel()
 
