@@ -1121,7 +1121,7 @@ _docker_container_ls() {
 
 	case "$prev" in
 		--filter|-f)
-			COMPREPLY=( $( compgen -S = -W "ancestor before exited health id label name network since status volume" -- "$cur" ) )
+			COMPREPLY=( $( compgen -S = -W "ancestor before exited health id is-task label name network since status volume" -- "$cur" ) )
 			__docker_nospace
 			return
 			;;
