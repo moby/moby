@@ -4713,9 +4713,9 @@ an empty value or the default cluster-wide value.
 
 JSON Parameters:
 
-- **Annotations** – Optional medata to associate with the service.
-    - **Name** – User-defined name for the service.
-    - **Labels** – A map of labels to associate with the service (e.g.,
+- **Annotations** – Optional medata to associate with the node.
+    - **Name** – User-defined name for the node.
+    - **Labels** – A map of labels to associate with the node (e.g.,
       `{"key":"value", "key2":"value2"}`).
 - **Role** - Role of the node (worker/manager).
 - **Availability** - Availability of the node (active/pause/drain).
