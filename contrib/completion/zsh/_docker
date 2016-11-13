@@ -900,7 +900,8 @@ __docker_image_subcommand() {
         (build)
             _arguments $(__docker_arguments) \
                 $opts_help \
-                "($help)*--build-arg[Build-time variables]:<varname>=<value>: " \
+                "($help)*--build-arg=[Build-time variables]:<varname>=<value>: " \
+                "($help)*--cache-from=[Images to consider as cache sources]: :__docker_complete_repositories_with_tags" \
                 "($help -c --cpu-shares)"{-c=,--cpu-shares=}"[CPU shares (relative weight)]:CPU shares:(0 10 100 200 500 800 1000)" \
                 "($help)--cgroup-parent=[Parent cgroup for the container]:cgroup: " \
                 "($help)--compress[Compress the build context using gzip]" \
