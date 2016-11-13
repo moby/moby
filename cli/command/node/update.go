@@ -33,7 +33,7 @@ func newUpdateCommand(dockerCli *command.DockerCli) *cobra.Command {
 	flags := cmd.Flags()
 	flags.StringVar(&nodeOpts.role, flagRole, "", "Role of the node (worker/manager)")
 	flags.StringVar(&nodeOpts.availability, flagAvailability, "", "Availability of the node (active/pause/drain)")
-	flags.Var(&nodeOpts.annotations.labels, flagLabelAdd, "Add or update a node label (key=value)")
+	flags.Var(&nodeOpts.labels, flagLabelAdd, "Add or update a node label (key=value)")
 	labelKeys := opts.NewListOpts(nil)
 	flags.Var(&labelKeys, flagLabelRemove, "Remove a node label if exists")
 	return cmd
@@ -90,23 +90,23 @@ func mergeNodeUpdate(flags *pflag.FlagSet) func(*swarm.Node) error {
 			}
 			spec.Availability = swarm.NodeAvailability(str)
 		}
-		if spec.Annotations.Labels == nil {
-			spec.Annotations.Labels = make(map[string]string)
+		if spec.Labels == nil {
+			spec.Labels = make(map[string]string)
 		}
 		if flags.Changed(flagLabelAdd) {
 			labels := flags.Lookup(flagLabelAdd).Value.(*opts.ListOpts).GetAll()
 			for k, v := range runconfigopts.ConvertKVStringsToMap(labels) {
-				spec.Annotations.Labels[k] = v
+				spec.Labels[k] = v
 			}
 		}
 		if flags.Changed(flagLabelRemove) {
 			keys := flags.Lookup(flagLabelRemove).Value.(*opts.ListOpts).GetAll()
 			for _, k := range keys {
 				// if a key doesn't exist, fail the command explicitly
-				if _, exists := spec.Annotations.Labels[k]; !exists {
+				if _, exists := spec.Labels[k]; !exists {
 					return fmt.Errorf("key %s doesn't exist in node's labels", k)
 				}
-				delete(spec.Annotations.Labels, k)
+				delete(spec.Labels, k)
 			}
 		}
 		return nil

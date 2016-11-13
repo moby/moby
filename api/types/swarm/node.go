@@ -19,9 +19,9 @@ type Node struct {
 
 // NodeSpec represents the spec of a node.
 type NodeSpec struct {
-	Annotations
-	Role         NodeRole         `json:",omitempty"`
-	Availability NodeAvailability `json:",omitempty"`
+	Role         NodeRole          `json:",omitempty"`
+	Availability NodeAvailability  `json:",omitempty"`
+	Labels       map[string]string `json:",omitempty"`
 }
 
 // NodeRole represents the role of a node.

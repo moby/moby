@@ -10,29 +10,21 @@ import (
 )
 
 type nodeOptions struct {
-	annotations
+	labels       opts.ListOpts
 	role         string
 	availability string
 }
 
-type annotations struct {
-	name   string
-	labels opts.ListOpts
-}
-
 func newNodeOptions() *nodeOptions {
 	return &nodeOptions{
-		annotations: annotations{
-			labels: opts.NewListOpts(nil),
-		},
+		labels: opts.NewListOpts(nil),
 	}
 }
 
 func (opts *nodeOptions) ToNodeSpec() (swarm.NodeSpec, error) {
 	var spec swarm.NodeSpec
 
-	spec.Annotations.Name = opts.annotations.name
-	spec.Annotations.Labels = runconfigopts.ConvertKVStringsToMap(opts.annotations.labels.GetAll())
+	spec.Labels = runconfigopts.ConvertKVStringsToMap(opts.labels.GetAll())
 
 	switch swarm.NodeRole(strings.ToLower(opts.role)) {
 	case swarm.NodeRoleWorker:

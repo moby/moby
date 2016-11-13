@@ -29,8 +29,6 @@ func NodeFromGRPC(n swarmapi.Node) types.Node {
 	node.CreatedAt, _ = ptypes.Timestamp(n.Meta.CreatedAt)
 	node.UpdatedAt, _ = ptypes.Timestamp(n.Meta.UpdatedAt)
 
-	//Annotations
-	node.Spec.Name = n.Spec.Annotations.Name
 	node.Spec.Labels = n.Spec.Annotations.Labels
 
 	//Description
@@ -69,7 +67,6 @@ func NodeFromGRPC(n swarmapi.Node) types.Node {
 func NodeSpecToGRPC(s types.NodeSpec) (swarmapi.NodeSpec, error) {
 	spec := swarmapi.NodeSpec{
 		Annotations: swarmapi.Annotations{
-			Name:   s.Name,
 			Labels: s.Labels,
 		},
 	}
