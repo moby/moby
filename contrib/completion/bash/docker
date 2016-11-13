@@ -2648,6 +2648,9 @@ _docker_service_update() {
 	if [ "$subcommand" = "create" ] ; then
 		options_with_args="$options_with_args
 			--container-label
+			--dns
+			--dns-option
+			--dns-search
 			--env-file
 			--group
 			--hostname
@@ -2675,6 +2678,12 @@ _docker_service_update() {
 			--arg
 			--container-label-add
 			--container-label-rm
+			--dns-add
+			--dns-options-add
+			--dns-options-rm
+			--dns-rm
+			--dns-search-add
+			--dns-search-rm
 			--group-add
 			--group-rm
 			--image
