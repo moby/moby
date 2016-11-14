@@ -90,9 +90,10 @@ $ docker plugin inspect -f '{{.Settings.Args}}' myplugin
 ## Related information
 
 * [plugin create](plugin_create.md)
-* [plugin ls](plugin_ls.md)
-* [plugin enable](plugin_enable.md)
 * [plugin disable](plugin_disable.md)
+* [plugin enable](plugin_enable.md)
 * [plugin inspect](plugin_inspect.md)
 * [plugin install](plugin_install.md)
+* [plugin ls](plugin_ls.md)
+* [plugin push](plugin_push.md)
 * [plugin rm](plugin_rm.md)

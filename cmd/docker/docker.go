@@ -126,8 +126,10 @@ func dockerPreRun(opts *cliflags.ClientOptions) {
 func hideUnsupportedFeatures(cmd *cobra.Command, clientVersion string, hasExperimental bool) {
 	cmd.Flags().VisitAll(func(f *pflag.Flag) {
 		// hide experimental flags
-		if _, ok := f.Annotations["experimental"]; ok {
-			f.Hidden = true
+		if !hasExperimental {
+			if _, ok := f.Annotations["experimental"]; ok {
+				f.Hidden = true
+			}
 		}
 
 		// hide flags not supported by the server
@@ -139,8 +141,10 @@ func hideUnsupportedFeatures(cmd *cobra.Command, clientVersion string, hasExperi
 
 	for _, subcmd := range cmd.Commands() {
 		// hide experimental subcommands
-		if _, ok := subcmd.Tags["experimental"]; ok {
-			subcmd.Hidden = true
+		if !hasExperimental {
+			if _, ok := subcmd.Tags["experimental"]; ok {
+				subcmd.Hidden = true
+			}
 		}
 
 		// hide subcommands not supported by the server

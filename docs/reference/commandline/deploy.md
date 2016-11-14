@@ -14,7 +14,7 @@ advisory: "experimental"
      will be rejected.
 -->
 
-# stack deploy (experimental)
+# deploy (alias for stack deploy) (experimental)
 
 ```markdown
 Usage:  docker deploy [OPTIONS] STACK
