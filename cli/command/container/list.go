@@ -62,18 +62,17 @@ func newListCommand(dockerCli *command.DockerCli) *cobra.Command {
 type preProcessor struct {
 	types.Container
 	opts *types.ContainerListOptions
+
+	// Fields that need to exist so the template doesn't error out
+	// These are needed since they are available on the final object but are not
+	// fields in types.Container
+	// TODO(cpuguy83): this seems rather broken
+	Networks, CreatedAt, RunningFor bool
 }
 
 // Size sets the size option when called by a template execution.
 func (p *preProcessor) Size() bool {
 	p.opts.Size = true
-	return true
-}
-
-// Networks does nothing but return true.
-// It is needed to avoid the template check to fail as this field
-// doesn't exist in `types.Container`
-func (p *preProcessor) Networks() bool {
 	return true
 }
 
