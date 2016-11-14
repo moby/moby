@@ -7287,3 +7287,20 @@ func (s *DockerSuite) TestBuildOpaqueDirectory(c *check.C) {
 	_, err := buildImage("testopaquedirectory", dockerFile, false)
 	c.Assert(err, checker.IsNil)
 }
+
+// Windows test for USER in dockerfile
+func (s *DockerSuite) TestBuildWindowsUser(c *check.C) {
+	testRequires(c, DaemonIsWindows)
+	name := "testbuildwindowsuser"
+	_, out, err := buildImageWithOut(name,
+		`FROM `+WindowsBaseImage+`
+		RUN net user user /add
+		USER user
+		RUN set username
+		`,
+		true)
+	if err != nil {
+		c.Fatal(err)
+	}
+	c.Assert(strings.ToLower(out), checker.Contains, "username=user")
+}
