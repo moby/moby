@@ -91,9 +91,9 @@ func (daemon *Daemon) load(id string) (*container.Container, error) {
 func (daemon *Daemon) Register(c *container.Container) error {
 	// Attach to stdout and stderr
 	if c.Config.OpenStdin {
-		c.NewInputPipes()
+		c.StreamConfig.NewInputPipes()
 	} else {
-		c.NewNopInputPipe()
+		c.StreamConfig.NewNopInputPipe()
 	}
 
 	daemon.containers.Add(c.ID, c)
