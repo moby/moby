@@ -2656,6 +2656,7 @@ _docker_service_update() {
 			--hostname
 			--mode
 			--name
+			--port
 		"
 
 		case "$prev" in
@@ -2679,14 +2680,16 @@ _docker_service_update() {
 			--container-label-add
 			--container-label-rm
 			--dns-add
-			--dns-options-add
-			--dns-options-rm
+			--dns-option-add
+			--dns-option-rm
 			--dns-rm
 			--dns-search-add
 			--dns-search-rm
 			--group-add
 			--group-rm
 			--image
+			--port-add
+			--port-rm
 		"
 
 		case "$prev" in

@@ -23,10 +23,10 @@ func TestParseArgs(t *testing.T) {
 		}
 	}
 	if len(args.Get("created")) != 1 {
-		t.Errorf("failed to set this arg")
+		t.Error("failed to set this arg")
 	}
 	if len(args.Get("image.name")) != 2 {
-		t.Errorf("the args should have collapsed")
+		t.Error("the args should have collapsed")
 	}
 }
 
@@ -147,7 +147,7 @@ func TestEmpty(t *testing.T) {
 		t.Errorf("%s", err)
 	}
 	if a.Len() != v1.Len() {
-		t.Errorf("these should both be empty sets")
+		t.Error("these should both be empty sets")
 	}
 }
 
