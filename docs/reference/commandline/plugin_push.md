@@ -1,7 +1,7 @@
 ---
-title: "plugin ls"
-description: "The plugin ls command description and usage"
-keywords: "plugin, list"
+title: "plugin push"
+description: "the plugin push command description and usage"
+keywords: "plugin, push"
 ---
 
 <!-- This file is maintained within the docker/docker Github
@@ -13,31 +13,29 @@ keywords: "plugin, list"
      will be rejected.
 -->
 
-# plugin ls
-
 ```markdown
-Usage:  docker plugin ls [OPTIONS]
+Usage:  docker plugin push NAME[:TAG]
 
-List plugins
-
-Aliases:
-  ls, list
+Push a plugin to a registry
 
 Options:
-      --help	   Print usage
-      --no-trunc   Don't truncate output
+      --help       Print usage
 ```
 
-Lists all the plugins that are currently installed. You can install plugins
-using the [`docker plugin install`](plugin_install.md) command.
+Use `docker plugin create` to create the plugin. Once the plugin is ready for distribution,
+use `docker plugin push` to share your images to the Docker Hub registry or to a self-hosted one.
 
-Example output:
+Registry credentials are managed by [docker login](login.md).
+
+The following example shows how to push a sample `user/plugin`.
 
 ```bash
-$ docker plugin ls
 
-NAME                  TAG                 DESCRIPTION                ENABLED
-tiborvass/no-remove   latest              A test plugin for Docker   true
+$ docker plugin ls
+NAME                  	TAG                 DESCRIPTION                  ENABLED
+user/plugin             latest              A sample plugin for Docker   false
+
+$ docker plugin push user/plugin
 ```
 
 ## Related information
@@ -47,6 +45,6 @@ tiborvass/no-remove   latest              A test plugin for Docker   true
 * [plugin enable](plugin_enable.md)
 * [plugin inspect](plugin_inspect.md)
 * [plugin install](plugin_install.md)
-* [plugin push](plugin_push.md)
+* [plugin ls](plugin_ls.md)
 * [plugin rm](plugin_rm.md)
 * [plugin set](plugin_set.md)
