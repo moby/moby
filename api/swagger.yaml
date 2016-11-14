@@ -829,22 +829,40 @@ definitions:
         items:
           $ref: "#/definitions/Port"
 
-  GraphDriver:
-    description: "Information about this container's graph driver."
+  GraphDriverData:
+    description: "Information about a container's graph driver."
     type: "object"
+    required: [Name, Data]
     properties:
       Name:
         type: "string"
+        x-nullable: false
       Data:
         type: "object"
+        x-nullable: false
         additionalProperties:
           type: "string"
 
   Image:
     type: "object"
+    required:
+      - Id
+      - Parent
+      - Comment
+      - Created
+      - Container
+      - DockerVersion
+      - Author
+      - Architecture
+      - Os
+      - Size
+      - VirtualSize
+      - GraphDrvier
+      - RootFS
     properties:
       Id:
         type: "string"
+        x-nullable: false
       RepoTags:
         type: "array"
         items:
@@ -855,37 +873,51 @@ definitions:
           type: "string"
       Parent:
         type: "string"
+        x-nullable: false
       Comment:
         type: "string"
+        x-nullable: false
       Created:
         type: "string"
+        x-nullable: false
       Container:
         type: "string"
+        x-nullable: false
       ContainerConfig:
         $ref: "#/definitions/Config"
       DockerVersion:
         type: "string"
+        x-nullable: false
       Author:
         type: "string"
+        x-nullable: false
       Config:
         $ref: "#/definitions/Config"
       Architecture:
         type: "string"
+        x-nullable: false
       Os:
+        type: "string"
+        x-nullable: false
+      OsVersion:
         type: "string"
       Size:
         type: "integer"
         format: "int64"
+        x-nullable: false
       VirtualSize:
         type: "integer"
         format: "int64"
+        x-nullable: false
       GraphDriver:
-        $ref: "#/definitions/GraphDriver"
+        $ref: "#/definitions/GraphDriverData"
       RootFS:
         type: "object"
+        required: [Type]
         properties:
           Type:
             type: "string"
+            x-nullable: false
           Layers:
             type: "array"
             items:
@@ -2934,7 +2966,7 @@ paths:
               HostConfig:
                 $ref: "#/definitions/HostConfig"
               GraphDriver:
-                $ref: "#/definitions/GraphDriver"
+                $ref: "#/definitions/GraphDriverData"
               SizeRw:
                 description: "The size of files that have been created or changed by this container."
                 type: "integer"

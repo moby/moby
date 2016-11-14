@@ -4,6 +4,7 @@ set -eu
 swagger generate model -f api/swagger.yaml \
     -t api -m types --skip-validator -C api/swagger-gen.yaml \
     -n ErrorResponse \
+    -n GraphDriverData \
     -n IdResponse \
     -n ImageDeleteResponseItem \
     -n ImageSummary \

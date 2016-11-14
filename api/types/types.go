@@ -17,13 +17,6 @@ import (
 	"github.com/docker/go-connections/nat"
 )
 
-// GraphDriverData returns Image's graph driver config info
-// when calling inspect command
-type GraphDriverData struct {
-	Name string
-	Data map[string]string
-}
-
 // RootFS returns Image's RootFS description including the layer IDs.
 type RootFS struct {
 	Type      string
