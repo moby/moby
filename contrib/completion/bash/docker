@@ -2679,8 +2679,8 @@ _docker_service_update() {
 			--container-label-add
 			--container-label-rm
 			--dns-add
-			--dns-options-add
-			--dns-options-rm
+			--dns-option-add
+			--dns-option-rm
 			--dns-rm
 			--dns-search-add
 			--dns-search-rm
