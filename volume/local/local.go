@@ -268,7 +268,7 @@ func (r *Root) validateName(name string) error {
 		return validationError{fmt.Errorf("volume name is too short, names should be at least two alphanumeric characters")}
 	}
 	if !volumeNameRegex.MatchString(name) {
-		return validationError{fmt.Errorf("%q includes invalid characters for a local volume name, only %q are allowed. If you intented to pass host directory use absolute path starting with /", name, utils.RestrictedNameChars)}
+		return validationError{fmt.Errorf("%q includes invalid characters for a local volume name, only %q are allowed. If you intented to pass a host directory, use absolute path.", name, utils.RestrictedNameChars)}
 	}
 	return nil
 }
