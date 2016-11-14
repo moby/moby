@@ -50,7 +50,7 @@ func TestMapOpts(t *testing.T) {
 		t.Errorf("max-size = %s != 1", tmpMap["max-size"])
 	}
 	if o.Set("dummy-val=3") == nil {
-		t.Errorf("validator is not being called")
+		t.Error("validator is not being called")
 	}
 }
 

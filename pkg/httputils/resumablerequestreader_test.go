@@ -229,7 +229,7 @@ func TestResumableRequestReaderWithZeroTotalSize(t *testing.T) {
 	resstr := strings.TrimSuffix(string(data), "\n")
 
 	if resstr != srvtxt {
-		t.Errorf("resstr != srvtxt")
+		t.Error("resstr != srvtxt")
 	}
 }
 
@@ -263,7 +263,7 @@ func TestResumableRequestReader(t *testing.T) {
 	resstr := strings.TrimSuffix(string(data), "\n")
 
 	if resstr != srvtxt {
-		t.Errorf("resstr != srvtxt")
+		t.Error("resstr != srvtxt")
 	}
 }
 
@@ -302,6 +302,6 @@ func TestResumableRequestReaderWithInitialResponse(t *testing.T) {
 	resstr := strings.TrimSuffix(string(data), "\n")
 
 	if resstr != srvtxt {
-		t.Errorf("resstr != srvtxt")
+		t.Error("resstr != srvtxt")
 	}
 }
