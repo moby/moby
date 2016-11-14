@@ -1787,6 +1787,9 @@ __docker_service_subcommand() {
                 $opts_help \
                 $opts_create_update \
                 "($help)*--container-label=[Container labels]:label: " \
+                "($help)*--dns=[Set custom DNS servers]:DNS: " \
+                "($help)*--dns-option=[Set DNS options]:DNS option: " \
+                "($help)*--dns-search=[Set custom DNS search domains]:DNS search: " \
                 "($help)*--env-file=[Read environment variables from a file]:environment file:_files" \
                 "($help)--hostname=[Service containers hostname]:hostname: " \
                 "($help)--mode=[Service Mode]:mode:(global replicated)" \
@@ -1854,6 +1857,12 @@ __docker_service_subcommand() {
                 "($help)--arg=[Service command args]:arguments: _normal" \
                 "($help)*--container-label-add=[Add or update container labels]:label: " \
                 "($help)*--container-label-rm=[Remove a container label by its key]:label: " \
+                "($help)*--dns-add=[Add or update custom DNS servers]:DNS: " \
+                "($help)*--dns-rm=[Remove custom DNS servers]:DNS: " \
+                "($help)*--dns-option-add=[Add or update DNS options]:DNS option: " \
+                "($help)*--dns-option-rm=[Remove DNS options]:DNS option: " \
+                "($help)*--dns-search-add=[Add or update custom DNS search domains]:DNS search: " \
+                "($help)*--dns-search-rm=[Remove DNS search domains]:DNS search: " \
                 "($help)--force[Force update]" \
                 "($help)*--group-add=[Add additional supplementary user groups to the container]:group:_groups" \
                 "($help)*--group-rm=[Remove previously added supplementary user groups from the container]:group:_groups" \
