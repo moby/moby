@@ -142,7 +142,7 @@ func (s *VolumeStore) Purge(name string) {
 type VolumeStore struct {
 	locks      *locker.Locker
 	globalLock sync.Mutex
-	// names stores the volume name -> driver name relationship.
+	// names stores the volume name -> volume relationship.
 	// This is used for making lookups faster so we don't have to probe all drivers
 	names map[string]volume.Volume
 	// refs stores the volume name and the list of things referencing it
