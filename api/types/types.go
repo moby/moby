@@ -93,7 +93,6 @@ type ContainerStats struct {
 	OSType string        `json:"ostype"`
 }
 
-
 // Ping contains response of Engine API:
 // GET "/_ping"
 type Ping struct {

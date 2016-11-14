@@ -857,7 +857,7 @@ definitions:
       - Os
       - Size
       - VirtualSize
-      - GraphDrvier
+      - GraphDriver
       - RootFS
     properties:
       Id:
@@ -4600,6 +4600,7 @@ paths:
               Created: "2015-09-10T08:30:53.26995814Z"
               GraphDriver:
                 Name: "aufs"
+                Data: {}
               RepoDigests:
                 - "localhost:5000/test/busybox/example@sha256:cbbf2f9a99b47fc460d422812b6a5adff7dfee951d8fa2e4a98caa0382cfbdbf"
               RepoTags:
@@ -5218,8 +5219,7 @@ paths:
       summary: "Get version"
       description: "Returns the version of Docker that is running and various information about the system that Docker is running on."
       operationId: "SystemVersion"
-      produces:
-        - "application/json"
+      produces: ["application/json"]
       responses:
         200:
           description: "no error"
@@ -5268,14 +5268,20 @@ paths:
       summary: "Ping"
       description: "This is a dummy endpoint you can use to test if the server is accessible."
       operationId: "SystemPing"
-      produces:
-        - "text/plain"
+      produces: ["text/plain"]
       responses:
         200:
           description: "no error"
           schema:
             type: "string"
             example: "OK"
+          headers:
+            API-Version:
+              type: "string"
+              description: "Max API Version the server supports"
+            Docker-Experimental:
+              type: "boolean"
+              description: "If the server is running with experimental mode enabled"
         500:
           description: "server error"
           schema:
@@ -7402,7 +7408,7 @@ paths:
         200:
           description: "no error"
           schema:
-            $ref: "#/definitions/ImageDeleteResponse"
+            $ref: "#/definitions/ServiceUpdateResponse"
         400:
           description: "bad parameter"
           schema:
