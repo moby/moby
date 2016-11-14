@@ -39,7 +39,7 @@ func (daemon *Daemon) StateChanged(id string, e libcontainerd.StateInfo) error {
 		}
 
 		c.Lock()
-		c.Wait()
+		c.StreamConfig.Wait()
 		c.Reset(false)
 
 		restart, wait, err := c.RestartManager().ShouldRestart(e.ExitCode, false, time.Since(c.StartedAt))
@@ -88,7 +88,7 @@ func (daemon *Daemon) StateChanged(id string, e libcontainerd.StateInfo) error {
 			defer execConfig.Unlock()
 			execConfig.ExitCode = &ec
 			execConfig.Running = false
-			execConfig.Wait()
+			execConfig.StreamConfig.Wait()
 			if err := execConfig.CloseStreams(); err != nil {
 				logrus.Errorf("%s: %s", c.ID, err)
 			}
