@@ -53,10 +53,11 @@ tiborvass/no-remove   latest              A test plugin for Docker   false
 
 ## Related information
 
-* [plugin ls](plugin_ls.md)
 * [plugin create](plugin_create.md)
 * [plugin enable](plugin_enable.md)
 * [plugin inspect](plugin_inspect.md)
 * [plugin install](plugin_install.md)
+* [plugin ls](plugin_ls.md)
+* [plugin push](plugin_push.md)
 * [plugin rm](plugin_rm.md)
 * [plugin set](plugin_set.md)
