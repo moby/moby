@@ -217,7 +217,7 @@ is `hyperv`. Linux only supports `default`.
   Set key=value labels to the daemon (displayed in `docker info`)
 
 **--live-restore**=*false*
-  Enable live restore of running containers when the daemon starts so that they are not restarted.
+  Enable live restore of running containers when the daemon starts so that they are not restarted. This option is applicable only for docker daemon running on Linux host.
 
 **--log-driver**="*json-file*|*syslog*|*journald*|*gelf*|*fluentd*|*awslogs*|*splunk*|*etwlogs*|*gcplogs*|*none*"
   Default driver for container logs. Default is `json-file`.
