@@ -273,7 +273,7 @@ func prettyPrintInfo(dockerCli *command.DockerCli, info types.Info) error {
 			stringSlice := strings.SplitN(label, "=", 2)
 			if len(stringSlice) > 1 {
 				// If there is a conflict we will throw out an warning
-				if v, ok := labelMap[stringSlice[0]]; ok && v != stringSlice[1] {
+				if v, ok := labelMap[stringSlice[0]]; ok && v == stringSlice[1] {
 					fmt.Fprintln(dockerCli.Err(), "WARNING: labels with duplicate keys and conflicting values have been deprecated")
 					break
 				}
