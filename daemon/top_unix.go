@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 )
 
 func validatePSArgs(psArgs string) error {
@@ -41,8 +41,8 @@ func fieldsASCII(s string) []string {
 	return strings.FieldsFunc(s, fn)
 }
 
-func parsePSOutput(output []byte, pids []int) (*types.ContainerProcessList, error) {
-	procList := &types.ContainerProcessList{}
+func parsePSOutput(output []byte, pids []int) (*container.ContainerTopOKBody, error) {
+	procList := &container.ContainerTopOKBody{}
 
 	lines := strings.Split(string(output), "\n")
 	procList.Titles = fieldsASCII(lines[0])
@@ -86,7 +86,7 @@ func parsePSOutput(output []byte, pids []int) (*types.ContainerProcessList, erro
 // "-ef" if no args are given.  An error is returned if the container
 // is not found, or is not running, or if there are any problems
 // running ps, or parsing the output.
-func (daemon *Daemon) ContainerTop(name string, psArgs string) (*types.ContainerProcessList, error) {
+func (daemon *Daemon) ContainerTop(name string, psArgs string) (*container.ContainerTopOKBody, error) {
 	if psArgs == "" {
 		psArgs = "-ef"
 	}

@@ -59,7 +59,7 @@ type ContainerAPIClient interface {
 	ContainerStats(ctx context.Context, container string, stream bool) (types.ContainerStats, error)
 	ContainerStart(ctx context.Context, container string, options types.ContainerStartOptions) error
 	ContainerStop(ctx context.Context, container string, timeout *time.Duration) error
-	ContainerTop(ctx context.Context, container string, arguments []string) (types.ContainerProcessList, error)
+	ContainerTop(ctx context.Context, container string, arguments []string) (container.ContainerTopOKBody, error)
 	ContainerUnpause(ctx context.Context, container string) error
 	ContainerUpdate(ctx context.Context, container string, updateConfig container.UpdateConfig) (container.ContainerUpdateOKBody, error)
 	ContainerWait(ctx context.Context, container string) (int64, error)

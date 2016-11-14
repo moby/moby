@@ -3384,12 +3384,14 @@ paths:
     get:
       summary: "Get container stats based on resource usage"
       description: |
-        This endpoint returns a live stream of a container’s resource usage statistics.
+        This endpoint returns a live stream of a container’s resource usage
+        statistics.
 
-        The `precpu_stats` is the CPU statistic of last read, which is used for calculating the CPU usage percentage. It is not the same as the `cpu_stats` field.
+        The `precpu_stats` is the CPU statistic of last read, which is used
+        for calculating the CPU usage percentage. It is not the same as the
+        `cpu_stats` field.
       operationId: "ContainerStats"
-      produces:
-        - "application/json"
+      produces: ["application/json"]
       responses:
         200:
           description: "no error"
@@ -4111,7 +4113,7 @@ paths:
     head:
       summary: "Get information about files in a container"
       description: "A response header `X-Docker-Container-Path-Stat` is return containing a base64 - encoded JSON object with some filesystem header information about the path."
-      operationId: "ContainerArchiveHead"
+      operationId: "ContainerArchiveInfo"
       responses:
         200:
           description: "no error"
@@ -4156,9 +4158,8 @@ paths:
     get:
       summary: "Get an archive of a filesystem resource in a container"
       description: "Get a tar archive of a resource in the filesystem of container id."
-      operationId: "ContainerGetArchive"
-      produces:
-        - "application/x-tar"
+      operationId: "ContainerArchive"
+      produces: ["application/x-tar"]
       responses:
         200:
           description: "no error"
@@ -4199,10 +4200,8 @@ paths:
     put:
       summary: "Extract an archive of files or folders to a directory in a container"
       description: "Upload a tar archive to be extracted to a path in the filesystem of container id."
-      operationId: "ContainerPutArchive"
-      consumes:
-        - "application/x-tar"
-        - "application/octet-stream"
+      operationId: "PutContainerArchive"
+      consumes: ["application/x-tar", "application/octet-stream"]
       responses:
         200:
           description: "The content was extracted successfully"

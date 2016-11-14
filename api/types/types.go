@@ -93,12 +93,6 @@ type ContainerStats struct {
 	OSType string        `json:"ostype"`
 }
 
-// ContainerProcessList contains response of Engine API:
-// GET "/containers/{name:.*}/top"
-type ContainerProcessList struct {
-	Processes [][]string
-	Titles    []string
-}
 
 // Ping contains response of Engine API:
 // GET "/_ping"
