@@ -126,3 +126,11 @@ func (w *LogWatcher) Close() {
 func (w *LogWatcher) WatchClose() <-chan struct{} {
 	return w.closeNotifier
 }
+
+// Capability defines the list of capabilties that a driver can implement
+// These capabilities are not required to be a logging driver, however do
+// determine how a logging driver can be used
+type Capability struct {
+	// Determines if a log driver can read back logs
+	ReadLogs bool
+}
