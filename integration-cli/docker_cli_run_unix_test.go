@@ -1577,7 +1577,7 @@ func (s *DockerSuite) TestRunWithNanoCPUs(c *check.C) {
 	file1 := "/sys/fs/cgroup/cpu/cpu.cfs_quota_us"
 	file2 := "/sys/fs/cgroup/cpu/cpu.cfs_period_us"
 	out, _ := dockerCmd(c, "run", "--cpus", "0.5", "--name", "test", "busybox", "sh", "-c", fmt.Sprintf("cat %s && cat %s", file1, file2))
-	c.Assert(strings.TrimSpace(out), checker.Equals, "50000\n100000")
+	c.Assert(strings.TrimSpace(out), checker.Equals, "500000\n1000000")
 
 	out = inspectField(c, "test", "HostConfig.NanoCpus")
 	c.Assert(out, checker.Equals, "5e+08", check.Commentf("setting the Nano CPUs failed"))
