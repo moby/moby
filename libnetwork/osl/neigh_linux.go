@@ -80,6 +80,7 @@ func (n *networkNamespace) DeleteNeighbor(dstIP net.IP, dstMac net.HardwareAddr,
 	for i, nh := range n.neighbors {
 		if nh.dstIP.Equal(dstIP) && bytes.Equal(nh.dstMac, dstMac) {
 			n.neighbors = append(n.neighbors[:i], n.neighbors[i+1:]...)
+			break
 		}
 	}
 	n.Unlock()
