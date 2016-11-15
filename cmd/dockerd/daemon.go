@@ -76,7 +76,7 @@ func migrateKey(config *daemon.Config) (err error) {
 
 	// Migrate trust key if exists at ~/.docker/key.json and owned by current user
 	oldPath := filepath.Join(cliconfig.ConfigDir(), cliflags.DefaultTrustKeyFile)
-	newPath := filepath.Join(getDaemonConfDir(config.Root), cliflags.DefaultTrustKeyFile)
+	newPath := filepath.Join(getDaemonConfDir(), cliflags.DefaultTrustKeyFile)
 	if _, statErr := os.Stat(newPath); os.IsNotExist(statErr) && currentUserIsOwner(oldPath) {
 		defer func() {
 			// Ensure old path is removed if no error occurred
@@ -88,7 +88,7 @@ func migrateKey(config *daemon.Config) (err error) {
 			}
 		}()
 
-		if err := system.MkdirAll(getDaemonConfDir(config.Root), os.FileMode(0644)); err != nil {
+		if err := system.MkdirAll(getDaemonConfDir(), os.FileMode(0644)); err != nil {
 			return fmt.Errorf("Unable to create daemon configuration directory: %s", err)
 		}
 
@@ -131,7 +131,7 @@ func (cli *DaemonCli) start(opts daemonOptions) (err error) {
 
 	if opts.common.TrustKey == "" {
 		opts.common.TrustKey = filepath.Join(
-			getDaemonConfDir(cli.Config.Root),
+			getDaemonConfDir(),
 			cliflags.DefaultTrustKeyFile)
 	}
 
