@@ -217,6 +217,7 @@ To manually remove all plugins and resolve this problem, take the following step
 - Deprecate `MAINTAINER` in Dockerfile [#25466](https://github.com/docker/docker/pull/25466)
 - Deprecate `filter` param for endpoint `/images/json` [#27872](https://github.com/docker/docker/pull/27872)
 - Deprecate setting duplicate engine labels [#24533](https://github.com/docker/docker/pull/24533)
+- Deprecate "top-level" network information in `NetworkSettings` [#28437](https://github.com/docker/docker/pull/28437)
 
 ## 1.12.3 (2016-10-26)
 
