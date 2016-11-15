@@ -159,7 +159,7 @@ ORIG_BUILDFLAGS=( -tags "autogen netgo static_build sqlite_omit_load_extension $
 # When $DOCKER_INCREMENTAL_BINARY is set in the environment, enable incremental
 # builds by installing dependent packages to the GOPATH.
 REBUILD_FLAG="-a"
-if [ "$DOCKER_INCREMENTAL_BINARY" ]; then
+if [ "$DOCKER_INCREMENTAL_BINARY" == "1" ] || [ "$DOCKER_INCREMENTAL_BINARY" == "true" ]; then
 	REBUILD_FLAG="-i"
 fi
 ORIG_BUILDFLAGS+=( $REBUILD_FLAG )

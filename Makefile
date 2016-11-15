@@ -2,6 +2,9 @@
 
 # set the graph driver as the current graphdriver if not set
 DOCKER_GRAPHDRIVER := $(if $(DOCKER_GRAPHDRIVER),$(DOCKER_GRAPHDRIVER),$(shell docker info 2>&1 | grep "Storage Driver" | sed 's/.*: //'))
+export DOCKER_GRAPHDRIVER
+DOCKER_INCREMENTAL_BINARY := $(if $(DOCKER_INCREMENTAL_BINARY),$(DOCKER_INCREMENTAL_BINARY),1)
+export DOCKER_INCREMENTAL_BINARY
 
 # get OS/Arch of docker engine
 DOCKER_OSARCH := $(shell bash -c 'source hack/make/.detect-daemon-osarch && echo $${DOCKER_ENGINE_OSARCH:-$$DOCKER_CLIENT_OSARCH}')
@@ -20,7 +23,7 @@ DOCKER_ENVS := \
 	-e DOCKER_DEBUG \
 	-e DOCKER_EXPERIMENTAL \
 	-e DOCKER_GITCOMMIT \
-	-e DOCKER_GRAPHDRIVER=$(DOCKER_GRAPHDRIVER) \
+	-e DOCKER_GRAPHDRIVER \
 	-e DOCKER_INCREMENTAL_BINARY \
 	-e DOCKER_PORT \
 	-e DOCKER_REMAP_ROOT \
