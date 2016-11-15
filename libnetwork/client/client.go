@@ -65,7 +65,7 @@ func (cli *NetworkCli) Cmd(chain string, args ...string) error {
 	if len(args) > 0 {
 		method, exists := cli.getMethod(args[0])
 		if !exists {
-			return fmt.Errorf("%s: '%s' is not a %s command. See '%s --help'.\n", chain, args[0], chain, chain)
+			return fmt.Errorf("%s: '%s' is not a %s command. See '%s --help'", chain, args[0], chain, chain)
 		}
 		return method(chain, args[1:]...)
 	}

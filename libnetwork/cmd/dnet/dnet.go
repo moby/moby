@@ -247,7 +247,7 @@ type NetworkOrchestration struct {
 
 func (d *dnetConnection) dnetDaemon(cfgFile string) error {
 	if err := startTestDriver(); err != nil {
-		return fmt.Errorf("failed to start test driver: %v\n", err)
+		return fmt.Errorf("failed to start test driver: %v", err)
 	}
 
 	cfg, err := d.parseConfig(cfgFile)
