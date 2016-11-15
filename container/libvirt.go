@@ -204,7 +204,7 @@ func (lc *LibvirtContext) createSeedImage(seedDirectory string) (string, error) 
 	}
 
         // Create user-data to be included in seed.img
-        data := `#cloud-config
+        userDataString := `#cloud-config
 password: passw0rd
 chpasswd: { expire: False }
 ssh_pwauth: True
@@ -214,6 +214,11 @@ runcmd:
  - init 0
  
 `
+
+        metaDataString := `{
+"instance-id": "%s"
+}
+`
         path := lc.container.Path
 
         args := strings.TrimPrefix(fmt.Sprint(lc.container.Args), "[")
@@ -221,8 +226,11 @@ runcmd:
 
         entrypoint := path + " " + args
 
-        logrus.Infof("The data is: %s", fmt.Sprintf(data, entrypoint))
-        userData := []byte(fmt.Sprintf(data, entrypoint))
+        logrus.Infof("The user data is: %s", fmt.Sprintf(userDataString, entrypoint))
+        logrus.Infof("The meta data is: %s", fmt.Sprintf(metaDataString, entrypoint))
+
+        userData := []byte(fmt.Sprintf(userDataString, entrypoint))
+        metaData := []byte(fmt.Sprintf(metaDataString, lc.container.ID[0:12]))
 
         currentDir, err := os.Getwd()
         if err != nil {
@@ -234,13 +242,19 @@ runcmd:
                 return "", fmt.Errorf("Could not changed to directory %s", seedDirectory)
         }
 
-        writeError := ioutil.WriteFile("user-data", userData, 0700)
-	if writeError != nil {
+        writeErrorUserData := ioutil.WriteFile("user-data", userData, 0700)
+	if writeErrorUserData != nil {
 		return "", fmt.Errorf("Could not write user-data to /var/run/docker-qemu/%s", lc.container.ID)
 	}
+
+        writeErrorMetaData := ioutil.WriteFile("meta-data", metaData, 0700)
+	if writeErrorMetaData != nil {
+		return "", fmt.Errorf("Could not write meta-data to /var/run/docker-qemu/%s", lc.container.ID)
+	}
+
         logrus.Infof("genisoimage path: %s", getisoimagePath)
 
-        err = exec.Command(getisoimagePath, "-output", "seed.img", "-volid", "cidata", "-joliet", "-rock", "user-data").Run()
+        err = exec.Command(getisoimagePath, "-output", "seed.img", "-volid", "cidata", "-joliet", "-rock", "user-data", "meta-data").Run()
         if err != nil {
                 return "", fmt.Errorf("Could not execute genisoimage")
         }
