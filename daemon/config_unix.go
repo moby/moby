@@ -77,7 +77,7 @@ func (config *Config) InstallFlags(flags *pflag.FlagSet) {
 	flags.StringVar(&config.bridgeConfig.FixedCIDRv6, "fixed-cidr-v6", "", "IPv6 subnet for fixed IPs")
 	flags.BoolVar(&config.bridgeConfig.EnableUserlandProxy, "userland-proxy", true, "Use userland proxy for loopback traffic")
 	flags.StringVar(&config.bridgeConfig.UserlandProxyPath, "userland-proxy-path", "", "Path to the userland proxy binary")
-	flags.BoolVar(&config.EnableCors, "api-enable-cors", false, "Enable CORS headers in the remote API, this is deprecated by --api-cors-header")
+	flags.BoolVar(&config.EnableCors, "api-enable-cors", false, "Enable CORS headers in the Engine API, this is deprecated by --api-cors-header")
 	flags.MarkDeprecated("api-enable-cors", "Please use --api-cors-header")
 	flags.StringVar(&config.CgroupParent, "cgroup-parent", "", "Set parent cgroup for all containers")
 	flags.StringVar(&config.RemappedRoot, "userns-remap", "", "User/Group setting for user namespaces")

@@ -18,7 +18,7 @@ meaning you can use Vagrant to control Docker containers.
 * [docker-provider](https://github.com/fgrehm/docker-provider)
 * [vagrant-shell](https://github.com/destructuring/vagrant-shell)
 
-## Setting up Vagrant-docker with the Remote API
+## Setting up Vagrant-docker with the Engine API
 
 The initial Docker upstart script will not work because it runs on `127.0.0.1`, which is not accessible to the host machine. Instead, we need to change the script to connect to `0.0.0.0`. To do this, modify `/etc/init/docker.conf` to look like this:
 

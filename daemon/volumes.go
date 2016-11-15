@@ -26,7 +26,7 @@ var (
 
 type mounts []container.Mount
 
-// volumeToAPIType converts a volume.Volume to the type used by the remote API
+// volumeToAPIType converts a volume.Volume to the type used by the Engine API
 func volumeToAPIType(v volume.Volume) *types.Volume {
 	tv := &types.Volume{
 		Name:   v.Name(),

@@ -17,14 +17,14 @@ import (
 	"github.com/docker/go-connections/nat"
 )
 
-// ContainerChange contains response of Remote API:
+// ContainerChange contains response of Engine API:
 // GET "/containers/{name:.*}/changes"
 type ContainerChange struct {
 	Kind int
 	Path string
 }
 
-// ImageHistory contains response of Remote API:
+// ImageHistory contains response of Engine API:
 // GET "/images/{name:.*}/history"
 type ImageHistory struct {
 	ID        string `json:"Id"`
@@ -35,7 +35,7 @@ type ImageHistory struct {
 	Comment   string
 }
 
-// ImageDelete contains response of Remote API:
+// ImageDelete contains response of Engine API:
 // DELETE "/images/{name:.*}"
 type ImageDelete struct {
 	Untagged string `json:",omitempty"`
@@ -56,7 +56,7 @@ type RootFS struct {
 	BaseLayer string   `json:",omitempty"`
 }
 
-// ImageInspect contains response of Remote API:
+// ImageInspect contains response of Engine API:
 // GET "/images/{name:.*}/json"
 type ImageInspect struct {
 	ID              string `json:"Id"`
@@ -79,7 +79,7 @@ type ImageInspect struct {
 	RootFS          RootFS
 }
 
-// Container contains response of Remote API:
+// Container contains response of Engine API:
 // GET "/containers/json"
 type Container struct {
 	ID         string `json:"Id"`
@@ -101,7 +101,7 @@ type Container struct {
 	Mounts          []MountPoint
 }
 
-// CopyConfig contains request body of Remote API:
+// CopyConfig contains request body of Engine API:
 // POST "/containers/"+containerID+"/copy"
 type CopyConfig struct {
 	Resource string
@@ -118,28 +118,28 @@ type ContainerPathStat struct {
 	LinkTarget string      `json:"linkTarget"`
 }
 
-// ContainerStats contains response of Remote API:
+// ContainerStats contains response of Engine API:
 // GET "/stats"
 type ContainerStats struct {
 	Body   io.ReadCloser `json:"body"`
 	OSType string        `json:"ostype"`
 }
 
-// ContainerProcessList contains response of Remote API:
+// ContainerProcessList contains response of Engine API:
 // GET "/containers/{name:.*}/top"
 type ContainerProcessList struct {
 	Processes [][]string
 	Titles    []string
 }
 
-// Ping contains response of Remote API:
+// Ping contains response of Engine API:
 // GET "/_ping"
 type Ping struct {
 	APIVersion   string
 	Experimental bool
 }
 
-// Version contains response of Remote API:
+// Version contains response of Engine API:
 // GET "/version"
 type Version struct {
 	Version       string
@@ -161,7 +161,7 @@ type Commit struct {
 	Expected string
 }
 
-// Info contains response of Remote API:
+// Info contains response of Engine API:
 // GET "/info"
 type Info struct {
 	ID                 string
@@ -339,7 +339,7 @@ type ContainerNode struct {
 	Labels    map[string]string
 }
 
-// ContainerJSONBase contains response of Remote API:
+// ContainerJSONBase contains response of Engine API:
 // GET "/containers/{name:.*}/json"
 type ContainerJSONBase struct {
 	ID              string `json:"Id"`
@@ -500,7 +500,7 @@ type Runtime struct {
 	Args []string `json:"runtimeArgs,omitempty"`
 }
 
-// DiskUsage contains response of Remote API:
+// DiskUsage contains response of Engine API:
 // GET "/system/df"
 type DiskUsage struct {
 	LayersSize int64
@@ -509,49 +509,49 @@ type DiskUsage struct {
 	Volumes    []*Volume
 }
 
-// ImagesPruneConfig contains the configuration for Remote API:
+// ImagesPruneConfig contains the configuration for Engine API:
 // POST "/images/prune"
 type ImagesPruneConfig struct {
 	DanglingOnly bool
 }
 
-// ContainersPruneConfig contains the configuration for Remote API:
+// ContainersPruneConfig contains the configuration for Engine API:
 // POST "/images/prune"
 type ContainersPruneConfig struct {
 }
 
-// VolumesPruneConfig contains the configuration for Remote API:
+// VolumesPruneConfig contains the configuration for Engine API:
 // POST "/images/prune"
 type VolumesPruneConfig struct {
 }
 
-// NetworksPruneConfig contains the configuration for Remote API:
+// NetworksPruneConfig contains the configuration for Engine API:
 // POST "/networks/prune"
 type NetworksPruneConfig struct {
 }
 
-// ContainersPruneReport contains the response for Remote API:
+// ContainersPruneReport contains the response for Engine API:
 // POST "/containers/prune"
 type ContainersPruneReport struct {
 	ContainersDeleted []string
 	SpaceReclaimed    uint64
 }
 
-// VolumesPruneReport contains the response for Remote API:
+// VolumesPruneReport contains the response for Engine API:
 // POST "/volumes/prune"
 type VolumesPruneReport struct {
 	VolumesDeleted []string
 	SpaceReclaimed uint64
 }
 
-// ImagesPruneReport contains the response for Remote API:
+// ImagesPruneReport contains the response for Engine API:
 // POST "/images/prune"
 type ImagesPruneReport struct {
 	ImagesDeleted  []ImageDelete
 	SpaceReclaimed uint64
 }
 
-// NetworksPruneReport contains the response for Remote API:
+// NetworksPruneReport contains the response for Engine API:
 // POST "/networks/prune"
 type NetworksPruneReport struct {
 	NetworksDeleted []string

@@ -351,7 +351,7 @@ type SecretRequestOption struct {
 	Mode   os.FileMode
 }
 
-// SwarmUnlockKeyResponse contains the response for Remote API:
+// SwarmUnlockKeyResponse contains the response for Engine API:
 // GET /swarm/unlockkey
 type SwarmUnlockKeyResponse struct {
 	// UnlockKey is the unlock key in ASCII-armored format.
