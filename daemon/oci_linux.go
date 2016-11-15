@@ -581,7 +581,7 @@ func (daemon *Daemon) populateCommonSpec(s *specs.Spec, c *container.Container) 
 	if c.HostConfig.PidMode.IsPrivate() {
 		if (c.HostConfig.Init != nil && *c.HostConfig.Init) ||
 			(c.HostConfig.Init == nil && daemon.configStore.Init) {
-			s.Process.Args = append([]string{"/dev/init", c.Path}, c.Args...)
+			s.Process.Args = append([]string{"/dev/init", "--", c.Path}, c.Args...)
 			var path string
 			if daemon.configStore.InitPath == "" && c.HostConfig.InitPath == "" {
 				path, err = exec.LookPath(DefaultInitBinary)
