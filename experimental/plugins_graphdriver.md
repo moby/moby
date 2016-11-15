@@ -4,7 +4,7 @@ Docker graph driver plugins enable admins to use an external/out-of-process
 graph driver for use with Docker engine. This is an alternative to using the
 built-in storage drivers, such as aufs/overlay/devicemapper/btrfs.
 
-A graph driver plugin is used for image and container fs storage, as such
+A graph driver plugin is used for image and container filesystem storage, as such
 the plugin must be started and available for connections prior to Docker Engine
 being started.
 
@@ -269,7 +269,7 @@ Get a list of changes between the filesystem layers specified by the `ID` and
 }
 ```
 
-Responds with a list of changes. The structure of a change is:
+Respond with a list of changes. The structure of a change is:
 ```
   "Path": "/some/path",
   "Kind": 0,
