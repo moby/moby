@@ -39,3 +39,27 @@ func SecretSpecToGRPC(s swarmtypes.SecretSpec) swarmapi.SecretSpec {
 		Data: s.Data,
 	}
 }
+
+func SecretReferencesFromGRPC(s []*swarmapi.SecretReference) []*swarmtypes.SecretReference {
+	refs := []*swarmtypes.SecretReference{}
+
+	for _, r := range s {
+		ref := &swarmtypes.SecretReference{
+			SecretID:   r.SecretID,
+			SecretName: r.SecretName,
+		}
+
+		if t, ok := r.Target.(*swarmapi.SecretReference_File); ok {
+			ref.File = &swarmtypes.SecretReferenceFileTarget{
+				Name: t.File.Name,
+				UID:  t.File.UID,
+				GID:  t.File.GID,
+				Mode: t.File.Mode,
+			}
+		}
+
+		refs = append(refs, ref)
+	}
+
+	return refs
+}
