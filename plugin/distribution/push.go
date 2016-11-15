@@ -27,6 +27,7 @@ func Push(name string, rs registry.Service, metaHeader http.Header, authConfig *
 	if err != nil {
 		return "", err
 	}
+	repoInfo.Class = "plugin"
 
 	if err := dockerdist.ValidateRepoName(repoInfo.Name()); err != nil {
 		return "", err
