@@ -82,9 +82,13 @@ func runServiceScale(dockerCli *command.DockerCli, serviceID string, scale uint6
 
 	serviceMode.Replicated.Replicas = &scale
 
-	err = client.ServiceUpdate(ctx, service.ID, service.Version, service.Spec, types.ServiceUpdateOptions{})
+	response, err := client.ServiceUpdate(ctx, service.ID, service.Version, service.Spec, types.ServiceUpdateOptions{})
 	if err != nil {
 		return err
+	}
+
+	for _, warning := range response.Warnings {
+		fmt.Fprintln(dockerCli.Err(), warning)
 	}
 
 	fmt.Fprintf(dockerCli.Out(), "%s scaled to %d\n", serviceID, scale)
