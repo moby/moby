@@ -129,8 +129,10 @@ func verifyContainerResources(resources *containertypes.Resources, isHyperv bool
 	if resources.NanoCPUs > 0 && resources.CPUShares > 0 {
 		return warnings, fmt.Errorf("conflicting options: Nano CPUs and CPU Shares cannot both be set")
 	}
+	// The precision we could get is 0.01, because on Windows we have to convert to CPUPercent.
+	// We don't set the lower limit here and it is up to the underlying platform (e.g., Windows) to return an error.
 	if resources.NanoCPUs < 0 || resources.NanoCPUs > int64(sysinfo.NumCPU())*1e9 {
-		return warnings, fmt.Errorf("range of Nano CPUs is from 1 to %d", int64(sysinfo.NumCPU())*1e9)
+		return warnings, fmt.Errorf("range of CPUs is from 0.01 to %d.00, as there are only %d CPUs available", sysinfo.NumCPU(), sysinfo.NumCPU())
 	}
 
 	if len(resources.BlkioDeviceReadBps) > 0 {
