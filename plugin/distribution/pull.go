@@ -85,6 +85,7 @@ func Pull(ref reference.Named, rs registry.Service, metaheader http.Header, auth
 		logrus.Debugf("pull.go: error in ResolveRepository: %v", err)
 		return nil, err
 	}
+	repoInfo.Class = "plugin"
 
 	if err := dockerdist.ValidateRepoName(repoInfo.Name()); err != nil {
 		logrus.Debugf("pull.go: error in ValidateRepoName: %v", err)
@@ -138,9 +139,8 @@ func Pull(ref reference.Named, rs registry.Service, metaheader http.Header, auth
 	}
 	manifest, err := msv.Get(context.Background(), "", distribution.WithTag(tag))
 	if err != nil {
-		// TODO: change 401 to 404
 		logrus.Debugf("pull.go: error in msv.Get(): %v", err)
-		return nil, err
+		return nil, dockerdist.TranslatePullError(err, repoInfo)
 	}
 
 	_, pl, err := manifest.Payload()
