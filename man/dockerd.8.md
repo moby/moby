@@ -87,7 +87,7 @@ following format.
   Set additional OCI compatible runtime.
 
 **--api-cors-header**=""
-  Set CORS headers in the remote API. Default is cors disabled. Give urls like
+  Set CORS headers in the Engine API. Default is cors disabled. Give urls like
   "http://foo, http://bar, ...". Give "*" to allow all.
 
 **--authorization-plugin**=""
@@ -664,7 +664,7 @@ specify a name or path. Consult with your Docker administrator to get
 information about the plugins available to you.
 
 Once a plugin is installed, requests made to the `daemon` through the command
-line or Docker's remote API are allowed or denied by the plugin.  If you have
+line or Docker's Engine API are allowed or denied by the plugin.  If you have
 multiple plugins installed, at least one must allow the request for it to
 complete.
 

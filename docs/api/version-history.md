@@ -1,5 +1,5 @@
 ---
-title: "Remote API version history"
+title: "Engine API version history"
 description: "Documentation of changes that have been made to Engine API."
 keywords: "API, Docker, rcli, REST, documentation"
 ---
@@ -15,12 +15,11 @@ keywords: "API, Docker, rcli, REST, documentation"
 
 ## v1.26 API changes
 
-[Docker Remote API v1.26](docker_remote_api_v1.26.md) documentation
-
+[Docker Engine API v1.26](v1.26/) documentation
 
 ## v1.25 API changes
 
-[Docker Remote API v1.25](docker_remote_api_v1.25.md) documentation
+[Docker Engine API v1.25](v1.25.md) documentation
 
 * The API version is now required in all API calls. Instead of just requesting, for example, the URL `/containers/json`, you must now request `/v1.25/containers/json`.
 * `GET /version` now returns `MinAPIVersion`.
@@ -81,7 +80,7 @@ keywords: "API, Docker, rcli, REST, documentation"
 
 ## v1.24 API changes
 
-[Docker Remote API v1.24](docker_remote_api_v1.24.md) documentation
+[Docker Engine API v1.24](v1.24.md) documentation
 
 * `POST /containers/create` now takes `StorageOpt` field.
 * `GET /info` now returns `SecurityOptions` field, showing if `apparmor`, `seccomp`, or `selinux` is supported.
@@ -113,7 +112,7 @@ keywords: "API, Docker, rcli, REST, documentation"
 
 ## v1.23 API changes
 
-[Docker Remote API v1.23](docker_remote_api_v1.23.md) documentation
+[Docker Engine API v1.23](v1.23.md) documentation
 
 * `GET /containers/json` returns the state of the container, one of `created`, `restarting`, `running`, `paused`, `exited` or `dead`.
 * `GET /containers/json` returns the mount points for the container.
@@ -135,7 +134,7 @@ keywords: "API, Docker, rcli, REST, documentation"
 
 ## v1.22 API changes
 
-[Docker Remote API v1.22](docker_remote_api_v1.22.md) documentation
+[Docker Engine API v1.22](v1.22.md) documentation
 
 * `POST /container/(name)/update` updates the resources of a container.
 * `GET /containers/json` supports filter `isolation` on Windows.
@@ -169,7 +168,7 @@ keywords: "API, Docker, rcli, REST, documentation"
 
 ## v1.21 API changes
 
-[Docker Remote API v1.21](docker_remote_api_v1.21.md) documentation
+[Docker Engine API v1.21](v1.21.md) documentation
 
 * `GET /volumes` lists volumes from all volume drivers.
 * `POST /volumes/create` to create a volume.
@@ -204,7 +203,7 @@ keywords: "API, Docker, rcli, REST, documentation"
 
 ## v1.20 API changes
 
-[Docker Remote API v1.20](docker_remote_api_v1.20.md) documentation
+[Docker Engine API v1.20](v1.20.md) documentation
 
 * `GET /containers/(id)/archive` get an archive of filesystem content from a container.
 * `PUT /containers/(id)/archive` upload an archive of content to be extracted to
@@ -216,7 +215,7 @@ list of additional groups that the container process will run as.
 
 ## v1.19 API changes
 
-[Docker Remote API v1.19](docker_remote_api_v1.19.md) documentation
+[Docker Engine API v1.19](v1.19.md) documentation
 
 * When the daemon detects a version mismatch with the client, usually when
 the client is newer than the daemon, an HTTP 400 is now returned instead
@@ -232,7 +231,7 @@ end point now returns the new boolean fields `CpuCfsPeriod`, `CpuCfsQuota`, and
 
 ## v1.18 API changes
 
-[Docker Remote API v1.18](docker_remote_api_v1.18.md) documentation
+[Docker Engine API v1.18](v1.18.md) documentation
 
 * `GET /version` now returns `Os`, `Arch` and `KernelVersion`.
 * `POST /containers/create` and `POST /containers/(id)/start`allow you to  set ulimit settings for use in the container.

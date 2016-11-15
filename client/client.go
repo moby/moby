@@ -1,12 +1,12 @@
 /*
-Package client is a Go client for the Docker Remote API.
+Package client is a Go client for the Docker Engine API.
 
 The "docker" command uses this package to communicate with the daemon. It can also
 be used by your own Go applications to do anything the command-line interface does
 - running containers, pulling images, managing swarms, etc.
 
-For more information about the Remote API, see the documentation:
-https://docs.docker.com/engine/reference/api/docker_remote_api/
+For more information about the Engine API, see the documentation:
+https://docs.docker.com/engine/reference/api/
 
 Usage
 

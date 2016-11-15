@@ -10,18 +10,18 @@ consumes:
   - "text/plain"
 basePath: "/v1.26"
 info:
-  title: "Docker Remote API"
+  title: "Docker Engine API"
   version: "1.26"
   x-logo:
     url: "https://docs.docker.com/images/logo-docker-main.png"
   description: |
-    The Docker API is an HTTP REST API served by Docker Engine. It is the API the Docker client uses to communicate with the Engine, so everything the Docker client can do can be done with the API.
+    The Engine API is an HTTP REST API served by Docker Engine. It is the API the Docker client uses to communicate with the Engine, so everything the Docker client can do can be done with the API.
 
-    Most of the client's commands map directly to API endpoints (e.g. `docker ps` is `GET /containers/json`). The notable exception is running containers, which consists of several API calls. [There is example of using `curl` to run a container in the SDK documentation.](#TODO)
+    Most of the client's commands map directly to API endpoints (e.g. `docker ps` is `GET /containers/json`). The notable exception is running containers, which consists of several API calls.
 
     # Errors
 
-    The Remote API uses standard HTTP status codes to indicate the success or failure of the API call. The body of the response will be JSON in the following format:
+    The API uses standard HTTP status codes to indicate the success or failure of the API call. The body of the response will be JSON in the following format:
 
     ```
     {
@@ -1262,7 +1262,7 @@ definitions:
         x-nullable: false
 
   Plugin:
-    description: "A plugin for the Remote API"
+    description: "A plugin for the Engine API"
     type: "object"
     required: [Settings, Enabled, Config, Name, Tag]
     properties:

@@ -117,7 +117,7 @@ If releasing a major version (X or Y increased in vX.Y.Z), simply listing notabl
 ```markdown
 #### Notable features since <last major version>
 * New docker command to do something useful
-* Remote API change (deprecating old version)
+* Engine API change (deprecating old version)
 * Performance improvements in some usecases
 * ...
 ```
@@ -131,7 +131,7 @@ Each change should be listed under a category heading formatted as `#### CATEGOR
   * Documentation
   * Hack
   * Packaging
-  * Remote API
+  * Engine API
   * Runtime
   * Other (please use this category sparingly)
 
@@ -154,7 +154,7 @@ EXAMPLES:
 
 + 'docker build -t FOO .' applies the tag FOO to the newly built image
 
-#### Remote API
+#### Engine API
 
 - Fix a bug in the optional unix socket transport
 
