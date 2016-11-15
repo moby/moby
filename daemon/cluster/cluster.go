@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
+	distreference "github.com/docker/distribution/reference"
 	apierrors "github.com/docker/docker/api/errors"
 	apitypes "github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
@@ -1008,16 +1009,25 @@ func (c *Cluster) GetServices(options apitypes.ServiceListOptions) ([]types.Serv
 
 // imageWithDigestString takes an image such as name or name:tag
 // and returns the image pinned to a digest, such as name@sha256:34234...
+// Due to the difference between the docker/docker/reference, and the
+// docker/distribution/reference packages, we're parsing the image twice.
+// As the two packages converge, this function should be simplified.
+// TODO(nishanttotla): After the packages converge, the function must
+// convert distreference.Named -> distreference.Canonical, and the logic simplified.
 func (c *Cluster) imageWithDigestString(ctx context.Context, image string, authConfig *apitypes.AuthConfig) (string, error) {
-	ref, err := reference.ParseNamed(image)
+	ref, err := distreference.ParseNamed(image)
 	if err != nil {
 		return "", err
 	}
 	// only query registry if not a canonical reference (i.e. with digest)
-	if _, ok := ref.(reference.Canonical); !ok {
-		ref = reference.WithDefaultTag(ref)
-
-		namedTaggedRef, ok := ref.(reference.NamedTagged)
+	if _, ok := ref.(distreference.Canonical); !ok {
+		// create a docker/docker/reference Named object because GetRepository needs it
+		dockerRef, err := reference.ParseNamed(image)
+		if err != nil {
+			return "", err
+		}
+		dockerRef = reference.WithDefaultTag(dockerRef)
+		namedTaggedRef, ok := dockerRef.(reference.NamedTagged)
 		if !ok {
 			return "", fmt.Errorf("unable to cast image to NamedTagged reference object")
 		}
@@ -1031,15 +1041,11 @@ func (c *Cluster) imageWithDigestString(ctx context.Context, image string, authC
 			return "", err
 		}
 
-		// TODO(nishanttotla): Currently, the service would lose the tag while calling WithDigest
-		// To prevent this, we create the image string manually, which is a bad idea in general
-		// This will be fixed when https://github.com/docker/distribution/pull/2044 is vendored
-		// namedDigestedRef, err := reference.WithDigest(ref, dscrptr.Digest)
-		// if err != nil {
-		// 	return "", err
-		// }
-		// return namedDigestedRef.String(), nil
-		return image + "@" + dscrptr.Digest.String(), nil
+		namedDigestedRef, err := distreference.WithDigest(distreference.EnsureTagged(ref), dscrptr.Digest)
+		if err != nil {
+			return "", err
+		}
+		return namedDigestedRef.String(), nil
 	} else {
 		// reference already contains a digest, so just return it
 		return ref.String(), nil
