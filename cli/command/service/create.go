@@ -90,6 +90,10 @@ func runCreate(dockerCli *command.DockerCli, opts *serviceOptions) error {
 		return err
 	}
 
+	for _, warning := range response.Warnings {
+		fmt.Fprintln(dockerCli.Err(), warning)
+	}
+
 	fmt.Fprintf(dockerCli.Out(), "%s\n", response.ID)
 	return nil
 }

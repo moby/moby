@@ -5262,7 +5262,8 @@ image](#create-an-image) section for more details.
     Content-Type: application/json
 
     {
-      "ID":"ak7w3gjqoa3kuz8xcpnyy0pvl"
+      "ID": "ak7w3gjqoa3kuz8xcpnyy0pvl",
+      "Warnings": ["unable to pin image doesnotexist:latest to digest: image library/doesnotexist:latest not found"]
     }
 
 **Status codes**:
@@ -5627,6 +5628,16 @@ image](#create-an-image) section for more details.
 -   **200** – no error
 -   **404** – no such service
 -   **500** – server error
+
+**Example response**:
+
+    HTTP/1.1 200 OK
+    Content-Type: application/json
+
+    {
+      "Warnings": ["unable to pin image doesnotexist:latest to digest: image library/doesnotexist:latest not found"]
+    }
+
 
 ### Get service logs
 

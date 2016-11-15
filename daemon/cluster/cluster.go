@@ -1059,12 +1059,12 @@ func (c *Cluster) imageWithDigestString(ctx context.Context, image string, authC
 }
 
 // CreateService creates a new service in a managed swarm cluster.
-func (c *Cluster) CreateService(s types.ServiceSpec, encodedAuth string) (string, error) {
+func (c *Cluster) CreateService(s types.ServiceSpec, encodedAuth string) (*apitypes.ServiceCreateResponse, error) {
 	c.RLock()
 	defer c.RUnlock()
 
 	if !c.isActiveManager() {
-		return "", c.errNoManager()
+		return nil, c.errNoManager()
 	}
 
 	ctx, cancel := c.getRequestContext()
@@ -1072,17 +1072,17 @@ func (c *Cluster) CreateService(s types.ServiceSpec, encodedAuth string) (string
 
 	err := c.populateNetworkID(ctx, c.client, &s)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	serviceSpec, err := convert.ServiceSpecToGRPC(s)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	ctnr := serviceSpec.Task.GetContainer()
 	if ctnr == nil {
-		return "", fmt.Errorf("service does not use container tasks")
+		return nil, fmt.Errorf("service does not use container tasks")
 	}
 
 	if encodedAuth != "" {
@@ -1096,11 +1096,15 @@ func (c *Cluster) CreateService(s types.ServiceSpec, encodedAuth string) (string
 			logrus.Warnf("invalid authconfig: %v", err)
 		}
 	}
+
+	resp := &apitypes.ServiceCreateResponse{}
+
 	// pin image by digest
 	if os.Getenv("DOCKER_SERVICE_PREFER_OFFLINE_IMAGE") != "1" {
 		digestImage, err := c.imageWithDigestString(ctx, ctnr.Image, authConfig)
 		if err != nil {
 			logrus.Warnf("unable to pin image %s to digest: %s", ctnr.Image, err.Error())
+			resp.Warnings = append(resp.Warnings, fmt.Sprintf("unable to pin image %s to digest: %s", ctnr.Image, err.Error()))
 		} else {
 			logrus.Debugf("pinning image %s by digest: %s", ctnr.Image, digestImage)
 			ctnr.Image = digestImage
@@ -1109,10 +1113,11 @@ func (c *Cluster) CreateService(s types.ServiceSpec, encodedAuth string) (string
 
 	r, err := c.client.CreateService(ctx, &swarmapi.CreateServiceRequest{Spec: &serviceSpec})
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	return r.Service.ID, nil
+	resp.ID = r.Service.ID
+	return resp, nil
 }
 
 // GetService returns a service based on an ID or name.
@@ -1135,12 +1140,12 @@ func (c *Cluster) GetService(input string) (types.Service, error) {
 }
 
 // UpdateService updates existing service to match new properties.
-func (c *Cluster) UpdateService(serviceIDOrName string, version uint64, spec types.ServiceSpec, encodedAuth string, registryAuthFrom string) error {
+func (c *Cluster) UpdateService(serviceIDOrName string, version uint64, spec types.ServiceSpec, encodedAuth string, registryAuthFrom string) (*apitypes.ServiceUpdateResponse, error) {
 	c.RLock()
 	defer c.RUnlock()
 
 	if !c.isActiveManager() {
-		return c.errNoManager()
+		return nil, c.errNoManager()
 	}
 
 	ctx, cancel := c.getRequestContext()
@@ -1148,22 +1153,22 @@ func (c *Cluster) UpdateService(serviceIDOrName string, version uint64, spec typ
 
 	err := c.populateNetworkID(ctx, c.client, &spec)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	serviceSpec, err := convert.ServiceSpecToGRPC(spec)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	currentService, err := getService(ctx, c.client, serviceIDOrName)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	newCtnr := serviceSpec.Task.GetContainer()
 	if newCtnr == nil {
-		return fmt.Errorf("service does not use container tasks")
+		return nil, fmt.Errorf("service does not use container tasks")
 	}
 
 	if encodedAuth != "" {
@@ -1177,14 +1182,14 @@ func (c *Cluster) UpdateService(serviceIDOrName string, version uint64, spec typ
 			ctnr = currentService.Spec.Task.GetContainer()
 		case apitypes.RegistryAuthFromPreviousSpec:
 			if currentService.PreviousSpec == nil {
-				return fmt.Errorf("service does not have a previous spec")
+				return nil, fmt.Errorf("service does not have a previous spec")
 			}
 			ctnr = currentService.PreviousSpec.Task.GetContainer()
 		default:
-			return fmt.Errorf("unsupported registryAuthFromValue")
+			return nil, fmt.Errorf("unsupported registryAuthFromValue")
 		}
 		if ctnr == nil {
-			return fmt.Errorf("service does not use container tasks")
+			return nil, fmt.Errorf("service does not use container tasks")
 		}
 		newCtnr.PullOptions = ctnr.PullOptions
 		// update encodedAuth so it can be used to pin image by digest
@@ -1200,11 +1205,15 @@ func (c *Cluster) UpdateService(serviceIDOrName string, version uint64, spec typ
 			logrus.Warnf("invalid authconfig: %v", err)
 		}
 	}
+
+	resp := &apitypes.ServiceUpdateResponse{}
+
 	// pin image by digest
 	if os.Getenv("DOCKER_SERVICE_PREFER_OFFLINE_IMAGE") != "1" {
 		digestImage, err := c.imageWithDigestString(ctx, newCtnr.Image, authConfig)
 		if err != nil {
 			logrus.Warnf("unable to pin image %s to digest: %s", newCtnr.Image, err.Error())
+			resp.Warnings = append(resp.Warnings, fmt.Sprintf("unable to pin image %s to digest: %s", newCtnr.Image, err.Error()))
 		} else if newCtnr.Image != digestImage {
 			logrus.Debugf("pinning image %s by digest: %s", newCtnr.Image, digestImage)
 			newCtnr.Image = digestImage
@@ -1221,7 +1230,8 @@ func (c *Cluster) UpdateService(serviceIDOrName string, version uint64, spec typ
 			},
 		},
 	)
-	return err
+
+	return resp, err
 }
 
 // RemoveService removes a service from a managed swarm cluster.
