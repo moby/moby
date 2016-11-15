@@ -1748,33 +1748,6 @@ func (c *Cluster) populateNetworkID(ctx context.Context, client swarmapi.Control
 	return nil
 }
 
-func getNetwork(ctx context.Context, c swarmapi.ControlClient, input string) (*swarmapi.Network, error) {
-	// GetNetwork to match via full ID.
-	rg, err := c.GetNetwork(ctx, &swarmapi.GetNetworkRequest{NetworkID: input})
-	if err != nil {
-		// If any error (including NotFound), ListNetworks to match via ID prefix and full name.
-		rl, err := c.ListNetworks(ctx, &swarmapi.ListNetworksRequest{Filters: &swarmapi.ListNetworksRequest_Filters{Names: []string{input}}})
-		if err != nil || len(rl.Networks) == 0 {
-			rl, err = c.ListNetworks(ctx, &swarmapi.ListNetworksRequest{Filters: &swarmapi.ListNetworksRequest_Filters{IDPrefixes: []string{input}}})
-		}
-
-		if err != nil {
-			return nil, err
-		}
-
-		if len(rl.Networks) == 0 {
-			return nil, fmt.Errorf("network %s not found", input)
-		}
-
-		if l := len(rl.Networks); l > 1 {
-			return nil, fmt.Errorf("network %s is ambiguous (%d matches found)", input, l)
-		}
-
-		return rl.Networks[0], nil
-	}
-	return rg.Network, nil
-}
-
 // Cleanup stops active swarm node. This is run before daemon shutdown.
 func (c *Cluster) Cleanup() {
 	c.Lock()
