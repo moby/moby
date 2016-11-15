@@ -58,5 +58,7 @@ axqh55ipl40h  vossibility-stack_vossibility-collector  replicated   1/1         
 
 * [stack config](stack_config.md)
 * [stack deploy](stack_deploy.md)
+* [stack ls](stack_ls.md)
+* [stack ps](stack_ps.md)
 * [stack rm](stack_rm.md)
-* [stack tasks](stack_tasks.md)
+* [stack services](stack_services.md)
