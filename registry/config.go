@@ -280,7 +280,11 @@ func newRepositoryInfo(config *serviceConfig, name reference.Named) (*Repository
 		return nil, err
 	}
 	official := !strings.ContainsRune(name.Name(), '/')
-	return &RepositoryInfo{name, index, official}, nil
+	return &RepositoryInfo{
+		Named:    name,
+		Index:    index,
+		Official: official,
+	}, nil
 }
 
 // ParseRepositoryInfo performs the breakdown of a repository name into a RepositoryInfo, but
