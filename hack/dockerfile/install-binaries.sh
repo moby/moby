@@ -77,7 +77,7 @@ do
 			git clone https://github.com/krallin/tini.git "$GOPATH/tini"
 			cd "$GOPATH/tini"
 			git checkout -q "$TINI_COMMIT"
-			cmake -DMINIMAL=ON .
+			cmake .
 			make tini-static
 			cp tini-static /usr/local/bin/docker-init
 			;;
