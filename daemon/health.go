@@ -12,6 +12,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/types"
+	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/strslice"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/exec"
@@ -63,11 +64,7 @@ func (p *cmdProbe) run(ctx context.Context, d *Daemon, container *container.Cont
 
 	cmdSlice := strslice.StrSlice(container.Config.Healthcheck.Test)[1:]
 	if p.shell {
-		if runtime.GOOS != "windows" {
-			cmdSlice = append([]string{"/bin/sh", "-c"}, cmdSlice...)
-		} else {
-			cmdSlice = append([]string{"cmd", "/S", "/C"}, cmdSlice...)
-		}
+		cmdSlice = append(getShell(container.Config), cmdSlice...)
 	}
 	entrypoint, args := d.getEntrypointAndArgs(strslice.StrSlice{}, cmdSlice)
 	execConfig := exec.NewConfig()
@@ -324,4 +321,14 @@ func min(x, y int) int {
 		return x
 	}
 	return y
+}
+
+func getShell(config *containertypes.Config) []string {
+	if len(config.Shell) != 0 {
+		return config.Shell
+	}
+	if runtime.GOOS != "windows" {
+		return []string{"/bin/sh", "-c"}
+	}
+	return []string{"cmd", "/S", "/C"}
 }
