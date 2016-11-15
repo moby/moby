@@ -23,7 +23,7 @@ func (daemon *Daemon) ContainerStats(ctx context.Context, prefixOrName string, c
 	if runtime.GOOS == "solaris" {
 		return fmt.Errorf("%+v does not support stats", runtime.GOOS)
 	}
-	// Remote API version (used for backwards compatibility)
+	// Engine API version (used for backwards compatibility)
 	apiVersion := config.Version
 
 	container, err := daemon.GetContainer(prefixOrName)

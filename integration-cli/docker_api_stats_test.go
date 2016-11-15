@@ -303,7 +303,7 @@ func (s *DockerSuite) TestAPIStatsNoStreamConnectedContainers(c *check.C) {
 
 	select {
 	case err := <-ch:
-		c.Assert(err, checker.IsNil, check.Commentf("Error in stats remote API: %v", err))
+		c.Assert(err, checker.IsNil, check.Commentf("Error in stats Engine API: %v", err))
 	case <-time.After(15 * time.Second):
 		c.Fatalf("Stats did not return after timeout")
 	}

@@ -185,7 +185,7 @@ func (config *Config) InstallCommonFlags(flags *pflag.FlagSet) {
 	flags.StringVar(&config.ClusterAdvertise, "cluster-advertise", "", "Address or interface name to advertise")
 	flags.StringVar(&config.ClusterStore, "cluster-store", "", "URL of the distributed storage backend")
 	flags.Var(opts.NewNamedMapOpts("cluster-store-opts", config.ClusterOpts, nil), "cluster-store-opt", "Set cluster store options")
-	flags.StringVar(&config.CorsHeaders, "api-cors-header", "", "Set CORS headers in the remote API")
+	flags.StringVar(&config.CorsHeaders, "api-cors-header", "", "Set CORS headers in the Engine API")
 	flags.IntVar(&maxConcurrentDownloads, "max-concurrent-downloads", defaultMaxConcurrentDownloads, "Set the max concurrent downloads for each pull")
 	flags.IntVar(&maxConcurrentUploads, "max-concurrent-uploads", defaultMaxConcurrentUploads, "Set the max concurrent uploads for each push")
 	flags.IntVar(&config.ShutdownTimeout, "shutdown-timeout", defaultShutdownTimeout, "Set the default shutdown timeout")
