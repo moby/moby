@@ -69,10 +69,10 @@ func (s *DockerSwarmSuite) TestServiceCreateWithSecretSimple(c *check.C) {
 	c.Assert(refs, checker.HasLen, 1)
 
 	c.Assert(refs[0].SecretName, checker.Equals, testName)
-	c.Assert(refs[0].Target, checker.Not(checker.IsNil))
-	c.Assert(refs[0].Target.Name, checker.Equals, testName)
-	c.Assert(refs[0].Target.UID, checker.Equals, "0")
-	c.Assert(refs[0].Target.GID, checker.Equals, "0")
+	c.Assert(refs[0].File, checker.Not(checker.IsNil))
+	c.Assert(refs[0].File.Name, checker.Equals, testName)
+	c.Assert(refs[0].File.UID, checker.Equals, "0")
+	c.Assert(refs[0].File.GID, checker.Equals, "0")
 }
 
 func (s *DockerSwarmSuite) TestServiceCreateWithSecretSourceTarget(c *check.C) {
@@ -100,6 +100,6 @@ func (s *DockerSwarmSuite) TestServiceCreateWithSecretSourceTarget(c *check.C) {
 	c.Assert(refs, checker.HasLen, 1)
 
 	c.Assert(refs[0].SecretName, checker.Equals, testName)
-	c.Assert(refs[0].Target, checker.Not(checker.IsNil))
-	c.Assert(refs[0].Target.Name, checker.Equals, testTarget)
+	c.Assert(refs[0].File, checker.Not(checker.IsNil))
+	c.Assert(refs[0].File.Name, checker.Equals, testTarget)
 }

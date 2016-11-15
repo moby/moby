@@ -11,11 +11,13 @@ import (
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/network"
+	swarmtypes "github.com/docker/docker/api/types/swarm"
 	clustertypes "github.com/docker/docker/daemon/cluster/provider"
 	"github.com/docker/docker/reference"
 	"github.com/docker/libnetwork"
 	"github.com/docker/libnetwork/cluster"
 	networktypes "github.com/docker/libnetwork/types"
+	"github.com/docker/swarmkit/agent/exec"
 	"golang.org/x/net/context"
 )
 
@@ -38,7 +40,8 @@ type Backend interface {
 	ContainerWaitWithContext(ctx context.Context, name string) error
 	ContainerRm(name string, config *types.ContainerRmConfig) error
 	ContainerKill(name string, sig uint64) error
-	SetContainerSecrets(name string, secrets []*container.ContainerSecret) error
+	SetContainerSecretStore(name string, store exec.SecretGetter) error
+	SetContainerSecretReferences(name string, refs []*swarmtypes.SecretReference) error
 	SystemInfo() (*types.Info, error)
 	VolumeCreate(name, driverName string, opts, labels map[string]string) (*types.Volume, error)
 	Containers(config *types.ContainerListOptions) ([]*types.Container, error)
