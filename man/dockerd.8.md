@@ -176,10 +176,10 @@ unix://[/path/to/socket] to use.
   Allow unrestricted inter\-container and Docker daemon host communication. If disabled, containers can still be linked together using the **--link** option (see **docker-run(1)**). Default is true.
 
 **--init**
-Run an init process inside containers for signal forwarding and process reaping.
+  Run an init process inside containers for signal forwarding and process reaping.
 
 **--init-path**
-Path to the docker-init binary.
+  Path to the docker-init binary.
 
 **--insecure-registry**=[]
   Enable insecure registry communication, i.e., enable un-encrypted and/or untrusted communication.
@@ -239,7 +239,7 @@ is `hyperv`. Linux only supports `default`.
   Path to use for daemon PID file. Default is `/var/run/docker.pid`
 
 **--raw-logs**
-Output daemon logs in full timestamp format without ANSI coloring. If this flag is not set,
+  Output daemon logs in full timestamp format without ANSI coloring. If this flag is not set,
 the daemon outputs condensed, colorized logs if a terminal is detected, or full ("raw")
 output otherwise.
 
@@ -283,13 +283,13 @@ output otherwise.
   Default is false.
 
 **--userland-proxy**=*true*|*false*
-    Rely on a userland proxy implementation for inter-container and outside-to-container loopback communications. Default is true.
+  Rely on a userland proxy implementation for inter-container and outside-to-container loopback communications. Default is true.
 
 **--userland-proxy-path**=""
   Path to the userland proxy binary.
 
 **--userns-remap**=*default*|*uid:gid*|*user:group*|*user*|*uid*
-    Enable user namespaces for containers on the daemon. Specifying "default" will cause a new user and group to be created to handle UID and GID range remapping for the user namespace mappings used for contained processes. Specifying a user (or uid) and optionally a group (or gid) will cause the daemon to lookup the user and group's subordinate ID ranges for use as the user namespace mappings for contained processes.
+  Enable user namespaces for containers on the daemon. Specifying "default" will cause a new user and group to be created to handle UID and GID range remapping for the user namespace mappings used for contained processes. Specifying a user (or uid) and optionally a group (or gid) will cause the daemon to lookup the user and group's subordinate ID ranges for use as the user namespace mappings for contained processes.
 
 # STORAGE DRIVER OPTIONS
 
