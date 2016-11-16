@@ -375,7 +375,7 @@ func (c *Cluster) startNewNode(conf nodeStartConfig) (*node, error) {
 			node.ready = true
 			c.err = nil
 			c.Unlock()
-		case <-ctx.Done():
+		case <-node.done:
 		}
 		c.configEvent <- struct{}{}
 	}()
@@ -462,7 +462,10 @@ func (c *Cluster) Init(req types.InitRequest) (string, error) {
 		}
 	}
 
-	// todo: check current state existing
+	if !req.ForceNewCluster {
+		c.clearState()
+	}
+
 	n, err := c.startNewNode(nodeStartConfig{
 		forceNewCluster: req.ForceNewCluster,
 		autolock:        req.AutoLockManagers,
@@ -522,6 +525,8 @@ func (c *Cluster) Join(req types.JoinRequest) error {
 			advertiseAddr = net.JoinHostPort(advertiseHost, advertisePort)
 		}
 	}
+
+	c.clearState()
 
 	// todo: check current state existing
 	n, err := c.startNewNode(nodeStartConfig{
@@ -622,14 +627,14 @@ func (c *Cluster) UnlockSwarm(req types.UnlockRequest) error {
 // stopNode is a helper that stops the active c.node and waits until it has
 // shut down. Call while keeping the cluster lock.
 func (c *Cluster) stopNode() error {
+	if c.cancelDelay != nil { // between restarts
+		c.cancelDelay()
+		c.cancelDelay = nil
+	}
 	if c.node == nil {
 		return nil
 	}
 	c.stop = true
-	if c.cancelDelay != nil {
-		c.cancelDelay()
-		c.cancelDelay = nil
-	}
 	node := c.node
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
@@ -662,6 +667,10 @@ func (c *Cluster) Leave(force bool) error {
 			c.Unlock()
 		} else if c.err == ErrSwarmCertificatesExpired {
 			c.err = nil
+			c.Unlock()
+		} else if c.cancelDelay != nil { // between restarts
+			c.cancelDelay()
+			c.cancelDelay = nil
 			c.Unlock()
 		} else {
 			c.Unlock()
