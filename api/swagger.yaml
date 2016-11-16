@@ -15,7 +15,7 @@ info:
   x-logo:
     url: "https://docs.docker.com/images/logo-docker-main.png"
   description: |
-    The Engine API is an HTTP REST API served by Docker Engine. It is the API the Docker client uses to communicate with the Engine, so everything the Docker client can do can be done with the API.
+    The Engine API is an HTTP API served by Docker Engine. It is the API the Docker client uses to communicate with the Engine, so everything the Docker client can do can be done with the API.
 
     Most of the client's commands map directly to API endpoints (e.g. `docker ps` is `GET /containers/json`). The notable exception is running containers, which consists of several API calls.
 
@@ -560,7 +560,8 @@ definitions:
               type: "string"
           Tmpfs:
             type: "object"
-            description: "List of tmpfs mounts for this container."
+            description: |
+              A map of container directories which should be replaced by tmpfs mounts, and their corresponding mount options. For example: `{ "/run": "rw,noexec,nosuid,size=65536k" }`.
             additionalProperties:
               type: "string"
           UTSMode:
@@ -1701,6 +1702,13 @@ definitions:
                   type: "object"
                   additionalProperties:
                     type: "string"
+      EncryptionConfig:
+        description: "Parameters related to encryption-at-rest."
+        type: "object"
+        properties:
+          AutoLockManagers:
+            description: "If set, generate a key and use it to lock data stored on the managers."
+            type: "boolean"
       TaskDefaults:
         description: "Defaults for creating tasks in this cluster."
         type: "object"
@@ -1734,6 +1742,8 @@ definitions:
       JoinTokens:
         Worker: "SWMTKN-1-3pu6hszjas19xyp7ghgosyx9k8atbfcr8p2is99znpy26u2lkl-1awxwuwd3z9j1z3puu7rcgdbx"
         Manager: "SWMTKN-1-3pu6hszjas19xyp7ghgosyx9k8atbfcr8p2is99znpy26u2lkl-7p73s1dx5in4tatdymyhg9hu2"
+      EncryptionConfig:
+        AutoLockManagers: false
   # The Swarm information for `GET /info`. It is the same as `GET /swarm`, but
   # without `JoinTokens`.
   ClusterInfo:
@@ -1804,6 +1814,25 @@ definitions:
             description: "Amount of time to wait for the container to terminate before forcefully killing it."
             type: "integer"
             format: "int64"
+          DNSConfig:
+            description: "Specification for DNS related configurations in resolver configuration file (`resolv.conf`)."
+            type: "object"
+            properties:
+              Nameservers:
+                description: "The IP addresses of the name servers."
+                type: "array"
+                items:
+                  type: "string"
+              Search:
+                description: "A search list for host-name lookup."
+                type: "array"
+                items:
+                  type: "string"
+              Options:
+                description: "A list of internal resolver variables to be modified (e.g., `debug`, `ndots:3`, etc.)."
+                type: "array"
+                items:
+                  type: "string"
       Resources:
         description: "Resource requirements which apply to each individual container created as part of the service."
         type: "object"
@@ -2313,7 +2342,46 @@ definitions:
           type: "array"
           items:
             $ref: "#/definitions/Mount"
-
+  SecretSpec:
+    type: "object"
+    properties:
+      Name:
+        description: "User-defined name of the secret."
+        type: "string"
+      Labels:
+        description: "User-defined key/value metadata."
+        type: "object"
+        additionalProperties:
+          type: "string"
+      Data:
+        description: "Base64-url-safe-encoded secret data"
+        type: "array"
+        items:
+          type: "string"
+  Secret:
+    type: "object"
+    properties:
+      ID:
+        type: "string"
+      Version:
+        type: "object"
+        properties:
+          Index:
+            type: "integer"
+            format: "int64"
+      CreatedAt:
+        type: "string"
+        format: "dateTime"
+      UpdatedAt:
+        type: "string"
+        format: "dateTime"
+      Spec:
+        $ref: "#/definitions/ServiceSpec"
+      Digest:
+        type: "string"
+      SecretSize:
+        type: "integer"
+        format: "int64"
 paths:
   /containers/json:
     get:
@@ -4169,11 +4237,15 @@ paths:
           default: false
         - name: "filters"
           in: "query"
-          description: "A JSON encoded value of the filters (a `map[string][]string`) to process on the containers list"
-          type: "string"
-        - name: "filter"
-          in: "query"
-          description: "Only return images with the specified name."
+          description: |
+            A JSON encoded value of the filters (a `map[string][]string`) to process on the images list.
+
+            Available filters:
+            - `dangling=true`
+            - `label=key` or `label="key=value"` of an image label
+            - `before`=(`<image-name>[:<tag>]`,  `<image id>` or `<image@digest>`)
+            - `since`=(`<image-name>[:<tag>]`,  `<image id>` or `<image@digest>`)
+            - `reference`=(`<image-name>[:<tag>]`)
           type: "string"
         - name: "digests"
           in: "query"
@@ -6495,6 +6567,31 @@ paths:
             format: "binary"
       tags:
         - "Plugins"
+  /plugins/{name}/push:
+    post:
+      summary: "Push a plugin"
+      operationId: "PluginPush"
+      description: |
+        Push a plugin to the registry.
+      parameters:
+        - name: "name"
+          in: "path"
+          description: "The name of the plugin. The `:latest` tag is optional, and is the default if omitted."
+          required: true
+          type: "string"
+      responses:
+        200:
+          description: "no error"
+        404:
+          description: "plugin not installed"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        500:
+          description: "server error"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+      tags:
+        - "Plugins"
   /plugins/{name}/set:
     post:
       summary: "Configure a plugin"
@@ -6550,9 +6647,10 @@ paths:
 
             Available filters:
             - `id=<node id>`
+            - `label=<engine label>`
+            - `membership=`(`accepted`|`pending`)`
             - `name=<node name>`
-            - `membership=`(`pending`|`accepted`|`rejected`)`
-            - `role=`(`worker`|`manager`)`
+            - `role=`(`manager`|`worker`)`
           type: "string"
       tags:
         - "Nodes"
@@ -6576,7 +6674,7 @@ paths:
       parameters:
         - name: "id"
           in: "path"
-          description: "The ID of the node"
+          description: "The ID or name of the node"
           type: "string"
           required: true
       tags:
@@ -6598,7 +6696,7 @@ paths:
       parameters:
         - name: "id"
           in: "path"
-          description: "The ID of the node"
+          description: "The ID or name of the node"
           type: "string"
           required: true
         - name: "force"
@@ -6678,6 +6776,8 @@ paths:
                   SnapshotInterval: 10000
                   ElectionTick: 3
                 TaskDefaults: {}
+                EncryptionConfig:
+                  AutoLockManagers: false
                 Name: "default"
               JoinTokens:
                 Worker: "SWMTKN-1-1h8aps2yszaiqmz2l3oc5392pgk8e49qhx2aj3nyv0ui0hez2a-6qmn92w6bu3jdvnglku58u11a"
@@ -6745,6 +6845,8 @@ paths:
                 Raft: {}
                 Dispatcher: {}
                 CAConfig: {}
+                EncryptionConfig:
+                  AutoLockManagers: false
       tags:
         - "Swarm"
   /swarm/join:
@@ -6857,6 +6959,63 @@ paths:
           description: "Rotate the manager join token."
           type: "boolean"
           default: false
+        - name: "rotateManagerUnlockKey"
+          in: "query"
+          description: "Rotate the manager unlock key."
+          type: "boolean"
+          default: false
+      tags:
+        - "Swarm"
+  /swarm/unlockkey:
+    get:
+      summary: "Get the unlock key"
+      operationId: "SwarmUnlockkey"
+      consumes:
+        - "application/json"
+      responses:
+        200:
+          description: "no error"
+          schema:
+            type: "object"
+            properties:
+              UnlockKey:
+                description: "The swarm's unlock key."
+                type: "string"
+            example:
+              UnlockKey: "SWMKEY-1-7c37Cc8654o6p38HnroywCi19pllOnGtbdZEgtKxZu8"
+        500:
+          description: "server error"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+      tags:
+        - "Swarm"
+  /swarm/unlock:
+    post:
+      summary: "Unlock a locked manager"
+      operationId: "SwarmUnlock"
+      consumes:
+        - "application/json"
+      produces:
+        - "application/json"
+      parameters:
+        - name: "body"
+          in: "body"
+          required: true
+          schema:
+            type: "object"
+            properties:
+              UnlockKey:
+                description: "The swarm's unlock key."
+                type: "string"
+            example:
+              UnlockKey: "SWMKEY-1-7c37Cc8654o6p38HnroywCi19pllOnGtbdZEgtKxZu8"
+      responses:
+        200:
+          description: "no error"
+        500:
+          description: "server error"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
       tags:
         - "Swarm"
   /services:
@@ -6881,8 +7040,9 @@ paths:
           description: |
             A JSON encoded value of the filters (a `map[string][]string`) to process on the services list. Available filters:
 
-            - `id=<node id>`
-            - `name=<node name>`
+            - `id=<service id>`
+            - `name=<service name>`
+            - `label=<service label>`
       tags:
         - "Services"
   /services/create:
@@ -6944,6 +7104,10 @@ paths:
                             Labels:
                               com.example.something: "something-value"
                       User: "33"
+                      DNSConfig:
+                        Nameservers: ["8.8.8.8"]
+                        Search: ["example.org"]
+                        Options: ["timeout:3"]
                     LogDriver:
                       Name: "json-file"
                       Options:
@@ -7100,7 +7264,85 @@ paths:
           description: "A base64-encoded auth configuration for pulling from private registries. [See the authentication section for details.](#section/Authentication)"
           type: "string"
 
-      tags: [Service]
+      tags: ["Services"]
+  /services/{id}/logs:
+    get:
+      summary: "Get service logs"
+      description: |
+        Get `stdout` and `stderr` logs from a service.
+
+        **Note**: This endpoint works only for services with the `json-file` or `journald` logging drivers.
+      operationId: "ServiceLogs"
+      produces:
+        - "application/vnd.docker.raw-stream"
+        - "application/json"
+      responses:
+        101:
+          description: "logs returned as a stream"
+          schema:
+            type: "string"
+            format: "binary"
+        200:
+          description: "logs returned as a string in response body"
+          schema:
+            type: "string"
+        404:
+          description: "no such container"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+          examples:
+            application/json:
+              message: "No such container: c2ada9df5af8"
+        500:
+          description: "server error"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+      parameters:
+        - name: "id"
+          in: "path"
+          required: true
+          description: "ID or name of the container"
+          type: "string"
+        - name: "details"
+          in: "query"
+          description: "Show extra details provided to logs."
+          type: "boolean"
+          default: false
+        - name: "follow"
+          in: "query"
+          description: |
+            Return the logs as a stream.
+
+            This will return a `101` HTTP response with a `Connection: upgrade` header, then hijack the HTTP connection to send raw output. For more information about hijacking and the stream format, [see the documentation for the attach endpoint](#operation/PostContainerAttach).
+          type: "boolean"
+          default: false
+        - name: "stdout"
+          in: "query"
+          description: "Return logs from `stdout`"
+          type: "boolean"
+          default: false
+        - name: "stderr"
+          in: "query"
+          description: "Return logs from `stderr`"
+          type: "boolean"
+          default: false
+        - name: "since"
+          in: "query"
+          description: "Only return logs since this time, as a UNIX timestamp"
+          type: "integer"
+          default: 0
+        - name: "timestamps"
+          in: "query"
+          description: "Add timestamps to every log line"
+          type: "boolean"
+          default: false
+        - name: "tail"
+          in: "query"
+          description: "Only return this number of log lines from the end of the logs. Specify as an integer or `all` to output all log lines."
+          type: "string"
+          default: "all"
+      tags:
+        - "Services"
   /tasks:
     get:
       summary: "List tasks"
@@ -7272,3 +7514,150 @@ paths:
           type: "string"
       tags:
         - "Tasks"
+  /secrets:
+    get:
+      summary: "List secrets"
+      operationId: "SecretList"
+      produces:
+        - "application/json"
+      responses:
+        200:
+          description: "no error"
+          schema:
+            type: "array"
+            items:
+              $ref: "#/definitions/Secret"
+            example:
+              - ID: "ktnbjxoalbkvbvedmg1urrz8h"
+                Version:
+                  Index: 11
+                CreatedAt: "2016-11-05T01:20:17.327670065Z"
+                UpdatedAt: "2016-11-05T01:20:17.327670065Z"
+                Spec:
+                  Name: "app-dev.crt"
+                Digest: "sha256:11d7c6f38253b73e608153c9f662a191ae605e1a3d9b756b0b3426388f91d3fa"
+                SecretSize: 31
+        500:
+          description: "server error"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+      parameters:
+        - name: "filters"
+          in: "query"
+          type: "string"
+          description: |
+            A JSON encoded value of the filters (a `map[string][]string`) to process on the secrets list. Available filters:
+
+            - `names=<secret name>`
+      tags:
+        - "Secrets"
+  /secrets/create:
+    post:
+      summary: "Create a secret"
+      operationId: "SecretCreate"
+      consumes:
+        - "application/json"
+      produces:
+        - "application/json"
+      responses:
+        201:
+          description: "no error"
+          schema:
+            type: "object"
+            properties:
+              ID:
+                description: "The ID of the created secret."
+                type: "string"
+            example:
+              ID: "ktnbjxoalbkvbvedmg1urrz8h"
+        406:
+          description: "server error or node is not part of a swarm"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        409:
+          description: "name conflicts with an existing object"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        500:
+          description: "server error"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+      parameters:
+        - name: "body"
+          in: "body"
+          schema:
+            allOf:
+              - $ref: "#/definitions/SecretSpec"
+              - type: "object"
+                example:
+                  Name: "app-key.crt"
+                  Labels:
+                    foo: "bar"
+                  Data: "VEhJUyBJUyBOT1QgQSBSRUFMIENFUlRJRklDQVRFCg=="
+      tags:
+        - "Secrets"
+  /secrets/{id}:
+    get:
+      summary: "Inspect a secret"
+      operationId: "SecretsInspect"
+      produces:
+        - "application/json"
+      responses:
+        200:
+          description: "no error"
+          schema:
+            $ref: "#/definitions/Secret"
+            example:
+              ID: "ktnbjxoalbkvbvedmg1urrz8h"
+              Version:
+                Index: 11
+              CreatedAt: "2016-11-05T01:20:17.327670065Z"
+              UpdatedAt: "2016-11-05T01:20:17.327670065Z"
+              Spec:
+                Name: "app-dev.crt"
+              Digest: "sha256:11d7c6f38253b73e608153c9f662a191ae605e1a3d9b756b0b3426388f91d3fa"
+              SecretSize: 31
+        404:
+          description: "secret not found"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        406:
+          description: "node is not part of a swarm"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        500:
+          description: "server error"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+      parameters:
+        - name: "id"
+          in: "path"
+          required: true
+          type: "string"
+          description: "ID of the secret"
+      tags:
+        - "Secrets"
+    delete:
+      summary: "Delete a secret"
+      operationId: "SecretsDelete"
+      produces:
+        - "application/json"
+      responses:
+        204:
+          description: "no error"
+        404:
+          description: "secret not found"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        500:
+          description: "server error"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+      parameters:
+        - name: "id"
+          in: "path"
+          required: true
+          type: "string"
+          description: "ID of the secret"
+      tags:
+        - "Secrets"
