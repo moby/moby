@@ -68,6 +68,8 @@ func newUpdateCommand(dockerCli *command.DockerCli) *cobra.Command {
 	flags.SetAnnotation(flagSecretRemove, "version", []string{"1.25"})
 	flags.Var(&serviceOpts.secrets, flagSecretAdd, "Add or update a secret on a service")
 	flags.SetAnnotation(flagSecretAdd, "version", []string{"1.25"})
+	flags.Var(&serviceOpts.secrets, flagSecretReplace, "Replace a secret on a service")
+	flags.SetAnnotation(flagSecretReplace, "version", []string{"1.25"})
 	flags.Var(&serviceOpts.mounts, flagMountAdd, "Add or update a mount on a service")
 	flags.Var(&serviceOpts.constraints, flagConstraintAdd, "Add or update a placement constraint")
 	flags.Var(&serviceOpts.placementPrefs, flagPlacementPrefAdd, "Add a placement preference")
@@ -548,26 +550,48 @@ func updateEnvironment(flags *pflag.FlagSet, field *[]string) {
 }
 
 func getUpdatedSecrets(apiClient client.SecretAPIClient, flags *pflag.FlagSet, secrets []*swarm.SecretReference) ([]*swarm.SecretReference, error) {
-	newSecrets := []*swarm.SecretReference{}
-
 	toRemove := buildToRemoveSet(flags, flagSecretRemove)
+	finalSecrets := []*swarm.SecretReference{}
 	for _, secret := range secrets {
 		if _, exists := toRemove[secret.SecretName]; !exists {
-			newSecrets = append(newSecrets, secret)
+			finalSecrets = append(finalSecrets, secret)
 		}
 	}
 
 	if flags.Changed(flagSecretAdd) {
-		values := flags.Lookup(flagSecretAdd).Value.(*opts.SecretOpt).Value()
+		addValues := flags.Lookup(flagSecretAdd).Value.(*opts.SecretOpt).Value()
 
-		addSecrets, err := ParseSecrets(apiClient, values)
+		addSecrets, err := ParseSecrets(apiClient, addValues)
 		if err != nil {
 			return nil, err
 		}
-		newSecrets = append(newSecrets, addSecrets...)
+		finalSecrets = append(finalSecrets, addSecrets...)
 	}
 
-	return newSecrets, nil
+	// If we're being asked to replace a specific secret, let's do in-place replacement of names and IDs
+	if flags.Changed(flagSecretReplace) {
+		replaceValues := flags.Lookup(flagSecretReplace).Value.(*opts.SecretOpt).Value()
+		replaceSecrets, err := ParseSecrets(apiClient, replaceValues)
+		if err != nil {
+			return nil, err
+		}
+
+		// Create a map of target -> Secret from the replaceSecrets
+		replaceSecretsMap := make(map[string]*swarm.SecretReference)
+		for _, secret := range replaceSecrets {
+			replaceSecretsMap[secret.File.Name] = secret
+		}
+
+		// Go through all of the current secrets we wish to add and see if we're being asked to replace it
+		for _, secret := range finalSecrets {
+			if replSecret, exists := replaceSecretsMap[secret.File.Name]; exists {
+				secret.SecretID = replSecret.SecretID
+				secret.SecretName = replSecret.SecretName
+			}
+		}
+	}
+
+	return finalSecrets, nil
 }
 
 func envKey(value string) string {

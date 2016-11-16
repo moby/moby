@@ -89,14 +89,23 @@ func (s *DockerSwarmSuite) TestServiceUpdateLabel(c *check.C) {
 
 func (s *DockerSwarmSuite) TestServiceUpdateSecrets(c *check.C) {
 	d := s.AddDaemon(c, true, true)
-	testName := "test_secret"
-	id := d.CreateSecret(c, swarm.SecretSpec{
+	secretName1 := "test_secret"
+	secretName2 := "test_secret2"
+	secretID1 := d.CreateSecret(c, swarm.SecretSpec{
 		Annotations: swarm.Annotations{
-			Name: testName,
+			Name: secretName1,
 		},
 		Data: []byte("TESTINGDATA"),
 	})
-	c.Assert(id, checker.Not(checker.Equals), "", check.Commentf("secrets: %s", id))
+
+	c.Assert(secretID1, checker.Not(checker.Equals), "", check.Commentf("secrets: %s", secretID1))
+	secretID2 := d.CreateSecret(c, swarm.SecretSpec{
+		Annotations: swarm.Annotations{
+			Name: secretName2,
+		},
+		Data: []byte("TESTINGDATA2"),
+	})
+	c.Assert(secretID2, checker.Not(checker.Equals), "", check.Commentf("secrets: %s", secretID2))
 	testTarget := "testing"
 	serviceName := "test"
 
@@ -104,7 +113,7 @@ func (s *DockerSwarmSuite) TestServiceUpdateSecrets(c *check.C) {
 	c.Assert(err, checker.IsNil, check.Commentf(out))
 
 	// add secret
-	out, err = d.CmdRetryOutOfSequence("service", "update", "test", "--secret-add", fmt.Sprintf("source=%s,target=%s", testName, testTarget))
+	out, err = d.CmdRetryOutOfSequence("service", "update", serviceName, "--secret-add", fmt.Sprintf("source=%s,target=%s", secretName1, testTarget))
 	c.Assert(err, checker.IsNil, check.Commentf(out))
 
 	out, err = d.Cmd("service", "inspect", "--format", "{{ json .Spec.TaskTemplate.ContainerSpec.Secrets }}", serviceName)
@@ -113,13 +122,26 @@ func (s *DockerSwarmSuite) TestServiceUpdateSecrets(c *check.C) {
 	var refs []swarm.SecretReference
 	c.Assert(json.Unmarshal([]byte(out), &refs), checker.IsNil)
 	c.Assert(refs, checker.HasLen, 1)
+	c.Assert(refs[0].SecretName, checker.Equals, secretName1)
+	c.Assert(refs[0].File, checker.Not(checker.IsNil))
+	c.Assert(refs[0].File.Name, checker.Equals, testTarget)
 
-	c.Assert(refs[0].SecretName, checker.Equals, testName)
+	// replace secret
+	out, err = d.CmdRetryOutOfSequence("service", "update", serviceName, "--secret-replace", fmt.Sprintf("source=%s,target=%s", secretName2, testTarget))
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+
+	out, err = d.Cmd("service", "inspect", "--format", "{{ json .Spec.TaskTemplate.ContainerSpec.Secrets }}", serviceName)
+	c.Assert(err, checker.IsNil)
+
+	c.Assert(json.Unmarshal([]byte(out), &refs), checker.IsNil)
+	c.Assert(refs, checker.HasLen, 1)
+
+	c.Assert(refs[0].SecretName, checker.Equals, secretName2)
 	c.Assert(refs[0].File, checker.Not(checker.IsNil))
 	c.Assert(refs[0].File.Name, checker.Equals, testTarget)
 
 	// remove
-	out, err = d.CmdRetryOutOfSequence("service", "update", "test", "--secret-rm", testName)
+	out, err = d.CmdRetryOutOfSequence("service", "update", "test", "--secret-rm", secretName2)
 	c.Assert(err, checker.IsNil, check.Commentf(out))
 
 	out, err = d.Cmd("service", "inspect", "--format", "{{ json .Spec.TaskTemplate.ContainerSpec.Secrets }}", serviceName)

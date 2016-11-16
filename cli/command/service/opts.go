@@ -664,4 +664,5 @@ const (
 	flagSecret                  = "secret"
 	flagSecretAdd               = "secret-add"
 	flagSecretRemove            = "secret-rm"
+	flagSecretReplace           = "secret-replace"
 )
