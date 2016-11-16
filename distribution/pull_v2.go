@@ -1,6 +1,7 @@
 package distribution
 
 import (
+	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -56,6 +57,7 @@ type v2Puller struct {
 	config            *ImagePullConfig
 	repoInfo          *registry.RepositoryInfo
 	repo              distribution.Repository
+	service           registry.Service
 	// confirmedV2 is set to true if we confirm we're talking to a v2
 	// registry. This is used to limit fallbacks to the v1 protocol.
 	confirmedV2 bool
@@ -132,6 +134,7 @@ func (p *v2Puller) pullV2Repository(ctx context.Context, ref reference.Named) (e
 }
 
 type v2LayerDescriptor struct {
+	service           registry.Service
 	digest            digest.Digest
 	repoInfo          *registry.RepositoryInfo
 	repo              distribution.Repository
@@ -318,9 +321,18 @@ func (ld *v2LayerDescriptor) open(ctx context.Context) (distribution.ReadSeekClo
 	)
 
 	// Find the first URL that results in a 200 result code.
-	for _, url := range ld.src.URLs {
-		logrus.Debugf("Pulling %v from foreign URL %v", ld.digest, url)
-		rsc = transport.NewHTTPReadSeeker(http.DefaultClient, url, nil)
+	for _, u := range ld.src.URLs {
+		logrus.Debugf("Pulling %v from foreign URL %v", ld.digest, u)
+
+		purl, _ := url.Parse(u)
+		var tlsc *tls.Config
+		tlsc, err = ld.service.TLSConfig(purl.Host)
+		if err != nil {
+			logrus.Debugf("Getting TLSConfig for %q failed: %v", purl, err)
+		}
+		tr := registry.NewTransport(tlsc)
+
+		rsc = transport.NewHTTPReadSeeker(&http.Client{Transport: tr}, u, nil)
 		_, err = rsc.Seek(0, os.SEEK_SET)
 		if err == nil {
 			break
@@ -505,6 +517,7 @@ func (p *v2Puller) pullSchema1(ctx context.Context, ref reference.Named, unverif
 			repoInfo:          p.repoInfo,
 			repo:              p.repo,
 			V2MetadataService: p.V2MetadataService,
+			service:           p.service,
 		}
 
 		descriptors = append(descriptors, layerDescriptor)
@@ -555,6 +568,7 @@ func (p *v2Puller) pullSchema2(ctx context.Context, ref reference.Named, mfst *s
 			repoInfo:          p.repoInfo,
 			V2MetadataService: p.V2MetadataService,
 			src:               d,
+			service:           p.service,
 		}
 
 		descriptors = append(descriptors, layerDescriptor)

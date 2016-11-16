@@ -63,6 +63,7 @@ func newPuller(endpoint registry.APIEndpoint, repoInfo *registry.RepositoryInfo,
 			endpoint:          endpoint,
 			config:            imagePullConfig,
 			repoInfo:          repoInfo,
+			service:           imagePullConfig.RegistryService,
 		}, nil
 	case registry.APIVersion1:
 		return &v1Puller{
