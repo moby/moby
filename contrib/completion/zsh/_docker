@@ -1961,7 +1961,7 @@ __docker_swarm_subcommand() {
 __docker_system_commands() {
     local -a _docker_system_subcommands
     _docker_system_subcommands=(
-        "df:Show docker disk usage"
+        "df:Show docker filesystem usage"
         "events:Get real time events from the server"
         "info:Display system-wide information"
         "prune:Remove unused data"
@@ -1978,7 +1978,9 @@ __docker_system_subcommand() {
 
     case "$words[1]" in
         (df)
-            # @TODO
+            _arguments $(__docker_arguments) \
+                $opts_help \
+                "($help -v --verbose)"{-v,--verbose}"[Show detailed information on space usage]" && ret=0
             ;;
         (events)
             _arguments $(__docker_arguments) \
