@@ -99,7 +99,7 @@ func TestCreateSuccess(t *testing.T) {
 		t.Errorf("Expected LogGroupName to be %s", groupName)
 	}
 	if argument.LogStreamName == nil {
-		t.Fatal("Expected non-nil LogGroupName")
+		t.Fatal("Expected non-nil LogStreamName")
 	}
 	if *argument.LogStreamName != streamName {
 		t.Errorf("Expected LogStreamName to be %s", streamName)
