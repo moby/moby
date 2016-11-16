@@ -40,7 +40,7 @@ type Config struct {
 	AttachStdin     bool                  // Attach the standard input, makes possible user interaction
 	AttachStdout    bool                  // Attach the standard output
 	AttachStderr    bool                  // Attach the standard error
-	ExposedPorts    map[nat.Port]struct{} `json:",omitempty"` // List of exposed ports
+	ExposedPorts    nat.PortSet           `json:",omitempty"` // List of exposed ports
 	Tty             bool                  // Attach standard streams to a tty, including stdin if it is not closed.
 	OpenStdin       bool                  // Open stdin
 	StdinOnce       bool                  // If true, close stdin after the 1 attached client disconnects.
