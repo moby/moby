@@ -80,7 +80,7 @@ func TestHealthStates(t *testing.T) {
 			Start:    startTime,
 			End:      startTime,
 			ExitCode: exitCode,
-		})
+		}, nil)
 	}
 
 	// starting -> failed -> success -> failed
