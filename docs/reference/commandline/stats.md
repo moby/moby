@@ -21,9 +21,10 @@ Usage:  docker stats [OPTIONS] [CONTAINER...]
 Display a live stream of container(s) resource usage statistics
 
 Options:
-  -a, --all         Show all containers (default shows just running)
-      --help        Print usage
-      --no-stream   Disable streaming stats and only pull the first result
+  -a, --all             Show all containers (default shows just running)
+      --format string   Pretty-print images using a Go template
+      --help            Print usage
+      --no-stream       Disable streaming stats and only pull the first result
 ```
 
 The `docker stats` command returns a live data stream for running containers. To limit data to one or more specific containers, specify a list of container names or ids separated by a space. You can specify a stopped container but stopped containers do not return any data.
@@ -77,7 +78,9 @@ Valid placeholders for the Go template are listed below:
 
 Placeholder  | Description
 ------------ | --------------------------------------------
-`.Container` | Container name or ID
+`.Container` | Container name or ID (user input)
+`.Name`      | Container name
+`.ID`        | Container ID
 `.CPUPerc`   | CPU percentage
 `.MemUsage`  | Memory usage
 `.NetIO`     | Network IO
