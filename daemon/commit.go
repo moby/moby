@@ -17,7 +17,6 @@ import (
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/reference"
-	"github.com/docker/go-connections/nat"
 )
 
 // merge merges two Config, the image container configuration (defaults values),
@@ -32,9 +31,6 @@ func merge(userConf, imageConf *containertypes.Config) error {
 	if len(userConf.ExposedPorts) == 0 {
 		userConf.ExposedPorts = imageConf.ExposedPorts
 	} else if imageConf.ExposedPorts != nil {
-		if userConf.ExposedPorts == nil {
-			userConf.ExposedPorts = make(nat.PortSet)
-		}
 		for port := range imageConf.ExposedPorts {
 			if _, exists := userConf.ExposedPorts[port]; !exists {
 				userConf.ExposedPorts[port] = struct{}{}
