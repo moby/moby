@@ -21,7 +21,7 @@ standard output stream.
   Print usage statement
 
 **-i**, **--input**=""
-   Read from a tar archive file, instead of STDIN. The tarball may be compressed with gzip, bzip, or xz.
+   Read from a tar archive file, instead of STDIN.
 
 **-q**, **--quiet**
    Suppress the load progress bar but still outputs the imported images.
