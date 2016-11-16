@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/libcontainerd"
 	"github.com/docker/docker/oci"
 	"github.com/docker/docker/pkg/plugins"
 	"github.com/docker/docker/plugin/v2"
@@ -48,6 +49,25 @@ func (pm *Manager) restore(p *v2.Plugin) error {
 	return pm.containerdClient.Restore(p.GetID(), attachToLog(p.GetID()))
 }
 
+func shutdownPlugin(p *v2.Plugin, containerdClient libcontainerd.Client) {
+	pluginID := p.GetID()
+
+	err := containerdClient.Signal(pluginID, int(syscall.SIGTERM))
+	if err != nil {
+		logrus.Errorf("Sending SIGTERM to plugin failed with error: %v", err)
+	} else {
+		select {
+		case <-p.ExitChan:
+			logrus.Debug("Clean shutdown of plugin")
+		case <-time.After(time.Second * 10):
+			logrus.Debug("Force shutdown plugin")
+			if err := containerdClient.Signal(pluginID, int(syscall.SIGKILL)); err != nil {
+				logrus.Errorf("Sending SIGKILL to plugin failed with error: %v", err)
+			}
+		}
+	}
+}
+
 func (pm *Manager) disable(p *v2.Plugin) error {
 	if !p.IsEnabled() {
 		return fmt.Errorf("plugin %s is already disabled", p.Name())
@@ -55,9 +75,8 @@ func (pm *Manager) disable(p *v2.Plugin) error {
 	p.Lock()
 	p.Restart = false
 	p.Unlock()
-	if err := pm.containerdClient.Signal(p.GetID(), int(syscall.SIGKILL)); err != nil {
-		logrus.Error(err)
-	}
+
+	shutdownPlugin(p, pm.containerdClient)
 	pm.pluginStore.SetState(p, false)
 	return nil
 }
@@ -71,25 +90,11 @@ func (pm *Manager) Shutdown() {
 			continue
 		}
 		if pm.containerdClient != nil && p.IsEnabled() {
-			pluginID := p.GetID()
 			p.Lock()
 			p.ExitChan = make(chan bool)
 			p.Restart = false
 			p.Unlock()
-			err := pm.containerdClient.Signal(p.PluginObj.ID, int(syscall.SIGTERM))
-			if err != nil {
-				logrus.Errorf("Sending SIGTERM to plugin failed with error: %v", err)
-			} else {
-				select {
-				case <-p.ExitChan:
-					logrus.Debug("Clean shutdown of plugin")
-				case <-time.After(time.Second * 10):
-					logrus.Debug("Force shutdown plugin")
-					if err := pm.containerdClient.Signal(pluginID, int(syscall.SIGKILL)); err != nil {
-						logrus.Errorf("Sending SIGKILL to plugin failed with error: %v", err)
-					}
-				}
-			}
+			shutdownPlugin(p, pm.containerdClient)
 		}
 	}
 }

@@ -900,7 +900,8 @@ __docker_image_subcommand() {
         (build)
             _arguments $(__docker_arguments) \
                 $opts_help \
-                "($help)*--build-arg[Build-time variables]:<varname>=<value>: " \
+                "($help)*--build-arg=[Build-time variables]:<varname>=<value>: " \
+                "($help)*--cache-from=[Images to consider as cache sources]: :__docker_complete_repositories_with_tags" \
                 "($help -c --cpu-shares)"{-c=,--cpu-shares=}"[CPU shares (relative weight)]:CPU shares:(0 10 100 200 500 800 1000)" \
                 "($help)--cgroup-parent=[Parent cgroup for the container]:cgroup: " \
                 "($help)--compress[Compress the build context using gzip]" \
@@ -917,6 +918,7 @@ __docker_image_subcommand() {
                 "($help)*--label=[Set metadata for an image]:label=value: " \
                 "($help -m --memory)"{-m=,--memory=}"[Memory limit]:Memory limit: " \
                 "($help)--memory-swap=[Total memory limit with swap]:Memory limit: " \
+                "($help)--network=[Connect a container to a network]:network mode:(bridge none container host)"
                 "($help)--no-cache[Do not use cache when building the image]" \
                 "($help)--pull[Attempt to pull a newer version of the image]" \
                 "($help -q --quiet)"{-q,--quiet}"[Suppress verbose build output]" \
@@ -1514,6 +1516,107 @@ __docker_plugin_subcommand() {
 
 # EO plugin
 
+# BO secret
+
+__docker_secrets() {
+    [[ $PREFIX = -* ]] && return 1
+    integer ret=1
+    local line s
+    declare -a lines secrets
+
+    type=$1; shift
+
+    lines=(${(f)${:-"$(_call_program commands docker $docker_options secret ls)"$'\n'}})
+
+    # Parse header line to find columns
+    local i=1 j=1 k header=${lines[1]}
+    declare -A begin end
+    while (( j < ${#header} - 1 )); do
+        i=$(( j + ${${header[$j,-1]}[(i)[^ ]]} - 1 ))
+        j=$(( i + ${${header[$i,-1]}[(i)  ]} - 1 ))
+        k=$(( j + ${${header[$j,-1]}[(i)[^ ]]} - 2 ))
+        begin[${header[$i,$((j-1))]}]=$i
+        end[${header[$i,$((j-1))]}]=$k
+    done
+    end[${header[$i,$((j-1))]}]=-1
+    lines=(${lines[2,-1]})
+
+    # ID
+    if [[ $type = (ids|all) ]]; then
+        for line in $lines; do
+            s="${line[${begin[ID]},${end[ID]}]%% ##}"
+            secrets=($secrets $s)
+        done
+    fi
+
+    # Names
+    if [[ $type = (names|all) ]]; then
+        for line in $lines; do
+            s="${line[${begin[NAME]},${end[NAME]}]%% ##}"
+            secrets=($secrets $s)
+        done
+    fi
+
+    _describe -t secrets-list "secrets" secrets "$@" && ret=0
+    return ret
+}
+
+__docker_complete_secrets() {
+    [[ $PREFIX = -* ]] && return 1
+    __docker_secrets all "$@"
+}
+
+__docker_secret_commands() {
+    local -a _docker_secret_subcommands
+    _docker_secret_subcommands=(
+        "create:Create a secret using stdin as content"
+        "inspect:Display detailed information on one or more secrets"
+        "ls:List secrets"
+        "rm:Remove one or more secrets"
+    )
+    _describe -t docker-secret-commands "docker secret command" _docker_secret_subcommands
+}
+
+__docker_secret_subcommand() {
+    local -a _command_args opts_help
+    local expl help="--help"
+    integer ret=1
+
+    opts_help=("(: -)--help[Print usage]")
+
+    case "$words[1]" in
+        (create)
+            _arguments $(__docker_arguments) \
+                $opts_help \
+                "($help)*"{-l=,--label=}"[Secret labels]:label: " \
+                "($help -):secret: " && ret=0
+            ;;
+        (inspect)
+            _arguments $(__docker_arguments) \
+                $opts_help \
+                "($help -f --format)"{-f=,--format=}"[Format the output using the given Go template]:template: " \
+                "($help -)*:secret:__docker_complete_secrets" && ret=0
+            ;;
+        (ls|list)
+            _arguments $(__docker_arguments) \
+                $opts_help \
+                "($help -q --quiet)"{-q,--quiet}"[Only display IDs]" && ret=0
+            ;;
+        (rm|remove)
+            _arguments $(__docker_arguments) \
+                $opts_help \
+                "($help -)*:secret:__docker_complete_secrets" && ret=0
+            ;;
+        (help)
+            _arguments $(__docker_arguments) ":subcommand:__docker_secret_commands" && ret=0
+            ;;
+    esac
+
+    return ret
+}
+
+# EO secret
+
 # BO service
 
 __docker_service_complete_ls_filters() {
@@ -1666,6 +1769,7 @@ __docker_service_subcommand() {
         "($help)--restart-delay=[Delay between restart attempts]:delay: "
         "($help)--restart-max-attempts=[Maximum number of restarts before giving up]:max-attempts: "
         "($help)--restart-window=[Window used to evaluate the restart policy]:window: "
+        "($help)*--secret=[Specify secrets to expose to the service]:secret:__docker_complete_secrets"
         "($help)--stop-grace-period=[Time to wait before force killing a container]:grace period: "
         "($help -t --tty)"{-t,--tty}"[Allocate a pseudo-TTY]"
         "($help)--update-delay=[Delay between updates]:delay: "
@@ -1684,10 +1788,14 @@ __docker_service_subcommand() {
                 $opts_help \
                 $opts_create_update \
                 "($help)*--container-label=[Container labels]:label: " \
+                "($help)*--dns=[Set custom DNS servers]:DNS: " \
+                "($help)*--dns-option=[Set DNS options]:DNS option: " \
+                "($help)*--dns-search=[Set custom DNS search domains]:DNS search: " \
                 "($help)*--env-file=[Read environment variables from a file]:environment file:_files" \
                 "($help)--hostname=[Service containers hostname]:hostname: " \
                 "($help)--mode=[Service Mode]:mode:(global replicated)" \
                 "($help)--name=[Service name]:name: " \
+                "($help)*--port=[Publish a port]:port: " \
                 "($help -): :__docker_complete_images" \
                 "($help -):command: _command_names -e" \
                 "($help -)*::arguments: _normal" && ret=0
@@ -1750,10 +1858,18 @@ __docker_service_subcommand() {
                 "($help)--arg=[Service command args]:arguments: _normal" \
                 "($help)*--container-label-add=[Add or update container labels]:label: " \
                 "($help)*--container-label-rm=[Remove a container label by its key]:label: " \
+                "($help)*--dns-add=[Add or update custom DNS servers]:DNS: " \
+                "($help)*--dns-rm=[Remove custom DNS servers]:DNS: " \
+                "($help)*--dns-option-add=[Add or update DNS options]:DNS option: " \
+                "($help)*--dns-option-rm=[Remove DNS options]:DNS option: " \
+                "($help)*--dns-search-add=[Add or update custom DNS search domains]:DNS search: " \
+                "($help)*--dns-search-rm=[Remove DNS search domains]:DNS search: " \
                 "($help)--force[Force update]" \
                 "($help)*--group-add=[Add additional supplementary user groups to the container]:group:_groups" \
                 "($help)*--group-rm=[Remove previously added supplementary user groups from the container]:group:_groups" \
                 "($help)--image=[Service image tag]:image:__docker_complete_repositories" \
+                "($help)*--port-add=[Add or update a port]:port: " \
+                "($help)*--port-rm=[Remove a port(target-port mandatory)]:port: " \
                 "($help)--rollback[Rollback to previous specification]" \
                 "($help -)1:service:__docker_complete_services" && ret=0
             ;;
@@ -2295,6 +2411,23 @@ __docker_subcommand() {
             case $state in
                 (filter-options)
                     __docker_complete_search_filters && ret=0
+                    ;;
+            esac
+            ;;
+        (secret)
+            local curcontext="$curcontext" state
+            _arguments $(__docker_arguments) \
+                $opts_help \
+                "($help -): :->command" \
+                "($help -)*:: :->option-or-argument" && ret=0
+
+            case $state in
+                (command)
+                    __docker_secret_commands && ret=0
+                    ;;
+                (option-or-argument)
+                    curcontext=${curcontext%:*:*}:docker-${words[-1]}:
+                    __docker_secret_subcommand && ret=0
                     ;;
             esac
             ;;

@@ -1686,7 +1686,7 @@ Delete stopped containers
 
 **Example request, with digest information**:
 
-    GET /v1.25/v1.25/images/json?digests=1 HTTP/1.1
+    GET /v1.25/images/json?digests=1 HTTP/1.1
 
 **Example response, with digest information**:
 
@@ -1743,7 +1743,7 @@ Build an image from a Dockerfile
 
 **Example request**:
 
-    POST /v1.25/v1.25/build HTTP/1.1
+    POST /v1.25/build HTTP/1.1
 
     {% raw %}
     {{ TAR STREAM }}
@@ -4713,9 +4713,9 @@ an empty value or the default cluster-wide value.
 
 JSON Parameters:
 
-- **Annotations** – Optional medata to associate with the service.
-    - **Name** – User-defined name for the service.
-    - **Labels** – A map of labels to associate with the service (e.g.,
+- **Annotations** – Optional medata to associate with the node.
+    - **Name** – User-defined name for the node.
+    - **Labels** – A map of labels to associate with the node (e.g.,
       `{"key":"value", "key2":"value2"}`).
 - **Role** - Role of the node (worker/manager).
 - **Availability** - Availability of the node (active/pause/drain).
@@ -6060,9 +6060,9 @@ Create a secret
 
 ### Inspect a secret
 
-`GET /secrets/(secret id)`
+`GET /secrets/(id)`
 
-Get details on a secret
+Get details on the secret `id`
 
 **Example request**:
 
@@ -6088,6 +6088,7 @@ Get details on a secret
 
 - **200** – no error
 - **404** – unknown secret
+- **406** – node is not part of a swarm
 - **500** – server error
 
 ### Remove a secret
