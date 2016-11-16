@@ -10,6 +10,9 @@ export DOCKER_INCREMENTAL_BINARY
 DOCKER_OSARCH := $(shell bash -c 'source hack/make/.detect-daemon-osarch && echo $${DOCKER_ENGINE_OSARCH:-$$DOCKER_CLIENT_OSARCH}')
 DOCKERFILE := $(shell bash -c 'source hack/make/.detect-daemon-osarch && echo $${DOCKERFILE}')
 
+DOCKER_GITCOMMIT := $(shell git rev-parse --short HEAD || echo unsupported)
+export DOCKER_GITCOMMIT
+
 # env vars passed through directly to Docker's build scripts
 # to allow things like `make KEEPBUNDLE=1 binary` easily
 # `project/PACKAGERS.md` have some limited documentation of some of these
