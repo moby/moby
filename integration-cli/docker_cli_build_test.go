@@ -804,76 +804,67 @@ RUN [ $(ls -l / | grep new_dir | awk '{print $3":"$4}') = 'root:root' ]`, true);
 	}
 }
 
-func (s *DockerSuite) TestBuildAddUserFlag(c *check.C) {
+func (s *DockerSuite) TestBuildAddChownFlag(c *check.C) {
 	testRequires(c, DaemonIsLinux) // Linux specific test
 	name := "testaddtonewdest"
 	ctx, err := fakeContext(`FROM busybox
 RUN echo 'test1:x:1001:1001::/bin:/bin/false' >> /etc/passwd
 RUN echo 'test1:x:1001:' >> /etc/group
 RUN echo 'test2:x:1002:' >> /etc/group
-ADD --user=test1:1002 . /new_dir
+ADD --chown=test1:1002 . /new_dir
 RUN ls -l /
 RUN [ $(ls -l / | grep new_dir | awk '{print $3":"$4}') = 'test1:test2' ]`,
 		map[string]string{
 			"test_dir/test_file": "test file",
 		})
-	if err != nil {
-		c.Fatal(err)
-	}
+	c.Assert(err, check.IsNil)
 	defer ctx.Close()
 
-	if _, err := buildImageFromContext(name, ctx, true); err != nil {
-		c.Fatal(err)
-	}
+	_, err = buildImageFromContext(name, ctx, true)
+	c.Assert(err, check.IsNil)
 }
 
-func (s *DockerDaemonSuite) TestBuildAddUserFlagUserNamespace(c *check.C) {
+func (s *DockerDaemonSuite) TestBuildAddChownFlagUserNamespace(c *check.C) {
 	testRequires(c, DaemonIsLinux) // Linux specific test
 
-	c.Assert(s.d.StartWithBusybox("--userns-remap", "default"), checker.IsNil)
+	s.d.StartWithBusybox(c, "--userns-remap", "default")
 
 	name := "testaddtonewdest"
 	ctx, err := fakeContext(`FROM busybox
 RUN echo 'test1:x:1001:1001::/bin:/bin/false' >> /etc/passwd
 RUN echo 'test1:x:1001:' >> /etc/group
 RUN echo 'test2:x:1002:' >> /etc/group
-ADD --user=test1:1002 . /new_dir
+ADD --chown=test1:1002 . /new_dir
 RUN ls -l /
 RUN [ $(ls -l / | grep new_dir | awk '{print $3":"$4}') = 'test1:test2' ]`,
 		map[string]string{
 			"test_dir/test_file": "test file",
 		})
-	if err != nil {
-		c.Fatal(err)
-	}
+	c.Assert(err, check.IsNil)
 	defer ctx.Close()
 
-	if _, err := buildImageFromContext(name, ctx, true); err != nil {
-		c.Fatal(err)
-	}
+	_, err = buildImageFromContext(name, ctx, true)
+	c.Assert(err, check.IsNil)
 }
 
-func (s *DockerSuite) TestBuildCopyUserFlag(c *check.C) {
+func (s *DockerSuite) TestBuildCopyChownFlag(c *check.C) {
 	testRequires(c, DaemonIsLinux) // Linux specific test
 	name := "testaddtonewdest"
 	ctx, err := fakeContext(`FROM busybox
 RUN echo 'test1:x:1001:1001::/bin:/bin/false' >> /etc/passwd
 RUN echo 'test1:x:1001:' >> /etc/group
 RUN echo 'test2:x:1002:' >> /etc/group
-COPY --user=test1:1002 . /new_dir
+COPY --chown=test1:1002 . /new_dir
 RUN ls -l /
 RUN [ $(ls -l / | grep new_dir | awk '{print $3":"$4}') = 'test1:test2' ]`,
 		map[string]string{
 			"test_dir/test_file": "test file",
 		})
-	if err != nil {
-		c.Fatal(err)
-	}
+	c.Assert(err, check.IsNil)
 	defer ctx.Close()
 
-	if _, err := buildImageFromContext(name, ctx, true); err != nil {
-		c.Fatal(err)
-	}
+	_, err = buildImageFromContext(name, ctx, true)
+	c.Assert(err, check.IsNil)
 }
 
 func (s *DockerSuite) TestBuildAddFileWithWhitespace(c *check.C) {

@@ -172,7 +172,7 @@ func (b *Builder) runContextCommand(args []string, allowRemote bool, allowLocalD
 
 	cmd := b.runConfig.Cmd
 	if usergrp != "" {
-		b.runConfig.Cmd = strslice.StrSlice(append(getShell(b.runConfig), fmt.Sprintf("#(nop) %s --user=%s %s in %s ", cmdName, usergrp, srcHash, dest)))
+		b.runConfig.Cmd = strslice.StrSlice(append(getShell(b.runConfig), fmt.Sprintf("#(nop) %s --chown=%s %s in %s ", cmdName, usergrp, srcHash, dest)))
 	} else {
 		b.runConfig.Cmd = strslice.StrSlice(append(getShell(b.runConfig), fmt.Sprintf("#(nop) %s %s in %s ", cmdName, srcHash, dest)))
 	}
@@ -192,7 +192,7 @@ func (b *Builder) runContextCommand(args []string, allowRemote bool, allowLocalD
 
 	var comment string
 	if usergrp != "" {
-		comment = fmt.Sprintf("%s --user=%s %s in %s", cmdName, usergrp, origPaths, dest)
+		comment = fmt.Sprintf("%s --chown=%s %s in %s", cmdName, usergrp, origPaths, dest)
 	} else {
 		comment = fmt.Sprintf("%s %s in %s", cmdName, origPaths, dest)
 	}

@@ -156,7 +156,7 @@ func (daemon *Daemon) setupSecretDir(c *container.Container) (setupErr error) {
 	}()
 
 	// retrieve possible remapped range start for root UID, GID
-	rootUID, rootGID := daemon.GetRemappedUIDGID()
+	rootUID, rootGID := daemon.GetRemappedRootUIDGID()
 	// create tmpfs
 	if err := idtools.MkdirAllAs(localMountPath, 0700, rootUID, rootGID); err != nil {
 		return errors.Wrap(err, "error creating secret local mount path")

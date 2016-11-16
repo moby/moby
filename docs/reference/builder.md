@@ -297,9 +297,9 @@ Results in:
      ---> Running in a2c157f842f5
      Volume in drive C has no label.
      Volume Serial Number is 7E6D-E0F7
-    
+
      Directory of c:\
-    
+
     10/05/2016  05:04 PM             1,894 License.txt
     10/05/2016  02:22 PM    <DIR>          Program Files
     10/05/2016  02:14 PM    <DIR>          Program Files (x86)
@@ -801,11 +801,11 @@ the source will be copied inside the destination container.
     ADD test relativeDir/          # adds "test" to `WORKDIR`/relativeDir/
     ADD test /absoluteDir/         # adds "test" to /absoluteDir/
 
-If the `--user` flag is specified (e.g., `ADD --user=john:john`), new files and
-directories will be created with the UID and GID corresponding to the specified
-user and group. Formats allowed are `user`, `uid`, `user:group`,
+If the `--chown` flag is specified (e.g., `ADD --chown=john:john`), new files
+and directories will be created with the UID and GID corresponding to the
+specified user and group. Formats allowed are `user`, `uid`, `user:group`,
 `user:gid`, `uid:group`, and `uid:gid`
-If `--user` is not specified, all new files and directories are created with a
+If `--chown` is not specified, all new files and directories are created with a
 UID and GID of 0.
 
 In the case where `<src>` is a remote file URL, the destination will
@@ -918,11 +918,11 @@ the source will be copied inside the destination container.
     COPY test relativeDir/   # adds "test" to `WORKDIR`/relativeDir/
     COPY test /absoluteDir/  # adds "test" to /absoluteDir/
 
-If the `--user` flag is specified (e.g., `COPY --user=john:john`), new files and
-directories will be created with the UID and GID corresponding to the specified
-user and group. Formats allowed are `user`, `uid`, `user:group`,
+If the `--chown` flag is specified (e.g., `COPY --chown=john:john`), new files
+and directories will be created with the UID and GID corresponding to the
+specified user and group. Formats allowed are `user`, `uid`, `user:group`,
 `user:gid`, `uid:group`, and `uid:gid`
-If `--user` is not specified, all new files and directories are created with a
+If `--chown` is not specified, all new files and directories are created with a
 UID and GID of 0.
 
 > **Note**:
@@ -1282,7 +1282,7 @@ On Windows, `WORKDIR` behaves differently depending on whether using Windows
 Server containers or Hyper-V containers. For Hyper-V containers, the engine
 is, for architectural reasons, unable to create the directory if it does not
 previously exist. For Windows Server containers, the directory is created
-if it does not exist. Hence, for consistency between Windows Server and 
+if it does not exist. Hence, for consistency between Windows Server and
 Hyper-V containers, it is strongly recommended to include an explicit instruction
 to create the directory in the Dockerfile. For example:
 
@@ -1685,16 +1685,16 @@ Resulting in:
     Removing intermediate container 6fcdb6855ae2
     Step 3/5 : RUN New-Item -ItemType Directory C:\Example
      ---> Running in d0eef8386e97
-    
-    
+
+
         Directory: C:\
-    
-    
+
+
     Mode                LastWriteTime         Length Name
     ----                -------------         ------ ----
     d-----       10/28/2016  11:26 AM                Example
-    
-    
+
+
      ---> 3f2fbf1395d9
     Removing intermediate container d0eef8386e97
     Step 4/5 : ADD Execute-MyCmdlet.ps1 c:\example\
