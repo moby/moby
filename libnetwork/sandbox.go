@@ -427,7 +427,13 @@ func (sb *sandbox) ResolveIP(ip string) string {
 }
 
 func (sb *sandbox) ExecFunc(f func()) error {
-	return sb.osSbox.InvokeFunc(f)
+	sb.Lock()
+	osSbox := sb.osSbox
+	sb.Unlock()
+	if osSbox != nil {
+		return osSbox.InvokeFunc(f)
+	}
+	return fmt.Errorf("osl sandbox unavailable in ExecFunc for %v", sb.ContainerID())
 }
 
 func (sb *sandbox) ResolveService(name string) ([]*net.SRV, []net.IP) {
