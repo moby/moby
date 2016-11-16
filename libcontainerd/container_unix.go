@@ -4,6 +4,7 @@ package libcontainerd
 
 import (
 	"encoding/json"
+        "fmt"
 	"io"
 	"io/ioutil"
 	"os"
@@ -20,8 +21,23 @@ import (
 	"golang.org/x/net/context"
 )
 
+// Required for isolated container.
+type IcContext interface {
+	CreateSeedImage(seedDirectory string) (string, error)
+	CreateDeltaDiskImage(deltaDiskDirectory, diskPath string) (string, error)
+	DomainXml() (string, error)
+	Create()
+	Launch()
+	Shutdown()
+	Close()
+	Pause(pause bool) error
+}
+
 type container struct {
 	containerCommon
+
+        // Domain for isolated container
+        isolatedContainerContext IcContext
 
 	// Platform specific fields are below here.
 	pauseMonitor
@@ -88,6 +104,28 @@ func (ctr *container) spec() (*specs.Spec, error) {
 		return nil, err
 	}
 	return &spec, nil
+}
+
+func (ctr *container) startQemu() error {
+	spec, err := ctr.spec()
+	if err != nil {
+		return nil
+	}
+        logrus.Debugf("The container spec is: %s", spec)
+
+	_, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+        if ctr.isolatedContainerContext != nil {
+          ctr.isolatedContainerContext.Launch()
+        } else {
+          return fmt.Errorf("container.isolatedContainerContext is not set to launch isolated container")
+        }
+
+	return ctr.client.backend.StateChanged(ctr.containerID, StateInfo{
+		CommonStateInfo: CommonStateInfo{
+			State: StateStart,
+		}})
 }
 
 func (ctr *container) start(checkpoint string, checkpointDir string, attachStdio StdioCallback) error {

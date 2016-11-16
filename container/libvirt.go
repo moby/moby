@@ -197,7 +197,7 @@ type domain struct {
 	SecLabel   seclab     `xml:"seclabel"`
 }
 
-func (lc *LibvirtContext) createSeedImage(seedDirectory string) (string, error) {
+func (lc *LibvirtContext) CreateSeedImage(seedDirectory string) (string, error) {
         getisoimagePath, err := exec.LookPath("genisoimage")
 	if err != nil {
 		return "", fmt.Errorf("genisoimage is not installed on your PATH. Please, install it to run isolated container")
@@ -227,7 +227,7 @@ runcmd:
         entrypoint := path + " " + args
 
         logrus.Infof("The user data is: %s", fmt.Sprintf(userDataString, entrypoint))
-        logrus.Infof("The meta data is: %s", fmt.Sprintf(metaDataString, entrypoint))
+        logrus.Infof("The meta data is: %s", fmt.Sprintf(metaDataString, lc.container.ID[0:12]))
 
         userData := []byte(fmt.Sprintf(userDataString, entrypoint))
         metaData := []byte(fmt.Sprintf(metaDataString, lc.container.ID[0:12]))
@@ -267,7 +267,7 @@ runcmd:
         return seedDirectory+"/seed.img", nil
 }
 
-func (lc *LibvirtContext) createDeltaDiskImage(deltaDiskDirectory, diskPath string) (string, error) {
+func (lc *LibvirtContext) CreateDeltaDiskImage(deltaDiskDirectory, diskPath string) (string, error) {
         deltaImagePath, err := exec.LookPath("qemu-img")
 	if err != nil {
 		return "", fmt.Errorf("qemu-img is not installed on your PATH. Please, install it to run isolated container")
@@ -296,7 +296,7 @@ func (lc *LibvirtContext) createDeltaDiskImage(deltaDiskDirectory, diskPath stri
         return deltaDiskDirectory+"/disk.img", nil
 }
 
-func (lc *LibvirtContext) domainXml() (string, error) {
+func (lc *LibvirtContext) DomainXml() (string, error) {
 	boot := &BootConfig{
 	         CPU:              1,
                  DefaultMaxCpus:   2,
@@ -313,14 +313,14 @@ func (lc *LibvirtContext) domainXml() (string, error) {
 		return "", fmt.Errorf("Could not create directory /var/run/docker-qemu/%s", lc.container.ID)
 	}
 
-        seedImageLocation, err := lc.createSeedImage(directory)
+        seedImageLocation, err := lc.CreateSeedImage(directory)
         if err != nil {
                 return "", fmt.Errorf("Could not create seed image")
         }
 
         logrus.Infof("Seed image location: %s", seedImageLocation)
 
-        deltaDiskImageLocation, err := lc.createDeltaDiskImage(directory, boot.OriginalDiskPath)
+        deltaDiskImageLocation, err := lc.CreateDeltaDiskImage(directory, boot.OriginalDiskPath)
         if err != nil {
                 return "", fmt.Errorf("Could not create delta disk image")
         }
@@ -471,7 +471,7 @@ func (lc *LibvirtContext) domainXml() (string, error) {
 }
 
 func (lc *LibvirtContext) Create() {
-        domainXml, err := lc.domainXml()
+        domainXml, err := lc.DomainXml()
         if err != nil {
                 logrus.Error("Fail to get domain xml configuration:", err)
                 return

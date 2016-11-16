@@ -33,7 +33,7 @@ type Backend interface {
 
 // Client provides access to containerd features.
 type Client interface {
-	Create(containerID string, checkpoint string, checkpointDir string, spec specs.Spec, attachStdio StdioCallback, options ...CreateOption) error
+	Create(containerID string, checkpoint string, checkpointDir string, spec specs.Spec, attachStdio StdioCallback, ic IcContext, options ...CreateOption) error
 	Signal(containerID string, sig int) error
 	SignalProcess(containerID string, processFriendlyName string, sig int) error
 	AddProcess(ctx context.Context, containerID, processFriendlyName string, process Process, attachStdio StdioCallback) (int, error)

@@ -38,9 +38,10 @@ func (daemon *Daemon) StateChanged(id string, e libcontainerd.StateInfo) error {
 			}
 		}
 
-		c.Lock()
-		c.Wait()
-		c.Reset(false)
+		//c.Lock()
+		//defer c.Unlock()
+		//c.Wait()
+		//c.Reset(false)
 
 		restart, wait, err := c.RestartManager().ShouldRestart(e.ExitCode, false, time.Since(c.StartedAt))
 		if err == nil && restart {
@@ -76,7 +77,6 @@ func (daemon *Daemon) StateChanged(id string, e libcontainerd.StateInfo) error {
 			}()
 		}
 
-		defer c.Unlock()
 		if err := c.ToDisk(); err != nil {
 			return err
 		}

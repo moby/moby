@@ -311,7 +311,7 @@ func (clnt *client) restore(cont *containerd.Container, lastEvent *containerd.Ev
 		}
 	}()
 
-	container := clnt.newContainer(cont.BundlePath, options...)
+	container := clnt.newContainer(cont.BundlePath, nil, options...)
 	container.systemPid = systemPid(cont)
 
 	var terminal bool
@@ -484,7 +484,7 @@ func (clnt *client) Restore(containerID string, attachStdio StdioCallback, optio
 	// Kill the container if liveRestore == false
 	w := clnt.getOrCreateExitNotifier(containerID)
 	clnt.lock(cont.Id)
-	container := clnt.newContainer(cont.BundlePath)
+	container := clnt.newContainer(cont.BundlePath, nil)
 	container.systemPid = systemPid(cont)
 	clnt.appendContainer(container)
 	clnt.unlock(cont.Id)

@@ -132,7 +132,7 @@ func runRun(dockerCli *command.DockerCli, flags *pflag.FlagSet, opts *runOptions
 				}
 		}
 
-                return nil
+                return dockerCli.Client().ContainerStop(ctx, createResponse.ID, nil)
         }
 
 	if hostConfig.AutoRemove && !hostConfig.RestartPolicy.IsNone() {

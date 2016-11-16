@@ -157,20 +157,12 @@ func (daemon *Daemon) containerStart(container *container.Container, checkpoint 
 		container.ResetRestartManager(true)
 	}
 
-        if container.HostConfig.Isolation == "qemu" {
-          if container.IsolatedContainerContext != nil {
-            container.IsolatedContainerContext.Launch()
-            return nil
-          } else {
-            return fmt.Errorf("container.IsolatedContainerContext is not set")
-          }
-        }
-
 	if checkpointDir == "" {
 		checkpointDir = container.CheckpointDir()
 	}
 
-	if err := daemon.containerd.Create(container.ID, checkpoint, checkpointDir, *spec, container.InitializeStdio, createOptions...); err != nil {
+	if err := daemon.containerd.Create(
+                    container.ID, checkpoint, checkpointDir, *spec, container.InitializeStdio, container.IsolatedContainerContext, createOptions...); err != nil {
 		errDesc := grpc.ErrorDesc(err)
 		contains := func(s1, s2 string) bool {
 			return strings.Contains(strings.ToLower(s1), s2)

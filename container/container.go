@@ -95,8 +95,8 @@ type CommonContainer struct {
 	LogPath         string
 	Name            string
 	Driver          string
-        // Domain for isolated container
-        IsolatedContainerContext *LibvirtContext
+        // Context for isolated container
+        IsolatedContainerContext libcontainerd.IcContext
 	// MountLabel contains the options for the 'mount' command
 	MountLabel             string
 	ProcessLabel           string

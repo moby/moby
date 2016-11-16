@@ -9,6 +9,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/container"
+	"github.com/docker/docker/libcontainerd"
 	"github.com/docker/docker/pkg/signal"
 )
 
@@ -91,6 +92,14 @@ func (daemon *Daemon) killWithSignal(container *container.Container, sig int) er
 		return nil
 	}
 
+	if container.HostConfig.Isolation == "qemu" {
+                daemon.StateChanged(container.ID, libcontainerd.StateInfo{
+                CommonStateInfo: libcontainerd.CommonStateInfo{
+                        State: libcontainerd.StateExit,
+                }})
+		container.IsolatedContainerContext.Shutdown()
+
+        } else {
 	if err := daemon.kill(container, sig); err != nil {
 		err = fmt.Errorf("Cannot kill container %s: %s", container.ID, err)
 		// if container or process not exists, ignore the error
@@ -100,7 +109,7 @@ func (daemon *Daemon) killWithSignal(container *container.Container, sig int) er
 		} else {
 			return err
 		}
-	}
+	}}
 
 	attributes := map[string]string{
 		"signal": fmt.Sprintf("%d", sig),

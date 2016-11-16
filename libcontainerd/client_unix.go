@@ -42,7 +42,15 @@ func (clnt *client) prepareBundleDir(uid, gid int) (string, error) {
 	return p, nil
 }
 
-func (clnt *client) Create(containerID string, checkpoint string, checkpointDir string, spec specs.Spec, attachStdio StdioCallback, options ...CreateOption) (err error) {
+func (clnt *client) Create(
+		containerID string,
+		checkpoint string,
+		checkpointDir string,
+		spec specs.Spec,
+		attachStdio StdioCallback,
+		ic IcContext,
+		options ...CreateOption) (err error) {
+
 	clnt.lock(containerID)
 	defer clnt.unlock(containerID)
 
@@ -59,7 +67,7 @@ func (clnt *client) Create(containerID string, checkpoint string, checkpointDir 
 		return err
 	}
 
-	container := clnt.newContainer(filepath.Join(dir, containerID), options...)
+	container := clnt.newContainer(filepath.Join(dir, containerID), ic, options...)
 	if err := container.clean(); err != nil {
 		return err
 	}
@@ -84,6 +92,11 @@ func (clnt *client) Create(containerID string, checkpoint string, checkpointDir 
 		return err
 	}
 
+        if (container.isolatedContainerContext != nil) {
+          logrus.Infof("All set to launch VM.")
+          return container.startQemu()
+        }
+
 	return container.start(checkpoint, checkpointDir, attachStdio)
 }
 
@@ -98,7 +111,7 @@ func (clnt *client) Signal(containerID string, sig int) error {
 	return err
 }
 
-func (clnt *client) newContainer(dir string, options ...CreateOption) *container {
+func (clnt *client) newContainer(dir string, ic IcContext, options ...CreateOption) *container {
 	container := &container{
 		containerCommon: containerCommon{
 			process: process{
@@ -117,6 +130,9 @@ func (clnt *client) newContainer(dir string, options ...CreateOption) *container
 			logrus.Errorf("libcontainerd: newContainer(): %v", err)
 		}
 	}
+        if (ic != nil) {
+          container.isolatedContainerContext = ic
+        }
 	return container
 }
 
