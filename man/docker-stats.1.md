@@ -30,6 +30,8 @@ Display a live stream of one or more containers' resource usage statistics
    Pretty-print containers statistics using a Go template.
    Valid placeholders:
       .Container - Container name or ID.
+      .Name - Container name.
+      .ID - Container ID.
       .CPUPerc - CPU percentage.
       .MemUsage - Memory usage.
       .NetIO - Network IO.
