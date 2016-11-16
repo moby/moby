@@ -65,6 +65,7 @@ type NetworkInfo interface {
 	Scope() string
 	IPv6Enabled() bool
 	Internal() bool
+	Attachable() bool
 	Labels() map[string]string
 	Dynamic() bool
 	Created() time.Time
@@ -196,6 +197,7 @@ type network struct {
 	resolverOnce sync.Once
 	resolver     []Resolver
 	internal     bool
+	attachable   bool
 	inDelete     bool
 	ingress      bool
 	driverTables []string
@@ -348,6 +350,7 @@ func (n *network) CopyTo(o datastore.KVObject) error {
 	dstN.dbExists = n.dbExists
 	dstN.drvOnce = n.drvOnce
 	dstN.internal = n.internal
+	dstN.attachable = n.attachable
 	dstN.inDelete = n.inDelete
 	dstN.ingress = n.ingress
 
@@ -456,6 +459,7 @@ func (n *network) MarshalJSON() ([]byte, error) {
 		netMap["ipamV6Info"] = string(iis)
 	}
 	netMap["internal"] = n.internal
+	netMap["attachable"] = n.attachable
 	netMap["inDelete"] = n.inDelete
 	netMap["ingress"] = n.ingress
 	return json.Marshal(netMap)
@@ -550,6 +554,9 @@ func (n *network) UnmarshalJSON(b []byte) (err error) {
 	if v, ok := netMap["internal"]; ok {
 		n.internal = v.(bool)
 	}
+	if v, ok := netMap["attachable"]; ok {
+		n.attachable = v.(bool)
+	}
 	if s, ok := netMap["scope"]; ok {
 		n.scope = s.(string)
 	}
@@ -625,6 +632,13 @@ func NetworkOptionInternalNetwork() NetworkOption {
 		}
 		n.internal = true
 		n.generic[netlabel.Internal] = true
+	}
+}
+
+// NetworkOptionAttachable returns an option setter to set attachable for a network
+func NetworkOptionAttachable(attachable bool) NetworkOption {
+	return func(n *network) {
+		n.attachable = attachable
 	}
 }
 
@@ -1553,6 +1567,13 @@ func (n *network) Internal() bool {
 	defer n.Unlock()
 
 	return n.internal
+}
+
+func (n *network) Attachable() bool {
+	n.Lock()
+	defer n.Unlock()
+
+	return n.attachable
 }
 
 func (n *network) Dynamic() bool {
