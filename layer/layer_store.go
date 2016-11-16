@@ -444,7 +444,19 @@ func (ls *layerStore) Release(l Layer) ([]Metadata, error) {
 	return ls.releaseLayer(layer)
 }
 
-func (ls *layerStore) CreateRWLayer(name string, parent ChainID, mountLabel string, initFunc MountInit, storageOpt map[string]string) (RWLayer, error) {
+func (ls *layerStore) CreateRWLayer(name string, parent ChainID, opts *CreateRWLayerOpts) (RWLayer, error) {
+	var (
+		storageOpt map[string]string
+		initFunc   MountInit
+		mountLabel string
+	)
+
+	if opts != nil {
+		mountLabel = opts.MountLabel
+		storageOpt = opts.StorageOpt
+		initFunc = opts.InitFunc
+	}
+
 	ls.mountL.Lock()
 	defer ls.mountL.Unlock()
 	m, ok := ls.mounts[name]

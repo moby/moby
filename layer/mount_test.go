@@ -32,7 +32,10 @@ func TestMountInit(t *testing.T) {
 		return initfile.ApplyFile(root)
 	}
 
-	m, err := ls.CreateRWLayer("fun-mount", layer.ChainID(), "", mountInit, nil)
+	rwLayerOpts := &CreateRWLayerOpts{
+		InitFunc: mountInit,
+	}
+	m, err := ls.CreateRWLayer("fun-mount", layer.ChainID(), rwLayerOpts)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -88,8 +91,11 @@ func TestMountSize(t *testing.T) {
 	mountInit := func(root string) error {
 		return newTestFile("file-init", contentInit, 0777).ApplyFile(root)
 	}
+	rwLayerOpts := &CreateRWLayerOpts{
+		InitFunc: mountInit,
+	}
 
-	m, err := ls.CreateRWLayer("mount-size", layer.ChainID(), "", mountInit, nil)
+	m, err := ls.CreateRWLayer("mount-size", layer.ChainID(), rwLayerOpts)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -137,8 +143,11 @@ func TestMountChanges(t *testing.T) {
 	mountInit := func(root string) error {
 		return initfile.ApplyFile(root)
 	}
+	rwLayerOpts := &CreateRWLayerOpts{
+		InitFunc: mountInit,
+	}
 
-	m, err := ls.CreateRWLayer("mount-changes", layer.ChainID(), "", mountInit, nil)
+	m, err := ls.CreateRWLayer("mount-changes", layer.ChainID(), rwLayerOpts)
 	if err != nil {
 		t.Fatal(err)
 	}
