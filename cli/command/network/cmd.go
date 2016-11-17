@@ -10,9 +10,10 @@ import (
 // NewNetworkCommand returns a cobra command for `network` subcommands
 func NewNetworkCommand(dockerCli *command.DockerCli) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "network",
-		Short: "Manage networks",
-		Args:  cli.NoArgs,
+		Use:     "network",
+		Short:   "Manage networks",
+		Args:    cli.NoArgs,
+		Aliases: []string{"net"},
 		Run: func(cmd *cobra.Command, args []string) {
 			cmd.SetOutput(dockerCli.Err())
 			cmd.HelpFunc()(cmd, args)

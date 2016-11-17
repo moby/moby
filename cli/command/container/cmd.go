@@ -10,9 +10,10 @@ import (
 // NewContainerCommand returns a cobra command for `container` subcommands
 func NewContainerCommand(dockerCli *command.DockerCli) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "container",
-		Short: "Manage containers",
-		Args:  cli.NoArgs,
+		Use:     "container",
+		Short:   "Manage containers",
+		Args:    cli.NoArgs,
+		Aliases: []string{"con"},
 		Run: func(cmd *cobra.Command, args []string) {
 			cmd.SetOutput(dockerCli.Err())
 			cmd.HelpFunc()(cmd, args)

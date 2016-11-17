@@ -10,9 +10,10 @@ import (
 // NewServiceCommand returns a cobra command for `service` subcommands
 func NewServiceCommand(dockerCli *command.DockerCli) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "service",
-		Short: "Manage services",
-		Args:  cli.NoArgs,
+		Use:     "service",
+		Short:   "Manage services",
+		Args:    cli.NoArgs,
+		Aliases: []string{"srv"},
 		Run: func(cmd *cobra.Command, args []string) {
 			cmd.SetOutput(dockerCli.Err())
 			cmd.HelpFunc()(cmd, args)
