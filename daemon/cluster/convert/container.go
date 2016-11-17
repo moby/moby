@@ -82,19 +82,22 @@ func containerSpecFromGRPC(c *swarmapi.ContainerSpec) types.ContainerSpec {
 func secretReferencesToGRPC(sr []*types.SecretReference) []*swarmapi.SecretReference {
 	refs := make([]*swarmapi.SecretReference, 0, len(sr))
 	for _, s := range sr {
-		// TODO (ehazlett): use a type switch once there are different reference types
-		refs = append(refs, &swarmapi.SecretReference{
-			s.SecretID,
-			s.SecretName,
-			&swarmapi.SecretReference_File{
+		ref := &swarmapi.SecretReference{
+			SecretID:   s.SecretID,
+			SecretName: s.SecretName,
+		}
+		if s.File != nil {
+			ref.Target = &swarmapi.SecretReference_File{
 				File: &swarmapi.SecretReference_FileTarget{
-					Name: s.Name,
-					UID:  s.UID,
-					GID:  s.GID,
-					Mode: s.Mode,
+					Name: s.File.Name,
+					UID:  s.File.UID,
+					GID:  s.File.GID,
+					Mode: s.File.Mode,
 				},
-			},
-		})
+			}
+		}
+
+		refs = append(refs, ref)
 	}
 
 	return refs
@@ -109,14 +112,14 @@ func secretReferencesFromGRPC(sr []*swarmapi.SecretReference) []*types.SecretRef
 			continue
 		}
 		refs = append(refs, &types.SecretReference{
-			&types.SecretReferenceFileTarget{
+			File: &types.SecretReferenceFileTarget{
 				Name: target.Name,
 				UID:  target.UID,
 				GID:  target.GID,
 				Mode: target.Mode,
 			},
-			s.SecretID,
-			s.SecretName,
+			SecretID:   s.SecretID,
+			SecretName: s.SecretName,
 		})
 	}
 

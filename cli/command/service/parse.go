@@ -21,14 +21,13 @@ func parseSecrets(client client.APIClient, requestedSecrets []*types.SecretReque
 			return nil, fmt.Errorf("duplicate secret target for %s not allowed", secret.Source)
 		}
 		secretRef := &swarmtypes.SecretReference{
-			&swarmtypes.SecretReferenceFileTarget{
+			File: &swarmtypes.SecretReferenceFileTarget{
 				Name: secret.Target,
 				UID:  secret.UID,
 				GID:  secret.GID,
 				Mode: secret.Mode,
 			},
-			"",
-			secret.Source,
+			SecretName: secret.Source,
 		}
 
 		secretRefs[secret.Target] = secretRef

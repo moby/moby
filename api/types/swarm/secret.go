@@ -27,7 +27,7 @@ type SecretReferenceFileTarget struct {
 
 // SecretReference is a reference to a secret in swarm
 type SecretReference struct {
-	*SecretReferenceFileTarget
+	File       *SecretReferenceFileTarget
 	SecretID   string
 	SecretName string
 }
