@@ -36,6 +36,7 @@ func (pm *Manager) enable(p *v2.Plugin, force bool) error {
 		p.Lock()
 		p.Restart = false
 		p.Unlock()
+		shutdownPlugin(p, pm.containerdClient)
 		return err
 	}
 
