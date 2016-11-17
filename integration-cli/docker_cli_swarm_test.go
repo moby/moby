@@ -1072,3 +1072,19 @@ func (s *DockerSwarmSuite) TestSwarmManagerAddress(c *check.C) {
 	c.Assert(err, checker.IsNil)
 	c.Assert(out, checker.Contains, expectedOutput)
 }
+
+func (s *DockerSwarmSuite) TestSwarmServiceInspectPretty(c *check.C) {
+	d := s.AddDaemon(c, true, true)
+
+	name := "top"
+	out, err := d.Cmd("service", "create", "--name", name, "--limit-cpu=0.5", "busybox", "top")
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+
+	expectedOutput := `
+Resources:
+ Limits:
+  CPU:		0.5`
+	out, err = d.Cmd("service", "inspect", "--pretty", name)
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+	c.Assert(out, checker.Contains, expectedOutput, check.Commentf(out))
+}
