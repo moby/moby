@@ -62,7 +62,7 @@ func GetHTTPErrorStatusCode(err error) int {
 			{"wrong login/password", http.StatusUnauthorized},
 			{"unauthorized", http.StatusUnauthorized},
 			{"hasn't been activated", http.StatusForbidden},
-			{"this node", http.StatusNotAcceptable},
+			{"this node", http.StatusServiceUnavailable},
 		} {
 			if strings.Contains(errStr, status.keyword) {
 				statusCode = status.code
