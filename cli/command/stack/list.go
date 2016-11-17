@@ -72,7 +72,7 @@ func printTable(out io.Writer, stacks []*stack) {
 
 type stack struct {
 	// Name is the name of the stack
-	Name     string
+	Name string
 	// Services is the number of the services
 	Services int
 }

@@ -254,7 +254,7 @@ func TestParseMountSpec(t *testing.T) {
 			t.Fatalf("Expected mount source to match. Expected: '%s', Actual: '%s'", c.expected.Source, mp.Source)
 		}
 		if c.expected.RW != mp.RW {
-			t.Fatalf("Expected mount writable to match. Expected: '%v', Actual: '%s'", c.expected.RW, mp.RW)
+			t.Fatalf("Expected mount writable to match. Expected: '%v', Actual: '%v'", c.expected.RW, mp.RW)
 		}
 		if c.expected.Propagation != mp.Propagation {
 			t.Fatalf("Expected mount propagation to match. Expected: '%v', Actual: '%s'", c.expected.Propagation, mp.Propagation)
