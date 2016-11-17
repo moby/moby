@@ -331,16 +331,12 @@ func (s *imageRouter) postImagesPrune(ctx context.Context, w http.ResponseWriter
 		return err
 	}
 
-	if err := httputils.CheckForJSON(r); err != nil {
+	pruneFilters, err := filters.FromParam(r.Form.Get("filters"))
+	if err != nil {
 		return err
 	}
 
-	var cfg types.ImagesPruneConfig
-	if err := json.NewDecoder(r.Body).Decode(&cfg); err != nil {
-		return err
-	}
-
-	pruneReport, err := s.backend.ImagesPrune(&cfg)
+	pruneReport, err := s.backend.ImagesPrune(pruneFilters)
 	if err != nil {
 		return err
 	}
