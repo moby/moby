@@ -159,7 +159,7 @@ func main() {
 			usage()
 		}
 
-		err := devices.MountDevice(args[1], args[2], "")
+		_, err := devices.MountDevice(args[1], args[2], "")
 		if err != nil {
 			fmt.Println("Can't create snap device: ", err)
 			os.Exit(1)

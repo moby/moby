@@ -125,6 +125,7 @@ type DeviceSet struct {
 	gidMaps               []idtools.IDMap
 	minFreeSpacePercent   uint32 //min free space percentage in thinpool
 	xfsNospaceRetries     string // max retries when xfs receives ENOSPC
+	driver                *Driver
 }
 
 // DiskUsage contains information about disk usage and is used when reporting Status of a device.
@@ -2358,30 +2359,52 @@ func (devices *DeviceSet) xfsSetNospaceRetries(info *devInfo) error {
 	return nil
 }
 
+func (devices *DeviceSet) bindMountParent(path, parentPath string) error {
+	return syscall.Mount(parentPath, path, "", syscall.MS_BIND, "")
+}
+
 // MountDevice mounts the device if not already mounted.
-func (devices *DeviceSet) MountDevice(hash, path, mountLabel string) error {
+func (devices *DeviceSet) MountDevice(hash, path, mountLabel string) (bool, error) {
+	var err error
 	info, err := devices.lookupDeviceWithLock(hash)
 	if err != nil {
-		return err
+		return false, err
 	}
 
 	if info.Deleted {
-		return fmt.Errorf("devmapper: Can't mount device %v as it has been marked for deferred deletion", info.Hash)
+		return info.Shared, fmt.Errorf("devmapper: Can't mount device %v as it has been marked for deferred deletion", info.Hash)
 	}
 
 	info.lock.Lock()
 	defer info.lock.Unlock()
 
+	parentMP := ""
+	// If this is a shared device, get parent first.
+	if info.Shared {
+		parentRoot, err := devices.driver.Get(info.ParentHash, "")
+		if err != nil {
+			return true, err
+		}
+		parentMP = strings.TrimSuffix(parentRoot, "rootfs")
+	}
+
 	devices.Lock()
 	defer devices.Unlock()
 
+	// If parent path has been provided, this layer does not have
+	// device of its own. Instead it is sharing rootfs with parent.
+	// Just bind mount parent path.
+	if info.Shared {
+		return true, devices.bindMountParent(path, parentMP)
+	}
+
 	if err := devices.activateDeviceIfNeeded(info, false); err != nil {
-		return fmt.Errorf("devmapper: Error activating devmapper device for '%s': %s", hash, err)
+		return false, fmt.Errorf("devmapper: Error activating devmapper device for '%s': %s", hash, err)
 	}
 
 	fstype, err := ProbeFsType(info.DevName())
 	if err != nil {
-		return err
+		return false, err
 	}
 
 	options := ""
@@ -2395,18 +2418,18 @@ func (devices *DeviceSet) MountDevice(hash, path, mountLabel string) error {
 	options = joinMountOptions(options, label.FormatMountLabel("", mountLabel))
 
 	if err := mount.Mount(info.DevName(), path, fstype, options); err != nil {
-		return fmt.Errorf("devmapper: Error mounting '%s' on '%s': %s", info.DevName(), path, err)
+		return false, fmt.Errorf("devmapper: Error mounting '%s' on '%s': %s", info.DevName(), path, err)
 	}
 
 	if fstype == "xfs" && devices.xfsNospaceRetries != "" {
 		if err := devices.xfsSetNospaceRetries(info); err != nil {
 			syscall.Unmount(path, syscall.MNT_DETACH)
 			devices.deactivateDevice(info)
-			return err
+			return false, err
 		}
 	}
 
-	return nil
+	return false, nil
 }
 
 // UnmountDevice unmounts the device and removes it from hash.
@@ -2615,6 +2638,12 @@ func (devices *DeviceSet) exportDeviceMetadata(hash string) (*deviceMetadata, er
 
 	metadata := &deviceMetadata{info.DeviceID, info.Size, info.Name()}
 	return metadata, nil
+}
+
+// SetDriver saves the driver in deviceset.
+func (devices *DeviceSet) SetDriver(driver *Driver) error {
+	devices.driver = driver
+	return nil
 }
 
 // NewDeviceSet creates the device set based on the options provided.

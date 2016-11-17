@@ -4,12 +4,12 @@ package devmapper
 
 import (
 	"fmt"
+	"github.com/Sirupsen/logrus"
 	"io/ioutil"
 	"os"
 	"path"
 	"strconv"
-
-	"github.com/Sirupsen/logrus"
+	"syscall"
 
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/pkg/devicemapper"
@@ -48,6 +48,10 @@ func Init(home string, options []string, uidMaps, gidMaps []idtools.IDMap) (grap
 		uidMaps:   uidMaps,
 		gidMaps:   gidMaps,
 		ctr:       graphdriver.NewRefCounter(graphdriver.NewDefaultChecker()),
+	}
+
+	if err := deviceSet.SetDriver(d); err != nil {
+		return nil, err
 	}
 
 	return graphdriver.NewNaiveDiffDriver(d, uidMaps, gidMaps), nil
@@ -189,7 +193,8 @@ func (d *Driver) Get(id, mountLabel string) (string, error) {
 	}
 
 	// Mount the device
-	if err := d.DeviceSet.MountDevice(id, mp, mountLabel); err != nil {
+	shared, err := d.DeviceSet.MountDevice(id, mp, mountLabel)
+	if err != nil {
 		d.ctr.Decrement(mp)
 		return "", err
 	}
@@ -198,6 +203,19 @@ func (d *Driver) Get(id, mountLabel string) (string, error) {
 		d.ctr.Decrement(mp)
 		d.DeviceSet.UnmountDevice(id, mp)
 		return "", err
+	}
+
+	// Do not create id file for shared containers. None of the containers
+	// has exclusive copy of rootfs. Just remount rootfs readonly and
+	// return.
+	if shared {
+		// Remount with read-only
+		if err := syscall.Mount("", mp, "", syscall.MS_REMOUNT|syscall.MS_BIND|syscall.MS_RDONLY, ""); err != nil {
+			d.ctr.Decrement(mp)
+			d.DeviceSet.UnmountDevice(id, mp)
+			return "", err
+		}
+		return rootFs, nil
 	}
 
 	idFile := path.Join(mp, "id")
