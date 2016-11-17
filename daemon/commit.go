@@ -240,8 +240,8 @@ func (daemon *Daemon) Commit(name string, c *backend.ContainerCommitConfig) (str
 	}
 
 	attributes := map[string]string{
-		"comment": c.Comment,
-		"imageID": id.String(),
+		"comment":  c.Comment,
+		"imageID":  id.String(),
 		"imageRef": imageRef,
 	}
 	daemon.LogContainerEventWithAttributes(container, "commit", attributes)
