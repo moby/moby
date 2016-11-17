@@ -155,7 +155,7 @@ func (r *multiReadSeeker) Read(b []byte) (int, error) {
 		r.pos = &pos{0, 0}
 	}
 
-	bCap := int64(cap(b))
+	bCap := int64(len(b))
 	buf := bytes.NewBuffer(nil)
 	var rdr io.ReadSeeker
 
