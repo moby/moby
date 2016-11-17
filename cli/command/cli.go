@@ -20,6 +20,7 @@ import (
 	dopts "github.com/docker/docker/opts"
 	"github.com/docker/go-connections/sockets"
 	"github.com/docker/go-connections/tlsconfig"
+	"github.com/spf13/cobra"
 	"golang.org/x/net/context"
 )
 
@@ -71,6 +72,13 @@ func (cli *DockerCli) Err() io.Writer {
 // In returns the reader used for stdin
 func (cli *DockerCli) In() *InStream {
 	return cli.in
+}
+
+// ShowHelp shows the command help.
+func (cli *DockerCli) ShowHelp(cmd *cobra.Command, args []string) error {
+	cmd.SetOutput(cli.err)
+	cmd.HelpFunc()(cmd, args)
+	return nil
 }
 
 // ConfigFile returns the ConfigFile
