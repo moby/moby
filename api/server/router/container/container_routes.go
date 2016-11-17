@@ -541,16 +541,12 @@ func (s *containerRouter) postContainersPrune(ctx context.Context, w http.Respon
 		return err
 	}
 
-	if err := httputils.CheckForJSON(r); err != nil {
+	pruneFilters, err := filters.FromParam(r.Form.Get("filters"))
+	if err != nil {
 		return err
 	}
 
-	var cfg types.ContainersPruneConfig
-	if err := json.NewDecoder(r.Body).Decode(&cfg); err != nil {
-		return err
-	}
-
-	pruneReport, err := s.backend.ContainersPrune(&cfg)
+	pruneReport, err := s.backend.ContainersPrune(pruneFilters)
 	if err != nil {
 		return err
 	}

@@ -4187,11 +4187,17 @@ paths:
   /containers/prune:
     post:
       summary: "Delete stopped containers"
-      consumes:
-        - "application/json"
       produces:
         - "application/json"
       operationId: "ContainerPrune"
+      parameters:
+        - name: "filters"
+          in: "query"
+          description: |
+            Filters to process on the prune list, encoded as JSON (a `map[string][]string`).
+
+            Available filters:
+          type: "string"
       responses:
         200:
           description: "No error"
@@ -4849,21 +4855,20 @@ paths:
   /images/prune:
     post:
       summary: "Delete unused images"
-      consumes:
-        - "application/json"
       produces:
         - "application/json"
       operationId: "ImagePrune"
       parameters:
-        - name: "body"
-          in: "body"
-          schema:
-            type: "object"
-            properties:
-              DanglingOnly:
-                description: "Only delete unused *and* untagged images"
-                type: "boolean"
-                default: false
+        - name: "filters"
+          in: "query"
+          description: |
+            Filters to process on the prune list, encoded as JSON (a `map[string][]string`).
+
+            Available filters:
+            - `dangling=<boolean>` When set to `true` (or `1`), prune only
+               unused *and* untagged images. When set to `false`
+               (or `0`), all unused images are pruned.
+          type: "string"
       responses:
         200:
           description: "No error"
@@ -5945,11 +5950,17 @@ paths:
   /volumes/prune:
     post:
       summary: "Delete unused volumes"
-      consumes:
-        - "application/json"
       produces:
         - "application/json"
       operationId: "VolumePrune"
+      parameters:
+        - name: "filters"
+          in: "query"
+          description: |
+            Filters to process on the prune list, encoded as JSON (a `map[string][]string`).
+
+            Available filters:
+          type: "string"
       responses:
         200:
           description: "No error"
@@ -6287,6 +6298,14 @@ paths:
       produces:
         - "application/json"
       operationId: "NetworkPrune"
+      parameters:
+        - name: "filters"
+          in: "query"
+          description: |
+            Filters to process on the prune list, encoded as JSON (a `map[string][]string`).
+
+            Available filters:
+          type: "string"
       responses:
         200:
           description: "No error"
