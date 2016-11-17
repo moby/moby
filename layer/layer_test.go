@@ -84,7 +84,7 @@ type layerInit func(root string) error
 
 func createLayer(ls Store, parent ChainID, layerFunc layerInit) (Layer, error) {
 	containerID := stringid.GenerateRandomID()
-	mount, err := ls.CreateRWLayer(containerID, parent, "", nil, nil)
+	mount, err := ls.CreateRWLayer(containerID, parent, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -276,7 +276,7 @@ func TestMountAndRegister(t *testing.T) {
 	size, _ := layer.Size()
 	t.Logf("Layer size: %d", size)
 
-	mount2, err := ls.CreateRWLayer("new-test-mount", layer.ChainID(), "", nil, nil)
+	mount2, err := ls.CreateRWLayer("new-test-mount", layer.ChainID(), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -384,7 +384,7 @@ func TestStoreRestore(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	m, err := ls.CreateRWLayer("some-mount_name", layer3.ChainID(), "", nil, nil)
+	m, err := ls.CreateRWLayer("some-mount_name", layer3.ChainID(), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -415,7 +415,7 @@ func TestStoreRestore(t *testing.T) {
 	assertLayerEqual(t, layer3b, layer3)
 
 	// Create again with same name, should return error
-	if _, err := ls2.CreateRWLayer("some-mount_name", layer3b.ChainID(), "", nil, nil); err == nil {
+	if _, err := ls2.CreateRWLayer("some-mount_name", layer3b.ChainID(), nil); err == nil {
 		t.Fatal("Expected error creating mount with same name")
 	} else if err != ErrMountNameConflict {
 		t.Fatal(err)
