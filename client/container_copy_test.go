@@ -195,7 +195,7 @@ func TestCopyFromContainer(t *testing.T) {
 				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
 			}
 			if req.Method != "GET" {
-				return nil, fmt.Errorf("expected PUT method, got %s", req.Method)
+				return nil, fmt.Errorf("expected GET method, got %s", req.Method)
 			}
 			query := req.URL.Query()
 			path := query.Get("path")
