@@ -17,6 +17,7 @@ import (
 	"github.com/docker/docker/api/server/middleware"
 	"github.com/docker/docker/api/server/router"
 	"github.com/docker/docker/api/server/router/build"
+	checkpointrouter "github.com/docker/docker/api/server/router/checkpoint"
 	"github.com/docker/docker/api/server/router/container"
 	"github.com/docker/docker/api/server/router/image"
 	"github.com/docker/docker/api/server/router/network"
@@ -461,23 +462,30 @@ func loadDaemonCliConfig(opts daemonOptions) (*daemon.Config, error) {
 func initRouter(s *apiserver.Server, d *daemon.Daemon, c *cluster.Cluster) {
 	decoder := runconfig.ContainerDecoder{}
 
-	routers := []router.Router{}
-
-	// we need to add the checkpoint router before the container router or the DELETE gets masked
-	routers = addExperimentalRouters(routers, d, decoder)
-
-	routers = append(routers, []router.Router{
+	routers := []router.Router{
+		// we need to add the checkpoint router before the container router or the DELETE gets masked
+		checkpointrouter.NewRouter(d, decoder),
 		container.NewRouter(d, decoder),
 		image.NewRouter(d, decoder),
 		systemrouter.NewRouter(d, c),
 		volume.NewRouter(d),
 		build.NewRouter(dockerfile.NewBuildManager(d)),
-		swarmrouter.NewRouter(d, c),
+		swarmrouter.NewRouter(c),
 		pluginrouter.NewRouter(plugin.GetManager()),
-	}...)
+	}
 
 	if d.NetworkControllerEnabled() {
 		routers = append(routers, network.NewRouter(d, c))
+	}
+
+	if d.HasExperimental() {
+		for _, r := range routers {
+			for _, route := range r.Routes() {
+				if experimental, ok := route.(router.ExperimentalRoute); ok {
+					experimental.Enable()
+				}
+			}
+		}
 	}
 
 	s.InitRouter(utils.IsDebugEnabled(), routers...)
