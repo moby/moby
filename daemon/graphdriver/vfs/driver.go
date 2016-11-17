@@ -76,6 +76,10 @@ func (d *Driver) CreateReadWrite(id, parent string, opts *graphdriver.CreateOpts
 
 // Create prepares the filesystem for the VFS driver and copies the directory for the given id under the parent.
 func (d *Driver) Create(id, parent string, opts *graphdriver.CreateOpts) error {
+	if opts != nil && opts.Shared {
+		return graphdriver.CreateSharedNotSupported("vfs")
+	}
+
 	if opts != nil && len(opts.StorageOpt) != 0 {
 		return fmt.Errorf("--storage-opt is not supported for vfs")
 	}

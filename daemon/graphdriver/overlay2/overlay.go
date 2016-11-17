@@ -305,6 +305,10 @@ func (d *Driver) CreateReadWrite(id, parent string, opts *graphdriver.CreateOpts
 // The parent filesystem is used to configure these directories for the overlay.
 func (d *Driver) Create(id, parent string, opts *graphdriver.CreateOpts) (retErr error) {
 
+	if opts != nil && opts.Shared {
+		return graphdriver.CreateSharedNotSupported("overlay2")
+	}
+
 	if opts != nil && len(opts.StorageOpt) != 0 && !projectQuotaSupported {
 		return fmt.Errorf("--storage-opt is supported only for overlay over xfs with 'pquota' mount option")
 	}

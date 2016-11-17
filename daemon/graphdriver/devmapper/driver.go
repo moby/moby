@@ -129,11 +129,13 @@ func (d *Driver) CreateReadWrite(id, parent string, opts *graphdriver.CreateOpts
 // Create adds a device with a given id and the parent.
 func (d *Driver) Create(id, parent string, opts *graphdriver.CreateOpts) error {
 	var storageOpt map[string]string
+	shared := false
 	if opts != nil {
 		storageOpt = opts.StorageOpt
+		shared = opts.Shared
 	}
 
-	if err := d.DeviceSet.AddDevice(id, parent, storageOpt); err != nil {
+	if err := d.DeviceSet.AddDevice(id, parent, storageOpt, shared); err != nil {
 		return err
 	}
 
