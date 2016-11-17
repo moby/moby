@@ -2101,6 +2101,10 @@ func (devices *DeviceSet) deleteDevice(info *devInfo, syncDelete bool) error {
 	return nil
 }
 
+func (devices *DeviceSet) deleteSharedDevice(info *devInfo) error {
+	return devices.unregisterDevice(info.Hash)
+}
+
 // DeleteDevice will return success if device has been marked for deferred
 // removal. If one wants to override that and want DeleteDevice() to fail if
 // device was busy and could not be deleted, set syncDelete=true.
@@ -2117,6 +2121,10 @@ func (devices *DeviceSet) DeleteDevice(hash string, syncDelete bool) error {
 
 	devices.Lock()
 	defer devices.Unlock()
+
+	if info.Shared {
+		return devices.deleteSharedDevice(info)
+	}
 
 	return devices.deleteDevice(info, syncDelete)
 }
