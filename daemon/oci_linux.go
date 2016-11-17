@@ -88,7 +88,7 @@ func setDevices(s *specs.Spec, c *container.Container) error {
 			return err
 		}
 		for _, d := range hostDevices {
-			devs = append(devs, specDevice(d))
+			devs = append(devs, oci.Device(d))
 		}
 		rwm := "rwm"
 		devPermissions = []specs.DeviceCgroup{
@@ -99,7 +99,7 @@ func setDevices(s *specs.Spec, c *container.Container) error {
 		}
 	} else {
 		for _, deviceMapping := range c.HostConfig.Devices {
-			d, dPermissions, err := getDevicesFromPath(deviceMapping)
+			d, dPermissions, err := oci.DevicesFromPath(deviceMapping.PathOnHost, deviceMapping.PathInContainer, deviceMapping.CgroupPermissions)
 			if err != nil {
 				return err
 			}
