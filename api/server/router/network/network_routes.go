@@ -297,16 +297,7 @@ func (n *networkRouter) postNetworksPrune(ctx context.Context, w http.ResponseWr
 		return err
 	}
 
-	if err := httputils.CheckForJSON(r); err != nil {
-		return err
-	}
-
-	var cfg types.NetworksPruneConfig
-	if err := json.NewDecoder(r.Body).Decode(&cfg); err != nil {
-		return err
-	}
-
-	pruneReport, err := n.backend.NetworksPrune(&cfg)
+	pruneReport, err := n.backend.NetworksPrune(filters.Args{})
 	if err != nil {
 		return err
 	}

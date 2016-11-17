@@ -5,7 +5,7 @@ import (
 
 	"golang.org/x/net/context"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cli/command"
 	"github.com/spf13/cobra"
@@ -50,7 +50,7 @@ func runPrune(dockerCli *command.DockerCli, opts pruneOptions) (output string, e
 		return
 	}
 
-	report, err := dockerCli.Client().NetworksPrune(context.Background(), types.NetworksPruneConfig{})
+	report, err := dockerCli.Client().NetworksPrune(context.Background(), filters.Args{})
 	if err != nil {
 		return
 	}

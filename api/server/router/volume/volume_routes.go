@@ -5,7 +5,7 @@ import (
 	"net/http"
 
 	"github.com/docker/docker/api/server/httputils"
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/filters"
 	volumetypes "github.com/docker/docker/api/types/volume"
 	"golang.org/x/net/context"
 )
@@ -72,16 +72,7 @@ func (v *volumeRouter) postVolumesPrune(ctx context.Context, w http.ResponseWrit
 		return err
 	}
 
-	if err := httputils.CheckForJSON(r); err != nil {
-		return err
-	}
-
-	var cfg types.VolumesPruneConfig
-	if err := json.NewDecoder(r.Body).Decode(&cfg); err != nil {
-		return err
-	}
-
-	pruneReport, err := v.backend.VolumesPrune(&cfg)
+	pruneReport, err := v.backend.VolumesPrune(filters.Args{})
 	if err != nil {
 		return err
 	}

@@ -29,7 +29,7 @@ type imageBackend interface {
 	Images(imageFilters filters.Args, all bool, withExtraAttrs bool) ([]*types.ImageSummary, error)
 	LookupImage(name string) (*types.ImageInspect, error)
 	TagImage(imageName, repository, tag string) error
-	ImagesPrune(config *types.ImagesPruneConfig) (*types.ImagesPruneReport, error)
+	ImagesPrune(pruneFilters filters.Args) (*types.ImagesPruneReport, error)
 }
 
 type importExportBackend interface {

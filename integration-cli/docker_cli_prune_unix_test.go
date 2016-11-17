@@ -59,3 +59,33 @@ func (s *DockerSwarmSuite) TestPruneNetwork(c *check.C) {
 	waitAndAssert(c, defaultReconciliationTimeout, d.checkActiveContainerCount, checker.Equals, 0)
 	pruneNetworkAndVerify(c, d, []string{}, []string{"n1", "n3"})
 }
+
+func (s *DockerDaemonSuite) TestPruneImageDangling(c *check.C) {
+	c.Assert(s.d.StartWithBusybox(), checker.IsNil)
+
+	out, _, err := s.d.buildImageWithOut("test",
+		`FROM busybox
+                 LABEL foo=bar`, true, "-q")
+	c.Assert(err, checker.IsNil)
+	id := strings.TrimSpace(out)
+
+	out, err = s.d.Cmd("images", "-q", "--no-trunc")
+	c.Assert(err, checker.IsNil)
+	c.Assert(strings.TrimSpace(out), checker.Contains, id)
+
+	out, err = s.d.Cmd("image", "prune", "--force")
+	c.Assert(err, checker.IsNil)
+	c.Assert(strings.TrimSpace(out), checker.Not(checker.Contains), id)
+
+	out, err = s.d.Cmd("images", "-q", "--no-trunc")
+	c.Assert(err, checker.IsNil)
+	c.Assert(strings.TrimSpace(out), checker.Contains, id)
+
+	out, err = s.d.Cmd("image", "prune", "--force", "--all")
+	c.Assert(err, checker.IsNil)
+	c.Assert(strings.TrimSpace(out), checker.Contains, id)
+
+	out, err = s.d.Cmd("images", "-q", "--no-trunc")
+	c.Assert(err, checker.IsNil)
+	c.Assert(strings.TrimSpace(out), checker.Not(checker.Contains), id)
+}
