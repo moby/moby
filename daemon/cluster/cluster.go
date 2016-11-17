@@ -585,6 +585,15 @@ func (c *Cluster) GetUnlockKey() (string, error) {
 
 // UnlockSwarm provides a key to decrypt data that is encrypted at rest.
 func (c *Cluster) UnlockSwarm(req types.UnlockRequest) error {
+	c.RLock()
+	if !c.isActiveManager() {
+		if err := c.errNoManager(); err != ErrSwarmLocked {
+			c.RUnlock()
+			return err
+		}
+	}
+	c.RUnlock()
+
 	key, err := encryption.ParseHumanReadableKey(req.UnlockKey)
 	if err != nil {
 		return err
