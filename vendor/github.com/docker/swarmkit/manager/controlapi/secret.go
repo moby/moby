@@ -1,6 +1,7 @@
 package controlapi
 
 import (
+	"crypto/subtle"
 	"regexp"
 	"strings"
 
@@ -71,7 +72,10 @@ func (s *Server) UpdateSecret(ctx context.Context, request *api.UpdateSecretRequ
 			return nil
 		}
 
-		if secret.Spec.Annotations.Name != request.Spec.Annotations.Name || request.Spec.Data != nil {
+		// Check if the Name is different than the current name, or the secret is non-nil and different
+		// than the current secret
+		if secret.Spec.Annotations.Name != request.Spec.Annotations.Name ||
+			(request.Spec.Data != nil && subtle.ConstantTimeCompare(request.Spec.Data, secret.Spec.Data) == 0) {
 			return grpc.Errorf(codes.InvalidArgument, "only updates to Labels are allowed")
 		}
 
