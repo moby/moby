@@ -74,7 +74,7 @@ const (
 type UpdateConfig struct {
 	// Maximum number of tasks to be updated in one iteration.
 	// 0 means unlimited parallelism.
-	Parallelism uint64 `json:",omitempty"`
+	Parallelism uint64
 
 	// Amount of time between updates.
 	Delay time.Duration `json:",omitempty"`
