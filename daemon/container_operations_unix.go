@@ -8,13 +8,11 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
-	"strings"
 	"syscall"
 	"time"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/cloudflare/cfssl/log"
-	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/links"
 	"github.com/docker/docker/pkg/idtools"
@@ -22,15 +20,9 @@ import (
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/libnetwork"
-	"github.com/opencontainers/runc/libcontainer/configs"
-	"github.com/opencontainers/runc/libcontainer/devices"
 	"github.com/opencontainers/runc/libcontainer/label"
-	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
 )
-
-func u32Ptr(i int64) *uint32     { u := uint32(i); return &u }
-func fmPtr(i int64) *os.FileMode { fm := os.FileMode(i); return &fm }
 
 func (daemon *Daemon) setupLinkedContainers(container *container.Container) ([]string, error) {
 	var env []string
@@ -245,78 +237,6 @@ func killProcessDirectly(container *container.Container) error {
 		}
 	}
 	return nil
-}
-
-func specDevice(d *configs.Device) specs.Device {
-	return specs.Device{
-		Type:     string(d.Type),
-		Path:     d.Path,
-		Major:    d.Major,
-		Minor:    d.Minor,
-		FileMode: fmPtr(int64(d.FileMode)),
-		UID:      u32Ptr(int64(d.Uid)),
-		GID:      u32Ptr(int64(d.Gid)),
-	}
-}
-
-func specDeviceCgroup(d *configs.Device) specs.DeviceCgroup {
-	t := string(d.Type)
-	return specs.DeviceCgroup{
-		Allow:  true,
-		Type:   &t,
-		Major:  &d.Major,
-		Minor:  &d.Minor,
-		Access: &d.Permissions,
-	}
-}
-
-func getDevicesFromPath(deviceMapping containertypes.DeviceMapping) (devs []specs.Device, devPermissions []specs.DeviceCgroup, err error) {
-	resolvedPathOnHost := deviceMapping.PathOnHost
-
-	// check if it is a symbolic link
-	if src, e := os.Lstat(deviceMapping.PathOnHost); e == nil && src.Mode()&os.ModeSymlink == os.ModeSymlink {
-		if linkedPathOnHost, e := filepath.EvalSymlinks(deviceMapping.PathOnHost); e == nil {
-			resolvedPathOnHost = linkedPathOnHost
-		}
-	}
-
-	device, err := devices.DeviceFromPath(resolvedPathOnHost, deviceMapping.CgroupPermissions)
-	// if there was no error, return the device
-	if err == nil {
-		device.Path = deviceMapping.PathInContainer
-		return append(devs, specDevice(device)), append(devPermissions, specDeviceCgroup(device)), nil
-	}
-
-	// if the device is not a device node
-	// try to see if it's a directory holding many devices
-	if err == devices.ErrNotADevice {
-
-		// check if it is a directory
-		if src, e := os.Stat(resolvedPathOnHost); e == nil && src.IsDir() {
-
-			// mount the internal devices recursively
-			filepath.Walk(resolvedPathOnHost, func(dpath string, f os.FileInfo, e error) error {
-				childDevice, e := devices.DeviceFromPath(dpath, deviceMapping.CgroupPermissions)
-				if e != nil {
-					// ignore the device
-					return nil
-				}
-
-				// add the device to userSpecified devices
-				childDevice.Path = strings.Replace(dpath, resolvedPathOnHost, deviceMapping.PathInContainer, 1)
-				devs = append(devs, specDevice(childDevice))
-				devPermissions = append(devPermissions, specDeviceCgroup(childDevice))
-
-				return nil
-			})
-		}
-	}
-
-	if len(devs) > 0 {
-		return devs, devPermissions, nil
-	}
-
-	return devs, devPermissions, fmt.Errorf("error gathering device information while adding custom device %q: %s", deviceMapping.PathOnHost, err)
 }
 
 func detachMounted(path string) error {

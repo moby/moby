@@ -9,6 +9,7 @@ import (
 	"sync"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/oci"
 	"github.com/docker/docker/pkg/plugins"
 	"github.com/docker/docker/pkg/system"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
@@ -103,6 +104,8 @@ func (p *Plugin) InitPlugin() error {
 		p.PluginObj.Settings.Mounts[i] = mount
 	}
 	p.PluginObj.Settings.Env = make([]string, 0, len(p.PluginObj.Config.Env))
+	p.PluginObj.Settings.Devices = make([]types.PluginDevice, 0, len(p.PluginObj.Config.Linux.Devices))
+	copy(p.PluginObj.Settings.Devices, p.PluginObj.Config.Linux.Devices)
 	for _, env := range p.PluginObj.Config.Env {
 		if env.Value != nil {
 			p.PluginObj.Settings.Env = append(p.PluginObj.Settings.Env, fmt.Sprintf("%s=%s", env.Name, *env.Value))
@@ -175,7 +178,7 @@ next:
 		}
 
 		// range over all the devices in the config
-		for _, device := range p.PluginObj.Config.Devices {
+		for _, device := range p.PluginObj.Config.Linux.Devices {
 			// found the device in the config
 			if device.Name == s.name {
 				// is it settable ?
@@ -233,7 +236,7 @@ func (p *Plugin) ComputePrivileges() types.PluginPrivileges {
 			})
 		}
 	}
-	for _, device := range m.Devices {
+	for _, device := range m.Linux.Devices {
 		if device.Path != nil {
 			privileges = append(privileges, types.PluginPrivilege{
 				Name:        "device",
@@ -242,7 +245,7 @@ func (p *Plugin) ComputePrivileges() types.PluginPrivileges {
 			})
 		}
 	}
-	if m.DeviceCreation {
+	if m.Linux.DeviceCreation {
 		privileges = append(privileges, types.PluginPrivilege{
 			Name:        "device-creation",
 			Description: "",
@@ -299,12 +302,12 @@ func (p *Plugin) InitSpec(s specs.Spec, libRoot string) (*specs.Spec, error) {
 		Readonly: false, // TODO: all plugins should be readonly? settable in config?
 	}
 
-	if p.PluginObj.Config.DeviceCreation {
-		rwm := "rwm"
-		s.Linux.Resources.Devices = []specs.DeviceCgroup{{Allow: true, Access: &rwm}}
+	userMounts := make(map[string]struct{}, len(p.PluginObj.Config.Mounts))
+	for _, m := range p.PluginObj.Config.Mounts {
+		userMounts[m.Destination] = struct{}{}
 	}
 
-	mounts := append(p.PluginObj.Settings.Mounts, types.PluginMount{
+	mounts := append(p.PluginObj.Config.Mounts, types.PluginMount{
 		Source:      &p.RuntimeSourcePath,
 		Destination: defaultPluginRuntimeDestination,
 		Type:        "bind",
@@ -363,9 +366,25 @@ func (p *Plugin) InitSpec(s specs.Spec, libRoot string) (*specs.Spec, error) {
 	}
 
 	for i, m := range s.Mounts {
-		if strings.HasPrefix(m.Destination, "/dev/") && true { // TODO: && user specified /dev
-			s.Mounts = append(s.Mounts[:i], s.Mounts[i+1:]...)
+		if strings.HasPrefix(m.Destination, "/dev/") {
+			if _, ok := userMounts[m.Destination]; ok {
+				s.Mounts = append(s.Mounts[:i], s.Mounts[i+1:]...)
+			}
 		}
+	}
+
+	if p.PluginObj.Config.Linux.DeviceCreation {
+		rwm := "rwm"
+		s.Linux.Resources.Devices = []specs.DeviceCgroup{{Allow: true, Access: &rwm}}
+	}
+	for _, dev := range p.PluginObj.Config.Linux.Devices {
+		path := *dev.Path
+		d, dPermissions, err := oci.DevicesFromPath(path, path, "rwm")
+		if err != nil {
+			return nil, err
+		}
+		s.Linux.Devices = append(s.Linux.Devices, d...)
+		s.Linux.Resources.Devices = append(s.Linux.Resources.Devices, dPermissions...)
 	}
 
 	envs := make([]string, 1, len(p.PluginObj.Settings.Env)+1)
