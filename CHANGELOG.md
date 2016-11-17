@@ -20,8 +20,9 @@ be found.
 - Fix builder cache issue on Windows [#27805](https://github.com/docker/docker/pull/27805)
 
 ### Contrib
-+ Add support for building docker debs for Ubuntu Xenial on PPC64 [#23438](https://github.com/docker/docker/pull/23438)
-+ Add support for building docker debs for Ubuntu Xenial on s390x [#26104](https://github.com/docker/docker/pull/26104)
++ Add support for building docker debs for Ubuntu 16.04 Xenial on PPC64LE [#23438](https://github.com/docker/docker/pull/23438)
++ Add support for building docker debs for Ubuntu 16.04 Xenial on s390x [#26104](https://github.com/docker/docker/pull/26104)
++ Add support for building docker debs for Ubuntu 16.10 Yakkety Yak on PPC64LE [#28046](https://github.com/docker/docker/pull/28046)
 - Add RPM builder for VMWare Photon OS [#24116](https://github.com/docker/docker/pull/24116)
 + Add shell completions to tgz [#27735](https://github.com/docker/docker/pull/27735)
 * Update the install script to allow using the mirror in China [#27005](https://github.com/docker/docker/pull/27005)
@@ -52,6 +53,7 @@ be found.
 + Unix socket support for fluentd [#26088](https://github.com/docker/docker/pull/26088)
 * Enable fluentd logging driver on Windows [#28189](https://github.com/docker/docker/pull/28189)
 - Sanitize docker labels when used as journald field names [#23725](https://github.com/docker/docker/pull/23725)
+- Fix an issue where `docker logs --tail` returned less lines than expected [#28203](https://github.com/docker/docker/pull/28203)
 
 ### Networking
 
@@ -80,7 +82,7 @@ be found.
 
 ### Remote API (v1.25) & Client
 
-+ Support `docker stack deploy` from a Compose file [#27998](https://github.com/docker/docker/pull/27998)
++ (experimental) Support `docker stack deploy` from a Compose file [#27998](https://github.com/docker/docker/pull/27998)
 + (experimental) Implement checkpoint and restore [#22049](https://github.com/docker/docker/pull/22049)
 + Add `--format` flag to `docker info` [#23808](https://github.com/docker/docker/pull/23808)
 * Remove `--name` from `docker volume create` [#23830](https://github.com/docker/docker/pull/23830)
@@ -132,7 +134,7 @@ be found.
 - Fix a race condition between device deferred removal and resume device, when using the devicemapper graphdriver [#23497](https://github.com/docker/docker/pull/23497)
 - Add `docker stats` support in Windows [#25737](https://github.com/docker/docker/pull/25737)
 - Allow using `--pid=host` and `--net=host` when `--userns=host` [#25771](https://github.com/docker/docker/pull/25771)
-+ (experimental) Add metrics output [#25820](https://github.com/docker/docker/pull/25820)
++ (experimental) Add metrics (Prometheus) output for basic `container`, `image`, and `daemon` operations [#25820](https://github.com/docker/docker/pull/25820)
 - Fix issue in `docker stats` with `NetworkDisabled=true` [#25905](https://github.com/docker/docker/pull/25905)
 + Add `docker top` support in Windows [#25891](https://github.com/docker/docker/pull/25891)
 + Record pid of exec'd process [#27470](https://github.com/docker/docker/pull/27470)
@@ -150,9 +152,10 @@ be found.
 ### Swarm Mode
 
 + Add secret management [#27794](https://github.com/docker/docker/pull/27794)
++ Add support for templating service options (hostname, mounts, and environment variables) [#28025](https://github.com/docker/docker/pull/28025)
 * Display the endpoint mode in the output of `docker service inspect --pretty` [#26906](https://github.com/docker/docker/pull/26906)
 * Make `docker service ps` output more bearable by shortening service IDs in task names [#28088](https://github.com/docker/docker/pull/28088)
-* `docker node ps` now defaults to the current node [#25214](https://github.com/docker/docker/pull/25214)
+* Make `docker node ps` default to the current node [#25214](https://github.com/docker/docker/pull/25214)
 + Add `-a`/`--all` flags to `docker service ps` and `docker node ps` to show all results [#25983](https://github.com/docker/docker/pull/25983)
 + Add `--dns`, -`-dns-opt`, and `--dns-search` to service create. [#27567](https://github.com/docker/docker/pull/27567)
 + Add `--force` to `docker service update` [#27596](https://github.com/docker/docker/pull/27596)
@@ -161,17 +164,19 @@ be found.
 - Remove `--name` flag from `docker service update`. This flag is only functional on `docker service create`, so was removed from the `update` command [#26988](https://github.com/docker/docker/pull/26988)
 - Fix worker nodes failing to recover because of transient networking issues [#26646](https://github.com/docker/docker/issues/26646)
 * Add support for health aware load balancing and DNS records [#27279](https://github.com/docker/docker/pull/27279)
-* Add `--hostname` to `docker service create` [#27857](https://github.com/docker/docker/pull/27857)
-- Add `--tty` flag to `docker service create`/`update` [#28076](https://github.com/docker/docker/pull/28076)
++ Add `--hostname` to `docker service create` [#27857](https://github.com/docker/docker/pull/27857)
++ Add `--host` to `docker service create`, and `--host-add`, `--host-rm` to `docker service update` [#28031](https://github.com/docker/docker/pull/28031)
++ Add `--tty` flag to `docker service create`/`update` [#28076](https://github.com/docker/docker/pull/28076)
 * Autodetect, store, and expose node IP address as seen by the manager [#27910](https://github.com/docker/docker/pull/27910)
 * Encryption at rest of manager keys and raft data [#27967](https://github.com/docker/docker/pull/27967)
 + Add `--update-max-failure-ratio`, `--update-monitor` and `--rollback` flags to `docker service update` [#26421](https://github.com/docker/docker/pull/26421)
 - Fix an issue with address autodiscovery on `docker swarm init` running inside a container [#26457](https://github.com/docker/docker/pull/26457)
 + (experimental) Add `docker service logs` command to view logs for a service [#28089](https://github.com/docker/docker/pull/28089)
-- Pin images by digest for `docker service create` and `update` [#28173](https://github.com/docker/docker/pull/28173)
-- Add short (`-f`) flag for `docker node rm --force` and `docker swarm leave --force` [#28196](https://github.com/docker/docker/pull/28196)
-+ Don't repull image if pinned by digest [#28265](https://github.com/docker/docker/pull/28265)
-+ swarm-mode support for indows [#27838](https://github.com/docker/docker/pull/27838)
++ Pin images by digest for `docker service create` and `update` [#28173](https://github.com/docker/docker/pull/28173)
+* Add short (`-f`) flag for `docker node rm --force` and `docker swarm leave --force` [#28196](https://github.com/docker/docker/pull/28196)
++ Add options to customize Raft snapshots (`--max-snapshots`, `--snapshot-interval`) [#27997](https://github.com/docker/docker/pull/27997)
+- Don't repull image if pinned by digest [#28265](https://github.com/docker/docker/pull/28265)
++ Swarm-mode support for Windows [#27838](https://github.com/docker/docker/pull/27838)
 
 ### Volume
 
@@ -193,9 +198,10 @@ be found.
 - Remove Ubuntu 15.10 (Wily Werewolf) as supported platform. Ubuntu 15.10 is EOL, and no longer receives updates [#27042](https://github.com/docker/docker/pull/27042)
 - Remove Fedora 22 as supported platform. Fedora 22 is EOL, and no longer receives updates [#27432](https://github.com/docker/docker/pull/27432)
 - Deprecate the `repo:shortid` syntax on `docker pull` [#27207](https://github.com/docker/docker/pull/27207)
-- Deprecate backing filesystem without d_type for overlay/overlay2 storage drivers [#27433](https://github.com/docker/docker/pull/27433)
-- Deprecate MAINTAINER in Dockerfile [#25466](https://github.com/docker/docker/pull/25466)
-- Deprecated filter param for endpoint `/images/json` [#27872](https://github.com/docker/docker/pull/27872)
+- Deprecate backing filesystem without `d_type` for overlay and overlay2 storage drivers [#27433](https://github.com/docker/docker/pull/27433)
+- Deprecate `MAINTAINER` in Dockerfile [#25466](https://github.com/docker/docker/pull/25466)
+- Deprecate `filter` param for endpoint `/images/json` [#27872](https://github.com/docker/docker/pull/27872)
+- Deprecate setting duplicate engine labels [#24533](https://github.com/docker/docker/pull/24533)
 
 ## 1.12.3 (2016-10-26)
 
