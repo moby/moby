@@ -2445,6 +2445,12 @@ func (devices *DeviceSet) UnmountDevice(hash, mountPath string) error {
 	info.lock.Lock()
 	defer info.lock.Unlock()
 
+	if info.Shared {
+		if err := devices.driver.Put(info.ParentHash); err != nil {
+			return err
+		}
+	}
+
 	devices.Lock()
 	defer devices.Unlock()
 
