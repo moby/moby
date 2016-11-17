@@ -13,7 +13,7 @@ func (cli *Client) SecretCreate(ctx context.Context, secret swarm.SecretSpec) (t
 	var headers map[string][]string
 
 	var response types.SecretCreateResponse
-	resp, err := cli.post(ctx, "/secrets", nil, secret, headers)
+	resp, err := cli.post(ctx, "/secrets/create", nil, secret, headers)
 	if err != nil {
 		return response, err
 	}

@@ -25,7 +25,7 @@ func TestSecretCreateError(t *testing.T) {
 }
 
 func TestSecretCreate(t *testing.T) {
-	expectedURL := "/secrets"
+	expectedURL := "/secrets/create"
 	client := &Client{
 		client: newMockClient(func(req *http.Request) (*http.Response, error) {
 			if !strings.HasPrefix(req.URL.Path, expectedURL) {
@@ -41,7 +41,7 @@ func TestSecretCreate(t *testing.T) {
 				return nil, err
 			}
 			return &http.Response{
-				StatusCode: http.StatusOK,
+				StatusCode: http.StatusCreated,
 				Body:       ioutil.NopCloser(bytes.NewReader(b)),
 			}, nil
 		}),
