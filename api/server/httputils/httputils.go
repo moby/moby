@@ -78,13 +78,14 @@ func ParseForm(r *http.Request) error {
 
 // VersionFromContext returns an API version from the context using APIVersionKey.
 // It panics if the context value does not have version.Version type.
-func VersionFromContext(ctx context.Context) (ver string) {
+func VersionFromContext(ctx context.Context) string {
 	if ctx == nil {
-		return
+		return ""
 	}
-	val := ctx.Value(APIVersionKey)
-	if val == nil {
-		return
+
+	if val := ctx.Value(APIVersionKey); val != nil {
+		return val.(string)
 	}
-	return val.(string)
+
+	return ""
 }
