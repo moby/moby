@@ -6731,12 +6731,12 @@ paths:
           description: "bad parameter"
           schema:
             $ref: "#/definitions/ErrorResponse"
-        406:
-          description: "node is already part of a swarm"
-          schema:
-            $ref: "#/definitions/ErrorResponse"
         500:
           description: "server error"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        503:
+          description: "node is already part of a swarm"
           schema:
             $ref: "#/definitions/ErrorResponse"
       parameters:
@@ -6773,12 +6773,12 @@ paths:
       responses:
         200:
           description: "no error"
-        406:
-          description: "node is not part of a swarm"
-          schema:
-            $ref: "#/definitions/ErrorResponse"
         500:
           description: "server error"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        503:
+          description: "node is not part of a swarm"
           schema:
             $ref: "#/definitions/ErrorResponse"
       parameters:
@@ -6800,12 +6800,12 @@ paths:
           description: "bad parameter"
           schema:
             $ref: "#/definitions/ErrorResponse"
-        406:
-          description: "node is not part of a swarm"
-          schema:
-            $ref: "#/definitions/ErrorResponse"
         500:
           description: "server error"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        503:
+          description: "node is not part of a swarm"
           schema:
             $ref: "#/definitions/ErrorResponse"
       parameters:
@@ -6877,16 +6877,16 @@ paths:
                 type: "string"
             example:
               ID: "ak7w3gjqoa3kuz8xcpnyy0pvl"
-        406:
-          description: "server error or node is not part of a swarm"
-          schema:
-            $ref: "#/definitions/ErrorResponse"
         409:
           description: "name conflicts with an existing service"
           schema:
             $ref: "#/definitions/ErrorResponse"
         500:
           description: "server error"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        503:
+          description: "server error or node is not part of a swarm"
           schema:
             $ref: "#/definitions/ErrorResponse"
       parameters:

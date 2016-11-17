@@ -4821,7 +4821,7 @@ Initialize a new swarm. The body of the HTTP response includes the node ID.
 
 - **200** – no error
 - **400** – bad parameter
-- **406** – node is already part of a swarm
+- **503** – node is already part of a swarm
 
 JSON Parameters:
 
@@ -4890,7 +4890,7 @@ Join an existing swarm
 
 - **200** – no error
 - **400** – bad parameter
-- **406** – node is already part of a swarm
+- **503** – node is already part of a swarm
 
 JSON Parameters:
 
@@ -4928,7 +4928,7 @@ Leave a swarm
 **Status codes**:
 
 - **200** – no error
-- **406** – node is not part of a swarm
+- **503** – node is not part of a swarm
 
 ### Retrieve the swarm's unlock key
 
@@ -5024,7 +5024,7 @@ Update a swarm
 
 - **200** – no error
 - **400** – bad parameter
-- **406** – node is not part of a swarm
+- **503** – node is not part of a swarm
 
 JSON Parameters:
 
@@ -5268,8 +5268,8 @@ image](#create-an-image) section for more details.
 **Status codes**:
 
 - **201** – no error
-- **406** – server error or node is not part of a swarm
 - **409** – name conflicts with an existing object
+- **503** – server error or node is not part of a swarm
 
 **JSON Parameters**:
 
@@ -6049,8 +6049,8 @@ Create a secret
 **Status codes**:
 
 - **201** – no error
-- **406** – server error or node is not part of a swarm
 - **409** – name conflicts with an existing object
+- **503** – server error or node is not part of a swarm
 
 **JSON Parameters**:
 
