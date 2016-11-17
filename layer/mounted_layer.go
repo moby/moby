@@ -4,6 +4,7 @@ import (
 	"io"
 
 	"github.com/docker/docker/pkg/archive"
+	"github.com/opencontainers/runc/libcontainer/label"
 )
 
 type mountedLayer struct {
@@ -93,7 +94,7 @@ type referencedRWLayer struct {
 func (rl *referencedRWLayer) Mount(mountLabel string) (string, error) {
 	if rl.mountedLayer.sharedRootFs {
 		// For shared Layers, call get on -init layer first.
-		_, err := rl.mountedLayer.initRWLayer.Mount(mountLabel)
+		_, err := rl.mountedLayer.initRWLayer.Mount(label.GetROMountLabel())
 		if err != nil {
 			return "", err
 		}
