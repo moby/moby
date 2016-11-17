@@ -70,7 +70,7 @@ var ErrSwarmJoinTimeoutReached = fmt.Errorf("Timeout was reached before node was
 // ErrSwarmLocked is returned if the swarm is encrypted and needs a key to unlock it.
 var ErrSwarmLocked = fmt.Errorf("Swarm is encrypted and needs to be unlocked before it can be used. Please use \"docker swarm unlock\" to unlock it.")
 
-// ErrSwarmCertificatesExipred is returned if docker was not started for the whole validity period and they had no chance to renew automatically.
+// ErrSwarmCertificatesExpired is returned if docker was not started for the whole validity period and they had no chance to renew automatically.
 var ErrSwarmCertificatesExpired = errors.New("Swarm certificates have expired. To replace them, leave the swarm and join again.")
 
 // NetworkSubnetsProvider exposes functions for retrieving the subnets
