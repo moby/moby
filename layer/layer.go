@@ -171,9 +171,10 @@ type MountInit func(root string) error
 
 // CreateRWLayerOpts contains optional arguments to be passed to CreateRWLayer
 type CreateRWLayerOpts struct {
-	MountLabel string
-	InitFunc   MountInit
-	StorageOpt map[string]string
+	MountLabel   string
+	InitFunc     MountInit
+	StorageOpt   map[string]string
+	SharedRootFs bool
 }
 
 // Store represents a backend for managing both
@@ -232,11 +233,15 @@ type MetadataStore interface {
 
 	SetMountID(string, string) error
 	SetInitID(string, string) error
+	SetInitName(string, string) error
 	SetMountParent(string, ChainID) error
+	SetMountShared(string) error
 
 	GetMountID(string) (string, error)
 	GetInitID(string) (string, error)
+	GetInitName(string) (string, error)
 	GetMountParent(string) (ChainID, error)
+	GetMountShared(string) (bool, error)
 
 	// List returns the full list of referenced
 	// read-only and read-write layers

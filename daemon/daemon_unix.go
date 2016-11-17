@@ -1217,6 +1217,12 @@ func setupDaemonProcess(config *Config) error {
 	return setupOOMScoreAdj(config.OOMScoreAdjust)
 }
 
+func (daemon *Daemon) setupSharedRootFs(config *Config) {
+	if config.SharedRootFs {
+		daemon.sharedRootFs = true
+	}
+}
+
 func setupOOMScoreAdj(score int) error {
 	f, err := os.OpenFile("/proc/self/oom_score_adj", os.O_WRONLY, 0)
 	if err != nil {

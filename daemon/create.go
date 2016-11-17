@@ -114,7 +114,7 @@ func (daemon *Daemon) create(params types.ContainerCreateConfig, managed bool) (
 	container.HostConfig.StorageOpt = params.HostConfig.StorageOpt
 
 	// Set RWLayer for container after mount labels have been set
-	if err := daemon.setRWLayer(container); err != nil {
+	if err := daemon.setRWLayer(container, params.HostConfig.ReadonlyRootfs); err != nil {
 		return nil, err
 	}
 
@@ -200,7 +200,7 @@ func (daemon *Daemon) generateSecurityOpt(ipcMode containertypes.IpcMode, pidMod
 	return nil, nil
 }
 
-func (daemon *Daemon) setRWLayer(container *container.Container) error {
+func (daemon *Daemon) setRWLayer(container *container.Container, readOnly bool) error {
 	var layerID layer.ChainID
 	if container.ImageID != "" {
 		img, err := daemon.imageStore.Get(container.ImageID)
@@ -211,9 +211,10 @@ func (daemon *Daemon) setRWLayer(container *container.Container) error {
 	}
 
 	rwLayerOpts := &layer.CreateRWLayerOpts{
-		MountLabel: container.MountLabel,
-		InitFunc:   daemon.getLayerInit(),
-		StorageOpt: container.HostConfig.StorageOpt,
+		MountLabel:   container.MountLabel,
+		InitFunc:     daemon.getLayerInit(),
+		StorageOpt:   container.HostConfig.StorageOpt,
+		SharedRootFs: readOnly && daemon.sharedRootFs,
 	}
 
 	rwLayer, err := daemon.layerStore.CreateRWLayer(container.ID, layerID, rwLayerOpts)

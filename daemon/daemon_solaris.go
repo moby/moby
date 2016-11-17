@@ -528,6 +528,9 @@ func setupDaemonProcess(config *Config) error {
 	return nil
 }
 
+func (daemon *Daemon) setupSharedRootFs(config *Config) {
+}
+
 func (daemon *Daemon) setupSeccompProfile() error {
 	return nil
 }
