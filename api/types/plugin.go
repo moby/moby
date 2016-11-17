@@ -43,14 +43,6 @@ type PluginConfig struct {
 	// Required: true
 	Description string `json:"Description"`
 
-	// device creation
-	// Required: true
-	DeviceCreation bool `json:"DeviceCreation"`
-
-	// devices
-	// Required: true
-	Devices []PluginDevice `json:"Devices"`
-
 	// documentation
 	// Required: true
 	Documentation string `json:"Documentation"`
@@ -128,6 +120,14 @@ type PluginConfigLinux struct {
 	// capabilities
 	// Required: true
 	Capabilities []string `json:"Capabilities"`
+
+	// device creation
+	// Required: true
+	DeviceCreation bool `json:"DeviceCreation"`
+
+	// devices
+	// Required: true
+	Devices []PluginDevice `json:"Devices"`
 }
 
 // PluginConfigNetwork plugin config network

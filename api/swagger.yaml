@@ -1313,8 +1313,6 @@ definitions:
           - Network
           - Linux
           - Mounts
-          - Devices
-          - DeviceCreation
           - Env
           - Args
         properties:
@@ -1365,23 +1363,23 @@ definitions:
           Linux:
             type: "object"
             x-nullable: false
-            required: [Capabilities]
+            required: [Capabilities, DeviceCreation, Devices]
             properties:
               Capabilities:
                 type: "array"
                 items:
                   type: "string"
+              DeviceCreation:
+                type: "boolean"
+                x-nullable: false
+              Devices:
+                type: "array"
+                items:
+                  $ref: "#/definitions/PluginDevice"
           Mounts:
             type: "array"
             items:
               $ref: "#/definitions/PluginMount"
-          Devices:
-            type: "array"
-            items:
-              $ref: "#/definitions/PluginDevice"
-          DeviceCreation:
-            type: "boolean"
-            x-nullable: false
           Env:
             type: "array"
             items:
