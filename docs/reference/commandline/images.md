@@ -28,6 +28,7 @@ Options:
                         - label=<key> or label=<key>=<value>
                         - before=(<image-name>[:tag]|<image-id>|<image@digest>)
                         - since=(<image-name>[:tag]|<image-id>|<image@digest>)
+                        - reference=(pattern of an image reference)
       --format string   Pretty-print images using a Go template
       --help            Print usage
       --no-trunc        Don't truncate output
@@ -229,6 +230,24 @@ Filtering with `since` would give:
     image1              latest              eeae25ada2aa        4 minutes ago        188.3 MB
     image2              latest              dea752e4e117        9 minutes ago        188.3 MB
 
+#### Reference
+
+The `reference` filter shows only images whose reference matches
+the specified pattern.
+
+    $ docker images
+    REPOSITORY          TAG                 IMAGE ID            CREATED             SIZE
+    busybox             latest              e02e811dd08f        5 weeks ago         1.09 MB
+    busybox             uclibc              e02e811dd08f        5 weeks ago         1.09 MB
+    busybox             musl                733eb3059dce        5 weeks ago         1.21 MB
+    busybox             glibc               21c16b6787c6        5 weeks ago         4.19 MB
+
+Filtering with `reference` would give:
+
+    $ docker images --filter=reference='busy*:*libc'
+    REPOSITORY          TAG                 IMAGE ID            CREATED             SIZE
+    busybox             uclibc              e02e811dd08f        5 weeks ago         1.09 MB
+    busybox             glibc               21c16b6787c6        5 weeks ago         4.19 MB
 
 ## Formatting
 
