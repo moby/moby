@@ -13,10 +13,7 @@ func NewImageCommand(dockerCli *command.DockerCli) *cobra.Command {
 		Use:   "image",
 		Short: "Manage images",
 		Args:  cli.NoArgs,
-		Run: func(cmd *cobra.Command, args []string) {
-			cmd.SetOutput(dockerCli.Err())
-			cmd.HelpFunc()(cmd, args)
-		},
+		RunE:  dockerCli.ShowHelp,
 	}
 	cmd.AddCommand(
 		NewBuildCommand(dockerCli),
