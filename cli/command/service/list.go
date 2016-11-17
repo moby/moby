@@ -5,6 +5,7 @@ import (
 	"io"
 	"text/tabwriter"
 
+	distreference "github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/swarm"
@@ -127,6 +128,16 @@ func printTable(out io.Writer, services []swarm.Service, running, tasksNoShutdow
 			mode = "global"
 			replicas = fmt.Sprintf("%d/%d", running[service.ID], tasksNoShutdown[service.ID])
 		}
+		image := service.Spec.TaskTemplate.ContainerSpec.Image
+		ref, err := distreference.ParseNamed(image)
+		if err == nil {
+			// update image string for display
+			namedTagged, ok := ref.(distreference.NamedTagged)
+			if ok {
+				image = namedTagged.Name() + ":" + namedTagged.Tag()
+			}
+		}
+
 		fmt.Fprintf(
 			writer,
 			listItemFmt,
@@ -134,7 +145,7 @@ func printTable(out io.Writer, services []swarm.Service, running, tasksNoShutdow
 			service.Spec.Name,
 			mode,
 			replicas,
-			service.Spec.TaskTemplate.ContainerSpec.Image)
+			image)
 	}
 }
 
