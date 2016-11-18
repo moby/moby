@@ -16,8 +16,8 @@ type inspectOptions struct {
 func newSecretInspectCommand(dockerCli *command.DockerCli) *cobra.Command {
 	opts := inspectOptions{}
 	cmd := &cobra.Command{
-		Use:   "inspect SECRET [SECRET]",
-		Short: "Inspect a secret",
+		Use:   "inspect [OPTIONS] SECRET [SECRET...]",
+		Short: "Display detailed information on one or more secrets",
 		Args:  cli.RequiresMinArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			opts.names = args
