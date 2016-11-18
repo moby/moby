@@ -102,7 +102,7 @@ func (s *Server) serveAPI() error {
 }
 
 // HTTPServer contains an instance of http server and the listener.
-// srv *http.Server, contains configuration to create a http server and a mux router with all api end points.
+// srv *http.Server, contains configuration to create an http server and a mux router with all api end points.
 // l   net.Listener, is a TCP or Socket listener that dispatches incoming request to the router.
 type HTTPServer struct {
 	srv *http.Server
