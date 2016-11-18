@@ -3,6 +3,7 @@ package v1p24
 
 import "github.com/docker/docker/api/types"
 
+// Info is a backcompatibility struct for the API 1.24
 type Info struct {
 	*types.InfoBase
 	ExecutionDriver string
