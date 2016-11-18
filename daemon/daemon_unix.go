@@ -112,11 +112,8 @@ func getCPUResources(config containertypes.Resources) *specs.CPU {
 	}
 
 	if config.NanoCPUs > 0 {
-		// We set the highest value possible (1s), as is specified in:
 		// https://www.kernel.org/doc/Documentation/scheduler/sched-bwc.txt
-		//    	cpu.cfs_period_us=1s
-		// The purpose is to get the highest precision
-		period := uint64(1 * time.Second / time.Microsecond)
+		period := uint64(100 * time.Millisecond / time.Microsecond)
 		quota := uint64(config.NanoCPUs) * period / 1e9
 		cpu.Period = &period
 		cpu.Quota = &quota
