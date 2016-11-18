@@ -40,6 +40,7 @@ func SecretSpecToGRPC(s swarmtypes.SecretSpec) swarmapi.SecretSpec {
 	}
 }
 
+// SecretReferencesFromGRPC converts a slice of grpc SecretReference to SecretReference
 func SecretReferencesFromGRPC(s []*swarmapi.SecretReference) []*swarmtypes.SecretReference {
 	refs := []*swarmtypes.SecretReference{}
 
