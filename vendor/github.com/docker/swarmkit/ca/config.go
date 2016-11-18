@@ -52,7 +52,12 @@ const (
 // SecurityConfig is used to represent a node's security configuration. It includes information about
 // the RootCA and ServerTLSCreds/ClientTLSCreds transport authenticators to be used for MTLS
 type SecurityConfig struct {
+	// mu protects against concurrent access to fields inside the structure.
 	mu sync.Mutex
+
+	// renewalMu makes sure only one certificate renewal attempt happens at
+	// a time. It should never be locked after mu is already locked.
+	renewalMu sync.Mutex
 
 	rootCA        *RootCA
 	externalCA    *ExternalCA
@@ -324,6 +329,9 @@ func LoadOrCreateSecurityConfig(ctx context.Context, rootCA RootCA, token, propo
 // RenewTLSConfigNow gets a new TLS cert and key, and updates the security config if provided.  This is similar to
 // RenewTLSConfig, except while that monitors for expiry, and periodically renews, this renews once and is blocking
 func RenewTLSConfigNow(ctx context.Context, s *SecurityConfig, r remotes.Remotes) error {
+	s.renewalMu.Lock()
+	defer s.renewalMu.Unlock()
+
 	ctx = log.WithModule(ctx, "tls")
 	log := log.G(ctx).WithFields(logrus.Fields{
 		"node.id":   s.ClientTLSCreds.NodeID(),

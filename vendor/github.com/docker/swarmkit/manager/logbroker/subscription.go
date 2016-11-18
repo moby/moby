@@ -2,6 +2,8 @@ package logbroker
 
 import (
 	"context"
+	"fmt"
+	"strings"
 	"sync"
 
 	events "github.com/docker/go-events"
@@ -14,6 +16,7 @@ import (
 
 type subscription struct {
 	mu sync.RWMutex
+	wg sync.WaitGroup
 
 	store   *store.MemoryStore
 	message *api.SubscriptionMessage
@@ -22,16 +25,23 @@ type subscription struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 
-	nodes map[string]struct{}
+	errors       []error
+	nodes        map[string]struct{}
+	pendingTasks map[string]struct{}
 }
 
 func newSubscription(store *store.MemoryStore, message *api.SubscriptionMessage, changed *watch.Queue) *subscription {
 	return &subscription{
-		store:   store,
-		message: message,
-		changed: changed,
-		nodes:   make(map[string]struct{}),
+		store:        store,
+		message:      message,
+		changed:      changed,
+		nodes:        make(map[string]struct{}),
+		pendingTasks: make(map[string]struct{}),
 	}
+}
+
+func (s *subscription) follow() bool {
+	return s.message.Options != nil && s.message.Options.Follow
 }
 
 func (s *subscription) Contains(nodeID string) bool {
@@ -42,15 +52,28 @@ func (s *subscription) Contains(nodeID string) bool {
 	return ok
 }
 
+func (s *subscription) Nodes() []string {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	nodes := make([]string, 0, len(s.nodes))
+	for node := range s.nodes {
+		nodes = append(nodes, node)
+	}
+	return nodes
+}
+
 func (s *subscription) Run(ctx context.Context) {
 	s.ctx, s.cancel = context.WithCancel(ctx)
 
-	wq := s.store.WatchQueue()
-	ch, cancel := state.Watch(wq, state.EventCreateTask{}, state.EventUpdateTask{})
-	go func() {
-		defer cancel()
-		s.watch(ch)
-	}()
+	if s.follow() {
+		wq := s.store.WatchQueue()
+		ch, cancel := state.Watch(wq, state.EventCreateTask{}, state.EventUpdateTask{})
+		go func() {
+			defer cancel()
+			s.watch(ch)
+		}()
+	}
 
 	s.match()
 }
@@ -61,9 +84,73 @@ func (s *subscription) Stop() {
 	}
 }
 
+func (s *subscription) Wait(ctx context.Context) <-chan struct{} {
+	// Follow subscriptions never end
+	if s.follow() {
+		return nil
+	}
+
+	ch := make(chan struct{})
+	go func() {
+		defer close(ch)
+		s.wg.Wait()
+	}()
+	return ch
+}
+
+func (s *subscription) Done(nodeID string, err error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if err != nil {
+		s.errors = append(s.errors, err)
+	}
+
+	if s.follow() {
+		return
+	}
+
+	if _, ok := s.nodes[nodeID]; !ok {
+		return
+	}
+
+	delete(s.nodes, nodeID)
+	s.wg.Done()
+}
+
+func (s *subscription) Err() error {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	if len(s.errors) == 0 && len(s.pendingTasks) == 0 {
+		return nil
+	}
+
+	messages := make([]string, 0, len(s.errors))
+	for _, err := range s.errors {
+		messages = append(messages, err.Error())
+	}
+	for t := range s.pendingTasks {
+		messages = append(messages, fmt.Sprintf("task %s has not been scheduled", t))
+	}
+
+	return fmt.Errorf("warning: incomplete log stream. some logs could not be retrieved for the following reasons: %s", strings.Join(messages, ", "))
+}
+
 func (s *subscription) match() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+
+	add := func(t *api.Task) {
+		if t.NodeID == "" {
+			s.pendingTasks[t.ID] = struct{}{}
+			return
+		}
+		if _, ok := s.nodes[t.NodeID]; !ok {
+			s.nodes[t.NodeID] = struct{}{}
+			s.wg.Add(1)
+		}
+	}
 
 	s.store.View(func(tx store.ReadTx) {
 		for _, nid := range s.message.Selector.NodeIDs {
@@ -72,7 +159,7 @@ func (s *subscription) match() {
 
 		for _, tid := range s.message.Selector.TaskIDs {
 			if task := store.GetTask(tx, tid); task != nil {
-				s.nodes[task.NodeID] = struct{}{}
+				add(task)
 			}
 		}
 
@@ -83,7 +170,7 @@ func (s *subscription) match() {
 				continue
 			}
 			for _, task := range tasks {
-				s.nodes[task.NodeID] = struct{}{}
+				add(task)
 			}
 		}
 	})
@@ -100,12 +187,19 @@ func (s *subscription) watch(ch <-chan events.Event) error {
 		matchServices[sid] = struct{}{}
 	}
 
-	add := func(nodeID string) {
+	add := func(t *api.Task) {
 		s.mu.Lock()
 		defer s.mu.Unlock()
 
-		if _, ok := s.nodes[nodeID]; !ok {
-			s.nodes[nodeID] = struct{}{}
+		// Un-allocated task.
+		if t.NodeID == "" {
+			s.pendingTasks[t.ID] = struct{}{}
+			return
+		}
+
+		delete(s.pendingTasks, t.ID)
+		if _, ok := s.nodes[t.NodeID]; !ok {
+			s.nodes[t.NodeID] = struct{}{}
 			s.changed.Publish(s)
 		}
 	}
@@ -129,10 +223,10 @@ func (s *subscription) watch(ch <-chan events.Event) error {
 		}
 
 		if _, ok := matchTasks[t.ID]; ok {
-			add(t.NodeID)
+			add(t)
 		}
 		if _, ok := matchServices[t.ServiceID]; ok {
-			add(t.NodeID)
+			add(t)
 		}
 	}
 }
