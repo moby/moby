@@ -615,8 +615,12 @@ func convertUpdateConfig(source *composetypes.UpdateConfig) *swarm.UpdateConfig 
 	if source == nil {
 		return nil
 	}
+	parallel := uint64(1)
+	if source.Parallelism != nil {
+		parallel = *source.Parallelism
+	}
 	return &swarm.UpdateConfig{
-		Parallelism:     source.Parallelism,
+		Parallelism:     parallel,
 		Delay:           source.Delay,
 		FailureAction:   source.FailureAction,
 		Monitor:         source.Monitor,
