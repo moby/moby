@@ -550,7 +550,12 @@ func NewDaemon(config *Config, registryService registry.Service, containerdRemot
 		driverName = config.GraphDriver
 	}
 
+	d.RegistryService = registryService
 	d.PluginStore = pluginstore.NewStore(config.Root)
+	// Plugin system initialization should happen before restore. Do not change order.
+	if err := d.pluginInit(config, containerdRemote); err != nil {
+		return nil, err
+	}
 
 	d.layerStore, err = layer.NewStoreFromOptions(layer.StoreOptions{
 		StorePath:                 config.Root,
@@ -649,7 +654,6 @@ func NewDaemon(config *Config, registryService registry.Service, containerdRemot
 		Type:   config.LogConfig.Type,
 		Config: config.LogConfig.Config,
 	}
-	d.RegistryService = registryService
 	d.EventsService = eventsService
 	d.volumes = volStore
 	d.root = config.Root
@@ -665,11 +669,6 @@ func NewDaemon(config *Config, registryService registry.Service, containerdRemot
 
 	d.containerd, err = containerdRemote.Client(d)
 	if err != nil {
-		return nil, err
-	}
-
-	// Plugin system initialization should happen before restore. Do not change order.
-	if err := d.pluginInit(config, containerdRemote); err != nil {
 		return nil, err
 	}
 
