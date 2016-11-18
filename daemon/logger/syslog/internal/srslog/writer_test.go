@@ -52,13 +52,10 @@ func TestWriteFormatters(t *testing.T) {
 			raddr:    addr,
 		}
 
-		w.Lock()
 		err := w.connect()
 		if err != nil {
 			t.Errorf("failed to connect: %v", err)
-			w.Unlock()
 		}
-		w.Unlock()
 		defer w.Close()
 
 		w.SetFormatter(test.f)
@@ -104,13 +101,10 @@ func TestWriterFramers(t *testing.T) {
 			raddr:    addr,
 		}
 
-		w.Lock()
 		err := w.connect()
 		if err != nil {
 			t.Errorf("failed to connect: %v", err)
-			w.Unlock()
 		}
-		w.Unlock()
 		defer w.Close()
 
 		w.SetFramer(test.f)
@@ -146,13 +140,10 @@ func TestWriteWithDefaultPriority(t *testing.T) {
 		raddr:    addr,
 	}
 
-	w.Lock()
 	err := w.connect()
 	if err != nil {
 		t.Errorf("failed to connect: %v", err)
-		w.Unlock()
 	}
-	w.Unlock()
 	defer w.Close()
 
 	var bytes int
@@ -181,13 +172,10 @@ func TestWriteWithProvidedPriority(t *testing.T) {
 		raddr:    addr,
 	}
 
-	w.Lock()
 	err := w.connect()
 	if err != nil {
 		t.Errorf("failed to connect: %v", err)
-		w.Unlock()
 	}
-	w.Unlock()
 	defer w.Close()
 
 	var bytes int
@@ -216,13 +204,10 @@ func TestDebug(t *testing.T) {
 		raddr:    addr,
 	}
 
-	w.Lock()
 	err := w.connect()
 	if err != nil {
 		t.Errorf("failed to connect: %v", err)
-		w.Unlock()
 	}
-	w.Unlock()
 	defer w.Close()
 
 	err = w.Debug("this is a test message")
@@ -247,13 +232,10 @@ func TestInfo(t *testing.T) {
 		raddr:    addr,
 	}
 
-	w.Lock()
 	err := w.connect()
 	if err != nil {
 		t.Errorf("failed to connect: %v", err)
-		w.Unlock()
 	}
-	w.Unlock()
 	defer w.Close()
 
 	err = w.Info("this is a test message")
@@ -278,13 +260,10 @@ func TestNotice(t *testing.T) {
 		raddr:    addr,
 	}
 
-	w.Lock()
 	err := w.connect()
 	if err != nil {
 		t.Errorf("failed to connect: %v", err)
-		w.Unlock()
 	}
-	w.Unlock()
 	defer w.Close()
 
 	err = w.Notice("this is a test message")
@@ -309,13 +288,10 @@ func TestWarning(t *testing.T) {
 		raddr:    addr,
 	}
 
-	w.Lock()
 	err := w.connect()
 	if err != nil {
 		t.Errorf("failed to connect: %v", err)
-		w.Unlock()
 	}
-	w.Unlock()
 	defer w.Close()
 
 	err = w.Warning("this is a test message")
@@ -340,13 +316,10 @@ func TestErr(t *testing.T) {
 		raddr:    addr,
 	}
 
-	w.Lock()
 	err := w.connect()
 	if err != nil {
 		t.Errorf("failed to connect: %v", err)
-		w.Unlock()
 	}
-	w.Unlock()
 	defer w.Close()
 
 	err = w.Err("this is a test message")
@@ -371,13 +344,10 @@ func TestCrit(t *testing.T) {
 		raddr:    addr,
 	}
 
-	w.Lock()
 	err := w.connect()
 	if err != nil {
 		t.Errorf("failed to connect: %v", err)
-		w.Unlock()
 	}
-	w.Unlock()
 	defer w.Close()
 
 	err = w.Crit("this is a test message")
@@ -402,13 +372,10 @@ func TestAlert(t *testing.T) {
 		raddr:    addr,
 	}
 
-	w.Lock()
 	err := w.connect()
 	if err != nil {
 		t.Errorf("failed to connect: %v", err)
-		w.Unlock()
 	}
-	w.Unlock()
 	defer w.Close()
 
 	err = w.Alert("this is a test message")
@@ -433,13 +400,10 @@ func TestEmerg(t *testing.T) {
 		raddr:    addr,
 	}
 
-	w.Lock()
 	err := w.connect()
 	if err != nil {
 		t.Errorf("failed to connect: %v", err)
-		w.Unlock()
 	}
-	w.Unlock()
 	defer w.Close()
 
 	err = w.Emerg("this is a test message")
