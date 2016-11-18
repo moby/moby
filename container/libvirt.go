@@ -219,17 +219,27 @@ runcmd:
 "instance-id": "%s"
 }
 `
-        path := lc.container.Path
+        var command string
+        if len(lc.container.Args) > 0 {
+                args := []string{}
+                for _, arg := range lc.container.Args {
+                        if strings.Contains(arg, " ") {
+                                args = append(args, fmt.Sprintf("'%s'", arg))
+                        } else {
+                                args = append(args, arg)
+                        }
+                }
+                argsAsString := strings.Join(args, " ")
 
-        args := strings.TrimPrefix(fmt.Sprint(lc.container.Args), "[")
-        args = strings.TrimSuffix(args, "]")
+                command = fmt.Sprintf("%s %s", lc.container.Path, argsAsString)
+        } else {
+                command = lc.container.Path
+        }
 
-        entrypoint := path + " " + args
-
-        logrus.Infof("The user data is: %s", fmt.Sprintf(userDataString, entrypoint))
+        logrus.Infof("The user data is: %s", fmt.Sprintf(userDataString, command))
         logrus.Infof("The meta data is: %s", fmt.Sprintf(metaDataString, lc.container.ID[0:12]))
 
-        userData := []byte(fmt.Sprintf(userDataString, entrypoint))
+        userData := []byte(fmt.Sprintf(userDataString, command))
         metaData := []byte(fmt.Sprintf(metaDataString, lc.container.ID[0:12]))
 
         currentDir, err := os.Getwd()
