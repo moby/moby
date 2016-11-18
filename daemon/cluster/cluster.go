@@ -1052,10 +1052,9 @@ func (c *Cluster) imageWithDigestString(ctx context.Context, image string, authC
 			return "", err
 		}
 		return namedDigestedRef.String(), nil
-	} else {
-		// reference already contains a digest, so just return it
-		return ref.String(), nil
 	}
+	// reference already contains a digest, so just return it
+	return ref.String(), nil
 }
 
 // CreateService creates a new service in a managed swarm cluster.
