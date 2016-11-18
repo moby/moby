@@ -55,6 +55,7 @@ RUN apt-get update && apt-get install -y \
 	git \
 	iptables \
 	jq \
+	less \
 	libapparmor-dev \
 	libcap-dev \
 	libltdl-dev \
@@ -64,6 +65,7 @@ RUN apt-get update && apt-get install -y \
 	libsqlite3-dev \
 	libsystemd-journal-dev \
 	libtool \
+	libzfs-dev \
 	mercurial \
 	net-tools \
 	pkg-config \
@@ -73,11 +75,11 @@ RUN apt-get update && apt-get install -y \
 	python-mock \
 	python-pip \
 	python-websocket \
-	ubuntu-zfs \
-	xfsprogs \
-	vim-common \
-	libzfs-dev \
 	tar \
+	ubuntu-zfs \
+	vim \
+	vim-common \
+	xfsprogs \
 	zip \
 	--no-install-recommends \
 	&& pip install awscli==1.10.15
