@@ -188,7 +188,6 @@ fi
 
 flags=(
 	NAMESPACES {NET,PID,IPC,UTS}_NS
-	DEVPTS_MULTIPLE_INSTANCES
 	CGROUPS CGROUP_CPUACCT CGROUP_DEVICE CGROUP_FREEZER CGROUP_SCHED CPUSETS MEMCG
 	KEYS
 	VETH BRIDGE BRIDGE_NETFILTER
@@ -200,6 +199,10 @@ flags=(
 	POSIX_MQUEUE
 )
 check_flags "${flags[@]}"
+if [ "$kernelMajor" -lt 4 ] || [ "$kernelMajor" -eq 4 -a "$kernelMinor" -lt 8 ]; then
+        check_flags DEVPTS_MULTIPLE_INSTANCES
+fi
+
 echo
 
 echo 'Optional Features:'
