@@ -165,18 +165,16 @@ func (d *Driver) Exists(id string) bool {
 func (d *Driver) CreateReadWrite(id, parent string, opts *graphdriver.CreateOpts) error {
 	if opts != nil {
 		return d.create(id, parent, opts.MountLabel, false, opts.StorageOpt)
-	} else {
-		return d.create(id, parent, "", false, nil)
 	}
+	return d.create(id, parent, "", false, nil)
 }
 
 // Create creates a new read-only layer with the given id.
 func (d *Driver) Create(id, parent string, opts *graphdriver.CreateOpts) error {
 	if opts != nil {
 		return d.create(id, parent, opts.MountLabel, true, opts.StorageOpt)
-	} else {
-		return d.create(id, parent, "", true, nil)
 	}
+	return d.create(id, parent, "", true, nil)
 }
 
 func (d *Driver) create(id, parent, mountLabel string, readOnly bool, storageOpt map[string]string) error {
