@@ -142,7 +142,7 @@ func (s *VolumeStore) Purge(name string) {
 type VolumeStore struct {
 	// locks ensures that only one action is being performed on a particular volume at a time without locking the entire store
 	// since actions on volumes can be quite slow, this ensures the store is free to handle requests for other volumes.
-	locks      *locker.Locker
+	locks *locker.Locker
 	// globalLock is used to protect access to mutable structures used by the store object
 	globalLock sync.RWMutex
 	// names stores the volume name -> volume relationship.
