@@ -385,14 +385,10 @@ func (m *Manager) Run(parent context.Context) error {
 
 	close(m.started)
 
-	watchDone := make(chan struct{})
-	watchCtx, watchCtxCancel := context.WithCancel(parent)
 	go func() {
 		err := m.raftNode.Run(ctx)
-		watchCtxCancel()
-		<-watchDone
 		if err != nil {
-			log.G(ctx).Error(err)
+			log.G(ctx).WithError(err).Error("raft node stopped")
 			m.Stop(ctx)
 		}
 	}()
@@ -407,7 +403,7 @@ func (m *Manager) Run(parent context.Context) error {
 	}
 	raftConfig := c.Spec.Raft
 
-	if err := m.watchForKEKChanges(watchCtx, watchDone); err != nil {
+	if err := m.watchForKEKChanges(ctx); err != nil {
 		return err
 	}
 
@@ -544,8 +540,7 @@ func (m *Manager) updateKEK(ctx context.Context, cluster *api.Cluster) error {
 	return nil
 }
 
-func (m *Manager) watchForKEKChanges(ctx context.Context, watchDone chan struct{}) error {
-	defer close(watchDone)
+func (m *Manager) watchForKEKChanges(ctx context.Context) error {
 	clusterID := m.config.SecurityConfig.ClientTLSCreds.Organization()
 	clusterWatch, clusterWatchCancel, err := store.ViewAndWatch(m.raftNode.MemoryStore(),
 		func(tx store.ReadTx) error {

@@ -406,12 +406,12 @@ func (w *worker) updateTaskStatus(ctx context.Context, tx *bolt.Tx, taskID strin
 func (w *worker) Subscribe(ctx context.Context, subscription *api.SubscriptionMessage) error {
 	log.G(ctx).Debugf("Received subscription %s (selector: %v)", subscription.ID, subscription.Selector)
 
-	publisher, err := w.publisherProvider.Publisher(ctx, subscription.ID)
+	publisher, cancel, err := w.publisherProvider.Publisher(ctx, subscription.ID)
 	if err != nil {
 		return err
 	}
 	// Send a close once we're done
-	defer publisher.Publish(ctx, api.LogMessage{})
+	defer cancel()
 
 	match := func(t *api.Task) bool {
 		// TODO(aluzzardi): Consider using maps to limit the iterations.
@@ -436,26 +436,49 @@ func (w *worker) Subscribe(ctx context.Context, subscription *api.SubscriptionMe
 		return false
 	}
 
-	ch, cancel := w.taskevents.Watch()
-	defer cancel()
-
+	wg := sync.WaitGroup{}
 	w.mu.Lock()
 	for _, tm := range w.taskManagers {
 		if match(tm.task) {
-			go tm.Logs(ctx, *subscription.Options, publisher)
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				tm.Logs(ctx, *subscription.Options, publisher)
+			}()
 		}
 	}
 	w.mu.Unlock()
 
+	// If follow mode is disabled, wait for the current set of matched tasks
+	// to finish publishing logs, then close the subscription by returning.
+	if subscription.Options == nil || !subscription.Options.Follow {
+		waitCh := make(chan struct{})
+		go func() {
+			defer close(waitCh)
+			wg.Wait()
+		}()
+
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-waitCh:
+			return nil
+		}
+	}
+
+	// In follow mode, watch for new tasks. Don't close the subscription
+	// until it's cancelled.
+	ch, cancel := w.taskevents.Watch()
+	defer cancel()
 	for {
 		select {
 		case v := <-ch:
-			w.mu.Lock()
 			task := v.(*api.Task)
 			if match(task) {
+				w.mu.Lock()
 				go w.taskManagers[task.ID].Logs(ctx, *subscription.Options, publisher)
+				w.mu.Unlock()
 			}
-			w.mu.Unlock()
 		case <-ctx.Done():
 			return ctx.Err()
 		}

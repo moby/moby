@@ -100,26 +100,24 @@ type Config struct {
 // cluster. Node handles workloads and may also run as a manager.
 type Node struct {
 	sync.RWMutex
-	config               *Config
-	remotes              *persistentRemotes
-	role                 string
-	roleCond             *sync.Cond
-	conn                 *grpc.ClientConn
-	connCond             *sync.Cond
-	nodeID               string
-	nodeMembership       api.NodeSpec_Membership
-	started              chan struct{}
-	startOnce            sync.Once
-	stopped              chan struct{}
-	stopOnce             sync.Once
-	ready                chan struct{} // closed when agent has completed registration and manager(if enabled) is ready to receive control requests
-	certificateRequested chan struct{} // closed when certificate issue request has been sent by node
-	closed               chan struct{}
-	err                  error
-	agent                *agent.Agent
-	manager              *manager.Manager
-	notifyNodeChange     chan *api.Node // used to send role updates from the dispatcher api on promotion/demotion
-	unlockKey            []byte
+	config           *Config
+	remotes          *persistentRemotes
+	role             string
+	roleCond         *sync.Cond
+	conn             *grpc.ClientConn
+	connCond         *sync.Cond
+	nodeID           string
+	started          chan struct{}
+	startOnce        sync.Once
+	stopped          chan struct{}
+	stopOnce         sync.Once
+	ready            chan struct{} // closed when agent has completed registration and manager(if enabled) is ready to receive control requests
+	closed           chan struct{}
+	err              error
+	agent            *agent.Agent
+	manager          *manager.Manager
+	notifyNodeChange chan *api.Node // used to send role updates from the dispatcher api on promotion/demotion
+	unlockKey        []byte
 }
 
 // RemoteAPIAddr returns address on which remote manager api listens.
@@ -155,16 +153,15 @@ func New(c *Config) (*Node, error) {
 	}
 
 	n := &Node{
-		remotes:              newPersistentRemotes(stateFile, p...),
-		role:                 ca.WorkerRole,
-		config:               c,
-		started:              make(chan struct{}),
-		stopped:              make(chan struct{}),
-		closed:               make(chan struct{}),
-		ready:                make(chan struct{}),
-		certificateRequested: make(chan struct{}),
-		notifyNodeChange:     make(chan *api.Node, 1),
-		unlockKey:            c.UnlockKey,
+		remotes:          newPersistentRemotes(stateFile, p...),
+		role:             ca.WorkerRole,
+		config:           c,
+		started:          make(chan struct{}),
+		stopped:          make(chan struct{}),
+		closed:           make(chan struct{}),
+		ready:            make(chan struct{}),
+		notifyNodeChange: make(chan *api.Node, 1),
+		unlockKey:        c.UnlockKey,
 	}
 
 	if n.config.JoinAddr != "" || n.config.ForceNewCluster {
@@ -403,13 +400,6 @@ func (n *Node) Ready() <-chan struct{} {
 	return n.ready
 }
 
-// CertificateRequested returns a channel that is closed after node has
-// requested a certificate. After this call a caller can expect calls to
-// NodeID() and `NodeMembership()` to succeed.
-func (n *Node) CertificateRequested() <-chan struct{} {
-	return n.certificateRequested
-}
-
 func (n *Node) setControlSocket(conn *grpc.ClientConn) {
 	n.Lock()
 	if n.conn != nil {
@@ -461,13 +451,6 @@ func (n *Node) NodeID() string {
 	return n.nodeID
 }
 
-// NodeMembership returns current node's membership. May be empty if not set.
-func (n *Node) NodeMembership() api.NodeSpec_Membership {
-	n.RLock()
-	defer n.RUnlock()
-	return n.nodeMembership
-}
-
 // Manager returns manager instance started by node. May be nil.
 func (n *Node) Manager() *manager.Manager {
 	n.RLock()
@@ -507,18 +490,14 @@ func (n *Node) loadSecurityConfig(ctx context.Context) (*ca.SecurityConfig, erro
 		return nil, err
 	}
 	if err == nil {
-		clientTLSCreds, serverTLSCreds, err := ca.LoadTLSCreds(rootCA, krw)
-		_, ok := errors.Cause(err).(ca.ErrInvalidKEK)
-		switch {
-		case err == nil:
-			securityConfig = ca.NewSecurityConfig(&rootCA, krw, clientTLSCreds, serverTLSCreds)
-			log.G(ctx).Debug("loaded CA and TLS certificates")
-		case ok:
-			return nil, ErrInvalidUnlockKey
-		case os.IsNotExist(err):
-			break
-		default:
-			return nil, errors.Wrapf(err, "error while loading TLS certificate in %s", paths.Node.Cert)
+		securityConfig, err = ca.LoadSecurityConfig(ctx, rootCA, krw)
+		if err != nil {
+			_, isInvalidKEK := errors.Cause(err).(ca.ErrInvalidKEK)
+			if isInvalidKEK {
+				return nil, ErrInvalidUnlockKey
+			} else if !os.IsNotExist(err) {
+				return nil, errors.Wrapf(err, "error while loading TLS certificate in %s", paths.Node.Cert)
+			}
 		}
 	}
 
@@ -544,44 +523,36 @@ func (n *Node) loadSecurityConfig(ctx context.Context) (*ca.SecurityConfig, erro
 		}
 
 		// Obtain new certs and setup TLS certificates renewal for this node:
-		// - We call LoadOrCreateSecurityConfig which blocks until a valid certificate has been issued
-		// - We retrieve the nodeID from LoadOrCreateSecurityConfig through the info channel. This allows
-		// us to display the ID before the certificate gets issued (for potential approval).
-		// - We wait for LoadOrCreateSecurityConfig to finish since we need a certificate to operate.
-		// - Given a valid certificate, spin a renewal go-routine that will ensure that certificates stay
-		// up to date.
-		issueResponseChan := make(chan api.IssueNodeCertificateResponse, 1)
-		go func() {
-			select {
-			case <-ctx.Done():
-			case resp := <-issueResponseChan:
-				log.G(log.WithModule(ctx, "tls")).WithFields(logrus.Fields{
-					"node.id": resp.NodeID,
-				}).Debugf("loaded TLS certificate")
-				n.Lock()
-				n.nodeID = resp.NodeID
-				n.nodeMembership = resp.NodeMembership
-				n.Unlock()
-				close(n.certificateRequested)
-			}
-		}()
+		// - If certificates weren't present on disk, we call CreateSecurityConfig, which blocks
+		//   until a valid certificate has been issued.
+		// - We wait for CreateSecurityConfig to finish since we need a certificate to operate.
 
-		// LoadOrCreateSecurityConfig is the point at which a new node joining a cluster will retrieve TLS
-		// certificates and write them to disk
-		securityConfig, err = ca.LoadOrCreateSecurityConfig(
-			ctx, rootCA, n.config.JoinToken, ca.ManagerRole, n.remotes, issueResponseChan, krw)
-		if err != nil {
+		// Attempt to load certificate from disk
+		securityConfig, err = ca.LoadSecurityConfig(ctx, rootCA, krw)
+		if err == nil {
+			log.G(ctx).WithFields(logrus.Fields{
+				"node.id": securityConfig.ClientTLSCreds.NodeID(),
+			}).Debugf("loaded TLS certificate")
+		} else {
 			if _, ok := errors.Cause(err).(ca.ErrInvalidKEK); ok {
 				return nil, ErrInvalidUnlockKey
 			}
-			return nil, err
+			log.G(ctx).WithError(err).Debugf("no node credentials found in: %s", krw.Target())
+
+			securityConfig, err = rootCA.CreateSecurityConfig(ctx, krw, ca.CertificateRequestConfig{
+				Token:   n.config.JoinToken,
+				Remotes: n.remotes,
+			})
+
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
 
 	n.Lock()
 	n.role = securityConfig.ClientTLSCreds.Role()
 	n.nodeID = securityConfig.ClientTLSCreds.NodeID()
-	n.nodeMembership = api.NodeMembershipAccepted
 	n.roleCond.Broadcast()
 	n.Unlock()
 
