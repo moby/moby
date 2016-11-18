@@ -96,7 +96,7 @@ type CommonContainer struct {
 	Name            string
 	Driver          string
         // Context for isolated container
-        IsolatedContainerContext libcontainerd.IcContext
+        IsolatedContainerContext libcontainerd.IcContext  `json:"-"`
 	// MountLabel contains the options for the 'mount' command
 	MountLabel             string
 	ProcessLabel           string
