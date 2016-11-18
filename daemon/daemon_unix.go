@@ -1227,7 +1227,7 @@ func setupOOMScoreAdj(score int) error {
 	if err != nil {
 		return err
 	}
-
+	defer f.Close()
 	stringScore := strconv.Itoa(score)
 	_, err = f.WriteString(stringScore)
 	if os.IsPermission(err) {
@@ -1239,7 +1239,7 @@ func setupOOMScoreAdj(score int) error {
 		}
 		return nil
 	}
-	f.Close()
+
 	return err
 }
 
