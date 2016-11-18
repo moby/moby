@@ -6,6 +6,7 @@ import (
 	"os"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/spf13/cobra"
 	"golang.org/x/net/context"
@@ -13,6 +14,7 @@ import (
 	"github.com/aanand/compose-file/loader"
 	composetypes "github.com/aanand/compose-file/types"
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/mount"
 	networktypes "github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/api/types/swarm"
@@ -487,6 +489,11 @@ func convertService(
 		return swarm.ServiceSpec{}, err
 	}
 
+	healthcheck, err := convertHealthcheck(service.HealthCheck)
+	if err != nil {
+		return swarm.ServiceSpec{}, err
+	}
+
 	serviceSpec := swarm.ServiceSpec{
 		Annotations: swarm.Annotations{
 			Name:   name,
@@ -499,6 +506,7 @@ func convertService(
 				Args:            service.Command,
 				Hostname:        service.Hostname,
 				Hosts:           convertExtraHosts(service.ExtraHosts),
+				Healthcheck:     healthcheck,
 				Env:             convertEnvironment(service.Environment),
 				Labels:          getStackLabels(namespace.name, service.Labels),
 				Dir:             service.WorkingDir,
@@ -529,6 +537,47 @@ func convertExtraHosts(extraHosts map[string]string) []string {
 		hosts = append(hosts, fmt.Sprintf("%s %s", host, ip))
 	}
 	return hosts
+}
+
+func convertHealthcheck(healthcheck *composetypes.HealthCheckConfig) (*container.HealthConfig, error) {
+	if healthcheck == nil {
+		return nil, nil
+	}
+	var (
+		err               error
+		timeout, interval time.Duration
+		retries           int
+	)
+	if healthcheck.Disable {
+		if len(healthcheck.Test) != 0 {
+			return nil, fmt.Errorf("command and disable key can't be set at the same time")
+		}
+		return &container.HealthConfig{
+			Test: []string{"NONE"},
+		}, nil
+
+	}
+	if healthcheck.Timeout != "" {
+		timeout, err = time.ParseDuration(healthcheck.Timeout)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if healthcheck.Interval != "" {
+		interval, err = time.ParseDuration(healthcheck.Interval)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if healthcheck.Retries != nil {
+		retries = int(*healthcheck.Retries)
+	}
+	return &container.HealthConfig{
+		Test:     healthcheck.Test,
+		Timeout:  timeout,
+		Interval: interval,
+		Retries:  retries,
+	}, nil
 }
 
 func convertRestartPolicy(restart string, source *composetypes.RestartPolicy) (*swarm.RestartPolicy, error) {
