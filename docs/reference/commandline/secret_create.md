@@ -16,7 +16,7 @@ keywords: ["secret, create"]
 # secret create
 
 ```Markdown
-Usage:  docker secret create [NAME]
+Usage:  docker secret create [OPTIONS] SECRET
 
 Create a secret using stdin as content
 Options:
@@ -76,5 +76,3 @@ $ docker secret inspect secret.json
 * [secret inspect](secret_inspect.md)
 * [secret ls](secret_ls.md)
 * [secret rm](secret_rm.md)
-
-<style>table tr > td:first-child { white-space: nowrap;}</style>
