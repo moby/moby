@@ -1278,7 +1278,7 @@ func (c *Cluster) ServiceLogs(ctx context.Context, input string, config *backend
 			ServiceIDs: []string{service.ID},
 		},
 		Options: &swarmapi.LogSubscriptionOptions{
-			Follow: true,
+			Follow: config.Follow,
 		},
 	})
 	if err != nil {
