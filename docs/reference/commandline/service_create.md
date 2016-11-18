@@ -474,6 +474,44 @@ accessible at the target port on every node regardless if there is a task for
 the service running on the node. For more information refer to
 [Use swarm mode routing mesh](https://docs.docker.com/engine/swarm/ingress/).
 
+### Create services using templates
+
+You can use templates for some flags of `service create`, using the syntax
+provided by the Go's [text/template](http://golange.org/pkg/text/template/) package.
+
+The supported flags are the following :
+
+- `--hostname`
+- `--mount`
+- `--env`
+
+Valid placeholders for the Go template are listed below:
+
+Placeholder       | Description
+----------------- | --------------------------------------------
+`.Service.ID`     | Service ID
+`.Service.Name`   | Service name
+`.Service.Labels` | Service labels
+`.Node.ID`        | Node ID
+`.Task.ID`        | Task ID
+`.Task.Name`      | Task name
+`.Task.Slot`      | Task slot
+
+#### Template example
+
+In this example, we are going to set the template of the created containers based on the
+service's name and the node's ID where it sits.
+
+```bash
+$ docker service create --name hosttempl --hostname={% raw %}"{{.Node.ID}}-{{.Service.Name}}"{% endraw %} busybox top
+va8ew30grofhjoychbr6iot8c
+$ docker service ps va8ew30grofhjoychbr6iot8c
+NAME                      IMAGE                                                                                   NODE          DESIRED STATE  CURRENT STATE               ERROR  PORTS
+hosttempl.1.wo41w8hg8qan  busybox:latest@sha256:29f5d56d12684887bdfa50dcd29fc31eea4aaf4ad3bec43daf19026a7ce69912  2e7a8a9c4da2  Running        Running about a minute ago
+$ docker inspect --format={% raw %}"{{.Config.Hostname}}"{% endraw %} hosttempl.1.wo41w8hg8qanxwjwsg4kxpprj
+x3ti0erg11rjpg64m75kej2mz-hosttempl
+```
+
 ## Related information
 
 * [service inspect](service_inspect.md)
