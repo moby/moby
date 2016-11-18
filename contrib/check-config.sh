@@ -132,6 +132,32 @@ check_distro_userns() {
 	fi
 }
 
+kernel_version_ge()
+{
+	local target_version="$1"
+
+	local config_version
+	config_version=$(zgrep '^# Linux/.* Kernel Configuration$' "$CONFIG" | cut -d' ' -f3)
+	[[ "$config_version" ]] || {
+		echo "WARNING: $FUNCNAME: get config_version failed"
+		return 1
+	}
+
+	local lower_version
+	if echo | sort -V &>/dev/null; then
+		# For sort support -V option
+		lower_version=$(echo "$target_version"$'\n'"$config_version" | sort -V | head -1)
+	else
+		lower_version=$(echo "$target_version"$'\n'"$config_version" | sort -t. -n -k1,1 -k2,2 -k3,3 -k4,4 | head -1)
+	fi
+	[[ "$lower_version" ]] || {
+		echo "WARNING: $FUNCNAME: compare version failed"
+		return 1
+	}
+
+	[[ "$lower_version" = "$target_version" ]]
+}
+
 if [ ! -e "$CONFIG" ]; then
 	wrap_warning "warning: $CONFIG does not exist, searching other paths for kernel config ..."
 	for tryConfig in "${possibleConfigs[@]}"; do
@@ -188,7 +214,6 @@ fi
 
 flags=(
 	NAMESPACES {NET,PID,IPC,UTS}_NS
-	DEVPTS_MULTIPLE_INSTANCES
 	CGROUPS CGROUP_CPUACCT CGROUP_DEVICE CGROUP_FREEZER CGROUP_SCHED CPUSETS MEMCG
 	KEYS
 	VETH BRIDGE BRIDGE_NETFILTER
@@ -200,6 +225,7 @@ flags=(
 	POSIX_MQUEUE
 )
 check_flags "${flags[@]}"
+kernel_version_ge 4.7 || check_flags DEVPTS_MULTIPLE_INSTANCES
 echo
 
 echo 'Optional Features:'
