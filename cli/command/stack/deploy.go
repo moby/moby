@@ -531,7 +531,7 @@ func convertService(
 func convertExtraHosts(extraHosts map[string]string) []string {
 	hosts := []string{}
 	for host, ip := range extraHosts {
-		hosts = append(hosts, fmt.Sprintf("%s %s", host, ip))
+		hosts = append(hosts, fmt.Sprintf("%s %s", ip, host))
 	}
 	return hosts
 }
