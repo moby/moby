@@ -32,7 +32,7 @@ func init() {
 
 // Validate uses the jsonschema to validate the configuration
 func Validate(config map[string]interface{}) error {
-	schemaData, err := Asset("data/config_schema_v3.json")
+	schemaData, err := Asset("data/config_schema_v3.0.json")
 	if err != nil {
 		return err
 	}

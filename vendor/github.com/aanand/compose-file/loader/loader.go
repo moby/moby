@@ -134,7 +134,7 @@ func GetUnsupportedProperties(configDetails types.ConfigDetails) []string {
 
 func sortedKeys(set map[string]bool) []string {
 	var keys []string
-	for key, _ := range set {
+	for key := range set {
 		keys = append(keys, key)
 	}
 	sort.Strings(keys)
@@ -467,6 +467,8 @@ func convertField(
 	switch fieldTag {
 	case "":
 		return data, nil
+	case "healthcheck":
+		return loadHealthcheck(data)
 	case "list_or_dict_equals":
 		return loadMappingOrList(data, "="), nil
 	case "list_or_dict_colon":
@@ -567,6 +569,13 @@ func loadMappingOrList(mappingOrList interface{}, sep string) map[string]string 
 func loadShellCommand(value interface{}) (interface{}, error) {
 	if str, ok := value.(string); ok {
 		return shellwords.Parse(str)
+	}
+	return value, nil
+}
+
+func loadHealthcheck(value interface{}) (interface{}, error) {
+	if str, ok := value.(string); ok {
+		return append([]string{"CMD-SHELL"}, str), nil
 	}
 	return value, nil
 }
