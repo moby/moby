@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
+	libvirtgo "github.com/rgbkrk/libvirt-go"
 	containerd "github.com/docker/containerd/api/grpc/types"
 	"github.com/docker/docker/pkg/ioutils"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
@@ -26,6 +27,7 @@ type IcContext interface {
 	CreateSeedImage(seedDirectory string) (string, error)
 	CreateDeltaDiskImage(deltaDiskDirectory, diskPath string) (string, error)
 	DomainXml() (string, error)
+	GetDomain() (*libvirtgo.VirDomain)
 	Create()
 	Launch()
 	Shutdown()
@@ -121,6 +123,34 @@ func (ctr *container) startQemu() error {
         } else {
           return fmt.Errorf("container.isolatedContainerContext is not set to launch isolated container")
         }
+
+	go func(ctr *container) {
+		active := true
+
+		// Wait for few seconds so that VM does not start, the isolated container should not be shown as running.
+		time.Sleep(3 * time.Second)
+
+		domain := ctr.isolatedContainerContext.GetDomain()
+
+		if domain!= nil {
+			for active {
+				active, err = domain.IsActive()
+				if err != nil {
+					logrus.Error("Could not check if the domain is active: ", err)
+					active = false
+				}
+				// Do Nothing
+			}
+		}
+
+		if err == nil {
+			logrus.Infof("The isolated container %s is no more running", ctr.containerID)
+			ctr.client.backend.StateChanged(ctr.containerID, StateInfo{
+				CommonStateInfo: CommonStateInfo{
+					State: StateExit,
+			}})
+		}
+	}(ctr)
 
 	return ctr.client.backend.StateChanged(ctr.containerID, StateInfo{
 		CommonStateInfo: CommonStateInfo{

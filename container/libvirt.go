@@ -470,6 +470,10 @@ func (lc *LibvirtContext) DomainXml() (string, error) {
 	return string(data), nil
 }
 
+func (lc *LibvirtContext) GetDomain() *libvirtgo.VirDomain {
+	return lc.domain
+}
+
 func (lc *LibvirtContext) Create() {
         domainXml, err := lc.DomainXml()
         if err != nil {
