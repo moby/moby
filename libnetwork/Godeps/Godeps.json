@@ -414,11 +414,11 @@
 		},
 		{
 			"ImportPath": "github.com/vishvananda/netlink",
-			"Rev": "e73bad418fd727ed3a02830b1af1ad0283a1de6c"
+			"Rev": "17ea11b5a11c5614597c65a671105e8ee58c4d04"
 		},
 		{
 			"ImportPath": "github.com/vishvananda/netlink/nl",
-			"Rev": "e73bad418fd727ed3a02830b1af1ad0283a1de6c"
+			"Rev": "17ea11b5a11c5614597c65a671105e8ee58c4d04"
 		},
 		{
 			"ImportPath": "github.com/vishvananda/netns",

@@ -153,7 +153,7 @@ func (h *Handle) routeHandle(route *Route, req *nl.NetlinkRequest, msg *nl.RtMsg
 				} else {
 					gw = nl.NewRtAttr(syscall.RTA_GATEWAY, []byte(nh.Gw.To16()))
 				}
-				gwData := gw.Serialize()
+				gwData = gw.Serialize()
 				rtnh.Len += uint16(len(gwData))
 			}
 			buf = append(buf, rtnh.Serialize()...)
