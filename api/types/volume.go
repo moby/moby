@@ -11,7 +11,7 @@ type Volume struct {
 	// Required: true
 	Driver string `json:"Driver"`
 
-	// A mapping of abitrary key/value data set on this volume.
+	// User-defined key/value metadata.
 	// Required: true
 	Labels map[string]string `json:"Labels"`
 
