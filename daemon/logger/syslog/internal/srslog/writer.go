@@ -38,7 +38,7 @@ func (w *Writer) setConn(c serverConn) {
 }
 
 // connect makes a connection to the syslog server.
-func (w *Writer) connect() (err error) {
+func (w *Writer) connect() (serverConn, error) {
 	conn := w.getConn()
 	if conn != nil {
 		// ignore err from close, it makes sense to continue anyway
@@ -47,6 +47,7 @@ func (w *Writer) connect() (err error) {
 	}
 
 	var hostname string
+	var err error
 	dialer := w.getDialer()
 	conn, hostname, err = dialer.Call()
 	if err == nil {
@@ -54,7 +55,7 @@ func (w *Writer) connect() (err error) {
 		w.hostname = hostname
 	}
 
-	return
+	return conn, err
 }
 
 // SetFormatter changes the formatter function for subsequent messages.
@@ -148,26 +149,29 @@ func (w *Writer) Debug(m string) (err error) {
 func (w *Writer) writeAndRetry(p Priority, s string) (int, error) {
 	pr := (w.priority & facilityMask) | (p & severityMask)
 
-	if w.getConn() != nil {
-		if n, err := w.write(pr, s); err == nil {
+	conn := w.getConn()
+	if conn != nil {
+		if n, err := w.write(conn, pr, s); err == nil {
 			return n, err
 		}
 	}
-	if err := w.connect(); err != nil {
+
+	var err error
+	if conn, err = w.connect(); err != nil {
 		return 0, err
 	}
-	return w.write(pr, s)
+	return w.write(conn, pr, s)
 }
 
 // write generates and writes a syslog formatted string. It formats the
 // message based on the current Formatter and Framer.
-func (w *Writer) write(p Priority, msg string) (int, error) {
+func (w *Writer) write(conn serverConn, p Priority, msg string) (int, error) {
 	// ensure it ends in a \n
 	if !strings.HasSuffix(msg, "\n") {
 		msg += "\n"
 	}
 
-	err := w.getConn().writeString(w.framer, w.formatter, p, w.hostname, w.tag, msg)
+	err := conn.writeString(w.framer, w.formatter, p, w.hostname, w.tag, msg)
 	if err != nil {
 		return 0, err
 	}

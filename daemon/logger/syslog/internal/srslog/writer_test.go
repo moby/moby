@@ -52,7 +52,7 @@ func TestWriteFormatters(t *testing.T) {
 			raddr:    addr,
 		}
 
-		err := w.connect()
+		_, err := w.connect()
 		if err != nil {
 			t.Errorf("failed to connect: %v", err)
 		}
@@ -101,7 +101,7 @@ func TestWriterFramers(t *testing.T) {
 			raddr:    addr,
 		}
 
-		err := w.connect()
+		_, err := w.connect()
 		if err != nil {
 			t.Errorf("failed to connect: %v", err)
 		}
@@ -140,7 +140,7 @@ func TestWriteWithDefaultPriority(t *testing.T) {
 		raddr:    addr,
 	}
 
-	err := w.connect()
+	_, err := w.connect()
 	if err != nil {
 		t.Errorf("failed to connect: %v", err)
 	}
@@ -172,7 +172,7 @@ func TestWriteWithProvidedPriority(t *testing.T) {
 		raddr:    addr,
 	}
 
-	err := w.connect()
+	_, err := w.connect()
 	if err != nil {
 		t.Errorf("failed to connect: %v", err)
 	}
@@ -204,7 +204,7 @@ func TestDebug(t *testing.T) {
 		raddr:    addr,
 	}
 
-	err := w.connect()
+	_, err := w.connect()
 	if err != nil {
 		t.Errorf("failed to connect: %v", err)
 	}
@@ -232,7 +232,7 @@ func TestInfo(t *testing.T) {
 		raddr:    addr,
 	}
 
-	err := w.connect()
+	_, err := w.connect()
 	if err != nil {
 		t.Errorf("failed to connect: %v", err)
 	}
@@ -260,7 +260,7 @@ func TestNotice(t *testing.T) {
 		raddr:    addr,
 	}
 
-	err := w.connect()
+	_, err := w.connect()
 	if err != nil {
 		t.Errorf("failed to connect: %v", err)
 	}
@@ -288,7 +288,7 @@ func TestWarning(t *testing.T) {
 		raddr:    addr,
 	}
 
-	err := w.connect()
+	_, err := w.connect()
 	if err != nil {
 		t.Errorf("failed to connect: %v", err)
 	}
@@ -316,7 +316,7 @@ func TestErr(t *testing.T) {
 		raddr:    addr,
 	}
 
-	err := w.connect()
+	_, err := w.connect()
 	if err != nil {
 		t.Errorf("failed to connect: %v", err)
 	}
@@ -344,7 +344,7 @@ func TestCrit(t *testing.T) {
 		raddr:    addr,
 	}
 
-	err := w.connect()
+	_, err := w.connect()
 	if err != nil {
 		t.Errorf("failed to connect: %v", err)
 	}
@@ -372,7 +372,7 @@ func TestAlert(t *testing.T) {
 		raddr:    addr,
 	}
 
-	err := w.connect()
+	_, err := w.connect()
 	if err != nil {
 		t.Errorf("failed to connect: %v", err)
 	}
@@ -400,7 +400,7 @@ func TestEmerg(t *testing.T) {
 		raddr:    addr,
 	}
 
-	err := w.connect()
+	_, err := w.connect()
 	if err != nil {
 		t.Errorf("failed to connect: %v", err)
 	}
