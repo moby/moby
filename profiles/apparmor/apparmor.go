@@ -84,7 +84,6 @@ func InstallDefault(name string) error {
 	defer os.Remove(profilePath)
 
 	if err := p.generateDefault(f); err != nil {
-		f.Close()
 		return err
 	}
 
