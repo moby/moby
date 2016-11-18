@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"strings"
 )
 
 var (
@@ -13,6 +14,9 @@ var (
 	errBadListenAddr           = errors.New("listen address must be an IP address or network interface (with optional port number)")
 	errBadAdvertiseAddr        = errors.New("advertise address must be an IP address or network interface (with optional port number)")
 	errBadDefaultAdvertiseAddr = errors.New("default advertise address must be an IP address or network interface (without a port number)")
+	ignoreInterfacePrefixes    = []string{
+		"lxcbr",
+	}
 )
 
 func resolveListenAddr(specifiedAddr string) (string, string, error) {
@@ -170,6 +174,12 @@ ifaceLoop:
 		// Skip inactive interfaces and loopback interfaces
 		if (intf.Flags&net.FlagUp == 0) || (intf.Flags&net.FlagLoopback) != 0 {
 			continue
+		}
+
+		for _, prefix := range ignoreInterfacePrefixes {
+			if strings.HasPrefix(intf.Name, prefix) {
+				continue ifaceLoop
+			}
 		}
 
 		addrs, err := intf.Addrs()
