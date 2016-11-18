@@ -24,6 +24,7 @@ import (
 	"github.com/docker/libnetwork/netlabel"
 	"github.com/docker/libnetwork/options"
 	blkiodev "github.com/opencontainers/runc/libcontainer/configs"
+	"golang.org/x/sys/windows"
 )
 
 const (
@@ -229,6 +230,11 @@ func checkSystem() error {
 	}
 	if osv.Build < 14393 {
 		return fmt.Errorf("The docker daemon requires build 14393 or later of Windows Server 2016 or Windows 10")
+	}
+
+	vmcompute := windows.NewLazySystemDLL("vmcompute.dll")
+	if vmcompute.Load() != nil {
+		return fmt.Errorf("Failed to load vmcompute.dll. Ensure that the Containers role is installed.")
 	}
 	return nil
 }
