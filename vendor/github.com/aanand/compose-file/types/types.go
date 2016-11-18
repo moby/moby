@@ -128,6 +128,7 @@ type HealthCheckConfig struct {
 	Timeout  string
 	Interval string
 	Retries  *uint64
+	Disable  bool
 }
 
 type UpdateConfig struct {
