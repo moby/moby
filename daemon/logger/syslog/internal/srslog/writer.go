@@ -24,7 +24,7 @@ type Writer struct {
 // getConn provides access to the internal conn, protected by a mutex. The
 // conn is threadsafe, so it can be used while unlocked, but we want to avoid
 // race conditions on grabbing a reference to it.
-func (w Writer) getConn() serverConn {
+func (w *Writer) getConn() serverConn {
 	w.mu.RLock()
 	defer w.mu.RUnlock()
 	return w.conn
