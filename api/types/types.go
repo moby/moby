@@ -1,6 +1,7 @@
 package types
 
 import (
+	"encoding/json"
 	"io"
 	"os"
 	"time"
@@ -224,6 +225,33 @@ type InfoBase struct {
 // SecurityOpt holds key/value pair about a security option
 type SecurityOpt struct {
 	Key, Value string
+}
+
+// UnmarshalJSON handles decoding a SecurityOpt from both the older and newer
+// structure of info API response. In the past, SecurityOptions was a simple
+// list of strings, but it is now a list of {Key, Value} pairs. This custom
+// decoder handles responses when making a request with API version of v1.24
+// and earlier.
+func (s *SecurityOpt) UnmarshalJSON(data []byte) error {
+	// If the value can decode to a string then use it as the value with
+	// the key "Name".
+	var name string
+	if json.Unmarshal(data, &name) == nil {
+		s.Key = "Name"
+		s.Value = name
+		return nil
+	}
+
+	// Fallback to the default decoding of this type.
+	var secOpts struct{ Key, Value string }
+	if err := json.Unmarshal(data, &secOpts); err != nil {
+		return err
+	}
+
+	s.Key = secOpts.Key
+	s.Value = secOpts.Value
+
+	return nil
 }
 
 // Info contains response of Remote API:
