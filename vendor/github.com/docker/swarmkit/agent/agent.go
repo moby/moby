@@ -406,37 +406,41 @@ func (a *Agent) UpdateTaskStatus(ctx context.Context, taskID string, status *api
 }
 
 // Publisher returns a LogPublisher for the given subscription
-func (a *Agent) Publisher(ctx context.Context, subscriptionID string) (exec.LogPublisher, error) {
+// as well as a cancel function that should be called when the log stream
+// is completed.
+func (a *Agent) Publisher(ctx context.Context, subscriptionID string) (exec.LogPublisher, func(), error) {
 	// TODO(stevvooe): The level of coordination here is WAY too much for logs.
 	// These should only be best effort and really just buffer until a session is
 	// ready. Ideally, they would use a separate connection completely.
 
 	var (
-		err    error
-		client api.LogBroker_PublishLogsClient
+		err       error
+		publisher api.LogBroker_PublishLogsClient
 	)
 
 	err = a.withSession(ctx, func(session *session) error {
-		client, err = api.NewLogBrokerClient(session.conn).PublishLogs(ctx)
+		publisher, err = api.NewLogBrokerClient(session.conn).PublishLogs(ctx)
 		return err
 	})
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	return exec.LogPublisherFunc(func(ctx context.Context, message api.LogMessage) error {
-		select {
-		case <-ctx.Done():
-			client.CloseSend()
-			return ctx.Err()
-		default:
-		}
+			select {
+			case <-ctx.Done():
+				publisher.CloseSend()
+				return ctx.Err()
+			default:
+			}
 
-		return client.Send(&api.PublishLogsMessage{
-			SubscriptionID: subscriptionID,
-			Messages:       []api.LogMessage{message},
-		})
-	}), nil
+			return publisher.Send(&api.PublishLogsMessage{
+				SubscriptionID: subscriptionID,
+				Messages:       []api.LogMessage{message},
+			})
+		}), func() {
+			publisher.CloseSend()
+		}, nil
 }
 
 // nodeDescriptionWithHostname retrieves node description, and overrides hostname if available
