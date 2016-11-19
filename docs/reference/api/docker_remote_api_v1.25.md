@@ -415,9 +415,14 @@ Create a container
              an _absolute_ path.
            + `volume-name:container-dest` to bind-mount a volume managed by a
              volume driver into the container. `container-dest` must be an
-             _absolute_ path.
+             _absolute_ path. Volume contents are initialized with data from `container-dest`,
+             provided that the volume is empty. Such an initialization can be avoided by 
+	     using the `nocopy` option.
            + `volume-name:container-dest:ro` to mount the volume read-only
              inside the container.  `container-dest` must be an _absolute_ path.
+	     Volume contents are initialized with data from `container-dest`, provided 
+	     that the volume is empty. Such an initialization can be avoided by 
+	     using the `nocopy` option.
     -   **Links** - A list of links for the container. Each link entry should be
           in the form of `container_name:alias`.
     -   **Memory** - Memory limit in bytes.
