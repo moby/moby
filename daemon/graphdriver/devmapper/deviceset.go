@@ -68,6 +68,8 @@ type devInfo struct {
 	TransactionID uint64 `json:"transaction_id"`
 	Initialized   bool   `json:"initialized"`
 	Deleted       bool   `json:"deleted"`
+	Shared        bool   `json:"shared"`
+	ParentHash    string `json:"parent_id"`
 	devices       *DeviceSet
 
 	// The global DeviceSet lock guarantees that we serialize all
@@ -123,6 +125,7 @@ type DeviceSet struct {
 	gidMaps               []idtools.IDMap
 	minFreeSpacePercent   uint32 //min free space percentage in thinpool
 	xfsNospaceRetries     string // max retries when xfs receives ENOSPC
+	driver                *Driver
 }
 
 // DiskUsage contains information about disk usage and is used when reporting Status of a device.
@@ -480,11 +483,10 @@ func (devices *DeviceSet) loadDeviceFilesOnStart() error {
 }
 
 // Should be called with devices.Lock() held.
-func (devices *DeviceSet) unregisterDevice(id int, hash string) error {
-	logrus.Debugf("devmapper: unregisterDevice(%v, %v)", id, hash)
+func (devices *DeviceSet) unregisterDevice(hash string) error {
+	logrus.Debugf("devmapper: unregisterDevice(%v)", hash)
 	info := &devInfo{
-		Hash:     hash,
-		DeviceID: id,
+		Hash: hash,
 	}
 
 	delete(devices.Devices, hash)
@@ -498,7 +500,7 @@ func (devices *DeviceSet) unregisterDevice(id int, hash string) error {
 }
 
 // Should be called with devices.Lock() held.
-func (devices *DeviceSet) registerDevice(id int, hash string, size uint64, transactionID uint64) (*devInfo, error) {
+func (devices *DeviceSet) registerDevice(id int, hash, parent string, size uint64, transactionID uint64, shared bool) (*devInfo, error) {
 	logrus.Debugf("devmapper: registerDevice(%v, %v)", id, hash)
 	info := &devInfo{
 		Hash:          hash,
@@ -506,6 +508,8 @@ func (devices *DeviceSet) registerDevice(id int, hash string, size uint64, trans
 		Size:          size,
 		TransactionID: transactionID,
 		Initialized:   false,
+		Shared:        shared,
+		ParentHash:    parent,
 		devices:       devices,
 	}
 
@@ -785,7 +789,7 @@ func (devices *DeviceSet) poolHasFreeSpace() error {
 	return nil
 }
 
-func (devices *DeviceSet) createRegisterDevice(hash string) (*devInfo, error) {
+func (devices *DeviceSet) createRegisterDevice(hash string, parent string) (*devInfo, error) {
 	devices.Lock()
 	defer devices.Unlock()
 
@@ -824,7 +828,7 @@ func (devices *DeviceSet) createRegisterDevice(hash string) (*devInfo, error) {
 	}
 
 	logrus.Debugf("devmapper: Registering device (id %v) with FS size %v", deviceID, devices.baseFsSize)
-	info, err := devices.registerDevice(deviceID, hash, devices.baseFsSize, devices.OpenTransactionID)
+	info, err := devices.registerDevice(deviceID, hash, parent, devices.baseFsSize, devices.OpenTransactionID, false)
 	if err != nil {
 		_ = devicemapper.DeleteDevice(devices.getPoolDevName(), deviceID)
 		devices.markDeviceIDFree(deviceID)
@@ -832,7 +836,7 @@ func (devices *DeviceSet) createRegisterDevice(hash string) (*devInfo, error) {
 	}
 
 	if err := devices.closeTransaction(); err != nil {
-		devices.unregisterDevice(deviceID, hash)
+		devices.unregisterDevice(hash)
 		devicemapper.DeleteDevice(devices.getPoolDevName(), deviceID)
 		devices.markDeviceIDFree(deviceID)
 		return nil, err
@@ -924,7 +928,7 @@ func (devices *DeviceSet) createRegisterSnapDevice(hash string, baseInfo *devInf
 		break
 	}
 
-	if _, err := devices.registerDevice(deviceID, hash, size, devices.OpenTransactionID); err != nil {
+	if _, err := devices.registerDevice(deviceID, hash, baseInfo.Hash, size, devices.OpenTransactionID, false); err != nil {
 		devicemapper.DeleteDevice(devices.getPoolDevName(), deviceID)
 		devices.markDeviceIDFree(deviceID)
 		logrus.Debugf("devmapper: Error registering device: %s", err)
@@ -932,11 +936,24 @@ func (devices *DeviceSet) createRegisterSnapDevice(hash string, baseInfo *devInf
 	}
 
 	if err := devices.closeTransaction(); err != nil {
-		devices.unregisterDevice(deviceID, hash)
+		devices.unregisterDevice(hash)
 		devicemapper.DeleteDevice(devices.getPoolDevName(), deviceID)
 		devices.markDeviceIDFree(deviceID)
 		return err
 	}
+	return nil
+}
+
+func (devices *DeviceSet) createRegisterSharedDevice(hash, baseHash string, size uint64) error {
+	if err := devices.poolHasFreeSpace(); err != nil {
+		return err
+	}
+
+	if _, err := devices.registerDevice(0, hash, baseHash, size, 0, true); err != nil {
+		logrus.Debugf("devmapper: Error registering device: %s", err)
+		return err
+	}
+
 	return nil
 }
 
@@ -1051,7 +1068,7 @@ func (devices *DeviceSet) createBaseImage() error {
 	logrus.Debug("devmapper: Initializing base device-mapper thin volume")
 
 	// Create initial device
-	info, err := devices.createRegisterDevice("")
+	info, err := devices.createRegisterDevice("", "")
 	if err != nil {
 		return err
 	}
@@ -1891,9 +1908,9 @@ func (devices *DeviceSet) initDevmapper(doInit bool) error {
 }
 
 // AddDevice adds a device and registers in the hash.
-func (devices *DeviceSet) AddDevice(hash, baseHash string, storageOpt map[string]string) error {
-	logrus.Debugf("devmapper: AddDevice START(hash=%s basehash=%s)", hash, baseHash)
-	defer logrus.Debugf("devmapper: AddDevice END(hash=%s basehash=%s)", hash, baseHash)
+func (devices *DeviceSet) AddDevice(hash, baseHash string, storageOpt map[string]string, shared bool) error {
+	logrus.Debugf("devmapper: AddDevice START(hash=%s basehash=%s shared=%v)", hash, baseHash, shared)
+	defer logrus.Debugf("devmapper: AddDevice END(hash=%s basehash=%s shared=%v)", hash, baseHash, shared)
 
 	// If a deleted device exists, return error.
 	baseInfo, err := devices.lookupDeviceWithLock(baseHash)
@@ -1930,12 +1947,19 @@ func (devices *DeviceSet) AddDevice(hash, baseHash string, storageOpt map[string
 		return fmt.Errorf("devmapper: Container size cannot be smaller than %s", units.HumanSize(float64(baseInfo.Size)))
 	}
 
-	if err := devices.takeSnapshot(hash, baseInfo, size); err != nil {
-		return err
+	if shared {
+		if err := devices.createRegisterSharedDevice(hash, baseHash, size); err != nil {
+			return err
+		}
+
+	} else {
+		if err := devices.takeSnapshot(hash, baseInfo, size); err != nil {
+			return err
+		}
 	}
 
-	// Grow the container rootfs.
-	if size > baseInfo.Size {
+	// Grow the container rootfs. Don't try to grow shared containers.
+	if size > baseInfo.Size && !shared {
 		info, err := devices.lookupDevice(hash)
 		if err != nil {
 			return err
@@ -2010,7 +2034,7 @@ func (devices *DeviceSet) deleteTransaction(info *devInfo, syncDelete bool) erro
 	}
 
 	if err == nil {
-		if err := devices.unregisterDevice(info.DeviceID, info.Hash); err != nil {
+		if err := devices.unregisterDevice(info.Hash); err != nil {
 			return err
 		}
 		// If device was already in deferred delete state that means
@@ -2077,6 +2101,10 @@ func (devices *DeviceSet) deleteDevice(info *devInfo, syncDelete bool) error {
 	return nil
 }
 
+func (devices *DeviceSet) deleteSharedDevice(info *devInfo) error {
+	return devices.unregisterDevice(info.Hash)
+}
+
 // DeleteDevice will return success if device has been marked for deferred
 // removal. If one wants to override that and want DeleteDevice() to fail if
 // device was busy and could not be deleted, set syncDelete=true.
@@ -2093,6 +2121,10 @@ func (devices *DeviceSet) DeleteDevice(hash string, syncDelete bool) error {
 
 	devices.Lock()
 	defer devices.Unlock()
+
+	if info.Shared {
+		return devices.deleteSharedDevice(info)
+	}
 
 	return devices.deleteDevice(info, syncDelete)
 }
@@ -2335,30 +2367,52 @@ func (devices *DeviceSet) xfsSetNospaceRetries(info *devInfo) error {
 	return nil
 }
 
+func (devices *DeviceSet) bindMountParent(path, parentPath string) error {
+	return syscall.Mount(parentPath, path, "", syscall.MS_BIND, "")
+}
+
 // MountDevice mounts the device if not already mounted.
-func (devices *DeviceSet) MountDevice(hash, path, mountLabel string) error {
+func (devices *DeviceSet) MountDevice(hash, path, mountLabel string) (bool, error) {
+	var err error
 	info, err := devices.lookupDeviceWithLock(hash)
 	if err != nil {
-		return err
+		return false, err
 	}
 
 	if info.Deleted {
-		return fmt.Errorf("devmapper: Can't mount device %v as it has been marked for deferred deletion", info.Hash)
+		return info.Shared, fmt.Errorf("devmapper: Can't mount device %v as it has been marked for deferred deletion", info.Hash)
 	}
 
 	info.lock.Lock()
 	defer info.lock.Unlock()
 
+	parentMP := ""
+	// If this is a shared device, get parent first.
+	if info.Shared {
+		parentRoot, err := devices.driver.Get(info.ParentHash, "")
+		if err != nil {
+			return true, err
+		}
+		parentMP = strings.TrimSuffix(parentRoot, "rootfs")
+	}
+
 	devices.Lock()
 	defer devices.Unlock()
 
+	// If parent path has been provided, this layer does not have
+	// device of its own. Instead it is sharing rootfs with parent.
+	// Just bind mount parent path.
+	if info.Shared {
+		return true, devices.bindMountParent(path, parentMP)
+	}
+
 	if err := devices.activateDeviceIfNeeded(info, false); err != nil {
-		return fmt.Errorf("devmapper: Error activating devmapper device for '%s': %s", hash, err)
+		return false, fmt.Errorf("devmapper: Error activating devmapper device for '%s': %s", hash, err)
 	}
 
 	fstype, err := ProbeFsType(info.DevName())
 	if err != nil {
-		return err
+		return false, err
 	}
 
 	options := ""
@@ -2372,18 +2426,18 @@ func (devices *DeviceSet) MountDevice(hash, path, mountLabel string) error {
 	options = joinMountOptions(options, label.FormatMountLabel("", mountLabel))
 
 	if err := mount.Mount(info.DevName(), path, fstype, options); err != nil {
-		return fmt.Errorf("devmapper: Error mounting '%s' on '%s': %s", info.DevName(), path, err)
+		return false, fmt.Errorf("devmapper: Error mounting '%s' on '%s': %s", info.DevName(), path, err)
 	}
 
 	if fstype == "xfs" && devices.xfsNospaceRetries != "" {
 		if err := devices.xfsSetNospaceRetries(info); err != nil {
 			syscall.Unmount(path, syscall.MNT_DETACH)
 			devices.deactivateDevice(info)
-			return err
+			return false, err
 		}
 	}
 
-	return nil
+	return false, nil
 }
 
 // UnmountDevice unmounts the device and removes it from hash.
@@ -2398,6 +2452,12 @@ func (devices *DeviceSet) UnmountDevice(hash, mountPath string) error {
 
 	info.lock.Lock()
 	defer info.lock.Unlock()
+
+	if info.Shared {
+		if err := devices.driver.Put(info.ParentHash); err != nil {
+			return err
+		}
+	}
 
 	devices.Lock()
 	defer devices.Unlock()
@@ -2592,6 +2652,12 @@ func (devices *DeviceSet) exportDeviceMetadata(hash string) (*deviceMetadata, er
 
 	metadata := &deviceMetadata{info.DeviceID, info.Size, info.Name()}
 	return metadata, nil
+}
+
+// SetDriver saves the driver in deviceset.
+func (devices *DeviceSet) SetDriver(driver *Driver) error {
+	devices.driver = driver
+	return nil
 }
 
 // NewDeviceSet creates the device set based on the options provided.

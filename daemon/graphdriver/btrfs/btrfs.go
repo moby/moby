@@ -382,6 +382,10 @@ func (d *Driver) CreateReadWrite(id, parent string, opts *graphdriver.CreateOpts
 
 // Create the filesystem with given id.
 func (d *Driver) Create(id, parent string, opts *graphdriver.CreateOpts) error {
+	if opts != nil && opts.Shared {
+		return graphdriver.CreateSharedNotSupported("btrfs")
+	}
+
 	subvolumes := path.Join(d.home, "subvolumes")
 	rootUID, rootGID, err := idtools.GetRootUIDGID(d.uidMaps, d.gidMaps)
 	if err != nil {

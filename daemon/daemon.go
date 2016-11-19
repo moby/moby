@@ -111,6 +111,7 @@ type Daemon struct {
 
 	seccompProfile     []byte
 	seccompProfilePath string
+	sharedRootFs       bool
 }
 
 // HasExperimental returns whether the experimental features of the daemon are enabled or not
@@ -533,6 +534,7 @@ func NewDaemon(config *Config, registryService registry.Service, containerdRemot
 		logrus.Warnf("Failed to configure golang's threads limit: %v", err)
 	}
 
+	d.setupSharedRootFs(config)
 	installDefaultAppArmorProfile()
 	daemonRepo := filepath.Join(config.Root, "containers")
 	if err := idtools.MkdirAllAs(daemonRepo, 0700, rootUID, rootGID); err != nil && !os.IsExist(err) {

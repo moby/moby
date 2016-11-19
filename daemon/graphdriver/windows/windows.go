@@ -164,22 +164,26 @@ func (d *Driver) Exists(id string) bool {
 // file system.
 func (d *Driver) CreateReadWrite(id, parent string, opts *graphdriver.CreateOpts) error {
 	if opts != nil {
-		return d.create(id, parent, opts.MountLabel, false, opts.StorageOpt)
+		return d.create(id, parent, opts.MountLabel, false, opts.StorageOpt, opts.Shared)
 	} else {
-		return d.create(id, parent, "", false, nil)
+		return d.create(id, parent, "", false, nil, false)
 	}
 }
 
 // Create creates a new read-only layer with the given id.
 func (d *Driver) Create(id, parent string, opts *graphdriver.CreateOpts) error {
 	if opts != nil {
-		return d.create(id, parent, opts.MountLabel, true, opts.StorageOpt)
+		return d.create(id, parent, opts.MountLabel, true, opts.StorageOpt, opts.Shared)
 	} else {
-		return d.create(id, parent, "", true, nil)
+		return d.create(id, parent, "", true, nil, false)
 	}
 }
 
-func (d *Driver) create(id, parent, mountLabel string, readOnly bool, storageOpt map[string]string) error {
+func (d *Driver) create(id, parent, mountLabel string, readOnly bool, storageOpt map[string]string, shared bool) error {
+	if shared {
+		return graphdriver.CreateSharedNotSupported("WindowsGraphDriver")
+	}
+
 	rPId, err := d.resolveID(parent)
 	if err != nil {
 		return err

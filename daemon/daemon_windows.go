@@ -590,6 +590,9 @@ func setupDaemonProcess(config *Config) error {
 	return nil
 }
 
+func (daemon *Daemon) setupSharedRootFs(config *Config) {
+}
+
 // verifyVolumesInfo is a no-op on windows.
 // This is called during daemon initialization to migrate volumes from pre-1.7.
 // volumes were not supported on windows pre-1.7

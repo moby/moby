@@ -263,6 +263,9 @@ func (d *Driver) CreateReadWrite(id, parent string, opts *graphdriver.CreateOpts
 func (d *Driver) Create(id, parent string, opts *graphdriver.CreateOpts) error {
 	var storageOpt map[string]string
 	if opts != nil {
+		if opts.Shared {
+			return graphdriver.CreateSharedNotSupported("zfs")
+		}
 		storageOpt = opts.StorageOpt
 	}
 

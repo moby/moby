@@ -54,6 +54,13 @@ func (d *graphDriverProxy) String() string {
 }
 
 func (d *graphDriverProxy) CreateReadWrite(id, parent string, opts *CreateOpts) error {
+	// Current API does not seem to allow passing additional arguments
+	// in graphDriverRequest. So for now, if shared rootfs is requested,
+	// error out here itself.
+	if opts != nil && opts.Shared {
+		return fmt.Errorf("Create with shared=true is not supported by graphdriver %v", d.name)
+	}
+
 	mountLabel := ""
 	if opts != nil {
 		mountLabel = opts.MountLabel

@@ -4,17 +4,20 @@ import (
 	"io"
 
 	"github.com/docker/docker/pkg/archive"
+	"github.com/opencontainers/runc/libcontainer/label"
 )
 
 type mountedLayer struct {
-	name       string
-	mountID    string
-	initID     string
-	parent     *roLayer
-	path       string
-	layerStore *layerStore
+	name        string
+	mountID     string
+	initID      string
+	initRWLayer RWLayer
+	parent      *roLayer
+	path        string
+	layerStore  *layerStore
 
-	references map[RWLayer]*referencedRWLayer
+	sharedRootFs bool
+	references   map[RWLayer]*referencedRWLayer
 }
 
 func (ml *mountedLayer) cacheParent() string {
@@ -89,11 +92,27 @@ type referencedRWLayer struct {
 }
 
 func (rl *referencedRWLayer) Mount(mountLabel string) (string, error) {
+	if rl.mountedLayer.sharedRootFs {
+		// For shared Layers, call get on -init layer first.
+		_, err := rl.mountedLayer.initRWLayer.Mount(label.GetROMountLabel())
+		if err != nil {
+			return "", err
+		}
+	}
 	return rl.layerStore.driver.Get(rl.mountedLayer.mountID, mountLabel)
 }
 
 // Unmount decrements the activity count and unmounts the underlying layer
 // Callers should only call `Unmount` once per call to `Mount`, even on error.
 func (rl *referencedRWLayer) Unmount() error {
-	return rl.layerStore.driver.Put(rl.mountedLayer.mountID)
+	if err := rl.layerStore.driver.Put(rl.mountedLayer.mountID); err != nil {
+		return err
+	}
+
+	if rl.mountedLayer.sharedRootFs {
+		// For shared Layers, call put on -init layer as well.
+		return rl.mountedLayer.initRWLayer.Unmount()
+	}
+
+	return nil
 }

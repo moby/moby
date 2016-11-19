@@ -249,11 +249,25 @@ func (fms *fileMetadataStore) SetInitID(mount string, init string) error {
 	return ioutil.WriteFile(fms.getMountFilename(mount, "init-id"), []byte(init), 0644)
 }
 
+func (fms *fileMetadataStore) SetInitName(mount string, initName string) error {
+	if err := os.MkdirAll(fms.getMountDirectory(mount), 0755); err != nil {
+		return err
+	}
+	return ioutil.WriteFile(fms.getMountFilename(mount, "init-name"), []byte(initName), 0644)
+}
+
 func (fms *fileMetadataStore) SetMountParent(mount string, parent ChainID) error {
 	if err := os.MkdirAll(fms.getMountDirectory(mount), 0755); err != nil {
 		return err
 	}
 	return ioutil.WriteFile(fms.getMountFilename(mount, "parent"), []byte(digest.Digest(parent).String()), 0644)
+}
+
+func (fms *fileMetadataStore) SetMountShared(mount string) error {
+	if err := os.MkdirAll(fms.getMountDirectory(mount), 0755); err != nil {
+		return err
+	}
+	return ioutil.WriteFile(fms.getMountFilename(mount, "shared-rootfs"), nil, 0644)
 }
 
 func (fms *fileMetadataStore) GetMountID(mount string) (string, error) {
@@ -287,6 +301,23 @@ func (fms *fileMetadataStore) GetInitID(mount string) (string, error) {
 	return content, nil
 }
 
+func (fms *fileMetadataStore) GetInitName(mount string) (string, error) {
+	contentBytes, err := ioutil.ReadFile(fms.getMountFilename(mount, "init-name"))
+	if err != nil {
+		if os.IsNotExist(err) {
+			return "", nil
+		}
+		return "", err
+	}
+	content := strings.TrimSpace(string(contentBytes))
+
+	if !stringIDRegexp.MatchString(content) {
+		return "", errors.New("invalid init id value")
+	}
+
+	return content, nil
+}
+
 func (fms *fileMetadataStore) GetMountParent(mount string) (ChainID, error) {
 	content, err := ioutil.ReadFile(fms.getMountFilename(mount, "parent"))
 	if err != nil {
@@ -302,6 +333,17 @@ func (fms *fileMetadataStore) GetMountParent(mount string) (ChainID, error) {
 	}
 
 	return ChainID(dgst), nil
+}
+
+func (fms *fileMetadataStore) GetMountShared(mount string) (bool, error) {
+	_, err := ioutil.ReadFile(fms.getMountFilename(mount, "shared-rootfs"))
+	if err != nil {
+		if !os.IsNotExist(err) {
+			return false, err
+		}
+		return false, nil
+	}
+	return true, nil
 }
 
 func (fms *fileMetadataStore) List() ([]ChainID, []string, error) {

@@ -41,6 +41,7 @@ var (
 type CreateOpts struct {
 	MountLabel string
 	StorageOpt map[string]string
+	Shared     bool
 }
 
 // InitFunc initializes the storage driver.
@@ -256,4 +257,10 @@ func scanPriorDrivers(root string) map[string]bool {
 		}
 	}
 	return driversMap
+}
+
+// CreateSharedNotSupported is helper function for graph drivers to flag error
+// if they don't support creation of shared rootfs devices.
+func CreateSharedNotSupported(graphdriver string) error {
+	return fmt.Errorf("Create with shared=true is not supported by graphdriver %v", graphdriver)
 }
