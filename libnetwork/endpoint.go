@@ -1148,20 +1148,3 @@ func (c *controller) cleanupLocalEndpoints() {
 		}
 	}
 }
-
-func (ep *endpoint) setAliasIP(sb *sandbox, ip net.IP, add bool) error {
-	sb.Lock()
-	sbox := sb.osSbox
-	sb.Unlock()
-
-	for _, i := range sbox.Info().Interfaces() {
-		if ep.hasInterface(i.SrcName()) {
-			ipNet := &net.IPNet{IP: ip, Mask: []byte{255, 255, 255, 255}}
-			if err := i.SetAliasIP(ipNet, add); err != nil {
-				return err
-			}
-			break
-		}
-	}
-	return nil
-}
