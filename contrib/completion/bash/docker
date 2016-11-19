@@ -2042,7 +2042,7 @@ _docker_image_list() {
 _docker_image_ls() {
 	local key=$(__docker_map_key_of_current_option '--filter|-f')
 	case "$key" in
-		before)
+		before|since|reference)
 			cur="${cur##*=}"
 			__docker_complete_images
 			return
@@ -2054,16 +2054,11 @@ _docker_image_ls() {
 		label)
 			return
 			;;
-		since)
-			cur="${cur##*=}"
-			__docker_complete_images
-			return
-			;;
 	esac
 
 	case "$prev" in
 		--filter|-f)
-			COMPREPLY=( $( compgen -S = -W "before dangling label since" -- "$cur" ) )
+			COMPREPLY=( $( compgen -S = -W "before dangling label reference since" -- "$cur" ) )
 			__docker_nospace
 			return
 			;;
