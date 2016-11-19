@@ -98,7 +98,7 @@ func mkdirWithACL(name string) error {
 	sddl := "D:P(A;OICI;GA;;;BA)(A;OICI;GA;;;SY)"
 	sd, err := winio.SddlToSecurityDescriptor(sddl)
 	if err != nil {
-		return &os.PathError{"mkdir", name, err}
+		return &os.PathError{Op: "mkdir", Path: name, Err: err}
 	}
 	sa.Length = uint32(unsafe.Sizeof(sa))
 	sa.InheritHandle = 1
@@ -106,12 +106,12 @@ func mkdirWithACL(name string) error {
 
 	namep, err := syscall.UTF16PtrFromString(name)
 	if err != nil {
-		return &os.PathError{"mkdir", name, err}
+		return &os.PathError{Op: "mkdir", Path: name, Err: err}
 	}
 
 	e := syscall.CreateDirectory(namep, &sa)
 	if e != nil {
-		return &os.PathError{"mkdir", name, e}
+		return &os.PathError{Op: "mkdir", Path: name, Err: e}
 	}
 	return nil
 }
@@ -162,13 +162,13 @@ func OpenSequential(name string) (*os.File, error) {
 // If there is an error, it will be of type *PathError.
 func OpenFileSequential(name string, flag int, _ os.FileMode) (*os.File, error) {
 	if name == "" {
-		return nil, &os.PathError{"open", name, syscall.ENOENT}
+		return nil, &os.PathError{Op: "open", Path: name, Err: syscall.ENOENT}
 	}
 	r, errf := syscallOpenFileSequential(name, flag, 0)
 	if errf == nil {
 		return r, nil
 	}
-	return nil, &os.PathError{"open", name, errf}
+	return nil, &os.PathError{Op: "open", Path: name, Err: errf}
 }
 
 func syscallOpenFileSequential(name string, flag int, _ os.FileMode) (file *os.File, err error) {
