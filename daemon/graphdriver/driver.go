@@ -150,16 +150,16 @@ func Register(name string, initFunc InitFunc) error {
 }
 
 // GetDriver initializes and returns the registered driver
-func GetDriver(name, home string, options []string, uidMaps, gidMaps []idtools.IDMap, pg plugingetter.PluginGetter) (Driver, error) {
+func GetDriver(name string, pg plugingetter.PluginGetter, config Options) (Driver, error) {
 	if initFunc, exists := drivers[name]; exists {
-		return initFunc(filepath.Join(home, name), options, uidMaps, gidMaps)
+		return initFunc(filepath.Join(config.Root, name), config.DriverOptions, config.UIDMaps, config.GIDMaps)
 	}
 
-	pluginDriver, err := lookupPlugin(name, home, options, pg)
+	pluginDriver, err := lookupPlugin(name, pg, config)
 	if err == nil {
 		return pluginDriver, nil
 	}
-	logrus.WithError(err).WithField("driver", name).WithField("home-dir", home).Error("Failed to GetDriver graph")
+	logrus.WithError(err).WithField("driver", name).WithField("home-dir", config.Root).Error("Failed to GetDriver graph")
 	return nil, ErrNotSupported
 }
 
@@ -172,15 +172,24 @@ func getBuiltinDriver(name, home string, options []string, uidMaps, gidMaps []id
 	return nil, ErrNotSupported
 }
 
+// Options is used to initialize a graphdriver
+type Options struct {
+	Root                string
+	DriverOptions       []string
+	UIDMaps             []idtools.IDMap
+	GIDMaps             []idtools.IDMap
+	ExperimentalEnabled bool
+}
+
 // New creates the driver and initializes it at the specified root.
-func New(root, name string, options []string, uidMaps, gidMaps []idtools.IDMap, pg plugingetter.PluginGetter) (Driver, error) {
+func New(name string, pg plugingetter.PluginGetter, config Options) (Driver, error) {
 	if name != "" {
 		logrus.Debugf("[graphdriver] trying provided driver: %s", name) // so the logs show specified driver
-		return GetDriver(name, root, options, uidMaps, gidMaps, pg)
+		return GetDriver(name, pg, config)
 	}
 
 	// Guess for prior driver
-	driversMap := scanPriorDrivers(root)
+	driversMap := scanPriorDrivers(config.Root)
 	for _, name := range priority {
 		if name == "vfs" {
 			// don't use vfs even if there is state present.
@@ -189,7 +198,7 @@ func New(root, name string, options []string, uidMaps, gidMaps []idtools.IDMap, 
 		if _, prior := driversMap[name]; prior {
 			// of the state found from prior drivers, check in order of our priority
 			// which we would prefer
-			driver, err := getBuiltinDriver(name, root, options, uidMaps, gidMaps)
+			driver, err := getBuiltinDriver(name, config.Root, config.DriverOptions, config.UIDMaps, config.GIDMaps)
 			if err != nil {
 				// unlike below, we will return error here, because there is prior
 				// state, and now it is no longer supported/prereq/compatible, so
@@ -207,7 +216,7 @@ func New(root, name string, options []string, uidMaps, gidMaps []idtools.IDMap, 
 					driversSlice = append(driversSlice, name)
 				}
 
-				return nil, fmt.Errorf("%s contains several valid graphdrivers: %s; Please cleanup or explicitly choose storage driver (-s <DRIVER>)", root, strings.Join(driversSlice, ", "))
+				return nil, fmt.Errorf("%s contains several valid graphdrivers: %s; Please cleanup or explicitly choose storage driver (-s <DRIVER>)", config.Root, strings.Join(driversSlice, ", "))
 			}
 
 			logrus.Infof("[graphdriver] using prior storage driver: %s", name)
@@ -217,7 +226,7 @@ func New(root, name string, options []string, uidMaps, gidMaps []idtools.IDMap, 
 
 	// Check for priority drivers first
 	for _, name := range priority {
-		driver, err := getBuiltinDriver(name, root, options, uidMaps, gidMaps)
+		driver, err := getBuiltinDriver(name, config.Root, config.DriverOptions, config.UIDMaps, config.GIDMaps)
 		if err != nil {
 			if isDriverNotSupported(err) {
 				continue
@@ -229,7 +238,7 @@ func New(root, name string, options []string, uidMaps, gidMaps []idtools.IDMap, 
 
 	// Check all registered drivers if no priority driver is found
 	for name, initFunc := range drivers {
-		driver, err := initFunc(filepath.Join(root, name), options, uidMaps, gidMaps)
+		driver, err := initFunc(filepath.Join(config.Root, name), config.DriverOptions, config.UIDMaps, config.GIDMaps)
 		if err != nil {
 			if isDriverNotSupported(err) {
 				continue

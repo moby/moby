@@ -18,15 +18,19 @@ type pluginClient interface {
 	SendFile(string, io.Reader, interface{}) error
 }
 
-func lookupPlugin(name, home string, opts []string, pg plugingetter.PluginGetter) (Driver, error) {
-	pl, err := pg.Get(name, "GraphDriver", plugingetter.LOOKUP)
+func lookupPlugin(name string, pg plugingetter.PluginGetter, config Options) (Driver, error) {
+	if !config.ExperimentalEnabled {
+		return nil, fmt.Errorf("graphdriver plugins are only supported with experimental mode")
+	}
+	pl, err := pg.Get(name, "GraphDriver", plugingetter.ACQUIRE)
 	if err != nil {
 		return nil, fmt.Errorf("Error looking up graphdriver plugin %s: %v", name, err)
 	}
-	return newPluginDriver(name, home, opts, pl)
+	return newPluginDriver(name, pl, config)
 }
 
-func newPluginDriver(name, home string, opts []string, pl plugingetter.CompatPlugin) (Driver, error) {
+func newPluginDriver(name string, pl plugingetter.CompatPlugin, config Options) (Driver, error) {
+	home := config.Root
 	if !pl.IsV1() {
 		if p, ok := pl.(*v2.Plugin); ok {
 			if p.PropagatedMount != "" {
@@ -35,5 +39,5 @@ func newPluginDriver(name, home string, opts []string, pl plugingetter.CompatPlu
 		}
 	}
 	proxy := &graphDriverProxy{name, pl}
-	return proxy, proxy.Init(filepath.Join(home, name), opts)
+	return proxy, proxy.Init(filepath.Join(home, name), config.DriverOptions, config.UIDMaps, config.GIDMaps)
 }

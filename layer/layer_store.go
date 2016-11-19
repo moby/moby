@@ -45,17 +45,18 @@ type StoreOptions struct {
 	UIDMaps                   []idtools.IDMap
 	GIDMaps                   []idtools.IDMap
 	PluginGetter              plugingetter.PluginGetter
+	ExperimentalEnabled       bool
 }
 
 // NewStoreFromOptions creates a new Store instance
 func NewStoreFromOptions(options StoreOptions) (Store, error) {
-	driver, err := graphdriver.New(
-		options.StorePath,
-		options.GraphDriver,
-		options.GraphDriverOptions,
-		options.UIDMaps,
-		options.GIDMaps,
-		options.PluginGetter)
+	driver, err := graphdriver.New(options.GraphDriver, options.PluginGetter, graphdriver.Options{
+		Root:                options.StorePath,
+		DriverOptions:       options.GraphDriverOptions,
+		UIDMaps:             options.UIDMaps,
+		GIDMaps:             options.GIDMaps,
+		ExperimentalEnabled: options.ExperimentalEnabled,
+	})
 	if err != nil {
 		return nil, fmt.Errorf("error initializing graphdriver: %v", err)
 	}
