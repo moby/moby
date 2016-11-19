@@ -237,11 +237,13 @@ __docker_complete_volumes() {
 	COMPREPLY=( $(compgen -W "$(__docker_volumes "$@")" -- "$current") )
 }
 
-# __docker_plugins returns a list of all plugins of a given type.
+# __docker_plugins_bundled returns a list of all plugins of a given type.
 # The type has to be specified with the mandatory option `--type`.
 # Valid types are: Network, Volume, Authorization.
 # Completions may be added or removed with `--add` and `--remove`
-__docker_plugins() {
+# This function only deals with plugins that come bundled with Docker.
+# For plugins managed by `docker plugin`, see `__docker_plugins_installed`.
+__docker_plugins_bundled() {
 	local type add=() remove=()
 	while true ; do
 		case "$1" in
@@ -270,16 +272,39 @@ __docker_plugins() {
 	echo "${plugins[@]} ${add[@]}"
 }
 
-# __docker_complete_plugins applies completion of plugins based on the current
+# __docker_complete_plugins_bundled applies completion of plugins based on the current
 # value of `$cur` or the value of the optional first option `--cur`, if given.
 # The plugin type has to be specified with the next option `--type`.
-__docker_complete_plugins() {
+# This function only deals with plugins that come bundled with Docker.
+# For completion of plugins managed by `docker plugin`, see
+# `__docker_complete_plugins_installed`.
+__docker_complete_plugins_bundled() {
 	local current="$cur"
 	if [ "$1" = "--cur" ] ; then
 		current="$2"
 		shift 2
 	fi
-	COMPREPLY=( $(compgen -W "$(__docker_plugins "$@")" -- "$current") )
+	COMPREPLY=( $(compgen -W "$(__docker_plugins_bundled "$@")" -- "$current") )
+}
+
+# __docker_plugins_installed returns a list of all plugins that were installed with
+# the Docker plugin API.
+# For built-in pugins, see `__docker_plugins_bundled`.
+__docker_plugins_installed() {
+	__docker_q plugin ls | awk 'NR>1 {print $1}'
+}
+
+# __docker_complete_plugins_installed applies completion of plugins that were installed
+# with the Docker plugin API, based on the current value of `$cur` or the value of
+# the optional first option `--cur`, if given.
+# For completion of built-in pugins, see `__docker_complete_plugins_bundled`.
+__docker_complete_plugins_installed() {
+	local current="$cur"
+	if [ "$1" = "--cur" ] ; then
+		current="$2"
+		shift 2
+	fi
+	COMPREPLY=( $(compgen -W "$(__docker_plugins_installed "$@")" -- "$current") )
 }
 
 __docker_runtimes() {
@@ -1454,7 +1479,7 @@ _docker_container_run() {
 					__docker_complete_containers_all --cur "${cur#*:}"
 					;;
 				*)
-					COMPREPLY=( $( compgen -W "$(__docker_plugins --type Network) $(__docker_networks) container:" -- "$cur") )
+					COMPREPLY=( $( compgen -W "$(__docker_plugins_bundled --type Network) $(__docker_networks) container:" -- "$cur") )
 					if [ "${COMPREPLY[*]}" = "container:" ] ; then
 						__docker_nospace
 					fi
@@ -1501,7 +1526,7 @@ _docker_container_run() {
 			return
 			;;
 		--volume-driver)
-			__docker_complete_plugins --type Volume
+			__docker_complete_plugins_bundled --type Volume
 			return
 			;;
 		--volumes-from)
@@ -1757,7 +1782,7 @@ _docker_daemon() {
 
 	case "$prev" in
 		--authorization-plugin)
-			__docker_complete_plugins --type Authorization
+			__docker_complete_plugins_bundled --type Authorization
 			return
 			;;
 		--cluster-store)
@@ -2363,7 +2388,7 @@ _docker_network_create() {
 			;;
 		--driver|-d)
 			# remove drivers that allow one instance only, add drivers missing in `docker info`
-			__docker_complete_plugins --type Network --remove host --remove null --add macvlan
+			__docker_complete_plugins_bundled --type Network --remove host --remove null --add macvlan
 			return
 			;;
 		--label)
@@ -2414,7 +2439,7 @@ _docker_network_ls() {
 	local key=$(__docker_map_key_of_current_option '--filter|-f')
 	case "$key" in
 		driver)
-			__docker_complete_plugins --cur "${cur##*=}" --type Network --add macvlan
+			__docker_complete_plugins_bundled --cur "${cur##*=}" --type Network --add macvlan
 			return
 			;;
 		id)
@@ -3064,6 +3089,160 @@ _docker_pause() {
 	_docker_container_pause
 }
 
+_docker_plugin() {
+	local subcommands="
+		create
+		disable
+		enable
+		inspect
+		install
+		ls
+		push
+		rm
+		set
+	"
+	local aliases="
+		list
+		remove
+	"
+	__docker_subcommands "$subcommands $aliases" && return
+
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "--help" -- "$cur" ) )
+			;;
+		*)
+			COMPREPLY=( $( compgen -W "$subcommands" -- "$cur" ) )
+			;;
+	esac
+}
+
+_docker_plugin_create() {
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "--compress --help" -- "$cur" ) )
+			;;
+		*)
+			local counter=$(__docker_pos_first_nonflag)
+			if [ $cword -eq $counter ]; then
+				# reponame
+				return
+			elif [ $cword -eq  $((counter + 1)) ]; then
+				_filedir -d
+			fi
+			;;
+	esac
+}
+
+_docker_plugin_disable() {
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "--help" -- "$cur" ) )
+			;;
+		*)
+			__docker_complete_plugins_installed
+			;;
+	esac
+}
+
+_docker_plugin_enable() {
+	case "$prev" in
+		--timeout)
+			return
+			;;
+	esac
+
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "--help --timeout" -- "$cur" ) )
+			;;
+		*)
+			__docker_complete_plugins_installed
+			;;
+	esac
+}
+
+_docker_plugin_inspect() {
+	case "$prev" in
+		--format|f)
+			return
+			;;
+	esac
+
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "--format -f --help" -- "$cur" ) )
+			;;
+		*)
+			__docker_complete_plugins_installed
+			;;
+	esac
+}
+
+_docker_plugin_install() {
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "--disable --grant-all-permissions--help" -- "$cur" ) )
+			;;
+	esac
+}
+
+_docker_plugin_list() {
+	_docker_plugin_ls
+}
+
+_docker_plugin_ls() {
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "--help --no-trunc" -- "$cur" ) )
+			;;
+	esac
+}
+
+_docker_plugin_push() {
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "--help" -- "$cur" ) )
+			;;
+		*)
+			local counter=$(__docker_pos_first_nonflag)
+			if [ $cword -eq $counter ]; then
+				__docker_complete_plugins_installed
+			fi
+			;;
+	esac
+}
+
+_docker_plugin_remove() {
+	_docker_plugin_rm
+}
+
+_docker_plugin_rm() {
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "--force -f --help" -- "$cur" ) )
+			;;
+		*)
+			__docker_complete_plugins_installed
+			;;
+	esac
+}
+
+_docker_plugin_set() {
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "--help" -- "$cur" ) )
+			;;
+		*)
+			local counter=$(__docker_pos_first_nonflag)
+			if [ $cword -eq $counter ]; then
+				__docker_complete_plugins_installed
+			fi
+			;;
+	esac
+}
+
+
 _docker_port() {
 	_docker_container_port
 }
@@ -3475,7 +3654,7 @@ _docker_version() {
 _docker_volume_create() {
 	case "$prev" in
 		--driver|-d)
-			__docker_complete_plugins --type Volume
+			__docker_complete_plugins_bundled --type Volume
 			return
 			;;
 		--label|--opt|-o)
@@ -3515,7 +3694,7 @@ _docker_volume_ls() {
 			return
 			;;
 		driver)
-			__docker_complete_plugins --cur "${cur##*=}" --type Volume
+			__docker_complete_plugins_bundled --cur "${cur##*=}" --type Volume
 			return
 			;;
 		name)
@@ -3615,6 +3794,7 @@ _docker() {
 		network
 		node
 		pause
+		plugin
 		port
 		ps
 		pull
