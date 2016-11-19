@@ -1,12 +1,42 @@
-# Experimental: Docker graph driver plugins
+---
+title: "Graphdriver plugins"
+description: "How to manage image and container filesystems with external plugins"
+keywords: "Examples, Usage, storage, image, docker, data, graph, plugin, api"
+advisory: experimental
+---
+
+<!-- This file is maintained within the docker/docker Github
+     repository at https://github.com/docker/docker/. Make all
+     pull requests against that repo. If you see this file in
+     another repository, consider it read-only there, as it will
+     periodically be overwritten by the definitive file. Pull
+     requests which include edits to this file in other repositories
+     will be rejected.
+-->
+
+
+## Changelog
+
+### 1.13.0
+
+- Support v2 plugins
+
+# Docker graph driver plugins
 
 Docker graph driver plugins enable admins to use an external/out-of-process
 graph driver for use with Docker engine. This is an alternative to using the
 built-in storage drivers, such as aufs/overlay/devicemapper/btrfs.
 
-A graph driver plugin is used for image and container fs storage, as such
-the plugin must be started and available for connections prior to Docker Engine
-being started.
+You need to install and enable the plugin and then restart the Docker daemon
+before using the plugin. See the following example for the correct ordering
+of steps.
+
+```
+$ docker plugin install cpuguy83/docker-overlay2-graphdriver-plugin # this command also enables the driver
+<output supressed>
+$ pkill dockerd
+$ dockerd --experimental -s cpuguy83/docker-overlay2-graphdriver-plugin
+```
 
 # Write a graph driver plugin
 
@@ -22,20 +52,30 @@ expected to provide the rootfs for containers as well as image layer storage.
 ### /GraphDriver.Init
 
 **Request**:
-```
+```json
 {
   "Home": "/graph/home/path",
-  "Opts": []
+  "Opts": [],
+  "UIDMaps": [],
+  "GIDMaps": []
 }
 ```
 
 Initialize the graph driver plugin with a home directory and array of options.
-Plugins are not required to accept these options as the Docker Engine does not
-require that the plugin use this path or options, they are only being passed
-through from the user.
+These are passed through from the user, but the plugin is not required to parse
+or honor them.
+
+The request also includes a list of UID and GID mappings, structed as follows:
+```json
+{
+  "ContainerID": 0,
+  "HostID": 0,
+  "Size": 0
+}
+```
 
 **Response**:
-```
+```json
 {
   "Err": ""
 }
@@ -47,20 +87,21 @@ Respond with a non-empty string error if an error occurred.
 ### /GraphDriver.Create
 
 **Request**:
-```
+```json
 {
   "ID": "46fe8644f2572fd1e505364f7581e0c9dbc7f14640bd1fb6ce97714fb6fc5187",
-  "Parent": "2cd9c322cb78a55e8212aa3ea8425a4180236d7106938ec921d0935a4b8ca142"
-  "MountLabel": ""
+  "Parent": "2cd9c322cb78a55e8212aa3ea8425a4180236d7106938ec921d0935a4b8ca142",
+  "MountLabel": "",
+  "StorageOpt": {}
 }
 ```
 
 Create a new, empty, read-only filesystem layer with the specified
-`ID`, `Parent` and `MountLabel`. `Parent` may be an empty string,
-which would indicate that there is no parent layer.
+`ID`, `Parent` and `MountLabel`. If `Parent` is an empty string, there is no
+parent layer. `StorageOpt` is map of strings which indicate storage options.
 
 **Response**:
-```
+```json
 {
   "Err": ""
 }
@@ -71,11 +112,12 @@ Respond with a non-empty string error if an error occurred.
 ### /GraphDriver.CreateReadWrite
 
 **Request**:
-```
+```json
 {
   "ID": "46fe8644f2572fd1e505364f7581e0c9dbc7f14640bd1fb6ce97714fb6fc5187",
-  "Parent": "2cd9c322cb78a55e8212aa3ea8425a4180236d7106938ec921d0935a4b8ca142"
-  "MountLabel": ""
+  "Parent": "2cd9c322cb78a55e8212aa3ea8425a4180236d7106938ec921d0935a4b8ca142",
+  "MountLabel": "",
+  "StorageOpt": {}
 }
 ```
 
@@ -84,7 +126,7 @@ Similar to `/GraphDriver.Create` but creates a read-write filesystem layer.
 ### /GraphDriver.Remove
 
 **Request**:
-```
+```json
 {
   "ID": "46fe8644f2572fd1e505364f7581e0c9dbc7f14640bd1fb6ce97714fb6fc5187"
 }
@@ -93,7 +135,7 @@ Similar to `/GraphDriver.Create` but creates a read-write filesystem layer.
 Remove the filesystem layer with this given `ID`.
 
 **Response**:
-```
+```json
 {
   "Err": ""
 }
@@ -104,9 +146,9 @@ Respond with a non-empty string error if an error occurred.
 ### /GraphDriver.Get
 
 **Request**:
-```
+```json
 {
-  "ID": "46fe8644f2572fd1e505364f7581e0c9dbc7f14640bd1fb6ce97714fb6fc5187"
+  "ID": "46fe8644f2572fd1e505364f7581e0c9dbc7f14640bd1fb6ce97714fb6fc5187",
   "MountLabel": ""
 }
 ```
@@ -114,7 +156,7 @@ Respond with a non-empty string error if an error occurred.
 Get the mountpoint for the layered filesystem referred to by the given `ID`.
 
 **Response**:
-```
+```json
 {
   "Dir": "/var/mygraph/46fe8644f2572fd1e505364f7581e0c9dbc7f14640bd1fb6ce97714fb6fc5187",
   "Err": ""
@@ -127,7 +169,7 @@ Respond with a non-empty string error if an error occurred.
 ### /GraphDriver.Put
 
 **Request**:
-```
+```json
 {
   "ID": "46fe8644f2572fd1e505364f7581e0c9dbc7f14640bd1fb6ce97714fb6fc5187"
 }
@@ -137,7 +179,7 @@ Release the system resources for the specified `ID`, such as unmounting the
 filesystem layer.
 
 **Response**:
-```
+```json
 {
   "Err": ""
 }
@@ -148,7 +190,7 @@ Respond with a non-empty string error if an error occurred.
 ### /GraphDriver.Exists
 
 **Request**:
-```
+```json
 {
   "ID": "46fe8644f2572fd1e505364f7581e0c9dbc7f14640bd1fb6ce97714fb6fc5187"
 }
@@ -157,7 +199,7 @@ Respond with a non-empty string error if an error occurred.
 Determine if a filesystem layer with the specified `ID` exists.
 
 **Response**:
-```
+```json
 {
   "Exists": true
 }
@@ -169,14 +211,14 @@ Respond with a boolean for whether or not the filesystem layer with the specifie
 ### /GraphDriver.Status
 
 **Request**:
-```
+```json
 {}
 ```
 
 Get low-level diagnostic information about the graph driver.
 
 **Response**:
-```
+```json
 {
   "Status": [[]]
 }
@@ -189,7 +231,7 @@ information.
 ### /GraphDriver.GetMetadata
 
 **Request**:
-```
+```json
 {
   "ID": "46fe8644f2572fd1e505364f7581e0c9dbc7f14640bd1fb6ce97714fb6fc5187"
 }
@@ -199,7 +241,7 @@ Get low-level diagnostic information about the layered filesystem with the
 with the specified `ID`
 
 **Response**:
-```
+```json
 {
   "Metadata": {},
   "Err": ""
@@ -213,15 +255,15 @@ Respond with a non-empty string error if an error occurred.
 ### /GraphDriver.Cleanup
 
 **Request**:
-```
+```json
 {}
 ```
 
-Perform necessary tasks to release resources help by the plugin, for example
+Perform necessary tasks to release resources help by the plugin, such as
 unmounting all the layered file systems.
 
 **Response**:
-```
+```json
 {
   "Err": ""
 }
@@ -233,7 +275,7 @@ Respond with a non-empty string error if an error occurred.
 ### /GraphDriver.Diff
 
 **Request**:
-```
+```json
 {
   "ID": "46fe8644f2572fd1e505364f7581e0c9dbc7f14640bd1fb6ce97714fb6fc5187",
   "Parent": "2cd9c322cb78a55e8212aa3ea8425a4180236d7106938ec921d0935a4b8ca142"
@@ -251,7 +293,7 @@ and `Parent`. `Parent` may be an empty string, in which case there is no parent.
 ### /GraphDriver.Changes
 
 **Request**:
-```
+```json
 {
   "ID": "46fe8644f2572fd1e505364f7581e0c9dbc7f14640bd1fb6ce97714fb6fc5187",
   "Parent": "2cd9c322cb78a55e8212aa3ea8425a4180236d7106938ec921d0935a4b8ca142"
@@ -259,18 +301,18 @@ and `Parent`. `Parent` may be an empty string, in which case there is no parent.
 ```
 
 Get a list of changes between the filesystem layers specified by the `ID` and
-`Parent`. `Parent` may be an empty string, in which case there is no parent.
+`Parent`. If `Parent` is an empty string, there is no parent.
 
 **Response**:
-```
+```json
 {
   "Changes": [{}],
   "Err": ""
 }
 ```
 
-Responds with a list of changes. The structure of a change is:
-```
+Respond with a list of changes. The structure of a change is:
+```json
   "Path": "/some/path",
   "Kind": 0,
 ```
@@ -300,7 +342,7 @@ and `Parent`
 - parent (required)- the `Parent` of the given `ID`
 
 **Response**:
-```
+```json
 {
   "Size": 512366,
   "Err": ""
@@ -313,7 +355,7 @@ Respond with a non-empty string error if an error occurred.
 ### /GraphDriver.DiffSize
 
 **Request**:
-```
+```json
 {
   "ID": "46fe8644f2572fd1e505364f7581e0c9dbc7f14640bd1fb6ce97714fb6fc5187",
   "Parent": "2cd9c322cb78a55e8212aa3ea8425a4180236d7106938ec921d0935a4b8ca142"
@@ -323,7 +365,7 @@ Respond with a non-empty string error if an error occurred.
 Calculate the changes between the specified `ID`
 
 **Response**:
-```
+```json
 {
   "Size": 512366,
   "Err": ""
