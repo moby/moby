@@ -90,7 +90,7 @@ func noArgs(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 	return fmt.Errorf(
-		"docker: '%s' is not a docker command.\nSee 'docker --help'.", args[0])
+		"docker: '%s' is not a docker command.\nSee 'docker --help'", args[0])
 }
 
 func main() {
