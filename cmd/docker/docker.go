@@ -53,6 +53,23 @@ func newDockerCommand(dockerCli *command.DockerCli) *cobra.Command {
 		},
 	}
 	cli.SetupRootCommand(cmd)
+	// When invoking `docker stack --nonsense`, we need to make sure FlagErrorFunc return appropriate
+	// output if the feature is not supported.
+	// As above cli.SetupRootCommand(cmd) have already setup the FlagErrorFunc, we will add a pre-check before the FlagErrorFunc
+	// is called.
+	flagErrorFunc := cmd.FlagErrorFunc()
+	cmd.SetFlagErrorFunc(func(cmd *cobra.Command, err error) error {
+		if dockerCli.Client() == nil { // when using --help, PersistenPreRun is not called, so initialization is needed.
+			// flags must be the top-level command flags, not cmd.Flags()
+			opts.Common.SetDefaultOptions(flags)
+			dockerPreRun(opts)
+			dockerCli.Initialize(opts)
+		}
+		if err := isSupported(cmd, dockerCli.Client().ClientVersion(), dockerCli.HasExperimental()); err != nil {
+			return err
+		}
+		return flagErrorFunc(cmd, err)
+	})
 
 	cmd.SetHelpFunc(func(ccmd *cobra.Command, args []string) {
 		if dockerCli.Client() == nil { // when using --help, PersistentPreRun is not called, so initialization is needed.
@@ -167,9 +184,12 @@ func hideUnsupportedFeatures(cmd *cobra.Command, clientVersion string, hasExperi
 }
 
 func isSupported(cmd *cobra.Command, clientVersion string, hasExperimental bool) error {
+	// We check recursively so that, e.g., `docker stack ls` will return the same output as `docker stack`
 	if !hasExperimental {
-		if _, ok := cmd.Tags["experimental"]; ok {
-			return errors.New("only supported on a Docker daemon with experimental features enabled")
+		for curr := cmd; curr != nil; curr = curr.Parent() {
+			if _, ok := curr.Tags["experimental"]; ok {
+				return errors.New("only supported on a Docker daemon with experimental features enabled")
+			}
 		}
 	}
 
