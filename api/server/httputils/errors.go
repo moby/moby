@@ -28,7 +28,7 @@ type inputValidationError interface {
 	IsValidationError() bool
 }
 
-// GetHTTPErrorStatusCode retrieve status code from error message
+// GetHTTPErrorStatusCode retrieves status code from error message
 func GetHTTPErrorStatusCode(err error) int {
 	if err == nil {
 		logrus.WithFields(logrus.Fields{"error": err}).Error("unexpected HTTP error handling")
@@ -49,20 +49,23 @@ func GetHTTPErrorStatusCode(err error) int {
 		// If we need to differentiate between different possible error types,
 		// we should create appropriate error types that implement the httpStatusError interface.
 		errStr := strings.ToLower(errMsg)
-		for keyword, status := range map[string]int{
-			"not found":             http.StatusNotFound,
-			"no such":               http.StatusNotFound,
-			"bad parameter":         http.StatusBadRequest,
-			"no command":            http.StatusBadRequest,
-			"conflict":              http.StatusConflict,
-			"impossible":            http.StatusNotAcceptable,
-			"wrong login/password":  http.StatusUnauthorized,
-			"unauthorized":          http.StatusUnauthorized,
-			"hasn't been activated": http.StatusForbidden,
-			"this node":             http.StatusNotAcceptable,
+		for _, status := range []struct {
+			keyword string
+			code    int
+		}{
+			{"not found", http.StatusNotFound},
+			{"no such", http.StatusNotFound},
+			{"bad parameter", http.StatusBadRequest},
+			{"no command", http.StatusBadRequest},
+			{"conflict", http.StatusConflict},
+			{"impossible", http.StatusNotAcceptable},
+			{"wrong login/password", http.StatusUnauthorized},
+			{"unauthorized", http.StatusUnauthorized},
+			{"hasn't been activated", http.StatusForbidden},
+			{"this node", http.StatusServiceUnavailable},
 		} {
-			if strings.Contains(errStr, keyword) {
-				statusCode = status
+			if strings.Contains(errStr, status.keyword) {
+				statusCode = status.code
 				break
 			}
 		}

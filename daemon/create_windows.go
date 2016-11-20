@@ -16,14 +16,6 @@ func (daemon *Daemon) createContainerPlatformSpecificSettings(container *contain
 		hostConfig.Isolation = daemon.defaultIsolation
 	}
 
-	if err := daemon.Mount(container); err != nil {
-		return nil
-	}
-	defer daemon.Unmount(container)
-	if err := container.SetupWorkingDirectory(0, 0); err != nil {
-		return err
-	}
-
 	for spec := range config.Volumes {
 
 		mp, err := volume.ParseMountRaw(spec, hostConfig.VolumeDriver)

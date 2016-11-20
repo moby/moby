@@ -16,6 +16,7 @@ const (
 	portOptMode          = "mode"
 )
 
+// PortOpt represents a port config in swarm mode.
 type PortOpt struct {
 	ports []swarm.PortConfig
 }

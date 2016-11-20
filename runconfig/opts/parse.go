@@ -14,7 +14,6 @@ import (
 	networktypes "github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/api/types/strslice"
 	"github.com/docker/docker/opts"
-	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/signal"
 	"github.com/docker/go-connections/nat"
 	units "github.com/docker/go-units"
@@ -378,9 +377,6 @@ func Parse(flags *pflag.FlagSet, copts *ContainerOptions) (*container.Config, *c
 	tmpfs := make(map[string]string)
 	for _, t := range copts.tmpfs.GetAll() {
 		if arr := strings.SplitN(t, ":", 2); len(arr) > 1 {
-			if _, _, err := mount.ParseTmpfsOptions(arr[1]); err != nil {
-				return nil, nil, nil, err
-			}
 			tmpfs[arr[0]] = arr[1]
 		} else {
 			tmpfs[arr[0]] = ""

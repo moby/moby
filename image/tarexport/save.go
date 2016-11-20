@@ -315,8 +315,10 @@ func (s *saveSession) saveLayer(id layer.ChainID, legacyImg image.V1Image, creat
 		}
 		os.Symlink(relPath, layerPath)
 	} else {
-
-		tarFile, err := os.Create(layerPath)
+		// Use system.CreateSequential rather than os.Create. This ensures sequential
+		// file access on Windows to avoid eating into MM standby list.
+		// On Linux, this equates to a regular os.Create.
+		tarFile, err := system.CreateSequential(layerPath)
 		if err != nil {
 			return distribution.Descriptor{}, err
 		}

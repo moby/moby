@@ -2218,6 +2218,16 @@ definitions:
       Deleted:
         description: "The image ID of an image that was deleted"
         type: "string"
+  ServiceUpdateResponse:
+    type: "object"
+    properties:
+      Warnings:
+        description: "Optional warning messages"
+        type: "array"
+        items:
+          type: "string"
+    example:
+      Warning: "unable to pin image doesnotexist:latest to digest: image library/doesnotexist:latest not found"
   ContainerSummary:
     type: "array"
     items:
@@ -6731,12 +6741,12 @@ paths:
           description: "bad parameter"
           schema:
             $ref: "#/definitions/ErrorResponse"
-        406:
-          description: "node is already part of a swarm"
-          schema:
-            $ref: "#/definitions/ErrorResponse"
         500:
           description: "server error"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        503:
+          description: "node is already part of a swarm"
           schema:
             $ref: "#/definitions/ErrorResponse"
       parameters:
@@ -6773,12 +6783,12 @@ paths:
       responses:
         200:
           description: "no error"
-        406:
-          description: "node is not part of a swarm"
-          schema:
-            $ref: "#/definitions/ErrorResponse"
         500:
           description: "server error"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        503:
+          description: "node is not part of a swarm"
           schema:
             $ref: "#/definitions/ErrorResponse"
       parameters:
@@ -6800,12 +6810,12 @@ paths:
           description: "bad parameter"
           schema:
             $ref: "#/definitions/ErrorResponse"
-        406:
-          description: "node is not part of a swarm"
-          schema:
-            $ref: "#/definitions/ErrorResponse"
         500:
           description: "server error"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        503:
+          description: "node is not part of a swarm"
           schema:
             $ref: "#/definitions/ErrorResponse"
       parameters:
@@ -6875,18 +6885,22 @@ paths:
               ID:
                 description: "The ID of the created service."
                 type: "string"
+              Warning:
+                description: "Optional warning message"
+                type: "string"
             example:
               ID: "ak7w3gjqoa3kuz8xcpnyy0pvl"
-        406:
-          description: "server error or node is not part of a swarm"
-          schema:
-            $ref: "#/definitions/ErrorResponse"
+              Warning: "unable to pin image doesnotexist:latest to digest: image library/doesnotexist:latest not found"
         409:
           description: "name conflicts with an existing service"
           schema:
             $ref: "#/definitions/ErrorResponse"
         500:
           description: "server error"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        503:
+          description: "server error or node is not part of a swarm"
           schema:
             $ref: "#/definitions/ErrorResponse"
       parameters:
@@ -6998,10 +7012,14 @@ paths:
   /services/{id}/update:
     post:
       summary: "Update a service"
-      operationId: "PostServicesUpdate"
+      operationId: "ServiceUpdate"
+      consumes: ["application/json"]
+      produces: ["application/json"]
       responses:
         200:
           description: "no error"
+          schema:
+            $ref: "#/definitions/ImageDeleteResponse"
         404:
           description: "no such service"
           schema:
@@ -7065,8 +7083,7 @@ paths:
           description: "A base64-encoded auth configuration for pulling from private registries. [See the authentication section for details.](#section/Authentication)"
           type: "string"
 
-      tags:
-        - "Services"
+      tags: [Service]
   /tasks:
     get:
       summary: "List tasks"

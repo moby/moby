@@ -372,7 +372,7 @@ func TestContainerContextWriteJSONField(t *testing.T) {
 }
 
 func TestContainerBackCompat(t *testing.T) {
-	containers := []types.Container{types.Container{ID: "brewhaha"}}
+	containers := []types.Container{{ID: "brewhaha"}}
 	cases := []string{
 		"ID",
 		"Names",
@@ -390,7 +390,7 @@ func TestContainerBackCompat(t *testing.T) {
 	for _, c := range cases {
 		ctx := Context{Format: Format(fmt.Sprintf("{{ .%s }}", c)), Output: buf}
 		if err := ContainerWrite(ctx, containers); err != nil {
-			t.Log("could not render template for field '%s': %v", c, err)
+			t.Logf("could not render template for field '%s': %v", c, err)
 			t.Fail()
 		}
 		buf.Reset()

@@ -257,6 +257,7 @@ Create a container
            "StopSignal": "SIGTERM",
            "HostConfig": {
              "Binds": ["/tmp:/tmp"],
+             "Tmpfs": { "/run": "rw,noexec,nosuid,size=65536k" },
              "Links": ["redis3:redis"],
              "Memory": 0,
              "MemorySwap": 0,
@@ -364,6 +365,8 @@ Create a container
              _absolute_ path.
            + `volume-name:container-dest:ro` to mount the volume read-only
              inside the container.  `container-dest` must be an _absolute_ path.
+    -   **Tmpfs** – A map of container directories which should be replaced by tmpfs mounts, and their corresponding
+          mount options. A JSON object in the form `{ "/run": "rw,noexec,nosuid,size=65536k" }`.
     -   **Links** - A list of links for the container. Each link entry should be
           in the form of `container_name:alias`.
     -   **Memory** - Memory limit in bytes.
@@ -1349,7 +1352,7 @@ Remove the container `id` from the filesystem
 
 **Example request**:
 
-    DELETE /containers/16253994b7c4?v=1 HTTP/1.1
+    DELETE /v1.22/containers/16253994b7c4?v=1 HTTP/1.1
 
 **Example response**:
 
@@ -1494,7 +1497,7 @@ Upload a tar archive to be extracted to a path in the filesystem of container
 
 **Example request**:
 
-    PUT /containers/8cce319429b2/archive?path=/vol1 HTTP/1.1
+    PUT /v1.22/containers/8cce319429b2/archive?path=/vol1 HTTP/1.1
     Content-Type: application/x-tar
 
     {% raw %}
@@ -2049,7 +2052,7 @@ Remove the image `name` from the filesystem
 
 **Example request**:
 
-    DELETE /images/test HTTP/1.1
+    DELETE /v1.22/images/test HTTP/1.1
 
 **Example response**:
 
@@ -2394,7 +2397,7 @@ Docker networks report the following events:
 
 **Example request**:
 
-    GET /events?since=1374067924
+    GET /v1.22/events?since=1374067924
 
 **Example response**:
 
@@ -2586,7 +2589,7 @@ See the [image tarball format](#image-tarball-format) for more details.
 
 **Example request**
 
-    GET /images/ubuntu/get
+    GET /v1.22/images/ubuntu/get
 
 **Example response**:
 
@@ -2615,7 +2618,7 @@ See the [image tarball format](#image-tarball-format) for more details.
 
 **Example request**
 
-    GET /images/get?names=myname%2Fmyapp%3Alatest&names=busybox
+    GET /v1.22/images/get?names=myname%2Fmyapp%3Alatest&names=busybox
 
 **Example response**:
 
@@ -2638,7 +2641,7 @@ See the [image tarball format](#image-tarball-format) for more details.
 
 **Example request**
 
-    POST /images/load
+    POST /v1.22/images/load
     Content-Type: application/x-tar
 
     Tarball in body
@@ -2947,7 +2950,7 @@ Instruct the driver to remove the volume (`name`).
 
 **Example request**:
 
-    DELETE /volumes/tardis HTTP/1.1
+    DELETE /v1.22/volumes/tardis HTTP/1.1
 
 **Example response**:
 
@@ -3247,7 +3250,7 @@ Instruct the driver to remove the network (`id`).
 
 **Example request**:
 
-    DELETE /networks/22be93d5babb089c5aab8dbc369042fad48ff791584ca2da2100db837a1c7c30 HTTP/1.1
+    DELETE /v1.22/networks/22be93d5babb089c5aab8dbc369042fad48ff791584ca2da2100db837a1c7c30 HTTP/1.1
 
 **Example response**:
 

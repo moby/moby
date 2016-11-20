@@ -1865,6 +1865,10 @@ func (s *DockerSuite) TestBuildWindowsWorkdirProcessing(c *check.C) {
 func (s *DockerSuite) TestBuildWindowsAddCopyPathProcessing(c *check.C) {
 	testRequires(c, DaemonIsWindows)
 	name := "testbuildwindowsaddcopypathprocessing"
+	// TODO Windows (@jhowardmsft). Needs a follow-up PR to 22181 to
+	// support backslash such as .\\ being equivalent to ./ and c:\\ being
+	// equivalent to c:/. This is not currently (nor ever has been) supported
+	// by docker on the Windows platform.
 	dockerfile := `
 		FROM busybox
 			# No trailing slash on COPY/ADD
@@ -1874,8 +1878,8 @@ func (s *DockerSuite) TestBuildWindowsAddCopyPathProcessing(c *check.C) {
 			WORKDIR /wc2
 			ADD wc2 c:/wc2
 			WORKDIR c:/
-			RUN sh -c "[ $(cat c:/wc1/wc1) = 'hellowc1' ]"
-			RUN sh -c "[ $(cat c:/wc2/wc2) = 'worldwc2' ]"
+			RUN sh -c "[ $(cat c:/wc1) = 'hellowc1' ]"
+			RUN sh -c "[ $(cat c:/wc2) = 'worldwc2' ]"
 
 			# Trailing slash on COPY/ADD, Windows-style path.
 			WORKDIR /wd1
@@ -7172,31 +7176,6 @@ RUN echo vegeta
 	c.Assert(out, checker.Contains, "Step 3/3 : RUN echo vegeta")
 }
 
-// Verifies if COPY file . when WORKDIR is set to a non-existing directory,
-// the directory is created and the file is copied into the directory,
-// as opposed to the file being copied as a file with the name of the
-// directory. Fix for 27545 (found on Windows, but regression good for Linux too)
-func (s *DockerSuite) TestBuildCopyFileDotWithWorkdir(c *check.C) {
-	name := "testbuildcopyfiledotwithworkdir"
-
-	ctx, err := fakeContext(`FROM busybox
-WORKDIR /foo
-COPY file .
-RUN ["cat", "/foo/file"]
-`,
-		map[string]string{})
-	if err != nil {
-		c.Fatal(err)
-	}
-	defer ctx.Close()
-	if err := ctx.Add("file", "content"); err != nil {
-		c.Fatal(err)
-	}
-	if _, err = buildImageFromContext(name, ctx, true); err != nil {
-		c.Fatal(err)
-	}
-}
-
 func (s *DockerSuite) TestBuildSquashParent(c *check.C) {
 	testRequires(c, ExperimentalDaemon)
 	dockerFile := `
@@ -7286,4 +7265,21 @@ func (s *DockerSuite) TestBuildOpaqueDirectory(c *check.C) {
 	// was not handled correctly
 	_, err := buildImage("testopaquedirectory", dockerFile, false)
 	c.Assert(err, checker.IsNil)
+}
+
+// Windows test for USER in dockerfile
+func (s *DockerSuite) TestBuildWindowsUser(c *check.C) {
+	testRequires(c, DaemonIsWindows)
+	name := "testbuildwindowsuser"
+	_, out, err := buildImageWithOut(name,
+		`FROM `+WindowsBaseImage+`
+		RUN net user user /add
+		USER user
+		RUN set username
+		`,
+		true)
+	if err != nil {
+		c.Fatal(err)
+	}
+	c.Assert(strings.ToLower(out), checker.Contains, "username=user")
 }

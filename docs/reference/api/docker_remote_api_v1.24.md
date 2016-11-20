@@ -290,6 +290,7 @@ Create a container
            "StopSignal": "SIGTERM",
            "HostConfig": {
              "Binds": ["/tmp:/tmp"],
+             "Tmpfs": { "/run": "rw,noexec,nosuid,size=65536k" },
              "Links": ["redis3:redis"],
              "Memory": 0,
              "MemorySwap": 0,
@@ -404,6 +405,8 @@ Create a container
              _absolute_ path.
            + `volume-name:container-dest:ro` to mount the volume read-only
              inside the container.  `container-dest` must be an _absolute_ path.
+    -   **Tmpfs** – A map of container directories which should be replaced by tmpfs mounts, and their corresponding
+          mount options. A JSON object in the form `{ "/run": "rw,noexec,nosuid,size=65536k" }`.
     -   **Links** - A list of links for the container. Each link entry should be
           in the form of `container_name:alias`.
     -   **Memory** - Memory limit in bytes.
@@ -1411,7 +1414,7 @@ Remove the container `id` from the filesystem
 
 **Example request**:
 
-    DELETE /containers/16253994b7c4?v=1 HTTP/1.1
+    DELETE /v1.24/containers/16253994b7c4?v=1 HTTP/1.1
 
 **Example response**:
 
@@ -1524,7 +1527,7 @@ Upload a tar archive to be extracted to a path in the filesystem of container
 
 **Example request**:
 
-    PUT /containers/8cce319429b2/archive?path=/vol1 HTTP/1.1
+    PUT /v1.24/containers/8cce319429b2/archive?path=/vol1 HTTP/1.1
     Content-Type: application/x-tar
 
     {% raw %}
@@ -2088,7 +2091,7 @@ Remove the image `name` from the filesystem
 
 **Example request**:
 
-    DELETE /images/test HTTP/1.1
+    DELETE /v1.24/images/test HTTP/1.1
 
 **Example response**:
 
@@ -2453,13 +2456,13 @@ Docker daemon report the following event:
 
 **Example request**:
 
-    GET /events?since=1374067924
+    GET /v1.24/events?since=1374067924
 
 **Example response**:
 
     HTTP/1.1 200 OK
     Content-Type: application/json
-    Server: Docker/1.11.0 (linux)
+    Server: Docker/1.12.0 (linux)
     Date: Fri, 29 Apr 2016 15:18:06 GMT
     Transfer-Encoding: chunked
 
@@ -2646,7 +2649,7 @@ See the [image tarball format](#image-tarball-format) for more details.
 
 **Example request**
 
-    GET /images/ubuntu/get
+    GET /v1.24/images/ubuntu/get
 
 **Example response**:
 
@@ -2675,7 +2678,7 @@ See the [image tarball format](#image-tarball-format) for more details.
 
 **Example request**
 
-    GET /images/get?names=myname%2Fmyapp%3Alatest&names=busybox
+    GET /v1.24/images/get?names=myname%2Fmyapp%3Alatest&names=busybox
 
 **Example response**:
 
@@ -2698,7 +2701,7 @@ See the [image tarball format](#image-tarball-format) for more details.
 
 **Example request**
 
-    POST /images/load
+    POST /v1.24/images/load
     Content-Type: application/x-tar
 
     Tarball in body
@@ -3030,7 +3033,7 @@ Return low-level information on the volume `name`
 
 **Example request**:
 
-    GET /volumes/tardis
+    GET /v1.24/volumes/tardis
 
 **Example response**:
 
@@ -3082,7 +3085,7 @@ Instruct the driver to remove the volume (`name`).
 
 **Example request**:
 
-    DELETE /volumes/tardis HTTP/1.1
+    DELETE /v1.24/volumes/tardis HTTP/1.1
 
 **Example response**:
 
@@ -3414,7 +3417,7 @@ Instruct the driver to remove the network (`id`).
 
 **Example request**:
 
-    DELETE /networks/22be93d5babb089c5aab8dbc369042fad48ff791584ca2da2100db837a1c7c30 HTTP/1.1
+    DELETE /v1.24/networks/22be93d5babb089c5aab8dbc369042fad48ff791584ca2da2100db837a1c7c30 HTTP/1.1
 
 **Example response**:
 
@@ -3818,7 +3821,7 @@ Removes a plugin
 **Example request**:
 
 ```
-DELETE /plugins/tiborvass/no-remove:latest HTTP/1.1
+DELETE /v1.24/plugins/tiborvass/no-remove:latest HTTP/1.1
 ```
 
 The `:latest` tag is optional, and is used as default if omitted.
@@ -3912,7 +3915,7 @@ List nodes
             "MemoryBytes": 8272408576
           },
           "Engine": {
-            "EngineVersion": "1.12.0-dev",
+            "EngineVersion": "1.12.0",
             "Labels": {
                 "foo": "bar",
             }
@@ -3965,7 +3968,7 @@ List nodes
 ### Inspect a node
 
 
-`GET /nodes/<id>`
+`GET /nodes/(id or name)`
 
 Return low-level information on the node `id`
 
@@ -4004,7 +4007,7 @@ Return low-level information on the node `id`
           "MemoryBytes": 8272408576
         },
         "Engine": {
-          "EngineVersion": "1.12.0-dev",
+          "EngineVersion": "1.12.0",
           "Labels": {
               "foo": "bar",
           }
@@ -4047,13 +4050,13 @@ Return low-level information on the node `id`
 ### Remove a node
 
 
-`DELETE /nodes/(id)`
+`DELETE /nodes/(id or name)`
 
-Remove a node [`id`] from the swarm.
+Remove a node from the swarm.
 
 **Example request**:
 
-    DELETE /nodes/24ifsmvkjbyhk HTTP/1.1
+    DELETE /v1.24/nodes/24ifsmvkjbyhk HTTP/1.1
 
 **Example response**:
 
@@ -4077,7 +4080,7 @@ Remove a node [`id`] from the swarm.
 
 `POST /nodes/(id)/update`
 
-Update the node `id`.
+Update a node.
 
 The payload of the `POST` request is the new `NodeSpec` and
 overrides the current `NodeSpec` for the specified node.
@@ -4693,7 +4696,7 @@ Stop and remove the service `id`
 
 **Example request**:
 
-    DELETE /services/16253994b7c4 HTTP/1.1
+    DELETE /v1.24/services/16253994b7c4 HTTP/1.1
 
 **Example response**:
 

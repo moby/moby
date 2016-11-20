@@ -263,6 +263,9 @@ func (ctx *serviceInspectContext) HasResources() bool {
 }
 
 func (ctx *serviceInspectContext) HasResourceReservations() bool {
+	if ctx.Service.Spec.TaskTemplate.Resources == nil || ctx.Service.Spec.TaskTemplate.Resources.Reservations == nil {
+		return false
+	}
 	return ctx.Service.Spec.TaskTemplate.Resources.Reservations.NanoCPUs > 0 || ctx.Service.Spec.TaskTemplate.Resources.Reservations.MemoryBytes > 0
 }
 
@@ -281,6 +284,9 @@ func (ctx *serviceInspectContext) ResourceReservationMemory() string {
 }
 
 func (ctx *serviceInspectContext) HasResourceLimits() bool {
+	if ctx.Service.Spec.TaskTemplate.Resources == nil || ctx.Service.Spec.TaskTemplate.Resources.Limits == nil {
+		return false
+	}
 	return ctx.Service.Spec.TaskTemplate.Resources.Limits.NanoCPUs > 0 || ctx.Service.Spec.TaskTemplate.Resources.Limits.MemoryBytes > 0
 }
 

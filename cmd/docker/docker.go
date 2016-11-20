@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
 
@@ -34,25 +35,35 @@ func newDockerCommand(dockerCli *command.DockerCli) *cobra.Command {
 				showVersion()
 				return nil
 			}
-			cmd.SetOutput(dockerCli.Err())
-			cmd.HelpFunc()(cmd, args)
-			return nil
+			return dockerCli.ShowHelp(cmd, args)
 		},
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+			// daemon command is special, we redirect directly to another binary
+			if cmd.Name() == "daemon" {
+				return nil
+			}
 			// flags must be the top-level command flags, not cmd.Flags()
 			opts.Common.SetDefaultOptions(flags)
 			dockerPreRun(opts)
-			return dockerCli.Initialize(opts)
+			if err := dockerCli.Initialize(opts); err != nil {
+				return err
+			}
+			return isSupported(cmd, dockerCli.Client().ClientVersion(), dockerCli.HasExperimental())
 		},
 	}
 	cli.SetupRootCommand(cmd)
 
 	cmd.SetHelpFunc(func(ccmd *cobra.Command, args []string) {
-		if dockerCli.Client() == nil {
+		if dockerCli.Client() == nil { // when using --help, PersistenPreRun is not called, so initialization is needed.
 			// flags must be the top-level command flags, not cmd.Flags()
 			opts.Common.SetDefaultOptions(flags)
 			dockerPreRun(opts)
 			dockerCli.Initialize(opts)
+		}
+
+		if err := isSupported(ccmd, dockerCli.Client().ClientVersion(), dockerCli.HasExperimental()); err != nil {
+			ccmd.Println(err)
+			return
 		}
 
 		hideUnsupportedFeatures(ccmd, dockerCli.Client().ClientVersion(), dockerCli.HasExperimental())
@@ -79,7 +90,7 @@ func noArgs(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 	return fmt.Errorf(
-		"docker: '%s' is not a docker command.\nSee 'docker --help'.", args[0])
+		"docker: '%s' is not a docker command.\nSee 'docker --help'", args[0])
 }
 
 func main() {
@@ -152,4 +163,18 @@ func hideUnsupportedFeatures(cmd *cobra.Command, clientVersion string, hasExperi
 			subcmd.Hidden = true
 		}
 	}
+}
+
+func isSupported(cmd *cobra.Command, clientVersion string, hasExperimental bool) error {
+	if !hasExperimental {
+		if _, ok := cmd.Tags["experimental"]; ok {
+			return errors.New("only supported with experimental daemon")
+		}
+	}
+
+	if cmdVersion, ok := cmd.Tags["version"]; ok && versions.LessThan(clientVersion, cmdVersion) {
+		return fmt.Errorf("only supported with daemon version >= %s", cmdVersion)
+	}
+
+	return nil
 }

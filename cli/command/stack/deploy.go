@@ -408,14 +408,19 @@ func deployServices(
 			if sendAuth {
 				updateOpts.EncodedRegistryAuth = encodedAuth
 			}
-			if err := apiClient.ServiceUpdate(
+			response, err := apiClient.ServiceUpdate(
 				ctx,
 				service.ID,
 				service.Version,
 				serviceSpec,
 				updateOpts,
-			); err != nil {
+			)
+			if err != nil {
 				return err
+			}
+
+			for _, warning := range response.Warnings {
+				fmt.Fprintln(dockerCli.Err(), warning)
 			}
 		} else {
 			fmt.Fprintf(out, "Creating service %s\n", name)
@@ -526,7 +531,7 @@ func convertService(
 func convertExtraHosts(extraHosts map[string]string) []string {
 	hosts := []string{}
 	for host, ip := range extraHosts {
-		hosts = append(hosts, fmt.Sprintf("%s %s", host, ip))
+		hosts = append(hosts, fmt.Sprintf("%s %s", ip, host))
 	}
 	return hosts
 }

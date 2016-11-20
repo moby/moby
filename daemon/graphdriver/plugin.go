@@ -3,6 +3,7 @@ package graphdriver
 import (
 	"fmt"
 	"io"
+	"path/filepath"
 
 	"github.com/docker/docker/pkg/plugingetter"
 )
@@ -26,5 +27,5 @@ func lookupPlugin(name, home string, opts []string, pg plugingetter.PluginGetter
 
 func newPluginDriver(name, home string, opts []string, c pluginClient) (Driver, error) {
 	proxy := &graphDriverProxy{name, c}
-	return proxy, proxy.Init(home, opts)
+	return proxy, proxy.Init(filepath.Join(home, name), opts)
 }

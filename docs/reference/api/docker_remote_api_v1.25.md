@@ -295,6 +295,7 @@ Create a container
            "StopTimeout": 10,
            "HostConfig": {
              "Binds": ["/tmp:/tmp"],
+             "Tmpfs": { "/run": "rw,noexec,nosuid,size=65536k" },
              "Links": ["redis3:redis"],
              "Memory": 0,
              "MemorySwap": 0,
@@ -418,6 +419,8 @@ Create a container
              _absolute_ path.
            + `volume-name:container-dest:ro` to mount the volume read-only
              inside the container.  `container-dest` must be an _absolute_ path.
+    -   **Tmpfs** – A map of container directories which should be replaced by tmpfs mounts, and their corresponding
+          mount options. A JSON object in the form `{ "/run": "rw,noexec,nosuid,size=65536k" }`.
     -   **Links** - A list of links for the container. Each link entry should be
           in the form of `container_name:alias`.
     -   **Memory** - Memory limit in bytes.
@@ -1467,7 +1470,7 @@ Remove the container `id` from the filesystem
 
 **Example request**:
 
-    DELETE /containers/16253994b7c4?v=1 HTTP/1.1
+    DELETE /v1.25/containers/16253994b7c4?v=1 HTTP/1.1
 
 **Example response**:
 
@@ -1580,7 +1583,7 @@ Upload a tar archive to be extracted to a path in the filesystem of container
 
 **Example request**:
 
-    PUT /containers/8cce319429b2/archive?path=/vol1 HTTP/1.1
+    PUT /v1.25/containers/8cce319429b2/archive?path=/vol1 HTTP/1.1
     Content-Type: application/x-tar
 
     {% raw %}
@@ -2272,7 +2275,7 @@ Remove the image `name` from the filesystem
 
 **Example request**:
 
-    DELETE /images/test HTTP/1.1
+    DELETE /v1.25/images/test HTTP/1.1
 
 **Example response**:
 
@@ -2610,7 +2613,7 @@ Display system-wide information
         "Name": "WIN-V0V70C0LU5P",
         "Labels": null,
         "ExperimentalBuild": false,
-        "ServerVersion": "1.13.0-dev",
+        "ServerVersion": "1.13.0",
         "ClusterStore": "",
         "ClusterAdvertise": "",
         "SecurityOptions": null,
@@ -2898,13 +2901,13 @@ Docker daemon report the following event:
 
 **Example request**:
 
-    GET /events?since=1374067924
+    GET /v1.25/events?since=1374067924
 
 **Example response**:
 
     HTTP/1.1 200 OK
     Content-Type: application/json
-    Server: Docker/1.11.0 (linux)
+    Server: Docker/1.13.0 (linux)
     Date: Fri, 29 Apr 2016 15:18:06 GMT
     Transfer-Encoding: chunked
 
@@ -3091,7 +3094,7 @@ See the [image tarball format](#image-tarball-format) for more details.
 
 **Example request**
 
-    GET /images/ubuntu/get
+    GET /v1.25/images/ubuntu/get
 
 **Example response**:
 
@@ -3120,7 +3123,7 @@ See the [image tarball format](#image-tarball-format) for more details.
 
 **Example request**
 
-    GET /images/get?names=myname%2Fmyapp%3Alatest&names=busybox
+    GET /v1.25/images/get?names=myname%2Fmyapp%3Alatest&names=busybox
 
 **Example response**:
 
@@ -3143,7 +3146,7 @@ See the [image tarball format](#image-tarball-format) for more details.
 
 **Example request**
 
-    POST /images/load
+    POST /v1.25/images/load
     Content-Type: application/x-tar
 
     Tarball in body
@@ -3490,7 +3493,7 @@ Return low-level information on the volume `name`
 
 **Example request**:
 
-    GET /volumes/tardis
+    GET /v1.25/volumes/tardis
 
 **Example response**:
 
@@ -3547,7 +3550,7 @@ Instruct the driver to remove the volume (`name`).
 
 **Example request**:
 
-    DELETE /volumes/tardis HTTP/1.1
+    DELETE /v1.25/volumes/tardis HTTP/1.1
 
 **Example response**:
 
@@ -3920,7 +3923,7 @@ Instruct the driver to remove the network (`id`).
 
 **Example request**:
 
-    DELETE /networks/22be93d5babb089c5aab8dbc369042fad48ff791584ca2da2100db837a1c7c30 HTTP/1.1
+    DELETE /v1.25/networks/22be93d5babb089c5aab8dbc369042fad48ff791584ca2da2100db837a1c7c30 HTTP/1.1
 
 **Example response**:
 
@@ -4296,7 +4299,7 @@ Content-Type: application/json
 **Example request**:
 
 
-    POST /plugins/tiborvass/no-remove/set
+    POST /v1.25/plugins/tiborvass/no-remove/set
     Content-Type: application/json
 
     ["DEBUG=1"]
@@ -4375,7 +4378,7 @@ Removes a plugin
 **Example request**:
 
 ```
-DELETE /plugins/tiborvass/no-remove:latest HTTP/1.1
+DELETE /v1.25/plugins/tiborvass/no-remove:latest HTTP/1.1
 ```
 
 The `:latest` tag is optional, and is used as default if omitted.
@@ -4510,7 +4513,7 @@ List nodes
             "MemoryBytes": 8272408576
           },
           "Engine": {
-            "EngineVersion": "1.12.0-dev",
+            "EngineVersion": "1.13.0",
             "Labels": {
                 "foo": "bar",
             }
@@ -4564,7 +4567,7 @@ List nodes
 ### Inspect a node
 
 
-`GET /nodes/<id>`
+`GET /nodes/(id or name)`
 
 Return low-level information on the node `id`
 
@@ -4603,7 +4606,7 @@ Return low-level information on the node `id`
           "MemoryBytes": 8272408576
         },
         "Engine": {
-          "EngineVersion": "1.12.0-dev",
+          "EngineVersion": "1.13.0",
           "Labels": {
               "foo": "bar",
           }
@@ -4647,13 +4650,13 @@ Return low-level information on the node `id`
 ### Remove a node
 
 
-`DELETE /nodes/(id)`
+`DELETE /nodes/(id or name)`
 
-Remove a node [`id`] from the swarm.
+Remove a node from the swarm.
 
 **Example request**:
 
-    DELETE /nodes/24ifsmvkjbyhk HTTP/1.1
+    DELETE /v1.25/nodes/24ifsmvkjbyhk HTTP/1.1
 
 **Example response**:
 
@@ -4675,9 +4678,9 @@ Remove a node [`id`] from the swarm.
 ### Update a node
 
 
-`POST /nodes/(id)/update`
+`POST /nodes/(id or name)/update`
 
-Update the node `id`.
+Update a node.
 
 The payload of the `POST` request is the new `NodeSpec` and
 overrides the current `NodeSpec` for the specified node.
@@ -4813,7 +4816,7 @@ Initialize a new swarm. The body of the HTTP response includes the node ID.
     Content-Length: 28
     Content-Type: application/json
     Date: Thu, 01 Sep 2016 21:49:13 GMT
-    Server: Docker/1.12.0 (linux)
+    Server: Docker/1.13.0 (linux)
 
     "7v2t30z9blmxuhnyo6s4cpenp"
 
@@ -4821,7 +4824,7 @@ Initialize a new swarm. The body of the HTTP response includes the node ID.
 
 - **200** – no error
 - **400** – bad parameter
-- **406** – node is already part of a swarm
+- **503** – node is already part of a swarm
 
 JSON Parameters:
 
@@ -4890,7 +4893,7 @@ Join an existing swarm
 
 - **200** – no error
 - **400** – bad parameter
-- **406** – node is already part of a swarm
+- **503** – node is already part of a swarm
 
 JSON Parameters:
 
@@ -4928,7 +4931,7 @@ Leave a swarm
 **Status codes**:
 
 - **200** – no error
-- **406** – node is not part of a swarm
+- **503** – node is not part of a swarm
 
 ### Retrieve the swarm's unlock key
 
@@ -5024,7 +5027,7 @@ Update a swarm
 
 - **200** – no error
 - **400** – bad parameter
-- **406** – node is not part of a swarm
+- **503** – node is not part of a swarm
 
 JSON Parameters:
 
@@ -5262,14 +5265,15 @@ image](#create-an-image) section for more details.
     Content-Type: application/json
 
     {
-      "ID":"ak7w3gjqoa3kuz8xcpnyy0pvl"
+      "ID": "ak7w3gjqoa3kuz8xcpnyy0pvl",
+      "Warnings": ["unable to pin image doesnotexist:latest to digest: image library/doesnotexist:latest not found"]
     }
 
 **Status codes**:
 
 - **201** – no error
-- **406** – server error or node is not part of a swarm
 - **409** – name conflicts with an existing object
+- **503** – server error or node is not part of a swarm
 
 **JSON Parameters**:
 
@@ -5367,7 +5371,7 @@ Stop and remove the service `id`
 
 **Example request**:
 
-    DELETE /services/16253994b7c4 HTTP/1.1
+    DELETE /v1.25/services/16253994b7c4 HTTP/1.1
 
 **Example response**:
 
@@ -5628,6 +5632,16 @@ image](#create-an-image) section for more details.
 -   **404** – no such service
 -   **500** – server error
 
+**Example response**:
+
+    HTTP/1.1 200 OK
+    Content-Type: application/json
+
+    {
+      "Warnings": ["unable to pin image doesnotexist:latest to digest: image library/doesnotexist:latest not found"]
+    }
+
+
 ### Get service logs
 
 `GET /services/(id or name)/logs`
@@ -5639,7 +5653,7 @@ Get `stdout` and `stderr` logs from the service ``id``
 
 **Example request**:
 
-     GET /services/4fa6e0f0c678/logs?stderr=1&stdout=1&timestamps=1&follow=1&tail=10&since=1428990821 HTTP/1.1
+     GET /v1.25/services/4fa6e0f0c678/logs?stderr=1&stdout=1&timestamps=1&follow=1&tail=10&since=1428990821 HTTP/1.1
 
 **Example response**:
 
@@ -5988,7 +6002,7 @@ List secrets
 
 **Example request**:
 
-    GET /secrets HTTP/1.1
+    GET /v1.25/secrets HTTP/1.1
 
 **Example response**:
 
@@ -6026,7 +6040,7 @@ Create a secret
 
 **Example request**:
 
-    POST /secrets/create HTTP/1.1
+    POST /v1.25/secrets/create HTTP/1.1
     Content-Type: application/json
 
     {
@@ -6049,8 +6063,8 @@ Create a secret
 **Status codes**:
 
 - **201** – no error
-- **406** – server error or node is not part of a swarm
 - **409** – name conflicts with an existing object
+- **503** – server error or node is not part of a swarm
 
 **JSON Parameters**:
 
@@ -6066,7 +6080,7 @@ Get details on the secret `id`
 
 **Example request**:
 
-    GET /secrets/ktnbjxoalbkvbvedmg1urrz8h HTTP/1.1
+    GET /v1.25/secrets/ktnbjxoalbkvbvedmg1urrz8h HTTP/1.1
 
 **Example response**:
 
@@ -6099,7 +6113,7 @@ Remove the secret `id` from the secret store
 
 **Example request**:
 
-    DELETE /secrets/ktnbjxoalbkvbvedmg1urrz8h HTTP/1.1
+    DELETE /v1.25/secrets/ktnbjxoalbkvbvedmg1urrz8h HTTP/1.1
 
 **Example response**:
 

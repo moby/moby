@@ -3,13 +3,13 @@ package image
 import (
 	"fmt"
 	"io"
-	"os"
 
 	"golang.org/x/net/context"
 
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cli/command"
 	"github.com/docker/docker/pkg/jsonmessage"
+	"github.com/docker/docker/pkg/system"
 	"github.com/spf13/cobra"
 )
 
@@ -43,7 +43,9 @@ func runLoad(dockerCli *command.DockerCli, opts loadOptions) error {
 
 	var input io.Reader = dockerCli.In()
 	if opts.input != "" {
-		file, err := os.Open(opts.input)
+		// We use system.OpenSequential to use sequential file access on Windows, avoiding
+		// depleting the standby list un-necessarily. On Linux, this equates to a regular os.Open.
+		file, err := system.OpenSequential(opts.input)
 		if err != nil {
 			return err
 		}
