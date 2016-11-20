@@ -1708,6 +1708,7 @@ _docker_daemon() {
 		--shutdown-timeout
 		--storage-driver -s
 		--storage-opt
+		--userland-proxy-path
 		--userns-remap
 	"
 
@@ -1754,7 +1755,7 @@ _docker_daemon() {
 			__docker_nospace
 			return
 			;;
-		--config-file|--containerd|--init-path|--pidfile|-p|--tlscacert|--tlscert|--tlskey)
+		--config-file|--containerd|--init-path|--pidfile|-p|--tlscacert|--tlscert|--tlskey|--userland-proxy-path)
 			_filedir
 			return
 			;;
