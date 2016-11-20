@@ -82,41 +82,46 @@ func ruleHandle(rule *Rule, req *nl.NetlinkRequest) error {
 		req.AddData(rtAttrs[i])
 	}
 
-	var (
-		b      = make([]byte, 4)
-		native = nl.NativeEndian()
-	)
+	native := nl.NativeEndian()
 
 	if rule.Priority >= 0 {
+		b := make([]byte, 4)
 		native.PutUint32(b, uint32(rule.Priority))
 		req.AddData(nl.NewRtAttr(nl.FRA_PRIORITY, b))
 	}
 	if rule.Mark >= 0 {
+		b := make([]byte, 4)
 		native.PutUint32(b, uint32(rule.Mark))
 		req.AddData(nl.NewRtAttr(nl.FRA_FWMARK, b))
 	}
 	if rule.Mask >= 0 {
+		b := make([]byte, 4)
 		native.PutUint32(b, uint32(rule.Mask))
 		req.AddData(nl.NewRtAttr(nl.FRA_FWMASK, b))
 	}
 	if rule.Flow >= 0 {
+		b := make([]byte, 4)
 		native.PutUint32(b, uint32(rule.Flow))
 		req.AddData(nl.NewRtAttr(nl.FRA_FLOW, b))
 	}
 	if rule.TunID > 0 {
+		b := make([]byte, 4)
 		native.PutUint32(b, uint32(rule.TunID))
 		req.AddData(nl.NewRtAttr(nl.FRA_TUN_ID, b))
 	}
 	if rule.Table >= 256 {
+		b := make([]byte, 4)
 		native.PutUint32(b, uint32(rule.Table))
 		req.AddData(nl.NewRtAttr(nl.FRA_TABLE, b))
 	}
 	if msg.Table > 0 {
 		if rule.SuppressPrefixlen >= 0 {
+			b := make([]byte, 4)
 			native.PutUint32(b, uint32(rule.SuppressPrefixlen))
 			req.AddData(nl.NewRtAttr(nl.FRA_SUPPRESS_PREFIXLEN, b))
 		}
 		if rule.SuppressIfgroup >= 0 {
+			b := make([]byte, 4)
 			native.PutUint32(b, uint32(rule.SuppressIfgroup))
 			req.AddData(nl.NewRtAttr(nl.FRA_SUPPRESS_IFGROUP, b))
 		}
@@ -129,6 +134,7 @@ func ruleHandle(rule *Rule, req *nl.NetlinkRequest) error {
 	}
 	if rule.Goto >= 0 {
 		msg.Type = nl.FR_ACT_NOP
+		b := make([]byte, 4)
 		native.PutUint32(b, uint32(rule.Goto))
 		req.AddData(nl.NewRtAttr(nl.FRA_GOTO, b))
 	}
