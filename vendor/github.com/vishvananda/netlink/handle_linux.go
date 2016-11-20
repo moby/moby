@@ -1,7 +1,9 @@
 package netlink
 
 import (
+	"fmt"
 	"syscall"
+	"time"
 
 	"github.com/vishvananda/netlink/nl"
 	"github.com/vishvananda/netns"
@@ -31,6 +33,29 @@ func (h *Handle) SupportsNetlinkFamily(nlFamily int) bool {
 // supports will be automatically added.
 func NewHandle(nlFamilies ...int) (*Handle, error) {
 	return newHandle(netns.None(), netns.None(), nlFamilies...)
+}
+
+// SetSocketTimeout sets the send and receive timeout for each socket in the
+// netlink handle. Although the socket timeout has granularity of one
+// microsecond, the effective granularity is floored by the kernel timer tick,
+// which default value is four milliseconds.
+func (h *Handle) SetSocketTimeout(to time.Duration) error {
+	if to < time.Microsecond {
+		return fmt.Errorf("invalid timeout, minimul value is %s", time.Microsecond)
+	}
+	tv := syscall.NsecToTimeval(to.Nanoseconds())
+	for _, sh := range h.sockets {
+		fd := sh.Socket.GetFd()
+		err := syscall.SetsockoptTimeval(fd, syscall.SOL_SOCKET, syscall.SO_RCVTIMEO, &tv)
+		if err != nil {
+			return err
+		}
+		err = syscall.SetsockoptTimeval(fd, syscall.SOL_SOCKET, syscall.SO_SNDTIMEO, &tv)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // NewHandle returns a netlink handle on the network namespace
