@@ -3,6 +3,10 @@
 package main
 
 import (
+	"io/ioutil"
+	"os"
+	"strings"
+
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/pkg/integration/checker"
 	"github.com/go-check/check"
@@ -103,4 +107,34 @@ func (s *DockerSwarmSuite) TestSecretCreateResolve(c *check.C) {
 	c.Assert(out, checker.Not(checker.Contains), name)
 	c.Assert(out, checker.Not(checker.Contains), id)
 	c.Assert(out, checker.Not(checker.Contains), fake)
+}
+
+func (s *DockerSwarmSuite) TestSecretCreateWithFile(c *check.C) {
+	d := s.AddDaemon(c, true, true)
+
+	testFile, err := ioutil.TempFile("", "secretCreateTest")
+	c.Assert(err, checker.IsNil, check.Commentf("failed to create temporary file"))
+	defer os.Remove(testFile.Name())
+
+	testData := "TESTINGDATA"
+	_, err = testFile.Write([]byte(testData))
+	c.Assert(err, checker.IsNil, check.Commentf("failed to write to temporary file"))
+
+	testName := "test_secret"
+	out, err := d.Cmd("secret", "create", "--file", testFile.Name(), testName)
+	c.Assert(err, checker.IsNil)
+	c.Assert(strings.TrimSpace(out), checker.Not(checker.Equals), "", check.Commentf(out))
+
+	id := strings.TrimSpace(out)
+	secret := d.GetSecret(c, id)
+	c.Assert(secret.Spec.Name, checker.Equals, testName)
+
+	testName = "test_secret_2"
+	out, err = d.Cmd("secret", "create", testName, "-f", testFile.Name())
+	c.Assert(err, checker.IsNil)
+	c.Assert(strings.TrimSpace(out), checker.Not(checker.Equals), "", check.Commentf(out))
+
+	id = strings.TrimSpace(out)
+	secret = d.GetSecret(c, id)
+	c.Assert(secret.Spec.Name, checker.Equals, testName)
 }
