@@ -16,15 +16,17 @@ keywords: ["secret, create"]
 # secret create
 
 ```Markdown
-Usage:  docker secret create [OPTIONS] SECRET
+Usage:	docker secret create [OPTIONS] SECRET
 
-Create a secret using stdin as content
+Create a secret from a file or STDIN as content
+
 Options:
-      --help         Print usage
-  -l, --label list   Secret labels (default [])
+  -f, --file string   Read from a file or STDIN ('-')
+      --help          Print usage
+  -l, --label list    Secret labels (default [])
 ```
 
-Creates a secret using standard input for the secret content. You must run this
+Creates a secret using standard input or from a file for the secret content. You must run this
 command on a manager node.
 
 ## Examples
@@ -32,7 +34,18 @@ command on a manager node.
 ### Create a secret
 
 ```bash
-$ cat secret.json | docker secret create secret.json
+$ cat secret.json | docker secret create -f - secret.json
+mhv17xfe3gh6xc4rij5orpfds
+
+$ docker secret ls
+ID                          NAME                    CREATED                                   UPDATED                                   SIZE
+mhv17xfe3gh6xc4rij5orpfds   secret.json             2016-10-27 23:25:43.909181089 +0000 UTC   2016-10-27 23:25:43.909181089 +0000 UTC   1679
+```
+
+### Create a secret with a file
+
+```bash
+$ docker secret create --file secret.in secret.json
 mhv17xfe3gh6xc4rij5orpfds
 
 $ docker secret ls
@@ -43,7 +56,7 @@ mhv17xfe3gh6xc4rij5orpfds   secret.json             2016-10-27 23:25:43.90918108
 ### Create a secret with labels
 
 ```bash
-$ cat secret.json | docker secret create secret.json --label env=dev --label rev=20161102
+$ cat secret.json | docker secret create secret.json -f - --label env=dev --label rev=20161102
 jtn7g6aukl5ky7nr9gvwafoxh
 
 $ docker secret inspect secret.json
