@@ -252,9 +252,13 @@ func convertServiceNetworks(
 
 	nets := []swarm.NetworkAttachmentConfig{}
 	for networkName, network := range networks {
+		var aliases []string
+		if network != nil {
+			aliases = network.Aliases
+		}
 		nets = append(nets, swarm.NetworkAttachmentConfig{
 			Target:  namespace.scope(networkName),
-			Aliases: append(network.Aliases, name),
+			Aliases: append(aliases, name),
 		})
 	}
 	return nets
