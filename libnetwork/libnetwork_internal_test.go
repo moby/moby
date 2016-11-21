@@ -175,6 +175,12 @@ func TestEndpointMarshalling(t *testing.T) {
 	}
 	nw6.IP = ip
 
+	var lla []*net.IPNet
+	for _, nw := range []string{"169.254.0.1/16", "169.254.1.1/16", "169.254.2.2/16"} {
+		ll, _ := types.ParseCIDR(nw)
+		lla = append(lla, ll)
+	}
+
 	e := &endpoint{
 		name:      "Bau",
 		id:        "efghijklmno",
@@ -191,6 +197,7 @@ func TestEndpointMarshalling(t *testing.T) {
 			dstPrefix: "eth",
 			v4PoolID:  "poolpool",
 			v6PoolID:  "poolv6",
+			llAddrs:   lla,
 		},
 	}
 
@@ -218,7 +225,7 @@ func compareEndpointInterface(a, b *endpointInterface) bool {
 		return false
 	}
 	return a.srcName == b.srcName && a.dstPrefix == b.dstPrefix && a.v4PoolID == b.v4PoolID && a.v6PoolID == b.v6PoolID &&
-		types.CompareIPNet(a.addr, b.addr) && types.CompareIPNet(a.addrv6, b.addrv6)
+		types.CompareIPNet(a.addr, b.addr) && types.CompareIPNet(a.addrv6, b.addrv6) && compareNwLists(a.llAddrs, b.llAddrs)
 }
 
 func compareIpamConfList(listA, listB []*IpamConf) bool {
@@ -280,6 +287,18 @@ func compareAddresses(a, b map[string]*net.IPNet) bool {
 			if !types.CompareIPNet(a[k], b[k]) {
 				return false
 			}
+		}
+	}
+	return true
+}
+
+func compareNwLists(a, b []*net.IPNet) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for k := range a {
+		if !types.CompareIPNet(a[k], b[k]) {
+			return false
 		}
 	}
 	return true
