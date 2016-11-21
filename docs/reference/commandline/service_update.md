@@ -164,6 +164,11 @@ $ docker service update \
     myservice
 ```
 
+### Update services using templates
+
+Some flags of `service update` support the use of templating.
+See [`service create`](./service_create.md#templating) for the reference.
+
 ## Related information
 
 * [service create](service_create.md)
