@@ -1,6 +1,6 @@
 ---
-title: "Remote API"
-description: "API Documentation for Docker"
+title: "Remote API version history"
+description: "Documentation of changes that have been made to Engine API."
 keywords: "API, Docker, rcli, REST, documentation"
 ---
 
@@ -13,137 +13,12 @@ keywords: "API, Docker, rcli, REST, documentation"
      will be rejected.
 -->
 
-# Docker Remote API
-
-Docker's Remote API uses an open schema model.  In this model, unknown
-properties in incoming messages are ignored. Client applications need to take
-this behavior into account to ensure they do not break when talking to newer
-Docker daemons.
-
-The API tends to be REST, but for some complex commands, like attach or pull,
-the HTTP connection is hijacked to transport STDOUT, STDIN, and STDERR.
-
-By default the Docker daemon listens on `unix:///var/run/docker.sock` and the
-client must have `root` access to interact with the daemon. If a group named
-`docker` exists on your system, `docker` applies ownership of the socket to the
-group.
-
-To connect to the Docker daemon with cURL you need to use cURL 7.40 or
-later, as these versions have the `--unix-socket` flag available. To
-run `curl` against the daemon on the default socket, use the
-following:
-
-When using cUrl 7.50 or later:
-
-```console
-$ curl --unix-socket /var/run/docker.sock http://localhost/v1.25/containers/json
-```
-
-When using cURL 7.40, `localhost` must be omitted:
-
-```console
-$ curl --unix-socket /var/run/docker.sock http://v1.25/containers/json
-```
-
-If you have bound the Docker daemon to a different socket path or TCP
-port, you would reference that in your cURL rather than the
-default.
-
-## Versioning
-
-It is required to to supply a version to API calls. This is done by prefixing
-the URL with the version number.
-
-The current version of the API is 1.26, so to call the `/info` endpoint, you
-would send a request to the URL `/v1.26/info`. To call, for example, version
-1.24 of the API instead, you would request `/v1.24/info`.
-
-If a newer daemon is installed, new properties may be returned even when
-calling older versions of the API.
-
-In previous versions of Docker, it was possible to access the API without
-providing a version. This behaviour is now deprecated will be removed in a
-future version of Docker.
-
-Use the table below to find the API version for a Docker version:
-
-Docker version  | API version                        | Changes
-----------------|------------------------------------|------------------------------------------------------
-1.14.x          | [1.26](docker_remote_api_v1.26.md) | [API changes](docker_remote_api.md#v1-26-api-changes)
-1.13.x          | [1.25](docker_remote_api_v1.25.md) | [API changes](docker_remote_api.md#v1-25-api-changes)
-1.12.x          | [1.24](docker_remote_api_v1.24.md) | [API changes](docker_remote_api.md#v1-24-api-changes)
-1.11.x          | [1.23](docker_remote_api_v1.23.md) | [API changes](docker_remote_api.md#v1-23-api-changes)
-1.10.x          | [1.22](docker_remote_api_v1.22.md) | [API changes](docker_remote_api.md#v1-22-api-changes)
-1.9.x           | [1.21](docker_remote_api_v1.21.md) | [API changes](docker_remote_api.md#v1-21-api-changes)
-1.8.x           | [1.20](docker_remote_api_v1.20.md) | [API changes](docker_remote_api.md#v1-20-api-changes)
-1.7.x           | [1.19](docker_remote_api_v1.19.md) | [API changes](docker_remote_api.md#v1-19-api-changes)
-1.6.x           | [1.18](docker_remote_api_v1.18.md) | [API changes](docker_remote_api.md#v1-18-api-changes)
-
-Refer to the [GitHub repository](
-https://github.com/docker/docker/tree/master/docs/reference/api) for
-older releases.
-
-## Authentication
-
-Authentication configuration is handled client side, so the
-client has to send the `authConfig` as a `POST` in `/images/(name)/push`. The
-`authConfig`, set as the `X-Registry-Auth` header, is currently a Base64 encoded
-(JSON) string with the following structure:
-
-```JSON
-{"username": "string", "password": "string", "email": "string",
-   "serveraddress" : "string", "auth": ""}
-```
-
-Callers should leave the `auth` empty. The `serveraddress` is a domain/ip
-without protocol. Throughout this structure, double quotes are required.
-
-## Using Docker Machine with the API
-
-If you are using `docker-machine`, the Docker daemon is on a host that
-uses an encrypted TCP socket using TLS. This means, for Docker Machine users,
-you need to add extra parameters to `curl` or `wget` when making test
-API requests, for example:
-
-```
-curl --insecure \
-     --cert $DOCKER_CERT_PATH/cert.pem \
-     --key $DOCKER_CERT_PATH/key.pem \
-     https://YOUR_VM_IP:2376/v1.25/images/json
-
-wget --no-check-certificate --certificate=$DOCKER_CERT_PATH/cert.pem \
-     --private-key=$DOCKER_CERT_PATH/key.pem \
-     https://YOUR_VM_IP:2376/v1.25/images/json -O - -q
-```
-
-## Docker Events
-
-The following diagram depicts the container states accessible through the API.
-
-![States](images/event_state.png)
-
-Some container-related events are not affected by container state, so they are not included in this diagram. These events are:
-
-* **export** emitted by `docker export`
-* **exec_create** emitted by `docker exec`
-* **exec_start** emitted by `docker exec` after **exec_create**
-* **detach** emitted when client is detached from container process
-* **exec_detach** emitted when client is detached from exec process
-
-Running `docker rmi` emits an **untag** event when removing an image name.  The `rmi` command may also emit **delete** events when images are deleted by ID directly or by deleting the last tag referring to the image.
-
-> **Acknowledgment**: This diagram and the accompanying text were used with the permission of Matt Good and Gilder Labs. See Matt's original blog post [Docker Events Explained](https://gliderlabs.com/blog/2015/04/14/docker-events-explained/).
-
-## Version history
-
-This section lists each version from latest to oldest.  Each listing includes a link to the full documentation set and the changes relevant in that release.
-
-### v1.26 API changes
+## v1.26 API changes
 
 [Docker Remote API v1.26](docker_remote_api_v1.26.md) documentation
 
 
-### v1.25 API changes
+## v1.25 API changes
 
 [Docker Remote API v1.25](docker_remote_api_v1.25.md) documentation
 
@@ -204,7 +79,7 @@ This section lists each version from latest to oldest.  Each listing includes a 
 * `GET /images/json` now support a `reference` filter.
 
 
-### v1.24 API changes
+## v1.24 API changes
 
 [Docker Remote API v1.24](docker_remote_api_v1.24.md) documentation
 
@@ -236,7 +111,7 @@ This section lists each version from latest to oldest.  Each listing includes a 
 * `POST /containers/create/` `HostConfig.PidMode` field now accepts `container:<name|id>`,
   to have the container join the PID namespace of an existing container.
 
-### v1.23 API changes
+## v1.23 API changes
 
 [Docker Remote API v1.23](docker_remote_api_v1.23.md) documentation
 
@@ -258,7 +133,7 @@ This section lists each version from latest to oldest.  Each listing includes a 
 * `GET /containers/(id or name)/logs` now accepts a `details` query parameter to stream the extra attributes that were provided to the containers `LogOpts`, such as environment variables and labels, with the logs.
 * `POST /images/load` now returns progress information as a JSON stream, and has a `quiet` query parameter to suppress progress details.
 
-### v1.22 API changes
+## v1.22 API changes
 
 [Docker Remote API v1.22](docker_remote_api_v1.22.md) documentation
 
@@ -292,7 +167,7 @@ This section lists each version from latest to oldest.  Each listing includes a 
 * `GET /info` can now return a `SystemStatus` field useful for returning additional information about applications
   that are built on top of engine.
 
-### v1.21 API changes
+## v1.21 API changes
 
 [Docker Remote API v1.21](docker_remote_api_v1.21.md) documentation
 
@@ -327,7 +202,7 @@ This section lists each version from latest to oldest.  Each listing includes a 
   badness heuristic. This heuristic selects which processes the OOM killer kills
   under out-of-memory conditions.
 
-### v1.20 API changes
+## v1.20 API changes
 
 [Docker Remote API v1.20](docker_remote_api_v1.20.md) documentation
 
@@ -339,7 +214,7 @@ endpoint which can be used to download files and directories from a container.
 * The `hostConfig` option now accepts the field `GroupAdd`, which specifies a
 list of additional groups that the container process will run as.
 
-### v1.19 API changes
+## v1.19 API changes
 
 [Docker Remote API v1.19](docker_remote_api_v1.19.md) documentation
 
@@ -355,7 +230,7 @@ end point now returns the new boolean fields `CpuCfsPeriod`, `CpuCfsQuota`, and
 * The `hostConfig` option now accepts the fields `CpuPeriod` and `CpuQuota`
 * `POST /build` accepts `cpuperiod` and `cpuquota` options
 
-### v1.18 API changes
+## v1.18 API changes
 
 [Docker Remote API v1.18](docker_remote_api_v1.18.md) documentation
 
