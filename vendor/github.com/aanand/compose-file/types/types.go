@@ -124,14 +124,15 @@ type DeployConfig struct {
 }
 
 type HealthCheckConfig struct {
-	Command  []string `compose:"shell_command"`
+	Test     []string `compose:"healthcheck"`
 	Timeout  string
 	Interval string
 	Retries  *uint64
+	Disable  bool
 }
 
 type UpdateConfig struct {
-	Parallelism     uint64
+	Parallelism     *uint64
 	Delay           time.Duration
 	FailureAction   string `mapstructure:"failure_action"`
 	Monitor         time.Duration
