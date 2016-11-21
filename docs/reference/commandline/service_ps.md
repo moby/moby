@@ -54,6 +54,24 @@ redis.9.3w1wu13yuplna8ri3fx47iwad   redis:3.0.6  manager1  Running        Runnin
 redis.10.8eaxrb2fqpbnv9x30vr06i6vt  redis:3.0.6  manager1  Running        Running 8 seconds
 ```
 
+When deploying a service, docker resolves the digest for the service's
+image, and pins the service to that digest. The digest is not shown by
+default, but is printed if `--no-trunc` is used;
+
+```bash
+$ docker service ps --no-trunc redis
+NAME                                IMAGE                                                                                NODE      DESIRED STATE  CURRENT STATE
+redis.1.0qihejybwf1x5vqi8lgzlgnpq   redis:3.0.6@sha256:6a692a76c2081888b589e26e6ec835743119fe453d67ecf03df7de5b73d69842  manager1  Running        Running 28 seconds
+redis.2.bk658fpbex0d57cqcwoe3jthu   redis:3.0.6@sha256:6a692a76c2081888b589e26e6ec835743119fe453d67ecf03df7de5b73d69842  worker2   Running        Running 29 seconds
+redis.3.5ls5s5fldaqg37s9pwayjecrf   redis:3.0.6@sha256:6a692a76c2081888b589e26e6ec835743119fe453d67ecf03df7de5b73d69842  worker1   Running        Running 29 seconds
+redis.4.8ryt076polmclyihzx67zsssj   redis:3.0.6@sha256:6a692a76c2081888b589e26e6ec835743119fe453d67ecf03df7de5b73d69842  worker1   Running        Running 29 seconds
+redis.5.1x0v8yomsncd6sbvfn0ph6ogc   redis:3.0.6@sha256:6a692a76c2081888b589e26e6ec835743119fe453d67ecf03df7de5b73d69842  manager1  Running        Running 28 seconds
+redis.6.71v7je3el7rrw0osfywzs0lko   redis:3.0.6@sha256:6a692a76c2081888b589e26e6ec835743119fe453d67ecf03df7de5b73d69842  worker2   Running        Running 29 seconds
+redis.7.4l3zm9b7tfr7cedaik8roxq6r   redis:3.0.6@sha256:6a692a76c2081888b589e26e6ec835743119fe453d67ecf03df7de5b73d69842  worker2   Running        Running 29 seconds
+redis.8.9tfpyixiy2i74ad9uqmzp1q6o   redis:3.0.6@sha256:6a692a76c2081888b589e26e6ec835743119fe453d67ecf03df7de5b73d69842  worker1   Running        Running 29 seconds
+redis.9.3w1wu13yuplna8ri3fx47iwad   redis:3.0.6@sha256:6a692a76c2081888b589e26e6ec835743119fe453d67ecf03df7de5b73d69842  manager1  Running        Running 28 seconds
+redis.10.8eaxrb2fqpbnv9x30vr06i6vt  redis:3.0.6@sha256:6a692a76c2081888b589e26e6ec835743119fe453d67ecf03df7de5b73d69842  manager1  Running        Running 28 seconds
+```
 
 ## Filtering
 
