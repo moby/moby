@@ -44,9 +44,9 @@ func TestJSONFileLogger(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	expected := `{"log":"line1\n","stream":"src1","time":"0001-01-01T00:00:00Z"}
-{"log":"line2\n","stream":"src2","time":"0001-01-01T00:00:00Z"}
-{"log":"line3\n","stream":"src3","time":"0001-01-01T00:00:00Z"}
+	expected := `{"log":"line1\n","stream":"src1","tag":"a7317399f3f8","time":"0001-01-01T00:00:00Z"}
+{"log":"line2\n","stream":"src2","tag":"a7317399f3f8","time":"0001-01-01T00:00:00Z"}
+{"log":"line3\n","stream":"src3","tag":"a7317399f3f8","time":"0001-01-01T00:00:00Z"}
 `
 
 	if string(res) != expected {
@@ -88,6 +88,42 @@ func BenchmarkJSONFileLogger(b *testing.B) {
 	}
 }
 
+func TestJSONFileLoggerWithTag(t *testing.T) {
+	cid := "a7317399f3f857173c6179d44823594f8294678dea9999662e5c625b5a1c7657"
+	tmp, err := ioutil.TempDir("", "docker-logger-tag")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmp)
+	filename := filepath.Join(tmp, "container.log")
+	config := map[string]string{"tag": "{{.ImageName}}.{{.Name}}.{{.ID}}"}
+	l, err := New(logger.Info{
+		ContainerID:        cid,
+		ContainerImageName: "image1",
+		ContainerName:      "/container1",
+		LogPath:            filename,
+		Config:             config,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer l.Close()
+	if err := l.Log(&logger.Message{Line: []byte("line"), Source: "src1"}); err != nil {
+		t.Fatal(err)
+	}
+	res, err := ioutil.ReadFile(filename)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	expected := `{"log":"line\n","stream":"src1","tag":"image1.container1.a7317399f3f8","time":"0001-01-01T00:00:00Z"}
+`
+
+	if string(res) != expected {
+		t.Fatalf("Wrong log content: %q, expected %q", res, expected)
+	}
+}
+
 func TestJSONFileLoggerWithOpts(t *testing.T) {
 	cid := "a7317399f3f857173c6179d44823594f8294678dea9999662e5c625b5a1c7657"
 	tmp, err := ioutil.TempDir("", "docker-logger-")
@@ -120,27 +156,27 @@ func TestJSONFileLoggerWithOpts(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	expectedPenultimate := `{"log":"line0\n","stream":"src1","time":"0001-01-01T00:00:00Z"}
-{"log":"line1\n","stream":"src1","time":"0001-01-01T00:00:00Z"}
-{"log":"line2\n","stream":"src1","time":"0001-01-01T00:00:00Z"}
-{"log":"line3\n","stream":"src1","time":"0001-01-01T00:00:00Z"}
-{"log":"line4\n","stream":"src1","time":"0001-01-01T00:00:00Z"}
-{"log":"line5\n","stream":"src1","time":"0001-01-01T00:00:00Z"}
-{"log":"line6\n","stream":"src1","time":"0001-01-01T00:00:00Z"}
-{"log":"line7\n","stream":"src1","time":"0001-01-01T00:00:00Z"}
-{"log":"line8\n","stream":"src1","time":"0001-01-01T00:00:00Z"}
-{"log":"line9\n","stream":"src1","time":"0001-01-01T00:00:00Z"}
-{"log":"line10\n","stream":"src1","time":"0001-01-01T00:00:00Z"}
-{"log":"line11\n","stream":"src1","time":"0001-01-01T00:00:00Z"}
-{"log":"line12\n","stream":"src1","time":"0001-01-01T00:00:00Z"}
-{"log":"line13\n","stream":"src1","time":"0001-01-01T00:00:00Z"}
-{"log":"line14\n","stream":"src1","time":"0001-01-01T00:00:00Z"}
-{"log":"line15\n","stream":"src1","time":"0001-01-01T00:00:00Z"}
+	expectedPenultimate := `{"log":"line0\n","stream":"src1","tag":"a7317399f3f8","time":"0001-01-01T00:00:00Z"}
+{"log":"line1\n","stream":"src1","tag":"a7317399f3f8","time":"0001-01-01T00:00:00Z"}
+{"log":"line2\n","stream":"src1","tag":"a7317399f3f8","time":"0001-01-01T00:00:00Z"}
+{"log":"line3\n","stream":"src1","tag":"a7317399f3f8","time":"0001-01-01T00:00:00Z"}
+{"log":"line4\n","stream":"src1","tag":"a7317399f3f8","time":"0001-01-01T00:00:00Z"}
+{"log":"line5\n","stream":"src1","tag":"a7317399f3f8","time":"0001-01-01T00:00:00Z"}
+{"log":"line6\n","stream":"src1","tag":"a7317399f3f8","time":"0001-01-01T00:00:00Z"}
+{"log":"line7\n","stream":"src1","tag":"a7317399f3f8","time":"0001-01-01T00:00:00Z"}
+{"log":"line8\n","stream":"src1","tag":"a7317399f3f8","time":"0001-01-01T00:00:00Z"}
+{"log":"line9\n","stream":"src1","tag":"a7317399f3f8","time":"0001-01-01T00:00:00Z"}
+{"log":"line10\n","stream":"src1","tag":"a7317399f3f8","time":"0001-01-01T00:00:00Z"}
+{"log":"line11\n","stream":"src1","tag":"a7317399f3f8","time":"0001-01-01T00:00:00Z"}
 `
-	expected := `{"log":"line16\n","stream":"src1","time":"0001-01-01T00:00:00Z"}
-{"log":"line17\n","stream":"src1","time":"0001-01-01T00:00:00Z"}
-{"log":"line18\n","stream":"src1","time":"0001-01-01T00:00:00Z"}
-{"log":"line19\n","stream":"src1","time":"0001-01-01T00:00:00Z"}
+	expected := `{"log":"line12\n","stream":"src1","tag":"a7317399f3f8","time":"0001-01-01T00:00:00Z"}
+{"log":"line13\n","stream":"src1","tag":"a7317399f3f8","time":"0001-01-01T00:00:00Z"}
+{"log":"line14\n","stream":"src1","tag":"a7317399f3f8","time":"0001-01-01T00:00:00Z"}
+{"log":"line15\n","stream":"src1","tag":"a7317399f3f8","time":"0001-01-01T00:00:00Z"}
+{"log":"line16\n","stream":"src1","tag":"a7317399f3f8","time":"0001-01-01T00:00:00Z"}
+{"log":"line17\n","stream":"src1","tag":"a7317399f3f8","time":"0001-01-01T00:00:00Z"}
+{"log":"line18\n","stream":"src1","tag":"a7317399f3f8","time":"0001-01-01T00:00:00Z"}
+{"log":"line19\n","stream":"src1","tag":"a7317399f3f8","time":"0001-01-01T00:00:00Z"}
 `
 
 	if string(res) != expected {

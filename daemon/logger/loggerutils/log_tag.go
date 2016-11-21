@@ -17,7 +17,6 @@ func ParseLogTag(info logger.Info, defaultTemplate string) (string, error) {
 	if tagTemplate == "" {
 		tagTemplate = defaultTemplate
 	}
-
 	tmpl, err := templates.NewParse("log-tag", tagTemplate)
 	if err != nil {
 		return "", err
