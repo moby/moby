@@ -15,7 +15,7 @@ Return low-level information on a container, image or task
   -f, --format       Format the output using the given go template
   --help             Print usage
   -s, --size         Display total file sizes if the type is container
-                     values are "image" or "container" or "task
+                     values are "image" or "container" or "task"
   --type             Return JSON for specified type, (e.g image, container or task)
 ```
 
