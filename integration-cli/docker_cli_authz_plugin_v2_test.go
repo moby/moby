@@ -36,8 +36,10 @@ func (s *DockerAuthzV2Suite) SetUpTest(c *check.C) {
 }
 
 func (s *DockerAuthzV2Suite) TearDownTest(c *check.C) {
-	s.d.Stop()
-	s.ds.TearDownTest(c)
+	if s.d != nil {
+		s.d.Stop()
+		s.ds.TearDownTest(c)
+	}
 }
 
 func (s *DockerAuthzV2Suite) TestAuthZPluginAllowNonVolumeRequest(c *check.C) {
