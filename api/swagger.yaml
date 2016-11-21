@@ -6307,7 +6307,7 @@ paths:
       summary: "Install a plugin"
       operationId: "PostPluginsPull"
       description: |
-        Pulls and installs a plugin. After the plugin is installed, it can be enabled using the [`POST /plugins/{name}/enable` endpoint](#operation/PostPluginEnable).
+        Pulls and installs a plugin. After the plugin is installed, it can be enabled using the [`POST /plugins/{name}/enable` endpoint](#operation/PostPluginsEnable).
       produces:
         - "application/json"
       responses:
@@ -6430,6 +6430,11 @@ paths:
           description: "The name of the plugin. The `:latest` tag is optional, and is the default if omitted."
           required: true
           type: "string"
+        - name: "timeout"
+          in: "query"
+          description: "Set the HTTP client timeout (in seconds)"
+          type: "integer"
+          default: 0
       tags:
         - "Plugins"
   /plugins/{name}/disable:
