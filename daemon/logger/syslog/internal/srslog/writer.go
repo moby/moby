@@ -26,8 +26,9 @@ type Writer struct {
 // race conditions on grabbing a reference to it.
 func (w *Writer) getConn() serverConn {
 	w.mu.RLock()
-	defer w.mu.RUnlock()
-	return w.conn
+	conn := w.conn
+	w.mu.RUnlock()
+	return conn
 }
 
 // setConn updates the internal conn, protected by a mutex.
