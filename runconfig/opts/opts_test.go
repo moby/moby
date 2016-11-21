@@ -3,6 +3,7 @@ package opts
 import (
 	"fmt"
 	"os"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -49,6 +50,10 @@ func TestValidateEnv(t *testing.T) {
 		"some space":          "some space",
 		"  some space before": "  some space before",
 		"some space after  ":  "some space after  ",
+	}
+	// Environment variables are case in-sensitive on Windows
+	if runtime.GOOS == "windows" {
+		valids["PaTh"] = fmt.Sprintf("PaTh=%v", os.Getenv("PATH"))
 	}
 	for value, expected := range valids {
 		actual, err := ValidateEnv(value)
