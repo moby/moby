@@ -654,6 +654,9 @@ func fwMarker() {
 	rule := strings.Fields(fmt.Sprintf("-t mangle %s OUTPUT -d %s/32 -j MARK --set-mark %d", addDelOpt, vip, fwMark))
 	rules = append(rules, rule)
 
+	rule = strings.Fields(fmt.Sprintf("-t nat %s OUTPUT -p icmp --icmp echo-request -d %s -j DNAT --to 127.0.0.1", addDelOpt, vip))
+	rules = append(rules, rule)
+
 	for _, rule := range rules {
 		if err := iptables.RawCombinedOutputNative(rule...); err != nil {
 			logrus.Errorf("setting up rule failed, %v: %v", rule, err)
