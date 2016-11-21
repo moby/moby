@@ -332,6 +332,11 @@ type PluginRemoveOptions struct {
 	Force bool
 }
 
+// PluginEnableOptions holds parameters to enable plugins.
+type PluginEnableOptions struct {
+	Timeout int
+}
+
 // PluginInstallOptions holds parameters to install a plugin.
 type PluginInstallOptions struct {
 	Disabled              bool

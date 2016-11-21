@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/docker/docker/api/types"
 	"golang.org/x/net/context"
 )
 
@@ -16,7 +17,7 @@ func TestPluginEnableError(t *testing.T) {
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 
-	err := client.PluginEnable(context.Background(), "plugin_name")
+	err := client.PluginEnable(context.Background(), "plugin_name", types.PluginEnableOptions{})
 	if err == nil || err.Error() != "Error response from daemon: Server error" {
 		t.Fatalf("expected a Server Error, got %v", err)
 	}
@@ -40,7 +41,7 @@ func TestPluginEnable(t *testing.T) {
 		}),
 	}
 
-	err := client.PluginEnable(context.Background(), "plugin_name")
+	err := client.PluginEnable(context.Background(), "plugin_name", types.PluginEnableOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -36,11 +36,14 @@ func (pm *Manager) Disable(name string) error {
 }
 
 // Enable activates a plugin, which implies that they are ready to be used by containers.
-func (pm *Manager) Enable(name string) error {
+func (pm *Manager) Enable(name string, config *types.PluginEnableConfig) error {
+
 	p, err := pm.pluginStore.GetByName(name)
 	if err != nil {
 		return err
 	}
+
+	p.TimeoutInSecs = config.Timeout
 	if err := pm.enable(p, false); err != nil {
 		return err
 	}
