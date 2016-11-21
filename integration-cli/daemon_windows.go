@@ -7,9 +7,10 @@ import (
 	"unsafe"
 
 	"github.com/go-check/check"
+	"golang.org/x/sys/windows"
 )
 
-func openEvent(desiredAccess uint32, inheritHandle bool, name string, proc *syscall.LazyProc) (handle syscall.Handle, err error) {
+func openEvent(desiredAccess uint32, inheritHandle bool, name string, proc *windows.LazyProc) (handle syscall.Handle, err error) {
 	namep, _ := syscall.UTF16PtrFromString(name)
 	var _p2 uint32
 	if inheritHandle {
@@ -23,7 +24,7 @@ func openEvent(desiredAccess uint32, inheritHandle bool, name string, proc *sysc
 	return
 }
 
-func pulseEvent(handle syscall.Handle, proc *syscall.LazyProc) (err error) {
+func pulseEvent(handle syscall.Handle, proc *windows.LazyProc) (err error) {
 	r0, _, _ := proc.Call(uintptr(handle))
 	if r0 != 0 {
 		err = syscall.Errno(r0)
@@ -32,7 +33,7 @@ func pulseEvent(handle syscall.Handle, proc *syscall.LazyProc) (err error) {
 }
 
 func signalDaemonDump(pid int) {
-	modkernel32 := syscall.NewLazyDLL("kernel32.dll")
+	modkernel32 := windows.NewLazySystemDLL("kernel32.dll")
 	procOpenEvent := modkernel32.NewProc("OpenEventW")
 	procPulseEvent := modkernel32.NewProc("PulseEvent")
 
