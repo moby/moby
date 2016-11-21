@@ -14,12 +14,12 @@ if [ ${#files[@]} -gt 0 ]; then
 	diffs="$(git status --porcelain -- api/types/ 2>/dev/null)"
 	if [ "$diffs" ]; then
 		{
-			echo 'The result of hack/geneate-swagger-api.sh differs'
+			echo 'The result of hack/generate-swagger-api.sh differs'
 			echo
 			echo "$diffs"
 			echo
 			echo 'Please update api/swagger.yaml with any api changes, then '
-			echo 'run `hack/geneate-swagger-api.sh`.'
+			echo 'run `hack/generate-swagger-api.sh`.'
 		} >&2
 		false
 	else
