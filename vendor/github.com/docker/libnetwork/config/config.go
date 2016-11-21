@@ -17,11 +17,11 @@ import (
 	"github.com/docker/libnetwork/osl"
 )
 
-// RestrictedNameChars collects the characters allowed to represent a network or endpoint name.
-const restrictedNameChars = `[a-zA-Z0-9][a-zA-Z0-9_.-]`
+// restrictedNameRegex represents the regular expression which regulates the allowed network or endpoint names.
+const restrictedNameRegex = `^[\w]+[\w-. ]*[\w]+$`
 
 // RestrictedNamePattern is a regular expression to validate names against the collection of restricted characters.
-var restrictedNamePattern = regexp.MustCompile(`^/?` + restrictedNameChars + `+$`)
+var restrictedNamePattern = regexp.MustCompile(restrictedNameRegex)
 
 // Config encapsulates configurations of various Libnetwork components
 type Config struct {
@@ -234,7 +234,7 @@ func (c *Config) ProcessOptions(options ...Option) {
 // ValidateName validates configuration objects supported by libnetwork
 func ValidateName(name string) error {
 	if !restrictedNamePattern.MatchString(name) {
-		return fmt.Errorf("%s includes invalid characters, only %q are allowed", name, restrictedNameChars)
+		return fmt.Errorf("%q includes invalid characters, resource name has to conform to %q", name, restrictedNameRegex)
 	}
 	return nil
 }
