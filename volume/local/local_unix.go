@@ -8,6 +8,7 @@ package local
 import (
 	"fmt"
 	"net"
+	"os/exec"
 	"path/filepath"
 	"strings"
 
@@ -81,6 +82,23 @@ func (v *localVolume) mount() error {
 			}
 			mountOpts = strings.Replace(mountOpts, "addr="+addrValue, "addr="+ipAddr.String(), 1)
 		}
+	}
+	if strings.HasPrefix(v.opts.MountType, "^") {
+		// Making docker local volume driver support external FS mount type, such as glusterfs, cephfs, fused-based fs (sshfs/curlftpfs/..) and so on. Options for each kind of fs-type are configurable via '--volume-opt'. To mount volume with external mount command, type option is supposed to start with '^'.
+		// * SSHFS Example: docker service create .. --mount type=volume,volume-opt=type=^fuse.sshfs,volume-opt=device=ssh-node-1:/home/user1,volume-opt=o=workaround=all:o=reconnect:o=IdentityFile=/pub/user1.key:o=StrictHostKeyChecking=no,source=user1-home,target=/mount ..
+		// * GlusterFS Example: docker service create .. --mount type=volume,volume-opt=type=^glusterfs,volume-opt=device=gfs-node-1:/shared,source=gfs-shared-1,target=/mount ..
+		// * CephFS Example: docker service create .. --mount type=volume,volume-opt=type=^ceph,volume-opt=device=ceph-node-1:/shared,source=ceph-shared-1,target=/mount ..
+		cmd := []string{"-t", v.opts.MountType[1:], v.opts.MountDevice, v.path}
+		if v.opts.MountOpts != "" {
+			opts := strings.Split(v.opts.MountOpts, ":o=")
+			for i := 0; i < len(opts); i++ {
+				cmd = append(cmd, []string{"-o", opts[i]}...)
+			}
+		}
+		if out, err := exec.Command("mount", cmd...).Output(); err != nil {
+			return errors.Wrapf(err, "error mounting volume using external mount for %s", out)
+		}
+		return nil
 	}
 	err := mount.Mount(v.opts.MountDevice, v.path, v.opts.MountType, mountOpts)
 	return errors.Wrapf(err, "error while mounting volume with options: %s", v.opts)
