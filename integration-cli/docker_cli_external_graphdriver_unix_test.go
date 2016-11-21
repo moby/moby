@@ -55,8 +55,10 @@ func (s *DockerExternalGraphdriverSuite) SetUpTest(c *check.C) {
 }
 
 func (s *DockerExternalGraphdriverSuite) TearDownTest(c *check.C) {
-	s.d.Stop()
-	s.ds.TearDownTest(c)
+	if s.d != nil {
+		s.d.Stop()
+		s.ds.TearDownTest(c)
+	}
 }
 
 func (s *DockerExternalGraphdriverSuite) SetUpSuite(c *check.C) {
