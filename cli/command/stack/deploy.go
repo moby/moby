@@ -49,7 +49,6 @@ func newDeployCommand(dockerCli *command.DockerCli) *cobra.Command {
 			opts.namespace = args[0]
 			return runDeploy(dockerCli, opts)
 		},
-		Tags: map[string]string{"experimental": "", "version": "1.25"},
 	}
 
 	flags := cmd.Flags()
