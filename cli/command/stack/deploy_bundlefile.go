@@ -8,9 +8,13 @@ import (
 	"github.com/docker/docker/cli/command"
 )
 
-func deployBundle(dockerCli *command.DockerCli, opts deployOptions) error {
+func deployBundle(ctx context.Context, dockerCli *command.DockerCli, opts deployOptions) error {
 	bundle, err := loadBundlefile(dockerCli.Err(), opts.namespace, opts.bundlefile)
 	if err != nil {
+		return err
+	}
+
+	if err := checkDaemonIsSwarmManager(ctx, dockerCli); err != nil {
 		return err
 	}
 
@@ -70,8 +74,6 @@ func deployBundle(dockerCli *command.DockerCli, opts deployOptions) error {
 
 		services[internalName] = serviceSpec
 	}
-
-	ctx := context.Background()
 
 	if err := createNetworks(ctx, dockerCli, namespace, networks); err != nil {
 		return err
