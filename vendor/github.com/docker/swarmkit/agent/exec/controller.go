@@ -69,7 +69,7 @@ func (fn LogPublisherFunc) Publish(ctx context.Context, message api.LogMessage) 
 
 // LogPublisherProvider defines the protocol for receiving a log publisher
 type LogPublisherProvider interface {
-	Publisher(ctx context.Context, subscriptionID string) (LogPublisher, error)
+	Publisher(ctx context.Context, subscriptionID string) (LogPublisher, func(), error)
 }
 
 // ContainerStatuser reports status of a container.
