@@ -592,6 +592,11 @@ func (c *Cluster) UnlockSwarm(req types.UnlockRequest) error {
 			return err
 		}
 	}
+
+	if c.node != nil || c.locked != true {
+		c.RUnlock()
+		return errors.New("swarm is not locked")
+	}
 	c.RUnlock()
 
 	key, err := encryption.ParseHumanReadableKey(req.UnlockKey)
@@ -600,11 +605,6 @@ func (c *Cluster) UnlockSwarm(req types.UnlockRequest) error {
 	}
 
 	c.Lock()
-	if c.node != nil || c.locked != true {
-		c.Unlock()
-		return errors.New("swarm is not locked")
-	}
-
 	config := *c.lastNodeConfig
 	config.lockKey = key
 	n, err := c.startNewNode(config)
