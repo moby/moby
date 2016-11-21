@@ -79,7 +79,7 @@ func TestHealthCheckOptionsToHealthConfig(t *testing.T) {
 	config, err := opt.toHealthConfig()
 	assert.NilError(t, err)
 	assert.Equal(t, reflect.DeepEqual(config, &container.HealthConfig{
-		Test:     []string{"CMD-SHELL", "curl"},
+		Test:     []string{"CMD", "curl"},
 		Interval: time.Second,
 		Timeout:  time.Second,
 		Retries:  10,
