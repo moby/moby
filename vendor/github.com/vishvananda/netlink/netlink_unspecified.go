@@ -78,7 +78,7 @@ func AddrDel(link *Link, addr *Addr) error {
 	return ErrNotImplemented
 }
 
-func AddrList(link *Link, family int) ([]Addr, error) {
+func AddrList(link Link, family int) ([]Addr, error) {
 	return nil, ErrNotImplemented
 }
 

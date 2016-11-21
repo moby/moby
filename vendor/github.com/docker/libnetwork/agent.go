@@ -381,7 +381,57 @@ func (n *network) leaveCluster() error {
 	return c.agent.networkDB.LeaveNetwork(n.ID())
 }
 
-func (ep *endpoint) addToCluster() error {
+func (ep *endpoint) addDriverInfoToCluster() error {
+	n := ep.getNetwork()
+	if !n.isClusterEligible() {
+		return nil
+	}
+	if ep.joinInfo == nil {
+		return nil
+	}
+
+	ctrlr := n.ctrlr
+	ctrlr.Lock()
+	agent := ctrlr.agent
+	ctrlr.Unlock()
+	if agent == nil {
+		return nil
+	}
+
+	for _, te := range ep.joinInfo.driverTableEntries {
+		if err := agent.networkDB.CreateEntry(te.tableName, n.ID(), te.key, te.value); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (ep *endpoint) deleteDriverInfoFromCluster() error {
+	n := ep.getNetwork()
+	if !n.isClusterEligible() {
+		return nil
+	}
+	if ep.joinInfo == nil {
+		return nil
+	}
+
+	ctrlr := n.ctrlr
+	ctrlr.Lock()
+	agent := ctrlr.agent
+	ctrlr.Unlock()
+	if agent == nil {
+		return nil
+	}
+
+	for _, te := range ep.joinInfo.driverTableEntries {
+		if err := agent.networkDB.DeleteEntry(te.tableName, n.ID(), te.key); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (ep *endpoint) addServiceInfoToCluster() error {
 	n := ep.getNetwork()
 	if !n.isClusterEligible() {
 		return nil
@@ -421,16 +471,10 @@ func (ep *endpoint) addToCluster() error {
 		}
 	}
 
-	for _, te := range ep.joinInfo.driverTableEntries {
-		if err := c.agent.networkDB.CreateEntry(te.tableName, n.ID(), te.key, te.value); err != nil {
-			return err
-		}
-	}
-
 	return nil
 }
 
-func (ep *endpoint) deleteFromCluster() error {
+func (ep *endpoint) deleteServiceInfoFromCluster() error {
 	n := ep.getNetwork()
 	if !n.isClusterEligible() {
 		return nil
@@ -453,17 +497,6 @@ func (ep *endpoint) deleteFromCluster() error {
 			return err
 		}
 	}
-
-	if ep.joinInfo == nil {
-		return nil
-	}
-
-	for _, te := range ep.joinInfo.driverTableEntries {
-		if err := c.agent.networkDB.DeleteEntry(te.tableName, n.ID(), te.key); err != nil {
-			return err
-		}
-	}
-
 	return nil
 }
 

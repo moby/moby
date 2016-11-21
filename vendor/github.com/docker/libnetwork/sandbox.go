@@ -427,7 +427,13 @@ func (sb *sandbox) ResolveIP(ip string) string {
 }
 
 func (sb *sandbox) ExecFunc(f func()) error {
-	return sb.osSbox.InvokeFunc(f)
+	sb.Lock()
+	osSbox := sb.osSbox
+	sb.Unlock()
+	if osSbox != nil {
+		return osSbox.InvokeFunc(f)
+	}
+	return fmt.Errorf("osl sandbox unavailable in ExecFunc for %v", sb.ContainerID())
 }
 
 func (sb *sandbox) ResolveService(name string) ([]*net.SRV, []net.IP) {
@@ -664,7 +670,7 @@ func (sb *sandbox) SetKey(basePath string) error {
 func (sb *sandbox) EnableService() error {
 	for _, ep := range sb.getConnectedEndpoints() {
 		if ep.enableService(true) {
-			if err := ep.addToCluster(); err != nil {
+			if err := ep.addServiceInfoToCluster(); err != nil {
 				ep.enableService(false)
 				return fmt.Errorf("could not update state for endpoint %s into cluster: %v", ep.Name(), err)
 			}
@@ -676,7 +682,7 @@ func (sb *sandbox) EnableService() error {
 func (sb *sandbox) DisableService() error {
 	for _, ep := range sb.getConnectedEndpoints() {
 		if ep.enableService(false) {
-			if err := ep.deleteFromCluster(); err != nil {
+			if err := ep.deleteServiceInfoFromCluster(); err != nil {
 				ep.enableService(true)
 				return fmt.Errorf("could not delete state for endpoint %s from cluster: %v", ep.Name(), err)
 			}
