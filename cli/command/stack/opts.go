@@ -15,6 +15,7 @@ func addComposefileFlag(opt *string, flags *pflag.FlagSet) {
 
 func addBundlefileFlag(opt *string, flags *pflag.FlagSet) {
 	flags.StringVar(opt, "bundle-file", "", "Path to a Distributed Application Bundle file")
+	flags.SetAnnotation("bundle-file", "experimental", nil)
 }
 
 func addRegistryAuthFlag(opt *bool, flags *pflag.FlagSet) {
