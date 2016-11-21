@@ -20,6 +20,7 @@ bundle_test_splunk_logger() {
 	# Pull images used for testing
 	docker pull hello-world
 	docker pull nginx
+	docker pull tutum/curl
 
 	py.test "$splunkloggerdir/test_logging_driver.py"
 
