@@ -43,6 +43,10 @@ func runSecretCreate(dockerCli *command.DockerCli, options createOptions) error 
 	client := dockerCli.Client()
 	ctx := context.Background()
 
+	if dockerCli.In().IsTerminal() {
+		return fmt.Errorf("No input provided on STDIN")
+	}
+
 	secretData, err := ioutil.ReadAll(os.Stdin)
 	if err != nil {
 		return fmt.Errorf("Error reading content from STDIN: %v", err)
