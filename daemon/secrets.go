@@ -2,12 +2,25 @@ package daemon
 
 import (
 	"github.com/Sirupsen/logrus"
-	containertypes "github.com/docker/docker/api/types/container"
+	swarmtypes "github.com/docker/docker/api/types/swarm"
+	"github.com/docker/swarmkit/agent/exec"
 )
 
-// SetContainerSecrets sets the container secrets needed
-func (daemon *Daemon) SetContainerSecrets(name string, secrets []*containertypes.ContainerSecret) error {
-	if !secretsSupported() && len(secrets) > 0 {
+// SetContainerSecretStore sets the secret store backend for the container
+func (daemon *Daemon) SetContainerSecretStore(name string, store exec.SecretGetter) error {
+	c, err := daemon.GetContainer(name)
+	if err != nil {
+		return err
+	}
+
+	c.SecretStore = store
+
+	return nil
+}
+
+// SetContainerSecretReferences sets the container secret references needed
+func (daemon *Daemon) SetContainerSecretReferences(name string, refs []*swarmtypes.SecretReference) error {
+	if !secretsSupported() && len(refs) > 0 {
 		logrus.Warn("secrets are not supported on this platform")
 		return nil
 	}
@@ -17,7 +30,7 @@ func (daemon *Daemon) SetContainerSecrets(name string, secrets []*containertypes
 		return err
 	}
 
-	c.Secrets = secrets
+	c.SecretReferences = refs
 
 	return nil
 }

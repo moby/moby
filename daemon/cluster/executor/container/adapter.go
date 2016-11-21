@@ -16,6 +16,7 @@ import (
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/versions"
+	"github.com/docker/docker/daemon/cluster/convert"
 	executorpkg "github.com/docker/docker/daemon/cluster/executor"
 	"github.com/docker/docker/reference"
 	"github.com/docker/libnetwork"
@@ -237,33 +238,14 @@ func (c *containerAdapter) create(ctx context.Context) error {
 	if container == nil {
 		return fmt.Errorf("unable to get container from task spec")
 	}
-	secrets := make([]*containertypes.ContainerSecret, 0, len(container.Secrets))
-	for _, s := range container.Secrets {
-		sec := c.secrets.Get(s.SecretID)
-		if sec == nil {
-			logrus.Warnf("unable to get secret %s from provider", s.SecretID)
-			continue
-		}
-
-		name := sec.Spec.Annotations.Name
-		target := s.GetFile()
-		if target == nil {
-			logrus.Warnf("secret target was not a file: secret=%s", s.SecretID)
-			continue
-		}
-
-		secrets = append(secrets, &containertypes.ContainerSecret{
-			Name:   name,
-			Target: target.Name,
-			Data:   sec.Spec.Data,
-			UID:    target.UID,
-			GID:    target.GID,
-			Mode:   target.Mode,
-		})
-	}
 
 	// configure secrets
-	if err := c.backend.SetContainerSecrets(cr.ID, secrets); err != nil {
+	if err := c.backend.SetContainerSecretStore(cr.ID, c.secrets); err != nil {
+		return err
+	}
+
+	refs := convert.SecretReferencesFromGRPC(container.Secrets)
+	if err := c.backend.SetContainerSecretReferences(cr.ID, refs); err != nil {
 		return err
 	}
 

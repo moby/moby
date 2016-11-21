@@ -145,7 +145,7 @@ func (daemon *Daemon) setupIpcDirs(c *container.Container) error {
 }
 
 func (daemon *Daemon) setupSecretDir(c *container.Container) (setupErr error) {
-	if len(c.Secrets) == 0 {
+	if len(c.SecretReferences) == 0 {
 		return nil
 	}
 
@@ -174,8 +174,17 @@ func (daemon *Daemon) setupSecretDir(c *container.Container) (setupErr error) {
 		return errors.Wrap(err, "unable to setup secret mount")
 	}
 
-	for _, s := range c.Secrets {
-		targetPath := filepath.Clean(s.Target)
+	for _, s := range c.SecretReferences {
+		if c.SecretStore == nil {
+			return fmt.Errorf("secret store is not initialized")
+		}
+
+		// TODO (ehazlett): use type switch when more are supported
+		if s.File == nil {
+			return fmt.Errorf("secret target type is not a file target")
+		}
+
+		targetPath := filepath.Clean(s.File.Name)
 		// ensure that the target is a filename only; no paths allowed
 		if targetPath != filepath.Base(targetPath) {
 			return fmt.Errorf("error creating secret: secret must not be a path")
@@ -187,18 +196,22 @@ func (daemon *Daemon) setupSecretDir(c *container.Container) (setupErr error) {
 		}
 
 		logrus.WithFields(logrus.Fields{
-			"name": s.Name,
+			"name": s.File.Name,
 			"path": fPath,
 		}).Debug("injecting secret")
-		if err := ioutil.WriteFile(fPath, s.Data, s.Mode); err != nil {
+		secret := c.SecretStore.Get(s.SecretID)
+		if secret == nil {
+			return fmt.Errorf("unable to get secret from secret store")
+		}
+		if err := ioutil.WriteFile(fPath, secret.Spec.Data, s.File.Mode); err != nil {
 			return errors.Wrap(err, "error injecting secret")
 		}
 
-		uid, err := strconv.Atoi(s.UID)
+		uid, err := strconv.Atoi(s.File.UID)
 		if err != nil {
 			return err
 		}
-		gid, err := strconv.Atoi(s.GID)
+		gid, err := strconv.Atoi(s.File.GID)
 		if err != nil {
 			return err
 		}
