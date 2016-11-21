@@ -172,16 +172,21 @@ func prettyPrintInfo(dockerCli *command.DockerCli, info types.Info) error {
 			fmt.Fprintf(dockerCli.Out(), "\n")
 		}
 		if len(info.SecurityOptions) != 0 {
+			kvs, err := types.DecodeSecurityOptions(info.SecurityOptions)
+			if err != nil {
+				return err
+			}
 			fmt.Fprintf(dockerCli.Out(), "Security Options:\n")
-			for _, o := range info.SecurityOptions {
-				switch o.Key {
-				case "Name":
-					fmt.Fprintf(dockerCli.Out(), " %s\n", o.Value)
-				case "Profile":
-					if o.Value != "default" {
-						fmt.Fprintf(dockerCli.Err(), "  WARNING: You're not using the default seccomp profile\n")
+			for _, so := range kvs {
+				fmt.Fprintf(dockerCli.Out(), " %s\n", so.Name)
+				for _, o := range so.Options {
+					switch o.Key {
+					case "profile":
+						if o.Value != "default" {
+							fmt.Fprintf(dockerCli.Err(), "  WARNING: You're not using the default seccomp profile\n")
+						}
+						fmt.Fprintf(dockerCli.Out(), "  Profile: %s\n", o.Value)
 					}
-					fmt.Fprintf(dockerCli.Out(), "  %s: %s\n", o.Key, o.Value)
 				}
 			}
 		}
