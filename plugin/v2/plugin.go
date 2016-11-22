@@ -218,45 +218,45 @@ next:
 // ComputePrivileges takes the config file and computes the list of access necessary
 // for the plugin on the host.
 func (p *Plugin) ComputePrivileges() types.PluginPrivileges {
-	m := p.PluginObj.Config
+	c := p.PluginObj.Config
 	var privileges types.PluginPrivileges
-	if m.Network.Type != "null" && m.Network.Type != "bridge" {
+	if c.Network.Type != "null" && c.Network.Type != "bridge" {
 		privileges = append(privileges, types.PluginPrivilege{
 			Name:        "network",
-			Description: "",
-			Value:       []string{m.Network.Type},
+			Description: "permissions to access a network",
+			Value:       []string{c.Network.Type},
 		})
 	}
-	for _, mount := range m.Mounts {
+	for _, mount := range c.Mounts {
 		if mount.Source != nil {
 			privileges = append(privileges, types.PluginPrivilege{
 				Name:        "mount",
-				Description: "",
+				Description: "host path to mount",
 				Value:       []string{*mount.Source},
 			})
 		}
 	}
-	for _, device := range m.Linux.Devices {
+	for _, device := range c.Linux.Devices {
 		if device.Path != nil {
 			privileges = append(privileges, types.PluginPrivilege{
 				Name:        "device",
-				Description: "",
+				Description: "host device to access",
 				Value:       []string{*device.Path},
 			})
 		}
 	}
-	if m.Linux.DeviceCreation {
+	if c.Linux.DeviceCreation {
 		privileges = append(privileges, types.PluginPrivilege{
 			Name:        "device-creation",
-			Description: "",
+			Description: "allow creating devices inside plugin",
 			Value:       []string{"true"},
 		})
 	}
-	if len(m.Linux.Capabilities) > 0 {
+	if len(c.Linux.Capabilities) > 0 {
 		privileges = append(privileges, types.PluginPrivilege{
 			Name:        "capabilities",
-			Description: "",
-			Value:       m.Linux.Capabilities,
+			Description: "list of additional capabilities required",
+			Value:       c.Linux.Capabilities,
 		})
 	}
 	return privileges
@@ -317,12 +317,7 @@ func (p *Plugin) InitSpec(s specs.Spec, libRoot string) (*specs.Spec, error) {
 	if p.PluginObj.Config.Network.Type != "" {
 		// TODO: if net == bridge, use libnetwork controller to create a new plugin-specific bridge, bind mount /etc/hosts and /etc/resolv.conf look at the docker code (allocateNetwork, initialize)
 		if p.PluginObj.Config.Network.Type == "host" {
-			for i, n := range s.Linux.Namespaces {
-				if n.Type == "network" {
-					s.Linux.Namespaces = append(s.Linux.Namespaces[:i], s.Linux.Namespaces[i+1:]...)
-					break
-				}
-			}
+			oci.RemoveNamespace(&s, specs.NamespaceType("network"))
 		}
 		etcHosts := "/etc/hosts"
 		resolvConf := "/etc/resolv.conf"
@@ -401,8 +396,6 @@ func (p *Plugin) InitSpec(s specs.Spec, libRoot string) (*specs.Spec, error) {
 	s.Process.Cwd = cwd
 	s.Process.Env = envs
 
-	// TODO: what about duplicates?
-	// TODO: Should not need CAP_ prefix in manifest?
 	s.Process.Capabilities = append(s.Process.Capabilities, p.PluginObj.Config.Linux.Capabilities...)
 
 	return &s, nil
