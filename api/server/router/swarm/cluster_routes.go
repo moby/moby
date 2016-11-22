@@ -237,10 +237,6 @@ func (sr *swarmRouter) getServiceLogs(ctx context.Context, w http.ResponseWriter
 		OutStream: w,
 	}
 
-	if !logsConfig.Follow {
-		return fmt.Errorf("Bad parameters: Only follow mode is currently supported")
-	}
-
 	if logsConfig.Details {
 		return fmt.Errorf("Bad parameters: details is not currently supported")
 	}

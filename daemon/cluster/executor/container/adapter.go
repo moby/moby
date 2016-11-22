@@ -419,7 +419,11 @@ func (c *containerAdapter) logs(ctx context.Context, options api.LogSubscription
 	}
 
 	chStarted := make(chan struct{})
-	go c.backend.ContainerLogs(ctx, c.container.name(), apiOptions, chStarted)
+	go func() {
+		defer writer.Close()
+		c.backend.ContainerLogs(ctx, c.container.name(), apiOptions, chStarted)
+	}()
+
 	return reader, nil
 }
 
