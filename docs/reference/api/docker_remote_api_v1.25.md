@@ -6034,13 +6034,13 @@ List secrets
 
 ### Create a secret
 
-`POST /secrets/create`
+`POST /secrets`
 
 Create a secret
 
 **Example request**:
 
-    POST /v1.25/secrets/create HTTP/1.1
+    POST /v1.25/secrets HTTP/1.1
     Content-Type: application/json
 
     {
