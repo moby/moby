@@ -99,6 +99,9 @@ type Config struct {
 	// bootstrapping a cluster for the first time (it's a cluster-wide setting),
 	// and also when loading up any raft data on disk (as a KEK for the raft DEK).
 	UnlockKey []byte
+
+	// Availability allows a user to control the current scheduling status of a node
+	Availability api.NodeSpec_Availability
 }
 
 // Manager is the cluster manager for Swarm.
@@ -745,7 +748,7 @@ func (m *Manager) becomeLeader(ctx context.Context) {
 			rootCA))
 		// Add Node entry for ourself, if one
 		// doesn't exist already.
-		store.CreateNode(tx, managerNode(nodeID))
+		store.CreateNode(tx, managerNode(nodeID, m.config.Availability))
 		return nil
 	})
 
@@ -909,7 +912,7 @@ func defaultClusterObject(
 }
 
 // managerNode creates a new node with NodeRoleManager role.
-func managerNode(nodeID string) *api.Node {
+func managerNode(nodeID string, availability api.NodeSpec_Availability) *api.Node {
 	return &api.Node{
 		ID: nodeID,
 		Certificate: api.Certificate{
@@ -920,8 +923,9 @@ func managerNode(nodeID string) *api.Node {
 			},
 		},
 		Spec: api.NodeSpec{
-			Role:       api.NodeRoleManager,
-			Membership: api.NodeMembershipAccepted,
+			Role:         api.NodeRoleManager,
+			Membership:   api.NodeMembershipAccepted,
+			Availability: availability,
 		},
 	}
 }
