@@ -34,7 +34,7 @@ Options:
 Create and update a stack from a `compose` or a `dab` file on the swarm. This command
 has to be run targeting a manager node.
 
-## Copmose file
+## Compose file
 
 The `deploy` command supports compose file version `3.0` and above.
 
