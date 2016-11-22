@@ -9,18 +9,18 @@ import (
 )
 
 type inspectOptions struct {
-	name   string
+	names  []string
 	format string
 }
 
 func newSecretInspectCommand(dockerCli *command.DockerCli) *cobra.Command {
 	opts := inspectOptions{}
 	cmd := &cobra.Command{
-		Use:   "inspect [name]",
+		Use:   "inspect SECRET [SECRET]",
 		Short: "Inspect a secret",
-		Args:  cli.ExactArgs(1),
+		Args:  cli.RequiresMinArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			opts.name = args[0]
+			opts.names = args
 			return runSecretInspect(dockerCli, opts)
 		},
 	}
@@ -33,23 +33,13 @@ func runSecretInspect(dockerCli *command.DockerCli, opts inspectOptions) error {
 	client := dockerCli.Client()
 	ctx := context.Background()
 
-	// attempt to lookup secret by name
-	secrets, err := getSecretsByName(ctx, client, []string{opts.name})
+	ids, err := getCliRequestedSecretIDs(ctx, client, opts.names)
 	if err != nil {
 		return err
 	}
-
-	id := opts.name
-	for _, s := range secrets {
-		if s.Spec.Annotations.Name == opts.name {
-			id = s.ID
-			break
-		}
-	}
-
-	getRef := func(name string) (interface{}, []byte, error) {
+	getRef := func(id string) (interface{}, []byte, error) {
 		return client.SecretInspectWithRaw(ctx, id)
 	}
 
-	return inspect.Inspect(dockerCli.Out(), []string{id}, opts.format, getRef)
+	return inspect.Inspect(dockerCli.Out(), ids, opts.format, getRef)
 }
