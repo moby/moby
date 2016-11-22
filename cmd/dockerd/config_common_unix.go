@@ -11,7 +11,7 @@ import (
 
 var (
 	defaultPidFile  = "/var/run/docker.pid"
-	defaultGraph    = "/var/lib/docker"
+	defaultDataRoot = "/var/lib/docker"
 	defaultExecRoot = "/var/run/docker"
 )
 
