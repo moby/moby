@@ -98,12 +98,31 @@ func (ps *Store) SetState(p *v2.Plugin, state bool) {
 }
 
 // Add adds a plugin to memory and plugindb.
-func (ps *Store) Add(p *v2.Plugin) {
+// An error will be returned if there is a collision.
+func (ps *Store) Add(p *v2.Plugin) error {
 	ps.Lock()
+	defer ps.Unlock()
+
+	if v, exist := ps.plugins[p.GetID()]; exist {
+		return fmt.Errorf("plugin %q has the same ID %s as %q", p.Name(), p.GetID(), v.Name())
+	}
+	if _, exist := ps.nameToID[p.Name()]; exist {
+		return fmt.Errorf("plugin %q already exists", p.Name())
+	}
 	ps.plugins[p.GetID()] = p
 	ps.nameToID[p.Name()] = p.GetID()
 	ps.updatePluginDB()
-	ps.Unlock()
+	return nil
+}
+
+// Update updates a plugin to memory and plugindb.
+func (ps *Store) Update(p *v2.Plugin) {
+	ps.Lock()
+	defer ps.Unlock()
+
+	ps.plugins[p.GetID()] = p
+	ps.nameToID[p.Name()] = p.GetID()
+	ps.updatePluginDB()
 }
 
 // Remove removes a plugin from memory and plugindb.

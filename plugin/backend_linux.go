@@ -194,6 +194,18 @@ func (pm *Manager) CreateFromContext(ctx context.Context, tarCtx io.Reader, opti
 		return err
 	}
 
+	// In case an error happens, remove the created directory.
+	if err := pm.createFromContext(ctx, pluginID, pluginDir, tarCtx, options); err != nil {
+		if err := os.RemoveAll(pluginDir); err != nil {
+			logrus.Warnf("unable to remove %q from failed plugin creation: %v", pluginDir, err)
+		}
+		return err
+	}
+
+	return nil
+}
+
+func (pm *Manager) createFromContext(ctx context.Context, pluginID, pluginDir string, tarCtx io.Reader, options *types.PluginCreateOptions) error {
 	if err := chrootarchive.Untar(tarCtx, pluginDir, nil); err != nil {
 		return err
 	}
@@ -211,7 +223,9 @@ func (pm *Manager) CreateFromContext(ctx context.Context, tarCtx io.Reader, opti
 		return err
 	}
 
-	pm.pluginStore.Add(p)
+	if err := pm.pluginStore.Add(p); err != nil {
+		return err
+	}
 
 	pm.pluginEventLogger(p.GetID(), repoName, "create")
 

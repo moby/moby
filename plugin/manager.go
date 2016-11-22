@@ -124,7 +124,7 @@ func (pm *Manager) init() error {
 				return
 			}
 
-			pm.pluginStore.Add(p)
+			pm.pluginStore.Update(p)
 			requiresManualRestore := !pm.liveRestore && p.IsEnabled()
 
 			if requiresManualRestore {
