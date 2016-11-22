@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/distribution/digest"
 	"github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/identity"
 	"github.com/docker/swarmkit/log"
@@ -26,10 +25,8 @@ var validSecretNameRegexp = regexp.MustCompile(`^[a-zA-Z0-9]+(?:[a-zA-Z0-9-_.]*[
 // assumes spec is not nil
 func secretFromSecretSpec(spec *api.SecretSpec) *api.Secret {
 	return &api.Secret{
-		ID:         identity.NewID(),
-		Spec:       *spec,
-		SecretSize: int64(len(spec.Data)),
-		Digest:     digest.FromBytes(spec.Data).String(),
+		ID:   identity.NewID(),
+		Spec: *spec,
 	}
 }
 
