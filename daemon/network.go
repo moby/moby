@@ -269,6 +269,7 @@ func (daemon *Daemon) createNetwork(create types.NetworkCreateRequest, id string
 		libnetwork.NetworkOptionEnableIPv6(create.EnableIPv6),
 		libnetwork.NetworkOptionDriverOpts(create.Options),
 		libnetwork.NetworkOptionLabels(create.Labels),
+		libnetwork.NetworkOptionAttachable(create.Attachable),
 	}
 
 	if create.IPAM != nil {
