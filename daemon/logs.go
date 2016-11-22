@@ -21,13 +21,16 @@ import (
 // ContainerLogs hooks up a container's stdout and stderr streams
 // configured with the given struct.
 func (daemon *Daemon) ContainerLogs(ctx context.Context, containerName string, config *backend.ContainerLogsConfig, started chan struct{}) error {
+	if !(config.ShowStdout || config.ShowStderr) {
+		return fmt.Errorf("You must choose at least one stream")
+	}
 	container, err := daemon.GetContainer(containerName)
 	if err != nil {
 		return err
 	}
 
-	if !(config.ShowStdout || config.ShowStderr) {
-		return fmt.Errorf("You must choose at least one stream")
+	if container.HostConfig.LogConfig.Type == "none" {
+		return logger.ErrReadLogsNotSupported
 	}
 
 	cLog, err := daemon.getLogger(container)

@@ -1189,7 +1189,7 @@ func (s *DockerDaemonSuite) TestDaemonLoggingDriverNoneLogsError(c *check.C) {
 
 	out, err = s.d.Cmd("logs", "test")
 	c.Assert(err, check.NotNil, check.Commentf("Logs should fail with 'none' driver"))
-	expected := `"logs" command is supported only for "json-file" and "journald" logging drivers (got: none)`
+	expected := `configured logging driver does not support reading`
 	c.Assert(out, checker.Contains, expected)
 }
 

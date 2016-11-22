@@ -310,8 +310,8 @@ func (s *DockerSuite) TestLogsFollowGoroutinesNoOutput(c *check.C) {
 func (s *DockerSuite) TestLogsCLIContainerNotFound(c *check.C) {
 	name := "testlogsnocontainer"
 	out, _, _ := dockerCmdWithError("logs", name)
-	message := fmt.Sprintf("Error: No such container: %s\n", name)
-	c.Assert(out, checker.Equals, message)
+	message := fmt.Sprintf("No such container: %s\n", name)
+	c.Assert(out, checker.Contains, message)
 }
 
 func (s *DockerSuite) TestLogsWithDetails(c *check.C) {
