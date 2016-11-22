@@ -8,6 +8,7 @@ package dockerfile
 
 import (
 	"fmt"
+	"runtime"
 	"strings"
 	"text/scanner"
 	"unicode"
@@ -298,9 +299,16 @@ func (sw *shellWord) processName() string {
 }
 
 func (sw *shellWord) getEnv(name string) string {
+	if runtime.GOOS == "windows" {
+		// Case-insensitive environment variables on Windows
+		name = strings.ToUpper(name)
+	}
 	for _, env := range sw.envs {
 		i := strings.Index(env, "=")
 		if i < 0 {
+			if runtime.GOOS == "windows" {
+				env = strings.ToUpper(env)
+			}
 			if name == env {
 				// Should probably never get here, but just in case treat
 				// it like "var" and "var=" are the same
@@ -308,7 +316,11 @@ func (sw *shellWord) getEnv(name string) string {
 			}
 			continue
 		}
-		if name != env[:i] {
+		compareName := env[:i]
+		if runtime.GOOS == "windows" {
+			compareName = strings.ToUpper(compareName)
+		}
+		if name != compareName {
 			continue
 		}
 		return env[i+1:]

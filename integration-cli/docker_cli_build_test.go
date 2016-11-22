@@ -7311,3 +7311,19 @@ RUN ["cat", "/foo/file"]
 		c.Fatal(err)
 	}
 }
+
+// Case-insensitive environment variables on Windows
+func (s *DockerSuite) TestBuildWindowsEnvCaseInsensitive(c *check.C) {
+	testRequires(c, DaemonIsWindows)
+	name := "testbuildwindowsenvcaseinsensitive"
+	if _, err := buildImage(name, `
+		FROM `+WindowsBaseImage+`
+		ENV FOO=bar foo=bar
+  `, true); err != nil {
+		c.Fatal(err)
+	}
+	res := inspectFieldJSON(c, name, "Config.Env")
+	if res != `["foo=bar"]` { // Should not have FOO=bar in it - takes the last one processed. And only one entry as deduped.
+		c.Fatalf("Case insensitive environment variables on Windows failed. Got %s", res)
+	}
+}
