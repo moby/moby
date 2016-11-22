@@ -68,9 +68,11 @@ func (s *DockerAuthzSuite) SetUpTest(c *check.C) {
 }
 
 func (s *DockerAuthzSuite) TearDownTest(c *check.C) {
-	s.d.Stop()
-	s.ds.TearDownTest(c)
-	s.ctrl = nil
+	if s.d != nil {
+		s.d.Stop()
+		s.ds.TearDownTest(c)
+		s.ctrl = nil
+	}
 }
 
 func (s *DockerAuthzSuite) SetUpSuite(c *check.C) {

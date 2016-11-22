@@ -54,8 +54,10 @@ func (s *DockerExternalVolumeSuite) SetUpTest(c *check.C) {
 }
 
 func (s *DockerExternalVolumeSuite) TearDownTest(c *check.C) {
-	s.d.Stop()
-	s.ds.TearDownTest(c)
+	if s.d != nil {
+		s.d.Stop()
+		s.ds.TearDownTest(c)
+	}
 }
 
 func (s *DockerExternalVolumeSuite) SetUpSuite(c *check.C) {

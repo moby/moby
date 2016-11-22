@@ -51,8 +51,10 @@ func (s *DockerNetworkSuite) SetUpTest(c *check.C) {
 }
 
 func (s *DockerNetworkSuite) TearDownTest(c *check.C) {
-	s.d.Stop()
-	s.ds.TearDownTest(c)
+	if s.d != nil {
+		s.d.Stop()
+		s.ds.TearDownTest(c)
+	}
 }
 
 func (s *DockerNetworkSuite) SetUpSuite(c *check.C) {
