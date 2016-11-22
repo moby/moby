@@ -1485,17 +1485,12 @@ func (n *network) Peers() []networkdb.PeerInfo {
 		return []networkdb.PeerInfo{}
 	}
 
-	var nDB *networkdb.NetworkDB
-	n.ctrlr.Lock()
-	if n.ctrlr.agentInitDone == nil && n.ctrlr.agent != nil {
-		nDB = n.ctrlr.agent.networkDB
+	agent := n.getController().getAgent()
+	if agent == nil {
+		return []networkdb.PeerInfo{}
 	}
-	n.ctrlr.Unlock()
 
-	if nDB != nil {
-		return n.ctrlr.agent.networkDB.Peers(n.id)
-	}
-	return []networkdb.PeerInfo{}
+	return agent.networkDB.Peers(n.ID())
 }
 
 func (n *network) DriverOptions() map[string]string {
