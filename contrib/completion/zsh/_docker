@@ -2257,7 +2257,8 @@ __docker_subcommand() {
                 "($help)--tlskey=[Path to TLS key file]:Key file:_files -g \"*.(pem|key)\"" \
                 "($help)--tlsverify[Use TLS and verify the remote]" \
                 "($help)--userns-remap=[User/Group setting for user namespaces]:user\:group:->users-groups" \
-                "($help)--userland-proxy[Use userland proxy for loopback traffic]" && ret=0
+                "($help)--userland-proxy[Use userland proxy for loopback traffic]" \
+                "($help)--userland-proxy-path=[Path to the userland proxy binary]:binary:_files" && ret=0
 
             case $state in
                 (cluster-store)
