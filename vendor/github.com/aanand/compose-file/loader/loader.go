@@ -515,13 +515,12 @@ func toYAMLName(name string) string {
 }
 
 func loadListOrStructMap(value interface{}, target reflect.Type) (interface{}, error) {
-	mapValue := reflect.MakeMap(target)
-
 	if list, ok := value.([]interface{}); ok {
+		mapValue := map[interface{}]interface{}{}
 		for _, name := range list {
-			mapValue.SetMapIndex(reflect.ValueOf(name), reflect.ValueOf(nil))
+			mapValue[name] = nil
 		}
-		return mapValue.Interface(), nil
+		return mapValue, nil
 	}
 
 	return value, nil
