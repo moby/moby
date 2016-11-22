@@ -3,6 +3,7 @@ package daemon
 import (
 	"fmt"
 	"net"
+	"os"
 	"runtime"
 	"strings"
 	"time"
@@ -156,11 +157,16 @@ func (daemon *Daemon) create(params types.ContainerCreateConfig, managed bool) (
 	}
 
         if params.HostConfig.Isolation == "qemu" {
-                qemuDirectory := fmt.Sprintf("/var/run/docker-qemu/%s/", container.ID)
-                container.Config.SerialConsoleSockName = qemuDirectory + "serialconsole.sock"
-                container.Config.AppConsoleSockName = qemuDirectory + "appconsole.sock"
+                qemuDirectory := fmt.Sprintf("/var/run/docker-qemu/%s", container.ID)
 
-                logrus.Printf("Console location: %s", container.Config.AppConsoleSockName)
+	        err := os.MkdirAll(qemuDirectory, 0700)
+		if err != nil {
+			return nil, fmt.Errorf("Could not create directory /var/run/docker-qemu/%s : %s", container.ID, err)
+		}
+
+                container.Config.QemuDirectory = qemuDirectory
+
+                logrus.Infof("QEMU directory for isolated container is : %s", container.Config.QemuDirectory)
 
                 ld := container.InitDriver()
                 lc := ld.InitContext(container)

@@ -106,7 +106,7 @@ func runRun(dockerCli *command.DockerCli, flags *pflag.FlagSet, opts *runOptions
 	        }
 
                 qemuDirectory := fmt.Sprintf("/var/run/docker-qemu/%s/", createResponse.ID)
-                appConsoleSockName := qemuDirectory + "appconsole.sock"
+                appConsoleSockName := qemuDirectory + "app.sock"
 
 		conn, err := utils.UnixSocketConnect(appConsoleSockName)
 		if err != nil {

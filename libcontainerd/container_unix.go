@@ -28,6 +28,7 @@ type IcContext interface {
 	CreateDeltaDiskImage(deltaDiskDirectory, diskPath string) (string, error)
 	DomainXml() (string, error)
 	GetDomain() (*libvirtgo.VirDomain)
+	GetQemuDirectory() string
 	Create()
 	Launch()
 	Shutdown()
@@ -118,11 +119,18 @@ func (ctr *container) startQemu() error {
 	_, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-        if ctr.isolatedContainerContext != nil {
-          ctr.isolatedContainerContext.Launch()
-        } else {
-          return fmt.Errorf("container.isolatedContainerContext is not set to launch isolated container")
-        }
+	if ctr.isolatedContainerContext != nil {
+		seedImageLocation, err := ctr.isolatedContainerContext.CreateSeedImage(ctr.isolatedContainerContext.GetQemuDirectory())
+		if err != nil {
+			return fmt.Errorf("Could not create seed image : %s", err)
+		}
+
+		logrus.Infof("Seed image location: %s", seedImageLocation)
+
+		ctr.isolatedContainerContext.Launch()
+	} else {
+		return fmt.Errorf("container.isolatedContainerContext is not set to launch isolated container")
+	}
 
 	go func(ctr *container) {
 		active := true

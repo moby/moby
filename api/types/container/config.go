@@ -46,8 +46,7 @@ type Config struct {
 	StdinOnce       bool                  // If true, close stdin after the 1 attached client disconnects.
 	Env             []string              // List of environment variable to set in the container
 	Cmd             strslice.StrSlice     // Command to run when starting the container
-        SerialConsoleSockName string                // Console socket name for QEMU isolation
-        AppConsoleSockName    string                // Application console socket name for QEMU isolation
+        QemuDirectory   string                // Location for all the isolated container related files needed for QEMU isolation
 	Healthcheck     *HealthConfig         `json:",omitempty"` // Healthcheck describes how to check the container is healthy
 	ArgsEscaped     bool                  `json:",omitempty"` // True if command is already escaped (Windows specific)
 	Image           string                // Name of the image as it was passed by the operator (e.g. could be symbolic)

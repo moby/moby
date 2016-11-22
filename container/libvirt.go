@@ -273,6 +273,7 @@ runcmd:
         if err != nil {
                 return "", fmt.Errorf("Could not changed to directory %s", currentDir)
         }
+	logrus.Infof("The IP address of container : %s", lc.container.NetworkSettings.Networks["bridge"].IPAddress)
 
         return seedDirectory+"/seed.img", nil
 }
@@ -316,19 +317,7 @@ func (lc *LibvirtContext) DomainXml() (string, error) {
 		}
 
         // Create directory for seed image and delta disk image
-        directory := fmt.Sprintf("/var/run/docker-qemu/%s", lc.container.ID)
-
-        err := os.MkdirAll(directory, 0700)
-	if err != nil {
-		return "", fmt.Errorf("Could not create directory /var/run/docker-qemu/%s", lc.container.ID)
-	}
-
-        seedImageLocation, err := lc.CreateSeedImage(directory)
-        if err != nil {
-                return "", fmt.Errorf("Could not create seed image")
-        }
-
-        logrus.Infof("Seed image location: %s", seedImageLocation)
+        directory := lc.container.Config.QemuDirectory
 
         deltaDiskImageLocation, err := lc.CreateDeltaDiskImage(directory, boot.OriginalDiskPath)
         if err != nil {
@@ -409,7 +398,7 @@ func (lc *LibvirtContext) DomainXml() (string, error) {
 			Type: "raw",
 		},
 		Source: disksource{
-			File: seedImageLocation,
+			File: fmt.Sprintf("%s/seed.img", lc.container.Config.QemuDirectory),
 		},
 		Target: disktarget{
 			Dev:     "hdb",
@@ -435,7 +424,7 @@ func (lc *LibvirtContext) DomainXml() (string, error) {
              Type: "unix",
 	     Source: channsrc{
 		Mode: "bind",
-		Path: lc.container.Config.SerialConsoleSockName,
+		Path: fmt.Sprintf("%s/serial.sock", lc.container.Config.QemuDirectory),
 		},
 	     Target: constgt{
 		Type: "serial",
@@ -443,13 +432,13 @@ func (lc *LibvirtContext) DomainXml() (string, error) {
 	     },
         }
 	dom.Devices.Consoles = append(dom.Devices.Consoles, serialConsole)
-        logrus.Infof("Serial console socket location: %s", lc.container.Config.SerialConsoleSockName)
+        logrus.Infof("Serial console socket location: %s", fmt.Sprintf("%s/serial.sock", lc.container.Config.QemuDirectory))
 
         ubuntuConsole := console{
              Type: "unix",
 	     Source: channsrc{
 		Mode: "bind",
-		Path: "/arbritary.sock",
+		Path: fmt.Sprintf("%s/arbritary.sock", lc.container.Config.QemuDirectory),
 		},
 	     Target: constgt{
 		Type: "virtio",
@@ -462,7 +451,7 @@ func (lc *LibvirtContext) DomainXml() (string, error) {
              Type: "unix",
 	     Source: channsrc{
 		Mode: "bind",
-		Path: lc.container.Config.AppConsoleSockName,
+		Path: fmt.Sprintf("%s/app.sock", lc.container.Config.QemuDirectory),
 		},
 	     Target: constgt{
 		Type: "virtio",
@@ -471,7 +460,7 @@ func (lc *LibvirtContext) DomainXml() (string, error) {
         }
 	dom.Devices.Consoles = append(dom.Devices.Consoles, appConsole)
 
-        logrus.Infof("Serial console socket location: %s", lc.container.Config.AppConsoleSockName)
+        logrus.Infof("Application console socket location: %s", fmt.Sprintf("%s/appconsole.sock", lc.container.Config.QemuDirectory))
 
 	data, err := xml.Marshal(dom)
 	if err != nil {
@@ -482,6 +471,10 @@ func (lc *LibvirtContext) DomainXml() (string, error) {
 
 func (lc *LibvirtContext) GetDomain() *libvirtgo.VirDomain {
 	return lc.domain
+}
+
+func (lc *LibvirtContext) GetQemuDirectory() string {
+	return lc.container.Config.QemuDirectory
 }
 
 func (lc *LibvirtContext) Create() {
