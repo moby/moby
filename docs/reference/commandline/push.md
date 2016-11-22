@@ -36,6 +36,13 @@ running in a terminal, terminates the push operation.
 
 Registry credentials are managed by [docker login](login.md).
 
+## Concurrent uploads
+
+By default the Docker daemon will push five layers of an image at a time.
+If you are on a low bandwidth connection this may cause timeout issues and you may want to lower
+this via the `--max-concurrent-uploads` daemon option. See the
+[daemon documentation](dockerd.md) for more details.
+
 ## Examples
 
 ### Pushing a new image to a registry

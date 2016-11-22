@@ -44,6 +44,13 @@ environment variables. To set these environment variables on a host using
 `systemd`, refer to the [control and configure Docker with systemd](https://docs.docker.com/engine/admin/systemd/#http-proxy)
 for variables configuration.
 
+## Concurrent downloads
+
+By default the Docker daemon will pull three layers of an image at a time.
+If you are on a low bandwidth connection this may cause timeout issues and you may want to lower
+this via the `--max-concurrent-downloads` daemon option. See the
+[daemon documentation](dockerd.md) for more details.
+
 ## Examples
 
 ### Pull an image from Docker Hub
