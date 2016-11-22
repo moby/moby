@@ -2377,11 +2377,6 @@ definitions:
         format: "dateTime"
       Spec:
         $ref: "#/definitions/ServiceSpec"
-      Digest:
-        type: "string"
-      SecretSize:
-        type: "integer"
-        format: "int64"
 paths:
   /containers/json:
     get:
@@ -7540,8 +7535,6 @@ paths:
                 UpdatedAt: "2016-11-05T01:20:17.327670065Z"
                 Spec:
                   Name: "app-dev.crt"
-                Digest: "sha256:11d7c6f38253b73e608153c9f662a191ae605e1a3d9b756b0b3426388f91d3fa"
-                SecretSize: 31
         500:
           description: "server error"
           schema:
@@ -7620,8 +7613,6 @@ paths:
               UpdatedAt: "2016-11-05T01:20:17.327670065Z"
               Spec:
                 Name: "app-dev.crt"
-              Digest: "sha256:11d7c6f38253b73e608153c9f662a191ae605e1a3d9b756b0b3426388f91d3fa"
-              SecretSize: 31
         404:
           description: "secret not found"
           schema:
