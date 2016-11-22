@@ -753,7 +753,7 @@ func parseStorageOpts(storageOpts []string) (map[string]string, error) {
 			opt := strings.SplitN(option, "=", 2)
 			m[opt[0]] = opt[1]
 		} else {
-			return nil, fmt.Errorf("Invalid storage option.")
+			return nil, fmt.Errorf("invalid storage option")
 		}
 	}
 	return m, nil
