@@ -91,7 +91,7 @@ func getExitCode(ctx context.Context, dockerCli *command.DockerCli, containerID 
 	c, err := dockerCli.Client().ContainerInspect(ctx, containerID)
 	if err != nil {
 		// If we can't connect, then the daemon probably died.
-		if err != clientapi.ErrConnectionFailed {
+		if !clientapi.IsErrConnectionFailed(err) {
 			return false, -1, err
 		}
 		return false, -1, nil
