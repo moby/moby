@@ -4,7 +4,7 @@
 
 bundle_test_integration_cli() {
 	TESTFLAGS="$TESTFLAGS -check.v -check.timeout=${TIMEOUT} -test.timeout=360m"
-	go_test_dir integration-cli $DOCKER_INTEGRATION_TESTS_VERIFIED
+	go_test_dir cmd/integration-cli $DOCKER_INTEGRATION_TESTS_VERIFIED
 }
 
 # If $TESTFLAGS is set in the environment, it is passed as extra arguments to 'go test'.

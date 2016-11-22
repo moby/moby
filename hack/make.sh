@@ -41,6 +41,17 @@ else
 	fi
 fi
 
+# cross-platform symlink maker
+mklink() {
+	if [ "$(go env GOHOSTOS)" = 'windows' ]; then
+		pushd $(dirname "$2")
+		powershell -command New-Item -ItemType SymbolicLink -Force -Name $(basename "$2") -Target "$1"
+		popd
+	else
+		ln -s "$1" "$2"
+	fi
+}
+
 if [ -z "$inContainer" ]; then
 	{
 		echo "# WARNING! I don't seem to be running in a Docker container."
@@ -296,7 +307,18 @@ main() {
 		fi
 		mkdir -p "$DEST"
 		ABS_DEST="$(cd "$DEST" && pwd -P)"
+
+		# make symlink of root directory to vendor in cmd, it's needed to get vendored
+		# dependencies for all deps outside cmd.
+		if [ ! -e cmd/vendor/github.com/docker/docker ]; then
+			mklink ../../../../ cmd/vendor/github.com/docker/docker
+		fi
 		bundle "$bundle"
+		if [ "$(go env GOHOSTOS)" = 'windows' ]; then
+			# we need to remove symlink on windows, it breaks git somehow
+			echo Removing temporary symlink...
+			rm -f cmd/vendor/github.com/docker/docker
+		fi
 		echo
 	done
 }

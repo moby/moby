@@ -11,6 +11,7 @@
 .bashrc
 .editorconfig
 .gopath/
+.unit_gopath/
 .go-pkg-cache/
 autogen/
 bundles/
@@ -30,4 +31,4 @@ docs/changed-files
 man/man1
 man/man5
 man/man8
-vendor/pkg/
+cmd/vendor/github.com/docker/docker
