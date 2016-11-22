@@ -13,7 +13,7 @@ func TestClientServiceInvalidCommand(t *testing.T) {
 
 	err := cli.Cmd("docker", "service", "invalid")
 	if err == nil {
-		t.Fatalf("Passing invalid commands must fail")
+		t.Fatal("Passing invalid commands must fail")
 	}
 }
 

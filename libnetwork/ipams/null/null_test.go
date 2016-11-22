@@ -23,22 +23,22 @@ func TestPoolRequest(t *testing.T) {
 
 	_, _, _, err = a.RequestPool("default", "", "", nil, false)
 	if err == nil {
-		t.Fatalf("Unexpected success")
+		t.Fatal("Unexpected success")
 	}
 
 	_, _, _, err = a.RequestPool(defaultAS, "192.168.0.0/16", "", nil, false)
 	if err == nil {
-		t.Fatalf("Unexpected success")
+		t.Fatal("Unexpected success")
 	}
 
 	_, _, _, err = a.RequestPool(defaultAS, "", "192.168.0.0/24", nil, false)
 	if err == nil {
-		t.Fatalf("Unexpected success")
+		t.Fatal("Unexpected success")
 	}
 
 	_, _, _, err = a.RequestPool(defaultAS, "", "", nil, true)
 	if err == nil {
-		t.Fatalf("Unexpected success")
+		t.Fatal("Unexpected success")
 	}
 }
 
@@ -55,7 +55,7 @@ func TestOtherRequests(t *testing.T) {
 
 	_, _, err = a.RequestAddress("anypid", nil, nil)
 	if err == nil {
-		t.Fatalf("Unexpected success")
+		t.Fatal("Unexpected success")
 	}
 
 }

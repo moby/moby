@@ -173,7 +173,7 @@ func ReverseIP(IP string) string {
 // ParseAlias parses and validates the specified string as an alias format (name:alias)
 func ParseAlias(val string) (string, string, error) {
 	if val == "" {
-		return "", "", fmt.Errorf("empty string specified for alias")
+		return "", "", errors.New("empty string specified for alias")
 	}
 	arr := strings.Split(val, ":")
 	if len(arr) > 2 {

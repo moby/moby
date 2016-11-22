@@ -61,7 +61,7 @@ func TestKVObjectFlatKey(t *testing.T) {
 	var n dummyObject
 	json.Unmarshal(data.Value, &n)
 	if n.Name != expected.Name {
-		t.Fatalf("Dummy object doesn't match the expected object")
+		t.Fatal("Dummy object doesn't match the expected object")
 	}
 }
 

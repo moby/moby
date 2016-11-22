@@ -24,7 +24,7 @@ func TestSetupIPForwarding(t *testing.T) {
 	// Read new setting
 	procSetting = readCurrentIPForwardingSetting(t)
 	if bytes.Compare(procSetting, []byte("1\n")) != 0 {
-		t.Fatalf("Failed to effectively setup IP forwarding")
+		t.Fatal("Failed to effectively setup IP forwarding")
 	}
 }
 

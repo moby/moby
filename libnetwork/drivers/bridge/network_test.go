@@ -39,7 +39,7 @@ func TestLinkCreate(t *testing.T) {
 			t.Fatalf("Failed with a wrong error :%s", err.Error())
 		}
 	} else {
-		t.Fatalf("Failed to detect invalid config")
+		t.Fatal("Failed to detect invalid config")
 	}
 
 	// Good endpoint creation
@@ -59,7 +59,7 @@ func TestLinkCreate(t *testing.T) {
 		t.Fatal(err)
 	}
 	if mtu != sboxLnk.Attrs().MTU {
-		t.Fatalf("Sandbox endpoint interface did not inherit bridge interface MTU config")
+		t.Fatal("Sandbox endpoint interface did not inherit bridge interface MTU config")
 	}
 	// TODO: if we could get peer name from (sboxLnk.(*netlink.Veth)).PeerName
 	// then we could check the MTU on hostLnk as well.
@@ -67,7 +67,7 @@ func TestLinkCreate(t *testing.T) {
 	te1 := newTestEndpoint(ipdList[0].Pool, 11)
 	err = d.CreateEndpoint("dummy", "ep", te1.Interface(), nil)
 	if err == nil {
-		t.Fatalf("Failed to detect duplicate endpoint id on same network")
+		t.Fatal("Failed to detect duplicate endpoint id on same network")
 	}
 
 	if te.iface.dstName == "" {
@@ -137,7 +137,7 @@ func TestLinkCreateTwo(t *testing.T) {
 			t.Fatalf("Failed with a wrong error: %s", err.Error())
 		}
 	} else {
-		t.Fatalf("Expected to fail while trying to add same endpoint twice")
+		t.Fatal("Expected to fail while trying to add same endpoint twice")
 	}
 }
 
@@ -207,7 +207,7 @@ func TestLinkDelete(t *testing.T) {
 			t.Fatalf("Failed with a wrong error :%s", err.Error())
 		}
 	} else {
-		t.Fatalf("Failed to detect invalid config")
+		t.Fatal("Failed to detect invalid config")
 	}
 
 	err = d.DeleteEndpoint("dummy", "ep1")
