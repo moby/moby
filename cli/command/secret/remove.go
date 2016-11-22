@@ -10,17 +10,17 @@ import (
 )
 
 type removeOptions struct {
-	ids []string
+	names []string
 }
 
 func newSecretRemoveCommand(dockerCli *command.DockerCli) *cobra.Command {
 	return &cobra.Command{
-		Use:   "rm [id]",
+		Use:   "rm SECRET [SECRET]",
 		Short: "Remove a secret",
 		Args:  cli.RequiresMinArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			opts := removeOptions{
-				ids: args,
+				names: args,
 			}
 			return runSecretRemove(dockerCli, opts)
 		},
@@ -31,32 +31,14 @@ func runSecretRemove(dockerCli *command.DockerCli, opts removeOptions) error {
 	client := dockerCli.Client()
 	ctx := context.Background()
 
-	// attempt to lookup secret by name
-	secrets, err := getSecretsByName(ctx, client, opts.ids)
+	ids, err := getCliRequestedSecretIDs(ctx, client, opts.names)
 	if err != nil {
 		return err
 	}
 
-	ids := opts.ids
-
-	names := make(map[string]int)
-	for _, id := range ids {
-		names[id] = 1
-	}
-
-	if len(secrets) > 0 {
-		ids = []string{}
-
-		for _, s := range secrets {
-			if _, ok := names[s.Spec.Annotations.Name]; ok {
-				ids = append(ids, s.ID)
-			}
-		}
-	}
-
 	for _, id := range ids {
 		if err := client.SecretRemove(ctx, id); err != nil {
-			return err
+			fmt.Fprintf(dockerCli.Out(), "WARN: %s\n", err)
 		}
 
 		fmt.Fprintln(dockerCli.Out(), id)
