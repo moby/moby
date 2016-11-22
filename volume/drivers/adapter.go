@@ -2,6 +2,7 @@ package volumedrivers
 
 import (
 	"errors"
+	"path/filepath"
 	"strings"
 
 	"github.com/Sirupsen/logrus"
@@ -14,6 +15,7 @@ var (
 
 type volumeDriverAdapter struct {
 	name         string
+	baseHostPath string
 	capabilities *volume.Capability
 	proxy        *volumeDriverProxy
 }
@@ -27,14 +29,22 @@ func (a *volumeDriverAdapter) Create(name string, opts map[string]string) (volum
 		return nil, err
 	}
 	return &volumeAdapter{
-		proxy:      a.proxy,
-		name:       name,
-		driverName: a.name,
+		proxy:        a.proxy,
+		name:         name,
+		driverName:   a.name,
+		baseHostPath: a.baseHostPath,
 	}, nil
 }
 
 func (a *volumeDriverAdapter) Remove(v volume.Volume) error {
 	return a.proxy.Remove(v.Name())
+}
+
+func hostPath(baseHostPath, path string) string {
+	if baseHostPath != "" {
+		path = filepath.Join(baseHostPath, path)
+	}
+	return path
 }
 
 func (a *volumeDriverAdapter) List() ([]volume.Volume, error) {
@@ -46,10 +56,11 @@ func (a *volumeDriverAdapter) List() ([]volume.Volume, error) {
 	var out []volume.Volume
 	for _, vp := range ls {
 		out = append(out, &volumeAdapter{
-			proxy:      a.proxy,
-			name:       vp.Name,
-			driverName: a.name,
-			eMount:     vp.Mountpoint,
+			proxy:        a.proxy,
+			name:         vp.Name,
+			baseHostPath: a.baseHostPath,
+			driverName:   a.name,
+			eMount:       hostPath(a.baseHostPath, vp.Mountpoint),
 		})
 	}
 	return out, nil
@@ -67,11 +78,12 @@ func (a *volumeDriverAdapter) Get(name string) (volume.Volume, error) {
 	}
 
 	return &volumeAdapter{
-		proxy:      a.proxy,
-		name:       v.Name,
-		driverName: a.Name(),
-		eMount:     v.Mountpoint,
-		status:     v.Status,
+		proxy:        a.proxy,
+		name:         v.Name,
+		driverName:   a.Name(),
+		eMount:       v.Mountpoint,
+		status:       v.Status,
+		baseHostPath: a.baseHostPath,
 	}, nil
 }
 
@@ -108,11 +120,12 @@ func (a *volumeDriverAdapter) getCapabilities() volume.Capability {
 }
 
 type volumeAdapter struct {
-	proxy      *volumeDriverProxy
-	name       string
-	driverName string
-	eMount     string // ephemeral host volume path
-	status     map[string]interface{}
+	proxy        *volumeDriverProxy
+	name         string
+	baseHostPath string
+	driverName   string
+	eMount       string // ephemeral host volume path
+	status       map[string]interface{}
 }
 
 type proxyVolume struct {
@@ -131,7 +144,8 @@ func (a *volumeAdapter) DriverName() string {
 
 func (a *volumeAdapter) Path() string {
 	if len(a.eMount) == 0 {
-		a.eMount, _ = a.proxy.Path(a.name)
+		mountpoint, _ := a.proxy.Path(a.name)
+		a.eMount = hostPath(a.baseHostPath, mountpoint)
 	}
 	return a.eMount
 }
@@ -141,8 +155,8 @@ func (a *volumeAdapter) CachedPath() string {
 }
 
 func (a *volumeAdapter) Mount(id string) (string, error) {
-	var err error
-	a.eMount, err = a.proxy.Mount(a.name, id)
+	mountpoint, err := a.proxy.Mount(a.name, id)
+	a.eMount = hostPath(a.baseHostPath, mountpoint)
 	return a.eMount, err
 }
 

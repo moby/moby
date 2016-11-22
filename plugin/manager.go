@@ -5,10 +5,12 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/libcontainerd"
+	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/plugin/store"
 	"github.com/docker/docker/plugin/v2"
 	"github.com/docker/docker/registry"
@@ -63,7 +65,7 @@ func Init(root string, ps *store.Store, remote libcontainerd.Remote, rs registry
 	root = filepath.Join(root, "plugins")
 	manager = &Manager{
 		libRoot:           root,
-		runRoot:           "/run/docker",
+		runRoot:           "/run/docker/plugins",
 		pluginStore:       ps,
 		registryService:   rs,
 		liveRestore:       liveRestore,
@@ -104,6 +106,13 @@ func (pm *Manager) StateChanged(id string, e libcontainerd.StateInfo) error {
 		pm.mu.RUnlock()
 
 		p.RemoveFromDisk()
+
+		if p.PropagatedMount != "" {
+			if err := mount.Unmount(p.PropagatedMount); err != nil {
+				logrus.Warnf("Could not unmount %s: %v", p.PropagatedMount, err)
+			}
+		}
+
 		if restart {
 			pm.enable(p, c, true)
 		}
@@ -139,6 +148,24 @@ func (pm *Manager) reload() error {
 			if err := pm.restorePlugin(p); err != nil {
 				logrus.Errorf("failed to restore plugin '%s': %s", p.Name(), err)
 				return
+			}
+
+			if p.Rootfs != "" {
+				p.Rootfs = filepath.Join(pm.libRoot, p.PluginObj.ID, "rootfs")
+			}
+
+			// We should only enable rootfs propagation for certain plugin types that need it.
+			for _, typ := range p.PluginObj.Config.Interface.Types {
+				if typ.Capability == "volumedriver" && typ.Prefix == "docker" && strings.HasPrefix(typ.Version, "1.") {
+					if p.PluginObj.Config.PropagatedMount != "" {
+						// TODO: sanitize PropagatedMount and prevent breakout
+						p.PropagatedMount = filepath.Join(p.Rootfs, p.PluginObj.Config.PropagatedMount)
+						if err := os.MkdirAll(p.PropagatedMount, 0755); err != nil {
+							logrus.Errorf("failed to create PropagatedMount directory at %s: %v", p.PropagatedMount, err)
+							return
+						}
+					}
+				}
 			}
 
 			pm.pluginStore.Update(p)

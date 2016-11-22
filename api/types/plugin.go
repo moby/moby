@@ -71,6 +71,10 @@ type PluginConfig struct {
 	// Required: true
 	Network PluginConfigNetwork `json:"Network"`
 
+	// propagated mount
+	// Required: true
+	PropagatedMount string `json:"PropagatedMount"`
+
 	// user
 	User PluginConfigUser `json:"User,omitempty"`
 
