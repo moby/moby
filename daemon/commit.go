@@ -46,6 +46,11 @@ func merge(userConf, imageConf *containertypes.Config) error {
 			imageEnvKey := strings.Split(imageEnv, "=")[0]
 			for _, userEnv := range userConf.Env {
 				userEnvKey := strings.Split(userEnv, "=")[0]
+				if runtime.GOOS == "windows" {
+					// Case insensitive environment variables on Windows
+					imageEnvKey = strings.ToUpper(imageEnvKey)
+					userEnvKey = strings.ToUpper(userEnvKey)
+				}
 				if imageEnvKey == userEnvKey {
 					found = true
 					break
