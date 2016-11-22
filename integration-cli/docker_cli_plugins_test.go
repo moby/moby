@@ -4,6 +4,7 @@ import (
 	"github.com/docker/docker/pkg/integration/checker"
 	"github.com/go-check/check"
 
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -168,4 +169,35 @@ func (s *DockerSuite) TestPluginEnableDisableNegative(c *check.C) {
 
 	_, _, err = dockerCmdWithError("plugin", "remove", pName)
 	c.Assert(err, checker.IsNil)
+}
+
+func (s *DockerSuite) TestPluginCreate(c *check.C) {
+	testRequires(c, DaemonIsLinux, Network)
+
+	name := "foo/bar-driver"
+	temp, err := ioutil.TempDir("", "foo")
+	c.Assert(err, checker.IsNil)
+	defer os.RemoveAll(temp)
+
+	data := `{"description": "foo plugin"}`
+	err = ioutil.WriteFile(filepath.Join(temp, "config.json"), []byte(data), 0644)
+	c.Assert(err, checker.IsNil)
+
+	out, _, err := dockerCmdWithError("plugin", "create", name, temp)
+	c.Assert(err, checker.IsNil)
+	c.Assert(out, checker.Contains, name)
+
+	out, _, err = dockerCmdWithError("plugin", "ls")
+	c.Assert(err, checker.IsNil)
+	c.Assert(out, checker.Contains, name)
+
+	out, _, err = dockerCmdWithError("plugin", "create", name, temp)
+	c.Assert(err, checker.NotNil)
+	c.Assert(out, checker.Contains, "already exist")
+
+	out, _, err = dockerCmdWithError("plugin", "ls")
+	c.Assert(err, checker.IsNil)
+	c.Assert(out, checker.Contains, name)
+	// The output will consists of one HEADER line and one line of foo/bar-driver
+	c.Assert(len(strings.Split(strings.TrimSpace(out), "\n")), checker.Equals, 2)
 }
