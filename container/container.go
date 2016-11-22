@@ -322,10 +322,11 @@ func (container *Container) CheckpointDir() string {
 }
 
 // StartLogger starts a new logger driver for the container.
-func (container *Container) StartLogger(cfg containertypes.LogConfig) (logger.Logger, error) {
+func (container *Container) StartLogger() (logger.Logger, error) {
+	cfg := container.HostConfig.LogConfig
 	c, err := logger.GetLogDriver(cfg.Type)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to get logging factory: %v", err)
+		return nil, fmt.Errorf("failed to get logging factory: %v", err)
 	}
 	ctx := logger.Context{
 		Config:              cfg.Config,
@@ -1050,9 +1051,9 @@ func (container *Container) startLogging() error {
 		return nil // do not start logging routines
 	}
 
-	l, err := container.StartLogger(container.HostConfig.LogConfig)
+	l, err := container.StartLogger()
 	if err != nil {
-		return fmt.Errorf("Failed to initialize logging driver: %v", err)
+		return fmt.Errorf("failed to initialize logging driver: %v", err)
 	}
 
 	copier := logger.NewCopier(map[string]io.Reader{"stdout": container.StdoutPipe(), "stderr": container.StderrPipe()}, l)
