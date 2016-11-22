@@ -571,6 +571,7 @@ func (c *containerConfig) networkCreateRequest(name string) (clustertypes.Networ
 		Options:        na.Network.DriverState.Options,
 		Labels:         na.Network.Spec.Annotations.Labels,
 		Internal:       na.Network.Spec.Internal,
+		Attachable:     na.Network.Spec.Attachable,
 		EnableIPv6:     na.Network.Spec.Ipv6Enabled,
 		CheckDuplicate: true,
 	}

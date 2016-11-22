@@ -172,10 +172,10 @@ func (n *networkRouter) buildNetworkResource(nw libnetwork.Network) *types.Netwo
 	r.Driver = nw.Type()
 	r.EnableIPv6 = info.IPv6Enabled()
 	r.Internal = info.Internal()
+	r.Attachable = info.Attachable()
 	r.Options = info.DriverOptions()
 	r.Containers = make(map[string]types.EndpointResource)
 	buildIpamResources(r, info)
-	r.Internal = info.Internal()
 	r.Labels = info.Labels()
 
 	peers := info.Peers()
