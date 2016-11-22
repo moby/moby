@@ -401,6 +401,9 @@ func (s secretAPIClientMock) SecretRemove(ctx context.Context, id string) error 
 func (s secretAPIClientMock) SecretInspectWithRaw(ctx context.Context, name string) (swarm.Secret, []byte, error) {
 	return swarm.Secret{}, []byte{}, nil
 }
+func (s secretAPIClientMock) SecretUpdate(ctx context.Context, id string, version swarm.Version, secret swarm.SecretSpec) error {
+	return nil
+}
 
 // TestUpdateSecretUpdateInPlace tests the ability to update the "target" of an secret with "docker service update"
 // by combining "--secret-rm" and "--secret-add" for the same secret.
