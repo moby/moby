@@ -91,6 +91,9 @@ type IfaceOptionSetter interface {
 	// LinkLocalAddresses returns an option setter to set the link-local IP addresses.
 	LinkLocalAddresses([]*net.IPNet) IfaceOption
 
+	// IPAliases returns an option setter to set IP address Aliases
+	IPAliases([]*net.IPNet) IfaceOption
+
 	// Master returns an option setter to set the master interface if any for this
 	// interface. The master interface name should refer to the srcname of a
 	// previously added interface of type bridge.
@@ -147,6 +150,9 @@ type Interface interface {
 	// LinkLocalAddresses returns the link-local IP addresses assigned to the interface.
 	LinkLocalAddresses() []*net.IPNet
 
+	// IPAliases returns the IP address aliases assigned to the interface.
+	IPAliases() []*net.IPNet
+
 	// IP routes for the interface.
 	Routes() []*net.IPNet
 
@@ -159,10 +165,6 @@ type Interface interface {
 	// Remove an interface from the sandbox by renaming to original name
 	// and moving it out of the sandbox.
 	Remove() error
-
-	// SetAliasIP adds or deletes the passed IP as an alias on the interface.
-	// ex: set the vip of services in the same network as secondary IP.
-	SetAliasIP(ip *net.IPNet, add bool) error
 
 	// Statistics returns the statistics for this interface
 	Statistics() (*types.InterfaceStatistics, error)
