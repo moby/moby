@@ -255,7 +255,7 @@ func (pm *Manager) Push(name string, metaHeader http.Header, authConfig *types.A
 		return err
 	}
 
-	rootfs, err := archive.Tar(filepath.Join(dest, "rootfs"), archive.Gzip)
+	rootfs, err := archive.Tar(p.Rootfs, archive.Gzip)
 	if err != nil {
 		return err
 	}
@@ -293,9 +293,13 @@ func (pm *Manager) Remove(name string, config *types.PluginRmConfig) error {
 		}
 	}
 
+	id := p.GetID()
 	pm.pluginStore.Remove(p)
-	os.RemoveAll(filepath.Join(pm.libRoot, p.GetID()))
-	pm.pluginEventLogger(p.GetID(), name, "remove")
+	pluginDir := filepath.Join(pm.libRoot, id)
+	if err := os.RemoveAll(pluginDir); err != nil {
+		logrus.Warnf("unable to remove %q from plugin remove: %v", pluginDir, err)
+	}
+	pm.pluginEventLogger(id, name, "remove")
 	return nil
 }
 

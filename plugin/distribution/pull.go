@@ -176,7 +176,8 @@ func WritePullData(pd PullData, dest string, extract bool) error {
 	if err := json.Unmarshal(config, &p); err != nil {
 		return err
 	}
-	logrus.Debugf("%#v", p)
+	logrus.Debugf("plugin: %#v", p)
+
 	if err := os.MkdirAll(dest, 0700); err != nil {
 		return err
 	}

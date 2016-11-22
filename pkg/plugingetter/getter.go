@@ -15,6 +15,7 @@ const (
 type CompatPlugin interface {
 	Client() *plugins.Client
 	Name() string
+	BasePath() string
 	IsV1() bool
 }
 

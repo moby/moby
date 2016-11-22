@@ -2,6 +2,7 @@ package v2
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -22,7 +23,9 @@ type Plugin struct {
 	pClient           *plugins.Client
 	runtimeSourcePath string
 	refCount          int
-	libRoot           string
+	LibRoot           string // TODO: make private
+	PropagatedMount   string // TODO: make private
+	Rootfs            string // TODO: make private
 }
 
 const defaultPluginRuntimeDestination = "/run/docker/plugins"
@@ -45,7 +48,7 @@ func NewPlugin(name, id, runRoot, libRoot, tag string) *Plugin {
 	return &Plugin{
 		PluginObj:         newPluginObj(name, id, tag),
 		runtimeSourcePath: filepath.Join(runRoot, id),
-		libRoot:           libRoot,
+		LibRoot:           libRoot,
 	}
 }
 
@@ -61,6 +64,12 @@ func (p *Plugin) GetRuntimeSourcePath() string {
 	defer p.mu.RUnlock()
 
 	return p.runtimeSourcePath
+}
+
+// BasePath returns the path to which all paths returned by the plugin are relative to.
+// For Plugin objects this returns the host path of the plugin container's rootfs.
+func (p *Plugin) BasePath() string {
+	return p.Rootfs
 }
 
 // Client returns the plugin client.
@@ -112,7 +121,7 @@ func (p *Plugin) RemoveFromDisk() error {
 
 // InitPlugin populates the plugin object from the plugin config file.
 func (p *Plugin) InitPlugin() error {
-	dt, err := os.Open(filepath.Join(p.libRoot, p.PluginObj.ID, "config.json"))
+	dt, err := os.Open(filepath.Join(p.LibRoot, p.PluginObj.ID, "config.json"))
 	if err != nil {
 		return err
 	}
@@ -123,9 +132,7 @@ func (p *Plugin) InitPlugin() error {
 	}
 
 	p.PluginObj.Settings.Mounts = make([]types.PluginMount, len(p.PluginObj.Config.Mounts))
-	for i, mount := range p.PluginObj.Config.Mounts {
-		p.PluginObj.Settings.Mounts[i] = mount
-	}
+	copy(p.PluginObj.Settings.Mounts, p.PluginObj.Config.Mounts)
 	p.PluginObj.Settings.Env = make([]string, 0, len(p.PluginObj.Config.Env))
 	p.PluginObj.Settings.Devices = make([]types.PluginDevice, 0, len(p.PluginObj.Config.Linux.Devices))
 	copy(p.PluginObj.Settings.Devices, p.PluginObj.Config.Linux.Devices)
@@ -134,13 +141,14 @@ func (p *Plugin) InitPlugin() error {
 			p.PluginObj.Settings.Env = append(p.PluginObj.Settings.Env, fmt.Sprintf("%s=%s", env.Name, *env.Value))
 		}
 	}
+	p.PluginObj.Settings.Args = make([]string, len(p.PluginObj.Config.Args.Value))
 	copy(p.PluginObj.Settings.Args, p.PluginObj.Config.Args.Value)
 
 	return p.writeSettings()
 }
 
 func (p *Plugin) writeSettings() error {
-	f, err := os.Create(filepath.Join(p.libRoot, p.PluginObj.ID, "plugin-settings.json"))
+	f, err := os.Create(filepath.Join(p.LibRoot, p.PluginObj.ID, "plugin-settings.json"))
 	if err != nil {
 		return err
 	}
@@ -287,16 +295,19 @@ func (p *Plugin) AddRefCount(count int) {
 }
 
 // InitSpec creates an OCI spec from the plugin's config.
-func (p *Plugin) InitSpec(s specs.Spec, libRoot string) (*specs.Spec, error) {
-	rootfs := filepath.Join(libRoot, p.PluginObj.ID, "rootfs")
+func (p *Plugin) InitSpec(s specs.Spec) (*specs.Spec, error) {
 	s.Root = specs.Root{
-		Path:     rootfs,
+		Path:     p.Rootfs,
 		Readonly: false, // TODO: all plugins should be readonly? settable in config?
 	}
 
-	userMounts := make(map[string]struct{}, len(p.PluginObj.Config.Mounts))
-	for _, m := range p.PluginObj.Config.Mounts {
+	userMounts := make(map[string]struct{}, len(p.PluginObj.Settings.Mounts))
+	for _, m := range p.PluginObj.Settings.Mounts {
 		userMounts[m.Destination] = struct{}{}
+	}
+
+	if err := os.MkdirAll(p.runtimeSourcePath, 0755); err != nil {
+		return nil, err
 	}
 
 	mounts := append(p.PluginObj.Config.Mounts, types.PluginMount{
@@ -328,27 +339,16 @@ func (p *Plugin) InitSpec(s specs.Spec, libRoot string) (*specs.Spec, error) {
 			})
 	}
 
-	for _, mount := range mounts {
+	for _, mnt := range mounts {
 		m := specs.Mount{
-			Destination: mount.Destination,
-			Type:        mount.Type,
-			Options:     mount.Options,
+			Destination: mnt.Destination,
+			Type:        mnt.Type,
+			Options:     mnt.Options,
 		}
-		// TODO: if nil, then it's required and user didn't set it
-		if mount.Source != nil {
-			m.Source = *mount.Source
+		if mnt.Source == nil {
+			return nil, errors.New("mount source is not specified")
 		}
-		if m.Source != "" && m.Type == "bind" {
-			fi, err := os.Lstat(filepath.Join(rootfs, m.Destination)) // TODO: followsymlinks
-			if err != nil {
-				return nil, err
-			}
-			if fi.IsDir() {
-				if err := os.MkdirAll(m.Source, 0700); err != nil {
-					return nil, err
-				}
-			}
-		}
+		m.Source = *mnt.Source
 		s.Mounts = append(s.Mounts, m)
 	}
 
@@ -360,11 +360,16 @@ func (p *Plugin) InitSpec(s specs.Spec, libRoot string) (*specs.Spec, error) {
 		}
 	}
 
+	if p.PluginObj.Config.PropagatedMount != "" {
+		p.PropagatedMount = filepath.Join(p.Rootfs, p.PluginObj.Config.PropagatedMount)
+		s.Linux.RootfsPropagation = "rshared"
+	}
+
 	if p.PluginObj.Config.Linux.DeviceCreation {
 		rwm := "rwm"
 		s.Linux.Resources.Devices = []specs.DeviceCgroup{{Allow: true, Access: &rwm}}
 	}
-	for _, dev := range p.PluginObj.Config.Linux.Devices {
+	for _, dev := range p.PluginObj.Settings.Devices {
 		path := *dev.Path
 		d, dPermissions, err := oci.DevicesFromPath(path, path, "rwm")
 		if err != nil {

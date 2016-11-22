@@ -11,8 +11,8 @@ import (
 )
 
 var (
-	pluginProcessName = "no-remove"
-	pName             = "tiborvass/no-remove"
+	pluginProcessName = "sample-volume-plugin"
+	pName             = "tiborvass/sample-volume-plugin"
 	pTag              = "latest"
 	pNameWithTag      = pName + ":" + pTag
 )
@@ -33,6 +33,7 @@ func (s *DockerSuite) TestPluginBasicOps(c *check.C) {
 	c.Assert(err, checker.IsNil)
 
 	out, _, err = dockerCmdWithError("plugin", "remove", pNameWithTag)
+	c.Assert(err, checker.NotNil)
 	c.Assert(out, checker.Contains, "is enabled")
 
 	_, _, err = dockerCmdWithError("plugin", "disable", pNameWithTag)
