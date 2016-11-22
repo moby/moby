@@ -504,7 +504,7 @@ func includeContainerInList(container *container.Container, ctx *listContext) it
 				if nw.EndpointSettings == nil {
 					continue
 				}
-				if nw.NetworkID == value {
+				if strings.HasPrefix(nw.NetworkID, value) {
 					return networkExist
 				}
 			}
