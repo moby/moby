@@ -1383,6 +1383,7 @@ definitions:
           - Workdir
           - Network
           - Linux
+          - PropagatedMount
           - Mounts
           - Env
           - Args
@@ -1447,6 +1448,9 @@ definitions:
                 type: "array"
                 items:
                   $ref: "#/definitions/PluginDevice"
+          PropagatedMount:
+            type: "string"
+            x-nullable: false
           Mounts:
             type: "array"
             items:

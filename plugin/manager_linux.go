@@ -11,16 +11,18 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/libcontainerd"
 	"github.com/docker/docker/oci"
+	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/plugins"
 	"github.com/docker/docker/plugin/v2"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 )
 
 func (pm *Manager) enable(p *v2.Plugin, c *controller, force bool) error {
+	p.Rootfs = filepath.Join(pm.libRoot, p.PluginObj.ID, "rootfs")
 	if p.IsEnabled() && !force {
 		return fmt.Errorf("plugin %s is already enabled", p.Name())
 	}
-	spec, err := p.InitSpec(oci.DefaultSpec(), pm.libRoot)
+	spec, err := p.InitSpec(oci.DefaultSpec())
 	if err != nil {
 		return err
 	}
@@ -31,6 +33,12 @@ func (pm *Manager) enable(p *v2.Plugin, c *controller, force bool) error {
 	pm.mu.Lock()
 	pm.cMap[p] = c
 	pm.mu.Unlock()
+
+	if p.PropagatedMount != "" {
+		if err := mount.MakeRShared(p.PropagatedMount); err != nil {
+			return err
+		}
+	}
 
 	if err := pm.containerdClient.Create(p.GetID(), "", "", specs.Spec(*spec), attachToLog(p.GetID())); err != nil {
 		return err
