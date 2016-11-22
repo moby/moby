@@ -285,7 +285,7 @@ func (d *SwarmDaemon) listServices(c *check.C) []swarm.Service {
 }
 
 func (d *SwarmDaemon) createSecret(c *check.C, secretSpec swarm.SecretSpec) string {
-	status, out, err := d.SockRequest("POST", "/secrets", secretSpec)
+	status, out, err := d.SockRequest("POST", "/secrets/create", secretSpec)
 
 	c.Assert(err, checker.IsNil, check.Commentf(string(out)))
 	c.Assert(status, checker.Equals, http.StatusCreated, check.Commentf("output: %q", string(out)))
