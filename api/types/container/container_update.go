@@ -7,9 +7,9 @@ package container
 // See hack/swagger-gen.sh
 // ----------------------------------------------------------------------------
 
-// ContainerUpdateOKBody container update o k body
-// swagger:model ContainerUpdateOKBody
-type ContainerUpdateOKBody struct {
+// UpdateOKBody container update o k body
+// swagger:model UpdateOKBody
+type UpdateOKBody struct {
 
 	// warnings
 	// Required: true

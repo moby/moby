@@ -53,7 +53,7 @@ func TestContainerCreateWithName(t *testing.T) {
 			if name != "container_name" {
 				return nil, fmt.Errorf("container name not set in URL query properly. Expected `container_name`, got %s", name)
 			}
-			b, err := json.Marshal(container.ContainerCreateCreatedBody{
+			b, err := json.Marshal(container.CreateCreatedBody{
 				ID: "container_id",
 			})
 			if err != nil {
