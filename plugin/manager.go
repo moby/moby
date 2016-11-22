@@ -54,7 +54,7 @@ func Init(root string, ps *store.Store, remote libcontainerd.Remote, rs registry
 	root = filepath.Join(root, "plugins")
 	manager = &Manager{
 		libRoot:           root,
-		runRoot:           "/run/docker",
+		runRoot:           "/run/docker/plugins",
 		pluginStore:       ps,
 		registryService:   rs,
 		liveRestore:       liveRestore,
