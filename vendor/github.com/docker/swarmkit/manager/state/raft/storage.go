@@ -165,17 +165,6 @@ func (n *Node) doSnapshot(ctx context.Context, raftConfig api.RaftConfig) {
 	}
 	snapshot.Membership.Removed = n.cluster.Removed()
 
-	// maybe start rotation
-	n.rotationQueued = false
-	var newEncryptionKeys *EncryptionKeys
-	if n.keyRotator.NeedsRotation() {
-		keys := n.keyRotator.GetKeys()
-		if keys.PendingDEK != nil {
-			n.raftLogger.RotateEncryptionKey(keys.PendingDEK)
-			newEncryptionKeys = &EncryptionKeys{CurrentDEK: keys.PendingDEK}
-		}
-	}
-
 	viewStarted := make(chan struct{})
 	n.asyncTasks.Add(1)
 	n.snapshotInProgress = make(chan uint64, 1) // buffered in case Shutdown is called during the snapshot
@@ -209,13 +198,6 @@ func (n *Node) doSnapshot(ctx context.Context, raftConfig api.RaftConfig) {
 				return
 			}
 			snapshotIndex = appliedIndex
-			if newEncryptionKeys != nil {
-				// this means we tried to rotate - so finish the rotation
-				if err := n.keyRotator.UpdateKeys(*newEncryptionKeys); err != nil {
-					log.G(ctx).WithError(err).Error(
-						"failed to update encryption keys after a rotation - will wait for the next snapshot")
-				}
-			}
 
 			if appliedIndex > raftConfig.LogEntriesForSlowFollowers {
 				err := n.raftStore.Compact(appliedIndex - raftConfig.LogEntriesForSlowFollowers)
