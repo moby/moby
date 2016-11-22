@@ -166,4 +166,5 @@ type SecretAPIClient interface {
 	SecretCreate(ctx context.Context, secret swarm.SecretSpec) (types.SecretCreateResponse, error)
 	SecretRemove(ctx context.Context, id string) error
 	SecretInspectWithRaw(ctx context.Context, name string) (swarm.Secret, []byte, error)
+	SecretUpdate(ctx context.Context, id string, version swarm.Version, secret swarm.SecretSpec) error
 }
