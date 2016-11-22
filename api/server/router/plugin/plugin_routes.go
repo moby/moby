@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/docker/docker/api/server/httputils"
@@ -56,7 +57,18 @@ func (pr *pluginRouter) createPlugin(ctx context.Context, w http.ResponseWriter,
 }
 
 func (pr *pluginRouter) enablePlugin(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	return pr.backend.Enable(vars["name"])
+	if err := httputils.ParseForm(r); err != nil {
+		return err
+	}
+
+	name := vars["name"]
+	timeout, err := strconv.Atoi(r.Form.Get("timeout"))
+	if err != nil {
+		return err
+	}
+	config := &types.PluginEnableConfig{Timeout: timeout}
+
+	return pr.backend.Enable(name, config)
 }
 
 func (pr *pluginRouter) disablePlugin(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {

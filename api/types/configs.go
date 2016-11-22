@@ -59,3 +59,8 @@ type ExecConfig struct {
 type PluginRmConfig struct {
 	ForceRemove bool
 }
+
+// PluginEnableConfig holds arguments for the plugin enable
+type PluginEnableConfig struct {
+	Timeout int
+}

@@ -24,6 +24,7 @@ type Plugin struct {
 	Restart           bool            `json:"-"`
 	ExitChan          chan bool       `json:"-"`
 	LibRoot           string          `json:"-"`
+	TimeoutInSecs     int             `json:"-"`
 }
 
 const defaultPluginRuntimeDestination = "/run/docker/plugins"

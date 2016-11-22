@@ -31,7 +31,7 @@ func (pm *Manager) enable(p *v2.Plugin, force bool) error {
 		return err
 	}
 
-	p.PClient, err = plugins.NewClient("unix://"+filepath.Join(p.RuntimeSourcePath, p.GetSocket()), nil)
+	p.PClient, err = plugins.NewClientWithTimeout("unix://"+filepath.Join(p.RuntimeSourcePath, p.GetSocket()), nil, p.TimeoutInSecs)
 	if err != nil {
 		p.Lock()
 		p.Restart = false
