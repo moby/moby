@@ -117,7 +117,7 @@ func (daemon *Daemon) getLogger(container *container.Container) (logger.Logger, 
 	if container.LogDriver != nil && container.IsRunning() {
 		return container.LogDriver, nil
 	}
-	return container.StartLogger(container.HostConfig.LogConfig)
+	return container.StartLogger()
 }
 
 // mergeLogConfig merges the daemon log config to the container's log config if the container's log driver is not specified.
