@@ -290,6 +290,22 @@ __docker_complete_runtimes() {
 	COMPREPLY=( $(compgen -W "$(__docker_runtimes)" -- "$cur") )
 }
 
+# __docker_stacks returns a list of all stacks.
+__docker_stacks() {
+	__docker_q stack ls | awk 'NR>1 {print $1}'
+}
+
+# __docker_complete_stacks applies completion of stacks based on the current value
+# of `$cur` or the value of the optional first option `--cur`, if given.
+__docker_complete_stacks() {
+	local current="$cur"
+	if [ "$1" = "--cur" ] ; then
+		current="$2"
+		shift 2
+	fi
+	COMPREPLY=( $(compgen -W "$(__docker_stacks "$@")" -- "$current") )
+}
+
 # __docker_nodes returns a list of all nodes. Additional options to
 # `docker node ls` may be specified in order to filter the list, e.g.
 # `__docker_nodes --filter role=manager`
@@ -3119,6 +3135,166 @@ _docker_search() {
 	esac
 }
 
+
+_docker_stack() {
+	local subcommands="
+		deploy
+		ls
+		ps
+		rm
+		services
+	"
+	local aliases="
+		down
+		list
+		remove
+		up
+	"
+	__docker_subcommands "$subcommands $aliases" && return
+
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "--help" -- "$cur" ) )
+			;;
+		*)
+			COMPREPLY=( $( compgen -W "$subcommands" -- "$cur" ) )
+			;;
+	esac
+}
+
+_docker_stack_deploy() {
+	case "$prev" in
+		--bundle-file)
+			_filedir dab
+			return
+			;;
+		--compose-file|-c)
+			_filedir yml
+			return
+			;;
+	esac
+
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "--bundle-file --compose-file -c --help --with-registry-auth" -- "$cur" ) )
+			;;
+	esac
+}
+
+_docker_stack_down() {
+	_docker_stack_rm
+}
+
+_docker_stack_list() {
+	_docker_stack_ls
+}
+
+_docker_stack_ls() {
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "--help" -- "$cur" ) )
+			;;
+	esac
+}
+
+_docker_stack_ps() {
+	local key=$(__docker_map_key_of_current_option '--filter|-f')
+	case "$key" in
+		desired-state)
+			COMPREPLY=( $( compgen -W "accepted running" -- "${cur##*=}" ) )
+			return
+			;;
+		id)
+			__docker_complete_stacks --cur "${cur##*=}" --id
+			return
+			;;
+		name)
+			__docker_complete_stacks --cur "${cur##*=}" --name
+			return
+			;;
+	esac
+
+	case "$prev" in
+		--filter|-f)
+			COMPREPLY=( $( compgen -S = -W "id name desired-state" -- "$cur" ) )
+			__docker_nospace
+			return
+			;;
+	esac
+
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "--all -a --filter -f --help --no-resolve --no-trunc" -- "$cur" ) )
+			;;
+		*)
+			local counter=$(__docker_pos_first_nonflag '--filter|-f')
+			if [ $cword -eq $counter ]; then
+				__docker_complete_stacks
+			fi
+			;;
+	esac
+}
+
+_docker_stack_remove() {
+	_docker_stack_rm
+}
+
+_docker_stack_rm() {
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "--help" -- "$cur" ) )
+			;;
+		*)
+			local counter=$(__docker_pos_first_nonflag)
+			if [ $cword -eq $counter ]; then
+				__docker_complete_stacks
+			fi
+			;;
+	esac
+}
+
+_docker_stack_services() {
+	local key=$(__docker_map_key_of_current_option '--filter|-f')
+	case "$key" in
+		id)
+			__docker_complete_services --cur "${cur##*=}" --id
+			return
+			;;
+		label)
+			return
+			;;
+		name)
+			__docker_complete_services --cur "${cur##*=}" --name
+			return
+			;;
+	esac
+
+	case "$prev" in
+		--filter|-f)
+			COMPREPLY=( $( compgen -S = -W "id label name" -- "$cur" ) )
+			__docker_nospace
+			return
+			;;
+	esac
+
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "--filter -f --help --quiet -q" -- "$cur" ) )
+			;;
+		*)
+			local counter=$(__docker_pos_first_nonflag '--filter|-f')
+			if [ $cword -eq $counter ]; then
+				__docker_complete_stacks
+			fi
+			;;
+	esac
+}
+
+_docker_stack_up() {
+	_docker_stack_deploy
+}
+
+
 _docker_start() {
 	_docker_container_start
 }
@@ -3451,6 +3627,7 @@ _docker() {
 		save
 		search
 		service
+		stack
 		start
 		stats
 		stop
