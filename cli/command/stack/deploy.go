@@ -1,6 +1,7 @@
 package stack
 
 import (
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -59,19 +60,36 @@ func newDeployCommand(dockerCli *command.DockerCli) *cobra.Command {
 }
 
 func runDeploy(dockerCli *command.DockerCli, opts deployOptions) error {
+	ctx := context.Background()
+
 	switch {
 	case opts.bundlefile == "" && opts.composefile == "":
 		return fmt.Errorf("Please specify either a bundle file (with --bundle-file) or a Compose file (with --compose-file).")
 	case opts.bundlefile != "" && opts.composefile != "":
 		return fmt.Errorf("You cannot specify both a bundle file and a Compose file.")
 	case opts.bundlefile != "":
-		return deployBundle(dockerCli, opts)
+		return deployBundle(ctx, dockerCli, opts)
 	default:
-		return deployCompose(dockerCli, opts)
+		return deployCompose(ctx, dockerCli, opts)
 	}
 }
 
-func deployCompose(dockerCli *command.DockerCli, opts deployOptions) error {
+// checkDaemonIsSwarmManager does an Info API call to verify that the daemon is
+// a swarm manager. This is necessary because we must create networks before we
+// create services, but the API call for creating a network does not return a
+// proper status code when it can't create a network in the "global" scope.
+func checkDaemonIsSwarmManager(ctx context.Context, dockerCli *command.DockerCli) error {
+	info, err := dockerCli.Client().Info(ctx)
+	if err != nil {
+		return err
+	}
+	if !info.Swarm.ControlAvailable {
+		return errors.New("This node is not a swarm manager. Use \"docker swarm init\" or \"docker swarm join\" to connect this node to swarm and try again.")
+	}
+	return nil
+}
+
+func deployCompose(ctx context.Context, dockerCli *command.DockerCli, opts deployOptions) error {
 	configDetails, err := getConfigDetails(opts)
 	if err != nil {
 		return err
@@ -99,7 +117,10 @@ func deployCompose(dockerCli *command.DockerCli, opts deployOptions) error {
 			propertyWarnings(deprecatedProperties))
 	}
 
-	ctx := context.Background()
+	if err := checkDaemonIsSwarmManager(ctx, dockerCli); err != nil {
+		return err
+	}
+
 	namespace := namespace{name: opts.namespace}
 
 	networks := convertNetworks(namespace, config.Networks)
