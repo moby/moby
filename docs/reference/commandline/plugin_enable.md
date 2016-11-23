@@ -21,7 +21,8 @@ Usage:  docker plugin enable PLUGIN
 Enable a plugin
 
 Options:
-      --help   Print usage
+      --help          Print usage
+      --timeout int   HTTP client timeout (in seconds)
 ```
 
 Enables a plugin. The plugin must be installed before it can be enabled,
