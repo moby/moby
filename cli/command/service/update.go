@@ -208,6 +208,7 @@ func updateService(flags *pflag.FlagSet, spec *swarm.ServiceSpec) error {
 	updateEnvironment(flags, &cspec.Env)
 	updateString(flagWorkdir, &cspec.Dir)
 	updateString(flagUser, &cspec.User)
+	updateString(flagHostname, &cspec.Hostname)
 	if err := updateMounts(flags, &cspec.Mounts); err != nil {
 		return err
 	}
