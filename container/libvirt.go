@@ -6,23 +6,23 @@ import (
 	"encoding/xml"
 	"fmt"
 	"io/ioutil"
-        "os"
+	"os"
 	"os/exec"
 	"strconv"
-        "strings"
+	"strings"
 
+	"github.com/Sirupsen/logrus"
 	libvirtgo "github.com/rgbkrk/libvirt-go"
-        "github.com/Sirupsen/logrus"
 )
 
 var LibvirtdAddress = "qemu:///system"
 
 type BootConfig struct {
 	CPU              int
-        DefaultMaxCpus   int
-        DefaultMaxMem    int
+	DefaultMaxCpus   int
+	DefaultMaxMem    int
 	Memory           int
-        OriginalDiskPath string
+	OriginalDiskPath string
 }
 
 func (container *Container) InitDriver() *LibvirtDriver {
@@ -40,7 +40,7 @@ func (container *Container) InitDriver() *LibvirtDriver {
 func (ld *LibvirtDriver) InitContext(c *Container) *LibvirtContext {
 	return &LibvirtContext{
 		driver:    ld,
-                container: c,
+		container: c,
 	}
 }
 
@@ -83,7 +83,7 @@ type cell struct {
 }
 
 type cpu struct {
-	Mode  string    `xml:"mode,attr"`
+	Mode string `xml:"mode,attr"`
 }
 
 type ostype struct {
@@ -93,12 +93,12 @@ type ostype struct {
 }
 
 type domainos struct {
-	Supported string    `xml:"supported,attr"`
-	Type      ostype    `xml:"type"`
+	Supported string `xml:"supported,attr"`
+	Type      ostype `xml:"type"`
 }
 
 type feature struct {
-        Acpi acpi           `xml:"acpi"`
+	Acpi acpi `xml:"acpi"`
 }
 
 type acpi struct {
@@ -109,15 +109,15 @@ type fspath struct {
 }
 
 type filesystem struct {
-	Type       string   `xml:"type,attr"`
-	Accessmode string   `xml:"accessmode,attr"`
-	Source     fspath   `xml:"source"`
-	Target     fspath   `xml:"target"`
+	Type       string `xml:"type,attr"`
+	Accessmode string `xml:"accessmode,attr"`
+	Source     fspath `xml:"source"`
+	Target     fspath `xml:"target"`
 }
 
 type diskdriver struct {
-	Type   string `xml:"type,attr"`
-        Name   string `xml:"name,attr"`
+	Type string `xml:"type,attr"`
+	Name string `xml:"name,attr"`
 }
 
 type disksource struct {
@@ -130,27 +130,27 @@ type diskformat struct {
 
 type backingstore struct {
 	Type   string     `xml:"type,attr"`
-        Index  string     `xml:"index,attr"`
-        Format diskformat `xml:"format"`
+	Index  string     `xml:"index,attr"`
+	Format diskformat `xml:"format"`
 	Source disksource `xml:"source"`
 }
 
 type disktarget struct {
-	Dev  string     `xml:"dev,attr"`
-        Bus  string     `xml:"bus,attr"`
+	Dev string `xml:"dev,attr"`
+	Bus string `xml:"bus,attr"`
 }
 
 type readonly struct {
 }
 
 type disk struct {
-	Type         string       `xml:"type,attr"`
-	Device       string       `xml:"device,attr"`
-	Driver       diskdriver   `xml:"driver"`
-	Source       disksource   `xml:"source"`
-        BackingStore *backingstore `xml:"backingstore,omitempty"`
-	Target       disktarget   `xml:"target"`
-        Readonly     *readonly     `xml:"readonly,omitempty"`
+	Type         string        `xml:"type,attr"`
+	Device       string        `xml:"device,attr"`
+	Driver       diskdriver    `xml:"driver"`
+	Source       disksource    `xml:"source"`
+	BackingStore *backingstore `xml:"backingstore,omitempty"`
+	Target       disktarget    `xml:"target"`
+	Readonly     *readonly     `xml:"readonly,omitempty"`
 }
 
 type channsrc struct {
@@ -166,14 +166,15 @@ type constgt struct {
 type console struct {
 	Type   string   `xml:"type,attr"`
 	Source channsrc `xml:"source"`
-        Target constgt `xml:"target"`
+	Target constgt  `xml:"target"`
 }
 
 type device struct {
-	Emulator    string       `xml:"emulator"`
-        Filesystems []filesystem `xml:"filesystem"`
-	Disks       []disk       `xml:"disk"`
-	Consoles    []console    `xml:"console"`
+	Emulator          string       `xml:"emulator"`
+	Filesystems       []filesystem `xml:"filesystem"`
+	Disks             []disk       `xml:"disk"`
+	Consoles          []console    `xml:"console"`
+	NetworkInterfaces []nic        `xml:"interface"`
 }
 
 type seclab struct {
@@ -181,30 +182,77 @@ type seclab struct {
 }
 
 type domain struct {
-	XMLName    xml.Name   `xml:"domain"`
-	Type       string     `xml:"type,attr"`
-	Name       string     `xml:"name"`
-	Memory     memory     `xml:"memory"`
-	MaxMem     *maxmem    `xml:"maxMemory,omitempty"`
-	VCpu       vcpu       `xml:"vcpu"`
-	OS         domainos   `xml:"os"`
-        Features   []feature `xml:"features"`
-	CPU        cpu        `xml:"cpu"`
-	OnPowerOff string     `xml:"on_poweroff"`
-	OnReboot   string     `xml:"on_reboot"`
-	OnCrash    string     `xml:"on_crash"`
-	Devices    device     `xml:"devices"`
-	SecLabel   seclab     `xml:"seclabel"`
+	XMLName    xml.Name  `xml:"domain"`
+	Type       string    `xml:"type,attr"`
+	Name       string    `xml:"name"`
+	Memory     memory    `xml:"memory"`
+	MaxMem     *maxmem   `xml:"maxMemory,omitempty"`
+	VCpu       vcpu      `xml:"vcpu"`
+	OS         domainos  `xml:"os"`
+	Features   []feature `xml:"features"`
+	CPU        cpu       `xml:"cpu"`
+	OnPowerOff string    `xml:"on_poweroff"`
+	OnReboot   string    `xml:"on_reboot"`
+	OnCrash    string    `xml:"on_crash"`
+	Devices    device    `xml:"devices"`
+	SecLabel   seclab    `xml:"seclabel"`
+}
+
+type nicmac struct {
+	Address string `xml:"address,attr"`
+}
+
+type nicsrc struct {
+	Bridge string `xml:"bridge,attr"`
+}
+
+//type nictgt struct {
+//     Device string `xml:"dev,attr,omitempty"`
+//}
+
+type nicmodel struct {
+	Type string `xml:"type,attr"`
+}
+
+type nicBound struct {
+	// in kilobytes/second
+	Average string `xml:"average,attr"`
+	Peak    string `xml:"peak,attr"`
+}
+
+//type bandwidth struct {
+//     //      XMLName  xml.Name  `xml:"bandwidth"`
+//     Inbound  *nicBound `xml:"inbound,omitempty"`
+//     Outbound *nicBound `xml:"outbound,omitempty"`
+//}
+
+type nicAddress struct {
+	Type     string `xml:"type,attr"`
+	Domain   string `xml:"domain,attr"`
+	Bus      string `xml:"bus,attr"`
+	Slot     string `xml:"slot,attr"`
+	Function string `xml:"function,attr"`
+}
+
+type nic struct {
+	//      XMLName   xml.Name    `xml:"interface"`
+	Type string `xml:"type,attr"`
+	//Mac    nicmac `xml:"mac"`
+	Source nicsrc `xml:"source"`
+	//      Target    *nictgt     `xml:"target,omitempty"`
+	Model nicmodel `xml:"model"`
+	//Address *nicAddress `xml:"address"`
+	//      Bandwidth *bandwidth  `xml:"bandwidth,omitempty"`
 }
 
 func (lc *LibvirtContext) CreateSeedImage(seedDirectory string) (string, error) {
-        getisoimagePath, err := exec.LookPath("genisoimage")
+	getisoimagePath, err := exec.LookPath("genisoimage")
 	if err != nil {
 		return "", fmt.Errorf("genisoimage is not installed on your PATH. Please, install it to run isolated container")
 	}
 
-        // Create user-data to be included in seed.img
-        userDataString := `#cloud-config
+	// Create user-data to be included in seed.img
+	userDataString := `#cloud-config
 password: passw0rd
 chpasswd: { expire: False }
 ssh_pwauth: True
@@ -215,118 +263,133 @@ runcmd:
  
 `
 
-        metaDataString := `{
-"instance-id": "%s"
-}
+	//	metaDataString := `#cloud-config
+	//"network-interfaces": |
+	//auto eth0
+	//iface eth0 inet static
+	//address 172.17.0.10
+	//netmask 255.255.0.0
+	//gateway 172.17.0.1
+	//`
+	metaDataString := `#cloud-config
+network-interfaces: |
+  auto eth0
+  iface eth0 inet static
+  address %s
+  netmask %s
+  gateway %s
 `
-        var command string
-        if len(lc.container.Args) > 0 {
-                args := []string{}
-                for _, arg := range lc.container.Args {
-                        if strings.Contains(arg, " ") {
-                                args = append(args, fmt.Sprintf("'%s'", arg))
-                        } else {
-                                args = append(args, arg)
-                        }
-                }
-                argsAsString := strings.Join(args, " ")
 
-                command = fmt.Sprintf("%s %s", lc.container.Path, argsAsString)
-        } else {
-                command = lc.container.Path
-        }
+	var command string
+	if len(lc.container.Args) > 0 {
+		args := []string{}
+		for _, arg := range lc.container.Args {
+			if strings.Contains(arg, " ") {
+				args = append(args, fmt.Sprintf("'%s'", arg))
+			} else {
+				args = append(args, arg)
+			}
+		}
+		argsAsString := strings.Join(args, " ")
 
-        logrus.Infof("The user data is: %s", fmt.Sprintf(userDataString, command))
-        logrus.Infof("The meta data is: %s", fmt.Sprintf(metaDataString, lc.container.ID[0:12]))
+		command = fmt.Sprintf("%s %s", lc.container.Path, argsAsString)
+	} else {
+		command = lc.container.Path
+	}
 
-        userData := []byte(fmt.Sprintf(userDataString, command))
-        metaData := []byte(fmt.Sprintf(metaDataString, lc.container.ID[0:12]))
+	logrus.Infof("The user data is: %s", fmt.Sprintf(userDataString, command))
+	//logrus.Infof("The meta data is: %s", fmt.Sprintf(metaDataString, lc.container.ID[0:12]))
+	logrus.Infof("Netmask is: %s", fmt.Sprintf(string(lc.container.NetworkSettings.Networks["bridge"].IPPrefixLen)))
+	logrus.Infof("The meta data is: %s", fmt.Sprintf(metaDataString, lc.container.NetworkSettings.Networks["bridge"].IPAddress, "255.255.0.0", lc.container.NetworkSettings.Networks["bridge"].Gateway))
 
-        currentDir, err := os.Getwd()
-        if err != nil {
-                return "", fmt.Errorf("Could not determine the current directory")
-        }
+	userData := []byte(fmt.Sprintf(userDataString, command))
+	//metaData := []byte(fmt.Sprintf(metaDataString, lc.container.ID[0:12]))
+	metaData := []byte(fmt.Sprintf(metaDataString, lc.container.NetworkSettings.Networks["bridge"].IPAddress, "255.255.0.0", lc.container.NetworkSettings.Networks["bridge"].Gateway))
+	currentDir, err := os.Getwd()
+	if err != nil {
+		return "", fmt.Errorf("Could not determine the current directory")
+	}
 
-        err = os.Chdir(seedDirectory)
-        if err != nil {
-                return "", fmt.Errorf("Could not changed to directory %s", seedDirectory)
-        }
+	err = os.Chdir(seedDirectory)
+	if err != nil {
+		return "", fmt.Errorf("Could not changed to directory %s", seedDirectory)
+	}
 
-        writeErrorUserData := ioutil.WriteFile("user-data", userData, 0700)
+	writeErrorUserData := ioutil.WriteFile("user-data", userData, 0700)
 	if writeErrorUserData != nil {
 		return "", fmt.Errorf("Could not write user-data to /var/run/docker-qemu/%s", lc.container.ID)
 	}
 
-        writeErrorMetaData := ioutil.WriteFile("meta-data", metaData, 0700)
+	writeErrorMetaData := ioutil.WriteFile("meta-data", metaData, 0700)
 	if writeErrorMetaData != nil {
 		return "", fmt.Errorf("Could not write meta-data to /var/run/docker-qemu/%s", lc.container.ID)
 	}
 
-        logrus.Infof("genisoimage path: %s", getisoimagePath)
+	logrus.Infof("genisoimage path: %s", getisoimagePath)
 
-        err = exec.Command(getisoimagePath, "-output", "seed.img", "-volid", "cidata", "-joliet", "-rock", "user-data", "meta-data").Run()
-        if err != nil {
-                return "", fmt.Errorf("Could not execute genisoimage")
-        }
+	err = exec.Command(getisoimagePath, "-output", "seed.img", "-volid", "cidata", "-joliet", "-rock", "user-data", "meta-data").Run()
+	if err != nil {
+		return "", fmt.Errorf("Could not execute genisoimage")
+	}
 
-        err = os.Chdir(currentDir)
-        if err != nil {
-                return "", fmt.Errorf("Could not changed to directory %s", currentDir)
-        }
+	err = os.Chdir(currentDir)
+	if err != nil {
+		return "", fmt.Errorf("Could not changed to directory %s", currentDir)
+	}
 	logrus.Infof("The IP address of container : %s", lc.container.NetworkSettings.Networks["bridge"].IPAddress)
-
-        return seedDirectory+"/seed.img", nil
+	logrus.Infof("%+v\n", lc.container.CommonContainer.NetworkSettings.Networks["bridge"].MacAddress)
+	return seedDirectory + "/seed.img", nil
 }
 
 func (lc *LibvirtContext) CreateDeltaDiskImage(deltaDiskDirectory, diskPath string) (string, error) {
-        deltaImagePath, err := exec.LookPath("qemu-img")
+	deltaImagePath, err := exec.LookPath("qemu-img")
 	if err != nil {
 		return "", fmt.Errorf("qemu-img is not installed on your PATH. Please, install it to run isolated container")
 	}
 
-        currentDir, err := os.Getwd()
-        if err != nil {
-                return "", fmt.Errorf("Could not determine the current directory")
-        }
+	currentDir, err := os.Getwd()
+	if err != nil {
+		return "", fmt.Errorf("Could not determine the current directory")
+	}
 
-        err = os.Chdir(deltaDiskDirectory)
-        if err != nil {
-                return "", fmt.Errorf("Could not changed to directory %s", deltaDiskDirectory)
-        }
+	err = os.Chdir(deltaDiskDirectory)
+	if err != nil {
+		return "", fmt.Errorf("Could not changed to directory %s", deltaDiskDirectory)
+	}
 
-        err = exec.Command(deltaImagePath, "create", "-f", "qcow2", "-b", diskPath, "disk.img").Run()
-        if err != nil {
-                return "", fmt.Errorf("Could not execute qemu-img")
-        }
+	err = exec.Command(deltaImagePath, "create", "-f", "qcow2", "-b", diskPath, "disk.img").Run()
+	if err != nil {
+		return "", fmt.Errorf("Could not execute qemu-img")
+	}
 
-        err = os.Chdir(currentDir)
-        if err != nil {
-                return "", fmt.Errorf("Could not changed to directory %s", currentDir)
-        }
+	err = os.Chdir(currentDir)
+	if err != nil {
+		return "", fmt.Errorf("Could not changed to directory %s", currentDir)
+	}
 
-        return deltaDiskDirectory+"/disk.img", nil
+	return deltaDiskDirectory + "/disk.img", nil
 }
 
 func (lc *LibvirtContext) DomainXml() (string, error) {
 	boot := &BootConfig{
-	         CPU:              1,
-                 DefaultMaxCpus:   2,
-                 DefaultMaxMem:    128,
-		 Memory:           128,
-                 OriginalDiskPath: "/var/lib/libvirt/images/disk.img.orig",
-		}
+		CPU:              1,
+		DefaultMaxCpus:   2,
+		DefaultMaxMem:    128,
+		Memory:           128,
+		OriginalDiskPath: "/var/lib/libvirt/images/disk.img.orig",
+	}
 
-        // Create directory for seed image and delta disk image
-        directory := lc.container.Config.QemuDirectory
+	// Create directory for seed image and delta disk image
+	directory := lc.container.Config.QemuDirectory
 
-        deltaDiskImageLocation, err := lc.CreateDeltaDiskImage(directory, boot.OriginalDiskPath)
-        if err != nil {
-                return "", fmt.Errorf("Could not create delta disk image")
-        }
+	deltaDiskImageLocation, err := lc.CreateDeltaDiskImage(directory, boot.OriginalDiskPath)
+	if err != nil {
+		return "", fmt.Errorf("Could not create delta disk image")
+	}
 
-        logrus.Infof("Delta disk image location: %s", deltaDiskImageLocation)
+	logrus.Infof("Delta disk image location: %s", deltaDiskImageLocation)
 
-        // Domain XML Formation
+	// Domain XML Formation
 	dom := &domain{
 		Type: "kvm",
 		Name: lc.container.ID[0:12],
@@ -344,9 +407,9 @@ func (lc *LibvirtContext) DomainXml() (string, error) {
 	dom.OS.Type.Machine = "pc-i440fx-2.0"
 	dom.OS.Type.Content = "hvm"
 
-        acpiFeature := feature{
-                    Acpi: acpi{},
-                    }
+	acpiFeature := feature{
+		Acpi: acpi{},
+	}
 	dom.Features = append(dom.Features, acpiFeature)
 
 	dom.SecLabel.Type = "none"
@@ -364,103 +427,128 @@ func (lc *LibvirtContext) DomainXml() (string, error) {
 	dom.OnCrash = "destroy"
 
 	diskimage := disk{
-		Type:       "file",
-		Device:     "disk",
+		Type:   "file",
+		Device: "disk",
 		Driver: diskdriver{
-                        Name: "qemu",
+			Name: "qemu",
 			Type: "qcow2",
 		},
 		Source: disksource{
 			File: deltaDiskImageLocation,
 		},
 		BackingStore: &backingstore{
-			      Type: "file",
-                              Index: "1",
-                              Format: diskformat{
-                                      Type: "raw",
-                              },
-                              Source: disksource{
-                                      File: boot.OriginalDiskPath,
-                              },
+			Type:  "file",
+			Index: "1",
+			Format: diskformat{
+				Type: "raw",
+			},
+			Source: disksource{
+				File: boot.OriginalDiskPath,
+			},
 		},
 		Target: disktarget{
-			Dev:     "hda",
-			Bus:     "ide",
+			Dev: "hda",
+			Bus: "ide",
 		},
 	}
 	dom.Devices.Disks = append(dom.Devices.Disks, diskimage)
 
 	seedimage := disk{
-		Type:       "file",
-		Device:     "cdrom",
+		Type:   "file",
+		Device: "cdrom",
 		Driver: diskdriver{
-                        Name: "qemu",
+			Name: "qemu",
 			Type: "raw",
 		},
 		Source: disksource{
 			File: fmt.Sprintf("%s/seed.img", lc.container.Config.QemuDirectory),
 		},
 		Target: disktarget{
-			Dev:     "hdb",
-			Bus:     "ide",
+			Dev: "hdb",
+			Bus: "ide",
 		},
-                Readonly: &readonly{},
+		Readonly: &readonly{},
 	}
 	dom.Devices.Disks = append(dom.Devices.Disks, seedimage)
 
+	networkInterface := nic{
+		//lc.container.CommonContainer.NetworkSettings.Networks["bridge"].MacAddress
+		Type: "bridge",
+		//		Mac: nicmac{
+		//			Address: "2:54:00:a5:f9:ca",
+		//		},
+		Source: nicsrc{
+			Bridge: "docker0",
+		},
+		Model: nicmodel{
+			Type: "virtio",
+		},
+		//		Address: &nicAddress{
+		//			Type:     "pci",
+		//			Domain:   "0x0000",
+		//			Bus:      "0x00",
+		//			Slot:     "0x04",
+		//			Function: "0x0",
+		//		},
+	}
+
+	logrus.Infof("%+v\n", networkInterface)
+	//logrus.Infof("%+v\n", lc.container.CommonContainer.NetworkSettings)
+	dom.Devices.NetworkInterfaces = append(dom.Devices.NetworkInterfaces, networkInterface)
+
 	fs := filesystem{
 		Type:       "mount",
-		Accessmode:     "passthrough",
+		Accessmode: "passthrough",
 		Source: fspath{
 			Dir: lc.container.BaseFS,
 		},
 		Target: fspath{
-			Dir:     "share_dir",
+			Dir: "share_dir",
 		},
 	}
 	dom.Devices.Filesystems = append(dom.Devices.Filesystems, fs)
 
-        serialConsole := console{
-             Type: "unix",
-	     Source: channsrc{
-		Mode: "bind",
-		Path: fmt.Sprintf("%s/serial.sock", lc.container.Config.QemuDirectory),
+	serialConsole := console{
+		Type: "unix",
+		Source: channsrc{
+			Mode: "bind",
+			Path: fmt.Sprintf("%s/serial.sock", lc.container.Config.QemuDirectory),
 		},
-	     Target: constgt{
-		Type: "serial",
-		Port: "0",
-	     },
-        }
+		Target: constgt{
+			Type: "serial",
+			Port: "0",
+		},
+	}
 	dom.Devices.Consoles = append(dom.Devices.Consoles, serialConsole)
-        logrus.Infof("Serial console socket location: %s", fmt.Sprintf("%s/serial.sock", lc.container.Config.QemuDirectory))
+	logrus.Infof("Serial console socket location: %s", fmt.Sprintf("%s/serial.sock", lc.container.Config.QemuDirectory))
 
-        ubuntuConsole := console{
-             Type: "unix",
-	     Source: channsrc{
-		Mode: "bind",
-		Path: fmt.Sprintf("%s/arbritary.sock", lc.container.Config.QemuDirectory),
+	ubuntuConsole := console{
+		Type: "unix",
+		Source: channsrc{
+			Mode: "bind",
+			Path: fmt.Sprintf("%s/arbritary.sock", lc.container.Config.QemuDirectory),
 		},
-	     Target: constgt{
-		Type: "virtio",
-		Port: "1",
-	     },
-        }
+		Target: constgt{
+			Type: "virtio",
+			Port: "1",
+		},
+	}
 	dom.Devices.Consoles = append(dom.Devices.Consoles, ubuntuConsole)
 
-        appConsole := console{
-             Type: "unix",
-	     Source: channsrc{
-		Mode: "bind",
-		Path: fmt.Sprintf("%s/app.sock", lc.container.Config.QemuDirectory),
+	appConsole := console{
+		Type: "unix",
+		Source: channsrc{
+			Mode: "bind",
+			Path: fmt.Sprintf("%s/app.sock", lc.container.Config.QemuDirectory),
 		},
-	     Target: constgt{
-		Type: "virtio",
-		Port: "2",
-	     },
-        }
+		Target: constgt{
+			Type: "virtio",
+			Port: "2",
+		},
+	}
 	dom.Devices.Consoles = append(dom.Devices.Consoles, appConsole)
 
-        logrus.Infof("Application console socket location: %s", fmt.Sprintf("%s/appconsole.sock", lc.container.Config.QemuDirectory))
+	logrus.Infof("Application console socket location: %s", fmt.Sprintf("%s/appconsole.sock", lc.container.Config.QemuDirectory))
 
 	data, err := xml.Marshal(dom)
 	if err != nil {
@@ -478,34 +566,34 @@ func (lc *LibvirtContext) GetQemuDirectory() string {
 }
 
 func (lc *LibvirtContext) Create() {
-        domainXml, err := lc.DomainXml()
-        if err != nil {
-                logrus.Error("Fail to get domain xml configuration:", err)
-                return
-        }
-        logrus.Infof("domainXML: %v", domainXml)
-        var domain libvirtgo.VirDomain
+	domainXml, err := lc.DomainXml()
+	if err != nil {
+		logrus.Error("Fail to get domain xml configuration:", err)
+		return
+	}
+	logrus.Infof("domainXML: %v", domainXml)
+	var domain libvirtgo.VirDomain
 
-        domain, err = lc.driver.conn.DomainDefineXML(domainXml)
-        if err != nil {
-                logrus.Error("Fail to launch domain ", err)
-                return
-        }
+	domain, err = lc.driver.conn.DomainDefineXML(domainXml)
+	if err != nil {
+		logrus.Error("Fail to launch domain ", err)
+		return
+	}
 
-        lc.domain = &domain
-        err = lc.domain.SetMemoryStatsPeriod(1, 0)
-        if err != nil {
-                logrus.Errorf("SetMemoryStatsPeriod failed for domain %v", lc.container.ID)
-        }
+	lc.domain = &domain
+	err = lc.domain.SetMemoryStatsPeriod(1, 0)
+	if err != nil {
+		logrus.Errorf("SetMemoryStatsPeriod failed for domain %v", lc.container.ID)
+	}
 }
 
 func (lc *LibvirtContext) Launch() {
-        if lc.domain == nil {
-                logrus.Error("Failed to launch domain as no domain in LibvirtContext")
-                return
-        }
+	if lc.domain == nil {
+		logrus.Error("Failed to launch domain as no domain in LibvirtContext")
+		return
+	}
 
-        err := lc.domain.Create()
+	err := lc.domain.Create()
 	if err != nil {
 		logrus.Error("Fail to start isolated container ", err)
 		return
@@ -532,10 +620,10 @@ func (lc *LibvirtContext) Pause(pause bool) error {
 
 	if pause {
 		logrus.Infof("Domain suspended:", lc.domain.Suspend())
-                return nil
+		return nil
 	} else {
 		logrus.Infof("Domain resumed:", lc.domain.Resume())
-                return nil
+		return nil
 	}
 }
 
