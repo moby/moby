@@ -82,7 +82,7 @@ be found.
 
 ### Remote API (v1.25) & Client
 
-+ (experimental) Support `docker stack deploy` from a Compose file [#27998](https://github.com/docker/docker/pull/27998)
++ Support `docker stack deploy` from a Compose file [#27998](https://github.com/docker/docker/pull/27998)
 + (experimental) Implement checkpoint and restore [#22049](https://github.com/docker/docker/pull/22049)
 + Add `--format` flag to `docker info` [#23808](https://github.com/docker/docker/pull/23808)
 * Remove `--name` from `docker volume create` [#23830](https://github.com/docker/docker/pull/23830)
