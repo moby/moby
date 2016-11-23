@@ -55,8 +55,8 @@ Options:
       --mount-add mount                  Add or update a mount on a service
       --mount-rm list                    Remove a mount by its target path (default [])
       --no-healthcheck                   Disable any container-specified HEALTHCHECK
-      --publish-add list                 Add or update a published port (default [])
-      --publish-rm list                  Remove a published port by its target port (default [])
+      --port-add port                    Add or update a port
+      --port-rm list                     Remove a port(target-port mandatory) (default [])
       --replicas uint                    Number of tasks (default none)
       --reserve-cpu decimal              Reserve CPUs (default 0.000)
       --reserve-memory bytes             Reserve Memory (default 0 B)

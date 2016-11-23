@@ -47,7 +47,7 @@ Options:
       --name string                      Service name
       --network list                     Network attachments (default [])
       --no-healthcheck                   Disable any container-specified HEALTHCHECK
-  -p, --publish list                     Publish a port as a node port (default [])
+      --port port                        Publish a port
       --replicas uint                    Number of tasks (default none)
       --reserve-cpu decimal              Reserve CPUs (default 0.000)
       --reserve-memory bytes             Reserve Memory (default 0 B)
@@ -454,19 +454,19 @@ The swarm extends my-network to each node running the service.
 Containers on the same network can access each other using
 [service discovery](https://docs.docker.com/engine/swarm/networking/#use-swarm-mode-service-discovery).
 
-### Publish service ports externally to the swarm (-p, --publish)
+### Publish service ports externally to the swarm (--port)
 
 You can publish service ports to make them available externally to the swarm
-using the `--publish` flag:
+using the `--port` flag:
 
 ```bash
-$ docker service create --publish <TARGET-PORT>:<SERVICE-PORT> nginx
+$ docker service create --port target=<TARGET-PORT>,published=<SERVICE-PORT>,protocol=<PROTOCOL>,mode=<MODE> nginx
 ```
 
 For example:
 
 ```bash
-$ docker service create --name my_web --replicas 3 --publish 8080:80 nginx
+$ docker service create --name my_web --replicas 3 --port target=8080,published=80,mode=ingress nginx
 ```
 
 When you publish a service port, the swarm routing mesh makes the service
