@@ -714,7 +714,9 @@ func (c *controller) NewNetwork(networkType, name string, id string, options ...
 
 	joinCluster(network)
 	if !c.isDistributedControl() {
+		c.Lock()
 		arrangeIngressFilterRule()
+		c.Unlock()
 	}
 
 	return network, nil
