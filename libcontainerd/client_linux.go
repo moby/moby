@@ -405,13 +405,8 @@ func (clnt *client) getContainerLastEventSinceTime(id string, tsp *timestamp.Tim
 			logrus.Errorf("libcontainerd: failed to get container event for %s: %q", id, err)
 			return nil, err
 		}
-
-		logrus.Debugf("libcontainerd: received past event %#v", e)
-
-		switch e.Type {
-		case StateExit, StatePause, StateResume:
-			ev = e
-		}
+		ev = e
+		logrus.Debugf("libcontainerd: received past event %#v", ev)
 	}
 
 	return ev, nil
@@ -456,30 +451,36 @@ func (clnt *client) Restore(containerID string, attachStdio StdioCallback, optio
 	// Get its last event
 	ev, eerr := clnt.getContainerLastEvent(containerID)
 	if err != nil || cont.Status == "Stopped" {
-		if err != nil && !strings.Contains(err.Error(), "container not found") {
-			// Legitimate error
-			return err
+		if err != nil {
+			logrus.Warnf("libcontainerd: failed to retrieve container %s state: %v", containerID, err)
+		}
+		if ev != nil && ev.Pid != InitFriendlyName || ev.Type != StateExit {
+			// Wait a while for the exit event
+			timeout := time.NewTimer(10 * time.Second)
+			tick := time.NewTicker(100 * time.Millisecond)
+		stop:
+			for {
+				select {
+				case <-timeout.C:
+					break stop
+				case <-tick.C:
+					ev, eerr = clnt.getContainerLastEvent(containerID)
+					if eerr != nil {
+						break stop
+					}
+					if ev != nil && ev.Pid == InitFriendlyName && ev.Type == StateExit {
+						break stop
+					}
+				}
+			}
+			timeout.Stop()
+			tick.Stop()
 		}
 
-		if ev == nil {
-			if _, err := clnt.getContainer(containerID); err == nil {
-				// If ev is nil and the container is running in containerd,
-				// we already consumed all the event of the
-				// container, included the "exit" one.
-				// Thus we return to avoid overriding the Exit Code.
-				logrus.Warnf("libcontainerd: restore was called on a fully synced container (%s)", containerID)
-				return nil
-			}
-			// the container is not running so we need to fix the state within docker
-			ev = &containerd.Event{
-				Type:   StateExit,
-				Status: 1,
-			}
-		}
-
-		// get the exit status for this container
-		ec := uint32(0)
-		if eerr == nil && ev.Type == StateExit {
+		// get the exit status for this container, if we don't have
+		// one, indicate an error
+		ec := uint32(255)
+		if eerr == nil && ev != nil && ev.Pid == InitFriendlyName && ev.Type == StateExit {
 			ec = ev.Status
 		}
 		clnt.setExited(containerID, ec)
