@@ -92,7 +92,7 @@ func (ctx *Context) FullID() string {
 
 // Name returns the ContainerName without a preceding '/'.
 func (ctx *Context) Name() string {
-	return ctx.ContainerName[1:]
+	return strings.TrimPrefix(ctx.ContainerName, "/")
 }
 
 // ImageID returns the ContainerImageID shortened to 12 characters.

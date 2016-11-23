@@ -62,12 +62,6 @@ func New(ctx logger.Context) (logger.Logger, error) {
 	if !journal.Enabled() {
 		return nil, fmt.Errorf("journald is not enabled on this host")
 	}
-	// Strip a leading slash so that people can search for
-	// CONTAINER_NAME=foo rather than CONTAINER_NAME=/foo.
-	name := ctx.ContainerName
-	if name[0] == '/' {
-		name = name[1:]
-	}
 
 	// parse log tag
 	tag, err := loggerutils.ParseLogTag(ctx, loggerutils.DefaultTemplate)
@@ -78,7 +72,7 @@ func New(ctx logger.Context) (logger.Logger, error) {
 	vars := map[string]string{
 		"CONTAINER_ID":      ctx.ContainerID[:12],
 		"CONTAINER_ID_FULL": ctx.ContainerID,
-		"CONTAINER_NAME":    name,
+		"CONTAINER_NAME":    ctx.Name(),
 		"CONTAINER_TAG":     tag,
 	}
 	extraAttrs := ctx.ExtraAttributes(sanitizeKeyMod)
