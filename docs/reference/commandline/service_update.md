@@ -45,6 +45,7 @@ Options:
       --help                             Print usage
       --host-add list                    Add or update a custom host-to-IP mapping (host:ip) (default [])
       --host-rm list                     Remove a custom host-to-IP mapping (host:ip) (default [])
+      --hostname string                  Container hostname
       --image string                     Service image tag
       --label-add list                   Add or update a service label (default [])
       --label-rm list                    Remove a label by its key (default [])
