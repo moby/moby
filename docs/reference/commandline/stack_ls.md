@@ -2,7 +2,6 @@
 title: "stack ls"
 description: "The stack ls command description and usage"
 keywords: "stack, ls"
-advisory: "experimental"
 ---
 
 <!-- This file is maintained within the docker/docker Github
@@ -14,7 +13,7 @@ advisory: "experimental"
      will be rejected.
 -->
 
-# stack ls (experimental)
+# stack ls
 
 ```markdown
 Usage:	docker stack ls

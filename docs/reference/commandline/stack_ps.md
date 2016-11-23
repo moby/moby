@@ -2,7 +2,6 @@
 title: "stack ps"
 description: "The stack ps command description and usage"
 keywords: "stack, ps"
-advisory: "experimental"
 ---
 
 <!-- This file is maintained within the docker/docker Github
@@ -14,7 +13,7 @@ advisory: "experimental"
      will be rejected.
 -->
 
-# stack ps (experimental)
+# stack ps
 
 ```markdown
 Usage:  docker stack ps [OPTIONS] STACK
