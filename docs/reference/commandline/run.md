@@ -261,6 +261,26 @@ https://docs.docker.com/engine/installation/binaries/#/get-the-linux-binary)),
 you give the container the full access to create and manipulate the host's
 Docker daemon.
 
+On Windows, the paths must be specified using Windows-style semantics. 
+
+    PS C:\> docker run -v c:\foo:c:\dest microsoft/nanoserver cmd /s /c type c:\dest\somefile.txt
+    Contents of file
+	
+    PS C:\> docker run -v c:\foo:d: microsoft/nanoserver cmd /s /c type d:\somefile.txt
+    Contents of file
+
+The following examples will fail when using Windows-based containers, as the 
+destination of a volume or bind-mount inside the container must be one of: 
+a non-existing or empty directory; or a drive other than C:. Further, the source
+of a bind mount must be a local directory, not a file.
+
+    net use z: \\remotemachine\share
+    docker run -v z:\foo:c:\dest ...
+    docker run -v \\uncpath\to\directory:c:\dest ...
+    docker run -v c:\foo\somefile.txt:c:\dest ...
+    docker run -v c:\foo:c: ...
+    docker run -v c:\foo:c:\existing-directory-with-contents ...
+
 For in-depth information about volumes, refer to [manage data in containers](https://docs.docker.com/engine/tutorials/dockervolumes/)
 
 ### Publish or expose port (-p, --expose)
