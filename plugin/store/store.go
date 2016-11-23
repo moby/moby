@@ -126,7 +126,7 @@ func (ps *Store) updatePluginDB() error {
 	return nil
 }
 
-// Get returns a plugin matching the given name and capability.
+// Get returns an enabled plugin matching the given name and capability.
 func (ps *Store) Get(name, capability string, mode int) (plugingetter.CompatPlugin, error) {
 	var (
 		p   *v2.Plugin
@@ -151,7 +151,12 @@ func (ps *Store) Get(name, capability string, mode int) (plugingetter.CompatPlug
 			p.Lock()
 			p.RefCount += mode
 			p.Unlock()
-			return p.FilterByCap(capability)
+			if p.IsEnabled() {
+				return p.FilterByCap(capability)
+			}
+			// Plugin was found but it is disabled, so we should not fall back to legacy plugins
+			// but we should error out right away
+			return nil, ErrNotFound(fullName)
 		}
 		if _, ok := err.(ErrNotFound); !ok {
 			return nil, err
@@ -170,7 +175,7 @@ func (ps *Store) Get(name, capability string, mode int) (plugingetter.CompatPlug
 	return nil, err
 }
 
-// GetAllByCap returns a list of plugins matching the given capability.
+// GetAllByCap returns a list of enabled plugins matching the given capability.
 func (ps *Store) GetAllByCap(capability string) ([]plugingetter.CompatPlugin, error) {
 	result := make([]plugingetter.CompatPlugin, 0, 1)
 

@@ -9,6 +9,7 @@ import (
 	"sync"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/oci"
 	"github.com/docker/docker/pkg/plugins"
 	"github.com/docker/docker/pkg/system"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
@@ -104,6 +105,8 @@ func (p *Plugin) InitPlugin() error {
 		p.PluginObj.Settings.Mounts[i] = mount
 	}
 	p.PluginObj.Settings.Env = make([]string, 0, len(p.PluginObj.Config.Env))
+	p.PluginObj.Settings.Devices = make([]types.PluginDevice, 0, len(p.PluginObj.Config.Linux.Devices))
+	copy(p.PluginObj.Settings.Devices, p.PluginObj.Config.Linux.Devices)
 	for _, env := range p.PluginObj.Config.Env {
 		if env.Value != nil {
 			p.PluginObj.Settings.Env = append(p.PluginObj.Settings.Env, fmt.Sprintf("%s=%s", env.Name, *env.Value))
@@ -176,7 +179,7 @@ next:
 		}
 
 		// range over all the devices in the config
-		for _, device := range p.PluginObj.Config.Devices {
+		for _, device := range p.PluginObj.Config.Linux.Devices {
 			// found the device in the config
 			if device.Name == s.name {
 				// is it settable ?
@@ -216,38 +219,45 @@ next:
 // ComputePrivileges takes the config file and computes the list of access necessary
 // for the plugin on the host.
 func (p *Plugin) ComputePrivileges() types.PluginPrivileges {
-	m := p.PluginObj.Config
+	c := p.PluginObj.Config
 	var privileges types.PluginPrivileges
-	if m.Network.Type != "null" && m.Network.Type != "bridge" {
+	if c.Network.Type != "null" && c.Network.Type != "bridge" {
 		privileges = append(privileges, types.PluginPrivilege{
 			Name:        "network",
-			Description: "",
-			Value:       []string{m.Network.Type},
+			Description: "permissions to access a network",
+			Value:       []string{c.Network.Type},
 		})
 	}
-	for _, mount := range m.Mounts {
+	for _, mount := range c.Mounts {
 		if mount.Source != nil {
 			privileges = append(privileges, types.PluginPrivilege{
 				Name:        "mount",
-				Description: "",
+				Description: "host path to mount",
 				Value:       []string{*mount.Source},
 			})
 		}
 	}
-	for _, device := range m.Devices {
+	for _, device := range c.Linux.Devices {
 		if device.Path != nil {
 			privileges = append(privileges, types.PluginPrivilege{
 				Name:        "device",
-				Description: "",
+				Description: "host device to access",
 				Value:       []string{*device.Path},
 			})
 		}
 	}
-	if len(m.Capabilities) > 0 {
+	if c.Linux.DeviceCreation {
+		privileges = append(privileges, types.PluginPrivilege{
+			Name:        "device-creation",
+			Description: "allow creating devices inside plugin",
+			Value:       []string{"true"},
+		})
+	}
+	if len(c.Linux.Capabilities) > 0 {
 		privileges = append(privileges, types.PluginPrivilege{
 			Name:        "capabilities",
-			Description: "",
-			Value:       m.Capabilities,
+			Description: "list of additional capabilities required",
+			Value:       c.Linux.Capabilities,
 		})
 	}
 	return privileges
@@ -293,12 +303,40 @@ func (p *Plugin) InitSpec(s specs.Spec, libRoot string) (*specs.Spec, error) {
 		Readonly: false, // TODO: all plugins should be readonly? settable in config?
 	}
 
-	mounts := append(p.PluginObj.Settings.Mounts, types.PluginMount{
+	userMounts := make(map[string]struct{}, len(p.PluginObj.Config.Mounts))
+	for _, m := range p.PluginObj.Config.Mounts {
+		userMounts[m.Destination] = struct{}{}
+	}
+
+	mounts := append(p.PluginObj.Config.Mounts, types.PluginMount{
 		Source:      &p.RuntimeSourcePath,
 		Destination: defaultPluginRuntimeDestination,
 		Type:        "bind",
 		Options:     []string{"rbind", "rshared"},
 	})
+
+	if p.PluginObj.Config.Network.Type != "" {
+		// TODO: if net == bridge, use libnetwork controller to create a new plugin-specific bridge, bind mount /etc/hosts and /etc/resolv.conf look at the docker code (allocateNetwork, initialize)
+		if p.PluginObj.Config.Network.Type == "host" {
+			oci.RemoveNamespace(&s, specs.NamespaceType("network"))
+		}
+		etcHosts := "/etc/hosts"
+		resolvConf := "/etc/resolv.conf"
+		mounts = append(mounts,
+			types.PluginMount{
+				Source:      &etcHosts,
+				Destination: etcHosts,
+				Type:        "bind",
+				Options:     []string{"rbind", "ro"},
+			},
+			types.PluginMount{
+				Source:      &resolvConf,
+				Destination: resolvConf,
+				Type:        "bind",
+				Options:     []string{"rbind", "ro"},
+			})
+	}
+
 	for _, mount := range mounts {
 		m := specs.Mount{
 			Destination: mount.Destination,
@@ -323,6 +361,28 @@ func (p *Plugin) InitSpec(s specs.Spec, libRoot string) (*specs.Spec, error) {
 		s.Mounts = append(s.Mounts, m)
 	}
 
+	for i, m := range s.Mounts {
+		if strings.HasPrefix(m.Destination, "/dev/") {
+			if _, ok := userMounts[m.Destination]; ok {
+				s.Mounts = append(s.Mounts[:i], s.Mounts[i+1:]...)
+			}
+		}
+	}
+
+	if p.PluginObj.Config.Linux.DeviceCreation {
+		rwm := "rwm"
+		s.Linux.Resources.Devices = []specs.DeviceCgroup{{Allow: true, Access: &rwm}}
+	}
+	for _, dev := range p.PluginObj.Config.Linux.Devices {
+		path := *dev.Path
+		d, dPermissions, err := oci.DevicesFromPath(path, path, "rwm")
+		if err != nil {
+			return nil, err
+		}
+		s.Linux.Devices = append(s.Linux.Devices, d...)
+		s.Linux.Resources.Devices = append(s.Linux.Resources.Devices, dPermissions...)
+	}
+
 	envs := make([]string, 1, len(p.PluginObj.Settings.Env)+1)
 	envs[0] = "PATH=" + system.DefaultPathEnv
 	envs = append(envs, p.PluginObj.Settings.Env...)
@@ -332,12 +392,12 @@ func (p *Plugin) InitSpec(s specs.Spec, libRoot string) (*specs.Spec, error) {
 	if len(cwd) == 0 {
 		cwd = "/"
 	}
-	s.Process = specs.Process{
-		Terminal: false,
-		Args:     args,
-		Cwd:      cwd,
-		Env:      envs,
-	}
+	s.Process.Terminal = false
+	s.Process.Args = args
+	s.Process.Cwd = cwd
+	s.Process.Env = envs
+
+	s.Process.Capabilities = append(s.Process.Capabilities, p.PluginObj.Config.Linux.Capabilities...)
 
 	return &s, nil
 }

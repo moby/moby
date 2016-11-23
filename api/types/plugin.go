@@ -39,17 +39,9 @@ type PluginConfig struct {
 	// Required: true
 	Args PluginConfigArgs `json:"Args"`
 
-	// capabilities
-	// Required: true
-	Capabilities []string `json:"Capabilities"`
-
 	// description
 	// Required: true
 	Description string `json:"Description"`
-
-	// devices
-	// Required: true
-	Devices []PluginDevice `json:"Devices"`
 
 	// documentation
 	// Required: true
@@ -66,6 +58,10 @@ type PluginConfig struct {
 	// interface
 	// Required: true
 	Interface PluginConfigInterface `json:"Interface"`
+
+	// linux
+	// Required: true
+	Linux PluginConfigLinux `json:"Linux"`
 
 	// mounts
 	// Required: true
@@ -115,6 +111,23 @@ type PluginConfigInterface struct {
 	// types
 	// Required: true
 	Types []PluginInterfaceType `json:"Types"`
+}
+
+// PluginConfigLinux plugin config linux
+// swagger:model PluginConfigLinux
+type PluginConfigLinux struct {
+
+	// capabilities
+	// Required: true
+	Capabilities []string `json:"Capabilities"`
+
+	// device creation
+	// Required: true
+	DeviceCreation bool `json:"DeviceCreation"`
+
+	// devices
+	// Required: true
+	Devices []PluginDevice `json:"Devices"`
 }
 
 // PluginConfigNetwork plugin config network
