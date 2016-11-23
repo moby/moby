@@ -103,7 +103,8 @@ storage driver:
      Goroutines: 123
      System Time: 2016-11-12T17:24:37.955404361-08:00
      EventsListeners: 0
-    Http Proxy: http://proxy.example.com:80/
+    Http Proxy: http://test:test@proxy.example.com:8080
+    Https Proxy: https://test:test@proxy.example.com:8080
     No Proxy: localhost,127.0.0.1,docker-registry.somecorporation.com
     Registry: https://index.docker.io/v1/
     WARNING: No swap limit support
@@ -113,6 +114,9 @@ storage driver:
     Experimental: false
     Insecure Registries:
      127.0.0.0/8
+    Registry Mirrors:
+      http://192.168.1.2/
+      http://registry-mirror.example.com:5000/
     Live Restore Enabled: false
 
 
@@ -166,7 +170,7 @@ information about the devicemapper storage driver is shown:
     Docker Root Dir: /var/lib/docker
     Debug mode (client): false
     Debug mode (server): false
-    Username: xyz
+    Username: gordontheturtle
     Registry: https://index.docker.io/v1/
     Insecure registries:
      myinsecurehost:5000
