@@ -94,6 +94,9 @@ type Config struct {
 	// UnlockKey is the key to unlock a node - used for decrypting at rest.  This
 	// only applies to nodes that have already joined a cluster.
 	UnlockKey []byte
+
+	// Availability allows a user to control the current scheduling status of a node
+	Availability api.NodeSpec_Availability
 }
 
 // Node implements the primary node functionality for a member of a swarm
@@ -540,8 +543,9 @@ func (n *Node) loadSecurityConfig(ctx context.Context) (*ca.SecurityConfig, erro
 			log.G(ctx).WithError(err).Debugf("no node credentials found in: %s", krw.Target())
 
 			securityConfig, err = rootCA.CreateSecurityConfig(ctx, krw, ca.CertificateRequestConfig{
-				Token:   n.config.JoinToken,
-				Remotes: n.remotes,
+				Token:        n.config.JoinToken,
+				Availability: n.config.Availability,
+				Remotes:      n.remotes,
 			})
 
 			if err != nil {
@@ -643,6 +647,7 @@ func (n *Node) runManager(ctx context.Context, securityConfig *ca.SecurityConfig
 			ElectionTick:     n.config.ElectionTick,
 			AutoLockManagers: n.config.AutoLockManagers,
 			UnlockKey:        n.unlockKey,
+			Availability:     n.config.Availability,
 		})
 		if err != nil {
 			return err

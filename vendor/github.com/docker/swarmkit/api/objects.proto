@@ -252,15 +252,6 @@ message Secret {
 	// secret data that the user provides.
 	SecretSpec spec = 3  [(gogoproto.nullable) = false];
 
-	// Digest represents the cryptographic digest of the secret data, and follows
-	// the form "<algorithm>:<digest>": for example "sha256:DEADBEEF...".  It
-	// is calculated from the data contained in `Secret.Spec.data`.
-	string digest = 4;
-
-	// SecretSize represents the size (number of bytes) of the secret data, and is
-	// calculated from the data contained in `Secret.Spec.data`.
-	int64 size = 5 [(gogoproto.customname) = "SecretSize"];
-
 	// Whether the secret is an internal secret (not set by a user) or not.
-	bool internal = 6;
+	bool internal = 4;
 }
