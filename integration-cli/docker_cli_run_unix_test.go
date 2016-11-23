@@ -1312,7 +1312,7 @@ func (s *DockerSuite) TestUserNoEffectiveCapabilitiesChroot(c *check.C) {
 }
 
 func (s *DockerSuite) TestUserNoEffectiveCapabilitiesMknod(c *check.C) {
-	testRequires(c, DaemonIsLinux)
+	testRequires(c, DaemonIsLinux, NotUserNamespace)
 	ensureSyscallTest(c)
 
 	// test that a root user has default capability CAP_MKNOD

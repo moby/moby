@@ -276,7 +276,7 @@ func (s *DockerSuite) TestEventsImageLoad(c *check.C) {
 }
 
 func (s *DockerSuite) TestEventsPluginOps(c *check.C) {
-	testRequires(c, DaemonIsLinux)
+	testRequires(c, DaemonIsLinux, Network)
 
 	since := daemonUnixTime(c)
 
