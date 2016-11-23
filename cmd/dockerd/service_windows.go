@@ -27,7 +27,7 @@ var (
 	flUnregisterService *bool
 	flRunService        *bool
 
-	setStdHandle = syscall.NewLazyDLL("kernel32.dll").NewProc("SetStdHandle")
+	setStdHandle = windows.NewLazySystemDLL("kernel32.dll").NewProc("SetStdHandle")
 	oldStderr    syscall.Handle
 	panicFile    *os.File
 
