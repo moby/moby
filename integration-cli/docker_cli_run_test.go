@@ -4879,3 +4879,12 @@ func (s *delayedReader) Read([]byte) (int, error) {
 	time.Sleep(500 * time.Millisecond)
 	return 0, io.EOF
 }
+
+// Ensure environment variables on Windows are deduped for case sensitivity
+// and made upper-case.
+func (s *DockerSuite) TestRunWindowsDedupEnvVars(c *check.C) {
+	testRequires(c, DaemonIsWindows)
+	dockerCmd(c, "run", "-e", "A=a", "-e", "a=a", "-e", "Foo=bar", "-e", "foo=bar", "--name", "testrunwindowsdedupenvvars", WindowsBaseImage, "cmd", "/s", "/c", "set")
+	env := inspectField(c, "testrunwindowsdedupenvvars", "Config.Env")
+	c.Assert(env, checker.Equals, "[A=a FOO=bar]")
+}
