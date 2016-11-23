@@ -4,7 +4,6 @@ package daemon
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net"
@@ -1281,12 +1280,6 @@ func (daemon *Daemon) setupSeccompProfile() error {
 			return fmt.Errorf("opening seccomp profile (%s) failed: %v", daemon.configStore.SeccompProfile, err)
 		}
 		daemon.seccompProfile = b
-		p := struct {
-			DefaultAction string `json:"defaultAction"`
-		}{}
-		if err := json.Unmarshal(daemon.seccompProfile, &p); err != nil {
-			return err
-		}
 	}
 	return nil
 }
