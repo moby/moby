@@ -14,7 +14,7 @@ func (s *DockerSuite) TestVersionEnsureSucceeds(c *check.C) {
 		"Client:":       1,
 		"Server:":       1,
 		" Version:":     2,
-		" API version:": 3,
+		" API version:": 2,
 		" Go version:":  2,
 		" Git commit:":  2,
 		" OS/Arch:":     2,
@@ -40,7 +40,7 @@ func (s *DockerSuite) TestVersionPlatform_l(c *check.C) {
 
 func testVersionPlatform(c *check.C, platform string) {
 	out, _ := dockerCmd(c, "version")
-	expected := "OS/Arch:             " + platform
+	expected := "OS/Arch:      " + platform
 
 	split := strings.Split(out, "\n")
 	c.Assert(len(split) >= 14, checker.Equals, true, check.Commentf("got %d lines from version", len(split)))
