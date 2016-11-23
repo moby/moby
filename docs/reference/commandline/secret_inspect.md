@@ -45,8 +45,8 @@ For example, given the following secret:
 
 ```bash
 $ docker secret ls
-ID                          NAME                    CREATED                                   UPDATED                                   SIZE
-mhv17xfe3gh6xc4rij5orpfds   secret.json             2016-10-27 23:25:43.909181089 +0000 UTC   2016-10-27 23:25:43.909181089 +0000 UTC   1679
+ID                          NAME                    CREATED                                   UPDATED
+mhv17xfe3gh6xc4rij5orpfds   secret.json             2016-10-27 23:25:43.909181089 +0000 UTC   2016-10-27 23:25:43.909181089 +0000 UTC
 ```
 
 ```bash
@@ -60,11 +60,8 @@ $ docker secret inspect secret.json
         "CreatedAt": "2016-10-27T23:25:43.909181089Z",
         "UpdatedAt": "2016-10-27T23:25:43.909181089Z",
         "Spec": {
-            "Name": "secret.json",
-            "Data": null
-        },
-        "Digest": "sha256:8281c6d924520986e3c6af23ed8926710a611c90339db582c2a9ac480ba622b7",
-        "SecretSize": 1679
+            "Name": "secret.json"
+        }
     }
 ]
 ```
@@ -72,12 +69,12 @@ $ docker secret inspect secret.json
 ### Formatting secret output
 
 You can use the --format option to obtain specific information about a
-secret. The following example command outputs the digest of the
+secret. The following example command outputs the creation time of the
 secret.
 
 ```bash{% raw %}
-$ docker secret inspect --format='{{.Digest}}' mhv17xfe3gh6xc4rij5orpfds
-sha256:8281c6d924520986e3c6af23ed8926710a611c90339db582c2a9ac480ba622b7
+$ docker secret inspect --format='{{.CreatedAt}}' mhv17xfe3gh6xc4rij5orpfds
+2016-10-27 23:25:43.909181089 +0000 UTC
 {% endraw %}```
 
 

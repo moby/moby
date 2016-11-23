@@ -9,9 +9,7 @@ import (
 // SecretFromGRPC converts a grpc Secret to a Secret.
 func SecretFromGRPC(s *swarmapi.Secret) swarmtypes.Secret {
 	secret := swarmtypes.Secret{
-		ID:         s.ID,
-		Digest:     s.Digest,
-		SecretSize: s.SecretSize,
+		ID: s.ID,
 		Spec: swarmtypes.SecretSpec{
 			Annotations: swarmtypes.Annotations{
 				Name:   s.Spec.Annotations.Name,
