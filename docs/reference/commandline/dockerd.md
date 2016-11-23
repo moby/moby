@@ -24,7 +24,7 @@ A self-sufficient runtime for containers.
 Options:
 
       --add-runtime value                     Register an additional OCI compatible runtime (default [])
-      --api-cors-header string                Set CORS headers in the remote API
+      --api-cors-header string                Set CORS headers in the Engine API
       --authorization-plugin value            Authorization plugins to load (default [])
       --bip string                            Specify network bridge IP
   -b, --bridge string                         Attach containers to a network bridge
@@ -101,7 +101,7 @@ To run the daemon with debug output, use `dockerd -D`.
 
 ## Daemon socket option
 
-The Docker daemon can listen for [Docker Remote API](../api/docker_remote_api.md)
+The Docker daemon can listen for [Docker Engine API](../api/)
 requests via three different types of Socket: `unix`, `tcp`, and `fd`.
 
 By default, a `unix` domain socket (or IPC socket) is created at
@@ -905,7 +905,7 @@ path. Consult with your Docker administrator to get information about the
 plugins available to you.
 
 Once a plugin is installed, requests made to the `daemon` through the command
-line or Docker's remote API are allowed or denied by the plugin.  If you have
+line or Docker's Engine API are allowed or denied by the plugin.  If you have
 multiple plugins installed, at least one must allow the request for it to
 complete.
 
@@ -1094,11 +1094,11 @@ the `--cgroup-parent` option on the daemon.
 ## Daemon Metrics
 
 The `--metrics-addr` option takes a tcp address to serve the metrics API.
-This feature is still experimental, therefore, the daemon must be running in experimental 
+This feature is still experimental, therefore, the daemon must be running in experimental
 mode for this feature to work.
 
 To serve the metrics API on localhost:1337 you would specify `--metrics-addr 127.0.0.1:1337`
-allowing you to make requests on the API at `127.0.0.1:1337/metrics` to receive metrics in the 
+allowing you to make requests on the API at `127.0.0.1:1337/metrics` to receive metrics in the
 [prometheus](https://prometheus.io/docs/instrumenting/exposition_formats/) format.
 
 If you are running a prometheus server you can add this address to your scrape configs
@@ -1113,7 +1113,7 @@ scrape_configs:
 ```
 
 Please note that this feature is still marked as experimental as metrics and metric
-names could change while this feature is still in experimental.  Please provide 
+names could change while this feature is still in experimental.  Please provide
 feedback on what you would like to see collected in the API.
 
 ## Daemon configuration file
@@ -1336,10 +1336,14 @@ set this parameter separately for each daemon.
 - `-p, --pidfile=/var/run/docker.pid` is the path where the process ID of the daemon is stored. Specify the path for your
 pid file here.
 - `--host=[]` specifies where the Docker daemon will listen for client connections. If unspecified, it defaults to `/var/run/docker.sock`.
-- `--iptables=false` prevents the Docker daemon from adding iptables rules. If
-  multiple daemons manage iptables rules, they may overwrite rules set by
-  another daemon. Be aware that disabling this option requires you to manually
-  add iptables rules to expose container ports.
+-  `--iptables=false` prevents the Docker daemon from adding iptables rules. If
+multiple daemons manage iptables rules, they may overwrite rules set by another
+daemon. Be aware that disabling this option requires you to manually add
+iptables rules to expose container ports. If you prevent Docker from adding
+iptables rules, Docker will also not add IP masquerading rules, even if you set
+`--ip-masq` to `true`. Without IP masquerading rules, Docker containers will not be
+able to connect to external hosts or the internet when using network other than
+default bridge.
 - `--config-file=/etc/docker/daemon.json` is the path where configuration file is stored. You can use it instead of
 daemon flags. Specify the path for each daemon.
 - `--tls*` Docker daemon supports `--tlsverify` mode that enforces encrypted and authenticated remote connections.

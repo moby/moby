@@ -1,6 +1,7 @@
 package daemon
 
 import (
+	"fmt"
 	"os"
 	"runtime"
 	"sync/atomic"
@@ -69,29 +70,26 @@ func (daemon *Daemon) SystemInfo() (*types.Info, error) {
 		}
 	})
 
-	securityOptions := []types.SecurityOpt{}
+	securityOptions := []string{}
 	if sysInfo.AppArmor {
-		securityOptions = append(securityOptions, types.SecurityOpt{Key: "Name", Value: "apparmor"})
+		securityOptions = append(securityOptions, "name=apparmor")
 	}
 	if sysInfo.Seccomp && supportsSeccomp {
 		profile := daemon.seccompProfilePath
 		if profile == "" {
 			profile = "default"
 		}
-		securityOptions = append(securityOptions,
-			types.SecurityOpt{Key: "Name", Value: "seccomp"},
-			types.SecurityOpt{Key: "Profile", Value: profile},
-		)
+		securityOptions = append(securityOptions, fmt.Sprintf("name=seccomp,profile=%s", profile))
 	}
 	if selinuxEnabled() {
-		securityOptions = append(securityOptions, types.SecurityOpt{Key: "Name", Value: "selinux"})
+		securityOptions = append(securityOptions, "name=selinux")
 	}
 	uid, gid := daemon.GetRemappedUIDGID()
 	if uid != 0 || gid != 0 {
-		securityOptions = append(securityOptions, types.SecurityOpt{Key: "Name", Value: "userns"})
+		securityOptions = append(securityOptions, "name=userns")
 	}
 
-	v := &types.InfoBase{
+	v := &types.Info{
 		ID:                 daemon.ID,
 		Containers:         int(cRunning + cPaused + cStopped),
 		ContainersRunning:  int(cRunning),
@@ -129,6 +127,7 @@ func (daemon *Daemon) SystemInfo() (*types.Info, error) {
 		HTTPSProxy:         sockets.GetProxyEnv("https_proxy"),
 		NoProxy:            sockets.GetProxyEnv("no_proxy"),
 		LiveRestoreEnabled: daemon.configStore.LiveRestoreEnabled,
+		SecurityOptions:    securityOptions,
 		Isolation:          daemon.defaultIsolation,
 	}
 
@@ -143,12 +142,7 @@ func (daemon *Daemon) SystemInfo() (*types.Info, error) {
 	}
 	v.Name = hostname
 
-	i := &types.Info{
-		InfoBase:        v,
-		SecurityOptions: securityOptions,
-	}
-
-	return i, nil
+	return v, nil
 }
 
 // SystemVersion returns version information about the daemon.

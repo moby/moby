@@ -140,6 +140,7 @@ func (daemon *Daemon) verifyVolumesInfo(container *container.Container) error {
 	if err != nil {
 		return errors.Wrap(err, "could not open container config")
 	}
+	defer f.Close()
 	var cv volumes
 	if err := json.NewDecoder(f).Decode(&cv); err != nil {
 		return errors.Wrap(err, "could not decode container config")

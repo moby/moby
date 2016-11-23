@@ -14,7 +14,7 @@ import (
 )
 
 // FillPlatformInfo fills the platform related info.
-func (daemon *Daemon) FillPlatformInfo(v *types.InfoBase, sysInfo *sysinfo.SysInfo) {
+func (daemon *Daemon) FillPlatformInfo(v *types.Info, sysInfo *sysinfo.SysInfo) {
 	v.MemoryLimit = sysInfo.MemoryLimit
 	v.SwapLimit = sysInfo.SwapLimit
 	v.KernelMemory = sysInfo.KernelMemory

@@ -62,7 +62,7 @@ func (cli *Client) PluginInstall(ctx context.Context, name string, options types
 		return nil
 	}
 
-	return cli.PluginEnable(ctx, name)
+	return cli.PluginEnable(ctx, name, types.PluginEnableOptions{Timeout: 0})
 }
 
 func (cli *Client) tryPluginPull(ctx context.Context, query url.Values, registryAuth string) (serverResponse, error) {

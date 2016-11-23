@@ -170,7 +170,7 @@ func getExecExitCode(ctx context.Context, client apiclient.ContainerAPIClient, e
 	resp, err := client.ContainerExecInspect(ctx, execID)
 	if err != nil {
 		// If we can't connect, then the daemon probably died.
-		if err != apiclient.ErrConnectionFailed {
+		if !apiclient.IsErrConnectionFailed(err) {
 			return false, -1, err
 		}
 		return false, -1, nil

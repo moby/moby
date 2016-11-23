@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net"
 	"os"
@@ -4848,4 +4849,33 @@ func (s *DockerSuite) TestRunEmptyEnv(c *check.C) {
 	out, _, err = dockerCmdWithError("run", "-e", "=foo", "busybox", "true")
 	c.Assert(err, checker.NotNil)
 	c.Assert(out, checker.Contains, expectedOutput)
+}
+
+// #28658
+func (s *DockerSuite) TestSlowStdinClosing(c *check.C) {
+	name := "testslowstdinclosing"
+	repeat := 3 // regression happened 50% of the time
+	for i := 0; i < repeat; i++ {
+		cmd := exec.Command(dockerBinary, "run", "--rm", "--name", name, "-i", "busybox", "cat")
+		cmd.Stdin = &delayedReader{}
+		done := make(chan error, 1)
+		go func() {
+			_, err := runCommand(cmd)
+			done <- err
+		}()
+
+		select {
+		case <-time.After(15 * time.Second):
+			c.Fatal("running container timed out") // cleanup in teardown
+		case err := <-done:
+			c.Assert(err, checker.IsNil)
+		}
+	}
+}
+
+type delayedReader struct{}
+
+func (s *delayedReader) Read([]byte) (int, error) {
+	time.Sleep(500 * time.Millisecond)
+	return 0, io.EOF
 }

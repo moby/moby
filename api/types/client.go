@@ -332,6 +332,11 @@ type PluginRemoveOptions struct {
 	Force bool
 }
 
+// PluginEnableOptions holds parameters to enable plugins.
+type PluginEnableOptions struct {
+	Timeout int
+}
+
 // PluginInstallOptions holds parameters to install a plugin.
 type PluginInstallOptions struct {
 	Disabled              bool
@@ -351,7 +356,7 @@ type SecretRequestOption struct {
 	Mode   os.FileMode
 }
 
-// SwarmUnlockKeyResponse contains the response for Remote API:
+// SwarmUnlockKeyResponse contains the response for Engine API:
 // GET /swarm/unlockkey
 type SwarmUnlockKeyResponse struct {
 	// UnlockKey is the unlock key in ASCII-armored format.

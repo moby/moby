@@ -19,7 +19,7 @@ func (pm *Manager) Disable(name string) error {
 }
 
 // Enable activates a plugin, which implies that they are ready to be used by containers.
-func (pm *Manager) Enable(name string) error {
+func (pm *Manager) Enable(name string, config *types.PluginEnableConfig) error {
 	return errNotSupported
 }
 

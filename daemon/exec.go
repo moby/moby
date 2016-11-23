@@ -27,7 +27,7 @@ const termProcessTimeout = 10
 func (d *Daemon) registerExecCommand(container *container.Container, config *exec.Config) {
 	// Storing execs in container in order to kill them gracefully whenever the container is stopped or removed.
 	container.ExecCommands.Add(config.ID, config)
-	// Storing execs in daemon for easy access via remote API.
+	// Storing execs in daemon for easy access via Engine API.
 	d.execCommands.Add(config.ID, config)
 }
 
