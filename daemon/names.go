@@ -2,6 +2,7 @@ package daemon
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/container"
@@ -58,7 +59,7 @@ func (daemon *Daemon) generateIDAndName(name string) (string, string, error) {
 }
 
 func (daemon *Daemon) reserveName(id, name string) (string, error) {
-	if !validContainerNamePattern.MatchString(name) {
+	if !validContainerNamePattern.MatchString(strings.TrimPrefix(name, "/")) {
 		return "", fmt.Errorf("Invalid container name (%s), only %s are allowed", name, validContainerNameChars)
 	}
 	if name[0] != '/' {

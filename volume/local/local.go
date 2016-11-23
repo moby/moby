@@ -36,7 +36,7 @@ var (
 	// volumeNameRegex ensures the name assigned for the volume is valid.
 	// This name is used to create the bind directory, so we need to avoid characters that
 	// would make the path to escape the root directory.
-	volumeNameRegex = utils.RestrictedVolumeNamePattern
+	volumeNameRegex = utils.RestrictedNamePattern
 )
 
 type validationError struct {
