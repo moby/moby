@@ -2,7 +2,6 @@
 title: "stack deploy"
 description: "The stack deploy command description and usage"
 keywords: "stack, deploy, up"
-advisory: "experimental"
 ---
 
 <!-- This file is maintained within the docker/docker Github
@@ -14,7 +13,7 @@ advisory: "experimental"
      will be rejected.
 -->
 
-# stack deploy (experimental)
+# stack deploy
 
 ```markdown
 Usage:  docker stack deploy [OPTIONS] STACK
