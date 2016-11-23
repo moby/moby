@@ -599,6 +599,16 @@ func (c *Command) execute(a []string) (err error) {
 	if err != nil {
 		return c.FlagErrorFunc()(c, err)
 	}
+
+	argWoFlags := c.Flags().Args()
+	if c.DisableFlagParsing {
+		argWoFlags = a
+	}
+
+	if err := c.ValidateArgs(argWoFlags); err != nil {
+		return err
+	}
+
 	// If help is called, regardless of other flags, return we want help
 	// Also say we need help if the command isn't runnable.
 	helpVal, err := c.Flags().GetBool("help")
@@ -613,15 +623,6 @@ func (c *Command) execute(a []string) (err error) {
 	}
 
 	c.preRun()
-
-	argWoFlags := c.Flags().Args()
-	if c.DisableFlagParsing {
-		argWoFlags = a
-	}
-
-	if err := c.ValidateArgs(argWoFlags); err != nil {
-		return err
-	}
 
 	for p := c; p != nil; p = p.Parent() {
 		if p.PersistentPreRunE != nil {
@@ -727,6 +728,7 @@ func (c *Command) ExecuteC() (cmd *Command, err error) {
 	} else {
 		cmd, flags, err = c.Find(args)
 	}
+
 	if err != nil {
 		// If found parse to a subcommand and then failed, talk about the subcommand
 		if cmd != nil {
