@@ -2,6 +2,7 @@ package plugin
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/cli"
@@ -12,7 +13,7 @@ import (
 )
 
 type enableOpts struct {
-	timeout int
+	timeout time.Duration
 	name    string
 }
 
@@ -30,7 +31,7 @@ func newEnableCommand(dockerCli *command.DockerCli) *cobra.Command {
 	}
 
 	flags := cmd.Flags()
-	flags.IntVar(&opts.timeout, "timeout", 0, "HTTP client timeout (in seconds)")
+	flags.DurationVar(&opts.timeout, "timeout", time.Duration(0), "HTTP client timeout (in seconds)")
 	return cmd
 }
 
