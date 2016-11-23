@@ -264,7 +264,7 @@ Docker daemon.
 
 For in-depth information about volumes, refer to [manage data in containers](https://docs.docker.com/engine/tutorials/dockervolumes/)
 
-### Add bin-mounts or volumes using the --mount flag
+### Add bind-mounts or volumes using the --mount flag
 
 The `--mount` flag allows you to mount volumes, host-directories and `tmpfs`
 mounts in a container.
