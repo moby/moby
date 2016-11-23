@@ -133,11 +133,11 @@ func TestDefault(t *testing.T) {
 	}
 
 	message1Time := time.Now()
-	if err := loggerDriver.Log(&logger.Message{[]byte("{\"a\":\"b\"}"), "stdout", message1Time, nil, false}); err != nil {
+	if err := loggerDriver.Log(&logger.Message{Line: []byte("{\"a\":\"b\"}"), Source: "stdout", Timestamp: message1Time}); err != nil {
 		t.Fatal(err)
 	}
 	message2Time := time.Now()
-	if err := loggerDriver.Log(&logger.Message{[]byte("notajson"), "stdout", message2Time, nil, false}); err != nil {
+	if err := loggerDriver.Log(&logger.Message{Line: []byte("notajson"), Source: "stdout", Timestamp: message2Time}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -262,7 +262,7 @@ func TestInlineFormatWithNonDefaultOptions(t *testing.T) {
 	}
 
 	messageTime := time.Now()
-	if err := loggerDriver.Log(&logger.Message{[]byte("1"), "stdout", messageTime, nil, false}); err != nil {
+	if err := loggerDriver.Log(&logger.Message{Line: []byte("1"), Source: "stdout", Timestamp: messageTime}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -361,11 +361,11 @@ func TestJsonFormat(t *testing.T) {
 	}
 
 	message1Time := time.Now()
-	if err := loggerDriver.Log(&logger.Message{[]byte("{\"a\":\"b\"}"), "stdout", message1Time, nil, false}); err != nil {
+	if err := loggerDriver.Log(&logger.Message{Line: []byte("{\"a\":\"b\"}"), Source: "stdout", Timestamp: message1Time}); err != nil {
 		t.Fatal(err)
 	}
 	message2Time := time.Now()
-	if err := loggerDriver.Log(&logger.Message{[]byte("notjson"), "stdout", message2Time, nil, false}); err != nil {
+	if err := loggerDriver.Log(&logger.Message{Line: []byte("notjson"), Source: "stdout", Timestamp: message2Time}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -478,11 +478,11 @@ func TestRawFormat(t *testing.T) {
 	}
 
 	message1Time := time.Now()
-	if err := loggerDriver.Log(&logger.Message{[]byte("{\"a\":\"b\"}"), "stdout", message1Time, nil, false}); err != nil {
+	if err := loggerDriver.Log(&logger.Message{Line: []byte("{\"a\":\"b\"}"), Source: "stdout", Timestamp: message1Time}); err != nil {
 		t.Fatal(err)
 	}
 	message2Time := time.Now()
-	if err := loggerDriver.Log(&logger.Message{[]byte("notjson"), "stdout", message2Time, nil, false}); err != nil {
+	if err := loggerDriver.Log(&logger.Message{Line: []byte("notjson"), Source: "stdout", Timestamp: message2Time}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -592,11 +592,11 @@ func TestRawFormatWithLabels(t *testing.T) {
 	}
 
 	message1Time := time.Now()
-	if err := loggerDriver.Log(&logger.Message{[]byte("{\"a\":\"b\"}"), "stdout", message1Time, nil, false}); err != nil {
+	if err := loggerDriver.Log(&logger.Message{Line: []byte("{\"a\":\"b\"}"), Source: "stdout", Timestamp: message1Time}); err != nil {
 		t.Fatal(err)
 	}
 	message2Time := time.Now()
-	if err := loggerDriver.Log(&logger.Message{[]byte("notjson"), "stdout", message2Time, nil, false}); err != nil {
+	if err := loggerDriver.Log(&logger.Message{Line: []byte("notjson"), Source: "stdout", Timestamp: message2Time}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -705,11 +705,11 @@ func TestRawFormatWithoutTag(t *testing.T) {
 	}
 
 	message1Time := time.Now()
-	if err := loggerDriver.Log(&logger.Message{[]byte("{\"a\":\"b\"}"), "stdout", message1Time, nil, false}); err != nil {
+	if err := loggerDriver.Log(&logger.Message{Line: []byte("{\"a\":\"b\"}"), Source: "stdout", Timestamp: message1Time}); err != nil {
 		t.Fatal(err)
 	}
 	message2Time := time.Now()
-	if err := loggerDriver.Log(&logger.Message{[]byte("notjson"), "stdout", message2Time, nil, false}); err != nil {
+	if err := loggerDriver.Log(&logger.Message{Line: []byte("notjson"), Source: "stdout", Timestamp: message2Time}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -790,7 +790,7 @@ func TestBatching(t *testing.T) {
 	}
 
 	for i := 0; i < defaultStreamChannelSize*4; i++ {
-		if err := loggerDriver.Log(&logger.Message{[]byte(fmt.Sprintf("%d", i)), "stdout", time.Now(), nil, false}); err != nil {
+		if err := loggerDriver.Log(&logger.Message{Line: []byte(fmt.Sprintf("%d", i)), Source: "stdout", Timestamp: time.Now()}); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -856,7 +856,7 @@ func TestFrequency(t *testing.T) {
 	}
 
 	for i := 0; i < 10; i++ {
-		if err := loggerDriver.Log(&logger.Message{[]byte(fmt.Sprintf("%d", i)), "stdout", time.Now(), nil, false}); err != nil {
+		if err := loggerDriver.Log(&logger.Message{Line: []byte(fmt.Sprintf("%d", i)), Source: "stdout", Timestamp: time.Now()}); err != nil {
 			t.Fatal(err)
 		}
 		time.Sleep(15 * time.Millisecond)
@@ -937,7 +937,7 @@ func TestOneMessagePerRequest(t *testing.T) {
 	}
 
 	for i := 0; i < 10; i++ {
-		if err := loggerDriver.Log(&logger.Message{[]byte(fmt.Sprintf("%d", i)), "stdout", time.Now(), nil, false}); err != nil {
+		if err := loggerDriver.Log(&logger.Message{Line: []byte(fmt.Sprintf("%d", i)), Source: "stdout", Timestamp: time.Now()}); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -1045,7 +1045,7 @@ func TestSkipVerify(t *testing.T) {
 	}
 
 	for i := 0; i < defaultStreamChannelSize*2; i++ {
-		if err := loggerDriver.Log(&logger.Message{[]byte(fmt.Sprintf("%d", i)), "stdout", time.Now(), nil, false}); err != nil {
+		if err := loggerDriver.Log(&logger.Message{Line: []byte(fmt.Sprintf("%d", i)), Source: "stdout", Timestamp: time.Now()}); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -1057,7 +1057,7 @@ func TestSkipVerify(t *testing.T) {
 	hec.simulateServerError = false
 
 	for i := defaultStreamChannelSize * 2; i < defaultStreamChannelSize*4; i++ {
-		if err := loggerDriver.Log(&logger.Message{[]byte(fmt.Sprintf("%d", i)), "stdout", time.Now(), nil, false}); err != nil {
+		if err := loggerDriver.Log(&logger.Message{Line: []byte(fmt.Sprintf("%d", i)), Source: "stdout", Timestamp: time.Now()}); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -1127,7 +1127,7 @@ func TestBufferMaximum(t *testing.T) {
 	}
 
 	for i := 0; i < 11; i++ {
-		if err := loggerDriver.Log(&logger.Message{[]byte(fmt.Sprintf("%d", i)), "stdout", time.Now(), nil, false}); err != nil {
+		if err := loggerDriver.Log(&logger.Message{Line: []byte(fmt.Sprintf("%d", i)), Source: "stdout", Timestamp: time.Now()}); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -1216,7 +1216,7 @@ func TestServerAlwaysDown(t *testing.T) {
 	}
 
 	for i := 0; i < 5; i++ {
-		if err := loggerDriver.Log(&logger.Message{[]byte(fmt.Sprintf("%d", i)), "stdout", time.Now(), nil, false}); err != nil {
+		if err := loggerDriver.Log(&logger.Message{Line: []byte(fmt.Sprintf("%d", i)), Source: "stdout", Timestamp: time.Now()}); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -1269,7 +1269,7 @@ func TestCannotSendAfterClose(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := loggerDriver.Log(&logger.Message{[]byte("message1"), "stdout", time.Now(), nil, false}); err != nil {
+	if err := loggerDriver.Log(&logger.Message{Line: []byte("message1"), Source: "stdout", Timestamp: time.Now()}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1278,7 +1278,7 @@ func TestCannotSendAfterClose(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := loggerDriver.Log(&logger.Message{[]byte("message2"), "stdout", time.Now(), nil, false}); err == nil {
+	if err := loggerDriver.Log(&logger.Message{Line: []byte("message2"), Source: "stdout", Timestamp: time.Now()}); err == nil {
 		t.Fatal("Driver should not allow to send messages after close")
 	}
 

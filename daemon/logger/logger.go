@@ -37,24 +37,6 @@ type Message struct {
 	Partial   bool
 }
 
-// CopyMessage creates a copy of the passed-in Message which will remain
-// unchanged if the original is changed.  Log drivers which buffer Messages
-// rather than dispatching them during their Log() method should use this
-// function to obtain a Message whose Line member's contents won't change.
-func CopyMessage(msg *Message) *Message {
-	m := new(Message)
-	m.Line = make([]byte, len(msg.Line))
-	copy(m.Line, msg.Line)
-	m.Source = msg.Source
-	m.Timestamp = msg.Timestamp
-	m.Partial = msg.Partial
-	m.Attrs = make(LogAttributes)
-	for k, v := range msg.Attrs {
-		m.Attrs[k] = v
-	}
-	return m
-}
-
 // LogAttributes is used to hold the extra attributes available in the log message
 // Primarily used for converting the map type to string and sorting.
 type LogAttributes map[string]string

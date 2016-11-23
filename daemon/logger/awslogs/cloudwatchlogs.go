@@ -204,7 +204,7 @@ func (l *logStream) Log(msg *logger.Message) error {
 	defer l.lock.RUnlock()
 	if !l.closed {
 		// buffer up the data, making sure to copy the Line data
-		l.messages <- logger.CopyMessage(msg)
+		l.messages <- msg
 	}
 	return nil
 }
