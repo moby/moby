@@ -31,6 +31,10 @@ func TestPluginList(t *testing.T) {
 	enabledFilters := filters.NewArgs()
 	enabledFilters.Add("enabled", "true")
 
+	capabilityFilters := filters.NewArgs()
+	capabilityFilters.Add("capability", "volumedriver")
+	capabilityFilters.Add("capability", "authz")
+
 	listCases := []struct {
 		filters             filters.Args
 		expectedQueryParams map[string]string
@@ -49,6 +53,14 @@ func TestPluginList(t *testing.T) {
 				"all":     "",
 				"filter":  "",
 				"filters": `{"enabled":{"true":true}}`,
+			},
+		},
+		{
+			filters: capabilityFilters,
+			expectedQueryParams: map[string]string{
+				"all":     "",
+				"filter":  "",
+				"filters": `{"capability":{"authz":true,"volumedriver":true}}`,
 			},
 		},
 	}

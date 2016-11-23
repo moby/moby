@@ -313,3 +313,30 @@ func (s *DockerDaemonSuite) TestPluginListFilterEnabled(c *check.C) {
 	c.Assert(err, checker.IsNil)
 	c.Assert(out, checker.Contains, pName)
 }
+
+func (s *DockerDaemonSuite) TestPluginListFilterCapability(c *check.C) {
+	testRequires(c, Network)
+
+	s.d.Start(c)
+
+	out, err := s.d.Cmd("plugin", "install", "--grant-all-permissions", pNameWithTag, "--disable")
+	c.Assert(err, check.IsNil, check.Commentf(out))
+
+	defer func() {
+		if out, err := s.d.Cmd("plugin", "remove", pNameWithTag); err != nil {
+			c.Fatalf("Could not remove plugin: %v %s", err, out)
+		}
+	}()
+
+	out, err = s.d.Cmd("plugin", "ls", "--filter", "capability=volumedriver")
+	c.Assert(err, checker.IsNil)
+	c.Assert(out, checker.Contains, pName)
+
+	out, err = s.d.Cmd("plugin", "ls", "--filter", "capability=authz")
+	c.Assert(err, checker.IsNil)
+	c.Assert(out, checker.Not(checker.Contains), pName)
+
+	out, err = s.d.Cmd("plugin", "ls")
+	c.Assert(err, checker.IsNil)
+	c.Assert(out, checker.Contains, pName)
+}

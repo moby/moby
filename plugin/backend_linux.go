@@ -35,7 +35,8 @@ import (
 )
 
 var acceptedPluginFilterTags = map[string]bool{
-	"enabled": true,
+	"enabled":    true,
+	"capability": true,
 }
 
 // Disable deactivates a plugin. This means resources (volumes, networks) cant use them.
@@ -284,12 +285,20 @@ func (pm *Manager) List(pluginFilters filters.Args) ([]types.Plugin, error) {
 	plugins := pm.config.Store.GetAll()
 	out := make([]types.Plugin, 0, len(plugins))
 
+next:
 	for _, p := range plugins {
 		if enabledOnly && !p.PluginObj.Enabled {
 			continue
 		}
 		if disabledOnly && p.PluginObj.Enabled {
 			continue
+		}
+		if pluginFilters.Include("capability") {
+			for _, f := range p.GetTypes() {
+				if !pluginFilters.Match("capability", f.Capability) {
+					continue next
+				}
+			}
 		}
 		out = append(out, p.PluginObj)
 	}

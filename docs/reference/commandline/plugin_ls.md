@@ -53,10 +53,25 @@ than one filter, then pass multiple flags (e.g., `--filter "foo=bar" --filter "b
 The currently supported filters are:
 
 * enabled (boolean - true or false, 0 or 1)
+* capability (string - currently `volumedriver`, `networkdriver`, `ipamdriver`, or `authz`)
 
 ### enabled
 
 The `enabled` filter matches on plugins enabled or disabled.
+
+### capability
+
+The `capability` filter matches on plugin capabilities. One plugin
+might have multiple capabilities. Currently `volumedriver`, `networkdriver`,
+`ipamdriver`, and `authz` are supported capabilities.
+
+```bash
+$ docker plugin install --disable tiborvass/no-remove
+tiborvass/no-remove
+
+$ docker plugin ls --filter enabled=true
+NAME                  TAG                 DESCRIPTION                ENABLED
+```
 
 
 ## Formatting
