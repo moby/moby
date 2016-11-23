@@ -48,6 +48,9 @@ message IssueNodeCertificateRequest {
 	// Token represents a user-provided string that is necessary for new
 	// nodes to join the cluster
 	string token = 3;
+
+	// Availability allows a user to control the current scheduling status of a node
+	NodeSpec.Availability availability = 4;
 }
 
 message IssueNodeCertificateResponse {

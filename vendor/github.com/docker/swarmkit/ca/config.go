@@ -311,6 +311,8 @@ func LoadSecurityConfig(ctx context.Context, rootCA RootCA, krw *KeyReadWriter) 
 type CertificateRequestConfig struct {
 	// Token is the join token that authenticates us with the CA.
 	Token string
+	// Availability allows a user to control the current scheduling status of a node
+	Availability api.NodeSpec_Availability
 	// Remotes is the set of remote CAs.
 	Remotes remotes.Remotes
 	// Credentials provides transport credentials for communicating with the
