@@ -43,7 +43,7 @@ func newListCommand(dockerCli *command.DockerCli) *cobra.Command {
 	flags.BoolVarP(&opts.quiet, "quiet", "q", false, "Only display network IDs")
 	flags.BoolVar(&opts.noTrunc, "no-trunc", false, "Do not truncate the output")
 	flags.StringVar(&opts.format, "format", "", "Pretty-print networks using a Go template")
-	flags.VarP(&opts.filter, "filter", "f", "Provide filter values (i.e. 'dangling=true')")
+	flags.VarP(&opts.filter, "filter", "f", "Provide filter values (e.g. 'driver=bridge')")
 
 	return cmd
 }
