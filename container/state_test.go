@@ -105,7 +105,7 @@ func TestStateTimeoutWait(t *testing.T) {
 	}()
 	select {
 	case <-time.After(200 * time.Millisecond):
-		t.Fatal("Stop callback doesn't fire in 100 milliseconds")
+		t.Fatal("Stop callback doesn't fire in 200 milliseconds")
 	case <-stopped:
 		t.Log("Stop callback fired")
 	}
