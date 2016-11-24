@@ -24,11 +24,11 @@ Aliases:
   ls, list
 
 Options:
-  -f, --filter value   Provide filter values (i.e. 'dangling=true') (default [])
-      --format string  Pretty-print networks using a Go template
-      --help           Print usage
-      --no-trunc       Do not truncate the output
-  -q, --quiet          Only display network IDs
+  -f, --filter filter   Provide filter values (e.g. 'driver=bridge')
+      --format string   Pretty-print networks using a Go template
+      --help            Print usage
+      --no-trunc        Do not truncate the output
+  -q, --quiet           Only display network IDs
 ```
 
 Lists all the networks the Engine `daemon` knows about. This includes the
