@@ -30,6 +30,13 @@ type ErrNotFound string
 
 func (name ErrNotFound) Error() string { return fmt.Sprintf("plugin %q not found", string(name)) }
 
+// ErrAmbiguous indicates that a plugin was not found locally.
+type ErrAmbiguous string
+
+func (name ErrAmbiguous) Error() string {
+	return fmt.Sprintf("multiple plugins found for %q", string(name))
+}
+
 // GetByName retreives a plugin by name.
 func (ps *Store) GetByName(name string) (*v2.Plugin, error) {
 	ps.RLock()
@@ -259,4 +266,26 @@ func (ps *Store) CallHandler(p *v2.Plugin) {
 			handler(p.Name(), p.Client())
 		}
 	}
+}
+
+// Search retreives a plugin by ID Prefix
+// If no plugin is found, then ErrNotFound is returned
+// If multiple plugins are found, then ErrAmbiguous is returned
+func (ps *Store) Search(partialID string) (*v2.Plugin, error) {
+	ps.RLock()
+	defer ps.RUnlock()
+
+	var found *v2.Plugin
+	for id, p := range ps.plugins {
+		if strings.HasPrefix(id, partialID) {
+			if found != nil {
+				return nil, ErrAmbiguous(partialID)
+			}
+			found = p
+		}
+	}
+	if found == nil {
+		return nil, ErrNotFound(partialID)
+	}
+	return found, nil
 }

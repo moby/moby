@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"regexp"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/types"
@@ -21,6 +22,11 @@ import (
 	"github.com/docker/docker/plugin/v2"
 	"github.com/docker/docker/reference"
 	"golang.org/x/net/context"
+)
+
+var (
+	validFullID    = regexp.MustCompile(`^([a-f0-9]{64})$`)
+	validPartialID = regexp.MustCompile(`^([a-f0-9]{1,64})$`)
 )
 
 // Disable deactivates a plugin, which implies that they cannot be used by containers.
@@ -53,12 +59,32 @@ func (pm *Manager) Enable(name string, config *types.PluginEnableConfig) error {
 }
 
 // Inspect examines a plugin config
-func (pm *Manager) Inspect(name string) (tp types.Plugin, err error) {
-	p, err := pm.pluginStore.GetByName(name)
-	if err != nil {
+func (pm *Manager) Inspect(refOrID string) (tp types.Plugin, err error) {
+	// Match on full ID
+	if validFullID.MatchString(refOrID) {
+		p, err := pm.pluginStore.GetByID(refOrID)
+		if err == nil {
+			return p.PluginObj, nil
+		}
+	}
+
+	// Match on full name
+	if pluginName, err := getPluginName(refOrID); err == nil {
+		if p, err := pm.pluginStore.GetByName(pluginName); err == nil {
+			return p.PluginObj, nil
+		}
+	}
+
+	// Match on partial ID
+	if validPartialID.MatchString(refOrID) {
+		p, err := pm.pluginStore.Search(refOrID)
+		if err == nil {
+			return p.PluginObj, nil
+		}
 		return tp, err
 	}
-	return p.PluginObj, nil
+
+	return tp, fmt.Errorf("no plugin name or ID associated with %q", refOrID)
 }
 
 func (pm *Manager) pull(ref reference.Named, metaHeader http.Header, authConfig *types.AuthConfig, pluginID string) (types.PluginPrivileges, error) {
@@ -248,4 +274,19 @@ func (pm *Manager) createFromContext(ctx context.Context, tarCtx io.Reader, plug
 	pm.pluginEventLogger(p.GetID(), repoName, "create")
 
 	return nil
+}
+
+func getPluginName(name string) (string, error) {
+	named, err := reference.ParseNamed(name) // FIXME: validate
+	if err != nil {
+		return "", err
+	}
+	if reference.IsNameOnly(named) {
+		named = reference.WithDefaultTag(named)
+	}
+	ref, ok := named.(reference.NamedTagged)
+	if !ok {
+		return "", fmt.Errorf("invalid name: %s", named.String())
+	}
+	return ref.String(), nil
 }

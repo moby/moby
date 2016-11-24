@@ -201,3 +201,52 @@ func (s *DockerSuite) TestPluginCreate(c *check.C) {
 	// The output will consists of one HEADER line and one line of foo/bar-driver
 	c.Assert(len(strings.Split(strings.TrimSpace(out), "\n")), checker.Equals, 2)
 }
+
+func (s *DockerSuite) TestPluginInspect(c *check.C) {
+	testRequires(c, DaemonIsLinux, Network)
+	_, _, err := dockerCmdWithError("plugin", "install", "--grant-all-permissions", pNameWithTag)
+	c.Assert(err, checker.IsNil)
+
+	out, _, err := dockerCmdWithError("plugin", "ls")
+	c.Assert(err, checker.IsNil)
+	c.Assert(out, checker.Contains, pName)
+	c.Assert(out, checker.Contains, pTag)
+	c.Assert(out, checker.Contains, "true")
+
+	// Find the ID first
+	out, _, err = dockerCmdWithError("plugin", "inspect", "-f", "{{.Id}}", pNameWithTag)
+	c.Assert(err, checker.IsNil)
+	id := strings.TrimSpace(out)
+	c.Assert(id, checker.Not(checker.Equals), "")
+
+	// Long form
+	out, _, err = dockerCmdWithError("plugin", "inspect", "-f", "{{.Id}}", id)
+	c.Assert(err, checker.IsNil)
+	c.Assert(strings.TrimSpace(out), checker.Equals, id)
+
+	// Short form
+	out, _, err = dockerCmdWithError("plugin", "inspect", "-f", "{{.Id}}", id[:5])
+	c.Assert(err, checker.IsNil)
+	c.Assert(strings.TrimSpace(out), checker.Equals, id)
+
+	// Name with tag form
+	out, _, err = dockerCmdWithError("plugin", "inspect", "-f", "{{.Id}}", pNameWithTag)
+	c.Assert(err, checker.IsNil)
+	c.Assert(strings.TrimSpace(out), checker.Equals, id)
+
+	// Name without tag form
+	out, _, err = dockerCmdWithError("plugin", "inspect", "-f", "{{.Id}}", pName)
+	c.Assert(err, checker.IsNil)
+	c.Assert(strings.TrimSpace(out), checker.Equals, id)
+
+	_, _, err = dockerCmdWithError("plugin", "disable", pNameWithTag)
+	c.Assert(err, checker.IsNil)
+
+	out, _, err = dockerCmdWithError("plugin", "remove", pNameWithTag)
+	c.Assert(err, checker.IsNil)
+	c.Assert(out, checker.Contains, pNameWithTag)
+
+	// After remove nothing should be found
+	_, _, err = dockerCmdWithError("plugin", "inspect", "-f", "{{.Id}}", id[:5])
+	c.Assert(err, checker.NotNil)
+}
