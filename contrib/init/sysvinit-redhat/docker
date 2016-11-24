@@ -28,6 +28,7 @@ exec="/usr/bin/dockerd"
 pidfile="/var/run/$prog.pid"
 lockfile="/var/lock/subsys/$prog"
 logfile="/var/log/$prog"
+libcontainerd="/var/run/docker/libcontainerd"
 
 [ -e /etc/sysconfig/$prog ] && . /etc/sysconfig/$prog
 
@@ -117,6 +118,21 @@ check_for_cleanup() {
 	if [ -f ${pidfile} ]; then
 		/bin/ps -fp $(cat ${pidfile}) > /dev/null || rm ${pidfile}
 	fi
+
+	# /var/run and /run in sysvinit is not a tmpfs
+	for i in $libcontainerd/containerd/*; do
+		if [ -d $i ]; then
+			if [ ! -f $i/state.json ]; then
+				stale=$(basename $i)
+				rm -rf $i
+				rm -rf $libcontainerd/$stale
+				rm -rf /run/runc/$stale
+			else
+				# if service restarted don't unnecessary check all
+				break
+			fi
+		fi
+	done
 }
 
 case "$1" in
