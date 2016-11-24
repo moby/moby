@@ -49,7 +49,7 @@ func CopyMessage(msg *Message) *Message {
 	m.Timestamp = msg.Timestamp
 	m.Partial = msg.Partial
 	m.Attrs = make(LogAttributes)
-	for k, v := range m.Attrs {
+	for k, v := range msg.Attrs {
 		m.Attrs[k] = v
 	}
 	return m
