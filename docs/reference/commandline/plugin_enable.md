@@ -16,7 +16,7 @@ keywords: "plugin, enable"
 # plugin enable
 
 ```markdown
-Usage:  docker plugin enable PLUGIN
+Usage:  docker plugin enable [OPTIONS] PLUGIN
 
 Enable a plugin
 
