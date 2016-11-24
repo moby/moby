@@ -216,53 +216,6 @@ next:
 	return p.writeSettings()
 }
 
-// ComputePrivileges takes the config file and computes the list of access necessary
-// for the plugin on the host.
-func (p *Plugin) ComputePrivileges() types.PluginPrivileges {
-	c := p.PluginObj.Config
-	var privileges types.PluginPrivileges
-	if c.Network.Type != "null" && c.Network.Type != "bridge" {
-		privileges = append(privileges, types.PluginPrivilege{
-			Name:        "network",
-			Description: "permissions to access a network",
-			Value:       []string{c.Network.Type},
-		})
-	}
-	for _, mount := range c.Mounts {
-		if mount.Source != nil {
-			privileges = append(privileges, types.PluginPrivilege{
-				Name:        "mount",
-				Description: "host path to mount",
-				Value:       []string{*mount.Source},
-			})
-		}
-	}
-	for _, device := range c.Linux.Devices {
-		if device.Path != nil {
-			privileges = append(privileges, types.PluginPrivilege{
-				Name:        "device",
-				Description: "host device to access",
-				Value:       []string{*device.Path},
-			})
-		}
-	}
-	if c.Linux.DeviceCreation {
-		privileges = append(privileges, types.PluginPrivilege{
-			Name:        "device-creation",
-			Description: "allow creating devices inside plugin",
-			Value:       []string{"true"},
-		})
-	}
-	if len(c.Linux.Capabilities) > 0 {
-		privileges = append(privileges, types.PluginPrivilege{
-			Name:        "capabilities",
-			Description: "list of additional capabilities required",
-			Value:       c.Linux.Capabilities,
-		})
-	}
-	return privileges
-}
-
 // IsEnabled returns the active state of the plugin.
 func (p *Plugin) IsEnabled() bool {
 	p.RLock()

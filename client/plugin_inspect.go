@@ -11,7 +11,7 @@ import (
 
 // PluginInspectWithRaw inspects an existing plugin
 func (cli *Client) PluginInspectWithRaw(ctx context.Context, name string) (*types.Plugin, []byte, error) {
-	resp, err := cli.get(ctx, "/plugins/"+name, nil, nil)
+	resp, err := cli.get(ctx, "/plugins/"+name+"/json", nil, nil)
 	if err != nil {
 		return nil, nil, err
 	}

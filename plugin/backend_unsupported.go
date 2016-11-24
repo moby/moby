@@ -28,9 +28,14 @@ func (pm *Manager) Inspect(name string) (tp types.Plugin, err error) {
 	return tp, errNotSupported
 }
 
-// Pull pulls a plugin and computes the privileges required to install it.
-func (pm *Manager) Pull(name string, metaHeader http.Header, authConfig *types.AuthConfig) (types.PluginPrivileges, error) {
+// Privileges pulls a plugin config and computes the privileges required to install it.
+func (pm *Manager) Privileges(name string, metaHeaders http.Header, authConfig *types.AuthConfig) (types.PluginPrivileges, error) {
 	return nil, errNotSupported
+}
+
+// Pull pulls a plugin, check if the correct privileges are provided and install the plugin.
+func (pm *Manager) Pull(name string, metaHeader http.Header, authConfig *types.AuthConfig, privileges types.PluginPrivileges) error {
+	return errNotSupported
 }
 
 // List displays the list of plugins and associated metadata.
