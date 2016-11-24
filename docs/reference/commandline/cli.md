@@ -26,7 +26,6 @@ Usage: docker [OPTIONS] COMMAND [ARG...]
 A self-sufficient runtime for containers.
 
 Options:
-
       --config string      Location of client config files (default "/root/.docker")
   -D, --debug              Enable debug mode
       --help               Print usage
@@ -72,8 +71,8 @@ by the `docker` command line:
   to the same URL as the registry.
 * `DOCKER_TMPDIR` Location for temporary Docker files.
 
-Because Docker is developed using 'Go', you can also use any environment
-variables used by the 'Go' runtime. In particular, you may find these useful:
+Because Docker is developed using Go, you can also use any environment
+variables used by the Go runtime. In particular, you may find these useful:
 
 * `HTTP_PROXY`
 * `HTTPS_PROXY`
