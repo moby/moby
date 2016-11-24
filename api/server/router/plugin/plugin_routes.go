@@ -12,20 +12,17 @@ import (
 	"golang.org/x/net/context"
 )
 
-func (pr *pluginRouter) pullPlugin(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	if err := httputils.ParseForm(r); err != nil {
-		return err
-	}
+func parseHeaders(headers http.Header) (map[string][]string, *types.AuthConfig) {
 
 	metaHeaders := map[string][]string{}
-	for k, v := range r.Header {
+	for k, v := range headers {
 		if strings.HasPrefix(k, "X-Meta-") {
 			metaHeaders[k] = v
 		}
 	}
 
 	// Get X-Registry-Auth
-	authEncoded := r.Header.Get("X-Registry-Auth")
+	authEncoded := headers.Get("X-Registry-Auth")
 	authConfig := &types.AuthConfig{}
 	if authEncoded != "" {
 		authJSON := base64.NewDecoder(base64.URLEncoding, strings.NewReader(authEncoded))
@@ -34,11 +31,40 @@ func (pr *pluginRouter) pullPlugin(ctx context.Context, w http.ResponseWriter, r
 		}
 	}
 
-	privileges, err := pr.backend.Pull(r.FormValue("name"), metaHeaders, authConfig)
+	return metaHeaders, authConfig
+}
+
+func (pr *pluginRouter) getPrivileges(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if err := httputils.ParseForm(r); err != nil {
+		return err
+	}
+
+	metaHeaders, authConfig := parseHeaders(r.Header)
+
+	privileges, err := pr.backend.Privileges(r.FormValue("name"), metaHeaders, authConfig)
 	if err != nil {
 		return err
 	}
 	return httputils.WriteJSON(w, http.StatusOK, privileges)
+}
+
+func (pr *pluginRouter) pullPlugin(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if err := httputils.ParseForm(r); err != nil {
+		return err
+	}
+
+	var privileges types.PluginPrivileges
+	if err := json.NewDecoder(r.Body).Decode(&privileges); err != nil {
+		return err
+	}
+
+	metaHeaders, authConfig := parseHeaders(r.Header)
+
+	if err := pr.backend.Pull(r.FormValue("name"), metaHeaders, authConfig, privileges); err != nil {
+		return err
+	}
+	w.WriteHeader(http.StatusCreated)
+	return nil
 }
 
 func (pr *pluginRouter) createPlugin(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
@@ -52,6 +78,7 @@ func (pr *pluginRouter) createPlugin(ctx context.Context, w http.ResponseWriter,
 	if err := pr.backend.CreateFromContext(ctx, r.Body, options); err != nil {
 		return err
 	}
+	//TODO: send progress bar
 	w.WriteHeader(http.StatusNoContent)
 	return nil
 }
@@ -92,22 +119,8 @@ func (pr *pluginRouter) pushPlugin(ctx context.Context, w http.ResponseWriter, r
 		return err
 	}
 
-	metaHeaders := map[string][]string{}
-	for k, v := range r.Header {
-		if strings.HasPrefix(k, "X-Meta-") {
-			metaHeaders[k] = v
-		}
-	}
+	metaHeaders, authConfig := parseHeaders(r.Header)
 
-	// Get X-Registry-Auth
-	authEncoded := r.Header.Get("X-Registry-Auth")
-	authConfig := &types.AuthConfig{}
-	if authEncoded != "" {
-		authJSON := base64.NewDecoder(base64.URLEncoding, strings.NewReader(authEncoded))
-		if err := json.NewDecoder(authJSON).Decode(authConfig); err != nil {
-			authConfig = &types.AuthConfig{}
-		}
-	}
 	return pr.backend.Push(vars["name"], metaHeaders, authConfig)
 }
 

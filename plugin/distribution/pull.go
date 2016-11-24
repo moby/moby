@@ -178,7 +178,6 @@ func WritePullData(pd PullData, dest string, extract bool) error {
 		return err
 	}
 	logrus.Debugf("%#v", p)
-
 	if err := os.MkdirAll(dest, 0700); err != nil {
 		return err
 	}

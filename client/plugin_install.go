@@ -14,26 +14,20 @@ func (cli *Client) PluginInstall(ctx context.Context, name string, options types
 	// FIXME(vdemeester) name is a ref, we might want to parse/validate it here.
 	query := url.Values{}
 	query.Set("name", name)
-	resp, err := cli.tryPluginPull(ctx, query, options.RegistryAuth)
+	resp, err := cli.tryPluginPrivileges(ctx, query, options.RegistryAuth)
 	if resp.statusCode == http.StatusUnauthorized && options.PrivilegeFunc != nil {
 		newAuthHeader, privilegeErr := options.PrivilegeFunc()
 		if privilegeErr != nil {
 			ensureReaderClosed(resp)
 			return privilegeErr
 		}
-		resp, err = cli.tryPluginPull(ctx, query, newAuthHeader)
+		options.RegistryAuth = newAuthHeader
+		resp, err = cli.tryPluginPrivileges(ctx, query, options.RegistryAuth)
 	}
 	if err != nil {
 		ensureReaderClosed(resp)
 		return err
 	}
-
-	defer func() {
-		if err != nil {
-			delResp, _ := cli.delete(ctx, "/plugins/"+name, nil, nil)
-			ensureReaderClosed(delResp)
-		}
-	}()
 
 	var privileges types.PluginPrivileges
 	if err := json.NewDecoder(resp.body).Decode(&privileges); err != nil {
@@ -52,6 +46,18 @@ func (cli *Client) PluginInstall(ctx context.Context, name string, options types
 		}
 	}
 
+	_, err = cli.tryPluginPull(ctx, query, privileges, options.RegistryAuth)
+	if err != nil {
+		return err
+	}
+
+	defer func() {
+		if err != nil {
+			delResp, _ := cli.delete(ctx, "/plugins/"+name, nil, nil)
+			ensureReaderClosed(delResp)
+		}
+	}()
+
 	if len(options.Args) > 0 {
 		if err := cli.PluginSet(ctx, name, options.Args); err != nil {
 			return err
@@ -65,7 +71,12 @@ func (cli *Client) PluginInstall(ctx context.Context, name string, options types
 	return cli.PluginEnable(ctx, name, types.PluginEnableOptions{Timeout: 0})
 }
 
-func (cli *Client) tryPluginPull(ctx context.Context, query url.Values, registryAuth string) (serverResponse, error) {
+func (cli *Client) tryPluginPrivileges(ctx context.Context, query url.Values, registryAuth string) (serverResponse, error) {
 	headers := map[string][]string{"X-Registry-Auth": {registryAuth}}
-	return cli.post(ctx, "/plugins/pull", query, nil, headers)
+	return cli.get(ctx, "/plugins/privileges", query, headers)
+}
+
+func (cli *Client) tryPluginPull(ctx context.Context, query url.Values, privileges types.PluginPrivileges, registryAuth string) (serverResponse, error) {
+	headers := map[string][]string{"X-Registry-Auth": {registryAuth}}
+	return cli.post(ctx, "/plugins/pull", query, privileges, headers)
 }
