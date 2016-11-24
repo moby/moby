@@ -35,7 +35,7 @@ type restartManager struct {
 	canceled     bool
 }
 
-// New returns a new restartmanager based on a policy.
+// New returns a new restartManager based on a policy.
 func New(policy container.RestartPolicy, restartCount int) RestartManager {
 	return &restartManager{policy: policy, restartCount: restartCount, cancel: make(chan struct{})}
 }
@@ -63,7 +63,7 @@ func (rm *restartManager) ShouldRestart(exitCode uint32, hasBeenManuallyStopped 
 	}
 
 	if rm.active {
-		return false, nil, fmt.Errorf("invalid call on active restartmanager")
+		return false, nil, fmt.Errorf("invalid call on an active restart manager")
 	}
 	// if the container ran for more than 10s, regardless of status and policy reset the
 	// the timeout back to the default.
