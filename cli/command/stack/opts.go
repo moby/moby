@@ -10,7 +10,7 @@ import (
 )
 
 func addComposefileFlag(opt *string, flags *pflag.FlagSet) {
-	flags.StringVar(opt, "compose-file", "", "Path to a Compose file")
+	flags.StringVarP(opt, "compose-file", "c", "", "Path to a Compose file")
 }
 
 func addBundlefileFlag(opt *string, flags *pflag.FlagSet) {
