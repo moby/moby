@@ -1272,7 +1272,6 @@ _docker_container_run() {
 		--memory-swap
 		--memory-swappiness
 		--memory-reservation
-		--mount
 		--name
 		--network
 		--network-alias
