@@ -1028,7 +1028,7 @@ func (daemon *Daemon) ActivateContainerServiceBinding(containerName string) erro
 	}
 	sb := daemon.getNetworkSandbox(container)
 	if sb == nil {
-		return fmt.Errorf("network sandbox not exists for container %s", containerName)
+		return fmt.Errorf("network sandbox does not exist for container %s", containerName)
 	}
 	return sb.EnableService()
 }
@@ -1041,7 +1041,7 @@ func (daemon *Daemon) DeactivateContainerServiceBinding(containerName string) er
 	}
 	sb := daemon.getNetworkSandbox(container)
 	if sb == nil {
-		return fmt.Errorf("network sandbox not exists for container %s", containerName)
+		return fmt.Errorf("network sandbox does not exist for container %s", containerName)
 	}
 	return sb.DisableService()
 }
