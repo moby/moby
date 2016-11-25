@@ -80,7 +80,7 @@ info:
 
     The `serveraddress` is a domain/IP without a protocol. Throughout this structure, double quotes are required.
 
-    If you have already got an identity token from the [`/auth` endpoint](#operation/checkAuthentication), you can just pass this instead of credentials:
+    If you have already got an identity token from the [`/auth` endpoint](#operation/SystemAuth), you can just pass this instead of credentials:
 
     ```
     {
@@ -2441,7 +2441,7 @@ paths:
   /containers/json:
     get:
       summary: "List containers"
-      operationId: "GetContainerList"
+      operationId: "ContainerList"
       produces:
         - "application/json"
       parameters:
@@ -2823,7 +2823,7 @@ paths:
     get:
       summary: "Inspect a container"
       description: "Return low-level information about a container."
-      operationId: "GetContainerInspect"
+      operationId: "ContainerInspect"
       produces:
         - "application/json"
       responses:
@@ -3099,7 +3099,7 @@ paths:
     get:
       summary: "List processes running inside a container"
       description: "On Unix systems, this is done by running the `ps` command. This endpoint is not supported on Windows."
-      operationId: "GetContainerTop"
+      operationId: "ContainerTop"
       responses:
         200:
           description: "no error"
@@ -3178,7 +3178,7 @@ paths:
         Get `stdout` and `stderr` logs from a container.
 
         Note: This endpoint works only for containers with the `json-file` or `journald` logging driver.
-      operationId: "GetContainerLogs"
+      operationId: "ContainerLogs"
       responses:
         101:
           description: "logs returned as a stream"
@@ -3211,7 +3211,7 @@ paths:
           description: |
             Return the logs as a stream.
 
-            This will return a `101` HTTP response with a `Connection: upgrade` header, then hijack the HTTP connection to send raw output. For more information about hijacking and the stream format, [see the documentation for the attach endpoint](#operation/PostContainerAttach).
+            This will return a `101` HTTP response with a `Connection: upgrade` header, then hijack the HTTP connection to send raw output. For more information about hijacking and the stream format, [see the documentation for the attach endpoint](#operation/ContainerAttach).
           type: "boolean"
           default: false
         - name: "stdout"
@@ -3249,7 +3249,7 @@ paths:
         - `0`: Modified
         - `1`: Added
         - `2`: Deleted
-      operationId: "GetContainerChanges"
+      operationId: "ContainerChanges"
       produces:
         - "application/json"
       responses:
@@ -3300,7 +3300,7 @@ paths:
     get:
       summary: "Export a container"
       description: "Export the contents of a container as a tarball."
-      operationId: "GetContainerExport"
+      operationId: "ContainerExport"
       produces:
         - "application/octet-stream"
       responses:
@@ -3331,7 +3331,7 @@ paths:
         This endpoint returns a live stream of a container’s resource usage statistics.
 
         The `precpu_stats` is the CPU statistic of last read, which is used for calculating the CPU usage percentage. It is not the same as the `cpu_stats` field.
-      operationId: "GetContainerStats"
+      operationId: "ContainerStats"
       produces:
         - "application/json"
       responses:
@@ -3456,7 +3456,7 @@ paths:
     post:
       summary: "Resize a container TTY"
       description: "Resize the TTY for a container. You must restart the container for the resize to take effect."
-      operationId: "PostContainerResize"
+      operationId: "ContainerResize"
       consumes:
         - "application/octet-stream"
       produces:
@@ -3493,7 +3493,7 @@ paths:
   /containers/{id}/start:
     post:
       summary: "Start a container"
-      operationId: "PostContainerStart"
+      operationId: "ContainerStart"
       responses:
         204:
           description: "no error"
@@ -3526,7 +3526,7 @@ paths:
   /containers/{id}/stop:
     post:
       summary: "Stop a container"
-      operationId: "PostContainerStop"
+      operationId: "ContainerStop"
       responses:
         204:
           description: "no error"
@@ -3559,7 +3559,7 @@ paths:
   /containers/{id}/restart:
     post:
       summary: "Restart a container"
-      operationId: "PostContainerRestart"
+      operationId: "ContainerRestart"
       responses:
         204:
           description: "no error"
@@ -3589,7 +3589,7 @@ paths:
     post:
       summary: "Kill a container"
       description: "Send a POSIX signal to a container, defaulting to killing to the container."
-      operationId: "PostContainerKill"
+      operationId: "ContainerKill"
       responses:
         204:
           description: "no error"
@@ -3680,7 +3680,7 @@ paths:
   /containers/{id}/rename:
     post:
       summary: "Rename a container"
-      operationId: "PostContainerRename"
+      operationId: "ContainerRename"
       responses:
         204:
           description: "no error"
@@ -3718,7 +3718,7 @@ paths:
         Use the cgroups freezer to suspend all processes in a container.
 
         Traditionally, when suspending a process the `SIGSTOP` signal is used, which is observable by the process being suspended. With the cgroups freezer the process is unaware, and unable to capture, that it is being suspended, and subsequently resumed.
-      operationId: "PostContainerPause"
+      operationId: "ContainerPause"
       responses:
         204:
           description: "no error"
@@ -3744,7 +3744,7 @@ paths:
     post:
       summary: "Unpause a container"
       description: "Resume a container which has been paused."
-      operationId: "PostContainerUnpause"
+      operationId: "ContainerUnpause"
       responses:
         204:
           description: "no error"
@@ -3814,7 +3814,7 @@ paths:
 
         ### Stream format
 
-        When the TTY setting is disabled in [`POST /containers/create`](#operation/PostContainerCreate), the stream over the hijacked connected is multiplexed to separate out `stdout` and `stderr`. The stream consists of a series of frames, each containing a header and a payload.
+        When the TTY setting is disabled in [`POST /containers/create`](#operation/ContainerCreate), the stream over the hijacked connected is multiplexed to separate out `stdout` and `stderr`. The stream consists of a series of frames, each containing a header and a payload.
 
         The header contains the information which the stream writes (`stdout` or `stderr`). It also contains the size of the associated frame encoded in the last four bytes (`uint32`).
 
@@ -3844,9 +3844,9 @@ paths:
 
         ### Stream format when using a TTY
 
-        When the TTY setting is enabled in [`POST /containers/create`](#operation/PostContainerCreate), the stream is not multiplexed. The data exchanged over the hijacked connection is simply the raw data from the process PTY and client's `stdin`.
+        When the TTY setting is enabled in [`POST /containers/create`](#operation/ContainerCreate), the stream is not multiplexed. The data exchanged over the hijacked connection is simply the raw data from the process PTY and client's `stdin`.
 
-      operationId: "PostContainerAttach"
+      operationId: "ContainerAttach"
       produces:
         - "application/vnd.docker.raw-stream"
       responses:
@@ -3913,7 +3913,7 @@ paths:
   /containers/{id}/attach/ws:
     get:
       summary: "Attach to a container via a websocket"
-      operationId: "PostContainerAttachWebsocket"
+      operationId: "ContainerAttachWebsocket"
       responses:
         101:
           description: "no error, hints proxy about hijacking"
@@ -4008,7 +4008,7 @@ paths:
   /containers/{id}:
     delete:
       summary: "Remove a container"
-      operationId: "DeleteContainer"
+      operationId: "ContainerDelete"
       responses:
         204:
           description: "no error"
@@ -4048,7 +4048,7 @@ paths:
     head:
       summary: "Get information about files in a container"
       description: "A response header `X-Docker-Container-Path-Stat` is return containing a base64 - encoded JSON object with some filesystem header information about the path."
-      operationId: "HeadContainerArchive"
+      operationId: "ContainerArchiveHead"
       responses:
         200:
           description: "no error"
@@ -4093,7 +4093,7 @@ paths:
     get:
       summary: "Get an archive of a filesystem resource in a container"
       description: "Get an tar archive of a resource in the filesystem of container id."
-      operationId: "GetContainerArchive"
+      operationId: "ContainerGetArchive"
       produces:
         - "application/x-tar"
       responses:
@@ -4136,7 +4136,7 @@ paths:
     put:
       summary: "Extract an archive of files or folders to a directory in a container"
       description: "Upload a tar archive to be extracted to a path in the filesystem of container id."
-      operationId: "PutContainerArchive"
+      operationId: "ContainerPutArchive"
       consumes:
         - "application/x-tar"
         - "application/octet-stream"
@@ -4216,7 +4216,7 @@ paths:
     get:
       summary: "List Images"
       description: "Returns a list of images on the server. Note that it uses a different, smaller representation of an image than inspecting a single image."
-      operationId: "GetImageList"
+      operationId: "ImageList"
       produces:
         - "application/json"
       responses:
@@ -4294,7 +4294,7 @@ paths:
         The Docker daemon performs a preliminary validation of the `Dockerfile` before starting the build, and returns an error if the syntax is incorrect. After that, each instruction is run one-by-one until the ID of the new image is output.
 
         The build is canceled if the client drops the connection by quitting or being killed.
-      operationId: "PostImageBuild"
+      operationId: "ImageBuild"
       consumes:
         - "application/octet-stream"
       produces:
@@ -4434,7 +4434,7 @@ paths:
     post:
       summary: "Create an image"
       description: "Create an image by either pulling it from a registry or importing it."
-      operationId: "PostImageCreate"
+      operationId: "ImageCreate"
       consumes:
         - "text/plain"
         - "application/octet-stream"
@@ -4479,7 +4479,7 @@ paths:
     get:
       summary: "Inspect an image"
       description: "Return low-level information about an image."
-      operationId: "GetImageInspect"
+      operationId: "ImageInspect"
       produces:
         - "application/json"
       responses:
@@ -4585,7 +4585,7 @@ paths:
     get:
       summary: "Get the history of an image"
       description: "Return parent layers of an image."
-      operationId: "GetImageHistory"
+      operationId: "ImageHistory"
       produces:
         - "application/json"
       responses:
@@ -4660,7 +4660,7 @@ paths:
         If you wish to push an image on to a private registry, that image must already have a tag which references the registry. For example, `registry.example.com/myimage:latest`.
 
         The push is cancelled if the HTTP connection is closed.
-      operationId: "PostImagePush"
+      operationId: "ImagePush"
       consumes:
         - "application/octet-stream"
       responses:
@@ -4694,7 +4694,7 @@ paths:
     post:
       summary: "Tag an image"
       description: "Tag an image so that it becomes part of a repository."
-      operationId: "PostImageTag"
+      operationId: "ImageTag"
       responses:
         201:
           description: "No error"
@@ -4736,7 +4736,7 @@ paths:
         Remove an image, along with any untagged parent images that were referenced by that image.
 
         Images can't be removed if they have descendant images, are being used by a running container or are being used by a build.
-      operationId: "DeleteImage"
+      operationId: "ImageDelete"
       produces:
         - "application/json"
       responses:
@@ -4784,7 +4784,7 @@ paths:
     get:
       summary: "Search images"
       description: "Search for an image on Docker Hub."
-      operationId: "GetImageSearch"
+      operationId: "ImageSearch"
       produces:
         - "application/json"
       responses:
@@ -4888,7 +4888,7 @@ paths:
     post:
       summary: "Check auth configuration"
       description: "Validate credentials for a registry and, if available, get an identity token for accessing the registry without password."
-      operationId: "Authenticate"
+      operationId: "SystemAuth"
       consumes: ["application/json"]
       produces: ["application/json"]
       responses:
@@ -4926,7 +4926,7 @@ paths:
   /info:
     get:
       summary: "Get system information"
-      operationId: "getSystemInformation"
+      operationId: "SystemInfo"
       produces:
         - "application/json"
       responses:
@@ -5139,7 +5139,7 @@ paths:
     get:
       summary: "Get version"
       description: "Returns the version of Docker that is running and various information about the system that Docker is running on."
-      operationId: "getVersion"
+      operationId: "SystemVersion"
       produces:
         - "application/json"
       responses:
@@ -5189,7 +5189,7 @@ paths:
     get:
       summary: "Ping"
       description: "This is a dummy endpoint you can use to test if the server is accessible."
-      operationId: "ping"
+      operationId: "SystemPing"
       produces:
         - "text/plain"
       responses:
@@ -5206,7 +5206,7 @@ paths:
   /commit:
     post:
       summary: "Create a new image from a container"
-      operationId: "PostImageCommit"
+      operationId: "ImageCommit"
       consumes:
         - "application/json"
       produces:
@@ -5281,7 +5281,7 @@ paths:
 
         The Docker daemon reports these events: `reload`
 
-      operationId: "getEvents"
+      operationId: "SystemEvents"
       produces:
         - "application/json"
       responses:
@@ -5356,6 +5356,7 @@ paths:
   /system/df:
     get:
       summary: "Get data usage information"
+      operationId: "SystemDataUsage"
       responses:
         200:
           description: "no error"
@@ -5468,7 +5469,7 @@ paths:
           }
         }
         ```
-      operationId: "GetImage"
+      operationId: "ImageGet"
       produces:
         - "application/x-tar"
       responses:
@@ -5496,8 +5497,8 @@ paths:
 
         For each value of the `names` parameter: if it is a specific name and tag (e.g. `ubuntu:latest`), then only that image (and its parents) are returned; if it is an image ID, similarly only that image (and its parents) are returned and there would be no names referenced in the 'repositories' file for this image ID.
 
-        For details on the format, see [the export image endpoint](#operation/GetImage).
-      operationId: "GetImageSaveAll"
+        For details on the format, see [the export image endpoint](#operation/ImageGet).
+      operationId: "ImageGetAll"
       produces:
         - "application/x-tar"
       responses:
@@ -5524,8 +5525,8 @@ paths:
       description: |
         Load a set of images and tags into a repository.
 
-        For details on the format, see [the export image endpoint](#operation/GetImage).
-      operationId: "PostImageLoad"
+        For details on the format, see [the export image endpoint](#operation/ImageGet).
+      operationId: "ImageLoad"
       consumes:
         - "application/x-tar"
       produces:
@@ -5554,7 +5555,7 @@ paths:
     post:
       summary: "Create an exec instance"
       description: "Run a command inside a running container."
-      operationId: "PostContainerExec"
+      operationId: "ContainerExec"
       consumes:
         - "application/json"
       produces:
@@ -5640,7 +5641,7 @@ paths:
     post:
       summary: "Start an exec instance"
       description: "Starts a previously set up exec instance. If detach is true, this endpoint returns immediately after starting the command. Otherwise, it sets up an interactive session with the command."
-      operationId: "PostExecStart"
+      operationId: "ExecStart"
       consumes:
         - "application/json"
       produces:
@@ -5681,7 +5682,7 @@ paths:
     post:
       summary: "Resize an exec instance"
       description: "Resize the TTY session used by an exec instance. This endpoint only works if `tty` was specified as part of creating and starting the exec instance."
-      operationId: "PostExecResize"
+      operationId: "ExecResize"
       responses:
         201:
           description: "No error"
@@ -5708,7 +5709,7 @@ paths:
     get:
       summary: "Inspect an exec instance"
       description: "Return low-level information about an exec instance."
-      operationId: "PostExecInspect"
+      operationId: "ExecInspect"
       produces:
         - "application/json"
       responses:
@@ -5775,7 +5776,7 @@ paths:
   /volumes:
     get:
       summary: "List volumes"
-      operationId: "VolumesList"
+      operationId: "VolumeList"
       produces: ["application/json"]
       responses:
         200:
@@ -5837,7 +5838,7 @@ paths:
   /volumes/create:
     post:
       summary: "Create a volume"
-      operationId: "VolumesCreate"
+      operationId: "VolumeCreate"
       consumes: ["application/json"]
       produces: ["application/json"]
       responses:
@@ -5887,7 +5888,7 @@ paths:
   /volumes/{name}:
     get:
       summary: "Inspect a volume"
-      operationId: "VolumesInspect"
+      operationId: "VolumeInspect"
       produces: ["application/json"]
       responses:
         200:
@@ -5913,7 +5914,7 @@ paths:
     delete:
       summary: "Remove a volume"
       description: "Instruct the driver to remove the volume."
-      operationId: "VolumesDelete"
+      operationId: "VolumeDelete"
       responses:
         204:
           description: "The volume was removed"
@@ -5972,7 +5973,7 @@ paths:
   /networks:
     get:
       summary: "List networks"
-      operationId: "NetworksList"
+      operationId: "NetworkList"
       produces:
         - "application/json"
       responses:
@@ -6054,7 +6055,7 @@ paths:
   /networks/{id}:
     get:
       summary: "Inspect a network"
-      operationId: "NetworksInspect"
+      operationId: "NetworkInspect"
       produces:
         - "application/json"
       responses:
@@ -6076,7 +6077,7 @@ paths:
 
     delete:
       summary: "Remove a network"
-      operationId: "DeleteNetworks"
+      operationId: "NetworkDelete"
       responses:
         204:
           description: "No error"
@@ -6099,7 +6100,7 @@ paths:
   /networks/create:
     post:
       summary: "Create a network"
-      operationId: "NetworksCreate"
+      operationId: "NetworkCreate"
       consumes:
         - "application/json"
       produces:
@@ -6195,7 +6196,7 @@ paths:
   /networks/{id}/connect:
     post:
       summary: "Connect a container to a network"
-      operationId: "NetworksConnect"
+      operationId: "NetworkConnect"
       consumes:
         - "application/octet-stream"
       responses:
@@ -6241,7 +6242,7 @@ paths:
   /networks/{id}/disconnect:
     post:
       summary: "Disconnect a container from a network"
-      operationId: "NetworksDisconnect"
+      operationId: "NetworkDisconnect"
       consumes:
         - "application/json"
       responses:
@@ -6305,7 +6306,7 @@ paths:
   /plugins:
     get:
       summary: "List plugins"
-      operationId: "PluginsList"
+      operationId: "PluginList"
       description: "Returns information about installed plugins."
       produces: ["application/json"]
       responses:
@@ -6399,9 +6400,9 @@ paths:
   /plugins/pull:
     post:
       summary: "Install a plugin"
-      operationId: "PostPluginsPull"
+      operationId: "PluginPull"
       description: |
-        Pulls and installs a plugin. After the plugin is installed, it can be enabled using the [`POST /plugins/{name}/enable` endpoint](#operation/PostPluginsEnable).
+        Pulls and installs a plugin. After the plugin is installed, it can be enabled using the [`POST /plugins/{name}/enable` endpoint](#operation/PluginEnable).
       produces:
         - "application/json"
       responses:
@@ -6455,7 +6456,7 @@ paths:
   /plugins/{name}:
     get:
       summary: "Inspect a plugin"
-      operationId: "GetPluginsInspect"
+      operationId: "PluginInspect"
       responses:
         200:
           description: "no error"
@@ -6478,7 +6479,7 @@ paths:
       tags: ["Plugins"]
     delete:
       summary: "Remove a plugin"
-      operationId: "DeletePlugins"
+      operationId: "PluginDelete"
       responses:
         200:
           description: "no error"
@@ -6507,7 +6508,7 @@ paths:
   /plugins/{name}/enable:
     post:
       summary: "Enable a plugin"
-      operationId: "PostPluginsEnable"
+      operationId: "PluginEnable"
       responses:
         200:
           description: "no error"
@@ -6530,7 +6531,7 @@ paths:
   /plugins/{name}/disable:
     post:
       summary: "Disable a plugin"
-      operationId: "PostPluginsDisable"
+      operationId: "PluginDisable"
       responses:
         200:
           description: "no error"
@@ -6548,7 +6549,7 @@ paths:
   /plugins/create:
     post:
       summary: "Create a plugin"
-      operationId: "PostPluginsCreate"
+      operationId: "PluginCreate"
       consumes:
         - "application/x-tar"
       responses:
@@ -6598,7 +6599,7 @@ paths:
   /plugins/{name}/set:
     post:
       summary: "Configure a plugin"
-      operationId: "PostPluginsSet"
+      operationId: "PluginSet"
       consumes:
         - "application/json"
       parameters:
@@ -6629,7 +6630,7 @@ paths:
   /nodes:
     get:
       summary: "List nodes"
-      operationId: "GetNodesList"
+      operationId: "NodeList"
       responses:
         200:
           description: "no error"
@@ -6658,7 +6659,7 @@ paths:
   /nodes/{id}:
     get:
       summary: "Inspect a node"
-      operationId: "GetNodesInspect"
+      operationId: "NodeInspect"
       responses:
         200:
           description: "no error"
@@ -6681,7 +6682,7 @@ paths:
       tags: ["Nodes"]
     delete:
       summary: "Delete a node"
-      operationId: "DeleteNodes"
+      operationId: "NodeDelete"
       responses:
         200:
           description: "no error"
@@ -6708,7 +6709,7 @@ paths:
   /nodes/{id}/update:
     post:
       summary: "Update a node"
-      operationId: "PostNodesUpdate"
+      operationId: "NodeUpdate"
       responses:
         200:
           description: "no error"
@@ -6740,7 +6741,7 @@ paths:
   /swarm:
     get:
       summary: "Inspect swarm"
-      operationId: "GetSwarmInspect"
+      operationId: "SwarmInspect"
       responses:
         200:
           description: "no error"
@@ -6792,7 +6793,7 @@ paths:
   /swarm/init:
     post:
       summary: "Initialize a new swarm"
-      operationId: "PostSwarmInit"
+      operationId: "SwarmInit"
       produces:
         - "application/json"
         - "text/plain"
@@ -6848,7 +6849,7 @@ paths:
   /swarm/join:
     post:
       summary: "Join an existing swarm"
-      operationId: "PostSwarmJoin"
+      operationId: "SwarmJoin"
       responses:
         200:
           description: "no error"
@@ -6893,7 +6894,7 @@ paths:
   /swarm/leave:
     post:
       summary: "Leave a swarm"
-      operationId: "PostSwarmLeave"
+      operationId: "SwarmLeave"
       responses:
         200:
           description: "no error"
@@ -6915,7 +6916,7 @@ paths:
   /swarm/update:
     post:
       summary: "Update a swarm"
-      operationId: "PostSwarmUpdate"
+      operationId: "SwarmUpdate"
       responses:
         200:
           description: "no error"
@@ -7012,7 +7013,7 @@ paths:
   /services:
     get:
       summary: "List services"
-      operationId: "GetServicesList"
+      operationId: "ServiceList"
       responses:
         200:
           description: "no error"
@@ -7038,7 +7039,7 @@ paths:
   /services/create:
     post:
       summary: "Create a service"
-      operationId: "PostServicesCreate"
+      operationId: "ServiceCreate"
       consumes:
         - "application/json"
       produces:
@@ -7135,7 +7136,7 @@ paths:
   /services/{id}:
     get:
       summary: "Inspect a service"
-      operationId: "GetServicesInspect"
+      operationId: "ServiceInspect"
       responses:
         200:
           description: "no error"
@@ -7158,7 +7159,7 @@ paths:
       tags: ["Services"]
     delete:
       summary: "Delete a service"
-      operationId: "DeleteServices"
+      operationId: "ServiceDelete"
       responses:
         200:
           description: "no error"
@@ -7300,7 +7301,7 @@ paths:
           description: |
             Return the logs as a stream.
 
-            This will return a `101` HTTP response with a `Connection: upgrade` header, then hijack the HTTP connection to send raw output. For more information about hijacking and the stream format, [see the documentation for the attach endpoint](#operation/PostContainerAttach).
+            This will return a `101` HTTP response with a `Connection: upgrade` header, then hijack the HTTP connection to send raw output. For more information about hijacking and the stream format, [see the documentation for the attach endpoint](#operation/ContainerAttach).
           type: "boolean"
           default: false
         - name: "stdout"
@@ -7332,7 +7333,7 @@ paths:
   /tasks:
     get:
       summary: "List tasks"
-      operationId: "GetTasksList"
+      operationId: "TaskList"
       produces:
         - "application/json"
       responses:
@@ -7475,7 +7476,7 @@ paths:
   /tasks/{id}:
     get:
       summary: "Inspect a task"
-      operationId: "GetTasksInspect"
+      operationId: "TaskInspect"
       produces:
         - "application/json"
       responses:
@@ -7579,7 +7580,7 @@ paths:
   /secrets/{id}:
     get:
       summary: "Inspect a secret"
-      operationId: "SecretsInspect"
+      operationId: "SecretInspect"
       produces:
         - "application/json"
       responses:
@@ -7616,7 +7617,7 @@ paths:
       tags: ["Secrets"]
     delete:
       summary: "Delete a secret"
-      operationId: "SecretsDelete"
+      operationId: "SecretDelete"
       produces:
         - "application/json"
       responses:
