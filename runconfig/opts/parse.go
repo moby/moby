@@ -25,7 +25,6 @@ type ContainerOptions struct {
 	attach             opts.ListOpts
 	volumes            opts.ListOpts
 	tmpfs              opts.ListOpts
-	mounts             opts.MountOpt
 	blkioWeightDevice  WeightdeviceOpt
 	deviceReadBps      ThrottledeviceOpt
 	deviceWriteBps     ThrottledeviceOpt
@@ -217,7 +216,6 @@ func AddFlags(flags *pflag.FlagSet) *ContainerOptions {
 	flags.Var(&copts.tmpfs, "tmpfs", "Mount a tmpfs directory")
 	flags.Var(&copts.volumesFrom, "volumes-from", "Mount volumes from the specified container(s)")
 	flags.VarP(&copts.volumes, "volume", "v", "Bind mount a volume")
-	flags.Var(&copts.mounts, "mount", "Attach a filesystem mount to the container")
 
 	// Health-checking
 	flags.StringVar(&copts.healthCmd, "health-cmd", "", "Command to run to check health")
@@ -356,8 +354,6 @@ func Parse(flags *pflag.FlagSet, copts *ContainerOptions) (*container.Config, *c
 			return nil, nil, nil, fmt.Errorf("invalid value: %s. Maximum IO Bandwidth must be positive", copts.ioMaxBandwidth)
 		}
 	}
-
-	mounts := copts.mounts.Value()
 
 	var binds []string
 	volumes := copts.volumes.GetMap()
@@ -623,7 +619,6 @@ func Parse(flags *pflag.FlagSet, copts *ContainerOptions) (*container.Config, *c
 		Tmpfs:          tmpfs,
 		Sysctls:        copts.sysctls.GetAll(),
 		Runtime:        copts.runtime,
-		Mounts:         mounts,
 	}
 
 	// only set this value if the user provided the flag, else it should default to nil
