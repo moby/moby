@@ -61,7 +61,7 @@ func New(ctx logger.Context) (logger.Logger, error) {
 	logrus.Debugf("logging driver etwLogs configured for container: %s.", ctx.ContainerID)
 
 	return &etwLogs{
-		containerName: fixContainerName(ctx.ContainerName),
+		containerName: ctx.Name(),
 		imageName:     ctx.ContainerImageName,
 		containerID:   ctx.ContainerID,
 		imageID:       ctx.ContainerImageID,
@@ -97,14 +97,6 @@ func createLogMessage(etwLogger *etwLogs, msg *logger.Message) string {
 		etwLogger.imageID,
 		msg.Source,
 		msg.Line)
-}
-
-// fixContainerName removes the initial '/' from the container name.
-func fixContainerName(cntName string) string {
-	if len(cntName) > 0 && cntName[0] == '/' {
-		cntName = cntName[1:]
-	}
-	return cntName
 }
 
 func registerETWProvider() error {
