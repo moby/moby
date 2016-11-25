@@ -2621,6 +2621,7 @@ _docker_service_update() {
 		--health-interval
 		--health-retries
 		--health-timeout
+		--hostname
 		--label -l
 		--limit-cpu
 		--limit-memory
@@ -2664,7 +2665,6 @@ _docker_service_update() {
 			--dns-search
 			--env-file
 			--group
-			--hostname
 			--mode
 			--name
 			--port
