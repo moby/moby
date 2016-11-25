@@ -376,7 +376,7 @@ func (s *DockerSuite) TestRunCreateVolumesInSymlinkDir(c *check.C) {
 		containerPath string
 		cmd           string
 	)
-	// TODO Windows (Post TP5): This test cannot run on a Windows daemon as
+	// This test cannot run on a Windows daemon as
 	// Windows does not support symlinks inside a volume path
 	testRequires(c, SameHostDaemon, DaemonIsLinux)
 	name := "test-volume-symlink"
@@ -423,7 +423,7 @@ func (s *DockerSuite) TestRunCreateVolumesInSymlinkDir2(c *check.C) {
 		containerPath string
 		cmd           string
 	)
-	// TODO Windows (Post TP5): This test cannot run on a Windows daemon as
+	// This test cannot run on a Windows daemon as
 	// Windows does not support symlinks inside a volume path
 	testRequires(c, SameHostDaemon, DaemonIsLinux)
 	name := "test-volume-symlink2"
@@ -445,20 +445,12 @@ func (s *DockerSuite) TestRunCreateVolumesInSymlinkDir2(c *check.C) {
 }
 
 func (s *DockerSuite) TestRunVolumesMountedAsReadonly(c *check.C) {
-	// TODO Windows: Temporary check - remove once TP5 support is dropped
-	if daemonPlatform == "windows" && windowsDaemonKV < 14350 {
-		c.Skip("Needs later Windows build for RO volumes")
-	}
 	if _, code, err := dockerCmdWithError("run", "-v", "/test:/test:ro", "busybox", "touch", "/test/somefile"); err == nil || code == 0 {
 		c.Fatalf("run should fail because volume is ro: exit code %d", code)
 	}
 }
 
 func (s *DockerSuite) TestRunVolumesFromInReadonlyModeFails(c *check.C) {
-	// TODO Windows: Temporary check - remove once TP5 support is dropped
-	if daemonPlatform == "windows" && windowsDaemonKV < 14350 {
-		c.Skip("Needs later Windows build for RO volumes")
-	}
 	var (
 		volumeDir string
 		fileInVol string
@@ -511,10 +503,6 @@ func (s *DockerSuite) TestVolumesFromGetsProperMode(c *check.C) {
 	}
 	defer os.RemoveAll(hostpath)
 
-	// TODO Windows: Temporary check - remove once TP5 support is dropped
-	if daemonPlatform == "windows" && windowsDaemonKV < 14350 {
-		c.Skip("Needs later Windows build for RO volumes")
-	}
 	dockerCmd(c, "run", "--name", "parent", "-v", hostpath+":"+prefix+slash+"test:ro", "busybox", "true")
 
 	// Expect this "rw" mode to be be ignored since the inherited volume is "ro"
@@ -667,7 +655,7 @@ func (s *DockerSuite) TestRunCreateVolumeWithSymlink(c *check.C) {
 
 // Tests that a volume path that has a symlink exists in a container mounting it with `--volumes-from`.
 func (s *DockerSuite) TestRunVolumesFromSymlinkPath(c *check.C) {
-	// TODO Windows (Post TP5): This test cannot run on a Windows daemon as
+	// This test cannot run on a Windows daemon as
 	// Windows does not support symlinks inside a volume path
 	testRequires(c, DaemonIsLinux)
 	name := "docker-test-volumesfromsymlinkpath"
@@ -1734,7 +1722,7 @@ func (s *DockerSuite) TestRunCopyVolumeUIDGID(c *check.C) {
 
 // Test for #1582
 func (s *DockerSuite) TestRunCopyVolumeContent(c *check.C) {
-	// TODO Windows, post TP5. Windows does not yet support volume functionality
+	// TODO Windows, post RS1. Windows does not yet support volume functionality
 	// that copies from the image to the volume.
 	testRequires(c, DaemonIsLinux)
 	name := "testruncopyvolumecontent"
@@ -1987,13 +1975,10 @@ func (s *DockerSuite) TestRunBindMounts(c *check.C) {
 	defer os.RemoveAll(tmpDir)
 	writeFile(path.Join(tmpDir, "touch-me"), "", c)
 
-	// TODO Windows: Temporary check - remove once TP5 support is dropped
-	if daemonPlatform != "windows" || windowsDaemonKV >= 14350 {
-		// Test reading from a read-only bind mount
-		out, _ := dockerCmd(c, "run", "-v", fmt.Sprintf("%s:%s/tmp:ro", tmpDir, prefix), "busybox", "ls", prefix+"/tmp")
-		if !strings.Contains(out, "touch-me") {
-			c.Fatal("Container failed to read from bind mount")
-		}
+	// Test reading from a read-only bind mount
+	out, _ := dockerCmd(c, "run", "-v", fmt.Sprintf("%s:%s/tmp:ro", tmpDir, prefix), "busybox", "ls", prefix+"/tmp")
+	if !strings.Contains(out, "touch-me") {
+		c.Fatal("Container failed to read from bind mount")
 	}
 
 	// test writing to bind mount
@@ -2180,7 +2165,7 @@ func (s *DockerSuite) TestRunAllocatePortInReservedRange(c *check.C) {
 
 // Regression test for #7792
 func (s *DockerSuite) TestRunMountOrdering(c *check.C) {
-	// TODO Windows: Post TP5. Updated, but Windows does not support nested mounts currently.
+	// TODO Windows: Post RS1. Windows does not support nested mounts.
 	testRequires(c, SameHostDaemon, DaemonIsLinux, NotUserNamespace)
 	prefix, _ := getPrefixAndSlashFromDaemonPlatform()
 
@@ -3173,10 +3158,7 @@ func (s *DockerSuite) TestVolumeFromMixedRWOptions(c *check.C) {
 
 	dockerCmd(c, "run", "--name", "parent", "-v", prefix+"/test", "busybox", "true")
 
-	// TODO Windows: Temporary check - remove once TP5 support is dropped
-	if daemonPlatform != "windows" || windowsDaemonKV >= 14350 {
-		dockerCmd(c, "run", "--volumes-from", "parent:ro", "--name", "test-volumes-1", "busybox", "true")
-	}
+	dockerCmd(c, "run", "--volumes-from", "parent:ro", "--name", "test-volumes-1", "busybox", "true")
 	dockerCmd(c, "run", "--volumes-from", "parent:rw", "--name", "test-volumes-2", "busybox", "true")
 
 	if daemonPlatform != "windows" {
