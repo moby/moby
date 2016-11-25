@@ -4647,3 +4647,16 @@ func (s *delayedReader) Read([]byte) (int, error) {
 	time.Sleep(500 * time.Millisecond)
 	return 0, io.EOF
 }
+
+// #28823 (originally #28639)
+func (s *DockerSuite) TestRunMountReadOnlyDevShm(c *check.C) {
+	testRequires(c, SameHostDaemon, DaemonIsLinux)
+	emptyDir, err := ioutil.TempDir("", "test-read-only-dev-shm")
+	c.Assert(err, check.IsNil)
+	defer os.RemoveAll(emptyDir)
+	out, _, err := dockerCmdWithError("run", "--rm", "--read-only",
+		"-v", fmt.Sprintf("%s:/dev/shm:ro", emptyDir),
+		"busybox", "touch", "/dev/shm/foo")
+	c.Assert(err, checker.NotNil, check.Commentf(out))
+	c.Assert(out, checker.Contains, "Read-only file system")
+}
