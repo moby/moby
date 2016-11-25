@@ -1,3 +1,14 @@
+# A Swagger 2.0 (a.k.a. OpenAPI) definition of the Engine API.
+#
+# This is used for generating API documentation and the types used by the
+# client/server. See api/README.md for more information.
+#
+# Some style notes:
+# - This file is used by ReDoc, which allows GitHub Flavored Markdown in
+#   descriptions.
+# - There is no maximum line length, for ease of editing and pretty diffs.
+# - operationIds are in the format "NounVerb", with a singular noun.
+
 swagger: "2.0"
 schemes:
   - "http"
