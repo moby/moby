@@ -26,7 +26,7 @@ Options:
 ```
 
 Creates a plugin. Before creating the plugin, prepare the plugin's root filesystem as well as
-the config.json (https://github.com/docker/docker/blob/master/docs/extend/config.md)
+[the config.json](../../extend/config.md)
 
 
 The following example shows how to create a sample `plugin`.
