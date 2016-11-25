@@ -639,7 +639,7 @@ func TestRawFormatWithLabels(t *testing.T) {
 		t.Fatal(err)
 	} else {
 		if event != "containeriid a=b notjson" {
-			t.Fatalf("Unexpected event in message 1 %v", event)
+			t.Fatalf("Unexpected event in message 2 %v", event)
 		}
 	}
 
@@ -752,7 +752,7 @@ func TestRawFormatWithoutTag(t *testing.T) {
 		t.Fatal(err)
 	} else {
 		if event != "notjson" {
-			t.Fatalf("Unexpected event in message 1 %v", event)
+			t.Fatalf("Unexpected event in message 2 %v", event)
 		}
 	}
 
