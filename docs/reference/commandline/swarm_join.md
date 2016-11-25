@@ -77,7 +77,7 @@ This flag is generally not necessary when joining an existing swarm.
 
 This flag specifies the address that will be advertised to other members of the
 swarm for API access. If unspecified, Docker will check if the system has a
-single IP address, and use that IP address with with the listening port (see
+single IP address, and use that IP address with the listening port (see
 `--listen-addr`). If the system has multiple IP addresses, `--advertise-addr`
 must be specified so that the correct address is chosen for inter-manager
 communication and overlay networking.

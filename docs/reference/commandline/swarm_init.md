@@ -76,7 +76,7 @@ This flag sets the validity period for node certificates.
 
 ### `--dispatcher-heartbeat`
 
-This flags sets the frequency with which nodes are told to use as a
+This flag sets the frequency with which nodes are told to use as a
 period to report their health.
 
 ### `--external-ca`
@@ -103,7 +103,7 @@ name, the default port 2377 will be used.
 
 This flag specifies the address that will be advertised to other members of the
 swarm for API access and overlay networking. If unspecified, Docker will check
-if the system has a single IP address, and use that IP address with with the
+if the system has a single IP address, and use that IP address with the
 listening port (see `--listen-addr`). If the system has multiple IP addresses,
 `--advertise-addr` must be specified so that the correct address is chosen for
 inter-manager communication and overlay networking.
