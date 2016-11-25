@@ -20,7 +20,7 @@ func GetDefaultProfile(rs *specs.Spec) (*specs.Seccomp, error) {
 	return setupSeccomp(DefaultProfile(), rs)
 }
 
-// LoadProfile takes a file path and decodes the seccomp profile.
+// LoadProfile takes a json string and decodes the seccomp profile.
 func LoadProfile(body string, rs *specs.Spec) (*specs.Seccomp, error) {
 	var config types.Seccomp
 	if err := json.Unmarshal([]byte(body), &config); err != nil {
