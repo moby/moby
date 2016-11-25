@@ -34,11 +34,11 @@ pgp.mit.edu
 keyserver.ubuntu.com
 "
 
-mirror=''
 while [ $# -gt 0 ]; do
 	case "$1" in
 		--mirror)
-			mirror="$2"
+			apt_url="$2/apt"
+			yum_url="$2/yum"
 			shift
 			;;
 		*)
@@ -47,13 +47,6 @@ while [ $# -gt 0 ]; do
 	esac
 	shift $(( $# > 0 ? 1 : 0 ))
 done
-
-case "$mirror" in
-	AzureChinaCloud)
-		apt_url="https://mirror.azure.cn/docker-engine/apt"
-		yum_url="https://mirror.azure.cn/docker-engine/yum"
-		;;
-esac
 
 command_exists() {
 	command -v "$@" > /dev/null 2>&1
