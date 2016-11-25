@@ -56,14 +56,14 @@ info:
 
     Docker version  | API version | Changes
     ----------------|-------------|---------
-    1.13.x | [1.25](/engine/api/v1.24/) | [API changes](/engine/api/version-history/#v1-24-api-changes)
-    1.12.x | [1.24](/engine/api/v1.24/) | [API changes](/engine/api/version-history/#v1-24-api-changes)
-    1.11.x | [1.23](/engine/api/v1.23/) | [API changes](/engine/api/version-history/#v1-23-api-changes)
-    1.10.x | [1.22](/engine/api/v1.22/) | [API changes](/engine/api/version-history/#v1-22-api-changes)
-    1.9.x | [1.21](/engine/api/v1.21/) | [API changes](/engine/api/version-history/#v1-21-api-changes)
-    1.8.x | [1.20](/engine/api/v1.20/) | [API changes](/engine/api/version-history/#v1-20-api-changes)
-    1.7.x | [1.19](/engine/api/v1.19/) | [API changes](/engine/api/version-history/#v1-19-api-changes)
-    1.6.x | [1.18](/engine/api/v1.18/) | [API changes](/engine/api/version-history/#v1-18-api-changes)
+    1.13.x | [1.25](https://docs.docker.com/engine/api/v1.25/) | [API changes](https://docs.docker.com/engine/api/version-history/#v1-24-api-changes)
+    1.12.x | [1.24](https://docs.docker.com/engine/api/v1.24/) | [API changes](https://docs.docker.com/engine/api/version-history/#v1-24-api-changes)
+    1.11.x | [1.23](https://docs.docker.com/engine/api/v1.23/) | [API changes](https://docs.docker.com/engine/api/version-history/#v1-23-api-changes)
+    1.10.x | [1.22](https://docs.docker.com/engine/api/v1.22/) | [API changes](https://docs.docker.com/engine/api/version-history/#v1-22-api-changes)
+    1.9.x | [1.21](https://docs.docker.com/engine/api/v1.21/) | [API changes](https://docs.docker.com/engine/api/version-history/#v1-21-api-changes)
+    1.8.x | [1.20](https://docs.docker.com/engine/api/v1.20/) | [API changes](https://docs.docker.com/engine/api/version-history/#v1-20-api-changes)
+    1.7.x | [1.19](https://docs.docker.com/engine/api/v1.19/) | [API changes](https://docs.docker.com/engine/api/version-history/#v1-19-api-changes)
+    1.6.x | [1.18](https://docs.docker.com/engine/api/v1.18/) | [API changes](https://docs.docker.com/engine/api/version-history/#v1-18-api-changes)
 
     # Authentication
 
@@ -3774,7 +3774,7 @@ paths:
 
         Either the `stream` or `logs` parameter must be `true` for this endpoint to do anything.
 
-        See [the documentation for the `docker attach` command](/engine/reference/commandline/attach/) for more details.
+        See [the documentation for the `docker attach` command](https://docs.docker.com/engine/reference/commandline/attach/) for more details.
 
         ### Hijacking
 
@@ -4289,7 +4289,7 @@ paths:
       description: |
         Build an image from a tar archive with a `Dockerfile` in it.
 
-        The `Dockerfile` specifies how the image is built from the tar archive. It is typically in the archive's root, but can be at a different path or have a different name by specifying the `dockerfile` parameter. [See the `Dockerfile` reference for more information](/engine/reference/builder/).
+        The `Dockerfile` specifies how the image is built from the tar archive. It is typically in the archive's root, but can be at a different path or have a different name by specifying the `dockerfile` parameter. [See the `Dockerfile` reference for more information](https://docs.docker.com/engine/reference/builder/).
 
         The Docker daemon performs a preliminary validation of the `Dockerfile` before starting the build, and returns an error if the syntax is incorrect. After that, each instruction is run one-by-one until the ID of the new image is output.
 
@@ -4373,7 +4373,7 @@ paths:
           type: "integer"
         - name: "buildargs"
           in: "query"
-          description: "JSON map of string pairs for build-time variables. Users pass these values at build-time. Docker uses the buildargs as the environment context for commands run via the `Dockerfile` RUN instruction, or for variable expansion in other `Dockerfile` instructions. This is not meant for passing secret values. [Read more about the buildargs instruction.](/engine/reference/builder/#arg)"
+          description: "JSON map of string pairs for build-time variables. Users pass these values at build-time. Docker uses the buildargs as the environment context for commands run via the `Dockerfile` RUN instruction, or for variable expansion in other `Dockerfile` instructions. This is not meant for passing secret values. [Read more about the buildargs instruction.](https://docs.docker.com/engine/reference/builder/#arg)"
           type: "integer"
         - name: "shmsize"
           in: "query"
