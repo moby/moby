@@ -88,17 +88,17 @@ func init() {
 // also taken from environment variables AWS_REGION, AWS_ACCESS_KEY_ID,
 // AWS_SECRET_ACCESS_KEY, the shared credentials file (~/.aws/credentials), and
 // the EC2 Instance Metadata Service.
-func New(ctx logger.Context) (logger.Logger, error) {
-	logGroupName := ctx.Config[logGroupKey]
-	logStreamName, err := loggerutils.ParseLogTag(ctx, "{{.FullID}}")
+func New(info logger.Info) (logger.Logger, error) {
+	logGroupName := info.Config[logGroupKey]
+	logStreamName, err := loggerutils.ParseLogTag(info, "{{.FullID}}")
 	if err != nil {
 		return nil, err
 	}
 
-	if ctx.Config[logStreamKey] != "" {
-		logStreamName = ctx.Config[logStreamKey]
+	if info.Config[logStreamKey] != "" {
+		logStreamName = info.Config[logStreamKey]
 	}
-	client, err := newAWSLogsClient(ctx)
+	client, err := newAWSLogsClient(info)
 	if err != nil {
 		return nil, err
 	}
@@ -127,13 +127,13 @@ var newRegionFinder = func() regionFinder {
 // Customizations to the default client from the SDK include a Docker-specific
 // User-Agent string and automatic region detection using the EC2 Instance
 // Metadata Service when region is otherwise unspecified.
-func newAWSLogsClient(ctx logger.Context) (api, error) {
+func newAWSLogsClient(info logger.Info) (api, error) {
 	var region *string
 	if os.Getenv(regionEnvKey) != "" {
 		region = aws.String(os.Getenv(regionEnvKey))
 	}
-	if ctx.Config[regionKey] != "" {
-		region = aws.String(ctx.Config[regionKey])
+	if info.Config[regionKey] != "" {
+		region = aws.String(info.Config[regionKey])
 	}
 	if region == nil || *region == "" {
 		logrus.Info("Trying to get region from EC2 Metadata")

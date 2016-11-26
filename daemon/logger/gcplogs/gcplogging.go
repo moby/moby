@@ -100,14 +100,14 @@ func initGCP() {
 // default credentials.
 //
 // See https://developers.google.com/identity/protocols/application-default-credentials
-func New(ctx logger.Context) (logger.Logger, error) {
+func New(info logger.Info) (logger.Logger, error) {
 	initGCP()
 
 	var project string
 	if projectID != "" {
 		project = projectID
 	}
-	if projectID, found := ctx.Config[projectOptKey]; found {
+	if projectID, found := info.Config[projectOptKey]; found {
 		project = projectID
 	}
 	if project == "" {
@@ -136,17 +136,17 @@ func New(ctx logger.Context) (logger.Logger, error) {
 	l := &gcplogs{
 		logger: lg,
 		container: &containerInfo{
-			Name:      ctx.ContainerName,
-			ID:        ctx.ContainerID,
-			ImageName: ctx.ContainerImageName,
-			ImageID:   ctx.ContainerImageID,
-			Created:   ctx.ContainerCreated,
-			Metadata:  ctx.ExtraAttributes(nil),
+			Name:      info.ContainerName,
+			ID:        info.ContainerID,
+			ImageName: info.ContainerImageName,
+			ImageID:   info.ContainerImageID,
+			Created:   info.ContainerCreated,
+			Metadata:  info.ExtraAttributes(nil),
 		},
 	}
 
-	if ctx.Config[logCmdKey] == "true" {
-		l.container.Command = ctx.Command()
+	if info.Config[logCmdKey] == "true" {
+		l.container.Command = info.Command()
 	}
 
 	if onGCE {
@@ -155,11 +155,11 @@ func New(ctx logger.Context) (logger.Logger, error) {
 			Name: instanceName,
 			ID:   instanceID,
 		}
-	} else if ctx.Config[logZoneKey] != "" || ctx.Config[logNameKey] != "" || ctx.Config[logIDKey] != "" {
+	} else if info.Config[logZoneKey] != "" || info.Config[logNameKey] != "" || info.Config[logIDKey] != "" {
 		l.instance = &instanceInfo{
-			Zone: ctx.Config[logZoneKey],
-			Name: ctx.Config[logNameKey],
-			ID:   ctx.Config[logIDKey],
+			Zone: info.Config[logZoneKey],
+			Name: info.Config[logNameKey],
+			ID:   info.Config[logIDKey],
 		}
 	}
 
