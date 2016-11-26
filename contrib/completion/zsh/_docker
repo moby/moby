@@ -1752,6 +1752,7 @@ __docker_service_subcommand() {
         "($help)--health-interval=[Time between running the check]:time: "
         "($help)--health-retries=[Consecutive failures needed to report unhealthy]:retries:(1 2 3 4 5)"
         "($help)--health-timeout=[Maximum time to allow one check to run]:time: "
+        "($help)--hostname=[Service container hostname]:hostname: " \
         "($help)*--label=[Service labels]:label: "
         "($help)--limit-cpu=[Limit CPUs]:value: "
         "($help)--limit-memory=[Limit Memory]:value: "
@@ -1791,7 +1792,6 @@ __docker_service_subcommand() {
                 "($help)*--dns-option=[Set DNS options]:DNS option: " \
                 "($help)*--dns-search=[Set custom DNS search domains]:DNS search: " \
                 "($help)*--env-file=[Read environment variables from a file]:environment file:_files" \
-                "($help)--hostname=[Service containers hostname]:hostname: " \
                 "($help)--mode=[Service Mode]:mode:(global replicated)" \
                 "($help)--name=[Service name]:name: " \
                 "($help)*--port=[Publish a port]:port: " \
