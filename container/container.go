@@ -328,7 +328,7 @@ func (container *Container) StartLogger() (logger.Logger, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to get logging factory: %v", err)
 	}
-	ctx := logger.Context{
+	info := logger.Info{
 		Config:              cfg.Config,
 		ContainerID:         container.ID,
 		ContainerName:       container.Name,
@@ -344,12 +344,12 @@ func (container *Container) StartLogger() (logger.Logger, error) {
 
 	// Set logging file for "json-logger"
 	if cfg.Type == jsonfilelog.Name {
-		ctx.LogPath, err = container.GetRootResourcePath(fmt.Sprintf("%s-json.log", container.ID))
+		info.LogPath, err = container.GetRootResourcePath(fmt.Sprintf("%s-json.log", container.ID))
 		if err != nil {
 			return nil, err
 		}
 	}
-	return c(ctx)
+	return c(info)
 }
 
 // GetProcessLabel returns the process label for the container.

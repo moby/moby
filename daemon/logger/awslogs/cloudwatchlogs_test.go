@@ -28,13 +28,13 @@ const (
 )
 
 func TestNewAWSLogsClientUserAgentHandler(t *testing.T) {
-	ctx := logger.Context{
+	info := logger.Info{
 		Config: map[string]string{
 			regionKey: "us-east-1",
 		},
 	}
 
-	client, err := newAWSLogsClient(ctx)
+	client, err := newAWSLogsClient(info)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -59,7 +59,7 @@ func TestNewAWSLogsClientUserAgentHandler(t *testing.T) {
 }
 
 func TestNewAWSLogsClientRegionDetect(t *testing.T) {
-	ctx := logger.Context{
+	info := logger.Info{
 		Config: map[string]string{},
 	}
 
@@ -71,7 +71,7 @@ func TestNewAWSLogsClientRegionDetect(t *testing.T) {
 		successResult: "us-east-1",
 	}
 
-	_, err := newAWSLogsClient(ctx)
+	_, err := newAWSLogsClient(info)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -695,12 +695,12 @@ func TestCollectBatchWithDuplicateTimestamps(t *testing.T) {
 
 func TestCreateTagSuccess(t *testing.T) {
 	mockClient := newMockClient()
-	ctx := logger.Context{
+	info := logger.Info{
 		ContainerName: "/test-container",
 		ContainerID:   "container-abcdefghijklmnopqrstuvwxyz01234567890",
 		Config:        map[string]string{"tag": "{{.Name}}/{{.FullID}}"},
 	}
-	logStreamName, e := loggerutils.ParseLogTag(ctx, loggerutils.DefaultTemplate)
+	logStreamName, e := loggerutils.ParseLogTag(info, loggerutils.DefaultTemplate)
 	if e != nil {
 		t.Errorf("Error generating tag: %q", e)
 	}

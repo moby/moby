@@ -6,7 +6,7 @@ import (
 )
 
 // Creator builds a logging driver instance with given context.
-type Creator func(Context) (Logger, error)
+type Creator func(Info) (Logger, error)
 
 // LogOptValidator checks the options specific to the underlying
 // logging implementation.

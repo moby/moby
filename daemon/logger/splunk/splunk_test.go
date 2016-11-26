@@ -43,10 +43,10 @@ func TestValidateLogOpt(t *testing.T) {
 
 // Driver require user to specify required options
 func TestNewMissedConfig(t *testing.T) {
-	ctx := logger.Context{
+	info := logger.Info{
 		Config: map[string]string{},
 	}
-	_, err := New(ctx)
+	_, err := New(info)
 	if err == nil {
 		t.Fatal("Logger driver should fail when no required parameters specified")
 	}
@@ -54,12 +54,12 @@ func TestNewMissedConfig(t *testing.T) {
 
 // Driver require user to specify splunk-url
 func TestNewMissedUrl(t *testing.T) {
-	ctx := logger.Context{
+	info := logger.Info{
 		Config: map[string]string{
 			splunkTokenKey: "4642492F-D8BD-47F1-A005-0C08AE4657DF",
 		},
 	}
-	_, err := New(ctx)
+	_, err := New(info)
 	if err.Error() != "splunk: splunk-url is expected" {
 		t.Fatal("Logger driver should fail when no required parameters specified")
 	}
@@ -67,12 +67,12 @@ func TestNewMissedUrl(t *testing.T) {
 
 // Driver require user to specify splunk-token
 func TestNewMissedToken(t *testing.T) {
-	ctx := logger.Context{
+	info := logger.Info{
 		Config: map[string]string{
 			splunkURLKey: "http://127.0.0.1:8088",
 		},
 	}
-	_, err := New(ctx)
+	_, err := New(info)
 	if err.Error() != "splunk: splunk-token is expected" {
 		t.Fatal("Logger driver should fail when no required parameters specified")
 	}
@@ -84,7 +84,7 @@ func TestDefault(t *testing.T) {
 
 	go hec.Serve()
 
-	ctx := logger.Context{
+	info := logger.Info{
 		Config: map[string]string{
 			splunkURLKey:   hec.URL(),
 			splunkTokenKey: hec.token,
@@ -95,12 +95,12 @@ func TestDefault(t *testing.T) {
 		ContainerImageName: "container_image_name",
 	}
 
-	hostname, err := ctx.Hostname()
+	hostname, err := info.Hostname()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	loggerDriver, err := New(ctx)
+	loggerDriver, err := New(info)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -206,7 +206,7 @@ func TestInlineFormatWithNonDefaultOptions(t *testing.T) {
 
 	go hec.Serve()
 
-	ctx := logger.Context{
+	info := logger.Info{
 		Config: map[string]string{
 			splunkURLKey:             hec.URL(),
 			splunkTokenKey:           hec.token,
@@ -227,12 +227,12 @@ func TestInlineFormatWithNonDefaultOptions(t *testing.T) {
 		},
 	}
 
-	hostname, err := ctx.Hostname()
+	hostname, err := info.Hostname()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	loggerDriver, err := New(ctx)
+	loggerDriver, err := New(info)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -312,7 +312,7 @@ func TestJsonFormat(t *testing.T) {
 
 	go hec.Serve()
 
-	ctx := logger.Context{
+	info := logger.Info{
 		Config: map[string]string{
 			splunkURLKey:                  hec.URL(),
 			splunkTokenKey:                hec.token,
@@ -326,12 +326,12 @@ func TestJsonFormat(t *testing.T) {
 		ContainerImageName: "container_image_name",
 	}
 
-	hostname, err := ctx.Hostname()
+	hostname, err := info.Hostname()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	loggerDriver, err := New(ctx)
+	loggerDriver, err := New(info)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -431,7 +431,7 @@ func TestRawFormat(t *testing.T) {
 
 	go hec.Serve()
 
-	ctx := logger.Context{
+	info := logger.Info{
 		Config: map[string]string{
 			splunkURLKey:    hec.URL(),
 			splunkTokenKey:  hec.token,
@@ -443,12 +443,12 @@ func TestRawFormat(t *testing.T) {
 		ContainerImageName: "container_image_name",
 	}
 
-	hostname, err := ctx.Hostname()
+	hostname, err := info.Hostname()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	loggerDriver, err := New(ctx)
+	loggerDriver, err := New(info)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -541,7 +541,7 @@ func TestRawFormatWithLabels(t *testing.T) {
 
 	go hec.Serve()
 
-	ctx := logger.Context{
+	info := logger.Info{
 		Config: map[string]string{
 			splunkURLKey:    hec.URL(),
 			splunkTokenKey:  hec.token,
@@ -557,12 +557,12 @@ func TestRawFormatWithLabels(t *testing.T) {
 		},
 	}
 
-	hostname, err := ctx.Hostname()
+	hostname, err := info.Hostname()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	loggerDriver, err := New(ctx)
+	loggerDriver, err := New(info)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -656,7 +656,7 @@ func TestRawFormatWithoutTag(t *testing.T) {
 
 	go hec.Serve()
 
-	ctx := logger.Context{
+	info := logger.Info{
 		Config: map[string]string{
 			splunkURLKey:    hec.URL(),
 			splunkTokenKey:  hec.token,
@@ -669,12 +669,12 @@ func TestRawFormatWithoutTag(t *testing.T) {
 		ContainerImageName: "container_image_name",
 	}
 
-	hostname, err := ctx.Hostname()
+	hostname, err := info.Hostname()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	loggerDriver, err := New(ctx)
+	loggerDriver, err := New(info)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -773,7 +773,7 @@ func TestBatching(t *testing.T) {
 
 	go hec.Serve()
 
-	ctx := logger.Context{
+	info := logger.Info{
 		Config: map[string]string{
 			splunkURLKey:   hec.URL(),
 			splunkTokenKey: hec.token,
@@ -784,7 +784,7 @@ func TestBatching(t *testing.T) {
 		ContainerImageName: "container_image_name",
 	}
 
-	loggerDriver, err := New(ctx)
+	loggerDriver, err := New(info)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -839,7 +839,7 @@ func TestFrequency(t *testing.T) {
 
 	go hec.Serve()
 
-	ctx := logger.Context{
+	info := logger.Info{
 		Config: map[string]string{
 			splunkURLKey:   hec.URL(),
 			splunkTokenKey: hec.token,
@@ -850,7 +850,7 @@ func TestFrequency(t *testing.T) {
 		ContainerImageName: "container_image_name",
 	}
 
-	loggerDriver, err := New(ctx)
+	loggerDriver, err := New(info)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -920,7 +920,7 @@ func TestOneMessagePerRequest(t *testing.T) {
 
 	go hec.Serve()
 
-	ctx := logger.Context{
+	info := logger.Info{
 		Config: map[string]string{
 			splunkURLKey:   hec.URL(),
 			splunkTokenKey: hec.token,
@@ -931,7 +931,7 @@ func TestOneMessagePerRequest(t *testing.T) {
 		ContainerImageName: "container_image_name",
 	}
 
-	loggerDriver, err := New(ctx)
+	loggerDriver, err := New(info)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -994,7 +994,7 @@ func TestVerify(t *testing.T) {
 	hec.simulateServerError = true
 	go hec.Serve()
 
-	ctx := logger.Context{
+	info := logger.Info{
 		Config: map[string]string{
 			splunkURLKey:   hec.URL(),
 			splunkTokenKey: hec.token,
@@ -1005,7 +1005,7 @@ func TestVerify(t *testing.T) {
 		ContainerImageName: "container_image_name",
 	}
 
-	_, err := New(ctx)
+	_, err := New(info)
 	if err == nil {
 		t.Fatal("Expecting driver to fail, when server is unresponsive")
 	}
@@ -1023,7 +1023,7 @@ func TestSkipVerify(t *testing.T) {
 	hec.simulateServerError = true
 	go hec.Serve()
 
-	ctx := logger.Context{
+	info := logger.Info{
 		Config: map[string]string{
 			splunkURLKey:              hec.URL(),
 			splunkTokenKey:            hec.token,
@@ -1035,7 +1035,7 @@ func TestSkipVerify(t *testing.T) {
 		ContainerImageName: "container_image_name",
 	}
 
-	loggerDriver, err := New(ctx)
+	loggerDriver, err := New(info)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1105,7 +1105,7 @@ func TestBufferMaximum(t *testing.T) {
 	hec.simulateServerError = true
 	go hec.Serve()
 
-	ctx := logger.Context{
+	info := logger.Info{
 		Config: map[string]string{
 			splunkURLKey:              hec.URL(),
 			splunkTokenKey:            hec.token,
@@ -1117,7 +1117,7 @@ func TestBufferMaximum(t *testing.T) {
 		ContainerImageName: "container_image_name",
 	}
 
-	loggerDriver, err := New(ctx)
+	loggerDriver, err := New(info)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1194,7 +1194,7 @@ func TestServerAlwaysDown(t *testing.T) {
 	hec.simulateServerError = true
 	go hec.Serve()
 
-	ctx := logger.Context{
+	info := logger.Info{
 		Config: map[string]string{
 			splunkURLKey:              hec.URL(),
 			splunkTokenKey:            hec.token,
@@ -1206,7 +1206,7 @@ func TestServerAlwaysDown(t *testing.T) {
 		ContainerImageName: "container_image_name",
 	}
 
-	loggerDriver, err := New(ctx)
+	loggerDriver, err := New(info)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1253,7 +1253,7 @@ func TestCannotSendAfterClose(t *testing.T) {
 	hec := NewHTTPEventCollectorMock(t)
 	go hec.Serve()
 
-	ctx := logger.Context{
+	info := logger.Info{
 		Config: map[string]string{
 			splunkURLKey:   hec.URL(),
 			splunkTokenKey: hec.token,
@@ -1264,7 +1264,7 @@ func TestCannotSendAfterClose(t *testing.T) {
 		ContainerImageName: "container_image_name",
 	}
 
-	loggerDriver, err := New(ctx)
+	loggerDriver, err := New(info)
 	if err != nil {
 		t.Fatal(err)
 	}

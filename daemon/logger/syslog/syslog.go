@@ -87,30 +87,30 @@ func rfc5424microformatterWithAppNameAsTag(p syslog.Priority, hostname, tag, con
 // New creates a syslog logger using the configuration passed in on
 // the context. Supported context configuration variables are
 // syslog-address, syslog-facility, syslog-format.
-func New(ctx logger.Context) (logger.Logger, error) {
-	tag, err := loggerutils.ParseLogTag(ctx, loggerutils.DefaultTemplate)
+func New(info logger.Info) (logger.Logger, error) {
+	tag, err := loggerutils.ParseLogTag(info, loggerutils.DefaultTemplate)
 	if err != nil {
 		return nil, err
 	}
 
-	proto, address, err := parseAddress(ctx.Config["syslog-address"])
+	proto, address, err := parseAddress(info.Config["syslog-address"])
 	if err != nil {
 		return nil, err
 	}
 
-	facility, err := parseFacility(ctx.Config["syslog-facility"])
+	facility, err := parseFacility(info.Config["syslog-facility"])
 	if err != nil {
 		return nil, err
 	}
 
-	syslogFormatter, syslogFramer, err := parseLogFormat(ctx.Config["syslog-format"], proto)
+	syslogFormatter, syslogFramer, err := parseLogFormat(info.Config["syslog-format"], proto)
 	if err != nil {
 		return nil, err
 	}
 
 	var log *syslog.Writer
 	if proto == secureProto {
-		tlsConfig, tlsErr := parseTLSConfig(ctx.Config)
+		tlsConfig, tlsErr := parseTLSConfig(info.Config)
 		if tlsErr != nil {
 			return nil, tlsErr
 		}
