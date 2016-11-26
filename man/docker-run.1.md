@@ -988,7 +988,7 @@ You would have to write policy defining a `svirt_apache_t` type.
 If you want to set `/dev/sda` device weight to `200`, you can specify the device
 weight by `--blkio-weight-device` flag. Use the following command:
 
-   # docker run -it --blkio-weight-device "/dev/sda:200" ubuntu
+    # docker run -it --blkio-weight-device "/dev/sda:200" ubuntu
 
 ## Specify isolation technology for container (--isolation)
 
