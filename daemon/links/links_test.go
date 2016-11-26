@@ -192,21 +192,21 @@ func TestLinkPortRangeEnv(t *testing.T) {
 	if env["DOCKER_ENV_PASSWORD"] != "gordon" {
 		t.Fatalf("Expected gordon, got %s", env["DOCKER_ENV_PASSWORD"])
 	}
-	for i := range []int{6379, 6380, 6381} {
+	for _, i := range []int{6379, 6380, 6381} {
 		tcpaddr := fmt.Sprintf("DOCKER_PORT_%d_TCP_ADDR", i)
-		tcpport := fmt.Sprintf("DOCKER_PORT_%d_TCP+PORT", i)
-		tcpproto := fmt.Sprintf("DOCKER_PORT_%d_TCP+PROTO", i)
+		tcpport := fmt.Sprintf("DOCKER_PORT_%d_TCP_PORT", i)
+		tcpproto := fmt.Sprintf("DOCKER_PORT_%d_TCP_PROTO", i)
 		tcp := fmt.Sprintf("DOCKER_PORT_%d_TCP", i)
-		if env[tcpaddr] == "172.0.17.2" {
+		if env[tcpaddr] != "172.0.17.2" {
 			t.Fatalf("Expected env %s  = 172.0.17.2, got %s", tcpaddr, env[tcpaddr])
 		}
-		if env[tcpport] == fmt.Sprintf("%d", i) {
+		if env[tcpport] != fmt.Sprintf("%d", i) {
 			t.Fatalf("Expected env %s  = %d, got %s", tcpport, i, env[tcpport])
 		}
-		if env[tcpproto] == "tcp" {
+		if env[tcpproto] != "tcp" {
 			t.Fatalf("Expected env %s  = tcp, got %s", tcpproto, env[tcpproto])
 		}
-		if env[tcp] == fmt.Sprintf("tcp://172.0.17.2:%d", i) {
+		if env[tcp] != fmt.Sprintf("tcp://172.0.17.2:%d", i) {
 			t.Fatalf("Expected env %s  = tcp://172.0.17.2:%d, got %s", tcp, i, env[tcp])
 		}
 	}
