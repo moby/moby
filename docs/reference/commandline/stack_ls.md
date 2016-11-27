@@ -19,6 +19,12 @@ keywords: "stack, ls"
 Usage:	docker stack ls
 
 List stacks
+
+Aliases:
+  ls, list
+
+Options:
+      --help   Print usage
 ```
 
 Lists the stacks.
