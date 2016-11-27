@@ -1882,6 +1882,147 @@ __docker_service_subcommand() {
 
 # EO service
 
+# BO stack
+
+__docker_stack_complete_ps_filters() {
+    [[ $PREFIX = -* ]] && return 1
+    integer ret=1
+
+    if compset -P '*='; then
+        case "${${words[-1]%=*}#*=}" in
+            (desired-state)
+                state_opts=('accepted' 'running')
+                _describe -t state-opts "desired state options" state_opts && ret=0
+                ;;
+            *)
+                _message 'value' && ret=0
+                ;;
+        esac
+    else
+        opts=('desired-state' 'id' 'name')
+        _describe -t filter-opts "filter options" opts -qS "=" && ret=0
+    fi
+
+    return ret
+}
+
+__docker_stack_complete_services_filters() {
+    [[ $PREFIX = -* ]] && return 1
+    integer ret=1
+
+    if compset -P '*='; then
+        case "${${words[-1]%=*}#*=}" in
+            *)
+                _message 'value' && ret=0
+                ;;
+        esac
+    else
+        opts=('id' 'label' 'name')
+        _describe -t filter-opts "filter options" opts -qS "=" && ret=0
+    fi
+
+    return ret
+}
+
+__docker_stacks() {
+    [[ $PREFIX = -* ]] && return 1
+    integer ret=1
+    local line s
+    declare -a lines stacks
+
+    lines=(${(f)${:-"$(_call_program commands docker $docker_options stack ls)"$'\n'}})
+
+    # Parse header line to find columns
+    local i=1 j=1 k header=${lines[1]}
+    declare -A begin end
+    while (( j < ${#header} - 1 )); do
+        i=$(( j + ${${header[$j,-1]}[(i)[^ ]]} - 1 ))
+        j=$(( i + ${${header[$i,-1]}[(i)  ]} - 1 ))
+        k=$(( j + ${${header[$j,-1]}[(i)[^ ]]} - 2 ))
+        begin[${header[$i,$((j-1))]}]=$i
+        end[${header[$i,$((j-1))]}]=$k
+    done
+    end[${header[$i,$((j-1))]}]=-1
+    lines=(${lines[2,-1]})
+
+    # Service ID
+    for line in $lines; do
+        s="${line[${begin[ID]},${end[ID]}]%% ##}"
+        stacks=($stacks $s)
+    done
+
+    _describe -t stacks-list "stacks" stacks "$@" && ret=0
+    return ret
+}
+
+__docker_complete_stacks() {
+    [[ $PREFIX = -* ]] && return 1
+    __docker_stacks "$@"
+}
+
+__docker_stack_commands() {
+    local -a _docker_stack_subcommands
+    _docker_stack_subcommands=(
+        "deploy:Deploy a new stack or update an existing stack"
+        "ls:List stacks"
+        "ps:List the tasks in the stack"
+        "rm:Remove the stack"
+        "services:List the services in the stack"
+    )
+    _describe -t docker-stack-commands "docker stack command" _docker_stack_subcommands
+}
+
+__docker_stack_subcommand() {
+    local -a _command_args opts_help
+    local expl help="--help"
+    integer ret=1
+
+    opts_help=("(: -)--help[Print usage]")
+
+    case "$words[1]" in
+        (deploy|up)
+            _arguments $(__docker_arguments) \
+                $opts_help \
+                "($help)--bundle-file=[Path to a Distributed Application Bundle file]:dab:_files -g \"*.dab\"" \
+                "($help -c --compose-file)"{-c=,--compose-file=}"[Path to a Compose file]:compose file:_files -g \"*.(yml|yaml)\"" \
+                "($help)--with-registry-auth[Send registry authentication details to Swarm agents]" \
+                "($help -):stack:__docker_complete_stacks" && ret=0
+            ;;
+        (ls|list)
+            _arguments $(__docker_arguments) \
+                $opts_help && ret=0
+            ;;
+        (ps)
+            _arguments $(__docker_arguments) \
+                $opts_help \
+                "($help -a --all)"{-a,--all}"[Display all tasks]" \
+                "($help)*"{-f=,--filter=}"[Filter output based on conditions provided]:filter:__docker_stack_complete_ps_filters" \
+                "($help)--no-resolve[Do not map IDs to Names]" \
+                "($help)--no-trunc[Do not truncate output]" \
+                "($help -):stack:__docker_complete_stacks" && ret=0
+            ;;
+        (rm|remove|down)
+            _arguments $(__docker_arguments) \
+                $opts_help \
+                "($help -):stack:__docker_complete_stacks" && ret=0
+            ;;
+        (services)
+            _arguments $(__docker_arguments) \
+                $opts_help \
+                "($help)*"{-f=,--filter=}"[Filter output based on conditions provided]:filter:__docker_stack_complete_services_filters" \
+                "($help -q --quiet)"{-q,--quiet}"[Only display IDs]" \
+                "($help -):stack:__docker_complete_stacks" && ret=0
+            ;;
+        (help)
+            _arguments $(__docker_arguments) ":subcommand:__docker_stack_commands" && ret=0
+            ;;
+    esac
+
+    return ret
+}
+
+# EO stack
+
 # BO swarm
 
 __docker_swarm_commands() {
@@ -2447,6 +2588,23 @@ __docker_subcommand() {
                 (option-or-argument)
                     curcontext=${curcontext%:*:*}:docker-${words[-1]}:
                     __docker_service_subcommand && ret=0
+                    ;;
+            esac
+            ;;
+        (stack)
+            local curcontext="$curcontext" state
+            _arguments $(__docker_arguments) \
+                $opts_help \
+                "($help -): :->command" \
+                "($help -)*:: :->option-or-argument" && ret=0
+
+            case $state in
+                (command)
+                    __docker_stack_commands && ret=0
+                    ;;
+                (option-or-argument)
+                    curcontext=${curcontext%:*:*}:docker-${words[-1]}:
+                    __docker_stack_subcommand && ret=0
                     ;;
             esac
             ;;
