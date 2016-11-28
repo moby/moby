@@ -24,14 +24,13 @@ var versionTemplate = `Client:
  OS/Arch:      {{.Client.Os}}/{{.Client.Arch}}{{if .ServerOK}}
 
 Server:
- Version:             {{.Server.Version}}
- API version:         {{.Server.APIVersion}}
- Minimum API version: {{.Server.MinAPIVersion}}
- Go version:          {{.Server.GoVersion}}
- Git commit:          {{.Server.GitCommit}}
- Built:               {{.Server.BuildTime}}
- OS/Arch:             {{.Server.Os}}/{{.Server.Arch}}
- Experimental:        {{.Server.Experimental}}{{end}}`
+ Version:      {{.Server.Version}}
+ API version:  {{.Server.APIVersion}} (minimum version {{.Server.MinAPIVersion}})
+ Go version:   {{.Server.GoVersion}}
+ Git commit:   {{.Server.GitCommit}}
+ Built:        {{.Server.BuildTime}}
+ OS/Arch:      {{.Server.Os}}/{{.Server.Arch}}
+ Experimental: {{.Server.Experimental}}{{end}}`
 
 type versionOptions struct {
 	format string
