@@ -26,6 +26,7 @@ func (pm *Manager) enable(p *v2.Plugin, force bool) error {
 	}
 	p.Lock()
 	p.Restart = true
+	p.ExitChan = make(chan bool)
 	p.Unlock()
 	if err := pm.containerdClient.Create(p.GetID(), "", "", specs.Spec(*spec), attachToLog(p.GetID())); err != nil {
 		return err
@@ -92,7 +93,6 @@ func (pm *Manager) Shutdown() {
 		}
 		if pm.containerdClient != nil && p.IsEnabled() {
 			p.Lock()
-			p.ExitChan = make(chan bool)
 			p.Restart = false
 			p.Unlock()
 			shutdownPlugin(p, pm.containerdClient)
