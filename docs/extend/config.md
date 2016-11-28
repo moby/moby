@@ -208,14 +208,15 @@ Config provides the base accessible fields for working with V0 plugin format
        			"value": "1"
        		}
        	],
-
-       	"devices": [
-       		{
-       			"name": "device",
-       			"description": "a host device to mount",
-       			"path": "/dev/cpu_dma_latency"
-       		}
-       	]
+	"linux" : {
+		"devices": [
+				{
+				"name": "device",
+				"description": "a host device to mount",
+				"path": "/dev/cpu_dma_latency"
+				}
+		]
+	}
 }
 
 ```
