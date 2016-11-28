@@ -86,6 +86,13 @@ func (s *DockerSwarmSuite) TestSwarmInitIPv6(c *check.C) {
 	c.Assert(out, checker.Contains, "Swarm: active")
 }
 
+func (s *DockerSwarmSuite) TestSwarmInitUnspecifiedAdvertiseAddr(c *check.C) {
+	d := s.AddDaemon(c, false, false)
+	out, err := d.Cmd("swarm", "init", "--advertise-addr", "0.0.0.0")
+	c.Assert(err, checker.NotNil)
+	c.Assert(out, checker.Contains, "advertise address must be a non-zero IP address")
+}
+
 func (s *DockerSwarmSuite) TestSwarmIncompatibleDaemon(c *check.C) {
 	// init swarm mode and stop a daemon
 	d := s.AddDaemon(c, true, true)
