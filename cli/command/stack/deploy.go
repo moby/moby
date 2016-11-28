@@ -22,6 +22,7 @@ import (
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cli/command"
 	servicecmd "github.com/docker/docker/cli/command/service"
+	dockerclient "github.com/docker/docker/client"
 	"github.com/docker/docker/opts"
 	runconfigopts "github.com/docker/docker/runconfig/opts"
 	"github.com/docker/go-connections/nat"
@@ -123,7 +124,10 @@ func deployCompose(ctx context.Context, dockerCli *command.DockerCli, opts deplo
 
 	namespace := namespace{name: opts.namespace}
 
-	networks := convertNetworks(namespace, config.Networks)
+	networks, externalNetworks := convertNetworks(namespace, config.Networks)
+	if err := validateExternalNetworks(ctx, dockerCli, externalNetworks); err != nil {
+		return err
+	}
 	if err := createNetworks(ctx, dockerCli, namespace, networks); err != nil {
 		return err
 	}
@@ -179,7 +183,7 @@ func getConfigFile(filename string) (*composetypes.ConfigFile, error) {
 func convertNetworks(
 	namespace namespace,
 	networks map[string]composetypes.NetworkConfig,
-) map[string]types.NetworkCreate {
+) (map[string]types.NetworkCreate, []string) {
 	if networks == nil {
 		networks = make(map[string]composetypes.NetworkConfig)
 	}
@@ -187,10 +191,12 @@ func convertNetworks(
 	// TODO: only add default network if it's used
 	networks["default"] = composetypes.NetworkConfig{}
 
+	externalNetworks := []string{}
 	result := make(map[string]types.NetworkCreate)
 
 	for internalName, network := range networks {
-		if network.External.Name != "" {
+		if network.External.External {
+			externalNetworks = append(externalNetworks, network.External.Name)
 			continue
 		}
 
@@ -216,7 +222,29 @@ func convertNetworks(
 		result[internalName] = createOpts
 	}
 
-	return result
+	return result, externalNetworks
+}
+
+func validateExternalNetworks(
+	ctx context.Context,
+	dockerCli *command.DockerCli,
+	externalNetworks []string) error {
+	client := dockerCli.Client()
+
+	for _, networkName := range externalNetworks {
+		network, err := client.NetworkInspect(ctx, networkName)
+		if err != nil {
+			if dockerclient.IsErrNetworkNotFound(err) {
+				return fmt.Errorf("network %q is declared as external, but could not be found. You need to create the network before the stack is deployed (with overlay driver)", networkName)
+			}
+			return err
+		}
+		if network.Scope != "swarm" {
+			return fmt.Errorf("network %q is declared as external, but it is not in the right scope: %q instead of %q", networkName, network.Scope, "swarm")
+		}
+	}
+
+	return nil
 }
 
 func createNetworks(
@@ -227,7 +255,7 @@ func createNetworks(
 ) error {
 	client := dockerCli.Client()
 
-	existingNetworks, err := getNetworks(ctx, client, namespace.name)
+	existingNetworks, err := getStackNetworks(ctx, client, namespace.name)
 	if err != nil {
 		return err
 	}
@@ -258,30 +286,39 @@ func createNetworks(
 
 func convertServiceNetworks(
 	networks map[string]*composetypes.ServiceNetworkConfig,
+	networkConfigs map[string]composetypes.NetworkConfig,
 	namespace namespace,
 	name string,
-) []swarm.NetworkAttachmentConfig {
+) ([]swarm.NetworkAttachmentConfig, error) {
 	if len(networks) == 0 {
 		return []swarm.NetworkAttachmentConfig{
 			{
 				Target:  namespace.scope("default"),
 				Aliases: []string{name},
 			},
-		}
+		}, nil
 	}
 
 	nets := []swarm.NetworkAttachmentConfig{}
 	for networkName, network := range networks {
+		networkConfig, ok := networkConfigs[networkName]
+		if !ok {
+			return []swarm.NetworkAttachmentConfig{}, fmt.Errorf("invalid network: %s", networkName)
+		}
 		var aliases []string
 		if network != nil {
 			aliases = network.Aliases
 		}
+		target := namespace.scope(networkName)
+		if networkConfig.External.External {
+			target = networkName
+		}
 		nets = append(nets, swarm.NetworkAttachmentConfig{
-			Target:  namespace.scope(networkName),
+			Target:  target,
 			Aliases: append(aliases, name),
 		})
 	}
-	return nets
+	return nets, nil
 }
 
 func convertVolumes(
@@ -472,9 +509,10 @@ func convertServices(
 
 	services := config.Services
 	volumes := config.Volumes
+	networks := config.Networks
 
 	for _, service := range services {
-		serviceSpec, err := convertService(namespace, service, volumes)
+		serviceSpec, err := convertService(namespace, service, networks, volumes)
 		if err != nil {
 			return nil, err
 		}
@@ -487,6 +525,7 @@ func convertServices(
 func convertService(
 	namespace namespace,
 	service composetypes.ServiceConfig,
+	networkConfigs map[string]composetypes.NetworkConfig,
 	volumes map[string]composetypes.VolumeConfig,
 ) (swarm.ServiceSpec, error) {
 	name := namespace.scope(service.Name)
@@ -523,6 +562,11 @@ func convertService(
 		return swarm.ServiceSpec{}, err
 	}
 
+	networks, err := convertServiceNetworks(service.Networks, networkConfigs, namespace, service.Name)
+	if err != nil {
+		return swarm.ServiceSpec{}, err
+	}
+
 	serviceSpec := swarm.ServiceSpec{
 		Annotations: swarm.Annotations{
 			Name:   name,
@@ -553,7 +597,7 @@ func convertService(
 		},
 		EndpointSpec: endpoint,
 		Mode:         mode,
-		Networks:     convertServiceNetworks(service.Networks, namespace, service.Name),
+		Networks:     networks,
 		UpdateConfig: convertUpdateConfig(service.Deploy.UpdateConfig),
 	}
 

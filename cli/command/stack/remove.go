@@ -49,7 +49,7 @@ func runRemove(dockerCli *command.DockerCli, opts removeOptions) error {
 		}
 	}
 
-	networks, err := getNetworks(ctx, client, namespace)
+	networks, err := getStackNetworks(ctx, client, namespace)
 	if err != nil {
 		return err
 	}
