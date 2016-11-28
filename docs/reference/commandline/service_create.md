@@ -474,6 +474,35 @@ accessible at the target port on every node regardless if there is a task for
 the service running on the node. For more information refer to
 [Use swarm mode routing mesh](https://docs.docker.com/engine/swarm/ingress/).
 
+### Publish a port for TCP only or UCP only
+
+By default, when you publish a port, it is a TCP port. You can
+specifically publish a UDP port instead of or in addition to a TCP port. When
+you publish both TCP and UDP ports, Docker 1.12.2 and earlier require you to
+add the suffix `/tcp` for TCP ports. Otherwise it is optional.
+
+#### TCP only
+
+The following two commands are equivalent.
+
+```bash
+$ docker service create --name dns-cache -p 53:53 dns-cache
+
+$ docker service create --name dns-cache -p 53:53/tcp dns-cache
+```
+
+#### TCP and UDP
+
+```bash
+$ docker service create --name dns-cache -p 53:53/tcp -p 53:53/udp dns-cache
+```
+
+#### UDP only
+
+```bash
+$ docker service create --name dns-cache -p 53:53/udp dns-cache
+```
+
 ### Create services using templates
 
 You can use templates for some flags of `service create`, using the syntax
