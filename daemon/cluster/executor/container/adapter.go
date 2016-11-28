@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/distribution/digest"
 	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
@@ -52,6 +53,11 @@ func newContainerAdapter(b executorpkg.Backend, task *api.Task, secrets exec.Sec
 
 func (c *containerAdapter) pullImage(ctx context.Context) error {
 	spec := c.container.spec()
+
+	// Skip pulling if the image is referenced by image ID.
+	if _, err := digest.ParseDigest(spec.Image); err == nil {
+		return nil
+	}
 
 	// Skip pulling if the image is referenced by digest and already
 	// exists locally.
