@@ -2665,6 +2665,7 @@ _docker_service_update() {
 			--dns-search
 			--env-file
 			--group
+			--host
 			--mode
 			--name
 			--port
@@ -2674,6 +2675,14 @@ _docker_service_update() {
 			--env-file)
 				_filedir
 				return
+				;;
+			--host)
+				case "$cur" in
+					*:)
+						__docker_complete_resolved_hostname
+						return
+						;;
+				esac
 				;;
 			--mode)
 				COMPREPLY=( $( compgen -W "global replicated" -- "$cur" ) )
@@ -2698,6 +2707,8 @@ _docker_service_update() {
 			--dns-search-rm
 			--group-add
 			--group-rm
+			--host-add
+			--host-rm
 			--image
 			--port-add
 			--port-rm
@@ -2711,6 +2722,14 @@ _docker_service_update() {
 			--group-rm)
 				COMPREPLY=( $(compgen -g -- "$cur") )
 				return
+				;;
+			--host-add|--host-rm)
+				case "$cur" in
+					*:)
+						__docker_complete_resolved_hostname
+						return
+						;;
+				esac
 				;;
 			--image)
 				__docker_complete_image_repos_and_tags
