@@ -11,7 +11,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/system"
 	"golang.org/x/net/context"
 )
 
@@ -210,7 +210,7 @@ func TestUpdateClientVersion(t *testing.T) {
 		client: newMockClient(func(req *http.Request) (*http.Response, error) {
 			splitQuery := strings.Split(req.URL.Path, "/")
 			queryVersion := splitQuery[1]
-			b, err := json.Marshal(types.Version{
+			b, err := json.Marshal(system.VersionOKBody{
 				APIVersion: queryVersion,
 			})
 			if err != nil {

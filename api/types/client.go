@@ -8,6 +8,7 @@ import (
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
+	"github.com/docker/docker/api/types/system"
 	"github.com/docker/go-units"
 )
 
@@ -258,8 +259,8 @@ type ResizeOptions struct {
 
 // VersionResponse holds version information for the client and the server
 type VersionResponse struct {
-	Client *Version
-	Server *Version
+	Client *system.VersionOKBody
+	Server *system.VersionOKBody
 }
 
 // ServerOK returns true when the client could connect to the docker server

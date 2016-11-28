@@ -8,6 +8,7 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/system"
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cli/command"
 	"github.com/docker/docker/dockerversion"
@@ -76,7 +77,7 @@ func runVersion(dockerCli *command.DockerCli, opts *versionOptions) error {
 	}
 
 	vd := types.VersionResponse{
-		Client: &types.Version{
+		Client: &system.VersionOKBody{
 			Version:    dockerversion.Version,
 			APIVersion: APIVersion,
 			GoVersion:  runtime.Version(),
