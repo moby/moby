@@ -25,12 +25,12 @@ Options:
       --autolock                        Enable manager autolocking (requiring an unlock key to start a stopped manager)
       --cert-expiry duration            Validity period for node certificates (ns|us|ms|s|m|h) (default 2160h0m0s)
       --dispatcher-heartbeat duration   Dispatcher heartbeat period (ns|us|ms|s|m|h) (default 5s)
-      --external-ca value               Specifications of one or more certificate signing endpoints
+      --external-ca external-ca         Specifications of one or more certificate signing endpoints
       --force-new-cluster               Force create a new cluster from current state
       --help                            Print usage
-      --listen-addr value               Listen address (format: <ip|interface>[:port])
-      --max-snapshots int               Number of additional Raft snapshots to retain
-      --snapshot-interval int           Number of log entries between Raft snapshots
+      --listen-addr node-addr           Listen address (format: <ip|interface>[:port]) (default 0.0.0.0:2377)
+      --max-snapshots uint              Number of additional Raft snapshots to retain
+      --snapshot-interval uint          Number of log entries between Raft snapshots (default 10000)
       --task-history-limit int          Task history retention limit (default 5)
 ```
 
