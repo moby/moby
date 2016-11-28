@@ -144,6 +144,9 @@ func (filters Args) Add(name, value string) {
 func (filters Args) Del(name, value string) {
 	if _, ok := filters.fields[name]; ok {
 		delete(filters.fields[name], value)
+		if len(filters.fields[name]) == 0 {
+			delete(filters.fields, name)
+		}
 	}
 }
 
