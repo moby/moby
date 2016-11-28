@@ -384,7 +384,7 @@ func convertVolumeToMount(
 		source = stackVolume.External.Name
 	} else {
 		volumeOptions = &mount.VolumeOptions{
-			Labels: stackVolume.Labels,
+			Labels: getStackLabels(namespace.name, stackVolume.Labels),
 			NoCopy: isNoCopy(mode),
 		}
 
