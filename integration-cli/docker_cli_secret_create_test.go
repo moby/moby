@@ -46,3 +46,61 @@ func (s *DockerSwarmSuite) TestSecretCreateWithLabels(c *check.C) {
 	c.Assert(secret.Spec.Labels["key1"], checker.Equals, "value1")
 	c.Assert(secret.Spec.Labels["key2"], checker.Equals, "value2")
 }
+
+// Test case for 28884
+func (s *DockerSwarmSuite) TestSecretCreateResolve(c *check.C) {
+	d := s.AddDaemon(c, true, true)
+
+	name := "foo"
+	id := d.createSecret(c, swarm.SecretSpec{
+		swarm.Annotations{
+			Name: name,
+		},
+		[]byte("foo"),
+	})
+	c.Assert(id, checker.Not(checker.Equals), "", check.Commentf("secrets: %s", id))
+
+	fake := d.createSecret(c, swarm.SecretSpec{
+		swarm.Annotations{
+			Name: id,
+		},
+		[]byte("fake foo"),
+	})
+	c.Assert(fake, checker.Not(checker.Equals), "", check.Commentf("secrets: %s", fake))
+
+	out, err := d.Cmd("secret", "ls")
+	c.Assert(err, checker.IsNil)
+	c.Assert(out, checker.Contains, name)
+	c.Assert(out, checker.Contains, fake)
+
+	out, err = d.Cmd("secret", "rm", id)
+	c.Assert(out, checker.Contains, id)
+
+	// Fake one will remain
+	out, err = d.Cmd("secret", "ls")
+	c.Assert(err, checker.IsNil)
+	c.Assert(out, checker.Not(checker.Contains), name)
+	c.Assert(out, checker.Contains, fake)
+
+	// Remove based on name prefix of the fake one
+	// (which is the same as the ID of foo one) should not work
+	// as search is only done based on:
+	// - Full ID
+	// - Full Name
+	// - Partial ID (prefix)
+	out, err = d.Cmd("secret", "rm", id[:5])
+	c.Assert(out, checker.Not(checker.Contains), id)
+	out, err = d.Cmd("secret", "ls")
+	c.Assert(err, checker.IsNil)
+	c.Assert(out, checker.Not(checker.Contains), name)
+	c.Assert(out, checker.Contains, fake)
+
+	// Remove based on ID prefix of the fake one should succeed
+	out, err = d.Cmd("secret", "rm", fake[:5])
+	c.Assert(out, checker.Contains, fake)
+	out, err = d.Cmd("secret", "ls")
+	c.Assert(err, checker.IsNil)
+	c.Assert(out, checker.Not(checker.Contains), name)
+	c.Assert(out, checker.Not(checker.Contains), id)
+	c.Assert(out, checker.Not(checker.Contains), fake)
+}
