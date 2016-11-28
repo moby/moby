@@ -993,7 +993,7 @@ func (c *networkConfiguration) Conflicts(o *networkConfiguration) error {
 		return fmt.Errorf("same configuration")
 	}
 
-	// Also empty, becasue only one network with empty name is allowed
+	// Also empty, because only one network with empty name is allowed
 	if c.BridgeName == o.BridgeName {
 		return fmt.Errorf("networks have same bridge name")
 	}
