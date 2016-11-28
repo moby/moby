@@ -642,7 +642,7 @@ The `credentialspec` must be in the format `file://spec.txt` or `registry://keyn
 
 ### Stop container with timeout (--stop-timeout)
 
-The `--stop-timeout` flag sets the the timeout (in seconds) that a pre-defined (see `--stop-signal`) system call
+The `--stop-timeout` flag sets the timeout (in seconds) that a pre-defined (see `--stop-signal`) system call
 signal that will be sent to the container to exit. After timeout elapses the container will be killed with SIGKILL.
 
 ### Specify isolation technology for container (--isolation)
