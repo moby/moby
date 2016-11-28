@@ -19,6 +19,7 @@ import (
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/plugin/distribution"
 	"github.com/docker/docker/plugin/v2"
+	"github.com/docker/docker/reference"
 	"golang.org/x/net/context"
 )
 
@@ -60,27 +61,7 @@ func (pm *Manager) Inspect(name string) (tp types.Plugin, err error) {
 	return p.PluginObj, nil
 }
 
-// Pull pulls a plugin and computes the privileges required to install it.
-func (pm *Manager) Pull(name string, metaHeader http.Header, authConfig *types.AuthConfig) (types.PluginPrivileges, error) {
-	ref, err := distribution.GetRef(name)
-	if err != nil {
-		logrus.Debugf("error in distribution.GetRef: %v", err)
-		return nil, err
-	}
-	name = ref.String()
-
-	if p, _ := pm.pluginStore.GetByName(name); p != nil {
-		logrus.Debug("plugin already exists")
-		return nil, fmt.Errorf("%s exists", name)
-	}
-
-	pluginID := stringid.GenerateNonCryptoID()
-
-	if err := os.MkdirAll(filepath.Join(pm.libRoot, pluginID), 0755); err != nil {
-		logrus.Debugf("error in MkdirAll: %v", err)
-		return nil, err
-	}
-
+func (pm *Manager) pull(ref reference.Named, metaHeader http.Header, authConfig *types.AuthConfig, pluginID string) (types.PluginPrivileges, error) {
 	pd, err := distribution.Pull(ref, pm.registryService, metaHeader, authConfig)
 	if err != nil {
 		logrus.Debugf("error in distribution.Pull(): %v", err)
@@ -99,8 +80,40 @@ func (pm *Manager) Pull(name string, metaHeader http.Header, authConfig *types.A
 	}
 	pm.pluginStore.Add(p)
 
-	pm.pluginEventLogger(pluginID, name, "pull")
+	pm.pluginEventLogger(pluginID, ref.String(), "pull")
 	return p.ComputePrivileges(), nil
+}
+
+// Pull pulls a plugin and computes the privileges required to install it.
+func (pm *Manager) Pull(name string, metaHeader http.Header, authConfig *types.AuthConfig) (types.PluginPrivileges, error) {
+	ref, err := distribution.GetRef(name)
+	if err != nil {
+		logrus.Debugf("error in distribution.GetRef: %v", err)
+		return nil, err
+	}
+	name = ref.String()
+
+	if p, _ := pm.pluginStore.GetByName(name); p != nil {
+		logrus.Debug("plugin already exists")
+		return nil, fmt.Errorf("%s exists", name)
+	}
+
+	pluginID := stringid.GenerateNonCryptoID()
+	pluginDir := filepath.Join(pm.libRoot, pluginID)
+	if err := os.MkdirAll(pluginDir, 0755); err != nil {
+		logrus.Debugf("error in MkdirAll: %v", err)
+		return nil, err
+	}
+
+	priv, err := pm.pull(ref, metaHeader, authConfig, pluginID)
+	if err != nil {
+		if err := os.RemoveAll(pluginDir); err != nil {
+			logrus.Warnf("unable to remove %q from failed plugin pull: %v", pluginDir, err)
+		}
+		return nil, err
+	}
+
+	return priv, nil
 }
 
 // List displays the list of plugins and associated metadata.
