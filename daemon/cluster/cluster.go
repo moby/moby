@@ -1829,6 +1829,12 @@ func validateAndSanitizeInitRequest(req *types.InitRequest) error {
 		return fmt.Errorf("invalid ListenAddr %q: %v", req.ListenAddr, err)
 	}
 
+	if req.Spec.Annotations.Name == "" {
+		req.Spec.Annotations.Name = "default"
+	} else if req.Spec.Annotations.Name != "default" {
+		return errors.New(`swarm spec must be named "default"`)
+	}
+
 	return nil
 }
 
