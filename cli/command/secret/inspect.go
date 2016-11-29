@@ -25,7 +25,7 @@ func newSecretInspectCommand(dockerCli *command.DockerCli) *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVarP(&opts.format, "format", "f", "", "Format the output using the given go template")
+	cmd.Flags().StringVarP(&opts.format, "format", "f", "", "Format the output using the given Go template")
 	return cmd
 }
 

@@ -16,9 +16,10 @@ type removeOptions struct {
 
 func newSecretRemoveCommand(dockerCli *command.DockerCli) *cobra.Command {
 	return &cobra.Command{
-		Use:   "rm SECRET [SECRET...]",
-		Short: "Remove one or more secrets",
-		Args:  cli.RequiresMinArgs(1),
+		Use:     "rm SECRET [SECRET...]",
+		Aliases: []string{"remove"},
+		Short:   "Remove one or more secrets",
+		Args:    cli.RequiresMinArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			opts := removeOptions{
 				names: args,
