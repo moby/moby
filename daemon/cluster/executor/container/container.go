@@ -585,7 +585,13 @@ func (c *containerConfig) networkCreateRequest(name string) (clustertypes.Networ
 		options.IPAM.Config = append(options.IPAM.Config, c)
 	}
 
-	return clustertypes.NetworkCreateRequest{na.Network.ID, types.NetworkCreateRequest{Name: name, NetworkCreate: options}}, nil
+	return clustertypes.NetworkCreateRequest{
+		ID: na.Network.ID,
+		NetworkCreateRequest: types.NetworkCreateRequest{
+			Name:          name,
+			NetworkCreate: options,
+		},
+	}, nil
 }
 
 func (c containerConfig) eventFilter() filters.Args {
