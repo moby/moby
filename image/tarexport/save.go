@@ -234,7 +234,9 @@ func (s *saveSession) saveImage(id image.ID) (map[layer.DiffID]distribution.Desc
 	var layers []string
 	var foreignSrcs map[layer.DiffID]distribution.Descriptor
 	for i := range img.RootFS.DiffIDs {
-		v1Img := image.V1Image{}
+		v1Img := image.V1Image{
+			Created: img.Created,
+		}
 		if i == len(img.RootFS.DiffIDs)-1 {
 			v1Img = img.V1Image
 		}
