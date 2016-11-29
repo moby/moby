@@ -18,6 +18,10 @@
 # ppc64le/golang is a debian:jessie based image with golang installed
 FROM ppc64le/golang:1.6.3
 
+# allow replacing httpredir or deb mirror
+ARG APT_MIRROR=deb.debian.org
+RUN sed -ri "s/(httpredir|deb).debian.org/$APT_MIRROR/g" /etc/apt/sources.list
+
 # Packaged dependencies
 RUN apt-get update && apt-get install -y \
 	apparmor \
