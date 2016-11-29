@@ -182,7 +182,7 @@ func (l *tarexporter) loadLayer(filename string, rootFS image.RootFS, id string,
 			return nil, err
 		}
 
-		r = progress.NewProgressReader(rawTar, progressOutput, fileInfo.Size(), stringid.TruncateID(id), "Loading layer")
+		r = progress.NewProgressReader(rawTar, progressOutput, 0, fileInfo.Size(), stringid.TruncateID(id), "Loading layer")
 	} else {
 		r = rawTar
 	}

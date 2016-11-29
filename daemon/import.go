@@ -75,7 +75,7 @@ func (daemon *Daemon) ImportImage(src string, repository, tag string, msg string
 			return err
 		}
 		progressOutput := sf.NewProgressOutput(outStream, true)
-		rc = progress.NewProgressReader(resp.Body, progressOutput, resp.ContentLength, "", "Importing")
+		rc = progress.NewProgressReader(resp.Body, progressOutput, 0, resp.ContentLength, "", "Importing")
 	}
 
 	defer rc.Close()

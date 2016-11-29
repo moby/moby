@@ -1,9 +1,16 @@
 package xfer
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"io/ioutil"
+	"os"
+	"path/filepath"
+	"sync"
 	"time"
 
 	"github.com/Sirupsen/logrus"
@@ -22,8 +29,11 @@ const maxDownloadAttempts = 5
 // registers and downloads those, taking into account dependencies between
 // layers.
 type LayerDownloadManager struct {
-	layerStore layer.Store
-	tm         TransferManager
+	layerStore               layer.Store
+	tm                       TransferManager
+	cachedLayerRefsLock      sync.Mutex
+	cachedLayerRefs          map[string]layer.Layer
+	imagePullCheckpointsPath string
 }
 
 // SetConcurrency set the max concurrent downloads for each pull
@@ -33,10 +43,16 @@ func (ldm *LayerDownloadManager) SetConcurrency(concurrency int) {
 
 // NewLayerDownloadManager returns a new LayerDownloadManager.
 func NewLayerDownloadManager(layerStore layer.Store, concurrencyLimit int) *LayerDownloadManager {
-	return &LayerDownloadManager{
-		layerStore: layerStore,
-		tm:         NewTransferManager(concurrencyLimit),
+	ldm := &LayerDownloadManager{
+		layerStore:               layerStore,
+		tm:                       NewTransferManager(concurrencyLimit, filepath.Join(os.Getenv("TMPDIR"), "resumable_layer_downloads")),
+		cachedLayerRefs:          make(map[string]layer.Layer),
+		imagePullCheckpointsPath: filepath.Join(os.Getenv("TMPDIR"), "resumable_image_downloads"),
 	}
+
+	ldm.loadLayerRefs()
+
+	return ldm
 }
 
 type downloadTransfer struct {
@@ -64,7 +80,7 @@ type DownloadDescriptor interface {
 	// before).
 	DiffID() (layer.DiffID, error)
 	// Download is called to perform the download.
-	Download(ctx context.Context, progressOutput progress.Output) (io.ReadCloser, int64, error)
+	Download(ctx context.Context, progressOutput progress.Output, cacheDir string) (io.ReadCloser, int64, error)
 	// Close is called when the download manager is finished with this
 	// descriptor and will not call Download again or read from the reader
 	// that Download returned.
@@ -81,6 +97,104 @@ type DownloadDescriptorWithRegistered interface {
 	Registered(diffID layer.DiffID)
 }
 
+// CollectGarbage removes any cached layers associated with downloads that are
+// still in progress
+func (ldm *LayerDownloadManager) CollectGarbage() error {
+	// we just flush the whole resumption cache and then save it
+	ldm.cachedLayerRefsLock.Lock()
+	for _, l := range ldm.cachedLayerRefs {
+		layer.ReleaseAndLog(ldm.layerStore, l)
+	}
+	ldm.cachedLayerRefs = make(map[string]layer.Layer)
+	ldm.cachedLayerRefsLock.Unlock()
+	ldm.saveLayerRefs()
+
+	return ldm.tm.CollectGarbage()
+}
+
+func (ldm *LayerDownloadManager) loadLayerRefs() {
+	data, err := ioutil.ReadFile(ldm.imagePullCheckpointsPath)
+	if err != nil {
+		logrus.Warnf("failed to read image pull checkpoint: %s", err)
+	}
+	checkpoint := map[string]string{}
+	err = json.Unmarshal(data, &checkpoint)
+	if err != nil {
+		logrus.Warnf("failed to unmarshal pull checkpoint: %s", err)
+	}
+	ldm.cachedLayerRefsLock.Lock()
+	defer ldm.cachedLayerRefsLock.Unlock()
+	for key, chainID := range checkpoint {
+		layer, err := ldm.layerStore.Get(layer.ChainID(chainID))
+		if err != nil {
+			logrus.Warnf("failed to grab reference to %s during image pull checkpoint restore: %s", chainID, err)
+		} else {
+			ldm.cachedLayerRefs[key] = layer
+		}
+	}
+}
+
+// TODO: make atomic
+func (ldm *LayerDownloadManager) saveLayerRefs() {
+	checkpoint := map[string]string{}
+	ldm.cachedLayerRefsLock.Lock()
+	for key, layer := range ldm.cachedLayerRefs {
+		checkpoint[key] = string(layer.ChainID())
+	}
+	ldm.cachedLayerRefsLock.Unlock()
+	data, _ := json.Marshal(checkpoint)
+	err := ioutil.WriteFile(ldm.imagePullCheckpointsPath, data, 0600)
+	if err != nil {
+		logrus.Warnf("failed to write out image pull checkpoint: %s", err)
+	}
+}
+
+func (ldm *LayerDownloadManager) checkpointImage(resumptionCacheKey string, srcLayerRef layer.Layer) {
+	// We grab and cache a new reference so that we don't lose it
+	// when the download releases it. We need to do that before
+	// Transfer.Release is called.
+	layerRef, err := ldm.layerStore.Get(srcLayerRef.ChainID())
+	// if for any reason we fail to get this reference, we just don't cache
+	// this download and move on
+	if err != nil {
+		logrus.Warnf("failed to get reference to %s: %s", layerRef.ChainID(), err)
+	} else {
+		// Cache this reference so that we can resume from any of the layers in
+		// the chain when someone tries to download an image with shared layers
+		ldm.cachedLayerRefsLock.Lock()
+		// If there was already an earlier checkpoint for this image, release and
+		// replace it
+		if lOld, ok := ldm.cachedLayerRefs[resumptionCacheKey]; ok {
+			layer.ReleaseAndLog(ldm.layerStore, lOld)
+		}
+		ldm.cachedLayerRefs[resumptionCacheKey] = layerRef
+		ldm.cachedLayerRefsLock.Unlock()
+		ldm.saveLayerRefs()
+	}
+}
+
+func (ldm *LayerDownloadManager) removeCheckpoint(resumptionCacheKey string) {
+	ldm.cachedLayerRefsLock.Lock()
+	if l, ok := ldm.cachedLayerRefs[resumptionCacheKey]; ok {
+		layer.ReleaseAndLog(ldm.layerStore, l)
+		delete(ldm.cachedLayerRefs, resumptionCacheKey)
+	}
+	ldm.cachedLayerRefsLock.Unlock()
+	ldm.saveLayerRefs()
+}
+
+// descriptorsToCacheKey shortens the key so we don't end up with a crazy looking file
+// this function needs to be cryptographically secure to prevent cache poisoning
+func descriptorsToCacheKey(descriptors []DownloadDescriptor) string {
+	hash := sha256.New()
+	for _, descriptor := range descriptors {
+		hash.Write([]byte(descriptor.Key()))
+	}
+	out := make([]byte, hash.Size()*2)
+	hex.Encode(out, hash.Sum(nil))
+	return string(out)
+}
+
 // Download is a blocking function which ensures the requested layers are
 // present in the layer store. It uses the string returned by the Key method to
 // deduplicate downloads. If a given layer is not already known to present in
@@ -90,40 +204,55 @@ type DownloadDescriptorWithRegistered interface {
 // release function once it is is done with the returned RootFS object.
 func (ldm *LayerDownloadManager) Download(ctx context.Context, initialRootFS image.RootFS, layers []DownloadDescriptor, progressOutput progress.Output) (image.RootFS, func(), error) {
 	var (
+		// the topLayer is the last layer that we were able to find in the
+		// layerStore and didn't have to download
 		topLayer       layer.Layer
 		topDownload    *downloadTransfer
 		watcher        *Watcher
-		missingLayer   bool
 		transferKey    = ""
 		downloadsByKey = make(map[string]*downloadTransfer)
+		// This channel is non-blocking and is used to receive layer references
+		// from downloads if and when they fully download layers
+		layerRefsCh = make(chan layer.Layer, len(layers))
 	)
 
+	// Look for a rootFS/layer we can resume from before trying to download layers.
+	// This loop goes up to resumeLevel layers
 	rootFS := initialRootFS
+	resumeLevel := 0
+	transferKey = ""
 	for _, descriptor := range layers {
-		key := descriptor.Key()
-		transferKey += key
-
-		if !missingLayer {
-			missingLayer = true
-			diffID, err := descriptor.DiffID()
+		diffID, err := descriptor.DiffID()
+		if err == nil {
+			// getRootFS is a temporary rootfs we create to check whether or
+			// not we'll be able to find an instance of it in the layer store
+			getRootFS := rootFS
+			getRootFS.Append(diffID)
+			l, err := ldm.layerStore.Get(getRootFS.ChainID())
 			if err == nil {
-				getRootFS := rootFS
-				getRootFS.Append(diffID)
-				l, err := ldm.layerStore.Get(getRootFS.ChainID())
-				if err == nil {
-					// Layer already exists.
-					logrus.Debugf("Layer already exists: %s", descriptor.ID())
-					progress.Update(progressOutput, descriptor.ID(), "Already exists")
-					if topLayer != nil {
-						layer.ReleaseAndLog(ldm.layerStore, topLayer)
-					}
-					topLayer = l
-					missingLayer = false
-					rootFS.Append(diffID)
-					continue
+				// Layer already exists.
+				logrus.Debugf("Layer already exists: %s", descriptor.ID())
+				progress.Update(progressOutput, descriptor.ID(), "Already exists")
+				if topLayer != nil {
+					layer.ReleaseAndLog(ldm.layerStore, topLayer)
 				}
+				topLayer = l
+				rootFS.Append(diffID)
+				resumeLevel++
+				key := descriptor.Key()
+				transferKey += key
+			} else {
+				// if we failed to get the layer for this level for any
+				// reason, we give up and start downloading it instead
+				break
 			}
 		}
+	}
+
+	// This loop starts at resumeLevel and continues for the rest of the layers
+	for _, descriptor := range layers[resumeLevel:] {
+		key := descriptor.Key()
+		transferKey += key
 
 		// Does this layer have the same data as a previous layer in
 		// the stack? If so, avoid downloading it more than once.
@@ -141,10 +270,10 @@ func (ldm *LayerDownloadManager) Download(ctx context.Context, initialRootFS ima
 
 		var xferFunc DoFunc
 		if topDownload != nil {
-			xferFunc = ldm.makeDownloadFunc(descriptor, "", topDownload)
+			xferFunc = ldm.makeDownloadFunc(descriptor, "", topDownload, layerRefsCh)
 			defer topDownload.Transfer.Release(watcher)
 		} else {
-			xferFunc = ldm.makeDownloadFunc(descriptor, rootFS.ChainID(), nil)
+			xferFunc = ldm.makeDownloadFunc(descriptor, rootFS.ChainID(), nil, layerRefsCh)
 		}
 		topDownloadUncasted, watcher = ldm.tm.Transfer(transferKey, xferFunc, progressOutput)
 		topDownload = topDownloadUncasted.(*downloadTransfer)
@@ -152,6 +281,7 @@ func (ldm *LayerDownloadManager) Download(ctx context.Context, initialRootFS ima
 	}
 
 	if topDownload == nil {
+		// Nothing to download. This means we can just return
 		return rootFS, func() {
 			if topLayer != nil {
 				layer.ReleaseAndLog(ldm.layerStore, topLayer)
@@ -159,8 +289,13 @@ func (ldm *LayerDownloadManager) Download(ctx context.Context, initialRootFS ima
 		}, nil
 	}
 
+	// A download's checkpoint is uniquely identified by the stack of descriptors it's for
+	resumptionCacheKey := descriptorsToCacheKey(layers)
+	logrus.Debugf("resumption cache key for this download: %s", resumptionCacheKey)
+
 	// Won't be using the list built up so far - will generate it
-	// from downloaded layers instead.
+	// from downloaded layers instead because we might not know the DiffIDs
+	// ahead of time.
 	rootFS.DiffIDs = []layer.DiffID{}
 
 	defer func() {
@@ -169,12 +304,22 @@ func (ldm *LayerDownloadManager) Download(ctx context.Context, initialRootFS ima
 		}
 	}()
 
-	select {
-	case <-ctx.Done():
-		topDownload.Transfer.Release(watcher)
-		return rootFS, func() {}, ctx.Err()
-	case <-topDownload.Done():
-		break
+	// cache layers as they come in
+done:
+	for {
+		select {
+		case layerRef := <-layerRefsCh:
+			// any layers received here will be new, so we want to
+			// checkpoint this download to each layer as they come in
+			ldm.checkpointImage(resumptionCacheKey, layerRef)
+		case <-ctx.Done():
+			// we don't do anything special upon cancellation because we've been
+			// checkpointing the progress as layers were coming in
+			topDownload.Transfer.Release(watcher)
+			return rootFS, func() {}, ctx.Err()
+		case <-topDownload.Done():
+			break done
+		}
 	}
 
 	l, err := topDownload.result()
@@ -183,8 +328,9 @@ func (ldm *LayerDownloadManager) Download(ctx context.Context, initialRootFS ima
 		return rootFS, func() {}, err
 	}
 
-	// Must do this exactly len(layers) times, so we don't include the
-	// base layer on Windows.
+	// Construct the final rootFS form the diffIDs of the layers by walking up the
+	// chain of parents. We must do this exactly len(layers) times, so we don't
+	// include the base layer on Windows.
 	for range layers {
 		if l == nil {
 			topDownload.Transfer.Release(watcher)
@@ -193,6 +339,13 @@ func (ldm *LayerDownloadManager) Download(ctx context.Context, initialRootFS ima
 		rootFS.DiffIDs = append([]layer.DiffID{l.DiffID()}, rootFS.DiffIDs...)
 		l = l.Parent()
 	}
+
+	// Now we've successfully downloaded an image so we remove any layer reference
+	// that we've previously cached for resumption of this image. If there were
+	// two pulls for the same image, we don't care - we just clean this up because
+	// we know at least one download has succeeded and we don't need this cache any more.
+	ldm.removeCheckpoint(resumptionCacheKey)
+
 	return rootFS, func() { topDownload.Transfer.Release(watcher) }, err
 }
 
@@ -201,8 +354,8 @@ func (ldm *LayerDownloadManager) Download(ctx context.Context, initialRootFS ima
 // complete before the registration step, and registers the downloaded data
 // on top of parentDownload's resulting layer. Otherwise, it registers the
 // layer on top of the ChainID given by parentLayer.
-func (ldm *LayerDownloadManager) makeDownloadFunc(descriptor DownloadDescriptor, parentLayer layer.ChainID, parentDownload *downloadTransfer) DoFunc {
-	return func(progressChan chan<- progress.Progress, start <-chan struct{}, inactive chan<- struct{}) Transfer {
+func (ldm *LayerDownloadManager) makeDownloadFunc(descriptor DownloadDescriptor, parentLayer layer.ChainID, parentDownload *downloadTransfer, layerRefsCh chan layer.Layer) DoFunc {
+	return func(progressChan chan<- progress.Progress, start <-chan struct{}, inactive chan<- struct{}, cachePath string) Transfer {
 		d := &downloadTransfer{
 			Transfer:   NewTransfer(),
 			layerStore: ldm.layerStore,
@@ -246,7 +399,7 @@ func (ldm *LayerDownloadManager) makeDownloadFunc(descriptor DownloadDescriptor,
 			defer descriptor.Close()
 
 			for {
-				downloadReader, size, err = descriptor.Download(d.Transfer.Context(), progressOutput)
+				downloadReader, size, err = descriptor.Download(d.Transfer.Context(), progressOutput, cachePath)
 				if err == nil {
 					break
 				}
@@ -310,7 +463,7 @@ func (ldm *LayerDownloadManager) makeDownloadFunc(descriptor DownloadDescriptor,
 				parentLayer = l.ChainID()
 			}
 
-			reader := progress.NewProgressReader(ioutils.NewCancelReadCloser(d.Transfer.Context(), downloadReader), progressOutput, size, descriptor.ID(), "Extracting")
+			reader := progress.NewProgressReader(ioutils.NewCancelReadCloser(d.Transfer.Context(), downloadReader), progressOutput, 0, size, descriptor.ID(), "Extracting")
 			defer reader.Close()
 
 			inflatedLayerData, err := archive.DecompressStream(reader)
@@ -336,6 +489,9 @@ func (ldm *LayerDownloadManager) makeDownloadFunc(descriptor DownloadDescriptor,
 					d.err = fmt.Errorf("failed to register layer: %v", err)
 				}
 				return
+			} else {
+				// send all successful layers on the channel
+				layerRefsCh <- d.layer
 			}
 
 			progress.Update(progressOutput, descriptor.ID(), "Pull complete")
@@ -344,10 +500,18 @@ func (ldm *LayerDownloadManager) makeDownloadFunc(descriptor DownloadDescriptor,
 				withRegistered.Registered(d.layer.DiffID())
 			}
 
+			// If we've gotten this far, mark the transfer as successful so the
+			// resumable download cache directory can be cleaned up
+			if d.layer != nil {
+				d.Transfer.SetSuccess()
+			}
+
 			// Doesn't actually need to be its own goroutine, but
 			// done like this so we can defer close(c).
 			go func() {
 				<-d.Transfer.Released()
+				// we release the layer here because the next download has already
+				// taken a reference to it, so we don't need this one
 				if d.layer != nil {
 					layer.ReleaseAndLog(d.layerStore, d.layer)
 				}
@@ -366,7 +530,7 @@ func (ldm *LayerDownloadManager) makeDownloadFunc(descriptor DownloadDescriptor,
 // interfere with the progress reporting for sourceDownload, which has the same
 // Key.
 func (ldm *LayerDownloadManager) makeDownloadFuncFromDownload(descriptor DownloadDescriptor, sourceDownload *downloadTransfer, parentDownload *downloadTransfer) DoFunc {
-	return func(progressChan chan<- progress.Progress, start <-chan struct{}, inactive chan<- struct{}) Transfer {
+	return func(progressChan chan<- progress.Progress, start <-chan struct{}, inactive chan<- struct{}, cachePath string) Transfer {
 		d := &downloadTransfer{
 			Transfer:   NewTransfer(),
 			layerStore: ldm.layerStore,

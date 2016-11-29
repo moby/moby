@@ -20,10 +20,11 @@ type Reader struct {
 }
 
 // NewProgressReader creates a new ProgressReader.
-func NewProgressReader(in io.ReadCloser, out Output, size int64, id, action string) *Reader {
+func NewProgressReader(in io.ReadCloser, out Output, start, size int64, id, action string) *Reader {
 	return &Reader{
 		in:          in,
 		out:         out,
+		current:     start,
 		size:        size,
 		id:          id,
 		action:      action,

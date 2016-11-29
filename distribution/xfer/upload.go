@@ -27,7 +27,7 @@ func (lum *LayerUploadManager) SetConcurrency(concurrency int) {
 // NewLayerUploadManager returns a new LayerUploadManager.
 func NewLayerUploadManager(concurrencyLimit int) *LayerUploadManager {
 	return &LayerUploadManager{
-		tm: NewTransferManager(concurrencyLimit),
+		tm: NewTransferManager(concurrencyLimit, ""),
 	}
 }
 
@@ -97,7 +97,7 @@ func (lum *LayerUploadManager) Upload(ctx context.Context, layers []UploadDescri
 }
 
 func (lum *LayerUploadManager) makeUploadFunc(descriptor UploadDescriptor) DoFunc {
-	return func(progressChan chan<- progress.Progress, start <-chan struct{}, inactive chan<- struct{}) Transfer {
+	return func(progressChan chan<- progress.Progress, start <-chan struct{}, inactive chan<- struct{}, cacheDir string) Transfer {
 		u := &uploadTransfer{
 			Transfer: NewTransfer(),
 		}

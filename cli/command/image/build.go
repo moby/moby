@@ -248,7 +248,7 @@ func runBuild(dockerCli *command.DockerCli, options buildOptions) error {
 		progressOutput = &lastProgressOutput{output: progressOutput}
 	}
 
-	var body io.Reader = progress.NewProgressReader(buildCtx, progressOutput, 0, "", "Sending build context to Docker daemon")
+	var body io.Reader = progress.NewProgressReader(buildCtx, progressOutput, 0, 0, "", "Sending build context to Docker daemon")
 
 	var memory int64
 	if options.memory != "" {

@@ -639,6 +639,8 @@ func (s *DockerRegistrySuite) TestPullFailsWithAlteredLayer(c *check.C) {
 	if err := os.RemoveAll(filepath.Join(dockerBasePath, "image", s.d.storageDriver, "distribution")); err != nil {
 		c.Fatalf("error clearing distribution cache: %v", err)
 	}
+	// TODO: figure out why this test is failing: looks like the layer
+	// verification is broken or the cache is not cleared after a successful pull... this seems to happen only in experimental
 
 	// Pull from the registry using the <name>@<digest> reference.
 	imageReference := fmt.Sprintf("%s@%s", repoName, manifestDigest)

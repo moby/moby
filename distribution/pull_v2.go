@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"net/url"
 	"os"
+	"path/filepath"
 	"runtime"
 
 	"github.com/Sirupsen/logrus"
@@ -152,16 +153,17 @@ func (ld *v2LayerDescriptor) DiffID() (layer.DiffID, error) {
 	return ld.V2MetadataService.GetDiffID(ld.digest)
 }
 
-func (ld *v2LayerDescriptor) Download(ctx context.Context, progressOutput progress.Output) (io.ReadCloser, int64, error) {
+func (ld *v2LayerDescriptor) Download(ctx context.Context, progressOutput progress.Output, cachePath string) (io.ReadCloser, int64, error) {
 	logrus.Debugf("pulling blob %q", ld.digest)
 
 	var (
 		err    error
 		offset int64
+		size   int64
 	)
 
 	if ld.tmpFile == nil {
-		ld.tmpFile, err = createDownloadFile()
+		offset, ld.tmpFile, ld.verifier, err = resumeOrCreateDownloadFile(progressOutput, cachePath, ld.digest, ld.ID())
 		if err != nil {
 			return nil, 0, xfer.DoNotRetry{Err: err}
 		}
@@ -175,96 +177,102 @@ func (ld *v2LayerDescriptor) Download(ctx context.Context, progressOutput progre
 			if err := os.Remove(ld.tmpFile.Name()); err != nil {
 				logrus.Errorf("Failed to remove temp file: %s", ld.tmpFile.Name())
 			}
-			ld.tmpFile, err = createDownloadFile()
+			ld.tmpFile, err = createDownloadFile(cachePath)
 			if err != nil {
 				return nil, 0, xfer.DoNotRetry{Err: err}
 			}
-		} else if offset != 0 {
-			logrus.Debugf("attempting to resume download of %q from %d bytes", ld.digest, offset)
 		}
+	}
+	if offset != 0 {
+		logrus.Debugf("attempting to resume download of %q from %d bytes", ld.digest, offset)
 	}
 
 	tmpFile := ld.tmpFile
 
-	layerDownload, err := ld.open(ctx)
-	if err != nil {
-		logrus.Errorf("Error initiating layer download: %v", err)
-		if err == distribution.ErrBlobUnknown {
-			return nil, 0, xfer.DoNotRetry{Err: err}
-		}
-		return nil, 0, retryOnError(err)
-	}
-
-	if offset != 0 {
-		_, err := layerDownload.Seek(offset, os.SEEK_SET)
+	if ld.verifier == nil || !ld.verifier.Verified() {
+		progress.Update(progressOutput, ld.ID(), "Connecting")
+		layerDownload, err := ld.open(ctx)
 		if err != nil {
-			if err := ld.truncateDownloadFile(); err != nil {
+			logrus.Errorf("Error initiating layer download: %v", err)
+			if err == distribution.ErrBlobUnknown {
 				return nil, 0, xfer.DoNotRetry{Err: err}
 			}
-			return nil, 0, err
-		}
-	}
-	size, err := layerDownload.Seek(0, os.SEEK_END)
-	if err != nil {
-		// Seek failed, perhaps because there was no Content-Length
-		// header. This shouldn't fail the download, because we can
-		// still continue without a progress bar.
-		size = 0
-	} else {
-		if size != 0 && offset > size {
-			logrus.Debug("Partial download is larger than full blob. Starting over")
-			offset = 0
-			if err := ld.truncateDownloadFile(); err != nil {
-				return nil, 0, xfer.DoNotRetry{Err: err}
-			}
+			return nil, 0, retryOnError(err)
 		}
 
-		// Restore the seek offset either at the beginning of the
-		// stream, or just after the last byte we have from previous
-		// attempts.
-		_, err = layerDownload.Seek(offset, os.SEEK_SET)
-		if err != nil {
-			return nil, 0, err
-		}
-	}
-
-	reader := progress.NewProgressReader(ioutils.NewCancelReadCloser(ctx, layerDownload), progressOutput, size-offset, ld.ID(), "Downloading")
-	defer reader.Close()
-
-	if ld.verifier == nil {
-		ld.verifier, err = digest.NewDigestVerifier(ld.digest)
-		if err != nil {
-			return nil, 0, xfer.DoNotRetry{Err: err}
-		}
-	}
-
-	_, err = io.Copy(tmpFile, io.TeeReader(reader, ld.verifier))
-	if err != nil {
-		if err == transport.ErrWrongCodeForByteRange {
-			if err := ld.truncateDownloadFile(); err != nil {
-				return nil, 0, xfer.DoNotRetry{Err: err}
-			}
-			return nil, 0, err
-		}
-		return nil, 0, retryOnError(err)
-	}
-
-	progress.Update(progressOutput, ld.ID(), "Verifying Checksum")
-
-	if !ld.verifier.Verified() {
-		err = fmt.Errorf("filesystem layer verification failed for digest %s", ld.digest)
-		logrus.Error(err)
-
-		// Allow a retry if this digest verification error happened
-		// after a resumed download.
 		if offset != 0 {
-			if err := ld.truncateDownloadFile(); err != nil {
-				return nil, 0, xfer.DoNotRetry{Err: err}
+			_, err := layerDownload.Seek(offset, os.SEEK_SET)
+			if err != nil {
+				if err := ld.truncateDownloadFile(); err != nil {
+					return nil, 0, xfer.DoNotRetry{Err: err}
+				}
+				return nil, 0, err
+			}
+		}
+		size, err = layerDownload.Seek(0, os.SEEK_END)
+		if err != nil {
+			// Seek failed, perhaps because there was no Content-Length
+			// header. This shouldn't fail the download, because we can
+			// still continue without a progress bar.
+			size = 0
+		} else {
+			if size != 0 && offset > size {
+				logrus.Debug("Partial download is larger than full blob. Starting over")
+				offset = 0
+				if err := ld.truncateDownloadFile(); err != nil {
+					return nil, 0, xfer.DoNotRetry{Err: err}
+				}
 			}
 
-			return nil, 0, err
+			// Restore the seek offset either at the beginning of the
+			// stream, or just after the last byte we have from previous
+			// attempts.
+			_, err = layerDownload.Seek(offset, os.SEEK_SET)
+			if err != nil {
+				return nil, 0, err
+			}
 		}
-		return nil, 0, xfer.DoNotRetry{Err: err}
+
+		reader := progress.NewProgressReader(ioutils.NewCancelReadCloser(ctx, layerDownload), progressOutput, offset, size, ld.ID(), "Downloading")
+		defer reader.Close()
+
+		if ld.verifier == nil {
+			ld.verifier, err = digest.NewDigestVerifier(ld.digest)
+			if err != nil {
+				return nil, 0, xfer.DoNotRetry{Err: err}
+			}
+		}
+
+		_, err = io.Copy(tmpFile, io.TeeReader(reader, ld.verifier))
+		if err != nil {
+			if err == transport.ErrWrongCodeForByteRange {
+				if err := ld.truncateDownloadFile(); err != nil {
+					return nil, 0, xfer.DoNotRetry{Err: err}
+				}
+				return nil, 0, err
+			}
+			return nil, 0, retryOnError(err)
+		}
+
+		progress.Update(progressOutput, ld.ID(), "Verifying Checksum")
+
+		if !ld.verifier.Verified() {
+			err = fmt.Errorf("filesystem layer verification failed for digest %s", ld.digest)
+			logrus.Error(err)
+
+			// Allow a retry if this digest verification error happened
+			// after a resumed download.
+			if offset != 0 {
+				if err := ld.truncateDownloadFile(); err != nil {
+					return nil, 0, xfer.DoNotRetry{Err: err}
+				}
+
+				return nil, 0, err
+			}
+			return nil, 0, xfer.DoNotRetry{Err: err}
+		}
+	} else {
+		size = offset
 	}
 
 	progress.Update(progressOutput, ld.ID(), "Download complete")
@@ -288,10 +296,6 @@ func (ld *v2LayerDescriptor) Download(ctx context.Context, progressOutput progre
 
 	return ioutils.NewReadCloserWrapper(tmpFile, func() error {
 		tmpFile.Close()
-		err := os.RemoveAll(tmpFile.Name())
-		if err != nil {
-			logrus.Errorf("Failed to remove temp file: %s", tmpFile.Name())
-		}
 		return err
 	}), size, nil
 }
@@ -299,9 +303,6 @@ func (ld *v2LayerDescriptor) Download(ctx context.Context, progressOutput progre
 func (ld *v2LayerDescriptor) Close() {
 	if ld.tmpFile != nil {
 		ld.tmpFile.Close()
-		if err := os.RemoveAll(ld.tmpFile.Name()); err != nil {
-			logrus.Errorf("Failed to remove temp file: %s", ld.tmpFile.Name())
-		}
 	}
 }
 
@@ -859,6 +860,66 @@ func fixManifestLayers(m *schema1.Manifest) error {
 	return nil
 }
 
-func createDownloadFile() (*os.File, error) {
-	return ioutil.TempFile("", "GetImageBlob")
+var v2LayerDataFilename = "v2data"
+
+func resumeOrCreateDownloadFile(progressOutput progress.Output, cachePath string, dgst digest.Digest, id string) (int64, *os.File, digest.Verifier, error) {
+	dataPath := filepath.Join(cachePath, v2LayerDataFilename)
+	_, err := os.Stat(dataPath)
+	if err == nil {
+		return resumeDownloadFile(progressOutput, cachePath, dgst, id)
+	}
+	if os.IsNotExist(err) {
+		tmpFile, err := createDownloadFile(cachePath)
+		if err != nil {
+			return 0, nil, nil, err
+		}
+		return 0, tmpFile, nil, nil
+	}
+	return 0, nil, nil, err
+}
+
+func resumeDownloadFile(progressOutput progress.Output, cachePath string, dgst digest.Digest, id string) (int64, *os.File, digest.Verifier, error) {
+	dataPath := filepath.Join(cachePath, v2LayerDataFilename)
+	verifier, err := digest.NewDigestVerifier(dgst)
+	if err != nil {
+		return 0, nil, nil, err
+	}
+
+	// the last parameter here is ignored because this mode never creates a file
+	file, err := os.OpenFile(dataPath, os.O_RDWR, 0)
+	if err != nil {
+		return 0, nil, nil, err
+	}
+	info, err := file.Stat()
+	if err != nil {
+		return 0, nil, nil, err
+	}
+	size := info.Size()
+
+	// TODO(vikstrous) make a mechanism for storing the partial digest and offset atomically
+	// and resuming using that instead of re-hashing everything up to the current
+	// offset
+	reader := progress.NewProgressReader(ioutil.NopCloser(file), progressOutput, 0, size, id, "Rehashing")
+	defer reader.Close()
+
+	_, err = io.Copy(verifier, reader)
+	if err != nil {
+		return 0, nil, nil, err
+	}
+	return size, file, verifier, nil
+}
+
+func createDownloadFile(cachePath string) (*os.File, error) {
+	dataPath := filepath.Join(cachePath, v2LayerDataFilename)
+
+	if err := os.MkdirAll(cachePath, 700); err != nil {
+		return nil, err
+	}
+
+	file, err := os.Create(dataPath)
+	if err != nil {
+		return nil, err
+	}
+
+	return file, nil
 }

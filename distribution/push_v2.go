@@ -433,7 +433,7 @@ func (pd *v2PushDescriptor) uploadUsingSession(
 	// don't care if this fails; best effort
 	size, _ := pd.layer.DiffSize()
 
-	reader := progress.NewProgressReader(ioutils.NewCancelReadCloser(ctx, arch), progressOutput, size, pd.ID(), "Pushing")
+	reader := progress.NewProgressReader(ioutils.NewCancelReadCloser(ctx, arch), progressOutput, 0, size, pd.ID(), "Pushing")
 	compressedReader, compressionDone := compress(reader)
 	defer func() {
 		reader.Close()

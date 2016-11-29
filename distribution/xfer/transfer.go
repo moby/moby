@@ -1,9 +1,16 @@
 package xfer
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
+	"fmt"
+	"io/ioutil"
+	"os"
+	"path/filepath"
 	"runtime"
 	"sync"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/progress"
 	"golang.org/x/net/context"
 )
@@ -40,6 +47,10 @@ type Transfer interface {
 	Release(*Watcher)
 	Context() context.Context
 	Close()
+	// SetSuccess marks the transfer as having succeeded so that its cache can
+	// be cleaned up
+	SetSuccess()
+	IsSuccess() bool
 	Done() <-chan struct{}
 	Released() <-chan struct{}
 	Broadcast(masterProgressChan <-chan progress.Progress)
@@ -75,6 +86,9 @@ type transfer struct {
 	// a detaching watcher won't miss an event that was sent before it
 	// started detaching.
 	broadcastSyncChan chan struct{}
+
+	// indicates if the transfer succeeded or not
+	success bool
 }
 
 // NewTransfer creates a new transfer.
@@ -92,6 +106,16 @@ func NewTransfer() Transfer {
 	t.ctx, t.cancel = context.WithCancel(context.Background())
 
 	return t
+}
+
+// Marks the transfer as succeeded so that the transfer manager knows to clean
+// up its cache directory
+func (t *transfer) SetSuccess() {
+	t.success = true
+}
+
+func (t *transfer) IsSuccess() bool {
+	return t.success
 }
 
 // Broadcast copies the progress and error output to all viewers.
@@ -269,7 +293,7 @@ func (t *transfer) Close() {
 // signals to the transfer manager that the job is no longer actively moving
 // data - for example, it may be waiting for a dependent transfer to finish.
 // This prevents it from taking up a slot.
-type DoFunc func(progressChan chan<- progress.Progress, start <-chan struct{}, inactive chan<- struct{}) Transfer
+type DoFunc func(progressChan chan<- progress.Progress, start <-chan struct{}, inactive chan<- struct{}, cachePath string) Transfer
 
 // TransferManager is used by LayerDownloadManager and LayerUploadManager to
 // schedule and deduplicate transfers. It is up to the TransferManager
@@ -281,6 +305,9 @@ type TransferManager interface {
 	Transfer(key string, xferFunc DoFunc, progressOutput progress.Output) (Transfer, *Watcher)
 	// SetConcurrency set the concurrencyLimit so that it is adjustable daemon reload
 	SetConcurrency(concurrency int)
+	// CollectGarbage purges the cache directory of any caches for transfers
+	// that are not in progress
+	CollectGarbage() error
 }
 
 type transferManager struct {
@@ -290,13 +317,15 @@ type transferManager struct {
 	activeTransfers  int
 	transfers        map[string]Transfer
 	waitingTransfers []chan struct{}
+	cacheRoot        string
 }
 
 // NewTransferManager returns a new TransferManager.
-func NewTransferManager(concurrencyLimit int) TransferManager {
+func NewTransferManager(concurrencyLimit int, cacheRoot string) TransferManager {
 	return &transferManager{
 		concurrencyLimit: concurrencyLimit,
 		transfers:        make(map[string]Transfer),
+		cacheRoot:        cacheRoot,
 	}
 }
 
@@ -305,6 +334,85 @@ func (tm *transferManager) SetConcurrency(concurrency int) {
 	tm.mu.Lock()
 	tm.concurrencyLimit = concurrency
 	tm.mu.Unlock()
+}
+
+var cacheSubdir = "resumable_downloads"
+
+// hashKey hashes the key to create the directory name because otherwise tche path
+// would be too long. This hash needs to be secure or else multiple downloads could
+// share the same cache directory and cause unexpected and potentially malicious behaviour.
+func hashKey(key string) string {
+	hash := sha256.New()
+	hash.Write([]byte(key))
+	encoded := make([]byte, hash.Size()*2)
+	hex.Encode(encoded, hash.Sum(nil))
+	return string(encoded)
+}
+
+func (tm *transferManager) cachePathForKeyHash(keyHash string) string {
+	return filepath.Join(tm.cacheRoot, keyHash)
+}
+
+func (tm *transferManager) cleanUpByKeyHash(keyHash string) error {
+	return os.RemoveAll(tm.cachePathForKeyHash(keyHash))
+}
+
+// CollectGarbage purges the cache directory of any caches for transfers
+// that are not in progress
+func (tm *transferManager) CollectGarbage() error {
+	if tm.cacheRoot == "" {
+		return nil
+	}
+
+	tm.mu.Lock()
+	defer tm.mu.Unlock()
+
+	// mark
+	allKeyHashes := map[string]struct{}{}
+	cacheDirs, err := ioutil.ReadDir(tm.cacheRoot)
+	if err != nil {
+		logrus.Warnf("Failed to list %s: %s", tm.cacheRoot, err)
+	}
+	for _, cacheDir := range cacheDirs {
+		cacheDirName := cacheDir.Name()
+		keyHash := filepath.Base(cacheDirName)
+
+		// safety check to make sure we don't delete anything that's not a hash
+		// we created
+		decoded := make([]byte, sha256.Size)
+		l, err := hex.Decode(decoded, []byte(keyHash))
+		if err != nil {
+			logrus.Debug("Ignoring unexpected cache directory %s: %s", cacheDirName, err)
+			continue
+		}
+		if l != sha256.Size {
+			logrus.Debug("Ignoring unexpected cache directory %s because the hash's decoded length is %s, not %s", l, sha256.Size)
+			continue
+		}
+
+		allKeyHashes[keyHash] = struct{}{}
+	}
+
+	// set subtraction allKeyHashes = allKeyHashes - tm.transfers
+	for key := range tm.transfers {
+		cacheDirName := tm.cachePathForKeyHash(hashKey(key))
+		keyHash := filepath.Base(cacheDirName)
+		delete(allKeyHashes, keyHash)
+	}
+
+	// sweep
+	errs := []error{}
+	for keyHash := range allKeyHashes {
+		err = tm.cleanUpByKeyHash(keyHash)
+		if err != nil {
+			errs = append(errs, err)
+		}
+	}
+
+	if len(errs) > 0 {
+		return fmt.Errorf("Failed to delete some files during transferManager.CollectGarbage: %s", errs)
+	}
+	return nil
 }
 
 // Transfer checks if a transfer matching the given key is in progress. If not,
@@ -354,7 +462,11 @@ func (tm *transferManager) Transfer(key string, xferFunc DoFunc, progressOutput 
 	}
 
 	masterProgressChan := make(chan progress.Progress)
-	xfer := xferFunc(masterProgressChan, start, inactive)
+	var cachePath string
+	if tm.cacheRoot != "" {
+		cachePath = tm.cachePathForKeyHash(hashKey(key))
+	}
+	xfer := xferFunc(masterProgressChan, start, inactive, cachePath)
 	watcher := xfer.Watch(progressOutput)
 	go xfer.Broadcast(masterProgressChan)
 	tm.transfers[key] = xfer
@@ -374,6 +486,12 @@ func (tm *transferManager) Transfer(key string, xferFunc DoFunc, progressOutput 
 					tm.inactivate(start)
 				}
 				delete(tm.transfers, key)
+				if xfer.IsSuccess() {
+					err := tm.cleanUpByKeyHash(hashKey(key))
+					if err != nil {
+						logrus.Errorf("error cleaning up transfer cache for key %s: %s", key, err)
+					}
+				}
 				tm.mu.Unlock()
 				xfer.Close()
 				return

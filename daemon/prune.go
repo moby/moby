@@ -73,6 +73,12 @@ func (daemon *Daemon) VolumesPrune(config *types.VolumesPruneConfig) (*types.Vol
 func (daemon *Daemon) ImagesPrune(config *types.ImagesPruneConfig) (*types.ImagesPruneReport, error) {
 	rep := &types.ImagesPruneReport{}
 
+	// TODO: find a better place for this
+	err := daemon.downloadManager.CollectGarbage()
+	if err != nil {
+		return rep, err
+	}
+
 	var allImages map[image.ID]*image.Image
 	if config.DanglingOnly {
 		allImages = daemon.imageStore.Heads()
