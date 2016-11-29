@@ -60,6 +60,7 @@ func (daemon *Daemon) SystemInfo() (*types.Info, error) {
 
 	var cRunning, cPaused, cStopped int32
 	daemon.containers.ApplyAll(func(c *container.Container) {
+		c.Lock()
 		switch c.StateString() {
 		case "paused":
 			atomic.AddInt32(&cPaused, 1)
@@ -68,6 +69,7 @@ func (daemon *Daemon) SystemInfo() (*types.Info, error) {
 		default:
 			atomic.AddInt32(&cStopped, 1)
 		}
+		c.Unlock()
 	})
 
 	securityOptions := []string{}
