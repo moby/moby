@@ -344,29 +344,23 @@ func (s *DockerSwarmSuite) TestSwarmContainerAttachByNetworkId(c *check.C) {
 }
 
 func (s *DockerSwarmSuite) TestOverlayAttachable(c *check.C) {
-	d1 := s.AddDaemon(c, true, true)
-	d2 := s.AddDaemon(c, true, false)
+	d := s.AddDaemon(c, true, true)
 
-	out, err := d1.Cmd("network", "create", "-d", "overlay", "--attachable", "ovnet")
+	out, err := d.Cmd("network", "create", "-d", "overlay", "--attachable", "ovnet")
 	c.Assert(err, checker.IsNil, check.Commentf(out))
 
 	// validate attachable
-	out, err = d1.Cmd("network", "inspect", "--format", "{{json .Attachable}}", "ovnet")
+	out, err = d.Cmd("network", "inspect", "--format", "{{json .Attachable}}", "ovnet")
 	c.Assert(err, checker.IsNil, check.Commentf(out))
 	c.Assert(strings.TrimSpace(out), checker.Equals, "true")
 
 	// validate containers can attache to this overlay network
-	out, err = d1.Cmd("run", "-d", "--network", "ovnet", "--name", "c1", "busybox", "top")
-	c.Assert(err, checker.IsNil, check.Commentf(out))
-	out, err = d2.Cmd("run", "-d", "--network", "ovnet", "--name", "c2", "busybox", "top")
+	out, err = d.Cmd("run", "-d", "--network", "ovnet", "--name", "c1", "busybox", "top")
 	c.Assert(err, checker.IsNil, check.Commentf(out))
 
 	// redo validation, there was a bug that the value of attachable changes after
 	// containers attach to the network
-	out, err = d1.Cmd("network", "inspect", "--format", "{{json .Attachable}}", "ovnet")
-	c.Assert(err, checker.IsNil, check.Commentf(out))
-	c.Assert(strings.TrimSpace(out), checker.Equals, "true")
-	out, err = d2.Cmd("network", "inspect", "--format", "{{json .Attachable}}", "ovnet")
+	out, err = d.Cmd("network", "inspect", "--format", "{{json .Attachable}}", "ovnet")
 	c.Assert(err, checker.IsNil, check.Commentf(out))
 	c.Assert(strings.TrimSpace(out), checker.Equals, "true")
 }
