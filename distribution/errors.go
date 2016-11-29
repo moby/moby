@@ -6,6 +6,7 @@ import (
 	"syscall"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/distribution"
 	"github.com/docker/distribution/registry/api/errcode"
 	"github.com/docker/distribution/registry/api/v2"
 	"github.com/docker/distribution/registry/client"
@@ -143,6 +144,9 @@ func retryOnError(err error) error {
 	case *client.UnexpectedHTTPResponseError:
 		return xfer.DoNotRetry{Err: err}
 	case error:
+		if err == distribution.ErrBlobUnknown {
+			return xfer.DoNotRetry{Err: err}
+		}
 		if strings.Contains(err.Error(), strings.ToLower(syscall.ENOSPC.Error())) {
 			return xfer.DoNotRetry{Err: err}
 		}
