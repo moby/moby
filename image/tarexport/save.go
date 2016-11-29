@@ -17,6 +17,7 @@ import (
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/reference"
+	"github.com/pkg/errors"
 )
 
 type imageDescriptor struct {
@@ -315,7 +316,9 @@ func (s *saveSession) saveLayer(id layer.ChainID, legacyImg image.V1Image, creat
 		if err != nil {
 			return distribution.Descriptor{}, err
 		}
-		os.Symlink(relPath, layerPath)
+		if err := os.Symlink(relPath, layerPath); err != nil {
+			return distribution.Descriptor{}, errors.Wrap(err, "error creating symlink while saving layer")
+		}
 	} else {
 		// Use system.CreateSequential rather than os.Create. This ensures sequential
 		// file access on Windows to avoid eating into MM standby list.
