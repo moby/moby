@@ -169,3 +169,31 @@ func (s *DockerSuite) TestPluginEnableDisableNegative(c *check.C) {
 	_, _, err = dockerCmdWithError("plugin", "remove", pName)
 	c.Assert(err, checker.IsNil)
 }
+
+func (s *DockerSuite) TestPluginInstallDaemonInfo(c *check.C) {
+	testRequires(c, DaemonIsLinux, Network)
+	out, _, err := dockerCmdWithError("plugin", "install", "--grant-all-permissions", pNameWithTag)
+	c.Assert(err, checker.IsNil)
+	c.Assert(strings.TrimSpace(out), checker.Contains, pNameWithTag)
+
+	out, _, err = dockerCmdWithError("plugin", "ls")
+	c.Assert(err, checker.IsNil)
+	c.Assert(out, checker.Contains, pName)
+	c.Assert(out, checker.Contains, pTag)
+	c.Assert(out, checker.Contains, "true")
+
+	out, _, err = dockerCmdWithError("info", "--format", "{{json .Plugins.Volume}}")
+	c.Assert(err, checker.IsNil)
+	c.Assert(out, checker.Contains, pNameWithTag)
+
+	_, _, err = dockerCmdWithError("plugin", "disable", pNameWithTag)
+	c.Assert(err, checker.IsNil)
+
+	out, _, err = dockerCmdWithError("plugin", "remove", pNameWithTag)
+	c.Assert(err, checker.IsNil)
+	c.Assert(out, checker.Contains, pNameWithTag)
+
+	out, _, err = dockerCmdWithError("info", "--format", "{{json .Plugins.Volume}}")
+	c.Assert(err, checker.IsNil)
+	c.Assert(out, checker.Not(checker.Contains), pNameWithTag)
+}

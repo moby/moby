@@ -170,6 +170,12 @@ func RemoveDriver(name string) (volume.Driver, error) {
 func GetDriverList() []string {
 	var driverList []string
 	drivers.Lock()
+	plugins, err := drivers.plugingetter.GetAllByCap(extName)
+	if err == nil {
+		for _, p := range plugins {
+			driverList = append(driverList, p.Name())
+		}
+	}
 	for driverName := range drivers.extensions {
 		driverList = append(driverList, driverName)
 	}
