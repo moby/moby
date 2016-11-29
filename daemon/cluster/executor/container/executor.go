@@ -114,8 +114,8 @@ func (e *executor) Configure(ctx context.Context, node *api.Node) error {
 	}
 
 	return e.backend.SetupIngress(clustertypes.NetworkCreateRequest{
-		na.Network.ID,
-		types.NetworkCreateRequest{
+		ID: na.Network.ID,
+		NetworkCreateRequest: types.NetworkCreateRequest{
 			Name:          na.Network.Spec.Annotations.Name,
 			NetworkCreate: options,
 		},
