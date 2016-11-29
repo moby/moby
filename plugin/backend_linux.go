@@ -321,7 +321,21 @@ func (pm *Manager) Set(name string, args []string) error {
 // CreateFromContext creates a plugin from the given pluginDir which contains
 // both the rootfs and the config.json and a repoName with optional tag.
 func (pm *Manager) CreateFromContext(ctx context.Context, tarCtx io.Reader, options *types.PluginCreateOptions) error {
+	repoName := options.RepoName
+	ref, err := distribution.GetRef(repoName)
+	if err != nil {
+		return err
+	}
+
+	name := ref.Name()
+	tag := distribution.GetTag(ref)
 	pluginID := stringid.GenerateNonCryptoID()
+
+	p := v2.NewPlugin(name, pluginID, pm.runRoot, pm.libRoot, tag)
+
+	if v, _ := pm.pluginStore.GetByName(p.Name()); v != nil {
+		return fmt.Errorf("plugin %q already exists", p.Name())
+	}
 
 	pluginDir := filepath.Join(pm.libRoot, pluginID)
 	if err := os.MkdirAll(pluginDir, 0755); err != nil {
@@ -329,7 +343,7 @@ func (pm *Manager) CreateFromContext(ctx context.Context, tarCtx io.Reader, opti
 	}
 
 	// In case an error happens, remove the created directory.
-	if err := pm.createFromContext(ctx, pluginID, pluginDir, tarCtx, options); err != nil {
+	if err := pm.createFromContext(ctx, tarCtx, pluginDir, repoName, p); err != nil {
 		if err := os.RemoveAll(pluginDir); err != nil {
 			logrus.Warnf("unable to remove %q from failed plugin creation: %v", pluginDir, err)
 		}
@@ -339,20 +353,11 @@ func (pm *Manager) CreateFromContext(ctx context.Context, tarCtx io.Reader, opti
 	return nil
 }
 
-func (pm *Manager) createFromContext(ctx context.Context, pluginID, pluginDir string, tarCtx io.Reader, options *types.PluginCreateOptions) error {
+func (pm *Manager) createFromContext(ctx context.Context, tarCtx io.Reader, pluginDir, repoName string, p *v2.Plugin) error {
 	if err := chrootarchive.Untar(tarCtx, pluginDir, nil); err != nil {
 		return err
 	}
 
-	repoName := options.RepoName
-	ref, err := distribution.GetRef(repoName)
-	if err != nil {
-		return err
-	}
-	name := ref.Name()
-	tag := distribution.GetTag(ref)
-
-	p := v2.NewPlugin(name, pluginID, pm.runRoot, pm.libRoot, tag)
 	if err := p.InitPlugin(); err != nil {
 		return err
 	}
