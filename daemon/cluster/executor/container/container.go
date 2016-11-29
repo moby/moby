@@ -326,11 +326,13 @@ func (c *containerConfig) healthcheck() *enginecontainer.HealthConfig {
 	}
 	interval, _ := gogotypes.DurationFromProto(hcSpec.Interval)
 	timeout, _ := gogotypes.DurationFromProto(hcSpec.Timeout)
+	startPeriod, _ := gogotypes.DurationFromProto(hcSpec.StartPeriod)
 	return &enginecontainer.HealthConfig{
-		Test:     hcSpec.Test,
-		Interval: interval,
-		Timeout:  timeout,
-		Retries:  int(hcSpec.Retries),
+		Test:        hcSpec.Test,
+		Interval:    interval,
+		Timeout:     timeout,
+		Retries:     int(hcSpec.Retries),
+		StartPeriod: startPeriod,
 	}
 }
 

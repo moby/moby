@@ -30,6 +30,10 @@ const (
 	// than this, the check is considered to have failed.
 	defaultProbeTimeout = 30 * time.Second
 
+	// The time given for the container to start before the health check starts considering
+	// the container unstable. Defaults to none.
+	defaultStartPeriod = 0 * time.Second
+
 	// Default number of consecutive failures of the health check
 	// for the container to be considered unhealthy.
 	defaultProbeRetries = 3
@@ -133,11 +137,28 @@ func handleProbeResult(d *Daemon, c *container.Container, result *types.Healthch
 	if result.ExitCode == exitStatusHealthy {
 		h.FailingStreak = 0
 		h.Status = types.Healthy
-	} else {
-		// Failure (including invalid exit code)
-		h.FailingStreak++
-		if h.FailingStreak >= retries {
-			h.Status = types.Unhealthy
+	} else { // Failure (including invalid exit code)
+		shouldIncrementStreak := true
+
+		// If the container is starting (i.e. we never had a successful health check)
+		// then we check if we are within the start period of the container in which
+		// case we do not increment the failure streak.
+		if h.Status == types.Starting {
+			startPeriod := timeoutWithDefault(c.Config.Healthcheck.StartPeriod, defaultStartPeriod)
+			timeSinceStart := result.Start.Sub(c.State.StartedAt)
+
+			// If still within the start period, then don't increment failing streak.
+			if timeSinceStart < startPeriod {
+				shouldIncrementStreak = false
+			}
+		}
+
+		if shouldIncrementStreak {
+			h.FailingStreak++
+
+			if h.FailingStreak >= retries {
+				h.Status = types.Unhealthy
+			}
 		}
 		// Else we're starting or healthy. Stay in that state.
 	}

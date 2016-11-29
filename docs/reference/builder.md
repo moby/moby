@@ -1591,6 +1591,7 @@ The options that can appear before `CMD` are:
 
 * `--interval=DURATION` (default: `30s`)
 * `--timeout=DURATION` (default: `30s`)
+* `--start-period=DURATION` (default: `0s`)
 * `--retries=N` (default: `3`)
 
 The health check will first run **interval** seconds after the container is
@@ -1601,6 +1602,11 @@ is considered to have failed.
 
 It takes **retries** consecutive failures of the health check for the container
 to be considered `unhealthy`.
+
+**start period** provides initialization time for containers that need time to bootstrap.
+Probe failure during that period will not be counted towards the maximum number of retries.
+However, if a health check succeeds during the start period, the container is considered
+started and all consecutive failures will be counted towards the maximum number of retries.
 
 There can only be one `HEALTHCHECK` instruction in a Dockerfile. If you list
 more than one then only the last `HEALTHCHECK` will take effect.

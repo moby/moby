@@ -501,8 +501,8 @@ func TestParseHealth(t *testing.T) {
 	checkError("--no-healthcheck conflicts with --health-* options",
 		"--no-healthcheck", "--health-cmd=/check.sh -q", "img", "cmd")
 
-	health = checkOk("--health-timeout=2s", "--health-retries=3", "--health-interval=4.5s", "img", "cmd")
-	if health.Timeout != 2*time.Second || health.Retries != 3 || health.Interval != 4500*time.Millisecond {
+	health = checkOk("--health-timeout=2s", "--health-retries=3", "--health-interval=4.5s", "--health-start-period=5s", "img", "cmd")
+	if health.Timeout != 2*time.Second || health.Retries != 3 || health.Interval != 4500*time.Millisecond || health.StartPeriod != 5*time.Second {
 		t.Fatalf("--health-*: got %#v", health)
 	}
 }

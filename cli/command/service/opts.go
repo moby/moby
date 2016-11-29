@@ -282,6 +282,7 @@ type healthCheckOptions struct {
 	interval      PositiveDurationOpt
 	timeout       PositiveDurationOpt
 	retries       int
+	startPeriod   PositiveDurationOpt
 	noHealthcheck bool
 }
 
@@ -301,18 +302,22 @@ func (opts *healthCheckOptions) toHealthConfig() (*container.HealthConfig, error
 		if opts.cmd != "" {
 			test = []string{"CMD-SHELL", opts.cmd}
 		}
-		var interval, timeout time.Duration
+		var interval, timeout, startPeriod time.Duration
 		if ptr := opts.interval.Value(); ptr != nil {
 			interval = *ptr
 		}
 		if ptr := opts.timeout.Value(); ptr != nil {
 			timeout = *ptr
 		}
+		if ptr := opts.startPeriod.Value(); ptr != nil {
+			startPeriod = *ptr
+		}
 		healthConfig = &container.HealthConfig{
-			Test:     test,
-			Interval: interval,
-			Timeout:  timeout,
-			Retries:  opts.retries,
+			Test:        test,
+			Interval:    interval,
+			Timeout:     timeout,
+			Retries:     opts.retries,
+			StartPeriod: startPeriod,
 		}
 	}
 	return healthConfig, nil
@@ -555,6 +560,8 @@ func addServiceFlags(flags *pflag.FlagSet, opts *serviceOptions) {
 	flags.SetAnnotation(flagHealthTimeout, "version", []string{"1.25"})
 	flags.IntVar(&opts.healthcheck.retries, flagHealthRetries, 0, "Consecutive failures needed to report unhealthy")
 	flags.SetAnnotation(flagHealthRetries, "version", []string{"1.25"})
+	flags.Var(&opts.healthcheck.startPeriod, flagHealthStartPeriod, "Start period for the container to initialize before counting retries towards unstable (ns|us|ms|s|m|h)")
+	flags.SetAnnotation(flagHealthStartPeriod, "version", []string{"1.29"})
 	flags.BoolVar(&opts.healthcheck.noHealthcheck, flagNoHealthcheck, false, "Disable any container-specified HEALTHCHECK")
 	flags.SetAnnotation(flagNoHealthcheck, "version", []string{"1.25"})
 
@@ -644,6 +651,7 @@ const (
 	flagHealthInterval          = "health-interval"
 	flagHealthRetries           = "health-retries"
 	flagHealthTimeout           = "health-timeout"
+	flagHealthStartPeriod       = "health-start-period"
 	flagNoHealthcheck           = "no-healthcheck"
 	flagSecret                  = "secret"
 	flagSecretAdd               = "secret-add"

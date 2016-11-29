@@ -22,6 +22,7 @@ keywords: "API, Docker, rcli, REST, documentation"
 * `POST /networks/create` now supports creating the ingress network, by specifying an `Ingress` boolean field. As of now this is supported only when using the overlay network driver.
 * `GET /networks/(name)` now returns an `Ingress` field showing whether the network is the ingress one.
 * `GET /networks/` now supports a `scope` filter to filter networks based on the network mode (`swarm`, `global`, or `local`).
+* `POST /containers/create`, `POST /service/create` and `POST /services/(id or name)/update` now takes the field `StartPeriod` as a part of the `HealthConfig` allowing for specification of a period during which the container should not be considered unealthy even if health checks do not pass.
 
 ## v1.28 API changes
 

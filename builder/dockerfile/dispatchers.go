@@ -540,6 +540,7 @@ func healthcheck(b *Builder, args []string, attributes map[string]bool, original
 
 		flInterval := b.flags.AddString("interval", "")
 		flTimeout := b.flags.AddString("timeout", "")
+		flStartPeriod := b.flags.AddString("start-period", "")
 		flRetries := b.flags.AddString("retries", "")
 
 		if err := b.flags.Parse(); err != nil {
@@ -573,6 +574,12 @@ func healthcheck(b *Builder, args []string, attributes map[string]bool, original
 			return err
 		}
 		healthcheck.Timeout = timeout
+
+		startPeriod, err := parseOptInterval(flStartPeriod)
+		if err != nil {
+			return err
+		}
+		healthcheck.StartPeriod = startPeriod
 
 		if flRetries.Value != "" {
 			retries, err := strconv.ParseInt(flRetries.Value, 10, 32)

@@ -36,6 +36,7 @@ Options:
       --health-interval duration           Time between running the check (ns|us|ms|s|m|h)
       --health-retries int                 Consecutive failures needed to report unhealthy
       --health-timeout duration            Maximum time to allow one check to run (ns|us|ms|s|m|h)
+      --health-start-period duration       Start period for the container to initialize before counting retries towards unstable (ns|us|ms|s|m|h) (default 0s)
       --help                               Print usage
       --host list                          Set one or more custom host-to-IP mappings (host:ip) (default [])
       --hostname string                    Container hostname
