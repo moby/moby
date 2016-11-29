@@ -189,9 +189,6 @@ func (ld *v2LayerDescriptor) Download(ctx context.Context, progressOutput progre
 	layerDownload, err := ld.open(ctx)
 	if err != nil {
 		logrus.Errorf("Error initiating layer download: %v", err)
-		if err == distribution.ErrBlobUnknown {
-			return nil, 0, xfer.DoNotRetry{Err: err}
-		}
 		return nil, 0, retryOnError(err)
 	}
 
