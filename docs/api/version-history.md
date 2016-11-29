@@ -76,7 +76,11 @@ keywords: "API, Docker, rcli, REST, documentation"
 * `DELETE /plugins/(plugin name)` delete a plugin.
 * `POST /node/(id or name)/update` now accepts both `id` or `name` to identify the node to update.
 * `GET /images/json` now support a `reference` filter.
-
+* `GET /secrets` returns information on the secrets.
+* `POST /secrets/create` creates a secret.
+* `DELETE /secrets/{id}` removes the secret `id`.
+* `GET /secrets/{id}` returns information on the secret `id`.
+* `POST /secrets/{id}/update` updates the secret `id`.
 
 ## v1.24 API changes
 

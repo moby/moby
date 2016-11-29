@@ -383,6 +383,7 @@ func (sr *swarmRouter) removeSecret(ctx context.Context, w http.ResponseWriter, 
 	if err := sr.backend.RemoveSecret(vars["id"]); err != nil {
 		return err
 	}
+	w.WriteHeader(http.StatusNoContent)
 
 	return nil
 }
