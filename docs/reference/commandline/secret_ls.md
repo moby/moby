@@ -25,11 +25,12 @@ Aliases:
 
 Options:
   -q, --quiet          Only display IDs
+      --help           Print usage
 ```
 
-Run this command from a manager to list the secrets in the Swarm.
+Run this command on a manager node to list the secrets in the Swarm.
 
-On a manager node:
+## Examples
 
 ```bash
 $ docker secret ls
