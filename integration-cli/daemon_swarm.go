@@ -317,7 +317,7 @@ func (d *SwarmDaemon) getSecret(c *check.C, id string) *swarm.Secret {
 func (d *SwarmDaemon) deleteSecret(c *check.C, id string) {
 	status, out, err := d.SockRequest("DELETE", "/secrets/"+id, nil)
 	c.Assert(err, checker.IsNil, check.Commentf(string(out)))
-	c.Assert(status, checker.Equals, http.StatusOK, check.Commentf("output: %q", string(out)))
+	c.Assert(status, checker.Equals, http.StatusNoContent, check.Commentf("output: %q", string(out)))
 }
 
 func (d *SwarmDaemon) getSwarm(c *check.C) swarm.Swarm {
