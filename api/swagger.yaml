@@ -6397,14 +6397,10 @@ paths:
             $ref: "#/definitions/ErrorResponse"
       tags: ["Plugin"]
 
-  /plugins/pull:
-    post:
-      summary: "Install a plugin"
-      operationId: "PluginPull"
-      description: |
-        Pulls and installs a plugin. After the plugin is installed, it can be enabled using the [`POST /plugins/{name}/enable` endpoint](#operation/PluginEnable).
-      produces:
-        - "application/json"
+  /plugins/privileges:
+    get:
+      summary: "Get plugin privileges"
+      operationId: "GetPluginPrivileges"
       responses:
         200:
           description: "no error"
@@ -6442,6 +6438,30 @@ paths:
       parameters:
         - name: "name"
           in: "query"
+          description: "The name of the plugin. The `:latest` tag is optional, and is the default if omitted."
+          required: true
+          type: "string"
+      tags:
+        - "Plugin"
+
+  /plugins/pull:
+    post:
+      summary: "Install a plugin"
+      operationId: "PluginPull"
+      description: |
+        Pulls and installs a plugin. After the plugin is installed, it can be enabled using the [`POST /plugins/{name}/enable` endpoint](#operation/PostPluginsEnable).
+      produces:
+        - "application/json"
+      responses:
+        204:
+          description: "no error"
+        500:
+          description: "server error"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+      parameters:
+        - name: "name"
+          in: "query"
           description: |
             The plugin to install.
 
@@ -6452,8 +6472,37 @@ paths:
           in: "header"
           description: "A base64-encoded auth configuration to use when pulling a plugin from a registry. [See the authentication section for details.](#section/Authentication)"
           type: "string"
+        - name: "body"
+          in: "body"
+          schema:
+            type: "array"
+            items:
+              description: "Describes a permission accepted by the user upon installing the plugin."
+              type: "object"
+              properties:
+                Name:
+                  type: "string"
+                Description:
+                  type: "string"
+                Value:
+                  type: "array"
+                  items:
+                    type: "string"
+            example:
+              - Name: "network"
+                Description: ""
+                Value:
+                  - "host"
+              - Name: "mount"
+                Description: ""
+                Value:
+                  - "/data"
+              - Name: "device"
+                Description: ""
+                Value:
+                  - "/dev/cpu_dma_latency"
       tags: ["Plugin"]
-  /plugins/{name}:
+  /plugins/{name}/json:
     get:
       summary: "Inspect a plugin"
       operationId: "PluginInspect"
