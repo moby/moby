@@ -570,8 +570,36 @@ func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverOutOfBandDelete(c *c
 	// simulate out of band volume deletion on plugin level
 	delete(p.vols, "test")
 
+	// test re-create with same driver
+	out, err = s.d.Cmd("volume", "create", "-d", driverName, "--opt", "foo=bar", "--name", "test")
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+	out, err = s.d.Cmd("volume", "inspect", "test")
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+
+	var vs []types.Volume
+	err = json.Unmarshal([]byte(out), &vs)
+	c.Assert(err, checker.IsNil)
+	c.Assert(vs, checker.HasLen, 1)
+	c.Assert(vs[0].Driver, checker.Equals, driverName)
+	c.Assert(vs[0].Options, checker.NotNil)
+	c.Assert(vs[0].Options["foo"], checker.Equals, "bar")
+	c.Assert(vs[0].Driver, checker.Equals, driverName)
+
+	// simulate out of band volume deletion on plugin level
+	delete(p.vols, "test")
+
+	// test create with different driver
 	out, err = s.d.Cmd("volume", "create", "-d", "local", "--name", "test")
 	c.Assert(err, checker.IsNil, check.Commentf(out))
+
+	out, err = s.d.Cmd("volume", "inspect", "test")
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+	vs = nil
+	err = json.Unmarshal([]byte(out), &vs)
+	c.Assert(err, checker.IsNil)
+	c.Assert(vs, checker.HasLen, 1)
+	c.Assert(vs[0].Options, checker.HasLen, 0)
+	c.Assert(vs[0].Driver, checker.Equals, "local")
 }
 
 func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverUnmountOnMountFail(c *check.C) {
