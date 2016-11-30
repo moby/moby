@@ -255,3 +255,24 @@ func IsErrSecretNotFound(err error) bool {
 	_, ok := err.(secretNotFoundError)
 	return ok
 }
+
+// pluginNotFoundError implements an error returned when a plugin is not in the docker host.
+type pluginNotFoundError struct {
+	name string
+}
+
+// NotFound indicates that this error type is of NotFound
+func (e pluginNotFoundError) NotFound() bool {
+	return true
+}
+
+// Error returns a string representation of a pluginNotFoundError
+func (e pluginNotFoundError) Error() string {
+	return fmt.Sprintf("Error: No such plugin: %s", e.name)
+}
+
+// IsErrPluginNotFound returns true if the error is caused
+// when a plugin is not found in the docker host.
+func IsErrPluginNotFound(err error) bool {
+	return IsErrNotFound(err)
+}
