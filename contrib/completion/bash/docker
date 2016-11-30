@@ -123,7 +123,7 @@ __docker_complete_container_ids() {
 	COMPREPLY=( $(compgen -W "${containers[*]}" -- "$cur") )
 }
 
-__docker_complete_images() {
+__docker_images() {
 	local images_args=""
 
 	case "$DOCKER_COMPLETION_SHOW_IMAGE_IDS" in
@@ -152,8 +152,11 @@ __docker_complete_images() {
 			;;
 	esac
 
-	local images=$(__docker_q images $images_args | awk "$awk_script")
-	COMPREPLY=( $(compgen -W "$images" -- "$cur") )
+	__docker_q images $images_args | awk "$awk_script" | grep -v '<none>$'
+}
+
+__docker_complete_images() {
+	COMPREPLY=( $(compgen -W "$(__docker_images)" -- "$cur") )
 	__ltrim_colon_completions "$cur"
 }
 
@@ -166,13 +169,6 @@ __docker_complete_image_repos_and_tags() {
 	local reposAndTags="$(__docker_q images | awk 'NR>1 && $1 != "<none>" { print $1; print $1":"$2 }')"
 	COMPREPLY=( $(compgen -W "$reposAndTags" -- "$cur") )
 	__ltrim_colon_completions "$cur"
-}
-
-__docker_complete_containers_and_images() {
-	__docker_complete_containers_all
-	local containers=( "${COMPREPLY[@]}" )
-	__docker_complete_images
-	COMPREPLY+=( "${containers[@]}" )
 }
 
 # __docker_networks returns a list of all networks. Additional options to
@@ -2268,7 +2264,7 @@ _docker_inspect() {
 			;;
 		--type)
 			if [ -z "$preselected_type" ] ; then
-				COMPREPLY=( $( compgen -W "image container" -- "$cur" ) )
+				COMPREPLY=( $( compgen -W "container image network node service volume" -- "$cur" ) )
 				return
 			fi
 			;;
@@ -2285,13 +2281,32 @@ _docker_inspect() {
 		*)
 			case "$type" in
 				'')
-					__docker_complete_containers_and_images
+					COMPREPLY=( $( compgen -W "
+						$(__docker_containers --all)
+						$(__docker_images)
+						$(__docker_networks)
+						$(__docker_nodes)
+						$(__docker_services)
+						$(__docker_volumes)
+					" -- "$cur" ) )
 					;;
 				container)
 					__docker_complete_containers_all
 					;;
 				image)
 					__docker_complete_images
+					;;
+				network)
+					__docker_complete_networks
+					;;
+				node)
+					__docker_complete_nodes
+					;;
+				service)
+					__docker_complete_services
+					;;
+				volume)
+					__docker_complete_volumes
 					;;
 			esac
 	esac
