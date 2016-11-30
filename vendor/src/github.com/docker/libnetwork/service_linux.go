@@ -250,8 +250,8 @@ func (c *controller) rmServiceBinding(name, sid, nid, eid string, vip net.IP, in
 func (n *network) connectedLoadbalancers() []*loadBalancer {
 	c := n.getController()
 
-	serviceBindings := make([]*service, 0, len(c.serviceBindings))
 	c.Lock()
+	serviceBindings := make([]*service, 0, len(c.serviceBindings))
 	for _, s := range c.serviceBindings {
 		serviceBindings = append(serviceBindings, s)
 	}
