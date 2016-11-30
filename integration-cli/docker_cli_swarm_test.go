@@ -1409,3 +1409,21 @@ func (s *DockerSwarmSuite) TestSwarmNetworkIPAMOptions(c *check.C) {
 	c.Assert(err, checker.IsNil, check.Commentf(out))
 	c.Assert(strings.TrimSpace(out), checker.Equals, "map[foo:bar]")
 }
+
+// TODO: migrate to a unit test
+// This test could be migrated to unit test and save costly integration test,
+// once PR #29143 is merged.
+func (s *DockerSwarmSuite) TestSwarmUpdateWithoutArgs(c *check.C) {
+	d := s.AddDaemon(c, true, true)
+
+	expectedOutput := `
+Usage:	docker swarm update [OPTIONS]
+
+Update the swarm
+
+Options:`
+
+	out, err := d.Cmd("swarm", "update")
+	c.Assert(err, checker.IsNil, check.Commentf("out: %v", out))
+	c.Assert(out, checker.Contains, expectedOutput, check.Commentf(out))
+}

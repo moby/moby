@@ -23,6 +23,12 @@ func newUpdateCommand(dockerCli *command.DockerCli) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runUpdate(dockerCli, cmd.Flags(), opts)
 		},
+		PreRunE: func(cmd *cobra.Command, args []string) error {
+			if cmd.Flags().NFlag() == 0 {
+				return pflag.ErrHelp
+			}
+			return nil
+		},
 	}
 
 	cmd.Flags().BoolVar(&opts.autolock, flagAutolock, false, "Change manager autolocking setting (true|false)")
