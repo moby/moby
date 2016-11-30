@@ -48,7 +48,7 @@ func (s *DockerSwarmSuite) TestStackDeployComposeFile(c *check.C) {
 	testStackName := "testdeploy"
 	stackArgs := []string{
 		"stack", "deploy",
-		"--compose-file", "fixtures/deploy/default.yaml",
+		"--file", "fixtures/deploy/default.yaml",
 		testStackName,
 	}
 	out, err := d.Cmd(stackArgs...)
@@ -95,7 +95,7 @@ func (s *DockerSwarmSuite) TestStackDeployWithDAB(c *check.C) {
 	// deploy
 	stackArgs := []string{
 		"stack", "deploy",
-		"--bundle-file", testDABFileName,
+		"--file", testDABFileName,
 		testStackName,
 	}
 	out, err := d.Cmd(stackArgs...)
