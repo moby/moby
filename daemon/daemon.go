@@ -796,18 +796,18 @@ func (daemon *Daemon) Shutdown() error {
 		})
 	}
 
-	// Shutdown plugins after containers. Don't change the order.
+	if daemon.layerStore != nil {
+		if err := daemon.layerStore.Cleanup(); err != nil {
+			logrus.Errorf("Error during layer Store.Cleanup(): %v", err)
+		}
+	}
+
+	// Shutdown plugins after containers and layerstore. Don't change the order.
 	daemon.pluginShutdown()
 
 	// trigger libnetwork Stop only if it's initialized
 	if daemon.netController != nil {
 		daemon.netController.Stop()
-	}
-
-	if daemon.layerStore != nil {
-		if err := daemon.layerStore.Cleanup(); err != nil {
-			logrus.Errorf("Error during layer Store.Cleanup(): %v", err)
-		}
 	}
 
 	if err := daemon.cleanupMounts(); err != nil {
