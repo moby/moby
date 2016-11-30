@@ -45,6 +45,7 @@ var (
 	iptablesPath  string
 	supportsXlock = false
 	supportsCOpt  = false
+	xLockWaitMsg  = "Another app is currently holding the xtables lock; waiting"
 	// used to lock iptables commands if xtables lock is not supported
 	bestEffortLock sync.Mutex
 	// ErrIptablesNotFound is returned when the rule is not found.
@@ -402,7 +403,7 @@ func raw(args ...string) ([]byte, error) {
 	}
 
 	// ignore iptables' message about xtables lock
-	if strings.Contains(string(output), "waiting for it to exit") {
+	if strings.Contains(string(output), xLockWaitMsg) {
 		output = []byte("")
 	}
 

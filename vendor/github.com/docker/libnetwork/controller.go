@@ -237,12 +237,13 @@ func New(cfgOptions ...config.Option) (NetworkController, error) {
 
 func (c *controller) SetClusterProvider(provider cluster.Provider) {
 	c.Lock()
-	defer c.Unlock()
 	c.cfg.Daemon.ClusterProvider = provider
+	disableProviderCh := c.cfg.Daemon.DisableProvider
+	c.Unlock()
 	if provider != nil {
 		go c.clusterAgentInit()
 	} else {
-		c.cfg.Daemon.DisableProvider <- struct{}{}
+		disableProviderCh <- struct{}{}
 	}
 }
 
@@ -293,6 +294,12 @@ func (c *controller) SetKeys(keys []*types.EncryptionKey) error {
 		return nil
 	}
 	return c.handleKeyChange(keys)
+}
+
+func (c *controller) getAgent() *agent {
+	c.Lock()
+	defer c.Unlock()
+	return c.agent
 }
 
 func (c *controller) clusterAgentInit() {

@@ -156,11 +156,10 @@ func (c *controller) rmServiceBinding(name, sid, nid, eid string, vip net.IP, in
 
 	c.Lock()
 	s, ok := c.serviceBindings[skey]
+	c.Unlock()
 	if !ok {
-		c.Unlock()
 		return nil
 	}
-	c.Unlock()
 
 	s.Lock()
 	lb, ok := s.loadBalancers[nid]
@@ -188,7 +187,9 @@ func (c *controller) rmServiceBinding(name, sid, nid, eid string, vip net.IP, in
 	if len(s.loadBalancers) == 0 {
 		// All loadbalancers for the service removed. Time to
 		// remove the service itself.
+		c.Lock()
 		delete(c.serviceBindings, skey)
+		c.Unlock()
 	}
 
 	// Remove loadbalancer service(if needed) and backend in all
