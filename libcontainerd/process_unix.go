@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	goruntime "runtime"
+	"strings"
 	"time"
 
 	containerd "github.com/docker/containerd/api/grpc/types"
@@ -86,6 +87,9 @@ func (p *process) sendCloseStdin() error {
 		Pid:        p.friendlyName,
 		CloseStdin: true,
 	})
+	if err != nil && (strings.Contains(err.Error(), "container not found") || strings.Contains(err.Error(), "process not found")) {
+		return nil
+	}
 	return err
 }
 
