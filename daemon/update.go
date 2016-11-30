@@ -7,10 +7,10 @@ import (
 )
 
 // ContainerUpdate updates configuration of the container
-func (daemon *Daemon) ContainerUpdate(name string, hostConfig *container.HostConfig, validateHostname bool) (container.ContainerUpdateOKBody, error) {
+func (daemon *Daemon) ContainerUpdate(name string, hostConfig *container.HostConfig) (container.ContainerUpdateOKBody, error) {
 	var warnings []string
 
-	warnings, err := daemon.verifyContainerSettings(hostConfig, nil, true, validateHostname)
+	warnings, err := daemon.verifyContainerSettings(hostConfig, nil, true)
 	if err != nil {
 		return container.ContainerUpdateOKBody{Warnings: warnings}, err
 	}
