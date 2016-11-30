@@ -3738,7 +3738,7 @@ paths:
 
         Either the `stream` or `logs` parameter must be `true` for this endpoint to do anything.
 
-        See [the documentation for the `docker attach` command](/engine/reference/commandline/attach/) for more details.
+        See [the documentation for the `docker attach` command](https://docs.docker.com/engine/reference/commandline/attach/) for more details.
 
         ### Hijacking
 
