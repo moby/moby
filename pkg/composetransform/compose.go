@@ -7,7 +7,8 @@ import (
 )
 
 const (
-	labelNamespace = "com.docker.stack.namespace"
+	// LabelNamespace is the label used to track stack resources
+	LabelNamespace = "com.docker.stack.namespace"
 )
 
 // Namespace mangles names by prepending the name
@@ -20,12 +21,22 @@ func (n Namespace) Scope(name string) string {
 	return n.name + "_" + name
 }
 
+// Name returns the name of the namespace
+func (n Namespace) Name() string {
+	return n.name
+}
+
+// NewNamespace returns a new Namespace for scoping of names
+func NewNamespace(name string) Namespace {
+	return Namespace{name: name}
+}
+
 // AddStackLabel returns labels with the namespace label added
 func AddStackLabel(namespace Namespace, labels map[string]string) map[string]string {
 	if labels == nil {
 		labels = make(map[string]string)
 	}
-	labels[labelNamespace] = namespace.name
+	labels[LabelNamespace] = namespace.name
 	return labels
 }
 

@@ -7,11 +7,12 @@ import (
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/client"
+	"github.com/docker/docker/pkg/composetransform"
 )
 
 func getStackFilter(namespace string) filters.Args {
 	filter := filters.NewArgs()
-	filter.Add("label", labelNamespace+"="+namespace)
+	filter.Add("label", composetransform.LabelNamespace+"="+namespace)
 	return filter
 }
 

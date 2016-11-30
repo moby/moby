@@ -16,13 +16,12 @@ import (
 	composetypes "github.com/aanand/compose-file/types"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/mount"
-	networktypes "github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cli/command"
 	dockerclient "github.com/docker/docker/client"
 	"github.com/docker/docker/opts"
+	"github.com/docker/docker/pkg/composetransform"
 	runconfigopts "github.com/docker/docker/runconfig/opts"
 	"github.com/docker/go-connections/nat"
 )
@@ -121,9 +120,9 @@ func deployCompose(ctx context.Context, dockerCli *command.DockerCli, opts deplo
 		return err
 	}
 
-	namespace := namespace{name: opts.namespace}
+	namespace := composetransform.NewNamespace(opts.namespace)
 
-	networks, externalNetworks := convertNetworks(namespace, config.Networks)
+	networks, externalNetworks := composetransform.ConvertNetworks(namespace, config.Networks)
 	if err := validateExternalNetworks(ctx, dockerCli, externalNetworks); err != nil {
 		return err
 	}
@@ -204,12 +203,12 @@ func validateExternalNetworks(
 func createNetworks(
 	ctx context.Context,
 	dockerCli *command.DockerCli,
-	namespace namespace,
+	namespace composetransform.Namespace,
 	networks map[string]types.NetworkCreate,
 ) error {
 	client := dockerCli.Client()
 
-	existingNetworks, err := getStackNetworks(ctx, client, namespace.name)
+	existingNetworks, err := getStackNetworks(ctx, client, namespace.Name())
 	if err != nil {
 		return err
 	}
@@ -220,7 +219,7 @@ func createNetworks(
 	}
 
 	for internalName, createOpts := range networks {
-		name := namespace.scope(internalName)
+		name := namespace.Scope(internalName)
 		if _, exists := existingNetworkMap[name]; exists {
 			continue
 		}
@@ -241,7 +240,7 @@ func createNetworks(
 func convertServiceNetworks(
 	networks map[string]*composetypes.ServiceNetworkConfig,
 	networkConfigs map[string]composetypes.NetworkConfig,
-	namespace namespace,
+	namespace composetransform.Namespace,
 	name string,
 ) ([]swarm.NetworkAttachmentConfig, error) {
 	if len(networks) == 0 {
@@ -273,116 +272,6 @@ func convertServiceNetworks(
 		})
 	}
 	return nets, nil
-}
-
-func convertVolumes(
-	serviceVolumes []string,
-	stackVolumes map[string]composetypes.VolumeConfig,
-	namespace namespace,
-) ([]mount.Mount, error) {
-	var mounts []mount.Mount
-
-	for _, volumeSpec := range serviceVolumes {
-		mount, err := convertVolumeToMount(volumeSpec, stackVolumes, namespace)
-		if err != nil {
-			return nil, err
-		}
-		mounts = append(mounts, mount)
-	}
-	return mounts, nil
-}
-
-func convertVolumeToMount(
-	volumeSpec string,
-	stackVolumes map[string]composetypes.VolumeConfig,
-	namespace namespace,
-) (mount.Mount, error) {
-	var source, target string
-	var mode []string
-
-	// TODO: split Windows path mappings properly
-	parts := strings.SplitN(volumeSpec, ":", 3)
-
-	switch len(parts) {
-	case 3:
-		source = parts[0]
-		target = parts[1]
-		mode = strings.Split(parts[2], ",")
-	case 2:
-		source = parts[0]
-		target = parts[1]
-	case 1:
-		target = parts[0]
-	default:
-		return mount.Mount{}, fmt.Errorf("invald volume: %s", volumeSpec)
-	}
-
-	// TODO: catch Windows paths here
-	if strings.HasPrefix(source, "/") {
-		return mount.Mount{
-			Type:        mount.TypeBind,
-			Source:      source,
-			Target:      target,
-			ReadOnly:    isReadOnly(mode),
-			BindOptions: getBindOptions(mode),
-		}, nil
-	}
-
-	stackVolume, exists := stackVolumes[source]
-	if !exists {
-		return mount.Mount{}, fmt.Errorf("undefined volume: %s", source)
-	}
-
-	var volumeOptions *mount.VolumeOptions
-	if stackVolume.External.Name != "" {
-		source = stackVolume.External.Name
-	} else {
-		volumeOptions = &mount.VolumeOptions{
-			Labels: getStackLabels(namespace.name, stackVolume.Labels),
-			NoCopy: isNoCopy(mode),
-		}
-
-		if stackVolume.Driver != "" {
-			volumeOptions.DriverConfig = &mount.Driver{
-				Name:    stackVolume.Driver,
-				Options: stackVolume.DriverOpts,
-			}
-		}
-		source = namespace.scope(source)
-	}
-	return mount.Mount{
-		Type:          mount.TypeVolume,
-		Source:        source,
-		Target:        target,
-		ReadOnly:      isReadOnly(mode),
-		VolumeOptions: volumeOptions,
-	}, nil
-}
-
-func modeHas(mode []string, field string) bool {
-	for _, item := range mode {
-		if item == field {
-			return true
-		}
-	}
-	return false
-}
-
-func isReadOnly(mode []string) bool {
-	return modeHas(mode, "ro")
-}
-
-func isNoCopy(mode []string) bool {
-	return modeHas(mode, "nocopy")
-}
-
-func getBindOptions(mode []string) *mount.BindOptions {
-	for _, item := range mode {
-		if strings.Contains(item, "private") || strings.Contains(item, "shared") || strings.Contains(item, "slave") {
-			return &mount.BindOptions{Propagation: mount.Propagation(item)}
-		}
-	}
-	return nil
 }
 
 func deployServices(
@@ -494,7 +383,7 @@ func convertService(
 		return swarm.ServiceSpec{}, err
 	}
 
-	mounts, err := convertVolumes(service.Volumes, volumes, namespace)
+	mounts, err := composetransform.ConvertVolumes(service.Volumes, volumes, namespace)
 	if err != nil {
 		// TODO: better error message (include service name)
 		return swarm.ServiceSpec{}, err
