@@ -2,7 +2,6 @@
 title: "stack deploy"
 description: "The stack deploy command description and usage"
 keywords: "stack, deploy, up"
-advisory: "experimental"
 ---
 
 <!-- This file is maintained within the docker/docker Github
@@ -14,7 +13,7 @@ advisory: "experimental"
      will be rejected.
 -->
 
-# stack deploy (experimental)
+# stack deploy
 
 ```markdown
 Usage:  docker stack deploy [OPTIONS] STACK
@@ -26,7 +25,7 @@ Aliases:
 
 Options:
       --bundle-file string    Path to a Distributed Application Bundle file
-      --compose-file string   Path to a Compose file
+  -c, --compose-file string   Path to a Compose file
       --help                  Print usage
       --with-registry-auth    Send registry authentication details to Swarm agents
 ```

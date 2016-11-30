@@ -2,6 +2,7 @@ package secret
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cli/command"
@@ -15,8 +16,8 @@ type removeOptions struct {
 
 func newSecretRemoveCommand(dockerCli *command.DockerCli) *cobra.Command {
 	return &cobra.Command{
-		Use:   "rm SECRET [SECRET]",
-		Short: "Remove a secret",
+		Use:   "rm SECRET [SECRET...]",
+		Short: "Remove one or more secrets",
 		Args:  cli.RequiresMinArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			opts := removeOptions{
@@ -36,12 +37,19 @@ func runSecretRemove(dockerCli *command.DockerCli, opts removeOptions) error {
 		return err
 	}
 
+	var errs []string
+
 	for _, id := range ids {
 		if err := client.SecretRemove(ctx, id); err != nil {
-			fmt.Fprintf(dockerCli.Out(), "WARN: %s\n", err)
+			errs = append(errs, err.Error())
+			continue
 		}
 
 		fmt.Fprintln(dockerCli.Out(), id)
+	}
+
+	if len(errs) > 0 {
+		return fmt.Errorf("%s", strings.Join(errs, "\n"))
 	}
 
 	return nil

@@ -128,7 +128,7 @@ and are automated builds:
 This example displays images with a name containing 'busybox', at least
 3 stars and are official builds:
 
-    $ docker search --filter "is-automated=true" --filter "stars=3" busybox
+    $ docker search --filter "is-official=true" --filter "stars=3" busybox
     NAME                 DESCRIPTION                                     STARS     OFFICIAL   AUTOMATED
     progrium/busybox                                                     50                   [OK]
     radial/busyboxplus   Full-chain, Internet enabled, busybox made...   8                    [OK]

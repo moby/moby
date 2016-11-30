@@ -16,12 +16,13 @@ keywords: "plugin, enable"
 # plugin enable
 
 ```markdown
-Usage:  docker plugin enable PLUGIN
+Usage:  docker plugin enable [OPTIONS] PLUGIN
 
 Enable a plugin
 
 Options:
-      --help   Print usage
+      --help          Print usage
+      --timeout int   HTTP client timeout (in seconds)
 ```
 
 Enables a plugin. The plugin must be installed before it can be enabled,

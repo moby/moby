@@ -123,8 +123,8 @@ and pass along signals. All of that is configurable:
     --sig-proxy=true: Proxy all received signals to the process (non-TTY mode only)
     -i              : Keep STDIN open even if not attached
 
-If you do not specify `-a` then Docker will [attach all standard
-streams]( https://github.com/docker/docker/blob/75a7f4d90cde0295bcfb7213004abce8d4779b75/commands.go#L1797).
+If you do not specify `-a` then Docker will [attach to both stdout and stderr
+]( https://github.com/docker/docker/blob/4118e0c9eebda2412a09ae66e90c34b85fae3275/runconfig/opts/parse.go#L267).
 You can specify to which of the three standard streams (`STDIN`, `STDOUT`,
 `STDERR`) you'd like to connect instead, as in:
 
@@ -345,13 +345,13 @@ Supported networks :
       <td class="no-wrap"><strong>container</strong>:&lt;name|id&gt;</td>
       <td>
         Use the network stack of another container, specified via
-        its *name* or *id*.
+        its <i>name</i> or <i>id</i>.
       </td>
     </tr>
     <tr>
       <td class="no-wrap"><strong>NETWORK</strong></td>
       <td>
-        Connects the container to a user created network (using `docker network create` command)
+        Connects the container to a user created network (using <code>docker network create</code> command)
       </td>
     </tr>
   </tbody>
@@ -624,15 +624,15 @@ but the volume for `/bar` will not. Volumes inherited via `--volumes-from` will 
 with the same logic -- if the original volume was specified with a name it will **not** be removed.
 
 ## Security configuration
-    --security-opt="label=user:USER"   : Set the label user for the container
-    --security-opt="label=role:ROLE"   : Set the label role for the container
-    --security-opt="label=type:TYPE"   : Set the label type for the container
-    --security-opt="label=level:LEVEL" : Set the label level for the container
-    --security-opt="label=disable"     : Turn off label confinement for the container
-    --security-opt="apparmor=PROFILE"  : Set the apparmor profile to be applied to the container
-    --security-opt="no-new-privileges" : Disable container processes from gaining new privileges
-    --security-opt="seccomp=unconfined": Turn off seccomp confinement for the container
-    --security-opt="seccomp=profile.json: White listed syscalls seccomp Json file to be used as a seccomp filter
+    --security-opt="label=user:USER"     : Set the label user for the container
+    --security-opt="label=role:ROLE"     : Set the label role for the container
+    --security-opt="label=type:TYPE"     : Set the label type for the container
+    --security-opt="label=level:LEVEL"   : Set the label level for the container
+    --security-opt="label=disable"       : Turn off label confinement for the container
+    --security-opt="apparmor=PROFILE"    : Set the apparmor profile to be applied to the container
+    --security-opt="no-new-privileges"   : Disable container processes from gaining new privileges
+    --security-opt="seccomp=unconfined"  : Turn off seccomp confinement for the container
+    --security-opt="seccomp=profile.json": White listed syscalls seccomp Json file to be used as a seccomp filter
 
 
 You can override the default labeling scheme for each container by specifying
@@ -737,7 +737,7 @@ We have four ways to set user memory usage:
       <td class="no-wrap"><strong>memory=L&lt;inf, memory-swap=2*L</strong></td>
       <td>
         (specify memory without memory-swap) The container is not allowed to
-        use more than L bytes of memory, swap *plus* memory usage is double
+        use more than L bytes of memory, swap <i>plus</i> memory usage is double
         of that.
       </td>
     </tr>
@@ -747,7 +747,7 @@ We have four ways to set user memory usage:
       </td>
       <td>
         (specify both memory and memory-swap) The container is not allowed to
-        use more than L bytes of memory, swap *plus* memory usage is limited
+        use more than L bytes of memory, swap <i>plus</i> memory usage is limited
         by S.
       </td>
     </tr>

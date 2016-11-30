@@ -86,6 +86,13 @@ func (s *DockerSwarmSuite) TestSwarmInitIPv6(c *check.C) {
 	c.Assert(out, checker.Contains, "Swarm: active")
 }
 
+func (s *DockerSwarmSuite) TestSwarmInitUnspecifiedAdvertiseAddr(c *check.C) {
+	d := s.AddDaemon(c, false, false)
+	out, err := d.Cmd("swarm", "init", "--advertise-addr", "0.0.0.0")
+	c.Assert(err, checker.NotNil)
+	c.Assert(out, checker.Contains, "advertise address must be a non-zero IP address")
+}
+
 func (s *DockerSwarmSuite) TestSwarmIncompatibleDaemon(c *check.C) {
 	// init swarm mode and stop a daemon
 	d := s.AddDaemon(c, true, true)
@@ -416,6 +423,34 @@ func (s *DockerSwarmSuite) TestSwarmContainerAttachByNetworkId(c *check.C) {
 	}
 
 	waitAndAssert(c, 3*time.Second, checkNetwork, checker.Not(checker.Contains), "testnet")
+}
+
+func (s *DockerSwarmSuite) TestOverlayAttachable(c *check.C) {
+	d1 := s.AddDaemon(c, true, true)
+	d2 := s.AddDaemon(c, true, false)
+
+	out, err := d1.Cmd("network", "create", "-d", "overlay", "--attachable", "ovnet")
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+
+	// validate attachable
+	out, err = d1.Cmd("network", "inspect", "--format", "{{json .Attachable}}", "ovnet")
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+	c.Assert(strings.TrimSpace(out), checker.Equals, "true")
+
+	// validate containers can attache to this overlay network
+	out, err = d1.Cmd("run", "-d", "--network", "ovnet", "--name", "c1", "busybox", "top")
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+	out, err = d2.Cmd("run", "-d", "--network", "ovnet", "--name", "c2", "busybox", "top")
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+
+	// redo validation, there was a bug that the value of attachable changes after
+	// containers attach to the network
+	out, err = d1.Cmd("network", "inspect", "--format", "{{json .Attachable}}", "ovnet")
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+	c.Assert(strings.TrimSpace(out), checker.Equals, "true")
+	out, err = d2.Cmd("network", "inspect", "--format", "{{json .Attachable}}", "ovnet")
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+	c.Assert(strings.TrimSpace(out), checker.Equals, "true")
 }
 
 func (s *DockerSwarmSuite) TestSwarmRemoveInternalNetwork(c *check.C) {

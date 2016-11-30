@@ -1767,7 +1767,7 @@ func (c *Cluster) populateNetworkID(ctx context.Context, client swarmapi.Control
 		apiNetwork, err := getNetwork(ctx, client, n.Target)
 		if err != nil {
 			if ln, _ := c.config.Backend.FindNetwork(n.Target); ln != nil && !ln.Info().Dynamic() {
-				err = fmt.Errorf("network %s is not eligible for docker services", ln.Name())
+				err = fmt.Errorf("The network %s cannot be used with services. Only networks scoped to the swarm can be used, such as those created with the overlay driver.", ln.Name())
 				return apierrors.NewRequestForbiddenError(err)
 			}
 			return err
@@ -1853,6 +1853,12 @@ func validateAndSanitizeInitRequest(req *types.InitRequest) error {
 	req.ListenAddr, err = validateAddr(req.ListenAddr)
 	if err != nil {
 		return fmt.Errorf("invalid ListenAddr %q: %v", req.ListenAddr, err)
+	}
+
+	if req.Spec.Annotations.Name == "" {
+		req.Spec.Annotations.Name = "default"
+	} else if req.Spec.Annotations.Name != "default" {
+		return errors.New(`swarm spec must be named "default"`)
 	}
 
 	return nil

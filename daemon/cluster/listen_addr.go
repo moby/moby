@@ -11,8 +11,8 @@ var (
 	errNoIP                    = errors.New("could not find the system's IP address")
 	errMustSpecifyListenAddr   = errors.New("must specify a listening address because the address to advertise is not recognized as a system address, and a system's IP address to use could not be uniquely identified")
 	errBadListenAddr           = errors.New("listen address must be an IP address or network interface (with optional port number)")
-	errBadAdvertiseAddr        = errors.New("advertise address must be an IP address or network interface (with optional port number)")
-	errBadDefaultAdvertiseAddr = errors.New("default advertise address must be an IP address or network interface (without a port number)")
+	errBadAdvertiseAddr        = errors.New("advertise address must be a non-zero IP address or network interface (with optional port number)")
+	errBadDefaultAdvertiseAddr = errors.New("default advertise address must be a non-zero IP address or network interface (without a port number)")
 )
 
 func resolveListenAddr(specifiedAddr string) (string, string, error) {
@@ -69,7 +69,7 @@ func (c *Cluster) resolveAdvertiseAddr(advertiseAddr, listenAddrPort string) (st
 		}
 
 		// If it's not an interface, it must be an IP (for now)
-		if net.ParseIP(advertiseHost) == nil {
+		if ip := net.ParseIP(advertiseHost); ip == nil || ip.IsUnspecified() {
 			return "", "", errBadAdvertiseAddr
 		}
 
@@ -89,7 +89,7 @@ func (c *Cluster) resolveAdvertiseAddr(advertiseAddr, listenAddrPort string) (st
 		}
 
 		// If it's not an interface, it must be an IP (for now)
-		if net.ParseIP(c.config.DefaultAdvertiseAddr) == nil {
+		if ip := net.ParseIP(c.config.DefaultAdvertiseAddr); ip == nil || ip.IsUnspecified() {
 			return "", "", errBadDefaultAdvertiseAddr
 		}
 
