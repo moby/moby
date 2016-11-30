@@ -551,7 +551,6 @@ __docker_container_subcommand() {
         "($help)--log-driver=[Default driver for container logs]:logging driver:__docker_complete_log_drivers"
         "($help)*--log-opt=[Log driver specific options]:log driver options:__docker_complete_log_options"
         "($help)--mac-address=[Container MAC address]:MAC address: "
-        "($help)*--mount=[Attach a filesystem mount to the container]:mount: "
         "($help)--name=[Container name]:name: "
         "($help)--network=[Connect a container to a network]:network mode:(bridge none container host)"
         "($help)*--network-alias=[Add network-scoped alias for the container]:alias: "

@@ -97,7 +97,6 @@ be found.
 + Add `Isolation` to the /info endpoint [#26255](https://github.com/docker/docker/pull/26255)
 + Add `userns` to the /info endpoint [#27840](https://github.com/docker/docker/pull/27840)
 - Do not allow more than one mode be requested at once in the services endpoint [#26643](https://github.com/docker/docker/pull/26643)
-+ Add `--mount` flag to `docker create` and `docker run` [#26825](https://github.com/docker/docker/pull/26825)[#28150](https://github.com/docker/docker/pull/28150)
 + Add capability to /containers/create API to specify mounts in a more granular and safer way [#22373](https://github.com/docker/docker/pull/22373)
 + Add `--format` flag to `network ls` and `volume ls` [#23475](https://github.com/docker/docker/pull/23475)
 * Allow the top-level `docker inspect` command to inspect any kind of resource [#23614](https://github.com/docker/docker/pull/23614)
