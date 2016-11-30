@@ -9,18 +9,6 @@ import (
 	"github.com/docker/docker/client"
 )
 
-const (
-	labelNamespace = "com.docker.stack.namespace"
-)
-
-func getStackLabels(namespace string, labels map[string]string) map[string]string {
-	if labels == nil {
-		labels = make(map[string]string)
-	}
-	labels[labelNamespace] = namespace
-	return labels
-}
-
 func getStackFilter(namespace string) filters.Args {
 	filter := filters.NewArgs()
 	filter.Add("label", labelNamespace+"="+namespace)
@@ -45,12 +33,4 @@ func getStackNetworks(
 	return apiclient.NetworkList(
 		ctx,
 		types.NetworkListOptions{Filters: getStackFilter(namespace)})
-}
-
-type namespace struct {
-	name string
-}
-
-func (n namespace) scope(name string) string {
-	return n.name + "_" + name
 }
