@@ -192,50 +192,6 @@ func getConfigFile(filename string) (*composetypes.ConfigFile, error) {
 	}, nil
 }
 
-func convertNetworks(
-	namespace namespace,
-	networks map[string]composetypes.NetworkConfig,
-	servicesNetworks map[string]struct{},
-) (map[string]types.NetworkCreate, []string) {
-	if networks == nil {
-		networks = make(map[string]composetypes.NetworkConfig)
-	}
-
-	externalNetworks := []string{}
-	result := make(map[string]types.NetworkCreate)
-
-	for internalName := range servicesNetworks {
-		network := networks[internalName]
-		if network.External.External {
-			externalNetworks = append(externalNetworks, network.External.Name)
-			continue
-		}
-
-		createOpts := types.NetworkCreate{
-			Labels:  getStackLabels(namespace.name, network.Labels),
-			Driver:  network.Driver,
-			Options: network.DriverOpts,
-		}
-
-		if network.Ipam.Driver != "" || len(network.Ipam.Config) > 0 {
-			createOpts.IPAM = &networktypes.IPAM{}
-		}
-
-		if network.Ipam.Driver != "" {
-			createOpts.IPAM.Driver = network.Ipam.Driver
-		}
-		for _, ipamConfig := range network.Ipam.Config {
-			config := networktypes.IPAMConfig{
-				Subnet: ipamConfig.Subnet,
-			}
-			createOpts.IPAM.Config = append(createOpts.IPAM.Config, config)
-		}
-		result[internalName] = createOpts
-	}
-
-	return result, externalNetworks
-}
-
 func validateExternalNetworks(
 	ctx context.Context,
 	dockerCli *command.DockerCli,
