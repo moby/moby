@@ -523,6 +523,7 @@ func (pd *v2PushDescriptor) layerAlreadyExists(
 		layerDigests = append(layerDigests, meta.Digest)
 	}
 
+attempts:
 	for _, dgst := range layerDigests {
 		meta := digestToMetadata[dgst]
 		logrus.Debugf("Checking for presence of layer %s (%s) in %s", diffID, dgst, pd.repoInfo.FullName())
@@ -541,15 +542,14 @@ func (pd *v2PushDescriptor) layerAlreadyExists(
 			}
 			desc.MediaType = schema2.MediaTypeLayer
 			exists = true
-			break
+			break attempts
 		case distribution.ErrBlobUnknown:
 			if meta.SourceRepository == pd.repoInfo.FullName() {
 				// remove the mapping to the target repository
 				pd.v2MetadataService.Remove(*meta)
 			}
 		default:
-			progress.Update(progressOutput, pd.ID(), "Image push failed")
-			return desc, false, retryOnError(err)
+			logrus.WithError(err).Debugf("Failed to check for presence of layer %s (%s) in %s", diffID, dgst, pd.repoInfo.FullName())
 		}
 	}
 
