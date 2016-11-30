@@ -153,7 +153,7 @@ func CreateDriver(name string) (volume.Driver, error) {
 	if name == "" {
 		name = volume.DefaultDriverName
 	}
-	return lookup(name, getter.CREATE)
+	return lookup(name, getter.ACQUIRE)
 }
 
 // RemoveDriver returns a volume driver by its name and decrements RefCount..
@@ -162,7 +162,7 @@ func RemoveDriver(name string) (volume.Driver, error) {
 	if name == "" {
 		name = volume.DefaultDriverName
 	}
-	return lookup(name, getter.REMOVE)
+	return lookup(name, getter.RELEASE)
 }
 
 // GetDriverList returns list of volume drivers registered.

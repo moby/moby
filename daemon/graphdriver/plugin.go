@@ -22,10 +22,10 @@ func lookupPlugin(name, home string, opts []string, pg plugingetter.PluginGetter
 	if err != nil {
 		return nil, fmt.Errorf("Error looking up graphdriver plugin %s: %v", name, err)
 	}
-	return newPluginDriver(name, home, opts, pl.Client())
+	return newPluginDriver(name, home, opts, pl)
 }
 
-func newPluginDriver(name, home string, opts []string, c pluginClient) (Driver, error) {
-	proxy := &graphDriverProxy{name, c}
+func newPluginDriver(name, home string, opts []string, pl plugingetter.CompatPlugin) (Driver, error) {
+	proxy := &graphDriverProxy{name, pl.Client(), pl}
 	return proxy, proxy.Init(filepath.Join(home, name), opts)
 }
