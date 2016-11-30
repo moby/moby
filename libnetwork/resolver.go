@@ -418,8 +418,12 @@ func (r *resolver) ServeDNS(w dns.ResponseWriter, query *dns.Msg) {
 			}
 
 			execErr := r.backend.ExecFunc(extConnect)
-			if execErr != nil || err != nil {
-				logrus.Debugf("Connect failed, %s", err)
+			if execErr != nil {
+				logrus.Warn(execErr)
+				continue
+			}
+			if err != nil {
+				logrus.Warnf("Connect failed: %s", err)
 				continue
 			}
 			logrus.Debugf("Query %s[%d] from %s, forwarding to %s:%s", name, query.Question[0].Qtype,
