@@ -7770,3 +7770,36 @@ paths:
           type: "string"
           description: "ID of the secret"
       tags: ["Secret"]
+  /secrets/{id}/update:
+    post:
+      summary: "Update a Secret"
+      operationId: "SecretUpdate"
+      responses:
+        200:
+          description: "no error"
+        404:
+          description: "no such secret"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        500:
+          description: "server error"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+      parameters:
+        - name: "id"
+          in: "path"
+          description: "The ID of the secret"
+          type: "string"
+          required: true
+        - name: "body"
+          in: "body"
+          schema:
+            $ref: "#/definitions/SecretSpec"
+          description: "The spec of the secret to update. Currently, only the Labels field can be updated. All other fields must remain unchanged from the [SecretInspect endpoint](#operation/SecretInspect) response values."
+        - name: "version"
+          in: "query"
+          description: "The version number of the secret object being updated. This is required to avoid conflicting writes."
+          type: "integer"
+          format: "int64"
+          required: true
+      tags: ["Secret"]
