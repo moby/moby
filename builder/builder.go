@@ -129,7 +129,7 @@ type Backend interface {
 	ContainerWait(containerID string, timeout time.Duration) (int, error)
 	// ContainerUpdateCmdOnBuild updates container.Path and container.Args
 	ContainerUpdateCmdOnBuild(containerID string, cmd []string) error
-	// ContainerCreateWorkdir creates the workdir (currently only used on Windows)
+	// ContainerCreateWorkdir creates the workdir
 	ContainerCreateWorkdir(containerID string) error
 
 	// ContainerCopy copies/extracts a source FileInfo to a destination path inside a container
