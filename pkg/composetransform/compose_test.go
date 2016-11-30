@@ -21,7 +21,7 @@ func TestAddStackLabel(t *testing.T) {
 	actual := AddStackLabel(Namespace{name: "foo"}, labels)
 	expected := map[string]string{
 		"something":    "labeled",
-		labelNamespace: "foo",
+		LabelNamespace: "foo",
 	}
 	assert.DeepEqual(t, actual, expected)
 }
@@ -56,7 +56,7 @@ func TestConvertNetworks(t *testing.T) {
 	expected := map[string]types.NetworkCreate{
 		"default": {
 			Labels: map[string]string{
-				labelNamespace: "foo",
+				LabelNamespace: "foo",
 			},
 		},
 		"normal": {
@@ -73,7 +73,7 @@ func TestConvertNetworks(t *testing.T) {
 				"opt": "value",
 			},
 			Labels: map[string]string{
-				labelNamespace: "foo",
+				LabelNamespace: "foo",
 				"something":    "labeled",
 			},
 		},
