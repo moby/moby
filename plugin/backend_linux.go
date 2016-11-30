@@ -84,7 +84,7 @@ func (pm *Manager) Inspect(refOrID string) (tp types.Plugin, err error) {
 		return tp, err
 	}
 
-	return tp, fmt.Errorf("no plugin name or ID associated with %q", refOrID)
+	return tp, fmt.Errorf("no such plugin name or ID associated with %q", refOrID)
 }
 
 func (pm *Manager) pull(ref reference.Named, metaHeader http.Header, authConfig *types.AuthConfig, pluginID string) (types.PluginPrivileges, error) {

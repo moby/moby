@@ -45,7 +45,7 @@ func NewInspectCommand(dockerCli *command.DockerCli) *cobra.Command {
 func runInspect(dockerCli *command.DockerCli, opts inspectOptions) error {
 	var elementSearcher inspect.GetRefFunc
 	switch opts.inspectType {
-	case "", "container", "image", "node", "network", "service", "volume", "task":
+	case "", "container", "image", "node", "network", "service", "volume", "task", "plugin":
 		elementSearcher = inspectAll(context.Background(), dockerCli, opts.size, opts.inspectType)
 	default:
 		return fmt.Errorf("%q is not a valid value for --type", opts.inspectType)
@@ -95,6 +95,12 @@ func inspectVolume(ctx context.Context, dockerCli *command.DockerCli) inspect.Ge
 	}
 }
 
+func inspectPlugin(ctx context.Context, dockerCli *command.DockerCli) inspect.GetRefFunc {
+	return func(ref string) (interface{}, []byte, error) {
+		return dockerCli.Client().PluginInspectWithRaw(ctx, ref)
+	}
+}
+
 func inspectAll(ctx context.Context, dockerCli *command.DockerCli, getSize bool, typeConstraint string) inspect.GetRefFunc {
 	var inspectAutodetect = []struct {
 		ObjectType      string
@@ -108,6 +114,7 @@ func inspectAll(ctx context.Context, dockerCli *command.DockerCli, getSize bool,
 		{"service", false, inspectService(ctx, dockerCli)},
 		{"task", false, inspectTasks(ctx, dockerCli)},
 		{"node", false, inspectNode(ctx, dockerCli)},
+		{"plugin", false, inspectPlugin(ctx, dockerCli)},
 	}
 
 	isErrNotSwarmManager := func(err error) bool {
