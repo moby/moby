@@ -284,54 +284,62 @@ func (s *VolumeStore) Create(name, driverName string, opts, labels map[string]st
 func (s *VolumeStore) checkConflict(name, driverName string) (volume.Volume, error) {
 	// check the local cache
 	v, _ := s.getNamed(name)
-	if v != nil {
-		vDriverName := v.DriverName()
-		if driverName != "" && vDriverName != driverName {
-			// we have what looks like a conflict
-			// let's see if there are existing refs to this volume, if so we don't need
-			// to go any further since we can assume the volume is legit.
-			if len(s.getRefs(name)) > 0 {
-				return nil, errors.Wrapf(errNameConflict, "driver '%s' already has volume '%s'", vDriverName, name)
-			}
+	if v == nil {
+		return nil, nil
+	}
 
-			// looks like there is a conflict, but nothing is referencing it...
-			// let's check if the found volume ref
-			// is stale by checking with the driver if it still exists
-			vd, err := volumedrivers.GetDriver(vDriverName)
-			if err != nil {
-				// play it safe and return the error
-				// TODO(cpuguy83): maybe when when v2 plugins are ubiquitous, we should
-				// just purge this from the cache
-				return nil, errors.Wrapf(errNameConflict, "found reference to volume '%s' in driver '%s', but got an error while checking the driver: %v", name, vDriverName, err)
-			}
+	vDriverName := v.DriverName()
+	var conflict bool
+	if driverName != "" && vDriverName != driverName {
+		conflict = true
+	}
 
-			// now check if it still exists in the driver
-			v2, err := vd.Get(name)
-			err = errors.Cause(err)
-			if err != nil {
-				if _, ok := err.(net.Error); ok {
-					// got some error related to the driver connectivity
-					// play it safe and return the error
-					// TODO(cpuguy83): When when v2 plugins are ubiquitous, maybe we should
-					// just purge this from the cache
-					return nil, errors.Wrapf(errNameConflict, "found reference to volume '%s' in driver '%s', but got an error while checking the driver: %v", name, vDriverName, err)
-				}
+	// let's check if the found volume ref
+	// is stale by checking with the driver if it still exists
+	exists, err := volumeExists(v)
+	if err != nil {
+		return nil, errors.Wrapf(errNameConflict, "found reference to volume '%s' in driver '%s', but got an error while checking the driver: %v", name, vDriverName, err)
+	}
 
-				// a driver can return whatever it wants, so let's make sure this is nil
-				if v2 == nil {
-					// purge this reference from the cache
-					s.Purge(name)
-					return nil, nil
-				}
-			}
-			if v2 != nil {
-				return nil, errors.Wrapf(errNameConflict, "driver '%s' already has volume '%s'", vDriverName, name)
-			}
+	if exists {
+		if conflict {
+			return nil, errors.Wrapf(errNameConflict, "driver '%s' already has volume '%s'", vDriverName, name)
 		}
 		return v, nil
 	}
 
+	if len(s.getRefs(v.Name())) > 0 {
+		// Containers are referencing this volume but it doesn't seem to exist anywhere.
+		// Return a conflict error here, the user can fix this with `docker volume rm -f`
+		return nil, errors.Wrapf(errNameConflict, "found references to volume '%s' in driver '%s' but the volume was not found in the driver -- you may need to remove containers referencing this volume or force remove the volume to re-create it", name, vDriverName)
+	}
+
+	// doesn't exist, so purge it from the cache
+	s.Purge(name)
 	return nil, nil
+}
+
+// volumeExists returns if the volume is still present in the driver.
+// An error is returned if there was an issue communicating with the driver.
+func volumeExists(v volume.Volume) (bool, error) {
+	vd, err := volumedrivers.GetDriver(v.DriverName())
+	if err != nil {
+		return false, errors.Wrapf(err, "error while checking if volume %q exists in driver %q", v.Name(), v.DriverName())
+	}
+	exists, err := vd.Get(v.Name())
+	if err != nil {
+		err = errors.Cause(err)
+		if _, ok := err.(net.Error); ok {
+			return false, errors.Wrapf(err, "error while checking if volume %q exists in driver %q", v.Name(), v.DriverName())
+		}
+
+		// At this point, the error could be anything from the driver, such as "no such volume"
+		// Let's not check an error here, and instead check if the driver returned a volume
+	}
+	if exists == nil {
+		return false, nil
+	}
+	return true, nil
 }
 
 // create asks the given driver to create a volume with the name/opts.
@@ -354,6 +362,7 @@ func (s *VolumeStore) create(name, driverName string, opts, labels map[string]st
 	if err != nil {
 		return nil, err
 	}
+
 	if v != nil {
 		return v, nil
 	}
