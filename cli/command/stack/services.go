@@ -43,9 +43,7 @@ func runServices(dockerCli *command.DockerCli, opts servicesOptions) error {
 	ctx := context.Background()
 	client := dockerCli.Client()
 
-	filter := opts.filter.Value()
-	filter.Add("label", labelNamespace+"="+opts.namespace)
-
+	filter := getStackFilterFromOpt(opts.namespace, opts.filter)
 	services, err := client.ServiceList(ctx, types.ServiceListOptions{Filters: filter})
 	if err != nil {
 		return err
