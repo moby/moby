@@ -6,6 +6,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/cli/command"
+	"github.com/docker/docker/pkg/composetransform"
 )
 
 func deployBundle(ctx context.Context, dockerCli *command.DockerCli, opts deployOptions) error {
@@ -18,20 +19,20 @@ func deployBundle(ctx context.Context, dockerCli *command.DockerCli, opts deploy
 		return err
 	}
 
-	namespace := namespace{name: opts.namespace}
+	namespace := composetransform.NewNamespace(opts.namespace)
 
 	networks := make(map[string]types.NetworkCreate)
 	for _, service := range bundle.Services {
 		for _, networkName := range service.Networks {
 			networks[networkName] = types.NetworkCreate{
-				Labels: getStackLabels(namespace.name, nil),
+				Labels: composetransform.AddStackLabel(namespace, nil),
 			}
 		}
 	}
 
 	services := make(map[string]swarm.ServiceSpec)
 	for internalName, service := range bundle.Services {
-		name := namespace.scope(internalName)
+		name := namespace.Scope(internalName)
 
 		var ports []swarm.PortConfig
 		for _, portSpec := range service.Ports {
@@ -44,7 +45,7 @@ func deployBundle(ctx context.Context, dockerCli *command.DockerCli, opts deploy
 		nets := []swarm.NetworkAttachmentConfig{}
 		for _, networkName := range service.Networks {
 			nets = append(nets, swarm.NetworkAttachmentConfig{
-				Target:  namespace.scope(networkName),
+				Target:  namespace.Scope(networkName),
 				Aliases: []string{networkName},
 			})
 		}
@@ -52,7 +53,7 @@ func deployBundle(ctx context.Context, dockerCli *command.DockerCli, opts deploy
 		serviceSpec := swarm.ServiceSpec{
 			Annotations: swarm.Annotations{
 				Name:   name,
-				Labels: getStackLabels(namespace.name, service.Labels),
+				Labels: composetransform.AddStackLabel(namespace, service.Labels),
 			},
 			TaskTemplate: swarm.TaskSpec{
 				ContainerSpec: swarm.ContainerSpec{
@@ -63,7 +64,7 @@ func deployBundle(ctx context.Context, dockerCli *command.DockerCli, opts deploy
 					// Service Labels will not be copied to Containers
 					// automatically during the deployment so we apply
 					// it here.
-					Labels: getStackLabels(namespace.name, nil),
+					Labels: composetransform.AddStackLabel(namespace, nil),
 				},
 			},
 			EndpointSpec: &swarm.EndpointSpec{
