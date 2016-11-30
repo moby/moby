@@ -11,6 +11,7 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/oci"
+	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/docker/pkg/plugins"
 	"github.com/docker/docker/pkg/system"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
@@ -292,6 +293,19 @@ func (p *Plugin) AddRefCount(count int) {
 	defer p.mu.Unlock()
 
 	p.refCount += count
+}
+
+// Acquire increments the plugin's reference count
+// This should be followed up by `Release()` when the plugin is no longer in use.
+func (p *Plugin) Acquire() {
+	p.AddRefCount(plugingetter.ACQUIRE)
+}
+
+// Release decrements the plugin's reference count
+// This should only be called when the plugin is no longer in use, e.g. with
+// via `Acquire()` or getter.Get("name", "type", plugingetter.ACQUIRE)
+func (p *Plugin) Release() {
+	p.AddRefCount(plugingetter.RELEASE)
 }
 
 // InitSpec creates an OCI spec from the plugin's config.
