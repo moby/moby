@@ -350,7 +350,7 @@ func TestInvalidTags(t *testing.T) {
 	}
 	err = store.AddTag(ref, id, true)
 	if err == nil {
-		t.Fatalf("expected setting digest %q to fail", ref)
+		t.Fatalf("expected setting tag %q to fail", ref)
 	}
 
 }

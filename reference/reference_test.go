@@ -229,7 +229,7 @@ func TestParseRepositoryInfo(t *testing.T) {
 				t.Fatalf("Invalid normalized reference for %q. Expected %q, got %q", r, expected, actual)
 			}
 			if expected, actual := tcase.FullName, r.FullName(); expected != actual {
-				t.Fatalf("Invalid normalized reference for %q. Expected %q, got %q", r, expected, actual)
+				t.Fatalf("Invalid fullName for %q. Expected %q, got %q", r, expected, actual)
 			}
 			if expected, actual := tcase.Hostname, r.Hostname(); expected != actual {
 				t.Fatalf("Invalid hostname for %q. Expected %q, got %q", r, expected, actual)
