@@ -37,7 +37,11 @@ func (pm *Manager) Disable(name string) error {
 	if err != nil {
 		return err
 	}
-	if err := pm.disable(p); err != nil {
+	pm.mu.RLock()
+	c := pm.cMap[p]
+	pm.mu.RUnlock()
+
+	if err := pm.disable(p, c); err != nil {
 		return err
 	}
 	pm.pluginEventLogger(p.GetID(), name, "disable")
@@ -46,14 +50,13 @@ func (pm *Manager) Disable(name string) error {
 
 // Enable activates a plugin, which implies that they are ready to be used by containers.
 func (pm *Manager) Enable(name string, config *types.PluginEnableConfig) error {
-
 	p, err := pm.pluginStore.GetByName(name)
 	if err != nil {
 		return err
 	}
 
-	p.TimeoutInSecs = config.Timeout
-	if err := pm.enable(p, false); err != nil {
+	c := &controller{timeoutInSecs: config.Timeout}
+	if err := pm.enable(p, c, false); err != nil {
 		return err
 	}
 	pm.pluginEventLogger(p.GetID(), name, "enable")
@@ -267,25 +270,25 @@ func (pm *Manager) Push(name string, metaHeader http.Header, authConfig *types.A
 // Remove deletes plugin's root directory.
 func (pm *Manager) Remove(name string, config *types.PluginRmConfig) error {
 	p, err := pm.pluginStore.GetByName(name)
+	pm.mu.RLock()
+	c := pm.cMap[p]
+	pm.mu.RUnlock()
+
 	if err != nil {
 		return err
 	}
 
 	if !config.ForceRemove {
-		p.RLock()
-		if p.RefCount > 0 {
-			p.RUnlock()
+		if p.GetRefCount() > 0 {
 			return fmt.Errorf("plugin %s is in use", p.Name())
 		}
-		p.RUnlock()
-
 		if p.IsEnabled() {
 			return fmt.Errorf("plugin %s is enabled", p.Name())
 		}
 	}
 
 	if p.IsEnabled() {
-		if err := pm.disable(p); err != nil {
+		if err := pm.disable(p, c); err != nil {
 			logrus.Errorf("failed to disable plugin '%s': %s", p.Name(), err)
 		}
 	}
