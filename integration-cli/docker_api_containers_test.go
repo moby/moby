@@ -728,7 +728,7 @@ func (s *DockerSuite) TestContainerAPIInvalidPortSyntax(c *check.C) {
 	c.Assert(string(b[:]), checker.Contains, "invalid port")
 }
 
-func (s *DockerSuite) TestContainerAPIInvalidRestartPolicyName(c *check.C) {
+func (s *DockerSuite) TestContainerAPIRestartPolicyInvalidPolicyName(c *check.C) {
 	config := `{
 		"Image": "busybox",
 		"HostConfig": {
@@ -748,7 +748,7 @@ func (s *DockerSuite) TestContainerAPIInvalidRestartPolicyName(c *check.C) {
 	c.Assert(string(b[:]), checker.Contains, "invalid restart policy")
 }
 
-func (s *DockerSuite) TestContainerAPIInvalidRestartPolicyRetryMismatch(c *check.C) {
+func (s *DockerSuite) TestContainerAPIRestartPolicyRetryMismatch(c *check.C) {
 	config := `{
 		"Image": "busybox",
 		"HostConfig": {
@@ -765,10 +765,10 @@ func (s *DockerSuite) TestContainerAPIInvalidRestartPolicyRetryMismatch(c *check
 
 	b, err := readBody(body)
 	c.Assert(err, checker.IsNil)
-	c.Assert(string(b[:]), checker.Contains, "maximum restart count not valid with restart policy")
+	c.Assert(string(b[:]), checker.Contains, "maximum retry count cannot be used with restart policy")
 }
 
-func (s *DockerSuite) TestContainerAPIInvalidRestartPolicyPositiveRetryCount(c *check.C) {
+func (s *DockerSuite) TestContainerAPIRestartPolicyNegativeRetryCount(c *check.C) {
 	config := `{
 		"Image": "busybox",
 		"HostConfig": {
@@ -785,7 +785,23 @@ func (s *DockerSuite) TestContainerAPIInvalidRestartPolicyPositiveRetryCount(c *
 
 	b, err := readBody(body)
 	c.Assert(err, checker.IsNil)
-	c.Assert(string(b[:]), checker.Contains, "maximum restart count must be a positive integer")
+	c.Assert(string(b[:]), checker.Contains, "maximum retry count cannot be negative")
+}
+
+func (s *DockerSuite) TestContainerAPIRestartPolicyDefaultRetryCount(c *check.C) {
+	config := `{
+		"Image": "busybox",
+		"HostConfig": {
+			"RestartPolicy": {
+				"Name": "on-failure",
+				"MaximumRetryCount": 0
+			}
+		}
+	}`
+
+	res, _, err := sockRequestRaw("POST", "/containers/create", strings.NewReader(config), "application/json")
+	c.Assert(err, checker.IsNil)
+	c.Assert(res.StatusCode, checker.Equals, http.StatusCreated)
 }
 
 // Issue 7941 - test to make sure a "null" in JSON is just ignored.
