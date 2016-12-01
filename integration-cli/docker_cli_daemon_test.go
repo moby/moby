@@ -1343,7 +1343,7 @@ func (s *DockerDaemonSuite) TestDaemonWithWrongkey(c *check.C) {
 	content, _ := ioutil.ReadFile(s.d.logFile.Name())
 
 	if !strings.Contains(string(content), "Public Key ID does not match") {
-		c.Fatal("Missing KeyID message from daemon logs")
+		c.Fatalf("Missing KeyID message from daemon logs: %s", string(content))
 	}
 }
 
