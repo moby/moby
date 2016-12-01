@@ -409,6 +409,13 @@ __docker_append_to_completions() {
 	COMPREPLY=( ${COMPREPLY[@]/%/"$1"} )
 }
 
+# __docker_is_experimental tests whether the currently configured Docker daemon
+# runs in experimental mode. If so, the function exits with 0 (true).
+# Otherwise, or if the result cannot be determined, the exit value is 1 (false).
+__docker_is_experimental() {
+	[ "$(__docker_q version -f '{{.Server.Experimental}}')" = "true" ]
+}
+
 # __docker_pos_first_nonflag finds the position of the first word that is neither
 # option nor an option's argument. If there are options that require arguments,
 # you should pass a glob describing those options, e.g. "--option1|-o|--option2"
@@ -851,6 +858,7 @@ _docker_docker() {
 		*)
 			local counter=$( __docker_pos_first_nonflag "$(__docker_to_extglob "$global_options_with_args")" )
 			if [ $cword -eq $counter ]; then
+				__docker_is_experimental && commands+=(${experimental_commands[*]})
 				COMPREPLY=( $( compgen -W "${commands[*]} help" -- "$cur" ) )
 			fi
 			;;
@@ -3854,6 +3862,9 @@ _docker() {
 		version
 		volume
 		wait
+	)
+
+	local experimental_commands=(
 	)
 
 	# These options are valid as global options for all client commands
