@@ -78,10 +78,10 @@ func TestContainerStatPath(t *testing.T) {
 		t.Fatal(err)
 	}
 	if stat.Name != "name" {
-		t.Fatalf("expected container path stat name to be 'name', was '%s'", stat.Name)
+		t.Fatalf("expected container path stat name to be 'name', got '%s'", stat.Name)
 	}
 	if stat.Mode != 0700 {
-		t.Fatalf("expected container path stat mode to be 0700, was '%v'", stat.Mode)
+		t.Fatalf("expected container path stat mode to be 0700, got '%v'", stat.Mode)
 	}
 }
 
@@ -226,10 +226,10 @@ func TestCopyFromContainer(t *testing.T) {
 		t.Fatal(err)
 	}
 	if stat.Name != "name" {
-		t.Fatalf("expected container path stat name to be 'name', was '%s'", stat.Name)
+		t.Fatalf("expected container path stat name to be 'name', got '%s'", stat.Name)
 	}
 	if stat.Mode != 0700 {
-		t.Fatalf("expected container path stat mode to be 0700, was '%v'", stat.Mode)
+		t.Fatalf("expected container path stat mode to be 0700, got '%v'", stat.Mode)
 	}
 	content, err := ioutil.ReadAll(r)
 	if err != nil {
