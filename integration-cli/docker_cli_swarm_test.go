@@ -802,6 +802,36 @@ func getNodeStatus(c *check.C, d *SwarmDaemon) swarm.LocalNodeState {
 	return info.LocalNodeState
 }
 
+func checkSwarmLockedToUnlocked(c *check.C, d *SwarmDaemon, unlockKey string) {
+	c.Assert(d.Restart(), checker.IsNil)
+	status := getNodeStatus(c, d)
+	if status == swarm.LocalNodeStateLocked {
+		// it must not have updated to be unlocked in time - unlock, wait 3 seconds, and try again
+		cmd := d.command("swarm", "unlock")
+		cmd.Stdin = bytes.NewBufferString(unlockKey)
+		out, err := cmd.CombinedOutput()
+		c.Assert(err, checker.IsNil, check.Commentf("out: %v", string(out)))
+
+		c.Assert(getNodeStatus(c, d), checker.Equals, swarm.LocalNodeStateActive)
+
+		time.Sleep(3 * time.Second)
+		c.Assert(d.Restart(), checker.IsNil)
+	}
+
+	c.Assert(getNodeStatus(c, d), checker.Equals, swarm.LocalNodeStateActive)
+}
+
+func checkSwarmUnlockedToLocked(c *check.C, d *SwarmDaemon) {
+	c.Assert(d.Restart(), checker.IsNil)
+	status := getNodeStatus(c, d)
+	if status == swarm.LocalNodeStateActive {
+		// it must not have updated to be unlocked in time - wait 3 seconds, and try again
+		time.Sleep(3 * time.Second)
+		c.Assert(d.Restart(), checker.IsNil)
+	}
+	c.Assert(getNodeStatus(c, d), checker.Equals, swarm.LocalNodeStateLocked)
+}
+
 func (s *DockerSwarmSuite) TestSwarmInitLocked(c *check.C) {
 	d := s.AddDaemon(c, false, false)
 
@@ -825,8 +855,8 @@ func (s *DockerSwarmSuite) TestSwarmInitLocked(c *check.C) {
 
 	c.Assert(getNodeStatus(c, d), checker.Equals, swarm.LocalNodeStateActive)
 
+	// It starts off locked
 	c.Assert(d.Restart(), checker.IsNil)
-
 	c.Assert(getNodeStatus(c, d), checker.Equals, swarm.LocalNodeStateLocked)
 
 	cmd := d.command("swarm", "unlock")
@@ -851,23 +881,7 @@ func (s *DockerSwarmSuite) TestSwarmInitLocked(c *check.C) {
 	outs, err = d.Cmd("swarm", "update", "--autolock=false")
 	c.Assert(err, checker.IsNil, check.Commentf("out: %v", outs))
 
-	// Wait for autolock to be turned off
-	c.Assert(d.Restart(), checker.IsNil)
-	status := getNodeStatus(c, d)
-	if status == swarm.LocalNodeStateLocked {
-		// it must not have updated in time - unlock, wait 3 seconds, and try again
-		cmd := d.command("swarm", "unlock")
-		cmd.Stdin = bytes.NewBufferString(unlockKey)
-		out, err := cmd.CombinedOutput()
-		c.Assert(err, checker.IsNil, check.Commentf("out: %v", string(out)))
-
-		c.Assert(getNodeStatus(c, d), checker.Equals, swarm.LocalNodeStateActive)
-
-		time.Sleep(3 * time.Second)
-		c.Assert(d.Restart(), checker.IsNil)
-	}
-
-	c.Assert(getNodeStatus(c, d), checker.Equals, swarm.LocalNodeStateActive)
+	checkSwarmLockedToUnlocked(c, d, unlockKey)
 
 	outs, err = d.Cmd("node", "ls")
 	c.Assert(err, checker.IsNil)
@@ -880,6 +894,7 @@ func (s *DockerSwarmSuite) TestSwarmLeaveLocked(c *check.C) {
 	outs, err := d.Cmd("swarm", "init", "--autolock")
 	c.Assert(err, checker.IsNil, check.Commentf("out: %v", outs))
 
+	// It starts off locked
 	c.Assert(d.Restart("--swarm-default-advertise-addr=lo"), checker.IsNil)
 
 	info, err := d.info()
@@ -937,8 +952,7 @@ func (s *DockerSwarmSuite) TestSwarmLockUnlockCluster(c *check.C) {
 
 	// The ones that got the cluster update should be set to locked
 	for _, d := range []*SwarmDaemon{d1, d3} {
-		c.Assert(d.Restart(), checker.IsNil)
-		c.Assert(getNodeStatus(c, d), checker.Equals, swarm.LocalNodeStateLocked)
+		checkSwarmUnlockedToLocked(c, d)
 
 		cmd := d.command("swarm", "unlock")
 		cmd.Stdin = bytes.NewBufferString(unlockKey)
@@ -952,14 +966,7 @@ func (s *DockerSwarmSuite) TestSwarmLockUnlockCluster(c *check.C) {
 	c.Assert(getNodeStatus(c, d2), checker.Equals, swarm.LocalNodeStateActive)
 
 	// d2 is now set to lock
-	c.Assert(d2.Restart(), checker.IsNil)
-	status := getNodeStatus(c, d2)
-	if status == swarm.LocalNodeStateActive {
-		// it must not have updated in time - wait 3 seconds, and try again
-		time.Sleep(3 * time.Second)
-		c.Assert(d2.Restart(), checker.IsNil)
-	}
-	c.Assert(getNodeStatus(c, d2), checker.Equals, swarm.LocalNodeStateLocked)
+	checkSwarmUnlockedToLocked(c, d2)
 
 	// leave it locked, and set the cluster to no longer autolock
 	outs, err = d1.Cmd("swarm", "update", "--autolock=false")
@@ -967,23 +974,7 @@ func (s *DockerSwarmSuite) TestSwarmLockUnlockCluster(c *check.C) {
 
 	// the ones that got the update are now set to unlocked
 	for _, d := range []*SwarmDaemon{d1, d3} {
-		c.Assert(d.Restart(), checker.IsNil)
-		status := getNodeStatus(c, d)
-		if status == swarm.LocalNodeStateLocked {
-			// it must not have updated to be unlocked in time - unlock, wait 3 seconds, and try again
-			cmd := d.command("swarm", "unlock")
-			cmd.Stdin = bytes.NewBufferString(unlockKey)
-			out, err := cmd.CombinedOutput()
-			c.Assert(err, checker.IsNil, check.Commentf("out: %v", string(out)))
-
-			c.Assert(getNodeStatus(c, d), checker.Equals, swarm.LocalNodeStateActive)
-
-			time.Sleep(3 * time.Second)
-			c.Assert(d.Restart(), checker.IsNil)
-		}
-
-		c.Assert(d.Restart(), checker.IsNil)
-		c.Assert(getNodeStatus(c, d), checker.Equals, swarm.LocalNodeStateActive)
+		checkSwarmLockedToUnlocked(c, d, unlockKey)
 	}
 
 	// d2 still locked
@@ -997,10 +988,9 @@ func (s *DockerSwarmSuite) TestSwarmLockUnlockCluster(c *check.C) {
 	c.Assert(getNodeStatus(c, d2), checker.Equals, swarm.LocalNodeStateActive)
 
 	// once it's caught up, d2 is set to not be locked
-	c.Assert(d2.Restart(), checker.IsNil)
-	c.Assert(getNodeStatus(c, d2), checker.Equals, swarm.LocalNodeStateActive)
+	checkSwarmLockedToUnlocked(c, d2, unlockKey)
 
-	// managers who join now are also unlocked
+	// managers who join now are never set to locked in the first place
 	d4 := s.AddDaemon(c, true, true)
 	c.Assert(d4.Restart(), checker.IsNil)
 	c.Assert(getNodeStatus(c, d4), checker.Equals, swarm.LocalNodeStateActive)
@@ -1043,14 +1033,7 @@ func (s *DockerSwarmSuite) TestSwarmJoinPromoteLocked(c *check.C) {
 
 	// both new nodes are locked
 	for _, d := range []*SwarmDaemon{d2, d3} {
-		c.Assert(d.Restart(), checker.IsNil)
-		status := getNodeStatus(c, d)
-		if status == swarm.LocalNodeStateActive {
-			// it must not have updated in time - wait 3 seconds, and try again
-			time.Sleep(3 * time.Second)
-			c.Assert(d.Restart(), checker.IsNil)
-		}
-		c.Assert(getNodeStatus(c, d), checker.Equals, swarm.LocalNodeStateLocked)
+		checkSwarmUnlockedToLocked(c, d)
 
 		cmd := d.command("swarm", "unlock")
 		cmd.Stdin = bytes.NewBufferString(unlockKey)
@@ -1072,21 +1055,7 @@ func (s *DockerSwarmSuite) TestSwarmJoinPromoteLocked(c *check.C) {
 	columns := strings.Fields(lines[len(lines)-1])
 	c.Assert(columns, checker.HasLen, 4) // if it was a manager it'd have a manager status field
 
-	c.Assert(d3.Restart(), checker.IsNil)
-	status := getNodeStatus(c, d3)
-	if status == swarm.LocalNodeStateLocked {
-		// it must not have updated in time - unlock, wait 3 seconds, and try again
-		cmd := d3.command("swarm", "unlock")
-		cmd.Stdin = bytes.NewBufferString(unlockKey)
-		out, err := cmd.CombinedOutput()
-		c.Assert(err, checker.IsNil, check.Commentf("out: %v", string(out)))
-
-		c.Assert(getNodeStatus(c, d3), checker.Equals, swarm.LocalNodeStateActive)
-
-		time.Sleep(3 * time.Second)
-		c.Assert(d3.Restart(), checker.IsNil)
-	}
-	c.Assert(getNodeStatus(c, d3), checker.Equals, swarm.LocalNodeStateActive)
+	checkSwarmLockedToUnlocked(c, d3, unlockKey)
 }
 
 func (s *DockerSwarmSuite) TestSwarmRotateUnlockKey(c *check.C) {
@@ -1272,16 +1241,7 @@ func (s *DockerSwarmSuite) TestSwarmAlternateLockUnlock(c *check.C) {
 		}
 
 		c.Assert(unlockKey, checker.Not(checker.Equals), "")
-
-		c.Assert(d.Restart(), checker.IsNil)
-		status := getNodeStatus(c, d)
-		if status == swarm.LocalNodeStateActive {
-			// hasn't updated yet - wait and try again
-			time.Sleep(3 * time.Second)
-			c.Assert(d.Restart(), checker.IsNil)
-			status = getNodeStatus(c, d)
-		}
-		c.Assert(status, checker.Equals, swarm.LocalNodeStateLocked)
+		checkSwarmUnlockedToLocked(c, d)
 
 		cmd := d.command("swarm", "unlock")
 		cmd.Stdin = bytes.NewBufferString(unlockKey)
@@ -1293,22 +1253,7 @@ func (s *DockerSwarmSuite) TestSwarmAlternateLockUnlock(c *check.C) {
 		outs, err = d.Cmd("swarm", "update", "--autolock=false")
 		c.Assert(err, checker.IsNil, check.Commentf("out: %v", outs))
 
-		c.Assert(d.Restart(), checker.IsNil)
-		status = getNodeStatus(c, d)
-		if status == swarm.LocalNodeStateLocked {
-			// it must not have updated to be unlocked in time - unlock, wait 3 seconds, and try again
-			cmd := d.command("swarm", "unlock")
-			cmd.Stdin = bytes.NewBufferString(unlockKey)
-			out, err := cmd.CombinedOutput()
-			c.Assert(err, checker.IsNil, check.Commentf("out: %v", string(out)))
-
-			c.Assert(getNodeStatus(c, d), checker.Equals, swarm.LocalNodeStateActive)
-
-			time.Sleep(3 * time.Second)
-			c.Assert(d.Restart(), checker.IsNil)
-			status = getNodeStatus(c, d)
-		}
-		c.Assert(getNodeStatus(c, d), checker.Equals, swarm.LocalNodeStateActive)
+		checkSwarmLockedToUnlocked(c, d, unlockKey)
 	}
 }
 
