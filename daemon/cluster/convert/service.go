@@ -26,8 +26,8 @@ func ServiceFromGRPC(s swarmapi.Service) types.Service {
 	service.UpdatedAt, _ = ptypes.Timestamp(s.Meta.UpdatedAt)
 
 	// UpdateStatus
-	service.UpdateStatus = types.UpdateStatus{}
 	if s.UpdateStatus != nil {
+		service.UpdateStatus = &types.UpdateStatus{}
 		switch s.UpdateStatus.State {
 		case swarmapi.UpdateStatus_UPDATING:
 			service.UpdateStatus.State = types.UpdateStateUpdating
@@ -37,8 +37,16 @@ func ServiceFromGRPC(s swarmapi.Service) types.Service {
 			service.UpdateStatus.State = types.UpdateStateCompleted
 		}
 
-		service.UpdateStatus.StartedAt, _ = ptypes.Timestamp(s.UpdateStatus.StartedAt)
-		service.UpdateStatus.CompletedAt, _ = ptypes.Timestamp(s.UpdateStatus.CompletedAt)
+		startedAt, _ := ptypes.Timestamp(s.UpdateStatus.StartedAt)
+		if !startedAt.IsZero() {
+			service.UpdateStatus.StartedAt = &startedAt
+		}
+
+		completedAt, _ := ptypes.Timestamp(s.UpdateStatus.CompletedAt)
+		if !completedAt.IsZero() {
+			service.UpdateStatus.CompletedAt = &completedAt
+		}
+
 		service.UpdateStatus.Message = s.UpdateStatus.Message
 	}
 
