@@ -5221,12 +5221,7 @@ func (s *DockerSuite) TestBuildMissingArgs(c *check.C) {
 	// Test to make sure that all Dockerfile commands (except the ones listed
 	// in skipCmds) will generate an error if no args are provided.
 	// Note: INSERT is deprecated so we exclude it because of that.
-	skipCmds := map[string]struct{}{
-		"CMD":        {},
-		"RUN":        {},
-		"ENTRYPOINT": {},
-		"INSERT":     {},
-	}
+	skipCmds := map[string]struct{}{}
 
 	if daemonPlatform == "windows" {
 		skipCmds = map[string]struct{}{
@@ -5238,6 +5233,16 @@ func (s *DockerSuite) TestBuildMissingArgs(c *check.C) {
 			"ARG":        {},
 			"USER":       {},
 			"EXPOSE":     {},
+		}
+	}
+
+	if daemonPlatform != "windows" {
+		skipCmds = map[string]struct{}{
+			"CMD":        {},
+			"RUN":        {},
+			"ENTRYPOINT": {},
+			"INSERT":     {},
+			"GETENV":     {},
 		}
 	}
 
@@ -7396,4 +7401,26 @@ func (s *DockerSuite) TestBuildWorkdirCmd(c *check.C) {
                 `
 	_, err := buildImage("testbuildworkdircmd", dockerFile, false)
 	c.Assert(err, checker.IsNil)
+}
+
+// GETENV on Windows #29048
+func (s *DockerSuite) TestBuildWindowsGetenv(c *check.C) {
+	testRequires(c, DaemonIsWindows)
+	name := "testbuildwindowsgetenv"
+	_, out, err := buildImageWithOut(name, `
+		FROM `+WindowsBaseImage+`
+		GETENV PATH
+		ENV PATH c:\\something;$PATH
+		RUN echo Result:%PATH%
+  `, true)
+	if err != nil {
+		c.Fatal(err)
+	}
+	c.Assert(out, checker.Contains, `Result:c:\something;`)
+	c.Assert(out, checker.Contains, `C:\Windows\system32`)
+
+	// JSON escaped in the configuration hence double backslash
+	res := inspectFieldJSON(c, name, "Config.Env")
+	c.Assert(res, checker.Contains, `PATH=c:\\something;`)
+	c.Assert(res, checker.Contains, `C:\\Windows\\system32`)
 }

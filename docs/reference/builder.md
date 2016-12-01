@@ -1707,6 +1707,30 @@ required such as `zsh`, `csh`, `tcsh` and others.
 
 The `SHELL` feature was added in Docker 1.12.
 
+## GETENV
+
+    GETENV variable
+
+The `GETENV` instruction is only supported on Windows. It allows an environment
+variable to be retrieved from a container and stored in the image configuration.
+This is particularly useful in the case of `PATH` which is not set to a default
+value on Windows, or where the Windows registry must be manipulated on 
+nanoserver-based images. Once stored in the image configuration, it can be used 
+as per any other environment variable set through `ENV`.
+
+The `GETENV` instruction allows the following Dockerfile to operate as expected.
+Without the use of `GETENV` here, the resulting `PATH` in the container would
+be just C:\MyApp, and any built-in commands to Windows would fail as they are
+no longer on the PATH.
+
+    # escape=`
+    FROM microsoft/nanoserver
+    GETENV PATH
+    ADD myapp.exe C:\MyApp\
+    ENV PATH C:\MyApp;$PATH
+	
+The `GETENV` feature was added in Docker 1.14.
+
 ## Dockerfile examples
 
 Below you can see some examples of Dockerfile syntax. If you're interested in

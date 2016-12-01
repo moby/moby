@@ -11,6 +11,7 @@ const (
 	Env         = "env"
 	Expose      = "expose"
 	From        = "from"
+	Getenv      = "getenv"
 	Healthcheck = "healthcheck"
 	Label       = "label"
 	Maintainer  = "maintainer"
@@ -33,6 +34,7 @@ var Commands = map[string]struct{}{
 	Env:         {},
 	Expose:      {},
 	From:        {},
+	Getenv:      {},
 	Healthcheck: {},
 	Label:       {},
 	Maintainer:  {},

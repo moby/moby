@@ -67,6 +67,7 @@ func init() {
 		command.Env:         env,
 		command.Expose:      expose,
 		command.From:        from,
+		command.Getenv:      getenv,
 		command.Healthcheck: healthcheck,
 		command.Label:       label,
 		command.Maintainer:  maintainer,

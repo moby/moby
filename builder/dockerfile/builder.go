@@ -35,6 +35,7 @@ var validCommitCommands = map[string]bool{
 	"user":        true,
 	"volume":      true,
 	"workdir":     true,
+	"getenv":      true,
 }
 
 // BuiltinAllowedBuildArgs is list of built-in allowed build args
