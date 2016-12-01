@@ -28,7 +28,7 @@ func TestAddStackLabel(t *testing.T) {
 
 func TestConvertNetworks(t *testing.T) {
 	namespace := Namespace{name: "foo"}
-	source := networks{
+	source := networkMap{
 		"normal": composetypes.NetworkConfig{
 			Driver: "overlay",
 			DriverOpts: map[string]string{
