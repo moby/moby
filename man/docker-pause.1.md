@@ -18,7 +18,7 @@ that it is being suspended, and subsequently resumed. On Windows, only Hyper-V
 containers can be paused.
 
 See the [cgroups freezer documentation]
-(https://www.kernel.org/doc/Documentation/cgroups/freezer-subsystem.txt) for
+(https://www.kernel.org/doc/Documentation/cgroup-v1/freezer-subsystem.txt) for
 further details.
 
 # OPTIONS
