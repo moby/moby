@@ -255,11 +255,11 @@ func (daemon *Daemon) verifyContainerSettings(hostConfig *containertypes.HostCon
 	switch p.Name {
 	case "always", "unless-stopped", "no":
 		if p.MaximumRetryCount != 0 {
-			return nil, fmt.Errorf("maximum restart count not valid with restart policy of '%s'", p.Name)
+			return nil, fmt.Errorf("maximum retry count cannot be used with restart policy '%s'", p.Name)
 		}
 	case "on-failure":
-		if p.MaximumRetryCount < 1 {
-			return nil, fmt.Errorf("maximum restart count must be a positive integer")
+		if p.MaximumRetryCount < 0 {
+			return nil, fmt.Errorf("maximum retry count cannot be negative")
 		}
 	case "":
 	// do nothing
