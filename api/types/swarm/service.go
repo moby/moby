@@ -6,10 +6,10 @@ import "time"
 type Service struct {
 	ID string
 	Meta
-	Spec         ServiceSpec  `json:",omitempty"`
-	PreviousSpec *ServiceSpec `json:",omitempty"`
-	Endpoint     Endpoint     `json:",omitempty"`
-	UpdateStatus UpdateStatus `json:",omitempty"`
+	Spec         ServiceSpec   `json:",omitempty"`
+	PreviousSpec *ServiceSpec  `json:",omitempty"`
+	Endpoint     Endpoint      `json:",omitempty"`
+	UpdateStatus *UpdateStatus `json:",omitempty"`
 }
 
 // ServiceSpec represents the spec of a service.
@@ -50,8 +50,8 @@ const (
 // UpdateStatus reports the status of a service update.
 type UpdateStatus struct {
 	State       UpdateState `json:",omitempty"`
-	StartedAt   time.Time   `json:",omitempty"`
-	CompletedAt time.Time   `json:",omitempty"`
+	StartedAt   *time.Time  `json:",omitempty"`
+	CompletedAt *time.Time  `json:",omitempty"`
 	Message     string      `json:",omitempty"`
 }
 
