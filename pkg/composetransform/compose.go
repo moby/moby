@@ -40,16 +40,18 @@ func AddStackLabel(namespace Namespace, labels map[string]string) map[string]str
 	return labels
 }
 
-type networks map[string]composetypes.NetworkConfig
+type networkMap map[string]composetypes.NetworkConfig
 
 // ConvertNetworks from the compose-file type to the engine API type
-func ConvertNetworks(namespace Namespace, networks networks) (map[string]types.NetworkCreate, []string) {
+func ConvertNetworks(namespace Namespace, networks networkMap) (map[string]types.NetworkCreate, []string) {
 	if networks == nil {
 		networks = make(map[string]composetypes.NetworkConfig)
 	}
 
 	// TODO: only add default network if it's used
-	networks["default"] = composetypes.NetworkConfig{}
+	if _, ok := networks["default"]; !ok {
+		networks["default"] = composetypes.NetworkConfig{}
+	}
 
 	externalNetworks := []string{}
 	result := make(map[string]types.NetworkCreate)
