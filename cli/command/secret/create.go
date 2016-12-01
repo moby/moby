@@ -25,9 +25,9 @@ func newSecretCreateCommand(dockerCli *command.DockerCli) *cobra.Command {
 	}
 
 	cmd := &cobra.Command{
-		Use:   "create [OPTIONS] SECRET [SECRET...]",
+		Use:   "create [OPTIONS] SECRET",
 		Short: "Create a secret using stdin as content",
-		Args:  cli.RequiresMinArgs(1),
+		Args:  cli.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			createOpts.name = args[0]
 			return runSecretCreate(dockerCli, createOpts)
