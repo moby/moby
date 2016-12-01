@@ -25,11 +25,51 @@ func (daemon *Daemon) createSpec(c *container.Container) (*specs.Spec, error) {
 	// In base spec
 	s.Hostname = c.FullHostname()
 
+	if err := daemon.setupSecretDir(c); err != nil {
+		return nil, err
+	}
+
 	// In s.Mounts
 	mounts, err := daemon.setupMounts(c)
 	if err != nil {
 		return nil, err
 	}
+
+	var isHyperV bool
+	if c.HostConfig.Isolation.IsDefault() {
+		// Container using default isolation, so take the default from the daemon configuration
+		isHyperV = daemon.defaultIsolation.IsHyperV()
+	} else {
+		// Container may be requesting an explicit isolation mode.
+		isHyperV = c.HostConfig.Isolation.IsHyperV()
+	}
+
+	// If the container has not been started, and has secrets, create symlinks
+	// to each secret. If it has been started before, the symlinks should have
+	// already been created. Also, it is important to not mount a Hyper-V
+	// container that has been started before, to protect the host from the
+	// container; for example, from malicious mutation of NTFS data structures.
+	if !c.HasBeenStartedBefore && len(c.SecretReferences) > 0 {
+		// The container file system is mounted before this function is called,
+		// except for Hyper-V containers, so mount it here in that case.
+		if isHyperV {
+			if err := daemon.Mount(c); err != nil {
+				return nil, err
+			}
+		}
+		err := c.CreateSecretSymlinks()
+		if isHyperV {
+			daemon.Unmount(c)
+		}
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if m := c.SecretMounts(); m != nil {
+		mounts = append(mounts, m...)
+	}
+
 	for _, mount := range mounts {
 		m := specs.Mount{
 			Source:      mount.Source,
@@ -64,14 +104,6 @@ func (daemon *Daemon) createSpec(c *container.Container) (*specs.Spec, error) {
 	s.Process.User.Username = c.Config.User
 
 	// In spec.Root. This is not set for Hyper-V containers
-	var isHyperV bool
-	if c.HostConfig.Isolation.IsDefault() {
-		// Container using default isolation, so take the default from the daemon configuration
-		isHyperV = daemon.defaultIsolation.IsHyperV()
-	} else {
-		// Container may be requesting an explicit isolation mode.
-		isHyperV = c.HostConfig.Isolation.IsHyperV()
-	}
 	if !isHyperV {
 		s.Root.Path = c.BaseFS
 	}
