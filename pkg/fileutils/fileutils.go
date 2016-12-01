@@ -161,17 +161,19 @@ func regexpMatch(pattern, path string) (bool, error) {
 				// is some flavor of "**"
 				scan.Next()
 
+				// Treat **/ as ** so eat the "/"
+				if string(scan.Peek()) == sl {
+					scan.Next()
+				}
+
 				if scan.Peek() == scanner.EOF {
 					// is "**EOF" - to align with .gitignore just accept all
 					regStr += ".*"
 				} else {
 					// is "**"
-					regStr += "((.*" + escSL + ")|([^" + escSL + "]*))"
-				}
-
-				// Treat **/ as ** so eat the "/"
-				if string(scan.Peek()) == sl {
-					scan.Next()
+					// Note that this allows for any # of /'s (even 0) because
+					// the .* will eat everything, even /'s
+					regStr += "(.*" + escSL + ")?"
 				}
 			} else {
 				// is "*" so map it to anything but "/"
