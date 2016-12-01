@@ -81,10 +81,10 @@ var errSwarmExists = errors.New("This node is already part of a swarm. Use \"doc
 var errSwarmJoinTimeoutReached = errors.New("Timeout was reached before node was joined. The attempt to join the swarm will continue in the background. Use the \"docker info\" command to see the current swarm status of your node.")
 
 // errSwarmLocked is returned if the swarm is encrypted and needs a key to unlock it.
-var errSwarmLocked = errors.New("Swarm is encrypted and needs to be unlocked before it can be used. Please use \"docker swarm unlock\" to unlock it.")
+var errSwarmLocked = errors.New("This node is encrypted and needs to be unlocked before it can be used. Please use \"docker swarm unlock\" to unlock it.")
 
 // errSwarmCertificatesExpired is returned if docker was not started for the whole validity period and they had no chance to renew automatically.
-var errSwarmCertificatesExpired = errors.New("Swarm certificates have expired. To replace them, leave the swarm and join again.")
+var errSwarmCertificatesExpired = errors.New("Certificates of this node have expired. To replace them, leave the swarm and join again.")
 
 // NetworkSubnetsProvider exposes functions for retrieving the subnets
 // of networks managed by Docker, so they can be filtered.
