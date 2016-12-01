@@ -166,10 +166,10 @@ func TestFilterByUsed(t *testing.T) {
 
 	dangling := s.FilterByUsed(vols, false)
 	if len(dangling) != 1 {
-		t.Fatalf("expected 1 danging volume, got %v", len(dangling))
+		t.Fatalf("expected 1 dangling volume, got %v", len(dangling))
 	}
 	if dangling[0].Name() != "fake2" {
-		t.Fatalf("expected danging volume fake2, got %s", dangling[0].Name())
+		t.Fatalf("expected dangling volume fake2, got %s", dangling[0].Name())
 	}
 
 	used := s.FilterByUsed(vols, true)

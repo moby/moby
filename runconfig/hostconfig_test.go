@@ -217,7 +217,7 @@ func TestDecodeHostConfig(t *testing.T) {
 		}
 
 		if len(c.CapDrop) != 1 && c.CapDrop[0] != "NET_ADMIN" {
-			t.Fatalf("Expected CapDrop MKNOD, got %v", c.CapDrop)
+			t.Fatalf("Expected CapDrop NET_ADMIN, got %v", c.CapDrop)
 		}
 	}
 }
