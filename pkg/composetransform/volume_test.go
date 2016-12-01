@@ -23,15 +23,15 @@ func TestIsNoCopy(t *testing.T) {
 	assert.Equal(t, isNoCopy([]string{"foo", "rw"}), false)
 }
 
-func TesTGetBindOptions(t *testing.T) {
+func TestGetBindOptions(t *testing.T) {
 	opts := getBindOptions([]string{"slave"})
-	expected := &mount.BindOptions{Propagation: mount.PropagationSlave}
-	assert.Equal(t, opts, expected)
+	expected := mount.BindOptions{Propagation: mount.PropagationSlave}
+	assert.Equal(t, *opts, expected)
 }
 
-func TesTGetBindOptionsNone(t *testing.T) {
+func TestGetBindOptionsNone(t *testing.T) {
 	opts := getBindOptions([]string{"ro"})
-	assert.Equal(t, opts, nil)
+	assert.Equal(t, opts, (*mount.BindOptions)(nil))
 }
 
 func TestConvertVolumeToMountNamedVolume(t *testing.T) {

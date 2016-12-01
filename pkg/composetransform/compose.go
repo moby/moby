@@ -40,12 +40,12 @@ func AddStackLabel(namespace Namespace, labels map[string]string) map[string]str
 	return labels
 }
 
-type networks map[string]composetypes.NetworkConfig
+type networkMap map[string]composetypes.NetworkConfig
 
 // ConvertNetworks from the compose-file type to the engine API type
 func ConvertNetworks(
 	namespace Namespace,
-	networks networks,
+	networks networkMap,
 	servicesNetworks map[string]struct{},
 ) (map[string]types.NetworkCreate, []string) {
 	if networks == nil {

@@ -127,7 +127,7 @@ func convertService(
 
 func convertServiceNetworks(
 	networks map[string]*composetypes.ServiceNetworkConfig,
-	networkConfigs networks,
+	networkConfigs networkMap,
 	namespace Namespace,
 	name string,
 ) ([]swarm.NetworkAttachmentConfig, error) {
@@ -144,7 +144,8 @@ func convertServiceNetworks(
 	for networkName, network := range networks {
 		networkConfig, ok := networkConfigs[networkName]
 		if !ok {
-			return []swarm.NetworkAttachmentConfig{}, fmt.Errorf("invalid network: %s", networkName)
+			return []swarm.NetworkAttachmentConfig{}, fmt.Errorf(
+				"service %q references network %q, which is not declared", name, networkName)
 		}
 		var aliases []string
 		if network != nil {
@@ -181,7 +182,7 @@ func convertHealthcheck(healthcheck *composetypes.HealthCheckConfig) (*container
 	)
 	if healthcheck.Disable {
 		if len(healthcheck.Test) != 0 {
-			return nil, fmt.Errorf("command and disable key can't be set at the same time")
+			return nil, fmt.Errorf("test and disable can't be set at the same time")
 		}
 		return &container.HealthConfig{
 			Test: []string{"NONE"},
