@@ -4449,6 +4449,10 @@ paths:
       responses:
         200:
           description: "no error"
+        404:
+          description: "repository does not exist or no read access"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
         500:
           description: "server error"
           schema:
