@@ -59,10 +59,10 @@ func (daemon *Daemon) StateChanged(id string, e libcontainerd.StateInfo) error {
 		daemon.updateHealthMonitor(c)
 		return c.ToDisk()
 	case libcontainerd.StateExitProcess:
-		c.Lock()
-		defer c.Unlock()
 		if execConfig := c.ExecCommands.Get(e.ProcessID); execConfig != nil {
 			ec := int(e.ExitCode)
+			execConfig.Lock()
+			defer execConfig.Unlock()
 			execConfig.ExitCode = &ec
 			execConfig.Running = false
 			execConfig.Wait()
