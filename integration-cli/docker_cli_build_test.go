@@ -3610,8 +3610,8 @@ RUN [ "$(id -u):$(id -g)/$(id -un):$(id -gn)/$(id -G):$(id -Gn)" = '1001:1001/do
 
 # Switch back to root and double check that worked exactly as we might expect it to
 USER root
-# Add a "supplementary" group for our dockerio user
 RUN [ "$(id -u):$(id -g)/$(id -un):$(id -gn)/$(id -G):$(id -Gn)" = '0:0/root:root/0 10:root wheel' ] && \
+        # Add a "supplementary" group for our dockerio user
 	echo 'supplementary:x:1002:dockerio' >> /etc/group
 
 # ... and then go verify that we get it like we expect
@@ -7139,41 +7139,6 @@ func (s *DockerSuite) TestBuildNetContainer(c *check.C) {
 
 	host, _ := dockerCmd(c, "run", "testbuildnetcontainer", "cat", "/otherhost")
 	c.Assert(strings.TrimSpace(host), check.Equals, "foobar")
-}
-
-// Test case for #24693
-func (s *DockerSuite) TestBuildRunEmptyLineAfterEscape(c *check.C) {
-	name := "testbuildemptylineafterescape"
-	_, out, err := buildImageWithOut(name,
-		`
-FROM busybox
-RUN echo x \
-
-RUN echo y
-RUN echo z
-# Comment requires the '#' to start from position 1
-# RUN echo w
-`, true)
-	c.Assert(err, checker.IsNil)
-	c.Assert(out, checker.Contains, "Step 1/4 : FROM busybox")
-	c.Assert(out, checker.Contains, "Step 2/4 : RUN echo x")
-	c.Assert(out, checker.Contains, "Step 3/4 : RUN echo y")
-	c.Assert(out, checker.Contains, "Step 4/4 : RUN echo z")
-
-	// With comment, see #24693
-	name = "testbuildcommentandemptylineafterescape"
-	_, out, err = buildImageWithOut(name,
-		`
-FROM busybox
-RUN echo grafana && \
-    echo raintank \
-#echo env-load
-RUN echo vegeta
-`, true)
-	c.Assert(err, checker.IsNil)
-	c.Assert(out, checker.Contains, "Step 1/3 : FROM busybox")
-	c.Assert(out, checker.Contains, "Step 2/3 : RUN echo grafana &&     echo raintank")
-	c.Assert(out, checker.Contains, "Step 3/3 : RUN echo vegeta")
 }
 
 func (s *DockerSuite) TestBuildSquashParent(c *check.C) {
