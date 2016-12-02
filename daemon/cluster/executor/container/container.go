@@ -566,7 +566,8 @@ func (c *containerConfig) networkCreateRequest(name string) (clustertypes.Networ
 		// ID:     na.Network.ID,
 		Driver: na.Network.DriverState.Name,
 		IPAM: &network.IPAM{
-			Driver: na.Network.IPAM.Driver.Name,
+			Driver:  na.Network.IPAM.Driver.Name,
+			Options: na.Network.IPAM.Driver.Options,
 		},
 		Options:        na.Network.DriverState.Options,
 		Labels:         na.Network.Spec.Annotations.Labels,
