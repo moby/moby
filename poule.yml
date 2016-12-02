@@ -3,6 +3,9 @@
       pull_request: [ opened ]
   operations:
       - type:       label
+        filters: {
+            ~labels: [ " status/0-triage", "status/1-design-review", "status/2-code-review", "status/3-docs-review", "status/4-merge" ],
+        }
         settings: {
             patterns: {
                 status/0-triage:     [ ".*" ],
