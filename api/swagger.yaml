@@ -90,21 +90,21 @@ info:
 
 # The tags on paths define the menu sections in the ReDoc documentation, so
 # the usage of tags must make sense for that:
-# - They should be plural, not singular.
+# - They should be singular, not plural.
 # - There should not be too many tags, or the menu becomes unwieldly. For
 #   example, it is preferable to add a path to the "System" tag instead of
 #   creating a tag with a single path in it.
 # - The order of tags in this list defines the order in the menu.
 tags:
   # Primary objects
-  - name: "Containers"
+  - name: "Container"
     description: |
       Create and manage containers.
-  - name: "Images"
-  - name: "Networks"
+  - name: "Image"
+  - name: "Network"
     description: |
       Networks are user-defined networks that containers can be attached to. See the [networking documentation](https://docs.docker.com/engine/userguide/networking/) for more information.
-  - name: "Volumes"
+  - name: "Volume"
     description: |
       Create and manage persistent storage that can be attached to containers.
   - name: "Exec"
@@ -112,22 +112,22 @@ tags:
       Run new commands inside running containers. See the [command-line reference](https://docs.docker.com/engine/reference/commandline/exec/) for more information.
 
       To exec a command in a container, you first need to create an exec instance, then start it. These two API endpoints are wrapped up in a single command-line command, `docker exec`.
-  - name: "Secrets"
+  - name: "Secret"
   # Swarm things
   - name: "Swarm"
     description: |
       Engines can be clustered together in a swarm. See [the swarm mode documentation](https://docs.docker.com/engine/swarm/) for more information.
-  - name: "Nodes"
+  - name: "Node"
     description: |
       Nodes are instances of the Engine participating in a swarm. Swarm mode must be enabled for these endpoints to work.
-  - name: "Services"
+  - name: "Service"
     description: |
       Services are the definitions of tasks to run on a swarm. Swarm mode must be enabled for these endpoints to work.
-  - name: "Tasks"
+  - name: "Task"
     description: |
       A task is a container running on a swarm. It is the atomic scheduling unit of swarm. Swarm mode must be enabled for these endpoints to work.
   # System things
-  - name: "Plugins"
+  - name: "Plugin"
   - name: "System"
 
 definitions:
@@ -2619,7 +2619,7 @@ paths:
           description: "server error"
           schema:
             $ref: "#/definitions/ErrorResponse"
-      tags: ["Containers"]
+      tags: ["Container"]
   /containers/create:
     post:
       summary: "Create a container"
@@ -2818,7 +2818,7 @@ paths:
           description: "server error"
           schema:
             $ref: "#/definitions/ErrorResponse"
-      tags: ["Containers"]
+      tags: ["Container"]
   /containers/{id}/json:
     get:
       summary: "Inspect a container"
@@ -3094,7 +3094,7 @@ paths:
           type: "boolean"
           default: false
           description: "Return the size of container as fields `SizeRw` and `SizeRootFs`"
-      tags: ["Containers"]
+      tags: ["Container"]
   /containers/{id}/top:
     get:
       summary: "List processes running inside a container"
@@ -3170,7 +3170,7 @@ paths:
           description: "The arguments to pass to `ps`. For example, `aux`"
           type: "string"
           default: "-ef"
-      tags: ["Containers"]
+      tags: ["Container"]
   /containers/{id}/logs:
     get:
       summary: "Get container logs"
@@ -3239,7 +3239,7 @@ paths:
           description: "Only return this number of log lines from the end of the logs. Specify as an integer or `all` to output all log lines."
           type: "string"
           default: "all"
-      tags: ["Containers"]
+      tags: ["Container"]
   /containers/{id}/changes:
     get:
       summary: "Get changes on a container’s filesystem"
@@ -3295,7 +3295,7 @@ paths:
           required: true
           description: "ID or name of the container"
           type: "string"
-      tags: ["Containers"]
+      tags: ["Container"]
   /containers/{id}/export:
     get:
       summary: "Export a container"
@@ -3323,7 +3323,7 @@ paths:
           required: true
           description: "ID or name of the container"
           type: "string"
-      tags: ["Containers"]
+      tags: ["Container"]
   /containers/{id}/stats:
     get:
       summary: "Get container stats based on resource usage"
@@ -3451,7 +3451,7 @@ paths:
           description: "Stream the output. If false, the stats will be output once and then it will disconnect."
           type: "boolean"
           default: true
-      tags: ["Containers"]
+      tags: ["Container"]
   /containers/{id}/resize:
     post:
       summary: "Resize a container TTY"
@@ -3489,7 +3489,7 @@ paths:
           in: "query"
           description: "Width of the tty session in characters"
           type: "integer"
-      tags: ["Containers"]
+      tags: ["Container"]
   /containers/{id}/start:
     post:
       summary: "Start a container"
@@ -3522,7 +3522,7 @@ paths:
           in: "query"
           description: "Override the key sequence for detaching a container. Format is a single character `[a-Z]` or `ctrl-<value>` where `<value>` is one of: `a-z`, `@`, `^`, `[`, `,` or `_`."
           type: "string"
-      tags: ["Containers"]
+      tags: ["Container"]
   /containers/{id}/stop:
     post:
       summary: "Stop a container"
@@ -3555,7 +3555,7 @@ paths:
           in: "query"
           description: "Number of seconds to wait before killing the container"
           type: "integer"
-      tags: ["Containers"]
+      tags: ["Container"]
   /containers/{id}/restart:
     post:
       summary: "Restart a container"
@@ -3584,7 +3584,7 @@ paths:
           in: "query"
           description: "Number of seconds to wait before killing the container"
           type: "integer"
-      tags: ["Containers"]
+      tags: ["Container"]
   /containers/{id}/kill:
     post:
       summary: "Kill a container"
@@ -3615,7 +3615,7 @@ paths:
           description: "Signal to send to the container as an integer or string (e.g. `SIGINT`)"
           type: "string"
           default: "SIGKILL"
-      tags: ["Containers"]
+      tags: ["Container"]
   /containers/{id}/update:
     post:
       summary: "Update a container"
@@ -3676,7 +3676,7 @@ paths:
               RestartPolicy:
                 MaximumRetryCount: 4
                 Name: "on-failure"
-      tags: ["Containers"]
+      tags: ["Container"]
   /containers/{id}/rename:
     post:
       summary: "Rename a container"
@@ -3710,7 +3710,7 @@ paths:
           required: true
           description: "New name for the container"
           type: "string"
-      tags: ["Containers"]
+      tags: ["Container"]
   /containers/{id}/pause:
     post:
       summary: "Pause a container"
@@ -3739,7 +3739,7 @@ paths:
           required: true
           description: "ID or name of the container"
           type: "string"
-      tags: ["Containers"]
+      tags: ["Container"]
   /containers/{id}/unpause:
     post:
       summary: "Unpause a container"
@@ -3765,7 +3765,7 @@ paths:
           required: true
           description: "ID or name of the container"
           type: "string"
-      tags: ["Containers"]
+      tags: ["Container"]
   /containers/{id}/attach:
     post:
       summary: "Attach to a container"
@@ -3909,7 +3909,7 @@ paths:
           description: "Attach to `stderr`"
           type: "boolean"
           default: false
-      tags: ["Containers"]
+      tags: ["Container"]
   /containers/{id}/attach/ws:
     get:
       summary: "Attach to a container via a websocket"
@@ -3969,7 +3969,7 @@ paths:
           description: "Attach to `stderr`"
           type: "boolean"
           default: false
-      tags: ["Containers"]
+      tags: ["Container"]
   /containers/{id}/wait:
     post:
       summary: "Wait for a container"
@@ -4004,7 +4004,7 @@ paths:
           required: true
           description: "ID or name of the container"
           type: "string"
-      tags: ["Containers"]
+      tags: ["Container"]
   /containers/{id}:
     delete:
       summary: "Remove a container"
@@ -4043,7 +4043,7 @@ paths:
           description: "If the container is running, kill it before removing it."
           type: "boolean"
           default: false
-      tags: ["Containers"]
+      tags: ["Container"]
   /containers/{id}/archive:
     head:
       summary: "Get information about files in a container"
@@ -4089,7 +4089,7 @@ paths:
           required: true
           description: "Resource in the container’s filesystem to archive."
           type: "string"
-      tags: ["Containers"]
+      tags: ["Container"]
     get:
       summary: "Get an archive of a filesystem resource in a container"
       description: "Get an tar archive of a resource in the filesystem of container id."
@@ -4132,7 +4132,7 @@ paths:
           required: true
           description: "Resource in the container’s filesystem to archive."
           type: "string"
-      tags: ["Containers"]
+      tags: ["Container"]
     put:
       summary: "Extract an archive of files or folders to a directory in a container"
       description: "Upload a tar archive to be extracted to a path in the filesystem of container id."
@@ -4183,7 +4183,7 @@ paths:
           description: "The input stream must be a tar archive compressed with one of the following algorithms: identity (no compression), gzip, bzip2, xz."
           schema:
             type: "string"
-      tags: ["Containers"]
+      tags: ["Container"]
   /containers/prune:
     post:
       summary: "Delete stopped containers"
@@ -4211,7 +4211,7 @@ paths:
           description: "Server error"
           schema:
             $ref: "#/definitions/ErrorResponse"
-      tags: ["Containers"]
+      tags: ["Container"]
   /images/json:
     get:
       summary: "List Images"
@@ -4282,7 +4282,7 @@ paths:
           description: "Show digest information as a `RepoDigests` field on each image."
           type: "boolean"
           default: false
-      tags: ["Images"]
+      tags: ["Image"]
   /build:
     post:
       summary: "Build an image"
@@ -4429,7 +4429,7 @@ paths:
           description: "server error"
           schema:
             $ref: "#/definitions/ErrorResponse"
-      tags: ["Images"]
+      tags: ["Image"]
   /images/create:
     post:
       summary: "Create an image"
@@ -4474,7 +4474,7 @@ paths:
           in: "header"
           description: "A base64-encoded auth configuration. [See the authentication section for details.](#section/Authentication)"
           type: "string"
-      tags: ["Images"]
+      tags: ["Image"]
   /images/{name}/json:
     get:
       summary: "Inspect an image"
@@ -4580,7 +4580,7 @@ paths:
           description: "Image name or id"
           type: "string"
           required: true
-      tags: ["Images"]
+      tags: ["Image"]
   /images/{name}/history:
     get:
       summary: "Get the history of an image"
@@ -4650,7 +4650,7 @@ paths:
           description: "Image name or ID"
           type: "string"
           required: true
-      tags: ["Images"]
+      tags: ["Image"]
   /images/{name}/push:
     post:
       summary: "Push an image"
@@ -4689,7 +4689,7 @@ paths:
           description: "A base64-encoded auth configuration. [See the authentication section for details.](#section/Authentication)"
           type: "string"
           required: true
-      tags: ["Images"]
+      tags: ["Image"]
   /images/{name}/tag:
     post:
       summary: "Tag an image"
@@ -4728,7 +4728,7 @@ paths:
           in: "query"
           description: "The name of the new tag."
           type: "string"
-      tags: ["Images"]
+      tags: ["Image"]
   /images/{name}:
     delete:
       summary: "Remove an image"
@@ -4779,7 +4779,7 @@ paths:
           description: "Do not delete untagged parent images"
           type: "boolean"
           default: false
-      tags: ["Images"]
+      tags: ["Image"]
   /images/search:
     get:
       summary: "Search images"
@@ -4845,7 +4845,7 @@ paths:
             - `is-automated=(true|false)`
             - `is-official=(true|false)`
           type: "string"
-      tags: ["Images"]
+      tags: ["Image"]
   /images/prune:
     post:
       summary: "Delete unused images"
@@ -4883,7 +4883,7 @@ paths:
           description: "Server error"
           schema:
             $ref: "#/definitions/ErrorResponse"
-      tags: ["Images"]
+      tags: ["Image"]
   /auth:
     post:
       summary: "Check auth configuration"
@@ -5262,7 +5262,7 @@ paths:
           in: "query"
           description: "`Dockerfile` instructions to apply while committing"
           type: "string"
-      tags: ["Images"]
+      tags: ["Image"]
   /events:
     get:
       summary: "Monitor events"
@@ -5488,7 +5488,7 @@ paths:
           description: "Image name or ID"
           type: "string"
           required: true
-      tags: ["Images"]
+      tags: ["Image"]
   /images/get:
     get:
       summary: "Export several images"
@@ -5518,7 +5518,7 @@ paths:
           type: "array"
           items:
             type: "string"
-      tags: ["Images"]
+      tags: ["Image"]
   /images/load:
     post:
       summary: "Import images"
@@ -5550,7 +5550,7 @@ paths:
           description: "Suppress progress details during load."
           type: "boolean"
           default: false
-      tags: ["Images"]
+      tags: ["Image"]
   /containers/{id}/exec:
     post:
       summary: "Create an exec instance"
@@ -5833,7 +5833,7 @@ paths:
               driver name.
           type: "string"
           format: "json"
-      tags: ["Volumes"]
+      tags: ["Volume"]
 
   /volumes/create:
     post:
@@ -5883,7 +5883,7 @@ paths:
                 com.example.some-label: "some-value"
                 com.example.some-other-label: "some-other-value"
               Driver: "custom"
-      tags: ["Volumes"]
+      tags: ["Volume"]
 
   /volumes/{name}:
     get:
@@ -5909,7 +5909,7 @@ paths:
           required: true
           description: "Volume name or ID"
           type: "string"
-      tags: ["Volumes"]
+      tags: ["Volume"]
 
     delete:
       summary: "Remove a volume"
@@ -5941,7 +5941,7 @@ paths:
           description: "Force the removal of the volume"
           type: "boolean"
           default: false
-      tags: ["Volumes"]
+      tags: ["Volume"]
   /volumes/prune:
     post:
       summary: "Delete unused volumes"
@@ -5969,7 +5969,7 @@ paths:
           description: "Server error"
           schema:
             $ref: "#/definitions/ErrorResponse"
-      tags: ["Volumes"]
+      tags: ["Volume"]
   /networks:
     get:
       summary: "List networks"
@@ -6050,7 +6050,7 @@ paths:
             - `name=<network-name>` Matches all or part of a network name.
             - `type=["custom"|"builtin"]` Filters networks by type. The `custom` keyword returns all user-defined networks.
           type: "string"
-      tags: ["Networks"]
+      tags: ["Network"]
 
   /networks/{id}:
     get:
@@ -6073,7 +6073,7 @@ paths:
           description: "Network ID or name"
           required: true
           type: "string"
-      tags: ["Networks"]
+      tags: ["Network"]
 
     delete:
       summary: "Remove a network"
@@ -6095,7 +6095,7 @@ paths:
           description: "Network ID or name"
           required: true
           type: "string"
-      tags: ["Networks"]
+      tags: ["Network"]
 
   /networks/create:
     post:
@@ -6191,7 +6191,7 @@ paths:
               Labels:
                 com.example.some-label: "some-value"
                 com.example.some-other-label: "some-other-value"
-      tags: ["Networks"]
+      tags: ["Network"]
 
   /networks/{id}/connect:
     post:
@@ -6237,7 +6237,7 @@ paths:
                 IPAMConfig:
                   IPv4Address: "172.24.56.89"
                   IPv6Address: "2001:db8::5689"
-      tags: ["Networks"]
+      tags: ["Network"]
 
   /networks/{id}/disconnect:
     post:
@@ -6278,7 +6278,7 @@ paths:
               Force:
                 type: "boolean"
                 description: "Force the container to disconnect from the network."
-      tags: ["Networks"]
+      tags: ["Network"]
   /networks/prune:
     post:
       summary: "Delete unused networks"
@@ -6302,7 +6302,7 @@ paths:
           description: "Server error"
           schema:
             $ref: "#/definitions/ErrorResponse"
-      tags: ["Networks"]
+      tags: ["Network"]
   /plugins:
     get:
       summary: "List plugins"
@@ -6395,7 +6395,7 @@ paths:
           description: "Server error"
           schema:
             $ref: "#/definitions/ErrorResponse"
-      tags: ["Plugins"]
+      tags: ["Plugin"]
 
   /plugins/pull:
     post:
@@ -6452,7 +6452,7 @@ paths:
           in: "header"
           description: "A base64-encoded auth configuration to use when pulling a plugin from a registry. [See the authentication section for details.](#section/Authentication)"
           type: "string"
-      tags: ["Plugins"]
+      tags: ["Plugin"]
   /plugins/{name}:
     get:
       summary: "Inspect a plugin"
@@ -6476,7 +6476,7 @@ paths:
           description: "The name of the plugin. The `:latest` tag is optional, and is the default if omitted."
           required: true
           type: "string"
-      tags: ["Plugins"]
+      tags: ["Plugin"]
     delete:
       summary: "Remove a plugin"
       operationId: "PluginDelete"
@@ -6504,7 +6504,7 @@ paths:
           description: "Disable the plugin before removing. This may result in issues if the plugin is in use by a container."
           type: "boolean"
           default: false
-      tags: ["Plugins"]
+      tags: ["Plugin"]
   /plugins/{name}/enable:
     post:
       summary: "Enable a plugin"
@@ -6527,7 +6527,7 @@ paths:
           description: "Set the HTTP client timeout (in seconds)"
           type: "integer"
           default: 0
-      tags: ["Plugins"]
+      tags: ["Plugin"]
   /plugins/{name}/disable:
     post:
       summary: "Disable a plugin"
@@ -6545,7 +6545,7 @@ paths:
           description: "The name of the plugin. The `:latest` tag is optional, and is the default if omitted."
           required: true
           type: "string"
-      tags: ["Plugins"]
+      tags: ["Plugin"]
   /plugins/create:
     post:
       summary: "Create a plugin"
@@ -6571,7 +6571,7 @@ paths:
           schema:
             type: "string"
             format: "binary"
-      tags: ["Plugins"]
+      tags: ["Plugin"]
   /plugins/{name}/push:
     post:
       summary: "Push a plugin"
@@ -6595,7 +6595,7 @@ paths:
           description: "server error"
           schema:
             $ref: "#/definitions/ErrorResponse"
-      tags: ["Plugins"]
+      tags: ["Plugin"]
   /plugins/{name}/set:
     post:
       summary: "Configure a plugin"
@@ -6626,7 +6626,7 @@ paths:
           description: "Server error"
           schema:
             $ref: "#/definitions/ErrorResponse"
-      tags: ["Plugins"]
+      tags: ["Plugin"]
   /nodes:
     get:
       summary: "List nodes"
@@ -6655,7 +6655,7 @@ paths:
             - `name=<node name>`
             - `role=`(`manager`|`worker`)`
           type: "string"
-      tags: ["Nodes"]
+      tags: ["Node"]
   /nodes/{id}:
     get:
       summary: "Inspect a node"
@@ -6679,7 +6679,7 @@ paths:
           description: "The ID or name of the node"
           type: "string"
           required: true
-      tags: ["Nodes"]
+      tags: ["Node"]
     delete:
       summary: "Delete a node"
       operationId: "NodeDelete"
@@ -6705,7 +6705,7 @@ paths:
           description: "Force remove a node from the swarm"
           default: false
           type: "boolean"
-      tags: ["Nodes"]
+      tags: ["Node"]
   /nodes/{id}/update:
     post:
       summary: "Update a node"
@@ -6737,7 +6737,7 @@ paths:
           type: "integer"
           format: "int64"
           required: true
-      tags: ["Nodes"]
+      tags: ["Node"]
   /swarm:
     get:
       summary: "Inspect swarm"
@@ -7035,7 +7035,7 @@ paths:
             - `id=<service id>`
             - `name=<service name>`
             - `label=<service label>`
-      tags: ["Services"]
+      tags: ["Service"]
   /services/create:
     post:
       summary: "Create a service"
@@ -7132,7 +7132,7 @@ paths:
           in: "header"
           description: "A base64-encoded auth configuration for pulling from private registries. [See the authentication section for details.](#section/Authentication)"
           type: "string"
-      tags: ["Services"]
+      tags: ["Service"]
   /services/{id}:
     get:
       summary: "Inspect a service"
@@ -7156,7 +7156,7 @@ paths:
           description: "ID or name of service."
           required: true
           type: "string"
-      tags: ["Services"]
+      tags: ["Service"]
     delete:
       summary: "Delete a service"
       operationId: "ServiceDelete"
@@ -7177,7 +7177,7 @@ paths:
           description: "ID or name of service."
           required: true
           type: "string"
-      tags: ["Services"]
+      tags: ["Service"]
   /services/{id}/update:
     post:
       summary: "Update a service"
@@ -7252,7 +7252,7 @@ paths:
           description: "A base64-encoded auth configuration for pulling from private registries. [See the authentication section for details.](#section/Authentication)"
           type: "string"
 
-      tags: ["Services"]
+      tags: ["Service"]
   /services/{id}/logs:
     get:
       summary: "Get service logs"
@@ -7329,7 +7329,7 @@ paths:
           description: "Only return this number of log lines from the end of the logs. Specify as an integer or `all` to output all log lines."
           type: "string"
           default: "all"
-      tags: ["Services"]
+      tags: ["Service"]
   /tasks:
     get:
       summary: "List tasks"
@@ -7472,7 +7472,7 @@ paths:
             - `node=<node id or name>`
             - `label=key` or `label="key=value"`
             - `desired-state=(running | shutdown | accepted)`
-      tags: ["Tasks"]
+      tags: ["Task"]
   /tasks/{id}:
     get:
       summary: "Inspect a task"
@@ -7498,7 +7498,7 @@ paths:
           description: "ID of the task"
           required: true
           type: "string"
-      tags: ["Tasks"]
+      tags: ["Task"]
   /secrets:
     get:
       summary: "List secrets"
@@ -7532,7 +7532,7 @@ paths:
             A JSON encoded value of the filters (a `map[string][]string`) to process on the secrets list. Available filters:
 
             - `names=<secret name>`
-      tags: ["Secrets"]
+      tags: ["Secret"]
   /secrets/create:
     post:
       summary: "Create a secret"
@@ -7576,7 +7576,7 @@ paths:
                   Labels:
                     foo: "bar"
                   Data: "VEhJUyBJUyBOT1QgQSBSRUFMIENFUlRJRklDQVRFCg=="
-      tags: ["Secrets"]
+      tags: ["Secret"]
   /secrets/{id}:
     get:
       summary: "Inspect a secret"
@@ -7614,7 +7614,7 @@ paths:
           required: true
           type: "string"
           description: "ID of the secret"
-      tags: ["Secrets"]
+      tags: ["Secret"]
     delete:
       summary: "Delete a secret"
       operationId: "SecretDelete"
@@ -7637,4 +7637,4 @@ paths:
           required: true
           type: "string"
           description: "ID of the secret"
-      tags: ["Secrets"]
+      tags: ["Secret"]
