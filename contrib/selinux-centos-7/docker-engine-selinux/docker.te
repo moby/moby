@@ -420,3 +420,6 @@ files_read_etc_files(docker_auth_t)
 miscfiles_read_localization(docker_auth_t)
 
 sysnet_dns_name_resolve(docker_auth_t)
+
+kernel_unlabeled_domtrans(docker_t, spc_t)
+kernel_unlabeled_entry_type(spc_t)
