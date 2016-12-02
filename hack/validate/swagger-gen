@@ -4,7 +4,7 @@ export SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 source "${SCRIPTDIR}/.validate"
 
 IFS=$'\n'
-files=( $(validate_diff --diff-filter=ACMR --name-only -- 'api/types/' || true) )
+files=( $(validate_diff --diff-filter=ACMR --name-only -- 'api/types/' 'api/swagger.yaml' || true) )
 unset IFS
 
 if [ ${#files[@]} -gt 0 ]; then
@@ -26,5 +26,5 @@ if [ ${#files[@]} -gt 0 ]; then
 		echo 'Congratulations! All api changes are done the right way.'
 	fi
 else
-    echo 'No api/types/ changes in diff.'
+    echo 'No api/types/ or api/swagger.yaml changes in diff.'
 fi
