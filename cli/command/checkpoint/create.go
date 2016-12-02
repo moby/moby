@@ -1,6 +1,8 @@
 package checkpoint
 
 import (
+	"fmt"
+
 	"golang.org/x/net/context"
 
 	"github.com/docker/docker/api/types"
@@ -51,5 +53,6 @@ func runCreate(dockerCli *command.DockerCli, opts createOptions) error {
 		return err
 	}
 
+	fmt.Fprintf(dockerCli.Out(), "%s\n", opts.checkpoint)
 	return nil
 }
