@@ -64,6 +64,13 @@ func containerSpecFromGRPC(c *swarmapi.ContainerSpec) types.ContainerSpec {
 				}
 			}
 		}
+
+		if m.TmpfsOptions != nil {
+			mount.TmpfsOptions = &mounttypes.TmpfsOptions{
+				SizeBytes: m.TmpfsOptions.SizeBytes,
+				Mode:      m.TmpfsOptions.Mode,
+			}
+		}
 		containerSpec.Mounts = append(containerSpec.Mounts, mount)
 	}
 
@@ -174,9 +181,7 @@ func containerToGRPC(c types.ContainerSpec) (*swarmapi.ContainerSpec, error) {
 				mount.BindOptions = &swarmapi.Mount_BindOptions{Propagation: swarmapi.Mount_BindOptions_MountPropagation(mountPropagation)}
 			} else if string(m.BindOptions.Propagation) != "" {
 				return nil, fmt.Errorf("invalid MountPropagation: %q", m.BindOptions.Propagation)
-
 			}
-
 		}
 
 		if m.VolumeOptions != nil {
@@ -189,6 +194,13 @@ func containerToGRPC(c types.ContainerSpec) (*swarmapi.ContainerSpec, error) {
 					Name:    m.VolumeOptions.DriverConfig.Name,
 					Options: m.VolumeOptions.DriverConfig.Options,
 				}
+			}
+		}
+
+		if m.TmpfsOptions != nil {
+			mount.TmpfsOptions = &swarmapi.Mount_TmpfsOptions{
+				SizeBytes: m.TmpfsOptions.SizeBytes,
+				Mode:      m.TmpfsOptions.Mode,
 			}
 		}
 
