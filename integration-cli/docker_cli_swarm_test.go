@@ -1336,3 +1336,25 @@ Resources:
 	c.Assert(err, checker.IsNil, check.Commentf(out))
 	c.Assert(out, checker.Contains, expectedOutput, check.Commentf(out))
 }
+
+func (s *DockerSwarmSuite) TestSwarmNetworkIPAMOptions(c *check.C) {
+	d := s.AddDaemon(c, true, true)
+
+	out, err := d.Cmd("network", "create", "-d", "overlay", "--ipam-opt", "foo=bar", "foo")
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+	c.Assert(strings.TrimSpace(out), checker.Not(checker.Equals), "")
+
+	out, err = d.Cmd("network", "inspect", "--format", "{{.IPAM.Options}}", "foo")
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+	c.Assert(strings.TrimSpace(out), checker.Equals, "map[foo:bar]")
+
+	out, err = d.Cmd("service", "create", "--network=foo", "--name", "top", "busybox", "top")
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+
+	// make sure task has been deployed.
+	waitAndAssert(c, defaultReconciliationTimeout, d.CheckActiveContainerCount, checker.Equals, 1)
+
+	out, err = d.Cmd("network", "inspect", "--format", "{{.IPAM.Options}}", "foo")
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+	c.Assert(strings.TrimSpace(out), checker.Equals, "map[foo:bar]")
+}
