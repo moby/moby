@@ -46,11 +46,7 @@ func newUnlockKeyCommand(dockerCli *command.DockerCli) *cobra.Command {
 
 			unlockKeyResp, err := client.SwarmGetUnlockKey(ctx)
 			if err != nil {
-				return errors.Wrap(err, "could not fetch unlock key")
-			}
-
-			if unlockKeyResp.UnlockKey == "" {
-				return errors.New("no unlock key is set")
+				return err
 			}
 
 			if quiet {
