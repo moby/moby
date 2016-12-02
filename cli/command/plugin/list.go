@@ -7,6 +7,7 @@ import (
 
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cli/command"
+	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/pkg/stringutils"
 	"github.com/spf13/cobra"
 	"golang.org/x/net/context"
@@ -43,17 +44,19 @@ func runList(dockerCli *command.DockerCli, opts listOptions) error {
 	}
 
 	w := tabwriter.NewWriter(dockerCli.Out(), 20, 1, 3, ' ', 0)
-	fmt.Fprintf(w, "NAME \tTAG \tDESCRIPTION\tENABLED")
+	fmt.Fprintf(w, "ID \tNAME \tTAG \tDESCRIPTION\tENABLED")
 	fmt.Fprintf(w, "\n")
 
 	for _, p := range plugins {
+		id := p.ID
 		desc := strings.Replace(p.Config.Description, "\n", " ", -1)
 		desc = strings.Replace(desc, "\r", " ", -1)
 		if !opts.noTrunc {
+			id = stringid.TruncateID(p.ID)
 			desc = stringutils.Ellipsis(desc, 45)
 		}
 
-		fmt.Fprintf(w, "%s\t%s\t%s\t%v\n", p.Name, p.Tag, desc, p.Enabled)
+		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%v\n", id, p.Name, p.Tag, desc, p.Enabled)
 	}
 	w.Flush()
 	return nil
