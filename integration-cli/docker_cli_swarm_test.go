@@ -904,6 +904,11 @@ func (s *DockerSwarmSuite) TestSwarmLeaveLocked(c *check.C) {
 	outs, _ = d.Cmd("node", "ls")
 	c.Assert(outs, checker.Contains, "Swarm is encrypted and needs to be unlocked")
 
+	// `docker swarm leave` a locked swarm without --force will return an error
+	outs, _ = d.Cmd("swarm", "leave")
+	c.Assert(outs, checker.Contains, "Swarm is encrypted and locked.")
+
+	// It is OK for user to leave a locked swarm with --force
 	outs, err = d.Cmd("swarm", "leave", "--force")
 	c.Assert(err, checker.IsNil, check.Commentf("out: %v", outs))
 

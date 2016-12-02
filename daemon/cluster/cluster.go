@@ -90,20 +90,20 @@ const (
 	contextPrefix         = "com.docker.swarm"
 )
 
-// ErrNoSwarm is returned on leaving a cluster that was never initialized
-var ErrNoSwarm = fmt.Errorf("This node is not part of a swarm")
+// errNoSwarm is returned on leaving a cluster that was never initialized
+var errNoSwarm = fmt.Errorf("This node is not part of a swarm")
 
-// ErrSwarmExists is returned on initialize or join request for a cluster that has already been activated
-var ErrSwarmExists = fmt.Errorf("This node is already part of a swarm. Use \"docker swarm leave\" to leave this swarm and join another one.")
+// errSwarmExists is returned on initialize or join request for a cluster that has already been activated
+var errSwarmExists = fmt.Errorf("This node is already part of a swarm. Use \"docker swarm leave\" to leave this swarm and join another one.")
 
-// ErrSwarmJoinTimeoutReached is returned when cluster join could not complete before timeout was reached.
-var ErrSwarmJoinTimeoutReached = fmt.Errorf("Timeout was reached before node was joined. The attempt to join the swarm will continue in the background. Use the \"docker info\" command to see the current swarm status of your node.")
+// errSwarmJoinTimeoutReached is returned when cluster join could not complete before timeout was reached.
+var errSwarmJoinTimeoutReached = fmt.Errorf("Timeout was reached before node was joined. The attempt to join the swarm will continue in the background. Use the \"docker info\" command to see the current swarm status of your node.")
 
-// ErrSwarmLocked is returned if the swarm is encrypted and needs a key to unlock it.
-var ErrSwarmLocked = fmt.Errorf("Swarm is encrypted and needs to be unlocked before it can be used. Please use \"docker swarm unlock\" to unlock it.")
+// errSwarmLocked is returned if the swarm is encrypted and needs a key to unlock it.
+var errSwarmLocked = fmt.Errorf("Swarm is encrypted and needs to be unlocked before it can be used. Please use \"docker swarm unlock\" to unlock it.")
 
-// ErrSwarmCertificatesExpired is returned if docker was not started for the whole validity period and they had no chance to renew automatically.
-var ErrSwarmCertificatesExpired = errors.New("Swarm certificates have expired. To replace them, leave the swarm and join again.")
+// errSwarmCertificatesExpired is returned if docker was not started for the whole validity period and they had no chance to renew automatically.
+var errSwarmCertificatesExpired = errors.New("Swarm certificates have expired. To replace them, leave the swarm and join again.")
 
 // NetworkSubnetsProvider exposes functions for retrieving the subnets
 // of networks managed by Docker, so they can be filtered.
@@ -191,7 +191,7 @@ func New(config Config) (*Cluster, error) {
 		logrus.Error("swarm component could not be started before timeout was reached")
 	case err := <-nr.Ready():
 		if err != nil {
-			if errors.Cause(err) == ErrSwarmLocked {
+			if errors.Cause(err) == errSwarmLocked {
 				return c, nil
 			}
 			if err, ok := errors.Cause(c.nr.err).(x509.CertificateInvalidError); ok && err.Reason == x509.Expired {
@@ -262,7 +262,7 @@ func (c *Cluster) Init(req types.InitRequest) (string, error) {
 			}
 		} else {
 			c.mu.Unlock()
-			return "", ErrSwarmExists
+			return "", errSwarmExists
 		}
 	}
 	c.mu.Unlock()
@@ -358,7 +358,7 @@ func (c *Cluster) Join(req types.JoinRequest) error {
 	c.mu.Lock()
 	if c.nr != nil {
 		c.mu.Unlock()
-		return ErrSwarmExists
+		return errSwarmExists
 	}
 	c.mu.Unlock()
 
@@ -400,7 +400,7 @@ func (c *Cluster) Join(req types.JoinRequest) error {
 
 	select {
 	case <-time.After(swarmConnectTimeout):
-		return ErrSwarmJoinTimeoutReached
+		return errSwarmJoinTimeoutReached
 	case err := <-nr.Ready():
 		if err != nil {
 			c.mu.Lock()
@@ -448,7 +448,7 @@ func (c *Cluster) UnlockSwarm(req types.UnlockRequest) error {
 	state := c.currentNodeState()
 	nr := c.nr
 	c.mu.RUnlock()
-	if nr == nil || errors.Cause(state.err) != ErrSwarmLocked {
+	if nr == nil || errors.Cause(state.err) != errSwarmLocked {
 		return errors.New("swarm is not locked")
 	}
 	key, err := encryption.ParseHumanReadableKey(req.UnlockKey)
@@ -471,7 +471,7 @@ func (c *Cluster) UnlockSwarm(req types.UnlockRequest) error {
 	c.mu.Unlock()
 
 	if err := <-nr.Ready(); err != nil {
-		if errors.Cause(err) == ErrSwarmLocked {
+		if errors.Cause(err) == errSwarmLocked {
 			return errors.New("swarm could not be unlocked: invalid key provided")
 		}
 		return fmt.Errorf("swarm component could not be started: %v", err)
@@ -488,9 +488,17 @@ func (c *Cluster) Leave(force bool) error {
 	nr := c.nr
 	if nr == nil {
 		c.mu.Unlock()
-		return ErrNoSwarm
+		return errNoSwarm
 	}
+
 	state := c.currentNodeState()
+
+	if errors.Cause(state.err) == errSwarmLocked && !force {
+		// leave a locked swarm without --force is not allowed
+		c.mu.Unlock()
+		return errors.New("Swarm is encrypted and locked. Please unlock it first or use `--force` to ignore this message.")
+	}
+
 	if state.IsManager() && !force {
 		msg := "You are attempting to leave the swarm on a node that is participating as a manager. "
 		if state.IsActiveManager() {
@@ -533,6 +541,7 @@ func (c *Cluster) Leave(force bool) error {
 			}
 		}
 	}
+
 	c.configEvent <- struct{}{}
 	// todo: cleanup optional?
 	if err := clearPersistentState(c.root); err != nil {
@@ -755,11 +764,11 @@ func (c *Cluster) currentNodeState() nodeState {
 // Call with read lock.
 func (c *Cluster) errNoManager(st nodeState) error {
 	if st.swarmNode == nil {
-		if errors.Cause(st.err) == ErrSwarmLocked {
-			return ErrSwarmLocked
+		if errors.Cause(st.err) == errSwarmLocked {
+			return errSwarmLocked
 		}
-		if st.err == ErrSwarmCertificatesExpired {
-			return ErrSwarmCertificatesExpired
+		if st.err == errSwarmCertificatesExpired {
+			return errSwarmCertificatesExpired
 		}
 		return fmt.Errorf("This node is not a swarm manager. Use \"docker swarm init\" or \"docker swarm join\" to connect this node to swarm and try again.")
 	}
@@ -1729,7 +1738,7 @@ func initClusterSpec(node *swarmnode.Node, spec types.Spec) error {
 
 func detectLockedError(err error) error {
 	if err == swarmnode.ErrInvalidUnlockKey {
-		return errors.WithStack(ErrSwarmLocked)
+		return errors.WithStack(errSwarmLocked)
 	}
 	return err
 }
