@@ -573,9 +573,18 @@ func (na *NetworkAllocator) allocateDriverState(n *api.Network) error {
 		return err
 	}
 
-	var options map[string]string
+	options := make(map[string]string)
+	// reconcile the driver specific options from the network spec
+	// and from the operational state retrieved from the store
 	if n.Spec.DriverConfig != nil {
-		options = n.Spec.DriverConfig.Options
+		for k, v := range n.Spec.DriverConfig.Options {
+			options[k] = v
+		}
+	}
+	if n.DriverState != nil {
+		for k, v := range n.DriverState.Options {
+			options[k] = v
+		}
 	}
 
 	// Construct IPAM data for driver consumption.
