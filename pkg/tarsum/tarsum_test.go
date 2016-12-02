@@ -334,6 +334,7 @@ func TestTarSums(t *testing.T) {
 				t.Errorf("failed to open %s: %s", layer.filename, err)
 				continue
 			}
+			defer fh.Close()
 		} else if layer.options != nil {
 			fh = sizedTar(*layer.options)
 		} else {

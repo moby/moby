@@ -52,6 +52,8 @@ func (w *filePoller) Add(name string) error {
 	if err != nil {
 		return err
 	}
+	defer f.Close()
+
 	fi, err := os.Stat(name)
 	if err != nil {
 		return err
