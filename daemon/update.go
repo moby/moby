@@ -7,19 +7,19 @@ import (
 )
 
 // ContainerUpdate updates configuration of the container
-func (daemon *Daemon) ContainerUpdate(name string, hostConfig *container.HostConfig, validateHostname bool) (container.ContainerUpdateOKBody, error) {
+func (daemon *Daemon) ContainerUpdate(name string, hostConfig *container.HostConfig, validateHostname bool) (container.UpdateOKBody, error) {
 	var warnings []string
 
 	warnings, err := daemon.verifyContainerSettings(hostConfig, nil, true, validateHostname)
 	if err != nil {
-		return container.ContainerUpdateOKBody{Warnings: warnings}, err
+		return container.UpdateOKBody{Warnings: warnings}, err
 	}
 
 	if err := daemon.update(name, hostConfig); err != nil {
-		return container.ContainerUpdateOKBody{Warnings: warnings}, err
+		return container.UpdateOKBody{Warnings: warnings}, err
 	}
 
-	return container.ContainerUpdateOKBody{Warnings: warnings}, nil
+	return container.UpdateOKBody{Warnings: warnings}, nil
 }
 
 // ContainerUpdateCmdOnBuild updates Path and Args for the container with ID cID.

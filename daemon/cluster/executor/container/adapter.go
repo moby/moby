@@ -213,7 +213,7 @@ func (c *containerAdapter) waitForDetach(ctx context.Context) error {
 }
 
 func (c *containerAdapter) create(ctx context.Context) error {
-	var cr containertypes.ContainerCreateCreatedBody
+	var cr containertypes.CreateCreatedBody
 	var err error
 	version := httputils.VersionFromContext(ctx)
 	validateHostname := versions.GreaterThanOrEqualTo(version, "1.24")

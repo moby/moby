@@ -36,7 +36,7 @@ type CommonAPIClient interface {
 type ContainerAPIClient interface {
 	ContainerAttach(ctx context.Context, container string, options types.ContainerAttachOptions) (types.HijackedResponse, error)
 	ContainerCommit(ctx context.Context, container string, options types.ContainerCommitOptions) (types.IDResponse, error)
-	ContainerCreate(ctx context.Context, config *container.Config, hostConfig *container.HostConfig, networkingConfig *network.NetworkingConfig, containerName string) (container.ContainerCreateCreatedBody, error)
+	ContainerCreate(ctx context.Context, config *container.Config, hostConfig *container.HostConfig, networkingConfig *network.NetworkingConfig, containerName string) (container.CreateCreatedBody, error)
 	ContainerDiff(ctx context.Context, container string) ([]types.ContainerChange, error)
 	ContainerExecAttach(ctx context.Context, execID string, config types.ExecConfig) (types.HijackedResponse, error)
 	ContainerExecCreate(ctx context.Context, container string, config types.ExecConfig) (types.IDResponse, error)
@@ -60,7 +60,7 @@ type ContainerAPIClient interface {
 	ContainerStop(ctx context.Context, container string, timeout *time.Duration) error
 	ContainerTop(ctx context.Context, container string, arguments []string) (types.ContainerProcessList, error)
 	ContainerUnpause(ctx context.Context, container string) error
-	ContainerUpdate(ctx context.Context, container string, updateConfig container.UpdateConfig) (container.ContainerUpdateOKBody, error)
+	ContainerUpdate(ctx context.Context, container string, updateConfig container.UpdateConfig) (container.UpdateOKBody, error)
 	ContainerWait(ctx context.Context, container string) (int64, error)
 	CopyFromContainer(ctx context.Context, container, srcPath string) (io.ReadCloser, types.ContainerPathStat, error)
 	CopyToContainer(ctx context.Context, container, path string, content io.Reader, options types.CopyToContainerOptions) error

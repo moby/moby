@@ -7,9 +7,9 @@ package container
 // See hack/generate-swagger-api.sh
 // ----------------------------------------------------------------------------
 
-// ContainerCreateCreatedBody container create created body
-// swagger:model ContainerCreateCreatedBody
-type ContainerCreateCreatedBody struct {
+// CreateCreatedBody container create created body
+// swagger:model CreateCreatedBody
+type CreateCreatedBody struct {
 
 	// The ID of the created container
 	// Required: true

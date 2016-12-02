@@ -32,7 +32,7 @@ func TestContainerUpdate(t *testing.T) {
 				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
 			}
 
-			b, err := json.Marshal(container.ContainerUpdateOKBody{})
+			b, err := json.Marshal(container.UpdateOKBody{})
 			if err != nil {
 				return nil, err
 			}

@@ -7,9 +7,9 @@ package container
 // See hack/generate-swagger-api.sh
 // ----------------------------------------------------------------------------
 
-// ContainerWaitOKBody container wait o k body
-// swagger:model ContainerWaitOKBody
-type ContainerWaitOKBody struct {
+// WaitOKBody container wait o k body
+// swagger:model WaitOKBody
+type WaitOKBody struct {
 
 	// Exit code of the container
 	// Required: true
