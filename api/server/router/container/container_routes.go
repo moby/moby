@@ -151,8 +151,7 @@ func (s *containerRouter) postContainersStart(ctx context.Context, w http.Respon
 		hostConfig = c
 	}
 
-	validateHostname := versions.GreaterThanOrEqualTo(version, "1.24")
-	if err := s.backend.ContainerStart(vars["name"], hostConfig, validateHostname); err != nil {
+	if err := s.backend.ContainerStart(vars["name"], hostConfig); err != nil {
 		return err
 	}
 	w.WriteHeader(http.StatusNoContent)
@@ -312,7 +311,6 @@ func (s *containerRouter) postContainerUpdate(ctx context.Context, w http.Respon
 		return err
 	}
 
-	version := httputils.VersionFromContext(ctx)
 	var updateConfig container.UpdateConfig
 
 	decoder := json.NewDecoder(r.Body)
@@ -326,8 +324,7 @@ func (s *containerRouter) postContainerUpdate(ctx context.Context, w http.Respon
 	}
 
 	name := vars["name"]
-	validateHostname := versions.GreaterThanOrEqualTo(version, "1.24")
-	warnings, err := s.backend.ContainerUpdate(name, hostConfig, validateHostname)
+	warnings, err := s.backend.ContainerUpdate(name, hostConfig)
 	if err != nil {
 		return err
 	}
@@ -354,14 +351,13 @@ func (s *containerRouter) postContainersCreate(ctx context.Context, w http.Respo
 	version := httputils.VersionFromContext(ctx)
 	adjustCPUShares := versions.LessThan(version, "1.19")
 
-	validateHostname := versions.GreaterThanOrEqualTo(version, "1.24")
 	ccr, err := s.backend.ContainerCreate(types.ContainerCreateConfig{
 		Name:             name,
 		Config:           config,
 		HostConfig:       hostConfig,
 		NetworkingConfig: networkingConfig,
 		AdjustCPUShares:  adjustCPUShares,
-	}, validateHostname)
+	})
 	if err != nil {
 		return err
 	}
