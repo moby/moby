@@ -1042,20 +1042,32 @@ func (s *DockerSwarmSuite) TestSwarmJoinPromoteLocked(c *check.C) {
 		c.Assert(getNodeStatus(c, d), checker.Equals, swarm.LocalNodeStateActive)
 	}
 
+	// get d3's cert
+	d3cert, err := ioutil.ReadFile(filepath.Join(d3.folder, "root", "swarm", "certificates", "swarm-node.crt"))
+	c.Assert(err, checker.IsNil)
+
 	// demote manager back to worker - workers are not locked
 	outs, err = d1.Cmd("node", "demote", d3.Info.NodeID)
 	c.Assert(err, checker.IsNil)
 	c.Assert(outs, checker.Contains, "demoted in the swarm")
 
-	// verify that it's been demoted
-	out, err := d1.Cmd("node", "ls", "--filter", "id="+d3.Info.NodeID)
-	c.Assert(err, checker.IsNil)
-	lines := strings.Split(strings.TrimSpace(out), "\n")
-	c.Assert(len(lines), checker.GreaterThan, 0)
-	columns := strings.Fields(lines[len(lines)-1])
-	c.Assert(columns, checker.HasLen, 4) // if it was a manager it'd have a manager status field
+	// Wait for it to actually be demoted, for the key and cert to be replaced.
+	// Then restart and assert that the node is not locked.  If we don't wait for the cert
+	// to be replaced, then the node still has the manager TLS key which is still locked
+	// (because we never want a manager TLS key to be on disk unencrypted if the cluster
+	// is set to autolock)
+	waitAndAssert(c, defaultReconciliationTimeout, d3.checkControlAvailable, checker.False)
+	waitAndAssert(c, defaultReconciliationTimeout, func(c *check.C) (interface{}, check.CommentInterface) {
+		cert, err := ioutil.ReadFile(filepath.Join(d3.folder, "root", "swarm", "certificates", "swarm-node.crt"))
+		if err != nil {
+			return "", check.Commentf("error: %v", err)
+		}
+		return string(cert), check.Commentf("cert: %v", string(cert))
+	}, checker.Not(checker.Equals), string(d3cert))
 
-	checkSwarmLockedToUnlocked(c, d3, unlockKey)
+	// by now, it should *never* be locked on restart
+	c.Assert(d3.Restart(), checker.IsNil)
+	c.Assert(getNodeStatus(c, d3), checker.Equals, swarm.LocalNodeStateActive)
 }
 
 func (s *DockerSwarmSuite) TestSwarmRotateUnlockKey(c *check.C) {
