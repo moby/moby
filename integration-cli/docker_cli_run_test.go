@@ -4354,42 +4354,6 @@ func (s *DockerSuite) TestRunVolumeCopyFlag(c *check.C) {
 	c.Assert(err, checker.NotNil, check.Commentf(out))
 }
 
-func (s *DockerSuite) TestRunTooLongHostname(c *check.C) {
-	// Test case in #21445
-	hostname1 := "this-is-a-way-too-long-hostname-but-it-should-give-a-nice-error.local"
-	out, _, err := dockerCmdWithError("run", "--hostname", hostname1, "busybox", "echo", "test")
-	c.Assert(err, checker.NotNil, check.Commentf("Expected docker run to fail!"))
-	c.Assert(out, checker.Contains, "invalid hostname format:", check.Commentf("Expected to have 'invalid hostname format:' in the output, get: %s!", out))
-
-	// Additional test cases
-	validHostnames := map[string]string{
-		"hostname":    "hostname",
-		"host-name":   "host-name",
-		"hostname123": "hostname123",
-		"123hostname": "123hostname",
-		"hostname-of-63-bytes-long-should-be-valid-and-without-any-error": "hostname-of-63-bytes-long-should-be-valid-and-without-any-error",
-	}
-	for hostname := range validHostnames {
-		dockerCmd(c, "run", "--hostname", hostname, "busybox", "echo", "test")
-	}
-
-	invalidHostnames := map[string]string{
-		"^hostname": "invalid hostname format: ^hostname",
-		"hostname%": "invalid hostname format: hostname%",
-		"host&name": "invalid hostname format: host&name",
-		"-hostname": "invalid hostname format: -hostname",
-		"host_name": "invalid hostname format: host_name",
-		"hostname-of-64-bytes-long-should-be-invalid-and-be-with-an-error": "invalid hostname format: hostname-of-64-bytes-long-should-be-invalid-and-be-with-an-error",
-	}
-
-	for hostname, expectedError := range invalidHostnames {
-		out, _, err = dockerCmdWithError("run", "--hostname", hostname, "busybox", "echo", "test")
-		c.Assert(err, checker.NotNil, check.Commentf("Expected docker run to fail!"))
-		c.Assert(out, checker.Contains, expectedError, check.Commentf("Expected to have '%s' in the output, get: %s!", expectedError, out))
-
-	}
-}
-
 // Test case for #21976
 func (s *DockerSuite) TestRunDNSInHostMode(c *check.C) {
 	testRequires(c, DaemonIsLinux, NotUserNamespace)
