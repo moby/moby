@@ -6070,6 +6070,71 @@ func (s *DockerSuite) TestBuildBuildTimeArgUnconsumedArg(c *check.C) {
 
 }
 
+func (s *DockerSuite) TestBuildBuildTimeArgEnv(c *check.C) {
+	testRequires(c, DaemonIsLinux) // Windows does not support ARG
+	args := []string{
+		"build",
+		"--build-arg", fmt.Sprintf("FOO1=fromcmd"),
+		"--build-arg", fmt.Sprintf("FOO2="),
+		"--build-arg", fmt.Sprintf("FOO3"), // set in env
+		"--build-arg", fmt.Sprintf("FOO4"), // not set in env
+		"--build-arg", fmt.Sprintf("FOO5=fromcmd"),
+		// FOO6 is not set at all
+		"--build-arg", fmt.Sprintf("FOO7=fromcmd"), // should produce a warning
+		"--build-arg", fmt.Sprintf("FOO8="), // should produce a warning
+		"--build-arg", fmt.Sprintf("FOO9"), // should produce a warning
+		".",
+	}
+
+	dockerfile := fmt.Sprintf(`FROM busybox
+		ARG FOO1=fromfile
+		ARG FOO2=fromfile
+		ARG FOO3=fromfile
+		ARG FOO4=fromfile
+		ARG FOO5
+		ARG FOO6
+		RUN env
+		RUN [ "$FOO1" == "fromcmd" ]
+		RUN [ "$FOO2" == "" ]
+		RUN [ "$FOO3" == "fromenv" ]
+		RUN [ "$FOO4" == "fromfile" ]
+		RUN [ "$FOO5" == "fromcmd" ]
+		# The following should not exist at all in the env
+		RUN [ "$(env | grep FOO6)" == "" ]
+		RUN [ "$(env | grep FOO7)" == "" ]
+		RUN [ "$(env | grep FOO8)" == "" ]
+		RUN [ "$(env | grep FOO9)" == "" ]
+	    `)
+
+	ctx, err := fakeContext(dockerfile, nil)
+	c.Assert(err, check.IsNil)
+	defer ctx.Close()
+
+	cmd := exec.Command(dockerBinary, args...)
+	cmd.Dir = ctx.Dir
+	cmd.Env = append(os.Environ(),
+		"FOO1=fromenv",
+		"FOO2=fromenv",
+		"FOO3=fromenv")
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		c.Fatal(err, out)
+	}
+
+	// Now check to make sure we got a warning msg about unused build-args
+	i := strings.Index(out, "[Warning]")
+	if i < 0 {
+		c.Fatalf("Missing the build-arg warning in %q", out)
+	}
+
+	out = out[i:] // "out" should contain just the warning message now
+
+	// These were specified on a --build-arg but no ARG was in the Dockerfile
+	c.Assert(out, checker.Contains, "FOO7")
+	c.Assert(out, checker.Contains, "FOO8")
+	c.Assert(out, checker.Contains, "FOO9")
+}
+
 func (s *DockerSuite) TestBuildBuildTimeArgQuotedValVariants(c *check.C) {
 	imgName := "bldargtest"
 	envKey := "foo"

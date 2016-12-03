@@ -67,7 +67,7 @@ func NewBuildCommand(dockerCli *command.DockerCli) *cobra.Command {
 	ulimits := make(map[string]*units.Ulimit)
 	options := buildOptions{
 		tags:      opts.NewListOpts(validateTag),
-		buildArgs: opts.NewListOpts(runconfigopts.ValidateArg),
+		buildArgs: opts.NewListOpts(runconfigopts.ValidateEnv),
 		ulimits:   runconfigopts.NewUlimitOpt(&ulimits),
 		labels:    opts.NewListOpts(runconfigopts.ValidateEnv),
 	}
@@ -300,7 +300,7 @@ func runBuild(dockerCli *command.DockerCli, options buildOptions) error {
 		Dockerfile:     relDockerfile,
 		ShmSize:        shmSize,
 		Ulimits:        options.ulimits.GetList(),
-		BuildArgs:      runconfigopts.ConvertKVStringsToMap(options.buildArgs.GetAll()),
+		BuildArgs:      runconfigopts.ConvertKVStringsToMapWithNil(options.buildArgs.GetAll()),
 		AuthConfigs:    authConfigs,
 		Labels:         runconfigopts.ConvertKVStringsToMap(options.labels.GetAll()),
 		CacheFrom:      options.cacheFrom,

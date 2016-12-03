@@ -125,7 +125,7 @@ func NewBuilder(clientCtx context.Context, config *types.ImageBuildOptions, back
 		config = new(types.ImageBuildOptions)
 	}
 	if config.BuildArgs == nil {
-		config.BuildArgs = make(map[string]string)
+		config.BuildArgs = make(map[string]*string)
 	}
 	ctx, cancel := context.WithCancel(clientCtx)
 	b = &Builder{

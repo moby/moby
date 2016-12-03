@@ -384,8 +384,8 @@ func run(b *Builder, args []string, attributes map[string]bool, original string)
 			// the entire file (see 'leftoverArgs' processing in evaluator.go )
 			continue
 		}
-		if _, ok := configEnv[key]; !ok {
-			cmdBuildEnv = append(cmdBuildEnv, fmt.Sprintf("%s=%s", key, val))
+		if _, ok := configEnv[key]; !ok && val != nil {
+			cmdBuildEnv = append(cmdBuildEnv, fmt.Sprintf("%s=%s", key, *val))
 		}
 	}
 
@@ -728,7 +728,7 @@ func arg(b *Builder, args []string, attributes map[string]bool, original string)
 
 	var (
 		name       string
-		value      string
+		newValue   string
 		hasDefault bool
 	)
 
@@ -745,7 +745,7 @@ func arg(b *Builder, args []string, attributes map[string]bool, original string)
 		}
 
 		name = parts[0]
-		value = parts[1]
+		newValue = parts[1]
 		hasDefault = true
 	} else {
 		name = arg
@@ -756,9 +756,12 @@ func arg(b *Builder, args []string, attributes map[string]bool, original string)
 
 	// If there is a default value associated with this arg then add it to the
 	// b.buildArgs if one is not already passed to the builder. The args passed
-	// to builder override the default value of 'arg'.
-	if _, ok := b.options.BuildArgs[name]; !ok && hasDefault {
-		b.options.BuildArgs[name] = value
+	// to builder override the default value of 'arg'. Note that a 'nil' for
+	// a value means that the user specified "--build-arg FOO" and "FOO" wasn't
+	// defined as an env var - and in that case we DO want to use the default
+	// value specified in the ARG cmd.
+	if baValue, ok := b.options.BuildArgs[name]; (!ok || baValue == nil) && hasDefault {
+		b.options.BuildArgs[name] = &newValue
 	}
 
 	return b.commit("", b.runConfig.Cmd, fmt.Sprintf("ARG %s", arg))
