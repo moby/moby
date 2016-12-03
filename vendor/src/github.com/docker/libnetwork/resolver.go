@@ -63,6 +63,7 @@ type resolver struct {
 	count      int32
 	tStamp     time.Time
 	queryLock  sync.Mutex
+	startCh    chan struct{}
 }
 
 func init() {
@@ -72,8 +73,9 @@ func init() {
 // NewResolver creates a new instance of the Resolver
 func NewResolver(sb *sandbox) Resolver {
 	return &resolver{
-		sb:  sb,
-		err: fmt.Errorf("setup not done yet"),
+		sb:      sb,
+		err:     fmt.Errorf("setup not done yet"),
+		startCh: make(chan struct{}, 1),
 	}
 }
 
@@ -107,6 +109,9 @@ func (r *resolver) SetupFunc() func() {
 }
 
 func (r *resolver) Start() error {
+	r.startCh <- struct{}{}
+	defer func() { <-r.startCh }()
+
 	// make sure the resolver has been setup before starting
 	if r.err != nil {
 		return r.err
@@ -131,6 +136,9 @@ func (r *resolver) Start() error {
 }
 
 func (r *resolver) Stop() {
+	r.startCh <- struct{}{}
+	defer func() { <-r.startCh }()
+
 	if r.server != nil {
 		r.server.Shutdown()
 	}
@@ -355,8 +363,12 @@ func (r *resolver) ServeDNS(w dns.ResponseWriter, query *dns.Msg) {
 			}
 
 			execErr := r.sb.execFunc(extConnect)
-			if execErr != nil || err != nil {
-				log.Debugf("Connect failed, %s", err)
+			if execErr != nil {
+				log.Warn(execErr)
+				continue
+			}
+			if err != nil {
+				log.Warnf("Connect failed: %s", err)
 				continue
 			}
 			log.Debugf("Query %s[%d] from %s, forwarding to %s:%s", name, query.Question[0].Qtype,
