@@ -6,7 +6,9 @@ RUN apt-get \update && \
 ADD \conf\\" /.znc
 
 RUN foo \
+
 bar \
+
 baz
 
 CMD [ "\/usr\\\"/bin/znc", "-f", "-r" ]
