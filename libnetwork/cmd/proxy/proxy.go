@@ -3,7 +3,6 @@
 package main
 
 import (
-	"errors"
 	"net"
 )
 
@@ -32,6 +31,6 @@ func NewProxy(frontendAddr, backendAddr net.Addr) (Proxy, error) {
 	case *net.TCPAddr:
 		return NewTCPProxy(frontendAddr.(*net.TCPAddr), backendAddr.(*net.TCPAddr))
 	default:
-		panic(errors.New("Unsupported protocol"))
+		panic("Unsupported protocol")
 	}
 }
