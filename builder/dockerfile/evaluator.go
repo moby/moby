@@ -158,7 +158,7 @@ func (b *Builder) dispatch(stepN int, stepTotal int, ast *parser.Node) error {
 			// the entire file (see 'leftoverArgs' processing in evaluator.go )
 			continue
 		}
-		envs = append(envs, fmt.Sprintf("%s=%s", key, val))
+		envs = append(envs, fmt.Sprintf("%s=%s", key, *val))
 	}
 	for ast.Next != nil {
 		ast = ast.Next
