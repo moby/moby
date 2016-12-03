@@ -27,5 +27,6 @@ bye\
 frog
 
 RUN echo hello \
-# this is a comment that breaks escape continuation
-RUN echo this is some more useful stuff
+# this is a comment
+  # this is a comment not starting from pos 1
+this is some more useful stuff

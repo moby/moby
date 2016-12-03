@@ -7159,21 +7159,6 @@ RUN echo z
 	c.Assert(out, checker.Contains, "Step 2/4 : RUN echo x")
 	c.Assert(out, checker.Contains, "Step 3/4 : RUN echo y")
 	c.Assert(out, checker.Contains, "Step 4/4 : RUN echo z")
-
-	// With comment, see #24693
-	name = "testbuildcommentandemptylineafterescape"
-	_, out, err = buildImageWithOut(name,
-		`
-FROM busybox
-RUN echo grafana && \
-    echo raintank \
-#echo env-load
-RUN echo vegeta
-`, true)
-	c.Assert(err, checker.IsNil)
-	c.Assert(out, checker.Contains, "Step 1/3 : FROM busybox")
-	c.Assert(out, checker.Contains, "Step 2/3 : RUN echo grafana &&     echo raintank")
-	c.Assert(out, checker.Contains, "Step 3/3 : RUN echo vegeta")
 }
 
 func (s *DockerSuite) TestBuildSquashParent(c *check.C) {
@@ -7326,4 +7311,23 @@ func (s *DockerSuite) TestBuildWindowsEnvCaseInsensitive(c *check.C) {
 	if res != `["foo=bar"]` { // Should not have FOO=bar in it - takes the last one processed. And only one entry as deduped.
 		c.Fatalf("Case insensitive environment variables on Windows failed. Got %s", res)
 	}
+}
+
+// Test case for #29005
+func (s *DockerSuite) TestBuildRunCommentLineAfterEscape(c *check.C) {
+	name := "testbuildcommentlineafterescape"
+
+	_, out, err := buildImageWithOut(name,
+		`
+FROM busybox
+
+RUN echo hi \
+  # wut
+&& echo no \
+# omg
+&& echo yes
+`, true)
+	c.Assert(err, checker.IsNil)
+	c.Assert(out, checker.Contains, "Step 1/2 : FROM busybox")
+	c.Assert(out, checker.Contains, "Step 2/2 : RUN echo hi && echo no && echo yes")
 }
