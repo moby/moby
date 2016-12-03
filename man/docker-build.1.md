@@ -83,7 +83,7 @@ set as the **URL**, the repository is cloned locally and then sent as the contex
    Users pass these values at build-time. Docker uses the `buildargs` as the
    environment context for command(s) run via the Dockerfile's `RUN` instruction
    or for variable expansion in other Dockerfile instructions. This is not meant
-   for passing secret values. [Read more about the buildargs instruction](/reference/builder/#arg)
+   for passing secret values. [Read more about the buildargs instruction](https://docs.docker.com/engine/reference/builder/#arg)
 
 **--force-rm**=*true*|*false*
    Always remove intermediate containers, even after unsuccessful builds. The default is *false*.

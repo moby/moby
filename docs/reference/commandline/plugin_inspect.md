@@ -16,13 +16,13 @@ keywords: "plugin, inspect"
 # plugin inspect
 
 ```markdown
-Usage:  docker plugin inspect [OPTIONS] PLUGIN [PLUGIN...]
+Usage:	docker plugin inspect [OPTIONS] PLUGIN|ID [PLUGIN|ID...]
 
 Display detailed information on one or more plugins
 
 Options:
-      -f, --format string   Format the output using the given Go template
-          --help            Print usage
+  -f, --format string   Format the output using the given Go template
+      --help            Print usage
 ```
 
 Returns information about a plugin. By default, this command renders all results

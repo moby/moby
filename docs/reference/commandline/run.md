@@ -92,7 +92,6 @@ Options:
       --memory-reservation string   Memory soft limit
       --memory-swap string          Swap limit equal to memory plus swap: '-1' to enable unlimited swap
       --memory-swappiness int       Tune container memory swappiness (0 to 100) (default -1)
-      --mount value                 Attach a filesystem mount to the container (default [])
       --name string                 Assign a name to the container
       --network-alias value         Add network-scoped alias for the container (default [])
       --network string              Connect a container to a network
@@ -283,21 +282,6 @@ of a bind mount must be a local directory, not a file.
     docker run -v c:\foo:c:\existing-directory-with-contents ...
 
 For in-depth information about volumes, refer to [manage data in containers](https://docs.docker.com/engine/tutorials/dockervolumes/)
-
-### Add bin-mounts or volumes using the --mount flag
-
-The `--mount` flag allows you to mount volumes, host-directories and `tmpfs`
-mounts in a container.
-
-The `--mount` flag supports most options that are supported by the `-v` or the
-`--volume` flag, but uses a different syntax. For in-depth information on the
-`--mount` flag, and a comparison between `--volume` and `--mount`, refer to
-the [service create command reference](service_create.md#add-bind-mounts-or-volumes).
-
-Examples:
-
-    $ docker run --read-only --mount type=volume,target=/icanwrite busybox touch /icanwrite/here
-    $ docker run -t -i --mount type=bind,src=/data,dst=/data busybox sh
 
 ### Publish or expose port (-p, --expose)
 
@@ -678,7 +662,7 @@ The `credentialspec` must be in the format `file://spec.txt` or `registry://keyn
 
 ### Stop container with timeout (--stop-timeout)
 
-The `--stop-timeout` flag sets the the timeout (in seconds) that a pre-defined (see `--stop-signal`) system call
+The `--stop-timeout` flag sets the timeout (in seconds) that a pre-defined (see `--stop-signal`) system call
 signal that will be sent to the container to exit. After timeout elapses the container will be killed with SIGKILL.
 
 ### Specify isolation technology for container (--isolation)
