@@ -2874,9 +2874,17 @@ _docker_service_update() {
 			COMPREPLY=( $( compgen -W "$boolean_options $options_with_args" -- "$cur" ) )
 			;;
 		*)
+			local counter=$( __docker_pos_first_nonflag $( __docker_to_alternatives "$options_with_args" ) )
 			if [ "$subcommand" = "update" ] ; then
-				__docker_complete_services
+				if [ $cword -eq $counter ]; then
+					__docker_complete_services
+				fi
+			else
+				if [ $cword -eq $counter ]; then
+					__docker_complete_images
+				fi
 			fi
+			;;
 	esac
 }
 
