@@ -34,7 +34,7 @@ The `docker logs` command batch-retrieves logs present at the time of execution.
 > **Note**: this command is only functional for containers that are started with
 > the `json-file` or `journald` logging driver.
 
-For more information about selecting and configuring login-drivers, refer to
+For more information about selecting and configuring logging drivers, refer to
 [Configure logging drivers](https://docs.docker.com/engine/admin/logging/overview/).
 
 The `docker logs --follow` command will continue streaming the new output from
