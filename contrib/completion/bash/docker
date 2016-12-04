@@ -3810,9 +3810,15 @@ _docker_top() {
 }
 
 _docker_version() {
+	case "$prev" in
+		--format|-f)
+			return
+			;;
+	esac
+
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "--help" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "--format -f --help" -- "$cur" ) )
 			;;
 	esac
 }
