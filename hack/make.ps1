@@ -394,6 +394,8 @@ Catch [Exception] {
     Write-Host -ForegroundColor Red  " \___  /  (____  /__`|____/\___  `>____ `| "
     Write-Host -ForegroundColor Red  "     \/        \/             \/     \/ "
     Write-Host
+
+    Throw $_
 }
 Finally {
     if ($global:pushed) { Pop-Location }
