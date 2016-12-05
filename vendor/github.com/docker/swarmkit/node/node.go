@@ -22,6 +22,7 @@ import (
 	"github.com/docker/swarmkit/log"
 	"github.com/docker/swarmkit/manager"
 	"github.com/docker/swarmkit/manager/encryption"
+	"github.com/docker/swarmkit/manager/state/raft"
 	"github.com/docker/swarmkit/remotes"
 	"github.com/docker/swarmkit/xnet"
 	"github.com/pkg/errors"
@@ -694,7 +695,7 @@ func (n *Node) runManager(ctx context.Context, securityConfig *ca.SecurityConfig
 		case <-done:
 			// Fail out if m.Run() returns error, otherwise wait for
 			// role change.
-			if runErr != nil {
+			if runErr != nil && runErr != raft.ErrMemberRemoved {
 				err = runErr
 			} else {
 				err = <-roleChanged

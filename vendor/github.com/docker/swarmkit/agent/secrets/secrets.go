@@ -7,7 +7,7 @@ import (
 	"github.com/docker/swarmkit/api"
 )
 
-// secrets is a map that keeps all the currenty available secrets to the agent
+// secrets is a map that keeps all the currently available secrets to the agent
 // mapped by secret ID
 type secrets struct {
 	mu sync.RWMutex

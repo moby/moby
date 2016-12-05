@@ -226,16 +226,6 @@ func (s *session) logSubscriptions(ctx context.Context) error {
 
 	client := api.NewLogBrokerClient(s.conn)
 	subscriptions, err := client.ListenSubscriptions(ctx, &api.ListenSubscriptionsRequest{})
-	if grpc.Code(err) == codes.Unimplemented {
-		log.Warning("manager does not support log subscriptions")
-		// Don't return, because returning would bounce the session
-		select {
-		case <-s.closed:
-			return errSessionClosed
-		case <-ctx.Done():
-			return ctx.Err()
-		}
-	}
 	if err != nil {
 		return err
 	}
@@ -243,6 +233,16 @@ func (s *session) logSubscriptions(ctx context.Context) error {
 
 	for {
 		resp, err := subscriptions.Recv()
+		if grpc.Code(err) == codes.Unimplemented {
+			log.Warning("manager does not support log subscriptions")
+			// Don't return, because returning would bounce the session
+			select {
+			case <-s.closed:
+				return errSessionClosed
+			case <-ctx.Done():
+				return ctx.Err()
+			}
+		}
 		if err != nil {
 			return err
 		}

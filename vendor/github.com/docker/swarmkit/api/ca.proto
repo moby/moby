@@ -36,6 +36,7 @@ message NodeCertificateStatusRequest {
 message NodeCertificateStatusResponse {
 	IssuanceStatus status = 1;
 	Certificate certificate = 2;
+	bytes root_ca_bundle = 3 [(gogoproto.customname) = "RootCABundle"];
 }
 
 message IssueNodeCertificateRequest {

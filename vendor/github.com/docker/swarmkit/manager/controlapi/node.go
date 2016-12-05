@@ -211,7 +211,7 @@ func (s *Server) UpdateNode(ctx context.Context, request *api.UpdateNodeRequest)
 	err := s.store.Update(func(tx store.Tx) error {
 		node = store.GetNode(tx, request.NodeID)
 		if node == nil {
-			return nil
+			return grpc.Errorf(codes.NotFound, "node %s not found", request.NodeID)
 		}
 
 		// Demotion sanity checks.
@@ -244,9 +244,6 @@ func (s *Server) UpdateNode(ctx context.Context, request *api.UpdateNodeRequest)
 	})
 	if err != nil {
 		return nil, err
-	}
-	if node == nil {
-		return nil, grpc.Errorf(codes.NotFound, "node %s not found", request.NodeID)
 	}
 
 	if demote && s.raft != nil {

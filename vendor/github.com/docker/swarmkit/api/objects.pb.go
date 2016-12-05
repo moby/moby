@@ -113,7 +113,7 @@ type Endpoint_VirtualIP struct {
 	// strictly a logical IP and there may not be any
 	// interfaces assigned this IP address or any route
 	// created for this address.  More than one to
-	// accomodate for both IPv4 and IPv6
+	// accommodate for both IPv4 and IPv6
 	Addr string `protobuf:"bytes,2,opt,name=addr,proto3" json:"addr,omitempty"`
 }
 

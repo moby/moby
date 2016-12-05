@@ -142,8 +142,9 @@ func (s *Server) NodeCertificateStatus(ctx context.Context, request *api.NodeCer
 	// If this certificate has a final state, return it immediately (both pending and renew are transition states)
 	if isFinalState(node.Certificate.Status) {
 		return &api.NodeCertificateStatusResponse{
-			Status:      &node.Certificate.Status,
-			Certificate: &node.Certificate,
+			Status:       &node.Certificate.Status,
+			Certificate:  &node.Certificate,
+			RootCABundle: s.securityConfig.RootCA().Cert,
 		}, nil
 	}
 
@@ -164,8 +165,9 @@ func (s *Server) NodeCertificateStatus(ctx context.Context, request *api.NodeCer
 				if isFinalState(v.Node.Certificate.Status) {
 					cert := v.Node.Certificate.Copy()
 					return &api.NodeCertificateStatusResponse{
-						Status:      &cert.Status,
-						Certificate: cert,
+						Status:       &cert.Status,
+						Certificate:  cert,
+						RootCABundle: s.securityConfig.RootCA().Cert,
 					}, nil
 				}
 			}

@@ -388,26 +388,39 @@ func (m *Manager) Run(parent context.Context) error {
 
 	close(m.started)
 
+	errCh := make(chan error, 1)
 	go func() {
 		err := m.raftNode.Run(ctx)
 		if err != nil {
+			errCh <- err
 			log.G(ctx).WithError(err).Error("raft node stopped")
 			m.Stop(ctx)
 		}
 	}()
 
-	if err := raft.WaitForLeader(ctx, m.raftNode); err != nil {
+	returnErr := func(err error) error {
+		select {
+		case runErr := <-errCh:
+			if runErr == raft.ErrMemberRemoved {
+				return runErr
+			}
+		default:
+		}
 		return err
+	}
+
+	if err := raft.WaitForLeader(ctx, m.raftNode); err != nil {
+		return returnErr(err)
 	}
 
 	c, err := raft.WaitForCluster(ctx, m.raftNode)
 	if err != nil {
-		return err
+		return returnErr(err)
 	}
 	raftConfig := c.Spec.Raft
 
 	if err := m.watchForKEKChanges(ctx); err != nil {
-		return err
+		return returnErr(err)
 	}
 
 	if int(raftConfig.ElectionTick) != m.raftNode.Config.ElectionTick {
@@ -426,7 +439,8 @@ func (m *Manager) Run(parent context.Context) error {
 	}
 	m.mu.Unlock()
 	m.Stop(ctx)
-	return err
+
+	return returnErr(err)
 }
 
 const stopTimeout = 8 * time.Second

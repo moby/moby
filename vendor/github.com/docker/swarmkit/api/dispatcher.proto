@@ -62,7 +62,7 @@ service Dispatcher { // maybe dispatch, al likes this
 // SessionRequest starts a session.
 message SessionRequest {
 	NodeDescription description = 1;
-	// SessionID can be provided to attempt resuming an exising session. If the
+	// SessionID can be provided to attempt resuming an existing session. If the
 	// SessionID is empty or invalid, a new SessionID will be assigned.
 	//
 	// See SessionMessage.SessionID for details.

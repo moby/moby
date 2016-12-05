@@ -115,7 +115,7 @@ message TaskSpec {
 
 	// ForceUpdate is a counter that triggers an update even if no relevant
 	// parameters have been changed. We do this to allow forced restarts
-	// using the same reconcilation-based mechanism that performs rolling
+	// using the same reconciliation-based mechanism that performs rolling
 	// updates.
 	uint64 force_update = 9;
 }

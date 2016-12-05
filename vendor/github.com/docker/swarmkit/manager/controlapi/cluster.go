@@ -101,7 +101,8 @@ func (s *Server) UpdateCluster(ctx context.Context, request *api.UpdateClusterRe
 	err := s.store.Update(func(tx store.Tx) error {
 		cluster = store.GetCluster(tx, request.ClusterID)
 		if cluster == nil {
-			return nil
+			return grpc.Errorf(codes.NotFound, "cluster %s not found", request.ClusterID)
+
 		}
 		cluster.Meta.Version = *request.ClusterVersion
 		cluster.Spec = *request.Spec.Copy()
@@ -144,9 +145,6 @@ func (s *Server) UpdateCluster(ctx context.Context, request *api.UpdateClusterRe
 	})
 	if err != nil {
 		return nil, err
-	}
-	if cluster == nil {
-		return nil, grpc.Errorf(codes.NotFound, "cluster %s not found", request.ClusterID)
 	}
 
 	redactedClusters := redactClusters([]*api.Cluster{cluster})

@@ -441,10 +441,10 @@ func (w *worker) Subscribe(ctx context.Context, subscription *api.SubscriptionMe
 	for _, tm := range w.taskManagers {
 		if match(tm.task) {
 			wg.Add(1)
-			go func() {
+			go func(tm *taskManager) {
 				defer wg.Done()
 				tm.Logs(ctx, *subscription.Options, publisher)
-			}()
+			}(tm)
 		}
 	}
 	w.mu.Unlock()
