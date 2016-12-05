@@ -4660,3 +4660,12 @@ func (s *DockerSuite) TestRunMountReadOnlyDevShm(c *check.C) {
 	c.Assert(err, checker.NotNil, check.Commentf(out))
 	c.Assert(out, checker.Contains, "Read-only file system")
 }
+
+// Test case for 29129
+func (s *DockerSuite) TestRunHostnameInHostMode(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+
+	expectedOutput := "foobar\nfoobar"
+	out, _ := dockerCmd(c, "run", "--net=host", "--hostname=foobar", "busybox", "sh", "-c", `echo $HOSTNAME && hostname`)
+	c.Assert(strings.TrimSpace(out), checker.Equals, expectedOutput)
+}
