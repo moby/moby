@@ -733,12 +733,27 @@ func (daemon *Daemon) createSpec(c *container.Container) (*specs.Spec, error) {
 	}
 
 	if apparmor.IsEnabled() {
-		appArmorProfile := "docker-default"
-		if len(c.AppArmorProfile) > 0 {
+		var appArmorProfile string
+		if c.AppArmorProfile != "" {
 			appArmorProfile = c.AppArmorProfile
 		} else if c.HostConfig.Privileged {
 			appArmorProfile = "unconfined"
+		} else {
+			appArmorProfile = "docker-default"
 		}
+
+		if appArmorProfile == "docker-default" {
+			// Unattended upgrades and other fun services can unload AppArmor
+			// profiles inadvertently. Since we cannot store our profile in
+			// /etc/apparmor.d, nor can we practically add other ways of
+			// telling the system to keep our profile loaded, in order to make
+			// sure that we keep the default profile enabled we dynamically
+			// reload it if necessary.
+			if err := ensureDefaultAppArmorProfile(); err != nil {
+				return nil, err
+			}
+		}
+
 		s.Process.ApparmorProfile = appArmorProfile
 	}
 	s.Process.SelinuxLabel = c.GetProcessLabel()

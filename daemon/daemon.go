@@ -524,7 +524,10 @@ func NewDaemon(config *Config, registryService registry.Service, containerdRemot
 		logrus.Warnf("Failed to configure golang's threads limit: %v", err)
 	}
 
-	installDefaultAppArmorProfile()
+	if err := ensureDefaultAppArmorProfile(); err != nil {
+		logrus.Errorf(err.Error())
+	}
+
 	daemonRepo := filepath.Join(config.Root, "containers")
 	if err := idtools.MkdirAllAs(daemonRepo, 0700, rootUID, rootGID); err != nil && !os.IsExist(err) {
 		return nil, err
