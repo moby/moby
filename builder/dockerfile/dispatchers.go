@@ -307,7 +307,7 @@ func workdir(b *Builder, args []string, attributes map[string]bool, original str
 		return nil
 	}
 
-	container, err := b.docker.ContainerCreate(types.ContainerCreateConfig{Config: b.runConfig}, true)
+	container, err := b.docker.ContainerCreate(types.ContainerCreateConfig{Config: b.runConfig})
 	if err != nil {
 		return err
 	}

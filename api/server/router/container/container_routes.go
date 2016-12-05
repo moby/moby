@@ -156,8 +156,7 @@ func (s *containerRouter) postContainersStart(ctx context.Context, w http.Respon
 
 	checkpoint := r.Form.Get("checkpoint")
 	checkpointDir := r.Form.Get("checkpoint-dir")
-	validateHostname := versions.GreaterThanOrEqualTo(version, "1.24")
-	if err := s.backend.ContainerStart(vars["name"], hostConfig, validateHostname, checkpoint, checkpointDir); err != nil {
+	if err := s.backend.ContainerStart(vars["name"], hostConfig, checkpoint, checkpointDir); err != nil {
 		return err
 	}
 
@@ -332,7 +331,6 @@ func (s *containerRouter) postContainerUpdate(ctx context.Context, w http.Respon
 		return err
 	}
 
-	version := httputils.VersionFromContext(ctx)
 	var updateConfig container.UpdateConfig
 
 	decoder := json.NewDecoder(r.Body)
@@ -346,8 +344,7 @@ func (s *containerRouter) postContainerUpdate(ctx context.Context, w http.Respon
 	}
 
 	name := vars["name"]
-	validateHostname := versions.GreaterThanOrEqualTo(version, "1.24")
-	resp, err := s.backend.ContainerUpdate(name, hostConfig, validateHostname)
+	resp, err := s.backend.ContainerUpdate(name, hostConfig)
 	if err != nil {
 		return err
 	}
@@ -372,14 +369,13 @@ func (s *containerRouter) postContainersCreate(ctx context.Context, w http.Respo
 	version := httputils.VersionFromContext(ctx)
 	adjustCPUShares := versions.LessThan(version, "1.19")
 
-	validateHostname := versions.GreaterThanOrEqualTo(version, "1.24")
 	ccr, err := s.backend.ContainerCreate(types.ContainerCreateConfig{
 		Name:             name,
 		Config:           config,
 		HostConfig:       hostConfig,
 		NetworkingConfig: networkingConfig,
 		AdjustCPUShares:  adjustCPUShares,
-	}, validateHostname)
+	})
 	if err != nil {
 		return err
 	}
