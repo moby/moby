@@ -72,6 +72,7 @@ var (
 	DmTaskSetRo               = dmTaskSetRoFct
 	DmTaskSetSector           = dmTaskSetSectorFct
 	DmUdevWait                = dmUdevWaitFct
+	DmUdevComplete            = dmUdevCompleteFct
 	DmUdevSetSyncSupport      = dmUdevSetSyncSupportFct
 	DmUdevGetSyncSupport      = dmUdevGetSyncSupportFct
 	DmCookieSupported         = dmCookieSupportedFct
@@ -220,6 +221,10 @@ func dmUdevGetSyncSupportFct() int {
 
 func dmUdevWaitFct(cookie uint) int {
 	return int(C.dm_udev_wait(C.uint32_t(cookie)))
+}
+
+func dmUdevCompleteFct(cookie uint) int {
+	return int(C.dm_udev_complete(C.uint32_t(cookie)))
 }
 
 func dmCookieSupportedFct() int {
