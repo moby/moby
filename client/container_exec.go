@@ -2,6 +2,7 @@ package client
 
 import (
 	"encoding/json"
+	"net/url"
 
 	"github.com/docker/docker/api/types"
 	"golang.org/x/net/context"
@@ -15,7 +16,7 @@ func (cli *Client) ContainerExecCreate(ctx context.Context, container string, co
 		return response, err
 	}
 
-	resp, err := cli.post(ctx, "/containers/"+container+"/exec", nil, config, nil)
+	resp, err := cli.post(ctx, "/containers/"+url.QueryEscape(container)+"/exec", nil, config, nil)
 	if err != nil {
 		return response, err
 	}
@@ -26,7 +27,7 @@ func (cli *Client) ContainerExecCreate(ctx context.Context, container string, co
 
 // ContainerExecStart starts an exec process already created in the docker host.
 func (cli *Client) ContainerExecStart(ctx context.Context, execID string, config types.ExecStartCheck) error {
-	resp, err := cli.post(ctx, "/exec/"+execID+"/start", nil, config, nil)
+	resp, err := cli.post(ctx, "/exec/"+url.QueryEscape(execID)+"/start", nil, config, nil)
 	ensureReaderClosed(resp)
 	return err
 }
@@ -37,13 +38,13 @@ func (cli *Client) ContainerExecStart(ctx context.Context, execID string, config
 // the hijacked connection by calling types.HijackedResponse.Close.
 func (cli *Client) ContainerExecAttach(ctx context.Context, execID string, config types.ExecConfig) (types.HijackedResponse, error) {
 	headers := map[string][]string{"Content-Type": {"application/json"}}
-	return cli.postHijacked(ctx, "/exec/"+execID+"/start", nil, config, headers)
+	return cli.postHijacked(ctx, "/exec/"+url.QueryEscape(execID)+"/start", nil, config, headers)
 }
 
 // ContainerExecInspect returns information about a specific exec process on the docker host.
 func (cli *Client) ContainerExecInspect(ctx context.Context, execID string) (types.ContainerExecInspect, error) {
 	var response types.ContainerExecInspect
-	resp, err := cli.get(ctx, "/exec/"+execID+"/json", nil, nil)
+	resp, err := cli.get(ctx, "/exec/"+url.QueryEscape(execID)+"/json", nil, nil)
 	if err != nil {
 		return response, err
 	}

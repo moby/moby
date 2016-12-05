@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 
 	"github.com/docker/docker/api/types/swarm"
 	"golang.org/x/net/context"
@@ -12,7 +13,7 @@ import (
 
 // SecretInspectWithRaw returns the secret information with raw data
 func (cli *Client) SecretInspectWithRaw(ctx context.Context, id string) (swarm.Secret, []byte, error) {
-	resp, err := cli.get(ctx, "/secrets/"+id, nil, nil)
+	resp, err := cli.get(ctx, "/secrets/"+url.QueryEscape(id), nil, nil)
 	if err != nil {
 		if resp.statusCode == http.StatusNotFound {
 			return swarm.Secret{}, nil, secretNotFoundError{id}

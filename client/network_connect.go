@@ -1,6 +1,8 @@
 package client
 
 import (
+	"net/url"
+
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/network"
 	"golang.org/x/net/context"
@@ -12,7 +14,7 @@ func (cli *Client) NetworkConnect(ctx context.Context, networkID, containerID st
 		Container:      containerID,
 		EndpointConfig: config,
 	}
-	resp, err := cli.post(ctx, "/networks/"+networkID+"/connect", nil, nc, nil)
+	resp, err := cli.post(ctx, "/networks/"+url.QueryEscape(networkID)+"/connect", nil, nc, nil)
 	ensureReaderClosed(resp)
 	return err
 }

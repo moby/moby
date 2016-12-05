@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 
 	"github.com/docker/docker/api/types/swarm"
 	"golang.org/x/net/context"
@@ -12,7 +13,7 @@ import (
 
 // ServiceInspectWithRaw returns the service information and the raw data.
 func (cli *Client) ServiceInspectWithRaw(ctx context.Context, serviceID string) (swarm.Service, []byte, error) {
-	serverResp, err := cli.get(ctx, "/services/"+serviceID, nil, nil)
+	serverResp, err := cli.get(ctx, "/services/"+url.QueryEscape(serviceID), nil, nil)
 	if err != nil {
 		if serverResp.statusCode == http.StatusNotFound {
 			return swarm.Service{}, nil, serviceNotFoundError{serviceID}

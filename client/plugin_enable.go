@@ -13,7 +13,7 @@ func (cli *Client) PluginEnable(ctx context.Context, name string, options types.
 	query := url.Values{}
 	query.Set("timeout", strconv.Itoa(options.Timeout))
 
-	resp, err := cli.post(ctx, "/plugins/"+name+"/enable", query, nil, nil)
+	resp, err := cli.post(ctx, "/plugins/"+url.QueryEscape(name)+"/enable", query, nil, nil)
 	ensureReaderClosed(resp)
 	return err
 }

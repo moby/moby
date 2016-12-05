@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 
 	"github.com/docker/docker/api/types"
 	"golang.org/x/net/context"
@@ -19,7 +20,7 @@ func (cli *Client) VolumeInspect(ctx context.Context, volumeID string) (types.Vo
 // VolumeInspectWithRaw returns the information about a specific volume in the docker host and its raw representation
 func (cli *Client) VolumeInspectWithRaw(ctx context.Context, volumeID string) (types.Volume, []byte, error) {
 	var volume types.Volume
-	resp, err := cli.get(ctx, "/volumes/"+volumeID, nil, nil)
+	resp, err := cli.get(ctx, "/volumes/"+url.QueryEscape(volumeID), nil, nil)
 	if err != nil {
 		if resp.statusCode == http.StatusNotFound {
 			return volume, nil, volumeNotFoundError{volumeID}

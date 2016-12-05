@@ -15,7 +15,7 @@ func (cli *Client) ContainerStop(ctx context.Context, containerID string, timeou
 	if timeout != nil {
 		query.Set("t", timetypes.DurationToSecondsString(*timeout))
 	}
-	resp, err := cli.post(ctx, "/containers/"+containerID+"/stop", query, nil, nil)
+	resp, err := cli.post(ctx, "/containers/"+url.QueryEscape(containerID)+"/stop", query, nil, nil)
 	ensureReaderClosed(resp)
 	return err
 }

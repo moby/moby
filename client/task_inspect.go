@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 
 	"github.com/docker/docker/api/types/swarm"
 
@@ -13,7 +14,7 @@ import (
 
 // TaskInspectWithRaw returns the task information and its raw representation..
 func (cli *Client) TaskInspectWithRaw(ctx context.Context, taskID string) (swarm.Task, []byte, error) {
-	serverResp, err := cli.get(ctx, "/tasks/"+taskID, nil, nil)
+	serverResp, err := cli.get(ctx, "/tasks/"+url.QueryEscape(taskID), nil, nil)
 	if err != nil {
 		if serverResp.statusCode == http.StatusNotFound {
 			return swarm.Task{}, nil, taskNotFoundError{taskID}

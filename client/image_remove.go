@@ -19,7 +19,7 @@ func (cli *Client) ImageRemove(ctx context.Context, imageID string, options type
 		query.Set("noprune", "1")
 	}
 
-	resp, err := cli.delete(ctx, "/images/"+imageID, query, nil)
+	resp, err := cli.delete(ctx, "/images/"+url.QueryEscape(imageID), query, nil)
 	if err != nil {
 		return nil, err
 	}

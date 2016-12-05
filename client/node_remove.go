@@ -15,7 +15,7 @@ func (cli *Client) NodeRemove(ctx context.Context, nodeID string, options types.
 		query.Set("force", "1")
 	}
 
-	resp, err := cli.delete(ctx, "/nodes/"+nodeID, query, nil)
+	resp, err := cli.delete(ctx, "/nodes/"+url.QueryEscape(nodeID), query, nil)
 	ensureReaderClosed(resp)
 	return err
 }

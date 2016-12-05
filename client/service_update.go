@@ -30,7 +30,7 @@ func (cli *Client) ServiceUpdate(ctx context.Context, serviceID string, version 
 	query.Set("version", strconv.FormatUint(version.Index, 10))
 
 	var response types.ServiceUpdateResponse
-	resp, err := cli.post(ctx, "/services/"+serviceID+"/update", query, service, headers)
+	resp, err := cli.post(ctx, "/services/"+url.QueryEscape(serviceID)+"/update", query, service, headers)
 	if err != nil {
 		return response, err
 	}

@@ -12,7 +12,7 @@ import (
 func (cli *Client) ContainerDiff(ctx context.Context, containerID string) ([]types.ContainerChange, error) {
 	var changes []types.ContainerChange
 
-	serverResp, err := cli.get(ctx, "/containers/"+containerID+"/changes", url.Values{}, nil)
+	serverResp, err := cli.get(ctx, "/containers/"+url.QueryEscape(containerID)+"/changes", url.Values{}, nil)
 	if err != nil {
 		return changes, err
 	}
