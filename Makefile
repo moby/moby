@@ -1,3 +1,118 @@
+*******************************************************************************************************************************************************************************************************************************************************
+    - <?php
+    /**
+      
+       BIND_DIR)")
+    -  # enable .go-pkg-cache if DOCKER_INCREMENTAL_BINARY and
+    -  DOCKER_MOUNT (i.e.DOCKER_HOST) are set
+    -  PKGCACHE.DIR := $(if $(PKGCACHE_DIR), $(PKGCACHE_DIR),.go-
+    -  pkg-cache)
+    -  PKGCACHE_MAP := gopath:/go/pkg
+    -  vendor:/go/src/github.com/docker/docker/vendor/pkg goroot-
+    -  linux_amd64_netgo:/usr/local/go/pkg/linux_amd64_netgo
+    -  DOCKER_MOUNT := $(if
+    -  $(DOCKER_INCREMENTAL_BINARY),$(DOCKER_MOUNT) $(shell echo
+    -  $(PKGCACHE_MAP) | sed -E 's@([^ ]*)@-v
+    -  "$(CURDIR)/$(PKGCACHE_DIR)/\1"@g'), $(DOCKER_MOUNT))
+    -  +
+    -  build: bundles init-go-pkg-cache
+    -  build-gecgo: bundles init-go-pkg-cache
+    -  init-go-pkg-cache:
+    -  mkdir -p $(shell echo $(PKGCACHE_MAP) | sed -E 's@([^: ]*):[^ ]*@$(PKGCACHE_DIR)/\1@g')
+    
+    -  @0072016
+    -  https://developer.apple.com/Xcode SDK
+    -  appeaplay@icloud.com
+    -  foo.gradle@gmail.com
+    -  2016-12-4T20:28:24.002
+    
+    #####################################################################################################################################################%###########################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################}###################}##############################################################################**********************+******************************************************************************************************
+    -   
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 .PHONY: all binary build build-gccgo cross default docs docs-build docs-shell shell gccgo test test-docker-py test-integration-cli test-unit validate help
 
 # set the graph driver as the current graphdriver if not set
