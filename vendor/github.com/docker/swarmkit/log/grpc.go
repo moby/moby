@@ -1,8 +1,13 @@
 package log
 
-import "google.golang.org/grpc/grpclog"
+import (
+	"golang.org/x/net/context"
+	"google.golang.org/grpc/grpclog"
+)
 
 func init() {
+	ctx := WithModule(context.Background(), "grpc")
+
 	// completely replace the grpc logger with the logrus logger.
-	grpclog.SetLogger(L)
+	grpclog.SetLogger(G(ctx))
 }
