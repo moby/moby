@@ -567,6 +567,14 @@ func convertService(
 		return swarm.ServiceSpec{}, err
 	}
 
+	var logDriver *swarm.Driver
+	if service.Logging != nil {
+		logDriver = &swarm.Driver{
+			Name:    service.Logging.Driver,
+			Options: service.Logging.Options,
+		}
+	}
+
 	serviceSpec := swarm.ServiceSpec{
 		Annotations: swarm.Annotations{
 			Name:   name,
@@ -589,6 +597,7 @@ func convertService(
 				TTY:             service.Tty,
 				OpenStdin:       service.StdinOpen,
 			},
+			LogDriver:     logDriver,
 			Resources:     resources,
 			RestartPolicy: restartPolicy,
 			Placement: &swarm.Placement{
