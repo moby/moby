@@ -89,6 +89,16 @@ func (s *DockerSuite) TestExecAPIStart(c *check.C) {
 	startExec(c, id, http.StatusOK)
 }
 
+func (s *DockerSuite) TestExecAPIStartEnsureHeaders(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+	dockerCmd(c, "run", "-d", "--name", "test", "busybox", "top")
+
+	id := createExec(c, "test")
+	resp, _, err := sockRequestRaw("POST", fmt.Sprintf("/exec/%s/start", id), strings.NewReader(`{"Detach": true}`), "application/json")
+	c.Assert(err, checker.IsNil)
+	c.Assert(resp.Header.Get("Server"), checker.Not(checker.Equals), "")
+}
+
 func (s *DockerSuite) TestExecAPIStartBackwardsCompatible(c *check.C) {
 	testRequires(c, DaemonIsLinux) // Windows only supports 1.25 or later
 	runSleepingContainer(c, "-d", "--name", "test")
