@@ -4455,3 +4455,15 @@ func (s *DockerSuite) TestRunAddHostInHostMode(c *check.C) {
 	out, _ := dockerCmd(c, "run", "--add-host=extra:1.2.3.4", "--net=host", "busybox", "cat", "/etc/hosts")
 	c.Assert(out, checker.Contains, expectedOutput, check.Commentf("Expected '%s', but got %q", expectedOutput, out))
 }
+
+func (s *DockerSuite) TestRunStoppedLoggingDriverNoLeak(c *check.C) {
+	nroutines, err := getGoroutineNumber()
+	c.Assert(err, checker.IsNil)
+
+	out, _, err := dockerCmdWithError("run", "--name=fail", "--log-driver=splunk", "busybox", "true")
+	c.Assert(err, checker.NotNil)
+	c.Assert(out, checker.Contains, "Failed to initialize logging driver", check.Commentf("error should be about logging driver, got output %s", out))
+
+	// NGoroutines is not updated right away, so we need to wait before failing
+	c.Assert(waitForGoroutines(nroutines), checker.IsNil)
+}
