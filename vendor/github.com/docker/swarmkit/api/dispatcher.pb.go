@@ -86,7 +86,7 @@ func (AssignmentsMessage_Type) EnumDescriptor() ([]byte, []int) {
 // SessionRequest starts a session.
 type SessionRequest struct {
 	Description *NodeDescription `protobuf:"bytes,1,opt,name=description" json:"description,omitempty"`
-	// SessionID can be provided to attempt resuming an exising session. If the
+	// SessionID can be provided to attempt resuming an existing session. If the
 	// SessionID is empty or invalid, a new SessionID will be assigned.
 	//
 	// See SessionMessage.SessionID for details.

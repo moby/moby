@@ -299,7 +299,7 @@ type TaskSpec struct {
 	Networks []*NetworkAttachmentConfig `protobuf:"bytes,7,rep,name=networks" json:"networks,omitempty"`
 	// ForceUpdate is a counter that triggers an update even if no relevant
 	// parameters have been changed. We do this to allow forced restarts
-	// using the same reconcilation-based mechanism that performs rolling
+	// using the same reconciliation-based mechanism that performs rolling
 	// updates.
 	ForceUpdate uint64 `protobuf:"varint,9,opt,name=force_update,json=forceUpdate,proto3" json:"force_update,omitempty"`
 }

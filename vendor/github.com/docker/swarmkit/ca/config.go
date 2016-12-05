@@ -120,8 +120,15 @@ func (s *SecurityConfig) UpdateRootCA(cert, key []byte, certExpiry time.Duration
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	rootCA, err := NewRootCA(cert, key, certExpiry)
+	// Create a new RootCA, keeping the path of the old RootCA
+	rootCA, err := NewRootCA(cert, key, s.rootCA.Path, certExpiry)
+	if err != nil {
+		return err
+	}
+	// Attempt to write the new certificate to disk
+	err = rootCA.saveCertificate()
 	if err == nil {
+		// No errors, save the current rootCA
 		s.rootCA = &rootCA
 	}
 
@@ -232,7 +239,8 @@ func DownloadRootCA(ctx context.Context, paths CertPaths, token string, r remote
 	}
 
 	// Save root CA certificate to disk
-	if err = saveRootCA(rootCA, paths); err != nil {
+	rootCA.Path = paths
+	if err = rootCA.saveCertificate(); err != nil {
 		return RootCA{}, err
 	}
 
@@ -454,7 +462,6 @@ func RenewTLSConfig(ctx context.Context, s *SecurityConfig, remotes remotes.Remo
 
 			// Since the expiration of the certificate is managed remotely we should update our
 			// retry timer on every iteration of this loop.
-			// Retrieve the current certificate expiration information.
 			validFrom, validUntil, err := readCertValidity(s.KeyReader())
 			if err != nil {
 				// We failed to read the expiration, let's stick with the starting default
