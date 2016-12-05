@@ -9,7 +9,7 @@ RUN yum -y swap -- remove systemd-container systemd-container-libs -- install sy
 RUN yum install -y btrfs-progs-devel device-mapper-devel glibc-static libseccomp-devel libselinux-devel libtool-ltdl-devel pkgconfig selinux-policy selinux-policy-devel sqlite-devel systemd-devel tar git cmake vim-common
 RUN [ `rpm -q selinux-policy-devel | grep el7_3` ] || yum -y --enablerepo=cr install selinux-policy-devel
 
-ENV GO_VERSION 1.7.3
+ENV GO_VERSION 1.7.4
 RUN curl -fSL "https://golang.org/dl/go${GO_VERSION}.linux-amd64.tar.gz" | tar xzC /usr/local
 ENV PATH $PATH:/usr/local/go/bin
 
