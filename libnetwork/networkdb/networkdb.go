@@ -211,10 +211,12 @@ func (nDB *NetworkDB) Peers(nid string) []PeerInfo {
 	defer nDB.RUnlock()
 	peers := make([]PeerInfo, 0, len(nDB.networkNodes[nid]))
 	for _, nodeName := range nDB.networkNodes[nid] {
-		peers = append(peers, PeerInfo{
-			Name: nDB.nodes[nodeName].Name,
-			IP:   nDB.nodes[nodeName].Addr.String(),
-		})
+		if node, ok := nDB.nodes[nodeName]; ok {
+			peers = append(peers, PeerInfo{
+				Name: node.Name,
+				IP:   node.Addr.String(),
+			})
+		}
 	}
 	return peers
 }
