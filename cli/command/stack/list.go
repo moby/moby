@@ -11,8 +11,8 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cli/command"
+	"github.com/docker/docker/cli/compose/convert"
 	"github.com/docker/docker/client"
-	"github.com/docker/docker/pkg/composetransform"
 	"github.com/spf13/cobra"
 )
 
@@ -90,10 +90,10 @@ func getStacks(
 	m := make(map[string]*stack, 0)
 	for _, service := range services {
 		labels := service.Spec.Labels
-		name, ok := labels[composetransform.LabelNamespace]
+		name, ok := labels[convert.LabelNamespace]
 		if !ok {
 			return nil, fmt.Errorf("cannot get label %s for service %s",
-				composetransform.LabelNamespace, service.ID)
+				convert.LabelNamespace, service.ID)
 		}
 		ztack, ok := m[name]
 		if !ok {

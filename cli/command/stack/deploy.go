@@ -17,8 +17,8 @@ import (
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cli/command"
+	"github.com/docker/docker/cli/compose/convert"
 	dockerclient "github.com/docker/docker/client"
-	"github.com/docker/docker/pkg/composetransform"
 )
 
 const (
@@ -115,16 +115,16 @@ func deployCompose(ctx context.Context, dockerCli *command.DockerCli, opts deplo
 		return err
 	}
 
-	namespace := composetransform.NewNamespace(opts.namespace)
+	namespace := convert.NewNamespace(opts.namespace)
 
-	networks, externalNetworks := composetransform.ConvertNetworks(namespace, config.Networks)
+	networks, externalNetworks := convert.Networks(namespace, config.Networks)
 	if err := validateExternalNetworks(ctx, dockerCli, externalNetworks); err != nil {
 		return err
 	}
 	if err := createNetworks(ctx, dockerCli, namespace, networks); err != nil {
 		return err
 	}
-	services, err := composetransform.ConvertServices(namespace, config)
+	services, err := convert.Services(namespace, config)
 	if err != nil {
 		return err
 	}
@@ -198,7 +198,7 @@ func validateExternalNetworks(
 func createNetworks(
 	ctx context.Context,
 	dockerCli *command.DockerCli,
-	namespace composetransform.Namespace,
+	namespace convert.Namespace,
 	networks map[string]types.NetworkCreate,
 ) error {
 	client := dockerCli.Client()
@@ -236,7 +236,7 @@ func deployServices(
 	ctx context.Context,
 	dockerCli *command.DockerCli,
 	services map[string]swarm.ServiceSpec,
-	namespace composetransform.Namespace,
+	namespace convert.Namespace,
 	sendAuth bool,
 ) error {
 	apiClient := dockerCli.Client()
