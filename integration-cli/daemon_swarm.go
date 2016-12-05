@@ -222,7 +222,7 @@ func (d *SwarmDaemon) updateService(c *check.C, service *swarm.Service, f ...ser
 func (d *SwarmDaemon) removeService(c *check.C, id string) {
 	status, out, err := d.SockRequest("DELETE", "/services/"+id, nil)
 	c.Assert(err, checker.IsNil, check.Commentf(string(out)))
-	c.Assert(status, checker.Equals, http.StatusOK, check.Commentf("output: %q", string(out)))
+	c.Assert(status, checker.Equals, http.StatusNoContent, check.Commentf("output: %q", string(out)))
 }
 
 func (d *SwarmDaemon) getNode(c *check.C, id string) *swarm.Node {
@@ -243,7 +243,7 @@ func (d *SwarmDaemon) removeNode(c *check.C, id string, force bool) {
 
 	status, out, err := d.SockRequest("DELETE", url, nil)
 	c.Assert(err, checker.IsNil, check.Commentf(string(out)))
-	c.Assert(status, checker.Equals, http.StatusOK, check.Commentf("output: %q", string(out)))
+	c.Assert(status, checker.Equals, http.StatusNoContent, check.Commentf("output: %q", string(out)))
 }
 
 func (d *SwarmDaemon) updateNode(c *check.C, id string, f ...nodeConstructor) {

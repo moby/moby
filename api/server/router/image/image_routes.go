@@ -231,7 +231,7 @@ func (s *imageRouter) deleteImages(ctx context.Context, w http.ResponseWriter, r
 		return err
 	}
 
-	return httputils.WriteJSON(w, http.StatusOK, list)
+	return httputils.WriteJSON(w, http.StatusNoContent, list)
 }
 
 func (s *imageRouter) getImagesByName(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
