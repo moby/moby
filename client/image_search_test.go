@@ -86,7 +86,7 @@ func TestImageSearchWithPrivilegedFuncNoError(t *testing.T) {
 			query := req.URL.Query()
 			term := query.Get("term")
 			if term != "some-image" {
-				return nil, fmt.Errorf("term not set in URL query properly. Expected 'some-image', got %s",  term)
+				return nil, fmt.Errorf("term not set in URL query properly. Expected 'some-image', got %s", term)
 			}
 			content, err := json.Marshal([]registry.SearchResult{
 				{
@@ -133,7 +133,7 @@ func TestImageSearchWithoutErrors(t *testing.T) {
 			query := req.URL.Query()
 			term := query.Get("term")
 			if term != "some-image" {
-				return nil, fmt.Errorf("term not set in URL query properly. Expected 'some-image', got %s",  term)
+				return nil, fmt.Errorf("term not set in URL query properly. Expected 'some-image', got %s", term)
 			}
 			filters := query.Get("filters")
 			if filters != expectedFilters {
