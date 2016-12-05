@@ -2,6 +2,7 @@ package daemon
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 	"time"
 
@@ -101,7 +102,7 @@ func (daemon *Daemon) Register(c *container.Container) error {
 	return nil
 }
 
-func (daemon *Daemon) newContainer(name string, config *containertypes.Config, imgID image.ID, managed bool) (*container.Container, error) {
+func (daemon *Daemon) newContainer(name string, config *containertypes.Config, hostConfig *containertypes.HostConfig, imgID image.ID, managed bool) (*container.Container, error) {
 	var (
 		id             string
 		err            error
@@ -112,7 +113,16 @@ func (daemon *Daemon) newContainer(name string, config *containertypes.Config, i
 		return nil, err
 	}
 
-	daemon.generateHostname(id, config)
+	if hostConfig.NetworkMode.IsHost() {
+		if config.Hostname == "" {
+			config.Hostname, err = os.Hostname()
+			if err != nil {
+				return nil, err
+			}
+		}
+	} else {
+		daemon.generateHostname(id, config)
+	}
 	entrypoint, args := daemon.getEntrypointAndArgs(config.Entrypoint, config.Cmd)
 
 	base := daemon.newBaseContainer(id)
