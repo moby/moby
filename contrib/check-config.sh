@@ -224,7 +224,8 @@ echo 'Optional Features:'
 }
 {
 	if is_set LEGACY_VSYSCALL_NATIVE; then
-		echo -n "- "; wrap_good "CONFIG_LEGACY_VSYSCALL_NATIVE" 'enabled'
+		echo -n "- "; wrap_bad "CONFIG_LEGACY_VSYSCALL_NATIVE" 'enabled'
+		echo "    $(wrap_color '(dangerous, provides an ASLR-bypassing target with usable ROP gadgets.)' bold black)"
 	elif is_set LEGACY_VSYSCALL_EMULATE; then
 		echo -n "- "; wrap_good "CONFIG_LEGACY_VSYSCALL_EMULATE" 'enabled'
 	elif is_set LEGACY_VSYSCALL_NONE; then
