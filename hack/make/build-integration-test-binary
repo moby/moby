@@ -2,7 +2,7 @@
 set -e
 
 rm -rf "$DEST"
-DEST="$DEST/../test-integration-cli"
+DEST="$ABS_DEST/../test-integration-cli"
 
 if [ -z $DOCKER_INTEGRATION_TESTS_VERIFIED ]; then
 	source ${MAKEDIR}/.integration-test-helpers

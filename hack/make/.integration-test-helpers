@@ -20,7 +20,7 @@ bundle_test_integration_cli() {
 go_test_dir() {
 	dir=$1
 	precompiled=$2
-	testbinary="$DEST/test.main"
+	testbinary="$ABS_DEST/test.main"
 	testcover=()
 	testcoverprofile=()
 	(
