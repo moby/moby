@@ -28,7 +28,7 @@ func (cli *Client) ImageTag(ctx context.Context, imageID, ref string) error {
 	query.Set("repo", distributionRef.Name())
 	query.Set("tag", tag)
 
-	resp, err := cli.post(ctx, "/images/"+imageID+"/tag", query, nil, nil)
+	resp, err := cli.post(ctx, "/images/"+url.QueryEscape(imageID)+"/tag", query, nil, nil)
 	ensureReaderClosed(resp)
 	return err
 }

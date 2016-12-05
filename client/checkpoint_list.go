@@ -17,7 +17,7 @@ func (cli *Client) CheckpointList(ctx context.Context, container string, options
 		query.Set("dir", options.CheckpointDir)
 	}
 
-	resp, err := cli.get(ctx, "/containers/"+container+"/checkpoints", query, nil)
+	resp, err := cli.get(ctx, "/containers/"+url.QueryEscape(container)+"/checkpoints", query, nil)
 	if err != nil {
 		return checkpoints, err
 	}

@@ -44,7 +44,7 @@ func (cli *Client) ServiceLogs(ctx context.Context, serviceID string, options ty
 	}
 	query.Set("tail", options.Tail)
 
-	resp, err := cli.get(ctx, "/services/"+serviceID+"/logs", query, nil)
+	resp, err := cli.get(ctx, "/services/"+url.QueryEscape(serviceID)+"/logs", query, nil)
 	if err != nil {
 		return nil, err
 	}

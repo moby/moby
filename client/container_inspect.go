@@ -13,7 +13,7 @@ import (
 
 // ContainerInspect returns the container information.
 func (cli *Client) ContainerInspect(ctx context.Context, containerID string) (types.ContainerJSON, error) {
-	serverResp, err := cli.get(ctx, "/containers/"+containerID+"/json", nil, nil)
+	serverResp, err := cli.get(ctx, "/containers/"+url.QueryEscape(containerID)+"/json", nil, nil)
 	if err != nil {
 		if serverResp.statusCode == http.StatusNotFound {
 			return types.ContainerJSON{}, containerNotFoundError{containerID}
@@ -33,7 +33,7 @@ func (cli *Client) ContainerInspectWithRaw(ctx context.Context, containerID stri
 	if getSize {
 		query.Set("size", "1")
 	}
-	serverResp, err := cli.get(ctx, "/containers/"+containerID+"/json", query, nil)
+	serverResp, err := cli.get(ctx, "/containers/"+url.QueryEscape(containerID)+"/json", query, nil)
 	if err != nil {
 		if serverResp.statusCode == http.StatusNotFound {
 			return types.ContainerJSON{}, nil, containerNotFoundError{containerID}

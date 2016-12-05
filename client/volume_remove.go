@@ -15,7 +15,7 @@ func (cli *Client) VolumeRemove(ctx context.Context, volumeID string, force bool
 			query.Set("force", "1")
 		}
 	}
-	resp, err := cli.delete(ctx, "/volumes/"+volumeID, query, nil)
+	resp, err := cli.delete(ctx, "/volumes/"+url.QueryEscape(volumeID), query, nil)
 	ensureReaderClosed(resp)
 	return err
 }

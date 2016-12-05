@@ -16,7 +16,7 @@ func (cli *Client) ContainerRestart(ctx context.Context, containerID string, tim
 	if timeout != nil {
 		query.Set("t", timetypes.DurationToSecondsString(*timeout))
 	}
-	resp, err := cli.post(ctx, "/containers/"+containerID+"/restart", query, nil, nil)
+	resp, err := cli.post(ctx, "/containers/"+url.QueryEscape(containerID)+"/restart", query, nil, nil)
 	ensureReaderClosed(resp)
 	return err
 }

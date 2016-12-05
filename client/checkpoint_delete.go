@@ -14,7 +14,7 @@ func (cli *Client) CheckpointDelete(ctx context.Context, containerID string, opt
 		query.Set("dir", options.CheckpointDir)
 	}
 
-	resp, err := cli.delete(ctx, "/containers/"+containerID+"/checkpoints/"+options.CheckpointID, query, nil)
+	resp, err := cli.delete(ctx, "/containers/"+url.QueryEscape(containerID)+"/checkpoints/"+url.QueryEscape(options.CheckpointID), query, nil)
 	ensureReaderClosed(resp)
 	return err
 }

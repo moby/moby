@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 
 	"github.com/docker/docker/api/types"
 	"golang.org/x/net/context"
@@ -12,7 +13,7 @@ import (
 
 // ImageInspectWithRaw returns the image information and its raw representation.
 func (cli *Client) ImageInspectWithRaw(ctx context.Context, imageID string) (types.ImageInspect, []byte, error) {
-	serverResp, err := cli.get(ctx, "/images/"+imageID+"/json", nil, nil)
+	serverResp, err := cli.get(ctx, "/images/"+url.QueryEscape(imageID)+"/json", nil, nil)
 	if err != nil {
 		if serverResp.statusCode == http.StatusNotFound {
 			return types.ImageInspect{}, nil, imageNotFoundError{imageID}

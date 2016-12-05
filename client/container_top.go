@@ -17,7 +17,7 @@ func (cli *Client) ContainerTop(ctx context.Context, containerID string, argumen
 		query.Set("ps_args", strings.Join(arguments, " "))
 	}
 
-	resp, err := cli.get(ctx, "/containers/"+containerID+"/top", query, nil)
+	resp, err := cli.get(ctx, "/containers/"+url.QueryEscape(containerID)+"/top", query, nil)
 	if err != nil {
 		return response, err
 	}

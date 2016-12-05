@@ -12,7 +12,7 @@ import (
 func (cli *Client) NodeUpdate(ctx context.Context, nodeID string, version swarm.Version, node swarm.NodeSpec) error {
 	query := url.Values{}
 	query.Set("version", strconv.FormatUint(version.Index, 10))
-	resp, err := cli.post(ctx, "/nodes/"+nodeID+"/update", query, node, nil)
+	resp, err := cli.post(ctx, "/nodes/"+url.QueryEscape(nodeID)+"/update", query, node, nil)
 	ensureReaderClosed(resp)
 	return err
 }
