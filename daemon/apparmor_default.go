@@ -21,7 +21,7 @@ func installDefaultAppArmorProfile() {
 			// Allow daemon to run if loading failed, but are active
 			// (possibly through another run, manually, or via system startup)
 			for _, policy := range apparmorProfiles {
-				if err := aaprofile.IsLoaded(policy); err != nil {
+				if loaded, err := aaprofile.IsLoaded(policy); err != nil || !loaded {
 					logrus.Errorf("AppArmor enabled on system but the %s profile could not be loaded.", policy)
 				}
 			}
