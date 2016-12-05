@@ -1,4 +1,4 @@
-package composetransform
+package convert
 
 import (
 	"sort"

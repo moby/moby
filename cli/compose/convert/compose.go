@@ -1,4 +1,4 @@
-package composetransform
+package convert
 
 import (
 	composetypes "github.com/aanand/compose-file/types"
@@ -42,8 +42,8 @@ func AddStackLabel(namespace Namespace, labels map[string]string) map[string]str
 
 type networkMap map[string]composetypes.NetworkConfig
 
-// ConvertNetworks from the compose-file type to the engine API type
-func ConvertNetworks(namespace Namespace, networks networkMap) (map[string]types.NetworkCreate, []string) {
+// Networks from the compose-file type to the engine API type
+func Networks(namespace Namespace, networks networkMap) (map[string]types.NetworkCreate, []string) {
 	if networks == nil {
 		networks = make(map[string]composetypes.NetworkConfig)
 	}
