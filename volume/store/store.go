@@ -109,6 +109,13 @@ func (s *VolumeStore) purge(name string) {
 	delete(s.names, name)
 	delete(s.refs, name)
 	delete(s.labels, name)
+	err := s.db.Update(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte(volumeBucketName))
+		return b.Delete([]byte(name))
+	})
+	if err != nil {
+		logrus.Errorf("Error removing volume metadata: %v", err)
+	}
 	s.globalLock.Unlock()
 }
 
