@@ -1,4 +1,4 @@
-package composetransform
+package convert
 
 import (
 	"fmt"
@@ -10,8 +10,8 @@ import (
 
 type volumes map[string]composetypes.VolumeConfig
 
-// ConvertVolumes from compose-file types to engine api types
-func ConvertVolumes(serviceVolumes []string, stackVolumes volumes, namespace Namespace) ([]mount.Mount, error) {
+// Volumes from compose-file types to engine api types
+func Volumes(serviceVolumes []string, stackVolumes volumes, namespace Namespace) ([]mount.Mount, error) {
 	var mounts []mount.Mount
 
 	for _, volumeSpec := range serviceVolumes {

@@ -1,4 +1,4 @@
-package composetransform
+package convert
 
 import (
 	"testing"
@@ -26,7 +26,7 @@ func TestAddStackLabel(t *testing.T) {
 	assert.DeepEqual(t, actual, expected)
 }
 
-func TestConvertNetworks(t *testing.T) {
+func TestNetworks(t *testing.T) {
 	namespace := Namespace{name: "foo"}
 	source := networkMap{
 		"normal": composetypes.NetworkConfig{
@@ -84,7 +84,7 @@ func TestConvertNetworks(t *testing.T) {
 		"normal":  {},
 		"outside": {},
 	}
-	networks, externals := ConvertNetworks(namespace, source, serviceNetworks)
+	networks, externals := Networks(namespace, source, serviceNetworks)
 	assert.DeepEqual(t, networks, expected)
 	assert.DeepEqual(t, externals, []string{"special"})
 }

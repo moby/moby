@@ -1,4 +1,4 @@
-package composetransform
+package convert
 
 import (
 	"fmt"
@@ -12,8 +12,8 @@ import (
 	"github.com/docker/go-connections/nat"
 )
 
-// ConvertServices from compose-file types to engine API types
-func ConvertServices(
+// Services from compose-file types to engine API types
+func Services(
 	namespace Namespace,
 	config *composetypes.Config,
 ) (map[string]swarm.ServiceSpec, error) {
@@ -52,7 +52,7 @@ func convertService(
 		return swarm.ServiceSpec{}, err
 	}
 
-	mounts, err := ConvertVolumes(service.Volumes, volumes, namespace)
+	mounts, err := Volumes(service.Volumes, volumes, namespace)
 	if err != nil {
 		// TODO: better error message (include service name)
 		return swarm.ServiceSpec{}, err
