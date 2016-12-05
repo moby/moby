@@ -27,7 +27,7 @@ func ParseSecrets(client client.SecretAPIClient, requestedSecrets []*swarmtypes.
 
 	args := filters.NewArgs()
 	for _, s := range secretRefs {
-		args.Add("names", s.SecretName)
+		args.Add("name", s.SecretName)
 	}
 
 	secrets, err := client.SecretList(ctx, types.SecretListOptions{

@@ -24,8 +24,10 @@ Aliases:
   ls, list
 
 Options:
-  -q, --quiet          Only display IDs
-  -format string       Pretty-print secrets using a Go template
+  -f, --filter filter   Filter output based on conditions provided
+      --format string   Pretty-print secrets using a Go template
+      --help            Print usage
+  -q, --quiet           Only display IDs
 ```
 
 ## Description
@@ -37,8 +39,70 @@ Run this command on a manager node to list the secrets in the swarm.
 ```bash
 $ docker secret ls
 
-ID                          NAME                CREATED             UPDATED
-eo7jnzguqgtpdah3cm5srfb97   my_secret           11 minutes ago      11 minutes ago
+ID                          NAME                        CREATED             UPDATED
+6697bflskwj1998km1gnnjr38   q5s5570vtvnimefos1fyeo2u2   6 weeks ago         6 weeks ago
+9u9hk4br2ej0wgngkga6rp4hq   my_secret                   5 weeks ago         5 weeks ago
+mem02h8n73mybpgqjf0kfi1n0   test_secret                 3 seconds ago       3 seconds ago
+```
+
+### Filtering
+
+The filtering flag (`-f` or `--filter`) format is a `key=value` pair. If there is more
+than one filter, then pass multiple flags (e.g., `--filter "foo=bar" --filter "bif=baz"`)
+
+The currently supported filters are:
+
+* [id](secret_ls.md#id) (secret's ID)
+* [label](secret_ls.md#label) (`label=<key>` or `label=<key>=<value>`)
+* [name](secret_ls.md#name) (secret's name)
+
+#### id
+
+The `id` filter matches all or prefix of a secret's id.
+
+```bash
+$ docker secret ls -f "id=6697bflskwj1998km1gnnjr38"
+
+ID                          NAME                        CREATED             UPDATED
+6697bflskwj1998km1gnnjr38   q5s5570vtvnimefos1fyeo2u2   6 weeks ago         6 weeks ago
+```
+
+#### label
+
+The `label` filter matches secrets based on the presence of a `label` alone or
+a `label` and a value.
+
+The following filter matches all secrets with a `project` label regardless of
+its value:
+
+```bash
+$ docker secret ls --filter label=project
+
+ID                          NAME                        CREATED             UPDATED
+mem02h8n73mybpgqjf0kfi1n0   test_secret                 About an hour ago   About an hour ago
+```
+
+The following filter matches only services with the `project` label with the
+`project-a` value.
+
+```bash
+$ docker service ls --filter label=project=test
+
+ID                          NAME                        CREATED             UPDATED
+mem02h8n73mybpgqjf0kfi1n0   test_secret                 About an hour ago   About an hour ago
+```
+
+#### name
+
+The `name` filter matches on all or prefix of a secret's name.
+
+The following filter matches secret with a name containing a prefix of `test`.
+
+```bash
+$ docker secret ls --filter name=test_secret
+
+ID                          NAME                        CREATED             UPDATED
+mem02h8n73mybpgqjf0kfi1n0   test_secret                 About an hour ago   About an hour ago
 ```
 
 ### Format the output
