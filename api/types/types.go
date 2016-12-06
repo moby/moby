@@ -509,27 +509,6 @@ type DiskUsage struct {
 	Volumes    []*Volume
 }
 
-// ImagesPruneConfig contains the configuration for Engine API:
-// POST "/images/prune"
-type ImagesPruneConfig struct {
-	DanglingOnly bool
-}
-
-// ContainersPruneConfig contains the configuration for Engine API:
-// POST "/images/prune"
-type ContainersPruneConfig struct {
-}
-
-// VolumesPruneConfig contains the configuration for Engine API:
-// POST "/images/prune"
-type VolumesPruneConfig struct {
-}
-
-// NetworksPruneConfig contains the configuration for Engine API:
-// POST "/networks/prune"
-type NetworksPruneConfig struct {
-}
-
 // ContainersPruneReport contains the response for Engine API:
 // POST "/containers/prune"
 type ContainersPruneReport struct {
