@@ -36,7 +36,7 @@ if [ "$(go env GOHOSTOS)" = 'windows' ]; then
 		unset inContainer
 	fi
 else
-	if [ "$PWD" != "/go/src/$DOCKER_PKG" ] || [ -z "$DOCKER_CROSSPLATFORMS" ]; then
+	if [ "$PWD" != "/go/src/$DOCKER_PKG" ] || [ -z "$FROM_DOCKERFILE" ]; then
 		unset inContainer
 	fi
 fi
@@ -64,7 +64,6 @@ DEFAULT_BUNDLES=(
 	test-integration-cli
 	test-docker-py
 
-	cross
 	tgz
 )
 

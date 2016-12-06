@@ -1,6 +1,8 @@
 #!/bin/bash
 set -e
 
+. $MAKEDIR/.platforms
+
 # explicit list of os/arch combos that support being a daemon
 declare -A daemonSupporting
 daemonSupporting=(
