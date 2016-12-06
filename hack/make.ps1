@@ -6,17 +6,17 @@
              by hack\make.sh, but uses native Windows PowerShell semantics. It does
              not support the full set of options provided by the Linux counterpart.
              For example:
-             
+
              - You can't cross-build Linux docker binaries on Windows
              - Hashes aren't generated on binaries
              - 'Releasing' isn't supported.
              - Integration tests. This is because they currently cannot run inside a container,
-               and require significant external setup. 
-             
-             It does however provided the minimum necessary to support parts of local Windows 
+               and require significant external setup.
+
+             It does however provided the minimum necessary to support parts of local Windows
              development and Windows to Windows CI.
 
-             Usage Examples (run from repo root): 
+             Usage Examples (run from repo root):
                 "hack\make.ps1 -Binary" to build the binaries
                 "hack\make.ps1 -Client" to build just the client 64-bit binary
                 "hack\make.ps1 -TestUnit" to run unit tests
@@ -190,7 +190,7 @@ Function Validate-DCO($headCommit, $upstreamCommit) {
 
     # Counts of adds and deletes after removing multiple white spaces. AWK anyone? :(
     $adds=0; $dels=0; $($counts -replace '\s+', ' ') | %{ $a=$_.Split(" "); $adds+=[int]$a[0]; $dels+=[int]$a[1] }
-    if (($adds -eq 0) -and ($dels -eq 0)) { 
+    if (($adds -eq 0) -and ($dels -eq 0)) {
         Write-Warning "DCO validation - nothing to validate!"
         return
     }
@@ -199,7 +199,7 @@ Function Validate-DCO($headCommit, $upstreamCommit) {
     if ($LASTEXITCODE -ne 0) { Throw "Failed git log --format" }
     $commits = $($commits -split '\s+' -match '\S')
     $badCommits=@()
-    $commits | %{ 
+    $commits | %{
         # Skip commits with no content such as merge commits etc
         if ($(git log -1 --format=format: --name-status $_).Length -gt 0) {
             # Ignore exit code on next call - always process regardless
@@ -230,7 +230,7 @@ Function Validate-PkgImports($headCommit, $upstreamCommit) {
         # For the current changed file, get its list of dependencies, sorted and uniqued.
         $imports = Invoke-Expression "go list -e -f `'{{ .Deps }}`' $file"
         if ($LASTEXITCODE -ne 0) { Throw "Failed go list for dependencies on $file" }
-        $imports = $imports -Replace "\[" -Replace "\]", "" -Split(" ") | Sort-Object | Get-Unique 
+        $imports = $imports -Replace "\[" -Replace "\]", "" -Split(" ") | Sort-Object | Get-Unique
         # Filter out what we are looking for
         $imports = $imports -NotMatch "^github.com/docker/docker/pkg/" `
                             -NotMatch "^github.com/docker/docker/vendor" `
@@ -255,11 +255,11 @@ Function Validate-GoFormat($headCommit, $upstreamCommit) {
     if ($(Get-Command gofmt -ErrorAction SilentlyContinue) -eq $nil) { Throw "gofmt does not appear to be installed" }
 
     # Get a list of all go source-code files which have changed.  Ignore exit code on next call - always process regardless
-    $files=@(); $files = Invoke-Expression "git diff $upstreamCommit...$headCommit --diff-filter=ACMR --name-only -- `'*.go`'" 
+    $files=@(); $files = Invoke-Expression "git diff $upstreamCommit...$headCommit --diff-filter=ACMR --name-only -- `'*.go`'"
     $files = $files | Select-String -NotMatch "^vendor/"
     $badFiles=@(); $files | %{
         # Deliberately ignore error on next line - treat as failed
-        $content=Invoke-Expression "git show $headCommit`:$_" 
+        $content=Invoke-Expression "git show $headCommit`:$_"
 
         # Next set of hoops are to ensure we have LF not CRLF semantics as otherwise gofmt on Windows will not succeed.
         # Also note that gofmt on Windows does not appear to support stdin piping correctly. Hence go through a temporary file.
@@ -327,7 +327,7 @@ Try {
     # Get the version of docker (eg 1.14.0-dev)
     $dockerVersion=Get-DockerVersion
 
-    # Give a warning if we are not running in a container and are building binaries or running unit tests. 
+    # Give a warning if we are not running in a container and are building binaries or running unit tests.
     # Not relevant for validation tests as these are fine to run outside of a container.
     if ($Client -or $Daemon -or $TestUnit) { Check-InContainer }
 
@@ -341,7 +341,7 @@ Try {
         Catch [Exception] { Throw $_ }
     }
 
-    # DCO, Package import and Go formatting tests. 
+    # DCO, Package import and Go formatting tests.
     if ($DCO -or $PkgImports -or $GoFormat) {
         # We need the head and upstream commits for these
         $headCommit=Get-HeadCommit
