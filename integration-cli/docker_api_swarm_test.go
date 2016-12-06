@@ -75,6 +75,8 @@ func (s *DockerSwarmSuite) TestAPISwarmJoinToken(c *check.C) {
 	d1 := s.AddDaemon(c, false, false)
 	c.Assert(d1.Init(swarm.InitRequest{}), checker.IsNil)
 
+	// todo: error message differs depending if some components of token are valid
+
 	d2 := s.AddDaemon(c, false, false)
 	err := d2.Join(swarm.JoinRequest{RemoteAddrs: []string{d1.listenAddr}})
 	c.Assert(err, checker.NotNil)
@@ -85,7 +87,7 @@ func (s *DockerSwarmSuite) TestAPISwarmJoinToken(c *check.C) {
 
 	err = d2.Join(swarm.JoinRequest{JoinToken: "foobaz", RemoteAddrs: []string{d1.listenAddr}})
 	c.Assert(err, checker.NotNil)
-	c.Assert(err.Error(), checker.Contains, "join token is necessary")
+	c.Assert(err.Error(), checker.Contains, "invalid join token")
 	info, err = d2.info()
 	c.Assert(err, checker.IsNil)
 	c.Assert(info.LocalNodeState, checker.Equals, swarm.LocalNodeStateInactive)
