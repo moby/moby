@@ -13,6 +13,8 @@ func setPortConfig(portConfig []swarm.PortConfig) serviceConstructor {
 		if s.Spec.EndpointSpec == nil {
 			s.Spec.EndpointSpec = &swarm.EndpointSpec{}
 		}
+		// if we set port config, the resolution mode is vip as default.
+		s.Spec.EndpointSpec.Mode = swarm.ResolutionMode("vip")
 		s.Spec.EndpointSpec.Ports = portConfig
 	}
 }

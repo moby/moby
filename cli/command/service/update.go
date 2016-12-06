@@ -279,6 +279,8 @@ func updateService(flags *pflag.FlagSet, spec *swarm.ServiceSpec) error {
 	if anyChanged(flags, flagPublishAdd, flagPublishRemove, flagPortAdd, flagPortRemove) {
 		if spec.EndpointSpec == nil {
 			spec.EndpointSpec = &swarm.EndpointSpec{}
+			// if the original EndpointSpec is nil, port change means it should add a endpoint mode of vip
+			spec.EndpointSpec.Mode = swarm.ResolutionMode("vip")
 		}
 		if err := updatePorts(flags, &spec.EndpointSpec.Ports); err != nil {
 			return err
