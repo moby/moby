@@ -2,6 +2,7 @@ package daemon
 
 import (
 	"fmt"
+	"strings"
 
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/container"
@@ -9,12 +10,32 @@ import (
 	"github.com/docker/docker/volume"
 )
 
+// dedupConfigEnvVars deduplicates requested environment variables in the config
+// as they are case insensitive on Windows
+func dedupConfigEnvVars(config *containertypes.Config) {
+	deduped := make(map[string]string)
+	for _, v := range config.Env {
+		i := strings.Index(v, "=")
+		if i >= 0 {
+			name := strings.ToUpper(v[:i])
+			value := v[i+1:]
+			deduped[name] = value
+		}
+	}
+	config.Env = nil
+	for k, v := range deduped {
+		config.Env = append(config.Env, k+"="+v)
+	}
+}
+
 // createContainerPlatformSpecificSettings performs platform specific container create functionality
 func (daemon *Daemon) createContainerPlatformSpecificSettings(container *container.Container, config *containertypes.Config, hostConfig *containertypes.HostConfig) error {
 	// Make sure the host config has the default daemon isolation if not specified by caller.
 	if containertypes.Isolation.IsDefault(containertypes.Isolation(hostConfig.Isolation)) {
 		hostConfig.Isolation = daemon.defaultIsolation
 	}
+
+	dedupConfigEnvVars(config)
 
 	for spec := range config.Volumes {
 
