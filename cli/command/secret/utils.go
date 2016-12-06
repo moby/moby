@@ -1,6 +1,9 @@
 package secret
 
 import (
+	"fmt"
+	"strings"
+
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/swarm"
@@ -8,10 +11,11 @@ import (
 	"golang.org/x/net/context"
 )
 
-func getSecretsByName(ctx context.Context, client client.APIClient, names []string) ([]swarm.Secret, error) {
+func getSecretsByNameOrIDPrefixes(ctx context.Context, client client.APIClient, terms []string) ([]swarm.Secret, error) {
 	args := filters.NewArgs()
-	for _, n := range names {
+	for _, n := range terms {
 		args.Add("names", n)
+		args.Add("id", n)
 	}
 
 	return client.SecretList(ctx, types.SecretListOptions{
@@ -19,29 +23,53 @@ func getSecretsByName(ctx context.Context, client client.APIClient, names []stri
 	})
 }
 
-func getCliRequestedSecretIDs(ctx context.Context, client client.APIClient, names []string) ([]string, error) {
-	ids := names
-
-	// attempt to lookup secret by name
-	secrets, err := getSecretsByName(ctx, client, ids)
+func getCliRequestedSecretIDs(ctx context.Context, client client.APIClient, terms []string) ([]string, error) {
+	secrets, err := getSecretsByNameOrIDPrefixes(ctx, client, terms)
 	if err != nil {
 		return nil, err
 	}
 
-	lookup := make(map[string]struct{})
-	for _, id := range ids {
-		lookup[id] = struct{}{}
-	}
-
 	if len(secrets) > 0 {
-		ids = []string{}
-
-		for _, s := range secrets {
-			if _, ok := lookup[s.Spec.Annotations.Name]; ok {
-				ids = append(ids, s.ID)
+		found := make(map[string]struct{})
+	next:
+		for _, term := range terms {
+			// attempt to lookup secret by full ID
+			for _, s := range secrets {
+				if s.ID == term {
+					found[s.ID] = struct{}{}
+					continue next
+				}
+			}
+			// attempt to lookup secret by full name
+			for _, s := range secrets {
+				if s.Spec.Annotations.Name == term {
+					found[s.ID] = struct{}{}
+					continue next
+				}
+			}
+			// attempt to lookup secret by partial ID (prefix)
+			// return error if more than one matches found (ambiguous)
+			n := 0
+			for _, s := range secrets {
+				if strings.HasPrefix(s.ID, term) {
+					found[s.ID] = struct{}{}
+					n++
+				}
+			}
+			if n > 1 {
+				return nil, fmt.Errorf("secret %s is ambiguous (%d matches found)", term, n)
 			}
 		}
+
+		// We already collected all the IDs found.
+		// Now we will remove duplicates by converting the map to slice
+		ids := []string{}
+		for id := range found {
+			ids = append(ids, id)
+		}
+
+		return ids, nil
 	}
 
-	return ids, nil
+	return terms, nil
 }
