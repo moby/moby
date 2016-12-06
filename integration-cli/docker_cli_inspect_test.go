@@ -447,3 +447,12 @@ func (s *DockerSuite) TestInspectPlugin(c *check.C) {
 	c.Assert(err, checker.IsNil)
 	c.Assert(out, checker.Contains, pNameWithTag)
 }
+
+// Test case for 29185
+func (s *DockerSuite) TestInspectUnknownObject(c *check.C) {
+	// This test should work on both Windows and Linux
+	out, _, err := dockerCmdWithError("inspect", "foobar")
+	c.Assert(err, checker.NotNil)
+	c.Assert(out, checker.Contains, "Error: No such object: foobar")
+	c.Assert(err.Error(), checker.Contains, "Error: No such object: foobar")
+}
