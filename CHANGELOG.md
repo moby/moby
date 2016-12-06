@@ -7,6 +7,22 @@ be found.
 
 ## 1.13.0 (2016-12-08)
 
+**IMPORTANT**: In Docker 1.13 managed plugin api changed from the experimental
+version introduced in Docker 1.12. Plugins installed with Docker 1.12 should
+therefore be **uninstalled** _before_ upgrading to Docker 1.13. You can
+uninstall plugins using the `docker plugin rm` command.
+
+If you have already upgraded to Docker 1.13 without uninstalling plugins, and
+get this error message during docker daemon startup;
+
+    Error starting daemon: json: cannot unmarshal string into Go value of type types.PluginEnv
+
+Take the following steps to manually remove all plugins;
+
+- Remove plugins.json from: `/var/lib/docker/plugins/`
+- Restart Docker
+- Reinstall your plugins
+
 ### Builder
 + Add capability to specify images used as a cache source on build. These images do not need to have local parent chain and can be pulled from other registries [#26839](https://github.com/docker/docker/pull/26839)
 + (experimental) Add option to squash image layers to the FROM image after successful builds [#22641](https://github.com/docker/docker/pull/22641)
