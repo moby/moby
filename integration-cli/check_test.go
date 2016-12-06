@@ -362,3 +362,36 @@ func (s *DockerTrustSuite) TearDownTest(c *check.C) {
 	os.RemoveAll(filepath.Join(cliconfig.ConfigDir(), "trust"))
 	s.ds.TearDownTest(c)
 }
+
+func init() {
+	ds := &DockerSuite{}
+	check.Suite(&DockerTrustedSwarmSuite{
+		trustSuite: DockerTrustSuite{
+			ds: ds,
+		},
+		swarmSuite: DockerSwarmSuite{
+			ds: ds,
+		},
+	})
+}
+
+type DockerTrustedSwarmSuite struct {
+	swarmSuite DockerSwarmSuite
+	trustSuite DockerTrustSuite
+	reg        *testRegistryV2
+	not        *testNotary
+}
+
+func (s *DockerTrustedSwarmSuite) SetUpTest(c *check.C) {
+	s.swarmSuite.SetUpTest(c)
+	s.trustSuite.SetUpTest(c)
+}
+
+func (s *DockerTrustedSwarmSuite) TearDownTest(c *check.C) {
+	s.trustSuite.TearDownTest(c)
+	s.swarmSuite.TearDownTest(c)
+}
+
+func (s *DockerTrustedSwarmSuite) OnTimeout(c *check.C) {
+	s.swarmSuite.OnTimeout(c)
+}
