@@ -24,6 +24,7 @@ go_test_dir() {
 	testcover=()
 	testcoverprofile=()
 	(
+		set -e
 		mkdir -p "$DEST/coverprofiles"
 		export DEST="$ABS_DEST" # in a subshell this is safe -- our integration-cli tests need DEST, and "cd" screws it up
 		if [ -z $precompiled ]; then
