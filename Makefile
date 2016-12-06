@@ -51,10 +51,11 @@ DOCKER_MOUNT := $(if $(BIND_DIR),-v "$(CURDIR)/$(BIND_DIR):/go/src/github.com/do
 # Note that `BIND_DIR` will already be set to `bundles` if `DOCKER_HOST` is not set (see above BIND_DIR line), in such case this will do nothing since `DOCKER_MOUNT` will already be set.
 DOCKER_MOUNT := $(if $(DOCKER_MOUNT),$(DOCKER_MOUNT),-v /go/src/github.com/docker/docker/bundles)
 
-# enable .go-pkg-cache if DOCKER_INCREMENTAL_BINARY and DOCKER_MOUNT (i.e.DOCKER_HOST) are set
-PKGCACHE_DIR := $(if $(PKGCACHE_DIR),$(PKGCACHE_DIR),.go-pkg-cache)
+# enable package cache if DOCKER_INCREMENTAL_BINARY and DOCKER_MOUNT (i.e.DOCKER_HOST) are set
 PKGCACHE_MAP := gopath:/go/pkg goroot-linux_amd64_netgo:/usr/local/go/pkg/linux_amd64_netgo
-DOCKER_MOUNT := $(if $(DOCKER_INCREMENTAL_BINARY),$(DOCKER_MOUNT) $(shell echo $(PKGCACHE_MAP) | sed -E 's@([^ ]*)@-v "$(CURDIR)/$(PKGCACHE_DIR)/\1"@g'),$(DOCKER_MOUNT))
+PKGCACHE_VOLROOT := dockerdev-go-pkg-cache
+PKGCACHE_VOL := $(if $(PKGCACHE_DIR),$(CURDIR)/$(PKGCACHE_DIR)/,$(PKGCACHE_VOLROOT)-)
+DOCKER_MOUNT := $(if $(DOCKER_INCREMENTAL_BINARY),$(DOCKER_MOUNT) $(shell echo $(PKGCACHE_MAP) | sed -E 's@([^ ]*)@-v "$(PKGCACHE_VOL)\1"@g'),$(DOCKER_MOUNT))
 
 GIT_BRANCH := $(shell git rev-parse --abbrev-ref HEAD 2>/dev/null)
 GIT_BRANCH_CLEAN := $(shell echo $(GIT_BRANCH) | sed -e "s/[^[:alnum:]]/-/g")
@@ -89,6 +90,13 @@ build: bundles init-go-pkg-cache
 bundles:
 	mkdir bundles
 
+clean: clean-pkg-cache-vol ## clean up cached resources
+
+clean-pkg-cache-vol:
+	@- $(foreach mapping,$(PKGCACHE_MAP), \
+		$(shell docker volume rm $(PKGCACHE_VOLROOT)-$(shell echo $(mapping) | awk -F':/' '{ print $$1 }') > /dev/null 2>&1) \
+	)
+
 cross: build ## cross build the binaries for darwin, freebsd and\nwindows
 	$(DOCKER_RUN_DOCKER) hack/make.sh dynbinary binary cross
 
@@ -100,7 +108,7 @@ help: ## this help
 	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {sub("\\\\n",sprintf("\n%22c"," "), $$2);printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 
 init-go-pkg-cache:
-	mkdir -p $(shell echo $(PKGCACHE_MAP) | sed -E 's@([^: ]*):[^ ]*@$(PKGCACHE_DIR)/\1@g')
+	$(if $(PKGCACHE_DIR), mkdir -p $(shell echo $(PKGCACHE_MAP) | sed -E 's@([^: ]*):[^ ]*@$(PKGCACHE_DIR)/\1@g'))
 
 install: ## install the linux binaries
 	KEEPBUNDLE=1 hack/make.sh install-binary
