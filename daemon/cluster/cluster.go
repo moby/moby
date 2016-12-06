@@ -2,6 +2,7 @@ package cluster
 
 import (
 	"encoding/json"
+	stdliberrors "errors"
 	"fmt"
 	"io/ioutil"
 	"net"
@@ -1322,6 +1323,8 @@ func validateAndSanitizeInitRequest(req *types.InitRequest) error {
 	// provide sane defaults instead of erroring
 	if spec.Name == "" {
 		spec.Name = "default"
+	} else if spec.Name != "default" {
+		return stdliberrors.New(`swarm spec must be named "default"`)
 	}
 	if spec.Raft.SnapshotInterval == 0 {
 		spec.Raft.SnapshotInterval = defaultSpec.Raft.SnapshotInterval
