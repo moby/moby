@@ -411,6 +411,13 @@ func (sb *sandbox) updateGateway(ep *endpoint) error {
 	return nil
 }
 
+func (sb *sandbox) HandleQueryResp(name string, ip net.IP) {
+	for _, ep := range sb.getConnectedEndpoints() {
+		n := ep.getNetwork()
+		n.HandleQueryResp(name, ip)
+	}
+}
+
 func (sb *sandbox) ResolveIP(ip string) string {
 	var svc string
 	logrus.Debugf("IP To resolve %v", ip)
