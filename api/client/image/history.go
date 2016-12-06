@@ -70,10 +70,12 @@ func runHistory(dockerCli *client.DockerCli, opts historyOptions) error {
 		return nil
 	}
 
-	var imageID string
-	var createdBy string
-	var created string
-	var size string
+	var (
+		imageID string
+		createdBy string
+		created string
+		size string
+	)
 
 	fmt.Fprintln(w, "IMAGE\tCREATED\tCREATED BY\tSIZE\tCOMMENT")
 	for _, entry := range history {
