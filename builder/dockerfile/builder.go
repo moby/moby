@@ -157,7 +157,7 @@ func NewBuilder(clientCtx context.Context, config *types.ImageBuildOptions, back
 	parser.SetEscapeToken(parser.DefaultEscapeToken, &b.directive) // Assume the default token for escape
 
 	if dockerfile != nil {
-		b.dockerfile, err = parser.Parse(dockerfile, &b.directive)
+		b.dockerfile, err = parser.Parse(dockerfile, b.Stderr, &b.directive)
 		if err != nil {
 			return nil, err
 		}
@@ -364,7 +364,7 @@ func BuildFromConfig(config *container.Config, changes []string) (*container.Con
 		return nil, err
 	}
 
-	ast, err := parser.Parse(bytes.NewBufferString(strings.Join(changes, "\n")), &b.directive)
+	ast, err := parser.Parse(bytes.NewBufferString(strings.Join(changes, "\n")), b.Stderr, &b.directive)
 	if err != nil {
 		return nil, err
 	}

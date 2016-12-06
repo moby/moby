@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
 
 	"github.com/docker/docker/builder/dockerfile/parser"
@@ -26,7 +27,7 @@ func main() {
 		d := parser.Directive{LookingForDirectives: true}
 		parser.SetEscapeToken(parser.DefaultEscapeToken, &d)
 
-		ast, err := parser.Parse(f, &d)
+		ast, err := parser.Parse(f, ioutil.Discard, &d)
 		if err != nil {
 			panic(err)
 		} else {

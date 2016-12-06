@@ -20,6 +20,12 @@ The following list of features are deprecated in Engine.
 To learn more about Docker Engine's deprecation policy,
 see [Feature Deprecation Policy](https://docs.docker.com/engine/#feature-deprecation-policy).
 
+### Empty line continuation for `Dockerfile`
+**Deprecated In Release: v17.05.0**
+
+The empty lines in `Dockerfile` used to indicate continuation, as long as the last non-empty
+line ends with escape. This rule is being deprecated and a warning is generated.
+
 ### `-g` and `--graph` flags on `dockerd`
 
 **Deprecated In Release: v17.05.0**

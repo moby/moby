@@ -454,7 +454,7 @@ func (b *Builder) processImageFrom(img builder.Image) error {
 
 	// parse the ONBUILD triggers by invoking the parser
 	for _, step := range onBuildTriggers {
-		ast, err := parser.Parse(strings.NewReader(step), &b.directive)
+		ast, err := parser.Parse(strings.NewReader(step), b.Stderr, &b.directive)
 		if err != nil {
 			return err
 		}
@@ -690,7 +690,7 @@ func (b *Builder) parseDockerfile() error {
 			return fmt.Errorf("The Dockerfile (%s) cannot be empty", b.options.Dockerfile)
 		}
 	}
-	b.dockerfile, err = parser.Parse(f, &b.directive)
+	b.dockerfile, err = parser.Parse(f, b.Stderr, &b.directive)
 	if err != nil {
 		return err
 	}
