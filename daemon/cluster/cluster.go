@@ -919,9 +919,11 @@ func (c *Cluster) CreateService(s types.ServiceSpec, encodedAuth string) (*apity
 		if err != nil {
 			logrus.Warnf("unable to pin image %s to digest: %s", ctnr.Image, err.Error())
 			resp.Warnings = append(resp.Warnings, fmt.Sprintf("unable to pin image %s to digest: %s", ctnr.Image, err.Error()))
-		} else {
+		} else if ctnr.Image != digestImage {
 			logrus.Debugf("pinning image %s by digest: %s", ctnr.Image, digestImage)
 			ctnr.Image = digestImage
+		} else {
+			logrus.Debugf("creating service using supplied digest reference %s", ctnr.Image)
 		}
 	}
 
@@ -1033,6 +1035,8 @@ func (c *Cluster) UpdateService(serviceIDOrName string, version uint64, spec typ
 		} else if newCtnr.Image != digestImage {
 			logrus.Debugf("pinning image %s by digest: %s", newCtnr.Image, digestImage)
 			newCtnr.Image = digestImage
+		} else {
+			logrus.Debugf("updating service using supplied digest reference %s", newCtnr.Image)
 		}
 	}
 
