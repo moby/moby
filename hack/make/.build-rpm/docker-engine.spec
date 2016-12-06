@@ -111,6 +111,17 @@ language, framework or packaging system. That makes them great building blocks
 for deploying and scaling web apps, databases, and backend services without
 depending on a particular stack or provider.
 
+%if 0%{?centos} >= 7
+%package selinux
+Summary: SELinux Policies for the open-source application container engine
+Group: Tools/Docker
+BuildArch: noarch
+Requires(pre): docker-selinux
+%description selinux
+SELinux policy modules for use with Docker
+%files selinux
+%endif
+
 %prep
 %if 0%{?centos} <= 6 || 0%{?oraclelinux} <=6
 %setup -n %{name}
