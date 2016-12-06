@@ -1427,3 +1427,84 @@ Options:`
 	c.Assert(err, checker.IsNil, check.Commentf("out: %v", out))
 	c.Assert(out, checker.Contains, expectedOutput, check.Commentf(out))
 }
+
+func (s *DockerTrustedSwarmSuite) TestTrustedServiceCreate(c *check.C) {
+	d := s.swarmSuite.AddDaemon(c, true, true)
+
+	// Attempt creating a service from an image that is known to notary.
+	repoName := s.trustSuite.setupTrustedImage(c, "trusted-pull")
+
+	name := "trusted"
+	serviceCmd := d.Command("-D", "service", "create", "--name", name, repoName, "top")
+	s.trustSuite.trustedCmd(serviceCmd)
+	out, _, err := runCommandWithOutput(serviceCmd)
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+	c.Assert(out, checker.Contains, "resolved image tag to", check.Commentf(out))
+
+	out, err = d.Cmd("service", "inspect", "--pretty", name)
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+	c.Assert(out, checker.Contains, repoName+"@", check.Commentf(out))
+
+	// Try trusted service create on an untrusted tag.
+
+	repoName = fmt.Sprintf("%v/untrustedservicecreate/createtest:latest", privateRegistryURL)
+	// tag the image and upload it to the private registry
+	dockerCmd(c, "tag", "busybox", repoName)
+	dockerCmd(c, "push", repoName)
+	dockerCmd(c, "rmi", repoName)
+
+	name = "untrusted"
+	serviceCmd = d.Command("service", "create", "--name", name, repoName, "top")
+	s.trustSuite.trustedCmd(serviceCmd)
+	out, _, err = runCommandWithOutput(serviceCmd)
+
+	c.Assert(err, check.NotNil, check.Commentf(out))
+	c.Assert(string(out), checker.Contains, "Error: remote trust data does not exist", check.Commentf(out))
+
+	out, err = d.Cmd("service", "inspect", "--pretty", name)
+	c.Assert(err, checker.NotNil, check.Commentf(out))
+}
+
+func (s *DockerTrustedSwarmSuite) TestTrustedServiceUpdate(c *check.C) {
+	d := s.swarmSuite.AddDaemon(c, true, true)
+
+	// Attempt creating a service from an image that is known to notary.
+	repoName := s.trustSuite.setupTrustedImage(c, "trusted-pull")
+
+	name := "myservice"
+
+	// Create a service without content trust
+	_, err := d.Cmd("service", "create", "--name", name, repoName, "top")
+	c.Assert(err, checker.IsNil)
+
+	out, err := d.Cmd("service", "inspect", "--pretty", name)
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+	// Daemon won't insert the digest because this is disabled by
+	// DOCKER_SERVICE_PREFER_OFFLINE_IMAGE.
+	c.Assert(out, check.Not(checker.Contains), repoName+"@", check.Commentf(out))
+
+	serviceCmd := d.Command("-D", "service", "update", "--image", repoName, name)
+	s.trustSuite.trustedCmd(serviceCmd)
+	out, _, err = runCommandWithOutput(serviceCmd)
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+	c.Assert(out, checker.Contains, "resolved image tag to", check.Commentf(out))
+
+	out, err = d.Cmd("service", "inspect", "--pretty", name)
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+	c.Assert(out, checker.Contains, repoName+"@", check.Commentf(out))
+
+	// Try trusted service update on an untrusted tag.
+
+	repoName = fmt.Sprintf("%v/untrustedservicecreate/createtest:latest", privateRegistryURL)
+	// tag the image and upload it to the private registry
+	dockerCmd(c, "tag", "busybox", repoName)
+	dockerCmd(c, "push", repoName)
+	dockerCmd(c, "rmi", repoName)
+
+	serviceCmd = d.Command("service", "update", "--image", repoName, name)
+	s.trustSuite.trustedCmd(serviceCmd)
+	out, _, err = runCommandWithOutput(serviceCmd)
+
+	c.Assert(err, check.NotNil, check.Commentf(out))
+	c.Assert(string(out), checker.Contains, "Error: remote trust data does not exist", check.Commentf(out))
+}
