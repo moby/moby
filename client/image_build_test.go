@@ -170,8 +170,8 @@ func TestImageBuild(t *testing.T) {
 					return nil, fmt.Errorf("X-Registry-Config header not properly set in the request. Expected '%s', got %s", buildCase.expectedRegistryConfig, registryConfig)
 				}
 				contentType := r.Header.Get("Content-Type")
-				if contentType != "application/tar" {
-					return nil, fmt.Errorf("Content-type header not properly set in the request. Expected 'application/tar', got %s", contentType)
+				if contentType != "application/x-tar" {
+					return nil, fmt.Errorf("Content-type header not properly set in the request. Expected 'application/x-tar', got %s", contentType)
 				}
 
 				// Check query parameters
