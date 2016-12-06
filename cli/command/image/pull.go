@@ -55,16 +55,6 @@ func runPull(dockerCli *command.DockerCli, opts pullOptions) error {
 		fmt.Fprintf(dockerCli.Out(), "Using default tag: %s\n", reference.DefaultTag)
 	}
 
-	var tag string
-	switch x := distributionRef.(type) {
-	case reference.Canonical:
-		tag = x.Digest().String()
-	case reference.NamedTagged:
-		tag = x.Tag()
-	}
-
-	registryRef := registry.ParseReference(tag)
-
 	// Resolve the Repository name from fqn to RepositoryInfo
 	repoInfo, err := registry.ParseRepositoryInfo(distributionRef)
 	if err != nil {
@@ -76,9 +66,10 @@ func runPull(dockerCli *command.DockerCli, opts pullOptions) error {
 	authConfig := command.ResolveAuthConfig(ctx, dockerCli, repoInfo.Index)
 	requestPrivilege := command.RegistryAuthenticationPrivilegedFunc(dockerCli, repoInfo.Index, "pull")
 
-	if command.IsTrusted() && !registryRef.HasDigest() {
-		// Check if tag is digest
-		err = trustedPull(ctx, dockerCli, repoInfo, registryRef, authConfig, requestPrivilege)
+	// Check if reference has a digest
+	_, isCanonical := distributionRef.(reference.Canonical)
+	if command.IsTrusted() && !isCanonical {
+		err = trustedPull(ctx, dockerCli, repoInfo, distributionRef, authConfig, requestPrivilege)
 	} else {
 		err = imagePullPrivileged(ctx, dockerCli, authConfig, distributionRef.String(), requestPrivilege, opts.all)
 	}
