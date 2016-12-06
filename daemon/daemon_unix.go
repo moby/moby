@@ -1255,7 +1255,7 @@ func (daemon *Daemon) initCgroupsPath(path string) error {
 	}
 
 	path = filepath.Join(root, path)
-	sysinfo := sysinfo.New(false)
+	sysinfo := sysinfo.New(true)
 	if err := os.MkdirAll(path, 0755); err != nil && !os.IsExist(err) {
 		return err
 	}
