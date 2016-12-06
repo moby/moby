@@ -243,6 +243,7 @@ type Result struct {
 	AST         *Node
 	EscapeToken rune
 	Platform    string
+	Warnings    []string
 }
 
 // Parse reads lines from a Reader, parses the lines into an AST and returns
@@ -252,6 +253,7 @@ func Parse(rwc io.Reader) (*Result, error) {
 	currentLine := 0
 	root := &Node{StartLine: -1}
 	scanner := bufio.NewScanner(rwc)
+	warnings := []string{}
 
 	var err error
 	for scanner.Scan() {
@@ -272,6 +274,7 @@ func Parse(rwc io.Reader) (*Result, error) {
 			continue
 		}
 
+		var hasEmptyContinuationLine bool
 		for !isEndOfLine && scanner.Scan() {
 			bytesRead, err := processLine(d, scanner.Bytes(), false)
 			if err != nil {
@@ -279,8 +282,8 @@ func Parse(rwc io.Reader) (*Result, error) {
 			}
 			currentLine++
 
-			// TODO: warn this is being deprecated/removed
 			if isEmptyContinuationLine(bytesRead) {
+				hasEmptyContinuationLine = true
 				continue
 			}
 
@@ -289,13 +292,27 @@ func Parse(rwc io.Reader) (*Result, error) {
 			line += continuationLine
 		}
 
+		if hasEmptyContinuationLine {
+			warning := "[WARNING]: Empty continuation line found in:\n    " + line
+			warnings = append(warnings, warning)
+		}
+
 		child, err := newNodeFromLine(line, d)
 		if err != nil {
 			return nil, err
 		}
 		root.AddChild(child, startLine, currentLine)
 	}
-	return &Result{AST: root, EscapeToken: d.escapeToken, Platform: d.platformToken}, nil
+
+	if len(warnings) > 0 {
+		warnings = append(warnings, "[WARNING]: Empty continuation lines will become errors in a future release.")
+	}
+	return &Result{
+		AST:         root,
+		Warnings:    warnings,
+		EscapeToken: d.escapeToken,
+		Platform: d.platformToken,
+	}, nil
 }
 
 func trimComments(src []byte) []byte {
@@ -326,6 +343,5 @@ func processLine(d *Directive, token []byte, stripLeftWhitespace bool) ([]byte, 
 	if stripLeftWhitespace {
 		token = trimWhitespace(token)
 	}
-	err := d.possibleParserDirective(string(token))
-	return trimComments(token), err
+	return trimComments(token), d.possibleParserDirective(string(token))
 }
