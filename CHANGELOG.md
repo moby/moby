@@ -1119,7 +1119,7 @@ that allows to add build-time environment variables (#15182)
 
 - devicemapper: Implement deferred deletion capability (#16381)
 
-## Networking
+### Networking
 
 + `docker network` exits experimental and is part of standard release (#16645)
 + New network top-level concept, with associated subcommands and API (#16645)
