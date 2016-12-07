@@ -212,7 +212,7 @@ To manually remove all plugins and resolve this problem, take the following step
 - Deprecate MAINTAINER in Dockerfile [#25466](https://github.com/docker/docker/pull/25466)
 - Deprecated filter param for endpoint `/images/json` [#27872](https://github.com/docker/docker/pull/27872)
 
-## 1.12.4
+## 1.12.4 (2016-12-06)
 
 **IMPORTANT**: Docker 1.12 ships with an updated systemd unit file for rpm
 based installs (which includes RHEL, Fedora, CentOS, and Oracle Linux 7). When
