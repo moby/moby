@@ -132,6 +132,10 @@ for version in "${versions[@]}"; do
 			# use zypper
 			echo "RUN zypper --non-interactive install ${packages[*]}" >> "$version/Dockerfile"
 			;;
+		centos:7)
+			echo "RUN ${installer} install -y ${packages[*]}" >> "$version/Dockerfile"
+			echo 'RUN [ `rpm -q selinux-policy-devel | grep el7_3` ] || yum -y --enablerepo=cr install selinux-policy-devel' >> "$version/Dockerfile"
+			;;
 		*)
 			echo "RUN ${installer} install -y ${packages[*]}" >> "$version/Dockerfile"
 			;;
