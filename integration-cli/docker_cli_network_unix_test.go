@@ -16,6 +16,7 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/versions/v1p20"
+	"github.com/docker/docker/integration-cli/daemon"
 	"github.com/docker/docker/pkg/integration/checker"
 	icmd "github.com/docker/docker/pkg/integration/cmd"
 	"github.com/docker/docker/pkg/stringid"
@@ -43,11 +44,13 @@ func init() {
 type DockerNetworkSuite struct {
 	server *httptest.Server
 	ds     *DockerSuite
-	d      *Daemon
+	d      *daemon.Daemon
 }
 
 func (s *DockerNetworkSuite) SetUpTest(c *check.C) {
-	s.d = NewDaemon(c)
+	s.d = daemon.New(c, dockerBinary, dockerdBinary, daemon.Config{
+		Experimental: experimentalDaemon,
+	})
 }
 
 func (s *DockerNetworkSuite) TearDownTest(c *check.C) {
@@ -994,9 +997,7 @@ func (s *DockerNetworkSuite) TestDockerNetworkDriverUngracefulRestart(c *check.C
 	c.Assert(err, checker.IsNil)
 
 	// Kill daemon and restart
-	if err = s.d.cmd.Process.Kill(); err != nil {
-		c.Fatal(err)
-	}
+	c.Assert(s.d.Kill(), checker.IsNil)
 
 	server.Close()
 
@@ -1064,7 +1065,7 @@ func (s *DockerSuite) TestInspectAPIMultipleNetworks(c *check.C) {
 	c.Assert(bridge.IPAddress, checker.Equals, inspect121.NetworkSettings.IPAddress)
 }
 
-func connectContainerToNetworks(c *check.C, d *Daemon, cName string, nws []string) {
+func connectContainerToNetworks(c *check.C, d *daemon.Daemon, cName string, nws []string) {
 	// Run a container on the default network
 	out, err := d.Cmd("run", "-d", "--name", cName, "busybox", "top")
 	c.Assert(err, checker.IsNil, check.Commentf(out))
@@ -1078,7 +1079,7 @@ func connectContainerToNetworks(c *check.C, d *Daemon, cName string, nws []strin
 	}
 }
 
-func verifyContainerIsConnectedToNetworks(c *check.C, d *Daemon, cName string, nws []string) {
+func verifyContainerIsConnectedToNetworks(c *check.C, d *daemon.Daemon, cName string, nws []string) {
 	// Verify container is connected to all the networks
 	for _, nw := range nws {
 		out, err := d.Cmd("inspect", "-f", fmt.Sprintf("{{.NetworkSettings.Networks.%s}}", nw), cName)
@@ -1115,10 +1116,8 @@ func (s *DockerNetworkSuite) TestDockerNetworkMultipleNetworksUngracefulDaemonRe
 	verifyContainerIsConnectedToNetworks(c, s.d, cName, nwList)
 
 	// Kill daemon and restart
-	if err := s.d.cmd.Process.Kill(); err != nil {
-		c.Fatal(err)
-	}
-	s.d.Restart()
+	c.Assert(s.d.Kill(), checker.IsNil)
+	c.Assert(s.d.Restart(), checker.IsNil)
 
 	// Restart container
 	_, err := s.d.Cmd("start", cName)
@@ -1144,21 +1143,17 @@ func (s *DockerNetworkSuite) TestDockerNetworkHostModeUngracefulDaemonRestart(c 
 		c.Assert(err, checker.IsNil, check.Commentf(out))
 
 		// verfiy container has finished starting before killing daemon
-		err = s.d.waitRun(cName)
+		err = s.d.WaitRun(cName)
 		c.Assert(err, checker.IsNil)
 	}
 
 	// Kill daemon ungracefully and restart
-	if err := s.d.cmd.Process.Kill(); err != nil {
-		c.Fatal(err)
-	}
-	if err := s.d.Restart(); err != nil {
-		c.Fatal(err)
-	}
+	c.Assert(s.d.Kill(), checker.IsNil)
+	c.Assert(s.d.Restart(), checker.IsNil)
 
 	// make sure all the containers are up and running
 	for i := 0; i < 10; i++ {
-		err := s.d.waitRun(fmt.Sprintf("hostc-%d", i))
+		err := s.d.WaitRun(fmt.Sprintf("hostc-%d", i))
 		c.Assert(err, checker.IsNil)
 	}
 }

@@ -22,7 +22,7 @@ func (s *DockerSwarmSuite) TestServiceHealthRun(c *check.C) {
 	// build image with health-check
 	// note: use `daemon.buildImageWithOut` to build, do not use `buildImage` to build
 	imageName := "testhealth"
-	_, _, err := d.buildImageWithOut(imageName,
+	_, _, err := d.BuildImageWithOut(imageName,
 		`FROM busybox
 		RUN touch /status
 		HEALTHCHECK --interval=1s --timeout=1s --retries=1\
@@ -37,7 +37,7 @@ func (s *DockerSwarmSuite) TestServiceHealthRun(c *check.C) {
 
 	var tasks []swarm.Task
 	waitAndAssert(c, defaultReconciliationTimeout, func(c *check.C) (interface{}, check.CommentInterface) {
-		tasks = d.getServiceTasks(c, id)
+		tasks = d.GetServiceTasks(c, id)
 		return tasks, nil
 	}, checker.HasLen, 1)
 
@@ -45,7 +45,7 @@ func (s *DockerSwarmSuite) TestServiceHealthRun(c *check.C) {
 
 	// wait for task to start
 	waitAndAssert(c, defaultReconciliationTimeout, func(c *check.C) (interface{}, check.CommentInterface) {
-		task = d.getTask(c, task.ID)
+		task = d.GetTask(c, task.ID)
 		return task.Status.State, nil
 	}, checker.Equals, swarm.TaskStateRunning)
 	containerID := task.Status.ContainerStatus.ContainerID
@@ -66,7 +66,7 @@ func (s *DockerSwarmSuite) TestServiceHealthRun(c *check.C) {
 
 	// Task should be terminated
 	waitAndAssert(c, defaultReconciliationTimeout, func(c *check.C) (interface{}, check.CommentInterface) {
-		task = d.getTask(c, task.ID)
+		task = d.GetTask(c, task.ID)
 		return task.Status.State, nil
 	}, checker.Equals, swarm.TaskStateFailed)
 
@@ -84,7 +84,7 @@ func (s *DockerSwarmSuite) TestServiceHealthStart(c *check.C) {
 
 	// service started from this image won't pass health check
 	imageName := "testhealth"
-	_, _, err := d.buildImageWithOut(imageName,
+	_, _, err := d.BuildImageWithOut(imageName,
 		`FROM busybox
 		HEALTHCHECK --interval=1s --timeout=1s --retries=1024\
 		  CMD cat /status`,
@@ -98,7 +98,7 @@ func (s *DockerSwarmSuite) TestServiceHealthStart(c *check.C) {
 
 	var tasks []swarm.Task
 	waitAndAssert(c, defaultReconciliationTimeout, func(c *check.C) (interface{}, check.CommentInterface) {
-		tasks = d.getServiceTasks(c, id)
+		tasks = d.GetServiceTasks(c, id)
 		return tasks, nil
 	}, checker.HasLen, 1)
 
@@ -106,7 +106,7 @@ func (s *DockerSwarmSuite) TestServiceHealthStart(c *check.C) {
 
 	// wait for task to start
 	waitAndAssert(c, defaultReconciliationTimeout, func(c *check.C) (interface{}, check.CommentInterface) {
-		task = d.getTask(c, task.ID)
+		task = d.GetTask(c, task.ID)
 		return task.Status.State, nil
 	}, checker.Equals, swarm.TaskStateStarting)
 
@@ -120,7 +120,7 @@ func (s *DockerSwarmSuite) TestServiceHealthStart(c *check.C) {
 	}, checker.GreaterThan, 0)
 
 	// task should be blocked at starting status
-	task = d.getTask(c, task.ID)
+	task = d.GetTask(c, task.ID)
 	c.Assert(task.Status.State, check.Equals, swarm.TaskStateStarting)
 
 	// make it healthy
@@ -128,7 +128,7 @@ func (s *DockerSwarmSuite) TestServiceHealthStart(c *check.C) {
 
 	// Task should be at running status
 	waitAndAssert(c, defaultReconciliationTimeout, func(c *check.C) (interface{}, check.CommentInterface) {
-		task = d.getTask(c, task.ID)
+		task = d.GetTask(c, task.ID)
 		return task.Status.State, nil
 	}, checker.Equals, swarm.TaskStateRunning)
 }
@@ -142,7 +142,7 @@ func (s *DockerSwarmSuite) TestServiceHealthUpdate(c *check.C) {
 
 	// service started from this image won't pass health check
 	imageName := "testhealth"
-	_, _, err := d.buildImageWithOut(imageName,
+	_, _, err := d.BuildImageWithOut(imageName,
 		`FROM busybox
 		HEALTHCHECK --interval=1s --timeout=1s --retries=1024\
 		  CMD cat /status`,
@@ -156,7 +156,7 @@ func (s *DockerSwarmSuite) TestServiceHealthUpdate(c *check.C) {
 
 	var tasks []swarm.Task
 	waitAndAssert(c, defaultReconciliationTimeout, func(c *check.C) (interface{}, check.CommentInterface) {
-		tasks = d.getServiceTasks(c, id)
+		tasks = d.GetServiceTasks(c, id)
 		return tasks, nil
 	}, checker.HasLen, 1)
 
@@ -164,7 +164,7 @@ func (s *DockerSwarmSuite) TestServiceHealthUpdate(c *check.C) {
 
 	// wait for task to start
 	waitAndAssert(c, defaultReconciliationTimeout, func(c *check.C) (interface{}, check.CommentInterface) {
-		task = d.getTask(c, task.ID)
+		task = d.GetTask(c, task.ID)
 		return task.Status.State, nil
 	}, checker.Equals, swarm.TaskStateStarting)
 
@@ -178,14 +178,14 @@ func (s *DockerSwarmSuite) TestServiceHealthUpdate(c *check.C) {
 	}, checker.GreaterThan, 0)
 
 	// task should be blocked at starting status
-	task = d.getTask(c, task.ID)
+	task = d.GetTask(c, task.ID)
 	c.Assert(task.Status.State, check.Equals, swarm.TaskStateStarting)
 
 	// make it healthy
 	d.Cmd("exec", containerID, "touch", "/status")
 	// Task should be at running status
 	waitAndAssert(c, defaultReconciliationTimeout, func(c *check.C) (interface{}, check.CommentInterface) {
-		task = d.getTask(c, task.ID)
+		task = d.GetTask(c, task.ID)
 		return task.Status.State, nil
 	}, checker.Equals, swarm.TaskStateRunning)
 }
