@@ -863,6 +863,29 @@ func checkSwarmUnlockedToLocked(c *check.C, d *daemon.Swarm) {
 	c.Assert(getNodeStatus(c, d), checker.Equals, swarm.LocalNodeStateLocked)
 }
 
+func (s *DockerSwarmSuite) TestUnlockEngineAndUnlockedSwarm(c *check.C) {
+	d := s.AddDaemon(c, false, false)
+
+	// unlocking a normal engine should return an error
+	cmd := d.Command("swarm", "unlock")
+	cmd.Stdin = bytes.NewBufferString("wrong-secret-key")
+	outs, err := cmd.CombinedOutput()
+
+	c.Assert(err, checker.NotNil, check.Commentf("out: %v", string(outs)))
+	c.Assert(string(outs), checker.Contains, "This node is not a swarm manager.")
+
+	_, err = d.Cmd("swarm", "init")
+	c.Assert(err, checker.IsNil)
+
+	// unlocking an unlocked swarm should return an error
+	cmd = d.Command("swarm", "unlock")
+	cmd.Stdin = bytes.NewBufferString("wrong-secret-key")
+	outs, err = cmd.CombinedOutput()
+
+	c.Assert(err, checker.NotNil, check.Commentf("out: %v", string(outs)))
+	c.Assert(string(outs), checker.Contains, "swarm is not locked")
+}
+
 func (s *DockerSwarmSuite) TestSwarmInitLocked(c *check.C) {
 	d := s.AddDaemon(c, false, false)
 

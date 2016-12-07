@@ -446,11 +446,24 @@ func (c *Cluster) UnlockSwarm(req types.UnlockRequest) error {
 
 	c.mu.RLock()
 	state := c.currentNodeState()
-	nr := c.nr
-	c.mu.RUnlock()
-	if nr == nil || errors.Cause(state.err) != errSwarmLocked {
+
+	if !state.IsActiveManager() {
+		// when manager is not active,
+		// unless it is locked, otherwise return error.
+		if err := c.errNoManager(state); err != errSwarmLocked {
+			c.mu.RUnlock()
+			return err
+		}
+	} else {
+		// when manager is active, return an error of "not locked"
+		c.mu.RUnlock()
 		return errors.New("swarm is not locked")
 	}
+
+	// only when swarm is locked, code running reaches here
+	nr := c.nr
+	c.mu.RUnlock()
+
 	key, err := encryption.ParseHumanReadableKey(req.UnlockKey)
 	if err != nil {
 		return err
