@@ -248,7 +248,7 @@ systemctl restart docker` to reload changes and (re)start the docker daemon.
 - Asynchronously close streams to prevent holding container lock [#29050](https://github.com/docker/docker/pull/29050)
 - Fix selinux labels for newly created container volumes [#29050](https://github.com/docker/docker/pull/29050)
 - Remove hostname validation [#28990](https://github.com/docker/docker/pull/28990)
-- Fix deadlocks caused by IO races [#29095](https://github.com/docker/docker/pull/29095)
+- Fix deadlocks caused by IO races [#29095](https://github.com/docker/docker/pull/29095) [#29141](https://github.com/docker/docker/pull/29141)
 - Return an empty stats if the container is restarting [#29150](https://github.com/docker/docker/pull/29150)
 - Fix volume store locking [#29151](https://github.com/docker/docker/pull/29151)
 - Ensure consistent status code in API [#29150](https://github.com/docker/docker/pull/29150)
