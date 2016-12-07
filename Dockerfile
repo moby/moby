@@ -120,7 +120,7 @@ RUN set -x \
 # IMPORTANT: If the version of Go is updated, the Windows to Linux CI machines
 #            will need updating, to avoid errors. Ping #docker-maintainers on IRC
 #            with a heads-up.
-ENV GO_VERSION 1.6.3
+ENV GO_VERSION 1.6.4
 
 # Compile Go for cross compilation
 ENV DOCKER_CROSSPLATFORMS \
