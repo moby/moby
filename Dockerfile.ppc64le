@@ -89,7 +89,7 @@ RUN set -x \
 
 ## BUILD GOLANG 1.6
 # NOTE: ppc64le has compatibility issues with older versions of go, so make sure the version >= 1.6
-ENV GO_VERSION 1.6.3
+ENV GO_VERSION 1.6.4
 ENV GO_DOWNLOAD_URL https://golang.org/dl/go${GO_VERSION}.src.tar.gz
 ENV GOROOT_BOOTSTRAP /usr/local
 
