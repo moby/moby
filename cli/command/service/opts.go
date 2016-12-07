@@ -10,6 +10,7 @@ import (
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/opts"
 	runconfigopts "github.com/docker/docker/runconfig/opts"
+	shlex "github.com/flynn-archive/go-shlex"
 	"github.com/pkg/errors"
 	"github.com/spf13/pflag"
 )
@@ -155,6 +156,30 @@ func (opts *placementPrefOpts) Set(value string) error {
 // Type returns a string name for this Option type
 func (opts *placementPrefOpts) Type() string {
 	return "pref"
+}
+
+// ShlexOpt is a flag Value which parses a string as a list of shell words
+type ShlexOpt []string
+
+// Set the value
+func (s *ShlexOpt) Set(value string) error {
+	valueSlice, err := shlex.Split(value)
+	*s = ShlexOpt(valueSlice)
+	return err
+}
+
+// Type returns the tyep of the value
+func (s *ShlexOpt) Type() string {
+	return "command"
+}
+
+func (s *ShlexOpt) String() string {
+	return fmt.Sprint(*s)
+}
+
+// Value returns the value as a string slice
+func (s *ShlexOpt) Value() []string {
+	return []string(*s)
 }
 
 type updateOptions struct {
@@ -312,6 +337,7 @@ type serviceOptions struct {
 	labels          opts.ListOpts
 	containerLabels opts.ListOpts
 	image           string
+	entrypoint      ShlexOpt
 	args            []string
 	hostname        string
 	env             opts.ListOpts
@@ -427,6 +453,7 @@ func (opts *serviceOptions) ToService() (swarm.ServiceSpec, error) {
 			ContainerSpec: swarm.ContainerSpec{
 				Image:      opts.image,
 				Args:       opts.args,
+				Command:    opts.entrypoint.Value(),
 				Env:        currentEnv,
 				Hostname:   opts.hostname,
 				Labels:     runconfigopts.ConvertKVStringsToMap(opts.containerLabels.GetAll()),
@@ -473,6 +500,7 @@ func addServiceFlags(flags *pflag.FlagSet, opts *serviceOptions) {
 	flags.StringVarP(&opts.user, flagUser, "u", "", "Username or UID (format: <name|uid>[:<group|gid>])")
 	flags.StringVar(&opts.hostname, flagHostname, "", "Container hostname")
 	flags.SetAnnotation(flagHostname, "version", []string{"1.25"})
+	flags.Var(&opts.entrypoint, flagEntrypoint, "Overwrite the default ENTRYPOINT of the image")
 
 	flags.Var(&opts.resources.limitCPU, flagLimitCPU, "Limit CPUs")
 	flags.Var(&opts.resources.limitMemBytes, flagLimitMemory, "Limit Memory")
@@ -554,6 +582,7 @@ const (
 	flagDNSSearchRemove         = "dns-search-rm"
 	flagDNSSearchAdd            = "dns-search-add"
 	flagEndpointMode            = "endpoint-mode"
+	flagEntrypoint              = "entrypoint"
 	flagHost                    = "host"
 	flagHostAdd                 = "host-add"
 	flagHostRemove              = "host-rm"

@@ -17,7 +17,6 @@ import (
 	"github.com/docker/docker/opts"
 	runconfigopts "github.com/docker/docker/runconfig/opts"
 	"github.com/docker/go-connections/nat"
-	shlex "github.com/flynn-archive/go-shlex"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -38,7 +37,7 @@ func newUpdateCommand(dockerCli *command.DockerCli) *cobra.Command {
 
 	flags := cmd.Flags()
 	flags.String("image", "", "Service image tag")
-	flags.String("args", "", "Service command args")
+	flags.Var(&ShlexOpt{}, "args", "Service command args")
 	flags.Bool("rollback", false, "Rollback to previous specification")
 	flags.SetAnnotation("rollback", "version", []string{"1.25"})
 	flags.Bool("force", false, "Force update even if no changes require it")
@@ -258,6 +257,7 @@ func updateService(flags *pflag.FlagSet, spec *swarm.ServiceSpec) error {
 	updateContainerLabels(flags, &cspec.Labels)
 	updateString("image", &cspec.Image)
 	updateStringToSlice(flags, "args", &cspec.Args)
+	updateStringToSlice(flags, flagEntrypoint, &cspec.Command)
 	updateEnvironment(flags, &cspec.Env)
 	updateString(flagWorkdir, &cspec.Dir)
 	updateString(flagUser, &cspec.User)
@@ -409,15 +409,12 @@ func updateService(flags *pflag.FlagSet, spec *swarm.ServiceSpec) error {
 	return nil
 }
 
-func updateStringToSlice(flags *pflag.FlagSet, flag string, field *[]string) error {
+func updateStringToSlice(flags *pflag.FlagSet, flag string, field *[]string) {
 	if !flags.Changed(flag) {
-		return nil
+		return
 	}
 
-	value, _ := flags.GetString(flag)
-	valueSlice, err := shlex.Split(value)
-	*field = valueSlice
-	return err
+	*field = flags.Lookup(flag).Value.(*ShlexOpt).Value()
 }
 
 func anyChanged(flags *pflag.FlagSet, fields ...string) bool {
