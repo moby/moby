@@ -187,7 +187,7 @@ func (daemon *Daemon) containerStart(container *container.Container, checkpoint 
 			container.SetExitCode(127)
 		}
 
-		container.Reset(false)
+		container.Reset()
 
 		return fmt.Errorf("%s", errDesc)
 	}

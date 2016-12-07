@@ -39,8 +39,8 @@ func (daemon *Daemon) StateChanged(id string, e libcontainerd.StateInfo) error {
 		}
 
 		c.Lock()
-		c.StreamConfig.Wait()
-		c.Reset(false)
+		c.Streams().Wait()
+		c.Reset()
 
 		restart, wait, err := c.RestartManager().ShouldRestart(e.ExitCode, false, time.Since(c.StartedAt))
 		if err == nil && restart {
@@ -105,7 +105,7 @@ func (daemon *Daemon) StateChanged(id string, e libcontainerd.StateInfo) error {
 		c.HasBeenManuallyStopped = false
 		c.HasBeenStartedBefore = true
 		if err := c.ToDisk(); err != nil {
-			c.Reset(false)
+			c.Reset()
 			return err
 		}
 		daemon.initHealthMonitor(c)

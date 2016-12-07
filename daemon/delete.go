@@ -109,6 +109,7 @@ func (daemon *Daemon) cleanupContainer(container *container.Container, forceRemo
 	// indexes even if removal failed.
 	defer func() {
 		if err == nil || forceRemove {
+			container.Reset() // make sure everything is cleaned up
 			daemon.nameIndex.Delete(container.ID)
 			daemon.linkIndex.delete(container)
 			selinuxFreeLxcContexts(container.ProcessLabel)

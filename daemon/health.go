@@ -237,11 +237,11 @@ func (d *Daemon) updateHealthMonitor(c *container.Container) {
 	probe := getProbe(c)
 	wantRunning := c.Running && !c.Paused && probe != nil
 	if wantRunning {
-		if stop := h.OpenMonitorChannel(); stop != nil {
+		if stop := c.OpenHealthMonitorChannel(); stop != nil {
 			go monitor(d, c, stop, probe)
 		}
 	} else {
-		h.CloseMonitorChannel()
+		d.stopHealthchecks(c)
 	}
 }
 
@@ -273,10 +273,7 @@ func (d *Daemon) initHealthMonitor(c *container.Container) {
 // Called when the container is being stopped (whether because the health check is
 // failing or for any other reason).
 func (d *Daemon) stopHealthchecks(c *container.Container) {
-	h := c.State.Health
-	if h != nil {
-		h.CloseMonitorChannel()
-	}
+	c.CloseHealthMonitorChannel()
 }
 
 // Buffer up to maxOutputLen bytes. Further data is discarded.

@@ -87,7 +87,7 @@ func (daemon *Daemon) ContainerLogs(ctx context.Context, containerName string, c
 			if !ok {
 				logrus.Debug("logs: end stream")
 				logs.Close()
-				if cLog != container.LogDriver {
+				if cLog != container.LogDriver() {
 					// Since the logger isn't cached in the container, which occurs if it is running, it
 					// must get explicitly closed here to avoid leaking it and any file handles it has.
 					if err := cLog.Close(); err != nil {
@@ -114,8 +114,8 @@ func (daemon *Daemon) ContainerLogs(ctx context.Context, containerName string, c
 }
 
 func (daemon *Daemon) getLogger(container *container.Container) (logger.Logger, error) {
-	if container.LogDriver != nil && container.IsRunning() {
-		return container.LogDriver, nil
+	if l := container.LogDriver(); l != nil && container.IsRunning() {
+		return l, nil
 	}
 	return container.StartLogger()
 }

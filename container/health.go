@@ -1,24 +1,12 @@
 package container
 
-import (
-	"github.com/Sirupsen/logrus"
-	"github.com/docker/docker/api/types"
-)
+import "github.com/docker/docker/api/types"
 
 // Health holds the current container health-check state
-type Health struct {
-	types.Health
-	stop chan struct{} // Write struct{} to stop the monitor
-}
+type Health types.Health
 
 // String returns a human-readable description of the health-check state
 func (s *Health) String() string {
-	// This happens when the container is being shutdown and the monitor has stopped
-	// or the monitor has yet to be setup.
-	if s.stop == nil {
-		return types.Unhealthy
-	}
-
 	switch s.Status {
 	case types.Starting:
 		return "health: starting"
@@ -27,23 +15,13 @@ func (s *Health) String() string {
 	}
 }
 
-// OpenMonitorChannel creates and returns a new monitor channel. If there already is one,
+// OpenHealthMonitorChannel creates and returns a new monitor channel. If there already is one,
 // it returns nil.
-func (s *Health) OpenMonitorChannel() chan struct{} {
-	if s.stop == nil {
-		logrus.Debug("OpenMonitorChannel")
-		s.stop = make(chan struct{})
-		return s.stop
-	}
-	return nil
+func (container *Container) OpenHealthMonitorChannel() chan struct{} {
+	return container.runState.openHealthMonitor()
 }
 
-// CloseMonitorChannel closes any existing monitor channel.
-func (s *Health) CloseMonitorChannel() {
-	if s.stop != nil {
-		logrus.Debug("CloseMonitorChannel: waiting for probe to stop")
-		close(s.stop)
-		s.stop = nil
-		logrus.Debug("CloseMonitorChannel done")
-	}
+// CloseHealthMonitorChannel closes any existing monitor channel.
+func (container *Container) CloseHealthMonitorChannel() {
+	container.runState.closeHealthMonitor()
 }
