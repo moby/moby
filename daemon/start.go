@@ -119,6 +119,9 @@ func (daemon *Daemon) containerStart(container *container.Container, checkpoint 
 				container.SetExitCode(128)
 			}
 			container.ToDisk()
+
+			container.Reset(false)
+
 			daemon.Cleanup(container)
 			// if containers AutoRemove flag is set, remove it after clean up
 			if container.HostConfig.AutoRemove {
@@ -186,8 +189,6 @@ func (daemon *Daemon) containerStart(container *container.Container, checkpoint 
 			errDesc += ": Are you trying to mount a directory onto a file (or vice-versa)? Check if the specified host path exists and is the expected type"
 			container.SetExitCode(127)
 		}
-
-		container.Reset(false)
 
 		return fmt.Errorf("%s", errDesc)
 	}
