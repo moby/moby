@@ -312,7 +312,12 @@ func (n *networkRouter) postNetworksPrune(ctx context.Context, w http.ResponseWr
 		return err
 	}
 
-	pruneReport, err := n.backend.NetworksPrune(filters.Args{})
+	pruneFilters, err := filters.FromParam(r.Form.Get("filters"))
+	if err != nil {
+		return err
+	}
+
+	pruneReport, err := n.backend.NetworksPrune(pruneFilters)
 	if err != nil {
 		return err
 	}

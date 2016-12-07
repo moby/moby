@@ -4191,6 +4191,7 @@ paths:
             Filters to process on the prune list, encoded as JSON (a `map[string][]string`).
 
             Available filters:
+            - `until=<timestamp>` Prune containers created before this timestamp. The `<timestamp>` can be Unix timestamps, date formatted timestamps, or Go duration strings (e.g. `10m`, `1h30m`) computed relative to the daemon machine’s time.
           type: "string"
       responses:
         200:
@@ -4866,6 +4867,7 @@ paths:
             - `dangling=<boolean>` When set to `true` (or `1`), prune only
                unused *and* untagged images. When set to `false`
                (or `0`), all unused images are pruned.
+            - `until=<string>` Prune images created before this timestamp. The `<timestamp>` can be Unix timestamps, date formatted timestamps, or Go duration strings (e.g. `10m`, `1h30m`) computed relative to the daemon machine’s time.
           type: "string"
       responses:
         200:
@@ -6295,8 +6297,6 @@ paths:
   /networks/prune:
     post:
       summary: "Delete unused networks"
-      consumes:
-        - "application/json"
       produces:
         - "application/json"
       operationId: "NetworkPrune"
@@ -6307,6 +6307,7 @@ paths:
             Filters to process on the prune list, encoded as JSON (a `map[string][]string`).
 
             Available filters:
+            - `until=<timestamp>` Prune networks created before this timestamp. The `<timestamp>` can be Unix timestamps, date formatted timestamps, or Go duration strings (e.g. `10m`, `1h30m`) computed relative to the daemon machine’s time.
           type: "string"
       responses:
         200:

@@ -3,11 +3,13 @@ package daemon
 import (
 	"fmt"
 	"regexp"
+	"time"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/digest"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
+	timetypes "github.com/docker/docker/api/types/time"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/directory"
@@ -21,9 +23,17 @@ import (
 func (daemon *Daemon) ContainersPrune(pruneFilters filters.Args) (*types.ContainersPruneReport, error) {
 	rep := &types.ContainersPruneReport{}
 
+	until, err := getUntilFromPruneFilters(pruneFilters)
+	if err != nil {
+		return nil, err
+	}
+
 	allContainers := daemon.List()
 	for _, c := range allContainers {
 		if !c.IsRunning() {
+			if !until.IsZero() && c.Created.After(until) {
+				continue
+			}
 			cSize, _ := daemon.getSize(c)
 			// TODO: sets RmLink to true?
 			err := daemon.ContainerRm(c.ID, &types.ContainerRmConfig{})
@@ -84,6 +94,11 @@ func (daemon *Daemon) ImagesPrune(pruneFilters filters.Args) (*types.ImagesPrune
 		}
 	}
 
+	until, err := getUntilFromPruneFilters(pruneFilters)
+	if err != nil {
+		return nil, err
+	}
+
 	var allImages map[image.ID]*image.Image
 	if danglingOnly {
 		allImages = daemon.imageStore.Heads()
@@ -102,6 +117,9 @@ func (daemon *Daemon) ImagesPrune(pruneFilters filters.Args) (*types.ImagesPrune
 	for id, img := range allImages {
 		dgst := digest.Digest(id)
 		if len(daemon.referenceStore.References(dgst)) == 0 && len(daemon.imageStore.Children(id)) != 0 {
+			continue
+		}
+		if !until.IsZero() && img.Created.After(until) {
 			continue
 		}
 		topImages[id] = img
@@ -169,9 +187,17 @@ func (daemon *Daemon) ImagesPrune(pruneFilters filters.Args) (*types.ImagesPrune
 // localNetworksPrune removes unused local networks
 func (daemon *Daemon) localNetworksPrune(pruneFilters filters.Args) (*types.NetworksPruneReport, error) {
 	rep := &types.NetworksPruneReport{}
-	var err error
+
+	until, err := getUntilFromPruneFilters(pruneFilters)
+	if err != nil {
+		return rep, err
+	}
+
 	// When the function returns true, the walk will stop.
 	l := func(nw libnetwork.Network) bool {
+		if !until.IsZero() && nw.Info().Created().After(until) {
+			return false
+		}
 		nwName := nw.Name()
 		predefined := runconfig.IsPreDefinedNetwork(nwName)
 		if !predefined && len(nw.Endpoints()) == 0 {
@@ -190,6 +216,12 @@ func (daemon *Daemon) localNetworksPrune(pruneFilters filters.Args) (*types.Netw
 // clusterNetworksPrune removes unused cluster networks
 func (daemon *Daemon) clusterNetworksPrune(pruneFilters filters.Args) (*types.NetworksPruneReport, error) {
 	rep := &types.NetworksPruneReport{}
+
+	until, err := getUntilFromPruneFilters(pruneFilters)
+	if err != nil {
+		return nil, err
+	}
+
 	cluster := daemon.GetCluster()
 	networks, err := cluster.GetNetworks()
 	if err != nil {
@@ -198,6 +230,9 @@ func (daemon *Daemon) clusterNetworksPrune(pruneFilters filters.Args) (*types.Ne
 	networkIsInUse := regexp.MustCompile(`network ([[:alnum:]]+) is in use`)
 	for _, nw := range networks {
 		if nw.Name == "ingress" {
+			continue
+		}
+		if !until.IsZero() && nw.Created.After(until) {
 			continue
 		}
 		// https://github.com/docker/docker/issues/24186
@@ -233,4 +268,25 @@ func (daemon *Daemon) NetworksPrune(pruneFilters filters.Args) (*types.NetworksP
 		rep.NetworksDeleted = append(rep.NetworksDeleted, localRep.NetworksDeleted...)
 	}
 	return rep, err
+}
+
+func getUntilFromPruneFilters(pruneFilters filters.Args) (time.Time, error) {
+	until := time.Time{}
+	if !pruneFilters.Include("until") {
+		return until, nil
+	}
+	untilFilters := pruneFilters.Get("until")
+	if len(untilFilters) > 1 {
+		return until, fmt.Errorf("more than one until filter specified")
+	}
+	ts, err := timetypes.GetTimestamp(untilFilters[0], time.Now())
+	if err != nil {
+		return until, err
+	}
+	seconds, nanoseconds, err := timetypes.ParseTimestamps(ts, 0)
+	if err != nil {
+		return until, err
+	}
+	until = time.Unix(seconds, nanoseconds)
+	return until, nil
 }
