@@ -14,11 +14,12 @@ import (
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/cli/command"
 	"github.com/docker/docker/cli/command/idresolver"
+	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/go-units"
 )
 
 const (
-	psTaskItemFmt = "%s\t%s\t%s\t%s\t%s %s ago\t%s\t%s\n"
+	psTaskItemFmt = "%s\t%s\t%s\t%s\t%s\t%s %s ago\t%s\t%s\n"
 	maxErrLength  = 30
 )
 
@@ -67,7 +68,7 @@ func Print(dockerCli *command.DockerCli, ctx context.Context, tasks []swarm.Task
 
 	// Ignore flushing errors
 	defer writer.Flush()
-	fmt.Fprintln(writer, strings.Join([]string{"NAME", "IMAGE", "NODE", "DESIRED STATE", "CURRENT STATE", "ERROR", "PORTS"}, "\t"))
+	fmt.Fprintln(writer, strings.Join([]string{"ID", "NAME", "IMAGE", "NODE", "DESIRED STATE", "CURRENT STATE", "ERROR", "PORTS"}, "\t"))
 
 	if err := print(writer, ctx, tasks, resolver, noTrunc); err != nil {
 		return err
@@ -90,25 +91,36 @@ func PrintQuiet(dockerCli *command.DockerCli, tasks []swarm.Task) error {
 }
 
 func print(out io.Writer, ctx context.Context, tasks []swarm.Task, resolver *idresolver.IDResolver, noTrunc bool) error {
-	prevService := ""
-	prevSlot := 0
+	prevName := ""
 	for _, task := range tasks {
-		name, err := resolver.Resolve(ctx, task, task.ID)
+		id := task.ID
+		if !noTrunc {
+			id = stringid.TruncateID(id)
+		}
+
+		serviceName, err := resolver.Resolve(ctx, swarm.Service{}, task.ServiceID)
+		if err != nil {
+			return err
+		}
 
 		nodeValue, err := resolver.Resolve(ctx, swarm.Node{}, task.NodeID)
 		if err != nil {
 			return err
 		}
 
+		name := ""
+		if task.Slot != 0 {
+			name = fmt.Sprintf("%v.%v", serviceName, task.Slot)
+		} else {
+			name = fmt.Sprintf("%v.%v", serviceName, task.NodeID)
+		}
+
 		// Indent the name if necessary
 		indentedName := name
-		// Since the new format of the task name is <ServiceName>.<Slot>.<taskID>, we should only compare
-		// <ServiceName> and <Slot> here.
-		if prevService == task.ServiceID && prevSlot == task.Slot {
+		if name == prevName {
 			indentedName = fmt.Sprintf(" \\_ %s", indentedName)
 		}
-		prevService = task.ServiceID
-		prevSlot = task.Slot
+		prevName = name
 
 		// Trim and quote the error message.
 		taskErr := task.Status.Err
@@ -134,6 +146,7 @@ func print(out io.Writer, ctx context.Context, tasks []swarm.Task, resolver *idr
 		fmt.Fprintf(
 			out,
 			psTaskItemFmt,
+			id,
 			indentedName,
 			image,
 			nodeValue,
