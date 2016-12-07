@@ -44,7 +44,7 @@ info:
 
     The API is usually changed in each release of Docker, so API calls are versioned to ensure that clients don't break.
 
-    For Docker Engine 1.14, the API version is 1.26. To lock to this version, you prefix the URL with `/v1.25`. For example, calling `/info` is the same as calling `/v1.25/info`.
+    For Docker Engine 1.14, the API version is 1.26. To lock to this version, you prefix the URL with `/v1.26`. For example, calling `/info` is the same as calling `/v1.26/info`.
 
     Engine releases in the near future should support this version of the API, so your client will continue to work even if it is talking to a newer Engine.
 
