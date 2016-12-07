@@ -7135,6 +7135,10 @@ paths:
             example:
               ID: "ak7w3gjqoa3kuz8xcpnyy0pvl"
               Warning: "unable to pin image doesnotexist:latest to digest: image library/doesnotexist:latest not found"
+        403:
+          description: "network is not eligible for services"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
         409:
           description: "name conflicts with an existing service"
           schema:
