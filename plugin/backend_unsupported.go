@@ -4,7 +4,6 @@ package plugin
 
 import (
 	"errors"
-	"fmt"
 	"io"
 	"net/http"
 
@@ -26,10 +25,7 @@ func (pm *Manager) Enable(name string, config *types.PluginEnableConfig) error {
 
 // Inspect examines a plugin config
 func (pm *Manager) Inspect(refOrID string) (tp types.Plugin, err error) {
-	// Even though plugin is not supported, we still want to return `not found`
-	// error so that `docker inspect` (without `--type` specified) returns correct
-	// `not found` message
-	return tp, fmt.Errorf("no such plugin name or ID associated with %q", refOrID)
+	return tp, errNotSupported
 }
 
 // Privileges pulls a plugin config and computes the privileges required to install it.
