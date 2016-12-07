@@ -251,3 +251,14 @@ func (s *DockerSuite) TestPluginInspect(c *check.C) {
 	_, _, err = dockerCmdWithError("plugin", "inspect", "-f", "{{.Id}}", id[:5])
 	c.Assert(err, checker.NotNil)
 }
+
+// Test case for https://github.com/docker/docker/pull/29186#discussion_r91277345
+func (s *DockerSuite) TestPluginInspectOnWindows(c *check.C) {
+	// This test should work on Windows only
+	testRequires(c, DaemonIsWindows)
+
+	out, _, err := dockerCmdWithError("plugin", "inspect", "foobar")
+	c.Assert(err, checker.NotNil)
+	c.Assert(out, checker.Contains, "plugins are not supported on this platform")
+	c.Assert(err.Error(), checker.Contains, "plugins are not supported on this platform")
+}

@@ -121,6 +121,10 @@ func inspectAll(ctx context.Context, dockerCli *command.DockerCli, getSize bool,
 		return strings.Contains(err.Error(), "This node is not a swarm manager")
 	}
 
+	isErrNotSupported := func(err error) bool {
+		return strings.Contains(err.Error(), "not supported")
+	}
+
 	return func(ref string) (interface{}, []byte, error) {
 		for _, inspectData := range inspectAutodetect {
 			if typeConstraint != "" && inspectData.ObjectType != typeConstraint {
@@ -128,7 +132,7 @@ func inspectAll(ctx context.Context, dockerCli *command.DockerCli, getSize bool,
 			}
 			v, raw, err := inspectData.ObjectInspector(ref)
 			if err != nil {
-				if typeConstraint == "" && (apiclient.IsErrNotFound(err) || isErrNotSwarmManager(err)) {
+				if typeConstraint == "" && (apiclient.IsErrNotFound(err) || isErrNotSwarmManager(err) || isErrNotSupported(err)) {
 					continue
 				}
 				return v, raw, err
