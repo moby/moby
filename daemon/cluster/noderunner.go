@@ -217,7 +217,7 @@ func (n *nodeRunner) State() nodeState {
 	ns := n.nodeState
 
 	if ns.err != nil || n.cancelReconnect != nil {
-		if errors.Cause(ns.err) == ErrSwarmLocked {
+		if errors.Cause(ns.err) == errSwarmLocked {
 			ns.status = types.LocalNodeStateLocked
 		} else {
 			ns.status = types.LocalNodeStateError
