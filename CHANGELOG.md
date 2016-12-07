@@ -5,7 +5,7 @@ information on the list of deprecated flags and APIs please have a look at
 https://docs.docker.com/engine/deprecated/ where target removal dates can also
 be found.
 
-## 1.12.4
+## 1.12.4 (2016-12-06)
 
 **IMPORTANT**: Docker 1.12 ships with an updated systemd unit file for rpm
 based installs (which includes RHEL, Fedora, CentOS, and Oracle Linux 7). When
