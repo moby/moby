@@ -176,6 +176,7 @@ Function Execute-Build($type, $additionalBuildTags, $directory) {
     Pop-Location; $global:pushed=$False
 }
 
+
 # Validates the DCO marker is present on each commit
 Function Validate-DCO($headCommit, $upstreamCommit) {
     Write-Host "INFO: Validating Developer Certificate of Origin..."
@@ -189,8 +190,12 @@ Function Validate-DCO($headCommit, $upstreamCommit) {
     if ($LASTEXITCODE -ne 0) { Throw "Failed git diff --numstat" }
 
     # Counts of adds and deletes after removing multiple white spaces. AWK anyone? :(
-    $adds=0; $dels=0; $($counts -replace '\s+', ' ') | %{ $a=$_.Split(" "); $adds+=[int]$a[0]; $dels+=[int]$a[1] }
-    if (($adds -eq 0) -and ($dels -eq 0)) {
+    $adds=0; $dels=0; $($counts -replace '\s+', ' ') | %{ 
+        $a=$_.Split(" "); 
+        if ($a[0] -ne "-") { $adds+=[int]$a[0] }
+        if ($a[1] -ne "-") { $dels+=[int]$a[1] }
+    }
+    if (($adds -eq 0) -and ($dels -eq 0)) { 
         Write-Warning "DCO validation - nothing to validate!"
         return
     }
