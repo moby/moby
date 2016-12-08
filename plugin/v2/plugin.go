@@ -17,15 +17,12 @@ import (
 
 // Plugin represents an individual plugin.
 type Plugin struct {
-	sync.RWMutex
-	PluginObj         types.Plugin    `json:"plugin"`
-	PClient           *plugins.Client `json:"-"`
-	RuntimeSourcePath string          `json:"-"`
-	RefCount          int             `json:"-"`
-	Restart           bool            `json:"-"`
-	ExitChan          chan bool       `json:"-"`
-	LibRoot           string          `json:"-"`
-	TimeoutInSecs     int             `json:"-"`
+	mu                sync.RWMutex
+	PluginObj         types.Plugin `json:"plugin"`
+	pClient           *plugins.Client
+	runtimeSourcePath string
+	refCount          int
+	libRoot           string
 }
 
 const defaultPluginRuntimeDestination = "/run/docker/plugins"
@@ -47,14 +44,39 @@ func newPluginObj(name, id, tag string) types.Plugin {
 func NewPlugin(name, id, runRoot, libRoot, tag string) *Plugin {
 	return &Plugin{
 		PluginObj:         newPluginObj(name, id, tag),
-		RuntimeSourcePath: filepath.Join(runRoot, id),
-		LibRoot:           libRoot,
+		runtimeSourcePath: filepath.Join(runRoot, id),
+		libRoot:           libRoot,
 	}
+}
+
+// Restore restores the plugin
+func (p *Plugin) Restore(runRoot string) {
+	p.runtimeSourcePath = filepath.Join(runRoot, p.GetID())
+}
+
+// GetRuntimeSourcePath gets the Source (host) path of the plugin socket
+// This path gets bind mounted into the plugin.
+func (p *Plugin) GetRuntimeSourcePath() string {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+
+	return p.runtimeSourcePath
 }
 
 // Client returns the plugin client.
 func (p *Plugin) Client() *plugins.Client {
-	return p.PClient
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+
+	return p.pClient
+}
+
+// SetPClient set the plugin client.
+func (p *Plugin) SetPClient(client *plugins.Client) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	p.pClient = client
 }
 
 // IsV1 returns true for V1 plugins and false otherwise.
@@ -85,12 +107,12 @@ func (p *Plugin) FilterByCap(capability string) (*Plugin, error) {
 
 // RemoveFromDisk deletes the plugin's runtime files from disk.
 func (p *Plugin) RemoveFromDisk() error {
-	return os.RemoveAll(p.RuntimeSourcePath)
+	return os.RemoveAll(p.runtimeSourcePath)
 }
 
 // InitPlugin populates the plugin object from the plugin config file.
 func (p *Plugin) InitPlugin() error {
-	dt, err := os.Open(filepath.Join(p.LibRoot, p.PluginObj.ID, "config.json"))
+	dt, err := os.Open(filepath.Join(p.libRoot, p.PluginObj.ID, "config.json"))
 	if err != nil {
 		return err
 	}
@@ -118,7 +140,7 @@ func (p *Plugin) InitPlugin() error {
 }
 
 func (p *Plugin) writeSettings() error {
-	f, err := os.Create(filepath.Join(p.LibRoot, p.PluginObj.ID, "plugin-settings.json"))
+	f, err := os.Create(filepath.Join(p.libRoot, p.PluginObj.ID, "plugin-settings.json"))
 	if err != nil {
 		return err
 	}
@@ -129,8 +151,8 @@ func (p *Plugin) writeSettings() error {
 
 // Set is used to pass arguments to the plugin.
 func (p *Plugin) Set(args []string) error {
-	p.Lock()
-	defer p.Unlock()
+	p.mu.Lock()
+	defer p.mu.Unlock()
 
 	if p.PluginObj.Enabled {
 		return fmt.Errorf("cannot set on an active plugin, disable plugin before setting")
@@ -218,34 +240,50 @@ next:
 
 // IsEnabled returns the active state of the plugin.
 func (p *Plugin) IsEnabled() bool {
-	p.RLock()
-	defer p.RUnlock()
+	p.mu.RLock()
+	defer p.mu.RUnlock()
 
 	return p.PluginObj.Enabled
 }
 
 // GetID returns the plugin's ID.
 func (p *Plugin) GetID() string {
-	p.RLock()
-	defer p.RUnlock()
+	p.mu.RLock()
+	defer p.mu.RUnlock()
 
 	return p.PluginObj.ID
 }
 
 // GetSocket returns the plugin socket.
 func (p *Plugin) GetSocket() string {
-	p.RLock()
-	defer p.RUnlock()
+	p.mu.RLock()
+	defer p.mu.RUnlock()
 
 	return p.PluginObj.Config.Interface.Socket
 }
 
 // GetTypes returns the interface types of a plugin.
 func (p *Plugin) GetTypes() []types.PluginInterfaceType {
-	p.RLock()
-	defer p.RUnlock()
+	p.mu.RLock()
+	defer p.mu.RUnlock()
 
 	return p.PluginObj.Config.Interface.Types
+}
+
+// GetRefCount returns the reference count.
+func (p *Plugin) GetRefCount() int {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+
+	return p.refCount
+}
+
+// SetRefCount sets the reference count.
+func (p *Plugin) SetRefCount(count int) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	p.refCount = count
 }
 
 // InitSpec creates an OCI spec from the plugin's config.
@@ -262,7 +300,7 @@ func (p *Plugin) InitSpec(s specs.Spec, libRoot string) (*specs.Spec, error) {
 	}
 
 	mounts := append(p.PluginObj.Config.Mounts, types.PluginMount{
-		Source:      &p.RuntimeSourcePath,
+		Source:      &p.runtimeSourcePath,
 		Destination: defaultPluginRuntimeDestination,
 		Type:        "bind",
 		Options:     []string{"rbind", "rshared"},
