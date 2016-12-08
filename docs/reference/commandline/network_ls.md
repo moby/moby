@@ -40,7 +40,7 @@ NETWORK ID          NAME                DRIVER          SCOPE
 7fca4eb8c647        bridge              bridge          local
 9f904ee27bf5        none                null            local
 cf03ee007fb4        host                host            local
-78b03ee04fc4        multi-host          overlay         local
+78b03ee04fc4        multi-host          overlay         swarm
 ```
 
 Use the `--no-trunc` option to display the full network id:
