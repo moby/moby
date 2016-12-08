@@ -4,7 +4,6 @@ import (
 	"errors"
 	"path/filepath"
 	"reflect"
-	"regexp"
 	"strconv"
 	"strings"
 
@@ -25,9 +24,6 @@ var (
 	errRenameNotSupported        = errors.New("renaming services is not supported")
 	errModeChangeNotAllowed      = errors.New("service mode change is not allowed")
 )
-
-// Regexp pattern for hostname to conform RFC 1123
-var hostnamePattern = regexp.MustCompile("^(([[:alnum:]]|[[:alnum:]][[:alnum:]\\-]*[[:alnum:]])\\.)*([[:alnum:]]|[[:alnum:]][[:alnum:]\\-]*[[:alnum:]])$")
 
 func validateResources(r *api.Resources) error {
 	if r == nil {
@@ -115,10 +111,6 @@ func validateContainerSpec(container *api.ContainerSpec) error {
 		return grpc.Errorf(codes.InvalidArgument, "ContainerSpec: missing in service spec")
 	}
 
-	if err := validateHostname(container.Hostname); err != nil {
-		return err
-	}
-
 	if container.Image == "" {
 		return grpc.Errorf(codes.InvalidArgument, "ContainerSpec: image reference must be provided")
 	}
@@ -135,15 +127,6 @@ func validateContainerSpec(container *api.ContainerSpec) error {
 		mountMap[mount.Target] = true
 	}
 
-	return nil
-}
-
-func validateHostname(hostname string) error {
-	if hostname != "" {
-		if len(hostname) > 63 || !hostnamePattern.MatchString(hostname) {
-			return grpc.Errorf(codes.InvalidArgument, "ContainerSpec: %s is not valid hostname", hostname)
-		}
-	}
 	return nil
 }
 
