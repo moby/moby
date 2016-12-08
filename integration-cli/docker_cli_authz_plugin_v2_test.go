@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/docker/docker/integration-cli/daemon"
 	"github.com/docker/docker/pkg/integration/checker"
 	"github.com/go-check/check"
 )
@@ -26,12 +27,14 @@ func init() {
 
 type DockerAuthzV2Suite struct {
 	ds *DockerSuite
-	d  *Daemon
+	d  *daemon.Daemon
 }
 
 func (s *DockerAuthzV2Suite) SetUpTest(c *check.C) {
 	testRequires(c, DaemonIsLinux, Network)
-	s.d = NewDaemon(c)
+	s.d = daemon.New(c, dockerBinary, dockerdBinary, daemon.Config{
+		Experimental: experimentalDaemon,
+	})
 	c.Assert(s.d.Start(), check.IsNil)
 }
 

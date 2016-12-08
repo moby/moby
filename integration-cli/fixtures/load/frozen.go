@@ -19,11 +19,11 @@ var frozenImgDir = "/docker-frozen-images"
 // TODO: This loads whatever is in the frozen image dir, regardless of what
 // images were passed in. If the images need to be downloaded, then it will respect
 // the passed in images
-func FrozenImagesLinux(dockerBinary string, images ...string) error {
+func FrozenImagesLinux(dockerBinary string, additionalArgs []string, images ...string) error {
 	imgNS := os.Getenv("TEST_IMAGE_NAMESPACE")
 	var loadImages []struct{ srcName, destName string }
 	for _, img := range images {
-		if err := exec.Command(dockerBinary, "inspect", "--type=image", img).Run(); err != nil {
+		if err := exec.Command(dockerBinary, append(additionalArgs, "inspect", "--type=image", img)...).Run(); err != nil {
 			srcName := img
 			// hello-world:latest gets re-tagged as hello-world:frozen
 			// there are some tests that use hello-world:latest specifically so it pulls
@@ -52,21 +52,21 @@ func FrozenImagesLinux(dockerBinary string, images ...string) error {
 		for _, img := range loadImages {
 			srcImages = append(srcImages, img.srcName)
 		}
-		if err := pullImages(dockerBinary, srcImages); err != nil {
+		if err := pullImages(dockerBinary, additionalArgs, srcImages); err != nil {
 			return errors.Wrap(err, "error pulling image list")
 		}
 	} else {
-		if err := loadFrozenImages(dockerBinary); err != nil {
+		if err := loadFrozenImages(dockerBinary, additionalArgs); err != nil {
 			return err
 		}
 	}
 
 	for _, img := range loadImages {
 		if img.srcName != img.destName {
-			if out, err := exec.Command(dockerBinary, "tag", img.srcName, img.destName).CombinedOutput(); err != nil {
+			if out, err := exec.Command(dockerBinary, append(additionalArgs, "tag", img.srcName, img.destName)...).CombinedOutput(); err != nil {
 				return errors.Errorf("%v: %s", err, string(out))
 			}
-			if out, err := exec.Command(dockerBinary, "rmi", img.srcName).CombinedOutput(); err != nil {
+			if out, err := exec.Command(dockerBinary, append(additionalArgs, "rmi", img.srcName)...).CombinedOutput(); err != nil {
 				return errors.Errorf("%v: %s", err, string(out))
 			}
 		}
@@ -74,7 +74,7 @@ func FrozenImagesLinux(dockerBinary string, images ...string) error {
 	return nil
 }
 
-func loadFrozenImages(dockerBinary string) error {
+func loadFrozenImages(dockerBinary string, additionalArgs []string) error {
 	tar, err := exec.LookPath("tar")
 	if err != nil {
 		return errors.Wrap(err, "could not find tar binary")
@@ -90,7 +90,7 @@ func loadFrozenImages(dockerBinary string) error {
 	tarCmd.Start()
 	defer tarCmd.Wait()
 
-	cmd := exec.Command(dockerBinary, "load")
+	cmd := exec.Command(dockerBinary, append(additionalArgs, "load")...)
 	cmd.Stdin = out
 	if out, err := cmd.CombinedOutput(); err != nil {
 		return errors.Errorf("%v: %s", err, string(out))
@@ -98,7 +98,7 @@ func loadFrozenImages(dockerBinary string) error {
 	return nil
 }
 
-func pullImages(dockerBinary string, images []string) error {
+func pullImages(dockerBinary string, additionalArgs []string, images []string) error {
 	cwd, err := os.Getwd()
 	if err != nil {
 		return errors.Wrap(err, "error getting path to dockerfile")
@@ -119,15 +119,15 @@ func pullImages(dockerBinary string, images []string) error {
 		wg.Add(1)
 		go func(tag, ref string) {
 			defer wg.Done()
-			if out, err := exec.Command(dockerBinary, "pull", ref).CombinedOutput(); err != nil {
+			if out, err := exec.Command(dockerBinary, append(additionalArgs, "pull", ref)...).CombinedOutput(); err != nil {
 				chErr <- errors.Errorf("%v: %s", string(out), err)
 				return
 			}
-			if out, err := exec.Command(dockerBinary, "tag", ref, tag).CombinedOutput(); err != nil {
+			if out, err := exec.Command(dockerBinary, append(additionalArgs, "tag", ref, tag)...).CombinedOutput(); err != nil {
 				chErr <- errors.Errorf("%v: %s", string(out), err)
 				return
 			}
-			if out, err := exec.Command(dockerBinary, "rmi", ref).CombinedOutput(); err != nil {
+			if out, err := exec.Command(dockerBinary, append(additionalArgs, "rmi", ref)...).CombinedOutput(); err != nil {
 				chErr <- errors.Errorf("%v: %s", string(out), err)
 				return
 			}

@@ -11,18 +11,42 @@ import (
 	"time"
 
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/client"
+	"github.com/docker/docker/integration-cli/daemon"
+	"github.com/docker/docker/pkg/integration"
 	"github.com/docker/docker/pkg/integration/checker"
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/go-check/check"
 	"golang.org/x/net/websocket"
 )
 
-func (s *DockerSuite) TestGetContainersAttachWebsocket(c *check.C) {
-	testRequires(c, DaemonIsLinux)
-	out, _ := dockerCmd(c, "run", "-dit", "busybox", "cat")
+func init() {
+	check.Suite(&DockerAPIAttachSuite{})
+}
 
-	rwc, err := sockConn(time.Duration(10*time.Second), "")
+type DockerAPIAttachSuite struct {
+	d *daemon.Daemon
+}
+
+func (s *DockerAPIAttachSuite) SetUpSuite(c *check.C) {
+	s.d = daemon.New(c, dockerBinary, dockerdBinary, daemon.Config{})
+	// FIXME(vdemeester) use c in s.d.Start(c)
+	c.Assert(s.d.Start(), checker.IsNil)
+	s.d.EnsureFrozenImagesLinux(c)
+}
+
+func (s *DockerAPIAttachSuite) TearDownSuite(c *check.C) {
+	c.Assert(s.d.Stop(), checker.IsNil)
+}
+
+func (s *DockerAPIAttachSuite) dockerCmd(c *check.C, args ...string) (string, int) {
+	return s.d.DockerCmd(c, args...)
+}
+
+func (s *DockerAPIAttachSuite) TestGetContainersAttachWebsocket(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+	out, _ := s.dockerCmd(c, "run", "-dit", "busybox", "cat")
+
+	rwc, err := s.d.SockConn(time.Duration(10 * time.Second))
 	c.Assert(err, checker.IsNil)
 
 	cleanedContainerID := strings.TrimSpace(out)
@@ -71,30 +95,30 @@ func (s *DockerSuite) TestGetContainersAttachWebsocket(c *check.C) {
 }
 
 // regression gh14320
-func (s *DockerSuite) TestPostContainersAttachContainerNotFound(c *check.C) {
-	req, client, err := newRequestClient("POST", "/containers/doesnotexist/attach", nil, "", "")
+func (s *DockerAPIAttachSuite) TestPostContainersAttachContainerNotFound(c *check.C) {
+	req, client, err := s.d.NewRequestClient("POST", "/containers/doesnotexist/attach", nil, "")
 	c.Assert(err, checker.IsNil)
 
 	resp, err := client.Do(req)
 	// connection will shutdown, err should be "persistent connection closed"
 	c.Assert(err, checker.NotNil) // Server shutdown connection
 
-	body, err := readBody(resp.Body)
+	body, err := integration.ReadBody(resp.Body)
 	c.Assert(err, checker.IsNil)
 	c.Assert(resp.StatusCode, checker.Equals, http.StatusNotFound)
 	expected := "No such container: doesnotexist\r\n"
 	c.Assert(string(body), checker.Equals, expected)
 }
 
-func (s *DockerSuite) TestGetContainersWsAttachContainerNotFound(c *check.C) {
-	status, body, err := sockRequest("GET", "/containers/doesnotexist/attach/ws", nil)
+func (s *DockerAPIAttachSuite) TestGetContainersWsAttachContainerNotFound(c *check.C) {
+	status, body, err := s.d.SockRequest("GET", "/containers/doesnotexist/attach/ws", nil)
 	c.Assert(status, checker.Equals, http.StatusNotFound)
 	c.Assert(err, checker.IsNil)
 	expected := "No such container: doesnotexist"
 	c.Assert(getErrorMessage(c, body), checker.Contains, expected)
 }
 
-func (s *DockerSuite) TestPostContainersAttach(c *check.C) {
+func (s *DockerAPIAttachSuite) TestPostContainersAttach(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 
 	expectSuccess := func(conn net.Conn, br *bufio.Reader, stream string, tty bool) {
@@ -136,39 +160,39 @@ func (s *DockerSuite) TestPostContainersAttach(c *check.C) {
 	}
 
 	// Create a container that only emits stdout.
-	cid, _ := dockerCmd(c, "run", "-di", "busybox", "cat")
+	cid, _ := s.dockerCmd(c, "run", "-di", "busybox", "cat")
 	cid = strings.TrimSpace(cid)
 	// Attach to the container's stdout stream.
-	conn, br, err := sockRequestHijack("POST", "/containers/"+cid+"/attach?stream=1&stdin=1&stdout=1", nil, "text/plain")
+	conn, br, err := s.d.SockRequestHijack("POST", "/containers/"+cid+"/attach?stream=1&stdin=1&stdout=1", nil, "text/plain")
 	c.Assert(err, checker.IsNil)
 	// Check if the data from stdout can be received.
 	expectSuccess(conn, br, "stdout", false)
 	// Attach to the container's stderr stream.
-	conn, br, err = sockRequestHijack("POST", "/containers/"+cid+"/attach?stream=1&stdin=1&stderr=1", nil, "text/plain")
+	conn, br, err = s.d.SockRequestHijack("POST", "/containers/"+cid+"/attach?stream=1&stdin=1&stderr=1", nil, "text/plain")
 	c.Assert(err, checker.IsNil)
 	// Since the container only emits stdout, attaching to stderr should return nothing.
 	expectTimeout(conn, br, "stdout")
 
 	// Test the similar functions of the stderr stream.
-	cid, _ = dockerCmd(c, "run", "-di", "busybox", "/bin/sh", "-c", "cat >&2")
+	cid, _ = s.dockerCmd(c, "run", "-di", "busybox", "/bin/sh", "-c", "cat >&2")
 	cid = strings.TrimSpace(cid)
-	conn, br, err = sockRequestHijack("POST", "/containers/"+cid+"/attach?stream=1&stdin=1&stderr=1", nil, "text/plain")
+	conn, br, err = s.d.SockRequestHijack("POST", "/containers/"+cid+"/attach?stream=1&stdin=1&stderr=1", nil, "text/plain")
 	c.Assert(err, checker.IsNil)
 	expectSuccess(conn, br, "stderr", false)
-	conn, br, err = sockRequestHijack("POST", "/containers/"+cid+"/attach?stream=1&stdin=1&stdout=1", nil, "text/plain")
+	conn, br, err = s.d.SockRequestHijack("POST", "/containers/"+cid+"/attach?stream=1&stdin=1&stdout=1", nil, "text/plain")
 	c.Assert(err, checker.IsNil)
 	expectTimeout(conn, br, "stderr")
 
 	// Test with tty.
-	cid, _ = dockerCmd(c, "run", "-dit", "busybox", "/bin/sh", "-c", "cat >&2")
+	cid, _ = s.dockerCmd(c, "run", "-dit", "busybox", "/bin/sh", "-c", "cat >&2")
 	cid = strings.TrimSpace(cid)
 	// Attach to stdout only.
-	conn, br, err = sockRequestHijack("POST", "/containers/"+cid+"/attach?stream=1&stdin=1&stdout=1", nil, "text/plain")
+	conn, br, err = s.d.SockRequestHijack("POST", "/containers/"+cid+"/attach?stream=1&stdin=1&stdout=1", nil, "text/plain")
 	c.Assert(err, checker.IsNil)
 	expectSuccess(conn, br, "stdout", true)
 
 	// Attach without stdout stream.
-	conn, br, err = sockRequestHijack("POST", "/containers/"+cid+"/attach?stream=1&stdin=1&stderr=1", nil, "text/plain")
+	conn, br, err = s.d.SockRequestHijack("POST", "/containers/"+cid+"/attach?stream=1&stdin=1&stderr=1", nil, "text/plain")
 	c.Assert(err, checker.IsNil)
 	// Nothing should be received because both the stdout and stderr of the container will be
 	// sent to the client as stdout when tty is enabled.
@@ -176,10 +200,10 @@ func (s *DockerSuite) TestPostContainersAttach(c *check.C) {
 
 	// Test the client API
 	// Make sure we don't see "hello" if Logs is false
-	client, err := client.NewEnvClient()
+	client, err := s.d.Client()
 	c.Assert(err, checker.IsNil)
 
-	cid, _ = dockerCmd(c, "run", "-di", "busybox", "/bin/sh", "-c", "echo hello; cat")
+	cid, _ = s.dockerCmd(c, "run", "-di", "busybox", "/bin/sh", "-c", "echo hello; cat")
 	cid = strings.TrimSpace(cid)
 
 	attachOpts := types.ContainerAttachOptions{
