@@ -19,11 +19,11 @@ networks that span across multiple hosts in a cluster, for example:
 
 ```bash
     $ docker network ls
-    NETWORK ID          NAME                DRIVER
-    7fca4eb8c647        bridge              bridge
-    9f904ee27bf5        none                null
-    cf03ee007fb4        host                host
-    78b03ee04fc4        multi-host          overlay
+    NETWORK ID          NAME                DRIVER          SCOPE
+    7fca4eb8c647        bridge              bridge          local
+    9f904ee27bf5        none                null            local
+    cf03ee007fb4        host                host            local
+    78b03ee04fc4        multi-host          overlay         swarm
 ```
 
 Use the `--no-trunc` option to display the full network id:
