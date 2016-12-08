@@ -9,7 +9,7 @@ import (
 
 func (s *DockerSuite) TestPause(c *check.C) {
 	testRequires(c, IsPausable)
-	defer unpauseAllContainers()
+	defer unpauseAllContainers(c)
 
 	name := "testeventpause"
 	runSleepingContainer(c, "-d", "--name", name)
@@ -31,7 +31,7 @@ func (s *DockerSuite) TestPause(c *check.C) {
 
 func (s *DockerSuite) TestPauseMultipleContainers(c *check.C) {
 	testRequires(c, IsPausable)
-	defer unpauseAllContainers()
+	defer unpauseAllContainers(c)
 
 	containers := []string{
 		"testpausewithmorecontainers1",

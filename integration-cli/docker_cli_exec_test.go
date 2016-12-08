@@ -139,7 +139,7 @@ func (s *DockerSuite) TestExecExitStatus(c *check.C) {
 
 func (s *DockerSuite) TestExecPausedContainer(c *check.C) {
 	testRequires(c, IsPausable)
-	defer unpauseAllContainers()
+	defer unpauseAllContainers(c)
 
 	out, _ := runSleepingContainer(c, "-d", "--name", "testing")
 	ContainerID := strings.TrimSpace(out)
@@ -388,7 +388,7 @@ func (s *DockerSuite) TestRunMutableNetworkFiles(c *check.C) {
 	// Not applicable on Windows to Windows CI.
 	testRequires(c, SameHostDaemon, DaemonIsLinux)
 	for _, fn := range []string{"resolv.conf", "hosts"} {
-		deleteAllContainers()
+		deleteAllContainers(c)
 
 		content, err := runCommandAndReadContainerFile(fn, exec.Command(dockerBinary, "run", "-d", "--name", "c1", "busybox", "sh", "-c", fmt.Sprintf("echo success >/etc/%s && top", fn)))
 		c.Assert(err, checker.IsNil)

@@ -26,6 +26,7 @@ import (
 	volumetypes "github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/httputils"
+	"github.com/docker/docker/pkg/integration/checker"
 	icmd "github.com/docker/docker/pkg/integration/cmd"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/stringutils"
@@ -245,29 +246,20 @@ func getAllContainers() (string, error) {
 	return out, err
 }
 
-func deleteAllContainers() error {
+func deleteAllContainers(c *check.C) {
 	containers, err := getAllContainers()
-	if err != nil {
-		fmt.Println(containers)
-		return err
-	}
-	if containers == "" {
-		return nil
-	}
+	c.Assert(err, checker.IsNil, check.Commentf("containers: %v", containers))
 
-	err = deleteContainer(strings.Split(strings.TrimSpace(containers), "\n")...)
-	if err != nil {
-		fmt.Println(err.Error())
+	if containers != "" {
+		err = deleteContainer(strings.Split(strings.TrimSpace(containers), "\n")...)
+		c.Assert(err, checker.IsNil)
 	}
-	return err
 }
 
-func deleteAllNetworks() error {
+func deleteAllNetworks(c *check.C) {
 	networks, err := getAllNetworks()
-	if err != nil {
-		return err
-	}
-	var errors []string
+	c.Assert(err, check.IsNil)
+	var errs []string
 	for _, n := range networks {
 		if n.Name == "bridge" || n.Name == "none" || n.Name == "host" {
 			continue
@@ -278,17 +270,14 @@ func deleteAllNetworks() error {
 		}
 		status, b, err := sockRequest("DELETE", "/networks/"+n.Name, nil)
 		if err != nil {
-			errors = append(errors, err.Error())
+			errs = append(errs, err.Error())
 			continue
 		}
 		if status != http.StatusNoContent {
-			errors = append(errors, fmt.Sprintf("error deleting network %s: %s", n.Name, string(b)))
+			errs = append(errs, fmt.Sprintf("error deleting network %s: %s", n.Name, string(b)))
 		}
 	}
-	if len(errors) > 0 {
-		return fmt.Errorf(strings.Join(errors, "\n"))
-	}
-	return nil
+	c.Assert(errs, checker.HasLen, 0, check.Commentf(strings.Join(errs, "\n")))
 }
 
 func getAllNetworks() ([]types.NetworkResource, error) {
@@ -303,26 +292,26 @@ func getAllNetworks() ([]types.NetworkResource, error) {
 	return networks, nil
 }
 
-func deleteAllPlugins() error {
+func deleteAllPlugins(c *check.C) {
 	plugins, err := getAllPlugins()
-	if err != nil {
-		return err
-	}
-	var errors []string
+	c.Assert(err, checker.IsNil)
+	var errs []string
 	for _, p := range plugins {
-		status, b, err := sockRequest("DELETE", "/plugins/"+p.Name+":"+p.Tag+"?force=1", nil)
+		pluginName := p.Name
+		tag := p.Tag
+		if tag == "" {
+			tag = "latest"
+		}
+		status, b, err := sockRequest("DELETE", "/plugins/"+pluginName+":"+tag+"?force=1", nil)
 		if err != nil {
-			errors = append(errors, err.Error())
+			errs = append(errs, err.Error())
 			continue
 		}
-		if status != http.StatusNoContent {
-			errors = append(errors, fmt.Sprintf("error deleting plugin %s: %s", p.Name, string(b)))
+		if status != http.StatusOK {
+			errs = append(errs, fmt.Sprintf("error deleting plugin %s: %s", p.Name, string(b)))
 		}
 	}
-	if len(errors) > 0 {
-		return fmt.Errorf(strings.Join(errors, "\n"))
-	}
-	return nil
+	c.Assert(errs, checker.HasLen, 0, check.Commentf(strings.Join(errs, "\n")))
 }
 
 func getAllPlugins() (types.PluginsListResponse, error) {
@@ -337,26 +326,21 @@ func getAllPlugins() (types.PluginsListResponse, error) {
 	return plugins, nil
 }
 
-func deleteAllVolumes() error {
+func deleteAllVolumes(c *check.C) {
 	volumes, err := getAllVolumes()
-	if err != nil {
-		return err
-	}
-	var errors []string
+	c.Assert(err, checker.IsNil)
+	var errs []string
 	for _, v := range volumes {
 		status, b, err := sockRequest("DELETE", "/volumes/"+v.Name, nil)
 		if err != nil {
-			errors = append(errors, err.Error())
+			errs = append(errs, err.Error())
 			continue
 		}
 		if status != http.StatusNoContent {
-			errors = append(errors, fmt.Sprintf("error deleting volume %s: %s", v.Name, string(b)))
+			errs = append(errs, fmt.Sprintf("error deleting volume %s: %s", v.Name, string(b)))
 		}
 	}
-	if len(errors) > 0 {
-		return fmt.Errorf(strings.Join(errors, "\n"))
-	}
-	return nil
+	c.Assert(errs, checker.HasLen, 0, check.Commentf(strings.Join(errs, "\n")))
 }
 
 func getAllVolumes() ([]*types.Volume, error) {
@@ -373,13 +357,11 @@ func getAllVolumes() ([]*types.Volume, error) {
 
 var protectedImages = map[string]struct{}{}
 
-func deleteAllImages() error {
+func deleteAllImages(c *check.C) {
 	cmd := exec.Command(dockerBinary, "images")
 	cmd.Env = appendBaseEnv(true)
 	out, err := cmd.CombinedOutput()
-	if err != nil {
-		return err
-	}
+	c.Assert(err, checker.IsNil)
 	lines := strings.Split(string(out), "\n")[1:]
 	var imgs []string
 	for _, l := range lines {
@@ -389,21 +371,16 @@ func deleteAllImages() error {
 		fields := strings.Fields(l)
 		imgTag := fields[0] + ":" + fields[1]
 		if _, ok := protectedImages[imgTag]; !ok {
-			if fields[0] == "<none>" {
+			if fields[0] == "<none>" || fields[1] == "<none>" {
 				imgs = append(imgs, fields[2])
 				continue
 			}
 			imgs = append(imgs, imgTag)
 		}
 	}
-	if len(imgs) == 0 {
-		return nil
+	if len(imgs) != 0 {
+		dockerCmd(c, append([]string{"rmi", "-f"}, imgs...)...)
 	}
-	args := append([]string{"rmi", "-f"}, imgs...)
-	if err := exec.Command(dockerBinary, args...).Run(); err != nil {
-		return err
-	}
-	return nil
 }
 
 func getPausedContainers() (string, error) {
@@ -428,28 +405,21 @@ func getSliceOfPausedContainers() ([]string, error) {
 	return []string{out}, err
 }
 
-func unpauseContainer(container string) error {
-	return icmd.RunCommand(dockerBinary, "unpause", container).Error
+func unpauseContainer(c *check.C, container string) {
+	dockerCmd(c, "unpause", container)
 }
 
-func unpauseAllContainers() error {
+func unpauseAllContainers(c *check.C) {
 	containers, err := getPausedContainers()
-	if err != nil {
-		fmt.Println(containers)
-		return err
-	}
+	c.Assert(err, checker.IsNil, check.Commentf("containers: %v", containers))
 
 	containers = strings.Replace(containers, "\n", " ", -1)
 	containers = strings.Trim(containers, " ")
 	containerList := strings.Split(containers, " ")
 
 	for _, value := range containerList {
-		if err = unpauseContainer(value); err != nil {
-			return err
-		}
+		unpauseContainer(c, value)
 	}
-
-	return nil
 }
 
 func deleteImages(images ...string) error {
@@ -490,10 +460,7 @@ func dockerCmdWithStdoutStderr(c *check.C, args ...string) (string, string, int)
 	}
 
 	result := icmd.RunCommand(dockerBinary, args...)
-	// TODO: why is c ever nil?
-	if c != nil {
-		c.Assert(result, icmd.Matches, icmd.Success)
-	}
+	c.Assert(result, icmd.Matches, icmd.Success)
 	return result.Stdout(), result.Stderr(), result.ExitCode
 }
 
