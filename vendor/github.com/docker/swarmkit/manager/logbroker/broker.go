@@ -152,7 +152,8 @@ func (lb *LogBroker) unregisterSubscription(subscription *subscription) {
 	defer lb.mu.Unlock()
 
 	delete(lb.registeredSubscriptions, subscription.message.ID)
-	subscription.message.Close = true
+
+	subscription.Close()
 	lb.subscriptionQueue.Publish(subscription)
 }
 
@@ -321,7 +322,7 @@ func (lb *LogBroker) ListenSubscriptions(request *api.ListenSubscriptionsRequest
 		case v := <-subscriptionCh:
 			subscription := v.(*subscription)
 
-			if subscription.message.Close {
+			if subscription.Closed() {
 				log.WithField("subscription.id", subscription.message.ID).Debug("subscription closed")
 				delete(activeSubscriptions, subscription.message.ID)
 			} else {
