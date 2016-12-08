@@ -216,7 +216,7 @@ func ParseMountRaw(raw, volumeDriver string) (*MountPoint, error) {
 	case 2:
 		if ValidMountMode(arr[1]) {
 			// Destination + Mode is not a valid volume - volumes
-			// cannot include a mode. eg /foo:rw
+			// cannot include a mode. e.g. /foo:rw
 			return nil, errInvalidSpec(raw)
 		}
 		// Host Source Path or Name + Destination

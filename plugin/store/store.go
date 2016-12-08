@@ -21,7 +21,7 @@ const allowV1PluginsFallback bool = true
 
 /* defaultAPIVersion is the version of the plugin API for volume, network,
    IPAM and authz. This is a very stable API. When we update this API, then
-   pluginType should include a version. eg "networkdriver/2.0".
+   pluginType should include a version. e.g. "networkdriver/2.0".
 */
 const defaultAPIVersion string = "1.0"
 
