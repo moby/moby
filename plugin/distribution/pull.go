@@ -153,8 +153,7 @@ func Pull(ref reference.Named, rs registry.Service, metaheader http.Header, auth
 		logrus.Debugf("pull.go: error in json.Unmarshal(): %v", err)
 		return nil, err
 	}
-	if m.Config.MediaType != schema2.MediaTypePluginConfig &&
-		m.Config.MediaType != "application/vnd.docker.plugin.image.v0+json" { //TODO: remove this v0 before 1.13 GA
+	if m.Config.MediaType != schema2.MediaTypePluginConfig {
 		return nil, ErrUnsupportedMediaType
 	}
 
