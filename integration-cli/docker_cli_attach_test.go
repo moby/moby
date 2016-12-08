@@ -155,7 +155,7 @@ func (s *DockerSuite) TestAttachDisconnect(c *check.C) {
 
 func (s *DockerSuite) TestAttachPausedContainer(c *check.C) {
 	testRequires(c, IsPausable)
-	defer unpauseAllContainers()
+	defer unpauseAllContainers(c)
 	runSleepingContainer(c, "-d", "--name=test")
 	dockerCmd(c, "pause", "test")
 

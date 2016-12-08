@@ -71,7 +71,7 @@ func (s *DockerSuite) TestRunLookupGoogleDNS(c *check.C) {
 		// nslookup isn't present in nanoserver. Hence just use PowerShell...
 		dockerCmd(c, "run", WindowsBaseImage, "powershell", "Resolve-DNSName", "google.com")
 	} else {
-		dockerCmd(c, "run", DefaultImage, "nslookup", "google.com")
+		dockerCmd(c, "run", "busybox", "nslookup", "google.com")
 	}
 
 }
