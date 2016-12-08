@@ -364,6 +364,7 @@ func TestUpdatePortsRmWithProtocol(t *testing.T) {
 	assert.Equal(t, portConfigs[0].TargetPort, uint32(82))
 }
 
+// FIXME(vdemeester) port to opts.PortOpt
 func TestValidatePort(t *testing.T) {
 	validPorts := []string{"80/tcp", "80", "80/udp"}
 	invalidPorts := map[string]string{

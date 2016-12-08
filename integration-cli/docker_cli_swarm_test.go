@@ -235,23 +235,51 @@ func (s *DockerSwarmSuite) TestSwarmNodeTaskListFilter(c *check.C) {
 func (s *DockerSwarmSuite) TestSwarmPublishAdd(c *check.C) {
 	d := s.AddDaemon(c, true, true)
 
-	name := "top"
-	out, err := d.Cmd("service", "create", "--name", name, "--label", "x=y", "busybox", "top")
-	c.Assert(err, checker.IsNil)
-	c.Assert(strings.TrimSpace(out), checker.Not(checker.Equals), "")
+	testCases := []struct {
+		name       string
+		publishAdd []string
+		ports      string
+	}{
+		{
+			name: "simple-syntax",
+			publishAdd: []string{
+				"80:80",
+				"80:80",
+				"80:80",
+				"80:20",
+			},
+			ports: "[{ tcp 80 80 ingress}]",
+		},
+		{
+			name: "complex-syntax",
+			publishAdd: []string{
+				"target=90,published=90,protocol=tcp,mode=ingress",
+				"target=90,published=90,protocol=tcp,mode=ingress",
+				"target=90,published=90,protocol=tcp,mode=ingress",
+				"target=30,published=90,protocol=tcp,mode=ingress",
+			},
+			ports: "[{ tcp 90 90 ingress}]",
+		},
+	}
 
-	out, err = d.Cmd("service", "update", "--publish-add", "80:80", name)
-	c.Assert(err, checker.IsNil)
+	for _, tc := range testCases {
+		out, err := d.Cmd("service", "create", "--name", tc.name, "--label", "x=y", "busybox", "top")
+		c.Assert(err, checker.IsNil, check.Commentf(out))
+		c.Assert(strings.TrimSpace(out), checker.Not(checker.Equals), "")
 
-	out, err = d.CmdRetryOutOfSequence("service", "update", "--publish-add", "80:80", name)
-	c.Assert(err, checker.IsNil)
+		out, err = d.CmdRetryOutOfSequence("service", "update", "--publish-add", tc.publishAdd[0], tc.name)
+		c.Assert(err, checker.IsNil, check.Commentf(out))
 
-	out, err = d.CmdRetryOutOfSequence("service", "update", "--publish-add", "80:80", "--publish-add", "80:20", name)
-	c.Assert(err, checker.NotNil)
+		out, err = d.CmdRetryOutOfSequence("service", "update", "--publish-add", tc.publishAdd[1], tc.name)
+		c.Assert(err, checker.IsNil, check.Commentf(out))
 
-	out, err = d.Cmd("service", "inspect", "--format", "{{ .Spec.EndpointSpec.Ports }}", name)
-	c.Assert(err, checker.IsNil)
-	c.Assert(strings.TrimSpace(out), checker.Equals, "[{ tcp 80 80 ingress}]")
+		out, err = d.CmdRetryOutOfSequence("service", "update", "--publish-add", tc.publishAdd[2], "--publish-add", tc.publishAdd[3], tc.name)
+		c.Assert(err, checker.NotNil, check.Commentf(out))
+
+		out, err = d.Cmd("service", "inspect", "--format", "{{ .Spec.EndpointSpec.Ports }}", tc.name)
+		c.Assert(err, checker.IsNil)
+		c.Assert(strings.TrimSpace(out), checker.Equals, tc.ports)
+	}
 }
 
 func (s *DockerSwarmSuite) TestSwarmServiceWithGroup(c *check.C) {
