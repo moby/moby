@@ -311,6 +311,7 @@ func (s *DockerSuite) TestVolumeCLICreateWithOpts(c *check.C) {
 			c.Assert(info[4], checker.Equals, "tmpfs")
 			c.Assert(info[5], checker.Contains, "uid=1000")
 			c.Assert(info[5], checker.Contains, "size=1024k")
+			break
 		}
 	}
 	c.Assert(found, checker.Equals, true)
