@@ -22,15 +22,8 @@ var (
 	// path to containerd's ctr binary
 	ctrBinary = "docker-containerd-ctr"
 
-	// the private registry image to use for tests involving the registry
-	registryImageName = "registry"
-
 	// the private registry to use for tests
 	privateRegistryURL = "127.0.0.1:5000"
-
-	// TODO Windows CI. These are incorrect and need fixing into
-	// platform specific pieces.
-	runtimePath = "/var/run/docker"
 
 	workingDirectory string
 
@@ -49,10 +42,6 @@ var (
 	// the platform supports it. For example, Windows Server 2016 TP3 did
 	// not support volumes, but TP4 did.
 	windowsDaemonKV int
-
-	// daemonDefaultImage is the name of the default image to use when running
-	// tests. This is platform dependent.
-	daemonDefaultImage string
 
 	// For a local daemon on Linux, these values will be used for testing
 	// user namespace support as the standard graph path(s) will be
@@ -81,12 +70,6 @@ var (
 	daemonPid int
 )
 
-const (
-	// DefaultImage is the name of the base image for the majority of tests that
-	// are run across suites
-	DefaultImage = "busybox"
-)
-
 func init() {
 	reexec.Init()
 	if dockerBin := os.Getenv("DOCKER_BINARY"); dockerBin != "" {
@@ -97,9 +80,6 @@ func init() {
 	if err != nil {
 		fmt.Printf("ERROR: couldn't resolve full path to the Docker binary (%v)\n", err)
 		os.Exit(1)
-	}
-	if registryImage := os.Getenv("REGISTRY_IMAGE"); registryImage != "" {
-		registryImageName = registryImage
 	}
 	if registry := os.Getenv("REGISTRY_URL"); registry != "" {
 		privateRegistryURL = registry

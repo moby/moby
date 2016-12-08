@@ -358,12 +358,12 @@ func getAllVolumes() ([]*types.Volume, error) {
 var protectedImages = map[string]struct{}{}
 
 func deleteAllImages(c *check.C) {
-	cmd := exec.Command(dockerBinary, "images")
+	cmd := exec.Command(dockerBinary, "images", "--digests")
 	cmd.Env = appendBaseEnv(true)
 	out, err := cmd.CombinedOutput()
 	c.Assert(err, checker.IsNil)
 	lines := strings.Split(string(out), "\n")[1:]
-	var imgs []string
+	imgMap := map[string]struct{}{}
 	for _, l := range lines {
 		if l == "" {
 			continue
@@ -372,13 +372,22 @@ func deleteAllImages(c *check.C) {
 		imgTag := fields[0] + ":" + fields[1]
 		if _, ok := protectedImages[imgTag]; !ok {
 			if fields[0] == "<none>" || fields[1] == "<none>" {
-				imgs = append(imgs, fields[2])
-				continue
+				if fields[2] != "<none>" {
+					imgMap[fields[0]+"@"+fields[2]] = struct{}{}
+				} else {
+					imgMap[fields[3]] = struct{}{}
+				}
+				// continue
+			} else {
+				imgMap[imgTag] = struct{}{}
 			}
-			imgs = append(imgs, imgTag)
 		}
 	}
-	if len(imgs) != 0 {
+	if len(imgMap) != 0 {
+		imgs := make([]string, 0, len(imgMap))
+		for k := range imgMap {
+			imgs = append(imgs, k)
+		}
 		dockerCmd(c, append([]string{"rmi", "-f"}, imgs...)...)
 	}
 }
