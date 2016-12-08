@@ -44,12 +44,14 @@ func (s *DockerSuite) OnTimeout(c *check.C) {
 }
 
 func (s *DockerSuite) TearDownTest(c *check.C) {
-	unpauseAllContainers()
-	deleteAllContainers()
-	deleteAllImages()
-	deleteAllVolumes()
-	deleteAllNetworks()
-	deleteAllPlugins()
+	unpauseAllContainers(c)
+	deleteAllContainers(c)
+	deleteAllImages(c)
+	deleteAllVolumes(c)
+	deleteAllNetworks(c)
+	if daemonPlatform == "linux" {
+		deleteAllPlugins(c)
+	}
 }
 
 func init() {
