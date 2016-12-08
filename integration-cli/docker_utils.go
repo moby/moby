@@ -152,14 +152,7 @@ func sockRequestRawToDaemon(method, endpoint string, data io.Reader, ct, daemon 
 }
 
 func sockRequestHijack(method, endpoint string, data io.Reader, ct string) (net.Conn, *bufio.Reader, error) {
-	req, client, err := newRequestClient(method, endpoint, data, ct, "")
-	if err != nil {
-		return nil, nil, err
-	}
-
-	client.Do(req)
-	conn, br := client.Hijack()
-	return conn, br, nil
+	return daemon.SockRequestHijack(method, endpoint, data, ct, "")
 }
 
 func newRequestClient(method, endpoint string, data io.Reader, ct, daemon string) (*http.Request, *httputil.ClientConn, error) {
@@ -449,6 +442,7 @@ func dockerCmdWithStdoutStderr(c *check.C, args ...string) (string, string, int)
 	return result.Stdout(), result.Stderr(), result.ExitCode
 }
 
+// FIXME(vdemeester) remove this when all tests uses deamon.DockerCmd
 func dockerCmd(c *check.C, args ...string) (string, int) {
 	if err := validateArgs(args...); err != nil {
 		c.Fatalf(err.Error())

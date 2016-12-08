@@ -18,7 +18,10 @@ import (
 	"strings"
 	"time"
 
+	"bufio"
+	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types/events"
+	"github.com/docker/docker/client"
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/integration"
 	"github.com/docker/docker/pkg/integration/checker"
@@ -43,17 +46,18 @@ type Daemon struct {
 	UseDefaultHost    bool
 	UseDefaultTLSHost bool
 
-	id             string
-	logFile        *os.File
-	stdin          io.WriteCloser
-	stdout, stderr io.ReadCloser
-	cmd            *exec.Cmd
-	storageDriver  string
-	userlandProxy  bool
-	execRoot       string
-	experimental   bool
-	dockerBinary   string
-	dockerdBinary  string
+	id              string
+	logFile         *os.File
+	stdin           io.WriteCloser
+	stdout, stderr  io.ReadCloser
+	cmd             *exec.Cmd
+	storageDriver   string
+	userlandProxy   bool
+	execRoot        string
+	experimental    bool
+	dockerBinary    string
+	dockerdBinary   string
+	protectedImages map[string]struct{}
 }
 
 // Config holds docker daemon integration configuration
@@ -93,16 +97,27 @@ func New(c *check.C, dockerBinary string, dockerdBinary string, config Config) *
 	}
 
 	return &Daemon{
-		id:            id,
-		Folder:        daemonFolder,
-		Root:          daemonRoot,
-		storageDriver: os.Getenv("DOCKER_GRAPHDRIVER"),
-		userlandProxy: userlandProxy,
-		execRoot:      filepath.Join(os.TempDir(), "docker-execroot", id),
-		dockerBinary:  dockerBinary,
-		dockerdBinary: dockerdBinary,
-		experimental:  config.Experimental,
+		id:              id,
+		Folder:          daemonFolder,
+		Root:            daemonRoot,
+		storageDriver:   os.Getenv("DOCKER_GRAPHDRIVER"),
+		userlandProxy:   userlandProxy,
+		execRoot:        filepath.Join(os.TempDir(), "docker-execroot", id),
+		dockerBinary:    dockerBinary,
+		dockerdBinary:   dockerdBinary,
+		experimental:    config.Experimental,
+		protectedImages: map[string]struct{}{},
 	}
+}
+
+func (d *Daemon) Client() (*client.Client, error) {
+	clientConfig, err := d.getClientConfig()
+	if err != nil {
+		return nil, err
+	}
+	return client.NewClient(d.Sock(), api.DefaultVersion, &http.Client{
+		Transport: clientConfig.transport,
+	}, map[string]string{})
 }
 
 // ID returns the generated id of the daemon
@@ -520,6 +535,13 @@ func (d *Daemon) GetBaseDeviceSize(c *check.C) int64 {
 	return basesizeBytes
 }
 
+func (d *Daemon) DockerCmd(c *check.C, args ...string) (string, int) {
+	// TODO(vdemeester) validate args
+	result := icmd.RunCommand(d.dockerBinary, d.PrependHostArg(args)...)
+	c.Assert(result, icmd.Matches, icmd.Success)
+	return result.Combined(), result.ExitCode
+}
+
 // Cmd will execute a docker CLI command against this Daemon.
 // Example: d.Cmd("version") will run docker -H unix://path/to/unix.sock version
 func (d *Daemon) Cmd(args ...string) (string, error) {
@@ -561,6 +583,19 @@ func (d *Daemon) SockRequest(method, endpoint string, data interface{}) (int, []
 // response and a reader for the output data.
 func (d *Daemon) SockRequestRaw(method, endpoint string, data io.Reader, ct string) (*http.Response, io.ReadCloser, error) {
 	return SockRequestRawToDaemon(method, endpoint, data, ct, d.Sock())
+}
+
+// SockConn opens a connection on the daemon socket
+func (d *Daemon) SockConn(timeout time.Duration) (net.Conn, error) {
+	return SockConn(timeout, d.Sock())
+}
+
+func (d *Daemon) NewRequestClient(method, endpoint string, data io.Reader, ct string) (*http.Request, *httputil.ClientConn, error) {
+	return newRequestClient(method, endpoint, data, ct, d.Sock())
+}
+
+func (d *Daemon) SockRequestHijack(method, endpoint string, data io.Reader, ct string) (net.Conn, *bufio.Reader, error) {
+	return SockRequestHijack(method, endpoint, data, ct, d.Sock())
 }
 
 // LogFileName returns the path the the daemon's log file
@@ -810,6 +845,17 @@ func newRequestClient(method, endpoint string, data io.Reader, ct, daemon string
 		req.Header.Set("Content-Type", ct)
 	}
 	return req, client, nil
+}
+
+func SockRequestHijack(method, endpoint string, data io.Reader, ct, daemon string) (net.Conn, *bufio.Reader, error) {
+	req, client, err := newRequestClient(method, endpoint, data, ct, daemon)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	client.Do(req)
+	conn, br := client.Hijack()
+	return conn, br, nil
 }
 
 // BuildImageCmdWithHost create a build command with the specified arguments.
