@@ -167,11 +167,11 @@ func (n *Node) doSnapshot(ctx context.Context, raftConfig api.RaftConfig) {
 
 	viewStarted := make(chan struct{})
 	n.asyncTasks.Add(1)
-	n.snapshotInProgress = make(chan uint64, 1) // buffered in case Shutdown is called during the snapshot
-	go func(appliedIndex, snapshotIndex uint64) {
+	n.snapshotInProgress = make(chan raftpb.SnapshotMetadata, 1) // buffered in case Shutdown is called during the snapshot
+	go func(appliedIndex uint64, snapshotMeta raftpb.SnapshotMetadata) {
 		defer func() {
 			n.asyncTasks.Done()
-			n.snapshotInProgress <- snapshotIndex
+			n.snapshotInProgress <- snapshotMeta
 		}()
 		var err error
 		n.memoryStore.View(func(tx store.ReadTx) {
@@ -197,7 +197,7 @@ func (n *Node) doSnapshot(ctx context.Context, raftConfig api.RaftConfig) {
 				log.G(ctx).WithError(err).Error("failed to save snapshot")
 				return
 			}
-			snapshotIndex = appliedIndex
+			snapshotMeta = snap.Metadata
 
 			if appliedIndex > raftConfig.LogEntriesForSlowFollowers {
 				err := n.raftStore.Compact(appliedIndex - raftConfig.LogEntriesForSlowFollowers)
@@ -205,14 +205,10 @@ func (n *Node) doSnapshot(ctx context.Context, raftConfig api.RaftConfig) {
 					log.G(ctx).WithError(err).Error("failed to compact snapshot")
 				}
 			}
-
-			if err := n.raftLogger.GC(snap.Metadata.Index, snap.Metadata.Term, raftConfig.KeepOldSnapshots); err != nil {
-				log.G(ctx).WithError(err).Error("failed to clean up old snapshots and WALs")
-			}
 		} else if err != raft.ErrSnapOutOfDate {
 			log.G(ctx).WithError(err).Error("failed to create snapshot")
 		}
-	}(n.appliedIndex, n.snapshotIndex)
+	}(n.appliedIndex, n.snapshotMeta)
 
 	// Wait for the goroutine to establish a read transaction, to make
 	// sure it sees the state as of this moment.

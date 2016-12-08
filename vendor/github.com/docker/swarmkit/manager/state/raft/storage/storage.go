@@ -2,7 +2,6 @@ package storage
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"sync"
@@ -358,7 +357,7 @@ func (e *EncryptedRaftLogger) Close(ctx context.Context) {
 	e.snapshotter = nil
 }
 
-// Clear closes the existing WAL and moves away the WAL and snapshot.
+// Clear closes the existing WAL and removes the WAL and snapshot.
 func (e *EncryptedRaftLogger) Clear(ctx context.Context) error {
 	e.encoderMu.Lock()
 	defer e.encoderMu.Unlock()
@@ -370,23 +369,7 @@ func (e *EncryptedRaftLogger) Clear(ctx context.Context) error {
 	}
 	e.snapshotter = nil
 
-	newWALDir, err := ioutil.TempDir(e.StateDir, "wal.")
-	if err != nil {
-		return err
-	}
-	os.RemoveAll(newWALDir)
-	if err = os.Rename(e.walDir(), newWALDir); err != nil {
-		return err
-	}
-
-	newSnapDir, err := ioutil.TempDir(e.StateDir, "snap.")
-	if err != nil {
-		return err
-	}
-	os.RemoveAll(newSnapDir)
-	if err := os.Rename(e.snapDir(), newSnapDir); err != nil {
-		return err
-	}
-
+	os.RemoveAll(e.walDir())
+	os.RemoveAll(e.snapDir())
 	return nil
 }
