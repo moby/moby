@@ -15,8 +15,7 @@
 # the case. Therefore, you don't have to disable it anymore.
 #
 
-# ppc64le/golang is a debian:jessie based image with golang installed
-FROM ppc64le/golang:1.6.3
+FROM ppc64le/debian:jessie
 
 # allow replacing httpredir or deb mirror
 ARG APT_MIRROR=deb.debian.org
@@ -95,25 +94,12 @@ RUN set -x \
 
 
 # Install Go
-# ppc64le doesn't have official go binaries, so use the version of go installed from the image
-# to build go from source.
-# NOTE: ppc64le has compatibility issues with older versions of go, so make sure the version >= 1.6
+# NOTE: official ppc64le go binaries weren't available until go 1.6.4 and 1.7.4
 ENV GO_VERSION 1.7.4
-ENV GO_DOWNLOAD_URL https://golang.org/dl/go${GO_VERSION}.src.tar.gz
+RUN curl -fsSL "https://golang.org/dl/go${GO_VERSION}.linux-ppc64le.tar.gz" \
+	| tar -xzC /usr/local
 
-RUN set -x \
-	&& TEMPDIR="$(mktemp -d)" \
-	&& mv /usr/local/go $TEMPDIR \
-	&& GOROOT_BOOTSTRAP=$TEMPDIR/go \
-	&& cd /usr/local \
-	&& curl -fsSL "$GO_DOWNLOAD_URL" -o golang.tar.gz \
-	&& tar -C /usr/local -xzf golang.tar.gz \
-	&& rm golang.tar.gz \
-	&& cd go/src && ./make.bash 2>&1 \
-	&& rm -rf $TEMPDIR
-
-ENV GOROOT_BOOTSTRAP /usr/local/go
-ENV PATH /usr/local/go/bin/:$PATH
+ENV PATH /go/bin:/usr/local/go/bin:$PATH
 ENV GOPATH /go
 
 # Dependency for golint
