@@ -74,9 +74,9 @@ func formatServiceInspect(t *testing.T, format formatter.Format, now time.Time) 
 				},
 			},
 		},
-		UpdateStatus: swarm.UpdateStatus{
-			StartedAt:   now,
-			CompletedAt: now,
+		UpdateStatus: &swarm.UpdateStatus{
+			StartedAt:   &now,
+			CompletedAt: &now,
 		},
 	}
 

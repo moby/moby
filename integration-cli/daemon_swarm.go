@@ -155,6 +155,9 @@ func (d *SwarmDaemon) checkServiceRunningTasks(service string) func(*check.C) (i
 func (d *SwarmDaemon) checkServiceUpdateState(service string) func(*check.C) (interface{}, check.CommentInterface) {
 	return func(c *check.C) (interface{}, check.CommentInterface) {
 		service := d.getService(c, service)
+		if service.UpdateStatus == nil {
+			return "", nil
+		}
 		return service.UpdateStatus.State, nil
 	}
 }
