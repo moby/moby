@@ -108,6 +108,12 @@ func (opts *ListOpts) Type() string {
 	return "list"
 }
 
+// WithValidator returns the ListOpts with validator set.
+func (opts *ListOpts) WithValidator(validator ValidatorFctType) *ListOpts {
+	opts.validator = validator
+	return opts
+}
+
 // NamedOption is an interface that list and map options
 // with names implement.
 type NamedOption interface {
