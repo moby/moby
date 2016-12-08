@@ -80,7 +80,7 @@ func init() {
 		containerStoragePath = strings.Replace(containerStoragePath, `/`, `\`, -1)
 		// On Windows, extract out the version as we need to make selective
 		// decisions during integration testing as and when features are implemented.
-		// eg in "10.0 10550 (10550.1000.amd64fre.branch.date-time)" we want 10550
+		// e.g. in "10.0 10550 (10550.1000.amd64fre.branch.date-time)" we want 10550
 		windowsDaemonKV, _ = strconv.Atoi(strings.Split(info.KernelVersion, " ")[1])
 	} else {
 		volumesConfigPath = strings.Replace(volumesConfigPath, `\`, `/`, -1)
