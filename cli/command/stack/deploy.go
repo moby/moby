@@ -21,7 +21,6 @@ import (
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cli/command"
-	servicecmd "github.com/docker/docker/cli/command/service"
 	dockerclient "github.com/docker/docker/client"
 	"github.com/docker/docker/opts"
 	runconfigopts "github.com/docker/docker/runconfig/opts"
@@ -745,7 +744,7 @@ func convertEndpointSpec(source []string) (*swarm.EndpointSpec, error) {
 	for port := range ports {
 		portConfigs = append(
 			portConfigs,
-			servicecmd.ConvertPortToPortConfig(port, portBindings)...)
+			opts.ConvertPortToPortConfig(port, portBindings)...)
 	}
 
 	return &swarm.EndpointSpec{Ports: portConfigs}, nil

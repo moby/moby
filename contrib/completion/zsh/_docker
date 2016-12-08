@@ -1795,7 +1795,7 @@ __docker_service_subcommand() {
                 "($help)*--env-file=[Read environment variables from a file]:environment file:_files" \
                 "($help)--mode=[Service Mode]:mode:(global replicated)" \
                 "($help)--name=[Service name]:name: " \
-                "($help)*--port=[Publish a port]:port: " \
+                "($help)*--publish=[Publish a port]:port: " \
                 "($help -): :__docker_complete_images" \
                 "($help -):command: _command_names -e" \
                 "($help -)*::arguments: _normal" && ret=0
@@ -1868,8 +1868,8 @@ __docker_service_subcommand() {
                 "($help)*--group-add=[Add additional supplementary user groups to the container]:group:_groups" \
                 "($help)*--group-rm=[Remove previously added supplementary user groups from the container]:group:_groups" \
                 "($help)--image=[Service image tag]:image:__docker_complete_repositories" \
-                "($help)*--port-add=[Add or update a port]:port: " \
-                "($help)*--port-rm=[Remove a port(target-port mandatory)]:port: " \
+                "($help)*--publish-add=[Add or update a port]:port: " \
+                "($help)*--publish-rm=[Remove a port(target-port mandatory)]:port: " \
                 "($help)--rollback[Rollback to previous specification]" \
                 "($help -)1:service:__docker_complete_services" && ret=0
             ;;

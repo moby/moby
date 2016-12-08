@@ -2756,7 +2756,7 @@ _docker_service_update() {
 			--host
 			--mode
 			--name
-			--port
+			--publish
 			--secret
 		"
 
@@ -2803,8 +2803,8 @@ _docker_service_update() {
 			--host-add
 			--host-rm
 			--image
-			--port-add
-			--port-rm
+			--publish-add
+			--publish-rm
 			--secret-add
 			--secret-rm
 		"

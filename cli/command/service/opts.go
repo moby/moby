@@ -287,43 +287,15 @@ func convertNetworks(networks []string) []swarm.NetworkAttachmentConfig {
 }
 
 type endpointOptions struct {
-	mode          string
-	publishPorts  opts.ListOpts
-	expandedPorts opts.PortOpt
+	mode         string
+	publishPorts opts.PortOpt
 }
 
 func (e *endpointOptions) ToEndpointSpec() *swarm.EndpointSpec {
-	portConfigs := []swarm.PortConfig{}
-	// We can ignore errors because the format was already validated by ValidatePort
-	ports, portBindings, _ := nat.ParsePortSpecs(e.publishPorts.GetAll())
-
-	for port := range ports {
-		portConfigs = append(portConfigs, ConvertPortToPortConfig(port, portBindings)...)
-	}
-
 	return &swarm.EndpointSpec{
 		Mode:  swarm.ResolutionMode(strings.ToLower(e.mode)),
-		Ports: append(portConfigs, e.expandedPorts.Value()...),
+		Ports: e.publishPorts.Value(),
 	}
-}
-
-// ConvertPortToPortConfig converts ports to the swarm type
-func ConvertPortToPortConfig(
-	port nat.Port,
-	portBindings map[nat.Port][]nat.PortBinding,
-) []swarm.PortConfig {
-	ports := []swarm.PortConfig{}
-
-	for _, binding := range portBindings[port] {
-		hostPort, _ := strconv.ParseUint(binding.HostPort, 10, 16)
-		ports = append(ports, swarm.PortConfig{
-			//TODO Name: ?
-			Protocol:      swarm.PortConfigProtocol(strings.ToLower(port.Proto())),
-			TargetPort:    uint32(port.Int()),
-			PublishedPort: uint32(hostPort),
-		})
-	}
-	return ports
 }
 
 type logDriverOptions struct {
@@ -459,16 +431,13 @@ func newServiceOptions() *serviceOptions {
 		containerLabels: opts.NewListOpts(runconfigopts.ValidateEnv),
 		env:             opts.NewListOpts(runconfigopts.ValidateEnv),
 		envFile:         opts.NewListOpts(nil),
-		endpoint: endpointOptions{
-			publishPorts: opts.NewListOpts(ValidatePort),
-		},
-		groups:    opts.NewListOpts(nil),
-		logDriver: newLogDriverOptions(),
-		dns:       opts.NewListOpts(opts.ValidateIPAddress),
-		dnsOption: opts.NewListOpts(nil),
-		dnsSearch: opts.NewListOpts(opts.ValidateDNSSearch),
-		hosts:     opts.NewListOpts(runconfigopts.ValidateExtraHost),
-		networks:  opts.NewListOpts(nil),
+		groups:          opts.NewListOpts(nil),
+		logDriver:       newLogDriverOptions(),
+		dns:             opts.NewListOpts(opts.ValidateIPAddress),
+		dnsOption:       opts.NewListOpts(nil),
+		dnsSearch:       opts.NewListOpts(opts.ValidateDNSSearch),
+		hosts:           opts.NewListOpts(runconfigopts.ValidateExtraHost),
+		networks:        opts.NewListOpts(nil),
 	}
 }
 
@@ -649,9 +618,6 @@ const (
 	flagPublish               = "publish"
 	flagPublishRemove         = "publish-rm"
 	flagPublishAdd            = "publish-add"
-	flagPort                  = "port"
-	flagPortAdd               = "port-add"
-	flagPortRemove            = "port-rm"
 	flagReplicas              = "replicas"
 	flagReserveCPU            = "reserve-cpu"
 	flagReserveMemory         = "reserve-memory"

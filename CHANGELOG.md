@@ -72,7 +72,7 @@ To manually remove all plugins and resolve this problem, take the following step
 ### Networking
 
 + Add `--attachable` network support to enable `docker run` to work in swarm-mode overlay network [#25962](https://github.com/docker/docker/pull/25962)
-+ Add support for host port PublishMode in services using the `--port` option in `docker service create` [#27917](https://github.com/docker/docker/pull/27917)
++ Add support for host port PublishMode in services using the `--publish` option in `docker service create` [#27917](https://github.com/docker/docker/pull/27917) and [#28943](https://github.com/docker/docker/pull/28943)
 + Add support for Windows server 2016 overlay network driver (requires upcoming ws2016 update) [#28182](https://github.com/docker/docker/pull/28182)
 * Change the default `FORWARD` policy to `DROP` [#28257](https://github.com/docker/docker/pull/28257)
 + Add support for specifying static IP addresses for predefined network on windows [#22208](https://github.com/docker/docker/pull/22208)
