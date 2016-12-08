@@ -63,7 +63,9 @@ you can download them from:
 ### Usage
 
 You need to specify the credentials store in `$HOME/.docker/config.json`
-to tell the docker engine to use it:
+to tell the docker engine to use it. The value of the config property should be
+the suffix of the program to use (i.e. everything after `docker-credential-`).
+For example, to use `docker-credential-osxkeychain`:
 
 ```json
 {
@@ -120,3 +122,31 @@ an example of that payload: `https://index.docker.io/v1`.
 
 The `erase` command can write error messages to `STDOUT` that the docker engine
 will show if there was an issue.
+
+## Credential helpers
+
+Credential helpers are similar to the credential store above, but act as the
+designated programs to handle credentials for *specific registries*. The default
+credential store (`credsStore` or the config file itself) will not be used for
+operations concerning credentials of the specified registries.
+
+### Usage
+
+If you are currently logged in, run `docker logout` to remove
+the credentials from the default store.
+
+Credential helpers are specified in a similar way to `credsStore`, but
+allow for multiple helpers to be configured at a time. Keys specify the
+registry domain, and values specify the suffix of the program to use
+(i.e. everything after `docker-credential-`).
+For example:
+
+```json
+{
+  "credHelpers": {
+    "registry.example.com": "registryhelper",
+    "awesomereg.example.org": "hip-star",
+    "unicorn.example.io": "vcbait"
+  }
+}
+```
