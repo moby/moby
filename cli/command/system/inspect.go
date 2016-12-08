@@ -2,7 +2,6 @@ package system
 
 import (
 	"fmt"
-	"strings"
 
 	"golang.org/x/net/context"
 
@@ -103,38 +102,94 @@ func inspectPlugin(ctx context.Context, dockerCli *command.DockerCli) inspect.Ge
 
 func inspectAll(ctx context.Context, dockerCli *command.DockerCli, getSize bool, typeConstraint string) inspect.GetRefFunc {
 	var inspectAutodetect = []struct {
-		ObjectType      string
-		IsSizeSupported bool
-		ObjectInspector func(string) (interface{}, []byte, error)
+		objectType      string
+		isSizeSupported bool
+		isSwarmObject   bool
+		objectInspector func(string) (interface{}, []byte, error)
 	}{
-		{"container", true, inspectContainers(ctx, dockerCli, getSize)},
-		{"image", false, inspectImages(ctx, dockerCli)},
-		{"network", false, inspectNetwork(ctx, dockerCli)},
-		{"volume", false, inspectVolume(ctx, dockerCli)},
-		{"service", false, inspectService(ctx, dockerCli)},
-		{"task", false, inspectTasks(ctx, dockerCli)},
-		{"node", false, inspectNode(ctx, dockerCli)},
-		{"plugin", false, inspectPlugin(ctx, dockerCli)},
+		{
+			objectType:      "container",
+			isSizeSupported: true,
+			objectInspector: inspectContainers(ctx, dockerCli, getSize),
+		},
+		{
+			objectType:      "image",
+			objectInspector: inspectImages(ctx, dockerCli),
+		},
+		{
+			objectType:      "network",
+			objectInspector: inspectNetwork(ctx, dockerCli),
+		},
+		{
+			objectType:      "volume",
+			objectInspector: inspectVolume(ctx, dockerCli),
+		},
+		{
+			objectType:      "service",
+			isSwarmObject:   true,
+			objectInspector: inspectService(ctx, dockerCli),
+		},
+		{
+			objectType:      "task",
+			isSwarmObject:   true,
+			objectInspector: inspectTasks(ctx, dockerCli),
+		},
+		{
+			objectType:      "node",
+			isSwarmObject:   true,
+			objectInspector: inspectNode(ctx, dockerCli),
+		},
+		{
+			objectType:      "plugin",
+			objectInspector: inspectPlugin(ctx, dockerCli),
+		},
 	}
 
-	isErrNotSwarmManager := func(err error) bool {
-		return strings.Contains(err.Error(), "This node is not a swarm manager")
+	// isSwarmManager does an Info API call to verify that the daemon is
+	// a swarm manager.
+	isSwarmManager := func() bool {
+		info, err := dockerCli.Client().Info(ctx)
+		if err != nil {
+			fmt.Fprintln(dockerCli.Err(), err)
+			return false
+		}
+		return info.Swarm.ControlAvailable
 	}
 
 	return func(ref string) (interface{}, []byte, error) {
+		const (
+			swarmSupportUnknown = iota
+			swarmSupported
+			swarmUnsupported
+		)
+
+		isSwarmSupported := swarmSupportUnknown
+
 		for _, inspectData := range inspectAutodetect {
-			if typeConstraint != "" && inspectData.ObjectType != typeConstraint {
+			if typeConstraint != "" && inspectData.objectType != typeConstraint {
 				continue
 			}
-			v, raw, err := inspectData.ObjectInspector(ref)
+			if typeConstraint == "" && inspectData.isSwarmObject {
+				if isSwarmSupported == swarmSupportUnknown {
+					if isSwarmManager() {
+						isSwarmSupported = swarmSupported
+					} else {
+						isSwarmSupported = swarmUnsupported
+					}
+				}
+				if isSwarmSupported == swarmUnsupported {
+					continue
+				}
+			}
+			v, raw, err := inspectData.objectInspector(ref)
 			if err != nil {
-				if typeConstraint == "" && (apiclient.IsErrNotFound(err) || isErrNotSwarmManager(err)) {
+				if typeConstraint == "" && apiclient.IsErrNotFound(err) {
 					continue
 				}
 				return v, raw, err
 			}
-			if getSize && !inspectData.IsSizeSupported {
-				fmt.Fprintf(dockerCli.Err(), "WARNING: --size ignored for %s\n", inspectData.ObjectType)
+			if getSize && !inspectData.isSizeSupported {
+				fmt.Fprintf(dockerCli.Err(), "WARNING: --size ignored for %s\n", inspectData.objectType)
 			}
 			return v, raw, err
 		}
