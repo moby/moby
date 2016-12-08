@@ -46,9 +46,9 @@ var (
 )
 
 type target struct {
-	reference registry.Reference
-	digest    digest.Digest
-	size      int64
+	name   string
+	digest digest.Digest
+	size   int64
 }
 
 // trustedPush handles content trust pushing of an image
@@ -81,7 +81,7 @@ func trustedPush(ctx context.Context, cli *command.DockerCli, repoInfo *registry
 				target = nil
 				return
 			}
-			target.Name = registry.ParseReference(pushResult.Tag).String()
+			target.Name = pushResult.Tag
 			target.Hashes = data.Hashes{string(pushResult.Digest.Algorithm()): h}
 			target.Length = int64(pushResult.Size)
 		}
@@ -93,11 +93,9 @@ func trustedPush(ctx context.Context, cli *command.DockerCli, repoInfo *registry
 		return errors.New("cannot push a digest reference")
 	case reference.NamedTagged:
 		tag = x.Tag()
-	}
-
-	// We want trust signatures to always take an explicit tag,
-	// otherwise it will act as an untrusted push.
-	if tag == "" {
+	default:
+		// We want trust signatures to always take an explicit tag,
+		// otherwise it will act as an untrusted push.
 		if err = jsonmessage.DisplayJSONMessagesToStream(responseBody, cli.Out(), nil); err != nil {
 			return err
 		}
@@ -234,7 +232,7 @@ func imagePushPrivileged(ctx context.Context, cli *command.DockerCli, authConfig
 }
 
 // trustedPull handles content trust pulling of an image
-func trustedPull(ctx context.Context, cli *command.DockerCli, repoInfo *registry.RepositoryInfo, ref registry.Reference, authConfig types.AuthConfig, requestPrivilege types.RequestPrivilegeFunc) error {
+func trustedPull(ctx context.Context, cli *command.DockerCli, repoInfo *registry.RepositoryInfo, ref reference.Named, authConfig types.AuthConfig, requestPrivilege types.RequestPrivilegeFunc) error {
 	var refs []target
 
 	notaryRepo, err := GetNotaryRepository(cli, repoInfo, authConfig, "pull")
@@ -243,7 +241,7 @@ func trustedPull(ctx context.Context, cli *command.DockerCli, repoInfo *registry
 		return err
 	}
 
-	if ref.String() == "" {
+	if tagged, isTagged := ref.(reference.NamedTagged); !isTagged {
 		// List all targets
 		targets, err := notaryRepo.ListTargets(releasesRole, data.CanonicalTargetsRole)
 		if err != nil {
@@ -266,14 +264,14 @@ func trustedPull(ctx context.Context, cli *command.DockerCli, repoInfo *registry
 			return notaryError(repoInfo.FullName(), fmt.Errorf("No trusted tags for %s", repoInfo.FullName()))
 		}
 	} else {
-		t, err := notaryRepo.GetTargetByName(ref.String(), releasesRole, data.CanonicalTargetsRole)
+		t, err := notaryRepo.GetTargetByName(tagged.Tag(), releasesRole, data.CanonicalTargetsRole)
 		if err != nil {
 			return notaryError(repoInfo.FullName(), err)
 		}
 		// Only get the tag if it's in the top level targets role or the releases delegation role
 		// ignore it if it's in any other delegation roles
 		if t.Role != releasesRole && t.Role != data.CanonicalTargetsRole {
-			return notaryError(repoInfo.FullName(), fmt.Errorf("No trust data for %s", ref.String()))
+			return notaryError(repoInfo.FullName(), fmt.Errorf("No trust data for %s", tagged.Tag()))
 		}
 
 		logrus.Debugf("retrieving target for %s role\n", t.Role)
@@ -286,7 +284,7 @@ func trustedPull(ctx context.Context, cli *command.DockerCli, repoInfo *registry
 	}
 
 	for i, r := range refs {
-		displayTag := r.reference.String()
+		displayTag := r.name
 		if displayTag != "" {
 			displayTag = ":" + displayTag
 		}
@@ -300,19 +298,16 @@ func trustedPull(ctx context.Context, cli *command.DockerCli, repoInfo *registry
 			return err
 		}
 
-		// If reference is not trusted, tag by trusted reference
-		if !r.reference.HasDigest() {
-			tagged, err := reference.WithTag(repoInfo, r.reference.String())
-			if err != nil {
-				return err
-			}
-			trustedRef, err := reference.WithDigest(reference.TrimNamed(repoInfo), r.digest)
-			if err != nil {
-				return err
-			}
-			if err := TagTrusted(ctx, cli, trustedRef, tagged); err != nil {
-				return err
-			}
+		tagged, err := reference.WithTag(repoInfo, r.name)
+		if err != nil {
+			return err
+		}
+		trustedRef, err := reference.WithDigest(reference.TrimNamed(repoInfo), r.digest)
+		if err != nil {
+			return err
+		}
+		if err := TagTrusted(ctx, cli, trustedRef, tagged); err != nil {
+			return err
 		}
 	}
 	return nil
@@ -533,9 +528,9 @@ func convertTarget(t client.Target) (target, error) {
 		return target{}, errors.New("no valid hash, expecting sha256")
 	}
 	return target{
-		reference: registry.ParseReference(t.Name),
-		digest:    digest.NewDigestFromHex("sha256", hex.EncodeToString(h)),
-		size:      t.Length,
+		name:   t.Name,
+		digest: digest.NewDigestFromHex("sha256", hex.EncodeToString(h)),
+		size:   t.Length,
 	}, nil
 }
 
