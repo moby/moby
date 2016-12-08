@@ -275,4 +275,7 @@ func (s *DockerSuite) TestRestartAutoRemoveContainer(c *check.C) {
 
 	out, _ = dockerCmd(c, "ps")
 	c.Assert(out, checker.Contains, id[:12], check.Commentf("container should be restarted instead of removed: %v", out))
+
+	// Kill the container to make sure it will be removed
+	dockerCmd(c, "kill", id)
 }
