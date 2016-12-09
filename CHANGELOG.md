@@ -7,21 +7,21 @@ be found.
 
 ## 1.13.0 (2016-12-08)
 
-**IMPORTANT**: In Docker 1.13 managed plugin api changed from the experimental
-version introduced in Docker 1.12. Plugins installed with Docker 1.12 should
-therefore be **uninstalled** _before_ upgrading to Docker 1.13. You can
-uninstall plugins using the `docker plugin rm` command.
+**IMPORTANT**: In Docker 1.13, the managed plugin api changed, as compared to the experimental
+version introduced in Docker 1.12. You must **uninstall** plugins which you installed with Docker 1.12
+_before_ upgrading to Docker 1.13. You can uninstall plugins using the `docker plugin rm` command.
 
-If you have already upgraded to Docker 1.13 without uninstalling plugins, and
-get this error message during docker daemon startup;
+If you have already upgraded to Docker 1.13 without uninstalling
+previously-installed plugins, you may see this message when the Docker daemon
+starts:
 
     Error starting daemon: json: cannot unmarshal string into Go value of type types.PluginEnv
 
-Take the following steps to manually remove all plugins;
+To manually remove all plugins and resolve this problem, take the following steps:
 
-- Remove plugins.json from: `/var/lib/docker/plugins/`
-- Restart Docker
-- Reinstall your plugins
+1. Remove plugins.json from: `/var/lib/docker/plugins/`.
+2. Restart Docker. Verify that the Docker daemon starts with no errors.
+3. Reinstall your plugins.
 
 ### Builder
 + Add capability to specify images used as a cache source on build. These images do not need to have local parent chain and can be pulled from other registries [#26839](https://github.com/docker/docker/pull/26839)
@@ -599,7 +599,7 @@ installing docker, please make sure to update them accordingly.
 
 
 ### DEPRECATION
-* Environment variables `DOCKER_CONTENT_TRUST_OFFLINE_PASSPHRASE` and `DOCKER_CONTENT_TRUST_TAGGING_PASSPHRASE` have been renamed  
+* Environment variables `DOCKER_CONTENT_TRUST_OFFLINE_PASSPHRASE` and `DOCKER_CONTENT_TRUST_TAGGING_PASSPHRASE` have been renamed
   to `DOCKER_CONTENT_TRUST_ROOT_PASSPHRASE` and `DOCKER_CONTENT_TRUST_REPOSITORY_PASSPHRASE` respectively [#22574](https://github.com/docker/docker/pull/22574)
 * Remove deprecated `syslog-tag`, `gelf-tag`, `fluentd-tag` log option in favor of the more generic `tag` one [#22620](https://github.com/docker/docker/pull/22620)
 * Remove deprecated feature of passing HostConfig at API container start [#22570](https://github.com/docker/docker/pull/22570)
@@ -770,7 +770,7 @@ installing docker, please make sure to update them accordingly.
 - Fix a panic that could occur when cleanup after a container started with invalid parameters ([#21716](https://github.com/docker/docker/pull/21716))
 - Fix a race with event timers stopping early ([#21692](https://github.com/docker/docker/pull/21692))
 - Fix race conditions in the layer store, potentially corrupting the map and crashing the process ([#21677](https://github.com/docker/docker/pull/21677))
-- Un-deprecate auto-creation of host directories for mounts. This feature was marked deprecated in ([#21666](https://github.com/docker/docker/pull/21666))  
+- Un-deprecate auto-creation of host directories for mounts. This feature was marked deprecated in ([#21666](https://github.com/docker/docker/pull/21666))
   Docker 1.9, but was decided to be too much of a backward-incompatible change, so it was decided to keep the feature.
 + It is now possible for containers to share the NET and IPC namespaces when `userns` is enabled ([#21383](https://github.com/docker/docker/pull/21383))
 + `docker inspect <image-id>` will now expose the rootfs layers ([#21370](https://github.com/docker/docker/pull/21370))
