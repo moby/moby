@@ -1555,3 +1555,32 @@ func (s *DockerSwarmSuite) TestSwarmNetworkCreateDup(c *check.C) {
 		}
 	}
 }
+
+func (s *DockerSwarmSuite) TestSwarmPublishPortsWithRestart(c *check.C) {
+	d := s.AddDaemon(c, true, true)
+
+	out, err := d.Cmd("service", "create", "--name", "top1", "-p", "80", "busybox", "top")
+	c.Assert(err, checker.IsNil, check.Commentf("out: %v", out))
+
+	// Likely to be 30000 (`{ tcp 80 30000 ingress}`) but doesn't matter
+	out, err = d.Cmd("service", "inspect", "--format", "{{index .Endpoint.Ports 0}}", "top1")
+	c.Assert(err, checker.IsNil, check.Commentf("out: %v", out))
+	port1 := strings.TrimSpace(out)
+
+	d.Restart(c)
+
+	// Likely to be 30000 (`{ tcp 80 30000 ingress}`) but doesn't matter
+	out, err = d.Cmd("service", "inspect", "--format", "{{index .Endpoint.Ports 0}}", "top1")
+	c.Assert(err, checker.IsNil, check.Commentf("out: %v", out))
+	port1 = strings.TrimSpace(out)
+
+	out, err = d.Cmd("service", "create", "--name", "top2", "-p", "80", "busybox", "top")
+	c.Assert(err, checker.IsNil, check.Commentf("out: %v", out))
+
+	// Likely to be 30001 (`{ tcp 80 30001 ingress}`)
+	// but as long as PublishedPort for top1 and top2 are different it doesn't matter
+	out, err = d.Cmd("service", "inspect", "--format", "{{ index .Endpoint.Ports 0}}", "top2")
+	c.Assert(err, checker.IsNil, check.Commentf("out: %v", out))
+	port2 := strings.TrimSpace(out)
+	c.Assert(port1, checker.Not(checker.Equals), port2, check.Commentf("top1: %v, top2: %v", port1, port2))
+}
