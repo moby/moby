@@ -145,7 +145,7 @@ func (s *DockerDaemonSuite) TestDaemonShutdownLiveRestoreWithPlugins(c *check.C)
 
 // TestDaemonShutdownWithPlugins shuts down running plugins.
 func (s *DockerDaemonSuite) TestDaemonShutdownWithPlugins(c *check.C) {
-	testRequires(c, IsAmd64, Network)
+	testRequires(c, IsAmd64, Network, SameHostDaemon)
 
 	if err := s.d.Start(); err != nil {
 		c.Fatalf("Could not start daemon: %v", err)
@@ -180,6 +180,11 @@ func (s *DockerDaemonSuite) TestDaemonShutdownWithPlugins(c *check.C) {
 	if out, ec, err := runCommandWithOutput(cmd); ec != 1 {
 		c.Fatalf("Expected exit code '1', got %d err: %v output: %s ", ec, err, out)
 	}
+
+	s.d.Start("--live-restore")
+	cmd = exec.Command("pgrep", "-f", pluginProcessName)
+	out, _, err := runCommandWithOutput(cmd)
+	c.Assert(err, checker.IsNil, check.Commentf(out))
 }
 
 // TestVolumePlugin tests volume creation using a plugin.
