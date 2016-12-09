@@ -278,12 +278,12 @@ func (p *Plugin) GetRefCount() int {
 	return p.refCount
 }
 
-// SetRefCount sets the reference count.
-func (p *Plugin) SetRefCount(count int) {
+// AddRefCount adds to reference count.
+func (p *Plugin) AddRefCount(count int) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	p.refCount = count
+	p.refCount += count
 }
 
 // InitSpec creates an OCI spec from the plugin's config.
