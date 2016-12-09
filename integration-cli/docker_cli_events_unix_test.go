@@ -422,7 +422,7 @@ func (s *DockerDaemonSuite) TestDaemonEvents(c *check.C) {
 	fmt.Fprintf(configFile, "%s", daemonConfig)
 	configFile.Close()
 
-	syscall.Kill(s.d.cmd.Process.Pid, syscall.SIGHUP)
+	c.Assert(s.d.Signal(syscall.SIGHUP), checker.IsNil)
 
 	time.Sleep(3 * time.Second)
 
@@ -460,7 +460,7 @@ func (s *DockerDaemonSuite) TestDaemonEventsWithFilters(c *check.C) {
 	}
 	c.Assert(daemonID, checker.Not(checker.Equals), "")
 
-	syscall.Kill(s.d.cmd.Process.Pid, syscall.SIGHUP)
+	c.Assert(s.d.Signal(syscall.SIGHUP), checker.IsNil)
 
 	time.Sleep(3 * time.Second)
 

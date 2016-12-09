@@ -12,6 +12,7 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
+	"github.com/docker/docker/pkg/integration"
 	"github.com/docker/docker/pkg/integration/checker"
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/go-check/check"
@@ -79,7 +80,7 @@ func (s *DockerSuite) TestPostContainersAttachContainerNotFound(c *check.C) {
 	// connection will shutdown, err should be "persistent connection closed"
 	c.Assert(err, checker.NotNil) // Server shutdown connection
 
-	body, err := readBody(resp.Body)
+	body, err := integration.ReadBody(resp.Body)
 	c.Assert(err, checker.IsNil)
 	c.Assert(resp.StatusCode, checker.Equals, http.StatusNotFound)
 	expected := "No such container: doesnotexist\r\n"

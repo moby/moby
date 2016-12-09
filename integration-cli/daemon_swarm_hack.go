@@ -1,8 +1,11 @@
 package main
 
-import "github.com/go-check/check"
+import (
+	"github.com/docker/docker/integration-cli/daemon"
+	"github.com/go-check/check"
+)
 
-func (s *DockerSwarmSuite) getDaemon(c *check.C, nodeID string) *SwarmDaemon {
+func (s *DockerSwarmSuite) getDaemon(c *check.C, nodeID string) *daemon.Swarm {
 	s.daemonsLock.Lock()
 	defer s.daemonsLock.Unlock()
 	for _, d := range s.daemons {

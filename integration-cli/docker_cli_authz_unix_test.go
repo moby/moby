@@ -22,6 +22,7 @@ import (
 	"net/http/httputil"
 	"net/url"
 
+	"github.com/docker/docker/integration-cli/daemon"
 	"github.com/docker/docker/pkg/authorization"
 	"github.com/docker/docker/pkg/integration/checker"
 	"github.com/docker/docker/pkg/plugins"
@@ -48,7 +49,7 @@ func init() {
 type DockerAuthzSuite struct {
 	server *httptest.Server
 	ds     *DockerSuite
-	d      *Daemon
+	d      *daemon.Daemon
 	ctrl   *authorizationController
 }
 
@@ -63,7 +64,9 @@ type authorizationController struct {
 }
 
 func (s *DockerAuthzSuite) SetUpTest(c *check.C) {
-	s.d = NewDaemon(c)
+	s.d = daemon.New(c, dockerBinary, dockerdBinary, daemon.Config{
+		Experimental: experimentalDaemon,
+	})
 	s.ctrl = &authorizationController{}
 }
 
@@ -285,7 +288,7 @@ func (s *DockerAuthzSuite) TestAuthZPluginAPIDenyResponse(c *check.C) {
 	s.ctrl.reqRes.Allow = false
 	s.ctrl.resRes.Msg = unauthorizedMessage
 
-	daemonURL, err := url.Parse(s.d.sock())
+	daemonURL, err := url.Parse(s.d.Sock())
 
 	conn, err := net.DialTimeout(daemonURL.Scheme, daemonURL.Path, time.Second*10)
 	c.Assert(err, check.IsNil)
@@ -328,7 +331,7 @@ func (s *DockerAuthzSuite) TestAuthZPluginAllowEventStream(c *check.C) {
 
 	startTime := strconv.FormatInt(daemonTime(c).Unix(), 10)
 	// Add another command to to enable event pipelining
-	eventsCmd := exec.Command(dockerBinary, "--host", s.d.sock(), "events", "--since", startTime)
+	eventsCmd := exec.Command(dockerBinary, "--host", s.d.Sock(), "events", "--since", startTime)
 	stdout, err := eventsCmd.StdoutPipe()
 	if err != nil {
 		c.Assert(err, check.IsNil)
@@ -349,7 +352,7 @@ func (s *DockerAuthzSuite) TestAuthZPluginAllowEventStream(c *check.C) {
 	out, err := s.d.Cmd("run", "-d", "busybox", "top")
 	c.Assert(err, check.IsNil, check.Commentf(out))
 	containerID := strings.TrimSpace(out)
-	c.Assert(s.d.waitRun(containerID), checker.IsNil)
+	c.Assert(s.d.WaitRun(containerID), checker.IsNil)
 
 	events := map[string]chan bool{
 		"create": make(chan bool, 1),
@@ -451,7 +454,7 @@ func (s *DockerAuthzSuite) TestAuthZPluginHeader(c *check.C) {
 	s.ctrl.resRes.Allow = true
 	c.Assert(s.d.LoadBusybox(), check.IsNil)
 
-	daemonURL, err := url.Parse(s.d.sock())
+	daemonURL, err := url.Parse(s.d.Sock())
 
 	conn, err := net.DialTimeout(daemonURL.Scheme, daemonURL.Path, time.Second*10)
 	c.Assert(err, check.IsNil)

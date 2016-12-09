@@ -6,6 +6,7 @@ import (
 	"net"
 	"strings"
 
+	"github.com/docker/docker/integration-cli/daemon"
 	"github.com/docker/docker/pkg/integration/checker"
 	"github.com/go-check/check"
 )
@@ -70,7 +71,9 @@ func (s *DockerSuite) TestInfoFormat(c *check.C) {
 func (s *DockerSuite) TestInfoDiscoveryBackend(c *check.C) {
 	testRequires(c, SameHostDaemon, DaemonIsLinux)
 
-	d := NewDaemon(c)
+	d := daemon.New(c, dockerBinary, dockerdBinary, daemon.Config{
+		Experimental: experimentalDaemon,
+	})
 	discoveryBackend := "consul://consuladdr:consulport/some/path"
 	discoveryAdvertise := "1.1.1.1:2375"
 	err := d.Start(fmt.Sprintf("--cluster-store=%s", discoveryBackend), fmt.Sprintf("--cluster-advertise=%s", discoveryAdvertise))
@@ -88,7 +91,9 @@ func (s *DockerSuite) TestInfoDiscoveryBackend(c *check.C) {
 func (s *DockerSuite) TestInfoDiscoveryInvalidAdvertise(c *check.C) {
 	testRequires(c, SameHostDaemon, DaemonIsLinux)
 
-	d := NewDaemon(c)
+	d := daemon.New(c, dockerBinary, dockerdBinary, daemon.Config{
+		Experimental: experimentalDaemon,
+	})
 	discoveryBackend := "consul://consuladdr:consulport/some/path"
 
 	// --cluster-advertise with an invalid string is an error
@@ -105,7 +110,9 @@ func (s *DockerSuite) TestInfoDiscoveryInvalidAdvertise(c *check.C) {
 func (s *DockerSuite) TestInfoDiscoveryAdvertiseInterfaceName(c *check.C) {
 	testRequires(c, SameHostDaemon, Network, DaemonIsLinux)
 
-	d := NewDaemon(c)
+	d := daemon.New(c, dockerBinary, dockerdBinary, daemon.Config{
+		Experimental: experimentalDaemon,
+	})
 	discoveryBackend := "consul://consuladdr:consulport/some/path"
 	discoveryAdvertise := "eth0"
 
@@ -171,7 +178,9 @@ func (s *DockerSuite) TestInfoDisplaysStoppedContainers(c *check.C) {
 func (s *DockerSuite) TestInfoDebug(c *check.C) {
 	testRequires(c, SameHostDaemon, DaemonIsLinux)
 
-	d := NewDaemon(c)
+	d := daemon.New(c, dockerBinary, dockerdBinary, daemon.Config{
+		Experimental: experimentalDaemon,
+	})
 	err := d.Start("--debug")
 	c.Assert(err, checker.IsNil)
 	defer d.Stop()
@@ -193,7 +202,9 @@ func (s *DockerSuite) TestInsecureRegistries(c *check.C) {
 	registryCIDR := "192.168.1.0/24"
 	registryHost := "insecurehost.com:5000"
 
-	d := NewDaemon(c)
+	d := daemon.New(c, dockerBinary, dockerdBinary, daemon.Config{
+		Experimental: experimentalDaemon,
+	})
 	err := d.Start("--insecure-registry="+registryCIDR, "--insecure-registry="+registryHost)
 	c.Assert(err, checker.IsNil)
 	defer d.Stop()

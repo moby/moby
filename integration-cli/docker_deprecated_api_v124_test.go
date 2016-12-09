@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/docker/docker/pkg/integration"
 	"github.com/docker/docker/pkg/integration/checker"
 	"github.com/go-check/check"
 )
@@ -150,7 +151,7 @@ func (s *DockerSuite) TestDeprecatedStartWithTooLowMemoryLimit(c *check.C) {
 
 	res, body, err := sockRequestRaw("POST", formatV123StartAPIURL("/containers/"+containerID+"/start"), strings.NewReader(config), "application/json")
 	c.Assert(err, checker.IsNil)
-	b, err2 := readBody(body)
+	b, err2 := integration.ReadBody(body)
 	c.Assert(err2, checker.IsNil)
 	c.Assert(res.StatusCode, checker.Equals, http.StatusInternalServerError)
 	c.Assert(string(b), checker.Contains, "Minimum memory limit allowed is 4MB")

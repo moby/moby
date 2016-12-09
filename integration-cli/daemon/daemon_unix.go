@@ -1,6 +1,6 @@
 // +build !windows
 
-package main
+package daemon
 
 import (
 	"os"
@@ -26,7 +26,8 @@ func cleanupExecRoot(c *check.C, execRoot string) {
 	})
 }
 
-func signalDaemonDump(pid int) {
+// SignalDaemonDump sends a signal to the daemon to write a dump file
+func SignalDaemonDump(pid int) {
 	syscall.Kill(pid, syscall.SIGQUIT)
 }
 

@@ -1,4 +1,4 @@
-package main
+package daemon
 
 import (
 	"fmt"
@@ -32,7 +32,8 @@ func pulseEvent(handle syscall.Handle, proc *windows.LazyProc) (err error) {
 	return
 }
 
-func signalDaemonDump(pid int) {
+// SignalDaemonDump sends a signal to the daemon to write a dump file
+func SignalDaemonDump(pid int) {
 	modkernel32 := windows.NewLazySystemDLL("kernel32.dll")
 	procOpenEvent := modkernel32.NewProc("OpenEventW")
 	procPulseEvent := modkernel32.NewProc("PulseEvent")

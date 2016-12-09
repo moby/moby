@@ -723,7 +723,7 @@ func (s *DockerSuite) TestContainerAPIInvalidPortSyntax(c *check.C) {
 	c.Assert(err, checker.IsNil)
 	c.Assert(res.StatusCode, checker.Equals, http.StatusInternalServerError)
 
-	b, err := readBody(body)
+	b, err := integration.ReadBody(body)
 	c.Assert(err, checker.IsNil)
 	c.Assert(string(b[:]), checker.Contains, "invalid port")
 }
@@ -743,7 +743,7 @@ func (s *DockerSuite) TestContainerAPIRestartPolicyInvalidPolicyName(c *check.C)
 	c.Assert(err, checker.IsNil)
 	c.Assert(res.StatusCode, checker.Equals, http.StatusInternalServerError)
 
-	b, err := readBody(body)
+	b, err := integration.ReadBody(body)
 	c.Assert(err, checker.IsNil)
 	c.Assert(string(b[:]), checker.Contains, "invalid restart policy")
 }
@@ -763,7 +763,7 @@ func (s *DockerSuite) TestContainerAPIRestartPolicyRetryMismatch(c *check.C) {
 	c.Assert(err, checker.IsNil)
 	c.Assert(res.StatusCode, checker.Equals, http.StatusInternalServerError)
 
-	b, err := readBody(body)
+	b, err := integration.ReadBody(body)
 	c.Assert(err, checker.IsNil)
 	c.Assert(string(b[:]), checker.Contains, "maximum retry count cannot be used with restart policy")
 }
@@ -783,7 +783,7 @@ func (s *DockerSuite) TestContainerAPIRestartPolicyNegativeRetryCount(c *check.C
 	c.Assert(err, checker.IsNil)
 	c.Assert(res.StatusCode, checker.Equals, http.StatusInternalServerError)
 
-	b, err := readBody(body)
+	b, err := integration.ReadBody(body)
 	c.Assert(err, checker.IsNil)
 	c.Assert(string(b[:]), checker.Contains, "maximum retry count cannot be negative")
 }
@@ -834,7 +834,7 @@ func (s *DockerSuite) TestContainerAPIPostCreateNull(c *check.C) {
 	c.Assert(err, checker.IsNil)
 	c.Assert(res.StatusCode, checker.Equals, http.StatusCreated)
 
-	b, err := readBody(body)
+	b, err := integration.ReadBody(body)
 	c.Assert(err, checker.IsNil)
 	type createResp struct {
 		ID string
@@ -863,7 +863,7 @@ func (s *DockerSuite) TestCreateWithTooLowMemoryLimit(c *check.C) {
 
 	res, body, err := sockRequestRaw("POST", "/containers/create", strings.NewReader(config), "application/json")
 	c.Assert(err, checker.IsNil)
-	b, err2 := readBody(body)
+	b, err2 := integration.ReadBody(body)
 	c.Assert(err2, checker.IsNil)
 
 	c.Assert(res.StatusCode, checker.Equals, http.StatusInternalServerError)

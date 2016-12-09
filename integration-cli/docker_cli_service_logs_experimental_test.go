@@ -38,7 +38,7 @@ func (s *DockerSwarmSuite) TestServiceLogs(c *check.C) {
 
 	// make sure task has been deployed.
 	waitAndAssert(c, defaultReconciliationTimeout,
-		d.checkActiveContainerCount, checker.Equals, len(services))
+		d.CheckActiveContainerCount, checker.Equals, len(services))
 
 	for name, message := range services {
 		out, err := d.Cmd("service", "logs", name)
@@ -60,10 +60,10 @@ func (s *DockerSwarmSuite) TestServiceLogsFollow(c *check.C) {
 	c.Assert(strings.TrimSpace(out), checker.Not(checker.Equals), "")
 
 	// make sure task has been deployed.
-	waitAndAssert(c, defaultReconciliationTimeout, d.checkActiveContainerCount, checker.Equals, 1)
+	waitAndAssert(c, defaultReconciliationTimeout, d.CheckActiveContainerCount, checker.Equals, 1)
 
 	args := []string{"service", "logs", "-f", name}
-	cmd := exec.Command(dockerBinary, d.prependHostArg(args)...)
+	cmd := exec.Command(dockerBinary, d.PrependHostArg(args)...)
 	r, w := io.Pipe()
 	cmd.Stdout = w
 	cmd.Stderr = w
