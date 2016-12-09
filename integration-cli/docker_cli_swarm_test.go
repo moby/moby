@@ -797,6 +797,7 @@ func (s *DockerSwarmSuite) TestDNSConfigUpdate(c *check.C) {
 }
 
 func getNodeStatus(c *check.C, d *SwarmDaemon) swarm.LocalNodeState {
+	waitAndAssert(c, defaultReconciliationTimeout, d.checkLocalNodeState, checker.Not(checker.Equals), swarm.LocalNodeStatePending)
 	info, err := d.info()
 	c.Assert(err, checker.IsNil)
 	return info.LocalNodeState
