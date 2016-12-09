@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -224,4 +225,10 @@ func RunAtDifferentDate(date time.Time, block func()) {
 	icmd.RunCommand("date", date.Format(timeLayout))
 	block()
 	return
+}
+
+// ReadBody read the specified ReadCloser content and returns it
+func ReadBody(b io.ReadCloser) ([]byte, error) {
+	defer b.Close()
+	return ioutil.ReadAll(b)
 }

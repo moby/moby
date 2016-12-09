@@ -3,7 +3,6 @@ package main
 import (
 	"bufio"
 	"bytes"
-	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -24,13 +23,14 @@ import (
 
 	"github.com/docker/docker/api/types"
 	volumetypes "github.com/docker/docker/api/types/volume"
+	"github.com/docker/docker/integration-cli/daemon"
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/httputils"
+	"github.com/docker/docker/pkg/integration"
 	"github.com/docker/docker/pkg/integration/checker"
 	icmd "github.com/docker/docker/pkg/integration/cmd"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/stringutils"
-	"github.com/docker/go-connections/tlsconfig"
 	"github.com/docker/go-units"
 	"github.com/go-check/check"
 )
@@ -107,55 +107,12 @@ func daemonHost() string {
 	return daemonURLStr
 }
 
-func getTLSConfig() (*tls.Config, error) {
-	dockerCertPath := os.Getenv("DOCKER_CERT_PATH")
-
-	if dockerCertPath == "" {
-		return nil, fmt.Errorf("DOCKER_TLS_VERIFY specified, but no DOCKER_CERT_PATH environment variable")
+// FIXME(vdemeester) should probably completely move to daemon struct/methods
+func sockConn(timeout time.Duration, daemonStr string) (net.Conn, error) {
+	if daemonStr == "" {
+		daemonStr = daemonHost()
 	}
-
-	option := &tlsconfig.Options{
-		CAFile:   filepath.Join(dockerCertPath, "ca.pem"),
-		CertFile: filepath.Join(dockerCertPath, "cert.pem"),
-		KeyFile:  filepath.Join(dockerCertPath, "key.pem"),
-	}
-	tlsConfig, err := tlsconfig.Client(*option)
-	if err != nil {
-		return nil, err
-	}
-
-	return tlsConfig, nil
-}
-
-func sockConn(timeout time.Duration, daemon string) (net.Conn, error) {
-	if daemon == "" {
-		daemon = daemonHost()
-	}
-	daemonURL, err := url.Parse(daemon)
-	if err != nil {
-		return nil, fmt.Errorf("could not parse url %q: %v", daemon, err)
-	}
-
-	var c net.Conn
-	switch daemonURL.Scheme {
-	case "npipe":
-		return npipeDial(daemonURL.Path, timeout)
-	case "unix":
-		return net.DialTimeout(daemonURL.Scheme, daemonURL.Path, timeout)
-	case "tcp":
-		if os.Getenv("DOCKER_TLS_VERIFY") != "" {
-			// Setup the socket TLS configuration.
-			tlsConfig, err := getTLSConfig()
-			if err != nil {
-				return nil, err
-			}
-			dialer := &net.Dialer{Timeout: timeout}
-			return tls.DialWithDialer(dialer, daemonURL.Scheme, daemonURL.Host, tlsConfig)
-		}
-		return net.DialTimeout(daemonURL.Scheme, daemonURL.Host, timeout)
-	default:
-		return c, fmt.Errorf("unknown scheme %v (%s)", daemonURL.Scheme, daemon)
-	}
+	return daemon.SockConn(timeout, daemonStr)
 }
 
 func sockRequest(method, endpoint string, data interface{}) (int, []byte, error) {
@@ -168,7 +125,7 @@ func sockRequest(method, endpoint string, data interface{}) (int, []byte, error)
 	if err != nil {
 		return -1, nil, err
 	}
-	b, err := readBody(body)
+	b, err := integration.ReadBody(body)
 	return res.StatusCode, b, err
 }
 
@@ -224,11 +181,6 @@ func newRequestClient(method, endpoint string, data io.Reader, ct, daemon string
 		req.Header.Set("Content-Type", ct)
 	}
 	return req, client, nil
-}
-
-func readBody(b io.ReadCloser) ([]byte, error) {
-	defer b.Close()
-	return ioutil.ReadAll(b)
 }
 
 func deleteContainer(container ...string) error {
@@ -950,23 +902,7 @@ func getContainerState(c *check.C, id string) (int, bool, error) {
 }
 
 func buildImageCmd(name, dockerfile string, useCache bool, buildFlags ...string) *exec.Cmd {
-	return buildImageCmdWithHost(name, dockerfile, "", useCache, buildFlags...)
-}
-
-func buildImageCmdWithHost(name, dockerfile, host string, useCache bool, buildFlags ...string) *exec.Cmd {
-	args := []string{}
-	if host != "" {
-		args = append(args, "--host", host)
-	}
-	args = append(args, "build", "-t", name)
-	if !useCache {
-		args = append(args, "--no-cache")
-	}
-	args = append(args, buildFlags...)
-	args = append(args, "-")
-	buildCmd := exec.Command(dockerBinary, args...)
-	buildCmd.Stdin = strings.NewReader(dockerfile)
-	return buildCmd
+	return daemon.BuildImageCmdWithHost(dockerBinary, name, dockerfile, "", useCache, buildFlags...)
 }
 
 func buildImageWithOut(name, dockerfile string, useCache bool, buildFlags ...string) (string, string, error) {
@@ -1401,39 +1337,7 @@ func waitInspect(name, expr, expected string, timeout time.Duration) error {
 }
 
 func waitInspectWithArgs(name, expr, expected string, timeout time.Duration, arg ...string) error {
-	after := time.After(timeout)
-
-	args := append(arg, "inspect", "-f", expr, name)
-	for {
-		result := icmd.RunCommand(dockerBinary, args...)
-		if result.Error != nil {
-			if !strings.Contains(result.Stderr(), "No such") {
-				return fmt.Errorf("error executing docker inspect: %v\n%s",
-					result.Stderr(), result.Stdout())
-			}
-			select {
-			case <-after:
-				return result.Error
-			default:
-				time.Sleep(10 * time.Millisecond)
-				continue
-			}
-		}
-
-		out := strings.TrimSpace(result.Stdout())
-		if out == expected {
-			break
-		}
-
-		select {
-		case <-after:
-			return fmt.Errorf("condition \"%q == %q\" not true in time", out, expected)
-		default:
-		}
-
-		time.Sleep(100 * time.Millisecond)
-	}
-	return nil
+	return daemon.WaitInspectWithArgs(dockerBinary, name, expr, expected, timeout, arg...)
 }
 
 func getInspectBody(c *check.C, version, id string) []byte {

@@ -11,6 +11,7 @@ import (
 
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/cliconfig"
+	"github.com/docker/docker/integration-cli/daemon"
 	"github.com/docker/docker/pkg/reexec"
 	"github.com/go-check/check"
 )
@@ -39,7 +40,7 @@ type DockerSuite struct {
 
 func (s *DockerSuite) OnTimeout(c *check.C) {
 	if daemonPid > 0 && isLocalDaemon {
-		signalDaemonDump(daemonPid)
+		daemon.SignalDaemonDump(daemonPid)
 	}
 }
 
@@ -63,7 +64,7 @@ func init() {
 type DockerRegistrySuite struct {
 	ds  *DockerSuite
 	reg *testRegistryV2
-	d   *Daemon
+	d   *daemon.Daemon
 }
 
 func (s *DockerRegistrySuite) OnTimeout(c *check.C) {
@@ -73,7 +74,9 @@ func (s *DockerRegistrySuite) OnTimeout(c *check.C) {
 func (s *DockerRegistrySuite) SetUpTest(c *check.C) {
 	testRequires(c, DaemonIsLinux, RegistryHosting)
 	s.reg = setupRegistry(c, false, "", "")
-	s.d = NewDaemon(c)
+	s.d = daemon.New(c, dockerBinary, dockerdBinary, daemon.Config{
+		Experimental: experimentalDaemon,
+	})
 }
 
 func (s *DockerRegistrySuite) TearDownTest(c *check.C) {
@@ -95,7 +98,7 @@ func init() {
 type DockerSchema1RegistrySuite struct {
 	ds  *DockerSuite
 	reg *testRegistryV2
-	d   *Daemon
+	d   *daemon.Daemon
 }
 
 func (s *DockerSchema1RegistrySuite) OnTimeout(c *check.C) {
@@ -105,7 +108,9 @@ func (s *DockerSchema1RegistrySuite) OnTimeout(c *check.C) {
 func (s *DockerSchema1RegistrySuite) SetUpTest(c *check.C) {
 	testRequires(c, DaemonIsLinux, RegistryHosting, NotArm64)
 	s.reg = setupRegistry(c, true, "", "")
-	s.d = NewDaemon(c)
+	s.d = daemon.New(c, dockerBinary, dockerdBinary, daemon.Config{
+		Experimental: experimentalDaemon,
+	})
 }
 
 func (s *DockerSchema1RegistrySuite) TearDownTest(c *check.C) {
@@ -127,7 +132,7 @@ func init() {
 type DockerRegistryAuthHtpasswdSuite struct {
 	ds  *DockerSuite
 	reg *testRegistryV2
-	d   *Daemon
+	d   *daemon.Daemon
 }
 
 func (s *DockerRegistryAuthHtpasswdSuite) OnTimeout(c *check.C) {
@@ -137,7 +142,9 @@ func (s *DockerRegistryAuthHtpasswdSuite) OnTimeout(c *check.C) {
 func (s *DockerRegistryAuthHtpasswdSuite) SetUpTest(c *check.C) {
 	testRequires(c, DaemonIsLinux, RegistryHosting)
 	s.reg = setupRegistry(c, false, "htpasswd", "")
-	s.d = NewDaemon(c)
+	s.d = daemon.New(c, dockerBinary, dockerdBinary, daemon.Config{
+		Experimental: experimentalDaemon,
+	})
 }
 
 func (s *DockerRegistryAuthHtpasswdSuite) TearDownTest(c *check.C) {
@@ -161,7 +168,7 @@ func init() {
 type DockerRegistryAuthTokenSuite struct {
 	ds  *DockerSuite
 	reg *testRegistryV2
-	d   *Daemon
+	d   *daemon.Daemon
 }
 
 func (s *DockerRegistryAuthTokenSuite) OnTimeout(c *check.C) {
@@ -170,7 +177,9 @@ func (s *DockerRegistryAuthTokenSuite) OnTimeout(c *check.C) {
 
 func (s *DockerRegistryAuthTokenSuite) SetUpTest(c *check.C) {
 	testRequires(c, DaemonIsLinux, RegistryHosting)
-	s.d = NewDaemon(c)
+	s.d = daemon.New(c, dockerBinary, dockerdBinary, daemon.Config{
+		Experimental: experimentalDaemon,
+	})
 }
 
 func (s *DockerRegistryAuthTokenSuite) TearDownTest(c *check.C) {
@@ -200,7 +209,7 @@ func init() {
 
 type DockerDaemonSuite struct {
 	ds *DockerSuite
-	d  *Daemon
+	d  *daemon.Daemon
 }
 
 func (s *DockerDaemonSuite) OnTimeout(c *check.C) {
@@ -209,7 +218,9 @@ func (s *DockerDaemonSuite) OnTimeout(c *check.C) {
 
 func (s *DockerDaemonSuite) SetUpTest(c *check.C) {
 	testRequires(c, DaemonIsLinux)
-	s.d = NewDaemon(c)
+	s.d = daemon.New(c, dockerBinary, dockerdBinary, daemon.Config{
+		Experimental: experimentalDaemon,
+	})
 }
 
 func (s *DockerDaemonSuite) TearDownTest(c *check.C) {
@@ -221,7 +232,7 @@ func (s *DockerDaemonSuite) TearDownTest(c *check.C) {
 }
 
 func (s *DockerDaemonSuite) TearDownSuite(c *check.C) {
-	filepath.Walk(daemonSockRoot, func(path string, fi os.FileInfo, err error) error {
+	filepath.Walk(daemon.SockRoot, func(path string, fi os.FileInfo, err error) error {
 		if err != nil {
 			// ignore errors here
 			// not cleaning up sockets is not really an error
@@ -232,7 +243,7 @@ func (s *DockerDaemonSuite) TearDownSuite(c *check.C) {
 		}
 		return nil
 	})
-	os.RemoveAll(daemonSockRoot)
+	os.RemoveAll(daemon.SockRoot)
 }
 
 const defaultSwarmPort = 2477
@@ -246,7 +257,7 @@ func init() {
 type DockerSwarmSuite struct {
 	server      *httptest.Server
 	ds          *DockerSuite
-	daemons     []*SwarmDaemon
+	daemons     []*daemon.Swarm
 	daemonsLock sync.Mutex // protect access to daemons
 	portIndex   int
 }
@@ -263,28 +274,27 @@ func (s *DockerSwarmSuite) SetUpTest(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 }
 
-func (s *DockerSwarmSuite) AddDaemon(c *check.C, joinSwarm, manager bool) *SwarmDaemon {
-	d := &SwarmDaemon{
-		Daemon: NewDaemon(c),
-		port:   defaultSwarmPort + s.portIndex,
+func (s *DockerSwarmSuite) AddDaemon(c *check.C, joinSwarm, manager bool) *daemon.Swarm {
+	d := &daemon.Swarm{
+		Daemon: daemon.New(c, dockerBinary, dockerdBinary, daemon.Config{
+			Experimental: experimentalDaemon,
+		}),
+		Port: defaultSwarmPort + s.portIndex,
 	}
-	d.listenAddr = fmt.Sprintf("0.0.0.0:%d", d.port)
+	d.ListenAddr = fmt.Sprintf("0.0.0.0:%d", d.Port)
 	args := []string{"--iptables=false", "--swarm-default-advertise-addr=lo"} // avoid networking conflicts
-	if experimentalDaemon {
-		args = append(args, "--experimental")
-	}
 	err := d.StartWithBusybox(args...)
 	c.Assert(err, check.IsNil)
 
 	if joinSwarm == true {
 		if len(s.daemons) > 0 {
-			tokens := s.daemons[0].joinTokens(c)
+			tokens := s.daemons[0].JoinTokens(c)
 			token := tokens.Worker
 			if manager {
 				token = tokens.Manager
 			}
 			c.Assert(d.Join(swarm.JoinRequest{
-				RemoteAddrs: []string{s.daemons[0].listenAddr},
+				RemoteAddrs: []string{s.daemons[0].ListenAddr},
 				JoinToken:   token,
 			}), check.IsNil)
 		} else {
@@ -306,13 +316,14 @@ func (s *DockerSwarmSuite) TearDownTest(c *check.C) {
 	for _, d := range s.daemons {
 		if d != nil {
 			d.Stop()
+			// FIXME(vdemeester) should be handled by SwarmDaemon ?
 			// raft state file is quite big (64MB) so remove it after every test
-			walDir := filepath.Join(d.root, "swarm/raft/wal")
+			walDir := filepath.Join(d.Root, "swarm/raft/wal")
 			if err := os.RemoveAll(walDir); err != nil {
 				c.Logf("error removing %v: %v", walDir, err)
 			}
 
-			cleanupExecRoot(c, d.execRoot)
+			d.CleanupExecRoot(c)
 		}
 	}
 	s.daemons = nil

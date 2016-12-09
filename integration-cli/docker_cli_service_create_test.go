@@ -22,14 +22,14 @@ func (s *DockerSwarmSuite) TestServiceCreateMountVolume(c *check.C) {
 
 	var tasks []swarm.Task
 	waitAndAssert(c, defaultReconciliationTimeout, func(c *check.C) (interface{}, check.CommentInterface) {
-		tasks = d.getServiceTasks(c, id)
+		tasks = d.GetServiceTasks(c, id)
 		return len(tasks) > 0, nil
 	}, checker.Equals, true)
 
 	task := tasks[0]
 	waitAndAssert(c, defaultReconciliationTimeout, func(c *check.C) (interface{}, check.CommentInterface) {
 		if task.NodeID == "" || task.Status.ContainerStatus.ContainerID == "" {
-			task = d.getTask(c, task.ID)
+			task = d.GetTask(c, task.ID)
 		}
 		return task.NodeID != "" && task.Status.ContainerStatus.ContainerID != "", nil
 	}, checker.Equals, true)
@@ -67,7 +67,7 @@ func (s *DockerSwarmSuite) TestServiceCreateWithSecretSimple(c *check.C) {
 
 	serviceName := "test-service-secret"
 	testName := "test_secret"
-	id := d.createSecret(c, swarm.SecretSpec{
+	id := d.CreateSecret(c, swarm.SecretSpec{
 		swarm.Annotations{
 			Name: testName,
 		},
@@ -97,7 +97,7 @@ func (s *DockerSwarmSuite) TestServiceCreateWithSecretSourceTarget(c *check.C) {
 
 	serviceName := "test-service-secret"
 	testName := "test_secret"
-	id := d.createSecret(c, swarm.SecretSpec{
+	id := d.CreateSecret(c, swarm.SecretSpec{
 		swarm.Annotations{
 			Name: testName,
 		},
@@ -129,14 +129,14 @@ func (s *DockerSwarmSuite) TestServiceCreateMountTmpfs(c *check.C) {
 
 	var tasks []swarm.Task
 	waitAndAssert(c, defaultReconciliationTimeout, func(c *check.C) (interface{}, check.CommentInterface) {
-		tasks = d.getServiceTasks(c, id)
+		tasks = d.GetServiceTasks(c, id)
 		return len(tasks) > 0, nil
 	}, checker.Equals, true)
 
 	task := tasks[0]
 	waitAndAssert(c, defaultReconciliationTimeout, func(c *check.C) (interface{}, check.CommentInterface) {
 		if task.NodeID == "" || task.Status.ContainerStatus.ContainerID == "" {
-			task = d.getTask(c, task.ID)
+			task = d.GetTask(c, task.ID)
 		}
 		return task.NodeID != "" && task.Status.ContainerStatus.ContainerID != "", nil
 	}, checker.Equals, true)
