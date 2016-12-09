@@ -54,7 +54,7 @@ var (
 	errUnsupported = errors.New("migration is not supported")
 )
 
-// Migrate takes an old graph directory and transforms the metadata into the
+// Function of Migrate takes an old graph directory and transforms the metadata into the
 // new format.
 func Migrate(root, driverName string, ls layer.Store, is image.Store, rs reference.Store, ms metadata.Store) error {
 	graphDir := filepath.Join(root, graphDirName)
@@ -95,7 +95,7 @@ func Migrate(root, driverName string, ls layer.Store, is image.Store, rs referen
 	return nil
 }
 
-// CalculateLayerChecksums walks an old graph directory and calculates checksums
+// Function of CalculateLayerChecksums walks an old graph directory and calculates checksums
 // for each layer. These checksums are later used for migration.
 func CalculateLayerChecksums(root string, ls checksumCalculator, mappings map[string]image.ID) {
 	graphDir := filepath.Join(root, graphDirName)
