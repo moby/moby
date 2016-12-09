@@ -120,7 +120,7 @@ func NewEnvClient() (*Client, error) {
 
 	cli, err := NewClient(host, version, client, nil)
 	if err != nil {
-		return cli, err
+		return nil, err
 	}
 	if os.Getenv("DOCKER_API_VERSION") != "" {
 		cli.manualOverride = true
