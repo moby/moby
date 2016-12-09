@@ -51,15 +51,11 @@ func (s *DockerSwarmSuite) TestAPISwarmInit(c *check.C) {
 	c.Assert(info.LocalNodeState, checker.Equals, swarm.LocalNodeStateActive)
 
 	// Current state restoring after restarts
-	err = d1.Stop()
-	c.Assert(err, checker.IsNil)
-	err = d2.Stop()
-	c.Assert(err, checker.IsNil)
+	d1.Stop(c)
+	d2.Stop(c)
 
-	err = d1.Start()
-	c.Assert(err, checker.IsNil)
-	err = d2.Start()
-	c.Assert(err, checker.IsNil)
+	d1.Start(c)
+	d2.Start(c)
 
 	info, err = d1.SwarmInfo()
 	c.Assert(err, checker.IsNil)
@@ -240,7 +236,7 @@ func (s *DockerSwarmSuite) TestAPISwarmServicesMultipleAgents(c *check.C) {
 	waitAndAssert(c, defaultReconciliationTimeout, reducedCheck(sumAsIntegers, d1.CheckActiveContainerCount, d2.CheckActiveContainerCount, d3.CheckActiveContainerCount), checker.Equals, instances)
 
 	// reconciliation on d2 node down
-	c.Assert(d2.Stop(), checker.IsNil)
+	d2.Stop(c)
 
 	waitAndAssert(c, defaultReconciliationTimeout, reducedCheck(sumAsIntegers, d1.CheckActiveContainerCount, d3.CheckActiveContainerCount), checker.Equals, instances)
 
@@ -629,7 +625,7 @@ func (s *DockerSwarmSuite) TestAPISwarmLeaderElection(c *check.C) {
 	c.Assert(d1.GetNode(c, d2.NodeID).ManagerStatus.Leader, checker.False)
 	c.Assert(d1.GetNode(c, d3.NodeID).ManagerStatus.Leader, checker.False)
 
-	d1.Stop() // stop the leader
+	d1.Stop(c)
 
 	var (
 		leader    *daemon.Swarm   // keep track of leader
@@ -666,7 +662,7 @@ func (s *DockerSwarmSuite) TestAPISwarmLeaderElection(c *check.C) {
 	stableleader := leader
 
 	// add the d1, the initial leader, back
-	d1.Start()
+	d1.Start(c)
 
 	// TODO(stevvooe): may need to wait for rejoin here
 
@@ -688,7 +684,7 @@ func (s *DockerSwarmSuite) TestAPISwarmRaftQuorum(c *check.C) {
 
 	d1.CreateService(c, simpleTestService)
 
-	c.Assert(d2.Stop(), checker.IsNil)
+	d2.Stop(c)
 
 	// make sure there is a leader
 	waitAndAssert(c, defaultReconciliationTimeout, d1.CheckLeader, checker.IsNil)
@@ -697,7 +693,7 @@ func (s *DockerSwarmSuite) TestAPISwarmRaftQuorum(c *check.C) {
 		s.Spec.Name = "top1"
 	})
 
-	c.Assert(d3.Stop(), checker.IsNil)
+	d3.Stop(c)
 
 	// make sure there is a leader
 	waitAndAssert(c, defaultReconciliationTimeout, d1.CheckLeader, checker.IsNil)
@@ -709,7 +705,7 @@ func (s *DockerSwarmSuite) TestAPISwarmRaftQuorum(c *check.C) {
 	c.Assert(err, checker.IsNil)
 	c.Assert(status, checker.Equals, http.StatusInternalServerError, check.Commentf("deadline exceeded", string(out)))
 
-	c.Assert(d2.Start(), checker.IsNil)
+	d2.Start(c)
 
 	// make sure there is a leader
 	waitAndAssert(c, defaultReconciliationTimeout, d1.CheckLeader, checker.IsNil)
@@ -771,8 +767,7 @@ func (s *DockerSwarmSuite) TestAPISwarmNodeRemove(c *check.C) {
 	c.Assert(len(nodes), checker.Equals, 2, check.Commentf("nodes: %#v", nodes))
 
 	// Restart the node that was removed
-	err = d2.Restart()
-	c.Assert(err, checker.IsNil)
+	d2.Restart(c)
 
 	// Give some time for the node to rejoin
 	time.Sleep(1 * time.Second)
@@ -899,8 +894,8 @@ func (s *DockerSwarmSuite) TestAPISwarmRestoreOnPendingJoin(c *check.C) {
 
 	waitAndAssert(c, defaultReconciliationTimeout, d.CheckLocalNodeState, checker.Equals, swarm.LocalNodeStatePending)
 
-	c.Assert(d.Stop(), checker.IsNil)
-	c.Assert(d.Start(), checker.IsNil)
+	d.Stop(c)
+	d.Start(c)
 
 	info, err := d.SwarmInfo()
 	c.Assert(err, checker.IsNil)
@@ -914,25 +909,25 @@ func (s *DockerSwarmSuite) TestAPISwarmManagerRestore(c *check.C) {
 	id := d1.CreateService(c, simpleTestService, setInstances(instances))
 
 	d1.GetService(c, id)
-	d1.Stop()
-	d1.Start()
+	d1.Stop(c)
+	d1.Start(c)
 	d1.GetService(c, id)
 
 	d2 := s.AddDaemon(c, true, true)
 	d2.GetService(c, id)
-	d2.Stop()
-	d2.Start()
+	d2.Stop(c)
+	d2.Start(c)
 	d2.GetService(c, id)
 
 	d3 := s.AddDaemon(c, true, true)
 	d3.GetService(c, id)
-	d3.Stop()
-	d3.Start()
+	d3.Stop(c)
+	d3.Start(c)
 	d3.GetService(c, id)
 
 	d3.Kill()
 	time.Sleep(1 * time.Second) // time to handle signal
-	d3.Start()
+	d3.Start(c)
 	d3.GetService(c, id)
 }
 
@@ -993,7 +988,7 @@ func (s *DockerSwarmSuite) TestAPISwarmForceNewCluster(c *check.C) {
 	waitAndAssert(c, defaultReconciliationTimeout, d1.CheckActiveContainerCount, checker.Equals, instances)
 	waitAndAssert(c, defaultReconciliationTimeout, d2.CheckActiveContainerCount, checker.Equals, 0)
 
-	c.Assert(d2.Stop(), checker.IsNil)
+	d2.Stop(c)
 
 	c.Assert(d1.Init(swarm.InitRequest{
 		ForceNewCluster: true,
@@ -1210,7 +1205,7 @@ func (s *DockerSwarmSuite) TestAPISwarmRestartCluster(c *check.C) {
 		for _, d := range nodes {
 			go func(daemon *daemon.Swarm) {
 				defer wg.Done()
-				if err := daemon.Stop(); err != nil {
+				if err := daemon.StopWithError(); err != nil {
 					errs <- err
 				}
 				// FIXME(vdemeester) This is duplicated…
@@ -1235,7 +1230,7 @@ func (s *DockerSwarmSuite) TestAPISwarmRestartCluster(c *check.C) {
 		for _, d := range nodes {
 			go func(daemon *daemon.Swarm) {
 				defer wg.Done()
-				if err := daemon.Start("--iptables=false"); err != nil {
+				if err := daemon.StartWithError("--iptables=false"); err != nil {
 					errs <- err
 				}
 			}(d)

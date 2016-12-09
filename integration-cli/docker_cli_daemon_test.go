@@ -43,9 +43,7 @@ func (s *DockerDaemonSuite) TestLegacyDaemonCommand(c *check.C) {
 }
 
 func (s *DockerDaemonSuite) TestDaemonRestartWithRunningContainersPorts(c *check.C) {
-	if err := s.d.StartWithBusybox(); err != nil {
-		c.Fatalf("Could not start daemon with busybox: %v", err)
-	}
+	s.d.StartWithBusybox(c)
 
 	if out, err := s.d.Cmd("run", "-d", "--name", "top1", "-p", "1234:80", "--restart", "always", "busybox:latest", "top"); err != nil {
 		c.Fatalf("Could not run top1: err=%v\n%s", err, out)
@@ -75,24 +73,18 @@ func (s *DockerDaemonSuite) TestDaemonRestartWithRunningContainersPorts(c *check
 
 	testRun(map[string]bool{"top1": true, "top2": true}, "")
 
-	if err := s.d.Restart(); err != nil {
-		c.Fatalf("Could not restart daemon: %v", err)
-	}
+	s.d.Restart(c)
 	testRun(map[string]bool{"top1": true, "top2": false}, "After daemon restart: ")
 }
 
 func (s *DockerDaemonSuite) TestDaemonRestartWithVolumesRefs(c *check.C) {
-	if err := s.d.StartWithBusybox(); err != nil {
-		c.Fatal(err)
-	}
+	s.d.StartWithBusybox(c)
 
 	if out, err := s.d.Cmd("run", "--name", "volrestarttest1", "-v", "/foo", "busybox"); err != nil {
 		c.Fatal(err, out)
 	}
 
-	if err := s.d.Restart(); err != nil {
-		c.Fatal(err)
-	}
+	s.d.Restart(c)
 
 	if _, err := s.d.Cmd("run", "-d", "--volumes-from", "volrestarttest1", "--name", "volrestarttest2", "busybox", "top"); err != nil {
 		c.Fatal(err)
@@ -112,8 +104,7 @@ func (s *DockerDaemonSuite) TestDaemonRestartWithVolumesRefs(c *check.C) {
 
 // #11008
 func (s *DockerDaemonSuite) TestDaemonRestartUnlessStopped(c *check.C) {
-	err := s.d.StartWithBusybox()
-	c.Assert(err, check.IsNil)
+	s.d.StartWithBusybox(c)
 
 	out, err := s.d.Cmd("run", "-d", "--name", "top1", "--restart", "always", "busybox:latest", "top")
 	c.Assert(err, check.IsNil, check.Commentf("run top1: %v", out))
@@ -147,8 +138,7 @@ func (s *DockerDaemonSuite) TestDaemonRestartUnlessStopped(c *check.C) {
 	// both stopped
 	testRun(map[string]bool{"top1": false, "top2": false}, "")
 
-	err = s.d.Restart()
-	c.Assert(err, check.IsNil)
+	s.d.Restart(c)
 
 	// restart=always running
 	testRun(map[string]bool{"top1": true, "top2": false}, "After daemon restart: ")
@@ -156,8 +146,7 @@ func (s *DockerDaemonSuite) TestDaemonRestartUnlessStopped(c *check.C) {
 	out, err = s.d.Cmd("start", "top2")
 	c.Assert(err, check.IsNil, check.Commentf("start top2: %v", out))
 
-	err = s.d.Restart()
-	c.Assert(err, check.IsNil)
+	s.d.Restart(c)
 
 	// both running
 	testRun(map[string]bool{"top1": true, "top2": true}, "After second daemon restart: ")
@@ -165,8 +154,7 @@ func (s *DockerDaemonSuite) TestDaemonRestartUnlessStopped(c *check.C) {
 }
 
 func (s *DockerDaemonSuite) TestDaemonRestartOnFailure(c *check.C) {
-	err := s.d.StartWithBusybox()
-	c.Assert(err, check.IsNil)
+	s.d.StartWithBusybox(c)
 
 	out, err := s.d.Cmd("run", "-d", "--name", "test1", "--restart", "on-failure:3", "busybox:latest", "false")
 	c.Assert(err, check.IsNil, check.Commentf("run top1: %v", out))
@@ -181,8 +169,7 @@ func (s *DockerDaemonSuite) TestDaemonRestartOnFailure(c *check.C) {
 	c.Assert(err, checker.IsNil, check.Commentf("out: %v", out))
 	lastStartTime := out
 
-	err = s.d.Restart()
-	c.Assert(err, check.IsNil)
+	s.d.Restart(c)
 
 	// test1 shouldn't restart at all
 	err = waitInspectWithArgs("test1", "{{.State.Running}} {{.State.Restarting}}", "false false", 0, hostArgs...)
@@ -196,30 +183,28 @@ func (s *DockerDaemonSuite) TestDaemonRestartOnFailure(c *check.C) {
 }
 
 func (s *DockerDaemonSuite) TestDaemonStartIptablesFalse(c *check.C) {
-	if err := s.d.Start("--iptables=false"); err != nil {
-		c.Fatalf("we should have been able to start the daemon with passing iptables=false: %v", err)
-	}
+	s.d.Start(c, "--iptables=false")
 }
 
 // Make sure we cannot shrink base device at daemon restart.
 func (s *DockerDaemonSuite) TestDaemonRestartWithInvalidBasesize(c *check.C) {
 	testRequires(c, Devicemapper)
-	c.Assert(s.d.Start(), check.IsNil)
+	s.d.Start(c)
 
 	oldBasesizeBytes := s.d.GetBaseDeviceSize(c)
 	var newBasesizeBytes int64 = 1073741824 //1GB in bytes
 
 	if newBasesizeBytes < oldBasesizeBytes {
-		err := s.d.Restart("--storage-opt", fmt.Sprintf("dm.basesize=%d", newBasesizeBytes))
+		err := s.d.RestartWithError("--storage-opt", fmt.Sprintf("dm.basesize=%d", newBasesizeBytes))
 		c.Assert(err, check.IsNil, check.Commentf("daemon should not have started as new base device size is less than existing base device size: %v", err))
 	}
-	c.Assert(s.d.Stop(), check.IsNil)
+	s.d.Stop(c)
 }
 
 // Make sure we can grow base device at daemon restart.
 func (s *DockerDaemonSuite) TestDaemonRestartWithIncreasedBasesize(c *check.C) {
 	testRequires(c, Devicemapper)
-	c.Assert(s.d.Start(), check.IsNil)
+	s.d.Start(c)
 
 	oldBasesizeBytes := s.d.GetBaseDeviceSize(c)
 
@@ -229,14 +214,14 @@ func (s *DockerDaemonSuite) TestDaemonRestartWithIncreasedBasesize(c *check.C) {
 		c.Skip(fmt.Sprintf("New base device size (%v) must be greater than (%s)", units.HumanSize(float64(newBasesizeBytes)), units.HumanSize(float64(oldBasesizeBytes))))
 	}
 
-	err := s.d.Restart("--storage-opt", fmt.Sprintf("dm.basesize=%d", newBasesizeBytes))
+	err := s.d.RestartWithError("--storage-opt", fmt.Sprintf("dm.basesize=%d", newBasesizeBytes))
 	c.Assert(err, check.IsNil, check.Commentf("we should have been able to start the daemon with increased base device size: %v", err))
 
 	basesizeAfterRestart := s.d.GetBaseDeviceSize(c)
 	newBasesize, err := convertBasesize(newBasesizeBytes)
 	c.Assert(err, check.IsNil, check.Commentf("Error in converting base device size: %v", err))
 	c.Assert(newBasesize, check.Equals, basesizeAfterRestart, check.Commentf("Basesize passed is not equal to Basesize set"))
-	c.Assert(s.d.Stop(), check.IsNil)
+	s.d.Stop(c)
 }
 
 // Issue #8444: If docker0 bridge is modified (intentionally or unintentionally) and
@@ -246,12 +231,8 @@ func (s *DockerDaemonSuite) TestDaemonStartBridgeWithoutIPAssociation(c *check.C
 	// rather than depending on brctl commands to verify docker0 is created and up
 	// let's start the daemon and stop it, and then make a modification to run the
 	// actual test
-	if err := s.d.Start(); err != nil {
-		c.Fatalf("Could not start daemon: %v", err)
-	}
-	if err := s.d.Stop(); err != nil {
-		c.Fatalf("Could not stop daemon: %v", err)
-	}
+	s.d.Start(c)
+	s.d.Stop(c)
 
 	// now we will remove the ip from docker0 and then try starting the daemon
 	ipCmd := exec.Command("ip", "addr", "flush", "dev", "docker0")
@@ -260,16 +241,14 @@ func (s *DockerDaemonSuite) TestDaemonStartBridgeWithoutIPAssociation(c *check.C
 		c.Fatalf("failed to remove docker0 IP association: %v, stdout: %q, stderr: %q", err, stdout, stderr)
 	}
 
-	if err := s.d.Start(); err != nil {
+	if err := s.d.StartWithError(); err != nil {
 		warning := "**WARNING: Docker bridge network in bad state--delete docker0 bridge interface to fix"
 		c.Fatalf("Could not start daemon when docker0 has no IP address: %v\n%s", err, warning)
 	}
 }
 
 func (s *DockerDaemonSuite) TestDaemonIptablesClean(c *check.C) {
-	if err := s.d.StartWithBusybox(); err != nil {
-		c.Fatalf("Could not start daemon with busybox: %v", err)
-	}
+	s.d.StartWithBusybox(c)
 
 	if out, err := s.d.Cmd("run", "-d", "--name", "top", "-p", "80", "busybox:latest", "top"); err != nil {
 		c.Fatalf("Could not run top: %s, %v", out, err)
@@ -287,9 +266,7 @@ func (s *DockerDaemonSuite) TestDaemonIptablesClean(c *check.C) {
 		c.Fatalf("iptables output should have contained %q, but was %q", ipTablesSearchString, out)
 	}
 
-	if err := s.d.Stop(); err != nil {
-		c.Fatalf("Could not stop daemon: %v", err)
-	}
+	s.d.Stop(c)
 
 	// get output from iptables after restart
 	ipTablesCmd = exec.Command("iptables", "-nvL")
@@ -304,9 +281,7 @@ func (s *DockerDaemonSuite) TestDaemonIptablesClean(c *check.C) {
 }
 
 func (s *DockerDaemonSuite) TestDaemonIptablesCreate(c *check.C) {
-	if err := s.d.StartWithBusybox(); err != nil {
-		c.Fatalf("Could not start daemon with busybox: %v", err)
-	}
+	s.d.StartWithBusybox(c)
 
 	if out, err := s.d.Cmd("run", "-d", "--name", "top", "--restart=always", "-p", "80", "busybox:latest", "top"); err != nil {
 		c.Fatalf("Could not run top: %s, %v", out, err)
@@ -324,9 +299,7 @@ func (s *DockerDaemonSuite) TestDaemonIptablesCreate(c *check.C) {
 		c.Fatalf("iptables output should have contained %q, but was %q", ipTablesSearchString, out)
 	}
 
-	if err := s.d.Restart(); err != nil {
-		c.Fatalf("Could not restart daemon: %v", err)
-	}
+	s.d.Restart(c)
 
 	// make sure the container is not running
 	runningOut, err := s.d.Cmd("inspect", "--format={{.State.Running}}", "top")
@@ -357,9 +330,7 @@ func (s *DockerDaemonSuite) TestDaemonIPv6Enabled(c *check.C) {
 	setupV6(c)
 	defer teardownV6(c)
 
-	if err := s.d.StartWithBusybox("--ipv6"); err != nil {
-		c.Fatal(err)
-	}
+	s.d.StartWithBusybox(c, "--ipv6")
 
 	iface, err := net.InterfaceByName("docker0")
 	if err != nil {
@@ -420,8 +391,7 @@ func (s *DockerDaemonSuite) TestDaemonIPv6FixedCIDR(c *check.C) {
 	setupV6(c)
 	defer teardownV6(c)
 
-	err := s.d.StartWithBusybox("--ipv6", "--fixed-cidr-v6=2001:db8:2::/64", "--default-gateway-v6=2001:db8:2::100")
-	c.Assert(err, checker.IsNil, check.Commentf("Could not start daemon with busybox: %v", err))
+	s.d.StartWithBusybox(c, "--ipv6", "--fixed-cidr-v6=2001:db8:2::/64", "--default-gateway-v6=2001:db8:2::100")
 
 	out, err := s.d.Cmd("run", "-itd", "--name=ipv6test", "busybox:latest")
 	c.Assert(err, checker.IsNil, check.Commentf("Could not run container: %s, %v", out, err))
@@ -448,8 +418,7 @@ func (s *DockerDaemonSuite) TestDaemonIPv6FixedCIDRAndMac(c *check.C) {
 	setupV6(c)
 	defer teardownV6(c)
 
-	err := s.d.StartWithBusybox("--ipv6", "--fixed-cidr-v6=2001:db8:1::/64")
-	c.Assert(err, checker.IsNil)
+	s.d.StartWithBusybox(c, "--ipv6", "--fixed-cidr-v6=2001:db8:1::/64")
 
 	out, err := s.d.Cmd("run", "-itd", "--name=ipv6test", "--mac-address", "AA:BB:CC:DD:EE:FF", "busybox")
 	c.Assert(err, checker.IsNil)
@@ -460,13 +429,11 @@ func (s *DockerDaemonSuite) TestDaemonIPv6FixedCIDRAndMac(c *check.C) {
 }
 
 func (s *DockerDaemonSuite) TestDaemonLogLevelWrong(c *check.C) {
-	c.Assert(s.d.Start("--log-level=bogus"), check.NotNil, check.Commentf("Daemon shouldn't start with wrong log level"))
+	c.Assert(s.d.StartWithError("--log-level=bogus"), check.NotNil, check.Commentf("Daemon shouldn't start with wrong log level"))
 }
 
 func (s *DockerDaemonSuite) TestDaemonLogLevelDebug(c *check.C) {
-	if err := s.d.Start("--log-level=debug"); err != nil {
-		c.Fatal(err)
-	}
+	s.d.Start(c, "--log-level=debug")
 	content, err := s.d.ReadLogFile()
 	c.Assert(err, checker.IsNil)
 	if !strings.Contains(string(content), `level=debug`) {
@@ -476,9 +443,7 @@ func (s *DockerDaemonSuite) TestDaemonLogLevelDebug(c *check.C) {
 
 func (s *DockerDaemonSuite) TestDaemonLogLevelFatal(c *check.C) {
 	// we creating new daemons to create new logFile
-	if err := s.d.Start("--log-level=fatal"); err != nil {
-		c.Fatal(err)
-	}
+	s.d.Start(c, "--log-level=fatal")
 	content, err := s.d.ReadLogFile()
 	c.Assert(err, checker.IsNil)
 	if strings.Contains(string(content), `level=debug`) {
@@ -487,9 +452,7 @@ func (s *DockerDaemonSuite) TestDaemonLogLevelFatal(c *check.C) {
 }
 
 func (s *DockerDaemonSuite) TestDaemonFlagD(c *check.C) {
-	if err := s.d.Start("-D"); err != nil {
-		c.Fatal(err)
-	}
+	s.d.Start(c, "-D")
 	content, err := s.d.ReadLogFile()
 	c.Assert(err, checker.IsNil)
 	if !strings.Contains(string(content), `level=debug`) {
@@ -498,9 +461,7 @@ func (s *DockerDaemonSuite) TestDaemonFlagD(c *check.C) {
 }
 
 func (s *DockerDaemonSuite) TestDaemonFlagDebug(c *check.C) {
-	if err := s.d.Start("--debug"); err != nil {
-		c.Fatal(err)
-	}
+	s.d.Start(c, "--debug")
 	content, err := s.d.ReadLogFile()
 	c.Assert(err, checker.IsNil)
 	if !strings.Contains(string(content), `level=debug`) {
@@ -509,9 +470,7 @@ func (s *DockerDaemonSuite) TestDaemonFlagDebug(c *check.C) {
 }
 
 func (s *DockerDaemonSuite) TestDaemonFlagDebugLogLevelFatal(c *check.C) {
-	if err := s.d.Start("--debug", "--log-level=fatal"); err != nil {
-		c.Fatal(err)
-	}
+	s.d.Start(c, "--debug", "--log-level=fatal")
 	content, err := s.d.ReadLogFile()
 	c.Assert(err, checker.IsNil)
 	if !strings.Contains(string(content), `level=debug`) {
@@ -531,9 +490,7 @@ func (s *DockerDaemonSuite) TestDaemonAllocatesListeningPort(c *check.C) {
 		cmdArgs = append(cmdArgs, "--host", fmt.Sprintf("tcp://%s:%s", hostDirective[0], hostDirective[2]))
 	}
 
-	if err := s.d.StartWithBusybox(cmdArgs...); err != nil {
-		c.Fatalf("Could not start daemon with busybox: %v", err)
-	}
+	s.d.StartWithBusybox(c, cmdArgs...)
 
 	for _, hostDirective := range listeningPorts {
 		output, err := s.d.Cmd("run", "-p", fmt.Sprintf("%s:%s:80", hostDirective[1], hostDirective[2]), "busybox", "true")
@@ -548,10 +505,8 @@ func (s *DockerDaemonSuite) TestDaemonAllocatesListeningPort(c *check.C) {
 func (s *DockerDaemonSuite) TestDaemonKeyGeneration(c *check.C) {
 	// TODO: skip or update for Windows daemon
 	os.Remove("/etc/docker/key.json")
-	if err := s.d.Start(); err != nil {
-		c.Fatalf("Could not start daemon: %v", err)
-	}
-	s.d.Stop()
+	s.d.Start(c)
+	s.d.Stop(c)
 
 	k, err := libtrust.LoadKeyFile("/etc/docker/key.json")
 	if err != nil {
@@ -578,10 +533,8 @@ func (s *DockerDaemonSuite) TestDaemonKeyMigration(c *check.C) {
 		c.Fatalf("Error saving private key: %s", err)
 	}
 
-	if err := s.d.Start(); err != nil {
-		c.Fatalf("Could not start daemon: %v", err)
-	}
-	s.d.Stop()
+	s.d.Start(c)
+	s.d.Stop(c)
 
 	k2, err := libtrust.LoadKeyFile("/etc/docker/key.json")
 	if err != nil {
@@ -597,7 +550,7 @@ func (s *DockerDaemonSuite) TestDaemonKeyMigration(c *check.C) {
 // to get a daemon init failure; no other tests for -b/--bip conflict are therefore required
 func (s *DockerDaemonSuite) TestDaemonExitOnFailure(c *check.C) {
 	//attempt to start daemon with incorrect flags (we know -b and --bip conflict)
-	if err := s.d.Start("--bridge", "nosuchbridge", "--bip", "1.1.1.1"); err != nil {
+	if err := s.d.StartWithError("--bridge", "nosuchbridge", "--bip", "1.1.1.1"); err != nil {
 		//verify we got the right error
 		if !strings.Contains(err.Error(), "Daemon exited") {
 			c.Fatalf("Expected daemon not to start, got %v", err)
@@ -615,9 +568,9 @@ func (s *DockerDaemonSuite) TestDaemonExitOnFailure(c *check.C) {
 
 func (s *DockerDaemonSuite) TestDaemonBridgeExternal(c *check.C) {
 	d := s.d
-	err := d.Start("--bridge", "nosuchbridge")
+	err := d.StartWithError("--bridge", "nosuchbridge")
 	c.Assert(err, check.NotNil, check.Commentf("--bridge option with an invalid bridge should cause the daemon to fail"))
-	defer d.Restart()
+	defer d.Restart(c)
 
 	bridgeName := "external-bridge"
 	bridgeIP := "192.169.1.1/24"
@@ -627,8 +580,7 @@ func (s *DockerDaemonSuite) TestDaemonBridgeExternal(c *check.C) {
 	c.Assert(err, check.IsNil, check.Commentf(out))
 	defer deleteInterface(c, bridgeName)
 
-	err = d.StartWithBusybox("--bridge", bridgeName)
-	c.Assert(err, check.IsNil)
+	d.StartWithBusybox(c, "--bridge", bridgeName)
 
 	ipTablesSearchString := bridgeIPNet.String()
 	ipTablesCmd := exec.Command("iptables", "-t", "nat", "-nvL")
@@ -653,9 +605,8 @@ func (s *DockerDaemonSuite) TestDaemonBridgeExternal(c *check.C) {
 func (s *DockerDaemonSuite) TestDaemonBridgeNone(c *check.C) {
 	// start with bridge none
 	d := s.d
-	err := d.StartWithBusybox("--bridge", "none")
-	c.Assert(err, check.IsNil)
-	defer d.Restart()
+	d.StartWithBusybox(c, "--bridge", "none")
+	defer d.Restart(c)
 
 	// verify docker0 iface is not there
 	out, _, err := runCommandWithOutput(exec.Command("ifconfig", "docker0"))
@@ -713,9 +664,8 @@ func (s *DockerDaemonSuite) TestDaemonBridgeIP(c *check.C) {
 	bridgeIP := "192.169.1.1/24"
 	ip, bridgeIPNet, _ := net.ParseCIDR(bridgeIP)
 
-	err := d.StartWithBusybox("--bip", bridgeIP)
-	c.Assert(err, check.IsNil)
-	defer d.Restart()
+	d.StartWithBusybox(c, "--bip", bridgeIP)
+	defer d.Restart(c)
 
 	ifconfigSearchString := ip.String()
 	ifconfigCmd := exec.Command("ifconfig", defaultNetworkBridge)
@@ -748,13 +698,9 @@ func (s *DockerDaemonSuite) TestDaemonBridgeIP(c *check.C) {
 }
 
 func (s *DockerDaemonSuite) TestDaemonRestartWithBridgeIPChange(c *check.C) {
-	if err := s.d.Start(); err != nil {
-		c.Fatalf("Could not start daemon: %v", err)
-	}
-	defer s.d.Restart()
-	if err := s.d.Stop(); err != nil {
-		c.Fatalf("Could not stop daemon: %v", err)
-	}
+	s.d.Start(c)
+	defer s.d.Restart(c)
+	s.d.Stop(c)
 
 	// now we will change the docker0's IP and then try starting the daemon
 	bridgeIP := "192.169.100.1/24"
@@ -766,9 +712,7 @@ func (s *DockerDaemonSuite) TestDaemonRestartWithBridgeIPChange(c *check.C) {
 		c.Fatalf("failed to change docker0's IP association: %v, stdout: %q, stderr: %q", err, stdout, stderr)
 	}
 
-	if err := s.d.Start("--bip", bridgeIP); err != nil {
-		c.Fatalf("Could not start daemon: %v", err)
-	}
+	s.d.Start(c, "--bip", bridgeIP)
 
 	//check if the iptables contains new bridgeIP MASQUERADE rule
 	ipTablesSearchString := bridgeIPNet.String()
@@ -793,9 +737,8 @@ func (s *DockerDaemonSuite) TestDaemonBridgeFixedCidr(c *check.C) {
 	defer deleteInterface(c, bridgeName)
 
 	args := []string{"--bridge", bridgeName, "--fixed-cidr", "192.169.1.0/30"}
-	err = d.StartWithBusybox(args...)
-	c.Assert(err, check.IsNil)
-	defer d.Restart()
+	d.StartWithBusybox(c, args...)
+	defer d.Restart(c)
 
 	for i := 0; i < 4; i++ {
 		cName := "Container" + strconv.Itoa(i)
@@ -817,9 +760,8 @@ func (s *DockerDaemonSuite) TestDaemonBridgeFixedCidr2(c *check.C) {
 	c.Assert(err, check.IsNil, check.Commentf(out))
 	defer deleteInterface(c, bridgeName)
 
-	err = d.StartWithBusybox("--bip", bridgeIP, "--fixed-cidr", "10.2.2.0/24")
-	c.Assert(err, check.IsNil)
-	defer s.d.Restart()
+	d.StartWithBusybox(c, "--bip", bridgeIP, "--fixed-cidr", "10.2.2.0/24")
+	defer s.d.Restart(c)
 
 	out, err = d.Cmd("run", "-d", "--name", "bb", "busybox", "top")
 	c.Assert(err, checker.IsNil, check.Commentf(out))
@@ -843,9 +785,8 @@ func (s *DockerDaemonSuite) TestDaemonBridgeFixedCIDREqualBridgeNetwork(c *check
 	c.Assert(err, check.IsNil, check.Commentf(out))
 	defer deleteInterface(c, bridgeName)
 
-	err = d.StartWithBusybox("--bridge", bridgeName, "--fixed-cidr", bridgeIP)
-	c.Assert(err, check.IsNil)
-	defer s.d.Restart()
+	d.StartWithBusybox(c, "--bridge", bridgeName, "--fixed-cidr", bridgeIP)
+	defer s.d.Restart(c)
 
 	out, err = d.Cmd("run", "-d", "busybox", "top")
 	c.Assert(err, check.IsNil, check.Commentf(out))
@@ -862,12 +803,12 @@ func (s *DockerDaemonSuite) TestDaemonDefaultGatewayIPv4Implicit(c *check.C) {
 	bridgeIP := "192.169.1.1"
 	bridgeIPNet := fmt.Sprintf("%s/24", bridgeIP)
 
-	err := d.StartWithBusybox("--bip", bridgeIPNet)
-	c.Assert(err, check.IsNil)
-	defer d.Restart()
+	d.StartWithBusybox(c, "--bip", bridgeIPNet)
+	defer d.Restart(c)
 
 	expectedMessage := fmt.Sprintf("default via %s dev", bridgeIP)
 	out, err := d.Cmd("run", "busybox", "ip", "-4", "route", "list", "0/0")
+	c.Assert(err, checker.IsNil)
 	c.Assert(strings.Contains(out, expectedMessage), check.Equals, true,
 		check.Commentf("Implicit default gateway should be bridge IP %s, but default route was '%s'",
 			bridgeIP, strings.TrimSpace(out)))
@@ -884,12 +825,12 @@ func (s *DockerDaemonSuite) TestDaemonDefaultGatewayIPv4Explicit(c *check.C) {
 	bridgeIPNet := fmt.Sprintf("%s/24", bridgeIP)
 	gatewayIP := "192.169.1.254"
 
-	err := d.StartWithBusybox("--bip", bridgeIPNet, "--default-gateway", gatewayIP)
-	c.Assert(err, check.IsNil)
-	defer d.Restart()
+	d.StartWithBusybox(c, "--bip", bridgeIPNet, "--default-gateway", gatewayIP)
+	defer d.Restart(c)
 
 	expectedMessage := fmt.Sprintf("default via %s dev", gatewayIP)
 	out, err := d.Cmd("run", "busybox", "ip", "-4", "route", "list", "0/0")
+	c.Assert(err, checker.IsNil)
 	c.Assert(strings.Contains(out, expectedMessage), check.Equals, true,
 		check.Commentf("Explicit default gateway should be %s, but default route was '%s'",
 			gatewayIP, strings.TrimSpace(out)))
@@ -901,11 +842,10 @@ func (s *DockerDaemonSuite) TestDaemonDefaultGatewayIPv4ExplicitOutsideContainer
 	deleteInterface(c, defaultNetworkBridge)
 
 	// Program a custom default gateway outside of the container subnet, daemon should accept it and start
-	err := s.d.StartWithBusybox("--bip", "172.16.0.10/16", "--fixed-cidr", "172.16.1.0/24", "--default-gateway", "172.16.0.254")
-	c.Assert(err, check.IsNil)
+	s.d.StartWithBusybox(c, "--bip", "172.16.0.10/16", "--fixed-cidr", "172.16.1.0/24", "--default-gateway", "172.16.0.254")
 
 	deleteInterface(c, defaultNetworkBridge)
-	s.d.Restart()
+	s.d.Restart(c)
 }
 
 func (s *DockerDaemonSuite) TestDaemonDefaultNetworkInvalidClusterConfig(c *check.C) {
@@ -916,15 +856,13 @@ func (s *DockerDaemonSuite) TestDaemonDefaultNetworkInvalidClusterConfig(c *chec
 	deleteInterface(c, defaultNetworkBridge)
 
 	discoveryBackend := "consul://consuladdr:consulport/some/path"
-	err := s.d.Start(fmt.Sprintf("--cluster-store=%s", discoveryBackend))
-	c.Assert(err, checker.IsNil)
+	s.d.Start(c, fmt.Sprintf("--cluster-store=%s", discoveryBackend))
 
 	// Start daemon with docker0 bridge
 	result := icmd.RunCommand("ifconfig", defaultNetworkBridge)
 	c.Assert(result, icmd.Matches, icmd.Success)
 
-	err = s.d.Restart(fmt.Sprintf("--cluster-store=%s", discoveryBackend))
-	c.Assert(err, checker.IsNil)
+	s.d.Restart(c, fmt.Sprintf("--cluster-store=%s", discoveryBackend))
 }
 
 func (s *DockerDaemonSuite) TestDaemonIP(c *check.C) {
@@ -933,9 +871,8 @@ func (s *DockerDaemonSuite) TestDaemonIP(c *check.C) {
 	ipStr := "192.170.1.1/24"
 	ip, _, _ := net.ParseCIDR(ipStr)
 	args := []string{"--ip", ip.String()}
-	err := d.StartWithBusybox(args...)
-	c.Assert(err, check.IsNil)
-	defer d.Restart()
+	d.StartWithBusybox(c, args...)
+	defer d.Restart(c)
 
 	out, err := d.Cmd("run", "-d", "-p", "8000:8000", "busybox", "top")
 	c.Assert(err, check.NotNil,
@@ -972,9 +909,8 @@ func (s *DockerDaemonSuite) TestDaemonICCPing(c *check.C) {
 	defer deleteInterface(c, bridgeName)
 
 	args := []string{"--bridge", bridgeName, "--icc=false"}
-	err = d.StartWithBusybox(args...)
-	c.Assert(err, check.IsNil)
-	defer d.Restart()
+	d.StartWithBusybox(c, args...)
+	defer d.Restart(c)
 
 	ipTablesCmd := exec.Command("iptables", "-nvL", "FORWARD")
 	out, _, err = runCommandWithOutput(ipTablesCmd)
@@ -1012,9 +948,8 @@ func (s *DockerDaemonSuite) TestDaemonICCLinkExpose(c *check.C) {
 	defer deleteInterface(c, bridgeName)
 
 	args := []string{"--bridge", bridgeName, "--icc=false"}
-	err = d.StartWithBusybox(args...)
-	c.Assert(err, check.IsNil)
-	defer d.Restart()
+	d.StartWithBusybox(c, args...)
+	defer d.Restart(c)
 
 	ipTablesCmd := exec.Command("iptables", "-nvL", "FORWARD")
 	out, _, err = runCommandWithOutput(ipTablesCmd)
@@ -1040,9 +975,8 @@ func (s *DockerDaemonSuite) TestDaemonLinksIpTablesRulesWhenLinkAndUnlink(c *che
 	c.Assert(err, check.IsNil, check.Commentf(out))
 	defer deleteInterface(c, bridgeName)
 
-	err = s.d.StartWithBusybox("--bridge", bridgeName, "--icc=false")
-	c.Assert(err, check.IsNil)
-	defer s.d.Restart()
+	s.d.StartWithBusybox(c, "--bridge", bridgeName, "--icc=false")
+	defer s.d.Restart(c)
 
 	_, err = s.d.Cmd("run", "-d", "--name", "child", "--publish", "8080:80", "busybox", "top")
 	c.Assert(err, check.IsNil)
@@ -1072,9 +1006,7 @@ func (s *DockerDaemonSuite) TestDaemonLinksIpTablesRulesWhenLinkAndUnlink(c *che
 func (s *DockerDaemonSuite) TestDaemonUlimitDefaults(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 
-	if err := s.d.StartWithBusybox("--default-ulimit", "nofile=42:42", "--default-ulimit", "nproc=1024:1024"); err != nil {
-		c.Fatal(err)
-	}
+	s.d.StartWithBusybox(c, "--default-ulimit", "nofile=42:42", "--default-ulimit", "nproc=1024:1024")
 
 	out, err := s.d.Cmd("run", "--ulimit", "nproc=2048", "--name=test", "busybox", "/bin/sh", "-c", "echo $(ulimit -n); echo $(ulimit -p)")
 	if err != nil {
@@ -1096,9 +1028,7 @@ func (s *DockerDaemonSuite) TestDaemonUlimitDefaults(c *check.C) {
 	}
 
 	// Now restart daemon with a new default
-	if err := s.d.Restart("--default-ulimit", "nofile=43"); err != nil {
-		c.Fatal(err)
-	}
+	s.d.Restart(c, "--default-ulimit", "nofile=43")
 
 	out, err = s.d.Cmd("start", "-a", "test")
 	if err != nil {
@@ -1122,9 +1052,7 @@ func (s *DockerDaemonSuite) TestDaemonUlimitDefaults(c *check.C) {
 
 // #11315
 func (s *DockerDaemonSuite) TestDaemonRestartRenameContainer(c *check.C) {
-	if err := s.d.StartWithBusybox(); err != nil {
-		c.Fatal(err)
-	}
+	s.d.StartWithBusybox(c)
 
 	if out, err := s.d.Cmd("run", "--name=test", "busybox"); err != nil {
 		c.Fatal(err, out)
@@ -1134,9 +1062,7 @@ func (s *DockerDaemonSuite) TestDaemonRestartRenameContainer(c *check.C) {
 		c.Fatal(err, out)
 	}
 
-	if err := s.d.Restart(); err != nil {
-		c.Fatal(err)
-	}
+	s.d.Restart(c)
 
 	if out, err := s.d.Cmd("start", "test2"); err != nil {
 		c.Fatal(err, out)
@@ -1144,9 +1070,7 @@ func (s *DockerDaemonSuite) TestDaemonRestartRenameContainer(c *check.C) {
 }
 
 func (s *DockerDaemonSuite) TestDaemonLoggingDriverDefault(c *check.C) {
-	if err := s.d.StartWithBusybox(); err != nil {
-		c.Fatal(err)
-	}
+	s.d.StartWithBusybox(c)
 
 	out, err := s.d.Cmd("run", "--name=test", "busybox", "echo", "testline")
 	c.Assert(err, check.IsNil, check.Commentf(out))
@@ -1184,9 +1108,7 @@ func (s *DockerDaemonSuite) TestDaemonLoggingDriverDefault(c *check.C) {
 }
 
 func (s *DockerDaemonSuite) TestDaemonLoggingDriverDefaultOverride(c *check.C) {
-	if err := s.d.StartWithBusybox(); err != nil {
-		c.Fatal(err)
-	}
+	s.d.StartWithBusybox(c)
 
 	out, err := s.d.Cmd("run", "--name=test", "--log-driver=none", "busybox", "echo", "testline")
 	if err != nil {
@@ -1203,9 +1125,7 @@ func (s *DockerDaemonSuite) TestDaemonLoggingDriverDefaultOverride(c *check.C) {
 }
 
 func (s *DockerDaemonSuite) TestDaemonLoggingDriverNone(c *check.C) {
-	if err := s.d.StartWithBusybox("--log-driver=none"); err != nil {
-		c.Fatal(err)
-	}
+	s.d.StartWithBusybox(c, "--log-driver=none")
 
 	out, err := s.d.Cmd("run", "--name=test", "busybox", "echo", "testline")
 	if err != nil {
@@ -1222,9 +1142,7 @@ func (s *DockerDaemonSuite) TestDaemonLoggingDriverNone(c *check.C) {
 }
 
 func (s *DockerDaemonSuite) TestDaemonLoggingDriverNoneOverride(c *check.C) {
-	if err := s.d.StartWithBusybox("--log-driver=none"); err != nil {
-		c.Fatal(err)
-	}
+	s.d.StartWithBusybox(c, "--log-driver=none")
 
 	out, err := s.d.Cmd("run", "--name=test", "--log-driver=json-file", "busybox", "echo", "testline")
 	if err != nil {
@@ -1264,7 +1182,7 @@ func (s *DockerDaemonSuite) TestDaemonLoggingDriverNoneOverride(c *check.C) {
 }
 
 func (s *DockerDaemonSuite) TestDaemonLoggingDriverNoneLogsError(c *check.C) {
-	c.Assert(s.d.StartWithBusybox("--log-driver=none"), checker.IsNil)
+	s.d.StartWithBusybox(c, "--log-driver=none")
 
 	out, err := s.d.Cmd("run", "--name=test", "busybox", "echo", "testline")
 	c.Assert(err, checker.IsNil, check.Commentf(out))
@@ -1283,17 +1201,13 @@ func (s *DockerDaemonSuite) TestDaemonUnixSockCleanedUp(c *check.C) {
 	defer os.RemoveAll(dir)
 
 	sockPath := filepath.Join(dir, "docker.sock")
-	if err := s.d.Start("--host", "unix://"+sockPath); err != nil {
-		c.Fatal(err)
-	}
+	s.d.Start(c, "--host", "unix://"+sockPath)
 
 	if _, err := os.Stat(sockPath); err != nil {
 		c.Fatal("socket does not exist")
 	}
 
-	if err := s.d.Stop(); err != nil {
-		c.Fatal(err)
-	}
+	s.d.Stop(c)
 
 	if _, err := os.Stat(sockPath); err == nil || !os.IsNotExist(err) {
 		c.Fatal("unix socket is not cleaned up")
@@ -1311,13 +1225,8 @@ func (s *DockerDaemonSuite) TestDaemonWithWrongkey(c *check.C) {
 	}
 
 	os.Remove("/etc/docker/key.json")
-	if err := s.d.Start(); err != nil {
-		c.Fatalf("Failed to start daemon: %v", err)
-	}
-
-	if err := s.d.Stop(); err != nil {
-		c.Fatalf("Could not stop daemon: %v", err)
-	}
+	s.d.Start(c)
+	s.d.Stop(c)
 
 	config := &Config{}
 	bytes, err := ioutil.ReadFile("/etc/docker/key.json")
@@ -1346,7 +1255,7 @@ func (s *DockerDaemonSuite) TestDaemonWithWrongkey(c *check.C) {
 
 	defer os.Remove("/etc/docker/key.json")
 
-	if err := s.d.Start(); err == nil {
+	if err := s.d.StartWithError(); err == nil {
 		c.Fatalf("It should not be successful to start daemon with wrong key: %v", err)
 	}
 
@@ -1359,9 +1268,7 @@ func (s *DockerDaemonSuite) TestDaemonWithWrongkey(c *check.C) {
 }
 
 func (s *DockerDaemonSuite) TestDaemonRestartKillWait(c *check.C) {
-	if err := s.d.StartWithBusybox(); err != nil {
-		c.Fatalf("Could not start daemon with busybox: %v", err)
-	}
+	s.d.StartWithBusybox(c)
 
 	out, err := s.d.Cmd("run", "-id", "busybox", "/bin/cat")
 	if err != nil {
@@ -1373,9 +1280,7 @@ func (s *DockerDaemonSuite) TestDaemonRestartKillWait(c *check.C) {
 		c.Fatalf("Could not kill %s: err=%v\n%s", containerID, err, out)
 	}
 
-	if err := s.d.Restart(); err != nil {
-		c.Fatalf("Could not restart daemon: %v", err)
-	}
+	s.d.Restart(c)
 
 	errchan := make(chan error)
 	go func() {
@@ -1401,14 +1306,17 @@ func (s *DockerDaemonSuite) TestHTTPSInfo(c *check.C) {
 		testDaemonHTTPSAddr = "tcp://localhost:4271"
 	)
 
-	if err := s.d.Start("--tlsverify", "--tlscacert", "fixtures/https/ca.pem", "--tlscert", "fixtures/https/server-cert.pem",
-		"--tlskey", "fixtures/https/server-key.pem", "-H", testDaemonHTTPSAddr); err != nil {
-		c.Fatalf("Could not start daemon with busybox: %v", err)
-	}
+	s.d.Start(c,
+		"--tlsverify",
+		"--tlscacert", "fixtures/https/ca.pem",
+		"--tlscert", "fixtures/https/server-cert.pem",
+		"--tlskey", "fixtures/https/server-key.pem",
+		"-H", testDaemonHTTPSAddr)
 
 	args := []string{
 		"--host", testDaemonHTTPSAddr,
-		"--tlsverify", "--tlscacert", "fixtures/https/ca.pem",
+		"--tlsverify",
+		"--tlscacert", "fixtures/https/ca.pem",
 		"--tlscert", "fixtures/https/client-cert.pem",
 		"--tlskey", "fixtures/https/client-key.pem",
 		"info",
@@ -1426,10 +1334,8 @@ func (s *DockerDaemonSuite) TestHTTPSRun(c *check.C) {
 		testDaemonHTTPSAddr = "tcp://localhost:4271"
 	)
 
-	if err := s.d.StartWithBusybox("--tlsverify", "--tlscacert", "fixtures/https/ca.pem", "--tlscert", "fixtures/https/server-cert.pem",
-		"--tlskey", "fixtures/https/server-key.pem", "-H", testDaemonHTTPSAddr); err != nil {
-		c.Fatalf("Could not start daemon with busybox: %v", err)
-	}
+	s.d.StartWithBusybox(c, "--tlsverify", "--tlscacert", "fixtures/https/ca.pem", "--tlscert", "fixtures/https/server-cert.pem",
+		"--tlskey", "fixtures/https/server-key.pem", "-H", testDaemonHTTPSAddr)
 
 	args := []string{
 		"--host", testDaemonHTTPSAddr,
@@ -1464,14 +1370,17 @@ func (s *DockerDaemonSuite) TestHTTPSInfoRogueCert(c *check.C) {
 		testDaemonHTTPSAddr = "tcp://localhost:4271"
 	)
 
-	if err := s.d.Start("--tlsverify", "--tlscacert", "fixtures/https/ca.pem", "--tlscert", "fixtures/https/server-cert.pem",
-		"--tlskey", "fixtures/https/server-key.pem", "-H", testDaemonHTTPSAddr); err != nil {
-		c.Fatalf("Could not start daemon with busybox: %v", err)
-	}
+	s.d.Start(c,
+		"--tlsverify",
+		"--tlscacert", "fixtures/https/ca.pem",
+		"--tlscert", "fixtures/https/server-cert.pem",
+		"--tlskey", "fixtures/https/server-key.pem",
+		"-H", testDaemonHTTPSAddr)
 
 	args := []string{
 		"--host", testDaemonHTTPSAddr,
-		"--tlsverify", "--tlscacert", "fixtures/https/ca.pem",
+		"--tlsverify",
+		"--tlscacert", "fixtures/https/ca.pem",
 		"--tlscert", "fixtures/https/client-rogue-cert.pem",
 		"--tlskey", "fixtures/https/client-rogue-key.pem",
 		"info",
@@ -1489,14 +1398,17 @@ func (s *DockerDaemonSuite) TestHTTPSInfoRogueServerCert(c *check.C) {
 		errCaUnknown             = "x509: certificate signed by unknown authority"
 		testDaemonRogueHTTPSAddr = "tcp://localhost:4272"
 	)
-	if err := s.d.Start("--tlsverify", "--tlscacert", "fixtures/https/ca.pem", "--tlscert", "fixtures/https/server-rogue-cert.pem",
-		"--tlskey", "fixtures/https/server-rogue-key.pem", "-H", testDaemonRogueHTTPSAddr); err != nil {
-		c.Fatalf("Could not start daemon with busybox: %v", err)
-	}
+	s.d.Start(c,
+		"--tlsverify",
+		"--tlscacert", "fixtures/https/ca.pem",
+		"--tlscert", "fixtures/https/server-rogue-cert.pem",
+		"--tlskey", "fixtures/https/server-rogue-key.pem",
+		"-H", testDaemonRogueHTTPSAddr)
 
 	args := []string{
 		"--host", testDaemonRogueHTTPSAddr,
-		"--tlsverify", "--tlscacert", "fixtures/https/ca.pem",
+		"--tlsverify",
+		"--tlscacert", "fixtures/https/ca.pem",
 		"--tlscert", "fixtures/https/client-rogue-cert.pem",
 		"--tlskey", "fixtures/https/client-rogue-key.pem",
 		"info",
@@ -1532,29 +1444,32 @@ func pingContainers(c *check.C, d *daemon.Daemon, expectFailure bool) {
 }
 
 func (s *DockerDaemonSuite) TestDaemonRestartWithSocketAsVolume(c *check.C) {
-	c.Assert(s.d.StartWithBusybox(), check.IsNil)
+	s.d.StartWithBusybox(c)
 
 	socket := filepath.Join(s.d.Folder, "docker.sock")
 
 	out, err := s.d.Cmd("run", "--restart=always", "-v", socket+":/sock", "busybox")
 	c.Assert(err, check.IsNil, check.Commentf("Output: %s", out))
-	c.Assert(s.d.Restart(), check.IsNil)
+	s.d.Restart(c)
 }
 
 // os.Kill should kill daemon ungracefully, leaving behind container mounts.
 // A subsequent daemon restart shoud clean up said mounts.
 func (s *DockerDaemonSuite) TestCleanupMountsAfterDaemonAndContainerKill(c *check.C) {
-	c.Assert(s.d.StartWithBusybox(), check.IsNil)
+	d := daemon.New(c, dockerBinary, dockerdBinary, daemon.Config{
+		Experimental: experimentalDaemon,
+	})
+	d.StartWithBusybox(c)
 
-	out, err := s.d.Cmd("run", "-d", "busybox", "top")
+	out, err := d.Cmd("run", "-d", "busybox", "top")
 	c.Assert(err, check.IsNil, check.Commentf("Output: %s", out))
 	id := strings.TrimSpace(out)
-	c.Assert(s.d.Signal(os.Kill), check.IsNil)
+	c.Assert(d.Signal(os.Kill), check.IsNil)
 	mountOut, err := ioutil.ReadFile("/proc/self/mountinfo")
 	c.Assert(err, check.IsNil, check.Commentf("Output: %s", mountOut))
 
 	// container mounts should exist even after daemon has crashed.
-	comment := check.Commentf("%s should stay mounted from older daemon start:\nDaemon root repository %s\n%s", id, s.d.Root, mountOut)
+	comment := check.Commentf("%s should stay mounted from older daemon start:\nDaemon root repository %s\n%s", id, d.Root, mountOut)
 	c.Assert(strings.Contains(string(mountOut), id), check.Equals, true, comment)
 
 	// kill the container
@@ -1564,40 +1479,43 @@ func (s *DockerDaemonSuite) TestCleanupMountsAfterDaemonAndContainerKill(c *chec
 	}
 
 	// restart daemon.
-	if err := s.d.Restart(); err != nil {
-		c.Fatal(err)
-	}
+	d.Restart(c)
 
 	// Now, container mounts should be gone.
 	mountOut, err = ioutil.ReadFile("/proc/self/mountinfo")
 	c.Assert(err, check.IsNil, check.Commentf("Output: %s", mountOut))
-	comment = check.Commentf("%s is still mounted from older daemon start:\nDaemon root repository %s\n%s", id, s.d.Root, mountOut)
+	comment = check.Commentf("%s is still mounted from older daemon start:\nDaemon root repository %s\n%s", id, d.Root, mountOut)
 	c.Assert(strings.Contains(string(mountOut), id), check.Equals, false, comment)
+
+	d.Stop(c)
 }
 
 // os.Interrupt should perform a graceful daemon shutdown and hence cleanup mounts.
 func (s *DockerDaemonSuite) TestCleanupMountsAfterGracefulShutdown(c *check.C) {
-	c.Assert(s.d.StartWithBusybox(), check.IsNil)
+	d := daemon.New(c, dockerBinary, dockerdBinary, daemon.Config{
+		Experimental: experimentalDaemon,
+	})
+	d.StartWithBusybox(c)
 
-	out, err := s.d.Cmd("run", "-d", "busybox", "top")
+	out, err := d.Cmd("run", "-d", "busybox", "top")
 	c.Assert(err, check.IsNil, check.Commentf("Output: %s", out))
 	id := strings.TrimSpace(out)
 
 	// Send SIGINT and daemon should clean up
-	c.Assert(s.d.Signal(os.Interrupt), check.IsNil)
+	c.Assert(d.Signal(os.Interrupt), check.IsNil)
 	// Wait for the daemon to stop.
-	c.Assert(<-s.d.Wait, checker.IsNil)
+	c.Assert(<-d.Wait, checker.IsNil)
 
 	mountOut, err := ioutil.ReadFile("/proc/self/mountinfo")
 	c.Assert(err, check.IsNil, check.Commentf("Output: %s", mountOut))
 
-	comment := check.Commentf("%s is still mounted from older daemon start:\nDaemon root repository %s\n%s", id, s.d.Root, mountOut)
+	comment := check.Commentf("%s is still mounted from older daemon start:\nDaemon root repository %s\n%s", id, d.Root, mountOut)
 	c.Assert(strings.Contains(string(mountOut), id), check.Equals, false, comment)
 }
 
 func (s *DockerDaemonSuite) TestRunContainerWithBridgeNone(c *check.C) {
 	testRequires(c, DaemonIsLinux, NotUserNamespace)
-	c.Assert(s.d.StartWithBusybox("-b", "none"), check.IsNil)
+	s.d.StartWithBusybox(c, "-b", "none")
 
 	out, err := s.d.Cmd("run", "--rm", "busybox", "ip", "l")
 	c.Assert(err, check.IsNil, check.Commentf("Output: %s", out))
@@ -1624,16 +1542,12 @@ func (s *DockerDaemonSuite) TestRunContainerWithBridgeNone(c *check.C) {
 }
 
 func (s *DockerDaemonSuite) TestDaemonRestartWithContainerRunning(t *check.C) {
-	if err := s.d.StartWithBusybox(); err != nil {
-		t.Fatal(err)
-	}
+	s.d.StartWithBusybox(t)
 	if out, err := s.d.Cmd("run", "-d", "--name", "test", "busybox", "top"); err != nil {
 		t.Fatal(out, err)
 	}
 
-	if err := s.d.Restart(); err != nil {
-		t.Fatal(err)
-	}
+	s.d.Restart(t)
 	// Container 'test' should be removed without error
 	if out, err := s.d.Cmd("rm", "test"); err != nil {
 		t.Fatal(out, err)
@@ -1641,9 +1555,7 @@ func (s *DockerDaemonSuite) TestDaemonRestartWithContainerRunning(t *check.C) {
 }
 
 func (s *DockerDaemonSuite) TestDaemonRestartCleanupNetns(c *check.C) {
-	if err := s.d.StartWithBusybox(); err != nil {
-		c.Fatal(err)
-	}
+	s.d.StartWithBusybox(c)
 	out, err := s.d.Cmd("run", "--name", "netns", "-d", "busybox", "top")
 	if err != nil {
 		c.Fatal(out, err)
@@ -1671,9 +1583,7 @@ func (s *DockerDaemonSuite) TestDaemonRestartCleanupNetns(c *check.C) {
 		c.Fatal(out, err)
 	}
 
-	if err := s.d.Restart(); err != nil {
-		c.Fatal(err)
-	}
+	s.d.Restart(c)
 
 	// Test again and see now the netns file does not exist
 	out, _, err = runCommandWithOutput(exec.Command("stat", "-c", "%n", fileName))
@@ -1684,7 +1594,7 @@ func (s *DockerDaemonSuite) TestDaemonRestartCleanupNetns(c *check.C) {
 // tests regression detailed in #13964 where DOCKER_TLS_VERIFY env is ignored
 func (s *DockerDaemonSuite) TestDaemonTLSVerifyIssue13964(c *check.C) {
 	host := "tcp://localhost:4271"
-	c.Assert(s.d.Start("-H", host), check.IsNil)
+	s.d.Start(c, "-H", host)
 	cmd := exec.Command(dockerBinary, "-H", host, "info")
 	cmd.Env = []string{"DOCKER_TLS_VERIFY=1", "DOCKER_CERT_PATH=fixtures/https"}
 	out, _, err := runCommandWithOutput(cmd)
@@ -1705,7 +1615,7 @@ func teardownV6(c *check.C) {
 }
 
 func (s *DockerDaemonSuite) TestDaemonRestartWithContainerWithRestartPolicyAlways(c *check.C) {
-	c.Assert(s.d.StartWithBusybox(), check.IsNil)
+	s.d.StartWithBusybox(c)
 
 	out, err := s.d.Cmd("run", "-d", "--restart", "always", "busybox", "top")
 	c.Assert(err, check.IsNil)
@@ -1720,7 +1630,7 @@ func (s *DockerDaemonSuite) TestDaemonRestartWithContainerWithRestartPolicyAlway
 	c.Assert(err, check.IsNil)
 	c.Assert(out, check.Equals, "")
 
-	c.Assert(s.d.Restart(), check.IsNil)
+	s.d.Restart(c)
 
 	out, err = s.d.Cmd("ps", "-q")
 	c.Assert(err, check.IsNil)
@@ -1728,9 +1638,7 @@ func (s *DockerDaemonSuite) TestDaemonRestartWithContainerWithRestartPolicyAlway
 }
 
 func (s *DockerDaemonSuite) TestDaemonWideLogConfig(c *check.C) {
-	if err := s.d.StartWithBusybox("--log-opt=max-size=1k"); err != nil {
-		c.Fatal(err)
-	}
+	s.d.StartWithBusybox(c, "--log-opt=max-size=1k")
 	name := "logtest"
 	out, err := s.d.Cmd("run", "-d", "--log-opt=max-file=5", "--name", name, "busybox", "top")
 	c.Assert(err, check.IsNil, check.Commentf("Output: %s, err: %v", out, err))
@@ -1746,18 +1654,14 @@ func (s *DockerDaemonSuite) TestDaemonWideLogConfig(c *check.C) {
 }
 
 func (s *DockerDaemonSuite) TestDaemonRestartWithPausedContainer(c *check.C) {
-	if err := s.d.StartWithBusybox(); err != nil {
-		c.Fatal(err)
-	}
+	s.d.StartWithBusybox(c)
 	if out, err := s.d.Cmd("run", "-i", "-d", "--name", "test", "busybox", "top"); err != nil {
 		c.Fatal(err, out)
 	}
 	if out, err := s.d.Cmd("pause", "test"); err != nil {
 		c.Fatal(err, out)
 	}
-	if err := s.d.Restart(); err != nil {
-		c.Fatal(err)
-	}
+	s.d.Restart(c)
 
 	errchan := make(chan error)
 	go func() {
@@ -1783,12 +1687,12 @@ func (s *DockerDaemonSuite) TestDaemonRestartWithPausedContainer(c *check.C) {
 }
 
 func (s *DockerDaemonSuite) TestDaemonRestartRmVolumeInUse(c *check.C) {
-	c.Assert(s.d.StartWithBusybox(), check.IsNil)
+	s.d.StartWithBusybox(c)
 
 	out, err := s.d.Cmd("create", "-v", "test:/foo", "busybox")
 	c.Assert(err, check.IsNil, check.Commentf(out))
 
-	c.Assert(s.d.Restart(), check.IsNil)
+	s.d.Restart(c)
 
 	out, err = s.d.Cmd("volume", "rm", "test")
 	c.Assert(err, check.NotNil, check.Commentf("should not be able to remove in use volume after daemon restart"))
@@ -1796,29 +1700,37 @@ func (s *DockerDaemonSuite) TestDaemonRestartRmVolumeInUse(c *check.C) {
 }
 
 func (s *DockerDaemonSuite) TestDaemonRestartLocalVolumes(c *check.C) {
-	c.Assert(s.d.Start(), check.IsNil)
+	s.d.Start(c)
 
 	_, err := s.d.Cmd("volume", "create", "test")
 	c.Assert(err, check.IsNil)
-	c.Assert(s.d.Restart(), check.IsNil)
+	s.d.Restart(c)
 
 	_, err = s.d.Cmd("volume", "inspect", "test")
 	c.Assert(err, check.IsNil)
 }
 
+// FIXME(vdemeester) should be a unit test
 func (s *DockerDaemonSuite) TestDaemonCorruptedLogDriverAddress(c *check.C) {
-	c.Assert(s.d.Start("--log-driver=syslog", "--log-opt", "syslog-address=corrupted:42"), check.NotNil)
+	d := daemon.New(c, dockerBinary, dockerdBinary, daemon.Config{
+		Experimental: experimentalDaemon,
+	})
+	c.Assert(d.StartWithError("--log-driver=syslog", "--log-opt", "syslog-address=corrupted:42"), check.NotNil)
 	expected := "Failed to set log opts: syslog-address should be in form proto://address"
-	runCmd := exec.Command("grep", expected, s.d.LogFileName())
+	runCmd := exec.Command("grep", expected, d.LogFileName())
 	if out, _, err := runCommandWithOutput(runCmd); err != nil {
 		c.Fatalf("Expected %q message; but doesn't exist in log: %q, err: %v", expected, out, err)
 	}
 }
 
+// FIXME(vdemeester) should be a unit test
 func (s *DockerDaemonSuite) TestDaemonCorruptedFluentdAddress(c *check.C) {
-	c.Assert(s.d.Start("--log-driver=fluentd", "--log-opt", "fluentd-address=corrupted:c"), check.NotNil)
+	d := daemon.New(c, dockerBinary, dockerdBinary, daemon.Config{
+		Experimental: experimentalDaemon,
+	})
+	c.Assert(d.StartWithError("--log-driver=fluentd", "--log-opt", "fluentd-address=corrupted:c"), check.NotNil)
 	expected := "Failed to set log opts: invalid fluentd-address corrupted:c: "
-	runCmd := exec.Command("grep", expected, s.d.LogFileName())
+	runCmd := exec.Command("grep", expected, d.LogFileName())
 	if out, _, err := runCommandWithOutput(runCmd); err != nil {
 		c.Fatalf("Expected %q message; but doesn't exist in log: %q, err: %v", expected, out, err)
 	}
@@ -1830,7 +1742,7 @@ func (s *DockerDaemonSuite) TestDaemonStartWithoutHost(c *check.C) {
 	defer func() {
 		s.d.UseDefaultHost = false
 	}()
-	c.Assert(s.d.Start(), check.IsNil)
+	s.d.Start(c)
 }
 
 // FIXME(vdemeester) Use a new daemon instance instead of the Suite one
@@ -1839,13 +1751,11 @@ func (s *DockerDaemonSuite) TestDaemonStartWithDefalutTLSHost(c *check.C) {
 	defer func() {
 		s.d.UseDefaultTLSHost = false
 	}()
-	if err := s.d.Start(
+	s.d.Start(c,
 		"--tlsverify",
 		"--tlscacert", "fixtures/https/ca.pem",
 		"--tlscert", "fixtures/https/server-cert.pem",
-		"--tlskey", "fixtures/https/server-key.pem"); err != nil {
-		c.Fatalf("Could not start daemon: %v", err)
-	}
+		"--tlskey", "fixtures/https/server-key.pem")
 
 	// The client with --tlsverify should also use default host localhost:2376
 	tmpHost := os.Getenv("DOCKER_HOST")
@@ -1875,14 +1785,13 @@ func (s *DockerDaemonSuite) TestBridgeIPIsExcludedFromAllocatorPool(c *check.C) 
 	bridgeIP := "192.169.1.1"
 	bridgeRange := bridgeIP + "/30"
 
-	err := s.d.StartWithBusybox("--bip", bridgeRange)
-	c.Assert(err, check.IsNil)
-	defer s.d.Restart()
+	s.d.StartWithBusybox(c, "--bip", bridgeRange)
+	defer s.d.Restart(c)
 
 	var cont int
 	for {
 		contName := fmt.Sprintf("container%d", cont)
-		_, err = s.d.Cmd("run", "--name", contName, "-d", "busybox", "/bin/sleep", "2")
+		_, err := s.d.Cmd("run", "--name", contName, "-d", "busybox", "/bin/sleep", "2")
 		if err != nil {
 			// pool exhausted
 			break
@@ -1920,9 +1829,8 @@ func (s *DockerDaemonSuite) TestDaemonNoSpaceLeftOnDeviceError(c *check.C) {
 	dockerCmd(c, "run", "--privileged", "--rm", "-v", testDir+":/test:shared", "busybox", "sh", "-c", fmt.Sprintf("mkdir -p /test/test-mount && mount -t ext4 -no loop,rw %v /test/test-mount", loopname))
 	defer mount.Unmount(filepath.Join(testDir, "test-mount"))
 
-	err = s.d.Start("--graph", filepath.Join(testDir, "test-mount"))
-	defer s.d.Stop()
-	c.Assert(err, check.IsNil)
+	s.d.Start(c, "--graph", filepath.Join(testDir, "test-mount"))
+	defer s.d.Stop(c)
 
 	// pull a repository large enough to fill the mount point
 	pullOut, err := s.d.Cmd("pull", "registry:2")
@@ -1932,8 +1840,7 @@ func (s *DockerDaemonSuite) TestDaemonNoSpaceLeftOnDeviceError(c *check.C) {
 
 // Test daemon restart with container links + auto restart
 func (s *DockerDaemonSuite) TestDaemonRestartContainerLinksRestart(c *check.C) {
-	err := s.d.StartWithBusybox()
-	c.Assert(err, checker.IsNil)
+	s.d.StartWithBusybox(c)
 
 	parent1Args := []string{}
 	parent2Args := []string{}
@@ -1952,7 +1859,7 @@ func (s *DockerDaemonSuite) TestDaemonRestartContainerLinksRestart(c *check.C) {
 		}
 
 		go func() {
-			_, err = s.d.Cmd("run", "-d", "--name", name, "--restart=always", "busybox", "top")
+			_, err := s.d.Cmd("run", "-d", "--name", name, "--restart=always", "busybox", "top")
 			chErr <- err
 			wg.Done()
 		}()
@@ -1969,18 +1876,16 @@ func (s *DockerDaemonSuite) TestDaemonRestartContainerLinksRestart(c *check.C) {
 	parent2Args = append([]string{"run", "-d"}, parent2Args...)
 	parent2Args = append(parent2Args, []string{"--name=parent2", "--restart=always", "busybox", "top"}...)
 
-	_, err = s.d.Cmd(parent1Args...)
+	_, err := s.d.Cmd(parent1Args...)
 	c.Assert(err, check.IsNil)
 	_, err = s.d.Cmd(parent2Args...)
 	c.Assert(err, check.IsNil)
 
-	err = s.d.Stop()
-	c.Assert(err, check.IsNil)
+	s.d.Stop(c)
 	// clear the log file -- we don't need any of it but may for the next part
 	// can ignore the error here, this is just a cleanup
 	os.Truncate(s.d.LogFileName(), 0)
-	err = s.d.Start()
-	c.Assert(err, check.IsNil)
+	s.d.Start(c)
 
 	for _, num := range []string{"1", "2"} {
 		out, err := s.d.Cmd("inspect", "-f", "{{ .State.Running }}", "parent"+num)
@@ -1998,9 +1903,8 @@ func (s *DockerDaemonSuite) TestDaemonCgroupParent(c *check.C) {
 	cgroupParent := "test"
 	name := "cgroup-test"
 
-	err := s.d.StartWithBusybox("--cgroup-parent", cgroupParent)
-	c.Assert(err, check.IsNil)
-	defer s.d.Restart()
+	s.d.StartWithBusybox(c, "--cgroup-parent", cgroupParent)
+	defer s.d.Restart(c)
 
 	out, err := s.d.Cmd("run", "--name", name, "busybox", "cat", "/proc/self/cgroup")
 	c.Assert(err, checker.IsNil)
@@ -2022,8 +1926,7 @@ func (s *DockerDaemonSuite) TestDaemonCgroupParent(c *check.C) {
 
 func (s *DockerDaemonSuite) TestDaemonRestartWithLinks(c *check.C) {
 	testRequires(c, DaemonIsLinux) // Windows does not support links
-	err := s.d.StartWithBusybox()
-	c.Assert(err, check.IsNil)
+	s.d.StartWithBusybox(c)
 
 	out, err := s.d.Cmd("run", "-d", "--name=test", "busybox", "top")
 	c.Assert(err, check.IsNil, check.Commentf(out))
@@ -2031,7 +1934,7 @@ func (s *DockerDaemonSuite) TestDaemonRestartWithLinks(c *check.C) {
 	out, err = s.d.Cmd("run", "--name=test2", "--link", "test:abc", "busybox", "sh", "-c", "ping -c 1 -w 1 abc")
 	c.Assert(err, check.IsNil, check.Commentf(out))
 
-	c.Assert(s.d.Restart(), check.IsNil)
+	s.d.Restart(c)
 
 	// should fail since test is not running yet
 	out, err = s.d.Cmd("start", "test2")
@@ -2046,8 +1949,7 @@ func (s *DockerDaemonSuite) TestDaemonRestartWithLinks(c *check.C) {
 
 func (s *DockerDaemonSuite) TestDaemonRestartWithNames(c *check.C) {
 	testRequires(c, DaemonIsLinux) // Windows does not support links
-	err := s.d.StartWithBusybox()
-	c.Assert(err, check.IsNil)
+	s.d.StartWithBusybox(c)
 
 	out, err := s.d.Cmd("create", "--name=test", "busybox")
 	c.Assert(err, check.IsNil, check.Commentf(out))
@@ -2059,7 +1961,7 @@ func (s *DockerDaemonSuite) TestDaemonRestartWithNames(c *check.C) {
 	out, err = s.d.Cmd("run", "-d", "--name=test3", "--link", "test2:abc", "busybox", "top")
 	test3ID := strings.TrimSpace(out)
 
-	c.Assert(s.d.Restart(), check.IsNil)
+	s.d.Restart(c)
 
 	out, err = s.d.Cmd("create", "--name=test", "busybox")
 	c.Assert(err, check.NotNil, check.Commentf("expected error trying to create container with duplicate name"))
@@ -2095,12 +1997,10 @@ func (s *DockerDaemonSuite) TestDaemonRestartWithNames(c *check.C) {
 func (s *DockerDaemonSuite) TestDaemonRestartWithKilledRunningContainer(t *check.C) {
 	// TODO(mlaventure): Not sure what would the exit code be on windows
 	testRequires(t, DaemonIsLinux)
-	if err := s.d.StartWithBusybox(); err != nil {
-		t.Fatal(err)
-	}
+	s.d.StartWithBusybox(t)
 
 	cid, err := s.d.Cmd("run", "-d", "--name", "test", "busybox", "top")
-	defer s.d.Stop()
+	defer s.d.Stop(t)
 	if err != nil {
 		t.Fatal(cid, err)
 	}
@@ -2131,9 +2031,7 @@ func (s *DockerDaemonSuite) TestDaemonRestartWithKilledRunningContainer(t *check
 	}
 
 	// restart the daemon
-	if err := s.d.Start(); err != nil {
-		t.Fatal(err)
-	}
+	s.d.Start(t)
 
 	// Check that we've got the correct exit code
 	out, err := s.d.Cmd("inspect", "-f", "{{.State.ExitCode}}", cid)
@@ -2151,7 +2049,7 @@ func (s *DockerDaemonSuite) TestDaemonRestartWithKilledRunningContainer(t *check
 // them now, should remove the mounts.
 func (s *DockerDaemonSuite) TestCleanupMountsAfterDaemonCrash(c *check.C) {
 	testRequires(c, DaemonIsLinux)
-	c.Assert(s.d.StartWithBusybox("--live-restore"), check.IsNil)
+	s.d.StartWithBusybox(c, "--live-restore")
 
 	out, err := s.d.Cmd("run", "-d", "busybox", "top")
 	c.Assert(err, check.IsNil, check.Commentf("Output: %s", out))
@@ -2166,9 +2064,7 @@ func (s *DockerDaemonSuite) TestCleanupMountsAfterDaemonCrash(c *check.C) {
 	c.Assert(strings.Contains(string(mountOut), id), check.Equals, true, comment)
 
 	// restart daemon.
-	if err := s.d.Restart("--live-restore"); err != nil {
-		c.Fatal(err)
-	}
+	s.d.Start(c, "--live-restore")
 
 	// container should be running.
 	out, err = s.d.Cmd("inspect", "--format={{.State.Running}}", id)
@@ -2193,12 +2089,10 @@ func (s *DockerDaemonSuite) TestCleanupMountsAfterDaemonCrash(c *check.C) {
 func (s *DockerDaemonSuite) TestDaemonRestartWithUnpausedRunningContainer(t *check.C) {
 	// TODO(mlaventure): Not sure what would the exit code be on windows
 	testRequires(t, DaemonIsLinux)
-	if err := s.d.StartWithBusybox("--live-restore"); err != nil {
-		t.Fatal(err)
-	}
+	s.d.StartWithBusybox(t, "--live-restore")
 
 	cid, err := s.d.Cmd("run", "-d", "--name", "test", "busybox", "top")
-	defer s.d.Stop()
+	defer s.d.Stop(t)
 	if err != nil {
 		t.Fatal(cid, err)
 	}
@@ -2232,9 +2126,7 @@ func (s *DockerDaemonSuite) TestDaemonRestartWithUnpausedRunningContainer(t *che
 	}, checker.Equals, 0)
 
 	// restart the daemon
-	if err := s.d.Start("--live-restore"); err != nil {
-		t.Fatal(err)
-	}
+	s.d.Start(t, "--live-restore")
 
 	// Check that we've got the correct status
 	out, err := s.d.Cmd("inspect", "-f", "{{.State.Status}}", cid)
@@ -2253,8 +2145,7 @@ func (s *DockerDaemonSuite) TestDaemonRestartWithUnpausedRunningContainer(t *che
 // this ensures that the old, pre gh#16032 functionality continues on
 func (s *DockerDaemonSuite) TestRunLinksChanged(c *check.C) {
 	testRequires(c, DaemonIsLinux) // Windows does not support links
-	err := s.d.StartWithBusybox()
-	c.Assert(err, check.IsNil)
+	s.d.StartWithBusybox(c)
 
 	out, err := s.d.Cmd("run", "-d", "--name=test", "busybox", "top")
 	c.Assert(err, check.IsNil, check.Commentf(out))
@@ -2272,8 +2163,7 @@ func (s *DockerDaemonSuite) TestRunLinksChanged(c *check.C) {
 	c.Assert(err, check.NotNil, check.Commentf(out))
 	c.Assert(out, check.Not(checker.Contains), "1 packets transmitted, 1 packets received")
 
-	err = s.d.Restart()
-	c.Assert(err, check.IsNil)
+	s.d.Restart(c)
 	out, err = s.d.Cmd("start", "-a", "test2")
 	c.Assert(err, check.NotNil, check.Commentf(out))
 	c.Assert(out, check.Not(checker.Contains), "1 packets transmitted, 1 packets received")
@@ -2296,14 +2186,14 @@ func (s *DockerDaemonSuite) TestDaemonStartWithoutColors(c *check.C) {
 
 	// Enable coloring explicitly
 	s.d.StartWithLogFile(tty, "--raw-logs=false")
-	s.d.Stop()
+	s.d.Stop(c)
 	c.Assert(b.String(), checker.Contains, infoLog)
 
 	b.Reset()
 
 	// Disable coloring explicitly
 	s.d.StartWithLogFile(tty, "--raw-logs=true")
-	s.d.Stop()
+	s.d.Stop(c)
 	c.Assert(b.String(), check.Not(checker.Contains), infoLog)
 }
 
@@ -2323,7 +2213,7 @@ func (s *DockerDaemonSuite) TestDaemonDebugLog(c *check.C) {
 	go io.Copy(b, p)
 
 	s.d.StartWithLogFile(tty, "--debug")
-	s.d.Stop()
+	s.d.Stop(c)
 	c.Assert(b.String(), checker.Contains, debugLog)
 }
 
@@ -2345,8 +2235,7 @@ func (s *DockerDaemonSuite) TestDaemonDiscoveryBackendConfigReload(c *check.C) {
 
 	// --log-level needs to be set so that d.Start() doesn't add --debug causing
 	// a conflict with the config
-	err = s.d.Start("--config-file", configFilePath, "--log-level=info")
-	c.Assert(err, checker.IsNil)
+	s.d.Start(c, "--config-file", configFilePath, "--log-level=info")
 
 	// daemon config file
 	daemonConfig = `{
@@ -2375,8 +2264,7 @@ func (s *DockerDaemonSuite) TestDaemonDiscoveryBackendConfigReload(c *check.C) {
 
 // Test for #21956
 func (s *DockerDaemonSuite) TestDaemonLogOptions(c *check.C) {
-	err := s.d.StartWithBusybox("--log-driver=syslog", "--log-opt=syslog-address=udp://127.0.0.1:514")
-	c.Assert(err, check.IsNil)
+	s.d.StartWithBusybox(c, "--log-driver=syslog", "--log-opt=syslog-address=udp://127.0.0.1:514")
 
 	out, err := s.d.Cmd("run", "-d", "--log-driver=json-file", "busybox", "top")
 	c.Assert(err, check.IsNil, check.Commentf(out))
@@ -2389,7 +2277,7 @@ func (s *DockerDaemonSuite) TestDaemonLogOptions(c *check.C) {
 
 // Test case for #20936, #22443
 func (s *DockerDaemonSuite) TestDaemonMaxConcurrency(c *check.C) {
-	c.Assert(s.d.Start("--max-concurrent-uploads=6", "--max-concurrent-downloads=8"), check.IsNil)
+	s.d.Start(c, "--max-concurrent-uploads=6", "--max-concurrent-downloads=8")
 
 	expectedMaxConcurrentUploads := `level=debug msg="Max Concurrent Uploads: 6"`
 	expectedMaxConcurrentDownloads := `level=debug msg="Max Concurrent Downloads: 8"`
@@ -2412,7 +2300,7 @@ func (s *DockerDaemonSuite) TestDaemonMaxConcurrencyWithConfigFile(c *check.C) {
 	daemonConfig := `{ "max-concurrent-downloads" : 8 }`
 	fmt.Fprintf(configFile, "%s", daemonConfig)
 	configFile.Close()
-	c.Assert(s.d.Start(fmt.Sprintf("--config-file=%s", configFilePath)), check.IsNil)
+	s.d.Start(c, fmt.Sprintf("--config-file=%s", configFilePath))
 
 	expectedMaxConcurrentUploads := `level=debug msg="Max Concurrent Uploads: 5"`
 	expectedMaxConcurrentDownloads := `level=debug msg="Max Concurrent Downloads: 8"`
@@ -2453,7 +2341,7 @@ func (s *DockerDaemonSuite) TestDaemonMaxConcurrencyWithConfigFileReload(c *chec
 	daemonConfig := `{ "max-concurrent-uploads" : null }`
 	fmt.Fprintf(configFile, "%s", daemonConfig)
 	configFile.Close()
-	c.Assert(s.d.Start(fmt.Sprintf("--config-file=%s", configFilePath)), check.IsNil)
+	s.d.Start(c, fmt.Sprintf("--config-file=%s", configFilePath))
 
 	expectedMaxConcurrentUploads := `level=debug msg="Max Concurrent Uploads: 5"`
 	expectedMaxConcurrentDownloads := `level=debug msg="Max Concurrent Downloads: 3"`
@@ -2499,10 +2387,7 @@ func (s *DockerDaemonSuite) TestDaemonMaxConcurrencyWithConfigFileReload(c *chec
 }
 
 func (s *DockerDaemonSuite) TestBuildOnDisabledBridgeNetworkDaemon(c *check.C) {
-	err := s.d.StartWithBusybox("-b=none", "--iptables=false")
-	c.Assert(err, check.IsNil)
-	// s.d.c.Logf("dockerBinary %s", dockerBinary)
-	c.Logf("dockerBinary %s", dockerBinary)
+	s.d.StartWithBusybox(c, "-b=none", "--iptables=false")
 	out, code, err := s.d.BuildImageWithOut("busyboxs",
 		`FROM busybox
                 RUN cat /etc/hosts`, false)
@@ -2515,8 +2400,7 @@ func (s *DockerDaemonSuite) TestBuildOnDisabledBridgeNetworkDaemon(c *check.C) {
 func (s *DockerDaemonSuite) TestDaemonDNSInHostMode(c *check.C) {
 	testRequires(c, SameHostDaemon, DaemonIsLinux)
 
-	err := s.d.StartWithBusybox("--dns", "1.2.3.4")
-	c.Assert(err, checker.IsNil)
+	s.d.StartWithBusybox(c, "--dns", "1.2.3.4")
 
 	expectedOutput := "nameserver 1.2.3.4"
 	out, _ := s.d.Cmd("run", "--net=host", "busybox", "cat", "/etc/resolv.conf")
@@ -2527,8 +2411,7 @@ func (s *DockerDaemonSuite) TestDaemonDNSInHostMode(c *check.C) {
 func (s *DockerDaemonSuite) TestDaemonDNSSearchInHostMode(c *check.C) {
 	testRequires(c, SameHostDaemon, DaemonIsLinux)
 
-	err := s.d.StartWithBusybox("--dns-search", "example.com")
-	c.Assert(err, checker.IsNil)
+	s.d.StartWithBusybox(c, "--dns-search", "example.com")
 
 	expectedOutput := "search example.com"
 	out, _ := s.d.Cmd("run", "--net=host", "busybox", "cat", "/etc/resolv.conf")
@@ -2539,8 +2422,7 @@ func (s *DockerDaemonSuite) TestDaemonDNSSearchInHostMode(c *check.C) {
 func (s *DockerDaemonSuite) TestDaemonDNSOptionsInHostMode(c *check.C) {
 	testRequires(c, SameHostDaemon, DaemonIsLinux)
 
-	err := s.d.StartWithBusybox("--dns-opt", "timeout:3")
-	c.Assert(err, checker.IsNil)
+	s.d.StartWithBusybox(c, "--dns-opt", "timeout:3")
 
 	expectedOutput := "options timeout:3"
 	out, _ := s.d.Cmd("run", "--net=host", "busybox", "cat", "/etc/resolv.conf")
@@ -2570,8 +2452,7 @@ func (s *DockerDaemonSuite) TestRunWithRuntimeFromConfigFile(c *check.C) {
 }
 `
 	ioutil.WriteFile(configName, []byte(config), 0644)
-	err = s.d.StartWithBusybox("--config-file", configName)
-	c.Assert(err, check.IsNil)
+	s.d.StartWithBusybox(c, "--config-file", configName)
 
 	// Run with default runtime
 	out, err := s.d.Cmd("run", "--rm", "busybox", "ls")
@@ -2667,8 +2548,7 @@ func (s *DockerDaemonSuite) TestRunWithRuntimeFromConfigFile(c *check.C) {
 }
 
 func (s *DockerDaemonSuite) TestRunWithRuntimeFromCommandLine(c *check.C) {
-	err := s.d.StartWithBusybox("--add-runtime", "oci=docker-runc", "--add-runtime", "vm=/usr/local/bin/vm-manager")
-	c.Assert(err, check.IsNil)
+	s.d.StartWithBusybox(c, "--add-runtime", "oci=docker-runc", "--add-runtime", "vm=/usr/local/bin/vm-manager")
 
 	// Run with default runtime
 	out, err := s.d.Cmd("run", "--rm", "busybox", "ls")
@@ -2688,9 +2568,8 @@ func (s *DockerDaemonSuite) TestRunWithRuntimeFromCommandLine(c *check.C) {
 	c.Assert(out, checker.Contains, "/usr/local/bin/vm-manager: no such file or directory")
 
 	// Start a daemon without any extra runtimes
-	s.d.Stop()
-	err = s.d.StartWithBusybox()
-	c.Assert(err, check.IsNil)
+	s.d.Stop(c)
+	s.d.StartWithBusybox(c)
 
 	// Run with default runtime
 	out, err = s.d.Cmd("run", "--rm", "--runtime=runc", "busybox", "ls")
@@ -2707,18 +2586,16 @@ func (s *DockerDaemonSuite) TestRunWithRuntimeFromCommandLine(c *check.C) {
 	c.Assert(out, checker.Contains, "Unknown runtime specified oci")
 
 	// Check that we can't override the default runtime
-	s.d.Stop()
-	err = s.d.Start("--add-runtime", "runc=my-runc")
-	c.Assert(err, check.NotNil)
+	s.d.Stop(c)
+	c.Assert(s.d.StartWithError("--add-runtime", "runc=my-runc"), checker.NotNil)
 
 	content, err := s.d.ReadLogFile()
 	c.Assert(err, checker.IsNil)
 	c.Assert(string(content), checker.Contains, `runtime name 'runc' is reserved`)
 
 	// Check that we can select a default runtime
-	s.d.Stop()
-	err = s.d.StartWithBusybox("--default-runtime=vm", "--add-runtime", "oci=docker-runc", "--add-runtime", "vm=/usr/local/bin/vm-manager")
-	c.Assert(err, check.IsNil)
+	s.d.Stop(c)
+	s.d.StartWithBusybox(c, "--default-runtime=vm", "--add-runtime", "oci=docker-runc", "--add-runtime", "vm=/usr/local/bin/vm-manager")
 
 	out, err = s.d.Cmd("run", "--rm", "busybox", "ls")
 	c.Assert(err, check.NotNil, check.Commentf(out))
@@ -2730,8 +2607,7 @@ func (s *DockerDaemonSuite) TestRunWithRuntimeFromCommandLine(c *check.C) {
 }
 
 func (s *DockerDaemonSuite) TestDaemonRestartWithAutoRemoveContainer(c *check.C) {
-	err := s.d.StartWithBusybox()
-	c.Assert(err, checker.IsNil)
+	s.d.StartWithBusybox(c)
 
 	// top1 will exist after daemon restarts
 	out, err := s.d.Cmd("run", "-d", "--name", "top1", "busybox:latest", "top")
@@ -2745,8 +2621,7 @@ func (s *DockerDaemonSuite) TestDaemonRestartWithAutoRemoveContainer(c *check.C)
 	c.Assert(out, checker.Contains, "top2", check.Commentf("top2 should be running"))
 
 	// now restart daemon gracefully
-	err = s.d.Restart()
-	c.Assert(err, checker.IsNil)
+	s.d.Restart(c)
 
 	out, err = s.d.Cmd("ps", "-a")
 	c.Assert(err, checker.IsNil, check.Commentf("out: %v", out))
@@ -2755,8 +2630,7 @@ func (s *DockerDaemonSuite) TestDaemonRestartWithAutoRemoveContainer(c *check.C)
 }
 
 func (s *DockerDaemonSuite) TestDaemonRestartSaveContainerExitCode(c *check.C) {
-	err := s.d.StartWithBusybox()
-	c.Assert(err, checker.IsNil)
+	s.d.StartWithBusybox(c)
 
 	containerName := "error-values"
 	// Make a container with both a non 0 exit code and an error message
@@ -2774,8 +2648,7 @@ func (s *DockerDaemonSuite) TestDaemonRestartSaveContainerExitCode(c *check.C) {
 	c.Assert(err, checker.IsNil)
 
 	// now restart daemon
-	err = s.d.Restart()
-	c.Assert(err, checker.IsNil)
+	s.d.Restart(c)
 
 	// Check that those values are still around
 	out, err = s.d.Cmd("inspect", "-f", "{{.State.ExitCode}}", containerName)
@@ -2791,8 +2664,7 @@ func (s *DockerDaemonSuite) TestDaemonRestartSaveContainerExitCode(c *check.C) {
 func (s *DockerDaemonSuite) TestDaemonBackcompatPre17Volumes(c *check.C) {
 	testRequires(c, SameHostDaemon)
 	d := s.d
-	err := d.StartWithBusybox()
-	c.Assert(err, checker.IsNil)
+	d.StartWithBusybox(c)
 
 	// hack to be able to side-load a container config
 	out, err := d.Cmd("create", "busybox:latest")
@@ -2801,7 +2673,7 @@ func (s *DockerDaemonSuite) TestDaemonBackcompatPre17Volumes(c *check.C) {
 
 	out, err = d.Cmd("inspect", "--type=image", "--format={{.ID}}", "busybox:latest")
 	c.Assert(err, checker.IsNil, check.Commentf(out))
-	c.Assert(d.Stop(), checker.IsNil)
+	d.Stop(c)
 	<-d.Wait
 
 	imageID := strings.TrimSpace(out)
@@ -2832,8 +2704,7 @@ func (s *DockerDaemonSuite) TestDaemonBackcompatPre17Volumes(c *check.C) {
 
 	configPath := filepath.Join(d.Root, "containers", id, "config.v2.json")
 	err = ioutil.WriteFile(configPath, config, 600)
-	err = d.Start()
-	c.Assert(err, checker.IsNil)
+	d.Start(c)
 
 	out, err = d.Cmd("inspect", "--type=container", "--format={{ json .Mounts }}", id)
 	c.Assert(err, checker.IsNil, check.Commentf(out))
@@ -2881,17 +2752,17 @@ func (s *DockerDaemonSuite) TestDaemonWithUserlandProxyPath(c *check.C) {
 	c.Assert(cmd.Run(), checker.IsNil)
 
 	// custom one
-	c.Assert(s.d.StartWithBusybox("--userland-proxy-path", newProxyPath), checker.IsNil)
+	s.d.StartWithBusybox(c, "--userland-proxy-path", newProxyPath)
 	out, err := s.d.Cmd("run", "-p", "5000:5000", "busybox:latest", "true")
 	c.Assert(err, checker.IsNil, check.Commentf(out))
 
 	// try with the original one
-	c.Assert(s.d.Restart("--userland-proxy-path", dockerProxyPath), checker.IsNil)
+	s.d.Restart(c, "--userland-proxy-path", dockerProxyPath)
 	out, err = s.d.Cmd("run", "-p", "5000:5000", "busybox:latest", "true")
 	c.Assert(err, checker.IsNil, check.Commentf(out))
 
 	// not exist
-	c.Assert(s.d.Restart("--userland-proxy-path", "/does/not/exist"), checker.IsNil)
+	s.d.Restart(c, "--userland-proxy-path", "/does/not/exist")
 	out, err = s.d.Cmd("run", "-p", "5000:5000", "busybox:latest", "true")
 	c.Assert(err, checker.NotNil, check.Commentf(out))
 	c.Assert(out, checker.Contains, "driver failed programming external connectivity on endpoint")
@@ -2901,8 +2772,7 @@ func (s *DockerDaemonSuite) TestDaemonWithUserlandProxyPath(c *check.C) {
 // Test case for #22471
 func (s *DockerDaemonSuite) TestDaemonShutdownTimeout(c *check.C) {
 	testRequires(c, SameHostDaemon)
-
-	c.Assert(s.d.StartWithBusybox("--shutdown-timeout=3"), check.IsNil)
+	s.d.StartWithBusybox(c, "--shutdown-timeout=3")
 
 	_, err := s.d.Cmd("run", "-d", "busybox", "top")
 	c.Assert(err, check.IsNil)
@@ -2933,7 +2803,7 @@ func (s *DockerDaemonSuite) TestDaemonShutdownTimeoutWithConfigFile(c *check.C) 
 	daemonConfig := `{ "shutdown-timeout" : 8 }`
 	fmt.Fprintf(configFile, "%s", daemonConfig)
 	configFile.Close()
-	c.Assert(s.d.Start(fmt.Sprintf("--config-file=%s", configFilePath)), check.IsNil)
+	s.d.Start(c, fmt.Sprintf("--config-file=%s", configFilePath))
 
 	configFile, err = os.Create(configFilePath)
 	c.Assert(err, checker.IsNil)

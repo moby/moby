@@ -84,7 +84,7 @@ func (s *DockerRegistrySuite) TearDownTest(c *check.C) {
 		s.reg.Close()
 	}
 	if s.d != nil {
-		s.d.Stop()
+		s.d.Stop(c)
 	}
 	s.ds.TearDownTest(c)
 }
@@ -118,7 +118,7 @@ func (s *DockerSchema1RegistrySuite) TearDownTest(c *check.C) {
 		s.reg.Close()
 	}
 	if s.d != nil {
-		s.d.Stop()
+		s.d.Stop(c)
 	}
 	s.ds.TearDownTest(c)
 }
@@ -154,7 +154,7 @@ func (s *DockerRegistryAuthHtpasswdSuite) TearDownTest(c *check.C) {
 		s.reg.Close()
 	}
 	if s.d != nil {
-		s.d.Stop()
+		s.d.Stop(c)
 	}
 	s.ds.TearDownTest(c)
 }
@@ -189,7 +189,7 @@ func (s *DockerRegistryAuthTokenSuite) TearDownTest(c *check.C) {
 		s.reg.Close()
 	}
 	if s.d != nil {
-		s.d.Stop()
+		s.d.Stop(c)
 	}
 	s.ds.TearDownTest(c)
 }
@@ -226,7 +226,7 @@ func (s *DockerDaemonSuite) SetUpTest(c *check.C) {
 func (s *DockerDaemonSuite) TearDownTest(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	if s.d != nil {
-		s.d.Stop()
+		s.d.Stop(c)
 	}
 	s.ds.TearDownTest(c)
 }
@@ -283,8 +283,7 @@ func (s *DockerSwarmSuite) AddDaemon(c *check.C, joinSwarm, manager bool) *daemo
 	}
 	d.ListenAddr = fmt.Sprintf("0.0.0.0:%d", d.Port)
 	args := []string{"--iptables=false", "--swarm-default-advertise-addr=lo"} // avoid networking conflicts
-	err := d.StartWithBusybox(args...)
-	c.Assert(err, check.IsNil)
+	d.StartWithBusybox(c, args...)
 
 	if joinSwarm == true {
 		if len(s.daemons) > 0 {
@@ -315,7 +314,7 @@ func (s *DockerSwarmSuite) TearDownTest(c *check.C) {
 	s.daemonsLock.Lock()
 	for _, d := range s.daemons {
 		if d != nil {
-			d.Stop()
+			d.Stop(c)
 			// FIXME(vdemeester) should be handled by SwarmDaemon ?
 			// raft state file is quite big (64MB) so remove it after every test
 			walDir := filepath.Join(d.Root, "swarm/raft/wal")

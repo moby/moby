@@ -49,8 +49,7 @@ func (s *DockerRegistrySuite) TestV2Only(c *check.C) {
 
 	repoName := fmt.Sprintf("%s/busybox", reg.hostport)
 
-	err = s.d.Start("--insecure-registry", reg.hostport, "--disable-legacy-registry=true")
-	c.Assert(err, check.IsNil)
+	s.d.Start(c, "--insecure-registry", reg.hostport, "--disable-legacy-registry=true")
 
 	dockerfileName, cleanup, err := makefile(fmt.Sprintf("FROM %s/busybox", reg.hostport))
 	c.Assert(err, check.IsNil, check.Commentf("Unable to create test dockerfile"))
@@ -98,8 +97,7 @@ func (s *DockerRegistrySuite) TestV1(c *check.C) {
 		v1Repo++
 	})
 
-	err = s.d.Start("--insecure-registry", reg.hostport, "--disable-legacy-registry=false")
-	c.Assert(err, check.IsNil)
+	s.d.Start(c, "--insecure-registry", reg.hostport, "--disable-legacy-registry=false")
 
 	dockerfileName, cleanup, err := makefile(fmt.Sprintf("FROM %s/busybox", reg.hostport))
 	c.Assert(err, check.IsNil, check.Commentf("Unable to create test dockerfile"))

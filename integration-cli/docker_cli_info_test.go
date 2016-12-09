@@ -76,9 +76,8 @@ func (s *DockerSuite) TestInfoDiscoveryBackend(c *check.C) {
 	})
 	discoveryBackend := "consul://consuladdr:consulport/some/path"
 	discoveryAdvertise := "1.1.1.1:2375"
-	err := d.Start(fmt.Sprintf("--cluster-store=%s", discoveryBackend), fmt.Sprintf("--cluster-advertise=%s", discoveryAdvertise))
-	c.Assert(err, checker.IsNil)
-	defer d.Stop()
+	d.Start(c, fmt.Sprintf("--cluster-store=%s", discoveryBackend), fmt.Sprintf("--cluster-advertise=%s", discoveryAdvertise))
+	defer d.Stop(c)
 
 	out, err := d.Cmd("info")
 	c.Assert(err, checker.IsNil)
@@ -97,12 +96,12 @@ func (s *DockerSuite) TestInfoDiscoveryInvalidAdvertise(c *check.C) {
 	discoveryBackend := "consul://consuladdr:consulport/some/path"
 
 	// --cluster-advertise with an invalid string is an error
-	err := d.Start(fmt.Sprintf("--cluster-store=%s", discoveryBackend), "--cluster-advertise=invalid")
-	c.Assert(err, checker.Not(checker.IsNil))
+	err := d.StartWithError(fmt.Sprintf("--cluster-store=%s", discoveryBackend), "--cluster-advertise=invalid")
+	c.Assert(err, checker.NotNil)
 
 	// --cluster-advertise without --cluster-store is also an error
-	err = d.Start("--cluster-advertise=1.1.1.1:2375")
-	c.Assert(err, checker.Not(checker.IsNil))
+	err = d.StartWithError("--cluster-advertise=1.1.1.1:2375")
+	c.Assert(err, checker.NotNil)
 }
 
 // TestInfoDiscoveryAdvertiseInterfaceName verifies that a daemon run with `--cluster-advertise`
@@ -116,9 +115,8 @@ func (s *DockerSuite) TestInfoDiscoveryAdvertiseInterfaceName(c *check.C) {
 	discoveryBackend := "consul://consuladdr:consulport/some/path"
 	discoveryAdvertise := "eth0"
 
-	err := d.Start(fmt.Sprintf("--cluster-store=%s", discoveryBackend), fmt.Sprintf("--cluster-advertise=%s:2375", discoveryAdvertise))
-	c.Assert(err, checker.IsNil)
-	defer d.Stop()
+	d.Start(c, fmt.Sprintf("--cluster-store=%s", discoveryBackend), fmt.Sprintf("--cluster-advertise=%s:2375", discoveryAdvertise))
+	defer d.Stop(c)
 
 	iface, err := net.InterfaceByName(discoveryAdvertise)
 	c.Assert(err, checker.IsNil)
@@ -181,9 +179,8 @@ func (s *DockerSuite) TestInfoDebug(c *check.C) {
 	d := daemon.New(c, dockerBinary, dockerdBinary, daemon.Config{
 		Experimental: experimentalDaemon,
 	})
-	err := d.Start("--debug")
-	c.Assert(err, checker.IsNil)
-	defer d.Stop()
+	d.Start(c, "--debug")
+	defer d.Stop(c)
 
 	out, err := d.Cmd("--debug", "info")
 	c.Assert(err, checker.IsNil)
@@ -205,9 +202,8 @@ func (s *DockerSuite) TestInsecureRegistries(c *check.C) {
 	d := daemon.New(c, dockerBinary, dockerdBinary, daemon.Config{
 		Experimental: experimentalDaemon,
 	})
-	err := d.Start("--insecure-registry="+registryCIDR, "--insecure-registry="+registryHost)
-	c.Assert(err, checker.IsNil)
-	defer d.Stop()
+	d.Start(c, "--insecure-registry="+registryCIDR, "--insecure-registry="+registryHost)
+	defer d.Stop(c)
 
 	out, err := d.Cmd("info")
 	c.Assert(err, checker.IsNil)
@@ -222,8 +218,7 @@ func (s *DockerDaemonSuite) TestRegistryMirrors(c *check.C) {
 	registryMirror1 := "https://192.168.1.2"
 	registryMirror2 := "http://registry.mirror.com:5000"
 
-	err := s.d.Start("--registry-mirror="+registryMirror1, "--registry-mirror="+registryMirror2)
-	c.Assert(err, checker.IsNil)
+	s.d.Start(c, "--registry-mirror="+registryMirror1, "--registry-mirror="+registryMirror2)
 
 	out, err := s.d.Cmd("info")
 	c.Assert(err, checker.IsNil)
@@ -236,8 +231,7 @@ func (s *DockerDaemonSuite) TestRegistryMirrors(c *check.C) {
 func (s *DockerDaemonSuite) TestInfoLabels(c *check.C) {
 	testRequires(c, SameHostDaemon, DaemonIsLinux)
 
-	err := s.d.Start("--label", `test.empty=`, "--label", `test.empty=`, "--label", `test.label="1"`, "--label", `test.label="2"`)
-	c.Assert(err, checker.IsNil)
+	s.d.Start(c, "--label", `test.empty=`, "--label", `test.empty=`, "--label", `test.label="1"`, "--label", `test.label="2"`)
 
 	out, err := s.d.Cmd("info")
 	c.Assert(err, checker.IsNil)

@@ -400,7 +400,7 @@ func (s *DockerDaemonSuite) TestDaemonEvents(c *check.C) {
 	daemonConfig := `{"labels":["foo=bar"]}`
 	fmt.Fprintf(configFile, "%s", daemonConfig)
 	configFile.Close()
-	c.Assert(s.d.Start(fmt.Sprintf("--config-file=%s", configFilePath)), check.IsNil)
+	s.d.Start(c, fmt.Sprintf("--config-file=%s", configFilePath))
 
 	// Get daemon ID
 	out, err := s.d.Cmd("info")
@@ -444,7 +444,7 @@ func (s *DockerDaemonSuite) TestDaemonEventsWithFilters(c *check.C) {
 	daemonConfig := `{"labels":["foo=bar"]}`
 	fmt.Fprintf(configFile, "%s", daemonConfig)
 	configFile.Close()
-	c.Assert(s.d.Start(fmt.Sprintf("--config-file=%s", configFilePath)), check.IsNil)
+	s.d.Start(c, fmt.Sprintf("--config-file=%s", configFilePath))
 
 	// Get daemon ID
 	out, err := s.d.Cmd("info")

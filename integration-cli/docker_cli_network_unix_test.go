@@ -55,7 +55,7 @@ func (s *DockerNetworkSuite) SetUpTest(c *check.C) {
 
 func (s *DockerNetworkSuite) TearDownTest(c *check.C) {
 	if s.d != nil {
-		s.d.Stop()
+		s.d.Stop(c)
 		s.ds.TearDownTest(c)
 	}
 }
@@ -807,9 +807,8 @@ func (s *DockerDaemonSuite) TestDockerNetworkNoDiscoveryDefaultBridgeNetwork(c *
 	c.Assert(err, check.IsNil, check.Commentf(out))
 	defer deleteInterface(c, bridgeName)
 
-	err = s.d.StartWithBusybox("--bridge", bridgeName)
-	c.Assert(err, check.IsNil)
-	defer s.d.Restart()
+	s.d.StartWithBusybox(c, "--bridge", bridgeName)
+	defer s.d.Restart(c)
 
 	// run two containers and store first container's etc/hosts content
 	out, err = s.d.Cmd("run", "-d", "busybox", "top")
@@ -989,7 +988,7 @@ func (s *DockerNetworkSuite) TestDockerNetworkDriverUngracefulRestart(c *check.C
 	server := httptest.NewServer(mux)
 	setupRemoteNetworkDrivers(c, mux, server.URL, dnd, did)
 
-	s.d.StartWithBusybox()
+	s.d.StartWithBusybox(c)
 	_, err := s.d.Cmd("network", "create", "-d", dnd, "--subnet", "1.1.1.0/24", "net1")
 	c.Assert(err, checker.IsNil)
 
@@ -1002,9 +1001,7 @@ func (s *DockerNetworkSuite) TestDockerNetworkDriverUngracefulRestart(c *check.C
 	server.Close()
 
 	startTime := time.Now().Unix()
-	if err = s.d.Restart(); err != nil {
-		c.Fatal(err)
-	}
+	s.d.Restart(c)
 	lapse := time.Now().Unix() - startTime
 	if lapse > 60 {
 		// In normal scenarios, daemon restart takes ~1 second.
@@ -1092,13 +1089,13 @@ func (s *DockerNetworkSuite) TestDockerNetworkMultipleNetworksGracefulDaemonRest
 	cName := "bb"
 	nwList := []string{"nw1", "nw2", "nw3"}
 
-	s.d.StartWithBusybox()
+	s.d.StartWithBusybox(c)
 
 	connectContainerToNetworks(c, s.d, cName, nwList)
 	verifyContainerIsConnectedToNetworks(c, s.d, cName, nwList)
 
 	// Reload daemon
-	s.d.Restart()
+	s.d.Restart(c)
 
 	_, err := s.d.Cmd("start", cName)
 	c.Assert(err, checker.IsNil)
@@ -1110,14 +1107,14 @@ func (s *DockerNetworkSuite) TestDockerNetworkMultipleNetworksUngracefulDaemonRe
 	cName := "cc"
 	nwList := []string{"nw1", "nw2", "nw3"}
 
-	s.d.StartWithBusybox()
+	s.d.StartWithBusybox(c)
 
 	connectContainerToNetworks(c, s.d, cName, nwList)
 	verifyContainerIsConnectedToNetworks(c, s.d, cName, nwList)
 
 	// Kill daemon and restart
 	c.Assert(s.d.Kill(), checker.IsNil)
-	c.Assert(s.d.Restart(), checker.IsNil)
+	s.d.Restart(c)
 
 	// Restart container
 	_, err := s.d.Cmd("start", cName)
@@ -1134,7 +1131,7 @@ func (s *DockerNetworkSuite) TestDockerNetworkRunNetByID(c *check.C) {
 
 func (s *DockerNetworkSuite) TestDockerNetworkHostModeUngracefulDaemonRestart(c *check.C) {
 	testRequires(c, DaemonIsLinux, NotUserNamespace)
-	s.d.StartWithBusybox()
+	s.d.StartWithBusybox(c)
 
 	// Run a few containers on host network
 	for i := 0; i < 10; i++ {
@@ -1149,7 +1146,7 @@ func (s *DockerNetworkSuite) TestDockerNetworkHostModeUngracefulDaemonRestart(c 
 
 	// Kill daemon ungracefully and restart
 	c.Assert(s.d.Kill(), checker.IsNil)
-	c.Assert(s.d.Restart(), checker.IsNil)
+	s.d.Restart(c)
 
 	// make sure all the containers are up and running
 	for i := 0; i < 10; i++ {
@@ -1266,7 +1263,7 @@ func (s *DockerNetworkSuite) TestDockerNetworkConnectDisconnectToStoppedContaine
 	c.Assert(networks, checker.Contains, "test", check.Commentf("Should contain 'test' network"))
 
 	// Restart docker daemon to test the config has persisted to disk
-	s.d.Restart()
+	s.d.Restart(c)
 	networks = inspectField(c, "foo", "NetworkSettings.Networks")
 	c.Assert(networks, checker.Contains, "test", check.Commentf("Should contain 'test' network"))
 
@@ -1285,7 +1282,7 @@ func (s *DockerNetworkSuite) TestDockerNetworkConnectDisconnectToStoppedContaine
 	c.Assert(networks, checker.Not(checker.Contains), "test", check.Commentf("Should not contain 'test' network"))
 
 	// Restart docker daemon to test the config has persisted to disk
-	s.d.Restart()
+	s.d.Restart(c)
 	networks = inspectField(c, "foo", "NetworkSettings.Networks")
 	c.Assert(networks, checker.Not(checker.Contains), "test", check.Commentf("Should not contain 'test' network"))
 
@@ -1666,10 +1663,8 @@ func (s *DockerNetworkSuite) TestDockerNetworkCreateDeleteSpecialCharacters(c *c
 
 func (s *DockerDaemonSuite) TestDaemonRestartRestoreBridgeNetwork(t *check.C) {
 	testRequires(t, DaemonIsLinux)
-	if err := s.d.StartWithBusybox("--live-restore"); err != nil {
-		t.Fatal(err)
-	}
-	defer s.d.Stop()
+	s.d.StartWithBusybox(t, "--live-restore")
+	defer s.d.Stop(t)
 	oldCon := "old"
 
 	_, err := s.d.Cmd("run", "-d", "--name", oldCon, "-p", "80:80", "busybox", "top")
@@ -1686,9 +1681,7 @@ func (s *DockerDaemonSuite) TestDaemonRestartRestoreBridgeNetwork(t *check.C) {
 	}
 
 	// restart the daemon
-	if err := s.d.Start("--live-restore"); err != nil {
-		t.Fatal(err)
-	}
+	s.d.Start(t, "--live-restore")
 
 	// start a new container, the new container's ip should not be the same with
 	// old running container.

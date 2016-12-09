@@ -24,7 +24,7 @@ import (
 func (s *DockerDaemonSuite) TestDaemonUserNamespaceRootSetting(c *check.C) {
 	testRequires(c, DaemonIsLinux, SameHostDaemon, UserNamespaceInKernel)
 
-	c.Assert(s.d.StartWithBusybox("--userns-remap", "default"), checker.IsNil)
+	s.d.StartWithBusybox(c, "--userns-remap", "default")
 
 	tmpDir, err := ioutil.TempDir("", "userns")
 	c.Assert(err, checker.IsNil)

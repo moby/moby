@@ -1449,8 +1449,7 @@ func (s *DockerSuite) TestRunUserDeviceAllowed(c *check.C) {
 func (s *DockerDaemonSuite) TestRunSeccompJSONNewFormat(c *check.C) {
 	testRequires(c, SameHostDaemon, seccompEnabled)
 
-	err := s.d.StartWithBusybox()
-	c.Assert(err, check.IsNil)
+	s.d.StartWithBusybox(c)
 
 	jsonData := `{
 	"defaultAction": "SCMP_ACT_ALLOW",
@@ -1475,8 +1474,7 @@ func (s *DockerDaemonSuite) TestRunSeccompJSONNewFormat(c *check.C) {
 func (s *DockerDaemonSuite) TestRunSeccompJSONNoNameAndNames(c *check.C) {
 	testRequires(c, SameHostDaemon, seccompEnabled)
 
-	err := s.d.StartWithBusybox()
-	c.Assert(err, check.IsNil)
+	s.d.StartWithBusybox(c)
 
 	jsonData := `{
 	"defaultAction": "SCMP_ACT_ALLOW",
@@ -1502,8 +1500,7 @@ func (s *DockerDaemonSuite) TestRunSeccompJSONNoNameAndNames(c *check.C) {
 func (s *DockerDaemonSuite) TestRunSeccompJSONNoArchAndArchMap(c *check.C) {
 	testRequires(c, SameHostDaemon, seccompEnabled)
 
-	err := s.d.StartWithBusybox()
-	c.Assert(err, check.IsNil)
+	s.d.StartWithBusybox(c)
 
 	jsonData := `{
 	"archMap": [
@@ -1540,11 +1537,10 @@ func (s *DockerDaemonSuite) TestRunSeccompJSONNoArchAndArchMap(c *check.C) {
 func (s *DockerDaemonSuite) TestRunWithDaemonDefaultSeccompProfile(c *check.C) {
 	testRequires(c, SameHostDaemon, seccompEnabled)
 
-	err := s.d.StartWithBusybox()
-	c.Assert(err, check.IsNil)
+	s.d.StartWithBusybox(c)
 
 	// 1) verify I can run containers with the Docker default shipped profile which allows chmod
-	_, err = s.d.Cmd("run", "busybox", "chmod", "777", ".")
+	_, err := s.d.Cmd("run", "busybox", "chmod", "777", ".")
 	c.Assert(err, check.IsNil)
 
 	jsonData := `{
@@ -1563,8 +1559,7 @@ func (s *DockerDaemonSuite) TestRunWithDaemonDefaultSeccompProfile(c *check.C) {
 	c.Assert(err, check.IsNil)
 
 	// 2) restart the daemon and add a custom seccomp profile in which we deny chmod
-	err = s.d.Restart("--seccomp-profile=" + tmpFile.Name())
-	c.Assert(err, check.IsNil)
+	s.d.Restart(c, "--seccomp-profile="+tmpFile.Name())
 
 	out, err := s.d.Cmd("run", "busybox", "chmod", "777", ".")
 	c.Assert(err, check.NotNil)

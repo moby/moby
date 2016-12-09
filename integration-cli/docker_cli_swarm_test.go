@@ -100,23 +100,23 @@ func (s *DockerSwarmSuite) TestSwarmIncompatibleDaemon(c *check.C) {
 	info, err := d.SwarmInfo()
 	c.Assert(err, checker.IsNil)
 	c.Assert(info.LocalNodeState, checker.Equals, swarm.LocalNodeStateActive)
-	c.Assert(d.Stop(), checker.IsNil)
+	d.Stop(c)
 
 	// start a daemon with --cluster-store and --cluster-advertise
-	err = d.Start("--cluster-store=consul://consuladdr:consulport/some/path", "--cluster-advertise=1.1.1.1:2375")
+	err = d.StartWithError("--cluster-store=consul://consuladdr:consulport/some/path", "--cluster-advertise=1.1.1.1:2375")
 	c.Assert(err, checker.NotNil)
 	content, err := d.ReadLogFile()
 	c.Assert(err, checker.IsNil)
 	c.Assert(string(content), checker.Contains, "--cluster-store and --cluster-advertise daemon configurations are incompatible with swarm mode")
 
 	// start a daemon with --live-restore
-	err = d.Start("--live-restore")
+	err = d.StartWithError("--live-restore")
 	c.Assert(err, checker.NotNil)
 	content, err = d.ReadLogFile()
 	c.Assert(err, checker.IsNil)
 	c.Assert(string(content), checker.Contains, "--live-restore daemon configuration is incompatible with swarm mode")
 	// restart for teardown
-	c.Assert(d.Start(), checker.IsNil)
+	d.Start(c)
 }
 
 // Test case for #24090
@@ -319,7 +319,7 @@ func (s *DockerSwarmSuite) TestSwarmContainerAutoStart(c *check.C) {
 	c.Assert(err, checker.IsNil, check.Commentf(out))
 	c.Assert(strings.TrimSpace(out), checker.Not(checker.Equals), "")
 
-	d.Restart()
+	d.Restart(c)
 
 	out, err = d.Cmd("ps", "-q")
 	c.Assert(err, checker.IsNil, check.Commentf(out))
@@ -834,7 +834,7 @@ func getNodeStatus(c *check.C, d *daemon.Swarm) swarm.LocalNodeState {
 }
 
 func checkSwarmLockedToUnlocked(c *check.C, d *daemon.Swarm, unlockKey string) {
-	c.Assert(d.Restart(), checker.IsNil)
+	d.Restart(c)
 	status := getNodeStatus(c, d)
 	if status == swarm.LocalNodeStateLocked {
 		// it must not have updated to be unlocked in time - unlock, wait 3 seconds, and try again
@@ -846,19 +846,19 @@ func checkSwarmLockedToUnlocked(c *check.C, d *daemon.Swarm, unlockKey string) {
 		c.Assert(getNodeStatus(c, d), checker.Equals, swarm.LocalNodeStateActive)
 
 		time.Sleep(3 * time.Second)
-		c.Assert(d.Restart(), checker.IsNil)
+		d.Restart(c)
 	}
 
 	c.Assert(getNodeStatus(c, d), checker.Equals, swarm.LocalNodeStateActive)
 }
 
 func checkSwarmUnlockedToLocked(c *check.C, d *daemon.Swarm) {
-	c.Assert(d.Restart(), checker.IsNil)
+	d.Restart(c)
 	status := getNodeStatus(c, d)
 	if status == swarm.LocalNodeStateActive {
 		// it must not have updated to be unlocked in time - wait 3 seconds, and try again
 		time.Sleep(3 * time.Second)
-		c.Assert(d.Restart(), checker.IsNil)
+		d.Restart(c)
 	}
 	c.Assert(getNodeStatus(c, d), checker.Equals, swarm.LocalNodeStateLocked)
 }
@@ -887,7 +887,7 @@ func (s *DockerSwarmSuite) TestSwarmInitLocked(c *check.C) {
 	c.Assert(getNodeStatus(c, d), checker.Equals, swarm.LocalNodeStateActive)
 
 	// It starts off locked
-	c.Assert(d.Restart(), checker.IsNil)
+	d.Restart(c)
 	c.Assert(getNodeStatus(c, d), checker.Equals, swarm.LocalNodeStateLocked)
 
 	cmd := d.Command("swarm", "unlock")
@@ -926,7 +926,7 @@ func (s *DockerSwarmSuite) TestSwarmLeaveLocked(c *check.C) {
 	c.Assert(err, checker.IsNil, check.Commentf("out: %v", outs))
 
 	// It starts off locked
-	c.Assert(d.Restart("--swarm-default-advertise-addr=lo"), checker.IsNil)
+	d.Restart(c, "--swarm-default-advertise-addr=lo")
 
 	info, err := d.SwarmInfo()
 	c.Assert(err, checker.IsNil)
@@ -961,11 +961,11 @@ func (s *DockerSwarmSuite) TestSwarmLockUnlockCluster(c *check.C) {
 	d3 := s.AddDaemon(c, true, true)
 
 	// they start off unlocked
-	c.Assert(d2.Restart(), checker.IsNil)
+	d2.Restart(c)
 	c.Assert(getNodeStatus(c, d2), checker.Equals, swarm.LocalNodeStateActive)
 
 	// stop this one so it does not get autolock info
-	c.Assert(d2.Stop(), checker.IsNil)
+	d2.Stop(c)
 
 	// enable autolock
 	outs, err := d1.Cmd("swarm", "update", "--autolock")
@@ -998,7 +998,7 @@ func (s *DockerSwarmSuite) TestSwarmLockUnlockCluster(c *check.C) {
 	}
 
 	// d2 never got the cluster update, so it is still set to unlocked
-	c.Assert(d2.Start(), checker.IsNil)
+	d2.Start(c)
 	c.Assert(getNodeStatus(c, d2), checker.Equals, swarm.LocalNodeStateActive)
 
 	// d2 is now set to lock
@@ -1028,7 +1028,7 @@ func (s *DockerSwarmSuite) TestSwarmLockUnlockCluster(c *check.C) {
 
 	// managers who join now are never set to locked in the first place
 	d4 := s.AddDaemon(c, true, true)
-	c.Assert(d4.Restart(), checker.IsNil)
+	d4.Restart(c)
 	c.Assert(getNodeStatus(c, d4), checker.Equals, swarm.LocalNodeStateActive)
 }
 
@@ -1056,7 +1056,7 @@ func (s *DockerSwarmSuite) TestSwarmJoinPromoteLocked(c *check.C) {
 
 	// joined workers start off unlocked
 	d2 := s.AddDaemon(c, true, false)
-	c.Assert(d2.Restart(), checker.IsNil)
+	d2.Restart(c)
 	c.Assert(getNodeStatus(c, d2), checker.Equals, swarm.LocalNodeStateActive)
 
 	// promote worker
@@ -1102,7 +1102,7 @@ func (s *DockerSwarmSuite) TestSwarmJoinPromoteLocked(c *check.C) {
 	}, checker.Not(checker.Equals), string(d3cert))
 
 	// by now, it should *never* be locked on restart
-	c.Assert(d3.Restart(), checker.IsNil)
+	d3.Restart(c)
 	c.Assert(getNodeStatus(c, d3), checker.Equals, swarm.LocalNodeStateActive)
 }
 
@@ -1136,7 +1136,7 @@ func (s *DockerSwarmSuite) TestSwarmRotateUnlockKey(c *check.C) {
 		c.Assert(newUnlockKey, checker.Not(checker.Equals), "")
 		c.Assert(newUnlockKey, checker.Not(checker.Equals), unlockKey)
 
-		c.Assert(d.Restart(), checker.IsNil)
+		d.Restart(c)
 		c.Assert(getNodeStatus(c, d), checker.Equals, swarm.LocalNodeStateLocked)
 
 		outs, _ = d.Cmd("node", "ls")
@@ -1157,7 +1157,7 @@ func (s *DockerSwarmSuite) TestSwarmRotateUnlockKey(c *check.C) {
 
 			time.Sleep(3 * time.Second)
 
-			c.Assert(d.Restart(), checker.IsNil)
+			d.Restart(c)
 
 			cmd = d.Command("swarm", "unlock")
 			cmd.Stdin = bytes.NewBufferString(unlockKey)
@@ -1219,8 +1219,8 @@ func (s *DockerSwarmSuite) TestSwarmClusterRotateUnlockKey(c *check.C) {
 		c.Assert(newUnlockKey, checker.Not(checker.Equals), "")
 		c.Assert(newUnlockKey, checker.Not(checker.Equals), unlockKey)
 
-		c.Assert(d2.Restart(), checker.IsNil)
-		c.Assert(d3.Restart(), checker.IsNil)
+		d2.Restart(c)
+		d3.Restart(c)
 
 		for _, d := range []*daemon.Swarm{d2, d3} {
 			c.Assert(getNodeStatus(c, d), checker.Equals, swarm.LocalNodeStateLocked)
@@ -1243,7 +1243,7 @@ func (s *DockerSwarmSuite) TestSwarmClusterRotateUnlockKey(c *check.C) {
 
 				time.Sleep(3 * time.Second)
 
-				c.Assert(d.Restart(), checker.IsNil)
+				d.Restart(c)
 
 				cmd = d.Command("swarm", "unlock")
 				cmd.Stdin = bytes.NewBufferString(unlockKey)
