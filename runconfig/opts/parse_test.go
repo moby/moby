@@ -336,7 +336,7 @@ func compareRandomizedStrings(a, b, c, d string) error {
 // setupPlatformVolume takes two arrays of volume specs - a Unix style
 // spec and a Windows style spec. Depending on the platform being unit tested,
 // it returns one of them, along with a volume string that would be passed
-// on the docker CLI (eg -v /bar -v /foo).
+// on the docker CLI (e.g. -v /bar -v /foo).
 func setupPlatformVolume(u []string, w []string) ([]string, string) {
 	var a []string
 	if runtime.GOOS == "windows" {

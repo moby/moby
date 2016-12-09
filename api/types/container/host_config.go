@@ -317,7 +317,7 @@ type HostConfig struct {
 
 	// Applicable to Windows
 	ConsoleSize [2]uint   // Initial console size (height,width)
-	Isolation   Isolation // Isolation technology of the container (eg default, hyperv)
+	Isolation   Isolation // Isolation technology of the container (e.g. default, hyperv)
 
 	// Contains container's resources (cgroups, ulimits)
 	Resources

@@ -661,7 +661,7 @@ func TarWithOptions(srcPath string, options *TarOptions) (io.ReadCloser, error) 
 				if skip {
 					// If we want to skip this file and its a directory
 					// then we should first check to see if there's an
-					// excludes pattern (eg !dir/file) that starts with this
+					// excludes pattern (e.g. !dir/file) that starts with this
 					// dir. If so then we can't skip this dir.
 
 					// Its not a dir then so we can just return/skip.
