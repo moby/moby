@@ -2,7 +2,7 @@
 % Docker Community
 % JUNE 2014
 # NAME
-docker-build - Build a new image from the source code at PATH
+docker-build - Build an image from a Dockerfile
 
 # SYNOPSIS
 **docker build**
@@ -130,7 +130,9 @@ set as the **URL**, the repository is cloned locally and then sent as the contex
 unit, `b` is used. Set LIMIT to `-1` to enable unlimited swap.
 
 **--network**=*NETWORK*
-  
+  Set the networking mode for the RUN instructions during build. Supported standard
+  values are: `bridge`, `host`, `none` and `container:<name|id>`. Any other value
+  is taken as a custom network's name or ID which this container should connect to.
 
 **--shm-size**=*SHM-SIZE*
   Size of `/dev/shm`. The format is `<number><unit>`. `number` must be greater than `0`.
