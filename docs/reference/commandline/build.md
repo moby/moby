@@ -38,8 +38,7 @@ Options:
       --label value             Set metadata for an image (default [])
   -m, --memory string           Memory limit
       --memory-swap string      Swap limit equal to memory plus swap: '-1' to enable unlimited swap
-      --network string          Set the networking mode for the run commands
-                                during build.
+      --network string          Set the networking mode for the RUN instructions during build
                                 'bridge': use default Docker bridge
                                 'none': no networking
                                 'container:<name|id>': reuse another container's network stack
@@ -54,7 +53,7 @@ Options:
                                 The format is `<number><unit>`. `number` must be greater than `0`.
                                 Unit is optional and can be `b` (bytes), `k` (kilobytes), `m` (megabytes),
                                 or `g` (gigabytes). If you omit the unit, the system uses bytes.
-  --squash                      Squash newly built layers into a single new layer (**Experimental Only**) 
+      --squash                  Squash newly built layers into a single new layer (**Experimental Only**)
   -t, --tag value               Name and optionally a tag in the 'name:tag' format (default [])
       --ulimit value            Ulimit options (default [])
 ```
