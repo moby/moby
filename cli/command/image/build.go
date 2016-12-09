@@ -107,7 +107,7 @@ func NewBuildCommand(dockerCli *command.DockerCli) *cobra.Command {
 	flags.StringSliceVar(&options.cacheFrom, "cache-from", []string{}, "Images to consider as cache sources")
 	flags.BoolVar(&options.compress, "compress", false, "Compress the build context using gzip")
 	flags.StringSliceVar(&options.securityOpt, "security-opt", []string{}, "Security options")
-	flags.StringVar(&options.networkMode, "network", "default", "Connect a container to a network")
+	flags.StringVar(&options.networkMode, "network", "default", "Set the networking mode for the RUN instructions during build")
 
 	command.AddTrustedFlags(flags, true)
 
