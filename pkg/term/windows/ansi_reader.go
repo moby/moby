@@ -115,6 +115,8 @@ func readInputEvents(fd uintptr, maxBytes int) ([]winterm.INPUT_RECORD, error) {
 	countRecords := maxBytes / recordSize
 	if countRecords > ansiterm.MAX_INPUT_EVENTS {
 		countRecords = ansiterm.MAX_INPUT_EVENTS
+	} else if countRecords == 0 {
+		countRecords = 1
 	}
 	logger.Debugf("[windows] readInputEvents: Reading %v records (buffer size %v, record size %v)", countRecords, maxBytes, recordSize)
 
