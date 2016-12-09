@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/integration-cli/daemon"
 	"github.com/docker/docker/pkg/integration/checker"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/volume"
@@ -44,12 +45,14 @@ type eventCounter struct {
 
 type DockerExternalVolumeSuite struct {
 	ds *DockerSuite
-	d  *Daemon
+	d  *daemon.Daemon
 	*volumePlugin
 }
 
 func (s *DockerExternalVolumeSuite) SetUpTest(c *check.C) {
-	s.d = NewDaemon(c)
+	s.d = daemon.New(c, dockerBinary, dockerdBinary, daemon.Config{
+		Experimental: experimentalDaemon,
+	})
 	s.ec = &eventCounter{}
 }
 
