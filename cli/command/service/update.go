@@ -630,15 +630,7 @@ func (r byPortConfig) Less(i, j int) bool {
 
 func portConfigToString(portConfig *swarm.PortConfig) string {
 	protocol := portConfig.Protocol
-	if protocol == "" {
-		protocol = "tcp"
-	}
-
 	mode := portConfig.PublishMode
-	if mode == "" {
-		mode = "ingress"
-	}
-
 	return fmt.Sprintf("%v:%v/%s/%s", portConfig.PublishedPort, portConfig.TargetPort, protocol, mode)
 }
 
@@ -663,28 +655,18 @@ func validatePublishRemove(val string) (string, error) {
 func updatePorts(flags *pflag.FlagSet, portConfig *[]swarm.PortConfig) error {
 	// The key of the map is `port/protocol`, e.g., `80/tcp`
 	portSet := map[string]swarm.PortConfig{}
-	// Check to see if there are any conflict in flags.
-	if flags.Changed(flagPublishAdd) {
-		ports := flags.Lookup(flagPublishAdd).Value.(*opts.PortOpt).Value()
 
-		for _, port := range ports {
-			if v, ok := portSet[portConfigToString(&port)]; ok && v != port {
-				return fmt.Errorf("conflicting port mapping between %v:%v/%s and %v:%v/%s", port.PublishedPort, port.TargetPort, port.Protocol, v.PublishedPort, v.TargetPort, v.Protocol)
-			}
-			portSet[portConfigToString(&port)] = port
-		}
-	}
-
-	// Override previous PortConfig in service if there is any duplicate
+	// Build the current list of portConfig
 	for _, entry := range *portConfig {
 		if _, ok := portSet[portConfigToString(&entry)]; !ok {
 			portSet[portConfigToString(&entry)] = entry
 		}
 	}
 
-	toRemove := flags.Lookup(flagPublishRemove).Value.(*opts.PortOpt).Value()
-
 	newPorts := []swarm.PortConfig{}
+
+	// Clean current ports
+	toRemove := flags.Lookup(flagPublishRemove).Value.(*opts.PortOpt).Value()
 portLoop:
 	for _, port := range portSet {
 		for _, pConfig := range toRemove {
@@ -696,6 +678,23 @@ portLoop:
 		}
 
 		newPorts = append(newPorts, port)
+	}
+
+	// Check to see if there are any conflict in flags.
+	if flags.Changed(flagPublishAdd) {
+		ports := flags.Lookup(flagPublishAdd).Value.(*opts.PortOpt).Value()
+
+		for _, port := range ports {
+			if v, ok := portSet[portConfigToString(&port)]; ok {
+				if v != port {
+					fmt.Println("v", v)
+					return fmt.Errorf("conflicting port mapping between %v:%v/%s and %v:%v/%s", port.PublishedPort, port.TargetPort, port.Protocol, v.PublishedPort, v.TargetPort, v.Protocol)
+				}
+				continue
+			}
+			//portSet[portConfigToString(&port)] = port
+			newPorts = append(newPorts, port)
+		}
 	}
 
 	// Sort the PortConfig to avoid unnecessary updates

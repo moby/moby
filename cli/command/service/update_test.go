@@ -220,28 +220,18 @@ func TestUpdatePorts(t *testing.T) {
 	assert.Equal(t, targetPorts[1], 1000)
 }
 
-func TestUpdatePortsDuplicateEntries(t *testing.T) {
+func TestUpdatePortsDuplicate(t *testing.T) {
 	// Test case for #25375
 	flags := newUpdateCommand(nil).Flags()
 	flags.Set("publish-add", "80:80")
 
 	portConfigs := []swarm.PortConfig{
-		{TargetPort: 80, PublishedPort: 80},
-	}
-
-	err := updatePorts(flags, &portConfigs)
-	assert.Equal(t, err, nil)
-	assert.Equal(t, len(portConfigs), 1)
-	assert.Equal(t, portConfigs[0].TargetPort, uint32(80))
-}
-
-func TestUpdatePortsDuplicateKeys(t *testing.T) {
-	// Test case for #25375
-	flags := newUpdateCommand(nil).Flags()
-	flags.Set("publish-add", "80:80")
-
-	portConfigs := []swarm.PortConfig{
-		{TargetPort: 80, PublishedPort: 80},
+		{
+			TargetPort:    80,
+			PublishedPort: 80,
+			Protocol:      swarm.PortConfigProtocolTCP,
+			PublishMode:   swarm.PortConfigPublishModeIngress,
+		},
 	}
 
 	err := updatePorts(flags, &portConfigs)
@@ -355,13 +345,19 @@ func TestUpdatePortsRmWithProtocol(t *testing.T) {
 	flags.Set("publish-rm", "82/udp")
 
 	portConfigs := []swarm.PortConfig{
-		{TargetPort: 80, PublishedPort: 8080, Protocol: swarm.PortConfigProtocolTCP},
+		{
+			TargetPort:    80,
+			PublishedPort: 8080,
+			Protocol:      swarm.PortConfigProtocolTCP,
+			PublishMode:   swarm.PortConfigPublishModeIngress,
+		},
 	}
 
 	err := updatePorts(flags, &portConfigs)
 	assert.Equal(t, err, nil)
-	assert.Equal(t, len(portConfigs), 1)
-	assert.Equal(t, portConfigs[0].TargetPort, uint32(82))
+	assert.Equal(t, len(portConfigs), 2)
+	assert.Equal(t, portConfigs[0].TargetPort, uint32(81))
+	assert.Equal(t, portConfigs[1].TargetPort, uint32(82))
 }
 
 // FIXME(vdemeester) port to opts.PortOpt
