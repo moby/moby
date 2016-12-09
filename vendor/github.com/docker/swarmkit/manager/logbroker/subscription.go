@@ -137,6 +137,18 @@ func (s *subscription) Err() error {
 	return fmt.Errorf("warning: incomplete log stream. some logs could not be retrieved for the following reasons: %s", strings.Join(messages, ", "))
 }
 
+func (s *subscription) Close() {
+	s.mu.Lock()
+	s.message.Close = true
+	s.mu.Unlock()
+}
+
+func (s *subscription) Closed() bool {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.message.Close
+}
+
 func (s *subscription) match() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
