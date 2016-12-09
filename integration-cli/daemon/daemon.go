@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"crypto/tls"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -29,6 +28,7 @@ import (
 	"github.com/docker/go-connections/sockets"
 	"github.com/docker/go-connections/tlsconfig"
 	"github.com/go-check/check"
+	"github.com/pkg/errors"
 )
 
 // SockRoot holds the path of the default docker integration daemon socket
@@ -43,9 +43,6 @@ type Daemon struct {
 	UseDefaultHost    bool
 	UseDefaultTLSHost bool
 
-	// FIXME(vdemeester) either should be used everywhere (do not return error) or nowhere,
-	// so I think we should remove it or use it for everything
-	c              *check.C
 	id             string
 	logFile        *os.File
 	stdin          io.WriteCloser
@@ -97,7 +94,6 @@ func New(c *check.C, dockerBinary string, dockerdBinary string, config Config) *
 
 	return &Daemon{
 		id:            id,
-		c:             c,
 		Folder:        daemonFolder,
 		Root:          daemonRoot,
 		storageDriver: os.Getenv("DOCKER_GRAPHDRIVER"),
@@ -164,7 +160,9 @@ func (d *Daemon) getClientConfig() (*clientConfig, error) {
 		transport = &http.Transport{}
 	}
 
-	d.c.Assert(sockets.ConfigureTransport(transport, proto, addr), check.IsNil)
+	if err := sockets.ConfigureTransport(transport, proto, addr); err != nil {
+		return nil, err
+	}
 
 	return &clientConfig{
 		transport: transport,
@@ -177,7 +175,9 @@ func (d *Daemon) getClientConfig() (*clientConfig, error) {
 // You can specify additional daemon flags.
 func (d *Daemon) Start(args ...string) error {
 	logFile, err := os.OpenFile(filepath.Join(d.Folder, "docker.log"), os.O_RDWR|os.O_CREATE|os.O_APPEND, 0600)
-	d.c.Assert(err, check.IsNil, check.Commentf("[%s] Could not create %s/docker.log", d.id, d.Folder))
+	if err != nil {
+		return errors.Wrapf(err, "[%s] Could not create %s/docker.log", d.id, d.Folder)
+	}
 
 	return d.StartWithLogFile(logFile, args...)
 }
@@ -185,7 +185,9 @@ func (d *Daemon) Start(args ...string) error {
 // StartWithLogFile will start the daemon and attach its streams to a given file.
 func (d *Daemon) StartWithLogFile(out *os.File, providedArgs ...string) error {
 	dockerdBinary, err := exec.LookPath(d.dockerdBinary)
-	d.c.Assert(err, check.IsNil, check.Commentf("[%s] could not find docker binary in $PATH", d.id))
+	if err != nil {
+		return errors.Wrapf(err, "[%s] could not find docker binary in $PATH", d.id)
+	}
 
 	args := append(d.GlobalFlags,
 		"--containerd", "/var/run/docker/libcontainerd/docker-containerd.sock",
@@ -231,14 +233,14 @@ func (d *Daemon) StartWithLogFile(out *os.File, providedArgs ...string) error {
 	d.logFile = out
 
 	if err := d.cmd.Start(); err != nil {
-		return fmt.Errorf("[%s] could not start daemon container: %v", d.id, err)
+		return errors.Errorf("[%s] could not start daemon container: %v", d.id, err)
 	}
 
 	wait := make(chan error)
 
 	go func() {
 		wait <- d.cmd.Wait()
-		d.c.Logf("[%s] exiting daemon", d.id)
+		fmt.Printf("[%s] exiting daemon\n", d.id)
 		close(wait)
 	}()
 
@@ -248,14 +250,14 @@ func (d *Daemon) StartWithLogFile(out *os.File, providedArgs ...string) error {
 	// make sure daemon is ready to receive requests
 	startTime := time.Now().Unix()
 	for {
-		d.c.Logf("[%s] waiting for daemon to start", d.id)
+		fmt.Printf("[%s] waiting for daemon to start\n", d.id)
 		if time.Now().Unix()-startTime > 5 {
 			// After 5 seconds, give up
-			return fmt.Errorf("[%s] Daemon exited and never started", d.id)
+			return errors.Errorf("[%s] Daemon exited and never started", d.id)
 		}
 		select {
 		case <-time.After(2 * time.Second):
-			return fmt.Errorf("[%s] timeout: daemon does not respond", d.id)
+			return errors.Errorf("[%s] timeout: daemon does not respond", d.id)
 		case <-tick:
 			clientConfig, err := d.getClientConfig()
 			if err != nil {
@@ -267,7 +269,9 @@ func (d *Daemon) StartWithLogFile(out *os.File, providedArgs ...string) error {
 			}
 
 			req, err := http.NewRequest("GET", "/_ping", nil)
-			d.c.Assert(err, check.IsNil, check.Commentf("[%s] could not create new request", d.id))
+			if err != nil {
+				return errors.Wrapf(err, "[%s] could not create new request", d.id)
+			}
 			req.URL.Host = clientConfig.addr
 			req.URL.Scheme = clientConfig.scheme
 			resp, err := client.Do(req)
@@ -275,16 +279,16 @@ func (d *Daemon) StartWithLogFile(out *os.File, providedArgs ...string) error {
 				continue
 			}
 			if resp.StatusCode != http.StatusOK {
-				d.c.Logf("[%s] received status != 200 OK: %s", d.id, resp.Status)
+				fmt.Printf("[%s] received status != 200 OK: %s\n", d.id, resp.Status)
 			}
-			d.c.Logf("[%s] daemon started", d.id)
+			fmt.Printf("[%s] daemon started\n", d.id)
 			d.Root, err = d.queryRootDir()
 			if err != nil {
-				return fmt.Errorf("[%s] error querying daemon for root directory: %v", d.id, err)
+				return errors.Errorf("[%s] error querying daemon for root directory: %v", d.id, err)
 			}
 			return nil
 		case <-d.Wait:
-			return fmt.Errorf("[%s] Daemon exited during startup", d.id)
+			return errors.Errorf("[%s] Daemon exited during startup", d.id)
 		}
 	}
 }
@@ -310,7 +314,6 @@ func (d *Daemon) Kill() error {
 	}()
 
 	if err := d.cmd.Process.Kill(); err != nil {
-		d.c.Logf("Could not kill daemon: %v", err)
 		return err
 	}
 
@@ -367,7 +370,7 @@ func (d *Daemon) Stop() error {
 	tick := time.Tick(time.Second)
 
 	if err := d.cmd.Process.Signal(os.Interrupt); err != nil {
-		return fmt.Errorf("could not send signal: %v", err)
+		return errors.Errorf("could not send signal: %v", err)
 	}
 out1:
 	for {
@@ -376,7 +379,7 @@ out1:
 			return err
 		case <-time.After(20 * time.Second):
 			// time for stopping jobs and run onShutdown hooks
-			d.c.Logf("timeout: %v", d.id)
+			fmt.Printf("timeout: %v\n", d.id)
 			break out1
 		}
 	}
@@ -389,18 +392,18 @@ out2:
 		case <-tick:
 			i++
 			if i > 5 {
-				d.c.Logf("tried to interrupt daemon for %d times, now try to kill it", i)
+				fmt.Printf("tried to interrupt daemon for %d times, now try to kill it\n", i)
 				break out2
 			}
-			d.c.Logf("Attempt #%d: daemon is still running with pid %d", i, d.cmd.Process.Pid)
+			fmt.Printf("Attempt #%d: daemon is still running with pid %d\n", i, d.cmd.Process.Pid)
 			if err := d.cmd.Process.Signal(os.Interrupt); err != nil {
-				return fmt.Errorf("could not send signal: %v", err)
+				return errors.Errorf("could not send signal: %v", err)
 			}
 		}
 	}
 
 	if err := d.cmd.Process.Kill(); err != nil {
-		d.c.Logf("Could not kill daemon: %v", err)
+		fmt.Printf("Could not kill daemon: %v\n", err)
 		return err
 	}
 
@@ -430,20 +433,20 @@ func (d *Daemon) LoadBusybox() error {
 	bb := filepath.Join(d.Folder, "busybox.tar")
 	if _, err := os.Stat(bb); err != nil {
 		if !os.IsNotExist(err) {
-			return fmt.Errorf("unexpected error on busybox.tar stat: %v", err)
+			return errors.Errorf("unexpected error on busybox.tar stat: %v", err)
 		}
 		// saving busybox image from main daemon
 		if out, err := exec.Command(d.dockerBinary, "save", "--output", bb, "busybox:latest").CombinedOutput(); err != nil {
 			imagesOut, _ := exec.Command(d.dockerBinary, "images", "--format", "{{ .Repository }}:{{ .Tag }}").CombinedOutput()
-			return fmt.Errorf("could not save busybox image: %s\n%s", string(out), strings.TrimSpace(string(imagesOut)))
+			return errors.Errorf("could not save busybox image: %s\n%s", string(out), strings.TrimSpace(string(imagesOut)))
 		}
 	}
 	// loading busybox image to this daemon
 	if out, err := d.Cmd("load", "--input", bb); err != nil {
-		return fmt.Errorf("could not load busybox image: %s", out)
+		return errors.Errorf("could not load busybox image: %s", out)
 	}
 	if err := os.Remove(bb); err != nil {
-		d.c.Logf("could not remove %s: %v", bb, err)
+		return err
 	}
 	return nil
 }
@@ -596,7 +599,7 @@ func (d *Daemon) inspectFilter(name, filter string) (string, error) {
 	format := fmt.Sprintf("{{%s}}", filter)
 	out, err := d.Cmd("inspect", "-f", format, name)
 	if err != nil {
-		return "", fmt.Errorf("failed to inspect %s: %s", name, out)
+		return "", errors.Errorf("failed to inspect %s: %s", name, out)
 	}
 	return strings.TrimSpace(out), nil
 }
@@ -606,13 +609,12 @@ func (d *Daemon) inspectFieldWithError(name, field string) (string, error) {
 }
 
 // FindContainerIP returns the ip of the specified container
-// FIXME(vdemeester) should probably erroring out
-func (d *Daemon) FindContainerIP(id string) string {
-	out, err := d.Cmd("inspect", fmt.Sprintf("--format='{{ .NetworkSettings.Networks.bridge.IPAddress }}'"), id)
+func (d *Daemon) FindContainerIP(id string) (string, error) {
+	out, err := d.Cmd("inspect", "--format='{{ .NetworkSettings.Networks.bridge.IPAddress }}'", id)
 	if err != nil {
-		d.c.Log(err)
+		return "", err
 	}
-	return strings.Trim(out, " \r\n'")
+	return strings.Trim(out, " \r\n'"), nil
 }
 
 // BuildImageWithOut builds an image with the specified dockerfile and options and returns the output
@@ -642,7 +644,7 @@ func (d *Daemon) CheckActiveContainerCount(c *check.C) (interface{}, check.Comme
 // ReloadConfig asks the daemon to reload its configuration
 func (d *Daemon) ReloadConfig() error {
 	if d.cmd == nil || d.cmd.Process == nil {
-		return fmt.Errorf("daemon is not running")
+		return errors.New("daemon is not running")
 	}
 
 	errCh := make(chan error)
@@ -674,15 +676,15 @@ func (d *Daemon) ReloadConfig() error {
 
 	<-started
 	if err := signalDaemonReload(d.cmd.Process.Pid); err != nil {
-		return fmt.Errorf("error signaling daemon reload: %v", err)
+		return errors.Errorf("error signaling daemon reload: %v", err)
 	}
 	select {
 	case err := <-errCh:
 		if err != nil {
-			return fmt.Errorf("error waiting for daemon reload event: %v", err)
+			return errors.Errorf("error waiting for daemon reload event: %v", err)
 		}
 	case <-time.After(30 * time.Second):
-		return fmt.Errorf("timeout waiting for daemon reload event")
+		return errors.New("timeout waiting for daemon reload event")
 	}
 	return nil
 }
@@ -697,7 +699,7 @@ func WaitInspectWithArgs(dockerBinary, name, expr, expected string, timeout time
 		result := icmd.RunCommand(dockerBinary, args...)
 		if result.Error != nil {
 			if !strings.Contains(result.Stderr(), "No such") {
-				return fmt.Errorf("error executing docker inspect: %v\n%s",
+				return errors.Errorf("error executing docker inspect: %v\n%s",
 					result.Stderr(), result.Stdout())
 			}
 			select {
@@ -716,7 +718,7 @@ func WaitInspectWithArgs(dockerBinary, name, expr, expected string, timeout time
 
 		select {
 		case <-after:
-			return fmt.Errorf("condition \"%q == %q\" not true in time", out, expected)
+			return errors.Errorf("condition \"%q == %q\" not true in time (%v)", out, expected, timeout)
 		default:
 		}
 
@@ -750,7 +752,7 @@ func getTLSConfig() (*tls.Config, error) {
 	dockerCertPath := os.Getenv("DOCKER_CERT_PATH")
 
 	if dockerCertPath == "" {
-		return nil, fmt.Errorf("DOCKER_TLS_VERIFY specified, but no DOCKER_CERT_PATH environment variable")
+		return nil, errors.New("DOCKER_TLS_VERIFY specified, but no DOCKER_CERT_PATH environment variable")
 	}
 
 	option := &tlsconfig.Options{
@@ -770,7 +772,7 @@ func getTLSConfig() (*tls.Config, error) {
 func SockConn(timeout time.Duration, daemon string) (net.Conn, error) {
 	daemonURL, err := url.Parse(daemon)
 	if err != nil {
-		return nil, fmt.Errorf("could not parse url %q: %v", daemon, err)
+		return nil, errors.Wrapf(err, "could not parse url %q", daemon)
 	}
 
 	var c net.Conn
@@ -791,14 +793,14 @@ func SockConn(timeout time.Duration, daemon string) (net.Conn, error) {
 		}
 		return net.DialTimeout(daemonURL.Scheme, daemonURL.Host, timeout)
 	default:
-		return c, fmt.Errorf("unknown scheme %v (%s)", daemonURL.Scheme, daemon)
+		return c, errors.Errorf("unknown scheme %v (%s)", daemonURL.Scheme, daemon)
 	}
 }
 
 func newRequestClient(method, endpoint string, data io.Reader, ct, daemon string) (*http.Request, *httputil.ClientConn, error) {
 	c, err := SockConn(time.Duration(10*time.Second), daemon)
 	if err != nil {
-		return nil, nil, fmt.Errorf("could not dial docker daemon: %v", err)
+		return nil, nil, errors.Errorf("could not dial docker daemon: %v", err)
 	}
 
 	client := httputil.NewClientConn(c, nil)
@@ -806,7 +808,7 @@ func newRequestClient(method, endpoint string, data io.Reader, ct, daemon string
 	req, err := http.NewRequest(method, endpoint, data)
 	if err != nil {
 		client.Close()
-		return nil, nil, fmt.Errorf("could not create new request: %v", err)
+		return nil, nil, errors.Errorf("could not create new request: %v", err)
 	}
 
 	if ct != "" {
