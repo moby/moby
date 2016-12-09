@@ -113,6 +113,13 @@ func (ps *Store) Add(p *v2.Plugin) error {
 	if v, exist := ps.plugins[p.GetID()]; exist {
 		return fmt.Errorf("plugin %q has the same ID %s as %q", p.Name(), p.GetID(), v.Name())
 	}
+	// Since both Pull() and CreateFromContext() calls GetByName() before any plugin
+	// to search for collision (to fail fast), it is unlikely the following check
+	// will return an error.
+	// However, in case two CreateFromContext() are called at the same time,
+	// there is still a remote possibility that a collision might happen.
+	// For that reason we still perform the collision check below as it is protected
+	// by ps.Lock() and ps.Unlock() above.
 	if _, exist := ps.nameToID[p.Name()]; exist {
 		return fmt.Errorf("plugin %q already exists", p.Name())
 	}
