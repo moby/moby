@@ -33,9 +33,6 @@ func (r *IDResolver) get(ctx context.Context, t interface{}, id string) (string,
 		if err != nil {
 			return id, nil
 		}
-		if node.Spec.Annotations.Name != "" {
-			return node.Spec.Annotations.Name, nil
-		}
 		if node.Description.Hostname != "" {
 			return node.Description.Hostname, nil
 		}

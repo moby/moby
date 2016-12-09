@@ -81,7 +81,6 @@ func printHumanFriendly(out io.Writer, refs []string, getRef inspect.GetRefFunc)
 // TODO: use a template
 func printNode(out io.Writer, node swarm.Node) {
 	fmt.Fprintf(out, "ID:\t\t\t%s\n", node.ID)
-	ioutils.FprintfIfNotEmpty(out, "Name:\t\t\t%s\n", node.Spec.Name)
 	if node.Spec.Labels != nil {
 		fmt.Fprintln(out, "Labels:")
 		for k, v := range node.Spec.Labels {

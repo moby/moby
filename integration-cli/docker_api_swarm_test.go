@@ -436,13 +436,13 @@ func (s *DockerSwarmSuite) TestAPISwarmServiceConstraintLabel(c *check.C) {
 
 	// add labels to nodes
 	daemons[0].updateNode(c, nodes[0].ID, func(n *swarm.Node) {
-		n.Spec.Annotations.Labels = map[string]string{
+		n.Spec.Labels = map[string]string{
 			"security": "high",
 		}
 	})
 	for i := 1; i < nodeCount; i++ {
 		daemons[0].updateNode(c, nodes[i].ID, func(n *swarm.Node) {
-			n.Spec.Annotations.Labels = map[string]string{
+			n.Spec.Labels = map[string]string{
 				"security": "low",
 			}
 		})
@@ -506,7 +506,7 @@ func (s *DockerSwarmSuite) TestAPISwarmServiceConstraintLabel(c *check.C) {
 	}
 	// make nodes[1] fulfills the constraints
 	daemons[0].updateNode(c, nodes[1].ID, func(n *swarm.Node) {
-		n.Spec.Annotations.Labels = map[string]string{
+		n.Spec.Labels = map[string]string{
 			"security": "high",
 		}
 	})
