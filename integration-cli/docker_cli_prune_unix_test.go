@@ -62,7 +62,7 @@ func (s *DockerSwarmSuite) TestPruneNetwork(c *check.C) {
 }
 
 func (s *DockerDaemonSuite) TestPruneImageDangling(c *check.C) {
-	c.Assert(s.d.StartWithBusybox(), checker.IsNil)
+	s.d.StartWithBusybox(c)
 
 	out, _, err := s.d.BuildImageWithOut("test",
 		`FROM busybox

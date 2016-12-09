@@ -34,6 +34,8 @@ import (
 // SockRoot holds the path of the default docker integration daemon socket
 var SockRoot = filepath.Join(os.TempDir(), "docker-integration")
 
+var errDaemonNotStarted = errors.New("daemon not started")
+
 // Daemon represents a Docker daemon for the testing framework.
 type Daemon struct {
 	GlobalFlags       []string
@@ -171,9 +173,14 @@ func (d *Daemon) getClientConfig() (*clientConfig, error) {
 	}, nil
 }
 
-// Start will start the daemon and return once it is ready to receive requests.
-// You can specify additional daemon flags.
-func (d *Daemon) Start(args ...string) error {
+// Start starts the daemon and return once it is ready to receive requests.
+func (d *Daemon) Start(c *check.C, args ...string) {
+	c.Assert(d.StartWithError(args...), checker.IsNil, check.Commentf("Error starting daemon with arguments: %v", args))
+}
+
+// StartWithError starts the daemon and return once it is ready to receive requests.
+// It returns an error in case it couldn't start.
+func (d *Daemon) StartWithError(args ...string) error {
 	logFile, err := os.OpenFile(filepath.Join(d.Folder, "docker.log"), os.O_RDWR|os.O_CREATE|os.O_APPEND, 0600)
 	if err != nil {
 		return errors.Wrapf(err, "[%s] Could not create %s/docker.log", d.id, d.Folder)
@@ -295,17 +302,15 @@ func (d *Daemon) StartWithLogFile(out *os.File, providedArgs ...string) error {
 
 // StartWithBusybox will first start the daemon with Daemon.Start()
 // then save the busybox image from the main daemon and load it into this Daemon instance.
-func (d *Daemon) StartWithBusybox(arg ...string) error {
-	if err := d.Start(arg...); err != nil {
-		return err
-	}
-	return d.LoadBusybox()
+func (d *Daemon) StartWithBusybox(c *check.C, arg ...string) {
+	d.Start(c, arg...)
+	c.Assert(d.LoadBusybox(), checker.IsNil, check.Commentf("Error loading busybox image to current daeom: %s", d.id))
 }
 
 // Kill will send a SIGKILL to the daemon
 func (d *Daemon) Kill() error {
 	if d.cmd == nil || d.Wait == nil {
-		return errors.New("daemon not started")
+		return errDaemonNotStarted
 	}
 
 	defer func() {
@@ -337,7 +342,7 @@ func (d *Daemon) Interrupt() error {
 // Signal sends the specified signal to the daemon if running
 func (d *Daemon) Signal(signal os.Signal) error {
 	if d.cmd == nil || d.Wait == nil {
-		return errors.New("daemon not started")
+		return errDaemonNotStarted
 	}
 	return d.cmd.Process.Signal(signal)
 }
@@ -353,12 +358,28 @@ func (d *Daemon) DumpStackAndQuit() {
 }
 
 // Stop will send a SIGINT every second and wait for the daemon to stop.
+// If it times out, a SIGKILL is sent.
+// Stop will not delete the daemon directory. If a purged daemon is needed,
+// instantiate a new one with NewDaemon.
+// If an error occurs while starting the daemon, the test will fail.
+func (d *Daemon) Stop(c *check.C) {
+	err := d.StopWithError()
+	if err != nil {
+		if err != errDaemonNotStarted {
+			c.Fatalf("Error while stopping the daemon %s : %v", d.id, err)
+		} else {
+			c.Logf("Daemon %s is not started", d.id)
+		}
+	}
+}
+
+// StopWithError will send a SIGINT every second and wait for the daemon to stop.
 // If it timeouts, a SIGKILL is sent.
 // Stop will not delete the daemon directory. If a purged daemon is needed,
 // instantiate a new one with NewDaemon.
-func (d *Daemon) Stop() error {
+func (d *Daemon) StopWithError() error {
 	if d.cmd == nil || d.Wait == nil {
-		return errors.New("daemon not started")
+		return errDaemonNotStarted
 	}
 
 	defer func() {
@@ -370,6 +391,9 @@ func (d *Daemon) Stop() error {
 	tick := time.Tick(time.Second)
 
 	if err := d.cmd.Process.Signal(os.Interrupt); err != nil {
+		if strings.Contains(err.Error(), "os: process already finished") {
+			return errDaemonNotStarted
+		}
 		return errors.Errorf("could not send signal: %v", err)
 	}
 out1:
@@ -414,9 +438,24 @@ out2:
 	return nil
 }
 
-// Restart will restart the daemon by first stopping it and then starting it.
-func (d *Daemon) Restart(arg ...string) error {
-	d.Stop()
+// Restart will restart the daemon by first stopping it and the starting it.
+// If an error occurs while starting the daemon, the test will fail.
+func (d *Daemon) Restart(c *check.C, args ...string) {
+	d.Stop(c)
+	d.handleUserns()
+	d.Start(c, args...)
+}
+
+// RestartWithError will restart the daemon by first stopping it and then starting it.
+func (d *Daemon) RestartWithError(arg ...string) error {
+	if err := d.StopWithError(); err != nil {
+		return err
+	}
+	d.handleUserns()
+	return d.StartWithError(arg...)
+}
+
+func (d *Daemon) handleUserns() {
 	// in the case of tests running a user namespace-enabled daemon, we have resolved
 	// d.Root to be the actual final path of the graph dir after the "uid.gid" of
 	// remapped root is added--we need to subtract it from the path before calling
@@ -425,7 +464,6 @@ func (d *Daemon) Restart(arg ...string) error {
 	if root := os.Getenv("DOCKER_REMAP_ROOT"); root != "" {
 		d.Root = filepath.Dir(d.Root)
 	}
-	return d.Start(arg...)
 }
 
 // LoadBusybox will load the stored busybox into a newly started daemon

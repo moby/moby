@@ -89,13 +89,12 @@ func (s *DockerRegistrySuite) TestUserAgentPassThrough(c *check.C) {
 	c.Assert(err, check.IsNil)
 	registerUserAgentHandler(loginReg, &loginUA)
 
-	err = s.d.Start(
+	s.d.Start(c,
 		"--insecure-registry", buildReg.hostport,
 		"--insecure-registry", pullReg.hostport,
 		"--insecure-registry", pushReg.hostport,
 		"--insecure-registry", loginReg.hostport,
 		"--disable-legacy-registry=true")
-	c.Assert(err, check.IsNil)
 
 	dockerfileName, cleanup1, err := makefile(fmt.Sprintf("FROM %s", buildRepoName))
 	c.Assert(err, check.IsNil, check.Commentf("Unable to create test dockerfile"))

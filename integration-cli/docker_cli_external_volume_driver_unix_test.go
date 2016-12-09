@@ -58,7 +58,7 @@ func (s *DockerExternalVolumeSuite) SetUpTest(c *check.C) {
 
 func (s *DockerExternalVolumeSuite) TearDownTest(c *check.C) {
 	if s.d != nil {
-		s.d.Stop()
+		s.d.Stop(c)
 		s.ds.TearDownTest(c)
 	}
 }
@@ -285,8 +285,7 @@ func (s *DockerExternalVolumeSuite) TearDownSuite(c *check.C) {
 }
 
 func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverNamed(c *check.C) {
-	err := s.d.StartWithBusybox()
-	c.Assert(err, checker.IsNil)
+	s.d.StartWithBusybox(c)
 
 	out, err := s.d.Cmd("run", "--rm", "--name", "test-data", "-v", "external-volume-test:/tmp/external-volume-test", "--volume-driver", volumePluginName, "busybox:latest", "cat", "/tmp/external-volume-test/test")
 	c.Assert(err, checker.IsNil, check.Commentf(out))
@@ -308,8 +307,7 @@ func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverNamed(c *check.C) {
 }
 
 func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverUnnamed(c *check.C) {
-	err := s.d.StartWithBusybox()
-	c.Assert(err, checker.IsNil)
+	s.d.StartWithBusybox(c)
 
 	out, err := s.d.Cmd("run", "--rm", "--name", "test-data", "-v", "/tmp/external-volume-test", "--volume-driver", volumePluginName, "busybox:latest", "cat", "/tmp/external-volume-test/test")
 	c.Assert(err, checker.IsNil, check.Commentf(out))
@@ -323,8 +321,7 @@ func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverUnnamed(c *check.C) 
 }
 
 func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverVolumesFrom(c *check.C) {
-	err := s.d.StartWithBusybox()
-	c.Assert(err, checker.IsNil)
+	s.d.StartWithBusybox(c)
 
 	out, err := s.d.Cmd("run", "--name", "vol-test1", "-v", "/foo", "--volume-driver", volumePluginName, "busybox:latest")
 	c.Assert(err, checker.IsNil, check.Commentf(out))
@@ -343,8 +340,7 @@ func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverVolumesFrom(c *check
 }
 
 func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverDeleteContainer(c *check.C) {
-	err := s.d.StartWithBusybox()
-	c.Assert(err, checker.IsNil)
+	s.d.StartWithBusybox(c)
 
 	out, err := s.d.Cmd("run", "--name", "vol-test1", "-v", "/foo", "--volume-driver", volumePluginName, "busybox:latest")
 	c.Assert(err, checker.IsNil, check.Commentf(out))
@@ -401,8 +397,7 @@ func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverLookupNotBlocked(c *
 }
 
 func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverRetryNotImmediatelyExists(c *check.C) {
-	err := s.d.StartWithBusybox()
-	c.Assert(err, checker.IsNil)
+	s.d.StartWithBusybox(c)
 
 	specPath := "/etc/docker/plugins/test-external-volume-driver-retry.spec"
 	os.RemoveAll(specPath)
@@ -429,7 +424,7 @@ func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverRetryNotImmediatelyE
 		c.Fatal("volume creates fail when plugin not immediately available")
 	}
 
-	_, err = s.d.Cmd("volume", "rm", "external-volume-test")
+	_, err := s.d.Cmd("volume", "rm", "external-volume-test")
 	c.Assert(err, checker.IsNil)
 
 	c.Assert(s.ec.activations, checker.Equals, 1)
@@ -490,8 +485,7 @@ func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverGet(c *check.C) {
 
 func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverWithDaemonRestart(c *check.C) {
 	dockerCmd(c, "volume", "create", "-d", volumePluginName, "abc1")
-	err := s.d.Restart()
-	c.Assert(err, checker.IsNil)
+	s.d.Restart(c)
 
 	dockerCmd(c, "run", "--name=test", "-v", "abc1:/foo", "busybox", "true")
 	var mounts []types.MountPoint
@@ -503,7 +497,7 @@ func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverWithDaemonRestart(c 
 // Ensures that the daemon handles when the plugin responds to a `Get` request with a null volume and a null error.
 // Prior the daemon would panic in this scenario.
 func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverGetEmptyResponse(c *check.C) {
-	c.Assert(s.d.Start(), checker.IsNil)
+	s.d.Start(c)
 
 	out, err := s.d.Cmd("volume", "create", "-d", volumePluginName, "abc2", "--opt", "ninja=1")
 	c.Assert(err, checker.IsNil, check.Commentf(out))
@@ -515,7 +509,7 @@ func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverGetEmptyResponse(c *
 
 // Ensure only cached paths are used in volume list to prevent N+1 calls to `VolumeDriver.Path`
 func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverPathCalls(c *check.C) {
-	c.Assert(s.d.Start(), checker.IsNil)
+	s.d.Start(c)
 	c.Assert(s.ec.paths, checker.Equals, 0)
 
 	out, err := s.d.Cmd("volume", "create", "test", "--driver=test-external-volume-driver")
@@ -533,8 +527,7 @@ func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverPathCalls(c *check.C
 }
 
 func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverMountID(c *check.C) {
-	err := s.d.StartWithBusybox()
-	c.Assert(err, checker.IsNil)
+	s.d.StartWithBusybox(c)
 
 	out, err := s.d.Cmd("run", "--rm", "-v", "external-volume-test:/tmp/external-volume-test", "--volume-driver", volumePluginName, "busybox:latest", "cat", "/tmp/external-volume-test/test")
 	c.Assert(err, checker.IsNil, check.Commentf(out))
@@ -543,7 +536,7 @@ func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverMountID(c *check.C) 
 
 // Check that VolumeDriver.Capabilities gets called, and only called once
 func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverCapabilities(c *check.C) {
-	c.Assert(s.d.Start(), checker.IsNil)
+	s.d.Start(c)
 	c.Assert(s.ec.caps, checker.Equals, 0)
 
 	for i := 0; i < 3; i++ {
@@ -561,7 +554,7 @@ func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverOutOfBandDelete(c *c
 	p := newVolumePlugin(c, driverName)
 	defer p.Close()
 
-	c.Assert(s.d.StartWithBusybox(), checker.IsNil)
+	s.d.StartWithBusybox(c)
 
 	out, err := s.d.Cmd("volume", "create", "-d", driverName, "--name", "test")
 	c.Assert(err, checker.IsNil, check.Commentf(out))
@@ -606,7 +599,7 @@ func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverOutOfBandDelete(c *c
 }
 
 func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverUnmountOnMountFail(c *check.C) {
-	c.Assert(s.d.StartWithBusybox(), checker.IsNil)
+	s.d.StartWithBusybox(c)
 	s.d.Cmd("volume", "create", "-d", "test-external-volume-driver", "--opt=invalidOption=1", "--name=testumount")
 
 	out, _ := s.d.Cmd("run", "-v", "testumount:/foo", "busybox", "true")

@@ -4434,7 +4434,7 @@ exec "$@"`,
 }
 
 func (s *DockerDaemonSuite) TestRunWithUlimitAndDaemonDefault(c *check.C) {
-	c.Assert(s.d.StartWithBusybox("--debug", "--default-ulimit=nofile=65535"), checker.IsNil)
+	s.d.StartWithBusybox(c, "--debug", "--default-ulimit=nofile=65535")
 
 	name := "test-A"
 	_, err := s.d.Cmd("run", "--name", name, "-d", "busybox", "top")

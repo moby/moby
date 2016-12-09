@@ -43,15 +43,13 @@ func (s *DockerHubPullSuite) SetUpSuite(c *check.C) {
 	s.d = daemon.New(c, dockerBinary, dockerdBinary, daemon.Config{
 		Experimental: experimentalDaemon,
 	})
-	err := s.d.Start()
-	c.Assert(err, checker.IsNil, check.Commentf("starting push/pull test daemon: %v", err))
+	s.d.Start(c)
 }
 
 // TearDownSuite stops the suite daemon.
 func (s *DockerHubPullSuite) TearDownSuite(c *check.C) {
 	if s.d != nil {
-		err := s.d.Stop()
-		c.Assert(err, checker.IsNil, check.Commentf("stopping push/pull test daemon: %v", err))
+		s.d.Stop(c)
 	}
 }
 
