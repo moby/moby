@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 )
 
@@ -70,6 +71,11 @@ func PromptForConfirmation(ins *InStream, outs *OutStream, message string) bool 
 	message += " [y/N] "
 
 	fmt.Fprintf(outs, message)
+
+	// On Windows, force the use of the regular OS stdin stream.
+	if runtime.GOOS == "windows" {
+		ins = NewInStream(os.Stdin)
+	}
 
 	answer := ""
 	n, _ := fmt.Fscan(ins, &answer)
