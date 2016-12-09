@@ -49,6 +49,10 @@ func (pm *Manager) enable(p *v2.Plugin, c *controller, force bool) error {
 		return err
 	}
 
+	return pm.pluginPostStart(p, c)
+}
+
+func (pm *Manager) pluginPostStart(p *v2.Plugin, c *controller) error {
 	client, err := plugins.NewClientWithTimeout("unix://"+filepath.Join(p.GetRuntimeSourcePath(), p.GetSocket()), nil, c.timeoutInSecs)
 	if err != nil {
 		c.restart = false
@@ -59,12 +63,30 @@ func (pm *Manager) enable(p *v2.Plugin, c *controller, force bool) error {
 	p.SetPClient(client)
 	pm.pluginStore.SetState(p, true)
 	pm.pluginStore.CallHandler(p)
-
 	return nil
 }
 
 func (pm *Manager) restore(p *v2.Plugin) error {
-	return pm.containerdClient.Restore(p.GetID(), attachToLog(p.GetID()))
+	if err := pm.containerdClient.Restore(p.GetID(), attachToLog(p.GetID())); err != nil {
+		return err
+	}
+
+	if pm.liveRestore {
+		c := &controller{}
+		if pids, _ := pm.containerdClient.GetPidsForContainer(p.GetID()); len(pids) == 0 {
+			// plugin is not running, so follow normal startup procedure
+			return pm.enable(p, c, true)
+		}
+
+		c.exitChan = make(chan bool)
+		c.restart = true
+		pm.mu.Lock()
+		pm.cMap[p] = c
+		pm.mu.Unlock()
+		return pm.pluginPostStart(p, c)
+	}
+
+	return nil
 }
 
 func shutdownPlugin(p *v2.Plugin, c *controller, containerdClient libcontainerd.Client) {
