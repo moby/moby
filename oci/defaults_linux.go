@@ -32,7 +32,7 @@ func DefaultSpec() specs.Spec {
 			Destination: "/dev",
 			Type:        "tmpfs",
 			Source:      "tmpfs",
-			Options:     []string{"nosuid", "strictatime", "mode=755"},
+			Options:     []string{"nosuid", "noexec", "strictatime", "mode=755"},
 		},
 		{
 			Destination: "/dev/pts",
