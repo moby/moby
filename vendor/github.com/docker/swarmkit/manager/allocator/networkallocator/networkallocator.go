@@ -389,7 +389,7 @@ func (na *NetworkAllocator) DeallocateTask(t *api.Task) error {
 
 func (na *NetworkAllocator) releaseEndpoints(networks []*api.NetworkAttachment) error {
 	for _, nAttach := range networks {
-		ipam, _, err := na.resolveIPAM(nAttach.Network)
+		ipam, _, _, err := na.resolveIPAM(nAttach.Network)
 		if err != nil {
 			return errors.Wrapf(err, "failed to resolve IPAM while allocating")
 		}
@@ -440,7 +440,7 @@ func (na *NetworkAllocator) allocateVIP(vip *api.Endpoint_VirtualIP) error {
 		return nil
 	}
 
-	ipam, _, err := na.resolveIPAM(localNet.nw)
+	ipam, _, _, err := na.resolveIPAM(localNet.nw)
 	if err != nil {
 		return errors.Wrap(err, "failed to resolve IPAM while allocating")
 	}
@@ -479,7 +479,7 @@ func (na *NetworkAllocator) deallocateVIP(vip *api.Endpoint_VirtualIP) error {
 		return errors.New("networkallocator: could not find local network state")
 	}
 
-	ipam, _, err := na.resolveIPAM(localNet.nw)
+	ipam, _, _, err := na.resolveIPAM(localNet.nw)
 	if err != nil {
 		return errors.Wrap(err, "failed to resolve IPAM while allocating")
 	}
@@ -507,7 +507,7 @@ func (na *NetworkAllocator) deallocateVIP(vip *api.Endpoint_VirtualIP) error {
 func (na *NetworkAllocator) allocateNetworkIPs(nAttach *api.NetworkAttachment) error {
 	var ip *net.IPNet
 
-	ipam, _, err := na.resolveIPAM(nAttach.Network)
+	ipam, _, _, err := na.resolveIPAM(nAttach.Network)
 	if err != nil {
 		return errors.Wrap(err, "failed to resolve IPAM while allocating")
 	}
@@ -662,22 +662,27 @@ func (na *NetworkAllocator) loadDriver(name string) error {
 }
 
 // Resolve the IPAM driver
-func (na *NetworkAllocator) resolveIPAM(n *api.Network) (ipamapi.Ipam, string, error) {
+func (na *NetworkAllocator) resolveIPAM(n *api.Network) (ipamapi.Ipam, string, map[string]string, error) {
 	dName := ipamapi.DefaultIPAM
 	if n.Spec.IPAM != nil && n.Spec.IPAM.Driver != nil && n.Spec.IPAM.Driver.Name != "" {
 		dName = n.Spec.IPAM.Driver.Name
 	}
 
-	ipam, _ := na.drvRegistry.IPAM(dName)
-	if ipam == nil {
-		return nil, "", fmt.Errorf("could not resolve IPAM driver %s", dName)
+	var dOptions map[string]string
+	if n.Spec.IPAM != nil && n.Spec.IPAM.Driver != nil && len(n.Spec.IPAM.Driver.Options) != 0 {
+		dOptions = n.Spec.IPAM.Driver.Options
 	}
 
-	return ipam, dName, nil
+	ipam, _ := na.drvRegistry.IPAM(dName)
+	if ipam == nil {
+		return nil, "", nil, fmt.Errorf("could not resolve IPAM driver %s", dName)
+	}
+
+	return ipam, dName, dOptions, nil
 }
 
 func (na *NetworkAllocator) freePools(n *api.Network, pools map[string]string) error {
-	ipam, _, err := na.resolveIPAM(n)
+	ipam, _, _, err := na.resolveIPAM(n)
 	if err != nil {
 		return errors.Wrapf(err, "failed to resolve IPAM while freeing pools for network %s", n.ID)
 	}
@@ -701,7 +706,7 @@ func releasePools(ipam ipamapi.Ipam, icList []*api.IPAMConfig, pools map[string]
 }
 
 func (na *NetworkAllocator) allocatePools(n *api.Network) (map[string]string, error) {
-	ipam, dName, err := na.resolveIPAM(n)
+	ipam, dName, dOptions, err := na.resolveIPAM(n)
 	if err != nil {
 		return nil, err
 	}
@@ -736,7 +741,7 @@ func (na *NetworkAllocator) allocatePools(n *api.Network) (map[string]string, er
 
 	// Update the runtime IPAM configurations with initial state
 	n.IPAM = &api.IPAMOptions{
-		Driver:  &api.Driver{Name: dName},
+		Driver:  &api.Driver{Name: dName, Options: dOptions},
 		Configs: ipamConfigs,
 	}
 
