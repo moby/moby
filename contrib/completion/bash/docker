@@ -2293,7 +2293,7 @@ _docker_inspect() {
 			;;
 		--type)
 			if [ -z "$preselected_type" ] ; then
-				COMPREPLY=( $( compgen -W "container image network node service volume" -- "$cur" ) )
+				COMPREPLY=( $( compgen -W "container image network node plugin service volume" -- "$cur" ) )
 				return
 			fi
 			;;
@@ -2315,6 +2315,7 @@ _docker_inspect() {
 						$(__docker_images)
 						$(__docker_networks)
 						$(__docker_nodes)
+						$(__docker_plugins_installed)
 						$(__docker_services)
 						$(__docker_volumes)
 					" -- "$cur" ) )
@@ -2330,6 +2331,9 @@ _docker_inspect() {
 					;;
 				node)
 					__docker_complete_nodes
+					;;
+				plugin)
+					__docker_complete_plugins_installed
 					;;
 				service)
 					__docker_complete_services
