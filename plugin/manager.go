@@ -153,7 +153,7 @@ func (pm *Manager) reload() error {
 
 			// We should only enable rootfs propagation for certain plugin types that need it.
 			for _, typ := range p.PluginObj.Config.Interface.Types {
-				if typ.Capability == "volumedriver" && typ.Prefix == "docker" && strings.HasPrefix(typ.Version, "1.") {
+				if (typ.Capability == "volumedriver" || typ.Capability == "graphdriver") && typ.Prefix == "docker" && strings.HasPrefix(typ.Version, "1.") {
 					if p.PluginObj.Config.PropagatedMount != "" {
 						// TODO: sanitize PropagatedMount and prevent breakout
 						p.PropagatedMount = filepath.Join(p.Rootfs, p.PluginObj.Config.PropagatedMount)

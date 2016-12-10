@@ -4,15 +4,15 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"path/filepath"
 
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/plugingetter"
 )
 
 type graphDriverProxy struct {
-	name   string
-	client pluginClient
-	p      plugingetter.CompatPlugin
+	name string
+	p    plugingetter.CompatPlugin
 }
 
 type graphDriverRequest struct {
@@ -48,7 +48,7 @@ func (d *graphDriverProxy) Init(home string, opts []string) error {
 		Opts: opts,
 	}
 	var ret graphDriverResponse
-	if err := d.client.Call("GraphDriver.Init", args, &ret); err != nil {
+	if err := d.p.Client().Call("GraphDriver.Init", args, &ret); err != nil {
 		return err
 	}
 	if ret.Err != "" {
@@ -73,7 +73,7 @@ func (d *graphDriverProxy) CreateReadWrite(id, parent string, opts *CreateOpts) 
 		MountLabel: mountLabel,
 	}
 	var ret graphDriverResponse
-	if err := d.client.Call("GraphDriver.CreateReadWrite", args, &ret); err != nil {
+	if err := d.p.Client().Call("GraphDriver.CreateReadWrite", args, &ret); err != nil {
 		return err
 	}
 	if ret.Err != "" {
@@ -93,7 +93,7 @@ func (d *graphDriverProxy) Create(id, parent string, opts *CreateOpts) error {
 		MountLabel: mountLabel,
 	}
 	var ret graphDriverResponse
-	if err := d.client.Call("GraphDriver.Create", args, &ret); err != nil {
+	if err := d.p.Client().Call("GraphDriver.Create", args, &ret); err != nil {
 		return err
 	}
 	if ret.Err != "" {
@@ -105,7 +105,7 @@ func (d *graphDriverProxy) Create(id, parent string, opts *CreateOpts) error {
 func (d *graphDriverProxy) Remove(id string) error {
 	args := &graphDriverRequest{ID: id}
 	var ret graphDriverResponse
-	if err := d.client.Call("GraphDriver.Remove", args, &ret); err != nil {
+	if err := d.p.Client().Call("GraphDriver.Remove", args, &ret); err != nil {
 		return err
 	}
 	if ret.Err != "" {
@@ -120,20 +120,20 @@ func (d *graphDriverProxy) Get(id, mountLabel string) (string, error) {
 		MountLabel: mountLabel,
 	}
 	var ret graphDriverResponse
-	if err := d.client.Call("GraphDriver.Get", args, &ret); err != nil {
+	if err := d.p.Client().Call("GraphDriver.Get", args, &ret); err != nil {
 		return "", err
 	}
 	var err error
 	if ret.Err != "" {
 		err = errors.New(ret.Err)
 	}
-	return ret.Dir, err
+	return filepath.Join(d.p.BasePath(), ret.Dir), err
 }
 
 func (d *graphDriverProxy) Put(id string) error {
 	args := &graphDriverRequest{ID: id}
 	var ret graphDriverResponse
-	if err := d.client.Call("GraphDriver.Put", args, &ret); err != nil {
+	if err := d.p.Client().Call("GraphDriver.Put", args, &ret); err != nil {
 		return err
 	}
 	if ret.Err != "" {
@@ -145,7 +145,7 @@ func (d *graphDriverProxy) Put(id string) error {
 func (d *graphDriverProxy) Exists(id string) bool {
 	args := &graphDriverRequest{ID: id}
 	var ret graphDriverResponse
-	if err := d.client.Call("GraphDriver.Exists", args, &ret); err != nil {
+	if err := d.p.Client().Call("GraphDriver.Exists", args, &ret); err != nil {
 		return false
 	}
 	return ret.Exists
@@ -154,7 +154,7 @@ func (d *graphDriverProxy) Exists(id string) bool {
 func (d *graphDriverProxy) Status() [][2]string {
 	args := &graphDriverRequest{}
 	var ret graphDriverResponse
-	if err := d.client.Call("GraphDriver.Status", args, &ret); err != nil {
+	if err := d.p.Client().Call("GraphDriver.Status", args, &ret); err != nil {
 		return nil
 	}
 	return ret.Status
@@ -165,7 +165,7 @@ func (d *graphDriverProxy) GetMetadata(id string) (map[string]string, error) {
 		ID: id,
 	}
 	var ret graphDriverResponse
-	if err := d.client.Call("GraphDriver.GetMetadata", args, &ret); err != nil {
+	if err := d.p.Client().Call("GraphDriver.GetMetadata", args, &ret); err != nil {
 		return nil, err
 	}
 	if ret.Err != "" {
@@ -184,7 +184,7 @@ func (d *graphDriverProxy) Cleanup() error {
 
 	args := &graphDriverRequest{}
 	var ret graphDriverResponse
-	if err := d.client.Call("GraphDriver.Cleanup", args, &ret); err != nil {
+	if err := d.p.Client().Call("GraphDriver.Cleanup", args, &ret); err != nil {
 		return nil
 	}
 	if ret.Err != "" {
@@ -198,7 +198,7 @@ func (d *graphDriverProxy) Diff(id, parent string) (io.ReadCloser, error) {
 		ID:     id,
 		Parent: parent,
 	}
-	body, err := d.client.Stream("GraphDriver.Diff", args)
+	body, err := d.p.Client().Stream("GraphDriver.Diff", args)
 	if err != nil {
 		return nil, err
 	}
@@ -211,7 +211,7 @@ func (d *graphDriverProxy) Changes(id, parent string) ([]archive.Change, error) 
 		Parent: parent,
 	}
 	var ret graphDriverResponse
-	if err := d.client.Call("GraphDriver.Changes", args, &ret); err != nil {
+	if err := d.p.Client().Call("GraphDriver.Changes", args, &ret); err != nil {
 		return nil, err
 	}
 	if ret.Err != "" {
@@ -223,7 +223,7 @@ func (d *graphDriverProxy) Changes(id, parent string) ([]archive.Change, error) 
 
 func (d *graphDriverProxy) ApplyDiff(id, parent string, diff io.Reader) (int64, error) {
 	var ret graphDriverResponse
-	if err := d.client.SendFile(fmt.Sprintf("GraphDriver.ApplyDiff?id=%s&parent=%s", id, parent), diff, &ret); err != nil {
+	if err := d.p.Client().SendFile(fmt.Sprintf("GraphDriver.ApplyDiff?id=%s&parent=%s", id, parent), diff, &ret); err != nil {
 		return -1, err
 	}
 	if ret.Err != "" {
@@ -238,7 +238,7 @@ func (d *graphDriverProxy) DiffSize(id, parent string) (int64, error) {
 		Parent: parent,
 	}
 	var ret graphDriverResponse
-	if err := d.client.Call("GraphDriver.DiffSize", args, &ret); err != nil {
+	if err := d.p.Client().Call("GraphDriver.DiffSize", args, &ret); err != nil {
 		return -1, err
 	}
 	if ret.Err != "" {

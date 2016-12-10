@@ -154,10 +154,12 @@ func GetDriver(name, home string, options []string, uidMaps, gidMaps []idtools.I
 	if initFunc, exists := drivers[name]; exists {
 		return initFunc(filepath.Join(home, name), options, uidMaps, gidMaps)
 	}
-	if pluginDriver, err := lookupPlugin(name, home, options, pg); err == nil {
+
+	pluginDriver, err := lookupPlugin(name, home, options, pg)
+	if err == nil {
 		return pluginDriver, nil
 	}
-	logrus.Errorf("Failed to GetDriver graph %s %s", name, home)
+	logrus.WithError(err).WithField("driver", name).WithField("home-dir", home).Error("Failed to GetDriver graph")
 	return nil, ErrNotSupported
 }
 
