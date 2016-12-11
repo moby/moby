@@ -271,6 +271,14 @@ func TestFilterResolvDns(t *testing.T) {
 		}
 	}
 
+	// with IPv6 disabled (false param), the IPv6 link-local nameserver with zone ID should be removed
+	ns1 = "nameserver 10.16.60.14\nnameserver FE80::BB1%1\nnameserver FE80::BB1%eth0\nnameserver 10.16.60.21\n"
+	if result, _ := FilterResolvDNS([]byte(ns1), false); result != nil {
+		if ns0 != string(result.Content) {
+			t.Fatalf("Failed Localhost+IPv6 off: expected \n<%s> got \n<%s>", ns0, string(result.Content))
+		}
+	}
+
 	// with IPv6 enabled, the IPv6 nameserver should be preserved
 	ns0 = "nameserver 10.16.60.14\nnameserver 2002:dead:beef::1\nnameserver 10.16.60.21\n"
 	ns1 = "nameserver 10.16.60.14\nnameserver 2002:dead:beef::1\nnameserver 10.16.60.21\nnameserver ::1"
