@@ -63,15 +63,15 @@ Only the operator (the person executing `docker run`) can set the
 following options.
 
  - [Detached vs foreground](#detached-vs-foreground)
-     - [Detached (-d)](#detached-d)
+     - [Detached (-d)](#detached--d)
      - [Foreground](#foreground)
  - [Container identification](#container-identification)
-     - [Name (--name)](#name-name)
+     - [Name (--name)](#name---name)
      - [PID equivalent](#pid-equivalent)
- - [IPC settings (--ipc)](#ipc-settings-ipc)
+ - [IPC settings (--ipc)](#ipc-settings---ipc)
  - [Network settings](#network-settings)
- - [Restart policies (--restart)](#restart-policies-restart)
- - [Clean up (--rm)](#clean-up-rm)
+ - [Restart policies (--restart)](#restart-policies---restart)
+ - [Clean up (--rm)](#clean-up---rm)
  - [Runtime constraints on resources](#runtime-constraints-on-resources)
  - [Runtime privilege and Linux capabilities](#runtime-privilege-and-linux-capabilities)
 
