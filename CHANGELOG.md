@@ -190,7 +190,7 @@ To manually remove all plugins and resolve this problem, take the following step
 
 ### Volume
 
-+ Add support for labels on volumes [#25628](https://github.com/docker/docker/pull/21567)
++ Add support for labels on volumes [#21270](https://github.com/docker/docker/pull/21270)
 + Add support for filtering volumes by label [#25628](https://github.com/docker/docker/pull/25628)
 * Add a `--force` flag in `docker volume rm` to forcefully purge the data of the volume that has already been deleted [#23436](https://github.com/docker/docker/pull/23436)
 * Enhance `docker volume inspect` to show all options used when creating the volume [#26671](https://github.com/docker/docker/pull/26671)
