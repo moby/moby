@@ -17,9 +17,9 @@ advisory: "experimental"
 # service logs
 
 ```Markdown
-Usage:  docker service logs [OPTIONS] SERVICE
+Usage:  docker service logs [OPTIONS] SERVICE|TASK
 
-Fetch the logs of a service
+Fetch the logs of a service or task
 
 Options:
       --details        Show extra details provided to logs
@@ -31,6 +31,45 @@ Options:
 ```
 
 The `docker service logs` command batch-retrieves logs present at the time of execution.
+
+## Examples
+
+### View logs for a service
+
+The following example creates a `redis` service, and shows logs for all replicas of the service:
+
+```bash
+$ docker service create --name redis --replicas=2 redis:3.0.6 
+uscpgynfoipjpvtbksd7anv64
+
+$ docker service logs redis
+redis.1.lt0yqr5wid01@centos7-x220-lan    | 1:C 04 Jan 13:10:34.836 # Warning: no config file specified, using the default config. In order to specify a config file use redis-server /path/to/redis.conf
+redis.1.lt0yqr5wid01@centos7-x220-lan    |                 _._                                                  
+redis.1.lt0yqr5wid01@centos7-x220-lan    |            _.-``__ ''-._                                             
+redis.2.lywe25890i86@centos7-x220-lan    | 1:C 04 Jan 13:10:34.837 # Warning: no config file specified, using the default config. In order to specify a config file use redis-server /path/to/redis.conf
+redis.2.lywe25890i86@centos7-x220-lan    |                 _._                                                  
+redis.2.lywe25890i86@centos7-x220-lan    |            _.-``__ ''-._                                             
+...
+```
+### View logs for a task
+
+The following example creates a `redis` service with two replicas. After the service is created, the logs for one of the tasks is viewed:
+
+```bash
+$ docker service create --name redis --replicas=2 redis:3.0.6 
+uscpgynfoipjpvtbksd7anv64
+
+$ docker service ps redis
+ID            NAME     IMAGE        NODE      DESIRED STATE  CURRENT STATE           ERROR  PORTS
+lt0yqr5wid01  redis.1  redis:3.0.6  worker-1  Running        Running 36 seconds ago
+lywe25890i86  redis.2  redis:3.0.6  worker-3  Running        Running 37 seconds ago
+
+$ docker service logs lt0yqr5wid01
+redis.1.lt0yqr5wid01@centos7-x220-lan    | 1:C 04 Jan 13:10:34.836 # Warning: no config file specified, using the default config. In order to specify a config file use redis-server /path/to/redis.conf
+redis.1.lt0yqr5wid01@centos7-x220-lan    |                 _._                                                  
+redis.1.lt0yqr5wid01@centos7-x220-lan    |            _.-``__ ''-._                                             
+...
+```
 
 > **Note**: this command is only functional for services that are started with
 > the `json-file` or `journald` logging driver.

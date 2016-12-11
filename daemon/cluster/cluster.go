@@ -45,6 +45,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -54,6 +55,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	distreference "github.com/docker/distribution/reference"
 	apierrors "github.com/docker/docker/api/errors"
+	"github.com/docker/docker/api/server/httputils"
 	apitypes "github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/filters"
@@ -1076,7 +1078,7 @@ func (c *Cluster) RemoveService(input string) error {
 	return err
 }
 
-// ServiceLogs collects service logs and writes them back to `config.OutStream`
+// ServiceLogs collects service/task logs and writes them back to `config.OutStream`
 func (c *Cluster) ServiceLogs(ctx context.Context, input string, config *backend.ContainerLogsConfig, started chan struct{}) error {
 	c.mu.RLock()
 	state := c.currentNodeState()
@@ -1085,16 +1087,28 @@ func (c *Cluster) ServiceLogs(ctx context.Context, input string, config *backend
 		return c.errNoManager(state)
 	}
 
+	selector := swarmapi.LogSelector{}
 	service, err := getService(ctx, state.controlClient, input)
-	if err != nil {
+	if err == nil {
+		selector.ServiceIDs = []string{service.ID}
+	} else if httputils.GetHTTPErrorStatusCode(err) == http.StatusNotFound {
+		task, err := getTask(ctx, state.controlClient, input)
+		if err == nil {
+			selector.TaskIDs = []string{task.ID}
+		} else if httputils.GetHTTPErrorStatusCode(err) == http.StatusNotFound {
+			c.mu.RUnlock()
+			return errors.Errorf("no such service or task: %q", input)
+		} else {
+			c.mu.RUnlock()
+			return err
+		}
+	} else {
 		c.mu.RUnlock()
 		return err
 	}
 
 	stream, err := state.logsClient.SubscribeLogs(ctx, &swarmapi.SubscribeLogsRequest{
-		Selector: &swarmapi.LogSelector{
-			ServiceIDs: []string{service.ID},
-		},
+		Selector: &selector,
 		Options: &swarmapi.LogSubscriptionOptions{
 			Follow: config.Follow,
 		},
