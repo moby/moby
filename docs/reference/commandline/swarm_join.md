@@ -21,10 +21,10 @@ Usage:  docker swarm join [OPTIONS] HOST:PORT
 Join a swarm as a node and/or manager
 
 Options:
-      --advertise-addr value   Advertised address (format: <ip|interface>[:port])
-      --help                   Print usage
-      --listen-addr value      Listen address (format: <ip|interface>[:port)
-      --token string           Token for entry into the swarm
+      --advertise-addr string   Advertised address (format: <ip|interface>[:port])
+      --help                    Print usage
+      --listen-addr node-addr   Listen address (format: <ip|interface>[:port]) (default 0.0.0.0:2377)
+      --token string            Token for entry into the swarm
 ```
 
 Join a node to a swarm. The node joins as a manager node or worker node based upon the token you
