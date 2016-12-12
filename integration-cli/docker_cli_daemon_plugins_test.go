@@ -16,7 +16,7 @@ import (
 
 // TestDaemonRestartWithPluginEnabled tests state restore for an enabled plugin
 func (s *DockerDaemonSuite) TestDaemonRestartWithPluginEnabled(c *check.C) {
-	testRequires(c, Network)
+	testRequires(c, IsAmd64, Network)
 
 	if err := s.d.Start(); err != nil {
 		c.Fatalf("Could not start daemon: %v", err)
@@ -49,7 +49,7 @@ func (s *DockerDaemonSuite) TestDaemonRestartWithPluginEnabled(c *check.C) {
 
 // TestDaemonRestartWithPluginDisabled tests state restore for a disabled plugin
 func (s *DockerDaemonSuite) TestDaemonRestartWithPluginDisabled(c *check.C) {
-	testRequires(c, Network)
+	testRequires(c, IsAmd64, Network)
 
 	if err := s.d.Start(); err != nil {
 		c.Fatalf("Could not start daemon: %v", err)
@@ -80,7 +80,7 @@ func (s *DockerDaemonSuite) TestDaemonRestartWithPluginDisabled(c *check.C) {
 // TestDaemonKillLiveRestoreWithPlugins SIGKILLs daemon started with --live-restore.
 // Plugins should continue to run.
 func (s *DockerDaemonSuite) TestDaemonKillLiveRestoreWithPlugins(c *check.C) {
-	testRequires(c, Network, IsAmd64)
+	testRequires(c, IsAmd64, Network)
 
 	if err := s.d.Start("--live-restore"); err != nil {
 		c.Fatalf("Could not start daemon: %v", err)
@@ -113,7 +113,7 @@ func (s *DockerDaemonSuite) TestDaemonKillLiveRestoreWithPlugins(c *check.C) {
 // TestDaemonShutdownLiveRestoreWithPlugins SIGTERMs daemon started with --live-restore.
 // Plugins should continue to run.
 func (s *DockerDaemonSuite) TestDaemonShutdownLiveRestoreWithPlugins(c *check.C) {
-	testRequires(c, Network, IsAmd64)
+	testRequires(c, IsAmd64, Network)
 
 	if err := s.d.Start("--live-restore"); err != nil {
 		c.Fatalf("Could not start daemon: %v", err)
@@ -145,7 +145,7 @@ func (s *DockerDaemonSuite) TestDaemonShutdownLiveRestoreWithPlugins(c *check.C)
 
 // TestDaemonShutdownWithPlugins shuts down running plugins.
 func (s *DockerDaemonSuite) TestDaemonShutdownWithPlugins(c *check.C) {
-	testRequires(c, Network)
+	testRequires(c, IsAmd64, Network)
 
 	if err := s.d.Start(); err != nil {
 		c.Fatalf("Could not start daemon: %v", err)
@@ -184,7 +184,7 @@ func (s *DockerDaemonSuite) TestDaemonShutdownWithPlugins(c *check.C) {
 
 // TestVolumePlugin tests volume creation using a plugin.
 func (s *DockerDaemonSuite) TestVolumePlugin(c *check.C) {
-	testRequires(c, Network, IsAmd64)
+	testRequires(c, IsAmd64, Network)
 
 	volName := "plugin-volume"
 	destDir := "/tmp/data/"
