@@ -4,7 +4,7 @@ import (
 	"bytes"
 
 	"github.com/docker/docker/daemon/logger"
-	"github.com/docker/docker/utils/templates"
+	"github.com/docker/docker/pkg/templates"
 )
 
 // DefaultTemplate defines the defaults template logger should use.
