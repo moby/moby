@@ -1,19 +1,23 @@
 package distribution
 
 import (
+	"fmt"
+	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"os"
+	"runtime"
 	"strings"
 	"testing"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/types"
 	registrytypes "github.com/docker/docker/api/types/registry"
+	"github.com/docker/docker/pkg/archive"
+	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/reference"
 	"github.com/docker/docker/registry"
-	"github.com/docker/docker/utils"
 	"golang.org/x/net/context"
 )
 
@@ -38,7 +42,7 @@ func (h *tokenPassThruHandler) ServeHTTP(w http.ResponseWriter, r *http.Request)
 }
 
 func testTokenPassThru(t *testing.T, ts *httptest.Server) {
-	tmp, err := utils.TestDirectory("")
+	tmp, err := testDirectory("")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -130,4 +134,37 @@ func TestTokenPassThruDifferentHost(t *testing.T) {
 	if handler.gotToken {
 		t.Fatal("Redirect should not forward Authorization header to another host")
 	}
+}
+
+// TestDirectory creates a new temporary directory and returns its path.
+// The contents of directory at path `templateDir` is copied into the
+// new directory.
+func testDirectory(templateDir string) (dir string, err error) {
+	testID := stringid.GenerateNonCryptoID()[:4]
+	prefix := fmt.Sprintf("docker-test%s-%s-", testID, getCallerName(2))
+	if prefix == "" {
+		prefix = "docker-test-"
+	}
+	dir, err = ioutil.TempDir("", prefix)
+	if err = os.Remove(dir); err != nil {
+		return
+	}
+	if templateDir != "" {
+		if err = archive.CopyWithTar(templateDir, dir); err != nil {
+			return
+		}
+	}
+	return
+}
+
+// getCallerName introspects the call stack and returns the name of the
+// function `depth` levels down in the stack.
+func getCallerName(depth int) string {
+	// Use the caller function name as a prefix.
+	// This helps trace temp directories back to their test.
+	pc, _, _, _ := runtime.Caller(depth + 1)
+	callerLongName := runtime.FuncForPC(pc).Name()
+	parts := strings.Split(callerLongName, ".")
+	callerShortName := parts[len(parts)-1]
+	return callerShortName
 }
