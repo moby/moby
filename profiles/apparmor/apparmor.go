@@ -94,22 +94,28 @@ func InstallDefault(name string) error {
 	return nil
 }
 
-// IsLoaded checks if a passed profile has been loaded into the kernel.
-func IsLoaded(name string) error {
+// IsLoaded checks if a profile with the given name has been loaded into the
+// kernel.
+func IsLoaded(name string) (bool, error) {
 	file, err := os.Open("/sys/kernel/security/apparmor/profiles")
 	if err != nil {
-		return err
+		return false, err
 	}
 	defer file.Close()
 
 	r := bufio.NewReader(file)
 	for {
 		p, err := r.ReadString('\n')
+		if err == io.EOF {
+			break
+		}
 		if err != nil {
-			return err
+			return false, err
 		}
 		if strings.HasPrefix(p, name+" ") {
-			return nil
+			return true, nil
 		}
 	}
+
+	return false, nil
 }
