@@ -71,7 +71,7 @@ func (n *bridgeNetwork) setupIPTables(config *networkConfiguration, i *bridgeInt
 		return fmt.Errorf("Cannot program chains, EnableIPTable is disabled")
 	}
 
-	// Pickup this configuraton option from driver
+	// Pickup this configuration option from driver
 	hairpinMode := !driverConfig.EnableUserlandProxy
 
 	maskedAddrv4 := &net.IPNet{
