@@ -16,7 +16,7 @@ func TestPluginPushError(t *testing.T) {
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 
-	err := client.PluginPush(context.Background(), "plugin_name", "")
+	_, err := client.PluginPush(context.Background(), "plugin_name", "")
 	if err == nil || err.Error() != "Error response from daemon: Server error" {
 		t.Fatalf("expected a Server Error, got %v", err)
 	}
@@ -44,7 +44,7 @@ func TestPluginPush(t *testing.T) {
 		}),
 	}
 
-	err := client.PluginPush(context.Background(), "plugin_name", "authtoken")
+	_, err := client.PluginPush(context.Background(), "plugin_name", "authtoken")
 	if err != nil {
 		t.Fatal(err)
 	}

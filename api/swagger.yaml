@@ -1347,14 +1347,11 @@ definitions:
   Plugin:
     description: "A plugin for the Engine API"
     type: "object"
-    required: [Settings, Enabled, Config, Name, Tag]
+    required: [Settings, Enabled, Config, Name]
     properties:
       Id:
         type: "string"
       Name:
-        type: "string"
-        x-nullable: false
-      Tag:
         type: "string"
         x-nullable: false
       Enabled:
@@ -1392,7 +1389,7 @@ definitions:
           - Documentation
           - Interface
           - Entrypoint
-          - Workdir
+          - WorkDir
           - Network
           - Linux
           - PropagatedMount
@@ -1423,7 +1420,7 @@ definitions:
             type: "array"
             items:
               type: "string"
-          Workdir:
+          WorkDir:
             type: "string"
             x-nullable: false
           User:
@@ -1490,6 +1487,15 @@ definitions:
                 type: "array"
                 items:
                   type: "string"
+          rootfs:
+            type: "object"
+            properties:
+              type:
+                type: "string"
+              diff_ids:
+                type: "array"
+                items:
+                  type: "string"
     example:
       Id: "5724e2c8652da337ab2eedd19fc6fc0ec908e4bd907c7421bf6a8dfc70c4c078"
       Name: "tiborvass/no-remove"
@@ -1528,7 +1534,7 @@ definitions:
         Entrypoint:
           - "plugin-no-remove"
           - "/data"
-        Workdir: ""
+        WorkDir: ""
         User: {}
         Network:
           Type: "host"
@@ -6397,7 +6403,7 @@ paths:
                   Entrypoint:
                     - "plugin-no-remove"
                     - "/data"
-                  Workdir: ""
+                  WorkDir: ""
                   User: {}
                   Network:
                     Type: "host"
@@ -6503,13 +6509,21 @@ paths:
           schema:
             $ref: "#/definitions/ErrorResponse"
       parameters:
-        - name: "name"
+        - name: "remote"
           in: "query"
           description: |
-            The plugin to install.
+            Remote reference for plugin to install.
 
             The `:latest` tag is optional, and is used as the default if omitted.
           required: true
+          type: "string"
+        - name: "name"
+          in: "query"
+          description: |
+            Local name for the pulled plugin.
+
+            The `:latest` tag is optional, and is used as the default if omitted.
+          required: false
           type: "string"
         - name: "X-Registry-Auth"
           in: "header"

@@ -13,6 +13,7 @@ import (
 	"github.com/docker/docker/api/types/network"
 	swarmtypes "github.com/docker/docker/api/types/swarm"
 	clustertypes "github.com/docker/docker/daemon/cluster/provider"
+	"github.com/docker/docker/plugin"
 	"github.com/docker/docker/reference"
 	"github.com/docker/libnetwork"
 	"github.com/docker/libnetwork/cluster"
@@ -54,4 +55,5 @@ type Backend interface {
 	WaitForDetachment(context.Context, string, string, string, string) error
 	GetRepository(context.Context, reference.NamedTagged, *types.AuthConfig) (distribution.Repository, bool, error)
 	LookupImage(name string) (*types.ImageInspect, error)
+	PluginManager() *plugin.Manager
 }

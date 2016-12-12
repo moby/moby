@@ -8,7 +8,6 @@ package daemon
 import (
 	"encoding/json"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"net"
 	"os"
@@ -17,7 +16,6 @@ import (
 	"runtime"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
 
 	"github.com/Sirupsen/logrus"
@@ -28,6 +26,7 @@ import (
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/events"
 	"github.com/docker/docker/daemon/exec"
+	"github.com/docker/docker/daemon/initlayer"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/plugin"
 	"github.com/docker/libnetwork/cluster"
@@ -42,14 +41,11 @@ import (
 	"github.com/docker/docker/pkg/fileutils"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/plugingetter"
-	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/pkg/registrar"
 	"github.com/docker/docker/pkg/signal"
-	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/docker/pkg/sysinfo"
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/pkg/truncindex"
-	pluginstore "github.com/docker/docker/plugin/store"
 	"github.com/docker/docker/reference"
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/runconfig"
@@ -59,6 +55,7 @@ import (
 	"github.com/docker/libnetwork"
 	nwconfig "github.com/docker/libnetwork/config"
 	"github.com/docker/libtrust"
+	"github.com/pkg/errors"
 )
 
 var (
@@ -99,7 +96,8 @@ type Daemon struct {
 	gidMaps                   []idtools.IDMap
 	layerStore                layer.Store
 	imageStore                image.Store
-	PluginStore               *pluginstore.Store
+	PluginStore               *plugin.Store // todo: remove
+	pluginManager             *plugin.Manager
 	nameIndex                 *registrar.Registrar
 	linkIndex                 *linkIndex
 	containerd                libcontainerd.Client
@@ -554,10 +552,19 @@ func NewDaemon(config *Config, registryService registry.Service, containerdRemot
 	}
 
 	d.RegistryService = registryService
-	d.PluginStore = pluginstore.NewStore(config.Root)
+	d.PluginStore = plugin.NewStore(config.Root) // todo: remove
 	// Plugin system initialization should happen before restore. Do not change order.
-	if err := d.pluginInit(config, containerdRemote); err != nil {
-		return nil, err
+	d.pluginManager, err = plugin.NewManager(plugin.ManagerConfig{
+		Root:               filepath.Join(config.Root, "plugins"),
+		ExecRoot:           "/run/docker/plugins", // possibly needs fixing
+		Store:              d.PluginStore,
+		Executor:           containerdRemote,
+		RegistryService:    registryService,
+		LiveRestoreEnabled: config.LiveRestoreEnabled,
+		LogPluginEvent:     d.LogPluginEvent, // todo: make private
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "couldn't create plugin manager")
 	}
 
 	d.layerStore, err = layer.NewStoreFromOptions(layer.StoreOptions{
@@ -895,36 +902,6 @@ func (daemon *Daemon) V6Subnets() []net.IPNet {
 	return subnets
 }
 
-func writeDistributionProgress(cancelFunc func(), outStream io.Writer, progressChan <-chan progress.Progress) {
-	progressOutput := streamformatter.NewJSONStreamFormatter().NewProgressOutput(outStream, false)
-	operationCancelled := false
-
-	for prog := range progressChan {
-		if err := progressOutput.WriteProgress(prog); err != nil && !operationCancelled {
-			// don't log broken pipe errors as this is the normal case when a client aborts
-			if isBrokenPipe(err) {
-				logrus.Info("Pull session cancelled")
-			} else {
-				logrus.Errorf("error writing progress to client: %v", err)
-			}
-			cancelFunc()
-			operationCancelled = true
-			// Don't return, because we need to continue draining
-			// progressChan until it's closed to avoid a deadlock.
-		}
-	}
-}
-
-func isBrokenPipe(e error) bool {
-	if netErr, ok := e.(*net.OpError); ok {
-		e = netErr.Err
-		if sysErr, ok := netErr.Err.(*os.SyscallError); ok {
-			e = sysErr.Err
-		}
-	}
-	return e == syscall.EPIPE
-}
-
 // GraphDriverName returns the name of the graph driver used by the layer.Store
 func (daemon *Daemon) GraphDriverName() string {
 	return daemon.layerStore.DriverName()
@@ -956,7 +933,7 @@ func tempDir(rootDir string, rootUID, rootGID int) (string, error) {
 
 func (daemon *Daemon) setupInitLayer(initPath string) error {
 	rootUID, rootGID := daemon.GetRemappedUIDGID()
-	return setupInitLayer(initPath, rootUID, rootGID)
+	return initlayer.Setup(initPath, rootUID, rootGID)
 }
 
 func setDefaultMtu(config *Config) {
@@ -1270,17 +1247,18 @@ func (daemon *Daemon) SetCluster(cluster Cluster) {
 	daemon.cluster = cluster
 }
 
-func (daemon *Daemon) pluginInit(cfg *Config, remote libcontainerd.Remote) error {
-	return plugin.Init(cfg.Root, daemon.PluginStore, remote, daemon.RegistryService, cfg.LiveRestoreEnabled, daemon.LogPluginEvent)
-}
-
 func (daemon *Daemon) pluginShutdown() {
-	manager := plugin.GetManager()
+	manager := daemon.pluginManager
 	// Check for a valid manager object. In error conditions, daemon init can fail
 	// and shutdown called, before plugin manager is initialized.
 	if manager != nil {
 		manager.Shutdown()
 	}
+}
+
+// PluginManager returns current pluginManager associated with the daemon
+func (daemon *Daemon) PluginManager() *plugin.Manager { // set up before daemon to avoid this method
+	return daemon.pluginManager
 }
 
 // CreateDaemonRoot creates the root for the daemon
