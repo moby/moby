@@ -9,6 +9,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/distribution"
+	progressutils "github.com/docker/docker/distribution/utils"
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/reference"
 	"github.com/docker/docker/registry"
@@ -84,7 +85,7 @@ func (daemon *Daemon) pullImageWithReference(ctx context.Context, ref reference.
 	ctx, cancelFunc := context.WithCancel(ctx)
 
 	go func() {
-		writeDistributionProgress(cancelFunc, outStream, progressChan)
+		progressutils.WriteDistributionProgress(cancelFunc, outStream, progressChan)
 		close(writesDone)
 	}()
 

@@ -64,8 +64,8 @@ func newCreateCommand(dockerCli *command.DockerCli) *cobra.Command {
 	options := pluginCreateOptions{}
 
 	cmd := &cobra.Command{
-		Use:   "create [OPTIONS] PLUGIN[:tag] PATH-TO-ROOTFS(rootfs + config.json)",
-		Short: "Create a plugin from a rootfs and config",
+		Use:   "create [OPTIONS] PLUGIN PLUGIN-DATA-DIR",
+		Short: "Create a plugin from a rootfs and configuration. Plugin data directory must contain config.json and rootfs directory.",
 		Args:  cli.RequiresMinArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			options.repoName = args[0]

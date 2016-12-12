@@ -350,6 +350,7 @@ type PluginInstallOptions struct {
 	Disabled              bool
 	AcceptAllPermissions  bool
 	RegistryAuth          string // RegistryAuth is the base64 encoded credentials for the registry
+	RemoteRef             string // RemoteRef is the plugin name on the registry
 	PrivilegeFunc         RequestPrivilegeFunc
 	AcceptPermissionsFunc func(PluginPrivileges) (bool, error)
 	Args                  []string

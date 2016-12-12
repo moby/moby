@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 
 	"github.com/docker/distribution/digest"
 	"github.com/docker/docker/api/types"
@@ -125,6 +126,9 @@ func (serv *v2MetadataService) digestKey(dgst digest.Digest) string {
 
 // GetMetadata finds the metadata associated with a layer DiffID.
 func (serv *v2MetadataService) GetMetadata(diffID layer.DiffID) ([]V2Metadata, error) {
+	if serv.store == nil {
+		return nil, errors.New("no metadata storage")
+	}
 	jsonBytes, err := serv.store.Get(serv.diffIDNamespace(), serv.diffIDKey(diffID))
 	if err != nil {
 		return nil, err
@@ -140,6 +144,9 @@ func (serv *v2MetadataService) GetMetadata(diffID layer.DiffID) ([]V2Metadata, e
 
 // GetDiffID finds a layer DiffID from a digest.
 func (serv *v2MetadataService) GetDiffID(dgst digest.Digest) (layer.DiffID, error) {
+	if serv.store == nil {
+		return layer.DiffID(""), errors.New("no metadata storage")
+	}
 	diffIDBytes, err := serv.store.Get(serv.digestNamespace(), serv.digestKey(dgst))
 	if err != nil {
 		return layer.DiffID(""), err
@@ -151,6 +158,12 @@ func (serv *v2MetadataService) GetDiffID(dgst digest.Digest) (layer.DiffID, erro
 // Add associates metadata with a layer DiffID. If too many metadata entries are
 // present, the oldest one is dropped.
 func (serv *v2MetadataService) Add(diffID layer.DiffID, metadata V2Metadata) error {
+	if serv.store == nil {
+		// Support a service which has no backend storage, in this case
+		// an add becomes a no-op.
+		// TODO: implement in memory storage
+		return nil
+	}
 	oldMetadata, err := serv.GetMetadata(diffID)
 	if err != nil {
 		oldMetadata = nil
@@ -192,6 +205,12 @@ func (serv *v2MetadataService) TagAndAdd(diffID layer.DiffID, hmacKey []byte, me
 
 // Remove unassociates a metadata entry from a layer DiffID.
 func (serv *v2MetadataService) Remove(metadata V2Metadata) error {
+	if serv.store == nil {
+		// Support a service which has no backend storage, in this case
+		// an remove becomes a no-op.
+		// TODO: implement in memory storage
+		return nil
+	}
 	diffID, err := serv.GetDiffID(metadata.Digest)
 	if err != nil {
 		return err

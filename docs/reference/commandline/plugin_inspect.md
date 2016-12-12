@@ -36,8 +36,7 @@ $ docker plugin inspect tiborvass/no-remove:latest
 ```JSON
 {
   "Id": "8c74c978c434745c3ade82f1bc0acf38d04990eaf494fa507c16d9f1daa99c21",
-  "Name": "tiborvass/no-remove",
-  "Tag": "latest",
+  "Name": "tiborvass/no-remove:latest",
   "Enabled": true,
   "Config": {
     "Mounts": [

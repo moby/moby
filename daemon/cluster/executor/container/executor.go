@@ -8,7 +8,6 @@ import (
 	"github.com/docker/docker/api/types/network"
 	executorpkg "github.com/docker/docker/daemon/cluster/executor"
 	clustertypes "github.com/docker/docker/daemon/cluster/provider"
-	"github.com/docker/docker/plugin"
 	networktypes "github.com/docker/libnetwork/types"
 	"github.com/docker/swarmkit/agent/exec"
 	"github.com/docker/swarmkit/agent/secrets"
@@ -54,7 +53,7 @@ func (e *executor) Describe(ctx context.Context) (*api.NodeDescription, error) {
 	addPlugins("Authorization", info.Plugins.Authorization)
 
 	// add v2 plugins
-	v2Plugins, err := plugin.GetManager().List()
+	v2Plugins, err := e.backend.PluginManager().List()
 	if err == nil {
 		for _, plgn := range v2Plugins {
 			for _, typ := range plgn.Config.Interface.Types {
@@ -67,13 +66,9 @@ func (e *executor) Describe(ctx context.Context) (*api.NodeDescription, error) {
 				} else if typ.Capability == "networkdriver" {
 					plgnTyp = "Network"
 				}
-				plgnName := plgn.Name
-				if plgn.Tag != "" {
-					plgnName += ":" + plgn.Tag
-				}
 				plugins[api.PluginDescription{
 					Type: plgnTyp,
-					Name: plgnName,
+					Name: plgn.Name,
 				}] = struct{}{}
 			}
 		}
