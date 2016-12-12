@@ -348,14 +348,14 @@ __docker_complete_ps_filters() {
                 __docker_complete_containers_names && ret=0
                 ;;
             (network)
-                __docker_networks && ret=0
+                __docker_complete_networks && ret=0
                 ;;
             (status)
                 status_opts=('created' 'dead' 'exited' 'paused' 'restarting' 'running' 'removing')
                 _describe -t status-filter-opts "status filter options" status_opts && ret=0
                 ;;
             (volume)
-                __docker_volumes && ret=0
+                __docker_complete_volumes && ret=0
                 ;;
             *)
                 _message 'value' && ret=0
@@ -453,7 +453,7 @@ __docker_complete_events_filter() {
                 __docker_complete_images && ret=0
                 ;;
             (network)
-                __docker_networks && ret=0
+                __docker_complete_networks && ret=0
                 ;;
             (type)
                 local -a type_opts
@@ -461,7 +461,7 @@ __docker_complete_events_filter() {
                 _describe -t type-filter-opts "type filter options" type_opts && ret=0
                 ;;
             (volume)
-                __docker_volumes && ret=0
+                __docker_complete_volumes && ret=0
                 ;;
             *)
                 _message 'value' && ret=0
@@ -1033,10 +1033,10 @@ __docker_network_complete_ls_filters() {
                 __docker_complete_info_plugins Network && ret=0
                 ;;
             (id)
-                __docker_networks_ids && ret=0
+                __docker_complete_networks_ids && ret=0
                 ;;
             (name)
-                __docker_networks_names && ret=0
+                __docker_complete_networks_names && ret=0
                 ;;
             (type)
                 type_opts=('builtin' 'custom')
@@ -1082,6 +1082,7 @@ __docker_get_networks() {
         for line in $lines; do
             s="${line[${begin[NETWORK ID]},${end[NETWORK ID]}]%% ##}"
             s="$s:${(l:7:: :::)${${line[${begin[DRIVER]},${end[DRIVER]}]}%% ##}}"
+            s="$s, ${${line[${begin[SCOPE]},${end[SCOPE]}]}%% ##}"
             networks=($networks $s)
         done
     fi
@@ -1091,6 +1092,7 @@ __docker_get_networks() {
         for line in $lines; do
             s="${line[${begin[NAME]},${end[NAME]}]%% ##}"
             s="$s:${(l:7:: :::)${${line[${begin[DRIVER]},${end[DRIVER]}]}%% ##}}"
+            s="$s, ${${line[${begin[SCOPE]},${end[SCOPE]}]}%% ##}"
             networks=($networks $s)
         done
     fi
@@ -1099,17 +1101,17 @@ __docker_get_networks() {
     return ret
 }
 
-__docker_networks() {
+__docker_complete_networks() {
     [[ $PREFIX = -* ]] && return 1
     __docker_get_networks all "$@"
 }
 
-__docker_networks_ids() {
+__docker_complete_networks_ids() {
     [[ $PREFIX = -* ]] && return 1
     __docker_get_networks ids "$@"
 }
 
-__docker_networks_names() {
+__docker_complete_networks_names() {
     [[ $PREFIX = -* ]] && return 1
     __docker_get_networks names "$@"
 }
@@ -1144,7 +1146,7 @@ __docker_network_subcommand() {
                 "($help)--ip6=[Container IPv6 address]:IPv6: " \
                 "($help)*--link=[Add a link to another container]:link:->link" \
                 "($help)*--link-local-ip=[Add a link-local address for the container]:IPv4/IPv6: " \
-                "($help -)1:network:__docker_networks" \
+                "($help -)1:network:__docker_complete_networks" \
                 "($help -)2:containers:__docker_complete_containers" && ret=0
 
             case $state in
@@ -1177,14 +1179,14 @@ __docker_network_subcommand() {
         (disconnect)
             _arguments $(__docker_arguments) \
                 $opts_help \
-                "($help -)1:network:__docker_networks" \
+                "($help -)1:network:__docker_complete_networks" \
                 "($help -)2:containers:__docker_complete_containers" && ret=0
             ;;
         (inspect)
             _arguments $(__docker_arguments) \
                 $opts_help \
                 "($help -f --format)"{-f=,--format=}"[Format the output using the given go template]:template: " \
-                "($help -)*:network:__docker_networks" && ret=0
+                "($help -)*:network:__docker_complete_networks" && ret=0
             ;;
         (ls)
             _arguments $(__docker_arguments) \
@@ -1207,7 +1209,7 @@ __docker_network_subcommand() {
         (rm)
             _arguments $(__docker_arguments) \
                 $opts_help \
-                "($help -)*:network:__docker_networks" && ret=0
+                "($help -)*:network:__docker_complete_networks" && ret=0
             ;;
         (help)
             _arguments $(__docker_arguments) ":subcommand:__docker_network_commands" && ret=0
@@ -2168,7 +2170,7 @@ __docker_volume_complete_ls_filters() {
                 __docker_complete_info_plugins Volume && ret=0
                 ;;
             (name)
-                __docker_volumes && ret=0
+                __docker_complete_volumes && ret=0
                 ;;
             *)
                 _message 'value' && ret=0
@@ -2182,7 +2184,7 @@ __docker_volume_complete_ls_filters() {
     return ret
 }
 
-__docker_volumes() {
+__docker_complete_volumes() {
     [[ $PREFIX = -* ]] && return 1
     integer ret=1
     declare -a lines volumes
@@ -2246,7 +2248,7 @@ __docker_volume_subcommand() {
             _arguments $(__docker_arguments) \
                 $opts_help \
                 "($help -f --format)"{-f=,--format=}"[Format the output using the given go template]:template: " \
-                "($help -)1:volume:__docker_volumes" && ret=0
+                "($help -)1:volume:__docker_complete_volumes" && ret=0
             ;;
         (ls)
             _arguments $(__docker_arguments) \
@@ -2269,7 +2271,7 @@ __docker_volume_subcommand() {
             _arguments $(__docker_arguments) \
                 $opts_help \
                 "($help -f --force)"{-f,--force}"[Force the removal of one or more volumes]" \
-                "($help -):volume:__docker_volumes" && ret=0
+                "($help -):volume:__docker_complete_volumes" && ret=0
             ;;
         (help)
             _arguments $(__docker_arguments) ":subcommand:__docker_volume_commands" && ret=0
@@ -2458,7 +2460,7 @@ __docker_subcommand() {
                 $opts_help \
                 "($help -f --format)"{-f=,--format=}"[Format the output using the given go template]:template: " \
                 "($help -s --size)"{-s,--size}"[Display total file sizes if the type is container]" \
-                "($help)--type=[Return JSON for specified type]:type:(image container)" \
+                "($help)--type=[Return JSON for specified type]:type:(container image network node plugin service volume)" \
                 "($help -)*: :->values" && ret=0
 
             case $state in
@@ -2467,8 +2469,24 @@ __docker_subcommand() {
                         __docker_complete_containers && ret=0
                     elif [[ ${words[(r)--type=image]} == --type=image ]]; then
                         __docker_complete_images && ret=0
+                    elif [[ ${words[(r)--type=network]} == --type=network ]]; then
+                        __docker_complete_networks && ret=0
+                    elif [[ ${words[(r)--type=node]} == --type=node ]]; then
+                        __docker_complete_nodes && ret=0
+                    elif [[ ${words[(r)--type=plugin]} == --type=plugin ]]; then
+                        __docker_complete_plugins && ret=0
+                    elif [[ ${words[(r)--type=service]} == --type=service ]]; then
+                        __docker_complete_services && ret=0
+                    elif [[ ${words[(r)--type=volume]} == --type=volume ]]; then
+                        __docker_complete_volumes && ret=0
                     else
-                        __docker_complete_images && __docker_complete_containers && ret=0
+                        __docker_complete_containers
+                        __docker_complete_images
+                        __docker_complete_networks
+                        __docker_complete_nodes
+                        __docker_complete_plugins
+                        __docker_complete_services
+                        __docker_complete_volumes && ret=0
                     fi
                     ;;
             esac
