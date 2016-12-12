@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
+	"log"
 	"math/big"
 	rnd "math/rand"
 	"net"
@@ -27,15 +28,20 @@ type logWriter struct{}
 
 func (l *logWriter) Write(p []byte) (int, error) {
 	str := string(p)
+	str = strings.TrimSuffix(str, "\n")
 
 	switch {
-	case strings.Contains(str, "[WARN]"):
+	case strings.HasPrefix(str, "[WARN] "):
+		str = strings.TrimPrefix(str, "[WARN] ")
 		logrus.Warn(str)
-	case strings.Contains(str, "[DEBUG]"):
+	case strings.HasPrefix(str, "[DEBUG] "):
+		str = strings.TrimPrefix(str, "[DEBUG] ")
 		logrus.Debug(str)
-	case strings.Contains(str, "[INFO]"):
+	case strings.HasPrefix(str, "[INFO] "):
+		str = strings.TrimPrefix(str, "[INFO] ")
 		logrus.Info(str)
-	case strings.Contains(str, "[ERR]"):
+	case strings.HasPrefix(str, "[ERR] "):
+		str = strings.TrimPrefix(str, "[ERR] ")
 		logrus.Warn(str)
 	}
 
@@ -104,7 +110,9 @@ func (nDB *NetworkDB) clusterInit() error {
 	config.ProtocolVersion = memberlist.ProtocolVersionMax
 	config.Delegate = &delegate{nDB: nDB}
 	config.Events = &eventDelegate{nDB: nDB}
-	config.LogOutput = &logWriter{}
+	// custom logger that does not add time or date, so they are not
+	// duplicated by logrus
+	config.Logger = log.New(&logWriter{}, "", 0)
 
 	var err error
 	if len(nDB.config.Keys) > 0 {

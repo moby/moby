@@ -47,7 +47,7 @@ type Handle struct {
 
 // New provides a new ipvs handle in the namespace pointed to by the
 // passed path. It will return a valid handle or an error in case an
-// error occured while creating the handle.
+// error occurred while creating the handle.
 func New(path string) (*Handle, error) {
 	setup()
 

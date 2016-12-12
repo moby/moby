@@ -1,5 +1,5 @@
 // Package bitseq provides a structure and utilities for representing long bitmask
-// as sequence of run-lenght encoded blocks. It operates direclty on the encoded
+// as sequence of run-length encoded blocks. It operates directly on the encoded
 // representation, it does not decode/encode.
 package bitseq
 
