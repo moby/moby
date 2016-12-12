@@ -25,7 +25,7 @@ var (
 	// -- e.g. other link-local types -- either won't work in containers or are unnecessary.
 	// For readability and sufficiency for Docker purposes this seemed more reasonable than a
 	// 1000+ character regexp with exact and complete IPv6 validation
-	ipv6Address = `([0-9A-Fa-f]{0,4}:){2,7}([0-9A-Fa-f]{0,4})`
+	ipv6Address = `([0-9A-Fa-f]{0,4}:){2,7}([0-9A-Fa-f]{0,4})(%\w+)?`
 
 	localhostNSRegexp = regexp.MustCompile(`(?m)^nameserver\s+` + dns.IPLocalhost + `\s*\n*`)
 	nsIPv6Regexp      = regexp.MustCompile(`(?m)^nameserver\s+` + ipv6Address + `\s*\n*`)
