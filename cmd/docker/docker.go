@@ -10,11 +10,11 @@ import (
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cli/command"
 	"github.com/docker/docker/cli/command/commands"
+	"github.com/docker/docker/cli/debug"
 	cliflags "github.com/docker/docker/cli/flags"
 	"github.com/docker/docker/cliconfig"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/pkg/term"
-	"github.com/docker/docker/utils"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 )
@@ -130,7 +130,7 @@ func dockerPreRun(opts *cliflags.ClientOptions) {
 	}
 
 	if opts.Common.Debug {
-		utils.EnableDebug()
+		debug.Enable()
 	}
 }
 
