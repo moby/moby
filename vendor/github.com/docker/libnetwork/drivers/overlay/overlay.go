@@ -99,7 +99,7 @@ func Init(dc driverapi.DriverCallback, config map[string]interface{}) error {
 	// outside of the restore path can potentially fix the network join and succeed.
 	for nid, n := range d.networks {
 		if n.initErr != nil {
-			logrus.Infof("resetting init error and once variable for network %s after unsuccesful endpoint restore: %v", nid, n.initErr)
+			logrus.Infof("resetting init error and once variable for network %s after unsuccessful endpoint restore: %v", nid, n.initErr)
 			n.initErr = nil
 			n.once = &sync.Once{}
 		}
