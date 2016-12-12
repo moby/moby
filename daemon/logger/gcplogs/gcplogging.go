@@ -194,12 +194,16 @@ func ValidateLogOpts(cfg map[string]string) error {
 }
 
 func (l *gcplogs) Log(m *logger.Message) error {
+	data := string(m.Line)
+	ts := m.Timestamp
+	logger.PutMessage(m)
+
 	l.logger.Log(logging.Entry{
-		Timestamp: m.Timestamp,
+		Timestamp: ts,
 		Payload: &dockerLogEntry{
 			Instance:  l.instance,
 			Container: l.container,
-			Data:      string(m.Line),
+			Data:      data,
 		},
 	})
 	return nil

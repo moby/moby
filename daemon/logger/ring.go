@@ -83,10 +83,18 @@ func (r *RingLogger) Close() error {
 	r.setClosed()
 	r.buffer.Close()
 	// empty out the queue
+	var logErr bool
 	for _, msg := range r.buffer.Drain() {
+		if logErr {
+			// some error logging a previous message, so re-insert to message pool
+			// and assume log driver is hosed
+			PutMessage(msg)
+			continue
+		}
+
 		if err := r.l.Log(msg); err != nil {
 			logrus.WithField("driver", r.l.Name()).WithField("container", r.logInfo.ContainerID).Errorf("Error writing log message: %v", r.l)
-			break
+			logErr = true
 		}
 	}
 	return r.l.Close()
