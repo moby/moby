@@ -18,9 +18,7 @@ import (
 func (s *DockerDaemonSuite) TestDaemonRestartWithPluginEnabled(c *check.C) {
 	testRequires(c, Network)
 
-	if err := s.d.Start(); err != nil {
-		c.Fatalf("Could not start daemon: %v", err)
-	}
+	s.d.Start(c)
 
 	if out, err := s.d.Cmd("plugin", "install", "--grant-all-permissions", pName); err != nil {
 		c.Fatalf("Could not install plugin: %v %s", err, out)
@@ -35,9 +33,7 @@ func (s *DockerDaemonSuite) TestDaemonRestartWithPluginEnabled(c *check.C) {
 		}
 	}()
 
-	if err := s.d.Restart(); err != nil {
-		c.Fatalf("Could not restart daemon: %v", err)
-	}
+	s.d.Restart(c)
 
 	out, err := s.d.Cmd("plugin", "ls")
 	if err != nil {
@@ -51,9 +47,7 @@ func (s *DockerDaemonSuite) TestDaemonRestartWithPluginEnabled(c *check.C) {
 func (s *DockerDaemonSuite) TestDaemonRestartWithPluginDisabled(c *check.C) {
 	testRequires(c, Network)
 
-	if err := s.d.Start(); err != nil {
-		c.Fatalf("Could not start daemon: %v", err)
-	}
+	s.d.Start(c)
 
 	if out, err := s.d.Cmd("plugin", "install", "--grant-all-permissions", pName, "--disable"); err != nil {
 		c.Fatalf("Could not install plugin: %v %s", err, out)
@@ -65,9 +59,7 @@ func (s *DockerDaemonSuite) TestDaemonRestartWithPluginDisabled(c *check.C) {
 		}
 	}()
 
-	if err := s.d.Restart(); err != nil {
-		c.Fatalf("Could not restart daemon: %v", err)
-	}
+	s.d.Restart(c)
 
 	out, err := s.d.Cmd("plugin", "ls")
 	if err != nil {
@@ -82,16 +74,12 @@ func (s *DockerDaemonSuite) TestDaemonRestartWithPluginDisabled(c *check.C) {
 func (s *DockerDaemonSuite) TestDaemonKillLiveRestoreWithPlugins(c *check.C) {
 	testRequires(c, Network, IsAmd64)
 
-	if err := s.d.Start("--live-restore"); err != nil {
-		c.Fatalf("Could not start daemon: %v", err)
-	}
+	s.d.Start(c, "--live-restore")
 	if out, err := s.d.Cmd("plugin", "install", "--grant-all-permissions", pName); err != nil {
 		c.Fatalf("Could not install plugin: %v %s", err, out)
 	}
 	defer func() {
-		if err := s.d.Restart("--live-restore"); err != nil {
-			c.Fatalf("Could not restart daemon: %v", err)
-		}
+		s.d.Restart(c, "--live-restore")
 		if out, err := s.d.Cmd("plugin", "disable", pName); err != nil {
 			c.Fatalf("Could not disable plugin: %v %s", err, out)
 		}
@@ -115,16 +103,12 @@ func (s *DockerDaemonSuite) TestDaemonKillLiveRestoreWithPlugins(c *check.C) {
 func (s *DockerDaemonSuite) TestDaemonShutdownLiveRestoreWithPlugins(c *check.C) {
 	testRequires(c, Network, IsAmd64)
 
-	if err := s.d.Start("--live-restore"); err != nil {
-		c.Fatalf("Could not start daemon: %v", err)
-	}
+	s.d.Start(c, "--live-restore")
 	if out, err := s.d.Cmd("plugin", "install", "--grant-all-permissions", pName); err != nil {
 		c.Fatalf("Could not install plugin: %v %s", err, out)
 	}
 	defer func() {
-		if err := s.d.Restart("--live-restore"); err != nil {
-			c.Fatalf("Could not restart daemon: %v", err)
-		}
+		s.d.Restart(c, "--live-restore")
 		if out, err := s.d.Cmd("plugin", "disable", pName); err != nil {
 			c.Fatalf("Could not disable plugin: %v %s", err, out)
 		}
@@ -147,17 +131,13 @@ func (s *DockerDaemonSuite) TestDaemonShutdownLiveRestoreWithPlugins(c *check.C)
 func (s *DockerDaemonSuite) TestDaemonShutdownWithPlugins(c *check.C) {
 	testRequires(c, Network)
 
-	if err := s.d.Start(); err != nil {
-		c.Fatalf("Could not start daemon: %v", err)
-	}
+	s.d.Start(c)
 	if out, err := s.d.Cmd("plugin", "install", "--grant-all-permissions", pName); err != nil {
 		c.Fatalf("Could not install plugin: %v %s", err, out)
 	}
 
 	defer func() {
-		if err := s.d.Restart(); err != nil {
-			c.Fatalf("Could not restart daemon: %v", err)
-		}
+		s.d.Restart(c)
 		if out, err := s.d.Cmd("plugin", "disable", pName); err != nil {
 			c.Fatalf("Could not disable plugin: %v %s", err, out)
 		}
@@ -190,9 +170,7 @@ func (s *DockerDaemonSuite) TestVolumePlugin(c *check.C) {
 	destDir := "/tmp/data/"
 	destFile := "foo"
 
-	if err := s.d.Start(); err != nil {
-		c.Fatalf("Could not start daemon: %v", err)
-	}
+	s.d.Start(c)
 	out, err := s.d.Cmd("plugin", "install", pName, "--grant-all-permissions")
 	if err != nil {
 		c.Fatalf("Could not install plugin: %v %s", err, out)

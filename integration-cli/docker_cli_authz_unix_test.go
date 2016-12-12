@@ -72,7 +72,7 @@ func (s *DockerAuthzSuite) SetUpTest(c *check.C) {
 
 func (s *DockerAuthzSuite) TearDownTest(c *check.C) {
 	if s.d != nil {
-		s.d.Stop()
+		s.d.Stop(c)
 		s.ds.TearDownTest(c)
 		s.ctrl = nil
 	}
@@ -206,7 +206,7 @@ func (s *DockerAuthzSuite) TearDownSuite(c *check.C) {
 func (s *DockerAuthzSuite) TestAuthZPluginAllowRequest(c *check.C) {
 	// start the daemon and load busybox, --net=none build fails otherwise
 	// cause it needs to pull busybox
-	c.Assert(s.d.Start("--authorization-plugin="+testAuthZPlugin), check.IsNil)
+	s.d.Start(c, "--authorization-plugin="+testAuthZPlugin)
 	s.ctrl.reqRes.Allow = true
 	s.ctrl.resRes.Allow = true
 	c.Assert(s.d.LoadBusybox(), check.IsNil)
@@ -231,7 +231,7 @@ func (s *DockerAuthzSuite) TestAuthZPluginTls(c *check.C) {
 	const testDaemonHTTPSAddr = "tcp://localhost:4271"
 	// start the daemon and load busybox, --net=none build fails otherwise
 	// cause it needs to pull busybox
-	if err := s.d.Start(
+	s.d.Start(c,
 		"--authorization-plugin="+testAuthZPlugin,
 		"--tlsverify",
 		"--tlscacert",
@@ -240,9 +240,7 @@ func (s *DockerAuthzSuite) TestAuthZPluginTls(c *check.C) {
 		"fixtures/https/server-cert.pem",
 		"--tlskey",
 		"fixtures/https/server-key.pem",
-		"-H", testDaemonHTTPSAddr); err != nil {
-		c.Fatalf("Could not start daemon with busybox: %v", err)
-	}
+		"-H", testDaemonHTTPSAddr)
 
 	s.ctrl.reqRes.Allow = true
 	s.ctrl.resRes.Allow = true
@@ -266,8 +264,7 @@ func (s *DockerAuthzSuite) TestAuthZPluginTls(c *check.C) {
 }
 
 func (s *DockerAuthzSuite) TestAuthZPluginDenyRequest(c *check.C) {
-	err := s.d.Start("--authorization-plugin=" + testAuthZPlugin)
-	c.Assert(err, check.IsNil)
+	s.d.Start(c, "--authorization-plugin="+testAuthZPlugin)
 	s.ctrl.reqRes.Allow = false
 	s.ctrl.reqRes.Msg = unauthorizedMessage
 
@@ -283,8 +280,7 @@ func (s *DockerAuthzSuite) TestAuthZPluginDenyRequest(c *check.C) {
 
 // TestAuthZPluginAPIDenyResponse validates that when authorization plugin deny the request, the status code is forbidden
 func (s *DockerAuthzSuite) TestAuthZPluginAPIDenyResponse(c *check.C) {
-	err := s.d.Start("--authorization-plugin=" + testAuthZPlugin)
-	c.Assert(err, check.IsNil)
+	s.d.Start(c, "--authorization-plugin="+testAuthZPlugin)
 	s.ctrl.reqRes.Allow = false
 	s.ctrl.resRes.Msg = unauthorizedMessage
 
@@ -303,8 +299,7 @@ func (s *DockerAuthzSuite) TestAuthZPluginAPIDenyResponse(c *check.C) {
 }
 
 func (s *DockerAuthzSuite) TestAuthZPluginDenyResponse(c *check.C) {
-	err := s.d.Start("--authorization-plugin=" + testAuthZPlugin)
-	c.Assert(err, check.IsNil)
+	s.d.Start(c, "--authorization-plugin="+testAuthZPlugin)
 	s.ctrl.reqRes.Allow = true
 	s.ctrl.resRes.Allow = false
 	s.ctrl.resRes.Msg = unauthorizedMessage
@@ -324,7 +319,7 @@ func (s *DockerAuthzSuite) TestAuthZPluginAllowEventStream(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 
 	// start the daemon and load busybox to avoid pulling busybox from Docker Hub
-	c.Assert(s.d.Start("--authorization-plugin="+testAuthZPlugin), check.IsNil)
+	s.d.Start(c, "--authorization-plugin="+testAuthZPlugin)
 	s.ctrl.reqRes.Allow = true
 	s.ctrl.resRes.Allow = true
 	c.Assert(s.d.LoadBusybox(), check.IsNil)
@@ -383,8 +378,7 @@ func (s *DockerAuthzSuite) TestAuthZPluginAllowEventStream(c *check.C) {
 }
 
 func (s *DockerAuthzSuite) TestAuthZPluginErrorResponse(c *check.C) {
-	err := s.d.Start("--authorization-plugin=" + testAuthZPlugin)
-	c.Assert(err, check.IsNil)
+	s.d.Start(c, "--authorization-plugin="+testAuthZPlugin)
 	s.ctrl.reqRes.Allow = true
 	s.ctrl.resRes.Err = errorMessage
 
@@ -396,8 +390,7 @@ func (s *DockerAuthzSuite) TestAuthZPluginErrorResponse(c *check.C) {
 }
 
 func (s *DockerAuthzSuite) TestAuthZPluginErrorRequest(c *check.C) {
-	err := s.d.Start("--authorization-plugin=" + testAuthZPlugin)
-	c.Assert(err, check.IsNil)
+	s.d.Start(c, "--authorization-plugin="+testAuthZPlugin)
 	s.ctrl.reqRes.Err = errorMessage
 
 	// Ensure command is blocked
@@ -408,7 +401,7 @@ func (s *DockerAuthzSuite) TestAuthZPluginErrorRequest(c *check.C) {
 }
 
 func (s *DockerAuthzSuite) TestAuthZPluginEnsureNoDuplicatePluginRegistration(c *check.C) {
-	c.Assert(s.d.Start("--authorization-plugin="+testAuthZPlugin, "--authorization-plugin="+testAuthZPlugin), check.IsNil)
+	s.d.Start(c, "--authorization-plugin="+testAuthZPlugin, "--authorization-plugin="+testAuthZPlugin)
 
 	s.ctrl.reqRes.Allow = true
 	s.ctrl.resRes.Allow = true
@@ -422,7 +415,7 @@ func (s *DockerAuthzSuite) TestAuthZPluginEnsureNoDuplicatePluginRegistration(c 
 }
 
 func (s *DockerAuthzSuite) TestAuthZPluginEnsureLoadImportWorking(c *check.C) {
-	c.Assert(s.d.Start("--authorization-plugin="+testAuthZPlugin, "--authorization-plugin="+testAuthZPlugin), check.IsNil)
+	s.d.Start(c, "--authorization-plugin="+testAuthZPlugin, "--authorization-plugin="+testAuthZPlugin)
 	s.ctrl.reqRes.Allow = true
 	s.ctrl.resRes.Allow = true
 	c.Assert(s.d.LoadBusybox(), check.IsNil)
@@ -449,7 +442,7 @@ func (s *DockerAuthzSuite) TestAuthZPluginEnsureLoadImportWorking(c *check.C) {
 }
 
 func (s *DockerAuthzSuite) TestAuthZPluginHeader(c *check.C) {
-	c.Assert(s.d.Start("--debug", "--authorization-plugin="+testAuthZPlugin), check.IsNil)
+	s.d.Start(c, "--debug", "--authorization-plugin="+testAuthZPlugin)
 	s.ctrl.reqRes.Allow = true
 	s.ctrl.resRes.Allow = true
 	c.Assert(s.d.LoadBusybox(), check.IsNil)

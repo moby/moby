@@ -81,17 +81,13 @@ func (s *DockerSuite) TestExecAfterContainerRestart(c *check.C) {
 
 func (s *DockerDaemonSuite) TestExecAfterDaemonRestart(c *check.C) {
 	// TODO Windows CI: Requires a little work to get this ported.
-	testRequires(c, DaemonIsLinux)
-	testRequires(c, SameHostDaemon)
-
-	err := s.d.StartWithBusybox()
-	c.Assert(err, checker.IsNil)
+	testRequires(c, DaemonIsLinux, SameHostDaemon)
+	s.d.StartWithBusybox(c)
 
 	out, err := s.d.Cmd("run", "-d", "--name", "top", "-p", "80", "busybox:latest", "top")
 	c.Assert(err, checker.IsNil, check.Commentf("Could not run top: %s", out))
 
-	err = s.d.Restart()
-	c.Assert(err, checker.IsNil, check.Commentf("Could not restart daemon"))
+	s.d.Restart(c)
 
 	out, err = s.d.Cmd("start", "top")
 	c.Assert(err, checker.IsNil, check.Commentf("Could not start top after daemon restart: %s", out))

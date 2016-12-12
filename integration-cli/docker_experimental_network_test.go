@@ -61,7 +61,7 @@ func (s *DockerNetworkSuite) TestDockerNetworkMacvlanPersistance(c *check.C) {
 	dockerCmd(c, "network", "create", "--driver=macvlan", "-o", "parent=dm-dummy0.60", "dm-persist")
 	assertNwIsAvailable(c, "dm-persist")
 	// Restart docker daemon to test the config has persisted to disk
-	s.d.Restart()
+	s.d.Restart(c)
 	// verify network is recreated from persistence
 	assertNwIsAvailable(c, "dm-persist")
 	// cleanup the master interface that also collects the slave dev
@@ -80,7 +80,7 @@ func (s *DockerNetworkSuite) TestDockerNetworkIpvlanPersistance(c *check.C) {
 	dockerCmd(c, "network", "create", "--driver=ipvlan", "-o", "parent=di-dummy0.70", "di-persist")
 	assertNwIsAvailable(c, "di-persist")
 	// Restart docker daemon to test the config has persisted to disk
-	s.d.Restart()
+	s.d.Restart(c)
 	// verify network is recreated from persistence
 	assertNwIsAvailable(c, "di-persist")
 	// cleanup the master interface that also collects the slave dev
