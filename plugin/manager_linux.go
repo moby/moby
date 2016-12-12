@@ -41,6 +41,11 @@ func (pm *Manager) enable(p *v2.Plugin, c *controller, force bool) error {
 	}
 
 	if err := pm.containerdClient.Create(p.GetID(), "", "", specs.Spec(*spec), attachToLog(p.GetID())); err != nil {
+		if p.PropagatedMount != "" {
+			if err := mount.Unmount(p.PropagatedMount); err != nil {
+				logrus.Warnf("Could not unmount %s: %v", p.PropagatedMount, err)
+			}
+		}
 		return err
 	}
 
