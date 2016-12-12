@@ -212,7 +212,7 @@ To manually remove all plugins and resolve this problem, take the following step
 - Deprecate MAINTAINER in Dockerfile [#25466](https://github.com/docker/docker/pull/25466)
 - Deprecated filter param for endpoint `/images/json` [#27872](https://github.com/docker/docker/pull/27872)
 
-## 1.12.4 (2016-12-06)
+## 1.12.4 (2016-12-12)
 
 **IMPORTANT**: Docker 1.12 ships with an updated systemd unit file for rpm
 based installs (which includes RHEL, Fedora, CentOS, and Oracle Linux 7). When
@@ -253,6 +253,7 @@ systemctl restart docker` to reload changes and (re)start the docker daemon.
 - Fix volume store locking [#29151](https://github.com/docker/docker/pull/29151)
 - Ensure consistent status code in API [#29150](https://github.com/docker/docker/pull/29150)
 - Fix incorrect opaque directory permission in overlay2 [#29093](https://github.com/docker/docker/pull/29093)
+- Detect plugin content and error out on `docker pull` [#29297](https://github.com/docker/docker/pull/29297)
 
 ### Swarm Mode
 
