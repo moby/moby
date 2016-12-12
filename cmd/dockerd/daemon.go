@@ -26,6 +26,7 @@ import (
 	systemrouter "github.com/docker/docker/api/server/router/system"
 	"github.com/docker/docker/api/server/router/volume"
 	"github.com/docker/docker/builder/dockerfile"
+	"github.com/docker/docker/cli/debug"
 	cliflags "github.com/docker/docker/cli/flags"
 	"github.com/docker/docker/cliconfig"
 	"github.com/docker/docker/daemon"
@@ -44,7 +45,6 @@ import (
 	"github.com/docker/docker/plugin"
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/runconfig"
-	"github.com/docker/docker/utils"
 	"github.com/docker/go-connections/tlsconfig"
 	"github.com/spf13/pflag"
 )
@@ -137,7 +137,7 @@ func (cli *DaemonCli) start(opts daemonOptions) (err error) {
 	}
 
 	if cli.Config.Debug {
-		utils.EnableDebug()
+		debug.Enable()
 	}
 
 	if cli.Config.Experimental {
@@ -351,13 +351,13 @@ func (cli *DaemonCli) reloadConfig() {
 		}
 
 		if config.IsValueSet("debug") {
-			debugEnabled := utils.IsDebugEnabled()
+			debugEnabled := debug.IsEnabled()
 			switch {
 			case debugEnabled && !config.Debug: // disable debug
-				utils.DisableDebug()
+				debug.Disable()
 				cli.api.DisableProfiler()
 			case config.Debug && !debugEnabled: // enable debug
-				utils.EnableDebug()
+				debug.Enable()
 				cli.api.EnableProfiler()
 			}
 
@@ -488,7 +488,7 @@ func initRouter(s *apiserver.Server, d *daemon.Daemon, c *cluster.Cluster) {
 		}
 	}
 
-	s.InitRouter(utils.IsDebugEnabled(), routers...)
+	s.InitRouter(debug.IsEnabled(), routers...)
 }
 
 func (cli *DaemonCli) initMiddlewares(s *apiserver.Server, cfg *apiserver.Config) error {

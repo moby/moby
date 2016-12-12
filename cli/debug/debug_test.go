@@ -1,4 +1,4 @@
-package utils
+package debug
 
 import (
 	"os"
@@ -7,12 +7,12 @@ import (
 	"github.com/Sirupsen/logrus"
 )
 
-func TestEnableDebug(t *testing.T) {
+func TestEnable(t *testing.T) {
 	defer func() {
 		os.Setenv("DEBUG", "")
 		logrus.SetLevel(logrus.InfoLevel)
 	}()
-	EnableDebug()
+	Enable()
 	if os.Getenv("DEBUG") != "1" {
 		t.Fatalf("expected DEBUG=1, got %s\n", os.Getenv("DEBUG"))
 	}
@@ -21,8 +21,8 @@ func TestEnableDebug(t *testing.T) {
 	}
 }
 
-func TestDisableDebug(t *testing.T) {
-	DisableDebug()
+func TestDisable(t *testing.T) {
+	Disable()
 	if os.Getenv("DEBUG") != "" {
 		t.Fatalf("expected DEBUG=\"\", got %s\n", os.Getenv("DEBUG"))
 	}
@@ -31,13 +31,13 @@ func TestDisableDebug(t *testing.T) {
 	}
 }
 
-func TestDebugEnabled(t *testing.T) {
-	EnableDebug()
-	if !IsDebugEnabled() {
+func TestEnabled(t *testing.T) {
+	Enable()
+	if !IsEnabled() {
 		t.Fatal("expected debug enabled, got false")
 	}
-	DisableDebug()
-	if IsDebugEnabled() {
+	Disable()
+	if IsEnabled() {
 		t.Fatal("expected debug disabled, got true")
 	}
 }

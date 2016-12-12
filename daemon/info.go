@@ -10,6 +10,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/cli/debug"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/pkg/fileutils"
@@ -19,7 +20,6 @@ import (
 	"github.com/docker/docker/pkg/sysinfo"
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/registry"
-	"github.com/docker/docker/utils"
 	"github.com/docker/docker/volume/drivers"
 	"github.com/docker/go-connections/sockets"
 )
@@ -102,7 +102,7 @@ func (daemon *Daemon) SystemInfo() (*types.Info, error) {
 		IPv4Forwarding:     !sysInfo.IPv4ForwardingDisabled,
 		BridgeNfIptables:   !sysInfo.BridgeNFCallIPTablesDisabled,
 		BridgeNfIP6tables:  !sysInfo.BridgeNFCallIP6TablesDisabled,
-		Debug:              utils.IsDebugEnabled(),
+		Debug:              debug.IsEnabled(),
 		NFd:                fileutils.GetTotalUsedFds(),
 		NGoroutines:        runtime.NumGoroutine(),
 		SystemTime:         time.Now().Format(time.RFC3339Nano),
