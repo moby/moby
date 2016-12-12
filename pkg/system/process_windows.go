@@ -1,4 +1,4 @@
-package utils
+package system
 
 // IsProcessAlive returns true if process with a given pid is running.
 func IsProcessAlive(pid int) bool {
