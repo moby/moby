@@ -4482,6 +4482,20 @@ func (s *DockerSuite) TestRunMountReadOnlyDevShm(c *check.C) {
 	c.Assert(out, checker.Contains, "Read-only file system")
 }
 
+// Test that passing a FQDN as hostname properly sets hostname, and
+// /etc/hostname. Test case for 29100
+func (s *DockerSuite) TestRunHostnameFQDN(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+
+	expectedOutput := "foobar.example.com\nfoobar.example.com\nfoobar\nexample.com\nfoobar.example.com"
+	out, _ := dockerCmd(c, "run", "--hostname=foobar.example.com", "busybox", "sh", "-c", `cat /etc/hostname && hostname && hostname -s && hostname -d && hostname -f`)
+	c.Assert(strings.TrimSpace(out), checker.Equals, expectedOutput)
+
+	out, _ = dockerCmd(c, "run", "--hostname=foobar.example.com", "busybox", "sh", "-c", `cat /etc/hosts`)
+	expectedOutput = "foobar.example.com foobar"
+	c.Assert(strings.TrimSpace(out), checker.Contains, expectedOutput)
+}
+
 // Test case for 29129
 func (s *DockerSuite) TestRunHostnameInHostMode(c *check.C) {
 	testRequires(c, DaemonIsLinux, NotUserNamespace)
