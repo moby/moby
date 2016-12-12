@@ -62,7 +62,7 @@ type PathFileInfo struct {
 	os.FileInfo
 	// FilePath holds the absolute path to the file.
 	FilePath string
-	// Name holds the basename for the file.
+	// FileName holds the basename for the file.
 	FileName string
 }
 
@@ -109,7 +109,7 @@ type Backend interface {
 
 	// GetImageOnBuild looks up a Docker image referenced by `name`.
 	GetImageOnBuild(name string) (Image, error)
-	// TagImage tags an image with newTag
+	// TagImageWithReference tags an image with newTag
 	TagImageWithReference(image.ID, reference.Named) error
 	// PullOnBuild tells Docker to pull image referenced by `name`.
 	PullOnBuild(ctx context.Context, name string, authConfigs map[string]types.AuthConfig, output io.Writer) (Image, error)
@@ -163,7 +163,7 @@ type ImageCacheBuilder interface {
 // ImageCache abstracts an image cache.
 // (parent image, child runconfig) -> child image
 type ImageCache interface {
-	// GetCachedImageOnBuild returns a reference to a cached image whose parent equals `parent`
+	// GetCache returns a reference to a cached image whose parent equals `parent`
 	// and runconfig equals `cfg`. A cache miss is expected to return an empty ID and a nil error.
 	GetCache(parentID string, cfg *container.Config) (imageID string, err error)
 }
