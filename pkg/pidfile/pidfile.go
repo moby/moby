@@ -49,8 +49,5 @@ func New(path string) (*PIDFile, error) {
 
 // Remove removes the PIDFile.
 func (file PIDFile) Remove() error {
-	if err := os.Remove(file.path); err != nil {
-		return err
-	}
-	return nil
+	return os.Remove(file.path)
 }
