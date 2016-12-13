@@ -534,9 +534,11 @@ service's name and the node's ID where it sits.
 ```bash
 $ docker service create --name hosttempl --hostname={% raw %}"{{.Node.ID}}-{{.Service.Name}}"{% endraw %} busybox top
 va8ew30grofhjoychbr6iot8c
+
 $ docker service ps va8ew30grofhjoychbr6iot8c
-NAME                      IMAGE                                                                                   NODE          DESIRED STATE  CURRENT STATE               ERROR  PORTS
-hosttempl.1.wo41w8hg8qan  busybox:latest@sha256:29f5d56d12684887bdfa50dcd29fc31eea4aaf4ad3bec43daf19026a7ce69912  2e7a8a9c4da2  Running        Running about a minute ago
+ID            NAME         IMAGE                                                                                   NODE          DESIRED STATE  CURRENT STATE               ERROR  PORTS
+wo41w8hg8qan  hosttempl.1  busybox:latest@sha256:29f5d56d12684887bdfa50dcd29fc31eea4aaf4ad3bec43daf19026a7ce69912  2e7a8a9c4da2  Running        Running about a minute ago
+
 $ docker inspect --format={% raw %}"{{.Config.Hostname}}"{% endraw %} hosttempl.1.wo41w8hg8qanxwjwsg4kxpprj
 x3ti0erg11rjpg64m75kej2mz-hosttempl
 ```
