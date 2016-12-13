@@ -293,6 +293,8 @@ echo '  - "'$(wrap_color 'ipvlan' blue)'":'
 check_flags IPVLAN | sed 's/^/    /'
 echo '  - "'$(wrap_color 'macvlan' blue)'":'
 check_flags MACVLAN DUMMY | sed 's/^/    /'
+echo '  - "'$(wrap_color 'ftp,tftp client in container' blue)'":'
+check_flags NF_NAT_FTP NF_CONNTRACK_FTP NF_NAT_TFTP NF_CONNTRACK_TFTP | sed 's/^/    /'
 
 # only fail if no storage drivers available
 CODE=${EXITCODE}
