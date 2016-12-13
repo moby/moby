@@ -77,10 +77,7 @@ func (idx *TruncIndex) addID(id string) error {
 func (idx *TruncIndex) Add(id string) error {
 	idx.Lock()
 	defer idx.Unlock()
-	if err := idx.addID(id); err != nil {
-		return err
-	}
-	return nil
+	return idx.addID(id)
 }
 
 // Delete removes an ID from the TruncIndex. If there are multiple IDs
