@@ -119,6 +119,7 @@ ExecStart=/usr/lib/docker/your-plugin
 WantedBy=multi-user.target
 ```
 The `socket` file (for example `/lib/systemd/system/your-plugin.socket`):
+
 ```
 [Unit]
 Description=Your plugin

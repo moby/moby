@@ -273,6 +273,7 @@ Create a container
            "StopSignal": "SIGTERM",
            "HostConfig": {
              "Binds": ["/tmp:/tmp"],
+             "Tmpfs": { "/run": "rw,noexec,nosuid,size=65536k" },
              "Links": ["redis3:redis"],
              "Memory": 0,
              "MemorySwap": 0,
@@ -353,8 +354,8 @@ Create a container
 -   **Tty** - Boolean value, Attach standard streams to a `tty`, including `stdin` if it is not closed.
 -   **OpenStdin** - Boolean value, opens `stdin`,
 -   **StdinOnce** - Boolean value, close `stdin` after the 1 attached client disconnects.
--   **Env** - A list of environment variables in the form of `["VAR=value"[,"VAR2=value2"]]`
--   **Labels** - Adds a map of labels to a container. To specify a map: `{"key":"value"[,"key2":"value2"]}`
+-   **Env** - A list of environment variables in the form of `["VAR=value", ...]`
+-   **Labels** - Adds a map of labels to a container. To specify a map: `{"key":"value", ... }`
 -   **Cmd** - Command to run specified as a string or an array of strings.
 -   **Entrypoint** - Set the entry point for the container as a string or an array
       of strings.
@@ -381,6 +382,8 @@ Create a container
              _absolute_ path.
            + `volume-name:container-dest:ro` to mount the volume read-only
              inside the container.  `container-dest` must be an _absolute_ path.
+    -   **Tmpfs** – A map of container directories which should be replaced by tmpfs mounts, and their corresponding
+          mount options. A JSON object in the form `{ "/run": "rw,noexec,nosuid,size=65536k" }`.
     -   **Links** - A list of links for the container. Each link entry should be
           in the form of `container_name:alias`.
     -   **Memory** - Memory limit in bytes.
@@ -1799,7 +1802,7 @@ a base64-encoded AuthConfig object.
 
         ```
     {
-            "registrytoken": "9cbaf023786cd7..."
+            "identitytoken": "9cbaf023786cd7..."
     }
         ```
 
@@ -3205,10 +3208,11 @@ Content-Type: application/json
 
 {
   "Name":"isolated_nw",
-  "CheckDuplicate":false,
+  "CheckDuplicate":true,
   "Driver":"bridge",
   "EnableIPv6": true,
   "IPAM":{
+    "Driver": "default",
     "Config":[
       {
         "Subnet":"172.20.0.0/16",
@@ -3261,10 +3265,14 @@ Content-Type: application/json
 **JSON parameters**:
 
 - **Name** - The new network's name. this is a mandatory field
-- **CheckDuplicate** - Requests daemon to check for networks with same name
+- **CheckDuplicate** - Requests daemon to check for networks with same name. Defaults to `false`
 - **Driver** - Name of the network driver plugin to use. Defaults to `bridge` driver
 - **Internal** - Restrict external access to the network
 - **IPAM** - Optional custom IP scheme for the network
+  - **Driver** - Name of the IPAM driver to use. Defaults to `default` driver
+  - **Config** - List of IPAM configuration options, specified as a map:
+      `{"Subnet": <CIDR>, "IPRange": <CIDR>, "Gateway": <IP address>, "AuxAddress": <device_name:IP address>}`
+  - **Options** - Driver-specific options, specified as a map: `{"option":"value" [,"option2":"value2"]}`
 - **EnableIPv6** - Enable IPv6 on the network
 - **Options** - Network specific options to be used by the drivers
 - **Labels** - Labels to set on the network, specified as a map: `{"key":"value" [,"key2":"value2"]}`
