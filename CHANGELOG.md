@@ -5,7 +5,7 @@ information on the list of deprecated flags and APIs please have a look at
 https://docs.docker.com/engine/deprecated/ where target removal dates can also
 be found.
 
-## 1.13.0 (2016-12-08)
+## 1.13.0 (2017-01-10)
 
 ### Builder
 + Add capability to specify images used as a cache source on build. These images do not need to have local parent chain and can be pulled from other registries [#26839](https://github.com/docker/docker/pull/26839)
@@ -18,6 +18,8 @@ be found.
 - Fix image layer inconsistencies when using the overlay storage driver [#27209](https://github.com/docker/docker/pull/27209)
 * Unused build-args are now allowed. A warning is presented instead of an error and failed build [#27412](https://github.com/docker/docker/pull/27412)
 - Fix builder cache issue on Windows [#27805](https://github.com/docker/docker/pull/27805)
++ Allow `USER` in builder on Windows [#28415](https://github.com/docker/docker/pull/28415)
++ Handle env case-insensitive on Windows [#28725](https://github.com/docker/docker/pull/28725)
 
 ### Contrib
 + Add support for building docker debs for Ubuntu 16.04 Xenial on PPC64LE [#23438](https://github.com/docker/docker/pull/23438)
@@ -28,6 +30,7 @@ be found.
 * Update the install script to allow using the mirror in China [#27005](https://github.com/docker/docker/pull/27005)
 + Add DEB builder for Ubuntu 16.10 Yakkety Yak [#27993](https://github.com/docker/docker/pull/27993)
 + Add RPM builder for Fedora 25 [#28222](https://github.com/docker/docker/pull/28222)
++ Add `make deb` support for aarch64 [#27625](https://github.com/docker/docker/pull/27625)
 
 ### Distribution
 
@@ -54,6 +57,8 @@ be found.
 * Enable fluentd logging driver on Windows [#28189](https://github.com/docker/docker/pull/28189)
 - Sanitize docker labels when used as journald field names [#23725](https://github.com/docker/docker/pull/23725)
 - Fix an issue where `docker logs --tail` returned less lines than expected [#28203](https://github.com/docker/docker/pull/28203)
+- Splunk Logging Driver: performance and reliability improvements [#26207](https://github.com/docker/docker/pull/26207)
+- Splunk Logging Driver: configurable formats and skip for verifying connection [#25786](https://github.com/docker/docker/pull/25786)
 
 ### Networking
 
@@ -79,6 +84,7 @@ be found.
 + Add `docker plugin create` command [#28164](https://github.com/docker/docker/pull/28164)
 * Send request's TLS peer certificates to authorization plugins [#27383](https://github.com/docker/docker/pull/27383)
 * Support for global-scoped network and ipam plugins in swarm-mode [#27287](https://github.com/docker/docker/pull/27287)
+* Split `docker plugin install` into two API call `/privileges` and `/pull` [#28963](https://github.com/docker/docker/pull/28963)
 
 ### Remote API (v1.25) & Client
 
@@ -155,7 +161,6 @@ be found.
 * Display the endpoint mode in the output of `docker service inspect --pretty` [#26906](https://github.com/docker/docker/pull/26906)
 * Make `docker service ps` output more bearable by shortening service IDs in task names [#28088](https://github.com/docker/docker/pull/28088)
 * Make `docker node ps` default to the current node [#25214](https://github.com/docker/docker/pull/25214)
-+ Add `-a`/`--all` flags to `docker service ps` and `docker node ps` to show all results [#25983](https://github.com/docker/docker/pull/25983)
 + Add `--dns`, -`-dns-opt`, and `--dns-search` to service create. [#27567](https://github.com/docker/docker/pull/27567)
 + Add `--force` to `docker service update` [#27596](https://github.com/docker/docker/pull/27596)
 + Add `-q` to `docker service ps` [#27654](https://github.com/docker/docker/pull/27654)
@@ -176,6 +181,7 @@ be found.
 + Add options to customize Raft snapshots (`--max-snapshots`, `--snapshot-interval`) [#27997](https://github.com/docker/docker/pull/27997)
 - Don't repull image if pinned by digest [#28265](https://github.com/docker/docker/pull/28265)
 + Swarm-mode support for Windows [#27838](https://github.com/docker/docker/pull/27838)
++ Allow hostname to be updated on service [#28771](https://github.com/docker/docker/pull/28771)
 
 ### Volume
 
