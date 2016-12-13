@@ -222,12 +222,12 @@ two memory nodes.
 **--ip**=""
    Sets the container's interface IPv4 address (e.g. 172.23.0.9)
 
-   It can only be used in conjunction with **--net** for user-defined networks
+   It can only be used in conjunction with **--network** for user-defined networks
 
 **--ip6**=""
    Sets the container's interface IPv6 address (e.g. 2001:db8::1b99)
 
-   It can only be used in conjunction with **--net** for user-defined networks
+   It can only be used in conjunction with **--network** for user-defined networks
 
 **--ipc**=""
    Default is to create a private IPC namespace (POSIX SysV IPC) for the container
@@ -305,7 +305,7 @@ unit, `b` is used. Set LIMIT to `-1` to enable unlimited swap.
 **--name**=""
    Assign a name to the container
 
-**--net**="*bridge*"
+**--network**="*bridge*"
    Set the Network mode for the container
                                'bridge': create a network stack on the default Docker bridge
                                'none': no networking
@@ -404,7 +404,7 @@ unit, `b` is used. Set LIMIT to `-1` to enable unlimited swap.
   Network Namespace - current sysctls allowed:
       Sysctls beginning with net.*
 
-  Note: if you use --net=host using these sysctls will not be allowed.
+  Note: if you use --network=host using these sysctls will not be allowed.
 
 **-t**, **--tty**=*true*|*false*
    Allocate a pseudo-TTY. The default is *false*.
