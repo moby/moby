@@ -60,7 +60,7 @@ docker-run - Run a command in a new container
 [**--memory-swappiness**[=*MEMORY-SWAPPINESS*]]
 [**--name**[=*NAME*]]
 [**--network-alias**[=*[]*]]
-[**--network**[=*"bridge"*]]
+[**--network**[=*"default"*]]
 [**--oom-kill-disable**]
 [**--oom-score-adj**[=*0*]]
 [**-P**|**--publish-all**]
@@ -422,7 +422,7 @@ other place you need to identify a container). This works for both background
 and foreground Docker containers.
 
 **--network**="*bridge*"
-   Set the Network mode for the container
+   Set the Network mode for the container (default "default")
                                'bridge': create a network stack on the default Docker bridge
                                'none': no networking
                                'container:<name|id>': reuse another container's network stack

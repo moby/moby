@@ -94,7 +94,7 @@ Options:
       --memory-swappiness int       Tune container memory swappiness (0 to 100) (default -1)
       --name string                 Assign a name to the container
       --network-alias value         Add network-scoped alias for the container (default [])
-      --network string              Connect a container to a network
+      --network string              Connect a container to a network (default "default")
                                     'bridge': create a network stack on the default Docker bridge
                                     'none': no networking
                                     'container:<name|id>': reuse another container's network stack
