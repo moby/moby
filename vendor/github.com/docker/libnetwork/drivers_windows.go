@@ -7,7 +7,7 @@ import (
 	"github.com/docker/libnetwork/drivers/windows/overlay"
 )
 
-func getInitializers() []initializer {
+func getInitializers(experimental bool) []initializer {
 	return []initializer{
 		{null.Init, "null"},
 		{overlay.Init, "overlay"},
