@@ -16,8 +16,8 @@ import (
 func (s *DockerSuite) TestVolumeCLICreate(c *check.C) {
 	dockerCmd(c, "volume", "create")
 
-	_, err := runCommand(exec.Command(dockerBinary, "volume", "create", "-d", "nosuchdriver"))
-	c.Assert(err, check.Not(check.IsNil))
+	_, _, err := dockerCmdWithError("volume", "create", "-d", "nosuchdriver")
+	c.Assert(err, check.NotNil)
 
 	// test using hidden --name option
 	out, _ := dockerCmd(c, "volume", "create", "--name=test")
@@ -250,6 +250,7 @@ func (s *DockerSuite) TestVolumeCLIRm(c *check.C) {
 	)
 }
 
+// FIXME(vdemeester) should be a unit test in cli/command/volume package
 func (s *DockerSuite) TestVolumeCLINoArgs(c *check.C) {
 	out, _ := dockerCmd(c, "volume")
 	// no args should produce the cmd usage output
@@ -257,15 +258,20 @@ func (s *DockerSuite) TestVolumeCLINoArgs(c *check.C) {
 	c.Assert(out, checker.Contains, usage)
 
 	// invalid arg should error and show the command usage on stderr
-	_, stderr, _, err := runCommandWithStdoutStderr(exec.Command(dockerBinary, "volume", "somearg"))
-	c.Assert(err, check.NotNil, check.Commentf(stderr))
-	c.Assert(stderr, checker.Contains, usage)
+	icmd.RunCommand(dockerBinary, "volume", "somearg").Assert(c, icmd.Expected{
+		ExitCode: 1,
+		Error:    "exit status 1",
+		Err:      usage,
+	})
 
 	// invalid flag should error and show the flag error and cmd usage
-	_, stderr, _, err = runCommandWithStdoutStderr(exec.Command(dockerBinary, "volume", "--no-such-flag"))
-	c.Assert(err, check.NotNil, check.Commentf(stderr))
-	c.Assert(stderr, checker.Contains, usage)
-	c.Assert(stderr, checker.Contains, "unknown flag: --no-such-flag")
+	result := icmd.RunCommand(dockerBinary, "volume", "--no-such-flag")
+	result.Assert(c, icmd.Expected{
+		ExitCode: 125,
+		Error:    "exit status 125",
+		Err:      usage,
+	})
+	c.Assert(result.Stderr(), checker.Contains, "unknown flag: --no-such-flag")
 }
 
 func (s *DockerSuite) TestVolumeCLIInspectTmplError(c *check.C) {
