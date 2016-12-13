@@ -32,8 +32,7 @@ a manager node.
 
 ## Related information
 
-* [stack config](stack_config.md)
 * [stack deploy](stack_deploy.md)
-* [stack services](stack_services.md)
-* [stack ps](stack_ps.md)
 * [stack ls](stack_ls.md)
+* [stack ps](stack_ps.md)
+* [stack services](stack_services.md)
