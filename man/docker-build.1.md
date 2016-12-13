@@ -129,7 +129,7 @@ set as the **URL**, the repository is cloned locally and then sent as the contex
 `k` (kilobytes), `m` (megabytes), or `g` (gigabytes). If you don't specify a
 unit, `b` is used. Set LIMIT to `-1` to enable unlimited swap.
 
-**--network**=*NETWORK*
+**--network**=*bridge*
   Set the networking mode for the RUN instructions during build. Supported standard
   values are: `bridge`, `host`, `none` and `container:<name|id>`. Any other value
   is taken as a custom network's name or ID which this container should connect to.

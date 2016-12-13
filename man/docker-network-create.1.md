@@ -73,11 +73,11 @@ name conflicts.
 
 ## Connect containers
 
-When you start a container use the `--net` flag to connect it to a network.
+When you start a container use the `--network` flag to connect it to a network.
 This adds the `busybox` container to the `mynet` network.
 
 ```bash
-$ docker run -itd --net=mynet busybox
+$ docker run -itd --network=mynet busybox
 ```
 
 If you want to add a container to a network after the container is already

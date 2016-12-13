@@ -319,12 +319,12 @@ redirection on the host system.
 **--ip**=""
    Sets the container's interface IPv4 address (e.g. 172.23.0.9)
 
-   It can only be used in conjunction with **--net** for user-defined networks
+   It can only be used in conjunction with **--network** for user-defined networks
 
 **--ip6**=""
    Sets the container's interface IPv6 address (e.g. 2001:db8::1b99)
 
-   It can only be used in conjunction with **--net** for user-defined networks
+   It can only be used in conjunction with **--network** for user-defined networks
 
 **--ipc**=""
    Default is to create a private IPC namespace (POSIX SysV IPC) for the container
@@ -557,7 +557,7 @@ incompatible with any restart policy other than `none`.
   Network Namespace - current sysctls allowed:
       Sysctls beginning with net.*
 
-  If you use the `--net=host` option these sysctls will not be allowed.
+  If you use the `--network=host` option these sysctls will not be allowed.
 
 **--sig-proxy**=*true*|*false*
    Proxy received signals to the process (non-TTY mode only). SIGCHLD, SIGSTOP, and SIGKILL are not proxied. The default is *true*.
