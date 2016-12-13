@@ -259,10 +259,19 @@ func (s *DockerSuite) TestRestartContainerwithRestartPolicy(c *check.C) {
 	dockerCmd(c, "restart", id1)
 	dockerCmd(c, "restart", id2)
 
+	// Make sure we can stop/start (regression test from a705e166cf3bcca62543150c2b3f9bfeae45ecfa)
 	dockerCmd(c, "stop", id1)
 	dockerCmd(c, "stop", id2)
 	dockerCmd(c, "start", id1)
 	dockerCmd(c, "start", id2)
+
+	// Kill the containers, making sure the are stopped at the end of the test
+	dockerCmd(c, "kill", id1)
+	dockerCmd(c, "kill", id2)
+	err = waitInspect(id1, "{{ .State.Restarting }} {{ .State.Running }}", "false false", waitTimeout)
+	c.Assert(err, checker.IsNil)
+	err = waitInspect(id2, "{{ .State.Restarting }} {{ .State.Running }}", "false false", waitTimeout)
+	c.Assert(err, checker.IsNil)
 }
 
 func (s *DockerSuite) TestRestartAutoRemoveContainer(c *check.C) {

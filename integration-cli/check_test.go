@@ -217,14 +217,14 @@ func (s *DockerDaemonSuite) OnTimeout(c *check.C) {
 }
 
 func (s *DockerDaemonSuite) SetUpTest(c *check.C) {
-	testRequires(c, DaemonIsLinux)
+	testRequires(c, DaemonIsLinux, SameHostDaemon)
 	s.d = daemon.New(c, dockerBinary, dockerdBinary, daemon.Config{
 		Experimental: experimentalDaemon,
 	})
 }
 
 func (s *DockerDaemonSuite) TearDownTest(c *check.C) {
-	testRequires(c, DaemonIsLinux)
+	testRequires(c, DaemonIsLinux, SameHostDaemon)
 	if s.d != nil {
 		s.d.Stop(c)
 	}
