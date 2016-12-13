@@ -36,7 +36,7 @@ type LogImageEvent interface {
 	LogImageEvent(imageID, refName, action string)
 }
 
-// NewTarExporter returns new ImageExporter for tar packages
+// NewTarExporter returns new Exporter for tar packages
 func NewTarExporter(is image.Store, ls layer.Store, rs reference.Store, loggerImgEvent LogImageEvent) image.Exporter {
 	return &tarexporter{
 		is:             is,

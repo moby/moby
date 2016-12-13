@@ -52,7 +52,7 @@ func TestFSGetInvalidData(t *testing.T) {
 
 	_, err = fs.Get(id)
 	if err == nil {
-		t.Fatal("Expected get to fail after data modification.")
+		t.Fatal("expected get to fail after data modification.")
 	}
 }
 
@@ -75,7 +75,7 @@ func TestFSInvalidSet(t *testing.T) {
 
 	_, err = fs.Set([]byte("foobar"))
 	if err == nil {
-		t.Fatal("Expecting error from invalid filesystem data.")
+		t.Fatal("expected error from invalid filesystem data.")
 	}
 }
 
@@ -109,7 +109,7 @@ func TestFSInvalidRoot(t *testing.T) {
 
 		_, err = NewFSStoreBackend(root)
 		if err == nil {
-			t.Fatalf("Expected error from root %q and invlid file %q", tc.root, tc.invalidFile)
+			t.Fatalf("expected error from root %q and invalid file %q", tc.root, tc.invalidFile)
 		}
 
 		os.RemoveAll(root)
@@ -154,18 +154,18 @@ func testMetadataGetSet(t *testing.T, store StoreBackend) {
 
 	_, err = store.GetMetadata(id2, "tkey2")
 	if err == nil {
-		t.Fatal("Expected error for getting metadata for unknown key")
+		t.Fatal("expected error for getting metadata for unknown key")
 	}
 
 	id3 := digest.FromBytes([]byte("baz"))
 	err = store.SetMetadata(id3, "tkey", []byte("tval"))
 	if err == nil {
-		t.Fatal("Expected error for setting metadata for unknown ID.")
+		t.Fatal("expected error for setting metadata for unknown ID.")
 	}
 
 	_, err = store.GetMetadata(id3, "tkey")
 	if err == nil {
-		t.Fatal("Expected error for getting metadata for unknown ID.")
+		t.Fatal("expected error for getting metadata for unknown ID.")
 	}
 }
 
@@ -234,16 +234,16 @@ func TestFSInvalidWalker(t *testing.T) {
 	n := 0
 	err = fs.Walk(func(id digest.Digest) error {
 		if id != fooID {
-			t.Fatalf("Invalid walker ID %q, expected %q", id, fooID)
+			t.Fatalf("invalid walker ID %q, expected %q", id, fooID)
 		}
 		n++
 		return nil
 	})
 	if err != nil {
-		t.Fatalf("Invalid data should not have caused walker error, got %v", err)
+		t.Fatalf("invalid data should not have caused walker error, got %v", err)
 	}
 	if n != 1 {
-		t.Fatalf("Expected 1 walk initialization, got %d", n)
+		t.Fatalf("expected 1 walk initialization, got %d", n)
 	}
 }
 
@@ -261,7 +261,7 @@ func testGetSet(t *testing.T, store StoreBackend) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// skipping use of digest pkg because its used by the implementation
+	// skipping use of digest pkg because it is used by the implementation
 	h := sha256.New()
 	_, err = h.Write(randomInput)
 	if err != nil {
@@ -278,14 +278,14 @@ func testGetSet(t *testing.T, store StoreBackend) {
 			t.Fatal(err)
 		}
 		if id != tc.expected {
-			t.Fatalf("Expected ID %q, got %q", tc.expected, id)
+			t.Fatalf("expected ID %q, got %q", tc.expected, id)
 		}
 	}
 
 	for _, emptyData := range [][]byte{nil, {}} {
 		_, err := store.Set(emptyData)
 		if err == nil {
-			t.Fatal("Expected error for nil input.")
+			t.Fatal("expected error for nil input.")
 		}
 	}
 
@@ -295,14 +295,14 @@ func testGetSet(t *testing.T, store StoreBackend) {
 			t.Fatal(err)
 		}
 		if bytes.Compare(data, tc.input) != 0 {
-			t.Fatalf("Expected data %q, got %q", tc.input, data)
+			t.Fatalf("expected data %q, got %q", tc.input, data)
 		}
 	}
 
 	for _, key := range []digest.Digest{"foobar:abc", "sha256:abc", "sha256:c3ab8ff13720e8ad9047dd39466b3c8974e592c2fa383d4a3960714caef0c4f2a"} {
 		_, err := store.Get(key)
 		if err == nil {
-			t.Fatalf("Expected error for ID %q.", key)
+			t.Fatalf("expected error for ID %q.", key)
 		}
 	}
 
@@ -325,7 +325,7 @@ func testDelete(t *testing.T, store StoreBackend) {
 
 	_, err = store.Get(id)
 	if err == nil {
-		t.Fatalf("Expected getting deleted item %q to fail", id)
+		t.Fatalf("expected getting deleted item %q to fail", id)
 	}
 	_, err = store.Get(id2)
 	if err != nil {
@@ -338,7 +338,7 @@ func testDelete(t *testing.T, store StoreBackend) {
 	}
 	_, err = store.Get(id2)
 	if err == nil {
-		t.Fatalf("Expected getting deleted item %q to fail", id2)
+		t.Fatalf("expected getting deleted item %q to fail", id2)
 	}
 }
 
@@ -366,10 +366,10 @@ func testWalker(t *testing.T, store StoreBackend) {
 	}
 
 	if n != 2 {
-		t.Fatalf("Expected 2 walk initializations, got %d", n)
+		t.Fatalf("expected 2 walk initializations, got %d", n)
 	}
 	if len(tcases) != 0 {
-		t.Fatalf("Expected empty unwalked set, got %+v", tcases)
+		t.Fatalf("expected empty unwalked set, got %+v", tcases)
 	}
 
 	// stop on error
@@ -379,6 +379,6 @@ func testWalker(t *testing.T, store StoreBackend) {
 		return errors.New("")
 	})
 	if err == nil {
-		t.Fatalf("Exected error from walker.")
+		t.Fatalf("expected error from walker.")
 	}
 }
