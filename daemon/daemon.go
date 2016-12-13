@@ -149,6 +149,10 @@ func (daemon *Daemon) restore() error {
 				continue
 			}
 			container.RWLayer = rwlayer
+			if err := daemon.Mount(container); err != nil {
+				logrus.Errorf("Failed to mount container %v: %v", id, err)
+				continue
+			}
 			logrus.Debugf("Loaded container %v", container.ID)
 
 			containers[container.ID] = container
