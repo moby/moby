@@ -1189,6 +1189,7 @@ func (daemon *Daemon) networkOptions(dconfig *Config, pg plugingetter.PluginGett
 		return options, nil
 	}
 
+	options = append(options, nwconfig.OptionExperimental(dconfig.Experimental))
 	options = append(options, nwconfig.OptionDataDir(dconfig.Root))
 	options = append(options, nwconfig.OptionExecRoot(dconfig.GetExecRoot()))
 
