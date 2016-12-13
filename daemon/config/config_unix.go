@@ -23,7 +23,6 @@ type Config struct {
 
 	// These fields are common to all unix platforms.
 	CommonUnixConfig
-
 	// Fields below here are platform specific.
 	CgroupParent         string                   `json:"cgroup-parent,omitempty"`
 	EnableSelinuxSupport bool                     `json:"selinux-enabled,omitempty"`
