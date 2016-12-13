@@ -188,7 +188,7 @@ func New(cfgOptions ...config.Option) (NetworkController, error) {
 		return nil, err
 	}
 
-	for _, i := range getInitializers() {
+	for _, i := range getInitializers(c.cfg.Daemon.Experimental) {
 		var dcfg map[string]interface{}
 
 		// External plugins don't need config passed through daemon. They can
@@ -476,7 +476,7 @@ func (c *controller) ID() string {
 
 func (c *controller) BuiltinDrivers() []string {
 	drivers := []string{}
-	for _, i := range getInitializers() {
+	for _, i := range getInitializers(c.cfg.Daemon.Experimental) {
 		if i.ntype == "remote" {
 			continue
 		}
