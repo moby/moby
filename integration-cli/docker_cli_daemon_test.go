@@ -2927,3 +2927,28 @@ func (s *DockerDaemonSuite) TestDaemonShutdownTimeoutWithConfigFile(c *check.C) 
 	content, _ := ioutil.ReadFile(s.d.logFile.Name())
 	c.Assert(string(content), checker.Contains, expectedMessage)
 }
+
+// Test case for 29342
+func (s *DockerDaemonSuite) TestExecWithUserAfterLiveRestore(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+	s.d.StartWithBusybox("--live-restore")
+
+	out, err := s.d.Cmd("run", "-d", "--name=top", "busybox", "sh", "-c", "addgroup -S test && adduser -S -G test test -D -s /bin/sh && top")
+	c.Assert(err, check.IsNil, check.Commentf("Output: %s", out))
+
+	waitRun("top")
+
+	out1, err := s.d.Cmd("exec", "-u", "test", "top", "id")
+	// uid=100(test) gid=101(test) groups=101(test)
+	c.Assert(err, check.IsNil, check.Commentf("Output: %s", out1))
+
+	// restart daemon.
+	s.d.Restart("--live-restore")
+
+	out2, err := s.d.Cmd("exec", "-u", "test", "top", "id")
+	c.Assert(err, check.IsNil, check.Commentf("Output: %s", out2))
+	c.Assert(out1, check.Equals, out2, check.Commentf("Output: before restart '%s', after restart '%s'", out1, out2))
+
+	out, err = s.d.Cmd("stop", "top")
+	c.Assert(err, check.IsNil, check.Commentf("Output: %s", out))
+}
