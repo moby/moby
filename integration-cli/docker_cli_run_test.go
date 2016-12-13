@@ -21,6 +21,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/docker/docker/pkg/integration"
 	"github.com/docker/docker/pkg/integration/checker"
 	icmd "github.com/docker/docker/pkg/integration/cmd"
 	"github.com/docker/docker/pkg/mount"
@@ -92,12 +93,12 @@ func (s *DockerSuite) TestRunExitCodeOne(c *check.C) {
 func (s *DockerSuite) TestRunStdinPipe(c *check.C) {
 	// TODO Windows: This needs some work to make compatible.
 	testRequires(c, DaemonIsLinux)
-	runCmd := exec.Command(dockerBinary, "run", "-i", "-a", "stdin", "busybox", "cat")
-	runCmd.Stdin = strings.NewReader("blahblah")
-	out, _, _, err := runCommandWithStdoutStderr(runCmd)
-	if err != nil {
-		c.Fatalf("failed to run container: %v, output: %q", err, out)
-	}
+	result := icmd.RunCmd(icmd.Cmd{
+		Command: []string{dockerBinary, "run", "-i", "-a", "stdin", "busybox", "cat"},
+		Stdin:   strings.NewReader("blahblah"),
+	})
+	result.Assert(c, icmd.Success)
+	out := result.Stdout()
 
 	out = strings.TrimSpace(out)
 	dockerCmd(c, "wait", out)
@@ -497,7 +498,7 @@ func (s *DockerSuite) TestRunVolumesFromInReadWriteMode(c *check.C) {
 func (s *DockerSuite) TestVolumesFromGetsProperMode(c *check.C) {
 	testRequires(c, SameHostDaemon)
 	prefix, slash := getPrefixAndSlashFromDaemonPlatform()
-	hostpath := randomTmpDirPath("test", daemonPlatform)
+	hostpath := integration.RandomTmpDirPath("test", daemonPlatform)
 	if err := os.MkdirAll(hostpath, 0755); err != nil {
 		c.Fatalf("Failed to create %s: %q", hostpath, err)
 	}
@@ -520,8 +521,8 @@ func (s *DockerSuite) TestVolumesFromGetsProperMode(c *check.C) {
 
 // Test for GH#10618
 func (s *DockerSuite) TestRunNoDupVolumes(c *check.C) {
-	path1 := randomTmpDirPath("test1", daemonPlatform)
-	path2 := randomTmpDirPath("test2", daemonPlatform)
+	path1 := integration.RandomTmpDirPath("test1", daemonPlatform)
+	path2 := integration.RandomTmpDirPath("test2", daemonPlatform)
 
 	someplace := ":/someplace"
 	if daemonPlatform == "windows" {
@@ -1453,10 +1454,7 @@ func (s *DockerSuite) TestRunResolvconfUpdate(c *check.C) {
 		c.Fatal(err)
 	}
 	if mounted {
-		cmd := exec.Command("umount", "/etc/resolv.conf")
-		if _, err = runCommand(cmd); err != nil {
-			c.Fatal(err)
-		}
+		icmd.RunCommand("umount", "/etc/resolv.conf").Assert(c, icmd.Success)
 	}
 
 	//cleanup
@@ -1656,13 +1654,11 @@ func (s *DockerSuite) TestRunAttachStdOutAndErrTTYMode(c *check.C) {
 // Test for #10388 - this will run the same test as TestRunAttachStdOutAndErrTTYMode
 // but using --attach instead of -a to make sure we read the flag correctly
 func (s *DockerSuite) TestRunAttachWithDetach(c *check.C) {
-	cmd := exec.Command(dockerBinary, "run", "-d", "--attach", "stdout", "busybox", "true")
-	_, stderr, _, err := runCommandWithStdoutStderr(cmd)
-	if err == nil {
-		c.Fatal("Container should have exited with error code different than 0")
-	} else if !strings.Contains(stderr, "Conflicting options: -a and -d") {
-		c.Fatal("Should have been returned an error with conflicting options -a and -d")
-	}
+	icmd.RunCommand(dockerBinary, "run", "-d", "--attach", "stdout", "busybox", "true").Assert(c, icmd.Expected{
+		ExitCode: 1,
+		Error:    "exit status 1",
+		Err:      "Conflicting options: -a and -d",
+	})
 }
 
 func (s *DockerSuite) TestRunState(c *check.C) {
@@ -2279,7 +2275,7 @@ func (s *DockerSuite) TestVolumesNoCopyData(c *check.C) {
 		c.Fatalf("Data was copied on volumes-from but shouldn't be:\n%q", out)
 	}
 
-	tmpDir := randomTmpDirPath("docker_test_bind_mount_copy_data", daemonPlatform)
+	tmpDir := integration.RandomTmpDirPath("docker_test_bind_mount_copy_data", daemonPlatform)
 	if out, _, err := dockerCmdWithError("run", "-v", tmpDir+":/foo", "dataimage", "ls", "-lh", "/foo/bar"); err == nil || !strings.Contains(out, "No such file or directory") {
 		c.Fatalf("Data was copied on bind-mount but shouldn't be:\n%q", out)
 	}
@@ -2348,7 +2344,7 @@ func (s *DockerSuite) TestRunSlowStdoutConsumer(c *check.C) {
 	if err := cont.Start(); err != nil {
 		c.Fatal(err)
 	}
-	n, err := consumeWithSpeed(stdout, 10000, 5*time.Millisecond, nil)
+	n, err := integration.ConsumeWithSpeed(stdout, 10000, 5*time.Millisecond, nil)
 	if err != nil {
 		c.Fatal(err)
 	}
@@ -3330,7 +3326,7 @@ func (s *DockerTrustSuite) TestRunWhenCertExpired(c *check.C) {
 	// Certificates have 10 years of expiration
 	elevenYearsFromNow := time.Now().Add(time.Hour * 24 * 365 * 11)
 
-	runAtDifferentDate(elevenYearsFromNow, func() {
+	integration.RunAtDifferentDate(elevenYearsFromNow, func() {
 		// Try run
 		runCmd := exec.Command(dockerBinary, "run", repoName)
 		s.trustedCmd(runCmd)
@@ -3344,7 +3340,7 @@ func (s *DockerTrustSuite) TestRunWhenCertExpired(c *check.C) {
 		}
 	})
 
-	runAtDifferentDate(elevenYearsFromNow, func() {
+	integration.RunAtDifferentDate(elevenYearsFromNow, func() {
 		// Try run
 		runCmd := exec.Command(dockerBinary, "run", "--disable-content-trust", repoName)
 		s.trustedCmd(runCmd)
@@ -3536,7 +3532,7 @@ func (s *DockerSuite) TestRunContainerWithCgroupParent(c *check.C) {
 	if err != nil {
 		c.Fatalf("unexpected failure when running container with --cgroup-parent option - %s\n%v", string(out), err)
 	}
-	cgroupPaths := parseCgroupPaths(string(out))
+	cgroupPaths := integration.ParseCgroupPaths(string(out))
 	if len(cgroupPaths) == 0 {
 		c.Fatalf("unexpected output - %q", string(out))
 	}
@@ -3565,7 +3561,7 @@ func (s *DockerSuite) TestRunContainerWithCgroupParentAbsPath(c *check.C) {
 	if err != nil {
 		c.Fatalf("unexpected failure when running container with --cgroup-parent option - %s\n%v", string(out), err)
 	}
-	cgroupPaths := parseCgroupPaths(string(out))
+	cgroupPaths := integration.ParseCgroupPaths(string(out))
 	if len(cgroupPaths) == 0 {
 		c.Fatalf("unexpected output - %q", string(out))
 	}
@@ -3604,7 +3600,7 @@ func (s *DockerSuite) TestRunInvalidCgroupParent(c *check.C) {
 		c.Fatalf("SECURITY: --cgroup-parent with ../../ relative paths cause files to be created in the host (this is bad) !!")
 	}
 
-	cgroupPaths := parseCgroupPaths(string(out))
+	cgroupPaths := integration.ParseCgroupPaths(string(out))
 	if len(cgroupPaths) == 0 {
 		c.Fatalf("unexpected output - %q", string(out))
 	}
@@ -3643,7 +3639,7 @@ func (s *DockerSuite) TestRunAbsoluteInvalidCgroupParent(c *check.C) {
 		c.Fatalf("SECURITY: --cgroup-parent with /../../ garbage paths cause files to be created in the host (this is bad) !!")
 	}
 
-	cgroupPaths := parseCgroupPaths(string(out))
+	cgroupPaths := integration.ParseCgroupPaths(string(out))
 	if len(cgroupPaths) == 0 {
 		c.Fatalf("unexpected output - %q", string(out))
 	}
@@ -4151,15 +4147,8 @@ func (s *DockerSuite) TestRunVolumesMountedAsShared(c *check.C) {
 
 	// Convert this directory into a shared mount point so that we do
 	// not rely on propagation properties of parent mount.
-	cmd := exec.Command("mount", "--bind", tmpDir, tmpDir)
-	if _, err = runCommand(cmd); err != nil {
-		c.Fatal(err)
-	}
-
-	cmd = exec.Command("mount", "--make-private", "--make-shared", tmpDir)
-	if _, err = runCommand(cmd); err != nil {
-		c.Fatal(err)
-	}
+	icmd.RunCommand("mount", "--bind", tmpDir, tmpDir).Assert(c, icmd.Success)
+	icmd.RunCommand("mount", "--make-private", "--make-shared", tmpDir).Assert(c, icmd.Success)
 
 	dockerCmd(c, "run", "--privileged", "-v", fmt.Sprintf("%s:/volume-dest:shared", tmpDir), "busybox", "mount", "--bind", "/volume-dest/mnt1", "/volume-dest/mnt1")
 
@@ -4201,25 +4190,15 @@ func (s *DockerSuite) TestRunVolumesMountedAsSlave(c *check.C) {
 
 	// Convert this directory into a shared mount point so that we do
 	// not rely on propagation properties of parent mount.
-	cmd := exec.Command("mount", "--bind", tmpDir, tmpDir)
-	if _, err = runCommand(cmd); err != nil {
-		c.Fatal(err)
-	}
-
-	cmd = exec.Command("mount", "--make-private", "--make-shared", tmpDir)
-	if _, err = runCommand(cmd); err != nil {
-		c.Fatal(err)
-	}
+	icmd.RunCommand("mount", "--bind", tmpDir, tmpDir).Assert(c, icmd.Success)
+	icmd.RunCommand("mount", "--make-private", "--make-shared", tmpDir).Assert(c, icmd.Success)
 
 	dockerCmd(c, "run", "-i", "-d", "--name", "parent", "-v", fmt.Sprintf("%s:/volume-dest:slave", tmpDir), "busybox", "top")
 
 	// Bind mount tmpDir2/ onto tmpDir/mnt1. If mount propagates inside
 	// container then contents of tmpDir2/slave-testfile should become
 	// visible at "/volume-dest/mnt1/slave-testfile"
-	cmd = exec.Command("mount", "--bind", tmpDir2, path.Join(tmpDir, "mnt1"))
-	if _, err = runCommand(cmd); err != nil {
-		c.Fatal(err)
-	}
+	icmd.RunCommand("mount", "--bind", tmpDir2, path.Join(tmpDir, "mnt1")).Assert(c, icmd.Success)
 
 	out, _ := dockerCmd(c, "exec", "parent", "cat", "/volume-dest/mnt1/slave-testfile")
 
@@ -4628,11 +4607,13 @@ func (s *DockerSuite) TestSlowStdinClosing(c *check.C) {
 	name := "testslowstdinclosing"
 	repeat := 3 // regression happened 50% of the time
 	for i := 0; i < repeat; i++ {
-		cmd := exec.Command(dockerBinary, "run", "--rm", "--name", name, "-i", "busybox", "cat")
-		cmd.Stdin = &delayedReader{}
+		cmd := icmd.Cmd{
+			Command: []string{dockerBinary, "run", "--rm", "--name", name, "-i", "busybox", "cat"},
+			Stdin:   &delayedReader{},
+		}
 		done := make(chan error, 1)
 		go func() {
-			_, err := runCommand(cmd)
+			err := icmd.RunCmd(cmd).Error
 			done <- err
 		}()
 

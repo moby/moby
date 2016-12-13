@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/pkg/integration/checker"
+	icmd "github.com/docker/docker/pkg/integration/cmd"
 	"github.com/go-check/check"
 	"github.com/kr/pty"
 )
@@ -29,11 +30,10 @@ func (s *DockerSuite) TestSaveAndLoadRepoStdout(c *check.C) {
 	c.Assert(err, check.IsNil)
 	defer os.Remove(tmpFile.Name())
 
-	saveCmd := exec.Command(dockerBinary, "save", repoName)
-	saveCmd.Stdout = tmpFile
-
-	_, err = runCommand(saveCmd)
-	c.Assert(err, check.IsNil)
+	icmd.RunCmd(icmd.Cmd{
+		Command: []string{dockerBinary, "save", repoName},
+		Stdout:  tmpFile,
+	}).Assert(c, icmd.Success)
 
 	tmpFile, err = os.Open(tmpFile.Name())
 	c.Assert(err, check.IsNil)

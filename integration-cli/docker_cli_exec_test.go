@@ -206,6 +206,7 @@ func (s *DockerSuite) TestExecTTYWithoutStdin(c *check.C) {
 	}
 }
 
+// FIXME(vdemeester) this should be a unit tests on cli/command/container package
 func (s *DockerSuite) TestExecParseError(c *check.C) {
 	// TODO Windows CI: Requires some extra work. Consider copying the
 	// runSleepingContainer helper to have an exec version.
@@ -213,10 +214,11 @@ func (s *DockerSuite) TestExecParseError(c *check.C) {
 	dockerCmd(c, "run", "-d", "--name", "top", "busybox", "top")
 
 	// Test normal (non-detached) case first
-	cmd := exec.Command(dockerBinary, "exec", "top")
-	_, stderr, _, err := runCommandWithStdoutStderr(cmd)
-	c.Assert(err, checker.NotNil)
-	c.Assert(stderr, checker.Contains, "See 'docker exec --help'")
+	icmd.RunCommand(dockerBinary, "exec", "top").Assert(c, icmd.Expected{
+		ExitCode: 1,
+		Error:    "exit status 1",
+		Err:      "See 'docker exec --help'",
+	})
 }
 
 func (s *DockerSuite) TestExecStopNotHanging(c *check.C) {
