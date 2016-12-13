@@ -18,6 +18,7 @@ dockerd - Enable daemon mode
 [**--config-file**[=*/etc/docker/daemon.json*]]
 [**--containerd**[=*SOCKET-PATH*]]
 [**-D**|**--debug**]
+[**--default-address-pools**[=*DEFAULT-ADDRESS-POOLS*]]
 [**--default-gateway**[=*DEFAULT-GATEWAY*]]
 [**--default-gateway-v6**[=*DEFAULT-GATEWAY-V6*]]
 [**--default-runtime**[=*runc*]]
@@ -154,6 +155,11 @@ $ sudo dockerd --add-runtime runc=runc --add-runtime custom=/usr/local/bin/my-ru
 
 **-D**, **--debug**=*true*|*false*
   Enable debug mode. Default is false.
+
+**--default-address-pools**=""
+  Default address pools from which IPAM driver selects a subnet for the networks.
+  Example: scope=[local|global],base=172.30.0.0/16,size=24 will set the default
+  address pools for the selected scope networks to {172.30.[0-255].0/24}
 
 **--default-gateway**=""
   IPv4 address of the container default gateway; this address must be part of

@@ -7,6 +7,7 @@ import (
 
 	"github.com/docker/docker/opts"
 	units "github.com/docker/go-units"
+	"github.com/docker/libnetwork/ipamutils"
 )
 
 // Config defines the configuration of a docker daemon.
@@ -17,6 +18,8 @@ type Config struct {
 
 	// These fields are common to all unix platforms.
 	CommonUnixConfig
+
+	NetworkConfig
 
 	// Fields below here are platform specific.
 	CgroupParent         string                   `json:"cgroup-parent,omitempty"`
@@ -51,6 +54,12 @@ type BridgeConfig struct {
 	FixedCIDRv6         string `json:"fixed-cidr-v6,omitempty"`
 }
 
+// NetworkConfig stores the daemon-wide networking configurations
+type NetworkConfig struct {
+	// Default address pools for docker networks
+	DefaultAddressPools []*ipamutils.PredefinedPools `json:"default-address-pools,omitempty"`
+}
+
 // IsSwarmCompatible defines if swarm mode can be enabled in this config
 func (conf *Config) IsSwarmCompatible() error {
 	if conf.ClusterStore != "" || conf.ClusterAdvertise != "" {
@@ -60,4 +69,12 @@ func (conf *Config) IsSwarmCompatible() error {
 		return fmt.Errorf("--live-restore daemon configuration is incompatible with swarm mode")
 	}
 	return nil
+}
+
+// ProcessPoolsConfig applies the default address pools configuration, if present
+func (conf *Config) ProcessPoolsConfig() error {
+	if len(conf.NetworkConfig.DefaultAddressPools) == 0 {
+		return nil
+	}
+	return ipamutils.InitAddressPools(conf.NetworkConfig.DefaultAddressPools)
 }

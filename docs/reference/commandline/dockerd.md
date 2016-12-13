@@ -34,6 +34,7 @@ Options:
       --config-file string                    Daemon configuration file (default "/etc/docker/daemon.json")
       --containerd string                     Path to containerd socket
   -D, --debug                                 Enable debug mode
+      --default-address-pools value           Set the default address pools for local/global scope networks
       --default-gateway value                 Container default gateway IPv4 address
       --default-gateway-v6 value              Container default gateway IPv6 address
       --default-runtime string                Default OCI runtime for containers (default "runc")

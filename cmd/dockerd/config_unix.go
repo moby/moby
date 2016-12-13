@@ -46,6 +46,7 @@ func installConfigFlags(conf *config.Config, flags *pflag.FlagSet) {
 	flags.Int64Var(&conf.CPURealtimeRuntime, "cpu-rt-runtime", 0, "Limit the CPU real-time runtime in microseconds")
 	flags.StringVar(&conf.SeccompProfile, "seccomp-profile", "", "Path to seccomp profile")
 	flags.Var(&conf.ShmSize, "default-shm-size", "Default shm size for containers")
+	flags.Var(opts.NewPoolsOpt(&conf.NetworkConfig.DefaultAddressPools), "default-address-pools", "Set the default address pools for local/global scope networks")
 
 	attachExperimentalFlags(conf, flags)
 }

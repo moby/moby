@@ -944,6 +944,36 @@ func (s *DockerDaemonSuite) TestDaemonLinksIpTablesRulesWhenLinkAndUnlink(c *che
 	s.d.Cmd("kill", "parent")
 }
 
+func (s *DockerDaemonSuite) TestDaemonNetworkPools(c *check.C) {
+	testRequires(c, DaemonIsLinux, SameHostDaemon)
+
+	// Remove docker0 bridge and the start daemon defining the predefined address pools
+	defaultNetworkBridge := "docker0"
+	deleteInterface(c, defaultNetworkBridge)
+	s.d.Start(c,
+		"--default-address-pools", "scope=local,base=175.30.0.0/16,size=16",
+		"--default-address-pools", "scope=local,base=175.33.0.0/16,size=24")
+
+	// Verify bridge network's subnet
+	out, err := s.d.Cmd("network", "inspect", "--format", "'{{.IPAM.Config}}'", "bridge")
+	c.Assert(err, check.IsNil)
+	c.Assert(out, checker.Contains, "175.30.0.0/16")
+
+	// Create a bridge network and verify its subnet is the second default pool
+	_, err = s.d.Cmd("network", "create", "nw100")
+	c.Assert(err, check.IsNil)
+	out, err = s.d.Cmd("network", "inspect", "--format", "'{{.IPAM.Config}}'", "nw100")
+	c.Assert(err, check.IsNil)
+	c.Assert(out, checker.Contains, "175.33.0.0/24")
+
+	// Create a bridge network and verify its subnet is the third default pool
+	_, err = s.d.Cmd("network", "create", "nw101")
+	c.Assert(err, check.IsNil)
+	out, err = s.d.Cmd("network", "inspect", "--format", "'{{.IPAM.Config}}'", "nw101")
+	c.Assert(err, check.IsNil)
+	c.Assert(out, checker.Contains, "175.33.1.0/24")
+}
+
 func (s *DockerDaemonSuite) TestDaemonUlimitDefaults(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 
