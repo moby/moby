@@ -39,7 +39,7 @@ func cmd(dir string, arg ...string) (string, error) {
 
 	output, err := c.CombinedOutput()
 	if err != nil {
-		return "", fmt.Errorf("running `%s %s` failed with output: %s\nerror: %v", c.Path, strings.Join(c.Args, " "), string(output), err)
+		return "", fmt.Errorf("running `%s %s` failed with output: %s\nerror: %v", c.Path, strings.Join(c.Args, " "), output, err)
 	}
 
 	return string(output), nil
