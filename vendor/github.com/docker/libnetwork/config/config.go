@@ -35,6 +35,7 @@ type Config struct {
 // DaemonCfg represents libnetwork core configuration
 type DaemonCfg struct {
 	Debug           bool
+	Experimental    bool
 	DataDir         string
 	DefaultNetwork  string
 	DefaultDriver   string
@@ -219,6 +220,14 @@ func OptionExecRoot(execRoot string) Option {
 func OptionPluginGetter(pg plugingetter.PluginGetter) Option {
 	return func(c *Config) {
 		c.PluginGetter = pg
+	}
+}
+
+// OptionExperimental function returns an option setter for experimental daemon
+func OptionExperimental(exp bool) Option {
+	return func(c *Config) {
+		logrus.Debugf("Option Experimental: %v", exp)
+		c.Daemon.Experimental = exp
 	}
 }
 
