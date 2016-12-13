@@ -3,9 +3,13 @@ package node
 import (
 	"bytes"
 	"fmt"
+	"io/ioutil"
+	"strings"
 	"testing"
 
 	"github.com/docker/docker/api/types/swarm"
+	"github.com/docker/docker/cli/test"
+	"github.com/docker/docker/cli/test/builder"
 	"github.com/docker/docker/pkg/testutil/assert"
 )
 
@@ -36,13 +40,11 @@ func TestNodePromoteErrors(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		buf := new(bytes.Buffer)
-		cmd := newPromoteCommand(&fakeCli{
-			out: buf,
-			client: &fakeClient{
+		cmd := newPromoteCommand(
+			test.NewFakeCli(&fakeClient{
 				nodeInspectFunc: tc.nodeInspectFunc,
 				nodeUpdateFunc:  tc.nodeUpdateFunc,
-			},
-		})
+			}, buf, ioutil.NopCloser(strings.NewReader(""))))
 		cmd.SetArgs(tc.args)
 		assert.Error(t, cmd.Execute(), tc.expectedError)
 	}
@@ -50,11 +52,10 @@ func TestNodePromoteErrors(t *testing.T) {
 
 func TestNodePromoteNoChange(t *testing.T) {
 	buf := new(bytes.Buffer)
-	cmd := newPromoteCommand(&fakeCli{
-		out: buf,
-		client: &fakeClient{
+	cmd := newPromoteCommand(
+		test.NewFakeCli(&fakeClient{
 			nodeInspectFunc: func() (swarm.Node, []byte, error) {
-				return aNode("nodeID").manager().build(), []byte{}, nil
+				return builder.ANode("nodeID").Manager().Build(), []byte{}, nil
 			},
 			nodeUpdateFunc: func(nodeID string, version swarm.Version, node swarm.NodeSpec) error {
 				if node.Role != swarm.NodeRoleManager {
@@ -62,19 +63,17 @@ func TestNodePromoteNoChange(t *testing.T) {
 				}
 				return nil
 			},
-		},
-	})
+		}, buf, ioutil.NopCloser(strings.NewReader(""))))
 	cmd.SetArgs([]string{"nodeID"})
 	assert.NilError(t, cmd.Execute())
 }
 
 func TestNodePromoteMultipleNode(t *testing.T) {
 	buf := new(bytes.Buffer)
-	cmd := newPromoteCommand(&fakeCli{
-		out: buf,
-		client: &fakeClient{
+	cmd := newPromoteCommand(
+		test.NewFakeCli(&fakeClient{
 			nodeInspectFunc: func() (swarm.Node, []byte, error) {
-				return aNode("nodeID").build(), []byte{}, nil
+				return builder.ANode("nodeID").Build(), []byte{}, nil
 			},
 			nodeUpdateFunc: func(nodeID string, version swarm.Version, node swarm.NodeSpec) error {
 				if node.Role != swarm.NodeRoleManager {
@@ -82,8 +81,7 @@ func TestNodePromoteMultipleNode(t *testing.T) {
 				}
 				return nil
 			},
-		},
-	})
+		}, buf, ioutil.NopCloser(strings.NewReader(""))))
 	cmd.SetArgs([]string{"nodeID1", "nodeID2"})
 	assert.NilError(t, cmd.Execute())
 }

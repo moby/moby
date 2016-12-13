@@ -3,9 +3,13 @@ package node
 import (
 	"bytes"
 	"fmt"
+	"io/ioutil"
+	"strings"
 	"testing"
 
 	"github.com/docker/docker/api/types/swarm"
+	"github.com/docker/docker/cli/test"
+	"github.com/docker/docker/cli/test/builder"
 	"github.com/docker/docker/pkg/testutil/assert"
 )
 
@@ -41,9 +45,9 @@ func TestNodeUpdateErrors(t *testing.T) {
 		{
 			args: []string{"nodeID"},
 			nodeInspectFunc: func() (swarm.Node, []byte, error) {
-				return aNode("nodeID").labels(map[string]string{
+				return builder.ANode("nodeID").Labels(map[string]string{
 					"key": "value",
-				}).build(), []byte{}, nil
+				}).Build(), []byte{}, nil
 			},
 			flags: map[string]string{
 				"label-rm": "notpresent",
@@ -53,13 +57,11 @@ func TestNodeUpdateErrors(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		buf := new(bytes.Buffer)
-		cmd := newUpdateCommand(&fakeCli{
-			out: buf,
-			client: &fakeClient{
+		cmd := newUpdateCommand(
+			test.NewFakeCli(&fakeClient{
 				nodeInspectFunc: tc.nodeInspectFunc,
 				nodeUpdateFunc:  tc.nodeUpdateFunc,
-			},
-		})
+			}, buf, ioutil.NopCloser(strings.NewReader(""))))
 		cmd.SetArgs(tc.args)
 		for key, value := range tc.flags {
 			cmd.Flags().Set(key, value)
@@ -81,7 +83,7 @@ func TestNodeUpdate(t *testing.T) {
 				"role": "manager",
 			},
 			nodeInspectFunc: func() (swarm.Node, []byte, error) {
-				return aNode("nodeID").build(), []byte{}, nil
+				return builder.ANode("nodeID").Build(), []byte{}, nil
 			},
 			nodeUpdateFunc: func(nodeID string, version swarm.Version, node swarm.NodeSpec) error {
 				if node.Role != swarm.NodeRoleManager {
@@ -96,7 +98,7 @@ func TestNodeUpdate(t *testing.T) {
 				"availability": "drain",
 			},
 			nodeInspectFunc: func() (swarm.Node, []byte, error) {
-				return aNode("nodeID").build(), []byte{}, nil
+				return builder.ANode("nodeID").Build(), []byte{}, nil
 			},
 			nodeUpdateFunc: func(nodeID string, version swarm.Version, node swarm.NodeSpec) error {
 				if node.Availability != swarm.NodeAvailabilityDrain {
@@ -111,7 +113,7 @@ func TestNodeUpdate(t *testing.T) {
 				"label-add": "lbl",
 			},
 			nodeInspectFunc: func() (swarm.Node, []byte, error) {
-				return aNode("nodeID").build(), []byte{}, nil
+				return builder.ANode("nodeID").Build(), []byte{}, nil
 			},
 			nodeUpdateFunc: func(nodeID string, version swarm.Version, node swarm.NodeSpec) error {
 				if _, present := node.Annotations.Labels["lbl"]; !present {
@@ -126,7 +128,7 @@ func TestNodeUpdate(t *testing.T) {
 				"label-add": "key=value",
 			},
 			nodeInspectFunc: func() (swarm.Node, []byte, error) {
-				return aNode("nodeID").build(), []byte{}, nil
+				return builder.ANode("nodeID").Build(), []byte{}, nil
 			},
 			nodeUpdateFunc: func(nodeID string, version swarm.Version, node swarm.NodeSpec) error {
 				if value, present := node.Annotations.Labels["key"]; !present || value != "value" {
@@ -141,9 +143,9 @@ func TestNodeUpdate(t *testing.T) {
 				"label-rm": "key",
 			},
 			nodeInspectFunc: func() (swarm.Node, []byte, error) {
-				return aNode("nodeID").labels(map[string]string{
+				return builder.ANode("nodeID").Labels(map[string]string{
 					"key": "value",
-				}).build(), []byte{}, nil
+				}).Build(), []byte{}, nil
 			},
 			nodeUpdateFunc: func(nodeID string, version swarm.Version, node swarm.NodeSpec) error {
 				if len(node.Annotations.Labels) > 0 {
@@ -155,13 +157,11 @@ func TestNodeUpdate(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		buf := new(bytes.Buffer)
-		cmd := newUpdateCommand(&fakeCli{
-			out: buf,
-			client: &fakeClient{
+		cmd := newUpdateCommand(
+			test.NewFakeCli(&fakeClient{
 				nodeInspectFunc: tc.nodeInspectFunc,
 				nodeUpdateFunc:  tc.nodeUpdateFunc,
-			},
-		})
+			}, buf, ioutil.NopCloser(strings.NewReader(""))))
 		cmd.SetArgs(tc.args)
 		for key, value := range tc.flags {
 			cmd.Flags().Set(key, value)

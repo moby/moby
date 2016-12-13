@@ -3,10 +3,14 @@ package node
 import (
 	"bytes"
 	"fmt"
+	"io/ioutil"
+	"strings"
 	"testing"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/swarm"
+	"github.com/docker/docker/cli/test"
+	"github.com/docker/docker/cli/test/builder"
 	"github.com/docker/docker/pkg/testutil/assert"
 	"github.com/docker/docker/pkg/testutil/golden"
 )
@@ -62,13 +66,11 @@ func TestNodeInspectShouldReturnAnErrorIfAPIfail(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		buf := new(bytes.Buffer)
-		cmd := newInspectCommand(&fakeCli{
-			out: buf,
-			client: &fakeClient{
+		cmd := newInspectCommand(
+			test.NewFakeCli(&fakeClient{
 				nodeInspectFunc: tc.nodeInspectFunc,
 				infoFunc:        tc.infoFunc,
-			},
-		})
+			}, buf, ioutil.NopCloser(strings.NewReader(""))))
 		cmd.SetArgs(tc.args)
 		for key, value := range tc.flags {
 			cmd.Flags().Set(key, value)
@@ -85,32 +87,30 @@ func TestNodeInspectPretty(t *testing.T) {
 		{
 			name: "simple",
 			nodeInspectFunc: func() (swarm.Node, []byte, error) {
-				return aNode("nodeID1").labels(map[string]string{
+				return builder.ANode("nodeID1").Labels(map[string]string{
 					"lbl1": "value1",
-				}).build(), []byte{}, nil
+				}).Build(), []byte{}, nil
 			},
 		},
 		{
 			name: "manager",
 			nodeInspectFunc: func() (swarm.Node, []byte, error) {
-				return aNode("nodeID1").manager().build(), []byte{}, nil
+				return builder.ANode("nodeID1").Manager().Build(), []byte{}, nil
 			},
 		},
 		{
 			name: "manager-leader",
 			nodeInspectFunc: func() (swarm.Node, []byte, error) {
-				return aNode("nodeID1").manager().leader().build(), []byte{}, nil
+				return builder.ANode("nodeID1").Manager().Leader().Build(), []byte{}, nil
 			},
 		},
 	}
 	for _, tc := range testCases {
 		buf := new(bytes.Buffer)
-		cmd := newInspectCommand(&fakeCli{
-			out: buf,
-			client: &fakeClient{
+		cmd := newInspectCommand(
+			test.NewFakeCli(&fakeClient{
 				nodeInspectFunc: tc.nodeInspectFunc,
-			},
-		})
+			}, buf, ioutil.NopCloser(strings.NewReader(""))))
 		cmd.SetArgs([]string{"nodeID"})
 		cmd.Flags().Set("pretty", "true")
 		assert.NilError(t, cmd.Execute())

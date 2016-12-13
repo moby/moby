@@ -3,11 +3,15 @@ package node
 import (
 	"bytes"
 	"fmt"
+	"io/ioutil"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/swarm"
+	"github.com/docker/docker/cli/test"
+	"github.com/docker/docker/cli/test/builder"
 	"github.com/docker/docker/pkg/testutil/assert"
 	"github.com/docker/docker/pkg/testutil/golden"
 )
@@ -59,15 +63,13 @@ func TestNodePsErrors(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		buf := new(bytes.Buffer)
-		cmd := newPsCommand(&fakeCli{
-			out: buf,
-			client: &fakeClient{
+		cmd := newPsCommand(
+			test.NewFakeCli(&fakeClient{
 				infoFunc:        tc.infoFunc,
 				nodeInspectFunc: tc.nodeInspectFunc,
 				taskInspectFunc: tc.taskInspectFunc,
 				taskListFunc:    tc.taskListFunc,
-			},
-		})
+			}, buf, ioutil.NopCloser(strings.NewReader(""))))
 		cmd.SetArgs(tc.args)
 		for key, value := range tc.flags {
 			cmd.Flags().Set(key, value)
@@ -90,17 +92,17 @@ func TestNodePs(t *testing.T) {
 			name: "simple",
 			args: []string{"nodeID"},
 			nodeInspectFunc: func() (swarm.Node, []byte, error) {
-				return aNode("nodeID1").build(), []byte{}, nil
+				return builder.ANode("nodeID1").Build(), []byte{}, nil
 			},
 			taskListFunc: func(options types.TaskListOptions) ([]swarm.Task, error) {
 				return []swarm.Task{
-					aTask("taskID").statusTimeStamp(time.Now().Add(-2 * time.Hour)).statusPortStatus([]swarm.PortConfig{
+					builder.ATask("taskID").StatusTimestamp(time.Now().Add(-2 * time.Hour)).StatusPortStatus([]swarm.PortConfig{
 						{
 							TargetPort:    80,
 							PublishedPort: 80,
 							Protocol:      "tcp",
 						},
-					}).build(),
+					}).Build(),
 				}, nil
 			},
 		},
@@ -108,28 +110,26 @@ func TestNodePs(t *testing.T) {
 			name: "with-errors",
 			args: []string{"nodeID"},
 			nodeInspectFunc: func() (swarm.Node, []byte, error) {
-				return aNode("nodeID1").build(), []byte{}, nil
+				return builder.ANode("nodeID1").Build(), []byte{}, nil
 			},
 			taskListFunc: func(options types.TaskListOptions) ([]swarm.Task, error) {
 				return []swarm.Task{
-					aTask("taskID1").serviceID("failure").statusTimeStamp(time.Now().Add(-2 * time.Hour)).statusErr("a task error").build(),
-					aTask("taskID2").serviceID("failure").statusTimeStamp(time.Now().Add(-3 * time.Hour)).statusErr("a task error").build(),
-					aTask("taskID3").serviceID("failure").statusTimeStamp(time.Now().Add(-4 * time.Hour)).statusErr("a task error").build(),
+					builder.ATask("taskID1").ServiceID("failure").StatusTimestamp(time.Now().Add(-2 * time.Hour)).StatusErr("a task error").Build(),
+					builder.ATask("taskID2").ServiceID("failure").StatusTimestamp(time.Now().Add(-3 * time.Hour)).StatusErr("a task error").Build(),
+					builder.ATask("taskID3").ServiceID("failure").StatusTimestamp(time.Now().Add(-4 * time.Hour)).StatusErr("a task error").Build(),
 				}, nil
 			},
 		},
 	}
 	for _, tc := range testCases {
 		buf := new(bytes.Buffer)
-		cmd := newPsCommand(&fakeCli{
-			out: buf,
-			client: &fakeClient{
+		cmd := newPsCommand(
+			test.NewFakeCli(&fakeClient{
 				infoFunc:        tc.infoFunc,
 				nodeInspectFunc: tc.nodeInspectFunc,
 				taskInspectFunc: tc.taskInspectFunc,
 				taskListFunc:    tc.taskListFunc,
-			},
-		})
+			}, buf, ioutil.NopCloser(strings.NewReader(""))))
 		cmd.SetArgs(tc.args)
 		for key, value := range tc.flags {
 			cmd.Flags().Set(key, value)

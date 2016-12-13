@@ -1,28 +1,11 @@
 package node
 
 import (
-	"io"
-
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/swarm"
-	"github.com/docker/docker/cli/command"
 	"github.com/docker/docker/client"
 	"golang.org/x/net/context"
 )
-
-type fakeCli struct {
-	command.DockerCli
-	client client.APIClient
-	out    io.Writer
-}
-
-func (c *fakeCli) Client() client.APIClient {
-	return c.client
-}
-
-func (c *fakeCli) Out() *command.OutStream {
-	return command.NewOutStream(c.out)
-}
 
 type fakeClient struct {
 	client.Client

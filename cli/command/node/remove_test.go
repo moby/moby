@@ -3,8 +3,11 @@ package node
 import (
 	"bytes"
 	"fmt"
+	"io/ioutil"
+	"strings"
 	"testing"
 
+	"github.com/docker/docker/cli/test"
 	"github.com/docker/docker/pkg/testutil/assert"
 )
 
@@ -27,12 +30,10 @@ func TestNodeRemoveErrors(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		buf := new(bytes.Buffer)
-		cmd := newRemoveCommand(&fakeCli{
-			out: buf,
-			client: &fakeClient{
+		cmd := newRemoveCommand(
+			test.NewFakeCli(&fakeClient{
 				nodeRemoveFunc: tc.nodeRemoveFunc,
-			},
-		})
+			}, buf, ioutil.NopCloser(strings.NewReader(""))))
 		cmd.SetArgs(tc.args)
 		assert.Error(t, cmd.Execute(), tc.expectedError)
 	}
@@ -40,10 +41,7 @@ func TestNodeRemoveErrors(t *testing.T) {
 
 func TestNodeRemoveMultipleNode(t *testing.T) {
 	buf := new(bytes.Buffer)
-	cmd := newRemoveCommand(&fakeCli{
-		out:    buf,
-		client: &fakeClient{},
-	})
+	cmd := newRemoveCommand(test.NewFakeCli(&fakeClient{}, buf, ioutil.NopCloser(strings.NewReader(""))))
 	cmd.SetArgs([]string{"nodeID1", "nodeID2"})
 	assert.NilError(t, cmd.Execute())
 }

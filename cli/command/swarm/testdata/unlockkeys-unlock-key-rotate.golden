@@ -1,0 +1,9 @@
+Successfully rotated manager unlock key.
+
+To unlock a swarm manager after it restarts, run the `docker swarm unlock`
+command and provide the following key:
+
+    unlock-key
+
+Please remember to store this key in a password manager, since without it you
+will not be able to restart the manager.

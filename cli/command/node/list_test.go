@@ -3,10 +3,14 @@ package node
 import (
 	"bytes"
 	"fmt"
+	"io/ioutil"
+	"strings"
 	"testing"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/swarm"
+	"github.com/docker/docker/cli/test"
+	"github.com/docker/docker/cli/test/builder"
 	"github.com/docker/docker/pkg/testutil/assert"
 )
 
@@ -38,27 +42,24 @@ func TestNodeListShouldReturnAnErrorIfAPIfail(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		buf := new(bytes.Buffer)
-		cmd := newListCommand(&fakeCli{
-			out: buf,
-			client: &fakeClient{
+		cmd := newListCommand(
+			test.NewFakeCli(&fakeClient{
 				nodeListFunc: tc.nodeListFunc,
 				infoFunc:     tc.infoFunc,
-			},
-		})
+			}, buf, ioutil.NopCloser(strings.NewReader(""))))
 		assert.Error(t, cmd.Execute(), tc.expectedError)
 	}
 }
 
 func TestNodeList(t *testing.T) {
 	buf := new(bytes.Buffer)
-	cmd := newListCommand(&fakeCli{
-		out: buf,
-		client: &fakeClient{
+	cmd := newListCommand(
+		test.NewFakeCli(&fakeClient{
 			nodeListFunc: func() ([]swarm.Node, error) {
 				return []swarm.Node{
-					aNode("nodeID1").hostname("nodeHostname1").manager().leader().build(),
-					aNode("nodeID2").hostname("nodeHostname2").manager().build(),
-					aNode("nodeID3").hostname("nodeHostname3").build(),
+					builder.ANode("nodeID1").Hostname("nodeHostname1").Manager().Leader().Build(),
+					builder.ANode("nodeID2").Hostname("nodeHostname2").Manager().Build(),
+					builder.ANode("nodeID3").Hostname("nodeHostname3").Build(),
 				}, nil
 			},
 			infoFunc: func() (types.Info, error) {
@@ -68,8 +69,7 @@ func TestNodeList(t *testing.T) {
 					},
 				}, nil
 			},
-		},
-	})
+		}, buf, ioutil.NopCloser(strings.NewReader(""))))
 	assert.NilError(t, cmd.Execute())
 	assert.Contains(t, buf.String(), `nodeID1 *  nodeHostname1  Ready   Active        Leader`)
 	assert.Contains(t, buf.String(), `nodeID2    nodeHostname2  Ready   Active        Reachable`)
@@ -78,16 +78,14 @@ func TestNodeList(t *testing.T) {
 
 func TestNodeListQuietShouldOnlyPrintIDs(t *testing.T) {
 	buf := new(bytes.Buffer)
-	cmd := newListCommand(&fakeCli{
-		out: buf,
-		client: &fakeClient{
+	cmd := newListCommand(
+		test.NewFakeCli(&fakeClient{
 			nodeListFunc: func() ([]swarm.Node, error) {
 				return []swarm.Node{
-					aNode("nodeID1").build(),
+					builder.ANode("nodeID1").Build(),
 				}, nil
 			},
-		},
-	})
+		}, buf, ioutil.NopCloser(strings.NewReader(""))))
 	cmd.Flags().Set("quiet", "true")
 	assert.NilError(t, cmd.Execute())
 	assert.Contains(t, buf.String(), "nodeID")
@@ -96,10 +94,7 @@ func TestNodeListQuietShouldOnlyPrintIDs(t *testing.T) {
 // Test case for #24090
 func TestNodeListContainsHostname(t *testing.T) {
 	buf := new(bytes.Buffer)
-	cmd := newListCommand(&fakeCli{
-		out:    buf,
-		client: &fakeClient{},
-	})
+	cmd := newListCommand(test.NewFakeCli(&fakeClient{}, buf, ioutil.NopCloser(strings.NewReader(""))))
 	assert.NilError(t, cmd.Execute())
 	assert.Contains(t, buf.String(), "HOSTNAME")
 }
