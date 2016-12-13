@@ -24,14 +24,14 @@ func TestJSON(t *testing.T) {
 	}
 	rawJSON := img.RawJSON()
 	if string(rawJSON) != sampleImageJSON {
-		t.Fatalf("Raw JSON of config didn't match: expected %+v, got %v", sampleImageJSON, rawJSON)
+		t.Fatalf("raw JSON of config didn't match: expected %+v, got %v", sampleImageJSON, rawJSON)
 	}
 }
 
 func TestInvalidJSON(t *testing.T) {
 	_, err := NewFromJSON([]byte("{}"))
 	if err == nil {
-		t.Fatal("Expected JSON parse error")
+		t.Fatal("expected JSON parse error")
 	}
 }
 
