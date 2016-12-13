@@ -39,4 +39,4 @@ When you make edits to `swagger.yaml`, you may want to check the generated API d
 
 All the documentation generation is done in the documentation repository, [docker/docker.github.io](https://github.com/docker/docker.github.io). The Swagger definition is vendored periodically into this repository, but you can manually copy over the Swagger definition to test changes.
 
-Copy `api/swagger.yaml` in this repository to `engine/api/[VERSION_NUMBER]/swagger.yaml` in the documentation repository, overwriting what is already there. Then, run `docker-compose up` in the documentation repository and browse to [http://localhost:4000/engine/api/](http://localhost:4000/engine/api/) when it finishes rendering.
+Copy `api/swagger.yaml` in this repository to `engine/api/[VERSION_NUMBER]/swagger.yaml` in the documentation repository, overwriting what is already there. Then, run `docker-compose up` in the documentation repository and browse to [http://localhost:4000/engine/api/] when it finishes rendering.
