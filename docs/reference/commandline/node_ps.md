@@ -100,7 +100,9 @@ The `desired-state` filter can take the values `running`, `shutdown`, and `accep
 
 ## Related information
 
+* [node demote](node_demote.md)
 * [node inspect](node_inspect.md)
-* [node update](node_update.md)
 * [node ls](node_ls.md)
+* [node promote](node_promote.md)
 * [node rm](node_rm.md)
+* [node update](node_update.md)
