@@ -474,7 +474,7 @@ accessible at the target port on every node regardless if there is a task for
 the service running on the node. For more information refer to
 [Use swarm mode routing mesh](https://docs.docker.com/engine/swarm/ingress/).
 
-### Publish a port for TCP only or UCP only
+### Publish a port for TCP only or UDP only
 
 By default, when you publish a port, it is a TCP port. You can
 specifically publish a UDP port instead of or in addition to a TCP port. When
