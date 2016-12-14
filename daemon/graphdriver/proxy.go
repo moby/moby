@@ -6,11 +6,13 @@ import (
 	"io"
 
 	"github.com/docker/docker/pkg/archive"
+	"github.com/docker/docker/pkg/plugingetter"
 )
 
 type graphDriverProxy struct {
 	name   string
 	client pluginClient
+	p      plugingetter.CompatPlugin
 }
 
 type graphDriverRequest struct {
@@ -35,6 +37,12 @@ type graphDriverInitRequest struct {
 }
 
 func (d *graphDriverProxy) Init(home string, opts []string) error {
+	if !d.p.IsV1() {
+		if cp, ok := d.p.(plugingetter.CountedPlugin); ok {
+			// always acquire here, it will be cleaned up on daemon shutdown
+			cp.Acquire()
+		}
+	}
 	args := &graphDriverInitRequest{
 		Home: home,
 		Opts: opts,
@@ -167,6 +175,13 @@ func (d *graphDriverProxy) GetMetadata(id string) (map[string]string, error) {
 }
 
 func (d *graphDriverProxy) Cleanup() error {
+	if !d.p.IsV1() {
+		if cp, ok := d.p.(plugingetter.CountedPlugin); ok {
+			// always release
+			defer cp.Release()
+		}
+	}
+
 	args := &graphDriverRequest{}
 	var ret graphDriverResponse
 	if err := d.client.Call("GraphDriver.Cleanup", args, &ret); err != nil {
