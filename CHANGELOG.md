@@ -212,6 +212,41 @@ To manually remove all plugins and resolve this problem, take the following step
 - Deprecate MAINTAINER in Dockerfile [#25466](https://github.com/docker/docker/pull/25466)
 - Deprecated filter param for endpoint `/images/json` [#27872](https://github.com/docker/docker/pull/27872)
 
+## 1.12.5 (2016-12-15)
+
+**IMPORTANT**: Docker 1.12 ships with an updated systemd unit file for rpm
+based installs (which includes RHEL, Fedora, CentOS, and Oracle Linux 7). When
+upgrading from an older version of docker, the upgrade process may not
+automatically install the updated version of the unit file, or fail to start
+the docker service if;
+
+- the systemd unit file (`/usr/lib/systemd/system/docker.service`) contains local changes, or
+- a systemd drop-in file is present, and contains `-H fd://` in the `ExecStart` directive
+
+Starting the docker service will produce an error:
+
+    Failed to start docker.service: Unit docker.socket failed to load: No such file or directory.
+
+or
+
+    no sockets found via socket activation: make sure the service was started by systemd.
+
+To resolve this:
+
+- Backup the current version of the unit file, and replace the file with the
+  [version that ships with docker 1.12](https://raw.githubusercontent.com/docker/docker/v1.12.0/contrib/init/systemd/docker.service.rpm)
+- Remove the `Requires=docker.socket` directive from the `/usr/lib/systemd/system/docker.service` file if present
+- Remove `-H fd://` from the `ExecStart` directive (both in the main unit file, and in any drop-in files present).
+
+After making those changes, run `sudo systemctl daemon-reload`, and `sudo
+systemctl restart docker` to reload changes and (re)start the docker daemon.
+
+
+### Contrib
+
+- Fix compilation on Darwin [#29370](https://github.com/docker/docker/pull/29370)
+- Use the selinux policy provided by docker-selinux on CentOS [#29377](https://github.com/docker/docker/pull/29377)
+
 ## 1.12.4 (2016-12-12)
 
 **IMPORTANT**: Docker 1.12 ships with an updated systemd unit file for rpm
@@ -285,7 +320,7 @@ systemctl restart docker` to reload changes and (re)start the docker daemon.
 
 - Run "dnf upgrade" before installing in fedora [#29150](https://github.com/docker/docker/pull/29150)
 - Add build-date back to RPM packages [#29150](https://github.com/docker/docker/pull/29150)
-- Update selinux policy for distros based on RHEL7.3 [#29188](https://github.com/docker/docker/pull/29188)
+- deb package filename changed to include distro to distinguish between distro code names [#27829](https://github.com/docker/docker/pull/27829)
 
 ## 1.12.3 (2016-10-26)
 
