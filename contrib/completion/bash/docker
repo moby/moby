@@ -3514,8 +3514,10 @@ _docker_stack() {
 _docker_stack_deploy() {
 	case "$prev" in
 		--bundle-file)
-			_filedir dab
-			return
+			if __docker_is_experimental ; then
+				_filedir dab
+				return
+			fi
 			;;
 		--compose-file|-c)
 			_filedir yml
@@ -3525,7 +3527,9 @@ _docker_stack_deploy() {
 
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "--bundle-file --compose-file -c --help --with-registry-auth" -- "$cur" ) )
+			local options="--compose-file -c --help --with-registry-auth"
+			__docker_is_experimental && options+=" --bundle-file"
+			COMPREPLY=( $( compgen -W "$options" -- "$cur" ) )
 			;;
 	esac
 }
