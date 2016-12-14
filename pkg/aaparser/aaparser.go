@@ -26,10 +26,7 @@ func GetVersion() (int, error) {
 // replace the profile.
 func LoadProfile(profilePath string) error {
 	_, err := cmd("", "-r", profilePath)
-	if err != nil {
-		return err
-	}
-	return nil
+	return err
 }
 
 // cmd runs `apparmor_parser` with the passed arguments.

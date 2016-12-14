@@ -29,11 +29,8 @@ func mkdirAs(path string, mode os.FileMode, ownerUID, ownerGID int, mkAll, chown
 	if _, err := os.Stat(path); err != nil && os.IsNotExist(err) {
 		paths = []string{path}
 	} else if err == nil && chownExisting {
-		if err := os.Chown(path, ownerUID, ownerGID); err != nil {
-			return err
-		}
 		// short-circuit--we were called with an existing directory and chown was requested
-		return nil
+		return os.Chown(path, ownerUID, ownerGID)
 	} else if err == nil {
 		// nothing to do; directory path fully exists already and chown was NOT requested
 		return nil
