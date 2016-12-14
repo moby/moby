@@ -6,6 +6,7 @@ docker-network-create - create a new network
 
 # SYNOPSIS
 **docker network create**
+[**--attachable**]
 [**--aux-address**=*map[]*]
 [**-d**|**--driver**=*DRIVER*]
 [**--gateway**=*[]*]
@@ -143,6 +144,9 @@ to create an externally isolated `overlay` network, you can specify the
 `--internal` option.
 
 # OPTIONS
+**--attachable**
+  Enable manual container attachment
+
 **--aux-address**=map[]
   Auxiliary IPv4 or IPv6 addresses used by network driver
 
