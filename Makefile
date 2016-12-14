@@ -66,6 +66,8 @@ DOCKER_FLAGS := docker run --rm -i --privileged $(DOCKER_ENVS) $(DOCKER_MOUNT) $
 BUILD_APT_MIRROR := $(if $(DOCKER_BUILD_APT_MIRROR),--build-arg APT_MIRROR=$(DOCKER_BUILD_APT_MIRROR))
 export BUILD_APT_MIRROR
 
+SWAGGER_DOCS_PORT ?= 9000
+
 # if this session isn't interactive, then we don't want to allocate a
 # TTY, which would fail, but if it is interactive, we do want to attach
 # so that the user can send e.g. ^C through.
@@ -156,3 +158,11 @@ swagger-gen:
 		--entrypoint hack/generate-swagger-api.sh \
 		-e GOPATH=/go \
 		quay.io/goswagger/swagger:0.7.4
+
+.PHONY: swagger-docs
+swagger-docs: ## preview the API documentation
+	@echo "API docs preview will be running at http://localhost:$(SWAGGER_DOCS_PORT)"
+	@docker run --rm -v $(PWD)/api/swagger.yaml:/usr/share/nginx/html/swagger.yaml \
+		-e 'REDOC_OPTIONS=hide-hostname="true" lazy-rendering' \
+		-p $(SWAGGER_DOCS_PORT):80 \
+		bfirsh/redoc:1.6.2
