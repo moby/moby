@@ -98,37 +98,49 @@ info:
 tags:
   # Primary objects
   - name: "Container"
+    x-displayName: "Containers"
     description: |
       Create and manage containers.
   - name: "Image"
+    x-displayName: "Images"
   - name: "Network"
+    x-displayName: "Networks"
     description: |
       Networks are user-defined networks that containers can be attached to. See the [networking documentation](https://docs.docker.com/engine/userguide/networking/) for more information.
   - name: "Volume"
+    x-displayName: "Volumes"
     description: |
       Create and manage persistent storage that can be attached to containers.
   - name: "Exec"
+    x-displayName: "Exec"
     description: |
       Run new commands inside running containers. See the [command-line reference](https://docs.docker.com/engine/reference/commandline/exec/) for more information.
 
       To exec a command in a container, you first need to create an exec instance, then start it. These two API endpoints are wrapped up in a single command-line command, `docker exec`.
   - name: "Secret"
+    x-displayName: "Secrets"
   # Swarm things
   - name: "Swarm"
+    x-displayName: "Swarm"
     description: |
       Engines can be clustered together in a swarm. See [the swarm mode documentation](https://docs.docker.com/engine/swarm/) for more information.
   - name: "Node"
+    x-displayName: "Nodes"
     description: |
       Nodes are instances of the Engine participating in a swarm. Swarm mode must be enabled for these endpoints to work.
   - name: "Service"
+    x-displayName: "Services"
     description: |
       Services are the definitions of tasks to run on a swarm. Swarm mode must be enabled for these endpoints to work.
   - name: "Task"
+    x-displayName: "Tasks"
     description: |
       A task is a container running on a swarm. It is the atomic scheduling unit of swarm. Swarm mode must be enabled for these endpoints to work.
   # System things
   - name: "Plugin"
+    x-displayName: "Plugins"
   - name: "System"
+    x-displayName: "System"
 
 definitions:
   Port:
