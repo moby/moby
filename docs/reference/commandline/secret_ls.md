@@ -25,6 +25,7 @@ Aliases:
 
 Options:
   -q, --quiet          Only display IDs
+      --help           Print usage
 ```
 
 Run this command on a manager node to list the secrets in the Swarm.
