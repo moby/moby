@@ -33,20 +33,20 @@ the registry. Note that the minimum required registry version to distribute
 plugins is 2.3.0
 
 
-The following example installs `no-remove` plugin and [set](plugin_set.md) it's env variable
+The following example installs `vieus/sshfs` plugin and [set](plugin_set.md) it's env variable
 `DEBUG` to 1. Install consists of pulling the plugin from Docker Hub, prompting
 the user to accept the list of privileges that the plugin needs, settings parameters
  and enabling the plugin.
 
 ```bash
-$ docker plugin install tiborvass/no-remove DEBUG=1
+$ docker plugin install vieux/sshfs DEBUG=1
 
-Plugin "tiborvass/no-remove" is requesting the following privileges:
+Plugin "vieux/sshfs" is requesting the following privileges:
  - network: [host]
- - mount: [/data]
- - device: [/dev/cpu_dma_latency]
+ - device: [/dev/fuse]
+ - capabilities: [CAP_SYS_ADMIN]
 Do you grant the above permissions? [y/N] y
-tiborvass/no-remove
+vieux/sshfs
 ```
 
 After the plugin is installed, it appears in the list of plugins:
@@ -55,7 +55,7 @@ After the plugin is installed, it appears in the list of plugins:
 $ docker plugin ls
 
 ID                  NAME                  TAG                 DESCRIPTION                ENABLED
-69553ca1d123        tiborvass/no-remove   latest              A test plugin for Docker   true
+69553ca1d123        vieux/sshfs           latest              sshFS plugin for Docker    true
 ```
 
 ## Related information
