@@ -125,7 +125,7 @@ func computePrivileges(pd distribution.PullData) (types.PluginPrivileges, error)
 	}
 
 	var privileges types.PluginPrivileges
-	if c.Network.Type != "null" && c.Network.Type != "bridge" {
+	if c.Network.Type != "null" && c.Network.Type != "bridge" && c.Network.Type != "" {
 		privileges = append(privileges, types.PluginPrivilege{
 			Name:        "network",
 			Description: "permissions to access a network",
