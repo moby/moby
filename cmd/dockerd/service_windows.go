@@ -219,12 +219,7 @@ func registerService() error {
 		return err
 	}
 
-	err = eventlog.Install(*flServiceName, p, false, eventlog.Info|eventlog.Warning|eventlog.Error)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return eventlog.Install(*flServiceName, p, false, eventlog.Info|eventlog.Warning|eventlog.Error)
 }
 
 func unregisterService() error {

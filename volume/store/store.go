@@ -623,10 +623,7 @@ func (s *VolumeStore) FilterByUsed(vols []volume.Volume, used bool) []volume.Vol
 		s.locks.Lock(v.Name())
 		hasRef := s.hasRef(v.Name())
 		s.locks.Unlock(v.Name())
-		if used == hasRef {
-			return true
-		}
-		return false
+		return used == hasRef
 	})
 }
 

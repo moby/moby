@@ -79,10 +79,7 @@ func Init(root string, ps *store.Store, remote libcontainerd.Remote, rs registry
 		return err
 	}
 	manager.cMap = make(map[*v2.Plugin]*controller)
-	if err := manager.reload(); err != nil {
-		return err
-	}
-	return nil
+	return manager.reload()
 }
 
 // StateChanged updates plugin internals using libcontainerd events.
