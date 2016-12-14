@@ -21,6 +21,7 @@ Usage:	docker network create [OPTIONS] NETWORK
 Create a network
 
 Options:
+      --attachable           Enable manual container attachment
       --aux-address value    Auxiliary IPv4 or IPv6 addresses used by Network
                              driver (default map[])
   -d, --driver string        Driver to manage the Network (default "bridge")
