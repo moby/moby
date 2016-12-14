@@ -241,6 +241,9 @@ To resolve this:
 After making those changes, run `sudo systemctl daemon-reload`, and `sudo
 systemctl restart docker` to reload changes and (re)start the docker daemon.
 
+### Networking
+
+- Fix panic in docker network ls when a network was created with `--ipv6` and no ipv6 `--subnet` in older docker versions [#29416](https://github.com/docker/docker/pull/29416)
 
 ### Contrib
 
