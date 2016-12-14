@@ -2,7 +2,7 @@
 % Docker Community
 % JUNE 2014
 # NAME
-docker-wait - Block until a container stops, then print its exit code.
+docker-wait - Block until one or more containers stop, then print their exit codes
 
 # SYNOPSIS
 **docker wait**
@@ -11,7 +11,7 @@ CONTAINER [CONTAINER...]
 
 # DESCRIPTION
 
-Block until a container stops, then print its exit code.
+Block until one or more containers stop, then print their exit codes.
 
 # OPTIONS
 **--help**
