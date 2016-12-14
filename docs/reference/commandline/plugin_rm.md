@@ -33,14 +33,14 @@ a plugin using the [`docker plugin disable`](plugin_disable.md) before removing
 it (or use --force, use of force is not recommended, since it can affect
 functioning of running containers using the plugin).
 
-The following example disables and removes the `no-remove:latest` plugin;
+The following example disables and removes the `sample-volume-plugin:latest` plugin;
 
 ```bash
-$ docker plugin disable tiborvass/no-remove
-tiborvass/no-remove
+$ docker plugin disable tiborvass/sample-volume-plugin
+tiborvass/sample-volume-plugin
 
-$ docker plugin rm tiborvass/no-remove:latest
-tiborvass/no-remove
+$ docker plugin rm tiborvass/sample-volume-plugin:latest
+tiborvass/sample-volume-plugin
 ```
 
 ## Related information

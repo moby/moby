@@ -36,8 +36,8 @@ Example output:
 ```bash
 $ docker plugin ls
 
-ID                  NAME                  TAG                 DESCRIPTION                ENABLED
-69553ca1d123        tiborvass/no-remove   latest              A test plugin for Docker   true
+ID                  NAME                             TAG                 DESCRIPTION                ENABLED
+69553ca1d123        tiborvass/sample-volume-plugin   latest              A test plugin for Docker   true
 ```
 
 ## Related information

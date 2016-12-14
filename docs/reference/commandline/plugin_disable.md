@@ -30,27 +30,27 @@ see [`docker plugin install`](plugin_install.md). Without the `-f` option,
 a plugin that has references (eg, volumes, networks) cannot be disabled.
 
 
-The following example shows that the `no-remove` plugin is installed
+The following example shows that the `sample-volume-plugin` plugin is installed
 and enabled:
 
 ```bash
 $ docker plugin ls
 
-ID                  NAME                  TAG                 DESCRIPTION                ENABLED
-69553ca1d123        tiborvass/no-remove   latest              A test plugin for Docker   true
+ID                  NAME                             TAG                 DESCRIPTION                ENABLED
+69553ca1d123        tiborvass/sample-volume-plugin   latest              A test plugin for Docker   true
 ```
 
 To disable the plugin, use the following command:
 
 ```bash
-$ docker plugin disable tiborvass/no-remove
+$ docker plugin disable tiborvass/sample-volume-plugin
 
-tiborvass/no-remove
+tiborvass/sample-volume-plugin
 
 $ docker plugin ls
 
-ID                  NAME                  TAG                 DESCRIPTION                ENABLED
-69553ca1d123        tiborvass/no-remove   latest              A test plugin for Docker   false
+ID                  NAME                             TAG                 DESCRIPTION                ENABLED
+69553ca1d123        tiborvass/sample-volume-plugin   latest              A test plugin for Docker   false
 ```
 
 ## Related information
