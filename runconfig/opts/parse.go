@@ -859,10 +859,8 @@ func ParseLink(val string) (string, string, error) {
 
 // ValidateLink validates that the specified string has a valid link format (containerName:alias).
 func ValidateLink(val string) (string, error) {
-	if _, _, err := ParseLink(val); err != nil {
-		return val, err
-	}
-	return val, nil
+	_, _, err := ParseLink(val)
+	return val, err
 }
 
 // ValidDeviceMode checks if the mode for device is valid or not.

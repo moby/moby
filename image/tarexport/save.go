@@ -215,10 +215,8 @@ func (s *saveSession) save(outStream io.Writer) error {
 	}
 	defer fs.Close()
 
-	if _, err := io.Copy(outStream, fs); err != nil {
-		return err
-	}
-	return nil
+	_, err = io.Copy(outStream, fs)
+	return err
 }
 
 func (s *saveSession) saveImage(id image.ID) (map[layer.DiffID]distribution.Descriptor, error) {

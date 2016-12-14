@@ -180,10 +180,7 @@ var (
 				defer f.Close()
 				b := make([]byte, 1)
 				_, _ = f.Read(b)
-				if string(b) == "N" {
-					return false
-				}
-				return true
+				return string(b) != "N"
 			}
 
 			return true
@@ -193,10 +190,7 @@ var (
 	NotUserNamespace = testRequirement{
 		func() bool {
 			root := os.Getenv("DOCKER_REMAP_ROOT")
-			if root != "" {
-				return false
-			}
-			return true
+			return root == ""
 		},
 		"Test cannot be run when remapping root",
 	}
