@@ -380,10 +380,7 @@ func (devices *DeviceSet) isDeviceIDFree(deviceID int) bool {
 	var mask byte
 	i := deviceID % 8
 	mask = (1 << uint(i))
-	if (devices.deviceIDMap[deviceID/8] & mask) != 0 {
-		return false
-	}
-	return true
+	return (devices.deviceIDMap[deviceID/8] & mask) == 0
 }
 
 // Should be called with devices.Lock() held.
@@ -1400,10 +1397,7 @@ func (devices *DeviceSet) saveTransactionMetaData() error {
 }
 
 func (devices *DeviceSet) removeTransactionMetaData() error {
-	if err := os.RemoveAll(devices.transactionMetaFile()); err != nil {
-		return err
-	}
-	return nil
+	return os.RemoveAll(devices.transactionMetaFile())
 }
 
 func (devices *DeviceSet) rollbackTransaction() error {
@@ -2408,11 +2402,7 @@ func (devices *DeviceSet) UnmountDevice(hash, mountPath string) error {
 	}
 	logrus.Debug("devmapper: Unmount done")
 
-	if err := devices.deactivateDevice(info); err != nil {
-		return err
-	}
-
-	return nil
+	return devices.deactivateDevice(info)
 }
 
 // HasDevice returns true if the device metadata exists.
