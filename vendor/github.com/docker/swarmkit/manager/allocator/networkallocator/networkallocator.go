@@ -746,7 +746,7 @@ func (na *NetworkAllocator) allocatePools(n *api.Network) (map[string]string, er
 	}
 
 	for i, ic := range ipamConfigs {
-		poolID, poolIP, _, err := ipam.RequestPool(asName, ic.Subnet, ic.Range, nil, false)
+		poolID, poolIP, _, err := ipam.RequestPool(asName, ic.Subnet, ic.Range, dOptions, false)
 		if err != nil {
 			// Rollback by releasing all the resources allocated so far.
 			releasePools(ipam, ipamConfigs[:i], pools)

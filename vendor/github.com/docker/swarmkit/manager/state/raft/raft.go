@@ -1259,8 +1259,6 @@ func (n *Node) saveToStorage(
 	}
 
 	if err := n.raftLogger.SaveEntries(hardState, entries); err != nil {
-		// TODO(aaronl): These error types should really wrap more
-		// detailed errors.
 		return errors.Wrap(err, "failed to save raft log entries")
 	}
 
