@@ -31,6 +31,15 @@ import (
 	"github.com/pkg/errors"
 )
 
+type testingT interface {
+	logT
+	Fatalf(string, ...interface{})
+}
+
+type logT interface {
+	Logf(string, ...interface{})
+}
+
 // SockRoot holds the path of the default docker integration daemon socket
 var SockRoot = filepath.Join(os.TempDir(), "docker-integration")
 
@@ -56,6 +65,7 @@ type Daemon struct {
 	experimental   bool
 	dockerBinary   string
 	dockerdBinary  string
+	log            logT
 }
 
 // Config holds docker daemon integration configuration
@@ -72,20 +82,27 @@ type clientConfig struct {
 // New returns a Daemon instance to be used for testing.
 // This will create a directory such as d123456789 in the folder specified by $DEST.
 // The daemon will not automatically start.
-func New(c *check.C, dockerBinary string, dockerdBinary string, config Config) *Daemon {
+func New(t testingT, dockerBinary string, dockerdBinary string, config Config) *Daemon {
 	dest := os.Getenv("DEST")
-	c.Assert(dest, check.Not(check.Equals), "", check.Commentf("Please set the DEST environment variable"))
+	if dest == "" {
+		t.Fatalf("Please set the DEST environment variable")
+	}
 
-	err := os.MkdirAll(SockRoot, 0700)
-	c.Assert(err, checker.IsNil, check.Commentf("could not create daemon socket root"))
+	if err := os.MkdirAll(SockRoot, 0700); err != nil {
+		t.Fatalf("could not create daemon socket root")
+	}
 
 	id := fmt.Sprintf("d%s", stringid.TruncateID(stringid.GenerateRandomID()))
 	dir := filepath.Join(dest, id)
 	daemonFolder, err := filepath.Abs(dir)
-	c.Assert(err, check.IsNil, check.Commentf("Could not make %q an absolute path", dir))
+	if err != nil {
+		t.Fatalf("Could not make %q an absolute path", dir)
+	}
 	daemonRoot := filepath.Join(daemonFolder, "root")
 
-	c.Assert(os.MkdirAll(daemonRoot, 0755), check.IsNil, check.Commentf("Could not create daemon root %q", dir))
+	if err := os.MkdirAll(daemonRoot, 0755); err != nil {
+		t.Fatalf("Could not create daemon root %q", dir)
+	}
 
 	userlandProxy := true
 	if env := os.Getenv("DOCKER_USERLANDPROXY"); env != "" {
@@ -104,6 +121,7 @@ func New(c *check.C, dockerBinary string, dockerdBinary string, config Config) *
 		dockerBinary:  dockerBinary,
 		dockerdBinary: dockerdBinary,
 		experimental:  config.Experimental,
+		log:           t,
 	}
 }
 
@@ -174,8 +192,10 @@ func (d *Daemon) getClientConfig() (*clientConfig, error) {
 }
 
 // Start starts the daemon and return once it is ready to receive requests.
-func (d *Daemon) Start(c *check.C, args ...string) {
-	c.Assert(d.StartWithError(args...), checker.IsNil, check.Commentf("Error starting daemon with arguments: %v", args))
+func (d *Daemon) Start(t testingT, args ...string) {
+	if err := d.StartWithError(args...); err != nil {
+		t.Fatalf("Error starting daemon with arguments: %v", args)
+	}
 }
 
 // StartWithError starts the daemon and return once it is ready to receive requests.
@@ -246,7 +266,7 @@ func (d *Daemon) StartWithLogFile(out *os.File, providedArgs ...string) error {
 
 	go func() {
 		wait <- d.cmd.Wait()
-		fmt.Printf("[%s] exiting daemon\n", d.id)
+		d.log.Logf("[%s] exiting daemon", d.id)
 		close(wait)
 	}()
 
@@ -256,7 +276,7 @@ func (d *Daemon) StartWithLogFile(out *os.File, providedArgs ...string) error {
 	// make sure daemon is ready to receive requests
 	startTime := time.Now().Unix()
 	for {
-		fmt.Printf("[%s] waiting for daemon to start\n", d.id)
+		d.log.Logf("[%s] waiting for daemon to start", d.id)
 		if time.Now().Unix()-startTime > 5 {
 			// After 5 seconds, give up
 			return errors.Errorf("[%s] Daemon exited and never started", d.id)
@@ -285,9 +305,9 @@ func (d *Daemon) StartWithLogFile(out *os.File, providedArgs ...string) error {
 				continue
 			}
 			if resp.StatusCode != http.StatusOK {
-				fmt.Printf("[%s] received status != 200 OK: %s\n", d.id, resp.Status)
+				d.log.Logf("[%s] received status != 200 OK: %s\n", d.id, resp.Status)
 			}
-			fmt.Printf("[%s] daemon started\n", d.id)
+			d.log.Logf("[%s] daemon started\n", d.id)
 			d.Root, err = d.queryRootDir()
 			if err != nil {
 				return errors.Errorf("[%s] error querying daemon for root directory: %v", d.id, err)
@@ -301,9 +321,11 @@ func (d *Daemon) StartWithLogFile(out *os.File, providedArgs ...string) error {
 
 // StartWithBusybox will first start the daemon with Daemon.Start()
 // then save the busybox image from the main daemon and load it into this Daemon instance.
-func (d *Daemon) StartWithBusybox(c *check.C, arg ...string) {
-	d.Start(c, arg...)
-	c.Assert(d.LoadBusybox(), checker.IsNil, check.Commentf("Error loading busybox image to current daeom: %s", d.id))
+func (d *Daemon) StartWithBusybox(t testingT, arg ...string) {
+	d.Start(t, arg...)
+	if err := d.LoadBusybox(); err != nil {
+		t.Fatalf("Error loading busybox image to current daeom: %s", d.id)
+	}
 }
 
 // Kill will send a SIGKILL to the daemon
@@ -361,13 +383,13 @@ func (d *Daemon) DumpStackAndQuit() {
 // Stop will not delete the daemon directory. If a purged daemon is needed,
 // instantiate a new one with NewDaemon.
 // If an error occurs while starting the daemon, the test will fail.
-func (d *Daemon) Stop(c *check.C) {
+func (d *Daemon) Stop(t testingT) {
 	err := d.StopWithError()
 	if err != nil {
 		if err != errDaemonNotStarted {
-			c.Fatalf("Error while stopping the daemon %s : %v", d.id, err)
+			t.Fatalf("Error while stopping the daemon %s : %v", d.id, err)
 		} else {
-			c.Logf("Daemon %s is not started", d.id)
+			t.Logf("Daemon %s is not started", d.id)
 		}
 	}
 }
@@ -402,7 +424,7 @@ out1:
 			return err
 		case <-time.After(20 * time.Second):
 			// time for stopping jobs and run onShutdown hooks
-			fmt.Printf("timeout: %v\n", d.id)
+			d.log.Logf("[%s] daemon started", d.id)
 			break out1
 		}
 	}
@@ -415,10 +437,10 @@ out2:
 		case <-tick:
 			i++
 			if i > 5 {
-				fmt.Printf("tried to interrupt daemon for %d times, now try to kill it\n", i)
+				d.log.Logf("tried to interrupt daemon for %d times, now try to kill it", i)
 				break out2
 			}
-			fmt.Printf("Attempt #%d: daemon is still running with pid %d\n", i, d.cmd.Process.Pid)
+			d.log.Logf("Attempt #%d: daemon is still running with pid %d", i, d.cmd.Process.Pid)
 			if err := d.cmd.Process.Signal(os.Interrupt); err != nil {
 				return errors.Errorf("could not send signal: %v", err)
 			}
@@ -426,7 +448,7 @@ out2:
 	}
 
 	if err := d.cmd.Process.Kill(); err != nil {
-		fmt.Printf("Could not kill daemon: %v\n", err)
+		d.log.Logf("Could not kill daemon: %v", err)
 		return err
 	}
 
@@ -439,10 +461,10 @@ out2:
 
 // Restart will restart the daemon by first stopping it and the starting it.
 // If an error occurs while starting the daemon, the test will fail.
-func (d *Daemon) Restart(c *check.C, args ...string) {
-	d.Stop(c)
+func (d *Daemon) Restart(t testingT, args ...string) {
+	d.Stop(t)
 	d.handleUserns()
-	d.Start(c, args...)
+	d.Start(t, args...)
 }
 
 // RestartWithError will restart the daemon by first stopping it and then starting it.
