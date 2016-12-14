@@ -29,7 +29,7 @@ Options:
 ### Scale a service
 
 The scale command enables you to scale one or more replicated services either up
-or down to the desired number of replicas. This command cannot be applied on
+or down to the desired number of replicas. This command cannot be applied on
 services which are global mode. The command will return immediately, but the
 actual scaling of the service may take some time. To stop all replicas of a
 service while keeping the service active in the swarm you can set the scale to 0.
@@ -89,6 +89,7 @@ ID            NAME      MODE        REPLICAS  IMAGE
 
 * [service create](service_create.md)
 * [service inspect](service_inspect.md)
+* [service logs](service_logs.md)
 * [service ls](service_ls.md)
 * [service rm](service_rm.md)
 * [service ps](service_ps.md)

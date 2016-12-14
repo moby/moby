@@ -546,6 +546,7 @@ x3ti0erg11rjpg64m75kej2mz-hosttempl
 ## Related information
 
 * [service inspect](service_inspect.md)
+* [service logs](service_logs.md)
 * [service ls](service_ls.md)
 * [service rm](service_rm.md)
 * [service scale](service_scale.md)
