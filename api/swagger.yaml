@@ -1498,74 +1498,39 @@ definitions:
                   type: "string"
     example:
       Id: "5724e2c8652da337ab2eedd19fc6fc0ec908e4bd907c7421bf6a8dfc70c4c078"
-      Name: "tiborvass/no-remove"
+      Name: "tiborvass/sample-volume-plugin"
       Tag: "latest"
       Active: true
-      Config:
-        Mounts:
-          - Name: ""
-            Description: ""
-            Settable: null
-            Source: "/data"
-            Destination: "/data"
-            Type: "bind"
-            Options:
-              - "shared"
-              - "rbind"
-          - Name: ""
-            Description: ""
-            Settable: null
-            Source: null
-            Destination: "/foobar"
-            Type: "tmpfs"
-            Options: null
+      Settings:
         Env:
-          - "DEBUG=1"
+          - "DEBUG=0"
         Args: null
         Devices: null
-      Manifest:
-        ManifestVersion: "v0"
-        Description: "A test plugin for Docker"
+      Config:
+        Description: "A sample volume plugin for Docker"
         Documentation: "https://docs.docker.com/engine/extend/plugins/"
         Interface:
           Types:
             - "docker.volumedriver/1.0"
           Socket: "plugins.sock"
         Entrypoint:
-          - "plugin-no-remove"
+          - "/usr/bin/sample-volume-plugin"
           - "/data"
         WorkDir: ""
         User: {}
         Network:
-          Type: "host"
-        Capabilities: null
-        Mounts:
-          - Name: ""
-            Description: ""
-            Settable: null
-            Source: "/data"
-            Destination: "/data"
-            Type: "bind"
-            Options:
-              - "shared"
-              - "rbind"
-          - Name: ""
-            Description: ""
-            Settable: null
-            Source: null
-            Destination: "/foobar"
-            Type: "tmpfs"
-            Options: null
-        Devices:
-          - Name: "device"
-            Description: "a host device to mount"
-            Settable: null
-            Path: "/dev/cpu_dma_latency"
+          Type: ""
+        Linux:
+          Capabilities: null
+          DeviceCreation: false
+          Devices: null
+        Mounts: null
+        PropagatedMount: "/data"
         Env:
           - Name: "DEBUG"
             Description: "If set, prints debug messages"
             Settable: null
-            Value: "1"
+            Value: "0"
         Args:
           Name: "args"
           Description: "command line arguments"
@@ -6374,74 +6339,39 @@ paths:
               $ref: "#/definitions/Plugin"
             example:
               - Id: "5724e2c8652da337ab2eedd19fc6fc0ec908e4bd907c7421bf6a8dfc70c4c078"
-                Name: "tiborvass/no-remove"
+                Name: "tiborvass/sample-volume-plugin"
                 Tag: "latest"
                 Active: true
-                Config:
-                  Mounts:
-                    - Name: ""
-                      Description: ""
-                      Settable: null
-                      Source: "/data"
-                      Destination: "/data"
-                      Type: "bind"
-                      Options:
-                        - "shared"
-                        - "rbind"
-                    - Name: ""
-                      Description: ""
-                      Settable: null
-                      Source: null
-                      Destination: "/foobar"
-                      Type: "tmpfs"
-                      Options: null
+                Settings:
                   Env:
-                    - "DEBUG=1"
+                    - "DEBUG=0"
                   Args: null
                   Devices: null
-                Manifest:
-                  ManifestVersion: "v0"
-                  Description: "A test plugin for Docker"
+                Config:
+                  Description: "A sample volume plugin for Docker"
                   Documentation: "https://docs.docker.com/engine/extend/plugins/"
                   Interface:
                     Types:
                       - "docker.volumedriver/1.0"
                     Socket: "plugins.sock"
                   Entrypoint:
-                    - "plugin-no-remove"
+                    - "/usr/bin/sample-volume-plugin"
                     - "/data"
                   WorkDir: ""
                   User: {}
                   Network:
-                    Type: "host"
-                  Capabilities: null
-                  Mounts:
-                    - Name: ""
-                      Description: ""
-                      Settable: null
-                      Source: "/data"
-                      Destination: "/data"
-                      Type: "bind"
-                      Options:
-                        - "shared"
-                        - "rbind"
-                    - Name: ""
-                      Description: ""
-                      Settable: null
-                      Source: null
-                      Destination: "/foobar"
-                      Type: "tmpfs"
-                      Options: null
-                  Devices:
-                    - Name: "device"
-                      Description: "a host device to mount"
-                      Settable: null
-                      Path: "/dev/cpu_dma_latency"
+                    Type: ""
+                  Linux:
+                    Capabilities: null
+                    DeviceCreation: false
+                    Devices: null
+                  Mounts: null
+                  PropagatedMount: "/data"
                   Env:
                     - Name: "DEBUG"
                       Description: "If set, prints debug messages"
                       Settable: null
-                      Value: "1"
+                      Value: "0"
                   Args:
                     Name: "args"
                     Description: "command line arguments"

@@ -33,15 +33,15 @@ The settings currently supported are:
  * args
 
 The following example change the env variable `DEBUG` on the
-`no-remove` plugin.
+`sample-volume-plugin` plugin.
 
 ```bash
-$ docker plugin inspect -f {{.Settings.Env}} tiborvass/no-remove
+$ docker plugin inspect -f {{.Settings.Env}} tiborvass/sample-volume-plugin
 [DEBUG=0]
 
-$ docker plugin set tiborvass/no-remove DEBUG=1
+$ docker plugin set tiborvass/sample-volume-plugin DEBUG=1
 
-$ docker plugin inspect -f {{.Settings.Env}} tiborvass/no-remove
+$ docker plugin inspect -f {{.Settings.Env}} tiborvass/sample-volume-plugin
 [DEBUG=1]
 ```
 
