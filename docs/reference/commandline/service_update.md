@@ -174,6 +174,8 @@ See [`service create`](./service_create.md#templating) for the reference.
 
 * [service create](service_create.md)
 * [service inspect](service_inspect.md)
-* [service ps](service_ps.md)
+* [service logs](service_logs.md)
 * [service ls](service_ls.md)
+* [service ps](service_ps.md)
 * [service rm](service_rm.md)
+* [service scale](service_scale.md)
