@@ -28,7 +28,7 @@ func (daemon *Daemon) StateChanged(id string, e libcontainerd.StateInfo) error {
 	case libcontainerd.StateExit:
 		c.Lock()
 		defer c.Unlock()
-		c.Wait()
+		c.StreamConfig.Wait()
 		c.Reset(false)
 		c.SetStopped(platformConstructExitStatus(e))
 		attributes := map[string]string{
@@ -63,7 +63,7 @@ func (daemon *Daemon) StateChanged(id string, e libcontainerd.StateInfo) error {
 			defer execConfig.Unlock()
 			execConfig.ExitCode = &ec
 			execConfig.Running = false
-			execConfig.Wait()
+			execConfig.StreamConfig.Wait()
 			if err := execConfig.CloseStreams(); err != nil {
 				logrus.Errorf("%s: %s", c.ID, err)
 			}
