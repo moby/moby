@@ -87,6 +87,7 @@ func (s *DockerSwarmSuite) TestSwarmInitIPv6(c *check.C) {
 	c.Assert(out, checker.Contains, "Swarm: active")
 }
 
+// FIXME(vdemeester) should probably be a unit test on daemon/cluster/listen_addr.go
 func (s *DockerSwarmSuite) TestSwarmInitUnspecifiedAdvertiseAddr(c *check.C) {
 	d := s.AddDaemon(c, false, false)
 	out, err := d.Cmd("swarm", "init", "--advertise-addr", "0.0.0.0")
@@ -117,16 +118,6 @@ func (s *DockerSwarmSuite) TestSwarmIncompatibleDaemon(c *check.C) {
 	c.Assert(string(content), checker.Contains, "--live-restore daemon configuration is incompatible with swarm mode")
 	// restart for teardown
 	d.Start(c)
-}
-
-// Test case for #24090
-func (s *DockerSwarmSuite) TestSwarmNodeListHostname(c *check.C) {
-	d := s.AddDaemon(c, true, true)
-
-	// The first line should contain "HOSTNAME"
-	out, err := d.Cmd("node", "ls")
-	c.Assert(err, checker.IsNil)
-	c.Assert(strings.Split(out, "\n")[0], checker.Contains, "HOSTNAME")
 }
 
 func (s *DockerSwarmSuite) TestSwarmServiceTemplatingHostname(c *check.C) {
@@ -396,6 +387,7 @@ func (s *DockerSwarmSuite) TestOverlayAttachable(c *check.C) {
 	c.Assert(strings.TrimSpace(out), checker.Equals, "true")
 }
 
+// FIXME(vdemeester) should probably be a unit test on daemon package (or runconfig/hostconfig)
 func (s *DockerSwarmSuite) TestSwarmRemoveInternalNetwork(c *check.C) {
 	d := s.AddDaemon(c, true, true)
 
@@ -1372,6 +1364,7 @@ func (s *DockerSwarmSuite) TestSwarmManagerAddress(c *check.C) {
 	c.Assert(out, checker.Contains, expectedOutput)
 }
 
+// FIXME(vdemeester) should be a unit test in cli/command/service package
 func (s *DockerSwarmSuite) TestSwarmServiceInspectPretty(c *check.C) {
 	d := s.AddDaemon(c, true, true)
 
@@ -1408,22 +1401,4 @@ func (s *DockerSwarmSuite) TestSwarmNetworkIPAMOptions(c *check.C) {
 	out, err = d.Cmd("network", "inspect", "--format", "{{.IPAM.Options}}", "foo")
 	c.Assert(err, checker.IsNil, check.Commentf(out))
 	c.Assert(strings.TrimSpace(out), checker.Equals, "map[foo:bar]")
-}
-
-// TODO: migrate to a unit test
-// This test could be migrated to unit test and save costly integration test,
-// once PR #29143 is merged.
-func (s *DockerSwarmSuite) TestSwarmUpdateWithoutArgs(c *check.C) {
-	d := s.AddDaemon(c, true, true)
-
-	expectedOutput := `
-Usage:	docker swarm update [OPTIONS]
-
-Update the swarm
-
-Options:`
-
-	out, err := d.Cmd("swarm", "update")
-	c.Assert(err, checker.IsNil, check.Commentf("out: %v", out))
-	c.Assert(out, checker.Contains, expectedOutput, check.Commentf(out))
 }

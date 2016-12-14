@@ -12,7 +12,7 @@ import (
 	"golang.org/x/net/context"
 )
 
-func newUnlockKeyCommand(dockerCli *command.DockerCli) *cobra.Command {
+func newUnlockKeyCommand(dockerCli command.Cli) *cobra.Command {
 	var rotate, quiet bool
 
 	cmd := &cobra.Command{
@@ -26,16 +26,16 @@ func newUnlockKeyCommand(dockerCli *command.DockerCli) *cobra.Command {
 			if rotate {
 				flags := swarm.UpdateFlags{RotateManagerUnlockKey: true}
 
-				swarm, err := client.SwarmInspect(ctx)
+				swarmInspect, err := client.SwarmInspect(ctx)
 				if err != nil {
 					return err
 				}
 
-				if !swarm.Spec.EncryptionConfig.AutoLockManagers {
+				if !swarmInspect.Spec.EncryptionConfig.AutoLockManagers {
 					return errors.New("cannot rotate because autolock is not turned on")
 				}
 
-				err = client.SwarmUpdate(ctx, swarm.Version, swarm.Spec, flags)
+				err = client.SwarmUpdate(ctx, swarmInspect.Version, swarmInspect.Spec, flags)
 				if err != nil {
 					return err
 				}
@@ -69,11 +69,10 @@ func newUnlockKeyCommand(dockerCli *command.DockerCli) *cobra.Command {
 	return cmd
 }
 
-func printUnlockCommand(ctx context.Context, dockerCli *command.DockerCli, unlockKey string) {
+func printUnlockCommand(ctx context.Context, dockerCli command.Cli, unlockKey string) {
 	if len(unlockKey) == 0 {
 		return
 	}
 
 	fmt.Fprintf(dockerCli.Out(), "To unlock a swarm manager after it restarts, run the `docker swarm unlock`\ncommand and provide the following key:\n\n    %s\n\nPlease remember to store this key in a password manager, since without it you\nwill not be able to restart the manager.\n", unlockKey)
-	return
 }

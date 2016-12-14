@@ -18,7 +18,7 @@ var (
 	errNoRoleChange = errors.New("role was already set to the requested value")
 )
 
-func newUpdateCommand(dockerCli *command.DockerCli) *cobra.Command {
+func newUpdateCommand(dockerCli command.Cli) *cobra.Command {
 	nodeOpts := newNodeOptions()
 
 	cmd := &cobra.Command{
@@ -39,14 +39,14 @@ func newUpdateCommand(dockerCli *command.DockerCli) *cobra.Command {
 	return cmd
 }
 
-func runUpdate(dockerCli *command.DockerCli, flags *pflag.FlagSet, nodeID string) error {
+func runUpdate(dockerCli command.Cli, flags *pflag.FlagSet, nodeID string) error {
 	success := func(_ string) {
 		fmt.Fprintln(dockerCli.Out(), nodeID)
 	}
 	return updateNodes(dockerCli, []string{nodeID}, mergeNodeUpdate(flags), success)
 }
 
-func updateNodes(dockerCli *command.DockerCli, nodes []string, mergeNode func(node *swarm.Node) error, success func(nodeID string)) error {
+func updateNodes(dockerCli command.Cli, nodes []string, mergeNode func(node *swarm.Node) error, success func(nodeID string)) error {
 	client := dockerCli.Client()
 	ctx := context.Background()
 

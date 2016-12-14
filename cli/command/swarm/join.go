@@ -18,7 +18,7 @@ type joinOptions struct {
 	token         string
 }
 
-func newJoinCommand(dockerCli *command.DockerCli) *cobra.Command {
+func newJoinCommand(dockerCli command.Cli) *cobra.Command {
 	opts := joinOptions{
 		listenAddr: NewListenAddrOption(),
 	}
@@ -40,7 +40,7 @@ func newJoinCommand(dockerCli *command.DockerCli) *cobra.Command {
 	return cmd
 }
 
-func runJoin(dockerCli *command.DockerCli, opts joinOptions) error {
+func runJoin(dockerCli command.Cli, opts joinOptions) error {
 	client := dockerCli.Client()
 	ctx := context.Background()
 
