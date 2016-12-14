@@ -8,6 +8,7 @@ import (
 	"github.com/docker/docker/api/types/network"
 	executorpkg "github.com/docker/docker/daemon/cluster/executor"
 	clustertypes "github.com/docker/docker/daemon/cluster/provider"
+	"github.com/docker/docker/plugin"
 	networktypes "github.com/docker/libnetwork/types"
 	"github.com/docker/swarmkit/agent/exec"
 	"github.com/docker/swarmkit/agent/secrets"
@@ -45,11 +46,38 @@ func (e *executor) Describe(ctx context.Context) (*api.NodeDescription, error) {
 		}
 	}
 
+	// add v1 plugins
 	addPlugins("Volume", info.Plugins.Volume)
 	// Add builtin driver "overlay" (the only builtin multi-host driver) to
 	// the plugin list by default.
 	addPlugins("Network", append([]string{"overlay"}, info.Plugins.Network...))
 	addPlugins("Authorization", info.Plugins.Authorization)
+
+	// add v2 plugins
+	v2Plugins, err := plugin.GetManager().List()
+	if err == nil {
+		for _, plgn := range v2Plugins {
+			for _, typ := range plgn.Config.Interface.Types {
+				if typ.Prefix != "docker" || !plgn.Enabled {
+					continue
+				}
+				plgnTyp := typ.Capability
+				if typ.Capability == "volumedriver" {
+					plgnTyp = "Volume"
+				} else if typ.Capability == "networkdriver" {
+					plgnTyp = "Network"
+				}
+				plgnName := plgn.Name
+				if plgn.Tag != "" {
+					plgnName += ":" + plgn.Tag
+				}
+				plugins[api.PluginDescription{
+					Type: plgnTyp,
+					Name: plgnName,
+				}] = struct{}{}
+			}
+		}
+	}
 
 	pluginFields := make([]api.PluginDescription, 0, len(plugins))
 	for k := range plugins {
