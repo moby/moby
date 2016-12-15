@@ -82,6 +82,14 @@ func (p *PortOpt) Set(value string) error {
 			return fmt.Errorf("missing mandatory field %q", portOptTargetPort)
 		}
 
+		if pConfig.PublishMode == "" {
+			pConfig.PublishMode = swarm.PortConfigPublishModeIngress
+		}
+
+		if pConfig.Protocol == "" {
+			pConfig.Protocol = swarm.PortConfigProtocolTCP
+		}
+
 		p.ports = append(p.ports, pConfig)
 	} else {
 		// short syntax
@@ -131,6 +139,7 @@ func ConvertPortToPortConfig(
 			Protocol:      swarm.PortConfigProtocol(strings.ToLower(port.Proto())),
 			TargetPort:    uint32(port.Int()),
 			PublishedPort: uint32(hostPort),
+			PublishMode:   swarm.PortConfigPublishModeIngress,
 		})
 	}
 	return ports

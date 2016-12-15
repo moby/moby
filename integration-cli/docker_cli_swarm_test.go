@@ -264,13 +264,13 @@ func (s *DockerSwarmSuite) TestSwarmPublishAdd(c *check.C) {
 		c.Assert(err, checker.IsNil, check.Commentf(out))
 		c.Assert(strings.TrimSpace(out), checker.Not(checker.Equals), "")
 
-		out, err = d.CmdRetryOutOfSequence("service", "update", "--publish-add", tc.publishAdd[0], tc.name)
+		out, err = d.cmdRetryOutOfSequence("service", "update", "--publish-add", tc.publishAdd[0], tc.name)
 		c.Assert(err, checker.IsNil, check.Commentf(out))
 
-		out, err = d.CmdRetryOutOfSequence("service", "update", "--publish-add", tc.publishAdd[1], tc.name)
+		out, err = d.cmdRetryOutOfSequence("service", "update", "--publish-add", tc.publishAdd[1], tc.name)
 		c.Assert(err, checker.IsNil, check.Commentf(out))
 
-		out, err = d.CmdRetryOutOfSequence("service", "update", "--publish-add", tc.publishAdd[2], "--publish-add", tc.publishAdd[3], tc.name)
+		out, err = d.cmdRetryOutOfSequence("service", "update", "--publish-add", tc.publishAdd[2], "--publish-add", tc.publishAdd[3], tc.name)
 		c.Assert(err, checker.NotNil, check.Commentf(out))
 
 		out, err = d.Cmd("service", "inspect", "--format", "{{ .Spec.EndpointSpec.Ports }}", tc.name)
