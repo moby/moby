@@ -84,7 +84,7 @@ func (d *DurationOpt) String() string {
 	if d.value != nil {
 		return d.value.String()
 	}
-	return "none"
+	return ""
 }
 
 // Value returns the time.Duration
@@ -114,7 +114,7 @@ func (i *Uint64Opt) String() string {
 	if i.value != nil {
 		return fmt.Sprintf("%v", *i.value)
 	}
-	return "none"
+	return ""
 }
 
 // Value returns the uint64
