@@ -4,8 +4,8 @@ set -e
 # usage: ./generate.sh [versions]
 #    ie: ./generate.sh
 #        to update all Dockerfiles in this directory
-#    or: ./generate.sh
-#        to only update fedora-23/Dockerfile
+#    or: ./generate.sh centos-7
+#        to only update centos-7/Dockerfile
 #    or: ./generate.sh fedora-newversion
 #        to create a new folder and a Dockerfile within it
 
