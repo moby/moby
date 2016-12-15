@@ -2399,15 +2399,14 @@ func (devices *DeviceSet) UnmountDevice(hash, mountPath string) error {
 	info.lock.Lock()
 	defer info.lock.Unlock()
 
-	devices.Lock()
-	defer devices.Unlock()
-
 	logrus.Debugf("devmapper: Unmount(%s)", mountPath)
 	if err := syscall.Unmount(mountPath, syscall.MNT_DETACH); err != nil {
 		return err
 	}
 	logrus.Debug("devmapper: Unmount done")
 
+	devices.Lock()
+	defer devices.Unlock()
 	if err := devices.deactivateDevice(info); err != nil {
 		return err
 	}
