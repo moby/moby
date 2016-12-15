@@ -139,17 +139,23 @@ func (d *SwarmDaemon) getServiceTasks(c *check.C, service string) []swarm.Task {
 	return tasks
 }
 
-func (d *SwarmDaemon) checkServiceRunningTasks(service string) func(*check.C) (interface{}, check.CommentInterface) {
+func (d *SwarmDaemon) checkServiceTasksInState(service string, state swarm.TaskState, message string) func(*check.C) (interface{}, check.CommentInterface) {
 	return func(c *check.C) (interface{}, check.CommentInterface) {
 		tasks := d.getServiceTasks(c, service)
-		var runningCount int
+		var count int
 		for _, task := range tasks {
-			if task.Status.State == swarm.TaskStateRunning {
-				runningCount++
+			if task.Status.State == state {
+				if message == "" || strings.Contains(task.Status.Message, message) {
+					count++
+				}
 			}
 		}
-		return runningCount, nil
+		return count, nil
 	}
+}
+
+func (d *SwarmDaemon) checkServiceRunningTasks(service string) func(*check.C) (interface{}, check.CommentInterface) {
+	return d.checkServiceTasksInState(service, swarm.TaskStateRunning, "")
 }
 
 func (d *SwarmDaemon) checkServiceUpdateState(service string) func(*check.C) (interface{}, check.CommentInterface) {
