@@ -691,7 +691,8 @@ func (s *DockerSwarmSuite) TestSwarmNetworkPlugin(c *check.C) {
 
 	out, err = d.Cmd("service", "inspect", "--format", "{{range .Spec.Networks}}{{.Target}}{{end}}", name)
 	c.Assert(err, checker.IsNil)
-	c.Assert(strings.TrimSpace(out), checker.Equals, "foo")
+	// As Target represent the network ID (not network name `foo`), we should only check to make sure it is non empty.
+	c.Assert(strings.TrimSpace(out), checker.Not(checker.Equals), "")
 }
 
 // Test case for #24712
@@ -1627,4 +1628,29 @@ func (s *DockerSwarmSuite) TestSwarmServicePsMultipleServiceIDs(c *check.C) {
 	c.Assert(out, checker.Contains, name2+".1")
 	c.Assert(out, checker.Contains, name2+".2")
 	c.Assert(out, checker.Contains, name2+".3")
+}
+
+func (s *DockerSwarmSuite) TestSwarmServiceSpecNetworkConsistency(c *check.C) {
+	d := s.AddDaemon(c, true, true)
+
+	out, err := d.Cmd("network", "create", "-d", "overlay", "foo")
+	c.Assert(err, checker.IsNil)
+	c.Assert(strings.TrimSpace(out), checker.Not(checker.Equals), "")
+
+	out, err = d.Cmd("network", "create", "-d", "overlay", "bar")
+	c.Assert(err, checker.IsNil)
+	c.Assert(strings.TrimSpace(out), checker.Not(checker.Equals), "")
+
+	out, err = d.Cmd("service", "create", "--name=top", "--network=foo", "--network=bar", "busybox", "top")
+	c.Assert(err, checker.IsNil)
+	c.Assert(strings.TrimSpace(out), checker.Not(checker.Equals), "")
+
+	out1, err := d.Cmd("service", "inspect", "--format", "{{range .Spec.Networks}} {{.Target}} {{end}}", "top")
+	c.Assert(err, checker.IsNil)
+
+	out2, err := d.Cmd("service", "inspect", "--format", "{{range .Spec.TaskTemplate.Networks}} {{.Target}} {{end}}", "top")
+	c.Assert(err, checker.IsNil)
+
+	// .Spec.TaskTemplate.Networks and .Spec.Networks should be the same
+	c.Assert(strings.TrimSpace(out1), checker.Equals, strings.TrimSpace(out2))
 }

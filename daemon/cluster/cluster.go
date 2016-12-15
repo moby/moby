@@ -1613,6 +1613,10 @@ func (c *Cluster) populateNetworkID(ctx context.Context, client swarmapi.Control
 		}
 		networks[i].Target = apiNetwork.ID
 	}
+
+	// Make s.TaskTemplate.Networks and s.Networks consistent
+	s.TaskTemplate.Networks = networks
+	s.Networks = networks
 	return nil
 }
 
