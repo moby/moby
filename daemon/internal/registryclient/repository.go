@@ -268,7 +268,7 @@ func descriptorFromResponse(response *http.Response) (distribution.Descriptor, e
 		return desc, nil
 	}
 
-	dgst, err := digest.ParseDigest(digestHeader)
+	dgst, err := digest.Parse(digestHeader)
 	if err != nil {
 		return distribution.Descriptor{}, err
 	}
@@ -475,7 +475,7 @@ func (ms *manifests) Get(ctx context.Context, dgst digest.Digest, options ...dis
 		return nil, distribution.ErrManifestNotModified
 	} else if SuccessStatus(resp.StatusCode) {
 		if contentDgst != nil {
-			dgst, err := digest.ParseDigest(resp.Header.Get("Docker-Content-Digest"))
+			dgst, err := digest.Parse(resp.Header.Get("Docker-Content-Digest"))
 			if err == nil {
 				*contentDgst = dgst
 			}
@@ -553,7 +553,7 @@ func (ms *manifests) Put(ctx context.Context, m distribution.Manifest, options .
 
 	if SuccessStatus(resp.StatusCode) {
 		dgstHeader := resp.Header.Get("Docker-Content-Digest")
-		dgst, err := digest.ParseDigest(dgstHeader)
+		dgst, err := digest.Parse(dgstHeader)
 		if err != nil {
 			return "", err
 		}
