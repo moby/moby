@@ -70,17 +70,22 @@ func NewV2Repository(ctx context.Context, repoInfo *registry.RepositoryInfo, end
 		passThruTokenHandler := &existingTokenHandler{token: authConfig.RegistryToken}
 		modifiers = append(modifiers, auth.NewAuthorizer(challengeManager, passThruTokenHandler))
 	} else {
+		scope := auth.RepositoryScope{
+			Repository: repoName,
+			Actions:    actions,
+		}
+
+		// Keep image repositories blank for scope compatibility
+		if repoInfo.Class != "image" {
+			scope.Class = repoInfo.Class
+		}
+
 		creds := registry.NewStaticCredentialStore(authConfig)
 		tokenHandlerOptions := auth.TokenHandlerOptions{
 			Transport:   authTransport,
 			Credentials: creds,
-			Scopes: []auth.Scope{
-				auth.RepositoryScope{
-					Repository: repoName,
-					Actions:    actions,
-				},
-			},
-			ClientID: registry.AuthClientID,
+			Scopes:      []auth.Scope{scope},
+			ClientID:    registry.AuthClientID,
 		}
 		tokenHandler := auth.NewTokenHandlerWithOptions(tokenHandlerOptions)
 		basicHandler := auth.NewBasicHandler(creds)

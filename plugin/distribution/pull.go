@@ -85,6 +85,7 @@ func Pull(ref reference.Named, rs registry.Service, metaheader http.Header, auth
 		logrus.Debugf("pull.go: error in ResolveRepository: %v", err)
 		return nil, err
 	}
+	repoInfo.Class = "plugin"
 
 	if err := dockerdist.ValidateRepoName(repoInfo.Name()); err != nil {
 		logrus.Debugf("pull.go: error in ValidateRepoName: %v", err)
@@ -138,9 +139,8 @@ func Pull(ref reference.Named, rs registry.Service, metaheader http.Header, auth
 	}
 	manifest, err := msv.Get(context.Background(), "", distribution.WithTag(tag))
 	if err != nil {
-		// TODO: change 401 to 404
 		logrus.Debugf("pull.go: error in msv.Get(): %v", err)
-		return nil, err
+		return nil, dockerdist.TranslatePullError(err, repoInfo)
 	}
 
 	_, pl, err := manifest.Payload()
@@ -153,8 +153,7 @@ func Pull(ref reference.Named, rs registry.Service, metaheader http.Header, auth
 		logrus.Debugf("pull.go: error in json.Unmarshal(): %v", err)
 		return nil, err
 	}
-	if m.Config.MediaType != schema2.MediaTypePluginConfig &&
-		m.Config.MediaType != "application/vnd.docker.plugin.image.v0+json" { //TODO: remove this v0 before 1.13 GA
+	if m.Config.MediaType != schema2.MediaTypePluginConfig {
 		return nil, ErrUnsupportedMediaType
 	}
 
@@ -177,7 +176,7 @@ func WritePullData(pd PullData, dest string, extract bool) error {
 	if err := json.Unmarshal(config, &p); err != nil {
 		return err
 	}
-	logrus.Debugf("%#v", p)
+	logrus.Debugf("plugin: %#v", p)
 
 	if err := os.MkdirAll(dest, 0700); err != nil {
 		return err

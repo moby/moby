@@ -10,12 +10,13 @@ import (
 	"syscall"
 
 	"github.com/docker/docker/pkg/integration/checker"
+	"github.com/docker/docker/pkg/mount"
 	"github.com/go-check/check"
 )
 
 // TestDaemonRestartWithPluginEnabled tests state restore for an enabled plugin
 func (s *DockerDaemonSuite) TestDaemonRestartWithPluginEnabled(c *check.C) {
-	testRequires(c, Network)
+	testRequires(c, IsAmd64, Network)
 
 	if err := s.d.Start(); err != nil {
 		c.Fatalf("Could not start daemon: %v", err)
@@ -48,7 +49,7 @@ func (s *DockerDaemonSuite) TestDaemonRestartWithPluginEnabled(c *check.C) {
 
 // TestDaemonRestartWithPluginDisabled tests state restore for a disabled plugin
 func (s *DockerDaemonSuite) TestDaemonRestartWithPluginDisabled(c *check.C) {
-	testRequires(c, Network)
+	testRequires(c, IsAmd64, Network)
 
 	if err := s.d.Start(); err != nil {
 		c.Fatalf("Could not start daemon: %v", err)
@@ -79,7 +80,7 @@ func (s *DockerDaemonSuite) TestDaemonRestartWithPluginDisabled(c *check.C) {
 // TestDaemonKillLiveRestoreWithPlugins SIGKILLs daemon started with --live-restore.
 // Plugins should continue to run.
 func (s *DockerDaemonSuite) TestDaemonKillLiveRestoreWithPlugins(c *check.C) {
-	testRequires(c, Network, IsAmd64)
+	testRequires(c, IsAmd64, Network)
 
 	if err := s.d.Start("--live-restore"); err != nil {
 		c.Fatalf("Could not start daemon: %v", err)
@@ -112,7 +113,7 @@ func (s *DockerDaemonSuite) TestDaemonKillLiveRestoreWithPlugins(c *check.C) {
 // TestDaemonShutdownLiveRestoreWithPlugins SIGTERMs daemon started with --live-restore.
 // Plugins should continue to run.
 func (s *DockerDaemonSuite) TestDaemonShutdownLiveRestoreWithPlugins(c *check.C) {
-	testRequires(c, Network, IsAmd64)
+	testRequires(c, IsAmd64, Network)
 
 	if err := s.d.Start("--live-restore"); err != nil {
 		c.Fatalf("Could not start daemon: %v", err)
@@ -144,7 +145,7 @@ func (s *DockerDaemonSuite) TestDaemonShutdownLiveRestoreWithPlugins(c *check.C)
 
 // TestDaemonShutdownWithPlugins shuts down running plugins.
 func (s *DockerDaemonSuite) TestDaemonShutdownWithPlugins(c *check.C) {
-	testRequires(c, Network)
+	testRequires(c, IsAmd64, Network, SameHostDaemon)
 
 	if err := s.d.Start(); err != nil {
 		c.Fatalf("Could not start daemon: %v", err)
@@ -179,14 +180,18 @@ func (s *DockerDaemonSuite) TestDaemonShutdownWithPlugins(c *check.C) {
 	if out, ec, err := runCommandWithOutput(cmd); ec != 1 {
 		c.Fatalf("Expected exit code '1', got %d err: %v output: %s ", ec, err, out)
 	}
+
+	s.d.Start("--live-restore")
+	cmd = exec.Command("pgrep", "-f", pluginProcessName)
+	out, _, err := runCommandWithOutput(cmd)
+	c.Assert(err, checker.IsNil, check.Commentf(out))
 }
 
 // TestVolumePlugin tests volume creation using a plugin.
 func (s *DockerDaemonSuite) TestVolumePlugin(c *check.C) {
-	testRequires(c, Network, IsAmd64)
+	testRequires(c, IsAmd64, Network)
 
 	volName := "plugin-volume"
-	volRoot := "/data"
 	destDir := "/tmp/data/"
 	destFile := "foo"
 
@@ -197,13 +202,25 @@ func (s *DockerDaemonSuite) TestVolumePlugin(c *check.C) {
 	if err != nil {
 		c.Fatalf("Could not install plugin: %v %s", err, out)
 	}
+	pluginID, err := s.d.Cmd("plugin", "inspect", "-f", "{{.Id}}", pName)
+	pluginID = strings.TrimSpace(pluginID)
+	if err != nil {
+		c.Fatalf("Could not retrieve plugin ID: %v %s", err, pluginID)
+	}
+	mountpointPrefix := filepath.Join(s.d.RootDir(), "plugins", pluginID, "rootfs")
 	defer func() {
 		if out, err := s.d.Cmd("plugin", "disable", pName); err != nil {
 			c.Fatalf("Could not disable plugin: %v %s", err, out)
 		}
+
 		if out, err := s.d.Cmd("plugin", "remove", pName); err != nil {
 			c.Fatalf("Could not remove plugin: %v %s", err, out)
 		}
+
+		exists, err := existsMountpointWithPrefix(mountpointPrefix)
+		c.Assert(err, checker.IsNil)
+		c.Assert(exists, checker.Equals, false)
+
 	}()
 
 	out, err = s.d.Cmd("volume", "create", "-d", pName, volName)
@@ -231,11 +248,24 @@ func (s *DockerDaemonSuite) TestVolumePlugin(c *check.C) {
 
 	out, err = s.d.Cmd("run", "--rm", "-v", volName+":"+destDir, "busybox", "touch", destDir+destFile)
 	c.Assert(err, checker.IsNil, check.Commentf(out))
-	path := filepath.Join(mountPoint, destFile)
+	path := filepath.Join(s.d.RootDir(), "plugins", pluginID, "rootfs", mountPoint, destFile)
 	_, err = os.Lstat(path)
 	c.Assert(err, checker.IsNil)
 
-	// tiborvass/no-remove is a volume plugin that persists data on disk at /data,
-	// even after the volume is removed. So perform an explicit filesystem cleanup.
-	os.RemoveAll(volRoot)
+	exists, err := existsMountpointWithPrefix(mountpointPrefix)
+	c.Assert(err, checker.IsNil)
+	c.Assert(exists, checker.Equals, true)
+}
+
+func existsMountpointWithPrefix(mountpointPrefix string) (bool, error) {
+	mounts, err := mount.GetMounts()
+	if err != nil {
+		return false, err
+	}
+	for _, mnt := range mounts {
+		if strings.HasPrefix(mnt.Mountpoint, mountpointPrefix) {
+			return true, nil
+		}
+	}
+	return false, nil
 }

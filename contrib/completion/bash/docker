@@ -23,6 +23,7 @@
 # DOCKER_COMPLETION_SHOW_CONTAINER_IDS
 # DOCKER_COMPLETION_SHOW_NETWORK_IDS
 # DOCKER_COMPLETION_SHOW_NODE_IDS
+# DOCKER_COMPLETION_SHOW_SECRET_IDS
 # DOCKER_COMPLETION_SHOW_SERVICE_IDS
 #   "no"  - Show names only (default)
 #   "yes" - Show names and ids
@@ -309,6 +310,22 @@ __docker_runtimes() {
 
 __docker_complete_runtimes() {
 	COMPREPLY=( $(compgen -W "$(__docker_runtimes)" -- "$cur") )
+}
+
+# __docker_secrets returns a list of all secrets.
+# By default, only names of secrets are returned.
+# Set DOCKER_COMPLETION_SHOW_SECRET_IDS=yes to also complete IDs of secrets.
+__docker_secrets() {
+	local fields='$2'  # default: name only
+	[ "${DOCKER_COMPLETION_SHOW_SECRET_IDS}" = yes ] && fields='$1,$2' # ID and name
+
+	__docker_q secret ls | awk "NR>1 {print $fields}"
+}
+
+# __docker_complete_secrets applies completion of secrets based on the current value
+# of `$cur`.
+__docker_complete_secrets() {
+	COMPREPLY=( $(compgen -W "$(__docker_secrets)" -- "$cur") )
 }
 
 # __docker_stacks returns a list of all stacks.
@@ -2276,7 +2293,7 @@ _docker_inspect() {
 			;;
 		--type)
 			if [ -z "$preselected_type" ] ; then
-				COMPREPLY=( $( compgen -W "container image network node service volume" -- "$cur" ) )
+				COMPREPLY=( $( compgen -W "container image network node plugin service volume" -- "$cur" ) )
 				return
 			fi
 			;;
@@ -2298,6 +2315,7 @@ _docker_inspect() {
 						$(__docker_images)
 						$(__docker_networks)
 						$(__docker_nodes)
+						$(__docker_plugins_installed)
 						$(__docker_services)
 						$(__docker_volumes)
 					" -- "$cur" ) )
@@ -2313,6 +2331,9 @@ _docker_inspect() {
 					;;
 				node)
 					__docker_complete_nodes
+					;;
+				plugin)
+					__docker_complete_plugins_installed
 					;;
 				service)
 					__docker_complete_services
@@ -2425,7 +2446,7 @@ _docker_network_create() {
 
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "--aux-address --driver -d --gateway --help --internal --ip-range --ipam-driver --ipam-opt --ipv6 --label --opt -o --subnet" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "--attachable --aux-address --driver -d --gateway --help --internal --ip-range --ipam-driver --ipam-opt --ipv6 --label --opt -o --subnet" -- "$cur" ) )
 			;;
 	esac
 }
@@ -2736,6 +2757,7 @@ _docker_service_update() {
 			--mode
 			--name
 			--port
+			--secret
 		"
 
 		case "$prev" in
@@ -2753,6 +2775,10 @@ _docker_service_update() {
 				;;
 			--mode)
 				COMPREPLY=( $( compgen -W "global replicated" -- "$cur" ) )
+				return
+				;;
+			--secret)
+				__docker_complete_secrets
 				return
 				;;
 			--group)
@@ -2779,6 +2805,8 @@ _docker_service_update() {
 			--image
 			--port-add
 			--port-rm
+			--secret-add
+			--secret-rm
 		"
 
 		case "$prev" in
@@ -2800,6 +2828,10 @@ _docker_service_update() {
 				;;
 			--image)
 				__docker_complete_image_repos_and_tags
+				return
+				;;
+			--secret-add|--secret-rm)
+				__docker_complete_secrets
 				return
 				;;
 		esac
@@ -2846,9 +2878,17 @@ _docker_service_update() {
 			COMPREPLY=( $( compgen -W "$boolean_options $options_with_args" -- "$cur" ) )
 			;;
 		*)
+			local counter=$( __docker_pos_first_nonflag $( __docker_to_alternatives "$options_with_args" ) )
 			if [ "$subcommand" = "update" ] ; then
-				__docker_complete_services
+				if [ $cword -eq $counter ]; then
+					__docker_complete_services
+				fi
+			else
+				if [ $cword -eq $counter ]; then
+					__docker_complete_images
+				fi
 			fi
+			;;
 	esac
 }
 
@@ -3329,6 +3369,90 @@ _docker_save() {
 	_docker_image_save
 }
 
+
+_docker_secret() {
+	local subcommands="
+		create
+		inspect
+		ls
+		rm
+	"
+	local aliases="
+		list
+		remove
+	"
+	__docker_subcommands "$subcommands $aliases" && return
+
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "--help" -- "$cur" ) )
+			;;
+		*)
+			COMPREPLY=( $( compgen -W "$subcommands" -- "$cur" ) )
+			;;
+	esac
+}
+
+_docker_secret_create() {
+	case "$prev" in
+		--label|-l)
+			return
+			;;
+	esac
+
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "--help --label -l" -- "$cur" ) )
+			;;
+	esac
+}
+
+_docker_secret_inspect() {
+	case "$prev" in
+		--format|-f)
+			return
+			;;
+	esac
+
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "--format -f --help" -- "$cur" ) )
+			;;
+		*)
+			__docker_complete_secrets
+			;;
+	esac
+}
+
+_docker_secret_list() {
+	_docker_secret_ls
+}
+
+_docker_secret_ls() {
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "--help --quiet -q" -- "$cur" ) )
+			;;
+	esac
+}
+
+_docker_secret_remove() {
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "--help" -- "$cur" ) )
+			;;
+		*)
+			__docker_complete_secrets
+			;;
+	esac
+}
+
+_docker_secret_rm() {
+	_docker_secret_remove
+}
+
+
+
 _docker_search() {
 	local key=$(__docker_map_key_of_current_option '--filter|-f')
 	case "$key" in
@@ -3690,9 +3814,15 @@ _docker_top() {
 }
 
 _docker_version() {
+	case "$prev" in
+		--format|-f)
+			return
+			;;
+	esac
+
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "--help" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "--format -f --help" -- "$cur" ) )
 			;;
 	esac
 }
@@ -3852,6 +3982,7 @@ _docker() {
 		run
 		save
 		search
+		secret
 		service
 		stack
 		start

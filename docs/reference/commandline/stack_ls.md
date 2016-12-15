@@ -41,8 +41,7 @@ myapp              2
 
 ## Related information
 
-* [stack config](stack_config.md)
 * [stack deploy](stack_deploy.md)
-* [stack rm](stack_rm.md)
 * [stack ps](stack_ps.md)
+* [stack rm](stack_rm.md)
 * [stack services](stack_services.md)

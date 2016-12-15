@@ -97,37 +97,49 @@ info:
 tags:
   # Primary objects
   - name: "Container"
+    x-displayName: "Containers"
     description: |
       Create and manage containers.
   - name: "Image"
+    x-displayName: "Images"
   - name: "Network"
+    x-displayName: "Networks"
     description: |
       Networks are user-defined networks that containers can be attached to. See the [networking documentation](https://docs.docker.com/engine/userguide/networking/) for more information.
   - name: "Volume"
+    x-displayName: "Volumes"
     description: |
       Create and manage persistent storage that can be attached to containers.
   - name: "Exec"
+    x-displayName: "Exec"
     description: |
       Run new commands inside running containers. See the [command-line reference](https://docs.docker.com/engine/reference/commandline/exec/) for more information.
 
       To exec a command in a container, you first need to create an exec instance, then start it. These two API endpoints are wrapped up in a single command-line command, `docker exec`.
   - name: "Secret"
+    x-displayName: "Secrets"
   # Swarm things
   - name: "Swarm"
+    x-displayName: "Swarm"
     description: |
       Engines can be clustered together in a swarm. See [the swarm mode documentation](https://docs.docker.com/engine/swarm/) for more information.
   - name: "Node"
+    x-displayName: "Nodes"
     description: |
       Nodes are instances of the Engine participating in a swarm. Swarm mode must be enabled for these endpoints to work.
   - name: "Service"
+    x-displayName: "Services"
     description: |
       Services are the definitions of tasks to run on a swarm. Swarm mode must be enabled for these endpoints to work.
   - name: "Task"
+    x-displayName: "Tasks"
     description: |
       A task is a container running on a swarm. It is the atomic scheduling unit of swarm. Swarm mode must be enabled for these endpoints to work.
   # System things
   - name: "Plugin"
+    x-displayName: "Plugins"
   - name: "System"
+    x-displayName: "System"
 
 definitions:
   Port:
@@ -1382,6 +1394,7 @@ definitions:
           - Workdir
           - Network
           - Linux
+          - PropagatedMount
           - Mounts
           - Env
           - Args
@@ -1446,6 +1459,9 @@ definitions:
                 type: "array"
                 items:
                   $ref: "#/definitions/PluginDevice"
+          PropagatedMount:
+            type: "string"
+            x-nullable: false
           Mounts:
             type: "array"
             items:
@@ -4186,11 +4202,17 @@ paths:
   /containers/prune:
     post:
       summary: "Delete stopped containers"
-      consumes:
-        - "application/json"
       produces:
         - "application/json"
       operationId: "ContainerPrune"
+      parameters:
+        - name: "filters"
+          in: "query"
+          description: |
+            Filters to process on the prune list, encoded as JSON (a `map[string][]string`).
+
+            Available filters:
+          type: "string"
       responses:
         200:
           description: "No error"
@@ -4442,6 +4464,10 @@ paths:
       responses:
         200:
           description: "no error"
+        404:
+          description: "repository does not exist or no read access"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
         500:
           description: "server error"
           schema:
@@ -4848,21 +4874,20 @@ paths:
   /images/prune:
     post:
       summary: "Delete unused images"
-      consumes:
-        - "application/json"
       produces:
         - "application/json"
       operationId: "ImagePrune"
       parameters:
-        - name: "body"
-          in: "body"
-          schema:
-            type: "object"
-            properties:
-              DanglingOnly:
-                description: "Only delete unused *and* untagged images"
-                type: "boolean"
-                default: false
+        - name: "filters"
+          in: "query"
+          description: |
+            Filters to process on the prune list, encoded as JSON (a `map[string][]string`).
+
+            Available filters:
+            - `dangling=<boolean>` When set to `true` (or `1`), prune only
+               unused *and* untagged images. When set to `false`
+               (or `0`), all unused images are pruned.
+          type: "string"
       responses:
         200:
           description: "No error"
@@ -5944,11 +5969,17 @@ paths:
   /volumes/prune:
     post:
       summary: "Delete unused volumes"
-      consumes:
-        - "application/json"
       produces:
         - "application/json"
       operationId: "VolumePrune"
+      parameters:
+        - name: "filters"
+          in: "query"
+          description: |
+            Filters to process on the prune list, encoded as JSON (a `map[string][]string`).
+
+            Available filters:
+          type: "string"
       responses:
         200:
           description: "No error"
@@ -6118,6 +6149,10 @@ paths:
             example:
               Id: "22be93d5babb089c5aab8dbc369042fad48ff791584ca2da2100db837a1c7c30"
               Warning: ""
+        403:
+          description: "operation not supported for pre-defined networks"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
         404:
           description: "plugin not found"
           schema:
@@ -6286,6 +6321,14 @@ paths:
       produces:
         - "application/json"
       operationId: "NetworkPrune"
+      parameters:
+        - name: "filters"
+          in: "query"
+          description: |
+            Filters to process on the prune list, encoded as JSON (a `map[string][]string`).
+
+            Available filters:
+          type: "string"
       responses:
         200:
           description: "No error"
@@ -6396,14 +6439,10 @@ paths:
             $ref: "#/definitions/ErrorResponse"
       tags: ["Plugin"]
 
-  /plugins/pull:
-    post:
-      summary: "Install a plugin"
-      operationId: "PluginPull"
-      description: |
-        Pulls and installs a plugin. After the plugin is installed, it can be enabled using the [`POST /plugins/{name}/enable` endpoint](#operation/PluginEnable).
-      produces:
-        - "application/json"
+  /plugins/privileges:
+    get:
+      summary: "Get plugin privileges"
+      operationId: "GetPluginPrivileges"
       responses:
         200:
           description: "no error"
@@ -6441,6 +6480,30 @@ paths:
       parameters:
         - name: "name"
           in: "query"
+          description: "The name of the plugin. The `:latest` tag is optional, and is the default if omitted."
+          required: true
+          type: "string"
+      tags:
+        - "Plugin"
+
+  /plugins/pull:
+    post:
+      summary: "Install a plugin"
+      operationId: "PluginPull"
+      description: |
+        Pulls and installs a plugin. After the plugin is installed, it can be enabled using the [`POST /plugins/{name}/enable` endpoint](#operation/PostPluginsEnable).
+      produces:
+        - "application/json"
+      responses:
+        204:
+          description: "no error"
+        500:
+          description: "server error"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+      parameters:
+        - name: "name"
+          in: "query"
           description: |
             The plugin to install.
 
@@ -6451,8 +6514,37 @@ paths:
           in: "header"
           description: "A base64-encoded auth configuration to use when pulling a plugin from a registry. [See the authentication section for details.](#section/Authentication)"
           type: "string"
+        - name: "body"
+          in: "body"
+          schema:
+            type: "array"
+            items:
+              description: "Describes a permission accepted by the user upon installing the plugin."
+              type: "object"
+              properties:
+                Name:
+                  type: "string"
+                Description:
+                  type: "string"
+                Value:
+                  type: "array"
+                  items:
+                    type: "string"
+            example:
+              - Name: "network"
+                Description: ""
+                Value:
+                  - "host"
+              - Name: "mount"
+                Description: ""
+                Value:
+                  - "/data"
+              - Name: "device"
+                Description: ""
+                Value:
+                  - "/dev/cpu_dma_latency"
       tags: ["Plugin"]
-  /plugins/{name}:
+  /plugins/{name}/json:
     get:
       summary: "Inspect a plugin"
       operationId: "PluginInspect"
@@ -7058,6 +7150,10 @@ paths:
             example:
               ID: "ak7w3gjqoa3kuz8xcpnyy0pvl"
               Warning: "unable to pin image doesnotexist:latest to digest: image library/doesnotexist:latest not found"
+        403:
+          description: "network is not eligible for services"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
         409:
           description: "name conflicts with an existing service"
           schema:

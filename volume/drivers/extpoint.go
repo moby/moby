@@ -22,9 +22,9 @@ var drivers = &driverExtpoint{
 const extName = "VolumeDriver"
 
 // NewVolumeDriver returns a driver has the given name mapped on the given client.
-func NewVolumeDriver(name string, c client) volume.Driver {
+func NewVolumeDriver(name string, baseHostPath string, c client) volume.Driver {
 	proxy := &volumeDriverProxy{c}
-	return &volumeDriverAdapter{name: name, proxy: proxy}
+	return &volumeDriverAdapter{name: name, baseHostPath: baseHostPath, proxy: proxy}
 }
 
 // volumeDriver defines the available functions that volume plugins must implement.
@@ -117,7 +117,7 @@ func lookup(name string, mode int) (volume.Driver, error) {
 		return nil, fmt.Errorf("Error looking up volume plugin %s: %v", name, err)
 	}
 
-	d := NewVolumeDriver(p.Name(), p.Client())
+	d := NewVolumeDriver(p.Name(), p.BasePath(), p.Client())
 	if err := validateDriver(d); err != nil {
 		return nil, err
 	}
@@ -153,7 +153,7 @@ func CreateDriver(name string) (volume.Driver, error) {
 	if name == "" {
 		name = volume.DefaultDriverName
 	}
-	return lookup(name, getter.CREATE)
+	return lookup(name, getter.ACQUIRE)
 }
 
 // RemoveDriver returns a volume driver by its name and decrements RefCount..
@@ -162,7 +162,7 @@ func RemoveDriver(name string) (volume.Driver, error) {
 	if name == "" {
 		name = volume.DefaultDriverName
 	}
-	return lookup(name, getter.REMOVE)
+	return lookup(name, getter.RELEASE)
 }
 
 // GetDriverList returns list of volume drivers registered.
@@ -199,7 +199,7 @@ func GetAllDrivers() ([]volume.Driver, error) {
 			continue
 		}
 
-		ext = NewVolumeDriver(name, p.Client())
+		ext = NewVolumeDriver(name, p.BasePath(), p.Client())
 		if p.IsV1() {
 			drivers.extensions[name] = ext
 		}

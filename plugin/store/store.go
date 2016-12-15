@@ -174,9 +174,7 @@ func (ps *Store) Get(name, capability string, mode int) (plugingetter.CompatPlug
 		}
 		p, err = ps.GetByName(fullName)
 		if err == nil {
-			p.Lock()
-			p.RefCount += mode
-			p.Unlock()
+			p.AddRefCount(mode)
 			if p.IsEnabled() {
 				return p.FilterByCap(capability)
 			}

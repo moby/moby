@@ -35,7 +35,7 @@ func TestPluginPush(t *testing.T) {
 			}
 			auth := req.Header.Get("X-Registry-Auth")
 			if auth != "authtoken" {
-				return nil, fmt.Errorf("Invalid auth header : expected %s, got %s", "authtoken", auth)
+				return nil, fmt.Errorf("Invalid auth header : expected 'authtoken', got %s", auth)
 			}
 			return &http.Response{
 				StatusCode: http.StatusOK,

@@ -2,6 +2,7 @@ package v2
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -10,6 +11,7 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/oci"
+	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/docker/pkg/plugins"
 	"github.com/docker/docker/pkg/system"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
@@ -17,15 +19,14 @@ import (
 
 // Plugin represents an individual plugin.
 type Plugin struct {
-	sync.RWMutex
-	PluginObj         types.Plugin    `json:"plugin"`
-	PClient           *plugins.Client `json:"-"`
-	RuntimeSourcePath string          `json:"-"`
-	RefCount          int             `json:"-"`
-	Restart           bool            `json:"-"`
-	ExitChan          chan bool       `json:"-"`
-	LibRoot           string          `json:"-"`
-	TimeoutInSecs     int             `json:"-"`
+	mu                sync.RWMutex
+	PluginObj         types.Plugin `json:"plugin"`
+	pClient           *plugins.Client
+	runtimeSourcePath string
+	refCount          int
+	LibRoot           string // TODO: make private
+	PropagatedMount   string // TODO: make private
+	Rootfs            string // TODO: make private
 }
 
 const defaultPluginRuntimeDestination = "/run/docker/plugins"
@@ -47,14 +48,45 @@ func newPluginObj(name, id, tag string) types.Plugin {
 func NewPlugin(name, id, runRoot, libRoot, tag string) *Plugin {
 	return &Plugin{
 		PluginObj:         newPluginObj(name, id, tag),
-		RuntimeSourcePath: filepath.Join(runRoot, id),
+		runtimeSourcePath: filepath.Join(runRoot, id),
 		LibRoot:           libRoot,
 	}
 }
 
+// Restore restores the plugin
+func (p *Plugin) Restore(runRoot string) {
+	p.runtimeSourcePath = filepath.Join(runRoot, p.GetID())
+}
+
+// GetRuntimeSourcePath gets the Source (host) path of the plugin socket
+// This path gets bind mounted into the plugin.
+func (p *Plugin) GetRuntimeSourcePath() string {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+
+	return p.runtimeSourcePath
+}
+
+// BasePath returns the path to which all paths returned by the plugin are relative to.
+// For Plugin objects this returns the host path of the plugin container's rootfs.
+func (p *Plugin) BasePath() string {
+	return p.Rootfs
+}
+
 // Client returns the plugin client.
 func (p *Plugin) Client() *plugins.Client {
-	return p.PClient
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+
+	return p.pClient
+}
+
+// SetPClient set the plugin client.
+func (p *Plugin) SetPClient(client *plugins.Client) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	p.pClient = client
 }
 
 // IsV1 returns true for V1 plugins and false otherwise.
@@ -85,7 +117,7 @@ func (p *Plugin) FilterByCap(capability string) (*Plugin, error) {
 
 // RemoveFromDisk deletes the plugin's runtime files from disk.
 func (p *Plugin) RemoveFromDisk() error {
-	return os.RemoveAll(p.RuntimeSourcePath)
+	return os.RemoveAll(p.runtimeSourcePath)
 }
 
 // InitPlugin populates the plugin object from the plugin config file.
@@ -101,9 +133,7 @@ func (p *Plugin) InitPlugin() error {
 	}
 
 	p.PluginObj.Settings.Mounts = make([]types.PluginMount, len(p.PluginObj.Config.Mounts))
-	for i, mount := range p.PluginObj.Config.Mounts {
-		p.PluginObj.Settings.Mounts[i] = mount
-	}
+	copy(p.PluginObj.Settings.Mounts, p.PluginObj.Config.Mounts)
 	p.PluginObj.Settings.Env = make([]string, 0, len(p.PluginObj.Config.Env))
 	p.PluginObj.Settings.Devices = make([]types.PluginDevice, 0, len(p.PluginObj.Config.Linux.Devices))
 	copy(p.PluginObj.Settings.Devices, p.PluginObj.Config.Linux.Devices)
@@ -112,6 +142,7 @@ func (p *Plugin) InitPlugin() error {
 			p.PluginObj.Settings.Env = append(p.PluginObj.Settings.Env, fmt.Sprintf("%s=%s", env.Name, *env.Value))
 		}
 	}
+	p.PluginObj.Settings.Args = make([]string, len(p.PluginObj.Config.Args.Value))
 	copy(p.PluginObj.Settings.Args, p.PluginObj.Config.Args.Value)
 
 	return p.writeSettings()
@@ -129,8 +160,8 @@ func (p *Plugin) writeSettings() error {
 
 // Set is used to pass arguments to the plugin.
 func (p *Plugin) Set(args []string) error {
-	p.Lock()
-	defer p.Unlock()
+	p.mu.Lock()
+	defer p.mu.Unlock()
 
 	if p.PluginObj.Enabled {
 		return fmt.Errorf("cannot set on an active plugin, disable plugin before setting")
@@ -216,100 +247,85 @@ next:
 	return p.writeSettings()
 }
 
-// ComputePrivileges takes the config file and computes the list of access necessary
-// for the plugin on the host.
-func (p *Plugin) ComputePrivileges() types.PluginPrivileges {
-	c := p.PluginObj.Config
-	var privileges types.PluginPrivileges
-	if c.Network.Type != "null" && c.Network.Type != "bridge" {
-		privileges = append(privileges, types.PluginPrivilege{
-			Name:        "network",
-			Description: "permissions to access a network",
-			Value:       []string{c.Network.Type},
-		})
-	}
-	for _, mount := range c.Mounts {
-		if mount.Source != nil {
-			privileges = append(privileges, types.PluginPrivilege{
-				Name:        "mount",
-				Description: "host path to mount",
-				Value:       []string{*mount.Source},
-			})
-		}
-	}
-	for _, device := range c.Linux.Devices {
-		if device.Path != nil {
-			privileges = append(privileges, types.PluginPrivilege{
-				Name:        "device",
-				Description: "host device to access",
-				Value:       []string{*device.Path},
-			})
-		}
-	}
-	if c.Linux.DeviceCreation {
-		privileges = append(privileges, types.PluginPrivilege{
-			Name:        "device-creation",
-			Description: "allow creating devices inside plugin",
-			Value:       []string{"true"},
-		})
-	}
-	if len(c.Linux.Capabilities) > 0 {
-		privileges = append(privileges, types.PluginPrivilege{
-			Name:        "capabilities",
-			Description: "list of additional capabilities required",
-			Value:       c.Linux.Capabilities,
-		})
-	}
-	return privileges
-}
-
 // IsEnabled returns the active state of the plugin.
 func (p *Plugin) IsEnabled() bool {
-	p.RLock()
-	defer p.RUnlock()
+	p.mu.RLock()
+	defer p.mu.RUnlock()
 
 	return p.PluginObj.Enabled
 }
 
 // GetID returns the plugin's ID.
 func (p *Plugin) GetID() string {
-	p.RLock()
-	defer p.RUnlock()
+	p.mu.RLock()
+	defer p.mu.RUnlock()
 
 	return p.PluginObj.ID
 }
 
 // GetSocket returns the plugin socket.
 func (p *Plugin) GetSocket() string {
-	p.RLock()
-	defer p.RUnlock()
+	p.mu.RLock()
+	defer p.mu.RUnlock()
 
 	return p.PluginObj.Config.Interface.Socket
 }
 
 // GetTypes returns the interface types of a plugin.
 func (p *Plugin) GetTypes() []types.PluginInterfaceType {
-	p.RLock()
-	defer p.RUnlock()
+	p.mu.RLock()
+	defer p.mu.RUnlock()
 
 	return p.PluginObj.Config.Interface.Types
 }
 
+// GetRefCount returns the reference count.
+func (p *Plugin) GetRefCount() int {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+
+	return p.refCount
+}
+
+// AddRefCount adds to reference count.
+func (p *Plugin) AddRefCount(count int) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	p.refCount += count
+}
+
+// Acquire increments the plugin's reference count
+// This should be followed up by `Release()` when the plugin is no longer in use.
+func (p *Plugin) Acquire() {
+	p.AddRefCount(plugingetter.ACQUIRE)
+}
+
+// Release decrements the plugin's reference count
+// This should only be called when the plugin is no longer in use, e.g. with
+// via `Acquire()` or getter.Get("name", "type", plugingetter.ACQUIRE)
+func (p *Plugin) Release() {
+	p.AddRefCount(plugingetter.RELEASE)
+}
+
 // InitSpec creates an OCI spec from the plugin's config.
-func (p *Plugin) InitSpec(s specs.Spec, libRoot string) (*specs.Spec, error) {
-	rootfs := filepath.Join(libRoot, p.PluginObj.ID, "rootfs")
+func (p *Plugin) InitSpec(s specs.Spec) (*specs.Spec, error) {
 	s.Root = specs.Root{
-		Path:     rootfs,
+		Path:     p.Rootfs,
 		Readonly: false, // TODO: all plugins should be readonly? settable in config?
 	}
 
-	userMounts := make(map[string]struct{}, len(p.PluginObj.Config.Mounts))
-	for _, m := range p.PluginObj.Config.Mounts {
+	userMounts := make(map[string]struct{}, len(p.PluginObj.Settings.Mounts))
+	for _, m := range p.PluginObj.Settings.Mounts {
 		userMounts[m.Destination] = struct{}{}
 	}
 
+	if err := os.MkdirAll(p.runtimeSourcePath, 0755); err != nil {
+		return nil, err
+	}
+
 	mounts := append(p.PluginObj.Config.Mounts, types.PluginMount{
-		Source:      &p.RuntimeSourcePath,
+		Source:      &p.runtimeSourcePath,
 		Destination: defaultPluginRuntimeDestination,
 		Type:        "bind",
 		Options:     []string{"rbind", "rshared"},
@@ -337,27 +353,16 @@ func (p *Plugin) InitSpec(s specs.Spec, libRoot string) (*specs.Spec, error) {
 			})
 	}
 
-	for _, mount := range mounts {
+	for _, mnt := range mounts {
 		m := specs.Mount{
-			Destination: mount.Destination,
-			Type:        mount.Type,
-			Options:     mount.Options,
+			Destination: mnt.Destination,
+			Type:        mnt.Type,
+			Options:     mnt.Options,
 		}
-		// TODO: if nil, then it's required and user didn't set it
-		if mount.Source != nil {
-			m.Source = *mount.Source
+		if mnt.Source == nil {
+			return nil, errors.New("mount source is not specified")
 		}
-		if m.Source != "" && m.Type == "bind" {
-			fi, err := os.Lstat(filepath.Join(rootfs, m.Destination)) // TODO: followsymlinks
-			if err != nil {
-				return nil, err
-			}
-			if fi.IsDir() {
-				if err := os.MkdirAll(m.Source, 0700); err != nil {
-					return nil, err
-				}
-			}
-		}
+		m.Source = *mnt.Source
 		s.Mounts = append(s.Mounts, m)
 	}
 
@@ -369,11 +374,16 @@ func (p *Plugin) InitSpec(s specs.Spec, libRoot string) (*specs.Spec, error) {
 		}
 	}
 
+	if p.PluginObj.Config.PropagatedMount != "" {
+		p.PropagatedMount = filepath.Join(p.Rootfs, p.PluginObj.Config.PropagatedMount)
+		s.Linux.RootfsPropagation = "rshared"
+	}
+
 	if p.PluginObj.Config.Linux.DeviceCreation {
 		rwm := "rwm"
 		s.Linux.Resources.Devices = []specs.DeviceCgroup{{Allow: true, Access: &rwm}}
 	}
-	for _, dev := range p.PluginObj.Config.Linux.Devices {
+	for _, dev := range p.PluginObj.Settings.Devices {
 		path := *dev.Path
 		d, dPermissions, err := oci.DevicesFromPath(path, path, "rwm")
 		if err != nil {

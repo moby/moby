@@ -88,6 +88,11 @@ func NewDaemon(c *check.C) *Daemon {
 	}
 }
 
+// RootDir returns the root directory of the daemon.
+func (d *Daemon) RootDir() string {
+	return d.root
+}
+
 func (d *Daemon) getClientConfig() (*clientConfig, error) {
 	var (
 		transport *http.Transport

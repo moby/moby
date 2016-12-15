@@ -23,19 +23,29 @@ func (s *DockerSwarmSuite) TestServiceLogs(c *check.C) {
 
 	d := s.AddDaemon(c, true, true)
 
-	name := "TestServiceLogs"
+	// we have multiple services here for detecting the goroutine issue #28915
+	services := map[string]string{
+		"TestServiceLogs1": "hello1",
+		"TestServiceLogs2": "hello2",
+	}
 
-	out, err := d.Cmd("service", "create", "--name", name, "--restart-condition", "none", "busybox", "sh", "-c", "echo hello world")
-	c.Assert(err, checker.IsNil)
-	c.Assert(strings.TrimSpace(out), checker.Not(checker.Equals), "")
+	for name, message := range services {
+		out, err := d.Cmd("service", "create", "--name", name, "busybox",
+			"sh", "-c", fmt.Sprintf("echo %s; tail -f /dev/null", message))
+		c.Assert(err, checker.IsNil)
+		c.Assert(strings.TrimSpace(out), checker.Not(checker.Equals), "")
+	}
 
 	// make sure task has been deployed.
-	waitAndAssert(c, defaultReconciliationTimeout, d.checkActiveContainerCount, checker.Equals, 1)
+	waitAndAssert(c, defaultReconciliationTimeout,
+		d.checkActiveContainerCount, checker.Equals, len(services))
 
-	out, err = d.Cmd("service", "logs", name)
-	fmt.Println(out)
-	c.Assert(err, checker.IsNil)
-	c.Assert(out, checker.Contains, "hello world")
+	for name, message := range services {
+		out, err := d.Cmd("service", "logs", name)
+		c.Assert(err, checker.IsNil)
+		c.Logf("log for %q: %q", name, out)
+		c.Assert(out, checker.Contains, message)
+	}
 }
 
 func (s *DockerSwarmSuite) TestServiceLogsFollow(c *check.C) {

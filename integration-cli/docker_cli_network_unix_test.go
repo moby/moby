@@ -769,7 +769,7 @@ func (s *DockerNetworkSuite) TestDockerNetworkDriverOptions(c *check.C) {
 }
 
 func (s *DockerNetworkSuite) TestDockerPluginV2NetworkDriver(c *check.C) {
-	testRequires(c, DaemonIsLinux, Network, IsAmd64)
+	testRequires(c, DaemonIsLinux, IsAmd64, Network)
 
 	var (
 		npName        = "tiborvass/test-docker-netplugin"

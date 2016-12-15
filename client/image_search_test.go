@@ -81,12 +81,12 @@ func TestImageSearchWithPrivilegedFuncNoError(t *testing.T) {
 				}, nil
 			}
 			if auth != "IAmValid" {
-				return nil, fmt.Errorf("Invalid auth header : expected %s, got %s", "IAmValid", auth)
+				return nil, fmt.Errorf("Invalid auth header : expected 'IAmValid', got %s", auth)
 			}
 			query := req.URL.Query()
 			term := query.Get("term")
 			if term != "some-image" {
-				return nil, fmt.Errorf("tag not set in URL query properly. Expected '%s', got %s", "some-image", term)
+				return nil, fmt.Errorf("term not set in URL query properly. Expected 'some-image', got %s", term)
 			}
 			content, err := json.Marshal([]registry.SearchResult{
 				{
@@ -113,7 +113,7 @@ func TestImageSearchWithPrivilegedFuncNoError(t *testing.T) {
 		t.Fatal(err)
 	}
 	if len(results) != 1 {
-		t.Fatalf("expected a result, got %v", results)
+		t.Fatalf("expected 1 result, got %v", results)
 	}
 }
 
@@ -133,7 +133,7 @@ func TestImageSearchWithoutErrors(t *testing.T) {
 			query := req.URL.Query()
 			term := query.Get("term")
 			if term != "some-image" {
-				return nil, fmt.Errorf("tag not set in URL query properly. Expected '%s', got %s", "some-image", term)
+				return nil, fmt.Errorf("term not set in URL query properly. Expected 'some-image', got %s", term)
 			}
 			filters := query.Get("filters")
 			if filters != expectedFilters {

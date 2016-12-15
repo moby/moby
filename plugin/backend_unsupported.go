@@ -4,6 +4,7 @@ package plugin
 
 import (
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 
@@ -24,13 +25,21 @@ func (pm *Manager) Enable(name string, config *types.PluginEnableConfig) error {
 }
 
 // Inspect examines a plugin config
-func (pm *Manager) Inspect(name string) (tp types.Plugin, err error) {
-	return tp, errNotSupported
+func (pm *Manager) Inspect(refOrID string) (tp types.Plugin, err error) {
+	// Even though plugin is not supported, we still want to return `not found`
+	// error so that `docker inspect` (without `--type` specified) returns correct
+	// `not found` message
+	return tp, fmt.Errorf("no such plugin name or ID associated with %q", refOrID)
 }
 
-// Pull pulls a plugin and computes the privileges required to install it.
-func (pm *Manager) Pull(name string, metaHeader http.Header, authConfig *types.AuthConfig) (types.PluginPrivileges, error) {
+// Privileges pulls a plugin config and computes the privileges required to install it.
+func (pm *Manager) Privileges(name string, metaHeaders http.Header, authConfig *types.AuthConfig) (types.PluginPrivileges, error) {
 	return nil, errNotSupported
+}
+
+// Pull pulls a plugin, check if the correct privileges are provided and install the plugin.
+func (pm *Manager) Pull(name string, metaHeader http.Header, authConfig *types.AuthConfig, privileges types.PluginPrivileges) error {
+	return errNotSupported
 }
 
 // List displays the list of plugins and associated metadata.

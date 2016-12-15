@@ -5,17 +5,25 @@ import "github.com/docker/docker/pkg/plugins"
 const (
 	// LOOKUP doesn't update RefCount
 	LOOKUP = 0
-	// CREATE increments RefCount
-	CREATE = 1
-	// REMOVE decrements RefCount
-	REMOVE = -1
+	// ACQUIRE increments RefCount
+	ACQUIRE = 1
+	// RELEASE decrements RefCount
+	RELEASE = -1
 )
 
 // CompatPlugin is a abstraction to handle both v2(new) and v1(legacy) plugins.
 type CompatPlugin interface {
 	Client() *plugins.Client
 	Name() string
+	BasePath() string
 	IsV1() bool
+}
+
+// CountedPlugin is a plugin which is reference counted.
+type CountedPlugin interface {
+	Acquire()
+	Release()
+	CompatPlugin
 }
 
 // PluginGetter is the interface implemented by Store
