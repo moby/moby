@@ -1,5 +1,3 @@
-// +build experimental
-
 package libnetwork
 
 import "github.com/docker/libnetwork/drivers/ipvlan"
