@@ -26,7 +26,7 @@
                 area/networking:     [ "docker network", "ipvs", "vxlan" ],
                 area/runtime:        [ "oci runtime error" ],
                 area/security/trust: [ "docker_content_trust" ],
-                area/swarm:          [ "docker node", "docker service", "docker swarm" ],
+                area/swarm:          [ "docker node", "docker swarm", "docker service create", "docker service inspect", "docker service logs", "docker service ls", "docker service ps", "docker service rm", "docker service scale", "docker service update" ],
                 platform/desktop:    [ "docker for mac", "docker for windows" ],
                 platform/freebsd:    [ "freebsd" ],
                 platform/windows:    [ "nanoserver", "windowsservercore", "windows server" ],
