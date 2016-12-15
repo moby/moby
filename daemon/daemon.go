@@ -148,8 +148,13 @@ func (daemon *Daemon) restore() error {
 			}
 			container.RWLayer = rwlayer
 			if err := daemon.Mount(container); err != nil {
-				logrus.Errorf("Failed to mount container %v: %v", id, err)
-				continue
+				// The mount is unlikely to fail. However, in case mount fails
+				// the container should be allowed to restore here. Some functionalities
+				// (like docker exec -u user) might be missing but container is able to be
+				// stopped/restarted/removed.
+				// See #29365 for related information.
+				// The error is only logged here.
+				logrus.Warnf("Failed to mount container %v: %v", id, err)
 			}
 			logrus.Debugf("Loaded container %v", container.ID)
 
