@@ -15,7 +15,7 @@
 # the case. Therefore, you don't have to disable it anymore.
 #
 
-FROM s390x/gcc:6.1
+FROM s390x/debian:jessie
 
 # Packaged dependencies
 RUN apt-get update && apt-get install -y \
@@ -49,15 +49,6 @@ RUN apt-get update && apt-get install -y \
 	tar \
 	vim-common \
 	--no-install-recommends
-
-# glibc in Debian has a bug specific to s390x that won't be fixed until Debian 8.6 is released
-# - https://github.com/docker/docker/issues/24748
-# - https://sourceware.org/git/?p=glibc.git;a=commit;h=890b7a4b33d482b5c768ab47d70758b80227e9bc
-# - https://sourceware.org/git/?p=glibc.git;a=commit;h=2e807f29595eb5b1e5d0decc6e356a3562ecc58e
-RUN echo 'deb http://httpredir.debian.org/debian jessie-proposed-updates main' >> /etc/apt/sources.list.d/pu.list \
-	&& apt-get update \
-	&& apt-get install -y libc6 \
-	&& rm -rf /var/lib/apt/lists/*
 
 # Install seccomp: the version shipped in jessie is too old
 ENV SECCOMP_VERSION 2.3.1
