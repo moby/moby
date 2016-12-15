@@ -59,7 +59,7 @@ func TestUint64OptString(t *testing.T) {
 	assert.Equal(t, opt.String(), "2345678")
 
 	opt = Uint64Opt{}
-	assert.Equal(t, opt.String(), "none")
+	assert.Equal(t, opt.String(), "")
 }
 
 func TestUint64OptSetAndValue(t *testing.T) {

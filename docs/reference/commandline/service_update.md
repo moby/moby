@@ -39,9 +39,9 @@ Options:
       --group-add list                   Add an additional supplementary user group to the container (default [])
       --group-rm list                    Remove a previously added supplementary user group from the container (default [])
       --health-cmd string                Command to run to check health
-      --health-interval duration         Time between running the check (ns|us|ms|s|m|h) (default none)
+      --health-interval duration         Time between running the check (ns|us|ms|s|m|h)
       --health-retries int               Consecutive failures needed to report unhealthy
-      --health-timeout duration          Maximum time to allow one check to run (ns|us|ms|s|m|h) (default none)
+      --health-timeout duration          Maximum time to allow one check to run (ns|us|ms|s|m|h)
       --help                             Print usage
       --host-add list                    Add or update a custom host-to-IP mapping (host:ip) (default [])
       --host-rm list                     Remove a custom host-to-IP mapping (host:ip) (default [])
@@ -56,19 +56,19 @@ Options:
       --mount-add mount                  Add or update a mount on a service
       --mount-rm list                    Remove a mount by its target path (default [])
       --no-healthcheck                   Disable any container-specified HEALTHCHECK
-      --publish-add list                 Add or update a published port (default [])
-      --publish-rm list                  Remove a published port by its target port (default [])
-      --replicas uint                    Number of tasks (default none)
+      --publish-add port                 Add or update a published port
+      --publish-rm port                  Remove a published port by its target port
+      --replicas uint                    Number of tasks
       --reserve-cpu decimal              Reserve CPUs (default 0.000)
       --reserve-memory bytes             Reserve Memory (default 0 B)
       --restart-condition string         Restart when condition is met (none, on-failure, or any)
-      --restart-delay duration           Delay between restart attempts (ns|us|ms|s|m|h) (default none)
-      --restart-max-attempts uint        Maximum number of restarts before giving up (default none)
-      --restart-window duration          Window used to evaluate the restart policy (ns|us|ms|s|m|h) (default none)
+      --restart-delay duration           Delay between restart attempts (ns|us|ms|s|m|h)
+      --restart-max-attempts uint        Maximum number of restarts before giving up
+      --restart-window duration          Window used to evaluate the restart policy (ns|us|ms|s|m|h)
       --rollback                         Rollback to previous specification
-      --secret-add list                  Add a secret (default [])
+      --secret-add secret                Add or update a secret on a service
       --secret-rm list                   Remove a secret (default [])
-      --stop-grace-period duration       Time to wait before force killing a container (ns|us|ms|s|m|h) (default none)
+      --stop-grace-period duration       Time to wait before force killing a container (ns|us|ms|s|m|h)
   -t, --tty                              Allocate a pseudo-TTY
       --update-delay duration            Delay between updates (ns|us|ms|s|m|h) (default 0s)
       --update-failure-action string     Action on update failure (pause|continue) (default "pause")
