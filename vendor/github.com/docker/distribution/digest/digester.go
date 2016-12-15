@@ -129,6 +129,11 @@ func (a Algorithm) FromBytes(p []byte) Digest {
 	return digester.Digest()
 }
 
+// FromString digests the string input and returns a Digest.
+func (a Algorithm) FromString(s string) Digest {
+	return a.FromBytes([]byte(s))
+}
+
 // TODO(stevvooe): Allow resolution of verifiers using the digest type and
 // this registration system.
 
