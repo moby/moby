@@ -204,10 +204,7 @@ func verifyPlatformContainerSettings(daemon *Daemon, hostConfig *containertypes.
 
 	w, err := verifyContainerResources(&hostConfig.Resources, hyperv)
 	warnings = append(warnings, w...)
-	if err != nil {
-		return warnings, err
-	}
-	return warnings, nil
+	return warnings, err
 }
 
 // platformReload update configuration with platform specific options
