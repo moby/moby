@@ -198,6 +198,8 @@ To manually remove all plugins and resolve this problem, take the following step
 - Don't repull image if pinned by digest [#28265](https://github.com/docker/docker/pull/28265)
 + Swarm-mode support for Windows [#27838](https://github.com/docker/docker/pull/27838)
 + Allow hostname to be updated on service [#28771](https://github.com/docker/docker/pull/28771)
++ Support v2 plugins [#29433](https://github.com/docker/docker/pull/29433)
++ Add content trust for services [#29469](https://github.com/docker/docker/pull/29469)
 
 ### Volume
 
