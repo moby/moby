@@ -134,9 +134,9 @@ func (p *Plugin) InitPlugin() error {
 
 	p.PluginObj.Settings.Mounts = make([]types.PluginMount, len(p.PluginObj.Config.Mounts))
 	copy(p.PluginObj.Settings.Mounts, p.PluginObj.Config.Mounts)
-	p.PluginObj.Settings.Env = make([]string, 0, len(p.PluginObj.Config.Env))
-	p.PluginObj.Settings.Devices = make([]types.PluginDevice, 0, len(p.PluginObj.Config.Linux.Devices))
+	p.PluginObj.Settings.Devices = make([]types.PluginDevice, len(p.PluginObj.Config.Linux.Devices))
 	copy(p.PluginObj.Settings.Devices, p.PluginObj.Config.Linux.Devices)
+	p.PluginObj.Settings.Env = make([]string, 0, len(p.PluginObj.Config.Env))
 	for _, env := range p.PluginObj.Config.Env {
 		if env.Value != nil {
 			p.PluginObj.Settings.Env = append(p.PluginObj.Settings.Env, fmt.Sprintf("%s=%s", env.Name, *env.Value))
