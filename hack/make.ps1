@@ -184,7 +184,7 @@ Function Validate-DCO($headCommit, $upstreamCommit) {
     $usernameRegex='[a-zA-Z0-9][a-zA-Z0-9-]+'
 
     $dcoPrefix="Signed-off-by:"
-    $dcoRegex="^(Docker-DCO-1.1-)?$dcoPrefix ([^<]+) <([^<>@]+@[^<>]+)>( \\(github: ($githubUsernameRegex)\\))?$"
+    $dcoRegex="^(Docker-DCO-1.1-)?$dcoPrefix ([^<]+) <([^<>@]+@[^<>]+)>( \\(github: ($usernameRegex)\\))?$"
 
     $counts = Invoke-Expression "git diff --numstat $upstreamCommit...$headCommit"
     if ($LASTEXITCODE -ne 0) { Throw "Failed git diff --numstat" }
