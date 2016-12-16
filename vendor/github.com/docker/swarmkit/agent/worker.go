@@ -40,6 +40,9 @@ type Worker interface {
 
 	// Subscribe to log messages matching the subscription.
 	Subscribe(ctx context.Context, subscription *api.SubscriptionMessage) error
+
+	// Wait blocks until all task managers have closed
+	Wait(ctx context.Context) error
 }
 
 // statusReporterKey protects removal map from panic.
@@ -57,6 +60,9 @@ type worker struct {
 
 	taskManagers map[string]*taskManager
 	mu           sync.RWMutex
+
+	closed  bool
+	closers sync.WaitGroup // keeps track of active closers
 }
 
 func newWorker(db *bolt.DB, executor exec.Executor, publisherProvider exec.LogPublisherProvider) *worker {
@@ -106,6 +112,10 @@ func (w *worker) Init(ctx context.Context) error {
 
 // Close performs worker cleanup when no longer needed.
 func (w *worker) Close() {
+	w.mu.Lock()
+	w.closed = true
+	w.mu.Unlock()
+
 	w.taskevents.Close()
 }
 
@@ -117,6 +127,10 @@ func (w *worker) Close() {
 func (w *worker) Assign(ctx context.Context, assignments []*api.AssignmentChange) error {
 	w.mu.Lock()
 	defer w.mu.Unlock()
+
+	if w.closed {
+		return ErrClosed
+	}
 
 	log.G(ctx).WithFields(logrus.Fields{
 		"len(assignments)": len(assignments),
@@ -139,6 +153,10 @@ func (w *worker) Assign(ctx context.Context, assignments []*api.AssignmentChange
 func (w *worker) Update(ctx context.Context, assignments []*api.AssignmentChange) error {
 	w.mu.Lock()
 	defer w.mu.Unlock()
+
+	if w.closed {
+		return ErrClosed
+	}
 
 	log.G(ctx).WithFields(logrus.Fields{
 		"len(assignments)": len(assignments),
@@ -222,10 +240,22 @@ func reconcileTaskState(ctx context.Context, w *worker, assignments []*api.Assig
 	}
 
 	closeManager := func(tm *taskManager) {
-		// when a task is no longer assigned, we shutdown the task manager for
-		// it and leave cleanup to the sweeper.
-		if err := tm.Close(); err != nil {
-			log.G(ctx).WithError(err).Error("error closing task manager")
+		go func(tm *taskManager) {
+			defer w.closers.Done()
+			// when a task is no longer assigned, we shutdown the task manager
+			if err := tm.Close(); err != nil {
+				log.G(ctx).WithError(err).Error("error closing task manager")
+			}
+		}(tm)
+
+		// make an attempt at removing. this is best effort. any errors will be
+		// retried by the reaper later.
+		if err := tm.ctlr.Remove(ctx); err != nil {
+			log.G(ctx).WithError(err).WithField("task.id", tm.task.ID).Error("remove task failed")
+		}
+
+		if err := tm.ctlr.Close(); err != nil {
+			log.G(ctx).WithError(err).Error("error closing controller")
 		}
 	}
 
@@ -359,6 +389,8 @@ func (w *worker) taskManager(ctx context.Context, tx *bolt.Tx, task *api.Task) (
 		return nil, err
 	}
 	w.taskManagers[task.ID] = tm
+	// keep track of active tasks
+	w.closers.Add(1)
 	return tm, nil
 }
 
@@ -482,5 +514,20 @@ func (w *worker) Subscribe(ctx context.Context, subscription *api.SubscriptionMe
 		case <-ctx.Done():
 			return ctx.Err()
 		}
+	}
+}
+
+func (w *worker) Wait(ctx context.Context) error {
+	ch := make(chan struct{})
+	go func() {
+		w.closers.Wait()
+		close(ch)
+	}()
+
+	select {
+	case <-ch:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
 	}
 }

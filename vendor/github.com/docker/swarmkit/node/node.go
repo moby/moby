@@ -297,12 +297,10 @@ func (n *Node) run(ctx context.Context) (err error) {
 	go func() {
 		managerErr = n.runManager(ctx, securityConfig, managerReady) // store err and loop
 		wg.Done()
-		cancel()
 	}()
 	go func() {
 		agentErr = n.runAgent(ctx, db, securityConfig.ClientTLSCreds, agentReady)
 		wg.Done()
-		cancel()
 	}()
 
 	go func() {
@@ -330,6 +328,14 @@ func (n *Node) Stop(ctx context.Context) error {
 	default:
 		return errNodeNotStarted
 	}
+	// ask agent to clean up assignments
+	n.Lock()
+	if n.agent != nil {
+		if err := n.agent.Leave(ctx); err != nil {
+			log.G(ctx).WithError(err).Error("agent failed to clean up assignments")
+		}
+	}
+	n.Unlock()
 
 	n.stopOnce.Do(func() {
 		close(n.stopped)
