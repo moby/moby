@@ -137,7 +137,7 @@ func newV1DependencyImage(l layer.Layer, parent *v1DependencyImage) *v1Dependenc
 }
 
 // Retrieve the all the images to be uploaded in the correct order
-func (p *v1Pusher) getImageList() (imageList []v1Image, tagsByImage map[image.ID][]string, referencedLayers []layer.Layer, err error) {
+func (p *v1Pusher) getImageList() (imageList []v1Image, tagsByImage map[image.ID][]string, referencedLayers []PushLayer, err error) {
 	tagsByImage = make(map[image.ID][]string)
 
 	// Ignore digest references
@@ -202,24 +202,30 @@ func (p *v1Pusher) getImageList() (imageList []v1Image, tagsByImage map[image.ID
 	return
 }
 
-func (p *v1Pusher) imageListForTag(imgID image.ID, dependenciesSeen map[layer.ChainID]*v1DependencyImage, referencedLayers *[]layer.Layer) (imageListForThisTag []v1Image, err error) {
-	img, err := p.config.ImageStore.Get(imgID)
+func (p *v1Pusher) imageListForTag(imgID image.ID, dependenciesSeen map[layer.ChainID]*v1DependencyImage, referencedLayers *[]PushLayer) (imageListForThisTag []v1Image, err error) {
+	ics, ok := p.config.ImageStore.(*imageConfigStore)
+	if !ok {
+		return nil, fmt.Errorf("only image store images supported for v1 push")
+	}
+	img, err := ics.Store.Get(imgID)
 	if err != nil {
 		return nil, err
 	}
 
 	topLayerID := img.RootFS.ChainID()
 
-	var l layer.Layer
-	if topLayerID == "" {
-		l = layer.EmptyLayer
-	} else {
-		l, err = p.config.LayerStore.Get(topLayerID)
-		*referencedLayers = append(*referencedLayers, l)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get top layer from image: %v", err)
-		}
+	pl, err := p.config.LayerStore.Get(topLayerID)
+	*referencedLayers = append(*referencedLayers, pl)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get top layer from image: %v", err)
 	}
+
+	// V1 push is deprecated, only support existing layerstore layers
+	lsl, ok := pl.(*storeLayer)
+	if !ok {
+		return nil, fmt.Errorf("only layer store layers supported for v1 push")
+	}
+	l := lsl.Layer
 
 	dependencyImages, parent := generateDependencyImages(l.Parent(), dependenciesSeen)
 
@@ -365,7 +371,7 @@ func (p *v1Pusher) pushRepository(ctx context.Context) error {
 	imgList, tags, referencedLayers, err := p.getImageList()
 	defer func() {
 		for _, l := range referencedLayers {
-			p.config.LayerStore.Release(l)
+			l.Release()
 		}
 	}()
 	if err != nil {
