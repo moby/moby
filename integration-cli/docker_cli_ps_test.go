@@ -749,7 +749,7 @@ func (s *DockerSuite) TestPsShowMounts(c *check.C) {
 	// bind mount container
 	var bindMountSource string
 	var bindMountDestination string
-	if DaemonIsWindows.Condition() {
+	if DaemonIsWindows() {
 		bindMountSource = "c:\\"
 		bindMountDestination = "c:\\t"
 	} else {
