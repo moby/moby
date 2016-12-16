@@ -34,3 +34,8 @@ $ docker node promote <node name>
 ## Related information
 
 * [node demote](node_demote.md)
+* [node inspect](node_inspect.md)
+* [node ls](node_ls.md)
+* [node ps](node_ps.md)
+* [node rm](node_rm.md)
+* [node update](node_update.md)
