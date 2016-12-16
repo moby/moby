@@ -1665,7 +1665,7 @@ func (s *DockerSuite) TestContainersAPICreateMountsValidation(c *check.C) {
 		},
 	}
 
-	if SameHostDaemon.Condition() {
+	if SameHostDaemon() {
 		tmpDir, err := ioutils.TempDir("", "test-mounts-api")
 		c.Assert(err, checker.IsNil)
 		defer os.RemoveAll(tmpDir)
@@ -1696,7 +1696,7 @@ func (s *DockerSuite) TestContainersAPICreateMountsValidation(c *check.C) {
 		}...)
 	}
 
-	if DaemonIsLinux.Condition() {
+	if DaemonIsLinux() {
 		cases = append(cases, []testCase{
 			{
 				config: cfg{
@@ -1823,7 +1823,7 @@ func (s *DockerSuite) TestContainersAPICreateMountsCreate(c *check.C) {
 		{mounttypes.Mount{Type: "volume", Target: destPath, Source: "test3", VolumeOptions: &mounttypes.VolumeOptions{DriverConfig: &mounttypes.Driver{Name: volume.DefaultDriverName}}}, types.MountPoint{Driver: volume.DefaultDriverName, Type: "volume", Name: "test3", RW: true, Destination: destPath}},
 	}
 
-	if SameHostDaemon.Condition() {
+	if SameHostDaemon() {
 		// setup temp dir for testing binds
 		tmpDir1, err := ioutil.TempDir("", "test-mounts-api-1")
 		c.Assert(err, checker.IsNil)
@@ -1834,7 +1834,7 @@ func (s *DockerSuite) TestContainersAPICreateMountsCreate(c *check.C) {
 		}...)
 
 		// for modes only supported on Linux
-		if DaemonIsLinux.Condition() {
+		if DaemonIsLinux() {
 			tmpDir3, err := ioutils.TempDir("", "test-mounts-api-3")
 			c.Assert(err, checker.IsNil)
 			defer os.RemoveAll(tmpDir3)
