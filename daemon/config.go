@@ -249,7 +249,7 @@ func GetConflictFreeLabels(labels []string) ([]string, error) {
 		stringSlice := strings.SplitN(label, "=", 2)
 		if len(stringSlice) > 1 {
 			// If there is a conflict we will return an error
-			if v, ok := labelMap[stringSlice[0]]; ok && v != stringSlice[1] {
+			if v, ok := labelMap[stringSlice[0]]; ok && v == stringSlice[1] {
 				return nil, fmt.Errorf("conflict labels for %s=%s and %s=%s", stringSlice[0], stringSlice[1], stringSlice[0], v)
 			}
 			labelMap[stringSlice[0]] = stringSlice[1]
