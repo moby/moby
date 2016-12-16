@@ -235,6 +235,24 @@ func (s *DockerDaemonSuite) TestVolumePlugin(c *check.C) {
 	c.Assert(exists, checker.Equals, true)
 }
 
+func (s *DockerDaemonSuite) TestGraphdriverPlugin(c *check.C) {
+	testRequires(c, Network, IsAmd64, DaemonIsLinux, overlaySupported)
+
+	s.d.Start(c)
+
+	// install the plugin
+	plugin := "cpuguy83/docker-overlay2-graphdriver-plugin"
+	out, err := s.d.Cmd("plugin", "install", "--grant-all-permissions", plugin)
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+
+	// restart the daemon with the plugin set as the storage driver
+	s.d.Restart(c, "-s", plugin)
+
+	// run a container
+	out, err = s.d.Cmd("run", "--rm", "busybox", "true") // this will pull busybox using the plugin
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+}
+
 func existsMountpointWithPrefix(mountpointPrefix string) (bool, error) {
 	mounts, err := mount.GetMounts()
 	if err != nil {
