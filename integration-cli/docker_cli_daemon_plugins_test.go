@@ -253,6 +253,27 @@ func (s *DockerDaemonSuite) TestGraphdriverPlugin(c *check.C) {
 	c.Assert(err, checker.IsNil, check.Commentf(out))
 }
 
+func (s *DockerDaemonSuite) TestPluginVolumeRemoveOnRestart(c *check.C) {
+	testRequires(c, DaemonIsLinux, Network, IsAmd64)
+
+	s.d.Start(c, "--live-restore=true")
+
+	out, err := s.d.Cmd("plugin", "install", "--grant-all-permissions", pName)
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+	c.Assert(strings.TrimSpace(out), checker.Contains, pName)
+
+	out, err = s.d.Cmd("volume", "create", "--driver", pName, "test")
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+
+	s.d.Restart(c, "--live-restore=true")
+
+	out, err = s.d.Cmd("plugin", "disable", pName)
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+	out, err = s.d.Cmd("plugin", "rm", pName)
+	c.Assert(err, checker.NotNil, check.Commentf(out))
+	c.Assert(out, checker.Contains, "in use")
+}
+
 func existsMountpointWithPrefix(mountpointPrefix string) (bool, error) {
 	mounts, err := mount.GetMounts()
 	if err != nil {
