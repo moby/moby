@@ -103,6 +103,12 @@ func runUpdate(dockerCli *command.DockerCli, flags *pflag.FlagSet, serviceID str
 		return err
 	}
 
+	if flags.Changed("image") {
+		if err := resolveServiceImageDigest(dockerCli, spec); err != nil {
+			return err
+		}
+	}
+
 	updatedSecrets, err := getUpdatedSecrets(apiClient, flags, spec.TaskTemplate.ContainerSpec.Secrets)
 	if err != nil {
 		return err
