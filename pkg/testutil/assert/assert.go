@@ -7,6 +7,8 @@ import (
 	"reflect"
 	"runtime"
 	"strings"
+
+	"github.com/davecgh/go-spew/spew"
 )
 
 // TestingT is an interface which defines the methods of testing.T that are
@@ -49,7 +51,8 @@ func NilError(t TestingT, err error) {
 // they are not "deeply equal".
 func DeepEqual(t TestingT, actual, expected interface{}) {
 	if !reflect.DeepEqual(actual, expected) {
-		fatal(t, "Expected '%v' (%T) got '%v' (%T)", expected, expected, actual, actual)
+		fatal(t, "Expected (%T):\n%v\n\ngot (%T):\n%s\n",
+			expected, spew.Sdump(expected), actual, spew.Sdump(actual))
 	}
 }
 
