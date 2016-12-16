@@ -8,10 +8,10 @@ import (
 
 	"github.com/docker/docker/daemon/logger"
 
+	"cloud.google.com/go/compute/metadata"
+	"cloud.google.com/go/logging"
 	"github.com/Sirupsen/logrus"
 	"golang.org/x/net/context"
-	"google.golang.org/cloud/compute/metadata"
-	"google.golang.org/cloud/logging"
 )
 
 const (
@@ -51,7 +51,7 @@ func init() {
 }
 
 type gcplogs struct {
-	client    *logging.Client
+	logger    *logging.Logger
 	instance  *instanceInfo
 	container *containerInfo
 }
@@ -114,17 +114,18 @@ func New(ctx logger.Context) (logger.Logger, error) {
 		return nil, fmt.Errorf("No project was specified and couldn't read project from the meatadata server. Please specify a project")
 	}
 
-	c, err := logging.NewClient(context.Background(), project, "gcplogs-docker-driver")
+	c, err := logging.NewClient(context.Background(), project)
 	if err != nil {
 		return nil, err
 	}
+	lg := c.Logger("gcplogs-docker-driver")
 
-	if err := c.Ping(); err != nil {
+	if err := c.Ping(context.Background()); err != nil {
 		return nil, fmt.Errorf("unable to connect or authenticate with Google Cloud Logging: %v", err)
 	}
 
 	l := &gcplogs{
-		client: c,
+		logger: lg,
 		container: &containerInfo{
 			Name:      ctx.ContainerName,
 			ID:        ctx.ContainerID,
@@ -157,11 +158,14 @@ func New(ctx logger.Context) (logger.Logger, error) {
 	// overflow func is called. We want to surface the error to the user
 	// without overly spamming /var/log/docker.log so we log the first time
 	// we overflow and every 1000th time after.
-	c.Overflow = func(_ *logging.Client, _ logging.Entry) error {
-		if i := atomic.AddUint64(&droppedLogs, 1); i%1000 == 1 {
-			logrus.Errorf("gcplogs driver has dropped %v logs", i)
+	c.OnError = func(err error) {
+		if err == logging.ErrOverflow {
+			if i := atomic.AddUint64(&droppedLogs, 1); i%1000 == 1 {
+				logrus.Errorf("gcplogs driver has dropped %v logs", i)
+			}
+		} else {
+			logrus.Error(err)
 		}
-		return nil
 	}
 
 	return l, nil
@@ -181,18 +185,20 @@ func ValidateLogOpts(cfg map[string]string) error {
 }
 
 func (l *gcplogs) Log(m *logger.Message) error {
-	return l.client.Log(logging.Entry{
-		Time: m.Timestamp,
+	l.logger.Log(logging.Entry{
+		Timestamp: m.Timestamp,
 		Payload: &dockerLogEntry{
 			Instance:  l.instance,
 			Container: l.container,
 			Data:      string(m.Line),
 		},
 	})
+	return nil
 }
 
 func (l *gcplogs) Close() error {
-	return l.client.Flush()
+	l.logger.Flush()
+	return nil
 }
 
 func (l *gcplogs) Name() string {
