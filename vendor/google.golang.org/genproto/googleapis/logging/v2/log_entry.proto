@@ -1,0 +1,115 @@
+// Copyright 2016 Google Inc.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+syntax = "proto3";
+
+package google.logging.v2;
+
+import "google.golang.org/genproto/googleapis/api/serviceconfig/annotations.proto"; // from google/api/annotations.proto
+import "google.golang.org/genproto/googleapis/api/monitoredres/monitored_resource.proto"; // from google/api/monitored_resource.proto
+import "google.golang.org/genproto/googleapis/logging/type/http_request.proto"; // from google/logging/type/http_request.proto
+import "google.golang.org/genproto/googleapis/logging/type/log_severity.proto"; // from google/logging/type/log_severity.proto
+import "github.com/golang/protobuf/ptypes/any/any.proto"; // from google/protobuf/any.proto
+import "github.com/golang/protobuf/ptypes/struct/struct.proto"; // from google/protobuf/struct.proto
+import "github.com/golang/protobuf/ptypes/timestamp/timestamp.proto"; // from google/protobuf/timestamp.proto
+
+option cc_enable_arenas = true;
+option java_multiple_files = true;
+option java_outer_classname = "LogEntryProto";
+option java_package = "com.google.logging.v2";
+
+option go_package = "google.golang.org/genproto/googleapis/logging/v2";
+
+// An individual entry in a log.
+message LogEntry {
+  // Required. The resource name of the log to which this log entry
+  // belongs. The format of the name is
+  // `"projects/<project-id>/logs/<log-id>"`.  Examples:
+  // `"projects/my-projectid/logs/syslog"`,
+  // `"projects/my-projectid/logs/library.googleapis.com%2Fbook_log"`.
+  //
+  // The log ID part of resource name must be less than 512 characters
+  // long and can only include the following characters: upper and
+  // lower case alphanumeric characters: [A-Za-z0-9]; and punctuation
+  // characters: forward-slash, underscore, hyphen, and period.
+  // Forward-slash (`/`) characters in the log ID must be URL-encoded.
+  string log_name = 12;
+
+  // Required. The monitored resource associated with this log entry.
+  // Example: a log entry that reports a database error would be
+  // associated with the monitored resource designating the particular
+  // database that reported the error.
+  google.api.MonitoredResource resource = 8;
+
+  // Optional. The log entry payload, which can be one of multiple types.
+  oneof payload {
+    // The log entry payload, represented as a protocol buffer.  Some
+    // Google Cloud Platform services use this field for their log
+    // entry payloads.
+    google.protobuf.Any proto_payload = 2;
+
+    // The log entry payload, represented as a Unicode string (UTF-8).
+    string text_payload = 3;
+
+    // The log entry payload, represented as a structure that
+    // is expressed as a JSON object.
+    google.protobuf.Struct json_payload = 6;
+  }
+
+  // Optional. The time the event described by the log entry occurred.  If
+  // omitted, Stackdriver Logging will use the time the log entry is received.
+  google.protobuf.Timestamp timestamp = 9;
+
+  // Optional. The severity of the log entry. The default value is
+  // `LogSeverity.DEFAULT`.
+  google.logging.type.LogSeverity severity = 10;
+
+  // Optional. A unique ID for the log entry. If you provide this
+  // field, the logging service considers other log entries in the
+  // same project with the same ID as duplicates which can be removed.  If
+  // omitted, Stackdriver Logging will generate a unique ID for this
+  // log entry.
+  string insert_id = 4;
+
+  // Optional. Information about the HTTP request associated with this
+  // log entry, if applicable.
+  google.logging.type.HttpRequest http_request = 7;
+
+  // Optional. A set of user-defined (key, value) data that provides additional
+  // information about the log entry.
+  map<string, string> labels = 11;
+
+  // Optional. Information about an operation associated with the log entry, if
+  // applicable.
+  LogEntryOperation operation = 15;
+}
+
+// Additional information about a potentially long-running operation with which
+// a log entry is associated.
+message LogEntryOperation {
+  // Optional. An arbitrary operation identifier. Log entries with the
+  // same identifier are assumed to be part of the same operation.
+  string id = 1;
+
+  // Optional. An arbitrary producer identifier. The combination of
+  // `id` and `producer` must be globally unique.  Examples for `producer`:
+  // `"MyDivision.MyBigCompany.com"`, `"github.com/MyProject/MyApplication"`.
+  string producer = 2;
+
+  // Optional. Set this to True if this is the first log entry in the operation.
+  bool first = 3;
+
+  // Optional. Set this to True if this is the last log entry in the operation.
+  bool last = 4;
+}

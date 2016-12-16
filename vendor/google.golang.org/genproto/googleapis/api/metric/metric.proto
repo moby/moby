@@ -1,0 +1,193 @@
+// Copyright 2016 Google Inc.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+syntax = "proto3";
+
+package google.api;
+
+import "google.golang.org/genproto/googleapis/api/label/label.proto"; // from google/api/label.proto
+
+option java_multiple_files = true;
+option java_outer_classname = "MetricProto";
+option java_package = "com.google.api";
+option objc_class_prefix = "GAPI";
+
+
+// Defines a metric type and its schema.
+message MetricDescriptor {
+  // The kind of measurement. It describes how the data is reported.
+  enum MetricKind {
+    // Do not use this default value.
+    METRIC_KIND_UNSPECIFIED = 0;
+
+    // An instantaneous measurement of a value.
+    GAUGE = 1;
+
+    // The change in a value during a time interval.
+    DELTA = 2;
+
+    // A value accumulated over a time interval.  Cumulative
+    // measurements in a time series should have the same start time
+    // and increasing end times, until an event resets the cumulative
+    // value to zero and sets a new start time for the following
+    // points.
+    CUMULATIVE = 3;
+  }
+
+  // The value type of a metric.
+  enum ValueType {
+    // Do not use this default value.
+    VALUE_TYPE_UNSPECIFIED = 0;
+
+    // The value is a boolean.
+    // This value type can be used only if the metric kind is `GAUGE`.
+    BOOL = 1;
+
+    // The value is a signed 64-bit integer.
+    INT64 = 2;
+
+    // The value is a double precision floating point number.
+    DOUBLE = 3;
+
+    // The value is a text string.
+    // This value type can be used only if the metric kind is `GAUGE`.
+    STRING = 4;
+
+    // The value is a [`Distribution`][google.api.Distribution].
+    DISTRIBUTION = 5;
+
+    // The value is money.
+    MONEY = 6;
+  }
+
+  // Resource name. The format of the name may vary between different
+  // implementations. For examples:
+  //
+  //     projects/{project_id}/metricDescriptors/{type=**}
+  //     metricDescriptors/{type=**}
+  string name = 1;
+
+  // The metric type including a DNS name prefix, for example
+  // `"compute.googleapis.com/instance/cpu/utilization"`. Metric types
+  // should use a natural hierarchical grouping such as the following:
+  //
+  //     compute.googleapis.com/instance/cpu/utilization
+  //     compute.googleapis.com/instance/disk/read_ops_count
+  //     compute.googleapis.com/instance/network/received_bytes_count
+  //
+  // Note that if the metric type changes, the monitoring data will be
+  // discontinued, and anything depends on it will break, such as monitoring
+  // dashboards, alerting rules and quota limits. Therefore, once a metric has
+  // been published, its type should be immutable.
+  string type = 8;
+
+  // The set of labels that can be used to describe a specific instance of this
+  // metric type. For example, the
+  // `compute.googleapis.com/instance/network/received_bytes_count` metric type
+  // has a label, `loadbalanced`, that specifies whether the traffic was
+  // received through a load balanced IP address.
+  repeated LabelDescriptor labels = 2;
+
+  // Whether the metric records instantaneous values, changes to a value, etc.
+  MetricKind metric_kind = 3;
+
+  // Whether the measurement is an integer, a floating-point number, etc.
+  ValueType value_type = 4;
+
+  // The unit in which the metric value is reported. It is only applicable
+  // if the `value_type` is `INT64`, `DOUBLE`, or `DISTRIBUTION`. The
+  // supported units are a subset of [The Unified Code for Units of
+  // Measure](http://unitsofmeasure.org/ucum.html) standard:
+  //
+  // **Basic units (UNIT)**
+  //
+  // * `bit`   bit
+  // * `By`    byte
+  // * `s`     second
+  // * `min`   minute
+  // * `h`     hour
+  // * `d`     day
+  //
+  // **Prefixes (PREFIX)**
+  //
+  // * `k`     kilo    (10**3)
+  // * `M`     mega    (10**6)
+  // * `G`     giga    (10**9)
+  // * `T`     tera    (10**12)
+  // * `P`     peta    (10**15)
+  // * `E`     exa     (10**18)
+  // * `Z`     zetta   (10**21)
+  // * `Y`     yotta   (10**24)
+  // * `m`     milli   (10**-3)
+  // * `u`     micro   (10**-6)
+  // * `n`     nano    (10**-9)
+  // * `p`     pico    (10**-12)
+  // * `f`     femto   (10**-15)
+  // * `a`     atto    (10**-18)
+  // * `z`     zepto   (10**-21)
+  // * `y`     yocto   (10**-24)
+  // * `Ki`    kibi    (2**10)
+  // * `Mi`    mebi    (2**20)
+  // * `Gi`    gibi    (2**30)
+  // * `Ti`    tebi    (2**40)
+  //
+  // **Grammar**
+  //
+  // The grammar includes the dimensionless unit `1`, such as `1/s`.
+  //
+  // The grammar also includes these connectors:
+  //
+  // * `/`    division (as an infix operator, e.g. `1/s`).
+  // * `.`    multiplication (as an infix operator, e.g. `GBy.d`)
+  //
+  // The grammar for a unit is as follows:
+  //
+  //     Expression = Component { "." Component } { "/" Component } ;
+  //
+  //     Component = [ PREFIX ] UNIT [ Annotation ]
+  //               | Annotation
+  //               | "1"
+  //               ;
+  //
+  //     Annotation = "{" NAME "}" ;
+  //
+  // Notes:
+  //
+  // * `Annotation` is just a comment if it follows a `UNIT` and is
+  //    equivalent to `1` if it is used alone. For examples,
+  //    `{requests}/s == 1/s`, `By{transmitted}/s == By/s`.
+  // * `NAME` is a sequence of non-blank printable ASCII characters not
+  //    containing '{' or '}'.
+  string unit = 5;
+
+  // A detailed description of the metric, which can be used in documentation.
+  string description = 6;
+
+  // A concise name for the metric, which can be displayed in user interfaces.
+  // Use sentence case without an ending period, for example "Request count".
+  string display_name = 7;
+}
+
+// A specific metric identified by specifying values for all of the
+// labels of a [`MetricDescriptor`][google.api.MetricDescriptor].
+message Metric {
+  // An existing metric type, see [google.api.MetricDescriptor][google.api.MetricDescriptor].
+  // For example, `compute.googleapis.com/instance/cpu/usage_time`.
+  string type = 3;
+
+  // The set of labels that uniquely identify a metric. To specify a
+  // metric, all labels enumerated in the `MetricDescriptor` must be
+  // assigned values.
+  map<string, string> labels = 2;
+}
