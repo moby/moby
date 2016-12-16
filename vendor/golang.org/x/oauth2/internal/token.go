@@ -92,6 +92,7 @@ func (e *expirationTime) UnmarshalJSON(b []byte) error {
 var brokenAuthHeaderProviders = []string{
 	"https://accounts.google.com/",
 	"https://api.dropbox.com/",
+	"https://api.dropboxapi.com/",
 	"https://api.instagram.com/",
 	"https://api.netatmo.net/",
 	"https://api.odnoklassniki.ru/",
@@ -105,6 +106,7 @@ var brokenAuthHeaderProviders = []string{
 	"https://oauth.sandbox.trainingpeaks.com/",
 	"https://oauth.trainingpeaks.com/",
 	"https://oauth.vk.com/",
+	"https://openapi.baidu.com/",
 	"https://slack.com/",
 	"https://test-sandbox.auth.corp.google.com",
 	"https://test.salesforce.com/",
@@ -113,6 +115,10 @@ var brokenAuthHeaderProviders = []string{
 	"https://www.googleapis.com/",
 	"https://www.linkedin.com/",
 	"https://www.strava.com/oauth/",
+	"https://www.wunderlist.com/oauth/",
+	"https://api.patreon.com/",
+	"https://sandbox.codeswholesale.com/oauth/token",
+	"https://api.codeswholesale.com/oauth/token",
 }
 
 func RegisterBrokenAuthHeaderProvider(tokenURL string) {
@@ -142,23 +148,23 @@ func providerAuthHeaderWorks(tokenURL string) bool {
 	return true
 }
 
-func RetrieveToken(ctx context.Context, ClientID, ClientSecret, TokenURL string, v url.Values) (*Token, error) {
+func RetrieveToken(ctx context.Context, clientID, clientSecret, tokenURL string, v url.Values) (*Token, error) {
 	hc, err := ContextClient(ctx)
 	if err != nil {
 		return nil, err
 	}
-	v.Set("client_id", ClientID)
-	bustedAuth := !providerAuthHeaderWorks(TokenURL)
-	if bustedAuth && ClientSecret != "" {
-		v.Set("client_secret", ClientSecret)
+	v.Set("client_id", clientID)
+	bustedAuth := !providerAuthHeaderWorks(tokenURL)
+	if bustedAuth && clientSecret != "" {
+		v.Set("client_secret", clientSecret)
 	}
-	req, err := http.NewRequest("POST", TokenURL, strings.NewReader(v.Encode()))
+	req, err := http.NewRequest("POST", tokenURL, strings.NewReader(v.Encode()))
 	if err != nil {
 		return nil, err
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	if !bustedAuth {
-		req.SetBasicAuth(ClientID, ClientSecret)
+		req.SetBasicAuth(clientID, clientSecret)
 	}
 	r, err := hc.Do(req)
 	if err != nil {
