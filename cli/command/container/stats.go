@@ -173,14 +173,13 @@ func runStats(dockerCli *command.DockerCli, opts *statsOptions) error {
 		var errs []string
 		cStats.mu.Lock()
 		for _, c := range cStats.cs {
-			cErr := c.GetError()
-			if cErr != nil {
-				errs = append(errs, fmt.Sprintf("%s: %v", c.Name, cErr))
+			if err := c.GetError(); err != nil {
+				errs = append(errs, err.Error())
 			}
 		}
 		cStats.mu.Unlock()
 		if len(errs) > 0 {
-			return fmt.Errorf("%s", strings.Join(errs, ", "))
+			return fmt.Errorf("%s", strings.Join(errs, "\n"))
 		}
 	}
 
