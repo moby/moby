@@ -241,6 +241,43 @@ To resolve this:
 After making those changes, run `sudo systemctl daemon-reload`, and `sudo
 systemctl restart docker` to reload changes and (re)start the docker daemon.
 
+**NOTE**: Docker 1.12.5 will correctly validate that either an IPv6 subnet is provided or
+that the IPAM driver can provide one when you specify the `--ipv6` option.
+
+If you are currently using the `--ipv6` option _without_ specifying the
+`--fixed-cidr-v6` option, the Docker daemon will refuse to start with the
+following message:
+
+```none
+Error starting daemon: Error initializing network controller: Error creating
+                       default "bridge" network: failed to parse pool request
+                       for address space "LocalDefault" pool " subpool ":
+                       could not find an available, non-overlapping IPv6 address
+                       pool among the defaults to assign to the network
+```
+
+To resolve this error, either remove the `--ipv6` flag (to preserve the same
+behavior as in Docker 1.12.3 and earlier), or provide an IPv6 subnet as the
+value of the `--fixed-cidr-v6` flag.
+
+In a similar way, if you specify the `--ipv6` flag when creating a network
+with the default IPAM driver, without providing an IPv6 `--subnet`, network
+creation will fail with the following message:
+
+```none
+Error response from daemon: failed to parse pool request for address space
+                            "LocalDefault" pool "" subpool "": could not find an
+                            available, non-overlapping IPv6 address pool among
+                            the defaults to assign to the network
+```
+
+To resolve this, either remove the `--ipv6` flag (to preserve the same behavior
+as in Docker 1.12.3 and earlier), or provide an IPv6 subnet as the value of the
+`--subnet` flag.
+
+The network network creation will instead succeed if you use an external IPAM driver
+which supports automatic allocation of IPv6 subnets.
+
 ### Runtime
 
 - Fix race on sending stdin close event [#29424](https://github.com/docker/docker/pull/29424)
@@ -252,7 +289,6 @@ systemctl restart docker` to reload changes and (re)start the docker daemon.
 ### Contrib
 
 - Fix compilation on Darwin [#29370](https://github.com/docker/docker/pull/29370)
-- Use the selinux policy provided by docker-selinux on CentOS [#29377](https://github.com/docker/docker/pull/29377)
 
 ## 1.12.4 (2016-12-12)
 
