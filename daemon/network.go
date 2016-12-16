@@ -12,8 +12,11 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/network"
 	clustertypes "github.com/docker/docker/daemon/cluster/provider"
+	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/libnetwork"
+	"github.com/docker/libnetwork/driverapi"
+	"github.com/docker/libnetwork/ipamapi"
 	networktypes "github.com/docker/libnetwork/types"
 	"github.com/pkg/errors"
 	"golang.org/x/net/context"
@@ -298,12 +301,39 @@ func (daemon *Daemon) createNetwork(create types.NetworkCreateRequest, id string
 		return nil, err
 	}
 
+	daemon.pluginRefCount(driver, driverapi.NetworkPluginEndpointType, plugingetter.ACQUIRE)
+	if create.IPAM != nil {
+		daemon.pluginRefCount(create.IPAM.Driver, ipamapi.PluginEndpointType, plugingetter.ACQUIRE)
+	}
 	daemon.LogNetworkEvent(n, "create")
 
 	return &types.NetworkCreateResponse{
 		ID:      n.ID(),
 		Warning: warning,
 	}, nil
+}
+
+func (daemon *Daemon) pluginRefCount(driver, capability string, mode int) {
+	var builtinDrivers []string
+
+	if capability == driverapi.NetworkPluginEndpointType {
+		builtinDrivers = daemon.netController.BuiltinDrivers()
+	} else if capability == ipamapi.PluginEndpointType {
+		builtinDrivers = daemon.netController.BuiltinIPAMDrivers()
+	}
+
+	for _, d := range builtinDrivers {
+		if d == driver {
+			return
+		}
+	}
+
+	if daemon.PluginStore != nil {
+		_, err := daemon.PluginStore.Get(driver, capability, mode)
+		if err != nil {
+			logrus.WithError(err).WithFields(logrus.Fields{"mode": mode, "driver": driver}).Error("Error handling plugin refcount operation")
+		}
+	}
 }
 
 func getIpamConfig(data []network.IPAMConfig) ([]*libnetwork.IpamConf, []*libnetwork.IpamConf, error) {
@@ -420,6 +450,9 @@ func (daemon *Daemon) deleteNetwork(networkID string, dynamic bool) error {
 	if err := nw.Delete(); err != nil {
 		return err
 	}
+	daemon.pluginRefCount(nw.Type(), driverapi.NetworkPluginEndpointType, plugingetter.RELEASE)
+	ipamType, _, _, _ := nw.Info().IpamConfig()
+	daemon.pluginRefCount(ipamType, ipamapi.PluginEndpointType, plugingetter.RELEASE)
 	daemon.LogNetworkEvent(nw, "destroy")
 	return nil
 }
