@@ -18,7 +18,7 @@ keywords: "swarm, leave"
 ```markdown
 Usage:	docker swarm leave [OPTIONS]
 
-Leave the swarm (workers only)
+Leave the swarm
 
 Options:
   -f, --force   Force this node to leave the swarm, ignoring warnings
