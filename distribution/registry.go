@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/docker/distribution"
+	"github.com/docker/distribution/manifest/schema2"
 	distreference "github.com/docker/distribution/reference"
 	"github.com/docker/distribution/registry/client"
 	"github.com/docker/distribution/registry/client/auth"
@@ -17,6 +18,34 @@ import (
 	"github.com/docker/go-connections/sockets"
 	"golang.org/x/net/context"
 )
+
+// ImageTypes represents the schema2 config types for images
+var ImageTypes = []string{
+	schema2.MediaTypeImageConfig,
+	// Handle unexpected values from https://github.com/docker/distribution/issues/1621
+	"application/octet-stream",
+	// Treat defaulted values as images, newer types cannot be implied
+	"",
+}
+
+// PluginTypes represents the schema2 config types for plugins
+var PluginTypes = []string{
+	schema2.MediaTypePluginConfig,
+}
+
+var mediaTypeClasses map[string]string
+
+func init() {
+	// initialize media type classes with all know types for
+	// plugin
+	mediaTypeClasses = map[string]string{}
+	for _, t := range ImageTypes {
+		mediaTypeClasses[t] = "image"
+	}
+	for _, t := range PluginTypes {
+		mediaTypeClasses[t] = "plugin"
+	}
+}
 
 // NewV2Repository returns a repository (v2 only). It creates an HTTP transport
 // providing timeout settings and authentication support, and also verifies the

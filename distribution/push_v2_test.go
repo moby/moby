@@ -387,9 +387,11 @@ func TestLayerAlreadyExists(t *testing.T) {
 		ctx := context.Background()
 		ms := &mockV2MetadataService{}
 		pd := &v2PushDescriptor{
-			hmacKey:           []byte(tc.hmacKey),
-			repoInfo:          repoInfo,
-			layer:             layer.EmptyLayer,
+			hmacKey:  []byte(tc.hmacKey),
+			repoInfo: repoInfo,
+			layer: &storeLayer{
+				Layer: layer.EmptyLayer,
+			},
 			repo:              repo,
 			v2MetadataService: ms,
 			pushState:         &pushState{remoteLayers: make(map[layer.DiffID]distribution.Descriptor)},
