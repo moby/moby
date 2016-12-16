@@ -12,6 +12,7 @@ import (
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/pkg/integration/checker"
 	"github.com/go-check/check"
+	"github.com/pkg/errors"
 )
 
 // Swarm is a test daemon with helpers for participating in a swarm.
@@ -94,6 +95,18 @@ func (d *Swarm) SwarmInfo() (swarm.Info, error) {
 		return info.Swarm, err
 	}
 	return info.Swarm, nil
+}
+
+// Unlock tries to unlock a locked swarm
+func (d *Swarm) Unlock(req swarm.UnlockRequest) error {
+	status, out, err := d.SockRequest("POST", "/swarm/unlock", req)
+	if status != http.StatusOK {
+		return fmt.Errorf("unlocking swarm: invalid statuscode %v, %q", status, out)
+	}
+	if err != nil {
+		err = errors.Wrap(err, "unlocking swarm")
+	}
+	return err
 }
 
 // ServiceConstructor defines a swarm service constructor function

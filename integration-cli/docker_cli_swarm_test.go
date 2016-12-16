@@ -866,24 +866,24 @@ func checkSwarmUnlockedToLocked(c *check.C, d *daemon.Swarm) {
 func (s *DockerSwarmSuite) TestUnlockEngineAndUnlockedSwarm(c *check.C) {
 	d := s.AddDaemon(c, false, false)
 
-	// unlocking a normal engine should return an error
+	// unlocking a normal engine should return an error - it does not even ask for the key
 	cmd := d.Command("swarm", "unlock")
-	cmd.Stdin = bytes.NewBufferString("wrong-secret-key")
 	outs, err := cmd.CombinedOutput()
 
 	c.Assert(err, checker.NotNil, check.Commentf("out: %v", string(outs)))
-	c.Assert(string(outs), checker.Contains, "This node is not a swarm manager.")
+	c.Assert(string(outs), checker.Contains, "Error: This node is not part of a swarm")
+	c.Assert(string(outs), checker.Not(checker.Contains), "Please enter unlock key")
 
 	_, err = d.Cmd("swarm", "init")
 	c.Assert(err, checker.IsNil)
 
-	// unlocking an unlocked swarm should return an error
+	// unlocking an unlocked swarm should return an error - it does not even ask for the key
 	cmd = d.Command("swarm", "unlock")
-	cmd.Stdin = bytes.NewBufferString("wrong-secret-key")
 	outs, err = cmd.CombinedOutput()
 
 	c.Assert(err, checker.NotNil, check.Commentf("out: %v", string(outs)))
-	c.Assert(string(outs), checker.Contains, "swarm is not locked")
+	c.Assert(string(outs), checker.Contains, "Error: swarm is not locked")
+	c.Assert(string(outs), checker.Not(checker.Contains), "Please enter unlock key")
 }
 
 func (s *DockerSwarmSuite) TestSwarmInitLocked(c *check.C) {

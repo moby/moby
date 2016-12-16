@@ -1309,3 +1309,11 @@ func (s *DockerSwarmSuite) TestAPISwarmSecretsDelete(c *check.C) {
 	c.Assert(err, checker.IsNil)
 	c.Assert(status, checker.Equals, http.StatusNotFound, check.Commentf("secret delete: %s", string(out)))
 }
+
+// Unlocking an unlocked swarm results in an error
+func (s *DockerSwarmSuite) TestAPISwarmUnlockNotLocked(c *check.C) {
+	d := s.AddDaemon(c, true, true)
+	err := d.Unlock(swarm.UnlockRequest{UnlockKey: "wrong-key"})
+	c.Assert(err, checker.NotNil)
+	c.Assert(err.Error(), checker.Contains, "swarm is not locked")
+}
