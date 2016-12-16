@@ -37,20 +37,21 @@ describes all the details of the format.
 
     $ docker version
 	Client:
-	 Version:      1.8.0
-	 API version:  1.20
-	 Go version:   go1.4.2
-	 Git commit:   f5bae0a
-	 Built:        Tue Jun 23 17:56:00 UTC 2015
-	 OS/Arch:      linux/amd64
+	 Engine Version:  1.8.0
+	 API version:     1.20
+	 Go version:      go1.4.2
+	 Git commit:      f5bae0a
+	 Built:           Tue Jun 23 17:56:00 UTC 2015
+	 OS/Arch:         linux/amd64
 
 	Server:
-	 Version:      1.8.0
-	 API version:  1.20
-	 Go version:   go1.4.2
-	 Git commit:   f5bae0a
-	 Built:        Tue Jun 23 17:56:00 UTC 2015
-	 OS/Arch:      linux/amd64
+	 Engine Version:  1.8.0
+	 API version:     1.20 (minimum version 1.12)
+	 Go version:      go1.4.2
+	 Git commit:      f5bae0a
+	 Built:           Tue Jun 23 17:56:00 UTC 2015
+	 OS/Arch:         linux/amd64
+	 Experimental:    false
 
 **Get server version:**
 

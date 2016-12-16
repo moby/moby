@@ -15,22 +15,24 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var versionTemplate = `Client:
- Version:      {{.Client.Version}}
- API version:  {{.Client.APIVersion}}
- Go version:   {{.Client.GoVersion}}
- Git commit:   {{.Client.GitCommit}}
- Built:        {{.Client.BuildTime}}
- OS/Arch:      {{.Client.Os}}/{{.Client.Arch}}{{if .ServerOK}}
+var versionTemplate = `{{if .DockerVersionOK}}Docker Version:  {{.DockerVersion}}
+
+{{end}}Client:
+ Engine version:  {{.Client.Version}}
+ API version:     {{.Client.APIVersion}}
+ Go version:      {{.Client.GoVersion}}
+ Git commit:      {{.Client.GitCommit}}
+ Built:           {{.Client.BuildTime}}
+ OS/Arch:         {{.Client.Os}}/{{.Client.Arch}}{{if .ServerOK}}
 
 Server:
- Version:      {{.Server.Version}}
- API version:  {{.Server.APIVersion}} (minimum version {{.Server.MinAPIVersion}})
- Go version:   {{.Server.GoVersion}}
- Git commit:   {{.Server.GitCommit}}
- Built:        {{.Server.BuildTime}}
- OS/Arch:      {{.Server.Os}}/{{.Server.Arch}}
- Experimental: {{.Server.Experimental}}{{end}}`
+ Engine version:  {{.Server.Version}}
+ API version:     {{.Server.APIVersion}} (minimum version {{.Server.MinAPIVersion}})
+ Go version:      {{.Server.GoVersion}}
+ Git commit:      {{.Server.GitCommit}}
+ Built:           {{.Server.BuildTime}}
+ OS/Arch:         {{.Server.Os}}/{{.Server.Arch}}
+ Experimental:    {{.Server.Experimental}}{{end}}`
 
 type versionOptions struct {
 	format string
