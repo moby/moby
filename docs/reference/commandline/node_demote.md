@@ -34,4 +34,9 @@ $ docker node demote <node name>
 
 ## Related information
 
+* [node inspect](node_inspect.md)
+* [node ls](node_ls.md)
 * [node promote](node_promote.md)
+* [node ps](node_ps.md)
+* [node rm](node_rm.md)
+* [node update](node_update.md)

@@ -149,6 +149,10 @@ func (daemon *Daemon) restore() error {
 				continue
 			}
 			container.RWLayer = rwlayer
+			if err := daemon.Mount(container); err != nil {
+				logrus.Errorf("Failed to mount container %v: %v", id, err)
+				continue
+			}
 			logrus.Debugf("Loaded container %v", container.ID)
 
 			containers[container.ID] = container
@@ -788,6 +792,12 @@ func (daemon *Daemon) Shutdown() error {
 			}
 			logrus.Debugf("container stopped %s", c.ID)
 		})
+	}
+
+	if daemon.volumes != nil {
+		if err := daemon.volumes.Shutdown(); err != nil {
+			logrus.Errorf("Error shutting down volume store: %v", err)
+		}
 	}
 
 	if daemon.layerStore != nil {

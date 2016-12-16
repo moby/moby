@@ -154,6 +154,7 @@ $ docker service inspect --format='{{.Spec.Mode.Replicated.Replicas}}' redis
 ## Related information
 
 * [service create](service_create.md)
+* [service logs](service_logs.md)
 * [service ls](service_ls.md)
 * [service rm](service_rm.md)
 * [service scale](service_scale.md)

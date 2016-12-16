@@ -218,6 +218,7 @@ To manually remove all plugins and resolve this problem, take the following step
 - Deprecate unversioned API endpoints [#28208](https://github.com/docker/docker/pull/28208)
 - Remove Ubuntu 15.10 (Wily Werewolf) as supported platform. Ubuntu 15.10 is EOL, and no longer receives updates [#27042](https://github.com/docker/docker/pull/27042)
 - Remove Fedora 22 as supported platform. Fedora 22 is EOL, and no longer receives updates [#27432](https://github.com/docker/docker/pull/27432)
+- Remove Fedora 23 as supported platform. Fedora 23 is EOL, and no longer receives updates [#29455](https://github.com/docker/docker/pull/29455)
 - Deprecate the `repo:shortid` syntax on `docker pull` [#27207](https://github.com/docker/docker/pull/27207)
 - Deprecate backing filesystem without `d_type` for overlay and overlay2 storage drivers [#27433](https://github.com/docker/docker/pull/27433)
 - Deprecate `MAINTAINER` in Dockerfile [#25466](https://github.com/docker/docker/pull/25466)
