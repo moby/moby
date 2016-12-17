@@ -103,10 +103,8 @@ func newVolumePlugin(c *check.C, name string) *volumePlugin {
 	read := func(b io.ReadCloser) (pluginRequest, error) {
 		defer b.Close()
 		var pr pluginRequest
-		if err := json.NewDecoder(b).Decode(&pr); err != nil {
-			return pr, err
-		}
-		return pr, nil
+		err := json.NewDecoder(b).Decode(&pr)
+		return pr, err
 	}
 
 	send := func(w http.ResponseWriter, data interface{}) {
