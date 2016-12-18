@@ -34,6 +34,18 @@ func TestGetBindOptionsNone(t *testing.T) {
 	assert.Equal(t, opts, (*mount.BindOptions)(nil))
 }
 
+func TestConvertVolumeToMountAnonymousVolume(t *testing.T) {
+	stackVolumes := volumes{}
+	namespace := NewNamespace("foo")
+	expected := mount.Mount{
+		Type:   mount.TypeVolume,
+		Target: "/foo/bar",
+	}
+	mount, err := convertVolumeToMount("/foo/bar", stackVolumes, namespace)
+	assert.NilError(t, err)
+	assert.DeepEqual(t, mount, expected)
+}
+
 func TestConvertVolumeToMountNamedVolume(t *testing.T) {
 	stackVolumes := volumes{
 		"normal": composetypes.VolumeConfig{
