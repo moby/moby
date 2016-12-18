@@ -22,7 +22,6 @@ Usage:  docker node ps [OPTIONS] [NODE...]
 List tasks running on one or more nodes, defaults to current node.
 
 Options:
-  -a, --all            Display all instances
   -f, --filter value   Filter output based on conditions provided
       --help           Print usage
       --no-resolve     Do not map IDs to Names
