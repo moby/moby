@@ -70,10 +70,13 @@ func testTokenPassThru(t *testing.T, ts *httptest.Server) {
 		Official: false,
 	}
 	imagePullConfig := &ImagePullConfig{
-		MetaHeaders: http.Header{},
-		AuthConfig: &types.AuthConfig{
-			RegistryToken: secretRegistryToken,
+		Config: Config{
+			MetaHeaders: http.Header{},
+			AuthConfig: &types.AuthConfig{
+				RegistryToken: secretRegistryToken,
+			},
 		},
+		Schema2Types: ImageTypes,
 	}
 	puller, err := newPuller(endpoint, repoInfo, imagePullConfig)
 	if err != nil {

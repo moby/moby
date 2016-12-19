@@ -155,7 +155,9 @@ type RepositoryScope struct {
 // using the scope grammar
 func (rs RepositoryScope) String() string {
 	repoType := "repository"
-	if rs.Class != "" {
+	// Keep existing format for image class to maintain backwards compatibility
+	// with authorization servers which do not support the expanded grammar.
+	if rs.Class != "" && rs.Class != "image" {
 		repoType = fmt.Sprintf("%s(%s)", repoType, rs.Class)
 	}
 	return fmt.Sprintf("%s:%s:%s", repoType, rs.Repository, strings.Join(rs.Actions, ","))

@@ -80,6 +80,11 @@ func FromBytes(p []byte) Digest {
 	return Canonical.FromBytes(p)
 }
 
+// FromString digests the input and returns a Digest.
+func FromString(s string) Digest {
+	return Canonical.FromString(s)
+}
+
 // Validate checks that the contents of d is a valid digest, returning an
 // error if not.
 func (d Digest) Validate() error {
