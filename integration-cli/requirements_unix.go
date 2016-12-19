@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"strings"
 
+	"github.com/docker/docker/pkg/parsers/kernel"
 	"github.com/docker/docker/pkg/sysinfo"
 )
 
@@ -124,7 +125,7 @@ var (
 		},
 		"Test cannot be run without a kernel (4.3+) supporting ambient capabilities",
 	}
-	overlaySupported = testRequirement{
+	overlayFSSupported = testRequirement{
 		func() bool {
 			cmd := exec.Command(dockerBinary, "run", "--rm", "busybox", "/bin/sh", "-c", "cat /proc/filesystems")
 			out, err := cmd.CombinedOutput()
@@ -133,7 +134,23 @@ var (
 			}
 			return bytes.Contains(out, []byte("overlay\n"))
 		},
-		"Test cannot be run wihtout suppport for ovelayfs",
+		"Test cannot be run without suppport for overlayfs",
+	}
+	overlay2Supported = testRequirement{
+		func() bool {
+			if !overlayFSSupported.Condition() {
+				return false
+			}
+
+			daemonV, err := kernel.ParseRelease(daemonKernelVersion)
+			if err != nil {
+				return false
+			}
+			requiredV := kernel.VersionInfo{Kernel: 4}
+			return kernel.CompareKernelVersion(*daemonV, requiredV) > -1
+
+		},
+		"Test cannot be run without overlay2 support (kernel 4.0+)",
 	}
 )
 
