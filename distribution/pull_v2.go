@@ -33,9 +33,10 @@ import (
 )
 
 var (
-	errRootFSMismatch  = errors.New("layers from manifest don't match image configuration")
-	errMediaTypePlugin = errors.New("target is a plugin")
-	errRootFSInvalid   = errors.New("invalid rootfs in image configuration")
+	errRootFSMismatch        = errors.New("layers from manifest don't match image configuration")
+	errMediaTypePlugin       = errors.New("target is a plugin")
+	errRootFSInvalid         = errors.New("invalid rootfs in image configuration")
+	errNoForeignLayerSupport = errors.New("this platform does not support foreign layers")
 )
 
 // ImageConfigPullError is an error pulling the image config blob
