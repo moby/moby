@@ -29,7 +29,7 @@ type Resolver interface {
 	NameServer() string
 	// SetExtServers configures the external nameservers the resolver
 	// should use to forward queries
-	SetExtServers([]string)
+	SetExtServers([]extDNSEntry)
 	// ResolverOptions returns resolv.conf options that should be set
 	ResolverOptions() []string
 }
@@ -69,7 +69,8 @@ const (
 )
 
 type extDNSEntry struct {
-	ipStr string
+	ipStr        string
+	hostLoopback bool
 }
 
 // resolver implements the Resolver interface
@@ -182,13 +183,13 @@ func (r *resolver) Stop() {
 	r.queryLock = sync.Mutex{}
 }
 
-func (r *resolver) SetExtServers(dns []string) {
-	l := len(dns)
+func (r *resolver) SetExtServers(extDNS []extDNSEntry) {
+	l := len(extDNS)
 	if l > maxExtDNS {
 		l = maxExtDNS
 	}
 	for i := 0; i < l; i++ {
-		r.extDNSList[i].ipStr = dns[i]
+		r.extDNSList[i] = extDNS[i]
 	}
 }
 
@@ -417,10 +418,14 @@ func (r *resolver) ServeDNS(w dns.ResponseWriter, query *dns.Msg) {
 				extConn, err = net.DialTimeout(proto, addr, extIOTimeout)
 			}
 
-			execErr := r.backend.ExecFunc(extConnect)
-			if execErr != nil {
-				logrus.Warn(execErr)
-				continue
+			if extDNS.hostLoopback {
+				extConnect()
+			} else {
+				execErr := r.backend.ExecFunc(extConnect)
+				if execErr != nil {
+					logrus.Warn(execErr)
+					continue
+				}
 			}
 			if err != nil {
 				logrus.Warnf("Connect failed: %s", err)
