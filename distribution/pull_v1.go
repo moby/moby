@@ -28,11 +28,15 @@ import (
 )
 
 type v1Puller struct {
-	v1IDService *metadata.V1IDService
-	endpoint    registry.APIEndpoint
-	config      *ImagePullConfig
-	repoInfo    *registry.RepositoryInfo
-	session     *registry.Session
+	v1IDService     *metadata.V1IDService
+	endpoint        registry.APIEndpoint
+	registryService registry.Service
+	imageStore      image.Store
+	referenceStore  reference.Store
+	downloadManager *xfer.LayerDownloadManager
+	config          *ImagePullConfig
+	repoInfo        *registry.RepositoryInfo
+	session         *registry.Session
 }
 
 func (p *v1Puller) Pull(ctx context.Context, ref reference.Named) error {
@@ -41,7 +45,7 @@ func (p *v1Puller) Pull(ctx context.Context, ref reference.Named) error {
 		return fallbackError{err: ErrNoSupport{Err: errors.New("Cannot pull by digest with v1 registry")}}
 	}
 
-	tlsConfig, err := p.config.RegistryService.TLSConfig(p.repoInfo.Index.Name)
+	tlsConfig, err := p.registryService.TLSConfig(p.repoInfo.Index.Name)
 	if err != nil {
 		return err
 	}
@@ -232,7 +236,7 @@ func (p *v1Puller) pullImage(ctx context.Context, v1ID, endpoint string, localNa
 	}
 
 	rootFS := image.NewRootFS()
-	resultRootFS, release, err := p.config.DownloadManager.Download(ctx, *rootFS, descriptors, p.config.ProgressOutput)
+	resultRootFS, release, err := p.downloadManager.Download(ctx, *rootFS, descriptors, p.config.ProgressOutput)
 	if err != nil {
 		return err
 	}
@@ -243,12 +247,12 @@ func (p *v1Puller) pullImage(ctx context.Context, v1ID, endpoint string, localNa
 		return err
 	}
 
-	imageID, err := p.config.ImageStore.Create(config)
+	imageID, err := p.imageStore.Create(config)
 	if err != nil {
 		return err
 	}
 
-	if err := p.config.ReferenceStore.AddTag(localNameRef, imageID.Digest(), true); err != nil {
+	if err := p.referenceStore.AddTag(localNameRef, imageID.Digest(), true); err != nil {
 		return err
 	}
 

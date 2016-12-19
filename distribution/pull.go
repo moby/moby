@@ -16,7 +16,7 @@ import (
 	"golang.org/x/net/context"
 )
 
-// ImagePullConfig stores pull configuration.
+// ImagePullConfig stores the structs associated with an individual pull.
 type ImagePullConfig struct {
 	// MetaHeaders stores HTTP headers with metadata about the image
 	MetaHeaders map[string][]string
@@ -26,6 +26,11 @@ type ImagePullConfig struct {
 	// ProgressOutput is the interface for showing the status of the pull
 	// operation.
 	ProgressOutput progress.Output
+}
+
+// ImagePullerConfig is used to pass into the image puller any state that
+// persists between pulls.
+type ImagePullerConfig struct {
 	// RegistryService is the registry service to use for TLS configuration
 	// and endpoint lookup.
 	RegistryService registry.Service
@@ -42,6 +47,35 @@ type ImagePullConfig struct {
 	DownloadManager *xfer.LayerDownloadManager
 }
 
+type imagePuller struct {
+	registryService  registry.Service
+	imageEventLogger func(id, name, action string)
+	metadataStore    metadata.Store
+	imageStore       image.Store
+	referenceStore   reference.Store
+	downloadManager  *xfer.LayerDownloadManager
+}
+
+// ImagePuller is used to hold hold pull related state with the lifetime of the
+// daemon and to perform pulls when requested.
+type ImagePuller interface {
+	// Pull initiates a pull operation. image is the repository name to pull, and
+	// tag may be either empty, or indicate a specific tag to pull.
+	Pull(context.Context, reference.Named, *ImagePullConfig) error
+}
+
+// Creates a new ImagePuller
+func NewImagePuller(imagePullerConfig ImagePullerConfig) ImagePuller {
+	return &imagePuller{
+		registryService:  imagePullerConfig.RegistryService,
+		imageEventLogger: imagePullerConfig.ImageEventLogger,
+		metadataStore:    imagePullerConfig.MetadataStore,
+		imageStore:       imagePullerConfig.ImageStore,
+		referenceStore:   imagePullerConfig.ReferenceStore,
+		downloadManager:  imagePullerConfig.DownloadManager,
+	}
+}
+
 // Puller is an interface that abstracts pulling for different API versions.
 type Puller interface {
 	// Pull tries to pull the image referenced by `tag`
@@ -55,31 +89,37 @@ type Puller interface {
 // whether a v1 or v2 puller will be created. The other parameters are passed
 // through to the underlying puller implementation for use during the actual
 // pull operation.
-func newPuller(endpoint registry.APIEndpoint, repoInfo *registry.RepositoryInfo, imagePullConfig *ImagePullConfig) (Puller, error) {
+func (i *imagePuller) newPuller(endpoint registry.APIEndpoint, repoInfo *registry.RepositoryInfo, imagePullConfig *ImagePullConfig) (Puller, error) {
 	switch endpoint.Version {
 	case registry.APIVersion2:
 		return &v2Puller{
-			V2MetadataService: metadata.NewV2MetadataService(imagePullConfig.MetadataStore),
+			V2MetadataService: metadata.NewV2MetadataService(i.metadataStore),
 			endpoint:          endpoint,
+			downloadManager:   i.downloadManager,
+			imageStore:        i.imageStore,
+			referenceStore:    i.referenceStore,
 			config:            imagePullConfig,
 			repoInfo:          repoInfo,
 		}, nil
 	case registry.APIVersion1:
 		return &v1Puller{
-			v1IDService: metadata.NewV1IDService(imagePullConfig.MetadataStore),
-			endpoint:    endpoint,
-			config:      imagePullConfig,
-			repoInfo:    repoInfo,
+			v1IDService:     metadata.NewV1IDService(i.metadataStore),
+			endpoint:        endpoint,
+			registryService: i.registryService,
+			imageStore:      i.imageStore,
+			referenceStore:  i.referenceStore,
+			downloadManager: i.downloadManager,
+			config:          imagePullConfig,
+			repoInfo:        repoInfo,
 		}, nil
 	}
 	return nil, fmt.Errorf("unknown version %d for registry %s", endpoint.Version, endpoint.URL)
 }
 
-// Pull initiates a pull operation. image is the repository name to pull, and
-// tag may be either empty, or indicate a specific tag to pull.
-func Pull(ctx context.Context, ref reference.Named, imagePullConfig *ImagePullConfig) error {
+// Pull pulls an image.
+func (i *imagePuller) Pull(ctx context.Context, ref reference.Named, imagePullConfig *ImagePullConfig) error {
 	// Resolve the Repository name from fqn to RepositoryInfo
-	repoInfo, err := imagePullConfig.RegistryService.ResolveRepository(ref)
+	repoInfo, err := i.registryService.ResolveRepository(ref)
 	if err != nil {
 		return err
 	}
@@ -89,7 +129,7 @@ func Pull(ctx context.Context, ref reference.Named, imagePullConfig *ImagePullCo
 		return err
 	}
 
-	endpoints, err := imagePullConfig.RegistryService.LookupPullEndpoints(repoInfo.Hostname())
+	endpoints, err := i.registryService.LookupPullEndpoints(repoInfo.Hostname())
 	if err != nil {
 		return err
 	}
@@ -131,7 +171,7 @@ func Pull(ctx context.Context, ref reference.Named, imagePullConfig *ImagePullCo
 
 		logrus.Debugf("Trying to pull %s from %s %s", repoInfo.Name(), endpoint.URL, endpoint.Version)
 
-		puller, err := newPuller(endpoint, repoInfo, imagePullConfig)
+		puller, err := i.newPuller(endpoint, repoInfo, imagePullConfig)
 		if err != nil {
 			lastErr = err
 			continue
@@ -171,7 +211,7 @@ func Pull(ctx context.Context, ref reference.Named, imagePullConfig *ImagePullCo
 			return TranslatePullError(err, ref)
 		}
 
-		imagePullConfig.ImageEventLogger(ref.String(), repoInfo.Name(), "pull")
+		i.imageEventLogger(ref.String(), repoInfo.Name(), "pull")
 		return nil
 	}
 

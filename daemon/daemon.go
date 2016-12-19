@@ -28,6 +28,7 @@ import (
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/events"
 	"github.com/docker/docker/daemon/exec"
+	"github.com/docker/docker/distribution"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/plugin"
 	"github.com/docker/libnetwork/cluster"
@@ -107,6 +108,7 @@ type Daemon struct {
 	defaultIsolation          containertypes.Isolation // Default isolation mode on Windows
 	clusterProvider           cluster.Provider
 	cluster                   Cluster
+	imagePuller               distribution.ImagePuller
 
 	seccompProfile     []byte
 	seccompProfilePath string
@@ -700,6 +702,15 @@ func NewDaemon(config *Config, registryService registry.Service, containerdRemot
 		stackDumpDir = execRoot
 	}
 	d.setupDumpStackTrap(stackDumpDir)
+
+	d.imagePuller = distribution.NewImagePuller(distribution.ImagePullerConfig{
+		RegistryService:  d.RegistryService,
+		ImageEventLogger: d.LogImageEvent,
+		MetadataStore:    d.distributionMetadataStore,
+		ImageStore:       d.imageStore,
+		ReferenceStore:   d.referenceStore,
+		DownloadManager:  d.downloadManager,
+	})
 
 	return d, nil
 }

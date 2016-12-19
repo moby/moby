@@ -75,7 +75,8 @@ func testTokenPassThru(t *testing.T, ts *httptest.Server) {
 			RegistryToken: secretRegistryToken,
 		},
 	}
-	puller, err := newPuller(endpoint, repoInfo, imagePullConfig)
+	imagePuller := NewImagePuller(ImagePullerConfig{}).(*imagePuller)
+	puller, err := imagePuller.newPuller(endpoint, repoInfo, imagePullConfig)
 	if err != nil {
 		t.Fatal(err)
 	}
