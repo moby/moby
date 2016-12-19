@@ -68,6 +68,10 @@ func (m *mockDriver) Type() string {
 	return mockDriverName
 }
 
+func (m *mockDriver) IsBuiltIn() bool {
+	return true
+}
+
 func (m *mockDriver) ProgramExternalConnectivity(nid, eid string, options map[string]interface{}) error {
 	return nil
 }
