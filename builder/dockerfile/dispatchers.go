@@ -308,7 +308,11 @@ func workdir(b *Builder, args []string, attributes map[string]bool, original str
 		return nil
 	}
 
-	container, err := b.docker.ContainerCreate(types.ContainerCreateConfig{Config: b.runConfig})
+	container, err := b.docker.ContainerCreate(types.ContainerCreateConfig{
+		Config: b.runConfig,
+		// Set a log config to override any default value set on the daemon
+		HostConfig: &container.HostConfig{LogConfig: defaultLogConfig},
+	})
 	if err != nil {
 		return err
 	}

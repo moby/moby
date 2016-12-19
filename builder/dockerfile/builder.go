@@ -49,6 +49,8 @@ var BuiltinAllowedBuildArgs = map[string]bool{
 	"no_proxy":    true,
 }
 
+var defaultLogConfig = container.LogConfig{Type: "none"}
+
 // Builder is a Dockerfile builder
 // It implements the builder.Backend interface.
 type Builder struct {
