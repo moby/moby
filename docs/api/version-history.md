@@ -15,11 +15,11 @@ keywords: "API, Docker, rcli, REST, documentation"
 
 ## v1.26 API changes
 
-[Docker Engine API v1.26](v1.26/) documentation
+[Docker Engine API v1.26] documentation
 
 ## v1.25 API changes
 
-[Docker Engine API v1.25](v1.25.md) documentation
+[Docker Engine API v1.25] documentation
 
 * The API version is now required in all API calls. Instead of just requesting, for example, the URL `/containers/json`, you must now request `/v1.25/containers/json`.
 * `GET /version` now returns `MinAPIVersion`.
