@@ -65,6 +65,10 @@ func (a *allocator) DiscoverDelete(dType discoverapi.DiscoveryType, data interfa
 	return nil
 }
 
+func (a *allocator) IsBuiltIn() bool {
+	return true
+}
+
 // Init registers a remote ipam when its plugin is activated
 func Init(ic ipamapi.Callback, l, g interface{}) error {
 	return ic.RegisterIpamDriver(ipamapi.NullIPAM, &allocator{})

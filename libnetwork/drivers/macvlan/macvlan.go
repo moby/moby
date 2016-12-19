@@ -86,6 +86,10 @@ func (d *driver) Type() string {
 	return macvlanType
 }
 
+func (d *driver) IsBuiltIn() bool {
+	return true
+}
+
 func (d *driver) ProgramExternalConnectivity(nid, eid string, options map[string]interface{}) error {
 	return nil
 }

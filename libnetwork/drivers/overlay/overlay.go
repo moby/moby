@@ -211,6 +211,10 @@ func (d *driver) Type() string {
 	return networkType
 }
 
+func (d *driver) IsBuiltIn() bool {
+	return true
+}
+
 func validateSelf(node string) error {
 	advIP := net.ParseIP(node)
 	if advIP == nil {
