@@ -623,13 +623,14 @@ func (s *DockerSuite) TestRunCreateVolume(c *check.C) {
 func (s *DockerSuite) TestRunCreateVolumeWithSymlink(c *check.C) {
 	// Cannot run on Windows as relies on Linux-specific functionality (sh -c mount...)
 	testRequires(c, DaemonIsLinux)
+	workingDirectory, err := ioutil.TempDir("", "TestRunCreateVolumeWithSymlink")
 	image := "docker-test-createvolumewithsymlink"
 
 	buildCmd := exec.Command(dockerBinary, "build", "-t", image, "-")
 	buildCmd.Stdin = strings.NewReader(`FROM busybox
 		RUN ln -s home /bar`)
 	buildCmd.Dir = workingDirectory
-	err := buildCmd.Run()
+	err = buildCmd.Run()
 	if err != nil {
 		c.Fatalf("could not build '%s': %v", image, err)
 	}
@@ -658,6 +659,9 @@ func (s *DockerSuite) TestRunVolumesFromSymlinkPath(c *check.C) {
 	// This test cannot run on a Windows daemon as
 	// Windows does not support symlinks inside a volume path
 	testRequires(c, DaemonIsLinux)
+
+	workingDirectory, err := ioutil.TempDir("", "TestRunVolumesFromSymlinkPath")
+	c.Assert(err, checker.IsNil)
 	name := "docker-test-volumesfromsymlinkpath"
 	prefix := ""
 	dfContents := `FROM busybox
@@ -676,7 +680,7 @@ func (s *DockerSuite) TestRunVolumesFromSymlinkPath(c *check.C) {
 	buildCmd := exec.Command(dockerBinary, "build", "-t", name, "-")
 	buildCmd.Stdin = strings.NewReader(dfContents)
 	buildCmd.Dir = workingDirectory
-	err := buildCmd.Run()
+	err = buildCmd.Run()
 	if err != nil {
 		c.Fatalf("could not build 'docker-test-volumesfromsymlinkpath': %v", err)
 	}
