@@ -25,8 +25,6 @@ var (
 	// the private registry to use for tests
 	privateRegistryURL = "127.0.0.1:5000"
 
-	workingDirectory string
-
 	// isLocalDaemon is true if the daemon under test is on the same
 	// host as the CLI.
 	isLocalDaemon bool
@@ -84,7 +82,6 @@ func init() {
 	if registry := os.Getenv("REGISTRY_URL"); registry != "" {
 		privateRegistryURL = registry
 	}
-	workingDirectory, _ = os.Getwd()
 
 	// Deterministically working out the environment in which CI is running
 	// to evaluate whether the daemon is local or remote is not possible through
