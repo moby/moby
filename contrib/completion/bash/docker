@@ -3955,7 +3955,6 @@ _docker() {
 		container
 		cp
 		create
-		daemon
 		diff
 		events
 		exec
