@@ -244,7 +244,7 @@ func (e secretNotFoundError) Error() string {
 	return fmt.Sprintf("Error: no such secret: %s", e.name)
 }
 
-// NoFound indicates that this error type is of NotFound
+// NotFound indicates that this error type is of NotFound
 func (e secretNotFoundError) NotFound() bool {
 	return true
 }

@@ -64,7 +64,7 @@ func (r *Result) Assert(t testingT, exp Expected) {
 	t.Fatalf("at %s:%d\n%s", filepath.Base(file), line, err.Error())
 }
 
-// Compare returns an formatted error with the command, stdout, stderr, exit
+// Compare returns a formatted error with the command, stdout, stderr, exit
 // code, and any failed expectations
 func (r *Result) Compare(exp Expected) error {
 	errors := []string{}
