@@ -101,3 +101,7 @@ func (a *allocator) DiscoverNew(dType discoverapi.DiscoveryType, data interface{
 func (a *allocator) DiscoverDelete(dType discoverapi.DiscoveryType, data interface{}) error {
 	return nil
 }
+
+func (a *allocator) IsBuiltIn() bool {
+	return true
+}

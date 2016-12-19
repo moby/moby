@@ -164,10 +164,10 @@ func (r *DrvRegistry) RegisterDriver(ntype string, driver driverapi.Driver, capa
 	}
 
 	r.Lock()
-	_, ok := r.drivers[ntype]
+	dd, ok := r.drivers[ntype]
 	r.Unlock()
 
-	if ok {
+	if ok && dd.driver.IsBuiltIn() {
 		return driverapi.ErrActiveRegistration(ntype)
 	}
 
@@ -192,9 +192,9 @@ func (r *DrvRegistry) registerIpamDriver(name string, driver ipamapi.Ipam, caps 
 	}
 
 	r.Lock()
-	_, ok := r.ipamDrivers[name]
+	dd, ok := r.ipamDrivers[name]
 	r.Unlock()
-	if ok {
+	if ok && dd.driver.IsBuiltIn() {
 		return types.ForbiddenErrorf("ipam driver %q already registered", name)
 	}
 

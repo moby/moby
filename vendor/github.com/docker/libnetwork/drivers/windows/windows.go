@@ -698,6 +698,10 @@ func (d *driver) Type() string {
 	return d.name
 }
 
+func (d *driver) IsBuiltIn() bool {
+	return true
+}
+
 // DiscoverNew is a notification for a new discovery event, such as a new node joining a cluster
 func (d *driver) DiscoverNew(dType discoverapi.DiscoveryType, data interface{}) error {
 	return nil
