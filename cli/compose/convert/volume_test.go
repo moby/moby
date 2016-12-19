@@ -46,6 +46,15 @@ func TestConvertVolumeToMountAnonymousVolume(t *testing.T) {
 	assert.DeepEqual(t, mount, expected)
 }
 
+func TestConvertVolumeToMountInvalidFormat(t *testing.T) {
+	namespace := NewNamespace("foo")
+	invalids := []string{"::", "::cc", ":bb:", "aa::", "aa::cc", "aa:bb:", " : : ", " : :cc", " :bb: ", "aa: : ", "aa: :cc", "aa:bb: "}
+	for _, vol := range invalids {
+		_, err := convertVolumeToMount(vol, volumes{}, namespace)
+		assert.Error(t, err, "invalid volume: "+vol)
+	}
+}
+
 func TestConvertVolumeToMountNamedVolume(t *testing.T) {
 	stackVolumes := volumes{
 		"normal": composetypes.VolumeConfig{
