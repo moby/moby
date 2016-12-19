@@ -62,7 +62,7 @@ set as the **URL**, the repository is cloned locally and then sent as the contex
    **Experimental Only**
    Once the image is built, squash the new layers into a new image with a single
    new layer. Squashing does not destroy any existing image, rather it creates a new
-   image with the content of the squshed layers. This effectively makes it look
+   image with the content of the squashed layers. This effectively makes it look
    like all `Dockerfile` commands were created with a single layer. The build
    cache is preserved with this method.
 
