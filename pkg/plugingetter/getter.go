@@ -11,7 +11,7 @@ const (
 	RELEASE = -1
 )
 
-// CompatPlugin is a abstraction to handle both v2(new) and v1(legacy) plugins.
+// CompatPlugin is an abstraction to handle both v2(new) and v1(legacy) plugins.
 type CompatPlugin interface {
 	Client() *plugins.Client
 	Name() string

@@ -7,7 +7,7 @@ import (
 	"golang.org/x/net/context"
 )
 
-// Backend abstracts an swarm commands manager.
+// Backend abstracts a swarm manager.
 type Backend interface {
 	Init(req types.InitRequest) (string, error)
 	Join(req types.JoinRequest) error

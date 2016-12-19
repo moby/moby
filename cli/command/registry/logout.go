@@ -11,7 +11,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// NewLogoutCommand creates a new `docker login` command
+// NewLogoutCommand creates a new `docker logout` command
 func NewLogoutCommand(dockerCli *command.DockerCli) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "logout [SERVER]",
