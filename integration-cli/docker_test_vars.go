@@ -13,17 +13,20 @@ import (
 	"github.com/docker/docker/pkg/reexec"
 )
 
+const (
+	// the private registry to use for tests
+	privateRegistryURL = "127.0.0.1:5000"
+
+	// the docker daemon binary to use
+	dockerdBinary = "dockerd"
+)
+
 var (
 	// the docker client binary to use
 	dockerBinary = "docker"
-	// the docker daemon binary to use
-	dockerdBinary = "dockerd"
 
 	// path to containerd's ctr binary
 	ctrBinary = "docker-containerd-ctr"
-
-	// the private registry to use for tests
-	privateRegistryURL = "127.0.0.1:5000"
 
 	// isLocalDaemon is true if the daemon under test is on the same
 	// host as the CLI.
@@ -80,9 +83,6 @@ func init() {
 	if err != nil {
 		fmt.Printf("ERROR: couldn't resolve full path to the Docker binary (%v)\n", err)
 		os.Exit(1)
-	}
-	if registry := os.Getenv("REGISTRY_URL"); registry != "" {
-		privateRegistryURL = registry
 	}
 
 	// Deterministically working out the environment in which CI is running
