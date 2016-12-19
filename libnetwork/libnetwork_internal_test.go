@@ -544,6 +544,9 @@ func (b *badDriver) DiscoverDelete(dType discoverapi.DiscoveryType, data interfa
 func (b *badDriver) Type() string {
 	return badDriverName
 }
+func (b *badDriver) IsBuiltIn() bool {
+	return false
+}
 func (b *badDriver) ProgramExternalConnectivity(nid, eid string, options map[string]interface{}) error {
 	return nil
 }

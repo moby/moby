@@ -79,6 +79,9 @@ type NetworkController interface {
 	// BuiltinDrivers returns list of builtin drivers
 	BuiltinDrivers() []string
 
+	// BuiltinIPAMDrivers returns list of builtin ipam drivers
+	BuiltinIPAMDrivers() []string
+
 	// Config method returns the bootup configuration for the controller
 	Config() config.Config
 
@@ -476,12 +479,23 @@ func (c *controller) ID() string {
 
 func (c *controller) BuiltinDrivers() []string {
 	drivers := []string{}
-	for _, i := range getInitializers(c.cfg.Daemon.Experimental) {
-		if i.ntype == "remote" {
-			continue
+	c.drvRegistry.WalkDrivers(func(name string, driver driverapi.Driver, capability driverapi.Capability) bool {
+		if driver.IsBuiltIn() {
+			drivers = append(drivers, name)
 		}
-		drivers = append(drivers, i.ntype)
-	}
+		return false
+	})
+	return drivers
+}
+
+func (c *controller) BuiltinIPAMDrivers() []string {
+	drivers := []string{}
+	c.drvRegistry.WalkIPAMs(func(name string, driver ipamapi.Ipam, cap *ipamapi.Capability) bool {
+		if driver.IsBuiltIn() {
+			drivers = append(drivers, name)
+		}
+		return false
+	})
 	return drivers
 }
 

@@ -80,6 +80,9 @@ type Ipam interface {
 	RequestAddress(string, net.IP, map[string]string) (*net.IPNet, map[string]string, error)
 	// Release the address from the specified pool ID
 	ReleaseAddress(string, net.IP) error
+
+	//IsBuiltIn returns true if it is a built-in driver.
+	IsBuiltIn() bool
 }
 
 // Capability represents the requirements and capabilities of the IPAM driver
