@@ -14,7 +14,7 @@ var (
 	// errInvalidName is a typed error returned when creating a volume with a name that is not valid on the platform
 	errInvalidName = errors.New("volume name is not valid on this platform")
 	// errNameConflict is a typed error returned on create when a volume exists with the given name, but for a different driver
-	errNameConflict = errors.New("conflict: volume name must be unique")
+	errNameConflict = errors.New("volume name must be unique")
 )
 
 // OpErr is the error type returned by functions in the store package. It describes

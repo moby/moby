@@ -310,8 +310,17 @@ func (s *VolumeStore) checkConflict(name, driverName string) (volume.Volume, err
 
 	vDriverName := v.DriverName()
 	var conflict bool
-	if driverName != "" && vDriverName != driverName {
-		conflict = true
+	if driverName != "" {
+		// Retrieve canonical driver name to avoid inconsistencies (for example
+		// "plugin" vs. "plugin:latest")
+		vd, err := volumedrivers.GetDriver(driverName)
+		if err != nil {
+			return nil, err
+		}
+
+		if vDriverName != vd.Name() {
+			conflict = true
+		}
 	}
 
 	// let's check if the found volume ref

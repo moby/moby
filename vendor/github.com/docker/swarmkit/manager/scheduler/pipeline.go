@@ -11,12 +11,7 @@ var (
 		// Always check for readiness first.
 		&ReadyFilter{},
 		&ResourceFilter{},
-
-		// TODO(stevvooe): Do not filter based on plugins since they are lazy
-		// loaded in the engine. We can add this back when we can schedule
-		// plugins in the future.
-		// &PluginFilter{},
-
+		&PluginFilter{},
 		&ConstraintFilter{},
 	}
 )
