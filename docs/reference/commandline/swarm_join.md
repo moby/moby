@@ -98,5 +98,8 @@ Secret value required for nodes to join the swarm
 ## Related information
 
 * [swarm init](swarm_init.md)
+* [swarm join-token](swarm_join_token.md)
 * [swarm leave](swarm_leave.md)
+* [swarm unlock](swarm_unlock.md)
+* [swarm unlock-key](swarm_unlock_key.md)
 * [swarm update](swarm_update.md)

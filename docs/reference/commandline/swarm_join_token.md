@@ -102,4 +102,9 @@ Only print the token. Do not print a complete command for joining.
 
 ## Related information
 
+* [swarm init](swarm_init.md)
 * [swarm join](swarm_join.md)
+* [swarm leave](swarm_leave.md)
+* [swarm unlock](swarm_unlock.md)
+* [swarm unlock-key](swarm_unlock_key.md)
+* [swarm update](swarm_update.md)
