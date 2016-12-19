@@ -66,6 +66,8 @@ var (
 
 	// daemonPid is the pid of the main test daemon
 	daemonPid int
+
+	daemonKernelVersion string
 )
 
 func init() {
@@ -111,6 +113,7 @@ func init() {
 	type Info struct {
 		DockerRootDir     string
 		ExperimentalBuild bool
+		KernelVersion     string
 	}
 	var i Info
 	status, b, err := sockRequest("GET", "/info", nil)
@@ -118,6 +121,7 @@ func init() {
 		if err = json.Unmarshal(b, &i); err == nil {
 			dockerBasePath = i.DockerRootDir
 			experimentalDaemon = i.ExperimentalBuild
+			daemonKernelVersion = i.KernelVersion
 		}
 	}
 	volumesConfigPath = dockerBasePath + "/volumes"
