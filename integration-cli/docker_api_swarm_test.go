@@ -962,7 +962,7 @@ func (s *DockerSwarmSuite) TestAPISwarmInvalidAddress(c *check.C) {
 	}
 	status, _, err := d.SockRequest("POST", "/swarm/init", req)
 	c.Assert(err, checker.IsNil)
-	c.Assert(status, checker.Equals, http.StatusInternalServerError)
+	c.Assert(status, checker.Equals, http.StatusBadRequest)
 
 	req2 := swarm.JoinRequest{
 		ListenAddr:  "0.0.0.0:2377",
@@ -970,7 +970,7 @@ func (s *DockerSwarmSuite) TestAPISwarmInvalidAddress(c *check.C) {
 	}
 	status, _, err = d.SockRequest("POST", "/swarm/join", req2)
 	c.Assert(err, checker.IsNil)
-	c.Assert(status, checker.Equals, http.StatusInternalServerError)
+	c.Assert(status, checker.Equals, http.StatusBadRequest)
 }
 
 func (s *DockerSwarmSuite) TestAPISwarmForceNewCluster(c *check.C) {
