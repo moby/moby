@@ -135,8 +135,8 @@ therefore verify which parts of the documentation need to be updated. Any
 contribution that may require changing the narrative should get the
 `impact/documentation` label: this is the signal for documentation maintainers
 that a change will likely need to happen on the unified documentation
-repository. When in doubt, it’s better to add the label and leave it to
-documentation maintainers to decide whether it’s ok to skip. In all cases,
+repository. When in doubt, it's better to add the label and leave it to
+documentation maintainers to decide whether it's ok to skip. In all cases,
 leave a comment to explain what documentation changes you think might be needed.
 
 - If the pull request does not impact the documentation at all, the docs review
