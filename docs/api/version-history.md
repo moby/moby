@@ -81,6 +81,7 @@ keywords: "API, Docker, rcli, REST, documentation"
 * `DELETE /secrets/{id}` removes the secret `id`.
 * `GET /secrets/{id}` returns information on the secret `id`.
 * `POST /secrets/{id}/update` updates the secret `id`.
+* `POST /services/(id or name)/update` now accepts service name or prefix of service id as a parameter.
 
 ## v1.24 API changes
 
