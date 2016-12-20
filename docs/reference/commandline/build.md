@@ -262,7 +262,7 @@ Successfully built 377c409b35e4
 This sends the URL `http://server/ctx.tar.gz` to the Docker daemon, which
 downloads and extracts the referenced tarball. The `-f ctx/Dockerfile`
 parameter specifies a path inside `ctx.tar.gz` to the `Dockerfile` that is used
-to build the image. Any `ADD` commands in that `Dockerfile` that refer to local
+to build the image. Any `ADD` commands in that `Dockerfile` that refers to local
 paths must be relative to the root of the contents inside `ctx.tar.gz`. In the
 example above, the tarball contains a directory `ctx/`, so the `ADD
 ctx/container.cfg /` operation works as expected.
