@@ -46,6 +46,14 @@ install_proxy() {
 	go build -ldflags="$PROXY_LDFLAGS" -o /usr/local/bin/docker-proxy github.com/docker/libnetwork/cmd/proxy
 }
 
+install_bindata() {
+    echo "Install go-bindata version $BINDATA_COMMIT"
+    git clone https://github.com/jteeuwen/go-bindata "$GOPATH/src/github.com/jteeuwen/go-bindata"
+    cd $GOPATH/src/github.com/jteeuwen/go-bindata
+    git checkout -q "$BINDATA_COMMIT"
+	go build -o /usr/local/bin/go-bindata github.com/jteeuwen/go-bindata/go-bindata
+}
+
 for prog in "$@"
 do
 	case $prog in
@@ -98,6 +106,10 @@ do
 			git checkout -q "$VNDR_COMMIT"
 			go build -v -o /usr/local/bin/vndr .
 			;;
+
+        bindata)
+            install_bindata
+            ;;
 
 		*)
 			echo echo "Usage: $0 [tomlv|runc|containerd|tini|proxy]"
