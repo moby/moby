@@ -340,6 +340,11 @@ type PluginEnableOptions struct {
 	Timeout int
 }
 
+// PluginDisableOptions holds parameters to disable plugins.
+type PluginDisableOptions struct {
+	Force bool
+}
+
 // PluginInstallOptions holds parameters to install a plugin.
 type PluginInstallOptions struct {
 	Disabled              bool

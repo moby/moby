@@ -99,7 +99,16 @@ func (pr *pluginRouter) enablePlugin(ctx context.Context, w http.ResponseWriter,
 }
 
 func (pr *pluginRouter) disablePlugin(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	return pr.backend.Disable(vars["name"])
+	if err := httputils.ParseForm(r); err != nil {
+		return err
+	}
+
+	name := vars["name"]
+	config := &types.PluginDisableConfig{
+		ForceDisable: httputils.BoolValue(r, "force"),
+	}
+
+	return pr.backend.Disable(name, config)
 }
 
 func (pr *pluginRouter) removePlugin(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
