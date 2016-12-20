@@ -344,26 +344,17 @@ func deleteAllImages(c *check.C) {
 	}
 }
 
-func getPausedContainers() (string, error) {
+func getPausedContainers() ([]string, error) {
 	getPausedContainersCmd := exec.Command(dockerBinary, "ps", "-f", "status=paused", "-q", "-a")
 	out, exitCode, err := runCommandWithOutput(getPausedContainersCmd)
 	if exitCode != 0 && err == nil {
 		err = fmt.Errorf("failed to get a list of paused containers: %v\n", out)
 	}
-
-	return out, err
-}
-
-func getSliceOfPausedContainers() ([]string, error) {
-	out, err := getPausedContainers()
-	if err == nil {
-		if len(out) == 0 {
-			return nil, err
-		}
-		slice := strings.Split(strings.TrimSpace(out), "\n")
-		return slice, err
+	if err != nil {
+		return nil, err
 	}
-	return []string{out}, err
+
+	return strings.Fields(out), nil
 }
 
 func unpauseContainer(c *check.C, container string) {
@@ -373,12 +364,7 @@ func unpauseContainer(c *check.C, container string) {
 func unpauseAllContainers(c *check.C) {
 	containers, err := getPausedContainers()
 	c.Assert(err, checker.IsNil, check.Commentf("containers: %v", containers))
-
-	containers = strings.Replace(containers, "\n", " ", -1)
-	containers = strings.Trim(containers, " ")
-	containerList := strings.Split(containers, " ")
-
-	for _, value := range containerList {
+	for _, value := range containers {
 		unpauseContainer(c, value)
 	}
 }

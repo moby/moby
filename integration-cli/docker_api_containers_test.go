@@ -354,7 +354,7 @@ func (s *DockerSuite) TestContainerAPIPause(c *check.C) {
 	c.Assert(err, checker.IsNil)
 	c.Assert(status, checker.Equals, http.StatusNoContent)
 
-	pausedContainers, err := getSliceOfPausedContainers()
+	pausedContainers, err := getPausedContainers()
 	c.Assert(err, checker.IsNil, check.Commentf("error thrown while checking if containers were paused"))
 
 	if len(pausedContainers) != 1 || stringid.TruncateID(ContainerID) != pausedContainers[0] {
@@ -365,9 +365,9 @@ func (s *DockerSuite) TestContainerAPIPause(c *check.C) {
 	c.Assert(err, checker.IsNil)
 	c.Assert(status, checker.Equals, http.StatusNoContent)
 
-	pausedContainers, err = getSliceOfPausedContainers()
+	pausedContainers, err = getPausedContainers()
 	c.Assert(err, checker.IsNil, check.Commentf("error thrown while checking if containers were paused"))
-	c.Assert(pausedContainers, checker.IsNil, check.Commentf("There should be no paused container."))
+	c.Assert(pausedContainers, checker.HasLen, 0, check.Commentf("There should be no paused container."))
 }
 
 func (s *DockerSuite) TestContainerAPITop(c *check.C) {
