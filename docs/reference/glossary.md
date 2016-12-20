@@ -93,6 +93,14 @@ develop, ship, and run applications
 - The docker daemon process running on the host which manages images and containers
 
 
+## Docker for Mac
+
+[Docker for Mac](https://docs.docker.com/docker-for-mac/) is an easy-to-install, lightweight Docker development environment designed specifically for the Mac. A native Mac application, Docker for Mac uses the macOS Hypervisor framework, networking, and filesystem. It's the best solution if you want to build, debug, test, package, and ship Dockerized applications on a Mac. Docker for Mac supersedes [Docker Toolbox](#toolbox) as state-of-the-art Docker for macOS.
+
+## Docker for Windows
+
+[Docker for Windows](https://docs.docker.com/docker-for-windows/) is an easy-to-install, lightweight Docker development environment designed specifically for Windows systems. Docker for Windows uses Microsoft Hyper-V, and runs as a native Windows app. It works with Windows Server 2016, and gives you the ability to set up and run Windows containers as well as the standard Linux containers (with an option to switch between the two). Docker for Windows is the best solution if you want to build, debug, test, package, and ship Dockerized applications on Windows machines. It supersedes [Docker Toolbox](#toolbox) as state-of-the-art Docker on Windows.
+
 ## Docker Hub
 
 The [Docker Hub](https://hub.docker.com/) is a centralized resource for working with
@@ -264,7 +272,11 @@ containers.
 
 ## Toolbox
 
-Docker Toolbox is the installer for Mac and Windows users.
+[Docker Toolbox](https://docs.docker.com/toolbox/overview/) is a legacy installer for Mac and Windows users. It uses Oracle VirtualBox for virtualization.
+
+For Macs running OS X El Capitan 10.11 and newer macOS releases, [Docker for Mac](https://docs.docker.com/docker-for-mac/) is the better solution.
+
+For Windows systems running Windows 10 Pro and Microsoft Hyper-V, [Docker for Windows](https://docs.docker.com/docker-for-windows/) is the better solution.
 
 
 ## Union file system
