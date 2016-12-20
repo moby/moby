@@ -342,7 +342,7 @@ func (daemon *Daemon) restore() error {
 		// if the container has restart policy, do not
 		// prepare the mountpoints since it has been done on restarting.
 		// This is to speed up the daemon start when a restart container
-		// has a volume and the volume dirver is not available.
+		// has a volume and the volume driver is not available.
 		if _, ok := restartContainers[c]; ok {
 			continue
 		} else if _, ok := removeContainers[c.ID]; ok {

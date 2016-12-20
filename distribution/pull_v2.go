@@ -33,9 +33,8 @@ import (
 )
 
 var (
-	errRootFSMismatch  = errors.New("layers from manifest don't match image configuration")
-	errMediaTypePlugin = errors.New("target is a plugin")
-	errRootFSInvalid   = errors.New("invalid rootfs in image configuration")
+	errRootFSMismatch = errors.New("layers from manifest don't match image configuration")
+	errRootFSInvalid  = errors.New("invalid rootfs in image configuration")
 )
 
 // ImageConfigPullError is an error pulling the image config blob
@@ -355,8 +354,19 @@ func (p *v2Puller) pullV2Tag(ctx context.Context, ref reference.Named) (tagUpdat
 	}
 
 	if m, ok := manifest.(*schema2.DeserializedManifest); ok {
-		if m.Manifest.Config.MediaType == schema2.MediaTypePluginConfig {
-			return false, errMediaTypePlugin
+		var allowedMediatype bool
+		for _, t := range p.config.Schema2Types {
+			if m.Manifest.Config.MediaType == t {
+				allowedMediatype = true
+				break
+			}
+		}
+		if !allowedMediatype {
+			configClass := mediaTypeClasses[m.Manifest.Config.MediaType]
+			if configClass == "" {
+				configClass = "unknown"
+			}
+			return false, fmt.Errorf("target is %s", configClass)
 		}
 	}
 
@@ -374,6 +384,9 @@ func (p *v2Puller) pullV2Tag(ctx context.Context, ref reference.Named) (tagUpdat
 
 	switch v := manifest.(type) {
 	case *schema1.SignedManifest:
+		if p.config.RequireSchema2 {
+			return false, fmt.Errorf("invalid manifest: not schema2")
+		}
 		id, manifestDigest, err = p.pullSchema1(ctx, ref, v)
 		if err != nil {
 			return false, err
@@ -394,25 +407,27 @@ func (p *v2Puller) pullV2Tag(ctx context.Context, ref reference.Named) (tagUpdat
 
 	progress.Message(p.config.ProgressOutput, "", "Digest: "+manifestDigest.String())
 
-	oldTagID, err := p.config.ReferenceStore.Get(ref)
-	if err == nil {
-		if oldTagID == id {
-			return false, addDigestReference(p.config.ReferenceStore, ref, manifestDigest, id)
+	if p.config.ReferenceStore != nil {
+		oldTagID, err := p.config.ReferenceStore.Get(ref)
+		if err == nil {
+			if oldTagID == id {
+				return false, addDigestReference(p.config.ReferenceStore, ref, manifestDigest, id)
+			}
+		} else if err != reference.ErrDoesNotExist {
+			return false, err
 		}
-	} else if err != reference.ErrDoesNotExist {
-		return false, err
-	}
 
-	if canonical, ok := ref.(reference.Canonical); ok {
-		if err = p.config.ReferenceStore.AddDigest(canonical, id, true); err != nil {
-			return false, err
-		}
-	} else {
-		if err = addDigestReference(p.config.ReferenceStore, ref, manifestDigest, id); err != nil {
-			return false, err
-		}
-		if err = p.config.ReferenceStore.AddTag(ref, id, true); err != nil {
-			return false, err
+		if canonical, ok := ref.(reference.Canonical); ok {
+			if err = p.config.ReferenceStore.AddDigest(canonical, id, true); err != nil {
+				return false, err
+			}
+		} else {
+			if err = addDigestReference(p.config.ReferenceStore, ref, manifestDigest, id); err != nil {
+				return false, err
+			}
+			if err = p.config.ReferenceStore.AddTag(ref, id, true); err != nil {
+				return false, err
+			}
 		}
 	}
 	return true, nil
@@ -481,14 +496,14 @@ func (p *v2Puller) pullSchema1(ctx context.Context, ref reference.Named, unverif
 		return "", "", err
 	}
 
-	imageID, err := p.config.ImageStore.Create(config)
+	imageID, err := p.config.ImageStore.Put(config)
 	if err != nil {
 		return "", "", err
 	}
 
 	manifestDigest = digest.FromBytes(unverifiedManifest.Canonical)
 
-	return imageID.Digest(), manifestDigest, nil
+	return imageID, manifestDigest, nil
 }
 
 func (p *v2Puller) pullSchema2(ctx context.Context, ref reference.Named, mfst *schema2.DeserializedManifest) (id digest.Digest, manifestDigest digest.Digest, err error) {
@@ -498,7 +513,7 @@ func (p *v2Puller) pullSchema2(ctx context.Context, ref reference.Named, mfst *s
 	}
 
 	target := mfst.Target()
-	if _, err := p.config.ImageStore.Get(image.IDFromDigest(target.Digest)); err == nil {
+	if _, err := p.config.ImageStore.Get(target.Digest); err == nil {
 		// If the image already exists locally, no need to pull
 		// anything.
 		return target.Digest, manifestDigest, nil
@@ -537,9 +552,9 @@ func (p *v2Puller) pullSchema2(ctx context.Context, ref reference.Named, mfst *s
 	}()
 
 	var (
-		configJSON         []byte       // raw serialized image config
-		unmarshalledConfig image.Image  // deserialized image config
-		downloadRootFS     image.RootFS // rootFS to use for registering layers.
+		configJSON       []byte        // raw serialized image config
+		downloadedRootFS *image.RootFS // rootFS from registered layers
+		configRootFS     *image.RootFS // rootFS from configuration
 	)
 
 	// https://github.com/docker/docker/issues/24766 - Err on the side of caution,
@@ -551,84 +566,87 @@ func (p *v2Puller) pullSchema2(ctx context.Context, ref reference.Named, mfst *s
 	// check to block Windows images being pulled on Linux is implemented, it
 	// may be necessary to perform the same type of serialisation.
 	if runtime.GOOS == "windows" {
-		configJSON, unmarshalledConfig, err = receiveConfig(configChan, errChan)
+		configJSON, configRootFS, err = receiveConfig(p.config.ImageStore, configChan, errChan)
 		if err != nil {
 			return "", "", err
 		}
 
-		if unmarshalledConfig.RootFS == nil {
+		if configRootFS == nil {
 			return "", "", errRootFSInvalid
 		}
-
-		if unmarshalledConfig.OS == "linux" {
-			return "", "", fmt.Errorf("image operating system %q cannot be used on this platform", unmarshalledConfig.OS)
-		}
 	}
 
-	downloadRootFS = *image.NewRootFS()
-
-	rootFS, release, err := p.config.DownloadManager.Download(ctx, downloadRootFS, descriptors, p.config.ProgressOutput)
-	if err != nil {
-		if configJSON != nil {
-			// Already received the config
-			return "", "", err
-		}
-		select {
-		case err = <-errChan:
-			return "", "", err
-		default:
-			cancel()
-			select {
-			case <-configChan:
-			case <-errChan:
+	if p.config.DownloadManager != nil {
+		downloadRootFS := *image.NewRootFS()
+		rootFS, release, err := p.config.DownloadManager.Download(ctx, downloadRootFS, descriptors, p.config.ProgressOutput)
+		if err != nil {
+			if configJSON != nil {
+				// Already received the config
+				return "", "", err
 			}
-			return "", "", err
+			select {
+			case err = <-errChan:
+				return "", "", err
+			default:
+				cancel()
+				select {
+				case <-configChan:
+				case <-errChan:
+				}
+				return "", "", err
+			}
 		}
+		if release != nil {
+			defer release()
+		}
+
+		downloadedRootFS = &rootFS
 	}
-	defer release()
 
 	if configJSON == nil {
-		configJSON, unmarshalledConfig, err = receiveConfig(configChan, errChan)
+		configJSON, configRootFS, err = receiveConfig(p.config.ImageStore, configChan, errChan)
 		if err != nil {
 			return "", "", err
 		}
 
-		if unmarshalledConfig.RootFS == nil {
+		if configRootFS == nil {
 			return "", "", errRootFSInvalid
 		}
 	}
 
-	// The DiffIDs returned in rootFS MUST match those in the config.
-	// Otherwise the image config could be referencing layers that aren't
-	// included in the manifest.
-	if len(rootFS.DiffIDs) != len(unmarshalledConfig.RootFS.DiffIDs) {
-		return "", "", errRootFSMismatch
-	}
-
-	for i := range rootFS.DiffIDs {
-		if rootFS.DiffIDs[i] != unmarshalledConfig.RootFS.DiffIDs[i] {
+	if downloadedRootFS != nil {
+		// The DiffIDs returned in rootFS MUST match those in the config.
+		// Otherwise the image config could be referencing layers that aren't
+		// included in the manifest.
+		if len(downloadedRootFS.DiffIDs) != len(configRootFS.DiffIDs) {
 			return "", "", errRootFSMismatch
+		}
+
+		for i := range downloadedRootFS.DiffIDs {
+			if downloadedRootFS.DiffIDs[i] != configRootFS.DiffIDs[i] {
+				return "", "", errRootFSMismatch
+			}
 		}
 	}
 
-	imageID, err := p.config.ImageStore.Create(configJSON)
+	imageID, err := p.config.ImageStore.Put(configJSON)
 	if err != nil {
 		return "", "", err
 	}
 
-	return imageID.Digest(), manifestDigest, nil
+	return imageID, manifestDigest, nil
 }
 
-func receiveConfig(configChan <-chan []byte, errChan <-chan error) ([]byte, image.Image, error) {
+func receiveConfig(s ImageConfigStore, configChan <-chan []byte, errChan <-chan error) ([]byte, *image.RootFS, error) {
 	select {
 	case configJSON := <-configChan:
-		var unmarshalledConfig image.Image
-		if err := json.Unmarshal(configJSON, &unmarshalledConfig); err != nil {
-			return nil, image.Image{}, err
+		rootfs, err := s.RootFSFromConfig(configJSON)
+		if err != nil {
+			return nil, nil, err
 		}
-		return configJSON, unmarshalledConfig, nil
+		return configJSON, rootfs, nil
 	case err := <-errChan:
-		return nil, image.Image{}, err
+		return nil, nil, err
 		// Don't need a case for ctx.Done in the select because cancellation
 		// will trigger an error in p.pullSchema2ImageConfig.
 	}

@@ -25,8 +25,6 @@ var (
 	// the private registry to use for tests
 	privateRegistryURL = "127.0.0.1:5000"
 
-	workingDirectory string
-
 	// isLocalDaemon is true if the daemon under test is on the same
 	// host as the CLI.
 	isLocalDaemon bool
@@ -68,6 +66,8 @@ var (
 
 	// daemonPid is the pid of the main test daemon
 	daemonPid int
+
+	daemonKernelVersion string
 )
 
 func init() {
@@ -84,7 +84,6 @@ func init() {
 	if registry := os.Getenv("REGISTRY_URL"); registry != "" {
 		privateRegistryURL = registry
 	}
-	workingDirectory, _ = os.Getwd()
 
 	// Deterministically working out the environment in which CI is running
 	// to evaluate whether the daemon is local or remote is not possible through
@@ -114,6 +113,7 @@ func init() {
 	type Info struct {
 		DockerRootDir     string
 		ExperimentalBuild bool
+		KernelVersion     string
 	}
 	var i Info
 	status, b, err := sockRequest("GET", "/info", nil)
@@ -121,6 +121,7 @@ func init() {
 		if err = json.Unmarshal(b, &i); err == nil {
 			dockerBasePath = i.DockerRootDir
 			experimentalDaemon = i.ExperimentalBuild
+			daemonKernelVersion = i.KernelVersion
 		}
 	}
 	volumesConfigPath = dockerBasePath + "/volumes"
