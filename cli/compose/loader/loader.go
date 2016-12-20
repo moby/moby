@@ -9,9 +9,9 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/aanand/compose-file/interpolation"
-	"github.com/aanand/compose-file/schema"
-	"github.com/aanand/compose-file/types"
+	"github.com/docker/docker/cli/compose/interpolation"
+	"github.com/docker/docker/cli/compose/schema"
+	"github.com/docker/docker/cli/compose/types"
 	"github.com/docker/docker/runconfig/opts"
 	units "github.com/docker/go-units"
 	shellwords "github.com/mattn/go-shellwords"
@@ -117,6 +117,8 @@ func Load(configDetails types.ConfigDetails) (*types.Config, error) {
 	return &cfg, nil
 }
 
+// GetUnsupportedProperties returns the list of any unsupported properties that are
+// used in the Compose files.
 func GetUnsupportedProperties(configDetails types.ConfigDetails) []string {
 	unsupported := map[string]bool{}
 
@@ -141,6 +143,8 @@ func sortedKeys(set map[string]bool) []string {
 	return keys
 }
 
+// GetDeprecatedProperties returns the list of any deprecated properties that
+// are used in the compose files.
 func GetDeprecatedProperties(configDetails types.ConfigDetails) map[string]string {
 	return getProperties(getServices(getConfigDict(configDetails)), types.DeprecatedProperties)
 }
@@ -161,6 +165,8 @@ func getProperties(services types.Dict, propertyMap map[string]string) map[strin
 	return output
 }
 
+// ForbiddenPropertiesError is returned when there are properties in the Compose
+// file that are forbidden.
 type ForbiddenPropertiesError struct {
 	Properties map[string]string
 }
