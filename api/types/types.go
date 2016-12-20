@@ -154,7 +154,7 @@ type Version struct {
 	BuildTime     string `json:",omitempty"`
 }
 
-// Commit records a external tool actual commit id version along the
+// Commit records an external tool actual commit id version along the
 // one expect by dockerd as set at build time
 type Commit struct {
 	ID       string
