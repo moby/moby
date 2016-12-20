@@ -49,9 +49,9 @@ created.  Supported `Dockerfile` instructions:
 ## Commit a container
 
     $ docker ps
-    ID                  IMAGE               COMMAND             CREATED             STATUS              PORTS
-    c3f279d17e0a        ubuntu:12.04        /bin/bash           7 days ago          Up 25 hours
-    197387f1b436        ubuntu:12.04        /bin/bash           7 days ago          Up 25 hours
+    ID                  IMAGE               COMMAND             CREATED             STATUS              PORTS              NAMES
+    c3f279d17e0a        ubuntu:12.04        /bin/bash           7 days ago          Up 25 hours                            desperate_dubinsky
+    197387f1b436        ubuntu:12.04        /bin/bash           7 days ago          Up 25 hours                            focused_hamilton
     $ docker commit c3f279d17e0a  svendowideit/testimage:version3
     f5283438590d
     $ docker images
@@ -62,9 +62,9 @@ created.  Supported `Dockerfile` instructions:
 
     {% raw %}
     $ docker ps
-    ID                  IMAGE               COMMAND             CREATED             STATUS              PORTS
-    c3f279d17e0a        ubuntu:12.04        /bin/bash           7 days ago          Up 25 hours
-    197387f1b436        ubuntu:12.04        /bin/bash           7 days ago          Up 25 hours
+    ID                  IMAGE               COMMAND             CREATED             STATUS              PORTS              NAMES
+    c3f279d17e0a        ubuntu:12.04        /bin/bash           7 days ago          Up 25 hours                            desperate_dubinsky
+    197387f1b436        ubuntu:12.04        /bin/bash           7 days ago          Up 25 hours                            focused_hamilton
     $ docker inspect -f "{{ .Config.Env }}" c3f279d17e0a
     [HOME=/ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin]
     $ docker commit --change "ENV DEBUG true" c3f279d17e0a  svendowideit/testimage:version3
@@ -76,9 +76,9 @@ created.  Supported `Dockerfile` instructions:
 ## Commit a container with new `CMD` and `EXPOSE` instructions
 
     $ docker ps
-    ID                  IMAGE               COMMAND             CREATED             STATUS              PORTS
-    c3f279d17e0a        ubuntu:12.04        /bin/bash           7 days ago          Up 25 hours
-    197387f1b436        ubuntu:12.04        /bin/bash           7 days ago          Up 25 hours
+    ID                  IMAGE               COMMAND             CREATED             STATUS              PORTS              NAMES
+    c3f279d17e0a        ubuntu:12.04        /bin/bash           7 days ago          Up 25 hours                            desperate_dubinsky
+    197387f1b436        ubuntu:12.04        /bin/bash           7 days ago          Up 25 hours                            focused_hamilton
 
     $ docker commit --change='CMD ["apachectl", "-DFOREGROUND"]' -c "EXPOSE 80" c3f279d17e0a  svendowideit/testimage:version4
     f5283438590d
@@ -87,7 +87,7 @@ created.  Supported `Dockerfile` instructions:
     89373736e2e7f00bc149bd783073ac43d0507da250e999f3f1036e0db60817c0
 
     $ docker ps
-    ID                  IMAGE               COMMAND                 CREATED             STATUS              PORTS
-    89373736e2e7        testimage:version4  "apachectl -DFOREGROU"  3 seconds ago       Up 2 seconds        80/tcp
-    c3f279d17e0a        ubuntu:12.04        /bin/bash               7 days ago          Up 25 hours
-    197387f1b436        ubuntu:12.04        /bin/bash               7 days ago          Up 25 hours
+    ID                  IMAGE               COMMAND                 CREATED             STATUS              PORTS              NAMES
+    89373736e2e7        testimage:version4  "apachectl -DFOREGROU"  3 seconds ago       Up 2 seconds        80/tcp             distracted_fermat
+    c3f279d17e0a        ubuntu:12.04        /bin/bash               7 days ago          Up 25 hours                            desperate_dubinsky
+    197387f1b436        ubuntu:12.04        /bin/bash               7 days ago          Up 25 hours                            focused_hamilton
