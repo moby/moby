@@ -262,7 +262,7 @@ __docker_plugins_bundled() {
 		esac
 	done
 
-	local plugins=($(__docker_q info | sed -n "/^Plugins/,/^[^ ]/s/ $type: //p"))
+	local plugins=($(__docker_q info --format "{{range \$i, \$p := .Plugins.$type}}{{.}} {{end}}"))
 	for del in "${remove[@]}" ; do
 		plugins=(${plugins[@]/$del/})
 	done
