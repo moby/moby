@@ -441,7 +441,7 @@ device. And devices automatically go away when last user of the device
 exits.
 
 For example, when a container exits, its associated thin device is removed. If
-that device has leaked into some other mount namespace and can't be removed,
+that device has leaked into some other mount namespace(s) and can't be removed,
 the container exit still succeeds and this option causes the system to schedule
 the device for deferred removal. It does not wait in a loop trying to remove a
 busy device.
