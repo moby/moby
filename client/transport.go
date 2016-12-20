@@ -2,11 +2,8 @@ package client
 
 import (
 	"crypto/tls"
-	"errors"
 	"net/http"
 )
-
-var errTLSConfigUnavailable = errors.New("TLSConfig unavailable")
 
 // transportFunc allows us to inject a mock transport for testing. We define it
 // here so we can detect the tlsconfig and return nil for only this type.
