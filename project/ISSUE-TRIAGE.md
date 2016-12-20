@@ -30,7 +30,7 @@ reopened when the necessary information is provided.
 
 ### 2. Classify the Issue
 
-An issue can have multiple of the following labels. Typically, a properly classified issues should
+An issue can have multiple of the following labels. Typically, a properly classified issue should
 have:
 
 - One label identifying its kind (`kind/*`).
@@ -129,4 +129,4 @@ following labels to indicate their degree of priority (from more urgent to less 
 | priority/P2 | Normal priority: default priority applied.                                                                                        |
 | priority/P3 | Best effort: those are nice to have / minor issues.                                                                               |
 
-And that's it. That should be all the information required for a new or existing contributor to come in an resolve an issue.
+And that's it. That should be all the information required for a new or existing contributor to come in a resolve an issue.
