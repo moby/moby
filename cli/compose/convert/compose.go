@@ -1,9 +1,9 @@
 package convert
 
 import (
-	composetypes "github.com/aanand/compose-file/types"
 	"github.com/docker/docker/api/types"
 	networktypes "github.com/docker/docker/api/types/network"
+	composetypes "github.com/docker/docker/cli/compose/types"
 )
 
 const (

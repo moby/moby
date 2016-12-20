@@ -4,6 +4,7 @@ import (
 	"time"
 )
 
+// UnsupportedProperties not yet supported by this implementation of the compose file
 var UnsupportedProperties = []string{
 	"build",
 	"cap_add",
@@ -27,11 +28,15 @@ var UnsupportedProperties = []string{
 	"tmpfs",
 }
 
+// DeprecatedProperties that were removed from the v3 format, but their
+// use should not impact the behaviour of the application.
 var DeprecatedProperties = map[string]string{
 	"container_name": "Setting the container name is not supported.",
 	"expose":         "Exposing ports is unnecessary - services on the same network can access each other's containers on any port.",
 }
 
+// ForbiddenProperties that are not supported in this implementation of the
+// compose file.
 var ForbiddenProperties = map[string]string{
 	"extends":       "Support for `extends` is not implemented yet. Use `docker-compose config` to generate a configuration with all `extends` options resolved, and deploy from that.",
 	"volume_driver": "Instead of setting the volume driver on the service, define a volume using the top-level `volumes` option and specify the driver there.",
@@ -43,25 +48,30 @@ var ForbiddenProperties = map[string]string{
 	"memswap_limit": "Set resource limits using deploy.resources",
 }
 
+// Dict is a mapping of strings to interface{}
 type Dict map[string]interface{}
 
+// ConfigFile is a filename and the contents of the file as a Dict
 type ConfigFile struct {
 	Filename string
 	Config   Dict
 }
 
+// ConfigDetails are the details about a group of ConfigFiles
 type ConfigDetails struct {
 	WorkingDir  string
 	ConfigFiles []ConfigFile
 	Environment map[string]string
 }
 
+// Config is a full compose file configuration
 type Config struct {
 	Services []ServiceConfig
 	Networks map[string]NetworkConfig
 	Volumes  map[string]VolumeConfig
 }
 
+// ServiceConfig is the configuration of one service
 type ServiceConfig struct {
 	Name string
 
@@ -73,8 +83,8 @@ type ServiceConfig struct {
 	DependsOn       []string `mapstructure:"depends_on"`
 	Deploy          DeployConfig
 	Devices         []string
-	Dns             []string          `compose:"string_or_list"`
-	DnsSearch       []string          `mapstructure:"dns_search" compose:"string_or_list"`
+	DNS             []string          `compose:"string_or_list"`
+	DNSSearch       []string          `mapstructure:"dns_search" compose:"string_or_list"`
 	DomainName      string            `mapstructure:"domainname"`
 	Entrypoint      []string          `compose:"shell_command"`
 	Environment     map[string]string `compose:"list_or_dict_equals"`
@@ -108,11 +118,13 @@ type ServiceConfig struct {
 	WorkingDir      string `mapstructure:"working_dir"`
 }
 
+// LoggingConfig the logging configuration for a service
 type LoggingConfig struct {
 	Driver  string
 	Options map[string]string
 }
 
+// DeployConfig the deployment configuration for a service
 type DeployConfig struct {
 	Mode          string
 	Replicas      *uint64
@@ -123,6 +135,7 @@ type DeployConfig struct {
 	Placement     Placement
 }
 
+// HealthCheckConfig the healthcheck configuration for a service
 type HealthCheckConfig struct {
 	Test     []string `compose:"healthcheck"`
 	Timeout  string
@@ -131,6 +144,7 @@ type HealthCheckConfig struct {
 	Disable  bool
 }
 
+// UpdateConfig the service update configuration
 type UpdateConfig struct {
 	Parallelism     *uint64
 	Delay           time.Duration
@@ -139,19 +153,23 @@ type UpdateConfig struct {
 	MaxFailureRatio float32 `mapstructure:"max_failure_ratio"`
 }
 
+// Resources the resource limits and reservations
 type Resources struct {
 	Limits       *Resource
 	Reservations *Resource
 }
 
+// Resource is a resource to be limited or reserved
 type Resource struct {
 	// TODO: types to convert from units and ratios
 	NanoCPUs    string    `mapstructure:"cpus"`
 	MemoryBytes UnitBytes `mapstructure:"memory"`
 }
 
+// UnitBytes is the bytes type
 type UnitBytes int64
 
+// RestartPolicy the service restart policy
 type RestartPolicy struct {
 	Condition   string
 	Delay       *time.Duration
@@ -159,22 +177,26 @@ type RestartPolicy struct {
 	Window      *time.Duration
 }
 
+// Placement constraints for the service
 type Placement struct {
 	Constraints []string
 }
 
+// ServiceNetworkConfig is the network configuration for a service
 type ServiceNetworkConfig struct {
 	Aliases     []string
 	Ipv4Address string `mapstructure:"ipv4_address"`
 	Ipv6Address string `mapstructure:"ipv6_address"`
 }
 
+// UlimitsConfig the ulimit configuration
 type UlimitsConfig struct {
 	Single int
 	Soft   int
 	Hard   int
 }
 
+// NetworkConfig for a network
 type NetworkConfig struct {
 	Driver     string
 	DriverOpts map[string]string `mapstructure:"driver_opts"`
@@ -183,15 +205,18 @@ type NetworkConfig struct {
 	Labels     map[string]string `compose:"list_or_dict_equals"`
 }
 
+// IPAMConfig for a network
 type IPAMConfig struct {
 	Driver string
 	Config []*IPAMPool
 }
 
+// IPAMPool for a network
 type IPAMPool struct {
 	Subnet string
 }
 
+// VolumeConfig for a volume
 type VolumeConfig struct {
 	Driver     string
 	DriverOpts map[string]string `mapstructure:"driver_opts"`

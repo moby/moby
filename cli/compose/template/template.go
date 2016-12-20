@@ -16,6 +16,8 @@ var patternString = fmt.Sprintf(
 
 var pattern = regexp.MustCompile(patternString)
 
+// InvalidTemplateError is returned when a variable template is not in a valid
+// format
 type InvalidTemplateError struct {
 	Template string
 }
@@ -24,23 +26,14 @@ func (e InvalidTemplateError) Error() string {
 	return fmt.Sprintf("Invalid template: %#v", e.Template)
 }
 
-// A user-supplied function which maps from variable names to values.
+// Mapping is a user-supplied function which maps from variable names to values.
 // Returns the value as a string and a bool indicating whether
 // the value is present, to distinguish between an empty string
 // and the absence of a value.
 type Mapping func(string) (string, bool)
 
+// Substitute variables in the string with their values
 func Substitute(template string, mapping Mapping) (result string, err *InvalidTemplateError) {
-	defer func() {
-		if r := recover(); r != nil {
-			if e, ok := r.(*InvalidTemplateError); ok {
-				err = e
-			} else {
-				panic(r)
-			}
-		}
-	}()
-
 	result = pattern.ReplaceAllStringFunc(template, func(substring string) string {
 		matches := pattern.FindStringSubmatch(substring)
 		groups := make(map[string]string)
@@ -87,11 +80,11 @@ func Substitute(template string, mapping Mapping) (result string, err *InvalidTe
 			return escaped
 		}
 
-		panic(&InvalidTemplateError{Template: template})
+		err = &InvalidTemplateError{Template: template}
 		return ""
 	})
 
-	return
+	return result, err
 }
 
 // Split the string at the first occurrence of sep, and return the part before the separator,
@@ -102,7 +95,6 @@ func partition(s, sep string) (string, string) {
 	if strings.Contains(s, sep) {
 		parts := strings.SplitN(s, sep, 2)
 		return parts[0], parts[1]
-	} else {
-		return s, ""
 	}
+	return s, ""
 }
