@@ -22,7 +22,7 @@ func lookupPlugin(name string, pg plugingetter.PluginGetter, config Options) (Dr
 	if !config.ExperimentalEnabled {
 		return nil, fmt.Errorf("graphdriver plugins are only supported with experimental mode")
 	}
-	pl, err := pg.Get(name, "GraphDriver", plugingetter.ACQUIRE)
+	pl, err := pg.Get(name, "GraphDriver", plugingetter.Acquire)
 	if err != nil {
 		return nil, fmt.Errorf("Error looking up graphdriver plugin %s: %v", name, err)
 	}

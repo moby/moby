@@ -1087,7 +1087,7 @@ func (c *controller) loadDriver(networkType string) error {
 	var err error
 
 	if pg := c.GetPluginGetter(); pg != nil {
-		_, err = pg.Get(networkType, driverapi.NetworkPluginEndpointType, plugingetter.LOOKUP)
+		_, err = pg.Get(networkType, driverapi.NetworkPluginEndpointType, plugingetter.Lookup)
 	} else {
 		_, err = plugins.Get(networkType, driverapi.NetworkPluginEndpointType)
 	}
@@ -1106,7 +1106,7 @@ func (c *controller) loadIPAMDriver(name string) error {
 	var err error
 
 	if pg := c.GetPluginGetter(); pg != nil {
-		_, err = pg.Get(name, ipamapi.PluginEndpointType, plugingetter.LOOKUP)
+		_, err = pg.Get(name, ipamapi.PluginEndpointType, plugingetter.Lookup)
 	} else {
 		_, err = plugins.Get(name, ipamapi.PluginEndpointType)
 	}
