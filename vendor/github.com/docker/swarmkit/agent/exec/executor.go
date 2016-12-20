@@ -30,7 +30,7 @@ type SecretsProvider interface {
 
 // SecretGetter contains secret data necessary for the Controller.
 type SecretGetter interface {
-	// Get returns the the secret with a specific secret ID, if available.
+	// Get returns the secret with a specific secret ID, if available.
 	// When the secret is not available, the return will be nil.
 	Get(secretID string) *api.Secret
 }

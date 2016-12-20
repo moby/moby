@@ -36,7 +36,7 @@ func (c *userEventCoalescer) Coalesce(e Event) {
 		return
 	}
 
-	// If the the same age, save it
+	// If the same age, save it
 	if latest.LTime == user.LTime {
 		latest.Events = append(latest.Events, e)
 	}

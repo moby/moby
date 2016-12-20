@@ -306,7 +306,7 @@ func (s *Server) ServeConn(c net.Conn, opts *ServeConnOpts) {
 			// addresses during development.
 			//
 			// TODO: optionally enforce? Or enforce at the time we receive
-			// a new request, and verify the the ServerName matches the :authority?
+			// a new request, and verify the ServerName matches the :authority?
 			// But that precludes proxy situations, perhaps.
 			//
 			// So for now, do nothing here again.

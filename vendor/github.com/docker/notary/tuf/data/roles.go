@@ -55,7 +55,7 @@ func (e ErrInvalidRole) Error() string {
 
 // ValidRole only determines the name is semantically
 // correct. For target delegated roles, it does NOT check
-// the the appropriate parent roles exist.
+// the appropriate parent roles exist.
 func ValidRole(name string) bool {
 	if IsDelegation(name) {
 		return true

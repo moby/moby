@@ -72,7 +72,7 @@ type Driver interface {
 	// only invoked for the global scope driver.
 	EventNotify(event EventType, nid string, tableName string, key string, value []byte)
 
-	// Type returns the the type of this driver, the network type this driver manages
+	// Type returns the type of this driver, the network type this driver manages
 	Type() string
 }
 

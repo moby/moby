@@ -14,7 +14,7 @@ import (
 // In the middle it will pack the segments and file metadata to storage.Packer
 // `p`.
 //
-// The the storage.FilePutter is where payload of files in the stream are
+// The storage.FilePutter is where payload of files in the stream are
 // stashed. If this stashing is not needed, you can provide a nil
 // storage.FilePutter. Since the checksumming is still needed, then a default
 // of NewDiscardFilePutter will be used internally

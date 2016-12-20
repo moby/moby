@@ -160,7 +160,7 @@ func (h HashAlgorithm) String() string {
 	}
 }
 
-// SignatureAlgorithm from the the DigitallySigned struct
+// SignatureAlgorithm from the DigitallySigned struct
 type SignatureAlgorithm byte
 
 // SignatureAlgorithm constants

@@ -447,7 +447,7 @@ type ContainerSpec struct {
 	// This field *must* remain compatible with the Labels field of
 	// Annotations.
 	Labels map[string]string `protobuf:"bytes,2,rep,name=labels" json:"labels,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
-	// Command to run the the container. The first element is a path to the
+	// Command to run the container. The first element is a path to the
 	// executable and the following elements are treated as arguments.
 	//
 	// If command is empty, execution will fall back to the image's entrypoint.
