@@ -7,6 +7,7 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"sort"
 	"strings"
 
 	"github.com/Sirupsen/logrus"
@@ -203,6 +204,28 @@ func sanitizeRepoAndTags(names []string) ([]reference.Named, error) {
 	return repoAndTags, nil
 }
 
+func (b *Builder) processLabels() error {
+	if len(b.options.Labels) == 0 {
+		return nil
+	}
+
+	var labels []string
+	for k, v := range b.options.Labels {
+		labels = append(labels, fmt.Sprintf("%q='%s'", k, v))
+	}
+	// Sort the label to have a repeatable order
+	sort.Strings(labels)
+
+	line := "LABEL " + strings.Join(labels, " ")
+	_, node, err := parser.ParseLine(line, &b.directive, false)
+	if err != nil {
+		return err
+	}
+	b.dockerfile.Children = append(b.dockerfile.Children, node)
+
+	return nil
+}
+
 // build runs the Dockerfile builder from a context and a docker object that allows to make calls
 // to Docker.
 //
@@ -233,16 +256,8 @@ func (b *Builder) build(stdout io.Writer, stderr io.Writer, out io.Writer) (stri
 		return "", err
 	}
 
-	if len(b.options.Labels) > 0 {
-		line := "LABEL "
-		for k, v := range b.options.Labels {
-			line += fmt.Sprintf("%q='%s' ", k, v)
-		}
-		_, node, err := parser.ParseLine(line, &b.directive, false)
-		if err != nil {
-			return "", err
-		}
-		b.dockerfile.Children = append(b.dockerfile.Children, node)
+	if err := b.processLabels(); err != nil {
+		return "", err
 	}
 
 	var shortImgID string
