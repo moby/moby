@@ -424,6 +424,7 @@ func (clnt *client) restore(cont *containerd.Container, lastEvent *containerd.Ev
 
 	container := clnt.newContainer(cont.BundlePath, options...)
 	container.systemPid = systemPid(cont)
+	container.attachStdio = attachStdio
 
 	var terminal bool
 	for _, p := range cont.Processes {
@@ -596,6 +597,7 @@ func (clnt *client) Restore(containerID string, attachStdio StdioCallback, optio
 	w := clnt.getOrCreateExitNotifier(containerID)
 	clnt.lock(cont.Id)
 	container := clnt.newContainer(cont.BundlePath)
+	container.attachStdio = attachStdio
 	container.systemPid = systemPid(cont)
 	clnt.appendContainer(container)
 	clnt.unlock(cont.Id)
