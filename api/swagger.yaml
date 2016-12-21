@@ -4108,7 +4108,7 @@ paths:
       tags: ["Container"]
     get:
       summary: "Get an archive of a filesystem resource in a container"
-      description: "Get an tar archive of a resource in the filesystem of container id."
+      description: "Get a tar archive of a resource in the filesystem of container id."
       operationId: "ContainerGetArchive"
       produces:
         - "application/x-tar"

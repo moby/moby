@@ -154,11 +154,11 @@ type Version struct {
 	BuildTime     string `json:",omitempty"`
 }
 
-// Commit records a external tool actual commit id version along the
-// one expect by dockerd as set at build time
+// Commit holds the Git-commit (SHA1) that a binary was built from, as reported
+// in the version-string of external tools, such as containerd, or runC.
 type Commit struct {
-	ID       string
-	Expected string
+	ID       string // ID is the actual commit ID of external tool.
+	Expected string // Expected is the commit ID of external tool expected by dockerd as set at build time.
 }
 
 // Info contains response of Engine API:
