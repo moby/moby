@@ -12,7 +12,7 @@ application bundle**, and **stacks** can be created from that bundle. In that
 sense, the bundle is a multi-services distributable image format.
 
 As of Docker 1.12 and Compose 1.8, the features are experimental. Neither
-Docker Engine nor the Docker Registry support distribution of bundles.
+Docker Engine nor the Docker Registry supports distribution of bundles.
 
 ## Producing a bundle
 
