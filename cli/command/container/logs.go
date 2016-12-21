@@ -1,7 +1,6 @@
 package container
 
 import (
-	"fmt"
 	"io"
 
 	"golang.org/x/net/context"
@@ -12,11 +11,6 @@ import (
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/spf13/cobra"
 )
-
-var validDrivers = map[string]bool{
-	"json-file": true,
-	"journald":  true,
-}
 
 type logsOptions struct {
 	follow     bool
@@ -54,15 +48,6 @@ func NewLogsCommand(dockerCli *command.DockerCli) *cobra.Command {
 func runLogs(dockerCli *command.DockerCli, opts *logsOptions) error {
 	ctx := context.Background()
 
-	c, err := dockerCli.Client().ContainerInspect(ctx, opts.container)
-	if err != nil {
-		return err
-	}
-
-	if !validDrivers[c.HostConfig.LogConfig.Type] {
-		return fmt.Errorf("\"logs\" command is supported only for \"json-file\" and \"journald\" logging drivers (got: %s)", c.HostConfig.LogConfig.Type)
-	}
-
 	options := types.ContainerLogsOptions{
 		ShowStdout: true,
 		ShowStderr: true,
@@ -77,6 +62,11 @@ func runLogs(dockerCli *command.DockerCli, opts *logsOptions) error {
 		return err
 	}
 	defer responseBody.Close()
+
+	c, err := dockerCli.Client().ContainerInspect(ctx, opts.container)
+	if err != nil {
+		return err
+	}
 
 	if c.Config.Tty {
 		_, err = io.Copy(dockerCli.Out(), responseBody)
