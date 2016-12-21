@@ -69,7 +69,7 @@ func (s *DockerSuite) TestExecTTY(c *check.C) {
 	c.Assert(bytes.Contains(buf, []byte("hello")), checker.Equals, true, check.Commentf(string(buf[:read])))
 }
 
-// Test the the TERM env var is set when -t is provided on exec
+// Test the TERM env var is set when -t is provided on exec
 func (s *DockerSuite) TestExecWithTERM(c *check.C) {
 	testRequires(c, DaemonIsLinux, SameHostDaemon)
 	out, _ := dockerCmd(c, "run", "-id", "busybox", "/bin/cat")

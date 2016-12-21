@@ -110,7 +110,7 @@ func (s *DockerHubPullSuite) TestPullNonExistingImage(c *check.C) {
 }
 
 // TestPullFromCentralRegistryImplicitRefParts pulls an image from the central registry and verifies
-// that pulling the same image with different combinations of implicit elements of the the image
+// that pulling the same image with different combinations of implicit elements of the image
 // reference (tag, repository, central registry url, ...) doesn't trigger a new pull nor leads to
 // multiple images.
 func (s *DockerHubPullSuite) TestPullFromCentralRegistryImplicitRefParts(c *check.C) {

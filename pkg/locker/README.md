@@ -59,7 +59,7 @@ function (or before doing anything with the underlying state), this ensures any
 other function that is dealing with the same name will block.
 
 When needing to modify the underlying data, use the global lock to ensure nothing
-else is modfying it at the same time.
+else is modifying it at the same time.
 Since name lock is already in place, no reads will occur while the modification
 is being performed.
 
