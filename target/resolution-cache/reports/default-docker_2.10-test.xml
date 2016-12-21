@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?xml-stylesheet type="text/xsl" href="ivy-report.xsl"?>
+<ivy-report version="1.0">
+	<info
+		organisation="default"
+		module="docker_2.10"
+		revision="0.1-SNAPSHOT"
+		conf="test"
+		confs="compile, runtime, test, provided, optional, compile-internal, runtime-internal, test-internal, plugin, sources, docs, pom, scala-tool"
+		date="20161220211118"/>
+	<dependencies>
+		<module organisation="org.scala-lang" name="scala-library">
+			<revision name="2.10.5" status="release" pubdate="20150227095400" resolver="sbt-chain" artresolver="sbt-chain" homepage="http://www.scala-lang.org/" extra-info.apiURL="http://www.scala-lang.org/api/2.10.5/" downloaded="false" searched="false" default="false" conf="default, compile, runtime, default(compile), master" position="0">
+				<license name="BSD-like" url="http://www.scala-lang.org/downloads/license.html          "/>
+				<metadata-artifact status="no" details="" size="2517" time="0" location="C:\Users\QueenieD\.ivy2\cache\org.scala-lang\scala-library\ivy-2.10.5.xml" searched="false" origin-is-local="false" origin-location="https://jcenter.bintray.com/org/scala-lang/scala-library/2.10.5/scala-library-2.10.5.pom"/>
+				<caller organisation="default" name="docker_2.10" conf="test, compile, runtime" rev="2.10.5" rev-constraint-default="2.10.5" rev-constraint-dynamic="2.10.5" callerrev="0.1-SNAPSHOT"/>
+				<artifacts>
+					<artifact name="scala-library" type="jar" ext="jar" status="no" details="" size="7130772" time="0" location="C:\Users\QueenieD\.ivy2\cache\org.scala-lang\scala-library\jars\scala-library-2.10.5.jar">
+						<origin-location is-local="false" location="UNKNOWN"/>
+					</artifact>
+				</artifacts>
+			</revision>
+		</module>
+	</dependencies>
+</ivy-report>

@@ -1,0 +1,757 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?xml-stylesheet type="text/xsl" href="ivy-report.xsl"?>
+<ivy-report version="1.0">
+	<info
+		organisation="default"
+		module="docker-build"
+		revision="0.1-SNAPSHOT"
+		extra-scalaVersion="2.10"
+		extra-sbtVersion="0.13"
+		conf="compile-internal"
+		confs="compile, runtime, test, provided, optional, compile-internal, runtime-internal, test-internal, plugin, sources, docs, pom, scala-tool"
+		date="20161220211018"/>
+	<dependencies>
+		<module organisation="org.scala-sbt" name="sbt">
+			<revision name="0.13.9" status="release" pubdate="20150810202742" resolver="sbt-chain" artresolver="sbt-chain" downloaded="false" searched="false" default="false" conf="compile, default(compile)" position="1">
+				<metadata-artifact status="no" details="" size="1774" time="0" location="C:\Users\QueenieD\.ivy2\cache\org.scala-sbt\sbt\ivy-0.13.9.xml" searched="false" origin-is-local="false" origin-location="https://repo.typesafe.com/typesafe/ivy-releases/org.scala-sbt/sbt/0.13.9/ivys/ivy.xml"/>
+				<caller organisation="default" name="docker-build" conf="compile-internal, compile, provided, optional" rev="0.13.9" rev-constraint-default="0.13.9" rev-constraint-dynamic="0.13.9" callerrev="0.1-SNAPSHOT"/>
+				<artifacts>
+					<artifact name="sbt" type="jar" ext="jar" status="no" details="" size="21682" time="0" location="C:\Users\QueenieD\.ivy2\cache\org.scala-sbt\sbt\jars\sbt-0.13.9.jar">
+						<origin-location is-local="false" location="https://repo.typesafe.com/typesafe/ivy-releases/org.scala-sbt/sbt/0.13.9/jars/sbt.jar"/>
+					</artifact>
+				</artifacts>
+			</revision>
+		</module>
+		<module organisation="org.scala-sbt" name="precompiled-2_9_3">
+			<revision name="0.13.9" status="release" pubdate="20150810201712" resolver="sbt-chain" artresolver="sbt-chain" downloaded="false" searched="false" default="false" conf="compile, default(compile)" position="52">
+				<metadata-artifact status="no" details="" size="1488" time="0" location="C:\Users\QueenieD\.ivy2\cache\org.scala-sbt\precompiled-2_9_3\ivy-0.13.9.xml" searched="false" origin-is-local="false" origin-location="https://repo.typesafe.com/typesafe/ivy-releases/org.scala-sbt/precompiled-2_9_3/0.13.9/ivys/ivy.xml"/>
+				<caller organisation="org.scala-sbt" name="sbt" conf="compile" rev="0.13.9" rev-constraint-default="0.13.9" rev-constraint-dynamic="0.13.9" callerrev="0.13.9"/>
+				<artifacts>
+					<artifact name="compiler-interface-bin" type="jar" ext="jar" extra-component="compiler-interface-bin_2.9.3" status="no" details="" size="238488" time="0" location="C:\Users\QueenieD\.ivy2\cache\org.scala-sbt\precompiled-2_9_3\jars\compiler-interface-bin-0.13.9.jar">
+						<origin-location is-local="false" location="https://repo.typesafe.com/typesafe/ivy-releases/org.scala-sbt/precompiled-2_9_3/0.13.9/jars/compiler-interface-bin.jar"/>
+					</artifact>
+				</artifacts>
+			</revision>
+		</module>
+		<module organisation="org.scala-sbt" name="precompiled-2_9_2">
+			<revision name="0.13.9" status="release" pubdate="20150810201712" resolver="sbt-chain" artresolver="sbt-chain" downloaded="false" searched="false" default="false" conf="compile, default(compile)" position="51">
+				<metadata-artifact status="no" details="" size="1488" time="0" location="C:\Users\QueenieD\.ivy2\cache\org.scala-sbt\precompiled-2_9_2\ivy-0.13.9.xml" searched="false" origin-is-local="false" origin-location="https://repo.typesafe.com/typesafe/ivy-releases/org.scala-sbt/precompiled-2_9_2/0.13.9/ivys/ivy.xml"/>
+				<caller organisation="org.scala-sbt" name="sbt" conf="compile" rev="0.13.9" rev-constraint-default="0.13.9" rev-constraint-dynamic="0.13.9" callerrev="0.13.9"/>
+				<artifacts>
+					<artifact name="compiler-interface-bin" type="jar" ext="jar" extra-component="compiler-interface-bin_2.9.2" status="no" details="" size="238458" time="0" location="C:\Users\QueenieD\.ivy2\cache\org.scala-sbt\precompiled-2_9_2\jars\compiler-interface-bin-0.13.9.jar">
+						<origin-location is-local="false" location="https://repo.typesafe.com/typesafe/ivy-releases/org.scala-sbt/precompiled-2_9_2/0.13.9/jars/compiler-interface-bin.jar"/>
+					</artifact>
+				</artifacts>
+			</revision>
+		</module>
+		<module organisation="org.scala-sbt" name="precompiled-2_8_2">
+			<revision name="0.13.9" status="release" pubdate="20150810201712" resolver="sbt-chain" artresolver="sbt-chain" downloaded="false" searched="false" default="false" conf="compile, default(compile)" position="50">
+				<metadata-artifact status="no" details="" size="1494" time="0" location="C:\Users\QueenieD\.ivy2\cache\org.scala-sbt\precompiled-2_8_2\ivy-0.13.9.xml" searched="false" origin-is-local="false" origin-location="https://repo.typesafe.com/typesafe/ivy-releases/org.scala-sbt/precompiled-2_8_2/0.13.9/ivys/ivy.xml"/>
+				<caller organisation="org.scala-sbt" name="sbt" conf="compile" rev="0.13.9" rev-constraint-default="0.13.9" rev-constraint-dynamic="0.13.9" callerrev="0.13.9"/>
+				<artifacts>
+					<artifact name="compiler-interface-bin" type="jar" ext="jar" extra-component="compiler-interface-bin_2.8.2.final" status="no" details="" size="228033" time="0" location="C:\Users\QueenieD\.ivy2\cache\org.scala-sbt\precompiled-2_8_2\jars\compiler-interface-bin-0.13.9.jar">
+						<origin-location is-local="false" location="https://repo.typesafe.com/typesafe/ivy-releases/org.scala-sbt/precompiled-2_8_2/0.13.9/jars/compiler-interface-bin.jar"/>
+					</artifact>
+				</artifacts>
+			</revision>
+		</module>
+		<module organisation="org.scala-sbt" name="compiler-interface">
+			<revision name="0.13.9" status="release" pubdate="20150810202502" resolver="sbt-chain" artresolver="sbt-chain" downloaded="false" searched="false" default="false" conf="compile, default(compile)" position="49">
+				<metadata-artifact status="no" details="" size="1760" time="0" location="C:\Users\QueenieD\.ivy2\cache\org.scala-sbt\compiler-interface\ivy-0.13.9.xml" searched="false" origin-is-local="false" origin-location="https://repo.typesafe.com/typesafe/ivy-releases/org.scala-sbt/compiler-interface/0.13.9/ivys/ivy.xml"/>
+				<caller organisation="org.scala-sbt" name="sbt" conf="compile" rev="0.13.9" rev-constraint-default="0.13.9" rev-constraint-dynamic="0.13.9" callerrev="0.13.9"/>
+				<artifacts>
+					<artifact name="compiler-interface-src" type="jar" ext="jar" extra-component="compiler-interface-src" status="no" details="" size="30391" time="0" location="C:\Users\QueenieD\.ivy2\cache\org.scala-sbt\compiler-interface\jars\compiler-interface-src-0.13.9.jar">
+						<origin-location is-local="false" location="https://repo.typesafe.com/typesafe/ivy-releases/org.scala-sbt/compiler-interface/0.13.9/jars/compiler-interface-src.jar"/>
+					</artifact>
+					<artifact name="compiler-interface-bin" type="jar" ext="jar" extra-component="compiler-interface-bin_2.10.5" status="no" details="" size="241943" time="0" location="C:\Users\QueenieD\.ivy2\cache\org.scala-sbt\compiler-interface\jars\compiler-interface-bin-0.13.9.jar">
+						<origin-location is-local="false" location="https://repo.typesafe.com/typesafe/ivy-releases/org.scala-sbt/compiler-interface/0.13.9/jars/compiler-interface-bin.jar"/>
+					</artifact>
+				</artifacts>
+			</revision>
+		</module>
+		<module organisation="org.scala-sbt" name="main">
+			<revision name="0.13.9" status="release" pubdate="20150810202718" resolver="sbt-chain" artresolver="sbt-chain" downloaded="false" searched="false" default="false" conf="compile, default(compile)" position="2">
+				<metadata-artifact status="no" details="" size="2541" time="0" location="C:\Users\QueenieD\.ivy2\cache\org.scala-sbt\main\ivy-0.13.9.xml" searched="false" origin-is-local="false" origin-location="https://repo.typesafe.com/typesafe/ivy-releases/org.scala-sbt/main/0.13.9/ivys/ivy.xml"/>
+				<caller organisation="org.scala-sbt" name="sbt" conf="compile" rev="0.13.9" rev-constraint-default="0.13.9" rev-constraint-dynamic="0.13.9" callerrev="0.13.9"/>
+				<artifacts>
+					<artifact name="main" type="jar" ext="jar" status="no" details="" size="2506319" time="0" location="C:\Users\QueenieD\.ivy2\cache\org.scala-sbt\main\jars\main-0.13.9.jar">
+						<origin-location is-local="false" location="https://repo.typesafe.com/typesafe/ivy-releases/org.scala-sbt/main/0.13.9/jars/main.jar"/>
+					</artifact>
+				</artifacts>
+			</revision>
+		</module>
+		<module organisation="org.scala-sbt" name="logic">
+			<revision name="0.13.9" status="release" pubdate="20150810202324" resolver="sbt-chain" artresolver="sbt-chain" downloaded="false" searched="false" default="false" conf="compile, default(compile)" position="48">
+				<metadata-artifact status="no" details="" size="1651" time="0" location="C:\Users\QueenieD\.ivy2\cache\org.scala-sbt\logic\ivy-0.13.9.xml" searched="false" origin-is-local="false" origin-location="https://repo.typesafe.com/typesafe/ivy-releases/org.scala-sbt/logic/0.13.9/ivys/ivy.xml"/>
+				<caller organisation="org.scala-sbt" name="main" conf="compile" rev="0.13.9" rev-constraint-default="0.13.9" rev-constraint-dynamic="0.13.9" callerrev="0.13.9"/>
+				<artifacts>
+					<artifact name="logic" type="jar" ext="jar" status="no" details="" size="64153" time="0" location="C:\Users\QueenieD\.ivy2\cache\org.scala-sbt\logic\jars\logic-0.13.9.jar">
+						<origin-location is-local="false" location="https://repo.typesafe.com/typesafe/ivy-releases/org.scala-sbt/logic/0.13.9/jars/logic.jar"/>
+					</artifact>
+				</artifacts>
+			</revision>
+		</module>
+		<module organisation="org.scala-sbt" name="main-settings">
+			<revision name="0.13.9" status="release" pubdate="20150810202703" resolver="sbt-chain" artresolver="sbt-chain" downloaded="false" searched="false" default="false" conf="compile, default(compile)" position="45">
+				<metadata-artifact status="no" details="" size="2689" time="0" location="C:\Users\QueenieD\.ivy2\cache\org.scala-sbt\main-settings\ivy-0.13.9.xml" searched="false" origin-is-local="false" origin-location="https://repo.typesafe.com/typesafe/ivy-releases/org.scala-sbt/main-settings/0.13.9/ivys/ivy.xml"/>
+				<caller organisation="org.scala-sbt" name="main" conf="compile" rev="0.13.9" rev-constraint-default="0.13.9" rev-constraint-dynamic="0.13.9" callerrev="0.13.9"/>
+				<artifacts>
+					<artifact name="main-settings" type="jar" ext="jar" status="no" details="" size="656010" time="0" location="C:\Users\QueenieD\.ivy2\cache\org.scala-sbt\main-settings\jars\main-settings-0.13.9.jar">
+						<origin-location is-local="false" location="https://repo.typesafe.com/typesafe/ivy-releases/org.scala-sbt/main-settings/0.13.9/jars/main-settings.jar"/>
+					</artifact>
+				</artifacts>
+			</revision>
+		</module>
+		<module organisation="org.scala-sbt" name="command">
+			<revision name="0.13.9" status="release" pubdate="20150810202652" resolver="sbt-chain" artresolver="sbt-chain" downloaded="false" searched="false" default="false" conf="compile, default(compile)" position="47">
+				<metadata-artifact status="no" details="" size="2172" time="0" location="C:\Users\QueenieD\.ivy2\cache\org.scala-sbt\command\ivy-0.13.9.xml" searched="false" origin-is-local="false" origin-location="https://repo.typesafe.com/typesafe/ivy-releases/org.scala-sbt/command/0.13.9/ivys/ivy.xml"/>
+				<caller organisation="org.scala-sbt" name="main" conf="compile" rev="0.13.9" rev-constraint-default="0.13.9" rev-constraint-dynamic="0.13.9" callerrev="0.13.9"/>
+				<caller organisation="org.scala-sbt" name="main-settings" conf="compile" rev="0.13.9" rev-constraint-default="0.13.9" rev-constraint-dynamic="0.13.9" callerrev="0.13.9"/>
+				<artifacts>
+					<artifact name="command" type="jar" ext="jar" status="no" details="" size="242034" time="0" location="C:\Users\QueenieD\.ivy2\cache\org.scala-sbt\command\jars\command-0.13.9.jar">
+						<origin-location is-local="false" location="https://repo.typesafe.com/typesafe/ivy-releases/org.scala-sbt/command/0.13.9/jars/command.jar"/>
+					</artifact>
+				</artifacts>
+			</revision>
+		</module>
+		<module organisation="org.scala-sbt" name="apply-macro">
+			<revision name="0.13.9" status="release" pubdate="20150810202145" resolver="sbt-chain" artresolver="sbt-chain" downloaded="false" searched="false" default="false" conf="compile, default(compile)" position="46">
+				<metadata-artifact status="no" details="" size="1679" time="0" location="C:\Users\QueenieD\.ivy2\cache\org.scala-sbt\apply-macro\ivy-0.13.9.xml" searched="false" origin-is-local="false" origin-location="https://repo.typesafe.com/typesafe/ivy-releases/org.scala-sbt/apply-macro/0.13.9/ivys/ivy.xml"/>
+				<caller organisation="org.scala-sbt" name="main-settings" conf="compile" rev="0.13.9" rev-constraint-default="0.13.9" rev-constraint-dynamic="0.13.9" callerrev="0.13.9"/>
+				<artifacts>
+					<artifact name="apply-macro" type="jar" ext="jar" status="no" details="" size="87509" time="0" location="C:\Users\QueenieD\.ivy2\cache\org.scala-sbt\apply-macro\jars\apply-macro-0.13.9.jar">
+						<origin-location is-local="false" location="https://repo.typesafe.com/typesafe/ivy-releases/org.scala-sbt/apply-macro/0.13.9/jars/apply-macro.jar"/>
+					</artifact>
+				</artifacts>
+			</revision>
+		</module>
+		<module organisation="org.scala-sbt" name="actions">
+			<revision name="0.13.9" status="release" pubdate="20150810202641" resolver="sbt-chain" artresolver="sbt-chain" downloaded="false" searched="false" default="false" conf="compile, default(compile)" position="3">
+				<metadata-artifact status="no" details="" size="3056" time="0" location="C:\Users\QueenieD\.ivy2\cache\org.scala-sbt\actions\ivy-0.13.9.xml" searched="false" origin-is-local="false" origin-location="https://repo.typesafe.com/typesafe/ivy-releases/org.scala-sbt/actions/0.13.9/ivys/ivy.xml"/>
+				<caller organisation="org.scala-sbt" name="main" conf="compile" rev="0.13.9" rev-constraint-default="0.13.9" rev-constraint-dynamic="0.13.9" callerrev="0.13.9"/>
+				<artifacts>
+					<artifact name="actions" type="jar" ext="jar" status="no" details="" size="484335" time="0" location="C:\Users\QueenieD\.ivy2\cache\org.scala-sbt\actions\jars\actions-0.13.9.jar">
+						<origin-location is-local="false" location="https://repo.typesafe.com/typesafe/ivy-releases/org.scala-sbt/actions/0.13.9/jars/actions.jar"/>
+					</artifact>
+				</artifacts>
+			</revision>
+		</module>
+		<module organisation="org.scala-sbt" name="testing">
+			<revision name="0.13.9" status="release" pubdate="20150810202354" resolver="sbt-chain" artresolver="sbt-chain" downloaded="false" searched="false" default="false" conf="compile, default(compile)" position="42">
+				<metadata-artifact status="no" details="" size="1779" time="0" location="C:\Users\QueenieD\.ivy2\cache\org.scala-sbt\testing\ivy-0.13.9.xml" searched="false" origin-is-local="false" origin-location="https://repo.typesafe.com/typesafe/ivy-releases/org.scala-sbt/testing/0.13.9/ivys/ivy.xml"/>
+				<caller organisation="org.scala-sbt" name="actions" conf="compile" rev="0.13.9" rev-constraint-default="0.13.9" rev-constraint-dynamic="0.13.9" callerrev="0.13.9"/>
+				<artifacts>
+					<artifact name="testing" type="jar" ext="jar" status="no" details="" size="102053" time="0" location="C:\Users\QueenieD\.ivy2\cache\org.scala-sbt\testing\jars\testing-0.13.9.jar">
+						<origin-location is-local="false" location="https://repo.typesafe.com/typesafe/ivy-releases/org.scala-sbt/testing/0.13.9/jars/testing.jar"/>
+					</artifact>
+				</artifacts>
+			</revision>
+		</module>
+		<module organisation="org.scala-sbt" name="test-agent">
+			<revision name="0.13.9" status="release" pubdate="20150810202403" resolver="sbt-chain" artresolver="sbt-chain" downloaded="false" searched="false" default="false" conf="compile, default(compile)" position="43">
+				<metadata-artifact status="no" details="" size="1293" time="0" location="C:\Users\QueenieD\.ivy2\cache\org.scala-sbt\test-agent\ivy-0.13.9.xml" searched="false" origin-is-local="false" origin-location="https://repo.typesafe.com/typesafe/ivy-releases/org.scala-sbt/test-agent/0.13.9/ivys/ivy.xml"/>
+				<caller organisation="org.scala-sbt" name="testing" conf="compile" rev="0.13.9" rev-constraint-default="0.13.9" rev-constraint-dynamic="0.13.9" callerrev="0.13.9"/>
+				<artifacts>
+					<artifact name="test-agent" type="jar" ext="jar" status="no" details="" size="23866" time="0" location="C:\Users\QueenieD\.ivy2\cache\org.scala-sbt\test-agent\jars\test-agent-0.13.9.jar">
+						<origin-location is-local="false" location="https://repo.typesafe.com/typesafe/ivy-releases/org.scala-sbt/test-agent/0.13.9/jars/test-agent.jar"/>
+					</artifact>
+				</artifacts>
+			</revision>
+		</module>
+		<module organisation="org.scala-sbt" name="test-interface">
+			<revision name="1.0" status="release" pubdate="20130629064435" resolver="sbt-chain" artresolver="sbt-chain" homepage="http://www.scala-sbt.org" downloaded="false" searched="false" default="false" conf="default, compile, runtime, default(compile), master" position="44">
+				<license name="BSD" url="https://github.com/sbt/test-interface/blob/master/LICENSE"/>
+				<metadata-artifact status="no" details="" size="2621" time="0" location="C:\Users\QueenieD\.ivy2\cache\org.scala-sbt\test-interface\ivy-1.0.xml" searched="false" origin-is-local="false" origin-location="https://jcenter.bintray.com/org/scala-sbt/test-interface/1.0/test-interface-1.0.pom"/>
+				<caller organisation="org.scala-sbt" name="test-agent" conf="compile" rev="1.0" rev-constraint-default="1.0" rev-constraint-dynamic="1.0" callerrev="0.13.9"/>
+				<caller organisation="org.scala-sbt" name="testing" conf="compile" rev="1.0" rev-constraint-default="1.0" rev-constraint-dynamic="1.0" callerrev="0.13.9"/>
+				<artifacts>
+					<artifact name="test-interface" type="jar" ext="jar" status="no" details="" size="14755" time="0" location="C:\Users\QueenieD\.ivy2\cache\org.scala-sbt\test-interface\jars\test-interface-1.0.jar">
+						<origin-location is-local="false" location="https://jcenter.bintray.com/org/scala-sbt/test-interface/1.0/test-interface-1.0.jar"/>
+					</artifact>
+				</artifacts>
+			</revision>
+		</module>
+		<module organisation="org.scala-sbt" name="tracking">
+			<revision name="0.13.9" status="release" pubdate="20150810202444" resolver="sbt-chain" artresolver="sbt-chain" downloaded="false" searched="false" default="false" conf="compile, default(compile)" position="40">
+				<metadata-artifact status="no" details="" size="1371" time="0" location="C:\Users\QueenieD\.ivy2\cache\org.scala-sbt\tracking\ivy-0.13.9.xml" searched="false" origin-is-local="false" origin-location="https://repo.typesafe.com/typesafe/ivy-releases/org.scala-sbt/tracking/0.13.9/ivys/ivy.xml"/>
+				<caller organisation="org.scala-sbt" name="actions" conf="compile" rev="0.13.9" rev-constraint-default="0.13.9" rev-constraint-dynamic="0.13.9" callerrev="0.13.9"/>
+				<artifacts>
+					<artifact name="tracking" type="jar" ext="jar" status="no" details="" size="50171" time="0" location="C:\Users\QueenieD\.ivy2\cache\org.scala-sbt\tracking\jars\tracking-0.13.9.jar">
+						<origin-location is-local="false" location="https://repo.typesafe.com/typesafe/ivy-releases/org.scala-sbt/tracking/0.13.9/jars/tracking.jar"/>
+					</artifact>
+				</artifacts>
+			</revision>
+		</module>
+		<module organisation="org.scala-sbt" name="cache">
+			<revision name="0.13.9" status="release" pubdate="20150810202433" resolver="sbt-chain" artresolver="sbt-chain" downloaded="false" searched="false" default="false" conf="compile, default(compile)" position="41">
+				<metadata-artifact status="no" details="" size="1687" time="0" location="C:\Users\QueenieD\.ivy2\cache\org.scala-sbt\cache\ivy-0.13.9.xml" searched="false" origin-is-local="false" origin-location="https://repo.typesafe.com/typesafe/ivy-releases/org.scala-sbt/cache/0.13.9/ivys/ivy.xml"/>
+				<caller organisation="org.scala-sbt" name="tracking" conf="compile" rev="0.13.9" rev-constraint-default="0.13.9" rev-constraint-dynamic="0.13.9" callerrev="0.13.9"/>
+				<artifacts>
+					<artifact name="cache" type="jar" ext="jar" status="no" details="" size="115556" time="0" location="C:\Users\QueenieD\.ivy2\cache\org.scala-sbt\cache\jars\cache-0.13.9.jar">
+						<origin-location is-local="false" location="https://repo.typesafe.com/typesafe/ivy-releases/org.scala-sbt/cache/0.13.9/jars/cache.jar"/>
+					</artifact>
+				</artifacts>
+			</revision>
+		</module>
+		<module organisation="org.scala-sbt" name="task-system">
+			<revision name="0.13.9" status="release" pubdate="20150810202424" resolver="sbt-chain" artresolver="sbt-chain" downloaded="false" searched="false" default="false" conf="compile, default(compile)" position="38">
+				<metadata-artifact status="no" details="" size="1969" time="0" location="C:\Users\QueenieD\.ivy2\cache\org.scala-sbt\task-system\ivy-0.13.9.xml" searched="false" origin-is-local="false" origin-location="https://repo.typesafe.com/typesafe/ivy-releases/org.scala-sbt/task-system/0.13.9/ivys/ivy.xml"/>
+				<caller organisation="org.scala-sbt" name="actions" conf="compile" rev="0.13.9" rev-constraint-default="0.13.9" rev-constraint-dynamic="0.13.9" callerrev="0.13.9"/>
+				<caller organisation="org.scala-sbt" name="main-settings" conf="compile" rev="0.13.9" rev-constraint-default="0.13.9" rev-constraint-dynamic="0.13.9" callerrev="0.13.9"/>
+				<artifacts>
+					<artifact name="task-system" type="jar" ext="jar" status="no" details="" size="130802" time="0" location="C:\Users\QueenieD\.ivy2\cache\org.scala-sbt\task-system\jars\task-system-0.13.9.jar">
+						<origin-location is-local="false" location="https://repo.typesafe.com/typesafe/ivy-releases/org.scala-sbt/task-system/0.13.9/jars/task-system.jar"/>
+					</artifact>
+				</artifacts>
+			</revision>
+		</module>
+		<module organisation="org.scala-sbt" name="tasks">
+			<revision name="0.13.9" status="release" pubdate="20150810202413" resolver="sbt-chain" artresolver="sbt-chain" downloaded="false" searched="false" default="false" conf="compile, default(compile)" position="39">
+				<metadata-artifact status="no" details="" size="1650" time="0" location="C:\Users\QueenieD\.ivy2\cache\org.scala-sbt\tasks\ivy-0.13.9.xml" searched="false" origin-is-local="false" origin-location="https://repo.typesafe.com/typesafe/ivy-releases/org.scala-sbt/tasks/0.13.9/ivys/ivy.xml"/>
+				<caller organisation="org.scala-sbt" name="actions" conf="compile" rev="0.13.9" rev-constraint-default="0.13.9" rev-constraint-dynamic="0.13.9" callerrev="0.13.9"/>
+				<caller organisation="org.scala-sbt" name="task-system" conf="compile" rev="0.13.9" rev-constraint-default="0.13.9" rev-constraint-dynamic="0.13.9" callerrev="0.13.9"/>
+				<artifacts>
+					<artifact name="tasks" type="jar" ext="jar" status="no" details="" size="130006" time="0" location="C:\Users\QueenieD\.ivy2\cache\org.scala-sbt\tasks\jars\tasks-0.13.9.jar">
+						<origin-location is-local="false" location="https://repo.typesafe.com/typesafe/ivy-releases/org.scala-sbt/tasks/0.13.9/jars/tasks.jar"/>
+					</artifact>
+				</artifacts>
+			</revision>
+		</module>
+		<module organisation="org.scala-sbt" name="run">
+			<revision name="0.13.9" status="release" pubdate="20150810202453" resolver="sbt-chain" artresolver="sbt-chain" downloaded="false" searched="false" default="false" conf="compile, default(compile)" position="37">
+				<metadata-artifact status="no" details="" size="1851" time="0" location="C:\Users\QueenieD\.ivy2\cache\org.scala-sbt\run\ivy-0.13.9.xml" searched="false" origin-is-local="false" origin-location="https://repo.typesafe.com/typesafe/ivy-releases/org.scala-sbt/run/0.13.9/ivys/ivy.xml"/>
+				<caller organisation="org.scala-sbt" name="main" conf="compile" rev="0.13.9" rev-constraint-default="0.13.9" rev-constraint-dynamic="0.13.9" callerrev="0.13.9"/>
+				<caller organisation="org.scala-sbt" name="actions" conf="compile" rev="0.13.9" rev-constraint-default="0.13.9" rev-constraint-dynamic="0.13.9" callerrev="0.13.9"/>
+				<artifacts>
+					<artifact name="run" type="jar" ext="jar" status="no" details="" size="132020" time="0" location="C:\Users\QueenieD\.ivy2\cache\org.scala-sbt\run\jars\run-0.13.9.jar">
+						<origin-location is-local="false" location="https://repo.typesafe.com/typesafe/ivy-releases/org.scala-sbt/run/0.13.9/jars/run.jar"/>
+					</artifact>
+				</artifacts>
+			</revision>
+		</module>
+		<module organisation="org.scala-sbt" name="compiler-ivy-integration">
+			<revision name="0.13.9" status="release" pubdate="20150810202556" resolver="sbt-chain" artresolver="sbt-chain" downloaded="false" searched="false" default="false" conf="compile, default(compile)" position="24">
+				<metadata-artifact status="no" details="" size="1438" time="0" location="C:\Users\QueenieD\.ivy2\cache\org.scala-sbt\compiler-ivy-integration\ivy-0.13.9.xml" searched="false" origin-is-local="false" origin-location="https://repo.typesafe.com/typesafe/ivy-releases/org.scala-sbt/compiler-ivy-integration/0.13.9/ivys/ivy.xml"/>
+				<caller organisation="org.scala-sbt" name="actions" conf="compile" rev="0.13.9" rev-constraint-default="0.13.9" rev-constraint-dynamic="0.13.9" callerrev="0.13.9"/>
+				<artifacts>
+					<artifact name="compiler-ivy-integration" type="jar" ext="jar" status="no" details="" size="8679" time="0" location="C:\Users\QueenieD\.ivy2\cache\org.scala-sbt\compiler-ivy-integration\jars\compiler-ivy-integration-0.13.9.jar">
+						<origin-location is-local="false" location="https://repo.typesafe.com/typesafe/ivy-releases/org.scala-sbt/compiler-ivy-integration/0.13.9/jars/compiler-ivy-integration.jar"/>
+					</artifact>
+				</artifacts>
+			</revision>
+		</module>
+		<module organisation="org.scala-sbt" name="ivy">
+			<revision name="0.13.9" status="release" pubdate="20150810202336" resolver="sbt-chain" artresolver="sbt-chain" downloaded="false" searched="false" default="false" conf="compile, default(compile)" position="25">
+				<metadata-artifact status="no" details="" size="2262" time="0" location="C:\Users\QueenieD\.ivy2\cache\org.scala-sbt\ivy\ivy-0.13.9.xml" searched="false" origin-is-local="false" origin-location="https://repo.typesafe.com/typesafe/ivy-releases/org.scala-sbt/ivy/0.13.9/ivys/ivy.xml"/>
+				<caller organisation="org.scala-sbt" name="main" conf="compile" rev="0.13.9" rev-constraint-default="0.13.9" rev-constraint-dynamic="0.13.9" callerrev="0.13.9"/>
+				<caller organisation="org.scala-sbt" name="actions" conf="compile" rev="0.13.9" rev-constraint-default="0.13.9" rev-constraint-dynamic="0.13.9" callerrev="0.13.9"/>
+				<caller organisation="org.scala-sbt" name="main-settings" conf="compile" rev="0.13.9" rev-constraint-default="0.13.9" rev-constraint-dynamic="0.13.9" callerrev="0.13.9"/>
+				<caller organisation="org.scala-sbt" name="compiler-ivy-integration" conf="compile" rev="0.13.9" rev-constraint-default="0.13.9" rev-constraint-dynamic="0.13.9" callerrev="0.13.9"/>
+				<artifacts>
+					<artifact name="ivy" type="jar" ext="jar" status="no" details="" size="1919748" time="0" location="C:\Users\QueenieD\.ivy2\cache\org.scala-sbt\ivy\jars\ivy-0.13.9.jar">
+						<origin-location is-local="false" location="https://repo.typesafe.com/typesafe/ivy-releases/org.scala-sbt/ivy/0.13.9/jars/ivy.jar"/>
+					</artifact>
+				</artifacts>
+			</revision>
+		</module>
+		<module organisation="org.scala-sbt" name="serialization_2.10">
+			<revision name="0.1.1" status="integration" pubdate="20150309200637" resolver="sbt-chain" artresolver="sbt-chain" downloaded="false" searched="false" default="false" conf="compile, default(compile)" position="29">
+				<metadata-artifact status="no" details="" size="2208" time="0" location="C:\Users\QueenieD\.ivy2\cache\org.scala-sbt\serialization_2.10\ivy-0.1.1.xml" searched="false" origin-is-local="false" origin-location="https://repo.typesafe.com/typesafe/ivy-releases/org.scala-sbt/serialization_2.10/0.1.1/ivys/ivy.xml"/>
+				<caller organisation="org.scala-sbt" name="ivy" conf="compile" rev="0.1.1" rev-constraint-default="0.1.1" rev-constraint-dynamic="0.1.1" callerrev="0.13.9"/>
+				<caller organisation="org.scala-sbt" name="cache" conf="compile" rev="0.1.1" rev-constraint-default="0.1.1" rev-constraint-dynamic="0.1.1" callerrev="0.13.9"/>
+				<artifacts>
+					<artifact name="serialization_2.10" type="jar" ext="jar" status="no" details="" size="332581" time="0" location="C:\Users\QueenieD\.ivy2\cache\org.scala-sbt\serialization_2.10\jars\serialization_2.10-0.1.1.jar">
+						<origin-location is-local="false" location="https://repo.typesafe.com/typesafe/ivy-releases/org.scala-sbt/serialization_2.10/0.1.1/jars/serialization_2.10.jar"/>
+					</artifact>
+				</artifacts>
+			</revision>
+		</module>
+		<module organisation="org.spire-math" name="json4s-support_2.10">
+			<revision name="0.6.0" status="release" pubdate="20140924040800" resolver="sbt-chain" artresolver="sbt-chain" homepage="http://github.com/non/jawn/" downloaded="false" searched="false" default="false" conf="default, compile, runtime, default(compile), master" position="36">
+				<license name="MIT" url="http://opensource.org/licenses/MIT"/>
+				<metadata-artifact status="no" details="" size="3067" time="0" location="C:\Users\QueenieD\.ivy2\cache\org.spire-math\json4s-support_2.10\ivy-0.6.0.xml" searched="false" origin-is-local="false" origin-location="https://jcenter.bintray.com/org/spire-math/json4s-support_2.10/0.6.0/json4s-support_2.10-0.6.0.pom"/>
+				<caller organisation="org.scala-sbt" name="serialization_2.10" conf="compile" rev="0.6.0" rev-constraint-default="0.6.0" rev-constraint-dynamic="0.6.0" callerrev="0.1.1"/>
+				<artifacts>
+					<artifact name="json4s-support_2.10" type="jar" ext="jar" status="no" details="" size="7601" time="0" location="C:\Users\QueenieD\.ivy2\cache\org.spire-math\json4s-support_2.10\jars\json4s-support_2.10-0.6.0.jar">
+						<origin-location is-local="false" location="https://jcenter.bintray.com/org/spire-math/json4s-support_2.10/0.6.0/json4s-support_2.10-0.6.0.jar"/>
+					</artifact>
+				</artifacts>
+			</revision>
+		</module>
+		<module organisation="org.spire-math" name="jawn-parser_2.10">
+			<revision name="0.6.0" status="release" pubdate="20140924040800" resolver="sbt-chain" artresolver="sbt-chain" homepage="http://github.com/non/jawn/" downloaded="false" searched="false" default="false" conf="default, master(*), compile, runtime(*), runtime, default(compile), compile(*), master" position="35">
+				<license name="MIT" url="http://opensource.org/licenses/MIT"/>
+				<metadata-artifact status="no" details="" size="2774" time="0" location="C:\Users\QueenieD\.ivy2\cache\org.spire-math\jawn-parser_2.10\ivy-0.6.0.xml" searched="false" origin-is-local="false" origin-location="https://jcenter.bintray.com/org/spire-math/jawn-parser_2.10/0.6.0/jawn-parser_2.10-0.6.0.pom"/>
+				<caller organisation="org.spire-math" name="json4s-support_2.10" conf="default, compile, runtime, master" rev="0.6.0" rev-constraint-default="0.6.0" rev-constraint-dynamic="0.6.0" callerrev="0.6.0"/>
+				<caller organisation="org.scala-sbt" name="serialization_2.10" conf="compile" rev="0.6.0" rev-constraint-default="0.6.0" rev-constraint-dynamic="0.6.0" callerrev="0.1.1"/>
+				<artifacts>
+					<artifact name="jawn-parser_2.10" type="jar" ext="jar" status="no" details="" size="78301" time="0" location="C:\Users\QueenieD\.ivy2\cache\org.spire-math\jawn-parser_2.10\jars\jawn-parser_2.10-0.6.0.jar">
+						<origin-location is-local="false" location="https://jcenter.bintray.com/org/spire-math/jawn-parser_2.10/0.6.0/jawn-parser_2.10-0.6.0.jar"/>
+					</artifact>
+				</artifacts>
+			</revision>
+		</module>
+		<module organisation="org.json4s" name="json4s-core_2.10">
+			<revision name="3.2.10" status="release" pubdate="20140514011900" resolver="sbt-chain" artresolver="sbt-chain" homepage="https://github.com/json4s/json4s" downloaded="false" searched="false" default="false" conf="default, compile, runtime, default(compile), master" position="32">
+				<license name="ASL" url="http://github.com/json4s/json4s/raw/HEAD/LICENSE"/>
+				<metadata-artifact status="no" details="" size="2973" time="0" location="C:\Users\QueenieD\.ivy2\cache\org.json4s\json4s-core_2.10\ivy-3.2.10.xml" searched="false" origin-is-local="false" origin-location="https://jcenter.bintray.com/org/json4s/json4s-core_2.10/3.2.10/json4s-core_2.10-3.2.10.pom"/>
+				<caller organisation="org.scala-sbt" name="serialization_2.10" conf="compile" rev="3.2.10" rev-constraint-default="3.2.10" rev-constraint-dynamic="3.2.10" callerrev="0.1.1"/>
+				<artifacts>
+					<artifact name="json4s-core_2.10" type="jar" ext="jar" status="no" details="" size="584691" time="0" location="C:\Users\QueenieD\.ivy2\cache\org.json4s\json4s-core_2.10\jars\json4s-core_2.10-3.2.10.jar">
+						<origin-location is-local="false" location="https://jcenter.bintray.com/org/json4s/json4s-core_2.10/3.2.10/json4s-core_2.10-3.2.10.jar"/>
+					</artifact>
+				</artifacts>
+			</revision>
+		</module>
+		<module organisation="com.thoughtworks.paranamer" name="paranamer">
+			<revision name="2.6" status="release" pubdate="20131009115654" resolver="sbt-chain" artresolver="sbt-chain" homepage="" downloaded="false" searched="false" default="false" conf="master(*), compile, runtime(*), runtime, compile(*), master" position="34">
+				<metadata-artifact status="no" details="" size="4165" time="0" location="C:\Users\QueenieD\.ivy2\cache\com.thoughtworks.paranamer\paranamer\ivy-2.6.xml" searched="false" origin-is-local="false" origin-location="https://jcenter.bintray.com/com/thoughtworks/paranamer/paranamer/2.6/paranamer-2.6.pom"/>
+				<caller organisation="org.json4s" name="json4s-core_2.10" conf="default, compile, runtime, master" rev="2.6" rev-constraint-default="2.6" rev-constraint-dynamic="2.6" callerrev="3.2.10"/>
+				<artifacts>
+					<artifact name="paranamer" type="jar" ext="jar" status="no" details="" size="32806" time="0" location="C:\Users\QueenieD\.ivy2\cache\com.thoughtworks.paranamer\paranamer\jars\paranamer-2.6.jar">
+						<origin-location is-local="false" location="https://jcenter.bintray.com/com/thoughtworks/paranamer/paranamer/2.6/paranamer-2.6.jar"/>
+					</artifact>
+				</artifacts>
+			</revision>
+		</module>
+		<module organisation="org.json4s" name="json4s-ast_2.10">
+			<revision name="3.2.10" status="release" pubdate="20140514011800" resolver="sbt-chain" artresolver="sbt-chain" homepage="https://github.com/json4s/json4s" downloaded="false" searched="false" default="false" conf="master(*), compile, runtime(*), runtime, compile(*), master" position="33">
+				<license name="ASL" url="http://github.com/json4s/json4s/raw/HEAD/LICENSE"/>
+				<metadata-artifact status="no" details="" size="2548" time="0" location="C:\Users\QueenieD\.ivy2\cache\org.json4s\json4s-ast_2.10\ivy-3.2.10.xml" searched="false" origin-is-local="false" origin-location="https://jcenter.bintray.com/org/json4s/json4s-ast_2.10/3.2.10/json4s-ast_2.10-3.2.10.pom"/>
+				<caller organisation="org.spire-math" name="json4s-support_2.10" conf="default, compile, runtime, master" rev="3.2.10" rev-constraint-default="3.2.10" rev-constraint-dynamic="3.2.10" callerrev="0.6.0"/>
+				<caller organisation="org.json4s" name="json4s-core_2.10" conf="default, compile, runtime, master" rev="3.2.10" rev-constraint-default="3.2.10" rev-constraint-dynamic="3.2.10" callerrev="3.2.10"/>
+				<artifacts>
+					<artifact name="json4s-ast_2.10" type="jar" ext="jar" status="no" details="" size="83798" time="0" location="C:\Users\QueenieD\.ivy2\cache\org.json4s\json4s-ast_2.10\jars\json4s-ast_2.10-3.2.10.jar">
+						<origin-location is-local="false" location="https://jcenter.bintray.com/org/json4s/json4s-ast_2.10/3.2.10/json4s-ast_2.10-3.2.10.jar"/>
+					</artifact>
+				</artifacts>
+			</revision>
+		</module>
+		<module organisation="org.scala-lang.modules" name="scala-pickling_2.10">
+			<revision name="0.10.0" status="release" pubdate="20150207035700" resolver="sbt-chain" artresolver="sbt-chain" homepage="https://github.com/scala/pickling" downloaded="false" searched="false" default="false" conf="default, compile, runtime, default(compile), master" position="30">
+				<license name="BSD-like" url="http://www.scala-lang.org/downloads/license.html "/>
+				<metadata-artifact status="no" details="" size="3248" time="0" location="C:\Users\QueenieD\.ivy2\cache\org.scala-lang.modules\scala-pickling_2.10\ivy-0.10.0.xml" searched="false" origin-is-local="false" origin-location="https://jcenter.bintray.com/org/scala-lang/modules/scala-pickling_2.10/0.10.0/scala-pickling_2.10-0.10.0.pom"/>
+				<caller organisation="org.scala-sbt" name="serialization_2.10" conf="compile" rev="0.10.0" rev-constraint-default="0.10.0" rev-constraint-dynamic="0.10.0" callerrev="0.1.1"/>
+				<artifacts>
+					<artifact name="scala-pickling_2.10" type="jar" ext="jar" status="no" details="" size="824405" time="0" location="C:\Users\QueenieD\.ivy2\cache\org.scala-lang.modules\scala-pickling_2.10\jars\scala-pickling_2.10-0.10.0.jar">
+						<origin-location is-local="false" location="https://jcenter.bintray.com/org/scala-lang/modules/scala-pickling_2.10/0.10.0/scala-pickling_2.10-0.10.0.jar"/>
+					</artifact>
+				</artifacts>
+			</revision>
+		</module>
+		<module organisation="org.scalamacros" name="quasiquotes_2.10">
+			<revision name="2.0.1" status="release" pubdate="20140628221800" resolver="sbt-chain" artresolver="sbt-chain" homepage="https://github.com/scalamacros/paradise" downloaded="false" searched="false" default="false" conf="master(*), compile, runtime(*), runtime, compile(*), master" position="31">
+				<license name="BSD-like" url="http://www.scala-lang.org/downloads/license.html"/>
+				<metadata-artifact status="no" details="" size="2763" time="0" location="C:\Users\QueenieD\.ivy2\cache\org.scalamacros\quasiquotes_2.10\ivy-2.0.1.xml" searched="false" origin-is-local="false" origin-location="https://jcenter.bintray.com/org/scalamacros/quasiquotes_2.10/2.0.1/quasiquotes_2.10-2.0.1.pom"/>
+				<caller organisation="org.scala-lang.modules" name="scala-pickling_2.10" conf="default, compile, runtime, master" rev="2.0.1" rev-constraint-default="2.0.1" rev-constraint-dynamic="2.0.1" callerrev="0.10.0"/>
+				<artifacts>
+					<artifact name="quasiquotes_2.10" type="jar" ext="jar" status="no" details="" size="720704" time="0" location="C:\Users\QueenieD\.ivy2\cache\org.scalamacros\quasiquotes_2.10\jars\quasiquotes_2.10-2.0.1.jar">
+						<origin-location is-local="false" location="https://jcenter.bintray.com/org/scalamacros/quasiquotes_2.10/2.0.1/quasiquotes_2.10-2.0.1.jar"/>
+					</artifact>
+				</artifacts>
+			</revision>
+		</module>
+		<module organisation="com.jcraft" name="jsch">
+			<revision name="0.1.46" status="release" pubdate="20120202203925" resolver="sbt-chain" artresolver="sbt-chain" homepage="http://www.jcraft.com/jsch/" downloaded="false" searched="false" default="false" conf="default, compile, runtime, default(compile), master" position="28">
+				<license name="Revised BSD" url="http://www.jcraft.com/jsch/LICENSE.txt"/>
+				<metadata-artifact status="no" details="" size="3239" time="0" location="C:\Users\QueenieD\.ivy2\cache\com.jcraft\jsch\ivy-0.1.46.xml" searched="false" origin-is-local="false" origin-location="https://jcenter.bintray.com/com/jcraft/jsch/0.1.46/jsch-0.1.46.pom"/>
+				<caller organisation="org.scala-sbt" name="ivy" conf="compile" rev="0.1.46" rev-constraint-default="0.1.46" rev-constraint-dynamic="0.1.46" callerrev="0.13.9"/>
+				<artifacts>
+					<artifact name="jsch" type="jar" ext="jar" status="no" details="" size="225751" time="0" location="C:\Users\QueenieD\.ivy2\cache\com.jcraft\jsch\jars\jsch-0.1.46.jar">
+						<origin-location is-local="false" location="https://jcenter.bintray.com/com/jcraft/jsch/0.1.46/jsch-0.1.46.jar"/>
+					</artifact>
+				</artifacts>
+			</revision>
+		</module>
+		<module organisation="org.scala-sbt.ivy" name="ivy">
+			<revision name="2.3.0-sbt-c5d1b95fdcc1e1007740ffbecf4eb07abc51ec93" status="release" pubdate="20150626042649" resolver="sbt-chain" artresolver="sbt-chain" homepage="https://github.com/sbt/ivy" downloaded="false" searched="false" default="false" conf="default, compile, runtime, default(compile), master" position="27">
+				<license name="Apache-2.0" url="https://github.com/sbt/ivy/blob/2.3.x-sbt/LICENSE"/>
+				<metadata-artifact status="no" details="" size="3595" time="0" location="C:\Users\QueenieD\.ivy2\cache\org.scala-sbt.ivy\ivy\ivy-2.3.0-sbt-c5d1b95fdcc1e1007740ffbecf4eb07abc51ec93.xml" searched="false" origin-is-local="false" origin-location="https://jcenter.bintray.com/org/scala-sbt/ivy/ivy/2.3.0-sbt-c5d1b95fdcc1e1007740ffbecf4eb07abc51ec93/ivy-2.3.0-sbt-c5d1b95fdcc1e1007740ffbecf4eb07abc51ec93.pom"/>
+				<caller organisation="org.scala-sbt" name="ivy" conf="compile" rev="2.3.0-sbt-c5d1b95fdcc1e1007740ffbecf4eb07abc51ec93" rev-constraint-default="2.3.0-sbt-c5d1b95fdcc1e1007740ffbecf4eb07abc51ec93" rev-constraint-dynamic="2.3.0-sbt-c5d1b95fdcc1e1007740ffbecf4eb07abc51ec93" callerrev="0.13.9"/>
+				<artifacts>
+					<artifact name="ivy" type="jar" ext="jar" status="no" details="" size="1135107" time="0" location="C:\Users\QueenieD\.ivy2\cache\org.scala-sbt.ivy\ivy\jars\ivy-2.3.0-sbt-c5d1b95fdcc1e1007740ffbecf4eb07abc51ec93.jar">
+						<origin-location is-local="false" location="https://jcenter.bintray.com/org/scala-sbt/ivy/ivy/2.3.0-sbt-c5d1b95fdcc1e1007740ffbecf4eb07abc51ec93/ivy-2.3.0-sbt-c5d1b95fdcc1e1007740ffbecf4eb07abc51ec93.jar"/>
+					</artifact>
+				</artifacts>
+			</revision>
+		</module>
+		<module organisation="org.scala-sbt" name="cross">
+			<revision name="0.13.9" status="release" pubdate="20150810202315" resolver="sbt-chain" artresolver="sbt-chain" downloaded="false" searched="false" default="false" conf="compile, default(compile)" position="26">
+				<metadata-artifact status="no" details="" size="1172" time="0" location="C:\Users\QueenieD\.ivy2\cache\org.scala-sbt\cross\ivy-0.13.9.xml" searched="false" origin-is-local="false" origin-location="https://repo.typesafe.com/typesafe/ivy-releases/org.scala-sbt/cross/0.13.9/ivys/ivy.xml"/>
+				<caller organisation="org.scala-sbt" name="command" conf="compile" rev="0.13.9" rev-constraint-default="0.13.9" rev-constraint-dynamic="0.13.9" callerrev="0.13.9"/>
+				<caller organisation="org.scala-sbt" name="ivy" conf="compile" rev="0.13.9" rev-constraint-default="0.13.9" rev-constraint-dynamic="0.13.9" callerrev="0.13.9"/>
+				<artifacts>
+					<artifact name="cross" type="jar" ext="jar" status="no" details="" size="8192" time="0" location="C:\Users\QueenieD\.ivy2\cache\org.scala-sbt\cross\jars\cross-0.13.9.jar">
+						<origin-location is-local="false" location="https://repo.typesafe.com/typesafe/ivy-releases/org.scala-sbt/cross/0.13.9/jars/cross.jar"/>
+					</artifact>
+				</artifacts>
+			</revision>
+		</module>
+		<module organisation="org.scala-sbt" name="compiler-integration">
+			<revision name="0.13.9" status="release" pubdate="20150810202545" resolver="sbt-chain" artresolver="sbt-chain" downloaded="false" searched="false" default="false" conf="compile, default(compile)" position="15">
+				<metadata-artifact status="no" details="" size="1728" time="0" location="C:\Users\QueenieD\.ivy2\cache\org.scala-sbt\compiler-integration\ivy-0.13.9.xml" searched="false" origin-is-local="false" origin-location="https://repo.typesafe.com/typesafe/ivy-releases/org.scala-sbt/compiler-integration/0.13.9/ivys/ivy.xml"/>
+				<caller organisation="org.scala-sbt" name="actions" conf="compile" rev="0.13.9" rev-constraint-default="0.13.9" rev-constraint-dynamic="0.13.9" callerrev="0.13.9"/>
+				<artifacts>
+					<artifact name="compiler-integration" type="jar" ext="jar" status="no" details="" size="127995" time="0" location="C:\Users\QueenieD\.ivy2\cache\org.scala-sbt\compiler-integration\jars\compiler-integration-0.13.9.jar">
+						<origin-location is-local="false" location="https://repo.typesafe.com/typesafe/ivy-releases/org.scala-sbt/compiler-integration/0.13.9/jars/compiler-integration.jar"/>
+					</artifact>
+				</artifacts>
+			</revision>
+		</module>
+		<module organisation="org.scala-sbt" name="persist">
+			<revision name="0.13.9" status="release" pubdate="20150810202524" resolver="sbt-chain" artresolver="sbt-chain" downloaded="false" searched="false" default="false" conf="compile, default(compile)" position="22">
+				<metadata-artifact status="no" details="" size="1785" time="0" location="C:\Users\QueenieD\.ivy2\cache\org.scala-sbt\persist\ivy-0.13.9.xml" searched="false" origin-is-local="false" origin-location="https://repo.typesafe.com/typesafe/ivy-releases/org.scala-sbt/persist/0.13.9/ivys/ivy.xml"/>
+				<caller organisation="org.scala-sbt" name="compiler-integration" conf="compile" rev="0.13.9" rev-constraint-default="0.13.9" rev-constraint-dynamic="0.13.9" callerrev="0.13.9"/>
+				<artifacts>
+					<artifact name="persist" type="jar" ext="jar" status="no" details="" size="163970" time="0" location="C:\Users\QueenieD\.ivy2\cache\org.scala-sbt\persist\jars\persist-0.13.9.jar">
+						<origin-location is-local="false" location="https://repo.typesafe.com/typesafe/ivy-releases/org.scala-sbt/persist/0.13.9/jars/persist.jar"/>
+					</artifact>
+				</artifacts>
+			</revision>
+		</module>
+		<module organisation="org.scala-tools.sbinary" name="sbinary_2.10">
+			<revision name="0.4.2" status="release" pubdate="20140522001025" resolver="sbt-chain" artresolver="sbt-chain" downloaded="false" searched="false" default="false" conf="compile, default(compile)" position="23">
+				<metadata-artifact status="no" details="" size="1403" time="0" location="C:\Users\QueenieD\.ivy2\cache\org.scala-tools.sbinary\sbinary_2.10\ivy-0.4.2.xml" searched="false" origin-is-local="false" origin-location="https://repo.typesafe.com/typesafe/ivy-releases/org.scala-tools.sbinary/sbinary_2.10/0.4.2/ivys/ivy.xml"/>
+				<caller organisation="org.scala-sbt" name="main-settings" conf="compile" rev="0.4.2" rev-constraint-default="0.4.2" rev-constraint-dynamic="0.4.2" callerrev="0.13.9"/>
+				<caller organisation="org.scala-sbt" name="persist" conf="compile" rev="0.4.2" rev-constraint-default="0.4.2" rev-constraint-dynamic="0.4.2" callerrev="0.13.9"/>
+				<caller organisation="org.scala-sbt" name="cache" conf="compile" rev="0.4.2" rev-constraint-default="0.4.2" rev-constraint-dynamic="0.4.2" callerrev="0.13.9"/>
+				<artifacts>
+					<artifact name="sbinary_2.10" type="jar" ext="jar" status="no" details="" size="151965" time="0" location="C:\Users\QueenieD\.ivy2\cache\org.scala-tools.sbinary\sbinary_2.10\jars\sbinary_2.10-0.4.2.jar">
+						<origin-location is-local="false" location="https://repo.typesafe.com/typesafe/ivy-releases/org.scala-tools.sbinary/sbinary_2.10/0.4.2/jars/sbinary_2.10.jar"/>
+					</artifact>
+				</artifacts>
+			</revision>
+		</module>
+		<module organisation="org.scala-sbt" name="compile">
+			<revision name="0.13.9" status="release" pubdate="20150810202534" resolver="sbt-chain" artresolver="sbt-chain" downloaded="false" searched="false" default="false" conf="compile, default(compile)" position="20">
+				<metadata-artifact status="no" details="" size="2290" time="0" location="C:\Users\QueenieD\.ivy2\cache\org.scala-sbt\compile\ivy-0.13.9.xml" searched="false" origin-is-local="false" origin-location="https://repo.typesafe.com/typesafe/ivy-releases/org.scala-sbt/compile/0.13.9/ivys/ivy.xml"/>
+				<caller organisation="org.scala-sbt" name="compiler-integration" conf="compile" rev="0.13.9" rev-constraint-default="0.13.9" rev-constraint-dynamic="0.13.9" callerrev="0.13.9"/>
+				<caller organisation="org.scala-sbt" name="compiler-ivy-integration" conf="compile" rev="0.13.9" rev-constraint-default="0.13.9" rev-constraint-dynamic="0.13.9" callerrev="0.13.9"/>
+				<artifacts>
+					<artifact name="compile" type="jar" ext="jar" status="no" details="" size="239751" time="0" location="C:\Users\QueenieD\.ivy2\cache\org.scala-sbt\compile\jars\compile-0.13.9.jar">
+						<origin-location is-local="false" location="https://repo.typesafe.com/typesafe/ivy-releases/org.scala-sbt/compile/0.13.9/jars/compile.jar"/>
+					</artifact>
+				</artifacts>
+			</revision>
+		</module>
+		<module organisation="org.scala-sbt" name="classfile">
+			<revision name="0.13.9" status="release" pubdate="20150810202257" resolver="sbt-chain" artresolver="sbt-chain" downloaded="false" searched="false" default="false" conf="compile, default(compile)" position="21">
+				<metadata-artifact status="no" details="" size="1776" time="0" location="C:\Users\QueenieD\.ivy2\cache\org.scala-sbt\classfile\ivy-0.13.9.xml" searched="false" origin-is-local="false" origin-location="https://repo.typesafe.com/typesafe/ivy-releases/org.scala-sbt/classfile/0.13.9/ivys/ivy.xml"/>
+				<caller organisation="org.scala-sbt" name="compile" conf="compile" rev="0.13.9" rev-constraint-default="0.13.9" rev-constraint-dynamic="0.13.9" callerrev="0.13.9"/>
+				<caller organisation="org.scala-sbt" name="compiler-integration" conf="compile" rev="0.13.9" rev-constraint-default="0.13.9" rev-constraint-dynamic="0.13.9" callerrev="0.13.9"/>
+				<artifacts>
+					<artifact name="classfile" type="jar" ext="jar" status="no" details="" size="82719" time="0" location="C:\Users\QueenieD\.ivy2\cache\org.scala-sbt\classfile\jars\classfile-0.13.9.jar">
+						<origin-location is-local="false" location="https://repo.typesafe.com/typesafe/ivy-releases/org.scala-sbt/classfile/0.13.9/jars/classfile.jar"/>
+					</artifact>
+				</artifacts>
+			</revision>
+		</module>
+		<module organisation="org.scala-sbt" name="incremental-compiler">
+			<revision name="0.13.9" status="release" pubdate="20150810202512" resolver="sbt-chain" artresolver="sbt-chain" downloaded="false" searched="false" default="false" conf="compile, default(compile)" position="16">
+				<metadata-artifact status="no" details="" size="1991" time="0" location="C:\Users\QueenieD\.ivy2\cache\org.scala-sbt\incremental-compiler\ivy-0.13.9.xml" searched="false" origin-is-local="false" origin-location="https://repo.typesafe.com/typesafe/ivy-releases/org.scala-sbt/incremental-compiler/0.13.9/ivys/ivy.xml"/>
+				<caller organisation="org.scala-sbt" name="compiler-integration" conf="compile" rev="0.13.9" rev-constraint-default="0.13.9" rev-constraint-dynamic="0.13.9" callerrev="0.13.9"/>
+				<caller organisation="org.scala-sbt" name="persist" conf="compile" rev="0.13.9" rev-constraint-default="0.13.9" rev-constraint-dynamic="0.13.9" callerrev="0.13.9"/>
+				<artifacts>
+					<artifact name="incremental-compiler" type="jar" ext="jar" status="no" details="" size="489178" time="0" location="C:\Users\QueenieD\.ivy2\cache\org.scala-sbt\incremental-compiler\jars\incremental-compiler-0.13.9.jar">
+						<origin-location is-local="false" location="https://repo.typesafe.com/typesafe/ivy-releases/org.scala-sbt/incremental-compiler/0.13.9/jars/incremental-compiler.jar"/>
+					</artifact>
+				</artifacts>
+			</revision>
+		</module>
+		<module organisation="org.scala-sbt" name="relation">
+			<revision name="0.13.9" status="release" pubdate="20150810202247" resolver="sbt-chain" artresolver="sbt-chain" downloaded="false" searched="false" default="false" conf="compile, default(compile)" position="19">
+				<metadata-artifact status="no" details="" size="1680" time="0" location="C:\Users\QueenieD\.ivy2\cache\org.scala-sbt\relation\ivy-0.13.9.xml" searched="false" origin-is-local="false" origin-location="https://repo.typesafe.com/typesafe/ivy-releases/org.scala-sbt/relation/0.13.9/ivys/ivy.xml"/>
+				<caller organisation="org.scala-sbt" name="actions" conf="compile" rev="0.13.9" rev-constraint-default="0.13.9" rev-constraint-dynamic="0.13.9" callerrev="0.13.9"/>
+				<caller organisation="org.scala-sbt" name="incremental-compiler" conf="compile" rev="0.13.9" rev-constraint-default="0.13.9" rev-constraint-dynamic="0.13.9" callerrev="0.13.9"/>
+				<caller organisation="org.scala-sbt" name="main-settings" conf="compile" rev="0.13.9" rev-constraint-default="0.13.9" rev-constraint-dynamic="0.13.9" callerrev="0.13.9"/>
+				<caller organisation="org.scala-sbt" name="logic" conf="compile" rev="0.13.9" rev-constraint-default="0.13.9" rev-constraint-dynamic="0.13.9" callerrev="0.13.9"/>
+				<artifacts>
+					<artifact name="relation" type="jar" ext="jar" status="no" details="" size="29692" time="0" location="C:\Users\QueenieD\.ivy2\cache\org.scala-sbt\relation\jars\relation-0.13.9.jar">
+						<origin-location is-local="false" location="https://repo.typesafe.com/typesafe/ivy-releases/org.scala-sbt/relation/0.13.9/jars/relation.jar"/>
+					</artifact>
+				</artifacts>
+			</revision>
+		</module>
+		<module organisation="org.scala-sbt" name="logging">
+			<revision name="0.13.9" status="release" pubdate="20150810202237" resolver="sbt-chain" artresolver="sbt-chain" downloaded="false" searched="false" default="false" conf="compile, default(compile)" position="17">
+				<metadata-artifact status="no" details="" size="1761" time="0" location="C:\Users\QueenieD\.ivy2\cache\org.scala-sbt\logging\ivy-0.13.9.xml" searched="false" origin-is-local="false" origin-location="https://repo.typesafe.com/typesafe/ivy-releases/org.scala-sbt/logging/0.13.9/ivys/ivy.xml"/>
+				<caller organisation="org.scala-sbt" name="run" conf="compile" rev="0.13.9" rev-constraint-default="0.13.9" rev-constraint-dynamic="0.13.9" callerrev="0.13.9"/>
+				<caller organisation="org.scala-sbt" name="compile" conf="compile" rev="0.13.9" rev-constraint-default="0.13.9" rev-constraint-dynamic="0.13.9" callerrev="0.13.9"/>
+				<caller organisation="org.scala-sbt" name="main" conf="compile" rev="0.13.9" rev-constraint-default="0.13.9" rev-constraint-dynamic="0.13.9" callerrev="0.13.9"/>
+				<caller organisation="org.scala-sbt" name="classfile" conf="compile" rev="0.13.9" rev-constraint-default="0.13.9" rev-constraint-dynamic="0.13.9" callerrev="0.13.9"/>
+				<caller organisation="org.scala-sbt" name="command" conf="compile" rev="0.13.9" rev-constraint-default="0.13.9" rev-constraint-dynamic="0.13.9" callerrev="0.13.9"/>
+				<caller organisation="org.scala-sbt" name="actions" conf="compile" rev="0.13.9" rev-constraint-default="0.13.9" rev-constraint-dynamic="0.13.9" callerrev="0.13.9"/>
+				<caller organisation="org.scala-sbt" name="incremental-compiler" conf="compile" rev="0.13.9" rev-constraint-default="0.13.9" rev-constraint-dynamic="0.13.9" callerrev="0.13.9"/>
+				<caller organisation="org.scala-sbt" name="testing" conf="compile" rev="0.13.9" rev-constraint-default="0.13.9" rev-constraint-dynamic="0.13.9" callerrev="0.13.9"/>
+				<caller organisation="org.scala-sbt" name="main-settings" conf="compile" rev="0.13.9" rev-constraint-default="0.13.9" rev-constraint-dynamic="0.13.9" callerrev="0.13.9"/>
+				<caller organisation="org.scala-sbt" name="ivy" conf="compile" rev="0.13.9" rev-constraint-default="0.13.9" rev-constraint-dynamic="0.13.9" callerrev="0.13.9"/>
+				<caller organisation="org.scala-sbt" name="task-system" conf="compile" rev="0.13.9" rev-constraint-default="0.13.9" rev-constraint-dynamic="0.13.9" callerrev="0.13.9"/>
+				<artifacts>
+					<artifact name="logging" type="jar" ext="jar" status="no" details="" size="108899" time="0" location="C:\Users\QueenieD\.ivy2\cache\org.scala-sbt\logging\jars\logging-0.13.9.jar">
+						<origin-location is-local="false" location="https://repo.typesafe.com/typesafe/ivy-releases/org.scala-sbt/logging/0.13.9/jars/logging.jar"/>
+					</artifact>
+				</artifacts>
+			</revision>
+		</module>
+		<module organisation="org.scala-sbt" name="process">
+			<revision name="0.13.9" status="release" pubdate="20150810202155" resolver="sbt-chain" artresolver="sbt-chain" downloaded="false" searched="false" default="false" conf="compile, default(compile)" position="18">
+				<metadata-artifact status="no" details="" size="1257" time="0" location="C:\Users\QueenieD\.ivy2\cache\org.scala-sbt\process\ivy-0.13.9.xml" searched="false" origin-is-local="false" origin-location="https://repo.typesafe.com/typesafe/ivy-releases/org.scala-sbt/process/0.13.9/ivys/ivy.xml"/>
+				<caller organisation="org.scala-sbt" name="logging" conf="compile" rev="0.13.9" rev-constraint-default="0.13.9" rev-constraint-dynamic="0.13.9" callerrev="0.13.9"/>
+				<caller organisation="org.scala-sbt" name="run" conf="compile" rev="0.13.9" rev-constraint-default="0.13.9" rev-constraint-dynamic="0.13.9" callerrev="0.13.9"/>
+				<caller organisation="org.scala-sbt" name="main" conf="compile" rev="0.13.9" rev-constraint-default="0.13.9" rev-constraint-dynamic="0.13.9" callerrev="0.13.9"/>
+				<caller organisation="org.scala-sbt" name="actions" conf="compile" rev="0.13.9" rev-constraint-default="0.13.9" rev-constraint-dynamic="0.13.9" callerrev="0.13.9"/>
+				<caller organisation="org.scala-sbt" name="main-settings" conf="compile" rev="0.13.9" rev-constraint-default="0.13.9" rev-constraint-dynamic="0.13.9" callerrev="0.13.9"/>
+				<caller organisation="org.scala-sbt" name="relation" conf="compile" rev="0.13.9" rev-constraint-default="0.13.9" rev-constraint-dynamic="0.13.9" callerrev="0.13.9"/>
+				<caller organisation="org.scala-sbt" name="task-system" conf="compile" rev="0.13.9" rev-constraint-default="0.13.9" rev-constraint-dynamic="0.13.9" callerrev="0.13.9"/>
+				<artifacts>
+					<artifact name="process" type="jar" ext="jar" status="no" details="" size="123779" time="0" location="C:\Users\QueenieD\.ivy2\cache\org.scala-sbt\process\jars\process-0.13.9.jar">
+						<origin-location is-local="false" location="https://repo.typesafe.com/typesafe/ivy-releases/org.scala-sbt/process/0.13.9/jars/process.jar"/>
+					</artifact>
+				</artifacts>
+			</revision>
+		</module>
+		<module organisation="org.scala-sbt" name="api">
+			<revision name="0.13.9" status="release" pubdate="20150810202109" resolver="sbt-chain" artresolver="sbt-chain" downloaded="false" searched="false" default="false" conf="compile, default(compile)" position="14">
+				<metadata-artifact status="no" details="" size="1563" time="0" location="C:\Users\QueenieD\.ivy2\cache\org.scala-sbt\api\ivy-0.13.9.xml" searched="false" origin-is-local="false" origin-location="https://repo.typesafe.com/typesafe/ivy-releases/org.scala-sbt/api/0.13.9/ivys/ivy.xml"/>
+				<caller organisation="org.scala-sbt" name="compile" conf="compile" rev="0.13.9" rev-constraint-default="0.13.9" rev-constraint-dynamic="0.13.9" callerrev="0.13.9"/>
+				<caller organisation="org.scala-sbt" name="compiler-integration" conf="compile" rev="0.13.9" rev-constraint-default="0.13.9" rev-constraint-dynamic="0.13.9" callerrev="0.13.9"/>
+				<caller organisation="org.scala-sbt" name="actions" conf="compile" rev="0.13.9" rev-constraint-default="0.13.9" rev-constraint-dynamic="0.13.9" callerrev="0.13.9"/>
+				<caller organisation="org.scala-sbt" name="incremental-compiler" conf="compile" rev="0.13.9" rev-constraint-default="0.13.9" rev-constraint-dynamic="0.13.9" callerrev="0.13.9"/>
+				<caller organisation="org.scala-sbt" name="persist" conf="compile" rev="0.13.9" rev-constraint-default="0.13.9" rev-constraint-dynamic="0.13.9" callerrev="0.13.9"/>
+				<artifacts>
+					<artifact name="api" type="jar" ext="jar" status="no" details="" size="326163" time="0" location="C:\Users\QueenieD\.ivy2\cache\org.scala-sbt\api\jars\api-0.13.9.jar">
+						<origin-location is-local="false" location="https://repo.typesafe.com/typesafe/ivy-releases/org.scala-sbt/api/0.13.9/jars/api.jar"/>
+					</artifact>
+				</artifacts>
+			</revision>
+		</module>
+		<module organisation="org.scala-sbt" name="completion">
+			<revision name="0.13.9" status="release" pubdate="20150810202227" resolver="sbt-chain" artresolver="sbt-chain" downloaded="false" searched="false" default="false" conf="compile, default(compile)" position="11">
+				<metadata-artifact status="no" details="" size="1847" time="0" location="C:\Users\QueenieD\.ivy2\cache\org.scala-sbt\completion\ivy-0.13.9.xml" searched="false" origin-is-local="false" origin-location="https://repo.typesafe.com/typesafe/ivy-releases/org.scala-sbt/completion/0.13.9/ivys/ivy.xml"/>
+				<caller organisation="org.scala-sbt" name="command" conf="compile" rev="0.13.9" rev-constraint-default="0.13.9" rev-constraint-dynamic="0.13.9" callerrev="0.13.9"/>
+				<caller organisation="org.scala-sbt" name="actions" conf="compile" rev="0.13.9" rev-constraint-default="0.13.9" rev-constraint-dynamic="0.13.9" callerrev="0.13.9"/>
+				<caller organisation="org.scala-sbt" name="main-settings" conf="compile" rev="0.13.9" rev-constraint-default="0.13.9" rev-constraint-dynamic="0.13.9" callerrev="0.13.9"/>
+				<artifacts>
+					<artifact name="completion" type="jar" ext="jar" status="no" details="" size="387175" time="0" location="C:\Users\QueenieD\.ivy2\cache\org.scala-sbt\completion\jars\completion-0.13.9.jar">
+						<origin-location is-local="false" location="https://repo.typesafe.com/typesafe/ivy-releases/org.scala-sbt/completion/0.13.9/jars/completion.jar"/>
+					</artifact>
+				</artifacts>
+			</revision>
+		</module>
+		<module organisation="jline" name="jline">
+			<revision name="2.11" status="release" pubdate="20130520030100" resolver="sbt-chain" artresolver="sbt-chain" homepage="" downloaded="false" searched="false" default="false" conf="default, compile, runtime, default(compile), master" position="13">
+				<license name="The BSD License" url="http://www.opensource.org/licenses/bsd-license.php"/>
+				<metadata-artifact status="no" details="" size="3807" time="0" location="C:\Users\QueenieD\.ivy2\cache\jline\jline\ivy-2.11.xml" searched="false" origin-is-local="false" origin-location="https://jcenter.bintray.com/jline/jline/2.11/jline-2.11.pom"/>
+				<caller organisation="org.scala-sbt" name="logging" conf="compile" rev="2.11" rev-constraint-default="2.11" rev-constraint-dynamic="2.11" callerrev="0.13.9"/>
+				<caller organisation="org.scala-sbt" name="completion" conf="compile" rev="2.11" rev-constraint-default="2.11" rev-constraint-dynamic="2.11" callerrev="0.13.9"/>
+				<artifacts>
+					<artifact name="jline" type="jar" ext="jar" status="no" details="" size="208781" time="0" location="C:\Users\QueenieD\.ivy2\cache\jline\jline\jars\jline-2.11.jar">
+						<origin-location is-local="false" location="https://jcenter.bintray.com/jline/jline/2.11/jline-2.11.jar"/>
+					</artifact>
+				</artifacts>
+			</revision>
+		</module>
+		<module organisation="org.scala-sbt" name="collections">
+			<revision name="0.13.9" status="release" pubdate="20150810202135" resolver="sbt-chain" artresolver="sbt-chain" downloaded="false" searched="false" default="false" conf="compile, default(compile)" position="12">
+				<metadata-artifact status="no" details="" size="1476" time="0" location="C:\Users\QueenieD\.ivy2\cache\org.scala-sbt\collections\ivy-0.13.9.xml" searched="false" origin-is-local="false" origin-location="https://repo.typesafe.com/typesafe/ivy-releases/org.scala-sbt/collections/0.13.9/ivys/ivy.xml"/>
+				<caller organisation="org.scala-sbt" name="apply-macro" conf="compile" rev="0.13.9" rev-constraint-default="0.13.9" rev-constraint-dynamic="0.13.9" callerrev="0.13.9"/>
+				<caller organisation="org.scala-sbt" name="tasks" conf="compile" rev="0.13.9" rev-constraint-default="0.13.9" rev-constraint-dynamic="0.13.9" callerrev="0.13.9"/>
+				<caller organisation="org.scala-sbt" name="completion" conf="compile" rev="0.13.9" rev-constraint-default="0.13.9" rev-constraint-dynamic="0.13.9" callerrev="0.13.9"/>
+				<caller organisation="org.scala-sbt" name="ivy" conf="compile" rev="0.13.9" rev-constraint-default="0.13.9" rev-constraint-dynamic="0.13.9" callerrev="0.13.9"/>
+				<caller organisation="org.scala-sbt" name="task-system" conf="compile" rev="0.13.9" rev-constraint-default="0.13.9" rev-constraint-dynamic="0.13.9" callerrev="0.13.9"/>
+				<caller organisation="org.scala-sbt" name="cache" conf="compile" rev="0.13.9" rev-constraint-default="0.13.9" rev-constraint-dynamic="0.13.9" callerrev="0.13.9"/>
+				<caller organisation="org.scala-sbt" name="logic" conf="compile" rev="0.13.9" rev-constraint-default="0.13.9" rev-constraint-dynamic="0.13.9" callerrev="0.13.9"/>
+				<artifacts>
+					<artifact name="collections" type="jar" ext="jar" status="no" details="" size="425364" time="0" location="C:\Users\QueenieD\.ivy2\cache\org.scala-sbt\collections\jars\collections-0.13.9.jar">
+						<origin-location is-local="false" location="https://repo.typesafe.com/typesafe/ivy-releases/org.scala-sbt/collections/0.13.9/jars/collections.jar"/>
+					</artifact>
+				</artifacts>
+			</revision>
+		</module>
+		<module organisation="org.scala-sbt" name="classpath">
+			<revision name="0.13.9" status="release" pubdate="20150810202218" resolver="sbt-chain" artresolver="sbt-chain" downloaded="false" searched="false" default="false" conf="compile, default(compile)" position="4">
+				<metadata-artifact status="no" details="" size="1891" time="0" location="C:\Users\QueenieD\.ivy2\cache\org.scala-sbt\classpath\ivy-0.13.9.xml" searched="false" origin-is-local="false" origin-location="https://repo.typesafe.com/typesafe/ivy-releases/org.scala-sbt/classpath/0.13.9/ivys/ivy.xml"/>
+				<caller organisation="org.scala-sbt" name="run" conf="compile" rev="0.13.9" rev-constraint-default="0.13.9" rev-constraint-dynamic="0.13.9" callerrev="0.13.9"/>
+				<caller organisation="org.scala-sbt" name="compile" conf="compile" rev="0.13.9" rev-constraint-default="0.13.9" rev-constraint-dynamic="0.13.9" callerrev="0.13.9"/>
+				<caller organisation="org.scala-sbt" name="command" conf="compile" rev="0.13.9" rev-constraint-default="0.13.9" rev-constraint-dynamic="0.13.9" callerrev="0.13.9"/>
+				<caller organisation="org.scala-sbt" name="actions" conf="compile" rev="0.13.9" rev-constraint-default="0.13.9" rev-constraint-dynamic="0.13.9" callerrev="0.13.9"/>
+				<caller organisation="org.scala-sbt" name="incremental-compiler" conf="compile" rev="0.13.9" rev-constraint-default="0.13.9" rev-constraint-dynamic="0.13.9" callerrev="0.13.9"/>
+				<caller organisation="org.scala-sbt" name="testing" conf="compile" rev="0.13.9" rev-constraint-default="0.13.9" rev-constraint-dynamic="0.13.9" callerrev="0.13.9"/>
+				<caller organisation="org.scala-sbt" name="main-settings" conf="compile" rev="0.13.9" rev-constraint-default="0.13.9" rev-constraint-dynamic="0.13.9" callerrev="0.13.9"/>
+				<artifacts>
+					<artifact name="classpath" type="jar" ext="jar" status="no" details="" size="87634" time="0" location="C:\Users\QueenieD\.ivy2\cache\org.scala-sbt\classpath\jars\classpath-0.13.9.jar">
+						<origin-location is-local="false" location="https://repo.typesafe.com/typesafe/ivy-releases/org.scala-sbt/classpath/0.13.9/jars/classpath.jar"/>
+					</artifact>
+				</artifacts>
+			</revision>
+		</module>
+		<module organisation="org.scala-sbt" name="launcher-interface">
+			<revision name="1.0.0-M1" status="release" pubdate="20150325232900" resolver="sbt-chain" artresolver="sbt-chain" homepage="http://scala-sbt.org" downloaded="false" searched="false" default="false" conf="default, compile, runtime, default(compile), master" position="10">
+				<license name="BSD" url="http://opensource.org/licenses/BSD-2-Clause"/>
+				<metadata-artifact status="no" details="" size="2410" time="0" location="C:\Users\QueenieD\.ivy2\cache\org.scala-sbt\launcher-interface\ivy-1.0.0-M1.xml" searched="false" origin-is-local="false" origin-location="https://jcenter.bintray.com/org/scala-sbt/launcher-interface/1.0.0-M1/launcher-interface-1.0.0-M1.pom"/>
+				<caller organisation="org.scala-sbt" name="classpath" conf="compile" rev="1.0.0-M1" rev-constraint-default="1.0.0-M1" rev-constraint-dynamic="1.0.0-M1" callerrev="0.13.9"/>
+				<caller organisation="org.scala-sbt" name="compile" conf="compile" rev="1.0.0-M1" rev-constraint-default="1.0.0-M1" rev-constraint-dynamic="1.0.0-M1" callerrev="0.13.9"/>
+				<caller organisation="org.scala-sbt" name="main" conf="compile" rev="1.0.0-M1" rev-constraint-default="1.0.0-M1" rev-constraint-dynamic="1.0.0-M1" callerrev="0.13.9"/>
+				<caller organisation="org.scala-sbt" name="command" conf="compile" rev="1.0.0-M1" rev-constraint-default="1.0.0-M1" rev-constraint-dynamic="1.0.0-M1" callerrev="0.13.9"/>
+				<caller organisation="org.scala-sbt" name="testing" conf="compile" rev="1.0.0-M1" rev-constraint-default="1.0.0-M1" rev-constraint-dynamic="1.0.0-M1" callerrev="0.13.9"/>
+				<caller organisation="org.scala-sbt" name="ivy" conf="compile" rev="1.0.0-M1" rev-constraint-default="1.0.0-M1" rev-constraint-dynamic="1.0.0-M1" callerrev="0.13.9"/>
+				<artifacts>
+					<artifact name="launcher-interface" type="jar" ext="jar" status="no" details="" size="10007" time="0" location="C:\Users\QueenieD\.ivy2\cache\org.scala-sbt\launcher-interface\jars\launcher-interface-1.0.0-M1.jar">
+						<origin-location is-local="false" location="https://jcenter.bintray.com/org/scala-sbt/launcher-interface/1.0.0-M1/launcher-interface-1.0.0-M1.jar"/>
+					</artifact>
+				</artifacts>
+			</revision>
+		</module>
+		<module organisation="org.scala-sbt" name="io">
+			<revision name="0.13.9" status="release" pubdate="20150810202205" resolver="sbt-chain" artresolver="sbt-chain" downloaded="false" searched="false" default="false" conf="compile, default(compile)" position="8">
+				<metadata-artifact status="no" details="" size="1636" time="0" location="C:\Users\QueenieD\.ivy2\cache\org.scala-sbt\io\ivy-0.13.9.xml" searched="false" origin-is-local="false" origin-location="https://repo.typesafe.com/typesafe/ivy-releases/org.scala-sbt/io/0.13.9/ivys/ivy.xml"/>
+				<caller organisation="org.scala-sbt" name="main" conf="compile" rev="0.13.9" rev-constraint-default="0.13.9" rev-constraint-dynamic="0.13.9" callerrev="0.13.9"/>
+				<caller organisation="org.scala-sbt" name="command" conf="compile" rev="0.13.9" rev-constraint-default="0.13.9" rev-constraint-dynamic="0.13.9" callerrev="0.13.9"/>
+				<caller organisation="org.scala-sbt" name="actions" conf="compile" rev="0.13.9" rev-constraint-default="0.13.9" rev-constraint-dynamic="0.13.9" callerrev="0.13.9"/>
+				<caller organisation="org.scala-sbt" name="incremental-compiler" conf="compile" rev="0.13.9" rev-constraint-default="0.13.9" rev-constraint-dynamic="0.13.9" callerrev="0.13.9"/>
+				<caller organisation="org.scala-sbt" name="testing" conf="compile" rev="0.13.9" rev-constraint-default="0.13.9" rev-constraint-dynamic="0.13.9" callerrev="0.13.9"/>
+				<caller organisation="org.scala-sbt" name="main-settings" conf="compile" rev="0.13.9" rev-constraint-default="0.13.9" rev-constraint-dynamic="0.13.9" callerrev="0.13.9"/>
+				<caller organisation="org.scala-sbt" name="tracking" conf="compile" rev="0.13.9" rev-constraint-default="0.13.9" rev-constraint-dynamic="0.13.9" callerrev="0.13.9"/>
+				<caller organisation="org.scala-sbt" name="cache" conf="compile" rev="0.13.9" rev-constraint-default="0.13.9" rev-constraint-dynamic="0.13.9" callerrev="0.13.9"/>
+				<caller organisation="org.scala-sbt" name="classpath" conf="compile" rev="0.13.9" rev-constraint-default="0.13.9" rev-constraint-dynamic="0.13.9" callerrev="0.13.9"/>
+				<caller organisation="org.scala-sbt" name="run" conf="compile" rev="0.13.9" rev-constraint-default="0.13.9" rev-constraint-dynamic="0.13.9" callerrev="0.13.9"/>
+				<caller organisation="org.scala-sbt" name="compile" conf="compile" rev="0.13.9" rev-constraint-default="0.13.9" rev-constraint-dynamic="0.13.9" callerrev="0.13.9"/>
+				<caller organisation="org.scala-sbt" name="classfile" conf="compile" rev="0.13.9" rev-constraint-default="0.13.9" rev-constraint-dynamic="0.13.9" callerrev="0.13.9"/>
+				<caller organisation="org.scala-sbt" name="completion" conf="compile" rev="0.13.9" rev-constraint-default="0.13.9" rev-constraint-dynamic="0.13.9" callerrev="0.13.9"/>
+				<caller organisation="org.scala-sbt" name="ivy" conf="compile" rev="0.13.9" rev-constraint-default="0.13.9" rev-constraint-dynamic="0.13.9" callerrev="0.13.9"/>
+				<caller organisation="org.scala-sbt" name="task-system" conf="compile" rev="0.13.9" rev-constraint-default="0.13.9" rev-constraint-dynamic="0.13.9" callerrev="0.13.9"/>
+				<artifacts>
+					<artifact name="io" type="jar" ext="jar" status="no" details="" size="275666" time="0" location="C:\Users\QueenieD\.ivy2\cache\org.scala-sbt\io\jars\io-0.13.9.jar">
+						<origin-location is-local="false" location="https://repo.typesafe.com/typesafe/ivy-releases/org.scala-sbt/io/0.13.9/jars/io.jar"/>
+					</artifact>
+				</artifacts>
+			</revision>
+		</module>
+		<module organisation="org.scala-sbt" name="control">
+			<revision name="0.13.9" status="release" pubdate="20150810202126" resolver="sbt-chain" artresolver="sbt-chain" downloaded="false" searched="false" default="false" conf="compile, default(compile)" position="9">
+				<metadata-artifact status="no" details="" size="1180" time="0" location="C:\Users\QueenieD\.ivy2\cache\org.scala-sbt\control\ivy-0.13.9.xml" searched="false" origin-is-local="false" origin-location="https://repo.typesafe.com/typesafe/ivy-releases/org.scala-sbt/control/0.13.9/ivys/ivy.xml"/>
+				<caller organisation="org.scala-sbt" name="io" conf="compile" rev="0.13.9" rev-constraint-default="0.13.9" rev-constraint-dynamic="0.13.9" callerrev="0.13.9"/>
+				<caller organisation="org.scala-sbt" name="tasks" conf="compile" rev="0.13.9" rev-constraint-default="0.13.9" rev-constraint-dynamic="0.13.9" callerrev="0.13.9"/>
+				<caller organisation="org.scala-sbt" name="completion" conf="compile" rev="0.13.9" rev-constraint-default="0.13.9" rev-constraint-dynamic="0.13.9" callerrev="0.13.9"/>
+				<artifacts>
+					<artifact name="control" type="jar" ext="jar" status="no" details="" size="13187" time="0" location="C:\Users\QueenieD\.ivy2\cache\org.scala-sbt\control\jars\control-0.13.9.jar">
+						<origin-location is-local="false" location="https://repo.typesafe.com/typesafe/ivy-releases/org.scala-sbt/control/0.13.9/jars/control.jar"/>
+					</artifact>
+				</artifacts>
+			</revision>
+		</module>
+		<module organisation="org.scala-sbt" name="interface">
+			<revision name="0.13.9" status="release" pubdate="20150810202043" resolver="sbt-chain" artresolver="sbt-chain" extra-component="xsbti" downloaded="false" searched="false" default="false" conf="compile, default(compile)" position="7">
+				<metadata-artifact status="no" details="" size="1208" time="0" location="C:\Users\QueenieD\.ivy2\cache\org.scala-sbt\interface\ivy-0.13.9.xml" searched="false" origin-is-local="false" origin-location="https://repo.typesafe.com/typesafe/ivy-releases/org.scala-sbt/interface/0.13.9/ivys/ivy.xml"/>
+				<caller organisation="org.scala-sbt" name="main" conf="compile" rev="0.13.9" rev-constraint-default="0.13.9" rev-constraint-dynamic="0.13.9" callerrev="0.13.9" extra-component="xsbti"/>
+				<caller organisation="org.scala-sbt" name="precompiled-2_8_2" conf="compile" rev="0.13.9" rev-constraint-default="0.13.9" rev-constraint-dynamic="0.13.9" callerrev="0.13.9" extra-component="xsbti"/>
+				<caller organisation="org.scala-sbt" name="command" conf="compile" rev="0.13.9" rev-constraint-default="0.13.9" rev-constraint-dynamic="0.13.9" callerrev="0.13.9" extra-component="xsbti"/>
+				<caller organisation="org.scala-sbt" name="actions" conf="compile" rev="0.13.9" rev-constraint-default="0.13.9" rev-constraint-dynamic="0.13.9" callerrev="0.13.9" extra-component="xsbti"/>
+				<caller organisation="org.scala-sbt" name="precompiled-2_9_2" conf="compile" rev="0.13.9" rev-constraint-default="0.13.9" rev-constraint-dynamic="0.13.9" callerrev="0.13.9" extra-component="xsbti"/>
+				<caller organisation="org.scala-sbt" name="main-settings" conf="compile" rev="0.13.9" rev-constraint-default="0.13.9" rev-constraint-dynamic="0.13.9" callerrev="0.13.9" extra-component="xsbti"/>
+				<caller organisation="org.scala-sbt" name="api" conf="compile" rev="0.13.9" rev-constraint-default="0.13.9" rev-constraint-dynamic="0.13.9" callerrev="0.13.9" extra-component="xsbti"/>
+				<caller organisation="org.scala-sbt" name="logging" conf="compile" rev="0.13.9" rev-constraint-default="0.13.9" rev-constraint-dynamic="0.13.9" callerrev="0.13.9" extra-component="xsbti"/>
+				<caller organisation="org.scala-sbt" name="classpath" conf="compile" rev="0.13.9" rev-constraint-default="0.13.9" rev-constraint-dynamic="0.13.9" callerrev="0.13.9" extra-component="xsbti"/>
+				<caller organisation="org.scala-sbt" name="compile" conf="compile" rev="0.13.9" rev-constraint-default="0.13.9" rev-constraint-dynamic="0.13.9" callerrev="0.13.9" extra-component="xsbti"/>
+				<caller organisation="org.scala-sbt" name="classfile" conf="compile" rev="0.13.9" rev-constraint-default="0.13.9" rev-constraint-dynamic="0.13.9" callerrev="0.13.9" extra-component="xsbti"/>
+				<caller organisation="org.scala-sbt" name="precompiled-2_9_3" conf="compile" rev="0.13.9" rev-constraint-default="0.13.9" rev-constraint-dynamic="0.13.9" callerrev="0.13.9" extra-component="xsbti"/>
+				<caller organisation="org.scala-sbt" name="ivy" conf="compile" rev="0.13.9" rev-constraint-default="0.13.9" rev-constraint-dynamic="0.13.9" callerrev="0.13.9" extra-component="xsbti"/>
+				<caller organisation="org.scala-sbt" name="relation" conf="compile" rev="0.13.9" rev-constraint-default="0.13.9" rev-constraint-dynamic="0.13.9" callerrev="0.13.9" extra-component="xsbti"/>
+				<caller organisation="org.scala-sbt" name="compiler-interface" conf="compile" rev="0.13.9" rev-constraint-default="0.13.9" rev-constraint-dynamic="0.13.9" callerrev="0.13.9" extra-component="xsbti"/>
+				<artifacts>
+					<artifact name="interface" type="jar" ext="jar" status="no" details="" size="52850" time="0" location="C:\Users\QueenieD\.ivy2\cache\org.scala-sbt\interface\jars\interface-0.13.9.jar">
+						<origin-location is-local="false" location="https://repo.typesafe.com/typesafe/ivy-releases/org.scala-sbt/interface/0.13.9/jars/interface.jar"/>
+					</artifact>
+				</artifacts>
+			</revision>
+		</module>
+		<module organisation="org.scala-lang" name="scala-compiler">
+			<revision name="2.10.5" status="release" pubdate="20150227095400" resolver="sbt-chain" artresolver="sbt-chain" homepage="http://www.scala-lang.org/" downloaded="false" searched="false" default="false" conf="default, master(*), compile, runtime(*), runtime, default(compile), compile(*), master" position="5">
+				<license name="BSD-like" url="http://www.scala-lang.org/downloads/license.html    "/>
+				<metadata-artifact status="no" details="" size="2843" time="0" location="C:\Users\QueenieD\.ivy2\cache\org.scala-lang\scala-compiler\ivy-2.10.5.xml" searched="false" origin-is-local="false" origin-location="https://jcenter.bintray.com/org/scala-lang/scala-compiler/2.10.5/scala-compiler-2.10.5.pom"/>
+				<caller organisation="org.scala-lang.modules" name="scala-pickling_2.10" conf="default, compile, runtime, master" rev="2.10.5" rev-constraint-default="2.10.5" rev-constraint-dynamic="2.10.4" callerrev="0.10.0"/>
+				<caller organisation="org.scala-sbt" name="classpath" conf="compile" rev="2.10.5" rev-constraint-default="2.10.5" rev-constraint-dynamic="2.10.5" callerrev="0.13.9"/>
+				<caller organisation="org.scala-sbt" name="apply-macro" conf="compile" rev="2.10.5" rev-constraint-default="2.10.5" rev-constraint-dynamic="2.10.5" callerrev="0.13.9"/>
+				<artifacts>
+					<artifact name="scala-compiler" type="jar" ext="jar" status="no" details="" size="14472629" time="0" location="C:\Users\QueenieD\.ivy2\cache\org.scala-lang\scala-compiler\jars\scala-compiler-2.10.5.jar">
+						<origin-location is-local="false" location="https://jcenter.bintray.com/org/scala-lang/scala-compiler/2.10.5/scala-compiler-2.10.5.jar"/>
+					</artifact>
+				</artifacts>
+			</revision>
+		</module>
+		<module organisation="org.scala-lang" name="scala-reflect">
+			<revision name="2.10.5" status="release" pubdate="20150227095400" resolver="sbt-chain" artresolver="sbt-chain" homepage="http://www.scala-lang.org/" extra-info.apiURL="http://www.scala-lang.org/api/2.10.5/" downloaded="false" searched="false" default="false" conf="master(*), default, compile, runtime(*), runtime, default(compile), compile(*), master" position="6">
+				<license name="BSD-like" url="http://www.scala-lang.org/downloads/license.html    "/>
+				<metadata-artifact status="no" details="" size="2680" time="0" location="C:\Users\QueenieD\.ivy2\cache\org.scala-lang\scala-reflect\ivy-2.10.5.xml" searched="false" origin-is-local="false" origin-location="https://jcenter.bintray.com/org/scala-lang/scala-reflect/2.10.5/scala-reflect-2.10.5.pom"/>
+				<caller organisation="org.scala-lang.modules" name="scala-pickling_2.10" conf="default, compile, runtime, master" rev="2.10.5" rev-constraint-default="2.10.5" rev-constraint-dynamic="2.10.4" callerrev="0.10.0"/>
+				<caller organisation="org.scalamacros" name="quasiquotes_2.10" conf="compile, runtime" rev="2.10.5" rev-constraint-default="2.10.5" rev-constraint-dynamic="2.10.4" callerrev="2.0.1"/>
+				<caller organisation="org.scala-lang" name="scala-compiler" conf="default, compile, runtime, master" rev="2.10.5" rev-constraint-default="2.10.5" rev-constraint-dynamic="2.10.5" callerrev="2.10.5"/>
+				<caller organisation="org.scala-sbt" name="ivy" conf="compile" rev="2.10.5" rev-constraint-default="2.10.5" rev-constraint-dynamic="2.10.5" callerrev="0.13.9"/>
+				<caller organisation="org.scala-sbt" name="cache" conf="compile" rev="2.10.5" rev-constraint-default="2.10.5" rev-constraint-dynamic="2.10.5" callerrev="0.13.9"/>
+				<artifacts>
+					<artifact name="scala-reflect" type="jar" ext="jar" status="no" details="" size="3206179" time="0" location="C:\Users\QueenieD\.ivy2\cache\org.scala-lang\scala-reflect\jars\scala-reflect-2.10.5.jar">
+						<origin-location is-local="false" location="UNKNOWN"/>
+					</artifact>
+				</artifacts>
+			</revision>
+		</module>
+		<module organisation="org.scala-lang" name="scala-library">
+			<revision name="2.10.5" status="release" pubdate="20150227095400" resolver="sbt-chain" artresolver="sbt-chain" homepage="http://www.scala-lang.org/" extra-info.apiURL="http://www.scala-lang.org/api/2.10.5/" downloaded="false" searched="false" default="false" conf="default, master(*), compile, runtime(*), runtime, default(compile), compile(*), master" position="0">
+				<license name="BSD-like" url="http://www.scala-lang.org/downloads/license.html          "/>
+				<metadata-artifact status="no" details="" size="2517" time="0" location="C:\Users\QueenieD\.ivy2\cache\org.scala-lang\scala-library\ivy-2.10.5.xml" searched="false" origin-is-local="false" origin-location="https://jcenter.bintray.com/org/scala-lang/scala-library/2.10.5/scala-library-2.10.5.pom"/>
+				<caller organisation="org.scala-sbt" name="sbt" conf="compile" rev="2.10.5" rev-constraint-default="2.10.5" rev-constraint-dynamic="2.10.5" callerrev="0.13.9"/>
+				<caller organisation="org.spire-math" name="json4s-support_2.10" conf="default, compile, runtime, master" rev="2.10.5" rev-constraint-default="2.10.5" rev-constraint-dynamic="2.10.4" callerrev="0.6.0"/>
+				<caller organisation="org.scala-sbt" name="apply-macro" conf="compile" rev="2.10.5" rev-constraint-default="2.10.5" rev-constraint-dynamic="2.10.5" callerrev="0.13.9"/>
+				<caller organisation="org.scala-sbt" name="io" conf="compile" rev="2.10.5" rev-constraint-default="2.10.5" rev-constraint-dynamic="2.10.5" callerrev="0.13.9"/>
+				<caller organisation="org.scala-sbt" name="control" conf="compile" rev="2.10.5" rev-constraint-default="2.10.5" rev-constraint-dynamic="2.10.5" callerrev="0.13.9"/>
+				<caller organisation="org.spire-math" name="jawn-parser_2.10" conf="default, compile, runtime, master" rev="2.10.5" rev-constraint-default="2.10.5" rev-constraint-dynamic="2.10.4" callerrev="0.6.0"/>
+				<caller organisation="org.scala-sbt" name="compiler-integration" conf="compile" rev="2.10.5" rev-constraint-default="2.10.5" rev-constraint-dynamic="2.10.5" callerrev="0.13.9"/>
+				<caller organisation="org.scala-sbt" name="command" conf="compile" rev="2.10.5" rev-constraint-default="2.10.5" rev-constraint-dynamic="2.10.5" callerrev="0.13.9"/>
+				<caller organisation="org.scala-sbt" name="incremental-compiler" conf="compile" rev="2.10.5" rev-constraint-default="2.10.5" rev-constraint-dynamic="2.10.5" callerrev="0.13.9"/>
+				<caller organisation="org.scala-sbt" name="cache" conf="compile" rev="2.10.5" rev-constraint-default="2.10.5" rev-constraint-dynamic="2.10.5" callerrev="0.13.9"/>
+				<caller organisation="org.scala-sbt" name="logging" conf="compile" rev="2.10.5" rev-constraint-default="2.10.5" rev-constraint-dynamic="2.10.5" callerrev="0.13.9"/>
+				<caller organisation="org.scala-lang.modules" name="scala-pickling_2.10" conf="default, compile, runtime, master" rev="2.10.5" rev-constraint-default="2.10.5" rev-constraint-dynamic="2.10.4" callerrev="0.10.0"/>
+				<caller organisation="org.scala-sbt" name="classpath" conf="compile" rev="2.10.5" rev-constraint-default="2.10.5" rev-constraint-dynamic="2.10.5" callerrev="0.13.9"/>
+				<caller organisation="org.scala-sbt" name="process" conf="compile" rev="2.10.5" rev-constraint-default="2.10.5" rev-constraint-dynamic="2.10.5" callerrev="0.13.9"/>
+				<caller organisation="org.scala-sbt" name="compile" conf="compile" rev="2.10.5" rev-constraint-default="2.10.5" rev-constraint-dynamic="2.10.5" callerrev="0.13.9"/>
+				<caller organisation="org.scala-sbt" name="tasks" conf="compile" rev="2.10.5" rev-constraint-default="2.10.5" rev-constraint-dynamic="2.10.5" callerrev="0.13.9"/>
+				<caller organisation="org.scala-sbt" name="classfile" conf="compile" rev="2.10.5" rev-constraint-default="2.10.5" rev-constraint-dynamic="2.10.5" callerrev="0.13.9"/>
+				<caller organisation="org.scala-sbt" name="precompiled-2_9_3" conf="compile" rev="2.10.5" rev-constraint-default="2.10.5" rev-constraint-dynamic="2.9.3" callerrev="0.13.9"/>
+				<caller organisation="org.scala-sbt" name="completion" conf="compile" rev="2.10.5" rev-constraint-default="2.10.5" rev-constraint-dynamic="2.10.5" callerrev="0.13.9"/>
+				<caller organisation="org.scala-sbt" name="collections" conf="compile" rev="2.10.5" rev-constraint-default="2.10.5" rev-constraint-dynamic="2.10.5" callerrev="0.13.9"/>
+				<caller organisation="org.scala-sbt" name="compiler-ivy-integration" conf="compile" rev="2.10.5" rev-constraint-default="2.10.5" rev-constraint-dynamic="2.10.5" callerrev="0.13.9"/>
+				<caller organisation="org.scala-sbt" name="ivy" conf="compile" rev="2.10.5" rev-constraint-default="2.10.5" rev-constraint-dynamic="2.10.5" callerrev="0.13.9"/>
+				<caller organisation="org.scala-sbt" name="persist" conf="compile" rev="2.10.5" rev-constraint-default="2.10.5" rev-constraint-dynamic="2.10.5" callerrev="0.13.9"/>
+				<caller organisation="org.scala-sbt" name="cross" conf="compile" rev="2.10.5" rev-constraint-default="2.10.5" rev-constraint-dynamic="2.10.5" callerrev="0.13.9"/>
+				<caller organisation="org.scala-sbt" name="compiler-interface" conf="compile" rev="2.10.5" rev-constraint-default="2.10.5" rev-constraint-dynamic="2.10.5" callerrev="0.13.9"/>
+				<caller organisation="org.scala-lang" name="scala-reflect" conf="compile, runtime" rev="2.10.5" rev-constraint-default="2.10.5" rev-constraint-dynamic="2.10.5" callerrev="2.10.5"/>
+				<caller organisation="org.scala-tools.sbinary" name="sbinary_2.10" conf="compile" rev="2.10.5" rev-constraint-default="2.10.5" rev-constraint-dynamic="2.10.2" callerrev="0.4.2"/>
+				<caller organisation="org.scala-sbt" name="main" conf="compile" rev="2.10.5" rev-constraint-default="2.10.5" rev-constraint-dynamic="2.10.5" callerrev="0.13.9"/>
+				<caller organisation="org.scala-sbt" name="precompiled-2_8_2" conf="compile" rev="2.10.5" rev-constraint-default="2.10.5" rev-constraint-dynamic="2.8.2" callerrev="0.13.9"/>
+				<caller organisation="org.scala-sbt" name="actions" conf="compile" rev="2.10.5" rev-constraint-default="2.10.5" rev-constraint-dynamic="2.10.5" callerrev="0.13.9"/>
+				<caller organisation="org.scala-sbt" name="precompiled-2_9_2" conf="compile" rev="2.10.5" rev-constraint-default="2.10.5" rev-constraint-dynamic="2.9.2" callerrev="0.13.9"/>
+				<caller organisation="org.scala-sbt" name="testing" conf="compile" rev="2.10.5" rev-constraint-default="2.10.5" rev-constraint-dynamic="2.10.5" callerrev="0.13.9"/>
+				<caller organisation="org.scala-sbt" name="main-settings" conf="compile" rev="2.10.5" rev-constraint-default="2.10.5" rev-constraint-dynamic="2.10.5" callerrev="0.13.9"/>
+				<caller organisation="org.scala-sbt" name="api" conf="compile" rev="2.10.5" rev-constraint-default="2.10.5" rev-constraint-dynamic="2.10.5" callerrev="0.13.9"/>
+				<caller organisation="org.scala-sbt" name="tracking" conf="compile" rev="2.10.5" rev-constraint-default="2.10.5" rev-constraint-dynamic="2.10.5" callerrev="0.13.9"/>
+				<caller organisation="org.scala-sbt" name="run" conf="compile" rev="2.10.5" rev-constraint-default="2.10.5" rev-constraint-dynamic="2.10.5" callerrev="0.13.9"/>
+				<caller organisation="org.json4s" name="json4s-ast_2.10" conf="compile, runtime" rev="2.10.5" rev-constraint-default="2.10.5" rev-constraint-dynamic="2.10.0" callerrev="3.2.10"/>
+				<caller organisation="org.scala-sbt" name="test-agent" conf="compile" rev="2.10.5" rev-constraint-default="2.10.5" rev-constraint-dynamic="2.10.5" callerrev="0.13.9"/>
+				<caller organisation="org.scala-sbt" name="interface" conf="compile" rev="2.10.5" rev-constraint-default="2.10.5" rev-constraint-dynamic="2.10.5" callerrev="0.13.9"/>
+				<caller organisation="org.scalamacros" name="quasiquotes_2.10" conf="compile, runtime" rev="2.10.5" rev-constraint-default="2.10.5" rev-constraint-dynamic="2.10.4" callerrev="2.0.1"/>
+				<caller organisation="org.scala-lang" name="scala-compiler" conf="default, compile, runtime, master" rev="2.10.5" rev-constraint-default="2.10.5" rev-constraint-dynamic="2.10.5" callerrev="2.10.5"/>
+				<caller organisation="default" name="docker-build" conf="compile-internal, compile, provided, optional" rev="2.10.5" rev-constraint-default="2.10.5" rev-constraint-dynamic="2.10.5" callerrev="0.1-SNAPSHOT"/>
+				<caller organisation="org.scala-sbt" name="relation" conf="compile" rev="2.10.5" rev-constraint-default="2.10.5" rev-constraint-dynamic="2.10.5" callerrev="0.13.9"/>
+				<caller organisation="org.scala-sbt" name="task-system" conf="compile" rev="2.10.5" rev-constraint-default="2.10.5" rev-constraint-dynamic="2.10.5" callerrev="0.13.9"/>
+				<caller organisation="org.scala-sbt" name="logic" conf="compile" rev="2.10.5" rev-constraint-default="2.10.5" rev-constraint-dynamic="2.10.5" callerrev="0.13.9"/>
+				<caller organisation="org.scala-sbt" name="serialization_2.10" conf="compile" rev="2.10.5" rev-constraint-default="2.10.5" rev-constraint-dynamic="2.10.4" callerrev="0.1.1"/>
+				<caller organisation="org.json4s" name="json4s-core_2.10" conf="default, compile, runtime, master" rev="2.10.5" rev-constraint-default="2.10.5" rev-constraint-dynamic="2.10.0" callerrev="3.2.10"/>
+				<artifacts>
+					<artifact name="scala-library" type="jar" ext="jar" status="no" details="" size="7130772" time="0" location="C:\Users\QueenieD\.ivy2\cache\org.scala-lang\scala-library\jars\scala-library-2.10.5.jar">
+						<origin-location is-local="false" location="UNKNOWN"/>
+					</artifact>
+				</artifacts>
+			</revision>
+		</module>
+	</dependencies>
+</ivy-report>

@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ivy-module version="2.0" xmlns:e="http://ant.apache.org/ivy/extra">
+	<info organisation="default"
+		module="docker$sources_2.10"
+		revision="0.1-SNAPSHOT"
+		status="integration"
+		publication="20161220211119"
+	/>
+	<configurations>
+		<conf name="compile" visibility="public" description=""/>
+		<conf name="runtime" visibility="public" description="" extends="compile"/>
+		<conf name="test" visibility="public" description="" extends="runtime"/>
+		<conf name="provided" visibility="public" description=""/>
+		<conf name="optional" visibility="public" description=""/>
+		<conf name="compile-internal" visibility="private" description="" extends="compile,optional,provided"/>
+		<conf name="runtime-internal" visibility="private" description="" extends="runtime,optional"/>
+		<conf name="test-internal" visibility="private" description="" extends="test,optional,provided"/>
+		<conf name="plugin" visibility="private" description=""/>
+		<conf name="sources" visibility="public" description=""/>
+		<conf name="docs" visibility="public" description=""/>
+		<conf name="pom" visibility="public" description=""/>
+		<conf name="scala-tool" visibility="private" description=""/>
+	</configurations>
+	<publications>
+	</publications>
+	<dependencies>
+		<dependency org="org.scala-lang" name="scala-library" rev="2.10.5" transitive="false" conf="compile->default(compile);runtime->default(compile);test->default(compile);compile-internal->default(compile);runtime-internal->default(compile);test-internal->default(compile);scala-tool->default(compile)" info.apiURL="http://www.scala-lang.org/api/2.10.5/">
+			<artifact name="scala-library" type="src" ext="jar" conf="sources" e:classifier="sources"/>
+		</dependency>
+		<dependency org="org.scala-lang" name="scala-compiler" rev="2.10.5" transitive="false" conf="scala-tool->default(compile)">
+			<artifact name="scala-compiler" type="src" ext="jar" conf="sources" e:classifier="sources"/>
+		</dependency>
+		<dependency org="org.scala-lang" name="scala-reflect" rev="2.10.5" transitive="false" conf="scala-tool->default(compile)" info.apiURL="http://www.scala-lang.org/api/2.10.5/">
+			<artifact name="scala-reflect" type="src" ext="jar" conf="sources" e:classifier="sources"/>
+		</dependency>
+		<dependency org="org.scala-lang" name="jline" rev="2.10.5" transitive="false" conf="scala-tool->default(compile)">
+			<artifact name="jline" type="src" ext="jar" conf="sources" e:classifier="sources"/>
+		</dependency>
+		<dependency org="org.fusesource.jansi" name="jansi" rev="1.4" transitive="false" conf="scala-tool->default(compile)">
+			<artifact name="jansi" type="src" ext="jar" conf="sources" e:classifier="sources"/>
+		</dependency>
+	</dependencies>
+</ivy-module>

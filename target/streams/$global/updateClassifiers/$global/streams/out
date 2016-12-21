@@ -1,0 +1,153 @@
+[debug] :: resolving dependencies :: default#docker$sources_2.10;0.1-SNAPSHOT
+[debug] 	confs: [compile, runtime, test, provided, optional, compile-internal, runtime-internal, test-internal, plugin, sources, docs, pom, scala-tool]
+[debug] 	validate = true
+[debug] 	refresh = false
+[debug] resolving dependencies for configuration 'compile'
+[debug] == resolving dependencies for default#docker$sources_2.10;0.1-SNAPSHOT [compile]
+[debug] == resolving dependencies default#docker$sources_2.10;0.1-SNAPSHOT->org.scala-lang#scala-library;2.10.5 [compile->default(compile)]
+[info] Resolving org.scala-lang#scala-library;2.10.5 ...
+[debug] sbt-chain: Checking cache for: sbt.ivyint.MergedDescriptors@3edc3c2f
+[debug] sbt-chain: module revision found in cache: org.scala-lang#scala-library;2.10.5
+[debug] 	found org.scala-lang#scala-library;2.10.5 in sbt-chain
+[debug] 	[2.10.5] org.scala-lang#scala-library;2.10.5
+[debug] == resolving dependencies default#docker$sources_2.10;0.1-SNAPSHOT->org.scala-lang#scala-library;2.10.5 [compile->runtime]
+[debug] == resolving dependencies default#docker$sources_2.10;0.1-SNAPSHOT->org.scala-lang#scala-library;2.10.5 [compile->compile]
+[debug] == resolving dependencies default#docker$sources_2.10;0.1-SNAPSHOT->org.scala-lang#scala-library;2.10.5 [compile->master]
+[debug] resolving dependencies for configuration 'runtime'
+[debug] == resolving dependencies for default#docker$sources_2.10;0.1-SNAPSHOT [runtime]
+[debug] == resolving dependencies for default#docker$sources_2.10;0.1-SNAPSHOT [compile]
+[debug] == resolving dependencies default#docker$sources_2.10;0.1-SNAPSHOT->org.scala-lang#scala-library;2.10.5 [compile->default(compile)]
+[debug] == resolving dependencies default#docker$sources_2.10;0.1-SNAPSHOT->org.scala-lang#scala-library;2.10.5 [compile->runtime]
+[debug] == resolving dependencies default#docker$sources_2.10;0.1-SNAPSHOT->org.scala-lang#scala-library;2.10.5 [compile->compile]
+[debug] == resolving dependencies default#docker$sources_2.10;0.1-SNAPSHOT->org.scala-lang#scala-library;2.10.5 [compile->master]
+[debug] == resolving dependencies default#docker$sources_2.10;0.1-SNAPSHOT->org.scala-lang#scala-library;2.10.5 [runtime->default(compile)]
+[debug] == resolving dependencies default#docker$sources_2.10;0.1-SNAPSHOT->org.scala-lang#scala-library;2.10.5 [runtime->runtime]
+[debug] == resolving dependencies default#docker$sources_2.10;0.1-SNAPSHOT->org.scala-lang#scala-library;2.10.5 [runtime->compile]
+[debug] == resolving dependencies default#docker$sources_2.10;0.1-SNAPSHOT->org.scala-lang#scala-library;2.10.5 [runtime->master]
+[debug] resolving dependencies for configuration 'test'
+[debug] == resolving dependencies for default#docker$sources_2.10;0.1-SNAPSHOT [test]
+[debug] == resolving dependencies for default#docker$sources_2.10;0.1-SNAPSHOT [runtime]
+[debug] == resolving dependencies for default#docker$sources_2.10;0.1-SNAPSHOT [compile]
+[debug] == resolving dependencies default#docker$sources_2.10;0.1-SNAPSHOT->org.scala-lang#scala-library;2.10.5 [compile->default(compile)]
+[debug] == resolving dependencies default#docker$sources_2.10;0.1-SNAPSHOT->org.scala-lang#scala-library;2.10.5 [compile->runtime]
+[debug] == resolving dependencies default#docker$sources_2.10;0.1-SNAPSHOT->org.scala-lang#scala-library;2.10.5 [compile->compile]
+[debug] == resolving dependencies default#docker$sources_2.10;0.1-SNAPSHOT->org.scala-lang#scala-library;2.10.5 [compile->master]
+[debug] == resolving dependencies default#docker$sources_2.10;0.1-SNAPSHOT->org.scala-lang#scala-library;2.10.5 [runtime->default(compile)]
+[debug] == resolving dependencies default#docker$sources_2.10;0.1-SNAPSHOT->org.scala-lang#scala-library;2.10.5 [runtime->runtime]
+[debug] == resolving dependencies default#docker$sources_2.10;0.1-SNAPSHOT->org.scala-lang#scala-library;2.10.5 [runtime->compile]
+[debug] == resolving dependencies default#docker$sources_2.10;0.1-SNAPSHOT->org.scala-lang#scala-library;2.10.5 [runtime->master]
+[debug] == resolving dependencies default#docker$sources_2.10;0.1-SNAPSHOT->org.scala-lang#scala-library;2.10.5 [test->default(compile)]
+[debug] == resolving dependencies default#docker$sources_2.10;0.1-SNAPSHOT->org.scala-lang#scala-library;2.10.5 [test->runtime]
+[debug] == resolving dependencies default#docker$sources_2.10;0.1-SNAPSHOT->org.scala-lang#scala-library;2.10.5 [test->compile]
+[debug] == resolving dependencies default#docker$sources_2.10;0.1-SNAPSHOT->org.scala-lang#scala-library;2.10.5 [test->master]
+[debug] resolving dependencies for configuration 'provided'
+[debug] == resolving dependencies for default#docker$sources_2.10;0.1-SNAPSHOT [provided]
+[debug] resolving dependencies for configuration 'optional'
+[debug] == resolving dependencies for default#docker$sources_2.10;0.1-SNAPSHOT [optional]
+[debug] resolving dependencies for configuration 'compile-internal'
+[debug] == resolving dependencies for default#docker$sources_2.10;0.1-SNAPSHOT [compile-internal]
+[debug] == resolving dependencies for default#docker$sources_2.10;0.1-SNAPSHOT [compile]
+[debug] == resolving dependencies default#docker$sources_2.10;0.1-SNAPSHOT->org.scala-lang#scala-library;2.10.5 [compile->default(compile)]
+[debug] == resolving dependencies default#docker$sources_2.10;0.1-SNAPSHOT->org.scala-lang#scala-library;2.10.5 [compile->runtime]
+[debug] == resolving dependencies default#docker$sources_2.10;0.1-SNAPSHOT->org.scala-lang#scala-library;2.10.5 [compile->compile]
+[debug] == resolving dependencies default#docker$sources_2.10;0.1-SNAPSHOT->org.scala-lang#scala-library;2.10.5 [compile->master]
+[debug] == resolving dependencies for default#docker$sources_2.10;0.1-SNAPSHOT [optional]
+[debug] == resolving dependencies for default#docker$sources_2.10;0.1-SNAPSHOT [provided]
+[debug] == resolving dependencies default#docker$sources_2.10;0.1-SNAPSHOT->org.scala-lang#scala-library;2.10.5 [compile-internal->default(compile)]
+[debug] == resolving dependencies default#docker$sources_2.10;0.1-SNAPSHOT->org.scala-lang#scala-library;2.10.5 [compile-internal->runtime]
+[debug] == resolving dependencies default#docker$sources_2.10;0.1-SNAPSHOT->org.scala-lang#scala-library;2.10.5 [compile-internal->compile]
+[debug] == resolving dependencies default#docker$sources_2.10;0.1-SNAPSHOT->org.scala-lang#scala-library;2.10.5 [compile-internal->master]
+[debug] resolving dependencies for configuration 'runtime-internal'
+[debug] == resolving dependencies for default#docker$sources_2.10;0.1-SNAPSHOT [runtime-internal]
+[debug] == resolving dependencies for default#docker$sources_2.10;0.1-SNAPSHOT [runtime]
+[debug] == resolving dependencies for default#docker$sources_2.10;0.1-SNAPSHOT [compile]
+[debug] == resolving dependencies default#docker$sources_2.10;0.1-SNAPSHOT->org.scala-lang#scala-library;2.10.5 [compile->default(compile)]
+[debug] == resolving dependencies default#docker$sources_2.10;0.1-SNAPSHOT->org.scala-lang#scala-library;2.10.5 [compile->runtime]
+[debug] == resolving dependencies default#docker$sources_2.10;0.1-SNAPSHOT->org.scala-lang#scala-library;2.10.5 [compile->compile]
+[debug] == resolving dependencies default#docker$sources_2.10;0.1-SNAPSHOT->org.scala-lang#scala-library;2.10.5 [compile->master]
+[debug] == resolving dependencies default#docker$sources_2.10;0.1-SNAPSHOT->org.scala-lang#scala-library;2.10.5 [runtime->default(compile)]
+[debug] == resolving dependencies default#docker$sources_2.10;0.1-SNAPSHOT->org.scala-lang#scala-library;2.10.5 [runtime->runtime]
+[debug] == resolving dependencies default#docker$sources_2.10;0.1-SNAPSHOT->org.scala-lang#scala-library;2.10.5 [runtime->compile]
+[debug] == resolving dependencies default#docker$sources_2.10;0.1-SNAPSHOT->org.scala-lang#scala-library;2.10.5 [runtime->master]
+[debug] == resolving dependencies for default#docker$sources_2.10;0.1-SNAPSHOT [optional]
+[debug] == resolving dependencies default#docker$sources_2.10;0.1-SNAPSHOT->org.scala-lang#scala-library;2.10.5 [runtime-internal->default(compile)]
+[debug] == resolving dependencies default#docker$sources_2.10;0.1-SNAPSHOT->org.scala-lang#scala-library;2.10.5 [runtime-internal->runtime]
+[debug] == resolving dependencies default#docker$sources_2.10;0.1-SNAPSHOT->org.scala-lang#scala-library;2.10.5 [runtime-internal->compile]
+[debug] == resolving dependencies default#docker$sources_2.10;0.1-SNAPSHOT->org.scala-lang#scala-library;2.10.5 [runtime-internal->master]
+[debug] resolving dependencies for configuration 'test-internal'
+[debug] == resolving dependencies for default#docker$sources_2.10;0.1-SNAPSHOT [test-internal]
+[debug] == resolving dependencies for default#docker$sources_2.10;0.1-SNAPSHOT [test]
+[debug] == resolving dependencies for default#docker$sources_2.10;0.1-SNAPSHOT [runtime]
+[debug] == resolving dependencies for default#docker$sources_2.10;0.1-SNAPSHOT [compile]
+[debug] == resolving dependencies default#docker$sources_2.10;0.1-SNAPSHOT->org.scala-lang#scala-library;2.10.5 [compile->default(compile)]
+[debug] == resolving dependencies default#docker$sources_2.10;0.1-SNAPSHOT->org.scala-lang#scala-library;2.10.5 [compile->runtime]
+[debug] == resolving dependencies default#docker$sources_2.10;0.1-SNAPSHOT->org.scala-lang#scala-library;2.10.5 [compile->compile]
+[debug] == resolving dependencies default#docker$sources_2.10;0.1-SNAPSHOT->org.scala-lang#scala-library;2.10.5 [compile->master]
+[debug] == resolving dependencies default#docker$sources_2.10;0.1-SNAPSHOT->org.scala-lang#scala-library;2.10.5 [runtime->default(compile)]
+[debug] == resolving dependencies default#docker$sources_2.10;0.1-SNAPSHOT->org.scala-lang#scala-library;2.10.5 [runtime->runtime]
+[debug] == resolving dependencies default#docker$sources_2.10;0.1-SNAPSHOT->org.scala-lang#scala-library;2.10.5 [runtime->compile]
+[debug] == resolving dependencies default#docker$sources_2.10;0.1-SNAPSHOT->org.scala-lang#scala-library;2.10.5 [runtime->master]
+[debug] == resolving dependencies default#docker$sources_2.10;0.1-SNAPSHOT->org.scala-lang#scala-library;2.10.5 [test->default(compile)]
+[debug] == resolving dependencies default#docker$sources_2.10;0.1-SNAPSHOT->org.scala-lang#scala-library;2.10.5 [test->runtime]
+[debug] == resolving dependencies default#docker$sources_2.10;0.1-SNAPSHOT->org.scala-lang#scala-library;2.10.5 [test->compile]
+[debug] == resolving dependencies default#docker$sources_2.10;0.1-SNAPSHOT->org.scala-lang#scala-library;2.10.5 [test->master]
+[debug] == resolving dependencies for default#docker$sources_2.10;0.1-SNAPSHOT [optional]
+[debug] == resolving dependencies for default#docker$sources_2.10;0.1-SNAPSHOT [provided]
+[debug] == resolving dependencies default#docker$sources_2.10;0.1-SNAPSHOT->org.scala-lang#scala-library;2.10.5 [test-internal->default(compile)]
+[debug] == resolving dependencies default#docker$sources_2.10;0.1-SNAPSHOT->org.scala-lang#scala-library;2.10.5 [test-internal->runtime]
+[debug] == resolving dependencies default#docker$sources_2.10;0.1-SNAPSHOT->org.scala-lang#scala-library;2.10.5 [test-internal->compile]
+[debug] == resolving dependencies default#docker$sources_2.10;0.1-SNAPSHOT->org.scala-lang#scala-library;2.10.5 [test-internal->master]
+[debug] resolving dependencies for configuration 'plugin'
+[debug] == resolving dependencies for default#docker$sources_2.10;0.1-SNAPSHOT [plugin]
+[debug] resolving dependencies for configuration 'sources'
+[debug] == resolving dependencies for default#docker$sources_2.10;0.1-SNAPSHOT [sources]
+[debug] resolving dependencies for configuration 'docs'
+[debug] == resolving dependencies for default#docker$sources_2.10;0.1-SNAPSHOT [docs]
+[debug] resolving dependencies for configuration 'pom'
+[debug] == resolving dependencies for default#docker$sources_2.10;0.1-SNAPSHOT [pom]
+[debug] resolving dependencies for configuration 'scala-tool'
+[debug] == resolving dependencies for default#docker$sources_2.10;0.1-SNAPSHOT [scala-tool]
+[debug] == resolving dependencies default#docker$sources_2.10;0.1-SNAPSHOT->org.scala-lang#scala-library;2.10.5 [scala-tool->default(compile)]
+[debug] == resolving dependencies default#docker$sources_2.10;0.1-SNAPSHOT->org.scala-lang#scala-library;2.10.5 [scala-tool->runtime]
+[debug] == resolving dependencies default#docker$sources_2.10;0.1-SNAPSHOT->org.scala-lang#scala-library;2.10.5 [scala-tool->compile]
+[debug] == resolving dependencies default#docker$sources_2.10;0.1-SNAPSHOT->org.scala-lang#scala-library;2.10.5 [scala-tool->master]
+[debug] == resolving dependencies default#docker$sources_2.10;0.1-SNAPSHOT->org.scala-lang#scala-compiler;2.10.5 [scala-tool->default(compile)]
+[info] Resolving org.scala-lang#scala-compiler;2.10.5 ...
+[debug] sbt-chain: Checking cache for: dependency: org.scala-lang#scala-compiler;2.10.5 {scala-tool=[default(compile)]}
+[debug] sbt-chain: module revision found in cache: org.scala-lang#scala-compiler;2.10.5
+[debug] 	found org.scala-lang#scala-compiler;2.10.5 in sbt-chain
+[debug] == resolving dependencies default#docker$sources_2.10;0.1-SNAPSHOT->org.scala-lang#scala-compiler;2.10.5 [scala-tool->runtime]
+[debug] == resolving dependencies default#docker$sources_2.10;0.1-SNAPSHOT->org.scala-lang#scala-compiler;2.10.5 [scala-tool->compile]
+[debug] == resolving dependencies default#docker$sources_2.10;0.1-SNAPSHOT->org.scala-lang#scala-compiler;2.10.5 [scala-tool->master]
+[debug] == resolving dependencies default#docker$sources_2.10;0.1-SNAPSHOT->org.scala-lang#scala-reflect;2.10.5 [scala-tool->default(compile)]
+[info] Resolving org.scala-lang#scala-reflect;2.10.5 ...
+[debug] sbt-chain: Checking cache for: dependency: org.scala-lang#scala-reflect;2.10.5 {scala-tool=[default(compile)]}
+[debug] sbt-chain: module revision found in cache: org.scala-lang#scala-reflect;2.10.5
+[debug] 	found org.scala-lang#scala-reflect;2.10.5 in sbt-chain
+[debug] 	[2.10.5] org.scala-lang#scala-reflect;2.10.5
+[debug] == resolving dependencies default#docker$sources_2.10;0.1-SNAPSHOT->org.scala-lang#scala-reflect;2.10.5 [scala-tool->runtime]
+[debug] == resolving dependencies default#docker$sources_2.10;0.1-SNAPSHOT->org.scala-lang#scala-reflect;2.10.5 [scala-tool->compile]
+[debug] == resolving dependencies default#docker$sources_2.10;0.1-SNAPSHOT->org.scala-lang#scala-reflect;2.10.5 [scala-tool->master]
+[debug] == resolving dependencies default#docker$sources_2.10;0.1-SNAPSHOT->org.scala-lang#jline;2.10.5 [scala-tool->default(compile)]
+[info] Resolving org.scala-lang#jline;2.10.5 ...
+[debug] sbt-chain: Checking cache for: dependency: org.scala-lang#jline;2.10.5 {scala-tool=[default(compile)]}
+[debug] sbt-chain: module revision found in cache: org.scala-lang#jline;2.10.5
+[debug] 	found org.scala-lang#jline;2.10.5 in sbt-chain
+[debug] == resolving dependencies default#docker$sources_2.10;0.1-SNAPSHOT->org.scala-lang#jline;2.10.5 [scala-tool->runtime]
+[debug] == resolving dependencies default#docker$sources_2.10;0.1-SNAPSHOT->org.scala-lang#jline;2.10.5 [scala-tool->compile]
+[debug] == resolving dependencies default#docker$sources_2.10;0.1-SNAPSHOT->org.scala-lang#jline;2.10.5 [scala-tool->master]
+[debug] == resolving dependencies default#docker$sources_2.10;0.1-SNAPSHOT->org.fusesource.jansi#jansi;1.4 [scala-tool->default(compile)]
+[info] Resolving org.fusesource.jansi#jansi;1.4 ...
+[debug] sbt-chain: Checking cache for: dependency: org.fusesource.jansi#jansi;1.4 {scala-tool=[default(compile)]}
+[debug] sbt-chain: module revision found in cache: org.fusesource.jansi#jansi;1.4
+[debug] 	found org.fusesource.jansi#jansi;1.4 in sbt-chain
+[debug] == resolving dependencies default#docker$sources_2.10;0.1-SNAPSHOT->org.fusesource.jansi#jansi;1.4 [scala-tool->runtime]
+[debug] == resolving dependencies default#docker$sources_2.10;0.1-SNAPSHOT->org.fusesource.jansi#jansi;1.4 [scala-tool->compile]
+[debug] == resolving dependencies default#docker$sources_2.10;0.1-SNAPSHOT->org.fusesource.jansi#jansi;1.4 [scala-tool->master]
+[debug] 	resolved ivy file produced in cache
+[debug] :: downloading artifacts ::
+[debug] 	[NOT REQUIRED] org.scala-lang#scala-library;2.10.5!scala-library.jar
+[debug] 		tried C:\Users\QueenieD\.ivy2\local\org.scala-lang\scala-library\2.10.5\srcs\scala-library-sources.jar
+[debug] 		tried https://jcenter.bintray.com/org/scala-lang/scala-library/2.10.5/scala-library-2.10.5-sources.jar
+[info] downloading https://jcenter.bintray.com/org/scala-lang/scala-library/2.10.5/scala-library-2.10.5-sources.jar ...
+[debug] 	jcenter: downloading https://jcenter.bintray.com/org/scala-lang/scala-library/2.10.5/scala-library-2.10.5-sources.jar

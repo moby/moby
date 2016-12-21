@@ -1,0 +1,279 @@
+/*
+ *  Licensed to the Apache Software Foundation (ASF) under one or more
+ *  contributor license agreements.  See the NOTICE file distributed with
+ *  this work for additional information regarding copyright ownership.
+ *  The ASF licenses this file to You under the Apache License, Version 2.0
+ *  (the "License"); you may not use this file except in compliance with
+ *  the License.  You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ *
+ */
+ 
+body {
+	font-family:"Trebuchet MS",Verdana,Geneva,Arial,Helvetica,sans-serif;
+	font-size:small; 
+}
+
+div#logo {
+    float: right; 
+    padding-left: 10px; 
+    padding-bottom: 10px; 
+    background: white;
+    text-align: center;
+}
+
+#logo img {
+	border: 0;
+}
+
+div#date {
+	font-style:     italic;
+	padding-left:	60px;
+    padding-bottom: 40px; 
+}
+
+
+h1 {
+    margin-bottom:2px;
+    
+	border-color:#7A9437;
+	border-style:solid;
+	border-width:0 0 3px 0;
+}
+
+span#module {
+	color:#7A9437;
+	text-decoration:none;
+}
+
+span#organisation {
+	color:black;
+	text-decoration:none;
+}
+
+#confmenu {
+	color: #000;
+	border-bottom: 2px solid black;
+	margin: 12px 0px 0px 0px;
+	padding: 0px;
+	z-index: 1;
+	padding-left: 10px 
+}
+
+#confmenu li {
+	display: inline;
+	overflow: hidden;
+	list-style-type: none; 
+}
+
+#confmenu a, a.active {
+	color: #DEDECF;
+	background: #898B5E;
+	font: bold 1em "Trebuchet MS", Arial, sans-serif;
+	border: 2px solid black;
+	padding: 2px 5px 0px 5px;
+	text-decoration: none; 
+}
+
+/*
+background: #ABAD85 #CED4BD
+background: #DEE4CD
+ */
+
+#confmenu a.active {
+	color: #7A9437;
+	background: #DEE4CD;
+	border-bottom: 3px solid #DEE4CD;
+}
+
+#confmenu a:hover {
+	color: #fff;
+	background: #ADC09F; 
+}
+
+#confmenu a:visited {
+	color: #DEDECF; 
+}
+
+#confmenu a.active:visited {
+	color: #7A9437; 
+}
+
+#confmenu a.active:hover {
+	background: #DEE4CD;
+	color: #DEDECF; 
+}
+
+#content {
+	background: #DEE4CD;
+	padding: 20px;
+	border: 2px solid black;
+	border-top: none;
+	z-index: 2;	
+}
+
+#content a {
+	text-decoration: none;
+	color: #E8E9BE; 
+}
+
+#content a:hover { 
+  background: #898B5E; 
+}
+
+
+h2 {
+    margin-bottom:2px;
+    font-size:medium;
+    
+    border-color:#7A9437;
+    border-style:solid;
+    border-width:0 0 2px 0;
+}
+
+h3 {
+    margin-top:30px;
+    margin-bottom:2px;
+    padding: 5 5 5 0;
+    font-size: 24px;
+    border-style:solid;
+    border-width:0 0 2px 0;
+}
+
+h4 {
+    margin-bottom:2px;
+    margin-top:2px;
+    font-size:medium;
+    
+    border-color:#7A9437;
+    border-style:dashed;
+    border-width:0 0 1px 0;
+}
+
+h5 {
+    margin-bottom:2px;
+    margin-top:2px;
+    margin-left:20px;
+    font-size:medium;
+}
+
+span.resolved {
+	padding-left: 15px;
+	font-weight: 500;
+	font-size: small;
+}
+
+
+#content table  {
+	border-collapse:collapse;
+	width:90%;
+	margin:auto;
+	margin-top: 5px;
+}
+#content thead {
+	background-color:#CED4BD;
+	border:1px solid #7A9437;
+}
+#content tbody {
+	border-collapse:collapse;
+	background-color:#FFFFFF;
+	border:1px solid #7A9437;
+}
+
+#content th {
+	font-family:monospace;
+	border:1px solid #7A9437;
+	padding:5px;
+}
+
+#content td {
+	border:1px dotted #7A9437;
+	padding:0 3 0 3;
+}
+
+#content table a {
+	color:#7A9437;
+	text-decoration:none;
+}
+
+#content table a:hover {
+	background-color:#CED4BD;
+	color:#7A9437;
+}
+
+
+
+table.deps  {
+	border-collapse:collapse;
+	width:90%;
+	margin:auto;
+	margin-top: 5px;
+}
+
+table.deps thead {
+	background-color:#CED4BD;
+	border:1px solid #7A9437;
+}
+table.deps tbody {
+	border-collapse:collapse;
+	background-color:#FFFFFF;
+	border:1px solid #7A9437;
+}
+
+table.deps th {
+	font-family:monospace;
+	border:1px solid #7A9437;
+	padding:2;
+}
+
+table.deps td {
+	border:1px dotted #7A9437;
+	padding:0 3 0 3;
+}
+
+
+
+
+
+table.header  {
+	border:0;
+	width:90%;
+	margin:auto;
+	margin-top: 5px;
+}
+
+table.header thead {
+	border:0;
+}
+table.header tbody {
+	border:0;
+}
+table.header tr {
+	padding:0px;
+	border:0;
+}
+table.header td {
+	padding:0 3 0 3;
+	border:0;
+}
+
+td.title {
+    width:150px;
+    margin-right:15px;
+
+	font-size:small;
+	font-weight:700;
+}
+
+td.title:first-letter {
+	color:#7A9437;
+	background-color:transparent;
+}
+

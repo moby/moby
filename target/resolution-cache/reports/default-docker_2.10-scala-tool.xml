@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?xml-stylesheet type="text/xsl" href="ivy-report.xsl"?>
+<ivy-report version="1.0">
+	<info
+		organisation="default"
+		module="docker_2.10"
+		revision="0.1-SNAPSHOT"
+		conf="scala-tool"
+		confs="compile, runtime, test, provided, optional, compile-internal, runtime-internal, test-internal, plugin, sources, docs, pom, scala-tool"
+		date="20161220211118"/>
+	<dependencies>
+		<module organisation="org.scala-lang" name="scala-compiler">
+			<revision name="2.10.5" status="release" pubdate="20150227095400" resolver="sbt-chain" artresolver="sbt-chain" homepage="http://www.scala-lang.org/" downloaded="false" searched="false" default="false" conf="default, compile, runtime, optional, optional(default), master" position="0">
+				<license name="BSD-like" url="http://www.scala-lang.org/downloads/license.html    "/>
+				<metadata-artifact status="no" details="" size="2843" time="0" location="C:\Users\QueenieD\.ivy2\cache\org.scala-lang\scala-compiler\ivy-2.10.5.xml" searched="false" origin-is-local="false" origin-location="https://jcenter.bintray.com/org/scala-lang/scala-compiler/2.10.5/scala-compiler-2.10.5.pom"/>
+				<caller organisation="default" name="docker_2.10" conf="scala-tool" rev="2.10.5" rev-constraint-default="2.10.5" rev-constraint-dynamic="2.10.5" callerrev="0.1-SNAPSHOT"/>
+				<artifacts>
+					<artifact name="scala-compiler" type="jar" ext="jar" status="no" details="" size="14472629" time="0" location="C:\Users\QueenieD\.ivy2\cache\org.scala-lang\scala-compiler\jars\scala-compiler-2.10.5.jar">
+						<origin-location is-local="false" location="https://jcenter.bintray.com/org/scala-lang/scala-compiler/2.10.5/scala-compiler-2.10.5.jar"/>
+					</artifact>
+				</artifacts>
+			</revision>
+		</module>
+		<module organisation="org.scala-lang" name="jline">
+			<revision name="2.10.5" status="release" pubdate="20150227095400" resolver="sbt-chain" artresolver="sbt-chain" homepage="http://www.scala-lang.org/" downloaded="false" searched="false" default="false" conf="master(*), compile, compile(*), master" position="3">
+				<license name="BSD-like" url="http://www.scala-lang.org/downloads/license.html    "/>
+				<license name="The BSD License" url="http://www.opensource.org/licenses/bsd-license.php"/>
+				<metadata-artifact status="no" details="" size="2640" time="0" location="C:\Users\QueenieD\.ivy2\cache\org.scala-lang\jline\ivy-2.10.5.xml" searched="false" origin-is-local="false" origin-location="https://jcenter.bintray.com/org/scala-lang/jline/2.10.5/jline-2.10.5.pom"/>
+				<caller organisation="org.scala-lang" name="scala-compiler" conf="optional" rev="2.10.5" rev-constraint-default="2.10.5" rev-constraint-dynamic="2.10.5" callerrev="2.10.5"/>
+				<artifacts>
+					<artifact name="jline" type="jar" ext="jar" status="no" details="" size="164623" time="0" location="C:\Users\QueenieD\.ivy2\cache\org.scala-lang\jline\jars\jline-2.10.5.jar">
+						<origin-location is-local="false" location="https://jcenter.bintray.com/org/scala-lang/jline/2.10.5/jline-2.10.5.jar"/>
+					</artifact>
+				</artifacts>
+			</revision>
+		</module>
+		<module organisation="org.fusesource.jansi" name="jansi">
+			<revision name="1.4" status="release" pubdate="20100715222156" resolver="sbt-chain" artresolver="sbt-chain" homepage="http://${forge-project-id}.fusesource.org" downloaded="false" searched="false" default="false" conf="master(*), compile, compile(*), master" position="4">
+				<license name="The Apache Software License, Version 2.0" url="http://www.apache.org/licenses/LICENSE-2.0.txt"/>
+				<metadata-artifact status="no" details="" size="3393" time="0" location="C:\Users\QueenieD\.ivy2\cache\org.fusesource.jansi\jansi\ivy-1.4.xml" searched="false" origin-is-local="false" origin-location="https://jcenter.bintray.com/org/fusesource/jansi/jansi/1.4/jansi-1.4.pom"/>
+				<caller organisation="org.scala-lang" name="jline" conf="compile" rev="1.4" rev-constraint-default="1.4" rev-constraint-dynamic="1.4" callerrev="2.10.5"/>
+				<artifacts>
+					<artifact name="jansi" type="jar" ext="jar" status="no" details="" size="106659" time="0" location="C:\Users\QueenieD\.ivy2\cache\org.fusesource.jansi\jansi\jars\jansi-1.4.jar">
+						<origin-location is-local="false" location="https://jcenter.bintray.com/org/fusesource/jansi/jansi/1.4/jansi-1.4.jar"/>
+					</artifact>
+				</artifacts>
+			</revision>
+		</module>
+		<module organisation="org.scala-lang" name="scala-reflect">
+			<revision name="2.10.5" status="release" pubdate="20150227095400" resolver="sbt-chain" artresolver="sbt-chain" homepage="http://www.scala-lang.org/" extra-info.apiURL="http://www.scala-lang.org/api/2.10.5/" downloaded="false" searched="false" default="false" conf="master(*), compile, runtime(*), runtime, compile(*), master" position="2">
+				<license name="BSD-like" url="http://www.scala-lang.org/downloads/license.html    "/>
+				<metadata-artifact status="no" details="" size="2680" time="0" location="C:\Users\QueenieD\.ivy2\cache\org.scala-lang\scala-reflect\ivy-2.10.5.xml" searched="false" origin-is-local="false" origin-location="https://jcenter.bintray.com/org/scala-lang/scala-reflect/2.10.5/scala-reflect-2.10.5.pom"/>
+				<caller organisation="org.scala-lang" name="scala-compiler" conf="default, compile, runtime, optional, master" rev="2.10.5" rev-constraint-default="2.10.5" rev-constraint-dynamic="2.10.5" callerrev="2.10.5"/>
+				<artifacts>
+					<artifact name="scala-reflect" type="jar" ext="jar" status="no" details="" size="3206179" time="0" location="C:\Users\QueenieD\.ivy2\cache\org.scala-lang\scala-reflect\jars\scala-reflect-2.10.5.jar">
+						<origin-location is-local="false" location="UNKNOWN"/>
+					</artifact>
+				</artifacts>
+			</revision>
+		</module>
+		<module organisation="org.scala-lang" name="scala-library">
+			<revision name="2.10.5" status="release" pubdate="20150227095400" resolver="sbt-chain" artresolver="sbt-chain" homepage="http://www.scala-lang.org/" extra-info.apiURL="http://www.scala-lang.org/api/2.10.5/" downloaded="false" searched="false" default="false" conf="default, master(*), compile, runtime(*), runtime, optional, optional(default), compile(*), master" position="1">
+				<license name="BSD-like" url="http://www.scala-lang.org/downloads/license.html          "/>
+				<metadata-artifact status="no" details="" size="2517" time="0" location="C:\Users\QueenieD\.ivy2\cache\org.scala-lang\scala-library\ivy-2.10.5.xml" searched="false" origin-is-local="false" origin-location="https://jcenter.bintray.com/org/scala-lang/scala-library/2.10.5/scala-library-2.10.5.pom"/>
+				<caller organisation="org.scala-lang" name="scala-reflect" conf="compile, runtime" rev="2.10.5" rev-constraint-default="2.10.5" rev-constraint-dynamic="2.10.5" callerrev="2.10.5"/>
+				<caller organisation="default" name="docker_2.10" conf="scala-tool" rev="2.10.5" rev-constraint-default="2.10.5" rev-constraint-dynamic="2.10.5" callerrev="0.1-SNAPSHOT"/>
+				<caller organisation="org.scala-lang" name="scala-compiler" conf="default, compile, runtime, optional, master" rev="2.10.5" rev-constraint-default="2.10.5" rev-constraint-dynamic="2.10.5" callerrev="2.10.5"/>
+				<artifacts>
+					<artifact name="scala-library" type="jar" ext="jar" status="no" details="" size="7130772" time="0" location="C:\Users\QueenieD\.ivy2\cache\org.scala-lang\scala-library\jars\scala-library-2.10.5.jar">
+						<origin-location is-local="false" location="UNKNOWN"/>
+					</artifact>
+				</artifacts>
+			</revision>
+		</module>
+	</dependencies>
+</ivy-report>
