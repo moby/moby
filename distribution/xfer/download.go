@@ -26,7 +26,7 @@ type LayerDownloadManager struct {
 	tm         TransferManager
 }
 
-// SetConcurrency set the max concurrent downloads for each pull
+// SetConcurrency sets the max concurrent downloads for each pull
 func (ldm *LayerDownloadManager) SetConcurrency(concurrency int) {
 	ldm.tm.SetConcurrency(concurrency)
 }
@@ -87,7 +87,7 @@ type DownloadDescriptorWithRegistered interface {
 // the layer store, and the key is not used by an in-progress download, the
 // Download method is called to get the layer tar data. Layers are then
 // registered in the appropriate order.  The caller must call the returned
-// release function once it is is done with the returned RootFS object.
+// release function once it is done with the returned RootFS object.
 func (ldm *LayerDownloadManager) Download(ctx context.Context, initialRootFS image.RootFS, layers []DownloadDescriptor, progressOutput progress.Output) (image.RootFS, func(), error) {
 	var (
 		topLayer       layer.Layer

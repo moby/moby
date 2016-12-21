@@ -19,7 +19,7 @@ type LayerUploadManager struct {
 	tm TransferManager
 }
 
-// SetConcurrency set the max concurrent uploads for each push
+// SetConcurrency sets the max concurrent uploads for each push
 func (lum *LayerUploadManager) SetConcurrency(concurrency int) {
 	lum.tm.SetConcurrency(concurrency)
 }

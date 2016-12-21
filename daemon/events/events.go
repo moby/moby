@@ -78,8 +78,8 @@ func (e *Events) Evict(l chan interface{}) {
 	e.pub.Evict(l)
 }
 
-// Log broadcasts event to listeners. Each listener has 100 millisecond for
-// receiving event or it will be skipped.
+// Log broadcasts event to listeners. Each listener has 100 milliseconds to
+// receive the event or it will be skipped.
 func (e *Events) Log(action, eventType string, actor eventtypes.Actor) {
 	eventsCounter.Inc()
 	now := time.Now().UTC()
