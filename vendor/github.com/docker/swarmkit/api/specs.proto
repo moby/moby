@@ -147,7 +147,7 @@ message ContainerSpec {
 	// Annotations.
 	map<string, string> labels = 2;
 
-	// Command to run the the container. The first element is a path to the
+	// Command to run the container. The first element is a path to the
 	// executable and the following elements are treated as arguments.
 	//
 	// If command is empty, execution will fall back to the image's entrypoint.

@@ -56,7 +56,7 @@ type PrivateKey interface {
 	// Sign signs the data read from the io.Reader using a signature algorithm
 	// supported by the private key. If the specified hashing algorithm is
 	// supported by this key, that hash function is used to generate the
-	// signature otherwise the the default hashing algorithm for this key is
+	// signature otherwise the default hashing algorithm for this key is
 	// used. Returns the signature and identifier of the algorithm used.
 	Sign(data io.Reader, hashID crypto.Hash) (signature []byte, alg string, err error)
 	// CryptoPrivateKey returns the internal object which can be used as a

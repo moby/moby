@@ -718,7 +718,7 @@ func (s *MemoryStore) WatchQueue() *watch.Queue {
 // those events.
 func ViewAndWatch(store *MemoryStore, cb func(ReadTx) error, specifiers ...state.Event) (watch chan events.Event, cancel func(), err error) {
 	// Using Update to lock the store and guarantee consistency between
-	// the watcher and the the state seen by the callback. snapshotReadTx
+	// the watcher and the state seen by the callback. snapshotReadTx
 	// exposes this Tx as a ReadTx so the callback can't modify it.
 	err = store.Update(func(tx Tx) error {
 		if err := cb(tx); err != nil {

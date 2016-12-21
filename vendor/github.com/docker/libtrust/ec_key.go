@@ -261,7 +261,7 @@ func (k *ecPrivateKey) String() string {
 // Sign signs the data read from the io.Reader using a signature algorithm supported
 // by the elliptic curve private key. If the specified hashing algorithm is
 // supported by this key, that hash function is used to generate the signature
-// otherwise the the default hashing algorithm for this key is used. Returns
+// otherwise the default hashing algorithm for this key is used. Returns
 // the signature and the name of the JWK signature algorithm used, e.g.,
 // "ES256", "ES384", "ES512".
 func (k *ecPrivateKey) Sign(data io.Reader, hashID crypto.Hash) (signature []byte, alg string, err error) {

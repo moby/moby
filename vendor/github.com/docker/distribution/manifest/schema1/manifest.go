@@ -12,7 +12,7 @@ import (
 
 const (
 	// MediaTypeManifest specifies the mediaType for the current version. Note
-	// that for schema version 1, the the media is optionally "application/json".
+	// that for schema version 1, the media is optionally "application/json".
 	MediaTypeManifest = "application/vnd.docker.distribution.manifest.v1+json"
 	// MediaTypeSignedManifest specifies the mediatype for current SignedManifest version
 	MediaTypeSignedManifest = "application/vnd.docker.distribution.manifest.v1+prettyjws"
@@ -154,7 +154,7 @@ func (sm SignedManifest) References() []distribution.Descriptor {
 
 // MarshalJSON returns the contents of raw. If Raw is nil, marshals the inner
 // contents. Applications requiring a marshaled signed manifest should simply
-// use Raw directly, since the the content produced by json.Marshal will be
+// use Raw directly, since the content produced by json.Marshal will be
 // compacted and will fail signature checks.
 func (sm *SignedManifest) MarshalJSON() ([]byte, error) {
 	if len(sm.all) > 0 {

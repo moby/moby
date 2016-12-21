@@ -37,7 +37,7 @@ func TestDownload400Errors(t *testing.T) {
 	defer ts.Close()
 	// Expected status code = 403
 	if _, err := Download(ts.URL); err == nil || err.Error() != expectedError {
-		t.Fatalf("Expected the the error %q, got %v", expectedError, err)
+		t.Fatalf("Expected the error %q, got %v", expectedError, err)
 	}
 }
 

@@ -43,7 +43,7 @@ func StrSliceContains(ss []string, s string) bool {
 	return false
 }
 
-// StrSliceRemove removes the the given string from the slice, returning a new slice
+// StrSliceRemove removes the given string from the slice, returning a new slice
 func StrSliceRemove(ss []string, s string) []string {
 	res := []string{}
 	for _, v := range ss {
