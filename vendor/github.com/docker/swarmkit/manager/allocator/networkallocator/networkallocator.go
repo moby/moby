@@ -148,6 +148,38 @@ func (na *NetworkAllocator) Deallocate(n *api.Network) error {
 	return na.freePools(n, localNet.pools)
 }
 
+// ServiceInit is called during network initialization to clean up any out-of-sync state.
+func (na *NetworkAllocator) ServiceInit(s *api.Service) {
+	// The dynamic allocated ports should be cleaned up
+	if s.Endpoint == nil {
+		return
+	}
+
+	configuredPorts := make(map[api.PortConfig]*api.PortConfig)
+	if s.Spec.Endpoint != nil {
+		for _, portConfig := range s.Spec.Endpoint.Ports {
+			// Ignore ports which are not PublishModeIngress
+			if portConfig.PublishMode != api.PublishModeIngress {
+				continue
+			}
+
+			configuredPorts[getPortConfigKey(portConfig)] = portConfig
+		}
+	}
+
+	for i, portState := range s.Endpoint.Ports {
+		// Ignore ports which are not PublishModeIngress
+		if portState.PublishMode != api.PublishModeIngress {
+			continue
+		}
+
+		portConfig, ok := configuredPorts[getPortConfigKey(portState)]
+		if !ok || portConfig.PublishedPort == 0 {
+			s.Endpoint.Ports[i].PublishedPort = 0
+		}
+	}
+}
+
 // ServiceAllocate allocates all the network resources such as virtual
 // IP and ports needed by the service.
 func (na *NetworkAllocator) ServiceAllocate(s *api.Service) (err error) {
