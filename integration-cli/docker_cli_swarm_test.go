@@ -499,13 +499,6 @@ func (s *DockerSwarmSuite) TestPsListContainersFilterIsTask(c *check.C) {
 const globalNetworkPlugin = "global-network-plugin"
 const globalIPAMPlugin = "global-ipam-plugin"
 
-func (s *DockerSwarmSuite) SetUpSuite(c *check.C) {
-	mux := http.NewServeMux()
-	s.server = httptest.NewServer(mux)
-	c.Assert(s.server, check.NotNil, check.Commentf("Failed to start an HTTP Server"))
-	setupRemoteGlobalNetworkPlugin(c, mux, s.server.URL, globalNetworkPlugin, globalIPAMPlugin)
-}
-
 func setupRemoteGlobalNetworkPlugin(c *check.C, mux *http.ServeMux, url, netDrv, ipamDrv string) {
 
 	mux.HandleFunc("/Plugin.Activate", func(w http.ResponseWriter, r *http.Request) {
@@ -675,6 +668,16 @@ func setupRemoteGlobalNetworkPlugin(c *check.C, mux *http.ServeMux, url, netDrv,
 }
 
 func (s *DockerSwarmSuite) TestSwarmNetworkPlugin(c *check.C) {
+	mux := http.NewServeMux()
+	s.server = httptest.NewServer(mux)
+	c.Assert(s.server, check.NotNil, check.Commentf("Failed to start an HTTP Server"))
+	setupRemoteGlobalNetworkPlugin(c, mux, s.server.URL, globalNetworkPlugin, globalIPAMPlugin)
+	defer func() {
+		s.server.Close()
+		err := os.RemoveAll("/etc/docker/plugins")
+		c.Assert(err, checker.IsNil)
+	}()
+
 	d := s.AddDaemon(c, true, true)
 
 	out, err := d.Cmd("network", "create", "-d", globalNetworkPlugin, "foo")
