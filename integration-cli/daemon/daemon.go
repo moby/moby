@@ -627,7 +627,7 @@ func (d *Daemon) SockRequestRaw(method, endpoint string, data io.Reader, ct stri
 	return SockRequestRawToDaemon(method, endpoint, data, ct, d.Sock())
 }
 
-// LogFileName returns the path the the daemon's log file
+// LogFileName returns the path the daemon's log file
 func (d *Daemon) LogFileName() string {
 	return d.logFile.Name()
 }

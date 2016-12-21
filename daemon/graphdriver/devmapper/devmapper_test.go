@@ -12,7 +12,7 @@ import (
 )
 
 func init() {
-	// Reduce the size the the base fs and loopback for the tests
+	// Reduce the size of the base fs and loopback for the tests
 	defaultDataLoopbackSize = 300 * 1024 * 1024
 	defaultMetaDataLoopbackSize = 200 * 1024 * 1024
 	defaultBaseFsSize = 300 * 1024 * 1024
