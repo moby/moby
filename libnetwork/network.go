@@ -80,10 +80,18 @@ type NetworkInfo interface {
 // When the function returns true, the walk will stop.
 type EndpointWalker func(ep Endpoint) bool
 
+// ipInfo is the reverse mapping from IP to service name to serve the PTR query.
+// extResolver is set if an externl server resolves a service name to this IP.
+// Its an indication to defer PTR queries also to that external server.
+type ipInfo struct {
+	name        string
+	extResolver bool
+}
+
 type svcInfo struct {
 	svcMap     map[string][]net.IP
 	svcIPv6Map map[string][]net.IP
-	ipMap      map[string]string
+	ipMap      map[string]*ipInfo
 	service    map[string][]servicePorts
 }
 
@@ -1070,10 +1078,12 @@ func (n *network) updateSvcRecord(ep *endpoint, localEps []*endpoint, isAdd bool
 	}
 }
 
-func addIPToName(ipMap map[string]string, name string, ip net.IP) {
+func addIPToName(ipMap map[string]*ipInfo, name string, ip net.IP) {
 	reverseIP := netutils.ReverseIP(ip.String())
 	if _, ok := ipMap[reverseIP]; !ok {
-		ipMap[reverseIP] = name
+		ipMap[reverseIP] = &ipInfo{
+			name: name,
+		}
 	}
 }
 
@@ -1117,7 +1127,7 @@ func (n *network) addSvcRecords(name string, epIP net.IP, epIPv6 net.IP, ipMapUp
 		sr = svcInfo{
 			svcMap:     make(map[string][]net.IP),
 			svcIPv6Map: make(map[string][]net.IP),
-			ipMap:      make(map[string]string),
+			ipMap:      make(map[string]*ipInfo),
 		}
 		c.svcRecords[n.ID()] = sr
 	}
@@ -1612,8 +1622,8 @@ func (n *network) ResolveName(req string, ipType int) ([]net.IP, bool) {
 
 	c := n.getController()
 	c.Lock()
+	defer c.Unlock()
 	sr, ok := c.svcRecords[n.ID()]
-	c.Unlock()
 
 	if !ok {
 		return nil, false
@@ -1621,7 +1631,6 @@ func (n *network) ResolveName(req string, ipType int) ([]net.IP, bool) {
 
 	req = strings.TrimSuffix(req, ".")
 	var ip []net.IP
-	n.Lock()
 	ip, ok = sr.svcMap[req]
 
 	if ipType == types.IPv6 {
@@ -1634,7 +1643,6 @@ func (n *network) ResolveName(req string, ipType int) ([]net.IP, bool) {
 		}
 		ip = sr.svcIPv6Map[req]
 	}
-	n.Unlock()
 
 	if ip != nil {
 		return ip, false
@@ -1643,13 +1651,28 @@ func (n *network) ResolveName(req string, ipType int) ([]net.IP, bool) {
 	return nil, ipv6Miss
 }
 
-func (n *network) ResolveIP(ip string) string {
-	var svc string
-
+func (n *network) HandleQueryResp(name string, ip net.IP) {
 	c := n.getController()
 	c.Lock()
+	defer c.Unlock()
 	sr, ok := c.svcRecords[n.ID()]
-	c.Unlock()
+
+	if !ok {
+		return
+	}
+
+	ipStr := netutils.ReverseIP(ip.String())
+
+	if ipInfo, ok := sr.ipMap[ipStr]; ok {
+		ipInfo.extResolver = true
+	}
+}
+
+func (n *network) ResolveIP(ip string) string {
+	c := n.getController()
+	c.Lock()
+	defer c.Unlock()
+	sr, ok := c.svcRecords[n.ID()]
 
 	if !ok {
 		return ""
@@ -1657,15 +1680,13 @@ func (n *network) ResolveIP(ip string) string {
 
 	nwName := n.Name()
 
-	n.Lock()
-	defer n.Unlock()
-	svc, ok = sr.ipMap[ip]
+	ipInfo, ok := sr.ipMap[ip]
 
-	if ok {
-		return svc + "." + nwName
+	if !ok || ipInfo.extResolver {
+		return ""
 	}
 
-	return svc
+	return ipInfo.name + "." + nwName
 }
 
 func (n *network) ResolveService(name string) ([]*net.SRV, []net.IP) {
@@ -1689,8 +1710,8 @@ func (n *network) ResolveService(name string) ([]*net.SRV, []net.IP) {
 	svcName := strings.Join(parts[2:], ".")
 
 	c.Lock()
+	defer c.Unlock()
 	sr, ok := c.svcRecords[n.ID()]
-	c.Unlock()
 
 	if !ok {
 		return nil, nil

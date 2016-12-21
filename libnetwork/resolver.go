@@ -54,6 +54,9 @@ type DNSBackend interface {
 	ExecFunc(f func()) error
 	//NdotsSet queries the backends ndots dns option settings
 	NdotsSet() bool
+	// HandleQueryResp passes the name & IP from a response to the backend. backend
+	// can use it to maintain any required state about the resolution
+	HandleQueryResp(name string, ip net.IP)
 }
 
 const (
@@ -462,9 +465,20 @@ func (r *resolver) ServeDNS(w dns.ResponseWriter, query *dns.Msg) {
 				logrus.Debugf("Read from DNS server failed, %s", err)
 				continue
 			}
-
 			r.forwardQueryEnd()
-
+			if resp != nil {
+				for _, rr := range resp.Answer {
+					h := rr.Header()
+					switch h.Rrtype {
+					case dns.TypeA:
+						ip := rr.(*dns.A).A
+						r.backend.HandleQueryResp(h.Name, ip)
+					case dns.TypeAAAA:
+						ip := rr.(*dns.AAAA).AAAA
+						r.backend.HandleQueryResp(h.Name, ip)
+					}
+				}
+			}
 			resp.Compress = true
 			break
 		}

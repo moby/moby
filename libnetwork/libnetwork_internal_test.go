@@ -380,7 +380,7 @@ func TestSRVServiceQuery(t *testing.T) {
 	sr := svcInfo{
 		svcMap:     make(map[string][]net.IP),
 		svcIPv6Map: make(map[string][]net.IP),
-		ipMap:      make(map[string]string),
+		ipMap:      make(map[string]*ipInfo),
 		service:    make(map[string][]servicePorts),
 	}
 	// backing container for the service
