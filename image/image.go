@@ -29,11 +29,11 @@ func IDFromDigest(digest digest.Digest) ID {
 
 // V1Image stores the V1 image configuration.
 type V1Image struct {
-	// ID a unique 64 character identifier of the image
+	// ID is a unique 64 character identifier of the image
 	ID string `json:"id,omitempty"`
 	// Parent id of the image
 	Parent string `json:"parent,omitempty"`
-	// Comment user added comment
+	// Comment is added comment by users
 	Comment string `json:"comment,omitempty"`
 	// Created timestamp when image was created
 	Created time.Time `json:"created"`
@@ -126,7 +126,7 @@ type History struct {
 	EmptyLayer bool `json:"empty_layer,omitempty"`
 }
 
-// Exporter provides interface for exporting and importing images
+// Exporter provides interface for loading and saving images
 type Exporter interface {
 	Load(io.ReadCloser, io.Writer, bool) error
 	// TODO: Load(net.Context, io.ReadCloser, <- chan StatusMessage) error
@@ -141,7 +141,7 @@ func NewFromJSON(src []byte) (*Image, error) {
 		return nil, err
 	}
 	if img.RootFS == nil {
-		return nil, errors.New("Invalid image JSON, no RootFS key.")
+		return nil, errors.New("invalid image JSON, no RootFS key")
 	}
 
 	img.rawJSON = src
