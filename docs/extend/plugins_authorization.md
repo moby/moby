@@ -69,7 +69,7 @@ startup. You can install multiple plugins and chain them together. This chain
 can be ordered. Each request to the daemon passes in order through the chain.
 Only when all the plugins grant access to the resource, is the access granted.
 
-When an HTTP request is made to the Docker daemon through the CLI or via the
+When a HTTP request is made to the Docker daemon through the CLI or via the
 Engine API, the authentication subsystem passes the request to the installed
 authentication plugin(s). The request contains the user (caller) and command
 context. The plugin is responsible for deciding whether to allow or deny the

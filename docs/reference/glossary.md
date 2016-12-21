@@ -206,7 +206,7 @@ to run in the container. For orchestration purposes, the service defines the
 deploying the containers.
 
 Frequently a service is a microservice within the context of some larger
-application. Examples of services might include an HTTP server, a database, or
+application. Examples of services might include a HTTP server, a database, or
 any other type of executable program that you wish to run in a distributed
 environment.
 

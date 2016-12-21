@@ -297,9 +297,9 @@ Results in:
      ---> Running in a2c157f842f5
      Volume in drive C has no label.
      Volume Serial Number is 7E6D-E0F7
-    
+
      Directory of c:\
-    
+
     10/05/2016  05:04 PM             1,894 License.txt
     10/05/2016  02:22 PM    <DIR>          Program Files
     10/05/2016  02:14 PM    <DIR>          Program Files (x86)
@@ -804,7 +804,7 @@ the source will be copied inside the destination container.
 All new files and directories are created with a UID and GID of 0.
 
 In the case where `<src>` is a remote file URL, the destination will
-have permissions of 600. If the remote file being retrieved has an HTTP
+have permissions of 600. If the remote file being retrieved has a HTTP
 `Last-Modified` header, the timestamp from that header will be used
 to set the `mtime` on the destination file. However, like any other file
 processed during an `ADD`, `mtime` will not be included in the determination
@@ -1272,7 +1272,7 @@ On Windows, `WORKDIR` behaves differently depending on whether using Windows
 Server containers or Hyper-V containers. For Hyper-V containers, the engine
 is, for architectural reasons, unable to create the directory if it does not
 previously exist. For Windows Server containers, the directory is created
-if it does not exist. Hence, for consistency between Windows Server and 
+if it does not exist. Hence, for consistency between Windows Server and
 Hyper-V containers, it is strongly recommended to include an explicit instruction
 to create the directory in the Dockerfile. For example:
 
@@ -1675,16 +1675,16 @@ Resulting in:
     Removing intermediate container 6fcdb6855ae2
     Step 3/5 : RUN New-Item -ItemType Directory C:\Example
      ---> Running in d0eef8386e97
-    
-    
+
+
         Directory: C:\
-    
-    
+
+
     Mode                LastWriteTime         Length Name
     ----                -------------         ------ ----
     d-----       10/28/2016  11:26 AM                Example
-    
-    
+
+
      ---> 3f2fbf1395d9
     Removing intermediate container d0eef8386e97
     Step 4/5 : ADD Execute-MyCmdlet.ps1 c:\example\

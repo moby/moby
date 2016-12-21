@@ -93,8 +93,8 @@ keywords: "API, Docker, rcli, REST, documentation"
 * `GET /networks` now supports filtering by `label` and `driver`.
 * `GET /containers/json` now supports filtering containers by `network` name or id.
 * `POST /containers/create` now takes `IOMaximumBandwidth` and `IOMaximumIOps` fields. Windows daemon only.
-* `POST /containers/create` now returns an HTTP 400 "bad parameter" message
-  if no command is specified (instead of an HTTP 500 "server error")
+* `POST /containers/create` now returns a HTTP 400 "bad parameter" message
+  if no command is specified (instead of a HTTP 500 "server error")
 * `GET /images/search` now takes a `filters` query parameter.
 * `GET /events` now supports a `reload` event that is emitted when the daemon configuration is reloaded.
 * `GET /events` now supports filtering by daemon name or ID.
@@ -188,7 +188,7 @@ keywords: "API, Docker, rcli, REST, documentation"
 * `GET /events` now supports filtering by image and container labels.
 * `GET /info` now lists engine version information and return the information of `CPUShares` and `Cpuset`.
 * `GET /containers/json` will return `ImageID` of the image used by container.
-* `POST /exec/(name)/start` will now return an HTTP 409 when the container is either stopped or paused.
+* `POST /exec/(name)/start` will now return a HTTP 409 when the container is either stopped or paused.
 * `POST /containers/create` now takes `KernelMemory` in HostConfig to specify kernel memory limit.
 * `GET /containers/(name)/json` now accepts a `size` parameter. Setting this parameter to '1' returns container size information in the `SizeRw` and `SizeRootFs` fields.
 * `GET /containers/(name)/json` now returns a `NetworkSettings.Networks` field,
@@ -222,7 +222,7 @@ list of additional groups that the container process will run as.
 [Docker Engine API v1.19](v1.19.md) documentation
 
 * When the daemon detects a version mismatch with the client, usually when
-the client is newer than the daemon, an HTTP 400 is now returned instead
+the client is newer than the daemon, a HTTP 400 is now returned instead
 of a 404.
 * `GET /containers/(id)/stats` now accepts `stream` bool to get only one set of stats and disconnect.
 * `GET /containers/(id)/logs` now accepts a `since` timestamp parameter.

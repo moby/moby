@@ -150,7 +150,7 @@ or if one of the plugin goes down accidentally).
 The Plugin API is RPC-style JSON over HTTP, much like webhooks.
 
 Requests flow *from* the Docker daemon *to* the plugin.  So the plugin needs to
-implement an HTTP server and bind this to the UNIX socket mentioned in the
+implement a HTTP server and bind this to the UNIX socket mentioned in the
 "plugin discovery" section.
 
 All requests are HTTP `POST` requests.
@@ -192,5 +192,5 @@ containers which depend on them.
 
 ## Plugins helpers
 
-To ease plugins development, we're providing an `sdk` for each kind of plugins
+To ease plugins development, we're providing a `sdk` for each kind of plugins
 currently supported by Docker at [docker/go-plugins-helpers](https://github.com/docker/go-plugins-helpers).

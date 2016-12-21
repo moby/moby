@@ -836,7 +836,7 @@ The container has unlimited memory which can cause the host to run out memory
 and require killing system processes to free memory. The `--oom-score-adj`
 parameter can be changed to select the priority of which containers will
 be killed when the system is out of memory, with negative scores making them
-less likely to be killed an positive more likely.
+less likely to be killed a positive more likely.
 
 ### Kernel memory constraints
 
@@ -1370,7 +1370,7 @@ explicitly map a single port or range of ports.
 
 The port number inside the container (where the service listens) does
 not need to match the port number exposed on the outside of the
-container (where clients connect). For example, inside the container an
+container (where clients connect). For example, inside the container a
 HTTP service is listening on port 80 (and so the image developer
 specifies `EXPOSE 80` in the Dockerfile). At runtime, the port might be
 bound to 42800 on the host. To find the mapping between the host ports
