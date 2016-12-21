@@ -2,6 +2,7 @@ package system
 
 import (
 	"fmt"
+	"strings"
 
 	"golang.org/x/net/context"
 
@@ -156,6 +157,10 @@ func inspectAll(ctx context.Context, dockerCli *command.DockerCli, getSize bool,
 		return info.Swarm.ControlAvailable
 	}
 
+	isErrNotSupported := func(err error) bool {
+		return strings.Contains(err.Error(), "not supported")
+	}
+
 	return func(ref string) (interface{}, []byte, error) {
 		const (
 			swarmSupportUnknown = iota
@@ -183,7 +188,7 @@ func inspectAll(ctx context.Context, dockerCli *command.DockerCli, getSize bool,
 			}
 			v, raw, err := inspectData.objectInspector(ref)
 			if err != nil {
-				if typeConstraint == "" && apiclient.IsErrNotFound(err) {
+				if typeConstraint == "" && (apiclient.IsErrNotFound(err) || isErrNotSupported(err)) {
 					continue
 				}
 				return v, raw, err
