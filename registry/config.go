@@ -84,14 +84,44 @@ func newServiceConfig(options ServiceOptions) *serviceConfig {
 			IndexConfigs:          make(map[string]*registrytypes.IndexInfo, 0),
 			// Hack: Bypass setting the mirrors to IndexConfigs since they are going away
 			// and Mirrors are only for the official registry anyways.
-			Mirrors: options.Mirrors,
 		},
 		V2Only: options.V2Only,
 	}
 
+	config.LoadMirrors(options.Mirrors)
 	config.LoadInsecureRegistries(options.InsecureRegistries)
 
 	return config
+}
+
+// LoadMirrors loads mirrors to config, after removing duplicates.
+// Returns an error if mirrors contains an invalid mirror.
+func (config *serviceConfig) LoadMirrors(mirrors []string) error {
+	mMap := map[string]struct{}{}
+	unique := []string{}
+
+	for _, mirror := range mirrors {
+		m, err := ValidateMirror(mirror)
+		if err != nil {
+			return err
+		}
+		if _, exist := mMap[m]; !exist {
+			mMap[m] = struct{}{}
+			unique = append(unique, m)
+		}
+	}
+
+	config.Mirrors = unique
+
+	// Configure public registry since mirrors may have changed.
+	config.IndexConfigs[IndexName] = &registrytypes.IndexInfo{
+		Name:     IndexName,
+		Mirrors:  config.Mirrors,
+		Secure:   true,
+		Official: true,
+	}
+
+	return nil
 }
 
 // LoadInsecureRegistries loads insecure registries to config
@@ -208,18 +238,20 @@ func isSecureIndex(config *serviceConfig, indexName string) bool {
 func ValidateMirror(val string) (string, error) {
 	uri, err := url.Parse(val)
 	if err != nil {
-		return "", fmt.Errorf("%s is not a valid URI", val)
+		return "", fmt.Errorf("invalid mirror: %q is not a valid URI", val)
 	}
-
 	if uri.Scheme != "http" && uri.Scheme != "https" {
-		return "", fmt.Errorf("Unsupported scheme %s", uri.Scheme)
+		return "", fmt.Errorf("invalid mirror: unsupported scheme %q in %q", uri.Scheme, uri)
 	}
-
-	if uri.Path != "" || uri.RawQuery != "" || uri.Fragment != "" {
-		return "", fmt.Errorf("Unsupported path/query/fragment at end of the URI")
+	if (uri.Path != "" && uri.Path != "/") || uri.RawQuery != "" || uri.Fragment != "" {
+		return "", fmt.Errorf("invalid mirror: path, query, or fragment at end of the URI %q", uri)
 	}
-
-	return fmt.Sprintf("%s://%s/", uri.Scheme, uri.Host), nil
+	if uri.User != nil {
+		// strip password from output
+		uri.User = url.UserPassword(uri.User.Username(), "xxxxx")
+		return "", fmt.Errorf("invalid mirror: username/password not allowed in URI %q", uri)
+	}
+	return strings.TrimSuffix(val, "/") + "/", nil
 }
 
 // ValidateIndexName validates an index name.
