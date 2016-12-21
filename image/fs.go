@@ -75,7 +75,7 @@ func (s *fs) Walk(f DigestWalkFunc) error {
 	for _, v := range dir {
 		dgst := digest.NewDigestFromHex(string(digest.Canonical), v.Name())
 		if err := dgst.Validate(); err != nil {
-			logrus.Debugf("Skipping invalid digest %s: %s", dgst, err)
+			logrus.Debugf("skipping invalid digest %s: %s", dgst, err)
 			continue
 		}
 		if err := f(dgst); err != nil {
@@ -113,7 +113,7 @@ func (s *fs) Set(data []byte) (digest.Digest, error) {
 	defer s.Unlock()
 
 	if len(data) == 0 {
-		return "", fmt.Errorf("Invalid empty data")
+		return "", fmt.Errorf("invalid empty data")
 	}
 
 	dgst := digest.FromBytes(data)

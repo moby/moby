@@ -29,21 +29,21 @@ func IDFromDigest(digest digest.Digest) ID {
 
 // V1Image stores the V1 image configuration.
 type V1Image struct {
-	// ID a unique 64 character identifier of the image
+	// ID is a unique 64 character identifier of the image
 	ID string `json:"id,omitempty"`
-	// Parent id of the image
+	// Parent is the ID of the parent image
 	Parent string `json:"parent,omitempty"`
-	// Comment user added comment
+	// Comment is the commit message that was set when committing the image
 	Comment string `json:"comment,omitempty"`
-	// Created timestamp when image was created
+	// Created is the timestamp at which the image was created
 	Created time.Time `json:"created"`
 	// Container is the id of the container used to commit
 	Container string `json:"container,omitempty"`
 	// ContainerConfig is the configuration of the container that is committed into the image
 	ContainerConfig container.Config `json:"container_config,omitempty"`
-	// DockerVersion specifies version on which image is built
+	// DockerVersion specifies the version of Docker that was used to build the image
 	DockerVersion string `json:"docker_version,omitempty"`
-	// Author of the image
+	// Author is the name of the author that was specified when committing the image
 	Author string `json:"author,omitempty"`
 	// Config is the configuration of the container received from the client
 	Config *container.Config `json:"config,omitempty"`
@@ -112,13 +112,13 @@ func (img *Image) MarshalJSON() ([]byte, error) {
 
 // History stores build commands that were used to create an image
 type History struct {
-	// Created timestamp for build point
+	// Created is the timestamp at which the image was created
 	Created time.Time `json:"created"`
-	// Author of the build point
+	// Author is the name of the author that was specified when committing the image
 	Author string `json:"author,omitempty"`
-	// CreatedBy keeps the Dockerfile command used while building image.
+	// CreatedBy keeps the Dockerfile command used while building the image
 	CreatedBy string `json:"created_by,omitempty"`
-	// Comment is custom message set by the user when creating the image.
+	// Comment is the commit message that was set when committing the image
 	Comment string `json:"comment,omitempty"`
 	// EmptyLayer is set to true if this history item did not generate a
 	// layer. Otherwise, the history item is associated with the next
@@ -126,7 +126,7 @@ type History struct {
 	EmptyLayer bool `json:"empty_layer,omitempty"`
 }
 
-// Exporter provides interface for exporting and importing images
+// Exporter provides interface for loading and saving images
 type Exporter interface {
 	Load(io.ReadCloser, io.Writer, bool) error
 	// TODO: Load(net.Context, io.ReadCloser, <- chan StatusMessage) error
@@ -141,7 +141,7 @@ func NewFromJSON(src []byte) (*Image, error) {
 		return nil, err
 	}
 	if img.RootFS == nil {
-		return nil, errors.New("Invalid image JSON, no RootFS key.")
+		return nil, errors.New("invalid image JSON, no RootFS key")
 	}
 
 	img.rawJSON = src
