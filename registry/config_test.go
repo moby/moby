@@ -7,7 +7,9 @@ import (
 func TestValidateMirror(t *testing.T) {
 	valid := []string{
 		"http://mirror-1.com",
+		"http://mirror-1.com/",
 		"https://mirror-1.com",
+		"https://mirror-1.com/",
 		"http://localhost",
 		"https://localhost",
 		"http://localhost:5000",
@@ -21,15 +23,14 @@ func TestValidateMirror(t *testing.T) {
 	invalid := []string{
 		"!invalid!://%as%",
 		"ftp://mirror-1.com",
-		"http://mirror-1.com/",
 		"http://mirror-1.com/?q=foo",
 		"http://mirror-1.com/v1/",
 		"http://mirror-1.com/v1/?q=foo",
 		"http://mirror-1.com/v1/?q=foo#frag",
 		"http://mirror-1.com?q=foo",
 		"https://mirror-1.com#frag",
-		"https://mirror-1.com/",
 		"https://mirror-1.com/#frag",
+		"http://foo:bar@mirror-1.com/",
 		"https://mirror-1.com/v1/",
 		"https://mirror-1.com/v1/#",
 		"https://mirror-1.com?q",

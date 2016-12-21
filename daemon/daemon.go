@@ -995,14 +995,15 @@ func (daemon *Daemon) initDiscovery(config *Config) error {
 // Reload reads configuration changes and modifies the
 // daemon according to those changes.
 // These are the settings that Reload changes:
-// - Daemon labels.
-// - Daemon debug log level.
-// - Daemon insecure registries.
+// - Daemon labels
+// - Daemon debug log level
+// - Insecure registries
+// - Registry mirrors
 // - Daemon max concurrent downloads
 // - Daemon max concurrent uploads
-// - Cluster discovery (reconfigure and restart).
+// - Cluster discovery (reconfigure and restart)
 // - Daemon live restore
-// - Daemon shutdown timeout (in seconds).
+// - Daemon shutdown timeout (in seconds)
 func (daemon *Daemon) Reload(config *Config) (err error) {
 
 	daemon.configStore.reloadLock.Lock()
@@ -1035,6 +1036,14 @@ func (daemon *Daemon) Reload(config *Config) (err error) {
 			return err
 		}
 	}
+
+	if config.IsValueSet("registry-mirrors") {
+		daemon.configStore.Mirrors = config.Mirrors
+		if err := daemon.RegistryService.LoadMirrors(config.Mirrors); err != nil {
+			return err
+		}
+	}
+
 	if config.IsValueSet("live-restore") {
 		daemon.configStore.LiveRestoreEnabled = config.LiveRestoreEnabled
 		if err := daemon.containerdRemote.UpdateOptions(libcontainerd.WithLiveRestore(config.LiveRestoreEnabled)); err != nil {
@@ -1085,6 +1094,16 @@ func (daemon *Daemon) Reload(config *Config) (err error) {
 		attributes["insecure-registries"] = string(insecureRegistries)
 	} else {
 		attributes["insecure-registries"] = "[]"
+	}
+
+	if daemon.configStore.Mirrors != nil {
+		mirrors, err := json.Marshal(daemon.configStore.Mirrors)
+		if err != nil {
+			return err
+		}
+		attributes["registry-mirrors"] = string(mirrors)
+	} else {
+		attributes["registry-mirrors"] = "[]"
 	}
 
 	attributes["cluster-store"] = daemon.configStore.ClusterStore

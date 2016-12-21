@@ -663,7 +663,7 @@ func TestMirrorEndpointLookup(t *testing.T) {
 		}
 		return false
 	}
-	s := DefaultService{config: makeServiceConfig([]string{"my.mirror"}, nil)}
+	s := DefaultService{config: makeServiceConfig([]string{"https://my.mirror"}, nil)}
 
 	imageName, err := reference.WithName(IndexName + "/test/image")
 	if err != nil {
