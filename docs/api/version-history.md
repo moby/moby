@@ -15,7 +15,7 @@ keywords: "API, Docker, rcli, REST, documentation"
 
 ## v1.26 API changes
 
-[Docker Engine API v1.26](v1.26/) documentation
+[Docker Engine API v1.26](v1.26.md) documentation
 
 ## v1.25 API changes
 
