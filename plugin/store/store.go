@@ -206,6 +206,11 @@ func (ps *Store) Get(name, capability string, mode int) (plugingetter.CompatPlug
 	return nil, err
 }
 
+// GetAllManagedPluginsByCap returns a list of managed plugins matching the given capability.
+func (ps *Store) GetAllManagedPluginsByCap(capability string) []plugingetter.CompatPlugin {
+	return ps.getAllByCap(capability)
+}
+
 // GetAllByCap returns a list of enabled plugins matching the given capability.
 func (ps *Store) GetAllByCap(capability string) ([]plugingetter.CompatPlugin, error) {
 	result := make([]plugingetter.CompatPlugin, 0, 1)
