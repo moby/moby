@@ -3,16 +3,12 @@ package store
 import (
 	"encoding/json"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/boltdb/bolt"
 	"github.com/pkg/errors"
 )
 
 var volumeBucketName = []byte("volumes")
-
-type dbEntry struct {
-	Key   []byte
-	Value []byte
-}
 
 type volumeMetadata struct {
 	Name    string
@@ -67,12 +63,26 @@ func removeMeta(tx *bolt.Tx, name string) error {
 	return errors.Wrap(b.Delete([]byte(name)), "error removing volume metadata")
 }
 
-func listEntries(tx *bolt.Tx) []*dbEntry {
-	var entries []*dbEntry
+// listMeta is used during restore to get the list of volume metadata
+// from the on-disk database.
+// Any errors that occur are only logged.
+func listMeta(tx *bolt.Tx) []volumeMetadata {
+	var ls []volumeMetadata
 	b := tx.Bucket(volumeBucketName)
 	b.ForEach(func(k, v []byte) error {
-		entries = append(entries, &dbEntry{k, v})
+		if len(v) == 0 {
+			// don't try to unmarshal an empty value
+			return nil
+		}
+
+		var m volumeMetadata
+		if err := json.Unmarshal(v, &m); err != nil {
+			// Just log the error
+			logrus.Errorf("Error while reading volume metadata for volume %q: %v", string(k), err)
+			return nil
+		}
+		ls = append(ls, m)
 		return nil
 	})
-	return entries
+	return ls
 }

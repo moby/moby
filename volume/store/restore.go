@@ -1,7 +1,6 @@
 package store
 
 import (
-	"encoding/json"
 	"sync"
 
 	"github.com/Sirupsen/logrus"
@@ -17,45 +16,38 @@ import (
 // It does not probe the available drivers to find anything that may have been added
 // out of band.
 func (s *VolumeStore) restore() {
-	var entries []*dbEntry
+	var ls []volumeMetadata
 	s.db.View(func(tx *bolt.Tx) error {
-		entries = listEntries(tx)
+		ls = listMeta(tx)
 		return nil
 	})
 
-	chRemove := make(chan []byte, len(entries))
+	chRemove := make(chan *volumeMetadata, len(ls))
 	var wg sync.WaitGroup
-	for _, entry := range entries {
+	for _, meta := range ls {
 		wg.Add(1)
 		// this is potentially a very slow operation, so do it in a goroutine
-		go func(entry *dbEntry) {
+		go func(meta volumeMetadata) {
 			defer wg.Done()
-			var meta volumeMetadata
-			if len(entry.Value) != 0 {
-				if err := json.Unmarshal(entry.Value, &meta); err != nil {
-					logrus.Errorf("Error while reading volume metadata for volume %q: %v", string(entry.Key), err)
-					// don't return here, we can try with `getVolume` below
-				}
-			}
 
 			var v volume.Volume
 			var err error
 			if meta.Driver != "" {
-				v, err = lookupVolume(meta.Driver, string(entry.Key))
+				v, err = lookupVolume(meta.Driver, meta.Name)
 				if err != nil && err != errNoSuchVolume {
-					logrus.WithError(err).WithField("driver", meta.Driver).WithField("volume", string(entry.Key)).Warn("Error restoring volume")
+					logrus.WithError(err).WithField("driver", meta.Driver).WithField("volume", meta.Name).Warn("Error restoring volume")
 					return
 				}
 				if v == nil {
 					// doesn't exist in the driver, remove it from the db
-					chRemove <- entry.Key
+					chRemove <- &meta
 					return
 				}
 			} else {
-				v, err = s.getVolume(string(entry.Key))
+				v, err = s.getVolume(meta.Name)
 				if err != nil {
 					if err == errNoSuchVolume {
-						chRemove <- entry.Key
+						chRemove <- &meta
 					}
 					return
 				}
@@ -75,15 +67,15 @@ func (s *VolumeStore) restore() {
 			s.labels[v.Name()] = meta.Labels
 			s.names[v.Name()] = v
 			s.globalLock.Unlock()
-		}(entry)
+		}(meta)
 	}
 
 	wg.Wait()
 	close(chRemove)
 	s.db.Update(func(tx *bolt.Tx) error {
-		for k := range chRemove {
-			if err := removeMeta(tx, string(k)); err != nil {
-				logrus.Warnf("Error removing stale entry from volume db: %v", err)
+		for meta := range chRemove {
+			if err := removeMeta(tx, meta.Name); err != nil {
+				logrus.WithField("volume", meta.Name).Warnf("Error removing stale entry from volume db: %v", err)
 			}
 		}
 		return nil
