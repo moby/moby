@@ -143,8 +143,8 @@
 		},
 		{
 			"ImportPath": "github.com/docker/docker/pkg/plugingetter",
-			"Comment": "docs-v1.12.0-rc4-2016-07-15-1985-gfebf53d",
-			"Rev": "febf53d91a43fe13fbb802d9e6b7b6732183cf21"
+			"Comment": "docs-v1.12.0-rc4-2016-07-15-4185-ge4512d2",
+			"Rev": "e4512d264741e83e954a19f9ef5e3cb06c5856b6"
 		},
 		{
 			"ImportPath": "github.com/docker/docker/pkg/plugins",
