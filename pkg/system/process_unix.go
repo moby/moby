@@ -1,6 +1,6 @@
 // +build linux freebsd solaris
 
-package utils
+package system
 
 import (
 	"syscall"

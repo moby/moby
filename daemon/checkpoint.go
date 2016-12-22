@@ -7,13 +7,13 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/utils"
 )
 
 var (
-	validCheckpointNameChars   = utils.RestrictedNameChars
-	validCheckpointNamePattern = utils.RestrictedNamePattern
+	validCheckpointNameChars   = api.RestrictedNameChars
+	validCheckpointNamePattern = api.RestrictedNamePattern
 )
 
 // CheckpointCreate checkpoints the process running in a container with CRIU

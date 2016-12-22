@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 
 	containertypes "github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/utils"
 )
 
 // Container holds fields specific to the Windows implementation. See
@@ -30,7 +29,7 @@ func (container *Container) CreateDaemonEnvironment(_ bool, linkedEnv []string) 
 	// because the env on the container can override certain default values
 	// we need to replace the 'env' keys where they match and append anything
 	// else.
-	return utils.ReplaceOrAppendEnvValues(linkedEnv, container.Config.Env)
+	return ReplaceOrAppendEnvValues(linkedEnv, container.Config.Env)
 }
 
 // UnmountIpcMounts unmounts Ipc related mounts.

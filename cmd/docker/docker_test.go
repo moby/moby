@@ -7,12 +7,12 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/cli/command"
+	"github.com/docker/docker/cli/debug"
 	"github.com/docker/docker/pkg/testutil/assert"
-	"github.com/docker/docker/utils"
 )
 
 func TestClientDebugEnabled(t *testing.T) {
-	defer utils.DisableDebug()
+	defer debug.Disable()
 
 	cmd := newDockerCommand(&command.DockerCli{})
 	cmd.Flags().Set("debug", "true")

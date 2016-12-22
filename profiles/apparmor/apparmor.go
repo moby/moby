@@ -11,7 +11,7 @@ import (
 	"strings"
 
 	"github.com/docker/docker/pkg/aaparser"
-	"github.com/docker/docker/utils/templates"
+	"github.com/docker/docker/pkg/templates"
 )
 
 var (
