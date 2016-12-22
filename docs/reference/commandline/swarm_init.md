@@ -136,7 +136,8 @@ frequently.
 ## Related information
 
 * [swarm join](swarm_join.md)
-* [swarm leave](swarm_leave.md)
-* [swarm update](swarm_update.md)
 * [swarm join-token](swarm_join_token.md)
-* [node rm](node_rm.md)
+* [swarm leave](swarm_leave.md)
+* [swarm unlock](swarm_unlock.md)
+* [swarm unlock-key](swarm_unlock_key.md)
+* [swarm update](swarm_update.md)

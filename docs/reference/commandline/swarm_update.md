@@ -42,4 +42,7 @@ $ docker swarm update --cert-expiry 720h
 
 * [swarm init](swarm_init.md)
 * [swarm join](swarm_join.md)
+* [swarm join-token](swarm_join_token.md)
 * [swarm leave](swarm_leave.md)
+* [swarm unlock](swarm_unlock.md)
+* [swarm unlock-key](swarm_unlock_key.md)
