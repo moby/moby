@@ -10,7 +10,6 @@ import (
 	"strings"
 
 	"github.com/Sirupsen/logrus"
-	apierrors "github.com/docker/docker/api/errors"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/container"
@@ -95,7 +94,7 @@ func NewBuildManager(b builder.Backend) (bm *BuildManager) {
 // BuildFromContext builds a new image from a given context.
 func (bm *BuildManager) BuildFromContext(ctx context.Context, src io.ReadCloser, remote string, buildOptions *types.ImageBuildOptions, pg backend.ProgressWriter) (string, error) {
 	if buildOptions.Squash && !bm.backend.HasExperimental() {
-		return "", apierrors.NewBadRequestError(errors.New("squash is only supported with experimental mode"))
+		return "", errors.New("squash is only supported with experimental mode")
 	}
 	buildContext, dockerfileName, err := builder.DetectContextFromRemoteURL(src, remote, pg.ProgressReaderFunc)
 	if err != nil {
