@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net"
 	"strings"
 	"testing"
@@ -22,9 +23,14 @@ type EchoServer interface {
 	LocalAddr() net.Addr
 }
 
+type EchoServerOptions struct {
+	TCPHalfClose bool
+}
+
 type TCPEchoServer struct {
 	listener net.Listener
 	testCtx  *testing.T
+	opts     EchoServerOptions
 }
 
 type UDPEchoServer struct {
@@ -32,15 +38,18 @@ type UDPEchoServer struct {
 	testCtx *testing.T
 }
 
-func NewEchoServer(t *testing.T, proto, address string) EchoServer {
+func NewEchoServer(t *testing.T, proto, address string, opts EchoServerOptions) EchoServer {
 	var server EchoServer
 	if strings.HasPrefix(proto, "tcp") {
 		listener, err := net.Listen(proto, address)
 		if err != nil {
 			t.Fatal(err)
 		}
-		server = &TCPEchoServer{listener: listener, testCtx: t}
+		server = &TCPEchoServer{listener: listener, testCtx: t, opts: opts}
 	} else {
+		if opts.TCPHalfClose {
+			t.Fatalf("TCPHalfClose is not supported for %s", proto)
+		}
 		socket, err := net.ListenPacket(proto, address)
 		if err != nil {
 			t.Fatal(err)
@@ -58,10 +67,21 @@ func (server *TCPEchoServer) Run() {
 				return
 			}
 			go func(client net.Conn) {
-				if _, err := io.Copy(client, client); err != nil {
-					server.testCtx.Logf("can't echo to the client: %v\n", err.Error())
+				if server.opts.TCPHalfClose {
+					data, err := ioutil.ReadAll(client)
+					if err != nil {
+						server.testCtx.Logf("io.ReadAll() failed for the client: %v\n", err.Error())
+					}
+					if _, err := client.Write(data); err != nil {
+						server.testCtx.Logf("can't echo to the client: %v\n", err.Error())
+					}
+					client.(*net.TCPConn).CloseWrite()
+				} else {
+					if _, err := io.Copy(client, client); err != nil {
+						server.testCtx.Logf("can't echo to the client: %v\n", err.Error())
+					}
+					client.Close()
 				}
-				client.Close()
 			}(client)
 		}
 	}()
@@ -92,7 +112,7 @@ func (server *UDPEchoServer) Run() {
 func (server *UDPEchoServer) LocalAddr() net.Addr { return server.conn.LocalAddr() }
 func (server *UDPEchoServer) Close()              { server.conn.Close() }
 
-func testProxyAt(t *testing.T, proto string, proxy Proxy, addr string) {
+func testProxyAt(t *testing.T, proto string, proxy Proxy, addr string, halfClose bool) {
 	defer proxy.Close()
 	go proxy.Run()
 	client, err := net.Dial(proto, addr)
@@ -104,6 +124,12 @@ func testProxyAt(t *testing.T, proto string, proxy Proxy, addr string) {
 	if _, err = client.Write(testBuf); err != nil {
 		t.Fatal(err)
 	}
+	if halfClose {
+		if proto != "tcp" {
+			t.Fatalf("halfClose is not supported for %s", proto)
+		}
+		client.(*net.TCPConn).CloseWrite()
+	}
 	recvBuf := make([]byte, testBufSize)
 	if _, err = client.Read(recvBuf); err != nil {
 		t.Fatal(err)
@@ -113,12 +139,12 @@ func testProxyAt(t *testing.T, proto string, proxy Proxy, addr string) {
 	}
 }
 
-func testProxy(t *testing.T, proto string, proxy Proxy) {
-	testProxyAt(t, proto, proxy, proxy.FrontendAddr().String())
+func testProxy(t *testing.T, proto string, proxy Proxy, halfClose bool) {
+	testProxyAt(t, proto, proxy, proxy.FrontendAddr().String(), halfClose)
 }
 
-func TestTCP4Proxy(t *testing.T) {
-	backend := NewEchoServer(t, "tcp", "127.0.0.1:0")
+func testTCP4Proxy(t *testing.T, halfClose bool) {
+	backend := NewEchoServer(t, "tcp", "127.0.0.1:0", EchoServerOptions{TCPHalfClose: halfClose})
 	defer backend.Close()
 	backend.Run()
 	frontendAddr := &net.TCPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 0}
@@ -126,12 +152,20 @@ func TestTCP4Proxy(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	testProxy(t, "tcp", proxy)
+	testProxy(t, "tcp", proxy, halfClose)
+}
+
+func TestTCP4Proxy(t *testing.T) {
+	testTCP4Proxy(t, false)
+}
+
+func TestTCP4ProxyHalfClose(t *testing.T) {
+	testTCP4Proxy(t, true)
 }
 
 func TestTCP6Proxy(t *testing.T) {
 	t.Skip("Need to start CI docker with --ipv6")
-	backend := NewEchoServer(t, "tcp", "[::1]:0")
+	backend := NewEchoServer(t, "tcp", "[::1]:0", EchoServerOptions{})
 	defer backend.Close()
 	backend.Run()
 	frontendAddr := &net.TCPAddr{IP: net.IPv6loopback, Port: 0}
@@ -139,14 +173,14 @@ func TestTCP6Proxy(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	testProxy(t, "tcp", proxy)
+	testProxy(t, "tcp", proxy, false)
 }
 
 func TestTCPDualStackProxy(t *testing.T) {
 	// If I understand `godoc -src net favoriteAddrFamily` (used by the
 	// net.Listen* functions) correctly this should work, but it doesn't.
 	t.Skip("No support for dual stack yet")
-	backend := NewEchoServer(t, "tcp", "[::1]:0")
+	backend := NewEchoServer(t, "tcp", "[::1]:0", EchoServerOptions{})
 	defer backend.Close()
 	backend.Run()
 	frontendAddr := &net.TCPAddr{IP: net.IPv6loopback, Port: 0}
@@ -158,11 +192,11 @@ func TestTCPDualStackProxy(t *testing.T) {
 		IP:   net.IPv4(127, 0, 0, 1),
 		Port: proxy.FrontendAddr().(*net.TCPAddr).Port,
 	}
-	testProxyAt(t, "tcp", proxy, ipv4ProxyAddr.String())
+	testProxyAt(t, "tcp", proxy, ipv4ProxyAddr.String(), false)
 }
 
 func TestUDP4Proxy(t *testing.T) {
-	backend := NewEchoServer(t, "udp", "127.0.0.1:0")
+	backend := NewEchoServer(t, "udp", "127.0.0.1:0", EchoServerOptions{})
 	defer backend.Close()
 	backend.Run()
 	frontendAddr := &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 0}
@@ -170,12 +204,12 @@ func TestUDP4Proxy(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	testProxy(t, "udp", proxy)
+	testProxy(t, "udp", proxy, false)
 }
 
 func TestUDP6Proxy(t *testing.T) {
 	t.Skip("Need to start CI docker with --ipv6")
-	backend := NewEchoServer(t, "udp", "[::1]:0")
+	backend := NewEchoServer(t, "udp", "[::1]:0", EchoServerOptions{})
 	defer backend.Close()
 	backend.Run()
 	frontendAddr := &net.UDPAddr{IP: net.IPv6loopback, Port: 0}
@@ -183,7 +217,7 @@ func TestUDP6Proxy(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	testProxy(t, "udp", proxy)
+	testProxy(t, "udp", proxy, false)
 }
 
 func TestUDPWriteError(t *testing.T) {
@@ -204,7 +238,7 @@ func TestUDPWriteError(t *testing.T) {
 	// Make sure the proxy doesn't stop when there is no actual backend:
 	client.Write(testBuf)
 	client.Write(testBuf)
-	backend := NewEchoServer(t, "udp", "127.0.0.1:25587")
+	backend := NewEchoServer(t, "udp", "127.0.0.1:25587", EchoServerOptions{})
 	defer backend.Close()
 	backend.Run()
 	client.SetDeadline(time.Now().Add(10 * time.Second))
