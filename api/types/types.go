@@ -547,3 +547,12 @@ type SecretCreateResponse struct {
 type SecretListOptions struct {
 	Filters filters.Args
 }
+
+// PushResult contains the tag, manifest digest, and manifest size from the
+// push. It's used to signal this information to the trust code in the client
+// so it can sign the manifest if necessary.
+type PushResult struct {
+	Tag    string
+	Digest string
+	Size   int
+}
