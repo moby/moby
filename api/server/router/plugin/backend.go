@@ -10,7 +10,7 @@ import (
 
 // Backend for Plugin
 type Backend interface {
-	Disable(name string) error
+	Disable(name string, config *enginetypes.PluginDisableConfig) error
 	Enable(name string, config *enginetypes.PluginEnableConfig) error
 	List() ([]enginetypes.Plugin, error)
 	Inspect(name string) (enginetypes.Plugin, error)

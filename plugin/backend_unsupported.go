@@ -14,7 +14,7 @@ import (
 var errNotSupported = errors.New("plugins are not supported on this platform")
 
 // Disable deactivates a plugin, which implies that they cannot be used by containers.
-func (pm *Manager) Disable(name string) error {
+func (pm *Manager) Disable(name string, config *types.PluginDisableConfig) error {
 	return errNotSupported
 }
 

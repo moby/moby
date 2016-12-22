@@ -31,8 +31,8 @@ var (
 	validPartialID = regexp.MustCompile(`^([a-f0-9]{1,64})$`)
 )
 
-// Disable deactivates a plugin, which implies that they cannot be used by containers.
-func (pm *Manager) Disable(name string) error {
+// Disable deactivates a plugin. This means resources (volumes, networks) cant use them.
+func (pm *Manager) Disable(name string, config *types.PluginDisableConfig) error {
 	p, err := pm.pluginStore.GetByName(name)
 	if err != nil {
 		return err
@@ -40,6 +40,10 @@ func (pm *Manager) Disable(name string) error {
 	pm.mu.RLock()
 	c := pm.cMap[p]
 	pm.mu.RUnlock()
+
+	if !config.ForceDisable && p.GetRefCount() > 0 {
+		return fmt.Errorf("plugin %s is in use", p.Name())
+	}
 
 	if err := pm.disable(p, c); err != nil {
 		return err
