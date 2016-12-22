@@ -1619,3 +1619,14 @@ func (s *DockerSwarmSuite) TestSwarmJoinWithDrain(c *check.C) {
 	c.Assert(err, checker.IsNil)
 	c.Assert(out, checker.Contains, "Drain")
 }
+
+func (s *DockerSwarmSuite) TestSwarmInitWithDrain(c *check.C) {
+	d := s.AddDaemon(c, false, false)
+
+	out, err := d.Cmd("swarm", "init", "--availability", "drain")
+	c.Assert(err, checker.IsNil, check.Commentf("out: %v", out))
+
+	out, err = d.Cmd("node", "ls")
+	c.Assert(err, checker.IsNil)
+	c.Assert(out, checker.Contains, "Drain")
+}

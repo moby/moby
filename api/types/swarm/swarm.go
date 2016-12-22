@@ -135,6 +135,7 @@ type InitRequest struct {
 	ForceNewCluster  bool
 	Spec             Spec
 	AutoLockManagers bool
+	Availability     NodeAvailability
 }
 
 // JoinRequest is the request used to join a swarm.

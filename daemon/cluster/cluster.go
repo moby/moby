@@ -320,6 +320,7 @@ func (c *Cluster) Init(req types.InitRequest) (string, error) {
 		LocalAddr:       localAddr,
 		ListenAddr:      net.JoinHostPort(listenHost, listenPort),
 		AdvertiseAddr:   net.JoinHostPort(advertiseHost, advertisePort),
+		availability:    req.Availability,
 	})
 	if err != nil {
 		return "", err
