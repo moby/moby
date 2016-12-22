@@ -672,6 +672,24 @@ For information about how to create an authorization plugin, see [authorization
 plugin](https://docs.docker.com/engine/extend/authorization/) section in the
 Docker extend section of this documentation.
 
+# RUNTIME EXECUTION OPTIONS
+
+You can configure the runtime using options specified with the `--exec-opt` flag.
+All the flag's options have the `native` prefix. A single `native.cgroupdriver`
+option is available.
+
+The `native.cgroupdriver` option specifies the management of the container's
+cgroups. You can only specify `cgroupfs` or `systemd`. If you specify
+`systemd` and it is not available, the system errors out. If you omit the
+`native.cgroupdriver` option,` cgroupfs` is used.
+
+This example sets the `cgroupdriver` to `systemd`:
+
+```bash
+$ sudo dockerd --exec-opt native.cgroupdriver=systemd
+```
+
+Setting this option applies to all containers the daemon launches.
 
 # HISTORY
 Sept 2015, Originally compiled by Shishir Mahajan <shishir.mahajan@redhat.com>

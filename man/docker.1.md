@@ -7,12 +7,10 @@ docker \- Docker image and container command line interface
 # SYNOPSIS
 **docker** [OPTIONS] COMMAND [ARG...]
 
-**docker** daemon [--help|...]
-
 **docker** [--help|-v|--version]
 
 # DESCRIPTION
-is a client for interacting with the daemon (see **dockerd(8)**) through the CLI.
+**docker** is a client for interacting with the daemon (see **dockerd(8)**) through the CLI.
 
 The Docker CLI has over 30 commands. The commands are listed below and each has
 its own man page which explain usage and arguments.
@@ -62,17 +60,7 @@ unix://[/path/to/socket] to use.
 
 Use "docker help" or "docker --help" to get an overview of available commands.
 
-# RUNTIME EXECUTION OPTIONS
-
-Use the **--exec-opt** flags to specify options to the execution driver.
-The following options are available:
-
-#### native.cgroupdriver
-Specifies the management of the container's `cgroups`. You can specify `cgroupfs`
-or `systemd`. If you specify `systemd` and it is not available, the system errors
-out.
-
-#### Client
+# EXAMPLES
 For specific client examples please see the man page for the specific Docker
 command. For example:
 
