@@ -21,7 +21,7 @@ const (
 	DefaultKeyFile = "key.pem"
 	// DefaultCertFile is the default filename for the cert pem file
 	DefaultCertFile = "cert.pem"
-	// FlagTLSVerify is the flag name for the tls verification option
+	// FlagTLSVerify is the flag name for the TLS verification option
 	FlagTLSVerify = "tlsverify"
 )
 
@@ -73,7 +73,7 @@ func (commonOpts *CommonOptions) InstallFlags(flags *pflag.FlagSet) {
 // complete
 func (commonOpts *CommonOptions) SetDefaultOptions(flags *pflag.FlagSet) {
 	// Regardless of whether the user sets it to true or false, if they
-	// specify --tlsverify at all then we need to turn on tls
+	// specify --tlsverify at all then we need to turn on TLS
 	// TLSVerify can be true even if not set due to DOCKER_TLS_VERIFY env var, so we need
 	// to check that here as well
 	if flags.Changed(FlagTLSVerify) || commonOpts.TLSVerify {

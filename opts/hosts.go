@@ -37,7 +37,7 @@ func ValidateHost(val string) (string, error) {
 		}
 	}
 	// Note: unlike most flag validators, we don't return the mutated value here
-	//       we need to know what the user entered later (using ParseHost) to adjust for tls
+	//       we need to know what the user entered later (using ParseHost) to adjust for TLS
 	return val, nil
 }
 
