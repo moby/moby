@@ -50,7 +50,7 @@ func Init(cb ipamapi.Callback, l, g interface{}) error {
 	handleFunc := plugins.Handle
 	if pg := cb.GetPluginGetter(); pg != nil {
 		handleFunc = pg.Handle
-		activePlugins, _ := pg.GetAllByCap(ipamapi.PluginEndpointType)
+		activePlugins := pg.GetAllManagedPluginsByCap(ipamapi.PluginEndpointType)
 		for _, ap := range activePlugins {
 			newPluginHandler(ap.Name(), ap.Client())
 		}
