@@ -143,6 +143,7 @@ type JoinRequest struct {
 	AdvertiseAddr string
 	RemoteAddrs   []string
 	JoinToken     string // accept by secret
+	Availability  NodeAvailability
 }
 
 // UnlockRequest is the request used to unlock a swarm.
