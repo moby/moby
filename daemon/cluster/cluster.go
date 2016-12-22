@@ -287,7 +287,7 @@ func (c *Cluster) Init(req types.InitRequest) (string, error) {
 	// will be used as local address, if it belongs to this system.
 	// If the advertise address is not local, then we try to find
 	// a system address to use as local address. If this fails,
-	// we give up and ask user to pass the listen address.
+	// we give up and ask the user to pass the listen address.
 	if net.ParseIP(localAddr).IsUnspecified() {
 		advertiseIP := net.ParseIP(advertiseHost)
 
