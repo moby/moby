@@ -84,6 +84,28 @@ be done to get it running.
 
 *Also known as : docker-compose, fig*
 
+## copy-on-write
+
+Docker uses a
+[copy-on-write](https://docs.docker.com/engine/userguide/storagedriver/imagesandcontainers/#/the-copy-on-write-strategy)
+technique and a [union file system](#union-file-system) for both images and
+containers to optimize resources and speed performance. Multiple copies of an
+entity share the same instance and each one makes only specific changes to its
+unique layer.
+
+Multiple containers can share access to the same image, and make
+container-specific changes on a writable layer which is deleted when
+the container is removed. This speeds up container start times and performance.
+
+Images are essentially layers of filesystems typically predicated on a base
+image under a writable layer, and built up with layers of differences from the
+base image. This minimizes the footprint of the image and enables shared
+development.
+
+For more about copy-on-write in the context of Docker, see [Understand images,
+containers, and storage
+drivers](https://docs.docker.com/engine/userguide/storagedriver/imagesandcontainers/).
+
 ## container
 
 A container is a runtime instance of a [docker image](#image).
@@ -122,19 +144,21 @@ lightweight Docker development environment designed specifically for the Mac. A
 native Mac application, Docker for Mac uses the macOS Hypervisor framework,
 networking, and filesystem. It's the best solution if you want to build, debug,
 test, package, and ship Dockerized applications on a Mac. Docker for Mac
-supersedes [Docker Toolbox](#toolbox) as state-of-the-art Docker for macOS.
+supersedes [Docker Toolbox](#toolbox) as state-of-the-art Docker on macOS.
+
 
 ## Docker for Windows
 
 [Docker for Windows](https://docs.docker.com/docker-for-windows/) is an
 easy-to-install, lightweight Docker development environment designed
-specifically for Windows systems. Docker for Windows uses Microsoft Hyper-V, and
-runs as a native Windows app. It works with Windows Server 2016, and gives you
-the ability to set up and run Windows containers as well as the standard Linux
-containers (with an option to switch between the two). Docker for Windows is the
-best solution if you want to build, debug, test, package, and ship Dockerized
-applications on Windows machines. It supersedes [Docker Toolbox](#toolbox) as
-state-of-the-art Docker on Windows.
+specifically for Windows 10 systems that support Microsoft Hyper-V
+(Professional, Enterprise and Education). Docker for Windows uses Hyper-V for
+virtualization, and runs as a native Windows app. It works with Windows Server
+2016, and gives you the ability to set up and run Windows containers as well as
+the standard Linux containers, with an option to switch between the two. Docker
+for Windows is the best solution if you want to build, debug, test, package, and
+ship Dockerized applications from Windows machines. Docker for Windows
+supersedes [Docker Toolbox](#toolbox) as state-of-the-art Docker on Windows.
 
 ## Docker Hub
 
@@ -318,13 +342,25 @@ For Windows 10 systems that support Microsoft Hyper-V (Professional, Enterprise
 and Education), [Docker for
 Windows](https://docs.docker.com/docker-for-windows/) is the better solution.
 
-
 ## Union file system
 
-Union file systems, or UnionFS, are file systems that operate by creating
-layers, making them very lightweight and fast. Docker uses union file systems to
-provide the building blocks for containers.
+Union file systems implement a [union
+mount](https://en.wikipedia.org/wiki/Union_mount) and operate by creating
+layers. Docker uses union file systems in conjunction with
+[copy-on-write](#copy-on-write) techniques to provide the building blocks for
+containers, making them very lightweight and fast.
 
+For more on Docker and union file systems, see [Docker and AUFS in
+practice](https://docs.docker.com/engine/userguide/storagedriver/aufs-driver/),
+[Docker and Btrfs in
+practice](https://docs.docker.com/engine/userguide/storagedriver/btrfs-driver/),
+and [Docker and OverlayFS in
+practice](https://docs.docker.com/engine/userguide/storagedriver/overlayfs-driver/)
+
+Example implementations of union file systems are
+[UnionFS](https://en.wikipedia.org/wiki/UnionFS),
+[AUFS](https://en.wikipedia.org/wiki/Aufs), and
+[Btrfs](https://btrfs.wiki.kernel.org/index.php/Main_Page).
 
 ## virtual machine
 
