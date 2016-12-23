@@ -7,7 +7,6 @@ import (
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cli/command"
 	"github.com/docker/docker/opts"
-	runconfigopts "github.com/docker/docker/runconfig/opts"
 	"github.com/spf13/cobra"
 )
 
@@ -23,7 +22,7 @@ type connectOptions struct {
 
 func newConnectCommand(dockerCli *command.DockerCli) *cobra.Command {
 	opts := connectOptions{
-		links: opts.NewListOpts(runconfigopts.ValidateLink),
+		links: opts.NewListOpts(opts.ValidateLink),
 	}
 
 	cmd := &cobra.Command{

@@ -1,4 +1,4 @@
-package opts
+package container
 
 import (
 	"bytes"
@@ -18,24 +18,48 @@ import (
 	"github.com/spf13/pflag"
 )
 
+func TestValidateAttach(t *testing.T) {
+	valid := []string{
+		"stdin",
+		"stdout",
+		"stderr",
+		"STDIN",
+		"STDOUT",
+		"STDERR",
+	}
+	if _, err := validateAttach("invalid"); err == nil {
+		t.Fatalf("Expected error with [valid streams are STDIN, STDOUT and STDERR], got nothing")
+	}
+
+	for _, attach := range valid {
+		value, err := validateAttach(attach)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if value != strings.ToLower(attach) {
+			t.Fatalf("Expected [%v], got [%v]", attach, value)
+		}
+	}
+}
+
 func parseRun(args []string) (*container.Config, *container.HostConfig, *networktypes.NetworkingConfig, error) {
 	flags := pflag.NewFlagSet("run", pflag.ContinueOnError)
 	flags.SetOutput(ioutil.Discard)
 	flags.Usage = nil
-	copts := AddFlags(flags)
+	copts := addFlags(flags)
 	if err := flags.Parse(args); err != nil {
 		return nil, nil, nil, err
 	}
-	return Parse(flags, copts)
+	return parse(flags, copts)
 }
 
-func parse(t *testing.T, args string) (*container.Config, *container.HostConfig, error) {
+func parsetest(t *testing.T, args string) (*container.Config, *container.HostConfig, error) {
 	config, hostConfig, _, err := parseRun(strings.Split(args+" ubuntu bash", " "))
 	return config, hostConfig, err
 }
 
 func mustParse(t *testing.T, args string) (*container.Config, *container.HostConfig) {
-	config, hostConfig, err := parse(t, args)
+	config, hostConfig, err := parsetest(t, args)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -71,28 +95,28 @@ func TestParseRunAttach(t *testing.T) {
 		t.Fatalf("Error parsing attach flags. Expect Stdin enabled. Received: in: %v, out: %v, err: %v", config.AttachStdin, config.AttachStdout, config.AttachStderr)
 	}
 
-	if _, _, err := parse(t, "-a"); err == nil {
+	if _, _, err := parsetest(t, "-a"); err == nil {
 		t.Fatalf("Error parsing attach flags, `-a` should be an error but is not")
 	}
-	if _, _, err := parse(t, "-a invalid"); err == nil {
+	if _, _, err := parsetest(t, "-a invalid"); err == nil {
 		t.Fatalf("Error parsing attach flags, `-a invalid` should be an error but is not")
 	}
-	if _, _, err := parse(t, "-a invalid -a stdout"); err == nil {
+	if _, _, err := parsetest(t, "-a invalid -a stdout"); err == nil {
 		t.Fatalf("Error parsing attach flags, `-a stdout -a invalid` should be an error but is not")
 	}
-	if _, _, err := parse(t, "-a stdout -a stderr -d"); err == nil {
+	if _, _, err := parsetest(t, "-a stdout -a stderr -d"); err == nil {
 		t.Fatalf("Error parsing attach flags, `-a stdout -a stderr -d` should be an error but is not")
 	}
-	if _, _, err := parse(t, "-a stdin -d"); err == nil {
+	if _, _, err := parsetest(t, "-a stdin -d"); err == nil {
 		t.Fatalf("Error parsing attach flags, `-a stdin -d` should be an error but is not")
 	}
-	if _, _, err := parse(t, "-a stdout -d"); err == nil {
+	if _, _, err := parsetest(t, "-a stdout -d"); err == nil {
 		t.Fatalf("Error parsing attach flags, `-a stdout -d` should be an error but is not")
 	}
-	if _, _, err := parse(t, "-a stderr -d"); err == nil {
+	if _, _, err := parsetest(t, "-a stderr -d"); err == nil {
 		t.Fatalf("Error parsing attach flags, `-a stderr -d` should be an error but is not")
 	}
-	if _, _, err := parse(t, "-d --rm"); err == nil {
+	if _, _, err := parsetest(t, "-d --rm"); err == nil {
 		t.Fatalf("Error parsing attach flags, `-d --rm` should be an error but is not")
 	}
 }
@@ -167,172 +191,6 @@ func TestParseRunVolumes(t *testing.T) {
 
 }
 
-// This tests the cases for binds which are generated through
-// DecodeContainerConfig rather than Parse()
-func TestDecodeContainerConfigVolumes(t *testing.T) {
-
-	// Root to root
-	bindsOrVols, _ := setupPlatformVolume([]string{`/:/`}, []string{os.Getenv("SystemDrive") + `\:c:\`})
-	if _, _, err := callDecodeContainerConfig(nil, bindsOrVols); err == nil {
-		t.Fatalf("binds %v should have failed", bindsOrVols)
-	}
-	if _, _, err := callDecodeContainerConfig(bindsOrVols, nil); err == nil {
-		t.Fatalf("volume %v should have failed", bindsOrVols)
-	}
-
-	// No destination path
-	bindsOrVols, _ = setupPlatformVolume([]string{`/tmp:`}, []string{os.Getenv("TEMP") + `\:`})
-	if _, _, err := callDecodeContainerConfig(nil, bindsOrVols); err == nil {
-		t.Fatalf("binds %v should have failed", bindsOrVols)
-	}
-	if _, _, err := callDecodeContainerConfig(bindsOrVols, nil); err == nil {
-		t.Fatalf("volume %v should have failed", bindsOrVols)
-	}
-
-	//	// No destination path or mode
-	bindsOrVols, _ = setupPlatformVolume([]string{`/tmp::`}, []string{os.Getenv("TEMP") + `\::`})
-	if _, _, err := callDecodeContainerConfig(nil, bindsOrVols); err == nil {
-		t.Fatalf("binds %v should have failed", bindsOrVols)
-	}
-	if _, _, err := callDecodeContainerConfig(bindsOrVols, nil); err == nil {
-		t.Fatalf("volume %v should have failed", bindsOrVols)
-	}
-
-	// A whole lot of nothing
-	bindsOrVols = []string{`:`}
-	if _, _, err := callDecodeContainerConfig(nil, bindsOrVols); err == nil {
-		t.Fatalf("binds %v should have failed", bindsOrVols)
-	}
-	if _, _, err := callDecodeContainerConfig(bindsOrVols, nil); err == nil {
-		t.Fatalf("volume %v should have failed", bindsOrVols)
-	}
-
-	// A whole lot of nothing with no mode
-	bindsOrVols = []string{`::`}
-	if _, _, err := callDecodeContainerConfig(nil, bindsOrVols); err == nil {
-		t.Fatalf("binds %v should have failed", bindsOrVols)
-	}
-	if _, _, err := callDecodeContainerConfig(bindsOrVols, nil); err == nil {
-		t.Fatalf("volume %v should have failed", bindsOrVols)
-	}
-
-	// Too much including an invalid mode
-	wTmp := os.Getenv("TEMP")
-	bindsOrVols, _ = setupPlatformVolume([]string{`/tmp:/tmp:/tmp:/tmp`}, []string{wTmp + ":" + wTmp + ":" + wTmp + ":" + wTmp})
-	if _, _, err := callDecodeContainerConfig(nil, bindsOrVols); err == nil {
-		t.Fatalf("binds %v should have failed", bindsOrVols)
-	}
-	if _, _, err := callDecodeContainerConfig(bindsOrVols, nil); err == nil {
-		t.Fatalf("volume %v should have failed", bindsOrVols)
-	}
-
-	// Windows specific error tests
-	if runtime.GOOS == "windows" {
-		// Volume which does not include a drive letter
-		bindsOrVols = []string{`\tmp`}
-		if _, _, err := callDecodeContainerConfig(nil, bindsOrVols); err == nil {
-			t.Fatalf("binds %v should have failed", bindsOrVols)
-		}
-		if _, _, err := callDecodeContainerConfig(bindsOrVols, nil); err == nil {
-			t.Fatalf("volume %v should have failed", bindsOrVols)
-		}
-
-		// Root to C-Drive
-		bindsOrVols = []string{os.Getenv("SystemDrive") + `\:c:`}
-		if _, _, err := callDecodeContainerConfig(nil, bindsOrVols); err == nil {
-			t.Fatalf("binds %v should have failed", bindsOrVols)
-		}
-		if _, _, err := callDecodeContainerConfig(bindsOrVols, nil); err == nil {
-			t.Fatalf("volume %v should have failed", bindsOrVols)
-		}
-
-		// Container path that does not include a drive letter
-		bindsOrVols = []string{`c:\windows:\somewhere`}
-		if _, _, err := callDecodeContainerConfig(nil, bindsOrVols); err == nil {
-			t.Fatalf("binds %v should have failed", bindsOrVols)
-		}
-		if _, _, err := callDecodeContainerConfig(bindsOrVols, nil); err == nil {
-			t.Fatalf("volume %v should have failed", bindsOrVols)
-		}
-	}
-
-	// Linux-specific error tests
-	if runtime.GOOS != "windows" {
-		// Just root
-		bindsOrVols = []string{`/`}
-		if _, _, err := callDecodeContainerConfig(nil, bindsOrVols); err == nil {
-			t.Fatalf("binds %v should have failed", bindsOrVols)
-		}
-		if _, _, err := callDecodeContainerConfig(bindsOrVols, nil); err == nil {
-			t.Fatalf("volume %v should have failed", bindsOrVols)
-		}
-
-		// A single volume that looks like a bind mount passed in Volumes.
-		// This should be handled as a bind mount, not a volume.
-		vols := []string{`/foo:/bar`}
-		if config, hostConfig, err := callDecodeContainerConfig(vols, nil); err != nil {
-			t.Fatal("Volume /foo:/bar should have succeeded as a volume name")
-		} else if hostConfig.Binds != nil {
-			t.Fatalf("Error parsing volume flags, /foo:/bar should not mount-bind anything. Received %v", hostConfig.Binds)
-		} else if _, exists := config.Volumes[vols[0]]; !exists {
-			t.Fatalf("Error parsing volume flags, /foo:/bar is missing from volumes. Received %v", config.Volumes)
-		}
-
-	}
-}
-
-// callDecodeContainerConfig is a utility function used by TestDecodeContainerConfigVolumes
-// to call DecodeContainerConfig. It effectively does what a client would
-// do when calling the daemon by constructing a JSON stream of a
-// ContainerConfigWrapper which is populated by the set of volume specs
-// passed into it. It returns a config and a hostconfig which can be
-// validated to ensure DecodeContainerConfig has manipulated the structures
-// correctly.
-func callDecodeContainerConfig(volumes []string, binds []string) (*container.Config, *container.HostConfig, error) {
-	var (
-		b   []byte
-		err error
-		c   *container.Config
-		h   *container.HostConfig
-	)
-	w := runconfig.ContainerConfigWrapper{
-		Config: &container.Config{
-			Volumes: map[string]struct{}{},
-		},
-		HostConfig: &container.HostConfig{
-			NetworkMode: "none",
-			Binds:       binds,
-		},
-	}
-	for _, v := range volumes {
-		w.Config.Volumes[v] = struct{}{}
-	}
-	if b, err = json.Marshal(w); err != nil {
-		return nil, nil, fmt.Errorf("Error on marshal %s", err.Error())
-	}
-	c, h, _, err = runconfig.DecodeContainerConfig(bytes.NewReader(b))
-	if err != nil {
-		return nil, nil, fmt.Errorf("Error parsing %s: %v", string(b), err)
-	}
-	if c == nil || h == nil {
-		return nil, nil, fmt.Errorf("Empty config or hostconfig")
-	}
-
-	return c, h, err
-}
-
-// check if (a == c && b == d) || (a == d && b == c)
-// because maps are randomized
-func compareRandomizedStrings(a, b, c, d string) error {
-	if a == c && b == d {
-		return nil
-	}
-	if a == d && b == c {
-		return nil
-	}
-	return fmt.Errorf("strings don't match")
-}
-
 // setupPlatformVolume takes two arrays of volume specs - a Unix style
 // spec and a Windows style spec. Depending on the platform being unit tested,
 // it returns one of them, along with a volume string that would be passed
@@ -349,6 +207,18 @@ func setupPlatformVolume(u []string, w []string) ([]string, string) {
 		s = s + "-v " + v + " "
 	}
 	return a, s
+}
+
+// check if (a == c && b == d) || (a == d && b == c)
+// because maps are randomized
+func compareRandomizedStrings(a, b, c, d string) error {
+	if a == c && b == d {
+		return nil
+	}
+	if a == d && b == c {
+		return nil
+	}
+	return fmt.Errorf("strings don't match")
 }
 
 // Simple parse with MacAddress validation
@@ -650,14 +520,14 @@ func TestParseEnvfileVariables(t *testing.T) {
 		t.Fatalf("Expected an error with message '%s', got %v", e, err)
 	}
 	// env ok
-	config, _, _, err := parseRun([]string{"--env-file=fixtures/valid.env", "img", "cmd"})
+	config, _, _, err := parseRun([]string{"--env-file=testdata/valid.env", "img", "cmd"})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(config.Env) != 1 || config.Env[0] != "ENV1=value1" {
 		t.Fatalf("Expected a config with [ENV1=value1], got %v", config.Env)
 	}
-	config, _, _, err = parseRun([]string{"--env-file=fixtures/valid.env", "--env=ENV2=value2", "img", "cmd"})
+	config, _, _, err = parseRun([]string{"--env-file=testdata/valid.env", "--env=ENV2=value2", "img", "cmd"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -668,7 +538,7 @@ func TestParseEnvfileVariables(t *testing.T) {
 
 func TestParseEnvfileVariablesWithBOMUnicode(t *testing.T) {
 	// UTF8 with BOM
-	config, _, _, err := parseRun([]string{"--env-file=fixtures/utf8.env", "img", "cmd"})
+	config, _, _, err := parseRun([]string{"--env-file=testdata/utf8.env", "img", "cmd"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -684,11 +554,11 @@ func TestParseEnvfileVariablesWithBOMUnicode(t *testing.T) {
 
 	// UTF16 with BOM
 	e := "contains invalid utf8 bytes at line"
-	if _, _, _, err := parseRun([]string{"--env-file=fixtures/utf16.env", "img", "cmd"}); err == nil || !strings.Contains(err.Error(), e) {
+	if _, _, _, err := parseRun([]string{"--env-file=testdata/utf16.env", "img", "cmd"}); err == nil || !strings.Contains(err.Error(), e) {
 		t.Fatalf("Expected an error with message '%s', got %v", e, err)
 	}
 	// UTF16BE with BOM
-	if _, _, _, err := parseRun([]string{"--env-file=fixtures/utf16be.env", "img", "cmd"}); err == nil || !strings.Contains(err.Error(), e) {
+	if _, _, _, err := parseRun([]string{"--env-file=testdata/utf16be.env", "img", "cmd"}); err == nil || !strings.Contains(err.Error(), e) {
 		t.Fatalf("Expected an error with message '%s', got %v", e, err)
 	}
 }
@@ -703,14 +573,14 @@ func TestParseLabelfileVariables(t *testing.T) {
 		t.Fatalf("Expected an error with message '%s', got %v", e, err)
 	}
 	// label ok
-	config, _, _, err := parseRun([]string{"--label-file=fixtures/valid.label", "img", "cmd"})
+	config, _, _, err := parseRun([]string{"--label-file=testdata/valid.label", "img", "cmd"})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(config.Labels) != 1 || config.Labels["LABEL1"] != "value1" {
 		t.Fatalf("Expected a config with [LABEL1:value1], got %v", config.Labels)
 	}
-	config, _, _, err = parseRun([]string{"--label-file=fixtures/valid.label", "--label=LABEL2=value2", "img", "cmd"})
+	config, _, _, err = parseRun([]string{"--label-file=testdata/valid.label", "--label=LABEL2=value2", "img", "cmd"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -729,116 +599,158 @@ func TestParseEntryPoint(t *testing.T) {
 	}
 }
 
-func TestValidateLink(t *testing.T) {
-	valid := []string{
-		"name",
-		"dcdfbe62ecd0:alias",
-		"7a67485460b7642516a4ad82ecefe7f57d0c4916f530561b71a50a3f9c4e33da",
-		"angry_torvalds:linus",
+// This tests the cases for binds which are generated through
+// DecodeContainerConfig rather than Parse()
+func TestDecodeContainerConfigVolumes(t *testing.T) {
+
+	// Root to root
+	bindsOrVols, _ := setupPlatformVolume([]string{`/:/`}, []string{os.Getenv("SystemDrive") + `\:c:\`})
+	if _, _, err := callDecodeContainerConfig(nil, bindsOrVols); err == nil {
+		t.Fatalf("binds %v should have failed", bindsOrVols)
 	}
-	invalid := map[string]string{
-		"":               "empty string specified for links",
-		"too:much:of:it": "bad format for links: too:much:of:it",
+	if _, _, err := callDecodeContainerConfig(bindsOrVols, nil); err == nil {
+		t.Fatalf("volume %v should have failed", bindsOrVols)
 	}
 
-	for _, link := range valid {
-		if _, err := ValidateLink(link); err != nil {
-			t.Fatalf("ValidateLink(`%q`) should succeed: error %q", link, err)
+	// No destination path
+	bindsOrVols, _ = setupPlatformVolume([]string{`/tmp:`}, []string{os.Getenv("TEMP") + `\:`})
+	if _, _, err := callDecodeContainerConfig(nil, bindsOrVols); err == nil {
+		t.Fatalf("binds %v should have failed", bindsOrVols)
+	}
+	if _, _, err := callDecodeContainerConfig(bindsOrVols, nil); err == nil {
+		t.Fatalf("volume %v should have failed", bindsOrVols)
+	}
+
+	//	// No destination path or mode
+	bindsOrVols, _ = setupPlatformVolume([]string{`/tmp::`}, []string{os.Getenv("TEMP") + `\::`})
+	if _, _, err := callDecodeContainerConfig(nil, bindsOrVols); err == nil {
+		t.Fatalf("binds %v should have failed", bindsOrVols)
+	}
+	if _, _, err := callDecodeContainerConfig(bindsOrVols, nil); err == nil {
+		t.Fatalf("volume %v should have failed", bindsOrVols)
+	}
+
+	// A whole lot of nothing
+	bindsOrVols = []string{`:`}
+	if _, _, err := callDecodeContainerConfig(nil, bindsOrVols); err == nil {
+		t.Fatalf("binds %v should have failed", bindsOrVols)
+	}
+	if _, _, err := callDecodeContainerConfig(bindsOrVols, nil); err == nil {
+		t.Fatalf("volume %v should have failed", bindsOrVols)
+	}
+
+	// A whole lot of nothing with no mode
+	bindsOrVols = []string{`::`}
+	if _, _, err := callDecodeContainerConfig(nil, bindsOrVols); err == nil {
+		t.Fatalf("binds %v should have failed", bindsOrVols)
+	}
+	if _, _, err := callDecodeContainerConfig(bindsOrVols, nil); err == nil {
+		t.Fatalf("volume %v should have failed", bindsOrVols)
+	}
+
+	// Too much including an invalid mode
+	wTmp := os.Getenv("TEMP")
+	bindsOrVols, _ = setupPlatformVolume([]string{`/tmp:/tmp:/tmp:/tmp`}, []string{wTmp + ":" + wTmp + ":" + wTmp + ":" + wTmp})
+	if _, _, err := callDecodeContainerConfig(nil, bindsOrVols); err == nil {
+		t.Fatalf("binds %v should have failed", bindsOrVols)
+	}
+	if _, _, err := callDecodeContainerConfig(bindsOrVols, nil); err == nil {
+		t.Fatalf("volume %v should have failed", bindsOrVols)
+	}
+
+	// Windows specific error tests
+	if runtime.GOOS == "windows" {
+		// Volume which does not include a drive letter
+		bindsOrVols = []string{`\tmp`}
+		if _, _, err := callDecodeContainerConfig(nil, bindsOrVols); err == nil {
+			t.Fatalf("binds %v should have failed", bindsOrVols)
+		}
+		if _, _, err := callDecodeContainerConfig(bindsOrVols, nil); err == nil {
+			t.Fatalf("volume %v should have failed", bindsOrVols)
+		}
+
+		// Root to C-Drive
+		bindsOrVols = []string{os.Getenv("SystemDrive") + `\:c:`}
+		if _, _, err := callDecodeContainerConfig(nil, bindsOrVols); err == nil {
+			t.Fatalf("binds %v should have failed", bindsOrVols)
+		}
+		if _, _, err := callDecodeContainerConfig(bindsOrVols, nil); err == nil {
+			t.Fatalf("volume %v should have failed", bindsOrVols)
+		}
+
+		// Container path that does not include a drive letter
+		bindsOrVols = []string{`c:\windows:\somewhere`}
+		if _, _, err := callDecodeContainerConfig(nil, bindsOrVols); err == nil {
+			t.Fatalf("binds %v should have failed", bindsOrVols)
+		}
+		if _, _, err := callDecodeContainerConfig(bindsOrVols, nil); err == nil {
+			t.Fatalf("volume %v should have failed", bindsOrVols)
 		}
 	}
 
-	for link, expectedError := range invalid {
-		if _, err := ValidateLink(link); err == nil {
-			t.Fatalf("ValidateLink(`%q`) should have failed validation", link)
-		} else {
-			if !strings.Contains(err.Error(), expectedError) {
-				t.Fatalf("ValidateLink(`%q`) error should contain %q", link, expectedError)
-			}
+	// Linux-specific error tests
+	if runtime.GOOS != "windows" {
+		// Just root
+		bindsOrVols = []string{`/`}
+		if _, _, err := callDecodeContainerConfig(nil, bindsOrVols); err == nil {
+			t.Fatalf("binds %v should have failed", bindsOrVols)
 		}
+		if _, _, err := callDecodeContainerConfig(bindsOrVols, nil); err == nil {
+			t.Fatalf("volume %v should have failed", bindsOrVols)
+		}
+
+		// A single volume that looks like a bind mount passed in Volumes.
+		// This should be handled as a bind mount, not a volume.
+		vols := []string{`/foo:/bar`}
+		if config, hostConfig, err := callDecodeContainerConfig(vols, nil); err != nil {
+			t.Fatal("Volume /foo:/bar should have succeeded as a volume name")
+		} else if hostConfig.Binds != nil {
+			t.Fatalf("Error parsing volume flags, /foo:/bar should not mount-bind anything. Received %v", hostConfig.Binds)
+		} else if _, exists := config.Volumes[vols[0]]; !exists {
+			t.Fatalf("Error parsing volume flags, /foo:/bar is missing from volumes. Received %v", config.Volumes)
+		}
+
 	}
 }
 
-func TestParseLink(t *testing.T) {
-	name, alias, err := ParseLink("name:alias")
+// callDecodeContainerConfig is a utility function used by TestDecodeContainerConfigVolumes
+// to call DecodeContainerConfig. It effectively does what a client would
+// do when calling the daemon by constructing a JSON stream of a
+// ContainerConfigWrapper which is populated by the set of volume specs
+// passed into it. It returns a config and a hostconfig which can be
+// validated to ensure DecodeContainerConfig has manipulated the structures
+// correctly.
+func callDecodeContainerConfig(volumes []string, binds []string) (*container.Config, *container.HostConfig, error) {
+	var (
+		b   []byte
+		err error
+		c   *container.Config
+		h   *container.HostConfig
+	)
+	w := runconfig.ContainerConfigWrapper{
+		Config: &container.Config{
+			Volumes: map[string]struct{}{},
+		},
+		HostConfig: &container.HostConfig{
+			NetworkMode: "none",
+			Binds:       binds,
+		},
+	}
+	for _, v := range volumes {
+		w.Config.Volumes[v] = struct{}{}
+	}
+	if b, err = json.Marshal(w); err != nil {
+		return nil, nil, fmt.Errorf("Error on marshal %s", err.Error())
+	}
+	c, h, _, err = runconfig.DecodeContainerConfig(bytes.NewReader(b))
 	if err != nil {
-		t.Fatalf("Expected not to error out on a valid name:alias format but got: %v", err)
+		return nil, nil, fmt.Errorf("Error parsing %s: %v", string(b), err)
 	}
-	if name != "name" {
-		t.Fatalf("Link name should have been name, got %s instead", name)
-	}
-	if alias != "alias" {
-		t.Fatalf("Link alias should have been alias, got %s instead", alias)
-	}
-	// short format definition
-	name, alias, err = ParseLink("name")
-	if err != nil {
-		t.Fatalf("Expected not to error out on a valid name only format but got: %v", err)
-	}
-	if name != "name" {
-		t.Fatalf("Link name should have been name, got %s instead", name)
-	}
-	if alias != "name" {
-		t.Fatalf("Link alias should have been name, got %s instead", alias)
-	}
-	// empty string link definition is not allowed
-	if _, _, err := ParseLink(""); err == nil || !strings.Contains(err.Error(), "empty string specified for links") {
-		t.Fatalf("Expected error 'empty string specified for links' but got: %v", err)
-	}
-	// more than two colons are not allowed
-	if _, _, err := ParseLink("link:alias:wrong"); err == nil || !strings.Contains(err.Error(), "bad format for links: link:alias:wrong") {
-		t.Fatalf("Expected error 'bad format for links: link:alias:wrong' but got: %v", err)
-	}
-}
-
-func TestValidateDevice(t *testing.T) {
-	valid := []string{
-		"/home",
-		"/home:/home",
-		"/home:/something/else",
-		"/with space",
-		"/home:/with space",
-		"relative:/absolute-path",
-		"hostPath:/containerPath:r",
-		"/hostPath:/containerPath:rw",
-		"/hostPath:/containerPath:mrw",
-	}
-	invalid := map[string]string{
-		"":        "bad format for path: ",
-		"./":      "./ is not an absolute path",
-		"../":     "../ is not an absolute path",
-		"/:../":   "../ is not an absolute path",
-		"/:path":  "path is not an absolute path",
-		":":       "bad format for path: :",
-		"/tmp:":   " is not an absolute path",
-		":test":   "bad format for path: :test",
-		":/test":  "bad format for path: :/test",
-		"tmp:":    " is not an absolute path",
-		":test:":  "bad format for path: :test:",
-		"::":      "bad format for path: ::",
-		":::":     "bad format for path: :::",
-		"/tmp:::": "bad format for path: /tmp:::",
-		":/tmp::": "bad format for path: :/tmp::",
-		"path:ro": "ro is not an absolute path",
-		"path:rr": "rr is not an absolute path",
-		"a:/b:ro": "bad mode specified: ro",
-		"a:/b:rr": "bad mode specified: rr",
+	if c == nil || h == nil {
+		return nil, nil, fmt.Errorf("Empty config or hostconfig")
 	}
 
-	for _, path := range valid {
-		if _, err := ValidateDevice(path); err != nil {
-			t.Fatalf("ValidateDevice(`%q`) should succeed: error %q", path, err)
-		}
-	}
-
-	for path, expectedError := range invalid {
-		if _, err := ValidateDevice(path); err == nil {
-			t.Fatalf("ValidateDevice(`%q`) should have failed validation", path)
-		} else {
-			if err.Error() != expectedError {
-				t.Fatalf("ValidateDevice(`%q`) error should contain %q, got %q", path, expectedError, err.Error())
-			}
-		}
-	}
+	return c, h, err
 }
 
 func TestVolumeSplitN(t *testing.T) {
@@ -888,6 +800,57 @@ func TestVolumeSplitN(t *testing.T) {
 		for i, e := range res {
 			if e != x.expected[i] {
 				t.Fatalf("input: %v, expected: %v, got: %v", x.input, x.expected, res)
+			}
+		}
+	}
+}
+
+func TestValidateDevice(t *testing.T) {
+	valid := []string{
+		"/home",
+		"/home:/home",
+		"/home:/something/else",
+		"/with space",
+		"/home:/with space",
+		"relative:/absolute-path",
+		"hostPath:/containerPath:r",
+		"/hostPath:/containerPath:rw",
+		"/hostPath:/containerPath:mrw",
+	}
+	invalid := map[string]string{
+		"":        "bad format for path: ",
+		"./":      "./ is not an absolute path",
+		"../":     "../ is not an absolute path",
+		"/:../":   "../ is not an absolute path",
+		"/:path":  "path is not an absolute path",
+		":":       "bad format for path: :",
+		"/tmp:":   " is not an absolute path",
+		":test":   "bad format for path: :test",
+		":/test":  "bad format for path: :/test",
+		"tmp:":    " is not an absolute path",
+		":test:":  "bad format for path: :test:",
+		"::":      "bad format for path: ::",
+		":::":     "bad format for path: :::",
+		"/tmp:::": "bad format for path: /tmp:::",
+		":/tmp::": "bad format for path: :/tmp::",
+		"path:ro": "ro is not an absolute path",
+		"path:rr": "rr is not an absolute path",
+		"a:/b:ro": "bad mode specified: ro",
+		"a:/b:rr": "bad mode specified: rr",
+	}
+
+	for _, path := range valid {
+		if _, err := validateDevice(path); err != nil {
+			t.Fatalf("ValidateDevice(`%q`) should succeed: error %q", path, err)
+		}
+	}
+
+	for path, expectedError := range invalid {
+		if _, err := validateDevice(path); err == nil {
+			t.Fatalf("ValidateDevice(`%q`) should have failed validation", path)
+		} else {
+			if err.Error() != expectedError {
+				t.Fatalf("ValidateDevice(`%q`) error should contain %q, got %q", path, expectedError, err.Error())
 			}
 		}
 	}

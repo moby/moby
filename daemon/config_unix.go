@@ -5,7 +5,7 @@ package daemon
 import (
 	"fmt"
 
-	runconfigopts "github.com/docker/docker/runconfig/opts"
+	"github.com/docker/docker/opts"
 	units "github.com/docker/go-units"
 	"github.com/spf13/pflag"
 )
@@ -68,7 +68,7 @@ func (config *Config) InstallFlags(flags *pflag.FlagSet) {
 
 	// Then platform-specific install flags
 	flags.BoolVar(&config.EnableSelinuxSupport, "selinux-enabled", false, "Enable selinux support")
-	flags.Var(runconfigopts.NewUlimitOpt(&config.Ulimits), "default-ulimit", "Default ulimits for containers")
+	flags.Var(opts.NewUlimitOpt(&config.Ulimits), "default-ulimit", "Default ulimits for containers")
 	flags.BoolVar(&config.bridgeConfig.EnableIPTables, "iptables", true, "Enable addition of iptables rules")
 	flags.BoolVar(&config.bridgeConfig.EnableIPForward, "ip-forward", true, "Enable net.ipv4.ip_forward")
 	flags.BoolVar(&config.bridgeConfig.EnableIPMasq, "ip-masq", true, "Enable IP masquerading")

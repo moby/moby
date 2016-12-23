@@ -18,7 +18,6 @@ import (
 	apiclient "github.com/docker/docker/client"
 	"github.com/docker/docker/reference"
 	"github.com/docker/docker/registry"
-	runconfigopts "github.com/docker/docker/runconfig/opts"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 )
@@ -30,7 +29,7 @@ type createOptions struct {
 // NewCreateCommand creates a new cobra.Command for `docker create`
 func NewCreateCommand(dockerCli *command.DockerCli) *cobra.Command {
 	var opts createOptions
-	var copts *runconfigopts.ContainerOptions
+	var copts *containerOptions
 
 	cmd := &cobra.Command{
 		Use:   "create [OPTIONS] IMAGE [COMMAND] [ARG...]",
@@ -55,12 +54,12 @@ func NewCreateCommand(dockerCli *command.DockerCli) *cobra.Command {
 	flags.Bool("help", false, "Print usage")
 
 	command.AddTrustedFlags(flags, true)
-	copts = runconfigopts.AddFlags(flags)
+	copts = addFlags(flags)
 	return cmd
 }
 
-func runCreate(dockerCli *command.DockerCli, flags *pflag.FlagSet, opts *createOptions, copts *runconfigopts.ContainerOptions) error {
-	config, hostConfig, networkingConfig, err := runconfigopts.Parse(flags, copts)
+func runCreate(dockerCli *command.DockerCli, flags *pflag.FlagSet, opts *createOptions, copts *containerOptions) error {
+	config, hostConfig, networkingConfig, err := parse(flags, copts)
 	if err != nil {
 		reportError(dockerCli.Err(), "create", err.Error(), true)
 		return cli.StatusError{StatusCode: 125}

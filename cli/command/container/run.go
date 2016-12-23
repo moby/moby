@@ -18,7 +18,6 @@ import (
 	opttypes "github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/promise"
 	"github.com/docker/docker/pkg/signal"
-	runconfigopts "github.com/docker/docker/runconfig/opts"
 	"github.com/docker/libnetwork/resolvconf/dns"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -34,7 +33,7 @@ type runOptions struct {
 // NewRunCommand create a new `docker run` command
 func NewRunCommand(dockerCli *command.DockerCli) *cobra.Command {
 	var opts runOptions
-	var copts *runconfigopts.ContainerOptions
+	var copts *containerOptions
 
 	cmd := &cobra.Command{
 		Use:   "run [OPTIONS] IMAGE [COMMAND] [ARG...]",
@@ -63,11 +62,11 @@ func NewRunCommand(dockerCli *command.DockerCli) *cobra.Command {
 	flags.Bool("help", false, "Print usage")
 
 	command.AddTrustedFlags(flags, true)
-	copts = runconfigopts.AddFlags(flags)
+	copts = addFlags(flags)
 	return cmd
 }
 
-func runRun(dockerCli *command.DockerCli, flags *pflag.FlagSet, opts *runOptions, copts *runconfigopts.ContainerOptions) error {
+func runRun(dockerCli *command.DockerCli, flags *pflag.FlagSet, opts *runOptions, copts *containerOptions) error {
 	stdout, stderr, stdin := dockerCli.Out(), dockerCli.Err(), dockerCli.In()
 	client := dockerCli.Client()
 	// TODO: pass this as an argument
@@ -79,9 +78,9 @@ func runRun(dockerCli *command.DockerCli, flags *pflag.FlagSet, opts *runOptions
 		ErrConflictRestartPolicyAndAutoRemove = fmt.Errorf("Conflicting options: --restart and --rm")
 	)
 
-	config, hostConfig, networkingConfig, err := runconfigopts.Parse(flags, copts)
+	config, hostConfig, networkingConfig, err := parse(flags, copts)
 
-	// just in case the Parse does not exit
+	// just in case the parse does not exit
 	if err != nil {
 		reportError(stderr, cmdPath, err.Error(), true)
 		return cli.StatusError{StatusCode: 125}

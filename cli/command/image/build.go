@@ -11,8 +11,6 @@ import (
 	"regexp"
 	"runtime"
 
-	"golang.org/x/net/context"
-
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
@@ -31,6 +29,7 @@ import (
 	runconfigopts "github.com/docker/docker/runconfig/opts"
 	"github.com/docker/go-units"
 	"github.com/spf13/cobra"
+	"golang.org/x/net/context"
 )
 
 type buildOptions struct {
@@ -39,7 +38,7 @@ type buildOptions struct {
 	tags           opts.ListOpts
 	labels         opts.ListOpts
 	buildArgs      opts.ListOpts
-	ulimits        *runconfigopts.UlimitOpt
+	ulimits        *opts.UlimitOpt
 	memory         string
 	memorySwap     string
 	shmSize        string
@@ -67,9 +66,9 @@ func NewBuildCommand(dockerCli *command.DockerCli) *cobra.Command {
 	ulimits := make(map[string]*units.Ulimit)
 	options := buildOptions{
 		tags:      opts.NewListOpts(validateTag),
-		buildArgs: opts.NewListOpts(runconfigopts.ValidateEnv),
-		ulimits:   runconfigopts.NewUlimitOpt(&ulimits),
-		labels:    opts.NewListOpts(runconfigopts.ValidateEnv),
+		buildArgs: opts.NewListOpts(opts.ValidateEnv),
+		ulimits:   opts.NewUlimitOpt(&ulimits),
+		labels:    opts.NewListOpts(opts.ValidateEnv),
 	}
 
 	cmd := &cobra.Command{
