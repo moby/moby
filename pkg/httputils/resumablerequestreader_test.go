@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestResumableRequestHeaderSimpleErrors(t *testing.T) {
@@ -55,10 +56,11 @@ func TestResumableRequestHeaderNotTooMuchFailures(t *testing.T) {
 	}
 
 	resreq := &resumableRequestReader{
-		client:      client,
-		request:     badReq,
-		failures:    0,
-		maxFailures: 2,
+		client:       client,
+		request:      badReq,
+		failures:     0,
+		maxFailures:  2,
+		waitDuration: 10 * time.Millisecond,
 	}
 	read, err := resreq.Read([]byte{})
 	if err != nil || read != 0 {

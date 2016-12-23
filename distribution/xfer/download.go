@@ -22,8 +22,9 @@ const maxDownloadAttempts = 5
 // registers and downloads those, taking into account dependencies between
 // layers.
 type LayerDownloadManager struct {
-	layerStore layer.Store
-	tm         TransferManager
+	layerStore   layer.Store
+	tm           TransferManager
+	waitDuration time.Duration
 }
 
 // SetConcurrency sets the max concurrent downloads for each pull
@@ -32,11 +33,16 @@ func (ldm *LayerDownloadManager) SetConcurrency(concurrency int) {
 }
 
 // NewLayerDownloadManager returns a new LayerDownloadManager.
-func NewLayerDownloadManager(layerStore layer.Store, concurrencyLimit int) *LayerDownloadManager {
-	return &LayerDownloadManager{
-		layerStore: layerStore,
-		tm:         NewTransferManager(concurrencyLimit),
+func NewLayerDownloadManager(layerStore layer.Store, concurrencyLimit int, options ...func(*LayerDownloadManager)) *LayerDownloadManager {
+	manager := LayerDownloadManager{
+		layerStore:   layerStore,
+		tm:           NewTransferManager(concurrencyLimit),
+		waitDuration: time.Second,
 	}
+	for _, option := range options {
+		option(&manager)
+	}
+	return &manager
 }
 
 type downloadTransfer struct {
@@ -269,7 +275,7 @@ func (ldm *LayerDownloadManager) makeDownloadFunc(descriptor DownloadDescriptor,
 
 				logrus.Errorf("Download failed, retrying: %v", err)
 				delay := retries * 5
-				ticker := time.NewTicker(time.Second)
+				ticker := time.NewTicker(ldm.waitDuration)
 
 			selectLoop:
 				for {
