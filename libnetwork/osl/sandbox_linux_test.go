@@ -7,6 +7,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"syscall"
 	"testing"
@@ -190,17 +191,32 @@ func TestDisableIPv6DAD(t *testing.T) {
 
 	defer testutils.SetupTestOSContext(t)()
 
+	key, err := newKey(t)
+	if err != nil {
+		t.Fatalf("Failed to obtain a key: %v", err)
+	}
+
+	s, err := NewSandbox(key, true, false)
+	if err != nil {
+		t.Fatalf("Failed to create a new sandbox: %v", err)
+	}
+	runtime.LockOSThread()
+	defer s.Destroy()
+
+	n, ok := s.(*networkNamespace)
+	if !ok {
+		t.Fatal(ok)
+	}
+	nlh := n.nlHandle
+
 	ipv6, _ := types.ParseCIDR("2001:db8::44/64")
-	iface := &nwIface{addressIPv6: ipv6}
+	iface := &nwIface{addressIPv6: ipv6, ns: n, dstName: "sideA"}
 
 	veth := &netlink.Veth{
 		LinkAttrs: netlink.LinkAttrs{Name: "sideA"},
 		PeerName:  "sideB",
 	}
-	nlh, err := netlink.NewHandle(syscall.NETLINK_ROUTE)
-	if err != nil {
-		t.Fatal(err)
-	}
+
 	err = nlh.LinkAdd(veth)
 	if err != nil {
 		t.Fatal(err)
@@ -229,14 +245,27 @@ func TestDisableIPv6DAD(t *testing.T) {
 func TestSetInterfaceIP(t *testing.T) {
 	defer testutils.SetupTestOSContext(t)()
 
+	key, err := newKey(t)
+	if err != nil {
+		t.Fatalf("Failed to obtain a key: %v", err)
+	}
+
+	s, err := NewSandbox(key, true, false)
+	if err != nil {
+		t.Fatalf("Failed to create a new sandbox: %v", err)
+	}
+	runtime.LockOSThread()
+	defer s.Destroy()
+
+	n, ok := s.(*networkNamespace)
+	if !ok {
+		t.Fatal(ok)
+	}
+	nlh := n.nlHandle
+
 	ipv4, _ := types.ParseCIDR("172.30.0.33/24")
 	ipv6, _ := types.ParseCIDR("2001:db8::44/64")
-	iface := &nwIface{address: ipv4, addressIPv6: ipv6}
-
-	nlh, err := netlink.NewHandle(syscall.NETLINK_ROUTE)
-	if err != nil {
-		t.Fatal(err)
-	}
+	iface := &nwIface{address: ipv4, addressIPv6: ipv6, ns: n, dstName: "sideA"}
 
 	if err := nlh.LinkAdd(&netlink.Veth{
 		LinkAttrs: netlink.LinkAttrs{Name: "sideA"},
