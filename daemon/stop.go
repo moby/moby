@@ -52,7 +52,7 @@ func (daemon *Daemon) containerStop(container *container.Container, seconds int)
 	if err := daemon.killPossiblyDeadProcess(container, stopSignal); err != nil {
 		// While normally we might "return err" here we're not going to
 		// because if we can't stop the container by this point then
-		// its probably because its already stopped. Meaning, between
+		// it's probably because it's already stopped. Meaning, between
 		// the time of the IsRunning() call above and now it stopped.
 		// Also, since the err return will be environment specific we can't
 		// look for any particular (common) error that would indicate

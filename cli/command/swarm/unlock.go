@@ -37,7 +37,7 @@ func runUnlock(dockerCli *command.DockerCli, opts unlockOptions) error {
 	client := dockerCli.Client()
 	ctx := context.Background()
 
-	// First see if the node is actually part of a swarm, and if it's is actually locked first.
+	// First see if the node is actually part of a swarm, and if it is actually locked first.
 	// If it's in any other state than locked, don't ask for the key.
 	info, err := client.Info(ctx)
 	if err != nil {
