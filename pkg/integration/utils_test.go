@@ -234,7 +234,7 @@ func TestConsumeWithSpeed(t *testing.T) {
 	reader := strings.NewReader("1234567890")
 	chunksize := 2
 
-	bytes1, err := ConsumeWithSpeed(reader, chunksize, 1*time.Second, nil)
+	bytes1, err := ConsumeWithSpeed(reader, chunksize, 10*time.Millisecond, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

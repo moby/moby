@@ -79,7 +79,7 @@ func uploadDescriptors(currentUploads *int32) []UploadDescriptor {
 }
 
 func TestSuccessfulUpload(t *testing.T) {
-	lum := NewLayerUploadManager(maxUploadConcurrency)
+	lum := NewLayerUploadManager(maxUploadConcurrency, func(m *LayerUploadManager) { m.waitDuration = time.Millisecond })
 
 	progressChan := make(chan progress.Progress)
 	progressDone := make(chan struct{})
@@ -105,7 +105,7 @@ func TestSuccessfulUpload(t *testing.T) {
 }
 
 func TestCancelledUpload(t *testing.T) {
-	lum := NewLayerUploadManager(maxUploadConcurrency)
+	lum := NewLayerUploadManager(maxUploadConcurrency, func(m *LayerUploadManager) { m.waitDuration = time.Millisecond })
 
 	progressChan := make(chan progress.Progress)
 	progressDone := make(chan struct{})

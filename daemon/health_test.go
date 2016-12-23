@@ -39,6 +39,7 @@ func TestNoneHealthcheck(t *testing.T) {
 	}
 }
 
+// FIXME(vdemeester) This takes around 3s… This is *way* too long
 func TestHealthStates(t *testing.T) {
 	e := events.New()
 	_, l, _ := e.Subscribe()
