@@ -23,7 +23,7 @@ type createOptions struct {
 
 func newSecretCreateCommand(dockerCli *command.DockerCli) *cobra.Command {
 	createOpts := createOptions{
-		labels: opts.NewListOpts(runconfigopts.ValidateEnv),
+		labels: opts.NewListOpts(opts.ValidateEnv),
 	}
 
 	cmd := &cobra.Command{

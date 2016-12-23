@@ -3,14 +3,13 @@ package volume
 import (
 	"fmt"
 
-	"golang.org/x/net/context"
-
 	volumetypes "github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cli/command"
 	"github.com/docker/docker/opts"
 	runconfigopts "github.com/docker/docker/runconfig/opts"
 	"github.com/spf13/cobra"
+	"golang.org/x/net/context"
 )
 
 type createOptions struct {
@@ -23,7 +22,7 @@ type createOptions struct {
 func newCreateCommand(dockerCli *command.DockerCli) *cobra.Command {
 	opts := createOptions{
 		driverOpts: *opts.NewMapOpts(nil, nil),
-		labels:     opts.NewListOpts(runconfigopts.ValidateEnv),
+		labels:     opts.NewListOpts(opts.ValidateEnv),
 	}
 
 	cmd := &cobra.Command{

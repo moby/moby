@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/big"
 	"net"
+	"path"
 	"regexp"
 	"strings"
 
@@ -231,6 +232,15 @@ func ValidateIPAddress(val string) (string, error) {
 	return "", fmt.Errorf("%s is not an ip address", val)
 }
 
+// ValidateMACAddress validates a MAC address.
+func ValidateMACAddress(val string) (string, error) {
+	_, err := net.ParseMAC(strings.TrimSpace(val))
+	if err != nil {
+		return "", err
+	}
+	return val, nil
+}
+
 // ValidateDNSSearch validates domain for resolvconf search configuration.
 // A zero length domain is represented by a dot (.).
 func ValidateDNSSearch(val string) (string, error) {
@@ -363,4 +373,32 @@ func ParseCPUs(value string) (int64, error) {
 		return 0, fmt.Errorf("value is too precise")
 	}
 	return nano.Num().Int64(), nil
+}
+
+// ParseLink parses and validates the specified string as a link format (name:alias)
+func ParseLink(val string) (string, string, error) {
+	if val == "" {
+		return "", "", fmt.Errorf("empty string specified for links")
+	}
+	arr := strings.Split(val, ":")
+	if len(arr) > 2 {
+		return "", "", fmt.Errorf("bad format for links: %s", val)
+	}
+	if len(arr) == 1 {
+		return val, val, nil
+	}
+	// This is kept because we can actually get a HostConfig with links
+	// from an already created container and the format is not `foo:bar`
+	// but `/foo:/c1/bar`
+	if strings.HasPrefix(arr[0], "/") {
+		_, alias := path.Split(arr[1])
+		return arr[0][1:], alias, nil
+	}
+	return arr[0], arr[1], nil
+}
+
+// ValidateLink validates that the specified string has a valid link format (containerName:alias).
+func ValidateLink(val string) (string, error) {
+	_, _, err := ParseLink(val)
+	return val, err
 }
