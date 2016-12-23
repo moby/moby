@@ -203,7 +203,7 @@ func verifyPlatformContainerSettings(daemon *Daemon, hostConfig *containertypes.
 	return warnings, err
 }
 
-// platformReload update configuration with platform specific options
+// platformReload updates configuration with platform specific options
 func (daemon *Daemon) platformReload(config *Config) map[string]string {
 	return map[string]string{}
 }

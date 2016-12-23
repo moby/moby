@@ -188,7 +188,7 @@ func (b *Builder) runContextCommand(args []string, allowRemote bool, allowLocalD
 
 	comment := fmt.Sprintf("%s %s in %s", cmdName, origPaths, dest)
 
-	// Twiddle the destination when its a relative path - meaning, make it
+	// Twiddle the destination when it's a relative path - meaning, make it
 	// relative to the WORKINGDIR
 	if dest, err = normaliseDest(cmdName, b.runConfig.WorkingDir, dest); err != nil {
 		return err
@@ -384,11 +384,11 @@ func (b *Builder) processImageFrom(img builder.Image) error {
 	}
 
 	// Check to see if we have a default PATH, note that windows won't
-	// have one as its set by HCS
+	// have one as it's set by HCS
 	if system.DefaultPathEnv != "" {
 		// Convert the slice of strings that represent the current list
 		// of env vars into a map so we can see if PATH is already set.
-		// If its not set then go ahead and give it our default value
+		// If it's not set then go ahead and give it our default value
 		configEnv := opts.ConvertKVStringsToMap(b.runConfig.Env)
 		if _, ok := configEnv["PATH"]; !ok {
 			b.runConfig.Env = append(b.runConfig.Env,
