@@ -297,17 +297,17 @@ func workdir(b *Builder, args []string, attributes map[string]bool, original str
 	}
 	b.runConfig.Image = b.image
 
-	cmd := b.runConfig.Cmd
-	b.runConfig.Cmd = strslice.StrSlice(append(getShell(b.runConfig), fmt.Sprintf("#(nop) WORKDIR %s", b.runConfig.WorkingDir)))
-	defer func(cmd strslice.StrSlice) { b.runConfig.Cmd = cmd }(cmd)
-
 	if hit, err := b.probeCache(); err != nil {
 		return err
 	} else if hit {
 		return nil
 	}
 
-	container, err := b.docker.ContainerCreate(types.ContainerCreateConfig{Config: b.runConfig})
+	// Actually copy the struct
+	workdirConfig := *b.runConfig
+	workdirConfig.Cmd = strslice.StrSlice(append(getShell(b.runConfig), fmt.Sprintf("#(nop) WORKDIR %s", b.runConfig.WorkingDir)))
+
+	container, err := b.docker.ContainerCreate(types.ContainerCreateConfig{Config: &workdirConfig})
 	if err != nil {
 		return err
 	}

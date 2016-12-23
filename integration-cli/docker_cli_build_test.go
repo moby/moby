@@ -7357,3 +7357,43 @@ func (s *DockerSuite) TestBuildWindowsEnvCaseInsensitive(c *check.C) {
 		c.Fatalf("Case insensitive environment variables on Windows failed. Got %s", res)
 	}
 }
+
+// Test case for 29667
+func (s *DockerSuite) TestBuildWorkdirImageCmd(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+
+	image := "testworkdirimagecmd"
+	dockerfile := `
+FROM busybox
+WORKDIR /foo/bar
+`
+	out, err := buildImage(image, dockerfile, true)
+	c.Assert(err, checker.IsNil, check.Commentf("Output: %s", out))
+
+	out, _ = dockerCmd(c, "inspect", "--format", "{{ json .Config.Cmd }}", image)
+	c.Assert(strings.TrimSpace(out), checker.Equals, `["sh"]`)
+
+	image = "testworkdirlabelimagecmd"
+	dockerfile = `
+FROM busybox
+WORKDIR /foo/bar
+LABEL a=b
+`
+	out, err = buildImage(image, dockerfile, true)
+	c.Assert(err, checker.IsNil, check.Commentf("Output: %s", out))
+
+	out, _ = dockerCmd(c, "inspect", "--format", "{{ json .Config.Cmd }}", image)
+	c.Assert(strings.TrimSpace(out), checker.Equals, `["sh"]`)
+}
+
+// Test case for 28902/28090
+func (s *DockerSuite) TestBuildWorkdirCmd(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+
+	dockerFile := `
+                FROM golang:1.7-alpine
+                WORKDIR /
+                `
+	_, err := buildImage("testbuildworkdircmd", dockerFile, false)
+	c.Assert(err, checker.IsNil)
+}
