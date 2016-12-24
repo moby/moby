@@ -236,7 +236,7 @@ func (s *DockerDaemonSuite) TestVolumePlugin(c *check.C) {
 }
 
 func (s *DockerDaemonSuite) TestGraphdriverPlugin(c *check.C) {
-	testRequires(c, Network, IsAmd64, DaemonIsLinux, overlay2Supported)
+	testRequires(c, Network, IsAmd64, DaemonIsLinux, overlay2Supported, ExperimentalDaemon)
 
 	s.d.Start(c)
 
