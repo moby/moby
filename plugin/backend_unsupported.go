@@ -8,6 +8,7 @@ import (
 	"net/http"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/reference"
 	"golang.org/x/net/context"
 )
 
@@ -24,17 +25,17 @@ func (pm *Manager) Enable(name string, config *types.PluginEnableConfig) error {
 }
 
 // Inspect examines a plugin config
-func (pm *Manager) Inspect(refOrID string) (tp types.Plugin, err error) {
-	return tp, errNotSupported
+func (pm *Manager) Inspect(refOrID string) (tp *types.Plugin, err error) {
+	return nil, errNotSupported
 }
 
 // Privileges pulls a plugin config and computes the privileges required to install it.
-func (pm *Manager) Privileges(name string, metaHeaders http.Header, authConfig *types.AuthConfig) (types.PluginPrivileges, error) {
+func (pm *Manager) Privileges(ctx context.Context, ref reference.Named, metaHeader http.Header, authConfig *types.AuthConfig) (types.PluginPrivileges, error) {
 	return nil, errNotSupported
 }
 
 // Pull pulls a plugin, check if the correct privileges are provided and install the plugin.
-func (pm *Manager) Pull(name string, metaHeader http.Header, authConfig *types.AuthConfig, privileges types.PluginPrivileges) error {
+func (pm *Manager) Pull(ctx context.Context, ref reference.Named, name string, metaHeader http.Header, authConfig *types.AuthConfig, privileges types.PluginPrivileges, out io.Writer) error {
 	return errNotSupported
 }
 
@@ -44,7 +45,7 @@ func (pm *Manager) List() ([]types.Plugin, error) {
 }
 
 // Push pushes a plugin to the store.
-func (pm *Manager) Push(name string, metaHeader http.Header, authConfig *types.AuthConfig) error {
+func (pm *Manager) Push(ctx context.Context, name string, metaHeader http.Header, authConfig *types.AuthConfig, out io.Writer) error {
 	return errNotSupported
 }
 
@@ -60,6 +61,6 @@ func (pm *Manager) Set(name string, args []string) error {
 
 // CreateFromContext creates a plugin from the given pluginDir which contains
 // both the rootfs and the config.json and a repoName with optional tag.
-func (pm *Manager) CreateFromContext(ctx context.Context, tarCtx io.Reader, options *types.PluginCreateOptions) error {
+func (pm *Manager) CreateFromContext(ctx context.Context, tarCtx io.ReadCloser, options *types.PluginCreateOptions) error {
 	return errNotSupported
 }

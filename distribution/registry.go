@@ -102,11 +102,7 @@ func NewV2Repository(ctx context.Context, repoInfo *registry.RepositoryInfo, end
 		scope := auth.RepositoryScope{
 			Repository: repoName,
 			Actions:    actions,
-		}
-
-		// Keep image repositories blank for scope compatibility
-		if repoInfo.Class != "image" {
-			scope.Class = repoInfo.Class
+			Class:      repoInfo.Class,
 		}
 
 		creds := registry.NewStaticCredentialStore(authConfig)

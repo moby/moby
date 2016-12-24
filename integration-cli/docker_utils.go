@@ -31,7 +31,7 @@ import (
 	icmd "github.com/docker/docker/pkg/integration/cmd"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/stringutils"
-	"github.com/docker/go-units"
+	units "github.com/docker/go-units"
 	"github.com/go-check/check"
 )
 
@@ -250,11 +250,7 @@ func deleteAllPlugins(c *check.C) {
 	var errs []string
 	for _, p := range plugins {
 		pluginName := p.Name
-		tag := p.Tag
-		if tag == "" {
-			tag = "latest"
-		}
-		status, b, err := sockRequest("DELETE", "/plugins/"+pluginName+":"+tag+"?force=1", nil)
+		status, b, err := sockRequest("DELETE", "/plugins/"+pluginName+"?force=1", nil)
 		if err != nil {
 			errs = append(errs, err.Error())
 			continue

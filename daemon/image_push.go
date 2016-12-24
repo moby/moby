@@ -6,6 +6,7 @@ import (
 	"github.com/docker/distribution/manifest/schema2"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/distribution"
+	progressutils "github.com/docker/docker/distribution/utils"
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/reference"
 	"golang.org/x/net/context"
@@ -34,7 +35,7 @@ func (daemon *Daemon) PushImage(ctx context.Context, image, tag string, metaHead
 	ctx, cancelFunc := context.WithCancel(ctx)
 
 	go func() {
-		writeDistributionProgress(cancelFunc, outStream, progressChan)
+		progressutils.WriteDistributionProgress(cancelFunc, outStream, progressChan)
 		close(writesDone)
 	}()
 
