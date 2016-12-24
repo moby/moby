@@ -106,6 +106,7 @@ read the [`dockerd`](dockerd.md) reference page.
 | [volume create](volume_create.md) | Creates a new volume where containers can consume and store data |
 | [volume inspect](volume_inspect.md) | Display information about a volume     |
 | [volume ls](volume_ls.md) | Lists all the volumes Docker knows about         |
+| [volume prune](volume_prune.md) | Remove all unused volumes                  |
 | [volume rm](volume_rm.md) | Remove one or more volumes                       |
 
 
