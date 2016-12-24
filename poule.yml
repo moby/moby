@@ -30,7 +30,7 @@
                 platform/desktop:    [ "docker for mac", "docker for windows" ],
                 platform/freebsd:    [ "freebsd" ],
                 platform/windows:    [ "nanoserver", "windowsservercore", "windows server" ],
-                platform/arm:        [ "raspberry", "arm", "raspbian", "rpi", "beaglebone", "pine64" ],
+                platform/arm:        [ "raspberry", "raspbian", "rpi", "beaglebone", "pine64" ],
             }
         }
       - type:       version-label
