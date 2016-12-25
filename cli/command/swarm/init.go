@@ -22,7 +22,7 @@ type initOptions struct {
 	forceNewCluster bool
 }
 
-func newInitCommand(dockerCli *command.DockerCli) *cobra.Command {
+func newInitCommand(dockerCli command.Cli) *cobra.Command {
 	opts := initOptions{
 		listenAddr: NewListenAddrOption(),
 	}
@@ -45,7 +45,7 @@ func newInitCommand(dockerCli *command.DockerCli) *cobra.Command {
 	return cmd
 }
 
-func runInit(dockerCli *command.DockerCli, flags *pflag.FlagSet, opts initOptions) error {
+func runInit(dockerCli command.Cli, flags *pflag.FlagSet, opts initOptions) error {
 	client := dockerCli.Client()
 	ctx := context.Background()
 
@@ -67,7 +67,7 @@ func runInit(dockerCli *command.DockerCli, flags *pflag.FlagSet, opts initOption
 
 	fmt.Fprintf(dockerCli.Out(), "Swarm initialized: current node (%s) is now a manager.\n\n", nodeID)
 
-	if err := printJoinCommand(ctx, dockerCli, nodeID, true, false); err != nil {
+	if err := printJoinCommand(ctx, dockerCli, nodeID, false, true); err != nil {
 		return err
 	}
 

@@ -18,7 +18,7 @@ import (
 
 type unlockOptions struct{}
 
-func newUnlockCommand(dockerCli *command.DockerCli) *cobra.Command {
+func newUnlockCommand(dockerCli command.Cli) *cobra.Command {
 	opts := unlockOptions{}
 
 	cmd := &cobra.Command{
@@ -33,7 +33,7 @@ func newUnlockCommand(dockerCli *command.DockerCli) *cobra.Command {
 	return cmd
 }
 
-func runUnlock(dockerCli *command.DockerCli, opts unlockOptions) error {
+func runUnlock(dockerCli command.Cli, opts unlockOptions) error {
 	client := dockerCli.Client()
 	ctx := context.Background()
 

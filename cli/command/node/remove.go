@@ -16,7 +16,7 @@ type removeOptions struct {
 	force bool
 }
 
-func newRemoveCommand(dockerCli *command.DockerCli) *cobra.Command {
+func newRemoveCommand(dockerCli command.Cli) *cobra.Command {
 	opts := removeOptions{}
 
 	cmd := &cobra.Command{
@@ -33,7 +33,7 @@ func newRemoveCommand(dockerCli *command.DockerCli) *cobra.Command {
 	return cmd
 }
 
-func runRemove(dockerCli *command.DockerCli, args []string, opts removeOptions) error {
+func runRemove(dockerCli command.Cli, args []string, opts removeOptions) error {
 	client := dockerCli.Client()
 	ctx := context.Background()
 
