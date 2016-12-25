@@ -1,4 +1,4 @@
-package cliconfig
+package config
 
 import (
 	"fmt"
@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/cliconfig/configfile"
+	"github.com/docker/docker/cli/config/configfile"
 	"github.com/docker/docker/pkg/homedir"
 )
 
@@ -28,13 +28,13 @@ func init() {
 	}
 }
 
-// ConfigDir returns the directory the configuration file is stored in
-func ConfigDir() string {
+// Dir returns the directory the configuration file is stored in
+func Dir() string {
 	return configDir
 }
 
-// SetConfigDir sets the directory the configuration file is stored in
-func SetConfigDir(dir string) {
+// SetDir sets the directory the configuration file is stored in
+func SetDir(dir string) {
 	configDir = dir
 }
 
@@ -72,7 +72,7 @@ func LoadFromReader(configData io.Reader) (*configfile.ConfigFile, error) {
 // FIXME: use the internal golang config parser
 func Load(configDir string) (*configfile.ConfigFile, error) {
 	if configDir == "" {
-		configDir = ConfigDir()
+		configDir = Dir()
 	}
 
 	configFile := configfile.ConfigFile{
