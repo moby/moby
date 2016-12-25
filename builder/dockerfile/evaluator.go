@@ -20,6 +20,7 @@
 package dockerfile
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
@@ -115,7 +116,7 @@ func (b *Builder) dispatch(stepN int, stepTotal int, ast *parser.Node) error {
 
 	if cmd == "onbuild" {
 		if ast.Next == nil {
-			return fmt.Errorf("ONBUILD requires at least one argument")
+			return errors.New("ONBUILD requires at least one argument")
 		}
 		ast = ast.Next.Children[0]
 		strList = append(strList, ast.Value)
@@ -222,7 +223,7 @@ func (b *Builder) checkDispatch(ast *parser.Node, onbuild bool) error {
 	// least one argument
 	if upperCasedCmd == "ONBUILD" {
 		if ast.Next == nil {
-			return fmt.Errorf("ONBUILD requires at least one argument")
+			return errors.New("ONBUILD requires at least one argument")
 		}
 	}
 
@@ -230,7 +231,7 @@ func (b *Builder) checkDispatch(ast *parser.Node, onbuild bool) error {
 	if onbuild {
 		switch upperCasedCmd {
 		case "ONBUILD":
-			return fmt.Errorf("Chaining ONBUILD via `ONBUILD ONBUILD` isn't allowed")
+			return errors.New("Chaining ONBUILD via `ONBUILD ONBUILD` isn't allowed")
 		case "MAINTAINER", "FROM":
 			return fmt.Errorf("%s isn't allowed as an ONBUILD trigger", upperCasedCmd)
 		}

@@ -229,7 +229,7 @@ func parseClusterAdvertiseSettings(clusterStore, clusterAdvertise string) (strin
 		return "", errDiscoveryDisabled
 	}
 	if clusterStore == "" {
-		return "", fmt.Errorf("invalid cluster configuration. --cluster-advertise must be accompanied by --cluster-store configuration")
+		return "", errors.New("invalid cluster configuration. --cluster-advertise must be accompanied by --cluster-store configuration")
 	}
 
 	advertise, err := discovery.ParseAdvertise(clusterAdvertise)

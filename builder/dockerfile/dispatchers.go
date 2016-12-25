@@ -8,6 +8,7 @@ package dockerfile
 // package.
 
 import (
+	"errors"
 	"fmt"
 	"regexp"
 	"runtime"
@@ -211,7 +212,7 @@ func from(b *Builder, args []string, attributes map[string]bool, original string
 	// Windows cannot support a container with no base image.
 	if name == api.NoBaseImageSpecifier {
 		if runtime.GOOS == "windows" {
-			return fmt.Errorf("Windows does not support FROM scratch")
+			return errors.New("Windows does not support FROM scratch")
 		}
 		b.image = ""
 		b.noBaseImage = true
@@ -254,7 +255,7 @@ func onbuild(b *Builder, args []string, attributes map[string]bool, original str
 	triggerInstruction := strings.ToUpper(strings.TrimSpace(args[0]))
 	switch triggerInstruction {
 	case "ONBUILD":
-		return fmt.Errorf("Chaining ONBUILD via `ONBUILD ONBUILD` isn't allowed")
+		return errors.New("Chaining ONBUILD via `ONBUILD ONBUILD` isn't allowed")
 	case "MAINTAINER", "FROM":
 		return fmt.Errorf("%s isn't allowed as an ONBUILD trigger", triggerInstruction)
 	}
@@ -331,7 +332,7 @@ func workdir(b *Builder, args []string, attributes map[string]bool, original str
 //
 func run(b *Builder, args []string, attributes map[string]bool, original string) error {
 	if b.image == "" && !b.noBaseImage {
-		return fmt.Errorf("Please provide a source image with `from` prior to run")
+		return errors.New("Please provide a source image with `from` prior to run")
 	}
 
 	if err := b.flags.Parse(); err != nil {
@@ -499,7 +500,7 @@ func healthcheck(b *Builder, args []string, attributes map[string]bool, original
 	args = args[1:]
 	if typ == "NONE" {
 		if len(args) != 0 {
-			return fmt.Errorf("HEALTHCHECK NONE takes no arguments")
+			return errors.New("HEALTHCHECK NONE takes no arguments")
 		}
 		test := strslice.StrSlice{typ}
 		b.runConfig.Healthcheck = &container.HealthConfig{
@@ -527,7 +528,7 @@ func healthcheck(b *Builder, args []string, attributes map[string]bool, original
 		case "CMD":
 			cmdSlice := handleJSONArgs(args, attributes)
 			if len(cmdSlice) == 0 {
-				return fmt.Errorf("Missing command after HEALTHCHECK CMD")
+				return errors.New("Missing command after HEALTHCHECK CMD")
 			}
 
 			if !attributes["json"] {
@@ -688,7 +689,7 @@ func volume(b *Builder, args []string, attributes map[string]bool, original stri
 	for _, v := range args {
 		v = strings.TrimSpace(v)
 		if v == "" {
-			return fmt.Errorf("VOLUME specified can not be an empty string")
+			return errors.New("VOLUME specified can not be an empty string")
 		}
 		b.runConfig.Volumes[v] = struct{}{}
 	}
