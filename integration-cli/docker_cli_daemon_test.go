@@ -2879,3 +2879,60 @@ func (s *DockerDaemonSuite) TestRestartPolicyWithLiveRestore(c *check.C) {
 	out, err = s.d.Cmd("stop", id)
 	c.Assert(err, check.IsNil, check.Commentf("output: %s", out))
 }
+
+func (s *DockerDaemonSuite) TestShmSize(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+
+	size := 67108864 * 2
+	pattern := regexp.MustCompile(fmt.Sprintf("shm on /dev/shm type tmpfs(.*)size=%dk", size/1024))
+
+	s.d.StartWithBusybox(c, "--default-shm-size", fmt.Sprintf("%v", size))
+
+	name := "shm1"
+	out, err := s.d.Cmd("run", "--name", name, "busybox", "mount")
+	c.Assert(err, check.IsNil, check.Commentf("Output: %s", out))
+	c.Assert(pattern.MatchString(out), checker.True)
+	out, err = s.d.Cmd("inspect", "--format", "{{.HostConfig.ShmSize}}", name)
+	c.Assert(err, check.IsNil, check.Commentf("Output: %s", out))
+	c.Assert(strings.TrimSpace(out), check.Equals, fmt.Sprintf("%v", size))
+}
+
+func (s *DockerDaemonSuite) TestShmSizeReload(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+
+	configPath, err := ioutil.TempDir("", "test-daemon-shm-size-reload-config")
+	c.Assert(err, checker.IsNil, check.Commentf("could not create temp file for config reload"))
+	defer os.RemoveAll(configPath) // clean up
+	configFile := filepath.Join(configPath, "config.json")
+
+	size := 67108864 * 2
+	configData := []byte(fmt.Sprintf(`{"default-shm-size": "%dM"}`, size/1024/1024))
+	c.Assert(ioutil.WriteFile(configFile, configData, 0666), checker.IsNil, check.Commentf("could not write temp file for config reload"))
+	pattern := regexp.MustCompile(fmt.Sprintf("shm on /dev/shm type tmpfs(.*)size=%dk", size/1024))
+
+	s.d.StartWithBusybox(c, "--config-file", configFile)
+
+	name := "shm1"
+	out, err := s.d.Cmd("run", "--name", name, "busybox", "mount")
+	c.Assert(err, check.IsNil, check.Commentf("Output: %s", out))
+	c.Assert(pattern.MatchString(out), checker.True)
+	out, err = s.d.Cmd("inspect", "--format", "{{.HostConfig.ShmSize}}", name)
+	c.Assert(err, check.IsNil, check.Commentf("Output: %s", out))
+	c.Assert(strings.TrimSpace(out), check.Equals, fmt.Sprintf("%v", size))
+
+	size = 67108864 * 3
+	configData = []byte(fmt.Sprintf(`{"default-shm-size": "%dM"}`, size/1024/1024))
+	c.Assert(ioutil.WriteFile(configFile, configData, 0666), checker.IsNil, check.Commentf("could not write temp file for config reload"))
+	pattern = regexp.MustCompile(fmt.Sprintf("shm on /dev/shm type tmpfs(.*)size=%dk", size/1024))
+
+	err = s.d.ReloadConfig()
+	c.Assert(err, checker.IsNil, check.Commentf("error reloading daemon config"))
+
+	name = "shm2"
+	out, err = s.d.Cmd("run", "--name", name, "busybox", "mount")
+	c.Assert(err, check.IsNil, check.Commentf("Output: %s", out))
+	c.Assert(pattern.MatchString(out), checker.True)
+	out, err = s.d.Cmd("inspect", "--format", "{{.HostConfig.ShmSize}}", name)
+	c.Assert(err, check.IsNil, check.Commentf("Output: %s", out))
+	c.Assert(strings.TrimSpace(out), check.Equals, fmt.Sprintf("%v", size))
+}

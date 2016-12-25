@@ -22,9 +22,7 @@ import (
 )
 
 const (
-	// DefaultSHMSize is the default size (64MB) of the SHM which will be mounted in the container
-	DefaultSHMSize           int64 = 67108864
-	containerSecretMountPath       = "/run/secrets"
+	containerSecretMountPath = "/run/secrets"
 )
 
 // Container holds the fields specific to unixen implementations.
