@@ -1,14 +1,14 @@
 package container
 
 import (
+	"errors"
 	"fmt"
 	"strings"
-
-	"golang.org/x/net/context"
 
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cli/command"
 	"github.com/spf13/cobra"
+	"golang.org/x/net/context"
 )
 
 type renameOptions struct {
@@ -40,11 +40,11 @@ func runRename(dockerCli *command.DockerCli, opts *renameOptions) error {
 	newName := strings.TrimSpace(opts.newName)
 
 	if oldName == "" || newName == "" {
-		return fmt.Errorf("Error: Neither old nor new names may be empty")
+		return errors.New("Error: Neither old nor new names may be empty")
 	}
 
 	if err := dockerCli.Client().ContainerRename(ctx, oldName, newName); err != nil {
-		fmt.Fprintf(dockerCli.Err(), "%s\n", err)
+		fmt.Fprintln(dockerCli.Err(), err)
 		return fmt.Errorf("Error: failed to rename container named %s", oldName)
 	}
 	return nil

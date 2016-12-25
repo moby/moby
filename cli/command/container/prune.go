@@ -3,13 +3,12 @@ package container
 import (
 	"fmt"
 
-	"golang.org/x/net/context"
-
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cli/command"
 	units "github.com/docker/go-units"
 	"github.com/spf13/cobra"
+	"golang.org/x/net/context"
 )
 
 type pruneOptions struct {

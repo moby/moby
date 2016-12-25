@@ -1,12 +1,11 @@
 package container
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"net/http/httputil"
 	"strings"
-
-	"golang.org/x/net/context"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/cli"
@@ -14,6 +13,7 @@ import (
 	"github.com/docker/docker/pkg/promise"
 	"github.com/docker/docker/pkg/signal"
 	"github.com/spf13/cobra"
+	"golang.org/x/net/context"
 )
 
 type startOptions struct {
@@ -59,7 +59,7 @@ func runStart(dockerCli *command.DockerCli, opts *startOptions) error {
 		// We're going to attach to a container.
 		// 1. Ensure we only have one container.
 		if len(opts.containers) > 1 {
-			return fmt.Errorf("You cannot start and attach multiple containers at once.")
+			return errors.New("You cannot start and attach multiple containers at once.")
 		}
 
 		// 2. Attach to the container.
@@ -131,7 +131,7 @@ func runStart(dockerCli *command.DockerCli, opts *startOptions) error {
 		// 5. Wait for attachment to break.
 		if c.Config.Tty && dockerCli.Out().IsTerminal() {
 			if err := MonitorTtySize(ctx, dockerCli, c.ID, false); err != nil {
-				fmt.Fprintf(dockerCli.Err(), "Error monitoring TTY size: %s\n", err)
+				fmt.Fprintln(dockerCli.Err(), "Error monitoring TTY size:", err)
 			}
 		}
 		if attchErr := <-cErr; attchErr != nil {
@@ -143,7 +143,7 @@ func runStart(dockerCli *command.DockerCli, opts *startOptions) error {
 		}
 	} else if opts.checkpoint != "" {
 		if len(opts.containers) > 1 {
-			return fmt.Errorf("You cannot restore multiple containers at once.")
+			return errors.New("You cannot restore multiple containers at once.")
 		}
 		container := opts.containers[0]
 		startOptions := types.ContainerStartOptions{
@@ -165,15 +165,15 @@ func startContainersWithoutAttachments(ctx context.Context, dockerCli *command.D
 	var failedContainers []string
 	for _, container := range containers {
 		if err := dockerCli.Client().ContainerStart(ctx, container, types.ContainerStartOptions{}); err != nil {
-			fmt.Fprintf(dockerCli.Err(), "%s\n", err)
+			fmt.Fprintln(dockerCli.Err(), err)
 			failedContainers = append(failedContainers, container)
-		} else {
-			fmt.Fprintf(dockerCli.Out(), "%s\n", container)
+			continue
 		}
+		fmt.Fprintln(dockerCli.Out(), container)
 	}
 
 	if len(failedContainers) > 0 {
-		return fmt.Errorf("Error: failed to start containers: %v", strings.Join(failedContainers, ", "))
+		return fmt.Errorf("Error: failed to start containers: %s", strings.Join(failedContainers, ", "))
 	}
 	return nil
 }
