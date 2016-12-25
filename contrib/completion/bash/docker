@@ -3266,9 +3266,15 @@ _docker_plugin_inspect() {
 }
 
 _docker_plugin_install() {
+	case "$prev" in
+		--alias)
+			return
+			;;
+	esac
+
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "--disable --grant-all-permissions--help" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "--alias --disable --grant-all-permissions --help" -- "$cur" ) )
 			;;
 	esac
 }
