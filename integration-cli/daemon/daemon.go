@@ -324,7 +324,7 @@ func (d *Daemon) StartWithLogFile(out *os.File, providedArgs ...string) error {
 func (d *Daemon) StartWithBusybox(t testingT, arg ...string) {
 	d.Start(t, arg...)
 	if err := d.LoadBusybox(); err != nil {
-		t.Fatalf("Error loading busybox image to current daeom: %s", d.id)
+		t.Fatalf("Error loading busybox image to current daemon: %s\n%v", d.id, err)
 	}
 }
 

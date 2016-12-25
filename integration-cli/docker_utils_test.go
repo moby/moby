@@ -25,7 +25,6 @@ import (
 	volumetypes "github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/integration-cli/daemon"
 	"github.com/docker/docker/opts"
-	"github.com/docker/docker/pkg/httputils"
 	"github.com/docker/docker/pkg/integration"
 	"github.com/docker/docker/pkg/integration/checker"
 	icmd "github.com/docker/docker/pkg/integration/cmd"
@@ -33,60 +32,6 @@ import (
 	"github.com/docker/docker/pkg/stringutils"
 	"github.com/go-check/check"
 )
-
-func init() {
-	cmd := exec.Command(dockerBinary, "images", "-f", "dangling=false", "--format", "{{.Repository}}:{{.Tag}}")
-	cmd.Env = appendBaseEnv(true)
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		panic(fmt.Errorf("err=%v\nout=%s\n", err, out))
-	}
-	images := strings.Split(strings.TrimSpace(string(out)), "\n")
-	for _, img := range images {
-		protectedImages[img] = struct{}{}
-	}
-
-	res, body, err := sockRequestRaw("GET", "/info", nil, "application/json")
-	if err != nil {
-		panic(fmt.Errorf("Init failed to get /info: %v", err))
-	}
-	defer body.Close()
-	if res.StatusCode != http.StatusOK {
-		panic(fmt.Errorf("Init failed to get /info. Res=%v", res))
-	}
-
-	svrHeader, _ := httputils.ParseServerHeader(res.Header.Get("Server"))
-	daemonPlatform = svrHeader.OS
-	if daemonPlatform != "linux" && daemonPlatform != "windows" {
-		panic("Cannot run tests against platform: " + daemonPlatform)
-	}
-
-	// Now we know the daemon platform, can set paths used by tests.
-	var info types.Info
-	err = json.NewDecoder(body).Decode(&info)
-	if err != nil {
-		panic(fmt.Errorf("Init failed to unmarshal docker info: %v", err))
-	}
-
-	daemonStorageDriver = info.Driver
-	dockerBasePath = info.DockerRootDir
-	volumesConfigPath = filepath.Join(dockerBasePath, "volumes")
-	containerStoragePath = filepath.Join(dockerBasePath, "containers")
-	// Make sure in context of daemon, not the local platform. Note we can't
-	// use filepath.FromSlash or ToSlash here as they are a no-op on Unix.
-	if daemonPlatform == "windows" {
-		volumesConfigPath = strings.Replace(volumesConfigPath, `/`, `\`, -1)
-		containerStoragePath = strings.Replace(containerStoragePath, `/`, `\`, -1)
-		// On Windows, extract out the version as we need to make selective
-		// decisions during integration testing as and when features are implemented.
-		// e.g. in "10.0 10550 (10550.1000.amd64fre.branch.date-time)" we want 10550
-		windowsDaemonKV, _ = strconv.Atoi(strings.Split(info.KernelVersion, " ")[1])
-	} else {
-		volumesConfigPath = strings.Replace(volumesConfigPath, `\`, `/`, -1)
-		containerStoragePath = strings.Replace(containerStoragePath, `\`, `/`, -1)
-	}
-	isolation = info.Isolation
-}
 
 func daemonHost() string {
 	daemonURLStr := "unix://" + opts.DefaultUnixSocket
@@ -291,8 +236,6 @@ func getAllVolumes() ([]*types.Volume, error) {
 	}
 	return volumes.Volumes, nil
 }
-
-var protectedImages = map[string]struct{}{}
 
 func deleteAllImages(c *check.C) {
 	cmd := exec.Command(dockerBinary, "images", "--digests")
@@ -1265,10 +1208,7 @@ func runSleepingContainerInImage(c *check.C, image string, extraArgs ...string) 
 // minimalBaseImage returns the name of the minimal base image for the current
 // daemon platform.
 func minimalBaseImage() string {
-	if daemonPlatform == "windows" {
-		return WindowsBaseImage
-	}
-	return "scratch"
+	return testEnv.MinimalBaseImage()
 }
 
 func getGoroutineNumber() (int, error) {
