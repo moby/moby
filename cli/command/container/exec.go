@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"io"
 
-	"golang.org/x/net/context"
-
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/cli"
@@ -15,6 +13,7 @@ import (
 	"github.com/docker/docker/pkg/promise"
 	runconfigopts "github.com/docker/docker/runconfig/opts"
 	"github.com/spf13/cobra"
+	"golang.org/x/net/context"
 )
 
 type execOptions struct {
@@ -88,7 +87,7 @@ func runExec(dockerCli *command.DockerCli, opts *execOptions, container string, 
 
 	execID := response.ID
 	if execID == "" {
-		fmt.Fprintf(dockerCli.Out(), "exec ID empty")
+		fmt.Fprintln(dockerCli.Out(), "exec ID empty")
 		return nil
 	}
 
@@ -143,7 +142,7 @@ func runExec(dockerCli *command.DockerCli, opts *execOptions, container string, 
 
 	if execConfig.Tty && dockerCli.In().IsTerminal() {
 		if err := MonitorTtySize(ctx, dockerCli, execID, true); err != nil {
-			fmt.Fprintf(dockerCli.Err(), "Error monitoring TTY size: %s\n", err)
+			fmt.Fprintln(dockerCli.Err(), "Error monitoring TTY size:", err)
 		}
 	}
 
