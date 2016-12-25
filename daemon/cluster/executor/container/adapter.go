@@ -3,6 +3,7 @@ package container
 import (
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"strings"
@@ -238,7 +239,7 @@ func (c *containerAdapter) create(ctx context.Context) error {
 
 	container := c.container.task.Spec.GetContainer()
 	if container == nil {
-		return fmt.Errorf("unable to get container from task spec")
+		return errors.New("unable to get container from task spec")
 	}
 
 	// configure secrets
@@ -401,7 +402,7 @@ func (c *containerAdapter) logs(ctx context.Context, options api.LogSubscription
 		// See protobuf documentation for details of how this works.
 		apiOptions.Tail = fmt.Sprint(-options.Tail - 1)
 	} else if options.Tail > 0 {
-		return nil, fmt.Errorf("tail relative to start of logs not supported via docker API")
+		return nil, errors.New("tail relative to start of logs not supported via docker API")
 	}
 
 	if len(options.Streams) == 0 {

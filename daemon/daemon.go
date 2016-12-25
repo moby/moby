@@ -66,7 +66,7 @@ var (
 	// DefaultInitBinary is the name of the default init binary
 	DefaultInitBinary = "docker-init"
 
-	errSystemNotSupported = fmt.Errorf("The Docker daemon is not supported on this platform.")
+	errSystemNotSupported = errors.New("The Docker daemon is not supported on this platform.")
 )
 
 // Daemon holds information about the Docker daemon.
@@ -657,7 +657,7 @@ func NewDaemon(config *Config, registryService registry.Service, containerdRemot
 	// Check if Devices cgroup is mounted, it is hard requirement for container security,
 	// on Linux.
 	if runtime.GOOS == "linux" && !sysInfo.CgroupDevicesEnabled {
-		return nil, fmt.Errorf("Devices cgroup isn't mounted")
+		return nil, errors.New("Devices cgroup isn't mounted")
 	}
 
 	d.ID = trustKey.PublicKey().KeyID()
@@ -730,7 +730,7 @@ func (daemon *Daemon) shutdownContainer(c *container.Container) error {
 		logrus.Debugf("Found container %s is paused, sending SIGTERM before unpausing it", c.ID)
 		sig, ok := signal.SignalMap["TERM"]
 		if !ok {
-			return fmt.Errorf("System does not support SIGTERM")
+			return errors.New("System does not support SIGTERM")
 		}
 		if err := daemon.kill(c, int(sig)); err != nil {
 			return fmt.Errorf("sending SIGTERM to container %s with error: %v", c.ID, err)
@@ -742,7 +742,7 @@ func (daemon *Daemon) shutdownContainer(c *container.Container) error {
 			logrus.Debugf("container %s failed to exit in %d second of SIGTERM, sending SIGKILL to force", c.ID, stopTimeout)
 			sig, ok := signal.SignalMap["KILL"]
 			if !ok {
-				return fmt.Errorf("System does not support SIGKILL")
+				return errors.New("System does not support SIGKILL")
 			}
 			if err := daemon.kill(c, int(sig)); err != nil {
 				logrus.Errorf("Failed to SIGKILL container %s", c.ID)
@@ -962,7 +962,7 @@ func (daemon *Daemon) configureVolumes(rootUID, rootGID int) (*store.VolumeStore
 	volumedrivers.RegisterPluginGetter(daemon.PluginStore)
 
 	if !volumedrivers.Register(volumesDriver, volumesDriver.Name()) {
-		return nil, fmt.Errorf("local volume driver could not be registered")
+		return nil, errors.New("local volume driver could not be registered")
 	}
 	return store.New(daemon.configStore.Root)
 }
@@ -1202,7 +1202,7 @@ func (daemon *Daemon) networkOptions(dconfig *Config, pg plugingetter.PluginGett
 	if strings.TrimSpace(dconfig.ClusterStore) != "" {
 		kv := strings.Split(dconfig.ClusterStore, "://")
 		if len(kv) != 2 {
-			return nil, fmt.Errorf("kv store daemon config must be of the form KV-PROVIDER://KV-URL")
+			return nil, errors.New("kv store daemon config must be of the form KV-PROVIDER://KV-URL")
 		}
 		options = append(options, nwconfig.OptionKVProvider(kv[0]))
 		options = append(options, nwconfig.OptionKVProviderURL(kv[1]))
