@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/docker/docker/cliconfig"
+	cliconfig "github.com/docker/docker/cli/config"
 	"github.com/docker/docker/pkg/integration/checker"
 	"github.com/docker/go-connections/tlsconfig"
 	"github.com/go-check/check"
@@ -90,7 +90,7 @@ func newTestNotary(c *check.C) (*testNotary, error) {
 		"skipTLSVerify": true
 	}
 }`
-	if _, err = fmt.Fprintf(clientConfig, template, filepath.Join(cliconfig.ConfigDir(), "trust"), notaryURL); err != nil {
+	if _, err = fmt.Fprintf(clientConfig, template, filepath.Join(cliconfig.Dir(), "trust"), notaryURL); err != nil {
 		os.RemoveAll(tmp)
 		return nil, err
 	}

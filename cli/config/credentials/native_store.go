@@ -4,7 +4,7 @@ import (
 	"github.com/docker/docker-credential-helpers/client"
 	"github.com/docker/docker-credential-helpers/credentials"
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/cliconfig/configfile"
+	"github.com/docker/docker/cli/config/configfile"
 )
 
 const (
