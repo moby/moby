@@ -86,6 +86,7 @@ func TestImageBuild(t *testing.T) {
 				ShmSize:       10,
 				CgroupParent:  "cgroup_parent",
 				Dockerfile:    "Dockerfile",
+				Ignorefile:    "mydockerignore",
 			},
 			expectedQueryParams: map[string]string{
 				"remote":       "remoteContext",
@@ -100,6 +101,7 @@ func TestImageBuild(t *testing.T) {
 				"shmsize":      "10",
 				"cgroupparent": "cgroup_parent",
 				"dockerfile":   "Dockerfile",
+				"ignorefile":   "mydockerignore",
 				"rm":           "0",
 			},
 			expectedTags:           []string{},

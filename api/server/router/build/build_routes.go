@@ -40,6 +40,7 @@ func newImageBuildOptions(ctx context.Context, r *http.Request) (*types.ImageBui
 	}
 
 	options.Dockerfile = r.FormValue("dockerfile")
+	options.Ignorefile = r.FormValue("ignorefile")
 	options.SuppressOutput = httputils.BoolValue(r, "q")
 	options.NoCache = httputils.BoolValue(r, "nocache")
 	options.ForceRemove = httputils.BoolValue(r, "forcerm")

@@ -159,6 +159,7 @@ type ImageBuildOptions struct {
 	NetworkMode    string
 	ShmSize        int64
 	Dockerfile     string
+	Ignorefile     string
 	Ulimits        []*units.Ulimit
 	// See the parsing of buildArgs in api/server/router/build/build_routes.go
 	// for an explaination of why BuildArgs needs to use *string instead of

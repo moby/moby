@@ -3136,8 +3136,8 @@ func (s *DockerSuite) TestBuildVerifyIntString(c *check.C) {
 func (s *DockerSuite) TestBuildDockerignore(c *check.C) {
 	name := "testbuilddockerignore"
 	dockerfile := `
-        FROM busybox
-        ADD . /bla
+		FROM busybox
+		ADD . /bla
 		RUN sh -c "[[ -f /bla/src/x.go ]]"
 		RUN sh -c "[[ -f /bla/Makefile ]]"
 		RUN sh -c "[[ ! -e /bla/src/_vendor ]]"
@@ -3178,6 +3178,68 @@ dir`,
 	}
 }
 
+func (s *DockerSuite) TestBuildDockerignoreCustomfileNotFound(c *check.C) {
+	name := "testbuilddockerignore"
+	dockerfile := `
+		FROM busybox
+		ADD . /bla`
+	ctx, err := fakeContext(dockerfile, map[string]string{
+		"Makefile": "all:",
+	})
+	if err != nil {
+		c.Fatal(err)
+	}
+	defer ctx.Close()
+	if _, err := buildImageFromContext(name, ctx, true, "--ignore-file=mydockerignore"); err == nil {
+		c.Fatal("expected an error if --ignore-file points to a non-existing file")
+	}
+}
+
+func (s *DockerSuite) TestBuildDockerignoreCustomfile(c *check.C) {
+	name := "testbuilddockerignore"
+	dockerfile := `
+		FROM busybox
+		ADD . /bla
+		RUN sh -c "[[ -f /bla/src/x.go ]]"
+		RUN sh -c "[[ -f /bla/Makefile ]]"
+		RUN sh -c "[[ ! -e /bla/src/_vendor ]]"
+		RUN sh -c "[[ ! -e /bla/.gitignore ]]"
+		RUN sh -c "[[ ! -e /bla/README.md ]]"
+		RUN sh -c "[[ ! -e /bla/dir/foo ]]"
+		RUN sh -c "[[ ! -e /bla/foo ]]"
+		RUN sh -c "[[ ! -e /bla/.git ]]"
+		RUN sh -c "[[ ! -e v.cc ]]"
+		RUN sh -c "[[ ! -e src/v.cc ]]"
+		RUN sh -c "[[ ! -e src/_vendor/v.cc ]]"`
+	ctx, err := fakeContext(dockerfile, map[string]string{
+		"Makefile":         "all:",
+		".git/HEAD":        "ref: foo",
+		"src/x.go":         "package main",
+		"src/_vendor/v.go": "package main",
+		"src/_vendor/v.cc": "package main",
+		"src/v.cc":         "package main",
+		"v.cc":             "package main",
+		"dir/foo":          "",
+		".gitignore":       "",
+		"README.md":        "readme",
+		"mydockerignore": `
+.git
+pkg
+.gitignore
+src/_vendor
+*.md
+**/*.cc
+dir`,
+	})
+	if err != nil {
+		c.Fatal(err)
+	}
+	defer ctx.Close()
+	if _, err := buildImageFromContext(name, ctx, true, "--ignore-file=mydockerignore"); err != nil {
+		c.Fatal(err)
+	}
+}
+
 func (s *DockerSuite) TestBuildDockerignoreCleanPaths(c *check.C) {
 	name := "testbuilddockerignorecleanpaths"
 	dockerfile := `
@@ -3202,8 +3264,8 @@ func (s *DockerSuite) TestBuildDockerignoreCleanPaths(c *check.C) {
 func (s *DockerSuite) TestBuildDockerignoreExceptions(c *check.C) {
 	name := "testbuilddockerignoreexceptions"
 	dockerfile := `
-        FROM busybox
-        ADD . /bla
+		FROM busybox
+		ADD . /bla
 		RUN sh -c "[[ -f /bla/src/x.go ]]"
 		RUN sh -c "[[ -f /bla/Makefile ]]"
 		RUN sh -c "[[ ! -e /bla/src/_vendor ]]"

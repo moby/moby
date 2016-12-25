@@ -43,7 +43,7 @@ func ReadAll(reader io.Reader) ([]string, error) {
 		excludes = append(excludes, pattern)
 	}
 	if err := scanner.Err(); err != nil {
-		return nil, fmt.Errorf("Error reading .dockerignore: %v", err)
+		return nil, fmt.Errorf("Error reading dockerignore file: %v", err)
 	}
 	return excludes, nil
 }

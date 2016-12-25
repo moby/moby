@@ -1,8 +1,6 @@
 package builder
 
 import (
-	"os"
-
 	"github.com/docker/docker/builder/dockerignore"
 	"github.com/docker/docker/pkg/fileutils"
 )
@@ -26,18 +24,14 @@ type DockerIgnoreContext struct {
 //
 // TODO: Don't require a ModifiableContext (use Context instead) and don't remove
 // files, instead handle a list of files to be excluded from the context.
-func (c DockerIgnoreContext) Process(filesToRemove []string) error {
-	f, err := c.Open(".dockerignore")
-	// Note that a missing .dockerignore file isn't treated as an error
+func (c DockerIgnoreContext) Process(ignoreFile string, filesToRemove []string) error {
+	f, err := c.Open(ignoreFile)
 	if err != nil {
-		if os.IsNotExist(err) {
-			return nil
-		}
 		return err
 	}
 	excludes, _ := dockerignore.ReadAll(f)
 	f.Close()
-	filesToRemove = append([]string{".dockerignore"}, filesToRemove...)
+	filesToRemove = append([]string{ignoreFile}, filesToRemove...)
 	for _, fileToRemove := range filesToRemove {
 		rm, _ := fileutils.Matches(fileToRemove, excludes)
 		if rm {
