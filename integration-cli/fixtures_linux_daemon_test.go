@@ -9,18 +9,26 @@ import (
 	"runtime"
 	"strings"
 	"sync"
-	"testing"
 
 	"github.com/docker/docker/integration-cli/fixtures/load"
 	"github.com/docker/docker/pkg/integration/checker"
 	"github.com/go-check/check"
 )
 
-func ensureFrozenImagesLinux(t *testing.T) {
+type testingT interface {
+	logT
+	Fatalf(string, ...interface{})
+}
+
+type logT interface {
+	Logf(string, ...interface{})
+}
+
+func ensureFrozenImagesLinux(t testingT) {
 	images := []string{"busybox:latest", "hello-world:frozen", "debian:jessie"}
 	err := load.FrozenImagesLinux(dockerBinary, images...)
 	if err != nil {
-		t.Log(dockerCmdWithError("images"))
+		t.Logf(dockerCmdWithError("images"))
 		t.Fatalf("%+v", err)
 	}
 	for _, img := range images {
