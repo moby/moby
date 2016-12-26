@@ -256,7 +256,7 @@ func TestUpdateHealthcheckTable(t *testing.T) {
 		{
 			flags:    [][2]string{{"health-cmd", "cmd1"}},
 			initial:  &container.HealthConfig{Test: []string{"NONE"}},
-			expected: &container.HealthConfig{Test: []string{"CMD-SHELL", "cmd1"}},
+			expected: &container.HealthConfig{Test: []string{"CMD", "cmd1"}},
 		},
 		{
 			flags:    [][2]string{{"health-retries", "10"}},

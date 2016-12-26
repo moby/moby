@@ -840,7 +840,7 @@ func updateHealthcheck(flags *pflag.FlagSet, containerSpec *swarm.ContainerSpec)
 	if flags.Changed(flagHealthCmd) {
 		cmd, _ := flags.GetString(flagHealthCmd)
 		if cmd != "" {
-			containerSpec.Healthcheck.Test = []string{"CMD-SHELL", cmd}
+			containerSpec.Healthcheck.Test = []string{"CMD", cmd}
 		} else {
 			containerSpec.Healthcheck.Test = nil
 		}

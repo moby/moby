@@ -501,7 +501,7 @@ func Parse(flags *pflag.FlagSet, copts *ContainerOptions) (*container.Config, *c
 	} else if haveHealthSettings {
 		var probe strslice.StrSlice
 		if copts.healthCmd != "" {
-			args := []string{"CMD-SHELL", copts.healthCmd}
+			args := []string{"CMD", copts.healthCmd}
 			probe = strslice.StrSlice(args)
 		}
 		if copts.healthInterval < 0 {

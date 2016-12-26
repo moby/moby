@@ -341,7 +341,7 @@ func (opts *healthCheckOptions) toHealthConfig() (*container.HealthConfig, error
 	} else if haveHealthSettings {
 		var test []string
 		if opts.cmd != "" {
-			test = []string{"CMD-SHELL", opts.cmd}
+			test = []string{"CMD", opts.cmd}
 		}
 		var interval, timeout time.Duration
 		if ptr := opts.interval.Value(); ptr != nil {

@@ -609,7 +609,7 @@ func TestParseHealth(t *testing.T) {
 	}
 
 	health = checkOk("--health-cmd=/check.sh -q", "img", "cmd")
-	if len(health.Test) != 2 || health.Test[0] != "CMD-SHELL" || health.Test[1] != "/check.sh -q" {
+	if len(health.Test) != 2 || health.Test[0] != "CMD" || health.Test[1] != "/check.sh -q" {
 		t.Fatalf("--health-cmd: got %#v", health.Test)
 	}
 	if health.Timeout != 0 {
