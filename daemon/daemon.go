@@ -332,7 +332,7 @@ func (daemon *Daemon) restore() error {
 	removeGroup.Wait()
 
 	// any containers that were started above would already have had this done,
-	// however we need to now prepare the mountpoints for the rest of the containers as well.
+	// however, we need to now prepare the mountpoints for the rest of the containers as well.
 	// This shouldn't cause any issue running on the containers that already had this run.
 	// This must be run after any containers with a restart policy so that containerized plugins
 	// can have a chance to be running before we try to initialize them.
