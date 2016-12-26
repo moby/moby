@@ -76,10 +76,10 @@ const ServiceName = "sts"
 // aws.Config parameter to add your extra config.
 //
 // Example:
-//     // Create a STS client from just a session.
+//     // Create an STS client from just a session.
 //     svc := sts.New(mySession)
 //
-//     // Create a STS client with additional configuration
+//     // Create an STS client with additional configuration
 //     svc := sts.New(mySession, aws.NewConfig().WithRegion("us-west-2"))
 func New(p client.ConfigProvider, cfgs ...*aws.Config) *STS {
 	c := p.ClientConfig(ServiceName, cfgs...)
@@ -116,7 +116,7 @@ func newClient(cfg aws.Config, handlers request.Handlers, endpoint, signingRegio
 	return svc
 }
 
-// newRequest creates a new request for a STS operation and runs any
+// newRequest creates a new request for an STS operation and runs any
 // custom request initialization.
 func (c *STS) newRequest(op *request.Operation, params, data interface{}) *request.Request {
 	req := c.NewRequest(op, params, data)

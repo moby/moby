@@ -99,7 +99,7 @@ debian       jessie   f50f9524513f    5 days ago   125.1 MB
 debian       latest   f50f9524513f    5 days ago   125.1 MB
 ```
 
-Docker uses a content-addressable image store, and the image ID is a SHA256
+Docker uses a content-addressable image store, and the image ID is an SHA256
 digest covering the image's configuration and layers. In the example above,
 `debian:jessie` and `debian:latest` have the same image ID because they are
 actually the *same* image tagged with different names. Because they are the

@@ -72,7 +72,7 @@ const (
 	timeFormat       = "20060102T150405Z"
 	shortTimeFormat  = "20060102"
 
-	// emptyStringSHA256 is a SHA256 of an empty string
+	// emptyStringSHA256 is an SHA256 of an empty string
 	emptyStringSHA256 = `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855`
 )
 

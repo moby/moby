@@ -138,7 +138,7 @@ func NewWithPubKey(uri string, hc *http.Client, pemEncodedKey string) (*LogClien
 	return &LogClient{uri: uri, httpClient: hc, verifier: verifier}, nil
 }
 
-// Makes a HTTP call to |uri|, and attempts to parse the response as a
+// Makes an HTTP call to |uri|, and attempts to parse the response as a
 // JSON representation of the structure in |res|. Uses |ctx| to
 // control the HTTP call (so it can have a timeout or be cancelled by
 // the caller), and |httpClient| to make the actual HTTP call.
@@ -168,7 +168,7 @@ func fetchAndParse(ctx context.Context, httpClient *http.Client, uri string, res
 	return nil
 }
 
-// Makes a HTTP POST call to |uri|, and attempts to parse the response as a JSON
+// Makes an HTTP POST call to |uri|, and attempts to parse the response as a JSON
 // representation of the structure in |res|.
 // Returns a non-nil |error| if there was a problem.
 func (c *LogClient) postAndParse(uri string, req interface{}, res interface{}) (*http.Response, string, error) {

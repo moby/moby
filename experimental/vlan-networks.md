@@ -166,7 +166,7 @@ $ ip route
 
 Example: Multi-Subnet Ipvlan L2 Mode starting two containers on the same subnet and pinging one another. In order for the `192.168.114.0/24` to reach `192.168.116.0/24` it requires an external router in L2 mode. L3 mode can route between subnets that share a common `-o parent=`. 
 
-Secondary addresses on network routers are common as an address space becomes exhausted to add another secondary to a L3 vlan interface or commonly referred to as a "switched virtual interface" (SVI).
+Secondary addresses on network routers are common as an address space becomes exhausted to add another secondary to an L3 vlan interface or commonly referred to as a "switched virtual interface" (SVI).
 
 ```
 docker network  create  -d ipvlan \
