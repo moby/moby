@@ -21,10 +21,10 @@ Usage:  docker stack ps [OPTIONS] STACK
 List the tasks in the stack
 
 Options:
-  -a, --all            Display all tasks
-  -f, --filter value   Filter output based on conditions provided
-      --no-resolve     Do not map IDs to Names
-      --no-trunc       Do not truncate output
+  -f, --filter filter   Filter output based on conditions provided
+      --help            Print usage
+      --no-resolve      Do not map IDs to Names
+      --no-trunc        Do not truncate output
 ```
 
 Lists the tasks that are running as part of the specified stack. This
