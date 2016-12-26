@@ -176,7 +176,7 @@ func ConsumeWithSpeed(reader io.Reader, chunkSize int, interval time.Duration, s
 func ParseCgroupPaths(procCgroupData string) map[string]string {
 	cgroupPaths := map[string]string{}
 	for _, line := range strings.Split(procCgroupData, "\n") {
-		parts := strings.Split(line, ":")
+		parts := strings.SplitN(line, ":", 3)
 		if len(parts) != 3 {
 			continue
 		}
