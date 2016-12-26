@@ -6582,6 +6582,7 @@ paths:
           required: true
           type: "string"
       tags: ["Plugin"]
+  /plugins/{name}:
     delete:
       summary: "Remove a plugin"
       operationId: "PluginDelete"
