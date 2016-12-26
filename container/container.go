@@ -344,7 +344,7 @@ func (container *Container) StartLogger() (logger.Logger, error) {
 
 	// Set logging file for "json-logger"
 	if cfg.Type == jsonfilelog.Name {
-		ctx.LogPath, err = container.GetRootResourcePath(fmt.Sprintf("%s-json.log", container.ID))
+		ctx.LogPath, err = container.GetRootResourcePath("container-json.log")
 		if err != nil {
 			return nil, err
 		}
