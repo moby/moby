@@ -22,12 +22,6 @@ var (
 	configDir = os.Getenv("DOCKER_CONFIG")
 )
 
-func init() {
-	if configDir == "" {
-		configDir = filepath.Join(homedir.Get(), configFileDir)
-	}
-}
-
 // ConfigDir returns the directory the configuration file is stored in
 func ConfigDir() string {
 	return configDir
