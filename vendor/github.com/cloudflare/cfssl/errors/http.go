@@ -5,7 +5,7 @@ import (
 	"net/http"
 )
 
-// HTTPError is an augmented error with an HTTP status code.
+// HTTPError is an augmented error with a HTTP status code.
 type HTTPError struct {
 	StatusCode int
 	error

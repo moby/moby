@@ -1805,7 +1805,7 @@ type requestBody struct {
 	stream        *stream
 	conn          *serverConn
 	closed        bool
-	pipe          *pipe // non-nil if we have an HTTP entity message body
+	pipe          *pipe // non-nil if we have a HTTP entity message body
 	needsContinue bool  // need to send a 100-continue
 }
 

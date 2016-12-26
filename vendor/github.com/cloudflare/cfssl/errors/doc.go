@@ -40,7 +40,7 @@ The index of codes are listed below:
 	    5400: UnknownProfile
 	    6XXX: DialError
 
-2. Type HttpError is intended for CF SSL API to consume. It contains an HTTP status code that will be read and returned
+2. Type HttpError is intended for CF SSL API to consume. It contains a HTTP status code that will be read and returned
 by the API server.
 */
 package errors
