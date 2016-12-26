@@ -32,7 +32,6 @@ true
 
 ## Current experimental features
 
- * [External graphdriver plugins](plugins_graphdriver.md)
  * [Ipvlan Network Drivers](vlan-networks.md)
  * [Docker Stacks and Distributed Application Bundles](docker-stacks-and-bundles.md)
  * [Checkpoint & Restore](checkpoint-restore.md)
