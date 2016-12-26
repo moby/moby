@@ -25,9 +25,10 @@ func TestValidateLogOpt(t *testing.T) {
 		splunkVerifyConnectionKey:     "true",
 		splunkGzipCompressionKey:      "true",
 		splunkGzipCompressionLevelKey: "1",
-		envKey:    "a",
-		labelsKey: "b",
-		tagKey:    "c",
+		splunkEnvRegexKey:             "findme",
+		envKey:                        "a",
+		labelsKey:                     "b",
+		tagKey:                        "c",
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -38,6 +39,22 @@ func TestValidateLogOpt(t *testing.T) {
 	})
 	if err == nil {
 		t.Fatal("Expecting error on unsupported options")
+	}
+}
+
+func TestEnvByRegex(t *testing.T) {
+	ctx := logger.Context{
+		Config: map[string]string{
+			splunkEnvRegexKey: "^FIND_",
+		},
+		ContainerEnv: []string{"FIND_ME=HERE"},
+	}
+	attrs, err := envByRegex(ctx)
+	if err != nil {
+		t.Fatal("Failed with error", err)
+	}
+	if attrs["FIND_ME"] != "HERE" {
+		t.Fatal("Failed to find an environment variable when we should have done so.")
 	}
 }
 

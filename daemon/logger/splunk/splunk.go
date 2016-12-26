@@ -14,7 +14,9 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"regexp"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -38,6 +40,7 @@ const (
 	splunkVerifyConnectionKey     = "splunk-verify-connection"
 	splunkGzipCompressionKey      = "splunk-gzip"
 	splunkGzipCompressionLevelKey = "splunk-gzip-level"
+	splunkEnvRegexKey             = "splunk-env-regex"
 	envKey                        = "env"
 	labelsKey                     = "labels"
 	tagKey                        = "tag"
@@ -236,6 +239,13 @@ func New(ctx logger.Context) (logger.Logger, error) {
 	}
 
 	attrs := ctx.ExtraAttributes(nil)
+	moreAttrs, err := envByRegex(ctx)
+	if err != nil {
+		return nil, err
+	}
+	for k, v := range moreAttrs {
+		attrs[k] = v
+	}
 
 	var (
 		postMessagesFrequency = getAdvancedOptionDuration(envVarPostMessagesFrequency, defaultPostMessagesFrequency)
@@ -537,6 +547,7 @@ func ValidateLogOpt(cfg map[string]string) error {
 		case splunkVerifyConnectionKey:
 		case splunkGzipCompressionKey:
 		case splunkGzipCompressionLevelKey:
+		case splunkEnvRegexKey:
 		case envKey:
 		case labelsKey:
 		case tagKey:
@@ -545,6 +556,26 @@ func ValidateLogOpt(cfg map[string]string) error {
 		}
 	}
 	return nil
+}
+
+func envByRegex(ctx logger.Context) (map[string]string, error) {
+	theRegex, ok := ctx.Config[splunkEnvRegexKey]
+	if !ok { // Option not set. Nothing to do.
+		return nil, nil
+	}
+	re, err := regexp.Compile(theRegex)
+	if err != nil {
+		return nil, err
+	}
+	matchedEnvVars := make(map[string]string)
+	for _, e := range ctx.ContainerEnv {
+		if kv := strings.SplitN(e, "=", 2); len(kv) == 2 {
+			if re.MatchString(kv[0]) {
+				matchedEnvVars[kv[0]] = kv[1]
+			}
+		}
+	}
+	return matchedEnvVars, nil
 }
 
 func parseURL(ctx logger.Context) (*url.URL, error) {
