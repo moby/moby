@@ -35,8 +35,8 @@ but disabled:
 ```bash
 $ docker plugin ls
 
-NAME                  TAG                 DESCRIPTION                ENABLED
-tiborvass/no-remove   latest              A test plugin for Docker   false
+ID                  NAME                  TAG                 DESCRIPTION                ENABLED
+69553ca1d123        tiborvass/no-remove   latest              A test plugin for Docker   false
 ```
 
 To enable the plugin, use the following command:
@@ -48,8 +48,8 @@ tiborvass/no-remove
 
 $ docker plugin ls
 
-NAME                  TAG                 DESCRIPTION                ENABLED
-tiborvass/no-remove   latest              A test plugin for Docker   true
+ID                  NAME                  TAG                 DESCRIPTION                ENABLED
+69553ca1d123        tiborvass/no-remove   latest              A test plugin for Docker   true
 ```
 
 ## Related information
