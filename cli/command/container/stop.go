@@ -56,12 +56,13 @@ func runStop(dockerCli *command.DockerCli, opts *stopOptions) error {
 	for _, container := range opts.containers {
 		if err := <-errChan; err != nil {
 			errs = append(errs, err.Error())
+			fmt.Fprintf(dockerCli.Err(), "%s\n", errs)
 		} else {
 			fmt.Fprintf(dockerCli.Out(), "%s\n", container)
 		}
 	}
 	if len(errs) > 0 {
-		return fmt.Errorf("%s", strings.Join(errs, "\n"))
+		return fmt.Errorf("Error: failed to stop containers: %s", strings.Join(errs, "\n"))
 	}
 	return nil
 }
