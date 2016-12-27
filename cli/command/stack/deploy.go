@@ -587,6 +587,7 @@ func convertService(
 				Hostname:        service.Hostname,
 				Hosts:           convertExtraHosts(service.ExtraHosts),
 				Healthcheck:     healthcheck,
+				DNSConfig:       convertDNS(service.Dns, service.DnsSearch),
 				Env:             convertEnvironment(service.Environment),
 				Labels:          getStackLabels(namespace.name, service.Labels),
 				Dir:             service.WorkingDir,
@@ -610,6 +611,12 @@ func convertService(
 	}
 
 	return serviceSpec, nil
+}
+func convertDNS(dns []string, dnsSearch []string) *swarm.DNSConfig {
+	return &swarm.DNSConfig{
+		Nameservers: dns,
+		Search:      dnsSearch,
+	}
 }
 
 func convertExtraHosts(extraHosts map[string]string) []string {
