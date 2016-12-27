@@ -2,8 +2,10 @@ package requirement
 
 import (
 	"fmt"
+	"path"
 	"reflect"
 	"runtime"
+	"strings"
 )
 
 type skipT interface {
@@ -20,7 +22,12 @@ func Is(s skipT, requirements ...Test) {
 		isValid := r()
 		if !isValid {
 			requirementFunc := runtime.FuncForPC(reflect.ValueOf(r).Pointer()).Name()
-			s.Skip(fmt.Sprintf("unmatched requirement %s", requirementFunc))
+			s.Skip(fmt.Sprintf("unmatched requirement %s", extractRequirement(requirementFunc)))
 		}
 	}
+}
+
+func extractRequirement(requirementFunc string) string {
+	requirement := path.Base(requirementFunc)
+	return strings.SplitN(requirement, ".", 2)[1]
 }
