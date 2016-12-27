@@ -211,6 +211,29 @@ func (s *DockerTrustSuite) setupTrustedImage(c *check.C, name string) string {
 	return repoName
 }
 
+func (s *DockerTrustSuite) setupTrustedplugin(c *check.C, source, name string) string {
+	repoName := fmt.Sprintf("%v/dockercli/%s:latest", privateRegistryURL, name)
+	// tag the image and upload it to the private registry
+	dockerCmd(c, "plugin", "install", "--grant-all-permissions", "--alias", repoName, source)
+
+	pushCmd := exec.Command(dockerBinary, "plugin", "push", repoName)
+	s.trustedCmd(pushCmd)
+	out, _, err := runCommandWithOutput(pushCmd)
+
+	if err != nil {
+		c.Fatalf("Error running trusted plugin push: %s\n%s", err, out)
+	}
+	if !strings.Contains(string(out), "Signing and pushing trust metadata") {
+		c.Fatalf("Missing expected output on trusted push:\n%s", out)
+	}
+
+	if out, status := dockerCmd(c, "plugin", "rm", "-f", repoName); status != 0 {
+		c.Fatalf("Error removing plugin %q\n%s", repoName, out)
+	}
+
+	return repoName
+}
+
 func notaryClientEnv(cmd *exec.Cmd) {
 	pwd := "12345678"
 	env := []string{
