@@ -108,7 +108,7 @@ func assertEvent(w FileWatcher, eType fsnotify.Op) error {
 	select {
 	case e := <-w.Events():
 		if e.Op != eType {
-			err = fmt.Errorf("got wrong event type, expected %q: %v", eType, e)
+			err = fmt.Errorf("got wrong event type, expected %q: %v", eType, e.Op)
 		}
 	case e := <-w.Errors():
 		err = fmt.Errorf("got unexpected error waiting for events %v: %v", eType, e)
