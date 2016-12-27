@@ -27,6 +27,7 @@ type State struct {
 	Pid               int
 	ExitCodeValue     int    `json:"ExitCode"`
 	ErrorMsg          string `json:"Error"` // contains last known error when starting the container
+	CommitInProgress  int32
 	StartedAt         time.Time
 	FinishedAt        time.Time
 	waitChan          chan struct{}
@@ -328,6 +329,15 @@ func (s *State) ResetRemovalInProgress() {
 	s.Unlock()
 }
 
+// IsRemovalInProgress returns whether the RemovalInProgress flag is set.
+// Used by Container to check whether a container is being removed.
+func (s *State) IsRemovalInProgress() bool {
+	s.Lock()
+	res := s.RemovalInProgress
+	s.Unlock()
+	return res
+}
+
 // SetDead sets the container state to "dead"
 func (s *State) SetDead() {
 	s.Lock()
@@ -335,7 +345,40 @@ func (s *State) SetDead() {
 	s.Unlock()
 }
 
+// IsDead returns whether the Dead flag is set. Used by Container to check whether a container is dead.
+func (s *State) IsDead() bool {
+	s.Lock()
+	res := s.Dead
+	s.Unlock()
+	return res
+}
+
 // Error returns current error for the state.
 func (s *State) Error() string {
 	return s.ErrorMsg
+}
+
+// IncCommitInProgress increases the CommitInProgress flag by one.
+func (s *State) IncCommitInProgress() {
+	s.Lock()
+	s.CommitInProgress++
+	s.Unlock()
+}
+
+// DecCommitInProgress decreases the CommitInProgress flag by one.
+func (s *State) DecCommitInProgress() {
+	s.Lock()
+	s.CommitInProgress--
+	s.Unlock()
+}
+
+// IsCommitInProgress returns whether the RemovalInProgress flag is non-zero.
+// Used by Container to check whether a container is being commited.
+func (s *State) IsCommitInProgress() bool {
+	s.Lock()
+	defer s.Unlock()
+	if s.CommitInProgress > 0 {
+		return true
+	}
+	return false
 }
