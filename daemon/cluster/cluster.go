@@ -432,8 +432,8 @@ func (c *Cluster) GetUnlockKey() (string, error) {
 	}
 
 	if len(r.UnlockKey) == 0 {
-		// no key
-		return "", nil
+		// if no key, return error
+		return "", errors.New("Swarm has no unlock-key set.")
 	}
 
 	return encryption.HumanReadableKey(r.UnlockKey), nil
