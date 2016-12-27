@@ -7,6 +7,7 @@ import (
 
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cli/command"
+	"github.com/docker/docker/cli/command/image"
 	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/docker/docker/reference"
 	"github.com/docker/docker/registry"
@@ -22,6 +23,11 @@ func newPushCommand(dockerCli *command.DockerCli) *cobra.Command {
 			return runPush(dockerCli, args[0])
 		},
 	}
+
+	flags := cmd.Flags()
+
+	command.AddTrustedFlags(flags, true)
+
 	return cmd
 }
 
@@ -55,5 +61,11 @@ func runPush(dockerCli *command.DockerCli, name string) error {
 		return err
 	}
 	defer responseBody.Close()
+
+	if command.IsTrusted() {
+		repoInfo.Class = "plugin"
+		return image.PushTrustedReference(dockerCli, repoInfo, named, authConfig, responseBody)
+	}
+
 	return jsonmessage.DisplayJSONMessagesToStream(responseBody, dockerCli.Out(), nil)
 }

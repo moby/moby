@@ -170,7 +170,7 @@ func createContainer(ctx context.Context, dockerCli *command.DockerCli, config *
 
 		if ref, ok := ref.(reference.NamedTagged); ok && command.IsTrusted() {
 			var err error
-			trustedRef, err = image.TrustedReference(ctx, dockerCli, ref)
+			trustedRef, err = image.TrustedReference(ctx, dockerCli, ref, nil)
 			if err != nil {
 				return nil, err
 			}

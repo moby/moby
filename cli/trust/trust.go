@@ -147,8 +147,19 @@ func GetNotaryRepository(streams command.Streams, repoInfo *registry.RepositoryI
 		}
 	}
 
+	scope := auth.RepositoryScope{
+		Repository: repoInfo.FullName(),
+		Actions:    actions,
+		Class:      repoInfo.Class,
+	}
 	creds := simpleCredentialStore{auth: authConfig}
-	tokenHandler := auth.NewTokenHandler(authTransport, creds, repoInfo.FullName(), actions...)
+	tokenHandlerOptions := auth.TokenHandlerOptions{
+		Transport:   authTransport,
+		Credentials: creds,
+		Scopes:      []auth.Scope{scope},
+		ClientID:    registry.AuthClientID,
+	}
+	tokenHandler := auth.NewTokenHandlerWithOptions(tokenHandlerOptions)
 	basicHandler := auth.NewBasicHandler(creds)
 	modifiers = append(modifiers, transport.RequestModifier(auth.NewAuthorizer(challengeManager, tokenHandler, basicHandler)))
 	tr := transport.NewTransport(base, modifiers...)
