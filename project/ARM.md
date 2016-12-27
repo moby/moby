@@ -24,8 +24,8 @@ The Makefile does include logic to determine on which OS and architecture the Do
 Based on OS and architecture it chooses the correct Dockerfile.
 For the ARM 32bit architecture it uses `Dockerfile.armhf`.
 
-So for example in order to build a Docker binary one has to  
-1. clone the Docker/Docker repository on an ARM device `git clone git@github.com:docker/docker.git`  
+So for example in order to build a Docker binary one has to:
+1. clone the Docker/Docker repository on an ARM device `git clone https://github.com/docker/docker.git`  
 2. change into the checked out repository with `cd docker`  
 3. execute `make binary` to create a Docker Engine binary for ARM  
 
