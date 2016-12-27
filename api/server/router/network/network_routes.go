@@ -27,7 +27,7 @@ func (n *networkRouter) getNetworksList(ctx context.Context, w http.ResponseWrit
 
 	list := []types.NetworkResource{}
 
-	if nr, err := n.clusterProvider.GetNetworks(); err == nil {
+	if nr, err := n.cluster.GetNetworks(); err == nil {
 		list = append(list, nr...)
 	}
 
@@ -57,7 +57,7 @@ func (n *networkRouter) getNetwork(ctx context.Context, w http.ResponseWriter, r
 
 	nw, err := n.backend.FindNetwork(vars["id"])
 	if err != nil {
-		if nr, err := n.clusterProvider.GetNetwork(vars["id"]); err == nil {
+		if nr, err := n.cluster.GetNetwork(vars["id"]); err == nil {
 			return httputils.WriteJSON(w, http.StatusOK, nr)
 		}
 		return err
@@ -80,7 +80,7 @@ func (n *networkRouter) postNetworkCreate(ctx context.Context, w http.ResponseWr
 		return err
 	}
 
-	if nws, err := n.clusterProvider.GetNetworksByName(create.Name); err == nil && len(nws) > 0 {
+	if nws, err := n.cluster.GetNetworksByName(create.Name); err == nil && len(nws) > 0 {
 		return libnetwork.NetworkNameError(create.Name)
 	}
 
@@ -89,7 +89,7 @@ func (n *networkRouter) postNetworkCreate(ctx context.Context, w http.ResponseWr
 		if _, ok := err.(libnetwork.ManagerRedirectError); !ok {
 			return err
 		}
-		id, err := n.clusterProvider.CreateNetwork(create)
+		id, err := n.cluster.CreateNetwork(create)
 		if err != nil {
 			return err
 		}
@@ -137,8 +137,8 @@ func (n *networkRouter) deleteNetwork(ctx context.Context, w http.ResponseWriter
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
-	if _, err := n.clusterProvider.GetNetwork(vars["id"]); err == nil {
-		if err = n.clusterProvider.RemoveNetwork(vars["id"]); err != nil {
+	if _, err := n.cluster.GetNetwork(vars["id"]); err == nil {
+		if err = n.cluster.RemoveNetwork(vars["id"]); err != nil {
 			return err
 		}
 		w.WriteHeader(http.StatusNoContent)
@@ -162,8 +162,8 @@ func (n *networkRouter) buildNetworkResource(nw libnetwork.Network) *types.Netwo
 	r.ID = nw.ID()
 	r.Created = info.Created()
 	r.Scope = info.Scope()
-	if n.clusterProvider.IsManager() {
-		if _, err := n.clusterProvider.GetNetwork(nw.Name()); err == nil {
+	if n.cluster.IsManager() {
+		if _, err := n.cluster.GetNetwork(nw.Name()); err == nil {
 			r.Scope = "swarm"
 		}
 	} else if info.Dynamic() {
