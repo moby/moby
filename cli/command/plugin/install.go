@@ -11,6 +11,7 @@ import (
 	registrytypes "github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cli/command"
+	"github.com/docker/docker/cli/command/image"
 	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/docker/docker/reference"
 	"github.com/docker/docker/registry"
@@ -46,6 +47,8 @@ func newInstallCommand(dockerCli *command.DockerCli) *cobra.Command {
 	flags.BoolVar(&options.disable, "disable", false, "Do not enable the plugin on install")
 	flags.StringVar(&options.alias, "alias", "", "Local name for plugin")
 
+	command.AddTrustedFlags(flags, true)
+
 	return cmd
 }
 
@@ -61,6 +64,24 @@ func getRepoIndexFromUnnormalizedRef(ref distreference.Named) (*registrytypes.In
 	}
 
 	return repoInfo.Index, nil
+}
+
+type pluginRegistryService struct {
+	registry.Service
+}
+
+func (s pluginRegistryService) ResolveRepository(name reference.Named) (repoInfo *registry.RepositoryInfo, err error) {
+	repoInfo, err = s.Service.ResolveRepository(name)
+	if repoInfo != nil {
+		repoInfo.Class = "plugin"
+	}
+	return
+}
+
+func newRegistryService() registry.Service {
+	return pluginRegistryService{
+		Service: registry.NewService(registry.ServiceOptions{V2Only: true}),
+	}
 }
 
 func runInstall(dockerCli *command.DockerCli, opts pluginOptions) error {
@@ -85,13 +106,41 @@ func runInstall(dockerCli *command.DockerCli, opts pluginOptions) error {
 		}
 		alias = aref.String()
 	}
+	ctx := context.Background()
 
 	index, err := getRepoIndexFromUnnormalizedRef(ref)
 	if err != nil {
 		return err
 	}
 
-	ctx := context.Background()
+	remote := ref.String()
+
+	_, isCanonical := ref.(distreference.Canonical)
+	if command.IsTrusted() && !isCanonical {
+		if alias == "" {
+			alias = ref.String()
+		}
+		var nt reference.NamedTagged
+		named, err := reference.ParseNamed(ref.Name())
+		if err != nil {
+			return err
+		}
+		if tagged, ok := ref.(distreference.Tagged); ok {
+			nt, err = reference.WithTag(named, tagged.Tag())
+			if err != nil {
+				return err
+			}
+		} else {
+			named = reference.WithDefaultTag(named)
+			nt = named.(reference.NamedTagged)
+		}
+
+		trusted, err := image.TrustedReference(ctx, dockerCli, nt, newRegistryService())
+		if err != nil {
+			return err
+		}
+		remote = trusted.String()
+	}
 
 	authConfig := command.ResolveAuthConfig(ctx, dockerCli, index)
 
@@ -104,7 +153,7 @@ func runInstall(dockerCli *command.DockerCli, opts pluginOptions) error {
 
 	options := types.PluginInstallOptions{
 		RegistryAuth:          encodedAuth,
-		RemoteRef:             ref.String(),
+		RemoteRef:             remote,
 		Disabled:              opts.disable,
 		AcceptAllPermissions:  opts.grantPerms,
 		AcceptPermissionsFunc: acceptPrivileges(dockerCli, opts.name),

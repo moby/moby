@@ -39,6 +39,11 @@ func trustedPush(ctx context.Context, cli *command.DockerCli, repoInfo *registry
 
 	defer responseBody.Close()
 
+	return PushTrustedReference(cli, repoInfo, ref, authConfig, responseBody)
+}
+
+// PushTrustedReference pushes a canonical reference to the trust server.
+func PushTrustedReference(cli *command.DockerCli, repoInfo *registry.RepositoryInfo, ref reference.Named, authConfig types.AuthConfig, in io.Reader) error {
 	// If it is a trusted push we would like to find the target entry which match the
 	// tag provided in the function and then do an AddTarget later.
 	target := &client.Target{}
@@ -75,14 +80,14 @@ func trustedPush(ctx context.Context, cli *command.DockerCli, repoInfo *registry
 	default:
 		// We want trust signatures to always take an explicit tag,
 		// otherwise it will act as an untrusted push.
-		if err = jsonmessage.DisplayJSONMessagesToStream(responseBody, cli.Out(), nil); err != nil {
+		if err := jsonmessage.DisplayJSONMessagesToStream(in, cli.Out(), nil); err != nil {
 			return err
 		}
 		fmt.Fprintln(cli.Out(), "No tag specified, skipping trust metadata push")
 		return nil
 	}
 
-	if err = jsonmessage.DisplayJSONMessagesToStream(responseBody, cli.Out(), handleTarget); err != nil {
+	if err := jsonmessage.DisplayJSONMessagesToStream(in, cli.Out(), handleTarget); err != nil {
 		return err
 	}
 
@@ -315,8 +320,16 @@ func imagePullPrivileged(ctx context.Context, cli *command.DockerCli, authConfig
 }
 
 // TrustedReference returns the canonical trusted reference for an image reference
-func TrustedReference(ctx context.Context, cli *command.DockerCli, ref reference.NamedTagged) (reference.Canonical, error) {
-	repoInfo, err := registry.ParseRepositoryInfo(ref)
+func TrustedReference(ctx context.Context, cli *command.DockerCli, ref reference.NamedTagged, rs registry.Service) (reference.Canonical, error) {
+	var (
+		repoInfo *registry.RepositoryInfo
+		err      error
+	)
+	if rs != nil {
+		repoInfo, err = rs.ResolveRepository(ref)
+	} else {
+		repoInfo, err = registry.ParseRepositoryInfo(ref)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -332,7 +345,7 @@ func TrustedReference(ctx context.Context, cli *command.DockerCli, ref reference
 
 	t, err := notaryRepo.GetTargetByName(ref.Tag(), trust.ReleasesRole, data.CanonicalTargetsRole)
 	if err != nil {
-		return nil, err
+		return nil, trust.NotaryError(repoInfo.FullName(), err)
 	}
 	// Only list tags in the top level targets role or the releases delegation role - ignore
 	// all other delegation roles
