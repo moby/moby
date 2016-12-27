@@ -1572,3 +1572,22 @@ func (s *DockerSwarmSuite) TestSwarmServicePsMultipleServiceIDs(c *check.C) {
 	c.Assert(out, checker.Contains, name2+".2")
 	c.Assert(out, checker.Contains, name2+".3")
 }
+
+func (s *DockerSwarmSuite) TestSwarmPublishDuplicatePorts(c *check.C) {
+	d := s.AddDaemon(c, true, true)
+
+	out, err := d.Cmd("service", "create", "--publish", "5000:80", "--publish", "5001:80", "--publish", "80", "--publish", "80", "busybox", "top")
+	c.Assert(err, check.IsNil, check.Commentf(out))
+	id := strings.TrimSpace(out)
+
+	// make sure task has been deployed.
+	waitAndAssert(c, defaultReconciliationTimeout, d.CheckActiveContainerCount, checker.Equals, 1)
+
+	// Total len = 4, with 2 dynamic ports and 2 non-dynamic ports
+	// Dynamic ports are likely to be 30000 and 30001 but doesn't matter
+	out, err = d.Cmd("service", "inspect", "--format", "{{.Endpoint.Ports}} len={{len .Endpoint.Ports}}", id)
+	c.Assert(err, check.IsNil, check.Commentf(out))
+	c.Assert(out, checker.Contains, "len=4")
+	c.Assert(out, checker.Contains, "{ tcp 80 5000 ingress}")
+	c.Assert(out, checker.Contains, "{ tcp 80 5001 ingress}")
+}
