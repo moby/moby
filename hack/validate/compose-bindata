@@ -1,0 +1,28 @@
+#!/bin/bash
+
+export SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+source "${SCRIPTDIR}/.validate"
+
+IFS=$'\n'
+files=( $(validate_diff --diff-filter=ACMR --name-only -- 'cli/compose/schema/data' || true) )
+unset IFS
+
+if [ ${#files[@]} -gt 0 ]; then
+	go generate github.com/docker/docker/cli/compose/schema 2> /dev/null
+	# Let see if the working directory is clean
+	diffs="$(git status --porcelain -- api/types/ 2>/dev/null)"
+	if [ "$diffs" ]; then
+		{
+			echo 'The result of `go generate github.com/docker/docker/cli/compose/schema` differs'
+			echo
+			echo "$diffs"
+			echo
+			echo 'Please run `go generate github.com/docker/docker/cli/compose/schema`'
+		} >&2
+		false
+	else
+		echo 'Congratulations! cli/compose/schema/bindata.go is up-to-date.'
+	fi
+else
+    echo 'No cli/compose/schema/data changes in diff.'
+fi
