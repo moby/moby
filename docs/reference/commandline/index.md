@@ -45,6 +45,7 @@ read the [`dockerd`](dockerd.md) reference page.
 | [images](images.md) | List images                                            |
 | [import](import.md) | Import the contents from a tarball to create a filesystem image |
 | [load](load.md) | Load an image from a tar archive or STDIN                  |
+| [image prune](image_prune.md) | Remove unused images                         |
 | [rmi](rmi.md) | Remove one or more images                                    |
 | [save](save.md) | Save images to a tar archive                               |
 | [tag](tag.md) | Tag an image into a repository                               |
@@ -54,6 +55,7 @@ read the [`dockerd`](dockerd.md) reference page.
 | Command | Description                                                        |
 |:--------|:-------------------------------------------------------------------|
 | [attach](attach.md) | Attach to a running container                          |
+| [container prune](container_prune.md) | Remove all stopped containers        |
 | [cp](cp.md) | Copy files/folders from a container to a HOSTDIR or to STDOUT  |
 | [create](create.md) | Create a new container                                 |
 | [diff](diff.md) | Inspect changes on a container's filesystem                |
@@ -96,8 +98,8 @@ read the [`dockerd`](dockerd.md) reference page.
 | [network disconnect](network_disconnect.md) | Disconnect a container from a network |
 | [network inspect](network_inspect.md) | Display information about a network  |
 | [network ls](network_ls.md) | Lists all the networks the Engine `daemon` knows about |
+| [network prune](network_prune.md) | Remove all unused networks               |
 | [network rm](network_rm.md) | Removes one or more networks                   |
-
 
 ### Shared data volume commands
 
@@ -109,18 +111,17 @@ read the [`dockerd`](dockerd.md) reference page.
 | [volume prune](volume_prune.md) | Remove all unused volumes                  |
 | [volume rm](volume_rm.md) | Remove one or more volumes                       |
 
-
 ### Swarm node commands
 
 | Command | Description                                                        |
 |:--------|:-------------------------------------------------------------------|
-| [node promote](node_promote.md) | Promote a node that is pending a promotion to manager |
 | [node demote](node_demote.md) | Demotes an existing manager so that it is no longer a manager |
 | [node inspect](node_inspect.md) | Inspect a node in the swarm                |
-| [node update](node_update.md) | Update attributes for a node                 |
-| [node ps](node_ps.md) | List tasks running on one or more nodes                         |
 | [node ls](node_ls.md) | List nodes in the swarm                              |
+| [node promote](node_promote.md) | Promote a node that is pending a promotion to manager |
+| [node ps](node_ps.md) | List tasks running on one or more nodes                         |
 | [node rm](node_rm.md) | Remove one or more nodes from the swarm                         |
+| [node update](node_update.md) | Update attributes for a node                 |
 
 ### Swarm swarm commands
 
@@ -129,8 +130,10 @@ read the [`dockerd`](dockerd.md) reference page.
 | [swarm init](swarm_init.md) | Initialize a swarm                             |
 | [swarm join](swarm_join.md) | Join a swarm as a manager node or worker node  |
 | [swarm leave](swarm_leave.md) | Remove the current node from the swarm       |
-| [swarm update](swarm_update.md) | Update attributes of a swarm               |
 | [swarm join-token](swarm_join_token.md) | Display or rotate join tokens      |
+| [swarm unlock](swarm_unlock.md) | Unlock swarm                               |
+| [swarm unlock-key](swarm_unlock_key.md) | Manage the unlock key              |
+| [swarm update](swarm_update.md) | Update attributes of a swarm               |
 
 ### Swarm service commands
 
@@ -138,8 +141,9 @@ read the [`dockerd`](dockerd.md) reference page.
 |:--------|:-------------------------------------------------------------------|
 | [service create](service_create.md) | Create a new service                   |
 | [service inspect](service_inspect.md) | Inspect a service                    |
+| [service logs](service_logs.md)  | Fetch the logs of a service               |
 | [service ls](service_ls.md) | List services in the swarm                     |
+| [service ps](service_ps.md) | List the tasks of a service              |
 | [service rm](service_rm.md) | Remove a service from the swarm                |
 | [service scale](service_scale.md) | Set the number of replicas for the desired state of the service |
-| [service ps](service_ps.md) | List the tasks of a service              |
 | [service update](service_update.md)  | Update the attributes of a service    |
