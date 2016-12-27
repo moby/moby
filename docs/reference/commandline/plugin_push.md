@@ -32,9 +32,8 @@ The following example shows how to push a sample `user/plugin`.
 ```bash
 
 $ docker plugin ls
-NAME                  	TAG                 DESCRIPTION                  ENABLED
-user/plugin             latest              A sample plugin for Docker   false
-
+ID                  NAME                  TAG                 DESCRIPTION                ENABLED
+69553ca1d456        user/plugin           latest              A sample plugin for Docker false
 $ docker plugin push user/plugin
 ```
 
