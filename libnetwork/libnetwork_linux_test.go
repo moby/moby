@@ -318,7 +318,7 @@ func TestEndpointJoin(t *testing.T) {
 	}
 
 	if info.Sandbox() == nil {
-		t.Fatalf("Expected an non-empty sandbox key for a joined endpoint. Instead found a empty sandbox key")
+		t.Fatalf("Expected an non-empty sandbox key for a joined endpoint. Instead found an empty sandbox key")
 	}
 
 	// Check endpoint provided container information

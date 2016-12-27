@@ -81,7 +81,7 @@ func (d *driver) peerAdd(nid, eid string, peerIP net.IP, peerIPMask net.IPMask,
 			return err
 		}
 
-		// Temp: We have to create a endpoint object to keep track of the HNS ID for
+		// Temp: We have to create an endpoint object to keep track of the HNS ID for
 		// this endpoint so that we can retrieve it later when the endpoint is deleted.
 		// This seems unnecessary when we already have dockers EID. See if we can pass
 		// the global EID to HNS to use as it's ID, rather than having each HNS assign

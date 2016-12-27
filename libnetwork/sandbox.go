@@ -45,7 +45,7 @@ type Sandbox interface {
 	// EnableService  makes a managed container's service available by adding the
 	// endpoint to the service load balancer and service discovery
 	EnableService() error
-	// DisableService removes a managed contianer's endpoints from the load balancer
+	// DisableService removes a managed container's endpoints from the load balancer
 	// and service discovery
 	DisableService() error
 }
