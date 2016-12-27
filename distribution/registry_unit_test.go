@@ -60,7 +60,6 @@ func testTokenPassThru(t *testing.T, ts *httptest.Server) {
 		Official:     false,
 		TrimHostname: false,
 		TLSConfig:    nil,
-		//VersionHeader: "verheader",
 	}
 	n, _ := reference.ParseNamed("testremotename")
 	repoInfo := &registry.RepositoryInfo{
@@ -139,7 +138,7 @@ func TestTokenPassThruDifferentHost(t *testing.T) {
 	}
 }
 
-// TestDirectory creates a new temporary directory and returns its path.
+// testDirectory creates a new temporary directory and returns its path.
 // The contents of directory at path `templateDir` is copied into the
 // new directory.
 func testDirectory(templateDir string) (dir string, err error) {
