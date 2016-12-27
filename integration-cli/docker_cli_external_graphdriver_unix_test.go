@@ -54,6 +54,10 @@ func (s *DockerExternalGraphdriverSuite) SetUpTest(c *check.C) {
 	s.d = NewDaemon(c)
 }
 
+func (s *DockerExternalGraphdriverSuite) OnTimeout(c *check.C) {
+	s.d.DumpStackAndQuit()
+}
+
 func (s *DockerExternalGraphdriverSuite) TearDownTest(c *check.C) {
 	s.d.Stop()
 	s.ds.TearDownTest(c)
