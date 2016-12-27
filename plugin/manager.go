@@ -301,6 +301,10 @@ func configToRootFS(c []byte) (*image.RootFS, error) {
 	if err := json.Unmarshal(c, &pluginConfig); err != nil {
 		return nil, err
 	}
+	// validation for empty rootfs is in distribution code
+	if pluginConfig.Rootfs == nil {
+		return nil, nil
+	}
 
 	return rootFSFromPlugin(pluginConfig.Rootfs), nil
 }
