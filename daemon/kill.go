@@ -61,7 +61,7 @@ func (daemon *Daemon) killWithSignal(container *container.Container, sig int) er
 
 	// We could unpause the container for them rather than returning this error
 	if container.Paused {
-		return fmt.Errorf("Container %s is paused. Unpause the container before stopping", container.ID)
+		return fmt.Errorf("Container %s is paused. Unpause the container before stopping or killing", container.ID)
 	}
 
 	if !container.Running {
