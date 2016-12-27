@@ -57,6 +57,10 @@ func (s *DockerExternalGraphdriverSuite) SetUpTest(c *check.C) {
 	})
 }
 
+func (s *DockerExternalGraphdriverSuite) OnTimeout(c *check.C) {
+	s.d.DumpStackAndQuit()
+}
+
 func (s *DockerExternalGraphdriverSuite) TearDownTest(c *check.C) {
 	if s.d != nil {
 		s.d.Stop(c)
