@@ -18,6 +18,7 @@ import (
 	"github.com/docker/distribution/manifest/schema2"
 	distreference "github.com/docker/distribution/reference"
 	"github.com/docker/distribution/registry/client"
+	apitypes "github.com/docker/docker/api/types"
 	"github.com/docker/docker/distribution/metadata"
 	"github.com/docker/docker/distribution/xfer"
 	"github.com/docker/docker/layer"
@@ -32,15 +33,6 @@ const (
 	smallLayerMaximumSize  = 100 * (1 << 10) // 100KB
 	middleLayerMaximumSize = 10 * (1 << 20)  // 10MB
 )
-
-// PushResult contains the tag, manifest digest, and manifest size from the
-// push. It's used to signal this information to the trust code in the client
-// so it can sign the manifest if necessary.
-type PushResult struct {
-	Tag    string
-	Digest digest.Digest
-	Size   int
-}
 
 type v2Pusher struct {
 	v2MetadataService metadata.V2MetadataService
@@ -225,7 +217,7 @@ func (p *v2Pusher) pushV2Tag(ctx context.Context, ref reference.NamedTagged, id 
 
 	// Signal digest to the trust client so it can sign the
 	// push, if appropriate.
-	progress.Aux(p.config.ProgressOutput, PushResult{Tag: ref.Tag(), Digest: manifestDigest, Size: len(canonicalManifest)})
+	progress.Aux(p.config.ProgressOutput, apitypes.PushResult{Tag: ref.Tag(), Digest: manifestDigest.String(), Size: len(canonicalManifest)})
 
 	return nil
 }

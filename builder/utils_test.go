@@ -59,29 +59,3 @@ func createTestTempFile(t *testing.T, dir, filename, contents string, perm os.Fi
 
 	return filePath
 }
-
-// chdir changes current working directory to dir.
-// It returns a function which changes working directory back to the previous one.
-// This function is meant to be executed as a deferred call.
-// When an error occurs, it terminates the test.
-func chdir(t *testing.T, dir string) func() {
-	workingDirectory, err := os.Getwd()
-
-	if err != nil {
-		t.Fatalf("Error when retrieving working directory: %s", err)
-	}
-
-	err = os.Chdir(dir)
-
-	if err != nil {
-		t.Fatalf("Error when changing directory to %s: %s", dir, err)
-	}
-
-	return func() {
-		err = os.Chdir(workingDirectory)
-
-		if err != nil {
-			t.Fatalf("Error when changing back to working directory (%s): %s", workingDirectory, err)
-		}
-	}
-}
