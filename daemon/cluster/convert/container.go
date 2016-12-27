@@ -2,10 +2,11 @@ package convert
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/Sirupsen/logrus"
-	container "github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/container"
 	mounttypes "github.com/docker/docker/api/types/mount"
 	types "github.com/docker/docker/api/types/swarm"
 	swarmapi "github.com/docker/swarmkit/api"
@@ -107,8 +108,17 @@ func secretReferencesToGRPC(sr []*types.SecretReference) []*swarmapi.SecretRefer
 		refs = append(refs, ref)
 	}
 
+	sort.Sort(bySecretName(refs))
+
 	return refs
 }
+
+type bySecretName []*swarmapi.SecretReference
+
+func (s bySecretName) Len() int           { return len(s) }
+func (s bySecretName) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
+func (s bySecretName) Less(i, j int) bool { return s[i].SecretName < s[j].SecretName }
+
 func secretReferencesFromGRPC(sr []*swarmapi.SecretReference) []*types.SecretReference {
 	refs := make([]*types.SecretReference, 0, len(sr))
 	for _, s := range sr {
@@ -133,6 +143,11 @@ func secretReferencesFromGRPC(sr []*swarmapi.SecretReference) []*types.SecretRef
 	return refs
 }
 
+func sortStrings(strs []string) []string {
+	sort.Strings(strs)
+	return strs
+}
+
 func containerToGRPC(c types.ContainerSpec) (*swarmapi.ContainerSpec, error) {
 	containerSpec := &swarmapi.ContainerSpec{
 		Image:     c.Image,
@@ -140,13 +155,13 @@ func containerToGRPC(c types.ContainerSpec) (*swarmapi.ContainerSpec, error) {
 		Command:   c.Command,
 		Args:      c.Args,
 		Hostname:  c.Hostname,
-		Env:       c.Env,
+		Env:       sortStrings(c.Env),
 		Dir:       c.Dir,
 		User:      c.User,
-		Groups:    c.Groups,
+		Groups:    sortStrings(c.Groups),
 		TTY:       c.TTY,
 		OpenStdin: c.OpenStdin,
-		Hosts:     c.Hosts,
+		Hosts:     sortStrings(c.Hosts),
 		Secrets:   secretReferencesToGRPC(c.Secrets),
 	}
 
@@ -206,6 +221,7 @@ func containerToGRPC(c types.ContainerSpec) (*swarmapi.ContainerSpec, error) {
 
 		containerSpec.Mounts = append(containerSpec.Mounts, mount)
 	}
+	sort.Sort(byMountTarget(containerSpec.Mounts))
 
 	if c.Healthcheck != nil {
 		containerSpec.Healthcheck = healthConfigToGRPC(c.Healthcheck)
@@ -213,6 +229,12 @@ func containerToGRPC(c types.ContainerSpec) (*swarmapi.ContainerSpec, error) {
 
 	return containerSpec, nil
 }
+
+type byMountTarget []swarmapi.Mount
+
+func (s byMountTarget) Len() int           { return len(s) }
+func (s byMountTarget) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
+func (s byMountTarget) Less(i, j int) bool { return s[i].Target < s[j].Target }
 
 func healthConfigFromGRPC(h *swarmapi.HealthConfig) *container.HealthConfig {
 	interval, _ := ptypes.Duration(h.Interval)

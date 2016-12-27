@@ -2,6 +2,7 @@ package convert
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	types "github.com/docker/docker/api/types/swarm"
@@ -133,11 +134,13 @@ func ServiceSpecToGRPC(s types.ServiceSpec) (swarmapi.ServiceSpec, error) {
 	for _, n := range s.Networks {
 		serviceNetworks = append(serviceNetworks, &swarmapi.NetworkAttachmentConfig{Target: n.Target, Aliases: n.Aliases})
 	}
+	sort.Sort(byNetworkTarget(serviceNetworks))
 
 	taskNetworks := make([]*swarmapi.NetworkAttachmentConfig, 0, len(s.TaskTemplate.Networks))
 	for _, n := range s.TaskTemplate.Networks {
 		taskNetworks = append(taskNetworks, &swarmapi.NetworkAttachmentConfig{Target: n.Target, Aliases: n.Aliases})
 	}
+	sort.Sort(byNetworkTarget(taskNetworks))
 
 	spec := swarmapi.ServiceSpec{
 		Annotations: swarmapi.Annotations{
@@ -212,6 +215,7 @@ func ServiceSpecToGRPC(s types.ServiceSpec) (swarmapi.ServiceSpec, error) {
 				PublishedPort: portConfig.PublishedPort,
 			})
 		}
+		sort.Sort(byPublishedPort(spec.Endpoint.Ports))
 	}
 
 	// Mode
@@ -235,6 +239,18 @@ func ServiceSpecToGRPC(s types.ServiceSpec) (swarmapi.ServiceSpec, error) {
 
 	return spec, nil
 }
+
+type byNetworkTarget []*swarmapi.NetworkAttachmentConfig
+
+func (a byNetworkTarget) Len() int           { return len(a) }
+func (a byNetworkTarget) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+func (a byNetworkTarget) Less(i, j int) bool { return a[i].Target < a[j].Target }
+
+type byPublishedPort []*swarmapi.PortConfig
+
+func (a byPublishedPort) Len() int           { return len(a) }
+func (a byPublishedPort) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+func (a byPublishedPort) Less(i, j int) bool { return a[i].PublishedPort < a[j].PublishedPort }
 
 func resourcesFromGRPC(res *swarmapi.ResourceRequirements) *types.ResourceRequirements {
 	var resources *types.ResourceRequirements
