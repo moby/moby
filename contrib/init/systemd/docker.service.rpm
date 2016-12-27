@@ -1,7 +1,8 @@
 [Unit]
 Description=Docker Application Container Engine
 Documentation=https://docs.docker.com
-After=network.target firewalld.service
+After=network-online.target firewalld.service
+Wants=network-online.target
 
 [Service]
 Type=notify
