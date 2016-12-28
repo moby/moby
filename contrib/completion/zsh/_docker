@@ -230,6 +230,7 @@ __docker_get_log_options() {
     journald_options=("env" "labels" "tag")
     json_file_options=("env" "labels" "max-file" "max-size")
     logentries_options=("logentries-token")
+    nats_options=("env" "labels" "nats-servers" "nats-subject" "nats-user" "nats-pass" "nats-token" "nats-max-reconnect" "nats-tls-ca-cert" "nats-tls-cert" "nats-tls-key" "nats-tls-skip-verify", "tag")
     syslog_options=("env" "labels" "syslog-address" "syslog-facility" "syslog-format" "syslog-tls-ca-cert" "syslog-tls-cert" "syslog-tls-key" "syslog-tls-skip-verify" "tag")
     splunk_options=("env" "labels" "splunk-caname" "splunk-capath" "splunk-format" "splunk-gzip" "splunk-gzip-level" "splunk-index" "splunk-insecureskipverify" "splunk-source" "splunk-sourcetype" "splunk-token" "splunk-url" "splunk-verify-connection" "tag")
 

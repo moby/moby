@@ -660,6 +660,7 @@ __docker_complete_log_drivers() {
 		journald
 		json-file
 		logentries
+		nats
 		none
 		splunk
 		syslog
@@ -675,10 +676,11 @@ __docker_complete_log_options() {
 	local journald_options="env labels tag"
 	local json_file_options="env labels max-file max-size"
 	local logentries_options="logentries-token"
+	local nats_options="env labels nats-servers nats-subject nats-user nats-pass nats-token nats-max-reconnect nats-tls-ca-cert nats-tls-cert nats-tls-key nats-tls-skip-verify tag"
 	local syslog_options="env labels syslog-address syslog-facility syslog-format syslog-tls-ca-cert syslog-tls-cert syslog-tls-key syslog-tls-skip-verify tag"
 	local splunk_options="env labels splunk-caname splunk-capath splunk-format splunk-gzip splunk-gzip-level splunk-index splunk-insecureskipverify splunk-source splunk-sourcetype splunk-token splunk-url splunk-verify-connection tag"
 
-	local all_options="$fluentd_options $gcplogs_options $gelf_options $journald_options $logentries_options $json_file_options $syslog_options $splunk_options"
+	local all_options="$fluentd_options $gcplogs_options $gelf_options $journald_options $json_file_options $logentries_options $nats_options $syslog_options $splunk_options"
 
 	case $(__docker_value_of_option --log-driver) in
 		'')
@@ -704,6 +706,8 @@ __docker_complete_log_options() {
 			;;
 		logentries)
 			COMPREPLY=( $( compgen -W "$logentries_options" -S = -- "$cur" ) )
+		nats)
+			COMPREPLY=( $( compgen -W "$nats_options" -S = -- "$cur" ) )
 			;;
 		syslog)
 			COMPREPLY=( $( compgen -W "$syslog_options" -S = -- "$cur" ) )
