@@ -49,8 +49,7 @@ func runPS(dockerCli *command.DockerCli, opts psOptions) error {
 	client := dockerCli.Client()
 	ctx := context.Background()
 
-	filter := opts.filter.Value()
-	filter.Add("label", labelNamespace+"="+opts.namespace)
+	filter := getStackFilterFromOpt(opts.namespace, opts.filter)
 	if !opts.all && !filter.Include("desired-state") {
 		filter.Add("desired-state", string(swarm.TaskStateRunning))
 		filter.Add("desired-state", string(swarm.TaskStateAccepted))

@@ -6,24 +6,26 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/swarm"
+	"github.com/docker/docker/cli/compose/convert"
 	"github.com/docker/docker/client"
+	"github.com/docker/docker/opts"
 )
-
-const (
-	labelNamespace = "com.docker.stack.namespace"
-)
-
-func getStackLabels(namespace string, labels map[string]string) map[string]string {
-	if labels == nil {
-		labels = make(map[string]string)
-	}
-	labels[labelNamespace] = namespace
-	return labels
-}
 
 func getStackFilter(namespace string) filters.Args {
 	filter := filters.NewArgs()
-	filter.Add("label", labelNamespace+"="+namespace)
+	filter.Add("label", convert.LabelNamespace+"="+namespace)
+	return filter
+}
+
+func getStackFilterFromOpt(namespace string, opt opts.FilterOpt) filters.Args {
+	filter := opt.Value()
+	filter.Add("label", convert.LabelNamespace+"="+namespace)
+	return filter
+}
+
+func getAllStacksFilter() filters.Args {
+	filter := filters.NewArgs()
+	filter.Add("label", convert.LabelNamespace)
 	return filter
 }
 
@@ -45,12 +47,4 @@ func getStackNetworks(
 	return apiclient.NetworkList(
 		ctx,
 		types.NetworkListOptions{Filters: getStackFilter(namespace)})
-}
-
-type namespace struct {
-	name string
-}
-
-func (n namespace) scope(name string) string {
-	return n.name + "_" + name
 }

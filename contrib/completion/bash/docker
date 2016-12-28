@@ -3139,7 +3139,7 @@ _docker_node_ps() {
 
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "--all -a --filter -f --help --no-resolve --no-trunc" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "--filter -f --help --no-resolve --no-trunc" -- "$cur" ) )
 			;;
 		*)
 			__docker_complete_nodes_plus_self
@@ -3955,7 +3955,6 @@ _docker() {
 		container
 		cp
 		create
-		daemon
 		diff
 		events
 		exec
