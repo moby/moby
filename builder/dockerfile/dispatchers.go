@@ -764,7 +764,9 @@ func arg(b *Builder, args []string, attributes map[string]bool, original string)
 		b.options.BuildArgs[name] = &newValue
 	}
 
-	return b.commit("", b.runConfig.Cmd, fmt.Sprintf("ARG %s", arg))
+	// Note, we do not commit anything because there was no change in the
+	// image being built. All we did was change build-time data.
+	return nil
 }
 
 // SHELL powershell -command
