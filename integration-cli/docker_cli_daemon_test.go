@@ -224,6 +224,16 @@ func (s *DockerDaemonSuite) TestDaemonRestartWithIncreasedBasesize(c *check.C) {
 	s.d.Stop(c)
 }
 
+func convertBasesize(basesizeBytes int64) (int64, error) {
+	basesize := units.HumanSize(float64(basesizeBytes))
+	basesize = strings.Trim(basesize, " ")[:len(basesize)-3]
+	basesizeFloat, err := strconv.ParseFloat(strings.Trim(basesize, " "), 64)
+	if err != nil {
+		return 0, err
+	}
+	return int64(basesizeFloat) * 1024 * 1024 * 1024, nil
+}
+
 // Issue #8444: If docker0 bridge is modified (intentionally or unintentionally) and
 // no longer has an IP associated, we should gracefully handle that case and associate
 // an IP with it rather than fail daemon start

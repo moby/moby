@@ -31,7 +31,6 @@ import (
 	icmd "github.com/docker/docker/pkg/integration/cmd"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/stringutils"
-	units "github.com/docker/go-units"
 	"github.com/go-check/check"
 )
 
@@ -87,16 +86,6 @@ func init() {
 		containerStoragePath = strings.Replace(containerStoragePath, `\`, `/`, -1)
 	}
 	isolation = info.Isolation
-}
-
-func convertBasesize(basesizeBytes int64) (int64, error) {
-	basesize := units.HumanSize(float64(basesizeBytes))
-	basesize = strings.Trim(basesize, " ")[:len(basesize)-3]
-	basesizeFloat, err := strconv.ParseFloat(strings.Trim(basesize, " "), 64)
-	if err != nil {
-		return 0, err
-	}
-	return int64(basesizeFloat) * 1024 * 1024 * 1024, nil
 }
 
 func daemonHost() string {
@@ -370,22 +359,6 @@ func deleteImages(images ...string) error {
 	return icmd.RunCmd(icmd.Cmd{Command: append(args, images...)}).Error
 }
 
-func imageExists(image string) error {
-	return icmd.RunCommand(dockerBinary, "inspect", image).Error
-}
-
-func pullImageIfNotExist(image string) error {
-	if err := imageExists(image); err != nil {
-		pullCmd := exec.Command(dockerBinary, "pull", image)
-		_, exitCode, err := runCommandWithOutput(pullCmd)
-
-		if err != nil || exitCode != 0 {
-			return fmt.Errorf("image %q wasn't found locally and it couldn't be pulled: %s", image, err)
-		}
-	}
-	return nil
-}
-
 func dockerCmdWithError(args ...string) (string, int, error) {
 	if err := validateArgs(args...); err != nil {
 		return "", 0, err
@@ -439,18 +412,6 @@ func dockerCmdInDir(c *check.C, path string, args ...string) (string, int, error
 	}
 	result := icmd.RunCmd(icmd.Cmd{Command: binaryWithArgs(args...), Dir: path})
 	return result.Combined(), result.ExitCode, result.Error
-}
-
-// execute a docker command in a directory with a timeout
-func dockerCmdInDirWithTimeout(timeout time.Duration, path string, args ...string) *icmd.Result {
-	if err := validateArgs(args...); err != nil {
-		return &icmd.Result{Error: err}
-	}
-	return icmd.RunCmd(icmd.Cmd{
-		Command: binaryWithArgs(args...),
-		Timeout: timeout,
-		Dir:     path,
-	})
 }
 
 // validateArgs is a checker to ensure tests are not running commands which are
@@ -853,36 +814,6 @@ func getIDByName(name string) (string, error) {
 	return inspectFieldWithError(name, "Id")
 }
 
-// getContainerState returns the exit code of the container
-// and true if it's running
-// the exit code should be ignored if it's running
-func getContainerState(c *check.C, id string) (int, bool, error) {
-	var (
-		exitStatus int
-		running    bool
-	)
-	out, exitCode := dockerCmd(c, "inspect", "--format={{.State.Running}} {{.State.ExitCode}}", id)
-	if exitCode != 0 {
-		return 0, false, fmt.Errorf("%q doesn't exist: %s", id, out)
-	}
-
-	out = strings.Trim(out, "\n")
-	splitOutput := strings.Split(out, " ")
-	if len(splitOutput) != 2 {
-		return 0, false, fmt.Errorf("failed to get container state: output is broken")
-	}
-	if splitOutput[0] == "true" {
-		running = true
-	}
-	if n, err := strconv.Atoi(splitOutput[1]); err == nil {
-		exitStatus = n
-	} else {
-		return 0, false, fmt.Errorf("failed to get container state: couldn't parse integer")
-	}
-
-	return exitStatus, running, nil
-}
-
 func buildImageCmd(name, dockerfile string, useCache bool, buildFlags ...string) *exec.Cmd {
 	return daemon.BuildImageCmdWithHost(dockerBinary, name, dockerfile, "", useCache, buildFlags...)
 }
@@ -1264,28 +1195,6 @@ func createTmpFile(c *check.C, content string) string {
 	return filename
 }
 
-func buildImageWithOutInDamon(socket string, name, dockerfile string, useCache bool) (string, error) {
-	args := []string{"--host", socket}
-	buildCmd := buildImageCmdArgs(args, name, dockerfile, useCache)
-	out, exitCode, err := runCommandWithOutput(buildCmd)
-	if err != nil || exitCode != 0 {
-		return out, fmt.Errorf("failed to build the image: %s, error: %v", out, err)
-	}
-	return out, nil
-}
-
-func buildImageCmdArgs(args []string, name, dockerfile string, useCache bool) *exec.Cmd {
-	args = append(args, []string{"-D", "build", "-t", name}...)
-	if !useCache {
-		args = append(args, "--no-cache")
-	}
-	args = append(args, "-")
-	buildCmd := exec.Command(dockerBinary, args...)
-	buildCmd.Stdin = strings.NewReader(dockerfile)
-	return buildCmd
-
-}
-
 func waitForContainer(contID string, args ...string) error {
 	args = append([]string{dockerBinary, "run", "--name", contID}, args...)
 	result := icmd.RunCmd(icmd.Cmd{Command: args})
@@ -1344,23 +1253,6 @@ func runSleepingContainerInImage(c *check.C, image string, extraArgs ...string) 
 	args = append(args, image)
 	args = append(args, sleepCommandForDaemonPlatform()...)
 	return dockerCmd(c, args...)
-}
-
-func getRootUIDGID() (int, int, error) {
-	uidgid := strings.Split(filepath.Base(dockerBasePath), ".")
-	if len(uidgid) == 1 {
-		//user namespace remapping is not turned on; return 0
-		return 0, 0, nil
-	}
-	uid, err := strconv.Atoi(uidgid[0])
-	if err != nil {
-		return 0, 0, err
-	}
-	gid, err := strconv.Atoi(uidgid[1])
-	if err != nil {
-		return 0, 0, err
-	}
-	return uid, gid, nil
 }
 
 // minimalBaseImage returns the name of the minimal base image for the current
