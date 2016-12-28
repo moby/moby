@@ -1,0 +1,97 @@
+// Copyright 2016 Google Inc.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+syntax = "proto3";
+
+package google.api;
+
+import "google.golang.org/genproto/googleapis/api/serviceconfig/annotations.proto"; // from google/api/annotations.proto
+import "google.golang.org/genproto/googleapis/api/metric/metric.proto"; // from google/api/metric.proto
+
+option java_multiple_files = true;
+option java_outer_classname = "BillingProto";
+option java_package = "com.google.api";
+
+
+// Billing related configuration of the service.
+//
+// The following example shows how to configure metrics for billing:
+//
+//     metrics:
+//     - name: library.googleapis.com/read_calls
+//       metric_kind: DELTA
+//       value_type: INT64
+//     - name: library.googleapis.com/write_calls
+//       metric_kind: DELTA
+//       value_type: INT64
+//     billing:
+//       metrics:
+//       - library.googleapis.com/read_calls
+//       - library.googleapis.com/write_calls
+//
+// The next example shows how to enable billing status check and customize the
+// check behavior. It makes sure billing status check is included in the `Check`
+// method of [Service Control API](https://cloud.google.com/service-control/).
+// In the example, "google.storage.Get" method can be served when the billing
+// status is either `current` or `delinquent`, while "google.storage.Write"
+// method can only be served when the billing status is `current`:
+//
+//     billing:
+//       rules:
+//       - selector: google.storage.Get
+//         allowed_statuses:
+//         - current
+//         - delinquent
+//       - selector: google.storage.Write
+//         allowed_statuses: current
+//
+// Mostly services should only allow `current` status when serving requests.
+// In addition, services can choose to allow both `current` and `delinquent`
+// statuses when serving read-only requests to resources. If there's no
+// matching selector for operation, no billing status check will be performed.
+//
+message Billing {
+  // Names of the metrics to report to billing. Each name must
+  // be defined in [Service.metrics][google.api.Service.metrics] section.
+  repeated string metrics = 1;
+
+  // A list of billing status rules for configuring billing status check.
+  repeated BillingStatusRule rules = 5;
+}
+
+// Defines the billing status requirements for operations.
+//
+// When used with
+// [Service Control API](https://cloud.google.com/service-control/), the
+// following statuses are supported:
+//
+// - **current**: the associated billing account is up to date and capable of
+//                paying for resource usages.
+// - **delinquent**: the associated billing account has a correctable problem,
+//                   such as late payment.
+//
+// Mostly services should only allow `current` status when serving requests.
+// In addition, services can choose to allow both `current` and `delinquent`
+// statuses when serving read-only requests to resources. If the list of
+// allowed_statuses is empty, it means no billing requirement.
+//
+message BillingStatusRule {
+  // Selects the operation names to which this rule applies.
+  // Refer to [selector][google.api.DocumentationRule.selector] for syntax details.
+  string selector = 1;
+
+  // Allowed billing statuses. The billing status check passes if the actual
+  // billing status matches any of the provided values here.
+  repeated string allowed_statuses = 2;
+}
