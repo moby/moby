@@ -111,23 +111,25 @@ func lookup(name string, mode int) (volume.Driver, error) {
 	if ok {
 		return ext, nil
 	}
+	if drivers.plugingetter != nil {
+		p, err := drivers.plugingetter.Get(name, extName, mode)
+		if err != nil {
+			return nil, fmt.Errorf("Error looking up volume plugin %s: %v", name, err)
+		}
 
-	p, err := drivers.plugingetter.Get(name, extName, mode)
-	if err != nil {
-		return nil, fmt.Errorf("Error looking up volume plugin %s: %v", name, err)
-	}
+		d := NewVolumeDriver(p.Name(), p.BasePath(), p.Client())
+		if err := validateDriver(d); err != nil {
+			return nil, err
+		}
 
-	d := NewVolumeDriver(p.Name(), p.BasePath(), p.Client())
-	if err := validateDriver(d); err != nil {
-		return nil, err
+		if p.IsV1() {
+			drivers.Lock()
+			drivers.extensions[name] = d
+			drivers.Unlock()
+		}
+		return d, nil
 	}
-
-	if p.IsV1() {
-		drivers.Lock()
-		drivers.extensions[name] = d
-		drivers.Unlock()
-	}
-	return d, nil
+	return nil, fmt.Errorf("Error looking up volume plugin %s", name)
 }
 
 func validateDriver(vd volume.Driver) error {
@@ -179,9 +181,13 @@ func GetDriverList() []string {
 
 // GetAllDrivers lists all the registered drivers
 func GetAllDrivers() ([]volume.Driver, error) {
-	plugins, err := drivers.plugingetter.GetAllByCap(extName)
-	if err != nil {
-		return nil, fmt.Errorf("error listing plugins: %v", err)
+	var plugins []getter.CompatPlugin
+	if drivers.plugingetter != nil {
+		var err error
+		plugins, err = drivers.plugingetter.GetAllByCap(extName)
+		if err != nil {
+			return nil, fmt.Errorf("error listing plugins: %v", err)
+		}
 	}
 	var ds []volume.Driver
 

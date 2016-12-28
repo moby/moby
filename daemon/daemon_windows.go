@@ -61,10 +61,6 @@ func getBlkioWriteBpsDevices(config *containertypes.HostConfig) ([]blkiodev.Thro
 	return nil, nil
 }
 
-func setupInitLayer(initLayer string, rootUID, rootGID int) error {
-	return nil
-}
-
 func (daemon *Daemon) getLayerInit() func(string) error {
 	return nil
 }

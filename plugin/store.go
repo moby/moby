@@ -1,16 +1,15 @@
-package store
+package plugin
 
 import (
-	"encoding/json"
 	"fmt"
 	"strings"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/docker/pkg/plugins"
 	"github.com/docker/docker/plugin/v2"
 	"github.com/docker/docker/reference"
+	"github.com/pkg/errors"
 )
 
 /* allowV1PluginsFallback determines daemon's support for V1 plugins.
@@ -37,33 +36,32 @@ func (name ErrAmbiguous) Error() string {
 	return fmt.Sprintf("multiple plugins found for %q", string(name))
 }
 
-// GetByName retreives a plugin by name.
-func (ps *Store) GetByName(name string) (*v2.Plugin, error) {
+// GetV2Plugin retreives a plugin by name, id or partial ID.
+func (ps *Store) GetV2Plugin(refOrID string) (*v2.Plugin, error) {
 	ps.RLock()
 	defer ps.RUnlock()
 
-	id, nameOk := ps.nameToID[name]
-	if !nameOk {
-		return nil, ErrNotFound(name)
+	id, err := ps.resolvePluginID(refOrID)
+	if err != nil {
+		return nil, err
 	}
 
 	p, idOk := ps.plugins[id]
 	if !idOk {
-		return nil, ErrNotFound(id)
+		return nil, errors.WithStack(ErrNotFound(id))
 	}
+
 	return p, nil
 }
 
-// GetByID retreives a plugin by ID.
-func (ps *Store) GetByID(id string) (*v2.Plugin, error) {
-	ps.RLock()
-	defer ps.RUnlock()
-
-	p, idOk := ps.plugins[id]
-	if !idOk {
-		return nil, ErrNotFound(id)
+// validateName returns error if name is already reserved. always call with lock and full name
+func (ps *Store) validateName(name string) error {
+	for _, p := range ps.plugins {
+		if p.Name() == name {
+			return errors.Errorf("%v already exists", name)
+		}
 	}
-	return p, nil
+	return nil
 }
 
 // GetAll retreives all plugins.
@@ -101,7 +99,6 @@ func (ps *Store) SetState(p *v2.Plugin, state bool) {
 	defer ps.Unlock()
 
 	p.PluginObj.Enabled = state
-	ps.updatePluginDB()
 }
 
 // Add adds a plugin to memory and plugindb.
@@ -113,43 +110,15 @@ func (ps *Store) Add(p *v2.Plugin) error {
 	if v, exist := ps.plugins[p.GetID()]; exist {
 		return fmt.Errorf("plugin %q has the same ID %s as %q", p.Name(), p.GetID(), v.Name())
 	}
-	if _, exist := ps.nameToID[p.Name()]; exist {
-		return fmt.Errorf("plugin %q already exists", p.Name())
-	}
 	ps.plugins[p.GetID()] = p
-	ps.nameToID[p.Name()] = p.GetID()
-	ps.updatePluginDB()
 	return nil
-}
-
-// Update updates a plugin to memory and plugindb.
-func (ps *Store) Update(p *v2.Plugin) {
-	ps.Lock()
-	defer ps.Unlock()
-
-	ps.plugins[p.GetID()] = p
-	ps.nameToID[p.Name()] = p.GetID()
-	ps.updatePluginDB()
 }
 
 // Remove removes a plugin from memory and plugindb.
 func (ps *Store) Remove(p *v2.Plugin) {
 	ps.Lock()
 	delete(ps.plugins, p.GetID())
-	delete(ps.nameToID, p.Name())
-	ps.updatePluginDB()
 	ps.Unlock()
-}
-
-// Callers are expected to hold the store lock.
-func (ps *Store) updatePluginDB() error {
-	jsonData, err := json.Marshal(ps.plugins)
-	if err != nil {
-		logrus.Debugf("Error in json.Marshal: %v", err)
-		return err
-	}
-	ioutils.AtomicWriteFile(ps.plugindb, jsonData, 0600)
-	return nil
 }
 
 // Get returns an enabled plugin matching the given name and capability.
@@ -161,18 +130,7 @@ func (ps *Store) Get(name, capability string, mode int) (plugingetter.CompatPlug
 
 	// Lookup using new model.
 	if ps != nil {
-		fullName := name
-		if named, err := reference.ParseNamed(fullName); err == nil { // FIXME: validate
-			if reference.IsNameOnly(named) {
-				named = reference.WithDefaultTag(named)
-			}
-			ref, ok := named.(reference.NamedTagged)
-			if !ok {
-				return nil, fmt.Errorf("invalid name: %s", named.String())
-			}
-			fullName = ref.String()
-		}
-		p, err = ps.GetByName(fullName)
+		p, err = ps.GetV2Plugin(name)
 		if err == nil {
 			p.AddRefCount(mode)
 			if p.IsEnabled() {
@@ -180,9 +138,9 @@ func (ps *Store) Get(name, capability string, mode int) (plugingetter.CompatPlug
 			}
 			// Plugin was found but it is disabled, so we should not fall back to legacy plugins
 			// but we should error out right away
-			return nil, ErrNotFound(fullName)
+			return nil, ErrNotFound(name)
 		}
-		if _, ok := err.(ErrNotFound); !ok {
+		if _, ok := errors.Cause(err).(ErrNotFound); !ok {
 			return nil, err
 		}
 	}
@@ -259,24 +217,42 @@ func (ps *Store) CallHandler(p *v2.Plugin) {
 	}
 }
 
-// Search retreives a plugin by ID Prefix
-// If no plugin is found, then ErrNotFound is returned
-// If multiple plugins are found, then ErrAmbiguous is returned
-func (ps *Store) Search(partialID string) (*v2.Plugin, error) {
-	ps.RLock()
+func (ps *Store) resolvePluginID(idOrName string) (string, error) {
+	ps.RLock() // todo: fix
 	defer ps.RUnlock()
 
+	if validFullID.MatchString(idOrName) {
+		return idOrName, nil
+	}
+
+	ref, err := reference.ParseNamed(idOrName)
+	if err != nil {
+		return "", errors.Wrapf(err, "failed to parse %v", idOrName)
+	}
+	if _, ok := ref.(reference.Canonical); ok {
+		logrus.Warnf("canonical references cannot be resolved: %v", ref.String())
+		return "", errors.WithStack(ErrNotFound(idOrName))
+	}
+
+	fullRef := reference.WithDefaultTag(ref)
+
+	for _, p := range ps.plugins {
+		if p.PluginObj.Name == fullRef.String() {
+			return p.PluginObj.ID, nil
+		}
+	}
+
 	var found *v2.Plugin
-	for id, p := range ps.plugins {
-		if strings.HasPrefix(id, partialID) {
+	for id, p := range ps.plugins { // this can be optimized
+		if strings.HasPrefix(id, idOrName) {
 			if found != nil {
-				return nil, ErrAmbiguous(partialID)
+				return "", errors.WithStack(ErrAmbiguous(idOrName))
 			}
 			found = p
 		}
 	}
 	if found == nil {
-		return nil, ErrNotFound(partialID)
+		return "", errors.WithStack(ErrNotFound(idOrName))
 	}
-	return found, nil
+	return found.PluginObj.ID, nil
 }

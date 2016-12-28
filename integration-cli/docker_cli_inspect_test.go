@@ -425,20 +425,20 @@ func (s *DockerSuite) TestInspectPlugin(c *check.C) {
 
 	out, _, err := dockerCmdWithError("inspect", "--type", "plugin", "--format", "{{.Name}}", pNameWithTag)
 	c.Assert(err, checker.IsNil)
-	c.Assert(strings.TrimSpace(out), checker.Equals, pName)
+	c.Assert(strings.TrimSpace(out), checker.Equals, pNameWithTag)
 
 	out, _, err = dockerCmdWithError("inspect", "--format", "{{.Name}}", pNameWithTag)
 	c.Assert(err, checker.IsNil)
-	c.Assert(strings.TrimSpace(out), checker.Equals, pName)
+	c.Assert(strings.TrimSpace(out), checker.Equals, pNameWithTag)
 
 	// Even without tag the inspect still work
-	out, _, err = dockerCmdWithError("inspect", "--type", "plugin", "--format", "{{.Name}}", pName)
+	out, _, err = dockerCmdWithError("inspect", "--type", "plugin", "--format", "{{.Name}}", pNameWithTag)
 	c.Assert(err, checker.IsNil)
-	c.Assert(strings.TrimSpace(out), checker.Equals, pName)
+	c.Assert(strings.TrimSpace(out), checker.Equals, pNameWithTag)
 
-	out, _, err = dockerCmdWithError("inspect", "--format", "{{.Name}}", pName)
+	out, _, err = dockerCmdWithError("inspect", "--format", "{{.Name}}", pNameWithTag)
 	c.Assert(err, checker.IsNil)
-	c.Assert(strings.TrimSpace(out), checker.Equals, pName)
+	c.Assert(strings.TrimSpace(out), checker.Equals, pNameWithTag)
 
 	_, _, err = dockerCmdWithError("plugin", "disable", pNameWithTag)
 	c.Assert(err, checker.IsNil)

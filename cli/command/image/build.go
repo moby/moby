@@ -235,7 +235,7 @@ func runBuild(dockerCli *command.DockerCli, options buildOptions) error {
 	var resolvedTags []*resolvedTag
 	if command.IsTrusted() {
 		translator := func(ctx context.Context, ref reference.NamedTagged) (reference.Canonical, error) {
-			return TrustedReference(ctx, dockerCli, ref)
+			return TrustedReference(ctx, dockerCli, ref, nil)
 		}
 		// Wrap the tar archive to replace the Dockerfile entry with the rewritten
 		// Dockerfile which uses trusted pulls.

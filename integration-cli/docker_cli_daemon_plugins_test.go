@@ -290,10 +290,17 @@ func (s *DockerDaemonSuite) TestPluginVolumeRemoveOnRestart(c *check.C) {
 	s.d.Restart("--live-restore=true")
 
 	out, err = s.d.Cmd("plugin", "disable", pName)
-	c.Assert(err, checker.IsNil, check.Commentf(out))
-	out, err = s.d.Cmd("plugin", "rm", pName)
 	c.Assert(err, checker.NotNil, check.Commentf(out))
 	c.Assert(out, checker.Contains, "in use")
+
+	out, err = s.d.Cmd("volume", "rm", "test")
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+
+	out, err = s.d.Cmd("plugin", "disable", pName)
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+
+	out, err = s.d.Cmd("plugin", "rm", pName)
+	c.Assert(err, checker.IsNil, check.Commentf(out))
 }
 
 func existsMountpointWithPrefix(mountpointPrefix string) (bool, error) {

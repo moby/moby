@@ -21,6 +21,7 @@ Usage:  docker plugin install [OPTIONS] PLUGIN [KEY=VALUE...]
 Install a plugin
 
 Options:
+      --alias string            Local name for plugin
       --disable                 Do not enable the plugin on install
       --grant-all-permissions   Grant all permissions necessary to run the plugin
       --help                    Print usage

@@ -30,7 +30,7 @@ import (
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/stringutils"
 	"github.com/docker/go-connections/tlsconfig"
-	"github.com/docker/go-units"
+	units "github.com/docker/go-units"
 	"github.com/go-check/check"
 )
 
@@ -310,7 +310,7 @@ func deleteAllPlugins() error {
 	}
 	var errors []string
 	for _, p := range plugins {
-		status, b, err := sockRequest("DELETE", "/plugins/"+p.Name+":"+p.Tag+"?force=1", nil)
+		status, b, err := sockRequest("DELETE", "/plugins/"+p.Name+"?force=1", nil)
 		if err != nil {
 			errors = append(errors, err.Error())
 			continue
