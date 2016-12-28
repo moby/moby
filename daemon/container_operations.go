@@ -995,68 +995,95 @@ func (daemon *Daemon) ConnectToNetwork(container *container.Container, idOrName 
 		}
 
 		n, err := daemon.FindNetwork(idOrName)
-		if err == nil && n != nil {
-			if err := daemon.updateNetworkConfig(container, n, endpointConfig, true); err != nil {
-				return err
-			}
-		} else {
-			container.NetworkSettings.Networks[idOrName] = &network.EndpointSettings{
-				EndpointSettings: endpointConfig,
-			}
+		if err != nil {
+			return err
+		}
+
+		if err := daemon.updateNetworkConfig(container, n, endpointConfig, true); err != nil {
+			return err
 		}
 	} else if !daemon.isNetworkHotPluggable() {
 		return fmt.Errorf(runtime.GOOS + " does not support connecting a running container to a network")
-	} else {
-		if err := daemon.connectToNetwork(container, idOrName, endpointConfig, true); err != nil {
-			return err
-		}
+	} else if err := daemon.connectToNetwork(container, idOrName, endpointConfig, true); err != nil {
+		return err
 	}
 
 	return container.CheckpointTo(daemon.containersReplica)
 }
 
-// DisconnectFromNetwork disconnects container from network n.
+// DisconnectFromNetwork disconnects container from network.
 func (daemon *Daemon) DisconnectFromNetwork(container *container.Container, networkName string, force bool) error {
-	n, err := daemon.FindNetwork(networkName)
-	container.Lock()
-	defer container.Unlock()
+	if !container.Running {
+		return daemon.DisconnectStoppedContainerFromNetwork(container, networkName)
+	}
+	return daemon.DisconnectRunningContainerFromNetwork(container, networkName, force)
+}
 
-	if !container.Running || (err != nil && force) {
-		if container.RemovalInProgress || container.Dead {
-			return errRemovalContainer(container.ID)
-		}
-		// In case networkName is resolved we will use n.Name()
-		// this will cover the case where network id is passed.
-		if n != nil {
-			networkName = n.Name()
-		}
-		if _, ok := container.NetworkSettings.Networks[networkName]; !ok {
-			return fmt.Errorf("container %s is not connected to the network %s", container.ID, networkName)
-		}
-		delete(container.NetworkSettings.Networks, networkName)
-	} else if err == nil && !daemon.isNetworkHotPluggable() {
-		return fmt.Errorf(runtime.GOOS + " does not support connecting a running container to a network")
-	} else if err == nil {
-		if container.HostConfig.NetworkMode.IsHost() && containertypes.NetworkMode(n.Type()).IsHost() {
-			return runconfig.ErrConflictHostNetwork
-		}
+// DisconnectStoppedContainerFromNetwork disconnects a stopped container from network.
+func (daemon *Daemon) DisconnectStoppedContainerFromNetwork(container *container.Container, networkName string) error {
+	if container.RemovalInProgress || container.Dead {
+		return errRemovalContainer(container.ID)
+	}
 
-		if err := daemon.disconnectFromNetwork(container, n, false); err != nil {
+	network, err := daemon.FindNetwork(networkName)
+	if err != nil {
+		// when no such network and container is stopped,
+		// we should consider such a situation that
+		// this network is removed while network details may be still
+		// in networking config of a stopped container.
+		if _, exist := container.NetworkSettings.Networks[networkName]; !exist {
+			// if stopped container has no this non-found network details, return no such network error
 			return err
 		}
 	} else {
-		return err
+		// input network exists, check if it is in running container's networking config
+		networkName = network.Name()
+		if _, exist := container.NetworkSettings.Networks[networkName]; !exist {
+			return fmt.Errorf("container %s is not connected to the network %s", container.ID, networkName)
+		}
 	}
+	delete(container.NetworkSettings.Networks, networkName)
 
 	if err := container.CheckpointTo(daemon.containersReplica); err != nil {
 		return err
 	}
 
-	if n != nil {
+	if network != nil {
 		daemon.LogNetworkEventWithAttributes(n, "disconnect", map[string]string{
 			"container": container.ID,
 		})
 	}
+
+	return nil
+}
+
+// DisconnectRunningContainerFromNetwork disconnects a running container from network.
+func (daemon *Daemon) DisconnectRunningContainerFromNetwork(container *container.Container, networkName string, force bool) error {
+	network, err := daemon.FindNetwork(networkName)
+	if err != nil {
+		return err
+	}
+
+	if !daemon.isNetworkHotPluggable() {
+		return fmt.Errorf(runtime.GOOS + " does not support disconnecting a running container from a network")
+	}
+
+	if container.HostConfig.NetworkMode.IsHost() && containertypes.NetworkMode(network.Type()).IsHost() {
+		return runconfig.ErrConflictHostNetwork
+	}
+
+	if err := daemon.disconnectFromNetwork(container, network, force); err != nil {
+		return err
+	}
+
+	if err := container.ToDiskLocking(); err != nil {
+		return fmt.Errorf("Error saving container to disk: %v", err)
+	}
+
+	attributes := map[string]string{
+		"container": container.ID,
+	}
+	daemon.LogNetworkEventWithAttributes(network, "disconnect", attributes)
 
 	return nil
 }
