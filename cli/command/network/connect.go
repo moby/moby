@@ -37,8 +37,8 @@ func newConnectCommand(dockerCli *command.DockerCli) *cobra.Command {
 	}
 
 	flags := cmd.Flags()
-	flags.StringVar(&opts.ipaddress, "ip", "", "IP Address")
-	flags.StringVar(&opts.ipv6address, "ip6", "", "IPv6 Address")
+	flags.StringVar(&opts.ipaddress, "ip", "", "IPv4 address (e.g., 172.30.100.104)")
+	flags.StringVar(&opts.ipv6address, "ip6", "", "IPv6 address (e.g., 2001:db8::33)")
 	flags.Var(&opts.links, "link", "Add link to another container")
 	flags.StringSliceVar(&opts.aliases, "alias", []string{}, "Add network-scoped alias for the container")
 	flags.StringSliceVar(&opts.linklocalips, "link-local-ip", []string{}, "Add a link-local address for the container")
