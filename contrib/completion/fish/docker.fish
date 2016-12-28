@@ -135,7 +135,7 @@ complete -c docker -A -f -n '__fish_seen_subcommand_from create' -s i -l interac
 complete -c docker -A -f -n '__fish_seen_subcommand_from create' -l ipc -d 'Default is to create a private IPC namespace (POSIX SysV IPC) for the container'
 complete -c docker -A -f -n '__fish_seen_subcommand_from create' -l link -d 'Add link to another container in the form of <name|id>:alias'
 complete -c docker -A -f -n '__fish_seen_subcommand_from create' -s m -l memory -d 'Memory limit (format: <number>[<unit>], where unit = b, k, m or g)'
-complete -c docker -A -f -n '__fish_seen_subcommand_from create' -l mac-address -d 'Container MAC address (e.g. 92:d0:c6:0a:29:33)'
+complete -c docker -A -f -n '__fish_seen_subcommand_from create' -l mac-address -d 'Container MAC address (e.g., 92:d0:c6:0a:29:33)'
 complete -c docker -A -f -n '__fish_seen_subcommand_from create' -l memory-swap -d "Total memory usage (memory + swap), set '-1' to disable swap (format: <number>[<unit>], where unit = b, k, m or g)"
 complete -c docker -A -f -n '__fish_seen_subcommand_from create' -l name -d 'Assign a name to the container'
 complete -c docker -A -f -n '__fish_seen_subcommand_from create' -l net -d 'Set the Network mode for the container'
@@ -326,7 +326,7 @@ complete -c docker -A -f -n '__fish_seen_subcommand_from run' -s i -l interactiv
 complete -c docker -A -f -n '__fish_seen_subcommand_from run' -l ipc -d 'Default is to create a private IPC namespace (POSIX SysV IPC) for the container'
 complete -c docker -A -f -n '__fish_seen_subcommand_from run' -l link -d 'Add link to another container in the form of <name|id>:alias'
 complete -c docker -A -f -n '__fish_seen_subcommand_from run' -s m -l memory -d 'Memory limit (format: <number>[<unit>], where unit = b, k, m or g)'
-complete -c docker -A -f -n '__fish_seen_subcommand_from run' -l mac-address -d 'Container MAC address (e.g. 92:d0:c6:0a:29:33)'
+complete -c docker -A -f -n '__fish_seen_subcommand_from run' -l mac-address -d 'Container MAC address (e.g., 92:d0:c6:0a:29:33)'
 complete -c docker -A -f -n '__fish_seen_subcommand_from run' -l memory-swap -d "Total memory usage (memory + swap), set '-1' to disable swap (format: <number>[<unit>], where unit = b, k, m or g)"
 complete -c docker -A -f -n '__fish_seen_subcommand_from run' -l name -d 'Assign a name to the container'
 complete -c docker -A -f -n '__fish_seen_subcommand_from run' -l net -d 'Set the Network mode for the container'

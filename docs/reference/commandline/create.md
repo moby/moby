@@ -66,8 +66,8 @@ Options:
   -i, --interactive                 Keep STDIN open even if not attached
       --io-maxbandwidth string      Maximum IO bandwidth limit for the system drive (Windows only)
       --io-maxiops uint             Maximum IOps limit for the system drive (Windows only)
-      --ip string                   Container IPv4 address (e.g. 172.30.100.104)
-      --ip6 string                  Container IPv6 address (e.g. 2001:db8::33)
+      --ip string                   IPv4 address (e.g., 172.30.100.104)
+      --ip6 string                  IPv6 address (e.g., 2001:db8::33)
       --ipc string                  IPC namespace to use
       --isolation string            Container isolation technology
       --kernel-memory string        Kernel memory limit
@@ -77,7 +77,7 @@ Options:
       --link-local-ip value         Container IPv4/IPv6 link-local addresses (default [])
       --log-driver string           Logging driver for the container
       --log-opt value               Log driver options (default [])
-      --mac-address string          Container MAC address (e.g. 92:d0:c6:0a:29:33)
+      --mac-address string          Container MAC address (e.g., 92:d0:c6:0a:29:33)
   -m, --memory string               Memory limit
       --memory-reservation string   Memory soft limit
       --memory-swap string          Swap limit equal to memory plus swap: '-1' to enable unlimited swap
