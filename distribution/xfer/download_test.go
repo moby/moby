@@ -265,8 +265,9 @@ func TestSuccessfulDownload(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("Needs fixing on Windows")
 	}
+
 	layerStore := &mockLayerStore{make(map[layer.ChainID]*mockLayer)}
-	ldm := NewLayerDownloadManager(layerStore, maxDownloadConcurrency)
+	ldm := NewLayerDownloadManager(layerStore, maxDownloadConcurrency, func(m *LayerDownloadManager) { m.waitDuration = time.Millisecond })
 
 	progressChan := make(chan progress.Progress)
 	progressDone := make(chan struct{})
@@ -327,7 +328,7 @@ func TestSuccessfulDownload(t *testing.T) {
 }
 
 func TestCancelledDownload(t *testing.T) {
-	ldm := NewLayerDownloadManager(&mockLayerStore{make(map[layer.ChainID]*mockLayer)}, maxDownloadConcurrency)
+	ldm := NewLayerDownloadManager(&mockLayerStore{make(map[layer.ChainID]*mockLayer)}, maxDownloadConcurrency, func(m *LayerDownloadManager) { m.waitDuration = time.Millisecond })
 
 	progressChan := make(chan progress.Progress)
 	progressDone := make(chan struct{})
