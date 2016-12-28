@@ -50,7 +50,7 @@ Options:
       --label-add list                   Add or update a service label (default [])
       --label-rm list                    Remove a label by its key (default [])
       --limit-cpu decimal                Limit CPUs (default 0.000)
-      --limit-memory bytes               Limit Memory (default 0 B)
+      --limit-memory bytes               Limit Memory
       --log-driver string                Logging driver for service
       --log-opt list                     Logging driver options (default [])
       --mount-add mount                  Add or update a mount on a service
@@ -60,7 +60,7 @@ Options:
       --publish-rm port                  Remove a published port by its target port
       --replicas uint                    Number of tasks
       --reserve-cpu decimal              Reserve CPUs (default 0.000)
-      --reserve-memory bytes             Reserve Memory (default 0 B)
+      --reserve-memory bytes             Reserve Memory
       --restart-condition string         Restart when condition is met (none, on-failure, or any)
       --restart-delay duration           Delay between restart attempts (ns|us|ms|s|m|h)
       --restart-max-attempts uint        Maximum number of restarts before giving up

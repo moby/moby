@@ -100,7 +100,7 @@ type containerOptions struct {
 	stopSignal         string
 	stopTimeout        int
 	isolation          string
-	shmSize            string
+	shmSize            opts.MemBytes
 	noHealthcheck      bool
 	healthCmd          string
 	healthInterval     time.Duration
@@ -259,7 +259,7 @@ func addFlags(flags *pflag.FlagSet) *containerOptions {
 	flags.StringVar(&copts.ipcMode, "ipc", "", "IPC namespace to use")
 	flags.StringVar(&copts.isolation, "isolation", "", "Container isolation technology")
 	flags.StringVar(&copts.pidMode, "pid", "", "PID namespace to use")
-	flags.StringVar(&copts.shmSize, "shm-size", "", "Size of /dev/shm, default value is 64MB")
+	flags.Var(&copts.shmSize, "shm-size", "Size of /dev/shm")
 	flags.StringVar(&copts.utsMode, "uts", "", "UTS namespace to use")
 	flags.StringVar(&copts.runtime, "runtime", "", "Runtime to use for this container")
 
@@ -334,14 +334,6 @@ func parse(flags *pflag.FlagSet, copts *containerOptions) (*container.Config, *c
 	swappiness := copts.swappiness
 	if swappiness != -1 && (swappiness < 0 || swappiness > 100) {
 		return nil, nil, nil, fmt.Errorf("invalid value: %d. Valid memory swappiness range is 0-100", swappiness)
-	}
-
-	var shmSize int64
-	if copts.shmSize != "" {
-		shmSize, err = units.RAMInBytes(copts.shmSize)
-		if err != nil {
-			return nil, nil, nil, err
-		}
 	}
 
 	// TODO FIXME units.RAMInBytes should have a uint64 version
@@ -615,7 +607,7 @@ func parse(flags *pflag.FlagSet, copts *containerOptions) (*container.Config, *c
 		LogConfig:      container.LogConfig{Type: copts.loggingDriver, Config: loggingOpts},
 		VolumeDriver:   copts.volumeDriver,
 		Isolation:      container.Isolation(copts.isolation),
-		ShmSize:        shmSize,
+		ShmSize:        copts.shmSize.Value(),
 		Resources:      resources,
 		Tmpfs:          tmpfs,
 		Sysctls:        copts.sysctls.GetAll(),
