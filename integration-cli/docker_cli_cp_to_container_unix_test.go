@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
 
 	"github.com/docker/docker/pkg/integration/checker"
 	"github.com/docker/docker/pkg/system"
@@ -36,4 +38,21 @@ func (s *DockerSuite) TestCpCheckDestOwnership(c *check.C) {
 	c.Assert(err, checker.IsNil)
 	c.Assert(stat.UID(), checker.Equals, uint32(uid), check.Commentf("Copied file not owned by container root UID"))
 	c.Assert(stat.GID(), checker.Equals, uint32(gid), check.Commentf("Copied file not owned by container root GID"))
+}
+
+func getRootUIDGID() (int, int, error) {
+	uidgid := strings.Split(filepath.Base(dockerBasePath), ".")
+	if len(uidgid) == 1 {
+		//user namespace remapping is not turned on; return 0
+		return 0, 0, nil
+	}
+	uid, err := strconv.Atoi(uidgid[0])
+	if err != nil {
+		return 0, 0, err
+	}
+	gid, err := strconv.Atoi(uidgid[1])
+	if err != nil {
+		return 0, 0, err
+	}
+	return uid, gid, nil
 }
