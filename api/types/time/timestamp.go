@@ -84,7 +84,7 @@ func GetTimestamp(value string, reference time.Time) (string, error) {
 	}
 
 	if err != nil {
-		// if there is a `-` then its an RFC3339 like timestamp otherwise assume unixtimestamp
+		// if there is a `-` then it's an RFC3339 like timestamp otherwise assume unixtimestamp
 		if strings.Contains(value, "-") {
 			return "", err // was probably an RFC3339 like timestamp but the parser failed with an error
 		}

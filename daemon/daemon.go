@@ -640,7 +640,7 @@ func NewDaemon(config *Config, registryService registry.Service, containerdRemot
 	logrus.Infof("Graph migration to content-addressability took %.2f seconds", time.Since(migrationStart).Seconds())
 
 	// Discovery is only enabled when the daemon is launched with an address to advertise.  When
-	// initialized, the daemon is registered and we can store the discovery backend as its read-only
+	// initialized, the daemon is registered and we can store the discovery backend as it's read-only
 	if err := d.initDiscovery(config); err != nil {
 		return nil, err
 	}

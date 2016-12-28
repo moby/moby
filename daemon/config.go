@@ -239,7 +239,7 @@ func parseClusterAdvertiseSettings(clusterStore, clusterAdvertise string) (strin
 	return advertise, nil
 }
 
-// GetConflictFreeLabels validate Labels for conflict
+// GetConflictFreeLabels validates Labels for conflict
 // In swarm the duplicates for labels are removed
 // so we only take same values here, no conflict values
 // If the key-value is the same we will only take the last label
