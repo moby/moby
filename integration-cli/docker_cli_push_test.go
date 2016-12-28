@@ -14,7 +14,7 @@ import (
 	"time"
 
 	"github.com/docker/distribution/reference"
-	"github.com/docker/docker/cliconfig"
+	cliconfig "github.com/docker/docker/cli/config"
 	"github.com/docker/docker/pkg/integration/checker"
 	"github.com/go-check/check"
 )
@@ -300,7 +300,7 @@ func (s *DockerTrustSuite) TestTrustedPush(c *check.C) {
 	c.Assert(string(out), checker.Contains, "Status: Image is up to date", check.Commentf(out))
 
 	// Assert that we rotated the snapshot key to the server by checking our local keystore
-	contents, err := ioutil.ReadDir(filepath.Join(cliconfig.ConfigDir(), "trust/private/tuf_keys", privateRegistryURL, "dockerclitrusted/pushtest"))
+	contents, err := ioutil.ReadDir(filepath.Join(cliconfig.Dir(), "trust/private/tuf_keys", privateRegistryURL, "dockerclitrusted/pushtest"))
 	c.Assert(err, check.IsNil, check.Commentf("Unable to read local tuf key files"))
 	// Check that we only have 1 key (targets key)
 	c.Assert(contents, checker.HasLen, 1)
@@ -496,7 +496,7 @@ func (s *DockerTrustSuite) TestTrustedPushWithReleasesDelegationOnly(c *check.C)
 	s.assertTargetNotInRoles(c, repoName, "latest", "targets")
 
 	// Try pull after push
-	os.RemoveAll(filepath.Join(cliconfig.ConfigDir(), "trust"))
+	os.RemoveAll(filepath.Join(cliconfig.Dir(), "trust"))
 
 	pullCmd := exec.Command(dockerBinary, "pull", targetName)
 	s.trustedCmd(pullCmd)
@@ -539,7 +539,7 @@ func (s *DockerTrustSuite) TestTrustedPushSignsAllFirstLevelRolesWeHaveKeysFor(c
 	s.assertTargetNotInRoles(c, repoName, "latest", "targets")
 
 	// Try pull after push
-	os.RemoveAll(filepath.Join(cliconfig.ConfigDir(), "trust"))
+	os.RemoveAll(filepath.Join(cliconfig.Dir(), "trust"))
 
 	// pull should fail because none of these are the releases role
 	pullCmd := exec.Command(dockerBinary, "pull", targetName)
@@ -580,7 +580,7 @@ func (s *DockerTrustSuite) TestTrustedPushSignsForRolesWithKeysAndValidPaths(c *
 	s.assertTargetNotInRoles(c, repoName, "latest", "targets")
 
 	// Try pull after push
-	os.RemoveAll(filepath.Join(cliconfig.ConfigDir(), "trust"))
+	os.RemoveAll(filepath.Join(cliconfig.Dir(), "trust"))
 
 	// pull should fail because none of these are the releases role
 	pullCmd := exec.Command(dockerBinary, "pull", targetName)

@@ -1,4 +1,4 @@
-package cliconfig
+package config
 
 import (
 	"io/ioutil"
@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/cliconfig/configfile"
+	"github.com/docker/docker/cli/config/configfile"
 	"github.com/docker/docker/pkg/homedir"
 )
 
@@ -18,7 +18,7 @@ func TestEmptyConfigDir(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpHome)
 
-	SetConfigDir(tmpHome)
+	SetDir(tmpHome)
 
 	config, err := Load("")
 	if err != nil {
@@ -471,15 +471,15 @@ func TestConfigDir(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpHome)
 
-	if ConfigDir() == tmpHome {
+	if Dir() == tmpHome {
 		t.Fatalf("Expected ConfigDir to be different than %s by default, but was the same", tmpHome)
 	}
 
 	// Update configDir
-	SetConfigDir(tmpHome)
+	SetDir(tmpHome)
 
-	if ConfigDir() != tmpHome {
-		t.Fatalf("Expected ConfigDir to %s, but was %s", tmpHome, ConfigDir())
+	if Dir() != tmpHome {
+		t.Fatalf("Expected ConfigDir to %s, but was %s", tmpHome, Dir())
 	}
 }
 
