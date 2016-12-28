@@ -27,7 +27,7 @@ import (
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/pkg/testutil"
 	icmd "github.com/docker/docker/pkg/testutil/cmd"
-	"github.com/docker/go-units"
+	units "github.com/docker/go-units"
 	"github.com/docker/libnetwork/iptables"
 	"github.com/docker/libtrust"
 	"github.com/go-check/check"
@@ -2892,5 +2892,62 @@ func (s *DockerDaemonSuite) TestRemoveContainerAfterLiveRestore(c *check.C) {
 
 	out, err = s.d.Cmd("rm", "top")
 	c.Assert(err, check.IsNil, check.Commentf("Output: %s", out))
+}
 
+// #29598
+func (s *DockerDaemonSuite) TestRestartPolicyWithLiveRestore(c *check.C) {
+	testRequires(c, DaemonIsLinux, SameHostDaemon)
+	s.d.StartWithBusybox(c, "--live-restore")
+
+	out, err := s.d.Cmd("run", "-d", "--restart", "always", "busybox", "top")
+	c.Assert(err, check.IsNil, check.Commentf("output: %s", out))
+	id := strings.TrimSpace(out)
+
+	type state struct {
+		Running   bool
+		StartedAt time.Time
+	}
+	out, err = s.d.Cmd("inspect", "-f", "{{json .State}}", id)
+	c.Assert(err, checker.IsNil, check.Commentf("output: %s", out))
+
+	var origState state
+	err = json.Unmarshal([]byte(strings.TrimSpace(out)), &origState)
+	c.Assert(err, checker.IsNil)
+
+	s.d.Restart(c, "--live-restore")
+
+	pid, err := s.d.Cmd("inspect", "-f", "{{.State.Pid}}", id)
+	c.Assert(err, check.IsNil)
+	pidint, err := strconv.Atoi(strings.TrimSpace(pid))
+	c.Assert(err, check.IsNil)
+	c.Assert(pidint, checker.GreaterThan, 0)
+	c.Assert(syscall.Kill(pidint, syscall.SIGKILL), check.IsNil)
+
+	ticker := time.NewTicker(50 * time.Millisecond)
+	timeout := time.After(10 * time.Second)
+
+	for range ticker.C {
+		select {
+		case <-timeout:
+			c.Fatal("timeout waiting for container restart")
+		default:
+		}
+
+		out, err := s.d.Cmd("inspect", "-f", "{{json .State}}", id)
+		c.Assert(err, checker.IsNil, check.Commentf("output: %s", out))
+
+		var newState state
+		err = json.Unmarshal([]byte(strings.TrimSpace(out)), &newState)
+		c.Assert(err, checker.IsNil)
+
+		if !newState.Running {
+			continue
+		}
+		if newState.StartedAt.After(origState.StartedAt) {
+			break
+		}
+	}
+
+	out, err = s.d.Cmd("stop", id)
+	c.Assert(err, check.IsNil, check.Commentf("output: %s", out))
 }
