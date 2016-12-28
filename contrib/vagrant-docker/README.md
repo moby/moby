@@ -35,7 +35,7 @@ script
 end script
 ```
 
-Once that's done, you need to set up a SSH tunnel between your host machine and the vagrant machine that's running Docker. This can be done by running the following command in a host terminal:
+Once that's done, you need to set up an SSH tunnel between your host machine and the vagrant machine that's running Docker. This can be done by running the following command in a host terminal:
 
 ```
 ssh -L 2375:localhost:2375 -p 2222 vagrant@localhost
