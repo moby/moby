@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"regexp"
+	"sort"
 	"strings"
 	"sync"
 
@@ -289,11 +290,36 @@ func attachToLog(id string) func(libcontainerd.IOPipe) error {
 }
 
 func validatePrivileges(requiredPrivileges, privileges types.PluginPrivileges) error {
-	// todo: make a better function that doesn't check order
-	if !reflect.DeepEqual(privileges, requiredPrivileges) {
+	if !isEqual(requiredPrivileges, privileges, isEqualPrivilege) {
 		return errors.New("incorrect privileges")
 	}
+
 	return nil
+}
+
+func isEqual(arrOne, arrOther types.PluginPrivileges, compare func(x, y types.PluginPrivilege) bool) bool {
+	if len(arrOne) != len(arrOther) {
+		return false
+	}
+
+	sort.Sort(arrOne)
+	sort.Sort(arrOther)
+
+	for i := 1; i < arrOne.Len(); i++ {
+		if !compare(arrOne[i], arrOther[i]) {
+			return false
+		}
+	}
+
+	return true
+}
+
+func isEqualPrivilege(a, b types.PluginPrivilege) bool {
+	if a.Name != b.Name {
+		return false
+	}
+
+	return reflect.DeepEqual(a.Value, b.Value)
 }
 
 func configToRootFS(c []byte) (*image.RootFS, error) {
