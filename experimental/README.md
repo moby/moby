@@ -32,7 +32,7 @@ true
 
 ## Current experimental features
 
- * [External graphdriver plugins](plugins_graphdriver.md)
+ * [External graphdriver plugins](../docs/extend/plugins_graphdriver.md)
  * [Ipvlan Network Drivers](vlan-networks.md)
  * [Docker Stacks and Distributed Application Bundles](docker-stacks-and-bundles.md)
  * [Checkpoint & Restore](checkpoint-restore.md)
@@ -41,4 +41,4 @@ true
 
 Each feature's documentation includes a list of proposal pull requests or PRs associated with the feature. If you want to comment on or suggest a change to a feature, please add it to the existing feature PR.
 
-Issues or problems with a feature? Inquire for help on the `#docker` IRC channel or in on the [Docker Google group](https://groups.google.com/forum/#!forum/docker-user).
+Issues or problems with a feature? Inquire for help on the `#docker` IRC channel or on the [Docker Google group](https://groups.google.com/forum/#!forum/docker-user).
