@@ -35,16 +35,19 @@ func (s *DockerSuite) TestRestartRunningContainer(c *check.C) {
 
 	c.Assert(waitRun(cleanedContainerID), checker.IsNil)
 
-	out, _ = dockerCmd(c, "logs", cleanedContainerID)
-	c.Assert(out, checker.Equals, "foobar\n")
+	getLogs := func(c *check.C) (interface{}, check.CommentInterface) {
+		out, _ := dockerCmd(c, "logs", cleanedContainerID)
+		return out, nil
+	}
+
+	// Wait 10 seconds for the 'echo' to appear in the logs
+	waitAndAssert(c, 10*time.Second, getLogs, checker.Equals, "foobar\n")
 
 	dockerCmd(c, "restart", "-t", "1", cleanedContainerID)
-
-	out, _ = dockerCmd(c, "logs", cleanedContainerID)
-
 	c.Assert(waitRun(cleanedContainerID), checker.IsNil)
 
-	c.Assert(out, checker.Equals, "foobar\nfoobar\n")
+	// Wait 10 seconds for first 'echo' appear (again) in the logs
+	waitAndAssert(c, 10*time.Second, getLogs, checker.Equals, "foobar\nfoobar\n")
 }
 
 // Test that restarting a container with a volume does not create a new volume on restart. Regression test for #819.
