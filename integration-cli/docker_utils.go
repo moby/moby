@@ -902,15 +902,17 @@ func buildImageWithOut(name, dockerfile string, useCache bool, buildFlags ...str
 
 func buildImageWithStdoutStderr(name, dockerfile string, useCache bool, buildFlags ...string) (string, string, string, error) {
 	buildCmd := buildImageCmd(name, dockerfile, useCache, buildFlags...)
-	stdout, stderr, exitCode, err := runCommandWithStdoutStderr(buildCmd)
+	result := icmd.RunCmd(transformCmd(buildCmd))
+	err := result.Error
+	exitCode := result.ExitCode
 	if err != nil || exitCode != 0 {
-		return "", stdout, stderr, fmt.Errorf("failed to build the image: %s", stdout)
+		return "", result.Stdout(), result.Stderr(), fmt.Errorf("failed to build the image: %s", result.Combined())
 	}
 	id, err := getIDByName(name)
 	if err != nil {
-		return "", stdout, stderr, err
+		return "", result.Stdout(), result.Stderr(), err
 	}
-	return id, stdout, stderr, nil
+	return id, result.Stdout(), result.Stderr(), nil
 }
 
 func buildImage(name, dockerfile string, useCache bool, buildFlags ...string) (string, error) {
@@ -953,18 +955,21 @@ func buildImageFromContextWithStdoutStderr(name string, ctx *FakeContext, useCac
 	}
 	args = append(args, buildFlags...)
 	args = append(args, ".")
-	buildCmd := exec.Command(dockerBinary, args...)
-	buildCmd.Dir = ctx.Dir
 
-	stdout, stderr, exitCode, err := runCommandWithStdoutStderr(buildCmd)
+	result := icmd.RunCmd(icmd.Cmd{
+		Command: append([]string{dockerBinary}, args...),
+		Dir:     ctx.Dir,
+	})
+	exitCode := result.ExitCode
+	err := result.Error
 	if err != nil || exitCode != 0 {
-		return "", stdout, stderr, fmt.Errorf("failed to build the image: %s", stdout)
+		return "", result.Stdout(), result.Stderr(), fmt.Errorf("failed to build the image: %s", result.Combined())
 	}
 	id, err := getIDByName(name)
 	if err != nil {
-		return "", stdout, stderr, err
+		return "", result.Stdout(), result.Stderr(), err
 	}
-	return id, stdout, stderr, nil
+	return id, result.Stdout(), result.Stderr(), nil
 }
 
 func buildImageFromGitWithStdoutStderr(name string, ctx *fakeGit, useCache bool, buildFlags ...string) (string, string, string, error) {
@@ -974,17 +979,19 @@ func buildImageFromGitWithStdoutStderr(name string, ctx *fakeGit, useCache bool,
 	}
 	args = append(args, buildFlags...)
 	args = append(args, ctx.RepoURL)
-	buildCmd := exec.Command(dockerBinary, args...)
-
-	stdout, stderr, exitCode, err := runCommandWithStdoutStderr(buildCmd)
+	result := icmd.RunCmd(icmd.Cmd{
+		Command: append([]string{dockerBinary}, args...),
+	})
+	exitCode := result.ExitCode
+	err := result.Error
 	if err != nil || exitCode != 0 {
-		return "", stdout, stderr, fmt.Errorf("failed to build the image: %s", stdout)
+		return "", result.Stdout(), result.Stderr(), fmt.Errorf("failed to build the image: %s", result.Combined())
 	}
 	id, err := getIDByName(name)
 	if err != nil {
-		return "", stdout, stderr, err
+		return "", result.Stdout(), result.Stderr(), err
 	}
-	return id, stdout, stderr, nil
+	return id, result.Stdout(), result.Stderr(), nil
 }
 
 func buildImageFromPath(name, path string, useCache bool, buildFlags ...string) (string, error) {

@@ -45,7 +45,7 @@ func (s *DockerSuite) TestDeprecatedContainerAPIStartVolumeBinds(c *check.C) {
 	c.Assert(err, checker.IsNil)
 	c.Assert(status, checker.Equals, http.StatusCreated)
 
-	bindPath := randomTmpDirPath("test", daemonPlatform)
+	bindPath := integration.RandomTmpDirPath("test", daemonPlatform)
 	config = map[string]interface{}{
 		"Binds": []string{bindPath + ":" + path},
 	}
@@ -72,8 +72,8 @@ func (s *DockerSuite) TestDeprecatedContainerAPIStartDupVolumeBinds(c *check.C) 
 	c.Assert(err, checker.IsNil)
 	c.Assert(status, checker.Equals, http.StatusCreated)
 
-	bindPath1 := randomTmpDirPath("test1", daemonPlatform)
-	bindPath2 := randomTmpDirPath("test2", daemonPlatform)
+	bindPath1 := integration.RandomTmpDirPath("test1", daemonPlatform)
+	bindPath2 := integration.RandomTmpDirPath("test2", daemonPlatform)
 
 	config = map[string]interface{}{
 		"Binds": []string{bindPath1 + ":/tmp", bindPath2 + ":/tmp"},

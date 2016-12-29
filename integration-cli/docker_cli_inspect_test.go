@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"os/exec"
 	"strconv"
 	"strings"
 	"time"
@@ -12,6 +11,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/pkg/integration/checker"
+	icmd "github.com/docker/docker/pkg/integration/cmd"
 	"github.com/go-check/check"
 )
 
@@ -142,11 +142,12 @@ func (s *DockerSuite) TestInspectImageFilterInt(c *check.C) {
 }
 
 func (s *DockerSuite) TestInspectContainerFilterInt(c *check.C) {
-	runCmd := exec.Command(dockerBinary, "run", "-i", "-a", "stdin", "busybox", "cat")
-	runCmd.Stdin = strings.NewReader("blahblah")
-	out, _, _, err := runCommandWithStdoutStderr(runCmd)
-	c.Assert(err, checker.IsNil, check.Commentf("failed to run container: %v, output: %q", err, out))
-
+	result := icmd.RunCmd(icmd.Cmd{
+		Command: []string{dockerBinary, "run", "-i", "-a", "stdin", "busybox", "cat"},
+		Stdin:   strings.NewReader("blahblah"),
+	})
+	result.Assert(c, icmd.Success)
+	out := result.Stdout()
 	id := strings.TrimSpace(out)
 
 	out = inspectField(c, id, "State.ExitCode")
@@ -157,9 +158,9 @@ func (s *DockerSuite) TestInspectContainerFilterInt(c *check.C) {
 	//now get the exit code to verify
 	formatStr := fmt.Sprintf("--format={{eq .State.ExitCode %d}}", exitCode)
 	out, _ = dockerCmd(c, "inspect", formatStr, id)
-	result, err := strconv.ParseBool(strings.TrimSuffix(out, "\n"))
+	inspectResult, err := strconv.ParseBool(strings.TrimSuffix(out, "\n"))
 	c.Assert(err, checker.IsNil)
-	c.Assert(result, checker.Equals, true)
+	c.Assert(inspectResult, checker.Equals, true)
 }
 
 func (s *DockerSuite) TestInspectImageGraphDriver(c *check.C) {

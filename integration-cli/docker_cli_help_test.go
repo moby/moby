@@ -147,56 +147,56 @@ func (s *DockerSuite) TestHelpExitCodesHelpOutput(c *check.C) {
 	// various good and bad cases are what we expect
 
 	// docker : stdout=all, stderr=empty, rc=0
-	out, _, err := dockerCmdWithError()
-	c.Assert(err, checker.IsNil, check.Commentf(out))
+	out, _ := dockerCmd(c)
 	// Be really pick
 	c.Assert(out, checker.Not(checker.HasSuffix), "\n\n", check.Commentf("Should not have a blank line at the end of 'docker'\n"))
 
 	// docker help: stdout=all, stderr=empty, rc=0
-	out, _, err = dockerCmdWithError("help")
-	c.Assert(err, checker.IsNil, check.Commentf(out))
+	out, _ = dockerCmd(c, "help")
 	// Be really pick
 	c.Assert(out, checker.Not(checker.HasSuffix), "\n\n", check.Commentf("Should not have a blank line at the end of 'docker help'\n"))
 
 	// docker --help: stdout=all, stderr=empty, rc=0
-	out, _, err = dockerCmdWithError("--help")
-	c.Assert(err, checker.IsNil, check.Commentf(out))
+	out, _ = dockerCmd(c, "--help")
 	// Be really pick
 	c.Assert(out, checker.Not(checker.HasSuffix), "\n\n", check.Commentf("Should not have a blank line at the end of 'docker --help'\n"))
 
 	// docker inspect busybox: stdout=all, stderr=empty, rc=0
 	// Just making sure stderr is empty on valid cmd
-	out, _, err = dockerCmdWithError("inspect", "busybox")
-	c.Assert(err, checker.IsNil, check.Commentf(out))
+	out, _ = dockerCmd(c, "inspect", "busybox")
 	// Be really pick
 	c.Assert(out, checker.Not(checker.HasSuffix), "\n\n", check.Commentf("Should not have a blank line at the end of 'docker inspect busyBox'\n"))
 
 	// docker rm: stdout=empty, stderr=all, rc!=0
 	// testing the min arg error msg
-	cmd := exec.Command(dockerBinary, "rm")
-	stdout, stderr, _, err := runCommandWithStdoutStderr(cmd)
-	c.Assert(err, checker.NotNil)
-	c.Assert(stdout, checker.Equals, "")
-	// Should not contain full help text but should contain info about
-	// # of args and Usage line
-	c.Assert(stderr, checker.Contains, "requires at least 1 argument", check.Commentf("Missing # of args text from 'docker rm'\n"))
+	icmd.RunCommand(dockerBinary, "rm").Assert(c, icmd.Expected{
+		ExitCode: 1,
+		Error:    "exit status 1",
+		Out:      "",
+		// Should not contain full help text but should contain info about
+		// # of args and Usage line
+		Err: "requires at least 1 argument",
+	})
 
 	// docker rm NoSuchContainer: stdout=empty, stderr=all, rc=0
 	// testing to make sure no blank line on error
-	cmd = exec.Command(dockerBinary, "rm", "NoSuchContainer")
-	stdout, stderr, _, err = runCommandWithStdoutStderr(cmd)
-	c.Assert(err, checker.NotNil)
-	c.Assert(len(stderr), checker.Not(checker.Equals), 0)
-	c.Assert(stdout, checker.Equals, "")
+	result := icmd.RunCommand(dockerBinary, "rm", "NoSuchContainer")
+	result.Assert(c, icmd.Expected{
+		ExitCode: 1,
+		Error:    "exit status 1",
+		Out:      "",
+	})
 	// Be really picky
-	c.Assert(stderr, checker.Not(checker.HasSuffix), "\n\n", check.Commentf("Should not have a blank line at the end of 'docker rm'\n"))
+	c.Assert(len(result.Stderr()), checker.Not(checker.Equals), 0)
+	c.Assert(result.Stderr(), checker.Not(checker.HasSuffix), "\n\n", check.Commentf("Should not have a blank line at the end of 'docker rm'\n"))
 
 	// docker BadCmd: stdout=empty, stderr=all, rc=0
-	cmd = exec.Command(dockerBinary, "BadCmd")
-	stdout, stderr, _, err = runCommandWithStdoutStderr(cmd)
-	c.Assert(err, checker.NotNil)
-	c.Assert(stdout, checker.Equals, "")
-	c.Assert(stderr, checker.Equals, "docker: 'BadCmd' is not a docker command.\nSee 'docker --help'\n", check.Commentf("Unexcepted output for 'docker badCmd'\n"))
+	icmd.RunCommand(dockerBinary, "BadCmd").Assert(c, icmd.Expected{
+		ExitCode: 1,
+		Error:    "exit status 1",
+		Out:      "",
+		Err:      "docker: 'BadCmd' is not a docker command.\nSee 'docker --help'\n",
+	})
 }
 
 func testCommand(cmd string, newEnvs []string, scanForHome bool, home string) error {
@@ -204,9 +204,13 @@ func testCommand(cmd string, newEnvs []string, scanForHome bool, home string) er
 	args := strings.Split(cmd+" --help", " ")
 
 	// Check the full usage text
-	helpCmd := exec.Command(dockerBinary, args...)
-	helpCmd.Env = newEnvs
-	out, stderr, _, err := runCommandWithStdoutStderr(helpCmd)
+	result := icmd.RunCmd(icmd.Cmd{
+		Command: append([]string{dockerBinary}, args...),
+		Env:     newEnvs,
+	})
+	err := result.Error
+	out := result.Stdout()
+	stderr := result.Stderr()
 	if len(stderr) != 0 {
 		return fmt.Errorf("Error on %q help. non-empty stderr:%q\n", cmd, stderr)
 	}
