@@ -31,7 +31,7 @@ The remote driver protocol is a set of RPCs, issued as HTTP POSTs with JSON payl
 
 If the remote process cannot decode, or otherwise detects a syntactic problem with the HTTP request or payload, it must respond with an HTTP error status (4xx or 5xx).
 
-If the remote process http server receives a request for an unknown URI, it should respond with the HTTP StatusCode `404 Not Found`. This allows libnetwork to detect when a remote driver does not implement yet a newly added method, therefore not to deem the request as failed.
+If the remote process http server receives a request for an unknown URI, it should respond with the HTTP StatusCode `404 Not Found`. This allows LibNetwork to detect when a remote driver does not implement yet a newly added method, therefore not to deem the request as failed.
 
 If the remote process can decode the request, but cannot complete the operation, it must send a response in the form
 
@@ -101,7 +101,7 @@ When the proxy is asked to create a network, the remote process shall receive a 
 * `IPv4Data` and `IPv6Data` are the ip-addressing data configured by the user and managed by IPAM driver. The network driver is expected to honor the ip-addressing data supplied by IPAM driver. The data include,
 * `AddressSpace` : A unique string represents an isolated space for IP Addressing 
 * `Pool` : A range of IP Addresses represted in CIDR format address/mask. Since, the IPAM driver is responsible for allocating container ip-addresses, the network driver can make use of this information for the network plumbing purposes.
-* `Gateway` : Optionally, the IPAM driver may provide a Gateway for the subnet represented by the Pool. the network driver can make use of this information for the network plumbing purposes.
+* `Gateway` : Optionally, the IPAM driver may provide a Gateway for the subnet represented by the Pool. The network driver can make use of this information for the network plumbing purposes.
 * `AuxAddresses` : A list of pre-allocated ip-addresses with an associated identifier as provided by the user to assist network driver if it requires specific ip-addresses for its operation.
 
 The response indicating success is empty:
@@ -224,7 +224,7 @@ The entries in `"StaticRoutes"` represent routes that should be added to an inte
 
 Routes are either given a `RouteType` of `0` and a value for `NextHop`; or, a `RouteType` of `1` and no value for `NextHop`, meaning a connected route.
 
-If no gateway and no default static route is set by the driver in the Join response, libnetwork will add an additional interface to the sandbox connecting to a default gateway network (a bridge network named *docker_gwbridge*) and program the default gateway into the sandbox accordingly, pointing to the interface address of the bridge *docker_gwbridge*.
+If no gateway and no default static route is set by the driver in the Join response, LibNetwork will add an additional interface to the sandbox connecting to a default gateway network (a bridge network named *docker_gwbridge*) and program the default gateway into the sandbox accordingly, pointing to the interface address of the bridge *docker_gwbridge*.
 
 ### Leave
 
@@ -241,7 +241,7 @@ where `NetworkID` and `EndpointID` have meanings as above. The success response 
 
 ### DiscoverNew Notification
 
-libnetwork listens to inbuilt docker discovery notifications and passes it along to the interested drivers. 
+LibNetwork listens to inbuilt docker discovery notifications and passes it along to the interested drivers. 
 
 When the proxy receives a DiscoverNew notification, the remote process shall receive a POST to the URL `/NetworkDriver.DiscoverNew` of the form
 
