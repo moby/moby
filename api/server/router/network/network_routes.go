@@ -14,6 +14,17 @@ import (
 	"github.com/docker/libnetwork/networkdb"
 )
 
+var (
+	// acceptedNetworkFilters is a list of acceptable filters
+	acceptedNetworkFilters = map[string]bool{
+		"driver": true,
+		"type":   true,
+		"name":   true,
+		"id":     true,
+		"label":  true,
+	}
+)
+
 func (n *networkRouter) getNetworksList(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
 		return err
@@ -22,6 +33,10 @@ func (n *networkRouter) getNetworksList(ctx context.Context, w http.ResponseWrit
 	filter := r.Form.Get("filters")
 	netFilters, err := filters.FromParam(filter)
 	if err != nil {
+		return err
+	}
+
+	if err := netFilters.Validate(acceptedNetworkFilters); err != nil {
 		return err
 	}
 
