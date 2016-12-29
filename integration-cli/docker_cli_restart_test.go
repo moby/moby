@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"strconv"
 	"strings"
@@ -29,7 +30,12 @@ func (s *DockerSuite) TestRestartStoppedContainer(c *check.C) {
 }
 
 func (s *DockerSuite) TestRestartRunningContainer(c *check.C) {
-	out, _ := dockerCmd(c, "run", "-d", "busybox", "sh", "-c", "echo foobar && sleep 30 && echo 'should not print this'")
+	sleepTime := 30
+	if DaemonIsWindows() {
+		sleepTime = 60
+	}
+	cmd := fmt.Sprintf("echo foobar && sleep %d && echo 'should not print this'", sleepTime)
+	out, _ := dockerCmd(c, "run", "-d", "busybox", "sh", "-c", cmd)
 
 	cleanedContainerID := strings.TrimSpace(out)
 
