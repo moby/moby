@@ -32,7 +32,7 @@ func TestSetupNewBridge(t *testing.T) {
 		t.Fatalf("Failed to retrieve bridge device: %v", err)
 	}
 	if br.Link.Attrs().Flags&net.FlagUp == net.FlagUp {
-		t.Fatalf("bridgeInterface should be created down")
+		t.Fatal("bridgeInterface should be created down")
 	}
 }
 
@@ -79,7 +79,7 @@ func TestSetupDeviceUp(t *testing.T) {
 
 	lnk, _ := nh.LinkByName(DefaultBridgeName)
 	if lnk.Attrs().Flags&net.FlagUp != net.FlagUp {
-		t.Fatalf("bridgeInterface should be up")
+		t.Fatal("bridgeInterface should be up")
 	}
 }
 

@@ -131,7 +131,7 @@ func NewChain(name string, table Table, hairpinMode bool) (*ChainInfo, error) {
 // ProgramChain is used to add rules to a chain
 func ProgramChain(c *ChainInfo, bridgeName string, hairpinMode, enable bool) error {
 	if c.Name == "" {
-		return fmt.Errorf("Could not program chain, missing chain name")
+		return errors.New("Could not program chain, missing chain name")
 	}
 
 	switch c.Table {

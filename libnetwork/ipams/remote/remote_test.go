@@ -179,14 +179,14 @@ func TestRemoteDriver(t *testing.T) {
 
 	handle(t, mux, "ReleasePool", func(msg map[string]interface{}) interface{} {
 		if _, ok := msg["PoolID"]; !ok {
-			t.Fatalf("Missing PoolID in Release request")
+			t.Fatal("Missing PoolID in Release request")
 		}
 		return map[string]interface{}{}
 	})
 
 	handle(t, mux, "RequestAddress", func(msg map[string]interface{}) interface{} {
 		if _, ok := msg["PoolID"]; !ok {
-			t.Fatalf("Missing PoolID in address request")
+			t.Fatal("Missing PoolID in address request")
 		}
 		prefAddr := ""
 		if v, ok := msg["Address"]; ok {
@@ -204,10 +204,10 @@ func TestRemoteDriver(t *testing.T) {
 
 	handle(t, mux, "ReleaseAddress", func(msg map[string]interface{}) interface{} {
 		if _, ok := msg["PoolID"]; !ok {
-			t.Fatalf("Missing PoolID in address request")
+			t.Fatal("Missing PoolID in address request")
 		}
 		if _, ok := msg["Address"]; !ok {
-			t.Fatalf("Missing Address in release address request")
+			t.Fatal("Missing Address in release address request")
 		}
 		return map[string]interface{}{}
 	})
@@ -251,7 +251,7 @@ func TestRemoteDriver(t *testing.T) {
 		t.Fatalf("Unexpected pool: %s", pool2)
 	}
 	if dns, ok := ops["DNS"]; !ok || dns != "8.8.8.8" {
-		t.Fatalf("Missing options")
+		t.Fatal("Missing options")
 	}
 
 	// Request specific pool and subpool

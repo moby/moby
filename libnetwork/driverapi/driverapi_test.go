@@ -66,14 +66,14 @@ func TestValidateAndIsV6(t *testing.T) {
 
 	// Check ip version
 	if i.IsV6() {
-		t.Fatalf("incorrect ip version returned")
+		t.Fatal("incorrect ip version returned")
 	}
 	orig := i.Pool
 	if i.Pool, err = types.ParseCIDR("2001:db8::33/64"); err != nil {
 		t.Fatal(err)
 	}
 	if !i.IsV6() {
-		t.Fatalf("incorrect ip version returned")
+		t.Fatal("incorrect ip version returned")
 	}
 	i.Pool = orig
 
@@ -87,7 +87,7 @@ func TestValidateAndIsV6(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err = i.Validate(); err == nil {
-		t.Fatalf("expected error but succeeded")
+		t.Fatal("expected error but succeeded")
 	}
 	i.Gateway = nil
 
@@ -96,7 +96,7 @@ func TestValidateAndIsV6(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err = i.Validate(); err == nil {
-		t.Fatalf("expected error but succeeded")
+		t.Fatal("expected error but succeeded")
 	}
 	delete(i.AuxAddresses, "ip2")
 
@@ -105,7 +105,7 @@ func TestValidateAndIsV6(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err = i.Validate(); err == nil {
-		t.Fatalf("expected error but succeeded")
+		t.Fatal("expected error but succeeded")
 	}
 	i.Gateway = nil
 
@@ -114,6 +114,6 @@ func TestValidateAndIsV6(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err = i.Validate(); err == nil {
-		t.Fatalf("expected error but succeeded")
+		t.Fatal("expected error but succeeded")
 	}
 }

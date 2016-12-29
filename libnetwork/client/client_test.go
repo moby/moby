@@ -114,7 +114,7 @@ func TestClientDummyCommand(t *testing.T) {
 
 	err := cli.Cmd("docker", "dummy")
 	if err == nil {
-		t.Fatalf("Incorrect Command must fail")
+		t.Fatal("Incorrect Command must fail")
 	}
 }
 
@@ -124,7 +124,7 @@ func TestClientNetworkInvalidCommand(t *testing.T) {
 
 	err := cli.Cmd("docker", "network", "invalid")
 	if err == nil {
-		t.Fatalf("Passing invalid commands must fail")
+		t.Fatal("Passing invalid commands must fail")
 	}
 }
 
@@ -144,7 +144,7 @@ func TestClientNetworkCreateWithDriver(t *testing.T) {
 
 	err := cli.Cmd("docker", "network", "create", "-f=dummy", mockNwName)
 	if err == nil {
-		t.Fatalf("Passing incorrect flags to the create command must fail")
+		t.Fatal("Passing incorrect flags to the create command must fail")
 	}
 
 	err = cli.Cmd("docker", "network", "create", "-d=dummy", mockNwName)

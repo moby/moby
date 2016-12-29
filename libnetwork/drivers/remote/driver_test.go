@@ -3,6 +3,7 @@ package remote
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -472,7 +473,7 @@ func TestDriverError(t *testing.T) {
 	driver := newDriver(plugin, p.Client())
 
 	if err := driver.CreateEndpoint("dummy", "dummy", &testEndpoint{t: t}, map[string]interface{}{}); err == nil {
-		t.Fatalf("Expected error from driver")
+		t.Fatal("Expected error from driver")
 	}
 }
 
@@ -528,11 +529,11 @@ func (r *rollbackEndpoint) AddressIPv6() *net.IPNet {
 }
 
 func (r *rollbackEndpoint) SetMacAddress(mac net.HardwareAddr) error {
-	return fmt.Errorf("invalid mac")
+	return errors.New("invalid mac")
 }
 
 func (r *rollbackEndpoint) SetIPAddress(ip *net.IPNet) error {
-	return fmt.Errorf("invalid ip")
+	return errors.New("invalid ip")
 }
 
 func TestRollback(t *testing.T) {
@@ -567,9 +568,9 @@ func TestRollback(t *testing.T) {
 	ep := &rollbackEndpoint{}
 
 	if err := driver.CreateEndpoint("dummy", "dummy", ep.Interface(), map[string]interface{}{}); err == nil {
-		t.Fatalf("Expected error from driver")
+		t.Fatal("Expected error from driver")
 	}
 	if !rolledback {
-		t.Fatalf("Expected to have had DeleteEndpoint called")
+		t.Fatal("Expected to have had DeleteEndpoint called")
 	}
 }

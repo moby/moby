@@ -3,7 +3,7 @@
 package builtin
 
 import (
-	"fmt"
+	"errors"
 
 	"github.com/docker/libnetwork/datastore"
 	"github.com/docker/libnetwork/ipam"
@@ -22,13 +22,13 @@ func InitDockerDefault(ic ipamapi.Callback, l, g interface{}) error {
 
 	if l != nil {
 		if localDs, ok = l.(datastore.DataStore); !ok {
-			return fmt.Errorf("incorrect local datastore passed to built-in ipam init")
+			return errors.New("incorrect local datastore passed to built-in ipam init")
 		}
 	}
 
 	if g != nil {
 		if globalDs, ok = g.(datastore.DataStore); !ok {
-			return fmt.Errorf("incorrect global datastore passed to built-in ipam init")
+			return errors.New("incorrect global datastore passed to built-in ipam init")
 		}
 	}
 

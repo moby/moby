@@ -76,16 +76,16 @@ func TestInt2IP2IntConversion(t *testing.T) {
 
 func TestGetAddressVersion(t *testing.T) {
 	if v4 != getAddressVersion(net.ParseIP("172.28.30.112")) {
-		t.Fatalf("Failed to detect IPv4 version")
+		t.Fatal("Failed to detect IPv4 version")
 	}
 	if v4 != getAddressVersion(net.ParseIP("0.0.0.1")) {
-		t.Fatalf("Failed to detect IPv4 version")
+		t.Fatal("Failed to detect IPv4 version")
 	}
 	if v6 != getAddressVersion(net.ParseIP("ff01::1")) {
-		t.Fatalf("Failed to detect IPv6 version")
+		t.Fatal("Failed to detect IPv6 version")
 	}
 	if v6 != getAddressVersion(net.ParseIP("2001:db8::76:51")) {
-		t.Fatalf("Failed to detect IPv6 version")
+		t.Fatal("Failed to detect IPv6 version")
 	}
 }
 
@@ -165,7 +165,7 @@ func TestPoolDataMarshal(t *testing.T) {
 	}
 
 	if q.Range != nil {
-		t.Fatalf("Unexpected Range")
+		t.Fatal("Unexpected Range")
 	}
 }
 
@@ -225,7 +225,7 @@ func TestAddSubnets(t *testing.T) {
 
 	pid0, _, _, err := a.RequestPool(localAddressSpace, "10.0.0.0/8", "", nil, false)
 	if err != nil {
-		t.Fatalf("Unexpected failure in adding subnet")
+		t.Fatal("Unexpected failure in adding subnet")
 	}
 
 	pid1, _, _, err := a.RequestPool("abc", "10.0.0.0/8", "", nil, false)
@@ -234,7 +234,7 @@ func TestAddSubnets(t *testing.T) {
 	}
 
 	if pid0 == pid1 {
-		t.Fatalf("returned same pool id for same subnets in different namespaces")
+		t.Fatal("returned same pool id for same subnets in different namespaces")
 	}
 
 	pid, _, _, err := a.RequestPool("abc", "10.0.0.0/8", "", nil, false)
@@ -242,12 +242,12 @@ func TestAddSubnets(t *testing.T) {
 		t.Fatalf("Unexpected failure requesting existing subnet: %v", err)
 	}
 	if pid != pid1 {
-		t.Fatalf("returned different pool id for same subnet requests")
+		t.Fatal("returned different pool id for same subnet requests")
 	}
 
 	_, _, _, err = a.RequestPool("abc", "10.128.0.0/9", "", nil, false)
 	if err == nil {
-		t.Fatalf("Expected failure on adding overlapping base subnet")
+		t.Fatal("Expected failure on adding overlapping base subnet")
 	}
 
 	pid2, _, _, err := a.RequestPool("abc", "10.0.0.0/8", "10.128.0.0/9", nil, false)
@@ -259,17 +259,17 @@ func TestAddSubnets(t *testing.T) {
 		t.Fatalf("Unexpected failure on adding overlapping sub pool: %v", err)
 	}
 	if pid2 != pid3 {
-		t.Fatalf("returned different pool id for same sub pool requests")
+		t.Fatal("returned different pool id for same sub pool requests")
 	}
 
 	pid, _, _, err = a.RequestPool(localAddressSpace, "10.20.2.0/24", "", nil, false)
 	if err == nil {
-		t.Fatalf("Failed to detect overlapping subnets")
+		t.Fatal("Failed to detect overlapping subnets")
 	}
 
 	_, _, _, err = a.RequestPool(localAddressSpace, "10.128.0.0/9", "", nil, false)
 	if err == nil {
-		t.Fatalf("Failed to detect overlapping subnets")
+		t.Fatal("Failed to detect overlapping subnets")
 	}
 
 	_, _, _, err = a.RequestPool(localAddressSpace, "1003:1:2:3:4:5:6::/112", "", nil, false)
@@ -279,7 +279,7 @@ func TestAddSubnets(t *testing.T) {
 
 	_, _, _, err = a.RequestPool(localAddressSpace, "1003:1:2:3::/64", "", nil, false)
 	if err == nil {
-		t.Fatalf("Failed to detect overlapping v6 subnet")
+		t.Fatal("Failed to detect overlapping v6 subnet")
 	}
 }
 
@@ -299,7 +299,7 @@ func TestAddReleasePoolID(t *testing.T) {
 	subnets := aSpace.subnets
 	pid0, _, _, err := a.RequestPool(localAddressSpace, "10.0.0.0/8", "", nil, false)
 	if err != nil {
-		t.Fatalf("Unexpected failure in adding pool")
+		t.Fatal("Unexpected failure in adding pool")
 	}
 	if err := k0.FromString(pid0); err != nil {
 		t.Fatal(err)
@@ -318,7 +318,7 @@ func TestAddReleasePoolID(t *testing.T) {
 
 	pid1, _, _, err := a.RequestPool(localAddressSpace, "10.0.0.0/8", "10.0.0.0/16", nil, false)
 	if err != nil {
-		t.Fatalf("Unexpected failure in adding sub pool")
+		t.Fatal("Unexpected failure in adding sub pool")
 	}
 	if err := k1.FromString(pid1); err != nil {
 		t.Fatal(err)
@@ -336,7 +336,7 @@ func TestAddReleasePoolID(t *testing.T) {
 
 	pid2, _, _, err := a.RequestPool(localAddressSpace, "10.0.0.0/8", "10.0.0.0/16", nil, false)
 	if err != nil {
-		t.Fatalf("Unexpected failure in adding sub pool")
+		t.Fatal("Unexpected failure in adding sub pool")
 	}
 	if pid0 == pid1 || pid0 == pid2 || pid1 != pid2 {
 		t.Fatalf("Incorrect poolIDs returned %s, %s, %s", pid0, pid1, pid2)
@@ -388,10 +388,10 @@ func TestAddReleasePoolID(t *testing.T) {
 
 	pid00, _, _, err := a.RequestPool(localAddressSpace, "10.0.0.0/8", "", nil, false)
 	if err != nil {
-		t.Fatalf("Unexpected failure in adding pool")
+		t.Fatal("Unexpected failure in adding pool")
 	}
 	if pid00 != pid0 {
-		t.Fatalf("main pool should still exist")
+		t.Fatal("main pool should still exist")
 	}
 
 	aSpace, err = a.getAddrSpace(localAddressSpace)
@@ -434,7 +434,7 @@ func TestAddReleasePoolID(t *testing.T) {
 
 	_, _, _, err = a.RequestPool(localAddressSpace, "10.0.0.0/8", "", nil, false)
 	if err != nil {
-		t.Fatalf("Unexpected failure in adding pool")
+		t.Fatal("Unexpected failure in adding pool")
 	}
 
 	aSpace, err = a.getAddrSpace(localAddressSpace)
@@ -455,7 +455,7 @@ func TestPredefinedPool(t *testing.T) {
 	}
 
 	if _, err := a.getPredefinedPool("blue", false); err == nil {
-		t.Fatalf("Expected failure for non default addr space")
+		t.Fatal("Expected failure for non default addr space")
 	}
 
 	pid, nw, _, err := a.RequestPool(localAddressSpace, "", "", nil, false)
@@ -729,17 +729,17 @@ func TestRequestSyntaxCheck(t *testing.T) {
 
 	_, _, _, err = a.RequestPool("", pool, "", nil, false)
 	if err == nil {
-		t.Fatalf("Failed to detect wrong request: empty address space")
+		t.Fatal("Failed to detect wrong request: empty address space")
 	}
 
 	_, _, _, err = a.RequestPool("", pool, subPool, nil, false)
 	if err == nil {
-		t.Fatalf("Failed to detect wrong request: empty address space")
+		t.Fatal("Failed to detect wrong request: empty address space")
 	}
 
 	_, _, _, err = a.RequestPool(as, "", subPool, nil, false)
 	if err == nil {
-		t.Fatalf("Failed to detect wrong request: subPool specified and no pool")
+		t.Fatal("Failed to detect wrong request: subPool specified and no pool")
 	}
 
 	pid, _, _, err := a.RequestPool(as, pool, subPool, nil, false)
@@ -749,13 +749,13 @@ func TestRequestSyntaxCheck(t *testing.T) {
 
 	_, _, err = a.RequestAddress("", nil, nil)
 	if err == nil {
-		t.Fatalf("Failed to detect wrong request: no pool id specified")
+		t.Fatal("Failed to detect wrong request: no pool id specified")
 	}
 
 	ip := net.ParseIP("172.17.0.23")
 	_, _, err = a.RequestAddress(pid, ip, nil)
 	if err == nil {
-		t.Fatalf("Failed to detect wrong request: requested IP from different subnet")
+		t.Fatal("Failed to detect wrong request: requested IP from different subnet")
 	}
 
 	ip = net.ParseIP("192.168.0.50")
@@ -766,12 +766,12 @@ func TestRequestSyntaxCheck(t *testing.T) {
 
 	err = a.ReleaseAddress("", ip)
 	if err == nil {
-		t.Fatalf("Failed to detect wrong request: no pool id specified")
+		t.Fatal("Failed to detect wrong request: no pool id specified")
 	}
 
 	err = a.ReleaseAddress(pid, nil)
 	if err == nil {
-		t.Fatalf("Failed to detect wrong request: no pool id specified")
+		t.Fatal("Failed to detect wrong request: no pool id specified")
 	}
 
 	err = a.ReleaseAddress(pid, ip)

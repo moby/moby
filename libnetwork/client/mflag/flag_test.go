@@ -72,7 +72,7 @@ func TestEverything(t *testing.T) {
 	m = make(map[string]*Flag)
 	Visit(visitor)
 	if len(m) != 0 {
-		t.Errorf("Visit sees unset flags")
+		t.Error("Visit sees unset flags")
 		for k, v := range m {
 			t.Log(k, *v)
 		}

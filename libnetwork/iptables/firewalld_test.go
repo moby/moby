@@ -52,7 +52,7 @@ func TestReloaded(t *testing.T) {
 		"-j", "ACCEPT"}
 
 	if !Exists(fwdChain.Table, fwdChain.Name, rule1...) {
-		t.Fatalf("rule1 does not exist")
+		t.Fatal("rule1 does not exist")
 	}
 
 	// flush all rules
@@ -62,7 +62,7 @@ func TestReloaded(t *testing.T) {
 
 	// make sure the rules have been recreated
 	if !Exists(fwdChain.Table, fwdChain.Name, rule1...) {
-		t.Fatalf("rule1 hasn't been recreated")
+		t.Fatal("rule1 hasn't been recreated")
 	}
 }
 
@@ -79,7 +79,7 @@ func TestPassthrough(t *testing.T) {
 			t.Fatal(err)
 		}
 		if !Exists(Filter, "INPUT", rule1...) {
-			t.Fatalf("rule1 does not exist")
+			t.Fatal("rule1 does not exist")
 		}
 	}
 

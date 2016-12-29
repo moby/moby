@@ -1,6 +1,7 @@
 package remote
 
 import (
+	"errors"
 	"fmt"
 	"net"
 
@@ -132,7 +133,7 @@ func (d *driver) DeleteNetwork(nid string) error {
 
 func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo, epOptions map[string]interface{}) error {
 	if ifInfo == nil {
-		return fmt.Errorf("must not be called with nil InterfaceInfo")
+		return errors.New("must not be called with nil InterfaceInfo")
 	}
 
 	reqIface := &api.EndpointInterface{}

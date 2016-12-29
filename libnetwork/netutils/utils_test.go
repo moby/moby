@@ -61,7 +61,7 @@ func TestCheckRouteOverlaps(t *testing.T) {
 
 	_, netX, _ = net.ParseCIDR("10.0.2.0/24")
 	if err := CheckRouteOverlaps(netX); err == nil {
-		t.Fatalf("10.0.2.0/24 and 10.0.2.0 should overlap but it doesn't")
+		t.Fatal("10.0.2.0/24 and 10.0.2.0 should overlap but it doesn't")
 	}
 }
 
@@ -279,11 +279,11 @@ func TestElectInterfaceAddressMultipleAddresses(t *testing.T) {
 	}
 
 	if len(ipv4NwList) == 0 {
-		t.Fatalf("unexpected empty ipv4 network addresses")
+		t.Fatal("unexpected empty ipv4 network addresses")
 	}
 
 	if len(ipv6NwList) == 0 {
-		t.Fatalf("unexpected empty ipv6 network addresses")
+		t.Fatal("unexpected empty ipv6 network addresses")
 	}
 
 	nwList := []string{}
@@ -316,11 +316,11 @@ func TestElectInterfaceAddress(t *testing.T) {
 	}
 
 	if len(ipv4Nw) == 0 {
-		t.Fatalf("unexpected empty ipv4 network addresses")
+		t.Fatal("unexpected empty ipv4 network addresses")
 	}
 
 	if len(ipv6Nw) == 0 {
-		t.Fatalf("unexpected empty ipv6 network addresses")
+		t.Fatal("unexpected empty ipv6 network addresses")
 	}
 
 	if nws != ipv4Nw[0].String() {

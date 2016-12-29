@@ -428,6 +428,6 @@ func TestNetworkDBCRUDMediumCluster(t *testing.T) {
 		dbs[i].verifyEntryExistence(t, "test_table", "network1", "test_key", "", false)
 	}
 
-	log.Printf("Closing DB instances...")
+	log.Print("Closing DB instances...")
 	closeNetworkDBInstances(dbs)
 }

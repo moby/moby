@@ -1,6 +1,7 @@
 package drvregistry
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"sync"
@@ -160,7 +161,7 @@ func (r *DrvRegistry) GetPluginGetter() plugingetter.PluginGetter {
 // RegisterDriver registers the network driver when it gets discovered.
 func (r *DrvRegistry) RegisterDriver(ntype string, driver driverapi.Driver, capability driverapi.Capability) error {
 	if strings.TrimSpace(ntype) == "" {
-		return fmt.Errorf("network type string cannot be empty")
+		return errors.New("network type string cannot be empty")
 	}
 
 	r.Lock()
@@ -188,7 +189,7 @@ func (r *DrvRegistry) RegisterDriver(ntype string, driver driverapi.Driver, capa
 
 func (r *DrvRegistry) registerIpamDriver(name string, driver ipamapi.Ipam, caps *ipamapi.Capability) error {
 	if strings.TrimSpace(name) == "" {
-		return fmt.Errorf("ipam driver name string cannot be empty")
+		return errors.New("ipam driver name string cannot be empty")
 	}
 
 	r.Lock()

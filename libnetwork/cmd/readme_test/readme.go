@@ -67,7 +67,7 @@ func main() {
 
 	macAddress, ok := epInfo[netlabel.MacAddress]
 	if !ok {
-		log.Fatalf("failed to get mac address from endpoint info")
+		log.Fatal("failed to get mac address from endpoint info")
 	}
 
 	fmt.Printf("Joined endpoint %s (%s) to sandbox %s (%s)\n", ep.Name(), macAddress, sbx.ContainerID(), sbx.Key())

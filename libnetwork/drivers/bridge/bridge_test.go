@@ -300,23 +300,23 @@ func TestCreateFullOptionsLabels(t *testing.T) {
 
 	nw, ok := d.networks["dummy"]
 	if !ok {
-		t.Fatalf("Cannot find dummy network in bridge driver")
+		t.Fatal("Cannot find dummy network in bridge driver")
 	}
 
 	if nw.config.BridgeName != DefaultBridgeName {
-		t.Fatalf("incongruent name in bridge network")
+		t.Fatal("incongruent name in bridge network")
 	}
 
 	if !nw.config.EnableIPv6 {
-		t.Fatalf("incongruent EnableIPv6 in bridge network")
+		t.Fatal("incongruent EnableIPv6 in bridge network")
 	}
 
 	if !nw.config.EnableICC {
-		t.Fatalf("incongruent EnableICC in bridge network")
+		t.Fatal("incongruent EnableICC in bridge network")
 	}
 
 	if !nw.config.EnableIPMasquerade {
-		t.Fatalf("incongruent EnableIPMasquerade in bridge network")
+		t.Fatal("incongruent EnableIPMasquerade in bridge network")
 	}
 
 	bndIP := net.ParseIP(bndIPs)
@@ -371,10 +371,10 @@ func TestCreate(t *testing.T) {
 
 	err := d.CreateNetwork("dummy", genericOption, nil, getIPv4Data(t, ""), nil)
 	if err == nil {
-		t.Fatalf("Expected bridge driver to refuse creation of second network with default name")
+		t.Fatal("Expected bridge driver to refuse creation of second network with default name")
 	}
 	if _, ok := err.(types.ForbiddenError); !ok {
-		t.Fatalf("Creation of second network with default name failed with unexpected error type")
+		t.Fatal("Creation of second network with default name failed with unexpected error type")
 	}
 }
 
@@ -662,18 +662,18 @@ func testQueryEndpointInfo(t *testing.T, ulPxyEnabled bool) {
 	}
 	pmd, ok := data[netlabel.PortMap]
 	if !ok {
-		t.Fatalf("Endpoint operational data does not contain port mapping data")
+		t.Fatal("Endpoint operational data does not contain port mapping data")
 	}
 	pm, ok := pmd.([]types.PortBinding)
 	if !ok {
-		t.Fatalf("Unexpected format for port mapping in endpoint operational data")
+		t.Fatal("Unexpected format for port mapping in endpoint operational data")
 	}
 	if len(ep.portMapping) != len(pm) {
-		t.Fatalf("Incomplete data for port mapping in endpoint operational data")
+		t.Fatal("Incomplete data for port mapping in endpoint operational data")
 	}
 	for i, pb := range ep.portMapping {
 		if !pb.Equal(&pm[i]) {
-			t.Fatalf("Unexpected data for port mapping in endpoint operational data")
+			t.Fatal("Unexpected data for port mapping in endpoint operational data")
 		}
 	}
 
@@ -757,7 +757,7 @@ func TestLinkContainers(t *testing.T) {
 
 	addr1 := te1.iface.addr
 	if addr1.IP.To4() == nil {
-		t.Fatalf("No Ipv4 address assigned to the endpoint:  ep1")
+		t.Fatal("No Ipv4 address assigned to the endpoint:  ep1")
 	}
 
 	te2 := newTestEndpoint(ipdList[0].Pool, 22)
@@ -768,7 +768,7 @@ func TestLinkContainers(t *testing.T) {
 
 	addr2 := te2.iface.addr
 	if addr2.IP.To4() == nil {
-		t.Fatalf("No Ipv4 address assigned to the endpoint:  ep2")
+		t.Fatal("No Ipv4 address assigned to the endpoint:  ep2")
 	}
 
 	sbOptions = make(map[string]interface{})
@@ -778,7 +778,7 @@ func TestLinkContainers(t *testing.T) {
 
 	err = d.Join("net1", "ep2", "", te2, sbOptions)
 	if err != nil {
-		t.Fatalf("Failed to link ep1 and ep2")
+		t.Fatal("Failed to link ep1 and ep2")
 	}
 
 	err = d.ProgramExternalConnectivity("net1", "ep2", sbOptions)
@@ -809,7 +809,7 @@ func TestLinkContainers(t *testing.T) {
 
 	err = d.Leave("net1", "ep2")
 	if err != nil {
-		t.Fatalf("Failed to unlink ep1 and ep2")
+		t.Fatal("Failed to unlink ep1 and ep2")
 	}
 
 	out, err = iptables.Raw("-L", DockerChain)
@@ -856,7 +856,7 @@ func TestLinkContainers(t *testing.T) {
 			}
 		}
 	} else {
-		t.Fatalf("Expected Join to fail given link conditions are not satisfied")
+		t.Fatal("Expected Join to fail given link conditions are not satisfied")
 	}
 }
 
@@ -869,13 +869,13 @@ func TestValidateConfig(t *testing.T) {
 	c := networkConfiguration{Mtu: -2}
 	err := c.Validate()
 	if err == nil {
-		t.Fatalf("Failed to detect invalid MTU number")
+		t.Fatal("Failed to detect invalid MTU number")
 	}
 
 	c.Mtu = 9000
 	err = c.Validate()
 	if err != nil {
-		t.Fatalf("unexpected validation error on MTU number")
+		t.Fatal("unexpected validation error on MTU number")
 	}
 
 	// Bridge network
@@ -893,13 +893,13 @@ func TestValidateConfig(t *testing.T) {
 	c.DefaultGatewayIPv4 = net.ParseIP("172.27.30.234")
 	err = c.Validate()
 	if err == nil {
-		t.Fatalf("Failed to detect invalid default gateway")
+		t.Fatal("Failed to detect invalid default gateway")
 	}
 
 	c.DefaultGatewayIPv4 = net.ParseIP("172.28.30.234")
 	err = c.Validate()
 	if err != nil {
-		t.Fatalf("Unexpected validation error on default gateway")
+		t.Fatal("Unexpected validation error on default gateway")
 	}
 
 	// Test v6 gw
@@ -911,25 +911,25 @@ func TestValidateConfig(t *testing.T) {
 	}
 	err = c.Validate()
 	if err == nil {
-		t.Fatalf("Failed to detect invalid v6 default gateway")
+		t.Fatal("Failed to detect invalid v6 default gateway")
 	}
 
 	c.DefaultGatewayIPv6 = net.ParseIP("2001:db8:ae:b004::bad:a55")
 	err = c.Validate()
 	if err != nil {
-		t.Fatalf("Unexpected validation error on v6 default gateway")
+		t.Fatal("Unexpected validation error on v6 default gateway")
 	}
 
 	c.AddressIPv6 = nil
 	err = c.Validate()
 	if err == nil {
-		t.Fatalf("Failed to detect invalid v6 default gateway")
+		t.Fatal("Failed to detect invalid v6 default gateway")
 	}
 
 	c.AddressIPv6 = nil
 	err = c.Validate()
 	if err == nil {
-		t.Fatalf("Failed to detect invalid v6 default gateway")
+		t.Fatal("Failed to detect invalid v6 default gateway")
 	}
 }
 
@@ -1068,6 +1068,6 @@ func TestCreateWithExistingBridge(t *testing.T) {
 	}
 
 	if _, err := netlink.LinkByName(brName); err != nil {
-		t.Fatalf("Deleting bridge network that using existing bridge interface unexpectedly deleted the bridge interface")
+		t.Fatal("Deleting bridge network that using existing bridge interface unexpectedly deleted the bridge interface")
 	}
 }

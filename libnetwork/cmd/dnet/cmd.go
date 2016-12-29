@@ -44,7 +44,7 @@ var (
 
 func runContainerCreate(c *cli.Context) {
 	if len(c.Args()) == 0 {
-		fmt.Printf("Please provide container id argument\n")
+		fmt.Println("Please provide container id argument")
 		os.Exit(1)
 	}
 
@@ -70,7 +70,7 @@ func runContainerRm(c *cli.Context) {
 	var sbList []*client.SandboxResource
 
 	if len(c.Args()) == 0 {
-		fmt.Printf("Please provide container id argument\n")
+		fmt.Println("Please provide container id argument")
 		os.Exit(1)
 	}
 

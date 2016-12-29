@@ -9,12 +9,12 @@ import (
 func TestNew(t *testing.T) {
 	_, err := New(nil, "", 0, 1)
 	if err == nil {
-		t.Fatalf("Expected failure, but succeeded")
+		t.Fatal("Expected failure, but succeeded")
 	}
 
 	_, err = New(nil, "myset", 1<<10, 0)
 	if err == nil {
-		t.Fatalf("Expected failure, but succeeded")
+		t.Fatal("Expected failure, but succeeded")
 	}
 
 	i, err := New(nil, "myset", 0, 10)
@@ -22,13 +22,13 @@ func TestNew(t *testing.T) {
 		t.Fatalf("Unexpected failure: %v", err)
 	}
 	if i.handle == nil {
-		t.Fatalf("set is not initialized")
+		t.Fatal("set is not initialized")
 	}
 	if i.start != 0 {
-		t.Fatalf("unexpected start")
+		t.Fatal("unexpected start")
 	}
 	if i.end != 10 {
-		t.Fatalf("unexpected end")
+		t.Fatal("unexpected end")
 	}
 }
 
@@ -39,11 +39,11 @@ func TestAllocate(t *testing.T) {
 	}
 
 	if err = i.GetSpecificID(49); err == nil {
-		t.Fatalf("Expected failure but succeeded")
+		t.Fatal("Expected failure but succeeded")
 	}
 
 	if err = i.GetSpecificID(53); err == nil {
-		t.Fatalf("Expected failure but succeeded")
+		t.Fatal("Expected failure but succeeded")
 	}
 
 	o, err := i.GetID()
@@ -87,7 +87,7 @@ func TestAllocate(t *testing.T) {
 		t.Fatal(err)
 	}
 	if o != 50 {
-		t.Fatalf("Unexpected id returned")
+		t.Fatal("Unexpected id returned")
 	}
 
 	i.Release(52)
@@ -101,11 +101,11 @@ func TestUninitialized(t *testing.T) {
 	i := &Idm{}
 
 	if _, err := i.GetID(); err == nil {
-		t.Fatalf("Expected failure but succeeded")
+		t.Fatal("Expected failure but succeeded")
 	}
 
 	if err := i.GetSpecificID(44); err == nil {
-		t.Fatalf("Expected failure but succeeded")
+		t.Fatal("Expected failure but succeeded")
 	}
 }
 

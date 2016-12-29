@@ -3,6 +3,7 @@ package client
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -111,9 +112,9 @@ func lookupContainerID(cli *NetworkCli, cnNameID string) (string, error) {
 		if id, ok := iid.(string); ok {
 			return id, nil
 		}
-		return "", fmt.Errorf("Unexpected data type for container ID in json response")
+		return "", errors.New("Unexpected data type for container ID in json response")
 	}
-	return "", fmt.Errorf("Cannot find container ID in json response")
+	return "", errors.New("Cannot find container ID in json response")
 }
 
 func lookupSandboxID(cli *NetworkCli, containerID string) (string, error) {
