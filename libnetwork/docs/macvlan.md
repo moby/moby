@@ -38,7 +38,7 @@ There are positive performance implication as a result of bypassing the Linux br
 
 - The driver limits one network per parent interface. The driver does however accommodate secondary subnets to be allocated in a single Docker network for a multi-subnet requirement. The upstream router is responsible for proxy-arping between the two subnets.
 
-- Any Macvlan container sharing the same subnet can communicate via IP to any other container in the same subnet without a gateway. It is important to note, that the parent will go into promiscuous mode when a container is attached to the parent since each container has a unique MAC address. Alternatively, Ipvlan which is currently a experimental driver uses the same MAC address as the parent interface and thus precluding the need for the parent being promiscuous.
+- Any Macvlan container sharing the same subnet can communicate via IP to any other container in the same subnet without a gateway. It is important to note, that the parent will go into promiscuous mode when a container is attached to the parent since each container has a unique MAC address. Alternatively, Ipvlan which is currently an experimental driver uses the same MAC address as the parent interface and thus precluding the need for the parent being promiscuous.
 
 In the following example, `eth0` on the docker host has an IP on the `172.16.86.0/24` network and a default gateway of `172.16.86.1`. The gateway is an external router with an address of `172.16.86.1`. An IP address is not required on the Docker host interface `eth0` in `bridge` mode, it merely needs to be on the proper upstream network to get forwarded by a network switch or network router.
 
@@ -150,7 +150,7 @@ In the case of a host reboot, instead of needing to modify often complex network
 
 The same holds true if the network is deleted `docker network rm`. If driver created the sub-interface with `docker network create` it will remove the sub-interface link for the operator.
 
-If the user doesn't want Docker to create and delete the `-o parent` sub-interface, then you simply pass a interface that already exists as the parent link. Parent interfaces such as `eth0` are not deleted, only interfaces that are slave links.
+If the user doesn't want Docker to create and delete the `-o parent` sub-interface, then you simply pass an interface that already exists as the parent link. Parent interfaces such as `eth0` are not deleted, only interfaces that are slave links.
 
 For the driver to add/delete the vlan sub-interfaces the format needs to be `-o parent interface_name.vlan_tag`.
 

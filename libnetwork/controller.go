@@ -273,7 +273,7 @@ func (c *controller) SetKeys(keys []*types.EncryptionKey) error {
 	}
 	for s, count := range subsysKeys {
 		if count != keyringSize {
-			return fmt.Errorf("incorrect number of keys for susbsystem %v", s)
+			return fmt.Errorf("incorrect number of keys for subsystem %v", s)
 		}
 	}
 
@@ -582,7 +582,7 @@ func (c *controller) pushNodeDiscovery(d driverapi.Driver, cap driverapi.Capabil
 			err = d.DiscoverDelete(discoverapi.NodeDiscovery, nodeData)
 		}
 		if err != nil {
-			logrus.Debugf("discovery notification error : %v", err)
+			logrus.Debugf("discovery notification error: %v", err)
 		}
 	}
 }
@@ -997,7 +997,7 @@ func (c *controller) NewSandbox(containerID string, options ...SandboxOption) (s
 
 	err = sb.storeUpdate()
 	if err != nil {
-		return nil, fmt.Errorf("updating the store state of sandbox failed: %v", err)
+		return nil, fmt.Errorf("failed to update the store state of sandbox: %v", err)
 	}
 
 	return sb, nil
