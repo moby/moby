@@ -106,7 +106,7 @@ When the proxy is asked to create a network, the remote process shall receive a 
 
 The response indicating success is empty:
 
-    `{}`
+    {}
 
 ### Delete network
 
@@ -257,7 +257,7 @@ When the proxy receives a DiscoverNew notification, the remote process shall rec
 
 The response indicating success is empty:
 
-    `{}`
+    {}
 
 *  Node Discovery
 
@@ -287,7 +287,7 @@ When the proxy receives a DiscoverDelete notification, the remote process shall 
 
 The response indicating success is empty:
 
-    `{}`
+    {}
 
 * Node Discovery
 
