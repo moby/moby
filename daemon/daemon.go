@@ -147,15 +147,6 @@ func (daemon *Daemon) restore() error {
 				continue
 			}
 			container.RWLayer = rwlayer
-			if err := daemon.Mount(container); err != nil {
-				// The mount is unlikely to fail. However, in case mount fails
-				// the container should be allowed to restore here. Some functionalities
-				// (like docker exec -u user) might be missing but container is able to be
-				// stopped/restarted/removed.
-				// See #29365 for related information.
-				// The error is only logged here.
-				logrus.Warnf("Failed to mount container %v: %v", id, err)
-			}
 			logrus.Debugf("Loaded container %v", container.ID)
 
 			containers[container.ID] = container
@@ -213,6 +204,23 @@ func (daemon *Daemon) restore() error {
 					logrus.Errorf("Failed to restore %s with containerd: %s", c.ID, err)
 					return
 				}
+
+				// we call Mount and then Unmount to get BaseFs of the container
+				if err := daemon.Mount(c); err != nil {
+					// The mount is unlikely to fail. However, in case mount fails
+					// the container should be allowed to restore here. Some functionalities
+					// (like docker exec -u user) might be missing but container is able to be
+					// stopped/restarted/removed.
+					// See #29365 for related information.
+					// The error is only logged here.
+					logrus.Warnf("Failed to mount container on getting BaseFs path %v: %v", c.ID, err)
+				} else {
+					// if mount success, then unmount it
+					if err := daemon.Unmount(c); err != nil {
+						logrus.Warnf("Failed to umount container on getting BaseFs path %v: %v", c.ID, err)
+					}
+				}
+
 				c.ResetRestartManager(false)
 				if !c.HostConfig.NetworkMode.IsContainer() && c.IsRunning() {
 					options, err := daemon.buildSandboxOptions(c)
