@@ -64,7 +64,7 @@ const (
 func getMemoryResources(config containertypes.Resources) *specs.Memory {
 	memory := specs.Memory{}
 
-	if config.Memory > 0 {
+	if config.Memory != 0 {
 		limit := uint64(config.Memory)
 		memory.Limit = &limit
 	}
@@ -278,8 +278,10 @@ func verifyContainerResources(resources *containertypes.Resources, sysInfo *sysi
 	warnings := []string{}
 
 	// memory subsystem checks and adjustments
-	if resources.Memory != 0 && resources.Memory < linuxMinMemory {
-		return warnings, fmt.Errorf("Minimum memory limit allowed is 4MB")
+	if resources.Memory != 0 {
+		if resources.Memory != -1 && resources.Memory < linuxMinMemory {
+			return warnings, fmt.Errorf("Minimum memory limit allowed is 4MB")
+		}
 	}
 	if resources.Memory > 0 && !sysInfo.MemoryLimit {
 		warnings = append(warnings, "Your kernel does not support memory limit capabilities or the cgroup is not mounted. Limitation discarded.")

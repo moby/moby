@@ -76,9 +76,13 @@ func runUpdate(dockerCli *command.DockerCli, opts *updateOptions) error {
 
 	var memory int64
 	if opts.memoryString != "" {
-		memory, err = units.RAMInBytes(opts.memoryString)
-		if err != nil {
-			return err
+		if opts.memoryString == "-1" {
+			memory = -1
+		} else {
+			memory, err = units.RAMInBytes(opts.memoryString)
+			if err != nil {
+				return err
+			}
 		}
 	}
 

@@ -295,7 +295,7 @@ func Parse(flags *pflag.FlagSet, copts *ContainerOptions) (*container.Config, *c
 	var err error
 
 	var memory int64
-	if copts.memoryString != "" {
+	if copts.memoryString != "" && copts.memoryString != "-1" {
 		memory, err = units.RAMInBytes(copts.memoryString)
 		if err != nil {
 			return nil, nil, nil, err
