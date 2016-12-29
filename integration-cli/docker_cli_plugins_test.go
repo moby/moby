@@ -330,3 +330,56 @@ func (s *DockerTrustSuite) TestPluginUntrustedInstall(c *check.C) {
 	c.Assert(err, check.NotNil, check.Commentf(out))
 	c.Assert(string(out), checker.Contains, "Error: remote trust data does not exist", check.Commentf(out))
 }
+
+func (s *DockerSuite) TestPluginIDPrefix(c *check.C) {
+	testRequires(c, DaemonIsLinux, Network)
+	_, _, err := dockerCmdWithError("plugin", "install", "--disable", "--grant-all-permissions", pNameWithTag)
+	c.Assert(err, checker.IsNil)
+
+	// Find ID first
+	id, _, err := dockerCmdWithError("plugin", "inspect", "-f", "{{.Id}}", pNameWithTag)
+	id = strings.TrimSpace(id)
+	c.Assert(err, checker.IsNil)
+
+	// List current state
+	out, _, err := dockerCmdWithError("plugin", "ls")
+	c.Assert(err, checker.IsNil)
+	c.Assert(out, checker.Contains, pName)
+	c.Assert(out, checker.Contains, pTag)
+	c.Assert(out, checker.Contains, "false")
+
+	env, _ := dockerCmd(c, "plugin", "inspect", "-f", "{{.Settings.Env}}", id[:5])
+	c.Assert(strings.TrimSpace(env), checker.Equals, "[DEBUG=0]")
+
+	dockerCmd(c, "plugin", "set", id[:5], "DEBUG=1")
+
+	env, _ = dockerCmd(c, "plugin", "inspect", "-f", "{{.Settings.Env}}", id[:5])
+	c.Assert(strings.TrimSpace(env), checker.Equals, "[DEBUG=1]")
+
+	// Enable
+	_, _, err = dockerCmdWithError("plugin", "enable", id[:5])
+	c.Assert(err, checker.IsNil)
+	out, _, err = dockerCmdWithError("plugin", "ls")
+	c.Assert(err, checker.IsNil)
+	c.Assert(out, checker.Contains, pName)
+	c.Assert(out, checker.Contains, pTag)
+	c.Assert(out, checker.Contains, "true")
+
+	// Disable
+	_, _, err = dockerCmdWithError("plugin", "disable", id[:5])
+	c.Assert(err, checker.IsNil)
+	out, _, err = dockerCmdWithError("plugin", "ls")
+	c.Assert(err, checker.IsNil)
+	c.Assert(out, checker.Contains, pName)
+	c.Assert(out, checker.Contains, pTag)
+	c.Assert(out, checker.Contains, "false")
+
+	// Remove
+	out, _, err = dockerCmdWithError("plugin", "remove", id[:5])
+	c.Assert(err, checker.IsNil)
+	// List returns none
+	out, _, err = dockerCmdWithError("plugin", "ls")
+	c.Assert(err, checker.IsNil)
+	c.Assert(out, checker.Not(checker.Contains), pName)
+	c.Assert(out, checker.Not(checker.Contains), pTag)
+}
