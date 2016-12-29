@@ -7,7 +7,6 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/opts"
-	runconfigopts "github.com/docker/docker/runconfig/opts"
 	"github.com/spf13/pflag"
 )
 
@@ -41,7 +40,7 @@ func (config *Config) InstallCommonUnixFlags(flags *pflag.FlagSet) {
 	flags.Var(opts.NewIPOpt(&config.bridgeConfig.DefaultGatewayIPv6, ""), "default-gateway-v6", "Container default gateway IPv6 address")
 	flags.BoolVar(&config.bridgeConfig.InterContainerCommunication, "icc", true, "Enable inter-container communication")
 	flags.Var(opts.NewIPOpt(&config.bridgeConfig.DefaultIP, "0.0.0.0"), "ip", "Default IP when binding container ports")
-	flags.Var(runconfigopts.NewNamedRuntimeOpt("runtimes", &config.Runtimes, stockRuntimeName), "add-runtime", "Register an additional OCI compatible runtime")
+	flags.Var(opts.NewNamedRuntimeOpt("runtimes", &config.Runtimes, stockRuntimeName), "add-runtime", "Register an additional OCI compatible runtime")
 	flags.StringVar(&config.DefaultRuntime, "default-runtime", stockRuntimeName, "Default OCI runtime for containers")
 
 }

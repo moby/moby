@@ -304,7 +304,7 @@ type logDriverOptions struct {
 }
 
 func newLogDriverOptions() logDriverOptions {
-	return logDriverOptions{opts: opts.NewListOpts(runconfigopts.ValidateEnv)}
+	return logDriverOptions{opts: opts.NewListOpts(opts.ValidateEnv)}
 }
 
 func (ldo *logDriverOptions) toLogDriver() *swarm.Driver {
@@ -426,17 +426,17 @@ type serviceOptions struct {
 
 func newServiceOptions() *serviceOptions {
 	return &serviceOptions{
-		labels:          opts.NewListOpts(runconfigopts.ValidateEnv),
+		labels:          opts.NewListOpts(opts.ValidateEnv),
 		constraints:     opts.NewListOpts(nil),
-		containerLabels: opts.NewListOpts(runconfigopts.ValidateEnv),
-		env:             opts.NewListOpts(runconfigopts.ValidateEnv),
+		containerLabels: opts.NewListOpts(opts.ValidateEnv),
+		env:             opts.NewListOpts(opts.ValidateEnv),
 		envFile:         opts.NewListOpts(nil),
 		groups:          opts.NewListOpts(nil),
 		logDriver:       newLogDriverOptions(),
 		dns:             opts.NewListOpts(opts.ValidateIPAddress),
 		dnsOption:       opts.NewListOpts(nil),
 		dnsSearch:       opts.NewListOpts(opts.ValidateDNSSearch),
-		hosts:           opts.NewListOpts(runconfigopts.ValidateExtraHost),
+		hosts:           opts.NewListOpts(opts.ValidateExtraHost),
 		networks:        opts.NewListOpts(nil),
 	}
 }
