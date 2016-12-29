@@ -885,7 +885,7 @@ func (n *network) CreateEndpoint(name string, options ...EndpointOption) (Endpoi
 	}
 
 	if _, err = n.EndpointByName(name); err == nil {
-		return nil, types.ForbiddenErrorf("service endpoint with name %s already exists", name)
+		return nil, types.ForbiddenErrorf("endpoint with name %s already exists in network %s", name, n.Name())
 	}
 
 	ep := &endpoint{name: name, generic: make(map[string]interface{}), iface: &endpointInterface{}}
