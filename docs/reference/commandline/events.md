@@ -36,7 +36,7 @@ Docker images report the following events:
 
     delete, import, load, pull, push, save, tag, untag
 
-Docker plugins(experimental) report the following events:
+Docker plugins report the following events:
 
     install, enable, disable, remove
 
