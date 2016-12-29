@@ -1645,7 +1645,9 @@ func (n *network) ResolveName(req string, ipType int) ([]net.IP, bool) {
 	}
 
 	if ip != nil {
-		return ip, false
+		ipLocal := make([]net.IP, len(ip))
+		copy(ipLocal, ip)
+		return ipLocal, false
 	}
 
 	return nil, ipv6Miss
