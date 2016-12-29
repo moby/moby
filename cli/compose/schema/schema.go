@@ -1,6 +1,6 @@
 package schema
 
-//go:generate go-bindata -pkg schema data
+//go:generate go-bindata -pkg schema -nometadata data
 
 import (
 	"fmt"

@@ -261,7 +261,7 @@ Function Validate-GoFormat($headCommit, $upstreamCommit) {
 
     # Get a list of all go source-code files which have changed.  Ignore exit code on next call - always process regardless
     $files=@(); $files = Invoke-Expression "git diff $upstreamCommit...$headCommit --diff-filter=ACMR --name-only -- `'*.go`'"
-    $files = $files | Select-String -NotMatch "^vendor/"
+    $files = $files | Select-String -NotMatch "^vendor/" | Select-String -NotMatch "^cli/compose/schema/bindata.go"
     $badFiles=@(); $files | %{
         # Deliberately ignore error on next line - treat as failed
         $content=Invoke-Expression "git show $headCommit`:$_"

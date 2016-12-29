@@ -3,10 +3,11 @@ package interpolation
 import (
 	"fmt"
 
-	"github.com/aanand/compose-file/template"
-	"github.com/aanand/compose-file/types"
+	"github.com/docker/docker/cli/compose/template"
+	"github.com/docker/docker/cli/compose/types"
 )
 
+// Interpolate replaces variables in a string with the values from a mapping
 func Interpolate(config types.Dict, section string, mapping template.Mapping) (types.Dict, error) {
 	out := types.Dict{}
 

@@ -1,0 +1,287 @@
+version: "3"
+
+services:
+  foo:
+    cap_add:
+      - ALL
+
+    cap_drop:
+      - NET_ADMIN
+      - SYS_ADMIN
+
+    cgroup_parent: m-executor-abcd
+
+    # String or list
+    command: bundle exec thin -p 3000
+    # command: ["bundle", "exec", "thin", "-p", "3000"]
+
+    container_name: my-web-container
+
+    depends_on:
+      - db
+      - redis
+
+    deploy:
+      mode: replicated
+      replicas: 6
+      labels: [FOO=BAR]
+      update_config:
+        parallelism: 3
+        delay: 10s
+        failure_action: continue
+        monitor: 60s
+        max_failure_ratio: 0.3
+      resources:
+        limits:
+          cpus: '0.001'
+          memory: 50M
+        reservations:
+          cpus: '0.0001'
+          memory: 20M
+      restart_policy:
+        condition: on_failure
+        delay: 5s
+        max_attempts: 3
+        window: 120s
+      placement:
+        constraints: [node=foo]
+
+    devices:
+      - "/dev/ttyUSB0:/dev/ttyUSB0"
+
+    # String or list
+    # dns: 8.8.8.8
+    dns:
+      - 8.8.8.8
+      - 9.9.9.9
+
+    # String or list
+    # dns_search: example.com
+    dns_search:
+      - dc1.example.com
+      - dc2.example.com
+
+    domainname: foo.com
+
+    # String or list
+    # entrypoint: /code/entrypoint.sh -p 3000
+    entrypoint: ["/code/entrypoint.sh", "-p", "3000"]
+
+    # String or list
+    # env_file: .env
+    env_file:
+      - ./example1.env
+      - ./example2.env
+
+    # Mapping or list
+    # Mapping values can be strings, numbers or null
+    # Booleans are not allowed - must be quoted
+    environment:
+      RACK_ENV: development
+      SHOW: 'true'
+      SESSION_SECRET:
+      BAZ: 3
+    # environment:
+    #   - RACK_ENV=development
+    #   - SHOW=true
+    #   - SESSION_SECRET
+
+    # Items can be strings or numbers
+    expose:
+     - "3000"
+     - 8000
+
+    external_links:
+      - redis_1
+      - project_db_1:mysql
+      - project_db_1:postgresql
+
+    # Mapping or list
+    # Mapping values must be strings
+    # extra_hosts:
+    #   somehost: "162.242.195.82"
+    #   otherhost: "50.31.209.229"
+    extra_hosts:
+      - "somehost:162.242.195.82"
+      - "otherhost:50.31.209.229"
+
+    hostname: foo
+
+    healthcheck:
+      test: echo "hello world"
+      interval: 10s
+      timeout: 1s
+      retries: 5
+
+    # Any valid image reference - repo, tag, id, sha
+    image: redis
+    # image: ubuntu:14.04
+    # image: tutum/influxdb
+    # image: example-registry.com:4000/postgresql
+    # image: a4bc65fd
+    # image: busybox@sha256:38a203e1986cf79639cfb9b2e1d6e773de84002feea2d4eb006b52004ee8502d
+
+    ipc: host
+
+    # Mapping or list
+    # Mapping values can be strings, numbers or null
+    labels:
+      com.example.description: "Accounting webapp"
+      com.example.number: 42
+      com.example.empty-label:
+    # labels:
+    #   - "com.example.description=Accounting webapp"
+    #   - "com.example.number=42"
+    #   - "com.example.empty-label"
+
+    links:
+     - db
+     - db:database
+     - redis
+
+    logging:
+      driver: syslog
+      options:
+        syslog-address: "tcp://192.168.0.42:123"
+
+    mac_address: 02:42:ac:11:65:43
+
+    # network_mode: "bridge"
+    # network_mode: "host"
+    # network_mode: "none"
+    # Use the network mode of an arbitrary container from another service
+    # network_mode: "service:db"
+    # Use the network mode of another container, specified by name or id
+    # network_mode: "container:some-container"
+    network_mode: "container:0cfeab0f748b9a743dc3da582046357c6ef497631c1a016d28d2bf9b4f899f7b"
+
+    networks:
+      some-network:
+        aliases:
+         - alias1
+         - alias3
+      other-network:
+        ipv4_address: 172.16.238.10
+        ipv6_address: 2001:3984:3989::10
+      other-other-network:
+
+    pid: "host"
+
+    ports:
+      - 3000
+      - "3000-3005"
+      - "8000:8000"
+      - "9090-9091:8080-8081"
+      - "49100:22"
+      - "127.0.0.1:8001:8001"
+      - "127.0.0.1:5000-5010:5000-5010"
+
+    privileged: true
+
+    read_only: true
+
+    restart: always
+
+    security_opt:
+      - label=level:s0:c100,c200
+      - label=type:svirt_apache_t
+
+    stdin_open: true
+
+    stop_grace_period: 20s
+
+    stop_signal: SIGUSR1
+
+    # String or list
+    # tmpfs: /run
+    tmpfs:
+      - /run
+      - /tmp
+
+    tty: true
+
+    ulimits:
+      # Single number or mapping with soft + hard limits
+      nproc: 65535
+      nofile:
+        soft: 20000
+        hard: 40000
+
+    user: someone
+
+    volumes:
+      # Just specify a path and let the Engine create a volume
+      - /var/lib/mysql
+      # Specify an absolute path mapping
+      - /opt/data:/var/lib/mysql
+      # Path on the host, relative to the Compose file
+      - .:/code
+      - ./static:/var/www/html
+      # User-relative path
+      - ~/configs:/etc/configs/:ro
+      # Named volume
+      - datavolume:/var/lib/mysql
+
+    working_dir: /code
+
+networks:
+  # Entries can be null, which specifies simply that a network
+  # called "{project name}_some-network" should be created and
+  # use the default driver
+  some-network:
+
+  other-network:
+    driver: overlay
+
+    driver_opts:
+      # Values can be strings or numbers
+      foo: "bar"
+      baz: 1
+
+    ipam:
+      driver: overlay
+      # driver_opts:
+      #   # Values can be strings or numbers
+      #   com.docker.network.enable_ipv6: "true"
+      #   com.docker.network.numeric_value: 1
+      config:
+      - subnet: 172.16.238.0/24
+        # gateway: 172.16.238.1
+      - subnet: 2001:3984:3989::/64
+        # gateway: 2001:3984:3989::1
+
+  external-network:
+    # Specifies that a pre-existing network called "external-network"
+    # can be referred to within this file as "external-network"
+    external: true
+
+  other-external-network:
+    # Specifies that a pre-existing network called "my-cool-network"
+    # can be referred to within this file as "other-external-network"
+    external:
+      name: my-cool-network
+
+volumes:
+  # Entries can be null, which specifies simply that a volume
+  # called "{project name}_some-volume" should be created and
+  # use the default driver
+  some-volume:
+
+  other-volume:
+    driver: flocker
+
+    driver_opts:
+      # Values can be strings or numbers
+      foo: "bar"
+      baz: 1
+
+  external-volume:
+    # Specifies that a pre-existing volume called "external-volume"
+    # can be referred to within this file as "external-volume"
+    external: true
+
+  other-external-volume:
+    # Specifies that a pre-existing volume called "my-cool-volume"
+    # can be referred to within this file as "other-external-volume"
+    external:
+      name: my-cool-volume
