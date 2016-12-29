@@ -1,10 +1,9 @@
 package container
 
 import (
+	"errors"
 	"fmt"
 	"strings"
-
-	"golang.org/x/net/context"
 
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/cli"
@@ -12,6 +11,7 @@ import (
 	runconfigopts "github.com/docker/docker/runconfig/opts"
 	"github.com/docker/go-units"
 	"github.com/spf13/cobra"
+	"golang.org/x/net/context"
 )
 
 type updateOptions struct {
@@ -71,7 +71,7 @@ func runUpdate(dockerCli *command.DockerCli, opts *updateOptions) error {
 	var err error
 
 	if opts.nFlag == 0 {
-		return fmt.Errorf("You must provide one or more flags when using this command.")
+		return errors.New("You must provide one or more flags when using this command.")
 	}
 
 	var memory int64
@@ -149,15 +149,15 @@ func runUpdate(dockerCli *command.DockerCli, opts *updateOptions) error {
 		if err != nil {
 			errs = append(errs, err.Error())
 		} else {
-			fmt.Fprintf(dockerCli.Out(), "%s\n", container)
+			fmt.Fprintln(dockerCli.Out(), container)
 		}
 		warns = append(warns, r.Warnings...)
 	}
 	if len(warns) > 0 {
-		fmt.Fprintf(dockerCli.Out(), "%s", strings.Join(warns, "\n"))
+		fmt.Fprintln(dockerCli.Out(), strings.Join(warns, "\n"))
 	}
 	if len(errs) > 0 {
-		return fmt.Errorf("%s", strings.Join(errs, "\n"))
+		return errors.New(strings.Join(errs, "\n"))
 	}
 	return nil
 }

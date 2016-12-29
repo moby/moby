@@ -1,15 +1,15 @@
 package container
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"time"
 
-	"golang.org/x/net/context"
-
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cli/command"
 	"github.com/spf13/cobra"
+	"golang.org/x/net/context"
 )
 
 type restartOptions struct {
@@ -51,12 +51,12 @@ func runRestart(dockerCli *command.DockerCli, opts *restartOptions) error {
 	for _, name := range opts.containers {
 		if err := dockerCli.Client().ContainerRestart(ctx, name, timeout); err != nil {
 			errs = append(errs, err.Error())
-		} else {
-			fmt.Fprintf(dockerCli.Out(), "%s\n", name)
+			continue
 		}
+		fmt.Fprintln(dockerCli.Out(), name)
 	}
 	if len(errs) > 0 {
-		return fmt.Errorf("%s", strings.Join(errs, "\n"))
+		return errors.New(strings.Join(errs, "\n"))
 	}
 	return nil
 }

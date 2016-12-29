@@ -1,13 +1,12 @@
 package container
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"strings"
 	"sync"
 	"time"
-
-	"golang.org/x/net/context"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/events"
@@ -16,6 +15,7 @@ import (
 	"github.com/docker/docker/cli/command"
 	"github.com/docker/docker/cli/command/formatter"
 	"github.com/spf13/cobra"
+	"golang.org/x/net/context"
 )
 
 type statsOptions struct {
@@ -179,7 +179,7 @@ func runStats(dockerCli *command.DockerCli, opts *statsOptions) error {
 		}
 		cStats.mu.Unlock()
 		if len(errs) > 0 {
-			return fmt.Errorf("%s", strings.Join(errs, "\n"))
+			return errors.New(strings.Join(errs, "\n"))
 		}
 	}
 

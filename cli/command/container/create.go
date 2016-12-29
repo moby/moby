@@ -5,22 +5,21 @@ import (
 	"io"
 	"os"
 
-	"golang.org/x/net/context"
-
-	"github.com/docker/docker/cli"
-	"github.com/docker/docker/cli/command"
-	"github.com/docker/docker/cli/command/image"
-	"github.com/docker/docker/pkg/jsonmessage"
-	// FIXME migrate to docker/distribution/reference
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	networktypes "github.com/docker/docker/api/types/network"
+	"github.com/docker/docker/cli"
+	"github.com/docker/docker/cli/command"
+	"github.com/docker/docker/cli/command/image"
 	apiclient "github.com/docker/docker/client"
+	"github.com/docker/docker/pkg/jsonmessage"
+	// FIXME migrate to docker/distribution/reference
 	"github.com/docker/docker/reference"
 	"github.com/docker/docker/registry"
 	runconfigopts "github.com/docker/docker/runconfig/opts"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
+	"golang.org/x/net/context"
 )
 
 type createOptions struct {
@@ -69,7 +68,7 @@ func runCreate(dockerCli *command.DockerCli, flags *pflag.FlagSet, opts *createO
 	if err != nil {
 		return err
 	}
-	fmt.Fprintf(dockerCli.Out(), "%s\n", response.ID)
+	fmt.Fprintln(dockerCli.Out(), response.ID)
 	return nil
 }
 
@@ -118,10 +117,11 @@ type cidFile struct {
 func (cid *cidFile) Close() error {
 	cid.file.Close()
 
-	if !cid.written {
-		if err := os.Remove(cid.path); err != nil {
-			return fmt.Errorf("failed to remove the CID file '%s': %s \n", cid.path, err)
-		}
+	if cid.written {
+		return nil
+	}
+	if err := os.Remove(cid.path); err != nil {
+		return fmt.Errorf("failed to remove the CID file '%s': %s \n", cid.path, err)
 	}
 
 	return nil
