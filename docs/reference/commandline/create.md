@@ -38,7 +38,6 @@ Options:
       --cpu-period int              Limit CPU CFS (Completely Fair Scheduler) period
       --cpu-quota int               Limit CPU CFS (Completely Fair Scheduler) quota
   -c, --cpu-shares int              CPU shares (relative weight)
-      --cpus NanoCPUs               Number of CPUs (default 0.000)
       --cpu-rt-period int           Limit the CPU real-time period in microseconds
       --cpu-rt-runtime int          Limit the CPU real-time runtime in microseconds
       --cpuset-cpus string          CPUs in which to allow execution (0-3, 0,1)
@@ -73,6 +72,7 @@ Options:
       --kernel-memory string        Kernel memory limit
   -l, --label value                 Set meta data on a container (default [])
       --label-file value            Read in a line delimited file of labels (default [])
+      --limit-cpu NanoCPUs          Limit number (fractional) of CPUs used by the container (default 0.000)
       --link value                  Add link to another container (default [])
       --link-local-ip value         Container IPv4/IPv6 link-local addresses (default [])
       --log-driver string           Logging driver for the container

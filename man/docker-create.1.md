@@ -21,7 +21,6 @@ docker-create - Create a new container
 [**--cpu-quota**[=*0*]]
 [**--cpu-rt-period**[=*0*]]
 [**--cpu-rt-runtime**[=*0*]]
-[**--cpus**[=*0.0*]]
 [**--cpuset-cpus**[=*CPUSET-CPUS*]]
 [**--cpuset-mems**[=*CPUSET-MEMS*]]
 [**--device**[=*[]*]]
@@ -47,6 +46,7 @@ docker-create - Create a new container
 [**--kernel-memory**[=*KERNEL-MEMORY*]]
 [**-l**|**--label**[=*[]*]]
 [**--label-file**[=*[]*]]
+[**--limit-cpu**[=*0.000*]]
 [**--link**[=*[]*]]
 [**--link-local-ip**[=*[]*]]
 [**--log-driver**[=*[]*]]
@@ -168,9 +168,6 @@ two memory nodes.
 
    The sum of all runtimes across containers cannot exceed the amount allotted to the parent cgroup.
 
-**--cpus**=0.0
-   Number of CPUs. The default is *0.0*.
-
 **--device**=[]
    Add a host device to the container (e.g. --device=/dev/sdc:/dev/xvdc:rwm)
 
@@ -253,6 +250,9 @@ millions of trillions.
 
 **--label-file**=[]
    Read labels from a file. Delimit each label with an EOL.
+
+**--limit-cpu**=0.000
+   Limit number (fractional) of CPUs used by the container. The default is *0.000* which means no limit.
 
 **--link**=[]
    Add link to another container in the form of <name or id>:alias or just

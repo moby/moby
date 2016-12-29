@@ -1569,7 +1569,7 @@ func (s *DockerSuite) TestRunWithNanoCPUs(c *check.C) {
 
 	file1 := "/sys/fs/cgroup/cpu/cpu.cfs_quota_us"
 	file2 := "/sys/fs/cgroup/cpu/cpu.cfs_period_us"
-	out, _ := dockerCmd(c, "run", "--cpus", "0.5", "--name", "test", "busybox", "sh", "-c", fmt.Sprintf("cat %s && cat %s", file1, file2))
+	out, _ := dockerCmd(c, "run", "--limit-cpu", "0.5", "--name", "test", "busybox", "sh", "-c", fmt.Sprintf("cat %s && cat %s", file1, file2))
 	c.Assert(strings.TrimSpace(out), checker.Equals, "50000\n100000")
 
 	out = inspectField(c, "test", "HostConfig.NanoCpus")
@@ -1579,7 +1579,7 @@ func (s *DockerSuite) TestRunWithNanoCPUs(c *check.C) {
 	out = inspectField(c, "test", "HostConfig.CpuPeriod")
 	c.Assert(out, checker.Equals, "0", check.Commentf("CPU CFS period should be 0"))
 
-	out, _, err := dockerCmdWithError("run", "--cpus", "0.5", "--cpu-quota", "50000", "--cpu-period", "100000", "busybox", "sh")
+	out, _, err := dockerCmdWithError("run", "--limit-cpu", "0.5", "--cpu-quota", "50000", "--cpu-period", "100000", "busybox", "sh")
 	c.Assert(err, check.NotNil)
 	c.Assert(out, checker.Contains, "Conflicting options: Nano CPUs and CPU Period cannot both be set")
 }

@@ -21,7 +21,6 @@ docker-run - Run a command in a new container
 [**--cpu-quota**[=*0*]]
 [**--cpu-rt-period**[=*0*]]
 [**--cpu-rt-runtime**[=*0*]]
-[**--cpus**[=*0.0*]]
 [**--cpuset-cpus**[=*CPUSET-CPUS*]]
 [**--cpuset-mems**[=*CPUSET-MEMS*]]
 [**-d**|**--detach**]
@@ -49,6 +48,7 @@ docker-run - Run a command in a new container
 [**--kernel-memory**[=*KERNEL-MEMORY*]]
 [**-l**|**--label**[=*[]*]]
 [**--label-file**[=*[]*]]
+[**--limit-cpu**[=*0.000*]]
 [**--link**[=*[]*]]
 [**--link-local-ip**[=*[]*]]
 [**--log-driver**[=*[]*]]
@@ -222,9 +222,6 @@ to the quota you specify.
 
    The sum of all runtimes across containers cannot exceed the amount allotted to the parent cgroup.
 
-**--cpus**=0.0
-   Number of CPUs. The default is *0.0* which means no limit.
-
 **-d**, **--detach**=*true*|*false*
    Detached mode: run the container in the background and print the new container ID. The default is *false*.
 
@@ -350,6 +347,9 @@ millions of trillions.
 
 **--label-file**=[]
    Read in a line delimited file of labels
+
+**--limit-cpu**=0.000
+   Limit number (fractional) of CPUs used by the container. The default is *0.000* which means no limit.
 
 **--link**=[]
    Add link to another container in the form of <name or id>:alias or just <name or id>
