@@ -245,7 +245,6 @@ func (daemon *Daemon) createNetwork(create types.NetworkCreateRequest, id string
 		return nil, apierrors.NewRequestForbiddenError(err)
 	}
 
-	var warning string
 	nw, err := daemon.GetNetworkByName(create.Name)
 	if err != nil {
 		if _, ok := err.(libnetwork.ErrNoSuchNetwork); !ok {
@@ -256,7 +255,6 @@ func (daemon *Daemon) createNetwork(create types.NetworkCreateRequest, id string
 		if create.CheckDuplicate {
 			return nil, libnetwork.NetworkNameError(create.Name)
 		}
-		warning = fmt.Sprintf("Network with name %s (id : %s) already exists", nw.Name(), nw.ID())
 	}
 
 	c := daemon.netController
@@ -301,8 +299,7 @@ func (daemon *Daemon) createNetwork(create types.NetworkCreateRequest, id string
 	daemon.LogNetworkEvent(n, "create")
 
 	return &types.NetworkCreateResponse{
-		ID:      n.ID(),
-		Warning: warning,
+		ID: n.ID(),
 	}, nil
 }
 
