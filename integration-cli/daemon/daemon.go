@@ -654,6 +654,11 @@ func (d *Daemon) ReadLogFile() ([]byte, error) {
 	return ioutil.ReadFile(d.logFile.Name())
 }
 
+// InspectField returns the field filter by 'filter'
+func (d *Daemon) InspectField(name, filter string) (string, error) {
+	return d.inspectFilter(name, filter)
+}
+
 func (d *Daemon) inspectFilter(name, filter string) (string, error) {
 	format := fmt.Sprintf("{{%s}}", filter)
 	out, err := d.Cmd("inspect", "-f", format, name)
