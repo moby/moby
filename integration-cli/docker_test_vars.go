@@ -38,12 +38,6 @@ var (
 	// a version call to the daemon and examining the response header.
 	daemonPlatform string
 
-	// windowsDaemonKV is used on Windows to distinguish between different
-	// versions. This is necessary to enable certain tests based on whether
-	// the platform supports it. For example, Windows Server 2016 TP3 did
-	// not support volumes, but TP4 did.
-	windowsDaemonKV int
-
 	// For a local daemon on Linux, these values will be used for testing
 	// user namespace support as the standard graph path(s) will be
 	// appended with the root remapped uid.gid prefix

@@ -211,10 +211,6 @@ func (s *DockerSuite) TestInspectBindMountPoint(c *check.C) {
 	prefix, slash := getPrefixAndSlashFromDaemonPlatform()
 	if daemonPlatform == "windows" {
 		modifier = ""
-		// TODO Windows: Temporary check - remove once TP5 support is dropped
-		if windowsDaemonKV < 14350 {
-			c.Skip("Needs later Windows build for RO volumes")
-		}
 		// Linux creates the host directory if it doesn't exist. Windows does not.
 		os.Mkdir(`c:\data`, os.ModeDir)
 	}
