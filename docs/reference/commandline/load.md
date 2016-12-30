@@ -23,7 +23,6 @@ Load an image from a tar archive or STDIN
 Options:
       --help           Print usage
   -i, --input string   Read from tar archive file, instead of STDIN.
-                       The tarball may be compressed with gzip, bzip, or xz
   -q, --quiet          Suppress the load output but still outputs the imported images
 ```
 
