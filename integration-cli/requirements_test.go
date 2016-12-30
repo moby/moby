@@ -105,14 +105,6 @@ func Apparmor() bool {
 	return err == nil && len(buf) > 1 && buf[0] == 'Y'
 }
 
-func RegistryHosting() bool {
-	// for now registry binary is built only if we're running inside
-	// container through `make test`. Figure that out by testing if
-	// registry binary is in PATH.
-	_, err := exec.LookPath(v2binary)
-	return err == nil
-}
-
 func NotaryHosting() bool {
 	// for now notary binary is built only if we're running inside
 	// container through `make test`. Figure that out by testing if

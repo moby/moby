@@ -6580,7 +6580,7 @@ func (s *DockerSuite) TestBuildLabelOverwrite(c *check.C) {
 }
 
 func (s *DockerRegistryAuthHtpasswdSuite) TestBuildFromAuthenticatedRegistry(c *check.C) {
-	dockerCmd(c, "login", "-u", s.reg.username, "-p", s.reg.password, privateRegistryURL)
+	dockerCmd(c, "login", "-u", s.reg.Username(), "-p", s.reg.Password(), privateRegistryURL)
 
 	baseImage := privateRegistryURL + "/baseimage"
 
@@ -6625,7 +6625,7 @@ func (s *DockerRegistryAuthHtpasswdSuite) TestBuildWithExternalAuth(c *check.C) 
 	err = ioutil.WriteFile(configPath, []byte(externalAuthConfig), 0644)
 	c.Assert(err, checker.IsNil)
 
-	dockerCmd(c, "--config", tmp, "login", "-u", s.reg.username, "-p", s.reg.password, privateRegistryURL)
+	dockerCmd(c, "--config", tmp, "login", "-u", s.reg.Username(), "-p", s.reg.Password(), privateRegistryURL)
 
 	b, err := ioutil.ReadFile(configPath)
 	c.Assert(err, checker.IsNil)

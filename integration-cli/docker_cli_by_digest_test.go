@@ -533,7 +533,7 @@ func (s *DockerRegistrySuite) TestPullFailsWithAlteredManifest(c *check.C) {
 	c.Assert(err, checker.IsNil, check.Commentf("error setting up image"))
 
 	// Load the target manifest blob.
-	manifestBlob := s.reg.readBlobContents(c, manifestDigest)
+	manifestBlob := s.reg.ReadBlobContents(c, manifestDigest)
 
 	var imgManifest schema2.Manifest
 	err = json.Unmarshal(manifestBlob, &imgManifest)
@@ -544,13 +544,13 @@ func (s *DockerRegistrySuite) TestPullFailsWithAlteredManifest(c *check.C) {
 
 	// Move the existing data file aside, so that we can replace it with a
 	// malicious blob of data. NOTE: we defer the returned undo func.
-	undo := s.reg.tempMoveBlobData(c, manifestDigest)
+	undo := s.reg.TempMoveBlobData(c, manifestDigest)
 	defer undo()
 
 	alteredManifestBlob, err := json.MarshalIndent(imgManifest, "", "   ")
 	c.Assert(err, checker.IsNil, check.Commentf("unable to encode altered image manifest to JSON"))
 
-	s.reg.writeBlobContents(c, manifestDigest, alteredManifestBlob)
+	s.reg.WriteBlobContents(c, manifestDigest, alteredManifestBlob)
 
 	// Now try pulling that image by digest. We should get an error about
 	// digest verification for the manifest digest.
@@ -573,7 +573,7 @@ func (s *DockerSchema1RegistrySuite) TestPullFailsWithAlteredManifest(c *check.C
 	c.Assert(err, checker.IsNil, check.Commentf("error setting up image"))
 
 	// Load the target manifest blob.
-	manifestBlob := s.reg.readBlobContents(c, manifestDigest)
+	manifestBlob := s.reg.ReadBlobContents(c, manifestDigest)
 
 	var imgManifest schema1.Manifest
 	err = json.Unmarshal(manifestBlob, &imgManifest)
@@ -586,13 +586,13 @@ func (s *DockerSchema1RegistrySuite) TestPullFailsWithAlteredManifest(c *check.C
 
 	// Move the existing data file aside, so that we can replace it with a
 	// malicious blob of data. NOTE: we defer the returned undo func.
-	undo := s.reg.tempMoveBlobData(c, manifestDigest)
+	undo := s.reg.TempMoveBlobData(c, manifestDigest)
 	defer undo()
 
 	alteredManifestBlob, err := json.MarshalIndent(imgManifest, "", "   ")
 	c.Assert(err, checker.IsNil, check.Commentf("unable to encode altered image manifest to JSON"))
 
-	s.reg.writeBlobContents(c, manifestDigest, alteredManifestBlob)
+	s.reg.WriteBlobContents(c, manifestDigest, alteredManifestBlob)
 
 	// Now try pulling that image by digest. We should get an error about
 	// digest verification for the manifest digest.
@@ -615,7 +615,7 @@ func (s *DockerRegistrySuite) TestPullFailsWithAlteredLayer(c *check.C) {
 	c.Assert(err, checker.IsNil)
 
 	// Load the target manifest blob.
-	manifestBlob := s.reg.readBlobContents(c, manifestDigest)
+	manifestBlob := s.reg.ReadBlobContents(c, manifestDigest)
 
 	var imgManifest schema2.Manifest
 	err = json.Unmarshal(manifestBlob, &imgManifest)
@@ -626,11 +626,11 @@ func (s *DockerRegistrySuite) TestPullFailsWithAlteredLayer(c *check.C) {
 
 	// Move the existing data file aside, so that we can replace it with a
 	// malicious blob of data. NOTE: we defer the returned undo func.
-	undo := s.reg.tempMoveBlobData(c, targetLayerDigest)
+	undo := s.reg.TempMoveBlobData(c, targetLayerDigest)
 	defer undo()
 
 	// Now make a fake data blob in this directory.
-	s.reg.writeBlobContents(c, targetLayerDigest, []byte("This is not the data you are looking for."))
+	s.reg.WriteBlobContents(c, targetLayerDigest, []byte("This is not the data you are looking for."))
 
 	// Now try pulling that image by digest. We should get an error about
 	// digest verification for the target layer digest.
@@ -658,7 +658,7 @@ func (s *DockerSchema1RegistrySuite) TestPullFailsWithAlteredLayer(c *check.C) {
 	c.Assert(err, checker.IsNil)
 
 	// Load the target manifest blob.
-	manifestBlob := s.reg.readBlobContents(c, manifestDigest)
+	manifestBlob := s.reg.ReadBlobContents(c, manifestDigest)
 
 	var imgManifest schema1.Manifest
 	err = json.Unmarshal(manifestBlob, &imgManifest)
@@ -669,11 +669,11 @@ func (s *DockerSchema1RegistrySuite) TestPullFailsWithAlteredLayer(c *check.C) {
 
 	// Move the existing data file aside, so that we can replace it with a
 	// malicious blob of data. NOTE: we defer the returned undo func.
-	undo := s.reg.tempMoveBlobData(c, targetLayerDigest)
+	undo := s.reg.TempMoveBlobData(c, targetLayerDigest)
 	defer undo()
 
 	// Now make a fake data blob in this directory.
-	s.reg.writeBlobContents(c, targetLayerDigest, []byte("This is not the data you are looking for."))
+	s.reg.WriteBlobContents(c, targetLayerDigest, []byte("This is not the data you are looking for."))
 
 	// Now try pulling that image by digest. We should get an error about
 	// digest verification for the target layer digest.
