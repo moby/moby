@@ -1,4 +1,4 @@
-package integration
+package testutil
 
 import (
 	"archive/tar"
@@ -14,9 +14,9 @@ import (
 	"syscall"
 	"time"
 
-	icmd "github.com/docker/docker/pkg/integration/cmd"
 	"github.com/docker/docker/pkg/stringutils"
 	"github.com/docker/docker/pkg/system"
+	icmd "github.com/docker/docker/pkg/testutil/cmd"
 )
 
 // IsKilled process the specified error and returns whether the process was killed or not.

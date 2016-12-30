@@ -23,13 +23,13 @@ import (
 
 	"github.com/docker/docker/api/types"
 	volumetypes "github.com/docker/docker/api/types/volume"
+	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/integration-cli/daemon"
 	"github.com/docker/docker/opts"
-	"github.com/docker/docker/pkg/integration"
-	"github.com/docker/docker/pkg/integration/checker"
-	icmd "github.com/docker/docker/pkg/integration/cmd"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/stringutils"
+	"github.com/docker/docker/pkg/testutil"
+	icmd "github.com/docker/docker/pkg/testutil/cmd"
 	"github.com/go-check/check"
 )
 
@@ -59,7 +59,7 @@ func sockRequest(method, endpoint string, data interface{}) (int, []byte, error)
 	if err != nil {
 		return -1, nil, err
 	}
-	b, err := integration.ReadBody(body)
+	b, err := testutil.ReadBody(body)
 	return res.StatusCode, b, err
 }
 

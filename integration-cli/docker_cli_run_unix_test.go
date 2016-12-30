@@ -16,8 +16,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/pkg/homedir"
-	"github.com/docker/docker/pkg/integration/checker"
 	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/sysinfo"

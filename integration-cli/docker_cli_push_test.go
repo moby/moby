@@ -15,8 +15,8 @@ import (
 
 	"github.com/docker/distribution/reference"
 	cliconfig "github.com/docker/docker/cli/config"
-	"github.com/docker/docker/pkg/integration"
-	"github.com/docker/docker/pkg/integration/checker"
+	"github.com/docker/docker/integration-cli/checker"
+	"github.com/docker/docker/pkg/testutil"
 	"github.com/go-check/check"
 )
 
@@ -438,7 +438,7 @@ func (s *DockerTrustSuite) TestTrustedPushWithExpiredSnapshot(c *check.C) {
 	// Snapshots last for three years. This should be expired
 	fourYearsLater := time.Now().Add(time.Hour * 24 * 365 * 4)
 
-	integration.RunAtDifferentDate(fourYearsLater, func() {
+	testutil.RunAtDifferentDate(fourYearsLater, func() {
 		// Push with wrong passphrases
 		pushCmd = exec.Command(dockerBinary, "push", repoName)
 		s.trustedCmd(pushCmd)
@@ -465,7 +465,7 @@ func (s *DockerTrustSuite) TestTrustedPushWithExpiredTimestamp(c *check.C) {
 	threeWeeksLater := time.Now().Add(time.Hour * 24 * 21)
 
 	// Should succeed because the server transparently re-signs one
-	integration.RunAtDifferentDate(threeWeeksLater, func() {
+	testutil.RunAtDifferentDate(threeWeeksLater, func() {
 		pushCmd := exec.Command(dockerBinary, "push", repoName)
 		s.trustedCmd(pushCmd)
 		out, _, err := runCommandWithOutput(pushCmd)

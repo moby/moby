@@ -11,8 +11,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/docker/docker/pkg/integration/checker"
-	icmd "github.com/docker/docker/pkg/integration/cmd"
+	"github.com/docker/docker/integration-cli/checker"
+	icmd "github.com/docker/docker/pkg/testutil/cmd"
 	"github.com/go-check/check"
 	"github.com/kr/pty"
 )

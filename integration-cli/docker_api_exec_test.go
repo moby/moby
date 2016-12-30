@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/docker/docker/pkg/integration"
-	"github.com/docker/docker/pkg/integration/checker"
+	"github.com/docker/docker/integration-cli/checker"
+	"github.com/docker/docker/pkg/testutil"
 	"github.com/go-check/check"
 )
 
@@ -41,7 +41,7 @@ func (s *DockerSuite) TestExecAPICreateNoValidContentType(c *check.C) {
 	c.Assert(err, checker.IsNil)
 	c.Assert(res.StatusCode, checker.Equals, http.StatusInternalServerError)
 
-	b, err := integration.ReadBody(body)
+	b, err := testutil.ReadBody(body)
 	c.Assert(err, checker.IsNil)
 
 	comment := check.Commentf("Expected message when creating exec command with invalid Content-Type specified")
@@ -108,7 +108,7 @@ func (s *DockerSuite) TestExecAPIStartBackwardsCompatible(c *check.C) {
 	resp, body, err := sockRequestRaw("POST", fmt.Sprintf("/v1.20/exec/%s/start", id), strings.NewReader(`{"Detach": true}`), "text/plain")
 	c.Assert(err, checker.IsNil)
 
-	b, err := integration.ReadBody(body)
+	b, err := testutil.ReadBody(body)
 	comment := check.Commentf("response body: %s", b)
 	c.Assert(err, checker.IsNil, comment)
 	c.Assert(resp.StatusCode, checker.Equals, http.StatusOK, comment)
@@ -157,7 +157,7 @@ func (s *DockerSuite) TestExecAPIStartWithDetach(c *check.C) {
 	_, body, err := sockRequestRaw("POST", fmt.Sprintf("/exec/%s/start", createResp.ID), strings.NewReader(`{"Detach": true}`), "application/json")
 	c.Assert(err, checker.IsNil)
 
-	b, err = integration.ReadBody(body)
+	b, err = testutil.ReadBody(body)
 	comment := check.Commentf("response body: %s", b)
 	c.Assert(err, checker.IsNil, comment)
 
@@ -183,7 +183,7 @@ func startExec(c *check.C, id string, code int) {
 	resp, body, err := sockRequestRaw("POST", fmt.Sprintf("/exec/%s/start", id), strings.NewReader(`{"Detach": true}`), "application/json")
 	c.Assert(err, checker.IsNil)
 
-	b, err := integration.ReadBody(body)
+	b, err := testutil.ReadBody(body)
 	comment := check.Commentf("response body: %s", b)
 	c.Assert(err, checker.IsNil, comment)
 	c.Assert(resp.StatusCode, checker.Equals, code, comment)
