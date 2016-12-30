@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"regexp"
 
+	"github.com/docker/docker/integration-cli/registry"
 	"github.com/go-check/check"
 )
 
@@ -46,8 +47,8 @@ func regexpCheckUA(c *check.C, ua string) {
 	c.Assert(bMatchUpstreamUA, check.Equals, true, check.Commentf("(Upstream) Docker Client User-Agent malformed"))
 }
 
-func registerUserAgentHandler(reg *testRegistry, result *string) {
-	reg.registerHandler("/v2/", func(w http.ResponseWriter, r *http.Request) {
+func registerUserAgentHandler(reg *registry.Mock, result *string) {
+	reg.RegisterHandler("/v2/", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(404)
 		var ua string
 		for k, v := range r.Header {
@@ -70,30 +71,30 @@ func (s *DockerRegistrySuite) TestUserAgentPassThrough(c *check.C) {
 		loginUA string
 	)
 
-	buildReg, err := newTestRegistry(c)
+	buildReg, err := registry.NewMock(c)
 	c.Assert(err, check.IsNil)
 	registerUserAgentHandler(buildReg, &buildUA)
-	buildRepoName := fmt.Sprintf("%s/busybox", buildReg.hostport)
+	buildRepoName := fmt.Sprintf("%s/busybox", buildReg.URL())
 
-	pullReg, err := newTestRegistry(c)
+	pullReg, err := registry.NewMock(c)
 	c.Assert(err, check.IsNil)
 	registerUserAgentHandler(pullReg, &pullUA)
-	pullRepoName := fmt.Sprintf("%s/busybox", pullReg.hostport)
+	pullRepoName := fmt.Sprintf("%s/busybox", pullReg.URL())
 
-	pushReg, err := newTestRegistry(c)
+	pushReg, err := registry.NewMock(c)
 	c.Assert(err, check.IsNil)
 	registerUserAgentHandler(pushReg, &pushUA)
-	pushRepoName := fmt.Sprintf("%s/busybox", pushReg.hostport)
+	pushRepoName := fmt.Sprintf("%s/busybox", pushReg.URL())
 
-	loginReg, err := newTestRegistry(c)
+	loginReg, err := registry.NewMock(c)
 	c.Assert(err, check.IsNil)
 	registerUserAgentHandler(loginReg, &loginUA)
 
 	s.d.Start(c,
-		"--insecure-registry", buildReg.hostport,
-		"--insecure-registry", pullReg.hostport,
-		"--insecure-registry", pushReg.hostport,
-		"--insecure-registry", loginReg.hostport,
+		"--insecure-registry", buildReg.URL(),
+		"--insecure-registry", pullReg.URL(),
+		"--insecure-registry", pushReg.URL(),
+		"--insecure-registry", loginReg.URL(),
 		"--disable-legacy-registry=true")
 
 	dockerfileName, cleanup1, err := makefile(fmt.Sprintf("FROM %s", buildRepoName))
@@ -102,7 +103,7 @@ func (s *DockerRegistrySuite) TestUserAgentPassThrough(c *check.C) {
 	s.d.Cmd("build", "--file", dockerfileName, ".")
 	regexpCheckUA(c, buildUA)
 
-	s.d.Cmd("login", "-u", "richard", "-p", "testtest", loginReg.hostport)
+	s.d.Cmd("login", "-u", "richard", "-p", "testtest", loginReg.URL())
 	regexpCheckUA(c, loginUA)
 
 	s.d.Cmd("pull", pullRepoName)

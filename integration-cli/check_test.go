@@ -16,6 +16,7 @@ import (
 	cliconfig "github.com/docker/docker/cli/config"
 	"github.com/docker/docker/integration-cli/daemon"
 	"github.com/docker/docker/integration-cli/environment"
+	"github.com/docker/docker/integration-cli/registry"
 	"github.com/docker/docker/pkg/reexec"
 	"github.com/go-check/check"
 )
@@ -172,7 +173,7 @@ func init() {
 
 type DockerRegistrySuite struct {
 	ds  *DockerSuite
-	reg *testRegistryV2
+	reg *registry.V2
 	d   *daemon.Daemon
 }
 
@@ -181,7 +182,7 @@ func (s *DockerRegistrySuite) OnTimeout(c *check.C) {
 }
 
 func (s *DockerRegistrySuite) SetUpTest(c *check.C) {
-	testRequires(c, DaemonIsLinux, RegistryHosting)
+	testRequires(c, DaemonIsLinux, registry.Hosting)
 	s.reg = setupRegistry(c, false, "", "")
 	s.d = daemon.New(c, dockerBinary, dockerdBinary, daemon.Config{
 		Experimental: experimentalDaemon,
@@ -206,7 +207,7 @@ func init() {
 
 type DockerSchema1RegistrySuite struct {
 	ds  *DockerSuite
-	reg *testRegistryV2
+	reg *registry.V2
 	d   *daemon.Daemon
 }
 
@@ -215,7 +216,7 @@ func (s *DockerSchema1RegistrySuite) OnTimeout(c *check.C) {
 }
 
 func (s *DockerSchema1RegistrySuite) SetUpTest(c *check.C) {
-	testRequires(c, DaemonIsLinux, RegistryHosting, NotArm64)
+	testRequires(c, DaemonIsLinux, registry.Hosting, NotArm64)
 	s.reg = setupRegistry(c, true, "", "")
 	s.d = daemon.New(c, dockerBinary, dockerdBinary, daemon.Config{
 		Experimental: experimentalDaemon,
@@ -240,7 +241,7 @@ func init() {
 
 type DockerRegistryAuthHtpasswdSuite struct {
 	ds  *DockerSuite
-	reg *testRegistryV2
+	reg *registry.V2
 	d   *daemon.Daemon
 }
 
@@ -249,7 +250,7 @@ func (s *DockerRegistryAuthHtpasswdSuite) OnTimeout(c *check.C) {
 }
 
 func (s *DockerRegistryAuthHtpasswdSuite) SetUpTest(c *check.C) {
-	testRequires(c, DaemonIsLinux, RegistryHosting)
+	testRequires(c, DaemonIsLinux, registry.Hosting)
 	s.reg = setupRegistry(c, false, "htpasswd", "")
 	s.d = daemon.New(c, dockerBinary, dockerdBinary, daemon.Config{
 		Experimental: experimentalDaemon,
@@ -276,7 +277,7 @@ func init() {
 
 type DockerRegistryAuthTokenSuite struct {
 	ds  *DockerSuite
-	reg *testRegistryV2
+	reg *registry.V2
 	d   *daemon.Daemon
 }
 
@@ -285,7 +286,7 @@ func (s *DockerRegistryAuthTokenSuite) OnTimeout(c *check.C) {
 }
 
 func (s *DockerRegistryAuthTokenSuite) SetUpTest(c *check.C) {
-	testRequires(c, DaemonIsLinux, RegistryHosting)
+	testRequires(c, DaemonIsLinux, registry.Hosting)
 	s.d = daemon.New(c, dockerBinary, dockerdBinary, daemon.Config{
 		Experimental: experimentalDaemon,
 	})
@@ -449,12 +450,12 @@ func init() {
 
 type DockerTrustSuite struct {
 	ds  *DockerSuite
-	reg *testRegistryV2
+	reg *registry.V2
 	not *testNotary
 }
 
 func (s *DockerTrustSuite) SetUpTest(c *check.C) {
-	testRequires(c, RegistryHosting, NotaryServerHosting)
+	testRequires(c, registry.Hosting, NotaryServerHosting)
 	s.reg = setupRegistry(c, false, "", "")
 	s.not = setupNotary(c)
 }
@@ -487,7 +488,7 @@ func init() {
 type DockerTrustedSwarmSuite struct {
 	swarmSuite DockerSwarmSuite
 	trustSuite DockerTrustSuite
-	reg        *testRegistryV2
+	reg        *registry.V2
 	not        *testNotary
 }
 

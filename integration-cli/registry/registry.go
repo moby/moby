@@ -1,4 +1,4 @@
-package main
+package registry
 
 import (
 	"fmt"
@@ -9,7 +9,6 @@ import (
 	"path/filepath"
 
 	"github.com/docker/distribution/digest"
-	"github.com/go-check/check"
 )
 
 const (
@@ -17,16 +16,29 @@ const (
 	v2binarySchema1 = "registry-v2-schema1"
 )
 
-type testRegistryV2 struct {
-	cmd      *exec.Cmd
-	dir      string
-	auth     string
-	username string
-	password string
-	email    string
+type testingT interface {
+	logT
+	Fatal(...interface{})
+	Fatalf(string, ...interface{})
 }
 
-func newTestRegistryV2(c *check.C, schema1 bool, auth, tokenURL string) (*testRegistryV2, error) {
+type logT interface {
+	Logf(string, ...interface{})
+}
+
+// V2 represent a registry version 2
+type V2 struct {
+	cmd         *exec.Cmd
+	registryURL string
+	dir         string
+	auth        string
+	username    string
+	password    string
+	email       string
+}
+
+// NewV2 creates a v2 registry server
+func NewV2(schema1 bool, auth, tokenURL, registryURL string) (*V2, error) {
 	tmp, err := ioutil.TempDir("", "registry-test-")
 	if err != nil {
 		return nil, err
@@ -78,7 +90,7 @@ http:
 	}
 	defer config.Close()
 
-	if _, err := fmt.Fprintf(config, template, tmp, privateRegistryURL, authTemplate); err != nil {
+	if _, err := fmt.Fprintf(config, template, tmp, registryURL, authTemplate); err != nil {
 		os.RemoveAll(tmp)
 		return nil, err
 	}
@@ -90,31 +102,30 @@ http:
 	cmd := exec.Command(binary, confPath)
 	if err := cmd.Start(); err != nil {
 		os.RemoveAll(tmp)
-		if os.IsNotExist(err) {
-			c.Skip(err.Error())
-		}
 		return nil, err
 	}
-	return &testRegistryV2{
-		cmd:      cmd,
-		dir:      tmp,
-		auth:     auth,
-		username: username,
-		password: password,
-		email:    email,
+	return &V2{
+		cmd:         cmd,
+		dir:         tmp,
+		auth:        auth,
+		username:    username,
+		password:    password,
+		email:       email,
+		registryURL: registryURL,
 	}, nil
 }
 
-func (t *testRegistryV2) Ping() error {
+// Ping sends an http request to the current registry, and fail if it doesn't respond correctly
+func (r *V2) Ping() error {
 	// We always ping through HTTP for our test registry.
-	resp, err := http.Get(fmt.Sprintf("http://%s/v2/", privateRegistryURL))
+	resp, err := http.Get(fmt.Sprintf("http://%s/v2/", r.registryURL))
 	if err != nil {
 		return err
 	}
 	resp.Body.Close()
 
 	fail := resp.StatusCode != http.StatusOK
-	if t.auth != "" {
+	if r.auth != "" {
 		// unauthorized is a _good_ status when pinging v2/ and it needs auth
 		fail = fail && resp.StatusCode != http.StatusUnauthorized
 	}
@@ -124,54 +135,74 @@ func (t *testRegistryV2) Ping() error {
 	return nil
 }
 
-func (t *testRegistryV2) Close() {
-	t.cmd.Process.Kill()
-	os.RemoveAll(t.dir)
+// Close kills the registry server
+func (r *V2) Close() {
+	r.cmd.Process.Kill()
+	os.RemoveAll(r.dir)
 }
 
-func (t *testRegistryV2) getBlobFilename(blobDigest digest.Digest) string {
+func (r *V2) getBlobFilename(blobDigest digest.Digest) string {
 	// Split the digest into its algorithm and hex components.
 	dgstAlg, dgstHex := blobDigest.Algorithm(), blobDigest.Hex()
 
 	// The path to the target blob data looks something like:
 	//   baseDir + "docker/registry/v2/blobs/sha256/a3/a3ed...46d4/data"
-	return fmt.Sprintf("%s/docker/registry/v2/blobs/%s/%s/%s/data", t.dir, dgstAlg, dgstHex[:2], dgstHex)
+	return fmt.Sprintf("%s/docker/registry/v2/blobs/%s/%s/%s/data", r.dir, dgstAlg, dgstHex[:2], dgstHex)
 }
 
-func (t *testRegistryV2) readBlobContents(c *check.C, blobDigest digest.Digest) []byte {
+// ReadBlobContents read the file corresponding to the specified digest
+func (r *V2) ReadBlobContents(t testingT, blobDigest digest.Digest) []byte {
 	// Load the target manifest blob.
-	manifestBlob, err := ioutil.ReadFile(t.getBlobFilename(blobDigest))
+	manifestBlob, err := ioutil.ReadFile(r.getBlobFilename(blobDigest))
 	if err != nil {
-		c.Fatalf("unable to read blob: %s", err)
+		t.Fatalf("unable to read blob: %s", err)
 	}
 
 	return manifestBlob
 }
 
-func (t *testRegistryV2) writeBlobContents(c *check.C, blobDigest digest.Digest, data []byte) {
-	if err := ioutil.WriteFile(t.getBlobFilename(blobDigest), data, os.FileMode(0644)); err != nil {
-		c.Fatalf("unable to write malicious data blob: %s", err)
+// WriteBlobContents write the file corresponding to the specified digest with the given content
+func (r *V2) WriteBlobContents(t testingT, blobDigest digest.Digest, data []byte) {
+	if err := ioutil.WriteFile(r.getBlobFilename(blobDigest), data, os.FileMode(0644)); err != nil {
+		t.Fatalf("unable to write malicious data blob: %s", err)
 	}
 }
 
-func (t *testRegistryV2) tempMoveBlobData(c *check.C, blobDigest digest.Digest) (undo func()) {
+// TempMoveBlobData moves the existing data file aside, so that we can replace it with a
+// malicious blob of data for example.
+func (r *V2) TempMoveBlobData(t testingT, blobDigest digest.Digest) (undo func()) {
 	tempFile, err := ioutil.TempFile("", "registry-temp-blob-")
 	if err != nil {
-		c.Fatalf("unable to get temporary blob file: %s", err)
+		t.Fatalf("unable to get temporary blob file: %s", err)
 	}
 	tempFile.Close()
 
-	blobFilename := t.getBlobFilename(blobDigest)
+	blobFilename := r.getBlobFilename(blobDigest)
 
 	// Move the existing data file aside, so that we can replace it with a
 	// another blob of data.
 	if err := os.Rename(blobFilename, tempFile.Name()); err != nil {
 		os.Remove(tempFile.Name())
-		c.Fatalf("unable to move data blob: %s", err)
+		t.Fatalf("unable to move data blob: %s", err)
 	}
 
 	return func() {
 		os.Rename(tempFile.Name(), blobFilename)
 		os.Remove(tempFile.Name())
 	}
+}
+
+// Username returns the configured user name of the server
+func (r *V2) Username() string {
+	return r.username
+}
+
+// Password returns the configured password of the server
+func (r *V2) Password() string {
+	return r.password
+}
+
+// Path returns the path where the registry write data
+func (r *V2) Path() string {
+	return filepath.Join(r.dir, "docker", "registry", "v2")
 }

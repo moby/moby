@@ -347,7 +347,7 @@ func (s *DockerRegistrySuite) TestPullManifestList(c *check.C) {
 	manifestListDigest := digest.FromBytes(manifestListJSON)
 	hexDigest := manifestListDigest.Hex()
 
-	registryV2Path := filepath.Join(s.reg.dir, "docker", "registry", "v2")
+	registryV2Path := s.reg.Path()
 
 	// Write manifest list to blob store
 	blobDir := filepath.Join(registryV2Path, "blobs", "sha256", hexDigest[:2], hexDigest)
@@ -411,7 +411,7 @@ func (s *DockerRegistryAuthHtpasswdSuite) TestPullWithExternalAuthLoginWithSchem
 	err = ioutil.WriteFile(configPath, []byte(externalAuthConfig), 0644)
 	c.Assert(err, checker.IsNil)
 
-	dockerCmd(c, "--config", tmp, "login", "-u", s.reg.username, "-p", s.reg.password, privateRegistryURL)
+	dockerCmd(c, "--config", tmp, "login", "-u", s.reg.Username(), "-p", s.reg.Password(), privateRegistryURL)
 
 	b, err := ioutil.ReadFile(configPath)
 	c.Assert(err, checker.IsNil)
@@ -421,7 +421,7 @@ func (s *DockerRegistryAuthHtpasswdSuite) TestPullWithExternalAuthLoginWithSchem
 	dockerCmd(c, "--config", tmp, "push", repoName)
 
 	dockerCmd(c, "--config", tmp, "logout", privateRegistryURL)
-	dockerCmd(c, "--config", tmp, "login", "-u", s.reg.username, "-p", s.reg.password, "https://"+privateRegistryURL)
+	dockerCmd(c, "--config", tmp, "login", "-u", s.reg.Username(), "-p", s.reg.Password(), "https://"+privateRegistryURL)
 	dockerCmd(c, "--config", tmp, "pull", repoName)
 
 	// likewise push should work
@@ -456,7 +456,7 @@ func (s *DockerRegistryAuthHtpasswdSuite) TestPullWithExternalAuth(c *check.C) {
 	err = ioutil.WriteFile(configPath, []byte(externalAuthConfig), 0644)
 	c.Assert(err, checker.IsNil)
 
-	dockerCmd(c, "--config", tmp, "login", "-u", s.reg.username, "-p", s.reg.password, privateRegistryURL)
+	dockerCmd(c, "--config", tmp, "login", "-u", s.reg.Username(), "-p", s.reg.Password(), privateRegistryURL)
 
 	b, err := ioutil.ReadFile(configPath)
 	c.Assert(err, checker.IsNil)
