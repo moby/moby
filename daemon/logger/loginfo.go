@@ -7,8 +7,8 @@ import (
 	"time"
 )
 
-// Context provides enough information for a logging driver to do its function.
-type Context struct {
+// Info provides enough information for a logging driver to do its function.
+type Info struct {
 	Config              map[string]string
 	ContainerID         string
 	ContainerName       string
@@ -26,12 +26,12 @@ type Context struct {
 // ExtraAttributes returns the user-defined extra attributes (labels,
 // environment variables) in key-value format. This can be used by log drivers
 // that support metadata to add more context to a log.
-func (ctx *Context) ExtraAttributes(keyMod func(string) string) map[string]string {
+func (info *Info) ExtraAttributes(keyMod func(string) string) map[string]string {
 	extra := make(map[string]string)
-	labels, ok := ctx.Config["labels"]
+	labels, ok := info.Config["labels"]
 	if ok && len(labels) > 0 {
 		for _, l := range strings.Split(labels, ",") {
-			if v, ok := ctx.ContainerLabels[l]; ok {
+			if v, ok := info.ContainerLabels[l]; ok {
 				if keyMod != nil {
 					l = keyMod(l)
 				}
@@ -40,10 +40,10 @@ func (ctx *Context) ExtraAttributes(keyMod func(string) string) map[string]strin
 		}
 	}
 
-	env, ok := ctx.Config["env"]
+	env, ok := info.Config["env"]
 	if ok && len(env) > 0 {
 		envMapping := make(map[string]string)
-		for _, e := range ctx.ContainerEnv {
+		for _, e := range info.ContainerEnv {
 			if kv := strings.SplitN(e, "=", 2); len(kv) == 2 {
 				envMapping[kv[0]] = kv[1]
 			}
@@ -62,7 +62,7 @@ func (ctx *Context) ExtraAttributes(keyMod func(string) string) map[string]strin
 }
 
 // Hostname returns the hostname from the underlying OS.
-func (ctx *Context) Hostname() (string, error) {
+func (info *Info) Hostname() (string, error) {
 	hostname, err := os.Hostname()
 	if err != nil {
 		return "", fmt.Errorf("logger: can not resolve hostname: %v", err)
@@ -73,39 +73,39 @@ func (ctx *Context) Hostname() (string, error) {
 // Command returns the command that the container being logged was
 // started with. The Entrypoint is prepended to the container
 // arguments.
-func (ctx *Context) Command() string {
-	terms := []string{ctx.ContainerEntrypoint}
-	terms = append(terms, ctx.ContainerArgs...)
+func (info *Info) Command() string {
+	terms := []string{info.ContainerEntrypoint}
+	terms = append(terms, info.ContainerArgs...)
 	command := strings.Join(terms, " ")
 	return command
 }
 
 // ID Returns the Container ID shortened to 12 characters.
-func (ctx *Context) ID() string {
-	return ctx.ContainerID[:12]
+func (info *Info) ID() string {
+	return info.ContainerID[:12]
 }
 
 // FullID is an alias of ContainerID.
-func (ctx *Context) FullID() string {
-	return ctx.ContainerID
+func (info *Info) FullID() string {
+	return info.ContainerID
 }
 
 // Name returns the ContainerName without a preceding '/'.
-func (ctx *Context) Name() string {
-	return strings.TrimPrefix(ctx.ContainerName, "/")
+func (info *Info) Name() string {
+	return strings.TrimPrefix(info.ContainerName, "/")
 }
 
 // ImageID returns the ContainerImageID shortened to 12 characters.
-func (ctx *Context) ImageID() string {
-	return ctx.ContainerImageID[:12]
+func (info *Info) ImageID() string {
+	return info.ContainerImageID[:12]
 }
 
 // ImageFullID is an alias of ContainerImageID.
-func (ctx *Context) ImageFullID() string {
-	return ctx.ContainerImageID
+func (info *Info) ImageFullID() string {
+	return info.ContainerImageID
 }
 
 // ImageName is an alias of ContainerImageName
-func (ctx *Context) ImageName() string {
-	return ctx.ContainerImageName
+func (info *Info) ImageName() string {
+	return info.ContainerImageName
 }

@@ -40,9 +40,9 @@ func init() {
 
 // New creates new JSONFileLogger which writes to filename passed in
 // on given context.
-func New(ctx logger.Context) (logger.Logger, error) {
+func New(info logger.Info) (logger.Logger, error) {
 	var capval int64 = -1
-	if capacity, ok := ctx.Config["max-size"]; ok {
+	if capacity, ok := info.Config["max-size"]; ok {
 		var err error
 		capval, err = units.FromHumanSize(capacity)
 		if err != nil {
@@ -50,7 +50,7 @@ func New(ctx logger.Context) (logger.Logger, error) {
 		}
 	}
 	var maxFiles = 1
-	if maxFileString, ok := ctx.Config["max-file"]; ok {
+	if maxFileString, ok := info.Config["max-file"]; ok {
 		var err error
 		maxFiles, err = strconv.Atoi(maxFileString)
 		if err != nil {
@@ -61,13 +61,13 @@ func New(ctx logger.Context) (logger.Logger, error) {
 		}
 	}
 
-	writer, err := loggerutils.NewRotateFileWriter(ctx.LogPath, capval, maxFiles)
+	writer, err := loggerutils.NewRotateFileWriter(info.LogPath, capval, maxFiles)
 	if err != nil {
 		return nil, err
 	}
 
 	var extra []byte
-	if attrs := ctx.ExtraAttributes(nil); len(attrs) > 0 {
+	if attrs := info.ExtraAttributes(nil); len(attrs) > 0 {
 		var err error
 		extra, err = json.Marshal(attrs)
 		if err != nil {

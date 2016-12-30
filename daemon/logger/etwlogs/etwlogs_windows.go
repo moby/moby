@@ -54,17 +54,17 @@ func init() {
 }
 
 // New creates a new etwLogs logger for the given container and registers the EWT provider.
-func New(ctx logger.Context) (logger.Logger, error) {
+func New(info logger.Info) (logger.Logger, error) {
 	if err := registerETWProvider(); err != nil {
 		return nil, err
 	}
-	logrus.Debugf("logging driver etwLogs configured for container: %s.", ctx.ContainerID)
+	logrus.Debugf("logging driver etwLogs configured for container: %s.", info.ContainerID)
 
 	return &etwLogs{
-		containerName: ctx.Name(),
-		imageName:     ctx.ContainerImageName,
-		containerID:   ctx.ContainerID,
-		imageID:       ctx.ContainerImageID,
+		containerName: info.Name(),
+		imageName:     info.ContainerImageName,
+		containerID:   info.ContainerID,
+		imageID:       info.ContainerImageID,
 	}, nil
 }
 
