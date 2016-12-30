@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/docker/docker/integration-cli/checker"
+	"github.com/docker/docker/integration-cli/request"
 	"github.com/go-check/check"
 )
 
@@ -20,7 +21,7 @@ func (s *DockerSuite) TestAPIUpdateContainer(c *check.C) {
 		"MemorySwap": 524288000,
 	}
 	dockerCmd(c, "run", "-d", "--name", name, "-m", "200M", "busybox", "top")
-	_, _, err := sockRequest("POST", "/containers/"+name+"/update", hostConfig)
+	_, _, err := request.SockRequest("POST", "/containers/"+name+"/update", hostConfig, daemonHost())
 	c.Assert(err, check.IsNil)
 
 	c.Assert(inspectField(c, name, "HostConfig.Memory"), checker.Equals, "314572800")

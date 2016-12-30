@@ -1,12 +1,12 @@
-// +build !windows
-
-package daemon
+package request
 
 import (
 	"net"
 	"time"
+
+	"github.com/Microsoft/go-winio"
 )
 
 func npipeDial(path string, timeout time.Duration) (net.Conn, error) {
-	panic("npipe protocol only supported on Windows")
+	return winio.DialPipe(path, &timeout)
 }

@@ -15,6 +15,7 @@ import (
 	eventtypes "github.com/docker/docker/api/types/events"
 	eventstestutils "github.com/docker/docker/daemon/events/testutils"
 	"github.com/docker/docker/integration-cli/checker"
+	"github.com/docker/docker/integration-cli/request"
 	"github.com/docker/docker/pkg/testutil"
 	icmd "github.com/docker/docker/pkg/testutil/cmd"
 	"github.com/go-check/check"
@@ -494,7 +495,7 @@ func (s *DockerSuite) TestEventsResize(c *check.C) {
 	c.Assert(waitRun(cID), checker.IsNil)
 
 	endpoint := "/containers/" + cID + "/resize?h=80&w=24"
-	status, _, err := sockRequest("POST", endpoint, nil)
+	status, _, err := request.SockRequest("POST", endpoint, nil, daemonHost())
 	c.Assert(status, checker.Equals, http.StatusOK)
 	c.Assert(err, checker.IsNil)
 

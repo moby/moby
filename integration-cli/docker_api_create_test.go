@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/docker/docker/integration-cli/checker"
+	"github.com/docker/docker/integration-cli/request"
 	"github.com/go-check/check"
 )
 
@@ -14,7 +15,7 @@ func (s *DockerSuite) TestAPICreateWithNotExistImage(c *check.C) {
 		"Volumes": map[string]struct{}{"/tmp": {}},
 	}
 
-	status, body, err := sockRequest("POST", "/containers/create?name="+name, config)
+	status, body, err := request.SockRequest("POST", "/containers/create?name="+name, config, daemonHost())
 	c.Assert(err, check.IsNil)
 	c.Assert(status, check.Equals, http.StatusNotFound)
 	expected := "No such image: test456:v1"
@@ -25,7 +26,7 @@ func (s *DockerSuite) TestAPICreateWithNotExistImage(c *check.C) {
 		"Volumes": map[string]struct{}{"/tmp": {}},
 	}
 
-	status, body, err = sockRequest("POST", "/containers/create?name="+name, config2)
+	status, body, err = request.SockRequest("POST", "/containers/create?name="+name, config2, daemonHost())
 	c.Assert(err, check.IsNil)
 	c.Assert(status, check.Equals, http.StatusNotFound)
 	expected = "No such image: test456:latest"
@@ -35,7 +36,7 @@ func (s *DockerSuite) TestAPICreateWithNotExistImage(c *check.C) {
 		"Image": "sha256:0cb40641836c461bc97c793971d84d758371ed682042457523e4ae701efeaaaa",
 	}
 
-	status, body, err = sockRequest("POST", "/containers/create?name="+name, config3)
+	status, body, err = request.SockRequest("POST", "/containers/create?name="+name, config3, daemonHost())
 	c.Assert(err, check.IsNil)
 	c.Assert(status, check.Equals, http.StatusNotFound)
 	expected = "No such image: sha256:0cb40641836c461bc97c793971d84d758371ed682042457523e4ae701efeaaaa"
@@ -52,7 +53,7 @@ func (s *DockerSuite) TestAPICreateEmptyEnv(c *check.C) {
 		"Cmd":   []string{"true"},
 	}
 
-	status, body, err := sockRequest("POST", "/containers/create?name="+name, config)
+	status, body, err := request.SockRequest("POST", "/containers/create?name="+name, config, daemonHost())
 	c.Assert(err, check.IsNil)
 	c.Assert(status, check.Equals, http.StatusInternalServerError)
 	expected := "invalid environment variable:"
@@ -64,7 +65,7 @@ func (s *DockerSuite) TestAPICreateEmptyEnv(c *check.C) {
 		"Env":   []string{"=", "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"},
 		"Cmd":   []string{"true"},
 	}
-	status, body, err = sockRequest("POST", "/containers/create?name="+name, config)
+	status, body, err = request.SockRequest("POST", "/containers/create?name="+name, config, daemonHost())
 	c.Assert(err, check.IsNil)
 	c.Assert(status, check.Equals, http.StatusInternalServerError)
 	expected = "invalid environment variable: ="
@@ -76,7 +77,7 @@ func (s *DockerSuite) TestAPICreateEmptyEnv(c *check.C) {
 		"Env":   []string{"=foo", "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"},
 		"Cmd":   []string{"true"},
 	}
-	status, body, err = sockRequest("POST", "/containers/create?name="+name, config)
+	status, body, err = request.SockRequest("POST", "/containers/create?name="+name, config, daemonHost())
 	c.Assert(err, check.IsNil)
 	c.Assert(status, check.Equals, http.StatusInternalServerError)
 	expected = "invalid environment variable: =foo"

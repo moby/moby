@@ -5,15 +5,16 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/kr/pty"
 	"os/exec"
 	"strings"
 	"time"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/integration-cli/checker"
+	"github.com/docker/docker/integration-cli/request"
 	"github.com/docker/docker/pkg/parsers/kernel"
 	"github.com/go-check/check"
+	"github.com/kr/pty"
 )
 
 func (s *DockerSuite) TestUpdateRunningContainer(c *check.C) {
@@ -219,7 +220,7 @@ func (s *DockerSuite) TestUpdateStats(c *check.C) {
 	c.Assert(waitRun(name), checker.IsNil)
 
 	getMemLimit := func(id string) uint64 {
-		resp, body, err := sockRequestRaw("GET", fmt.Sprintf("/containers/%s/stats?stream=false", id), nil, "")
+		resp, body, err := request.SockRequestRaw("GET", fmt.Sprintf("/containers/%s/stats?stream=false", id), nil, "", daemonHost())
 		c.Assert(err, checker.IsNil)
 		c.Assert(resp.Header.Get("Content-Type"), checker.Equals, "application/json")
 
