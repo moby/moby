@@ -19,7 +19,7 @@ docker-images - List images
 This command lists the images stored in the local Docker repository.
 
 By default, intermediate images, used during builds, are not listed. Some of the
-output, e.g., image ID, is truncated, for space reasons. However the truncated
+output, e.g., image ID, is truncated, for space reasons. However, the truncated
 image ID, and often the first few characters, are enough to be used in other
 Docker commands that use the image ID. The output includes repository, tag, image
 ID, date created and the virtual size.
