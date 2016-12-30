@@ -91,16 +91,16 @@ const (
 )
 
 // errNoSwarm is returned on leaving a cluster that was never initialized
-var errNoSwarm = fmt.Errorf("This node is not part of a swarm")
+var errNoSwarm = errors.New("This node is not part of a swarm")
 
 // errSwarmExists is returned on initialize or join request for a cluster that has already been activated
-var errSwarmExists = fmt.Errorf("This node is already part of a swarm. Use \"docker swarm leave\" to leave this swarm and join another one.")
+var errSwarmExists = errors.New("This node is already part of a swarm. Use \"docker swarm leave\" to leave this swarm and join another one.")
 
 // errSwarmJoinTimeoutReached is returned when cluster join could not complete before timeout was reached.
-var errSwarmJoinTimeoutReached = fmt.Errorf("Timeout was reached before node was joined. The attempt to join the swarm will continue in the background. Use the \"docker info\" command to see the current swarm status of your node.")
+var errSwarmJoinTimeoutReached = errors.New("Timeout was reached before node was joined. The attempt to join the swarm will continue in the background. Use the \"docker info\" command to see the current swarm status of your node.")
 
 // errSwarmLocked is returned if the swarm is encrypted and needs a key to unlock it.
-var errSwarmLocked = fmt.Errorf("Swarm is encrypted and needs to be unlocked before it can be used. Please use \"docker swarm unlock\" to unlock it.")
+var errSwarmLocked = errors.New("Swarm is encrypted and needs to be unlocked before it can be used. Please use \"docker swarm unlock\" to unlock it.")
 
 // errSwarmCertificatesExpired is returned if docker was not started for the whole validity period and they had no chance to renew automatically.
 var errSwarmCertificatesExpired = errors.New("Swarm certificates have expired. To replace them, leave the swarm and join again.")
@@ -521,7 +521,7 @@ func (c *Cluster) Leave(force bool) error {
 					if isLastManager(reachable, unreachable) {
 						msg += "Removing the last manager erases all current state of the swarm. Use `--force` to ignore this message. "
 						c.mu.Unlock()
-						return fmt.Errorf(msg)
+						return errors.New(msg)
 					}
 					msg += fmt.Sprintf("Removing this node leaves %v managers out of %v. Without a Raft quorum your swarm will be inaccessible. ", reachable-1, reachable+unreachable)
 				}
@@ -532,7 +532,7 @@ func (c *Cluster) Leave(force bool) error {
 
 		msg += "The only way to restore a swarm that has lost consensus is to reinitialize it with `--force-new-cluster`. Use `--force` to suppress this message."
 		c.mu.Unlock()
-		return fmt.Errorf(msg)
+		return errors.New(msg)
 	}
 	// release readers in here
 	if err := nr.Stop(); err != nil {
@@ -783,12 +783,12 @@ func (c *Cluster) errNoManager(st nodeState) error {
 		if st.err == errSwarmCertificatesExpired {
 			return errSwarmCertificatesExpired
 		}
-		return fmt.Errorf("This node is not a swarm manager. Use \"docker swarm init\" or \"docker swarm join\" to connect this node to swarm and try again.")
+		return errors.New("This node is not a swarm manager. Use \"docker swarm init\" or \"docker swarm join\" to connect this node to swarm and try again.")
 	}
 	if st.swarmNode.Manager() != nil {
-		return fmt.Errorf("This node is not a swarm manager. Manager is being prepared or has trouble connecting to the cluster.")
+		return errors.New("This node is not a swarm manager. Manager is being prepared or has trouble connecting to the cluster.")
 	}
-	return fmt.Errorf("This node is not a swarm manager. Worker nodes can't be used to view or modify cluster state. Please run this command on a manager node or promote the current node to a manager.")
+	return errors.New("This node is not a swarm manager. Worker nodes can't be used to view or modify cluster state. Please run this command on a manager node or promote the current node to a manager.")
 }
 
 // GetServices returns all services of a managed swarm cluster.
@@ -849,7 +849,7 @@ func (c *Cluster) imageWithDigestString(ctx context.Context, image string, authC
 		dockerRef = reference.WithDefaultTag(dockerRef)
 		namedTaggedRef, ok := dockerRef.(reference.NamedTagged)
 		if !ok {
-			return "", fmt.Errorf("unable to cast image to NamedTagged reference object")
+			return "", errors.New("unable to cast image to NamedTagged reference object")
 		}
 
 		repo, _, err := c.config.Backend.GetRepository(ctx, namedTaggedRef, authConfig)
@@ -896,7 +896,7 @@ func (c *Cluster) CreateService(s types.ServiceSpec, encodedAuth string) (*apity
 
 	ctnr := serviceSpec.Task.GetContainer()
 	if ctnr == nil {
-		return nil, fmt.Errorf("service does not use container tasks")
+		return nil, errors.New("service does not use container tasks")
 	}
 
 	if encodedAuth != "" {
@@ -986,7 +986,7 @@ func (c *Cluster) UpdateService(serviceIDOrName string, version uint64, spec typ
 
 	newCtnr := serviceSpec.Task.GetContainer()
 	if newCtnr == nil {
-		return nil, fmt.Errorf("service does not use container tasks")
+		return nil, errors.New("service does not use container tasks")
 	}
 
 	if encodedAuth != "" {
@@ -1000,14 +1000,14 @@ func (c *Cluster) UpdateService(serviceIDOrName string, version uint64, spec typ
 			ctnr = currentService.Spec.Task.GetContainer()
 		case apitypes.RegistryAuthFromPreviousSpec:
 			if currentService.PreviousSpec == nil {
-				return nil, fmt.Errorf("service does not have a previous spec")
+				return nil, errors.New("service does not have a previous spec")
 			}
 			ctnr = currentService.PreviousSpec.Task.GetContainer()
 		default:
-			return nil, fmt.Errorf("unsupported registryAuthFromValue")
+			return nil, errors.New("unsupported registryAuthFrom value")
 		}
 		if ctnr == nil {
-			return nil, fmt.Errorf("service does not use container tasks")
+			return nil, errors.New("service does not use container tasks")
 		}
 		newCtnr.PullOptions = ctnr.PullOptions
 		// update encodedAuth so it can be used to pin image by digest
@@ -1447,7 +1447,7 @@ func (c *Cluster) WaitForDetachment(ctx context.Context, networkName, networkID,
 	state := c.currentNodeState()
 	if state.swarmNode == nil || state.swarmNode.Agent() == nil {
 		c.mu.RUnlock()
-		return fmt.Errorf("invalid cluster node while waiting for detachment")
+		return errors.New("invalid cluster node while waiting for detachment")
 	}
 
 	c.mu.RUnlock()
@@ -1482,7 +1482,7 @@ func (c *Cluster) AttachNetwork(target string, containerID string, addresses []s
 	state := c.currentNodeState()
 	if state.swarmNode == nil || state.swarmNode.Agent() == nil {
 		c.mu.Unlock()
-		return nil, fmt.Errorf("invalid cluster node while attaching to network")
+		return nil, errors.New("invalid cluster node while attaching to network")
 	}
 	if attacher, ok := c.attachers[aKey]; ok {
 		c.mu.Unlock()
@@ -1697,7 +1697,7 @@ func validateAndSanitizeJoinRequest(req *types.JoinRequest) error {
 		return fmt.Errorf("invalid ListenAddr %q: %v", req.ListenAddr, err)
 	}
 	if len(req.RemoteAddrs) == 0 {
-		return fmt.Errorf("at least 1 RemoteAddr is required to join")
+		return errors.New("at least 1 RemoteAddr is required to join")
 	}
 	for i := range req.RemoteAddrs {
 		req.RemoteAddrs[i], err = validateAddr(req.RemoteAddrs[i])
@@ -1710,7 +1710,7 @@ func validateAndSanitizeJoinRequest(req *types.JoinRequest) error {
 
 func validateAddr(addr string) (string, error) {
 	if addr == "" {
-		return addr, fmt.Errorf("invalid empty address")
+		return addr, errors.New("invalid empty address")
 	}
 	newaddr, err := opts.ParseTCPAddr(addr, defaultAddr)
 	if err != nil {
@@ -1738,7 +1738,7 @@ func initClusterSpec(node *swarmnode.Node, spec types.Spec) error {
 						time.Sleep(200 * time.Millisecond)
 						continue
 					}
-					return fmt.Errorf("empty list of clusters was returned")
+					return errors.New("empty list of clusters was returned")
 				}
 				cluster = lcr.Clusters[0]
 				break

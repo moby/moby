@@ -272,8 +272,8 @@ func (b *Builder) build(stdout io.Writer, stderr io.Writer, out io.Writer) (stri
 		select {
 		case <-b.clientCtx.Done():
 			logrus.Debug("Builder: build cancelled!")
-			fmt.Fprintf(b.Stdout, "Build cancelled")
-			return "", fmt.Errorf("Build cancelled")
+			fmt.Fprint(b.Stdout, "Build cancelled")
+			return "", errors.New("Build cancelled")
 		default:
 			// Not cancelled yet, keep going...
 		}
@@ -306,7 +306,7 @@ func (b *Builder) build(stdout io.Writer, stderr io.Writer, out io.Writer) (stri
 	}
 
 	if b.image == "" {
-		return "", fmt.Errorf("No image was generated. Is your Dockerfile empty?")
+		return "", errors.New("No image was generated. Is your Dockerfile empty?")
 	}
 
 	if b.options.Squash {

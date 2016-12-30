@@ -43,7 +43,7 @@ func (b *Builder) commit(id string, autoCmd strslice.StrSlice, comment string) e
 		return nil
 	}
 	if b.image == "" && !b.noBaseImage {
-		return fmt.Errorf("Please provide a source image with `from` prior to commit")
+		return errors.New("Please provide a source image with `from` prior to commit")
 	}
 	b.runConfig.Image = b.image
 
@@ -137,7 +137,7 @@ func (b *Builder) runContextCommand(args []string, allowRemote bool, allowLocalD
 	}
 
 	if len(infos) == 0 {
-		return fmt.Errorf("No source files were specified")
+		return errors.New("No source files were specified")
 	}
 	if len(infos) > 1 && !strings.HasSuffix(dest, string(os.PathSeparator)) {
 		return fmt.Errorf("When using %s with more than one source file, the destination must be a directory and end with a /", cmdName)
@@ -456,7 +456,7 @@ func (b *Builder) probeCache() (bool, error) {
 		return false, nil
 	}
 
-	fmt.Fprintf(b.Stdout, " ---> Using cache\n")
+	fmt.Fprint(b.Stdout, " ---> Using cache\n")
 	logrus.Debugf("[BUILDER] Use cached version: %s", b.runConfig.Cmd)
 	b.image = string(cache)
 
@@ -465,7 +465,7 @@ func (b *Builder) probeCache() (bool, error) {
 
 func (b *Builder) create() (string, error) {
 	if b.image == "" && !b.noBaseImage {
-		return "", fmt.Errorf("Please provide a source image with `from` prior to run")
+		return "", errors.New("Please provide a source image with `from` prior to run")
 	}
 	b.runConfig.Image = b.image
 

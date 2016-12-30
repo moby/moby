@@ -1,7 +1,7 @@
 package daemon
 
 import (
-	"fmt"
+	"errors"
 	"io"
 	"strconv"
 	"time"
@@ -22,7 +22,7 @@ import (
 // configured with the given struct.
 func (daemon *Daemon) ContainerLogs(ctx context.Context, containerName string, config *backend.ContainerLogsConfig, started chan struct{}) error {
 	if !(config.ShowStdout || config.ShowStderr) {
-		return fmt.Errorf("You must choose at least one stream")
+		return errors.New("You must choose at least one stream")
 	}
 	container, err := daemon.GetContainer(containerName)
 	if err != nil {

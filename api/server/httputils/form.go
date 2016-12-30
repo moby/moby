@@ -1,7 +1,7 @@
 package httputils
 
 import (
-	"fmt"
+	"errors"
 	"net/http"
 	"path/filepath"
 	"strconv"
@@ -61,9 +61,9 @@ func ArchiveFormValues(r *http.Request, vars map[string]string) (ArchiveOptions,
 
 	switch {
 	case name == "":
-		return ArchiveOptions{}, fmt.Errorf("bad parameter: 'name' cannot be empty")
+		return ArchiveOptions{}, errors.New("bad parameter: 'name' cannot be empty")
 	case path == "":
-		return ArchiveOptions{}, fmt.Errorf("bad parameter: 'path' cannot be empty")
+		return ArchiveOptions{}, errors.New("bad parameter: 'path' cannot be empty")
 	}
 
 	return ArchiveOptions{name, path}, nil

@@ -1,6 +1,7 @@
 package distribution
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/Sirupsen/logrus"
@@ -172,7 +173,7 @@ func writeStatus(requestedTag string, out progress.Output, layersDownloaded bool
 // ValidateRepoName validates the name of a repository.
 func ValidateRepoName(name string) error {
 	if name == "" {
-		return fmt.Errorf("Repository name can't be empty")
+		return errors.New("Repository name can't be empty")
 	}
 	if name == api.NoBaseImageSpecifier {
 		return fmt.Errorf("'%s' is a reserved name", api.NoBaseImageSpecifier)
