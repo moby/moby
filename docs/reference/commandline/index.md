@@ -147,3 +147,22 @@ read the [`dockerd`](dockerd.md) reference page.
 | [service rm](service_rm.md) | Remove a service from the swarm                |
 | [service scale](service_scale.md) | Set the number of replicas for the desired state of the service |
 | [service update](service_update.md)  | Update the attributes of a service    |
+
+### Swarm secret commands
+
+| Command | Description                                                        |
+|:--------|:-------------------------------------------------------------------|
+| [secret create](secret_create.md) | Create a secret from a file or STDIN as content |
+| [secret inspect](service_inspect.md) | Inspect the specified secret          |
+| [secret ls](secret_ls.md) | List secrets in the swarm                        |
+| [secret rm](secret_rm.md) | Remove the specified secrets from the swarm      |
+
+### Swarm stack commands
+
+| Command | Description                                                        |
+|:--------|:-------------------------------------------------------------------|
+| [stack deploy](stack_deploy.md) | Deploy a new stack or update an existing stack |
+| [stack ls](stack_ls.md) | List stacks in the swarm                           |
+| [stack ps](stack_ps.md) | List the tasks in the stack                        |
+| [stack rm](stack_rm.md) | Remove the stack from the swarm                    |
+| [stack services](stack_services.md) | List the services in the stack         |
