@@ -14,8 +14,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/docker/docker/pkg/integration"
-	"github.com/docker/docker/pkg/integration/checker"
+	"github.com/docker/docker/integration-cli/checker"
+	"github.com/docker/docker/pkg/testutil"
 	"github.com/docker/go-units"
 	"github.com/go-check/check"
 )
@@ -194,7 +194,7 @@ func (s *DockerSuite) TestBuildCancellationKillsSleep(c *check.C) {
 	}
 
 	// Get the exit status of `docker build`, check it exited because killed.
-	if err := buildCmd.Wait(); err != nil && !integration.IsKilled(err) {
+	if err := buildCmd.Wait(); err != nil && !testutil.IsKilled(err) {
 		c.Fatalf("wait failed during build run: %T %s", err, err)
 	}
 

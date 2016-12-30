@@ -19,12 +19,12 @@ import (
 	"time"
 
 	"github.com/docker/docker/api/types/events"
+	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/opts"
-	"github.com/docker/docker/pkg/integration"
-	"github.com/docker/docker/pkg/integration/checker"
-	icmd "github.com/docker/docker/pkg/integration/cmd"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/stringid"
+	"github.com/docker/docker/pkg/testutil"
+	icmd "github.com/docker/docker/pkg/testutil/cmd"
 	"github.com/docker/go-connections/sockets"
 	"github.com/docker/go-connections/tlsconfig"
 	"github.com/go-check/check"
@@ -543,7 +543,7 @@ func (d *Daemon) queryRootDir() (string, error) {
 	}
 	var b []byte
 	var i Info
-	b, err = integration.ReadBody(body)
+	b, err = testutil.ReadBody(body)
 	if err == nil && resp.StatusCode == http.StatusOK {
 		// read the docker root dir
 		if err = json.Unmarshal(b, &i); err == nil {
@@ -570,7 +570,7 @@ func (d *Daemon) WaitRun(contID string) error {
 
 // GetBaseDeviceSize returns the base device size of the daemon
 func (d *Daemon) GetBaseDeviceSize(c *check.C) int64 {
-	infoCmdOutput, _, err := integration.RunCommandPipelineWithOutput(
+	infoCmdOutput, _, err := testutil.RunCommandPipelineWithOutput(
 		exec.Command(d.dockerBinary, "-H", d.Sock(), "info"),
 		exec.Command("grep", "Base Device Size"),
 	)
@@ -617,7 +617,7 @@ func (d *Daemon) SockRequest(method, endpoint string, data interface{}) (int, []
 	if err != nil {
 		return -1, nil, err
 	}
-	b, err := integration.ReadBody(body)
+	b, err := testutil.ReadBody(body)
 	return res.StatusCode, b, err
 }
 

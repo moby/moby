@@ -7,8 +7,8 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/docker/docker/pkg/integration"
-	"github.com/docker/docker/pkg/integration/checker"
+	"github.com/docker/docker/integration-cli/checker"
+	"github.com/docker/docker/pkg/testutil"
 	"github.com/go-check/check"
 )
 
@@ -45,7 +45,7 @@ func (s *DockerSuite) TestDeprecatedContainerAPIStartVolumeBinds(c *check.C) {
 	c.Assert(err, checker.IsNil)
 	c.Assert(status, checker.Equals, http.StatusCreated)
 
-	bindPath := integration.RandomTmpDirPath("test", daemonPlatform)
+	bindPath := testutil.RandomTmpDirPath("test", daemonPlatform)
 	config = map[string]interface{}{
 		"Binds": []string{bindPath + ":" + path},
 	}
@@ -72,8 +72,8 @@ func (s *DockerSuite) TestDeprecatedContainerAPIStartDupVolumeBinds(c *check.C) 
 	c.Assert(err, checker.IsNil)
 	c.Assert(status, checker.Equals, http.StatusCreated)
 
-	bindPath1 := integration.RandomTmpDirPath("test1", daemonPlatform)
-	bindPath2 := integration.RandomTmpDirPath("test2", daemonPlatform)
+	bindPath1 := testutil.RandomTmpDirPath("test1", daemonPlatform)
+	bindPath2 := testutil.RandomTmpDirPath("test2", daemonPlatform)
 
 	config = map[string]interface{}{
 		"Binds": []string{bindPath1 + ":/tmp", bindPath2 + ":/tmp"},
@@ -151,7 +151,7 @@ func (s *DockerSuite) TestDeprecatedStartWithTooLowMemoryLimit(c *check.C) {
 
 	res, body, err := sockRequestRaw("POST", formatV123StartAPIURL("/containers/"+containerID+"/start"), strings.NewReader(config), "application/json")
 	c.Assert(err, checker.IsNil)
-	b, err2 := integration.ReadBody(body)
+	b, err2 := testutil.ReadBody(body)
 	c.Assert(err2, checker.IsNil)
 	c.Assert(res.StatusCode, checker.Equals, http.StatusInternalServerError)
 	c.Assert(string(b), checker.Contains, "Minimum memory limit allowed is 4MB")

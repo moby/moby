@@ -8,9 +8,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/docker/docker/pkg/integration"
-	"github.com/docker/docker/pkg/integration/checker"
+	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/pkg/jsonlog"
+	"github.com/docker/docker/pkg/testutil"
 	"github.com/go-check/check"
 )
 
@@ -254,11 +254,11 @@ func (s *DockerSuite) TestLogsFollowSlowStdoutConsumer(c *check.C) {
 	c.Assert(logCmd.Start(), checker.IsNil)
 
 	// First read slowly
-	bytes1, err := integration.ConsumeWithSpeed(stdout, 10, 50*time.Millisecond, stopSlowRead)
+	bytes1, err := testutil.ConsumeWithSpeed(stdout, 10, 50*time.Millisecond, stopSlowRead)
 	c.Assert(err, checker.IsNil)
 
 	// After the container has finished we can continue reading fast
-	bytes2, err := integration.ConsumeWithSpeed(stdout, 32*1024, 0, nil)
+	bytes2, err := testutil.ConsumeWithSpeed(stdout, 32*1024, 0, nil)
 	c.Assert(err, checker.IsNil)
 
 	actual := bytes1 + bytes2

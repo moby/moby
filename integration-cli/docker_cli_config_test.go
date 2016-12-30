@@ -11,8 +11,8 @@ import (
 
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/dockerversion"
+	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/pkg/homedir"
-	"github.com/docker/docker/pkg/integration/checker"
 	"github.com/go-check/check"
 )
 
