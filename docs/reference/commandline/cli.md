@@ -69,6 +69,9 @@ by the `docker` command line:
   Equates to `--disable-content-trust=false` for build, create, pull, push, run.
 * `DOCKER_CONTENT_TRUST_SERVER` The URL of the Notary server to use. This defaults
   to the same URL as the registry.
+* `DOCKER_HIDE_LEGACY_COMMANDS` When set, Docker hides "legacy" top-level commands (such as `docker rm`, and 
+  `docker pull`) in `docker help` output, and only `Management commands` per object-type (e.g., `docker container`) are
+  printed. This may become the default in a future release, at which point this environment-variable is removed.
 * `DOCKER_TMPDIR` Location for temporary Docker files.
 
 Because Docker is developed using Go, you can also use any environment
