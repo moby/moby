@@ -26,8 +26,40 @@ func ValidateNetMode(c *container.Config, hc *container.HostConfig) error {
 		return nil
 	}
 	parts := strings.Split(string(hc.NetworkMode), ":")
-	if len(parts) > 1 {
+	if len(parts) > 2 {
 		return fmt.Errorf("invalid --net: %s", hc.NetworkMode)
+	}
+	if hc.NetworkMode.IsContainer() {
+		if len(parts) < 2 || parts[1] == "" {
+			return fmt.Errorf("--net: invalid net mode: invalid container format container:<name|id>")
+		}
+	}
+	if hc.NetworkMode.IsContainer() && c.Hostname != "" {
+		return ErrConflictNetworkHostname
+	}
+
+	if hc.NetworkMode.IsContainer() && len(hc.Links) > 0 {
+		return ErrConflictContainerNetworkAndLinks
+	}
+
+	if hc.NetworkMode.IsContainer() && len(hc.DNS) > 0 {
+		return ErrConflictNetworkAndDNS
+	}
+
+	if hc.NetworkMode.IsContainer() && len(hc.ExtraHosts) > 0 {
+		return ErrConflictNetworkHosts
+	}
+
+	if hc.NetworkMode.IsContainer() && c.MacAddress != "" {
+		return ErrConflictContainerNetworkAndMac
+	}
+
+	if hc.NetworkMode.IsContainer() && (len(hc.PortBindings) > 0 || hc.PublishAllPorts == true) {
+		return ErrConflictNetworkPublishPorts
+	}
+
+	if hc.NetworkMode.IsContainer() && len(c.ExposedPorts) > 0 {
+		return ErrConflictNetworkExposePorts
 	}
 	return nil
 }

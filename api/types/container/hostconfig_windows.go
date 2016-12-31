@@ -17,7 +17,8 @@ func (n NetworkMode) IsNone() bool {
 // IsContainer indicates whether container uses a container network stack.
 // Returns false as windows doesn't support this mode
 func (n NetworkMode) IsContainer() bool {
-	return false
+	parts := strings.SplitN(string(n), ":", 2)
+	return len(parts) > 1 && parts[0] == "container"
 }
 
 // IsBridge indicates whether container uses the bridge network stack
@@ -38,14 +39,17 @@ func (n NetworkMode) IsPrivate() bool {
 }
 
 // ConnectedContainer is the id of the container which network this container is connected to.
-// Returns blank string on windows
 func (n NetworkMode) ConnectedContainer() string {
+	parts := strings.SplitN(string(n), ":", 2)
+	if len(parts) > 1 {
+		return parts[1]
+	}
 	return ""
 }
 
 // IsUserDefined indicates user-created network
 func (n NetworkMode) IsUserDefined() bool {
-	return !n.IsDefault() && !n.IsNone() && !n.IsBridge()
+	return !n.IsDefault() && !n.IsNone() && !n.IsBridge() && !n.IsContainer()
 }
 
 // IsHyperV indicates the use of a Hyper-V partition for isolation
@@ -71,6 +75,8 @@ func (n NetworkMode) NetworkName() string {
 		return "nat"
 	} else if n.IsNone() {
 		return "none"
+	} else if n.IsContainer() {
+		return "container"
 	} else if n.IsUserDefined() {
 		return n.UserDefined()
 	}
