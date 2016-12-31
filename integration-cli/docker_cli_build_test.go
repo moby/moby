@@ -5816,7 +5816,7 @@ func (s *DockerSuite) TestBuildSquashParent(c *check.C) {
 	c.Assert(len(splitTestHistory), checker.Equals, len(splitOrigHistory)+1)
 
 	out = inspectImage(c, id, "len .RootFS.Layers")
-	c.Assert(strings.TrimSpace(out), checker.Equals, "3")
+	c.Assert(strings.TrimSpace(out), checker.Equals, "2")
 }
 
 func (s *DockerSuite) TestBuildContChar(c *check.C) {
