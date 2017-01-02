@@ -36,7 +36,7 @@ func (name ErrAmbiguous) Error() string {
 	return fmt.Sprintf("multiple plugins found for %q", string(name))
 }
 
-// GetV2Plugin retreives a plugin by name, id or partial ID.
+// GetV2Plugin retrieves a plugin by name, id or partial ID.
 func (ps *Store) GetV2Plugin(refOrID string) (*v2.Plugin, error) {
 	ps.RLock()
 	defer ps.RUnlock()
@@ -64,7 +64,7 @@ func (ps *Store) validateName(name string) error {
 	return nil
 }
 
-// GetAll retreives all plugins.
+// GetAll retrieves all plugins.
 func (ps *Store) GetAll() map[string]*v2.Plugin {
 	ps.RLock()
 	defer ps.RUnlock()
