@@ -10,8 +10,8 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/integration-cli/fixtures/load"
-	"github.com/docker/docker/pkg/integration/checker"
 	"github.com/go-check/check"
 )
 

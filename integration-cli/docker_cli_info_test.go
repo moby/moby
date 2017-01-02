@@ -6,8 +6,8 @@ import (
 	"net"
 	"strings"
 
+	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/integration-cli/daemon"
-	"github.com/docker/docker/pkg/integration/checker"
 	"github.com/go-check/check"
 )
 
