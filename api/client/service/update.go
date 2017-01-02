@@ -249,7 +249,7 @@ func anyChanged(flags *pflag.FlagSet, fields ...string) bool {
 }
 
 func rmDuplicateSwarmPlacement(list *[]string) []string {
-	var newConstraints []string = []string{}
+	newConstraints := []string{}
 	for _, i := range *list {
 		if len(newConstraints) == 0 {
 			newConstraints = append(newConstraints, i)
