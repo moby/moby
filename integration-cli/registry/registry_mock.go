@@ -1,4 +1,4 @@
-package main
+package registry
 
 import (
 	"net/http"
@@ -6,27 +6,28 @@ import (
 	"regexp"
 	"strings"
 	"sync"
-
-	"github.com/go-check/check"
 )
 
 type handlerFunc func(w http.ResponseWriter, r *http.Request)
 
-type testRegistry struct {
+// Mock represent a registry mock
+type Mock struct {
 	server   *httptest.Server
 	hostport string
 	handlers map[string]handlerFunc
 	mu       sync.Mutex
 }
 
-func (tr *testRegistry) registerHandler(path string, h handlerFunc) {
+// RegisterHandler register the specified handler for the registry mock
+func (tr *Mock) RegisterHandler(path string, h handlerFunc) {
 	tr.mu.Lock()
 	defer tr.mu.Unlock()
 	tr.handlers[path] = h
 }
 
-func newTestRegistry(c *check.C) (*testRegistry, error) {
-	testReg := &testRegistry{handlers: make(map[string]handlerFunc)}
+// NewMock creates a registry mock
+func NewMock(t testingT) (*Mock, error) {
+	testReg := &Mock{handlers: make(map[string]handlerFunc)}
 
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		url := r.URL.String()
@@ -36,7 +37,7 @@ func newTestRegistry(c *check.C) (*testRegistry, error) {
 		for re, function := range testReg.handlers {
 			matched, err = regexp.MatchString(re, url)
 			if err != nil {
-				c.Fatal("Error with handler regexp")
+				t.Fatal("Error with handler regexp")
 			}
 			if matched {
 				function(w, r)
@@ -45,11 +46,16 @@ func newTestRegistry(c *check.C) (*testRegistry, error) {
 		}
 
 		if !matched {
-			c.Fatalf("Unable to match %s with regexp", url)
+			t.Fatalf("Unable to match %s with regexp", url)
 		}
 	}))
 
 	testReg.server = ts
 	testReg.hostport = strings.Replace(ts.URL, "http://", "", 1)
 	return testReg, nil
+}
+
+// URL returns the url of the registry
+func (tr *Mock) URL() string {
+	return tr.hostport
 }
