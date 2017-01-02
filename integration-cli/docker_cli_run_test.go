@@ -4635,7 +4635,7 @@ func (s *delayedReader) Read([]byte) (int, error) {
 
 // #28823 (originally #28639)
 func (s *DockerSuite) TestRunMountReadOnlyDevShm(c *check.C) {
-	testRequires(c, SameHostDaemon, DaemonIsLinux)
+	testRequires(c, SameHostDaemon, DaemonIsLinux, NotUserNamespace)
 	emptyDir, err := ioutil.TempDir("", "test-read-only-dev-shm")
 	c.Assert(err, check.IsNil)
 	defer os.RemoveAll(emptyDir)
@@ -4648,7 +4648,7 @@ func (s *DockerSuite) TestRunMountReadOnlyDevShm(c *check.C) {
 
 // Test case for 29129
 func (s *DockerSuite) TestRunHostnameInHostMode(c *check.C) {
-	testRequires(c, DaemonIsLinux)
+	testRequires(c, DaemonIsLinux, NotUserNamespace)
 
 	expectedOutput := "foobar\nfoobar"
 	out, _ := dockerCmd(c, "run", "--net=host", "--hostname=foobar", "busybox", "sh", "-c", `echo $HOSTNAME && hostname`)
