@@ -1854,13 +1854,20 @@ func (s *DockerSuite) TestRunInteractiveWithRestartPolicy(c *check.C) {
 }
 
 // Test for #2267
-func (s *DockerSuite) TestRunWriteHostsFileAndNotCommit(c *check.C) {
-	// Cannot run on Windows as Windows does not support diff.
+func (s *DockerSuite) TestRunWriteSpecialFilesAndNotCommit(c *check.C) {
+	// Cannot run on Windows as this files are not present in Windows
 	testRequires(c, DaemonIsLinux)
-	name := "writehosts"
-	out, _ := dockerCmd(c, "run", "--name", name, "busybox", "sh", "-c", "echo test2267 >> /etc/hosts && cat /etc/hosts")
+
+	testRunWriteSpecialFilesAndNotCommit(c, "writehosts", "/etc/hosts")
+	testRunWriteSpecialFilesAndNotCommit(c, "writehostname", "/etc/hostname")
+	testRunWriteSpecialFilesAndNotCommit(c, "writeresolv", "/etc/resolv.conf")
+}
+
+func testRunWriteSpecialFilesAndNotCommit(c *check.C, name, path string) {
+	command := fmt.Sprintf("echo test2267 >> %s && cat %s", path, path)
+	out, _ := dockerCmd(c, "run", "--name", name, "busybox", "sh", "-c", command)
 	if !strings.Contains(out, "test2267") {
-		c.Fatal("/etc/hosts should contain 'test2267'")
+		c.Fatalf("%s should contain 'test2267'", path)
 	}
 
 	out, _ = dockerCmd(c, "diff", name)
@@ -1895,38 +1902,6 @@ func sliceEq(a, b []string) bool {
 	}
 
 	return true
-}
-
-// Test for #2267
-func (s *DockerSuite) TestRunWriteHostnameFileAndNotCommit(c *check.C) {
-	// Cannot run on Windows as Windows does not support diff.
-	testRequires(c, DaemonIsLinux)
-	name := "writehostname"
-	out, _ := dockerCmd(c, "run", "--name", name, "busybox", "sh", "-c", "echo test2267 >> /etc/hostname && cat /etc/hostname")
-	if !strings.Contains(out, "test2267") {
-		c.Fatal("/etc/hostname should contain 'test2267'")
-	}
-
-	out, _ = dockerCmd(c, "diff", name)
-	if len(strings.Trim(out, "\r\n")) != 0 && !eqToBaseDiff(out, c) {
-		c.Fatal("diff should be empty")
-	}
-}
-
-// Test for #2267
-func (s *DockerSuite) TestRunWriteResolvFileAndNotCommit(c *check.C) {
-	// Cannot run on Windows as Windows does not support diff.
-	testRequires(c, DaemonIsLinux)
-	name := "writeresolv"
-	out, _ := dockerCmd(c, "run", "--name", name, "busybox", "sh", "-c", "echo test2267 >> /etc/resolv.conf && cat /etc/resolv.conf")
-	if !strings.Contains(out, "test2267") {
-		c.Fatal("/etc/resolv.conf should contain 'test2267'")
-	}
-
-	out, _ = dockerCmd(c, "diff", name)
-	if len(strings.Trim(out, "\r\n")) != 0 && !eqToBaseDiff(out, c) {
-		c.Fatal("diff should be empty")
-	}
 }
 
 func (s *DockerSuite) TestRunWithBadDevice(c *check.C) {
@@ -3453,38 +3428,14 @@ func (s *DockerSuite) TestRunContainerWithCgroupParent(c *check.C) {
 	// Not applicable on Windows as uses Unix specific functionality
 	testRequires(c, DaemonIsLinux)
 
-	cgroupParent := "test"
-	name := "cgroup-test"
+	// cgroup-parent relative path
+	testRunContainerWithCgroupParent(c, "test", "cgroup-test")
 
-	out, _, err := dockerCmdWithError("run", "--cgroup-parent", cgroupParent, "--name", name, "busybox", "cat", "/proc/self/cgroup")
-	if err != nil {
-		c.Fatalf("unexpected failure when running container with --cgroup-parent option - %s\n%v", string(out), err)
-	}
-	cgroupPaths := testutil.ParseCgroupPaths(string(out))
-	if len(cgroupPaths) == 0 {
-		c.Fatalf("unexpected output - %q", string(out))
-	}
-	id, err := getIDByName(name)
-	c.Assert(err, check.IsNil)
-	expectedCgroup := path.Join(cgroupParent, id)
-	found := false
-	for _, path := range cgroupPaths {
-		if strings.HasSuffix(path, expectedCgroup) {
-			found = true
-			break
-		}
-	}
-	if !found {
-		c.Fatalf("unexpected cgroup paths. Expected at least one cgroup path to have suffix %q. Cgroup Paths: %v", expectedCgroup, cgroupPaths)
-	}
+	// cgroup-parent absolute path
+	testRunContainerWithCgroupParent(c, "/cgroup-parent/test", "cgroup-test-absolute")
 }
 
-func (s *DockerSuite) TestRunContainerWithCgroupParentAbsPath(c *check.C) {
-	// Not applicable on Windows as uses Unix specific functionality
-	testRequires(c, DaemonIsLinux)
-
-	cgroupParent := "/cgroup-parent/test"
-	name := "cgroup-test"
+func testRunContainerWithCgroupParent(c *check.C, cgroupParent, name string) {
 	out, _, err := dockerCmdWithError("run", "--cgroup-parent", cgroupParent, "--name", name, "busybox", "cat", "/proc/self/cgroup")
 	if err != nil {
 		c.Fatalf("unexpected failure when running container with --cgroup-parent option - %s\n%v", string(out), err)
@@ -3513,10 +3464,12 @@ func (s *DockerSuite) TestRunInvalidCgroupParent(c *check.C) {
 	// Not applicable on Windows as uses Unix specific functionality
 	testRequires(c, DaemonIsLinux)
 
-	cgroupParent := "../../../../../../../../SHOULD_NOT_EXIST"
-	cleanCgroupParent := "SHOULD_NOT_EXIST"
-	name := "cgroup-invalid-test"
+	testRunInvalidCgroupParent(c, "../../../../../../../../SHOULD_NOT_EXIST", "SHOULD_NOT_EXIST", "cgroup-invalid-test")
 
+	testRunInvalidCgroupParent(c, "/../../../../../../../../SHOULD_NOT_EXIST", "/SHOULD_NOT_EXIST", "cgroup-absolute-invalid-test")
+}
+
+func testRunInvalidCgroupParent(c *check.C, cgroupParent, cleanCgroupParent, name string) {
 	out, _, err := dockerCmdWithError("run", "--cgroup-parent", cgroupParent, "--name", name, "busybox", "cat", "/proc/self/cgroup")
 	if err != nil {
 		// XXX: This may include a daemon crash.
@@ -3526,45 +3479,6 @@ func (s *DockerSuite) TestRunInvalidCgroupParent(c *check.C) {
 	// We expect "/SHOULD_NOT_EXIST" to not exist. If not, we have a security issue.
 	if _, err := os.Stat("/SHOULD_NOT_EXIST"); err == nil || !os.IsNotExist(err) {
 		c.Fatalf("SECURITY: --cgroup-parent with ../../ relative paths cause files to be created in the host (this is bad) !!")
-	}
-
-	cgroupPaths := testutil.ParseCgroupPaths(string(out))
-	if len(cgroupPaths) == 0 {
-		c.Fatalf("unexpected output - %q", string(out))
-	}
-	id, err := getIDByName(name)
-	c.Assert(err, check.IsNil)
-	expectedCgroup := path.Join(cleanCgroupParent, id)
-	found := false
-	for _, path := range cgroupPaths {
-		if strings.HasSuffix(path, expectedCgroup) {
-			found = true
-			break
-		}
-	}
-	if !found {
-		c.Fatalf("unexpected cgroup paths. Expected at least one cgroup path to have suffix %q. Cgroup Paths: %v", expectedCgroup, cgroupPaths)
-	}
-}
-
-// TestRunInvalidCgroupParent checks that a specially-crafted cgroup parent doesn't cause Docker to crash or start modifying /.
-func (s *DockerSuite) TestRunAbsoluteInvalidCgroupParent(c *check.C) {
-	// Not applicable on Windows as uses Unix specific functionality
-	testRequires(c, DaemonIsLinux)
-
-	cgroupParent := "/../../../../../../../../SHOULD_NOT_EXIST"
-	cleanCgroupParent := "/SHOULD_NOT_EXIST"
-	name := "cgroup-absolute-invalid-test"
-
-	out, _, err := dockerCmdWithError("run", "--cgroup-parent", cgroupParent, "--name", name, "busybox", "cat", "/proc/self/cgroup")
-	if err != nil {
-		// XXX: This may include a daemon crash.
-		c.Fatalf("unexpected failure when running container with --cgroup-parent option - %s\n%v", string(out), err)
-	}
-
-	// We expect "/SHOULD_NOT_EXIST" to not exist. If not, we have a security issue.
-	if _, err := os.Stat("/SHOULD_NOT_EXIST"); err == nil || !os.IsNotExist(err) {
-		c.Fatalf("SECURITY: --cgroup-parent with /../../ garbage paths cause files to be created in the host (this is bad) !!")
 	}
 
 	cgroupPaths := testutil.ParseCgroupPaths(string(out))

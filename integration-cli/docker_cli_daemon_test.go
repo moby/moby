@@ -2347,35 +2347,17 @@ func (s *DockerDaemonSuite) TestBuildOnDisabledBridgeNetworkDaemon(c *check.C) {
 }
 
 // Test case for #21976
-func (s *DockerDaemonSuite) TestDaemonDNSInHostMode(c *check.C) {
+func (s *DockerDaemonSuite) TestDaemonDNSFlagsInHostMode(c *check.C) {
 	testRequires(c, SameHostDaemon, DaemonIsLinux)
 
-	s.d.StartWithBusybox(c, "--dns", "1.2.3.4")
+	s.d.StartWithBusybox(c, "--dns", "1.2.3.4", "--dns-search", "example.com", "--dns-opt", "timeout:3")
 
 	expectedOutput := "nameserver 1.2.3.4"
 	out, _ := s.d.Cmd("run", "--net=host", "busybox", "cat", "/etc/resolv.conf")
 	c.Assert(out, checker.Contains, expectedOutput, check.Commentf("Expected '%s', but got %q", expectedOutput, out))
-}
-
-// Test case for #21976
-func (s *DockerDaemonSuite) TestDaemonDNSSearchInHostMode(c *check.C) {
-	testRequires(c, SameHostDaemon, DaemonIsLinux)
-
-	s.d.StartWithBusybox(c, "--dns-search", "example.com")
-
-	expectedOutput := "search example.com"
-	out, _ := s.d.Cmd("run", "--net=host", "busybox", "cat", "/etc/resolv.conf")
+	expectedOutput = "search example.com"
 	c.Assert(out, checker.Contains, expectedOutput, check.Commentf("Expected '%s', but got %q", expectedOutput, out))
-}
-
-// Test case for #21976
-func (s *DockerDaemonSuite) TestDaemonDNSOptionsInHostMode(c *check.C) {
-	testRequires(c, SameHostDaemon, DaemonIsLinux)
-
-	s.d.StartWithBusybox(c, "--dns-opt", "timeout:3")
-
-	expectedOutput := "options timeout:3"
-	out, _ := s.d.Cmd("run", "--net=host", "busybox", "cat", "/etc/resolv.conf")
+	expectedOutput = "options timeout:3"
 	c.Assert(out, checker.Contains, expectedOutput, check.Commentf("Expected '%s', but got %q", expectedOutput, out))
 }
 

@@ -564,32 +564,11 @@ func (s *DockerSuite) TestContainerAPICreateMultipleNetworksConfig(c *check.C) {
 }
 
 func (s *DockerSuite) TestContainerAPICreateWithHostName(c *check.C) {
-	hostName := "test-host"
-	config := map[string]interface{}{
-		"Image":    "busybox",
-		"Hostname": hostName,
-	}
-
-	status, body, err := request.SockRequest("POST", "/containers/create", config, daemonHost())
-	c.Assert(err, checker.IsNil)
-	c.Assert(status, checker.Equals, http.StatusCreated)
-
-	var container containertypes.ContainerCreateCreatedBody
-	c.Assert(json.Unmarshal(body, &container), checker.IsNil)
-
-	status, body, err = request.SockRequest("GET", "/containers/"+container.ID+"/json", nil, daemonHost())
-	c.Assert(err, checker.IsNil)
-	c.Assert(status, checker.Equals, http.StatusOK)
-
-	var containerJSON types.ContainerJSON
-	c.Assert(json.Unmarshal(body, &containerJSON), checker.IsNil)
-	c.Assert(containerJSON.Config.Hostname, checker.Equals, hostName, check.Commentf("Mismatched Hostname"))
-}
-
-func (s *DockerSuite) TestContainerAPICreateWithDomainName(c *check.C) {
 	domainName := "test-domain"
+	hostName := "test-hostname"
 	config := map[string]interface{}{
 		"Image":      "busybox",
+		"Hostname":   hostName,
 		"Domainname": domainName,
 	}
 
@@ -606,6 +585,7 @@ func (s *DockerSuite) TestContainerAPICreateWithDomainName(c *check.C) {
 
 	var containerJSON types.ContainerJSON
 	c.Assert(json.Unmarshal(body, &containerJSON), checker.IsNil)
+	c.Assert(containerJSON.Config.Hostname, checker.Equals, hostName, check.Commentf("Mismatched Hostname"))
 	c.Assert(containerJSON.Config.Domainname, checker.Equals, domainName, check.Commentf("Mismatched Domainname"))
 }
 

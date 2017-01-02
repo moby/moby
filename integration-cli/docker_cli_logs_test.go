@@ -17,40 +17,24 @@ import (
 
 // This used to work, it test a log of PageSize-1 (gh#4851)
 func (s *DockerSuite) TestLogsContainerSmallerThanPage(c *check.C) {
-	testLen := 32767
-	out, _ := dockerCmd(c, "run", "-d", "busybox", "sh", "-c", fmt.Sprintf("for i in $(seq 1 %d); do echo -n = >> a.a; done; echo >> a.a; cat a.a", testLen))
-
-	id := strings.TrimSpace(out)
-	dockerCmd(c, "wait", id)
-
-	out, _ = dockerCmd(c, "logs", id)
-
-	c.Assert(out, checker.HasLen, testLen+1)
+	testLogsContainerPagination(c, 32767)
 }
 
 // Regression test: When going over the PageSize, it used to panic (gh#4851)
 func (s *DockerSuite) TestLogsContainerBiggerThanPage(c *check.C) {
-	testLen := 32768
-	out, _ := dockerCmd(c, "run", "-d", "busybox", "sh", "-c", fmt.Sprintf("for i in $(seq 1 %d); do echo -n = >> a.a; done; echo >> a.a; cat a.a", testLen))
-
-	id := strings.TrimSpace(out)
-	dockerCmd(c, "wait", id)
-
-	out, _ = dockerCmd(c, "logs", id)
-
-	c.Assert(out, checker.HasLen, testLen+1)
+	testLogsContainerPagination(c, 32768)
 }
 
 // Regression test: When going much over the PageSize, it used to block (gh#4851)
 func (s *DockerSuite) TestLogsContainerMuchBiggerThanPage(c *check.C) {
-	testLen := 33000
-	out, _ := dockerCmd(c, "run", "-d", "busybox", "sh", "-c", fmt.Sprintf("for i in $(seq 1 %d); do echo -n = >> a.a; done; echo >> a.a; cat a.a", testLen))
+	testLogsContainerPagination(c, 33000)
+}
 
+func testLogsContainerPagination(c *check.C, testLen int) {
+	out, _ := dockerCmd(c, "run", "-d", "busybox", "sh", "-c", fmt.Sprintf("for i in $(seq 1 %d); do echo -n = >> a.a; done; echo >> a.a; cat a.a", testLen))
 	id := strings.TrimSpace(out)
 	dockerCmd(c, "wait", id)
-
 	out, _ = dockerCmd(c, "logs", id)
-
 	c.Assert(out, checker.HasLen, testLen+1)
 }
 
