@@ -359,7 +359,15 @@ func convertVolumeToMount(
 	case 1:
 		target = parts[0]
 	default:
-		return mount.Mount{}, fmt.Errorf("invald volume: %s", volumeSpec)
+		return mount.Mount{}, fmt.Errorf("invalid volume: %s", volumeSpec)
+	}
+
+	if source == "" {
+		// Anonymous volume
+		return mount.Mount{
+			Type:   mount.TypeVolume,
+			Target: target,
+		}, nil
 	}
 
 	// TODO: catch Windows paths here
