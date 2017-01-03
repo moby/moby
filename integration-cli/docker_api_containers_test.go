@@ -1291,7 +1291,7 @@ func (s *DockerSuite) TestPutContainerArchiveErrSymlinkInVolumeToReadOnlyRootfs(
 		readOnly: true,
 		volumes:  defaultVolumes(testVol), // Our bind mount is at /vol2
 	})
-	defer deleteContainer(cID)
+	defer deleteContainer(false, cID)
 
 	// Attempt to extract to a symlink in the volume which points to a
 	// directory outside the volume. This should cause an error because the

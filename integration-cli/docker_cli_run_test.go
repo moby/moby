@@ -2117,7 +2117,7 @@ func (s *DockerSuite) TestRunDeallocatePortOnMissingIptablesRule(c *check.C) {
 	if err != nil {
 		c.Fatal(err, out)
 	}
-	if err := deleteContainer(id); err != nil {
+	if err := deleteContainer(false, id); err != nil {
 		c.Fatal(err)
 	}
 
