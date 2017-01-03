@@ -2165,6 +2165,9 @@ func (s *DockerDaemonSuite) TestDaemonStartWithoutColors(c *check.C) {
 
 	infoLog := "\x1b[34mINFO\x1b"
 
+	b := bytes.NewBuffer(nil)
+	done := make(chan bool)
+
 	p, tty, err := pty.Open()
 	c.Assert(err, checker.IsNil)
 	defer func() {
@@ -2172,19 +2175,38 @@ func (s *DockerDaemonSuite) TestDaemonStartWithoutColors(c *check.C) {
 		p.Close()
 	}()
 
-	b := bytes.NewBuffer(nil)
-	go io.Copy(b, p)
+	go func() {
+		io.Copy(b, p)
+		done <- true
+	}()
 
 	// Enable coloring explicitly
 	s.d.StartWithLogFile(tty, "--raw-logs=false")
 	s.d.Stop(c)
+	// Wait for io.Copy() before checking output
+	<-done
 	c.Assert(b.String(), checker.Contains, infoLog)
 
 	b.Reset()
 
+	// "tty" is already closed in prev s.d.Stop(),
+	// we have to close the other side "p" and open another pair of
+	// pty for the next test.
+	p.Close()
+	p, tty, err = pty.Open()
+	c.Assert(err, checker.IsNil)
+
+	go func() {
+		io.Copy(b, p)
+		done <- true
+	}()
+
 	// Disable coloring explicitly
 	s.d.StartWithLogFile(tty, "--raw-logs=true")
 	s.d.Stop(c)
+	// Wait for io.Copy() before checking output
+	<-done
+	c.Assert(b.String(), check.Not(check.Equals), "")
 	c.Assert(b.String(), check.Not(checker.Contains), infoLog)
 }
 
