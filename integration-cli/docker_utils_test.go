@@ -124,7 +124,7 @@ func deleteContainer(ignoreNoSuchContainer bool, container ...string) error {
 	if ignoreNoSuchContainer && result.Error != nil {
 		// If the error is "No such container: ..." this means the container doesn't exists anymore,
 		// we can safely ignore that one.
-		if strings.Contains(result.Error.Error(), "No such container") {
+		if strings.Contains(result.Stderr(), "No such container") {
 			return nil
 		}
 	}
