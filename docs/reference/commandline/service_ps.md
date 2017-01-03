@@ -19,7 +19,7 @@ aliases: ["/engine/reference/commandline/service_tasks/"]
 ```Markdown
 Usage:  docker service ps [OPTIONS] SERVICE
 
-List the tasks of a service
+List the tasks of one or more services
 
 Options:
   -f, --filter filter   Filter output based on conditions provided
@@ -29,7 +29,7 @@ Options:
   -q, --quiet           Only display task IDs
 ```
 
-Lists the tasks that are running as part of the specified service. This command
+Lists the tasks that are running as part of the specified services. This command
 has to be run targeting a manager node.
 
 ## Examples
