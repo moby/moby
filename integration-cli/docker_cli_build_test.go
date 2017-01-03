@@ -7386,12 +7386,12 @@ LABEL a=b
 	c.Assert(strings.TrimSpace(out), checker.Equals, `["sh"]`)
 }
 
-// Test case for 28902/28090
+// Test case for 28902/28909
 func (s *DockerSuite) TestBuildWorkdirCmd(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 
 	dockerFile := `
-                FROM golang:1.7-alpine
+                FROM busybox
                 WORKDIR /
                 `
 	_, err := buildImage("testbuildworkdircmd", dockerFile, false)
