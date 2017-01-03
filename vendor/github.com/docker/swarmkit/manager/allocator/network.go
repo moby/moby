@@ -231,6 +231,8 @@ func (a *Allocator) doNetworkInit(ctx context.Context) (err error) {
 
 	var allocatedServices []*api.Service
 	for _, s := range services {
+		nc.nwkAllocator.ServiceInit(s)
+
 		if nc.nwkAllocator.IsServiceAllocated(s) {
 			continue
 		}
