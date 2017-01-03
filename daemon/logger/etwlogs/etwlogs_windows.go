@@ -130,8 +130,10 @@ func unregisterETWProvider() {
 func callEventRegister() error {
 	// The provider's GUID is {a3693192-9ed6-46d2-a981-f8226c8363bd}
 	guid := syscall.GUID{
-		0xa3693192, 0x9ed6, 0x46d2,
-		[8]byte{0xa9, 0x81, 0xf8, 0x22, 0x6c, 0x83, 0x63, 0xbd},
+		Data1: 0xa3693192,
+		Data2: 0x9ed6,
+		Data3: 0x46d2,
+		Data4: [8]byte{0xa9, 0x81, 0xf8, 0x22, 0x6c, 0x83, 0x63, 0xbd},
 	}
 
 	ret, _, _ := procEventRegister.Call(uintptr(unsafe.Pointer(&guid)), 0, 0, uintptr(unsafe.Pointer(&providerHandle)))
