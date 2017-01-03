@@ -31,12 +31,7 @@ func newAllocator(name string, client *plugins.Client) ipamapi.Ipam {
 // Init registers a remote ipam when its plugin is activated
 func Init(cb ipamapi.Callback, l, g interface{}) error {
 
-	// Unit test code is unaware of a true PluginStore. So we fall back to v1 plugins.
-	handleFunc := plugins.Handle
-	if pg := cb.GetPluginGetter(); pg != nil {
-		handleFunc = pg.Handle
-	}
-	handleFunc(ipamapi.PluginEndpointType, func(name string, client *plugins.Client) {
+	newPluginHandler := func(name string, client *plugins.Client) {
 		a := newAllocator(name, client)
 		if cps, err := a.(*allocator).getCapabilities(); err == nil {
 			if err := cb.RegisterIpamDriverWithCapabilities(name, a, cps); err != nil {
@@ -49,7 +44,18 @@ func Init(cb ipamapi.Callback, l, g interface{}) error {
 				logrus.Errorf("error registering remote ipam driver %s due to %v", name, err)
 			}
 		}
-	})
+	}
+
+	// Unit test code is unaware of a true PluginStore. So we fall back to v1 plugins.
+	handleFunc := plugins.Handle
+	if pg := cb.GetPluginGetter(); pg != nil {
+		handleFunc = pg.Handle
+		activePlugins := pg.GetAllManagedPluginsByCap(ipamapi.PluginEndpointType)
+		for _, ap := range activePlugins {
+			newPluginHandler(ap.Name(), ap.Client())
+		}
+	}
+	handleFunc(ipamapi.PluginEndpointType, newPluginHandler)
 	return nil
 }
 
@@ -142,4 +148,8 @@ func (a *allocator) DiscoverNew(dType discoverapi.DiscoveryType, data interface{
 // DiscoverDelete is a notification for a discovery delete event, such as a node leaving a cluster
 func (a *allocator) DiscoverDelete(dType discoverapi.DiscoveryType, data interface{}) error {
 	return nil
+}
+
+func (a *allocator) IsBuiltIn() bool {
+	return false
 }
