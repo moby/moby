@@ -30,8 +30,19 @@ func TestImageTagInvalidReference(t *testing.T) {
 	}
 
 	err := client.ImageTag(context.Background(), "image_id", "aa/asdf$$^/aa")
-	if err == nil || err.Error() != `Error parsing reference: "aa/asdf$$^/aa" is not a valid repository/tag` {
+	if err == nil || err.Error() != `Error parsing reference: "aa/asdf$$^/aa" is not a valid repository/tag: invalid reference format` {
 		t.Fatalf("expected ErrReferenceInvalidFormat, got %v", err)
+	}
+}
+
+func TestImageTagInvalidSourceImageName(t *testing.T) {
+	client := &Client{
+		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
+	}
+
+	err := client.ImageTag(context.Background(), "invalid_source_image_name_", "repo:tag")
+	if err == nil || err.Error() != "Error parsing reference: \"invalid_source_image_name_\" is not a valid repository/tag: invalid reference format" {
+		t.Fatalf("expected Parsing Reference Error, got %v", err)
 	}
 }
 
