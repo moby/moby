@@ -101,10 +101,8 @@ func (c *Cluster) RemoveSecret(id string) error {
 		SecretID: id,
 	}
 
-	if _, err := state.controlClient.RemoveSecret(ctx, req); err != nil {
-		return err
-	}
-	return nil
+	_, err := state.controlClient.RemoveSecret(ctx, req)
+	return err
 }
 
 // UpdateSecret updates a secret in a managed swarm cluster.
@@ -123,16 +121,13 @@ func (c *Cluster) UpdateSecret(id string, version uint64, spec types.SecretSpec)
 
 	secretSpec := convert.SecretSpecToGRPC(spec)
 
-	if _, err := state.controlClient.UpdateSecret(ctx,
+	_, err := state.controlClient.UpdateSecret(ctx,
 		&swarmapi.UpdateSecretRequest{
 			SecretID: id,
 			SecretVersion: &swarmapi.Version{
 				Index: version,
 			},
 			Spec: &secretSpec,
-		}); err != nil {
-		return err
-	}
-
-	return nil
+		})
+	return err
 }
