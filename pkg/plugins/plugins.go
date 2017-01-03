@@ -249,9 +249,11 @@ func Handle(iface string, fn func(string, *Client)) {
 
 	hdlrs = append(hdlrs, fn)
 	handlers.extpointHandlers[iface] = hdlrs
+	storage.Lock()
 	for _, p := range storage.plugins {
 		p.activated = false
 	}
+	storage.Unlock()
 	handlers.Unlock()
 }
 
@@ -270,10 +272,13 @@ func GetAll(imp string) ([]*Plugin, error) {
 	chPl := make(chan *plLoad, len(pluginNames))
 	var wg sync.WaitGroup
 	for _, name := range pluginNames {
+		storage.Lock()
 		if pl, ok := storage.plugins[name]; ok {
+			storage.Unlock()
 			chPl <- &plLoad{pl, nil}
 			continue
 		}
+		storage.Unlock()
 
 		wg.Add(1)
 		go func(name string) {
