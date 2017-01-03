@@ -348,6 +348,12 @@ func convertVolumeToMount(
 	// TODO: split Windows path mappings properly
 	parts := strings.SplitN(volumeSpec, ":", 3)
 
+	for _, part := range parts {
+		if strings.TrimSpace(part) == "" {
+			return mount.Mount{}, fmt.Errorf("invalid volume: %s", volumeSpec)
+		}
+	}
+
 	switch len(parts) {
 	case 3:
 		source = parts[0]
@@ -358,8 +364,6 @@ func convertVolumeToMount(
 		target = parts[1]
 	case 1:
 		target = parts[0]
-	default:
-		return mount.Mount{}, fmt.Errorf("invalid volume: %s", volumeSpec)
 	}
 
 	if source == "" {
