@@ -411,7 +411,7 @@ do_install() {
 			(
 			set -x
 			for key_server in $key_servers ; do
-				$sh_c "apt-key adv --keyserver hkp://${key_server}:80 --recv-keys ${gpg_fingerprint}" && break
+				$sh_c "apt-key adv --keyserver hkp://${key_server}:80 --keyserver-options http-proxy=$http_proxy --recv-keys ${gpg_fingerprint}" && break
 			done
 			$sh_c "apt-key adv -k ${gpg_fingerprint} >/dev/null"
 			$sh_c "mkdir -p /etc/apt/sources.list.d"
