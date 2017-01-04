@@ -668,38 +668,45 @@ signal that will be sent to the container to exit. After timeout elapses the con
 ### Specify isolation technology for container (--isolation)
 
 This option is useful in situations where you are running Docker containers on
-Microsoft Windows. The `--isolation <value>` option sets a container's isolation
-technology. On Linux, the only supported is the `default` option which uses
+Windows. The `--isolation <value>` option sets a container's isolation technology.
+On Linux, the only supported is the `default` option which uses
 Linux namespaces. These two commands are equivalent on Linux:
 
-```
+```bash
 $ docker run -d busybox top
 $ docker run -d --isolation default busybox top
 ```
 
-On Microsoft Windows, can take any of these values:
+On Windows, `--isolation` can take one of these values:
 
 
-| Value     | Description                                                                                                                                                   |
-|-----------|---------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `default` | Use the value specified by the Docker daemon's `--exec-opt` . If the `daemon` does not specify an isolation technology, Microsoft Windows uses `process` as its default value.  |
-| `process` | Namespace isolation only.                                                                                                                                     |
-| `hyperv`   | Hyper-V hypervisor partition-based isolation.                                                                                                                  |
+| Value     | Description                                                                                |
+|-----------|--------------------------------------------------------------------------------------------|
+| `default` | Use the value specified by the Docker daemon's `--exec-opt` or system default (see below). |
+| `process` | Shared-kernel namespace isolation (not supported on Windows client operating systems).     |
+| `hyperv`  | Hyper-V hypervisor partition-based isolation.                                              |
 
-On Windows, the default isolation for client is `hyperv`, and for server is
-`process`. Therefore when running on Windows server without a `daemon` option
-set, these two commands are equivalent:
+The default isolation on Windows server operating systems is `process`. The default (and only supported)
+isolation on Windows client operating systems is `hyperv`. An attempt to start a container on a client
+operating system with `--isolation process` will fail.
+
+On Windows server, assuming the default configuration, these commands are equivalent
+and result in `process` isolation:
+
+```PowerShell
+PS C:\> docker run -d microsoft/nanoserver powershell echo process
+PS C:\> docker run -d --isolation default microsoft/nanoserver powershell echo process
+PS C:\> docker run -d --isolation process microsoft/nanoserver powershell echo process
 ```
-$ docker run -d --isolation default busybox top
-$ docker run -d --isolation process busybox top
-```
 
-If you have set the `--exec-opt isolation=hyperv` option on the Docker `daemon`,
-if running on Windows server, any of these commands also result in `hyperv` isolation:
+If you have set the `--exec-opt isolation=hyperv` option on the Docker `daemon`, or
+are running against a Windows client-based daemon, these commands are equivalent and
+result in `hyperv` isolation:
 
-```
-$ docker run -d --isolation default busybox top
-$ docker run -d --isolation hyperv busybox top
+```PowerShell
+PS C:\> docker run -d microsoft/nanoserver powershell echo hyperv
+PS C:\> docker run -d --isolation default microsoft/nanoserver powershell echo hyperv
+PS C:\> docker run -d --isolation hyperv microsoft/nanoserver powershell echo hyperv
 ```
 
 ### Configure namespaced kernel parameters (sysctls) at runtime
