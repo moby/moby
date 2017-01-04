@@ -25,7 +25,9 @@ var UnsupportedProperties = []string{
 	"security_opt",
 	"shm_size",
 	"stop_signal",
+	"sysctls",
 	"tmpfs",
+	"userns_mode",
 }
 
 // DeprecatedProperties that were removed from the v3 format, but their
