@@ -47,7 +47,7 @@ func Init(dc driverapi.DriverCallback, config map[string]interface{}) error {
 	handleFunc := plugins.Handle
 	if pg := dc.GetPluginGetter(); pg != nil {
 		handleFunc = pg.Handle
-		activePlugins, _ := pg.GetAllByCap(driverapi.NetworkPluginEndpointType)
+		activePlugins := pg.GetAllManagedPluginsByCap(driverapi.NetworkPluginEndpointType)
 		for _, ap := range activePlugins {
 			newPluginHandler(ap.Name(), ap.Client())
 		}
