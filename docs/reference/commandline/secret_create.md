@@ -34,32 +34,32 @@ command on a manager node.
 ### Create a secret
 
 ```bash
-$ cat secret.json | docker secret create -f - secret.json
+$ echo <secret> | docker secret create -f - my_secret
 mhv17xfe3gh6xc4rij5orpfds
 
 $ docker secret ls
 ID                          NAME                    CREATED                                   UPDATED                                   SIZE
-mhv17xfe3gh6xc4rij5orpfds   secret.json             2016-10-27 23:25:43.909181089 +0000 UTC   2016-10-27 23:25:43.909181089 +0000 UTC   1679
+mhv17xfe3gh6xc4rij5orpfds   my_secret               2016-10-27 23:25:43.909181089 +0000 UTC   2016-10-27 23:25:43.909181089 +0000 UTC   1679
 ```
 
 ### Create a secret with a file
 
 ```bash
-$ docker secret create --file secret.in secret.json
+$ docker secret create -f secret.json my_secret
 mhv17xfe3gh6xc4rij5orpfds
 
 $ docker secret ls
 ID                          NAME                    CREATED                                   UPDATED                                   SIZE
-mhv17xfe3gh6xc4rij5orpfds   secret.json             2016-10-27 23:25:43.909181089 +0000 UTC   2016-10-27 23:25:43.909181089 +0000 UTC   1679
+mhv17xfe3gh6xc4rij5orpfds   my_secret               2016-10-27 23:25:43.909181089 +0000 UTC   2016-10-27 23:25:43.909181089 +0000 UTC   1679
 ```
 
 ### Create a secret with labels
 
 ```bash
-$ cat secret.json | docker secret create secret.json -f - --label env=dev --label rev=20161102
+$ docker secret create -f secret.json --label env=dev --label rev=20161102 my_secret
 jtn7g6aukl5ky7nr9gvwafoxh
 
-$ docker secret inspect secret.json
+$ docker secret inspect my_secret
 [
     {
         "ID": "jtn7g6aukl5ky7nr9gvwafoxh",
@@ -69,7 +69,7 @@ $ docker secret inspect secret.json
         "CreatedAt": "2016-11-03T20:54:12.924766548Z",
         "UpdatedAt": "2016-11-03T20:54:12.924766548Z",
         "Spec": {
-            "Name": "secret.json",
+            "Name": "my_secret",
             "Labels": {
                 "env": "dev",
                 "rev": "20161102"
