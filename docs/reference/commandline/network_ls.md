@@ -182,16 +182,17 @@ using a Go template.
 
 Valid placeholders for the Go template are listed below:
 
-Placeholder | Description
-------------|------------------------------------------------------------------------------------------
-`.ID`       | Network ID
-`.Name`     | Network name
-`.Driver`   | Network driver
-`.Scope`    | Network scope (local, global)
-`.IPv6`     | Whether IPv6 is enabled on the network or not.
-`.Internal` | Whether the network is internal or not.
-`.Labels`   | All labels assigned to the network.
-`.Label`    | Value of a specific label for this network. For example `{{.Label "project.version"}}`
+Placeholder  | Description
+-------------|------------------------------------------------------------------------------------------
+`.ID`        | Network ID
+`.Name`      | Network name
+`.Driver`    | Network driver
+`.Scope`     | Network scope (local, global)
+`.IPv6`      | Whether IPv6 is enabled on the network or not.
+`.Internal`  | Whether the network is internal or not.
+`.Labels`    | All labels assigned to the network.
+`.Label`     | Value of a specific label for this network. For example `{{.Label "project.version"}}`
+`.CreatedAt` | Time when the network was created
 
 When using the `--format` option, the `network ls` command will either
 output the data exactly as the template declares or, when using the
