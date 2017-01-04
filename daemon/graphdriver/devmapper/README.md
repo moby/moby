@@ -88,7 +88,7 @@ status information about the driver.
 
 The devicemapper backend supports some options that you can specify
 when starting the docker daemon using the `--storage-opt` flags.
-This uses the `dm` prefix and would be used something like `docker daemon --storage-opt dm.foo=bar`.
+This uses the `dm` prefix and would be used something like `dockerd --storage-opt dm.foo=bar`.
 
 These options are currently documented both in [the man
 page](../../../man/docker.1.md) and in [the online
