@@ -273,9 +273,10 @@ Function Validate-GoFormat($headCommit, $upstreamCommit) {
         $outputFile=[System.IO.Path]::GetTempFileName()
         if (Test-Path $outputFile) { Remove-Item $outputFile }
         [System.IO.File]::WriteAllText($outputFile, $content, (New-Object System.Text.UTF8Encoding($False)))
-        $valid=Invoke-Expression "gofmt -s -l $outputFile"
-        Write-Host "Checking $outputFile"
-        if ($valid.Length -ne 0) { $badFiles+=$_ }
+        $currentFile = $_ -Replace("/","\")
+        Write-Host Checking $currentFile
+        Invoke-Expression "gofmt -s -l $outputFile"
+        if ($LASTEXITCODE -ne 0) { $badFiles+=$currentFile }
         if (Test-Path $outputFile) { Remove-Item $outputFile }
     }
     if ($badFiles.Length -eq 0) {
