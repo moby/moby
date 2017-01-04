@@ -570,6 +570,7 @@ func NewDaemon(config *Config, registryService registry.Service, containerdRemot
 		UIDMaps:                   uidMaps,
 		GIDMaps:                   gidMaps,
 		PluginGetter:              d.PluginStore,
+		ExperimentalEnabled:       config.Experimental,
 	})
 	if err != nil {
 		return nil, err
