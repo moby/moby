@@ -65,11 +65,10 @@ func merge(userConf, imageConf *containertypes.Config) error {
 	if userConf.Labels == nil {
 		userConf.Labels = map[string]string{}
 	}
-	if imageConf.Labels != nil {
-		for l := range userConf.Labels {
-			imageConf.Labels[l] = userConf.Labels[l]
+	for l, v := range imageConf.Labels {
+		if _, ok := userConf.Labels[l]; !ok {
+			userConf.Labels[l] = v
 		}
-		userConf.Labels = imageConf.Labels
 	}
 
 	if len(userConf.Entrypoint) == 0 {

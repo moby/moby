@@ -70,12 +70,12 @@ type Plugin struct {
 	// Manifest of the plugin (see above)
 	Manifest *Manifest `json:"-"`
 
-	// error produced by activation
-	activateErr error
-	// specifies if the activation sequence is completed (not if it is successful or not)
-	activated bool
 	// wait for activation to finish
 	activateWait *sync.Cond
+	// error produced by activation
+	activateErr error
+	// keeps track of callback handlers run against this plugin
+	handlersRun bool
 }
 
 // BasePath returns the path to which all paths returned by the plugin are relative to.
@@ -112,17 +112,49 @@ func NewLocalPlugin(name, addr string) *Plugin {
 
 func (p *Plugin) activate() error {
 	p.activateWait.L.Lock()
-	if p.activated {
+
+	if p.activated() {
+		p.runHandlers()
 		p.activateWait.L.Unlock()
 		return p.activateErr
 	}
 
 	p.activateErr = p.activateWithLock()
-	p.activated = true
 
+	p.runHandlers()
 	p.activateWait.L.Unlock()
 	p.activateWait.Broadcast()
 	return p.activateErr
+}
+
+// runHandlers runs the registered handlers for the implemented plugin types
+// This should only be run after activation, and while the activation lock is held.
+func (p *Plugin) runHandlers() {
+	if !p.activated() {
+		return
+	}
+
+	handlers.RLock()
+	if !p.handlersRun {
+		for _, iface := range p.Manifest.Implements {
+			hdlrs, handled := handlers.extpointHandlers[iface]
+			if !handled {
+				continue
+			}
+			for _, handler := range hdlrs {
+				handler(p.name, p.client)
+			}
+		}
+		p.handlersRun = true
+	}
+	handlers.RUnlock()
+
+}
+
+// activated returns if the plugin has already been activated.
+// This should only be called with the activation lock held
+func (p *Plugin) activated() bool {
+	return p.Manifest != nil
 }
 
 func (p *Plugin) activateWithLock() error {
@@ -138,24 +170,12 @@ func (p *Plugin) activateWithLock() error {
 	}
 
 	p.Manifest = m
-
-	handlers.RLock()
-	for _, iface := range m.Implements {
-		hdlrs, handled := handlers.extpointHandlers[iface]
-		if !handled {
-			continue
-		}
-		for _, handler := range hdlrs {
-			handler(p.name, p.client)
-		}
-	}
-	handlers.RUnlock()
 	return nil
 }
 
 func (p *Plugin) waitActive() error {
 	p.activateWait.L.Lock()
-	for !p.activated {
+	for !p.activated() {
 		p.activateWait.Wait()
 	}
 	p.activateWait.L.Unlock()
@@ -163,7 +183,7 @@ func (p *Plugin) waitActive() error {
 }
 
 func (p *Plugin) implements(kind string) bool {
-	if err := p.waitActive(); err != nil {
+	if p.Manifest == nil {
 		return false
 	}
 	for _, driver := range p.Manifest.Implements {
@@ -232,7 +252,7 @@ func Get(name, imp string) (*Plugin, error) {
 	if err != nil {
 		return nil, err
 	}
-	if pl.implements(imp) {
+	if err := pl.waitActive(); err == nil && pl.implements(imp) {
 		logrus.Debugf("%s implements: %s", name, imp)
 		return pl, nil
 	}
@@ -249,9 +269,17 @@ func Handle(iface string, fn func(string, *Client)) {
 
 	hdlrs = append(hdlrs, fn)
 	handlers.extpointHandlers[iface] = hdlrs
+
+	storage.Lock()
 	for _, p := range storage.plugins {
-		p.activated = false
+		p.activateWait.L.Lock()
+		if p.activated() && p.implements(iface) {
+			p.handlersRun = false
+		}
+		p.activateWait.L.Unlock()
 	}
+	storage.Unlock()
+
 	handlers.Unlock()
 }
 
@@ -292,7 +320,7 @@ func GetAll(imp string) ([]*Plugin, error) {
 			logrus.Error(pl.err)
 			continue
 		}
-		if pl.pl.implements(imp) {
+		if err := pl.pl.waitActive(); err == nil && pl.pl.implements(imp) {
 			out = append(out, pl.pl)
 		}
 	}

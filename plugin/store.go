@@ -58,7 +58,7 @@ func (ps *Store) GetV2Plugin(refOrID string) (*v2.Plugin, error) {
 func (ps *Store) validateName(name string) error {
 	for _, p := range ps.plugins {
 		if p.Name() == name {
-			return errors.Errorf("%v already exists", name)
+			return errors.Errorf("plugin %q already exists", name)
 		}
 	}
 	return nil
@@ -232,7 +232,7 @@ func (ps *Store) resolvePluginID(idOrName string) (string, error) {
 
 	ref, err := reference.ParseNamed(idOrName)
 	if err != nil {
-		return "", errors.Wrapf(err, "failed to parse %v", idOrName)
+		return "", errors.WithStack(ErrNotFound(idOrName))
 	}
 	if _, ok := ref.(reference.Canonical); ok {
 		logrus.Warnf("canonical references cannot be resolved: %v", ref.String())

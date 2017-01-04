@@ -3139,7 +3139,7 @@ _docker_node_ps() {
 
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "--all -a --filter -f --help --no-resolve --no-trunc" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "--filter -f --help --no-resolve --no-trunc" -- "$cur" ) )
 			;;
 		*)
 			__docker_complete_nodes_plus_self
@@ -3223,10 +3223,13 @@ _docker_plugin_create() {
 _docker_plugin_disable() {
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "--help" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "--force -f --help" -- "$cur" ) )
 			;;
 		*)
-			__docker_complete_plugins_installed
+			local counter=$(__docker_pos_first_nonflag)
+			if [ $cword -eq $counter ]; then
+				__docker_complete_plugins_installed
+			fi
 			;;
 	esac
 }
@@ -3243,7 +3246,10 @@ _docker_plugin_enable() {
 			COMPREPLY=( $( compgen -W "--help --timeout" -- "$cur" ) )
 			;;
 		*)
-			__docker_complete_plugins_installed
+			local counter=$(__docker_pos_first_nonflag '--timeout')
+			if [ $cword -eq $counter ]; then
+				__docker_complete_plugins_installed
+			fi
 			;;
 	esac
 }
@@ -3266,9 +3272,15 @@ _docker_plugin_inspect() {
 }
 
 _docker_plugin_install() {
+	case "$prev" in
+		--alias)
+			return
+			;;
+	esac
+
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "--disable --grant-all-permissions--help" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "--alias --disable --grant-all-permissions --help" -- "$cur" ) )
 			;;
 	esac
 }
@@ -3955,7 +3967,6 @@ _docker() {
 		container
 		cp
 		create
-		daemon
 		diff
 		events
 		exec

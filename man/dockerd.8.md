@@ -20,6 +20,7 @@ dockerd - Enable daemon mode
 [**-D**|**--debug**]
 [**--default-gateway**[=*DEFAULT-GATEWAY*]]
 [**--default-gateway-v6**[=*DEFAULT-GATEWAY-V6*]]
+[**--default-runtime**[=*runc*]]
 [**--default-ulimit**[=*[]*]]
 [**--disable-legacy-registry**]
 [**--dns**[=*[]*]]
@@ -84,7 +85,35 @@ following format.
 # OPTIONS
 
 **--add-runtime**=[]
-  Set additional OCI compatible runtime.
+  Runtimes can be registered with the daemon either via the
+configuration file or using the `--add-runtime` command line argument.
+
+  The following is an example adding 2 runtimes via the configuration:
+
+```json
+{
+	"default-runtime": "runc",
+	"runtimes": {
+		"runc": {
+			"path": "runc"
+		},
+		"custom": {
+			"path": "/usr/local/bin/my-runc-replacement",
+			"runtimeArgs": [
+				"--debug"
+			]
+		}
+	}
+}
+```
+
+  This is the same example via the command line:
+
+```bash
+$ sudo dockerd --add-runtime runc=runc --add-runtime custom=/usr/local/bin/my-runc-replacement
+```
+
+  **Note**: defining runtime arguments via the command line is not supported.
 
 **--api-cors-header**=""
   Set CORS headers in the Engine API. Default is cors disabled. Give urls like
@@ -131,6 +160,9 @@ following format.
 
 **--default-gateway-v6**=""
   IPv6 address of the container default gateway
+
+**--default-runtime**="runc"
+  Set default runtime if there're more than one specified by `--add-runtime`.
 
 **--default-ulimit**=[]
   Default ulimits for containers.

@@ -17,7 +17,7 @@ func newInspectCommand(dockerCli *command.DockerCli) *cobra.Command {
 	var opts inspectOptions
 
 	cmd := &cobra.Command{
-		Use:   "inspect [OPTIONS] PLUGIN|ID [PLUGIN|ID...]",
+		Use:   "inspect [OPTIONS] PLUGIN [PLUGIN...]",
 		Short: "Display detailed information on one or more plugins",
 		Args:  cli.RequiresMinArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
