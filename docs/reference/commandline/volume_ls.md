@@ -76,9 +76,9 @@ local               rosemary
 
 ### driver
 
-The `driver` filter matches on all or part of a volume's driver name.
+The `driver` filter matches volumes based on their driver.
 
-The following filter matches all volumes with a driver name containing the `local` string.
+The following example matches volumes that are created with the `local` driver:
 
 ```bash
 $ docker volume ls -f driver=local

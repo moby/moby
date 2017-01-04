@@ -623,7 +623,7 @@ func (daemon *Daemon) filterVolumes(vols []volume.Volume, filter filters.Args) (
 			}
 		}
 		if filter.Include("driver") {
-			if !filter.Match("driver", vol.DriverName()) {
+			if !filter.ExactMatch("driver", vol.DriverName()) {
 				continue
 			}
 		}
