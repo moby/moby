@@ -16,8 +16,10 @@ import (
 var (
 	pluginProcessName = "sample-volume-plugin"
 	pName             = "tonistiigi/sample-volume-plugin"
+	npName            = "tonistiigi/test-docker-netplugin"
 	pTag              = "latest"
 	pNameWithTag      = pName + ":" + pTag
+	npNameWithTag     = npName + ":" + pTag
 )
 
 func (s *DockerSuite) TestPluginBasicOps(c *check.C) {
@@ -85,6 +87,33 @@ func (s *DockerSuite) TestPluginActive(c *check.C) {
 	out, _, err = dockerCmdWithError("plugin", "remove", pNameWithTag)
 	c.Assert(err, checker.IsNil)
 	c.Assert(out, checker.Contains, pNameWithTag)
+}
+
+func (s *DockerSuite) TestPluginActiveNetwork(c *check.C) {
+	testRequires(c, DaemonIsLinux, IsAmd64, Network)
+	out, _, err := dockerCmdWithError("plugin", "install", "--grant-all-permissions", npNameWithTag)
+	c.Assert(err, checker.IsNil)
+
+	out, _, err = dockerCmdWithError("network", "create", "-d", npNameWithTag, "test")
+	c.Assert(err, checker.IsNil)
+
+	nID := strings.TrimSpace(out)
+
+	out, _, err = dockerCmdWithError("plugin", "remove", npNameWithTag)
+	c.Assert(out, checker.Contains, "is in use")
+
+	_, _, err = dockerCmdWithError("network", "rm", nID)
+	c.Assert(err, checker.IsNil)
+
+	out, _, err = dockerCmdWithError("plugin", "remove", npNameWithTag)
+	c.Assert(out, checker.Contains, "is enabled")
+
+	_, _, err = dockerCmdWithError("plugin", "disable", npNameWithTag)
+	c.Assert(err, checker.IsNil)
+
+	out, _, err = dockerCmdWithError("plugin", "remove", npNameWithTag)
+	c.Assert(err, checker.IsNil)
+	c.Assert(out, checker.Contains, npNameWithTag)
 }
 
 func (s *DockerSuite) TestPluginInstallDisable(c *check.C) {

@@ -74,6 +74,9 @@ type Driver interface {
 
 	// Type returns the the type of this driver, the network type this driver manages
 	Type() string
+
+	// IsBuiltIn returns true if it is a built-in driver
+	IsBuiltIn() bool
 }
 
 // NetworkInfo provides a go interface for drivers to provide network

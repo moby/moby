@@ -594,3 +594,8 @@ func (a *Allocator) DumpDatabase() string {
 
 	return s
 }
+
+// IsBuiltIn returns true for builtin drivers
+func (a *Allocator) IsBuiltIn() bool {
+	return true
+}
