@@ -407,6 +407,13 @@ func (daemon *Daemon) GetNetworkDriverList() []string {
 	}
 
 	pluginList := daemon.netController.BuiltinDrivers()
+
+	managedPlugins := daemon.PluginStore.GetAllManagedPluginsByCap(driverapi.NetworkPluginEndpointType)
+
+	for _, plugin := range managedPlugins {
+		pluginList = append(pluginList, plugin.Name())
+	}
+
 	pluginMap := make(map[string]bool)
 	for _, plugin := range pluginList {
 		pluginMap[plugin] = true
