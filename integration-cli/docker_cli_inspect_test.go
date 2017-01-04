@@ -11,7 +11,6 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/integration-cli/checker"
-	"github.com/docker/docker/integration-cli/environment"
 	icmd "github.com/docker/docker/pkg/testutil/cmd"
 	"github.com/go-check/check"
 )
@@ -212,10 +211,6 @@ func (s *DockerSuite) TestInspectBindMountPoint(c *check.C) {
 	prefix, slash := getPrefixAndSlashFromDaemonPlatform()
 	if daemonPlatform == "windows" {
 		modifier = ""
-		// TODO Windows: Temporary check - remove once TP5 support is dropped
-		if environment.WindowsKernelVersion(testEnv.DaemonKernelVersion()) < 14350 {
-			c.Skip("Needs later Windows build for RO volumes")
-		}
 		// Linux creates the host directory if it doesn't exist. Windows does not.
 		os.Mkdir(`c:\data`, os.ModeDir)
 	}

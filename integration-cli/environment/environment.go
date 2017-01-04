@@ -169,16 +169,20 @@ func (e *Execution) MinimalBaseImage() string {
 	return e.baseImage
 }
 
-// DaemonKernelVersion is the kernel version of the daemon
+// DaemonKernelVersion is the kernel version of the daemon as a string, as returned
+// by an INFO call to the daemon.
 func (e *Execution) DaemonKernelVersion() string {
 	return e.daemonKernelVersion
 }
 
-// WindowsKernelVersion is used on Windows to distinguish between different
-// versions. This is necessary to enable certain tests based on whether
-// the platform supports it. For example, Windows Server 2016 TP3 did
-// not support volumes, but TP4 did.
-func WindowsKernelVersion(kernelVersion string) int {
-	winKV, _ := strconv.Atoi(strings.Split(kernelVersion, " ")[1])
-	return winKV
+// DaemonKernelVersionNumeric is the kernel version of the daemon as an integer.
+// Mostly useful on Windows where DaemonKernelVersion holds the full string such
+// as `10.0 14393 (14393.447.amd64fre.rs1_release_inmarket.161102-0100)`, but
+// integration tests really only need the `14393` piece to make decisions.
+func (e *Execution) DaemonKernelVersionNumeric() int {
+	if e.daemonPlatform != "windows" {
+		return -1
+	}
+	v, _ := strconv.Atoi(strings.Split(e.daemonKernelVersion, " ")[1])
+	return v
 }
