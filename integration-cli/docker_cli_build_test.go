@@ -7360,8 +7360,6 @@ func (s *DockerSuite) TestBuildWindowsEnvCaseInsensitive(c *check.C) {
 
 // Test case for 29667
 func (s *DockerSuite) TestBuildWorkdirImageCmd(c *check.C) {
-	testRequires(c, DaemonIsLinux)
-
 	image := "testworkdirimagecmd"
 	dockerfile := `
 FROM busybox
@@ -7371,7 +7369,13 @@ WORKDIR /foo/bar
 	c.Assert(err, checker.IsNil, check.Commentf("Output: %s", out))
 
 	out, _ = dockerCmd(c, "inspect", "--format", "{{ json .Config.Cmd }}", image)
-	c.Assert(strings.TrimSpace(out), checker.Equals, `["sh"]`)
+
+	// The Windows busybox image has a blank `cmd`
+	lookingFor := `["sh"]`
+	if daemonPlatform == "windows" {
+		lookingFor = "null"
+	}
+	c.Assert(strings.TrimSpace(out), checker.Equals, lookingFor)
 
 	image = "testworkdirlabelimagecmd"
 	dockerfile = `
@@ -7383,7 +7387,7 @@ LABEL a=b
 	c.Assert(err, checker.IsNil, check.Commentf("Output: %s", out))
 
 	out, _ = dockerCmd(c, "inspect", "--format", "{{ json .Config.Cmd }}", image)
-	c.Assert(strings.TrimSpace(out), checker.Equals, `["sh"]`)
+	c.Assert(strings.TrimSpace(out), checker.Equals, lookingFor)
 }
 
 // Test case for 28902/28909
