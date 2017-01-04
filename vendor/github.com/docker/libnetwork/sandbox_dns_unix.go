@@ -14,6 +14,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/libnetwork/etchosts"
 	"github.com/docker/libnetwork/resolvconf"
+	"github.com/docker/libnetwork/resolvconf/dns"
 	"github.com/docker/libnetwork/types"
 )
 
@@ -100,8 +101,6 @@ func (sb *sandbox) buildHostsFile() error {
 }
 
 func (sb *sandbox) updateHostsFile(ifaceIP string) error {
-	var mhost string
-
 	if ifaceIP == "" {
 		return nil
 	}
@@ -110,11 +109,17 @@ func (sb *sandbox) updateHostsFile(ifaceIP string) error {
 		return nil
 	}
 
+	// User might have provided a FQDN in hostname or split it across hostname
+	// and domainname.  We want the FQDN and the bare hostname.
+	fqdn := sb.config.hostName
+	mhost := sb.config.hostName
 	if sb.config.domainName != "" {
-		mhost = fmt.Sprintf("%s.%s %s", sb.config.hostName, sb.config.domainName,
-			sb.config.hostName)
-	} else {
-		mhost = sb.config.hostName
+		fqdn = fmt.Sprintf("%s.%s", fqdn, sb.config.domainName)
+	}
+
+	parts := strings.SplitN(fqdn, ".", 2)
+	if len(parts) == 2 {
+		mhost = fmt.Sprintf("%s %s", fqdn, parts[0])
 	}
 
 	extraContent := []etchosts.Record{{Hosts: mhost, IP: ifaceIP}}
@@ -158,6 +163,20 @@ func (sb *sandbox) restorePath() {
 	sb.config.resolvConfHashFile = sb.config.resolvConfPath + ".hash"
 	if sb.config.hostsPath == "" {
 		sb.config.hostsPath = defaultPrefix + "/" + sb.id + "/hosts"
+	}
+}
+
+func (sb *sandbox) setExternalResolvers(content []byte, addrType int, checkLoopback bool) {
+	servers := resolvconf.GetNameservers(content, addrType)
+	for _, ip := range servers {
+		hostLoopback := false
+		if checkLoopback {
+			hostLoopback = dns.IsIPv4Localhost(ip)
+		}
+		sb.extDNS = append(sb.extDNS, extDNSEntry{
+			ipStr:        ip,
+			hostLoopback: hostLoopback,
+		})
 	}
 }
 
@@ -208,7 +227,17 @@ func (sb *sandbox) setupDNS() error {
 		if err != nil {
 			return err
 		}
+		// After building the resolv.conf from the user config save the
+		// external resolvers in the sandbox. Note that --dns 127.0.0.x
+		// config refers to the loopback in the container namespace
+		sb.setExternalResolvers(newRC.Content, types.IPv4, false)
 	} else {
+		// If the host resolv.conf file has 127.0.0.x container should
+		// use the host restolver for queries. This is supported by the
+		// docker embedded DNS server. Hence save the external resolvers
+		// before filtering it out.
+		sb.setExternalResolvers(currRC.Content, types.IPv4, true)
+
 		// Replace any localhost/127.* (at this point we have no info about ipv6, pass it as true)
 		if newRC, err = resolvconf.FilterResolvDNS(currRC.Content, true); err != nil {
 			return err
@@ -297,7 +326,6 @@ func (sb *sandbox) updateDNS(ipv6Enabled bool) error {
 
 // Embedded DNS server has to be enabled for this sandbox. Rebuild the container's
 // resolv.conf by doing the following
-// - Save the external name servers in resolv.conf in the sandbox
 // - Add only the embedded server's IP to container's resolv.conf
 // - If the embedded server needs any resolv.conf options add it to the current list
 func (sb *sandbox) rebuildDNS() error {
@@ -306,10 +334,9 @@ func (sb *sandbox) rebuildDNS() error {
 		return err
 	}
 
-	// localhost entries have already been filtered out from the list
-	// retain only the v4 servers in sb for forwarding the DNS queries
-	sb.extDNS = resolvconf.GetNameservers(currRC.Content, types.IPv4)
-
+	if len(sb.extDNS) == 0 {
+		sb.setExternalResolvers(currRC.Content, types.IPv4, false)
+	}
 	var (
 		dnsList        = []string{sb.resolver.NameServer()}
 		dnsOptionsList = resolvconf.GetOptions(currRC.Content)
