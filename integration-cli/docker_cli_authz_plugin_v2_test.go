@@ -11,10 +11,10 @@ import (
 )
 
 var (
-	authzPluginName            = "tonistiigi/authz-no-volume-plugin"
+	authzPluginName            = "riyaz/authz-no-volume-plugin"
 	authzPluginTag             = "latest"
 	authzPluginNameWithTag     = authzPluginName + ":" + authzPluginTag
-	authzPluginBadManifestName = "tonistiigi/authz-plugin-bad-manifest"
+	authzPluginBadManifestName = "riyaz/authz-plugin-bad-manifest"
 	nonexistentAuthzPluginName = "riyaz/nonexistent-authz-plugin"
 )
 

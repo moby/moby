@@ -772,7 +772,7 @@ func (s *DockerNetworkSuite) TestDockerPluginV2NetworkDriver(c *check.C) {
 	testRequires(c, DaemonIsLinux, IsAmd64, Network)
 
 	var (
-		npName        = "tonistiigi/test-docker-netplugin"
+		npName        = "tiborvass/test-docker-netplugin"
 		npTag         = "latest"
 		npNameWithTag = npName + ":" + npTag
 	)
