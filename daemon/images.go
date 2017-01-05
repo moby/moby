@@ -154,11 +154,6 @@ func (daemon *Daemon) Images(imageFilters filters.Args, all bool, withExtraAttrs
 			continue
 		}
 
-		if newImage.RepoDigests == nil && newImage.RepoTags == nil {
-			newImage.RepoDigests = []string{"<none>@<none>"}
-			newImage.RepoTags = []string{"<none>:<none>"}
-		}
-
 		// Collect image's VirtualSize
 		layerID := img.RootFS.ChainID()
 		if layerID != "" {
