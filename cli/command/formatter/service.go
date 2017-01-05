@@ -103,6 +103,7 @@ Ports:
  PublishedPort {{ $port.PublishedPort }}
   Protocol = {{ $port.Protocol }}
   TargetPort = {{ $port.TargetPort }}
+  PublishMode = {{ $port.PublishMode }}
 {{- end }} {{ end -}}
 `
 

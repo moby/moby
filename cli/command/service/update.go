@@ -691,11 +691,7 @@ portLoop:
 		ports := flags.Lookup(flagPublishAdd).Value.(*opts.PortOpt).Value()
 
 		for _, port := range ports {
-			if v, ok := portSet[portConfigToString(&port)]; ok {
-				if v != port {
-					fmt.Println("v", v)
-					return fmt.Errorf("conflicting port mapping between %v:%v/%s and %v:%v/%s", port.PublishedPort, port.TargetPort, port.Protocol, v.PublishedPort, v.TargetPort, v.Protocol)
-				}
+			if _, ok := portSet[portConfigToString(&port)]; ok {
 				continue
 			}
 			//portSet[portConfigToString(&port)] = port
