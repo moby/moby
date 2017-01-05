@@ -15,7 +15,7 @@ import (
 
 // This file provides task-level orchestration. It observes changes to task
 // and node state and kills/recreates tasks if necessary. This is distinct from
-// service-level reconcillation, which observes changes to services and creates
+// service-level reconciliation, which observes changes to services and creates
 // and/or kills tasks to match the service definition.
 
 func invalidNode(n *api.Node) bool {

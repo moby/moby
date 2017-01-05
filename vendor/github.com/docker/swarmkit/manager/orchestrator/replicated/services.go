@@ -181,7 +181,7 @@ func (r *Orchestrator) reconcile(ctx context.Context, service *api.Service) {
 func (r *Orchestrator) addTasks(ctx context.Context, batch *store.Batch, service *api.Service, runningSlots map[uint64]orchestrator.Slot, deadSlots map[uint64]orchestrator.Slot, count int) {
 	slot := uint64(0)
 	for i := 0; i < count; i++ {
-		// Find an slot number that is missing a running task
+		// Find a slot number that is missing a running task
 		for {
 			slot++
 			if _, ok := runningSlots[slot]; !ok {

@@ -42,7 +42,7 @@ func GetLogger(ctx context.Context) *logrus.Entry {
 }
 
 // WithModule adds the module to the context, appending it with a slash if a
-// module already exists. A module is just an roughly correlated defined by the
+// module already exists. A module is just a roughly correlated defined by the
 // call tree for a given context.
 //
 // As an example, we might have a "node" module already part of a context. If

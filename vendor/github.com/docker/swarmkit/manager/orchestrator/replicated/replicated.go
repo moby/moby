@@ -102,7 +102,7 @@ func (r *Orchestrator) Stop() {
 
 func (r *Orchestrator) tick(ctx context.Context) {
 	// tickTasks must be called first, so we respond to task-level changes
-	// before performing service reconcillation.
+	// before performing service reconciliation.
 	r.tickTasks(ctx)
 	r.tickServices(ctx)
 }
