@@ -5274,7 +5274,7 @@ paths:
 
         Various objects within Docker report events when something happens to them.
 
-        Containers report these events: `attach, commit, copy, create, destroy, detach, die, exec_create, exec_detach, exec_start, export, kill, oom, pause, rename, resize, restart, start, stop, top, unpause, update`
+        Containers report these events: `attach, commit, copy, create, destroy, detach, die, exec_create, exec_detach, exec_start, export, health_status, kill, oom, pause, rename, resize, restart, start, stop, top, unpause, update`
 
         Images report these events: `delete, import, load, pull, push, save, tag, untag`
 
