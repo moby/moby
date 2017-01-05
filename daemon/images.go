@@ -111,21 +111,6 @@ func (daemon *Daemon) Images(imageFilters filters.Args, all bool, withExtraAttrs
 			}
 		}
 
-		layerID := img.RootFS.ChainID()
-		var size int64
-		if layerID != "" {
-			l, err := daemon.layerStore.Get(layerID)
-			if err != nil {
-				return nil, err
-			}
-
-			size, err = l.Size()
-			layer.ReleaseAndLog(daemon.layerStore, l)
-			if err != nil {
-				return nil, err
-			}
-		}
-
 		// Get all references (RepoTags, RepoDigests) for the image
 		refs := daemon.referenceStore.References(id.Digest())
 
@@ -140,7 +125,7 @@ func (daemon *Daemon) Images(imageFilters filters.Args, all bool, withExtraAttrs
 			continue
 		}
 
-		newImage := newImage(img, size)
+		newImage := newImage(img)
 		didMatch := false
 
 		for _, ref := range refs {
@@ -172,6 +157,21 @@ func (daemon *Daemon) Images(imageFilters filters.Args, all bool, withExtraAttrs
 		if newImage.RepoDigests == nil && newImage.RepoTags == nil {
 			newImage.RepoDigests = []string{"<none>@<none>"}
 			newImage.RepoTags = []string{"<none>:<none>"}
+		}
+
+		// Collect image's VirtualSize
+		layerID := img.RootFS.ChainID()
+		if layerID != "" {
+			l, err := daemon.layerStore.Get(layerID)
+			if err != nil {
+				return nil, err
+			}
+
+			newImage.VirtualSize, err = l.Size()
+			layer.ReleaseAndLog(daemon.layerStore, l)
+			if err != nil {
+				return nil, err
+			}
 		}
 
 		if withExtraAttrs {
@@ -328,13 +328,13 @@ func (daemon *Daemon) SquashImage(id, parent string) (string, error) {
 	return string(newImgID), nil
 }
 
-func newImage(image *image.Image, virtualSize int64) *types.ImageSummary {
+func newImage(image *image.Image) *types.ImageSummary {
 	newImage := new(types.ImageSummary)
 	newImage.ParentID = image.Parent.String()
 	newImage.ID = image.ID().String()
 	newImage.Created = image.Created.Unix()
 	newImage.Size = -1
-	newImage.VirtualSize = virtualSize
+	newImage.VirtualSize = -1
 	newImage.SharedSize = -1
 	newImage.Containers = -1
 	if image.Config != nil {
