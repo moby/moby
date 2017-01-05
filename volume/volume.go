@@ -29,7 +29,7 @@ const (
 type Driver interface {
 	// Name returns the name of the volume driver.
 	Name() string
-	// Create makes a new volume with the given id.
+	// Create makes a new volume with the given name.
 	Create(name string, opts map[string]string) (Volume, error)
 	// Remove deletes the volume.
 	Remove(vol Volume) (err error)
