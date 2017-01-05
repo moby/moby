@@ -3,7 +3,6 @@
 package main
 
 import (
-	"os/exec"
 	"strings"
 	"time"
 
@@ -48,8 +47,7 @@ func (s *DockerNetworkSuite) TestDockerNetworkMacvlanPersistance(c *check.C) {
 	// master dummy interface 'dm' abbreviation represents 'docker macvlan'
 	master := "dm-dummy0"
 	// simulate the master link the vlan tagged subinterface parent link will use
-	out, err := createMasterDummy(c, master)
-	c.Assert(err, check.IsNil, check.Commentf(out))
+	createMasterDummy(c, master)
 	// create a network specifying the desired sub-interface name
 	dockerCmd(c, "network", "create", "--driver=macvlan", "-o", "parent=dm-dummy0.60", "dm-persist")
 	assertNwIsAvailable(c, "dm-persist")
@@ -67,8 +65,7 @@ func (s *DockerNetworkSuite) TestDockerNetworkIpvlanPersistance(c *check.C) {
 	// master dummy interface 'di' notation represent 'docker ipvlan'
 	master := "di-dummy0"
 	// simulate the master link the vlan tagged subinterface parent link will use
-	out, err := createMasterDummy(c, master)
-	c.Assert(err, check.IsNil, check.Commentf(out))
+	createMasterDummy(c, master)
 	// create a network specifying the desired sub-interface name
 	dockerCmd(c, "network", "create", "--driver=ipvlan", "-o", "parent=di-dummy0.70", "di-persist")
 	assertNwIsAvailable(c, "di-persist")
@@ -86,8 +83,7 @@ func (s *DockerNetworkSuite) TestDockerNetworkMacvlanSubIntCreate(c *check.C) {
 	// master dummy interface 'dm' abbreviation represents 'docker macvlan'
 	master := "dm-dummy0"
 	// simulate the master link the vlan tagged subinterface parent link will use
-	out, err := createMasterDummy(c, master)
-	c.Assert(err, check.IsNil, check.Commentf(out))
+	createMasterDummy(c, master)
 	// create a network specifying the desired sub-interface name
 	dockerCmd(c, "network", "create", "--driver=macvlan", "-o", "parent=dm-dummy0.50", "dm-subinterface")
 	assertNwIsAvailable(c, "dm-subinterface")
@@ -101,8 +97,7 @@ func (s *DockerNetworkSuite) TestDockerNetworkIpvlanSubIntCreate(c *check.C) {
 	// master dummy interface 'dm' abbreviation represents 'docker ipvlan'
 	master := "di-dummy0"
 	// simulate the master link the vlan tagged subinterface parent link will use
-	out, err := createMasterDummy(c, master)
-	c.Assert(err, check.IsNil, check.Commentf(out))
+	createMasterDummy(c, master)
 	// create a network specifying the desired sub-interface name
 	dockerCmd(c, "network", "create", "--driver=ipvlan", "-o", "parent=di-dummy0.60", "di-subinterface")
 	assertNwIsAvailable(c, "di-subinterface")
@@ -115,17 +110,15 @@ func (s *DockerNetworkSuite) TestDockerNetworkMacvlanOverlapParent(c *check.C) {
 	testRequires(c, DaemonIsLinux, macvlanKernelSupport, NotUserNamespace, NotArm, ExperimentalDaemon)
 	// master dummy interface 'dm' abbreviation represents 'docker macvlan'
 	master := "dm-dummy0"
-	out, err := createMasterDummy(c, master)
-	c.Assert(err, check.IsNil, check.Commentf(out))
-	out, err = createVlanInterface(c, master, "dm-dummy0.40", "40")
-	c.Assert(err, check.IsNil, check.Commentf(out))
+	createMasterDummy(c, master)
+	createVlanInterface(c, master, "dm-dummy0.40", "40")
 	// create a network using an existing parent interface
 	dockerCmd(c, "network", "create", "--driver=macvlan", "-o", "parent=dm-dummy0.40", "dm-subinterface")
 	assertNwIsAvailable(c, "dm-subinterface")
 	// attempt to create another network using the same parent iface that should fail
-	out, _, err = dockerCmdWithError("network", "create", "--driver=macvlan", "-o", "parent=dm-dummy0.40", "dm-parent-net-overlap")
+	out, _, err := dockerCmdWithError("network", "create", "--driver=macvlan", "-o", "parent=dm-dummy0.40", "dm-parent-net-overlap")
 	// verify that the overlap returns an error
-	c.Assert(err, check.NotNil)
+	c.Assert(err, check.NotNil, check.Commentf(out))
 	// cleanup the master interface which also collects the slave dev
 	deleteInterface(c, "dm-dummy0")
 }
@@ -135,17 +128,15 @@ func (s *DockerNetworkSuite) TestDockerNetworkIpvlanOverlapParent(c *check.C) {
 	testRequires(c, DaemonIsLinux, ipvlanKernelSupport, NotUserNamespace, NotArm, ExperimentalDaemon)
 	// master dummy interface 'dm' abbreviation represents 'docker ipvlan'
 	master := "di-dummy0"
-	out, err := createMasterDummy(c, master)
-	c.Assert(err, check.IsNil, check.Commentf(out))
-	out, err = createVlanInterface(c, master, "di-dummy0.30", "30")
-	c.Assert(err, check.IsNil, check.Commentf(out))
+	createMasterDummy(c, master)
+	createVlanInterface(c, master, "di-dummy0.30", "30")
 	// create a network using an existing parent interface
 	dockerCmd(c, "network", "create", "--driver=ipvlan", "-o", "parent=di-dummy0.30", "di-subinterface")
 	assertNwIsAvailable(c, "di-subinterface")
 	// attempt to create another network using the same parent iface that should fail
-	out, _, err = dockerCmdWithError("network", "create", "--driver=ipvlan", "-o", "parent=di-dummy0.30", "di-parent-net-overlap")
+	out, _, err := dockerCmdWithError("network", "create", "--driver=ipvlan", "-o", "parent=di-dummy0.30", "di-parent-net-overlap")
 	// verify that the overlap returns an error
-	c.Assert(err, check.NotNil)
+	c.Assert(err, check.NotNil, check.Commentf(out))
 	// cleanup the master interface which also collects the slave dev
 	deleteInterface(c, "di-dummy0")
 }
@@ -488,9 +479,8 @@ func (s *DockerSuite) TestDockerNetworkMacVlanExistingParent(c *check.C) {
 	// macvlan bridge mode - empty parent interface containers can reach each other internally but not externally
 	testRequires(c, DaemonIsLinux, macvlanKernelSupport, NotUserNamespace, NotArm, ExperimentalDaemon)
 	netName := "dm-parent-exists"
-	out, err := createMasterDummy(c, "dm-dummy0")
+	createMasterDummy(c, "dm-dummy0")
 	//out, err := createVlanInterface(c, "dm-parent", "dm-slave", "macvlan", "bridge")
-	c.Assert(err, check.IsNil, check.Commentf(out))
 	// create a network using an existing parent interface
 	dockerCmd(c, "network", "create", "--driver=macvlan", "-o", "parent=dm-dummy0", netName)
 	assertNwIsAvailable(c, netName)
@@ -498,20 +488,16 @@ func (s *DockerSuite) TestDockerNetworkMacVlanExistingParent(c *check.C) {
 	dockerCmd(c, "network", "rm", netName)
 	assertNwNotAvailable(c, netName)
 	// verify the network delete did not delete the predefined link
-	out, err = linkExists(c, "dm-dummy0")
-	c.Assert(err, check.IsNil, check.Commentf(out))
+	linkExists(c, "dm-dummy0")
 	deleteInterface(c, "dm-dummy0")
-	c.Assert(err, check.IsNil, check.Commentf(out))
 }
 
 func (s *DockerSuite) TestDockerNetworkMacVlanSubinterface(c *check.C) {
 	// macvlan bridge mode -  empty parent interface containers can reach each other internally but not externally
 	testRequires(c, DaemonIsLinux, macvlanKernelSupport, NotUserNamespace, NotArm, ExperimentalDaemon)
 	netName := "dm-subinterface"
-	out, err := createMasterDummy(c, "dm-dummy0")
-	c.Assert(err, check.IsNil, check.Commentf(out))
-	out, err = createVlanInterface(c, "dm-dummy0", "dm-dummy0.20", "20")
-	c.Assert(err, check.IsNil, check.Commentf(out))
+	createMasterDummy(c, "dm-dummy0")
+	createVlanInterface(c, "dm-dummy0", "dm-dummy0.20", "20")
 	// create a network using an existing parent interface
 	dockerCmd(c, "network", "create", "--driver=macvlan", "-o", "parent=dm-dummy0.20", netName)
 	assertNwIsAvailable(c, netName)
@@ -522,7 +508,7 @@ func (s *DockerSuite) TestDockerNetworkMacVlanSubinterface(c *check.C) {
 	dockerCmd(c, "run", "-d", "--net=dm-subinterface", "--name=second", "busybox", "top")
 	c.Assert(waitRun("second"), check.IsNil)
 	// verify containers can communicate
-	_, _, err = dockerCmdWithError("exec", "second", "ping", "-c", "1", "first")
+	_, _, err := dockerCmdWithError("exec", "second", "ping", "-c", "1", "first")
 	c.Assert(err, check.IsNil)
 
 	// remove the containers
@@ -532,56 +518,25 @@ func (s *DockerSuite) TestDockerNetworkMacVlanSubinterface(c *check.C) {
 	dockerCmd(c, "network", "rm", netName)
 	assertNwNotAvailable(c, netName)
 	// verify the network delete did not delete the predefined sub-interface
-	out, err = linkExists(c, "dm-dummy0.20")
-	c.Assert(err, check.IsNil, check.Commentf(out))
+	linkExists(c, "dm-dummy0.20")
 	// delete the parent interface which also collects the slave
 	deleteInterface(c, "dm-dummy0")
-	c.Assert(err, check.IsNil, check.Commentf(out))
 }
 
-func createMasterDummy(c *check.C, master string) (string, error) {
+func createMasterDummy(c *check.C, master string) {
 	// ip link add <dummy_name> type dummy
-	args := []string{"link", "add", master, "type", "dummy"}
-	ipLinkCmd := exec.Command("ip", args...)
-	out, _, err := runCommandWithOutput(ipLinkCmd)
-	if err != nil {
-		return out, err
-	}
-	// ip link set dummy_name up
-	args = []string{"link", "set", master, "up"}
-	ipLinkCmd = exec.Command("ip", args...)
-	out, _, err = runCommandWithOutput(ipLinkCmd)
-	if err != nil {
-		return out, err
-	}
-	return out, err
+	icmd.RunCommand("ip", "link", "add", master, "type", "dummy").Assert(c, icmd.Success)
+	icmd.RunCommand("ip", "link", "set", master, "up").Assert(c, icmd.Success)
 }
 
-func createVlanInterface(c *check.C, master, slave, id string) (string, error) {
+func createVlanInterface(c *check.C, master, slave, id string) {
 	// ip link add link <master> name <master>.<VID> type vlan id <VID>
-	args := []string{"link", "add", "link", master, "name", slave, "type", "vlan", "id", id}
-	ipLinkCmd := exec.Command("ip", args...)
-	out, _, err := runCommandWithOutput(ipLinkCmd)
-	if err != nil {
-		return out, err
-	}
+	icmd.RunCommand("ip", "link", "add", "link", master, "name", slave, "type", "vlan", "id", id).Assert(c, icmd.Success)
 	// ip link set <sub_interface_name> up
-	args = []string{"link", "set", slave, "up"}
-	ipLinkCmd = exec.Command("ip", args...)
-	out, _, err = runCommandWithOutput(ipLinkCmd)
-	if err != nil {
-		return out, err
-	}
-	return out, err
+	icmd.RunCommand("ip", "link", "set", slave, "up").Assert(c, icmd.Success)
 }
 
-func linkExists(c *check.C, master string) (string, error) {
+func linkExists(c *check.C, master string) {
 	// verify the specified link exists, ip link show <link_name>
-	args := []string{"link", "show", master}
-	ipLinkCmd := exec.Command("ip", args...)
-	out, _, err := runCommandWithOutput(ipLinkCmd)
-	if err != nil {
-		return out, err
-	}
-	return out, err
+	icmd.RunCommand("ip", "link", "show", master).Assert(c, icmd.Success)
 }

@@ -819,21 +819,21 @@ func (s *DockerSuite) TestRunEnvironment(c *check.C) {
 	// TODO Windows: Environment handling is different between Linux and
 	// Windows and this test relies currently on unix functionality.
 	testRequires(c, DaemonIsLinux)
-	cmd := exec.Command(dockerBinary, "run", "-h", "testing", "-e=FALSE=true", "-e=TRUE", "-e=TRICKY", "-e=HOME=", "busybox", "env")
-	cmd.Env = append(os.Environ(),
-		"TRUE=false",
-		"TRICKY=tri\ncky\n",
-	)
+	result := icmd.RunCmd(icmd.Cmd{
+		Command: []string{dockerBinary, "run", "-h", "testing", "-e=FALSE=true", "-e=TRUE", "-e=TRICKY", "-e=HOME=", "busybox", "env"},
+		Env: append(os.Environ(),
+			"TRUE=false",
+			"TRICKY=tri\ncky\n",
+		),
+	})
+	result.Assert(c, icmd.Success)
 
-	out, _, err := runCommandWithOutput(cmd)
-	if err != nil {
-		c.Fatal(err, out)
-	}
-
-	actualEnv := strings.Split(strings.TrimSpace(out), "\n")
+	actualEnv := strings.Split(strings.TrimSpace(result.Combined()), "\n")
 	sort.Strings(actualEnv)
 
 	goodEnv := []string{
+		// The first two should not be tested here, those are "inherent" environment variable. This test validates
+		// the -e behavior, not the default environment variable (that could be subject to change)
 		"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
 		"HOSTNAME=testing",
 		"FALSE=true",
@@ -863,15 +863,13 @@ func (s *DockerSuite) TestRunEnvironmentErase(c *check.C) {
 	// not set in our local env that they're removed (if present) in
 	// the container
 
-	cmd := exec.Command(dockerBinary, "run", "-e", "FOO", "-e", "HOSTNAME", "busybox", "env")
-	cmd.Env = appendBaseEnv(true)
+	result := icmd.RunCmd(icmd.Cmd{
+		Command: []string{dockerBinary, "run", "-e", "FOO", "-e", "HOSTNAME", "busybox", "env"},
+		Env: appendBaseEnd(true),
+	})
+	result.Assert(c, icmd.Success)
 
-	out, _, err := runCommandWithOutput(cmd)
-	if err != nil {
-		c.Fatal(err, out)
-	}
-
-	actualEnv := strings.Split(strings.TrimSpace(out), "\n")
+	actualEnv := strings.Split(strings.TrimSpace(result.Combined()), "\n")
 	sort.Strings(actualEnv)
 
 	goodEnv := []string{
@@ -897,15 +895,13 @@ func (s *DockerSuite) TestRunEnvironmentOverride(c *check.C) {
 	// Test to make sure that when we use -e on env vars that are
 	// already in the env that we're overriding them
 
-	cmd := exec.Command(dockerBinary, "run", "-e", "HOSTNAME", "-e", "HOME=/root2", "busybox", "env")
-	cmd.Env = appendBaseEnv(true, "HOSTNAME=bar")
+	result := icmd.RunCmd(icmd.Cmd{
+		Command: []string{dockerBinary, "run", "-e", "HOSTNAME", "-e", "HOME=/root2", "busybox", "env"},
+		Env: appendBaseEnv(true, "HOSTNAME=bar"),
+	})
+	result.Assert(c, icmd.Success)
 
-	out, _, err := runCommandWithOutput(cmd)
-	if err != nil {
-		c.Fatal(err, out)
-	}
-
-	actualEnv := strings.Split(strings.TrimSpace(out), "\n")
+	actualEnv := strings.Split(strings.TrimSpace(result.Combined()), "\n")
 	sort.Strings(actualEnv)
 
 	goodEnv := []string{
@@ -2111,12 +2107,9 @@ func (s *DockerSuite) TestRunDeallocatePortOnMissingIptablesRule(c *check.C) {
 
 	id := strings.TrimSpace(out)
 	ip := inspectField(c, id, "NetworkSettings.Networks.bridge.IPAddress")
-	iptCmd := exec.Command("iptables", "-D", "DOCKER", "-d", fmt.Sprintf("%s/32", ip),
-		"!", "-i", "docker0", "-o", "docker0", "-p", "tcp", "-m", "tcp", "--dport", "23", "-j", "ACCEPT")
-	out, _, err := runCommandWithOutput(iptCmd)
-	if err != nil {
-		c.Fatal(err, out)
-	}
+	icmd.RunCommand("iptables", "-D", "DOCKER", "-d", fmt.Sprintf("%s/32", ip),
+		"!", "-i", "docker0", "-o", "docker0", "-p", "tcp", "-m", "tcp", "--dport", "23", "-j", "ACCEPT").Assert(c, icmd.Success)
+
 	if err := deleteContainer(false, id); err != nil {
 		c.Fatal(err)
 	}
@@ -4012,23 +4005,19 @@ func (s *DockerSuite) TestRunWrongCpusetMemsFlagValue(c *check.C) {
 // TestRunNonExecutableCmd checks that 'docker run busybox foo' exits with error code 127'
 func (s *DockerSuite) TestRunNonExecutableCmd(c *check.C) {
 	name := "testNonExecutableCmd"
-	runCmd := exec.Command(dockerBinary, "run", "--name", name, "busybox", "foo")
-	_, exit, _ := runCommandWithOutput(runCmd)
-	stateExitCode := findContainerExitCode(c, name)
-	if !(exit == 127 && strings.Contains(stateExitCode, "127")) {
-		c.Fatalf("Run non-executable command should have errored with exit code 127, but we got exit: %d, State.ExitCode: %s", exit, stateExitCode)
-	}
+	icmd.RunCommand(dockerBinary, "run", "--name", name, "busybox", "foo").Assert(c, icmd.Expected{
+		ExitCode: 127,
+		Error: "exit status 127",
+	})
 }
 
 // TestRunNonExistingCmd checks that 'docker run busybox /bin/foo' exits with code 127.
 func (s *DockerSuite) TestRunNonExistingCmd(c *check.C) {
 	name := "testNonExistingCmd"
-	runCmd := exec.Command(dockerBinary, "run", "--name", name, "busybox", "/bin/foo")
-	_, exit, _ := runCommandWithOutput(runCmd)
-	stateExitCode := findContainerExitCode(c, name)
-	if !(exit == 127 && strings.Contains(stateExitCode, "127")) {
-		c.Fatalf("Run non-existing command should have errored with exit code 127, but we got exit: %d, State.ExitCode: %s", exit, stateExitCode)
-	}
+	icmd.RunCommand(dockerBinary, "run", "--name", name, "busybox", "/bin/foo").Assert(c, icmd.Expected{
+		ExitCode: 127,
+		Error: "exit status 127",
+	})
 }
 
 // TestCmdCannotBeInvoked checks that 'docker run busybox /etc' exits with 126, or
@@ -4040,30 +4029,28 @@ func (s *DockerSuite) TestCmdCannotBeInvoked(c *check.C) {
 		expected = 127
 	}
 	name := "testCmdCannotBeInvoked"
-	runCmd := exec.Command(dockerBinary, "run", "--name", name, "busybox", "/etc")
-	_, exit, _ := runCommandWithOutput(runCmd)
-	stateExitCode := findContainerExitCode(c, name)
-	if !(exit == expected && strings.Contains(stateExitCode, strconv.Itoa(expected))) {
-		c.Fatalf("Run cmd that cannot be invoked should have errored with code %d, but we got exit: %d, State.ExitCode: %s", expected, exit, stateExitCode)
-	}
+	icmd.RunCommand(dockerBinary, "run", "--name", name, "busybox", "/etc").Assert(c, icmd.Expected{
+		ExitCode: expected,
+		Error: fmt.Sprintf("exit status %d", expected),
+	})
 }
 
 // TestRunNonExistingImage checks that 'docker run foo' exits with error msg 125 and contains  'Unable to find image'
+// FIXME(vdemeester) should be a unit test
 func (s *DockerSuite) TestRunNonExistingImage(c *check.C) {
-	runCmd := exec.Command(dockerBinary, "run", "foo")
-	out, exit, err := runCommandWithOutput(runCmd)
-	if !(err != nil && exit == 125 && strings.Contains(out, "Unable to find image")) {
-		c.Fatalf("Run non-existing image should have errored with 'Unable to find image' code 125, but we got out: %s, exit: %d, err: %s", out, exit, err)
-	}
+	icmd.RunCommand(dockerBinary, "run", "foo").Assert(c, icmd.Expected{
+		ExitCode: 125,
+		Err: "Unable to find image",
+	})
 }
 
 // TestDockerFails checks that 'docker run -foo busybox' exits with 125 to signal docker run failed
+// FIXME(vdemeester) should be a unit test
 func (s *DockerSuite) TestDockerFails(c *check.C) {
-	runCmd := exec.Command(dockerBinary, "run", "-foo", "busybox")
-	out, exit, err := runCommandWithOutput(runCmd)
-	if !(err != nil && exit == 125) {
-		c.Fatalf("Docker run with flag not defined should exit with 125, but we got out: %s, exit: %d, err: %s", out, exit, err)
-	}
+	icmd.RunCommand(dockerBinary, "run", "-foo", "busybox").Assert(c, icmd.Expected{
+		ExitCode: 125,
+		Error: "exit status 125",
+	})
 }
 
 // TestRunInvalidReference invokes docker run with a bad reference.
@@ -4490,9 +4477,9 @@ func (s *DockerSuite) TestRunServicingContainer(c *check.C) {
 	err := waitExited(containerID, 60*time.Second)
 	c.Assert(err, checker.IsNil)
 
-	cmd := exec.Command("powershell", "echo", `(Get-WinEvent -ProviderName "Microsoft-Windows-Hyper-V-Compute" -FilterXPath 'Event[System[EventID=2010]]' -MaxEvents 1).Message`)
-	out2, _, err := runCommandWithOutput(cmd)
-	c.Assert(err, checker.IsNil)
+	result := icmd.RunCommand("powershell", "echo", `(Get-WinEvent -ProviderName "Microsoft-Windows-Hyper-V-Compute" -FilterXPath 'Event[System[EventID=2010]]' -MaxEvents 1).Message`)
+	result.Assert(c, icmd.Success)
+	out2 := result.Combined()
 	c.Assert(out2, checker.Contains, `"Servicing":true`, check.Commentf("Servicing container does not appear to have been started: %s", out2))
 	c.Assert(out2, checker.Contains, `Windows Container (Servicing)`, check.Commentf("Didn't find 'Windows Container (Servicing): %s", out2))
 	c.Assert(out2, checker.Contains, containerID+"_servicing", check.Commentf("Didn't find '%s_servicing': %s", containerID+"_servicing", out2))

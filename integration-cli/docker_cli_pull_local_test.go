@@ -12,6 +12,7 @@ import (
 
 	"github.com/docker/distribution"
 	"github.com/docker/distribution/digest"
+	icmd "github.com/docker/docker/pkg/testutil/cmd"
 	"github.com/docker/distribution/manifest"
 	"github.com/docker/distribution/manifest/manifestlist"
 	"github.com/docker/distribution/manifest/schema2"
@@ -87,8 +88,8 @@ func testConcurrentPullWholeRepo(c *check.C) {
 
 	for i := 0; i != numPulls; i++ {
 		go func() {
-			_, _, err := runCommandWithOutput(exec.Command(dockerBinary, "pull", "-a", repoName))
-			results <- err
+			result := icmd.RunCommand(dockerBinary, "pull", "-a", repoName)
+			results <- result.Error
 		}()
 	}
 
@@ -125,8 +126,8 @@ func testConcurrentFailingPull(c *check.C) {
 
 	for i := 0; i != numPulls; i++ {
 		go func() {
-			_, _, err := runCommandWithOutput(exec.Command(dockerBinary, "pull", repoName+":asdfasdf"))
-			results <- err
+			result := icmd.RunCommand(dockerBinary, "pull", repoName+":asdfasdf")
+			results <- result.Error
 		}()
 	}
 
@@ -175,8 +176,8 @@ func testConcurrentPullMultipleTags(c *check.C) {
 
 	for _, repo := range repos {
 		go func(repo string) {
-			_, _, err := runCommandWithOutput(exec.Command(dockerBinary, "pull", repo))
-			results <- err
+			result := icmd.RunCommand(dockerBinary, "pull", repo)
+			results <- result.Error
 		}(repo)
 	}
 

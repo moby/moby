@@ -818,10 +818,12 @@ func buildImageFromContextWithOut(name string, ctx *FakeContext, useCache bool, 
 	}
 	args = append(args, buildFlags...)
 	args = append(args, ".")
-	buildCmd := exec.Command(dockerBinary, args...)
-	buildCmd.Dir = ctx.Dir
-	out, exitCode, err := runCommandWithOutput(buildCmd)
-	if err != nil || exitCode != 0 {
+	result := icmd.RunCmd(icmd.Cmd{
+		Command: append([]string{dockerBinary}, args...),
+		Dir:     ctx.Dir,
+	})
+	out := result.Combined()
+	if result.Error != nil || result.ExitCode != 0 {
 		return "", "", fmt.Errorf("failed to build the image: %s", out)
 	}
 	id, err := getIDByName(name)

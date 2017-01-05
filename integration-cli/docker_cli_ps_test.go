@@ -669,22 +669,19 @@ func (s *DockerSuite) TestPsImageIDAfterUpdate(c *check.C) {
 	originalImageName := "busybox:TestPsImageIDAfterUpdate-original"
 	updatedImageName := "busybox:TestPsImageIDAfterUpdate-updated"
 
-	runCmd := exec.Command(dockerBinary, "tag", "busybox:latest", originalImageName)
-	out, _, err := runCommandWithOutput(runCmd)
-	c.Assert(err, checker.IsNil)
+	icmd.RunCommand(dockerBinary, "tag", "busybox:latest", originalImageName).Assert(c, icmd.Success)
 
 	originalImageID, err := getIDByName(originalImageName)
 	c.Assert(err, checker.IsNil)
 
-	runCmd = exec.Command(dockerBinary, append([]string{"run", "-d", originalImageName}, sleepCommandForDaemonPlatform()...)...)
-	out, _, err = runCommandWithOutput(runCmd)
-	c.Assert(err, checker.IsNil)
-	containerID := strings.TrimSpace(out)
+	result := icmd.RunCommand(dockerBinary, append([]string{"run", "-d", originalImageName}, sleepCommandForDaemonPlatform()...)...)
+	result.Assert(c, icmd.Success)
+	containerID := strings.TrimSpace(result.Combined())
 
-	linesOut, err := exec.Command(dockerBinary, "ps", "--no-trunc").CombinedOutput()
-	c.Assert(err, checker.IsNil)
+	result = icmd.RunCommand(dockerBinary, "ps", "--no-trunc")
+	result.Assert(c, icmd.Success)
 
-	lines := strings.Split(strings.TrimSpace(string(linesOut)), "\n")
+	lines := strings.Split(strings.TrimSpace(string(result.Combined())), "\n")
 	// skip header
 	lines = lines[1:]
 	c.Assert(len(lines), checker.Equals, 1)
@@ -694,18 +691,13 @@ func (s *DockerSuite) TestPsImageIDAfterUpdate(c *check.C) {
 		c.Assert(f[1], checker.Equals, originalImageName)
 	}
 
-	runCmd = exec.Command(dockerBinary, "commit", containerID, updatedImageName)
-	out, _, err = runCommandWithOutput(runCmd)
-	c.Assert(err, checker.IsNil)
+	icmd.RunCommand(dockerBinary, "commit", containerID, updatedImageName).Assert(c, icmd.Success)
+	icmd.RunCommand(dockerBinary, "tag", updatedImageName, originalImageName).Assert(c, icmd.Success)
 
-	runCmd = exec.Command(dockerBinary, "tag", updatedImageName, originalImageName)
-	out, _, err = runCommandWithOutput(runCmd)
-	c.Assert(err, checker.IsNil)
+	result = icmd.RunCommand(dockerBinary, "ps", "--no-trunc")
+	result.Assert(c, icmd.Success)
 
-	linesOut, err = exec.Command(dockerBinary, "ps", "--no-trunc").CombinedOutput()
-	c.Assert(err, checker.IsNil)
-
-	lines = strings.Split(strings.TrimSpace(string(linesOut)), "\n")
+	lines = strings.Split(strings.TrimSpace(string(result.Combined())), "\n")
 	// skip header
 	lines = lines[1:]
 	c.Assert(len(lines), checker.Equals, 1)

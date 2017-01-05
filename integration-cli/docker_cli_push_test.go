@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/docker/distribution/reference"
+	icmd "github.com/docker/docker/pkg/testutil/cmd"
 	cliconfig "github.com/docker/docker/cli/config"
 	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/pkg/testutil"
@@ -135,10 +136,10 @@ func testPushEmptyLayer(c *check.C) {
 	c.Assert(err, check.IsNil, check.Commentf("Could not open test tarball"))
 	defer freader.Close()
 
-	importCmd := exec.Command(dockerBinary, "import", "-", repoName)
-	importCmd.Stdin = freader
-	out, _, err := runCommandWithOutput(importCmd)
-	c.Assert(err, check.IsNil, check.Commentf("import failed: %q", out))
+	icmd.RunCmd(icmd.Cmd{
+		Command: []string{dockerBinary, "import", "-", repoName},
+		Stdin: freader,
+	}).Assert(c, icmd.Success)
 
 	// Now verify we can push it
 	out, _, err = dockerCmdWithError("push", repoName)
@@ -177,8 +178,8 @@ func testConcurrentPush(c *check.C) {
 
 	for _, repo := range repos {
 		go func(repo string) {
-			_, _, err := runCommandWithOutput(exec.Command(dockerBinary, "push", repo))
-			results <- err
+			result := icmd.RunCommand(dockerBinary, "push", repo)
+			results <- result.Error
 		}(repo)
 	}
 
