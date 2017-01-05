@@ -45,7 +45,7 @@ func (daemon *Daemon) Images(imageFilters filters.Args, all bool, withExtraAttrs
 	var (
 		allImages    map[image.ID]*image.Image
 		err          error
-		danglingOnly = false
+		danglingOnly bool
 	)
 
 	if err := imageFilters.Validate(acceptedImageFilterTags); err != nil {
@@ -127,10 +127,24 @@ func (daemon *Daemon) Images(imageFilters filters.Args, all bool, withExtraAttrs
 			}
 		}
 
+		// Get all references (RepoTags, RepoDigests) for the image
+		refs := daemon.referenceStore.References(id.Digest())
+
+		// An image is "dangling" if it doesn't have references, and does not have children
+		isDangling := len(refs) == 0 && len(daemon.imageStore.Children(id)) == 0
+
+		if isDangling && !all  {
+			continue
+		}
+		if imageFilters.Include("dangling") && danglingOnly != isDangling {
+			// either dangling=true or dangling=false was set, and image doesn't match the filter
+			continue
+		}
+
 		newImage := newImage(img, size)
 		didMatch := false
 
-		for _, ref := range daemon.referenceStore.References(id.Digest()) {
+		for _, ref := range refs {
 			if _, ok := ref.(reference.Canonical); ok {
 				newImage.RepoDigests = append(newImage.RepoDigests, ref.String())
 			}
@@ -157,22 +171,8 @@ func (daemon *Daemon) Images(imageFilters filters.Args, all bool, withExtraAttrs
 		}
 
 		if newImage.RepoDigests == nil && newImage.RepoTags == nil {
-			if all || len(daemon.imageStore.Children(id)) == 0 {
-
-				if imageFilters.Include("dangling") && !danglingOnly {
-					//dangling=false case, so dangling image is not needed
-					continue
-				}
-				if imageFilters.Include("reference") { // skip images with no references if filtering by reference
-					continue
-				}
-				newImage.RepoDigests = []string{"<none>@<none>"}
-				newImage.RepoTags = []string{"<none>:<none>"}
-			} else {
-				continue
-			}
-		} else if danglingOnly && len(newImage.RepoTags) > 0 {
-			continue
+			newImage.RepoDigests = []string{"<none>@<none>"}
+			newImage.RepoTags = []string{"<none>:<none>"}
 		}
 
 		if withExtraAttrs {
