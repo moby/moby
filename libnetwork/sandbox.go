@@ -1174,6 +1174,17 @@ func (eh epHeap) Less(i, j int) bool {
 		return true
 	}
 
+	if epi.joinInfo != nil && epj.joinInfo != nil {
+		if (epi.joinInfo.gw != nil && epi.joinInfo.gw6 != nil) &&
+			(epj.joinInfo.gw == nil || epj.joinInfo.gw6 == nil) {
+			return true
+		}
+		if (epj.joinInfo.gw != nil && epj.joinInfo.gw6 != nil) &&
+			(epi.joinInfo.gw == nil || epi.joinInfo.gw6 == nil) {
+			return false
+		}
+	}
+
 	if ci != nil {
 		cip, ok = ci.epPriority[eh[i].ID()]
 		if !ok {
