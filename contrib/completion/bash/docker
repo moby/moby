@@ -23,6 +23,7 @@
 # DOCKER_COMPLETION_SHOW_CONTAINER_IDS
 # DOCKER_COMPLETION_SHOW_NETWORK_IDS
 # DOCKER_COMPLETION_SHOW_NODE_IDS
+# DOCKER_COMPLETION_SHOW_PLUGIN_IDS
 # DOCKER_COMPLETION_SHOW_SECRET_IDS
 # DOCKER_COMPLETION_SHOW_SERVICE_IDS
 #   "no"  - Show names only (default)
@@ -286,9 +287,17 @@ __docker_complete_plugins_bundled() {
 
 # __docker_plugins_installed returns a list of all plugins that were installed with
 # the Docker plugin API.
+# By default, only names are returned.
+# Set DOCKER_COMPLETION_SHOW_PLUGIN_IDS=yes to also complete IDs.
 # For built-in pugins, see `__docker_plugins_bundled`.
 __docker_plugins_installed() {
-	__docker_q plugin ls | awk 'NR>1 {print $1}'
+	local fields
+	if [ "$DOCKER_COMPLETION_SHOW_PLUGIN_IDS" = yes ] ; then
+		fields='$1,$2'
+	else
+		fields='$2'
+	fi
+	__docker_q plugin ls | awk "NR>1 {print $fields}"
 }
 
 # __docker_complete_plugins_installed applies completion of plugins that were installed
