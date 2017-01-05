@@ -7,17 +7,16 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/docker/distribution/reference"
-	icmd "github.com/docker/docker/pkg/testutil/cmd"
 	cliconfig "github.com/docker/docker/cli/config"
 	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/pkg/testutil"
+	icmd "github.com/docker/docker/pkg/testutil/cmd"
 	"github.com/go-check/check"
 )
 
@@ -138,11 +137,11 @@ func testPushEmptyLayer(c *check.C) {
 
 	icmd.RunCmd(icmd.Cmd{
 		Command: []string{dockerBinary, "import", "-", repoName},
-		Stdin: freader,
+		Stdin:   freader,
 	}).Assert(c, icmd.Success)
 
 	// Now verify we can push it
-	out, _, err = dockerCmdWithError("push", repoName)
+	out, _, err := dockerCmdWithError("push", repoName)
 	c.Assert(err, check.IsNil, check.Commentf("pushing the image to the private registry has failed: %s", out))
 }
 
@@ -288,18 +287,12 @@ func (s *DockerTrustSuite) TestTrustedPush(c *check.C) {
 	// tag the image and upload it to the private registry
 	dockerCmd(c, "tag", "busybox", repoName)
 
-	pushCmd := exec.Command(dockerBinary, "push", repoName)
-	s.trustedCmd(pushCmd)
-	out, _, err := runCommandWithOutput(pushCmd)
-	c.Assert(err, check.IsNil, check.Commentf("Error running trusted push: %s\n%s", err, out))
-	c.Assert(out, checker.Contains, "Signing and pushing trust metadata", check.Commentf("Missing expected output on trusted push"))
+	icmd.RunCmd(icmd.Command(dockerBinary, "push", repoName), trustedCmd).Assert(c, SuccessSigningAndPushing)
 
 	// Try pull after push
-	pullCmd := exec.Command(dockerBinary, "pull", repoName)
-	s.trustedCmd(pullCmd)
-	out, _, err = runCommandWithOutput(pullCmd)
-	c.Assert(err, check.IsNil, check.Commentf(out))
-	c.Assert(string(out), checker.Contains, "Status: Image is up to date", check.Commentf(out))
+	icmd.RunCmd(icmd.Command(dockerBinary, "pull", repoName), trustedCmd).Assert(c, icmd.Expected{
+		Out: "Status: Image is up to date",
+	})
 
 	// Assert that we rotated the snapshot key to the server by checking our local keystore
 	contents, err := ioutil.ReadDir(filepath.Join(cliconfig.Dir(), "trust/private/tuf_keys", privateRegistryURL, "dockerclitrusted/pushtest"))
@@ -313,18 +306,12 @@ func (s *DockerTrustSuite) TestTrustedPushWithEnvPasswords(c *check.C) {
 	// tag the image and upload it to the private registry
 	dockerCmd(c, "tag", "busybox", repoName)
 
-	pushCmd := exec.Command(dockerBinary, "push", repoName)
-	s.trustedCmdWithPassphrases(pushCmd, "12345678", "12345678")
-	out, _, err := runCommandWithOutput(pushCmd)
-	c.Assert(err, check.IsNil, check.Commentf("Error running trusted push: %s\n%s", err, out))
-	c.Assert(out, checker.Contains, "Signing and pushing trust metadata", check.Commentf("Missing expected output on trusted push"))
+	icmd.RunCmd(icmd.Command(dockerBinary, "push", repoName), trustedCmdWithPassphrases("12345678", "12345678")).Assert(c, SuccessSigningAndPushing)
 
 	// Try pull after push
-	pullCmd := exec.Command(dockerBinary, "pull", repoName)
-	s.trustedCmd(pullCmd)
-	out, _, err = runCommandWithOutput(pullCmd)
-	c.Assert(err, check.IsNil, check.Commentf(out))
-	c.Assert(string(out), checker.Contains, "Status: Image is up to date", check.Commentf(out))
+	icmd.RunCmd(icmd.Command(dockerBinary, "pull", repoName), trustedCmd).Assert(c, icmd.Expected{
+		Out: "Status: Image is up to date",
+	})
 }
 
 func (s *DockerTrustSuite) TestTrustedPushWithFailingServer(c *check.C) {
@@ -332,12 +319,11 @@ func (s *DockerTrustSuite) TestTrustedPushWithFailingServer(c *check.C) {
 	// tag the image and upload it to the private registry
 	dockerCmd(c, "tag", "busybox", repoName)
 
-	pushCmd := exec.Command(dockerBinary, "push", repoName)
 	// Using a name that doesn't resolve to an address makes this test faster
-	s.trustedCmdWithServer(pushCmd, "https://server.invalid:81/")
-	out, _, err := runCommandWithOutput(pushCmd)
-	c.Assert(err, check.NotNil, check.Commentf("Missing error while running trusted push w/ no server"))
-	c.Assert(out, checker.Contains, "error contacting notary server", check.Commentf("Missing expected output on trusted push"))
+	icmd.RunCmd(icmd.Command(dockerBinary, "push", repoName), trustedCmdWithServer("https://server.invalid:81/")).Assert(c, icmd.Expected{
+		ExitCode: 1,
+		Err:      "error contacting notary server",
+	})
 }
 
 func (s *DockerTrustSuite) TestTrustedPushWithoutServerAndUntrusted(c *check.C) {
@@ -345,12 +331,9 @@ func (s *DockerTrustSuite) TestTrustedPushWithoutServerAndUntrusted(c *check.C) 
 	// tag the image and upload it to the private registry
 	dockerCmd(c, "tag", "busybox", repoName)
 
-	pushCmd := exec.Command(dockerBinary, "push", "--disable-content-trust", repoName)
-	// Using a name that doesn't resolve to an address makes this test faster
-	s.trustedCmdWithServer(pushCmd, "https://server.invalid")
-	out, _, err := runCommandWithOutput(pushCmd)
-	c.Assert(err, check.IsNil, check.Commentf("trusted push with no server and --disable-content-trust failed: %s\n%s", err, out))
-	c.Assert(out, check.Not(checker.Contains), "Error establishing connection to notary repository", check.Commentf("Missing expected output on trusted push with --disable-content-trust:"))
+	result := icmd.RunCmd(icmd.Command(dockerBinary, "push", "--disable-content-trust", repoName), trustedCmdWithServer("https://server.invalid:81/"))
+	result.Assert(c, icmd.Success)
+	c.Assert(result.Combined(), check.Not(checker.Contains), "Error establishing connection to notary repository", check.Commentf("Missing expected output on trusted push with --disable-content-trust:"))
 }
 
 func (s *DockerTrustSuite) TestTrustedPushWithExistingTag(c *check.C) {
@@ -359,18 +342,12 @@ func (s *DockerTrustSuite) TestTrustedPushWithExistingTag(c *check.C) {
 	dockerCmd(c, "tag", "busybox", repoName)
 	dockerCmd(c, "push", repoName)
 
-	pushCmd := exec.Command(dockerBinary, "push", repoName)
-	s.trustedCmd(pushCmd)
-	out, _, err := runCommandWithOutput(pushCmd)
-	c.Assert(err, check.IsNil, check.Commentf("trusted push failed: %s\n%s", err, out))
-	c.Assert(out, checker.Contains, "Signing and pushing trust metadata", check.Commentf("Missing expected output on trusted push with existing tag"))
+	icmd.RunCmd(icmd.Command(dockerBinary, "push", repoName), trustedCmd).Assert(c, SuccessSigningAndPushing)
 
 	// Try pull after push
-	pullCmd := exec.Command(dockerBinary, "pull", repoName)
-	s.trustedCmd(pullCmd)
-	out, _, err = runCommandWithOutput(pullCmd)
-	c.Assert(err, check.IsNil, check.Commentf(out))
-	c.Assert(string(out), checker.Contains, "Status: Image is up to date", check.Commentf(out))
+	icmd.RunCmd(icmd.Command(dockerBinary, "pull", repoName), trustedCmd).Assert(c, icmd.Expected{
+		Out: "Status: Image is up to date",
+	})
 }
 
 func (s *DockerTrustSuite) TestTrustedPushWithExistingSignedTag(c *check.C) {
@@ -379,28 +356,14 @@ func (s *DockerTrustSuite) TestTrustedPushWithExistingSignedTag(c *check.C) {
 	dockerCmd(c, "tag", "busybox", repoName)
 
 	// Do a trusted push
-	pushCmd := exec.Command(dockerBinary, "push", repoName)
-	s.trustedCmd(pushCmd)
-	out, _, err := runCommandWithOutput(pushCmd)
-	c.Assert(err, check.IsNil, check.Commentf("trusted push failed: %s\n%s", err, out))
-	c.Assert(out, checker.Contains, "Signing and pushing trust metadata", check.Commentf("Missing expected output on trusted push with existing tag"))
+	icmd.RunCmd(icmd.Command(dockerBinary, "push", repoName), trustedCmd).Assert(c, SuccessSigningAndPushing)
 
 	// Do another trusted push
-	pushCmd = exec.Command(dockerBinary, "push", repoName)
-	s.trustedCmd(pushCmd)
-	out, _, err = runCommandWithOutput(pushCmd)
-	c.Assert(err, check.IsNil, check.Commentf("trusted push failed: %s\n%s", err, out))
-	c.Assert(out, checker.Contains, "Signing and pushing trust metadata", check.Commentf("Missing expected output on trusted push with existing tag"))
-
+	icmd.RunCmd(icmd.Command(dockerBinary, "push", repoName), trustedCmd).Assert(c, SuccessSigningAndPushing)
 	dockerCmd(c, "rmi", repoName)
 
 	// Try pull to ensure the double push did not break our ability to pull
-	pullCmd := exec.Command(dockerBinary, "pull", repoName)
-	s.trustedCmd(pullCmd)
-	out, _, err = runCommandWithOutput(pullCmd)
-	c.Assert(err, check.IsNil, check.Commentf("Error running trusted pull: %s\n%s", err, out))
-	c.Assert(out, checker.Contains, "Status: Downloaded", check.Commentf("Missing expected output on trusted pull with --disable-content-trust"))
-
+	icmd.RunCmd(icmd.Command(dockerBinary, "pull", repoName), trustedCmd).Assert(c, SuccessDownloaded)
 }
 
 func (s *DockerTrustSuite) TestTrustedPushWithIncorrectPassphraseForNonRoot(c *check.C) {
@@ -409,18 +372,13 @@ func (s *DockerTrustSuite) TestTrustedPushWithIncorrectPassphraseForNonRoot(c *c
 	dockerCmd(c, "tag", "busybox", repoName)
 
 	// Push with default passphrases
-	pushCmd := exec.Command(dockerBinary, "push", repoName)
-	s.trustedCmd(pushCmd)
-	out, _, err := runCommandWithOutput(pushCmd)
-	c.Assert(err, check.IsNil, check.Commentf("trusted push failed: %s\n%s", err, out))
-	c.Assert(out, checker.Contains, "Signing and pushing trust metadata", check.Commentf("Missing expected output on trusted push:\n%s", out))
+	icmd.RunCmd(icmd.Command(dockerBinary, "push", repoName), trustedCmd).Assert(c, SuccessSigningAndPushing)
 
 	// Push with wrong passphrases
-	pushCmd = exec.Command(dockerBinary, "push", repoName)
-	s.trustedCmdWithPassphrases(pushCmd, "12345678", "87654321")
-	out, _, err = runCommandWithOutput(pushCmd)
-	c.Assert(err, check.NotNil, check.Commentf("Error missing from trusted push with short targets passphrase: \n%s", out))
-	c.Assert(out, checker.Contains, "could not find necessary signing keys", check.Commentf("Missing expected output on trusted push with short targets/snapsnot passphrase"))
+	icmd.RunCmd(icmd.Command(dockerBinary, "push", repoName), trustedCmdWithPassphrases("12345678", "87654321")).Assert(c, icmd.Expected{
+		ExitCode: 1,
+		Err:      "could not find necessary signing keys",
+	})
 }
 
 func (s *DockerTrustSuite) TestTrustedPushWithExpiredSnapshot(c *check.C) {
@@ -430,22 +388,19 @@ func (s *DockerTrustSuite) TestTrustedPushWithExpiredSnapshot(c *check.C) {
 	dockerCmd(c, "tag", "busybox", repoName)
 
 	// Push with default passphrases
-	pushCmd := exec.Command(dockerBinary, "push", repoName)
-	s.trustedCmd(pushCmd)
-	out, _, err := runCommandWithOutput(pushCmd)
-	c.Assert(err, check.IsNil, check.Commentf("trusted push failed: %s\n%s", err, out))
-	c.Assert(out, checker.Contains, "Signing and pushing trust metadata", check.Commentf("Missing expected output on trusted push"))
+	icmd.RunCmd(icmd.Command(dockerBinary, "push", repoName), trustedCmd).Assert(c, SuccessSigningAndPushing)
 
 	// Snapshots last for three years. This should be expired
 	fourYearsLater := time.Now().Add(time.Hour * 24 * 365 * 4)
 
 	testutil.RunAtDifferentDate(fourYearsLater, func() {
 		// Push with wrong passphrases
-		pushCmd = exec.Command(dockerBinary, "push", repoName)
-		s.trustedCmd(pushCmd)
-		out, _, err = runCommandWithOutput(pushCmd)
-		c.Assert(err, check.NotNil, check.Commentf("Error missing from trusted push with expired snapshot: \n%s", out))
-		c.Assert(out, checker.Contains, "repository out-of-date", check.Commentf("Missing expected output on trusted push with expired snapshot"))
+		icmd.RunCmd(icmd.Cmd{
+			Command: []string{dockerBinary, "push", repoName},
+		}, trustedCmd).Assert(c, icmd.Expected{
+			ExitCode: 1,
+			Err:      "repository out-of-date",
+		})
 	})
 }
 
@@ -456,22 +411,15 @@ func (s *DockerTrustSuite) TestTrustedPushWithExpiredTimestamp(c *check.C) {
 	dockerCmd(c, "tag", "busybox", repoName)
 
 	// Push with default passphrases
-	pushCmd := exec.Command(dockerBinary, "push", repoName)
-	s.trustedCmd(pushCmd)
-	out, _, err := runCommandWithOutput(pushCmd)
-	c.Assert(err, check.IsNil, check.Commentf("trusted push failed: %s\n%s", err, out))
-	c.Assert(out, checker.Contains, "Signing and pushing trust metadata", check.Commentf("Missing expected output on trusted push"))
+	icmd.RunCmd(icmd.Command(dockerBinary, "push", repoName), trustedCmd).Assert(c, SuccessSigningAndPushing)
 
 	// The timestamps expire in two weeks. Lets check three
 	threeWeeksLater := time.Now().Add(time.Hour * 24 * 21)
 
 	// Should succeed because the server transparently re-signs one
 	testutil.RunAtDifferentDate(threeWeeksLater, func() {
-		pushCmd := exec.Command(dockerBinary, "push", repoName)
-		s.trustedCmd(pushCmd)
-		out, _, err := runCommandWithOutput(pushCmd)
-		c.Assert(err, check.IsNil, check.Commentf("Error running trusted push: %s\n%s", err, out))
-		c.Assert(out, checker.Contains, "Signing and pushing trust metadata", check.Commentf("Missing expected output on trusted push with expired timestamp"))
+		icmd.RunCmd(icmd.Command(dockerBinary, "push", repoName),
+			trustedCmd).Assert(c, SuccessSigningAndPushing)
 	})
 }
 
@@ -488,11 +436,7 @@ func (s *DockerTrustSuite) TestTrustedPushWithReleasesDelegationOnly(c *check.C)
 	// tag the image and upload it to the private registry
 	dockerCmd(c, "tag", "busybox", targetName)
 
-	pushCmd := exec.Command(dockerBinary, "push", targetName)
-	s.trustedCmd(pushCmd)
-	out, _, err := runCommandWithOutput(pushCmd)
-	c.Assert(err, check.IsNil, check.Commentf("trusted push failed: %s\n%s", err, out))
-	c.Assert(out, checker.Contains, "Signing and pushing trust metadata", check.Commentf("Missing expected output on trusted push with existing tag"))
+	icmd.RunCmd(icmd.Command(dockerBinary, "push", targetName), trustedCmd).Assert(c, SuccessSigningAndPushing)
 	// check to make sure that the target has been added to targets/releases and not targets
 	s.assertTargetInRoles(c, repoName, "latest", "targets/releases")
 	s.assertTargetNotInRoles(c, repoName, "latest", "targets")
@@ -500,11 +444,9 @@ func (s *DockerTrustSuite) TestTrustedPushWithReleasesDelegationOnly(c *check.C)
 	// Try pull after push
 	os.RemoveAll(filepath.Join(cliconfig.Dir(), "trust"))
 
-	pullCmd := exec.Command(dockerBinary, "pull", targetName)
-	s.trustedCmd(pullCmd)
-	out, _, err = runCommandWithOutput(pullCmd)
-	c.Assert(err, check.IsNil, check.Commentf(out))
-	c.Assert(string(out), checker.Contains, "Status: Image is up to date", check.Commentf(out))
+	icmd.RunCmd(icmd.Command(dockerBinary, "pull", targetName), trustedCmd).Assert(c, icmd.Expected{
+		Out: "Status: Image is up to date",
+	})
 }
 
 func (s *DockerTrustSuite) TestTrustedPushSignsAllFirstLevelRolesWeHaveKeysFor(c *check.C) {
@@ -528,11 +470,7 @@ func (s *DockerTrustSuite) TestTrustedPushSignsAllFirstLevelRolesWeHaveKeysFor(c
 	// tag the image and upload it to the private registry
 	dockerCmd(c, "tag", "busybox", targetName)
 
-	pushCmd := exec.Command(dockerBinary, "push", targetName)
-	s.trustedCmd(pushCmd)
-	out, _, err := runCommandWithOutput(pushCmd)
-	c.Assert(err, check.IsNil, check.Commentf("trusted push failed: %s\n%s", err, out))
-	c.Assert(out, checker.Contains, "Signing and pushing trust metadata", check.Commentf("Missing expected output on trusted push with existing tag"))
+	icmd.RunCmd(icmd.Command(dockerBinary, "push", targetName), trustedCmd).Assert(c, SuccessSigningAndPushing)
 
 	// check to make sure that the target has been added to targets/role1 and targets/role2, and
 	// not targets (because there are delegations) or targets/role3 (due to missing key) or
@@ -544,10 +482,9 @@ func (s *DockerTrustSuite) TestTrustedPushSignsAllFirstLevelRolesWeHaveKeysFor(c
 	os.RemoveAll(filepath.Join(cliconfig.Dir(), "trust"))
 
 	// pull should fail because none of these are the releases role
-	pullCmd := exec.Command(dockerBinary, "pull", targetName)
-	s.trustedCmd(pullCmd)
-	out, _, err = runCommandWithOutput(pullCmd)
-	c.Assert(err, check.NotNil, check.Commentf(out))
+	icmd.RunCmd(icmd.Command(dockerBinary, "pull", targetName), trustedCmd).Assert(c, icmd.Expected{
+		ExitCode: 1,
+	})
 }
 
 func (s *DockerTrustSuite) TestTrustedPushSignsForRolesWithKeysAndValidPaths(c *check.C) {
@@ -569,11 +506,7 @@ func (s *DockerTrustSuite) TestTrustedPushSignsForRolesWithKeysAndValidPaths(c *
 	// tag the image and upload it to the private registry
 	dockerCmd(c, "tag", "busybox", targetName)
 
-	pushCmd := exec.Command(dockerBinary, "push", targetName)
-	s.trustedCmd(pushCmd)
-	out, _, err := runCommandWithOutput(pushCmd)
-	c.Assert(err, check.IsNil, check.Commentf("trusted push failed: %s\n%s", err, out))
-	c.Assert(out, checker.Contains, "Signing and pushing trust metadata", check.Commentf("Missing expected output on trusted push with existing tag"))
+	icmd.RunCmd(icmd.Command(dockerBinary, "push", targetName), trustedCmd).Assert(c, SuccessSigningAndPushing)
 
 	// check to make sure that the target has been added to targets/role1 and targets/role4, and
 	// not targets (because there are delegations) or targets/role2 (due to path restrictions) or
@@ -585,10 +518,9 @@ func (s *DockerTrustSuite) TestTrustedPushSignsForRolesWithKeysAndValidPaths(c *
 	os.RemoveAll(filepath.Join(cliconfig.Dir(), "trust"))
 
 	// pull should fail because none of these are the releases role
-	pullCmd := exec.Command(dockerBinary, "pull", targetName)
-	s.trustedCmd(pullCmd)
-	out, _, err = runCommandWithOutput(pullCmd)
-	c.Assert(err, check.NotNil, check.Commentf(out))
+	icmd.RunCmd(icmd.Command(dockerBinary, "pull", targetName), trustedCmd).Assert(c, icmd.Expected{
+		ExitCode: 1,
+	})
 }
 
 func (s *DockerTrustSuite) TestTrustedPushDoesntSignTargetsIfDelegationsExist(c *check.C) {
@@ -604,13 +536,10 @@ func (s *DockerTrustSuite) TestTrustedPushDoesntSignTargetsIfDelegationsExist(c 
 	// tag the image and upload it to the private registry
 	dockerCmd(c, "tag", "busybox", targetName)
 
-	pushCmd := exec.Command(dockerBinary, "push", targetName)
-	s.trustedCmd(pushCmd)
-	out, _, err := runCommandWithOutput(pushCmd)
-	c.Assert(err, check.NotNil, check.Commentf("trusted push succeeded but should have failed:\n%s", out))
-	c.Assert(out, checker.Contains, "no valid signing keys",
-		check.Commentf("Missing expected output on trusted push without keys"))
-
+	icmd.RunCmd(icmd.Command(dockerBinary, "push", targetName), trustedCmd).Assert(c, icmd.Expected{
+		ExitCode: 1,
+		Err:      "no valid signing keys",
+	})
 	s.assertTargetNotInRoles(c, repoName, "latest", "targets", "targets/role1")
 }
 

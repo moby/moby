@@ -2,20 +2,19 @@ package main
 
 import (
 	"net"
-	"os/exec"
 	"strings"
 
-	icmd "github.com/docker/docker/pkg/testutil/cmd"
 	"github.com/docker/docker/integration-cli/checker"
+	icmd "github.com/docker/docker/pkg/testutil/cmd"
 	"github.com/go-check/check"
 )
 
 func (s *DockerSuite) TestCLIProxyDisableProxyUnixSock(c *check.C) {
 	testRequires(c, DaemonIsLinux, SameHostDaemon)
 
-	icmd.RunCmd(icm.Cmd{
+	icmd.RunCmd(icmd.Cmd{
 		Command: []string{dockerBinary, "info"},
-		Env: appendBaseEnv(false, "HTTP_PROXY=http://127.0.0.1:9999"),
+		Env:     appendBaseEnv(false, "HTTP_PROXY=http://127.0.0.1:9999"),
 	}).Assert(c, icmd.Success)
 }
 
@@ -42,11 +41,11 @@ func (s *DockerDaemonSuite) TestCLIProxyProxyTCPSock(c *check.C) {
 
 	icmd.RunCmd(icmd.Cmd{
 		Command: []string{dockerBinary, "info"},
-		Env: []string{"DOCKER_HOST=tcp://" + ip + ":2375", "HTTP_PROXY=127.0.0.1:9999"},
-	}).Assert(c, icmd.Expected{Error:"exit status 1", ExitCode: 1})
+		Env:     []string{"DOCKER_HOST=tcp://" + ip + ":2375", "HTTP_PROXY=127.0.0.1:9999"},
+	}).Assert(c, icmd.Expected{Error: "exit status 1", ExitCode: 1})
 	// Test with no_proxy
-	icmd.RunCommand(icmd.Cmd{
+	icmd.RunCmd(icmd.Cmd{
 		Command: []string{dockerBinary, "info"},
-		Env: []string{"DOCKER_HOST=tcp://" + ip + ":2375", "HTTP_PROXY=127.0.0.1:9999", "NO_PROXY="+ip},
+		Env:     []string{"DOCKER_HOST=tcp://" + ip + ":2375", "HTTP_PROXY=127.0.0.1:9999", "NO_PROXY=" + ip},
 	}).Assert(c, icmd.Success)
 }

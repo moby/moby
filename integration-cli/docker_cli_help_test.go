@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"os/exec"
 	"runtime"
 	"strings"
 	"unicode"
@@ -54,8 +53,8 @@ func (s *DockerSuite) TestHelpTextVerify(c *check.C) {
 
 		// Check main help text to make sure its not over 80 chars
 		result := icmd.RunCmd(icmd.Cmd{
-			Command: []stirng{dockerBinary, "help"},
-			Env: newEnvs,
+			Command: []string{dockerBinary, "help"},
+			Env:     newEnvs,
 		})
 		result.Assert(c, icmd.Success)
 		lines := strings.Split(result.Combined(), "\n")

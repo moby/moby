@@ -8,10 +8,10 @@ import (
 	"strings"
 	"time"
 
-	icmd "github.com/docker/docker/pkg/testutil/cmd"
 	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/pkg/jsonlog"
 	"github.com/docker/docker/pkg/testutil"
+	icmd "github.com/docker/docker/pkg/testutil/cmd"
 	"github.com/go-check/check"
 )
 
@@ -190,10 +190,10 @@ func (s *DockerSuite) TestLogsSince(c *check.C) {
 	// Test with default value specified and parameter omitted
 	expected := []string{"log1", "log2", "log3"}
 	for _, cmd := range [][]string{
-		[]string{dockerBinary, "logs", "-t", name},
-		[]string{dockerBinary, "logs", "-t", "--since=0", name},
+		{"logs", "-t", name},
+		{"logs", "-t", "--since=0", name},
 	} {
-		result := icmd.RunCommand(cmd...)
+		result := icmd.RunCommand(dockerBinary, cmd...)
 		result.Assert(c, icmd.Success)
 		for _, v := range expected {
 			c.Assert(result.Combined(), checker.Contains, v)

@@ -2,13 +2,12 @@ package main
 
 import (
 	"fmt"
-	"os/exec"
 	"strings"
 	"time"
 
-	icmd "github.com/docker/docker/pkg/testutil/cmd"
 	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/pkg/stringid"
+	icmd "github.com/docker/docker/pkg/testutil/cmd"
 	"github.com/go-check/check"
 )
 
@@ -179,7 +178,7 @@ func (s *DockerSuite) TestRmiForceWithExistingContainers(c *check.C) {
 	icmd.RunCmd(icmd.Cmd{
 		Command: []string{dockerBinary, "build", "--no-cache", "-t", image, "-"},
 		Stdin: strings.NewReader(`FROM busybox
-MAINTAINER foo`)
+MAINTAINER foo`),
 	}).Assert(c, icmd.Success)
 
 	dockerCmd(c, "run", "--name", "test-force-rmi", image, "/bin/true")

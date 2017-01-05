@@ -19,8 +19,8 @@ func (s *DockerSuite) TestExportContainerAndImportImage(c *check.C) {
 	out, _ := dockerCmd(c, "export", containerID)
 
 	result := icmd.RunCmd(icmd.Cmd{
-		Command: dockerBinary, "import", "-", "repo/testexp:v1",
-		Stdin: strings.NewReader(out),
+		Command: []string{dockerBinary, "import", "-", "repo/testexp:v1"},
+		Stdin:   strings.NewReader(out),
 	})
 	result.Assert(c, icmd.Success)
 
@@ -41,8 +41,8 @@ func (s *DockerSuite) TestExportContainerWithOutputAndImportImage(c *check.C) {
 	resultCat.Assert(c, icmd.Success)
 
 	result := icmd.RunCmd(icmd.Cmd{
-		Command: dockerBinary, "import", "-", "repo/testexp:v1",
-		Stdin: strings.NewReader(resultCat.Combined()),
+		Command: []string{dockerBinary, "import", "-", "repo/testexp:v1"},
+		Stdin:   strings.NewReader(resultCat.Combined()),
 	})
 	result.Assert(c, icmd.Success)
 

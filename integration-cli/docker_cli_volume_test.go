@@ -229,7 +229,7 @@ func (s *DockerSuite) TestVolumeCLIRm(c *check.C) {
 
 	icmd.RunCommand(dockerBinary, "volume", "rm", "testing").Assert(c, icmd.Expected{
 		ExitCode: 1,
-		Error: "exit status 1",
+		Error:    "exit status 1",
 	})
 
 	out, _ = dockerCmd(c, "run", "--volumes-from=test", "--name=test2", "busybox", "sh", "-c", "cat /foo/bar")

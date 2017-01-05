@@ -865,7 +865,7 @@ func (s *DockerSuite) TestRunEnvironmentErase(c *check.C) {
 
 	result := icmd.RunCmd(icmd.Cmd{
 		Command: []string{dockerBinary, "run", "-e", "FOO", "-e", "HOSTNAME", "busybox", "env"},
-		Env: appendBaseEnd(true),
+		Env:     appendBaseEnv(true),
 	})
 	result.Assert(c, icmd.Success)
 
@@ -897,7 +897,7 @@ func (s *DockerSuite) TestRunEnvironmentOverride(c *check.C) {
 
 	result := icmd.RunCmd(icmd.Cmd{
 		Command: []string{dockerBinary, "run", "-e", "HOSTNAME", "-e", "HOME=/root2", "busybox", "env"},
-		Env: appendBaseEnv(true, "HOSTNAME=bar"),
+		Env:     appendBaseEnv(true, "HOSTNAME=bar"),
 	})
 	result.Assert(c, icmd.Success)
 
@@ -3262,30 +3262,11 @@ func (s *DockerTrustSuite) TestTrustedRun(c *check.C) {
 	repoName := s.setupTrustedImage(c, "trusted-run")
 
 	// Try run
-	runCmd := exec.Command(dockerBinary, "run", repoName)
-	s.trustedCmd(runCmd)
-	out, _, err := runCommandWithOutput(runCmd)
-	if err != nil {
-		c.Fatalf("Error running trusted run: %s\n%s\n", err, out)
-	}
-
-	if !strings.Contains(string(out), "Tagging") {
-		c.Fatalf("Missing expected output on trusted push:\n%s", out)
-	}
-
+	icmd.RunCmd(icmd.Command(dockerBinary, "run", repoName), trustedCmd).Assert(c, SuccessTagging)
 	dockerCmd(c, "rmi", repoName)
 
 	// Try untrusted run to ensure we pushed the tag to the registry
-	runCmd = exec.Command(dockerBinary, "run", "--disable-content-trust=true", repoName)
-	s.trustedCmd(runCmd)
-	out, _, err = runCommandWithOutput(runCmd)
-	if err != nil {
-		c.Fatalf("Error running trusted run: %s\n%s", err, out)
-	}
-
-	if !strings.Contains(string(out), "Status: Downloaded") {
-		c.Fatalf("Missing expected output on trusted run with --disable-content-trust:\n%s", out)
-	}
+	icmd.RunCmd(icmd.Command(dockerBinary, "run", "--disable-content-trust=true", repoName), trustedCmd).Assert(c, SuccessDownloadedOnStderr)
 }
 
 func (s *DockerTrustSuite) TestUntrustedRun(c *check.C) {
@@ -3298,16 +3279,10 @@ func (s *DockerTrustSuite) TestUntrustedRun(c *check.C) {
 	dockerCmd(c, "rmi", repoName)
 
 	// Try trusted run on untrusted tag
-	runCmd := exec.Command(dockerBinary, "run", repoName)
-	s.trustedCmd(runCmd)
-	out, _, err := runCommandWithOutput(runCmd)
-	if err == nil {
-		c.Fatalf("Error expected when running trusted run with:\n%s", out)
-	}
-
-	if !strings.Contains(string(out), "does not have trust data for") {
-		c.Fatalf("Missing expected output on trusted run:\n%s", out)
-	}
+	icmd.RunCmd(icmd.Command(dockerBinary, "run", repoName), trustedCmd).Assert(c, icmd.Expected{
+		ExitCode: 125,
+		Err:      "does not have trust data for",
+	})
 }
 
 func (s *DockerTrustSuite) TestRunWhenCertExpired(c *check.C) {
@@ -3321,30 +3296,19 @@ func (s *DockerTrustSuite) TestRunWhenCertExpired(c *check.C) {
 
 	testutil.RunAtDifferentDate(elevenYearsFromNow, func() {
 		// Try run
-		runCmd := exec.Command(dockerBinary, "run", repoName)
-		s.trustedCmd(runCmd)
-		out, _, err := runCommandWithOutput(runCmd)
-		if err == nil {
-			c.Fatalf("Error running trusted run in the distant future: %s\n%s", err, out)
-		}
-
-		if !strings.Contains(string(out), "could not validate the path to a trusted root") {
-			c.Fatalf("Missing expected output on trusted run in the distant future:\n%s", out)
-		}
+		icmd.RunCmd(icmd.Cmd{
+			Command: []string{dockerBinary, "run", repoName},
+		}, trustedCmd).Assert(c, icmd.Expected{
+			ExitCode: 1,
+			Err:      "could not validate the path to a trusted root",
+		})
 	})
 
 	testutil.RunAtDifferentDate(elevenYearsFromNow, func() {
 		// Try run
-		runCmd := exec.Command(dockerBinary, "run", "--disable-content-trust", repoName)
-		s.trustedCmd(runCmd)
-		out, _, err := runCommandWithOutput(runCmd)
-		if err != nil {
-			c.Fatalf("Error running untrusted run in the distant future: %s\n%s", err, out)
-		}
-
-		if !strings.Contains(string(out), "Status: Downloaded") {
-			c.Fatalf("Missing expected output on untrusted run in the distant future:\n%s", out)
-		}
+		icmd.RunCmd(icmd.Cmd{
+			Command: []string{dockerBinary, "run", "--disable-content-trust", repoName},
+		}, trustedCmd).Assert(c, SuccessDownloaded)
 	})
 }
 
@@ -3360,30 +3324,11 @@ func (s *DockerTrustSuite) TestTrustedRunFromBadTrustServer(c *check.C) {
 	// tag the image and upload it to the private registry
 	dockerCmd(c, "tag", "busybox", repoName)
 
-	pushCmd := exec.Command(dockerBinary, "push", repoName)
-	s.trustedCmd(pushCmd)
-	out, _, err := runCommandWithOutput(pushCmd)
-	if err != nil {
-		c.Fatalf("Error running trusted push: %s\n%s", err, out)
-	}
-	if !strings.Contains(string(out), "Signing and pushing trust metadata") {
-		c.Fatalf("Missing expected output on trusted push:\n%s", out)
-	}
-
+	icmd.RunCmd(icmd.Command(dockerBinary, "push", repoName), trustedCmd).Assert(c, SuccessSigningAndPushing)
 	dockerCmd(c, "rmi", repoName)
 
 	// Try run
-	runCmd := exec.Command(dockerBinary, "run", repoName)
-	s.trustedCmd(runCmd)
-	out, _, err = runCommandWithOutput(runCmd)
-	if err != nil {
-		c.Fatalf("Error running trusted run: %s\n%s", err, out)
-	}
-
-	if !strings.Contains(string(out), "Tagging") {
-		c.Fatalf("Missing expected output on trusted push:\n%s", out)
-	}
-
+	icmd.RunCmd(icmd.Command(dockerBinary, "run", repoName), trustedCmd).Assert(c, SuccessTagging)
 	dockerCmd(c, "rmi", repoName)
 
 	// Kill the notary server, start a new "evil" one.
@@ -3398,27 +3343,13 @@ func (s *DockerTrustSuite) TestTrustedRunFromBadTrustServer(c *check.C) {
 	dockerCmd(c, "--config", evilLocalConfigDir, "tag", "busybox", repoName)
 
 	// Push up to the new server
-	pushCmd = exec.Command(dockerBinary, "--config", evilLocalConfigDir, "push", repoName)
-	s.trustedCmd(pushCmd)
-	out, _, err = runCommandWithOutput(pushCmd)
-	if err != nil {
-		c.Fatalf("Error running trusted push: %s\n%s", err, out)
-	}
-	if !strings.Contains(string(out), "Signing and pushing trust metadata") {
-		c.Fatalf("Missing expected output on trusted push:\n%s", out)
-	}
+	icmd.RunCmd(icmd.Command(dockerBinary, "--config", evilLocalConfigDir, "push", repoName), trustedCmd).Assert(c, SuccessSigningAndPushing)
 
 	// Now, try running with the original client from this new trust server. This should fail because the new root is invalid.
-	runCmd = exec.Command(dockerBinary, "run", repoName)
-	s.trustedCmd(runCmd)
-	out, _, err = runCommandWithOutput(runCmd)
-
-	if err == nil {
-		c.Fatalf("Continuing with cached data even though it's an invalid root rotation: %s\n%s", err, out)
-	}
-	if !strings.Contains(out, "could not rotate trust to a new trusted root") {
-		c.Fatalf("Missing expected output on trusted run:\n%s", out)
-	}
+	icmd.RunCmd(icmd.Command(dockerBinary, "run", repoName), trustedCmd).Assert(c, icmd.Expected{
+		ExitCode: 125,
+		Err:      "could not rotate trust to a new trusted root",
+	})
 }
 
 func (s *DockerSuite) TestPtraceContainerProcsFromHost(c *check.C) {
@@ -4007,7 +3938,7 @@ func (s *DockerSuite) TestRunNonExecutableCmd(c *check.C) {
 	name := "testNonExecutableCmd"
 	icmd.RunCommand(dockerBinary, "run", "--name", name, "busybox", "foo").Assert(c, icmd.Expected{
 		ExitCode: 127,
-		Error: "exit status 127",
+		Error:    "exit status 127",
 	})
 }
 
@@ -4016,7 +3947,7 @@ func (s *DockerSuite) TestRunNonExistingCmd(c *check.C) {
 	name := "testNonExistingCmd"
 	icmd.RunCommand(dockerBinary, "run", "--name", name, "busybox", "/bin/foo").Assert(c, icmd.Expected{
 		ExitCode: 127,
-		Error: "exit status 127",
+		Error:    "exit status 127",
 	})
 }
 
@@ -4031,7 +3962,7 @@ func (s *DockerSuite) TestCmdCannotBeInvoked(c *check.C) {
 	name := "testCmdCannotBeInvoked"
 	icmd.RunCommand(dockerBinary, "run", "--name", name, "busybox", "/etc").Assert(c, icmd.Expected{
 		ExitCode: expected,
-		Error: fmt.Sprintf("exit status %d", expected),
+		Error:    fmt.Sprintf("exit status %d", expected),
 	})
 }
 
@@ -4040,7 +3971,7 @@ func (s *DockerSuite) TestCmdCannotBeInvoked(c *check.C) {
 func (s *DockerSuite) TestRunNonExistingImage(c *check.C) {
 	icmd.RunCommand(dockerBinary, "run", "foo").Assert(c, icmd.Expected{
 		ExitCode: 125,
-		Err: "Unable to find image",
+		Err:      "Unable to find image",
 	})
 }
 
@@ -4049,7 +3980,7 @@ func (s *DockerSuite) TestRunNonExistingImage(c *check.C) {
 func (s *DockerSuite) TestDockerFails(c *check.C) {
 	icmd.RunCommand(dockerBinary, "run", "-foo", "busybox").Assert(c, icmd.Expected{
 		ExitCode: 125,
-		Error: "exit status 125",
+		Error:    "exit status 125",
 	})
 }
 

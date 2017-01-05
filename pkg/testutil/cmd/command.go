@@ -215,8 +215,16 @@ type Cmd struct {
 	Env     []string
 }
 
+// Command create a simple Cmd with the specified command and arguments
+func Command(command string, args ...string) Cmd {
+	return Cmd{Command: append([]string{command}, args...)}
+}
+
 // RunCmd runs a command and returns a Result
-func RunCmd(cmd Cmd) *Result {
+func RunCmd(cmd Cmd, cmdOperators ...func(*Cmd)) *Result {
+	for _, op := range cmdOperators {
+		op(&cmd)
+	}
 	result := StartCmd(cmd)
 	if result.Error != nil {
 		return result
@@ -226,7 +234,7 @@ func RunCmd(cmd Cmd) *Result {
 
 // RunCommand parses a command line and runs it, returning a result
 func RunCommand(command string, args ...string) *Result {
-	return RunCmd(Cmd{Command: append([]string{command}, args...)})
+	return RunCmd(Command(command, args...))
 }
 
 // StartCmd starts a command, but doesn't wait for it to finish

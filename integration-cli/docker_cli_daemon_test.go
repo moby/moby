@@ -1945,7 +1945,7 @@ func (s *DockerDaemonSuite) TestDaemonRestartWithKilledRunningContainer(t *check
 	}
 
 	// kill the container
-	icmd.RunCommand(ctrBinary, "--address", "unix:///var/run/docker/libcontainerd/docker-containerd.sock", "containers", "kill", cid).Assert(c, icmd.Success)
+	icmd.RunCommand(ctrBinary, "--address", "unix:///var/run/docker/libcontainerd/docker-containerd.sock", "containers", "kill", cid).Assert(t, icmd.Success)
 
 	// Give time to containerd to process the command if we don't
 	// the exit event might be received after we do the inspect

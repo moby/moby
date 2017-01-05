@@ -103,7 +103,7 @@ func (s *DockerSuite) TestBuildAddChangeOwnership(c *check.C) {
 
 		icmd.RunCmd(icmd.Cmd{
 			Command: []string{"chown", "daemon:daemon", "foo"},
-			Dir: tmpDir,
+			Dir:     tmpDir,
 		}).Assert(c, icmd.Success)
 
 		if err := ioutil.WriteFile(filepath.Join(tmpDir, "Dockerfile"), []byte(dockerfile), 0644); err != nil {

@@ -909,7 +909,7 @@ func (s *DockerSuite) TestRunSysctls(c *check.C) {
 
 	icmd.RunCommand(dockerBinary, "run", "--sysctl", "kernel.foobar=1", "--name", "test2",
 		"busybox", "cat", "/proc/sys/kernel/foobar").Assert(c, icmd.Expected{
-		ExitCode: 1,
+		ExitCode: 125,
 		Err:      "invalid argument",
 	})
 }
@@ -939,7 +939,7 @@ func (s *DockerSuite) TestRunSeccompProfileDenyUnshare(c *check.C) {
 		"--security-opt", "seccomp="+tmpFile.Name(),
 		"debian:jessie", "unshare", "-p", "-m", "-f", "-r", "mount", "-t", "proc", "none", "/proc").Assert(c, icmd.Expected{
 		ExitCode: 1,
-		Err: "Operation not permitted",
+		Err:      "Operation not permitted",
 	})
 }
 
@@ -973,7 +973,7 @@ func (s *DockerSuite) TestRunSeccompProfileDenyChmod(c *check.C) {
 	icmd.RunCommand(dockerBinary, "run", "--security-opt", "seccomp="+tmpFile.Name(),
 		"busybox", "chmod", "400", "/etc/hostname").Assert(c, icmd.Expected{
 		ExitCode: 1,
-		Err: "Operation not permitted",
+		Err:      "Operation not permitted",
 	})
 }
 
@@ -1011,7 +1011,7 @@ func (s *DockerSuite) TestRunSeccompProfileDenyUnshareUserns(c *check.C) {
 		"--security-opt", "apparmor=unconfined", "--security-opt", "seccomp="+tmpFile.Name(),
 		"debian:jessie", "unshare", "--map-root-user", "--user", "sh", "-c", "whoami").Assert(c, icmd.Expected{
 		ExitCode: 1,
-		Err: "Operation not permitted",
+		Err:      "Operation not permitted",
 	})
 }
 
@@ -1023,7 +1023,7 @@ func (s *DockerSuite) TestRunSeccompProfileDenyCloneUserns(c *check.C) {
 
 	icmd.RunCommand(dockerBinary, "run", "syscall-test", "userns-test", "id").Assert(c, icmd.Expected{
 		ExitCode: 1,
-		Err: "clone failed: Operation not permitted",
+		Err:      "clone failed: Operation not permitted",
 	})
 }
 
@@ -1152,16 +1152,16 @@ func (s *DockerSuite) TestUserNoEffectiveCapabilitiesChown(c *check.C) {
 	ensureSyscallTest(c)
 
 	// test that a root user has default capability CAP_CHOWN
-	dockerCmd("run", "busybox", "chown", "100", "/tmp")
+	dockerCmd(c, "run", "busybox", "chown", "100", "/tmp")
 	// test that non root user does not have default capability CAP_CHOWN
 	icmd.RunCommand(dockerBinary, "run", "--user", "1000:1000", "busybox", "chown", "100", "/tmp").Assert(c, icmd.Expected{
 		ExitCode: 1,
-		Err: "Operation not permitted",
+		Err:      "Operation not permitted",
 	})
 	// test that root user can drop default capability CAP_CHOWN
 	icmd.RunCommand(dockerBinary, "run", "--cap-drop", "chown", "busybox", "chown", "100", "/tmp").Assert(c, icmd.Expected{
 		ExitCode: 1,
-		Err: "Operation not permitted",
+		Err:      "Operation not permitted",
 	})
 }
 
@@ -1170,11 +1170,11 @@ func (s *DockerSuite) TestUserNoEffectiveCapabilitiesDacOverride(c *check.C) {
 	ensureSyscallTest(c)
 
 	// test that a root user has default capability CAP_DAC_OVERRIDE
-	dockerCmd("run", "busybox", "sh", "-c", "echo test > /etc/passwd")
+	dockerCmd(c, "run", "busybox", "sh", "-c", "echo test > /etc/passwd")
 	// test that non root user does not have default capability CAP_DAC_OVERRIDE
 	icmd.RunCommand(dockerBinary, "run", "--user", "1000:1000", "busybox", "sh", "-c", "echo test > /etc/passwd").Assert(c, icmd.Expected{
 		ExitCode: 1,
-		Err: "Permission denied",
+		Err:      "Permission denied",
 	})
 }
 
@@ -1183,11 +1183,11 @@ func (s *DockerSuite) TestUserNoEffectiveCapabilitiesFowner(c *check.C) {
 	ensureSyscallTest(c)
 
 	// test that a root user has default capability CAP_FOWNER
-	dockerCmd("run", "busybox", "chmod", "777", "/etc/passwd")
+	dockerCmd(c, "run", "busybox", "chmod", "777", "/etc/passwd")
 	// test that non root user does not have default capability CAP_FOWNER
 	icmd.RunCommand(dockerBinary, "run", "--user", "1000:1000", "busybox", "chmod", "777", "/etc/passwd").Assert(c, icmd.Expected{
 		ExitCode: 1,
-		Err: "Operation not permitted",
+		Err:      "Operation not permitted",
 	})
 	// TODO test that root user can drop default capability CAP_FOWNER
 }
@@ -1199,16 +1199,16 @@ func (s *DockerSuite) TestUserNoEffectiveCapabilitiesSetuid(c *check.C) {
 	ensureSyscallTest(c)
 
 	// test that a root user has default capability CAP_SETUID
-	dockerCmd("run", "syscall-test", "setuid-test")
+	dockerCmd(c, "run", "syscall-test", "setuid-test")
 	// test that non root user does not have default capability CAP_SETUID
 	icmd.RunCommand(dockerBinary, "run", "--user", "1000:1000", "syscall-test", "setuid-test").Assert(c, icmd.Expected{
 		ExitCode: 1,
-		Err: "Operation not permitted",
+		Err:      "Operation not permitted",
 	})
 	// test that root user can drop default capability CAP_SETUID
 	icmd.RunCommand(dockerBinary, "run", "--cap-drop", "setuid", "syscall-test", "setuid-test").Assert(c, icmd.Expected{
 		ExitCode: 1,
-		Err: "Operation not permitted",
+		Err:      "Operation not permitted",
 	})
 }
 
@@ -1217,16 +1217,16 @@ func (s *DockerSuite) TestUserNoEffectiveCapabilitiesSetgid(c *check.C) {
 	ensureSyscallTest(c)
 
 	// test that a root user has default capability CAP_SETGID
-	dockerCmd("run", "syscall-test", "setgid-test")
+	dockerCmd(c, "run", "syscall-test", "setgid-test")
 	// test that non root user does not have default capability CAP_SETGID
 	icmd.RunCommand(dockerBinary, "run", "--user", "1000:1000", "syscall-test", "setgid-test").Assert(c, icmd.Expected{
 		ExitCode: 1,
-		Err: "Operation not permitted",
+		Err:      "Operation not permitted",
 	})
 	// test that root user can drop default capability CAP_SETGID
 	icmd.RunCommand(dockerBinary, "run", "--cap-drop", "setgid", "syscall-test", "setgid-test").Assert(c, icmd.Expected{
 		ExitCode: 1,
-		Err: "Operation not permitted",
+		Err:      "Operation not permitted",
 	})
 }
 
@@ -1237,16 +1237,16 @@ func (s *DockerSuite) TestUserNoEffectiveCapabilitiesNetBindService(c *check.C) 
 	ensureSyscallTest(c)
 
 	// test that a root user has default capability CAP_NET_BIND_SERVICE
-	dockerCmd("run", "syscall-test", "socket-test")
+	dockerCmd(c, "run", "syscall-test", "socket-test")
 	// test that non root user does not have default capability CAP_NET_BIND_SERVICE
 	icmd.RunCommand(dockerBinary, "run", "--user", "1000:1000", "syscall-test", "socket-test").Assert(c, icmd.Expected{
 		ExitCode: 1,
-		Err: "Permission denied",
+		Err:      "Permission denied",
 	})
 	// test that root user can drop default capability CAP_NET_BIND_SERVICE
 	icmd.RunCommand(dockerBinary, "run", "--cap-drop", "net_bind_service", "syscall-test", "socket-test").Assert(c, icmd.Expected{
 		ExitCode: 1,
-		Err: "Permission denied",
+		Err:      "Permission denied",
 	})
 }
 
@@ -1255,16 +1255,16 @@ func (s *DockerSuite) TestUserNoEffectiveCapabilitiesNetRaw(c *check.C) {
 	ensureSyscallTest(c)
 
 	// test that a root user has default capability CAP_NET_RAW
-	dockerCmd("run", "syscall-test", "raw-test")
+	dockerCmd(c, "run", "syscall-test", "raw-test")
 	// test that non root user does not have default capability CAP_NET_RAW
 	icmd.RunCommand(dockerBinary, "run", "--user", "1000:1000", "syscall-test", "raw-test").Assert(c, icmd.Expected{
 		ExitCode: 1,
-		Err: "Operation not permitted",
+		Err:      "Operation not permitted",
 	})
 	// test that root user can drop default capability CAP_NET_RAW
 	icmd.RunCommand(dockerBinary, "run", "--cap-drop", "net_raw", "syscall-test", "raw-test").Assert(c, icmd.Expected{
 		ExitCode: 1,
-		Err: "Operation not permitted",
+		Err:      "Operation not permitted",
 	})
 }
 
@@ -1273,16 +1273,16 @@ func (s *DockerSuite) TestUserNoEffectiveCapabilitiesChroot(c *check.C) {
 	ensureSyscallTest(c)
 
 	// test that a root user has default capability CAP_SYS_CHROOT
-	dockerCmd("run", "busybox", "chroot", "/", "/bin/true")
+	dockerCmd(c, "run", "busybox", "chroot", "/", "/bin/true")
 	// test that non root user does not have default capability CAP_SYS_CHROOT
 	icmd.RunCommand(dockerBinary, "run", "--user", "1000:1000", "busybox", "chroot", "/", "/bin/true").Assert(c, icmd.Expected{
 		ExitCode: 1,
-		Err: "Operation not permitted",
+		Err:      "Operation not permitted",
 	})
 	// test that root user can drop default capability CAP_SYS_CHROOT
 	icmd.RunCommand(dockerBinary, "run", "--cap-drop", "sys_chroot", "busybox", "chroot", "/", "/bin/true").Assert(c, icmd.Expected{
 		ExitCode: 1,
-		Err: "Operation not permitted",
+		Err:      "Operation not permitted",
 	})
 }
 
@@ -1291,17 +1291,17 @@ func (s *DockerSuite) TestUserNoEffectiveCapabilitiesMknod(c *check.C) {
 	ensureSyscallTest(c)
 
 	// test that a root user has default capability CAP_MKNOD
-	dockerCmd("run", "busybox", "mknod", "/tmp/node", "b", "1", "2")
+	dockerCmd(c, "run", "busybox", "mknod", "/tmp/node", "b", "1", "2")
 	// test that non root user does not have default capability CAP_MKNOD
 	// test that root user can drop default capability CAP_SYS_CHROOT
 	icmd.RunCommand(dockerBinary, "run", "--user", "1000:1000", "busybox", "mknod", "/tmp/node", "b", "1", "2").Assert(c, icmd.Expected{
 		ExitCode: 1,
-		Err: "Operation not permitted",
+		Err:      "Operation not permitted",
 	})
 	// test that root user can drop default capability CAP_MKNOD
 	icmd.RunCommand(dockerBinary, "run", "--cap-drop", "mknod", "busybox", "mknod", "/tmp/node", "b", "1", "2").Assert(c, icmd.Expected{
 		ExitCode: 1,
-		Err: "Operation not permitted",
+		Err:      "Operation not permitted",
 	})
 }
 
@@ -1315,13 +1315,13 @@ func (s *DockerSuite) TestRunApparmorProcDirectory(c *check.C) {
 	result := icmd.RunCommand(dockerBinary, "run", "--security-opt", "seccomp=unconfined", "busybox", "chmod", "777", "/proc/1/cgroup")
 	result.Assert(c, icmd.Expected{ExitCode: 1})
 	if !(strings.Contains(result.Combined(), "Permission denied") || strings.Contains(result.Combined(), "Operation not permitted")) {
-		c.Fatalf("expected chmod 777 /proc/1/cgroup to fail, got %s: %v", result.Combined(), err)
+		c.Fatalf("expected chmod 777 /proc/1/cgroup to fail, got %s: %v", result.Combined(), result.Error)
 	}
 
 	result = icmd.RunCommand(dockerBinary, "run", "--security-opt", "seccomp=unconfined", "busybox", "chmod", "777", "/proc/1/attr/current")
 	result.Assert(c, icmd.Expected{ExitCode: 1})
 	if !(strings.Contains(result.Combined(), "Permission denied") || strings.Contains(result.Combined(), "Operation not permitted")) {
-		c.Fatalf("expected chmod 777 /proc/1/attr/current to fail, got %s: %v", result.Combined(), err)
+		c.Fatalf("expected chmod 777 /proc/1/attr/current to fail, got %s: %v", result.Combined(), result.Error)
 	}
 }
 

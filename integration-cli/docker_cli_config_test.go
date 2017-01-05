@@ -5,15 +5,14 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/integration-cli/checker"
-	icmd "github.com/docker/docker/pkg/testutil/cmd"
 	"github.com/docker/docker/pkg/homedir"
+	icmd "github.com/docker/docker/pkg/testutil/cmd"
 	"github.com/go-check/check"
 )
 
@@ -53,7 +52,10 @@ func (s *DockerSuite) TestConfigHTTPHeader(c *check.C) {
 	c.Assert(err, checker.IsNil)
 
 	result := icmd.RunCommand(dockerBinary, "-H="+server.URL[7:], "ps")
-	result.Assert(c, icmd.Success)
+	result.Assert(c, icmd.Expected{
+		ExitCode: 1,
+		Error:    "exit status 1",
+	})
 
 	c.Assert(headers["User-Agent"], checker.NotNil, check.Commentf("Missing User-Agent"))
 
@@ -73,9 +75,9 @@ func (s *DockerSuite) TestConfigDir(c *check.C) {
 	dockerCmd(c, "--config", cDir, "ps")
 
 	// Test with env var too
-	icmd.RunCmd(icm.Cmd{
+	icmd.RunCmd(icmd.Cmd{
 		Command: []string{dockerBinary, "ps"},
-		Env: appendBaseEnv(true, "DOCKER_CONFIG="+cDir),
+		Env:     appendBaseEnv(true, "DOCKER_CONFIG="+cDir),
 	}).Assert(c, icmd.Success)
 
 	// Start a server so we can check to see if the config file was
@@ -100,36 +102,37 @@ func (s *DockerSuite) TestConfigDir(c *check.C) {
 	env := appendBaseEnv(false)
 
 	icmd.RunCmd(icmd.Cmd{
-		Command: []string{dockerBinary, "--config", cDir, "-H="+server.URL[7:], "ps"},
-		Env: env,
-	}).Assert(c, icmd.Exepected{
-		Error: "exit status 1",
+		Command: []string{dockerBinary, "--config", cDir, "-H=" + server.URL[7:], "ps"},
+		Env:     env,
+	}).Assert(c, icmd.Expected{
+		ExitCode: 1,
+		Error:    "exit status 1",
 	})
 	c.Assert(headers["Myheader"], checker.NotNil)
-	c.Assert(headers["Myheader"][0], checker.Equals, "MyValue", check.Commentf("ps3 - Missing header,out:%v", out))
+	c.Assert(headers["Myheader"][0], checker.Equals, "MyValue", check.Commentf("ps3 - Missing header"))
 
 	// Reset headers and try again using env var this time
 	headers = map[string][]string{}
 	icmd.RunCmd(icmd.Cmd{
-		Command: []string{dockerBinary, "--config", cDir, "-H="+server.URL[7:], "ps"},
-		Env: append(env, "DOCKER_CONFIG="+cDir),
-	}).Assert(c, icmd.Exepected{
-		Error: "exit status 1",
+		Command: []string{dockerBinary, "--config", cDir, "-H=" + server.URL[7:], "ps"},
+		Env:     append(env, "DOCKER_CONFIG="+cDir),
+	}).Assert(c, icmd.Expected{
+		ExitCode: 1,
 	})
 	c.Assert(headers["Myheader"], checker.NotNil)
-	c.Assert(headers["Myheader"][0], checker.Equals, "MyValue", check.Commentf("ps4 - Missing header,out:%v", out))
+	c.Assert(headers["Myheader"][0], checker.Equals, "MyValue", check.Commentf("ps4 - Missing header"))
 
 	// FIXME(vdemeester) should be a unit test
 	// Reset headers and make sure flag overrides the env var
 	headers = map[string][]string{}
 	icmd.RunCmd(icmd.Cmd{
-		Command: []string{dockerBinary, "--config", cDir, "-H="+server.URL[7:], "ps"},
-		Env: append(env, "DOCKER_CONFIG=MissingDir"),
-	}).Assert(c, icmd.Exepected{
-		Error: "exit status 1",
+		Command: []string{dockerBinary, "--config", cDir, "-H=" + server.URL[7:], "ps"},
+		Env:     append(env, "DOCKER_CONFIG=MissingDir"),
+	}).Assert(c, icmd.Expected{
+		ExitCode: 1,
 	})
 	c.Assert(headers["Myheader"], checker.NotNil)
-	c.Assert(headers["Myheader"][0], checker.Equals, "MyValue", check.Commentf("ps5 - Missing header,out:%v", out))
+	c.Assert(headers["Myheader"][0], checker.Equals, "MyValue", check.Commentf("ps5 - Missing header"))
 
 	// FIXME(vdemeester) should be a unit test
 	// Reset headers and make sure flag overrides the env var.
@@ -137,11 +140,12 @@ func (s *DockerSuite) TestConfigDir(c *check.C) {
 	// ignore - we don't want to default back to the env var.
 	headers = map[string][]string{}
 	icmd.RunCmd(icmd.Cmd{
-		Command: []string{dockerBinary, "--config", "MissingDir", "-H="+server.URL[7:], "ps"},
-		Env: append(env, "DOCKER_CONFIG="+cDir),
-	}).Assert(c, icmd.Exepected{
-		Error: "exit status 1",
+		Command: []string{dockerBinary, "--config", "MissingDir", "-H=" + server.URL[7:], "ps"},
+		Env:     append(env, "DOCKER_CONFIG="+cDir),
+	}).Assert(c, icmd.Expected{
+		ExitCode: 1,
+		Error:    "exit status 1",
 	})
 
-	c.Assert(headers["Myheader"], checker.IsNil, check.Commentf("ps6 - Headers shouldn't be the expected value,out:%v", out))
+	c.Assert(headers["Myheader"], checker.IsNil, check.Commentf("ps6 - Headers shouldn't be the expected value"))
 }
