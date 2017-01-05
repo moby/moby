@@ -212,8 +212,8 @@ A successful response is in the form:
 
 
 	{
-		Address: string
-		Data:    map[string]string
+		"Address": string
+		"Data":    map[string]string
 	}
 
 
@@ -230,7 +230,7 @@ For this API, the remote driver will receive a POST message to the URL `/IpamDri
 
     {
 		"PoolID": string
-		"Address: string
+		"Address": string
     }
     
 Where:
