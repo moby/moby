@@ -195,10 +195,11 @@ func TestResumableRequestReaderWithServerDoesntSupportByteRanges(t *testing.T) {
 	}
 	defer resreq.Close()
 
+	expectedError := "the server doesn't support byte ranges"
 	buf := make([]byte, 2)
 	_, err = resreq.Read(buf)
-	if err == nil || err.Error() != "the server doesn't support byte ranges" {
-		t.Fatalf("Expected an error 'the server doesn't support byte ranges', got %v", err)
+	if err == nil || err.Error() != expectedError {
+		t.Fatalf("Expected an error '%s', got %v", expectedError, err)
 	}
 }
 
