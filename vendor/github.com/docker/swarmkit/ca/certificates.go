@@ -69,7 +69,7 @@ const (
 	MinNodeCertExpiration = 1 * time.Hour
 )
 
-// A recoverableErr is an non-fatal error encountered signing a certificate,
+// A recoverableErr is a non-fatal error encountered signing a certificate,
 // which means that the certificate issuance may be retried at a later time.
 type recoverableErr struct {
 	err error

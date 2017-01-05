@@ -73,7 +73,7 @@ func newPortSpace(protocol api.PortConfig_Protocol) (*portSpace, error) {
 	}, nil
 }
 
-// getPortConfigkey returns a map key for doing set operations with
+// getPortConfigKey returns a map key for doing set operations with
 // ports. The key consists of name, protocol and target port which
 // uniquely identifies a port within a single Endpoint.
 func getPortConfigKey(p *api.PortConfig) api.PortConfig {
