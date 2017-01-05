@@ -100,8 +100,6 @@ func (sb *sandbox) buildHostsFile() error {
 }
 
 func (sb *sandbox) updateHostsFile(ifaceIP string) error {
-	var mhost string
-
 	if ifaceIP == "" {
 		return nil
 	}
@@ -110,11 +108,17 @@ func (sb *sandbox) updateHostsFile(ifaceIP string) error {
 		return nil
 	}
 
+	// User might have provided a FQDN in hostname or split it across hostname
+	// and domainname.  We want the FQDN and the bare hostname.
+	fqdn := sb.config.hostName
+	mhost := sb.config.hostName
 	if sb.config.domainName != "" {
-		mhost = fmt.Sprintf("%s.%s %s", sb.config.hostName, sb.config.domainName,
-			sb.config.hostName)
-	} else {
-		mhost = sb.config.hostName
+		fqdn = fmt.Sprintf("%s.%s", fqdn, sb.config.domainName)
+	}
+
+	parts := strings.SplitN(fqdn, ".", 2)
+	if len(parts) == 2 {
+		mhost = fmt.Sprintf("%s %s", fqdn, parts[0])
 	}
 
 	extraContent := []etchosts.Record{{Hosts: mhost, IP: ifaceIP}}
