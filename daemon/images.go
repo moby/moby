@@ -9,7 +9,6 @@ import (
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
-	"github.com/docker/docker/container"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	"github.com/pkg/errors"
@@ -86,7 +85,7 @@ func (daemon *Daemon) Images(imageFilters filters.Args, all bool, withExtraAttrs
 	var imagesMap map[*image.Image]*types.ImageSummary
 	var layerRefs map[layer.ChainID]int
 	var allLayers map[layer.ChainID]layer.Layer
-	var allContainers []*container.Container
+	var containerCounts map[image.ID]int64
 
 	for id, img := range allImages {
 		if beforeFilter != nil {
@@ -176,20 +175,26 @@ func (daemon *Daemon) Images(imageFilters filters.Args, all bool, withExtraAttrs
 		}
 
 		if withExtraAttrs {
-			// lazyly init variables
+			// lazily init variables
 			if imagesMap == nil {
-				allContainers = daemon.List()
 				allLayers = daemon.layerStore.Map()
 				imagesMap = make(map[*image.Image]*types.ImageSummary)
 				layerRefs = make(map[layer.ChainID]int)
+				containerCounts = make(map[image.ID]int64)
+
+				for _, c := range daemon.List() {
+					if _, ok := containerCounts[c.ImageID]; !ok {
+						containerCounts[c.ImageID] = 1
+						continue
+					}
+					containerCounts[c.ImageID]++
+				}
 			}
 
 			// Get container count
 			newImage.Containers = 0
-			for _, c := range allContainers {
-				if c.ImageID == id {
-					newImage.Containers++
-				}
+			if _, ok := containerCounts[id]; ok {
+				newImage.Containers = containerCounts[id]
 			}
 
 			// count layer references
