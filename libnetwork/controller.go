@@ -932,6 +932,7 @@ func (c *controller) NewSandbox(containerID string, options ...SandboxOption) (s
 			populatedEndpoints: map[string]struct{}{},
 			config:             containerConfig{},
 			controller:         c,
+			extDNS:             []extDNSEntry{},
 		}
 	}
 	sBox = sb

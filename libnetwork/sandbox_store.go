@@ -27,7 +27,7 @@ type sbState struct {
 	dbExists   bool
 	Eps        []epState
 	EpPriority map[string]int
-	ExtDNS     []string
+	ExtDNS     []extDNSEntry
 }
 
 func (sbs *sbState) Key() []string {
