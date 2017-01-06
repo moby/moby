@@ -6,6 +6,6 @@ All displayed information is from host's point of view.
 
 Run **docker container top** with the ps option of -x:
 
-    $ docker top 8601afda2b -x
+    $ docker container top 8601afda2b -x
     PID      TTY       STAT       TIME         COMMAND
     16623    ?         Ss         0:00         sleep 99999
