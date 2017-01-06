@@ -55,7 +55,7 @@ func (s *DockerSwarmSuite) TestSecretCreateWithLabels(c *check.C) {
 func (s *DockerSwarmSuite) TestSecretCreateResolve(c *check.C) {
 	d := s.AddDaemon(c, true, true)
 
-	name := "foo"
+	name := "test_secret"
 	id := d.CreateSecret(c, swarm.SecretSpec{
 		swarm.Annotations{
 			Name: name,
