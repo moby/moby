@@ -298,17 +298,19 @@ func workdir(b *Builder, args []string, attributes map[string]bool, original str
 	}
 	b.runConfig.Image = b.image
 
+	cmd := b.runConfig.Cmd
+	comment := "WORKDIR " + b.runConfig.WorkingDir
+	// reset the command for cache detection
+	b.runConfig.Cmd = strslice.StrSlice(append(getShell(b.runConfig), "#(nop) "+comment))
+	defer func(cmd strslice.StrSlice) { b.runConfig.Cmd = cmd }(cmd)
+
 	if hit, err := b.probeCache(); err != nil {
 		return err
 	} else if hit {
 		return nil
 	}
 
-	// Actually copy the struct
-	workdirConfig := *b.runConfig
-	workdirConfig.Cmd = strslice.StrSlice(append(getShell(b.runConfig), fmt.Sprintf("#(nop) WORKDIR %s", b.runConfig.WorkingDir)))
-
-	container, err := b.docker.ContainerCreate(types.ContainerCreateConfig{Config: &workdirConfig})
+	container, err := b.docker.ContainerCreate(types.ContainerCreateConfig{Config: b.runConfig})
 	if err != nil {
 		return err
 	}
@@ -317,7 +319,7 @@ func workdir(b *Builder, args []string, attributes map[string]bool, original str
 		return err
 	}
 
-	return b.commit(container.ID, b.runConfig.Cmd, "WORKDIR "+b.runConfig.WorkingDir)
+	return b.commit(container.ID, cmd, comment)
 }
 
 // RUN some command yo
