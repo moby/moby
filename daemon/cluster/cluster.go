@@ -1072,10 +1072,8 @@ func (c *Cluster) RemoveService(input string) error {
 		return err
 	}
 
-	if _, err := state.controlClient.RemoveService(ctx, &swarmapi.RemoveServiceRequest{ServiceID: service.ID}); err != nil {
-		return err
-	}
-	return nil
+	_, err = state.controlClient.RemoveService(ctx, &swarmapi.RemoveServiceRequest{ServiceID: service.ID})
+	return err
 }
 
 // ServiceLogs collects service logs and writes them back to `config.OutStream`
@@ -1268,10 +1266,8 @@ func (c *Cluster) RemoveNode(input string, force bool) error {
 		return err
 	}
 
-	if _, err := state.controlClient.RemoveNode(ctx, &swarmapi.RemoveNodeRequest{NodeID: node.ID, Force: force}); err != nil {
-		return err
-	}
-	return nil
+	_, err = state.controlClient.RemoveNode(ctx, &swarmapi.RemoveNodeRequest{NodeID: node.ID, Force: force})
+	return err
 }
 
 // GetTasks returns a list of tasks matching the filter options.
@@ -1594,10 +1590,8 @@ func (c *Cluster) RemoveNetwork(input string) error {
 		return err
 	}
 
-	if _, err := state.controlClient.RemoveNetwork(ctx, &swarmapi.RemoveNetworkRequest{NetworkID: network.ID}); err != nil {
-		return err
-	}
-	return nil
+	_, err = state.controlClient.RemoveNetwork(ctx, &swarmapi.RemoveNetworkRequest{NetworkID: network.ID})
+	return err
 }
 
 func (c *Cluster) populateNetworkID(ctx context.Context, client swarmapi.ControlClient, s *types.ServiceSpec) error {
