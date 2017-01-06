@@ -15,8 +15,8 @@ import (
 
 var (
 	pluginProcessName = "sample-volume-plugin"
-	pName             = "tonistiigi/sample-volume-plugin"
-	npName            = "tonistiigi/test-docker-netplugin"
+	pName             = "tiborvass/sample-volume-plugin"
+	npName            = "tiborvass/test-docker-netplugin"
 	pTag              = "latest"
 	pNameWithTag      = pName + ":" + pTag
 	npNameWithTag     = npName + ":" + pTag
