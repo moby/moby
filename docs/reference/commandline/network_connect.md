@@ -23,8 +23,8 @@ Connect a container to a network
 Options:
       --alias value           Add network-scoped alias for the container (default [])
       --help                  Print usage
-      --ip string             IP Address
-      --ip6 string            IPv6 Address
+      --ip string             IPv4 address (e.g., 172.30.100.104)
+      --ip6 string            IPv6 address (e.g., 2001:db8::33)
       --link value            Add link to another container (default [])
       --link-local-ip value   Add a link-local address for the container (default [])
 ```
