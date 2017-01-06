@@ -102,7 +102,7 @@ To manually remove all plugins and resolve this problem, take the following step
 * Remove `--name` from `docker volume create` [#23830](https://github.com/docker/docker/pull/23830)
 + Add `docker stack ls` [#23886](https://github.com/docker/docker/pull/23886)
 + Add a new `is-task` ps filter [#24411](https://github.com/docker/docker/pull/24411)
-+ Add `--env-file` flag to `docker create service` [#24844](https://github.com/docker/docker/pull/24844)
++ Add `--env-file` flag to `docker service create` [#24844](https://github.com/docker/docker/pull/24844)
 + Add `--format` on `docker stats` [#24987](https://github.com/docker/docker/pull/24987)
 + Make `docker node ps` default to `self` in swarm node [#25214](https://github.com/docker/docker/pull/25214)
 + Add `--group` in `docker service create` [#25317](https://github.com/docker/docker/pull/25317)
