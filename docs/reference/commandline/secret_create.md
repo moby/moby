@@ -16,12 +16,11 @@ keywords: ["secret, create"]
 # secret create
 
 ```Markdown
-Usage:	docker secret create [OPTIONS] SECRET
+Usage:	docker secret create [OPTIONS] SECRET file|-
 
 Create a secret from a file or STDIN as content
 
 Options:
-  -f, --file string   Read from a file or STDIN ('-')
       --help          Print usage
   -l, --label list    Secret labels (default [])
 ```
@@ -34,7 +33,7 @@ command on a manager node.
 ### Create a secret
 
 ```bash
-$ echo <secret> | docker secret create -f - my_secret
+$ echo <secret> | docker secret create my_secret -
 mhv17xfe3gh6xc4rij5orpfds
 
 $ docker secret ls
@@ -45,7 +44,7 @@ mhv17xfe3gh6xc4rij5orpfds   my_secret               2016-10-27 23:25:43.90918108
 ### Create a secret with a file
 
 ```bash
-$ docker secret create -f secret.json my_secret
+$ docker secret create my_secret ./secret.json
 mhv17xfe3gh6xc4rij5orpfds
 
 $ docker secret ls
@@ -56,7 +55,7 @@ mhv17xfe3gh6xc4rij5orpfds   my_secret               2016-10-27 23:25:43.90918108
 ### Create a secret with labels
 
 ```bash
-$ docker secret create -f secret.json --label env=dev --label rev=20161102 my_secret
+$ docker secret create --label env=dev --label rev=20161102 my_secret ./secret.json
 jtn7g6aukl5ky7nr9gvwafoxh
 
 $ docker secret inspect my_secret
