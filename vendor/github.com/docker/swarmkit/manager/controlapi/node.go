@@ -146,7 +146,7 @@ func (s *Server) ListNodes(ctx context.Context, request *api.ListNodesRequest) (
 					return true
 				}
 				for _, c := range request.Filters.Roles {
-					if c == e.Spec.Role {
+					if c == e.Role {
 						return true
 					}
 				}
@@ -205,7 +205,6 @@ func (s *Server) UpdateNode(ctx context.Context, request *api.UpdateNodeRequest)
 	var (
 		node   *api.Node
 		member *membership.Member
-		demote bool
 	)
 
 	err := s.store.Update(func(tx store.Tx) error {
@@ -215,9 +214,7 @@ func (s *Server) UpdateNode(ctx context.Context, request *api.UpdateNodeRequest)
 		}
 
 		// Demotion sanity checks.
-		if node.Spec.Role == api.NodeRoleManager && request.Spec.Role == api.NodeRoleWorker {
-			demote = true
-
+		if node.Spec.DesiredRole == api.NodeRoleManager && request.Spec.DesiredRole == api.NodeRoleWorker {
 			// Check for manager entries in Store.
 			managers, err := store.FindNodes(tx, store.ByRole(api.NodeRoleManager))
 			if err != nil {
@@ -246,16 +243,6 @@ func (s *Server) UpdateNode(ctx context.Context, request *api.UpdateNodeRequest)
 		return nil, err
 	}
 
-	if demote && s.raft != nil {
-		// TODO(abronan): the remove can potentially fail and leave the node with
-		// an incorrect role (worker rather than manager), we need to reconcile the
-		// memberlist with the desired state rather than attempting to remove the
-		// member once.
-		if err := s.raft.RemoveMember(ctx, member.RaftID); err != nil {
-			return nil, grpc.Errorf(codes.Internal, "cannot demote manager to worker: %v", err)
-		}
-	}
-
 	return &api.UpdateNodeResponse{
 		Node: node,
 	}, nil
@@ -276,7 +263,7 @@ func (s *Server) RemoveNode(ctx context.Context, request *api.RemoveNodeRequest)
 		if node == nil {
 			return grpc.Errorf(codes.NotFound, "node %s not found", request.NodeID)
 		}
-		if node.Spec.Role == api.NodeRoleManager {
+		if node.Spec.DesiredRole == api.NodeRoleManager {
 			if s.raft == nil {
 				return grpc.Errorf(codes.FailedPrecondition, "node %s is a manager but cannot access node information from the raft memberlist", request.NodeID)
 			}

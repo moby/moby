@@ -1,18 +1,19 @@
 package plugin
 
 import (
+	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/distribution/digest"
 	"github.com/docker/docker/distribution/xfer"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/progress"
+	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
 	"golang.org/x/net/context"
 )
@@ -86,7 +87,7 @@ type insertion struct {
 }
 
 func newInsertion(tempFile *os.File) *insertion {
-	digester := digest.Canonical.New()
+	digester := digest.Canonical.Digester()
 	return &insertion{f: tempFile, digester: digester, Writer: io.MultiWriter(tempFile, digester.Hash())}
 }
 
@@ -141,7 +142,7 @@ func (dm *downloadManager) Download(ctx context.Context, initialRootFS image.Roo
 		if err != nil {
 			return initialRootFS, nil, err
 		}
-		digester := digest.Canonical.New()
+		digester := digest.Canonical.Digester()
 		if _, err := archive.ApplyLayer(dm.tmpDir, io.TeeReader(inflatedLayerData, digester.Hash())); err != nil {
 			return initialRootFS, nil, err
 		}
@@ -174,7 +175,7 @@ func (dm *downloadManager) Put(dt []byte) (digest.Digest, error) {
 }
 
 func (dm *downloadManager) Get(d digest.Digest) ([]byte, error) {
-	return nil, digest.ErrDigestNotFound
+	return nil, fmt.Errorf("digest not found")
 }
 func (dm *downloadManager) RootFSFromConfig(c []byte) (*image.RootFS, error) {
 	return configToRootFS(c)

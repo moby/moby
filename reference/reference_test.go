@@ -3,7 +3,7 @@ package reference
 import (
 	"testing"
 
-	"github.com/docker/distribution/digest"
+	"github.com/opencontainers/go-digest"
 )
 
 func TestValidateReferenceName(t *testing.T) {

@@ -5,8 +5,8 @@ import (
 	"os"
 	"testing"
 
-	"github.com/docker/distribution/digest"
 	"github.com/docker/docker/layer"
+	"github.com/opencontainers/go-digest"
 )
 
 func TestRestore(t *testing.T) {

@@ -112,9 +112,10 @@ type Node struct {
 
 	ticker clock.Ticker
 	doneCh chan struct{}
-	// removeRaftCh notifies about node deletion from raft cluster
-	removeRaftCh        chan struct{}
+	// RemovedFromRaft notifies about node deletion from raft cluster
+	RemovedFromRaft     chan struct{}
 	removeRaftFunc      func()
+	cancelFunc          func()
 	leadershipBroadcast *watch.Queue
 
 	// used to coordinate shutdown
@@ -134,6 +135,7 @@ type Node struct {
 	raftLogger          *storage.EncryptedRaftLogger
 	keyRotator          EncryptionKeyRotator
 	rotationQueued      bool
+	clearData           bool
 	waitForAppliedIndex uint64
 }
 
@@ -199,7 +201,7 @@ func NewNode(opts NodeOptions) *Node {
 			Logger:          cfg.Logger,
 		},
 		doneCh:              make(chan struct{}),
-		removeRaftCh:        make(chan struct{}),
+		RemovedFromRaft:     make(chan struct{}),
 		stopped:             make(chan struct{}),
 		leadershipBroadcast: watch.NewQueue(),
 		lastSendToMember:    make(map[uint64]chan struct{}),
@@ -220,7 +222,17 @@ func NewNode(opts NodeOptions) *Node {
 		var removeRaftOnce sync.Once
 		return func() {
 			removeRaftOnce.Do(func() {
-				close(n.removeRaftCh)
+				atomic.StoreUint32(&n.isMember, 0)
+				close(n.RemovedFromRaft)
+			})
+		}
+	}(n)
+
+	n.cancelFunc = func(n *Node) func() {
+		var cancelOnce sync.Once
+		return func() {
+			cancelOnce.Do(func() {
+				close(n.stopped)
 			})
 		}
 	}(n)
@@ -364,6 +376,12 @@ func (n *Node) done() {
 	close(n.doneCh)
 }
 
+// ClearData tells the raft node to delete its WALs, snapshots, and keys on
+// shutdown.
+func (n *Node) ClearData() {
+	n.clearData = true
+}
+
 // Run is the main loop for a Raft node, it goes along the state machine,
 // acting on the messages received from other Raft nodes in the cluster.
 //
@@ -373,13 +391,10 @@ func (n *Node) Run(ctx context.Context) error {
 	ctx = log.WithLogger(ctx, logrus.WithField("raft_id", fmt.Sprintf("%x", n.Config.ID)))
 	ctx, cancel := context.WithCancel(ctx)
 
-	// nodeRemoved indicates that node was stopped due its removal.
-	nodeRemoved := false
-
 	defer func() {
 		cancel()
 		n.stop(ctx)
-		if nodeRemoved {
+		if n.clearData {
 			// Delete WAL and snapshots, since they are no longer
 			// usable.
 			if err := n.raftLogger.Clear(ctx); err != nil {
@@ -501,9 +516,7 @@ func (n *Node) Run(ctx context.Context) error {
 					n.campaignWhenAble = false
 				}
 				if len(members) == 1 && members[n.Config.ID] != nil {
-					if err := n.raftNode.Campaign(ctx); err != nil {
-						panic("raft: cannot campaign to be the leader on node restore")
-					}
+					n.raftNode.Campaign(ctx)
 				}
 			}
 
@@ -536,12 +549,6 @@ func (n *Node) Run(ctx context.Context) error {
 			case n.needsSnapshot(ctx):
 				n.doSnapshot(ctx, n.getCurrentRaftConfig())
 			}
-		case <-n.removeRaftCh:
-			nodeRemoved = true
-			// If the node was removed from other members,
-			// send back an error to the caller to start
-			// the shutdown process.
-			return ErrMemberRemoved
 		case <-ctx.Done():
 			return nil
 		}
@@ -605,6 +612,15 @@ func (n *Node) getCurrentRaftConfig() api.RaftConfig {
 	return raftConfig
 }
 
+// Cancel interrupts all ongoing proposals, and prevents new ones from
+// starting. This is useful for the shutdown sequence because it allows
+// the manager to shut down raft-dependent services that might otherwise
+// block on shutdown if quorum isn't met. Then the raft node can be completely
+// shut down once no more code is using it.
+func (n *Node) Cancel() {
+	n.cancelFunc()
+}
+
 // Done returns channel which is closed when raft node is fully stopped.
 func (n *Node) Done() <-chan struct{} {
 	return n.doneCh
@@ -614,8 +630,7 @@ func (n *Node) stop(ctx context.Context) {
 	n.stopMu.Lock()
 	defer n.stopMu.Unlock()
 
-	close(n.stopped)
-
+	n.Cancel()
 	n.waitProp.Wait()
 	n.asyncTasks.Wait()
 
@@ -1240,17 +1255,6 @@ func (n *Node) IsMember() bool {
 	return atomic.LoadUint32(&n.isMember) == 1
 }
 
-// canSubmitProposal defines if any more proposals
-// could be submitted and processed.
-func (n *Node) canSubmitProposal() bool {
-	select {
-	case <-n.stopped:
-		return false
-	default:
-		return true
-	}
-}
-
 // Saves a log entry to our Store
 func (n *Node) saveToStorage(
 	ctx context.Context,
@@ -1467,11 +1471,6 @@ func (n *Node) handleAddressChange(ctx context.Context, member *membership.Membe
 	return nil
 }
 
-type applyResult struct {
-	resp proto.Message
-	err  error
-}
-
 // processInternalRaftRequest sends a message to nodes participating
 // in the raft to apply a log entry and then waits for it to be applied
 // on the server. It will block until the update is performed, there is
@@ -1479,7 +1478,7 @@ type applyResult struct {
 // shutdown.
 func (n *Node) processInternalRaftRequest(ctx context.Context, r *api.InternalRaftRequest, cb func()) (proto.Message, error) {
 	n.stopMu.RLock()
-	if !n.canSubmitProposal() {
+	if !n.IsMember() {
 		n.stopMu.RUnlock()
 		return nil, ErrStopped
 	}
@@ -1519,15 +1518,27 @@ func (n *Node) processInternalRaftRequest(ctx context.Context, r *api.InternalRa
 	}
 
 	select {
-	case x := <-ch:
-		res := x.(*applyResult)
-		return res.resp, res.err
+	case x, ok := <-ch:
+		if !ok {
+			return nil, ErrLostLeadership
+		}
+		return x.(proto.Message), nil
 	case <-waitCtx.Done():
 		n.wait.cancel(r.ID)
-		return nil, ErrLostLeadership
+		// if channel is closed, wait item was canceled, otherwise it was triggered
+		x, ok := <-ch
+		if !ok {
+			return nil, ErrLostLeadership
+		}
+		return x.(proto.Message), nil
 	case <-ctx.Done():
 		n.wait.cancel(r.ID)
-		return nil, ctx.Err()
+		// if channel is closed, wait item was canceled, otherwise it was triggered
+		x, ok := <-ch
+		if !ok {
+			return nil, ctx.Err()
+		}
+		return x.(proto.Message), nil
 	}
 }
 
@@ -1588,7 +1599,7 @@ func (n *Node) processEntry(ctx context.Context, entry raftpb.Entry) error {
 		return nil
 	}
 
-	if !n.wait.trigger(r.ID, &applyResult{resp: r, err: nil}) {
+	if !n.wait.trigger(r.ID, r) {
 		// There was no wait on this ID, meaning we don't have a
 		// transaction in progress that would be committed to the
 		// memory store by the "trigger" call. Either a different node
@@ -1713,10 +1724,10 @@ func (n *Node) applyRemoveNode(ctx context.Context, cc raftpb.ConfChange) (err e
 	}
 
 	if cc.NodeID == n.Config.ID {
-		n.removeRaftFunc()
-
 		// wait the commit ack to be sent before closing connection
 		n.asyncTasks.Wait()
+
+		n.removeRaftFunc()
 
 		// if there are only 2 nodes in the cluster, and leader is leaving
 		// before closing the connection, leader has to ensure that follower gets

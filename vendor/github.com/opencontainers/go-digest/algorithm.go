@@ -39,7 +39,7 @@ var (
 )
 
 // Available returns true if the digest type is available for use. If this
-// returns false, New and Hash will return nil.
+// returns false, Digester and Hash will return nil.
 func (a Algorithm) Available() bool {
 	h, ok := algorithms[a]
 	if !ok {
@@ -72,13 +72,17 @@ func (a *Algorithm) Set(value string) error {
 		*a = Algorithm(value)
 	}
 
+	if !a.Available() {
+		return ErrDigestUnsupported
+	}
+
 	return nil
 }
 
-// New returns a new digester for the specified algorithm. If the algorithm
+// Digester returns a new digester for the specified algorithm. If the algorithm
 // does not have a digester implementation, nil will be returned. This can be
-// checked by calling Available before calling New.
-func (a Algorithm) New() Digester {
+// checked by calling Available before calling Digester.
+func (a Algorithm) Digester() Digester {
 	return &digester{
 		alg:  a,
 		hash: a.Hash(),
@@ -89,6 +93,11 @@ func (a Algorithm) New() Digester {
 // method will panic. Check Algorithm.Available() before calling.
 func (a Algorithm) Hash() hash.Hash {
 	if !a.Available() {
+		// Empty algorithm string is invalid
+		if a == "" {
+			panic(fmt.Sprintf("empty digest algorithm, validate before calling Algorithm.Hash()"))
+		}
+
 		// NOTE(stevvooe): A missing hash is usually a programming error that
 		// must be resolved at compile time. We don't import in the digest
 		// package to allow users to choose their hash implementation (such as
@@ -104,7 +113,7 @@ func (a Algorithm) Hash() hash.Hash {
 
 // FromReader returns the digest of the reader using the algorithm.
 func (a Algorithm) FromReader(rd io.Reader) (Digest, error) {
-	digester := a.New()
+	digester := a.Digester()
 
 	if _, err := io.Copy(digester.Hash(), rd); err != nil {
 		return "", err
@@ -115,7 +124,7 @@ func (a Algorithm) FromReader(rd io.Reader) (Digest, error) {
 
 // FromBytes digests the input and returns a Digest.
 func (a Algorithm) FromBytes(p []byte) Digest {
-	digester := a.New()
+	digester := a.Digester()
 
 	if _, err := digester.Hash().Write(p); err != nil {
 		// Writes to a Hash should never fail. None of the existing
@@ -132,29 +141,4 @@ func (a Algorithm) FromBytes(p []byte) Digest {
 // FromString digests the string input and returns a Digest.
 func (a Algorithm) FromString(s string) Digest {
 	return a.FromBytes([]byte(s))
-}
-
-// TODO(stevvooe): Allow resolution of verifiers using the digest type and
-// this registration system.
-
-// Digester calculates the digest of written data. Writes should go directly
-// to the return value of Hash, while calling Digest will return the current
-// value of the digest.
-type Digester interface {
-	Hash() hash.Hash // provides direct access to underlying hash instance.
-	Digest() Digest
-}
-
-// digester provides a simple digester definition that embeds a hasher.
-type digester struct {
-	alg  Algorithm
-	hash hash.Hash
-}
-
-func (d *digester) Hash() hash.Hash {
-	return d.hash
-}
-
-func (d *digester) Digest() Digest {
-	return NewDigest(d.alg, d.hash)
 }

@@ -15,11 +15,11 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	cfconfig "github.com/cloudflare/cfssl/config"
-	"github.com/docker/distribution/digest"
 	"github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/identity"
 	"github.com/docker/swarmkit/log"
 	"github.com/docker/swarmkit/remotes"
+	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
 	"google.golang.org/grpc/credentials"
 
@@ -196,7 +196,7 @@ func getCAHashFromToken(token string) (digest.Digest, error) {
 	var digestInt big.Int
 	digestInt.SetString(split[2], joinTokenBase)
 
-	return digest.ParseDigest(fmt.Sprintf("sha256:%0[1]*s", 64, digestInt.Text(16)))
+	return digest.Parse(fmt.Sprintf("sha256:%0[1]*s", 64, digestInt.Text(16)))
 }
 
 // DownloadRootCA tries to retrieve a remote root CA and matches the digest against the provided token.

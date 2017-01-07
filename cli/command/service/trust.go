@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/distribution/digest"
 	distreference "github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/cli/command"
@@ -13,6 +12,7 @@ import (
 	"github.com/docker/docker/reference"
 	"github.com/docker/docker/registry"
 	"github.com/docker/notary/tuf/data"
+	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
 	"golang.org/x/net/context"
 )
@@ -30,7 +30,7 @@ func resolveServiceImageDigest(dockerCli *command.DockerCli, service *swarm.Serv
 	// could be parsed as a digest reference. Specifying an image ID
 	// is valid but not resolvable. There is no warning message for
 	// an image ID because it's valid to use one.
-	if _, err := digest.ParseDigest(image); err == nil {
+	if _, err := digest.Parse(image); err == nil {
 		return nil
 	}
 

@@ -8,9 +8,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/distribution/digest"
 	"github.com/docker/distribution/manifest/schema1"
 	"github.com/docker/docker/reference"
+	"github.com/opencontainers/go-digest"
 )
 
 // TestFixManifestLayers checks that fixManifestLayers removes a duplicate

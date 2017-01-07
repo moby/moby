@@ -14,7 +14,7 @@ func NodeFromGRPC(n swarmapi.Node) types.Node {
 	node := types.Node{
 		ID: n.ID,
 		Spec: types.NodeSpec{
-			Role:         types.NodeRole(strings.ToLower(n.Spec.Role.String())),
+			Role:         types.NodeRole(strings.ToLower(n.Spec.DesiredRole.String())),
 			Availability: types.NodeAvailability(strings.ToLower(n.Spec.Availability.String())),
 		},
 		Status: types.NodeStatus{
@@ -74,7 +74,7 @@ func NodeSpecToGRPC(s types.NodeSpec) (swarmapi.NodeSpec, error) {
 		},
 	}
 	if role, ok := swarmapi.NodeRole_value[strings.ToUpper(string(s.Role))]; ok {
-		spec.Role = swarmapi.NodeRole(role)
+		spec.DesiredRole = swarmapi.NodeRole(role)
 	} else {
 		return swarmapi.NodeSpec{}, fmt.Errorf("invalid Role: %q", s.Role)
 	}

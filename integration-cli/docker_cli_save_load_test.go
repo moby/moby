@@ -13,10 +13,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/docker/distribution/digest"
 	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/pkg/testutil"
 	"github.com/go-check/check"
+	"github.com/opencontainers/go-digest"
 )
 
 // save a repo using gz compression and try to load it using stdout

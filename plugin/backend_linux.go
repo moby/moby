@@ -16,7 +16,6 @@ import (
 	"strings"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/distribution/digest"
 	"github.com/docker/distribution/manifest/schema2"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/distribution"
@@ -29,6 +28,7 @@ import (
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/plugin/v2"
 	"github.com/docker/docker/reference"
+	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
 	"golang.org/x/net/context"
 )
@@ -123,7 +123,7 @@ func (s *tempConfigStore) Put(c []byte) (digest.Digest, error) {
 
 func (s *tempConfigStore) Get(d digest.Digest) ([]byte, error) {
 	if d != s.configDigest {
-		return nil, digest.ErrDigestNotFound
+		return nil, fmt.Errorf("digest not found")
 	}
 	return s.config, nil
 }
@@ -556,7 +556,7 @@ func (pm *Manager) CreateFromContext(ctx context.Context, tarCtx io.ReadCloser, 
 	}
 	defer rootFSBlob.Close()
 	gzw := gzip.NewWriter(rootFSBlob)
-	layerDigester := digest.Canonical.New()
+	layerDigester := digest.Canonical.Digester()
 	rootFSReader := io.TeeReader(rootFS, io.MultiWriter(gzw, layerDigester.Hash()))
 
 	if err := chrootarchive.Untar(rootFSReader, tmpRootFSDir, nil); err != nil {

@@ -8,7 +8,7 @@ import (
 	"os"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/distribution/digest"
+	"github.com/opencontainers/go-digest"
 	"github.com/vbatts/tar-split/tar/asm"
 	"github.com/vbatts/tar-split/tar/storage"
 )
@@ -98,7 +98,7 @@ func (ls *layerStore) ChecksumForGraphID(id, parent, oldTarDataPath, newTarDataP
 		return
 	}
 
-	dgst := digest.Canonical.New()
+	dgst := digest.Canonical.Digester()
 	err = ls.assembleTarTo(id, uncompressed, &size, dgst.Hash())
 	if err != nil {
 		return

@@ -27,7 +27,7 @@ import (
 	"path"
 	"strings"
 
-	"github.com/docker/distribution/digest"
+	"github.com/opencontainers/go-digest"
 )
 
 const (
@@ -170,7 +170,7 @@ func Parse(s string) (Reference, error) {
 	}
 	if matches[3] != "" {
 		var err error
-		ref.digest, err = digest.ParseDigest(matches[3])
+		ref.digest, err = digest.Parse(matches[3])
 		if err != nil {
 			return nil, err
 		}

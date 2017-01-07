@@ -4,7 +4,7 @@ import (
 	"io"
 	"testing"
 
-	"github.com/docker/distribution/digest"
+	"github.com/opencontainers/go-digest"
 )
 
 func TestEmptyLayer(t *testing.T) {
@@ -33,7 +33,7 @@ func TestEmptyLayer(t *testing.T) {
 		t.Fatalf("error streaming tar for empty layer: %v", err)
 	}
 
-	digester := digest.Canonical.New()
+	digester := digest.Canonical.Digester()
 	_, err = io.Copy(digester.Hash(), tarStream)
 
 	if err != nil {

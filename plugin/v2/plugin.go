@@ -5,10 +5,10 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/docker/distribution/digest"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/docker/pkg/plugins"
+	"github.com/opencontainers/go-digest"
 )
 
 // Plugin represents an individual plugin.

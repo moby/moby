@@ -5,7 +5,7 @@ import (
 	"io"
 
 	"github.com/docker/distribution"
-	"github.com/docker/distribution/digest"
+	"github.com/opencontainers/go-digest"
 )
 
 type roLayer struct {
@@ -156,14 +156,10 @@ func storeLayer(tx MetadataTransaction, layer *roLayer) error {
 }
 
 func newVerifiedReadCloser(rc io.ReadCloser, dgst digest.Digest) (io.ReadCloser, error) {
-	verifier, err := digest.NewDigestVerifier(dgst)
-	if err != nil {
-		return nil, err
-	}
 	return &verifiedReadCloser{
 		rc:       rc,
 		dgst:     dgst,
-		verifier: verifier,
+		verifier: dgst.Verifier(),
 	}, nil
 }
 

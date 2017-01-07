@@ -11,12 +11,12 @@ import (
 	"strings"
 
 	"github.com/docker/distribution"
-	"github.com/docker/distribution/digest"
 	"github.com/docker/distribution/manifest"
 	"github.com/docker/distribution/manifest/manifestlist"
 	"github.com/docker/distribution/manifest/schema2"
 	"github.com/docker/docker/integration-cli/checker"
 	"github.com/go-check/check"
+	"github.com/opencontainers/go-digest"
 )
 
 // testPullImageWithAliases pulls a specific image tag and verifies that any aliases (i.e., other

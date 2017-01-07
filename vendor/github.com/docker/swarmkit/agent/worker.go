@@ -302,15 +302,6 @@ func reconcileTaskState(ctx context.Context, w *worker, assignments []*api.Assig
 }
 
 func reconcileSecrets(ctx context.Context, w *worker, assignments []*api.AssignmentChange, fullSnapshot bool) error {
-	var secrets exec.SecretsManager
-	provider, ok := w.executor.(exec.SecretsProvider)
-	if !ok {
-		log.G(ctx).Warn("secrets update ignored; executor does not support secrets")
-		return nil
-	}
-
-	secrets = provider.Secrets()
-
 	var (
 		updatedSecrets []api.Secret
 		removedSecrets []string
@@ -326,6 +317,16 @@ func reconcileSecrets(ctx context.Context, w *worker, assignments []*api.Assignm
 
 		}
 	}
+
+	provider, ok := w.executor.(exec.SecretsProvider)
+	if !ok {
+		if len(updatedSecrets) != 0 || len(removedSecrets) != 0 {
+			log.G(ctx).Warn("secrets update ignored; executor does not support secrets")
+		}
+		return nil
+	}
+
+	secrets := provider.Secrets()
 
 	log.G(ctx).WithFields(logrus.Fields{
 		"len(updatedSecrets)": len(updatedSecrets),

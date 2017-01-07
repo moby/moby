@@ -48,6 +48,17 @@ message Node {
 
 	// Certificate is the TLS certificate issued for the node, if any.
 	Certificate certificate = 8 [(gogoproto.nullable) = false];
+
+	// Role is the *observed* role for this node. It differs from the
+	// desired role set in Node.Spec.Role because the role here is only
+	// updated after the Raft member list has been reconciled with the
+	// desired role from the spec.
+	//
+	// This field represents the current reconciled state. If an action is
+	// to be performed, first verify the role in the cert. This field only
+	// shows the privilege level that the CA would currently grant when
+	// issuing or renewing the node's certificate.
+	NodeRole role = 9;
 }
 
 message Service {
