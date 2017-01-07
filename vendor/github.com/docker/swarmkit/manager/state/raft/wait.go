@@ -55,8 +55,11 @@ func (w *wait) cancel(id uint64) {
 	waitItem, ok := w.m[id]
 	delete(w.m, id)
 	w.l.Unlock()
-	if ok && waitItem.cancel != nil {
-		waitItem.cancel()
+	if ok {
+		if waitItem.cancel != nil {
+			waitItem.cancel()
+		}
+		close(waitItem.ch)
 	}
 }
 
@@ -69,5 +72,6 @@ func (w *wait) cancelAll() {
 		if waitItem.cancel != nil {
 			waitItem.cancel()
 		}
+		close(waitItem.ch)
 	}
 }

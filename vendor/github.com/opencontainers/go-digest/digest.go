@@ -8,11 +8,6 @@ import (
 	"strings"
 )
 
-const (
-	// DigestSha256EmptyTar is the canonical sha256 digest of empty data
-	DigestSha256EmptyTar = "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
-)
-
 // Digest allows simple protection of hex formatted digest strings, prefixed
 // by their algorithm. Strings of type Digest have some guarantee of being in
 // the correct format and it provides quick access to the components of a
@@ -61,16 +56,14 @@ var (
 	ErrDigestUnsupported = fmt.Errorf("unsupported digest algorithm")
 )
 
-// ParseDigest parses s and returns the validated digest object. An error will
+// Parse parses s and returns the validated digest object. An error will
 // be returned if the format is invalid.
-func ParseDigest(s string) (Digest, error) {
+func Parse(s string) (Digest, error) {
 	d := Digest(s)
-
 	return d, d.Validate()
 }
 
-// FromReader returns the most valid digest for the underlying content using
-// the canonical digest algorithm.
+// FromReader consumes the content of rd until io.EOF, returning canonical digest.
 func FromReader(rd io.Reader) (Digest, error) {
 	return Canonical.FromReader(rd)
 }
@@ -90,28 +83,22 @@ func FromString(s string) Digest {
 func (d Digest) Validate() error {
 	s := string(d)
 
-	if !DigestRegexpAnchored.MatchString(s) {
-		return ErrDigestInvalidFormat
-	}
-
 	i := strings.Index(s, ":")
-	if i < 0 {
+
+	// validate i then run through regexp
+	if i < 0 || i+1 == len(s) || !DigestRegexpAnchored.MatchString(s) {
 		return ErrDigestInvalidFormat
 	}
 
-	// case: "sha256:" with no hex.
-	if i+1 == len(s) {
-		return ErrDigestInvalidFormat
-	}
-
-	switch algorithm := Algorithm(s[:i]); algorithm {
-	case SHA256, SHA384, SHA512:
-		if algorithm.Size()*2 != len(s[i+1:]) {
-			return ErrDigestInvalidLength
-		}
-		break
-	default:
+	algorithm := Algorithm(s[:i])
+	if !algorithm.Available() {
 		return ErrDigestUnsupported
+	}
+
+	// Digests much always be hex-encoded, ensuring that their hex portion will
+	// always be size*2
+	if algorithm.Size()*2 != len(s[i+1:]) {
+		return ErrDigestInvalidLength
 	}
 
 	return nil
@@ -121,6 +108,15 @@ func (d Digest) Validate() error {
 // the underlying digest is not in a valid format.
 func (d Digest) Algorithm() Algorithm {
 	return Algorithm(d[:d.sepIndex()])
+}
+
+// Verifier returns a writer object that can be used to verify a stream of
+// content against the digest. If the digest is invalid, the method will panic.
+func (d Digest) Verifier() Verifier {
+	return hashVerifier{
+		hash:   d.Algorithm().Hash(),
+		digest: d,
+	}
 }
 
 // Hex returns the hex digest portion of the digest. This will panic if the
@@ -137,7 +133,7 @@ func (d Digest) sepIndex() int {
 	i := strings.Index(string(d), ":")
 
 	if i < 0 {
-		panic("could not find ':' in digest: " + d)
+		panic(fmt.Sprintf("no ':' separator in digest %q", d))
 	}
 
 	return i

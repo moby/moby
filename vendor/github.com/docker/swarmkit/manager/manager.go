@@ -125,6 +125,7 @@ type Manager struct {
 	localserver            *grpc.Server
 	raftNode               *raft.Node
 	dekRotator             *RaftDEKManager
+	roleManager            *roleManager
 
 	cancelFunc context.CancelFunc
 
@@ -270,6 +271,12 @@ func New(config *Config) (*Manager, error) {
 	return m, nil
 }
 
+// RemovedFromRaft returns a channel that's closed if the manager is removed
+// from the raft cluster. This should be used to trigger a manager shutdown.
+func (m *Manager) RemovedFromRaft() <-chan struct{} {
+	return m.raftNode.RemovedFromRaft
+}
+
 // Addr returns tcp address on which remote api listens.
 func (m *Manager) Addr() string {
 	return m.config.RemoteAPI.ListenAddr
@@ -388,39 +395,26 @@ func (m *Manager) Run(parent context.Context) error {
 
 	close(m.started)
 
-	errCh := make(chan error, 1)
 	go func() {
 		err := m.raftNode.Run(ctx)
 		if err != nil {
-			errCh <- err
 			log.G(ctx).WithError(err).Error("raft node stopped")
-			m.Stop(ctx)
+			m.Stop(ctx, false)
 		}
 	}()
 
-	returnErr := func(err error) error {
-		select {
-		case runErr := <-errCh:
-			if runErr == raft.ErrMemberRemoved {
-				return runErr
-			}
-		default:
-		}
-		return err
-	}
-
 	if err := raft.WaitForLeader(ctx, m.raftNode); err != nil {
-		return returnErr(err)
+		return err
 	}
 
 	c, err := raft.WaitForCluster(ctx, m.raftNode)
 	if err != nil {
-		return returnErr(err)
+		return err
 	}
 	raftConfig := c.Spec.Raft
 
 	if err := m.watchForKEKChanges(ctx); err != nil {
-		return returnErr(err)
+		return err
 	}
 
 	if int(raftConfig.ElectionTick) != m.raftNode.Config.ElectionTick {
@@ -438,16 +432,17 @@ func (m *Manager) Run(parent context.Context) error {
 		return nil
 	}
 	m.mu.Unlock()
-	m.Stop(ctx)
+	m.Stop(ctx, false)
 
-	return returnErr(err)
+	return err
 }
 
 const stopTimeout = 8 * time.Second
 
 // Stop stops the manager. It immediately closes all open connections and
-// active RPCs as well as stopping the scheduler.
-func (m *Manager) Stop(ctx context.Context) {
+// active RPCs as well as stopping the scheduler. If clearData is set, the
+// raft logs, snapshots, and keys will be erased.
+func (m *Manager) Stop(ctx context.Context, clearData bool) {
 	log.G(ctx).Info("Stopping manager")
 	// It's not safe to start shutting down while the manager is still
 	// starting up.
@@ -472,6 +467,8 @@ func (m *Manager) Stop(ctx context.Context) {
 		close(localSrvDone)
 	}()
 
+	m.raftNode.Cancel()
+
 	m.dispatcher.Stop()
 	m.logbroker.Stop()
 	m.caserver.Stop()
@@ -494,10 +491,16 @@ func (m *Manager) Stop(ctx context.Context) {
 	if m.scheduler != nil {
 		m.scheduler.Stop()
 	}
+	if m.roleManager != nil {
+		m.roleManager.Stop()
+	}
 	if m.keyManager != nil {
 		m.keyManager.Stop()
 	}
 
+	if clearData {
+		m.raftNode.ClearData()
+	}
 	m.cancelFunc()
 	<-m.raftNode.Done()
 
@@ -778,6 +781,7 @@ func (m *Manager) becomeLeader(ctx context.Context) {
 	m.taskReaper = taskreaper.New(s)
 	m.scheduler = scheduler.New(s)
 	m.keyManager = keymanager.New(s, keymanager.DefaultConfig())
+	m.roleManager = newRoleManager(s, m.raftNode)
 
 	// TODO(stevvooe): Allocate a context that can be used to
 	// shutdown underlying manager processes when leadership is
@@ -853,6 +857,9 @@ func (m *Manager) becomeLeader(ctx context.Context) {
 		}
 	}(m.globalOrchestrator)
 
+	go func(roleManager *roleManager) {
+		roleManager.Run()
+	}(m.roleManager)
 }
 
 // becomeFollower shuts down the subsystems that are only run by the leader.
@@ -880,6 +887,9 @@ func (m *Manager) becomeFollower() {
 
 	m.scheduler.Stop()
 	m.scheduler = nil
+
+	m.roleManager.Stop()
+	m.roleManager = nil
 
 	if m.keyManager != nil {
 		m.keyManager.Stop()
@@ -937,7 +947,7 @@ func managerNode(nodeID string, availability api.NodeSpec_Availability) *api.Nod
 			},
 		},
 		Spec: api.NodeSpec{
-			Role:         api.NodeRoleManager,
+			DesiredRole:  api.NodeRoleManager,
 			Membership:   api.NodeMembershipAccepted,
 			Availability: availability,
 		},

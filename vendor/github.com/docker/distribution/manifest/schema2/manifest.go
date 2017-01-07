@@ -6,8 +6,8 @@ import (
 	"fmt"
 
 	"github.com/docker/distribution"
-	"github.com/docker/distribution/digest"
 	"github.com/docker/distribution/manifest"
+	"github.com/opencontainers/go-digest"
 )
 
 const (

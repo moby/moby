@@ -17,19 +17,6 @@ type Verifier interface {
 	Verified() bool
 }
 
-// NewDigestVerifier returns a verifier that compares the written bytes
-// against a passed in digest.
-func NewDigestVerifier(d Digest) (Verifier, error) {
-	if err := d.Validate(); err != nil {
-		return nil, err
-	}
-
-	return hashVerifier{
-		hash:   d.Algorithm().Hash(),
-		digest: d,
-	}, nil
-}
-
 type hashVerifier struct {
 	digest Digest
 	hash   hash.Hash

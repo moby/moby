@@ -250,7 +250,8 @@ func (s *Server) IssueNodeCertificate(ctx context.Context, request *api.IssueNod
 		// Create a new node
 		err := s.store.Update(func(tx store.Tx) error {
 			node := &api.Node{
-				ID: nodeID,
+				Role: role,
+				ID:   nodeID,
 				Certificate: api.Certificate{
 					CSR:  request.CSR,
 					CN:   nodeID,
@@ -260,7 +261,7 @@ func (s *Server) IssueNodeCertificate(ctx context.Context, request *api.IssueNod
 					},
 				},
 				Spec: api.NodeSpec{
-					Role:         role,
+					DesiredRole:  role,
 					Membership:   api.NodeMembershipAccepted,
 					Availability: request.Availability,
 				},
@@ -318,7 +319,7 @@ func (s *Server) issueRenewCertificate(ctx context.Context, nodeID string, csr [
 		cert = api.Certificate{
 			CSR:  csr,
 			CN:   node.ID,
-			Role: node.Spec.Role,
+			Role: node.Role,
 			Status: api.IssuanceStatus{
 				State: api.IssuanceStateRenew,
 			},

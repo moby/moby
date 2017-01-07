@@ -122,7 +122,7 @@ func NodeMatches(constraints []Constraint, n *api.Node) bool {
 				return false
 			}
 		case strings.EqualFold(constraint.key, "node.role"):
-			if !constraint.Match(n.Spec.Role.String()) {
+			if !constraint.Match(n.Role.String()) {
 				return false
 			}
 		case strings.EqualFold(constraint.key, "node.platform.os"):

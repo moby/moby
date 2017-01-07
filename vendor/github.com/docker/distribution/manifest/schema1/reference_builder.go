@@ -6,10 +6,10 @@ import (
 	"errors"
 	"github.com/docker/distribution"
 	"github.com/docker/distribution/context"
-	"github.com/docker/distribution/digest"
 	"github.com/docker/distribution/manifest"
 	"github.com/docker/distribution/reference"
 	"github.com/docker/libtrust"
+	"github.com/opencontainers/go-digest"
 )
 
 // referenceManifestBuilder is a type for constructing manifests from schema1

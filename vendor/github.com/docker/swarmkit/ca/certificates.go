@@ -20,11 +20,11 @@ import (
 	cflog "github.com/cloudflare/cfssl/log"
 	cfsigner "github.com/cloudflare/cfssl/signer"
 	"github.com/cloudflare/cfssl/signer/local"
-	"github.com/docker/distribution/digest"
 	"github.com/docker/go-events"
 	"github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/ioutils"
 	"github.com/docker/swarmkit/remotes"
+	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
@@ -486,7 +486,7 @@ func GetRemoteCA(ctx context.Context, d digest.Digest, r remotes.Remotes) (RootC
 	}
 
 	if d != "" {
-		verifier, err := digest.NewDigestVerifier(d)
+		verifier := d.Verifier()
 		if err != nil {
 			return RootCA{}, errors.Wrap(err, "unexpected error getting digest verifier")
 		}
