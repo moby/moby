@@ -1,9 +1,12 @@
 package client
 
 import (
-	"github.com/docker/docker/api/types/filters"
 	"net/url"
 	"regexp"
+
+	distreference "github.com/docker/distribution/reference"
+	"github.com/docker/docker/api/types/filters"
+	"github.com/pkg/errors"
 )
 
 var headerRegexp = regexp.MustCompile(`\ADocker/.+\s\((.+)\)\z`)
@@ -30,4 +33,13 @@ func getFiltersQuery(f filters.Args) (url.Values, error) {
 		query.Set("filters", filterJSON)
 	}
 	return query, nil
+}
+
+func parseNamed(name string) (distreference.Named, error) {
+	named, err := distreference.ParseNamed(name)
+	if err != nil {
+		return nil, errors.Wrapf(err, "Error parsing reference: %q is not a valid repository/tag", name)
+	}
+
+	return named, nil
 }

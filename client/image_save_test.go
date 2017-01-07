@@ -23,6 +23,16 @@ func TestImageSaveError(t *testing.T) {
 	}
 }
 
+func TestImageSaveErrorWithWrongName(t *testing.T) {
+	client := &Client{
+		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
+	}
+	_, err := client.ImageSave(context.Background(), []string{"busybox", "wrong-format@sha256:abcd"})
+	if err == nil || err.Error() != "Error parsing reference: \"wrong-format@sha256:abcd\" is not a valid repository/tag: invalid reference format" {
+		t.Fatalf("expected a Server error, got %v", err)
+	}
+}
+
 func TestImageSave(t *testing.T) {
 	expectedURL := "/images/get"
 	client := &Client{

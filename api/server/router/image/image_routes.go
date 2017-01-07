@@ -3,6 +3,7 @@ package image
 import (
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -220,7 +221,7 @@ func (s *imageRouter) deleteImages(ctx context.Context, w http.ResponseWriter, r
 	name := vars["name"]
 
 	if strings.TrimSpace(name) == "" {
-		return fmt.Errorf("image name cannot be blank")
+		return errors.New("image name cannot be blank")
 	}
 
 	force := httputils.BoolValue(r, "force")
