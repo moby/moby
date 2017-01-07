@@ -568,8 +568,9 @@ func verifyPlatformContainerSettings(daemon *Daemon, hostConfig *containertypes.
 	return warnings, nil
 }
 
-// platformReload updates configuration with platform specific options
-func (daemon *Daemon) platformReload(conf *config.Config) map[string]string {
+// reloadPlatform updates configuration with platform specific options
+// and updates the passed attributes
+func (daemon *Daemon) reloadPlatform(conf *config.Config, attributes map[string]string) {
 	if conf.IsValueSet("runtimes") {
 		daemon.configStore.Runtimes = conf.Runtimes
 		// Always set the default one
@@ -593,11 +594,9 @@ func (daemon *Daemon) platformReload(conf *config.Config) map[string]string {
 		runtimeList.WriteString(fmt.Sprintf("%s:%s", name, rt))
 	}
 
-	return map[string]string{
-		"runtimes":         runtimeList.String(),
-		"default-runtime":  daemon.configStore.DefaultRuntime,
-		"default-shm-size": fmt.Sprintf("%d", daemon.configStore.ShmSize),
-	}
+	attributes["runtimes"] = runtimeList.String()
+	attributes["default-runtime"] = daemon.configStore.DefaultRuntime
+	attributes["default-shm-size"] = fmt.Sprintf("%d", daemon.configStore.ShmSize)
 }
 
 // verifyDaemonSettings performs validation of daemon config struct
