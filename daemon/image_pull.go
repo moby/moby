@@ -5,7 +5,6 @@ import (
 	"strings"
 
 	dist "github.com/docker/distribution"
-	"github.com/docker/distribution/digest"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/distribution"
@@ -13,6 +12,7 @@ import (
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/reference"
 	"github.com/docker/docker/registry"
+	"github.com/opencontainers/go-digest"
 	"golang.org/x/net/context"
 )
 
@@ -32,7 +32,7 @@ func (daemon *Daemon) PullImage(ctx context.Context, image, tag string, metaHead
 	if tag != "" {
 		// The "tag" could actually be a digest.
 		var dgst digest.Digest
-		dgst, err = digest.ParseDigest(tag)
+		dgst, err = digest.Parse(tag)
 		if err == nil {
 			ref, err = reference.WithDigest(reference.TrimNamed(ref), dgst)
 		} else {

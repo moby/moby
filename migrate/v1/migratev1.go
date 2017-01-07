@@ -14,13 +14,13 @@ import (
 	"encoding/json"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/distribution/digest"
 	"github.com/docker/docker/distribution/metadata"
 	"github.com/docker/docker/image"
 	imagev1 "github.com/docker/docker/image/v1"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/reference"
+	"github.com/opencontainers/go-digest"
 )
 
 type graphIDRegistrar interface {
@@ -327,7 +327,7 @@ func migrateRefs(root, driverName string, rs refAdder, mappings map[string]image
 					logrus.Errorf("migrate tags: invalid name %q, %q", name, err)
 					continue
 				}
-				if dgst, err := digest.ParseDigest(tag); err == nil {
+				if dgst, err := digest.Parse(tag); err == nil {
 					canonical, err := reference.WithDigest(reference.TrimNamed(ref), dgst)
 					if err != nil {
 						logrus.Errorf("migrate tags: invalid digest %q, %q", dgst, err)
@@ -425,7 +425,7 @@ func migrateImage(id, root string, ls graphIDRegistrar, is image.Store, ms metad
 	if err != nil {
 		return err
 	}
-	diffID, err := digest.ParseDigest(string(diffIDData))
+	diffID, err := digest.Parse(string(diffIDData))
 	if err != nil {
 		return err
 	}
@@ -477,7 +477,7 @@ func migrateImage(id, root string, ls graphIDRegistrar, is image.Store, ms metad
 
 	checksum, err := ioutil.ReadFile(filepath.Join(root, graphDirName, id, "checksum"))
 	if err == nil { // best effort
-		dgst, err := digest.ParseDigest(string(checksum))
+		dgst, err := digest.Parse(string(checksum))
 		if err == nil {
 			V2MetadataService := metadata.NewV2MetadataService(ms)
 			V2MetadataService.Add(layer.DiffID(), metadata.V2Metadata{Digest: dgst})

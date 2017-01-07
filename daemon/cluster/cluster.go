@@ -52,7 +52,6 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/distribution/digest"
 	distreference "github.com/docker/distribution/reference"
 	apierrors "github.com/docker/docker/api/errors"
 	apitypes "github.com/docker/docker/api/types"
@@ -73,6 +72,7 @@ import (
 	"github.com/docker/swarmkit/manager/encryption"
 	swarmnode "github.com/docker/swarmkit/node"
 	"github.com/docker/swarmkit/protobuf/ptypes"
+	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
 	"golang.org/x/net/context"
 )
@@ -832,7 +832,7 @@ func (c *Cluster) GetServices(options apitypes.ServiceListOptions) ([]types.Serv
 // TODO(nishanttotla): After the packages converge, the function must
 // convert distreference.Named -> distreference.Canonical, and the logic simplified.
 func (c *Cluster) imageWithDigestString(ctx context.Context, image string, authConfig *apitypes.AuthConfig) (string, error) {
-	if _, err := digest.ParseDigest(image); err == nil {
+	if _, err := digest.Parse(image); err == nil {
 		return "", errors.New("image reference is an image ID")
 	}
 	ref, err := distreference.ParseNamed(image)

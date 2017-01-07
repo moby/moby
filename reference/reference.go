@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/docker/distribution/digest"
 	distreference "github.com/docker/distribution/reference"
 	"github.com/docker/docker/pkg/stringid"
+	"github.com/opencontainers/go-digest"
 )
 
 const (
@@ -166,7 +166,7 @@ func ParseIDOrReference(idOrRef string) (digest.Digest, Named, error) {
 	if err := stringid.ValidateID(idOrRef); err == nil {
 		idOrRef = "sha256:" + idOrRef
 	}
-	if dgst, err := digest.ParseDigest(idOrRef); err == nil {
+	if dgst, err := digest.Parse(idOrRef); err == nil {
 		return dgst, nil, nil
 	}
 	ref, err := ParseNamed(idOrRef)

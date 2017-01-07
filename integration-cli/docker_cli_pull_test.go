@@ -7,9 +7,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/docker/distribution/digest"
 	"github.com/docker/docker/integration-cli/checker"
 	"github.com/go-check/check"
+	"github.com/opencontainers/go-digest"
 )
 
 // TestPullFromCentralRegistry pulls an image from the central registry and verifies that the client
@@ -26,7 +26,7 @@ func (s *DockerHubPullSuite) TestPullFromCentralRegistry(c *check.C) {
 	matches := regexp.MustCompile(`Digest: (.+)\n`).FindAllStringSubmatch(out, -1)
 	c.Assert(len(matches), checker.Equals, 1, check.Commentf("expected exactly one image digest in the output"))
 	c.Assert(len(matches[0]), checker.Equals, 2, check.Commentf("unexpected number of submatches for the digest"))
-	_, err := digest.ParseDigest(matches[0][1])
+	_, err := digest.Parse(matches[0][1])
 	c.Check(err, checker.IsNil, check.Commentf("invalid digest %q in output", matches[0][1]))
 
 	// We should have a single entry in images.

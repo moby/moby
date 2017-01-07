@@ -5,7 +5,6 @@ import (
 	"regexp"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/distribution/digest"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/image"
@@ -15,6 +14,7 @@ import (
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/volume"
 	"github.com/docker/libnetwork"
+	"github.com/opencontainers/go-digest"
 )
 
 // ContainersPrune removes unused containers

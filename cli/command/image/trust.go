@@ -10,7 +10,6 @@ import (
 	"sort"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/distribution/digest"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/cli/command"
 	"github.com/docker/docker/cli/trust"
@@ -19,6 +18,7 @@ import (
 	"github.com/docker/docker/registry"
 	"github.com/docker/notary/client"
 	"github.com/docker/notary/tuf/data"
+	"github.com/opencontainers/go-digest"
 	"golang.org/x/net/context"
 )
 
@@ -58,7 +58,7 @@ func PushTrustedReference(cli *command.DockerCli, repoInfo *registry.RepositoryI
 		var pushResult types.PushResult
 		err := json.Unmarshal(*aux, &pushResult)
 		if err == nil && pushResult.Tag != "" {
-			if dgst, err := digest.ParseDigest(pushResult.Digest); err == nil {
+			if dgst, err := digest.Parse(pushResult.Digest); err == nil {
 				h, err := hex.DecodeString(dgst.Hex())
 				if err != nil {
 					target = nil
