@@ -7398,6 +7398,10 @@ func (s *DockerSuite) TestBuildWorkdirCmd(c *check.C) {
                 FROM busybox
                 WORKDIR /
                 `
-	_, err := buildImage("testbuildworkdircmd", dockerFile, false)
+	_, err := buildImage("testbuildworkdircmd", dockerFile, true)
 	c.Assert(err, checker.IsNil)
+
+	_, out, err := buildImageWithOut("testbuildworkdircmd", dockerFile, true)
+	c.Assert(err, checker.IsNil)
+	c.Assert(strings.Count(out, "Using cache"), checker.Equals, 1)
 }
