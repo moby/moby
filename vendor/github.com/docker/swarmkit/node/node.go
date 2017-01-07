@@ -295,7 +295,7 @@ func (n *Node) run(ctx context.Context) (err error) {
 	var wg sync.WaitGroup
 	wg.Add(2)
 	go func() {
-		managerErr = n.runManager(ctx, securityConfig, managerReady) // store err and loop
+		managerErr = n.superviseManager(ctx, securityConfig, managerReady) // store err and loop
 		wg.Done()
 		cancel()
 	}()
@@ -330,6 +330,14 @@ func (n *Node) Stop(ctx context.Context) error {
 	default:
 		return errNodeNotStarted
 	}
+	// ask agent to clean up assignments
+	n.Lock()
+	if n.agent != nil {
+		if err := n.agent.Leave(ctx); err != nil {
+			log.G(ctx).WithError(err).Error("agent failed to clean up assignments")
+		}
+	}
+	n.Unlock()
 
 	n.stopOnce.Do(func() {
 		close(n.stopped)
@@ -616,9 +624,7 @@ func (n *Node) waitRole(ctx context.Context, role string) error {
 		n.roleCond.Wait()
 		select {
 		case <-ctx.Done():
-			if ctx.Err() != nil {
-				return ctx.Err()
-			}
+			return ctx.Err()
 		default:
 		}
 	}
@@ -627,100 +633,117 @@ func (n *Node) waitRole(ctx context.Context, role string) error {
 }
 
 func (n *Node) runManager(ctx context.Context, securityConfig *ca.SecurityConfig, ready chan struct{}) error {
+	remoteAddr, _ := n.remotes.Select(n.NodeID())
+	m, err := manager.New(&manager.Config{
+		ForceNewCluster: n.config.ForceNewCluster,
+		RemoteAPI: manager.RemoteAddrs{
+			ListenAddr:    n.config.ListenRemoteAPI,
+			AdvertiseAddr: n.config.AdvertiseRemoteAPI,
+		},
+		ControlAPI:       n.config.ListenControlAPI,
+		SecurityConfig:   securityConfig,
+		ExternalCAs:      n.config.ExternalCAs,
+		JoinRaft:         remoteAddr.Addr,
+		StateDir:         n.config.StateDir,
+		HeartbeatTick:    n.config.HeartbeatTick,
+		ElectionTick:     n.config.ElectionTick,
+		AutoLockManagers: n.config.AutoLockManagers,
+		UnlockKey:        n.unlockKey,
+		Availability:     n.config.Availability,
+	})
+	if err != nil {
+		return err
+	}
+	done := make(chan struct{})
+	var runErr error
+	go func() {
+		if err := m.Run(context.Background()); err != nil && err != raft.ErrMemberRemoved {
+			runErr = err
+		}
+		close(done)
+	}()
+
+	workerRole := make(chan struct{})
+	waitRoleCtx, waitRoleCancel := context.WithCancel(ctx)
+	defer waitRoleCancel()
+	go func() {
+		n.waitRole(waitRoleCtx, ca.WorkerRole)
+		close(workerRole)
+	}()
+
+	defer func() {
+		n.Lock()
+		n.manager = nil
+		n.Unlock()
+		m.Stop(ctx)
+		<-done
+		n.setControlSocket(nil)
+	}()
+
+	n.Lock()
+	n.manager = m
+	n.Unlock()
+
+	connCtx, connCancel := context.WithCancel(ctx)
+	defer connCancel()
+
+	go n.initManagerConnection(connCtx, ready)
+
+	// this happens only on initial start
+	if ready != nil {
+		go func(ready chan struct{}) {
+			select {
+			case <-ready:
+				addr, err := n.RemoteAPIAddr()
+				if err != nil {
+					log.G(ctx).WithError(err).Errorf("get remote api addr")
+				} else {
+					n.remotes.Observe(api.Peer{NodeID: n.NodeID(), Addr: addr}, remotes.DefaultObservationWeight)
+				}
+			case <-connCtx.Done():
+			}
+		}(ready)
+	}
+
+	// wait for manager stop or for role change
+	// if manager stopped before role change, wait for new role for 16 seconds,
+	// then just restart manager, we might just miss that event.
+	// we need to wait for role to prevent manager to start again with wrong
+	// certificate
+	select {
+	case <-done:
+		timer := time.NewTimer(16 * time.Second)
+		defer timer.Stop()
+		select {
+		case <-timer.C:
+			log.G(ctx).Warn("failed to get worker role after manager stop, restart manager")
+		case <-workerRole:
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+		return runErr
+	case <-workerRole:
+		log.G(ctx).Info("role changed to worker, wait for manager to stop")
+		select {
+		case <-done:
+			return runErr
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
+func (n *Node) superviseManager(ctx context.Context, securityConfig *ca.SecurityConfig, ready chan struct{}) error {
 	for {
 		if err := n.waitRole(ctx, ca.ManagerRole); err != nil {
 			return err
 		}
-
-		remoteAddr, _ := n.remotes.Select(n.NodeID())
-		m, err := manager.New(&manager.Config{
-			ForceNewCluster: n.config.ForceNewCluster,
-			RemoteAPI: manager.RemoteAddrs{
-				ListenAddr:    n.config.ListenRemoteAPI,
-				AdvertiseAddr: n.config.AdvertiseRemoteAPI,
-			},
-			ControlAPI:       n.config.ListenControlAPI,
-			SecurityConfig:   securityConfig,
-			ExternalCAs:      n.config.ExternalCAs,
-			JoinRaft:         remoteAddr.Addr,
-			StateDir:         n.config.StateDir,
-			HeartbeatTick:    n.config.HeartbeatTick,
-			ElectionTick:     n.config.ElectionTick,
-			AutoLockManagers: n.config.AutoLockManagers,
-			UnlockKey:        n.unlockKey,
-			Availability:     n.config.Availability,
-		})
-		if err != nil {
-			return err
+		if err := n.runManager(ctx, securityConfig, ready); err != nil {
+			return errors.Wrap(err, "manager stopped")
 		}
-		done := make(chan struct{})
-		var runErr error
-		go func() {
-			runErr = m.Run(context.Background())
-			close(done)
-		}()
-
-		n.Lock()
-		n.manager = m
-		n.Unlock()
-
-		connCtx, connCancel := context.WithCancel(ctx)
-		go n.initManagerConnection(connCtx, ready)
-
-		// this happens only on initial start
-		if ready != nil {
-			go func(ready chan struct{}) {
-				select {
-				case <-ready:
-					addr, err := n.RemoteAPIAddr()
-					if err != nil {
-						log.G(ctx).WithError(err).Errorf("get remote api addr")
-					} else {
-						n.remotes.Observe(api.Peer{NodeID: n.NodeID(), Addr: addr}, remotes.DefaultObservationWeight)
-					}
-				case <-connCtx.Done():
-				}
-			}(ready)
-			ready = nil
-		}
-
-		roleChanged := make(chan error)
-		waitCtx, waitCancel := context.WithCancel(ctx)
-		go func() {
-			err := n.waitRole(waitCtx, ca.WorkerRole)
-			roleChanged <- err
-		}()
-
-		select {
-		case <-done:
-			// Fail out if m.Run() returns error, otherwise wait for
-			// role change.
-			if runErr != nil && runErr != raft.ErrMemberRemoved {
-				err = runErr
-			} else {
-				err = <-roleChanged
-			}
-		case err = <-roleChanged:
-		}
-
-		n.Lock()
-		n.manager = nil
-		n.Unlock()
-
-		select {
-		case <-done:
-		case <-ctx.Done():
-			err = ctx.Err()
-			m.Stop(context.Background())
-			<-done
-		}
-		connCancel()
-		n.setControlSocket(nil)
-		waitCancel()
-
-		if err != nil {
-			return err
-		}
+		ready = nil
 	}
 }
 

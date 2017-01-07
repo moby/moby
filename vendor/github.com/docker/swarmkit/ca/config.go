@@ -459,13 +459,26 @@ func RenewTLSConfig(ctx context.Context, s *SecurityConfig, remotes remotes.Remo
 			if err != nil {
 				// We failed to read the expiration, let's stick with the starting default
 				log.Errorf("failed to read the expiration of the TLS certificate in: %s", s.KeyReader().Target())
-				updates <- CertificateUpdate{Err: errors.New("failed to read certificate expiration")}
+
+				select {
+				case updates <- CertificateUpdate{Err: errors.New("failed to read certificate expiration")}:
+				case <-ctx.Done():
+					log.Info("shutting down certificate renewal routine")
+					return
+				}
 			} else {
 				// If we have an expired certificate, we let's stick with the starting default in
 				// the hope that this is a temporary clock skew.
 				if validUntil.Before(time.Now()) {
 					log.WithError(err).Errorf("failed to create a new client TLS config")
-					updates <- CertificateUpdate{Err: errors.New("TLS certificate is expired")}
+
+					select {
+					case updates <- CertificateUpdate{Err: errors.New("TLS certificate is expired")}:
+					case <-ctx.Done():
+						log.Info("shutting down certificate renewal routine")
+						return
+					}
+
 				} else {
 					// Random retry time between 50% and 80% of the total time to expiration
 					retry = calculateRandomExpiry(validFrom, validUntil)
@@ -478,19 +491,27 @@ func RenewTLSConfig(ctx context.Context, s *SecurityConfig, remotes remotes.Remo
 
 			select {
 			case <-time.After(retry):
-				log.Infof("renewing certificate")
+				log.Info("renewing certificate")
 			case <-renew:
-				log.Infof("forced certificate renewal")
+				log.Info("forced certificate renewal")
 			case <-ctx.Done():
-				log.Infof("shuting down certificate renewal routine")
+				log.Info("shutting down certificate renewal routine")
 				return
 			}
 
-			// ignore errors - it will just try again laster
+			// ignore errors - it will just try again later
+			var certUpdate CertificateUpdate
 			if err := RenewTLSConfigNow(ctx, s, remotes); err != nil {
-				updates <- CertificateUpdate{Err: err}
+				certUpdate.Err = err
 			} else {
-				updates <- CertificateUpdate{Role: s.ClientTLSCreds.Role()}
+				certUpdate.Role = s.ClientTLSCreds.Role()
+			}
+
+			select {
+			case updates <- certUpdate:
+			case <-ctx.Done():
+				log.Info("shutting down certificate renewal routine")
+				return
 			}
 		}
 	}()

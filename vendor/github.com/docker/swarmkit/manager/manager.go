@@ -45,7 +45,7 @@ const (
 	defaultTaskHistoryRetentionLimit = 5
 )
 
-// RemoteAddrs provides an listening address and an optional advertise address
+// RemoteAddrs provides a listening address and an optional advertise address
 // for serving the remote API.
 type RemoteAddrs struct {
 	// Address to bind
