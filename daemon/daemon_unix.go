@@ -181,11 +181,6 @@ func parseSecurityOpt(container *container.Container, config *containertypes.Hos
 	)
 
 	for _, opt := range config.SecurityOpt {
-		if opt == "no-new-privileges" {
-			container.NoNewPrivileges = true
-			continue
-		}
-
 		var con []string
 		if strings.Contains(opt, "=") {
 			con = strings.SplitN(opt, "=", 2)
