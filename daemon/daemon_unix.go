@@ -185,6 +185,7 @@ func parseSecurityOpt(container *container.Container, config *containertypes.Hos
 			container.NoNewPrivileges = true
 			continue
 		}
+
 		var con []string
 		if strings.Contains(opt, "=") {
 			con = strings.SplitN(opt, "=", 2)
