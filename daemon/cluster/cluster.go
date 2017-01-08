@@ -750,7 +750,9 @@ func (c *Cluster) Info() types.Info {
 		// Strip JoinTokens
 		info.Cluster = swarm.ClusterInfo
 
-		if r, err := state.controlClient.ListNodes(ctx, &swarmapi.ListNodesRequest{}); err == nil {
+		if r, err := state.controlClient.ListNodes(ctx, &swarmapi.ListNodesRequest{}); err != nil {
+			info.Error = err.Error()
+		} else {
 			info.Nodes = len(r.Nodes)
 			for _, n := range r.Nodes {
 				if n.ManagerStatus != nil {
