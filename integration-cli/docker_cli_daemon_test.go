@@ -381,8 +381,9 @@ func (s *DockerDaemonSuite) TestDaemonIPv6Enabled(c *check.C) {
 func (s *DockerDaemonSuite) TestDaemonIPv6FixedCIDR(c *check.C) {
 	// IPv6 setup is messing with local bridge address.
 	testRequires(c, SameHostDaemon)
-	setupV6(c)
-	defer teardownV6(c)
+	// Delete the docker0 bridge if its left around from previous daemon. It has to be recreated with
+	// ipv6 enabled
+	deleteInterface(c, "docker0")
 
 	s.d.StartWithBusybox(c, "--ipv6", "--fixed-cidr-v6=2001:db8:2::/64", "--default-gateway-v6=2001:db8:2::100")
 
@@ -408,8 +409,9 @@ func (s *DockerDaemonSuite) TestDaemonIPv6FixedCIDR(c *check.C) {
 func (s *DockerDaemonSuite) TestDaemonIPv6FixedCIDRAndMac(c *check.C) {
 	// IPv6 setup is messing with local bridge address.
 	testRequires(c, SameHostDaemon)
-	setupV6(c)
-	defer teardownV6(c)
+	// Delete the docker0 bridge if its left around from previous daemon. It has to be recreated with
+	// ipv6 enabled
+	deleteInterface(c, "docker0")
 
 	s.d.StartWithBusybox(c, "--ipv6", "--fixed-cidr-v6=2001:db8:1::/64")
 
