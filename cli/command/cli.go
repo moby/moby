@@ -32,7 +32,15 @@ type Streams interface {
 	Err() io.Writer
 }
 
-// DockerCli represents the docker command line client.
+// Cli represents the docker command line client.
+type Cli interface {
+	Client() client.APIClient
+	Out() *OutStream
+	Err() io.Writer
+	In() *InStream
+}
+
+// DockerCli is an instance the docker command line client.
 // Instances of the client can be returned from NewDockerCli.
 type DockerCli struct {
 	configFile      *configfile.ConfigFile

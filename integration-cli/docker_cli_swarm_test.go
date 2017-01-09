@@ -119,16 +119,6 @@ func (s *DockerSwarmSuite) TestSwarmIncompatibleDaemon(c *check.C) {
 	d.Start(c)
 }
 
-// Test case for #24090
-func (s *DockerSwarmSuite) TestSwarmNodeListHostname(c *check.C) {
-	d := s.AddDaemon(c, true, true)
-
-	// The first line should contain "HOSTNAME"
-	out, err := d.Cmd("node", "ls")
-	c.Assert(err, checker.IsNil)
-	c.Assert(strings.Split(out, "\n")[0], checker.Contains, "HOSTNAME")
-}
-
 func (s *DockerSwarmSuite) TestSwarmServiceTemplatingHostname(c *check.C) {
 	d := s.AddDaemon(c, true, true)
 
@@ -235,51 +225,23 @@ func (s *DockerSwarmSuite) TestSwarmNodeTaskListFilter(c *check.C) {
 func (s *DockerSwarmSuite) TestSwarmPublishAdd(c *check.C) {
 	d := s.AddDaemon(c, true, true)
 
-	testCases := []struct {
-		name       string
-		publishAdd []string
-		ports      string
-	}{
-		{
-			name: "simple-syntax",
-			publishAdd: []string{
-				"80:80",
-				"80:80",
-				"80:80",
-				"80:20",
-			},
-			ports: "[{ tcp 80 80 ingress}]",
-		},
-		{
-			name: "complex-syntax",
-			publishAdd: []string{
-				"target=90,published=90,protocol=tcp,mode=ingress",
-				"target=90,published=90,protocol=tcp,mode=ingress",
-				"target=90,published=90,protocol=tcp,mode=ingress",
-				"target=30,published=90,protocol=tcp,mode=ingress",
-			},
-			ports: "[{ tcp 90 90 ingress}]",
-		},
-	}
+	name := "top"
+	out, err := d.Cmd("service", "create", "--name", name, "--label", "x=y", "busybox", "top")
+	c.Assert(err, checker.IsNil)
+	c.Assert(strings.TrimSpace(out), checker.Not(checker.Equals), "")
 
-	for _, tc := range testCases {
-		out, err := d.Cmd("service", "create", "--name", tc.name, "--label", "x=y", "busybox", "top")
-		c.Assert(err, checker.IsNil, check.Commentf(out))
-		c.Assert(strings.TrimSpace(out), checker.Not(checker.Equals), "")
+	out, err = d.Cmd("service", "update", "--publish-add", "80:80", name)
+	c.Assert(err, checker.IsNil)
 
-		out, err = d.CmdRetryOutOfSequence("service", "update", "--publish-add", tc.publishAdd[0], tc.name)
-		c.Assert(err, checker.IsNil, check.Commentf(out))
+	out, err = d.CmdRetryOutOfSequence("service", "update", "--publish-add", "80:80", name)
+	c.Assert(err, checker.IsNil)
 
-		out, err = d.CmdRetryOutOfSequence("service", "update", "--publish-add", tc.publishAdd[1], tc.name)
-		c.Assert(err, checker.IsNil, check.Commentf(out))
+	out, err = d.CmdRetryOutOfSequence("service", "update", "--publish-add", "80:80", "--publish-add", "80:20", name)
+	c.Assert(err, checker.NotNil)
 
-		out, err = d.CmdRetryOutOfSequence("service", "update", "--publish-add", tc.publishAdd[2], "--publish-add", tc.publishAdd[3], tc.name)
-		c.Assert(err, checker.NotNil, check.Commentf(out))
-
-		out, err = d.Cmd("service", "inspect", "--format", "{{ .Spec.EndpointSpec.Ports }}", tc.name)
-		c.Assert(err, checker.IsNil)
-		c.Assert(strings.TrimSpace(out), checker.Equals, tc.ports)
-	}
+	out, err = d.Cmd("service", "inspect", "--format", "{{ .Spec.EndpointSpec.Ports }}", name)
+	c.Assert(err, checker.IsNil)
+	c.Assert(strings.TrimSpace(out), checker.Equals, "[{ tcp 80 80 ingress}]")
 }
 
 func (s *DockerSwarmSuite) TestSwarmServiceWithGroup(c *check.C) {
@@ -1411,24 +1373,6 @@ func (s *DockerSwarmSuite) TestSwarmNetworkIPAMOptions(c *check.C) {
 	out, err = d.Cmd("network", "inspect", "--format", "{{.IPAM.Options}}", "foo")
 	c.Assert(err, checker.IsNil, check.Commentf(out))
 	c.Assert(strings.TrimSpace(out), checker.Equals, "map[foo:bar]")
-}
-
-// TODO: migrate to a unit test
-// This test could be migrated to unit test and save costly integration test,
-// once PR #29143 is merged.
-func (s *DockerSwarmSuite) TestSwarmUpdateWithoutArgs(c *check.C) {
-	d := s.AddDaemon(c, true, true)
-
-	expectedOutput := `
-Usage:	docker swarm update [OPTIONS]
-
-Update the swarm
-
-Options:`
-
-	out, err := d.Cmd("swarm", "update")
-	c.Assert(err, checker.IsNil, check.Commentf("out: %v", out))
-	c.Assert(out, checker.Contains, expectedOutput, check.Commentf(out))
 }
 
 func (s *DockerTrustedSwarmSuite) TestTrustedServiceCreate(c *check.C) {

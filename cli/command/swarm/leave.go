@@ -14,7 +14,7 @@ type leaveOptions struct {
 	force bool
 }
 
-func newLeaveCommand(dockerCli *command.DockerCli) *cobra.Command {
+func newLeaveCommand(dockerCli command.Cli) *cobra.Command {
 	opts := leaveOptions{}
 
 	cmd := &cobra.Command{
@@ -31,7 +31,7 @@ func newLeaveCommand(dockerCli *command.DockerCli) *cobra.Command {
 	return cmd
 }
 
-func runLeave(dockerCli *command.DockerCli, opts leaveOptions) error {
+func runLeave(dockerCli command.Cli, opts leaveOptions) error {
 	client := dockerCli.Client()
 	ctx := context.Background()
 
