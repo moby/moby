@@ -9,9 +9,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/spf13/cobra"
-	"golang.org/x/net/context"
-
 	"github.com/aanand/compose-file/loader"
 	composetypes "github.com/aanand/compose-file/types"
 	"github.com/docker/docker/api/types"
@@ -25,6 +22,8 @@ import (
 	"github.com/docker/docker/opts"
 	runconfigopts "github.com/docker/docker/runconfig/opts"
 	"github.com/docker/go-connections/nat"
+	"github.com/spf13/cobra"
+	"golang.org/x/net/context"
 )
 
 const (
@@ -310,7 +309,7 @@ func convertServiceNetworks(
 		}
 		target := namespace.scope(networkName)
 		if networkConfig.External.External {
-			target = networkName
+			target = networkConfig.External.Name
 		}
 		nets = append(nets, swarm.NetworkAttachmentConfig{
 			Target:  target,
