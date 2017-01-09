@@ -14,6 +14,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/integration-cli/checker"
+	"github.com/docker/docker/integration-cli/request"
 	"github.com/go-check/check"
 )
 
@@ -25,7 +26,7 @@ func (s *DockerSuite) TestAPIStatsNoStreamGetCpu(c *check.C) {
 	id := strings.TrimSpace(out)
 	c.Assert(waitRun(id), checker.IsNil)
 
-	resp, body, err := sockRequestRaw("GET", fmt.Sprintf("/containers/%s/stats?stream=false", id), nil, "")
+	resp, body, err := request.SockRequestRaw("GET", fmt.Sprintf("/containers/%s/stats?stream=false", id), nil, "", daemonHost())
 	c.Assert(err, checker.IsNil)
 	c.Assert(resp.StatusCode, checker.Equals, http.StatusOK)
 	c.Assert(resp.Header.Get("Content-Type"), checker.Equals, "application/json")
@@ -64,7 +65,7 @@ func (s *DockerSuite) TestAPIStatsStoppedContainerInGoroutines(c *check.C) {
 	id := strings.TrimSpace(out)
 
 	getGoRoutines := func() int {
-		_, body, err := sockRequestRaw("GET", fmt.Sprintf("/info"), nil, "")
+		_, body, err := request.SockRequestRaw("GET", fmt.Sprintf("/info"), nil, "", daemonHost())
 		c.Assert(err, checker.IsNil)
 		info := types.Info{}
 		err = json.NewDecoder(body).Decode(&info)
@@ -75,7 +76,7 @@ func (s *DockerSuite) TestAPIStatsStoppedContainerInGoroutines(c *check.C) {
 
 	// When the HTTP connection is closed, the number of goroutines should not increase.
 	routines := getGoRoutines()
-	_, body, err := sockRequestRaw("GET", fmt.Sprintf("/containers/%s/stats", id), nil, "")
+	_, body, err := request.SockRequestRaw("GET", fmt.Sprintf("/containers/%s/stats", id), nil, "", daemonHost())
 	c.Assert(err, checker.IsNil)
 	body.Close()
 
@@ -191,7 +192,7 @@ func (s *DockerSuite) TestAPIStatsNetworkStatsVersioning(c *check.C) {
 func getNetworkStats(c *check.C, id string) map[string]types.NetworkStats {
 	var st *types.StatsJSON
 
-	_, body, err := sockRequestRaw("GET", fmt.Sprintf("/containers/%s/stats?stream=false", id), nil, "")
+	_, body, err := request.SockRequestRaw("GET", fmt.Sprintf("/containers/%s/stats?stream=false", id), nil, "", daemonHost())
 	c.Assert(err, checker.IsNil)
 
 	err = json.NewDecoder(body).Decode(&st)
@@ -208,7 +209,7 @@ func getNetworkStats(c *check.C, id string) map[string]types.NetworkStats {
 func getVersionedStats(c *check.C, id string, apiVersion string) map[string]interface{} {
 	stats := make(map[string]interface{})
 
-	_, body, err := sockRequestRaw("GET", fmt.Sprintf("/%s/containers/%s/stats?stream=false", apiVersion, id), nil, "")
+	_, body, err := request.SockRequestRaw("GET", fmt.Sprintf("/%s/containers/%s/stats?stream=false", apiVersion, id), nil, "", daemonHost())
 	c.Assert(err, checker.IsNil)
 	defer body.Close()
 
@@ -261,11 +262,11 @@ func jsonBlobHasGTE121NetworkStats(blob map[string]interface{}) bool {
 func (s *DockerSuite) TestAPIStatsContainerNotFound(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 
-	status, _, err := sockRequest("GET", "/containers/nonexistent/stats", nil)
+	status, _, err := request.SockRequest("GET", "/containers/nonexistent/stats", nil, daemonHost())
 	c.Assert(err, checker.IsNil)
 	c.Assert(status, checker.Equals, http.StatusNotFound)
 
-	status, _, err = sockRequest("GET", "/containers/nonexistent/stats?stream=0", nil)
+	status, _, err = request.SockRequest("GET", "/containers/nonexistent/stats?stream=0", nil, daemonHost())
 	c.Assert(err, checker.IsNil)
 	c.Assert(status, checker.Equals, http.StatusNotFound)
 }
@@ -283,7 +284,7 @@ func (s *DockerSuite) TestAPIStatsNoStreamConnectedContainers(c *check.C) {
 
 	ch := make(chan error)
 	go func() {
-		resp, body, err := sockRequestRaw("GET", fmt.Sprintf("/containers/%s/stats?stream=false", id2), nil, "")
+		resp, body, err := request.SockRequestRaw("GET", fmt.Sprintf("/containers/%s/stats?stream=false", id2), nil, "", daemonHost())
 		defer body.Close()
 		if err != nil {
 			ch <- err

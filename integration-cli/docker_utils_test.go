@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bufio"
 	"bytes"
 	"encoding/json"
 	"errors"
@@ -11,7 +10,6 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
-	"net/http/httputil"
 	"net/url"
 	"os"
 	"os/exec"
@@ -26,10 +24,9 @@ import (
 	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/integration-cli/daemon"
 	"github.com/docker/docker/integration-cli/registry"
+	"github.com/docker/docker/integration-cli/request"
 	"github.com/docker/docker/opts"
-	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/stringutils"
-	"github.com/docker/docker/pkg/testutil"
 	icmd "github.com/docker/docker/pkg/testutil/cmd"
 	"github.com/go-check/check"
 )
@@ -40,82 +37,6 @@ func daemonHost() string {
 		daemonURLStr = daemonHostVar
 	}
 	return daemonURLStr
-}
-
-// FIXME(vdemeester) should probably completely move to daemon struct/methods
-func sockConn(timeout time.Duration, daemonStr string) (net.Conn, error) {
-	if daemonStr == "" {
-		daemonStr = daemonHost()
-	}
-	return daemon.SockConn(timeout, daemonStr)
-}
-
-func sockRequest(method, endpoint string, data interface{}) (int, []byte, error) {
-	jsonData := bytes.NewBuffer(nil)
-	if err := json.NewEncoder(jsonData).Encode(data); err != nil {
-		return -1, nil, err
-	}
-
-	res, body, err := sockRequestRaw(method, endpoint, jsonData, "application/json")
-	if err != nil {
-		return -1, nil, err
-	}
-	b, err := testutil.ReadBody(body)
-	return res.StatusCode, b, err
-}
-
-func sockRequestRaw(method, endpoint string, data io.Reader, ct string) (*http.Response, io.ReadCloser, error) {
-	return sockRequestRawToDaemon(method, endpoint, data, ct, "")
-}
-
-func sockRequestRawToDaemon(method, endpoint string, data io.Reader, ct, daemon string) (*http.Response, io.ReadCloser, error) {
-	req, client, err := newRequestClient(method, endpoint, data, ct, daemon)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	resp, err := client.Do(req)
-	if err != nil {
-		client.Close()
-		return nil, nil, err
-	}
-	body := ioutils.NewReadCloserWrapper(resp.Body, func() error {
-		defer resp.Body.Close()
-		return client.Close()
-	})
-
-	return resp, body, nil
-}
-
-func sockRequestHijack(method, endpoint string, data io.Reader, ct string) (net.Conn, *bufio.Reader, error) {
-	req, client, err := newRequestClient(method, endpoint, data, ct, "")
-	if err != nil {
-		return nil, nil, err
-	}
-
-	client.Do(req)
-	conn, br := client.Hijack()
-	return conn, br, nil
-}
-
-func newRequestClient(method, endpoint string, data io.Reader, ct, daemon string) (*http.Request, *httputil.ClientConn, error) {
-	c, err := sockConn(time.Duration(10*time.Second), daemon)
-	if err != nil {
-		return nil, nil, fmt.Errorf("could not dial docker daemon: %v", err)
-	}
-
-	client := httputil.NewClientConn(c, nil)
-
-	req, err := http.NewRequest(method, endpoint, data)
-	if err != nil {
-		client.Close()
-		return nil, nil, fmt.Errorf("could not create new request: %v", err)
-	}
-
-	if ct != "" {
-		req.Header.Set("Content-Type", ct)
-	}
-	return req, client, nil
 }
 
 // FIXME(vdemeester) move this away are remove ignoreNoSuchContainer bool
@@ -163,7 +84,7 @@ func deleteAllNetworks(c *check.C) {
 			// nat is a pre-defined network on Windows and cannot be removed
 			continue
 		}
-		status, b, err := sockRequest("DELETE", "/networks/"+n.Name, nil)
+		status, b, err := request.SockRequest("DELETE", "/networks/"+n.Name, nil, daemonHost())
 		if err != nil {
 			errs = append(errs, err.Error())
 			continue
@@ -177,7 +98,7 @@ func deleteAllNetworks(c *check.C) {
 
 func getAllNetworks() ([]types.NetworkResource, error) {
 	var networks []types.NetworkResource
-	_, b, err := sockRequest("GET", "/networks", nil)
+	_, b, err := request.SockRequest("GET", "/networks", nil, daemonHost())
 	if err != nil {
 		return nil, err
 	}
@@ -193,7 +114,7 @@ func deleteAllPlugins(c *check.C) {
 	var errs []string
 	for _, p := range plugins {
 		pluginName := p.Name
-		status, b, err := sockRequest("DELETE", "/plugins/"+pluginName+"?force=1", nil)
+		status, b, err := request.SockRequest("DELETE", "/plugins/"+pluginName+"?force=1", nil, daemonHost())
 		if err != nil {
 			errs = append(errs, err.Error())
 			continue
@@ -207,7 +128,7 @@ func deleteAllPlugins(c *check.C) {
 
 func getAllPlugins() (types.PluginsListResponse, error) {
 	var plugins types.PluginsListResponse
-	_, b, err := sockRequest("GET", "/plugins", nil)
+	_, b, err := request.SockRequest("GET", "/plugins", nil, daemonHost())
 	if err != nil {
 		return nil, err
 	}
@@ -222,7 +143,7 @@ func deleteAllVolumes(c *check.C) {
 	c.Assert(err, checker.IsNil)
 	var errs []string
 	for _, v := range volumes {
-		status, b, err := sockRequest("DELETE", "/volumes/"+v.Name, nil)
+		status, b, err := request.SockRequest("DELETE", "/volumes/"+v.Name, nil, daemonHost())
 		if err != nil {
 			errs = append(errs, err.Error())
 			continue
@@ -236,7 +157,7 @@ func deleteAllVolumes(c *check.C) {
 
 func getAllVolumes() ([]*types.Volume, error) {
 	var volumes volumetypes.VolumesListOKBody
-	_, b, err := sockRequest("GET", "/volumes", nil)
+	_, b, err := request.SockRequest("GET", "/volumes", nil, daemonHost())
 	if err != nil {
 		return nil, err
 	}
@@ -1066,7 +987,7 @@ func daemonTime(c *check.C) time.Time {
 		return time.Now()
 	}
 
-	status, body, err := sockRequest("GET", "/info", nil)
+	status, body, err := request.SockRequest("GET", "/info", nil, daemonHost())
 	c.Assert(err, check.IsNil)
 	c.Assert(status, check.Equals, http.StatusOK)
 
@@ -1192,7 +1113,7 @@ func waitInspectWithArgs(name, expr, expected string, timeout time.Duration, arg
 
 func getInspectBody(c *check.C, version, id string) []byte {
 	endpoint := fmt.Sprintf("/%s/containers/%s/json", version, id)
-	status, body, err := sockRequest("GET", endpoint, nil)
+	status, body, err := request.SockRequest("GET", endpoint, nil, daemonHost())
 	c.Assert(err, check.IsNil)
 	c.Assert(status, check.Equals, http.StatusOK)
 	return body
@@ -1224,7 +1145,7 @@ func getGoroutineNumber() (int, error) {
 	i := struct {
 		NGoroutines int
 	}{}
-	status, b, err := sockRequest("GET", "/info", nil)
+	status, b, err := request.SockRequest("GET", "/info", nil, daemonHost())
 	if err != nil {
 		return 0, err
 	}

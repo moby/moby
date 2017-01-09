@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/integration-cli/checker"
+	"github.com/docker/docker/integration-cli/request"
 	icmd "github.com/docker/docker/pkg/testutil/cmd"
 	"github.com/go-check/check"
 )
@@ -355,14 +356,14 @@ func (s *DockerSuite) TestExecInspectID(c *check.C) {
 	}
 
 	// But we should still be able to query the execID
-	sc, body, err := sockRequest("GET", "/exec/"+execID+"/json", nil)
+	sc, body, err := request.SockRequest("GET", "/exec/"+execID+"/json", nil, daemonHost())
 	c.Assert(sc, checker.Equals, http.StatusOK, check.Commentf("received status != 200 OK: %d\n%s", sc, body))
 
 	// Now delete the container and then an 'inspect' on the exec should
 	// result in a 404 (not 'container not running')
 	out, ec := dockerCmd(c, "rm", "-f", id)
 	c.Assert(ec, checker.Equals, 0, check.Commentf("error removing container: %s", out))
-	sc, body, err = sockRequest("GET", "/exec/"+execID+"/json", nil)
+	sc, body, err = request.SockRequest("GET", "/exec/"+execID+"/json", nil, daemonHost())
 	c.Assert(sc, checker.Equals, http.StatusNotFound, check.Commentf("received status != 404: %d\n%s", sc, body))
 }
 

@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/docker/docker/integration-cli/checker"
+	"github.com/docker/docker/integration-cli/request"
 	"github.com/docker/docker/pkg/testutil"
 	"github.com/go-check/check"
 )
@@ -31,7 +32,7 @@ RUN find /tmp/`
 	c.Assert(err, checker.IsNil)
 	defer server.Close()
 
-	res, body, err := sockRequestRaw("POST", "/build?dockerfile=baz&remote="+server.URL()+"/testD", nil, "application/json")
+	res, body, err := request.SockRequestRaw("POST", "/build?dockerfile=baz&remote="+server.URL()+"/testD", nil, "application/json", daemonHost())
 	c.Assert(err, checker.IsNil)
 	c.Assert(res.StatusCode, checker.Equals, http.StatusOK)
 
@@ -72,7 +73,7 @@ func (s *DockerSuite) TestBuildAPIRemoteTarballContext(c *check.C) {
 
 	defer server.Close()
 
-	res, b, err := sockRequestRaw("POST", "/build?remote="+server.URL()+"/testT.tar", nil, "application/tar")
+	res, b, err := request.SockRequestRaw("POST", "/build?remote="+server.URL()+"/testT.tar", nil, "application/tar", daemonHost())
 	c.Assert(err, checker.IsNil)
 	c.Assert(res.StatusCode, checker.Equals, http.StatusOK)
 	b.Close()
@@ -121,7 +122,7 @@ RUN echo 'right'
 
 	defer server.Close()
 	url := "/build?dockerfile=custom&remote=" + server.URL() + "/testT.tar"
-	res, body, err := sockRequestRaw("POST", url, nil, "application/tar")
+	res, body, err := request.SockRequestRaw("POST", url, nil, "application/tar", daemonHost())
 	c.Assert(err, checker.IsNil)
 	c.Assert(res.StatusCode, checker.Equals, http.StatusOK)
 
@@ -141,7 +142,7 @@ RUN echo from dockerfile`,
 	c.Assert(err, checker.IsNil)
 	defer git.Close()
 
-	res, body, err := sockRequestRaw("POST", "/build?remote="+git.RepoURL, nil, "application/json")
+	res, body, err := request.SockRequestRaw("POST", "/build?remote="+git.RepoURL, nil, "application/json", daemonHost())
 	c.Assert(err, checker.IsNil)
 	c.Assert(res.StatusCode, checker.Equals, http.StatusOK)
 
@@ -163,7 +164,7 @@ RUN echo from Dockerfile`,
 	defer git.Close()
 
 	// Make sure it tries to 'dockerfile' query param value
-	res, body, err := sockRequestRaw("POST", "/build?dockerfile=baz&remote="+git.RepoURL, nil, "application/json")
+	res, body, err := request.SockRequestRaw("POST", "/build?dockerfile=baz&remote="+git.RepoURL, nil, "application/json", daemonHost())
 	c.Assert(err, checker.IsNil)
 	c.Assert(res.StatusCode, checker.Equals, http.StatusOK)
 
@@ -186,7 +187,7 @@ RUN echo from dockerfile`,
 	defer git.Close()
 
 	// Make sure it tries to 'dockerfile' query param value
-	res, body, err := sockRequestRaw("POST", "/build?remote="+git.RepoURL, nil, "application/json")
+	res, body, err := request.SockRequestRaw("POST", "/build?remote="+git.RepoURL, nil, "application/json", daemonHost())
 	c.Assert(err, checker.IsNil)
 	c.Assert(res.StatusCode, checker.Equals, http.StatusOK)
 
@@ -233,7 +234,7 @@ func (s *DockerSuite) TestBuildAPIUnnormalizedTarPaths(c *check.C) {
 		// failed to close tar archive
 		c.Assert(tw.Close(), checker.IsNil)
 
-		res, body, err := sockRequestRaw("POST", "/build", buffer, "application/x-tar")
+		res, body, err := request.SockRequestRaw("POST", "/build", buffer, "application/x-tar", daemonHost())
 		c.Assert(err, checker.IsNil)
 		c.Assert(res.StatusCode, checker.Equals, http.StatusOK)
 

@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/integration-cli/checker"
+	"github.com/docker/docker/integration-cli/request"
 	"github.com/docker/docker/pkg/testutil"
 	"github.com/go-check/check"
 )
@@ -20,7 +21,7 @@ func (s *DockerSuite) TestExecAPICreateNoCmd(c *check.C) {
 	name := "exec_test"
 	dockerCmd(c, "run", "-d", "-t", "--name", name, "busybox", "/bin/sh")
 
-	status, body, err := sockRequest("POST", fmt.Sprintf("/containers/%s/exec", name), map[string]interface{}{"Cmd": nil})
+	status, body, err := request.SockRequest("POST", fmt.Sprintf("/containers/%s/exec", name), map[string]interface{}{"Cmd": nil}, daemonHost())
 	c.Assert(err, checker.IsNil)
 	c.Assert(status, checker.Equals, http.StatusInternalServerError)
 
@@ -37,7 +38,7 @@ func (s *DockerSuite) TestExecAPICreateNoValidContentType(c *check.C) {
 		c.Fatalf("Can not encode data to json %s", err)
 	}
 
-	res, body, err := sockRequestRaw("POST", fmt.Sprintf("/containers/%s/exec", name), jsonData, "text/plain")
+	res, body, err := request.SockRequestRaw("POST", fmt.Sprintf("/containers/%s/exec", name), jsonData, "text/plain", daemonHost())
 	c.Assert(err, checker.IsNil)
 	c.Assert(res.StatusCode, checker.Equals, http.StatusInternalServerError)
 
@@ -55,7 +56,7 @@ func (s *DockerSuite) TestExecAPICreateContainerPaused(c *check.C) {
 	dockerCmd(c, "run", "-d", "-t", "--name", name, "busybox", "/bin/sh")
 
 	dockerCmd(c, "pause", name)
-	status, body, err := sockRequest("POST", fmt.Sprintf("/containers/%s/exec", name), map[string]interface{}{"Cmd": []string{"true"}})
+	status, body, err := request.SockRequest("POST", fmt.Sprintf("/containers/%s/exec", name), map[string]interface{}{"Cmd": []string{"true"}}, daemonHost())
 	c.Assert(err, checker.IsNil)
 	c.Assert(status, checker.Equals, http.StatusConflict)
 
@@ -95,7 +96,7 @@ func (s *DockerSuite) TestExecAPIStartEnsureHeaders(c *check.C) {
 	dockerCmd(c, "run", "-d", "--name", "test", "busybox", "top")
 
 	id := createExec(c, "test")
-	resp, _, err := sockRequestRaw("POST", fmt.Sprintf("/exec/%s/start", id), strings.NewReader(`{"Detach": true}`), "application/json")
+	resp, _, err := request.SockRequestRaw("POST", fmt.Sprintf("/exec/%s/start", id), strings.NewReader(`{"Detach": true}`), "application/json", daemonHost())
 	c.Assert(err, checker.IsNil)
 	c.Assert(resp.Header.Get("Server"), checker.Not(checker.Equals), "")
 }
@@ -105,7 +106,7 @@ func (s *DockerSuite) TestExecAPIStartBackwardsCompatible(c *check.C) {
 	runSleepingContainer(c, "-d", "--name", "test")
 	id := createExec(c, "test")
 
-	resp, body, err := sockRequestRaw("POST", fmt.Sprintf("/v1.20/exec/%s/start", id), strings.NewReader(`{"Detach": true}`), "text/plain")
+	resp, body, err := request.SockRequestRaw("POST", fmt.Sprintf("/v1.20/exec/%s/start", id), strings.NewReader(`{"Detach": true}`), "text/plain", daemonHost())
 	c.Assert(err, checker.IsNil)
 
 	b, err := testutil.ReadBody(body)
@@ -146,7 +147,7 @@ func (s *DockerSuite) TestExecAPIStartWithDetach(c *check.C) {
 		"cmd":         []string{"true"},
 		"AttachStdin": true,
 	}
-	_, b, err := sockRequest("POST", fmt.Sprintf("/containers/%s/exec", name), data)
+	_, b, err := request.SockRequest("POST", fmt.Sprintf("/containers/%s/exec", name), data, daemonHost())
 	c.Assert(err, checker.IsNil, check.Commentf(string(b)))
 
 	createResp := struct {
@@ -154,14 +155,14 @@ func (s *DockerSuite) TestExecAPIStartWithDetach(c *check.C) {
 	}{}
 	c.Assert(json.Unmarshal(b, &createResp), checker.IsNil, check.Commentf(string(b)))
 
-	_, body, err := sockRequestRaw("POST", fmt.Sprintf("/exec/%s/start", createResp.ID), strings.NewReader(`{"Detach": true}`), "application/json")
+	_, body, err := request.SockRequestRaw("POST", fmt.Sprintf("/exec/%s/start", createResp.ID), strings.NewReader(`{"Detach": true}`), "application/json", daemonHost())
 	c.Assert(err, checker.IsNil)
 
 	b, err = testutil.ReadBody(body)
 	comment := check.Commentf("response body: %s", b)
 	c.Assert(err, checker.IsNil, comment)
 
-	resp, _, err := sockRequestRaw("GET", "/_ping", nil, "")
+	resp, _, err := request.SockRequestRaw("GET", "/_ping", nil, "", daemonHost())
 	c.Assert(err, checker.IsNil)
 	if resp.StatusCode != http.StatusOK {
 		c.Fatal("daemon is down, it should alive")
@@ -169,7 +170,7 @@ func (s *DockerSuite) TestExecAPIStartWithDetach(c *check.C) {
 }
 
 func createExec(c *check.C, name string) string {
-	_, b, err := sockRequest("POST", fmt.Sprintf("/containers/%s/exec", name), map[string]interface{}{"Cmd": []string{"true"}})
+	_, b, err := request.SockRequest("POST", fmt.Sprintf("/containers/%s/exec", name), map[string]interface{}{"Cmd": []string{"true"}}, daemonHost())
 	c.Assert(err, checker.IsNil, check.Commentf(string(b)))
 
 	createResp := struct {
@@ -180,7 +181,7 @@ func createExec(c *check.C, name string) string {
 }
 
 func startExec(c *check.C, id string, code int) {
-	resp, body, err := sockRequestRaw("POST", fmt.Sprintf("/exec/%s/start", id), strings.NewReader(`{"Detach": true}`), "application/json")
+	resp, body, err := request.SockRequestRaw("POST", fmt.Sprintf("/exec/%s/start", id), strings.NewReader(`{"Detach": true}`), "application/json", daemonHost())
 	c.Assert(err, checker.IsNil)
 
 	b, err := testutil.ReadBody(body)
@@ -190,7 +191,7 @@ func startExec(c *check.C, id string, code int) {
 }
 
 func inspectExec(c *check.C, id string, out interface{}) {
-	resp, body, err := sockRequestRaw("GET", fmt.Sprintf("/exec/%s/json", id), nil, "")
+	resp, body, err := request.SockRequestRaw("GET", fmt.Sprintf("/exec/%s/json", id), nil, "", daemonHost())
 	c.Assert(err, checker.IsNil)
 	defer body.Close()
 	c.Assert(resp.StatusCode, checker.Equals, http.StatusOK)

@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"runtime"
@@ -10,19 +11,20 @@ import (
 
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/integration-cli/checker"
+	"github.com/docker/docker/integration-cli/request"
 	"github.com/docker/docker/pkg/testutil"
 	icmd "github.com/docker/docker/pkg/testutil/cmd"
 	"github.com/go-check/check"
 )
 
 func (s *DockerSuite) TestAPIOptionsRoute(c *check.C) {
-	status, _, err := sockRequest("OPTIONS", "/", nil)
+	resp, _, err := request.Do(daemonHost(), "/", request.Method(http.MethodOptions))
 	c.Assert(err, checker.IsNil)
-	c.Assert(status, checker.Equals, http.StatusOK)
+	c.Assert(resp.StatusCode, checker.Equals, http.StatusOK)
 }
 
 func (s *DockerSuite) TestAPIGetEnabledCORS(c *check.C) {
-	res, body, err := sockRequestRaw("GET", "/version", nil, "")
+	res, body, err := request.SockRequestRaw("GET", "/version", nil, "", daemonHost())
 	c.Assert(err, checker.IsNil)
 	c.Assert(res.StatusCode, checker.Equals, http.StatusOK)
 	body.Close()
@@ -47,11 +49,14 @@ func (s *DockerSuite) TestAPIClientVersionOldNotSupported(c *check.C) {
 	v[1] = strconv.Itoa(vMinInt)
 	version := strings.Join(v, ".")
 
-	status, body, err := sockRequest("GET", "/v"+version+"/version", nil)
+	resp, body, err := request.Get(daemonHost(), "/v"+version+"/version")
 	c.Assert(err, checker.IsNil)
-	c.Assert(status, checker.Equals, http.StatusBadRequest)
+	defer body.Close()
+	c.Assert(resp.StatusCode, checker.Equals, http.StatusBadRequest)
 	expected := fmt.Sprintf("client version %s is too old. Minimum supported API version is %s, please upgrade your client to a newer version", version, api.MinVersion)
-	c.Assert(strings.TrimSpace(string(body)), checker.Contains, expected)
+	content, err := ioutil.ReadAll(body)
+	c.Assert(err, checker.IsNil)
+	c.Assert(strings.TrimSpace(string(content)), checker.Contains, expected)
 }
 
 func (s *DockerSuite) TestAPIDockerAPIVersion(c *check.C) {
@@ -75,7 +80,7 @@ func (s *DockerSuite) TestAPIDockerAPIVersion(c *check.C) {
 }
 
 func (s *DockerSuite) TestAPIErrorJSON(c *check.C) {
-	httpResp, body, err := sockRequestRaw("POST", "/containers/create", strings.NewReader(`{}`), "application/json")
+	httpResp, body, err := request.Post(daemonHost(), "/containers/create", request.JSONBody(struct{}{}))
 	c.Assert(err, checker.IsNil)
 	c.Assert(httpResp.StatusCode, checker.Equals, http.StatusInternalServerError)
 	c.Assert(httpResp.Header.Get("Content-Type"), checker.Equals, "application/json")
@@ -88,7 +93,7 @@ func (s *DockerSuite) TestAPIErrorPlainText(c *check.C) {
 	// Windows requires API 1.25 or later. This test is validating a behaviour which was present
 	// in v1.23, but changed in 1.24, hence not applicable on Windows. See apiVersionSupportsJSONErrors
 	testRequires(c, DaemonIsLinux)
-	httpResp, body, err := sockRequestRaw("POST", "/v1.23/containers/create", strings.NewReader(`{}`), "application/json")
+	httpResp, body, err := request.Post(daemonHost(), "/v1.23/containers/create", request.JSONBody(struct{}{}))
 	c.Assert(err, checker.IsNil)
 	c.Assert(httpResp.StatusCode, checker.Equals, http.StatusInternalServerError)
 	c.Assert(httpResp.Header.Get("Content-Type"), checker.Contains, "text/plain")
@@ -99,7 +104,7 @@ func (s *DockerSuite) TestAPIErrorPlainText(c *check.C) {
 
 func (s *DockerSuite) TestAPIErrorNotFoundJSON(c *check.C) {
 	// 404 is a different code path to normal errors, so test separately
-	httpResp, body, err := sockRequestRaw("GET", "/notfound", nil, "application/json")
+	httpResp, body, err := request.Get(daemonHost(), "/notfound", request.JSON)
 	c.Assert(err, checker.IsNil)
 	c.Assert(httpResp.StatusCode, checker.Equals, http.StatusNotFound)
 	c.Assert(httpResp.Header.Get("Content-Type"), checker.Equals, "application/json")
@@ -109,7 +114,7 @@ func (s *DockerSuite) TestAPIErrorNotFoundJSON(c *check.C) {
 }
 
 func (s *DockerSuite) TestAPIErrorNotFoundPlainText(c *check.C) {
-	httpResp, body, err := sockRequestRaw("GET", "/v1.23/notfound", nil, "application/json")
+	httpResp, body, err := request.Get(daemonHost(), "/v1.23/notfound", request.JSON)
 	c.Assert(err, checker.IsNil)
 	c.Assert(httpResp.StatusCode, checker.Equals, http.StatusNotFound)
 	c.Assert(httpResp.Header.Get("Content-Type"), checker.Contains, "text/plain")
