@@ -505,9 +505,7 @@ func (n *Node) Run(ctx context.Context) error {
 					n.campaignWhenAble = false
 				}
 				if len(members) == 1 && members[n.Config.ID] != nil {
-					if err := n.raftNode.Campaign(ctx); err != nil {
-						panic("raft: cannot campaign to be the leader on node restore")
-					}
+					n.raftNode.Campaign(ctx)
 				}
 			}
 
