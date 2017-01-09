@@ -69,7 +69,7 @@ func ParseRestartPolicy(policy string) (container.RestartPolicy, error) {
 
 	parts := strings.Split(policy, ":")
 
-	if len(parts) > 2 {
+	if len(parts) > 2 || len(parts) == 1 {
 		return p, fmt.Errorf("invalid restart policy format")
 	}
 	if len(parts) == 2 {
