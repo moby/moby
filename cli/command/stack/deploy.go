@@ -9,9 +9,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/spf13/cobra"
-	"golang.org/x/net/context"
-
 	"github.com/aanand/compose-file/loader"
 	composetypes "github.com/aanand/compose-file/types"
 	"github.com/docker/docker/api/types"
@@ -25,6 +22,8 @@ import (
 	"github.com/docker/docker/opts"
 	runconfigopts "github.com/docker/docker/runconfig/opts"
 	"github.com/docker/go-connections/nat"
+	"github.com/spf13/cobra"
+	"golang.org/x/net/context"
 )
 
 const (
@@ -123,7 +122,8 @@ func deployCompose(ctx context.Context, dockerCli *command.DockerCli, opts deplo
 
 	namespace := namespace{name: opts.namespace}
 
-	networks, externalNetworks := convertNetworks(namespace, config.Networks)
+	serviceNetworks := getServicesDeclaredNetworks(config.Services)
+	networks, externalNetworks := convertNetworks(namespace, config.Networks, serviceNetworks)
 	if err := validateExternalNetworks(ctx, dockerCli, externalNetworks); err != nil {
 		return err
 	}
@@ -135,6 +135,19 @@ func deployCompose(ctx context.Context, dockerCli *command.DockerCli, opts deplo
 		return err
 	}
 	return deployServices(ctx, dockerCli, services, namespace, opts.sendRegistryAuth)
+}
+func getServicesDeclaredNetworks(serviceConfigs []composetypes.ServiceConfig) map[string]struct{} {
+	serviceNetworks := map[string]struct{}{}
+	for _, serviceConfig := range serviceConfigs {
+		if len(serviceConfig.Networks) == 0 {
+			serviceNetworks["default"] = struct{}{}
+			continue
+		}
+		for network := range serviceConfig.Networks {
+			serviceNetworks[network] = struct{}{}
+		}
+	}
+	return serviceNetworks
 }
 
 func propertyWarnings(properties map[string]string) string {
@@ -182,18 +195,17 @@ func getConfigFile(filename string) (*composetypes.ConfigFile, error) {
 func convertNetworks(
 	namespace namespace,
 	networks map[string]composetypes.NetworkConfig,
+	servicesNetworks map[string]struct{},
 ) (map[string]types.NetworkCreate, []string) {
 	if networks == nil {
 		networks = make(map[string]composetypes.NetworkConfig)
 	}
 
-	// TODO: only add default network if it's used
-	networks["default"] = composetypes.NetworkConfig{}
-
 	externalNetworks := []string{}
 	result := make(map[string]types.NetworkCreate)
 
-	for internalName, network := range networks {
+	for internalName := range servicesNetworks {
+		network := networks[internalName]
 		if network.External.External {
 			externalNetworks = append(externalNetworks, network.External.Name)
 			continue
@@ -310,7 +322,7 @@ func convertServiceNetworks(
 		}
 		target := namespace.scope(networkName)
 		if networkConfig.External.External {
-			target = networkName
+			target = networkConfig.External.Name
 		}
 		nets = append(nets, swarm.NetworkAttachmentConfig{
 			Target:  target,
