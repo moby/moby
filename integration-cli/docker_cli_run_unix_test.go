@@ -1140,9 +1140,22 @@ func (s *DockerSuite) TestRunSeccompDefaultProfileNS(c *check.C) {
 	}
 }
 
-// TestRunNoNewPrivSetuid checks that --security-opt=no-new-privileges prevents
+// TestRunNoNewPrivSetuid checks that --security-opt='no-new-privileges=true' prevents
 // effective uid transtions on executing setuid binaries.
 func (s *DockerSuite) TestRunNoNewPrivSetuid(c *check.C) {
+	testRequires(c, DaemonIsLinux, NotUserNamespace, SameHostDaemon)
+	ensureNNPTest(c)
+
+	// test that running a setuid binary results in no effective uid transition
+	icmd.RunCommand(dockerBinary, "run", "--security-opt", "no-new-privileges=true", "--user", "1000",
+		"nnp-test", "/usr/bin/nnp-test").Assert(c, icmd.Expected{
+		Out: "EUID=1000",
+	})
+}
+
+// TestLegacyRunNoNewPrivSetuid checks that --security-opt=no-new-privileges prevents
+// effective uid transtions on executing setuid binaries.
+func (s *DockerSuite) TestLegacyRunNoNewPrivSetuid(c *check.C) {
 	testRequires(c, DaemonIsLinux, NotUserNamespace, SameHostDaemon)
 	ensureNNPTest(c)
 

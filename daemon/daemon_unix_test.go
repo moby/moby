@@ -180,6 +180,35 @@ func TestParseSecurityOpt(t *testing.T) {
 	}
 }
 
+func TestParseNNPSecurityOptions(t *testing.T) {
+	daemon := &Daemon{
+		configStore: &config.Config{NoNewPrivileges: true},
+	}
+	container := &container.Container{}
+	config := &containertypes.HostConfig{}
+
+	// test NNP when "daemon:true" and "no-new-privileges=false""
+	config.SecurityOpt = []string{"no-new-privileges=false"}
+
+	if err := daemon.parseSecurityOpt(container, config); err != nil {
+		t.Fatalf("Unexpected daemon.parseSecurityOpt error: %v", err)
+	}
+	if container.NoNewPrivileges {
+		t.Fatalf("container.NoNewPrivileges should be FALSE: %v", container.NoNewPrivileges)
+	}
+
+	// test NNP when "daemon:false" and "no-new-privileges=true""
+	daemon.configStore.NoNewPrivileges = false
+	config.SecurityOpt = []string{"no-new-privileges=true"}
+
+	if err := daemon.parseSecurityOpt(container, config); err != nil {
+		t.Fatalf("Unexpected daemon.parseSecurityOpt error: %v", err)
+	}
+	if !container.NoNewPrivileges {
+		t.Fatalf("container.NoNewPrivileges should be TRUE: %v", container.NoNewPrivileges)
+	}
+}
+
 func TestNetworkOptions(t *testing.T) {
 	daemon := &Daemon{}
 	dconfigCorrect := &config.Config{
