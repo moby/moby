@@ -37,7 +37,7 @@ func NewLogsCommand(dockerCli *command.DockerCli) *cobra.Command {
 
 	flags := cmd.Flags()
 	flags.BoolVarP(&opts.follow, "follow", "f", false, "Follow log output")
-	flags.StringVar(&opts.since, "since", "", "Show logs since timestamp")
+	flags.StringVar(&opts.since, "since", "", "Show logs since timestamp (e.g. 2013-01-02T13:23:37) or relative (e.g. 42m for 42 minutes)")
 	flags.BoolVarP(&opts.timestamps, "timestamps", "t", false, "Show timestamps")
 	flags.BoolVar(&opts.details, "details", false, "Show extra details provided to logs")
 	flags.StringVar(&opts.tail, "tail", "all", "Number of lines to show from the end of the logs")

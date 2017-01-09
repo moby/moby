@@ -24,8 +24,8 @@ Options:
       --details        Show extra details provided to logs
   -f, --follow         Follow log output
       --help           Print usage
-      --since string   Show logs since timestamp
-      --tail string    Number of lines to show from the end of the logs (default "all")
+      --since string   Show logs since timestamp (e.g. 2013-01-02T13:23:37) or relative (e.g. 42m for 42 minutes)
+      --tail string    Number of lines to show from the end of the logs (default "all") 
   -t, --timestamps     Show timestamps
 ```
 
