@@ -6,10 +6,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	mounttypes "github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/pkg/testutil/assert"
+	"golang.org/x/net/context"
 )
 
 func TestUpdateServiceArgs(t *testing.T) {
@@ -381,4 +383,59 @@ func TestValidatePort(t *testing.T) {
 		_, err := validatePublishRemove(port)
 		assert.Error(t, err, e)
 	}
+}
+
+type secretAPIClientMock struct {
+	listResult []swarm.Secret
+}
+
+func (s secretAPIClientMock) SecretList(ctx context.Context, options types.SecretListOptions) ([]swarm.Secret, error) {
+	return s.listResult, nil
+}
+func (s secretAPIClientMock) SecretCreate(ctx context.Context, secret swarm.SecretSpec) (types.SecretCreateResponse, error) {
+	return types.SecretCreateResponse{}, nil
+}
+func (s secretAPIClientMock) SecretRemove(ctx context.Context, id string) error {
+	return nil
+}
+func (s secretAPIClientMock) SecretInspectWithRaw(ctx context.Context, name string) (swarm.Secret, []byte, error) {
+	return swarm.Secret{}, []byte{}, nil
+}
+
+// TestUpdateSecretUpdateInPlace tests the ability to update the "target" of an secret with "docker service update"
+// by combining "--secret-rm" and "--secret-add" for the same secret.
+func TestUpdateSecretUpdateInPlace(t *testing.T) {
+	apiClient := secretAPIClientMock{
+		listResult: []swarm.Secret{
+			{
+				ID:   "tn9qiblgnuuut11eufquw5dev",
+				Spec: swarm.SecretSpec{Annotations: swarm.Annotations{Name: "foo"}},
+			},
+		},
+	}
+
+	flags := newUpdateCommand(nil).Flags()
+	flags.Set("secret-add", "source=foo,target=foo2")
+	flags.Set("secret-rm", "foo")
+
+	secrets := []*swarm.SecretReference{
+		{
+			File: &swarm.SecretReferenceFileTarget{
+				Name: "foo",
+				UID:  "0",
+				GID:  "0",
+				Mode: 292,
+			},
+			SecretID:   "tn9qiblgnuuut11eufquw5dev",
+			SecretName: "foo",
+		},
+	}
+
+	updatedSecrets, err := getUpdatedSecrets(apiClient, flags, secrets)
+
+	assert.Equal(t, err, nil)
+	assert.Equal(t, len(updatedSecrets), 1)
+	assert.Equal(t, updatedSecrets[0].SecretID, "tn9qiblgnuuut11eufquw5dev")
+	assert.Equal(t, updatedSecrets[0].SecretName, "foo")
+	assert.Equal(t, updatedSecrets[0].File.Name, "foo2")
 }

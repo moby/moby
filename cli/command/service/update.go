@@ -6,8 +6,6 @@ import (
 	"strings"
 	"time"
 
-	"golang.org/x/net/context"
-
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	mounttypes "github.com/docker/docker/api/types/mount"
@@ -21,6 +19,7 @@ import (
 	shlex "github.com/flynn-archive/go-shlex"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
+	"golang.org/x/net/context"
 )
 
 func newUpdateCommand(dockerCli *command.DockerCli) *cobra.Command {
@@ -431,7 +430,16 @@ func updateEnvironment(flags *pflag.FlagSet, field *[]string) {
 	*field = removeItems(*field, toRemove, envKey)
 }
 
-func getUpdatedSecrets(apiClient client.APIClient, flags *pflag.FlagSet, secrets []*swarm.SecretReference) ([]*swarm.SecretReference, error) {
+func getUpdatedSecrets(apiClient client.SecretAPIClient, flags *pflag.FlagSet, secrets []*swarm.SecretReference) ([]*swarm.SecretReference, error) {
+	newSecrets := []*swarm.SecretReference{}
+
+	toRemove := buildToRemoveSet(flags, flagSecretRemove)
+	for _, secret := range secrets {
+		if _, exists := toRemove[secret.SecretName]; !exists {
+			newSecrets = append(newSecrets, secret)
+		}
+	}
+
 	if flags.Changed(flagSecretAdd) {
 		values := flags.Lookup(flagSecretAdd).Value.(*opts.SecretOpt).Value()
 
@@ -439,14 +447,7 @@ func getUpdatedSecrets(apiClient client.APIClient, flags *pflag.FlagSet, secrets
 		if err != nil {
 			return nil, err
 		}
-		secrets = append(secrets, addSecrets...)
-	}
-	toRemove := buildToRemoveSet(flags, flagSecretRemove)
-	newSecrets := []*swarm.SecretReference{}
-	for _, secret := range secrets {
-		if _, exists := toRemove[secret.SecretName]; !exists {
-			newSecrets = append(newSecrets, secret)
-		}
+		newSecrets = append(newSecrets, addSecrets...)
 	}
 
 	return newSecrets, nil

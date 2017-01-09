@@ -12,7 +12,7 @@ import (
 
 // parseSecrets retrieves the secrets from the requested names and converts
 // them to secret references to use with the spec
-func parseSecrets(client client.APIClient, requestedSecrets []*types.SecretRequestOption) ([]*swarmtypes.SecretReference, error) {
+func parseSecrets(client client.SecretAPIClient, requestedSecrets []*types.SecretRequestOption) ([]*swarmtypes.SecretReference, error) {
 	secretRefs := make(map[string]*swarmtypes.SecretReference)
 	ctx := context.Background()
 
