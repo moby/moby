@@ -5,19 +5,20 @@ import (
 
 	"golang.org/x/net/context"
 
-	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cli/command"
+	"github.com/docker/docker/opts"
 	"github.com/spf13/cobra"
 )
 
 type pruneOptions struct {
-	force bool
+	force  bool
+	filter opts.FilterOpt
 }
 
 // NewPruneCommand returns a new cobra prune command for networks
 func NewPruneCommand(dockerCli *command.DockerCli) *cobra.Command {
-	var opts pruneOptions
+	opts := pruneOptions{filter: opts.NewFilterOpt()}
 
 	cmd := &cobra.Command{
 		Use:   "prune [OPTIONS]",
@@ -38,6 +39,7 @@ func NewPruneCommand(dockerCli *command.DockerCli) *cobra.Command {
 
 	flags := cmd.Flags()
 	flags.BoolVarP(&opts.force, "force", "f", false, "Do not prompt for confirmation")
+	flags.Var(&opts.filter, "filter", "Provide filter values (e.g. 'until=<timestamp>')")
 
 	return cmd
 }
@@ -46,11 +48,13 @@ const warning = `WARNING! This will remove all networks not used by at least one
 Are you sure you want to continue?`
 
 func runPrune(dockerCli *command.DockerCli, opts pruneOptions) (output string, err error) {
+	pruneFilters := opts.filter.Value()
+
 	if !opts.force && !command.PromptForConfirmation(dockerCli.In(), dockerCli.Out(), warning) {
 		return
 	}
 
-	report, err := dockerCli.Client().NetworksPrune(context.Background(), filters.Args{})
+	report, err := dockerCli.Client().NetworksPrune(context.Background(), pruneFilters)
 	if err != nil {
 		return
 	}
@@ -67,7 +71,7 @@ func runPrune(dockerCli *command.DockerCli, opts pruneOptions) (output string, e
 
 // RunPrune calls the Network Prune API
 // This returns the amount of space reclaimed and a detailed output string
-func RunPrune(dockerCli *command.DockerCli) (uint64, string, error) {
-	output, err := runPrune(dockerCli, pruneOptions{force: true})
+func RunPrune(dockerCli *command.DockerCli, filter opts.FilterOpt) (uint64, string, error) {
+	output, err := runPrune(dockerCli, pruneOptions{force: true, filter: filter})
 	return 0, output, err
 }

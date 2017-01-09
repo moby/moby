@@ -21,9 +21,10 @@ Usage:	docker system prune [OPTIONS]
 Delete unused data
 
 Options:
-  -a, --all     Remove all unused data not just dangling ones
-  -f, --force   Do not prompt for confirmation
-      --help    Print usage
+  -a, --all             Remove all unused images not just dangling ones
+      --filter filter   Provide filter values (e.g. 'until=<timestamp>')
+  -f, --force           Do not prompt for confirmation
+      --help            Print usage
 ```
 
 Remove all unused containers, volumes, networks and images (both dangling and unreferenced).
@@ -63,6 +64,27 @@ deleted: sha256:3a88a5c81eb5c283e72db2dbc6d65cbfd8e80b6c89bb6e714cfaaa0eed99c548
 
 Total reclaimed space: 13.5 MB
 ```
+
+## Filtering
+
+The filtering flag (`-f` or `--filter`) format is of "key=value". If there is more
+than one filter, then pass multiple flags (e.g., `--filter "foo=bar" --filter "bif=baz"`)
+
+The currently supported filters are:
+
+* until (`<timestamp>`) - only remove containers, images, and networks created before given timestamp
+
+The `until` filter can be Unix timestamps, date formatted
+timestamps, or Go duration strings (e.g. `10m`, `1h30m`) computed
+relative to the daemon machine’s time. Supported formats for date
+formatted time stamps include RFC3339Nano, RFC3339, `2006-01-02T15:04:05`,
+`2006-01-02T15:04:05.999999999`, `2006-01-02Z07:00`, and `2006-01-02`. The local
+timezone on the daemon will be used if you do not provide either a `Z` or a
+`+-00:00` timezone offset at the end of the timestamp.  When providing Unix
+timestamps enter seconds[.nanoseconds], where seconds is the number of seconds
+that have elapsed since January 1, 1970 (midnight UTC/GMT), not counting leap
+seconds (aka Unix epoch or Unix time), and the optional .nanoseconds field is a
+fraction of a second no more than nine digits long.
 
 ## Related information
 
