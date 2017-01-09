@@ -92,7 +92,11 @@ Requires: device-mapper >= 1.02.90-2
 # RE: rhbz#1195804 - ensure min NVR for selinux-policy
 %if 0%{?with_selinux}
 Requires: selinux-policy >= %{selinux_policyver}
+%if 0%{?fedora} >= 25
+Requires(pre): docker-selinux
+%else
 Requires(pre): %{name}-selinux >= %{version}-%{release}
+%endif # fedora 25+
 %endif # with_selinux
 
 # conflicting packages
@@ -110,6 +114,17 @@ everything in between - and they don't require you to use a particular
 language, framework or packaging system. That makes them great building blocks
 for deploying and scaling web apps, databases, and backend services without
 depending on a particular stack or provider.
+
+%if 0%{?centos} >= 7
+%package selinux
+Summary: SELinux Policies for the open-source application container engine
+Group: Tools/Docker
+BuildArch: noarch
+Requires(pre): docker-selinux
+%description selinux
+SELinux policy modules for use with Docker
+%files selinux
+%endif
 
 %prep
 %if 0%{?centos} <= 6 || 0%{?oraclelinux} <=6
