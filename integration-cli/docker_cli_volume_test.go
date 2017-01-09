@@ -184,19 +184,6 @@ func (s *DockerSuite) TestVolumeCLILsFilterDangling(c *check.C) {
 	c.Assert(out, check.Not(checker.Contains), "testnotinuse1\n", check.Commentf("expected volume 'testnotinuse1' in output"))
 	c.Assert(out, checker.Contains, "testisinuse1\n", check.Commentf("execpeted volume 'testisinuse1' in output"))
 	c.Assert(out, checker.Contains, "testisinuse2\n", check.Commentf("expected volume 'testisinuse2' in output"))
-
-	out, _ = dockerCmd(c, "volume", "ls", "--filter", "driver=invalidDriver")
-	outArr := strings.Split(strings.TrimSpace(out), "\n")
-	c.Assert(len(outArr), check.Equals, 1, check.Commentf("%s\n", out))
-
-	out, _ = dockerCmd(c, "volume", "ls", "--filter", "driver=local")
-	outArr = strings.Split(strings.TrimSpace(out), "\n")
-	c.Assert(len(outArr), check.Equals, 4, check.Commentf("\n%s", out))
-
-	out, _ = dockerCmd(c, "volume", "ls", "--filter", "driver=loc")
-	outArr = strings.Split(strings.TrimSpace(out), "\n")
-	c.Assert(len(outArr), check.Equals, 4, check.Commentf("\n%s", out))
-
 }
 
 func (s *DockerSuite) TestVolumeCLILsErrorWithInvalidFilterName(c *check.C) {
@@ -373,6 +360,37 @@ func (s *DockerSuite) TestVolumeCLILsFilterLabels(c *check.C) {
 	c.Assert(len(outArr), check.Equals, 1, check.Commentf("\n%s", out))
 
 	out, _ = dockerCmd(c, "volume", "ls", "--filter", "label=foo=non-exist")
+	outArr = strings.Split(strings.TrimSpace(out), "\n")
+	c.Assert(len(outArr), check.Equals, 1, check.Commentf("\n%s", out))
+}
+
+func (s *DockerSuite) TestVolumeCLILsFilterDrivers(c *check.C) {
+	// using default volume driver local to create volumes
+	testVol1 := "testvol-1"
+	out, _, err := dockerCmdWithError("volume", "create", testVol1)
+	c.Assert(err, check.IsNil)
+
+	testVol2 := "testvol-2"
+	out, _, err = dockerCmdWithError("volume", "create", testVol2)
+	c.Assert(err, check.IsNil)
+
+	// filter with driver=local
+	out, _ = dockerCmd(c, "volume", "ls", "--filter", "driver=local")
+	c.Assert(out, checker.Contains, "testvol-1\n", check.Commentf("expected volume 'testvol-1' in output"))
+	c.Assert(out, checker.Contains, "testvol-2\n", check.Commentf("expected volume 'testvol-2' in output"))
+
+	// filter with driver=invaliddriver
+	out, _ = dockerCmd(c, "volume", "ls", "--filter", "driver=invaliddriver")
+	outArr := strings.Split(strings.TrimSpace(out), "\n")
+	c.Assert(len(outArr), check.Equals, 1, check.Commentf("\n%s", out))
+
+	// filter with driver=loca
+	out, _ = dockerCmd(c, "volume", "ls", "--filter", "driver=loca")
+	outArr = strings.Split(strings.TrimSpace(out), "\n")
+	c.Assert(len(outArr), check.Equals, 1, check.Commentf("\n%s", out))
+
+	// filter with driver=
+	out, _ = dockerCmd(c, "volume", "ls", "--filter", "driver=")
 	outArr = strings.Split(strings.TrimSpace(out), "\n")
 	c.Assert(len(outArr), check.Equals, 1, check.Commentf("\n%s", out))
 }
