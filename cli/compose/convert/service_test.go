@@ -80,6 +80,29 @@ func TestConvertResourcesFull(t *testing.T) {
 	assert.DeepEqual(t, resources, expected)
 }
 
+func TestConvertResourcesOnlyMemory(t *testing.T) {
+	source := composetypes.Resources{
+		Limits: &composetypes.Resource{
+			MemoryBytes: composetypes.UnitBytes(300000000),
+		},
+		Reservations: &composetypes.Resource{
+			MemoryBytes: composetypes.UnitBytes(200000000),
+		},
+	}
+	resources, err := convertResources(source)
+	assert.NilError(t, err)
+
+	expected := &swarm.ResourceRequirements{
+		Limits: &swarm.Resources{
+			MemoryBytes: 300000000,
+		},
+		Reservations: &swarm.Resources{
+			MemoryBytes: 200000000,
+		},
+	}
+	assert.DeepEqual(t, resources, expected)
+}
+
 func TestConvertHealthcheck(t *testing.T) {
 	retries := uint64(10)
 	source := &composetypes.HealthCheckConfig{
