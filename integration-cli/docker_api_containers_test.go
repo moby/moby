@@ -953,7 +953,7 @@ func (s *DockerSuite) TestContainerAPIStop(c *check.C) {
 	c.Assert(status, checker.Equals, http.StatusNoContent)
 	c.Assert(waitInspect(name, "{{ .State.Running  }}", "false", 60*time.Second), checker.IsNil)
 
-	// second call to start should give 304
+	// second call to stop should give 304
 	status, _, err = sockRequest("POST", "/containers/"+name+"/stop?t=30", nil)
 	c.Assert(err, checker.IsNil)
 	c.Assert(status, checker.Equals, http.StatusNotModified)
