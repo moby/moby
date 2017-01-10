@@ -449,7 +449,9 @@ func (daemon *Daemon) registerLink(parent, child *container.Container, alias str
 // SetClusterProvider sets a component for querying the current cluster state.
 func (daemon *Daemon) SetClusterProvider(clusterProvider cluster.Provider) {
 	daemon.clusterProvider = clusterProvider
-	daemon.netController.SetClusterProvider(clusterProvider)
+	// call this in a goroutine to allow netcontroller handle this event async
+	// and not block if it is in the middle of talking with cluster
+	go daemon.netController.SetClusterProvider(clusterProvider)
 }
 
 // IsSwarmCompatible verifies if the current daemon
