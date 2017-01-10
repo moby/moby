@@ -1279,12 +1279,12 @@ func encodeVarintLogbroker(data []byte, offset int, v uint64) int {
 }
 
 type raftProxyLogsServer struct {
-	local        LogsServer
-	connSelector raftselector.ConnProvider
-	ctxMods      []func(context.Context) (context.Context, error)
+	local                       LogsServer
+	connSelector                raftselector.ConnProvider
+	localCtxMods, remoteCtxMods []func(context.Context) (context.Context, error)
 }
 
-func NewRaftProxyLogsServer(local LogsServer, connSelector raftselector.ConnProvider, ctxMod func(context.Context) (context.Context, error)) LogsServer {
+func NewRaftProxyLogsServer(local LogsServer, connSelector raftselector.ConnProvider, localCtxMod, remoteCtxMod func(context.Context) (context.Context, error)) LogsServer {
 	redirectChecker := func(ctx context.Context) (context.Context, error) {
 		s, ok := transport.StreamFromContext(ctx)
 		if !ok {
@@ -1301,18 +1301,24 @@ func NewRaftProxyLogsServer(local LogsServer, connSelector raftselector.ConnProv
 		md["redirect"] = append(md["redirect"], addr)
 		return metadata.NewContext(ctx, md), nil
 	}
-	mods := []func(context.Context) (context.Context, error){redirectChecker}
-	mods = append(mods, ctxMod)
+	remoteMods := []func(context.Context) (context.Context, error){redirectChecker}
+	remoteMods = append(remoteMods, remoteCtxMod)
+
+	var localMods []func(context.Context) (context.Context, error)
+	if localCtxMod != nil {
+		localMods = []func(context.Context) (context.Context, error){localCtxMod}
+	}
 
 	return &raftProxyLogsServer{
-		local:        local,
-		connSelector: connSelector,
-		ctxMods:      mods,
+		local:         local,
+		connSelector:  connSelector,
+		localCtxMods:  localMods,
+		remoteCtxMods: remoteMods,
 	}
 }
-func (p *raftProxyLogsServer) runCtxMods(ctx context.Context) (context.Context, error) {
+func (p *raftProxyLogsServer) runCtxMods(ctx context.Context, ctxMods []func(context.Context) (context.Context, error)) (context.Context, error) {
 	var err error
-	for _, mod := range p.ctxMods {
+	for _, mod := range ctxMods {
 		ctx, err = mod(ctx)
 		if err != nil {
 			return ctx, err
@@ -1344,17 +1350,33 @@ func (p *raftProxyLogsServer) pollNewLeaderConn(ctx context.Context) (*grpc.Clie
 	}
 }
 
-func (p *raftProxyLogsServer) SubscribeLogs(r *SubscribeLogsRequest, stream Logs_SubscribeLogsServer) error {
+type Logs_SubscribeLogsServerWrapper struct {
+	Logs_SubscribeLogsServer
+	ctx context.Context
+}
 
+func (s Logs_SubscribeLogsServerWrapper) Context() context.Context {
+	return s.ctx
+}
+
+func (p *raftProxyLogsServer) SubscribeLogs(r *SubscribeLogsRequest, stream Logs_SubscribeLogsServer) error {
 	ctx := stream.Context()
 	conn, err := p.connSelector.LeaderConn(ctx)
 	if err != nil {
 		if err == raftselector.ErrIsLeader {
-			return p.local.SubscribeLogs(r, stream)
+			ctx, err = p.runCtxMods(ctx, p.localCtxMods)
+			if err != nil {
+				return err
+			}
+			streamWrapper := Logs_SubscribeLogsServerWrapper{
+				Logs_SubscribeLogsServer: stream,
+				ctx: ctx,
+			}
+			return p.local.SubscribeLogs(r, streamWrapper)
 		}
 		return err
 	}
-	ctx, err = p.runCtxMods(ctx)
+	ctx, err = p.runCtxMods(ctx, p.remoteCtxMods)
 	if err != nil {
 		return err
 	}
@@ -1380,12 +1402,12 @@ func (p *raftProxyLogsServer) SubscribeLogs(r *SubscribeLogsRequest, stream Logs
 }
 
 type raftProxyLogBrokerServer struct {
-	local        LogBrokerServer
-	connSelector raftselector.ConnProvider
-	ctxMods      []func(context.Context) (context.Context, error)
+	local                       LogBrokerServer
+	connSelector                raftselector.ConnProvider
+	localCtxMods, remoteCtxMods []func(context.Context) (context.Context, error)
 }
 
-func NewRaftProxyLogBrokerServer(local LogBrokerServer, connSelector raftselector.ConnProvider, ctxMod func(context.Context) (context.Context, error)) LogBrokerServer {
+func NewRaftProxyLogBrokerServer(local LogBrokerServer, connSelector raftselector.ConnProvider, localCtxMod, remoteCtxMod func(context.Context) (context.Context, error)) LogBrokerServer {
 	redirectChecker := func(ctx context.Context) (context.Context, error) {
 		s, ok := transport.StreamFromContext(ctx)
 		if !ok {
@@ -1402,18 +1424,24 @@ func NewRaftProxyLogBrokerServer(local LogBrokerServer, connSelector raftselecto
 		md["redirect"] = append(md["redirect"], addr)
 		return metadata.NewContext(ctx, md), nil
 	}
-	mods := []func(context.Context) (context.Context, error){redirectChecker}
-	mods = append(mods, ctxMod)
+	remoteMods := []func(context.Context) (context.Context, error){redirectChecker}
+	remoteMods = append(remoteMods, remoteCtxMod)
+
+	var localMods []func(context.Context) (context.Context, error)
+	if localCtxMod != nil {
+		localMods = []func(context.Context) (context.Context, error){localCtxMod}
+	}
 
 	return &raftProxyLogBrokerServer{
-		local:        local,
-		connSelector: connSelector,
-		ctxMods:      mods,
+		local:         local,
+		connSelector:  connSelector,
+		localCtxMods:  localMods,
+		remoteCtxMods: remoteMods,
 	}
 }
-func (p *raftProxyLogBrokerServer) runCtxMods(ctx context.Context) (context.Context, error) {
+func (p *raftProxyLogBrokerServer) runCtxMods(ctx context.Context, ctxMods []func(context.Context) (context.Context, error)) (context.Context, error) {
 	var err error
-	for _, mod := range p.ctxMods {
+	for _, mod := range ctxMods {
 		ctx, err = mod(ctx)
 		if err != nil {
 			return ctx, err
@@ -1445,17 +1473,33 @@ func (p *raftProxyLogBrokerServer) pollNewLeaderConn(ctx context.Context) (*grpc
 	}
 }
 
-func (p *raftProxyLogBrokerServer) ListenSubscriptions(r *ListenSubscriptionsRequest, stream LogBroker_ListenSubscriptionsServer) error {
+type LogBroker_ListenSubscriptionsServerWrapper struct {
+	LogBroker_ListenSubscriptionsServer
+	ctx context.Context
+}
 
+func (s LogBroker_ListenSubscriptionsServerWrapper) Context() context.Context {
+	return s.ctx
+}
+
+func (p *raftProxyLogBrokerServer) ListenSubscriptions(r *ListenSubscriptionsRequest, stream LogBroker_ListenSubscriptionsServer) error {
 	ctx := stream.Context()
 	conn, err := p.connSelector.LeaderConn(ctx)
 	if err != nil {
 		if err == raftselector.ErrIsLeader {
-			return p.local.ListenSubscriptions(r, stream)
+			ctx, err = p.runCtxMods(ctx, p.localCtxMods)
+			if err != nil {
+				return err
+			}
+			streamWrapper := LogBroker_ListenSubscriptionsServerWrapper{
+				LogBroker_ListenSubscriptionsServer: stream,
+				ctx: ctx,
+			}
+			return p.local.ListenSubscriptions(r, streamWrapper)
 		}
 		return err
 	}
-	ctx, err = p.runCtxMods(ctx)
+	ctx, err = p.runCtxMods(ctx, p.remoteCtxMods)
 	if err != nil {
 		return err
 	}
@@ -1480,17 +1524,33 @@ func (p *raftProxyLogBrokerServer) ListenSubscriptions(r *ListenSubscriptionsReq
 	return nil
 }
 
-func (p *raftProxyLogBrokerServer) PublishLogs(stream LogBroker_PublishLogsServer) error {
+type LogBroker_PublishLogsServerWrapper struct {
+	LogBroker_PublishLogsServer
+	ctx context.Context
+}
 
+func (s LogBroker_PublishLogsServerWrapper) Context() context.Context {
+	return s.ctx
+}
+
+func (p *raftProxyLogBrokerServer) PublishLogs(stream LogBroker_PublishLogsServer) error {
 	ctx := stream.Context()
 	conn, err := p.connSelector.LeaderConn(ctx)
 	if err != nil {
 		if err == raftselector.ErrIsLeader {
-			return p.local.PublishLogs(stream)
+			ctx, err = p.runCtxMods(ctx, p.localCtxMods)
+			if err != nil {
+				return err
+			}
+			streamWrapper := LogBroker_PublishLogsServerWrapper{
+				LogBroker_PublishLogsServer: stream,
+				ctx: ctx,
+			}
+			return p.local.PublishLogs(streamWrapper)
 		}
 		return err
 	}
-	ctx, err = p.runCtxMods(ctx)
+	ctx, err = p.runCtxMods(ctx, p.remoteCtxMods)
 	if err != nil {
 		return err
 	}

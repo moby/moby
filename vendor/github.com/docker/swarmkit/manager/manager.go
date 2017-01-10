@@ -335,23 +335,46 @@ func (m *Manager) Run(parent context.Context) error {
 	authenticatedHealthAPI := api.NewAuthenticatedWrapperHealthServer(healthServer, authorize)
 	authenticatedRaftMembershipAPI := api.NewAuthenticatedWrapperRaftMembershipServer(m.raftNode, authorize)
 
-	proxyDispatcherAPI := api.NewRaftProxyDispatcherServer(authenticatedDispatcherAPI, m.raftNode, ca.WithMetadataForwardTLSInfo)
-	proxyCAAPI := api.NewRaftProxyCAServer(authenticatedCAAPI, m.raftNode, ca.WithMetadataForwardTLSInfo)
-	proxyNodeCAAPI := api.NewRaftProxyNodeCAServer(authenticatedNodeCAAPI, m.raftNode, ca.WithMetadataForwardTLSInfo)
-	proxyRaftMembershipAPI := api.NewRaftProxyRaftMembershipServer(authenticatedRaftMembershipAPI, m.raftNode, ca.WithMetadataForwardTLSInfo)
-	proxyResourceAPI := api.NewRaftProxyResourceAllocatorServer(authenticatedResourceAPI, m.raftNode, ca.WithMetadataForwardTLSInfo)
-	proxyLogBrokerAPI := api.NewRaftProxyLogBrokerServer(authenticatedLogBrokerAPI, m.raftNode, ca.WithMetadataForwardTLSInfo)
+	proxyDispatcherAPI := api.NewRaftProxyDispatcherServer(authenticatedDispatcherAPI, m.raftNode, nil, ca.WithMetadataForwardTLSInfo)
+	proxyCAAPI := api.NewRaftProxyCAServer(authenticatedCAAPI, m.raftNode, nil, ca.WithMetadataForwardTLSInfo)
+	proxyNodeCAAPI := api.NewRaftProxyNodeCAServer(authenticatedNodeCAAPI, m.raftNode, nil, ca.WithMetadataForwardTLSInfo)
+	proxyRaftMembershipAPI := api.NewRaftProxyRaftMembershipServer(authenticatedRaftMembershipAPI, m.raftNode, nil, ca.WithMetadataForwardTLSInfo)
+	proxyResourceAPI := api.NewRaftProxyResourceAllocatorServer(authenticatedResourceAPI, m.raftNode, nil, ca.WithMetadataForwardTLSInfo)
+	proxyLogBrokerAPI := api.NewRaftProxyLogBrokerServer(authenticatedLogBrokerAPI, m.raftNode, nil, ca.WithMetadataForwardTLSInfo)
 
-	// localProxyControlAPI is a special kind of proxy. It is only wired up
-	// to receive requests from a trusted local socket, and these requests
-	// don't use TLS, therefore the requests it handles locally should
-	// bypass authorization. When it proxies, it sends them as requests from
-	// this manager rather than forwarded requests (it has no TLS
-	// information to put in the metadata map).
+	// The following local proxies are only wired up to receive requests
+	// from a trusted local socket, and these requests don't use TLS,
+	// therefore the requests they handle locally should bypass
+	// authorization. When requests are proxied from these servers, they
+	// are sent as requests from this manager rather than forwarded
+	// requests (it has no TLS information to put in the metadata map).
 	forwardAsOwnRequest := func(ctx context.Context) (context.Context, error) { return ctx, nil }
-	localProxyControlAPI := api.NewRaftProxyControlServer(baseControlAPI, m.raftNode, forwardAsOwnRequest)
-	localProxyLogsAPI := api.NewRaftProxyLogsServer(m.logbroker, m.raftNode, forwardAsOwnRequest)
-	localCAAPI := api.NewRaftProxyCAServer(m.caserver, m.raftNode, forwardAsOwnRequest)
+	handleRequestLocally := func(ctx context.Context) (context.Context, error) {
+		var remoteAddr string
+		if m.config.RemoteAPI.AdvertiseAddr != "" {
+			remoteAddr = m.config.RemoteAPI.AdvertiseAddr
+		} else {
+			remoteAddr = m.config.RemoteAPI.ListenAddr
+		}
+
+		creds := m.config.SecurityConfig.ClientTLSCreds
+
+		nodeInfo := ca.RemoteNodeInfo{
+			Roles:        []string{creds.Role()},
+			Organization: creds.Organization(),
+			NodeID:       creds.NodeID(),
+			RemoteAddr:   remoteAddr,
+		}
+
+		return context.WithValue(ctx, ca.LocalRequestKey, nodeInfo), nil
+	}
+	localProxyControlAPI := api.NewRaftProxyControlServer(baseControlAPI, m.raftNode, handleRequestLocally, forwardAsOwnRequest)
+	localProxyLogsAPI := api.NewRaftProxyLogsServer(m.logbroker, m.raftNode, handleRequestLocally, forwardAsOwnRequest)
+	localProxyDispatcherAPI := api.NewRaftProxyDispatcherServer(m.dispatcher, m.raftNode, handleRequestLocally, forwardAsOwnRequest)
+	localProxyCAAPI := api.NewRaftProxyCAServer(m.caserver, m.raftNode, handleRequestLocally, forwardAsOwnRequest)
+	localProxyNodeCAAPI := api.NewRaftProxyNodeCAServer(m.caserver, m.raftNode, handleRequestLocally, forwardAsOwnRequest)
+	localProxyResourceAPI := api.NewRaftProxyResourceAllocatorServer(baseResourceAPI, m.raftNode, handleRequestLocally, forwardAsOwnRequest)
+	localProxyLogBrokerAPI := api.NewRaftProxyLogBrokerServer(m.logbroker, m.raftNode, handleRequestLocally, forwardAsOwnRequest)
 
 	// Everything registered on m.server should be an authenticated
 	// wrapper, or a proxy wrapping an authenticated wrapper!
@@ -369,7 +392,11 @@ func (m *Manager) Run(parent context.Context) error {
 	api.RegisterControlServer(m.localserver, localProxyControlAPI)
 	api.RegisterLogsServer(m.localserver, localProxyLogsAPI)
 	api.RegisterHealthServer(m.localserver, localHealthServer)
-	api.RegisterCAServer(m.localserver, localCAAPI)
+	api.RegisterDispatcherServer(m.localserver, localProxyDispatcherAPI)
+	api.RegisterCAServer(m.localserver, localProxyCAAPI)
+	api.RegisterNodeCAServer(m.localserver, localProxyNodeCAAPI)
+	api.RegisterResourceAllocatorServer(m.localserver, localProxyResourceAPI)
+	api.RegisterLogBrokerServer(m.localserver, localProxyLogBrokerAPI)
 
 	healthServer.SetServingStatus("Raft", api.HealthCheckResponse_NOT_SERVING)
 	localHealthServer.SetServingStatus("ControlAPI", api.HealthCheckResponse_NOT_SERVING)
