@@ -27,17 +27,17 @@ func newSecretCreateCommand(dockerCli *command.DockerCli) *cobra.Command {
 	}
 
 	cmd := &cobra.Command{
-		Use:   "create [OPTIONS] SECRET",
+		Use:   "create [OPTIONS] SECRET file|-",
 		Short: "Create a secret from a file or STDIN as content",
-		Args:  cli.ExactArgs(1),
+		Args:  cli.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			createOpts.name = args[0]
+			createOpts.file = args[1]
 			return runSecretCreate(dockerCli, createOpts)
 		},
 	}
 	flags := cmd.Flags()
 	flags.VarP(&createOpts.labels, "label", "l", "Secret labels")
-	flags.StringVarP(&createOpts.file, "file", "f", "", "Read from a file or STDIN ('-')")
 
 	return cmd
 }
@@ -45,10 +45,6 @@ func newSecretCreateCommand(dockerCli *command.DockerCli) *cobra.Command {
 func runSecretCreate(dockerCli *command.DockerCli, options createOptions) error {
 	client := dockerCli.Client()
 	ctx := context.Background()
-
-	if options.file == "" {
-		return fmt.Errorf("Please specify either a file name or STDIN ('-') with --file")
-	}
 
 	var in io.Reader = dockerCli.In()
 	if options.file != "-" {
