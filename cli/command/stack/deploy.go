@@ -126,7 +126,16 @@ func deployCompose(ctx context.Context, dockerCli *command.DockerCli, opts deplo
 	if err := createNetworks(ctx, dockerCli, namespace, networks); err != nil {
 		return err
 	}
-	services, err := convert.Services(namespace, config)
+
+	secrets, err := convert.Secrets(namespace, config.Secrets)
+	if err != nil {
+		return err
+	}
+	if err := createSecrets(ctx, dockerCli, namespace, secrets); err != nil {
+		return err
+	}
+
+	services, err := convert.Services(namespace, config, dockerCli.Client())
 	if err != nil {
 		return err
 	}
@@ -208,6 +217,24 @@ func validateExternalNetworks(
 		}
 	}
 
+	return nil
+}
+
+func createSecrets(
+	ctx context.Context,
+	dockerCli *command.DockerCli,
+	namespace convert.Namespace,
+	secrets []swarm.SecretSpec,
+) error {
+	client := dockerCli.Client()
+
+	for _, secret := range secrets {
+		fmt.Fprintf(dockerCli.Out(), "Creating secret %s\n", secret.Name)
+		_, err := client.SecretCreate(ctx, secret)
+		if err != nil {
+			return err
+		}
+	}
 	return nil
 }
 

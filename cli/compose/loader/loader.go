@@ -109,6 +109,20 @@ func Load(configDetails types.ConfigDetails) (*types.Config, error) {
 		cfg.Volumes = volumesMapping
 	}
 
+	if secrets, ok := configDict["secrets"]; ok {
+		secretsConfig, err := interpolation.Interpolate(secrets.(types.Dict), "secret", os.LookupEnv)
+		if err != nil {
+			return nil, err
+		}
+
+		secretsMapping, err := loadSecrets(secretsConfig, configDetails.WorkingDir)
+		if err != nil {
+			return nil, err
+		}
+
+		cfg.Secrets = secretsMapping
+	}
+
 	return &cfg, nil
 }
 
@@ -210,13 +224,15 @@ func transformHook(
 ) (interface{}, error) {
 	switch target {
 	case reflect.TypeOf(types.External{}):
-		return transformExternal(source, target, data)
+		return transformExternal(data)
 	case reflect.TypeOf(make(map[string]string, 0)):
 		return transformMapStringString(source, target, data)
 	case reflect.TypeOf(types.UlimitsConfig{}):
-		return transformUlimits(source, target, data)
+		return transformUlimits(data)
 	case reflect.TypeOf(types.UnitBytes(0)):
 		return loadSize(data)
+	case reflect.TypeOf(types.ServiceSecretConfig{}):
+		return transformServiceSecret(data)
 	}
 	switch target.Kind() {
 	case reflect.Struct:
@@ -311,7 +327,7 @@ func resolveEnvironment(serviceConfig *types.ServiceConfig, serviceDict types.Di
 		var envVars []string
 
 		for _, file := range envFiles {
-			filePath := path.Join(workingDir, file)
+			filePath := absPath(workingDir, file)
 			fileVars, err := opts.ParseEnvFile(filePath)
 			if err != nil {
 				return err
@@ -341,7 +357,7 @@ func resolveVolumePaths(volumes []string, workingDir string) error {
 		}
 
 		if strings.HasPrefix(parts[0], ".") {
-			parts[0] = path.Join(workingDir, parts[0])
+			parts[0] = absPath(workingDir, parts[0])
 		}
 		parts[0] = expandUser(parts[0])
 
@@ -359,11 +375,7 @@ func expandUser(path string) string {
 	return path
 }
 
-func transformUlimits(
-	source reflect.Type,
-	target reflect.Type,
-	data interface{},
-) (interface{}, error) {
+func transformUlimits(data interface{}) (interface{}, error) {
 	switch value := data.(type) {
 	case int:
 		return types.UlimitsConfig{Single: value}, nil
@@ -405,6 +417,32 @@ func loadVolumes(source types.Dict) (map[string]types.VolumeConfig, error) {
 		}
 	}
 	return volumes, nil
+}
+
+// TODO: remove duplicate with networks/volumes
+func loadSecrets(source types.Dict, workingDir string) (map[string]types.SecretConfig, error) {
+	secrets := make(map[string]types.SecretConfig)
+	err := transform(source, &secrets)
+	if err != nil {
+		return secrets, err
+	}
+	for name, secret := range secrets {
+		if secret.External.External && secret.External.Name == "" {
+			secret.External.Name = name
+			secrets[name] = secret
+		}
+		if secret.File != "" {
+			secret.File = absPath(workingDir, secret.File)
+		}
+	}
+	return secrets, nil
+}
+
+func absPath(workingDir string, filepath string) string {
+	if path.IsAbs(filepath) {
+		return filepath
+	}
+	return path.Join(workingDir, filepath)
 }
 
 func transformStruct(
@@ -490,11 +528,7 @@ func convertField(
 	return data, nil
 }
 
-func transformExternal(
-	source reflect.Type,
-	target reflect.Type,
-	data interface{},
-) (interface{}, error) {
+func transformExternal(data interface{}) (interface{}, error) {
 	switch value := data.(type) {
 	case bool:
 		return map[string]interface{}{"external": value}, nil
@@ -505,6 +539,20 @@ func transformExternal(
 	default:
 		return data, fmt.Errorf("invalid type %T for external", value)
 	}
+}
+
+func transformServiceSecret(data interface{}) (interface{}, error) {
+	switch value := data.(type) {
+	case string:
+		return map[string]interface{}{"source": value}, nil
+	case types.Dict:
+		return data, nil
+	case map[string]interface{}:
+		return data, nil
+	default:
+		return data, fmt.Errorf("invalid type %T for external", value)
+	}
+
 }
 
 func toYAMLName(name string) string {
