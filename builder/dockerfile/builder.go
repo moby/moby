@@ -264,7 +264,7 @@ func (b *Builder) build(stdout io.Writer, stderr io.Writer, out io.Writer) (stri
 	total := len(b.dockerfile.Children)
 	for _, n := range b.dockerfile.Children {
 		if err := b.checkDispatch(n, false); err != nil {
-			return "", err
+			return "", perrors.Wrapf(err, "Dockerfile parse error line %d", n.StartLine)
 		}
 	}
 
