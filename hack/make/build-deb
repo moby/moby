@@ -11,6 +11,7 @@ set -e
 
 	tilde='~' # ouch Bash 4.2 vs 4.3, you keel me
 	debVersion="${VERSION//-/$tilde}" # using \~ or '~' here works in 4.3, but not 4.2; just ~ causes $HOME to be inserted, hence the $tilde
+	debCeVersion="${VERSION_CE//-/$tilde}"
 	# if we have a "-dev" suffix or have change in Git, let's make this package version more complex so it works better
 	if [[ "$VERSION" == *-dev ]] || [ -n "$(git status --porcelain)" ]; then
 		gitUnix="$(git log -1 --pretty='%at')"
@@ -19,6 +20,7 @@ set -e
 		gitVersion="git${gitDate}.0.${gitCommit}"
 		# gitVersion is now something like 'git20150128.112847.0.17e840a'
 		debVersion="$debVersion~$gitVersion"
+		debCeVersion="$debCeVersion~$gitVersion"
 
 		# $ dpkg --compare-versions 1.5.0 gt 1.5.0~rc1 && echo true || echo false
 		# true
@@ -31,6 +33,7 @@ set -e
 	fi
 
 	debSource="$(awk -F ': ' '$1 == "Source" { print $2; exit }' hack/make/.build-deb/control)"
+	debCeSource="$(awk -F ': ' '$1 == "Source" { print $2; exit }' hack/make/.build-deb-ce/control)"
 	debMaintainer="$(awk -F ': ' '$1 == "Maintainer" { print $2; exit }' hack/make/.build-deb/control)"
 	debDate="$(date --rfc-2822)"
 
@@ -70,13 +73,8 @@ set -e
 			ENV DOCKER_GITCOMMIT $GITCOMMIT
 			RUN mkdir -p /go/src/github.com/docker && mkdir -p /go/src/github.com/opencontainers \
 				&& ln -snf /usr/src/docker /go/src/github.com/docker/docker
-		EOF
-
-		cat >> "$DEST/$version/Dockerfile.build" <<-EOF
 			# Install runc, containerd, proxy and tini
 			RUN ./hack/dockerfile/install-binaries.sh runc-dynamic containerd-dynamic proxy-dynamic tini
-		EOF
-		cat >> "$DEST/$version/Dockerfile.build" <<-EOF
 			RUN cp -aL hack/make/.build-deb debian
 			RUN { echo '$debSource (${debVersion}-0~${version}) $suite; urgency=low'; echo; echo '  * Version: $VERSION'; echo; echo " -- $debMaintainer  $debDate"; } > debian/changelog && cat >&2 debian/changelog
 			RUN dpkg-buildpackage -uc -us -I.git
@@ -84,7 +82,21 @@ set -e
 		tempImage="docker-temp/build-deb:$version"
 		( set -x && docker build -t "$tempImage" -f "$DEST/$version/Dockerfile.build" . )
 		docker run --rm "$tempImage" bash -c 'cd .. && tar -c *_*' | tar -xvC "$DEST/$version"
-		docker rmi "$tempImage"
+
+		cat > "$DEST/$version/Dockerfile.build-ce" <<-EOF
+			FROM $image
+			WORKDIR /usr/src/docker-ce
+			COPY . /usr/src/docker-ce
+			RUN echo "Depends: docker-engine ( = ${debVersion}-0~${version} )" >> hack/make/.build-deb-ce/control
+			RUN cp -aL hack/make/.build-deb-ce debian
+			RUN { echo '$debCeSource (${debCeVersion}-0~${version}) $suite; urgency=low'; echo; echo '  * Version: $VERSION_CE'; echo; echo " -- $debMaintainer  $debDate"; } > debian/changelog && cat >&2 debian/changelog
+			RUN dpkg-buildpackage -uc -us -I.git
+		EOF
+		tempImageCe="docker-temp/build-deb-ce:$version"
+		( set -x && docker build -t "$tempImageCe" -f "$DEST/$version/Dockerfile.build-ce" . )
+		docker run --rm "$tempImageCe" bash -c 'cd .. && tar -c *_*' | tar -xvC "$DEST/$version"
+
+		docker rmi "$tempImage" "$tempImageCe"
 	done
 
 	bundle .integration-daemon-stop

@@ -69,6 +69,7 @@ DEFAULT_BUNDLES=(
 )
 
 VERSION=$(< ./VERSION)
+VERSION_CE=$(< ./VERSION.ce)
 ! BUILDTIME=$(date --rfc-3339 ns 2> /dev/null | sed -e 's/ /T/')
 if command -v git &> /dev/null && [ -d .git ] && git rev-parse &> /dev/null; then
 	GITCOMMIT=$(git rev-parse --short HEAD)
