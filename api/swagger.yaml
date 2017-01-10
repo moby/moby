@@ -1444,13 +1444,13 @@ definitions:
           Linux:
             type: "object"
             x-nullable: false
-            required: [Capabilities, DeviceCreation, Devices]
+            required: [Capabilities, AllowAllDevices, Devices]
             properties:
               Capabilities:
                 type: "array"
                 items:
                   type: "string"
-              DeviceCreation:
+              AllowAllDevices:
                 type: "boolean"
                 x-nullable: false
               Devices:
@@ -1522,7 +1522,7 @@ definitions:
           Type: ""
         Linux:
           Capabilities: null
-          DeviceCreation: false
+          AllowAllDevices: false
           Devices: null
         Mounts: null
         PropagatedMount: "/data"
@@ -6364,7 +6364,7 @@ paths:
                     Type: ""
                   Linux:
                     Capabilities: null
-                    DeviceCreation: false
+                    AllowAllDevices: false
                     Devices: null
                   Mounts: null
                   PropagatedMount: "/data"
