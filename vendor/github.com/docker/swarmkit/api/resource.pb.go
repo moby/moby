@@ -451,12 +451,12 @@ func encodeVarintResource(data []byte, offset int, v uint64) int {
 }
 
 type raftProxyResourceAllocatorServer struct {
-	local        ResourceAllocatorServer
-	connSelector raftselector.ConnProvider
-	ctxMods      []func(context.Context) (context.Context, error)
+	local                       ResourceAllocatorServer
+	connSelector                raftselector.ConnProvider
+	localCtxMods, remoteCtxMods []func(context.Context) (context.Context, error)
 }
 
-func NewRaftProxyResourceAllocatorServer(local ResourceAllocatorServer, connSelector raftselector.ConnProvider, ctxMod func(context.Context) (context.Context, error)) ResourceAllocatorServer {
+func NewRaftProxyResourceAllocatorServer(local ResourceAllocatorServer, connSelector raftselector.ConnProvider, localCtxMod, remoteCtxMod func(context.Context) (context.Context, error)) ResourceAllocatorServer {
 	redirectChecker := func(ctx context.Context) (context.Context, error) {
 		s, ok := transport.StreamFromContext(ctx)
 		if !ok {
@@ -473,18 +473,24 @@ func NewRaftProxyResourceAllocatorServer(local ResourceAllocatorServer, connSele
 		md["redirect"] = append(md["redirect"], addr)
 		return metadata.NewContext(ctx, md), nil
 	}
-	mods := []func(context.Context) (context.Context, error){redirectChecker}
-	mods = append(mods, ctxMod)
+	remoteMods := []func(context.Context) (context.Context, error){redirectChecker}
+	remoteMods = append(remoteMods, remoteCtxMod)
+
+	var localMods []func(context.Context) (context.Context, error)
+	if localCtxMod != nil {
+		localMods = []func(context.Context) (context.Context, error){localCtxMod}
+	}
 
 	return &raftProxyResourceAllocatorServer{
-		local:        local,
-		connSelector: connSelector,
-		ctxMods:      mods,
+		local:         local,
+		connSelector:  connSelector,
+		localCtxMods:  localMods,
+		remoteCtxMods: remoteMods,
 	}
 }
-func (p *raftProxyResourceAllocatorServer) runCtxMods(ctx context.Context) (context.Context, error) {
+func (p *raftProxyResourceAllocatorServer) runCtxMods(ctx context.Context, ctxMods []func(context.Context) (context.Context, error)) (context.Context, error) {
 	var err error
-	for _, mod := range p.ctxMods {
+	for _, mod := range ctxMods {
 		ctx, err = mod(ctx)
 		if err != nil {
 			return ctx, err
@@ -521,11 +527,15 @@ func (p *raftProxyResourceAllocatorServer) AttachNetwork(ctx context.Context, r 
 	conn, err := p.connSelector.LeaderConn(ctx)
 	if err != nil {
 		if err == raftselector.ErrIsLeader {
+			ctx, err = p.runCtxMods(ctx, p.localCtxMods)
+			if err != nil {
+				return nil, err
+			}
 			return p.local.AttachNetwork(ctx, r)
 		}
 		return nil, err
 	}
-	modCtx, err := p.runCtxMods(ctx)
+	modCtx, err := p.runCtxMods(ctx, p.remoteCtxMods)
 	if err != nil {
 		return nil, err
 	}
@@ -552,11 +562,15 @@ func (p *raftProxyResourceAllocatorServer) DetachNetwork(ctx context.Context, r 
 	conn, err := p.connSelector.LeaderConn(ctx)
 	if err != nil {
 		if err == raftselector.ErrIsLeader {
+			ctx, err = p.runCtxMods(ctx, p.localCtxMods)
+			if err != nil {
+				return nil, err
+			}
 			return p.local.DetachNetwork(ctx, r)
 		}
 		return nil, err
 	}
-	modCtx, err := p.runCtxMods(ctx)
+	modCtx, err := p.runCtxMods(ctx, p.remoteCtxMods)
 	if err != nil {
 		return nil, err
 	}

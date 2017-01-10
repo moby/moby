@@ -321,12 +321,12 @@ func encodeVarintHealth(data []byte, offset int, v uint64) int {
 }
 
 type raftProxyHealthServer struct {
-	local        HealthServer
-	connSelector raftselector.ConnProvider
-	ctxMods      []func(context.Context) (context.Context, error)
+	local                       HealthServer
+	connSelector                raftselector.ConnProvider
+	localCtxMods, remoteCtxMods []func(context.Context) (context.Context, error)
 }
 
-func NewRaftProxyHealthServer(local HealthServer, connSelector raftselector.ConnProvider, ctxMod func(context.Context) (context.Context, error)) HealthServer {
+func NewRaftProxyHealthServer(local HealthServer, connSelector raftselector.ConnProvider, localCtxMod, remoteCtxMod func(context.Context) (context.Context, error)) HealthServer {
 	redirectChecker := func(ctx context.Context) (context.Context, error) {
 		s, ok := transport.StreamFromContext(ctx)
 		if !ok {
@@ -343,18 +343,24 @@ func NewRaftProxyHealthServer(local HealthServer, connSelector raftselector.Conn
 		md["redirect"] = append(md["redirect"], addr)
 		return metadata.NewContext(ctx, md), nil
 	}
-	mods := []func(context.Context) (context.Context, error){redirectChecker}
-	mods = append(mods, ctxMod)
+	remoteMods := []func(context.Context) (context.Context, error){redirectChecker}
+	remoteMods = append(remoteMods, remoteCtxMod)
+
+	var localMods []func(context.Context) (context.Context, error)
+	if localCtxMod != nil {
+		localMods = []func(context.Context) (context.Context, error){localCtxMod}
+	}
 
 	return &raftProxyHealthServer{
-		local:        local,
-		connSelector: connSelector,
-		ctxMods:      mods,
+		local:         local,
+		connSelector:  connSelector,
+		localCtxMods:  localMods,
+		remoteCtxMods: remoteMods,
 	}
 }
-func (p *raftProxyHealthServer) runCtxMods(ctx context.Context) (context.Context, error) {
+func (p *raftProxyHealthServer) runCtxMods(ctx context.Context, ctxMods []func(context.Context) (context.Context, error)) (context.Context, error) {
 	var err error
-	for _, mod := range p.ctxMods {
+	for _, mod := range ctxMods {
 		ctx, err = mod(ctx)
 		if err != nil {
 			return ctx, err
@@ -391,11 +397,15 @@ func (p *raftProxyHealthServer) Check(ctx context.Context, r *HealthCheckRequest
 	conn, err := p.connSelector.LeaderConn(ctx)
 	if err != nil {
 		if err == raftselector.ErrIsLeader {
+			ctx, err = p.runCtxMods(ctx, p.localCtxMods)
+			if err != nil {
+				return nil, err
+			}
 			return p.local.Check(ctx, r)
 		}
 		return nil, err
 	}
-	modCtx, err := p.runCtxMods(ctx)
+	modCtx, err := p.runCtxMods(ctx, p.remoteCtxMods)
 	if err != nil {
 		return nil, err
 	}

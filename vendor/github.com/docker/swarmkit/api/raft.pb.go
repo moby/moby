@@ -1498,12 +1498,12 @@ func encodeVarintRaft(data []byte, offset int, v uint64) int {
 }
 
 type raftProxyRaftServer struct {
-	local        RaftServer
-	connSelector raftselector.ConnProvider
-	ctxMods      []func(context.Context) (context.Context, error)
+	local                       RaftServer
+	connSelector                raftselector.ConnProvider
+	localCtxMods, remoteCtxMods []func(context.Context) (context.Context, error)
 }
 
-func NewRaftProxyRaftServer(local RaftServer, connSelector raftselector.ConnProvider, ctxMod func(context.Context) (context.Context, error)) RaftServer {
+func NewRaftProxyRaftServer(local RaftServer, connSelector raftselector.ConnProvider, localCtxMod, remoteCtxMod func(context.Context) (context.Context, error)) RaftServer {
 	redirectChecker := func(ctx context.Context) (context.Context, error) {
 		s, ok := transport.StreamFromContext(ctx)
 		if !ok {
@@ -1520,18 +1520,24 @@ func NewRaftProxyRaftServer(local RaftServer, connSelector raftselector.ConnProv
 		md["redirect"] = append(md["redirect"], addr)
 		return metadata.NewContext(ctx, md), nil
 	}
-	mods := []func(context.Context) (context.Context, error){redirectChecker}
-	mods = append(mods, ctxMod)
+	remoteMods := []func(context.Context) (context.Context, error){redirectChecker}
+	remoteMods = append(remoteMods, remoteCtxMod)
+
+	var localMods []func(context.Context) (context.Context, error)
+	if localCtxMod != nil {
+		localMods = []func(context.Context) (context.Context, error){localCtxMod}
+	}
 
 	return &raftProxyRaftServer{
-		local:        local,
-		connSelector: connSelector,
-		ctxMods:      mods,
+		local:         local,
+		connSelector:  connSelector,
+		localCtxMods:  localMods,
+		remoteCtxMods: remoteMods,
 	}
 }
-func (p *raftProxyRaftServer) runCtxMods(ctx context.Context) (context.Context, error) {
+func (p *raftProxyRaftServer) runCtxMods(ctx context.Context, ctxMods []func(context.Context) (context.Context, error)) (context.Context, error) {
 	var err error
-	for _, mod := range p.ctxMods {
+	for _, mod := range ctxMods {
 		ctx, err = mod(ctx)
 		if err != nil {
 			return ctx, err
@@ -1568,11 +1574,15 @@ func (p *raftProxyRaftServer) ProcessRaftMessage(ctx context.Context, r *Process
 	conn, err := p.connSelector.LeaderConn(ctx)
 	if err != nil {
 		if err == raftselector.ErrIsLeader {
+			ctx, err = p.runCtxMods(ctx, p.localCtxMods)
+			if err != nil {
+				return nil, err
+			}
 			return p.local.ProcessRaftMessage(ctx, r)
 		}
 		return nil, err
 	}
-	modCtx, err := p.runCtxMods(ctx)
+	modCtx, err := p.runCtxMods(ctx, p.remoteCtxMods)
 	if err != nil {
 		return nil, err
 	}
@@ -1599,11 +1609,15 @@ func (p *raftProxyRaftServer) ResolveAddress(ctx context.Context, r *ResolveAddr
 	conn, err := p.connSelector.LeaderConn(ctx)
 	if err != nil {
 		if err == raftselector.ErrIsLeader {
+			ctx, err = p.runCtxMods(ctx, p.localCtxMods)
+			if err != nil {
+				return nil, err
+			}
 			return p.local.ResolveAddress(ctx, r)
 		}
 		return nil, err
 	}
-	modCtx, err := p.runCtxMods(ctx)
+	modCtx, err := p.runCtxMods(ctx, p.remoteCtxMods)
 	if err != nil {
 		return nil, err
 	}
@@ -1626,12 +1640,12 @@ func (p *raftProxyRaftServer) ResolveAddress(ctx context.Context, r *ResolveAddr
 }
 
 type raftProxyRaftMembershipServer struct {
-	local        RaftMembershipServer
-	connSelector raftselector.ConnProvider
-	ctxMods      []func(context.Context) (context.Context, error)
+	local                       RaftMembershipServer
+	connSelector                raftselector.ConnProvider
+	localCtxMods, remoteCtxMods []func(context.Context) (context.Context, error)
 }
 
-func NewRaftProxyRaftMembershipServer(local RaftMembershipServer, connSelector raftselector.ConnProvider, ctxMod func(context.Context) (context.Context, error)) RaftMembershipServer {
+func NewRaftProxyRaftMembershipServer(local RaftMembershipServer, connSelector raftselector.ConnProvider, localCtxMod, remoteCtxMod func(context.Context) (context.Context, error)) RaftMembershipServer {
 	redirectChecker := func(ctx context.Context) (context.Context, error) {
 		s, ok := transport.StreamFromContext(ctx)
 		if !ok {
@@ -1648,18 +1662,24 @@ func NewRaftProxyRaftMembershipServer(local RaftMembershipServer, connSelector r
 		md["redirect"] = append(md["redirect"], addr)
 		return metadata.NewContext(ctx, md), nil
 	}
-	mods := []func(context.Context) (context.Context, error){redirectChecker}
-	mods = append(mods, ctxMod)
+	remoteMods := []func(context.Context) (context.Context, error){redirectChecker}
+	remoteMods = append(remoteMods, remoteCtxMod)
+
+	var localMods []func(context.Context) (context.Context, error)
+	if localCtxMod != nil {
+		localMods = []func(context.Context) (context.Context, error){localCtxMod}
+	}
 
 	return &raftProxyRaftMembershipServer{
-		local:        local,
-		connSelector: connSelector,
-		ctxMods:      mods,
+		local:         local,
+		connSelector:  connSelector,
+		localCtxMods:  localMods,
+		remoteCtxMods: remoteMods,
 	}
 }
-func (p *raftProxyRaftMembershipServer) runCtxMods(ctx context.Context) (context.Context, error) {
+func (p *raftProxyRaftMembershipServer) runCtxMods(ctx context.Context, ctxMods []func(context.Context) (context.Context, error)) (context.Context, error) {
 	var err error
-	for _, mod := range p.ctxMods {
+	for _, mod := range ctxMods {
 		ctx, err = mod(ctx)
 		if err != nil {
 			return ctx, err
@@ -1696,11 +1716,15 @@ func (p *raftProxyRaftMembershipServer) Join(ctx context.Context, r *JoinRequest
 	conn, err := p.connSelector.LeaderConn(ctx)
 	if err != nil {
 		if err == raftselector.ErrIsLeader {
+			ctx, err = p.runCtxMods(ctx, p.localCtxMods)
+			if err != nil {
+				return nil, err
+			}
 			return p.local.Join(ctx, r)
 		}
 		return nil, err
 	}
-	modCtx, err := p.runCtxMods(ctx)
+	modCtx, err := p.runCtxMods(ctx, p.remoteCtxMods)
 	if err != nil {
 		return nil, err
 	}
@@ -1727,11 +1751,15 @@ func (p *raftProxyRaftMembershipServer) Leave(ctx context.Context, r *LeaveReque
 	conn, err := p.connSelector.LeaderConn(ctx)
 	if err != nil {
 		if err == raftselector.ErrIsLeader {
+			ctx, err = p.runCtxMods(ctx, p.localCtxMods)
+			if err != nil {
+				return nil, err
+			}
 			return p.local.Leave(ctx, r)
 		}
 		return nil, err
 	}
-	modCtx, err := p.runCtxMods(ctx)
+	modCtx, err := p.runCtxMods(ctx, p.remoteCtxMods)
 	if err != nil {
 		return nil, err
 	}

@@ -1670,12 +1670,12 @@ func encodeVarintDispatcher(data []byte, offset int, v uint64) int {
 }
 
 type raftProxyDispatcherServer struct {
-	local        DispatcherServer
-	connSelector raftselector.ConnProvider
-	ctxMods      []func(context.Context) (context.Context, error)
+	local                       DispatcherServer
+	connSelector                raftselector.ConnProvider
+	localCtxMods, remoteCtxMods []func(context.Context) (context.Context, error)
 }
 
-func NewRaftProxyDispatcherServer(local DispatcherServer, connSelector raftselector.ConnProvider, ctxMod func(context.Context) (context.Context, error)) DispatcherServer {
+func NewRaftProxyDispatcherServer(local DispatcherServer, connSelector raftselector.ConnProvider, localCtxMod, remoteCtxMod func(context.Context) (context.Context, error)) DispatcherServer {
 	redirectChecker := func(ctx context.Context) (context.Context, error) {
 		s, ok := transport.StreamFromContext(ctx)
 		if !ok {
@@ -1692,18 +1692,24 @@ func NewRaftProxyDispatcherServer(local DispatcherServer, connSelector raftselec
 		md["redirect"] = append(md["redirect"], addr)
 		return metadata.NewContext(ctx, md), nil
 	}
-	mods := []func(context.Context) (context.Context, error){redirectChecker}
-	mods = append(mods, ctxMod)
+	remoteMods := []func(context.Context) (context.Context, error){redirectChecker}
+	remoteMods = append(remoteMods, remoteCtxMod)
+
+	var localMods []func(context.Context) (context.Context, error)
+	if localCtxMod != nil {
+		localMods = []func(context.Context) (context.Context, error){localCtxMod}
+	}
 
 	return &raftProxyDispatcherServer{
-		local:        local,
-		connSelector: connSelector,
-		ctxMods:      mods,
+		local:         local,
+		connSelector:  connSelector,
+		localCtxMods:  localMods,
+		remoteCtxMods: remoteMods,
 	}
 }
-func (p *raftProxyDispatcherServer) runCtxMods(ctx context.Context) (context.Context, error) {
+func (p *raftProxyDispatcherServer) runCtxMods(ctx context.Context, ctxMods []func(context.Context) (context.Context, error)) (context.Context, error) {
 	var err error
-	for _, mod := range p.ctxMods {
+	for _, mod := range ctxMods {
 		ctx, err = mod(ctx)
 		if err != nil {
 			return ctx, err
@@ -1735,17 +1741,33 @@ func (p *raftProxyDispatcherServer) pollNewLeaderConn(ctx context.Context) (*grp
 	}
 }
 
-func (p *raftProxyDispatcherServer) Session(r *SessionRequest, stream Dispatcher_SessionServer) error {
+type Dispatcher_SessionServerWrapper struct {
+	Dispatcher_SessionServer
+	ctx context.Context
+}
 
+func (s Dispatcher_SessionServerWrapper) Context() context.Context {
+	return s.ctx
+}
+
+func (p *raftProxyDispatcherServer) Session(r *SessionRequest, stream Dispatcher_SessionServer) error {
 	ctx := stream.Context()
 	conn, err := p.connSelector.LeaderConn(ctx)
 	if err != nil {
 		if err == raftselector.ErrIsLeader {
-			return p.local.Session(r, stream)
+			ctx, err = p.runCtxMods(ctx, p.localCtxMods)
+			if err != nil {
+				return err
+			}
+			streamWrapper := Dispatcher_SessionServerWrapper{
+				Dispatcher_SessionServer: stream,
+				ctx: ctx,
+			}
+			return p.local.Session(r, streamWrapper)
 		}
 		return err
 	}
-	ctx, err = p.runCtxMods(ctx)
+	ctx, err = p.runCtxMods(ctx, p.remoteCtxMods)
 	if err != nil {
 		return err
 	}
@@ -1775,11 +1797,15 @@ func (p *raftProxyDispatcherServer) Heartbeat(ctx context.Context, r *HeartbeatR
 	conn, err := p.connSelector.LeaderConn(ctx)
 	if err != nil {
 		if err == raftselector.ErrIsLeader {
+			ctx, err = p.runCtxMods(ctx, p.localCtxMods)
+			if err != nil {
+				return nil, err
+			}
 			return p.local.Heartbeat(ctx, r)
 		}
 		return nil, err
 	}
-	modCtx, err := p.runCtxMods(ctx)
+	modCtx, err := p.runCtxMods(ctx, p.remoteCtxMods)
 	if err != nil {
 		return nil, err
 	}
@@ -1806,11 +1832,15 @@ func (p *raftProxyDispatcherServer) UpdateTaskStatus(ctx context.Context, r *Upd
 	conn, err := p.connSelector.LeaderConn(ctx)
 	if err != nil {
 		if err == raftselector.ErrIsLeader {
+			ctx, err = p.runCtxMods(ctx, p.localCtxMods)
+			if err != nil {
+				return nil, err
+			}
 			return p.local.UpdateTaskStatus(ctx, r)
 		}
 		return nil, err
 	}
-	modCtx, err := p.runCtxMods(ctx)
+	modCtx, err := p.runCtxMods(ctx, p.remoteCtxMods)
 	if err != nil {
 		return nil, err
 	}
@@ -1832,17 +1862,33 @@ func (p *raftProxyDispatcherServer) UpdateTaskStatus(ctx context.Context, r *Upd
 	return resp, err
 }
 
-func (p *raftProxyDispatcherServer) Tasks(r *TasksRequest, stream Dispatcher_TasksServer) error {
+type Dispatcher_TasksServerWrapper struct {
+	Dispatcher_TasksServer
+	ctx context.Context
+}
 
+func (s Dispatcher_TasksServerWrapper) Context() context.Context {
+	return s.ctx
+}
+
+func (p *raftProxyDispatcherServer) Tasks(r *TasksRequest, stream Dispatcher_TasksServer) error {
 	ctx := stream.Context()
 	conn, err := p.connSelector.LeaderConn(ctx)
 	if err != nil {
 		if err == raftselector.ErrIsLeader {
-			return p.local.Tasks(r, stream)
+			ctx, err = p.runCtxMods(ctx, p.localCtxMods)
+			if err != nil {
+				return err
+			}
+			streamWrapper := Dispatcher_TasksServerWrapper{
+				Dispatcher_TasksServer: stream,
+				ctx: ctx,
+			}
+			return p.local.Tasks(r, streamWrapper)
 		}
 		return err
 	}
-	ctx, err = p.runCtxMods(ctx)
+	ctx, err = p.runCtxMods(ctx, p.remoteCtxMods)
 	if err != nil {
 		return err
 	}
@@ -1867,17 +1913,33 @@ func (p *raftProxyDispatcherServer) Tasks(r *TasksRequest, stream Dispatcher_Tas
 	return nil
 }
 
-func (p *raftProxyDispatcherServer) Assignments(r *AssignmentsRequest, stream Dispatcher_AssignmentsServer) error {
+type Dispatcher_AssignmentsServerWrapper struct {
+	Dispatcher_AssignmentsServer
+	ctx context.Context
+}
 
+func (s Dispatcher_AssignmentsServerWrapper) Context() context.Context {
+	return s.ctx
+}
+
+func (p *raftProxyDispatcherServer) Assignments(r *AssignmentsRequest, stream Dispatcher_AssignmentsServer) error {
 	ctx := stream.Context()
 	conn, err := p.connSelector.LeaderConn(ctx)
 	if err != nil {
 		if err == raftselector.ErrIsLeader {
-			return p.local.Assignments(r, stream)
+			ctx, err = p.runCtxMods(ctx, p.localCtxMods)
+			if err != nil {
+				return err
+			}
+			streamWrapper := Dispatcher_AssignmentsServerWrapper{
+				Dispatcher_AssignmentsServer: stream,
+				ctx: ctx,
+			}
+			return p.local.Assignments(r, streamWrapper)
 		}
 		return err
 	}
-	ctx, err = p.runCtxMods(ctx)
+	ctx, err = p.runCtxMods(ctx, p.remoteCtxMods)
 	if err != nil {
 		return err
 	}

@@ -16,6 +16,13 @@ import (
 	"google.golang.org/grpc/peer"
 )
 
+type localRequestKeyType struct{}
+
+// LocalRequestKey is a context key to mark a request that originating on the
+// local node. The assocated value is a RemoteNodeInfo structure describing the
+// local node.
+var LocalRequestKey = localRequestKeyType{}
+
 // LogTLSState logs information about the TLS connection and remote peers
 func LogTLSState(ctx context.Context, tlsState *tls.ConnectionState) {
 	if tlsState == nil {
@@ -189,6 +196,17 @@ type RemoteNodeInfo struct {
 // well as the forwarder's ID. This function does not do authorization checks -
 // it only looks up the node ID.
 func RemoteNode(ctx context.Context) (RemoteNodeInfo, error) {
+	// If we have a value on the context that marks this as a local
+	// request, we return the node info from the context.
+	localNodeInfo := ctx.Value(LocalRequestKey)
+
+	if localNodeInfo != nil {
+		nodeInfo, ok := localNodeInfo.(RemoteNodeInfo)
+		if ok {
+			return nodeInfo, nil
+		}
+	}
+
 	certSubj, err := certSubjectFromContext(ctx)
 	if err != nil {
 		return RemoteNodeInfo{}, err
