@@ -36,6 +36,7 @@ type Config struct {
 	Init                 bool                     `json:"init,omitempty"`
 	InitPath             string                   `json:"init-path,omitempty"`
 	SeccompProfile       string                   `json:"seccomp-profile,omitempty"`
+	NoNewPrivileges      bool                     `json:"no-new-privileges,omitempty"`
 }
 
 // bridgeConfig stores all the bridge driver specific
@@ -89,7 +90,7 @@ func (config *Config) InstallFlags(flags *pflag.FlagSet) {
 	flags.Int64Var(&config.CPURealtimePeriod, "cpu-rt-period", 0, "Limit the CPU real-time period in microseconds")
 	flags.Int64Var(&config.CPURealtimeRuntime, "cpu-rt-runtime", 0, "Limit the CPU real-time runtime in microseconds")
 	flags.StringVar(&config.SeccompProfile, "seccomp-profile", "", "Path to seccomp profile")
-
+	flags.BoolVar(&config.NoNewPrivileges, "no-new-privileges", false, "Disable container processes from gaining new privileges")
 	config.attachExperimentalFlags(flags)
 }
 

@@ -624,15 +624,15 @@ but the volume for `/bar` will not. Volumes inherited via `--volumes-from` will 
 with the same logic -- if the original volume was specified with a name it will **not** be removed.
 
 ## Security configuration
-    --security-opt="label=user:USER"     : Set the label user for the container
-    --security-opt="label=role:ROLE"     : Set the label role for the container
-    --security-opt="label=type:TYPE"     : Set the label type for the container
-    --security-opt="label=level:LEVEL"   : Set the label level for the container
-    --security-opt="label=disable"       : Turn off label confinement for the container
-    --security-opt="apparmor=PROFILE"    : Set the apparmor profile to be applied to the container
-    --security-opt="no-new-privileges"   : Disable container processes from gaining new privileges
-    --security-opt="seccomp=unconfined"  : Turn off seccomp confinement for the container
-    --security-opt="seccomp=profile.json": White listed syscalls seccomp Json file to be used as a seccomp filter
+    --security-opt="label=user:USER"        : Set the label user for the container
+    --security-opt="label=role:ROLE"        : Set the label role for the container
+    --security-opt="label=type:TYPE"        : Set the label type for the container
+    --security-opt="label=level:LEVEL"      : Set the label level for the container
+    --security-opt="label=disable"          : Turn off label confinement for the container
+    --security-opt="apparmor=PROFILE"       : Set the apparmor profile to be applied to the container
+    --security-opt="no-new-privileges=true" : Disable container processes from gaining new privileges
+    --security-opt="seccomp=unconfined"     : Turn off seccomp confinement for the container
+    --security-opt="seccomp=profile.json"   : White listed syscalls seccomp Json file to be used as a seccomp filter
 
 
 You can override the default labeling scheme for each container by specifying
@@ -660,7 +660,7 @@ command:
 If you want to prevent your container processes from gaining additional
 privileges, you can execute the following command:
 
-    $ docker run --security-opt no-new-privileges -it centos bash
+    $ docker run --security-opt no-new-privileges=true -it centos bash
 
 This means that commands that raise privileges such as `su` or `sudo` will no longer work.
 It also causes any seccomp filters to be applied later, after privileges have been dropped

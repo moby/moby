@@ -41,6 +41,10 @@ func getBlkioWeightDevices(config *containertypes.HostConfig) ([]blkiodev.Weight
 	return nil, nil
 }
 
+func parseAndSetSecurityOpt(daemon *Daemon, container *container.Container, config *containertypes.HostConfig) error {
+	return parseSecurityOpt(container, config)
+}
+
 func parseSecurityOpt(container *container.Container, config *containertypes.HostConfig) error {
 	return nil
 }
