@@ -5433,7 +5433,7 @@ func (s *DockerTrustSuite) TestTrustedBuild(c *check.C) {
 	name := "testtrustedbuild"
 
 	buildCmd := buildImageCmd(name, dockerFile, true)
-	s.trustedCmd(buildCmd)
+	trustedExecCmd(buildCmd)
 	out, _, err := runCommandWithOutput(buildCmd)
 	if err != nil {
 		c.Fatalf("Error running trusted build: %s\n%s", err, out)
@@ -5464,7 +5464,7 @@ func (s *DockerTrustSuite) TestTrustedBuildUntrustedTag(c *check.C) {
 	name := "testtrustedbuilduntrustedtag"
 
 	buildCmd := buildImageCmd(name, dockerFile, true)
-	s.trustedCmd(buildCmd)
+	trustedExecCmd(buildCmd)
 	out, _, err := runCommandWithOutput(buildCmd)
 	if err == nil {
 		c.Fatalf("Expected error on trusted build with untrusted tag: %s\n%s", err, out)
@@ -5527,10 +5527,7 @@ func (s *DockerTrustSuite) TestTrustedBuildTagFromReleasesRole(c *check.C) {
 	otherTag := fmt.Sprintf("%s:other", repoName)
 	dockerCmd(c, "tag", "busybox", otherTag)
 
-	pushCmd := exec.Command(dockerBinary, "push", otherTag)
-	s.trustedCmd(pushCmd)
-	out, _, err := runCommandWithOutput(pushCmd)
-	c.Assert(err, check.IsNil, check.Commentf("Trusted push failed: %s", out))
+	icmd.RunCmd(icmd.Command(dockerBinary, "push", otherTag), trustedCmd).Assert(c, icmd.Success)
 	s.assertTargetInRoles(c, repoName, "other", "targets/releases")
 	s.assertTargetNotInRoles(c, repoName, "other", "targets")
 
@@ -5545,8 +5542,8 @@ func (s *DockerTrustSuite) TestTrustedBuildTagFromReleasesRole(c *check.C) {
 	name := "testtrustedbuildreleasesrole"
 
 	buildCmd := buildImageCmd(name, dockerFile, true)
-	s.trustedCmd(buildCmd)
-	out, _, err = runCommandWithOutput(buildCmd)
+	trustedExecCmd(buildCmd)
+	out, _, err := runCommandWithOutput(buildCmd)
 	c.Assert(err, check.IsNil, check.Commentf("Trusted build failed: %s", out))
 	c.Assert(out, checker.Contains, fmt.Sprintf("FROM %s@sha", repoName))
 }
@@ -5566,10 +5563,7 @@ func (s *DockerTrustSuite) TestTrustedBuildTagIgnoresOtherDelegationRoles(c *che
 	otherTag := fmt.Sprintf("%s:other", repoName)
 	dockerCmd(c, "tag", "busybox", otherTag)
 
-	pushCmd := exec.Command(dockerBinary, "push", otherTag)
-	s.trustedCmd(pushCmd)
-	out, _, err := runCommandWithOutput(pushCmd)
-	c.Assert(err, check.IsNil, check.Commentf("Trusted push failed: %s", out))
+	icmd.RunCmd(icmd.Command(dockerBinary, "push", otherTag), trustedCmd).Assert(c, icmd.Success)
 	s.assertTargetInRoles(c, repoName, "other", "targets/other")
 	s.assertTargetNotInRoles(c, repoName, "other", "targets")
 
@@ -5584,8 +5578,8 @@ func (s *DockerTrustSuite) TestTrustedBuildTagIgnoresOtherDelegationRoles(c *che
 	name := "testtrustedbuildotherrole"
 
 	buildCmd := buildImageCmd(name, dockerFile, true)
-	s.trustedCmd(buildCmd)
-	out, _, err = runCommandWithOutput(buildCmd)
+	trustedExecCmd(buildCmd)
+	out, _, err := runCommandWithOutput(buildCmd)
 	c.Assert(err, check.NotNil, check.Commentf("Trusted build expected to fail: %s", out))
 }
 

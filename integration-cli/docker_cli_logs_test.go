@@ -11,6 +11,7 @@ import (
 	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/pkg/jsonlog"
 	"github.com/docker/docker/pkg/testutil"
+	icmd "github.com/docker/docker/pkg/testutil/cmd"
 	"github.com/go-check/check"
 )
 
@@ -188,14 +189,14 @@ func (s *DockerSuite) TestLogsSince(c *check.C) {
 
 	// Test with default value specified and parameter omitted
 	expected := []string{"log1", "log2", "log3"}
-	for _, cmd := range []*exec.Cmd{
-		exec.Command(dockerBinary, "logs", "-t", name),
-		exec.Command(dockerBinary, "logs", "-t", "--since=0", name),
+	for _, cmd := range [][]string{
+		{"logs", "-t", name},
+		{"logs", "-t", "--since=0", name},
 	} {
-		out, _, err = runCommandWithOutput(cmd)
-		c.Assert(err, checker.IsNil, check.Commentf("failed to log container: %s", out))
+		result := icmd.RunCommand(dockerBinary, cmd...)
+		result.Assert(c, icmd.Success)
 		for _, v := range expected {
-			c.Assert(out, checker.Contains, v)
+			c.Assert(result.Combined(), checker.Contains, v)
 		}
 	}
 }

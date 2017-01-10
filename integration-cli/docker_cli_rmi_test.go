@@ -2,12 +2,12 @@ package main
 
 import (
 	"fmt"
-	"os/exec"
 	"strings"
 	"time"
 
 	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/pkg/stringid"
+	icmd "github.com/docker/docker/pkg/testutil/cmd"
 	"github.com/go-check/check"
 )
 
@@ -175,12 +175,11 @@ func (s *DockerSuite) TestRmiTagWithExistingContainers(c *check.C) {
 func (s *DockerSuite) TestRmiForceWithExistingContainers(c *check.C) {
 	image := "busybox-clone"
 
-	cmd := exec.Command(dockerBinary, "build", "--no-cache", "-t", image, "-")
-	cmd.Stdin = strings.NewReader(`FROM busybox
-MAINTAINER foo`)
-
-	out, _, err := runCommandWithOutput(cmd)
-	c.Assert(err, checker.IsNil, check.Commentf("Could not build %s: %s", image, out))
+	icmd.RunCmd(icmd.Cmd{
+		Command: []string{dockerBinary, "build", "--no-cache", "-t", image, "-"},
+		Stdin: strings.NewReader(`FROM busybox
+MAINTAINER foo`),
+	}).Assert(c, icmd.Success)
 
 	dockerCmd(c, "run", "--name", "test-force-rmi", image, "/bin/true")
 

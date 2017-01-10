@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"os/exec"
 	"runtime"
 	"strings"
 	"unicode"
@@ -14,6 +13,7 @@ import (
 )
 
 func (s *DockerSuite) TestHelpTextVerify(c *check.C) {
+	// FIXME(vdemeester) should be a unit test, probably using golden files ?
 	testRequires(c, DaemonIsLinux)
 
 	// Make sure main help text fits within 80 chars and that
@@ -52,11 +52,12 @@ func (s *DockerSuite) TestHelpTextVerify(c *check.C) {
 		scanForHome := runtime.GOOS != "windows" && home != "/"
 
 		// Check main help text to make sure its not over 80 chars
-		helpCmd := exec.Command(dockerBinary, "help")
-		helpCmd.Env = newEnvs
-		out, _, err := runCommandWithOutput(helpCmd)
-		c.Assert(err, checker.IsNil, check.Commentf(out))
-		lines := strings.Split(out, "\n")
+		result := icmd.RunCmd(icmd.Cmd{
+			Command: []string{dockerBinary, "help"},
+			Env:     newEnvs,
+		})
+		result.Assert(c, icmd.Success)
+		lines := strings.Split(result.Combined(), "\n")
 		for _, line := range lines {
 			// All lines should not end with a space
 			c.Assert(line, checker.Not(checker.HasSuffix), " ", check.Commentf("Line should not end with a space"))
@@ -75,16 +76,17 @@ func (s *DockerSuite) TestHelpTextVerify(c *check.C) {
 		// Make sure each cmd's help text fits within 90 chars and that
 		// on non-windows system we use ~ when possible (to shorten things).
 		// Pull the list of commands from the "Commands:" section of docker help
-		helpCmd = exec.Command(dockerBinary, "help")
-		helpCmd.Env = newEnvs
-		out, _, err = runCommandWithOutput(helpCmd)
-		c.Assert(err, checker.IsNil, check.Commentf(out))
-		i := strings.Index(out, "Commands:")
-		c.Assert(i, checker.GreaterOrEqualThan, 0, check.Commentf("Missing 'Commands:' in:\n%s", out))
+		// FIXME(vdemeester) Why re-run help ?
+		//helpCmd = exec.Command(dockerBinary, "help")
+		//helpCmd.Env = newEnvs
+		//out, _, err = runCommandWithOutput(helpCmd)
+		//c.Assert(err, checker.IsNil, check.Commentf(out))
+		i := strings.Index(result.Combined(), "Commands:")
+		c.Assert(i, checker.GreaterOrEqualThan, 0, check.Commentf("Missing 'Commands:' in:\n%s", result.Combined()))
 
 		cmds := []string{}
 		// Grab all chars starting at "Commands:"
-		helpOut := strings.Split(out[i:], "\n")
+		helpOut := strings.Split(result.Combined()[i:], "\n")
 		// Skip first line, it is just "Commands:"
 		helpOut = helpOut[1:]
 

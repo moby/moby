@@ -1383,7 +1383,7 @@ func (s *DockerTrustedSwarmSuite) TestTrustedServiceCreate(c *check.C) {
 
 	name := "trusted"
 	serviceCmd := d.Command("-D", "service", "create", "--name", name, repoName, "top")
-	s.trustSuite.trustedCmd(serviceCmd)
+	trustedExecCmd(serviceCmd)
 	out, _, err := runCommandWithOutput(serviceCmd)
 	c.Assert(err, checker.IsNil, check.Commentf(out))
 	c.Assert(out, checker.Contains, "resolved image tag to", check.Commentf(out))
@@ -1402,7 +1402,7 @@ func (s *DockerTrustedSwarmSuite) TestTrustedServiceCreate(c *check.C) {
 
 	name = "untrusted"
 	serviceCmd = d.Command("service", "create", "--name", name, repoName, "top")
-	s.trustSuite.trustedCmd(serviceCmd)
+	trustedExecCmd(serviceCmd)
 	out, _, err = runCommandWithOutput(serviceCmd)
 
 	c.Assert(err, check.NotNil, check.Commentf(out))
@@ -1431,7 +1431,7 @@ func (s *DockerTrustedSwarmSuite) TestTrustedServiceUpdate(c *check.C) {
 	c.Assert(out, check.Not(checker.Contains), repoName+"@", check.Commentf(out))
 
 	serviceCmd := d.Command("-D", "service", "update", "--image", repoName, name)
-	s.trustSuite.trustedCmd(serviceCmd)
+	trustedExecCmd(serviceCmd)
 	out, _, err = runCommandWithOutput(serviceCmd)
 	c.Assert(err, checker.IsNil, check.Commentf(out))
 	c.Assert(out, checker.Contains, "resolved image tag to", check.Commentf(out))
@@ -1449,7 +1449,7 @@ func (s *DockerTrustedSwarmSuite) TestTrustedServiceUpdate(c *check.C) {
 	dockerCmd(c, "rmi", repoName)
 
 	serviceCmd = d.Command("service", "update", "--image", repoName, name)
-	s.trustSuite.trustedCmd(serviceCmd)
+	trustedExecCmd(serviceCmd)
 	out, _, err = runCommandWithOutput(serviceCmd)
 
 	c.Assert(err, check.NotNil, check.Commentf(out))

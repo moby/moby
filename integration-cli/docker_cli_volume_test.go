@@ -213,11 +213,11 @@ func (s *DockerSuite) TestVolumeCLIRm(c *check.C) {
 
 	volumeID := "testing"
 	dockerCmd(c, "run", "-v", volumeID+":"+prefix+"/foo", "--name=test", "busybox", "sh", "-c", "echo hello > /foo/bar")
-	out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "volume", "rm", "testing"))
-	c.Assert(
-		err,
-		check.Not(check.IsNil),
-		check.Commentf("Should not be able to remove volume that is in use by a container\n%s", out))
+
+	icmd.RunCommand(dockerBinary, "volume", "rm", "testing").Assert(c, icmd.Expected{
+		ExitCode: 1,
+		Error:    "exit status 1",
+	})
 
 	out, _ = dockerCmd(c, "run", "--volumes-from=test", "--name=test2", "busybox", "sh", "-c", "cat /foo/bar")
 	c.Assert(strings.TrimSpace(out), check.Equals, "hello")
@@ -419,8 +419,7 @@ func (s *DockerSuite) TestVolumeCLIRmForce(c *check.C) {
 	c.Assert(strings.TrimSpace(out), checker.Not(checker.Equals), "")
 	// Mountpoint is in the form of "/var/lib/docker/volumes/.../_data", removing `/_data`
 	path := strings.TrimSuffix(strings.TrimSpace(out), "/_data")
-	out, _, err := runCommandWithOutput(exec.Command("rm", "-rf", path))
-	c.Assert(err, check.IsNil)
+	icmd.RunCommand("rm", "-rf", path).Assert(c, icmd.Success)
 
 	dockerCmd(c, "volume", "rm", "-f", "test")
 	out, _ = dockerCmd(c, "volume", "ls")

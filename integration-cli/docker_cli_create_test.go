@@ -3,18 +3,16 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"reflect"
 	"strings"
 	"time"
 
-	"os/exec"
-
-	"io/ioutil"
-
 	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/pkg/testutil"
+	icmd "github.com/docker/docker/pkg/testutil/cmd"
 	"github.com/docker/go-connections/nat"
 	"github.com/go-check/check"
 )
@@ -302,21 +300,12 @@ func (s *DockerTrustSuite) TestTrustedCreate(c *check.C) {
 	repoName := s.setupTrustedImage(c, "trusted-create")
 
 	// Try create
-	createCmd := exec.Command(dockerBinary, "create", repoName)
-	s.trustedCmd(createCmd)
-	out, _, err := runCommandWithOutput(createCmd)
-	c.Assert(err, check.IsNil)
-	c.Assert(string(out), checker.Contains, "Tagging", check.Commentf("Missing expected output on trusted push:\n%s", out))
+	icmd.RunCmd(icmd.Command(dockerBinary, "create", repoName), trustedCmd).Assert(c, SuccessTagging)
 
 	dockerCmd(c, "rmi", repoName)
 
 	// Try untrusted create to ensure we pushed the tag to the registry
-	createCmd = exec.Command(dockerBinary, "create", "--disable-content-trust=true", repoName)
-	s.trustedCmd(createCmd)
-	out, _, err = runCommandWithOutput(createCmd)
-	c.Assert(err, check.IsNil)
-	c.Assert(string(out), checker.Contains, "Status: Downloaded", check.Commentf("Missing expected output on trusted create with --disable-content-trust:\n%s", out))
-
+	icmd.RunCmd(icmd.Command(dockerBinary, "create", "--disable-content-trust=true", repoName), trustedCmd).Assert(c, SuccessDownloadedOnStderr)
 }
 
 func (s *DockerTrustSuite) TestUntrustedCreate(c *check.C) {
@@ -328,23 +317,17 @@ func (s *DockerTrustSuite) TestUntrustedCreate(c *check.C) {
 	dockerCmd(c, "rmi", withTagName)
 
 	// Try trusted create on untrusted tag
-	createCmd := exec.Command(dockerBinary, "create", withTagName)
-	s.trustedCmd(createCmd)
-	out, _, err := runCommandWithOutput(createCmd)
-	c.Assert(err, check.Not(check.IsNil))
-	c.Assert(string(out), checker.Contains, fmt.Sprintf("does not have trust data for %s", repoName), check.Commentf("Missing expected output on trusted create:\n%s", out))
-
+	icmd.RunCmd(icmd.Command(dockerBinary, "create", withTagName), trustedCmd).Assert(c, icmd.Expected{
+		ExitCode: 1,
+		Err:      fmt.Sprintf("does not have trust data for %s", repoName),
+	})
 }
 
 func (s *DockerTrustSuite) TestTrustedIsolatedCreate(c *check.C) {
 	repoName := s.setupTrustedImage(c, "trusted-isolated-create")
 
 	// Try create
-	createCmd := exec.Command(dockerBinary, "--config", "/tmp/docker-isolated-create", "create", repoName)
-	s.trustedCmd(createCmd)
-	out, _, err := runCommandWithOutput(createCmd)
-	c.Assert(err, check.IsNil)
-	c.Assert(string(out), checker.Contains, "Tagging", check.Commentf("Missing expected output on trusted push:\n%s", out))
+	icmd.RunCmd(icmd.Command(dockerBinary, "--config", "/tmp/docker-isolated-create", "create", repoName), trustedCmd).Assert(c, SuccessTagging)
 
 	dockerCmd(c, "rmi", repoName)
 }
@@ -358,20 +341,19 @@ func (s *DockerTrustSuite) TestCreateWhenCertExpired(c *check.C) {
 
 	testutil.RunAtDifferentDate(elevenYearsFromNow, func() {
 		// Try create
-		createCmd := exec.Command(dockerBinary, "create", repoName)
-		s.trustedCmd(createCmd)
-		out, _, err := runCommandWithOutput(createCmd)
-		c.Assert(err, check.Not(check.IsNil))
-		c.Assert(string(out), checker.Contains, "could not validate the path to a trusted root", check.Commentf("Missing expected output on trusted create in the distant future:\n%s", out))
+		icmd.RunCmd(icmd.Cmd{
+			Command: []string{dockerBinary, "create", repoName},
+		}, trustedCmd).Assert(c, icmd.Expected{
+			ExitCode: 1,
+			Err:      "could not validate the path to a trusted root",
+		})
 	})
 
 	testutil.RunAtDifferentDate(elevenYearsFromNow, func() {
 		// Try create
-		createCmd := exec.Command(dockerBinary, "create", "--disable-content-trust", repoName)
-		s.trustedCmd(createCmd)
-		out, _, err := runCommandWithOutput(createCmd)
-		c.Assert(err, check.Not(check.IsNil))
-		c.Assert(string(out), checker.Contains, "Status: Downloaded", check.Commentf("Missing expected output on trusted create in the distant future:\n%s", out))
+		result := icmd.RunCmd(icmd.Command(dockerBinary, "create", "--disable-content-trust", repoName), trustedCmd)
+		c.Assert(result.Error, check.Not(check.IsNil))
+		c.Assert(string(result.Combined()), checker.Contains, "Status: Downloaded", check.Commentf("Missing expected output on trusted create in the distant future:\n%s", result.Combined()))
 
 	})
 }
@@ -384,20 +366,12 @@ func (s *DockerTrustSuite) TestTrustedCreateFromBadTrustServer(c *check.C) {
 	// tag the image and upload it to the private registry
 	dockerCmd(c, "tag", "busybox", repoName)
 
-	pushCmd := exec.Command(dockerBinary, "push", repoName)
-	s.trustedCmd(pushCmd)
-	out, _, err := runCommandWithOutput(pushCmd)
-	c.Assert(err, check.IsNil)
-	c.Assert(string(out), checker.Contains, "Signing and pushing trust metadata", check.Commentf("Missing expected output on trusted push:\n%s", out))
+	icmd.RunCmd(icmd.Command(dockerBinary, "push", repoName), trustedCmd).Assert(c, SuccessSigningAndPushing)
 
 	dockerCmd(c, "rmi", repoName)
 
 	// Try create
-	createCmd := exec.Command(dockerBinary, "create", repoName)
-	s.trustedCmd(createCmd)
-	out, _, err = runCommandWithOutput(createCmd)
-	c.Assert(err, check.IsNil)
-	c.Assert(string(out), checker.Contains, "Tagging", check.Commentf("Missing expected output on trusted push:\n%s", out))
+	icmd.RunCmd(icmd.Command(dockerBinary, "create", repoName), trustedCmd).Assert(c, SuccessTagging)
 
 	dockerCmd(c, "rmi", repoName)
 
@@ -411,23 +385,13 @@ func (s *DockerTrustSuite) TestTrustedCreateFromBadTrustServer(c *check.C) {
 	dockerCmd(c, "--config", evilLocalConfigDir, "tag", "busybox", repoName)
 
 	// Push up to the new server
-	pushCmd = exec.Command(dockerBinary, "--config", evilLocalConfigDir, "push", repoName)
-	s.trustedCmd(pushCmd)
-	out, _, err = runCommandWithOutput(pushCmd)
-	c.Assert(err, check.IsNil)
-	c.Assert(string(out), checker.Contains, "Signing and pushing trust metadata", check.Commentf("Missing expected output on trusted push:\n%s", out))
+	icmd.RunCmd(icmd.Command(dockerBinary, "--config", evilLocalConfigDir, "push", repoName), trustedCmd).Assert(c, SuccessSigningAndPushing)
 
 	// Now, try creating with the original client from this new trust server. This should fail because the new root is invalid.
-	createCmd = exec.Command(dockerBinary, "create", repoName)
-	s.trustedCmd(createCmd)
-	out, _, err = runCommandWithOutput(createCmd)
-	if err == nil {
-		c.Fatalf("Continuing with cached data even though it's an invalid root rotation: %s\n%s", err, out)
-	}
-	if !strings.Contains(out, "could not rotate trust to a new trusted root") {
-		c.Fatalf("Missing expected output on trusted create:\n%s", out)
-	}
-
+	icmd.RunCmd(icmd.Command(dockerBinary, "create", repoName), trustedCmd).Assert(c, icmd.Expected{
+		ExitCode: 1,
+		Err:      "could not rotate trust to a new trusted root",
+	})
 }
 
 func (s *DockerSuite) TestCreateStopSignal(c *check.C) {
