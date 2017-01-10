@@ -1,0 +1,9 @@
+#!/usr/bin/make -f
+export DH_VERBOSE=1
+
+override_dh_auto_build:
+override_dh_auto_test:
+override_dh_auto_install:
+
+%:
+	dh $@ --with=bash-completion $(shell command -v dh_systemd_enable > /dev/null 2>&1 && echo --with=systemd)
