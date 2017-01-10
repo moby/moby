@@ -30,7 +30,7 @@ type ResourceAllocator interface {
 func (r *resourceAllocator) AttachNetwork(ctx context.Context, id, target string, addresses []string) (string, error) {
 	var taskID string
 	if err := r.agent.withSession(ctx, func(session *session) error {
-		client := api.NewResourceAllocatorClient(session.conn)
+		client := api.NewResourceAllocatorClient(session.conn.ClientConn)
 		r, err := client.AttachNetwork(ctx, &api.AttachNetworkRequest{
 			Config: &api.NetworkAttachmentConfig{
 				Target:    target,
@@ -53,7 +53,7 @@ func (r *resourceAllocator) AttachNetwork(ctx context.Context, id, target string
 // DetachNetwork deletes a network attachment.
 func (r *resourceAllocator) DetachNetwork(ctx context.Context, aID string) error {
 	return r.agent.withSession(ctx, func(session *session) error {
-		client := api.NewResourceAllocatorClient(session.conn)
+		client := api.NewResourceAllocatorClient(session.conn.ClientConn)
 		_, err := client.DetachNetwork(ctx, &api.DetachNetworkRequest{
 			AttachmentID: aID,
 		})

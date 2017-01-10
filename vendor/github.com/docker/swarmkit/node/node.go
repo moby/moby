@@ -18,6 +18,7 @@ import (
 	"github.com/docker/swarmkit/agent/exec"
 	"github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/ca"
+	"github.com/docker/swarmkit/connectionbroker"
 	"github.com/docker/swarmkit/ioutils"
 	"github.com/docker/swarmkit/log"
 	"github.com/docker/swarmkit/manager"
@@ -105,6 +106,7 @@ type Node struct {
 	sync.RWMutex
 	config           *Config
 	remotes          *persistentRemotes
+	connBroker       *connectionbroker.Broker
 	role             string
 	roleCond         *sync.Cond
 	conn             *grpc.ClientConn
@@ -154,7 +156,6 @@ func New(c *Config) (*Node, error) {
 			return nil, err
 		}
 	}
-
 	n := &Node{
 		remotes:          newPersistentRemotes(stateFile, p...),
 		role:             ca.WorkerRole,
@@ -173,6 +174,8 @@ func New(c *Config) (*Node, error) {
 			n.remotes.Observe(api.Peer{Addr: n.config.JoinAddr}, remotes.DefaultObservationWeight)
 		}
 	}
+
+	n.connBroker = connectionbroker.New(n.remotes)
 
 	n.roleCond = sync.NewCond(n.RLocker())
 	n.connCond = sync.NewCond(n.RLocker())
@@ -261,7 +264,7 @@ func (n *Node) run(ctx context.Context) (err error) {
 		}
 	}()
 
-	updates := ca.RenewTLSConfig(ctx, securityConfig, n.remotes, forceCertRenewal)
+	updates := ca.RenewTLSConfig(ctx, securityConfig, n.connBroker, forceCertRenewal)
 	go func() {
 		for {
 			select {
@@ -368,17 +371,35 @@ func (n *Node) Err(ctx context.Context) error {
 }
 
 func (n *Node) runAgent(ctx context.Context, db *bolt.DB, creds credentials.TransportCredentials, ready chan<- struct{}) error {
+	waitCtx, waitCancel := context.WithCancel(ctx)
+	remotesCh := n.remotes.WaitSelect(ctx)
+	controlCh := n.ListenControlSocket(waitCtx)
+
+waitPeer:
+	for {
+		select {
+		case <-ctx.Done():
+			break waitPeer
+		case <-remotesCh:
+			break waitPeer
+		case conn := <-controlCh:
+			if conn != nil {
+				break waitPeer
+			}
+		}
+	}
+
+	waitCancel()
+
 	select {
 	case <-ctx.Done():
-	case <-n.remotes.WaitSelect(ctx):
-	}
-	if ctx.Err() != nil {
 		return ctx.Err()
+	default:
 	}
 
 	a, err := agent.New(&agent.Config{
 		Hostname:         n.config.Hostname,
-		Managers:         n.remotes,
+		ConnBroker:       n.connBroker,
 		Executor:         n.config.Executor,
 		DB:               db,
 		NotifyNodeChange: n.notifyNodeChange,
@@ -423,6 +444,7 @@ func (n *Node) setControlSocket(conn *grpc.ClientConn) {
 		n.conn.Close()
 	}
 	n.conn = conn
+	n.connBroker.SetLocalConn(conn)
 	n.connCond.Broadcast()
 	n.Unlock()
 }
@@ -447,15 +469,21 @@ func (n *Node) ListenControlSocket(ctx context.Context) <-chan *grpc.ClientConn 
 		defer close(done)
 		defer n.RUnlock()
 		for {
-			if ctx.Err() != nil {
+			select {
+			case <-ctx.Done():
 				return
+			default:
 			}
 			if conn == n.conn {
 				n.connCond.Wait()
 				continue
 			}
 			conn = n.conn
-			c <- conn
+			select {
+			case c <- conn:
+			case <-ctx.Done():
+				return
+			}
 		}
 	}()
 	return c
@@ -532,7 +560,7 @@ func (n *Node) loadSecurityConfig(ctx context.Context) (*ca.SecurityConfig, erro
 			}
 			log.G(ctx).Debug("generated CA key and certificate")
 		} else if err == ca.ErrNoLocalRootCA { // from previous error loading the root CA from disk
-			rootCA, err = ca.DownloadRootCA(ctx, paths.RootCA, n.config.JoinToken, n.remotes)
+			rootCA, err = ca.DownloadRootCA(ctx, paths.RootCA, n.config.JoinToken, n.connBroker)
 			if err != nil {
 				return nil, err
 			}
@@ -559,7 +587,7 @@ func (n *Node) loadSecurityConfig(ctx context.Context) (*ca.SecurityConfig, erro
 			securityConfig, err = rootCA.CreateSecurityConfig(ctx, krw, ca.CertificateRequestConfig{
 				Token:        n.config.JoinToken,
 				Availability: n.config.Availability,
-				Remotes:      n.remotes,
+				ConnBroker:   n.connBroker,
 			})
 
 			if err != nil {
@@ -686,22 +714,6 @@ func (n *Node) runManager(ctx context.Context, securityConfig *ca.SecurityConfig
 	defer connCancel()
 
 	go n.initManagerConnection(connCtx, ready)
-
-	// this happens only on initial start
-	if ready != nil {
-		go func(ready chan struct{}) {
-			select {
-			case <-ready:
-				addr, err := n.RemoteAPIAddr()
-				if err != nil {
-					log.G(ctx).WithError(err).Errorf("get remote api addr")
-				} else {
-					n.remotes.Observe(api.Peer{NodeID: n.NodeID(), Addr: addr}, remotes.DefaultObservationWeight)
-				}
-			case <-connCtx.Done():
-			}
-		}(ready)
-	}
 
 	// wait for manager stop or for role change
 	select {

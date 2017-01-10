@@ -1,6 +1,7 @@
 package manager
 
 import (
+	"crypto/tls"
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
@@ -16,6 +17,7 @@ import (
 	"github.com/docker/go-events"
 	"github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/ca"
+	"github.com/docker/swarmkit/connectionbroker"
 	"github.com/docker/swarmkit/log"
 	"github.com/docker/swarmkit/manager/allocator"
 	"github.com/docker/swarmkit/manager/controlapi"
@@ -38,6 +40,7 @@ import (
 	"github.com/pkg/errors"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 )
 
 const (
@@ -557,9 +560,6 @@ func (m *Manager) updateKEK(ctx context.Context, cluster *api.Cluster) error {
 		"node.role": ca.ManagerRole,
 	})
 
-	// we are our own peer from which we get certs - try to connect over the local socket
-	r := remotes.NewRemotes(api.Peer{Addr: m.Addr(), NodeID: nodeID})
-
 	kekData := ca.KEKData{Version: cluster.Meta.Version.Index}
 	for _, encryptionKey := range cluster.UnlockKeys {
 		if encryptionKey.Subsystem == ca.ManagerRole {
@@ -579,8 +579,27 @@ func (m *Manager) updateKEK(ctx context.Context, cluster *api.Cluster) error {
 		// a best effort attempt to update the TLS certificate - if it fails, it'll be updated the next time it renews;
 		// don't wait because it might take a bit
 		go func() {
-			if err := ca.RenewTLSConfigNow(ctx, securityConfig, r); err != nil {
-				logger.WithError(err).Errorf("failed to download new TLS certificate after locking the cluster")
+			insecureCreds := credentials.NewTLS(&tls.Config{InsecureSkipVerify: true})
+
+			conn, err := grpc.Dial(
+				m.config.ControlAPI,
+				grpc.WithTransportCredentials(insecureCreds),
+				grpc.WithDialer(
+					func(addr string, timeout time.Duration) (net.Conn, error) {
+						return xnet.DialTimeoutLocal(addr, timeout)
+					}),
+			)
+			if err != nil {
+				logger.WithError(err).Error("failed to connect to local manager socket after locking the cluster")
+				return
+			}
+
+			defer conn.Close()
+
+			connBroker := connectionbroker.New(remotes.NewRemotes())
+			connBroker.SetLocalConn(conn)
+			if err := ca.RenewTLSConfigNow(ctx, securityConfig, connBroker); err != nil {
+				logger.WithError(err).Error("failed to download new TLS certificate after locking the cluster")
 			}
 		}()
 	}

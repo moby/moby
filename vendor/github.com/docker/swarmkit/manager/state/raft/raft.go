@@ -1826,10 +1826,10 @@ func createConfigChangeEnts(ids []uint64, self uint64, term, index uint64) []raf
 // - ConfChangeAddNode, in which case the contained ID will be added into the set.
 // - ConfChangeRemoveNode, in which case the contained ID will be removed from the set.
 func getIDs(snap *raftpb.Snapshot, ents []raftpb.Entry) []uint64 {
-	ids := make(map[uint64]bool)
+	ids := make(map[uint64]struct{})
 	if snap != nil {
 		for _, id := range snap.Metadata.ConfState.Nodes {
-			ids[id] = true
+			ids[id] = struct{}{}
 		}
 	}
 	for _, e := range ents {
@@ -1845,7 +1845,7 @@ func getIDs(snap *raftpb.Snapshot, ents []raftpb.Entry) []uint64 {
 		}
 		switch cc.Type {
 		case raftpb.ConfChangeAddNode:
-			ids[cc.NodeID] = true
+			ids[cc.NodeID] = struct{}{}
 		case raftpb.ConfChangeRemoveNode:
 			delete(ids, cc.NodeID)
 		case raftpb.ConfChangeUpdateNode:
