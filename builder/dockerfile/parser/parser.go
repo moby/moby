@@ -61,7 +61,7 @@ func SetEscapeToken(s string, d *Directive) error {
 		return fmt.Errorf("invalid ESCAPE '%s'. Must be ` or \\", s)
 	}
 	d.EscapeToken = rune(s[0])
-	d.LineContinuationRegex = regexp.MustCompile(`\` + s + `$`)
+	d.LineContinuationRegex = regexp.MustCompile(`\` + s + `[ \t]*$`)
 	return nil
 }
 
