@@ -516,7 +516,7 @@ func (cli *DaemonCli) initMiddlewares(s *apiserver.Server, cfg *apiserver.Config
 // plugins present on the host and available to the daemon
 func validateAuthzPlugins(requestedPlugins []string, pg plugingetter.PluginGetter) error {
 	for _, reqPlugin := range requestedPlugins {
-		if _, err := pg.Get(reqPlugin, authorization.AuthZApiImplements, plugingetter.LOOKUP); err != nil {
+		if _, err := pg.Get(reqPlugin, authorization.AuthZApiImplements, plugingetter.Lookup); err != nil {
 			return err
 		}
 	}

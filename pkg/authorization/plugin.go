@@ -97,7 +97,7 @@ func (a *authorizationPlugin) initPlugin() error {
 			var e error
 
 			if pg := GetPluginGetter(); pg != nil {
-				plugin, e = pg.Get(a.name, AuthZApiImplements, plugingetter.LOOKUP)
+				plugin, e = pg.Get(a.name, AuthZApiImplements, plugingetter.Lookup)
 			} else {
 				plugin, e = plugins.Get(a.name, AuthZApiImplements)
 			}
