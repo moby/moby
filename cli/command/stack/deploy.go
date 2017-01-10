@@ -117,7 +117,9 @@ func deployCompose(ctx context.Context, dockerCli *command.DockerCli, opts deplo
 
 	namespace := convert.NewNamespace(opts.namespace)
 
-	networks, externalNetworks := convert.Networks(namespace, config.Networks)
+	serviceNetworks := getServicesDeclaredNetworks(config.Services)
+
+	networks, externalNetworks := convert.Networks(namespace, config.Networks, serviceNetworks)
 	if err := validateExternalNetworks(ctx, dockerCli, externalNetworks); err != nil {
 		return err
 	}
@@ -129,6 +131,20 @@ func deployCompose(ctx context.Context, dockerCli *command.DockerCli, opts deplo
 		return err
 	}
 	return deployServices(ctx, dockerCli, services, namespace, opts.sendRegistryAuth)
+}
+
+func getServicesDeclaredNetworks(serviceConfigs []composetypes.ServiceConfig) map[string]struct{} {
+	serviceNetworks := map[string]struct{}{}
+	for _, serviceConfig := range serviceConfigs {
+		if len(serviceConfig.Networks) == 0 {
+			serviceNetworks["default"] = struct{}{}
+			continue
+		}
+		for network := range serviceConfig.Networks {
+			serviceNetworks[network] = struct{}{}
+		}
+	}
+	return serviceNetworks
 }
 
 func propertyWarnings(properties map[string]string) string {

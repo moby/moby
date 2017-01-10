@@ -28,6 +28,11 @@ func TestAddStackLabel(t *testing.T) {
 
 func TestNetworks(t *testing.T) {
 	namespace := Namespace{name: "foo"}
+	serviceNetworks := map[string]struct{}{
+		"normal":  {},
+		"outside": {},
+		"default": {},
+	}
 	source := networkMap{
 		"normal": composetypes.NetworkConfig{
 			Driver: "overlay",
@@ -79,7 +84,7 @@ func TestNetworks(t *testing.T) {
 		},
 	}
 
-	networks, externals := Networks(namespace, source)
+	networks, externals := Networks(namespace, source, serviceNetworks)
 	assert.DeepEqual(t, networks, expected)
 	assert.DeepEqual(t, externals, []string{"special"})
 }
