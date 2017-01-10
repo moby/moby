@@ -62,16 +62,11 @@ func Load(configDetails types.ConfigDetails) (*types.Config, error) {
 		}
 	}
 
-	if err := schema.Validate(configDict); err != nil {
+	if err := schema.Validate(configDict, schema.Version(configDict)); err != nil {
 		return nil, err
 	}
 
 	cfg := types.Config{}
-	version := configDict["version"].(string)
-	if version != "3" && version != "3.0" {
-		return nil, fmt.Errorf(`Unsupported Compose file version: %#v. The only version supported is "3" (or "3.0")`, version)
-	}
-
 	if services, ok := configDict["services"]; ok {
 		servicesConfig, err := interpolation.Interpolate(services.(types.Dict), "service", os.LookupEnv)
 		if err != nil {

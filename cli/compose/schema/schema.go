@@ -7,7 +7,13 @@ import (
 	"strings"
 	"time"
 
+	"github.com/pkg/errors"
 	"github.com/xeipuuv/gojsonschema"
+)
+
+const (
+	defaultVersion = "1.0"
+	versionField   = "version"
 )
 
 type portsFormatChecker struct{}
@@ -30,11 +36,29 @@ func init() {
 	gojsonschema.FormatCheckers.Add("duration", durationFormatChecker{})
 }
 
+// Version returns the version of the config, defaulting to version 1.0
+func Version(config map[string]interface{}) string {
+	version, ok := config[versionField]
+	if !ok {
+		return defaultVersion
+	}
+	return normalizeVersion(fmt.Sprintf("%v", version))
+}
+
+func normalizeVersion(version string) string {
+	switch version {
+	case "3":
+		return "3.0"
+	default:
+		return version
+	}
+}
+
 // Validate uses the jsonschema to validate the configuration
-func Validate(config map[string]interface{}) error {
-	schemaData, err := Asset("data/config_schema_v3.0.json")
+func Validate(config map[string]interface{}, version string) error {
+	schemaData, err := Asset(fmt.Sprintf("data/config_schema_v%s.json", version))
 	if err != nil {
-		return err
+		return errors.Errorf("unsupported Compose file version: %s", version)
 	}
 
 	schemaLoader := gojsonschema.NewStringLoader(string(schemaData))
