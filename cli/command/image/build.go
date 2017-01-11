@@ -11,6 +11,7 @@ import (
 	"regexp"
 	"runtime"
 
+	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
@@ -25,7 +26,6 @@ import (
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/docker/pkg/urlutil"
-	"github.com/docker/docker/reference"
 	runconfigopts "github.com/docker/docker/runconfig/opts"
 	units "github.com/docker/go-units"
 	"github.com/spf13/cobra"
@@ -360,7 +360,7 @@ type translatorFunc func(context.Context, reference.NamedTagged) (reference.Cano
 
 // validateTag checks if the given image name can be resolved.
 func validateTag(rawRepo string) (string, error) {
-	_, err := reference.ParseNamed(rawRepo)
+	_, err := reference.ParseNormalizedNamed(rawRepo)
 	if err != nil {
 		return "", err
 	}
@@ -392,18 +392,21 @@ func rewriteDockerfileFrom(ctx context.Context, dockerfile io.Reader, translator
 		matches := dockerfileFromLinePattern.FindStringSubmatch(line)
 		if matches != nil && matches[1] != api.NoBaseImageSpecifier {
 			// Replace the line with a resolved "FROM repo@digest"
-			ref, err := reference.ParseNamed(matches[1])
+			var ref reference.Named
+			ref, err = reference.ParseNormalizedNamed(matches[1])
 			if err != nil {
 				return nil, nil, err
 			}
-			ref = reference.WithDefaultTag(ref)
+			if reference.IsNameOnly(ref) {
+				ref = reference.EnsureTagged(ref)
+			}
 			if ref, ok := ref.(reference.NamedTagged); ok && command.IsTrusted() {
 				trustedRef, err := translator(ctx, ref)
 				if err != nil {
 					return nil, nil, err
 				}
 
-				line = dockerfileFromLinePattern.ReplaceAllLiteralString(line, fmt.Sprintf("FROM %s", trustedRef.String()))
+				line = dockerfileFromLinePattern.ReplaceAllLiteralString(line, fmt.Sprintf("FROM %s", reference.FamiliarString(trustedRef)))
 				resolvedTags = append(resolvedTags, &resolvedTag{
 					digestRef: trustedRef,
 					tagRef:    ref,

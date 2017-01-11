@@ -5,11 +5,11 @@ import (
 
 	"golang.org/x/net/context"
 
+	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cli/command"
 	"github.com/docker/docker/cli/command/image"
 	"github.com/docker/docker/pkg/jsonmessage"
-	"github.com/docker/docker/reference"
 	"github.com/docker/docker/registry"
 	"github.com/spf13/cobra"
 )
@@ -32,16 +32,17 @@ func newPushCommand(dockerCli *command.DockerCli) *cobra.Command {
 }
 
 func runPush(dockerCli *command.DockerCli, name string) error {
-	named, err := reference.ParseNamed(name) // FIXME: validate
+	named, err := reference.ParseNormalizedNamed(name)
 	if err != nil {
 		return err
 	}
-	if reference.IsNameOnly(named) {
-		named = reference.WithDefaultTag(named)
+	if _, ok := named.(reference.Canonical); ok {
+		return fmt.Errorf("invalid name: %s", name)
 	}
-	ref, ok := named.(reference.NamedTagged)
+
+	taggedRef, ok := named.(reference.NamedTagged)
 	if !ok {
-		return fmt.Errorf("invalid name: %s", named.String())
+		taggedRef = reference.EnsureTagged(named)
 	}
 
 	ctx := context.Background()
@@ -56,7 +57,8 @@ func runPush(dockerCli *command.DockerCli, name string) error {
 	if err != nil {
 		return err
 	}
-	responseBody, err := dockerCli.Client().PluginPush(ctx, ref.String(), encodedAuth)
+
+	responseBody, err := dockerCli.Client().PluginPush(ctx, reference.FamiliarString(taggedRef), encodedAuth)
 	if err != nil {
 		return err
 	}
