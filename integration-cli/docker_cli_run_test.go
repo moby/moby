@@ -3102,11 +3102,15 @@ func (s *DockerSuite) TestRunUnshareProc(c *check.C) {
 		}
 	}()
 
+	var retErr error
 	for i := 0; i < 3; i++ {
 		err := <-errChan
-		if err != nil {
-			c.Fatal(err)
+		if retErr == nil && err != nil {
+			retErr = err
 		}
+	}
+	if retErr != nil {
+		c.Fatal(retErr)
 	}
 }
 

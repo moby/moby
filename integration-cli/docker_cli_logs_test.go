@@ -288,7 +288,7 @@ func (s *DockerSuite) TestLogsFollowGoroutinesWithStdout(c *check.C) {
 	}()
 	c.Assert(<-chErr, checker.IsNil)
 	c.Assert(cmd.Process.Kill(), checker.IsNil)
-
+	r.Close()
 	// NGoroutines is not updated right away, so we need to wait before failing
 	c.Assert(waitForGoroutines(nroutines), checker.IsNil)
 }
