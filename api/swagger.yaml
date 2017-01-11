@@ -4399,8 +4399,8 @@ paths:
           in: "header"
           type: "string"
           enum:
-            - "application/tar"
-          default: "application/tar"
+            - "application/x-tar"
+          default: "application/x-tar"
         - name: "X-Registry-Config"
           in: "header"
           description: |
