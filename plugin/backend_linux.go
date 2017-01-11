@@ -159,10 +159,10 @@ func computePrivileges(c types.PluginConfig) (types.PluginPrivileges, error) {
 			})
 		}
 	}
-	if c.Linux.DeviceCreation {
+	if c.Linux.AllowAllDevices {
 		privileges = append(privileges, types.PluginPrivilege{
-			Name:        "device-creation",
-			Description: "allow creating devices inside plugin",
+			Name:        "allow-all-devices",
+			Description: "allow 'rwm' access to all devices",
 			Value:       []string{"true"},
 		})
 	}

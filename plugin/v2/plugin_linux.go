@@ -87,7 +87,7 @@ func (p *Plugin) InitSpec(execRoot string) (*specs.Spec, error) {
 		s.Linux.RootfsPropagation = "rshared"
 	}
 
-	if p.PluginObj.Config.Linux.DeviceCreation {
+	if p.PluginObj.Config.Linux.AllowAllDevices {
 		rwm := "rwm"
 		s.Linux.Resources.Devices = []specs.DeviceCgroup{{Allow: true, Access: &rwm}}
 	}
