@@ -22,8 +22,8 @@ import (
 	"github.com/cloudflare/cfssl/signer/local"
 	"github.com/docker/go-events"
 	"github.com/docker/swarmkit/api"
+	"github.com/docker/swarmkit/connectionbroker"
 	"github.com/docker/swarmkit/ioutils"
-	"github.com/docker/swarmkit/remotes"
 	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
 	"golang.org/x/net/context"
@@ -169,6 +169,15 @@ func (rca *RootCA) RequestAndSaveNewCertificates(ctx context.Context, kw KeyWrit
 		if err == nil {
 			break
 		}
+
+		// If the first attempt fails, we should try a remote
+		// connection. The local node may be a manager that was
+		// demoted, so the local connection (which is preferred) may
+		// not work. If we are successful in renewing the certificate,
+		// the local connection will not be returned by the connection
+		// broker anymore.
+		config.ForceRemote = true
+
 	}
 	if err != nil {
 		return nil, err
@@ -202,7 +211,7 @@ func (rca *RootCA) RequestAndSaveNewCertificates(ctx context.Context, kw KeyWrit
 
 	var kekUpdate *KEKData
 	for i := 0; i < 5; i++ {
-		kekUpdate, err = rca.getKEKUpdate(ctx, X509Cert, tlsKeyPair, config.Remotes)
+		kekUpdate, err = rca.getKEKUpdate(ctx, X509Cert, tlsKeyPair, config.ConnBroker)
 		if err == nil {
 			break
 		}
@@ -218,7 +227,7 @@ func (rca *RootCA) RequestAndSaveNewCertificates(ctx context.Context, kw KeyWrit
 	return &tlsKeyPair, nil
 }
 
-func (rca *RootCA) getKEKUpdate(ctx context.Context, cert *x509.Certificate, keypair tls.Certificate, r remotes.Remotes) (*KEKData, error) {
+func (rca *RootCA) getKEKUpdate(ctx context.Context, cert *x509.Certificate, keypair tls.Certificate, connBroker *connectionbroker.Broker) (*KEKData, error) {
 	var managerRole bool
 	for _, ou := range cert.Subject.OrganizationalUnit {
 		if ou == ManagerRole {
@@ -229,25 +238,25 @@ func (rca *RootCA) getKEKUpdate(ctx context.Context, cert *x509.Certificate, key
 
 	if managerRole {
 		mtlsCreds := credentials.NewTLS(&tls.Config{ServerName: CARole, RootCAs: rca.Pool, Certificates: []tls.Certificate{keypair}})
-		conn, peer, err := getGRPCConnection(mtlsCreds, r)
+		conn, err := getGRPCConnection(mtlsCreds, connBroker, false)
 		if err != nil {
 			return nil, err
 		}
-		defer conn.Close()
 
-		client := api.NewCAClient(conn)
+		client := api.NewCAClient(conn.ClientConn)
 		ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 		defer cancel()
 		response, err := client.GetUnlockKey(ctx, &api.GetUnlockKeyRequest{})
 		if err != nil {
 			if grpc.Code(err) == codes.Unimplemented { // if the server does not support keks, return as if no encryption key was specified
+				conn.Close(true)
 				return &KEKData{}, nil
 			}
 
-			r.Observe(peer, -remotes.DefaultObservationWeight)
+			conn.Close(false)
 			return nil, err
 		}
-		r.Observe(peer, remotes.DefaultObservationWeight)
+		conn.Close(true)
 		return &KEKData{KEK: response.UnlockKey, Version: response.Version.Index}, nil
 	}
 
@@ -440,45 +449,33 @@ func GetLocalRootCA(paths CertPaths) (RootCA, error) {
 	return NewRootCA(cert, key, DefaultNodeCertExpiration)
 }
 
-func getGRPCConnection(creds credentials.TransportCredentials, r remotes.Remotes) (*grpc.ClientConn, api.Peer, error) {
-	peer, err := r.Select()
-	if err != nil {
-		return nil, api.Peer{}, err
-	}
-
-	opts := []grpc.DialOption{
+func getGRPCConnection(creds credentials.TransportCredentials, connBroker *connectionbroker.Broker, forceRemote bool) (*connectionbroker.Conn, error) {
+	dialOpts := []grpc.DialOption{
 		grpc.WithTransportCredentials(creds),
 		grpc.WithTimeout(5 * time.Second),
 		grpc.WithBackoffMaxDelay(5 * time.Second),
 	}
-
-	conn, err := grpc.Dial(peer.Addr, opts...)
-	if err != nil {
-		return nil, api.Peer{}, err
+	if forceRemote {
+		return connBroker.SelectRemote(dialOpts...)
 	}
-	return conn, peer, nil
+	return connBroker.Select(dialOpts...)
 }
 
 // GetRemoteCA returns the remote endpoint's CA certificate
-func GetRemoteCA(ctx context.Context, d digest.Digest, r remotes.Remotes) (RootCA, error) {
+func GetRemoteCA(ctx context.Context, d digest.Digest, connBroker *connectionbroker.Broker) (RootCA, error) {
 	// This TLS Config is intentionally using InsecureSkipVerify. We use the
 	// digest instead to check the integrity of the CA certificate.
 	insecureCreds := credentials.NewTLS(&tls.Config{InsecureSkipVerify: true})
-	conn, peer, err := getGRPCConnection(insecureCreds, r)
+	conn, err := getGRPCConnection(insecureCreds, connBroker, false)
 	if err != nil {
 		return RootCA{}, err
 	}
-	defer conn.Close()
 
-	client := api.NewCAClient(conn)
+	client := api.NewCAClient(conn.ClientConn)
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 	defer func() {
-		if err != nil {
-			r.Observe(peer, -remotes.DefaultObservationWeight)
-			return
-		}
-		r.Observe(peer, remotes.DefaultObservationWeight)
+		conn.Close(err == nil)
 	}()
 	response, err := client.GetRootCACertificate(ctx, &api.GetRootCACertificateRequest{})
 	if err != nil {
@@ -558,20 +555,22 @@ func GetRemoteSignedCertificate(ctx context.Context, csr []byte, rootCAPool *x50
 		creds = credentials.NewTLS(&tls.Config{ServerName: CARole, RootCAs: rootCAPool})
 	}
 
-	conn, peer, err := getGRPCConnection(creds, config.Remotes)
+	conn, err := getGRPCConnection(creds, config.ConnBroker, config.ForceRemote)
 	if err != nil {
 		return nil, err
 	}
-	defer conn.Close()
 
 	// Create a CAClient to retrieve a new Certificate
-	caClient := api.NewNodeCAClient(conn)
+	caClient := api.NewNodeCAClient(conn.ClientConn)
+
+	issueCtx, issueCancel := context.WithTimeout(ctx, 5*time.Second)
+	defer issueCancel()
 
 	// Send the Request and retrieve the request token
 	issueRequest := &api.IssueNodeCertificateRequest{CSR: csr, Token: config.Token, Availability: config.Availability}
-	issueResponse, err := caClient.IssueNodeCertificate(ctx, issueRequest)
+	issueResponse, err := caClient.IssueNodeCertificate(issueCtx, issueRequest)
 	if err != nil {
-		config.Remotes.Observe(peer, -remotes.DefaultObservationWeight)
+		conn.Close(false)
 		return nil, err
 	}
 
@@ -589,13 +588,14 @@ func GetRemoteSignedCertificate(ctx context.Context, csr []byte, rootCAPool *x50
 		defer cancel()
 		statusResponse, err := caClient.NodeCertificateStatus(ctx, statusRequest)
 		if err != nil {
-			config.Remotes.Observe(peer, -remotes.DefaultObservationWeight)
+			conn.Close(false)
 			return nil, err
 		}
 
 		// If the certificate was issued, return
 		if statusResponse.Status.State == api.IssuanceStateIssued {
 			if statusResponse.Certificate == nil {
+				conn.Close(false)
 				return nil, errors.New("no certificate in CertificateStatus response")
 			}
 
@@ -605,7 +605,7 @@ func GetRemoteSignedCertificate(ctx context.Context, csr []byte, rootCAPool *x50
 			// retry until the certificate gets updated per our
 			// current request.
 			if bytes.Equal(statusResponse.Certificate.CSR, csr) {
-				config.Remotes.Observe(peer, remotes.DefaultObservationWeight)
+				conn.Close(true)
 				return statusResponse.Certificate.Certificate, nil
 			}
 		}

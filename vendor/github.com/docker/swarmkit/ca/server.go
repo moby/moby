@@ -28,6 +28,7 @@ const (
 // breaking it apart doesn't seem worth it.
 type Server struct {
 	mu                          sync.Mutex
+	wg                          sync.WaitGroup
 	ctx                         context.Context
 	cancel                      func()
 	store                       *store.MemoryStore
@@ -101,9 +102,10 @@ func (s *Server) NodeCertificateStatus(ctx context.Context, request *api.NodeCer
 		return nil, grpc.Errorf(codes.InvalidArgument, codes.InvalidArgument.String())
 	}
 
-	if err := s.isRunningLocked(); err != nil {
+	if err := s.addTask(); err != nil {
 		return nil, err
 	}
+	defer s.doneTask()
 
 	var node *api.Node
 
@@ -187,9 +189,10 @@ func (s *Server) IssueNodeCertificate(ctx context.Context, request *api.IssueNod
 		return nil, grpc.Errorf(codes.InvalidArgument, codes.InvalidArgument.String())
 	}
 
-	if err := s.isRunningLocked(); err != nil {
+	if err := s.addTask(); err != nil {
 		return nil, err
 	}
+	defer s.doneTask()
 
 	var (
 		blacklistedCerts map[string]*api.BlacklistedCertificate
@@ -371,8 +374,10 @@ func (s *Server) Run(ctx context.Context) error {
 		s.mu.Unlock()
 		return errors.New("CA signer is already running")
 	}
+	s.wg.Add(1)
 	s.mu.Unlock()
 
+	defer s.wg.Done()
 	ctx = log.WithModule(ctx, "ca")
 
 	// Retrieve the channels to keep track of changes in the cluster
@@ -402,8 +407,8 @@ func (s *Server) Run(ctx context.Context) error {
 	// returns true without joinTokens being set correctly.
 	s.mu.Lock()
 	s.ctx, s.cancel = context.WithCancel(ctx)
-	close(s.started)
 	s.mu.Unlock()
+	close(s.started)
 
 	if err != nil {
 		log.G(ctx).WithFields(logrus.Fields{
@@ -464,30 +469,36 @@ func (s *Server) Run(ctx context.Context) error {
 // Stop stops the CA and closes all grpc streams.
 func (s *Server) Stop() error {
 	s.mu.Lock()
-	defer s.mu.Unlock()
 	if !s.isRunning() {
+		s.mu.Unlock()
 		return errors.New("CA signer is already stopped")
 	}
 	s.cancel()
+	s.mu.Unlock()
+	// wait for all handlers to finish their CA deals,
+	s.wg.Wait()
 	s.started = make(chan struct{})
 	return nil
 }
 
 // Ready waits on the ready channel and returns when the server is ready to serve.
 func (s *Server) Ready() <-chan struct{} {
-	s.mu.Lock()
-	defer s.mu.Unlock()
 	return s.started
 }
 
-func (s *Server) isRunningLocked() error {
+func (s *Server) addTask() error {
 	s.mu.Lock()
 	if !s.isRunning() {
 		s.mu.Unlock()
 		return grpc.Errorf(codes.Aborted, "CA signer is stopped")
 	}
+	s.wg.Add(1)
 	s.mu.Unlock()
 	return nil
+}
+
+func (s *Server) doneTask() {
+	s.wg.Done()
 }
 
 func (s *Server) isRunning() bool {

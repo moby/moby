@@ -16,9 +16,9 @@ import (
 	"github.com/Sirupsen/logrus"
 	cfconfig "github.com/cloudflare/cfssl/config"
 	"github.com/docker/swarmkit/api"
+	"github.com/docker/swarmkit/connectionbroker"
 	"github.com/docker/swarmkit/identity"
 	"github.com/docker/swarmkit/log"
-	"github.com/docker/swarmkit/remotes"
 	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
 	"google.golang.org/grpc/credentials"
@@ -200,7 +200,7 @@ func getCAHashFromToken(token string) (digest.Digest, error) {
 }
 
 // DownloadRootCA tries to retrieve a remote root CA and matches the digest against the provided token.
-func DownloadRootCA(ctx context.Context, paths CertPaths, token string, r remotes.Remotes) (RootCA, error) {
+func DownloadRootCA(ctx context.Context, paths CertPaths, token string, connBroker *connectionbroker.Broker) (RootCA, error) {
 	var rootCA RootCA
 	// Get a digest for the optional CA hash string that we've been provided
 	// If we were provided a non-empty string, and it is an invalid hash, return
@@ -221,7 +221,7 @@ func DownloadRootCA(ctx context.Context, paths CertPaths, token string, r remote
 	// just been demoted, for example).
 
 	for i := 0; i != 5; i++ {
-		rootCA, err = GetRemoteCA(ctx, d, r)
+		rootCA, err = GetRemoteCA(ctx, d, connBroker)
 		if err == nil {
 			break
 		}
@@ -313,11 +313,16 @@ type CertificateRequestConfig struct {
 	Token string
 	// Availability allows a user to control the current scheduling status of a node
 	Availability api.NodeSpec_Availability
-	// Remotes is the set of remote CAs.
-	Remotes remotes.Remotes
+	// ConnBroker provides connections to CAs.
+	ConnBroker *connectionbroker.Broker
 	// Credentials provides transport credentials for communicating with the
 	// remote server.
 	Credentials credentials.TransportCredentials
+	// ForceRemote specifies that only a remote (TCP) connection should
+	// be used to request the certificate. This may be necessary in cases
+	// where the local node is running a manager, but is in the process of
+	// being demoted.
+	ForceRemote bool
 }
 
 // CreateSecurityConfig creates a new key and cert for this node, either locally
@@ -380,7 +385,7 @@ func (rootCA RootCA) CreateSecurityConfig(ctx context.Context, krw *KeyReadWrite
 
 // RenewTLSConfigNow gets a new TLS cert and key, and updates the security config if provided.  This is similar to
 // RenewTLSConfig, except while that monitors for expiry, and periodically renews, this renews once and is blocking
-func RenewTLSConfigNow(ctx context.Context, s *SecurityConfig, r remotes.Remotes) error {
+func RenewTLSConfigNow(ctx context.Context, s *SecurityConfig, connBroker *connectionbroker.Broker) error {
 	s.renewalMu.Lock()
 	defer s.renewalMu.Unlock()
 
@@ -395,7 +400,7 @@ func RenewTLSConfigNow(ctx context.Context, s *SecurityConfig, r remotes.Remotes
 	tlsKeyPair, err := rootCA.RequestAndSaveNewCertificates(ctx,
 		s.KeyWriter(),
 		CertificateRequestConfig{
-			Remotes:     r,
+			ConnBroker:  connBroker,
 			Credentials: s.ClientTLSCreds,
 		})
 	if err != nil {
@@ -437,7 +442,7 @@ func RenewTLSConfigNow(ctx context.Context, s *SecurityConfig, r remotes.Remotes
 
 // RenewTLSConfig will continuously monitor for the necessity of renewing the local certificates, either by
 // issuing them locally if key-material is available, or requesting them from a remote CA.
-func RenewTLSConfig(ctx context.Context, s *SecurityConfig, remotes remotes.Remotes, renew <-chan struct{}) <-chan CertificateUpdate {
+func RenewTLSConfig(ctx context.Context, s *SecurityConfig, connBroker *connectionbroker.Broker, renew <-chan struct{}) <-chan CertificateUpdate {
 	updates := make(chan CertificateUpdate)
 
 	go func() {
@@ -501,7 +506,7 @@ func RenewTLSConfig(ctx context.Context, s *SecurityConfig, remotes remotes.Remo
 
 			// ignore errors - it will just try again later
 			var certUpdate CertificateUpdate
-			if err := RenewTLSConfigNow(ctx, s, remotes); err != nil {
+			if err := RenewTLSConfigNow(ctx, s, connBroker); err != nil {
 				certUpdate.Err = err
 			} else {
 				certUpdate.Role = s.ClientTLSCreds.Role()
