@@ -12,7 +12,7 @@ type clientCommon struct {
 	backend    Backend
 	containers map[string]*container
 	locker     *locker.Locker
-	mapMutex   sync.RWMutex // protects read/write oprations from containers map
+	mapMutex   sync.RWMutex // protects read/write operations from containers map
 }
 
 func (clnt *client) lock(containerID string) {
