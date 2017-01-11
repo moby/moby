@@ -402,7 +402,7 @@ func (n *network) getBridgeNamePrefix(s *subnet) string {
 	return "ov-" + fmt.Sprintf("%06x", n.vxlanID(s))
 }
 
-func isOverlap(nw *net.IPNet) bool {
+func checkOverlap(nw *net.IPNet) error {
 	var nameservers []string
 
 	if rc, err := resolvconf.Get(); err == nil {
@@ -410,14 +410,14 @@ func isOverlap(nw *net.IPNet) bool {
 	}
 
 	if err := netutils.CheckNameserverOverlaps(nameservers, nw); err != nil {
-		return true
+		return fmt.Errorf("overlay subnet %s failed check with nameserver: %v: %v", nw.String(), nameservers, err)
 	}
 
 	if err := netutils.CheckRouteOverlaps(nw); err != nil {
-		return true
+		return fmt.Errorf("overlay subnet %s failed check with host route table: %v", nw.String(), err)
 	}
 
-	return false
+	return nil
 }
 
 func (n *network) restoreSubnetSandbox(s *subnet, brName, vxlanName string) error {
@@ -456,8 +456,8 @@ func (n *network) setupSubnetSandbox(s *subnet, brName, vxlanName string) error 
 		// Try to delete the vxlan interface by vni if already present
 		deleteVxlanByVNI("", n.vxlanID(s))
 
-		if isOverlap(s.subnetIP) {
-			return fmt.Errorf("overlay subnet %s has conflicts in the host while running in host mode", s.subnetIP.String())
+		if err := checkOverlap(s.subnetIP); err != nil {
+			return err
 		}
 	}
 

@@ -6,6 +6,7 @@ package bitseq
 import (
 	"encoding/binary"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"sync"
 
@@ -26,9 +27,9 @@ const (
 
 var (
 	// ErrNoBitAvailable is returned when no more bits are available to set
-	ErrNoBitAvailable = fmt.Errorf("no bit available")
+	ErrNoBitAvailable = errors.New("no bit available")
 	// ErrBitAllocated is returned when the specific bit requested is already set
-	ErrBitAllocated = fmt.Errorf("requested bit is already allocated")
+	ErrBitAllocated = errors.New("requested bit is already allocated")
 )
 
 // Handle contains the sequece representing the bitmask and its identifier
@@ -373,7 +374,7 @@ func (h *Handle) validateOrdinal(ordinal uint64) error {
 	h.Lock()
 	defer h.Unlock()
 	if ordinal >= h.bits {
-		return fmt.Errorf("bit does not belong to the sequence")
+		return errors.New("bit does not belong to the sequence")
 	}
 	return nil
 }
@@ -418,7 +419,7 @@ func (h *Handle) ToByteArray() ([]byte, error) {
 // FromByteArray reads his handle's data from a byte array
 func (h *Handle) FromByteArray(ba []byte) error {
 	if ba == nil {
-		return fmt.Errorf("nil byte array")
+		return errors.New("nil byte array")
 	}
 
 	nh := &sequence{}

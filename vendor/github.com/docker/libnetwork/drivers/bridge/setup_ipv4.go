@@ -1,6 +1,7 @@
 package bridge
 
 import (
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net"
@@ -13,7 +14,7 @@ import (
 
 func selectIPv4Address(addresses []netlink.Addr, selector *net.IPNet) (netlink.Addr, error) {
 	if len(addresses) == 0 {
-		return netlink.Addr{}, fmt.Errorf("unable to select an address as the address pool is empty")
+		return netlink.Addr{}, errors.New("unable to select an address as the address pool is empty")
 	}
 	if selector != nil {
 		for _, addr := range addresses {
