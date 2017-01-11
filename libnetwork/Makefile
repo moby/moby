@@ -32,8 +32,8 @@ build: ${build_image}.created
 
 build-local:
 	@mkdir -p "bin"
-	$(shell which godep) go build -tags experimental -o "bin/dnet" ./cmd/dnet
-	$(shell which godep) go build -o "bin/docker-proxy" ./cmd/proxy
+	go build -tags experimental -o "bin/dnet" ./cmd/dnet
+	go build -o "bin/docker-proxy" ./cmd/proxy
 
 clean:
 	@if [ -d bin ]; then \
@@ -50,27 +50,27 @@ cross: ${build_image}.created
 	done
 
 cross-local:
-	$(shell which godep) go build -o "bin/dnet-$$GOOS-$$GOARCH" ./cmd/dnet
-	$(shell which godep) go build -o "bin/docker-proxy-$$GOOS-$$GOARCH" ./cmd/proxy
+	go build -o "bin/dnet-$$GOOS-$$GOARCH" ./cmd/dnet
+	go build -o "bin/docker-proxy-$$GOOS-$$GOARCH" ./cmd/proxy
 
 check: ${build_image}.created
 	@${docker} ./wrapmake.sh check-local
 
 check-code:
 	@echo "Checking code... "
-	test -z "$$(golint ./... | grep -v .pb.go: | tee /dev/stderr)"
-	go vet ./...
+	test -z "$$(golint ./... | grep -Ev 'vendor|.pb.go:' | tee /dev/stderr)"
+	test -z "$$(go vet ./... 2>&1 > /dev/null | grep -Ev 'vendor|exit' | tee /dev/stderr)"
 	@echo "Done checking code"
 
 check-format:
 	@echo "Checking format... "
-	test -z "$$(gofmt -s -l . | grep -v Godeps/_workspace/src/ | tee /dev/stderr)"
+	test -z "$$(gofmt -s -l . | grep -v vendor/ | tee /dev/stderr)"
 	@echo "Done checking format"
 
 run-tests:
 	@echo "Running tests... "
 	@echo "mode: count" > coverage.coverprofile
-	@for dir in $$( ${gnufind} . -maxdepth 10 -not -path './.git*' -not -path '*/_*' -type d); do \
+	@for dir in $$( ${gnufind} . -maxdepth 10 -not -path './.git*' -not -path '*/_*' -not -path './vendor/*' -type d); do \
 	    if [ ${hostOS} == solaris ]; then \
 	        case "$$dir" in \
 		    "./cmd/dnet" ) \
@@ -107,7 +107,7 @@ run-tests:
 	    if ls $$dir/*.go &> /dev/null; then \
 		pushd . &> /dev/null ; \
 		cd $$dir ; \
-		$(shell which godep) go test ${INSIDECONTAINER} -test.parallel 5 -test.v -covermode=count -coverprofile=./profile.tmp ; \
+		go test ${INSIDECONTAINER} -test.parallel 5 -test.v -covermode=count -coverprofile=./profile.tmp ; \
 		ret=$$? ;\
 		if [ $$ret -ne 0 ]; then exit $$ret; fi ;\
 		popd &> /dev/null; \
