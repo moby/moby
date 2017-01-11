@@ -177,7 +177,7 @@ func UnreserveLabel(label string) error {
 	return nil
 }
 
-// DupSecOpt takes an process label and returns security options that
+// DupSecOpt takes a process label and returns security options that
 // can be used to set duplicate labels on future container processes
 func DupSecOpt(src string) []string {
 	return selinux.DupSecOpt(src)
