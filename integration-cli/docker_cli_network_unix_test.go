@@ -348,6 +348,13 @@ func (s *DockerNetworkSuite) TestDockerNetworkRmPredefined(c *check.C) {
 	}
 }
 
+// Regression test to #29126
+func (s *DockerNetworkSuite) TestDockerNetworkRmInvalidNetworkWithTwoDots(c *check.C) {
+	out, _, err := dockerCmdWithError("network", "rm", "../mynetwork")
+	c.Assert(err, checker.NotNil)
+	c.Assert(out, checker.Contains, "Bad name: ../mynetwork")
+}
+
 func (s *DockerNetworkSuite) TestDockerNetworkLsFilter(c *check.C) {
 	testNet := "testnet1"
 	testLabel := "foo"

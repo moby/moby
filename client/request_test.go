@@ -2,9 +2,11 @@ package client
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -88,5 +90,27 @@ func TestPlainTextError(t *testing.T) {
 	_, err := client.ContainerList(context.Background(), types.ContainerListOptions{})
 	if err == nil || err.Error() != "Error response from daemon: Server error" {
 		t.Fatalf("expected a Server Error, got %v", err)
+	}
+}
+
+// TestIsDeletedSuccessfully tests that whether the client failed to send
+// the delete or the response status code is "301" an error message is returned
+func TestIsDeletedSuccessfully(t *testing.T) {
+	tt := []struct {
+		cliErr error
+		resp   serverResponse
+		item   string
+		expErr error
+	}{
+		{nil, serverResponse{nil, http.Header{}, 204}, "id", nil},
+		{nil, serverResponse{nil, http.Header{}, 200}, "id", nil},
+		{errors.New("hl"), serverResponse{nil, http.Header{}, 204}, "id", errors.New("hl")},
+		{nil, serverResponse{nil, http.Header{}, 301}, "sid", errors.New("Bad name: sid")},
+	}
+
+	for i, te := range tt {
+		if err := isDeletedSuccessfully(te.resp, te.item, te.cliErr); !reflect.DeepEqual(err, te.expErr) {
+			t.Errorf("test #%d: expected error to be '%s' but got '%s'", i, te.expErr, err)
+		}
 	}
 }

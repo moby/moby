@@ -350,3 +350,10 @@ func (s *DockerSuite) TestRmiByIDHardConflict(c *check.C) {
 	imgID2 := inspectField(c, "busybox:latest", "Id")
 	c.Assert(imgID, checker.Equals, imgID2)
 }
+
+// Regression test to #29126
+func (s *DockerSuite) TestRmiInvalidImageWithTwoDots(c *check.C) {
+	out, _, err := dockerCmdWithError("rmi", "../imgid")
+	c.Assert(err, checker.NotNil)
+	c.Assert(out, checker.Contains, "Bad name: ../imgid")
+}

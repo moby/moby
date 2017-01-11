@@ -6,5 +6,5 @@ import "golang.org/x/net/context"
 func (cli *Client) NetworkRemove(ctx context.Context, networkID string) error {
 	resp, err := cli.delete(ctx, "/networks/"+networkID, nil, nil)
 	ensureReaderClosed(resp)
-	return err
+	return isDeletedSuccessfully(resp, networkID, err)
 }
