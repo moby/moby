@@ -28,6 +28,7 @@ const (
 	flagSnapshotInterval    = "snapshot-interval"
 	flagLockKey             = "lock-key"
 	flagAutolock            = "autolock"
+	flagAvailability        = "availability"
 )
 
 type swarmOptions struct {

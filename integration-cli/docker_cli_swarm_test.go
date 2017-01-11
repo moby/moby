@@ -1591,3 +1591,42 @@ func (s *DockerSwarmSuite) TestSwarmPublishDuplicatePorts(c *check.C) {
 	c.Assert(out, checker.Contains, "{ tcp 80 5000 ingress}")
 	c.Assert(out, checker.Contains, "{ tcp 80 5001 ingress}")
 }
+
+func (s *DockerSwarmSuite) TestSwarmJoinWithDrain(c *check.C) {
+	d := s.AddDaemon(c, true, true)
+
+	out, err := d.Cmd("node", "ls")
+	c.Assert(err, checker.IsNil)
+	c.Assert(out, checker.Not(checker.Contains), "Drain")
+
+	out, err = d.Cmd("swarm", "join-token", "-q", "manager")
+	c.Assert(err, checker.IsNil)
+	c.Assert(strings.TrimSpace(out), checker.Not(checker.Equals), "")
+
+	token := strings.TrimSpace(out)
+
+	d1 := s.AddDaemon(c, false, false)
+
+	out, err = d1.Cmd("swarm", "join", "--availability=drain", "--token", token, d.ListenAddr)
+	c.Assert(err, checker.IsNil)
+	c.Assert(strings.TrimSpace(out), checker.Not(checker.Equals), "")
+
+	out, err = d.Cmd("node", "ls")
+	c.Assert(err, checker.IsNil)
+	c.Assert(out, checker.Contains, "Drain")
+
+	out, err = d1.Cmd("node", "ls")
+	c.Assert(err, checker.IsNil)
+	c.Assert(out, checker.Contains, "Drain")
+}
+
+func (s *DockerSwarmSuite) TestSwarmInitWithDrain(c *check.C) {
+	d := s.AddDaemon(c, false, false)
+
+	out, err := d.Cmd("swarm", "init", "--availability", "drain")
+	c.Assert(err, checker.IsNil, check.Commentf("out: %v", out))
+
+	out, err = d.Cmd("node", "ls")
+	c.Assert(err, checker.IsNil)
+	c.Assert(out, checker.Contains, "Drain")
+}

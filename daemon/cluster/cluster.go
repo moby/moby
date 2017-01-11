@@ -320,6 +320,7 @@ func (c *Cluster) Init(req types.InitRequest) (string, error) {
 		LocalAddr:       localAddr,
 		ListenAddr:      net.JoinHostPort(listenHost, listenPort),
 		AdvertiseAddr:   net.JoinHostPort(advertiseHost, advertisePort),
+		availability:    req.Availability,
 	})
 	if err != nil {
 		return "", err
@@ -389,6 +390,7 @@ func (c *Cluster) Join(req types.JoinRequest) error {
 		AdvertiseAddr: advertiseAddr,
 		joinAddr:      req.RemoteAddrs[0],
 		joinToken:     req.JoinToken,
+		availability:  req.Availability,
 	})
 	if err != nil {
 		return err
