@@ -76,7 +76,7 @@ func validateAnnotations(m api.Annotations) error {
 	return nil
 }
 
-func validateDriver(driver *api.Driver) error {
+func validateDriver(driver *api.Driver, defName string) error {
 	if driver == nil {
 		// It is ok to not specify the driver. We will choose
 		// a default driver.
@@ -87,5 +87,8 @@ func validateDriver(driver *api.Driver) error {
 		return grpc.Errorf(codes.InvalidArgument, "driver name: if driver is specified name is required")
 	}
 
+	if driver.Name != defName {
+		return grpc.Errorf(codes.InvalidArgument, "invalid driver (%s) specified", driver.Name)
+	}
 	return nil
 }

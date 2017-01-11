@@ -4,8 +4,10 @@ import (
 	"fmt"
 	"net"
 
+	"github.com/docker/libnetwork/ipamapi"
 	"github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/identity"
+	"github.com/docker/swarmkit/manager/allocator/networkallocator"
 	"github.com/docker/swarmkit/manager/state/store"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
@@ -54,7 +56,7 @@ func validateIPAM(ipam *api.IPAMOptions) error {
 		return nil
 	}
 
-	if err := validateDriver(ipam.Driver); err != nil {
+	if err := validateDriver(ipam.Driver, ipamapi.DefaultIPAM); err != nil {
 		return err
 	}
 
@@ -76,7 +78,7 @@ func validateNetworkSpec(spec *api.NetworkSpec) error {
 		return err
 	}
 
-	if err := validateDriver(spec.DriverConfig); err != nil {
+	if err := validateDriver(spec.DriverConfig, networkallocator.DefaultDriver); err != nil {
 		return err
 	}
 
