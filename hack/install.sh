@@ -210,7 +210,11 @@ do_install() {
 		# unofficially supported without available repositories
 		aarch64|arm64|ppc64le|s390x)
 			cat 1>&2 <<-EOF
-			Error: Docker doesn't officially support $architecture and no Docker $architecture repository exists.
+			Error: This install script does not support $architecture, because no
+			$architecture package exists in Docker's repositories.
+
+			Other install options include checking your distribution's package repository
+			for a version of Docker, or building Docker from source.
 			EOF
 			exit 1
 			;;
