@@ -677,18 +677,8 @@ func (s *DockerSwarmSuite) TestSwarmNetworkPlugin(c *check.C) {
 
 	d := s.AddDaemon(c, true, true)
 
-	out, err := d.Cmd("network", "create", "-d", globalNetworkPlugin, "foo")
-	c.Assert(err, checker.IsNil)
-	c.Assert(strings.TrimSpace(out), checker.Not(checker.Equals), "")
-
-	name := "top"
-	out, err = d.Cmd("service", "create", "--name", name, "--network", "foo", "busybox", "top")
-	c.Assert(err, checker.IsNil)
-	c.Assert(strings.TrimSpace(out), checker.Not(checker.Equals), "")
-
-	out, err = d.Cmd("service", "inspect", "--format", "{{range .Spec.Networks}}{{.Target}}{{end}}", name)
-	c.Assert(err, checker.IsNil)
-	c.Assert(strings.TrimSpace(out), checker.Equals, "foo")
+	_, err := d.Cmd("network", "create", "-d", globalNetworkPlugin, "foo")
+	c.Assert(err, checker.NotNil)
 }
 
 // Test case for #24712
