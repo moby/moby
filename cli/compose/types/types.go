@@ -38,7 +38,7 @@ var DeprecatedProperties = map[string]string{
 // ForbiddenProperties that are not supported in this implementation of the
 // compose file.
 var ForbiddenProperties = map[string]string{
-	"extends":       "Support for `extends` is not implemented yet. Use `docker-compose config` to generate a configuration with all `extends` options resolved, and deploy from that.",
+	"extends":       "Support for `extends` is not implemented yet.",
 	"volume_driver": "Instead of setting the volume driver on the service, define a volume using the top-level `volumes` option and specify the driver there.",
 	"volumes_from":  "To share a volume between services, define it using the top-level `volumes` option and reference it from each service that shares it using the service-level `volumes` option.",
 	"cpu_quota":     "Set resource limits using deploy.resources",
