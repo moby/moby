@@ -120,13 +120,13 @@ type PluginConfigInterface struct {
 // swagger:model PluginConfigLinux
 type PluginConfigLinux struct {
 
+	// allow all devices
+	// Required: true
+	AllowAllDevices bool `json:"AllowAllDevices"`
+
 	// capabilities
 	// Required: true
 	Capabilities []string `json:"Capabilities"`
-
-	// device creation
-	// Required: true
-	DeviceCreation bool `json:"DeviceCreation"`
 
 	// devices
 	// Required: true
