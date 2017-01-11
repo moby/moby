@@ -3,10 +3,12 @@ package daemon
 import (
 	"io"
 
+	"github.com/docker/distribution/manifest/schema2"
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/distribution"
+	progressutils "github.com/docker/docker/distribution/utils"
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/reference"
-	"github.com/docker/engine-api/types"
 	"golang.org/x/net/context"
 )
 
@@ -33,22 +35,25 @@ func (daemon *Daemon) PushImage(ctx context.Context, image, tag string, metaHead
 	ctx, cancelFunc := context.WithCancel(ctx)
 
 	go func() {
-		writeDistributionProgress(cancelFunc, outStream, progressChan)
+		progressutils.WriteDistributionProgress(cancelFunc, outStream, progressChan)
 		close(writesDone)
 	}()
 
 	imagePushConfig := &distribution.ImagePushConfig{
-		MetaHeaders:      metaHeaders,
-		AuthConfig:       authConfig,
-		ProgressOutput:   progress.ChanOutput(progressChan),
-		RegistryService:  daemon.RegistryService,
-		ImageEventLogger: daemon.LogImageEvent,
-		MetadataStore:    daemon.distributionMetadataStore,
-		LayerStore:       daemon.layerStore,
-		ImageStore:       daemon.imageStore,
-		ReferenceStore:   daemon.referenceStore,
-		TrustKey:         daemon.trustKey,
-		UploadManager:    daemon.uploadManager,
+		Config: distribution.Config{
+			MetaHeaders:      metaHeaders,
+			AuthConfig:       authConfig,
+			ProgressOutput:   progress.ChanOutput(progressChan),
+			RegistryService:  daemon.RegistryService,
+			ImageEventLogger: daemon.LogImageEvent,
+			MetadataStore:    daemon.distributionMetadataStore,
+			ImageStore:       distribution.NewImageConfigStoreFromStore(daemon.imageStore),
+			ReferenceStore:   daemon.referenceStore,
+		},
+		ConfigMediaType: schema2.MediaTypeImageConfig,
+		LayerStore:      distribution.NewLayerProviderFromStore(daemon.layerStore),
+		TrustKey:        daemon.trustKey,
+		UploadManager:   daemon.uploadManager,
 	}
 
 	err = distribution.Push(ctx, ref, imagePushConfig)

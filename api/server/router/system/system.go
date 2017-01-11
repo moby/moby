@@ -8,16 +8,16 @@ import (
 // systemRouter provides information about the Docker system overall.
 // It gathers information about host, daemon and container events.
 type systemRouter struct {
-	backend         Backend
-	clusterProvider *cluster.Cluster
-	routes          []router.Route
+	backend Backend
+	cluster *cluster.Cluster
+	routes  []router.Route
 }
 
 // NewRouter initializes a new system router
 func NewRouter(b Backend, c *cluster.Cluster) router.Router {
 	r := &systemRouter{
-		backend:         b,
-		clusterProvider: c,
+		backend: b,
+		cluster: c,
 	}
 
 	r.routes = []router.Route{
@@ -26,6 +26,7 @@ func NewRouter(b Backend, c *cluster.Cluster) router.Router {
 		router.Cancellable(router.NewGetRoute("/events", r.getEvents)),
 		router.NewGetRoute("/info", r.getInfo),
 		router.NewGetRoute("/version", r.getVersion),
+		router.NewGetRoute("/system/df", r.getDiskUsage),
 		router.NewPostRoute("/auth", r.postAuth),
 	}
 

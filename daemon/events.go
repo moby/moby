@@ -4,10 +4,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/docker/docker/api/types/events"
+	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/container"
 	daemonevents "github.com/docker/docker/daemon/events"
-	"github.com/docker/engine-api/types/events"
-	"github.com/docker/engine-api/types/filters"
 	"github.com/docker/libnetwork"
 )
 
@@ -53,6 +53,21 @@ func (daemon *Daemon) LogImageEventWithAttributes(imageID, refName, action strin
 	}
 
 	daemon.EventsService.Log(action, events.ImageEventType, actor)
+}
+
+// LogPluginEvent generates an event related to a plugin with only the default attributes.
+func (daemon *Daemon) LogPluginEvent(pluginID, refName, action string) {
+	daemon.LogPluginEventWithAttributes(pluginID, refName, action, map[string]string{})
+}
+
+// LogPluginEventWithAttributes generates an event related to a plugin with specific given attributes.
+func (daemon *Daemon) LogPluginEventWithAttributes(pluginID, refName, action string, attributes map[string]string) {
+	attributes["name"] = refName
+	actor := events.Actor{
+		ID:         pluginID,
+		Attributes: attributes,
+	}
+	daemon.EventsService.Log(action, events.PluginEventType, actor)
 }
 
 // LogVolumeEvent generates an event related to a volume.

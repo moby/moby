@@ -3,6 +3,7 @@
 package overlay2
 
 import (
+	"io/ioutil"
 	"os"
 	"syscall"
 	"testing"
@@ -33,6 +34,18 @@ func cdMountFrom(dir, device, target, mType, label string) error {
 	return syscall.Mount(device, target, mType, 0, label)
 }
 
+func skipIfNaive(t *testing.T) {
+	td, err := ioutil.TempDir("", "naive-check-")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(td)
+
+	if useNaiveDiff(td) {
+		t.Skipf("Cannot run test with naive diff")
+	}
+}
+
 // This avoids creating a new driver for each test if all tests are run
 // Make sure to put new tests between TestOverlaySetup and TestOverlayTeardown
 func TestOverlaySetup(t *testing.T) {
@@ -56,10 +69,12 @@ func TestOverlay128LayerRead(t *testing.T) {
 }
 
 func TestOverlayDiffApply10Files(t *testing.T) {
+	skipIfNaive(t)
 	graphtest.DriverTestDiffApply(t, 10, driverName)
 }
 
 func TestOverlayChanges(t *testing.T) {
+	skipIfNaive(t)
 	graphtest.DriverTestChanges(t, driverName)
 }
 

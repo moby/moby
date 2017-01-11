@@ -43,7 +43,7 @@ function __fish_print_docker_repositories --description 'Print a list of docker 
 end
 
 # common options
-complete -c docker -f -n '__fish_docker_no_subcommand' -l api-cors-header -d "Set CORS headers in the remote API. Default is cors disabled"
+complete -c docker -f -n '__fish_docker_no_subcommand' -l api-cors-header -d "Set CORS headers in the Engine API. Default is cors disabled"
 complete -c docker -f -n '__fish_docker_no_subcommand' -s b -l bridge -d 'Attach containers to a pre-existing network bridge'
 complete -c docker -f -n '__fish_docker_no_subcommand' -l bip -d "Use this CIDR notation address for the network bridge's IP, not compatible with -b"
 complete -c docker -f -n '__fish_docker_no_subcommand' -s D -l debug -d 'Enable debug mode'
@@ -65,7 +65,7 @@ complete -c docker -f -n '__fish_docker_no_subcommand' -l ip-forward -d 'Enable 
 complete -c docker -f -n '__fish_docker_no_subcommand' -l ip-masq -d "Enable IP masquerading for bridge's IP range"
 complete -c docker -f -n '__fish_docker_no_subcommand' -l iptables -d "Enable Docker's addition of iptables rules"
 complete -c docker -f -n '__fish_docker_no_subcommand' -l ipv6 -d 'Enable IPv6 networking'
-complete -c docker -f -n '__fish_docker_no_subcommand' -s l -l log-level -d 'Set the logging level (debug, info, warn, error, fatal)'
+complete -c docker -f -n '__fish_docker_no_subcommand' -s l -l log-level -d 'Set the logging level ("debug", "info", "warn", "error", "fatal")'
 complete -c docker -f -n '__fish_docker_no_subcommand' -l label -d 'Set key=value labels to the daemon (displayed in `docker info`)'
 complete -c docker -f -n '__fish_docker_no_subcommand' -l mtu -d 'Set the containers network MTU'
 complete -c docker -f -n '__fish_docker_no_subcommand' -s p -l pidfile -d 'Path to use for daemon PID file'
@@ -135,7 +135,7 @@ complete -c docker -A -f -n '__fish_seen_subcommand_from create' -s i -l interac
 complete -c docker -A -f -n '__fish_seen_subcommand_from create' -l ipc -d 'Default is to create a private IPC namespace (POSIX SysV IPC) for the container'
 complete -c docker -A -f -n '__fish_seen_subcommand_from create' -l link -d 'Add link to another container in the form of <name|id>:alias'
 complete -c docker -A -f -n '__fish_seen_subcommand_from create' -s m -l memory -d 'Memory limit (format: <number>[<unit>], where unit = b, k, m or g)'
-complete -c docker -A -f -n '__fish_seen_subcommand_from create' -l mac-address -d 'Container MAC address (e.g. 92:d0:c6:0a:29:33)'
+complete -c docker -A -f -n '__fish_seen_subcommand_from create' -l mac-address -d 'Container MAC address (e.g., 92:d0:c6:0a:29:33)'
 complete -c docker -A -f -n '__fish_seen_subcommand_from create' -l memory-swap -d "Total memory usage (memory + swap), set '-1' to disable swap (format: <number>[<unit>], where unit = b, k, m or g)"
 complete -c docker -A -f -n '__fish_seen_subcommand_from create' -l name -d 'Assign a name to the container'
 complete -c docker -A -f -n '__fish_seen_subcommand_from create' -l net -d 'Set the Network mode for the container'
@@ -164,6 +164,7 @@ complete -c docker -A -f -n '__fish_seen_subcommand_from events' -s f -l filter 
 complete -c docker -A -f -n '__fish_seen_subcommand_from events' -l help -d 'Print usage'
 complete -c docker -A -f -n '__fish_seen_subcommand_from events' -l since -d 'Show all events created since timestamp'
 complete -c docker -A -f -n '__fish_seen_subcommand_from events' -l until -d 'Stream events until this timestamp'
+complete -c docker -A -f -n '__fish_seen_subcommand_from events' -l format -d 'Format the output using the given go template'
 
 # exec
 complete -c docker -f -n '__fish_docker_no_subcommand' -a exec -d 'Run a command in a running container'
@@ -200,6 +201,8 @@ complete -c docker -A -f -n '__fish_seen_subcommand_from import' -l help -d 'Pri
 
 # info
 complete -c docker -f -n '__fish_docker_no_subcommand' -a info -d 'Display system-wide information'
+complete -c docker -A -f -n '__fish_seen_subcommand_from info' -s f -l format  -d 'Format the output using the given go template'
+complete -c docker -A -f -n '__fish_seen_subcommand_from info' -l help -d 'Print usage'
 
 # inspect
 complete -c docker -f -n '__fish_docker_no_subcommand' -a inspect -d 'Return low-level information on a container or image'
@@ -323,7 +326,7 @@ complete -c docker -A -f -n '__fish_seen_subcommand_from run' -s i -l interactiv
 complete -c docker -A -f -n '__fish_seen_subcommand_from run' -l ipc -d 'Default is to create a private IPC namespace (POSIX SysV IPC) for the container'
 complete -c docker -A -f -n '__fish_seen_subcommand_from run' -l link -d 'Add link to another container in the form of <name|id>:alias'
 complete -c docker -A -f -n '__fish_seen_subcommand_from run' -s m -l memory -d 'Memory limit (format: <number>[<unit>], where unit = b, k, m or g)'
-complete -c docker -A -f -n '__fish_seen_subcommand_from run' -l mac-address -d 'Container MAC address (e.g. 92:d0:c6:0a:29:33)'
+complete -c docker -A -f -n '__fish_seen_subcommand_from run' -l mac-address -d 'Container MAC address (e.g., 92:d0:c6:0a:29:33)'
 complete -c docker -A -f -n '__fish_seen_subcommand_from run' -l memory-swap -d "Total memory usage (memory + swap), set '-1' to disable swap (format: <number>[<unit>], where unit = b, k, m or g)"
 complete -c docker -A -f -n '__fish_seen_subcommand_from run' -l name -d 'Assign a name to the container'
 complete -c docker -A -f -n '__fish_seen_subcommand_from run' -l net -d 'Set the Network mode for the container'
@@ -393,6 +396,8 @@ complete -c docker -A -f -n '__fish_seen_subcommand_from unpause' -a '(__fish_pr
 
 # version
 complete -c docker -f -n '__fish_docker_no_subcommand' -a version -d 'Show the Docker version information'
+complete -c docker -A -f -n '__fish_seen_subcommand_from version' -s f -l format  -d 'Format the output using the given go template'
+complete -c docker -A -f -n '__fish_seen_subcommand_from version' -l help -d 'Print usage'
 
 # wait
 complete -c docker -f -n '__fish_docker_no_subcommand' -a wait -d 'Block until a container stops, then print its exit code'

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/docker/docker/pkg/integration/checker"
+	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/pkg/stringutils"
 	"github.com/go-check/check"
@@ -12,14 +12,6 @@ import (
 
 // tagging a named image in a new unprefixed repo should work
 func (s *DockerSuite) TestTagUnprefixedRepoByName(c *check.C) {
-	// Don't attempt to pull on Windows as not in hub. It's installed
-	// as an image through .ensure-frozen-images-windows
-	if daemonPlatform != "windows" {
-		if err := pullImageIfNotExist("busybox:latest"); err != nil {
-			c.Fatal("couldn't find the busybox:latest image locally and failed to pull it")
-		}
-	}
-
 	dockerCmd(c, "tag", "busybox:latest", "testfoobarbaz")
 }
 
@@ -53,14 +45,6 @@ func (s *DockerSuite) TestTagInvalidPrefixedRepo(c *check.C) {
 
 // ensure we allow the use of valid tags
 func (s *DockerSuite) TestTagValidPrefixedRepo(c *check.C) {
-	// Don't attempt to pull on Windows as not in hub. It's installed
-	// as an image through .ensure-frozen-images-windows
-	if daemonPlatform != "windows" {
-		if err := pullImageIfNotExist("busybox:latest"); err != nil {
-			c.Fatal("couldn't find the busybox:latest image locally and failed to pull it")
-		}
-	}
-
 	validRepos := []string{"fooo/bar", "fooaa/test", "foooo:t", "HOSTNAME.DOMAIN.COM:443/foo/bar"}
 
 	for _, repo := range validRepos {
@@ -75,25 +59,10 @@ func (s *DockerSuite) TestTagValidPrefixedRepo(c *check.C) {
 
 // tag an image with an existed tag name without -f option should work
 func (s *DockerSuite) TestTagExistedNameWithoutForce(c *check.C) {
-	// Don't attempt to pull on Windows as not in hub. It's installed
-	// as an image through .ensure-frozen-images-windows
-	if daemonPlatform != "windows" {
-		if err := pullImageIfNotExist("busybox:latest"); err != nil {
-			c.Fatal("couldn't find the busybox:latest image locally and failed to pull it")
-		}
-	}
-
 	dockerCmd(c, "tag", "busybox:latest", "busybox:test")
 }
 
 func (s *DockerSuite) TestTagWithPrefixHyphen(c *check.C) {
-	// Don't attempt to pull on Windows as not in hub. It's installed
-	// as an image through .ensure-frozen-images-windows
-	if daemonPlatform != "windows" {
-		if err := pullImageIfNotExist("busybox:latest"); err != nil {
-			c.Fatal("couldn't find the busybox:latest image locally and failed to pull it")
-		}
-	}
 	// test repository name begin with '-'
 	out, _, err := dockerCmdWithError("tag", "busybox:latest", "-busybox:test")
 	c.Assert(err, checker.NotNil, check.Commentf(out))
@@ -150,13 +119,6 @@ func (s *DockerSuite) TestTagOfficialNames(c *check.C) {
 
 // ensure tags can not match digests
 func (s *DockerSuite) TestTagMatchesDigest(c *check.C) {
-	// Don't attempt to pull on Windows as not in hub. It's installed
-	// as an image through .ensure-frozen-images-windows
-	if daemonPlatform != "windows" {
-		if err := pullImageIfNotExist("busybox:latest"); err != nil {
-			c.Fatal("couldn't find the busybox:latest image locally and failed to pull it")
-		}
-	}
 	digest := "busybox@sha256:abcdef76720241213f5303bda7704ec4c2ef75613173910a56fb1b6e20251507"
 	// test setting tag fails
 	_, _, err := dockerCmdWithError("tag", "busybox:latest", digest)
@@ -171,14 +133,6 @@ func (s *DockerSuite) TestTagMatchesDigest(c *check.C) {
 }
 
 func (s *DockerSuite) TestTagInvalidRepoName(c *check.C) {
-	// Don't attempt to pull on Windows as not in hub. It's installed
-	// as an image through .ensure-frozen-images-windows
-	if daemonPlatform != "windows" {
-		if err := pullImageIfNotExist("busybox:latest"); err != nil {
-			c.Fatal("couldn't find the busybox:latest image locally and failed to pull it")
-		}
-	}
-
 	// test setting tag fails
 	_, _, err := dockerCmdWithError("tag", "busybox:latest", "sha256:sometag")
 	if err == nil {
@@ -188,14 +142,6 @@ func (s *DockerSuite) TestTagInvalidRepoName(c *check.C) {
 
 // ensure tags cannot create ambiguity with image ids
 func (s *DockerSuite) TestTagTruncationAmbiguity(c *check.C) {
-	//testRequires(c, DaemonIsLinux)
-	// Don't attempt to pull on Windows as not in hub. It's installed
-	// as an image through .ensure-frozen-images-windows
-	if daemonPlatform != "windows" {
-		if err := pullImageIfNotExist("busybox:latest"); err != nil {
-			c.Fatal("couldn't find the busybox:latest image locally and failed to pull it")
-		}
-	}
 	imageID, err := buildImage("notbusybox:latest",
 		`FROM busybox
 		MAINTAINER dockerio`,

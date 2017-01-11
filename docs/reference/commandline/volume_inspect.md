@@ -1,21 +1,29 @@
-<!--[metadata]>
-+++
-title = "volume inspect"
-description = "The volume inspect command description and usage"
-keywords = ["volume, inspect"]
-[menu.main]
-parent = "smn_cli"
-+++
-<![end-metadata]-->
+---
+title: "volume inspect"
+description: "The volume inspect command description and usage"
+keywords: "volume, inspect"
+---
+
+<!-- This file is maintained within the docker/docker Github
+     repository at https://github.com/docker/docker/. Make all
+     pull requests against that repo. If you see this file in
+     another repository, consider it read-only there, as it will
+     periodically be overwritten by the definitive file. Pull
+     requests which include edits to this file in other repositories
+     will be rejected.
+-->
 
 # volume inspect
 
-    Usage: docker volume inspect [OPTIONS] VOLUME [VOLUME...]
+```markdown
+Usage:  docker volume inspect [OPTIONS] VOLUME [VOLUME...]
 
-    Display detailed information on one or more volumes
+Display detailed information on one or more volumes
 
-      -f, --format=       Format the output using the given go template.
-      --help              Print usage
+Options:
+  -f, --format string   Format the output using the given Go template
+      --help            Print usage
+```
 
 Returns information about a volume. By default, this command renders all results
 in a JSON array. You can specify an alternate format to execute a
@@ -37,12 +45,15 @@ Example output:
       }
     ]
 
+    {% raw %}
     $ docker volume inspect --format '{{ .Mountpoint }}' 85bffb0677236974f93955d8ecc4df55ef5070117b0e53333cc1b443777be24d
     /var/lib/docker/volumes/85bffb0677236974f93955d8ecc4df55ef5070117b0e53333cc1b443777be24d/_data
+    {% endraw %}
 
 ## Related information
 
 * [volume create](volume_create.md)
 * [volume ls](volume_ls.md)
 * [volume rm](volume_rm.md)
-* [Understand Data Volumes](../../tutorials/dockervolumes.md)
+* [volume prune](volume_prune.md)
+* [Understand Data Volumes](https://docs.docker.com/engine/tutorials/dockervolumes/)

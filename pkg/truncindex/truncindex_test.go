@@ -3,6 +3,7 @@ package truncindex
 import (
 	"math/rand"
 	"testing"
+	"time"
 
 	"github.com/docker/docker/pkg/stringid"
 )
@@ -98,6 +99,7 @@ func TestTruncIndex(t *testing.T) {
 	assertIndexGet(t, index, id, id, false)
 
 	assertIndexIterate(t)
+	assertIndexIterateDoNotPanic(t)
 }
 
 func assertIndexIterate(t *testing.T) {
@@ -118,6 +120,28 @@ func assertIndexIterate(t *testing.T) {
 		}
 
 		t.Fatalf("An unknown ID '%s'", targetId)
+	})
+}
+
+func assertIndexIterateDoNotPanic(t *testing.T) {
+	ids := []string{
+		"19b36c2c326ccc11e726eee6ee78a0baf166ef96",
+		"28b36c2c326ccc11e726eee6ee78a0baf166ef96",
+	}
+
+	index := NewTruncIndex(ids)
+	iterationStarted := make(chan bool, 1)
+
+	go func() {
+		<-iterationStarted
+		index.Delete("19b36c2c326ccc11e726eee6ee78a0baf166ef96")
+	}()
+
+	index.Iterate(func(targetId string) {
+		if targetId == "19b36c2c326ccc11e726eee6ee78a0baf166ef96" {
+			iterationStarted <- true
+			time.Sleep(100 * time.Millisecond)
+		}
 	})
 }
 

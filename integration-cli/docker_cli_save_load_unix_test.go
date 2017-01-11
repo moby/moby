@@ -3,13 +3,16 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"os/exec"
 	"strings"
+	"time"
 
-	"github.com/docker/docker/pkg/integration/checker"
+	"github.com/docker/docker/integration-cli/checker"
+	icmd "github.com/docker/docker/pkg/testutil/cmd"
 	"github.com/go-check/check"
 	"github.com/kr/pty"
 )
@@ -27,14 +30,14 @@ func (s *DockerSuite) TestSaveAndLoadRepoStdout(c *check.C) {
 	c.Assert(err, check.IsNil)
 	defer os.Remove(tmpFile.Name())
 
-	saveCmd := exec.Command(dockerBinary, "save", repoName)
-	saveCmd.Stdout = tmpFile
-
-	_, err = runCommand(saveCmd)
-	c.Assert(err, check.IsNil)
+	icmd.RunCmd(icmd.Cmd{
+		Command: []string{dockerBinary, "save", repoName},
+		Stdout:  tmpFile,
+	}).Assert(c, icmd.Success)
 
 	tmpFile, err = os.Open(tmpFile.Name())
 	c.Assert(err, check.IsNil)
+	defer tmpFile.Close()
 
 	deleteImages(repoName)
 
@@ -84,4 +87,23 @@ func (s *DockerSuite) TestSaveAndLoadWithProgressBar(c *check.C) {
 	out, _ := dockerCmd(c, "load", "-i", tmptar)
 	expected := fmt.Sprintf("The image %s:latest already exists, renaming the old one with ID", name)
 	c.Assert(out, checker.Contains, expected)
+}
+
+// fail because load didn't receive data from stdin
+func (s *DockerSuite) TestLoadNoStdinFail(c *check.C) {
+	pty, tty, err := pty.Open()
+	c.Assert(err, check.IsNil)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, dockerBinary, "load")
+	cmd.Stdin = tty
+	cmd.Stdout = tty
+	cmd.Stderr = tty
+	c.Assert(cmd.Run(), check.NotNil) // docker-load should fail
+
+	buf := make([]byte, 1024)
+
+	n, err := pty.Read(buf)
+	c.Assert(err, check.IsNil) //could not read tty output
+	c.Assert(string(buf[:n]), checker.Contains, "requested load from stdin, but stdin is empty")
 }

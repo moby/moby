@@ -7,10 +7,10 @@ import (
 	"net/url"
 	"strings"
 
+	registrytypes "github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/opts"
-	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/reference"
-	registrytypes "github.com/docker/engine-api/types/registry"
+	"github.com/spf13/pflag"
 )
 
 // ServiceOptions holds command line options.
@@ -36,19 +36,15 @@ var (
 	// that carries Registry version info
 	DefaultRegistryVersionHeader = "Docker-Distribution-Api-Version"
 
-	// IndexServer is the v1 registry server used for user auth + account creation
-	IndexServer = DefaultV1Registry.String() + "/v1/"
+	// IndexHostname is the index hostname
+	IndexHostname = "index.docker.io"
+	// IndexServer is used for user auth and image search
+	IndexServer = "https://" + IndexHostname + "/v1/"
 	// IndexName is the name of the index
 	IndexName = "docker.io"
 
 	// NotaryServer is the endpoint serving the Notary trust server
 	NotaryServer = "https://notary.docker.io"
-
-	// DefaultV1Registry is the URI of the default v1 registry
-	DefaultV1Registry = &url.URL{
-		Scheme: "https",
-		Host:   "index.docker.io",
-	}
 
 	// DefaultV2Registry is the URI of the default v2 registry
 	DefaultV2Registry = &url.URL{
@@ -70,42 +66,103 @@ var lookupIP = net.LookupIP
 
 // InstallCliFlags adds command-line options to the top-level flag parser for
 // the current process.
-func (options *ServiceOptions) InstallCliFlags(cmd *flag.FlagSet, usageFn func(string) string) {
+func (options *ServiceOptions) InstallCliFlags(flags *pflag.FlagSet) {
 	mirrors := opts.NewNamedListOptsRef("registry-mirrors", &options.Mirrors, ValidateMirror)
-	cmd.Var(mirrors, []string{"-registry-mirror"}, usageFn("Preferred Docker registry mirror"))
-
 	insecureRegistries := opts.NewNamedListOptsRef("insecure-registries", &options.InsecureRegistries, ValidateIndexName)
-	cmd.Var(insecureRegistries, []string{"-insecure-registry"}, usageFn("Enable insecure registry communication"))
 
-	cmd.BoolVar(&options.V2Only, []string{"-disable-legacy-registry"}, false, usageFn("Do not contact legacy registries"))
+	flags.Var(mirrors, "registry-mirror", "Preferred Docker registry mirror")
+	flags.Var(insecureRegistries, "insecure-registry", "Enable insecure registry communication")
+
+	options.installCliPlatformFlags(flags)
 }
 
 // newServiceConfig returns a new instance of ServiceConfig
 func newServiceConfig(options ServiceOptions) *serviceConfig {
-	// Localhost is by default considered as an insecure registry
-	// This is a stop-gap for people who are running a private registry on localhost (especially on Boot2docker).
-	//
-	// TODO: should we deprecate this once it is easier for people to set up a TLS registry or change
-	// daemon flags on boot2docker?
-	options.InsecureRegistries = append(options.InsecureRegistries, "127.0.0.0/8")
-
 	config := &serviceConfig{
 		ServiceConfig: registrytypes.ServiceConfig{
 			InsecureRegistryCIDRs: make([]*registrytypes.NetIPNet, 0),
 			IndexConfigs:          make(map[string]*registrytypes.IndexInfo, 0),
 			// Hack: Bypass setting the mirrors to IndexConfigs since they are going away
 			// and Mirrors are only for the official registry anyways.
-			Mirrors: options.Mirrors,
 		},
 		V2Only: options.V2Only,
 	}
-	// Split --insecure-registry into CIDR and registry-specific settings.
-	for _, r := range options.InsecureRegistries {
+
+	config.LoadMirrors(options.Mirrors)
+	config.LoadInsecureRegistries(options.InsecureRegistries)
+
+	return config
+}
+
+// LoadMirrors loads mirrors to config, after removing duplicates.
+// Returns an error if mirrors contains an invalid mirror.
+func (config *serviceConfig) LoadMirrors(mirrors []string) error {
+	mMap := map[string]struct{}{}
+	unique := []string{}
+
+	for _, mirror := range mirrors {
+		m, err := ValidateMirror(mirror)
+		if err != nil {
+			return err
+		}
+		if _, exist := mMap[m]; !exist {
+			mMap[m] = struct{}{}
+			unique = append(unique, m)
+		}
+	}
+
+	config.Mirrors = unique
+
+	// Configure public registry since mirrors may have changed.
+	config.IndexConfigs[IndexName] = &registrytypes.IndexInfo{
+		Name:     IndexName,
+		Mirrors:  config.Mirrors,
+		Secure:   true,
+		Official: true,
+	}
+
+	return nil
+}
+
+// LoadInsecureRegistries loads insecure registries to config
+func (config *serviceConfig) LoadInsecureRegistries(registries []string) error {
+	// Localhost is by default considered as an insecure registry
+	// This is a stop-gap for people who are running a private registry on localhost (especially on Boot2docker).
+	//
+	// TODO: should we deprecate this once it is easier for people to set up a TLS registry or change
+	// daemon flags on boot2docker?
+	registries = append(registries, "127.0.0.0/8")
+
+	// Store original InsecureRegistryCIDRs and IndexConfigs
+	// Clean InsecureRegistryCIDRs and IndexConfigs in config, as passed registries has all insecure registry info.
+	originalCIDRs := config.ServiceConfig.InsecureRegistryCIDRs
+	originalIndexInfos := config.ServiceConfig.IndexConfigs
+
+	config.ServiceConfig.InsecureRegistryCIDRs = make([]*registrytypes.NetIPNet, 0)
+	config.ServiceConfig.IndexConfigs = make(map[string]*registrytypes.IndexInfo, 0)
+
+skip:
+	for _, r := range registries {
+		// validate insecure registry
+		if _, err := ValidateIndexName(r); err != nil {
+			// before returning err, roll back to original data
+			config.ServiceConfig.InsecureRegistryCIDRs = originalCIDRs
+			config.ServiceConfig.IndexConfigs = originalIndexInfos
+			return err
+		}
 		// Check if CIDR was passed to --insecure-registry
 		_, ipnet, err := net.ParseCIDR(r)
 		if err == nil {
-			// Valid CIDR.
-			config.InsecureRegistryCIDRs = append(config.InsecureRegistryCIDRs, (*registrytypes.NetIPNet)(ipnet))
+			// Valid CIDR. If ipnet is already in config.InsecureRegistryCIDRs, skip.
+			data := (*registrytypes.NetIPNet)(ipnet)
+			for _, value := range config.InsecureRegistryCIDRs {
+				if value.IP.String() == data.IP.String() && value.Mask.String() == data.Mask.String() {
+					continue skip
+				}
+			}
+			// ipnet is not found, add it in config.InsecureRegistryCIDRs
+			config.InsecureRegistryCIDRs = append(config.InsecureRegistryCIDRs, data)
+
 		} else {
 			// Assume `host:port` if not CIDR.
 			config.IndexConfigs[r] = &registrytypes.IndexInfo{
@@ -125,7 +182,7 @@ func newServiceConfig(options ServiceOptions) *serviceConfig {
 		Official: true,
 	}
 
-	return config
+	return nil
 }
 
 // isSecureIndex returns false if the provided indexName is part of the list of insecure registries
@@ -181,18 +238,20 @@ func isSecureIndex(config *serviceConfig, indexName string) bool {
 func ValidateMirror(val string) (string, error) {
 	uri, err := url.Parse(val)
 	if err != nil {
-		return "", fmt.Errorf("%s is not a valid URI", val)
+		return "", fmt.Errorf("invalid mirror: %q is not a valid URI", val)
 	}
-
 	if uri.Scheme != "http" && uri.Scheme != "https" {
-		return "", fmt.Errorf("Unsupported scheme %s", uri.Scheme)
+		return "", fmt.Errorf("invalid mirror: unsupported scheme %q in %q", uri.Scheme, uri)
 	}
-
-	if uri.Path != "" || uri.RawQuery != "" || uri.Fragment != "" {
-		return "", fmt.Errorf("Unsupported path/query/fragment at end of the URI")
+	if (uri.Path != "" && uri.Path != "/") || uri.RawQuery != "" || uri.Fragment != "" {
+		return "", fmt.Errorf("invalid mirror: path, query, or fragment at end of the URI %q", uri)
 	}
-
-	return fmt.Sprintf("%s://%s/", uri.Scheme, uri.Host), nil
+	if uri.User != nil {
+		// strip password from output
+		uri.User = url.UserPassword(uri.User.Username(), "xxxxx")
+		return "", fmt.Errorf("invalid mirror: username/password not allowed in URI %q", uri)
+	}
+	return strings.TrimSuffix(val, "/") + "/", nil
 }
 
 // ValidateIndexName validates an index name.
@@ -253,7 +312,11 @@ func newRepositoryInfo(config *serviceConfig, name reference.Named) (*Repository
 		return nil, err
 	}
 	official := !strings.ContainsRune(name.Name(), '/')
-	return &RepositoryInfo{name, index, official}, nil
+	return &RepositoryInfo{
+		Named:    name,
+		Index:    index,
+		Official: official,
+	}, nil
 }
 
 // ParseRepositoryInfo performs the breakdown of a repository name into a RepositoryInfo, but

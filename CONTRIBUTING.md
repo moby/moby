@@ -123,7 +123,7 @@ However, there might be a way to implement that feature *on top of* Docker.
       group is for contributors and other people contributing to the Docker project.
       You can join them without a google account by sending an email to 
       <a href="mailto:docker-dev+subscribe@googlegroups.com">docker-dev+subscribe@googlegroups.com</a>.
-      After receiving the join-request message, you can simply reply to that to confirm the subscribtion.
+      After receiving the join-request message, you can simply reply to that to confirm the subscription.
     </td>
   </tr>
   <tr>
@@ -234,8 +234,9 @@ Developer Certificate of Origin
 Version 1.1
 
 Copyright (C) 2004, 2006 The Linux Foundation and its contributors.
-660 York Street, Suite 102,
-San Francisco, CA 94110 USA
+1 Letterman Drive
+Suite D4700
+San Francisco, CA, 94129
 
 Everyone is permitted to copy and distribute verbatim copies of this
 license document, but changing it is not allowed.
@@ -378,7 +379,7 @@ The rules:
 5. Document _all_ declarations and methods, even private ones. Declare
    expectations, caveats and anything else that may be important. If a type
    gets exported, having the comments already there will ensure it's ready.
-6. Variable name length should be proportional to it's context and no longer.
+6. Variable name length should be proportional to its context and no longer.
    `noCommaALongVariableNameLikeThisIsNotMoreClearWhenASimpleCommentWouldDo`.
    In practice, short methods will have short variable names and globals will
    have longer names.
@@ -386,7 +387,7 @@ The rules:
    and re-examine why you need a compound name. If you still think you need a
    compound name, lose the underscore.
 8. No utils or helpers packages. If a function is not general enough to
-   warrant it's own package, it has not been written generally enough to be a
+   warrant its own package, it has not been written generally enough to be a
    part of a util package. Just leave it unexported and well-documented.
 9. All tests should run with `go test` and outside tooling should not be
    required. No, we don't need another unit testing framework. Assertion

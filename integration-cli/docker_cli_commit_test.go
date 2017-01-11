@@ -3,12 +3,11 @@ package main
 import (
 	"strings"
 
-	"github.com/docker/docker/pkg/integration/checker"
+	"github.com/docker/docker/integration-cli/checker"
 	"github.com/go-check/check"
 )
 
 func (s *DockerSuite) TestCommitAfterContainerIsDone(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-i", "-a", "stdin", "busybox", "echo", "foo")
 
 	cleanedContainerID := strings.TrimSpace(out)
@@ -40,7 +39,7 @@ func (s *DockerSuite) TestCommitWithoutPause(c *check.C) {
 //test commit a paused container should not unpause it after commit
 func (s *DockerSuite) TestCommitPausedContainer(c *check.C) {
 	testRequires(c, DaemonIsLinux)
-	defer unpauseAllContainers()
+	defer unpauseAllContainers(c)
 	out, _ := dockerCmd(c, "run", "-i", "-d", "busybox")
 
 	cleanedContainerID := strings.TrimSpace(out)
@@ -55,7 +54,6 @@ func (s *DockerSuite) TestCommitPausedContainer(c *check.C) {
 }
 
 func (s *DockerSuite) TestCommitNewFile(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	dockerCmd(c, "run", "--name", "commiter", "busybox", "/bin/sh", "-c", "echo koye > /foo")
 
 	imageID, _ := dockerCmd(c, "commit", "commiter")
@@ -87,7 +85,6 @@ func (s *DockerSuite) TestCommitHardlink(c *check.C) {
 }
 
 func (s *DockerSuite) TestCommitTTY(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	dockerCmd(c, "run", "-t", "--name", "tty", "busybox", "/bin/ls")
 
 	imageID, _ := dockerCmd(c, "commit", "tty", "ttytest")
@@ -107,7 +104,6 @@ func (s *DockerSuite) TestCommitWithHostBindMount(c *check.C) {
 }
 
 func (s *DockerSuite) TestCommitChange(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	dockerCmd(c, "run", "--name", "test", "busybox", "true")
 
 	imageID, _ := dockerCmd(c, "commit",
@@ -125,12 +121,14 @@ func (s *DockerSuite) TestCommitChange(c *check.C) {
 		"test", "test-commit")
 	imageID = strings.TrimSpace(imageID)
 
+	prefix, slash := getPrefixAndSlashFromDaemonPlatform()
+	prefix = strings.ToUpper(prefix) // Force C: as that's how WORKDIR is normalised on Windows
 	expected := map[string]string{
 		"Config.ExposedPorts": "map[8080/tcp:{}]",
 		"Config.Env":          "[DEBUG=true test=1 PATH=/foo]",
 		"Config.Labels":       "map[foo:bar]",
 		"Config.Cmd":          "[/bin/sh]",
-		"Config.WorkingDir":   "/opt",
+		"Config.WorkingDir":   prefix + slash + "opt",
 		"Config.Entrypoint":   "[/bin/sh]",
 		"Config.User":         "testuser",
 		"Config.Volumes":      "map[/var/lib/docker:{}]",
@@ -145,45 +143,15 @@ func (s *DockerSuite) TestCommitChange(c *check.C) {
 	}
 }
 
-// TODO: commit --run is deprecated, remove this once --run is removed
-func (s *DockerSuite) TestCommitMergeConfigRun(c *check.C) {
-	testRequires(c, DaemonIsLinux)
-	name := "commit-test"
-	out, _ := dockerCmd(c, "run", "-d", "-e=FOO=bar", "busybox", "/bin/sh", "-c", "echo testing > /tmp/foo")
-	id := strings.TrimSpace(out)
+func (s *DockerSuite) TestCommitChangeLabels(c *check.C) {
+	dockerCmd(c, "run", "--name", "test", "--label", "some=label", "busybox", "true")
 
-	dockerCmd(c, "commit", `--run={"Cmd": ["cat", "/tmp/foo"]}`, id, "commit-test")
+	imageID, _ := dockerCmd(c, "commit",
+		"--change", "LABEL some=label2",
+		"test", "test-commit")
+	imageID = strings.TrimSpace(imageID)
 
-	out, _ = dockerCmd(c, "run", "--name", name, "commit-test")
-	//run config in committed container was not merged
-	c.Assert(strings.TrimSpace(out), checker.Equals, "testing")
-
-	type cfg struct {
-		Env []string
-		Cmd []string
-	}
-	config1 := cfg{}
-	inspectFieldAndMarshall(c, id, "Config", &config1)
-
-	config2 := cfg{}
-	inspectFieldAndMarshall(c, name, "Config", &config2)
-
-	// Env has at least PATH loaded as well here, so let's just grab the FOO one
-	var env1, env2 string
-	for _, e := range config1.Env {
-		if strings.HasPrefix(e, "FOO") {
-			env1 = e
-			break
-		}
-	}
-	for _, e := range config2.Env {
-		if strings.HasPrefix(e, "FOO") {
-			env2 = e
-			break
-		}
-	}
-
-	if len(config1.Env) != len(config2.Env) || env1 != env2 && env2 != "" {
-		c.Fatalf("expected envs to match: %v - %v", config1.Env, config2.Env)
-	}
+	c.Assert(inspectField(c, imageID, "Config.Labels"), checker.Equals, "map[some:label2]")
+	// check that container labels didn't change
+	c.Assert(inspectField(c, "test", "Config.Labels"), checker.Equals, "map[some:label]")
 }

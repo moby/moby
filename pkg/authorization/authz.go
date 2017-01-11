@@ -20,7 +20,7 @@ const maxBodySize = 1048576 // 1MB
 // Authenticate Request:
 // Call authZ plugins with current REST request and AuthN response
 // Request contains full HTTP packet sent to the docker daemon
-// https://docs.docker.com/reference/api/docker_remote_api/
+// https://docs.docker.com/engine/reference/api/
 //
 // Authenticate Response:
 // Call authZ plugins with full info about current REST request, REST response and AuthN response
@@ -76,6 +76,13 @@ func (ctx *Ctx) AuthZRequest(w http.ResponseWriter, r *http.Request) error {
 		RequestHeaders:  headers(r.Header),
 	}
 
+	if r.TLS != nil {
+		for _, c := range r.TLS.PeerCertificates {
+			pc := PeerCertificate(*c)
+			ctx.authReq.RequestPeerCertificates = append(ctx.authReq.RequestPeerCertificates, &pc)
+		}
+	}
+
 	for _, plugin := range ctx.plugins {
 		logrus.Debugf("AuthZ request using plugin %s", plugin.Name())
 
@@ -119,7 +126,7 @@ func (ctx *Ctx) AuthZResponse(rm ResponseModifier, r *http.Request) error {
 	return nil
 }
 
-// drainBody dump the body (if it's length is less than 1MB) without modifying the request state
+// drainBody dump the body (if its length is less than 1MB) without modifying the request state
 func drainBody(body io.ReadCloser) ([]byte, io.ReadCloser, error) {
 	bufReader := bufio.NewReaderSize(body, maxBodySize)
 	newBody := ioutils.NewReadCloserWrapper(bufReader, func() error { return body.Close() })

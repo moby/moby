@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"time"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/discovery"
 
 	// Register the libkv backends for discovery.
@@ -56,6 +56,12 @@ func discoveryOpts(clusterOpts map[string]string) (time.Duration, time.Duration,
 		if err != nil {
 			return time.Duration(0), time.Duration(0), err
 		}
+
+		if h <= 0 {
+			return time.Duration(0), time.Duration(0),
+				fmt.Errorf("discovery.heartbeat must be positive")
+		}
+
 		heartbeat = time.Duration(h) * time.Second
 		ttl = defaultDiscoveryTTLFactor * heartbeat
 	}
@@ -65,6 +71,12 @@ func discoveryOpts(clusterOpts map[string]string) (time.Duration, time.Duration,
 		if err != nil {
 			return time.Duration(0), time.Duration(0), err
 		}
+
+		if t <= 0 {
+			return time.Duration(0), time.Duration(0),
+				fmt.Errorf("discovery.ttl must be positive")
+		}
+
 		ttl = time.Duration(t) * time.Second
 
 		if _, ok := clusterOpts["discovery.heartbeat"]; !ok {
@@ -115,7 +127,7 @@ func (d *daemonDiscoveryReloader) advertiseHeartbeat(address string) {
 		select {
 		case <-d.ticker.C:
 			if err := d.backend.Register(address); err != nil {
-				log.Warnf("Registering as %q in discovery failed: %v", address, err)
+				logrus.Warnf("Registering as %q in discovery failed: %v", address, err)
 			} else {
 				if !ready {
 					close(d.readyCh)

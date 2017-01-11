@@ -20,7 +20,7 @@ import (
 	"strings"
 	"unsafe"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/graphdriver"
 )
 
@@ -32,7 +32,7 @@ func checkRootdirFs(rootdir string) error {
 	// on Solaris buf.f_basetype contains ['z', 'f', 's', 0 ... ]
 	if (buf.f_basetype[0] != 122) || (buf.f_basetype[1] != 102) || (buf.f_basetype[2] != 115) ||
 		(buf.f_basetype[3] != 0) {
-		log.Debugf("[zfs] no zfs dataset found for rootdir '%s'", rootdir)
+		logrus.Debugf("[zfs] no zfs dataset found for rootdir '%s'", rootdir)
 		C.free(unsafe.Pointer(buf))
 		return graphdriver.ErrPrerequisites
 	}

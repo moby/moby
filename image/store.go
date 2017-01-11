@@ -7,8 +7,9 @@ import (
 	"sync"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/distribution/digest"
+	"github.com/docker/distribution/digestset"
 	"github.com/docker/docker/layer"
+	"github.com/opencontainers/go-digest"
 )
 
 // Store is an interface for creating and accessing images
@@ -40,7 +41,7 @@ type store struct {
 	ls        LayerGetReleaser
 	images    map[ID]*imageMeta
 	fs        StoreBackend
-	digestSet *digest.Set
+	digestSet *digestset.Set
 }
 
 // NewImageStore returns new store object for given layer store
@@ -49,7 +50,7 @@ func NewImageStore(fs StoreBackend, ls LayerGetReleaser) (Store, error) {
 		ls:        ls,
 		images:    make(map[ID]*imageMeta),
 		fs:        fs,
-		digestSet: digest.NewSet(),
+		digestSet: digestset.NewSet(),
 	}
 
 	// load all current images and retain layers
@@ -61,10 +62,10 @@ func NewImageStore(fs StoreBackend, ls LayerGetReleaser) (Store, error) {
 }
 
 func (is *store) restore() error {
-	err := is.fs.Walk(func(id ID) error {
-		img, err := is.Get(id)
+	err := is.fs.Walk(func(dgst digest.Digest) error {
+		img, err := is.Get(IDFromDigest(dgst))
 		if err != nil {
-			logrus.Errorf("invalid image %v, %v", id, err)
+			logrus.Errorf("invalid image %v, %v", dgst, err)
 			return nil
 		}
 		var l layer.Layer
@@ -74,7 +75,7 @@ func (is *store) restore() error {
 				return err
 			}
 		}
-		if err := is.digestSet.Add(digest.Digest(id)); err != nil {
+		if err := is.digestSet.Add(dgst); err != nil {
 			return err
 		}
 
@@ -83,7 +84,7 @@ func (is *store) restore() error {
 			children: make(map[ID]struct{}),
 		}
 
-		is.images[ID(id)] = imageMeta
+		is.images[IDFromDigest(dgst)] = imageMeta
 
 		return nil
 	})
@@ -131,7 +132,7 @@ func (is *store) Create(config []byte) (ID, error) {
 	if err != nil {
 		return "", err
 	}
-	imageID := ID(dgst)
+	imageID := IDFromDigest(dgst)
 
 	is.Lock()
 	defer is.Unlock()
@@ -156,7 +157,7 @@ func (is *store) Create(config []byte) (ID, error) {
 	}
 
 	is.images[imageID] = imageMeta
-	if err := is.digestSet.Add(digest.Digest(imageID)); err != nil {
+	if err := is.digestSet.Add(imageID.Digest()); err != nil {
 		delete(is.images, imageID)
 		return "", err
 	}
@@ -170,18 +171,18 @@ func (is *store) Search(term string) (ID, error) {
 
 	dgst, err := is.digestSet.Lookup(term)
 	if err != nil {
-		if err == digest.ErrDigestNotFound {
+		if err == digestset.ErrDigestNotFound {
 			err = fmt.Errorf("No such image: %s", term)
 		}
 		return "", err
 	}
-	return ID(dgst), nil
+	return IDFromDigest(dgst), nil
 }
 
 func (is *store) Get(id ID) (*Image, error) {
 	// todo: Check if image is in images
 	// todo: Detect manual insertions and start using them
-	config, err := is.fs.Get(id)
+	config, err := is.fs.Get(id.Digest())
 	if err != nil {
 		return nil, err
 	}
@@ -209,17 +210,17 @@ func (is *store) Delete(id ID) ([]layer.Metadata, error) {
 		return nil, fmt.Errorf("unrecognized image ID %s", id.String())
 	}
 	for id := range imageMeta.children {
-		is.fs.DeleteMetadata(id, "parent")
+		is.fs.DeleteMetadata(id.Digest(), "parent")
 	}
 	if parent, err := is.GetParent(id); err == nil && is.images[parent] != nil {
 		delete(is.images[parent].children, id)
 	}
 
-	if err := is.digestSet.Remove(digest.Digest(id)); err != nil {
+	if err := is.digestSet.Remove(id.Digest()); err != nil {
 		logrus.Errorf("error removing %s from digest set: %q", id, err)
 	}
 	delete(is.images, id)
-	is.fs.Delete(id)
+	is.fs.Delete(id.Digest())
 
 	if imageMeta.layer != nil {
 		return is.ls.Release(imageMeta.layer)
@@ -238,11 +239,11 @@ func (is *store) SetParent(id, parent ID) error {
 		delete(is.images[parent].children, id)
 	}
 	parentMeta.children[id] = struct{}{}
-	return is.fs.SetMetadata(id, "parent", []byte(parent))
+	return is.fs.SetMetadata(id.Digest(), "parent", []byte(parent))
 }
 
 func (is *store) GetParent(id ID) (ID, error) {
-	d, err := is.fs.GetMetadata(id, "parent")
+	d, err := is.fs.GetMetadata(id.Digest(), "parent")
 	if err != nil {
 		return "", err
 	}

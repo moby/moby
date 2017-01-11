@@ -1,5 +1,3 @@
-// +build linux
-
 // Package syslog provides the logdriver for forwarding server logs to syslog endpoints.
 package syslog
 
@@ -89,30 +87,30 @@ func rfc5424microformatterWithAppNameAsTag(p syslog.Priority, hostname, tag, con
 // New creates a syslog logger using the configuration passed in on
 // the context. Supported context configuration variables are
 // syslog-address, syslog-facility, syslog-format.
-func New(ctx logger.Context) (logger.Logger, error) {
-	tag, err := loggerutils.ParseLogTag(ctx, "{{.DaemonName}}/{{.ID}}")
+func New(info logger.Info) (logger.Logger, error) {
+	tag, err := loggerutils.ParseLogTag(info, loggerutils.DefaultTemplate)
 	if err != nil {
 		return nil, err
 	}
 
-	proto, address, err := parseAddress(ctx.Config["syslog-address"])
+	proto, address, err := parseAddress(info.Config["syslog-address"])
 	if err != nil {
 		return nil, err
 	}
 
-	facility, err := parseFacility(ctx.Config["syslog-facility"])
+	facility, err := parseFacility(info.Config["syslog-facility"])
 	if err != nil {
 		return nil, err
 	}
 
-	syslogFormatter, syslogFramer, err := parseLogFormat(ctx.Config["syslog-format"])
+	syslogFormatter, syslogFramer, err := parseLogFormat(info.Config["syslog-format"], proto)
 	if err != nil {
 		return nil, err
 	}
 
 	var log *syslog.Writer
 	if proto == secureProto {
-		tlsConfig, tlsErr := parseTLSConfig(ctx.Config)
+		tlsConfig, tlsErr := parseTLSConfig(info.Config)
 		if tlsErr != nil {
 			return nil, tlsErr
 		}
@@ -205,7 +203,7 @@ func ValidateLogOpt(cfg map[string]string) error {
 	if _, err := parseFacility(cfg["syslog-facility"]); err != nil {
 		return err
 	}
-	if _, _, err := parseLogFormat(cfg["syslog-format"]); err != nil {
+	if _, _, err := parseLogFormat(cfg["syslog-format"], ""); err != nil {
 		return err
 	}
 	return nil
@@ -241,16 +239,22 @@ func parseTLSConfig(cfg map[string]string) (*tls.Config, error) {
 	return tlsconfig.Client(opts)
 }
 
-func parseLogFormat(logFormat string) (syslog.Formatter, syslog.Framer, error) {
+func parseLogFormat(logFormat, proto string) (syslog.Formatter, syslog.Framer, error) {
 	switch logFormat {
 	case "":
 		return syslog.UnixFormatter, syslog.DefaultFramer, nil
 	case "rfc3164":
 		return syslog.RFC3164Formatter, syslog.DefaultFramer, nil
 	case "rfc5424":
-		return rfc5424formatterWithAppNameAsTag, syslog.RFC5425MessageLengthFramer, nil
+		if proto == secureProto {
+			return rfc5424formatterWithAppNameAsTag, syslog.RFC5425MessageLengthFramer, nil
+		}
+		return rfc5424formatterWithAppNameAsTag, syslog.DefaultFramer, nil
 	case "rfc5424micro":
-		return rfc5424microformatterWithAppNameAsTag, syslog.RFC5425MessageLengthFramer, nil
+		if proto == secureProto {
+			return rfc5424microformatterWithAppNameAsTag, syslog.RFC5425MessageLengthFramer, nil
+		}
+		return rfc5424microformatterWithAppNameAsTag, syslog.DefaultFramer, nil
 	default:
 		return nil, nil, errors.New("Invalid syslog format")
 	}

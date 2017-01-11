@@ -1,21 +1,36 @@
-// +build experimental
-
 package main
 
 import (
-	"github.com/docker/docker/pkg/integration/checker"
-	"github.com/go-check/check"
 	"strings"
+
+	"github.com/docker/docker/integration-cli/checker"
+	"github.com/go-check/check"
 )
 
-func (s *DockerSuite) TestExperimentalVersion(c *check.C) {
+func (s *DockerSuite) TestExperimentalVersionTrue(c *check.C) {
+	testRequires(c, ExperimentalDaemon)
+
 	out, _ := dockerCmd(c, "version")
 	for _, line := range strings.Split(out, "\n") {
-		if strings.HasPrefix(line, "Experimental (client):") || strings.HasPrefix(line, "Experimental (server):") {
+		if strings.HasPrefix(strings.TrimSpace(line), "Experimental:") {
 			c.Assert(line, checker.Matches, "*true")
+			return
 		}
 	}
 
-	out, _ = dockerCmd(c, "-v")
-	c.Assert(out, checker.Contains, ", experimental", check.Commentf("docker version did not contain experimental"))
+	c.Fatal(`"Experimental" not found in version output`)
+}
+
+func (s *DockerSuite) TestExperimentalVersionFalse(c *check.C) {
+	testRequires(c, NotExperimentalDaemon)
+
+	out, _ := dockerCmd(c, "version")
+	for _, line := range strings.Split(out, "\n") {
+		if strings.HasPrefix(strings.TrimSpace(line), "Experimental:") {
+			c.Assert(line, checker.Matches, "*false")
+			return
+		}
+	}
+
+	c.Fatal(`"Experimental" not found in version output`)
 }

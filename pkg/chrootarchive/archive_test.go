@@ -165,7 +165,7 @@ func TestChrootTarUntarWithSymlink(t *testing.T) {
 	if err := system.MkdirAll(src, 0700); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := prepareSourceDirectory(10, src, true); err != nil {
+	if _, err := prepareSourceDirectory(10, src, false); err != nil {
 		t.Fatal(err)
 	}
 	dest := filepath.Join(tmpdir, "dest")
@@ -179,8 +179,8 @@ func TestChrootTarUntarWithSymlink(t *testing.T) {
 
 func TestChrootCopyWithTar(t *testing.T) {
 	// TODO Windows: Figure out why this is failing
-	if runtime.GOOS == "windows" {
-		t.Skip("Failing on Windows")
+	if runtime.GOOS == "windows" || runtime.GOOS == "solaris" {
+		t.Skip("Failing on Windows and Solaris")
 	}
 	tmpdir, err := ioutil.TempDir("", "docker-TestChrootCopyWithTar")
 	if err != nil {
@@ -284,7 +284,7 @@ func TestChrootUntarPath(t *testing.T) {
 	if err := system.MkdirAll(src, 0700); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := prepareSourceDirectory(10, src, true); err != nil {
+	if _, err := prepareSourceDirectory(10, src, false); err != nil {
 		t.Fatal(err)
 	}
 	dest := filepath.Join(tmpdir, "dest")

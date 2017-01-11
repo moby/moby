@@ -44,22 +44,21 @@ dir_in_dir() {
 #   (like -v /home:... for example - DON'T DELETE MY HOME DIRECTORY BRU!)
 for mount in $(awk '{ print $5 }' /proc/self/mountinfo); do
 	mount="$(readlink -f "$mount" || true)"
-	if dir_in_dir "$mount" "$dir"; then
+	if [ "$dir" != "$mount" ] && dir_in_dir "$mount" "$dir"; then
 		( set -x; umount -f "$mount" )
 	fi
 done
 
 # now, let's go destroy individual btrfs subvolumes, if any exist
 if command -v btrfs > /dev/null 2>&1; then
-	root="$(df "$dir" | awk 'NR>1 { print $NF }')"
-	root="${root%/}" # if root is "/", we want it to become ""
-	for subvol in $(btrfs subvolume list -o "$root/" 2>/dev/null | awk -F' path ' '{ print $2 }' | sort -r); do
-		subvolDir="$root/$subvol"
-		if dir_in_dir "$subvolDir" "$dir"; then
-			( set -x; btrfs subvolume delete "$subvolDir" )
+	# Find btrfs subvolumes under $dir checking for inode 256
+	# Source: http://stackoverflow.com/a/32865333
+	for subvol in $(find "$dir" -type d -inum 256 | sort -r); do
+		if [ "$dir" != "$subvol" ]; then
+			( set -x; btrfs subvolume delete "$subvol" )
 		fi
 	done
 fi
 
 # finally, DESTROY ALL THINGS
-( set -x; rm -rf "$dir" )
+( shopt -s dotglob; set -x; rm -rf "$dir"/* )

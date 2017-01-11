@@ -14,7 +14,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/docker/docker/pkg/integration/checker"
+	"github.com/docker/docker/integration-cli/checker"
+	"github.com/docker/docker/pkg/testutil"
+	icmd "github.com/docker/docker/pkg/testutil/cmd"
 	"github.com/docker/go-units"
 	"github.com/go-check/check"
 )
@@ -99,12 +101,10 @@ func (s *DockerSuite) TestBuildAddChangeOwnership(c *check.C) {
 		}
 		defer testFile.Close()
 
-		chownCmd := exec.Command("chown", "daemon:daemon", "foo")
-		chownCmd.Dir = tmpDir
-		out, _, err := runCommandWithOutput(chownCmd)
-		if err != nil {
-			c.Fatal(err, out)
-		}
+		icmd.RunCmd(icmd.Cmd{
+			Command: []string{"chown", "daemon:daemon", "foo"},
+			Dir:     tmpDir,
+		}).Assert(c, icmd.Success)
 
 		if err := ioutil.WriteFile(filepath.Join(tmpDir, "Dockerfile"), []byte(dockerfile), 0644); err != nil {
 			c.Fatalf("failed to open destination dockerfile: %v", err)
@@ -193,7 +193,7 @@ func (s *DockerSuite) TestBuildCancellationKillsSleep(c *check.C) {
 	}
 
 	// Get the exit status of `docker build`, check it exited because killed.
-	if err := buildCmd.Wait(); err != nil && !isKilled(err) {
+	if err := buildCmd.Wait(); err != nil && !testutil.IsKilled(err) {
 		c.Fatalf("wait failed during build run: %T %s", err, err)
 	}
 

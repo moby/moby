@@ -1,29 +1,39 @@
-<!--[metadata]>
-+++
-title = "images"
-description = "The images command description and usage"
-keywords = ["list, docker, images"]
-[menu.main]
-parent = "smn_cli"
-+++
-<![end-metadata]-->
+---
+title: "images"
+description: "The images command description and usage"
+keywords: "list, docker, images"
+---
+
+<!-- This file is maintained within the docker/docker Github
+     repository at https://github.com/docker/docker/. Make all
+     pull requests against that repo. If you see this file in
+     another repository, consider it read-only there, as it will
+     periodically be overwritten by the definitive file. Pull
+     requests which include edits to this file in other repositories
+     will be rejected.
+-->
 
 # images
 
-    Usage: docker images [OPTIONS] [REPOSITORY[:TAG]]
+```markdown
+Usage:  docker images [OPTIONS] [REPOSITORY[:TAG]]
 
-    List images
+List images
 
-      -a, --all            Show all images (default hides intermediate images)
-      --digests            Show digests
-      -f, --filter=[]      Filter output based on these conditions:
-                           - dangling=(true|false)
-                           - label=<key> or label=<key>=<value>
-                           - before=(<image-name>[:tag]|<image-id>|<image@digest>)
-                           - since=(<image-name>[:tag]|<image-id>|<image@digest>)
-      --help               Print usage
-      --no-trunc           Don't truncate output
-      -q, --quiet          Only show numeric IDs
+Options:
+  -a, --all             Show all images (default hides intermediate images)
+      --digests         Show digests
+  -f, --filter value    Filter output based on conditions provided (default [])
+                        - dangling=(true|false)
+                        - label=<key> or label=<key>=<value>
+                        - before=(<image-name>[:tag]|<image-id>|<image@digest>)
+                        - since=(<image-name>[:tag]|<image-id>|<image@digest>)
+                        - reference=(pattern of an image reference)
+      --format string   Pretty-print images using a Go template
+      --help            Print usage
+      --no-trunc        Don't truncate output
+  -q, --quiet           Only show numeric IDs
+```
 
 The default `docker images` will show all top level
 images, their repository and tags, and their size.
@@ -125,8 +135,8 @@ The currently supported filters are:
 
 * dangling (boolean - true or false)
 * label (`label=<key>` or `label=<key>=<value>`)
-* before (`<image-name>[:<tag>]`,  `<image id>` or `<image@digest>`) - filters images created before given id or references
-* since (`<image-name>[:<tag>]`,  `<image id>` or `<image@digest>`) - filters images created since given id or references
+* before (`<image-name>[:<tag>]`,  `<image id>` or `<image@digest>`) - filter images created before given id or references
+* since (`<image-name>[:<tag>]`,  `<image id>` or `<image@digest>`) - filter images created since given id or references
 
 ##### Untagged images (dangling)
 
@@ -220,6 +230,24 @@ Filtering with `since` would give:
     image1              latest              eeae25ada2aa        4 minutes ago        188.3 MB
     image2              latest              dea752e4e117        9 minutes ago        188.3 MB
 
+#### Reference
+
+The `reference` filter shows only images whose reference matches
+the specified pattern.
+
+    $ docker images
+    REPOSITORY          TAG                 IMAGE ID            CREATED             SIZE
+    busybox             latest              e02e811dd08f        5 weeks ago         1.09 MB
+    busybox             uclibc              e02e811dd08f        5 weeks ago         1.09 MB
+    busybox             musl                733eb3059dce        5 weeks ago         1.21 MB
+    busybox             glibc               21c16b6787c6        5 weeks ago         4.19 MB
+
+Filtering with `reference` would give:
+
+    $ docker images --filter=reference='busy*:*libc'
+    REPOSITORY          TAG                 IMAGE ID            CREATED             SIZE
+    busybox             uclibc              e02e811dd08f        5 weeks ago         1.09 MB
+    busybox             glibc               21c16b6787c6        5 weeks ago         4.19 MB
 
 ## Formatting
 
@@ -234,9 +262,9 @@ Placeholder | Description
 `.Repository` | Image repository
 `.Tag` | Image tag
 `.Digest` | Image digest
-`.CreatedSince` | Elapsed time since the image was created.
-`.CreatedAt` | Time when the image was created.
-`.Size` | Image disk size.
+`.CreatedSince` | Elapsed time since the image was created
+`.CreatedAt` | Time when the image was created
+`.Size` | Image disk size
 
 When using the `--format` option, the `image` command will either
 output the data exactly as the template declares or, when using the
@@ -245,6 +273,7 @@ output the data exactly as the template declares or, when using the
 The following example uses a template without headers and outputs the
 `ID` and `Repository` entries separated by a colon for all images:
 
+    {% raw %}
     $ docker images --format "{{.ID}}: {{.Repository}}"
     77af4d6b9913: <none>
     b6fa739cedf5: committ
@@ -255,10 +284,12 @@ The following example uses a template without headers and outputs the
     746b819f315e: postgres
     746b819f315e: postgres
     746b819f315e: postgres
+    {% endraw %}
 
 To list all images with their repository and tag in a table format you
 can use:
 
+    {% raw %}
     $ docker images --format "table {{.ID}}\t{{.Repository}}\t{{.Tag}}"
     IMAGE ID            REPOSITORY                TAG
     77af4d6b9913        <none>                    <none>
@@ -270,3 +301,4 @@ can use:
     746b819f315e        postgres                  9.3
     746b819f315e        postgres                  9.3.5
     746b819f315e        postgres                  latest
+    {% endraw %}

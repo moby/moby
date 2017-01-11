@@ -4,8 +4,8 @@ import (
 	"sync"
 	"time"
 
+	eventtypes "github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/pkg/pubsub"
-	eventtypes "github.com/docker/engine-api/types/events"
 )
 
 const (
@@ -33,6 +33,7 @@ func New() *Events {
 // of interface{}, so you need type assertion), and a function to call
 // to stop the stream of events.
 func (e *Events) Subscribe() ([]eventtypes.Message, chan interface{}, func()) {
+	eventSubscribers.Inc()
 	e.mu.Lock()
 	current := make([]eventtypes.Message, len(e.events))
 	copy(current, e.events)
@@ -49,6 +50,7 @@ func (e *Events) Subscribe() ([]eventtypes.Message, chan interface{}, func()) {
 // last events, a channel in which you can expect new events (in form
 // of interface{}, so you need type assertion).
 func (e *Events) SubscribeTopic(since, until time.Time, ef *Filter) ([]eventtypes.Message, chan interface{}) {
+	eventSubscribers.Inc()
 	e.mu.Lock()
 
 	var topic func(m interface{}) bool
@@ -72,12 +74,14 @@ func (e *Events) SubscribeTopic(since, until time.Time, ef *Filter) ([]eventtype
 
 // Evict evicts listener from pubsub
 func (e *Events) Evict(l chan interface{}) {
+	eventSubscribers.Dec()
 	e.pub.Evict(l)
 }
 
-// Log broadcasts event to listeners. Each listener has 100 millisecond for
-// receiving event or it will be skipped.
+// Log broadcasts event to listeners. Each listener has 100 milliseconds to
+// receive the event or it will be skipped.
 func (e *Events) Log(action, eventType string, actor eventtypes.Actor) {
+	eventsCounter.Inc()
 	now := time.Now().UTC()
 	jm := eventtypes.Message{
 		Action:   action,

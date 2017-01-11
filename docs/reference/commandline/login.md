@@ -1,23 +1,31 @@
-<!--[metadata]>
-+++
-title = "login"
-description = "The login command description and usage"
-keywords = ["registry, login, image"]
-[menu.main]
-parent = "smn_cli"
-+++
-<![end-metadata]-->
+---
+title: "login"
+description: "The login command description and usage"
+keywords: "registry, login, image"
+---
+
+<!-- This file is maintained within the docker/docker Github
+     repository at https://github.com/docker/docker/. Make all
+     pull requests against that repo. If you see this file in
+     another repository, consider it read-only there, as it will
+     periodically be overwritten by the definitive file. Pull
+     requests which include edits to this file in other repositories
+     will be rejected.
+-->
 
 # login
 
-    Usage: docker login [OPTIONS] [SERVER]
+```markdown
+Usage:  docker login [OPTIONS] [SERVER]
 
-    Log in to a Docker registry server, if no server is
-	specified "https://index.docker.io/v1/" is the default.
+Log in to a Docker registry.
+If no server is specified, the default is defined by the daemon.
 
-      --help               Print usage
-      -p, --password=""    Password
-      -u, --username=""    Username
+Options:
+      --help              Print usage
+  -p, --password string   Password
+  -u, --username string   Username
+```
 
 If you want to login to a self-hosted registry you can specify this by
 adding the server name.
@@ -35,9 +43,6 @@ You can log into any public or private repository for which you have
 credentials.  When you log in, the command stores encoded credentials in
 `$HOME/.docker/config.json` on Linux or `%USERPROFILE%/.docker/config.json` on Windows.
 
-> **Note**:  When running `sudo docker login` credentials are saved in `/root/.docker/config.json`.
->
-
 ## Credentials store
 
 The Docker Engine can keep user credentials in an external credentials store,
@@ -52,13 +57,15 @@ This is the list of currently available credentials helpers and where
 you can download them from:
 
 - D-Bus Secret Service: https://github.com/docker/docker-credential-helpers/releases
-- Apple OS X keychain: https://github.com/docker/docker-credential-helpers/releases
+- Apple macOS keychain: https://github.com/docker/docker-credential-helpers/releases
 - Microsoft Windows Credential Manager: https://github.com/docker/docker-credential-helpers/releases
 
 ### Usage
 
-You need to speficy the credentials store in `$HOME/.docker/config.json`
-to tell the docker engine to use it:
+You need to specify the credentials store in `$HOME/.docker/config.json`
+to tell the docker engine to use it. The value of the config property should be
+the suffix of the program to use (i.e. everything after `docker-credential-`).
+For example, to use `docker-credential-osxkeychain`:
 
 ```json
 {
@@ -115,3 +122,31 @@ an example of that payload: `https://index.docker.io/v1`.
 
 The `erase` command can write error messages to `STDOUT` that the docker engine
 will show if there was an issue.
+
+## Credential helpers
+
+Credential helpers are similar to the credential store above, but act as the
+designated programs to handle credentials for *specific registries*. The default
+credential store (`credsStore` or the config file itself) will not be used for
+operations concerning credentials of the specified registries.
+
+### Usage
+
+If you are currently logged in, run `docker logout` to remove
+the credentials from the default store.
+
+Credential helpers are specified in a similar way to `credsStore`, but
+allow for multiple helpers to be configured at a time. Keys specify the
+registry domain, and values specify the suffix of the program to use
+(i.e. everything after `docker-credential-`).
+For example:
+
+```json
+{
+  "credHelpers": {
+    "registry.example.com": "registryhelper",
+    "awesomereg.example.org": "hip-star",
+    "unicorn.example.io": "vcbait"
+  }
+}
+```

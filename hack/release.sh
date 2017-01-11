@@ -45,6 +45,8 @@ cd /go/src/github.com/docker/docker
 export AWS_DEFAULT_REGION
 : ${AWS_DEFAULT_REGION:=us-west-1}
 
+AWS_CLI=${AWS_CLI:-'aws'}
+
 RELEASE_BUNDLES=(
 	binary
 	cross
@@ -80,11 +82,11 @@ fi
 setup_s3() {
 	echo "Setting up S3"
 	# Try creating the bucket. Ignore errors (it might already exist).
-	aws s3 mb "s3://$BUCKET" 2>/dev/null || true
+	$AWS_CLI s3 mb "s3://$BUCKET" 2>/dev/null || true
 	# Check access to the bucket.
-	aws s3 ls "s3://$BUCKET" >/dev/null
+	$AWS_CLI s3 ls "s3://$BUCKET" >/dev/null
 	# Make the bucket accessible through website endpoints.
-	aws s3 website --index-document index --error-document error "s3://$BUCKET"
+	$AWS_CLI s3 website --index-document index --error-document error "s3://$BUCKET"
 }
 
 # write_to_s3 uploads the contents of standard input to the specified S3 url.
@@ -92,7 +94,7 @@ write_to_s3() {
 	DEST=$1
 	F=`mktemp`
 	cat > "$F"
-	aws s3 cp --acl public-read --content-type 'text/plain' "$F" "$DEST"
+	$AWS_CLI s3 cp --acl public-read --content-type 'text/plain' "$F" "$DEST"
 	rm -f "$F"
 }
 
@@ -147,12 +149,12 @@ upload_release_build() {
 	echo "Uploading $src"
 	echo "  to $dst"
 	echo
-	aws s3 cp --follow-symlinks --acl public-read "$src" "$dst"
+	$AWS_CLI s3 cp --follow-symlinks --acl public-read "$src" "$dst"
 	if [ "$latest" ]; then
 		echo
 		echo "Copying to $latest"
 		echo
-		aws s3 cp --acl public-read "$dst" "$latest"
+		$AWS_CLI s3 cp --acl public-read "$dst" "$latest"
 	fi
 
 	# get hash files too (see hash_files() in hack/make.sh)
@@ -162,12 +164,12 @@ upload_release_build() {
 			echo "Uploading $src.$hashAlgo"
 			echo "  to $dst.$hashAlgo"
 			echo
-			aws s3 cp --follow-symlinks --acl public-read --content-type='text/plain' "$src.$hashAlgo" "$dst.$hashAlgo"
+			$AWS_CLI s3 cp --follow-symlinks --acl public-read --content-type='text/plain' "$src.$hashAlgo" "$dst.$hashAlgo"
 			if [ "$latest" ]; then
 				echo
 				echo "Copying to $latest.$hashAlgo"
 				echo
-				aws s3 cp --acl public-read "$dst.$hashAlgo" "$latest.$hashAlgo"
+				$AWS_CLI s3 cp --acl public-read "$dst.$hashAlgo" "$latest.$hashAlgo"
 			fi
 		fi
 	done
@@ -205,8 +207,12 @@ release_build() {
 		linux)
 			s3Os=Linux
 			;;
+		solaris)
+			echo skipping solaris release
+			return 0
+			;;
 		windows)
-			# this is windows use the .zip and .exe extentions for the files.
+			# this is windows use the .zip and .exe extensions for the files.
 			s3Os=Windows
 			zipExt=".zip"
 			binaryExt=".exe"
@@ -258,7 +264,7 @@ release_build() {
 
 # Upload binaries and tgz files to S3
 release_binaries() {
-	[ -e "bundles/$VERSION/cross/linux/amd64/docker-$VERSION" ] || {
+	[ "$(find bundles/$VERSION -path "bundles/$VERSION/cross/*/*/docker-$VERSION")" != "" ] || {
 		echo >&2 './hack/make.sh must be run before release_binaries'
 		exit 1
 	}
@@ -281,7 +287,7 @@ EOF
 
 	# Add redirect at /builds/info for URL-backwards-compatibility
 	rm -rf /tmp/emptyfile && touch /tmp/emptyfile
-	aws s3 cp --acl public-read --website-redirect '/builds/' --content-type='text/plain' /tmp/emptyfile "s3://$BUCKET_PATH/builds/info"
+	$AWS_CLI s3 cp --acl public-read --website-redirect '/builds/' --content-type='text/plain' /tmp/emptyfile "s3://$BUCKET_PATH/builds/info"
 
 	if [ -z "$NOLATEST" ]; then
 		echo "Advertising $VERSION on $BUCKET_PATH as most recent version"
@@ -297,7 +303,7 @@ release_index() {
 }
 
 main() {
-	build_all
+	[ "$SKIP_RELEASE_BUILD" -eq 1 ] || build_all
 	setup_s3
 	release_binaries
 	release_index

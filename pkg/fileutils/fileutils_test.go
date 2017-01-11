@@ -325,7 +325,7 @@ func TestMatches(t *testing.T) {
 		{"**", "/", true},
 		{"**/", "/", true},
 		{"**", "dir/file", true},
-		{"**/", "dir/file", false},
+		{"**/", "dir/file", true},
 		{"**", "dir/file/", true},
 		{"**/", "dir/file/", true},
 		{"**/**", "dir/file", true},
@@ -379,6 +379,8 @@ func TestMatches(t *testing.T) {
 		{"abc/**", "abc", false},
 		{"abc/**", "abc/def", true},
 		{"abc/**", "abc/def/ghi", true},
+		{"**/.foo", ".foo", true},
+		{"**/.foo", "bar.foo", false},
 	}
 
 	for _, test := range tests {

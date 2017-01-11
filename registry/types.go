@@ -1,19 +1,16 @@
 package registry
 
 import (
+	registrytypes "github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/reference"
-	registrytypes "github.com/docker/engine-api/types/registry"
 )
 
-// RepositoryData tracks the image list, list of endpoints, and list of tokens
-// for a repository
+// RepositoryData tracks the image list, list of endpoints for a repository
 type RepositoryData struct {
 	// ImgList is a list of images in the repository
 	ImgList map[string]*ImgData
 	// Endpoints is a list of endpoints returned in X-Docker-Endpoints
 	Endpoints []string
-	// Tokens is currently unused (remove it?)
-	Tokens []string
 }
 
 // ImgData is used to transfer image checksums to and from the registry
@@ -67,4 +64,7 @@ type RepositoryInfo struct {
 	// If the registry is official, and the normalized name does not
 	// contain a '/' (e.g. "foo"), then it is considered an official repo.
 	Official bool
+	// Class represents the class of the repository, such as "plugin"
+	// or "image".
+	Class string
 }

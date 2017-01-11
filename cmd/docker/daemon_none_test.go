@@ -3,18 +3,15 @@
 package main
 
 import (
-	"strings"
 	"testing"
+
+	"github.com/docker/docker/pkg/testutil/assert"
 )
 
-func TestCmdDaemon(t *testing.T) {
-	proxy := NewDaemonProxy()
-	err := proxy.CmdDaemon("--help")
-	if err == nil {
-		t.Fatal("Expected CmdDaemon to fail on Windows.")
-	}
+func TestDaemonCommand(t *testing.T) {
+	cmd := newDaemonCommand()
+	cmd.SetArgs([]string{"--help"})
+	err := cmd.Execute()
 
-	if !strings.Contains(err.Error(), "Please run `dockerd`") {
-		t.Fatalf("Expected an error about running dockerd, got %s", err)
-	}
+	assert.Error(t, err, "Please run `dockerd`")
 }

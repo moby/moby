@@ -358,6 +358,27 @@ func RemoveDeviceDeferred(name string) error {
 		return ErrTaskDeferredRemove
 	}
 
+	// set a task cookie and disable library fallback, or else libdevmapper will
+	// disable udev dm rules and delete the symlink under /dev/mapper by itself,
+	// even if the removal is deferred by the kernel.
+	var cookie uint
+	var flags uint16
+	flags = DmUdevDisableLibraryFallback
+	if err := task.setCookie(&cookie, flags); err != nil {
+		return fmt.Errorf("devicemapper: Can not set cookie: %s", err)
+	}
+
+	// libdevmapper and udev relies on System V semaphore for synchronization,
+	// semaphores created in `task.setCookie` will be cleaned up in `UdevWait`.
+	// So these two function call must come in pairs, otherwise semaphores will
+	// be leaked, and the  limit of number of semaphores defined in `/proc/sys/kernel/sem`
+	// will be reached, which will eventually make all follwing calls to 'task.SetCookie'
+	// fail.
+	// this call will not wait for the deferred removal's final executing, since no
+	// udev event will be generated, and the semaphore's value will not be incremented
+	// by udev, what UdevWait is just cleaning up the semaphore.
+	defer UdevWait(&cookie)
+
 	if err = task.run(); err != nil {
 		return fmt.Errorf("devicemapper: Error running RemoveDeviceDeferred %s", err)
 	}
@@ -484,7 +505,7 @@ func ReloadPool(poolName string, dataFile, metadataFile *os.File, poolBlockSize 
 	}
 
 	if err := task.run(); err != nil {
-		return fmt.Errorf("devicemapper: Error running deviceCreate %s", err)
+		return fmt.Errorf("devicemapper: Error running ReloadPool %s", err)
 	}
 
 	return nil
@@ -750,6 +771,33 @@ func activateDevice(poolName string, name string, deviceID int, size uint64, ext
 	return nil
 }
 
+// CreateSnapDeviceRaw creates a snapshot device. Caller needs to suspend and resume the origin device if it is active.
+func CreateSnapDeviceRaw(poolName string, deviceID int, baseDeviceID int) error {
+	task, err := TaskCreateNamed(deviceTargetMsg, poolName)
+	if task == nil {
+		return err
+	}
+
+	if err := task.setSector(0); err != nil {
+		return fmt.Errorf("devicemapper: Can't set sector %s", err)
+	}
+
+	if err := task.setMessage(fmt.Sprintf("create_snap %d %d", deviceID, baseDeviceID)); err != nil {
+		return fmt.Errorf("devicemapper: Can't set message %s", err)
+	}
+
+	dmSawExist = false // reset before the task is run
+	if err := task.run(); err != nil {
+		// Caller wants to know about ErrDeviceIDExists so that it can try with a different device id.
+		if dmSawExist {
+			return ErrDeviceIDExists
+		}
+		return fmt.Errorf("devicemapper: Error running deviceCreate (CreateSnapDeviceRaw) %s", err)
+	}
+
+	return nil
+}
+
 // CreateSnapDevice creates a snapshot based on the device identified by the baseName and baseDeviceId,
 func CreateSnapDevice(poolName string, deviceID int, baseName string, baseDeviceID int) error {
 	devinfo, _ := GetInfo(baseName)
@@ -761,40 +809,13 @@ func CreateSnapDevice(poolName string, deviceID int, baseName string, baseDevice
 		}
 	}
 
-	task, err := TaskCreateNamed(deviceTargetMsg, poolName)
-	if task == nil {
+	if err := CreateSnapDeviceRaw(poolName, deviceID, baseDeviceID); err != nil {
 		if doSuspend {
-			ResumeDevice(baseName)
+			if err2 := ResumeDevice(baseName); err2 != nil {
+				return fmt.Errorf("CreateSnapDeviceRaw Error: (%v): ResumeDevice Error: (%v)", err, err2)
+			}
 		}
 		return err
-	}
-
-	if err := task.setSector(0); err != nil {
-		if doSuspend {
-			ResumeDevice(baseName)
-		}
-		return fmt.Errorf("devicemapper: Can't set sector %s", err)
-	}
-
-	if err := task.setMessage(fmt.Sprintf("create_snap %d %d", deviceID, baseDeviceID)); err != nil {
-		if doSuspend {
-			ResumeDevice(baseName)
-		}
-		return fmt.Errorf("devicemapper: Can't set message %s", err)
-	}
-
-	dmSawExist = false // reset before the task is run
-	if err := task.run(); err != nil {
-		if doSuspend {
-			ResumeDevice(baseName)
-		}
-		// Caller wants to know about ErrDeviceIDExists so that it can try with a different device id.
-		if dmSawExist {
-			return ErrDeviceIDExists
-		}
-
-		return fmt.Errorf("devicemapper: Error running deviceCreate (createSnapDevice) %s", err)
-
 	}
 
 	if doSuspend {

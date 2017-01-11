@@ -5,9 +5,7 @@ import (
 	"strings"
 	"time"
 
-	"golang.org/x/crypto/bcrypt"
-
-	types "github.com/docker/engine-api/types/swarm"
+	types "github.com/docker/docker/api/types/swarm"
 	swarmapi "github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/protobuf/ptypes"
 )
@@ -15,23 +13,32 @@ import (
 // SwarmFromGRPC converts a grpc Cluster to a Swarm.
 func SwarmFromGRPC(c swarmapi.Cluster) types.Swarm {
 	swarm := types.Swarm{
-		ID: c.ID,
-		Spec: types.Spec{
-			Orchestration: types.OrchestrationConfig{
-				TaskHistoryRetentionLimit: c.Spec.Orchestration.TaskHistoryRetentionLimit,
+		ClusterInfo: types.ClusterInfo{
+			ID: c.ID,
+			Spec: types.Spec{
+				Orchestration: types.OrchestrationConfig{
+					TaskHistoryRetentionLimit: &c.Spec.Orchestration.TaskHistoryRetentionLimit,
+				},
+				Raft: types.RaftConfig{
+					SnapshotInterval:           c.Spec.Raft.SnapshotInterval,
+					KeepOldSnapshots:           &c.Spec.Raft.KeepOldSnapshots,
+					LogEntriesForSlowFollowers: c.Spec.Raft.LogEntriesForSlowFollowers,
+					HeartbeatTick:              int(c.Spec.Raft.HeartbeatTick),
+					ElectionTick:               int(c.Spec.Raft.ElectionTick),
+				},
+				EncryptionConfig: types.EncryptionConfig{
+					AutoLockManagers: c.Spec.EncryptionConfig.AutoLockManagers,
+				},
 			},
-			Raft: types.RaftConfig{
-				SnapshotInterval:           c.Spec.Raft.SnapshotInterval,
-				KeepOldSnapshots:           c.Spec.Raft.KeepOldSnapshots,
-				LogEntriesForSlowFollowers: c.Spec.Raft.LogEntriesForSlowFollowers,
-				HeartbeatTick:              c.Spec.Raft.HeartbeatTick,
-				ElectionTick:               c.Spec.Raft.ElectionTick,
-			},
+		},
+		JoinTokens: types.JoinTokens{
+			Worker:  c.RootCA.JoinTokens.Worker,
+			Manager: c.RootCA.JoinTokens.Manager,
 		},
 	}
 
 	heartbeatPeriod, _ := ptypes.Duration(c.Spec.Dispatcher.HeartbeatPeriod)
-	swarm.Spec.Dispatcher.HeartbeatPeriod = uint64(heartbeatPeriod)
+	swarm.Spec.Dispatcher.HeartbeatPeriod = heartbeatPeriod
 
 	swarm.Spec.CAConfig.NodeCertExpiry, _ = ptypes.Duration(c.Spec.CAConfig.NodeCertExpiry)
 
@@ -52,44 +59,49 @@ func SwarmFromGRPC(c swarmapi.Cluster) types.Swarm {
 	swarm.Spec.Name = c.Spec.Annotations.Name
 	swarm.Spec.Labels = c.Spec.Annotations.Labels
 
-	for _, policy := range c.Spec.AcceptancePolicy.Policies {
-		p := types.Policy{
-			Role:       types.NodeRole(strings.ToLower(policy.Role.String())),
-			Autoaccept: policy.Autoaccept,
-		}
-		if policy.Secret != nil {
-			secret := string(policy.Secret.Data)
-			p.Secret = &secret
-		}
-		swarm.Spec.AcceptancePolicy.Policies = append(swarm.Spec.AcceptancePolicy.Policies, p)
-	}
-
 	return swarm
 }
 
-// SwarmSpecToGRPCandMerge converts a Spec to a grpc ClusterSpec and merge AcceptancePolicy from an existing grpc ClusterSpec if provided.
-func SwarmSpecToGRPCandMerge(s types.Spec, existingSpec *swarmapi.ClusterSpec) (swarmapi.ClusterSpec, error) {
-	spec := swarmapi.ClusterSpec{
-		Annotations: swarmapi.Annotations{
-			Name:   s.Name,
-			Labels: s.Labels,
-		},
-		Orchestration: swarmapi.OrchestrationConfig{
-			TaskHistoryRetentionLimit: s.Orchestration.TaskHistoryRetentionLimit,
-		},
-		Raft: swarmapi.RaftConfig{
-			SnapshotInterval:           s.Raft.SnapshotInterval,
-			KeepOldSnapshots:           s.Raft.KeepOldSnapshots,
-			LogEntriesForSlowFollowers: s.Raft.LogEntriesForSlowFollowers,
-			HeartbeatTick:              s.Raft.HeartbeatTick,
-			ElectionTick:               s.Raft.ElectionTick,
-		},
-		Dispatcher: swarmapi.DispatcherConfig{
-			HeartbeatPeriod: ptypes.DurationProto(time.Duration(s.Dispatcher.HeartbeatPeriod)),
-		},
-		CAConfig: swarmapi.CAConfig{
-			NodeCertExpiry: ptypes.DurationProto(s.CAConfig.NodeCertExpiry),
-		},
+// SwarmSpecToGRPC converts a Spec to a grpc ClusterSpec.
+func SwarmSpecToGRPC(s types.Spec) (swarmapi.ClusterSpec, error) {
+	return MergeSwarmSpecToGRPC(s, swarmapi.ClusterSpec{})
+}
+
+// MergeSwarmSpecToGRPC merges a Spec with an initial grpc ClusterSpec
+func MergeSwarmSpecToGRPC(s types.Spec, spec swarmapi.ClusterSpec) (swarmapi.ClusterSpec, error) {
+	// We take the initSpec (either created from scratch, or returned by swarmkit),
+	// and will only change the value if the one taken from types.Spec is not nil or 0.
+	// In other words, if the value taken from types.Spec is nil or 0, we will maintain the status quo.
+	if s.Annotations.Name != "" {
+		spec.Annotations.Name = s.Annotations.Name
+	}
+	if len(s.Annotations.Labels) != 0 {
+		spec.Annotations.Labels = s.Annotations.Labels
+	}
+
+	if s.Orchestration.TaskHistoryRetentionLimit != nil {
+		spec.Orchestration.TaskHistoryRetentionLimit = *s.Orchestration.TaskHistoryRetentionLimit
+	}
+	if s.Raft.SnapshotInterval != 0 {
+		spec.Raft.SnapshotInterval = s.Raft.SnapshotInterval
+	}
+	if s.Raft.KeepOldSnapshots != nil {
+		spec.Raft.KeepOldSnapshots = *s.Raft.KeepOldSnapshots
+	}
+	if s.Raft.LogEntriesForSlowFollowers != 0 {
+		spec.Raft.LogEntriesForSlowFollowers = s.Raft.LogEntriesForSlowFollowers
+	}
+	if s.Raft.HeartbeatTick != 0 {
+		spec.Raft.HeartbeatTick = uint32(s.Raft.HeartbeatTick)
+	}
+	if s.Raft.ElectionTick != 0 {
+		spec.Raft.ElectionTick = uint32(s.Raft.ElectionTick)
+	}
+	if s.Dispatcher.HeartbeatPeriod != 0 {
+		spec.Dispatcher.HeartbeatPeriod = ptypes.DurationProto(time.Duration(s.Dispatcher.HeartbeatPeriod))
+	}
+	if s.CAConfig.NodeCertExpiry != 0 {
+		spec.CAConfig.NodeCertExpiry = ptypes.DurationProto(s.CAConfig.NodeCertExpiry)
 	}
 
 	for _, ca := range s.CAConfig.ExternalCAs {
@@ -104,63 +116,7 @@ func SwarmSpecToGRPCandMerge(s types.Spec, existingSpec *swarmapi.ClusterSpec) (
 		})
 	}
 
-	if err := SwarmSpecUpdateAcceptancePolicy(&spec, s.AcceptancePolicy, existingSpec); err != nil {
-		return swarmapi.ClusterSpec{}, err
-	}
+	spec.EncryptionConfig.AutoLockManagers = s.EncryptionConfig.AutoLockManagers
 
 	return spec, nil
-}
-
-// SwarmSpecUpdateAcceptancePolicy updates a grpc ClusterSpec using AcceptancePolicy.
-func SwarmSpecUpdateAcceptancePolicy(spec *swarmapi.ClusterSpec, acceptancePolicy types.AcceptancePolicy, oldSpec *swarmapi.ClusterSpec) error {
-	spec.AcceptancePolicy.Policies = nil
-	hashs := make(map[string][]byte)
-
-	for _, p := range acceptancePolicy.Policies {
-		role, ok := swarmapi.NodeRole_value[strings.ToUpper(string(p.Role))]
-		if !ok {
-			return fmt.Errorf("invalid Role: %q", p.Role)
-		}
-
-		policy := &swarmapi.AcceptancePolicy_RoleAdmissionPolicy{
-			Role:       swarmapi.NodeRole(role),
-			Autoaccept: p.Autoaccept,
-		}
-
-		if p.Secret != nil {
-			if *p.Secret == "" { // if provided secret is empty, it means erase previous secret.
-				policy.Secret = nil
-			} else { // if provided secret is not empty, we generate a new one.
-				hashPwd, ok := hashs[*p.Secret]
-				if !ok {
-					hashPwd, _ = bcrypt.GenerateFromPassword([]byte(*p.Secret), 0)
-					hashs[*p.Secret] = hashPwd
-				}
-				policy.Secret = &swarmapi.AcceptancePolicy_RoleAdmissionPolicy_HashedSecret{
-					Data: hashPwd,
-					Alg:  "bcrypt",
-				}
-			}
-		} else if oldSecret := getOldSecret(oldSpec, policy.Role); oldSecret != nil { // else use the old one.
-			policy.Secret = &swarmapi.AcceptancePolicy_RoleAdmissionPolicy_HashedSecret{
-				Data: oldSecret.Data,
-				Alg:  oldSecret.Alg,
-			}
-		}
-
-		spec.AcceptancePolicy.Policies = append(spec.AcceptancePolicy.Policies, policy)
-	}
-	return nil
-}
-
-func getOldSecret(oldSpec *swarmapi.ClusterSpec, role swarmapi.NodeRole) *swarmapi.AcceptancePolicy_RoleAdmissionPolicy_HashedSecret {
-	if oldSpec == nil {
-		return nil
-	}
-	for _, p := range oldSpec.AcceptancePolicy.Policies {
-		if p.Role == role {
-			return p.Secret
-		}
-	}
-	return nil
 }

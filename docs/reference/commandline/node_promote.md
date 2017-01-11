@@ -1,20 +1,30 @@
-<!--[metadata]>
-+++
-title = "node promote"
-description = "The node promote command description and usage"
-keywords = ["node, promote"]
-[menu.main]
-parent = "smn_cli"
-+++
-<![end-metadata]-->
+---
+title: "node promote"
+description: "The node promote command description and usage"
+keywords: "node, promote"
+---
+
+<!-- This file is maintained within the docker/docker Github
+     repository at https://github.com/docker/docker/. Make all
+     pull requests against that repo. If you see this file in
+     another repository, consider it read-only there, as it will
+     periodically be overwritten by the definitive file. Pull
+     requests which include edits to this file in other repositories
+     will be rejected.
+-->
 
 # node promote
 
-    Usage:  docker node promote NODE [NODE...]
+```markdown
+Usage:  docker node promote NODE [NODE...]
 
-    Promote a node as manager in the swarm
+Promote one or more nodes to manager in the swarm
 
-Promotes a node that is pending a promotion to manager. This command targets a docker engine that is a manager in the swarm cluster.
+Options:
+      --help   Print usage
+```
+
+Promotes a node to manager. This command targets a docker engine that is a manager in the swarm.
 
 
 ```bash
@@ -23,5 +33,9 @@ $ docker node promote <node name>
 
 ## Related information
 
-* [node accept](node_accept.md)
 * [node demote](node_demote.md)
+* [node inspect](node_inspect.md)
+* [node ls](node_ls.md)
+* [node ps](node_ps.md)
+* [node rm](node_rm.md)
+* [node update](node_update.md)

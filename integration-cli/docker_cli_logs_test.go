@@ -8,8 +8,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/docker/docker/pkg/integration/checker"
+	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/pkg/jsonlog"
+	"github.com/docker/docker/pkg/testutil"
+	icmd "github.com/docker/docker/pkg/testutil/cmd"
 	"github.com/go-check/check"
 )
 
@@ -117,22 +119,28 @@ func (s *DockerSuite) TestLogsTail(c *check.C) {
 	id := strings.TrimSpace(out)
 	dockerCmd(c, "wait", id)
 
-	out, _ = dockerCmd(c, "logs", "--tail", "5", id)
-
+	out, _ = dockerCmd(c, "logs", "--tail", "0", id)
 	lines := strings.Split(out, "\n")
+	c.Assert(lines, checker.HasLen, 1)
 
+	out, _ = dockerCmd(c, "logs", "--tail", "5", id)
+	lines = strings.Split(out, "\n")
 	c.Assert(lines, checker.HasLen, 6)
 
-	out, _ = dockerCmd(c, "logs", "--tail", "all", id)
-
+	out, _ = dockerCmd(c, "logs", "--tail", "99", id)
 	lines = strings.Split(out, "\n")
+	c.Assert(lines, checker.HasLen, 100)
 
+	out, _ = dockerCmd(c, "logs", "--tail", "all", id)
+	lines = strings.Split(out, "\n")
+	c.Assert(lines, checker.HasLen, testLen+1)
+
+	out, _ = dockerCmd(c, "logs", "--tail", "-1", id)
+	lines = strings.Split(out, "\n")
 	c.Assert(lines, checker.HasLen, testLen+1)
 
 	out, _, _ = dockerCmdWithStdoutStderr(c, "logs", "--tail", "random", id)
-
 	lines = strings.Split(out, "\n")
-
 	c.Assert(lines, checker.HasLen, testLen+1)
 }
 
@@ -181,14 +189,14 @@ func (s *DockerSuite) TestLogsSince(c *check.C) {
 
 	// Test with default value specified and parameter omitted
 	expected := []string{"log1", "log2", "log3"}
-	for _, cmd := range []*exec.Cmd{
-		exec.Command(dockerBinary, "logs", "-t", name),
-		exec.Command(dockerBinary, "logs", "-t", "--since=0", name),
+	for _, cmd := range [][]string{
+		{"logs", "-t", name},
+		{"logs", "-t", "--since=0", name},
 	} {
-		out, _, err = runCommandWithOutput(cmd)
-		c.Assert(err, checker.IsNil, check.Commentf("failed to log container: %s", out))
+		result := icmd.RunCommand(dockerBinary, cmd...)
+		result.Assert(c, icmd.Success)
 		for _, v := range expected {
-			c.Assert(out, checker.Contains, v)
+			c.Assert(result.Combined(), checker.Contains, v)
 		}
 	}
 }
@@ -247,11 +255,11 @@ func (s *DockerSuite) TestLogsFollowSlowStdoutConsumer(c *check.C) {
 	c.Assert(logCmd.Start(), checker.IsNil)
 
 	// First read slowly
-	bytes1, err := consumeWithSpeed(stdout, 10, 50*time.Millisecond, stopSlowRead)
+	bytes1, err := testutil.ConsumeWithSpeed(stdout, 10, 50*time.Millisecond, stopSlowRead)
 	c.Assert(err, checker.IsNil)
 
 	// After the container has finished we can continue reading fast
-	bytes2, err := consumeWithSpeed(stdout, 32*1024, 0, nil)
+	bytes2, err := testutil.ConsumeWithSpeed(stdout, 32*1024, 0, nil)
 	c.Assert(err, checker.IsNil)
 
 	actual := bytes1 + bytes2
@@ -304,8 +312,8 @@ func (s *DockerSuite) TestLogsFollowGoroutinesNoOutput(c *check.C) {
 func (s *DockerSuite) TestLogsCLIContainerNotFound(c *check.C) {
 	name := "testlogsnocontainer"
 	out, _, _ := dockerCmdWithError("logs", name)
-	message := fmt.Sprintf("Error: No such container: %s\n", name)
-	c.Assert(out, checker.Equals, message)
+	message := fmt.Sprintf("No such container: %s\n", name)
+	c.Assert(out, checker.Contains, message)
 }
 
 func (s *DockerSuite) TestLogsWithDetails(c *check.C) {

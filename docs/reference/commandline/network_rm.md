@@ -1,20 +1,31 @@
-<!--[metadata]>
-+++
-title = "network rm"
-description = "the network rm command description and usage"
-keywords = ["network, rm, user-defined"]
-[menu.main]
-parent = "smn_cli"
-+++
-<![end-metadata]-->
+---
+title: "network rm"
+description: "the network rm command description and usage"
+keywords: "network, rm, user-defined"
+---
+
+<!-- This file is maintained within the docker/docker Github
+     repository at https://github.com/docker/docker/. Make all
+     pull requests against that repo. If you see this file in
+     another repository, consider it read-only there, as it will
+     periodically be overwritten by the definitive file. Pull
+     requests which include edits to this file in other repositories
+     will be rejected.
+-->
 
 # network rm
 
-    Usage:  docker network rm [OPTIONS] NETWORK [NETWORK...]
+```markdown
+Usage:  docker network rm NETWORK [NETWORK...]
 
-    Deletes one or more networks
+Remove one or more networks
 
-      --help             Print usage
+Aliases:
+  rm, remove
+
+Options:
+      --help   Print usage
+```
 
 Removes one or more networks by name or identifier. To remove a network,
 you must first disconnect any containers connected to it.
@@ -44,4 +55,5 @@ deletion.
 * [network create](network_create.md)
 * [network ls](network_ls.md)
 * [network inspect](network_inspect.md)
-* [Understand Docker container networks](../../userguide/networking/dockernetworks.md)
+* [network prune](network_prune.md)
+* [Understand Docker container networks](https://docs.docker.com/engine/userguide/networking/)

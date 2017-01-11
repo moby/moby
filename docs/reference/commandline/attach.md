@@ -1,29 +1,36 @@
-<!--[metadata]>
-+++
-title = "attach"
-description = "The attach command description and usage"
-keywords = ["attach, running, container"]
-[menu.main]
-parent = "smn_cli"
-+++
-<![end-metadata]-->
+---
+title: "attach"
+description: "The attach command description and usage"
+keywords: "attach, running, container"
+---
+
+<!-- This file is maintained within the docker/docker Github
+     repository at https://github.com/docker/docker/. Make all
+     pull requests against that repo. If you see this file in
+     another repository, consider it read-only there, as it will
+     periodically be overwritten by the definitive file. Pull
+     requests which include edits to this file in other repositories
+     will be rejected.
+-->
 
 # attach
 
-    Usage: docker attach [OPTIONS] CONTAINER
+```markdown
+Usage: docker attach [OPTIONS] CONTAINER
 
-    Attach to a running container
+Attach to a running container
 
-      --detach-keys="<sequence>"       Set up escape key sequence
-      --help                           Print usage
-      --no-stdin                       Do not attach STDIN
-      --sig-proxy=true                 Proxy all received signals to the process
+Options:
+      --detach-keys string   Override the key sequence for detaching a container
+      --help                 Print usage
+      --no-stdin             Do not attach STDIN
+      --sig-proxy            Proxy all received signals to the process (default true)
+```
 
-The `docker attach` command allows you to attach to a running container using
-the container's ID or name, either to view its ongoing output or to control it
-interactively. You can attach to the same contained process multiple times
-simultaneously, screen sharing style, or quickly view the progress of your
-detached  process.
+Use `docker attach` to attach to a running container using the container's ID
+or name, either to view its ongoing output or to control it interactively.
+You can attach to the same contained process multiple times simultaneously,
+screen sharing style, or quickly view the progress of your detached process.
 
 To stop a container, use `CTRL-c`. This key sequence sends `SIGKILL` to the
 container. If `--sig-proxy` is true (the default),`CTRL-c` sends a `SIGINT` to
@@ -39,13 +46,13 @@ the container. You can detach from a container and leave it running using the
 It is forbidden to redirect the standard input of a `docker attach` command
 while attaching to a tty-enabled container (i.e.: launched with `-t`).
 
-While a client is connected to container's stdio using `docker attach`, Docker 
-uses a ~1MB memory buffer to maximize the throughput of the application. If 
-this buffer is filled, the speed of the API connection will start to have an 
-effect on the process output writing speed. This is similar to other 
-applications like SSH. Because of this, it is not recommended to run 
-performance critical applications that generate a lot of output in the 
-foreground over a slow client connection. Instead, users should use the 
+While a client is connected to container's stdio using `docker attach`, Docker
+uses a ~1MB memory buffer to maximize the throughput of the application. If
+this buffer is filled, the speed of the API connection will start to have an
+effect on the process output writing speed. This is similar to other
+applications like SSH. Because of this, it is not recommended to run
+performance critical applications that generate a lot of output in the
+foreground over a slow client connection. Instead, users should use the
 `docker logs` command to get access to the logs.
 
 
@@ -116,7 +123,7 @@ process is returned by the `docker attach` command to its caller too:
     $ docker run --name test -d -it debian
     275c44472aebd77c926d4527885bb09f2f6db21d878c75f0a1c212c03d3bcfab
     $ docker attach test
-    $$ exit 13
+    root@f38c87f2a42d:/# exit 13
     exit
     $ echo $?
     13

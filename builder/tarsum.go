@@ -63,7 +63,7 @@ func (c *tarSumContext) Stat(path string) (string, FileInfo, error) {
 	sum := path
 	// Use the checksum of the followed path(not the possible symlink) because
 	// this is the file that is actually copied.
-	if tsInfo := c.sums.GetFile(rel); tsInfo != nil {
+	if tsInfo := c.sums.GetFile(filepath.ToSlash(rel)); tsInfo != nil {
 		sum = tsInfo.Sum()
 	}
 	fi := &HashedFileInfo{PathFileInfo{st, fullpath, filepath.Base(cleanpath)}, sum}
@@ -104,7 +104,8 @@ func MakeTarSumContext(tarStream io.Reader) (ModifiableContext, error) {
 		return nil, err
 	}
 
-	if err := chrootarchive.Untar(sum, root, nil); err != nil {
+	err = chrootarchive.Untar(sum, root, nil)
+	if err != nil {
 		return nil, err
 	}
 

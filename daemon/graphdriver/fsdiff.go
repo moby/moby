@@ -1,10 +1,10 @@
 package graphdriver
 
 import (
+	"io"
 	"time"
 
 	"github.com/Sirupsen/logrus"
-
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/chrootarchive"
 	"github.com/docker/docker/pkg/idtools"
@@ -43,7 +43,8 @@ func NewNaiveDiffDriver(driver ProtoDriver, uidMaps, gidMaps []idtools.IDMap) Dr
 
 // Diff produces an archive of the changes between the specified
 // layer and its parent layer which may be "".
-func (gdw *NaiveDiffDriver) Diff(id, parent string) (arch archive.Archive, err error) {
+func (gdw *NaiveDiffDriver) Diff(id, parent string) (arch io.ReadCloser, err error) {
+	startTime := time.Now()
 	driver := gdw.ProtoDriver
 
 	layerFs, err := driver.Get(id, "")
@@ -88,6 +89,12 @@ func (gdw *NaiveDiffDriver) Diff(id, parent string) (arch archive.Archive, err e
 	return ioutils.NewReadCloserWrapper(archive, func() error {
 		err := archive.Close()
 		driver.Put(id)
+
+		// NaiveDiffDriver compares file metadata with parent layers. Parent layers
+		// are extracted from tar's with full second precision on modified time.
+		// We need this hack here to make sure calls within same second receive
+		// correct result.
+		time.Sleep(startTime.Truncate(time.Second).Add(time.Second).Sub(time.Now()))
 		return err
 	}), nil
 }
@@ -119,7 +126,7 @@ func (gdw *NaiveDiffDriver) Changes(id, parent string) ([]archive.Change, error)
 // ApplyDiff extracts the changeset from the given diff into the
 // layer with the specified id and parent, returning the size of the
 // new layer in bytes.
-func (gdw *NaiveDiffDriver) ApplyDiff(id, parent string, diff archive.Reader) (size int64, err error) {
+func (gdw *NaiveDiffDriver) ApplyDiff(id, parent string, diff io.Reader) (size int64, err error) {
 	driver := gdw.ProtoDriver
 
 	// Mount the root filesystem so we can apply the diff/layer.

@@ -1,22 +1,29 @@
-<!--[metadata]>
-+++
-title = "Plugins API"
-description = "How to write Docker plugins extensions "
-keywords = ["API, Usage, plugins, documentation, developer"]
-[menu.main]
-parent = "engine_extend"
-weight=1
-+++
-<![end-metadata]-->
+---
+title: "Plugins API"
+description: "How to write Docker plugins extensions "
+keywords: "API, Usage, plugins, documentation, developer"
+---
+
+<!-- This file is maintained within the docker/docker Github
+     repository at https://github.com/docker/docker/. Make all
+     pull requests against that repo. If you see this file in
+     another repository, consider it read-only there, as it will
+     periodically be overwritten by the definitive file. Pull
+     requests which include edits to this file in other repositories
+     will be rejected.
+-->
 
 # Docker Plugin API
 
 Docker plugins are out-of-process extensions which add capabilities to the
 Docker Engine.
 
+This document describes the Docker Engine plugin API. To view information on
+plugins managed by Docker Engine, refer to [Docker Engine plugin system](index.md).
+
 This page is intended for people who want to develop their own Docker plugin.
 If you just want to learn about or use Docker plugins, look
-[here](plugins.md).
+[here](legacy_plugins.md).
 
 ## What plugins are
 
@@ -122,6 +129,7 @@ ExecStart=/usr/lib/docker/your-plugin
 WantedBy=multi-user.target
 ```
 The `socket` file (for example `/lib/systemd/system/your-plugin.socket`):
+
 ```
 [Unit]
 Description=Your plugin

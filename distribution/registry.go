@@ -4,34 +4,47 @@ import (
 	"fmt"
 	"net"
 	"net/http"
-	"net/url"
 	"time"
 
 	"github.com/docker/distribution"
+	"github.com/docker/distribution/manifest/schema2"
 	distreference "github.com/docker/distribution/reference"
 	"github.com/docker/distribution/registry/client"
 	"github.com/docker/distribution/registry/client/auth"
 	"github.com/docker/distribution/registry/client/transport"
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/registry"
-	"github.com/docker/engine-api/types"
 	"github.com/docker/go-connections/sockets"
 	"golang.org/x/net/context"
 )
 
-type dumbCredentialStore struct {
-	auth *types.AuthConfig
+// ImageTypes represents the schema2 config types for images
+var ImageTypes = []string{
+	schema2.MediaTypeImageConfig,
+	// Handle unexpected values from https://github.com/docker/distribution/issues/1621
+	"application/octet-stream",
+	// Treat defaulted values as images, newer types cannot be implied
+	"",
 }
 
-func (dcs dumbCredentialStore) Basic(*url.URL) (string, string) {
-	return dcs.auth.Username, dcs.auth.Password
+// PluginTypes represents the schema2 config types for plugins
+var PluginTypes = []string{
+	schema2.MediaTypePluginConfig,
 }
 
-func (dcs dumbCredentialStore) RefreshToken(*url.URL, string) string {
-	return dcs.auth.IdentityToken
-}
+var mediaTypeClasses map[string]string
 
-func (dcs dumbCredentialStore) SetRefreshToken(*url.URL, string, string) {
+func init() {
+	// initialize media type classes with all know types for
+	// plugin
+	mediaTypeClasses = map[string]string{}
+	for _, t := range ImageTypes {
+		mediaTypeClasses[t] = "image"
+	}
+	for _, t := range PluginTypes {
+		mediaTypeClasses[t] = "plugin"
+	}
 }
 
 // NewV2Repository returns a repository (v2 only). It creates an HTTP transport
@@ -68,7 +81,7 @@ func NewV2Repository(ctx context.Context, repoInfo *registry.RepositoryInfo, end
 	modifiers := registry.DockerHeaders(dockerversion.DockerUserAgent(ctx), metaHeaders)
 	authTransport := transport.NewTransport(base, modifiers...)
 
-	challengeManager, foundVersion, err := registry.PingV2Registry(endpoint, authTransport)
+	challengeManager, foundVersion, err := registry.PingV2Registry(endpoint.URL, authTransport)
 	if err != nil {
 		transportOK := false
 		if responseErr, ok := err.(registry.PingResponseError); ok {
@@ -86,17 +99,18 @@ func NewV2Repository(ctx context.Context, repoInfo *registry.RepositoryInfo, end
 		passThruTokenHandler := &existingTokenHandler{token: authConfig.RegistryToken}
 		modifiers = append(modifiers, auth.NewAuthorizer(challengeManager, passThruTokenHandler))
 	} else {
-		creds := dumbCredentialStore{auth: authConfig}
+		scope := auth.RepositoryScope{
+			Repository: repoName,
+			Actions:    actions,
+			Class:      repoInfo.Class,
+		}
+
+		creds := registry.NewStaticCredentialStore(authConfig)
 		tokenHandlerOptions := auth.TokenHandlerOptions{
 			Transport:   authTransport,
 			Credentials: creds,
-			Scopes: []auth.Scope{
-				auth.RepositoryScope{
-					Repository: repoName,
-					Actions:    actions,
-				},
-			},
-			ClientID: registry.AuthClientID,
+			Scopes:      []auth.Scope{scope},
+			ClientID:    registry.AuthClientID,
 		}
 		tokenHandler := auth.NewTokenHandlerWithOptions(tokenHandlerOptions)
 		basicHandler := auth.NewBasicHandler(creds)

@@ -2,12 +2,12 @@ package main
 
 import (
 	"fmt"
-	"os/exec"
 	"strings"
 	"time"
 
-	"github.com/docker/docker/pkg/integration/checker"
+	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/pkg/stringid"
+	icmd "github.com/docker/docker/pkg/testutil/cmd"
 	"github.com/go-check/check"
 )
 
@@ -134,7 +134,7 @@ func (s *DockerSuite) TestRmiImgIDForce(c *check.C) {
 	// rmi tagged in multiple repos should have failed without force
 	c.Assert(err, checker.NotNil)
 	// rmi tagged in multiple repos should have failed without force
-	c.Assert(out, checker.Contains, "(must be forced) - image is referenced in one or more repositories", check.Commentf("out: %s; err: %v;", out, err))
+	c.Assert(out, checker.Contains, "(must be forced) - image is referenced in multiple repositories", check.Commentf("out: %s; err: %v;", out, err))
 
 	dockerCmd(c, "rmi", "-f", imgID)
 	{
@@ -175,12 +175,11 @@ func (s *DockerSuite) TestRmiTagWithExistingContainers(c *check.C) {
 func (s *DockerSuite) TestRmiForceWithExistingContainers(c *check.C) {
 	image := "busybox-clone"
 
-	cmd := exec.Command(dockerBinary, "build", "--no-cache", "-t", image, "-")
-	cmd.Stdin = strings.NewReader(`FROM busybox
-MAINTAINER foo`)
-
-	out, _, err := runCommandWithOutput(cmd)
-	c.Assert(err, checker.IsNil, check.Commentf("Could not build %s: %s", image, out))
+	icmd.RunCmd(icmd.Cmd{
+		Command: []string{dockerBinary, "build", "--no-cache", "-t", image, "-"},
+		Stdin: strings.NewReader(`FROM busybox
+MAINTAINER foo`),
+	}).Assert(c, icmd.Success)
 
 	dockerCmd(c, "run", "--name", "test-force-rmi", image, "/bin/true")
 
@@ -308,8 +307,13 @@ RUN echo 2 #layer2
 }
 
 func (*DockerSuite) TestRmiParentImageFail(c *check.C) {
-	parent := inspectField(c, "busybox", "Parent")
-	out, _, err := dockerCmdWithError("rmi", parent)
+	_, err := buildImage("test", `
+	FROM busybox
+	RUN echo hello`, false)
+	c.Assert(err, checker.IsNil)
+
+	id := inspectField(c, "busybox", "ID")
+	out, _, err := dockerCmdWithError("rmi", id)
 	c.Assert(err, check.NotNil)
 	if !strings.Contains(out, "image has dependent child images") {
 		c.Fatalf("rmi should have failed because it's a parent image, got %s", out)

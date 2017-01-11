@@ -205,17 +205,17 @@ func TestDisplayJSONMessagesStream(t *testing.T) {
 		// Without progress, with ID
 		"{ \"id\": \"ID\",\"status\": \"status\" }": {
 			"ID: status\n",
-			fmt.Sprintf("ID: status\n%c[%dB", 27, 0),
+			fmt.Sprintf("ID: status\n"),
 		},
 		// With progress
 		"{ \"id\": \"ID\", \"status\": \"status\", \"progress\": \"ProgressMessage\" }": {
 			"ID: status ProgressMessage",
-			fmt.Sprintf("\n%c[%dAID: status ProgressMessage%c[%dB", 27, 0, 27, 0),
+			fmt.Sprintf("\n%c[%dAID: status ProgressMessage%c[%dB", 27, 1, 27, 1),
 		},
 		// With progressDetail
 		"{ \"id\": \"ID\", \"status\": \"status\", \"progressDetail\": { \"Current\": 1} }": {
 			"", // progressbar is disabled in non-terminal
-			fmt.Sprintf("\n%c[%dA%c[2K\rID: status      1 B\r%c[%dB", 27, 0, 27, 27, 0),
+			fmt.Sprintf("\n%c[%dA%c[2K\rID: status      1 B\r%c[%dB", 27, 1, 27, 27, 1),
 		},
 	}
 	for jsonMessage, expectedMessages := range messages {

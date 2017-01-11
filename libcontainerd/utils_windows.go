@@ -1,16 +1,13 @@
 package libcontainerd
 
-import (
-	"strconv"
-	"strings"
-)
+import "strings"
 
-// setupEnvironmentVariables convert a string array of environment variables
+// setupEnvironmentVariables converts a string array of environment variables
 // into a map as required by the HCS. Source array is in format [v1=k1] [v2=k2] etc.
 func setupEnvironmentVariables(a []string) map[string]string {
 	r := make(map[string]string)
 	for _, s := range a {
-		arr := strings.Split(s, "=")
+		arr := strings.SplitN(s, "=", 2)
 		if len(arr) == 2 {
 			r[arr[0]] = arr[1]
 		}
@@ -23,15 +20,27 @@ func (s *ServicingOption) Apply(interface{}) error {
 	return nil
 }
 
-// buildFromVersion takes an image version string and returns the Windows build
-// number. It returns 0 if the build number is not present.
-func buildFromVersion(osver string) int {
-	v := strings.Split(osver, ".")
-	if len(v) < 3 {
-		return 0
-	}
-	if build, err := strconv.Atoi(v[2]); err == nil {
-		return build
-	}
-	return 0
+// Apply for the flush option is a no-op.
+func (f *FlushOption) Apply(interface{}) error {
+	return nil
+}
+
+// Apply for the hypervisolation option is a no-op.
+func (h *HyperVIsolationOption) Apply(interface{}) error {
+	return nil
+}
+
+// Apply for the layer option is a no-op.
+func (h *LayerOption) Apply(interface{}) error {
+	return nil
+}
+
+// Apply for the network endpoints option is a no-op.
+func (s *NetworkEndpointsOption) Apply(interface{}) error {
+	return nil
+}
+
+// Apply for the credentials option is a no-op.
+func (s *CredentialsOption) Apply(interface{}) error {
+	return nil
 }

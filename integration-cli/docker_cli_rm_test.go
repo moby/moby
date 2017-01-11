@@ -4,7 +4,7 @@ import (
 	"io/ioutil"
 	"os"
 
-	"github.com/docker/docker/pkg/integration/checker"
+	"github.com/docker/docker/integration-cli/checker"
 	"github.com/go-check/check"
 )
 
@@ -45,7 +45,7 @@ func (s *DockerSuite) TestRmContainerRunning(c *check.C) {
 func (s *DockerSuite) TestRmContainerForceRemoveRunning(c *check.C) {
 	createRunningContainer(c, "foo")
 
-	// Stop then remove with -s
+	// Stop then remove with -f
 	dockerCmd(c, "rm", "-f", "foo")
 }
 

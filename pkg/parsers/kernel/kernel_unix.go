@@ -6,6 +6,8 @@ package kernel
 
 import (
 	"bytes"
+
+	"github.com/Sirupsen/logrus"
 )
 
 // GetKernelVersion gets the current kernel version.
@@ -27,4 +29,17 @@ func GetKernelVersion() (*VersionInfo, error) {
 	release = release[:bytes.IndexByte(release, 0)]
 
 	return ParseRelease(string(release))
+}
+
+// CheckKernelVersion checks if current kernel is newer than (or equal to)
+// the given version.
+func CheckKernelVersion(k, major, minor int) bool {
+	if v, err := GetKernelVersion(); err != nil {
+		logrus.Warnf("error getting kernel version: %s", err)
+	} else {
+		if CompareKernelVersion(*v, VersionInfo{Kernel: k, Major: major, Minor: minor}) < 0 {
+			return false
+		}
+	}
+	return true
 }

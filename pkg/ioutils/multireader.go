@@ -97,27 +97,24 @@ func (r *multiReadSeeker) Seek(offset int64, whence int) (int64, error) {
 }
 
 func (r *multiReadSeeker) getReaderForOffset(offset int64) (io.ReadSeeker, int64, error) {
-	var rdr io.ReadSeeker
-	var rdrOffset int64
 
-	for i, rdr := range r.readers {
-		offsetTo, err := r.getOffsetToReader(rdr)
+	var offsetTo int64
+
+	for _, rdr := range r.readers {
+		size, err := getReadSeekerSize(rdr)
 		if err != nil {
 			return nil, -1, err
 		}
-		if offsetTo > offset {
-			rdr = r.readers[i-1]
-			rdrOffset = offsetTo - offset
-			break
+		if offsetTo+size > offset {
+			return rdr, offset - offsetTo, nil
 		}
-
 		if rdr == r.readers[len(r.readers)-1] {
-			rdrOffset = offsetTo + offset
-			break
+			return rdr, offsetTo + offset, nil
 		}
+		offsetTo += size
 	}
 
-	return rdr, rdrOffset, nil
+	return nil, 0, nil
 }
 
 func (r *multiReadSeeker) getCurOffset() (int64, error) {
@@ -158,18 +155,18 @@ func (r *multiReadSeeker) Read(b []byte) (int, error) {
 		r.pos = &pos{0, 0}
 	}
 
-	bCap := int64(cap(b))
+	bLen := int64(len(b))
 	buf := bytes.NewBuffer(nil)
 	var rdr io.ReadSeeker
 
 	for _, rdr = range r.readers[r.pos.idx:] {
-		readBytes, err := io.CopyN(buf, rdr, bCap)
+		readBytes, err := io.CopyN(buf, rdr, bLen)
 		if err != nil && err != io.EOF {
 			return -1, err
 		}
-		bCap -= readBytes
+		bLen -= readBytes
 
-		if bCap == 0 {
+		if bLen == 0 {
 			break
 		}
 	}

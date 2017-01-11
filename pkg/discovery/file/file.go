@@ -45,9 +45,7 @@ func parseFileContent(content []byte) []string {
 			// Trim additional spaces caused by above stripping.
 			line = strings.TrimSpace(line)
 		}
-		for _, ip := range discovery.Generate(line) {
-			result = append(result, ip)
-		}
+		result = append(result, discovery.Generate(line)...)
 	}
 	return result
 }

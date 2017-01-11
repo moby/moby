@@ -28,16 +28,6 @@ Special status labels:
  * `status/failing-ci`: indicates that the PR in its current state fails the test suite
  * `status/needs-attention`: calls for a collective discussion during a review session
 
-### Specialty group labels
-
-Those labels are used to raise awareness of a particular specialty group, either because we need
-help in reviewing the PR, or because of the potential impact of the PR on their work:
-
- * `group/distribution`
- * `group/networking`
- * `group/security`
- * `group/windows`
-
 ### Impact labels (apply to merged pull requests)
 
  * `impact/api`
@@ -138,11 +128,37 @@ completeness, validity, and breadth of coverage across all existing and new docu
 They should ask for any editorial change that makes the documentation more consistent and easier to
 understand.
 
+The docker/docker repository only contains _reference documentation_, all
+"narrative" documentation is kept in a [unified documentation
+repository](https://github.com/docker/docker.github.io). Reviewers must
+therefore verify which parts of the documentation need to be updated. Any
+contribution that may require changing the narrative should get the
+`impact/documentation` label: this is the signal for documentation maintainers
+that a change will likely need to happen on the unified documentation
+repository. When in doubt, it’s better to add the label and leave it to
+documentation maintainers to decide whether it’s ok to skip. In all cases,
+leave a comment to explain what documentation changes you think might be needed.
+
+- If the pull request does not impact the documentation at all, the docs review
+  step is skipped, and the pull request is ready to merge.
+- If the changes in
+  the pull request require changes to the reference documentation (either
+  command-line reference, or API reference), those changes must be included as
+  part of the pull request and will be reviewed now. Keep in mind that the
+  narrative documentation may contain output examples of commands, so may need
+  to be updated as well, in which case the `impact/documentation` label must
+  be applied.
+- If the PR has the `impact/documentation` label, merging is delayed until a
+  documentation maintainer acknowledges that a corresponding documentation PR
+  (or issue) is opened on the documentation repository. Once a documentation
+  maintainer acknowledges the change, she/he will move the PR to `status/4-merge`
+  for a code maintainer to push the green button.
+
 Changes and additions to docs must be reviewed and approved (LGTM'd) by a minimum of two docs
 sub-project maintainers. If the docs change originates with a docs maintainer, only one additional
 LGTM is required (since we assume a docs maintainer approves of their own PR).
 
-Once documentation is approved (see below), a maintainer should make sure to remove this label and
+Once documentation is approved, a maintainer should make sure to remove this label and
 add the next one.
 
 Possible transitions from this state:
@@ -165,7 +181,7 @@ Possible transitions from this state:
 After merging a pull request, the maintainer should consider applying one or multiple impact labels
 to ease future classification:
 
- * `impact/api` signifies the patch impacted the remote API
+ * `impact/api` signifies the patch impacted the Engine API
  * `impact/changelog` signifies the change is significant enough to make it in the changelog
  * `impact/cli` signifies the patch impacted a CLI command
  * `impact/dockerfile` signifies the patch impacted the Dockerfile syntax
@@ -207,3 +223,24 @@ review session. The goal of that session is to agree on one of the following out
  * Escalate to Solomon by formulating a few specific questions on which his answers will allow
    maintainers to decide.
 
+## Milestones
+
+Typically, every merged pull request get shipped naturally with the next release cut from the
+`master` branch (either the next minor or major version, as indicated by the
+[`VERSION`](https://github.com/docker/docker/blob/master/VERSION) file at the root of the
+repository). However, the time-based nature of the release process provides no guarantee that a
+given pull request will get merged in time. In other words, all open pull requests are implicitly
+considered part of the next minor or major release milestone, and this won't be materialized on
+GitHub.
+
+A merged pull request must be attached to the milestone corresponding to the release in which it
+will be shipped: this is both useful for tracking, and to help the release manager with the
+changelog generation.
+
+An open pull request may exceptionally get attached to a milestone to express a particular intent to
+get it merged in time for that release. This may for example be the case for an important feature to
+be included in a minor release, or a critical bugfix to be included in a patch release.
+
+Finally, and as documented by the [`PATCH-RELEASES.md`](PATCH-RELEASES.md) process, the existence of
+a milestone is not a guarantee that a release will happen, as some milestones will be created purely
+for the purpose of bookkeeping

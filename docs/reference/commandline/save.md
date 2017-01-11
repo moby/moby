@@ -1,21 +1,29 @@
-<!--[metadata]>
-+++
-title = "save"
-description = "The save command description and usage"
-keywords = ["tarred, repository, backup"]
-[menu.main]
-parent = "smn_cli"
-+++
-<![end-metadata]-->
+---
+title: "save"
+description: "The save command description and usage"
+keywords: "tarred, repository, backup"
+---
+
+<!-- This file is maintained within the docker/docker Github
+     repository at https://github.com/docker/docker/. Make all
+     pull requests against that repo. If you see this file in
+     another repository, consider it read-only there, as it will
+     periodically be overwritten by the definitive file. Pull
+     requests which include edits to this file in other repositories
+     will be rejected.
+-->
 
 # save
 
-    Usage: docker save [OPTIONS] IMAGE [IMAGE...]
+```markdown
+Usage:  docker save [OPTIONS] IMAGE [IMAGE...]
 
-    Save one or more images to a tar archive (streamed to STDOUT by default)
+Save one or more images to a tar archive (streamed to STDOUT by default)
 
-      --help             Print usage
-      -o, --output=""    Write to a file, instead of STDOUT
+Options:
+      --help            Print usage
+  -o, --output string   Write to a file, instead of STDOUT
+```
 
 Produces a tarred repository to the standard output stream.
 Contains all parent layers, and all tags + versions, or specified `repo:tag`, for

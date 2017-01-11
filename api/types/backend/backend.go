@@ -1,13 +1,11 @@
 // Package backend includes types to send information to server backends.
-// TODO(calavera): This package is pending of extraction to engine-api
-// when the server package is clean of daemon dependencies.
 package backend
 
 import (
 	"io"
 
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/pkg/streamformatter"
-	"github.com/docker/engine-api/types"
 )
 
 // ContainerAttachConfig holds the streams to use when connecting to a container to view logs.
@@ -55,6 +53,7 @@ type ExecInspect struct {
 	CanRemove     bool
 	ContainerID   string
 	DetachKeys    []byte
+	Pid           int
 }
 
 // ExecProcessConfig holds information about the exec process

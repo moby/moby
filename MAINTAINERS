@@ -27,10 +27,13 @@
 
 		people = [
 			"aaronlehmann",
-			"calavera",
+			"akihirosuda",
+			"aluzzardi",
+			"anusha",
 			"coolljt0725",
 			"cpuguy83",
 			"crosbymichael",
+			"dnephin",
 			"duglin",
 			"estesp",
 			"icecrime",
@@ -39,12 +42,16 @@
 			"lk4d4",
 			"mavenugo",
 			"mhbauer",
+			"mlaventure",
+			"mrjana",
 			"runcom",
+			"stevvooe",
 			"tianon",
 			"tibor",
 			"tonistiigi",
 			"unclejack",
-			"vdemeester"
+			"vdemeester",
+			"vieux"
 		]
 
 	[Org."Docs maintainers"]
@@ -53,8 +60,7 @@
 
 		people = [
 			"jamtur01",
-			"moxiegirl",
-			"sfsmithcha",
+			"misty",
 			"sven",
 			"thajeztah"
 		]
@@ -72,6 +78,9 @@
 	# - close an issue or pull request when it's inappropriate or off-topic
 
 		people = [
+			"aboch",
+			"andrewhsu",
+			"ehazlett",
 			"mgoelzer",
 			"programmerq",
 			"thajeztah"
@@ -84,6 +93,15 @@
 	# Thank you!
 
 		people = [
+			# David Calavera contributed many features to Docker, such as an improved
+			# event system, dynamic configuration reloading, volume plugins, fancy
+			# new templating options, and an external client credential store. As a
+			# maintainer, David was release captain for Docker 1.8, and competing
+			# with Jess Frazelle to be "top dream killer".
+			# David is now doing amazing stuff as CTO for https://www.netlify.com,
+			# and tweets as @calavera.
+			"calavera",
+
 			# As a maintainer, Erik was responsible for the "builder", and
 			# started the first designs for the new networking model in
 			# Docker. Erik is now working on all kinds of plugins for Docker
@@ -98,7 +116,7 @@
 			# expressions (coz, YOLO!) on July 10, 2014
 			# https://github.com/docker/docker/pull/6950/commits/f3a68ffa390fb851115c77783fa4031f1d3b2995.
 			# Jess was Release Captain for Docker 1.4, 1.6 and 1.7, and contributed
-			# many features and improvement, among which "seccomp profiles" (making 
+			# many features and improvement, among which "seccomp profiles" (making
 			# containers a lot more secure). Besides being a maintainer, she
 			# set up the CI infrastructure for the project, giving everyone
 			# something to shout at if a PR failed ("noooo Janky!").
@@ -106,11 +124,20 @@
 			# and contributing to various open source projects.
 			# Be sure you don't miss her talks at a conference near you (a must-see),
 			# read her blog at https://blog.jessfraz.com (a must-read), and
-			# check out her open source projects on GitHub https://github.com/jfrazelle (a must-try).
-			"jfrazelle",
+			# check out her open source projects on GitHub https://github.com/jessfraz (a must-try).
+			"jessfraz",
+
+			# As a docs maintainer, Mary Anthony contributed greatly to the Docker
+			# docs. She wrote the Docker Contributor Guide and Getting Started
+			# Guides. She helped create a doc build system independent of
+			# docker/docker project, and implemented a new docs.docker.com theme and
+			# nav for 2015 Dockercon. Fun fact: the most inherited layer in DockerHub
+			# public repositories was originally referenced in
+			# maryatdocker/docker-whale back in May 2015.
+			"moxiegirl",
 
 			# Vincent "vbatts!" Batts made his first contribution to the project
-			# in November 2013, to become a maintainer a few months later, on 
+			# in November 2013, to become a maintainer a few months later, on
 			# May 10, 2014 (https://github.com/docker/docker/commit/d6e666a87a01a5634c250358a94c814bf26cb778).
 			# As a maintainer, Vincent made important contributions to core elements
 			# of Docker, such as "distribution" (tarsum) and graphdrivers (btrfs, devicemapper).
@@ -122,15 +149,6 @@
 			# our repository and the #docker-dev and #docker-maintainers IRC channels
 			# for a chat, as he's always a lot of fun.
 			"vbatts",
-
-			# Victor is one of the earliest contributors to Docker, having worked on the
-			# project when it was still "dotCloud" in April 2013. He's been responsible
-			# for multiple releases (https://github.com/docker/docker/pulls?q=is%3Apr+bump+in%3Atitle+author%3Avieux),
-			# and up until today (2015), our number 2 contributor. Although he's no longer
-			# a maintainer for the Docker "Engine", he's still actively involved in other
-			# Docker projects, and most likely can be found in the Docker Swarm repository,
-			# for which he's a core maintainer.
-			"vieux",
 
 			# Vishnu became a maintainer to help out on the daemon codebase and
 			# libcontainer integration. He's currently involved in the
@@ -152,6 +170,31 @@
 	Email = "aaron.lehmann@docker.com"
 	GitHub = "aaronlehmann"
 
+	[people.aboch]
+	Name = "Alessandro Boch"
+	Email = "aboch@docker.com"
+	GitHub = "aboch"
+
+	[people.akihirosuda]
+	Name = "Akihiro Suda"
+	Email = "suda.akihiro@lab.ntt.co.jp"
+	GitHub = "AkihiroSuda"
+
+	[people.aluzzardi]
+	Name = "Andrea Luzzardi"
+	Email = "al@docker.com"
+	GitHub = "aluzzardi"
+
+	[people.andrewhsu]
+	Name = "Andrew Hsu"
+	Email = "andrewhsu@docker.com"
+	GitHub = "andrewhsu"
+
+	[people.anusha]
+	Name = "Anusha Ragunathan"
+	Email = "anusha@docker.com"
+	GitHub = "anusha-ragunathan"
+
 	[people.calavera]
 	Name = "David Calavera"
 	Email = "david.calavera@gmail.com"
@@ -172,10 +215,20 @@
 	Email = "crosbymichael@gmail.com"
 	GitHub = "crosbymichael"
 
+	[people.dnephin]
+	Name = "Daniel Nephin"
+	Email = "dnephin@gmail.com"
+	GitHub = "dnephin"
+
 	[people.duglin]
 	Name = "Doug Davis"
 	Email = "dug@us.ibm.com"
 	GitHub = "duglin"
+
+	[people.ehazlett]
+	Name = "Evan Hazlett"
+	Email = "ejhazlett@gmail.com"
+	GitHub = "ehazlett"
 
 	[people.erikh]
 	Name = "Erik Hollensbe"
@@ -202,10 +255,10 @@
 	Email = "jhoward@microsoft.com"
 	GitHub = "jhowardmsft"
 
-	[people.jfrazelle]
+	[people.jessfraz]
 	Name = "Jessie Frazelle"
 	Email = "jess@linux.com"
-	GitHub = "jfrazelle"
+	GitHub = "jessfraz"
 
 	[people.justincormack]
 	Name = "Justin Cormack"
@@ -232,10 +285,25 @@
 	Email = "mbauer@us.ibm.com"
 	GitHub = "mhbauer"
 
+	[people.misty]
+	Name = "Misty Stanley-Jones"
+	Email = "misty@docker.com"
+	GitHub = "mstanleyjones"
+
+	[people.mlaventure]
+	Name = "Kenfe-Mickaël Laventure"
+	Email = "mickael.laventure@docker.com"
+	GitHub = "mlaventure"
+
 	[people.moxiegirl]
 	Name = "Mary Anthony"
 	Email = "mary.anthony@docker.com"
 	GitHub = "moxiegirl"
+
+	[people.mrjana]
+	Name = "Jana Radhakrishnan"
+	Email = "mrjana@docker.com"
+	GitHub = "mrjana"
 
 	[people.programmerq]
 	Name = "Jeff Anderson"
@@ -247,15 +315,15 @@
 	Email = "runcom@redhat.com"
 	GitHub = "runcom"
 
-	[people.sfsmithcha]
-	Name = "Charles Smith"
-	Email = "charles.smith@docker.com"
-	GitHub = "sfsmithcha"
-
 	[people.shykes]
 	Name = "Solomon Hykes"
 	Email = "solomon@docker.com"
 	GitHub = "shykes"
+
+	[people.stevvooe]
+	Name = "Stephen Day"
+	Email = "stephen.day@docker.com"
+	GitHub = "stevvooe"
 
 	[people.sven]
 	Name = "Sven Dowideit"

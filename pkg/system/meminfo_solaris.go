@@ -89,7 +89,7 @@ func ReadMemInfo() (*MemInfo, error) {
 
 	if ppKernel < 0 || MemTotal < 0 || MemFree < 0 || SwapTotal < 0 ||
 		SwapFree < 0 {
-		return nil, fmt.Errorf("Error getting system memory info %v\n", err)
+		return nil, fmt.Errorf("error getting system memory info %v\n", err)
 	}
 
 	meminfo := &MemInfo{}

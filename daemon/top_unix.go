@@ -5,11 +5,81 @@ package daemon
 import (
 	"fmt"
 	"os/exec"
+	"regexp"
 	"strconv"
 	"strings"
 
-	"github.com/docker/engine-api/types"
+	"github.com/docker/docker/api/types"
 )
+
+func validatePSArgs(psArgs string) error {
+	// NOTE: \\s does not detect unicode whitespaces.
+	// So we use fieldsASCII instead of strings.Fields in parsePSOutput.
+	// See https://github.com/docker/docker/pull/24358
+	re := regexp.MustCompile("\\s+([^\\s]*)=\\s*(PID[^\\s]*)")
+	for _, group := range re.FindAllStringSubmatch(psArgs, -1) {
+		if len(group) >= 3 {
+			k := group[1]
+			v := group[2]
+			if k != "pid" {
+				return fmt.Errorf("specifying \"%s=%s\" is not allowed", k, v)
+			}
+		}
+	}
+	return nil
+}
+
+// fieldsASCII is similar to strings.Fields but only allows ASCII whitespaces
+func fieldsASCII(s string) []string {
+	fn := func(r rune) bool {
+		switch r {
+		case '\t', '\n', '\f', '\r', ' ':
+			return true
+		}
+		return false
+	}
+	return strings.FieldsFunc(s, fn)
+}
+
+func parsePSOutput(output []byte, pids []int) (*types.ContainerProcessList, error) {
+	procList := &types.ContainerProcessList{}
+
+	lines := strings.Split(string(output), "\n")
+	procList.Titles = fieldsASCII(lines[0])
+
+	pidIndex := -1
+	for i, name := range procList.Titles {
+		if name == "PID" {
+			pidIndex = i
+		}
+	}
+	if pidIndex == -1 {
+		return nil, fmt.Errorf("Couldn't find PID field in ps output")
+	}
+
+	// loop through the output and extract the PID from each line
+	for _, line := range lines[1:] {
+		if len(line) == 0 {
+			continue
+		}
+		fields := fieldsASCII(line)
+		p, err := strconv.Atoi(fields[pidIndex])
+		if err != nil {
+			return nil, fmt.Errorf("Unexpected pid '%s': %s", fields[pidIndex], err)
+		}
+
+		for _, pid := range pids {
+			if pid == p {
+				// Make sure number of fields equals number of header titles
+				// merging "overhanging" fields
+				process := fields[:len(procList.Titles)-1]
+				process = append(process, strings.Join(fields[len(procList.Titles)-1:], " "))
+				procList.Processes = append(procList.Processes, process)
+			}
+		}
+	}
+	return procList, nil
+}
 
 // ContainerTop lists the processes running inside of the given
 // container by calling ps with the given args, or with the flags
@@ -19,6 +89,10 @@ import (
 func (daemon *Daemon) ContainerTop(name string, psArgs string) (*types.ContainerProcessList, error) {
 	if psArgs == "" {
 		psArgs = "-ef"
+	}
+
+	if err := validatePSArgs(psArgs); err != nil {
+		return nil, err
 	}
 
 	container, err := daemon.GetContainer(name)
@@ -43,42 +117,9 @@ func (daemon *Daemon) ContainerTop(name string, psArgs string) (*types.Container
 	if err != nil {
 		return nil, fmt.Errorf("Error running ps: %v", err)
 	}
-
-	procList := &types.ContainerProcessList{}
-
-	lines := strings.Split(string(output), "\n")
-	procList.Titles = strings.Fields(lines[0])
-
-	pidIndex := -1
-	for i, name := range procList.Titles {
-		if name == "PID" {
-			pidIndex = i
-		}
-	}
-	if pidIndex == -1 {
-		return nil, fmt.Errorf("Couldn't find PID field in ps output")
-	}
-
-	// loop through the output and extract the PID from each line
-	for _, line := range lines[1:] {
-		if len(line) == 0 {
-			continue
-		}
-		fields := strings.Fields(line)
-		p, err := strconv.Atoi(fields[pidIndex])
-		if err != nil {
-			return nil, fmt.Errorf("Unexpected pid '%s': %s", fields[pidIndex], err)
-		}
-
-		for _, pid := range pids {
-			if pid == p {
-				// Make sure number of fields equals number of header titles
-				// merging "overhanging" fields
-				process := fields[:len(procList.Titles)-1]
-				process = append(process, strings.Join(fields[len(procList.Titles)-1:], " "))
-				procList.Processes = append(procList.Processes, process)
-			}
-		}
+	procList, err := parsePSOutput(output, pids)
+	if err != nil {
+		return nil, err
 	}
 	daemon.LogContainerEvent(container, "top")
 	return procList, nil

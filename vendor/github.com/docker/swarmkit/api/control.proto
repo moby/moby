@@ -1,0 +1,418 @@
+syntax = "proto3";
+
+package docker.swarmkit.v1;
+
+import "specs.proto";
+import "objects.proto";
+import "types.proto";
+import "gogoproto/gogo.proto";
+import "plugin/plugin.proto";
+
+// Control defines the RPC methods for controlling a cluster.
+service Control {
+	rpc GetNode(GetNodeRequest) returns (GetNodeResponse) {
+		option (docker.protobuf.plugin.tls_authorization) = { roles: "swarm-manager" };
+	};
+	rpc ListNodes(ListNodesRequest) returns (ListNodesResponse) {
+		option (docker.protobuf.plugin.tls_authorization) = { roles: "swarm-manager" };
+	};
+	rpc UpdateNode(UpdateNodeRequest) returns (UpdateNodeResponse) {
+		option (docker.protobuf.plugin.tls_authorization) = { roles: "swarm-manager" };
+	};
+	rpc RemoveNode(RemoveNodeRequest) returns (RemoveNodeResponse) {
+		option (docker.protobuf.plugin.tls_authorization) = { roles: "swarm-manager" };
+	};
+
+	rpc GetTask(GetTaskRequest) returns (GetTaskResponse) {
+		option (docker.protobuf.plugin.tls_authorization) = { roles: "swarm-manager" };
+	};
+	rpc ListTasks(ListTasksRequest) returns (ListTasksResponse) {
+		option (docker.protobuf.plugin.tls_authorization) = { roles: "swarm-manager" };
+	};
+	rpc RemoveTask(RemoveTaskRequest) returns (RemoveTaskResponse) {
+		option (docker.protobuf.plugin.tls_authorization) = { roles: "swarm-manager" };
+	};
+
+	rpc GetService(GetServiceRequest) returns (GetServiceResponse) {
+		option (docker.protobuf.plugin.tls_authorization) = { roles: "swarm-manager" };
+	};
+	rpc ListServices(ListServicesRequest) returns (ListServicesResponse) {
+		option (docker.protobuf.plugin.tls_authorization) = { roles: "swarm-manager" };
+	};
+	rpc CreateService(CreateServiceRequest) returns (CreateServiceResponse) {
+		option (docker.protobuf.plugin.tls_authorization) = { roles: "swarm-manager" };
+	};
+	rpc UpdateService(UpdateServiceRequest) returns (UpdateServiceResponse) {
+		option (docker.protobuf.plugin.tls_authorization) = { roles: "swarm-manager" };
+	};
+	rpc RemoveService(RemoveServiceRequest) returns (RemoveServiceResponse) {
+		option (docker.protobuf.plugin.tls_authorization) = { roles: "swarm-manager" };
+	};
+
+	rpc GetNetwork(GetNetworkRequest) returns (GetNetworkResponse) {
+		option (docker.protobuf.plugin.tls_authorization) = { roles: "swarm-manager" };
+	};
+	rpc ListNetworks(ListNetworksRequest) returns (ListNetworksResponse) {
+		option (docker.protobuf.plugin.tls_authorization) = { roles: "swarm-manager" };
+	};
+	rpc CreateNetwork(CreateNetworkRequest) returns (CreateNetworkResponse) {
+		option (docker.protobuf.plugin.tls_authorization) = { roles: "swarm-manager" };
+	};
+	rpc RemoveNetwork(RemoveNetworkRequest) returns (RemoveNetworkResponse) {
+		option (docker.protobuf.plugin.tls_authorization) = { roles: "swarm-manager" };
+	};
+
+	rpc GetCluster(GetClusterRequest) returns (GetClusterResponse) {
+		option (docker.protobuf.plugin.tls_authorization) = { roles: "swarm-manager" };
+	};
+	rpc ListClusters(ListClustersRequest) returns (ListClustersResponse) {
+		option (docker.protobuf.plugin.tls_authorization) = { roles: "swarm-manager" };
+	};
+	rpc UpdateCluster(UpdateClusterRequest) returns (UpdateClusterResponse) {
+		option (docker.protobuf.plugin.tls_authorization) = { roles: "swarm-manager" };
+	};
+
+	// --- secret APIs ---
+
+	// GetSecret returns a `GetSecretResponse` with a `Secret` with the same
+	// id as `GetSecretRequest.SecretID`
+	// - Returns `NotFound` if the Secret with the given id is not found.
+	// - Returns `InvalidArgument` if the `GetSecretRequest.SecretID` is empty.
+	// - Returns an error if getting fails.
+	rpc GetSecret(GetSecretRequest) returns (GetSecretResponse) {
+		option (docker.protobuf.plugin.tls_authorization) = { roles: "swarm-manager" };
+	}
+
+	// UpdateSecret returns a `UpdateSecretResponse` with a `Secret` with the same
+	// id as `GetSecretRequest.SecretID`
+	// - Returns `NotFound` if the Secret with the given id is not found.
+	// - Returns `InvalidArgument` if the `GetSecretRequest.SecretID` is empty.
+	// - Returns an error if updating fails.
+	rpc UpdateSecret(UpdateSecretRequest) returns (UpdateSecretResponse) {
+		option (docker.protobuf.plugin.tls_authorization) = { roles: "swarm-manager" };
+	};
+
+	// ListSecrets returns a `ListSecretResponse` with a list all non-internal `Secret`s being
+	// managed, or all secrets matching any name in `ListSecretsRequest.Names`, any
+	// name prefix in `ListSecretsRequest.NamePrefixes`, any id in
+	// `ListSecretsRequest.SecretIDs`, or any id prefix in `ListSecretsRequest.IDPrefixes`.
+	// - Returns an error if listing fails.
+	rpc ListSecrets(ListSecretsRequest) returns (ListSecretsResponse) {
+		option (docker.protobuf.plugin.tls_authorization) = { roles: "swarm-manager" };
+	}
+	// CreateSecret creates and return a `CreateSecretResponse` with a `Secret` based
+	// on the provided `CreateSecretRequest.SecretSpec`.
+	// - Returns `InvalidArgument` if the `CreateSecretRequest.SecretSpec` is malformed,
+	//   or if the secret data is too long or contains invalid characters.
+	// - Returns an error if the creation fails.
+	rpc CreateSecret(CreateSecretRequest) returns (CreateSecretResponse) {
+		option (docker.protobuf.plugin.tls_authorization) = { roles: "swarm-manager" };
+	}
+
+	// RemoveSecret removes the secret referenced by `RemoveSecretRequest.ID`.
+	// - Returns `InvalidArgument` if `RemoveSecretRequest.ID` is empty.
+	// - Returns `NotFound` if the a secret named `RemoveSecretRequest.ID` is not found.
+	// - Returns an error if the deletion fails.
+	rpc RemoveSecret(RemoveSecretRequest) returns (RemoveSecretResponse) {
+		option (docker.protobuf.plugin.tls_authorization) = { roles: "swarm-manager" };
+	}
+}
+
+message GetNodeRequest {
+	string node_id = 1 [(gogoproto.customname) = "NodeID"];
+}
+
+message GetNodeResponse {
+	Node node = 1;
+}
+
+message ListNodesRequest {
+	message Filters {
+		repeated string names = 1;
+		repeated string id_prefixes = 2 [(gogoproto.customname) = "IDPrefixes"];
+		map<string, string> labels = 3;
+		repeated NodeSpec.Membership memberships = 4;
+		repeated NodeRole roles = 5;
+		// NamePrefixes matches all objects with the given prefixes
+		repeated string name_prefixes = 6;
+	}
+
+	Filters filters = 1;
+}
+
+message ListNodesResponse {
+	repeated Node nodes = 1;
+}
+
+// UpdateNodeRequest requests an update to the specified node. This may be used
+// to request a new availability for a node, such as PAUSE. Invalid updates
+// will be denied and cause an error.
+message UpdateNodeRequest {
+	string node_id = 1 [(gogoproto.customname) = "NodeID"];
+	Version node_version = 2;
+	NodeSpec spec = 3;
+}
+
+message UpdateNodeResponse {
+	Node node = 1;
+}
+
+// RemoveNodeRequest requests to delete the specified node from store.
+message RemoveNodeRequest {
+	string node_id = 1 [(gogoproto.customname) = "NodeID"];
+	bool force = 2;
+}
+
+message RemoveNodeResponse {
+}
+
+message GetTaskRequest {
+	string task_id = 1 [(gogoproto.customname) = "TaskID"];
+}
+
+message GetTaskResponse {
+	Task task = 1;
+}
+
+message RemoveTaskRequest {
+	string task_id = 1 [(gogoproto.customname) = "TaskID"];
+}
+
+message RemoveTaskResponse {
+}
+
+message ListTasksRequest {
+	message Filters {
+		repeated string names = 1;
+		repeated string id_prefixes = 2 [(gogoproto.customname) = "IDPrefixes"];
+		map<string, string> labels = 3;
+		repeated string service_ids = 4 [(gogoproto.customname) = "ServiceIDs"];
+		repeated string node_ids = 5 [(gogoproto.customname) = "NodeIDs"];
+		repeated docker.swarmkit.v1.TaskState desired_states = 6;
+		// NamePrefixes matches all objects with the given prefixes
+		repeated string name_prefixes = 7;
+	}
+
+	Filters filters = 1;
+}
+
+message ListTasksResponse {
+	repeated Task tasks = 1;
+}
+
+message CreateServiceRequest {
+	ServiceSpec spec = 1;
+}
+
+message CreateServiceResponse {
+	Service service = 1;
+}
+
+message GetServiceRequest {
+	string service_id = 1 [(gogoproto.customname) = "ServiceID"];
+}
+
+message GetServiceResponse {
+	Service service = 1;
+}
+
+message UpdateServiceRequest {
+	string service_id = 1 [(gogoproto.customname) = "ServiceID"];
+	Version service_version = 2;
+	ServiceSpec spec = 3;
+}
+
+message UpdateServiceResponse {
+	Service service = 1;
+}
+
+message RemoveServiceRequest {
+	string service_id = 1 [(gogoproto.customname) = "ServiceID"];
+}
+
+message RemoveServiceResponse {
+}
+
+message ListServicesRequest {
+	message Filters {
+		repeated string names = 1;
+		repeated string id_prefixes = 2 [(gogoproto.customname) = "IDPrefixes"];
+		map<string, string> labels = 3;
+		// NamePrefixes matches all objects with the given prefixes
+		repeated string name_prefixes = 4;
+	}
+
+	Filters filters = 1;
+}
+
+message ListServicesResponse {
+	repeated Service services = 1;
+}
+
+message CreateNetworkRequest {
+	NetworkSpec spec = 1;
+}
+
+message CreateNetworkResponse {
+	Network network = 1;
+}
+
+message GetNetworkRequest {
+	string name = 1;
+	string network_id = 2 [(gogoproto.customname) = "NetworkID"];
+}
+
+message GetNetworkResponse {
+	Network network = 1;
+}
+
+message RemoveNetworkRequest {
+	string name = 1;
+	string network_id = 2 [(gogoproto.customname) = "NetworkID"];
+}
+
+message RemoveNetworkResponse {}
+
+message ListNetworksRequest {
+	message Filters {
+		repeated string names = 1;
+		repeated string id_prefixes = 2 [(gogoproto.customname) = "IDPrefixes"];
+		map<string, string> labels = 3;
+		// NamePrefixes matches all objects with the given prefixes
+		repeated string name_prefixes = 4;
+	}
+
+	Filters filters = 1;
+}
+
+message ListNetworksResponse {
+	repeated Network networks = 1;
+}
+
+message GetClusterRequest {
+	string cluster_id = 1 [(gogoproto.customname) = "ClusterID"];
+}
+
+message GetClusterResponse {
+	Cluster cluster = 1;
+}
+
+message ListClustersRequest {
+	message Filters {
+		repeated string names = 1;
+		repeated string id_prefixes = 2 [(gogoproto.customname) = "IDPrefixes"];
+		map<string, string> labels = 3;
+		// NamePrefixes matches all objects with the given prefixes
+		repeated string name_prefixes = 4;
+	}
+
+	Filters filters = 1;
+}
+
+message ListClustersResponse {
+	repeated Cluster clusters = 1;
+}
+
+// KeyRotation tells UpdateCluster what items to rotate
+message KeyRotation {
+	// WorkerJoinToken tells UpdateCluster to rotate the worker secret token.
+	bool worker_join_token = 1;
+
+	// ManagerJoinToken tells UpdateCluster to rotate the manager secret token.
+	bool manager_join_token = 2;
+
+	// ManagerUnlockKey tells UpdateCluster to rotate the manager unlock key
+	bool manager_unlock_key = 3;
+
+}
+
+message UpdateClusterRequest {
+	// ClusterID is the cluster ID to update.
+	string cluster_id = 1 [(gogoproto.customname) = "ClusterID"];
+
+	// ClusterVersion is the version of the cluster being updated.
+	Version cluster_version = 2;
+
+	// Spec is the new spec to apply to the cluster.
+	ClusterSpec spec = 3;
+
+	// Rotation contains flags for join token and unlock key rotation
+	KeyRotation rotation = 4 [(gogoproto.nullable) = false];
+}
+
+message UpdateClusterResponse {
+	Cluster cluster = 1;
+}
+
+// GetSecretRequest is the request to get a `Secret` object given a secret id.
+message GetSecretRequest {
+	string secret_id = 1 [(gogoproto.customname) = "SecretID"];
+}
+
+// GetSecretResponse contains the Secret corresponding to the id in
+// `GetSecretRequest`, but the `Secret.Spec.Data` field in each `Secret`
+// object should be nil instead of actually containing the secret bytes.
+message GetSecretResponse {
+	Secret secret = 1;
+}
+
+message UpdateSecretRequest {
+	// SecretID is the secret ID to update.
+	string secret_id = 1 [(gogoproto.customname) = "SecretID"];
+
+	// SecretVersion is the version of the secret being updated.
+	Version secret_version = 2;
+
+	// Spec is the new spec to apply to the Secret
+	// Only some fields are allowed to be updated.
+	SecretSpec spec = 3;
+}
+
+message UpdateSecretResponse {
+	Secret secret = 1;
+}
+
+
+// ListSecretRequest is the request to list all non-internal secrets in the secret store,
+// or all secrets filtered by (name or name prefix or id prefix) and labels.
+message ListSecretsRequest {
+	message Filters {
+		repeated string names = 1;
+		repeated string id_prefixes = 2 [(gogoproto.customname) = "IDPrefixes"];
+		map<string, string> labels = 3;
+		repeated string name_prefixes = 4;
+	}
+
+	Filters filters = 1;
+}
+
+// ListSecretResponse contains a list of all the secrets that match the name or
+// name prefix filters provided in `ListSecretRequest`.  The `Secret.Spec.Data`
+// field in each `Secret` object should be nil instead of actually containing
+// the secret bytes.
+message ListSecretsResponse {
+	repeated Secret secrets = 1;
+}
+
+// CreateSecretRequest specifies a new secret (it will not update an existing
+// secret) to create.
+message CreateSecretRequest {
+	SecretSpec spec = 1;
+}
+
+// CreateSecretResponse contains the newly created `Secret`` corresponding to the
+// name in `CreateSecretRequest`.  The `Secret.Spec.Data` field should be nil instead
+// of actually containing the secret bytes.
+message CreateSecretResponse {
+	Secret secret = 1;
+}
+
+// RemoveSecretRequest contains the ID of the secret that should be removed.  This
+// removes all versions of the secret.
+message RemoveSecretRequest {
+	string secret_id = 1 [(gogoproto.customname) = "SecretID"];
+}
+
+// RemoveSecretResponse is an empty object indicating the successful removal of
+// a secret.
+message RemoveSecretResponse {}

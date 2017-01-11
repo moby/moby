@@ -50,7 +50,7 @@ func TestMapOpts(t *testing.T) {
 		t.Errorf("max-size = %s != 1", tmpMap["max-size"])
 	}
 	if o.Set("dummy-val=3") == nil {
-		t.Errorf("validator is not being called")
+		t.Error("validator is not being called")
 	}
 }
 
@@ -228,5 +228,80 @@ func TestNamedMapOpts(t *testing.T) {
 	}
 	if _, exist := tmpMap["max-size"]; !exist {
 		t.Errorf("expected map-size to be in the values, got %v", tmpMap)
+	}
+}
+
+func TestValidateMACAddress(t *testing.T) {
+	if _, err := ValidateMACAddress(`92:d0:c6:0a:29:33`); err != nil {
+		t.Fatalf("ValidateMACAddress(`92:d0:c6:0a:29:33`) got %s", err)
+	}
+
+	if _, err := ValidateMACAddress(`92:d0:c6:0a:33`); err == nil {
+		t.Fatalf("ValidateMACAddress(`92:d0:c6:0a:33`) succeeded; expected failure on invalid MAC")
+	}
+
+	if _, err := ValidateMACAddress(`random invalid string`); err == nil {
+		t.Fatalf("ValidateMACAddress(`random invalid string`) succeeded; expected failure on invalid MAC")
+	}
+}
+
+func TestValidateLink(t *testing.T) {
+	valid := []string{
+		"name",
+		"dcdfbe62ecd0:alias",
+		"7a67485460b7642516a4ad82ecefe7f57d0c4916f530561b71a50a3f9c4e33da",
+		"angry_torvalds:linus",
+	}
+	invalid := map[string]string{
+		"":               "empty string specified for links",
+		"too:much:of:it": "bad format for links: too:much:of:it",
+	}
+
+	for _, link := range valid {
+		if _, err := ValidateLink(link); err != nil {
+			t.Fatalf("ValidateLink(`%q`) should succeed: error %q", link, err)
+		}
+	}
+
+	for link, expectedError := range invalid {
+		if _, err := ValidateLink(link); err == nil {
+			t.Fatalf("ValidateLink(`%q`) should have failed validation", link)
+		} else {
+			if !strings.Contains(err.Error(), expectedError) {
+				t.Fatalf("ValidateLink(`%q`) error should contain %q", link, expectedError)
+			}
+		}
+	}
+}
+
+func TestParseLink(t *testing.T) {
+	name, alias, err := ParseLink("name:alias")
+	if err != nil {
+		t.Fatalf("Expected not to error out on a valid name:alias format but got: %v", err)
+	}
+	if name != "name" {
+		t.Fatalf("Link name should have been name, got %s instead", name)
+	}
+	if alias != "alias" {
+		t.Fatalf("Link alias should have been alias, got %s instead", alias)
+	}
+	// short format definition
+	name, alias, err = ParseLink("name")
+	if err != nil {
+		t.Fatalf("Expected not to error out on a valid name only format but got: %v", err)
+	}
+	if name != "name" {
+		t.Fatalf("Link name should have been name, got %s instead", name)
+	}
+	if alias != "name" {
+		t.Fatalf("Link alias should have been name, got %s instead", alias)
+	}
+	// empty string link definition is not allowed
+	if _, _, err := ParseLink(""); err == nil || !strings.Contains(err.Error(), "empty string specified for links") {
+		t.Fatalf("Expected error 'empty string specified for links' but got: %v", err)
+	}
+	// more than two colons are not allowed
+	if _, _, err := ParseLink("link:alias:wrong"); err == nil || !strings.Contains(err.Error(), "bad format for links: link:alias:wrong") {
+		t.Fatalf("Expected error 'bad format for links: link:alias:wrong' but got: %v", err)
 	}
 }

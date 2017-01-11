@@ -1,6 +1,9 @@
 package cli
 
-import "strings"
+import (
+	"fmt"
+	"strings"
+)
 
 // Errors is a list of errors.
 // Useful in a loop if you don't want to return the error right away and you want to display after the loop,
@@ -17,4 +20,14 @@ func (errList Errors) Error() string {
 		out[i] = errList[i].Error()
 	}
 	return strings.Join(out, ", ")
+}
+
+// StatusError reports an unsuccessful exit by a command.
+type StatusError struct {
+	Status     string
+	StatusCode int
+}
+
+func (e StatusError) Error() string {
+	return fmt.Sprintf("Status: %s, Code: %d", e.Status, e.StatusCode)
 }

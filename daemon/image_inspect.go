@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/reference"
-	"github.com/docker/engine-api/types"
 )
 
 // LookupImage looks up an image by name and returns it as an ImageInspect
@@ -17,7 +17,7 @@ func (daemon *Daemon) LookupImage(name string) (*types.ImageInspect, error) {
 		return nil, fmt.Errorf("No such image: %s", name)
 	}
 
-	refs := daemon.referenceStore.References(img.ID())
+	refs := daemon.referenceStore.References(img.ID().Digest())
 	repoTags := []string{}
 	repoDigests := []string{}
 	for _, ref := range refs {
@@ -68,6 +68,7 @@ func (daemon *Daemon) LookupImage(name string) (*types.ImageInspect, error) {
 		Config:          img.Config,
 		Architecture:    img.Architecture,
 		Os:              img.OS,
+		OsVersion:       img.OSVersion,
 		Size:            size,
 		VirtualSize:     size, // TODO: field unused, deprecate
 		RootFS:          rootFSToAPIType(img.RootFS),

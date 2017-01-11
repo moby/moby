@@ -1,0 +1,72 @@
+syntax = "proto3";
+
+package docker.swarmkit.v1;
+
+import "types.proto";
+import "specs.proto";
+import "gogoproto/gogo.proto";
+import "plugin/plugin.proto";
+
+// CA defines the RPC methods for requesting certificates from a CA.
+
+service CA {
+	rpc GetRootCACertificate(GetRootCACertificateRequest) returns (GetRootCACertificateResponse) {
+		option (docker.protobuf.plugin.tls_authorization) = { insecure: true };
+	};
+	// GetUnlockKey returns the current unlock key for the cluster for the role of the client
+	// asking.
+	rpc GetUnlockKey(GetUnlockKeyRequest) returns (GetUnlockKeyResponse) {
+		option (docker.protobuf.plugin.tls_authorization) = { roles: ["swarm-manager"] };
+	};
+}
+
+service NodeCA {
+	rpc IssueNodeCertificate(IssueNodeCertificateRequest) returns (IssueNodeCertificateResponse) {
+		option (docker.protobuf.plugin.tls_authorization) = { insecure: true };
+	};
+	rpc NodeCertificateStatus(NodeCertificateStatusRequest) returns (NodeCertificateStatusResponse) {
+		option (docker.protobuf.plugin.tls_authorization) = { insecure: true };
+	};
+}
+
+message NodeCertificateStatusRequest {
+	string node_id = 1 [(gogoproto.customname) = "NodeID"];
+}
+
+message NodeCertificateStatusResponse {
+	IssuanceStatus status = 1;
+	Certificate certificate = 2;
+}
+
+message IssueNodeCertificateRequest {
+	// DEPRECATED: Role is now selected based on which secret is matched.
+	NodeRole role = 1 [deprecated=true];
+
+	// CSR is the certificate signing request.
+	bytes csr = 2 [(gogoproto.customname) = "CSR"];
+
+	// Token represents a user-provided string that is necessary for new
+	// nodes to join the cluster
+	string token = 3;
+
+	// Availability allows a user to control the current scheduling status of a node
+	NodeSpec.Availability availability = 4;
+}
+
+message IssueNodeCertificateResponse {
+	string node_id = 1 [(gogoproto.customname) = "NodeID"];
+	NodeSpec.Membership node_membership = 2;
+}
+
+message GetRootCACertificateRequest {}
+
+message GetRootCACertificateResponse {
+	bytes certificate = 1;
+}
+
+message GetUnlockKeyRequest {}
+
+message GetUnlockKeyResponse {
+	bytes unlock_key = 1;
+	Version version = 2 [(gogoproto.nullable) = false];
+}

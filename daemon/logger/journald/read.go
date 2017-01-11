@@ -12,11 +12,15 @@ package journald
 // #include <time.h>
 // #include <unistd.h>
 //
-//static int get_message(sd_journal *j, const char **msg, size_t *length)
+//static int get_message(sd_journal *j, const char **msg, size_t *length, int *partial)
 //{
 //	int rc;
+//	size_t plength;
 //	*msg = NULL;
 //	*length = 0;
+//	plength = strlen("CONTAINER_PARTIAL_MESSAGE=true");
+//	rc = sd_journal_get_data(j, "CONTAINER_PARTIAL_MESSAGE", (const void **) msg, length);
+//	*partial = ((rc == 0) && (*length == plength) && (memcmp(*msg, "CONTAINER_PARTIAL_MESSAGE=true", plength) == 0));
 //	rc = sd_journal_get_data(j, "MESSAGE", (const void **) msg, length);
 //	if (rc == 0) {
 //		if (*length > 8) {
@@ -52,7 +56,7 @@ package journald
 //}
 //static int is_attribute_field(const char *msg, size_t length)
 //{
-//	const struct known_field {
+//	static const struct known_field {
 //		const char *name;
 //		size_t length;
 //	} fields[] = {
@@ -97,21 +101,23 @@ package journald
 //	}
 //	return rc;
 //}
-//static int wait_for_data_or_close(sd_journal *j, int pipefd)
+//static int wait_for_data_cancelable(sd_journal *j, int pipefd)
 //{
 //	struct pollfd fds[2];
 //	uint64_t when = 0;
 //	int timeout, jevents, i;
 //	struct timespec ts;
 //	uint64_t now;
+//
+//	memset(&fds, 0, sizeof(fds));
+//	fds[0].fd = pipefd;
+//	fds[0].events = POLLHUP;
+//	fds[1].fd = sd_journal_get_fd(j);
+//	if (fds[1].fd < 0) {
+//		return fds[1].fd;
+//	}
+//
 //	do {
-//		memset(&fds, 0, sizeof(fds));
-//		fds[0].fd = pipefd;
-//		fds[0].events = POLLHUP;
-//		fds[1].fd = sd_journal_get_fd(j);
-//		if (fds[1].fd < 0) {
-//			return fds[1].fd;
-//		}
 //		jevents = sd_journal_get_events(j);
 //		if (jevents < 0) {
 //			return jevents;
@@ -163,27 +169,25 @@ func (s *journald) Close() error {
 	return nil
 }
 
-func (s *journald) drainJournal(logWatcher *logger.LogWatcher, config logger.ReadConfig, j *C.sd_journal, oldCursor string) string {
+func (s *journald) drainJournal(logWatcher *logger.LogWatcher, config logger.ReadConfig, j *C.sd_journal, oldCursor *C.char) *C.char {
 	var msg, data, cursor *C.char
 	var length C.size_t
 	var stamp C.uint64_t
-	var priority C.int
+	var priority, partial C.int
 
 	// Walk the journal from here forward until we run out of new entries.
 drain:
 	for {
 		// Try not to send a given entry twice.
-		if oldCursor != "" {
-			ccursor := C.CString(oldCursor)
-			defer C.free(unsafe.Pointer(ccursor))
-			for C.sd_journal_test_cursor(j, ccursor) > 0 {
+		if oldCursor != nil {
+			for C.sd_journal_test_cursor(j, oldCursor) > 0 {
 				if C.sd_journal_next(j) <= 0 {
 					break drain
 				}
 			}
 		}
 		// Read and send the logged message, if there is one to read.
-		i := C.get_message(j, &msg, &length)
+		i := C.get_message(j, &msg, &length, &partial)
 		if i != -C.ENOENT && i != -C.EADDRNOTAVAIL {
 			// Read the entry's timestamp.
 			if C.sd_journal_get_realtime_usec(j, &stamp) != 0 {
@@ -191,7 +195,10 @@ drain:
 			}
 			// Set up the time and text of the entry.
 			timestamp := time.Unix(int64(stamp)/1000000, (int64(stamp)%1000000)*1000)
-			line := append(C.GoBytes(unsafe.Pointer(msg), C.int(length)), "\n"...)
+			line := C.GoBytes(unsafe.Pointer(msg), C.int(length))
+			if partial == 0 {
+				line = append(line, "\n"...)
+			}
 			// Recover the stream name by mapping
 			// from the journal priority back to
 			// the stream that we would have
@@ -227,25 +234,24 @@ drain:
 			break
 		}
 	}
-	retCursor := ""
-	if C.sd_journal_get_cursor(j, &cursor) == 0 {
-		retCursor = C.GoString(cursor)
-		C.free(unsafe.Pointer(cursor))
-	}
-	return retCursor
+
+	// free(NULL) is safe
+	C.free(unsafe.Pointer(oldCursor))
+	C.sd_journal_get_cursor(j, &cursor)
+	return cursor
 }
 
-func (s *journald) followJournal(logWatcher *logger.LogWatcher, config logger.ReadConfig, j *C.sd_journal, pfd [2]C.int, cursor string) {
+func (s *journald) followJournal(logWatcher *logger.LogWatcher, config logger.ReadConfig, j *C.sd_journal, pfd [2]C.int, cursor *C.char) *C.char {
 	s.readers.mu.Lock()
 	s.readers.readers[logWatcher] = logWatcher
 	s.readers.mu.Unlock()
 	go func() {
 		// Keep copying journal data out until we're notified to stop
 		// or we hit an error.
-		status := C.wait_for_data_or_close(j, pfd[0])
+		status := C.wait_for_data_cancelable(j, pfd[0])
 		for status == 1 {
 			cursor = s.drainJournal(logWatcher, config, j, cursor)
-			status = C.wait_for_data_or_close(j, pfd[0])
+			status = C.wait_for_data_cancelable(j, pfd[0])
 		}
 		if status < 0 {
 			cerrstr := C.strerror(C.int(-status))
@@ -267,15 +273,16 @@ func (s *journald) followJournal(logWatcher *logger.LogWatcher, config logger.Re
 		// Notify the other goroutine that its work is done.
 		C.close(pfd[1])
 	}
+
+	return cursor
 }
 
 func (s *journald) readLogs(logWatcher *logger.LogWatcher, config logger.ReadConfig) {
 	var j *C.sd_journal
-	var cmatch *C.char
+	var cmatch, cursor *C.char
 	var stamp C.uint64_t
 	var sinceUnixMicro uint64
 	var pipes [2]C.int
-	cursor := ""
 
 	// Get a handle to the journal.
 	rc := C.sd_journal_open(&j, C.int(0))
@@ -363,7 +370,7 @@ func (s *journald) readLogs(logWatcher *logger.LogWatcher, config logger.ReadCon
 			return
 		}
 	}
-	cursor = s.drainJournal(logWatcher, config, j, "")
+	cursor = s.drainJournal(logWatcher, config, j, nil)
 	if config.Follow {
 		// Allocate a descriptor for following the journal, if we'll
 		// need one.  Do it here so that we can report if it fails.
@@ -375,13 +382,15 @@ func (s *journald) readLogs(logWatcher *logger.LogWatcher, config logger.ReadCon
 			if C.pipe(&pipes[0]) == C.int(-1) {
 				logWatcher.Err <- fmt.Errorf("error opening journald close notification pipe")
 			} else {
-				s.followJournal(logWatcher, config, j, pipes, cursor)
+				cursor = s.followJournal(logWatcher, config, j, pipes, cursor)
 				// Let followJournal handle freeing the journal context
 				// object and closing the channel.
 				following = true
 			}
 		}
 	}
+
+	C.free(unsafe.Pointer(cursor))
 	return
 }
 

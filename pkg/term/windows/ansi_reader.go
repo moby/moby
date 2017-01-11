@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 	"unsafe"
@@ -27,7 +28,9 @@ type ansiReader struct {
 	command  []byte
 }
 
-func newAnsiReader(nFile int) *ansiReader {
+// NewAnsiReader returns an io.ReadCloser that provides VT100 terminal emulation on top of a
+// Windows console input handle.
+func NewAnsiReader(nFile int) io.ReadCloser {
 	initLogger()
 	file, fd := winterm.GetStdFile(nFile)
 	return &ansiReader{
@@ -94,7 +97,7 @@ func (ar *ansiReader) Read(p []byte) (int, error) {
 
 	copiedLength := copy(p, keyBytes)
 	if copiedLength != len(keyBytes) {
-		return 0, errors.New("Unexpected copy length encountered.")
+		return 0, errors.New("unexpected copy length encountered")
 	}
 
 	logger.Debugf("Read        p[%d]: % x", copiedLength, p)
@@ -112,6 +115,8 @@ func readInputEvents(fd uintptr, maxBytes int) ([]winterm.INPUT_RECORD, error) {
 	countRecords := maxBytes / recordSize
 	if countRecords > ansiterm.MAX_INPUT_EVENTS {
 		countRecords = ansiterm.MAX_INPUT_EVENTS
+	} else if countRecords == 0 {
+		countRecords = 1
 	}
 	logger.Debugf("[windows] readInputEvents: Reading %v records (buffer size %v, record size %v)", countRecords, maxBytes, recordSize)
 

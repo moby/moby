@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-// TestChtimes tests Chtimes access time on a tempfile on Windows
+// TestChtimesWindows tests Chtimes access time on a tempfile on Windows
 func TestChtimesWindows(t *testing.T) {
 	file, dir := prepareTempFile(t)
 	defer os.RemoveAll(dir)

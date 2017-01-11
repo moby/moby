@@ -7,17 +7,20 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"sort"
 	"strings"
 
 	"github.com/Sirupsen/logrus"
+	apierrors "github.com/docker/docker/api/errors"
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/builder/dockerfile/parser"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/reference"
-	"github.com/docker/engine-api/types"
-	"github.com/docker/engine-api/types/container"
+	perrors "github.com/pkg/errors"
 	"golang.org/x/net/context"
 )
 
@@ -71,9 +74,13 @@ type Builder struct {
 	disableCommit    bool
 	cacheBusted      bool
 	allowedBuildArgs map[string]bool // list of build-time args that are allowed for expansion/substitution and passing to commands in 'run'.
+	directive        parser.Directive
 
 	// TODO: remove once docker.Commit can receive a tag
 	id string
+
+	imageCache builder.ImageCache
+	from       builder.Image
 }
 
 // BuildManager implements builder.Backend and is shared across all Builder objects.
@@ -88,6 +95,9 @@ func NewBuildManager(b builder.Backend) (bm *BuildManager) {
 
 // BuildFromContext builds a new image from a given context.
 func (bm *BuildManager) BuildFromContext(ctx context.Context, src io.ReadCloser, remote string, buildOptions *types.ImageBuildOptions, pg backend.ProgressWriter) (string, error) {
+	if buildOptions.Squash && !bm.backend.HasExperimental() {
+		return "", apierrors.NewBadRequestError(errors.New("squash is only supported with experimental mode"))
+	}
 	buildContext, dockerfileName, err := builder.DetectContextFromRemoteURL(src, remote, pg.ProgressReaderFunc)
 	if err != nil {
 		return "", err
@@ -97,6 +107,7 @@ func (bm *BuildManager) BuildFromContext(ctx context.Context, src io.ReadCloser,
 			logrus.Debugf("[BUILDER] failed to remove temporary context: %v", err)
 		}
 	}()
+
 	if len(dockerfileName) > 0 {
 		buildOptions.Dockerfile = dockerfileName
 	}
@@ -115,7 +126,7 @@ func NewBuilder(clientCtx context.Context, config *types.ImageBuildOptions, back
 		config = new(types.ImageBuildOptions)
 	}
 	if config.BuildArgs == nil {
-		config.BuildArgs = make(map[string]string)
+		config.BuildArgs = make(map[string]*string)
 	}
 	ctx, cancel := context.WithCancel(clientCtx)
 	b = &Builder{
@@ -130,9 +141,19 @@ func NewBuilder(clientCtx context.Context, config *types.ImageBuildOptions, back
 		tmpContainers:    map[string]struct{}{},
 		id:               stringid.GenerateNonCryptoID(),
 		allowedBuildArgs: make(map[string]bool),
+		directive: parser.Directive{
+			EscapeSeen:           false,
+			LookingForDirectives: true,
+		},
 	}
+	if icb, ok := backend.(builder.ImageCacheBuilder); ok {
+		b.imageCache = icb.MakeImageCache(config.CacheFrom)
+	}
+
+	parser.SetEscapeToken(parser.DefaultEscapeToken, &b.directive) // Assume the default token for escape
+
 	if dockerfile != nil {
-		b.dockerfile, err = parser.Parse(dockerfile)
+		b.dockerfile, err = parser.Parse(dockerfile, &b.directive)
 		if err != nil {
 			return nil, err
 		}
@@ -183,6 +204,28 @@ func sanitizeRepoAndTags(names []string) ([]reference.Named, error) {
 	return repoAndTags, nil
 }
 
+func (b *Builder) processLabels() error {
+	if len(b.options.Labels) == 0 {
+		return nil
+	}
+
+	var labels []string
+	for k, v := range b.options.Labels {
+		labels = append(labels, fmt.Sprintf("%q='%s'", k, v))
+	}
+	// Sort the label to have a repeatable order
+	sort.Strings(labels)
+
+	line := "LABEL " + strings.Join(labels, " ")
+	_, node, err := parser.ParseLine(line, &b.directive, false)
+	if err != nil {
+		return err
+	}
+	b.dockerfile.Children = append(b.dockerfile.Children, node)
+
+	return nil
+}
+
 // build runs the Dockerfile builder from a context and a docker object that allows to make calls
 // to Docker.
 //
@@ -213,29 +256,29 @@ func (b *Builder) build(stdout io.Writer, stderr io.Writer, out io.Writer) (stri
 		return "", err
 	}
 
-	if len(b.options.Labels) > 0 {
-		line := "LABEL "
-		for k, v := range b.options.Labels {
-			line += fmt.Sprintf("%q=%q ", k, v)
-		}
-		_, node, err := parser.ParseLine(line)
-		if err != nil {
-			return "", err
-		}
-		b.dockerfile.Children = append(b.dockerfile.Children, node)
+	if err := b.processLabels(); err != nil {
+		return "", err
 	}
 
 	var shortImgID string
+	total := len(b.dockerfile.Children)
+	for _, n := range b.dockerfile.Children {
+		if err := b.checkDispatch(n, false); err != nil {
+			return "", err
+		}
+	}
+
 	for i, n := range b.dockerfile.Children {
 		select {
 		case <-b.clientCtx.Done():
 			logrus.Debug("Builder: build cancelled!")
-			fmt.Fprintf(b.Stdout, "Build cancelled")
-			return "", fmt.Errorf("Build cancelled")
+			fmt.Fprint(b.Stdout, "Build cancelled")
+			return "", errors.New("Build cancelled")
 		default:
 			// Not cancelled yet, keep going...
 		}
-		if err := b.dispatch(i, n); err != nil {
+
+		if err := b.dispatch(i, total, n); err != nil {
 			if b.options.ForceRemove {
 				b.clearTmp()
 			}
@@ -250,19 +293,31 @@ func (b *Builder) build(stdout io.Writer, stderr io.Writer, out io.Writer) (stri
 	}
 
 	// check if there are any leftover build-args that were passed but not
-	// consumed during build. Return an error, if there are any.
+	// consumed during build. Return a warning, if there are any.
 	leftoverArgs := []string{}
 	for arg := range b.options.BuildArgs {
 		if !b.isBuildArgAllowed(arg) {
 			leftoverArgs = append(leftoverArgs, arg)
 		}
 	}
+
 	if len(leftoverArgs) > 0 {
-		return "", fmt.Errorf("One or more build-args %v were not consumed, failing build.", leftoverArgs)
+		fmt.Fprintf(b.Stderr, "[Warning] One or more build-args %v were not consumed\n", leftoverArgs)
 	}
 
 	if b.image == "" {
-		return "", fmt.Errorf("No image was generated. Is your Dockerfile empty?")
+		return "", errors.New("No image was generated. Is your Dockerfile empty?")
+	}
+
+	if b.options.Squash {
+		var fromID string
+		if b.from != nil {
+			fromID = b.from.ImageID()
+		}
+		b.image, err = b.docker.SquashImage(b.image, fromID)
+		if err != nil {
+			return "", perrors.Wrap(err, "error squashing image")
+		}
 	}
 
 	imageID := image.ID(b.image)
@@ -291,7 +346,12 @@ func (b *Builder) Cancel() {
 //
 // TODO: Remove?
 func BuildFromConfig(config *container.Config, changes []string) (*container.Config, error) {
-	ast, err := parser.Parse(bytes.NewBufferString(strings.Join(changes, "\n")))
+	b, err := NewBuilder(context.Background(), nil, nil, nil, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	ast, err := parser.Parse(bytes.NewBufferString(strings.Join(changes, "\n")), &b.directive)
 	if err != nil {
 		return nil, err
 	}
@@ -303,17 +363,20 @@ func BuildFromConfig(config *container.Config, changes []string) (*container.Con
 		}
 	}
 
-	b, err := NewBuilder(context.Background(), nil, nil, nil, nil)
-	if err != nil {
-		return nil, err
-	}
 	b.runConfig = config
 	b.Stdout = ioutil.Discard
 	b.Stderr = ioutil.Discard
 	b.disableCommit = true
 
+	total := len(ast.Children)
+	for _, n := range ast.Children {
+		if err := b.checkDispatch(n, false); err != nil {
+			return nil, err
+		}
+	}
+
 	for i, n := range ast.Children {
-		if err := b.dispatch(i, n); err != nil {
+		if err := b.dispatch(i, total, n); err != nil {
 			return nil, err
 		}
 	}

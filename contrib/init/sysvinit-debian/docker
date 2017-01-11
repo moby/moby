@@ -45,11 +45,11 @@ if [ ! -x $DOCKERD ]; then
 fi
 
 check_init() {
-	 # see also init_is_upstart in /lib/lsb/init-functions (which isn't available in Ubuntu 12.04, or we'd use it directly)
-	 if [ -x /sbin/initctl ] && /sbin/initctl version 2>/dev/null | grep -q upstart; then        
-                log_failure_msg "$DOCKER_DESC is managed via upstart, try using service $BASE $1"
-                exit 1
-         fi
+	# see also init_is_upstart in /lib/lsb/init-functions (which isn't available in Ubuntu 12.04, or we'd use it directly)
+	if [ -x /sbin/initctl ] && /sbin/initctl version 2>/dev/null | grep -q upstart; then
+		log_failure_msg "$DOCKER_DESC is managed via upstart, try using service $BASE $1"
+		exit 1
+	fi
 }
 
 fail_unless_root() {
@@ -94,10 +94,13 @@ case "$1" in
 		chgrp docker "$DOCKER_LOGFILE"
 
 		ulimit -n 1048576
+
+		# Having non-zero limits causes performance problems due to accounting overhead
+		# in the kernel. We recommend using cgroups to do container-local accounting.
 		if [ "$BASH" ]; then
-			ulimit -u 1048576
+			ulimit -u unlimited
 		else
-			ulimit -p 1048576
+			ulimit -p unlimited
 		fi
 
 		log_begin_msg "Starting $DOCKER_DESC: $BASE"
@@ -116,9 +119,13 @@ case "$1" in
 	stop)
 		check_init
 		fail_unless_root
-		log_begin_msg "Stopping $DOCKER_DESC: $BASE"
-		start-stop-daemon --stop --pidfile "$DOCKER_SSD_PIDFILE" --retry 10
-		log_end_msg $?
+		if [ -f "$DOCKER_SSD_PIDFILE" ]; then
+			log_begin_msg "Stopping $DOCKER_DESC: $BASE"
+			start-stop-daemon --stop --pidfile "$DOCKER_SSD_PIDFILE" --retry 10
+			log_end_msg $?
+		else
+			log_warning_msg "Docker already stopped - file $DOCKER_SSD_PIDFILE not found."
+		fi
 		;;
 
 	restart)
@@ -139,7 +146,7 @@ case "$1" in
 
 	status)
 		check_init
-		status_of_proc -p "$DOCKER_SSD_PIDFILE" "$DOCKER" "$DOCKER_DESC"
+		status_of_proc -p "$DOCKER_SSD_PIDFILE" "$DOCKERD" "$DOCKER_DESC"
 		;;
 
 	*)

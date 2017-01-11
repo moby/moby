@@ -1,23 +1,31 @@
-<!--[metadata]>
-+++
-title = "history"
-description = "The history command description and usage"
-keywords = ["docker, image, history"]
-[menu.main]
-parent = "smn_cli"
-+++
-<![end-metadata]-->
+---
+title: "history"
+description: "The history command description and usage"
+keywords: "docker, image, history"
+---
+
+<!-- This file is maintained within the docker/docker Github
+     repository at https://github.com/docker/docker/. Make all
+     pull requests against that repo. If you see this file in
+     another repository, consider it read-only there, as it will
+     periodically be overwritten by the definitive file. Pull
+     requests which include edits to this file in other repositories
+     will be rejected.
+-->
 
 # history
 
-    Usage: docker history [OPTIONS] IMAGE
+```markdown
+Usage:  docker history [OPTIONS] IMAGE
 
-    Show the history of an image
+Show the history of an image
 
-      -H, --human=true     Print sizes and dates in human readable format
-      --help               Print usage
-      --no-trunc           Don't truncate output
-      -q, --quiet          Only show numeric IDs
+Options:
+      --help       Print usage
+  -H, --human      Print sizes and dates in human readable format (default true)
+      --no-trunc   Don't truncate output
+  -q, --quiet      Only show numeric IDs
+```
 
 To see how the `docker:latest` image was built:
 

@@ -2,12 +2,14 @@ package main
 
 import (
 	"encoding/json"
-	"github.com/docker/docker/pkg/integration/checker"
-	"github.com/docker/engine-api/types"
-	"github.com/go-check/check"
+
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/integration-cli/checker"
+	"github.com/go-check/check"
 )
 
 func waitForStatus(c *check.C, name string, prev string, expected string) {
@@ -73,10 +75,10 @@ func (s *DockerSuite) TestHealth(c *check.C) {
 
 	// Inspect the options
 	out, _ = dockerCmd(c, "inspect",
-		"--format='timeout={{.Config.Healthcheck.Timeout}} "+
+		"--format=timeout={{.Config.Healthcheck.Timeout}} "+
 			"interval={{.Config.Healthcheck.Interval}} "+
 			"retries={{.Config.Healthcheck.Retries}} "+
-			"test={{.Config.Healthcheck.Test}}'", name)
+			"test={{.Config.Healthcheck.Test}}", name)
 	c.Check(out, checker.Equals, "timeout=30s interval=1s retries=0 test=[CMD-SHELL cat /status]\n")
 
 	// Start
@@ -149,4 +151,19 @@ func (s *DockerSuite) TestHealth(c *check.C) {
 	c.Check(last.ExitCode, checker.Equals, -1)
 	c.Check(last.Output, checker.Equals, "Health check exceeded timeout (1ms)")
 	dockerCmd(c, "rm", "-f", "test")
+
+	// Check JSON-format
+	_, err = buildImage(imageName,
+		`FROM busybox
+		RUN echo OK > /status
+		CMD ["/bin/sleep", "120"]
+		STOPSIGNAL SIGKILL
+		HEALTHCHECK --interval=1s --timeout=30s \
+		  CMD ["cat", "/my status"]`,
+		true)
+	c.Check(err, check.IsNil)
+	out, _ = dockerCmd(c, "inspect",
+		"--format={{.Config.Healthcheck.Test}}", imageName)
+	c.Check(out, checker.Equals, "[CMD cat /my status]\n")
+
 }

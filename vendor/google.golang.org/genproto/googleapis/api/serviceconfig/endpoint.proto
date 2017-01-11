@@ -1,0 +1,89 @@
+// Copyright 2016 Google Inc.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+syntax = "proto3";
+
+package google.api;
+
+import "google.golang.org/genproto/googleapis/api/serviceconfig/annotations.proto"; // from google/api/annotations.proto
+
+option java_multiple_files = true;
+option java_outer_classname = "EndpointProto";
+option java_package = "com.google.api";
+option objc_class_prefix = "GAPI";
+
+
+// `Endpoint` describes a network endpoint that serves a set of APIs.
+// A service may expose any number of endpoints, and all endpoints share the
+// same service configuration, such as quota configuration and monitoring
+// configuration.
+//
+// Example service configuration:
+//
+//     name: library-example.googleapis.com
+//     endpoints:
+//       # Below entry makes 'google.example.library.v1.Library'
+//       # API be served from endpoint address library-example.googleapis.com.
+//       # It also allows HTTP OPTIONS calls to be passed to the backend, for
+//       # it to decide whether the subsequent cross-origin request is
+//       # allowed to proceed.
+//     - name: library-example.googleapis.com
+//       apis: google.example.library.v1.Library
+//       allow_cors: true
+//       # Below entry makes 'google.example.library.v1.Library'
+//       # API be served from endpoint address
+//       # google.example.library-example.v1.LibraryManager.
+//     - name: library-manager.googleapis.com
+//       apis: google.example.library.v1.LibraryManager
+//       # BNS address for a borg job. Can specify a task by appending
+//       # "/taskId" (e.g. "/0") to the job spec.
+//
+// Example OpenAPI extension for endpoint with allow_cors set to true:
+//
+//     {
+//       "swagger": "2.0",
+//       "info": {
+//         "description": "A simple..."
+//       },
+//       "host": "MY_PROJECT_ID.appspot.com",
+//       "x-google-endpoints": [{
+//         "name": "MY_PROJECT_ID.appspot.com",
+//         "allow_cors": "true"
+//       }]
+//     }
+message Endpoint {
+  // The canonical name of this endpoint.
+  string name = 1;
+
+  // DEPRECATED: This field is no longer supported. Instead of using aliases,
+  // please specify multiple [google.api.Endpoint][google.api.Endpoint] for each of the intented
+  // alias.
+  //
+  // Additional names that this endpoint will be hosted on.
+  repeated string aliases = 2;
+
+  // The list of APIs served by this endpoint.
+  repeated string apis = 3;
+
+  // The list of features enabled on this endpoint.
+  repeated string features = 4;
+
+  // Allowing
+  // [CORS](https://en.wikipedia.org/wiki/Cross-origin_resource_sharing), aka
+  // cross-domain traffic, would allow the backends served from this endpoint to
+  // receive and respond to HTTP OPTIONS requests. The response will be used by
+  // the browser to determine whether the subsequent cross-origin request is
+  // allowed to proceed.
+  bool allow_cors = 5;
+}

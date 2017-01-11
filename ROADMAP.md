@@ -63,10 +63,9 @@ containers, and not as easily dismissed).
 ## 1.3 Internal decoupling
 
 A lot of work has been done in trying to decouple the Docker Engine's internals. In particular, the
-API implementation has been refactored and ongoing work is happening to move the code to a separate
-repository ([`docker/engine-api`](https://github.com/docker/engine-api)), and the Builder side of
-the daemon is now [fully independent](https://github.com/docker/docker/tree/master/builder) while
-still residing in the same repository.
+API implementation has been refactored, and the Builder side of the daemon is now
+[fully independent](https://github.com/docker/docker/tree/master/builder) while still residing in
+the same repository.
 
 We are exploring ways to go further with that decoupling, capitalizing on the work introduced by the
 runtime renovation and plugins improvement efforts. Indeed, the combination of `containerd` support
@@ -86,35 +85,14 @@ their container to communicate, the next step is for a given Engine to gain abil
 to another node in the cluster. This will be introduced in a backward compatible way, such that a
 `docker run` invocation on a particular node remains fully deterministic.
 
-# 2 Frozen features
+# 2. Frozen features
 
 ## 2.1 Docker exec
 
 We won't accept patches expanding the surface of `docker exec`, which we intend to keep as a
 *debugging* feature, as well as being strongly dependent on the Runtime ingredient effort.
 
-## 2.2 Dockerfile syntax
-
-The Dockerfile syntax as we know it is simple, and has proven successful in supporting all our
-[official images](https://github.com/docker-library/official-images). Although this is *not* a
-definitive move, we temporarily won't accept more patches to the Dockerfile syntax for several
-reasons:
-
-  - Long term impact of syntax changes is a sensitive matter that require an amount of attention the
-    volume of Engine codebase and activity today doesn't allow us to provide.
-  - Allowing the Builder to be implemented as a separate utility consuming the Engine's API will
-    open the door for many possibilities, such as offering alternate syntaxes or DSL for existing
-    languages without cluttering the Engine's codebase.
-  - A standalone Builder will also offer the opportunity for a better dedicated group of maintainers
-    to own the Dockerfile syntax and decide collectively on the direction to give it.
-  - Our experience with official images tend to show that no new instruction or syntax expansion is
-    *strictly* necessary for the majority of use cases, and although we are aware many things are
-    still lacking for many, we cannot make it a priority yet for the above reasons.
-
-Again, this is not about saying that the Dockerfile syntax is done, it's about making choices about
-what we want to do first!
-
-## 2.3 Remote Registry Operations
+## 2.2 Remote Registry Operations
 
 A large amount of work is ongoing in the area of image distribution and provenance. This includes
 moving to the V2 Registry API and heavily refactoring the code that powers these features. The

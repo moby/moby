@@ -1,6 +1,8 @@
 #!/usr/bin/make -f
 
 VERSION = $(shell cat VERSION)
+SYSTEMD_VERSION := $(shell dpkg-query -W -f='$${Version}\n' systemd | cut -d- -f1)
+SYSTEMD_GT_227 := $(shell [ '$(SYSTEMD_VERSION)' ] && [ '$(SYSTEMD_VERSION)' -gt 227 ] && echo true )
 
 override_dh_gencontrol:
 	# if we're on Ubuntu, we need to Recommends: apparmor
@@ -22,15 +24,21 @@ override_dh_auto_install:
 	mkdir -p debian/docker-engine/usr/bin
 	cp -aT "$$(readlink -f bundles/$(VERSION)/dynbinary-client/docker)" debian/docker-engine/usr/bin/docker
 	cp -aT "$$(readlink -f bundles/$(VERSION)/dynbinary-daemon/dockerd)" debian/docker-engine/usr/bin/dockerd
-	cp -aT /usr/local/bin/containerd debian/docker-engine/usr/bin/docker-containerd
-	cp -aT /usr/local/bin/containerd-shim debian/docker-engine/usr/bin/docker-containerd-shim
-	cp -aT /usr/local/bin/ctr debian/docker-engine/usr/bin/docker-containerd-ctr
-	cp -aT /usr/local/sbin/runc debian/docker-engine/usr/bin/docker-runc
+	cp -aT /usr/local/bin/docker-proxy debian/docker-engine/usr/bin/docker-proxy
+	cp -aT /usr/local/bin/docker-containerd debian/docker-engine/usr/bin/docker-containerd
+	cp -aT /usr/local/bin/docker-containerd-shim debian/docker-engine/usr/bin/docker-containerd-shim
+	cp -aT /usr/local/bin/docker-containerd-ctr debian/docker-engine/usr/bin/docker-containerd-ctr
+	cp -aT /usr/local/bin/docker-runc debian/docker-engine/usr/bin/docker-runc
+	cp -aT /usr/local/bin/docker-init debian/docker-engine/usr/bin/docker-init
 	mkdir -p debian/docker-engine/usr/lib/docker
 
 override_dh_installinit:
 	# use "docker" as our service name, not "docker-engine"
 	dh_installinit --name=docker
+ifeq (true, $(SYSTEMD_GT_227))
+	$(warning "Setting TasksMax=infinity")
+	sed -i -- 's/#TasksMax=infinity/TasksMax=infinity/' debian/docker-engine/lib/systemd/system/docker.service
+endif
 
 override_dh_installudev:
 	# match our existing priority

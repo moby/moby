@@ -1,24 +1,30 @@
-<!--[metadata]>
-+++
-title = "node inspect"
-description = "The node inspect command description and usage"
-keywords = ["node, inspect"]
-advisory = "rc"
-[menu.main]
-parent = "smn_cli"
-+++
-<![end-metadata]-->
+---
+title: "node inspect"
+description: "The node inspect command description and usage"
+keywords: "node, inspect"
+---
+
+<!-- This file is maintained within the docker/docker Github
+     repository at https://github.com/docker/docker/. Make all
+     pull requests against that repo. If you see this file in
+     another repository, consider it read-only there, as it will
+     periodically be overwritten by the definitive file. Pull
+     requests which include edits to this file in other repositories
+     will be rejected.
+-->
 
 # node inspect
 
-    Usage: docker node inspect [OPTIONS] self|NODE [NODE...]
+```markdown
+Usage:  docker node inspect [OPTIONS] self|NODE [NODE...]
 
-    Display detailed information on one or more nodes
+Display detailed information on one or more nodes
 
-
-      -f, --format=       Format the output using the given go template.
-      --help              Print usage
-      -p, --pretty        Print the information in a human friendly format.
+Options:
+  -f, --format string   Format the output using the given Go template
+      --help            Print usage
+      --pretty          Print the information in a human friendly format.
+```
 
 Returns information about a node. By default, this command renders all results
 in a JSON array. You can specify an alternate format to execute a
@@ -39,7 +45,6 @@ Example output:
         "UpdatedAt": "2016-06-16T22:52:45.230878043Z",
         "Spec": {
             "Role": "manager",
-            "Membership": "accepted",
             "Availability": "active"
         },
         "Description": {
@@ -83,7 +88,8 @@ Example output:
             }
         },
         "Status": {
-            "State": "ready"
+            "State": "ready",
+            "Addr": "168.0.32.137"
         },
         "ManagerStatus": {
             "Leader": true,
@@ -93,15 +99,19 @@ Example output:
     }
     ]
 
+    {% raw %}
     $ docker node inspect --format '{{ .ManagerStatus.Leader }}' self
     false
+    {% endraw %}
 
     $ docker node inspect --pretty self
     ID:                     e216jshn25ckzbvmwlnh5jr3g
     Hostname:               swarm-manager
+    Joined at:              2016-06-16 22:52:44.9910662 +0000 utc
     Status:
      State:                 Ready
      Availability:          Active
+     Address:               172.17.0.2
     Manager Status:
      Address:               172.17.0.2:2377
      Raft Status:           Reachable
@@ -119,7 +129,9 @@ Example output:
 
 ## Related information
 
-* [node update](node_update.md)
-* [node tasks](node_tasks.md)
+* [node demote](node_demote.md)
 * [node ls](node_ls.md)
+* [node promote](node_promote.md)
+* [node ps](node_ps.md)
 * [node rm](node_rm.md)
+* [node update](node_update.md)

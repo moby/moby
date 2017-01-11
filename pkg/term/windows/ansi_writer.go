@@ -3,6 +3,7 @@
 package windows
 
 import (
+	"io"
 	"os"
 
 	ansiterm "github.com/Azure/go-ansiterm"
@@ -20,7 +21,9 @@ type ansiWriter struct {
 	parser         *ansiterm.AnsiParser
 }
 
-func newAnsiWriter(nFile int) *ansiWriter {
+// NewAnsiWriter returns an io.Writer that provides VT100 terminal emulation on top of a
+// Windows console output handle.
+func NewAnsiWriter(nFile int) io.Writer {
 	initLogger()
 	file, fd := winterm.GetStdFile(nFile)
 	info, err := winterm.GetConsoleScreenBufferInfo(fd)

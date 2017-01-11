@@ -1,0 +1,30 @@
+#!/bin/bash
+
+export SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+source "${SCRIPTDIR}/.validate"
+
+IFS=$'\n'
+files=( $(validate_diff --diff-filter=ACMR --name-only -- 'vendor.conf' 'vendor/' || true) ) 
+unset IFS
+
+if [ ${#files[@]} -gt 0 ]; then
+	# We run vndr to and see if we have a diff afterwards
+	vndr
+	# Let see if the working directory is clean
+	diffs="$(git status --porcelain -- vendor 2>/dev/null)"
+	if [ "$diffs" ]; then
+		{
+			echo 'The result of vndr differs'
+			echo
+			echo "$diffs"
+			echo
+			echo 'Please vendor your package with github.com/LK4D4/vndr.'
+			echo
+		} >&2
+		false
+	else
+		echo 'Congratulations! All vendoring changes are done the right way.'
+	fi
+else
+    echo 'No vendor changes in diff.'
+fi

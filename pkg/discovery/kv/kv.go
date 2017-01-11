@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/discovery"
 	"github.com/docker/go-connections/tlsconfig"
 	"github.com/docker/libkv"
@@ -73,7 +73,7 @@ func (s *Discovery) Initialize(uris string, heartbeat time.Duration, ttl time.Du
 
 	var config *store.Config
 	if clusterOpts["kv.cacertfile"] != "" && clusterOpts["kv.certfile"] != "" && clusterOpts["kv.keyfile"] != "" {
-		log.Info("Initializing discovery with TLS")
+		logrus.Info("Initializing discovery with TLS")
 		tlsConfig, err := tlsconfig.Client(tlsconfig.Options{
 			CAFile:   clusterOpts["kv.cacertfile"],
 			CertFile: clusterOpts["kv.certfile"],
@@ -93,7 +93,7 @@ func (s *Discovery) Initialize(uris string, heartbeat time.Duration, ttl time.Du
 			TLS: tlsConfig,
 		}
 	} else {
-		log.Info("Initializing discovery without TLS")
+		logrus.Info("Initializing discovery without TLS")
 	}
 
 	// Creates a new store, will ignore options given
@@ -112,7 +112,7 @@ func (s *Discovery) watchOnce(stopCh <-chan struct{}, watchCh <-chan []*store.KV
 				return true
 			}
 
-			log.WithField("discovery", s.backend).Debugf("Watch triggered with %d nodes", len(pairs))
+			logrus.WithField("discovery", s.backend).Debugf("Watch triggered with %d nodes", len(pairs))
 
 			// Convert `KVPair` into `discovery.Entry`.
 			addrs := make([]string, len(pairs))

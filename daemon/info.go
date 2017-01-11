@@ -1,12 +1,16 @@
 package daemon
 
 import (
+	"fmt"
 	"os"
 	"runtime"
 	"sync/atomic"
 	"time"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/api"
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/cli/debug"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/pkg/fileutils"
@@ -16,9 +20,7 @@ import (
 	"github.com/docker/docker/pkg/sysinfo"
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/registry"
-	"github.com/docker/docker/utils"
 	"github.com/docker/docker/volume/drivers"
-	"github.com/docker/engine-api/types"
 	"github.com/docker/go-connections/sockets"
 )
 
@@ -51,6 +53,7 @@ func (daemon *Daemon) SystemInfo() (*types.Info, error) {
 	meminfo, err := system.ReadMemInfo()
 	if err != nil {
 		logrus.Errorf("Could not read system memory info: %v", err)
+		meminfo = &system.MemInfo{}
 	}
 
 	sysInfo := sysinfo.New(true)
@@ -67,15 +70,23 @@ func (daemon *Daemon) SystemInfo() (*types.Info, error) {
 		}
 	})
 
-	var securityOptions []string
+	securityOptions := []string{}
 	if sysInfo.AppArmor {
-		securityOptions = append(securityOptions, "apparmor")
+		securityOptions = append(securityOptions, "name=apparmor")
 	}
-	if sysInfo.Seccomp {
-		securityOptions = append(securityOptions, "seccomp")
+	if sysInfo.Seccomp && supportsSeccomp {
+		profile := daemon.seccompProfilePath
+		if profile == "" {
+			profile = "default"
+		}
+		securityOptions = append(securityOptions, fmt.Sprintf("name=seccomp,profile=%s", profile))
 	}
 	if selinuxEnabled() {
-		securityOptions = append(securityOptions, "selinux")
+		securityOptions = append(securityOptions, "name=selinux")
+	}
+	uid, gid := daemon.GetRemappedUIDGID()
+	if uid != 0 || gid != 0 {
+		securityOptions = append(securityOptions, "name=userns")
 	}
 
 	v := &types.Info{
@@ -91,7 +102,7 @@ func (daemon *Daemon) SystemInfo() (*types.Info, error) {
 		IPv4Forwarding:     !sysInfo.IPv4ForwardingDisabled,
 		BridgeNfIptables:   !sysInfo.BridgeNFCallIPTablesDisabled,
 		BridgeNfIP6tables:  !sysInfo.BridgeNFCallIP6TablesDisabled,
-		Debug:              utils.IsDebugEnabled(),
+		Debug:              debug.IsEnabled(),
 		NFd:                fileutils.GetTotalUsedFds(),
 		NGoroutines:        runtime.NumGoroutine(),
 		SystemTime:         time.Now().Format(time.RFC3339Nano),
@@ -108,32 +119,20 @@ func (daemon *Daemon) SystemInfo() (*types.Info, error) {
 		MemTotal:           meminfo.MemTotal,
 		DockerRootDir:      daemon.configStore.Root,
 		Labels:             daemon.configStore.Labels,
-		ExperimentalBuild:  utils.ExperimentalBuild(),
+		ExperimentalBuild:  daemon.configStore.Experimental,
 		ServerVersion:      dockerversion.Version,
 		ClusterStore:       daemon.configStore.ClusterStore,
 		ClusterAdvertise:   daemon.configStore.ClusterAdvertise,
 		HTTPProxy:          sockets.GetProxyEnv("http_proxy"),
 		HTTPSProxy:         sockets.GetProxyEnv("https_proxy"),
 		NoProxy:            sockets.GetProxyEnv("no_proxy"),
+		LiveRestoreEnabled: daemon.configStore.LiveRestoreEnabled,
 		SecurityOptions:    securityOptions,
+		Isolation:          daemon.defaultIsolation,
 	}
 
-	// TODO Windows. Refactor this more once sysinfo is refactored into
-	// platform specific code. On Windows, sysinfo.cgroupMemInfo and
-	// sysinfo.cgroupCpuInfo will be nil otherwise and cause a SIGSEGV if
-	// an attempt is made to access through them.
-	if runtime.GOOS != "windows" {
-		v.MemoryLimit = sysInfo.MemoryLimit
-		v.SwapLimit = sysInfo.SwapLimit
-		v.KernelMemory = sysInfo.KernelMemory
-		v.OomKillDisable = sysInfo.OomKillDisable
-		v.CPUCfsPeriod = sysInfo.CPUCfsPeriod
-		v.CPUCfsQuota = sysInfo.CPUCfsQuota
-		v.CPUShares = sysInfo.CPUShares
-		v.CPUSet = sysInfo.Cpuset
-		v.Runtimes = daemon.configStore.GetAllRuntimes()
-		v.DefaultRuntime = daemon.configStore.GetDefaultRuntimeName()
-	}
+	// Retrieve platform specific info
+	daemon.FillPlatformInfo(v, sysInfo)
 
 	hostname := ""
 	if hn, err := os.Hostname(); err != nil {
@@ -149,13 +148,14 @@ func (daemon *Daemon) SystemInfo() (*types.Info, error) {
 // SystemVersion returns version information about the daemon.
 func (daemon *Daemon) SystemVersion() types.Version {
 	v := types.Version{
-		Version:      dockerversion.Version,
-		GitCommit:    dockerversion.GitCommit,
-		GoVersion:    runtime.Version(),
-		Os:           runtime.GOOS,
-		Arch:         runtime.GOARCH,
-		BuildTime:    dockerversion.BuildTime,
-		Experimental: utils.ExperimentalBuild(),
+		Version:       dockerversion.Version,
+		GitCommit:     dockerversion.GitCommit,
+		MinAPIVersion: api.MinVersion,
+		GoVersion:     runtime.Version(),
+		Os:            runtime.GOOS,
+		Arch:          runtime.GOARCH,
+		BuildTime:     dockerversion.BuildTime,
+		Experimental:  daemon.configStore.Experimental,
 	}
 
 	kernelVersion := "<unknown>"
@@ -173,12 +173,7 @@ func (daemon *Daemon) showPluginsInfo() types.PluginsInfo {
 	var pluginsInfo types.PluginsInfo
 
 	pluginsInfo.Volume = volumedrivers.GetDriverList()
-
-	networkDriverList := daemon.GetNetworkDriverList()
-	for nd := range networkDriverList {
-		pluginsInfo.Network = append(pluginsInfo.Network, nd)
-	}
-
+	pluginsInfo.Network = daemon.GetNetworkDriverList()
 	pluginsInfo.Authorization = daemon.configStore.AuthorizationPlugins
 
 	return pluginsInfo

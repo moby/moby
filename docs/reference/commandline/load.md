@@ -1,23 +1,31 @@
-<!--[metadata]>
-+++
-title = "load"
-description = "The load command description and usage"
-keywords = ["stdin, tarred, repository"]
-[menu.main]
-parent = "smn_cli"
-+++
-<![end-metadata]-->
+---
+title: "load"
+description: "The load command description and usage"
+keywords: "stdin, tarred, repository"
+---
+
+<!-- This file is maintained within the docker/docker Github
+     repository at https://github.com/docker/docker/. Make all
+     pull requests against that repo. If you see this file in
+     another repository, consider it read-only there, as it will
+     periodically be overwritten by the definitive file. Pull
+     requests which include edits to this file in other repositories
+     will be rejected.
+-->
 
 # load
 
-    Usage: docker load [OPTIONS]
+```markdown
+Usage:  docker load [OPTIONS]
 
-    Load an image from a tar archive or STDIN and shows image names or
-    IDs imported.
+Load an image from a tar archive or STDIN
 
-      --help             Print usage
-      -i, --input=""     Read from a tar archive file, instead of STDIN. The tarball may be compressed with gzip, bzip, or xz
-      -q, --quiet        Suppress the load progress bar but still outputs the imported images
+Options:
+      --help           Print usage
+  -i, --input string   Read from tar archive file, instead of STDIN.
+                       The tarball may be compressed with gzip, bzip, or xz
+  -q, --quiet          Suppress the load output but still outputs the imported images
+```
 
 Loads a tarred repository from a file or the standard input stream.
 Restores both images and tags.

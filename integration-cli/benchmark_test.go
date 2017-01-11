@@ -8,7 +8,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/docker/docker/pkg/integration/checker"
+	"github.com/docker/docker/integration-cli/checker"
 	"github.com/go-check/check"
 )
 
@@ -29,7 +29,7 @@ func (s *DockerSuite) BenchmarkConcurrentContainerActions(c *check.C) {
 				defer innerGroup.Done()
 				for i := 0; i < numIterations; i++ {
 					args := []string{"run", "-d", defaultSleepImage}
-					args = append(args, defaultSleepCommand...)
+					args = append(args, sleepCommandForDaemonPlatform()...)
 					out, _, err := dockerCmdWithError(args...)
 					if err != nil {
 						chErr <- fmt.Errorf(out)

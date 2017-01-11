@@ -14,9 +14,6 @@ set -e
 #
 # ... and so on and so forth for the builds created by hack/make/build-deb
 
-source "$(dirname "$BASH_SOURCE")/.integration-daemon-start"
-source "$(dirname "$BASH_SOURCE")/.detect-daemon-osarch"
-
 : ${DOCKER_RELEASE_DIR:=$DEST}
 : ${GPG_KEYID:=releasedocker}
 APTDIR=$DOCKER_RELEASE_DIR/apt/repo
@@ -25,7 +22,7 @@ APTDIR=$DOCKER_RELEASE_DIR/apt/repo
 mkdir -p "$APTDIR/conf" "$APTDIR/db" "$APTDIR/dists"
 
 # supported arches/sections
-arches=( amd64 i386 )
+arches=( amd64 i386 armhf )
 
 # Preserve existing components but don't add any non-existing ones
 for component in main testing experimental ; do
@@ -42,7 +39,7 @@ if [[ "$VERSION" == *-rc* ]]; then
 	component="testing"
 fi
 
-if [ "$DOCKER_EXPERIMENTAL" ] || [[ "$VERSION" == *-dev ]] || [ -n "$(git status --porcelain)" ]; then
+if [[ "$VERSION" == *-dev ]] || [ -n "$(git status --porcelain)" ]; then
 	component="experimental"
 fi
 
@@ -77,7 +74,7 @@ TreeDefault {
 };
 EOF
 
-for dir in contrib/builder/deb/${PACKAGE_ARCH}/*/; do
+for dir in bundles/$VERSION/build-deb/*/; do
 	version="$(basename "$dir")"
 	suite="${version//debootstrap-}"
 
@@ -98,12 +95,12 @@ APT::FTPArchive::Release::Architectures "${arches[*]}";
 EOF
 
 # release the debs
-for dir in contrib/builder/deb/${PACKAGE_ARCH}/*/; do
+for dir in bundles/$VERSION/build-deb/*/; do
 	version="$(basename "$dir")"
 	codename="${version//debootstrap-}"
 
 	tempdir="$(mktemp -d /tmp/tmp-docker-release-deb.XXXXXXXX)"
-	DEBFILE=( "bundles/$VERSION/build-deb/$version/docker-engine"*.deb )
+	DEBFILE=( "$dir/docker-engine"*.deb )
 
 	# add the deb for each component for the distro version into the
 	# pool (if it is not there already)
@@ -117,7 +114,7 @@ for dir in contrib/builder/deb/${PACKAGE_ARCH}/*/; do
 			# if we have a $GPG_PASSPHRASE we may as well
 			# dpkg-sign before copying the deb into the pool
 			if [ ! -z "$GPG_PASSPHRASE" ]; then
-				dpkg-sig -g "--no-tty --passphrase '$GPG_PASSPHRASE'" \
+				dpkg-sig -g "--no-tty  --digest-algo 'sha512' --passphrase '$GPG_PASSPHRASE'" \
 					-k "$GPG_KEYID" --sign builder "$tempdir/$d"
 			fi
 			mv "$tempdir/$d" "$APTDIR/pool/$component/d/docker-engine/"
@@ -128,18 +125,21 @@ for dir in contrib/builder/deb/${PACKAGE_ARCH}/*/; do
 
 	# build the right directory structure, needed for apt-ftparchive
 	for arch in "${arches[@]}"; do
-		mkdir -p "$APTDIR/dists/$codename/$component/binary-$arch"
+		for c in "${components[@]}"; do
+			mkdir -p "$APTDIR/dists/$codename/$c/binary-$arch"
+		done
 	done
 
 	# update the filelist for this codename/component
 	find "$APTDIR/pool/$component" \
+		-name *~${codename}*.deb -o \
 		-name *~${codename#*-}*.deb > "$APTDIR/dists/$codename/$component/filelist"
 done
 
 # run the apt-ftparchive commands so we can have pinning
 apt-ftparchive generate "$APTDIR/conf/apt-ftparchive.conf"
 
-for dir in contrib/builder/deb/${PACKAGE_ARCH}/*/; do
+for dir in bundles/$VERSION/build-deb/*/; do
 	version="$(basename "$dir")"
 	codename="${version//debootstrap-}"
 

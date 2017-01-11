@@ -172,7 +172,12 @@ func TestMakeRemoteContext(t *testing.T) {
 			if err != nil {
 				return nil, err
 			}
-			return archive.Generate(DefaultDockerfileName, string(dockerfile))
+
+			r, err := archive.Generate(DefaultDockerfileName, string(dockerfile))
+			if err != nil {
+				return nil, err
+			}
+			return ioutil.NopCloser(r), nil
 		},
 	})
 

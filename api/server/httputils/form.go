@@ -1,7 +1,7 @@
 package httputils
 
 import (
-	"fmt"
+	"errors"
 	"net/http"
 	"path/filepath"
 	"strconv"
@@ -38,10 +38,7 @@ func Int64ValueOrZero(r *http.Request, k string) int64 {
 func Int64ValueOrDefault(r *http.Request, field string, def int64) (int64, error) {
 	if r.Form.Get(field) != "" {
 		value, err := strconv.ParseInt(r.Form.Get(field), 10, 64)
-		if err != nil {
-			return value, err
-		}
-		return value, nil
+		return value, err
 	}
 	return def, nil
 }
@@ -64,9 +61,9 @@ func ArchiveFormValues(r *http.Request, vars map[string]string) (ArchiveOptions,
 
 	switch {
 	case name == "":
-		return ArchiveOptions{}, fmt.Errorf("bad parameter: 'name' cannot be empty")
+		return ArchiveOptions{}, errors.New("bad parameter: 'name' cannot be empty")
 	case path == "":
-		return ArchiveOptions{}, fmt.Errorf("bad parameter: 'path' cannot be empty")
+		return ArchiveOptions{}, errors.New("bad parameter: 'path' cannot be empty")
 	}
 
 	return ArchiveOptions{name, path}, nil

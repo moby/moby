@@ -1,10 +1,14 @@
+// +build !solaris
+
+// TODO: Support Solaris
+
 package registry
 
 import (
 	"testing"
 
-	"github.com/docker/engine-api/types"
-	registrytypes "github.com/docker/engine-api/types/registry"
+	"github.com/docker/docker/api/types"
+	registrytypes "github.com/docker/docker/api/types/registry"
 )
 
 func buildAuthConfigs() map[string]types.AuthConfig {

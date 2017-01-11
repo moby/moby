@@ -8,9 +8,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/distribution/digest"
 	"github.com/docker/distribution/manifest/schema1"
 	"github.com/docker/docker/reference"
+	"github.com/opencontainers/go-digest"
 )
 
 // TestFixManifestLayers checks that fixManifestLayers removes a duplicate
@@ -80,7 +80,7 @@ func TestFixManifestLayersBaseLayerParent(t *testing.T) {
 		},
 	}
 
-	if err := fixManifestLayers(&duplicateLayerManifest); err == nil || !strings.Contains(err.Error(), "Invalid parent ID in the base layer of the image.") {
+	if err := fixManifestLayers(&duplicateLayerManifest); err == nil || !strings.Contains(err.Error(), "invalid parent ID in the base layer of the image") {
 		t.Fatalf("expected an invalid parent ID error from fixManifestLayers")
 	}
 }

@@ -2,15 +2,17 @@ package daemon
 
 import (
 	"fmt"
+	"time"
 
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/reference"
-	"github.com/docker/engine-api/types"
 )
 
 // ImageHistory returns a slice of ImageHistory structures for the specified image
 // name by walking the image lineage.
 func (daemon *Daemon) ImageHistory(name string) ([]*types.ImageHistory, error) {
+	start := time.Now()
 	img, err := daemon.GetImage(name)
 	if err != nil {
 		return nil, err
@@ -60,7 +62,7 @@ func (daemon *Daemon) ImageHistory(name string) ([]*types.ImageHistory, error) {
 		h.ID = id.String()
 
 		var tags []string
-		for _, r := range daemon.referenceStore.References(id) {
+		for _, r := range daemon.referenceStore.References(id.Digest()) {
 			if _, ok := r.(reference.NamedTagged); ok {
 				tags = append(tags, r.String())
 			}
@@ -77,6 +79,6 @@ func (daemon *Daemon) ImageHistory(name string) ([]*types.ImageHistory, error) {
 			break
 		}
 	}
-
+	imageActions.WithValues("history").UpdateSince(start)
 	return history, nil
 }

@@ -1,4 +1,4 @@
-// +build linux freebsd
+// +build linux freebsd solaris
 
 package container
 
@@ -8,21 +8,24 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"syscall"
 
 	"github.com/Sirupsen/logrus"
+	containertypes "github.com/docker/docker/api/types/container"
+	mounttypes "github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/pkg/chrootarchive"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/pkg/symlink"
 	"github.com/docker/docker/pkg/system"
-	"github.com/docker/docker/utils"
 	"github.com/docker/docker/volume"
-	containertypes "github.com/docker/engine-api/types/container"
 	"github.com/opencontainers/runc/libcontainer/label"
+	"golang.org/x/sys/unix"
 )
 
-// DefaultSHMSize is the default size (64MB) of the SHM which will be mounted in the container
-const DefaultSHMSize int64 = 67108864
+const (
+	// DefaultSHMSize is the default size (64MB) of the SHM which will be mounted in the container
+	DefaultSHMSize           int64 = 67108864
+	containerSecretMountPath       = "/run/secrets"
+)
 
 // Container holds the fields specific to unixen implementations.
 // See CommonContainer for standard fields common to all containers.
@@ -52,20 +55,20 @@ type ExitStatus struct {
 // environment variables related to links.
 // Sets PATH, HOSTNAME and if container.Config.Tty is set: TERM.
 // The defaults set here do not override the values in container.Config.Env
-func (container *Container) CreateDaemonEnvironment(linkedEnv []string) []string {
+func (container *Container) CreateDaemonEnvironment(tty bool, linkedEnv []string) []string {
 	// Setup environment
 	env := []string{
 		"PATH=" + system.DefaultPathEnv,
 		"HOSTNAME=" + container.Config.Hostname,
 	}
-	if container.Config.Tty {
+	if tty {
 		env = append(env, "TERM=xterm")
 	}
 	env = append(env, linkedEnv...)
 	// because the env on the container can override certain default values
 	// we need to replace the 'env' keys where they match and append anything
 	// else.
-	env = utils.ReplaceOrAppendEnvValues(env, container.Config.Env)
+	env = ReplaceOrAppendEnvValues(env, container.Config.Env)
 	return env
 }
 
@@ -98,18 +101,6 @@ func (container *Container) BuildHostnameFile() error {
 	return ioutil.WriteFile(container.HostnamePath, []byte(container.Config.Hostname+"\n"), 0644)
 }
 
-// appendNetworkMounts appends any network mounts to the array of mount points passed in
-func appendNetworkMounts(container *Container, volumeMounts []volume.MountPoint) ([]volume.MountPoint, error) {
-	for _, mnt := range container.NetworkMounts() {
-		dest, err := container.GetResourcePath(mnt.Destination)
-		if err != nil {
-			return nil, err
-		}
-		volumeMounts = append(volumeMounts, volume.MountPoint{Destination: dest})
-	}
-	return volumeMounts, nil
-}
-
 // NetworkMounts returns the list of network mounts.
 func (container *Container) NetworkMounts() []Mount {
 	var mounts []Mount
@@ -129,7 +120,7 @@ func (container *Container) NetworkMounts() []Mount {
 				Source:      container.ResolvConfPath,
 				Destination: "/etc/resolv.conf",
 				Writable:    writable,
-				Propagation: volume.DefaultPropagationMode,
+				Propagation: string(volume.DefaultPropagationMode),
 			})
 		}
 	}
@@ -148,7 +139,7 @@ func (container *Container) NetworkMounts() []Mount {
 				Source:      container.HostnamePath,
 				Destination: "/etc/hostname",
 				Writable:    writable,
-				Propagation: volume.DefaultPropagationMode,
+				Propagation: string(volume.DefaultPropagationMode),
 			})
 		}
 	}
@@ -167,11 +158,16 @@ func (container *Container) NetworkMounts() []Mount {
 				Source:      container.HostsPath,
 				Destination: "/etc/hosts",
 				Writable:    writable,
-				Propagation: volume.DefaultPropagationMode,
+				Propagation: string(volume.DefaultPropagationMode),
 			})
 		}
 	}
 	return mounts
+}
+
+// SecretMountPath returns the path of the secret mount for the container
+func (container *Container) SecretMountPath() string {
+	return filepath.Join(container.Root, "secrets")
 }
 
 // CopyImagePathContent copies files in destination to the volume.
@@ -199,6 +195,9 @@ func (container *Container) CopyImagePathContent(v volume.Volume, destination st
 			logrus.Warnf("error while unmounting volume %s: %v", v.Name(), err)
 		}
 	}()
+	if err := label.Relabel(path, container.MountLabel, true); err != nil && err != unix.ENOTSUP {
+		return err
+	}
 	return copyExistingContents(rootfs, path)
 }
 
@@ -249,11 +248,36 @@ func (container *Container) IpcMounts() []Mount {
 			Source:      container.ShmPath,
 			Destination: "/dev/shm",
 			Writable:    true,
-			Propagation: volume.DefaultPropagationMode,
+			Propagation: string(volume.DefaultPropagationMode),
 		})
 	}
 
 	return mounts
+}
+
+// SecretMount returns the mount for the secret path
+func (container *Container) SecretMount() *Mount {
+	if len(container.SecretReferences) > 0 {
+		return &Mount{
+			Source:      container.SecretMountPath(),
+			Destination: containerSecretMountPath,
+			Writable:    false,
+		}
+	}
+
+	return nil
+}
+
+// UnmountSecrets unmounts the local tmpfs for secrets
+func (container *Container) UnmountSecrets() error {
+	if _, err := os.Stat(container.SecretMountPath()); err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return err
+	}
+
+	return detachMounted(container.SecretMountPath())
 }
 
 // UpdateContainer updates configuration of a container.
@@ -283,6 +307,11 @@ func (container *Container) UpdateContainer(hostConfig *containertypes.HostConfi
 		cResources.CpusetMems = resources.CpusetMems
 	}
 	if resources.Memory != 0 {
+		// if memory limit smaller than already set memoryswap limit and doesn't
+		// update the memoryswap limit, then error out.
+		if resources.Memory > cResources.MemorySwap && resources.MemorySwap == 0 {
+			return fmt.Errorf("Memory limit should be smaller than already set memoryswap limit, update the memoryswap at the same time")
+		}
 		cResources.Memory = resources.Memory
 	}
 	if resources.MemorySwap != 0 {
@@ -297,6 +326,9 @@ func (container *Container) UpdateContainer(hostConfig *containertypes.HostConfi
 
 	// update HostConfig of container
 	if hostConfig.RestartPolicy.Name != "" {
+		if container.HostConfig.AutoRemove && !hostConfig.RestartPolicy.IsNone() {
+			return fmt.Errorf("Restart policy cannot be updated because AutoRemove is enabled for the container")
+		}
 		container.HostConfig.RestartPolicy = hostConfig.RestartPolicy
 	}
 
@@ -308,53 +340,37 @@ func (container *Container) UpdateContainer(hostConfig *containertypes.HostConfi
 	return nil
 }
 
-func detachMounted(path string) error {
-	return syscall.Unmount(path, syscall.MNT_DETACH)
-}
-
-// UnmountVolumes unmounts all volumes
-func (container *Container) UnmountVolumes(forceSyscall bool, volumeEventLog func(name, action string, attributes map[string]string)) error {
-	var (
-		volumeMounts []volume.MountPoint
-		err          error
-	)
+// DetachAndUnmount uses a detached mount on all mount destinations, then
+// unmounts each volume normally.
+// This is used from daemon/archive for `docker cp`
+func (container *Container) DetachAndUnmount(volumeEventLog func(name, action string, attributes map[string]string)) error {
+	networkMounts := container.NetworkMounts()
+	mountPaths := make([]string, 0, len(container.MountPoints)+len(networkMounts))
 
 	for _, mntPoint := range container.MountPoints {
 		dest, err := container.GetResourcePath(mntPoint.Destination)
 		if err != nil {
-			return err
+			logrus.Warnf("Failed to get volume destination path for container '%s' at '%s' while lazily unmounting: %v", container.ID, mntPoint.Destination, err)
+			continue
 		}
-
-		volumeMounts = append(volumeMounts, volume.MountPoint{Destination: dest, Volume: mntPoint.Volume})
+		mountPaths = append(mountPaths, dest)
 	}
 
-	// Append any network mounts to the list (this is a no-op on Windows)
-	if volumeMounts, err = appendNetworkMounts(container, volumeMounts); err != nil {
-		return err
+	for _, m := range networkMounts {
+		dest, err := container.GetResourcePath(m.Destination)
+		if err != nil {
+			logrus.Warnf("Failed to get volume destination path for container '%s' at '%s' while lazily unmounting: %v", container.ID, m.Destination, err)
+			continue
+		}
+		mountPaths = append(mountPaths, dest)
 	}
 
-	for _, volumeMount := range volumeMounts {
-		if forceSyscall {
-			if err := detachMounted(volumeMount.Destination); err != nil {
-				logrus.Warnf("%s unmountVolumes: Failed to do lazy umount %v", container.ID, err)
-			}
-		}
-
-		if volumeMount.Volume != nil {
-			if err := volumeMount.Volume.Unmount(volumeMount.ID); err != nil {
-				return err
-			}
-			volumeMount.ID = ""
-
-			attributes := map[string]string{
-				"driver":    volumeMount.Volume.DriverName(),
-				"container": container.ID,
-			}
-			volumeEventLog(volumeMount.Volume.Name(), "unmount", attributes)
+	for _, mountPath := range mountPaths {
+		if err := detachMounted(mountPath); err != nil {
+			logrus.Warnf("%s unmountVolumes: Failed to do lazy umount fo volume '%s': %v", container.ID, mountPath, err)
 		}
 	}
-
-	return nil
+	return container.UnmountVolumes(volumeEventLog)
 }
 
 // copyExistingContents copies from the source to the destination and
@@ -395,7 +411,7 @@ func copyOwnership(source, destination string) error {
 }
 
 // TmpfsMounts returns the list of tmpfs mounts
-func (container *Container) TmpfsMounts() []Mount {
+func (container *Container) TmpfsMounts() ([]Mount, error) {
 	var mounts []Mount
 	for dest, data := range container.HostConfig.Tmpfs {
 		mounts = append(mounts, Mount{
@@ -404,7 +420,20 @@ func (container *Container) TmpfsMounts() []Mount {
 			Data:        data,
 		})
 	}
-	return mounts
+	for dest, mnt := range container.MountPoints {
+		if mnt.Type == mounttypes.TypeTmpfs {
+			data, err := volume.ConvertTmpfsOptions(mnt.Spec.TmpfsOptions, mnt.Spec.ReadOnly)
+			if err != nil {
+				return nil, err
+			}
+			mounts = append(mounts, Mount{
+				Source:      "tmpfs",
+				Destination: dest,
+				Data:        data,
+			})
+		}
+	}
+	return mounts, nil
 }
 
 // cleanResourcePath cleans a resource path and prepares to combine with mnt path
@@ -416,4 +445,9 @@ func cleanResourcePath(path string) string {
 // can be mounted locally. A no-op on non-Windows platforms
 func (container *Container) canMountFS() bool {
 	return true
+}
+
+// EnableServiceDiscoveryOnDefaultNetwork Enable service discovery on default network
+func (container *Container) EnableServiceDiscoveryOnDefaultNetwork() bool {
+	return false
 }

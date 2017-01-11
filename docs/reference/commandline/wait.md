@@ -1,17 +1,25 @@
-<!--[metadata]>
-+++
-title = "wait"
-description = "The wait command description and usage"
-keywords = ["container, stop, wait"]
-[menu.main]
-parent = "smn_cli"
-+++
-<![end-metadata]-->
+---
+title: "wait"
+description: "The wait command description and usage"
+keywords: "container, stop, wait"
+---
+
+<!-- This file is maintained within the docker/docker Github
+     repository at https://github.com/docker/docker/. Make all
+     pull requests against that repo. If you see this file in
+     another repository, consider it read-only there, as it will
+     periodically be overwritten by the definitive file. Pull
+     requests which include edits to this file in other repositories
+     will be rejected.
+-->
 
 # wait
 
-    Usage: docker wait [OPTIONS] CONTAINER [CONTAINER...]
+```markdown
+Usage:  docker wait CONTAINER [CONTAINER...]
 
-    Block until a container stops, then print its exit code.
+Block until one or more containers stop, then print their exit codes
 
-      --help          Print usage
+Options:
+      --help   Print usage
+```

@@ -29,7 +29,7 @@ type Flag struct {
 	Value    string
 }
 
-// NewBFlags return the new BFlags struct
+// NewBFlags returns the new BFlags struct
 func NewBFlags() *BFlags {
 	return &BFlags{
 		flags: make(map[string]*Flag),
@@ -167,7 +167,7 @@ func (bf *BFlags) Parse() error {
 			flag.Value = value
 
 		default:
-			panic(fmt.Errorf("No idea what kind of flag we have! Should never get here!"))
+			panic("No idea what kind of flag we have! Should never get here!")
 		}
 
 	}

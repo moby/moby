@@ -10,9 +10,10 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/registry/client/auth"
+	"github.com/docker/distribution/registry/client/auth/challenge"
 	"github.com/docker/distribution/registry/client/transport"
-	"github.com/docker/engine-api/types"
-	registrytypes "github.com/docker/engine-api/types/registry"
+	"github.com/docker/docker/api/types"
+	registrytypes "github.com/docker/docker/api/types/registry"
 )
 
 const (
@@ -91,6 +92,35 @@ func (lcs loginCredentialStore) SetRefreshToken(u *url.URL, service, token strin
 	lcs.authConfig.IdentityToken = token
 }
 
+type staticCredentialStore struct {
+	auth *types.AuthConfig
+}
+
+// NewStaticCredentialStore returns a credential store
+// which always returns the same credential values.
+func NewStaticCredentialStore(auth *types.AuthConfig) auth.CredentialStore {
+	return staticCredentialStore{
+		auth: auth,
+	}
+}
+
+func (scs staticCredentialStore) Basic(*url.URL) (string, string) {
+	if scs.auth == nil {
+		return "", ""
+	}
+	return scs.auth.Username, scs.auth.Password
+}
+
+func (scs staticCredentialStore) RefreshToken(*url.URL, string) string {
+	if scs.auth == nil {
+		return ""
+	}
+	return scs.auth.IdentityToken
+}
+
+func (scs staticCredentialStore) SetRefreshToken(*url.URL, string, string) {
+}
+
 type fallbackError struct {
 	err error
 }
@@ -108,33 +138,14 @@ func loginV2(authConfig *types.AuthConfig, endpoint APIEndpoint, userAgent strin
 	modifiers := DockerHeaders(userAgent, nil)
 	authTransport := transport.NewTransport(NewTransport(endpoint.TLSConfig), modifiers...)
 
-	challengeManager, foundV2, err := PingV2Registry(endpoint, authTransport)
-	if err != nil {
-		if !foundV2 {
-			err = fallbackError{err: err}
-		}
-		return "", "", err
-	}
-
 	credentialAuthConfig := *authConfig
 	creds := loginCredentialStore{
 		authConfig: &credentialAuthConfig,
 	}
 
-	tokenHandlerOptions := auth.TokenHandlerOptions{
-		Transport:     authTransport,
-		Credentials:   creds,
-		OfflineAccess: true,
-		ClientID:      AuthClientID,
-	}
-	tokenHandler := auth.NewTokenHandlerWithOptions(tokenHandlerOptions)
-	basicHandler := auth.NewBasicHandler(creds)
-	modifiers = append(modifiers, auth.NewAuthorizer(challengeManager, tokenHandler, basicHandler))
-	tr := transport.NewTransport(authTransport, modifiers...)
-
-	loginClient := &http.Client{
-		Transport: tr,
-		Timeout:   15 * time.Second,
+	loginClient, foundV2, err := v2AuthHTTPClient(endpoint.URL, authTransport, modifiers, creds, nil)
+	if err != nil {
+		return "", "", err
 	}
 
 	endpointStr := strings.TrimRight(endpoint.URL.String(), "/") + "/v2/"
@@ -168,6 +179,49 @@ func loginV2(authConfig *types.AuthConfig, endpoint APIEndpoint, userAgent strin
 
 }
 
+func v2AuthHTTPClient(endpoint *url.URL, authTransport http.RoundTripper, modifiers []transport.RequestModifier, creds auth.CredentialStore, scopes []auth.Scope) (*http.Client, bool, error) {
+	challengeManager, foundV2, err := PingV2Registry(endpoint, authTransport)
+	if err != nil {
+		if !foundV2 {
+			err = fallbackError{err: err}
+		}
+		return nil, foundV2, err
+	}
+
+	tokenHandlerOptions := auth.TokenHandlerOptions{
+		Transport:     authTransport,
+		Credentials:   creds,
+		OfflineAccess: true,
+		ClientID:      AuthClientID,
+		Scopes:        scopes,
+	}
+	tokenHandler := auth.NewTokenHandlerWithOptions(tokenHandlerOptions)
+	basicHandler := auth.NewBasicHandler(creds)
+	modifiers = append(modifiers, auth.NewAuthorizer(challengeManager, tokenHandler, basicHandler))
+	tr := transport.NewTransport(authTransport, modifiers...)
+
+	return &http.Client{
+		Transport: tr,
+		Timeout:   15 * time.Second,
+	}, foundV2, nil
+
+}
+
+// ConvertToHostname converts a registry url which has http|https prepended
+// to just an hostname.
+func ConvertToHostname(url string) string {
+	stripped := url
+	if strings.HasPrefix(url, "http://") {
+		stripped = strings.TrimPrefix(url, "http://")
+	} else if strings.HasPrefix(url, "https://") {
+		stripped = strings.TrimPrefix(url, "https://")
+	}
+
+	nameParts := strings.SplitN(stripped, "/", 2)
+
+	return nameParts[0]
+}
+
 // ResolveAuthConfig matches an auth configuration to a server address or a URL
 func ResolveAuthConfig(authConfigs map[string]types.AuthConfig, index *registrytypes.IndexInfo) types.AuthConfig {
 	configKey := GetAuthConfigKey(index)
@@ -176,23 +230,10 @@ func ResolveAuthConfig(authConfigs map[string]types.AuthConfig, index *registryt
 		return c
 	}
 
-	convertToHostname := func(url string) string {
-		stripped := url
-		if strings.HasPrefix(url, "http://") {
-			stripped = strings.Replace(url, "http://", "", 1)
-		} else if strings.HasPrefix(url, "https://") {
-			stripped = strings.Replace(url, "https://", "", 1)
-		}
-
-		nameParts := strings.SplitN(stripped, "/", 2)
-
-		return nameParts[0]
-	}
-
 	// Maybe they have a legacy config file, we will iterate the keys converting
 	// them to the new format and testing
 	for registry, ac := range authConfigs {
-		if configKey == convertToHostname(registry) {
+		if configKey == ConvertToHostname(registry) {
 			return ac
 		}
 	}
@@ -208,14 +249,14 @@ type PingResponseError struct {
 }
 
 func (err PingResponseError) Error() string {
-	return err.Error()
+	return err.Err.Error()
 }
 
 // PingV2Registry attempts to ping a v2 registry and on success return a
 // challenge manager for the supported authentication types and
 // whether v2 was confirmed by the response. If a response is received but
 // cannot be interpreted a PingResponseError will be returned.
-func PingV2Registry(endpoint APIEndpoint, transport http.RoundTripper) (auth.ChallengeManager, bool, error) {
+func PingV2Registry(endpoint *url.URL, transport http.RoundTripper) (challenge.Manager, bool, error) {
 	var (
 		foundV2   = false
 		v2Version = auth.APIVersion{
@@ -228,7 +269,7 @@ func PingV2Registry(endpoint APIEndpoint, transport http.RoundTripper) (auth.Cha
 		Transport: transport,
 		Timeout:   15 * time.Second,
 	}
-	endpointStr := strings.TrimRight(endpoint.URL.String(), "/") + "/v2/"
+	endpointStr := strings.TrimRight(endpoint.String(), "/") + "/v2/"
 	req, err := http.NewRequest("GET", endpointStr, nil)
 	if err != nil {
 		return nil, false, err
@@ -251,7 +292,7 @@ func PingV2Registry(endpoint APIEndpoint, transport http.RoundTripper) (auth.Cha
 		}
 	}
 
-	challengeManager := auth.NewSimpleChallengeManager()
+	challengeManager := challenge.NewSimpleManager()
 	if err := challengeManager.AddResponse(resp); err != nil {
 		return nil, foundV2, PingResponseError{
 			Err: err,

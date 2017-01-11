@@ -1,8 +1,9 @@
 package store
 
 import (
-	"errors"
 	"strings"
+
+	"github.com/pkg/errors"
 )
 
 var (
@@ -13,7 +14,7 @@ var (
 	// errInvalidName is a typed error returned when creating a volume with a name that is not valid on the platform
 	errInvalidName = errors.New("volume name is not valid on this platform")
 	// errNameConflict is a typed error returned on create when a volume exists with the given name, but for a different driver
-	errNameConflict = errors.New("conflict: volume name must be unique")
+	errNameConflict = errors.New("volume name must be unique")
 )
 
 // OpErr is the error type returned by functions in the store package. It describes
@@ -64,11 +65,12 @@ func IsNameConflict(err error) bool {
 }
 
 func isErr(err error, expected error) bool {
+	err = errors.Cause(err)
 	switch pe := err.(type) {
 	case nil:
 		return false
 	case *OpErr:
-		err = pe.Err
+		err = errors.Cause(pe.Err)
 	}
 	return err == expected
 }

@@ -1,20 +1,28 @@
-<!--[metadata]>
-+++
-title = "tag"
-description = "The tag command description and usage"
-keywords = ["tag, name, image"]
-[menu.main]
-parent = "smn_cli"
-+++
-<![end-metadata]-->
+---
+title: "tag"
+description: "The tag command description and usage"
+keywords: "tag, name, image"
+---
+
+<!-- This file is maintained within the docker/docker Github
+     repository at https://github.com/docker/docker/. Make all
+     pull requests against that repo. If you see this file in
+     another repository, consider it read-only there, as it will
+     periodically be overwritten by the definitive file. Pull
+     requests which include edits to this file in other repositories
+     will be rejected.
+-->
 
 # tag
 
-    Usage: docker tag [OPTIONS] NAME[:TAG] NAME[:TAG]
+```markdown
+Usage:  docker tag SOURCE_IMAGE[:TAG] TARGET_IMAGE[:TAG]
 
-    Tag an image into a repository
+Create a tag TARGET_IMAGE that refers to SOURCE_IMAGE
 
-      --help               Print usage
+Options:
+      --help   Print usage
+```
 
 An image name is made up of slash-separated name components, optionally prefixed
 by a registry hostname. The hostname must comply with standard DNS rules, but
@@ -30,7 +38,7 @@ periods and dashes. A tag name may not start with a period or a dash and may
 contain a maximum of 128 characters.
 
 You can group your images together using names and tags, and then upload them
-to [*Share Images via Repositories*](../../tutorials/dockerrepos.md#contributing-to-docker-hub).
+to [*Share Images via Repositories*](https://docs.docker.com/engine/tutorials/dockerrepos/#/contributing-to-docker-hub).
 
 # Examples
 

@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/docker/docker/pkg/integration/checker"
+	"github.com/docker/docker/integration-cli/checker"
 	"github.com/go-check/check"
 	"github.com/kr/pty"
 )
@@ -67,4 +67,27 @@ func (s *DockerSuite) TestExecTTY(c *check.C) {
 	read, err := p.Read(buf)
 	c.Assert(err, checker.IsNil)
 	c.Assert(bytes.Contains(buf, []byte("hello")), checker.Equals, true, check.Commentf(string(buf[:read])))
+}
+
+// Test the TERM env var is set when -t is provided on exec
+func (s *DockerSuite) TestExecWithTERM(c *check.C) {
+	testRequires(c, DaemonIsLinux, SameHostDaemon)
+	out, _ := dockerCmd(c, "run", "-id", "busybox", "/bin/cat")
+	contID := strings.TrimSpace(out)
+	cmd := exec.Command(dockerBinary, "exec", "-t", contID, "sh", "-c", "if [ -z $TERM ]; then exit 1; else exit 0; fi")
+	if err := cmd.Run(); err != nil {
+		c.Assert(err, checker.IsNil)
+	}
+}
+
+// Test that the TERM env var is not set on exec when -t is not provided, even if it was set
+// on run
+func (s *DockerSuite) TestExecWithNoTERM(c *check.C) {
+	testRequires(c, DaemonIsLinux, SameHostDaemon)
+	out, _ := dockerCmd(c, "run", "-itd", "busybox", "/bin/cat")
+	contID := strings.TrimSpace(out)
+	cmd := exec.Command(dockerBinary, "exec", contID, "sh", "-c", "if [ -z $TERM ]; then exit 0; else exit 1; fi")
+	if err := cmd.Run(); err != nil {
+		c.Assert(err, checker.IsNil)
+	}
 }

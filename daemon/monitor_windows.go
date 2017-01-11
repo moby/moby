@@ -22,13 +22,22 @@ func (daemon *Daemon) postRunProcessing(container *container.Container, e libcon
 			return err
 		}
 
-		servicingOption := &libcontainerd.ServicingOption{
+		newOpts := []libcontainerd.CreateOption{&libcontainerd.ServicingOption{
 			IsServicing: true,
+		}}
+
+		copts, err := daemon.getLibcontainerdCreateOptions(container)
+		if err != nil {
+			return err
+		}
+
+		if copts != nil {
+			newOpts = append(newOpts, copts...)
 		}
 
 		// Create a new servicing container, which will start, complete the update, and merge back the
 		// results if it succeeded, all as part of the below function call.
-		if err := daemon.containerd.Create((container.ID + "_servicing"), *spec, servicingOption); err != nil {
+		if err := daemon.containerd.Create((container.ID + "_servicing"), "", "", *spec, container.InitializeStdio, newOpts...); err != nil {
 			container.SetExitCode(-1)
 			return fmt.Errorf("Post-run update servicing failed: %s", err)
 		}

@@ -3,7 +3,7 @@ package archive
 import (
 	"archive/tar"
 	"bytes"
-	"io/ioutil"
+	"io"
 )
 
 // Generate generates a new archive from the content provided
@@ -22,7 +22,7 @@ import (
 //
 // FIXME: stream content instead of buffering
 // FIXME: specify permissions and other archive metadata
-func Generate(input ...string) (Archive, error) {
+func Generate(input ...string) (io.Reader, error) {
 	files := parseStringPairs(input...)
 	buf := new(bytes.Buffer)
 	tw := tar.NewWriter(buf)
@@ -42,7 +42,7 @@ func Generate(input ...string) (Archive, error) {
 	if err := tw.Close(); err != nil {
 		return nil, err
 	}
-	return ioutil.NopCloser(buf), nil
+	return buf, nil
 }
 
 func parseStringPairs(input ...string) (output [][2]string) {

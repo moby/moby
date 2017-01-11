@@ -28,8 +28,6 @@ export SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 export MAKEDIR="$SCRIPTDIR/make"
 export PKG_CONFIG=${PKG_CONFIG:-pkg-config}
 
-: ${TEST_REPEAT:=0}
-
 # We're a nice, sexy, little shell script, and people might try to run us;
 # but really, they shouldn't. We want to be in a container!
 inContainer="AssumeSoInitially"
@@ -58,15 +56,6 @@ echo
 
 # List of bundles to create when no argument is passed
 DEFAULT_BUNDLES=(
-	validate-dco
-	validate-default-seccomp
-	validate-gofmt
-	validate-lint
-	validate-pkg
-	validate-test
-	validate-toml
-	validate-vet
-
 	binary-client
 	binary-daemon
 	dynbinary
@@ -75,12 +64,12 @@ DEFAULT_BUNDLES=(
 	test-integration-cli
 	test-docker-py
 
-	cover
 	cross
 	tgz
 )
 
 VERSION=$(< ./VERSION)
+! BUILDTIME=$(date --rfc-3339 ns 2> /dev/null | sed -e 's/ /T/')
 if command -v git &> /dev/null && [ -d .git ] && git rev-parse &> /dev/null; then
 	GITCOMMIT=$(git rev-parse --short HEAD)
 	if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
@@ -88,16 +77,11 @@ if command -v git &> /dev/null && [ -d .git ] && git rev-parse &> /dev/null; the
 		echo "#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 		echo "# GITCOMMIT = $GITCOMMIT"
 		echo "# The version you are building is listed as unsupported because"
-		echo "# there are some files in the git repository that are in an uncommited state."
+		echo "# there are some files in the git repository that are in an uncommitted state."
 		echo "# Commit these changes, or add to .gitignore to remove the -unsupported from the version."
 		echo "# Here is the current list:"
 		git status --porcelain --untracked-files=no
 		echo "#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
-	fi
-	! BUILDTIME=$(date --rfc-3339 ns 2> /dev/null | sed -e 's/ /T/') &> /dev/null
-	if [ -z $BUILDTIME ]; then
-		# If using bash 3.1 which doesn't support --rfc-3389, eg Windows CI
-		BUILDTIME=$(date -u)
 	fi
 elif [ "$DOCKER_GITCOMMIT" ]; then
 	GITCOMMIT="$DOCKER_GITCOMMIT"
@@ -113,12 +97,13 @@ if [ "$AUTO_GOPATH" ]; then
 	rm -rf .gopath
 	mkdir -p .gopath/src/"$(dirname "${DOCKER_PKG}")"
 	ln -sf ../../../.. .gopath/src/"${DOCKER_PKG}"
-	export GOPATH="${PWD}/.gopath:${PWD}/vendor"
+	export GOPATH="${PWD}/.gopath"
 
 	if [ "$(go env GOOS)" = 'solaris' ]; then
 		# sys/unix is installed outside the standard library on solaris
 		# TODO need to allow for version change, need to get version from go
-		export GOPATH="${GOPATH}:/usr/lib/gocode/1.6.2"
+		export GO_VERSION=${GO_VERSION:-"1.7.1"}
+		export GOPATH="${GOPATH}:/usr/lib/gocode/${GO_VERSION}"
 	fi
 fi
 
@@ -126,12 +111,6 @@ if [ ! "$GOPATH" ]; then
 	echo >&2 'error: missing GOPATH; please see https://golang.org/doc/code.html#GOPATH'
 	echo >&2 '  alternatively, set AUTO_GOPATH=1'
 	exit 1
-fi
-
-if [ "$DOCKER_EXPERIMENTAL" ]; then
-	echo >&2 '# WARNING! DOCKER_EXPERIMENTAL is set: building experimental features'
-	echo >&2
-	DOCKER_BUILDTAGS+=" experimental"
 fi
 
 DOCKER_BUILDTAGS+=" daemon"
@@ -176,7 +155,7 @@ ORIG_BUILDFLAGS=( -tags "autogen netgo static_build sqlite_omit_load_extension $
 # When $DOCKER_INCREMENTAL_BINARY is set in the environment, enable incremental
 # builds by installing dependent packages to the GOPATH.
 REBUILD_FLAG="-a"
-if [ "$DOCKER_INCREMENTAL_BINARY" ]; then
+if [ "$DOCKER_INCREMENTAL_BINARY" == "1" ] || [ "$DOCKER_INCREMENTAL_BINARY" == "true" ]; then
 	REBUILD_FLAG="-i"
 fi
 ORIG_BUILDFLAGS+=( $REBUILD_FLAG )
@@ -223,65 +202,6 @@ if \
 	HAVE_GO_TEST_COVER=1
 fi
 
-# If $TESTFLAGS is set in the environment, it is passed as extra arguments to 'go test'.
-# You can use this to select certain tests to run, eg.
-#
-#     TESTFLAGS='-test.run ^TestBuild$' ./hack/make.sh test-unit
-#
-# For integration-cli test, we use [gocheck](https://labix.org/gocheck), if you want
-# to run certain tests on your local host, you should run with command:
-#
-#     TESTFLAGS='-check.f DockerSuite.TestBuild*' ./hack/make.sh binary test-integration-cli
-#
-go_test_dir() {
-	dir=$1
-	coverpkg=$2
-	testcover=()
-	testcoverprofile=()
-	testbinary="$DEST/test.main"
-	if [ "$HAVE_GO_TEST_COVER" ]; then
-		# if our current go install has -cover, we want to use it :)
-		mkdir -p "$DEST/coverprofiles"
-		coverprofile="docker${dir#.}"
-		coverprofile="$ABS_DEST/coverprofiles/${coverprofile//\//-}"
-		testcover=( -test.cover )
-		testcoverprofile=( -test.coverprofile "$coverprofile" $coverpkg )
-	fi
-	(
-		echo '+ go test' $TESTFLAGS "${DOCKER_PKG}${dir#.}"
-		cd "$dir"
-		export DEST="$ABS_DEST" # we're in a subshell, so this is safe -- our integration-cli tests need DEST, and "cd" screws it up
-		go test -c -o "$testbinary" ${testcover[@]} -ldflags "$LDFLAGS" "${BUILDFLAGS[@]}"
-		i=0
-		while ((++i)); do
-			test_env "$testbinary" ${testcoverprofile[@]} $TESTFLAGS
-			if [ $i -gt "$TEST_REPEAT" ]; then
-				break
-			fi
-			echo "Repeating test ($i)"
-		done
-	)
-}
-test_env() {
-	# use "env -i" to tightly control the environment variables that bleed into the tests
-	env -i \
-		DEST="$DEST" \
-		DOCKER_TLS_VERIFY="$DOCKER_TEST_TLS_VERIFY" \
-		DOCKER_CERT_PATH="$DOCKER_TEST_CERT_PATH" \
-		DOCKER_ENGINE_GOARCH="$DOCKER_ENGINE_GOARCH" \
-		DOCKER_GRAPHDRIVER="$DOCKER_GRAPHDRIVER" \
-		DOCKER_USERLANDPROXY="$DOCKER_USERLANDPROXY" \
-		DOCKER_HOST="$DOCKER_HOST" \
-		DOCKER_REMAP_ROOT="$DOCKER_REMAP_ROOT" \
-		DOCKER_REMOTE_DAEMON="$DOCKER_REMOTE_DAEMON" \
-		GOPATH="$GOPATH" \
-		GOTRACEBACK=all \
-		HOME="$ABS_DEST/fake-HOME" \
-		PATH="$PATH" \
-		TEMP="$TEMP" \
-		"$@"
-}
-
 # a helper to provide ".exe" when it's appropriate
 binary_extension() {
 	if [ "$(go env GOOS)" = 'windows' ]; then
@@ -316,7 +236,7 @@ bundle() {
 	source "$SCRIPTDIR/make/$bundle" "$@"
 }
 
-copy_containerd() {
+copy_binaries() {
 	dir="$1"
 	# Add nested executables to bundle dir so we have complete set of
 	# them available, but only if the native OS/ARCH is the same as the
@@ -324,7 +244,7 @@ copy_containerd() {
 	if [ "$(go env GOOS)/$(go env GOARCH)" == "$(go env GOHOSTOS)/$(go env GOHOSTARCH)" ]; then
 		if [ -x /usr/local/bin/docker-runc ]; then
 			echo "Copying nested executables into $dir"
-			for file in containerd containerd-shim containerd-ctr runc; do
+			for file in containerd containerd-shim containerd-ctr runc init proxy; do
 				cp `which "docker-$file"` "$dir/"
 				if [ "$2" == "hash" ]; then
 					hash_files "$dir/docker-$file"
@@ -345,7 +265,6 @@ install_binary() {
 		return 1
 	fi
 }
-
 
 main() {
 	# We want this to fail if the bundles already exist and cannot be removed.

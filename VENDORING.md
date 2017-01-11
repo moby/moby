@@ -20,7 +20,7 @@ Each repo should:
 github releases file.
 
 The goal here is for consuming repos to be able to use the tag version and
-changelog updates to determine whether the vendoring will cause any  breaking or
+changelog updates to determine whether the vendoring will cause any breaking or
 backward incompatible changes. This also means that repos can specify having
 dependency on a package of a specific version or greater up to the next major
 release, without encountering breaking changes.
@@ -38,7 +38,7 @@ to the MAJOR.MINOR.PATCH format."
 
 ## Vendoring cadence
 In order to avoid huge vendoring changes, it is recommended to have a regular
-cadence for vendoring updates. eg. monthly.
+cadence for vendoring updates. e.g. monthly.
 
 ## Pre-merge vendoring tests
 All related repos will be vendored into docker/docker.

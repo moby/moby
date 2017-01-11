@@ -12,7 +12,7 @@ application bundle**, and **stacks** can be created from that bundle. In that
 sense, the bundle is a multi-services distributable image format.
 
 As of Docker 1.12 and Compose 1.8, the features are experimental. Neither
-Docker Engine nor the Docker Registry support distribution of bundles.
+Docker Engine nor the Docker Registry supports distribution of bundles.
 
 ## Producing a bundle
 
@@ -41,11 +41,12 @@ A stack is created using the `docker deploy` command:
 
 Usage:  docker deploy [OPTIONS] STACK
 
-Create and update a stack
+Create and update a stack from a Distributed Application Bundle (DAB)
 
 Options:
-  -f, --bundle string   Path to a bundle (Default: STACK.dab)
-      --help            Print usage
+      --file   string        Path to a Distributed Application Bundle file (Default: STACK.dab)
+      --help                 Print usage
+      --with-registry-auth   Send registry authentication details to Swarm agents
 ```
 
 Let's deploy the stack created before:
@@ -64,15 +65,14 @@ Creating service vossibility-stack_vossibility-collector
 We can verify that services were correctly created:
 
 ```bash
-# docker service ls
-ID            NAME                                     REPLICAS  IMAGE
-COMMAND
-29bv0vnlm903  vossibility-stack_lookupd                1 nsqio/nsq@sha256:eeba05599f31eba418e96e71e0984c3dc96963ceb66924dd37a47bf7ce18a662 /nsqlookupd
-4awt47624qwh  vossibility-stack_nsqd                   1 nsqio/nsq@sha256:eeba05599f31eba418e96e71e0984c3dc96963ceb66924dd37a47bf7ce18a662 /nsqd --data-path=/data --lookupd-tcp-address=lookupd:4160
-4tjx9biia6fs  vossibility-stack_elasticsearch          1 elasticsearch@sha256:12ac7c6af55d001f71800b83ba91a04f716e58d82e748fa6e5a7359eed2301aa
-7563uuzr9eys  vossibility-stack_kibana                 1 kibana@sha256:6995a2d25709a62694a937b8a529ff36da92ebee74bafd7bf00e6caf6db2eb03
-9gc5m4met4he  vossibility-stack_logstash               1 logstash@sha256:2dc8bddd1bb4a5a34e8ebaf73749f6413c101b2edef6617f2f7713926d2141fe logstash -f /etc/logstash/conf.d/logstash.conf
-axqh55ipl40h  vossibility-stack_vossibility-collector  1 icecrime/vossibility-collector@sha256:f03f2977203ba6253988c18d04061c5ec7aab46bca9dfd89a9a1fa4500989fba --config /config/config.toml --debug
+$ docker service ls
+ID            NAME                                     MODE         REPLICAS    IMAGE
+29bv0vnlm903  vossibility-stack_lookupd                replicated   1/1         nsqio/nsq@sha256:eeba05599f31eba418e96e71e0984c3dc96963ceb66924dd37a47bf7ce18a662
+4awt47624qwh  vossibility-stack_nsqd                   replicated   1/1         nsqio/nsq@sha256:eeba05599f31eba418e96e71e0984c3dc96963ceb66924dd37a47bf7ce18a662
+4tjx9biia6fs  vossibility-stack_elasticsearch          replicated   1/1         elasticsearch@sha256:12ac7c6af55d001f71800b83ba91a04f716e58d82e748fa6e5a7359eed2301aa
+7563uuzr9eys  vossibility-stack_kibana                 replicated   1/1         kibana@sha256:6995a2d25709a62694a937b8a529ff36da92ebee74bafd7bf00e6caf6db2eb03
+9gc5m4met4he  vossibility-stack_logstash               replicated   1/1         logstash@sha256:2dc8bddd1bb4a5a34e8ebaf73749f6413c101b2edef6617f2f7713926d2141fe
+axqh55ipl40h  vossibility-stack_vossibility-collector  replicated   1/1         icecrime/vossibility-collector@sha256:f03f2977203ba6253988c18d04061c5ec7aab46bca9dfd89a9a1fa4500989fba
 ```
 
 ## Managing stacks
@@ -92,7 +92,9 @@ Options:
 Commands:
   config      Print the stack configuration
   deploy      Create and update a stack
+  ls          List stacks
   rm          Remove the stack
+  services    List the services in the stack
   tasks       List the tasks in the stack
 
 Run 'docker stack COMMAND --help' for more information on a command.
@@ -180,3 +182,21 @@ A service has the following fields:
     </dd>
 </dl>
 
+The following is an example of bundlefile with two services:
+
+```json
+{
+	"Version": "0.1",
+	"Services": {
+		"redis": {
+			"Image": "redis@sha256:4b24131101fa0117bcaa18ac37055fffd9176aa1a240392bb8ea85e0be50f2ce",
+			"Networks": ["default"]
+		},
+		"web": {
+			"Image": "dockercloud/hello-world@sha256:fe79a2cfbd17eefc344fb8419420808df95a1e22d93b7f621a7399fd1e9dca1d",
+			"Networks": ["default"],
+			"User": "web"
+		}
+	}
+}
+```

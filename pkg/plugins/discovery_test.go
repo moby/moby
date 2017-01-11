@@ -59,7 +59,7 @@ func TestFileSpecPlugin(t *testing.T) {
 		}
 
 		if p.name != c.name {
-			t.Fatalf("Expected plugin `%s`, got %s\n", c.name, p.Name)
+			t.Fatalf("Expected plugin `%s`, got %s\n", c.name, p.name)
 		}
 
 		if p.Addr != c.addr {
@@ -97,8 +97,8 @@ func TestFileJSONSpecPlugin(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if plugin.name != "example" {
-		t.Fatalf("Expected plugin `plugin-example`, got %s\n", plugin.Name)
+	if expected, actual := "example", plugin.name; expected != actual {
+		t.Fatalf("Expected plugin %q, got %s\n", expected, actual)
 	}
 
 	if plugin.Addr != "https://example.com/docker/plugin" {
@@ -115,5 +115,38 @@ func TestFileJSONSpecPlugin(t *testing.T) {
 
 	if plugin.TLSConfig.KeyFile != "/usr/shared/docker/certs/example-key.pem" {
 		t.Fatalf("Expected plugin Key `/usr/shared/docker/certs/example-key.pem`, got %s\n", plugin.TLSConfig.KeyFile)
+	}
+}
+
+func TestFileJSONSpecPluginWithoutTLSConfig(t *testing.T) {
+	tmpdir, unregister := Setup(t)
+	defer unregister()
+
+	p := filepath.Join(tmpdir, "example.json")
+	spec := `{
+  "Name": "plugin-example",
+  "Addr": "https://example.com/docker/plugin"
+}`
+
+	if err := ioutil.WriteFile(p, []byte(spec), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	r := newLocalRegistry()
+	plugin, err := r.Plugin("example")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if expected, actual := "example", plugin.name; expected != actual {
+		t.Fatalf("Expected plugin %q, got %s\n", expected, actual)
+	}
+
+	if plugin.Addr != "https://example.com/docker/plugin" {
+		t.Fatalf("Expected plugin addr `https://example.com/docker/plugin`, got %s\n", plugin.Addr)
+	}
+
+	if plugin.TLSConfig != nil {
+		t.Fatalf("Expected plugin TLSConfig nil, got %v\n", plugin.TLSConfig)
 	}
 }

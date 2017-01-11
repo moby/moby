@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 )
 
 var (
@@ -21,7 +21,7 @@ func Register(scheme string, d Backend) error {
 	if _, exists := backends[scheme]; exists {
 		return fmt.Errorf("scheme already registered %s", scheme)
 	}
-	log.WithField("name", scheme).Debug("Registering discovery service")
+	logrus.WithField("name", scheme).Debugf("Registering discovery service")
 	backends[scheme] = d
 	return nil
 }
@@ -57,7 +57,7 @@ func ParseAdvertise(advertise string) (string, error) {
 		return advertise, nil
 	}
 
-	// If advertise is a valid interface name, get the valid ipv4 address and use it to advertise
+	// If advertise is a valid interface name, get the valid IPv4 address and use it to advertise
 	ifaceName := addr
 	iface, err = net.InterfaceByName(ifaceName)
 	if err != nil {
@@ -69,7 +69,7 @@ func ParseAdvertise(advertise string) (string, error) {
 		return "", fmt.Errorf("unable to get advertise IP address from interface (%s) : %v", advertise, err)
 	}
 
-	if addrs == nil || len(addrs) == 0 {
+	if len(addrs) == 0 {
 		return "", fmt.Errorf("no available advertise IP address in interface (%s)", advertise)
 	}
 
@@ -86,7 +86,7 @@ func ParseAdvertise(advertise string) (string, error) {
 		break
 	}
 	if addr == "" {
-		return "", fmt.Errorf("couldnt find a valid ip-address in interface %s", advertise)
+		return "", fmt.Errorf("could not find a valid ip-address in interface %s", advertise)
 	}
 
 	addr = net.JoinHostPort(addr, port)
@@ -98,7 +98,7 @@ func ParseAdvertise(advertise string) (string, error) {
 func New(rawurl string, heartbeat time.Duration, ttl time.Duration, clusterOpts map[string]string) (Backend, error) {
 	scheme, uri := parse(rawurl)
 	if backend, exists := backends[scheme]; exists {
-		log.WithFields(log.Fields{"name": scheme, "uri": uri}).Debug("Initializing discovery service")
+		logrus.WithFields(logrus.Fields{"name": scheme, "uri": uri}).Debugf("Initializing discovery service")
 		err := backend.Initialize(uri, heartbeat, ttl, clusterOpts)
 		return backend, err
 	}
