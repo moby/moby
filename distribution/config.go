@@ -198,10 +198,18 @@ func (l *storeLayer) Parent() PushLayer {
 	if p == nil {
 		return nil
 	}
-	return &storeLayer{
+	sl := storeLayer{
 		Layer: p,
 		ls:    l.ls,
 	}
+	if d, ok := p.(distribution.Describable); ok {
+		return &describableStoreLayer{
+			storeLayer:  sl,
+			describable: d,
+		}
+	}
+
+	return &sl
 }
 
 func (l *storeLayer) Open() (io.ReadCloser, error) {
