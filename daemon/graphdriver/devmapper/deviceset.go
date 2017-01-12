@@ -477,11 +477,10 @@ func (devices *DeviceSet) loadDeviceFilesOnStart() error {
 }
 
 // Should be called with devices.Lock() held.
-func (devices *DeviceSet) unregisterDevice(id int, hash string) error {
-	logrus.Debugf("devmapper: unregisterDevice(%v, %v)", id, hash)
+func (devices *DeviceSet) unregisterDevice(hash string) error {
+	logrus.Debugf("devmapper: unregisterDevice(%v)", hash)
 	info := &devInfo{
-		Hash:     hash,
-		DeviceID: id,
+		Hash: hash,
 	}
 
 	delete(devices.Devices, hash)
@@ -829,7 +828,7 @@ func (devices *DeviceSet) createRegisterDevice(hash string) (*devInfo, error) {
 	}
 
 	if err := devices.closeTransaction(); err != nil {
-		devices.unregisterDevice(deviceID, hash)
+		devices.unregisterDevice(hash)
 		devicemapper.DeleteDevice(devices.getPoolDevName(), deviceID)
 		devices.markDeviceIDFree(deviceID)
 		return nil, err
@@ -929,7 +928,7 @@ func (devices *DeviceSet) createRegisterSnapDevice(hash string, baseInfo *devInf
 	}
 
 	if err := devices.closeTransaction(); err != nil {
-		devices.unregisterDevice(deviceID, hash)
+		devices.unregisterDevice(hash)
 		devicemapper.DeleteDevice(devices.getPoolDevName(), deviceID)
 		devices.markDeviceIDFree(deviceID)
 		return err
@@ -2004,7 +2003,7 @@ func (devices *DeviceSet) deleteTransaction(info *devInfo, syncDelete bool) erro
 	}
 
 	if err == nil {
-		if err := devices.unregisterDevice(info.DeviceID, info.Hash); err != nil {
+		if err := devices.unregisterDevice(info.Hash); err != nil {
 			return err
 		}
 		// If device was already in deferred delete state that means
