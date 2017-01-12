@@ -454,6 +454,10 @@ type DockerTrustSuite struct {
 	not *testNotary
 }
 
+func (s *DockerTrustSuite) OnTimeout(c *check.C) {
+	s.ds.OnTimeout(c)
+}
+
 func (s *DockerTrustSuite) SetUpTest(c *check.C) {
 	testRequires(c, registry.Hosting, NotaryServerHosting)
 	s.reg = setupRegistry(c, false, "", "")
