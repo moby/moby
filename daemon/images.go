@@ -6,14 +6,12 @@ import (
 	"sort"
 	"time"
 
-	"github.com/pkg/errors"
-
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
-	"github.com/docker/docker/container"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
+	"github.com/pkg/errors"
 )
 
 var acceptedImageFilterTags = map[string]bool{
@@ -46,7 +44,7 @@ func (daemon *Daemon) Images(imageFilters filters.Args, all bool, withExtraAttrs
 	var (
 		allImages    map[image.ID]*image.Image
 		err          error
-		danglingOnly = false
+		danglingOnly bool
 	)
 
 	if err := imageFilters.Validate(acceptedImageFilterTags); err != nil {
@@ -87,7 +85,7 @@ func (daemon *Daemon) Images(imageFilters filters.Args, all bool, withExtraAttrs
 	var imagesMap map[*image.Image]*types.ImageSummary
 	var layerRefs map[layer.ChainID]int
 	var allLayers map[layer.ChainID]layer.Layer
-	var allContainers []*container.Container
+	var containerCounts map[image.ID]int64
 
 	for id, img := range allImages {
 		if beforeFilter != nil {
@@ -113,25 +111,31 @@ func (daemon *Daemon) Images(imageFilters filters.Args, all bool, withExtraAttrs
 			}
 		}
 
-		layerID := img.RootFS.ChainID()
-		var size int64
-		if layerID != "" {
-			l, err := daemon.layerStore.Get(layerID)
-			if err != nil {
-				return nil, err
-			}
+		// Get all references (RepoTags, RepoDigests) for the image
+		refs := daemon.referenceStore.References(id.Digest())
 
-			size, err = l.Size()
-			layer.ReleaseAndLog(daemon.layerStore, l)
-			if err != nil {
-				return nil, err
-			}
+		// An image is "dangling" if it doesn't have references, and does not have children
+		isDangling := len(refs) == 0 && len(daemon.imageStore.Children(id)) == 0
+
+		if isDangling && !all  {
+			continue
+		}
+		if imageFilters.Include("dangling") && danglingOnly != isDangling {
+			// either dangling=true or dangling=false was set, and image doesn't match the filter
+			continue
 		}
 
-		newImage := newImage(img, size)
+		newImage := newImage(img)
+		didMatch := false
 
-		for _, ref := range daemon.referenceStore.References(id.Digest()) {
-			if imageFilters.Include("reference") {
+		for _, ref := range refs {
+			if _, ok := ref.(reference.Canonical); ok {
+				newImage.RepoDigests = append(newImage.RepoDigests, ref.String())
+			}
+			if _, ok := ref.(reference.NamedTagged); ok {
+				newImage.RepoTags = append(newImage.RepoTags, ref.String())
+			}
+			if !didMatch && imageFilters.Include("reference") {
 				var found bool
 				var matchErr error
 				for _, pattern := range imageFilters.Get("reference") {
@@ -139,52 +143,53 @@ func (daemon *Daemon) Images(imageFilters filters.Args, all bool, withExtraAttrs
 					if matchErr != nil {
 						return nil, matchErr
 					}
+					if found {
+						didMatch = true
+						break
+					}
 				}
-				if !found {
-					continue
-				}
-			}
-			if _, ok := ref.(reference.Canonical); ok {
-				newImage.RepoDigests = append(newImage.RepoDigests, ref.String())
-			}
-			if _, ok := ref.(reference.NamedTagged); ok {
-				newImage.RepoTags = append(newImage.RepoTags, ref.String())
 			}
 		}
-		if newImage.RepoDigests == nil && newImage.RepoTags == nil {
-			if all || len(daemon.imageStore.Children(id)) == 0 {
-
-				if imageFilters.Include("dangling") && !danglingOnly {
-					//dangling=false case, so dangling image is not needed
-					continue
-				}
-				if imageFilters.Include("reference") { // skip images with no references if filtering by reference
-					continue
-				}
-				newImage.RepoDigests = []string{"<none>@<none>"}
-				newImage.RepoTags = []string{"<none>:<none>"}
-			} else {
-				continue
-			}
-		} else if danglingOnly && len(newImage.RepoTags) > 0 {
+		if imageFilters.Include("reference") && !didMatch {
 			continue
 		}
 
+		// Collect image's VirtualSize
+		layerID := img.RootFS.ChainID()
+		if layerID != "" {
+			l, err := daemon.layerStore.Get(layerID)
+			if err != nil {
+				return nil, err
+			}
+
+			newImage.VirtualSize, err = l.Size()
+			layer.ReleaseAndLog(daemon.layerStore, l)
+			if err != nil {
+				return nil, err
+			}
+		}
+
 		if withExtraAttrs {
-			// lazyly init variables
+			// lazily init variables
 			if imagesMap == nil {
-				allContainers = daemon.List()
 				allLayers = daemon.layerStore.Map()
 				imagesMap = make(map[*image.Image]*types.ImageSummary)
 				layerRefs = make(map[layer.ChainID]int)
+				containerCounts = make(map[image.ID]int64)
+
+				for _, c := range daemon.List() {
+					if _, ok := containerCounts[c.ImageID]; !ok {
+						containerCounts[c.ImageID] = 1
+						continue
+					}
+					containerCounts[c.ImageID]++
+				}
 			}
 
 			// Get container count
 			newImage.Containers = 0
-			for _, c := range allContainers {
-				if c.ImageID == id {
-					newImage.Containers++
-				}
+			if _, ok := containerCounts[id]; ok {
+				newImage.Containers = containerCounts[id]
 			}
 
 			// count layer references
@@ -318,13 +323,13 @@ func (daemon *Daemon) SquashImage(id, parent string) (string, error) {
 	return string(newImgID), nil
 }
 
-func newImage(image *image.Image, virtualSize int64) *types.ImageSummary {
+func newImage(image *image.Image) *types.ImageSummary {
 	newImage := new(types.ImageSummary)
 	newImage.ParentID = image.Parent.String()
 	newImage.ID = image.ID().String()
 	newImage.Created = image.Created.Unix()
 	newImage.Size = -1
-	newImage.VirtualSize = virtualSize
+	newImage.VirtualSize = -1
 	newImage.SharedSize = -1
 	newImage.Containers = -1
 	if image.Config != nil {
