@@ -14,7 +14,7 @@ func (daemon *Daemon) getLibcontainerdCreateOptions(container *container.Contain
 
 	// Ensure a runtime has been assigned to this container
 	if container.HostConfig.Runtime == "" {
-		container.HostConfig.Runtime = stockRuntimeName
+		container.HostConfig.Runtime = daemon.configStore.GetDefaultRuntimeName()
 		container.ToDisk()
 	}
 
