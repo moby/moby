@@ -45,6 +45,7 @@ type Backend interface {
 	SetContainerSecretReferences(name string, refs []*swarmtypes.SecretReference) error
 	SystemInfo() (*types.Info, error)
 	VolumeCreate(name, driverName string, opts, labels map[string]string) (*types.Volume, error)
+	VolumeUpdate(name string, opts map[string]string, labels map[string]string) (*types.Volume, error)
 	Containers(config *types.ContainerListOptions) ([]*types.Container, error)
 	SetNetworkBootstrapKeys([]*networktypes.EncryptionKey) error
 	DaemonJoinsCluster(provider cluster.Provider)

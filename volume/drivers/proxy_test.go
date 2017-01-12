@@ -22,6 +22,11 @@ func TestVolumeRequestError(t *testing.T) {
 		fmt.Fprintln(w, `{"Err": "Cannot create volume"}`)
 	})
 
+	mux.HandleFunc("/VolumeDriver.Update", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/vnd.docker.plugins.v1+json")
+		fmt.Fprintln(w, `{"Err": "Unknown volume"}`)
+	})
+
 	mux.HandleFunc("/VolumeDriver.Remove", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/vnd.docker.plugins.v1+json")
 		fmt.Fprintln(w, `{"Err": "Cannot remove volume"}`)
@@ -71,6 +76,11 @@ func TestVolumeRequestError(t *testing.T) {
 
 	if !strings.Contains(err.Error(), "Cannot create volume") {
 		t.Fatalf("Unexpected error: %v\n", err)
+	}
+
+	err = driver.Update("volume", map[string]string{"fun": "with", "volume": "update"})
+	if err == nil {
+		t.Fatal("Expected error, was nil")
 	}
 
 	_, err = driver.Mount("volume", "123")

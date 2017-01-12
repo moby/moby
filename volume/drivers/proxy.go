@@ -44,6 +44,25 @@ func (pp *volumeDriverProxy) Create(name string, opts map[string]string) (err er
 	return
 }
 
+func (pp *volumeDriverProxy) Update(name string, opts map[string]string) (err error) {
+	var (
+		req volumeDriverProxyCreateRequest
+		ret volumeDriverProxyCreateResponse
+	)
+
+	req.Name = name
+	req.Opts = opts
+	if err = pp.Call("VolumeDriver.Update", req, &ret); err != nil {
+		return
+	}
+
+	if ret.Err != "" {
+		err = errors.New(ret.Err)
+	}
+
+	return
+}
+
 type volumeDriverProxyRemoveRequest struct {
 	Name string
 }

@@ -35,6 +35,8 @@ type volumeDriver interface {
 	Create(name string, opts map[string]string) (err error)
 	// Remove the volume with the given name
 	Remove(name string) (err error)
+	// Update modfies a volume with the given id.
+	Update(name string, opts map[string]string) (volume *proxyVolume, newOpts map[string]string, err error)
 	// Get the mountpoint of the given volume
 	Path(name string) (mountpoint string, err error)
 	// Mount the given volume and return the mountpoint

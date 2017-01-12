@@ -14,4 +14,5 @@ type Backend interface {
 	VolumeCreate(name, driverName string, opts, labels map[string]string) (*types.Volume, error)
 	VolumeRm(name string, force bool) error
 	VolumesPrune(pruneFilters filters.Args) (*types.VolumesPruneReport, error)
+	VolumeUpdate(name string, opts, labels map[string]string) (*types.Volume, error)
 }

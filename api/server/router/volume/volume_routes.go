@@ -78,3 +78,24 @@ func (v *volumeRouter) postVolumesPrune(ctx context.Context, w http.ResponseWrit
 	}
 	return httputils.WriteJSON(w, http.StatusOK, pruneReport)
 }
+
+func (v *volumeRouter) putVolumeUpdate(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if err := httputils.ParseForm(r); err != nil {
+		return err
+	}
+
+	if err := httputils.CheckForJSON(r); err != nil {
+		return err
+	}
+
+	var req volumetypes.VolumesUpdateBody
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		return err
+	}
+
+	volume, err := v.backend.VolumeUpdate(vars["name"], req.DriverOpts, req.Labels)
+	if err != nil {
+		return err
+	}
+	return httputils.WriteJSON(w, http.StatusCreated, volume)
+}

@@ -29,6 +29,13 @@ func setOpts(v *localVolume, opts map[string]string) error {
 	return nil
 }
 
+func mergeOpts(v *localVolume, newOpts map[string]string) (map[string]string, error) {
+	if len(newOpts) > 0 {
+		return nil, fmt.Errorf("options are not supported on this platform")
+	}
+	return nil, nil
+}
+
 func (v *localVolume) mount() error {
 	return nil
 }

@@ -33,6 +33,8 @@ type Driver interface {
 	Create(name string, opts map[string]string) (Volume, error)
 	// Remove deletes the volume.
 	Remove(vol Volume) (err error)
+	// Update modfies a volume with the given id.
+	Update(name string, opts map[string]string) (Volume, map[string]string, error)
 	// List lists all the volumes the driver has
 	List() ([]Volume, error)
 	// Get retrieves the volume with the requested name

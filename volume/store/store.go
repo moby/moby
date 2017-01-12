@@ -552,6 +552,60 @@ func lookupVolume(driverName, volumeName string) (volume.Volume, error) {
 	return v, nil
 }
 
+// Update looks if a volume with the given name exists and updates it if found.
+// The new volume.Volume is returned.
+func (s *VolumeStore) Update(name string, opts map[string]string, labels map[string]string) (volume.Volume, error) {
+	name = normaliseVolumeName(name)
+	s.locks.Lock(name)
+	defer s.locks.Unlock(name)
+
+	v, err := s.update(name, opts, labels)
+	if err != nil {
+		return nil, &OpErr{Err: err, Name: name, Op: "update"}
+	}
+	s.setNamed(v, "")
+	return v, nil
+}
+
+// update looks up the driver for the volume with the given name.
+// It then passed the new opts and labels for the volume to the driver.
+// It is expected that callers of this function hold any necessary locks.
+func (s *VolumeStore) update(name string, opts map[string]string, labels map[string]string) (volume.Volume, error) {
+	v, _ := s.getVolume(name)
+	if v == nil {
+		return nil, errNoSuchVolume
+	}
+
+	logrus.Debugf("Found volume reference: name %q, looking up driver named %q", v.Name(), v.DriverName())
+	vd, err := volumedrivers.GetDriver(v.DriverName())
+	if err != nil {
+		return nil, &OpErr{Op: "update", Name: name, Err: err}
+	}
+
+	logrus.Debugf("Found volume and driver references: volume %q, driver %q", v.Name(), vd.Name())
+	v, newOpts, err := vd.Update(name, opts)
+	if err != nil {
+		return nil, err
+	}
+
+	s.globalLock.Lock()
+	s.labels[name] = labels
+	s.options[name] = newOpts
+	s.globalLock.Unlock()
+
+	metadata := volumeMetadata{
+		Name:    name,
+		Driver:  vd.Name(),
+		Labels:  labels,
+		Options: newOpts,
+	}
+
+	if err := s.setMeta(name, metadata); err != nil {
+		return nil, err
+	}
+	return volumeWrapper{v, labels, vd.Scope(), newOpts}, nil
+}
+
 // Remove removes the requested volume. A volume is not removed if it has any refs
 func (s *VolumeStore) Remove(v volume.Volume) error {
 	name := normaliseVolumeName(v.Name())
