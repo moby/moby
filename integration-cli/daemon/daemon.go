@@ -180,6 +180,7 @@ func (d *Daemon) getClientConfig() (*clientConfig, error) {
 	if err := sockets.ConfigureTransport(transport, proto, addr); err != nil {
 		return nil, err
 	}
+	transport.DisableKeepAlives = true
 
 	return &clientConfig{
 		transport: transport,
@@ -301,6 +302,7 @@ func (d *Daemon) StartWithLogFile(out *os.File, providedArgs ...string) error {
 			if err != nil {
 				continue
 			}
+			resp.Body.Close()
 			if resp.StatusCode != http.StatusOK {
 				d.log.Logf("[%s] received status != 200 OK: %s\n", d.id, resp.Status)
 			}

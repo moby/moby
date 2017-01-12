@@ -129,6 +129,7 @@ func NewClient(host string) (*http.Client, error) {
 		}
 		transport = &http.Transport{TLSClientConfig: tlsConfig}
 	}
+	transport.DisableKeepAlives = true
 	err = sockets.ConfigureTransport(transport, proto, addr)
 	return &http.Client{
 		Transport: transport,

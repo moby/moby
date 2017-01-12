@@ -1169,6 +1169,7 @@ func (s *DockerSuite) TestContainerAPIChunkedEncoding(c *check.C) {
 		return nil
 	})
 	c.Assert(err, checker.IsNil, check.Commentf("error creating container with chunked encoding"))
+	defer resp.Body.Close()
 	c.Assert(resp.StatusCode, checker.Equals, http.StatusCreated)
 }
 

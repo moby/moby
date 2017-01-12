@@ -258,8 +258,9 @@ func createDeletePredefinedNetwork(c *check.C, name string) {
 
 func isNetworkAvailable(c *check.C, name string) bool {
 	resp, body, err := request.Get(daemonHost(), "/networks")
-	c.Assert(resp.StatusCode, checker.Equals, http.StatusOK)
 	c.Assert(err, checker.IsNil)
+	defer resp.Body.Close()
+	c.Assert(resp.StatusCode, checker.Equals, http.StatusOK)
 
 	nJSON := []types.NetworkResource{}
 	err = json.NewDecoder(body).Decode(&nJSON)
@@ -308,12 +309,13 @@ func getNetworkResource(c *check.C, id string) *types.NetworkResource {
 
 func createNetwork(c *check.C, config types.NetworkCreateRequest, shouldSucceed bool) string {
 	resp, body, err := request.Post(daemonHost(), "/networks/create", request.JSONBody(config))
+	c.Assert(err, checker.IsNil)
+	defer resp.Body.Close()
 	if !shouldSucceed {
 		c.Assert(resp.StatusCode, checker.Not(checker.Equals), http.StatusCreated)
 		return ""
 	}
 
-	c.Assert(err, checker.IsNil)
 	c.Assert(resp.StatusCode, checker.Equals, http.StatusCreated)
 
 	var nr types.NetworkCreateResponse
@@ -345,10 +347,11 @@ func disconnectNetwork(c *check.C, nid, cid string) {
 
 func deleteNetwork(c *check.C, id string, shouldSucceed bool) {
 	resp, _, err := request.Delete(daemonHost(), "/networks/"+id)
+	c.Assert(err, checker.IsNil)
+	defer resp.Body.Close()
 	if !shouldSucceed {
 		c.Assert(resp.StatusCode, checker.Not(checker.Equals), http.StatusOK)
 		return
 	}
 	c.Assert(resp.StatusCode, checker.Equals, http.StatusNoContent)
-	c.Assert(err, checker.IsNil)
 }
