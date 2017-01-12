@@ -1,10 +1,6 @@
 package layer
 
-import (
-	"errors"
-
-	"github.com/docker/docker/daemon/graphdriver"
-)
+import "errors"
 
 // GetLayerPath returns the path to a layer
 func GetLayerPath(s Store, layer ChainID) (string, error) {
@@ -35,8 +31,4 @@ func GetLayerPath(s Store, layer ChainID) (string, error) {
 func (ls *layerStore) mountID(name string) string {
 	// windows has issues if container ID doesn't match mount ID
 	return name
-}
-
-func (ls *layerStore) GraphDriver() graphdriver.Driver {
-	return ls.driver
 }
