@@ -86,7 +86,11 @@ Requires: device-mapper >= 1.02.90-2
 # RE: rhbz#1195804 - ensure min NVR for selinux-policy
 %if 0%{?with_selinux}
 Requires: selinux-policy >= %{selinux_policyver}
+%if 0%{?centos} >= 7
+Requires(pre): docker-selinux
+%else
 Requires(pre): %{name}-selinux >= %{version}-%{release}
+%endif # centos 7+
 %endif # with_selinux
 
 # conflicting packages
