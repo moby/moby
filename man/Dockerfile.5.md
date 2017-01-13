@@ -469,6 +469,6 @@ A Dockerfile is similar to a Makefile.
 
 # HISTORY
 *May 2014, Compiled by Zac Dover (zdover at redhat dot com) based on docker.com Dockerfile documentation.
-*Feb 2015, updated by Brian Goff (cpuguy83@gmail.com) for readability
-*Sept 2015, updated by Sally O'Malley (somalley@redhat.com)
-*Oct 2016, updated by Addam Hardy (addam.hardy@gmail.com)
+*Feb 2015, updated by Brian Goff <cpuguy83@gmail.com> for readability
+*Sept 2015, updated by Sally O'Malley <somalley@redhat.com>
+*Oct 2016, updated by Addam Hardy <addam.hardy@gmail.com>
