@@ -315,13 +315,13 @@ func (daemon *Daemon) SquashImage(id, parent string) (string, error) {
 	return string(newImgID), nil
 }
 
-func newImage(image *image.Image, virtualSize int64) *types.ImageSummary {
+func newImage(image *image.Image, size int64) *types.ImageSummary {
 	newImage := new(types.ImageSummary)
 	newImage.ParentID = image.Parent.String()
 	newImage.ID = image.ID().String()
 	newImage.Created = image.Created.Unix()
-	newImage.Size = virtualSize
-	newImage.VirtualSize = virtualSize
+	newImage.Size = size
+	newImage.VirtualSize = size
 	newImage.SharedSize = -1
 	newImage.Containers = -1
 	if image.Config != nil {
