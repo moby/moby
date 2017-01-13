@@ -3320,7 +3320,7 @@ _docker_plugin_install() {
 
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "--alias --disable --grant-all-permissions --help" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "--alias --disable --disable-content-trust=false --grant-all-permissions --help" -- "$cur" ) )
 			;;
 	esac
 }
