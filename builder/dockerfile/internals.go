@@ -498,7 +498,8 @@ func (b *Builder) create() (string, error) {
 		Resources:   resources,
 		NetworkMode: container.NetworkMode(b.options.NetworkMode),
 		// Set a log config to override any default value set on the daemon
-		LogConfig: defaultLogConfig,
+		LogConfig:  defaultLogConfig,
+		ExtraHosts: b.options.ExtraHosts,
 	}
 
 	config := *b.runConfig

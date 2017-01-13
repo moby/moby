@@ -38,6 +38,7 @@ type buildOptions struct {
 	tags           opts.ListOpts
 	labels         opts.ListOpts
 	buildArgs      opts.ListOpts
+	extraHosts     opts.ListOpts
 	ulimits        *opts.UlimitOpt
 	memory         string
 	memorySwap     string
@@ -65,10 +66,11 @@ type buildOptions struct {
 func NewBuildCommand(dockerCli *command.DockerCli) *cobra.Command {
 	ulimits := make(map[string]*units.Ulimit)
 	options := buildOptions{
-		tags:      opts.NewListOpts(validateTag),
-		buildArgs: opts.NewListOpts(opts.ValidateEnv),
-		ulimits:   opts.NewUlimitOpt(&ulimits),
-		labels:    opts.NewListOpts(opts.ValidateEnv),
+		tags:       opts.NewListOpts(validateTag),
+		buildArgs:  opts.NewListOpts(opts.ValidateEnv),
+		ulimits:    opts.NewUlimitOpt(&ulimits),
+		labels:     opts.NewListOpts(opts.ValidateEnv),
+		extraHosts: opts.NewListOpts(opts.ValidateExtraHost),
 	}
 
 	cmd := &cobra.Command{
@@ -108,6 +110,7 @@ func NewBuildCommand(dockerCli *command.DockerCli) *cobra.Command {
 	flags.StringSliceVar(&options.securityOpt, "security-opt", []string{}, "Security options")
 	flags.StringVar(&options.networkMode, "network", "default", "Set the networking mode for the RUN instructions during build")
 	flags.SetAnnotation("network", "version", []string{"1.25"})
+	flags.Var(&options.extraHosts, "add-host", "Add a custom host-to-IP mapping (host:ip)")
 
 	command.AddTrustVerificationFlags(flags)
 
@@ -301,6 +304,7 @@ func runBuild(dockerCli *command.DockerCli, options buildOptions) error {
 		SecurityOpt:    options.securityOpt,
 		NetworkMode:    options.networkMode,
 		Squash:         options.squash,
+		ExtraHosts:     options.extraHosts.GetAll(),
 	}
 
 	response, err := dockerCli.Client().ImageBuild(ctx, body, buildOptions)

@@ -5546,6 +5546,49 @@ func (s *DockerSuite) TestBuildNetContainer(c *check.C) {
 	c.Assert(strings.TrimSpace(host), check.Equals, "foobar")
 }
 
+func (s *DockerSuite) TestBuildWithExtraHost(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+
+	name := "testbuildwithextrahost"
+	buildImageSuccessfully(c, name,
+		withBuildFlags(
+			"--add-host", "foo:127.0.0.1",
+			"--add-host", "bar:127.0.0.1",
+		),
+		withDockerfile(`
+  FROM busybox
+  RUN ping -c 1 foo
+  RUN ping -c 1 bar
+  `))
+}
+
+func (s *DockerSuite) TestBuildWithExtraHostInvalidFormat(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+	dockerfile := `
+		FROM busybox
+		RUN ping -c 1 foo`
+
+	testCases := []struct {
+		testName   string
+		dockerfile string
+		buildFlag  string
+	}{
+		{"extra_host_missing_ip", dockerfile, "--add-host=foo"},
+		{"extra_host_missing_ip_with_delimeter", dockerfile, "--add-host=foo:"},
+		{"extra_host_missing_hostname", dockerfile, "--add-host=:127.0.0.1"},
+		{"extra_host_invalid_ipv4", dockerfile, "--add-host=foo:101.10.2"},
+		{"extra_host_invalid_ipv6", dockerfile, "--add-host=foo:2001::1::3F"},
+	}
+
+	for _, tc := range testCases {
+		result := buildImage(tc.testName, withBuildFlags(tc.buildFlag), withDockerfile(tc.dockerfile))
+		result.Assert(c, icmd.Expected{
+			ExitCode: 125,
+		})
+	}
+
+}
+
 func (s *DockerSuite) TestBuildSquashParent(c *check.C) {
 	testRequires(c, ExperimentalDaemon)
 	dockerFile := `
