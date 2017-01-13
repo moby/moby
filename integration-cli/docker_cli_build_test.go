@@ -4640,12 +4640,11 @@ func (s *DockerSuite) TestBuildNotVerboseFailureRemote(c *check.C) {
 	}
 }
 
-func (s *DockerSuite) TestBuildStderr(c *check.C) {
-	// This test just makes sure that no non-error output goes
-	// to stderr
-	name := "testbuildstderr"
-	_, _, stderr, err := buildImageWithStdoutStderr(name,
-		"FROM busybox\nRUN echo one", true)
+// TestBuildPrintWarning tests that the security warning is only printed when building an image from a Windows client
+// and a Linux / non-Windows daemon
+func (s *DockerSuite) TestBuildPrintWarning(c *check.C) {
+	name := "testbuildprintwarning"
+	_, out, err := buildImageWithOut(name,"FROM busybox\nRUN echo one", true)
 	if err != nil {
 		c.Fatal(err)
 	}
@@ -4653,13 +4652,13 @@ func (s *DockerSuite) TestBuildStderr(c *check.C) {
 	if runtime.GOOS == "windows" &&
 		daemonPlatform != "windows" {
 		// Windows to non-Windows should have a security warning
-		if !strings.Contains(stderr, "SECURITY WARNING:") {
-			c.Fatalf("Stderr contains unexpected output: %q", stderr)
+		if !strings.Contains(out, "SECURITY WARNING:") {
+			c.Fatalf("Security warning not found in output: %q", out)
 		}
 	} else {
 		// Other platform combinations should have no stderr written too
-		if stderr != "" {
-			c.Fatalf("Stderr should have been empty, instead it's: %q", stderr)
+		if strings.Contains(out, "SECURITY WARNING:") {
+			c.Fatalf("Security warning should not be printed in output: %q", out)
 		}
 	}
 }
