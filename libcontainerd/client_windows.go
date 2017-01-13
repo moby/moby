@@ -90,6 +90,7 @@ const defaultOwner = "docker"
 //	"SandboxPath": "C:\\\\control\\\\windowsfilter",
 //	"HvPartition": true,
 //	"EndpointList": ["e1bb1e61-d56f-405e-b75d-fd520cefa0cb"],
+//	"DNSSearchList": "a.com,b.com,c.com",
 //	"HvRuntime": {
 //		"ImagePath": "C:\\\\control\\\\windowsfilter\\\\65bf96e5760a09edf1790cb229e2dfb2dbd0fcdc0bf7451bae099106bfbfea0c\\\\UtilityVM"
 //	},
@@ -166,6 +167,9 @@ func (clnt *client) Create(containerID string, checkpoint string, checkpointDir 
 		if n, ok := option.(*NetworkEndpointsOption); ok {
 			configuration.EndpointList = n.Endpoints
 			configuration.AllowUnqualifiedDNSQuery = n.AllowUnqualifiedDNSQuery
+			if n.DNSSearchList != nil {
+				configuration.DNSSearchList = strings.Join(n.DNSSearchList, ",")
+			}
 			continue
 		}
 		if c, ok := option.(*CredentialsOption); ok {
