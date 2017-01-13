@@ -208,8 +208,8 @@ existing images and pull them from the registry to a host.
 [Docker Hub](http://hub.docker.com) is a public Docker
 registry which serves a huge collection of existing images and allows you to
 contribute your own. For more information, go to
-[Docker Registry](https://docs.docker.com/registry/overview/) and
-[Docker Trusted Registry](https://docs.docker.com/docker-trusted-registry/overview/).
+[Docker Registry](https://docs.docker.com/registry/) and
+[Docker Trusted Registry](https://docs.docker.com/datacenter/dtr/2.0/).
 
 [Docker store](http://store.docker.com) allows you to buy and sell Docker images.
 For image, you can buy a Docker image containing an application or service from
