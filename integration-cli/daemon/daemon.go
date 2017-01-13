@@ -762,7 +762,7 @@ func (d *Daemon) ReloadConfig() error {
 func WaitInspectWithArgs(dockerBinary, name, expr, expected string, timeout time.Duration, arg ...string) error {
 	after := time.After(timeout)
 
-	args := append(arg, "inspect", "-f", expr, name)
+	args := append(arg, "inspect", "--type", "container", "-f", expr, name)
 	for {
 		result := icmd.RunCommand(dockerBinary, args...)
 		if result.Error != nil {

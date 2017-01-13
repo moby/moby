@@ -17,6 +17,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/versions/v1p20"
 	"github.com/docker/docker/integration-cli/checker"
+	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/daemon"
 	"github.com/docker/docker/pkg/stringid"
 	icmd "github.com/docker/docker/pkg/testutil/cmd"
@@ -1403,22 +1404,26 @@ func checkUnsupportedNetworkAndIP(c *check.C, nwMode string) {
 
 func verifyIPAddressConfig(c *check.C, cName, nwname, ipv4, ipv6 string) {
 	if ipv4 != "" {
-		out := inspectField(c, cName, fmt.Sprintf("NetworkSettings.Networks.%s.IPAMConfig.IPv4Address", nwname))
-		c.Assert(strings.TrimSpace(out), check.Equals, ipv4)
+		cli.Docker(cli.Inspect(cName), cli.Format(fmt.Sprintf(".NetworkSettings.Networks.%s.IPAMConfig.IPv4Address", nwname)), cli.WithFlags("--type", "container")).Assert(c, icmd.Expected{
+			Out: ipv4,
+		})
 	}
 
 	if ipv6 != "" {
-		out := inspectField(c, cName, fmt.Sprintf("NetworkSettings.Networks.%s.IPAMConfig.IPv6Address", nwname))
-		c.Assert(strings.TrimSpace(out), check.Equals, ipv6)
+		cli.Docker(cli.Inspect(cName), cli.Format(fmt.Sprintf(".NetworkSettings.Networks.%s.IPAMConfig.IPv6Address", nwname)), cli.WithFlags("--type", "container")).Assert(c, icmd.Expected{
+			Out: ipv6,
+		})
 	}
 }
 
 func verifyIPAddresses(c *check.C, cName, nwname, ipv4, ipv6 string) {
-	out := inspectField(c, cName, fmt.Sprintf("NetworkSettings.Networks.%s.IPAddress", nwname))
-	c.Assert(strings.TrimSpace(out), check.Equals, ipv4)
+	cli.Docker(cli.Inspect(cName), cli.Format(fmt.Sprintf(".NetworkSettings.Networks.%s.IPAddress", nwname)), cli.WithFlags("--type", "container")).Assert(c, icmd.Expected{
+		Out: ipv4,
+	})
 
-	out = inspectField(c, cName, fmt.Sprintf("NetworkSettings.Networks.%s.GlobalIPv6Address", nwname))
-	c.Assert(strings.TrimSpace(out), check.Equals, ipv6)
+	cli.Docker(cli.Inspect(cName), cli.Format(fmt.Sprintf(".NetworkSettings.Networks.%s.GlobalIPv6Address", nwname)), cli.WithFlags("--type", "container")).Assert(c, icmd.Expected{
+		Out: ipv6,
+	})
 }
 
 func (s *DockerNetworkSuite) TestDockerNetworkConnectLinkLocalIP(c *check.C) {

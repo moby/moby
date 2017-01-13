@@ -360,7 +360,7 @@ func (s *DockerExternalGraphdriverSuite) testExternalGraphDriver(name string, ex
 
 	s.d.Restart(c, "-s", name)
 
-	out, err = s.d.Cmd("inspect", "--format={{.GraphDriver.Name}}", "graphtest")
+	out, err = s.d.Cmd("inspect", "--type", "container", "--format={{.GraphDriver.Name}}", "graphtest")
 	c.Assert(err, check.IsNil, check.Commentf(out))
 	c.Assert(strings.TrimSpace(out), check.Equals, name)
 
