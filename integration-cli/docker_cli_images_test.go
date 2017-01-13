@@ -67,6 +67,36 @@ func (s *DockerSuite) TestImagesOrderedByCreationDate(c *check.C) {
 	c.Assert(imgs[2], checker.Equals, id1, check.Commentf("First image must be %s, got %s", id1, imgs[2]))
 }
 
+func (s *DockerSuite) TestImagesOrderedInReverseByCreationDate(c *check.C) {
+	id1, err := buildImage("reverse_order:test_a",
+		`FROM busybox
+                MAINTAINER dockerio1`, true)
+	c.Assert(err, checker.IsNil)
+	time.Sleep(1 * time.Second)
+	id2, err := buildImage("reverse_order:test_c",
+		`FROM busybox
+                MAINTAINER dockerio2`, true)
+	c.Assert(err, checker.IsNil)
+	time.Sleep(1 * time.Second)
+	id3, err := buildImage("reverse_order:test_b",
+		`FROM busybox
+                MAINTAINER dockerio3`, true)
+	c.Assert(err, checker.IsNil)
+
+	out, _ := dockerCmd(c, "images", "-q", "--no-trunc", "-f", "reverse=true")
+	out = strings.TrimSpace(out)
+	imgs := strings.Split(out, "\n")
+
+	// Get the last three images
+	img0 := imgs[len(imgs)-1]
+	img1 := imgs[len(imgs)-2]
+	img2 := imgs[len(imgs)-3]
+
+	c.Assert(img0, checker.Equals, id3, check.Commentf("Image must be %s, got %s", id3, img0))
+	c.Assert(img1, checker.Equals, id2, check.Commentf("Image must be %s, got %s", id2, img1))
+	c.Assert(img2, checker.Equals, id1, check.Commentf("Image must be %s, got %s", id1, img2))
+}
+
 func (s *DockerSuite) TestImagesErrorWithInvalidFilterNameTest(c *check.C) {
 	out, _, err := dockerCmdWithError("images", "-f", "FOO=123")
 	c.Assert(err, checker.NotNil)

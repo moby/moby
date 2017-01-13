@@ -399,14 +399,14 @@ __docker_complete_images_filters() {
     declare -a boolean_opts opts
 
     boolean_opts=('true' 'false')
-    opts=('before' 'dangling' 'label' 'reference' 'since')
+    opts=('before' 'dangling' 'label' 'reference' 'since' 'reverse')
 
     if compset -P '*='; then
         case "${${words[-1]%=*}#*=}" in
             (before|reference|since)
                 __docker_complete_images && ret=0
                 ;;
-            (dangling)
+            (dangling|reverse)
                 _describe -t boolean-filter-opts "filter options" boolean_opts && ret=0
                 ;;
             *)

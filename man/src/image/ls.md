@@ -18,6 +18,7 @@ versions.
 Filters the output based on these conditions:
 
    - dangling=(true|false) - find unused images
+   - reverse=(true|false) - sort images in reverse order by creation date
    - label=<key> or label=<key>=<value>
    - before=(<image-name>[:tag]|<image-id>|<image@digest>)
    - since=(<image-name>[:tag]|<image-id>|<image@digest>)

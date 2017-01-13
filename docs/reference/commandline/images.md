@@ -25,6 +25,7 @@ Options:
       --digests         Show digests
   -f, --filter value    Filter output based on conditions provided (default [])
                         - dangling=(true|false)
+                        - reverse=(true|false)
                         - label=<key> or label=<key>=<value>
                         - before=(<image-name>[:tag]|<image-id>|<image@digest>)
                         - since=(<image-name>[:tag]|<image-id>|<image@digest>)
