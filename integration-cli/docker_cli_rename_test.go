@@ -104,7 +104,7 @@ func (s *DockerSuite) TestRenameAnonymousContainer(c *check.C) {
 	dockerCmd(c, "start", "container1")
 
 	count := "-c"
-	if daemonPlatform == "windows" {
+	if testEnv.DaemonPlatform() == "windows" {
 		count = "-n"
 	}
 

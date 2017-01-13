@@ -636,7 +636,7 @@ func (s *DockerRegistrySuite) TestPullFailsWithAlteredLayer(c *check.C) {
 	// digest verification for the target layer digest.
 
 	// Remove distribution cache to force a re-pull of the blobs
-	if err := os.RemoveAll(filepath.Join(dockerBasePath, "image", s.d.StorageDriver(), "distribution")); err != nil {
+	if err := os.RemoveAll(filepath.Join(testEnv.DockerBasePath(), "image", s.d.StorageDriver(), "distribution")); err != nil {
 		c.Fatalf("error clearing distribution cache: %v", err)
 	}
 
@@ -679,7 +679,7 @@ func (s *DockerSchema1RegistrySuite) TestPullFailsWithAlteredLayer(c *check.C) {
 	// digest verification for the target layer digest.
 
 	// Remove distribution cache to force a re-pull of the blobs
-	if err := os.RemoveAll(filepath.Join(dockerBasePath, "image", s.d.StorageDriver(), "distribution")); err != nil {
+	if err := os.RemoveAll(filepath.Join(testEnv.DockerBasePath(), "image", s.d.StorageDriver(), "distribution")); err != nil {
 		c.Fatalf("error clearing distribution cache: %v", err)
 	}
 

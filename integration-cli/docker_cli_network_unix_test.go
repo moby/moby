@@ -49,7 +49,7 @@ type DockerNetworkSuite struct {
 
 func (s *DockerNetworkSuite) SetUpTest(c *check.C) {
 	s.d = daemon.New(c, dockerBinary, dockerdBinary, daemon.Config{
-		Experimental: experimentalDaemon,
+		Experimental: testEnv.ExperimentalDaemon(),
 	})
 }
 

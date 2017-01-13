@@ -47,7 +47,7 @@ func (s *DockerSuite) TestPluginBasicOps(c *check.C) {
 	c.Assert(err, checker.IsNil)
 	c.Assert(out, checker.Contains, pNameWithTag)
 
-	_, err = os.Stat(filepath.Join(dockerBasePath, "plugins", id))
+	_, err = os.Stat(filepath.Join(testEnv.DockerBasePath(), "plugins", id))
 	if !os.IsNotExist(err) {
 		c.Fatal(err)
 	}

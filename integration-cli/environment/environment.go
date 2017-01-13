@@ -8,11 +8,10 @@ import (
 	"strconv"
 	"strings"
 
-	"golang.org/x/net/context"
-
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
+	"golang.org/x/net/context"
 )
 
 // Execution holds informations about the test execution environment.

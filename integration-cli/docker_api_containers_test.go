@@ -919,7 +919,7 @@ func (s *DockerSuite) TestContainerAPIStart(c *check.C) {
 	c.Assert(err, checker.IsNil)
 
 	// TODO(tibor): figure out why this doesn't work on windows
-	if isLocalDaemon {
+	if testEnv.LocalDaemon() {
 		c.Assert(status, checker.Equals, http.StatusNotModified)
 	}
 }
@@ -943,7 +943,7 @@ func (s *DockerSuite) TestContainerAPIWait(c *check.C) {
 	name := "test-api-wait"
 
 	sleepCmd := "/bin/sleep"
-	if daemonPlatform == "windows" {
+	if testEnv.DaemonPlatform() == "windows" {
 		sleepCmd = "sleep"
 	}
 	dockerCmd(c, "run", "--name", name, "busybox", sleepCmd, "2")
@@ -1112,7 +1112,7 @@ func (s *DockerSuite) TestContainerAPIDeleteRemoveVolume(c *check.C) {
 	testRequires(c, SameHostDaemon)
 
 	vol := "/testvolume"
-	if daemonPlatform == "windows" {
+	if testEnv.DaemonPlatform() == "windows" {
 		vol = `c:\testvolume`
 	}
 
@@ -1769,7 +1769,7 @@ func (s *DockerSuite) TestContainersAPICreateMountsCreate(c *check.C) {
 		err     error
 		testImg string
 	)
-	if daemonPlatform != "windows" {
+	if testEnv.DaemonPlatform() != "windows" {
 		testImg, err = buildImage("test-mount-config", `
 	FROM busybox
 	RUN mkdir `+destPath+` && touch `+destPath+slash+`bar
@@ -1822,7 +1822,7 @@ func (s *DockerSuite) TestContainersAPICreateMountsCreate(c *check.C) {
 		}
 	}
 
-	if daemonPlatform != "windows" { // Windows does not support volume populate
+	if testEnv.DaemonPlatform() != "windows" { // Windows does not support volume populate
 		cases = append(cases, []testCase{
 			{mounttypes.Mount{Type: "volume", Target: destPath, VolumeOptions: &mounttypes.VolumeOptions{NoCopy: true}}, types.MountPoint{Driver: volume.DefaultDriverName, Type: "volume", RW: true, Destination: destPath}},
 			{mounttypes.Mount{Type: "volume", Target: destPath + slash, VolumeOptions: &mounttypes.VolumeOptions{NoCopy: true}}, types.MountPoint{Driver: volume.DefaultDriverName, Type: "volume", RW: true, Destination: destPath}},
@@ -1872,7 +1872,7 @@ func (s *DockerSuite) TestContainersAPICreateMountsCreate(c *check.C) {
 		}
 
 		out, _, err := dockerCmdWithError("start", "-a", id)
-		if (x.cfg.Type != "volume" || (x.cfg.VolumeOptions != nil && x.cfg.VolumeOptions.NoCopy)) && daemonPlatform != "windows" {
+		if (x.cfg.Type != "volume" || (x.cfg.VolumeOptions != nil && x.cfg.VolumeOptions.NoCopy)) && testEnv.DaemonPlatform() != "windows" {
 			c.Assert(err, checker.NotNil, check.Commentf("%s\n%v", out, mps[0]))
 		} else {
 			c.Assert(err, checker.IsNil, check.Commentf("%s\n%v", out, mps[0]))

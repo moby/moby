@@ -80,7 +80,7 @@ func deleteAllNetworks(c *check.C) {
 		if n.Name == "bridge" || n.Name == "none" || n.Name == "host" {
 			continue
 		}
-		if daemonPlatform == "windows" && strings.ToLower(n.Name) == "nat" {
+		if testEnv.DaemonPlatform() == "windows" && strings.ToLower(n.Name) == "nat" {
 			// nat is a pre-defined network on Windows and cannot be removed
 			continue
 		}
@@ -290,7 +290,7 @@ func dockerCmdInDir(c *check.C, path string, args ...string) (string, int, error
 // validateArgs is a checker to ensure tests are not running commands which are
 // not supported on platforms. Specifically on Windows this is 'busybox top'.
 func validateArgs(args ...string) error {
-	if daemonPlatform != "windows" {
+	if testEnv.DaemonPlatform() != "windows" {
 		return nil
 	}
 	foundBusybox := -1
@@ -448,7 +448,7 @@ func fakeStorage(files map[string]string) (FakeStorage, error) {
 
 // fakeStorageWithContext returns either a local or remote (at daemon machine) file server
 func fakeStorageWithContext(ctx *FakeContext) (FakeStorage, error) {
-	if isLocalDaemon {
+	if testEnv.LocalDaemon() {
 		return newLocalFakeStorage(ctx)
 	}
 	return newRemoteFileServer(ctx)
@@ -1027,7 +1027,7 @@ func readFile(src string, c *check.C) (content string) {
 }
 
 func containerStorageFile(containerID, basename string) string {
-	return filepath.Join(containerStoragePath, containerID, basename)
+	return filepath.Join(testEnv.ContainerStoragePath(), containerID, basename)
 }
 
 // docker commands that use this function must be run with the '-d' switch.
@@ -1068,7 +1068,7 @@ func readContainerFileWithExec(containerID, filename string) ([]byte, error) {
 
 // daemonTime provides the current time on the daemon host
 func daemonTime(c *check.C) time.Time {
-	if isLocalDaemon {
+	if testEnv.LocalDaemon() {
 		return time.Now()
 	}
 

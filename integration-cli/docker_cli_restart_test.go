@@ -253,7 +253,7 @@ func (s *DockerSuite) TestRestartContainerwithRestartPolicy(c *check.C) {
 	id1 := strings.TrimSpace(string(out1))
 	id2 := strings.TrimSpace(string(out2))
 	waitTimeout := 15 * time.Second
-	if daemonPlatform == "windows" {
+	if testEnv.DaemonPlatform() == "windows" {
 		waitTimeout = 150 * time.Second
 	}
 	err := waitInspect(id1, "{{ .State.Restarting }} {{ .State.Running }}", "false false", waitTimeout)
