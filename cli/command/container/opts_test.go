@@ -456,6 +456,14 @@ func TestParseRestartPolicy(t *testing.T) {
 	}
 }
 
+func TestParseRestartPolicyAutoRemove(t *testing.T) {
+	expected := "Conflicting options: --restart and --rm"
+	_, _, _, err := parseRun([]string{"--rm", "--restart=always", "img", "cmd"})
+	if err == nil || err.Error() != expected {
+		t.Fatalf("Expected error %v, but got none", expected)
+	}
+}
+
 func TestParseHealth(t *testing.T) {
 	checkOk := func(args ...string) *container.HealthConfig {
 		config, _, _, err := parseRun(args)
