@@ -128,3 +128,39 @@ func (s *DockerSuite) TestAPIImagesSearchJSONContentType(c *check.C) {
 	c.Assert(res.StatusCode, checker.Equals, http.StatusOK)
 	c.Assert(res.Header.Get("Content-Type"), checker.Equals, "application/json")
 }
+
+// Test case for 30027: image size reported as -1 in v1.12 client against v1.13 daemon.
+// This test checks to make sure both v1.12 and v1.13 client against v1.13 daemon get correct `Size` after the fix.
+func (s *DockerSuite) TestAPIImagesSizeCompatibility(c *check.C) {
+	status, b, err := request.SockRequest("GET", "/images/json", nil, daemonHost())
+	c.Assert(err, checker.IsNil)
+	c.Assert(status, checker.Equals, http.StatusOK)
+	var images []types.ImageSummary
+	err = json.Unmarshal(b, &images)
+	c.Assert(err, checker.IsNil)
+	c.Assert(len(images), checker.Not(checker.Equals), 0)
+	for _, image := range images {
+		c.Assert(image.Size, checker.Not(checker.Equals), int64(-1))
+	}
+
+	type v124Image struct {
+		ID          string `json:"Id"`
+		ParentID    string `json:"ParentId"`
+		RepoTags    []string
+		RepoDigests []string
+		Created     int64
+		Size        int64
+		VirtualSize int64
+		Labels      map[string]string
+	}
+	status, b, err = request.SockRequest("GET", "/v1.24/images/json", nil, daemonHost())
+	c.Assert(err, checker.IsNil)
+	c.Assert(status, checker.Equals, http.StatusOK)
+	var v124Images []v124Image
+	err = json.Unmarshal(b, &v124Images)
+	c.Assert(err, checker.IsNil)
+	c.Assert(len(v124Images), checker.Not(checker.Equals), 0)
+	for _, image := range v124Images {
+		c.Assert(image.Size, checker.Not(checker.Equals), int64(-1))
+	}
+}
