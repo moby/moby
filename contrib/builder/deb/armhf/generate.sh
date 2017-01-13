@@ -133,7 +133,7 @@ for version in "${versions[@]}"; do
 
 	echo >> "$version/Dockerfile"
 
-	awk '$1 == "ENV" && $2 == "GO_VERSION" { print; exit }' ../../../../Dockerfile >> "$version/Dockerfile"
+	awk '$1 == "ENV" && $2 == "GO_VERSION" { print; exit }' ../../../../Dockerfile.armhf >> "$version/Dockerfile"
 	if [ "$distro" == 'raspbian' ];
 	then
 		cat <<EOF >> "$version/Dockerfile"
