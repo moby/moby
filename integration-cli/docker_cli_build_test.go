@@ -7388,3 +7388,55 @@ func (s *DockerSuite) TestBuildWorkdirCmd(c *check.C) {
 	c.Assert(err, checker.IsNil)
 	c.Assert(strings.Count(out, "Using cache"), checker.Equals, 1)
 }
+
+func (s *DockerSuite) TestBuildLineErrorOnBuild(c *check.C) {
+	name := "test_build_line_error_onbuild"
+
+	_, err := buildImage(name,
+		`FROM busybox
+  ONBUILD
+  `, true)
+	c.Assert(err.Error(), checker.Contains, "Dockerfile parse error line 2: ONBUILD requires at least one argument")
+}
+
+func (s *DockerSuite) TestBuildLineErrorUknownInstruction(c *check.C) {
+	name := "test_build_line_error_unknown_instruction"
+
+	_, err := buildImage(name,
+		`FROM busybox
+  RUN echo hello world
+  NOINSTRUCTION echo ba
+  RUN echo hello
+  ERROR
+  `, true)
+	c.Assert(err.Error(), checker.Contains, "Dockerfile parse error line 3: Unknown instruction: NOINSTRUCTION")
+}
+
+func (s *DockerSuite) TestBuildLineErrorWithEmptyLines(c *check.C) {
+	name := "test_build_line_error_with_empty_lines"
+
+	_, err := buildImage(name,
+		`
+  FROM busybox
+
+  RUN echo hello world
+
+  NOINSTRUCTION echo ba
+
+  CMD ["/bin/init"]
+  `, true)
+	c.Assert(err.Error(), checker.Contains, "Dockerfile parse error line 6: Unknown instruction: NOINSTRUCTION")
+}
+
+func (s *DockerSuite) TestBuildLineErrorWithComments(c *check.C) {
+	name := "test_build_line_error_with_comments"
+
+	_, err := buildImage(name,
+		`FROM busybox
+  # This will print hello world
+  # and then ba
+  RUN echo hello world
+  RUM echo ba
+  `, true)
+	c.Assert(err.Error(), checker.Contains, "Dockerfile parse error line 5: Unknown instruction: RUM")
+}
