@@ -26,7 +26,7 @@ func NewInMemoryBlobDescriptorCacheProvider() cache.BlobDescriptorCacheProvider 
 }
 
 func (imbdcp *inMemoryBlobDescriptorCacheProvider) RepositoryScoped(repo string) (distribution.BlobDescriptorService, error) {
-	if _, err := reference.ParseNamed(repo); err != nil {
+	if _, err := reference.ParseNormalizedNamed(repo); err != nil {
 		return nil, err
 	}
 
