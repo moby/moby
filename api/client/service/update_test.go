@@ -60,6 +60,20 @@ func TestUpdatePlacement(t *testing.T) {
 	assert.Equal(t, placement.Constraints[1], "node=toadd")
 }
 
+func TestUpdatePlacementDuplicateValue(t *testing.T) {
+	flags := newUpdateCommand(nil).Flags()
+	flags.Set("constraint-add", "node=toadd")
+	flags.Set("constraint-rm", "node!=toremove")
+
+	placement := &swarm.Placement{
+		Constraints: []string{"node!=toremove", "node=toadd"},
+	}
+
+	updatePlacement(flags, placement)
+	assert.Equal(t, len(placement.Constraints), 1)
+	assert.Equal(t, placement.Constraints[0], "node=toadd")
+}
+
 func TestUpdateEnvironment(t *testing.T) {
 	flags := newUpdateCommand(nil).Flags()
 	flags.Set("env-add", "toadd=newenv")
@@ -111,8 +125,23 @@ func TestUpdateMounts(t *testing.T) {
 
 	updateMounts(flags, &mounts)
 	assert.Equal(t, len(mounts), 2)
-	assert.Equal(t, mounts[0].Target, "/tokeep")
-	assert.Equal(t, mounts[1].Target, "/toadd")
+	assert.Equal(t, mounts[0].Target, "/toadd")
+	assert.Equal(t, mounts[1].Target, "/tokeep")
+}
+
+func TestUpdateMountsDuplicateTarget(t *testing.T) {
+	flags := newUpdateCommand(nil).Flags()
+	flags.Set("mount-add", "type=volume,target=/toadd")
+	flags.Set("mount-rm", "/toremove")
+
+	mounts := []swarm.Mount{
+		{Target: "/toremove", Type: swarm.MountTypeBind},
+		{Target: "/toadd", Type: swarm.MountTypeBind},
+	}
+
+	updateMounts(flags, &mounts)
+	assert.Equal(t, len(mounts), 1)
+	assert.Equal(t, mounts[0].Target, "/toadd")
 }
 
 func TestUpdatePorts(t *testing.T) {
