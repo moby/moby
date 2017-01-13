@@ -75,9 +75,9 @@ argument of `DEST_PATH`, the behavior is as follows:
     - `DEST_PATH` exists and is a file
         - Error condition: cannot copy a directory to a file
     - `DEST_PATH` exists and is a directory
-        - `SRC_PATH` does not end with `/.`
+        - `SRC_PATH` does not end with `/.` (that is: _slash_ followed by _dot_)
             - the source directory is copied into this directory
-        - `SRC_PATH` does end with `/.`
+        - `SRC_PATH` does end with `/.` (that is: _slash_ followed by _dot_)
             - the *content* of the source directory is copied into this
               directory
 
