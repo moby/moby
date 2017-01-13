@@ -60,4 +60,3 @@ The currently supported filters are:
 * [stack deploy](stack_deploy.md)
 * [stack rm](stack_rm.md)
 * [stack ps](stack_ps.md)
-* [stack ls](stack_ls.md)
