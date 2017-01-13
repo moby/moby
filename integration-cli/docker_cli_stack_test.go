@@ -1,15 +1,18 @@
 package main
 
 import (
+	"encoding/json"
 	"io/ioutil"
 	"os"
+	"sort"
 
+	"github.com/docker/docker/api/types/swarm"
+	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/pkg/integration/checker"
 	"github.com/go-check/check"
 )
 
 func (s *DockerSwarmSuite) TestStackRemove(c *check.C) {
-	testRequires(c, ExperimentalDaemon)
 	d := s.AddDaemon(c, true, true)
 
 	stackArgs := append([]string{"stack", "remove", "UNKNOWN_STACK"})
@@ -20,7 +23,6 @@ func (s *DockerSwarmSuite) TestStackRemove(c *check.C) {
 }
 
 func (s *DockerSwarmSuite) TestStackTasks(c *check.C) {
-	testRequires(c, ExperimentalDaemon)
 	d := s.AddDaemon(c, true, true)
 
 	stackArgs := append([]string{"stack", "ps", "UNKNOWN_STACK"})
@@ -31,7 +33,6 @@ func (s *DockerSwarmSuite) TestStackTasks(c *check.C) {
 }
 
 func (s *DockerSwarmSuite) TestStackServices(c *check.C) {
-	testRequires(c, ExperimentalDaemon)
 	d := s.AddDaemon(c, true, true)
 
 	stackArgs := append([]string{"stack", "services", "UNKNOWN_STACK"})
@@ -42,7 +43,6 @@ func (s *DockerSwarmSuite) TestStackServices(c *check.C) {
 }
 
 func (s *DockerSwarmSuite) TestStackDeployComposeFile(c *check.C) {
-	testRequires(c, ExperimentalDaemon)
 	d := s.AddDaemon(c, true, true)
 
 	testStackName := "testdeploy"
@@ -64,6 +64,43 @@ func (s *DockerSwarmSuite) TestStackDeployComposeFile(c *check.C) {
 	c.Assert(err, checker.IsNil)
 	c.Assert(out, check.Equals, "NAME  SERVICES\n")
 }
+
+func (s *DockerSwarmSuite) TestStackDeployWithSecretsTwice(c *check.C) {
+	d := s.AddDaemon(c, true, true)
+
+	testStackName := "testdeploy"
+	stackArgs := []string{
+		"stack", "deploy",
+		"--compose-file", "fixtures/deploy/secrets.yaml",
+		testStackName,
+	}
+	out, err := d.Cmd(stackArgs...)
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+
+	out, err = d.Cmd("service", "inspect", "--format", "{{ json .Spec.TaskTemplate.ContainerSpec.Secrets }}", "testdeploy_web")
+	c.Assert(err, checker.IsNil)
+
+	var refs []swarm.SecretReference
+	c.Assert(json.Unmarshal([]byte(out), &refs), checker.IsNil)
+	c.Assert(refs, checker.HasLen, 2)
+
+	sort.Sort(sortSecrets(refs))
+	c.Assert(refs[0].SecretName, checker.Equals, "testdeploy_special")
+	c.Assert(refs[0].File.Name, checker.Equals, "special")
+	c.Assert(refs[1].SecretName, checker.Equals, "testdeploy_super")
+	c.Assert(refs[1].File.Name, checker.Equals, "foo.txt")
+	c.Assert(refs[1].File.Mode, checker.Equals, os.FileMode(0400))
+
+	// Deploy again to ensure there are no errors when secret hasn't changed
+	out, err = d.Cmd(stackArgs...)
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+}
+
+type sortSecrets []swarm.SecretReference
+
+func (s sortSecrets) Len() int           { return len(s) }
+func (s sortSecrets) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
+func (s sortSecrets) Less(i, j int) bool { return s[i].SecretName < s[j].SecretName }
 
 // testDAB is the DAB JSON used for testing.
 // TODO: Use template/text and substitute "Image" with the result of
