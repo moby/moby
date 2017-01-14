@@ -12,22 +12,6 @@ import (
 	"github.com/go-check/check"
 )
 
-func waitForStatus(c *check.C, name string, prev string, expected string) {
-	prev = prev + "\n"
-	expected = expected + "\n"
-	for {
-		out, _ := dockerCmd(c, "inspect", "--format={{.State.Status}}", name)
-		if out == expected {
-			return
-		}
-		c.Check(out, checker.Equals, prev)
-		if out != prev {
-			return
-		}
-		time.Sleep(100 * time.Millisecond)
-	}
-}
-
 func waitForHealthStatus(c *check.C, name string, prev string, expected string) {
 	prev = prev + "\n"
 	expected = expected + "\n"

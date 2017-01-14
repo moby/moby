@@ -251,7 +251,7 @@ func (s *DockerTrustSuite) setupTrustedplugin(c *check.C, source, name string) s
 	return repoName
 }
 
-func notaryClientEnv(cmd *exec.Cmd) {
+func (s *DockerTrustSuite) notaryCmd(c *check.C, args ...string) string {
 	pwd := "12345678"
 	env := []string{
 		fmt.Sprintf("NOTARY_ROOT_PASSPHRASE=%s", pwd),
@@ -259,16 +259,16 @@ func notaryClientEnv(cmd *exec.Cmd) {
 		fmt.Sprintf("NOTARY_SNAPSHOT_PASSPHRASE=%s", pwd),
 		fmt.Sprintf("NOTARY_DELEGATION_PASSPHRASE=%s", pwd),
 	}
-	cmd.Env = append(os.Environ(), env...)
+	result := icmd.RunCmd(icmd.Cmd{
+		Command: append([]string{notaryBinary, "-c", filepath.Join(s.not.dir, "client-config.json")}, args...),
+		Env:     append(os.Environ(), env...),
+	})
+	result.Assert(c, icmd.Success)
+	return result.Combined()
 }
 
 func (s *DockerTrustSuite) notaryInitRepo(c *check.C, repoName string) {
-	initCmd := exec.Command(notaryBinary, "-c", filepath.Join(s.not.dir, "client-config.json"), "init", repoName)
-	notaryClientEnv(initCmd)
-	out, _, err := runCommandWithOutput(initCmd)
-	if err != nil {
-		c.Fatalf("Error initializing notary repository: %s\n", out)
-	}
+	s.notaryCmd(c, "init", repoName)
 }
 
 func (s *DockerTrustSuite) notaryCreateDelegation(c *check.C, repoName, role string, pubKey string, paths ...string) {
@@ -277,42 +277,19 @@ func (s *DockerTrustSuite) notaryCreateDelegation(c *check.C, repoName, role str
 		pathsArg = "--paths=" + strings.Join(paths, ",")
 	}
 
-	delgCmd := exec.Command(notaryBinary, "-c", filepath.Join(s.not.dir, "client-config.json"),
-		"delegation", "add", repoName, role, pubKey, pathsArg)
-	notaryClientEnv(delgCmd)
-	out, _, err := runCommandWithOutput(delgCmd)
-	if err != nil {
-		c.Fatalf("Error adding %s role to notary repository: %s\n", role, out)
-	}
+	s.notaryCmd(c, "delegation", "add", repoName, role, pubKey, pathsArg)
 }
 
 func (s *DockerTrustSuite) notaryPublish(c *check.C, repoName string) {
-	pubCmd := exec.Command(notaryBinary, "-c", filepath.Join(s.not.dir, "client-config.json"), "publish", repoName)
-	notaryClientEnv(pubCmd)
-	out, _, err := runCommandWithOutput(pubCmd)
-	if err != nil {
-		c.Fatalf("Error publishing notary repository: %s\n", out)
-	}
+	s.notaryCmd(c, "publish", repoName)
 }
 
 func (s *DockerTrustSuite) notaryImportKey(c *check.C, repoName, role string, privKey string) {
-	impCmd := exec.Command(notaryBinary, "-c", filepath.Join(s.not.dir, "client-config.json"), "key",
-		"import", privKey, "-g", repoName, "-r", role)
-	notaryClientEnv(impCmd)
-	out, _, err := runCommandWithOutput(impCmd)
-	if err != nil {
-		c.Fatalf("Error importing key to notary repository: %s\n", out)
-	}
+	s.notaryCmd(c, "key", "import", privKey, "-g", repoName, "-r", role)
 }
 
 func (s *DockerTrustSuite) notaryListTargetsInRole(c *check.C, repoName, role string) map[string]string {
-	listCmd := exec.Command(notaryBinary, "-c", filepath.Join(s.not.dir, "client-config.json"), "list",
-		repoName, "-r", role)
-	notaryClientEnv(listCmd)
-	out, _, err := runCommandWithOutput(listCmd)
-	if err != nil {
-		c.Fatalf("Error listing targets in notary repository: %s\n", out)
-	}
+	out := s.notaryCmd(c, "list", repoName, "-r", role)
 
 	// should look something like:
 	//    NAME                                 DIGEST                                SIZE (BYTES)    ROLE
