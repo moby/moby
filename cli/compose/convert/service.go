@@ -301,9 +301,11 @@ func convertEndpointSpec(source []string) (*swarm.EndpointSpec, error) {
 	}
 
 	for port := range ports {
-		portConfigs = append(
-			portConfigs,
-			opts.ConvertPortToPortConfig(port, portBindings)...)
+		portConfig, err := opts.ConvertPortToPortConfig(port, portBindings)
+		if err != nil {
+			return nil, err
+		}
+		portConfigs = append(portConfigs, portConfig...)
 	}
 
 	return &swarm.EndpointSpec{Ports: portConfigs}, nil
