@@ -25,6 +25,7 @@ func containerSpecFromGRPC(c *swarmapi.ContainerSpec) types.ContainerSpec {
 		Groups:    c.Groups,
 		TTY:       c.TTY,
 		OpenStdin: c.OpenStdin,
+		ReadOnly:  c.ReadOnly,
 		Hosts:     c.Hosts,
 		Secrets:   secretReferencesFromGRPC(c.Secrets),
 	}
@@ -146,6 +147,7 @@ func containerToGRPC(c types.ContainerSpec) (*swarmapi.ContainerSpec, error) {
 		Groups:    c.Groups,
 		TTY:       c.TTY,
 		OpenStdin: c.OpenStdin,
+		ReadOnly:  c.ReadOnly,
 		Hosts:     c.Hosts,
 		Secrets:   secretReferencesToGRPC(c.Secrets),
 	}

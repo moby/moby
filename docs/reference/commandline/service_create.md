@@ -48,6 +48,7 @@ Options:
       --network list                     Network attachments (default [])
       --no-healthcheck                   Disable any container-specified HEALTHCHECK
   -p, --publish port                     Publish a port as a node port
+      --read-only                        Mount the container's root filesystem as read only
       --replicas uint                    Number of tasks
       --reserve-cpu decimal              Reserve CPUs (default 0.000)
       --reserve-memory bytes             Reserve Memory (default 0 B)

@@ -58,6 +58,7 @@ Options:
       --no-healthcheck                   Disable any container-specified HEALTHCHECK
       --publish-add port                 Add or update a published port
       --publish-rm port                  Remove a published port by its target port
+      --read-only                        Mount the container's root filesystem as read only
       --replicas uint                    Number of tasks
       --reserve-cpu decimal              Reserve CPUs (default 0.000)
       --reserve-memory bytes             Reserve Memory (default 0 B)
