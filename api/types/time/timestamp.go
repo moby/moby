@@ -118,7 +118,7 @@ func ParseTimestamps(value string, def int64) (int64, int64, error) {
 	if err != nil {
 		return s, n, err
 	}
-	// should already be in nanoseconds but just in case convert n to nanoseonds
+	// should already be in nanoseconds but just in case convert n to nanoseconds
 	n = int64(float64(n) * math.Pow(float64(10), float64(9-len(sa[1]))))
 	return s, n, nil
 }
