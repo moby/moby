@@ -393,6 +393,33 @@ func (s *DockerSwarmSuite) TestOverlayAttachable(c *check.C) {
 	c.Assert(strings.TrimSpace(out), checker.Equals, "true")
 }
 
+func (s *DockerSwarmSuite) TestOverlayAttachableOnSwarmLeave(c *check.C) {
+	d := s.AddDaemon(c, true, true)
+
+	// Create an attachable swarm network
+	nwName := "attovl"
+	out, err := d.Cmd("network", "create", "-d", "overlay", "--attachable", nwName)
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+
+	// Connect a container to the network
+	out, err = d.Cmd("run", "-d", "--network", nwName, "--name", "c1", "busybox", "top")
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+
+	// Leave the swarm
+	err = d.Leave(true)
+	c.Assert(err, checker.IsNil)
+
+	// Check the container is disconnected
+	out, err = d.Cmd("inspect", "c1", "--format", "{{.NetworkSettings.Networks."+nwName+"}}")
+	c.Assert(err, checker.IsNil)
+	c.Assert(strings.TrimSpace(out), checker.Equals, "<no value>")
+
+	// Check the network is gone
+	out, err = d.Cmd("network", "ls", "--format", "{{.Name}}")
+	c.Assert(err, checker.IsNil)
+	c.Assert(out, checker.Not(checker.Contains), nwName)
+}
+
 func (s *DockerSwarmSuite) TestSwarmRemoveInternalNetwork(c *check.C) {
 	d := s.AddDaemon(c, true, true)
 
