@@ -212,6 +212,229 @@ To manually remove all plugins and resolve this problem, take the following step
 - Deprecate MAINTAINER in Dockerfile [#25466](https://github.com/docker/docker/pull/25466)
 - Deprecated filter param for endpoint `/images/json` [#27872](https://github.com/docker/docker/pull/27872)
 
+## 1.12.6 (2017-01-10)
+
+**IMPORTANT**: Docker 1.12 ships with an updated systemd unit file for rpm
+based installs (which includes RHEL, Fedora, CentOS, and Oracle Linux 7). When
+upgrading from an older version of docker, the upgrade process may not
+automatically install the updated version of the unit file, or fail to start
+the docker service if;
+
+- the systemd unit file (`/usr/lib/systemd/system/docker.service`) contains local changes, or
+- a systemd drop-in file is present, and contains `-H fd://` in the `ExecStart` directive
+
+Starting the docker service will produce an error:
+
+    Failed to start docker.service: Unit docker.socket failed to load: No such file or directory.
+
+or
+
+    no sockets found via socket activation: make sure the service was started by systemd.
+
+To resolve this:
+
+- Backup the current version of the unit file, and replace the file with the
+  [version that ships with docker 1.12](https://raw.githubusercontent.com/docker/docker/v1.12.0/contrib/init/systemd/docker.service.rpm)
+- Remove the `Requires=docker.socket` directive from the `/usr/lib/systemd/system/docker.service` file if present
+- Remove `-H fd://` from the `ExecStart` directive (both in the main unit file, and in any drop-in files present).
+
+After making those changes, run `sudo systemctl daemon-reload`, and `sudo
+systemctl restart docker` to reload changes and (re)start the docker daemon.
+
+**NOTE**: Docker 1.12.5 will correctly validate that either an IPv6 subnet is provided or
+that the IPAM driver can provide one when you specify the `--ipv6` option.
+
+If you are currently using the `--ipv6` option _without_ specifying the
+`--fixed-cidr-v6` option, the Docker daemon will refuse to start with the
+following message:
+
+```none
+Error starting daemon: Error initializing network controller: Error creating
+                       default "bridge" network: failed to parse pool request
+                       for address space "LocalDefault" pool " subpool ":
+                       could not find an available, non-overlapping IPv6 address
+                       pool among the defaults to assign to the network
+```
+
+To resolve this error, either remove the `--ipv6` flag (to preserve the same
+behavior as in Docker 1.12.3 and earlier), or provide an IPv6 subnet as the
+value of the `--fixed-cidr-v6` flag.
+
+In a similar way, if you specify the `--ipv6` flag when creating a network
+with the default IPAM driver, without providing an IPv6 `--subnet`, network
+creation will fail with the following message:
+
+```none
+Error response from daemon: failed to parse pool request for address space
+                            "LocalDefault" pool "" subpool "": could not find an
+                            available, non-overlapping IPv6 address pool among
+                            the defaults to assign to the network
+```
+
+To resolve this, either remove the `--ipv6` flag (to preserve the same behavior
+as in Docker 1.12.3 and earlier), or provide an IPv6 subnet as the value of the
+`--subnet` flag.
+
+The network network creation will instead succeed if you use an external IPAM driver
+which supports automatic allocation of IPv6 subnets.
+
+### Runtime
+
+- Fix runC privilege escalation (CVE-2016-9962)
+
+## 1.12.5 (2016-12-15)
+
+**IMPORTANT**: Docker 1.12 ships with an updated systemd unit file for rpm
+based installs (which includes RHEL, Fedora, CentOS, and Oracle Linux 7). When
+upgrading from an older version of docker, the upgrade process may not
+automatically install the updated version of the unit file, or fail to start
+the docker service if;
+
+- the systemd unit file (`/usr/lib/systemd/system/docker.service`) contains local changes, or
+- a systemd drop-in file is present, and contains `-H fd://` in the `ExecStart` directive
+
+Starting the docker service will produce an error:
+
+    Failed to start docker.service: Unit docker.socket failed to load: No such file or directory.
+
+or
+
+    no sockets found via socket activation: make sure the service was started by systemd.
+
+To resolve this:
+
+- Backup the current version of the unit file, and replace the file with the
+  [version that ships with docker 1.12](https://raw.githubusercontent.com/docker/docker/v1.12.0/contrib/init/systemd/docker.service.rpm)
+- Remove the `Requires=docker.socket` directive from the `/usr/lib/systemd/system/docker.service` file if present
+- Remove `-H fd://` from the `ExecStart` directive (both in the main unit file, and in any drop-in files present).
+
+After making those changes, run `sudo systemctl daemon-reload`, and `sudo
+systemctl restart docker` to reload changes and (re)start the docker daemon.
+
+**NOTE**: Docker 1.12.5 will correctly validate that either an IPv6 subnet is provided or
+that the IPAM driver can provide one when you specify the `--ipv6` option.
+
+If you are currently using the `--ipv6` option _without_ specifying the
+`--fixed-cidr-v6` option, the Docker daemon will refuse to start with the
+following message:
+
+```none
+Error starting daemon: Error initializing network controller: Error creating
+                       default "bridge" network: failed to parse pool request
+                       for address space "LocalDefault" pool " subpool ":
+                       could not find an available, non-overlapping IPv6 address
+                       pool among the defaults to assign to the network
+```
+
+To resolve this error, either remove the `--ipv6` flag (to preserve the same
+behavior as in Docker 1.12.3 and earlier), or provide an IPv6 subnet as the
+value of the `--fixed-cidr-v6` flag.
+
+In a similar way, if you specify the `--ipv6` flag when creating a network
+with the default IPAM driver, without providing an IPv6 `--subnet`, network
+creation will fail with the following message:
+
+```none
+Error response from daemon: failed to parse pool request for address space
+                            "LocalDefault" pool "" subpool "": could not find an
+                            available, non-overlapping IPv6 address pool among
+                            the defaults to assign to the network
+```
+
+To resolve this, either remove the `--ipv6` flag (to preserve the same behavior
+as in Docker 1.12.3 and earlier), or provide an IPv6 subnet as the value of the
+`--subnet` flag.
+
+The network network creation will instead succeed if you use an external IPAM driver
+which supports automatic allocation of IPv6 subnets.
+
+### Runtime
+
+- Fix race on sending stdin close event [#29424](https://github.com/docker/docker/pull/29424)
+
+### Networking
+
+- Fix panic in docker network ls when a network was created with `--ipv6` and no ipv6 `--subnet` in older docker versions [#29416](https://github.com/docker/docker/pull/29416)
+
+### Contrib
+
+- Fix compilation on Darwin [#29370](https://github.com/docker/docker/pull/29370)
+
+## 1.12.4 (2016-12-12)
+
+**IMPORTANT**: Docker 1.12 ships with an updated systemd unit file for rpm
+based installs (which includes RHEL, Fedora, CentOS, and Oracle Linux 7). When
+upgrading from an older version of docker, the upgrade process may not
+automatically install the updated version of the unit file, or fail to start
+the docker service if;
+
+- the systemd unit file (`/usr/lib/systemd/system/docker.service`) contains local changes, or
+- a systemd drop-in file is present, and contains `-H fd://` in the `ExecStart` directive
+
+Starting the docker service will produce an error:
+
+    Failed to start docker.service: Unit docker.socket failed to load: No such file or directory.
+
+or
+
+    no sockets found via socket activation: make sure the service was started by systemd.
+
+To resolve this:
+
+- Backup the current version of the unit file, and replace the file with the
+  [version that ships with docker 1.12](https://raw.githubusercontent.com/docker/docker/v1.12.0/contrib/init/systemd/docker.service.rpm)
+- Remove the `Requires=docker.socket` directive from the `/usr/lib/systemd/system/docker.service` file if present
+- Remove `-H fd://` from the `ExecStart` directive (both in the main unit file, and in any drop-in files present).
+
+After making those changes, run `sudo systemctl daemon-reload`, and `sudo
+systemctl restart docker` to reload changes and (re)start the docker daemon.
+
+
+### Runtime
+
+- Fix issue where volume metadata was not removed [#29083](https://github.com/docker/docker/pull/29083)
+- Asynchronously close streams to prevent holding container lock [#29050](https://github.com/docker/docker/pull/29050)
+- Fix selinux labels for newly created container volumes [#29050](https://github.com/docker/docker/pull/29050)
+- Remove hostname validation [#28990](https://github.com/docker/docker/pull/28990)
+- Fix deadlocks caused by IO races [#29095](https://github.com/docker/docker/pull/29095) [#29141](https://github.com/docker/docker/pull/29141)
+- Return an empty stats if the container is restarting [#29150](https://github.com/docker/docker/pull/29150)
+- Fix volume store locking [#29151](https://github.com/docker/docker/pull/29151)
+- Ensure consistent status code in API [#29150](https://github.com/docker/docker/pull/29150)
+- Fix incorrect opaque directory permission in overlay2 [#29093](https://github.com/docker/docker/pull/29093)
+- Detect plugin content and error out on `docker pull` [#29297](https://github.com/docker/docker/pull/29297)
+
+### Swarm Mode
+
+* Update Swarmkit [#29047](https://github.com/docker/docker/pull/29047)
+  - orchestrator/global: Fix deadlock on updates [docker/swarmkit#1760](https://github.com/docker/swarmkit/pull/1760)
+  - on leader switchover preserve the vxlan id for existing networks [docker/swarmkit#1773](https://github.com/docker/swarmkit/pull/1773)
+- Refuse swarm spec not named "default" [#29152](https://github.com/docker/docker/pull/29152)
+
+### Networking
+
+* Update libnetwork [#29004](https://github.com/docker/docker/pull/29004) [#29146](https://github.com/docker/docker/pull/29146)
+  - Fix panic in embedded DNS [docker/libnetwork#1561](https://github.com/docker/libnetwork/pull/1561)
+  - Fix unmarhalling panic when passing --link-local-ip on global scope network [docker/libnetwork#1564](https://github.com/docker/libnetwork/pull/1564)
+  - Fix panic when network plugin returns nil StaticRoutes [docker/libnetwork#1563](https://github.com/docker/libnetwork/pull/1563)
+  - Fix panic in osl.(*networkNamespace).DeleteNeighbor [docker/libnetwork#1555](https://github.com/docker/libnetwork/pull/1555)
+  - Fix panic in swarm networking concurrent map read/write [docker/libnetwork#1570](https://github.com/docker/libnetwork/pull/1570)
+  * Allow encrypted networks when running docker inside a container [docker/libnetwork#1502](https://github.com/docker/libnetwork/pull/1502)
+  - Do not block autoallocation of IPv6 pool [docker/libnetwork#1538](https://github.com/docker/libnetwork/pull/1538)
+  - Set timeout for netlink calls [docker/libnetwork#1557](https://github.com/docker/libnetwork/pull/1557)
+  - Increase networking local store timeout to one minute [docker/libkv#140](https://github.com/docker/libkv/pull/140)
+  - Fix a panic in libnetwork.(*sandbox).execFunc [docker/libnetwork#1556](https://github.com/docker/libnetwork/pull/1556)
+  - Honor icc=false for internal networks [docker/libnetwork#1525](https://github.com/docker/libnetwork/pull/1525)
+
+### Logging
+
+* Update syslog log driver [#29150](https://github.com/docker/docker/pull/29150)
+
+### Contrib
+
+- Run "dnf upgrade" before installing in fedora [#29150](https://github.com/docker/docker/pull/29150)
+- Add build-date back to RPM packages [#29150](https://github.com/docker/docker/pull/29150)
+- deb package filename changed to include distro to distinguish between distro code names [#27829](https://github.com/docker/docker/pull/27829)
+
 ## 1.12.3 (2016-10-26)
 
 **IMPORTANT**: Docker 1.12 ships with an updated systemd unit file for rpm
