@@ -244,7 +244,7 @@ func (c *Cluster) newNodeRunner(conf nodeStartConfig) (*nodeRunner, error) {
 		return nil, err
 	}
 
-	c.config.Backend.SetClusterProvider(c)
+	c.config.Backend.DaemonJoinsCluster(c)
 
 	return nr, nil
 }
@@ -562,7 +562,7 @@ func (c *Cluster) Leave(force bool) error {
 	if err := clearPersistentState(c.root); err != nil {
 		return err
 	}
-	c.config.Backend.SetClusterProvider(nil)
+	c.config.Backend.DaemonLeavesCluster()
 	return nil
 }
 
