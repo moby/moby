@@ -576,7 +576,7 @@ func (container *Container) AddMountPointWithVolume(destination string, vol volu
 func (container *Container) UnmountVolumes(volumeEventLog func(name, action string, attributes map[string]string)) error {
 	var errors []string
 	for _, volumeMount := range container.MountPoints {
-		// Check if the mounpoint has an ID, this is currently the best way to tell if it's actually mounted
+		// Check if the mountpoint has an ID, this is currently the best way to tell if it's actually mounted
 		// TODO(cpuguyh83): there should be a better way to handle this
 		if volumeMount.Volume != nil && volumeMount.ID != "" {
 			if err := volumeMount.Volume.Unmount(volumeMount.ID); err != nil {
