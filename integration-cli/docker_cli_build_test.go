@@ -4644,23 +4644,20 @@ func (s *DockerSuite) TestBuildStderr(c *check.C) {
 	// This test just makes sure that no non-error output goes
 	// to stderr
 	name := "testbuildstderr"
-	_, _, stderr, err := buildImageWithStdoutStderr(name,
+	_, stdout, stderr, err := buildImageWithStdoutStderr(name,
 		"FROM busybox\nRUN echo one", true)
 	if err != nil {
 		c.Fatal(err)
 	}
 
-	if runtime.GOOS == "windows" &&
-		daemonPlatform != "windows" {
-		// Windows to non-Windows should have a security warning
-		if !strings.Contains(stderr, "SECURITY WARNING:") {
-			c.Fatalf("Stderr contains unexpected output: %q", stderr)
-		}
-	} else {
-		// Other platform combinations should have no stderr written too
-		if stderr != "" {
-			c.Fatalf("Stderr should have been empty, instead it's: %q", stderr)
-		}
+	// Windows to non-Windows should have a security warning
+	if runtime.GOOS == "windows" && daemonPlatform != "windows" && !strings.Contains(stdout, "SECURITY WARNING:") {
+		c.Fatalf("Stdout contains unexpected output: %q", stdout)
+	}
+
+	// Stderr should always be empty
+	if stderr != "" {
+		c.Fatalf("Stderr should have been empty, instead it's: %q", stderr)
 	}
 }
 
