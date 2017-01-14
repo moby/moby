@@ -4029,7 +4029,8 @@ _docker() {
 		deploy
 	)
 
-	local commands=(${management_commands[*]} ${top_level_commands[*]} ${DOCKER_HIDE_LEGACY_COMMANDS:+${legacy_commands[*]}})
+	local commands=(${management_commands[*]} ${top_level_commands[*]})
+	[ -z "$DOCKER_HIDE_LEGACY_COMMANDS" ] && commands+=(${legacy_commands[*]})
 
 	# These options are valid as global options for all client commands
 	# and valid as command options for `docker daemon`
