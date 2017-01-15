@@ -101,6 +101,7 @@ type CommonContainer struct {
 	LogCopier      *logger.Copier `json:"-"`
 	restartManager restartmanager.RestartManager
 	attachContext  *attachContext
+	DataLock       sync.Mutex
 }
 
 // NewBaseContainer creates a new container with its
@@ -171,7 +172,11 @@ func (container *Container) ToDisk() error {
 // ToDiskLocking saves the container configuration on disk in a thread safe way.
 func (container *Container) ToDiskLocking() error {
 	container.Lock()
+	container.DataLock.Lock()
+
 	err := container.ToDisk()
+
+	container.DataLock.Unlock()
 	container.Unlock()
 	return err
 }
@@ -633,8 +638,8 @@ func (container *Container) StopTimeout() int {
 // See https://github.com/docker/docker/pull/17779
 // for a more detailed explanation on why we don't want that.
 func (container *Container) InitDNSHostConfig() {
-	container.Lock()
-	defer container.Unlock()
+	container.DataLock.Lock()
+	defer container.DataLock.Unlock()
 	if container.HostConfig.DNS == nil {
 		container.HostConfig.DNS = make([]string, 0)
 	}

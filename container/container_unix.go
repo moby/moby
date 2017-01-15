@@ -284,6 +284,8 @@ func (container *Container) UnmountSecrets() error {
 func (container *Container) UpdateContainer(hostConfig *containertypes.HostConfig) error {
 	container.Lock()
 	defer container.Unlock()
+	container.DataLock.Lock()
+	defer container.DataLock.Unlock()
 
 	// update resources of container
 	resources := hostConfig.Resources

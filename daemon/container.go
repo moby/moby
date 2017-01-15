@@ -183,6 +183,8 @@ func (daemon *Daemon) generateHostname(id string, config *containertypes.Config)
 func (daemon *Daemon) setSecurityOptions(container *container.Container, hostConfig *containertypes.HostConfig) error {
 	container.Lock()
 	defer container.Unlock()
+	container.DataLock.Lock()
+	defer container.DataLock.Unlock()
 	return parseSecurityOpt(container, hostConfig)
 }
 
@@ -193,8 +195,8 @@ func (daemon *Daemon) setHostConfig(container *container.Container, hostConfig *
 		return err
 	}
 
-	container.Lock()
-	defer container.Unlock()
+	container.DataLock.Lock()
+	defer container.DataLock.Unlock()
 
 	// Register any links from the host config before starting the container
 	if err := daemon.registerLinks(container, hostConfig); err != nil {
