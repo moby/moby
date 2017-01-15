@@ -153,7 +153,9 @@ func updateService(flags *pflag.FlagSet, spec *swarm.ServiceSpec) error {
 	updateEnvironment(flags, &cspec.Env)
 	updateString("workdir", &cspec.Dir)
 	updateString(flagUser, &cspec.User)
-	updateMounts(flags, &cspec.Mounts)
+	if err := updateMounts(flags, &cspec.Mounts); err != nil {
+		return err
+	}
 
 	if flags.Changed(flagLimitCPU) || flags.Changed(flagLimitMemory) {
 		taskResources().Limits = &swarm.Resources{}
@@ -246,12 +248,33 @@ func anyChanged(flags *pflag.FlagSet, fields ...string) bool {
 	return false
 }
 
+func rmDuplicateSwarmPlacement(list *[]string) []string {
+	var newConstraints []string = []string{}
+	for _, i := range *list {
+		if len(newConstraints) == 0 {
+			newConstraints = append(newConstraints, i)
+		} else {
+			for k, v := range newConstraints {
+				if i == v {
+					break
+				}
+				if k == len(newConstraints)-1 {
+					newConstraints = append(newConstraints, i)
+				}
+			}
+		}
+	}
+	return newConstraints
+}
+
 func updatePlacement(flags *pflag.FlagSet, placement *swarm.Placement) {
 	field, _ := flags.GetStringSlice(flagConstraintAdd)
+
 	placement.Constraints = append(placement.Constraints, field...)
 
 	toRemove := buildToRemoveSet(flags, flagConstraintRemove)
 	placement.Constraints = removeItems(placement.Constraints, toRemove, itemKey)
+	placement.Constraints = rmDuplicateSwarmPlacement(&placement.Constraints)
 }
 
 func updateContainerLabels(flags *pflag.FlagSet, field *map[string]string) {
@@ -353,20 +376,51 @@ func removeItems(
 	return newSeq
 }
 
-func updateMounts(flags *pflag.FlagSet, mounts *[]swarm.Mount) {
+type byMountSource []swarm.Mount
+
+func (m byMountSource) Len() int      { return len(m) }
+func (m byMountSource) Swap(i, j int) { m[i], m[j] = m[j], m[i] }
+func (m byMountSource) Less(i, j int) bool {
+	a, b := m[i], m[j]
+
+	if a.Source == b.Source {
+		return a.Target < b.Target
+	}
+
+	return a.Source < b.Source
+}
+
+func updateMounts(flags *pflag.FlagSet, mounts *[]swarm.Mount) error {
+
+	mountsByTarget := map[string]swarm.Mount{}
+
 	if flags.Changed(flagMountAdd) {
 		values := flags.Lookup(flagMountAdd).Value.(*MountOpt).Value()
-		*mounts = append(*mounts, values...)
+		for _, mount := range values {
+			if _, ok := mountsByTarget[mount.Target]; ok {
+				return fmt.Errorf("duplicate mount target")
+			}
+			mountsByTarget[mount.Target] = mount
+		}
 	}
+
+	for _, mount := range *mounts {
+		if _, ok := mountsByTarget[mount.Target]; !ok {
+			mountsByTarget[mount.Target] = mount
+		}
+	}
+
 	toRemove := buildToRemoveSet(flags, flagMountRemove)
 
 	newMounts := []swarm.Mount{}
-	for _, mount := range *mounts {
+	for _, mount := range mountsByTarget {
 		if _, exists := toRemove[mount.Target]; !exists {
 			newMounts = append(newMounts, mount)
 		}
 	}
+	sort.Sort(byMountSource(newMounts))
 	*mounts = newMounts
+	return nil
 }
 
 type byPortConfig []swarm.PortConfig
