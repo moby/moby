@@ -160,7 +160,7 @@ To manually remove all plugins and resolve this problem, take the following step
 - Fix ulimits in `docker inspect` when `--default-ulimit` is set on daemon [#26405](https://github.com/docker/docker/pull/26405)
 - Add workaround for overlay issues during build in older kernels [#28138](https://github.com/docker/docker/pull/28138)
 + Add `TERM` environment variable on `docker exec -t` [#26461](https://github.com/docker/docker/pull/26461)
-* Honor a container’s `--stop-signal` setting upon `docker kill` [#26464](https://github.com/docker/docker/pull/26464)
+* Honor a container's `--stop-signal` setting upon `docker kill` [#26464](https://github.com/docker/docker/pull/26464)
 
 ### Swarm Mode
 
@@ -473,7 +473,7 @@ systemctl restart docker` to reload changes and (re)start the docker daemon.
 * Reset health status to starting when a container is restarted [#27387](https://github.com/docker/docker/pull/27387)
 * Properly handle shared mount propagation in storage directory [#27609](https://github.com/docker/docker/pull/27609)
 - Fix docker exec [#27610](https://github.com/docker/docker/pull/27610)
-- Fix backward compatibility with containerd’s events log [#27693](https://github.com/docker/docker/pull/27693)
+- Fix backward compatibility with containerd's events log [#27693](https://github.com/docker/docker/pull/27693)
 
 ### Swarm Mode
 
@@ -1575,7 +1575,7 @@ by another client (#15489)
 
 #### Runtime
 + Experimental feature: support for out-of-process volume plugins
-* The userland proxy can be disabled in favor of hairpin NAT using the daemon’s `--userland-proxy=false` flag
+* The userland proxy can be disabled in favor of hairpin NAT using the daemon's `--userland-proxy=false` flag
 * The `exec` command supports the `-u|--user` flag to specify the new process owner
 + Default gateway for containers can be specified daemon-wide using the `--default-gateway` and `--default-gateway-v6` flags
 + The CPU CFS (Completely Fair Scheduler) quota can be set in `docker run` using `--cpu-quota`
@@ -1663,13 +1663,13 @@ by another client (#15489)
 + Containers can be renamed using the new `rename` endpoint and the associated `docker rename` command
 * Container `inspect` endpoint show the ID of `exec` commands running in this container
 * Container `inspect` endpoint show the number of times Docker auto-restarted the container
-* New types of event can be streamed by the `events` endpoint: ‘OOM’ (container died with out of memory), ‘exec_create’, and ‘exec_start'
+* New types of event can be streamed by the `events` endpoint: `OOM` (container died with out of memory), `exec_create`, and `exec_start`
 - Fixed returned string fields which hold numeric characters incorrectly omitting surrounding double quotes
 
 #### Runtime
 + Docker daemon has full IPv6 support
 + The `docker run` command can take the `--pid=host` flag to use the host PID namespace, which makes it possible for example to debug host processes using containerized debugging tools
-+ The `docker run` command can take the `--read-only` flag to make the container’s root filesystem mounted as readonly, which can be used in combination with volumes to force a container’s processes to only write to locations that will be persisted
++ The `docker run` command can take the `--read-only` flag to make the container's root filesystem mounted as readonly, which can be used in combination with volumes to force a container’s processes to only write to locations that will be persisted
 + Container total memory usage can be limited for `docker run` using the `--memory-swap` flag
 * Major stability improvements for devicemapper storage driver
 * Better integration with host system: containers will reflect changes to the host's `/etc/resolv.conf` file when restarted
@@ -2184,13 +2184,13 @@ by another client (#15489)
 * The Docker daemon starts and stops much faster
 * The memory footprint of many common operations has been reduced, by streaming files instead of buffering them in memory, fixing memory leaks, and fixing various suboptimal memory allocations
 * Several race conditions were fixed, making Docker more stable under very high concurrency load. This makes Docker more stable and less likely to crash and reduces the memory footprint of many common operations
-* All packaging operations are now built on the Go language’s standard tar implementation, which is bundled with Docker itself. This makes packaging more portable across host distributions, and solves several issues caused by quirks and incompatibilities between different distributions of tar
+* All packaging operations are now built on the Go language's standard tar implementation, which is bundled with Docker itself. This makes packaging more portable across host distributions, and solves several issues caused by quirks and incompatibilities between different distributions of tar
 * Docker can now create, remove and modify larger numbers of containers and images graciously thanks to more aggressive releasing of system resources. For example the storage driver API now allows Docker to do reference counting on mounts created by the drivers
 With the ongoing changes to the networking and execution subsystems of docker testing these areas have been a focus of the refactoring.  By moving these subsystems into separate packages we can test, analyze, and monitor coverage and quality of these packages
 * Many components have been separated into smaller sub-packages, each with a dedicated test suite. As a result the code is better-tested, more readable and easier to change
 
-* The ADD instruction now supports caching, which avoids unnecessarily re-uploading the same source content again and again when it hasn’t changed
-* The new ONBUILD instruction adds to your image a “trigger” instruction to be executed at a later time, when the image is used as the base for another build
+* The ADD instruction now supports caching, which avoids unnecessarily re-uploading the same source content again and again when it hasn't changed
+* The new ONBUILD instruction adds to your image a `trigger` instruction to be executed at a later time, when the image is used as the base for another build
 * Docker now ships with an experimental storage driver which uses the BTRFS filesystem for copy-on-write
 * Docker is officially supported on Mac OS X
 * The Docker daemon supports systemd socket activation
