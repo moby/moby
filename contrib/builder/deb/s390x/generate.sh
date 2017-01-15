@@ -78,7 +78,7 @@ for version in "${versions[@]}"; do
 
 	echo >> "$version/Dockerfile"
 
-	awk '$1 == "ENV" && $2 == "GO_VERSION" { print; exit }' ../../../../Dockerfile >> "$version/Dockerfile"
+	awk '$1 == "ENV" && $2 == "GO_VERSION" { print; exit }' ../../../../Dockerfile.s390x >> "$version/Dockerfile"
 	echo 'RUN curl -fSL "https://golang.org/dl/go${GO_VERSION}.linux-s390x.tar.gz" | tar xzC /usr/local' >> "$version/Dockerfile"
 	echo 'ENV PATH $PATH:/usr/local/go/bin' >> "$version/Dockerfile"
 
