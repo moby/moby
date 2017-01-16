@@ -32,7 +32,7 @@ Options:
       --dns-rm list                      Remove a custom DNS server (default [])
       --dns-search-add list              Add or update a custom DNS search domain (default [])
       --dns-search-rm list               Remove a DNS search domain (default [])
-      --endpoint-mode string             Endpoint mode (vip or dnsrr)
+      --endpoint-mode string             Endpoint mode (vip or dnsrr) (default "vip")
       --env-add list                     Add or update an environment variable (default [])
       --env-rm list                      Remove an environment variable (default [])
       --force                            Force update even if no changes require it
