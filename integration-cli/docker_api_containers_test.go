@@ -31,9 +31,7 @@ import (
 )
 
 func (s *DockerSuite) TestContainerAPIGetAll(c *check.C) {
-	startCount, err := getContainerCount()
-	c.Assert(err, checker.IsNil, check.Commentf("Cannot query container count"))
-
+	startCount := getContainerCount(c)
 	name := "getall"
 	dockerCmd(c, "run", "--name", name, "busybox", "true")
 
@@ -354,8 +352,7 @@ func (s *DockerSuite) TestContainerAPIPause(c *check.C) {
 	c.Assert(err, checker.IsNil)
 	c.Assert(status, checker.Equals, http.StatusNoContent)
 
-	pausedContainers, err := getPausedContainers()
-	c.Assert(err, checker.IsNil, check.Commentf("error thrown while checking if containers were paused"))
+	pausedContainers := getPausedContainers(c)
 
 	if len(pausedContainers) != 1 || stringid.TruncateID(ContainerID) != pausedContainers[0] {
 		c.Fatalf("there should be one paused container and not %d", len(pausedContainers))
@@ -365,8 +362,7 @@ func (s *DockerSuite) TestContainerAPIPause(c *check.C) {
 	c.Assert(err, checker.IsNil)
 	c.Assert(status, checker.Equals, http.StatusNoContent)
 
-	pausedContainers, err = getPausedContainers()
-	c.Assert(err, checker.IsNil, check.Commentf("error thrown while checking if containers were paused"))
+	pausedContainers = getPausedContainers(c)
 	c.Assert(pausedContainers, checker.HasLen, 0, check.Commentf("There should be no paused container."))
 }
 

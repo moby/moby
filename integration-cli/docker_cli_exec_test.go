@@ -389,8 +389,7 @@ func (s *DockerSuite) TestRunMutableNetworkFiles(c *check.C) {
 	for _, fn := range []string{"resolv.conf", "hosts"} {
 		deleteAllContainers(c)
 
-		content, err := runCommandAndReadContainerFile(fn, exec.Command(dockerBinary, "run", "-d", "--name", "c1", "busybox", "sh", "-c", fmt.Sprintf("echo success >/etc/%s && top", fn)))
-		c.Assert(err, checker.IsNil)
+		content := runCommandAndReadContainerFile(c, fn, dockerBinary, "run", "-d", "--name", "c1", "busybox", "sh", "-c", fmt.Sprintf("echo success >/etc/%s && top", fn))
 
 		c.Assert(strings.TrimSpace(string(content)), checker.Equals, "success", check.Commentf("Content was not what was modified in the container", string(content)))
 
@@ -442,30 +441,27 @@ func (s *DockerSuite) TestExecWithPrivileged(c *check.C) {
 	dockerCmd(c, "run", "-d", "--name", "parent", "--cap-drop=ALL", "busybox", "sh", "-c", `while (true); do if [ -e /exec_priv ]; then cat /exec_priv && mknod /tmp/sda b 8 0 && echo "Success"; else echo "Privileged exec has not run yet"; fi; usleep 10000; done`)
 
 	// Check exec mknod doesn't work
-	cmd := exec.Command(dockerBinary, "exec", "parent", "sh", "-c", "mknod /tmp/sdb b 8 16")
-	out, _, err := runCommandWithOutput(cmd)
-	c.Assert(err, checker.NotNil, check.Commentf("exec mknod in --cap-drop=ALL container without --privileged should fail"))
-	c.Assert(out, checker.Contains, "Operation not permitted", check.Commentf("exec mknod in --cap-drop=ALL container without --privileged should fail"))
+	icmd.RunCommand(dockerBinary, "exec", "parent", "sh", "-c", "mknod /tmp/sdb b 8 16").Assert(c, icmd.Expected{
+		ExitCode: 1,
+		Err:      "Operation not permitted",
+	})
 
 	// Check exec mknod does work with --privileged
-	cmd = exec.Command(dockerBinary, "exec", "--privileged", "parent", "sh", "-c", `echo "Running exec --privileged" > /exec_priv && mknod /tmp/sdb b 8 16 && usleep 50000 && echo "Finished exec --privileged" > /exec_priv && echo ok`)
-	out, _, err = runCommandWithOutput(cmd)
-	c.Assert(err, checker.IsNil)
+	result := icmd.RunCommand(dockerBinary, "exec", "--privileged", "parent", "sh", "-c", `echo "Running exec --privileged" > /exec_priv && mknod /tmp/sdb b 8 16 && usleep 50000 && echo "Finished exec --privileged" > /exec_priv && echo ok`)
+	result.Assert(c, icmd.Success)
 
-	actual := strings.TrimSpace(out)
-	c.Assert(actual, checker.Equals, "ok", check.Commentf("exec mknod in --cap-drop=ALL container with --privileged failed, output: %q", out))
+	actual := strings.TrimSpace(result.Combined())
+	c.Assert(actual, checker.Equals, "ok", check.Commentf("exec mknod in --cap-drop=ALL container with --privileged failed, output: %q", result.Combined()))
 
 	// Check subsequent unprivileged exec cannot mknod
-	cmd = exec.Command(dockerBinary, "exec", "parent", "sh", "-c", "mknod /tmp/sdc b 8 32")
-	out, _, err = runCommandWithOutput(cmd)
-	c.Assert(err, checker.NotNil, check.Commentf("repeating exec mknod in --cap-drop=ALL container after --privileged without --privileged should fail"))
-	c.Assert(out, checker.Contains, "Operation not permitted", check.Commentf("repeating exec mknod in --cap-drop=ALL container after --privileged without --privileged should fail"))
-
+	icmd.RunCommand(dockerBinary, "exec", "parent", "sh", "-c", "mknod /tmp/sdc b 8 32").Assert(c, icmd.Expected{
+		ExitCode: 1,
+		Err:      "Operation not permitted",
+	})
 	// Confirm at no point was mknod allowed
-	logCmd := exec.Command(dockerBinary, "logs", "parent")
-	out, _, err = runCommandWithOutput(logCmd)
-	c.Assert(err, checker.IsNil)
-	c.Assert(out, checker.Not(checker.Contains), "Success")
+	result = icmd.RunCommand(dockerBinary, "logs", "parent")
+	result.Assert(c, icmd.Success)
+	c.Assert(result.Combined(), checker.Not(checker.Contains), "Success")
 
 }
 

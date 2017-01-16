@@ -422,7 +422,7 @@ func (s *DockerSuite) TestCpSpecialFiles(c *check.C) {
 	// Copy actual /etc/resolv.conf
 	dockerCmd(c, "cp", containerID+":/etc/resolv.conf", outDir)
 
-	expected, err := readContainerFile(containerID, "resolv.conf")
+	expected := readContainerFile(c, containerID, "resolv.conf")
 	actual, err := ioutil.ReadFile(outDir + "/resolv.conf")
 
 	// Expected copied file to be duplicate of the container resolvconf
@@ -431,7 +431,7 @@ func (s *DockerSuite) TestCpSpecialFiles(c *check.C) {
 	// Copy actual /etc/hosts
 	dockerCmd(c, "cp", containerID+":/etc/hosts", outDir)
 
-	expected, err = readContainerFile(containerID, "hosts")
+	expected = readContainerFile(c, containerID, "hosts")
 	actual, err = ioutil.ReadFile(outDir + "/hosts")
 
 	// Expected copied file to be duplicate of the container hosts
@@ -440,7 +440,7 @@ func (s *DockerSuite) TestCpSpecialFiles(c *check.C) {
 	// Copy actual /etc/resolv.conf
 	dockerCmd(c, "cp", containerID+":/etc/hostname", outDir)
 
-	expected, err = readContainerFile(containerID, "hostname")
+	expected = readContainerFile(c, containerID, "hostname")
 	actual, err = ioutil.ReadFile(outDir + "/hostname")
 	c.Assert(err, checker.IsNil)
 

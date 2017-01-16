@@ -15,6 +15,7 @@ import (
 
 	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/pkg/testutil"
+	icmd "github.com/docker/docker/pkg/testutil/cmd"
 	"github.com/go-check/check"
 	"github.com/opencontainers/go-digest"
 )
@@ -37,10 +38,12 @@ func (s *DockerSuite) TestSaveXzAndLoadRepoStdout(c *check.C) {
 	c.Assert(err, checker.IsNil, check.Commentf("failed to save repo: %v %v", out, err))
 	deleteImages(repoName)
 
-	loadCmd := exec.Command(dockerBinary, "load")
-	loadCmd.Stdin = strings.NewReader(repoTarball)
-	out, _, err = runCommandWithOutput(loadCmd)
-	c.Assert(err, checker.NotNil, check.Commentf("expected error, but succeeded with no error and output: %v", out))
+	icmd.RunCmd(icmd.Cmd{
+		Command: []string{dockerBinary, "load"},
+		Stdin:   strings.NewReader(repoTarball),
+	}).Assert(c, icmd.Expected{
+		ExitCode: 1,
+	})
 
 	after, _, err := dockerCmdWithError("inspect", repoName)
 	c.Assert(err, checker.NotNil, check.Commentf("the repo should not exist: %v", after))
@@ -65,10 +68,12 @@ func (s *DockerSuite) TestSaveXzGzAndLoadRepoStdout(c *check.C) {
 
 	deleteImages(repoName)
 
-	loadCmd := exec.Command(dockerBinary, "load")
-	loadCmd.Stdin = strings.NewReader(out)
-	out, _, err = runCommandWithOutput(loadCmd)
-	c.Assert(err, checker.NotNil, check.Commentf("expected error, but succeeded with no error and output: %v", out))
+	icmd.RunCmd(icmd.Cmd{
+		Command: []string{dockerBinary, "load"},
+		Stdin:   strings.NewReader(out),
+	}).Assert(c, icmd.Expected{
+		ExitCode: 1,
+	})
 
 	after, _, err := dockerCmdWithError("inspect", repoName)
 	c.Assert(err, checker.NotNil, check.Commentf("the repo should not exist: %v", after))

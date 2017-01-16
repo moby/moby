@@ -15,8 +15,7 @@ func (s *DockerSuite) TestPause(c *check.C) {
 	runSleepingContainer(c, "-d", "--name", name)
 
 	dockerCmd(c, "pause", name)
-	pausedContainers, err := getPausedContainers()
-	c.Assert(err, checker.IsNil)
+	pausedContainers := getPausedContainers(c)
 	c.Assert(len(pausedContainers), checker.Equals, 1)
 
 	dockerCmd(c, "unpause", name)
@@ -41,8 +40,7 @@ func (s *DockerSuite) TestPauseMultipleContainers(c *check.C) {
 		runSleepingContainer(c, "-d", "--name", name)
 	}
 	dockerCmd(c, append([]string{"pause"}, containers...)...)
-	pausedContainers, err := getPausedContainers()
-	c.Assert(err, checker.IsNil)
+	pausedContainers := getPausedContainers(c)
 	c.Assert(len(pausedContainers), checker.Equals, len(containers))
 
 	dockerCmd(c, append([]string{"unpause"}, containers...)...)
