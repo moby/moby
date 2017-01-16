@@ -1234,9 +1234,17 @@ _docker_container_port() {
 }
 
 _docker_container_prune() {
+	case "$prev" in
+		--filter)
+			COMPREPLY=( $( compgen -W "until" -S = -- "$cur" ) )
+			__docker_nospace
+			return
+			;;
+	esac
+
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "--force -f --help" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "--force -f --filter --help" -- "$cur" ) )
 			;;
 	esac
 }
@@ -2170,9 +2178,17 @@ _docker_image_ls() {
 }
 
 _docker_image_prune() {
+	case "$prev" in
+		--filter)
+			COMPREPLY=( $( compgen -W "until" -S = -- "$cur" ) )
+			__docker_nospace
+			return
+			;;
+	esac
+
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "--all -a --force -f --help" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "--all -a --force -f --filter --help" -- "$cur" ) )
 			;;
 	esac
 }
@@ -2532,9 +2548,17 @@ _docker_network_ls() {
 }
 
 _docker_network_prune() {
+	case "$prev" in
+		--filter)
+			COMPREPLY=( $( compgen -W "until" -S = -- "$cur" ) )
+			__docker_nospace
+			return
+			;;
+	esac
+
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "--force -f --help" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "--force -f --filter --help" -- "$cur" ) )
 			;;
 	esac
 }
@@ -3811,9 +3835,17 @@ _docker_system_info() {
 }
 
 _docker_system_prune() {
+	case "$prev" in
+		--filter)
+			COMPREPLY=( $( compgen -W "until" -S = -- "$cur" ) )
+			__docker_nospace
+			return
+			;;
+	esac
+
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "--all -a --force -f --help" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "--all -a --force -f --filter --help" -- "$cur" ) )
 			;;
 	esac
 }
