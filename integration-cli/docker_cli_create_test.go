@@ -195,7 +195,7 @@ func (s *DockerSuite) TestCreateLabels(c *check.C) {
 	dockerCmd(c, "create", "--name", name, "-l", "k1=v1", "--label", "k2=v2", "busybox")
 
 	actual := make(map[string]string)
-	inspectFieldAndMarshall(c, name, "Config.Labels", &actual)
+	inspectFieldAndUnmarshall(c, name, "Config.Labels", &actual)
 
 	if !reflect.DeepEqual(expected, actual) {
 		c.Fatalf("Expected %s got %s", expected, actual)
@@ -216,7 +216,7 @@ func (s *DockerSuite) TestCreateLabelFromImage(c *check.C) {
 	dockerCmd(c, "create", "--name", name, "-l", "k2=x", "--label", "k3=v3", imageName)
 
 	actual := make(map[string]string)
-	inspectFieldAndMarshall(c, name, "Config.Labels", &actual)
+	inspectFieldAndUnmarshall(c, name, "Config.Labels", &actual)
 
 	if !reflect.DeepEqual(expected, actual) {
 		c.Fatalf("Expected %s got %s", expected, actual)
