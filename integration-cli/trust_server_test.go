@@ -186,6 +186,7 @@ func (t *testNotary) Ping() error {
 
 func (t *testNotary) Close() {
 	t.cmd.Process.Kill()
+	t.cmd.Process.Wait()
 	os.RemoveAll(t.dir)
 }
 
