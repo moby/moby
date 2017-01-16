@@ -73,9 +73,8 @@ func runRun(dockerCli *command.DockerCli, flags *pflag.FlagSet, opts *runOptions
 	cmdPath := "run"
 
 	var (
-		flAttach                              *opttypes.ListOpts
-		ErrConflictAttachDetach               = errors.New("Conflicting options: -a and -d")
-		ErrConflictRestartPolicyAndAutoRemove = errors.New("Conflicting options: --restart and --rm")
+		flAttach                *opttypes.ListOpts
+		ErrConflictAttachDetach = errors.New("Conflicting options: -a and -d")
 	)
 
 	config, hostConfig, networkingConfig, err := parse(flags, copts)
@@ -86,9 +85,6 @@ func runRun(dockerCli *command.DockerCli, flags *pflag.FlagSet, opts *runOptions
 		return cli.StatusError{StatusCode: 125}
 	}
 
-	if hostConfig.AutoRemove && !hostConfig.RestartPolicy.IsNone() {
-		return ErrConflictRestartPolicyAndAutoRemove
-	}
 	if hostConfig.OomKillDisable != nil && *hostConfig.OomKillDisable && hostConfig.Memory == 0 {
 		fmt.Fprintln(stderr, "WARNING: Disabling the OOM killer on containers without setting a '-m/--memory' limit may be dangerous.")
 	}
@@ -209,7 +205,7 @@ func runRun(dockerCli *command.DockerCli, flags *pflag.FlagSet, opts *runOptions
 		})
 	}
 
-	statusChan := waitExitOrRemoved(ctx, dockerCli, createResponse.ID, hostConfig.AutoRemove)
+	statusChan := waitExitOrRemoved(ctx, dockerCli, createResponse.ID, copts.autoRemove)
 
 	//start the container
 	if err := client.ContainerStart(ctx, createResponse.ID, types.ContainerStartOptions{}); err != nil {
@@ -222,7 +218,7 @@ func runRun(dockerCli *command.DockerCli, flags *pflag.FlagSet, opts *runOptions
 		}
 
 		reportError(stderr, cmdPath, err.Error(), false)
-		if hostConfig.AutoRemove {
+		if copts.autoRemove {
 			// wait container to be removed
 			<-statusChan
 		}

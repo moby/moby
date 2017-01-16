@@ -622,6 +622,10 @@ func parse(flags *pflag.FlagSet, copts *containerOptions) (*container.Config, *c
 		Runtime:        copts.runtime,
 	}
 
+	if copts.autoRemove && !hostConfig.RestartPolicy.IsNone() {
+		return nil, nil, nil, fmt.Errorf("Conflicting options: --restart and --rm")
+	}
+
 	// only set this value if the user provided the flag, else it should default to nil
 	if flags.Changed("init") {
 		hostConfig.Init = &copts.init
