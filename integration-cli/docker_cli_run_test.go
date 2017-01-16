@@ -410,10 +410,7 @@ func (s *DockerSuite) TestRunCreateVolumesInSymlinkDir(c *check.C) {
 		containerPath = "/test/test"
 		cmd = "true"
 	}
-	if _, err := buildImage(name, dockerFile, false); err != nil {
-		c.Fatal(err)
-	}
-
+	buildImageSuccessfully(c, name, withDockerfile(dockerFile))
 	dockerCmd(c, "run", "-v", containerPath, name, cmd)
 }
 
@@ -438,10 +435,7 @@ func (s *DockerSuite) TestRunCreateVolumesInSymlinkDir2(c *check.C) {
 		containerPath = "/test/test"
 		cmd = "true"
 	}
-	if _, err := buildImage(name, dockerFile, false); err != nil {
-		c.Fatal(err)
-	}
-
+	buildImageSuccessfully(c, name, withDockerfile(dockerFile))
 	dockerCmd(c, "run", "-v", containerPath, name, cmd)
 }
 
@@ -1409,10 +1403,7 @@ func (s *DockerSuite) TestRunNonRootUserResolvName(c *check.C) {
 
 	dockerCmd(c, "run", "--name=testperm", "--user=nobody", "busybox", "nslookup", "apt.dockerproject.org")
 
-	cID, err := getIDByName("testperm")
-	if err != nil {
-		c.Fatal(err)
-	}
+	cID := getIDByName(c, "testperm")
 
 	fmode := (os.FileMode)(0644)
 	finfo, err := os.Stat(containerStorageFile(cID, "resolv.conf"))
@@ -1462,10 +1453,7 @@ func (s *DockerSuite) TestRunResolvconfUpdate(c *check.C) {
 
 	//1. test that a restarting container gets an updated resolv.conf
 	dockerCmd(c, "run", "--name=first", "busybox", "true")
-	containerID1, err := getIDByName("first")
-	if err != nil {
-		c.Fatal(err)
-	}
+	containerID1 := getIDByName(c, "first")
 
 	// replace resolv.conf with our temporary copy
 	bytesResolvConf := []byte(tmpResolvConf)
@@ -1492,10 +1480,7 @@ func (s *DockerSuite) TestRunResolvconfUpdate(c *check.C) {
 	//2. test that a restarting container does not receive resolv.conf updates
 	//   if it modified the container copy of the starting point resolv.conf
 	dockerCmd(c, "run", "--name=second", "busybox", "sh", "-c", "echo 'search mylittlepony.com' >>/etc/resolv.conf")
-	containerID2, err := getIDByName("second")
-	if err != nil {
-		c.Fatal(err)
-	}
+	containerID2 := getIDByName(c, "second")
 
 	//make a change to resolv.conf (in this case replacing our tmp copy with orig copy)
 	if err := ioutil.WriteFile("/etc/resolv.conf", resolvConfSystem, 0644); err != nil {
@@ -1581,10 +1566,7 @@ func (s *DockerSuite) TestRunResolvconfUpdate(c *check.C) {
 
 	// Run the container so it picks up the old settings
 	dockerCmd(c, "run", "--name=third", "busybox", "true")
-	containerID3, err := getIDByName("third")
-	if err != nil {
-		c.Fatal(err)
-	}
+	containerID3 := getIDByName(c, "third")
 
 	// Create a modified resolv.conf.aside and override resolv.conf with it
 	bytesResolvConf = []byte(tmpResolvConf)
@@ -1698,15 +1680,10 @@ func (s *DockerSuite) TestRunCopyVolumeUIDGID(c *check.C) {
 	// Not applicable on Windows as it does not support uid or gid in this way
 	testRequires(c, DaemonIsLinux)
 	name := "testrunvolumesuidgid"
-	_, err := buildImage(name,
-		`FROM busybox
+	buildImageSuccessfully(c, name, withDockerfile(`FROM busybox
 		RUN echo 'dockerio:x:1001:1001::/bin:/bin/false' >> /etc/passwd
 		RUN echo 'dockerio:x:1001:' >> /etc/group
-		RUN mkdir -p /hello && touch /hello/test && chown dockerio.dockerio /hello`,
-		true)
-	if err != nil {
-		c.Fatal(err)
-	}
+		RUN mkdir -p /hello && touch /hello/test && chown dockerio.dockerio /hello`))
 
 	// Test that the uid and gid is copied from the image to the volume
 	out, _ := dockerCmd(c, "run", "--rm", "-v", "/hello", name, "sh", "-c", "ls -l / | grep hello | awk '{print $3\":\"$4}'")
@@ -1722,13 +1699,8 @@ func (s *DockerSuite) TestRunCopyVolumeContent(c *check.C) {
 	// that copies from the image to the volume.
 	testRequires(c, DaemonIsLinux)
 	name := "testruncopyvolumecontent"
-	_, err := buildImage(name,
-		`FROM busybox
-		RUN mkdir -p /hello/local && echo hello > /hello/local/world`,
-		true)
-	if err != nil {
-		c.Fatal(err)
-	}
+	buildImageSuccessfully(c, name, withDockerfile(`FROM busybox
+		RUN mkdir -p /hello/local && echo hello > /hello/local/world`))
 
 	// Test that the content is copied from the image to the volume
 	out, _ := dockerCmd(c, "run", "--rm", "-v", "/hello", name, "find", "/hello")
@@ -1739,13 +1711,9 @@ func (s *DockerSuite) TestRunCopyVolumeContent(c *check.C) {
 
 func (s *DockerSuite) TestRunCleanupCmdOnEntrypoint(c *check.C) {
 	name := "testrunmdcleanuponentrypoint"
-	if _, err := buildImage(name,
-		`FROM busybox
+	buildImageSuccessfully(c, name, withDockerfile(`FROM busybox
 		ENTRYPOINT ["echo"]
-		CMD ["testingpoint"]`,
-		true); err != nil {
-		c.Fatal(err)
-	}
+		CMD ["testingpoint"]`))
 
 	out, exit := dockerCmd(c, "run", "--entrypoint", "whoami", name)
 	if exit != 0 {
@@ -1879,9 +1847,7 @@ func testRunWriteSpecialFilesAndNotCommit(c *check.C, name, path string) {
 func eqToBaseDiff(out string, c *check.C) bool {
 	name := "eqToBaseDiff" + stringutils.GenerateRandomAlphaOnlyString(32)
 	dockerCmd(c, "run", "--name", name, "busybox", "echo", "hello")
-	cID, err := getIDByName(name)
-	c.Assert(err, check.IsNil)
-
+	cID := getIDByName(c, name)
 	baseDiff, _ := dockerCmd(c, "diff", cID)
 	baseArr := strings.Split(baseDiff, "\n")
 	sort.Strings(baseArr)
@@ -2229,14 +2195,9 @@ func (s *DockerSuite) TestVolumesNoCopyData(c *check.C) {
 	// are pre-populated such as is built in the dockerfile used in this test.
 	testRequires(c, DaemonIsLinux)
 	prefix, slash := getPrefixAndSlashFromDaemonPlatform()
-	if _, err := buildImage("dataimage",
-		`FROM busybox
+	buildImageSuccessfully(c, "dataimage", withDockerfile(`FROM busybox
 		RUN ["mkdir", "-p", "/foo"]
-		RUN ["touch", "/foo/bar"]`,
-		true); err != nil {
-		c.Fatal(err)
-	}
-
+		RUN ["touch", "/foo/bar"]`))
 	dockerCmd(c, "run", "--name", "test", "-v", prefix+slash+"foo", "busybox")
 
 	if out, _, err := dockerCmdWithError("run", "--volumes-from", "test", "dataimage", "ls", "-lh", "/foo/bar"); err == nil || !strings.Contains(out, "No such file or directory") {
@@ -2265,13 +2226,8 @@ func (s *DockerSuite) TestRunNoOutputFromPullInStdout(c *check.C) {
 func (s *DockerSuite) TestRunVolumesCleanPaths(c *check.C) {
 	testRequires(c, SameHostDaemon)
 	prefix, slash := getPrefixAndSlashFromDaemonPlatform()
-	if _, err := buildImage("run_volumes_clean_paths",
-		`FROM busybox
-		VOLUME `+prefix+`/foo/`,
-		true); err != nil {
-		c.Fatal(err)
-	}
-
+	buildImageSuccessfully(c, "run_volumes_clean_paths", withDockerfile(`FROM busybox
+		VOLUME `+prefix+`/foo/`))
 	dockerCmd(c, "run", "-v", prefix+"/foo", "-v", prefix+"/bar/", "--name", "dark_helmet", "run_volumes_clean_paths")
 
 	out, err := inspectMountSourceField("dark_helmet", prefix+slash+"foo"+slash)
@@ -3444,8 +3400,7 @@ func testRunContainerWithCgroupParent(c *check.C, cgroupParent, name string) {
 	if len(cgroupPaths) == 0 {
 		c.Fatalf("unexpected output - %q", string(out))
 	}
-	id, err := getIDByName(name)
-	c.Assert(err, check.IsNil)
+	id := getIDByName(c, name)
 	expectedCgroup := path.Join(cgroupParent, id)
 	found := false
 	for _, path := range cgroupPaths {
@@ -3485,8 +3440,7 @@ func testRunInvalidCgroupParent(c *check.C, cgroupParent, cleanCgroupParent, nam
 	if len(cgroupPaths) == 0 {
 		c.Fatalf("unexpected output - %q", string(out))
 	}
-	id, err := getIDByName(name)
-	c.Assert(err, check.IsNil)
+	id := getIDByName(c, name)
 	expectedCgroup := path.Join(cleanCgroupParent, id)
 	found := false
 	for _, path := range cgroupPaths {
@@ -3919,15 +3873,10 @@ func (s *DockerSuite) TestRunInitLayerPathOwnership(c *check.C) {
 	// Not applicable on Windows as it does not support Linux uid/gid ownership
 	testRequires(c, DaemonIsLinux)
 	name := "testetcfileownership"
-	_, err := buildImage(name,
-		`FROM busybox
+	buildImageSuccessfully(c, name, withDockerfile(`FROM busybox
 		RUN echo 'dockerio:x:1001:1001::/bin:/bin/false' >> /etc/passwd
 		RUN echo 'dockerio:x:1001:' >> /etc/group
-		RUN chown dockerio:dockerio /etc`,
-		true)
-	if err != nil {
-		c.Fatal(err)
-	}
+		RUN chown dockerio:dockerio /etc`))
 
 	// Test that dockerio ownership of /etc is retained at runtime
 	out, _ := dockerCmd(c, "run", "--rm", name, "stat", "-c", "%U:%G", "/etc")
@@ -4056,11 +4005,10 @@ func (s *DockerSuite) TestRunNamedVolumeCopyImageData(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 
 	testImg := "testvolumecopy"
-	_, err := buildImage(testImg, `
+	buildImageSuccessfully(c, testImg, withDockerfile(`
 	FROM busybox
 	RUN mkdir -p /foo && echo hello > /foo/hello
-	`, true)
-	c.Assert(err, check.IsNil)
+	`))
 
 	dockerCmd(c, "run", "-v", "foo:/foo", testImg)
 	out, _ := dockerCmd(c, "run", "-v", "foo:/foo", "busybox", "cat", "/foo/hello")
@@ -4136,14 +4084,9 @@ func (s *DockerSuite) TestRunVolumeWithOneCharacter(c *check.C) {
 
 func (s *DockerSuite) TestRunVolumeCopyFlag(c *check.C) {
 	testRequires(c, DaemonIsLinux) // Windows does not support copying data from image to the volume
-	_, err := buildImage("volumecopy",
-		`FROM busybox
+	buildImageSuccessfully(c, "volumecopy", withDockerfile(`FROM busybox
 		RUN mkdir /foo && echo hello > /foo/bar
-		CMD cat /foo/bar`,
-		true,
-	)
-	c.Assert(err, checker.IsNil)
-
+		CMD cat /foo/bar`))
 	dockerCmd(c, "volume", "create", "test")
 
 	// test with the nocopy flag
@@ -4232,22 +4175,20 @@ RUN chmod 755 /entrypoint.sh
 ENTRYPOINT ["/entrypoint.sh"]
 CMD echo foobar`
 
-	ctx, err := fakeContext(dockerfile, map[string]string{
+	ctx := fakeContext(c, dockerfile, map[string]string{
 		"entrypoint.sh": `#!/bin/sh
 echo "I am an entrypoint"
 exec "$@"`,
 	})
-	c.Assert(err, check.IsNil)
 	defer ctx.Close()
 
-	_, err = buildImageFromContext(name, ctx, true)
-	c.Assert(err, check.IsNil)
+	buildImageSuccessfully(c, name, withExternalBuildContext(ctx))
 
 	out, _ := dockerCmd(c, "run", "--entrypoint=", "-t", name, "echo", "foo")
 	c.Assert(strings.TrimSpace(out), check.Equals, "foo")
 
 	// CMD will be reset as well (the same as setting a custom entrypoint)
-	_, _, err = dockerCmdWithError("run", "--entrypoint=", "-t", name)
+	_, _, err := dockerCmdWithError("run", "--entrypoint=", "-t", name)
 	c.Assert(err, check.NotNil)
 	c.Assert(err.Error(), checker.Contains, "No command specified")
 }

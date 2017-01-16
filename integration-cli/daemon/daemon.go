@@ -791,6 +791,7 @@ func WaitInspectWithArgs(dockerBinary, name, expr, expected string, timeout time
 }
 
 // BuildImageCmdWithHost create a build command with the specified arguments.
+// Deprecated
 // FIXME(vdemeester) move this away
 func BuildImageCmdWithHost(dockerBinary, name, dockerfile, host string, useCache bool, buildFlags ...string) *exec.Cmd {
 	args := []string{}

@@ -310,11 +310,9 @@ func (s *DockerSuite) TestEventsImageUntagDelete(c *check.C) {
 	defer observer.Stop()
 
 	name := "testimageevents"
-	imageID, err := buildImage(name,
-		`FROM scratch
-		MAINTAINER "docker"`,
-		true)
-	c.Assert(err, checker.IsNil)
+	buildImageSuccessfully(c, name, withDockerfile(`FROM scratch
+		MAINTAINER "docker"`))
+	imageID := getIDByName(c, name)
 	c.Assert(deleteImages(name), checker.IsNil)
 
 	testActions := map[string]chan bool{

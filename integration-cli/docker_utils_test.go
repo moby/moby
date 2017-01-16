@@ -368,52 +368,41 @@ func (f *FakeContext) Close() error {
 	return os.RemoveAll(f.Dir)
 }
 
-func fakeContextFromNewTempDir() (*FakeContext, error) {
+func fakeContextFromNewTempDir(c *check.C) *FakeContext {
 	tmp, err := ioutil.TempDir("", "fake-context")
-	if err != nil {
-		return nil, err
-	}
+	c.Assert(err, checker.IsNil)
 	if err := os.Chmod(tmp, 0755); err != nil {
-		return nil, err
+		c.Fatal(err)
 	}
-	return fakeContextFromDir(tmp), nil
+	return fakeContextFromDir(tmp)
 }
 
 func fakeContextFromDir(dir string) *FakeContext {
 	return &FakeContext{dir}
 }
 
-func fakeContextWithFiles(files map[string]string) (*FakeContext, error) {
-	ctx, err := fakeContextFromNewTempDir()
-	if err != nil {
-		return nil, err
-	}
+func fakeContextWithFiles(c *check.C, files map[string]string) *FakeContext {
+	ctx := fakeContextFromNewTempDir(c)
 	for file, content := range files {
 		if err := ctx.Add(file, content); err != nil {
 			ctx.Close()
-			return nil, err
+			c.Fatal(err)
 		}
 	}
-	return ctx, nil
+	return ctx
 }
 
-func fakeContextAddDockerfile(ctx *FakeContext, dockerfile string) error {
+func fakeContextAddDockerfile(c *check.C, ctx *FakeContext, dockerfile string) {
 	if err := ctx.Add("Dockerfile", dockerfile); err != nil {
 		ctx.Close()
-		return err
+		c.Fatal(err)
 	}
-	return nil
 }
 
-func fakeContext(dockerfile string, files map[string]string) (*FakeContext, error) {
-	ctx, err := fakeContextWithFiles(files)
-	if err != nil {
-		return nil, err
-	}
-	if err := fakeContextAddDockerfile(ctx, dockerfile); err != nil {
-		return nil, err
-	}
-	return ctx, nil
+func fakeContext(c *check.C, dockerfile string, files map[string]string) *FakeContext {
+	ctx := fakeContextWithFiles(c, files)
+	fakeContextAddDockerfile(c, ctx, dockerfile)
+	return ctx
 }
 
 // FakeStorage is a static file server. It might be running locally or remotely
@@ -424,34 +413,28 @@ type FakeStorage interface {
 	CtxDir() string
 }
 
-func fakeBinaryStorage(archives map[string]*bytes.Buffer) (FakeStorage, error) {
-	ctx, err := fakeContextFromNewTempDir()
-	if err != nil {
-		return nil, err
-	}
+func fakeBinaryStorage(c *check.C, archives map[string]*bytes.Buffer) FakeStorage {
+	ctx := fakeContextFromNewTempDir(c)
 	for name, content := range archives {
 		if err := ctx.addFile(name, content.Bytes()); err != nil {
-			return nil, err
+			c.Fatal(err)
 		}
 	}
-	return fakeStorageWithContext(ctx)
+	return fakeStorageWithContext(c, ctx)
 }
 
 // fakeStorage returns either a local or remote (at daemon machine) file server
-func fakeStorage(files map[string]string) (FakeStorage, error) {
-	ctx, err := fakeContextWithFiles(files)
-	if err != nil {
-		return nil, err
-	}
-	return fakeStorageWithContext(ctx)
+func fakeStorage(c *check.C, files map[string]string) FakeStorage {
+	ctx := fakeContextWithFiles(c, files)
+	return fakeStorageWithContext(c, ctx)
 }
 
 // fakeStorageWithContext returns either a local or remote (at daemon machine) file server
-func fakeStorageWithContext(ctx *FakeContext) (FakeStorage, error) {
+func fakeStorageWithContext(c *check.C, ctx *FakeContext) FakeStorage {
 	if testEnv.LocalDaemon() {
-		return newLocalFakeStorage(ctx)
+		return newLocalFakeStorage(c, ctx)
 	}
-	return newRemoteFileServer(ctx)
+	return newRemoteFileServer(c, ctx)
 }
 
 // localFileStorage is a file storage on the running machine
@@ -473,13 +456,13 @@ func (s *localFileStorage) Close() error {
 	return s.FakeContext.Close()
 }
 
-func newLocalFakeStorage(ctx *FakeContext) (*localFileStorage, error) {
+func newLocalFakeStorage(c *check.C, ctx *FakeContext) *localFileStorage {
 	handler := http.FileServer(http.Dir(ctx.Dir))
 	server := httptest.NewServer(handler)
 	return &localFileStorage{
 		FakeContext: ctx,
 		Server:      server,
-	}, nil
+	}
 }
 
 // remoteFileServer is a containerized static file server started on the remote
@@ -517,58 +500,45 @@ func (f *remoteFileServer) Close() error {
 	return deleteContainer(false, f.container)
 }
 
-func newRemoteFileServer(ctx *FakeContext) (*remoteFileServer, error) {
+func newRemoteFileServer(c *check.C, ctx *FakeContext) *remoteFileServer {
 	var (
 		image     = fmt.Sprintf("fileserver-img-%s", strings.ToLower(stringutils.GenerateRandomAlphaOnlyString(10)))
 		container = fmt.Sprintf("fileserver-cnt-%s", strings.ToLower(stringutils.GenerateRandomAlphaOnlyString(10)))
 	)
 
-	if err := ensureHTTPServerImage(); err != nil {
-		return nil, err
-	}
+	c.Assert(ensureHTTPServerImage(), checker.IsNil)
 
 	// Build the image
-	if err := fakeContextAddDockerfile(ctx, `FROM httpserver
-COPY . /static`); err != nil {
-		return nil, fmt.Errorf("Cannot add Dockerfile to context: %v", err)
-	}
-	if _, err := buildImageFromContext(image, ctx, false); err != nil {
-		return nil, fmt.Errorf("failed building file storage container image: %v", err)
-	}
+	fakeContextAddDockerfile(c, ctx, `FROM httpserver
+COPY . /static`)
+	buildImageSuccessfully(c, image, withoutCache, withExternalBuildContext(ctx))
 
 	// Start the container
-	runCmd := exec.Command(dockerBinary, "run", "-d", "-P", "--name", container, image)
-	if out, ec, err := runCommandWithOutput(runCmd); err != nil {
-		return nil, fmt.Errorf("failed to start file storage container. ec=%v\nout=%s\nerr=%v", ec, out, err)
-	}
+	dockerCmd(c, "run", "-d", "-P", "--name", container, image)
 
 	// Find out the system assigned port
-	out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "port", container, "80/tcp"))
-	if err != nil {
-		return nil, fmt.Errorf("failed to find container port: err=%v\nout=%s", err, out)
-	}
-
+	out, _ := dockerCmd(c, "port", container, "80/tcp")
 	fileserverHostPort := strings.Trim(out, "\n")
 	_, port, err := net.SplitHostPort(fileserverHostPort)
 	if err != nil {
-		return nil, fmt.Errorf("unable to parse file server host:port: %v", err)
+		c.Fatalf("unable to parse file server host:port: %v", err)
 	}
 
 	dockerHostURL, err := url.Parse(daemonHost())
 	if err != nil {
-		return nil, fmt.Errorf("unable to parse daemon host URL: %v", err)
+		c.Fatalf("unable to parse daemon host URL: %v", err)
 	}
 
 	host, _, err := net.SplitHostPort(dockerHostURL.Host)
 	if err != nil {
-		return nil, fmt.Errorf("unable to parse docker daemon host:port: %v", err)
+		c.Fatalf("unable to parse docker daemon host:port: %v", err)
 	}
 
 	return &remoteFileServer{
 		container: container,
 		image:     image,
 		host:      fmt.Sprintf("%s:%s", host, port),
-		ctx:       ctx}, nil
+		ctx:       ctx}
 }
 
 func inspectFieldAndUnmarshall(c *check.C, name, field string, output interface{}) {
@@ -671,51 +641,17 @@ func inspectImage(name, filter string) (string, error) {
 	return strings.TrimSpace(out), nil
 }
 
-func getIDByName(name string) (string, error) {
-	return inspectFieldWithError(name, "Id")
-}
-
-// Deprecated
-func buildImageCmd(name, dockerfile string, useCache bool, buildFlags ...string) *exec.Cmd {
-	return daemon.BuildImageCmdWithHost(dockerBinary, name, dockerfile, "", useCache, buildFlags...)
-}
-
-// Deprecated
-func buildImageWithOut(name, dockerfile string, useCache bool, buildFlags ...string) (string, string, error) {
-	buildCmd := buildImageCmd(name, dockerfile, useCache, buildFlags...)
-	out, exitCode, err := runCommandWithOutput(buildCmd)
-	if err != nil || exitCode != 0 {
-		return "", out, fmt.Errorf("failed to build the image: %s", out)
-	}
-	id, err := getIDByName(name)
-	if err != nil {
-		return "", out, err
-	}
-	return id, out, nil
-}
-
-// Deprecated
-func buildImageWithStdoutStderr(name, dockerfile string, useCache bool, buildFlags ...string) (string, string, string, error) {
-	buildCmd := buildImageCmd(name, dockerfile, useCache, buildFlags...)
-	result := icmd.RunCmd(transformCmd(buildCmd))
-	err := result.Error
-	exitCode := result.ExitCode
-	if err != nil || exitCode != 0 {
-		return "", result.Stdout(), result.Stderr(), fmt.Errorf("failed to build the image: %s", result.Combined())
-	}
-	id, err := getIDByName(name)
-	if err != nil {
-		return "", result.Stdout(), result.Stderr(), err
-	}
-	return id, result.Stdout(), result.Stderr(), nil
+func getIDByName(c *check.C, name string) string {
+	id, err := inspectFieldWithError(name, "Id")
+	c.Assert(err, checker.IsNil)
+	return id
 }
 
 func buildImageSuccessfully(c *check.C, name string, cmdOperators ...func(*icmd.Cmd) func()) {
-	buildImageNew(name, cmdOperators...).Assert(c, icmd.Success)
+	buildImage(name, cmdOperators...).Assert(c, icmd.Success)
 }
 
-// FIXME(vdemeester) rename this buildImage once deprecated buildImage is no more
-func buildImageNew(name string, cmdOperators ...func(*icmd.Cmd) func()) *icmd.Result {
+func buildImage(name string, cmdOperators ...func(*icmd.Cmd) func()) *icmd.Result {
 	cmd := icmd.Command(dockerBinary, "build", "-t", name)
 	for _, op := range cmdOperators {
 		deferFn := op(&cmd)
@@ -733,11 +669,16 @@ func withBuildContextPath(path string) func(*icmd.Cmd) func() {
 	}
 }
 
-func withBuildContext(c *check.C, contextOperators ...func(*FakeContext) error) func(*icmd.Cmd) func() {
-	ctx, err := fakeContextFromNewTempDir()
-	if err != nil {
-		c.Fatalf("error creating build context : %v", err)
+func withExternalBuildContext(ctx *FakeContext) func(*icmd.Cmd) func() {
+	return func(cmd *icmd.Cmd) func() {
+		cmd.Dir = ctx.Dir
+		cmd.Command = append(cmd.Command, ".")
+		return nil
 	}
+}
+
+func withBuildContext(c *check.C, contextOperators ...func(*FakeContext) error) func(*icmd.Cmd) func() {
+	ctx := fakeContextFromNewTempDir(c)
 	for _, op := range contextOperators {
 		if err := op(ctx); err != nil {
 			c.Fatal(err)
@@ -796,108 +737,6 @@ func withEnvironmentVariales(envs ...string) func(cmd *icmd.Cmd) func() {
 	}
 }
 
-// Deprecated
-func buildImage(name, dockerfile string, useCache bool, buildFlags ...string) (string, error) {
-	id, _, err := buildImageWithOut(name, dockerfile, useCache, buildFlags...)
-	return id, err
-}
-
-// Deprecated
-func buildImageFromContext(name string, ctx *FakeContext, useCache bool, buildFlags ...string) (string, error) {
-	id, _, err := buildImageFromContextWithOut(name, ctx, useCache, buildFlags...)
-	if err != nil {
-		return "", err
-	}
-	return id, nil
-}
-
-// Deprecated
-func buildImageFromContextWithOut(name string, ctx *FakeContext, useCache bool, buildFlags ...string) (string, string, error) {
-	args := []string{"build", "-t", name}
-	if !useCache {
-		args = append(args, "--no-cache")
-	}
-	args = append(args, buildFlags...)
-	args = append(args, ".")
-	result := icmd.RunCmd(icmd.Cmd{
-		Command: append([]string{dockerBinary}, args...),
-		Dir:     ctx.Dir,
-	})
-	out := result.Combined()
-	if result.Error != nil || result.ExitCode != 0 {
-		return "", "", fmt.Errorf("failed to build the image: %s", out)
-	}
-	id, err := getIDByName(name)
-	if err != nil {
-		return "", "", err
-	}
-	return id, out, nil
-}
-
-// Deprecated
-func buildImageFromContextWithStdoutStderr(name string, ctx *FakeContext, useCache bool, buildFlags ...string) (string, string, string, error) {
-	args := []string{"build", "-t", name}
-	if !useCache {
-		args = append(args, "--no-cache")
-	}
-	args = append(args, buildFlags...)
-	args = append(args, ".")
-
-	result := icmd.RunCmd(icmd.Cmd{
-		Command: append([]string{dockerBinary}, args...),
-		Dir:     ctx.Dir,
-	})
-	exitCode := result.ExitCode
-	err := result.Error
-	if err != nil || exitCode != 0 {
-		return "", result.Stdout(), result.Stderr(), fmt.Errorf("failed to build the image: %s", result.Combined())
-	}
-	id, err := getIDByName(name)
-	if err != nil {
-		return "", result.Stdout(), result.Stderr(), err
-	}
-	return id, result.Stdout(), result.Stderr(), nil
-}
-
-// Deprecated
-func buildImageFromGitWithStdoutStderr(name string, ctx *fakeGit, useCache bool, buildFlags ...string) (string, string, string, error) {
-	args := []string{"build", "-t", name}
-	if !useCache {
-		args = append(args, "--no-cache")
-	}
-	args = append(args, buildFlags...)
-	args = append(args, ctx.RepoURL)
-	result := icmd.RunCmd(icmd.Cmd{
-		Command: append([]string{dockerBinary}, args...),
-	})
-	exitCode := result.ExitCode
-	err := result.Error
-	if err != nil || exitCode != 0 {
-		return "", result.Stdout(), result.Stderr(), fmt.Errorf("failed to build the image: %s", result.Combined())
-	}
-	id, err := getIDByName(name)
-	if err != nil {
-		return "", result.Stdout(), result.Stderr(), err
-	}
-	return id, result.Stdout(), result.Stderr(), nil
-}
-
-// Deprecated
-func buildImageFromPath(name, path string, useCache bool, buildFlags ...string) (string, error) {
-	args := []string{"build", "-t", name}
-	if !useCache {
-		args = append(args, "--no-cache")
-	}
-	args = append(args, buildFlags...)
-	args = append(args, path)
-	buildCmd := exec.Command(dockerBinary, args...)
-	out, exitCode, err := runCommandWithOutput(buildCmd)
-	if err != nil || exitCode != 0 {
-		return "", fmt.Errorf("failed to build the image: %s", out)
-	}
-	return getIDByName(name)
-}
-
 type gitServer interface {
 	URL() string
 	Close() error
@@ -927,69 +766,63 @@ func (g *fakeGit) Close() {
 	os.RemoveAll(g.root)
 }
 
-func newFakeGit(name string, files map[string]string, enforceLocalServer bool) (*fakeGit, error) {
-	ctx, err := fakeContextWithFiles(files)
-	if err != nil {
-		return nil, err
-	}
+func newFakeGit(c *check.C, name string, files map[string]string, enforceLocalServer bool) *fakeGit {
+	ctx := fakeContextWithFiles(c, files)
 	defer ctx.Close()
 	curdir, err := os.Getwd()
 	if err != nil {
-		return nil, err
+		c.Fatal(err)
 	}
 	defer os.Chdir(curdir)
 
 	if output, err := exec.Command("git", "init", ctx.Dir).CombinedOutput(); err != nil {
-		return nil, fmt.Errorf("error trying to init repo: %s (%s)", err, output)
+		c.Fatalf("error trying to init repo: %s (%s)", err, output)
 	}
 	err = os.Chdir(ctx.Dir)
 	if err != nil {
-		return nil, err
+		c.Fatal(err)
 	}
 	if output, err := exec.Command("git", "config", "user.name", "Fake User").CombinedOutput(); err != nil {
-		return nil, fmt.Errorf("error trying to set 'user.name': %s (%s)", err, output)
+		c.Fatalf("error trying to set 'user.name': %s (%s)", err, output)
 	}
 	if output, err := exec.Command("git", "config", "user.email", "fake.user@example.com").CombinedOutput(); err != nil {
-		return nil, fmt.Errorf("error trying to set 'user.email': %s (%s)", err, output)
+		c.Fatalf("error trying to set 'user.email': %s (%s)", err, output)
 	}
 	if output, err := exec.Command("git", "add", "*").CombinedOutput(); err != nil {
-		return nil, fmt.Errorf("error trying to add files to repo: %s (%s)", err, output)
+		c.Fatalf("error trying to add files to repo: %s (%s)", err, output)
 	}
 	if output, err := exec.Command("git", "commit", "-a", "-m", "Initial commit").CombinedOutput(); err != nil {
-		return nil, fmt.Errorf("error trying to commit to repo: %s (%s)", err, output)
+		c.Fatalf("error trying to commit to repo: %s (%s)", err, output)
 	}
 
 	root, err := ioutil.TempDir("", "docker-test-git-repo")
 	if err != nil {
-		return nil, err
+		c.Fatal(err)
 	}
 	repoPath := filepath.Join(root, name+".git")
 	if output, err := exec.Command("git", "clone", "--bare", ctx.Dir, repoPath).CombinedOutput(); err != nil {
 		os.RemoveAll(root)
-		return nil, fmt.Errorf("error trying to clone --bare: %s (%s)", err, output)
+		c.Fatalf("error trying to clone --bare: %s (%s)", err, output)
 	}
 	err = os.Chdir(repoPath)
 	if err != nil {
 		os.RemoveAll(root)
-		return nil, err
+		c.Fatal(err)
 	}
 	if output, err := exec.Command("git", "update-server-info").CombinedOutput(); err != nil {
 		os.RemoveAll(root)
-		return nil, fmt.Errorf("error trying to git update-server-info: %s (%s)", err, output)
+		c.Fatalf("error trying to git update-server-info: %s (%s)", err, output)
 	}
 	err = os.Chdir(curdir)
 	if err != nil {
 		os.RemoveAll(root)
-		return nil, err
+		c.Fatal(err)
 	}
 
 	var server gitServer
 	if !enforceLocalServer {
 		// use fakeStorage server, which might be local or remote (at test daemon)
-		server, err = fakeStorageWithContext(fakeContextFromDir(root))
-		if err != nil {
-			return nil, fmt.Errorf("cannot start fake storage: %v", err)
-		}
+		server = fakeStorageWithContext(c, fakeContextFromDir(root))
 	} else {
 		// always start a local http server on CLI test machine
 		httpServer := httptest.NewServer(http.FileServer(http.Dir(root)))
@@ -999,7 +832,7 @@ func newFakeGit(name string, files map[string]string, enforceLocalServer bool) (
 		root:    root,
 		server:  server,
 		RepoURL: fmt.Sprintf("%s/%s.git", server.URL(), name),
-	}, nil
+	}
 }
 
 // Write `content` to the file at path `dst`, creating it if necessary,

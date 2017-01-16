@@ -1766,19 +1766,18 @@ func (s *DockerSuite) TestContainersAPICreateMountsCreate(c *check.C) {
 	destPath := prefix + slash + "foo"
 
 	var (
-		err     error
 		testImg string
 	)
 	if testEnv.DaemonPlatform() != "windows" {
-		testImg, err = buildImage("test-mount-config", `
+		testImg = "test-mount-config"
+		buildImageSuccessfully(c, testImg, withDockerfile(`
 	FROM busybox
 	RUN mkdir `+destPath+` && touch `+destPath+slash+`bar
 	CMD cat `+destPath+slash+`bar
-	`, true)
+	`))
 	} else {
 		testImg = "busybox"
 	}
-	c.Assert(err, checker.IsNil)
 
 	type testCase struct {
 		cfg      mounttypes.Mount
