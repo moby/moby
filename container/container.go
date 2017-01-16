@@ -44,6 +44,7 @@ import (
 	"github.com/docker/libnetwork/types"
 	agentexec "github.com/docker/swarmkit/agent/exec"
 	"github.com/opencontainers/runc/libcontainer/label"
+	"github.com/opencontainers/runc/libcontainer/user"
 )
 
 const configFileName = "config.v2.json"
@@ -298,6 +299,36 @@ func (container *Container) GetRootResourcePath(path string) (string, error) {
 	// any filepath operations must be done in an OS agnostic way.
 	cleanPath := filepath.Join(string(os.PathSeparator), path)
 	return symlink.FollowSymlinkInScope(filepath.Join(container.Root, cleanPath), container.Root)
+}
+
+// ParseUserGrp takes `username` in the format of username, uid, username:groupname,
+// uid:gid, username:gid, or uid:groupname and parses the passwd file in the container
+// to return the ExecUser referred to by `username`.
+func (container *Container) ParseUserGrp(username string) (*user.ExecUser, error) {
+	passwdPath, err := user.GetPasswdPath()
+	if err != nil {
+		return nil, err
+	}
+	passwdPath, err = container.GetResourcePath(passwdPath)
+	if err != nil {
+		return nil, err
+	}
+
+	groupPath, err := user.GetGroupPath()
+	if err != nil {
+		return nil, err
+	}
+	groupPath, err = container.GetResourcePath(groupPath)
+	if err != nil {
+		return nil, err
+	}
+
+	execUser, err := user.GetExecUserPath(username, nil, passwdPath, groupPath)
+	if err != nil {
+		return nil, err
+	}
+
+	return execUser, nil
 }
 
 // ExitOnNext signals to the monitor that it should not restart the container

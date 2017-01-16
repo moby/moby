@@ -84,7 +84,7 @@ func (daemon *Daemon) SystemInfo() (*types.Info, error) {
 	if selinuxEnabled() {
 		securityOptions = append(securityOptions, "name=selinux")
 	}
-	uid, gid := daemon.GetRemappedUIDGID()
+	uid, gid := daemon.GetRemappedRootUIDGID()
 	if uid != 0 || gid != 0 {
 		securityOptions = append(securityOptions, "name=userns")
 	}

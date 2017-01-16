@@ -107,7 +107,7 @@ func (daemon *Daemon) setupIpcDirs(c *container.Container) error {
 		}
 		c.ShmPath = "/dev/shm"
 	} else {
-		rootUID, rootGID := daemon.GetRemappedUIDGID()
+		rootUID, rootGID := daemon.GetRemappedRootUIDGID()
 		if !c.HasMountFor("/dev/shm") {
 			shmPath, err := c.ShmResourcePath()
 			if err != nil {
@@ -156,7 +156,7 @@ func (daemon *Daemon) setupSecretDir(c *container.Container) (setupErr error) {
 	}()
 
 	// retrieve possible remapped range start for root UID, GID
-	rootUID, rootGID := daemon.GetRemappedUIDGID()
+	rootUID, rootGID := daemon.GetRemappedRootUIDGID()
 	// create tmpfs
 	if err := idtools.MkdirAllAs(localMountPath, 0700, rootUID, rootGID); err != nil {
 		return errors.Wrap(err, "error creating secret local mount path")

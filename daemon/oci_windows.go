@@ -18,6 +18,11 @@ func (daemon *Daemon) createSpec(c *container.Container) (*specs.Spec, error) {
 		return nil, err
 	}
 
+	// TODO Windows - this can be removed. Not used (UID/GID)
+	// When Windows supports remapping 'root' then the code should
+	// probably look like this:
+	//   rootUID, rootGID := daemon.GetRemappedRootUIDGID()
+	//   if err := c.SetupWorkingDirectory(rootUID, rootGID); err != nil {
 	if err := c.SetupWorkingDirectory(0, 0); err != nil {
 		return nil, err
 	}

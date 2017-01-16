@@ -923,12 +923,20 @@ func (daemon *Daemon) GetUIDGIDMaps() ([]idtools.IDMap, []idtools.IDMap) {
 	return daemon.uidMaps, daemon.gidMaps
 }
 
-// GetRemappedUIDGID returns the current daemon's uid and gid values
+// GetRemappedRootUIDGID returns the current daemon's uid and gid values
 // if user namespaces are in use for this daemon instance.  If not
 // this function will return "real" root values of 0, 0.
-func (daemon *Daemon) GetRemappedUIDGID() (int, int) {
+func (daemon *Daemon) GetRemappedRootUIDGID() (int, int) {
 	uid, gid, _ := idtools.GetRootUIDGID(daemon.uidMaps, daemon.gidMaps)
 	return uid, gid
+}
+
+// GetRemappedUIDGID returns the current daemon's uid and gid values for
+// the specified user and group, if user namespaces are in use for this
+// daemon instance. If not, this function will return the passed in values.
+func (daemon *Daemon) GetRemappedUIDGID(uid, gid int) (int, int) {
+	mappedUID, mappedGID, _ := idtools.GetUIDGID(uid, gid, daemon.uidMaps, daemon.gidMaps)
+	return mappedUID, mappedGID
 }
 
 // tempDir returns the default directory to use for temporary files.
@@ -941,7 +949,7 @@ func tempDir(rootDir string, rootUID, rootGID int) (string, error) {
 }
 
 func (daemon *Daemon) setupInitLayer(initPath string) error {
-	rootUID, rootGID := daemon.GetRemappedUIDGID()
+	rootUID, rootGID := daemon.GetRemappedRootUIDGID()
 	return initlayer.Setup(initPath, rootUID, rootGID)
 }
 

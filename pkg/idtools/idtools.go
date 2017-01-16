@@ -54,6 +54,29 @@ func MkdirAs(path string, mode os.FileMode, ownerUID, ownerGID int) error {
 	return mkdirAs(path, mode, ownerUID, ownerGID, false, true)
 }
 
+// GetUIDGID retrieves the remapped uid/gid pair from the set of maps.
+// If the maps are empty, If no map is provided, then the translation
+// assumes a 1-to-1 mapping and returns the passed in uid and gid.
+func GetUIDGID(uid, gid int, uidMap, gidMap []IDMap) (int, int, error) {
+	mappedUID, mappedGID := uid, gid
+
+	if uidMap != nil {
+		xUID, err := ToHost(uid, uidMap)
+		if err != nil {
+			return -1, -1, err
+		}
+		mappedUID = xUID
+	}
+	if gidMap != nil {
+		xGID, err := ToHost(gid, gidMap)
+		if err != nil {
+			return -1, -1, err
+		}
+		mappedGID = xGID
+	}
+	return mappedUID, mappedGID, nil
+}
+
 // GetRootUIDGID retrieves the remapped root uid/gid pair from the set of maps.
 // If the maps are empty, then the root uid/gid will default to "real" 0/0
 func GetRootUIDGID(uidMap, gidMap []IDMap) (int, int, error) {
