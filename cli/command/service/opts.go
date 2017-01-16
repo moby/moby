@@ -445,6 +445,7 @@ func addServiceFlags(cmd *cobra.Command, opts *serviceOptions) {
 	flags.StringVarP(&opts.workdir, flagWorkdir, "w", "", "Working directory inside the container")
 	flags.StringVarP(&opts.user, flagUser, "u", "", "Username or UID (format: <name|uid>[:<group|gid>])")
 	flags.StringVar(&opts.hostname, flagHostname, "", "Container hostname")
+	flags.SetAnnotation(flagHostname, "version", []string{"1.25"})
 
 	flags.Var(&opts.resources.limitCPU, flagLimitCPU, "Limit CPUs")
 	flags.Var(&opts.resources.limitMemBytes, flagLimitMemory, "Limit Memory")
@@ -462,8 +463,10 @@ func addServiceFlags(cmd *cobra.Command, opts *serviceOptions) {
 	flags.Uint64Var(&opts.update.parallelism, flagUpdateParallelism, 1, "Maximum number of tasks updated simultaneously (0 to update all at once)")
 	flags.DurationVar(&opts.update.delay, flagUpdateDelay, time.Duration(0), "Delay between updates (ns|us|ms|s|m|h) (default 0s)")
 	flags.DurationVar(&opts.update.monitor, flagUpdateMonitor, time.Duration(0), "Duration after each task update to monitor for failure (ns|us|ms|s|m|h) (default 0s)")
+	flags.SetAnnotation(flagUpdateMonitor, "version", []string{"1.25"})
 	flags.StringVar(&opts.update.onFailure, flagUpdateFailureAction, "pause", "Action on update failure (pause|continue)")
 	flags.Var(&opts.update.maxFailureRatio, flagUpdateMaxFailureRatio, "Failure rate to tolerate during an update")
+	flags.SetAnnotation(flagUpdateMaxFailureRatio, "version", []string{"1.25"})
 
 	flags.StringVar(&opts.endpoint.mode, flagEndpointMode, "", "Endpoint mode (vip or dnsrr)")
 
@@ -473,12 +476,18 @@ func addServiceFlags(cmd *cobra.Command, opts *serviceOptions) {
 	flags.Var(&opts.logDriver.opts, flagLogOpt, "Logging driver options")
 
 	flags.StringVar(&opts.healthcheck.cmd, flagHealthCmd, "", "Command to run to check health")
+	flags.SetAnnotation(flagHealthCmd, "version", []string{"1.25"})
 	flags.Var(&opts.healthcheck.interval, flagHealthInterval, "Time between running the check (ns|us|ms|s|m|h)")
+	flags.SetAnnotation(flagHealthInterval, "version", []string{"1.25"})
 	flags.Var(&opts.healthcheck.timeout, flagHealthTimeout, "Maximum time to allow one check to run (ns|us|ms|s|m|h)")
+	flags.SetAnnotation(flagHealthTimeout, "version", []string{"1.25"})
 	flags.IntVar(&opts.healthcheck.retries, flagHealthRetries, 0, "Consecutive failures needed to report unhealthy")
+	flags.SetAnnotation(flagHealthRetries, "version", []string{"1.25"})
 	flags.BoolVar(&opts.healthcheck.noHealthcheck, flagNoHealthcheck, false, "Disable any container-specified HEALTHCHECK")
+	flags.SetAnnotation(flagNoHealthcheck, "version", []string{"1.25"})
 
 	flags.BoolVarP(&opts.tty, flagTTY, "t", false, "Allocate a pseudo-TTY")
+	flags.SetAnnotation(flagTTY, "version", []string{"1.25"})
 }
 
 const (

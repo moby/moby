@@ -236,9 +236,12 @@ func addFlags(flags *pflag.FlagSet) *containerOptions {
 	flags.Int64Var(&copts.cpuPeriod, "cpu-period", 0, "Limit CPU CFS (Completely Fair Scheduler) period")
 	flags.Int64Var(&copts.cpuQuota, "cpu-quota", 0, "Limit CPU CFS (Completely Fair Scheduler) quota")
 	flags.Int64Var(&copts.cpuRealtimePeriod, "cpu-rt-period", 0, "Limit CPU real-time period in microseconds")
+	flags.SetAnnotation("cpu-rt-period", "version", []string{"1.25"})
 	flags.Int64Var(&copts.cpuRealtimeRuntime, "cpu-rt-runtime", 0, "Limit CPU real-time runtime in microseconds")
+	flags.SetAnnotation("cpu-rt-runtime", "version", []string{"1.25"})
 	flags.Int64VarP(&copts.cpuShares, "cpu-shares", "c", 0, "CPU shares (relative weight)")
 	flags.Var(&copts.cpus, "cpus", "Number of CPUs")
+	flags.SetAnnotation("cpus", "version", []string{"1.25"})
 	flags.Var(&copts.deviceReadBps, "device-read-bps", "Limit read rate (bytes per second) from a device")
 	flags.Var(&copts.deviceReadIOps, "device-read-iops", "Limit read rate (IO per second) from a device")
 	flags.Var(&copts.deviceWriteBps, "device-write-bps", "Limit write rate (bytes per second) to a device")
@@ -264,7 +267,9 @@ func addFlags(flags *pflag.FlagSet) *containerOptions {
 	flags.StringVar(&copts.runtime, "runtime", "", "Runtime to use for this container")
 
 	flags.BoolVar(&copts.init, "init", false, "Run an init inside the container that forwards signals and reaps processes")
+	flags.SetAnnotation("init", "version", []string{"1.25"})
 	flags.StringVar(&copts.initPath, "init-path", "", "Path to the docker-init binary")
+	flags.SetAnnotation("init-path", "version", []string{"1.25"})
 	return copts
 }
 
