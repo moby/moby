@@ -23,6 +23,9 @@ import (
 const (
 	// DefaultDockerfileName is the Default filename with Docker commands, read by docker build
 	DefaultDockerfileName string = "Dockerfile"
+
+	// DefaultDockerignoreFilename is the default filename for the ignore file
+	DefaultDockerignoreFilename string = ".dockerignore"
 )
 
 // ValidateContextDirectory checks if all the contents of the directory

@@ -35,6 +35,7 @@ import (
 type buildOptions struct {
 	context        string
 	dockerfileName string
+	ignorefileName string
 	tags           opts.ListOpts
 	labels         opts.ListOpts
 	buildArgs      opts.ListOpts
@@ -87,6 +88,7 @@ func NewBuildCommand(dockerCli *command.DockerCli) *cobra.Command {
 	flags.Var(&options.buildArgs, "build-arg", "Set build-time variables")
 	flags.Var(options.ulimits, "ulimit", "Ulimit options")
 	flags.StringVarP(&options.dockerfileName, "file", "f", "", "Name of the Dockerfile (Default is 'PATH/Dockerfile')")
+	flags.StringVar(&options.ignorefileName, "ignore-file", "", "Name of the dockerignore file")
 	flags.StringVarP(&options.memory, "memory", "m", "", "Memory limit")
 	flags.StringVar(&options.memorySwap, "memory-swap", "", "Swap limit equal to memory plus swap: '-1' to enable unlimited swap")
 	flags.StringVar(&options.shmSize, "shm-size", "", "Size of /dev/shm, default value is 64MB")
@@ -183,7 +185,14 @@ func runBuild(dockerCli *command.DockerCli, options buildOptions) error {
 			return fmt.Errorf("cannot canonicalize dockerfile path %s: %v", relDockerfile, err)
 		}
 
-		f, err := os.Open(filepath.Join(contextDir, ".dockerignore"))
+		ignorefileName := options.ignorefileName
+		ignoreErr := false
+		if ignorefileName == "" {
+			ignorefileName = build.DefaultDockerignoreFilename
+			ignoreErr = true
+		}
+
+		f, err := os.Open(filepath.Join(contextDir, ignorefileName))
 		if err != nil && !os.IsNotExist(err) {
 			return err
 		}
@@ -192,7 +201,7 @@ func runBuild(dockerCli *command.DockerCli, options buildOptions) error {
 		var excludes []string
 		if err == nil {
 			excludes, err = dockerignore.ReadAll(f)
-			if err != nil {
+			if !ignoreErr && err != nil {
 				return err
 			}
 		}
@@ -209,10 +218,10 @@ func runBuild(dockerCli *command.DockerCli, options buildOptions) error {
 		// parses the Dockerfile. Ignore errors here, as they will have been
 		// caught by validateContextDirectory above.
 		var includes = []string{"."}
-		keepThem1, _ := fileutils.Matches(".dockerignore", excludes)
+		keepThem1, _ := fileutils.Matches(ignorefileName, excludes)
 		keepThem2, _ := fileutils.Matches(relDockerfile, excludes)
 		if keepThem1 || keepThem2 {
-			includes = append(includes, ".dockerignore", relDockerfile)
+			includes = append(includes, ignorefileName, relDockerfile)
 		}
 
 		compression := archive.Uncompressed
@@ -297,6 +306,7 @@ func runBuild(dockerCli *command.DockerCli, options buildOptions) error {
 		CPUPeriod:      options.cpuPeriod,
 		CgroupParent:   options.cgroupParent,
 		Dockerfile:     relDockerfile,
+		Ignorefile:     options.ignorefileName,
 		ShmSize:        shmSize,
 		Ulimits:        options.ulimits.GetList(),
 		BuildArgs:      runconfigopts.ConvertKVStringsToMapWithNil(options.buildArgs.GetAll()),

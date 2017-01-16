@@ -94,6 +94,7 @@ func (cli *Client) imageBuildOptionsToQuery(options types.ImageBuildOptions) (ur
 	query.Set("cgroupparent", options.CgroupParent)
 	query.Set("shmsize", strconv.FormatInt(options.ShmSize, 10))
 	query.Set("dockerfile", options.Dockerfile)
+	query.Set("ignorefile", options.Ignorefile)
 
 	ulimitsJSON, err := json.Marshal(options.Ulimits)
 	if err != nil {

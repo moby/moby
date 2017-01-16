@@ -46,7 +46,7 @@ func executeProcess(t *testing.T, contextDir string) {
 	modifiableCtx := &tarSumContext{root: contextDir}
 	ctx := DockerIgnoreContext{ModifiableContext: modifiableCtx}
 
-	err := ctx.Process([]string{DefaultDockerfileName})
+	err := ctx.Process(".dockerignore", []string{DefaultDockerfileName})
 
 	if err != nil {
 		t.Fatalf("Error when executing Process: %s", err)
@@ -74,7 +74,14 @@ func TestProcessNoDockerignore(t *testing.T) {
 	createTestTempFile(t, contextDir, shouldStayFilename, testfileContents, 0777)
 	createTestTempFile(t, contextDir, DefaultDockerfileName, dockerfileContents, 0777)
 
-	executeProcess(t, contextDir)
+	modifiableCtx := &tarSumContext{root: contextDir}
+	ctx := DockerIgnoreContext{ModifiableContext: modifiableCtx}
+
+	err := ctx.Process(".dockerignore", []string{DefaultDockerfileName})
+
+	if err == nil {
+		t.Fatalf("expected an error (final not found), got nothing")
+	}
 
 	checkDirectory(t, contextDir, []string{shouldStayFilename, DefaultDockerfileName})
 
