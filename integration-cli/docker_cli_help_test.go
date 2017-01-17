@@ -118,7 +118,7 @@ func (s *DockerSuite) TestHelpTextVerify(c *check.C) {
 		cmdsToTest = append(cmdsToTest, "network ls")
 		cmdsToTest = append(cmdsToTest, "network rm")
 
-		if experimentalDaemon {
+		if testEnv.ExperimentalDaemon() {
 			cmdsToTest = append(cmdsToTest, "checkpoint create")
 			cmdsToTest = append(cmdsToTest, "checkpoint ls")
 			cmdsToTest = append(cmdsToTest, "checkpoint rm")

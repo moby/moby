@@ -58,7 +58,7 @@ func (s *DockerSuite) TestCreateArgs(c *check.C) {
 // Make sure we can grow the container's rootfs at creation time.
 func (s *DockerSuite) TestCreateGrowRootfs(c *check.C) {
 	// Windows and Devicemapper support growing the rootfs
-	if daemonPlatform != "windows" {
+	if testEnv.DaemonPlatform() != "windows" {
 		testRequires(c, Devicemapper)
 	}
 	out, _ := dockerCmd(c, "create", "--storage-opt", "size=120G", "busybox")
@@ -226,8 +226,8 @@ func (s *DockerSuite) TestCreateLabelFromImage(c *check.C) {
 func (s *DockerSuite) TestCreateHostnameWithNumber(c *check.C) {
 	image := "busybox"
 	// Busybox on Windows does not implement hostname command
-	if daemonPlatform == "windows" {
-		image = WindowsBaseImage
+	if testEnv.DaemonPlatform() == "windows" {
+		image = testEnv.MinimalBaseImage()
 	}
 	out, _ := dockerCmd(c, "run", "-h", "web.0", image, "hostname")
 	c.Assert(strings.TrimSpace(out), checker.Equals, "web.0", check.Commentf("hostname not set, expected `web.0`, got: %s", out))
@@ -411,7 +411,7 @@ func (s *DockerSuite) TestCreateWithWorkdir(c *check.C) {
 
 	dockerCmd(c, "create", "--name", name, "-w", dir, "busybox")
 	// Windows does not create the workdir until the container is started
-	if daemonPlatform == "windows" {
+	if testEnv.DaemonPlatform() == "windows" {
 		dockerCmd(c, "start", name)
 	}
 	dockerCmd(c, "cp", fmt.Sprintf("%s:%s", name, dir), prefix+slash+"tmp")

@@ -16,7 +16,7 @@ import (
 func (s *DockerSuite) TestBuildAPIDockerFileRemote(c *check.C) {
 	testRequires(c, NotUserNamespace)
 	var testD string
-	if daemonPlatform == "windows" {
+	if testEnv.DaemonPlatform() == "windows" {
 		testD = `FROM busybox
 COPY * /tmp/
 RUN find / -name ba*

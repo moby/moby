@@ -73,7 +73,7 @@ func (s *DockerSuite) TestAPIImagesSaveAndLoad(c *check.C) {
 }
 
 func (s *DockerSuite) TestAPIImagesDelete(c *check.C) {
-	if daemonPlatform != "windows" {
+	if testEnv.DaemonPlatform() != "windows" {
 		testRequires(c, Network)
 	}
 	name := "test-api-images-delete"
@@ -97,7 +97,7 @@ func (s *DockerSuite) TestAPIImagesDelete(c *check.C) {
 }
 
 func (s *DockerSuite) TestAPIImagesHistory(c *check.C) {
-	if daemonPlatform != "windows" {
+	if testEnv.DaemonPlatform() != "windows" {
 		testRequires(c, Network)
 	}
 	name := "test-api-images-history"
