@@ -3,7 +3,6 @@
 package v2
 
 import (
-	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -12,6 +11,7 @@ import (
 	"github.com/docker/docker/oci"
 	"github.com/docker/docker/pkg/system"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
+	"github.com/pkg/errors"
 )
 
 // InitSpec creates an OCI spec from the plugin's config.
@@ -29,7 +29,7 @@ func (p *Plugin) InitSpec(execRoot string) (*specs.Spec, error) {
 
 	execRoot = filepath.Join(execRoot, p.PluginObj.ID)
 	if err := os.MkdirAll(execRoot, 0700); err != nil {
-		return nil, err
+		return nil, errors.WithStack(err)
 	}
 
 	mounts := append(p.PluginObj.Config.Mounts, types.PluginMount{
@@ -95,7 +95,7 @@ func (p *Plugin) InitSpec(execRoot string) (*specs.Spec, error) {
 		path := *dev.Path
 		d, dPermissions, err := oci.DevicesFromPath(path, path, "rwm")
 		if err != nil {
-			return nil, err
+			return nil, errors.WithStack(err)
 		}
 		s.Linux.Devices = append(s.Linux.Devices, d...)
 		s.Linux.Resources.Devices = append(s.Linux.Resources.Devices, dPermissions...)
