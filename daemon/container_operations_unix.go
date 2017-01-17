@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/cloudflare/cfssl/log"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/links"
 	"github.com/docker/docker/pkg/idtools"
@@ -150,7 +149,7 @@ func (daemon *Daemon) setupSecretDir(c *container.Container) (setupErr error) {
 			_ = detachMounted(localMountPath)
 
 			if err := os.RemoveAll(localMountPath); err != nil {
-				log.Errorf("error cleaning up secret mount: %s", err)
+				logrus.Errorf("error cleaning up secret mount: %s", err)
 			}
 		}
 	}()
