@@ -511,6 +511,9 @@ func parse(flags *pflag.FlagSet, copts *containerOptions) (*container.Config, *c
 		if copts.healthTimeout < 0 {
 			return nil, nil, nil, fmt.Errorf("--health-timeout cannot be negative")
 		}
+		if copts.healthRetries < 0 {
+			return nil, nil, nil, fmt.Errorf("--health-retries cannot be negative")
+		}
 
 		healthConfig = &container.HealthConfig{
 			Test:     probe,

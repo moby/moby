@@ -742,10 +742,10 @@ definitions:
             items:
               type: "string"
           Interval:
-            description: "The time to wait between checks in nanoseconds. 0 means inherit."
+            description: "The time to wait between checks in nanoseconds. It should be 0 or not less than 1000000000(1s). 0 means inherit."
             type: "integer"
           Timeout:
-            description: "The time to wait before considering the check to have hung. 0 means inherit."
+            description: "The time to wait before considering the check to have hung. It should be 0 or not less than 1000000000(1s). 0 means inherit."
             type: "integer"
           Retries:
             description: "The number of consecutive failures needed to consider a container as unhealthy. 0 means inherit."
