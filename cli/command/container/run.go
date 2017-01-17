@@ -255,10 +255,11 @@ func runRun(dockerCli *command.DockerCli, flags *pflag.FlagSet, opts *runOptions
 // reportError is a utility method that prints a user-friendly message
 // containing the error that occurred during parsing and a suggestion to get help
 func reportError(stderr io.Writer, name string, str string, withHelp bool) {
+	str = strings.TrimSuffix(str, ".") + "."
 	if withHelp {
-		str += ".\nSee '" + os.Args[0] + " " + name + " --help'"
+		str += "\nSee '" + os.Args[0] + " " + name + " --help'."
 	}
-	fmt.Fprintf(stderr, "%s: %s.\n", os.Args[0], str)
+	fmt.Fprintf(stderr, "%s: %s\n", os.Args[0], str)
 }
 
 // if container start fails with 'not found'/'no such' error, return 127
