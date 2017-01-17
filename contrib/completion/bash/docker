@@ -2006,6 +2006,7 @@ _docker_image_build() {
 		--quiet -q
 		--rm
 	"
+	__docker_is_experimental && boolean_options+="--squash"
 
 	local all_options="$options_with_args $boolean_options"
 
