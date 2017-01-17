@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/integration-cli/daemon"
@@ -1383,4 +1384,27 @@ func (s *DockerSwarmSuite) TestAPIDuplicateNetworks(c *check.C) {
 	c.Assert(json.Unmarshal(out, &r2), checker.IsNil)
 
 	c.Assert(r2.Scope, checker.Equals, "swarm")
+}
+
+// Test case for 30178
+func (s *DockerSwarmSuite) TestAPISwarmHealthcheckNone(c *check.C) {
+	d := s.AddDaemon(c, true, true)
+
+	out, err := d.Cmd("network", "create", "-d", "overlay", "lb")
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+
+	instances := 1
+	d.CreateService(c, simpleTestService, setInstances(instances), func(s *swarm.Service) {
+		s.Spec.TaskTemplate.ContainerSpec.Healthcheck = &container.HealthConfig{}
+		s.Spec.TaskTemplate.Networks = []swarm.NetworkAttachmentConfig{
+			{Target: "lb"},
+		}
+	})
+
+	waitAndAssert(c, defaultReconciliationTimeout, d.CheckActiveContainerCount, checker.Equals, instances)
+
+	containers := d.ActiveContainers()
+
+	out, err = d.Cmd("exec", containers[0], "ping", "-c1", "-W3", "top")
+	c.Assert(err, checker.IsNil, check.Commentf(out))
 }
