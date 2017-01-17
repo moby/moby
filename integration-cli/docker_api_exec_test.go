@@ -65,7 +65,7 @@ func (s *DockerSuite) TestExecAPICreateContainerPaused(c *check.C) {
 }
 
 func (s *DockerSuite) TestExecAPIStart(c *check.C) {
-	testRequires(c, DaemonIsLinux) // Uses pause/unpause but bits may be salvagable to Windows to Windows CI
+	testRequires(c, DaemonIsLinux) // Uses pause/unpause but bits may be salvageable to Windows to Windows CI
 	dockerCmd(c, "run", "-d", "--name", "test", "busybox", "top")
 
 	id := createExec(c, "test")

@@ -305,7 +305,7 @@ func (s *DockerSuite) TestInspectNoSizeFlagContainer(c *check.C) {
 
 	formatStr := "--format={{.SizeRw}},{{.SizeRootFs}}"
 	out, _ := dockerCmd(c, "inspect", "--type=container", formatStr, "busybox")
-	c.Assert(strings.TrimSpace(out), check.Equals, "<nil>,<nil>", check.Commentf("Exepcted not to display size info: %s", out))
+	c.Assert(strings.TrimSpace(out), check.Equals, "<nil>,<nil>", check.Commentf("Expected not to display size info: %s", out))
 }
 
 func (s *DockerSuite) TestInspectSizeFlagContainer(c *check.C) {
@@ -454,7 +454,7 @@ func (s *DockerSuite) TestInspectUnknownObject(c *check.C) {
 	c.Assert(err.Error(), checker.Contains, "Error: No such object: foobar")
 }
 
-func (s *DockerSuite) TestInpectInvalidReference(c *check.C) {
+func (s *DockerSuite) TestInspectInvalidReference(c *check.C) {
 	// This test should work on both Windows and Linux
 	out, _, err := dockerCmdWithError("inspect", "FooBar")
 	c.Assert(err, checker.NotNil)

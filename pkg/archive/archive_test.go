@@ -142,7 +142,7 @@ func TestDecompressStreamXz(t *testing.T) {
 	testDecompressStream(t, "xz", "xz -f")
 }
 
-func TestCompressStreamXzUnsuported(t *testing.T) {
+func TestCompressStreamXzUnsupported(t *testing.T) {
 	dest, err := os.Create(tmp + "dest")
 	if err != nil {
 		t.Fatalf("Fail to create the destination file")
