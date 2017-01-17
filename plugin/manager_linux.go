@@ -42,12 +42,12 @@ func (pm *Manager) enable(p *v2.Plugin, c *controller, force bool) error {
 
 	if p.PropagatedMount != "" {
 		if err := mount.MakeRShared(p.PropagatedMount); err != nil {
-			return err
+			return errors.WithStack(err)
 		}
 	}
 
 	if err := initlayer.Setup(filepath.Join(pm.config.Root, p.PluginObj.ID, rootFSFileName), 0, 0); err != nil {
-		return err
+		return errors.WithStack(err)
 	}
 
 	if err := pm.containerdClient.Create(p.GetID(), "", "", specs.Spec(*spec), attachToLog(p.GetID())); err != nil {
@@ -56,7 +56,7 @@ func (pm *Manager) enable(p *v2.Plugin, c *controller, force bool) error {
 				logrus.Warnf("Could not unmount %s: %v", p.PropagatedMount, err)
 			}
 		}
-		return err
+		return errors.WithStack(err)
 	}
 
 	return pm.pluginPostStart(p, c)
@@ -67,7 +67,7 @@ func (pm *Manager) pluginPostStart(p *v2.Plugin, c *controller) error {
 	if err != nil {
 		c.restart = false
 		shutdownPlugin(p, c, pm.containerdClient)
-		return err
+		return errors.WithStack(err)
 	}
 
 	p.SetPClient(client)
