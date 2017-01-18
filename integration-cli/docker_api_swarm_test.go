@@ -596,6 +596,24 @@ func setInstances(replicas int) daemon.ServiceConstructor {
 	}
 }
 
+func setUpdateOrder(order string) daemon.ServiceConstructor {
+	return func(s *swarm.Service) {
+		if s.Spec.UpdateConfig == nil {
+			s.Spec.UpdateConfig = &swarm.UpdateConfig{}
+		}
+		s.Spec.UpdateConfig.Order = order
+	}
+}
+
+func setRollbackOrder(order string) daemon.ServiceConstructor {
+	return func(s *swarm.Service) {
+		if s.Spec.RollbackConfig == nil {
+			s.Spec.RollbackConfig = &swarm.UpdateConfig{}
+		}
+		s.Spec.RollbackConfig.Order = order
+	}
+}
+
 func setImage(image string) daemon.ServiceConstructor {
 	return func(s *swarm.Service) {
 		s.Spec.TaskTemplate.ContainerSpec.Image = image
