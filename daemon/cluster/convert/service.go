@@ -393,6 +393,13 @@ func updateConfigFromGRPC(updateConfig *swarmapi.UpdateConfig) *types.UpdateConf
 		converted.FailureAction = types.UpdateFailureActionRollback
 	}
 
+	switch updateConfig.Order {
+	case swarmapi.UpdateConfig_STOP_FIRST:
+		converted.Order = types.UpdateOrderStopFirst
+	case swarmapi.UpdateConfig_START_FIRST:
+		converted.Order = types.UpdateOrderStartFirst
+	}
+
 	return converted
 }
 
@@ -415,10 +422,19 @@ func updateConfigToGRPC(updateConfig *types.UpdateConfig) (*swarmapi.UpdateConfi
 	case types.UpdateFailureActionRollback:
 		converted.FailureAction = swarmapi.UpdateConfig_ROLLBACK
 	default:
-		return nil, fmt.Errorf("unrecongized update failure action %s", updateConfig.FailureAction)
+		return nil, fmt.Errorf("unrecognized update failure action %s", updateConfig.FailureAction)
 	}
 	if updateConfig.Monitor != 0 {
 		converted.Monitor = gogotypes.DurationProto(updateConfig.Monitor)
+	}
+
+	switch updateConfig.Order {
+	case types.UpdateOrderStopFirst, "":
+		converted.Order = swarmapi.UpdateConfig_STOP_FIRST
+	case types.UpdateOrderStartFirst:
+		converted.Order = swarmapi.UpdateConfig_START_FIRST
+	default:
+		return nil, fmt.Errorf("unrecognized update order %s", updateConfig.Order)
 	}
 
 	return converted, nil

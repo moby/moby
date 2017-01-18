@@ -57,6 +57,7 @@ UpdateConfig:
  Monitoring Period: {{ .UpdateMonitor }}
 {{- end }}
  Max failure ratio: {{ .UpdateMaxFailureRatio }}
+ Update order:      {{ .UpdateOrder }}
 {{- end }}
 {{- if .HasRollbackConfig }}
 RollbackConfig:
@@ -69,6 +70,7 @@ RollbackConfig:
  Monitoring Period: {{ .RollbackMonitor }}
 {{- end }}
  Max failure ratio: {{ .RollbackMaxFailureRatio }}
+ Rollback order:    {{ .RollbackOrder }}
 {{- end }}
 ContainerSpec:
  Image:		{{ .ContainerImage }}
@@ -260,6 +262,10 @@ func (ctx *serviceInspectContext) UpdateOnFailure() string {
 	return ctx.Service.Spec.UpdateConfig.FailureAction
 }
 
+func (ctx *serviceInspectContext) UpdateOrder() string {
+	return ctx.Service.Spec.UpdateConfig.Order
+}
+
 func (ctx *serviceInspectContext) HasUpdateMonitor() bool {
 	return ctx.Service.Spec.UpdateConfig.Monitor.Nanoseconds() > 0
 }
@@ -302,6 +308,10 @@ func (ctx *serviceInspectContext) RollbackMonitor() time.Duration {
 
 func (ctx *serviceInspectContext) RollbackMaxFailureRatio() float32 {
 	return ctx.Service.Spec.RollbackConfig.MaxFailureRatio
+}
+
+func (ctx *serviceInspectContext) RollbackOrder() string {
+	return ctx.Service.Spec.RollbackConfig.Order
 }
 
 func (ctx *serviceInspectContext) ContainerImage() string {
