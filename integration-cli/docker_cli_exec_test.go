@@ -363,7 +363,7 @@ func (s *DockerSuite) TestExecInspectID(c *check.C) {
 	// result in a 404 (not 'container not running')
 	out, ec := dockerCmd(c, "rm", "-f", id)
 	c.Assert(ec, checker.Equals, 0, check.Commentf("error removing container: %s", out))
-	sc, body, err = request.SockRequest("GET", "/exec/"+execID+"/json", nil, daemonHost())
+	sc, body, _ = request.SockRequest("GET", "/exec/"+execID+"/json", nil, daemonHost())
 	c.Assert(sc, checker.Equals, http.StatusNotFound, check.Commentf("received status != 404: %d\n%s", sc, body))
 }
 

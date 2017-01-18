@@ -122,10 +122,10 @@ func (s *DockerSuite) TestSearchWithLimit(c *check.C) {
 	c.Assert(outSlice, checker.HasLen, limit+2) // 1 header, 1 carriage return
 
 	limit = 0
-	out, _, err = dockerCmdWithError("search", fmt.Sprintf("--limit=%d", limit), "docker")
+	_, _, err = dockerCmdWithError("search", fmt.Sprintf("--limit=%d", limit), "docker")
 	c.Assert(err, checker.Not(checker.IsNil))
 
 	limit = 200
-	out, _, err = dockerCmdWithError("search", fmt.Sprintf("--limit=%d", limit), "docker")
+	_, _, err = dockerCmdWithError("search", fmt.Sprintf("--limit=%d", limit), "docker")
 	c.Assert(err, checker.Not(checker.IsNil))
 }

@@ -1296,11 +1296,11 @@ func (s *DockerSuite) TestRunDNSOptions(c *check.C) {
 		c.Fatalf("expected 'search mydomain nameserver 127.0.0.1 options ndots:9', but says: %q", actual)
 	}
 
-	out, stderr, _ = dockerCmdWithStdoutStderr(c, "run", "--dns=127.0.0.1", "--dns-search=.", "--dns-opt=ndots:3", "busybox", "cat", "/etc/resolv.conf")
+	out, _ = dockerCmd(c, "run", "--dns=1.1.1.1", "--dns-search=.", "--dns-opt=ndots:3", "busybox", "cat", "/etc/resolv.conf")
 
 	actual = strings.Replace(strings.Trim(strings.Trim(out, "\r\n"), " "), "\n", " ", -1)
-	if actual != "nameserver 127.0.0.1 options ndots:3" {
-		c.Fatalf("expected 'nameserver 127.0.0.1 options ndots:3', but says: %q", actual)
+	if actual != "nameserver 1.1.1.1 options ndots:3" {
+		c.Fatalf("expected 'nameserver 1.1.1.1 options ndots:3', but says: %q", actual)
 	}
 }
 
@@ -1376,7 +1376,6 @@ func (s *DockerSuite) TestRunDNSOptionsBasedOnHostResolvConf(c *check.C) {
 		c.Fatalf("/etc/resolv.conf does not exist")
 	}
 
-	hostNameservers = resolvconf.GetNameservers(resolvConf, types.IP)
 	hostSearch = resolvconf.GetSearchDomains(resolvConf)
 
 	out, _ = dockerCmd(c, "run", "busybox", "cat", "/etc/resolv.conf")

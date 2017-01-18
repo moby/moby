@@ -2566,7 +2566,14 @@ func (s *DockerDaemonSuite) TestDaemonRestartSaveContainerExitCode(c *check.C) {
 
 	containerName := "error-values"
 	// Make a container with both a non 0 exit code and an error message
-	out, err := s.d.Cmd("run", "--name", containerName, "busybox", "toto")
+	// We explicitly disable `--init` for this test, because `--init` is enabled by default
+	// on "experimental". Enabling `--init` results in a different behavior; because the "init"
+	// process itself is PID1, the container does not fail on _startup_ (i.e., `docker-init` starting),
+	// but directly after. The exit code of the container is still 127, but the Error Message is not
+	// captured, so `.State.Error` is empty.
+	// See the discussion on https://github.com/docker/docker/pull/30227#issuecomment-274161426,
+	// and https://github.com/docker/docker/pull/26061#r78054578 for more information.
+	out, err := s.d.Cmd("run", "--name", containerName, "--init=false", "busybox", "toto")
 	c.Assert(err, checker.NotNil)
 
 	// Check that those values were saved on disk
@@ -2575,9 +2582,10 @@ func (s *DockerDaemonSuite) TestDaemonRestartSaveContainerExitCode(c *check.C) {
 	c.Assert(err, checker.IsNil)
 	c.Assert(out, checker.Equals, "127")
 
-	out, err = s.d.Cmd("inspect", "-f", "{{.State.Error}}", containerName)
-	out = strings.TrimSpace(out)
+	errMsg1, err := s.d.Cmd("inspect", "-f", "{{.State.Error}}", containerName)
+	errMsg1 = strings.TrimSpace(errMsg1)
 	c.Assert(err, checker.IsNil)
+	c.Assert(errMsg1, checker.Contains, "executable file not found")
 
 	// now restart daemon
 	s.d.Restart(c)
@@ -2591,6 +2599,7 @@ func (s *DockerDaemonSuite) TestDaemonRestartSaveContainerExitCode(c *check.C) {
 	out, err = s.d.Cmd("inspect", "-f", "{{.State.Error}}", containerName)
 	out = strings.TrimSpace(out)
 	c.Assert(err, checker.IsNil)
+	c.Assert(out, checker.Equals, errMsg1)
 }
 
 func (s *DockerDaemonSuite) TestDaemonBackcompatPre17Volumes(c *check.C) {
