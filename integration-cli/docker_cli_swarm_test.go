@@ -1576,7 +1576,7 @@ func (s *DockerSwarmSuite) TestSwarmServicePsMultipleServiceIDs(c *check.C) {
 func (s *DockerSwarmSuite) TestSwarmPublishDuplicatePorts(c *check.C) {
 	d := s.AddDaemon(c, true, true)
 
-	out, err := d.Cmd("service", "create", "--publish", "5000:80", "--publish", "5001:80", "--publish", "80", "--publish", "80", "busybox", "top")
+	out, err := d.Cmd("service", "create", "--publish", "5005:80", "--publish", "5006:80", "--publish", "80", "--publish", "80", "busybox", "top")
 	c.Assert(err, check.IsNil, check.Commentf(out))
 	id := strings.TrimSpace(out)
 
@@ -1588,8 +1588,8 @@ func (s *DockerSwarmSuite) TestSwarmPublishDuplicatePorts(c *check.C) {
 	out, err = d.Cmd("service", "inspect", "--format", "{{.Endpoint.Ports}} len={{len .Endpoint.Ports}}", id)
 	c.Assert(err, check.IsNil, check.Commentf(out))
 	c.Assert(out, checker.Contains, "len=4")
-	c.Assert(out, checker.Contains, "{ tcp 80 5000 ingress}")
-	c.Assert(out, checker.Contains, "{ tcp 80 5001 ingress}")
+	c.Assert(out, checker.Contains, "{ tcp 80 5005 ingress}")
+	c.Assert(out, checker.Contains, "{ tcp 80 5006 ingress}")
 }
 
 func (s *DockerSwarmSuite) TestSwarmJoinWithDrain(c *check.C) {
