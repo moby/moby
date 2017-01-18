@@ -204,10 +204,7 @@ func from(b *Builder, args []string, attributes map[string]bool, original string
 
 	name := args[0]
 
-	var (
-		image builder.Image
-		err   error
-	)
+	var image builder.Image
 
 	// Windows cannot support a container with no base image.
 	if name == api.NoBaseImageSpecifier {
@@ -219,10 +216,11 @@ func from(b *Builder, args []string, attributes map[string]bool, original string
 	} else {
 		// TODO: don't use `name`, instead resolve it to a digest
 		if !b.options.PullParent {
-			image, err = b.docker.GetImageOnBuild(name)
+			image, _ = b.docker.GetImageOnBuild(name)
 			// TODO: shouldn't we error out if error is different from "not found" ?
 		}
 		if image == nil {
+			var err error
 			image, err = b.docker.PullOnBuild(b.clientCtx, name, b.options.AuthConfigs, b.Output)
 			if err != nil {
 				return err

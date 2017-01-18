@@ -81,14 +81,11 @@ func collect(ctx context.Context, s *formatter.ContainerStats, cli client.APICli
 	go func() {
 		for {
 			var (
-				v                 *types.StatsJSON
-				memPercent        = 0.0
-				cpuPercent        = 0.0
-				blkRead, blkWrite uint64 // Only used on Linux
-				mem               = 0.0
-				memLimit          = 0.0
-				memPerc           = 0.0
-				pidsStatsCurrent  uint64
+				v                      *types.StatsJSON
+				memPercent, cpuPercent float64
+				blkRead, blkWrite      uint64 // Only used on Linux
+				mem, memLimit, memPerc float64
+				pidsStatsCurrent       uint64
 			)
 
 			if err := dec.Decode(&v); err != nil {

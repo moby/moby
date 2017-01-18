@@ -290,7 +290,7 @@ func (r *Session) GetRemoteImageLayer(imgID, registry string, imgSize int64) (io
 	if err != nil {
 		return nil, fmt.Errorf("Error while getting from the server: %v", err)
 	}
-	statusCode = 0
+
 	res, err = r.client.Do(req)
 	if err != nil {
 		logrus.Debugf("Error contacting registry %s: %v", registry, err)
