@@ -187,7 +187,6 @@ func (daemon *Daemon) restore() error {
 		}
 	}
 
-	var migrateLegacyLinks bool // Not relevant on Windows
 	var wg sync.WaitGroup
 	var mapLock sync.Mutex
 	for _, c := range containers {
@@ -267,24 +266,12 @@ func (daemon *Daemon) restore() error {
 				c.SetDead()
 				c.ToDisk()
 			}
-
-			// if c.hostConfig.Links is nil (not just empty), then it is using the old sqlite links and needs to be migrated
-			if c.HostConfig != nil && c.HostConfig.Links == nil {
-				migrateLegacyLinks = true
-			}
 		}(c)
 	}
 	wg.Wait()
 	daemon.netController, err = daemon.initNetworkController(daemon.configStore, activeSandboxes)
 	if err != nil {
 		return fmt.Errorf("Error initializing network controller: %v", err)
-	}
-
-	// Perform migration of legacy sqlite links (no-op on Windows)
-	if migrateLegacyLinks {
-		if err := daemon.sqliteMigration(containers); err != nil {
-			return err
-		}
 	}
 
 	// Now that all the containers are registered, register the links

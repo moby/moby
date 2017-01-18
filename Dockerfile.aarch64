@@ -38,7 +38,6 @@ RUN apt-get update && apt-get install -y \
 	libc6-dev \
 	libcap-dev \
 	libltdl-dev \
-	libsqlite3-dev \
 	libsystemd-dev \
 	mercurial \
 	net-tools \
