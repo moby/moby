@@ -979,7 +979,7 @@ func (s *DockerSuite) TestRunSeccompProfileDenyChmod(c *check.C) {
 }
 
 // TestRunSeccompProfileDenyUnshareUserns checks that 'docker run debian:jessie unshare --map-root-user --user sh -c whoami' with a specific profile to
-// deny unhare of a userns exits with operation not permitted.
+// deny unshare of a userns exits with operation not permitted.
 func (s *DockerSuite) TestRunSeccompProfileDenyUnshareUserns(c *check.C) {
 	testRequires(c, SameHostDaemon, seccompEnabled, NotArm, Apparmor)
 	// from sched.h
@@ -1012,6 +1012,18 @@ func (s *DockerSuite) TestRunSeccompProfileDenyUnshareUserns(c *check.C) {
 	out, _, _ := runCommandWithOutput(runCmd)
 	if !strings.Contains(out, "Operation not permitted") {
 		c.Fatalf("expected unshare userns with seccomp profile denied to fail, got %s", out)
+	}
+}
+
+// TestRunSeccompProfileDenyUnusualSocketFamilies checks that rarely used socket families such as Appletalk are blocked by the default profile
+func (s *DockerSuite) TestRunSeccompProfileDenyUnusualSocketFamilies(c *check.C) {
+	testRequires(c, SameHostDaemon, seccompEnabled)
+	ensureSyscallTest(c)
+
+	runCmd := exec.Command(dockerBinary, "run", "syscall-test", "appletalk-test")
+	_, _, err := runCommandWithOutput(runCmd)
+	if err != nil {
+		c.Fatal("expected opening appletalk socket family to fail")
 	}
 }
 
