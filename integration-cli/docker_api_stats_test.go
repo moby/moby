@@ -26,6 +26,7 @@ func (s *DockerSuite) TestAPIStatsNoStreamGetCpu(c *check.C) {
 	id := strings.TrimSpace(out)
 	c.Assert(waitRun(id), checker.IsNil)
 
+	// test API "/containers/[name]/stats"
 	resp, body, err := request.SockRequestRaw("GET", fmt.Sprintf("/containers/%s/stats?stream=false", id), nil, "", daemonHost())
 	c.Assert(err, checker.IsNil)
 	c.Assert(resp.StatusCode, checker.Equals, http.StatusOK)
@@ -60,6 +61,37 @@ func (s *DockerSuite) TestAPIStatsNoStreamGetCpu(c *check.C) {
 	c.Assert(cpuPercent, check.Not(checker.Equals), 0.0, check.Commentf("docker stats with no-stream get cpu usage failed: was %v", cpuPercent))
 }
 
+func (s *DockerSuite) TestApiStatsAllNoStreamGetCpu(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+	out, _ := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "while true;do echo 'Hello'; usleep 100000; done")
+
+	id := strings.TrimSpace(out)
+	c.Assert(waitRun(id), checker.IsNil)
+
+	// test API "/containers/-/stats"
+	resp, body, err := request.SockRequestRaw("GET", "/containers/-/stats?stream=false", nil, "", daemonHost())
+	c.Assert(err, checker.IsNil)
+	c.Assert(resp.StatusCode, checker.Equals, http.StatusOK)
+	c.Assert(resp.Header.Get("Content-Type"), checker.Equals, "application/json")
+
+	var v map[string]*types.StatsJSON
+	err = json.NewDecoder(body).Decode(&v)
+	c.Assert(err, checker.IsNil)
+	body.Close()
+
+	ss, ok := v[id]
+	if !ok {
+		c.Fatalf("container %s should exists in stats result: %v", id[:12], v)
+	}
+
+	var cpuPercent = 0.0
+	cpuDelta := float64(ss.CPUStats.CPUUsage.TotalUsage - ss.PreCPUStats.CPUUsage.TotalUsage)
+	systemDelta := float64(ss.CPUStats.SystemUsage - ss.PreCPUStats.SystemUsage)
+	cpuPercent = (cpuDelta / systemDelta) * float64(len(ss.CPUStats.CPUUsage.PercpuUsage)) * 100.0
+
+	c.Assert(cpuPercent, check.Not(checker.Equals), 0.0, check.Commentf("docker stats with no-stream get cpu usage failed: was %v", cpuPercent))
+}
+
 func (s *DockerSuite) TestAPIStatsStoppedContainerInGoroutines(c *check.C) {
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "echo 1")
 	id := strings.TrimSpace(out)
@@ -81,6 +113,25 @@ func (s *DockerSuite) TestAPIStatsStoppedContainerInGoroutines(c *check.C) {
 	body.Close()
 
 	t := time.After(30 * time.Second)
+	for {
+		select {
+		case <-t:
+			c.Assert(getGoRoutines(), checker.LessOrEqualThan, routines)
+			goto test_stats_all
+		default:
+			if n := getGoRoutines(); n <= routines {
+				goto test_stats_all
+			}
+			time.Sleep(200 * time.Millisecond)
+		}
+	}
+
+test_stats_all:
+	// `GET /containers/-/stats` should return the same
+	_, body, err = request.SockRequestRaw("GET", "/containers/-/stats", nil, "", daemonHost())
+	c.Assert(err, checker.IsNil)
+	body.Close()
+
 	for {
 		select {
 		case <-t:
@@ -110,18 +161,32 @@ func (s *DockerSuite) TestAPIStatsNetworkStats(c *check.C) {
 	contIP := findContainerIP(c, id, net)
 	numPings := 1
 
-	var preRxPackets uint64
-	var preTxPackets uint64
-	var postRxPackets uint64
-	var postTxPackets uint64
+	var (
+		preRxPackets  uint64
+		preTxPackets  uint64
+		postRxPackets uint64
+		postTxPackets uint64
+
+		preRxPacketsAll  uint64
+		preTxPacketsAll  uint64
+		postRxPacketsAll uint64
+		postTxPacketsAll uint64
+	)
 
 	// Get the container networking stats before and after pinging the container
+	// Get with API "/container/[name]/stats"
 	nwStatsPre := getNetworkStats(c, id)
 	for _, v := range nwStatsPre {
 		preRxPackets += v.RxPackets
 		preTxPackets += v.TxPackets
 	}
 
+	// Get with API "/containers/-/stats"
+	nwStatsPre = getNetworkStatsForAll(c, id)
+	for _, v := range nwStatsPre {
+		preRxPacketsAll += v.RxPackets
+		preTxPacketsAll += v.TxPackets
+	}
 	countParam := "-c"
 	if runtime.GOOS == "windows" {
 		countParam = "-n" // Ping count parameter is -n on Windows
@@ -142,10 +207,19 @@ func (s *DockerSuite) TestAPIStatsNetworkStats(c *check.C) {
 	}
 	c.Assert(err, checker.IsNil)
 	pingouts := string(pingout[:])
+
+	// Get post packets via "/containers/[name]/stats"
 	nwStatsPost := getNetworkStats(c, id)
 	for _, v := range nwStatsPost {
 		postRxPackets += v.RxPackets
 		postTxPackets += v.TxPackets
+	}
+
+	// Get post packets via "/containers/-/stats"
+	nwStatsPost = getNetworkStatsForAll(c, id)
+	for _, v := range nwStatsPost {
+		postRxPacketsAll += v.RxPackets
+		postTxPacketsAll += v.TxPackets
 	}
 
 	// Verify the stats contain at least the expected number of packets
@@ -160,6 +234,11 @@ func (s *DockerSuite) TestAPIStatsNetworkStats(c *check.C) {
 		check.Commentf("Reported less TxPackets than expected. Expected >= %d. Found %d. %s", expTxPkts, postTxPackets, pingouts))
 	c.Assert(postRxPackets, checker.GreaterOrEqualThan, expRxPkts,
 		check.Commentf("Reported less Txbytes than expected. Expected >= %d. Found %d. %s", expRxPkts, postRxPackets, pingouts))
+
+	c.Assert(postTxPacketsAll, checker.GreaterOrEqualThan, expTxPkts,
+		check.Commentf("Reported less TxPackets than expected. Expected >= %d. Found %d. %s", expTxPkts, postTxPacketsAll, pingouts))
+	c.Assert(postRxPacketsAll, checker.GreaterOrEqualThan, expRxPkts,
+		check.Commentf("Reported less Txbytes than expected. Expected >= %d. Found %d. %s", expRxPkts, postRxPacketsAll, pingouts))
 }
 
 func (s *DockerSuite) TestAPIStatsNetworkStatsVersioning(c *check.C) {
@@ -199,6 +278,23 @@ func getNetworkStats(c *check.C, id string) map[string]types.NetworkStats {
 	c.Assert(err, checker.IsNil)
 	body.Close()
 
+	return st.Networks
+}
+
+func getNetworkStatsForAll(c *check.C, id string) map[string]types.NetworkStats {
+	var stMap map[string]*types.StatsJSON
+
+	_, body, err := request.SockRequestRaw("GET", "/containers/-/stats?stream=false", nil, "", daemonHost())
+	c.Assert(err, checker.IsNil)
+
+	err = json.NewDecoder(body).Decode(&stMap)
+	c.Assert(err, checker.IsNil)
+	body.Close()
+
+	st, ok := stMap[id]
+	if !ok {
+		c.Fatalf("container %s not exits in stats result: %v", id, st)
+	}
 	return st.Networks
 }
 

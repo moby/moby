@@ -162,7 +162,7 @@ type Stats struct {
 
 	// Shared stats
 	CPUStats    CPUStats    `json:"cpu_stats,omitempty"`
-	PreCPUStats CPUStats    `json:"precpu_stats,omitempty"` // "Pre"="Previous"
+	PreCPUStats *CPUStats   `json:"precpu_stats,omitempty"` // "Pre"="Previous"
 	MemoryStats MemoryStats `json:"memory_stats,omitempty"`
 }
 

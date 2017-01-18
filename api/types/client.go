@@ -256,6 +256,12 @@ type ResizeOptions struct {
 	Width  uint
 }
 
+// StatsAllOptions holds parameters to get stats of all containers
+type StatsAllOptions struct {
+	Filters filters.Args
+	Stream  bool // stream the output
+}
+
 // VersionResponse holds version information for the client and the server
 type VersionResponse struct {
 	Client *Version
