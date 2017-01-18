@@ -564,23 +564,9 @@ func (clnt *client) Restore(containerID string, _ StdioCallback, unusedOnWindows
 }
 
 // GetPidsForContainer returns a list of process IDs running in a container.
-// Although implemented, this is not used in Windows.
+// Not used on Windows.
 func (clnt *client) GetPidsForContainer(containerID string) ([]int, error) {
-	var pids []int
-	clnt.lock(containerID)
-	defer clnt.unlock(containerID)
-	cont, err := clnt.getContainer(containerID)
-	if err != nil {
-		return nil, err
-	}
-
-	// Add the first process
-	pids = append(pids, int(cont.containerCommon.systemPid))
-	// And add all the exec'd processes
-	for _, p := range cont.processes {
-		pids = append(pids, int(p.processCommon.systemPid))
-	}
-	return pids, nil
+	return nil, errors.New("not implemented on Windows")
 }
 
 // Summary returns a summary of the processes running in a container.
