@@ -828,17 +828,11 @@ func (s *DockerSuite) TestRunTmpfsMounts(c *check.C) {
 
 func (s *DockerSuite) TestRunTmpfsMountsOverrideImageVolumes(c *check.C) {
 	name := "img-with-volumes"
-	_, err := buildImage(
-		name,
-		`
+	buildImageSuccessfully(c, name, withDockerfile(`
     FROM busybox
     VOLUME /run
     RUN touch /run/stuff
-    `,
-		true)
-	if err != nil {
-		c.Fatal(err)
-	}
+    `))
 	out, _ := dockerCmd(c, "run", "--tmpfs", "/run", name, "ls", "/run")
 	c.Assert(out, checker.Not(checker.Contains), "stuff")
 }

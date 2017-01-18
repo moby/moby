@@ -260,12 +260,9 @@ func (s *DockerSuite) TestSaveDirectoryPermissions(c *check.C) {
 	os.Mkdir(extractionDirectory, 0777)
 
 	defer os.RemoveAll(tmpDir)
-	_, err = buildImage(name,
-		`FROM busybox
+	buildImageSuccessfully(c, name, withDockerfile(`FROM busybox
 	RUN adduser -D user && mkdir -p /opt/a/b && chown -R user:user /opt/a
-	RUN touch /opt/a/b/c && chown user:user /opt/a/b/c`,
-		true)
-	c.Assert(err, checker.IsNil, check.Commentf("%v", err))
+	RUN touch /opt/a/b/c && chown user:user /opt/a/b/c`))
 
 	out, _, err := testutil.RunCommandPipelineWithOutput(
 		exec.Command(dockerBinary, "save", name),
@@ -358,9 +355,7 @@ func (s *DockerSuite) TestSaveLoadNoTag(c *check.C) {
 
 	name := "saveloadnotag"
 
-	_, err := buildImage(name, "FROM busybox\nENV foo=bar", true)
-	c.Assert(err, checker.IsNil, check.Commentf("%v", err))
-
+	buildImageSuccessfully(c, name, withDockerfile("FROM busybox\nENV foo=bar"))
 	id := inspectField(c, name, "Id")
 
 	// Test to make sure that save w/o name just shows imageID during load

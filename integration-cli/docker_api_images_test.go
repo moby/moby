@@ -52,9 +52,8 @@ func (s *DockerSuite) TestAPIImagesSaveAndLoad(c *check.C) {
 	// TODO Windows to Windows CI: Investigate further why this test fails.
 	testRequires(c, Network)
 	testRequires(c, DaemonIsLinux)
-	out, err := buildImage("saveandload", "FROM busybox\nENV FOO bar", false)
-	c.Assert(err, checker.IsNil)
-	id := strings.TrimSpace(out)
+	buildImageSuccessfully(c, "saveandload", withDockerfile("FROM busybox\nENV FOO bar"))
+	id := getIDByName(c, "saveandload")
 
 	res, body, err := request.SockRequestRaw("GET", "/images/"+id+"/get", nil, "", daemonHost())
 	c.Assert(err, checker.IsNil)
@@ -77,9 +76,8 @@ func (s *DockerSuite) TestAPIImagesDelete(c *check.C) {
 		testRequires(c, Network)
 	}
 	name := "test-api-images-delete"
-	out, err := buildImage(name, "FROM busybox\nENV FOO bar", false)
-	c.Assert(err, checker.IsNil)
-	id := strings.TrimSpace(out)
+	buildImageSuccessfully(c, name, withDockerfile("FROM busybox\nENV FOO bar"))
+	id := getIDByName(c, name)
 
 	dockerCmd(c, "tag", name, "test:tag1")
 
@@ -101,10 +99,8 @@ func (s *DockerSuite) TestAPIImagesHistory(c *check.C) {
 		testRequires(c, Network)
 	}
 	name := "test-api-images-history"
-	out, err := buildImage(name, "FROM busybox\nENV FOO bar", false)
-	c.Assert(err, checker.IsNil)
-
-	id := strings.TrimSpace(out)
+	buildImageSuccessfully(c, name, withDockerfile("FROM busybox\nENV FOO bar"))
+	id := getIDByName(c, name)
 
 	status, body, err := request.SockRequest("GET", "/images/"+id+"/history", nil, daemonHost())
 	c.Assert(err, checker.IsNil)

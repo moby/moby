@@ -25,13 +25,11 @@ func (s *DockerSuite) TestBuildResourceConstraintsAreUsed(c *check.C) {
 	testRequires(c, cpuCfsQuota)
 	name := "testbuildresourceconstraints"
 
-	ctx, err := fakeContext(`
+	ctx := fakeContext(c, `
 	FROM hello-world:frozen
 	RUN ["/hello"]
 	`, map[string]string{})
-	c.Assert(err, checker.IsNil)
-
-	_, _, err = dockerCmdInDir(c, ctx.Dir, "build", "--no-cache", "--rm=false", "--memory=64m", "--memory-swap=-1", "--cpuset-cpus=0", "--cpuset-mems=0", "--cpu-shares=100", "--cpu-quota=8000", "--ulimit", "nofile=42", "-t", name, ".")
+	_, _, err := dockerCmdInDir(c, ctx.Dir, "build", "--no-cache", "--rm=false", "--memory=64m", "--memory-swap=-1", "--cpuset-cpus=0", "--cpuset-mems=0", "--cpu-shares=100", "--cpu-quota=8000", "--ulimit", "nofile=42", "-t", name, ".")
 	if err != nil {
 		c.Fatal(err)
 	}
@@ -114,9 +112,7 @@ func (s *DockerSuite) TestBuildAddChangeOwnership(c *check.C) {
 
 	defer ctx.Close()
 
-	if _, err := buildImageFromContext(name, ctx, true); err != nil {
-		c.Fatalf("build failed to complete for TestBuildAddChangeOwnership: %v", err)
-	}
+	buildImageSuccessfully(c, name, withExternalBuildContext(ctx))
 }
 
 // Test that an infinite sleep during a build is killed if the client disconnects.
@@ -137,10 +133,7 @@ func (s *DockerSuite) TestBuildCancellationKillsSleep(c *check.C) {
 	defer observer.Stop()
 
 	// (Note: one year, will never finish)
-	ctx, err := fakeContext("FROM busybox\nRUN sleep 31536000", nil)
-	if err != nil {
-		c.Fatal(err)
-	}
+	ctx := fakeContext(c, "FROM busybox\nRUN sleep 31536000", nil)
 	defer ctx.Close()
 
 	buildCmd := exec.Command(dockerBinary, "build", "-t", name, ".")

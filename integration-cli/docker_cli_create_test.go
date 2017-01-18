@@ -204,12 +204,8 @@ func (s *DockerSuite) TestCreateLabels(c *check.C) {
 
 func (s *DockerSuite) TestCreateLabelFromImage(c *check.C) {
 	imageName := "testcreatebuildlabel"
-	_, err := buildImage(imageName,
-		`FROM busybox
-		LABEL k1=v1 k2=v2`,
-		true)
-
-	c.Assert(err, check.IsNil)
+	buildImageSuccessfully(c, imageName, withDockerfile(`FROM busybox
+		LABEL k1=v1 k2=v2`))
 
 	name := "test_create_labels_from_image"
 	expected := map[string]string{"k2": "x", "k3": "v3", "k1": "v1"}
@@ -263,13 +259,9 @@ func (s *DockerSuite) TestCreateModeIpcContainer(c *check.C) {
 
 func (s *DockerSuite) TestCreateByImageID(c *check.C) {
 	imageName := "testcreatebyimageid"
-	imageID, err := buildImage(imageName,
-		`FROM busybox
-		MAINTAINER dockerio`,
-		true)
-	if err != nil {
-		c.Fatal(err)
-	}
+	buildImageSuccessfully(c, imageName, withDockerfile(`FROM busybox
+		MAINTAINER dockerio`))
+	imageID := getIDByName(c, imageName)
 	truncatedImageID := stringid.TruncateID(imageID)
 
 	dockerCmd(c, "create", imageID)
@@ -444,16 +436,14 @@ RUN chmod 755 /entrypoint.sh
 ENTRYPOINT ["/entrypoint.sh"]
 CMD echo foobar`
 
-	ctx, err := fakeContext(dockerfile, map[string]string{
+	ctx := fakeContext(c, dockerfile, map[string]string{
 		"entrypoint.sh": `#!/bin/sh
 echo "I am an entrypoint"
 exec "$@"`,
 	})
-	c.Assert(err, check.IsNil)
 	defer ctx.Close()
 
-	_, err = buildImageFromContext(name, ctx, true)
-	c.Assert(err, check.IsNil)
+	buildImageSuccessfully(c, name, withExternalBuildContext(ctx))
 
 	out, _ := dockerCmd(c, "create", "--entrypoint=", name, "echo", "foo")
 	id := strings.TrimSpace(out)
