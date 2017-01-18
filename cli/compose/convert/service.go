@@ -31,7 +31,7 @@ func Services(
 
 	for _, service := range services {
 
-		secrets, err := convertServiceSecrets(client, namespace, service.Secrets)
+		secrets, err := convertServiceSecrets(client, namespace, service.Secrets, config.Secrets)
 		if err != nil {
 			return nil, err
 		}
@@ -181,6 +181,7 @@ func convertServiceSecrets(
 	client client.SecretAPIClient,
 	namespace Namespace,
 	secrets []composetypes.ServiceSecretConfig,
+	secretSpecs map[string]composetypes.SecretConfig,
 ) ([]*swarm.SecretReference, error) {
 	opts := []*types.SecretRequestOption{}
 	for _, secret := range secrets {
@@ -188,8 +189,15 @@ func convertServiceSecrets(
 		if target == "" {
 			target = secret.Source
 		}
+
+		source := namespace.Scope(secret.Source)
+		secretSpec := secretSpecs[secret.Source]
+		if secretSpec.External.External {
+			source = secretSpec.External.Name
+		}
+
 		opts = append(opts, &types.SecretRequestOption{
-			Source: namespace.Scope(secret.Source),
+			Source: source,
 			Target: target,
 			UID:    secret.UID,
 			GID:    secret.GID,

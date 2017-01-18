@@ -53,13 +53,13 @@ func (s *DockerSwarmSuite) TestStackDeployComposeFile(c *check.C) {
 	out, err := d.Cmd(stackArgs...)
 	c.Assert(err, checker.IsNil, check.Commentf(out))
 
-	out, err = d.Cmd([]string{"stack", "ls"}...)
+	out, err = d.Cmd("stack", "ls")
 	c.Assert(err, checker.IsNil)
 	c.Assert(out, check.Equals, "NAME        SERVICES\n"+"testdeploy  2\n")
 
-	out, err = d.Cmd([]string{"stack", "rm", testStackName}...)
+	out, err = d.Cmd("stack", "rm", testStackName)
 	c.Assert(err, checker.IsNil)
-	out, err = d.Cmd([]string{"stack", "ls"}...)
+	out, err = d.Cmd("stack", "ls")
 	c.Assert(err, checker.IsNil)
 	c.Assert(out, check.Equals, "NAME  SERVICES\n")
 }
@@ -67,13 +67,16 @@ func (s *DockerSwarmSuite) TestStackDeployComposeFile(c *check.C) {
 func (s *DockerSwarmSuite) TestStackDeployWithSecretsTwice(c *check.C) {
 	d := s.AddDaemon(c, true, true)
 
+	out, err := d.Cmd("secret", "create", "outside", "fixtures/secrets/default")
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+
 	testStackName := "testdeploy"
 	stackArgs := []string{
 		"stack", "deploy",
 		"--compose-file", "fixtures/deploy/secrets.yaml",
 		testStackName,
 	}
-	out, err := d.Cmd(stackArgs...)
+	out, err = d.Cmd(stackArgs...)
 	c.Assert(err, checker.IsNil, check.Commentf(out))
 
 	out, err = d.Cmd("service", "inspect", "--format", "{{ json .Spec.TaskTemplate.ContainerSpec.Secrets }}", "testdeploy_web")
@@ -81,14 +84,15 @@ func (s *DockerSwarmSuite) TestStackDeployWithSecretsTwice(c *check.C) {
 
 	var refs []swarm.SecretReference
 	c.Assert(json.Unmarshal([]byte(out), &refs), checker.IsNil)
-	c.Assert(refs, checker.HasLen, 2)
+	c.Assert(refs, checker.HasLen, 3)
 
 	sort.Sort(sortSecrets(refs))
-	c.Assert(refs[0].SecretName, checker.Equals, "testdeploy_special")
-	c.Assert(refs[0].File.Name, checker.Equals, "special")
-	c.Assert(refs[1].SecretName, checker.Equals, "testdeploy_super")
-	c.Assert(refs[1].File.Name, checker.Equals, "foo.txt")
-	c.Assert(refs[1].File.Mode, checker.Equals, os.FileMode(0400))
+	c.Assert(refs[0].SecretName, checker.Equals, "outside")
+	c.Assert(refs[1].SecretName, checker.Equals, "testdeploy_special")
+	c.Assert(refs[1].File.Name, checker.Equals, "special")
+	c.Assert(refs[2].SecretName, checker.Equals, "testdeploy_super")
+	c.Assert(refs[2].File.Name, checker.Equals, "foo.txt")
+	c.Assert(refs[2].File.Mode, checker.Equals, os.FileMode(0400))
 
 	// Deploy again to ensure there are no errors when secret hasn't changed
 	out, err = d.Cmd(stackArgs...)

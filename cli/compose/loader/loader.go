@@ -422,8 +422,7 @@ func loadVolumes(source types.Dict) (map[string]types.VolumeConfig, error) {
 // TODO: remove duplicate with networks/volumes
 func loadSecrets(source types.Dict, workingDir string) (map[string]types.SecretConfig, error) {
 	secrets := make(map[string]types.SecretConfig)
-	err := transform(source, &secrets)
-	if err != nil {
+	if err := transform(source, &secrets); err != nil {
 		return secrets, err
 	}
 	for name, secret := range secrets {
