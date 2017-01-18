@@ -178,7 +178,7 @@ func (n *networkRouter) buildNetworkResource(nw libnetwork.Network) *types.Netwo
 	r.Created = info.Created()
 	r.Scope = info.Scope()
 	if n.cluster.IsManager() {
-		if _, err := n.cluster.GetNetwork(nw.Name()); err == nil {
+		if _, err := n.cluster.GetNetwork(nw.ID()); err == nil {
 			r.Scope = "swarm"
 		}
 	} else if info.Dynamic() {
