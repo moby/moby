@@ -18,7 +18,7 @@ const (
 )
 
 // PeerCertificate is a wrapper around x509.Certificate which provides a sane
-// enconding/decoding to/from PEM format and JSON.
+// encoding/decoding to/from PEM format and JSON.
 type PeerCertificate x509.Certificate
 
 // MarshalJSON returns the JSON encoded pem bytes of a PeerCertificate.
