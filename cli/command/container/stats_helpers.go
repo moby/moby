@@ -24,11 +24,11 @@ type stats struct {
 	err    error
 }
 
-var (
-	errNotRunning = errors.New("container isn't running")
-)
-
 type containerStatsList []*formatter.ContainerStats
+
+func isEmptyStat(fs *formatter.ContainerStats) bool {
+	return fs.MemoryLimit == 0
+}
 
 func (sl containerStatsList) Len() int {
 	return len(sl)
@@ -41,14 +41,14 @@ func (sl containerStatsList) Swap(i, j int) {
 func (sl containerStatsList) Less(i, j int) bool {
 	// put running containers first
 	// non-running container will have error "container not running"
-	if sl[i].GetError() != nil && sl[j].GetError() == nil {
+	if isEmptyStat(sl[i]) && !isEmptyStat(sl[j]) {
 		return false
-	} else if sl[i].GetError() == nil && sl[j].GetError() != nil {
+	} else if !isEmptyStat(sl[i]) && isEmptyStat(sl[j]) {
 		return true
 	}
 
 	// if both are running/stopped, compare their ids
-	if strings.Compare(sl[i].Name, sl[j].Name) <= 0 {
+	if strings.Compare(sl[i].Container, sl[j].Container) <= 0 {
 		return true
 	}
 	return false
@@ -138,11 +138,7 @@ func (s *stats) collectAll(ctx context.Context, cli client.APIClient, all, strea
 				fs := formatter.NewContainerStats(id[:12], daemonOSType)
 				// a running container will never have zero memory limit
 				// so a memory limit of 0 indicates the container isn't running
-				if statsJSON.MemoryStats.Limit == 0 {
-					fs.SetError(errNotRunning)
-				} else {
-					calculateContainerStats(fs, statsJSON)
-				}
+				calculateContainerStats(fs, statsJSON)
 				s.cs = append(s.cs, fs)
 			}
 			s.mu.Unlock()
@@ -228,11 +224,8 @@ func collect(ctx context.Context, s *formatter.ContainerStats, cli client.APICli
 
 			// a running container will never have zero memory limit
 			// so a memory limit of 0 indicates the container isn't running
-			if v.MemoryStats.Limit == 0 {
-				err = errNotRunning
-			} else {
-				calculateContainerStats(s, v)
-			}
+			calculateContainerStats(s, v)
+
 			u <- err
 			if !streamStats {
 				return
@@ -255,13 +248,6 @@ func collect(ctx context.Context, s *formatter.ContainerStats, cli client.APICli
 
 			// we get containers stats, but container isn't running
 			// so we set the error and release the waitFirst WaitGroup
-			if err == errNotRunning {
-				// if this is the first stat you get, release WaitGroup
-				if !getFirst {
-					getFirst = true
-					waitFirst.Done()
-				}
-			}
 			if err != nil {
 				continue
 			}

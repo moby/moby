@@ -92,7 +92,7 @@ func runStats(dockerCli *command.DockerCli, opts *statsOptions) error {
 		cStats.mu.Lock()
 		for _, c := range cStats.cs {
 			cErr := c.GetError()
-			if cErr != nil && cErr != errNotRunning {
+			if cErr != nil {
 				errs = append(errs, cErr.Error())
 			}
 		}
