@@ -3,11 +3,12 @@ package stack
 import (
 	"fmt"
 
-	"golang.org/x/net/context"
-
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cli/command"
 	"github.com/spf13/cobra"
+	"golang.org/x/net/context"
 )
 
 type removeOptions struct {
@@ -33,41 +34,79 @@ func newRemoveCommand(dockerCli *command.DockerCli) *cobra.Command {
 func runRemove(dockerCli *command.DockerCli, opts removeOptions) error {
 	namespace := opts.namespace
 	client := dockerCli.Client()
-	stderr := dockerCli.Err()
 	ctx := context.Background()
-	hasError := false
 
 	services, err := getServices(ctx, client, namespace)
 	if err != nil {
 		return err
-	}
-	for _, service := range services {
-		fmt.Fprintf(stderr, "Removing service %s\n", service.Spec.Name)
-		if err := client.ServiceRemove(ctx, service.ID); err != nil {
-			hasError = true
-			fmt.Fprintf(stderr, "Failed to remove service %s: %s", service.ID, err)
-		}
 	}
 
 	networks, err := getStackNetworks(ctx, client, namespace)
 	if err != nil {
 		return err
 	}
-	for _, network := range networks {
-		fmt.Fprintf(stderr, "Removing network %s\n", network.Name)
-		if err := client.NetworkRemove(ctx, network.ID); err != nil {
-			hasError = true
-			fmt.Fprintf(stderr, "Failed to remove network %s: %s", network.ID, err)
-		}
+
+	secrets, err := getStackSecrets(ctx, client, namespace)
+	if err != nil {
+		return err
 	}
 
-	if len(services) == 0 && len(networks) == 0 {
+	if len(services)+len(networks)+len(secrets) == 0 {
 		fmt.Fprintf(dockerCli.Out(), "Nothing found in stack: %s\n", namespace)
 		return nil
 	}
+
+	hasError := removeServices(ctx, dockerCli, services)
+	hasError = removeSecrets(ctx, dockerCli, secrets) || hasError
+	hasError = removeNetworks(ctx, dockerCli, networks) || hasError
 
 	if hasError {
 		return fmt.Errorf("Failed to remove some resources")
 	}
 	return nil
+}
+
+func removeServices(
+	ctx context.Context,
+	dockerCli *command.DockerCli,
+	services []swarm.Service,
+) bool {
+	var err error
+	for _, service := range services {
+		fmt.Fprintf(dockerCli.Err(), "Removing service %s\n", service.Spec.Name)
+		if err = dockerCli.Client().ServiceRemove(ctx, service.ID); err != nil {
+			fmt.Fprintf(dockerCli.Err(), "Failed to remove service %s: %s", service.ID, err)
+		}
+	}
+	return err != nil
+}
+
+func removeNetworks(
+	ctx context.Context,
+	dockerCli *command.DockerCli,
+	networks []types.NetworkResource,
+) bool {
+	var err error
+	for _, network := range networks {
+		fmt.Fprintf(dockerCli.Err(), "Removing network %s\n", network.Name)
+		if err = dockerCli.Client().NetworkRemove(ctx, network.ID); err != nil {
+			fmt.Fprintf(dockerCli.Err(), "Failed to remove network %s: %s", network.ID, err)
+		}
+	}
+	return err != nil
+}
+
+func removeSecrets(
+	ctx context.Context,
+	dockerCli *command.DockerCli,
+	secrets []swarm.Secret,
+) bool {
+	var err error
+	for _, secret := range secrets {
+		fmt.Fprintf(dockerCli.Err(), "Removing secret %s\n", secret.Spec.Name)
+		if err = dockerCli.Client().SecretRemove(ctx, secret.ID); err != nil {
+			fmt.Fprintf(dockerCli.Err(), "Failed to remove secret %s: %s", secret.ID, err)
+		}
+	}
+	return err != nil
 }
