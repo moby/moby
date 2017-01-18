@@ -591,38 +591,25 @@ __docker_complete_local_interfaces() {
 	COMPREPLY=( $( compgen -W "$(__docker_local_interfaces) $additional_interface" -- "$cur" ) )
 }
 
-__docker_complete_capabilities() {
-	# The list of capabilities is defined in types.go, ALL was added manually.
+# __docker_complete_capabilities_addable completes Linux capabilities which are
+# not granted by default and may be added.
+# see https://docs.docker.com/engine/reference/run/#/runtime-privilege-and-linux-capabilities
+__docker_complete_capabilities_addable() {
 	COMPREPLY=( $( compgen -W "
 		ALL
 		AUDIT_CONTROL
-		AUDIT_WRITE
-		AUDIT_READ
 		BLOCK_SUSPEND
-		CHOWN
-		DAC_OVERRIDE
 		DAC_READ_SEARCH
-		FOWNER
-		FSETID
 		IPC_LOCK
 		IPC_OWNER
-		KILL
 		LEASE
 		LINUX_IMMUTABLE
 		MAC_ADMIN
 		MAC_OVERRIDE
-		MKNOD
 		NET_ADMIN
-		NET_BIND_SERVICE
 		NET_BROADCAST
-		NET_RAW
-		SETFCAP
-		SETGID
-		SETPCAP
-		SETUID
 		SYS_ADMIN
 		SYS_BOOT
-		SYS_CHROOT
 		SYSLOG
 		SYS_MODULE
 		SYS_NICE
@@ -633,6 +620,29 @@ __docker_complete_capabilities() {
 		SYS_TIME
 		SYS_TTY_CONFIG
 		WAKE_ALARM
+	" -- "$cur" ) )
+}
+
+# __docker_complete_capabilities_droppable completes Linux capability options which are
+# allowed by default and can be dropped.
+# see https://docs.docker.com/engine/reference/run/#/runtime-privilege-and-linux-capabilities
+__docker_complete_capabilities_droppable() {
+	COMPREPLY=( $( compgen -W "
+		ALL
+		AUDIT_WRITE
+		CHOWN
+		DAC_OVERRIDE
+		FOWNER
+		FSETID
+		KILL
+		MKNOD
+		NET_BIND_SERVICE
+		NET_RAW
+		SETFCAP
+		SETGID
+		SETPCAP
+		SETUID
+		SYS_CHROOT
 	" -- "$cur" ) )
 }
 
@@ -1442,8 +1452,12 @@ _docker_container_run() {
 			COMPREPLY=( $( compgen -W 'stdin stdout stderr' -- "$cur" ) )
 			return
 			;;
-		--cap-add|--cap-drop)
-			__docker_complete_capabilities
+		--cap-add)
+			__docker_complete_capabilities_addable
+			return
+			;;
+		--cap-drop)
+			__docker_complete_capabilities_droppable
 			return
 			;;
 		--cidfile|--env-file|--label-file)
