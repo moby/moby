@@ -129,22 +129,32 @@ func TestFloatStructSorter(t *testing.T) {
 
 func TestTimeStructSorter(t *testing.T) {
 	type timeStruct struct {
-		T time.Time
+		name string
+		T    time.Time
 	}
 
 	sc, _ := time.LoadLocation("America/Los_Angeles")
 
-	expected := []interface{}{
-		timeStruct{time.Date(1984, time.September, 27, 13, 0, 0, 0, time.UTC)},
-		timeStruct{time.Date(2009, time.November, 10, 23, 0, 0, 0, time.UTC)},
-		timeStruct{time.Date(2013, time.March, 13, 13, 20, 0, 0, sc)},
-		timeStruct{time.Date(2015, time.December, 15, 9, 0, 0, 0, sc)},
+	ascExpected := []interface{}{
+		timeStruct{name: "a", T: time.Date(1984, time.September, 27, 13, 0, 0, 0, time.UTC)},
+		timeStruct{name: "b", T: time.Date(1984, time.September, 27, 13, 0, 0, 0, time.UTC)},
+		timeStruct{name: "c", T: time.Date(2009, time.November, 10, 23, 0, 0, 0, time.UTC)},
+		timeStruct{name: "d", T: time.Date(2013, time.March, 13, 13, 20, 0, 0, sc)},
+		timeStruct{name: "e", T: time.Date(2015, time.December, 15, 9, 0, 0, 0, sc)},
+	}
+	dscExpected := []interface{}{
+		timeStruct{name: "e", T: time.Date(2015, time.December, 15, 9, 0, 0, 0, sc)},
+		timeStruct{name: "d", T: time.Date(2013, time.March, 13, 13, 20, 0, 0, sc)},
+		timeStruct{name: "c", T: time.Date(2009, time.November, 10, 23, 0, 0, 0, time.UTC)},
+		timeStruct{name: "a", T: time.Date(1984, time.September, 27, 13, 0, 0, 0, time.UTC)},
+		timeStruct{name: "b", T: time.Date(1984, time.September, 27, 13, 0, 0, 0, time.UTC)},
 	}
 	data := []interface{}{
-		timeStruct{time.Date(2013, time.March, 13, 13, 20, 0, 0, sc)},
-		timeStruct{time.Date(1984, time.September, 27, 13, 0, 0, 0, time.UTC)},
-		timeStruct{time.Date(2015, time.December, 15, 9, 0, 0, 0, sc)},
-		timeStruct{time.Date(2009, time.November, 10, 23, 0, 0, 0, time.UTC)},
+		timeStruct{name: "d", T: time.Date(2013, time.March, 13, 13, 20, 0, 0, sc)},
+		timeStruct{name: "a", T: time.Date(1984, time.September, 27, 13, 0, 0, 0, time.UTC)},
+		timeStruct{name: "b", T: time.Date(1984, time.September, 27, 13, 0, 0, 0, time.UTC)},
+		timeStruct{name: "e", T: time.Date(2015, time.December, 15, 9, 0, 0, 0, sc)},
+		timeStruct{name: "c", T: time.Date(2009, time.November, 10, 23, 0, 0, 0, time.UTC)},
 	}
 
 	gs, err := newGenericStructSorter(data, []string{"T"})
@@ -154,7 +164,122 @@ func TestTimeStructSorter(t *testing.T) {
 
 	sort.Sort(gs)
 
+	if !reflect.DeepEqual(gs.data, ascExpected) {
+		t.Fatalf("sorting failed:\nexpected: %#v\ngot: %#v", ascExpected, gs.data)
+	}
+
+	gs, err = newGenericStructSorter(data, []string{"T:dsc"})
+	if err != nil {
+		t.Fatal("failed to create sorter:", err)
+	}
+
+	sort.Sort(gs)
+
+	if !reflect.DeepEqual(gs.data, dscExpected) {
+		t.Fatalf("sorting failed:\nexpected: %#v\ngot: %#v", dscExpected, gs.data)
+	}
+}
+
+func TestPtrStructSorter(t *testing.T) {
+	type innerStruct struct {
+		innerValue string
+	}
+	type ptrStruct struct {
+		name  string
+		value *innerStruct
+	}
+
+	expected := []interface{}{
+		ptrStruct{"a", nil}, ptrStruct{"b", nil}, ptrStruct{"c", &innerStruct{"innerA"}}, ptrStruct{"d", &innerStruct{"innerB"}},
+	}
+	data := []interface{}{
+		ptrStruct{"a", nil}, ptrStruct{"d", &innerStruct{"innerB"}}, ptrStruct{"c", &innerStruct{"innerA"}}, ptrStruct{"b", nil},
+	}
+
+	gs, err := newGenericStructSorter(data, []string{"innerValue"})
+	if err != nil {
+		t.Fatal("failed to create sorter:", err)
+	}
+
+	sort.Sort(gs)
+
 	if !reflect.DeepEqual(gs.data, expected) {
 		t.Fatalf("sorting failed:\nexpected: %#v\ngot: %#v", expected, gs.data)
+	}
+}
+
+func TestFindFieldIndex(t *testing.T) {
+	type inInnerStruct struct {
+		Name           string
+		deepInnerValue int
+	}
+
+	type innerStruct struct {
+		innerValue int
+		inInnerS   inInnerStruct
+	}
+	type complexStruct struct {
+		name   string
+		Name   string
+		innerS *innerStruct
+	}
+
+	var cs complexStruct
+	index := []int{}
+	find := findFieldIndex(reflect.TypeOf(cs), "name", &index)
+	expected := []int{0}
+	if !find || !reflect.DeepEqual(index, expected) {
+		t.Fatalf("Expected find: %v, index: %#v\ngot find: %v, index: %#v", true, expected, find, index)
+	}
+
+	index = []int{}
+	find = findFieldIndex(reflect.TypeOf(cs), "Name", &index)
+	expected = []int{1}
+	if !find || !reflect.DeepEqual(index, expected) {
+		t.Fatalf("Expected find: %v, index: %#v\ngot find: %v, index: %#v", true, expected, find, index)
+	}
+
+	index = []int{}
+	find = findFieldIndex(reflect.TypeOf(cs), "deepInnerValue", &index)
+	expected = []int{2, 1, 1}
+	if !find || !reflect.DeepEqual(index, expected) {
+		t.Fatalf("Expected find: %v, index: %#v\ngot find: %v, index: %#v", true, expected, find, index)
+	}
+
+	field := reflect.TypeOf(cs).FieldByIndex(index)
+	if field.Name != "deepInnerValue" {
+		t.Fatalf("Find wrong field %s, expected deepInnerValue", field.Name)
+	}
+}
+
+func TestGetSortableFields(t *testing.T) {
+	type inInnerStruct struct {
+		Name           string
+		deepInnerValue int
+	}
+
+	type innerStruct struct {
+		innerValue int
+		inInnerS   inInnerStruct
+	}
+	type complexStruct struct {
+		name   string
+		Name   string
+		innerS *innerStruct
+		t      time.Time
+	}
+
+	var cs complexStruct
+	sortableFields := map[string]bool{}
+	if err := getSortableFields(reflect.TypeOf(cs), sortableFields); err != nil {
+		t.Fatalf("failed to get sortable fields: %v", err)
+	}
+
+	expected := map[string]bool{
+		"name": true, "Name": true, "innerValue": true, "deepInnerValue": true, "t": true,
+	}
+
+	if !reflect.DeepEqual(sortableFields, expected) {
+		t.Fatalf("get sortable fields failed:\nexpected: %#v\ngot: %#v", expected, sortableFields)
 	}
 }
