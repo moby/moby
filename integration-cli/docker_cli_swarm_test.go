@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/integration-cli/daemon"
@@ -1664,4 +1665,78 @@ func (s *DockerSwarmSuite) TestSwarmReadonlyRootfs(c *check.C) {
 	out, err = d.Cmd("inspect", "--type", "container", "--format", "{{.HostConfig.ReadonlyRootfs}}", containers[0])
 	c.Assert(err, checker.IsNil, check.Commentf(out))
 	c.Assert(strings.TrimSpace(out), checker.Equals, "true")
+}
+
+func (s *DockerSwarmSuite) TestNetworkInspectWithDuplicateNames(c *check.C) {
+	d := s.AddDaemon(c, true, true)
+
+	name := "foo"
+	networkCreateRequest := types.NetworkCreateRequest{
+		Name: name,
+		NetworkCreate: types.NetworkCreate{
+			CheckDuplicate: false,
+			Driver:         "bridge",
+		},
+	}
+
+	var n1 types.NetworkCreateResponse
+	status, body, err := d.SockRequest("POST", "/networks/create", networkCreateRequest)
+	c.Assert(err, checker.IsNil, check.Commentf(string(body)))
+	c.Assert(status, checker.Equals, http.StatusCreated, check.Commentf(string(body)))
+	c.Assert(json.Unmarshal(body, &n1), checker.IsNil)
+
+	// Full ID always works
+	out, err := d.Cmd("network", "inspect", "--format", "{{.ID}}", n1.ID)
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+	c.Assert(strings.TrimSpace(out), checker.Equals, n1.ID)
+
+	// Name works if it is unique
+	out, err = d.Cmd("network", "inspect", "--format", "{{.ID}}", name)
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+	c.Assert(strings.TrimSpace(out), checker.Equals, n1.ID)
+
+	var n2 types.NetworkCreateResponse
+	status, body, err = d.SockRequest("POST", "/networks/create", networkCreateRequest)
+	c.Assert(err, checker.IsNil, check.Commentf(string(body)))
+	c.Assert(status, checker.Equals, http.StatusCreated, check.Commentf(string(body)))
+	c.Assert(json.Unmarshal(body, &n2), checker.IsNil)
+
+	// Full ID always works
+	out, err = d.Cmd("network", "inspect", "--format", "{{.ID}}", n1.ID)
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+	c.Assert(strings.TrimSpace(out), checker.Equals, n1.ID)
+
+	out, err = d.Cmd("network", "inspect", "--format", "{{.ID}}", n2.ID)
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+	c.Assert(strings.TrimSpace(out), checker.Equals, n2.ID)
+
+	// Name with duplicates
+	out, err = d.Cmd("network", "inspect", "--format", "{{.ID}}", name)
+	c.Assert(err, checker.NotNil, check.Commentf(out))
+	c.Assert(out, checker.Contains, "network foo is ambiguous (2 matches found based on name)")
+
+	out, err = d.Cmd("network", "rm", n2.ID)
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+
+	// Dupliates with name but with different driver
+	networkCreateRequest.NetworkCreate.Driver = "overlay"
+
+	status, body, err = d.SockRequest("POST", "/networks/create", networkCreateRequest)
+	c.Assert(err, checker.IsNil, check.Commentf(string(body)))
+	c.Assert(status, checker.Equals, http.StatusCreated, check.Commentf(string(body)))
+	c.Assert(json.Unmarshal(body, &n2), checker.IsNil)
+
+	// Full ID always works
+	out, err = d.Cmd("network", "inspect", "--format", "{{.ID}}", n1.ID)
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+	c.Assert(strings.TrimSpace(out), checker.Equals, n1.ID)
+
+	out, err = d.Cmd("network", "inspect", "--format", "{{.ID}}", n2.ID)
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+	c.Assert(strings.TrimSpace(out), checker.Equals, n2.ID)
+
+	// Name with duplicates
+	out, err = d.Cmd("network", "inspect", "--format", "{{.ID}}", name)
+	c.Assert(err, checker.NotNil, check.Commentf(out))
+	c.Assert(out, checker.Contains, "network foo is ambiguous (2 matches found based on name)")
 }
