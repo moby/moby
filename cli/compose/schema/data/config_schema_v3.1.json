@@ -235,7 +235,37 @@
         },
         "user": {"type": "string"},
         "userns_mode": {"type": "string"},
-        "volumes": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+        "volumes": {
+          "type": "array",
+          "items": {
+            "oneOf": [
+              {"type": "string"},
+              {
+                "type": "object",
+                "required": ["type"],
+                "properties": {
+                  "type": {"type": "string"},
+                  "source": {"type": "string"},
+                  "target": {"type": "string"},
+                  "read_only": {"type": "boolean"},
+                  "bind": {
+                    "type": "object",
+                    "properties": {
+                      "propagation": {"type": "string"}
+                    }
+                  },
+                  "volume": {
+                    "type": "object",
+                    "properties": {
+                      "nocopy": {"type": "boolean"}
+                    }
+                  }
+                }
+              }
+            ],
+            "uniqueItems": true
+          }
+        },
         "working_dir": {"type": "string"}
       },
       "additionalProperties": false
