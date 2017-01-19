@@ -2,7 +2,7 @@
 
 package daemon
 
-// platformNewStatsCollector performs platform specific initialisation of the
+// platformNewStatsCollector performs platform specific initialization of the
 // statsCollector structure. This is a no-op on Windows.
 func platformNewStatsCollector(s *statsCollector) {
 }
