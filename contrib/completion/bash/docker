@@ -1372,6 +1372,7 @@ _docker_container_run() {
 	local boolean_options="
 		--disable-content-trust=false
 		--help
+		--init
 		--interactive -i
 		--oom-kill-disable
 		--privileged
@@ -1728,6 +1729,7 @@ _docker_daemon() {
 		--experimental
 		--help
 		--icc=false
+		--init
 		--ip-forward=false
 		--ip-masq=false
 		--iptables=false
