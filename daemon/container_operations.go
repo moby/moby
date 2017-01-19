@@ -382,7 +382,7 @@ func (daemon *Daemon) findAndAttachNetwork(container *container.Container, idOrN
 			}
 
 			// Retry network attach again if we failed to
-			// find the network after successfull
+			// find the network after successful
 			// attachment because the only reason that
 			// would happen is if some other container
 			// attached to the swarm scope network went down
