@@ -26,6 +26,14 @@ type AttachConfig struct {
 	// Only useful when `TTY` is true
 	DetachKeys []byte
 
+	// Sets the mode to non-blocking, which means that none of the stream's stdio
+	// can be blocked by a slow attach client.
+	// This is deaulted to false for historical reasons.
+	// When true if the stream is not consumed quickly enough, the oldest messages
+	// will be dropped.
+	// When false the IO stream is blocked when not consumed quickly enough.
+	NonBlocking bool
+
 	// CloseStdin signals that once done, stdin for the attached stream should be closed
 	// For example, this would close the attached container's stdin.
 	CloseStdin bool

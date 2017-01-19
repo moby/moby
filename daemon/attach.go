@@ -19,6 +19,7 @@ type containerAttachConfig struct {
 	detachKeys     []byte
 	stdin          io.ReadCloser
 	stdout, stderr io.Writer
+	nonBlocking    bool
 	showHistory    bool
 	stream         bool
 }
@@ -69,6 +70,7 @@ func (daemon *Daemon) ContainerAttach(prefixOrName string, c *backend.ContainerA
 	cfg.showHistory = c.Logs
 	cfg.stream = c.Stream
 	cfg.detachKeys = keys
+	cfg.nonBlocking = c.NonBlocking
 
 	if err := daemon.containerAttach(container, &cfg); err != nil {
 		fmt.Fprintf(outStream, "Error attaching: %s\n", err)
@@ -159,6 +161,7 @@ func (daemon *Daemon) containerAttach(c *container.Container, cfg *containerAtta
 		Stdout:      stdout,
 		Stderr:      stderr,
 		DetachKeys:  cfg.detachKeys,
+		NonBlocking: cfg.nonBlocking,
 	}
 
 	err := <-c.Attach(aCfg)

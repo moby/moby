@@ -31,12 +31,13 @@ type CheckpointDeleteOptions struct {
 
 // ContainerAttachOptions holds parameters to attach to a container.
 type ContainerAttachOptions struct {
-	Stream     bool
-	Stdin      bool
-	Stdout     bool
-	Stderr     bool
-	DetachKeys string
-	Logs       bool
+	Stream      bool
+	Stdin       bool
+	Stdout      bool
+	Stderr      bool
+	DetachKeys  string
+	Logs        bool
+	NonBlocking bool
 }
 
 // ContainerCommitOptions holds parameters to commit changes into a container.

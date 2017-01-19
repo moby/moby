@@ -69,6 +69,17 @@ func (c *Config) StdoutPipe() io.ReadCloser {
 	return bytesPipe
 }
 
+// StdoutBuffer creates a new io.ReadCloser with an empty buffer
+// It adds this to the stdout broadcaster
+// If the buffer is full the oldest data in the buffer will be dumped to make
+// room for new writes.
+// This cannot block stdout.
+func (c *Config) StdoutBuffer() io.ReadCloser {
+	bp := ioutils.NewBytesPipe(ioutils.WithNonBlockingWrites)
+	c.stdout.Add(bp)
+	return bp
+}
+
 // StderrPipe creates a new io.ReadCloser with an empty bytes pipe.
 // It adds this new err pipe to the Stderr broadcaster.
 // This will block stderr if unconsumed.
@@ -76,6 +87,17 @@ func (c *Config) StderrPipe() io.ReadCloser {
 	bytesPipe := ioutils.NewBytesPipe()
 	c.stderr.Add(bytesPipe)
 	return bytesPipe
+}
+
+// StderrBuffer creates a new io.ReadCloser with an empty buffer
+// It adds this to the stdout broadcaster
+// If the buffer is full the oldest data in the buffer will be dumped to make
+// room for new writes.
+// This cannot block stderr.
+func (c *Config) StderrBuffer() io.ReadCloser {
+	bp := ioutils.NewBytesPipe(ioutils.WithNonBlockingWrites)
+	c.stderr.Add(bp)
+	return bp
 }
 
 // NewInputPipes creates new pipes for both standard inputs, Stdin and StdinPipe.
