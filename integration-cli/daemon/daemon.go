@@ -583,14 +583,15 @@ func (d *Daemon) GetBaseDeviceSize(c *check.C) int64 {
 	return basesizeBytes
 }
 
-// Cmd will execute a docker CLI command against this Daemon.
+// Cmd executes a docker CLI command against this daemon.
 // Example: d.Cmd("version") will run docker -H unix://path/to/unix.sock version
 func (d *Daemon) Cmd(args ...string) (string, error) {
 	b, err := d.Command(args...).CombinedOutput()
 	return string(b), err
 }
 
-// Command will create a docker CLI command against this Daeomn.
+// Command creates a docker CLI command against this daemon, to be executed later.
+// Example: d.Command("version") creates a command to run "docker -H unix://path/to/unix.sock version"
 func (d *Daemon) Command(args ...string) *exec.Cmd {
 	return exec.Command(d.dockerBinary, d.PrependHostArg(args)...)
 }
