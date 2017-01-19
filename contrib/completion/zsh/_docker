@@ -1611,7 +1611,7 @@ __docker_secret_subcommand() {
 
     case "$words[1]" in
         (create)
-            _arguments $(__docker_arguments) \
+            _arguments $(__docker_arguments) -A '-*' \
                 $opts_help \
                 "($help)*"{-l=,--label=}"[Secret labels]:label: " \
                 "($help -):secret: " && ret=0
@@ -2083,9 +2083,10 @@ __docker_swarm_subcommand() {
                 "($help)--task-history-limit=[Task history retention limit]:limit: " && ret=0
             ;;
         (join)
-            _arguments $(__docker_arguments) \
+            _arguments $(__docker_arguments) -A '-*' \
                 $opts_help \
-                "($help)--advertise-addr[Advertised address]:ip\:port: " \
+                "($help)--advertise-addr=[Advertised address]:ip\:port: " \
+                "($help)--availability=[Availability of the node]:availability:(active drain pause)" \
                 "($help)--listen-addr=[Listen address]:ip\:port: " \
                 "($help)--token=[Token for entry into the swarm]:secret: " \
                 "($help -):host\:port: " && ret=0
@@ -2516,14 +2517,14 @@ __docker_subcommand() {
             esac
             ;;
         (login)
-            _arguments $(__docker_arguments) \
+            _arguments $(__docker_arguments) -A '-*' \
                 $opts_help \
                 "($help -p --password)"{-p=,--password=}"[Password]:password: " \
                 "($help -u --user)"{-u=,--user=}"[Username]:username: " \
                 "($help -)1:server: " && ret=0
             ;;
         (logout)
-            _arguments $(__docker_arguments) \
+            _arguments $(__docker_arguments) -A '-*' \
                 $opts_help \
                 "($help -)1:server: " && ret=0
             ;;
@@ -2587,7 +2588,7 @@ __docker_subcommand() {
             __docker_image_subcommand && ret=0
             ;;
         (search)
-            _arguments $(__docker_arguments) \
+            _arguments $(__docker_arguments) -A '-*' \
                 $opts_help \
                 "($help)*"{-f=,--filter=}"[Filter values]:filter:->filter-options" \
                 "($help)--limit=[Maximum returned search results]:limit:(1 5 10 25 50)" \
