@@ -416,6 +416,13 @@ type EndpointResource struct {
 
 // NetworkCreate is the expected body of the "create network" http request message
 type NetworkCreate struct {
+	// Check for networks with duplicate names.
+	// Network is primarily keyed based on a random ID and not on the name.
+	// Network name is strictly a user-friendly alias to the network
+	// which is uniquely identified using ID.
+	// And there is no guaranteed way to check for duplicates.
+	// Option CheckDuplicate is there to provide a best effort checking of any networks
+	// which has the same name but it is not guaranteed to catch all name collisions.
 	CheckDuplicate bool
 	Driver         string
 	EnableIPv6     bool

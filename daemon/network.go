@@ -248,6 +248,8 @@ func (daemon *Daemon) createNetwork(create types.NetworkCreateRequest, id string
 		}
 	}
 	if nw != nil {
+		// check if user defined CheckDuplicate, if set true, return err
+		// otherwise prepare a warning message
 		if create.CheckDuplicate {
 			return nil, libnetwork.NetworkNameError(create.Name)
 		}

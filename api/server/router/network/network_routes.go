@@ -181,6 +181,16 @@ func (n *networkRouter) postNetworkCreate(ctx context.Context, w http.ResponseWr
 
 	nw, err := n.backend.CreateNetwork(create)
 	if err != nil {
+		var warning string
+		if _, ok := err.(libnetwork.NetworkNameError); ok {
+			// check if user defined CheckDuplicate, if set true, return err
+			// otherwise prepare a warning message
+			if create.CheckDuplicate {
+				return libnetwork.NetworkNameError(create.Name)
+			}
+			warning = libnetwork.NetworkNameError(create.Name).Error()
+		}
+
 		if _, ok := err.(libnetwork.ManagerRedirectError); !ok {
 			return err
 		}
@@ -188,7 +198,10 @@ func (n *networkRouter) postNetworkCreate(ctx context.Context, w http.ResponseWr
 		if err != nil {
 			return err
 		}
-		nw = &types.NetworkCreateResponse{ID: id}
+		nw = &types.NetworkCreateResponse{
+			ID:      id,
+			Warning: warning,
+		}
 	}
 
 	return httputils.WriteJSON(w, http.StatusCreated, nw)
