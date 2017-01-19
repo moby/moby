@@ -127,3 +127,43 @@ func (info *Info) ImageFullID() string {
 func (info *Info) ImageName() string {
 	return info.ContainerImageName
 }
+
+// InfoMap returns information about a container as a map.
+func (info *Info) InfoMap(keyMod func(string) string) map[string]string {
+	infoMap := make(map[string]string)
+
+	infoKeys, ok := info.Config["info"]
+	if ok && len(infoKeys) > 0 {
+		for _, k := range strings.Split(infoKeys, ",") {
+			if v, vok := info.value(k); vok {
+				if keyMod != nil {
+					k = keyMod(k)
+				}
+				infoMap[k] = v
+			}
+		}
+	}
+
+	return infoMap
+}
+
+func (info *Info) value(key string) (string, bool) {
+	switch key {
+	case "containerID":
+		return info.ContainerID, true
+	case "containerName":
+		return info.ContainerName, true
+	case "containerEntrypoint":
+		return info.ContainerEntrypoint, true
+	case "imageID":
+		return info.ContainerImageID, true
+	case "imageName":
+		return info.ContainerImageName, true
+	case "logPath":
+		return info.LogPath, true
+	case "daemonName":
+		return info.DaemonName, true
+	default:
+	}
+	return "", false
+}
