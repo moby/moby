@@ -1335,6 +1335,7 @@ _docker_container_run() {
 		--expose
 		--group-add
 		--hostname -h
+		--init-path
 		--ip
 		--ip6
 		--ipc
@@ -1447,7 +1448,7 @@ _docker_container_run() {
 			__docker_complete_capabilities
 			return
 			;;
-		--cidfile|--env-file|--label-file)
+		--cidfile|--env-file|--init-path|--label-file)
 			_filedir
 			return
 			;;
