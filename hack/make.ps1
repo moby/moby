@@ -65,7 +65,7 @@
 
 TODO
 - Unify the head commit
-- Sort out the GITCOMMIT environment variable in the absense of a .git (longer term)
+- Sort out the GITCOMMIT environment variable in the absence of a .git (longer term)
 - Add golint and other checks (swagger maybe?)
 
 #>
