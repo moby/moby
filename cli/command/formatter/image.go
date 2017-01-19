@@ -20,7 +20,7 @@ const (
 	digestHeader     = "DIGEST"
 )
 
-// ImageContext contains image specific information required by the formater, encapsulate a Context struct.
+// ImageContext contains image specific information required by the formatter, encapsulate a Context struct.
 type ImageContext struct {
 	Context
 	Digest bool

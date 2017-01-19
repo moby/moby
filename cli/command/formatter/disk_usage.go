@@ -26,7 +26,7 @@ const (
 	uniqueSizeHeader  = "UNIQUE SiZE"
 )
 
-// DiskUsageContext contains disk usage specific information required by the formater, encapsulate a Context struct.
+// DiskUsageContext contains disk usage specific information required by the formatter, encapsulate a Context struct.
 type DiskUsageContext struct {
 	Context
 	Verbose    bool
