@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"strings"
 
+	"github.com/Sirupsen/logrus"
 	registrytypes "github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/reference"
@@ -149,6 +150,19 @@ skip:
 			config.ServiceConfig.InsecureRegistryCIDRs = originalCIDRs
 			config.ServiceConfig.IndexConfigs = originalIndexInfos
 			return err
+		}
+		if strings.HasPrefix(strings.ToLower(r), "http://") {
+			logrus.Warnf("insecure registry %s should not contain 'http://' and 'http://' has been removed from the insecure registry config", r)
+			r = r[7:]
+		} else if strings.HasPrefix(strings.ToLower(r), "https://") {
+			logrus.Warnf("insecure registry %s should not contain 'https://' and 'https://' has been removed from the insecure registry config", r)
+			r = r[8:]
+		} else if validateNoScheme(r) != nil {
+			// Insecure registry should not contain '://'
+			// before returning err, roll back to original data
+			config.ServiceConfig.InsecureRegistryCIDRs = originalCIDRs
+			config.ServiceConfig.IndexConfigs = originalIndexInfos
+			return fmt.Errorf("insecure registry %s should not contain '://'", r)
 		}
 		// Check if CIDR was passed to --insecure-registry
 		_, ipnet, err := net.ParseCIDR(r)
