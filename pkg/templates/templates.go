@@ -21,7 +21,7 @@ var basicFunctions = template.FuncMap{
 	"pad":   padWithSpace,
 }
 
-// Parse creates a new annonymous template with the basic functions
+// Parse creates a new anonymous template with the basic functions
 // and parses the given format.
 func Parse(format string) (*template.Template, error) {
 	return NewParse("", format)
