@@ -9,10 +9,19 @@ import (
 	"github.com/docker/docker/api/errors"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/container"
+	"github.com/docker/docker/container/stream"
 	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/docker/docker/pkg/term"
 )
+
+type containerAttachConfig struct {
+	detachKeys     []byte
+	stdin          io.ReadCloser
+	stdout, stderr io.Writer
+	showHistory    bool
+	stream         bool
+}
 
 // ContainerAttach attaches to logs according to the config passed in. See ContainerAttachConfig.
 func (daemon *Daemon) ContainerAttach(prefixOrName string, c *backend.ContainerAttachConfig) error {
@@ -45,20 +54,23 @@ func (daemon *Daemon) ContainerAttach(prefixOrName string, c *backend.ContainerA
 		outStream = stdcopy.NewStdWriter(outStream, stdcopy.Stdout)
 	}
 
-	var stdin io.ReadCloser
-	var stdout, stderr io.Writer
+	var cfg containerAttachConfig
 
 	if c.UseStdin {
-		stdin = inStream
+		cfg.stdin = inStream
 	}
 	if c.UseStdout {
-		stdout = outStream
+		cfg.stdout = outStream
 	}
 	if c.UseStderr {
-		stderr = errStream
+		cfg.stderr = errStream
 	}
 
-	if err := daemon.containerAttach(container, stdin, stdout, stderr, c.Logs, c.Stream, keys); err != nil {
+	cfg.showHistory = c.Logs
+	cfg.stream = c.Stream
+	cfg.detachKeys = keys
+
+	if err := daemon.containerAttach(container, &cfg); err != nil {
 		fmt.Fprintf(outStream, "Error attaching: %s\n", err)
 	}
 	return nil
@@ -70,11 +82,20 @@ func (daemon *Daemon) ContainerAttachRaw(prefixOrName string, stdin io.ReadClose
 	if err != nil {
 		return err
 	}
-	return daemon.containerAttach(container, stdin, stdout, stderr, false, stream, nil)
+	cfg := &containerAttachConfig{
+		stdin:  stdin,
+		stdout: stdout,
+		stderr: stderr,
+		stream: stream,
+	}
+	return daemon.containerAttach(container, cfg)
 }
 
-func (daemon *Daemon) containerAttach(c *container.Container, stdin io.ReadCloser, stdout, stderr io.Writer, logs, stream bool, keys []byte) error {
-	if logs {
+func (daemon *Daemon) containerAttach(c *container.Container, cfg *containerAttachConfig) error {
+	stdin := cfg.stdin
+	stdout := cfg.stdout
+	stderr := cfg.stderr
+	if cfg.showHistory {
 		logDriver, err := daemon.getLogger(c)
 		if err != nil {
 			return err
@@ -107,41 +128,47 @@ func (daemon *Daemon) containerAttach(c *container.Container, stdin io.ReadClose
 
 	daemon.LogContainerEvent(c, "attach")
 
-	//stream
-	if stream {
-		var stdinPipe io.ReadCloser
-		if stdin != nil {
-			r, w := io.Pipe()
-			go func() {
-				defer w.Close()
-				defer logrus.Debug("Closing buffered stdin pipe")
-				io.Copy(w, stdin)
-			}()
-			stdinPipe = r
-		}
+	if !cfg.stream {
+		return nil
+	}
 
-		waitChan := make(chan struct{})
-		if c.Config.StdinOnce && !c.Config.Tty {
-			go func() {
-				c.WaitStop(-1 * time.Second)
-				close(waitChan)
-			}()
-		}
+	var stdinPipe io.ReadCloser
+	if stdin != nil {
+		r, w := io.Pipe()
+		go func() {
+			defer w.Close()
+			defer logrus.Debug("Closing buffered stdin pipe")
+			io.Copy(w, stdin)
+		}()
+		stdinPipe = r
+	}
 
-		err := <-c.Attach(stdinPipe, stdout, stderr, keys)
-		if err != nil {
-			if _, ok := err.(container.DetachError); ok {
-				daemon.LogContainerEvent(c, "detach")
-			} else {
-				logrus.Errorf("attach failed with error: %v", err)
-			}
-		}
-
-		// If we are in stdinonce mode, wait for the process to end
-		// otherwise, simply return
-		if c.Config.StdinOnce && !c.Config.Tty {
+	waitChan := make(chan struct{})
+	if c.Config.StdinOnce && !c.Config.Tty {
+		defer func() {
 			<-waitChan
+		}()
+		go func() {
+			c.WaitStop(-1 * time.Second)
+			close(waitChan)
+		}()
+	}
+
+	aCfg := &stream.AttachConfig{
+		Stdin:      stdinPipe,
+		Stdout:     stdout,
+		Stderr:     stderr,
+		DetachKeys: cfg.detachKeys,
+	}
+
+	err := <-c.Attach(aCfg)
+	if err != nil {
+		if _, ok := err.(stream.DetachError); ok {
+			daemon.LogContainerEvent(c, "detach")
+		} else {
+			logrus.Errorf("attach failed with error: %v", err)
 		}
 	}
+
 	return nil
 }
