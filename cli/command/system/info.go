@@ -103,7 +103,7 @@ func prettyPrintInfo(dockerCli *command.DockerCli, info types.Info) error {
 			fmt.Fprintf(dockerCli.Out(), " Error: %v\n", info.Swarm.Error)
 		}
 		fmt.Fprintf(dockerCli.Out(), " Is Manager: %v\n", info.Swarm.ControlAvailable)
-		if info.Swarm.ControlAvailable {
+		if info.Swarm.ControlAvailable && info.Swarm.Error == "" && info.Swarm.LocalNodeState != swarm.LocalNodeStateError {
 			fmt.Fprintf(dockerCli.Out(), " ClusterID: %s\n", info.Swarm.Cluster.ID)
 			fmt.Fprintf(dockerCli.Out(), " Managers: %d\n", info.Swarm.Managers)
 			fmt.Fprintf(dockerCli.Out(), " Nodes: %d\n", info.Swarm.Nodes)
