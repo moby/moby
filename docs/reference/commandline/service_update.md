@@ -56,6 +56,8 @@ Options:
       --mount-add mount                  Add or update a mount on a service
       --mount-rm list                    Remove a mount by its target path (default [])
       --no-healthcheck                   Disable any container-specified HEALTHCHECK
+      --placement-pref-add pref          Add a placement preference
+      --placement-pref-rm pref           Remove a placement preference
       --publish-add port                 Add or update a published port
       --publish-rm port                  Remove a published port by its target port
       --read-only                        Mount the container's root filesystem as read only

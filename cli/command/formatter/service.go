@@ -39,8 +39,11 @@ UpdateStatus:
  Message:	{{ .UpdateStatusMessage }}
 {{- end }}
 Placement:
-{{- if .TaskPlacementConstraints -}}
+{{- if .TaskPlacementConstraints }}
  Constraints:	{{ .TaskPlacementConstraints }}
+{{- end }}
+{{- if .TaskPlacementPreferences }}
+ Preferences:   {{ .TaskPlacementPreferences }}
 {{- end }}
 {{- if .HasUpdateConfig }}
 UpdateConfig:
@@ -209,6 +212,19 @@ func (ctx *serviceInspectContext) TaskPlacementConstraints() []string {
 		return ctx.Service.Spec.TaskTemplate.Placement.Constraints
 	}
 	return nil
+}
+
+func (ctx *serviceInspectContext) TaskPlacementPreferences() []string {
+	if ctx.Service.Spec.TaskTemplate.Placement == nil {
+		return nil
+	}
+	var strings []string
+	for _, pref := range ctx.Service.Spec.TaskTemplate.Placement.Preferences {
+		if pref.Spread != nil {
+			strings = append(strings, "spread="+pref.Spread.SpreadDescriptor)
+		}
+	}
+	return strings
 }
 
 func (ctx *serviceInspectContext) HasUpdateConfig() bool {
