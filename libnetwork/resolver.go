@@ -72,8 +72,8 @@ const (
 )
 
 type extDNSEntry struct {
-	ipStr        string
-	hostLoopback bool
+	IPStr        string
+	HostLoopback bool
 }
 
 // resolver implements the Resolver interface
@@ -413,15 +413,15 @@ func (r *resolver) ServeDNS(w dns.ResponseWriter, query *dns.Msg) {
 	} else {
 		for i := 0; i < maxExtDNS; i++ {
 			extDNS := &r.extDNSList[i]
-			if extDNS.ipStr == "" {
+			if extDNS.IPStr == "" {
 				break
 			}
 			extConnect := func() {
-				addr := fmt.Sprintf("%s:%d", extDNS.ipStr, 53)
+				addr := fmt.Sprintf("%s:%d", extDNS.IPStr, 53)
 				extConn, err = net.DialTimeout(proto, addr, extIOTimeout)
 			}
 
-			if extDNS.hostLoopback {
+			if extDNS.HostLoopback {
 				extConnect()
 			} else {
 				execErr := r.backend.ExecFunc(extConnect)
@@ -435,7 +435,7 @@ func (r *resolver) ServeDNS(w dns.ResponseWriter, query *dns.Msg) {
 				continue
 			}
 			logrus.Debugf("Query %s[%d] from %s, forwarding to %s:%s", name, query.Question[0].Qtype,
-				extConn.LocalAddr().String(), proto, extDNS.ipStr)
+				extConn.LocalAddr().String(), proto, extDNS.IPStr)
 
 			// Timeout has to be set for every IO operation.
 			extConn.SetDeadline(time.Now().Add(extIOTimeout))

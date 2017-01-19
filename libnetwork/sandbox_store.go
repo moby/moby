@@ -27,7 +27,12 @@ type sbState struct {
 	dbExists   bool
 	Eps        []epState
 	EpPriority map[string]int
-	ExtDNS     []extDNSEntry
+	// external servers have to be persisted so that on restart of a live-restore
+	// enabled daemon we get the external servers for the running containers.
+	// We have two versions of ExtDNS to support upgrade & downgrade of the daemon
+	// between >=1.14 and <1.14 versions.
+	ExtDNS  []string
+	ExtDNS2 []extDNSEntry
 }
 
 func (sbs *sbState) Key() []string {
@@ -114,8 +119,16 @@ func (sbs *sbState) CopyTo(o datastore.KVObject) error {
 		dstSbs.Eps = append(dstSbs.Eps, eps)
 	}
 
+	if len(sbs.ExtDNS2) > 0 {
+		for _, dns := range sbs.ExtDNS2 {
+			dstSbs.ExtDNS2 = append(dstSbs.ExtDNS2, dns)
+			dstSbs.ExtDNS = append(dstSbs.ExtDNS, dns.IPStr)
+		}
+		return nil
+	}
 	for _, dns := range sbs.ExtDNS {
 		dstSbs.ExtDNS = append(dstSbs.ExtDNS, dns)
+		dstSbs.ExtDNS2 = append(dstSbs.ExtDNS2, extDNSEntry{IPStr: dns})
 	}
 
 	return nil
@@ -131,7 +144,11 @@ func (sb *sandbox) storeUpdate() error {
 		ID:         sb.id,
 		Cid:        sb.containerID,
 		EpPriority: sb.epPriority,
-		ExtDNS:     sb.extDNS,
+		ExtDNS2:    sb.extDNS,
+	}
+
+	for _, ext := range sb.extDNS {
+		sbs.ExtDNS = append(sbs.ExtDNS, ext.IPStr)
 	}
 
 retry:
@@ -205,7 +222,15 @@ func (c *controller) sandboxCleanup(activeSandboxes map[string]interface{}) {
 			dbIndex:            sbs.dbIndex,
 			isStub:             true,
 			dbExists:           true,
-			extDNS:             sbs.ExtDNS,
+		}
+		// If we are restoring from a older version extDNSEntry won't have the
+		// HostLoopback field
+		if len(sbs.ExtDNS2) > 0 {
+			sb.extDNS = sbs.ExtDNS2
+		} else {
+			for _, dns := range sbs.ExtDNS {
+				sb.extDNS = append(sb.extDNS, extDNSEntry{IPStr: dns})
+			}
 		}
 
 		msg := " for cleanup"
