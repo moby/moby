@@ -94,8 +94,9 @@ func (n *nodeRunner) start(conf nodeStartConfig) error {
 		control = filepath.Join(n.cluster.runtimeRoot, controlSocket)
 	}
 
+	// Hostname is not set here. Instead, it is obtained from
+	// the node description that is reported periodically
 	swarmnodeConfig := swarmnode.Config{
-		Hostname:           n.cluster.config.Name,
 		ForceNewCluster:    conf.forceNewCluster,
 		ListenControlAPI:   control,
 		ListenRemoteAPI:    conf.ListenAddr,
