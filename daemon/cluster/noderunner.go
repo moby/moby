@@ -109,6 +109,7 @@ func (n *nodeRunner) start(conf nodeStartConfig) error {
 		ElectionTick:       3,
 		UnlockKey:          conf.lockKey,
 		AutoLockManagers:   conf.autolock,
+		PluginGetter:       n.cluster.config.Backend.PluginGetter(),
 	}
 	if conf.availability != "" {
 		avail, ok := swarmapi.NodeSpec_Availability_value[strings.ToUpper(string(conf.availability))]

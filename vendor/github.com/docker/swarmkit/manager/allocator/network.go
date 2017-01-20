@@ -73,7 +73,7 @@ type networkContext struct {
 }
 
 func (a *Allocator) doNetworkInit(ctx context.Context) (err error) {
-	na, err := networkallocator.New()
+	na, err := networkallocator.New(a.pluginGetter)
 	if err != nil {
 		return err
 	}

@@ -72,6 +72,11 @@ message ServiceSpec {
 	// UpdateConfig controls the rate and policy of updates.
 	UpdateConfig update = 6;
 
+	// ServiceSpec.Networks has been deprecated and is replaced by
+	// Networks field in Task (TaskSpec.Networks).
+	// This field (ServiceSpec.Networks) is kept for compatibility.
+	// In case TaskSpec.Networks does not exist, ServiceSpec.Networks
+	// is still honored if it exists.
 	repeated NetworkAttachmentConfig networks = 7 [deprecated=true];
 
 	// Service endpoint specifies the user provided configuration

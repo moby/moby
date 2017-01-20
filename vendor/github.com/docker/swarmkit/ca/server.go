@@ -353,7 +353,7 @@ func (s *Server) issueRenewCertificate(ctx context.Context, nodeID string, csr [
 	}, nil
 }
 
-// GetRootCACertificate returns the certificate of the Root CA. It is used as a convinience for distributing
+// GetRootCACertificate returns the certificate of the Root CA. It is used as a convenience for distributing
 // the root of trust for the swarm. Clients should be using the CA hash to verify if they weren't target to
 // a MiTM. If they fail to do so, node bootstrap works with TOFU semantics.
 func (s *Server) GetRootCACertificate(ctx context.Context, request *api.GetRootCACertificateRequest) (*api.GetRootCACertificateResponse, error) {

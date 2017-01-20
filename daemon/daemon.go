@@ -1276,6 +1276,11 @@ func (daemon *Daemon) PluginManager() *plugin.Manager { // set up before daemon 
 	return daemon.pluginManager
 }
 
+// PluginGetter returns current pluginStore associated with the daemon
+func (daemon *Daemon) PluginGetter() *plugin.Store {
+	return daemon.PluginStore
+}
+
 // CreateDaemonRoot creates the root for the daemon
 func CreateDaemonRoot(config *Config) error {
 	// get the canonical path to the Docker root directory

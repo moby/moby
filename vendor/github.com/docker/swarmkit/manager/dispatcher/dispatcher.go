@@ -106,6 +106,7 @@ type nodeUpdate struct {
 // Dispatcher is responsible for dispatching tasks and tracking agent health.
 type Dispatcher struct {
 	mu                   sync.Mutex
+	wg                   sync.WaitGroup
 	nodes                *nodeStore
 	store                *store.MemoryStore
 	mgrQueue             *watch.Queue
@@ -216,6 +217,9 @@ func (d *Dispatcher) Run(ctx context.Context) error {
 
 	defer cancel()
 	d.ctx, d.cancel = context.WithCancel(ctx)
+	ctx = d.ctx
+	d.wg.Add(1)
+	defer d.wg.Done()
 	d.mu.Unlock()
 
 	publishManagers := func(peers []*api.Peer) {
@@ -240,10 +244,10 @@ func (d *Dispatcher) Run(ctx context.Context) error {
 		case ev := <-peerWatcher:
 			publishManagers(ev.([]*api.Peer))
 		case <-d.processUpdatesTrigger:
-			d.processUpdates()
+			d.processUpdates(ctx)
 			batchTimer.Reset(maxBatchInterval)
 		case <-batchTimer.C:
-			d.processUpdates()
+			d.processUpdates(ctx)
 			batchTimer.Reset(maxBatchInterval)
 		case v := <-configWatcher:
 			cluster := v.(state.EventUpdateCluster)
@@ -260,7 +264,7 @@ func (d *Dispatcher) Run(ctx context.Context) error {
 			d.networkBootstrapKeys = cluster.Cluster.NetworkBootstrapKeys
 			d.mu.Unlock()
 			d.keyMgrQueue.Publish(cluster.Cluster.NetworkBootstrapKeys)
-		case <-d.ctx.Done():
+		case <-ctx.Done():
 			return nil
 		}
 	}
@@ -287,17 +291,20 @@ func (d *Dispatcher) Stop() error {
 	d.mgrQueue.Close()
 	d.keyMgrQueue.Close()
 
+	d.wg.Wait()
+
 	return nil
 }
 
-func (d *Dispatcher) isRunningLocked() error {
+func (d *Dispatcher) isRunningLocked() (context.Context, error) {
 	d.mu.Lock()
 	if !d.isRunning() {
 		d.mu.Unlock()
-		return grpc.Errorf(codes.Aborted, "dispatcher is stopped")
+		return nil, grpc.Errorf(codes.Aborted, "dispatcher is stopped")
 	}
+	ctx := d.ctx
 	d.mu.Unlock()
-	return nil
+	return ctx, nil
 }
 
 func (d *Dispatcher) markNodesUnknown(ctx context.Context) error {
@@ -377,7 +384,7 @@ func (d *Dispatcher) isRunning() bool {
 // markNodeReady updates the description of a node, updates its address, and sets status to READY
 // this is used during registration when a new node description is provided
 // and during node updates when the node description changes
-func (d *Dispatcher) markNodeReady(nodeID string, description *api.NodeDescription, addr string) error {
+func (d *Dispatcher) markNodeReady(ctx context.Context, nodeID string, description *api.NodeDescription, addr string) error {
 	d.nodeUpdatesLock.Lock()
 	d.nodeUpdates[nodeID] = nodeUpdate{
 		status: &api.NodeStatus{
@@ -396,8 +403,8 @@ func (d *Dispatcher) markNodeReady(nodeID string, description *api.NodeDescripti
 	if numUpdates >= maxBatchItems {
 		select {
 		case d.processUpdatesTrigger <- struct{}{}:
-		case <-d.ctx.Done():
-			return d.ctx.Err()
+		case <-ctx.Done():
+			return ctx.Err()
 		}
 
 	}
@@ -405,8 +412,8 @@ func (d *Dispatcher) markNodeReady(nodeID string, description *api.NodeDescripti
 	// Wait until the node update batch happens before unblocking register.
 	d.processUpdatesLock.Lock()
 	select {
-	case <-d.ctx.Done():
-		return d.ctx.Err()
+	case <-ctx.Done():
+		return ctx.Err()
 	default:
 	}
 	d.processUpdatesCond.Wait()
@@ -431,7 +438,8 @@ func nodeIPFromContext(ctx context.Context) (string, error) {
 // register is used for registration of node with particular dispatcher.
 func (d *Dispatcher) register(ctx context.Context, nodeID string, description *api.NodeDescription) (string, error) {
 	// prevent register until we're ready to accept it
-	if err := d.isRunningLocked(); err != nil {
+	dctx, err := d.isRunningLocked()
+	if err != nil {
 		return "", err
 	}
 
@@ -453,7 +461,7 @@ func (d *Dispatcher) register(ctx context.Context, nodeID string, description *a
 		log.G(ctx).Debugf(err.Error())
 	}
 
-	if err := d.markNodeReady(nodeID, description, addr); err != nil {
+	if err := d.markNodeReady(dctx, nodeID, description, addr); err != nil {
 		return "", err
 	}
 
@@ -496,7 +504,8 @@ func (d *Dispatcher) UpdateTaskStatus(ctx context.Context, r *api.UpdateTaskStat
 	}
 	log := log.G(ctx).WithFields(fields)
 
-	if err := d.isRunningLocked(); err != nil {
+	dctx, err := d.isRunningLocked()
+	if err != nil {
 		return nil, err
 	}
 
@@ -542,13 +551,13 @@ func (d *Dispatcher) UpdateTaskStatus(ctx context.Context, r *api.UpdateTaskStat
 	if numUpdates >= maxBatchItems {
 		select {
 		case d.processUpdatesTrigger <- struct{}{}:
-		case <-d.ctx.Done():
+		case <-dctx.Done():
 		}
 	}
 	return nil, nil
 }
 
-func (d *Dispatcher) processUpdates() {
+func (d *Dispatcher) processUpdates(ctx context.Context) {
 	var (
 		taskUpdates map[string]*api.TaskStatus
 		nodeUpdates map[string]nodeUpdate
@@ -571,7 +580,7 @@ func (d *Dispatcher) processUpdates() {
 		return
 	}
 
-	log := log.G(d.ctx).WithFields(logrus.Fields{
+	log := log.G(ctx).WithFields(logrus.Fields{
 		"method": "(*Dispatcher).processUpdates",
 	})
 
@@ -661,7 +670,8 @@ func (d *Dispatcher) Tasks(r *api.TasksRequest, stream api.Dispatcher_TasksServe
 	}
 	nodeID := nodeInfo.NodeID
 
-	if err := d.isRunningLocked(); err != nil {
+	dctx, err := d.isRunningLocked()
+	if err != nil {
 		return err
 	}
 
@@ -763,8 +773,8 @@ func (d *Dispatcher) Tasks(r *api.TasksRequest, stream api.Dispatcher_TasksServe
 				break batchingLoop
 			case <-stream.Context().Done():
 				return stream.Context().Err()
-			case <-d.ctx.Done():
-				return d.ctx.Err()
+			case <-dctx.Done():
+				return dctx.Err()
 			}
 		}
 
@@ -783,7 +793,8 @@ func (d *Dispatcher) Assignments(r *api.AssignmentsRequest, stream api.Dispatche
 	}
 	nodeID := nodeInfo.NodeID
 
-	if err := d.isRunningLocked(); err != nil {
+	dctx, err := d.isRunningLocked()
+	if err != nil {
 		return err
 	}
 
@@ -1075,8 +1086,8 @@ func (d *Dispatcher) Assignments(r *api.AssignmentsRequest, stream api.Dispatche
 				break batchingLoop
 			case <-stream.Context().Done():
 				return stream.Context().Err()
-			case <-d.ctx.Done():
-				return d.ctx.Err()
+			case <-dctx.Done():
+				return dctx.Err()
 			}
 		}
 
@@ -1197,16 +1208,14 @@ func (d *Dispatcher) moveTasksToOrphaned(nodeID string) error {
 
 // markNodeNotReady sets the node state to some state other than READY
 func (d *Dispatcher) markNodeNotReady(id string, state api.NodeStatus_State, message string) error {
-	if err := d.isRunningLocked(); err != nil {
+	dctx, err := d.isRunningLocked()
+	if err != nil {
 		return err
 	}
 
 	// Node is down. Add it to down nodes so that we can keep
 	// track of tasks assigned to the node.
-	var (
-		node *api.Node
-		err  error
-	)
+	var node *api.Node
 	d.store.View(func(readTx store.ReadTx) {
 		node = store.GetNode(readTx, id)
 		if node == nil {
@@ -1219,7 +1228,7 @@ func (d *Dispatcher) markNodeNotReady(id string, state api.NodeStatus_State, mes
 
 	expireFunc := func() {
 		if err := d.moveTasksToOrphaned(id); err != nil {
-			log.G(context.TODO()).WithError(err).Error(`failed to move all tasks to "ORPHANED" state`)
+			log.G(dctx).WithError(err).Error(`failed to move all tasks to "ORPHANED" state`)
 		}
 
 		d.downNodes.Delete(id)
@@ -1243,7 +1252,7 @@ func (d *Dispatcher) markNodeNotReady(id string, state api.NodeStatus_State, mes
 	if numUpdates >= maxBatchItems {
 		select {
 		case d.processUpdatesTrigger <- struct{}{}:
-		case <-d.ctx.Done():
+		case <-dctx.Done():
 		}
 	}
 
@@ -1291,7 +1300,8 @@ func (d *Dispatcher) Session(r *api.SessionRequest, stream api.Dispatcher_Sessio
 	}
 	nodeID := nodeInfo.NodeID
 
-	if err := d.isRunningLocked(); err != nil {
+	dctx, err := d.isRunningLocked()
+	if err != nil {
 		return err
 	}
 
@@ -1310,7 +1320,7 @@ func (d *Dispatcher) Session(r *api.SessionRequest, stream api.Dispatcher_Sessio
 			log.G(ctx).Debugf(err.Error())
 		}
 		// update the node description
-		if err := d.markNodeReady(nodeID, r.Description, addr); err != nil {
+		if err := d.markNodeReady(dctx, nodeID, r.Description, addr); err != nil {
 			return err
 		}
 	}
@@ -1401,7 +1411,7 @@ func (d *Dispatcher) Session(r *api.SessionRequest, stream api.Dispatcher_Sessio
 			return stream.Context().Err()
 		case <-node.Disconnect:
 			disconnect = true
-		case <-d.ctx.Done():
+		case <-dctx.Done():
 			disconnect = true
 		case ev := <-keyMgrUpdates:
 			netKeys = ev.([]*api.EncryptionKey)
