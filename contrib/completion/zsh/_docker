@@ -474,6 +474,26 @@ __docker_complete_events_filter() {
     return ret
 }
 
+__docker_complete_prune_filters() {
+    [[ $PREFIX = -* ]] && return 1
+    integer ret=1
+    declare -a opts
+
+    opts=('until')
+
+    if compset -P '*='; then
+        case "${${words[-1]%=*}#*=}" in
+            *)
+                _message 'value' && ret=0
+                ;;
+        esac
+    else
+        _describe -t filter-opts "filter options" opts -qS "=" && ret=0
+    fi
+
+    return ret
+}
+
 # BO container
 
 __docker_container_commands() {
@@ -731,6 +751,7 @@ __docker_container_subcommand() {
         (prune)
             _arguments $(__docker_arguments) \
                 $opts_help \
+                "($help)*--filter=[Filter values]:filter:__docker_complete_prune_filters" \
                 "($help -f --force)"{-f,--force}"[Do not prompt for confirmation]" && ret=0
             ;;
         (rename)
@@ -977,6 +998,7 @@ __docker_image_subcommand() {
             _arguments $(__docker_arguments) \
                 $opts_help \
                 "($help -a --all)"{-a,--all}"[Remove all unused images, not just dangling ones]" \
+                "($help)*--filter=[Filter values]:filter:__docker_complete_prune_filters" \
                 "($help -f --force)"{-f,--force}"[Do not prompt for confirmation]" && ret=0
             ;;
         (pull)
@@ -1204,6 +1226,7 @@ __docker_network_subcommand() {
         (prune)
             _arguments $(__docker_arguments) \
                 $opts_help \
+                "($help)*--filter=[Filter values]:filter:__docker_complete_prune_filters" \
                 "($help -f --force)"{-f,--force}"[Do not prompt for confirmation]" && ret=0
             ;;
         (rm)
@@ -2142,6 +2165,7 @@ __docker_system_subcommand() {
             _arguments $(__docker_arguments) \
                 $opts_help \
                 "($help -a --all)"{-a,--all}"[Remove all unused data, not just dangling ones]" \
+                "($help)*--filter=[Filter values]:filter:__docker_complete_prune_filters" \
                 "($help -f --force)"{-f,--force}"[Do not prompt for confirmation]" && ret=0
             ;;
         (help)
