@@ -667,7 +667,7 @@ func (s *DockerSuite) TestBuildCopyWildcardInName(c *check.C) {
 	// filenames (like windows).  So, instead of failing the test
 	// just let it pass. Then we don't need to explicitly
 	// say which OSs this works on or not.
-	testRequires(c, DaemonIsLinux)
+	testRequires(c, DaemonIsLinux, UnixCli)
 
 	buildImageSuccessfully(c, "testcopywildcardinname", withBuildContext(c,
 		withFile("Dockerfile", `FROM busybox
