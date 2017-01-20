@@ -140,7 +140,12 @@ type ServiceSpec struct {
 	//	*ServiceSpec_Global
 	Mode isServiceSpec_Mode `protobuf_oneof:"mode"`
 	// UpdateConfig controls the rate and policy of updates.
-	Update   *UpdateConfig              `protobuf:"bytes,6,opt,name=update" json:"update,omitempty"`
+	Update *UpdateConfig `protobuf:"bytes,6,opt,name=update" json:"update,omitempty"`
+	// ServiceSpec.Networks has been deprecated and is replaced by
+	// Networks field in Task (TaskSpec.Networks).
+	// This field (ServiceSpec.Networks) is kept for compatibility.
+	// In case TaskSpec.Networks does not exist, ServiceSpec.Networks
+	// is still honored if it exists.
 	Networks []*NetworkAttachmentConfig `protobuf:"bytes,7,rep,name=networks" json:"networks,omitempty"`
 	// Service endpoint specifies the user provided configuration
 	// to properly discover and load balance a service.
