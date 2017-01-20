@@ -1286,8 +1286,8 @@ to create the directory in the Dockerfile. For example:
     ARG <name>[=<default value>]
 
 The `ARG` instruction defines a variable that users can pass at build-time to
-the builder with the `docker build` command using the `--build-arg
-<varname>=<value>` flag. If a user specifies a build argument that was not
+the builder with the `docker build` command using the `--build-arg <varname>=<value>`
+flag. If a user specifies a build argument that was not
 defined in the Dockerfile, the build outputs a warning.
 
 ```
@@ -1375,7 +1375,7 @@ useful interactions between `ARG` and `ENV` instructions:
 ```
 
 Unlike an `ARG` instruction, `ENV` values are always persisted in the built
-image. Consider a docker build without the --build-arg flag:
+image. Consider a docker build without the `--build-arg` flag:
 
 ```
 $ docker build Dockerfile
@@ -1638,9 +1638,9 @@ The command invoked by docker will be:
 
     cmd /S /C powershell -command Execute-MyCmdlet -param1 "c:\foo.txt"
 
- This is inefficient for two reasons. First, there is an un-necessary cmd.exe command
- processor (aka shell) being invoked. Second, each `RUN` instruction in the *shell*
- form requires an extra `powershell -command` prefixing the command.
+This is inefficient for two reasons. First, there is an un-necessary cmd.exe command
+processor (aka shell) being invoked. Second, each `RUN` instruction in the *shell*
+form requires an extra `powershell -command` prefixing the command.
 
 To make this more efficient, one of two mechanisms can be employed. One is to
 use the JSON form of the RUN command such as:
