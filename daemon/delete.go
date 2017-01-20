@@ -29,7 +29,7 @@ func (daemon *Daemon) ContainerRm(name string, config *types.ContainerRmConfig) 
 	// Container state RemovalInProgress should be used to avoid races.
 	if inProgress := container.SetRemovalInProgress(); inProgress {
 		err := fmt.Errorf("removal of container %s is already in progress", name)
-		return errors.NewBadRequestError(err)
+		return errors.NewRequestConflictError(err)
 	}
 	defer container.ResetRemovalInProgress()
 
