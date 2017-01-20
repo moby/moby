@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"net"
 
-	"github.com/docker/docker/pkg/plugins"
+	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/libnetwork/datastore"
 	"github.com/docker/libnetwork/driverapi"
 	"github.com/docker/libnetwork/drvregistry"
@@ -69,7 +69,7 @@ type initializer struct {
 }
 
 // New returns a new NetworkAllocator handle
-func New() (*NetworkAllocator, error) {
+func New(pg plugingetter.PluginGetter) (*NetworkAllocator, error) {
 	na := &NetworkAllocator{
 		networks: make(map[string]*network),
 		services: make(map[string]struct{}),
@@ -79,7 +79,7 @@ func New() (*NetworkAllocator, error) {
 
 	// There are no driver configurations and notification
 	// functions as of now.
-	reg, err := drvregistry.New(nil, nil, nil, nil, nil)
+	reg, err := drvregistry.New(nil, nil, nil, nil, pg)
 	if err != nil {
 		return nil, err
 	}
@@ -657,7 +657,11 @@ func (na *NetworkAllocator) resolveDriver(n *api.Network) (driverapi.Driver, str
 }
 
 func (na *NetworkAllocator) loadDriver(name string) error {
-	_, err := plugins.Get(name, driverapi.NetworkPluginEndpointType)
+	pg := na.drvRegistry.GetPluginGetter()
+	if pg == nil {
+		return fmt.Errorf("plugin store is unintialized")
+	}
+	_, err := pg.Get(name, driverapi.NetworkPluginEndpointType, plugingetter.LOOKUP)
 	return err
 }
 
