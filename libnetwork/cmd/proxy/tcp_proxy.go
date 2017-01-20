@@ -5,7 +5,6 @@ import (
 	"log"
 	"net"
 	"sync"
-	"syscall"
 )
 
 // TCPProxy is a proxy for TCP connections. It implements the Proxy interface to
@@ -41,13 +40,7 @@ func (proxy *TCPProxy) clientLoop(client *net.TCPConn, quit chan bool) {
 
 	var wg sync.WaitGroup
 	var broker = func(to, from *net.TCPConn) {
-		if _, err := io.Copy(to, from); err != nil {
-			// If the socket we are writing to is shutdown with
-			// SHUT_WR, forward it to the other end of the pipe:
-			if err, ok := err.(*net.OpError); ok && err.Err == syscall.EPIPE {
-				from.CloseWrite()
-			}
-		}
+		io.Copy(to, from)
 		from.CloseRead()
 		to.CloseWrite()
 		wg.Done()
