@@ -63,9 +63,10 @@ func Networks(
 		}
 
 		createOpts := types.NetworkCreate{
-			Labels:  AddStackLabel(namespace, network.Labels),
-			Driver:  network.Driver,
-			Options: network.DriverOpts,
+			Labels:   AddStackLabel(namespace, network.Labels),
+			Driver:   network.Driver,
+			Options:  network.DriverOpts,
+			Internal: network.Internal,
 		}
 
 		if network.Ipam.Driver != "" || len(network.Ipam.Config) > 0 {

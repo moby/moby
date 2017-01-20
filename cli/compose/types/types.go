@@ -204,6 +204,7 @@ type NetworkConfig struct {
 	DriverOpts map[string]string `mapstructure:"driver_opts"`
 	Ipam       IPAMConfig
 	External   External
+	Internal   bool
 	Labels     map[string]string `compose:"list_or_dict_equals"`
 }
 
