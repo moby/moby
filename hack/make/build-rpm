@@ -121,13 +121,12 @@ set -e
 				--define '_experimental ${DOCKER_EXPERIMENTAL:-0}' \
 				${rpmName}.spec
 		EOF
-		# selinux policy referencing systemd things won't work on non-systemd versions
-		# of centos or rhel, which we don't support anyways
-		if [ "${suite%.*}" -gt 6 ] && [[ "$version" != opensuse* ]]; then
-			selinuxDir="selinux"
-			if [ -d "./contrib/selinux-$version" ]; then
-				selinuxDir="selinux-${version}"
-			fi
+
+		# by default do not create selinux rpm
+		# if there exists a selinux policy dir specifically for distro version
+		# then build a selinux rpm with the policy in the policy dir
+		if [ -d "./contrib/selinux-$version" ]; then
+			selinuxDir="selinux-${version}"
 			cat >> "$DEST/$version/Dockerfile.build" <<-EOF
 				RUN tar -cz -C /usr/src/${rpmName}/contrib/${selinuxDir} -f /root/rpmbuild/SOURCES/${rpmName}-selinux.tar.gz ${rpmName}-selinux
 				RUN rpmbuild -ba \
@@ -138,6 +137,7 @@ set -e
 						${rpmName}-selinux.spec
 			EOF
 		fi
+
 		tempImage="docker-temp/build-rpm:$version"
 		( set -x && docker build ${DOCKER_BUILD_ARGS} -t "$tempImage" -f $DEST/$version/Dockerfile.build . )
 		docker run --rm "$tempImage" bash -c 'cd /root/rpmbuild && tar -c *RPMS' | tar -xvC "$DEST/$version"
