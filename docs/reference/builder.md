@@ -28,20 +28,19 @@ Practices](https://docs.docker.com/engine/userguide/eng-image/dockerfile_best-pr
 ## Usage
 
 The [`docker build`](commandline/build.md) command builds an image from
-a `Dockerfile` and a *context*. The build's context is the files at a specified
+a `Dockerfile` and a *context*. The build's context is  files at a specified
 location `PATH` or `URL`. The `PATH` is a directory on your local filesystem.
 The `URL` is a Git repository location.
 
 A context is processed recursively. So, a `PATH` includes any subdirectories and
-the `URL` includes the repository and its submodules. A simple build command
-that uses the current directory as context:
+the `URL` includes the repository and its submodules. A simple build command uses the current directory as context:
 
     $ docker build .
     Sending build context to Docker daemon  6.51 MB
     ...
 
 The build is run by the Docker daemon, not by the CLI. The first thing a build
-process does is send the entire context (recursively) to the daemon.  In most
+process does is sending the entire context (recursively) to the daemon.  In most
 cases, it's best to start with an empty directory as context and keep your
 Dockerfile in that directory. Add only the files needed for building the
 Dockerfile.
@@ -159,11 +158,11 @@ may only be used once.
 Once a comment, empty line or builder instruction has been processed, Docker
 no longer looks for parser directives. Instead it treats anything formatted
 as a parser directive as a comment and does not attempt to validate if it might
-be a parser directive. Therefore, all parser directives must be at the very
+be a parser directive. Therefore, all parser directives must be  the very
 top of a `Dockerfile`.
 
 Parser directives are not case-sensitive. However, convention is for them to
-be lowercase. Convention is also to include a blank line following any
+be lowercase. The convention is also to include a blank line following any
 parser directives. Line continuation characters are not supported in parser
 directives.
 
@@ -1245,7 +1244,7 @@ The `WORKDIR` instruction sets the working directory for any `RUN`, `CMD`,
 If the `WORKDIR` doesn't exist, it will be created even if it's not used in any
 subsequent `Dockerfile` instruction.
 
-It can be used multiple times in the one `Dockerfile`. If a relative path
+It can be used multiple times in one `Dockerfile`. If a relative path
 is provided, it will be relative to the path of the previous `WORKDIR`
 instruction. For example:
 
@@ -1375,7 +1374,7 @@ useful interactions between `ARG` and `ENV` instructions:
 ```
 
 Unlike an `ARG` instruction, `ENV` values are always persisted in the built
-image. Consider a docker build without the --build-arg flag:
+image. Consider a docker builds without the --build-arg flag:
 
 ```
 $ docker build Dockerfile
@@ -1484,7 +1483,7 @@ will require application source code to be added in a particular
 directory, and it might require a build script to be called *after*
 that. You can't just call `ADD` and `RUN` now, because you don't yet
 have access to the application source code, and it will be different for
-each application build. You could simply provide application developers
+each application builds. You could simply provide application developers
 with a boilerplate `Dockerfile` to copy-paste into their application, but
 that is inefficient, error-prone and difficult to update because it
 mixes with application-specific code.
