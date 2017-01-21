@@ -171,11 +171,10 @@ func RemoveDriver(name string) (volume.Driver, error) {
 // If no driver is registered, empty string list will be returned.
 func GetDriverList() []string {
 	var driverList []string
-	drivers.Lock()
-	for driverName := range drivers.extensions {
-		driverList = append(driverList, driverName)
+	allDriver, _ := GetAllDrivers()
+	for _, driver := range allDriver {
+		driverList = append(driverList, driver.Name())
 	}
-	drivers.Unlock()
 	return driverList
 }
 
