@@ -10,6 +10,8 @@ import (
 	"github.com/docker/docker/pkg/promise"
 )
 
+var defaultEscapeSequence = []byte{16, 17} // ctrl-p, ctrl-q
+
 // DetachError is special error which returned in case of container detach.
 type DetachError struct{}
 
@@ -153,57 +155,63 @@ func (c *Config) Attach(ctx context.Context, cfg *AttachConfig) chan error {
 	})
 }
 
-// Code c/c from io.Copy() modified to handle escape sequence
+// ttyProxy is used only for attaches with a TTY. It is used to proxy
+// stdin keypresses from the underlying reader and look for the passed in
+// escape key sequence to signal a detach.
+type ttyProxy struct {
+	escapeKeys   []byte
+	escapeKeyPos int
+	r            io.Reader
+}
+
+func (r *ttyProxy) Read(buf []byte) (int, error) {
+	nr, err := r.r.Read(buf)
+
+	preserve := func() {
+		// this preserves the original key presses in the passed in buffer
+		nr += r.escapeKeyPos
+		preserve := make([]byte, 0, r.escapeKeyPos+len(buf))
+		preserve = append(preserve, r.escapeKeys[:r.escapeKeyPos]...)
+		preserve = append(preserve, buf...)
+		r.escapeKeyPos = 0
+		copy(buf[0:nr], preserve)
+	}
+
+	if nr != 1 || err != nil {
+		if r.escapeKeyPos > 0 {
+			preserve()
+		}
+		return nr, err
+	}
+
+	if buf[0] != r.escapeKeys[r.escapeKeyPos] {
+		if r.escapeKeyPos > 0 {
+			preserve()
+		}
+		return nr, nil
+	}
+
+	if r.escapeKeyPos == len(r.escapeKeys)-1 {
+		return 0, DetachError{}
+	}
+
+	// Looks like we've got an escape key, but we need to match again on the next
+	// read.
+	// Store the current escape key we found so we can look for the next one on
+	// the next read.
+	// Since this is an escape key, make sure we don't let the caller read it
+	// If later on we find that this is not the escape sequence, we'll add the
+	// keys back
+	r.escapeKeyPos++
+	return nr - r.escapeKeyPos, nil
+}
+
 func copyEscapable(dst io.Writer, src io.ReadCloser, keys []byte) (written int64, err error) {
 	if len(keys) == 0 {
-		// Default keys : ctrl-p ctrl-q
-		keys = []byte{16, 17}
+		keys = defaultEscapeSequence
 	}
-	buf := make([]byte, 32*1024)
-	for {
-		nr, er := src.Read(buf)
-		if nr > 0 {
-			// ---- Docker addition
-			preservBuf := []byte{}
-			for i, key := range keys {
-				preservBuf = append(preservBuf, buf[0:nr]...)
-				if nr != 1 || buf[0] != key {
-					break
-				}
-				if i == len(keys)-1 {
-					src.Close()
-					return 0, DetachError{}
-				}
-				nr, er = src.Read(buf)
-			}
-			var nw int
-			var ew error
-			if len(preservBuf) > 0 {
-				nw, ew = dst.Write(preservBuf)
-				nr = len(preservBuf)
-			} else {
-				// ---- End of docker
-				nw, ew = dst.Write(buf[0:nr])
-			}
-			if nw > 0 {
-				written += int64(nw)
-			}
-			if ew != nil {
-				err = ew
-				break
-			}
-			if nr != nw {
-				err = io.ErrShortWrite
-				break
-			}
-		}
-		if er == io.EOF {
-			break
-		}
-		if er != nil {
-			err = er
-			break
-		}
-	}
-	return written, err
+	pr := &ttyProxy{escapeKeys: keys, r: src}
+	defer src.Close()
+
+	return io.Copy(dst, pr)
 }
