@@ -8,6 +8,7 @@ import (
 	"io"
 	"io/ioutil"
 	"runtime"
+	"sort"
 	"strings"
 	"sync"
 
@@ -522,4 +523,17 @@ func ValidateConfiguration(config *Config) error {
 	}
 
 	return nil
+}
+
+// GetAuthorizationPlugins returns daemon's sorted authorization plugins
+func (config *Config) GetAuthorizationPlugins() []string {
+	config.reloadLock.Lock()
+	defer config.reloadLock.Unlock()
+
+	authPlugins := make([]string, 0, len(config.AuthorizationPlugins))
+	for _, p := range config.AuthorizationPlugins {
+		authPlugins = append(authPlugins, p)
+	}
+	sort.Strings(authPlugins)
+	return authPlugins
 }

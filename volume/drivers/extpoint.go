@@ -4,6 +4,7 @@ package volumedrivers
 
 import (
 	"fmt"
+	"sort"
 	"sync"
 
 	"github.com/docker/docker/pkg/locker"
@@ -176,6 +177,7 @@ func GetDriverList() []string {
 		driverList = append(driverList, driverName)
 	}
 	drivers.Unlock()
+	sort.Strings(driverList)
 	return driverList
 }
 
