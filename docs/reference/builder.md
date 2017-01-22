@@ -403,9 +403,9 @@ Here is an example `.dockerignore` file:
 
 ```
 # comment
-    */temp*
-    */*/temp*
-    temp?
+*/temp*
+*/*/temp*
+temp?
 ```
 
 This file causes the following build behavior:
