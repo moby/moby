@@ -3,6 +3,7 @@
 package system
 
 import (
+	"io"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -164,15 +165,55 @@ func OpenFileSequential(name string, flag int, _ os.FileMode) (*os.File, error) 
 	if name == "" {
 		return nil, &os.PathError{Op: "open", Path: name, Err: syscall.ENOENT}
 	}
-	r, errf := syscallOpenFileSequential(name, flag, 0)
+	// Use FILE_FLAG_SEQUENTIAL_SCAN rather than FILE_ATTRIBUTE_NORMAL as implemented in golang.
+	//https://msdn.microsoft.com/en-us/library/windows/desktop/aa363858(v=vs.85).aspx
+	const fileFlagSequentialScan = 0x08000000 // FILE_FLAG_SEQUENTIAL_SCAN
+	r, errf := syscallOpenFileWithFlags(name, flag, fileFlagSequentialScan)
 	if errf == nil {
 		return r, nil
 	}
 	return nil, &os.PathError{Op: "open", Path: name, Err: errf}
 }
 
-func syscallOpenFileSequential(name string, flag int, _ os.FileMode) (file *os.File, err error) {
-	r, e := syscallOpenSequential(name, flag|syscall.O_CLOEXEC, 0)
+// WriteFileTemporary writes data to a file named by filename.
+// If the file does not exist, WriteFile creates it with permissions perm;
+// otherwise WriteFile truncates it before writing.
+func WriteFileTemporary(filename string, data []byte, perm os.FileMode) error {
+	f, err := OpenFileTemporary(filename, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, perm)
+	if err != nil {
+		return err
+	}
+	n, err := f.Write(data)
+	if err == nil && n < len(data) {
+		err = io.ErrShortWrite
+	}
+	if err1 := f.Close(); err == nil {
+		err = err1
+	}
+	return err
+}
+
+// OpenFileTemporary creates the named file with mode 0666 (before umask), truncating
+// it if it already exists. If successful, methods on the returned
+// File can be used for I/O; the associated file descriptor has mode
+// O_RDWR.
+// If there is an error, it will be of type *PathError.
+func OpenFileTemporary(name string, flag int, _ os.FileMode) (*os.File, error) {
+	if name == "" {
+		return nil, &os.PathError{Op: "open", Path: name, Err: syscall.ENOENT}
+	}
+	// Use FILE_ATTRIBUTE_TEMPORARY rather than FILE_ATTRIBUTE_NORMAL as implemented in golang.
+	//https://msdn.microsoft.com/en-us/library/windows/desktop/aa363858(v=vs.85).aspx
+	const fileAttributeTemporary = 0x00000100 // FILE_ATTRIBUTE_TEMPORARY
+	r, errf := syscallOpenFileWithFlags(name, flag, fileAttributeTemporary)
+	if errf == nil {
+		return r, nil
+	}
+	return nil, &os.PathError{Op: "open", Path: name, Err: errf}
+}
+
+func syscallOpenFileWithFlags(name string, flag int, flags uint32) (file *os.File, err error) {
+	r, e := syscallOpenWithFlags(name, flag|syscall.O_CLOEXEC, flags)
 	if e != nil {
 		return nil, e
 	}
@@ -186,7 +227,7 @@ func makeInheritSa() *syscall.SecurityAttributes {
 	return &sa
 }
 
-func syscallOpenSequential(path string, mode int, _ uint32) (fd syscall.Handle, err error) {
+func syscallOpenWithFlags(path string, mode int, flags uint32) (fd syscall.Handle, err error) {
 	if len(path) == 0 {
 		return syscall.InvalidHandle, syscall.ERROR_FILE_NOT_FOUND
 	}
@@ -228,9 +269,6 @@ func syscallOpenSequential(path string, mode int, _ uint32) (fd syscall.Handle, 
 	default:
 		createmode = syscall.OPEN_EXISTING
 	}
-	// Use FILE_FLAG_SEQUENTIAL_SCAN rather than FILE_ATTRIBUTE_NORMAL as implemented in golang.
-	//https://msdn.microsoft.com/en-us/library/windows/desktop/aa363858(v=vs.85).aspx
-	const fileFlagSequentialScan = 0x08000000 // FILE_FLAG_SEQUENTIAL_SCAN
-	h, e := syscall.CreateFile(pathp, access, sharemode, sa, createmode, fileFlagSequentialScan, 0)
+	h, e := syscall.CreateFile(pathp, access, sharemode, sa, createmode, flags, 0)
 	return h, e
 }

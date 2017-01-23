@@ -3,6 +3,7 @@
 package system
 
 import (
+	"io/ioutil"
 	"os"
 	"path/filepath"
 )
@@ -50,5 +51,21 @@ func OpenSequential(name string) (*os.File, error) {
 // methods on the returned File can be used for I/O.
 // If there is an error, it will be of type *PathError.
 func OpenFileSequential(name string, flag int, perm os.FileMode) (*os.File, error) {
+	return os.OpenFile(name, flag, perm)
+}
+
+// WriteFileTemporary writes data to a file named by filename.
+// If the file does not exist, WriteFileTemporary creates it with permissions perm;
+// otherwise WriteFileTemporary truncates it before writing.
+func WriteFileTemporary(filename string, data []byte, perm os.FileMode) error {
+	return ioutil.WriteFile(filename, data, perm)
+}
+
+// OpenFileTemporary creates the named file with mode 0666 (before umask), truncating
+// it if it already exists. If successful, methods on the returned
+// File can be used for I/O; the associated file descriptor has mode
+// O_RDWR.
+// If there is an error, it will be of type *PathError.
+func OpenFileTemporary(name string, flag int, perm os.FileMode) (*os.File, error) {
 	return os.OpenFile(name, flag, perm)
 }

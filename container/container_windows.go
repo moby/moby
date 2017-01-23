@@ -10,6 +10,10 @@ import (
 	containertypes "github.com/docker/docker/api/types/container"
 )
 
+const (
+	containerSecretMountPath = `C:\ProgramData\Docker\secrets`
+)
+
 // Container holds fields specific to the Windows implementation. See
 // CommonContainer for standard fields common to all containers.
 type Container struct {
@@ -37,6 +41,11 @@ func (container *Container) CreateDaemonEnvironment(_ bool, linkedEnv []string) 
 func (container *Container) UnmountIpcMounts(unmount func(pth string) error) {
 }
 
+// SecretMountPath returns the path of the secret mount for the container
+func (container *Container) SecretMountPath() string {
+	return filepath.Join(container.Root, "secrets")
+}
+
 // IpcMounts returns the list of Ipc related mounts.
 func (container *Container) IpcMounts() []Mount {
 	return nil
@@ -44,12 +53,20 @@ func (container *Container) IpcMounts() []Mount {
 
 // SecretMount returns the mount for the secret path
 func (container *Container) SecretMount() *Mount {
+	if len(container.SecretReferences) > 0 {
+		return &Mount{
+			Source:      container.SecretMountPath(),
+			Destination: containerSecretMountPath,
+			Writable:    false,
+		}
+	}
+
 	return nil
 }
 
 // UnmountSecrets unmounts the fs for secrets
 func (container *Container) UnmountSecrets() error {
-	return nil
+	return os.RemoveAll(container.SecretMountPath())
 }
 
 // DetachAndUnmount unmounts all volumes.

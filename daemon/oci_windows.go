@@ -25,11 +25,20 @@ func (daemon *Daemon) createSpec(c *container.Container) (*specs.Spec, error) {
 	// In base spec
 	s.Hostname = c.FullHostname()
 
+	if err := daemon.setupSecretDir(c); err != nil {
+		return nil, err
+	}
+
 	// In s.Mounts
 	mounts, err := daemon.setupMounts(c)
 	if err != nil {
 		return nil, err
 	}
+
+	if m := c.SecretMount(); m != nil {
+		mounts = append(mounts, *m)
+	}
+
 	for _, mount := range mounts {
 		m := specs.Mount{
 			Source:      mount.Source,
