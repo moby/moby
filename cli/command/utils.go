@@ -3,16 +3,19 @@ package command
 import (
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
+
+	"github.com/docker/docker/pkg/system"
 )
 
 // CopyToFile writes the content of the reader to the specified file
 func CopyToFile(outfile string, r io.Reader) error {
-	tmpFile, err := ioutil.TempFile(filepath.Dir(outfile), ".docker_temp_")
+	// We use sequential file access here to avoid depleting the standby list
+	// on Windows. On Linux, this is a call directly to ioutil.TempFile
+	tmpFile, err := system.TempFileSequential(filepath.Dir(outfile), ".docker_temp_")
 	if err != nil {
 		return err
 	}
