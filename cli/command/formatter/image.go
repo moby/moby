@@ -190,6 +190,10 @@ type imageContext struct {
 	digest string
 }
 
+func (c *imageContext) MarshalJSON() ([]byte, error) {
+	return marshalJSON(c)
+}
+
 func (c *imageContext) ID() string {
 	c.AddHeader(imageIDHeader)
 	if c.trunc {

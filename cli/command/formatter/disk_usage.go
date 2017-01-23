@@ -158,6 +158,10 @@ type diskUsageImagesContext struct {
 	images    []*types.ImageSummary
 }
 
+func (c *diskUsageImagesContext) MarshalJSON() ([]byte, error) {
+	return marshalJSON(c)
+}
+
 func (c *diskUsageImagesContext) Type() string {
 	c.AddHeader(typeHeader)
 	return "Images"
@@ -207,6 +211,10 @@ type diskUsageContainersContext struct {
 	HeaderContext
 	verbose    bool
 	containers []*types.Container
+}
+
+func (c *diskUsageContainersContext) MarshalJSON() ([]byte, error) {
+	return marshalJSON(c)
 }
 
 func (c *diskUsageContainersContext) Type() string {
@@ -271,6 +279,10 @@ type diskUsageVolumesContext struct {
 	HeaderContext
 	verbose bool
 	volumes []*types.Volume
+}
+
+func (c *diskUsageVolumesContext) MarshalJSON() ([]byte, error) {
+	return marshalJSON(c)
 }
 
 func (c *diskUsageVolumesContext) Type() string {
