@@ -27,6 +27,7 @@ type ConfigFile struct {
 	PsFormat             string                      `json:"psFormat,omitempty"`
 	ImagesFormat         string                      `json:"imagesFormat,omitempty"`
 	NetworksFormat       string                      `json:"networksFormat,omitempty"`
+	PluginsFormat        string                      `json:"pluginsFormat,omitempty"`
 	VolumesFormat        string                      `json:"volumesFormat,omitempty"`
 	StatsFormat          string                      `json:"statsFormat,omitempty"`
 	DetachKeys           string                      `json:"detachKeys,omitempty"`

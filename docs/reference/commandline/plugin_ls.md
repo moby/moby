@@ -24,8 +24,10 @@ Aliases:
   ls, list
 
 Options:
-      --help	   Print usage
-      --no-trunc   Don't truncate output
+      --format string   Pretty-print plugins using a Go template
+      --help            Print usage
+      --no-trunc        Don't truncate output
+  -q, --quiet           Only display plugin IDs
 ```
 
 Lists all the plugins that are currently installed. You can install plugins
@@ -38,6 +40,32 @@ $ docker plugin ls
 
 ID                  NAME                             TAG                 DESCRIPTION                ENABLED
 69553ca1d123        tiborvass/sample-volume-plugin   latest              A test plugin for Docker   true
+```
+
+## Formatting
+
+The formatting options (`--format`) pretty-prints plugins output
+using a Go template.
+
+Valid placeholders for the Go template are listed below:
+
+Placeholder    | Description
+---------------|------------------------------------------------------------------------------------------
+`.ID`          | Plugin ID
+`.Name`        | Plugin name
+`.Description` | Plugin description
+`.Enabled`     | Whether plugin is enabled or not
+
+When using the `--format` option, the `plugin ls` command will either
+output the data exactly as the template declares or, when using the
+`table` directive, includes column headers as well.
+
+The following example uses a template without headers and outputs the
+`ID` and `Name` entries separated by a colon for all plugins:
+
+```bash
+$ docker plugin ls --format "{{.ID}}: {{.Name}}"
+4be01827a72e: tiborvass/no-remove
 ```
 
 ## Related information

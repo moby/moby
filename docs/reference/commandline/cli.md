@@ -131,6 +131,12 @@ Docker's client uses this property. If this property is not set, the client
 falls back to the default table format. For a list of supported formatting
 directives, see the [**Formatting** section in the `docker images` documentation](images.md)
 
+The property `pluginsFormat` specifies the default format for `docker plugin ls` output.
+When the `--format` flag is not provided with the `docker plugin ls` command,
+Docker's client uses this property. If this property is not set, the client
+falls back to the default table format. For a list of supported formatting
+directives, see the [**Formatting** section in the `docker plugin ls` documentation](plugin_ls.md)
+
 The property `serviceInspectFormat` specifies the default format for `docker
 service inspect` output. When the `--format` flag is not provided with the
 `docker service inspect` command, Docker's client uses this property. If this
@@ -186,6 +192,7 @@ Following is a sample `config.json` file:
       },
       "psFormat": "table {{.ID}}\\t{{.Image}}\\t{{.Command}}\\t{{.Labels}}",
       "imagesFormat": "table {{.ID}}\\t{{.Repository}}\\t{{.Tag}}\\t{{.CreatedAt}}",
+      "pluginsFormat": "table {{.ID}}\t{{.Name}}\t{{.Enabled}}",
       "statsFormat": "table {{.Container}}\t{{.CPUPerc}}\t{{.MemUsage}}",
       "serviceInspectFormat": "pretty",
       "detachKeys": "ctrl-e,e",

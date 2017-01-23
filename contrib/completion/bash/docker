@@ -3325,7 +3325,7 @@ _docker_plugin_list() {
 _docker_plugin_ls() {
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "--help --no-trunc" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "--help --no-trunc --format --quiet" -- "$cur" ) )
 			;;
 	esac
 }
