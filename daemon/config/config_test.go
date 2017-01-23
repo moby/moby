@@ -1,4 +1,4 @@
-package daemon
+package config
 
 import (
 	"io/ioutil"
@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/docker/docker/daemon/discovery"
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/testutil/assert"
 	"github.com/spf13/pflag"
@@ -39,17 +40,17 @@ func TestParseClusterAdvertiseSettings(t *testing.T) {
 	if runtime.GOOS == "solaris" {
 		t.Skip("ClusterSettings not supported on Solaris\n")
 	}
-	_, err := parseClusterAdvertiseSettings("something", "")
-	if err != errDiscoveryDisabled {
+	_, err := ParseClusterAdvertiseSettings("something", "")
+	if err != discovery.ErrDiscoveryDisabled {
 		t.Fatalf("expected discovery disabled error, got %v\n", err)
 	}
 
-	_, err = parseClusterAdvertiseSettings("", "something")
+	_, err = ParseClusterAdvertiseSettings("", "something")
 	if err == nil {
 		t.Fatalf("expected discovery store error, got %v\n", err)
 	}
 
-	_, err = parseClusterAdvertiseSettings("etcd", "127.0.0.1:8080")
+	_, err = ParseClusterAdvertiseSettings("etcd", "127.0.0.1:8080")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -160,70 +161,175 @@ func TestFindConfigurationConflictsWithMergedValues(t *testing.T) {
 	}
 }
 
+func TestValidateConfigurationErrors(t *testing.T) {
+	minusNumber := -10
+	testCases := []struct {
+		config *Config
+	}{
+		{
+			config: &Config{
+				CommonConfig: CommonConfig{
+					Labels: []string{"one"},
+				},
+			},
+		},
+		{
+			config: &Config{
+				CommonConfig: CommonConfig{
+					Labels: []string{"foo=bar", "one"},
+				},
+			},
+		},
+		{
+			config: &Config{
+				CommonConfig: CommonConfig{
+					DNS: []string{"1.1.1.1o"},
+				},
+			},
+		},
+		{
+			config: &Config{
+				CommonConfig: CommonConfig{
+					DNS: []string{"2.2.2.2", "1.1.1.1o"},
+				},
+			},
+		},
+		{
+			config: &Config{
+				CommonConfig: CommonConfig{
+					DNSSearch: []string{"123456"},
+				},
+			},
+		},
+		{
+			config: &Config{
+				CommonConfig: CommonConfig{
+					DNSSearch: []string{"a.b.c", "123456"},
+				},
+			},
+		},
+		{
+			config: &Config{
+				CommonConfig: CommonConfig{
+					MaxConcurrentDownloads: &minusNumber,
+					// This is weird...
+					ValuesSet: map[string]interface{}{
+						"max-concurrent-downloads": -1,
+					},
+				},
+			},
+		},
+		{
+			config: &Config{
+				CommonConfig: CommonConfig{
+					MaxConcurrentUploads: &minusNumber,
+					// This is weird...
+					ValuesSet: map[string]interface{}{
+						"max-concurrent-uploads": -1,
+					},
+				},
+			},
+		},
+	}
+	for _, tc := range testCases {
+		err := Validate(tc.config)
+		if err == nil {
+			t.Fatalf("expected error, got nil for config %v", tc.config)
+		}
+	}
+}
+
 func TestValidateConfiguration(t *testing.T) {
-	c1 := &Config{
-		CommonConfig: CommonConfig{
-			Labels: []string{"one"},
+	testCases := []struct {
+		config *Config
+	}{
+		{
+			config: &Config{
+				CommonConfig: CommonConfig{
+					Labels: []string{"one=two"},
+				},
+			},
+		},
+		{
+			config: &Config{
+				CommonConfig: CommonConfig{
+					DNS: []string{"1.1.1.1"},
+				},
+			},
+		},
+		{
+			config: &Config{
+				CommonConfig: CommonConfig{
+					DNSSearch: []string{"a.b.c"},
+				},
+			},
+		},
+	}
+	for _, tc := range testCases {
+		err := Validate(tc.config)
+		if err != nil {
+			t.Fatalf("expected no error, got error %v", err)
+		}
+	}
+}
+
+func TestModifiedDiscoverySettings(t *testing.T) {
+	cases := []struct {
+		current  *Config
+		modified *Config
+		expected bool
+	}{
+		{
+			current:  discoveryConfig("foo", "bar", map[string]string{}),
+			modified: discoveryConfig("foo", "bar", map[string]string{}),
+			expected: false,
+		},
+		{
+			current:  discoveryConfig("foo", "bar", map[string]string{"foo": "bar"}),
+			modified: discoveryConfig("foo", "bar", map[string]string{"foo": "bar"}),
+			expected: false,
+		},
+		{
+			current:  discoveryConfig("foo", "bar", map[string]string{}),
+			modified: discoveryConfig("foo", "bar", nil),
+			expected: false,
+		},
+		{
+			current:  discoveryConfig("foo", "bar", nil),
+			modified: discoveryConfig("foo", "bar", map[string]string{}),
+			expected: false,
+		},
+		{
+			current:  discoveryConfig("foo", "bar", nil),
+			modified: discoveryConfig("baz", "bar", nil),
+			expected: true,
+		},
+		{
+			current:  discoveryConfig("foo", "bar", nil),
+			modified: discoveryConfig("foo", "baz", nil),
+			expected: true,
+		},
+		{
+			current:  discoveryConfig("foo", "bar", nil),
+			modified: discoveryConfig("foo", "bar", map[string]string{"foo": "bar"}),
+			expected: true,
 		},
 	}
 
-	err := ValidateConfiguration(c1)
-	if err == nil {
-		t.Fatal("expected error, got nil")
+	for _, c := range cases {
+		got := ModifiedDiscoverySettings(c.current, c.modified.ClusterStore, c.modified.ClusterAdvertise, c.modified.ClusterOpts)
+		if c.expected != got {
+			t.Fatalf("expected %v, got %v: current config %v, new config %v", c.expected, got, c.current, c.modified)
+		}
 	}
+}
 
-	c2 := &Config{
+func discoveryConfig(backendAddr, advertiseAddr string, opts map[string]string) *Config {
+	return &Config{
 		CommonConfig: CommonConfig{
-			Labels: []string{"one=two"},
+			ClusterStore:     backendAddr,
+			ClusterAdvertise: advertiseAddr,
+			ClusterOpts:      opts,
 		},
-	}
-
-	err = ValidateConfiguration(c2)
-	if err != nil {
-		t.Fatalf("expected no error, got error %v", err)
-	}
-
-	c3 := &Config{
-		CommonConfig: CommonConfig{
-			DNS: []string{"1.1.1.1"},
-		},
-	}
-
-	err = ValidateConfiguration(c3)
-	if err != nil {
-		t.Fatalf("expected no error, got error %v", err)
-	}
-
-	c4 := &Config{
-		CommonConfig: CommonConfig{
-			DNS: []string{"1.1.1.1o"},
-		},
-	}
-
-	err = ValidateConfiguration(c4)
-	if err == nil {
-		t.Fatal("expected error, got nil")
-	}
-
-	c5 := &Config{
-		CommonConfig: CommonConfig{
-			DNSSearch: []string{"a.b.c"},
-		},
-	}
-
-	err = ValidateConfiguration(c5)
-	if err != nil {
-		t.Fatalf("expected no error, got error %v", err)
-	}
-
-	c6 := &Config{
-		CommonConfig: CommonConfig{
-			DNSSearch: []string{"123456"},
-		},
-	}
-
-	err = ValidateConfiguration(c6)
-	if err == nil {
-		t.Fatal("expected error, got nil")
 	}
 }

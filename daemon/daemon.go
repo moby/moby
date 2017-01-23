@@ -24,6 +24,8 @@ import (
 	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/container"
+	"github.com/docker/docker/daemon/config"
+	"github.com/docker/docker/daemon/discovery"
 	"github.com/docker/docker/daemon/events"
 	"github.com/docker/docker/daemon/exec"
 	// register graph drivers
@@ -82,14 +84,14 @@ type Daemon struct {
 	distributionMetadataStore dmetadata.Store
 	trustKey                  libtrust.PrivateKey
 	idIndex                   *truncindex.TruncIndex
-	configStore               *Config
+	configStore               *config.Config
 	statsCollector            *stats.Collector
 	defaultLogConfig          containertypes.LogConfig
 	RegistryService           registry.Service
 	EventsService             *events.Events
 	netController             libnetwork.NetworkController
 	volumes                   *store.VolumeStore
-	discoveryWatcher          discoveryReloader
+	discoveryWatcher          discovery.Reloader
 	root                      string
 	seccompEnabled            bool
 	apparmorEnabled           bool
@@ -459,12 +461,12 @@ func (daemon *Daemon) IsSwarmCompatible() error {
 	if daemon.configStore == nil {
 		return nil
 	}
-	return daemon.configStore.isSwarmCompatible()
+	return daemon.configStore.IsSwarmCompatible()
 }
 
 // NewDaemon sets up everything for the daemon to be able to service
 // requests from the webserver.
-func NewDaemon(config *Config, registryService registry.Service, containerdRemote libcontainerd.Remote) (daemon *Daemon, err error) {
+func NewDaemon(config *config.Config, registryService registry.Service, containerdRemote libcontainerd.Remote) (daemon *Daemon, err error) {
 	setDefaultMtu(config)
 
 	// Ensure that we have a correct root key limit for launching containers.
@@ -947,12 +949,12 @@ func (daemon *Daemon) setupInitLayer(initPath string) error {
 	return initlayer.Setup(initPath, rootUID, rootGID)
 }
 
-func setDefaultMtu(config *Config) {
+func setDefaultMtu(conf *config.Config) {
 	// do nothing if the config does not have the default 0 value.
-	if config.Mtu != 0 {
+	if conf.Mtu != 0 {
 		return
 	}
-	config.Mtu = defaultNetworkMtu
+	conf.Mtu = config.DefaultNetworkMtu
 }
 
 func (daemon *Daemon) configureVolumes(rootUID, rootGID int) (*store.VolumeStore, error) {
@@ -975,17 +977,17 @@ func (daemon *Daemon) IsShuttingDown() bool {
 }
 
 // initDiscovery initializes the discovery watcher for this daemon.
-func (daemon *Daemon) initDiscovery(config *Config) error {
-	advertise, err := parseClusterAdvertiseSettings(config.ClusterStore, config.ClusterAdvertise)
+func (daemon *Daemon) initDiscovery(conf *config.Config) error {
+	advertise, err := config.ParseClusterAdvertiseSettings(conf.ClusterStore, conf.ClusterAdvertise)
 	if err != nil {
-		if err == errDiscoveryDisabled {
+		if err == discovery.ErrDiscoveryDisabled {
 			return nil
 		}
 		return err
 	}
 
-	config.ClusterAdvertise = advertise
-	discoveryWatcher, err := initDiscovery(config.ClusterStore, config.ClusterAdvertise, config.ClusterOpts)
+	conf.ClusterAdvertise = advertise
+	discoveryWatcher, err := discovery.Init(conf.ClusterStore, conf.ClusterAdvertise, conf.ClusterOpts)
 	if err != nil {
 		return fmt.Errorf("discovery initialization failed (%v)", err)
 	}
@@ -1005,60 +1007,60 @@ func (daemon *Daemon) initDiscovery(config *Config) error {
 // - Daemon max concurrent uploads
 // - Cluster discovery (reconfigure and restart)
 // - Daemon live restore
-// - Daemon shutdown timeout (in seconds)
-func (daemon *Daemon) Reload(config *Config) (err error) {
+// - Daemon shutdown timeout (in seconds).
+func (daemon *Daemon) Reload(conf *config.Config) (err error) {
 
-	daemon.configStore.reloadLock.Lock()
+	daemon.configStore.Lock()
 
-	attributes := daemon.platformReload(config)
+	attributes := daemon.platformReload(conf)
 
 	defer func() {
 		// we're unlocking here, because
 		// LogDaemonEventWithAttributes() -> SystemInfo() -> GetAllRuntimes()
 		// holds that lock too.
-		daemon.configStore.reloadLock.Unlock()
+		daemon.configStore.Unlock()
 		if err == nil {
 			daemon.LogDaemonEventWithAttributes("reload", attributes)
 		}
 	}()
 
-	if err := daemon.reloadClusterDiscovery(config); err != nil {
+	if err := daemon.reloadClusterDiscovery(conf); err != nil {
 		return err
 	}
 
-	if config.IsValueSet("labels") {
-		daemon.configStore.Labels = config.Labels
+	if conf.IsValueSet("labels") {
+		daemon.configStore.Labels = conf.Labels
 	}
-	if config.IsValueSet("debug") {
-		daemon.configStore.Debug = config.Debug
+	if conf.IsValueSet("debug") {
+		daemon.configStore.Debug = conf.Debug
 	}
-	if config.IsValueSet("insecure-registries") {
-		daemon.configStore.InsecureRegistries = config.InsecureRegistries
-		if err := daemon.RegistryService.LoadInsecureRegistries(config.InsecureRegistries); err != nil {
+	if conf.IsValueSet("insecure-registries") {
+		daemon.configStore.InsecureRegistries = conf.InsecureRegistries
+		if err := daemon.RegistryService.LoadInsecureRegistries(conf.InsecureRegistries); err != nil {
 			return err
 		}
 	}
 
-	if config.IsValueSet("registry-mirrors") {
-		daemon.configStore.Mirrors = config.Mirrors
-		if err := daemon.RegistryService.LoadMirrors(config.Mirrors); err != nil {
+	if conf.IsValueSet("registry-mirrors") {
+		daemon.configStore.Mirrors = conf.Mirrors
+		if err := daemon.RegistryService.LoadMirrors(conf.Mirrors); err != nil {
 			return err
 		}
 	}
 
-	if config.IsValueSet("live-restore") {
-		daemon.configStore.LiveRestoreEnabled = config.LiveRestoreEnabled
-		if err := daemon.containerdRemote.UpdateOptions(libcontainerd.WithLiveRestore(config.LiveRestoreEnabled)); err != nil {
+	if conf.IsValueSet("live-restore") {
+		daemon.configStore.LiveRestoreEnabled = conf.LiveRestoreEnabled
+		if err := daemon.containerdRemote.UpdateOptions(libcontainerd.WithLiveRestore(conf.LiveRestoreEnabled)); err != nil {
 			return err
 		}
 	}
 
 	// If no value is set for max-concurrent-downloads we assume it is the default value
 	// We always "reset" as the cost is lightweight and easy to maintain.
-	if config.IsValueSet("max-concurrent-downloads") && config.MaxConcurrentDownloads != nil {
-		*daemon.configStore.MaxConcurrentDownloads = *config.MaxConcurrentDownloads
+	if conf.IsValueSet("max-concurrent-downloads") && conf.MaxConcurrentDownloads != nil {
+		*daemon.configStore.MaxConcurrentDownloads = *conf.MaxConcurrentDownloads
 	} else {
-		maxConcurrentDownloads := defaultMaxConcurrentDownloads
+		maxConcurrentDownloads := config.DefaultMaxConcurrentDownloads
 		daemon.configStore.MaxConcurrentDownloads = &maxConcurrentDownloads
 	}
 	logrus.Debugf("Reset Max Concurrent Downloads: %d", *daemon.configStore.MaxConcurrentDownloads)
@@ -1068,10 +1070,10 @@ func (daemon *Daemon) Reload(config *Config) (err error) {
 
 	// If no value is set for max-concurrent-upload we assume it is the default value
 	// We always "reset" as the cost is lightweight and easy to maintain.
-	if config.IsValueSet("max-concurrent-uploads") && config.MaxConcurrentUploads != nil {
-		*daemon.configStore.MaxConcurrentUploads = *config.MaxConcurrentUploads
+	if conf.IsValueSet("max-concurrent-uploads") && conf.MaxConcurrentUploads != nil {
+		*daemon.configStore.MaxConcurrentUploads = *conf.MaxConcurrentUploads
 	} else {
-		maxConcurrentUploads := defaultMaxConcurrentUploads
+		maxConcurrentUploads := config.DefaultMaxConcurrentUploads
 		daemon.configStore.MaxConcurrentUploads = &maxConcurrentUploads
 	}
 	logrus.Debugf("Reset Max Concurrent Uploads: %d", *daemon.configStore.MaxConcurrentUploads)
@@ -1079,8 +1081,8 @@ func (daemon *Daemon) Reload(config *Config) (err error) {
 		daemon.uploadManager.SetConcurrency(*daemon.configStore.MaxConcurrentUploads)
 	}
 
-	if config.IsValueSet("shutdown-timeout") {
-		daemon.configStore.ShutdownTimeout = config.ShutdownTimeout
+	if conf.IsValueSet("shutdown-timeout") {
+		daemon.configStore.ShutdownTimeout = conf.ShutdownTimeout
 		logrus.Debugf("Reset Shutdown Timeout: %d", daemon.configStore.ShutdownTimeout)
 	}
 
@@ -1137,52 +1139,52 @@ func (daemon *Daemon) Reload(config *Config) (err error) {
 	return nil
 }
 
-func (daemon *Daemon) reloadClusterDiscovery(config *Config) error {
+func (daemon *Daemon) reloadClusterDiscovery(conf *config.Config) error {
 	var err error
 	newAdvertise := daemon.configStore.ClusterAdvertise
 	newClusterStore := daemon.configStore.ClusterStore
-	if config.IsValueSet("cluster-advertise") {
-		if config.IsValueSet("cluster-store") {
-			newClusterStore = config.ClusterStore
+	if conf.IsValueSet("cluster-advertise") {
+		if conf.IsValueSet("cluster-store") {
+			newClusterStore = conf.ClusterStore
 		}
-		newAdvertise, err = parseClusterAdvertiseSettings(newClusterStore, config.ClusterAdvertise)
-		if err != nil && err != errDiscoveryDisabled {
+		newAdvertise, err = config.ParseClusterAdvertiseSettings(newClusterStore, conf.ClusterAdvertise)
+		if err != nil && err != discovery.ErrDiscoveryDisabled {
 			return err
 		}
 	}
 
 	if daemon.clusterProvider != nil {
-		if err := config.isSwarmCompatible(); err != nil {
+		if err := conf.IsSwarmCompatible(); err != nil {
 			return err
 		}
 	}
 
 	// check discovery modifications
-	if !modifiedDiscoverySettings(daemon.configStore, newAdvertise, newClusterStore, config.ClusterOpts) {
+	if !config.ModifiedDiscoverySettings(daemon.configStore, newAdvertise, newClusterStore, conf.ClusterOpts) {
 		return nil
 	}
 
 	// enable discovery for the first time if it was not previously enabled
 	if daemon.discoveryWatcher == nil {
-		discoveryWatcher, err := initDiscovery(newClusterStore, newAdvertise, config.ClusterOpts)
+		discoveryWatcher, err := discovery.Init(newClusterStore, newAdvertise, conf.ClusterOpts)
 		if err != nil {
 			return fmt.Errorf("discovery initialization failed (%v)", err)
 		}
 		daemon.discoveryWatcher = discoveryWatcher
 	} else {
-		if err == errDiscoveryDisabled {
+		if err == discovery.ErrDiscoveryDisabled {
 			// disable discovery if it was previously enabled and it's disabled now
 			daemon.discoveryWatcher.Stop()
 		} else {
 			// reload discovery
-			if err = daemon.discoveryWatcher.Reload(config.ClusterStore, newAdvertise, config.ClusterOpts); err != nil {
+			if err = daemon.discoveryWatcher.Reload(conf.ClusterStore, newAdvertise, conf.ClusterOpts); err != nil {
 				return err
 			}
 		}
 	}
 
 	daemon.configStore.ClusterStore = newClusterStore
-	daemon.configStore.ClusterOpts = config.ClusterOpts
+	daemon.configStore.ClusterOpts = conf.ClusterOpts
 	daemon.configStore.ClusterAdvertise = newAdvertise
 
 	if daemon.netController == nil {
@@ -1201,11 +1203,11 @@ func (daemon *Daemon) reloadClusterDiscovery(config *Config) error {
 	return nil
 }
 
-func isBridgeNetworkDisabled(config *Config) bool {
-	return config.bridgeConfig.Iface == disableNetworkBridge
+func isBridgeNetworkDisabled(conf *config.Config) bool {
+	return conf.BridgeConfig.Iface == config.DisableNetworkBridge
 }
 
-func (daemon *Daemon) networkOptions(dconfig *Config, pg plugingetter.PluginGetter, activeSandboxes map[string]interface{}) ([]nwconfig.Option, error) {
+func (daemon *Daemon) networkOptions(dconfig *config.Config, pg plugingetter.PluginGetter, activeSandboxes map[string]interface{}) ([]nwconfig.Option, error) {
 	options := []nwconfig.Option{}
 	if dconfig == nil {
 		return options, nil
@@ -1297,7 +1299,7 @@ func (daemon *Daemon) PluginGetter() *plugin.Store {
 }
 
 // CreateDaemonRoot creates the root for the daemon
-func CreateDaemonRoot(config *Config) error {
+func CreateDaemonRoot(config *config.Config) error {
 	// get the canonical path to the Docker root directory
 	var realRoot string
 	if _, err := os.Stat(config.Root); err != nil && os.IsNotExist(err) {

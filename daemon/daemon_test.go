@@ -12,6 +12,7 @@ import (
 
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/container"
+	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/pkg/discovery"
 	_ "github.com/docker/docker/pkg/discovery/memory"
 	"github.com/docker/docker/pkg/registrar"
@@ -316,18 +317,18 @@ func TestMerge(t *testing.T) {
 
 func TestDaemonReloadLabels(t *testing.T) {
 	daemon := &Daemon{}
-	daemon.configStore = &Config{
-		CommonConfig: CommonConfig{
+	daemon.configStore = &config.Config{
+		CommonConfig: config.CommonConfig{
 			Labels: []string{"foo:bar"},
 		},
 	}
 
 	valuesSets := make(map[string]interface{})
 	valuesSets["labels"] = "foo:baz"
-	newConfig := &Config{
-		CommonConfig: CommonConfig{
+	newConfig := &config.Config{
+		CommonConfig: config.CommonConfig{
 			Labels:    []string{"foo:baz"},
-			valuesSet: valuesSets,
+			ValuesSet: valuesSets,
 		},
 	}
 
@@ -353,7 +354,7 @@ func TestDaemonReloadMirrors(t *testing.T) {
 		},
 	})
 
-	daemon.configStore = &Config{}
+	daemon.configStore = &config.Config{}
 
 	type pair struct {
 		valid   bool
@@ -388,12 +389,12 @@ func TestDaemonReloadMirrors(t *testing.T) {
 		valuesSets := make(map[string]interface{})
 		valuesSets["registry-mirrors"] = value.mirrors
 
-		newConfig := &Config{
-			CommonConfig: CommonConfig{
+		newConfig := &config.Config{
+			CommonConfig: config.CommonConfig{
 				ServiceOptions: registry.ServiceOptions{
 					Mirrors: value.mirrors,
 				},
-				valuesSet: valuesSets,
+				ValuesSet: valuesSets,
 			},
 		}
 
@@ -448,7 +449,7 @@ func TestDaemonReloadInsecureRegistries(t *testing.T) {
 		},
 	})
 
-	daemon.configStore = &Config{}
+	daemon.configStore = &config.Config{}
 
 	insecureRegistries := []string{
 		"127.0.0.0/8",     // this will be kept
@@ -461,12 +462,12 @@ func TestDaemonReloadInsecureRegistries(t *testing.T) {
 	valuesSets := make(map[string]interface{})
 	valuesSets["insecure-registries"] = insecureRegistries
 
-	newConfig := &Config{
-		CommonConfig: CommonConfig{
+	newConfig := &config.Config{
+		CommonConfig: config.CommonConfig{
 			ServiceOptions: registry.ServiceOptions{
 				InsecureRegistries: insecureRegistries,
 			},
-			valuesSet: valuesSets,
+			ValuesSet: valuesSets,
 		},
 	}
 
@@ -523,8 +524,8 @@ func TestDaemonReloadInsecureRegistries(t *testing.T) {
 
 func TestDaemonReloadNotAffectOthers(t *testing.T) {
 	daemon := &Daemon{}
-	daemon.configStore = &Config{
-		CommonConfig: CommonConfig{
+	daemon.configStore = &config.Config{
+		CommonConfig: config.CommonConfig{
 			Labels: []string{"foo:bar"},
 			Debug:  true,
 		},
@@ -532,10 +533,10 @@ func TestDaemonReloadNotAffectOthers(t *testing.T) {
 
 	valuesSets := make(map[string]interface{})
 	valuesSets["labels"] = "foo:baz"
-	newConfig := &Config{
-		CommonConfig: CommonConfig{
+	newConfig := &config.Config{
+		CommonConfig: config.CommonConfig{
 			Labels:    []string{"foo:baz"},
-			valuesSet: valuesSets,
+			ValuesSet: valuesSets,
 		},
 	}
 
@@ -555,8 +556,8 @@ func TestDaemonReloadNotAffectOthers(t *testing.T) {
 
 func TestDaemonDiscoveryReload(t *testing.T) {
 	daemon := &Daemon{}
-	daemon.configStore = &Config{
-		CommonConfig: CommonConfig{
+	daemon.configStore = &config.Config{
+		CommonConfig: config.CommonConfig{
 			ClusterStore:     "memory://127.0.0.1",
 			ClusterAdvertise: "127.0.0.1:3333",
 		},
@@ -594,11 +595,11 @@ func TestDaemonDiscoveryReload(t *testing.T) {
 	valuesSets := make(map[string]interface{})
 	valuesSets["cluster-store"] = "memory://127.0.0.1:2222"
 	valuesSets["cluster-advertise"] = "127.0.0.1:5555"
-	newConfig := &Config{
-		CommonConfig: CommonConfig{
+	newConfig := &config.Config{
+		CommonConfig: config.CommonConfig{
 			ClusterStore:     "memory://127.0.0.1:2222",
 			ClusterAdvertise: "127.0.0.1:5555",
-			valuesSet:        valuesSets,
+			ValuesSet:        valuesSets,
 		},
 	}
 
@@ -632,16 +633,16 @@ func TestDaemonDiscoveryReload(t *testing.T) {
 
 func TestDaemonDiscoveryReloadFromEmptyDiscovery(t *testing.T) {
 	daemon := &Daemon{}
-	daemon.configStore = &Config{}
+	daemon.configStore = &config.Config{}
 
 	valuesSet := make(map[string]interface{})
 	valuesSet["cluster-store"] = "memory://127.0.0.1:2222"
 	valuesSet["cluster-advertise"] = "127.0.0.1:5555"
-	newConfig := &Config{
-		CommonConfig: CommonConfig{
+	newConfig := &config.Config{
+		CommonConfig: config.CommonConfig{
 			ClusterStore:     "memory://127.0.0.1:2222",
 			ClusterAdvertise: "127.0.0.1:5555",
-			valuesSet:        valuesSet,
+			ValuesSet:        valuesSet,
 		},
 	}
 
@@ -677,17 +678,17 @@ func TestDaemonDiscoveryReloadFromEmptyDiscovery(t *testing.T) {
 
 func TestDaemonDiscoveryReloadOnlyClusterAdvertise(t *testing.T) {
 	daemon := &Daemon{}
-	daemon.configStore = &Config{
-		CommonConfig: CommonConfig{
+	daemon.configStore = &config.Config{
+		CommonConfig: config.CommonConfig{
 			ClusterStore: "memory://127.0.0.1",
 		},
 	}
 	valuesSets := make(map[string]interface{})
 	valuesSets["cluster-advertise"] = "127.0.0.1:5555"
-	newConfig := &Config{
-		CommonConfig: CommonConfig{
+	newConfig := &config.Config{
+		CommonConfig: config.CommonConfig{
 			ClusterAdvertise: "127.0.0.1:5555",
-			valuesSet:        valuesSets,
+			ValuesSet:        valuesSets,
 		},
 	}
 	expected := discovery.Entries{

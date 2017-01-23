@@ -23,6 +23,7 @@ import (
 	pblkiodev "github.com/docker/docker/api/types/blkiodev"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/container"
+	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/idtools"
@@ -256,7 +257,7 @@ func (daemon *Daemon) adaptContainerSettings(hostConfig *containertypes.HostConf
 		hostConfig.MemorySwap = hostConfig.Memory * 2
 	}
 	if hostConfig.ShmSize == 0 {
-		hostConfig.ShmSize = defaultShmSize
+		hostConfig.ShmSize = config.DefaultShmSize
 		if daemon.configStore != nil {
 			hostConfig.ShmSize = int64(daemon.configStore.ShmSize)
 		}
@@ -474,7 +475,7 @@ func (daemon *Daemon) getCgroupDriver() string {
 }
 
 // getCD gets the raw value of the native.cgroupdriver option, if set.
-func getCD(config *Config) string {
+func getCD(config *config.Config) string {
 	for _, option := range config.ExecOptions {
 		key, val, err := parsers.ParseKeyValueOpt(option)
 		if err != nil || !strings.EqualFold(key, "native.cgroupdriver") {
@@ -486,7 +487,7 @@ func getCD(config *Config) string {
 }
 
 // VerifyCgroupDriver validates native.cgroupdriver
-func VerifyCgroupDriver(config *Config) error {
+func VerifyCgroupDriver(config *config.Config) error {
 	cd := getCD(config)
 	if cd == "" || cd == cgroupFsDriver || cd == cgroupSystemdDriver {
 		return nil
@@ -495,7 +496,7 @@ func VerifyCgroupDriver(config *Config) error {
 }
 
 // UsingSystemd returns true if cli option includes native.cgroupdriver=systemd
-func UsingSystemd(config *Config) bool {
+func UsingSystemd(config *config.Config) bool {
 	return getCD(config) == cgroupSystemdDriver
 }
 
@@ -568,19 +569,19 @@ func verifyPlatformContainerSettings(daemon *Daemon, hostConfig *containertypes.
 }
 
 // platformReload updates configuration with platform specific options
-func (daemon *Daemon) platformReload(config *Config) map[string]string {
-	if config.IsValueSet("runtimes") {
-		daemon.configStore.Runtimes = config.Runtimes
+func (daemon *Daemon) platformReload(conf *config.Config) map[string]string {
+	if conf.IsValueSet("runtimes") {
+		daemon.configStore.Runtimes = conf.Runtimes
 		// Always set the default one
-		daemon.configStore.Runtimes[stockRuntimeName] = types.Runtime{Path: DefaultRuntimeBinary}
+		daemon.configStore.Runtimes[config.StockRuntimeName] = types.Runtime{Path: DefaultRuntimeBinary}
 	}
 
-	if config.DefaultRuntime != "" {
-		daemon.configStore.DefaultRuntime = config.DefaultRuntime
+	if conf.DefaultRuntime != "" {
+		daemon.configStore.DefaultRuntime = conf.DefaultRuntime
 	}
 
-	if config.IsValueSet("default-shm-size") {
-		daemon.configStore.ShmSize = config.ShmSize
+	if conf.IsValueSet("default-shm-size") {
+		daemon.configStore.ShmSize = conf.ShmSize
 	}
 
 	// Update attributes
@@ -600,33 +601,33 @@ func (daemon *Daemon) platformReload(config *Config) map[string]string {
 }
 
 // verifyDaemonSettings performs validation of daemon config struct
-func verifyDaemonSettings(config *Config) error {
+func verifyDaemonSettings(conf *config.Config) error {
 	// Check for mutually incompatible config options
-	if config.bridgeConfig.Iface != "" && config.bridgeConfig.IP != "" {
+	if conf.BridgeConfig.Iface != "" && conf.BridgeConfig.IP != "" {
 		return fmt.Errorf("You specified -b & --bip, mutually exclusive options. Please specify only one")
 	}
-	if !config.bridgeConfig.EnableIPTables && !config.bridgeConfig.InterContainerCommunication {
+	if !conf.BridgeConfig.EnableIPTables && !conf.BridgeConfig.InterContainerCommunication {
 		return fmt.Errorf("You specified --iptables=false with --icc=false. ICC=false uses iptables to function. Please set --icc or --iptables to true")
 	}
-	if !config.bridgeConfig.EnableIPTables && config.bridgeConfig.EnableIPMasq {
-		config.bridgeConfig.EnableIPMasq = false
+	if !conf.BridgeConfig.EnableIPTables && conf.BridgeConfig.EnableIPMasq {
+		conf.BridgeConfig.EnableIPMasq = false
 	}
-	if err := VerifyCgroupDriver(config); err != nil {
+	if err := VerifyCgroupDriver(conf); err != nil {
 		return err
 	}
-	if config.CgroupParent != "" && UsingSystemd(config) {
-		if len(config.CgroupParent) <= 6 || !strings.HasSuffix(config.CgroupParent, ".slice") {
+	if conf.CgroupParent != "" && UsingSystemd(conf) {
+		if len(conf.CgroupParent) <= 6 || !strings.HasSuffix(conf.CgroupParent, ".slice") {
 			return fmt.Errorf("cgroup-parent for systemd cgroup should be a valid slice named as \"xxx.slice\"")
 		}
 	}
 
-	if config.DefaultRuntime == "" {
-		config.DefaultRuntime = stockRuntimeName
+	if conf.DefaultRuntime == "" {
+		conf.DefaultRuntime = config.StockRuntimeName
 	}
-	if config.Runtimes == nil {
-		config.Runtimes = make(map[string]types.Runtime)
+	if conf.Runtimes == nil {
+		conf.Runtimes = make(map[string]types.Runtime)
 	}
-	config.Runtimes[stockRuntimeName] = types.Runtime{Path: DefaultRuntimeBinary}
+	conf.Runtimes[config.StockRuntimeName] = types.Runtime{Path: DefaultRuntimeBinary}
 
 	return nil
 }
@@ -641,7 +642,7 @@ func checkSystem() error {
 
 // configureMaxThreads sets the Go runtime max threads threshold
 // which is 90% of the kernel setting from /proc/sys/kernel/threads-max
-func configureMaxThreads(config *Config) error {
+func configureMaxThreads(config *config.Config) error {
 	mt, err := ioutil.ReadFile("/proc/sys/kernel/threads-max")
 	if err != nil {
 		return err
@@ -688,7 +689,7 @@ func overlaySupportsSelinux() (bool, error) {
 }
 
 // configureKernelSecuritySupport configures and validates security support for the kernel
-func configureKernelSecuritySupport(config *Config, driverName string) error {
+func configureKernelSecuritySupport(config *config.Config, driverName string) error {
 	if config.EnableSelinuxSupport {
 		if !selinuxEnabled() {
 			logrus.Warn("Docker could not enable SELinux on the host system")
@@ -713,7 +714,7 @@ func configureKernelSecuritySupport(config *Config, driverName string) error {
 	return nil
 }
 
-func (daemon *Daemon) initNetworkController(config *Config, activeSandboxes map[string]interface{}) (libnetwork.NetworkController, error) {
+func (daemon *Daemon) initNetworkController(config *config.Config, activeSandboxes map[string]interface{}) (libnetwork.NetworkController, error) {
 	netOptions, err := daemon.networkOptions(config, daemon.PluginStore, activeSandboxes)
 	if err != nil {
 		return nil, err
@@ -762,12 +763,12 @@ func (daemon *Daemon) initNetworkController(config *Config, activeSandboxes map[
 	return controller, nil
 }
 
-func driverOptions(config *Config) []nwconfig.Option {
+func driverOptions(config *config.Config) []nwconfig.Option {
 	bridgeConfig := options.Generic{
-		"EnableIPForwarding":  config.bridgeConfig.EnableIPForward,
-		"EnableIPTables":      config.bridgeConfig.EnableIPTables,
-		"EnableUserlandProxy": config.bridgeConfig.EnableUserlandProxy,
-		"UserlandProxyPath":   config.bridgeConfig.UserlandProxyPath}
+		"EnableIPForwarding":  config.BridgeConfig.EnableIPForward,
+		"EnableIPTables":      config.BridgeConfig.EnableIPTables,
+		"EnableUserlandProxy": config.BridgeConfig.EnableUserlandProxy,
+		"UserlandProxyPath":   config.BridgeConfig.UserlandProxyPath}
 	bridgeOption := options.Generic{netlabel.GenericData: bridgeConfig}
 
 	dOptions := []nwconfig.Option{}
@@ -775,22 +776,22 @@ func driverOptions(config *Config) []nwconfig.Option {
 	return dOptions
 }
 
-func initBridgeDriver(controller libnetwork.NetworkController, config *Config) error {
+func initBridgeDriver(controller libnetwork.NetworkController, config *config.Config) error {
 	bridgeName := bridge.DefaultBridgeName
-	if config.bridgeConfig.Iface != "" {
-		bridgeName = config.bridgeConfig.Iface
+	if config.BridgeConfig.Iface != "" {
+		bridgeName = config.BridgeConfig.Iface
 	}
 	netOption := map[string]string{
 		bridge.BridgeName:         bridgeName,
 		bridge.DefaultBridge:      strconv.FormatBool(true),
 		netlabel.DriverMTU:        strconv.Itoa(config.Mtu),
-		bridge.EnableIPMasquerade: strconv.FormatBool(config.bridgeConfig.EnableIPMasq),
-		bridge.EnableICC:          strconv.FormatBool(config.bridgeConfig.InterContainerCommunication),
+		bridge.EnableIPMasquerade: strconv.FormatBool(config.BridgeConfig.EnableIPMasq),
+		bridge.EnableICC:          strconv.FormatBool(config.BridgeConfig.InterContainerCommunication),
 	}
 
 	// --ip processing
-	if config.bridgeConfig.DefaultIP != nil {
-		netOption[bridge.DefaultBindingIP] = config.bridgeConfig.DefaultIP.String()
+	if config.BridgeConfig.DefaultIP != nil {
+		netOption[bridge.DefaultBindingIP] = config.BridgeConfig.DefaultIP.String()
 	}
 
 	var (
@@ -806,8 +807,8 @@ func initBridgeDriver(controller libnetwork.NetworkController, config *Config) e
 	}
 
 	nw := nwList[0]
-	if len(nwList) > 1 && config.bridgeConfig.FixedCIDR != "" {
-		_, fCIDR, err := net.ParseCIDR(config.bridgeConfig.FixedCIDR)
+	if len(nwList) > 1 && config.BridgeConfig.FixedCIDR != "" {
+		_, fCIDR, err := net.ParseCIDR(config.BridgeConfig.FixedCIDR)
 		if err != nil {
 			return errors.Wrap(err, "parse CIDR failed")
 		}
@@ -826,9 +827,9 @@ func initBridgeDriver(controller libnetwork.NetworkController, config *Config) e
 		ipamV4Conf.Gateway = nw.IP.String()
 	}
 
-	if config.bridgeConfig.IP != "" {
-		ipamV4Conf.PreferredPool = config.bridgeConfig.IP
-		ip, _, err := net.ParseCIDR(config.bridgeConfig.IP)
+	if config.BridgeConfig.IP != "" {
+		ipamV4Conf.PreferredPool = config.BridgeConfig.IP
+		ip, _, err := net.ParseCIDR(config.BridgeConfig.IP)
 		if err != nil {
 			return err
 		}
@@ -837,8 +838,8 @@ func initBridgeDriver(controller libnetwork.NetworkController, config *Config) e
 		logrus.Infof("Default bridge (%s) is assigned with an IP address %s. Daemon option --bip can be used to set a preferred IP address", bridgeName, ipamV4Conf.PreferredPool)
 	}
 
-	if config.bridgeConfig.FixedCIDR != "" {
-		_, fCIDR, err := net.ParseCIDR(config.bridgeConfig.FixedCIDR)
+	if config.BridgeConfig.FixedCIDR != "" {
+		_, fCIDR, err := net.ParseCIDR(config.BridgeConfig.FixedCIDR)
 		if err != nil {
 			return err
 		}
@@ -846,13 +847,13 @@ func initBridgeDriver(controller libnetwork.NetworkController, config *Config) e
 		ipamV4Conf.SubPool = fCIDR.String()
 	}
 
-	if config.bridgeConfig.DefaultGatewayIPv4 != nil {
-		ipamV4Conf.AuxAddresses["DefaultGatewayIPv4"] = config.bridgeConfig.DefaultGatewayIPv4.String()
+	if config.BridgeConfig.DefaultGatewayIPv4 != nil {
+		ipamV4Conf.AuxAddresses["DefaultGatewayIPv4"] = config.BridgeConfig.DefaultGatewayIPv4.String()
 	}
 
 	var deferIPv6Alloc bool
-	if config.bridgeConfig.FixedCIDRv6 != "" {
-		_, fCIDRv6, err := net.ParseCIDR(config.bridgeConfig.FixedCIDRv6)
+	if config.BridgeConfig.FixedCIDRv6 != "" {
+		_, fCIDRv6, err := net.ParseCIDR(config.BridgeConfig.FixedCIDRv6)
 		if err != nil {
 			return err
 		}
@@ -882,11 +883,11 @@ func initBridgeDriver(controller libnetwork.NetworkController, config *Config) e
 		}
 	}
 
-	if config.bridgeConfig.DefaultGatewayIPv6 != nil {
+	if config.BridgeConfig.DefaultGatewayIPv6 != nil {
 		if ipamV6Conf == nil {
 			ipamV6Conf = &libnetwork.IpamConf{AuxAddresses: make(map[string]string)}
 		}
-		ipamV6Conf.AuxAddresses["DefaultGatewayIPv6"] = config.bridgeConfig.DefaultGatewayIPv6.String()
+		ipamV6Conf.AuxAddresses["DefaultGatewayIPv6"] = config.BridgeConfig.DefaultGatewayIPv6.String()
 	}
 
 	v4Conf := []*libnetwork.IpamConf{ipamV4Conf}
@@ -896,7 +897,7 @@ func initBridgeDriver(controller libnetwork.NetworkController, config *Config) e
 	}
 	// Initialize default network on "bridge" with the same name
 	_, err = controller.NewNetwork("bridge", "bridge", "",
-		libnetwork.NetworkOptionEnableIPv6(config.bridgeConfig.EnableIPv6),
+		libnetwork.NetworkOptionEnableIPv6(config.BridgeConfig.EnableIPv6),
 		libnetwork.NetworkOptionDriverOpts(netOption),
 		libnetwork.NetworkOptionIpam("default", "", v4Conf, v6Conf, nil),
 		libnetwork.NetworkOptionDeferIPv6Alloc(deferIPv6Alloc))
@@ -1012,7 +1013,7 @@ func parseRemappedRoot(usergrp string) (string, string, error) {
 	return username, groupname, nil
 }
 
-func setupRemappedRoot(config *Config) ([]idtools.IDMap, []idtools.IDMap, error) {
+func setupRemappedRoot(config *config.Config) ([]idtools.IDMap, []idtools.IDMap, error) {
 	if runtime.GOOS != "linux" && config.RemappedRoot != "" {
 		return nil, nil, fmt.Errorf("User namespaces are only supported on Linux")
 	}
@@ -1045,7 +1046,7 @@ func setupRemappedRoot(config *Config) ([]idtools.IDMap, []idtools.IDMap, error)
 	return uidMaps, gidMaps, nil
 }
 
-func setupDaemonRoot(config *Config, rootDir string, rootUID, rootGID int) error {
+func setupDaemonRoot(config *config.Config, rootDir string, rootUID, rootGID int) error {
 	config.Root = rootDir
 	// the docker root metadata directory needs to have execute permissions for all users (g+x,o+x)
 	// so that syscalls executing as non-root, operating on subdirectories of the graph root
@@ -1219,7 +1220,7 @@ func rootFSToAPIType(rootfs *image.RootFS) types.RootFS {
 }
 
 // setupDaemonProcess sets various settings for the daemon's process
-func setupDaemonProcess(config *Config) error {
+func setupDaemonProcess(config *config.Config) error {
 	// setup the daemons oom_score_adj
 	return setupOOMScoreAdj(config.OOMScoreAdjust)
 }

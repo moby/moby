@@ -1,4 +1,4 @@
-package daemon
+package config
 
 import (
 	"bytes"
@@ -7,12 +7,14 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"reflect"
 	"runtime"
 	"sort"
 	"strings"
 	"sync"
 
 	"github.com/Sirupsen/logrus"
+	daemondiscovery "github.com/docker/docker/daemon/discovery"
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/discovery"
 	"github.com/docker/docker/registry"
@@ -21,26 +23,23 @@ import (
 )
 
 const (
-	// defaultMaxConcurrentDownloads is the default value for
+	// DefaultMaxConcurrentDownloads is the default value for
 	// maximum number of downloads that
 	// may take place at a time for each pull.
-	defaultMaxConcurrentDownloads = 3
-	// defaultMaxConcurrentUploads is the default value for
+	DefaultMaxConcurrentDownloads = 3
+	// DefaultMaxConcurrentUploads is the default value for
 	// maximum number of uploads that
 	// may take place at a time for each push.
-	defaultMaxConcurrentUploads = 5
-	// stockRuntimeName is the reserved name/alias used to represent the
+	DefaultMaxConcurrentUploads = 5
+	// StockRuntimeName is the reserved name/alias used to represent the
 	// OCI runtime being shipped with the docker daemon package.
-	stockRuntimeName = "runc"
-)
-
-const (
-	defaultNetworkMtu    = 1500
-	disableNetworkBridge = "none"
-)
-
-const (
-	defaultShutdownTimeout = 15
+	StockRuntimeName = "runc"
+	// DefaultShmSize is the default value for container's shm size
+	DefaultShmSize = int64(67108864)
+	// DefaultNetworkMtu is the default value for network MTU
+	DefaultNetworkMtu = 1500
+	// DisableNetworkBridge is the default value of the option to disable network bridge
+	DisableNetworkBridge = "none"
 )
 
 // flatOptions contains configuration keys
@@ -151,67 +150,29 @@ type CommonConfig struct {
 	MetricsAddress            string `json:"metrics-addr"`
 
 	LogConfig
-	bridgeConfig // bridgeConfig holds bridge network specific configuration.
+	BridgeConfig // bridgeConfig holds bridge network specific configuration.
 	registry.ServiceOptions
 
-	reloadLock sync.Mutex
-	valuesSet  map[string]interface{}
+	sync.Mutex
+	// FIXME(vdemeester) This part is not that clear and is mainly dependent on cli flags
+	// It should probably be handled outside this package.
+	ValuesSet map[string]interface{}
 
 	Experimental bool `json:"experimental"` // Experimental indicates whether experimental features should be exposed or not
 }
 
-// InstallCommonFlags adds flags to the pflag.FlagSet to configure the daemon
-func (config *Config) InstallCommonFlags(flags *pflag.FlagSet) {
-	var maxConcurrentDownloads, maxConcurrentUploads int
-
-	config.ServiceOptions.InstallCliFlags(flags)
-
-	flags.Var(opts.NewNamedListOptsRef("storage-opts", &config.GraphOptions, nil), "storage-opt", "Storage driver options")
-	flags.Var(opts.NewNamedListOptsRef("authorization-plugins", &config.AuthorizationPlugins, nil), "authorization-plugin", "Authorization plugins to load")
-	flags.Var(opts.NewNamedListOptsRef("exec-opts", &config.ExecOptions, nil), "exec-opt", "Runtime execution options")
-	flags.StringVarP(&config.Pidfile, "pidfile", "p", defaultPidFile, "Path to use for daemon PID file")
-	flags.StringVarP(&config.Root, "graph", "g", defaultGraph, "Root of the Docker runtime")
-	flags.BoolVarP(&config.AutoRestart, "restart", "r", true, "--restart on the daemon has been deprecated in favor of --restart policies on docker run")
-	flags.MarkDeprecated("restart", "Please use a restart policy on docker run")
-	flags.StringVarP(&config.GraphDriver, "storage-driver", "s", "", "Storage driver to use")
-	flags.IntVar(&config.Mtu, "mtu", 0, "Set the containers network MTU")
-	flags.BoolVar(&config.RawLogs, "raw-logs", false, "Full timestamps without ANSI coloring")
-	// FIXME: why the inconsistency between "hosts" and "sockets"?
-	flags.Var(opts.NewListOptsRef(&config.DNS, opts.ValidateIPAddress), "dns", "DNS server to use")
-	flags.Var(opts.NewNamedListOptsRef("dns-opts", &config.DNSOptions, nil), "dns-opt", "DNS options to use")
-	flags.Var(opts.NewListOptsRef(&config.DNSSearch, opts.ValidateDNSSearch), "dns-search", "DNS search domains to use")
-	flags.Var(opts.NewNamedListOptsRef("labels", &config.Labels, opts.ValidateLabel), "label", "Set key=value labels to the daemon")
-	flags.StringVar(&config.LogConfig.Type, "log-driver", "json-file", "Default driver for container logs")
-	flags.Var(opts.NewNamedMapOpts("log-opts", config.LogConfig.Config, nil), "log-opt", "Default log driver options for containers")
-	flags.StringVar(&config.ClusterAdvertise, "cluster-advertise", "", "Address or interface name to advertise")
-	flags.StringVar(&config.ClusterStore, "cluster-store", "", "URL of the distributed storage backend")
-	flags.Var(opts.NewNamedMapOpts("cluster-store-opts", config.ClusterOpts, nil), "cluster-store-opt", "Set cluster store options")
-	flags.StringVar(&config.CorsHeaders, "api-cors-header", "", "Set CORS headers in the Engine API")
-	flags.IntVar(&maxConcurrentDownloads, "max-concurrent-downloads", defaultMaxConcurrentDownloads, "Set the max concurrent downloads for each pull")
-	flags.IntVar(&maxConcurrentUploads, "max-concurrent-uploads", defaultMaxConcurrentUploads, "Set the max concurrent uploads for each push")
-	flags.IntVar(&config.ShutdownTimeout, "shutdown-timeout", defaultShutdownTimeout, "Set the default shutdown timeout")
-
-	flags.StringVar(&config.SwarmDefaultAdvertiseAddr, "swarm-default-advertise-addr", "", "Set default address or interface for swarm advertised address")
-	flags.BoolVar(&config.Experimental, "experimental", false, "Enable experimental features")
-
-	flags.StringVar(&config.MetricsAddress, "metrics-addr", "", "Set default address and port to serve the metrics api on")
-
-	config.MaxConcurrentDownloads = &maxConcurrentDownloads
-	config.MaxConcurrentUploads = &maxConcurrentUploads
-}
-
 // IsValueSet returns true if a configuration value
 // was explicitly set in the configuration file.
-func (config *Config) IsValueSet(name string) bool {
-	if config.valuesSet == nil {
+func (conf *Config) IsValueSet(name string) bool {
+	if conf.ValuesSet == nil {
 		return false
 	}
-	_, ok := config.valuesSet[name]
+	_, ok := conf.ValuesSet[name]
 	return ok
 }
 
-// NewConfig returns a new fully initialized Config struct
-func NewConfig() *Config {
+// New returns a new fully initialized Config struct
+func New() *Config {
 	config := Config{}
 	config.LogConfig.Config = make(map[string]string)
 	config.ClusterOpts = make(map[string]string)
@@ -222,12 +183,13 @@ func NewConfig() *Config {
 	return &config
 }
 
-func parseClusterAdvertiseSettings(clusterStore, clusterAdvertise string) (string, error) {
+// ParseClusterAdvertiseSettings parses the specified advertise settings
+func ParseClusterAdvertiseSettings(clusterStore, clusterAdvertise string) (string, error) {
 	if runtime.GOOS == "solaris" && (clusterAdvertise != "" || clusterStore != "") {
 		return "", errors.New("Cluster Advertise Settings not supported on Solaris")
 	}
 	if clusterAdvertise == "" {
-		return "", errDiscoveryDisabled
+		return "", daemondiscovery.ErrDiscoveryDisabled
 	}
 	if clusterStore == "" {
 		return "", errors.New("invalid cluster configuration. --cluster-advertise must be accompanied by --cluster-store configuration")
@@ -264,15 +226,15 @@ func GetConflictFreeLabels(labels []string) ([]string, error) {
 	return newLabels, nil
 }
 
-// ReloadConfiguration reads the configuration in the host and reloads the daemon and server.
-func ReloadConfiguration(configFile string, flags *pflag.FlagSet, reload func(*Config)) error {
+// Reload reads the configuration in the host and reloads the daemon and server.
+func Reload(configFile string, flags *pflag.FlagSet, reload func(*Config)) error {
 	logrus.Infof("Got signal to reload configuration, reloading from: %s", configFile)
 	newConfig, err := getConflictFreeConfiguration(configFile, flags)
 	if err != nil {
 		return err
 	}
 
-	if err := ValidateConfiguration(newConfig); err != nil {
+	if err := Validate(newConfig); err != nil {
 		return fmt.Errorf("file configuration validation failed (%v)", err)
 	}
 
@@ -313,7 +275,7 @@ func MergeDaemonConfigurations(flagsConfig *Config, flags *pflag.FlagSet, config
 		return nil, err
 	}
 
-	if err := ValidateConfiguration(fileConfig); err != nil {
+	if err := Validate(fileConfig); err != nil {
 		return nil, fmt.Errorf("file configuration validation failed (%v)", err)
 	}
 
@@ -324,7 +286,7 @@ func MergeDaemonConfigurations(flagsConfig *Config, flags *pflag.FlagSet, config
 
 	// We need to validate again once both fileConfig and flagsConfig
 	// have been merged
-	if err := ValidateConfiguration(fileConfig); err != nil {
+	if err := Validate(fileConfig); err != nil {
 		return nil, fmt.Errorf("file configuration validation failed (%v)", err)
 	}
 
@@ -385,7 +347,7 @@ func getConflictFreeConfiguration(configFile string, flags *pflag.FlagSet) (*Con
 			})
 		}
 
-		config.valuesSet = configSet
+		config.ValuesSet = configSet
 	}
 
 	reader = bytes.NewReader(b)
@@ -473,10 +435,10 @@ func findConfigurationConflicts(config map[string]interface{}, flags *pflag.Flag
 	return nil
 }
 
-// ValidateConfiguration validates some specific configs.
+// Validate validates some specific configs.
 // such as config.DNS, config.Labels, config.DNSSearch,
 // as well as config.MaxConcurrentDownloads, config.MaxConcurrentUploads.
-func ValidateConfiguration(config *Config) error {
+func Validate(config *Config) error {
 	// validate DNS
 	for _, dns := range config.DNS {
 		if _, err := opts.ValidateIPAddress(dns); err != nil {
@@ -510,12 +472,12 @@ func ValidateConfiguration(config *Config) error {
 
 	// validate that "default" runtime is not reset
 	if runtimes := config.GetAllRuntimes(); len(runtimes) > 0 {
-		if _, ok := runtimes[stockRuntimeName]; ok {
-			return fmt.Errorf("runtime name '%s' is reserved", stockRuntimeName)
+		if _, ok := runtimes[StockRuntimeName]; ok {
+			return fmt.Errorf("runtime name '%s' is reserved", StockRuntimeName)
 		}
 	}
 
-	if defaultRuntime := config.GetDefaultRuntimeName(); defaultRuntime != "" && defaultRuntime != stockRuntimeName {
+	if defaultRuntime := config.GetDefaultRuntimeName(); defaultRuntime != "" && defaultRuntime != StockRuntimeName {
 		runtimes := config.GetAllRuntimes()
 		if _, ok := runtimes[defaultRuntime]; !ok {
 			return fmt.Errorf("specified default runtime '%s' does not exist", defaultRuntime)
@@ -526,14 +488,29 @@ func ValidateConfiguration(config *Config) error {
 }
 
 // GetAuthorizationPlugins returns daemon's sorted authorization plugins
-func (config *Config) GetAuthorizationPlugins() []string {
-	config.reloadLock.Lock()
-	defer config.reloadLock.Unlock()
+func (conf *Config) GetAuthorizationPlugins() []string {
+	conf.Lock()
+	defer conf.Unlock()
 
-	authPlugins := make([]string, 0, len(config.AuthorizationPlugins))
-	for _, p := range config.AuthorizationPlugins {
+	authPlugins := make([]string, 0, len(conf.AuthorizationPlugins))
+	for _, p := range conf.AuthorizationPlugins {
 		authPlugins = append(authPlugins, p)
 	}
 	sort.Strings(authPlugins)
 	return authPlugins
+}
+
+// ModifiedDiscoverySettings returns whether the discovery configuration has been modified or not.
+func ModifiedDiscoverySettings(config *Config, backendType, advertise string, clusterOpts map[string]string) bool {
+	if config.ClusterStore != backendType || config.ClusterAdvertise != advertise {
+		return true
+	}
+
+	if (config.ClusterOpts == nil && clusterOpts == nil) ||
+		(config.ClusterOpts == nil && len(clusterOpts) == 0) ||
+		(len(config.ClusterOpts) == 0 && clusterOpts == nil) {
+		return false
+	}
+
+	return !reflect.DeepEqual(config.ClusterOpts, clusterOpts)
 }

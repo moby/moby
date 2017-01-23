@@ -1,9 +1,8 @@
-package daemon
+package discovery
 
 import (
 	"errors"
 	"fmt"
-	"reflect"
 	"strconv"
 	"time"
 
@@ -21,9 +20,11 @@ const (
 	defaultDiscoveryTTLFactor = 3
 )
 
-var errDiscoveryDisabled = errors.New("discovery is disabled")
+// ErrDiscoveryDisabled is an error returned if the discovery is disabled
+var ErrDiscoveryDisabled = errors.New("discovery is disabled")
 
-type discoveryReloader interface {
+// Reloader is the discovery reloader of the daemon
+type Reloader interface {
 	discovery.Watcher
 	Stop()
 	Reload(backend, address string, clusterOpts map[string]string) error
@@ -93,9 +94,9 @@ func discoveryOpts(clusterOpts map[string]string) (time.Duration, time.Duration,
 	return heartbeat, ttl, nil
 }
 
-// initDiscovery initializes the nodes discovery subsystem by connecting to the specified backend
+// Init initializes the nodes discovery subsystem by connecting to the specified backend
 // and starts a registration loop to advertise the current node under the specified address.
-func initDiscovery(backendAddress, advertiseAddress string, clusterOpts map[string]string) (discoveryReloader, error) {
+func Init(backendAddress, advertiseAddress string, clusterOpts map[string]string) (Reloader, error) {
 	heartbeat, backend, err := parseDiscoveryOptions(backendAddress, clusterOpts)
 	if err != nil {
 		return nil, err
@@ -197,19 +198,4 @@ func parseDiscoveryOptions(backendAddress string, clusterOpts map[string]string)
 		return 0, nil, err
 	}
 	return heartbeat, backend, nil
-}
-
-// modifiedDiscoverySettings returns whether the discovery configuration has been modified or not.
-func modifiedDiscoverySettings(config *Config, backendType, advertise string, clusterOpts map[string]string) bool {
-	if config.ClusterStore != backendType || config.ClusterAdvertise != advertise {
-		return true
-	}
-
-	if (config.ClusterOpts == nil && clusterOpts == nil) ||
-		(config.ClusterOpts == nil && len(clusterOpts) == 0) ||
-		(len(config.ClusterOpts) == 0 && clusterOpts == nil) {
-		return false
-	}
-
-	return !reflect.DeepEqual(config.ClusterOpts, clusterOpts)
 }
