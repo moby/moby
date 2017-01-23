@@ -47,7 +47,7 @@ func newInstallCommand(dockerCli *command.DockerCli) *cobra.Command {
 	flags.BoolVar(&options.disable, "disable", false, "Do not enable the plugin on install")
 	flags.StringVar(&options.alias, "alias", "", "Local name for plugin")
 
-	command.AddTrustedFlags(flags, true)
+	command.AddTrustVerificationFlags(flags)
 
 	return cmd
 }

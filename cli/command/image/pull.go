@@ -36,7 +36,7 @@ func NewPullCommand(dockerCli *command.DockerCli) *cobra.Command {
 	flags := cmd.Flags()
 
 	flags.BoolVarP(&opts.all, "all-tags", "a", false, "Download all tagged images in the repository")
-	command.AddTrustedFlags(flags, true)
+	command.AddTrustVerificationFlags(flags)
 
 	return cmd
 }
