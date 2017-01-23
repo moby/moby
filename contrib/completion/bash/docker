@@ -361,18 +361,33 @@ __docker_complete_stacks() {
 # An optional first option `--id|--name` may be used to limit the
 # output to the IDs or names of matching items. This setting takes
 # precedence over the environment setting.
+# Completions may be added with `--add`, e.g. `--add self`.
 __docker_nodes() {
+	local add=()
 	local fields='$2'  # default: node name only
 	[ "${DOCKER_COMPLETION_SHOW_NODE_IDS}" = yes ] && fields='$1,$2' # ID and name
 
-	if [ "$1" = "--id" ] ; then
-		fields='$1' # IDs only
-		shift
-	elif [ "$1" = "--name" ] ; then
-		fields='$2' # names only
-		shift
-	fi
-	__docker_q node ls "$@" | tr -d '*' | awk "NR>1 {print $fields}"
+	while true ; do
+		case "$1" in
+			--id)
+				fields='$1' # IDs only
+				shift
+				;;
+			--name)
+				fields='$2' # names only
+				shift
+				;;
+			--add)
+				add+=("$2")
+				shift 2
+				;;
+			*)
+				break
+				;;
+		esac
+	done
+
+	echo $(__docker_q node ls "$@" | tr -d '*' | awk "NR>1 {print $fields}") "${add[@]}"
 }
 
 # __docker_complete_nodes applies completion of nodes based on the current
@@ -388,8 +403,7 @@ __docker_complete_nodes() {
 }
 
 __docker_complete_nodes_plus_self() {
-	__docker_complete_nodes "$@"
-	COMPREPLY+=( self )
+	__docker_complete_nodes --add self "$@"
 }
 
 # __docker_services returns a list of all services. Additional options to
