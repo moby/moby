@@ -205,7 +205,7 @@ func (daemon *Daemon) Images(imageFilters filters.Args, all bool, withExtraAttrs
 	}
 
 	if withExtraAttrs {
-		// Get Shared and Unique sizes
+		// Get Shared sizes
 		for img, newImage := range imagesMap {
 			rootFS := *img.RootFS
 			rootFS.DiffIDs = nil

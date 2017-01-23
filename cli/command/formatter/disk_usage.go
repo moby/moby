@@ -192,7 +192,10 @@ func (c *diskUsageImagesContext) Reclaimable() string {
 	c.AddHeader(reclaimableHeader)
 	for _, i := range c.images {
 		if i.Containers != 0 {
-			used += i.Size
+			if i.VirtualSize == -1 || i.SharedSize == -1 {
+				continue
+			}
+			used += i.VirtualSize - i.SharedSize
 		}
 	}
 
