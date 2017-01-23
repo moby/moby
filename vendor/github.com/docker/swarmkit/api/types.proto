@@ -2,8 +2,8 @@ syntax = "proto3";
 
 package docker.swarmkit.v1;
 
-import "timestamp/timestamp.proto"; // TODO(stevvooe): use our own until we fix gogoproto/deepcopy
-import "duration/duration.proto"; // TODO(stevvooe): use our own until we fix gogoproto/deepcopy
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/duration.proto";
 import "gogoproto/gogo.proto";
 
 // This file contains types that are common to objects and spec or that are not
@@ -259,7 +259,8 @@ message RestartPolicy {
 	RestartCondition condition = 1;
 
 	// Delay between restart attempts
-	Duration delay = 2;
+	// Note: can't use stdduration because this field needs to be nullable.
+	google.protobuf.Duration delay = 2;
 
 	// MaxAttempts is the maximum number of restarts to attempt on an
 	// instance before giving up. Ignored if 0.
@@ -267,7 +268,8 @@ message RestartPolicy {
 
 	// Window is the time window used to evaluate the restart policy.
 	// The time window is unbounded if this is 0.
-	Duration window = 4;
+	// Note: can't use stdduration because this field needs to be nullable.
+	google.protobuf.Duration window = 4;
 }
 
 // UpdateConfig specifies the rate and policy of updates.
@@ -278,7 +280,7 @@ message UpdateConfig {
 	uint64 parallelism = 1;
 
 	// Amount of time between updates.
-	Duration delay = 2 [(gogoproto.nullable) = false];
+	google.protobuf.Duration delay = 2 [(gogoproto.stdduration) = true, (gogoproto.nullable) = false];
 
 	enum FailureAction {
 		PAUSE = 0;
@@ -301,7 +303,8 @@ message UpdateConfig {
 	// this counts as a failure. If it fails after Monitor, it does not
 	// count as a failure. If Monitor is unspecified, a default value will
 	// be used.
-	Duration monitor = 4;
+	// Note: can't use stdduration because this field needs to be nullable.
+	google.protobuf.Duration monitor = 4;
 
 	// MaxFailureRatio is the fraction of tasks that may fail during
 	// an update before the failure action is invoked. Any task created by
@@ -343,11 +346,13 @@ message UpdateStatus {
 	UpdateState state = 1;
 
 	// StartedAt is the time at which the update was started.
-	Timestamp started_at = 2;
+	// Note: can't use stdtime because this field is nullable.
+	google.protobuf.Timestamp started_at = 2;
 
 	// CompletedAt is the time at which the update completed successfully,
 	// paused, or finished rolling back.
-	Timestamp completed_at = 3;
+	// Note: can't use stdtime because this field is nullable.
+	google.protobuf.Timestamp completed_at = 3;
 
 	// TODO(aaronl): Consider adding a timestamp showing when the most
 	// recent task update took place. Currently, this is nontrivial
@@ -418,7 +423,8 @@ message PortStatus {
 }
 
 message TaskStatus {
-	Timestamp timestamp = 1;
+	// Note: can't use stdtime because this field is nullable.
+	google.protobuf.Timestamp timestamp = 1;
 
 	// State expresses the current state of the task.
 	TaskState state = 2;
@@ -644,7 +650,8 @@ message ExternalCA {
 
 message CAConfig {
 	// NodeCertExpiry is the duration certificates should be issued for
-	Duration node_cert_expiry = 1;
+	// Note: can't use stdduration because this field needs to be nullable.
+	google.protobuf.Duration node_cert_expiry = 1;
 
 	// ExternalCAs is a list of CAs to which a manager node will make
 	// certificate signing requests for node certificates.
@@ -673,7 +680,8 @@ message TaskDefaults {
 message DispatcherConfig {
 	// HeartbeatPeriod defines how often agent should send heartbeats to
 	// dispatcher.
-	Duration heartbeat_period = 1;
+	// Note: can't use stdduration because this field needs to be nullable.
+	google.protobuf.Duration heartbeat_period = 1;
 }
 
 // RaftConfig defines raft settings for the cluster.
@@ -829,7 +837,8 @@ message SecretReference {
 message BlacklistedCertificate {
 	// Expiry is the latest known expiration time of a certificate that
 	// was issued for the given CN.
-	Timestamp expiry = 1;
+	// Note: can't use stdtime because this field is nullable.
+	google.protobuf.Timestamp expiry = 1;
 }
 
 // HealthConfig holds configuration settings for the HEALTHCHECK feature.
@@ -844,11 +853,13 @@ message HealthConfig {
 	repeated string test = 1;
 
 	// Interval is the time to wait between checks. Zero means inherit.
-	Duration interval = 2;
+	// Note: can't use stdduration because this field needs to be nullable.
+	google.protobuf.Duration interval = 2;
 
 	// Timeout is the time to wait before considering the check to have hung.
 	// Zero means inherit.
-	Duration timeout = 3;
+	// Note: can't use stdduration because this field needs to be nullable.
+	google.protobuf.Duration timeout = 3;
 
 	// Retries is the number of consecutive failures needed to consider a
 	// container as unhealthy. Zero means inherit.

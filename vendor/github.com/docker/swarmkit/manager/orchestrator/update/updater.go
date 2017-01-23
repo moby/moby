@@ -18,6 +18,7 @@ import (
 	"github.com/docker/swarmkit/manager/state/store"
 	"github.com/docker/swarmkit/protobuf/ptypes"
 	"github.com/docker/swarmkit/watch"
+	gogotypes "github.com/gogo/protobuf/types"
 )
 
 const defaultMonitor = 30 * time.Second
@@ -186,7 +187,7 @@ func (u *Updater) Run(ctx context.Context, slots []orchestrator.Slot) {
 
 		if service.Spec.Update.Monitor != nil {
 			var err error
-			monitoringPeriod, err = ptypes.Duration(service.Spec.Update.Monitor)
+			monitoringPeriod, err = gogotypes.DurationFromProto(service.Spec.Update.Monitor)
 			if err != nil {
 				monitoringPeriod = defaultMonitor
 			}
@@ -344,14 +345,9 @@ func (u *Updater) worker(ctx context.Context, queue <-chan orchestrator.Slot) {
 			}
 		}
 
-		if u.newService.Spec.Update != nil && (u.newService.Spec.Update.Delay.Seconds != 0 || u.newService.Spec.Update.Delay.Nanos != 0) {
-			delay, err := ptypes.Duration(&u.newService.Spec.Update.Delay)
-			if err != nil {
-				log.G(ctx).WithError(err).Error("invalid update delay")
-				continue
-			}
+		if u.newService.Spec.Update != nil && u.newService.Spec.Update.Delay != 0 {
 			select {
-			case <-time.After(delay):
+			case <-time.After(u.newService.Spec.Update.Delay):
 			case <-u.stopChan:
 				return
 			}

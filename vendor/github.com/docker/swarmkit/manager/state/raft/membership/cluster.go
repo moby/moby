@@ -143,6 +143,7 @@ func (c *Cluster) UpdateMember(id uint64, m *api.RaftMember) error {
 		return nil
 	}
 	oldMember.RaftMember = m
+	c.broadcastUpdate()
 	return nil
 }
 

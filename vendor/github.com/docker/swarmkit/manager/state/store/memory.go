@@ -13,8 +13,8 @@ import (
 	"github.com/docker/swarmkit/api"
 	pb "github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/manager/state"
-	"github.com/docker/swarmkit/protobuf/ptypes"
 	"github.com/docker/swarmkit/watch"
+	gogotypes "github.com/gogo/protobuf/types"
 	memdb "github.com/hashicorp/go-memdb"
 	"golang.org/x/net/context"
 )
@@ -744,7 +744,7 @@ func touchMeta(meta *api.Meta, version *api.Version) error {
 		return nil
 	}
 
-	now, err := ptypes.TimestampProto(time.Now())
+	now, err := gogotypes.TimestampProto(time.Now())
 	if err != nil {
 		return err
 	}

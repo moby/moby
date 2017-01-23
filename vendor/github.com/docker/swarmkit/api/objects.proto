@@ -4,7 +4,7 @@ package docker.swarmkit.v1;
 
 import "types.proto";
 import "specs.proto";
-import "timestamp/timestamp.proto"; // TODO(stevvooe): use our own until we fix gogoproto/deepcopy
+import "google/protobuf/timestamp.proto";
 import "gogoproto/gogo.proto";
 
 // This file contains definitions for all first-class objects in the cluster
@@ -17,8 +17,9 @@ message Meta {
 	Version version = 1 [(gogoproto.nullable) = false];
 
 	// Object timestamps.
-	Timestamp created_at = 2;
-	Timestamp updated_at = 3;
+	// Note: can't use stdtime because these fields are nullable.
+	google.protobuf.Timestamp created_at = 2;
+	google.protobuf.Timestamp updated_at = 3;
 }
 
 // Node provides the internal node state as seen by the cluster.

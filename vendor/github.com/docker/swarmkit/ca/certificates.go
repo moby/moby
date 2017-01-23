@@ -461,7 +461,7 @@ func getGRPCConnection(creds credentials.TransportCredentials, connBroker *conne
 	return connBroker.Select(dialOpts...)
 }
 
-// GetRemoteCA returns the remote endpoint's CA certificate
+// GetRemoteCA returns the remote endpoint's CA certificate bundle
 func GetRemoteCA(ctx context.Context, d digest.Digest, connBroker *connectionbroker.Broker) (RootCA, error) {
 	// This TLS Config is intentionally using InsecureSkipVerify. We use the
 	// digest instead to check the integrity of the CA certificate.
@@ -482,6 +482,10 @@ func GetRemoteCA(ctx context.Context, d digest.Digest, connBroker *connectionbro
 		return RootCA{}, err
 	}
 
+	// If a bundle of certificates are provided, the digest covers the entire bundle and not just
+	// one of the certificates in the bundle.  Otherwise, a node can be MITMed while joining if
+	// the MITM CA provides a single certificate which matches the digest, and providing arbitrary
+	// other non-verified root certs that the manager certificate actually chains up to.
 	if d != "" {
 		verifier := d.Verifier()
 		if err != nil {
@@ -492,23 +496,12 @@ func GetRemoteCA(ctx context.Context, d digest.Digest, connBroker *connectionbro
 
 		if !verifier.Verified() {
 			return RootCA{}, errors.Errorf("remote CA does not match fingerprint. Expected: %s", d.Hex())
-
 		}
 	}
 
-	// Check the validity of the remote Cert
-	_, err = helpers.ParseCertificatePEM(response.Certificate)
-	if err != nil {
-		return RootCA{}, err
-	}
-
-	// Create a Pool with our RootCACertificate
-	pool := x509.NewCertPool()
-	if !pool.AppendCertsFromPEM(response.Certificate) {
-		return RootCA{}, errors.New("failed to append certificate to cert pool")
-	}
-
-	return RootCA{Cert: response.Certificate, Digest: digest.FromBytes(response.Certificate), Pool: pool}, nil
+	// NewRootCA will validate that the certificates are otherwise valid and create a RootCA object.
+	// Since there is no key, the certificate expiry does not matter and will not be used.
+	return NewRootCA(response.Certificate, nil, DefaultNodeCertExpiration)
 }
 
 // CreateRootCA creates a Certificate authority for a new Swarm Cluster, potentially

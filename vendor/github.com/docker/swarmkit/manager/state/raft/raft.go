@@ -126,6 +126,9 @@ type Node struct {
 	stopMu sync.RWMutex
 	// used for membership management checks
 	membershipLock sync.Mutex
+	// synchronizes access to n.opts.Addr, and makes sure the address is not
+	// updated concurrently with JoinAndStart.
+	addrLock sync.Mutex
 
 	snapshotInProgress chan raftpb.SnapshotMetadata
 	asyncTasks         sync.WaitGroup
@@ -259,6 +262,59 @@ func (n *Node) ReportUnreachable(id uint64) {
 	n.raftNode.ReportUnreachable(id)
 }
 
+// SetAddr provides the raft node's address. This can be used in cases where
+// opts.Addr was not provided to NewNode, for example when a port was not bound
+// until after the raft node was created.
+func (n *Node) SetAddr(ctx context.Context, addr string) error {
+	n.addrLock.Lock()
+	defer n.addrLock.Unlock()
+
+	n.opts.Addr = addr
+
+	if !n.IsMember() {
+		return nil
+	}
+
+	newRaftMember := &api.RaftMember{
+		RaftID: n.Config.ID,
+		NodeID: n.opts.ID,
+		Addr:   addr,
+	}
+	if err := n.cluster.UpdateMember(n.Config.ID, newRaftMember); err != nil {
+		return err
+	}
+
+	// If the raft node is running, submit a configuration change
+	// with the new address.
+
+	// TODO(aaronl): Currently, this node must be the leader to
+	// submit this configuration change. This works for the initial
+	// use cases (single-node cluster late binding ports, or calling
+	// SetAddr before joining a cluster). In the future, we may want
+	// to support having a follower proactively change its remote
+	// address.
+
+	leadershipCh, cancelWatch := n.SubscribeLeadership()
+	defer cancelWatch()
+
+	ctx, cancelCtx := n.WithContext(ctx)
+	defer cancelCtx()
+
+	isLeader := atomic.LoadUint32(&n.signalledLeadership) == 1
+	for !isLeader {
+		select {
+		case leadershipChange := <-leadershipCh:
+			if leadershipChange == IsLeader {
+				isLeader = true
+			}
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+
+	return n.updateNodeBlocking(ctx, n.Config.ID, addr)
+}
+
 // WithContext returns context which is cancelled when parent context cancelled
 // or node is stopped.
 func (n *Node) WithContext(ctx context.Context) (context.Context, context.CancelFunc) {
@@ -316,6 +372,9 @@ func (n *Node) JoinAndStart(ctx context.Context) (err error) {
 	n.snapshotMeta = snapshot.Metadata
 	n.writtenWALIndex, _ = n.raftStore.LastIndex() // lastIndex always returns nil as an error
 
+	n.addrLock.Lock()
+	defer n.addrLock.Unlock()
+
 	// restore from snapshot
 	if loadAndStartErr == nil {
 		if n.opts.JoinAddr != "" {
@@ -342,6 +401,9 @@ func (n *Node) JoinAndStart(ctx context.Context) (err error) {
 	}
 
 	// join to existing cluster
+	if n.opts.Addr == "" {
+		return errors.New("attempted to join raft cluster without knowing own address")
+	}
 
 	conn, err := dial(n.opts.JoinAddr, "tcp", n.opts.TLSCredentials, 10*time.Second)
 	if err != nil {
@@ -1092,6 +1154,11 @@ func (n *Node) reportNewAddress(ctx context.Context, id uint64) error {
 	if err != nil {
 		return err
 	}
+	if oldAddr == "" {
+		// Don't know the address of the peer yet, so can't report an
+		// update.
+		return nil
+	}
 	newHost, _, err := net.SplitHostPort(p.Addr.String())
 	if err != nil {
 		return err
@@ -1655,7 +1722,6 @@ func (n *Node) applyRemoveNode(ctx context.Context, cc raftpb.ConfChange) (err e
 	}
 
 	if cc.NodeID == n.Config.ID {
-
 		// wait the commit ack to be sent before closing connection
 		n.asyncTasks.Wait()
 
