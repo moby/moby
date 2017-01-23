@@ -15,12 +15,11 @@ else
 	export GOPATH="$TMP_GOPATH"
 fi
 
-# Do not build with ambient capabilities support
 RUNC_BUILDTAGS="${RUNC_BUILDTAGS:-"seccomp apparmor selinux"}"
 
 install_runc() {
 	echo "Install runc version $RUNC_COMMIT"
-	git clone https://github.com/docker/runc.git "$GOPATH/src/github.com/opencontainers/runc"
+	git clone https://github.com/justincormack/runc.git "$GOPATH/src/github.com/opencontainers/runc"
 	cd "$GOPATH/src/github.com/opencontainers/runc"
 	git checkout -q "$RUNC_COMMIT"
 	make BUILDTAGS="$RUNC_BUILDTAGS" $1
