@@ -2769,7 +2769,6 @@ _docker_service_update() {
 		--mount
 		--network
 		--no-healthcheck
-		--publish -p
 		--replicas
 		--reserve-cpu
 		--reserve-memory
@@ -2807,7 +2806,7 @@ _docker_service_update() {
 			--host
 			--mode
 			--name
-			--publish
+			--publish -p
 			--secret
 		"
 
