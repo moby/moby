@@ -25,6 +25,13 @@ for version in "${versions[@]}"; do
 	suite="${version##*-}"
 	from="ppc64le/${distro}:${suite}"
 
+	case "$from" in
+		ppc64le/debian:jessie)
+			# add -backport, like our users have to in order to get libseccomp
+			from+='-backports'
+			;;
+	esac
+
 	mkdir -p "$version"
 	echo "$version -> FROM $from"
 	cat > "$version/Dockerfile" <<-EOF
@@ -58,8 +65,13 @@ for version in "${versions[@]}"; do
 		vim-common # tini dep
 	)
 
+	# special packaging
 	case "$suite" in
-		trusty) 
+		jessie)
+			packages+=( libseccomp-dev )
+			packages+=( libsystemd-journal-dev)
+			;;
+		trusty)
 			packages+=( libsystemd-journal-dev )
 			;;
 		*)
@@ -71,7 +83,7 @@ for version in "${versions[@]}"; do
 
 	# buildtags
 	case "$suite" in
-		# trusty has no seccomp package
+		# ubuntu trusty doesn't have libseccomp packages on ppc64le
 		trusty)
 			runcBuildTags="apparmor selinux"
 		;;
