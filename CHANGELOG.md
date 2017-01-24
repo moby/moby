@@ -5,7 +5,7 @@ information on the list of deprecated flags and APIs please have a look at
 https://docs.docker.com/engine/deprecated/ where target removal dates can also
 be found.
 
-## 1.13.0 (2016-12-08)
+## 1.13.0 (2017-01-18)
 
 **IMPORTANT**: In Docker 1.13, the managed plugin api changed, as compared to the experimental
 version introduced in Docker 1.12. You must **uninstall** plugins which you installed with Docker 1.12
