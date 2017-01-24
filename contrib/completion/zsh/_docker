@@ -1785,7 +1785,7 @@ __docker_service_subcommand() {
         "($help)--limit-memory=[Limit Memory]:value: "
         "($help)--log-driver=[Logging driver for service]:logging driver:__docker_complete_log_drivers"
         "($help)*--log-opt=[Logging driver options]:log driver options:__docker_complete_log_options"
-        "($help)*--mount=[Attach a filesystem mount to the service]:mount: "
+        "($help)*--volume=[Attach a filesystem mount to the service]:mount: "
         "($help)*--network=[Network attachments]:network: "
         "($help)--no-healthcheck[Disable any container-specified HEALTHCHECK]"
         "($help)*"{-p=,--publish=}"[Publish a port as a node port]:port: "

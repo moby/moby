@@ -15,8 +15,20 @@ import (
 )
 
 func (s *DockerSwarmSuite) TestServiceCreateMountVolume(c *check.C) {
+	s.testServiceCreateMountVolume(c, false)
+}
+
+func (s *DockerSwarmSuite) TestServiceCreateMountVolumeLegacy(c *check.C) {
+	s.testServiceCreateMountVolume(c, true)
+}
+
+func (s *DockerSwarmSuite) testServiceCreateMountVolume(c *check.C, legacy bool) {
+	dashDashVolume := "--volume"
+	if legacy {
+		dashDashVolume = "--mount"
+	}
 	d := s.AddDaemon(c, true, true)
-	out, err := d.Cmd("service", "create", "--mount", "type=volume,source=foo,target=/foo,volume-nocopy", "busybox", "top")
+	out, err := d.Cmd("service", "create", dashDashVolume, "type=volume,source=foo,target=/foo,volume-nocopy", "busybox", "top")
 	c.Assert(err, checker.IsNil, check.Commentf(out))
 	id := strings.TrimSpace(out)
 
@@ -122,8 +134,20 @@ func (s *DockerSwarmSuite) TestServiceCreateWithSecretSourceTarget(c *check.C) {
 }
 
 func (s *DockerSwarmSuite) TestServiceCreateMountTmpfs(c *check.C) {
+	s.testServiceCreateMountTmpfs(c, false)
+}
+
+func (s *DockerSwarmSuite) TestServiceCreateMountTmpfsLegacy(c *check.C) {
+	s.testServiceCreateMountTmpfs(c, true)
+}
+
+func (s *DockerSwarmSuite) testServiceCreateMountTmpfs(c *check.C, legacy bool) {
+	dashDashVolume := "--volume"
+	if legacy {
+		dashDashVolume = "--mount"
+	}
 	d := s.AddDaemon(c, true, true)
-	out, err := d.Cmd("service", "create", "--mount", "type=tmpfs,target=/foo,tmpfs-size=1MB", "busybox", "sh", "-c", "mount | grep foo; tail -f /dev/null")
+	out, err := d.Cmd("service", "create", dashDashVolume, "type=tmpfs,target=/foo,tmpfs-size=1MB", "busybox", "sh", "-c", "mount | grep foo; tail -f /dev/null")
 	c.Assert(err, checker.IsNil, check.Commentf(out))
 	id := strings.TrimSpace(out)
 

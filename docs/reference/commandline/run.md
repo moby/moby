@@ -281,6 +281,12 @@ of a bind mount must be a local directory, not a file.
     docker run -v c:\foo:c: ...
     docker run -v c:\foo:c:\existing-directory-with-contents ...
 
+Since v1.14, `docker run` supports the long-syntax for the `-v` option, similar to `docker service`.
+
+    docker run -v type=volume,source=my-volume,destination=/path/in/container
+
+For the comparison between the long-syntax and the short-syntax, refer to [bind-mounts and volumes](volume.md).
+
 For in-depth information about volumes, refer to [manage data in containers](https://docs.docker.com/engine/tutorials/dockervolumes/)
 
 ### Publish or expose port (-p, --expose)
