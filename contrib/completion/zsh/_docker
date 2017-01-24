@@ -2316,14 +2316,28 @@ __docker_caching_policy() {
 
 __docker_commands() {
     local cache_policy
+    integer force_invalidation=0
 
     zstyle -s ":completion:${curcontext}:" cache-policy cache_policy
     if [[ -z "$cache_policy" ]]; then
         zstyle ":completion:${curcontext}:" cache-policy __docker_caching_policy
     fi
 
-    if ( [[ ${+_docker_subcommands} -eq 0 ]] || _cache_invalid docker_subcommands) \
-        && ! _retrieve_cache docker_subcommands;
+    if ( (( ! ${+_docker_hide_legacy_commands} )) || _cache_invalid docker_hide_legacy_commands ) \
+       && ! _retrieve_cache docker_hide_legacy_commands;
+    then
+        _docker_hide_legacy_commands="${DOCKER_HIDE_LEGACY_COMMANDS}"
+        _store_cache docker_hide_legacy_commands _docker_hide_legacy_commands
+    fi
+
+    if [[ "${_docker_hide_legacy_commands}" != "${DOCKER_HIDE_LEGACY_COMMANDS}" ]]; then
+        force_invalidation=1
+        _docker_hide_legacy_commands="${DOCKER_HIDE_LEGACY_COMMANDS}"
+        _store_cache docker_hide_legacy_commands _docker_hide_legacy_commands
+    fi
+
+    if ( [[ ${+_docker_subcommands} -eq 0 ]] || _cache_invalid docker_subcommands ) \
+        && ! _retrieve_cache docker_subcommands || [[ ${force_invalidation} -eq 1 ]];
     then
         local -a lines
         lines=(${(f)"$(_call_program commands docker 2>&1)"})
