@@ -137,7 +137,7 @@ Create a service specifying the secret, target, user/group ID and mode:
 ```bash
 $ docker service create --name redis \
     --secret source=ssh-key,target=ssh \
-    --secret src=app-key,target=app,uid=1000,gid=1001,mode=0400 \
+    --secret source=app-key,target=app,uid=1000,gid=1001,mode=0400 \
     redis:3.0.6
 4cdgfyky7ozwh3htjfw0d12qv
 ```
