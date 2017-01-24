@@ -2931,6 +2931,8 @@ _docker_swarm() {
 		join
 		join-token
 		leave
+		unlock
+		unlock-key
 		update
 	"
 	__docker_subcommands "$subcommands" && return
@@ -3031,6 +3033,22 @@ _docker_swarm_leave() {
 	case "$cur" in
 		-*)
 			COMPREPLY=( $( compgen -W "--force -f --help" -- "$cur" ) )
+			;;
+	esac
+}
+
+_docker_swarm_unlock() {
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "--help" -- "$cur" ) )
+			;;
+	esac
+}
+
+_docker_swarm_unlock-key() {
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "--help --quiet -q --rotate" -- "$cur" ) )
 			;;
 	esac
 }
