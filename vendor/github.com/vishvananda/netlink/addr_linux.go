@@ -56,17 +56,27 @@ func (h *Handle) addrHandle(link Link, addr *Addr, req *nl.NetlinkRequest) error
 	msg.Prefixlen = uint8(prefixlen)
 	req.AddData(msg)
 
-	var addrData []byte
+	var localAddrData []byte
 	if family == FAMILY_V4 {
-		addrData = addr.IP.To4()
+		localAddrData = addr.IP.To4()
 	} else {
-		addrData = addr.IP.To16()
+		localAddrData = addr.IP.To16()
 	}
 
-	localData := nl.NewRtAttr(syscall.IFA_LOCAL, addrData)
+	localData := nl.NewRtAttr(syscall.IFA_LOCAL, localAddrData)
 	req.AddData(localData)
+	var peerAddrData []byte
+	if addr.Peer != nil {
+		if family == FAMILY_V4 {
+			peerAddrData = addr.Peer.IP.To4()
+		} else {
+			peerAddrData = addr.Peer.IP.To16()
+		}
+	} else {
+		peerAddrData = localAddrData
+	}
 
-	addressData := nl.NewRtAttr(syscall.IFA_ADDRESS, addrData)
+	addressData := nl.NewRtAttr(syscall.IFA_ADDRESS, peerAddrData)
 	req.AddData(addressData)
 
 	if addr.Flags != 0 {
@@ -161,11 +171,13 @@ func parseAddr(m []byte) (addr Addr, family, index int, err error) {
 				IP:   attr.Value,
 				Mask: net.CIDRMask(int(msg.Prefixlen), 8*len(attr.Value)),
 			}
+			addr.Peer = dst
 		case syscall.IFA_LOCAL:
 			local = &net.IPNet{
 				IP:   attr.Value,
 				Mask: net.CIDRMask(int(msg.Prefixlen), 8*len(attr.Value)),
 			}
+			addr.IPNet = local
 		case syscall.IFA_LABEL:
 			addr.Label = string(attr.Value[:len(attr.Value)-1])
 		case IFA_FLAGS:

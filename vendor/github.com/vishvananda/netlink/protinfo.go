@@ -46,8 +46,5 @@ func boolToByte(x bool) []byte {
 }
 
 func byteToBool(x byte) bool {
-	if uint8(x) != 0 {
-		return true
-	}
-	return false
+	return uint8(x) != 0
 }
