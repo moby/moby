@@ -9,7 +9,7 @@ import (
 	mounttypes "github.com/docker/docker/api/types/mount"
 	types "github.com/docker/docker/api/types/swarm"
 	swarmapi "github.com/docker/swarmkit/api"
-	"github.com/docker/swarmkit/protobuf/ptypes"
+	gogotypes "github.com/gogo/protobuf/types"
 )
 
 func containerSpecFromGRPC(c *swarmapi.ContainerSpec) types.ContainerSpec {
@@ -75,7 +75,7 @@ func containerSpecFromGRPC(c *swarmapi.ContainerSpec) types.ContainerSpec {
 	}
 
 	if c.StopGracePeriod != nil {
-		grace, _ := ptypes.Duration(c.StopGracePeriod)
+		grace, _ := gogotypes.DurationFromProto(c.StopGracePeriod)
 		containerSpec.StopGracePeriod = &grace
 	}
 
@@ -159,7 +159,7 @@ func containerToGRPC(c types.ContainerSpec) (*swarmapi.ContainerSpec, error) {
 	}
 
 	if c.StopGracePeriod != nil {
-		containerSpec.StopGracePeriod = ptypes.DurationProto(*c.StopGracePeriod)
+		containerSpec.StopGracePeriod = gogotypes.DurationProto(*c.StopGracePeriod)
 	}
 
 	// Mounts
@@ -215,8 +215,8 @@ func containerToGRPC(c types.ContainerSpec) (*swarmapi.ContainerSpec, error) {
 }
 
 func healthConfigFromGRPC(h *swarmapi.HealthConfig) *container.HealthConfig {
-	interval, _ := ptypes.Duration(h.Interval)
-	timeout, _ := ptypes.Duration(h.Timeout)
+	interval, _ := gogotypes.DurationFromProto(h.Interval)
+	timeout, _ := gogotypes.DurationFromProto(h.Timeout)
 	return &container.HealthConfig{
 		Test:     h.Test,
 		Interval: interval,
@@ -228,8 +228,8 @@ func healthConfigFromGRPC(h *swarmapi.HealthConfig) *container.HealthConfig {
 func healthConfigToGRPC(h *container.HealthConfig) *swarmapi.HealthConfig {
 	return &swarmapi.HealthConfig{
 		Test:     h.Test,
-		Interval: ptypes.DurationProto(h.Interval),
-		Timeout:  ptypes.DurationProto(h.Timeout),
+		Interval: gogotypes.DurationProto(h.Interval),
+		Timeout:  gogotypes.DurationProto(h.Timeout),
 		Retries:  int32(h.Retries),
 	}
 }

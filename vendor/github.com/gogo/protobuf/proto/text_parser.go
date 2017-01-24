@@ -46,8 +46,12 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"time"
 	"unicode/utf8"
 )
+
+// Error string emitted when deserializing Any and fields are already set
+const anyRepeatedlyUnpacked = "Any message unpacked multiple times, or %q already set"
 
 type ParseError struct {
 	Message string
@@ -168,7 +172,7 @@ func (p *textParser) advance() {
 	p.cur.offset, p.cur.line = p.offset, p.line
 	p.cur.unquoted = ""
 	switch p.s[0] {
-	case '<', '>', '{', '}', ':', '[', ']', ';', ',':
+	case '<', '>', '{', '}', ':', '[', ']', ';', ',', '/':
 		// Single symbol
 		p.cur.value, p.s = p.s[0:1], p.s[1:len(p.s)]
 	case '"', '\'':
@@ -456,7 +460,10 @@ func (p *textParser) readStruct(sv reflect.Value, terminator string) error {
 	fieldSet := make(map[string]bool)
 	// A struct is a sequence of "name: value", terminated by one of
 	// '>' or '}', or the end of the input.  A name may also be
-	// "[extension]".
+	// "[extension]" or "[type/url]".
+	//
+	// The whole struct can also be an expanded Any message, like:
+	// [type/url] < ... struct contents ... >
 	for {
 		tok := p.next()
 		if tok.err != nil {
@@ -466,33 +473,74 @@ func (p *textParser) readStruct(sv reflect.Value, terminator string) error {
 			break
 		}
 		if tok.value == "[" {
-			// Looks like an extension.
+			// Looks like an extension or an Any.
 			//
 			// TODO: Check whether we need to handle
 			// namespace rooted names (e.g. ".something.Foo").
-			tok = p.next()
-			if tok.err != nil {
-				return tok.err
+			extName, err := p.consumeExtName()
+			if err != nil {
+				return err
 			}
+
+			if s := strings.LastIndex(extName, "/"); s >= 0 {
+				// If it contains a slash, it's an Any type URL.
+				messageName := extName[s+1:]
+				mt := MessageType(messageName)
+				if mt == nil {
+					return p.errorf("unrecognized message %q in google.protobuf.Any", messageName)
+				}
+				tok = p.next()
+				if tok.err != nil {
+					return tok.err
+				}
+				// consume an optional colon
+				if tok.value == ":" {
+					tok = p.next()
+					if tok.err != nil {
+						return tok.err
+					}
+				}
+				var terminator string
+				switch tok.value {
+				case "<":
+					terminator = ">"
+				case "{":
+					terminator = "}"
+				default:
+					return p.errorf("expected '{' or '<', found %q", tok.value)
+				}
+				v := reflect.New(mt.Elem())
+				if pe := p.readStruct(v.Elem(), terminator); pe != nil {
+					return pe
+				}
+				b, err := Marshal(v.Interface().(Message))
+				if err != nil {
+					return p.errorf("failed to marshal message of type %q: %v", messageName, err)
+				}
+				if fieldSet["type_url"] {
+					return p.errorf(anyRepeatedlyUnpacked, "type_url")
+				}
+				if fieldSet["value"] {
+					return p.errorf(anyRepeatedlyUnpacked, "value")
+				}
+				sv.FieldByName("TypeUrl").SetString(extName)
+				sv.FieldByName("Value").SetBytes(b)
+				fieldSet["type_url"] = true
+				fieldSet["value"] = true
+				continue
+			}
+
 			var desc *ExtensionDesc
 			// This could be faster, but it's functional.
 			// TODO: Do something smarter than a linear scan.
 			for _, d := range RegisteredExtensions(reflect.New(st).Interface().(Message)) {
-				if d.Name == tok.value {
+				if d.Name == extName {
 					desc = d
 					break
 				}
 			}
 			if desc == nil {
-				return p.errorf("unrecognized extension %q", tok.value)
-			}
-			// Check the extension terminator.
-			tok = p.next()
-			if tok.err != nil {
-				return tok.err
-			}
-			if tok.value != "]" {
-				return p.errorf("unrecognized extension terminator %q", tok.value)
+				return p.errorf("unrecognized extension %q", extName)
 			}
 
 			props := &Properties{}
@@ -550,7 +598,11 @@ func (p *textParser) readStruct(sv reflect.Value, terminator string) error {
 			props = oop.Prop
 			nv := reflect.New(oop.Type.Elem())
 			dst = nv.Elem().Field(0)
-			sv.Field(oop.Field).Set(nv)
+			field := sv.Field(oop.Field)
+			if !field.IsNil() {
+				return p.errorf("field '%s' would overwrite already parsed oneof '%s'", name, sv.Type().Field(oop.Field).Name)
+			}
+			field.Set(nv)
 		}
 		if !dst.IsValid() {
 			return p.errorf("unknown field name %q in %v", name, st)
@@ -657,6 +709,35 @@ func (p *textParser) readStruct(sv reflect.Value, terminator string) error {
 	return reqFieldErr
 }
 
+// consumeExtName consumes extension name or expanded Any type URL and the
+// following ']'. It returns the name or URL consumed.
+func (p *textParser) consumeExtName() (string, error) {
+	tok := p.next()
+	if tok.err != nil {
+		return "", tok.err
+	}
+
+	// If extension name or type url is quoted, it's a single token.
+	if len(tok.value) > 2 && isQuote(tok.value[0]) && tok.value[len(tok.value)-1] == tok.value[0] {
+		name, err := unquoteC(tok.value[1:len(tok.value)-1], rune(tok.value[0]))
+		if err != nil {
+			return "", err
+		}
+		return name, p.consumeToken("]")
+	}
+
+	// Consume everything up to "]"
+	var parts []string
+	for tok.value != "]" {
+		parts = append(parts, tok.value)
+		tok = p.next()
+		if tok.err != nil {
+			return "", p.errorf("unrecognized type_url or extension name: %s", tok.err)
+		}
+	}
+	return strings.Join(parts, ""), nil
+}
+
 // consumeOptionalSeparator consumes an optional semicolon or comma.
 // It is used in readStruct to provide backward compatibility.
 func (p *textParser) consumeOptionalSeparator() error {
@@ -717,6 +798,80 @@ func (p *textParser) readAny(v reflect.Value, props *Properties) error {
 		}
 		return nil
 	}
+	if props.StdTime {
+		fv := v
+		p.back()
+		props.StdTime = false
+		tproto := &timestamp{}
+		err := p.readAny(reflect.ValueOf(tproto).Elem(), props)
+		props.StdTime = true
+		if err != nil {
+			return err
+		}
+		tim, err := timestampFromProto(tproto)
+		if err != nil {
+			return err
+		}
+		if props.Repeated {
+			t := reflect.TypeOf(v.Interface())
+			if t.Kind() == reflect.Slice {
+				if t.Elem().Kind() == reflect.Ptr {
+					ts := fv.Interface().([]*time.Time)
+					ts = append(ts, &tim)
+					fv.Set(reflect.ValueOf(ts))
+					return nil
+				} else {
+					ts := fv.Interface().([]time.Time)
+					ts = append(ts, tim)
+					fv.Set(reflect.ValueOf(ts))
+					return nil
+				}
+			}
+		}
+		if reflect.TypeOf(v.Interface()).Kind() == reflect.Ptr {
+			v.Set(reflect.ValueOf(&tim))
+		} else {
+			v.Set(reflect.Indirect(reflect.ValueOf(&tim)))
+		}
+		return nil
+	}
+	if props.StdDuration {
+		fv := v
+		p.back()
+		props.StdDuration = false
+		dproto := &duration{}
+		err := p.readAny(reflect.ValueOf(dproto).Elem(), props)
+		props.StdDuration = true
+		if err != nil {
+			return err
+		}
+		dur, err := durationFromProto(dproto)
+		if err != nil {
+			return err
+		}
+		if props.Repeated {
+			t := reflect.TypeOf(v.Interface())
+			if t.Kind() == reflect.Slice {
+				if t.Elem().Kind() == reflect.Ptr {
+					ds := fv.Interface().([]*time.Duration)
+					ds = append(ds, &dur)
+					fv.Set(reflect.ValueOf(ds))
+					return nil
+				} else {
+					ds := fv.Interface().([]time.Duration)
+					ds = append(ds, dur)
+					fv.Set(reflect.ValueOf(ds))
+					return nil
+				}
+			}
+		}
+		if reflect.TypeOf(v.Interface()).Kind() == reflect.Ptr {
+			v.Set(reflect.ValueOf(&dur))
+		} else {
+			v.Set(reflect.Indirect(reflect.ValueOf(&dur)))
+		}
+		return nil
+	}
 	switch fv := v; fv.Kind() {
 	case reflect.Slice:
 		at := v.Type()
@@ -759,12 +914,12 @@ func (p *textParser) readAny(v reflect.Value, props *Properties) error {
 		fv.Set(reflect.Append(fv, reflect.New(at.Elem()).Elem()))
 		return p.readAny(fv.Index(fv.Len()-1), props)
 	case reflect.Bool:
-		// Either "true", "false", 1 or 0.
+		// true/1/t/True or false/f/0/False.
 		switch tok.value {
-		case "true", "1":
+		case "true", "1", "t", "True":
 			fv.SetBool(true)
 			return nil
-		case "false", "0":
+		case "false", "0", "f", "False":
 			fv.SetBool(false)
 			return nil
 		}

@@ -119,4 +119,7 @@ extend google.protobuf.FieldOptions {
 	optional string casttype = 65007;
 	optional string castkey = 65008;
 	optional string castvalue = 65009;
+
+	optional bool stdtime = 65010;
+	optional bool stdduration = 65011;
 }

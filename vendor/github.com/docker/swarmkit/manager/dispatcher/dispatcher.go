@@ -19,9 +19,9 @@ import (
 	"github.com/docker/swarmkit/log"
 	"github.com/docker/swarmkit/manager/state"
 	"github.com/docker/swarmkit/manager/state/store"
-	"github.com/docker/swarmkit/protobuf/ptypes"
 	"github.com/docker/swarmkit/remotes"
 	"github.com/docker/swarmkit/watch"
+	gogotypes "github.com/gogo/protobuf/types"
 	"github.com/pkg/errors"
 	"golang.org/x/net/context"
 )
@@ -191,7 +191,7 @@ func (d *Dispatcher) Run(ctx context.Context) error {
 				return err
 			}
 			if err == nil && len(clusters) == 1 {
-				heartbeatPeriod, err := ptypes.Duration(clusters[0].Spec.Dispatcher.HeartbeatPeriod)
+				heartbeatPeriod, err := gogotypes.DurationFromProto(clusters[0].Spec.Dispatcher.HeartbeatPeriod)
 				if err == nil && heartbeatPeriod > 0 {
 					d.config.HeartbeatPeriod = heartbeatPeriod
 				}
@@ -254,7 +254,7 @@ func (d *Dispatcher) Run(ctx context.Context) error {
 			d.mu.Lock()
 			if cluster.Cluster.Spec.Dispatcher.HeartbeatPeriod != nil {
 				// ignore error, since Spec has passed validation before
-				heartbeatPeriod, _ := ptypes.Duration(cluster.Cluster.Spec.Dispatcher.HeartbeatPeriod)
+				heartbeatPeriod, _ := gogotypes.DurationFromProto(cluster.Cluster.Spec.Dispatcher.HeartbeatPeriod)
 				if heartbeatPeriod != d.config.HeartbeatPeriod {
 					// only call d.nodes.updatePeriod when heartbeatPeriod changes
 					d.config.HeartbeatPeriod = heartbeatPeriod
@@ -1273,7 +1273,7 @@ func (d *Dispatcher) Heartbeat(ctx context.Context, r *api.HeartbeatRequest) (*a
 	}
 
 	period, err := d.nodes.Heartbeat(nodeInfo.NodeID, r.SessionID)
-	return &api.HeartbeatResponse{Period: *ptypes.DurationProto(period)}, err
+	return &api.HeartbeatResponse{Period: period}, err
 }
 
 func (d *Dispatcher) getManagers() []*api.WeightedPeer {

@@ -61,7 +61,7 @@ func (ts TokenSource) GetRequestMetadata(ctx context.Context, uri ...string) (ma
 	}, nil
 }
 
-// RequireTransportSecurity indicates whether the credentails requires transport security.
+// RequireTransportSecurity indicates whether the credentials requires transport security.
 func (ts TokenSource) RequireTransportSecurity() bool {
 	return true
 }

@@ -19,7 +19,7 @@ import (
 	"github.com/docker/swarmkit/agent/exec"
 	"github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/log"
-	"github.com/docker/swarmkit/protobuf/ptypes"
+	gogotypes "github.com/gogo/protobuf/types"
 	"github.com/pkg/errors"
 	"golang.org/x/net/context"
 	"golang.org/x/time/rate"
@@ -502,7 +502,7 @@ func (r *controller) Logs(ctx context.Context, publisher exec.LogPublisher, opti
 			return errors.Wrap(err, "failed to parse timestamp")
 		}
 
-		tsp, err := ptypes.TimestampProto(ts)
+		tsp, err := gogotypes.TimestampProto(ts)
 		if err != nil {
 			return errors.Wrap(err, "failed to convert timestamp")
 		}

@@ -2,6 +2,7 @@ package constraint
 
 import (
 	"fmt"
+	"net"
 	"regexp"
 	"strings"
 
@@ -121,6 +122,26 @@ func NodeMatches(constraints []Constraint, n *api.Node) bool {
 			if !constraint.Match(n.Description.Hostname) {
 				return false
 			}
+		case strings.EqualFold(constraint.key, "node.ip"):
+			nodeIP := net.ParseIP(n.Status.Addr)
+			// single IP address, node.ip == 2001:db8::2
+			if ip := net.ParseIP(constraint.exp); ip != nil {
+				ipEq := ip.Equal(nodeIP)
+				if (ipEq && constraint.operator != eq) || (!ipEq && constraint.operator == eq) {
+					return false
+				}
+				continue
+			}
+			// CIDR subnet, node.ip != 210.8.4.0/24
+			if _, subnet, err := net.ParseCIDR(constraint.exp); err == nil {
+				within := subnet.Contains(nodeIP)
+				if (within && constraint.operator != eq) || (!within && constraint.operator == eq) {
+					return false
+				}
+				continue
+			}
+			// reject constraint with malformed address/network
+			return false
 		case strings.EqualFold(constraint.key, "node.role"):
 			if !constraint.Match(n.Role.String()) {
 				return false
