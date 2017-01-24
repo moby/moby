@@ -38,6 +38,7 @@ type ConfigFile struct {
 	ServicesFormat       string                      `json:"servicesFormat,omitempty"`
 	TasksFormat          string                      `json:"tasksFormat,omitempty"`
 	SecretFormat         string                      `json:"secretFormat,omitempty"`
+	NodesFormat          string                      `json:"nodesFormat,omitempty"`
 }
 
 // LegacyLoadFromReader reads the non-nested configuration data given and sets up the

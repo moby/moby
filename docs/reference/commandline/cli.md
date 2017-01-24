@@ -167,6 +167,11 @@ property is not set, the client falls back to the default table
 format. For a list of supported formatting directives, see
 [**Formatting** section in the `docker secret ls` documentation](secret_ls.md)
 
+The property `nodesFormat` specifies the default format for `docker node ls` output.
+When the `--format` flag is not provided with the `docker node ls` command,
+Docker's client uses this property. If this property is not set, the client
+falls back to the default table format. For a list of supported formatting
+directives, see the [**Formatting** section in the `docker node ls` documentation](node_ls.md)
 
 The property `credsStore` specifies an external binary to serve as the default
 credential store. When this property is set, `docker login` will attempt to
@@ -214,6 +219,7 @@ Following is a sample `config.json` file:
   "servicesFormat": "table {{.ID}}\t{{.Name}}\t{{.Mode}}",
   "secretFormat": "table {{.ID}}\t{{.Name}}\t{{.CreatedAt}}\t{{.UpdatedAt}}",
   "serviceInspectFormat": "pretty",
+  "nodesFormat": "table {{.ID}}\t{{.Hostname}}\t{{.Availability}}",
   "detachKeys": "ctrl-e,e",
   "credsStore": "secretservice",
   "credHelpers": {
