@@ -13,6 +13,7 @@ type Addr struct {
 	Label string
 	Flags int
 	Scope int
+	Peer  *net.IPNet
 }
 
 // String returns $ip/$netmask $label
@@ -42,4 +43,11 @@ func (a Addr) Equal(x Addr) bool {
 	sizeb, _ := x.Mask.Size()
 	// ignore label for comparison
 	return a.IP.Equal(x.IP) && sizea == sizeb
+}
+
+func (a Addr) PeerEqual(x Addr) bool {
+	sizea, _ := a.Peer.Mask.Size()
+	sizeb, _ := x.Peer.Mask.Size()
+	// ignore label for comparison
+	return a.Peer.IP.Equal(x.Peer.IP) && sizea == sizeb
 }
