@@ -1521,9 +1521,15 @@ __docker_plugin_subcommand() {
     opts_help=("(: -)--help[Print usage]")
 
     case "$words[1]" in
-        (disable|enable|inspect|install|ls|push|rm)
+        (disable|enable|inspect|ls|push|rm)
             _arguments $(__docker_arguments) \
                 $opts_help \
+                "($help -)1:plugin:__docker_complete_plugins" && ret=0
+            ;;
+        (install)
+            _arguments $(__docker_arguments) \
+                $opts_help \
+                "($help)--alias=[Local name for plugin]:alias: " \
                 "($help -)1:plugin:__docker_complete_plugins" && ret=0
             ;;
         (set)
