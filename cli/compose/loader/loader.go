@@ -251,6 +251,8 @@ func transformHook(
 		return transformMappingOrList(data, "="), nil
 	case reflect.TypeOf(types.MappingWithColon{}):
 		return transformMappingOrList(data, ":"), nil
+	case reflect.TypeOf(types.ServiceVolumeConfig{}):
+		return transformServiceVolumeConfig(data)
 	}
 	return data, nil
 }
@@ -329,10 +331,7 @@ func loadService(name string, serviceDict types.Dict, workingDir string) (*types
 		return nil, err
 	}
 
-	if err := resolveVolumePaths(serviceConfig.Volumes, workingDir); err != nil {
-		return nil, err
-	}
-
+	resolveVolumePaths(serviceConfig.Volumes, workingDir)
 	return serviceConfig, nil
 }
 
@@ -365,22 +364,15 @@ func resolveEnvironment(serviceConfig *types.ServiceConfig, workingDir string) e
 	return nil
 }
 
-func resolveVolumePaths(volumes []string, workingDir string) error {
-	for i, mapping := range volumes {
-		parts := strings.SplitN(mapping, ":", 2)
-		if len(parts) == 1 {
+func resolveVolumePaths(volumes []types.ServiceVolumeConfig, workingDir string) {
+	for i, volume := range volumes {
+		if volume.Type != "bind" {
 			continue
 		}
 
-		if strings.HasPrefix(parts[0], ".") {
-			parts[0] = absPath(workingDir, parts[0])
-		}
-		parts[0] = expandUser(parts[0])
-
-		volumes[i] = strings.Join(parts, ":")
+		volume.Source = absPath(workingDir, expandUser(volume.Source))
+		volumes[i] = volume
 	}
-
-	return nil
 }
 
 // TODO: make this more robust
@@ -531,6 +523,20 @@ func transformServiceSecret(data interface{}) (interface{}, error) {
 	default:
 		return data, fmt.Errorf("invalid type %T for external", value)
 	}
+}
+
+func transformServiceVolumeConfig(data interface{}) (interface{}, error) {
+	switch value := data.(type) {
+	case string:
+		return parseVolume(value)
+	case types.Dict:
+		return data, nil
+	case map[string]interface{}:
+		return data, nil
+	default:
+		return data, fmt.Errorf("invalid type %T for service volume", value)
+	}
+
 }
 
 func transformServiceNetworkMap(value interface{}) (interface{}, error) {

@@ -228,7 +228,7 @@ type ServiceVolumeConfig struct {
 	Type     string
 	Source   string
 	Target   string
-	ReadOnly string `mapstructure:"read_only"`
+	ReadOnly bool `mapstructure:"read_only"`
 	Bind     *ServiceVolumeBind
 	Volume   *ServiceVolumeVolume
 }
