@@ -235,7 +235,7 @@ type ServiceVolumeConfig struct {
 
 // ServiceVolumeBind are options for a service volume of type bind
 type ServiceVolumeBind struct {
-	Propogation string
+	Propagation string
 }
 
 // ServiceVolumeVolume are options for a service volume of type volume
