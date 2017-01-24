@@ -41,6 +41,8 @@ docker-run - Run a command in a new container
 [**--group-add**[=*[]*]]
 [**-h**|**--hostname**[=*HOSTNAME*]]
 [**--help**]
+[**--init**]
+[**--init-path**[=*[]*]]
 [**-i**|**--interactive**]
 [**--ip**[=*IPv4-ADDRESS*]]
 [**--ip6**[=*IPv6-ADDRESS*]]
@@ -309,7 +311,13 @@ redirection on the host system.
    Sets the container host name that is available inside the container.
 
 **--help**
-  Print usage statement
+   Print usage statement
+
+**--init**
+   Run an init inside the container that forwards signals and reaps processes
+
+**--init-path**=""
+   Path to the docker-init binary
 
 **-i**, **--interactive**=*true*|*false*
    Keep STDIN open even if not attached. The default is *false*.
