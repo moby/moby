@@ -1876,7 +1876,7 @@ __docker_service_subcommand() {
                 "($help)--no-resolve[Do not map IDs to Names]" \
                 "($help)--no-trunc[Do not truncate output]" \
                 "($help -q --quiet)"{-q,--quiet}"[Only display task IDs]" \
-                "($help -)1:service:__docker_complete_services" && ret=0
+                "($help -)*:service:__docker_complete_services" && ret=0
             case $state in
                 (filter-options)
                     __docker_service_complete_ps_filters && ret=0
