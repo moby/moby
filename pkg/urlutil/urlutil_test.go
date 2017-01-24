@@ -14,6 +14,7 @@ var (
 	}
 	incompleteGitUrls = []string{
 		"github.com/docker/docker",
+		"gitlab.com/foo/bar",
 	}
 	invalidGitUrls = []string{
 		"http://github.com/docker/docker.git:#branch",
