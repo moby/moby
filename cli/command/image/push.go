@@ -24,7 +24,7 @@ func NewPushCommand(dockerCli *command.DockerCli) *cobra.Command {
 
 	flags := cmd.Flags()
 
-	command.AddTrustedFlags(flags, true)
+	command.AddTrustSigningFlags(flags)
 
 	return cmd
 }

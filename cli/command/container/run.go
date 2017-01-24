@@ -61,7 +61,7 @@ func NewRunCommand(dockerCli *command.DockerCli) *cobra.Command {
 	// with hostname
 	flags.Bool("help", false, "Print usage")
 
-	command.AddTrustedFlags(flags, true)
+	command.AddTrustVerificationFlags(flags)
 	copts = addFlags(flags)
 	return cmd
 }

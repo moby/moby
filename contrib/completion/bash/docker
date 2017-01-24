@@ -2710,11 +2710,15 @@ _docker_service_ps() {
 			__docker_complete_services --cur "${cur##*=}" --name
 			return
 			;;
+		node)
+			__docker_complete_nodes_plus_self --cur "${cur##*=}"
+			return
+			;;
 	esac
 
 	case "$prev" in
 		--filter|-f)
-			COMPREPLY=( $( compgen -W "desired-state id name" -S = -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "desired-state id name node" -S = -- "$cur" ) )
 			__docker_nospace
 			return
 			;;
@@ -3325,7 +3329,7 @@ _docker_plugin_list() {
 _docker_plugin_ls() {
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "--help --no-trunc" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "--help --no-trunc --format --quiet" -- "$cur" ) )
 			;;
 	esac
 }
