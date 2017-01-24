@@ -761,7 +761,7 @@ func WaitInspectWithArgs(dockerBinary, name, expr, expected string, timeout time
 	for {
 		result := icmd.RunCommand(dockerBinary, args...)
 		if result.Error != nil {
-			if !strings.Contains(result.Stderr(), "No such") {
+			if !strings.Contains(strings.ToLower(result.Stderr()), "no such") {
 				return errors.Errorf("error executing docker inspect: %v\n%s",
 					result.Stderr(), result.Stdout())
 			}
