@@ -10,7 +10,7 @@ import (
 )
 
 func deployBundle(ctx context.Context, dockerCli *command.DockerCli, opts deployOptions) error {
-	bundle, err := loadBundlefile(dockerCli.Err(), opts.namespace, opts.bundlefile)
+	bundle, err := loadBundlefile(dockerCli.Err(), opts.namespace, opts.file)
 	if err != nil {
 		return err
 	}

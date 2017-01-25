@@ -24,10 +24,9 @@ Aliases:
   deploy, up
 
 Options:
-      --bundle-file string    Path to a Distributed Application Bundle file
-  -c, --compose-file string   Path to a Compose file
-      --help                  Print usage
-      --with-registry-auth    Send registry authentication details to Swarm agents
+      --file string          Path to a Compose or a Distributed Application Bundle file (default "docker-compose.yml")
+      --help                 Print usage
+      --with-registry-auth   Send registry authentication details to Swarm agents
 ```
 
 Create and update a stack from a `compose` or a `dab` file on the swarm. This command
@@ -38,7 +37,7 @@ has to be run targeting a manager node.
 The `deploy` command supports compose file version `3.0` and above."
 
 ```bash
-$ docker stack deploy --compose-file docker-compose.yml vossibility
+$ docker stack deploy --file docker-compose.yml vossibility
 Ignoring unsupported options: links
 
 Creating network vossibility_vossibility
@@ -67,7 +66,7 @@ axqh55ipl40h  vossibility_vossibility-collector  replicated  1/1       icecrime/
 ## DAB file
 
 ```bash
-$ docker stack deploy --bundle-file vossibility-stack.dab vossibility
+$ docker stack deploy --file vossibility-stack.dab vossibility
 Loading bundle from vossibility-stack.dab
 Creating service vossibility_elasticsearch
 Creating service vossibility_kibana

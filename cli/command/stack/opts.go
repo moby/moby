@@ -9,13 +9,8 @@ import (
 	"github.com/spf13/pflag"
 )
 
-func addComposefileFlag(opt *string, flags *pflag.FlagSet) {
-	flags.StringVarP(opt, "compose-file", "c", "", "Path to a Compose file")
-}
-
-func addBundlefileFlag(opt *string, flags *pflag.FlagSet) {
-	flags.StringVar(opt, "bundle-file", "", "Path to a Distributed Application Bundle file")
-	flags.SetAnnotation("bundle-file", "experimental", nil)
+func addFileFlag(opt *string, flags *pflag.FlagSet) {
+	flags.StringVar(opt, "file", "docker-compose.yml", "Path to a Compose or a Distributed Application Bundle file")
 }
 
 func addRegistryAuthFlag(opt *bool, flags *pflag.FlagSet) {

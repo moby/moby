@@ -1,6 +1,7 @@
 package stack
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -26,8 +27,7 @@ const (
 )
 
 type deployOptions struct {
-	bundlefile       string
-	composefile      string
+	file             string
 	namespace        string
 	sendRegistryAuth bool
 }
@@ -47,8 +47,7 @@ func newDeployCommand(dockerCli *command.DockerCli) *cobra.Command {
 	}
 
 	flags := cmd.Flags()
-	addBundlefileFlag(&opts.bundlefile, flags)
-	addComposefileFlag(&opts.composefile, flags)
+	addFileFlag(&opts.file, flags)
 	addRegistryAuthFlag(&opts.sendRegistryAuth, flags)
 	return cmd
 }
@@ -57,14 +56,10 @@ func runDeploy(dockerCli *command.DockerCli, opts deployOptions) error {
 	ctx := context.Background()
 
 	switch {
-	case opts.bundlefile == "" && opts.composefile == "":
-		return fmt.Errorf("Please specify either a bundle file (with --bundle-file) or a Compose file (with --compose-file).")
-	case opts.bundlefile != "" && opts.composefile != "":
-		return fmt.Errorf("You cannot specify both a bundle file and a Compose file.")
-	case opts.bundlefile != "":
-		return deployBundle(ctx, dockerCli, opts)
+	case opts.file == "":
+		return fmt.Errorf("Please specify either a Bundle file or a Compose file with --file.")
 	default:
-		return deployCompose(ctx, dockerCli, opts)
+		return deployFile(ctx, dockerCli, opts)
 	}
 }
 
@@ -81,6 +76,23 @@ func checkDaemonIsSwarmManager(ctx context.Context, dockerCli *command.DockerCli
 		return errors.New("This node is not a swarm manager. Use \"docker swarm init\" or \"docker swarm join\" to connect this node to swarm and try again.")
 	}
 	return nil
+}
+
+func deployFile(ctx context.Context, dockerCli *command.DockerCli, opts deployOptions) error {
+	type bundlefile struct {
+		body json.RawMessage
+	}
+
+	bytes, err := ioutil.ReadFile(opts.file)
+	if err != nil {
+		return err
+	}
+	var v bundlefile
+	if err := json.Unmarshal(bytes, &v); err != nil {
+		return deployCompose(ctx, dockerCli, opts)
+	}
+
+	return deployBundle(ctx, dockerCli, opts)
 }
 
 func deployCompose(ctx context.Context, dockerCli *command.DockerCli, opts deployOptions) error {
@@ -165,7 +177,7 @@ func getConfigDetails(opts deployOptions) (composetypes.ConfigDetails, error) {
 		return details, err
 	}
 
-	configFile, err := getConfigFile(opts.composefile)
+	configFile, err := getConfigFile(opts.file)
 	if err != nil {
 		return details, err
 	}
