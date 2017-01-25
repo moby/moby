@@ -910,6 +910,94 @@ _docker_build() {
 }
 
 
+_docker_checkpoint() {
+	local subcommands="
+		create
+		ls
+		rm
+	"
+	local aliases="
+		list
+		remove
+	"
+	__docker_subcommands "$subcommands $aliases" && return
+
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "--help" -- "$cur" ) )
+			;;
+		*)
+			COMPREPLY=( $( compgen -W "$subcommands" -- "$cur" ) )
+			;;
+	esac
+}
+
+_docker_checkpoint_create() {
+	case "$prev" in
+		--checkpoint-dir)
+			_filedir -d
+			return
+			;;
+	esac
+
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "--checkpoint-dir --help --leave-running" -- "$cur" ) )
+			;;
+		*)
+			local counter=$(__docker_pos_first_nonflag '--checkpoint-dir')
+			if [ $cword -eq $counter ]; then
+				__docker_complete_containers_running
+			fi
+			;;
+	esac
+}
+
+_docker_checkpoint_ls() {
+	case "$prev" in
+		--checkpoint-dir)
+			_filedir -d
+			return
+			;;
+	esac
+
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "--checkpoint-dir --help" -- "$cur" ) )
+			;;
+		*)
+			local counter=$(__docker_pos_first_nonflag '--checkpoint-dir')
+			if [ $cword -eq $counter ]; then
+				__docker_complete_containers_all
+			fi
+			;;
+	esac
+}
+
+_docker_checkpoint_rm() {
+	case "$prev" in
+		--checkpoint-dir)
+			_filedir -d
+			return
+			;;
+	esac
+
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "--checkpoint-dir --help" -- "$cur" ) )
+			;;
+		*)
+			local counter=$(__docker_pos_first_nonflag '--checkpoint-dir')
+			if [ $cword -eq $counter ]; then
+				__docker_complete_containers_all
+			elif [ $cword -eq $(($counter + 1)) ]; then
+				COMPREPLY=( $( compgen -W "$(__docker_q checkpoint ls "$prev" | sed 1d)" -- "$cur" ) )
+			fi
+			;;
+	esac
+}
+
+
 _docker_container() {
 	local subcommands="
 		attach
@@ -1608,9 +1696,25 @@ _docker_container_run() {
 _docker_container_start() {
 	__docker_complete_detach-keys && return
 
+	case "$prev" in
+		--checkpoint)
+			if [ __docker_is_experimental ] ; then
+				return
+			fi
+			;;
+		--checkpoint-dir)
+			if [ __docker_is_experimental ] ; then
+				_filedir -d
+				return
+			fi
+			;;
+	esac
+
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "--attach -a --detach-keys --help --interactive -i" -- "$cur" ) )
+			local options="--attach -a --detach-keys --help --interactive -i"
+			__docker_is_experimental && options+=" --checkpoint --checkpoint-dir"
+			COMPREPLY=( $( compgen -W "$options" -- "$cur" ) )
 			;;
 		*)
 			__docker_complete_containers_stopped
@@ -4110,6 +4214,7 @@ _docker() {
 	)
 
 	local experimental_commands=(
+		checkpoint
 		deploy
 	)
 
