@@ -186,9 +186,13 @@ func BasicNetworkCreateToGRPC(create basictypes.NetworkCreateRequest) swarmapi.N
 		Attachable:  create.Attachable,
 	}
 	if create.IPAM != nil {
+		driver := create.IPAM.Driver
+		if driver == "" {
+			driver = "default"
+		}
 		ns.IPAM = &swarmapi.IPAMOptions{
 			Driver: &swarmapi.Driver{
-				Name:    create.IPAM.Driver,
+				Name:    driver,
 				Options: create.IPAM.Options,
 			},
 		}
