@@ -1361,7 +1361,6 @@ _docker_container_run() {
 		--ip
 		--ip6
 		--ipc
-		--isolation
 		--kernel-memory
 		--label-file
 		--label -l
@@ -1405,6 +1404,7 @@ _docker_container_run() {
 		--credentialspec
 		--io-maxbandwidth
 		--io-maxiops
+		--isolation
 	"
 
 	local boolean_options="
@@ -1523,8 +1523,10 @@ _docker_container_run() {
 			return
 			;;
 		--isolation)
-			__docker_complete_isolation
-			return
+			if __docker_daemon_os_is windows ; then
+				__docker_complete_isolation
+				return
+			fi
 			;;
 		--link)
 			case "$cur" in
@@ -2028,7 +2030,6 @@ _docker_image_build() {
 		--cpu-period
 		--cpu-quota
 		--file -f
-		--isolation
 		--label
 		--memory -m
 		--memory-swap
@@ -2036,6 +2037,9 @@ _docker_image_build() {
 		--shm-size
 		--tag -t
 		--ulimit
+	"
+	__docker_daemon_os_is windows && options_with_args+="
+		--isolation
 	"
 
 	local boolean_options="
@@ -2067,8 +2071,10 @@ _docker_image_build() {
 			return
 			;;
 		--isolation)
-			__docker_complete_isolation
-			return
+			if __docker_daemon_os_is windows ; then
+				__docker_complete_isolation
+				return
+			fi
 			;;
 		--network)
 			case "$cur" in
