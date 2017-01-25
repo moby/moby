@@ -3,10 +3,10 @@ package image
 import (
 	"golang.org/x/net/context"
 
+	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cli/command"
 	"github.com/docker/docker/pkg/jsonmessage"
-	"github.com/docker/docker/reference"
 	"github.com/docker/docker/registry"
 	"github.com/spf13/cobra"
 )
@@ -30,7 +30,7 @@ func NewPushCommand(dockerCli *command.DockerCli) *cobra.Command {
 }
 
 func runPush(dockerCli *command.DockerCli, remote string) error {
-	ref, err := reference.ParseNamed(remote)
+	ref, err := reference.ParseNormalizedNamed(remote)
 	if err != nil {
 		return err
 	}
@@ -51,7 +51,7 @@ func runPush(dockerCli *command.DockerCli, remote string) error {
 		return trustedPush(ctx, dockerCli, repoInfo, ref, authConfig, requestPrivilege)
 	}
 
-	responseBody, err := imagePushPrivileged(ctx, dockerCli, authConfig, ref.String(), requestPrivilege)
+	responseBody, err := imagePushPrivileged(ctx, dockerCli, authConfig, ref, requestPrivilege)
 	if err != nil {
 		return err
 	}

@@ -3082,7 +3082,7 @@ func (s *DockerSuite) TestBuildInvalidTag(c *check.C) {
 	name := "abcd:" + stringutils.GenerateRandomAlphaOnlyString(200)
 	buildImage(name, withDockerfile("FROM "+minimalBaseImage()+"\nMAINTAINER quux\n")).Assert(c, icmd.Expected{
 		ExitCode: 125,
-		Err:      "Error parsing reference",
+		Err:      "invalid reference format",
 	})
 }
 

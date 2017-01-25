@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/pkg/stringid"
-	"github.com/docker/docker/reference"
 	units "github.com/docker/go-units"
 )
 
@@ -95,21 +95,23 @@ func imageFormat(ctx ImageContext, images []types.ImageSummary, format func(subC
 			repoDigests := map[string][]string{}
 
 			for _, refString := range append(image.RepoTags) {
-				ref, err := reference.ParseNamed(refString)
+				ref, err := reference.ParseNormalizedNamed(refString)
 				if err != nil {
 					continue
 				}
 				if nt, ok := ref.(reference.NamedTagged); ok {
-					repoTags[ref.Name()] = append(repoTags[ref.Name()], nt.Tag())
+					familiarRef := reference.FamiliarName(ref)
+					repoTags[familiarRef] = append(repoTags[familiarRef], nt.Tag())
 				}
 			}
 			for _, refString := range append(image.RepoDigests) {
-				ref, err := reference.ParseNamed(refString)
+				ref, err := reference.ParseNormalizedNamed(refString)
 				if err != nil {
 					continue
 				}
 				if c, ok := ref.(reference.Canonical); ok {
-					repoDigests[ref.Name()] = append(repoDigests[ref.Name()], c.Digest().String())
+					familiarRef := reference.FamiliarName(ref)
+					repoDigests[familiarRef] = append(repoDigests[familiarRef], c.Digest().String())
 				}
 			}
 
