@@ -91,6 +91,9 @@ func validateMountConfig(mnt *mount.Mount, options ...func(*validateOpts)) error
 		if len(mnt.Source) != 0 {
 			return &errMountConfig{mnt, errExtraField("Source")}
 		}
+		if err := ValidateTmpfsMountDestination(mnt.Target); err != nil {
+			return &errMountConfig{mnt, err}
+		}
 		if _, err := ConvertTmpfsOptions(mnt.TmpfsOptions, mnt.ReadOnly); err != nil {
 			return &errMountConfig{mnt, err}
 		}
@@ -122,4 +125,16 @@ func validateAbsolute(p string) error {
 		return nil
 	}
 	return fmt.Errorf("invalid mount path: '%s' mount path must be absolute", p)
+}
+
+// ValidateTmpfsMountDestination validates the destination of tmpfs mount.
+// Currently, we have only two obvious rule for validation:
+//  - path must not be "/"
+//  - path must be absolute
+// We should add more rules carefully (#30166)
+func ValidateTmpfsMountDestination(dest string) error {
+	if err := validateNotRoot(dest); err != nil {
+		return err
+	}
+	return validateAbsolute(dest)
 }
