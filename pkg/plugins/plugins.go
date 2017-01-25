@@ -169,7 +169,7 @@ func (p *Plugin) activateWithLock() error {
 
 func (p *Plugin) waitActive() error {
 	p.activateWait.L.Lock()
-	for !p.activated() {
+	for !p.activated() && p.activateErr == nil {
 		p.activateWait.Wait()
 	}
 	p.activateWait.L.Unlock()
