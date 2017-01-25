@@ -324,7 +324,7 @@ func (s *DockerSwarmSuite) TestSwarmContainerAttachByNetworkId(c *check.C) {
 	_, err = d.Cmd("rm", "-f", cID)
 	c.Assert(err, checker.IsNil)
 
-	out, err = d.Cmd("network", "rm", "testnet")
+	_, err = d.Cmd("network", "rm", "testnet")
 	c.Assert(err, checker.IsNil)
 
 	checkNetwork := func(*check.C) (interface{}, check.CommentInterface) {

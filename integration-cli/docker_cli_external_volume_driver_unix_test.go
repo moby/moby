@@ -295,7 +295,8 @@ func (s *DockerExternalVolumeSuite) TestVolumeCLICreateOptionConflict(c *check.C
 
 	// make sure hidden --name option conflicts with positional arg name
 	out, _, err = dockerCmdWithError("volume", "create", "--name", "test2", "test2")
-	c.Assert(err, check.NotNil, check.Commentf("Conflicting options: either specify --name or provide positional arg, not both"))
+	c.Assert(err, check.NotNil)
+	c.Assert(strings.TrimSpace(out), checker.Equals, "Conflicting options: either specify --name or provide positional arg, not both")
 }
 
 func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverNamed(c *check.C) {
