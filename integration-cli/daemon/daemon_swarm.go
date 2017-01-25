@@ -263,7 +263,7 @@ func (d *Swarm) UpdateService(c *check.C, service *swarm.Service, f ...ServiceCo
 func (d *Swarm) RemoveService(c *check.C, id string) {
 	status, out, err := d.SockRequest("DELETE", "/services/"+id, nil)
 	c.Assert(err, checker.IsNil, check.Commentf(string(out)))
-	c.Assert(status, checker.Equals, http.StatusOK, check.Commentf("output: %q", string(out)))
+	c.Assert(status, checker.Equals, http.StatusNoContent, check.Commentf("output: %q", string(out)))
 }
 
 // GetNode returns a swarm node identified by the specified id
@@ -286,7 +286,7 @@ func (d *Swarm) RemoveNode(c *check.C, id string, force bool) {
 
 	status, out, err := d.SockRequest("DELETE", url, nil)
 	c.Assert(err, checker.IsNil, check.Commentf(string(out)))
-	c.Assert(status, checker.Equals, http.StatusOK, check.Commentf("output: %q", string(out)))
+	c.Assert(status, checker.Equals, http.StatusNoContent, check.Commentf("output: %q", string(out)))
 }
 
 // UpdateNode updates a swarm node with the specified node constructor

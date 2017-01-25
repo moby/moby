@@ -209,6 +209,7 @@ func (sr *swarmRouter) removeService(ctx context.Context, w http.ResponseWriter,
 		logrus.Errorf("Error removing service %s: %v", vars["id"], err)
 		return err
 	}
+	w.WriteHeader(http.StatusNoContent)
 	return nil
 }
 
@@ -320,6 +321,7 @@ func (sr *swarmRouter) removeNode(ctx context.Context, w http.ResponseWriter, r 
 		logrus.Errorf("Error removing node %s: %v", vars["id"], err)
 		return err
 	}
+	w.WriteHeader(http.StatusNoContent)
 	return nil
 }
 

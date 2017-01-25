@@ -4745,7 +4745,7 @@ paths:
       produces:
         - "application/json"
       responses:
-        200:
+        204:
           description: "No error"
           schema:
             type: "array"
@@ -6745,7 +6745,7 @@ paths:
       summary: "Delete a node"
       operationId: "NodeDelete"
       responses:
-        200:
+        204:
           description: "no error"
         404:
           description: "no such node"
@@ -7262,7 +7262,7 @@ paths:
       summary: "Delete a service"
       operationId: "ServiceDelete"
       responses:
-        200:
+        204:
           description: "no error"
         404:
           description: "no such service"
