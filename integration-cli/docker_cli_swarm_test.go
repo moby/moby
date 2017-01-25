@@ -677,8 +677,9 @@ func (s *DockerSwarmSuite) TestSwarmNetworkPlugin(c *check.C) {
 
 	d := s.AddDaemon(c, true, true)
 
-	_, err := d.Cmd("network", "create", "-d", globalNetworkPlugin, "foo")
+	out, err := d.Cmd("network", "create", "-d", globalNetworkPlugin, "foo")
 	c.Assert(err, checker.NotNil)
+	c.Assert(out, checker.Contains, "not supported in swarm mode")
 }
 
 // Test case for #24712

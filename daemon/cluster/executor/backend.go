@@ -56,4 +56,5 @@ type Backend interface {
 	GetRepository(context.Context, reference.NamedTagged, *types.AuthConfig) (distribution.Repository, bool, error)
 	LookupImage(name string) (*types.ImageInspect, error)
 	PluginManager() *plugin.Manager
+	PluginGetter() *plugin.Store
 }

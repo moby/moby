@@ -332,6 +332,7 @@ func (c *Cluster) startNewNode(conf nodeStartConfig) (*node, error) {
 		ElectionTick:       3,
 		UnlockKey:          conf.lockKey,
 		AutoLockManagers:   conf.autolock,
+		PluginGetter:       c.config.Backend.PluginGetter(),
 	})
 
 	if err != nil {
