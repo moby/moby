@@ -73,6 +73,12 @@ func (o listOptionsProcessor) Size() bool {
 	return true
 }
 
+// Label is needed here as it allows the correct pre-processing
+// because Label() is a method with arguments
+func (o listOptionsProcessor) Label(name string) string {
+	return ""
+}
+
 func buildContainerListOptions(opts *psOptions) (*types.ContainerListOptions, error) {
 	options := &types.ContainerListOptions{
 		All:     opts.all,
