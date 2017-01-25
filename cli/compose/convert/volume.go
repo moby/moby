@@ -49,6 +49,14 @@ func convertVolumeToMount(volumeSpec string, stackVolumes volumes, namespace Nam
 		target = parts[0]
 	}
 
+	if source == "" {
+		// Anonymous volume
+		return mount.Mount{
+			Type:   mount.TypeVolume,
+			Target: target,
+		}, nil
+	}
+
 	// TODO: catch Windows paths here
 	if strings.HasPrefix(source, "/") {
 		return mount.Mount{

@@ -110,3 +110,24 @@ func TestConvertVolumeToMountVolumeDoesNotExist(t *testing.T) {
 	_, err := convertVolumeToMount("unknown:/foo:ro", volumes{}, namespace)
 	assert.Error(t, err, "undefined volume: unknown")
 }
+
+func TestConvertVolumeToMountAnonymousVolume(t *testing.T) {
+	stackVolumes := map[string]composetypes.VolumeConfig{}
+	namespace := NewNamespace("foo")
+	expected := mount.Mount{
+		Type:   mount.TypeVolume,
+		Target: "/foo/bar",
+	}
+	mnt, err := convertVolumeToMount("/foo/bar", stackVolumes, namespace)
+	assert.NilError(t, err)
+	assert.DeepEqual(t, mnt, expected)
+}
+
+func TestConvertVolumeToMountInvalidFormat(t *testing.T) {
+	namespace := NewNamespace("foo")
+	invalids := []string{"::", "::cc", ":bb:", "aa::", "aa::cc", "aa:bb:", " : : ", " : :cc", " :bb: ", "aa: : ", "aa: :cc", "aa:bb: "}
+	for _, vol := range invalids {
+		_, err := convertVolumeToMount(vol, map[string]composetypes.VolumeConfig{}, namespace)
+		assert.Error(t, err, "invalid volume: "+vol)
+	}
+}
