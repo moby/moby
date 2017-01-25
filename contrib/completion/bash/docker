@@ -442,6 +442,18 @@ __docker_is_experimental() {
 	[ "$(__docker_q version -f '{{.Server.Experimental}}')" = "true" ]
 }
 
+# __docker_daemon_os_is tests whether the currently configured Docker daemon runs
+# on the operating system passed in as the first argument.
+# It does so by querying the daemon for its OS. The result is cached for the duration
+# of one invocation of bash completion so that this function can be used to test for
+# several different operating systems without additional costs.
+# Known operating systems: linux, windows.
+__docker_daemon_os_is() {
+	local expected_os="$1"
+	local actual_os=${daemon_os=$(__docker_q version -f '{{.Server.Os}}')}
+	[ "$actual_os" = "$expected_os" ]
+}
+
 # __docker_pos_first_nonflag finds the position of the first word that is neither
 # option nor an option's argument. If there are options that require arguments,
 # you should pass a glob describing those options, e.g. "--option1|-o|--option2"
@@ -1386,6 +1398,13 @@ _docker_container_run() {
 		--volumes-from
 		--volume -v
 		--workdir -w
+	"
+	__docker_daemon_os_is windows && options_with_args+="
+		--cpu-count
+		--cpu-percent
+		--credentialspec
+		--io-maxbandwidth
+		--io-maxiops
 	"
 
 	local boolean_options="
@@ -4132,7 +4151,7 @@ _docker() {
 		--tlskey
 	"
 
-	local host config
+	local host config daemon_os
 
 	COMPREPLY=()
 	local cur prev words cword
