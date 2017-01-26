@@ -291,13 +291,13 @@ __docker_complete_plugins_bundled() {
 # Set DOCKER_COMPLETION_SHOW_PLUGIN_IDS=yes to also complete IDs.
 # For built-in pugins, see `__docker_plugins_bundled`.
 __docker_plugins_installed() {
-	local fields
+	local format
 	if [ "$DOCKER_COMPLETION_SHOW_PLUGIN_IDS" = yes ] ; then
-		fields='$1,$2'
+		format='{{.ID}} {{.Name}}'
 	else
-		fields='$2'
+		format='{{.Name}}'
 	fi
-	__docker_q plugin ls | awk "NR>1 {print $fields}"
+	__docker_q plugin ls --format "$format"
 }
 
 # __docker_complete_plugins_installed applies completion of plugins that were installed
