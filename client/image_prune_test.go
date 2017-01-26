@@ -77,7 +77,7 @@ func TestImagesPrune(t *testing.T) {
 					assert.Equal(t, actual, expected)
 				}
 				content, err := json.Marshal(types.ImagesPruneReport{
-					ImagesDeleted: []types.ImageDelete{
+					ImagesDeleted: []types.ImageDeleteResponseItem{
 						{
 							Deleted: "image_id1",
 						},
