@@ -35,6 +35,18 @@ func TestSecretOptionsSourceTarget(t *testing.T) {
 	assert.Equal(t, req.Target, "testing")
 }
 
+func TestSecretOptionsShorthand(t *testing.T) {
+	var opt SecretOpt
+
+	testCase := "src=foo,target=testing"
+	assert.NilError(t, opt.Set(testCase))
+
+	reqs := opt.Value()
+	assert.Equal(t, len(reqs), 1)
+	req := reqs[0]
+	assert.Equal(t, req.Source, "foo")
+}
+
 func TestSecretOptionsCustomUidGid(t *testing.T) {
 	var opt SecretOpt
 
