@@ -24,6 +24,17 @@ func TestImageRemoveError(t *testing.T) {
 	}
 }
 
+func TestImageRemoveErrorWithWrongName(t *testing.T) {
+	client := &Client{
+		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
+	}
+
+	_, err := client.ImageRemove(context.Background(), "wrong-format@sha256:abcd", types.ImageRemoveOptions{})
+	if err == nil || err.Error() != "Error parsing reference: \"wrong-format@sha256:abcd\" is not a valid repository/tag: invalid reference format" {
+		t.Fatalf("expected a Server error, got %v", err)
+	}
+}
+
 func TestImageRemove(t *testing.T) {
 	expectedURL := "/images/image_id"
 	removeCases := []struct {
