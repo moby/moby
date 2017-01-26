@@ -42,7 +42,6 @@ func NewPullCommand(dockerCli *command.DockerCli) *cobra.Command {
 }
 
 func runPull(dockerCli *command.DockerCli, opts pullOptions) error {
-	var distributionRef reference.Named
 	distributionRef, err := reference.ParseNormalizedNamed(opts.remote)
 	if err != nil {
 		return err
@@ -52,9 +51,10 @@ func runPull(dockerCli *command.DockerCli, opts pullOptions) error {
 	}
 
 	if !opts.all && reference.IsNameOnly(distributionRef) {
-		taggedRef := reference.EnsureTagged(distributionRef)
-		fmt.Fprintf(dockerCli.Out(), "Using default tag: %s\n", taggedRef.Tag())
-		distributionRef = taggedRef
+		distributionRef = reference.TagNameOnly(distributionRef)
+		if tagged, ok := distributionRef.(reference.Tagged); ok {
+			fmt.Fprintf(dockerCli.Out(), "Using default tag: %s\n", tagged.Tag())
+		}
 	}
 
 	// Resolve the Repository name from fqn to RepositoryInfo

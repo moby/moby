@@ -14,7 +14,7 @@ import (
 // PluginUpgrade upgrades a plugin
 func (cli *Client) PluginUpgrade(ctx context.Context, name string, options types.PluginInstallOptions) (rc io.ReadCloser, err error) {
 	query := url.Values{}
-	if _, err := reference.ParseNamed(options.RemoteRef); err != nil {
+	if _, err := reference.ParseNormalizedNamed(options.RemoteRef); err != nil {
 		return nil, errors.Wrap(err, "invalid remote reference")
 	}
 	query.Set("remote", options.RemoteRef)

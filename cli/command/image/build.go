@@ -397,9 +397,7 @@ func rewriteDockerfileFrom(ctx context.Context, dockerfile io.Reader, translator
 			if err != nil {
 				return nil, nil, err
 			}
-			if reference.IsNameOnly(ref) {
-				ref = reference.EnsureTagged(ref)
-			}
+			ref = reference.TagNameOnly(ref)
 			if ref, ok := ref.(reference.NamedTagged); ok && command.IsTrusted() {
 				trustedRef, err := translator(ctx, ref)
 				if err != nil {

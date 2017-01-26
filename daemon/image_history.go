@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/layer"
-	"github.com/docker/docker/reference"
 )
 
 // ImageHistory returns a slice of ImageHistory structures for the specified image
@@ -64,7 +64,7 @@ func (daemon *Daemon) ImageHistory(name string) ([]*image.HistoryResponseItem, e
 		var tags []string
 		for _, r := range daemon.referenceStore.References(id.Digest()) {
 			if _, ok := r.(reference.NamedTagged); ok {
-				tags = append(tags, r.String())
+				tags = append(tags, reference.FamiliarString(r))
 			}
 		}
 

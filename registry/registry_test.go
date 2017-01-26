@@ -14,7 +14,6 @@ import (
 	"github.com/docker/distribution/registry/client/transport"
 	"github.com/docker/docker/api/types"
 	registrytypes "github.com/docker/docker/api/types/registry"
-	forkedref "github.com/docker/docker/reference"
 )
 
 var (
@@ -202,7 +201,7 @@ func TestGetRemoteImageLayer(t *testing.T) {
 
 func TestGetRemoteTag(t *testing.T) {
 	r := spawnTestRegistrySession(t)
-	repoRef, err := forkedref.ParseNamed(REPO)
+	repoRef, err := reference.ParseNormalizedNamed(REPO)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -212,7 +211,7 @@ func TestGetRemoteTag(t *testing.T) {
 	}
 	assertEqual(t, tag, imageID, "Expected tag test to map to "+imageID)
 
-	bazRef, err := forkedref.ParseNamed("foo42/baz")
+	bazRef, err := reference.ParseNormalizedNamed("foo42/baz")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -224,7 +223,7 @@ func TestGetRemoteTag(t *testing.T) {
 
 func TestGetRemoteTags(t *testing.T) {
 	r := spawnTestRegistrySession(t)
-	repoRef, err := forkedref.ParseNamed(REPO)
+	repoRef, err := reference.ParseNormalizedNamed(REPO)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -236,7 +235,7 @@ func TestGetRemoteTags(t *testing.T) {
 	assertEqual(t, tags["latest"], imageID, "Expected tag latest to map to "+imageID)
 	assertEqual(t, tags["test"], imageID, "Expected tag test to map to "+imageID)
 
-	bazRef, err := forkedref.ParseNamed("foo42/baz")
+	bazRef, err := reference.ParseNormalizedNamed("foo42/baz")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -253,7 +252,7 @@ func TestGetRepositoryData(t *testing.T) {
 		t.Fatal(err)
 	}
 	host := "http://" + parsedURL.Host + "/v1/"
-	repoRef, err := forkedref.ParseNamed(REPO)
+	repoRef, err := reference.ParseNormalizedNamed(REPO)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -516,9 +515,9 @@ func TestParseRepositoryInfo(t *testing.T) {
 			t.Error(err)
 		} else {
 			checkEqual(t, repoInfo.Index.Name, expectedRepoInfo.Index.Name, reposName)
-			checkEqual(t, repoInfo.RemoteName(), expectedRepoInfo.RemoteName, reposName)
-			checkEqual(t, repoInfo.Name(), expectedRepoInfo.LocalName, reposName)
-			checkEqual(t, repoInfo.FullName(), expectedRepoInfo.CanonicalName, reposName)
+			checkEqual(t, reference.Path(repoInfo.Name), expectedRepoInfo.RemoteName, reposName)
+			checkEqual(t, reference.FamiliarName(repoInfo.Name), expectedRepoInfo.LocalName, reposName)
+			checkEqual(t, repoInfo.Name.Name(), expectedRepoInfo.CanonicalName, reposName)
 			checkEqual(t, repoInfo.Index.Official, expectedRepoInfo.Index.Official, reposName)
 			checkEqual(t, repoInfo.Official, expectedRepoInfo.Official, reposName)
 		}
@@ -689,7 +688,7 @@ func TestMirrorEndpointLookup(t *testing.T) {
 
 func TestPushRegistryTag(t *testing.T) {
 	r := spawnTestRegistrySession(t)
-	repoRef, err := forkedref.ParseNamed(REPO)
+	repoRef, err := reference.ParseNormalizedNamed(REPO)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -711,7 +710,7 @@ func TestPushImageJSONIndex(t *testing.T) {
 			Checksum: "sha256:bea7bf2e4bacd479344b737328db47b18880d09096e6674165533aa994f5e9f2",
 		},
 	}
-	repoRef, err := forkedref.ParseNamed(REPO)
+	repoRef, err := reference.ParseNormalizedNamed(REPO)
 	if err != nil {
 		t.Fatal(err)
 	}

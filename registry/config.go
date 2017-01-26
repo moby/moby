@@ -10,7 +10,6 @@ import (
 	"github.com/docker/distribution/reference"
 	registrytypes "github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/opts"
-	forkedref "github.com/docker/docker/reference"
 	"github.com/pkg/errors"
 	"github.com/spf13/pflag"
 )
@@ -271,8 +270,9 @@ func ValidateMirror(val string) (string, error) {
 
 // ValidateIndexName validates an index name.
 func ValidateIndexName(val string) (string, error) {
-	if val == forkedref.LegacyDefaultHostname {
-		val = forkedref.DefaultHostname
+	// TODO: upstream this to check to reference package
+	if val == "index.docker.io" {
+		val = "docker.io"
 	}
 	if strings.HasPrefix(val, "-") || strings.HasSuffix(val, "-") {
 		return "", fmt.Errorf("Invalid index name (%s). Cannot begin or end with a hyphen.", val)
@@ -328,13 +328,8 @@ func newRepositoryInfo(config *serviceConfig, name reference.Named) (*Repository
 	}
 	official := !strings.ContainsRune(reference.FamiliarName(name), '/')
 
-	// TODO: remove used of forked reference package
-	nameref, err := forkedref.ParseNamed(name.String())
-	if err != nil {
-		return nil, err
-	}
 	return &RepositoryInfo{
-		Named:    nameref,
+		Name:     reference.TrimNamed(name),
 		Index:    index,
 		Official: official,
 	}, nil

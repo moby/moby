@@ -168,11 +168,7 @@ func createContainer(ctx context.Context, dockerCli *command.DockerCli, config *
 		return nil, err
 	}
 	if named, ok := ref.(reference.Named); ok {
-		if reference.IsNameOnly(named) {
-			namedRef = reference.EnsureTagged(named)
-		} else {
-			namedRef = named
-		}
+		namedRef = reference.TagNameOnly(named)
 
 		if taggedRef, ok := namedRef.(reference.NamedTagged); ok && command.IsTrusted() {
 			var err error

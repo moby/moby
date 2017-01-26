@@ -21,7 +21,7 @@ func TestImagePushReferenceError(t *testing.T) {
 	}
 	// An empty reference is an invalid reference
 	_, err := client.ImagePush(context.Background(), "", types.ImagePushOptions{})
-	if err == nil || err.Error() != "repository name must have at least one component" {
+	if err == nil || !strings.Contains(err.Error(), "invalid reference format") {
 		t.Fatalf("expected an error, got %v", err)
 	}
 	// An canonical reference cannot be pushed

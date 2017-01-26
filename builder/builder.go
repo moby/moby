@@ -9,11 +9,11 @@ import (
 	"os"
 	"time"
 
+	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/image"
-	"github.com/docker/docker/reference"
 	"golang.org/x/net/context"
 )
 

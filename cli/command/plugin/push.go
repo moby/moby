@@ -40,10 +40,7 @@ func runPush(dockerCli *command.DockerCli, name string) error {
 		return fmt.Errorf("invalid name: %s", name)
 	}
 
-	taggedRef, ok := named.(reference.NamedTagged)
-	if !ok {
-		taggedRef = reference.EnsureTagged(named)
-	}
+	named = reference.TagNameOnly(named)
 
 	ctx := context.Background()
 
@@ -58,7 +55,7 @@ func runPush(dockerCli *command.DockerCli, name string) error {
 		return err
 	}
 
-	responseBody, err := dockerCli.Client().PluginPush(ctx, reference.FamiliarString(taggedRef), encodedAuth)
+	responseBody, err := dockerCli.Client().PluginPush(ctx, reference.FamiliarString(named), encodedAuth)
 	if err != nil {
 		return err
 	}

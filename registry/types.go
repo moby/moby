@@ -1,8 +1,8 @@
 package registry
 
 import (
+	"github.com/docker/distribution/reference"
 	registrytypes "github.com/docker/docker/api/types/registry"
-	"github.com/docker/docker/reference"
 )
 
 // RepositoryData tracks the image list, list of endpoints for a repository
@@ -57,7 +57,7 @@ var apiVersions = map[APIVersion]string{
 
 // RepositoryInfo describes a repository
 type RepositoryInfo struct {
-	reference.Named
+	Name reference.Named
 	// Index points to registry information
 	Index *registrytypes.IndexInfo
 	// Official indicates whether the repository is considered official.

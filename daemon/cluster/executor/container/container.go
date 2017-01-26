@@ -10,6 +10,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 
+	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
 	enginecontainer "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/events"
@@ -18,7 +19,6 @@ import (
 	"github.com/docker/docker/api/types/network"
 	volumetypes "github.com/docker/docker/api/types/volume"
 	clustertypes "github.com/docker/docker/daemon/cluster/provider"
-	"github.com/docker/docker/reference"
 	"github.com/docker/go-connections/nat"
 	"github.com/docker/swarmkit/agent/exec"
 	"github.com/docker/swarmkit/api"
@@ -132,11 +132,11 @@ func (c *containerConfig) name() string {
 
 func (c *containerConfig) image() string {
 	raw := c.spec().Image
-	ref, err := reference.ParseNamed(raw)
+	ref, err := reference.ParseNormalizedNamed(raw)
 	if err != nil {
 		return raw
 	}
-	return reference.WithDefaultTag(ref).String()
+	return reference.FamiliarString(reference.TagNameOnly(ref))
 }
 
 func (c *containerConfig) portBindings() nat.PortMap {
