@@ -53,7 +53,7 @@ type monitorBackend interface {
 	ContainerInspect(name string, size bool, version string) (interface{}, error)
 	ContainerLogs(ctx context.Context, name string, config *backend.ContainerLogsConfig, started chan struct{}) error
 	ContainerStats(ctx context.Context, name string, config *backend.ContainerStatsConfig) error
-	ContainerTop(name string, psArgs string) (*types.ContainerProcessList, error)
+	ContainerTop(name string, psArgs string) (*container.ContainerTopOKBody, error)
 
 	Containers(config *types.ContainerListOptions) ([]*types.Container, error)
 }

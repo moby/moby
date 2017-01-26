@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 	"golang.org/x/net/context"
 )
 
@@ -43,7 +43,7 @@ func TestContainerTop(t *testing.T) {
 				return nil, fmt.Errorf("args not set in URL query properly. Expected 'arg1 arg2', got %v", args)
 			}
 
-			b, err := json.Marshal(types.ContainerProcessList{
+			b, err := json.Marshal(container.ContainerTopOKBody{
 				Processes: [][]string{
 					{"p1", "p2"},
 					{"p3"},

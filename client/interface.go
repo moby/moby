@@ -8,6 +8,7 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/filters"
+	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/api/types/swarm"
@@ -37,7 +38,7 @@ type ContainerAPIClient interface {
 	ContainerAttach(ctx context.Context, container string, options types.ContainerAttachOptions) (types.HijackedResponse, error)
 	ContainerCommit(ctx context.Context, container string, options types.ContainerCommitOptions) (types.IDResponse, error)
 	ContainerCreate(ctx context.Context, config *container.Config, hostConfig *container.HostConfig, networkingConfig *network.NetworkingConfig, containerName string) (container.ContainerCreateCreatedBody, error)
-	ContainerDiff(ctx context.Context, container string) ([]types.ContainerChange, error)
+	ContainerDiff(ctx context.Context, container string) ([]container.ContainerChangeResponseItem, error)
 	ContainerExecAttach(ctx context.Context, execID string, config types.ExecConfig) (types.HijackedResponse, error)
 	ContainerExecCreate(ctx context.Context, container string, config types.ExecConfig) (types.IDResponse, error)
 	ContainerExecInspect(ctx context.Context, execID string) (types.ContainerExecInspect, error)
@@ -58,7 +59,7 @@ type ContainerAPIClient interface {
 	ContainerStats(ctx context.Context, container string, stream bool) (types.ContainerStats, error)
 	ContainerStart(ctx context.Context, container string, options types.ContainerStartOptions) error
 	ContainerStop(ctx context.Context, container string, timeout *time.Duration) error
-	ContainerTop(ctx context.Context, container string, arguments []string) (types.ContainerProcessList, error)
+	ContainerTop(ctx context.Context, container string, arguments []string) (container.ContainerTopOKBody, error)
 	ContainerUnpause(ctx context.Context, container string) error
 	ContainerUpdate(ctx context.Context, container string, updateConfig container.UpdateConfig) (container.ContainerUpdateOKBody, error)
 	ContainerWait(ctx context.Context, container string) (int64, error)
@@ -71,14 +72,14 @@ type ContainerAPIClient interface {
 type ImageAPIClient interface {
 	ImageBuild(ctx context.Context, context io.Reader, options types.ImageBuildOptions) (types.ImageBuildResponse, error)
 	ImageCreate(ctx context.Context, parentReference string, options types.ImageCreateOptions) (io.ReadCloser, error)
-	ImageHistory(ctx context.Context, image string) ([]types.ImageHistory, error)
+	ImageHistory(ctx context.Context, image string) ([]image.HistoryResponseItem, error)
 	ImageImport(ctx context.Context, source types.ImageImportSource, ref string, options types.ImageImportOptions) (io.ReadCloser, error)
 	ImageInspectWithRaw(ctx context.Context, image string) (types.ImageInspect, []byte, error)
 	ImageList(ctx context.Context, options types.ImageListOptions) ([]types.ImageSummary, error)
 	ImageLoad(ctx context.Context, input io.Reader, quiet bool) (types.ImageLoadResponse, error)
 	ImagePull(ctx context.Context, ref string, options types.ImagePullOptions) (io.ReadCloser, error)
 	ImagePush(ctx context.Context, ref string, options types.ImagePushOptions) (io.ReadCloser, error)
-	ImageRemove(ctx context.Context, image string, options types.ImageRemoveOptions) ([]types.ImageDelete, error)
+	ImageRemove(ctx context.Context, image string, options types.ImageRemoveOptions) ([]types.ImageDeleteResponseItem, error)
 	ImageSearch(ctx context.Context, term string, options types.ImageSearchOptions) ([]registry.SearchResult, error)
 	ImageSave(ctx context.Context, images []string) (io.ReadCloser, error)
 	ImageTag(ctx context.Context, image, ref string) error

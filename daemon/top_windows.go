@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/docker/docker/api/types"
+	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/go-units"
 )
 
@@ -23,7 +23,7 @@ import (
 //    task manager does and use the private working set as the memory counter.
 //    We could return more info for those who really understand how memory
 //    management works in Windows if we introduced a "raw" stats (above).
-func (daemon *Daemon) ContainerTop(name string, psArgs string) (*types.ContainerProcessList, error) {
+func (daemon *Daemon) ContainerTop(name string, psArgs string) (*containertypes.ContainerTopOKBody, error) {
 	// It's not at all an equivalent to linux 'ps' on Windows
 	if psArgs != "" {
 		return nil, errors.New("Windows does not support arguments to top")
@@ -38,7 +38,7 @@ func (daemon *Daemon) ContainerTop(name string, psArgs string) (*types.Container
 	if err != nil {
 		return nil, err
 	}
-	procList := &types.ContainerProcessList{}
+	procList := &containertypes.ContainerTopOKBody{}
 	procList.Titles = []string{"Name", "PID", "CPU", "Private Working Set"}
 
 	for _, j := range s {

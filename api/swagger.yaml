@@ -829,22 +829,40 @@ definitions:
         items:
           $ref: "#/definitions/Port"
 
-  GraphDriver:
-    description: "Information about this container's graph driver."
+  GraphDriverData:
+    description: "Information about a container's graph driver."
     type: "object"
+    required: [Name, Data]
     properties:
       Name:
         type: "string"
+        x-nullable: false
       Data:
         type: "object"
+        x-nullable: false
         additionalProperties:
           type: "string"
 
   Image:
     type: "object"
+    required:
+      - Id
+      - Parent
+      - Comment
+      - Created
+      - Container
+      - DockerVersion
+      - Author
+      - Architecture
+      - Os
+      - Size
+      - VirtualSize
+      - GraphDriver
+      - RootFS
     properties:
       Id:
         type: "string"
+        x-nullable: false
       RepoTags:
         type: "array"
         items:
@@ -855,37 +873,51 @@ definitions:
           type: "string"
       Parent:
         type: "string"
+        x-nullable: false
       Comment:
         type: "string"
+        x-nullable: false
       Created:
         type: "string"
+        x-nullable: false
       Container:
         type: "string"
+        x-nullable: false
       ContainerConfig:
         $ref: "#/definitions/Config"
       DockerVersion:
         type: "string"
+        x-nullable: false
       Author:
         type: "string"
+        x-nullable: false
       Config:
         $ref: "#/definitions/Config"
       Architecture:
         type: "string"
+        x-nullable: false
       Os:
+        type: "string"
+        x-nullable: false
+      OsVersion:
         type: "string"
       Size:
         type: "integer"
         format: "int64"
+        x-nullable: false
       VirtualSize:
         type: "integer"
         format: "int64"
+        x-nullable: false
       GraphDriver:
-        $ref: "#/definitions/GraphDriver"
+        $ref: "#/definitions/GraphDriverData"
       RootFS:
         type: "object"
+        required: [Type]
         properties:
           Type:
             type: "string"
+            x-nullable: false
           Layers:
             type: "array"
             items:
@@ -2302,7 +2334,7 @@ definitions:
           -
             NetworkID: "4qvuz4ko70xaltuqbt8956gd1"
             Addr: "10.255.0.3/16"
-  ImageDeleteResponse:
+  ImageDeleteResponseItem:
     type: "object"
     properties:
       Untagged:
@@ -2899,7 +2931,7 @@ paths:
               HostConfig:
                 $ref: "#/definitions/HostConfig"
               GraphDriver:
-                $ref: "#/definitions/GraphDriver"
+                $ref: "#/definitions/GraphDriverData"
               SizeRw:
                 description: "The size of files that have been created or changed by this container."
                 type: "integer"
@@ -3231,32 +3263,34 @@ paths:
     get:
       summary: "Get changes on a container’s filesystem"
       description: |
-        Returns which files in a container's filesystem have been added, deleted, or modified. The `Kind` of modification can be one of:
+        Returns which files in a container's filesystem have been added, deleted,
+        or modified. The `Kind` of modification can be one of:
 
         - `0`: Modified
         - `1`: Added
         - `2`: Deleted
       operationId: "ContainerChanges"
-      produces:
-        - "application/json"
+      produces: ["application/json"]
       responses:
         200:
-          description: "no error"
+          description: "The list of changes"
           schema:
             type: "array"
             items:
               type: "object"
+              x-go-name: "ContainerChangeResponseItem"
+              required: [Path, Kind]
               properties:
                 Path:
                   description: "Path to file that has changed"
                   type: "string"
+                  x-nullable: false
                 Kind:
                   description: "Kind of change"
                   type: "integer"
-                  enum:
-                    - 0
-                    - 1
-                    - 2
+                  format: "uint8"
+                  enum: [0, 1, 2]
+                  x-nullable: false
           examples:
             application/json:
               - Path: "/dev"
@@ -3315,12 +3349,14 @@ paths:
     get:
       summary: "Get container stats based on resource usage"
       description: |
-        This endpoint returns a live stream of a container’s resource usage statistics.
+        This endpoint returns a live stream of a container’s resource usage
+        statistics.
 
-        The `precpu_stats` is the CPU statistic of last read, which is used for calculating the CPU usage percentage. It is not the same as the `cpu_stats` field.
+        The `precpu_stats` is the CPU statistic of last read, which is used
+        for calculating the CPU usage percentage. It is not the same as the
+        `cpu_stats` field.
       operationId: "ContainerStats"
-      produces:
-        - "application/json"
+      produces: ["application/json"]
       responses:
         200:
           description: "no error"
@@ -4042,7 +4078,7 @@ paths:
     head:
       summary: "Get information about files in a container"
       description: "A response header `X-Docker-Container-Path-Stat` is return containing a base64 - encoded JSON object with some filesystem header information about the path."
-      operationId: "ContainerArchiveHead"
+      operationId: "ContainerArchiveInfo"
       responses:
         200:
           description: "no error"
@@ -4087,9 +4123,8 @@ paths:
     get:
       summary: "Get an archive of a filesystem resource in a container"
       description: "Get a tar archive of a resource in the filesystem of container id."
-      operationId: "ContainerGetArchive"
-      produces:
-        - "application/x-tar"
+      operationId: "ContainerArchive"
+      produces: ["application/x-tar"]
       responses:
         200:
           description: "no error"
@@ -4130,10 +4165,8 @@ paths:
     put:
       summary: "Extract an archive of files or folders to a directory in a container"
       description: "Upload a tar archive to be extracted to a path in the filesystem of container id."
-      operationId: "ContainerPutArchive"
-      consumes:
-        - "application/x-tar"
-        - "application/octet-stream"
+      operationId: "PutContainerArchive"
+      consumes: ["application/x-tar", "application/octet-stream"]
       responses:
         200:
           description: "The content was extracted successfully"
@@ -4533,6 +4566,7 @@ paths:
               Created: "2015-09-10T08:30:53.26995814Z"
               GraphDriver:
                 Name: "aufs"
+                Data: {}
               RepoDigests:
                 - "localhost:5000/test/busybox/example@sha256:cbbf2f9a99b47fc460d422812b6a5adff7dfee951d8fa2e4a98caa0382cfbdbf"
               RepoTags:
@@ -4591,23 +4625,27 @@ paths:
       summary: "Get the history of an image"
       description: "Return parent layers of an image."
       operationId: "ImageHistory"
-      produces:
-        - "application/json"
+      produces: ["application/json"]
       responses:
         200:
-          description: "No error"
+          description: "List of image layers"
           schema:
             type: "array"
             items:
               type: "object"
+              x-go-name: HistoryResponseItem
+              required: [Id, Created, CreatedBy, Tags, Size, Comment]
               properties:
                 Id:
                   type: "string"
+                  x-nullable: false
                 Created:
                   type: "integer"
                   format: "int64"
+                  x-nullable: false
                 CreatedBy:
                   type: "string"
+                  x-nullable: false
                 Tags:
                   type: "array"
                   items:
@@ -4615,8 +4653,10 @@ paths:
                 Size:
                   type: "integer"
                   format: "int64"
+                  x-nullable: false
                 Comment:
                   type: "string"
+                  x-nullable: false
           examples:
             application/json:
               - Id: "3db9c44f45209632d6050b35958829c3a2aa256d81b9a7be45b362ff85c54710"
@@ -4738,19 +4778,20 @@ paths:
     delete:
       summary: "Remove an image"
       description: |
-        Remove an image, along with any untagged parent images that were referenced by that image.
+        Remove an image, along with any untagged parent images that were
+        referenced by that image.
 
-        Images can't be removed if they have descendant images, are being used by a running container or are being used by a build.
+        Images can't be removed if they have descendant images, are being
+        used by a running container or are being used by a build.
       operationId: "ImageDelete"
-      produces:
-        - "application/json"
+      produces: ["application/json"]
       responses:
         200:
-          description: "No error"
+          description: "The image was deleted successfully"
           schema:
             type: "array"
             items:
-              $ref: "#/definitions/ImageDeleteResponse"
+              $ref: "#/definitions/ImageDeleteResponseItem"
           examples:
             application/json:
               - Untagged: "3e2f21a89f"
@@ -4879,7 +4920,7 @@ paths:
                 description: "Images that were deleted"
                 type: "array"
                 items:
-                  $ref: "#/definitions/ImageDeleteResponse"
+                  $ref: "#/definitions/ImageDeleteResponseItem"
               SpaceReclaimed:
                 description: "Disk space reclaimed in bytes"
                 type: "integer"
@@ -5145,8 +5186,7 @@ paths:
       summary: "Get version"
       description: "Returns the version of Docker that is running and various information about the system that Docker is running on."
       operationId: "SystemVersion"
-      produces:
-        - "application/json"
+      produces: ["application/json"]
       responses:
         200:
           description: "no error"
@@ -5195,14 +5235,20 @@ paths:
       summary: "Ping"
       description: "This is a dummy endpoint you can use to test if the server is accessible."
       operationId: "SystemPing"
-      produces:
-        - "text/plain"
+      produces: ["text/plain"]
       responses:
         200:
           description: "no error"
           schema:
             type: "string"
             example: "OK"
+          headers:
+            API-Version:
+              type: "string"
+              description: "Max API Version the server supports"
+            Docker-Experimental:
+              type: "boolean"
+              description: "If the server is running with experimental mode enabled"
         500:
           description: "server error"
           schema:
@@ -7293,7 +7339,7 @@ paths:
         200:
           description: "no error"
           schema:
-            $ref: "#/definitions/ImageDeleteResponse"
+            $ref: "#/definitions/ServiceUpdateResponse"
         400:
           description: "bad parameter"
           schema:

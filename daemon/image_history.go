@@ -4,21 +4,21 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/reference"
 )
 
 // ImageHistory returns a slice of ImageHistory structures for the specified image
 // name by walking the image lineage.
-func (daemon *Daemon) ImageHistory(name string) ([]*types.ImageHistory, error) {
+func (daemon *Daemon) ImageHistory(name string) ([]*image.HistoryResponseItem, error) {
 	start := time.Now()
 	img, err := daemon.GetImage(name)
 	if err != nil {
 		return nil, err
 	}
 
-	history := []*types.ImageHistory{}
+	history := []*image.HistoryResponseItem{}
 
 	layerCounter := 0
 	rootFS := *img.RootFS
@@ -46,7 +46,7 @@ func (daemon *Daemon) ImageHistory(name string) ([]*types.ImageHistory, error) {
 			layerCounter++
 		}
 
-		history = append([]*types.ImageHistory{{
+		history = append([]*image.HistoryResponseItem{{
 			ID:        "<missing>",
 			Created:   h.Created.Unix(),
 			CreatedBy: h.CreatedBy,
