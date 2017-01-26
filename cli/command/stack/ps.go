@@ -46,9 +46,7 @@ func runPS(dockerCli *command.DockerCli, opts psOptions) error {
 	client := dockerCli.Client()
 	ctx := context.Background()
 
-	filter := opts.filter.Value()
-	filter.Add("label", labelNamespace+"="+opts.namespace)
-
+	filter := getStackFilterFromOpt(opts.namespace, opts.filter)
 	tasks, err := client.TaskList(ctx, types.TaskListOptions{Filters: filter})
 	if err != nil {
 		return err
