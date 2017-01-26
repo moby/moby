@@ -449,11 +449,23 @@ __docker_append_to_completions() {
 	COMPREPLY=( ${COMPREPLY[@]/%/"$1"} )
 }
 
-# __docker_is_experimental tests whether the currently configured Docker daemon
-# runs in experimental mode. If so, the function exits with 0 (true).
+# __docker_daemon_is_experimental tests whether the currently configured Docker
+# daemon runs in experimental mode. If so, the function exits with 0 (true).
 # Otherwise, or if the result cannot be determined, the exit value is 1 (false).
-__docker_is_experimental() {
+__docker_daemon_is_experimental() {
 	[ "$(__docker_q version -f '{{.Server.Experimental}}')" = "true" ]
+}
+
+# __docker_daemon_os_is tests whether the currently configured Docker daemon runs
+# on the operating system passed in as the first argument.
+# It does so by querying the daemon for its OS. The result is cached for the duration
+# of one invocation of bash completion so that this function can be used to test for
+# several different operating systems without additional costs.
+# Known operating systems: linux, windows.
+__docker_daemon_os_is() {
+	local expected_os="$1"
+	local actual_os=${daemon_os=$(__docker_q version -f '{{.Server.Os}}')}
+	[ "$actual_os" = "$expected_os" ]
 }
 
 # __docker_pos_first_nonflag finds the position of the first word that is neither
@@ -908,7 +920,7 @@ _docker_docker() {
 		*)
 			local counter=$( __docker_pos_first_nonflag "$(__docker_to_extglob "$global_options_with_args")" )
 			if [ $cword -eq $counter ]; then
-				__docker_is_experimental && commands+=(${experimental_commands[*]})
+				__docker_daemon_is_experimental && commands+=(${experimental_commands[*]})
 				COMPREPLY=( $( compgen -W "${commands[*]} help" -- "$cur" ) )
 			fi
 			;;
@@ -1363,7 +1375,6 @@ _docker_container_run() {
 		--ip
 		--ip6
 		--ipc
-		--isolation
 		--kernel-memory
 		--label-file
 		--label -l
@@ -1400,6 +1411,14 @@ _docker_container_run() {
 		--volumes-from
 		--volume -v
 		--workdir -w
+	"
+	__docker_daemon_os_is windows && options_with_args+="
+		--cpu-count
+		--cpu-percent
+		--credentialspec
+		--io-maxbandwidth
+		--io-maxiops
+		--isolation
 	"
 
 	local boolean_options="
@@ -1518,8 +1537,10 @@ _docker_container_run() {
 			return
 			;;
 		--isolation)
-			__docker_complete_isolation
-			return
+			if __docker_daemon_os_is windows ; then
+				__docker_complete_isolation
+				return
+			fi
 			;;
 		--link)
 			case "$cur" in
@@ -1948,7 +1969,7 @@ _docker_daemon() {
 }
 
 _docker_deploy() {
-	__docker_is_experimental && _docker_stack_deploy
+	__docker_daemon_is_experimental && _docker_stack_deploy
 }
 
 _docker_diff() {
@@ -2023,7 +2044,6 @@ _docker_image_build() {
 		--cpu-period
 		--cpu-quota
 		--file -f
-		--isolation
 		--label
 		--memory -m
 		--memory-swap
@@ -2031,6 +2051,9 @@ _docker_image_build() {
 		--shm-size
 		--tag -t
 		--ulimit
+	"
+	__docker_daemon_os_is windows && options_with_args+="
+		--isolation
 	"
 
 	local boolean_options="
@@ -2043,7 +2066,7 @@ _docker_image_build() {
 		--quiet -q
 		--rm
 	"
-	__docker_is_experimental && boolean_options+="--squash"
+	__docker_daemon_is_experimental && boolean_options+="--squash"
 
 	local all_options="$options_with_args $boolean_options"
 
@@ -2062,8 +2085,10 @@ _docker_image_build() {
 			return
 			;;
 		--isolation)
-			__docker_complete_isolation
-			return
+			if __docker_daemon_os_is windows ; then
+				__docker_complete_isolation
+				return
+			fi
 			;;
 		--network)
 			case "$cur" in
@@ -3622,7 +3647,7 @@ _docker_stack() {
 _docker_stack_deploy() {
 	case "$prev" in
 		--bundle-file)
-			if __docker_is_experimental ; then
+			if __docker_daemon_is_experimental ; then
 				_filedir dab
 				return
 			fi
@@ -3636,7 +3661,7 @@ _docker_stack_deploy() {
 	case "$cur" in
 		-*)
 			local options="--compose-file -c --help --with-registry-auth"
-			__docker_is_experimental && options+=" --bundle-file"
+			__docker_daemon_is_experimental && options+=" --bundle-file"
 			COMPREPLY=( $( compgen -W "$options" -- "$cur" ) )
 			;;
 	esac
@@ -4146,7 +4171,7 @@ _docker() {
 		--tlskey
 	"
 
-	local host config
+	local host config daemon_os
 
 	COMPREPLY=()
 	local cur prev words cword
