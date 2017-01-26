@@ -1,4 +1,4 @@
-package runconfig
+package cache
 
 import (
 	"testing"
@@ -114,12 +114,12 @@ func TestCompare(t *testing.T) {
 		&container.Config{Volumes: volumes1}: {Volumes: volumes3},
 	}
 	for config1, config2 := range sameConfigs {
-		if !Compare(config1, config2) {
+		if !compare(config1, config2) {
 			t.Fatalf("Compare should be true for [%v] and [%v]", config1, config2)
 		}
 	}
 	for config1, config2 := range differentConfigs {
-		if Compare(config1, config2) {
+		if compare(config1, config2) {
 			t.Fatalf("Compare should be false for [%v] and [%v]", config1, config2)
 		}
 	}
