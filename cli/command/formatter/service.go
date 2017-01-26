@@ -5,9 +5,11 @@ import (
 	"strings"
 	"time"
 
+	distreference "github.com/docker/distribution/reference"
 	mounttypes "github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/cli/command/inspect"
+	"github.com/docker/docker/pkg/stringid"
 	units "github.com/docker/go-units"
 )
 
@@ -326,4 +328,94 @@ func (ctx *serviceInspectContext) EndpointMode() string {
 
 func (ctx *serviceInspectContext) Ports() []swarm.PortConfig {
 	return ctx.Service.Endpoint.Ports
+}
+
+const (
+	defaultServiceTableFormat = "table {{.ID}}\t{{.Name}}\t{{.Mode}}\t{{.Replicas}}\t{{.Image}}"
+
+	serviceIDHeader = "ID"
+	modeHeader      = "MODE"
+	replicasHeader  = "REPLICAS"
+)
+
+// NewServiceListFormat returns a Format for rendering using a service Context
+func NewServiceListFormat(source string, quiet bool) Format {
+	switch source {
+	case TableFormatKey:
+		if quiet {
+			return defaultQuietFormat
+		}
+		return defaultServiceTableFormat
+	case RawFormatKey:
+		if quiet {
+			return `id: {{.ID}}`
+		}
+		return `id: {{.ID}}\nname: {{.Name}}\nmode: {{.Mode}}\nreplicas: {{.Replicas}}\nimage: {{.Image}}\n`
+	}
+	return Format(source)
+}
+
+// ServiceListInfo stores the information about mode and replicas to be used by template
+type ServiceListInfo struct {
+	Mode     string
+	Replicas string
+}
+
+// ServiceListWrite writes the context
+func ServiceListWrite(ctx Context, services []swarm.Service, info map[string]ServiceListInfo) error {
+	render := func(format func(subContext subContext) error) error {
+		for _, service := range services {
+			serviceCtx := &serviceContext{service: service, mode: info[service.ID].Mode, replicas: info[service.ID].Replicas}
+			if err := format(serviceCtx); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+	return ctx.Write(&serviceContext{}, render)
+}
+
+type serviceContext struct {
+	HeaderContext
+	service  swarm.Service
+	mode     string
+	replicas string
+}
+
+func (c *serviceContext) MarshalJSON() ([]byte, error) {
+	return marshalJSON(c)
+}
+
+func (c *serviceContext) ID() string {
+	c.AddHeader(serviceIDHeader)
+	return stringid.TruncateID(c.service.ID)
+}
+
+func (c *serviceContext) Name() string {
+	c.AddHeader(nameHeader)
+	return c.service.Spec.Name
+}
+
+func (c *serviceContext) Mode() string {
+	c.AddHeader(modeHeader)
+	return c.mode
+}
+
+func (c *serviceContext) Replicas() string {
+	c.AddHeader(replicasHeader)
+	return c.replicas
+}
+
+func (c *serviceContext) Image() string {
+	c.AddHeader(imageHeader)
+	image := c.service.Spec.TaskTemplate.ContainerSpec.Image
+	if ref, err := distreference.ParseNamed(image); err == nil {
+		// update image string for display
+		namedTagged, ok := ref.(distreference.NamedTagged)
+		if ok {
+			image = namedTagged.Name() + ":" + namedTagged.Tag()
+		}
+	}
+
+	return image
 }

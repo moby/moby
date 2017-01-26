@@ -22,9 +22,10 @@ Usage:	docker stack services [OPTIONS] STACK
 List the services in the stack
 
 Options:
-  -f, --filter value   Filter output based on conditions provided
-      --help           Print usage
-  -q, --quiet          Only display IDs
+  -f, --filter filter   Filter output based on conditions provided
+      --format string   Pretty-print services using a Go template
+      --help            Print usage
+  -q, --quiet           Only display IDs
 ```
 
 Lists the services that are running as part of the specified stack. This
@@ -61,6 +62,35 @@ The currently supported filters are:
 * id / ID (`--filter id=7be5ei6sqeye`, or `--filter ID=7be5ei6sqeye`)
 * name (`--filter name=myapp_web`)
 * label (`--filter label=key=value`)
+
+## Formatting
+
+The formatting options (`--format`) pretty-prints services output
+using a Go template.
+
+Valid placeholders for the Go template are listed below:
+
+Placeholder | Description
+------------|------------------------------------------------------------------------------------------
+`.ID`       | Service ID
+`.Name`     | Service name
+`.Mode`     | Service mode (replicated, global)
+`.Replicas` | Service replicas
+`.Image`    | Service image
+
+When using the `--format` option, the `stack services` command will either
+output the data exactly as the template declares or, when using the
+`table` directive, includes column headers as well.
+
+The following example uses a template without headers and outputs the
+`ID`, `Mode`, and `Replicas` entries separated by a colon for all services:
+
+```bash
+$ docker stack services --format "{{.ID}}: {{.Mode}} {{.Replicas}}"
+0zmvwuiu3vue: replicated 10/10
+fm6uf97exkul: global 5/5
+```
+
 
 ## Related information
 

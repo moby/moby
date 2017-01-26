@@ -24,9 +24,10 @@ Aliases:
   ls, list
 
 Options:
-  -f, --filter value   Filter output based on conditions provided
-      --help           Print usage
-  -q, --quiet          Only display IDs
+  -f, --filter filter   Filter output based on conditions provided
+      --format string   Pretty-print services using a Go template
+      --help            Print usage
+  -q, --quiet           Only display IDs
 ```
 
 This command when run targeting a manager, lists services are running in the
@@ -101,6 +102,34 @@ The following filter matches services with a name containing `redis`.
 $ docker service ls --filter name=redis
 ID            NAME   MODE        REPLICAS  IMAGE
 0bcjwfh8ychr  redis  replicated  1/1       redis:3.0.6
+```
+
+## Formatting
+
+The formatting options (`--format`) pretty-prints services output
+using a Go template.
+
+Valid placeholders for the Go template are listed below:
+
+Placeholder | Description
+------------|------------------------------------------------------------------------------------------
+`.ID`       | Service ID
+`.Name`     | Service name
+`.Mode`     | Service mode (replicated, global)
+`.Replicas` | Service replicas
+`.Image`    | Service image
+
+When using the `--format` option, the `service ls` command will either
+output the data exactly as the template declares or, when using the
+`table` directive, includes column headers as well.
+
+The following example uses a template without headers and outputs the
+`ID`, `Mode`, and `Replicas` entries separated by a colon for all services:
+
+```bash
+$ docker service ls --format "{{.ID}}: {{.Mode}} {{.Replicas}}"
+0zmvwuiu3vue: replicated 10/10
+fm6uf97exkul: global 5/5
 ```
 
 ## Related information
