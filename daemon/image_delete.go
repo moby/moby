@@ -170,7 +170,7 @@ func (daemon *Daemon) ImageDelete(imageRef string, force, prune bool) ([]types.I
 		}
 	}
 
-	if err := daemon.imageDeleteHelper(imgID, &records, force, prune, removedRepositoryRef); err != nil {
+	if err := daemon.imageDeleteHelper(imgID, records, force, prune, removedRepositoryRef); err != nil {
 		return nil, err
 	}
 
@@ -246,7 +246,7 @@ func (daemon *Daemon) removeImageRef(ref reference.Named) (reference.Named, erro
 // on the first encountered error. Removed references are logged to this
 // daemon's event service. An "Untagged" types.ImageDelete is added to the
 // given list of records.
-func (daemon *Daemon) removeAllReferencesToImageID(imgID image.ID, records *[]types.ImageDelete) error {
+func (daemon *Daemon) removeAllReferencesToImageID(imgID image.ID, records []types.ImageDelete) error {
 	imageRefs := daemon.referenceStore.References(imgID.Digest())
 
 	for _, imageRef := range imageRefs {
@@ -258,7 +258,7 @@ func (daemon *Daemon) removeAllReferencesToImageID(imgID image.ID, records *[]ty
 		untaggedRecord := types.ImageDelete{Untagged: parsedRef.String()}
 
 		daemon.LogImageEvent(imgID.String(), imgID.String(), "untag")
-		*records = append(*records, untaggedRecord)
+		records = append(records, untaggedRecord)
 	}
 
 	return nil
@@ -295,7 +295,7 @@ func (idc *imageDeleteConflict) Error() string {
 // conflict is encountered, it will be returned immediately without deleting
 // the image. If quiet is true, any encountered conflicts will be ignored and
 // the function will return nil immediately without deleting the image.
-func (daemon *Daemon) imageDeleteHelper(imgID image.ID, records *[]types.ImageDelete, force, prune, quiet bool) error {
+func (daemon *Daemon) imageDeleteHelper(imgID image.ID, records []types.ImageDelete, force, prune, quiet bool) error {
 	// First, determine if this image has any conflicts. Ignore soft conflicts
 	// if force is true.
 	c := conflictHard
@@ -331,9 +331,9 @@ func (daemon *Daemon) imageDeleteHelper(imgID image.ID, records *[]types.ImageDe
 	}
 
 	daemon.LogImageEvent(imgID.String(), imgID.String(), "delete")
-	*records = append(*records, types.ImageDelete{Deleted: imgID.String()})
+	records = append(records, types.ImageDelete{Deleted: imgID.String()})
 	for _, removedLayer := range removedLayers {
-		*records = append(*records, types.ImageDelete{Deleted: removedLayer.ChainID.String()})
+		records = append(records, types.ImageDelete{Deleted: removedLayer.ChainID.String()})
 	}
 
 	if !prune || parent == "" {

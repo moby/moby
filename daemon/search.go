@@ -66,7 +66,7 @@ func (daemon *Daemon) SearchRegistryForImages(ctx context.Context, filtersArgs s
 		return nil, err
 	}
 
-	filteredResults := []registrytypes.SearchResult{}
+	filteredResults := unfilteredResult.Results[:0]
 	for _, result := range unfilteredResult.Results {
 		if searchFilters.Include("is-automated") {
 			if isAutomated != result.IsAutomated {
