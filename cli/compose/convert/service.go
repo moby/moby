@@ -211,11 +211,20 @@ func convertServiceSecrets(
 			source = secretSpec.External.Name
 		}
 
+		uid := secret.UID
+		gid := secret.GID
+		if uid == "" {
+			uid = "0"
+		}
+		if gid == "" {
+			gid = "0"
+		}
+
 		opts = append(opts, &types.SecretRequestOption{
 			Source: source,
 			Target: target,
-			UID:    secret.UID,
-			GID:    secret.GID,
+			UID:    uid,
+			GID:    gid,
 			Mode:   os.FileMode(secret.Mode),
 		})
 	}
