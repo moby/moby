@@ -561,7 +561,7 @@ __docker_container_subcommand() {
         "($help)*--group=[Set one or more supplementary user groups for the container]:group:_groups"
         "($help -h --hostname)"{-h=,--hostname=}"[Container host name]:hostname:_hosts"
         "($help -i --interactive)"{-i,--interactive}"[Keep stdin open even if not attached]"
-        "($help)--init[Run an init inside the container that forwards signals and reaps processes]" \
+        "($help)--init[Run an init inside the container that forwards signals and reaps processes]"
         "($help)--ip=[Container IPv4 address]:IPv4: "
         "($help)--ip6=[Container IPv6 address]:IPv6: "
         "($help)--ipc=[IPC namespace to use]:IPC namespace: "
