@@ -71,6 +71,7 @@ type Config struct {
 	Services []ServiceConfig
 	Networks map[string]NetworkConfig
 	Volumes  map[string]VolumeConfig
+	Secrets  map[string]SecretConfig
 }
 
 // ServiceConfig is the configuration of one service
@@ -108,6 +109,7 @@ type ServiceConfig struct {
 	Privileged      bool
 	ReadOnly        bool `mapstructure:"read_only"`
 	Restart         string
+	Secrets         []ServiceSecretConfig
 	SecurityOpt     []string       `mapstructure:"security_opt"`
 	StdinOpen       bool           `mapstructure:"stdin_open"`
 	StopGracePeriod *time.Duration `mapstructure:"stop_grace_period"`
@@ -191,6 +193,15 @@ type ServiceNetworkConfig struct {
 	Ipv6Address string `mapstructure:"ipv6_address"`
 }
 
+// ServiceSecretConfig is the secret configuration for a service
+type ServiceSecretConfig struct {
+	Source string
+	Target string
+	UID    string
+	GID    string
+	Mode   uint32
+}
+
 // UlimitsConfig the ulimit configuration
 type UlimitsConfig struct {
 	Single int
@@ -232,4 +243,11 @@ type VolumeConfig struct {
 type External struct {
 	Name     string
 	External bool
+}
+
+// SecretConfig for a secret
+type SecretConfig struct {
+	File     string
+	External External
+	Labels   map[string]string `compose:"list_or_dict_equals"`
 }
