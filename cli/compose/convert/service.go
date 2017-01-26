@@ -2,6 +2,7 @@ package convert
 
 import (
 	"fmt"
+	"sort"
 	"time"
 
 	"github.com/docker/docker/api/types/container"
@@ -98,9 +99,9 @@ func convertService(
 				Command:         service.Entrypoint,
 				Args:            service.Command,
 				Hostname:        service.Hostname,
-				Hosts:           convertExtraHosts(service.ExtraHosts),
+				Hosts:           sortStrings(convertExtraHosts(service.ExtraHosts)),
 				Healthcheck:     healthcheck,
-				Env:             convertEnvironment(service.Environment),
+				Env:             sortStrings(convertEnvironment(service.Environment)),
 				Labels:          AddStackLabel(namespace, service.Labels),
 				Dir:             service.WorkingDir,
 				User:            service.User,
@@ -124,6 +125,17 @@ func convertService(
 
 	return serviceSpec, nil
 }
+
+func sortStrings(strs []string) []string {
+	sort.Strings(strs)
+	return strs
+}
+
+type byNetworkTarget []swarm.NetworkAttachmentConfig
+
+func (a byNetworkTarget) Len() int           { return len(a) }
+func (a byNetworkTarget) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+func (a byNetworkTarget) Less(i, j int) bool { return a[i].Target < a[j].Target }
 
 func convertServiceNetworks(
 	networks map[string]*composetypes.ServiceNetworkConfig,
@@ -160,6 +172,9 @@ func convertServiceNetworks(
 			Aliases: append(aliases, name),
 		})
 	}
+
+	sort.Sort(byNetworkTarget(nets))
+
 	return nets, nil
 }
 
@@ -294,6 +309,12 @@ func convertResources(source composetypes.Resources) (*swarm.ResourceRequirement
 
 }
 
+type byPublishedPort []swarm.PortConfig
+
+func (a byPublishedPort) Len() int           { return len(a) }
+func (a byPublishedPort) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+func (a byPublishedPort) Less(i, j int) bool { return a[i].PublishedPort < a[j].PublishedPort }
+
 func convertEndpointSpec(source []string) (*swarm.EndpointSpec, error) {
 	portConfigs := []swarm.PortConfig{}
 	ports, portBindings, err := nat.ParsePortSpecs(source)
@@ -306,6 +327,9 @@ func convertEndpointSpec(source []string) (*swarm.EndpointSpec, error) {
 			portConfigs,
 			opts.ConvertPortToPortConfig(port, portBindings)...)
 	}
+
+	// Sorting to make sure these are always in the same order
+	sort.Sort(byPublishedPort(portConfigs))
 
 	return &swarm.EndpointSpec{Ports: portConfigs}, nil
 }
