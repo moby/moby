@@ -828,17 +828,11 @@ func (s *DockerSuite) TestRunTmpfsMounts(c *check.C) {
 
 func (s *DockerSuite) TestRunTmpfsMountsOverrideImageVolumes(c *check.C) {
 	name := "img-with-volumes"
-	_, err := buildImage(
-		name,
-		`
+	buildImageSuccessfully(c, name, withDockerfile(`
     FROM busybox
     VOLUME /run
     RUN touch /run/stuff
-    `,
-		true)
-	if err != nil {
-		c.Fatal(err)
-	}
+    `))
 	out, _ := dockerCmd(c, "run", "--tmpfs", "/run", name, "ls", "/run")
 	c.Assert(out, checker.Not(checker.Contains), "stuff")
 }
@@ -978,7 +972,7 @@ func (s *DockerSuite) TestRunSeccompProfileDenyChmod(c *check.C) {
 }
 
 // TestRunSeccompProfileDenyUnshareUserns checks that 'docker run debian:jessie unshare --map-root-user --user sh -c whoami' with a specific profile to
-// deny unhare of a userns exits with operation not permitted.
+// deny unshare of a userns exits with operation not permitted.
 func (s *DockerSuite) TestRunSeccompProfileDenyUnshareUserns(c *check.C) {
 	testRequires(c, SameHostDaemon, seccompEnabled, NotArm, Apparmor)
 	// from sched.h
@@ -1013,6 +1007,18 @@ func (s *DockerSuite) TestRunSeccompProfileDenyUnshareUserns(c *check.C) {
 		ExitCode: 1,
 		Err:      "Operation not permitted",
 	})
+}
+
+// TestRunSeccompProfileDenyUnusualSocketFamilies checks that rarely used socket families such as Appletalk are blocked by the default profile
+func (s *DockerSuite) TestRunSeccompProfileDenyUnusualSocketFamilies(c *check.C) {
+	testRequires(c, SameHostDaemon, seccompEnabled)
+	ensureSyscallTest(c)
+
+	runCmd := exec.Command(dockerBinary, "run", "syscall-test", "appletalk-test")
+	_, _, err := runCommandWithOutput(runCmd)
+	if err != nil {
+		c.Fatal("expected opening appletalk socket family to fail")
+	}
 }
 
 // TestRunSeccompProfileDenyCloneUserns checks that 'docker run syscall-test'

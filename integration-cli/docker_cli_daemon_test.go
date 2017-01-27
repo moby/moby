@@ -1398,7 +1398,7 @@ func (s *DockerDaemonSuite) TestDaemonRestartWithSocketAsVolume(c *check.C) {
 // A subsequent daemon restart shoud clean up said mounts.
 func (s *DockerDaemonSuite) TestCleanupMountsAfterDaemonAndContainerKill(c *check.C) {
 	d := daemon.New(c, dockerBinary, dockerdBinary, daemon.Config{
-		Experimental: experimentalDaemon,
+		Experimental: testEnv.ExperimentalDaemon(),
 	})
 	d.StartWithBusybox(c)
 
@@ -1431,7 +1431,7 @@ func (s *DockerDaemonSuite) TestCleanupMountsAfterDaemonAndContainerKill(c *chec
 // os.Interrupt should perform a graceful daemon shutdown and hence cleanup mounts.
 func (s *DockerDaemonSuite) TestCleanupMountsAfterGracefulShutdown(c *check.C) {
 	d := daemon.New(c, dockerBinary, dockerdBinary, daemon.Config{
-		Experimental: experimentalDaemon,
+		Experimental: testEnv.ExperimentalDaemon(),
 	})
 	d.StartWithBusybox(c)
 
@@ -1652,7 +1652,7 @@ func (s *DockerDaemonSuite) TestDaemonRestartLocalVolumes(c *check.C) {
 // FIXME(vdemeester) should be a unit test
 func (s *DockerDaemonSuite) TestDaemonCorruptedLogDriverAddress(c *check.C) {
 	d := daemon.New(c, dockerBinary, dockerdBinary, daemon.Config{
-		Experimental: experimentalDaemon,
+		Experimental: testEnv.ExperimentalDaemon(),
 	})
 	c.Assert(d.StartWithError("--log-driver=syslog", "--log-opt", "syslog-address=corrupted:42"), check.NotNil)
 	expected := "Failed to set log opts: syslog-address should be in form proto://address"
@@ -1662,7 +1662,7 @@ func (s *DockerDaemonSuite) TestDaemonCorruptedLogDriverAddress(c *check.C) {
 // FIXME(vdemeester) should be a unit test
 func (s *DockerDaemonSuite) TestDaemonCorruptedFluentdAddress(c *check.C) {
 	d := daemon.New(c, dockerBinary, dockerdBinary, daemon.Config{
-		Experimental: experimentalDaemon,
+		Experimental: testEnv.ExperimentalDaemon(),
 	})
 	c.Assert(d.StartWithError("--log-driver=fluentd", "--log-opt", "fluentd-address=corrupted:c"), check.NotNil)
 	expected := "Failed to set log opts: invalid fluentd-address corrupted:c: "
@@ -2347,35 +2347,17 @@ func (s *DockerDaemonSuite) TestBuildOnDisabledBridgeNetworkDaemon(c *check.C) {
 }
 
 // Test case for #21976
-func (s *DockerDaemonSuite) TestDaemonDNSInHostMode(c *check.C) {
+func (s *DockerDaemonSuite) TestDaemonDNSFlagsInHostMode(c *check.C) {
 	testRequires(c, SameHostDaemon, DaemonIsLinux)
 
-	s.d.StartWithBusybox(c, "--dns", "1.2.3.4")
+	s.d.StartWithBusybox(c, "--dns", "1.2.3.4", "--dns-search", "example.com", "--dns-opt", "timeout:3")
 
 	expectedOutput := "nameserver 1.2.3.4"
 	out, _ := s.d.Cmd("run", "--net=host", "busybox", "cat", "/etc/resolv.conf")
 	c.Assert(out, checker.Contains, expectedOutput, check.Commentf("Expected '%s', but got %q", expectedOutput, out))
-}
-
-// Test case for #21976
-func (s *DockerDaemonSuite) TestDaemonDNSSearchInHostMode(c *check.C) {
-	testRequires(c, SameHostDaemon, DaemonIsLinux)
-
-	s.d.StartWithBusybox(c, "--dns-search", "example.com")
-
-	expectedOutput := "search example.com"
-	out, _ := s.d.Cmd("run", "--net=host", "busybox", "cat", "/etc/resolv.conf")
+	expectedOutput = "search example.com"
 	c.Assert(out, checker.Contains, expectedOutput, check.Commentf("Expected '%s', but got %q", expectedOutput, out))
-}
-
-// Test case for #21976
-func (s *DockerDaemonSuite) TestDaemonDNSOptionsInHostMode(c *check.C) {
-	testRequires(c, SameHostDaemon, DaemonIsLinux)
-
-	s.d.StartWithBusybox(c, "--dns-opt", "timeout:3")
-
-	expectedOutput := "options timeout:3"
-	out, _ := s.d.Cmd("run", "--net=host", "busybox", "cat", "/etc/resolv.conf")
+	expectedOutput = "options timeout:3"
 	c.Assert(out, checker.Contains, expectedOutput, check.Commentf("Expected '%s', but got %q", expectedOutput, out))
 }
 
@@ -2584,7 +2566,14 @@ func (s *DockerDaemonSuite) TestDaemonRestartSaveContainerExitCode(c *check.C) {
 
 	containerName := "error-values"
 	// Make a container with both a non 0 exit code and an error message
-	out, err := s.d.Cmd("run", "--name", containerName, "busybox", "toto")
+	// We explicitly disable `--init` for this test, because `--init` is enabled by default
+	// on "experimental". Enabling `--init` results in a different behavior; because the "init"
+	// process itself is PID1, the container does not fail on _startup_ (i.e., `docker-init` starting),
+	// but directly after. The exit code of the container is still 127, but the Error Message is not
+	// captured, so `.State.Error` is empty.
+	// See the discussion on https://github.com/docker/docker/pull/30227#issuecomment-274161426,
+	// and https://github.com/docker/docker/pull/26061#r78054578 for more information.
+	out, err := s.d.Cmd("run", "--name", containerName, "--init=false", "busybox", "toto")
 	c.Assert(err, checker.NotNil)
 
 	// Check that those values were saved on disk
@@ -2593,9 +2582,10 @@ func (s *DockerDaemonSuite) TestDaemonRestartSaveContainerExitCode(c *check.C) {
 	c.Assert(err, checker.IsNil)
 	c.Assert(out, checker.Equals, "127")
 
-	out, err = s.d.Cmd("inspect", "-f", "{{.State.Error}}", containerName)
-	out = strings.TrimSpace(out)
+	errMsg1, err := s.d.Cmd("inspect", "-f", "{{.State.Error}}", containerName)
+	errMsg1 = strings.TrimSpace(errMsg1)
 	c.Assert(err, checker.IsNil)
+	c.Assert(errMsg1, checker.Contains, "executable file not found")
 
 	// now restart daemon
 	s.d.Restart(c)
@@ -2609,6 +2599,7 @@ func (s *DockerDaemonSuite) TestDaemonRestartSaveContainerExitCode(c *check.C) {
 	out, err = s.d.Cmd("inspect", "-f", "{{.State.Error}}", containerName)
 	out = strings.TrimSpace(out)
 	c.Assert(err, checker.IsNil)
+	c.Assert(out, checker.Equals, errMsg1)
 }
 
 func (s *DockerDaemonSuite) TestDaemonBackcompatPre17Volumes(c *check.C) {

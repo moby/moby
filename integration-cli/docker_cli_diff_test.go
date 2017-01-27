@@ -19,7 +19,7 @@ func (s *DockerSuite) TestDiffFilenameShownInOutput(c *check.C) {
 	// a "Files/" prefix.
 	containerID := strings.TrimSpace(out)
 	lookingFor := "A /foo/bar"
-	if daemonPlatform == "windows" {
+	if testEnv.DaemonPlatform() == "windows" {
 		err := waitExited(containerID, 60*time.Second)
 		c.Assert(err, check.IsNil)
 		lookingFor = "C Files/foo/bar"

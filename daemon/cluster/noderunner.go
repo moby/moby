@@ -94,8 +94,9 @@ func (n *nodeRunner) start(conf nodeStartConfig) error {
 		control = filepath.Join(n.cluster.runtimeRoot, controlSocket)
 	}
 
+	// Hostname is not set here. Instead, it is obtained from
+	// the node description that is reported periodically
 	swarmnodeConfig := swarmnode.Config{
-		Hostname:           n.cluster.config.Name,
 		ForceNewCluster:    conf.forceNewCluster,
 		ListenControlAPI:   control,
 		ListenRemoteAPI:    conf.ListenAddr,
@@ -108,6 +109,7 @@ func (n *nodeRunner) start(conf nodeStartConfig) error {
 		ElectionTick:       3,
 		UnlockKey:          conf.lockKey,
 		AutoLockManagers:   conf.autolock,
+		PluginGetter:       n.cluster.config.Backend.PluginGetter(),
 	}
 	if conf.availability != "" {
 		avail, ok := swarmapi.NodeSpec_Availability_value[strings.ToUpper(string(conf.availability))]

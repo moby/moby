@@ -202,7 +202,7 @@ func TestLayerAlreadyExists(t *testing.T) {
 			checkOtherRepositories: true,
 			metadata: []metadata.V2Metadata{
 				{Digest: digest.Digest("apple"), SourceRepository: "docker.io/library/hello-world"},
-				{Digest: digest.Digest("orange"), SourceRepository: "docker.io/library/busybox/subapp"},
+				{Digest: digest.Digest("orange"), SourceRepository: "docker.io/busybox/subapp"},
 				{Digest: digest.Digest("pear"), SourceRepository: "docker.io/busybox"},
 				{Digest: digest.Digest("plum"), SourceRepository: "busybox"},
 				{Digest: digest.Digest("banana"), SourceRepository: "127.0.0.1/busybox"},

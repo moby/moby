@@ -12,8 +12,8 @@ import (
 	"github.com/docker/swarmkit/identity"
 	"github.com/docker/swarmkit/manager/constraint"
 	"github.com/docker/swarmkit/manager/state/store"
-	"github.com/docker/swarmkit/protobuf/ptypes"
 	"github.com/docker/swarmkit/template"
+	gogotypes "github.com/gogo/protobuf/types"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -59,7 +59,7 @@ func validateRestartPolicy(rp *api.RestartPolicy) error {
 	}
 
 	if rp.Delay != nil {
-		delay, err := ptypes.Duration(rp.Delay)
+		delay, err := gogotypes.DurationFromProto(rp.Delay)
 		if err != nil {
 			return err
 		}
@@ -69,7 +69,7 @@ func validateRestartPolicy(rp *api.RestartPolicy) error {
 	}
 
 	if rp.Window != nil {
-		win, err := ptypes.Duration(rp.Window)
+		win, err := gogotypes.DurationFromProto(rp.Window)
 		if err != nil {
 			return err
 		}
@@ -94,12 +94,7 @@ func validateUpdate(uc *api.UpdateConfig) error {
 		return nil
 	}
 
-	delay, err := ptypes.Duration(&uc.Delay)
-	if err != nil {
-		return err
-	}
-
-	if delay < 0 {
+	if uc.Delay < 0 {
 		return grpc.Errorf(codes.InvalidArgument, "TaskSpec: update-delay cannot be negative")
 	}
 
@@ -238,7 +233,7 @@ func validateSecretRefsSpec(spec *api.ServiceSpec) error {
 			return grpc.Errorf(codes.InvalidArgument, "malformed secret reference")
 		}
 
-		// Every secret referece requires a Target
+		// Every secret reference requires a Target
 		if secretRef.GetTarget() == nil {
 			return grpc.Errorf(codes.InvalidArgument, "malformed secret reference, no target provided")
 		}
@@ -502,7 +497,7 @@ func (s *Server) UpdateService(ctx context.Context, request *api.UpdateServiceRe
 		}
 
 		if !reflect.DeepEqual(requestSpecNetworks, specNetworks) {
-			return errNetworkUpdateNotSupported
+			return grpc.Errorf(codes.Unimplemented, errNetworkUpdateNotSupported.Error())
 		}
 
 		// Check to see if all the secrets being added exist as objects
@@ -516,11 +511,11 @@ func (s *Server) UpdateService(ctx context.Context, request *api.UpdateServiceRe
 		// with service mode change (comparing current config with previous config).
 		// proper way to change service mode is to delete and re-add.
 		if reflect.TypeOf(service.Spec.Mode) != reflect.TypeOf(request.Spec.Mode) {
-			return errModeChangeNotAllowed
+			return grpc.Errorf(codes.Unimplemented, errModeChangeNotAllowed.Error())
 		}
 
 		if service.Spec.Annotations.Name != request.Spec.Annotations.Name {
-			return errRenameNotSupported
+			return grpc.Errorf(codes.Unimplemented, errRenameNotSupported.Error())
 		}
 
 		service.Meta.Version = *request.ServiceVersion

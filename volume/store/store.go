@@ -275,6 +275,9 @@ func (s *VolumeStore) CreateWithRef(name, driverName, ref string, opts, labels m
 
 	v, err := s.create(name, driverName, opts, labels)
 	if err != nil {
+		if _, ok := err.(*OpErr); ok {
+			return nil, err
+		}
 		return nil, &OpErr{Err: err, Name: name, Op: "create"}
 	}
 

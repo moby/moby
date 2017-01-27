@@ -217,9 +217,13 @@ echo 'Optional Features:'
 	check_flags CGROUP_PIDS
 }
 {
+	CODE=${EXITCODE}
 	check_flags MEMCG_SWAP MEMCG_SWAP_ENABLED
-	if  is_set MEMCG_SWAP && ! is_set MEMCG_SWAP_ENABLED; then
-		echo "    $(wrap_color '(note that cgroup swap accounting is not enabled in your kernel config, you can enable it by setting boot option "swapaccount=1")' bold black)"
+	if [ -e /sys/fs/cgroup/memory/memory.memsw.limit_in_bytes ]; then
+		echo "    $(wrap_color '(cgroup swap accounting is currently enabled)' bold black)"
+		EXITCODE=${CODE}
+	elif is_set MEMCG_SWAP && ! is_set MEMCG_SWAP_ENABLED; then
+		echo "    $(wrap_color '(cgroup swap accounting is currently not enabled, you can enable it by setting boot option "swapaccount=1")' bold black)"
 	fi
 }
 {

@@ -22,7 +22,7 @@ import (
 	"github.com/docker/swarmkit/agent/exec"
 	"github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/log"
-	"github.com/docker/swarmkit/protobuf/ptypes"
+	gogotypes "github.com/gogo/protobuf/types"
 	"github.com/opencontainers/go-digest"
 	"golang.org/x/net/context"
 	"golang.org/x/time/rate"
@@ -391,7 +391,7 @@ func (c *containerAdapter) logs(ctx context.Context, options api.LogSubscription
 	}
 
 	if options.Since != nil {
-		since, err := ptypes.Timestamp(options.Since)
+		since, err := gogotypes.TimestampFromProto(options.Since)
 		if err != nil {
 			return nil, err
 		}

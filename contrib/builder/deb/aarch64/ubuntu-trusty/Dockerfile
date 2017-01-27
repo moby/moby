@@ -4,7 +4,7 @@
 
 FROM aarch64/ubuntu:trusty
 
-RUN apt-get update && apt-get install -y apparmor bash-completion btrfs-tools build-essential cmake curl ca-certificates debhelper dh-apparmor dh-systemd git libapparmor-dev libdevmapper-dev libltdl-dev libsqlite3-dev pkg-config vim-common libsystemd-journal-dev golang-1.6-go --no-install-recommends && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y apparmor bash-completion btrfs-tools build-essential cmake curl ca-certificates debhelper dh-apparmor dh-systemd git libapparmor-dev libdevmapper-dev libltdl-dev pkg-config vim-common libsystemd-journal-dev golang-1.6-go --no-install-recommends && rm -rf /var/lib/apt/lists/*
 
 RUN update-alternatives --install /usr/bin/go go /usr/lib/go-1.6/bin/go 100
 

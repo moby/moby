@@ -12,22 +12,6 @@ import (
 	"github.com/go-check/check"
 )
 
-func waitForStatus(c *check.C, name string, prev string, expected string) {
-	prev = prev + "\n"
-	expected = expected + "\n"
-	for {
-		out, _ := dockerCmd(c, "inspect", "--format={{.State.Status}}", name)
-		if out == expected {
-			return
-		}
-		c.Check(out, checker.Equals, prev)
-		if out != prev {
-			return
-		}
-		time.Sleep(100 * time.Millisecond)
-	}
-}
-
 func waitForHealthStatus(c *check.C, name string, prev string, expected string) {
 	prev = prev + "\n"
 	expected = expected + "\n"
@@ -56,16 +40,12 @@ func (s *DockerSuite) TestHealth(c *check.C) {
 	testRequires(c, DaemonIsLinux) // busybox doesn't work on Windows
 
 	imageName := "testhealth"
-	_, err := buildImage(imageName,
-		`FROM busybox
+	buildImageSuccessfully(c, imageName, withDockerfile(`FROM busybox
 		RUN echo OK > /status
 		CMD ["/bin/sleep", "120"]
 		STOPSIGNAL SIGKILL
 		HEALTHCHECK --interval=1s --timeout=30s \
-		  CMD cat /status`,
-		true)
-
-	c.Check(err, check.IsNil)
+		  CMD cat /status`))
 
 	// No health status before starting
 	name := "test_health"
@@ -107,10 +87,8 @@ func (s *DockerSuite) TestHealth(c *check.C) {
 	dockerCmd(c, "rm", "noh")
 
 	// Disable the check with a new build
-	_, err = buildImage("no_healthcheck",
-		`FROM testhealth
-		HEALTHCHECK NONE`, true)
-	c.Check(err, check.IsNil)
+	buildImageSuccessfully(c, "no_healthcheck", withDockerfile(`FROM testhealth
+		HEALTHCHECK NONE`))
 
 	out, _ = dockerCmd(c, "inspect", "--format={{.ContainerConfig.Healthcheck.Test}}", "no_healthcheck")
 	c.Check(out, checker.Equals, "[NONE]\n")
@@ -153,15 +131,12 @@ func (s *DockerSuite) TestHealth(c *check.C) {
 	dockerCmd(c, "rm", "-f", "test")
 
 	// Check JSON-format
-	_, err = buildImage(imageName,
-		`FROM busybox
+	buildImageSuccessfully(c, imageName, withDockerfile(`FROM busybox
 		RUN echo OK > /status
 		CMD ["/bin/sleep", "120"]
 		STOPSIGNAL SIGKILL
 		HEALTHCHECK --interval=1s --timeout=30s \
-		  CMD ["cat", "/my status"]`,
-		true)
-	c.Check(err, check.IsNil)
+		  CMD ["cat", "/my status"]`))
 	out, _ = dockerCmd(c, "inspect",
 		"--format={{.Config.Healthcheck.Test}}", imageName)
 	c.Check(out, checker.Equals, "[CMD cat /my status]\n")

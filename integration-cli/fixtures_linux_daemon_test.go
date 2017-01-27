@@ -50,7 +50,7 @@ func ensureSyscallTest(c *check.C) {
 
 	// if no match, must build in docker, which is significantly slower
 	// (slower mostly because of the vfs graphdriver)
-	if daemonPlatform != runtime.GOOS {
+	if testEnv.DaemonPlatform() != runtime.GOOS {
 		ensureSyscallTestBuild(c)
 		return
 	}
@@ -62,7 +62,7 @@ func ensureSyscallTest(c *check.C) {
 	gcc, err := exec.LookPath("gcc")
 	c.Assert(err, checker.IsNil, check.Commentf("could not find gcc"))
 
-	tests := []string{"userns", "ns", "acct", "setuid", "setgid", "socket", "raw"}
+	tests := []string{"userns", "ns", "acct", "setuid", "setgid", "socket", "raw", "appletalk"}
 	for _, test := range tests {
 		out, err := exec.Command(gcc, "-g", "-Wall", "-static", fmt.Sprintf("../contrib/syscall-test/%s.c", test), "-o", fmt.Sprintf("%s/%s-test", tmp, test)).CombinedOutput()
 		c.Assert(err, checker.IsNil, check.Commentf(string(out)))
@@ -105,7 +105,7 @@ func ensureSyscallTestBuild(c *check.C) {
 
 func ensureNNPTest(c *check.C) {
 	protectedImages["nnp-test:latest"] = struct{}{}
-	if daemonPlatform != runtime.GOOS {
+	if testEnv.DaemonPlatform() != runtime.GOOS {
 		ensureNNPTestBuild(c)
 		return
 	}

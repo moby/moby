@@ -379,11 +379,9 @@ func (s *DockerSuite) TestEventsFilterImageLabels(c *check.C) {
 	label := "io.docker.testing=image"
 
 	// Build a test image.
-	_, err := buildImage(name, fmt.Sprintf(`
+	buildImageSuccessfully(c, name, withDockerfile(fmt.Sprintf(`
 		FROM busybox:latest
-		LABEL %s`, label), true)
-	c.Assert(err, checker.IsNil, check.Commentf("Couldn't create image"))
-
+		LABEL %s`, label)))
 	dockerCmd(c, "tag", name, "labelfiltertest:tag1")
 	dockerCmd(c, "tag", name, "labelfiltertest:tag2")
 	dockerCmd(c, "tag", "busybox:latest", "labelfiltertest:tag3")
@@ -462,10 +460,10 @@ func (s *DockerSuite) TestEventsCommit(c *check.C) {
 
 func (s *DockerSuite) TestEventsCopy(c *check.C) {
 	// Build a test image.
-	id, err := buildImage("cpimg", `
+	buildImageSuccessfully(c, "cpimg", withDockerfile(`
 		  FROM busybox
-		  RUN echo HI > /file`, true)
-	c.Assert(err, checker.IsNil, check.Commentf("Couldn't create image"))
+		  RUN echo HI > /file`))
+	id := getIDByName(c, "cpimg")
 
 	// Create an empty test file.
 	tempFile, err := ioutil.TempFile("", "test-events-copy-")
@@ -595,11 +593,9 @@ func (s *DockerSuite) TestEventsFilterType(c *check.C) {
 	label := "io.docker.testing=image"
 
 	// Build a test image.
-	_, err := buildImage(name, fmt.Sprintf(`
+	buildImageSuccessfully(c, name, withDockerfile(fmt.Sprintf(`
 		FROM busybox:latest
-		LABEL %s`, label), true)
-	c.Assert(err, checker.IsNil, check.Commentf("Couldn't create image"))
-
+		LABEL %s`, label)))
 	dockerCmd(c, "tag", name, "labelfiltertest:tag1")
 	dockerCmd(c, "tag", name, "labelfiltertest:tag2")
 	dockerCmd(c, "tag", "busybox:latest", "labelfiltertest:tag3")
@@ -688,7 +684,7 @@ func (s *DockerSuite) TestEventsContainerRestart(c *check.C) {
 
 	// wait until test2 is auto removed.
 	waitTime := 10 * time.Second
-	if daemonPlatform == "windows" {
+	if testEnv.DaemonPlatform() == "windows" {
 		// Windows takes longer...
 		waitTime = 90 * time.Second
 	}

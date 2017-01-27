@@ -11,7 +11,8 @@ import (
 	"golang.org/x/net/context"
 )
 
-func getSecretsByNameOrIDPrefixes(ctx context.Context, client client.APIClient, terms []string) ([]swarm.Secret, error) {
+// GetSecretsByNameOrIDPrefixes returns secrets given a list of ids or names
+func GetSecretsByNameOrIDPrefixes(ctx context.Context, client client.APIClient, terms []string) ([]swarm.Secret, error) {
 	args := filters.NewArgs()
 	for _, n := range terms {
 		args.Add("names", n)
@@ -24,7 +25,7 @@ func getSecretsByNameOrIDPrefixes(ctx context.Context, client client.APIClient, 
 }
 
 func getCliRequestedSecretIDs(ctx context.Context, client client.APIClient, terms []string) ([]string, error) {
-	secrets, err := getSecretsByNameOrIDPrefixes(ctx, client, terms)
+	secrets, err := GetSecretsByNameOrIDPrefixes(ctx, client, terms)
 	if err != nil {
 		return nil, err
 	}

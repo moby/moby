@@ -324,7 +324,7 @@ func (s *DockerSwarmSuite) TestSwarmContainerAttachByNetworkId(c *check.C) {
 	_, err = d.Cmd("rm", "-f", cID)
 	c.Assert(err, checker.IsNil)
 
-	out, err = d.Cmd("network", "rm", "testnet")
+	_, err = d.Cmd("network", "rm", "testnet")
 	c.Assert(err, checker.IsNil)
 
 	checkNetwork := func(*check.C) (interface{}, check.CommentInterface) {
@@ -356,6 +356,33 @@ func (s *DockerSwarmSuite) TestOverlayAttachable(c *check.C) {
 	out, err = d.Cmd("network", "inspect", "--format", "{{json .Attachable}}", "ovnet")
 	c.Assert(err, checker.IsNil, check.Commentf(out))
 	c.Assert(strings.TrimSpace(out), checker.Equals, "true")
+}
+
+func (s *DockerSwarmSuite) TestOverlayAttachableOnSwarmLeave(c *check.C) {
+	d := s.AddDaemon(c, true, true)
+
+	// Create an attachable swarm network
+	nwName := "attovl"
+	out, err := d.Cmd("network", "create", "-d", "overlay", "--attachable", nwName)
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+
+	// Connect a container to the network
+	out, err = d.Cmd("run", "-d", "--network", nwName, "--name", "c1", "busybox", "top")
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+
+	// Leave the swarm
+	err = d.Leave(true)
+	c.Assert(err, checker.IsNil)
+
+	// Check the container is disconnected
+	out, err = d.Cmd("inspect", "c1", "--format", "{{.NetworkSettings.Networks."+nwName+"}}")
+	c.Assert(err, checker.IsNil)
+	c.Assert(strings.TrimSpace(out), checker.Equals, "<no value>")
+
+	// Check the network is gone
+	out, err = d.Cmd("network", "ls", "--format", "{{.Name}}")
+	c.Assert(err, checker.IsNil)
+	c.Assert(out, checker.Not(checker.Contains), nwName)
 }
 
 func (s *DockerSwarmSuite) TestSwarmRemoveInternalNetwork(c *check.C) {
@@ -1576,7 +1603,7 @@ func (s *DockerSwarmSuite) TestSwarmServicePsMultipleServiceIDs(c *check.C) {
 func (s *DockerSwarmSuite) TestSwarmPublishDuplicatePorts(c *check.C) {
 	d := s.AddDaemon(c, true, true)
 
-	out, err := d.Cmd("service", "create", "--publish", "5000:80", "--publish", "5001:80", "--publish", "80", "--publish", "80", "busybox", "top")
+	out, err := d.Cmd("service", "create", "--publish", "5005:80", "--publish", "5006:80", "--publish", "80", "--publish", "80", "busybox", "top")
 	c.Assert(err, check.IsNil, check.Commentf(out))
 	id := strings.TrimSpace(out)
 
@@ -1588,8 +1615,8 @@ func (s *DockerSwarmSuite) TestSwarmPublishDuplicatePorts(c *check.C) {
 	out, err = d.Cmd("service", "inspect", "--format", "{{.Endpoint.Ports}} len={{len .Endpoint.Ports}}", id)
 	c.Assert(err, check.IsNil, check.Commentf(out))
 	c.Assert(out, checker.Contains, "len=4")
-	c.Assert(out, checker.Contains, "{ tcp 80 5000 ingress}")
-	c.Assert(out, checker.Contains, "{ tcp 80 5001 ingress}")
+	c.Assert(out, checker.Contains, "{ tcp 80 5005 ingress}")
+	c.Assert(out, checker.Contains, "{ tcp 80 5006 ingress}")
 }
 
 func (s *DockerSwarmSuite) TestSwarmJoinWithDrain(c *check.C) {

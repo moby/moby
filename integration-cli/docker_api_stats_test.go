@@ -38,7 +38,7 @@ func (s *DockerSuite) TestAPIStatsNoStreamGetCpu(c *check.C) {
 
 	var cpuPercent = 0.0
 
-	if daemonPlatform != "windows" {
+	if testEnv.DaemonPlatform() != "windows" {
 		cpuDelta := float64(v.CPUStats.CPUUsage.TotalUsage - v.PreCPUStats.CPUUsage.TotalUsage)
 		systemDelta := float64(v.CPUStats.SystemUsage - v.PreCPUStats.SystemUsage)
 		cpuPercent = (cpuDelta / systemDelta) * float64(len(v.CPUStats.CPUUsage.PercpuUsage)) * 100.0
@@ -104,7 +104,7 @@ func (s *DockerSuite) TestAPIStatsNetworkStats(c *check.C) {
 
 	// Retrieve the container address
 	net := "bridge"
-	if daemonPlatform == "windows" {
+	if testEnv.DaemonPlatform() == "windows" {
 		net = "nat"
 	}
 	contIP := findContainerIP(c, id, net)
@@ -152,7 +152,7 @@ func (s *DockerSuite) TestAPIStatsNetworkStats(c *check.C) {
 	// On Linux, account for ARP.
 	expRxPkts := preRxPackets + uint64(numPings)
 	expTxPkts := preTxPackets + uint64(numPings)
-	if daemonPlatform != "windows" {
+	if testEnv.DaemonPlatform() != "windows" {
 		expRxPkts++
 		expTxPkts++
 	}

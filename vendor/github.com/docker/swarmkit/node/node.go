@@ -14,6 +14,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/boltdb/bolt"
+	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/swarmkit/agent"
 	"github.com/docker/swarmkit/agent/exec"
 	"github.com/docker/swarmkit/api"
@@ -98,6 +99,9 @@ type Config struct {
 
 	// Availability allows a user to control the current scheduling status of a node
 	Availability api.NodeSpec_Availability
+
+	// PluginGetter provides access to docker's plugin inventory.
+	PluginGetter plugingetter.PluginGetter
 }
 
 // Node implements the primary node functionality for a member of a swarm
@@ -131,11 +135,11 @@ func (n *Node) RemoteAPIAddr() (string, error) {
 	n.RLock()
 	defer n.RUnlock()
 	if n.manager == nil {
-		return "", errors.Errorf("node is not manager")
+		return "", errors.New("manager is not running")
 	}
 	addr := n.manager.Addr()
 	if addr == "" {
-		return "", errors.Errorf("manager addr is not set")
+		return "", errors.New("manager addr is not set")
 	}
 	return addr, nil
 }
@@ -180,6 +184,21 @@ func New(c *Config) (*Node, error) {
 	n.roleCond = sync.NewCond(n.RLocker())
 	n.connCond = sync.NewCond(n.RLocker())
 	return n, nil
+}
+
+// BindRemote starts a listener that exposes the remote API.
+func (n *Node) BindRemote(ctx context.Context, listenAddr string, advertiseAddr string) error {
+	n.RLock()
+	defer n.RUnlock()
+
+	if n.manager == nil {
+		return errors.New("manager is not running")
+	}
+
+	return n.manager.BindRemote(ctx, manager.RemoteAddrs{
+		ListenAddr:    listenAddr,
+		AdvertiseAddr: advertiseAddr,
+	})
 }
 
 // Start starts a node instance.
@@ -666,13 +685,18 @@ func (n *Node) waitRole(ctx context.Context, role string) error {
 }
 
 func (n *Node) runManager(ctx context.Context, securityConfig *ca.SecurityConfig, ready chan struct{}, workerRole <-chan struct{}) error {
-	remoteAddr, _ := n.remotes.Select(n.NodeID())
-	m, err := manager.New(&manager.Config{
-		ForceNewCluster: n.config.ForceNewCluster,
-		RemoteAPI: manager.RemoteAddrs{
+	var remoteAPI *manager.RemoteAddrs
+	if n.config.ListenRemoteAPI != "" {
+		remoteAPI = &manager.RemoteAddrs{
 			ListenAddr:    n.config.ListenRemoteAPI,
 			AdvertiseAddr: n.config.AdvertiseRemoteAPI,
-		},
+		}
+	}
+
+	remoteAddr, _ := n.remotes.Select(n.NodeID())
+	m, err := manager.New(&manager.Config{
+		ForceNewCluster:  n.config.ForceNewCluster,
+		RemoteAPI:        remoteAPI,
 		ControlAPI:       n.config.ListenControlAPI,
 		SecurityConfig:   securityConfig,
 		ExternalCAs:      n.config.ExternalCAs,
@@ -683,6 +707,7 @@ func (n *Node) runManager(ctx context.Context, securityConfig *ca.SecurityConfig
 		AutoLockManagers: n.config.AutoLockManagers,
 		UnlockKey:        n.unlockKey,
 		Availability:     n.config.Availability,
+		PluginGetter:     n.config.PluginGetter,
 	})
 	if err != nil {
 		return err

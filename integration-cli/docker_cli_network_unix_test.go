@@ -49,7 +49,7 @@ type DockerNetworkSuite struct {
 
 func (s *DockerNetworkSuite) SetUpTest(c *check.C) {
 	s.d = daemon.New(c, dockerBinary, dockerdBinary, daemon.Config{
-		Experimental: experimentalDaemon,
+		Experimental: testEnv.ExperimentalDaemon(),
 	})
 }
 
@@ -497,6 +497,7 @@ func (s *DockerSuite) TestDockerInspectMultipleNetwork(c *check.C) {
 
 	networkResources = []types.NetworkResource{}
 	err = json.Unmarshal([]byte(result.Stdout()), &networkResources)
+	c.Assert(err, check.IsNil)
 	c.Assert(networkResources, checker.HasLen, 1)
 
 	// Should print an error and return an exitCode, nothing else

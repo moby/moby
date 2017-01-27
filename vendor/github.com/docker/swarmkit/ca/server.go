@@ -11,7 +11,7 @@ import (
 	"github.com/docker/swarmkit/log"
 	"github.com/docker/swarmkit/manager/state"
 	"github.com/docker/swarmkit/manager/state/store"
-	"github.com/docker/swarmkit/protobuf/ptypes"
+	gogotypes "github.com/gogo/protobuf/types"
 	"github.com/pkg/errors"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
@@ -48,7 +48,7 @@ type Server struct {
 // DefaultCAConfig returns the default CA Config, with a default expiration.
 func DefaultCAConfig() api.CAConfig {
 	return api.CAConfig{
-		NodeCertExpiry: ptypes.DurationProto(DefaultNodeCertExpiration),
+		NodeCertExpiry: gogotypes.DurationProto(DefaultNodeCertExpiration),
 	}
 }
 
@@ -353,7 +353,7 @@ func (s *Server) issueRenewCertificate(ctx context.Context, nodeID string, csr [
 	}, nil
 }
 
-// GetRootCACertificate returns the certificate of the Root CA. It is used as a convinience for distributing
+// GetRootCACertificate returns the certificate of the Root CA. It is used as a convenience for distributing
 // the root of trust for the swarm. Clients should be using the CA hash to verify if they weren't target to
 // a MiTM. If they fail to do so, node bootstrap works with TOFU semantics.
 func (s *Server) GetRootCACertificate(ctx context.Context, request *api.GetRootCACertificateRequest) (*api.GetRootCACertificateResponse, error) {
@@ -527,7 +527,7 @@ func (s *Server) updateCluster(ctx context.Context, cluster *api.Cluster) {
 		expiry := DefaultNodeCertExpiration
 		if cluster.Spec.CAConfig.NodeCertExpiry != nil {
 			// NodeCertExpiry exists, let's try to parse the duration out of it
-			clusterExpiry, err := ptypes.Duration(cluster.Spec.CAConfig.NodeCertExpiry)
+			clusterExpiry, err := gogotypes.DurationFromProto(cluster.Spec.CAConfig.NodeCertExpiry)
 			if err != nil {
 				log.G(ctx).WithFields(logrus.Fields{
 					"cluster.id": cluster.ID,

@@ -161,7 +161,7 @@ type ImageBuildOptions struct {
 	Dockerfile     string
 	Ulimits        []*units.Ulimit
 	// See the parsing of buildArgs in api/server/router/build/build_routes.go
-	// for an explaination of why BuildArgs needs to use *string instead of
+	// for an explanation of why BuildArgs needs to use *string instead of
 	// just a string
 	BuildArgs   map[string]*string
 	AuthConfigs map[string]AuthConfig

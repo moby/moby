@@ -6,7 +6,7 @@ import (
 
 	types "github.com/docker/docker/api/types/swarm"
 	swarmapi "github.com/docker/swarmkit/api"
-	"github.com/docker/swarmkit/protobuf/ptypes"
+	gogotypes "github.com/gogo/protobuf/types"
 )
 
 // NodeFromGRPC converts a grpc Node to a Node.
@@ -26,8 +26,8 @@ func NodeFromGRPC(n swarmapi.Node) types.Node {
 
 	// Meta
 	node.Version.Index = n.Meta.Version.Index
-	node.CreatedAt, _ = ptypes.Timestamp(n.Meta.CreatedAt)
-	node.UpdatedAt, _ = ptypes.Timestamp(n.Meta.UpdatedAt)
+	node.CreatedAt, _ = gogotypes.TimestampFromProto(n.Meta.CreatedAt)
+	node.UpdatedAt, _ = gogotypes.TimestampFromProto(n.Meta.UpdatedAt)
 
 	//Annotations
 	node.Spec.Name = n.Spec.Annotations.Name

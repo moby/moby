@@ -380,10 +380,6 @@ func (c *CompoundIndex) FromArgs(args ...interface{}) ([]byte, error) {
 	if len(args) != len(c.Indexes) {
 		return nil, fmt.Errorf("less arguments than index fields")
 	}
-	return c.PrefixFromArgs(args...)
-}
-
-func (c *CompoundIndex) PrefixFromArgs(args ...interface{}) ([]byte, error) {
 	var out []byte
 	for i, arg := range args {
 		val, err := c.Indexes[i].FromArgs(arg)
@@ -391,6 +387,33 @@ func (c *CompoundIndex) PrefixFromArgs(args ...interface{}) ([]byte, error) {
 			return nil, fmt.Errorf("sub-index %d error: %v", i, err)
 		}
 		out = append(out, val...)
+	}
+	return out, nil
+}
+
+func (c *CompoundIndex) PrefixFromArgs(args ...interface{}) ([]byte, error) {
+	if len(args) > len(c.Indexes) {
+		return nil, fmt.Errorf("more arguments than index fields")
+	}
+	var out []byte
+	for i, arg := range args {
+		if i+1 < len(args) {
+			val, err := c.Indexes[i].FromArgs(arg)
+			if err != nil {
+				return nil, fmt.Errorf("sub-index %d error: %v", i, err)
+			}
+			out = append(out, val...)
+		} else {
+			prefixIndexer, ok := c.Indexes[i].(PrefixIndexer)
+			if !ok {
+				return nil, fmt.Errorf("sub-index %d does not support prefix scanning", i)
+			}
+			val, err := prefixIndexer.PrefixFromArgs(arg)
+			if err != nil {
+				return nil, fmt.Errorf("sub-index %d error: %v", i, err)
+			}
+			out = append(out, val...)
+		}
 	}
 	return out, nil
 }

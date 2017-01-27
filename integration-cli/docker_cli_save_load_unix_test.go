@@ -72,11 +72,9 @@ func (s *DockerSuite) TestSaveAndLoadRepoStdout(c *check.C) {
 
 func (s *DockerSuite) TestSaveAndLoadWithProgressBar(c *check.C) {
 	name := "test-load"
-	_, err := buildImage(name, `
-	FROM busybox
+	buildImageSuccessfully(c, name, withDockerfile(`FROM busybox
 	RUN touch aa
-	`, true)
-	c.Assert(err, check.IsNil)
+	`))
 
 	tmptar := name + ".tar"
 	dockerCmd(c, "save", "-o", tmptar, name)

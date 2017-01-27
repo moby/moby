@@ -443,7 +443,7 @@ func getUpdatedSecrets(apiClient client.SecretAPIClient, flags *pflag.FlagSet, s
 	if flags.Changed(flagSecretAdd) {
 		values := flags.Lookup(flagSecretAdd).Value.(*opts.SecretOpt).Value()
 
-		addSecrets, err := parseSecrets(apiClient, values)
+		addSecrets, err := ParseSecrets(apiClient, values)
 		if err != nil {
 			return nil, err
 		}

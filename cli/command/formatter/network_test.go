@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/pkg/stringid"
@@ -144,12 +145,22 @@ network_id: networkID2
 foobar_bar
 `,
 		},
+		// Custom Format with CreatedAt
+		{
+			Context{Format: NewNetworkFormat("{{.Name}} {{.CreatedAt}}", false)},
+			`foobar_baz 2016-01-01 00:00:00 +0000 UTC
+foobar_bar 2017-01-01 00:00:00 +0000 UTC
+`,
+		},
 	}
+
+	timestamp1, _ := time.Parse("2006-01-02", "2016-01-01")
+	timestamp2, _ := time.Parse("2006-01-02", "2017-01-01")
 
 	for _, testcase := range cases {
 		networks := []types.NetworkResource{
-			{ID: "networkID1", Name: "foobar_baz", Driver: "foo", Scope: "local"},
-			{ID: "networkID2", Name: "foobar_bar", Driver: "bar", Scope: "local"},
+			{ID: "networkID1", Name: "foobar_baz", Driver: "foo", Scope: "local", Created: timestamp1},
+			{ID: "networkID2", Name: "foobar_bar", Driver: "bar", Scope: "local", Created: timestamp2},
 		}
 		out := bytes.NewBufferString("")
 		testcase.context.Output = out
@@ -168,8 +179,8 @@ func TestNetworkContextWriteJSON(t *testing.T) {
 		{ID: "networkID2", Name: "foobar_bar"},
 	}
 	expectedJSONs := []map[string]interface{}{
-		{"Driver": "", "ID": "networkID1", "IPv6": "false", "Internal": "false", "Labels": "", "Name": "foobar_baz", "Scope": ""},
-		{"Driver": "", "ID": "networkID2", "IPv6": "false", "Internal": "false", "Labels": "", "Name": "foobar_bar", "Scope": ""},
+		{"Driver": "", "ID": "networkID1", "IPv6": "false", "Internal": "false", "Labels": "", "Name": "foobar_baz", "Scope": "", "CreatedAt": "0001-01-01 00:00:00 +0000 UTC"},
+		{"Driver": "", "ID": "networkID2", "IPv6": "false", "Internal": "false", "Labels": "", "Name": "foobar_bar", "Scope": "", "CreatedAt": "0001-01-01 00:00:00 +0000 UTC"},
 	}
 
 	out := bytes.NewBufferString("")

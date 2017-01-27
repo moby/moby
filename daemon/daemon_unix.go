@@ -29,6 +29,7 @@ import (
 	"github.com/docker/docker/pkg/parsers/kernel"
 	"github.com/docker/docker/pkg/sysinfo"
 	"github.com/docker/docker/runconfig"
+	"github.com/docker/docker/volume"
 	"github.com/docker/libnetwork"
 	nwconfig "github.com/docker/libnetwork/config"
 	"github.com/docker/libnetwork/drivers/bridge"
@@ -497,7 +498,7 @@ func UsingSystemd(config *Config) bool {
 // verifyPlatformContainerSettings performs platform-specific validation of the
 // hostconfig and config structures.
 func verifyPlatformContainerSettings(daemon *Daemon, hostConfig *containertypes.HostConfig, config *containertypes.Config, update bool) ([]string, error) {
-	warnings := []string{}
+	var warnings []string
 	sysInfo := sysinfo.New(true)
 
 	warnings, err := daemon.verifyExperimentalContainerSettings(hostConfig, config)
@@ -551,6 +552,12 @@ func verifyPlatformContainerSettings(daemon *Daemon, hostConfig *containertypes.
 
 	if rt := daemon.configStore.GetRuntime(hostConfig.Runtime); rt == nil {
 		return warnings, fmt.Errorf("Unknown runtime specified %s", hostConfig.Runtime)
+	}
+
+	for dest := range hostConfig.Tmpfs {
+		if err := volume.ValidateTmpfsMountDestination(dest); err != nil {
+			return warnings, err
+		}
 	}
 
 	return warnings, nil
@@ -925,7 +932,6 @@ func parseRemappedRoot(usergrp string) (string, string, error) {
 			if err != nil {
 				return "", "", fmt.Errorf("Error during gid lookup for %q: %v", lookupName, err)
 			}
-			groupID = group.Gid
 			groupname = group.Name
 		}
 	}

@@ -8,7 +8,7 @@ RUN yum install -y yum-utils && curl -o /etc/yum.repos.d/public-yum-ol6.repo htt
 RUN yum install -y kernel-uek-devel-4.1.12-32.el6uek
 
 RUN yum groupinstall -y "Development Tools"
-RUN yum install -y btrfs-progs-devel device-mapper-devel glibc-static  libselinux-devel libtool-ltdl-devel pkgconfig selinux-policy selinux-policy-devel sqlite-devel  tar git cmake vim-common
+RUN yum install -y btrfs-progs-devel device-mapper-devel glibc-static  libselinux-devel libtool-ltdl-devel pkgconfig selinux-policy selinux-policy-devel  tar git cmake vim-common
 
 ENV GO_VERSION 1.7.4
 RUN curl -fSL "https://golang.org/dl/go${GO_VERSION}.linux-amd64.tar.gz" | tar xzC /usr/local

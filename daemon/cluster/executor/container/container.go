@@ -22,8 +22,8 @@ import (
 	"github.com/docker/go-connections/nat"
 	"github.com/docker/swarmkit/agent/exec"
 	"github.com/docker/swarmkit/api"
-	"github.com/docker/swarmkit/protobuf/ptypes"
 	"github.com/docker/swarmkit/template"
+	gogotypes "github.com/gogo/protobuf/types"
 )
 
 const (
@@ -323,8 +323,8 @@ func (c *containerConfig) healthcheck() *enginecontainer.HealthConfig {
 	if hcSpec == nil {
 		return nil
 	}
-	interval, _ := ptypes.Duration(hcSpec.Interval)
-	timeout, _ := ptypes.Duration(hcSpec.Timeout)
+	interval, _ := gogotypes.DurationFromProto(hcSpec.Interval)
+	timeout, _ := gogotypes.DurationFromProto(hcSpec.Timeout)
 	return &enginecontainer.HealthConfig{
 		Test:     hcSpec.Test,
 		Interval: interval,

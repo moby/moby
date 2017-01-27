@@ -650,7 +650,7 @@ func receiveConfig(s ImageConfigStore, configChan <-chan []byte, errChan <-chan 
 }
 
 // pullManifestList handles "manifest lists" which point to various
-// platform-specifc manifests.
+// platform-specific manifests.
 func (p *v2Puller) pullManifestList(ctx context.Context, ref reference.Named, mfstList *manifestlist.DeserializedManifestList) (id digest.Digest, manifestListDigest digest.Digest, err error) {
 	manifestListDigest, err = schema2ManifestDigest(ref, mfstList)
 	if err != nil {

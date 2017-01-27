@@ -57,7 +57,7 @@ func (s *DockerSuite) TestCpToErrSrcNotDir(c *check.C) {
 }
 
 // Test for error when SRC is a valid file or directory,
-// bu the DST parent directory does not exist.
+// but the DST parent directory does not exist.
 func (s *DockerSuite) TestCpToErrDstParentNotExists(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	containerID := makeTestContainer(c, testContainerOptions{addContent: true})
@@ -79,6 +79,7 @@ func (s *DockerSuite) TestCpToErrDstParentNotExists(c *check.C) {
 	// Try with a directory source.
 	srcPath = cpPath(tmpDir, "dir1")
 
+	err = runDockerCp(c, srcPath, dstPath)
 	c.Assert(err, checker.NotNil)
 
 	c.Assert(isCpNotExist(err), checker.True, check.Commentf("expected IsNotExist error, but got %T: %s", err, err))

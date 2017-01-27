@@ -60,7 +60,6 @@ for version in "${versions[@]}"; do
 		pkgconfig # for the pkg-config command
 		selinux-policy
 		selinux-policy-devel
-		sqlite-devel # for "sqlite3.h"
 		systemd-devel # for "sd-journal.h" and libraries
 		tar # older versions of dev-tools do not have tar
 		git # required for containerd and runc clone
@@ -85,7 +84,7 @@ for version in "${versions[@]}"; do
 
 	echo >> "$version/Dockerfile"
 
-	awk '$1 == "ENV" && $2 == "GO_VERSION" { print; exit }' ../../../../Dockerfile >> "$version/Dockerfile"
+	awk '$1 == "ENV" && $2 == "GO_VERSION" { print; exit }' ../../../../Dockerfile.ppc64le >> "$version/Dockerfile"
 	echo 'RUN curl -fsSL "https://golang.org/dl/go${GO_VERSION}.linux-ppc64le.tar.gz" | tar xzC /usr/local' >> "$version/Dockerfile"
 	echo 'ENV PATH $PATH:/usr/local/go/bin' >> "$version/Dockerfile"
 	echo >> "$version/Dockerfile"	

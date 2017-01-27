@@ -691,7 +691,32 @@ $ docker run --rm --ulimit nproc=50:100 ubuntu sh -c "ulimit -p"
 50
 ```
 
-### Constraining your container's resources at runtime
+LOCALAPPDATA=C:\Users\ContainerAdministrator\AppData\Local
+NUMBER_OF_PROCESSORS=8
+OS=Windows_NT
+Path=C:\Windows\system32;C:\Windows;C:\Windows\System32\Wbem;C:\Windows\System32\WindowsPowerShell\v1.0\;C:\Users\ContainerAdministrator\AppData\Local\Microsoft\WindowsApps
+PATHEXT=.COM;.EXE;.BAT;.CMD
+PROCESSOR_ARCHITECTURE=AMD64
+PROCESSOR_IDENTIFIER=Intel64 Family 6 Model 62 Stepping 4, GenuineIntel
+PROCESSOR_LEVEL=6
+PROCESSOR_REVISION=3e04
+ProgramData=C:\ProgramData
+ProgramFiles=C:\Program Files
+ProgramFiles(x86)=C:\Program Files (x86)
+ProgramW6432=C:\Program Files
+PROMPT=$P$G
+PUBLIC=C:\Users\Public
+SystemDrive=C:
+SystemRoot=C:\Windows
+TEMP=C:\Users\ContainerAdministrator\AppData\Local\Temp
+TMP=C:\Users\ContainerAdministrator\AppData\Local\Temp
+USERDOMAIN=User Manager
+USERNAME=ContainerAdministrator
+USERPROFILE=C:\Users\ContainerAdministrator
+windir=C:\Windows
+```
+
+Similarly the operator can set the **HOSTNAME** (Linux) or **COMPUTERNAME** (Windows) with `-h`.
 
 You can limit your container's hardware resources at runtime, including memory,
 CPU resources, and block IO throughput. See

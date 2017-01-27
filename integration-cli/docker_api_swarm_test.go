@@ -3,6 +3,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"net"
 	"net/http"
@@ -14,6 +15,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/integration-cli/daemon"
@@ -1328,4 +1330,57 @@ func (s *DockerSwarmSuite) TestAPISwarmErrorHandling(c *check.C) {
 	err = d.Init(swarm.InitRequest{})
 	c.Assert(err, checker.NotNil)
 	c.Assert(err.Error(), checker.Contains, "address already in use")
+}
+
+// Test case for 30242, where duplicate networks, with different drivers `bridge` and `overlay`,
+// caused both scopes to be `swarm` for `docker network inspect` and `docker network ls`.
+// This test makes sure the fixes correctly output scopes instead.
+func (s *DockerSwarmSuite) TestAPIDuplicateNetworks(c *check.C) {
+	d := s.AddDaemon(c, true, true)
+
+	name := "foo"
+	networkCreateRequest := types.NetworkCreateRequest{
+		Name: name,
+		NetworkCreate: types.NetworkCreate{
+			CheckDuplicate: false,
+		},
+	}
+
+	var n1 types.NetworkCreateResponse
+	networkCreateRequest.NetworkCreate.Driver = "bridge"
+
+	status, out, err := d.SockRequest("POST", "/networks/create", networkCreateRequest)
+	c.Assert(err, checker.IsNil, check.Commentf(string(out)))
+	c.Assert(status, checker.Equals, http.StatusCreated, check.Commentf(string(out)))
+
+	c.Assert(json.Unmarshal(out, &n1), checker.IsNil)
+
+	var n2 types.NetworkCreateResponse
+	networkCreateRequest.NetworkCreate.Driver = "overlay"
+
+	status, out, err = d.SockRequest("POST", "/networks/create", networkCreateRequest)
+	c.Assert(err, checker.IsNil, check.Commentf(string(out)))
+	c.Assert(status, checker.Equals, http.StatusCreated, check.Commentf(string(out)))
+
+	c.Assert(json.Unmarshal(out, &n2), checker.IsNil)
+
+	var r1 types.NetworkResource
+
+	status, out, err = d.SockRequest("GET", "/networks/"+n1.ID, nil)
+	c.Assert(err, checker.IsNil, check.Commentf(string(out)))
+	c.Assert(status, checker.Equals, http.StatusOK, check.Commentf(string(out)))
+
+	c.Assert(json.Unmarshal(out, &r1), checker.IsNil)
+
+	c.Assert(r1.Scope, checker.Equals, "local")
+
+	var r2 types.NetworkResource
+
+	status, out, err = d.SockRequest("GET", "/networks/"+n2.ID, nil)
+	c.Assert(err, checker.IsNil, check.Commentf(string(out)))
+	c.Assert(status, checker.Equals, http.StatusOK, check.Commentf(string(out)))
+
+	c.Assert(json.Unmarshal(out, &r2), checker.IsNil)
+
+	c.Assert(r2.Scope, checker.Equals, "swarm")
 }

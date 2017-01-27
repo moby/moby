@@ -143,7 +143,7 @@ func (s *DockerSuite) TestExecPausedContainer(c *check.C) {
 
 	dockerCmd(c, "pause", "testing")
 	out, _, err := dockerCmdWithError("exec", "-i", "-t", ContainerID, "echo", "hello")
-	c.Assert(err, checker.NotNil, check.Commentf("container should fail to exec new conmmand if it is paused"))
+	c.Assert(err, checker.NotNil, check.Commentf("container should fail to exec new command if it is paused"))
 
 	expected := ContainerID + " is paused, unpause the container before exec"
 	c.Assert(out, checker.Contains, expected, check.Commentf("container should not exec new command if it is paused"))
@@ -363,7 +363,7 @@ func (s *DockerSuite) TestExecInspectID(c *check.C) {
 	// result in a 404 (not 'container not running')
 	out, ec := dockerCmd(c, "rm", "-f", id)
 	c.Assert(ec, checker.Equals, 0, check.Commentf("error removing container: %s", out))
-	sc, body, err = request.SockRequest("GET", "/exec/"+execID+"/json", nil, daemonHost())
+	sc, body, _ = request.SockRequest("GET", "/exec/"+execID+"/json", nil, daemonHost())
 	c.Assert(sc, checker.Equals, http.StatusNotFound, check.Commentf("received status != 404: %d\n%s", sc, body))
 }
 
@@ -473,13 +473,9 @@ func (s *DockerSuite) TestExecWithImageUser(c *check.C) {
 	// Not applicable on Windows
 	testRequires(c, DaemonIsLinux)
 	name := "testbuilduser"
-	_, err := buildImage(name,
-		`FROM busybox
+	buildImageSuccessfully(c, name, withDockerfile(`FROM busybox
 		RUN echo 'dockerio:x:1001:1001::/bin:/bin/false' >> /etc/passwd
-		USER dockerio`,
-		true)
-	c.Assert(err, checker.IsNil)
-
+		USER dockerio`))
 	dockerCmd(c, "run", "-d", "--name", "dockerioexec", name, "top")
 
 	out, _ := dockerCmd(c, "exec", "dockerioexec", "whoami")

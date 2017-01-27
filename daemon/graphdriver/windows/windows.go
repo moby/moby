@@ -825,14 +825,16 @@ func (fg *fileGetCloserWithBackupPrivileges) Get(filename string) (io.ReadCloser
 	var f *os.File
 	// Open the file while holding the Windows backup privilege. This ensures that the
 	// file can be opened even if the caller does not actually have access to it according
-	// to the security descriptor.
+	// to the security descriptor. Also use sequential file access to avoid depleting the
+	// standby list - Microsoft VSO Bug Tracker #9900466
 	err := winio.RunWithPrivilege(winio.SeBackupPrivilege, func() error {
 		path := longpath.AddPrefix(filepath.Join(fg.path, filename))
 		p, err := syscall.UTF16FromString(path)
 		if err != nil {
 			return err
 		}
-		h, err := syscall.CreateFile(&p[0], syscall.GENERIC_READ, syscall.FILE_SHARE_READ, nil, syscall.OPEN_EXISTING, syscall.FILE_FLAG_BACKUP_SEMANTICS, 0)
+		const fileFlagSequentialScan = 0x08000000 // FILE_FLAG_SEQUENTIAL_SCAN
+		h, err := syscall.CreateFile(&p[0], syscall.GENERIC_READ, syscall.FILE_SHARE_READ, nil, syscall.OPEN_EXISTING, syscall.FILE_FLAG_BACKUP_SEMANTICS|fileFlagSequentialScan, 0)
 		if err != nil {
 			return &os.PathError{Op: "open", Path: path, Err: err}
 		}

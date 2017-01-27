@@ -24,7 +24,7 @@ func TestDownload(t *testing.T) {
 	response.Body.Close()
 
 	if err != nil || string(actual) != expected {
-		t.Fatalf("Expected the response %q, got err:%q, response:%q, actual:%q", expected, err, response, string(actual))
+		t.Fatalf("Expected the response %q, got err:%q, actual:%q", expected, err, string(actual))
 	}
 }
 

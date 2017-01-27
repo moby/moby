@@ -17,12 +17,12 @@ const (
 	dynamicPortEnd = 32767
 
 	// The start of master port range which will hold all the
-	// allocation state of ports allocated so far regerdless of
+	// allocation state of ports allocated so far regardless of
 	// whether it was user defined or not.
 	masterPortStart = 1
 
 	// The end of master port range which will hold all the
-	// allocation state of ports allocated so far regerdless of
+	// allocation state of ports allocated so far regardless of
 	// whether it was user defined or not.
 	masterPortEnd = 65535
 )
@@ -65,7 +65,7 @@ func (ps allocatedPorts) addState(p *api.PortConfig) {
 // Note multiple dynamically allocated ports might exists. In this case,
 // we will remove only at a time so both allocated ports are tracked.
 //
-// Note becasue of the potential co-existence of user-defined and dynamically
+// Note because of the potential co-existence of user-defined and dynamically
 // allocated ports, delState has to be called for user-defined port first.
 // dynamically allocated ports should be removed later.
 func (ps allocatedPorts) delState(p *api.PortConfig) *api.PortConfig {
@@ -277,7 +277,7 @@ func (pa *portAllocator) isPortsAllocated(s *api.Service) bool {
 	}
 
 	// If service has allocated endpoint while has no user-defined endpoint,
-	// we assume allocated endpoints are redudant, and they need deallocated.
+	// we assume allocated endpoints are redundant, and they need deallocated.
 	// If service has no allocated endpoint while has user-defined endpoint,
 	// we assume it is not allocated.
 	if (s.Endpoint != nil && s.Spec.Endpoint == nil) ||

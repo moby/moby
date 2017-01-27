@@ -67,7 +67,7 @@ func (s *DockerSuite) TestRmiImgIDMultipleTag(c *check.C) {
 
 	// Wait for it to exit as cannot commit a running container on Windows, and
 	// it will take a few seconds to exit
-	if daemonPlatform == "windows" {
+	if testEnv.DaemonPlatform() == "windows" {
 		err := waitExited(containerID, 60*time.Second)
 		c.Assert(err, check.IsNil)
 	}
@@ -111,7 +111,7 @@ func (s *DockerSuite) TestRmiImgIDForce(c *check.C) {
 
 	// Wait for it to exit as cannot commit a running container on Windows, and
 	// it will take a few seconds to exit
-	if daemonPlatform == "windows" {
+	if testEnv.DaemonPlatform() == "windows" {
 		err := waitExited(containerID, 60*time.Second)
 		c.Assert(err, check.IsNil)
 	}
@@ -147,8 +147,8 @@ func (s *DockerSuite) TestRmiImgIDForce(c *check.C) {
 // See https://github.com/docker/docker/issues/14116
 func (s *DockerSuite) TestRmiImageIDForceWithRunningContainersAndMultipleTags(c *check.C) {
 	dockerfile := "FROM busybox\nRUN echo test 14116\n"
-	imgID, err := buildImage("test-14116", dockerfile, false)
-	c.Assert(err, checker.IsNil)
+	buildImageSuccessfully(c, "test-14116", withDockerfile(dockerfile))
+	imgID := getIDByName(c, "test-14116")
 
 	newTag := "newtag"
 	dockerCmd(c, "tag", imgID, newTag)
@@ -205,14 +205,8 @@ func (s *DockerSuite) TestRmiForceWithMultipleRepositories(c *check.C) {
 	tag1 := imageName + ":tag1"
 	tag2 := imageName + ":tag2"
 
-	_, err := buildImage(tag1,
-		`FROM busybox
-		MAINTAINER "docker"`,
-		true)
-	if err != nil {
-		c.Fatal(err)
-	}
-
+	buildImageSuccessfully(c, tag1, withDockerfile(`FROM busybox
+		MAINTAINER "docker"`))
 	dockerCmd(c, "tag", tag1, tag2)
 
 	out, _ := dockerCmd(c, "rmi", "-f", tag2)
@@ -240,8 +234,8 @@ func (s *DockerSuite) TestRmiContainerImageNotFound(c *check.C) {
 	imageIds := make([]string, 2)
 	for i, name := range imageNames {
 		dockerfile := fmt.Sprintf("FROM busybox\nMAINTAINER %s\nRUN echo %s\n", name, name)
-		id, err := buildImage(name, dockerfile, false)
-		c.Assert(err, checker.IsNil)
+		buildImageSuccessfully(c, name, withoutCache, withDockerfile(dockerfile))
+		id := getIDByName(c, name)
 		imageIds[i] = id
 	}
 
@@ -269,9 +263,7 @@ RUN echo 0 #layer0
 RUN echo 1 #layer1
 RUN echo 2 #layer2
 `
-	_, err := buildImage(image, dockerfile, false)
-	c.Assert(err, checker.IsNil)
-
+	buildImageSuccessfully(c, image, withoutCache, withDockerfile(dockerfile))
 	out, _ := dockerCmd(c, "history", "-q", image)
 	ids := strings.Split(out, "\n")
 	idToTag := ids[2]
@@ -294,7 +286,7 @@ RUN echo 2 #layer2
 
 	// At this point we have 2 containers, one based on layer2 and another based on layer0.
 	// Try to untag "tmp2" without the -f flag.
-	out, _, err = dockerCmdWithError("rmi", newTag)
+	out, _, err := dockerCmdWithError("rmi", newTag)
 	// should not be untagged without the -f flag
 	c.Assert(err, checker.NotNil)
 	c.Assert(out, checker.Contains, cid[:12])
@@ -307,10 +299,9 @@ RUN echo 2 #layer2
 }
 
 func (*DockerSuite) TestRmiParentImageFail(c *check.C) {
-	_, err := buildImage("test", `
+	buildImageSuccessfully(c, "test", withDockerfile(`
 	FROM busybox
-	RUN echo hello`, false)
-	c.Assert(err, checker.IsNil)
+	RUN echo hello`))
 
 	id := inspectField(c, "busybox", "ID")
 	out, _, err := dockerCmdWithError("rmi", id)

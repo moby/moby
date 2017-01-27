@@ -65,7 +65,7 @@
 
 TODO
 - Unify the head commit
-- Sort out the GITCOMMIT environment variable in the absense of a .git (longer term)
+- Sort out the GITCOMMIT environment variable in the absence of a .git (longer term)
 - Add golint and other checks (swagger maybe?)
 
 #>
@@ -308,7 +308,10 @@ Function Run-UnitTests() {
 # Start of main code.
 Try {
     Write-Host -ForegroundColor Cyan "INFO: make.ps1 starting at $(Get-Date)"
-    $root=$(pwd)
+
+    # Get to the root of the repo
+    $root = $(Split-Path $MyInvocation.MyCommand.Definition -Parent | Split-Path -Parent)
+    Push-Location $root
 
     # Handle the "-All" shortcut to turn on all things we can handle.
     if ($All) { $Client=$True; $Daemon=$True; $DCO=$True; $PkgImports=$True; $GoFormat=$True; $TestUnit=$True }
@@ -403,6 +406,7 @@ Catch [Exception] {
     Throw $_
 }
 Finally {
+    Pop-Location # As we pushed to the root of the repo as the very first thing
     if ($global:pushed) { Pop-Location }
     Write-Host -ForegroundColor Cyan "INFO: make.ps1 ended at $(Get-Date)"
 }

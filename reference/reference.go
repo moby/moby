@@ -1,13 +1,12 @@
 package reference
 
 import (
-	"errors"
 	"fmt"
-	"strings"
 
 	distreference "github.com/docker/distribution/reference"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/opencontainers/go-digest"
+	"github.com/pkg/errors"
 )
 
 const (
@@ -53,21 +52,31 @@ type Canonical interface {
 // returned.
 // If an error was encountered it is returned, along with a nil Reference.
 func ParseNamed(s string) (Named, error) {
-	named, err := distreference.ParseNamed(s)
+	named, err := distreference.ParseNormalizedNamed(s)
 	if err != nil {
-		return nil, fmt.Errorf("Error parsing reference: %q is not a valid repository/tag: %s", s, err)
+		return nil, errors.Wrapf(err, "failed to parse reference %q", s)
 	}
-	r, err := WithName(named.Name())
-	if err != nil {
+	if err := validateName(distreference.FamiliarName(named)); err != nil {
 		return nil, err
 	}
+
+	// Ensure returned reference cannot have tag and digest
 	if canonical, isCanonical := named.(distreference.Canonical); isCanonical {
-		return WithDigest(r, canonical.Digest())
+		r, err := distreference.WithDigest(distreference.TrimNamed(named), canonical.Digest())
+		if err != nil {
+			return nil, err
+		}
+		return &canonicalRef{namedRef{r}}, nil
 	}
 	if tagged, isTagged := named.(distreference.NamedTagged); isTagged {
-		return WithTag(r, tagged.Tag())
+		r, err := distreference.WithTag(distreference.TrimNamed(named), tagged.Tag())
+		if err != nil {
+			return nil, err
+		}
+		return &taggedRef{namedRef{r}}, nil
 	}
-	return r, nil
+
+	return &namedRef{named}, nil
 }
 
 // TrimNamed removes any tag or digest from the named reference
@@ -78,16 +87,15 @@ func TrimNamed(ref Named) Named {
 // WithName returns a named object representing the given string. If the input
 // is invalid ErrReferenceInvalidFormat will be returned.
 func WithName(name string) (Named, error) {
-	name, err := normalize(name)
+	r, err := distreference.ParseNormalizedNamed(name)
 	if err != nil {
 		return nil, err
 	}
-	if err := validateName(name); err != nil {
+	if err := validateName(distreference.FamiliarName(r)); err != nil {
 		return nil, err
 	}
-	r, err := distreference.WithName(name)
-	if err != nil {
-		return nil, err
+	if !distreference.IsNameOnly(r) {
+		return nil, distreference.ErrReferenceInvalidFormat
 	}
 	return &namedRef{r}, nil
 }
@@ -122,17 +130,22 @@ type canonicalRef struct {
 	namedRef
 }
 
+func (r *namedRef) Name() string {
+	return distreference.FamiliarName(r.Named)
+}
+
+func (r *namedRef) String() string {
+	return distreference.FamiliarString(r.Named)
+}
+
 func (r *namedRef) FullName() string {
-	hostname, remoteName := splitHostname(r.Name())
-	return hostname + "/" + remoteName
+	return r.Named.Name()
 }
 func (r *namedRef) Hostname() string {
-	hostname, _ := splitHostname(r.Name())
-	return hostname
+	return distreference.Domain(r.Named)
 }
 func (r *namedRef) RemoteName() string {
-	_, remoteName := splitHostname(r.Name())
-	return remoteName
+	return distreference.Path(r.Named)
 }
 func (r *taggedRef) Tag() string {
 	return r.namedRef.Named.(distreference.NamedTagged).Tag()
@@ -171,41 +184,6 @@ func ParseIDOrReference(idOrRef string) (digest.Digest, Named, error) {
 	}
 	ref, err := ParseNamed(idOrRef)
 	return "", ref, err
-}
-
-// splitHostname splits a repository name to hostname and remotename string.
-// If no valid hostname is found, the default hostname is used. Repository name
-// needs to be already validated before.
-func splitHostname(name string) (hostname, remoteName string) {
-	i := strings.IndexRune(name, '/')
-	if i == -1 || (!strings.ContainsAny(name[:i], ".:") && name[:i] != "localhost") {
-		hostname, remoteName = DefaultHostname, name
-	} else {
-		hostname, remoteName = name[:i], name[i+1:]
-	}
-	if hostname == LegacyDefaultHostname {
-		hostname = DefaultHostname
-	}
-	if hostname == DefaultHostname && !strings.ContainsRune(remoteName, '/') {
-		remoteName = DefaultRepoPrefix + remoteName
-	}
-	return
-}
-
-// normalize returns a repository name in its normalized form, meaning it
-// will not contain default hostname nor library/ prefix for official images.
-func normalize(name string) (string, error) {
-	host, remoteName := splitHostname(name)
-	if strings.ToLower(remoteName) != remoteName {
-		return "", errors.New("invalid reference format: repository name must be lowercase")
-	}
-	if host == DefaultHostname {
-		if strings.HasPrefix(remoteName, DefaultRepoPrefix) {
-			return strings.TrimPrefix(remoteName, DefaultRepoPrefix), nil
-		}
-		return remoteName, nil
-	}
-	return name, nil
 }
 
 func validateName(name string) error {

@@ -564,32 +564,11 @@ func (s *DockerSuite) TestContainerAPICreateMultipleNetworksConfig(c *check.C) {
 }
 
 func (s *DockerSuite) TestContainerAPICreateWithHostName(c *check.C) {
-	hostName := "test-host"
-	config := map[string]interface{}{
-		"Image":    "busybox",
-		"Hostname": hostName,
-	}
-
-	status, body, err := request.SockRequest("POST", "/containers/create", config, daemonHost())
-	c.Assert(err, checker.IsNil)
-	c.Assert(status, checker.Equals, http.StatusCreated)
-
-	var container containertypes.ContainerCreateCreatedBody
-	c.Assert(json.Unmarshal(body, &container), checker.IsNil)
-
-	status, body, err = request.SockRequest("GET", "/containers/"+container.ID+"/json", nil, daemonHost())
-	c.Assert(err, checker.IsNil)
-	c.Assert(status, checker.Equals, http.StatusOK)
-
-	var containerJSON types.ContainerJSON
-	c.Assert(json.Unmarshal(body, &containerJSON), checker.IsNil)
-	c.Assert(containerJSON.Config.Hostname, checker.Equals, hostName, check.Commentf("Mismatched Hostname"))
-}
-
-func (s *DockerSuite) TestContainerAPICreateWithDomainName(c *check.C) {
 	domainName := "test-domain"
+	hostName := "test-hostname"
 	config := map[string]interface{}{
 		"Image":      "busybox",
+		"Hostname":   hostName,
 		"Domainname": domainName,
 	}
 
@@ -606,6 +585,7 @@ func (s *DockerSuite) TestContainerAPICreateWithDomainName(c *check.C) {
 
 	var containerJSON types.ContainerJSON
 	c.Assert(json.Unmarshal(body, &containerJSON), checker.IsNil)
+	c.Assert(containerJSON.Config.Hostname, checker.Equals, hostName, check.Commentf("Mismatched Hostname"))
 	c.Assert(containerJSON.Config.Domainname, checker.Equals, domainName, check.Commentf("Mismatched Domainname"))
 }
 
@@ -939,7 +919,7 @@ func (s *DockerSuite) TestContainerAPIStart(c *check.C) {
 	c.Assert(err, checker.IsNil)
 
 	// TODO(tibor): figure out why this doesn't work on windows
-	if isLocalDaemon {
+	if testEnv.LocalDaemon() {
 		c.Assert(status, checker.Equals, http.StatusNotModified)
 	}
 }
@@ -963,7 +943,7 @@ func (s *DockerSuite) TestContainerAPIWait(c *check.C) {
 	name := "test-api-wait"
 
 	sleepCmd := "/bin/sleep"
-	if daemonPlatform == "windows" {
+	if testEnv.DaemonPlatform() == "windows" {
 		sleepCmd = "sleep"
 	}
 	dockerCmd(c, "run", "--name", name, "busybox", sleepCmd, "2")
@@ -1132,7 +1112,7 @@ func (s *DockerSuite) TestContainerAPIDeleteRemoveVolume(c *check.C) {
 	testRequires(c, SameHostDaemon)
 
 	vol := "/testvolume"
-	if daemonPlatform == "windows" {
+	if testEnv.DaemonPlatform() == "windows" {
 		vol = `c:\testvolume`
 	}
 
@@ -1786,19 +1766,18 @@ func (s *DockerSuite) TestContainersAPICreateMountsCreate(c *check.C) {
 	destPath := prefix + slash + "foo"
 
 	var (
-		err     error
 		testImg string
 	)
-	if daemonPlatform != "windows" {
-		testImg, err = buildImage("test-mount-config", `
+	if testEnv.DaemonPlatform() != "windows" {
+		testImg = "test-mount-config"
+		buildImageSuccessfully(c, testImg, withDockerfile(`
 	FROM busybox
 	RUN mkdir `+destPath+` && touch `+destPath+slash+`bar
 	CMD cat `+destPath+slash+`bar
-	`, true)
+	`))
 	} else {
 		testImg = "busybox"
 	}
-	c.Assert(err, checker.IsNil)
 
 	type testCase struct {
 		cfg      mounttypes.Mount
@@ -1842,7 +1821,7 @@ func (s *DockerSuite) TestContainersAPICreateMountsCreate(c *check.C) {
 		}
 	}
 
-	if daemonPlatform != "windows" { // Windows does not support volume populate
+	if testEnv.DaemonPlatform() != "windows" { // Windows does not support volume populate
 		cases = append(cases, []testCase{
 			{mounttypes.Mount{Type: "volume", Target: destPath, VolumeOptions: &mounttypes.VolumeOptions{NoCopy: true}}, types.MountPoint{Driver: volume.DefaultDriverName, Type: "volume", RW: true, Destination: destPath}},
 			{mounttypes.Mount{Type: "volume", Target: destPath + slash, VolumeOptions: &mounttypes.VolumeOptions{NoCopy: true}}, types.MountPoint{Driver: volume.DefaultDriverName, Type: "volume", RW: true, Destination: destPath}},
@@ -1892,7 +1871,7 @@ func (s *DockerSuite) TestContainersAPICreateMountsCreate(c *check.C) {
 		}
 
 		out, _, err := dockerCmdWithError("start", "-a", id)
-		if (x.cfg.Type != "volume" || (x.cfg.VolumeOptions != nil && x.cfg.VolumeOptions.NoCopy)) && daemonPlatform != "windows" {
+		if (x.cfg.Type != "volume" || (x.cfg.VolumeOptions != nil && x.cfg.VolumeOptions.NoCopy)) && testEnv.DaemonPlatform() != "windows" {
 			c.Assert(err, checker.NotNil, check.Commentf("%s\n%v", out, mps[0]))
 		} else {
 			c.Assert(err, checker.IsNil, check.Commentf("%s\n%v", out, mps[0]))
