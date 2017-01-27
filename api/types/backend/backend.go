@@ -23,6 +23,10 @@ type ContainerAttachConfig struct {
 	// HOWEVER, the websocket endpoint is using a single stream and SHOULD be encoded with stdout/stderr as is done for HTTP since it is still just a single stream.
 	// Since such a change is an API change unrelated to the current changeset we'll keep it as is here and change separately.
 	MuxStreams bool
+
+	// Specifies if a slow attached client should block the container's stdio.
+	// For historical reasons this is defaulted to false.
+	NonBlocking bool
 }
 
 // ContainerLogsConfig holds configs for logging operations. Exists

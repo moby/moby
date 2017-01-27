@@ -60,6 +60,34 @@ func TestBytesPipeWrite(t *testing.T) {
 	}
 }
 
+func TestNonBlockingBytesPipeWrite(t *testing.T) {
+	data := []byte("some data")
+	var written int
+	buf := NewBytesPipe(WithNonBlockingWrites)
+	done := make(chan struct{})
+
+	go func() {
+		defer close(done)
+		for written < blockThreshold*2 {
+			n, err := buf.Write(data)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if n != len(data) {
+				t.Fatalf("short write: expected %d, got %d", len(data), n)
+			}
+			written += n
+		}
+
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(10 * time.Second):
+		t.Fatal("writes blocked")
+	}
+}
+
 // Write and read in different speeds/chunk sizes and check valid data is read.
 func TestBytesPipeWriteRandomChunks(t *testing.T) {
 	cases := []struct{ iterations, writesPerLoop, readsPerLoop int }{
@@ -156,4 +184,17 @@ func BenchmarkBytesPipeRead(b *testing.B) {
 			}
 		}
 	}
+}
+
+func BenchmarkNonBlockingBytesPipeWrite(b *testing.B) {
+	testData := []byte("pretty short line, because why not?")
+	b.SetBytes(int64(len(testData) * 1000))
+	for i := 0; i < b.N; i++ {
+		buf := NewBytesPipe(WithNonBlockingWrites)
+		for j := 0; j < 1000; j++ {
+			buf.Write(testData)
+		}
+		buf.Close()
+	}
+
 }

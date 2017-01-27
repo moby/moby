@@ -15,6 +15,7 @@ import (
 )
 
 type attachOptions struct {
+	noBlock    bool
 	noStdin    bool
 	proxy      bool
 	detachKeys string
@@ -40,6 +41,7 @@ func NewAttachCommand(dockerCli *command.DockerCli) *cobra.Command {
 	flags.BoolVar(&opts.noStdin, "no-stdin", false, "Do not attach STDIN")
 	flags.BoolVar(&opts.proxy, "sig-proxy", true, "Proxy all received signals to the process")
 	flags.StringVar(&opts.detachKeys, "detach-keys", "", "Override the key sequence for detaching a container")
+	flags.BoolVar(&opts.noBlock, "no-block", false, "Do not block container's stdio for attached client")
 	return cmd
 }
 
@@ -69,11 +71,12 @@ func runAttach(dockerCli *command.DockerCli, opts *attachOptions) error {
 	}
 
 	options := types.ContainerAttachOptions{
-		Stream:     true,
-		Stdin:      !opts.noStdin && c.Config.OpenStdin,
-		Stdout:     true,
-		Stderr:     true,
-		DetachKeys: dockerCli.ConfigFile().DetachKeys,
+		Stream:      true,
+		Stdin:       !opts.noStdin && c.Config.OpenStdin,
+		Stdout:      true,
+		Stderr:      true,
+		DetachKeys:  dockerCli.ConfigFile().DetachKeys,
+		NonBlocking: opts.noBlock,
 	}
 
 	var in io.ReadCloser

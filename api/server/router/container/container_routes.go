@@ -464,14 +464,15 @@ func (s *containerRouter) postContainersAttach(ctx context.Context, w http.Respo
 	}
 
 	attachConfig := &backend.ContainerAttachConfig{
-		GetStreams: setupStreams,
-		UseStdin:   httputils.BoolValue(r, "stdin"),
-		UseStdout:  httputils.BoolValue(r, "stdout"),
-		UseStderr:  httputils.BoolValue(r, "stderr"),
-		Logs:       httputils.BoolValue(r, "logs"),
-		Stream:     httputils.BoolValue(r, "stream"),
-		DetachKeys: detachKeys,
-		MuxStreams: true,
+		GetStreams:  setupStreams,
+		UseStdin:    httputils.BoolValue(r, "stdin"),
+		UseStdout:   httputils.BoolValue(r, "stdout"),
+		UseStderr:   httputils.BoolValue(r, "stderr"),
+		Logs:        httputils.BoolValue(r, "logs"),
+		Stream:      httputils.BoolValue(r, "stream"),
+		NonBlocking: httputils.BoolValue(r, "non-blocking"),
+		DetachKeys:  detachKeys,
+		MuxStreams:  true,
 	}
 
 	if err = s.backend.ContainerAttach(containerName, attachConfig); err != nil {

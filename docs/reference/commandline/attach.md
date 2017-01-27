@@ -24,6 +24,7 @@ Options:
       --detach-keys string   Override the key sequence for detaching a container
       --help                 Print usage
       --no-stdin             Do not attach STDIN
+      --no-block             Do not block the container's stdio
       --sig-proxy            Proxy all received signals to the process (default true)
 ```
 

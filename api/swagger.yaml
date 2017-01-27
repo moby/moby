@@ -3932,6 +3932,10 @@ paths:
           description: "Attach to `stderr`"
           type: "boolean"
           default: false
+        - name: "non-blocking"
+          type: "boolean"
+          default: false
+          description: "Do not block the container's stdio for slow attach client"
       tags: ["Container"]
   /containers/{id}/attach/ws:
     get:

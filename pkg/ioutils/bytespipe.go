@@ -28,19 +28,32 @@ var (
 // All written data may be read at most once. Also, BytesPipe allocates
 // and releases new byte slices to adjust to current needs, so the buffer
 // won't be overgrown after peak loads.
+// If nonBlocking mode is specified, instead of blocking when the max size is
+// reached, the oldest buffers are recycled, dropping unread bytes as needed.
 type BytesPipe struct {
-	mu       sync.Mutex
-	wait     *sync.Cond
-	buf      []*fixedBuffer
-	bufLen   int
-	closeErr error // error to return from next Read. set to nil if not closed.
+	mu          sync.Mutex
+	wait        *sync.Cond
+	buf         []*fixedBuffer
+	bufLen      int
+	closeErr    error // error to return from next Read. set to nil if not closed.
+	nonBlocking bool
 }
 
-// NewBytesPipe creates new BytesPipe, initialized by specified slice.
-// If buf is nil, then it will be initialized with slice which cap is 64.
-// buf will be adjusted in a way that len(buf) == 0, cap(buf) == cap(buf).
-func NewBytesPipe() *BytesPipe {
+// BytesPipeOption is a type used as a functional argument for creating new BytesPipes
+type BytesPipeOption func(*BytesPipe)
+
+// WithNonBlockingWrites is a BytesPipeOption which enables non-blocking mode for
+// a BytesPipe
+func WithNonBlockingWrites(bp *BytesPipe) {
+	bp.nonBlocking = true
+}
+
+// NewBytesPipe creates new BytesPipe
+func NewBytesPipe(opts ...BytesPipeOption) *BytesPipe {
 	bp := &BytesPipe{}
+	for _, o := range opts {
+		o(bp)
+	}
 	bp.buf = append(bp.buf, getBuffer(minCap))
 	bp.wait = sync.NewCond(&bp.mu)
 	return bp
@@ -86,6 +99,13 @@ loop0:
 
 		// make sure the buffer doesn't grow too big from this write
 		for bp.bufLen >= blockThreshold {
+			if bp.nonBlocking {
+				buf := bp.buf[0]
+				bp.buf[0] = nil
+				buf.Reset()
+				bp.buf = append(bp.buf[1:], buf)
+				continue loop0
+			}
 			bp.wait.Wait()
 			if bp.closeErr != nil {
 				continue loop0

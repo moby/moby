@@ -31,6 +31,9 @@ func (cli *Client) ContainerAttach(ctx context.Context, container string, option
 	if options.Logs {
 		query.Set("logs", "1")
 	}
+	if options.NonBlocking {
+		query.Set("non-blocking", "1")
+	}
 
 	headers := map[string][]string{"Content-Type": {"text/plain"}}
 	return cli.postHijacked(ctx, "/containers/"+container+"/attach", query, nil, headers)
