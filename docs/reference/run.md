@@ -667,6 +667,17 @@ It also causes any seccomp filters to be applied later, after privileges have be
 which may mean you can have a more restrictive set of filters.
 For more details, see the [kernel documentation](https://www.kernel.org/doc/Documentation/prctl/no_new_privs.txt).
 
+## Specifying an init process
+
+You can use the `--init` or `--init-path` flags to specify a process which
+should be used as the PID 1 in the container, and which binary to use for this
+init process, respectively. Specifying an init process ensures the usual
+responsibilties of an init system, such as reaping zombie processes, are
+performed inside the created container.
+
+The default init process used when specifying `--init` without `--init-path` is
+[tini](https://github.com/krallin/tini).
+
 ## Specifying custom cgroups
 
 Using the `--cgroup-parent` flag, you can pass a specific cgroup to run a
