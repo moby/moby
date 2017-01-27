@@ -943,3 +943,10 @@ func (s *DockerSuite) TestPsFilterMissingArgErrorCode(c *check.C) {
 	_, errCode, _ := dockerCmdWithError("ps", "--filter")
 	c.Assert(errCode, checker.Equals, 125)
 }
+
+// Test case for 30291
+func (s *DockerSuite) TestPsFormatTemplateWithArg(c *check.C) {
+	runSleepingContainer(c, "-d", "--name", "top", "--label", "some.label=label.foo-bar")
+	out, _ := dockerCmd(c, "ps", "--format", `{{.Names}} {{.Label "some.label"}}`)
+	c.Assert(strings.TrimSpace(out), checker.Equals, "top label.foo-bar")
+}

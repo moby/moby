@@ -165,8 +165,8 @@ SHELL ["powershell", "-command"]
 # Environment variable notes:
 #  - GO_VERSION must be consistent with 'Dockerfile' used by Linux.
 #  - FROM_DOCKERFILE is used for detection of building within a container.
-ENV GO_VERSION=1.7.3 `
-    GIT_VERSION=2.10.2 `
+ENV GO_VERSION=1.7.4 `
+    GIT_VERSION=2.11.0 `
     GOPATH=C:\go `
     FROM_DOCKERFILE=1
 
