@@ -11,7 +11,7 @@ RUN update-alternatives --install /usr/bin/go go /usr/lib/go-1.6/bin/go 100
 # Install Go
 # aarch64 doesn't have official go binaries, so use the version of go installed from
 # the image to build go from source.
-ENV GO_VERSION 1.7.4
+ENV GO_VERSION 1.7.5
 RUN mkdir /usr/src/go && curl -fsSL https://golang.org/dl/go${GO_VERSION}.src.tar.gz | tar -v -C /usr/src/go -xz --strip-components=1 \
 	&& cd /usr/src/go/src \
 	&& GOOS=linux GOARCH=arm64 GOROOT_BOOTSTRAP="$(go env GOROOT)" ./make.bash

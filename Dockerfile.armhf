@@ -71,7 +71,7 @@ RUN cd /usr/local/lvm2 \
 # See https://git.fedorahosted.org/cgit/lvm2.git/tree/INSTALL
 
 # Install Go
-ENV GO_VERSION 1.7.4
+ENV GO_VERSION 1.7.5
 RUN curl -fsSL "https://golang.org/dl/go${GO_VERSION}.linux-armv6l.tar.gz" \
 	| tar -xzC /usr/local
 ENV PATH /go/bin:/usr/local/go/bin:$PATH
