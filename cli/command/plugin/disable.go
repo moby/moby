@@ -14,7 +14,7 @@ func newDisableCommand(dockerCli *command.DockerCli) *cobra.Command {
 	var force bool
 
 	cmd := &cobra.Command{
-		Use:   "disable PLUGIN",
+		Use:   "disable [OPTIONS] PLUGIN",
 		Short: "Disable a plugin",
 		Args:  cli.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
