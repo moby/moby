@@ -16,6 +16,7 @@ import "C"
 
 import (
 	"fmt"
+	"math"
 	"os"
 	"path"
 	"path/filepath"
@@ -293,7 +294,7 @@ func (d *Driver) subvolEnableQuota() error {
 		return nil
 	}
 	// In case quotaEnabled is not set, check qgroup and update quotaEnabled as needed
-	if _, err := subvolLookupQgroup(d.home); err == nil {
+	if err := subvolQgroupStatus(d.home); err == nil {
 		d.quotaEnabled = true
 		return nil
 	}
@@ -320,7 +321,7 @@ func (d *Driver) subvolEnableQuota() error {
 func (d *Driver) subvolDisableQuota() error {
 	if !d.quotaEnabled {
 		// In case quotaEnabled is not set, check qgroup and update quotaEnabled as needed
-		if _, err := subvolLookupQgroup(d.home); err != nil {
+		if err := subvolQgroupStatus(d.home); err != nil {
 			// quota is still not enabled
 			return nil
 		}
@@ -349,7 +350,7 @@ func (d *Driver) subvolDisableQuota() error {
 func (d *Driver) subvolRescanQuota() error {
 	if !d.quotaEnabled {
 		// In case quotaEnabled is not set, check qgroup and update quotaEnabled as needed
-		if _, err := subvolLookupQgroup(d.home); err != nil {
+		if err := subvolQgroupStatus(d.home); err != nil {
 			// quota is still not enabled
 			return nil
 		}
@@ -391,26 +392,36 @@ func subvolLimitQgroup(path string, size uint64) error {
 	return nil
 }
 
-func subvolLookupQgroup(path string) (uint64, error) {
+// subvolQgroupStatus performs a BTRFS_IOC_TREE_SEARCH on the root path
+// with search key of BTRFS_QGROUP_STATUS_KEY.
+// In case qgroup is enabled, the retuned key type will match BTRFS_QGROUP_STATUS_KEY.
+// For more details please see https://github.com/kdave/btrfs-progs/blob/v4.9/qgroup.c#L1035
+func subvolQgroupStatus(path string) error {
 	dir, err := openDir(path)
 	if err != nil {
-		return 0, err
+		return err
 	}
 	defer closeDir(dir)
 
-	var args C.struct_btrfs_ioctl_ino_lookup_args
-	args.objectid = C.BTRFS_FIRST_FREE_OBJECTID
+	var args C.struct_btrfs_ioctl_search_args
+	args.key.tree_id = C.BTRFS_QUOTA_TREE_OBJECTID
+	args.key.min_type = C.BTRFS_QGROUP_STATUS_KEY
+	args.key.max_type = C.BTRFS_QGROUP_STATUS_KEY
+	args.key.max_objectid = C.__u64(math.MaxUint64)
+	args.key.max_offset = C.__u64(math.MaxUint64)
+	args.key.max_transid = C.__u64(math.MaxUint64)
+	args.key.nr_items = 4096
 
-	_, _, errno := syscall.Syscall(syscall.SYS_IOCTL, getDirFd(dir), C.BTRFS_IOC_INO_LOOKUP,
+	_, _, errno := syscall.Syscall(syscall.SYS_IOCTL, getDirFd(dir), C.BTRFS_IOC_TREE_SEARCH,
 		uintptr(unsafe.Pointer(&args)))
 	if errno != 0 {
-		return 0, fmt.Errorf("Failed to lookup qgroup for %s: %v", dir, errno.Error())
+		return fmt.Errorf("Failed to search qgroup for %s: %v", path, errno.Error())
 	}
-	if args.treeid == 0 {
-		return 0, fmt.Errorf("Invalid qgroup id for %s: 0", dir)
+	sh := (*C.struct_btrfs_ioctl_search_header)(unsafe.Pointer(&args.buf))
+	if sh._type != C.BTRFS_QGROUP_STATUS_KEY {
+		return fmt.Errorf("Invalid qgroup search header type for %s: %v", path, sh._type)
 	}
-
-	return uint64(args.treeid), nil
+	return nil
 }
 
 func (d *Driver) subvolumesDir() string {
