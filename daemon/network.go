@@ -468,3 +468,31 @@ func (daemon *Daemon) deleteNetwork(networkID string, dynamic bool) error {
 func (daemon *Daemon) GetNetworks() []libnetwork.Network {
 	return daemon.getAllNetworks()
 }
+
+// clearAttachableNetworks removes the attachable networks
+// after disconnecting any connected container
+func (daemon *Daemon) clearAttachableNetworks() {
+	for _, n := range daemon.GetNetworks() {
+		if !n.Info().Attachable() {
+			continue
+		}
+		for _, ep := range n.Endpoints() {
+			epInfo := ep.Info()
+			if epInfo == nil {
+				continue
+			}
+			sb := epInfo.Sandbox()
+			if sb == nil {
+				continue
+			}
+			containerID := sb.ContainerID()
+			if err := daemon.DisconnectContainerFromNetwork(containerID, n.ID(), true); err != nil {
+				logrus.Warnf("Failed to disconnect container %s from swarm network %s on cluster leave: %v",
+					containerID, n.Name(), err)
+			}
+		}
+		if err := daemon.DeleteManagedNetwork(n.ID()); err != nil {
+			logrus.Warnf("Failed to remove swarm network %s on cluster leave: %v", n.Name(), err)
+		}
+	}
+}
