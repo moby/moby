@@ -16,7 +16,7 @@ keywords: "plugin, disable"
 # plugin disable
 
 ```markdown
-Usage:  docker plugin disable PLUGIN
+Usage:  docker plugin disable [OPTIONS] PLUGIN
 
 Disable a plugin
 
