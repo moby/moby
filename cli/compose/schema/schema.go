@@ -81,13 +81,18 @@ func toError(result *gojsonschema.Result) error {
 	return err
 }
 
+const (
+	jsonschemaOneOf = "number_one_of"
+	jsonschemaAnyOf = "number_any_of"
+)
+
 func getDescription(err validationError) string {
 	switch err.parent.Type() {
 	case "invalid_type":
 		if expectedType, ok := err.parent.Details()["expected"].(string); ok {
 			return fmt.Sprintf("must be a %s", humanReadableType(expectedType))
 		}
-	case "number_one_of", "number_any_of":
+	case jsonschemaOneOf, jsonschemaAnyOf:
 		if err.child == nil {
 			return err.parent.Description()
 		}
