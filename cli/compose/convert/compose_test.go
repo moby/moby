@@ -7,6 +7,7 @@ import (
 	"github.com/docker/docker/api/types/network"
 	composetypes "github.com/docker/docker/cli/compose/types"
 	"github.com/docker/docker/pkg/testutil/assert"
+	"github.com/docker/docker/pkg/testutil/tempfile"
 )
 
 func TestNamespaceScope(t *testing.T) {
@@ -87,4 +88,35 @@ func TestNetworks(t *testing.T) {
 	networks, externals := Networks(namespace, source, serviceNetworks)
 	assert.DeepEqual(t, networks, expected)
 	assert.DeepEqual(t, externals, []string{"special"})
+}
+
+func TestSecrets(t *testing.T) {
+	namespace := Namespace{name: "foo"}
+
+	secretText := "this is the first secret"
+	secretFile := tempfile.NewTempFile(t, "convert-secrets", secretText)
+	defer secretFile.Remove()
+
+	source := map[string]composetypes.SecretConfig{
+		"one": {
+			File:   secretFile.Name(),
+			Labels: map[string]string{"monster": "mash"},
+		},
+		"ext": {
+			External: composetypes.External{
+				External: true,
+			},
+		},
+	}
+
+	specs, err := Secrets(namespace, source)
+	assert.NilError(t, err)
+	assert.Equal(t, len(specs), 1)
+	secret := specs[0]
+	assert.Equal(t, secret.Name, "foo_one")
+	assert.DeepEqual(t, secret.Labels, map[string]string{
+		"monster":      "mash",
+		LabelNamespace: "foo",
+	})
+	assert.DeepEqual(t, secret.Data, []byte(secretText))
 }

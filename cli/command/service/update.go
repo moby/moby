@@ -431,11 +431,11 @@ func updateEnvironment(flags *pflag.FlagSet, field *[]string) {
 	*field = removeItems(*field, toRemove, envKey)
 }
 
-func getUpdatedSecrets(apiClient client.APIClient, flags *pflag.FlagSet, secrets []*swarm.SecretReference) ([]*swarm.SecretReference, error) {
+func getUpdatedSecrets(apiClient client.SecretAPIClient, flags *pflag.FlagSet, secrets []*swarm.SecretReference) ([]*swarm.SecretReference, error) {
 	if flags.Changed(flagSecretAdd) {
 		values := flags.Lookup(flagSecretAdd).Value.(*opts.SecretOpt).Value()
 
-		addSecrets, err := parseSecrets(apiClient, values)
+		addSecrets, err := ParseSecrets(apiClient, values)
 		if err != nil {
 			return nil, err
 		}

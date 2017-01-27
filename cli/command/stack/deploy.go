@@ -1,7 +1,6 @@
 package stack
 
 import (
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -12,10 +11,12 @@ import (
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cli/command"
+	secretcli "github.com/docker/docker/cli/command/secret"
 	"github.com/docker/docker/cli/compose/convert"
 	"github.com/docker/docker/cli/compose/loader"
 	composetypes "github.com/docker/docker/cli/compose/types"
 	dockerclient "github.com/docker/docker/client"
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"golang.org/x/net/context"
 )
@@ -124,7 +125,16 @@ func deployCompose(ctx context.Context, dockerCli *command.DockerCli, opts deplo
 	if err := createNetworks(ctx, dockerCli, namespace, networks); err != nil {
 		return err
 	}
-	services, err := convert.Services(namespace, config)
+
+	secrets, err := convert.Secrets(namespace, config.Secrets)
+	if err != nil {
+		return err
+	}
+	if err := createSecrets(ctx, dockerCli, namespace, secrets); err != nil {
+		return err
+	}
+
+	services, err := convert.Services(namespace, config, dockerCli.Client())
 	if err != nil {
 		return err
 	}
@@ -205,6 +215,37 @@ func validateExternalNetworks(
 		}
 	}
 
+	return nil
+}
+
+func createSecrets(
+	ctx context.Context,
+	dockerCli *command.DockerCli,
+	namespace convert.Namespace,
+	secrets []swarm.SecretSpec,
+) error {
+	client := dockerCli.Client()
+
+	for _, secretSpec := range secrets {
+		// TODO: fix this after https://github.com/docker/docker/pull/29218
+		secrets, err := secretcli.GetSecretsByNameOrIDPrefixes(ctx, client, []string{secretSpec.Name})
+		switch {
+		case err != nil:
+			return err
+		case len(secrets) > 1:
+			return errors.Errorf("ambiguous secret name: %s", secretSpec.Name)
+		case len(secrets) == 0:
+			fmt.Fprintf(dockerCli.Out(), "Creating secret %s\n", secretSpec.Name)
+			_, err = client.SecretCreate(ctx, secretSpec)
+		default:
+			secret := secrets[0]
+			// Update secret to ensure that the local data hasn't changed
+			err = client.SecretUpdate(ctx, secret.ID, secret.Meta.Version, secretSpec)
+		}
+		if err != nil {
+			return err
+		}
+	}
 	return nil
 }
 

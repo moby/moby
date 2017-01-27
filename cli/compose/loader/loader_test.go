@@ -163,6 +163,24 @@ func TestLoad(t *testing.T) {
 	assert.Equal(t, sampleConfig.Volumes, actual.Volumes)
 }
 
+func TestLoadV31(t *testing.T) {
+	actual, err := loadYAML(`
+version: "3.1"
+services:
+  foo:
+    image: busybox
+    secrets: [super]
+secrets:
+  super:
+    external: true
+`)
+	if !assert.NoError(t, err) {
+		return
+	}
+	assert.Equal(t, len(actual.Services), 1)
+	assert.Equal(t, len(actual.Secrets), 1)
+}
+
 func TestParseAndLoad(t *testing.T) {
 	actual, err := loadYAML(sampleYAML)
 	if !assert.NoError(t, err) {
