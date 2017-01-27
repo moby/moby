@@ -5,6 +5,47 @@ information on the list of deprecated flags and APIs please have a look at
 https://docs.docker.com/engine/deprecated/ where target removal dates can also
 be found.
 
+## 1.13.1 (2017-02-06)
+
+**IMPORTANT**: In Docker 1.13, the managed plugin api changed, as compared to the experimental
+version introduced in Docker 1.12. You must **uninstall** plugins which you installed with Docker 1.12
+_before_ upgrading to Docker 1.13. You can uninstall plugins using the `docker plugin rm` command.
+
+If you have already upgraded to Docker 1.13 without uninstalling
+previously-installed plugins, you may see this message when the Docker daemon
+starts:
+
+    Error starting daemon: json: cannot unmarshal string into Go value of type types.PluginEnv
+
+To manually remove all plugins and resolve this problem, take the following steps:
+
+1. Remove plugins.json from: `/var/lib/docker/plugins/`.
+2. Restart Docker. Verify that the Docker daemon starts with no errors.
+3. Reinstall your plugins.
+
+### Contrib
+
+* Do not require a custom build of tini [#28454](https://github.com/docker/docker/pull/28454)
+* Upgrade to Go 1.7.4 [#29142](https://github.com/docker/docker/pull/29142)
+
+### Remote API (v1.25) & Client
+
++ Support secrets in docker stack deploy with compose file [#30144](https://github.com/docker/docker/pull/30144)
+
+### Runtime
+
+* Fix size issue in `docker system df` [#30378](https://github.com/docker/docker/pull/30378)
+* Fix error on `docker inspect` when Swarm certificates were expired. [#29246](https://github.com/docker/docker/pull/29246)
+* Fix deadlock on v1 plugin with activate error [#30408](https://github.com/docker/docker/pull/30408)
+
+### Networking
+
+* Fix network plugins [#30332](https://github.com/docker/docker/pull/30332)
+
+### Windows
+
+* Fix small regression with old plugins in Windows [#30150](https://github.com/docker/docker/pull/30150)
+
 ## 1.13.0 (2017-01-18)
 
 **IMPORTANT**: In Docker 1.13, the managed plugin api changed, as compared to the experimental
@@ -24,6 +65,7 @@ To manually remove all plugins and resolve this problem, take the following step
 3. Reinstall your plugins.
 
 ### Builder
+
 + Add capability to specify images used as a cache source on build. These images do not need to have local parent chain and can be pulled from other registries [#26839](https://github.com/docker/docker/pull/26839)
 + (experimental) Add option to squash image layers to the FROM image after successful builds [#22641](https://github.com/docker/docker/pull/22641)
 * Fix dockerfile parser with empty line after escape [#24725](https://github.com/docker/docker/pull/24725)
@@ -38,6 +80,7 @@ To manually remove all plugins and resolve this problem, take the following step
 + Handle env case-insensitive on Windows [#28725](https://github.com/docker/docker/pull/28725)
 
 ### Contrib
+
 + Add support for building docker debs for Ubuntu 16.04 Xenial on PPC64LE [#23438](https://github.com/docker/docker/pull/23438)
 + Add support for building docker debs for Ubuntu 16.04 Xenial on s390x [#26104](https://github.com/docker/docker/pull/26104)
 + Add support for building docker debs for Ubuntu 16.10 Yakkety Yak on PPC64LE [#28046](https://github.com/docker/docker/pull/28046)
