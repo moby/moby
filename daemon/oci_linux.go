@@ -208,11 +208,31 @@ func setNamespace(s *specs.Spec, ns specs.Namespace) {
 
 func setCapabilities(s *specs.Spec, c *container.Container) error {
 	var caplist []string
+	var rootcaps = []string{
+		"CAP_CHOWN",
+		"CAP_DAC_OVERRIDE",
+		"CAP_FSETID",
+		"CAP_FOWNER",
+		"CAP_MKNOD",
+		"CAP_NET_RAW",
+		"CAP_SETGID",
+		"CAP_SETUID",
+		"CAP_SETFCAP",
+		"CAP_SETPCAP",
+		"CAP_SYS_CHROOT",
+	}
 	var err error
 	if c.HostConfig.Privileged {
 		caplist = caps.GetAllCapabilities()
 	} else {
-		caplist, err = caps.TweakCapabilities(s.Process.Capabilities, c.HostConfig.CapAdd, c.HostConfig.CapDrop)
+		// OCI minimal default
+		caplist = s.Process.Capabilities
+		// if root or allowing suid binaries, set all the caps we have set in past
+		// for non root with NNP, just use the minimal OCI set
+		if s.Process.User.UID == 0 || !s.Process.NoNewPrivileges {
+			caplist = append(caplist, rootcaps...)
+		}
+		caplist, err = caps.TweakCapabilities(caplist, c.HostConfig.CapAdd, c.HostConfig.CapDrop)
 		if err != nil {
 			return err
 		}
@@ -664,6 +684,9 @@ func (daemon *Daemon) createSpec(c *container.Container) (*specs.Spec, error) {
 		parentPath = filepath.Clean("/" + parentPath)
 	}
 
+	// set before capabilities as it affects defaults
+	s.Process.NoNewPrivileges = c.NoNewPrivileges
+
 	if err := daemon.initCgroupsPath(parentPath); err != nil {
 		return nil, fmt.Errorf("linux init cgroups path: %v", err)
 	}
@@ -673,6 +696,7 @@ func (daemon *Daemon) createSpec(c *container.Container) (*specs.Spec, error) {
 	if err := setRlimits(daemon, &s, c); err != nil {
 		return nil, fmt.Errorf("linux runtime spec rlimits: %v", err)
 	}
+	// set before capabilities as it affects defaults
 	if err := setUser(&s, c); err != nil {
 		return nil, fmt.Errorf("linux spec user: %v", err)
 	}
@@ -757,7 +781,6 @@ func (daemon *Daemon) createSpec(c *container.Container) (*specs.Spec, error) {
 		s.Process.ApparmorProfile = appArmorProfile
 	}
 	s.Process.SelinuxLabel = c.GetProcessLabel()
-	s.Process.NoNewPrivileges = c.NoNewPrivileges
 	s.Linux.MountLabel = c.MountLabel
 
 	return (*specs.Spec)(&s), nil

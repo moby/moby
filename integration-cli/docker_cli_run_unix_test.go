@@ -1299,7 +1299,6 @@ func (s *DockerSuite) TestUserNoEffectiveCapabilitiesMknod(c *check.C) {
 	// test that a root user has default capability CAP_MKNOD
 	dockerCmd(c, "run", "busybox", "mknod", "/tmp/node", "b", "1", "2")
 	// test that non root user does not have default capability CAP_MKNOD
-	// test that root user can drop default capability CAP_SYS_CHROOT
 	icmd.RunCommand(dockerBinary, "run", "--user", "1000:1000", "busybox", "mknod", "/tmp/node", "b", "1", "2").Assert(c, icmd.Expected{
 		ExitCode: 1,
 		Err:      "Operation not permitted",
@@ -1309,6 +1308,202 @@ func (s *DockerSuite) TestUserNoEffectiveCapabilitiesMknod(c *check.C) {
 		ExitCode: 1,
 		Err:      "Operation not permitted",
 	})
+}
+
+// TODO CAP_AUDIT_WRITE
+// TODO CAP_SETFCAP
+
+func (s *DockerSuite) TestNNPCapabilitiesChown(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+	ensureSyscallTest(c)
+
+	// test that a root user has default capability CAP_CHOWN
+	dockerCmd(c, "run", "--security-opt", "no-new-privileges", "busybox", "chown", "100", "/tmp")
+	// test that non root user does not have default capability CAP_CHOWN
+	icmd.RunCommand(dockerBinary, "run", "--security-opt", "no-new-privileges", "--user", "1000:1000", "busybox", "chown", "100", "/tmp").Assert(c, icmd.Expected{
+		ExitCode: 1,
+		Err:      "Operation not permitted",
+	})
+}
+
+func (s *DockerSuite) TestNNPUserCapabilitiesChown(c *check.C) {
+	testRequires(c, DaemonIsLinux, ambientCapabilities)
+	ensureSyscallTest(c)
+
+	// test that non root user can gain capability CAP_CHOWN
+	dockerCmd(c, "run", "--security-opt", "no-new-privileges", "--user", "1000:1000", "--cap-add", "chown", "busybox", "chown", "100", "/tmp")
+}
+
+func (s *DockerSuite) TestNNPCapabilitiesDacOverride(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+	ensureSyscallTest(c)
+
+	// test that a root user has default capability CAP_DAC_OVERRIDE
+	dockerCmd(c, "run", "--security-opt", "no-new-privileges", "busybox", "sh", "-c", "echo test > /etc/passwd")
+	// test that non root user does not have default capability CAP_DAC_OVERRIDE
+	icmd.RunCommand(dockerBinary, "run", "--security-opt", "no-new-privileges", "--user", "1000:1000", "busybox", "sh", "-c", "echo test > /etc/passwd").Assert(c, icmd.Expected{
+		ExitCode: 1,
+		Err:      "Permission denied",
+	})
+}
+
+func (s *DockerSuite) TestNNPUserCapabilitiesDacOverride(c *check.C) {
+	testRequires(c, DaemonIsLinux, ambientCapabilities)
+	ensureSyscallTest(c)
+
+	// test that non root user can gain capability CAP_DAC_OVERRIDE
+	dockerCmd(c, "run", "--security-opt", "no-new-privileges", "--user", "1000:1000", "--cap-add", "dac_override", "busybox", "sh", "-c", "echo test > /etc/passwd")
+}
+
+func (s *DockerSuite) TestNNPCapabilitiesFowner(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+	ensureSyscallTest(c)
+
+	// test that a root user has default capability CAP_FOWNER
+	dockerCmd(c, "run", "--security-opt", "no-new-privileges", "busybox", "chmod", "777", "/etc/passwd")
+	// test that non root user does not have default capability CAP_FOWNER
+	icmd.RunCommand(dockerBinary, "run", "--security-opt", "no-new-privileges", "--user", "1000:1000", "busybox", "chmod", "777", "/etc/passwd").Assert(c, icmd.Expected{
+		ExitCode: 1,
+		Err:      "Operation not permitted",
+	})
+}
+
+func (s *DockerSuite) TestNNPUserCapabilitiesFowner(c *check.C) {
+	testRequires(c, DaemonIsLinux, ambientCapabilities)
+	ensureSyscallTest(c)
+
+	// test that non root user can gain capability CAP_FOWNER
+	dockerCmd(c, "run", "--security-opt", "no-new-privileges", "--user", "1000:1000", "--cap-add", "fowner", "busybox", "chmod", "777", "/etc/passwd")
+}
+
+// TODO CAP_KILL
+
+func (s *DockerSuite) TestNNPCapabilitiesSetuid(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+	ensureSyscallTest(c)
+
+	// test that a root user has default capability CAP_SETUID
+	dockerCmd(c, "run", "--security-opt", "no-new-privileges", "syscall-test", "setuid-test")
+	// test that non root user does not have default capability CAP_SETUID
+	icmd.RunCommand(dockerBinary, "run", "--security-opt", "no-new-privileges", "--user", "1000:1000", "syscall-test", "setuid-test").Assert(c, icmd.Expected{
+		ExitCode: 1,
+		Err:      "Operation not permitted",
+	})
+}
+
+func (s *DockerSuite) TestNNPUserCapabilitiesSetuid(c *check.C) {
+	testRequires(c, DaemonIsLinux, ambientCapabilities)
+	ensureSyscallTest(c)
+
+	// test that non root user can gain capability CAP_SETUID
+	dockerCmd(c, "run", "--security-opt", "no-new-privileges", "--user", "1000:1000", "--cap-add", "setuid", "syscall-test", "setuid-test")
+}
+
+func (s *DockerSuite) TestNNPCapabilitiesSetgid(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+	ensureSyscallTest(c)
+
+	// test that a root user has default capability CAP_SETGID
+	dockerCmd(c, "run", "--security-opt", "no-new-privileges", "syscall-test", "setgid-test")
+	// test that non root user does not have default capability CAP_SETGID
+	icmd.RunCommand(dockerBinary, "run", "--security-opt", "no-new-privileges", "--user", "1000:1000", "syscall-test", "setgid-test").Assert(c, icmd.Expected{
+		ExitCode: 1,
+		Err:      "Operation not permitted",
+	})
+}
+
+func (s *DockerSuite) TestNNPUserCapabilitiesSetgid(c *check.C) {
+	testRequires(c, DaemonIsLinux, ambientCapabilities)
+	ensureSyscallTest(c)
+
+	// test that non root user can gain capability CAP_SETGID
+	dockerCmd(c, "run", "--security-opt", "no-new-privileges", "--user", "1000:1000", "--cap-add", "setgid", "syscall-test", "setgid-test")
+}
+
+// TODO CAP_SETPCAP
+
+func (s *DockerSuite) TestNNPCapabilitiesNetBindService(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+	ensureSyscallTest(c)
+
+	// test that a root user has default capability CAP_NET_BIND_SERVICE
+	dockerCmd(c, "run", "--security-opt", "no-new-privileges", "syscall-test", "socket-test")
+}
+
+func (s *DockerSuite) TestNNPUserCapabilitiesNetBindService(c *check.C) {
+	testRequires(c, DaemonIsLinux, ambientCapabilities)
+	ensureSyscallTest(c)
+
+	// test that non root user has OCI default capability CAP_NET_BIND_SERVICE
+	dockerCmd(c, "run", "--security-opt", "no-new-privileges", "--user", "1000:1000", "syscall-test", "socket-test")
+	// test that non root user can drop capability CAP_NET_BIND_SERVICE
+	icmd.RunCommand(dockerBinary, "run", "--security-opt", "no-new-privileges", "--user", "1000:1000", "--cap-drop", "net_bind_service", "syscall-test", "socket-test").Assert(c, icmd.Expected{
+		ExitCode: 1,
+		Err:      "Permission denied",
+	})
+}
+
+func (s *DockerSuite) TestNNPCapabilitiesNetRaw(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+	ensureSyscallTest(c)
+
+	// test that a root user has default capability CAP_NET_RAW
+	dockerCmd(c, "run", "--security-opt", "no-new-privileges", "syscall-test", "raw-test")
+	// test that non root user does not have default capability CAP_NET_RAW
+	icmd.RunCommand(dockerBinary, "run", "--security-opt", "no-new-privileges", "--user", "1000:1000", "syscall-test", "raw-test").Assert(c, icmd.Expected{
+		ExitCode: 1,
+		Err:      "Operation not permitted",
+	})
+}
+
+func (s *DockerSuite) TestNNPUserCapabilitiesNetRaw(c *check.C) {
+	testRequires(c, DaemonIsLinux, ambientCapabilities)
+	ensureSyscallTest(c)
+
+	// test that non root user can gain capability CAP_NET_RAW
+	dockerCmd(c, "run", "--security-opt", "no-new-privileges", "--user", "1000:1000", "--cap-add", "net_raw", "syscall-test", "raw-test")
+}
+
+func (s *DockerSuite) TestNNPCapabilitiesChroot(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+	ensureSyscallTest(c)
+
+	// test that a root user has default capability CAP_SYS_CHROOT
+	dockerCmd(c, "run", "--security-opt", "no-new-privileges", "busybox", "chroot", "/", "/bin/true")
+	// test that non root user does not have default capability CAP_SYS_CHROOT
+	icmd.RunCommand(dockerBinary, "run", "--security-opt", "no-new-privileges", "--user", "1000:1000", "busybox", "chroot", "/", "/bin/true").Assert(c, icmd.Expected{
+		ExitCode: 1,
+		Err:      "Operation not permitted",
+	})
+}
+
+func (s *DockerSuite) TestNNPUserCapabilitiesChroot(c *check.C) {
+	testRequires(c, DaemonIsLinux, ambientCapabilities)
+	ensureSyscallTest(c)
+
+	// test that non root user can gain capability CAP_SYS_CHROOT
+	dockerCmd(c, "run", "--security-opt", "no-new-privileges", "--user", "1000:1000", "--cap-add", "sys_chroot", "busybox", "chroot", "/", "/bin/true")
+}
+
+func (s *DockerSuite) TestNNPCapabilitiesMknod(c *check.C) {
+	testRequires(c, DaemonIsLinux, NotUserNamespace)
+	ensureSyscallTest(c)
+
+	// test that a root user has default capability CAP_MKNOD
+	dockerCmd(c, "run", "--security-opt", "no-new-privileges", "busybox", "mknod", "/tmp/node", "b", "1", "2")
+	// test that non root user does not have default capability CAP_MKNOD
+	icmd.RunCommand(dockerBinary, "run", "--security-opt", "no-new-privileges", "--user", "1000:1000", "busybox", "mknod", "/tmp/node", "b", "1", "2").Assert(c, icmd.Expected{
+		ExitCode: 1,
+		Err:      "Operation not permitted",
+	})
+}
+
+func (s *DockerSuite) TestNNPUserCapabilitiesMknod(c *check.C) {
+	testRequires(c, DaemonIsLinux, ambientCapabilities)
+	ensureSyscallTest(c)
+
+	// test that non root user can gain capability CAP_MKNOD
+	dockerCmd(c, "run", "--security-opt", "no-new-privileges", "--user", "1000:1000", "--cap-add", "mknod", "busybox", "mknod", "/tmp/node", "b", "1", "2")
 }
 
 // TODO CAP_AUDIT_WRITE
