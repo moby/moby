@@ -133,11 +133,11 @@ func (daemon *Daemon) ContainerStats(ctx context.Context, prefixOrName string, c
 }
 
 func (daemon *Daemon) subscribeToContainerStats(c *container.Container) chan interface{} {
-	return daemon.statsCollector.collect(c)
+	return daemon.statsCollector.Collect(c)
 }
 
 func (daemon *Daemon) unsubscribeToContainerStats(c *container.Container, ch chan interface{}) {
-	daemon.statsCollector.unsubscribe(c, ch)
+	daemon.statsCollector.Unsubscribe(c, ch)
 }
 
 // GetContainerStats collects all the stats published by a container

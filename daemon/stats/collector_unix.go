@@ -1,6 +1,6 @@
 // +build !windows,!solaris
 
-package daemon
+package stats
 
 import (
 	"fmt"
@@ -8,18 +8,13 @@ import (
 	"strconv"
 	"strings"
 
-	sysinfo "github.com/docker/docker/pkg/system"
 	"github.com/opencontainers/runc/libcontainer/system"
 )
 
 // platformNewStatsCollector performs platform specific initialisation of the
-// statsCollector structure.
-func platformNewStatsCollector(s *statsCollector) {
+// Collector structure.
+func platformNewStatsCollector(s *Collector) {
 	s.clockTicksPerSecond = uint64(system.GetClockTicks())
-	meminfo, err := sysinfo.ReadMemInfo()
-	if err == nil && meminfo.MemTotal > 0 {
-		s.machineMemory = uint64(meminfo.MemTotal)
-	}
 }
 
 const nanoSecondsPerSecond = 1e9
@@ -32,7 +27,7 @@ const nanoSecondsPerSecond = 1e9
 // statistics line and then sums up the first seven fields
 // provided. See `man 5 proc` for details on specific field
 // information.
-func (s *statsCollector) getSystemCPUUsage() (uint64, error) {
+func (s *Collector) getSystemCPUUsage() (uint64, error) {
 	var line string
 	f, err := os.Open("/proc/stat")
 	if err != nil {
