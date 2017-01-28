@@ -144,7 +144,7 @@ Options:
   -w, --workdir string              Working directory inside the container
 ```
 
-## Descriptino
+## Description
 
 The `docker run` command first `creates` a writeable container layer over the
 specified image, and then `starts` it using the specified command. That is,
