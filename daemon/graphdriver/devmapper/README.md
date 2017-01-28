@@ -64,7 +64,7 @@ will display something like:
 	 Library Version: 1.02.82-git (2013-10-04)
 	[...]
 
-### status items
+### Status items
 
 Each item in the indented section under `Storage Driver: devicemapper` are
 status information about the driver.

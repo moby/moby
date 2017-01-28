@@ -85,7 +85,7 @@ A Dockerfile is similar to a Makefile.
   -- **RUN** has two forms:
 
   ```
-  # the command is run in a shell - /bin/sh -c
+  # The command is run in a shell - /bin/sh -c
   RUN <command>
 
   # Executable form
@@ -116,7 +116,7 @@ A Dockerfile is similar to a Makefile.
   # Provide default arguments to ENTRYPOINT
   CMD ["param1", "param2"]`
 
-  # the command is run in a shell - /bin/sh -c
+  # The command is run in a shell - /bin/sh -c
   CMD command param1 param2
   ```
 

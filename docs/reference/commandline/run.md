@@ -331,7 +331,7 @@ An example of a file passed with `--env-file`
     $ cat ./env.list
     TEST_FOO=BAR
 
-    # this is a comment
+    # This is a comment
     TEST_APP_DEST_HOST=10.10.0.127
     TEST_APP_DEST_PORT=8888
     _TEST_BAR=FOO
@@ -340,7 +340,7 @@ An example of a file passed with `--env-file`
     123qwe=bar
     org.spring.config=something
 
-    # pass through this variable from the caller
+    # Pass through this variable from the caller
     TEST_PASSTHROUGH
     $ TEST_PASSTHROUGH=howdy docker run --env-file ./env.list busybox env
     PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
@@ -396,7 +396,7 @@ format:
 
     com.example.label1="a label"
 
-    # this is a comment
+    # This is a comment
     com.example.label2=another\ label
     com.example.label3
 
