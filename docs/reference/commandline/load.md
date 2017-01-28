@@ -26,7 +26,7 @@ Options:
                        The tarball may be compressed with gzip, bzip, or xz
   -q, --quiet          Suppress the load output but still outputs the imported images
 ```
-## Descriptino
+## Description
 
 `docker load` loads a tarred repository from a file or the standard input stream.
 It restores both images and tags.
