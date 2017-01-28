@@ -124,6 +124,12 @@ manpages: ## Generate man pages from go source and markdown
 		-v $(PWD):/go/src/github.com/docker/docker/ \
 		docker-manpage-dev
 
+yamlfiles: ## Generate man pages from go source and markdown
+	docker build ${DOCKER_BUILD_ARGS} -t docker-yamlfile-dev -f "yaml/$(DOCKERFILE)" ./yaml
+	docker run --rm \
+		-v $(PWD):/go/src/github.com/docker/docker/ \
+		docker-yamlfile-dev
+
 rpm: build ## build the rpm packages
 	$(DOCKER_RUN_DOCKER) hack/make.sh dynbinary build-rpm
 
