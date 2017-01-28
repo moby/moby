@@ -172,11 +172,15 @@ func parseSecurityOpt(container *container.Container, config *containertypes.Hos
 			continue
 		}
 
-		var con []string
+		var (
+			con            []string
+			selinuxConvert bool
+		)
 		if strings.Contains(opt, "=") {
 			con = strings.SplitN(opt, "=", 2)
 		} else if strings.Contains(opt, ":") {
 			con = strings.SplitN(opt, ":", 2)
+			selinuxConvert = true
 			logrus.Warn("Security options with `:` as a separator are deprecated and will be completely unsupported in 1.14, use `=` instead.")
 		}
 
@@ -186,7 +190,10 @@ func parseSecurityOpt(container *container.Container, config *containertypes.Hos
 
 		switch con[0] {
 		case "label":
-			labelOpts = append(labelOpts, con[1])
+			if selinuxConvert {
+				opt = strings.Replace(opt, ":", "=", 1)
+			}
+			labelOpts = append(labelOpts, opt)
 		case "apparmor":
 			container.AppArmorProfile = con[1]
 		case "seccomp":
