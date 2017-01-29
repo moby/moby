@@ -77,7 +77,16 @@ func New(info logger.Info) (logger.Logger, error) {
 		return nil, err
 	}
 
-	infoMap := info.InfoMap(nil)
+	infoMap := info.InfoMap(func(in string) string {
+		switch in {
+		case "containerID":
+			return "container_id"
+		case "containerName":
+			return "container_name"
+		default:
+			return in
+		}
+	})
 	extra, err := info.ExtraAttributes(nil)
 	if err != nil {
 		return nil, err
