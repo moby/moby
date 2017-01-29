@@ -149,35 +149,89 @@ func (pm *Manager) Shutdown() {
 	}
 }
 
-// createPlugin creates a new plugin. take lock before calling.
-func (pm *Manager) createPlugin(name string, configDigest digest.Digest, blobsums []digest.Digest, rootFSDir string, privileges *types.PluginPrivileges) (p *v2.Plugin, err error) {
-	if err := pm.config.Store.validateName(name); err != nil { // todo: this check is wrong. remove store
-		return nil, err
+func (pm *Manager) upgradePlugin(p *v2.Plugin, configDigest digest.Digest, blobsums []digest.Digest, tmpRootFSDir string, privileges *types.PluginPrivileges) (err error) {
+	config, err := pm.setupNewPlugin(configDigest, blobsums, privileges)
+	if err != nil {
+		return err
 	}
 
+	pdir := filepath.Join(pm.config.Root, p.PluginObj.ID)
+	orig := filepath.Join(pdir, "rootfs")
+	backup := orig + "-old"
+	if err := os.Rename(orig, backup); err != nil {
+		return err
+	}
+
+	defer func() {
+		if err != nil {
+			if rmErr := os.RemoveAll(orig); rmErr != nil && !os.IsNotExist(rmErr) {
+				logrus.WithError(rmErr).WithField("dir", backup).Error("error cleaning up after failed upgrade")
+				return
+			}
+
+			if err := os.Rename(backup, orig); err != nil {
+				err = errors.Wrap(err, "error restoring old plugin root on upgrade failure")
+			}
+			if rmErr := os.RemoveAll(tmpRootFSDir); rmErr != nil && !os.IsNotExist(rmErr) {
+				logrus.WithError(rmErr).WithField("plugin", p.Name()).Errorf("error cleaning up plugin upgrade dir: %s", tmpRootFSDir)
+			}
+		} else {
+			if rmErr := os.RemoveAll(backup); rmErr != nil && !os.IsNotExist(rmErr) {
+				logrus.WithError(rmErr).WithField("dir", backup).Error("error cleaning up old plugin root after successful upgrade")
+			}
+
+			p.Config = configDigest
+			p.Blobsums = blobsums
+		}
+	}()
+
+	if err := os.Rename(tmpRootFSDir, orig); err != nil {
+		return errors.Wrap(err, "error upgrading")
+	}
+
+	p.PluginObj.Config = config
+	err = pm.save(p)
+	return errors.Wrap(err, "error saving upgraded plugin config")
+}
+
+func (pm *Manager) setupNewPlugin(configDigest digest.Digest, blobsums []digest.Digest, privileges *types.PluginPrivileges) (types.PluginConfig, error) {
 	configRC, err := pm.blobStore.Get(configDigest)
 	if err != nil {
-		return nil, err
+		return types.PluginConfig{}, err
 	}
 	defer configRC.Close()
 
 	var config types.PluginConfig
 	dec := json.NewDecoder(configRC)
 	if err := dec.Decode(&config); err != nil {
-		return nil, errors.Wrapf(err, "failed to parse config")
+		return types.PluginConfig{}, errors.Wrapf(err, "failed to parse config")
 	}
 	if dec.More() {
-		return nil, errors.New("invalid config json")
+		return types.PluginConfig{}, errors.New("invalid config json")
 	}
 
 	requiredPrivileges, err := computePrivileges(config)
 	if err != nil {
-		return nil, err
+		return types.PluginConfig{}, err
 	}
 	if privileges != nil {
 		if err := validatePrivileges(requiredPrivileges, *privileges); err != nil {
-			return nil, err
+			return types.PluginConfig{}, err
 		}
+	}
+
+	return config, nil
+}
+
+// createPlugin creates a new plugin. take lock before calling.
+func (pm *Manager) createPlugin(name string, configDigest digest.Digest, blobsums []digest.Digest, rootFSDir string, privileges *types.PluginPrivileges) (p *v2.Plugin, err error) {
+	if err := pm.config.Store.validateName(name); err != nil { // todo: this check is wrong. remove store
+		return nil, err
+	}
+
+	config, err := pm.setupNewPlugin(configDigest, blobsums, privileges)
+	if err != nil {
+		return nil, err
 	}
 
 	p = &v2.Plugin{

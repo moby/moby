@@ -359,3 +359,30 @@ func (s *DockerTrustSuite) TestPluginUntrustedInstall(c *check.C) {
 	c.Assert(err, check.NotNil, check.Commentf(out))
 	c.Assert(string(out), checker.Contains, "Error: remote trust data does not exist", check.Commentf(out))
 }
+
+func (s *DockerSuite) TestPluginUpgrade(c *check.C) {
+	testRequires(c, DaemonIsLinux, Network, SameHostDaemon, IsAmd64)
+	plugin := "cpuguy83/docker-volume-driver-plugin-local:latest"
+	pluginV2 := "cpuguy83/docker-volume-driver-plugin-local:v2"
+
+	dockerCmd(c, "plugin", "install", "--grant-all-permissions", plugin)
+	out, _, err := dockerCmdWithError("plugin", "upgrade", "--grant-all-permissions", plugin, pluginV2)
+	c.Assert(err, checker.NotNil, check.Commentf(out))
+	c.Assert(out, checker.Contains, "disabled before upgrading")
+
+	out, _ = dockerCmd(c, "plugin", "inspect", "--format={{.ID}}", plugin)
+	id := strings.TrimSpace(out)
+
+	// make sure "v2" does not exists
+	_, err = os.Stat(filepath.Join(dockerBasePath, "plugins", id, "rootfs", "v2"))
+	c.Assert(os.IsNotExist(err), checker.True, check.Commentf(out))
+
+	dockerCmd(c, "plugin", "disable", plugin)
+	dockerCmd(c, "plugin", "upgrade", "--grant-all-permissions", "--skip-remote-check", plugin, pluginV2)
+
+	// make sure "v2" file exists
+	_, err = os.Stat(filepath.Join(dockerBasePath, "plugins", id, "rootfs", "v2"))
+	c.Assert(err, checker.IsNil)
+
+	dockerCmd(c, "plugin", "enable", plugin)
+}
