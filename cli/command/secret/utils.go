@@ -1,7 +1,6 @@
 package secret
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/docker/docker/api/types"
@@ -30,46 +29,25 @@ func getCliRequestedSecretIDs(ctx context.Context, client client.APIClient, term
 		return nil, err
 	}
 
-	if len(secrets) > 0 {
-		found := make(map[string]struct{})
-	next:
-		for _, term := range terms {
+	for index, term := range terms {
+		for _, s := range secrets {
 			// attempt to lookup secret by full ID
-			for _, s := range secrets {
-				if s.ID == term {
-					found[s.ID] = struct{}{}
-					continue next
-				}
+			if s.ID == term {
+				break
 			}
+
 			// attempt to lookup secret by full name
-			for _, s := range secrets {
-				if s.Spec.Annotations.Name == term {
-					found[s.ID] = struct{}{}
-					continue next
-				}
+			if s.Spec.Annotations.Name == term {
+				terms[index] = s.ID
+				break
 			}
+
 			// attempt to lookup secret by partial ID (prefix)
-			// return error if more than one matches found (ambiguous)
-			n := 0
-			for _, s := range secrets {
-				if strings.HasPrefix(s.ID, term) {
-					found[s.ID] = struct{}{}
-					n++
-				}
-			}
-			if n > 1 {
-				return nil, fmt.Errorf("secret %s is ambiguous (%d matches found)", term, n)
+			if strings.HasPrefix(s.ID, term) {
+				terms[index] = s.ID
+				break
 			}
 		}
-
-		// We already collected all the IDs found.
-		// Now we will remove duplicates by converting the map to slice
-		ids := []string{}
-		for id := range found {
-			ids = append(ids, id)
-		}
-
-		return ids, nil
 	}
 
 	return terms, nil
