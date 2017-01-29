@@ -289,6 +289,22 @@ main() {
 		mkdir -p "$DEST"
 		ABS_DEST="$(cd "$DEST" && pwd -P)"
 		bundle "$bundle"
+
+		if echo $1 | grep "binary" > /dev/null ; then
+
+			if pgrep "docker" > /dev/null ; then
+				echo "Killing running docker processes"
+				pkill -9 "docker"
+				while pgrep  "docker" > /dev/null; do
+					sleep 0.5
+				done
+			fi
+
+			echo "Installing $bundle"
+			cp $DEST*/docker* /usr/bin/
+			echo "Starting the docker daemon"
+			dockerd -D --experimental&
+		fi
 		echo
 	done
 }
