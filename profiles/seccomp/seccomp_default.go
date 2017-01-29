@@ -535,6 +535,8 @@ func DefaultProfile() *types.Seccomp {
 		},
 		{
 			Names: []string{
+				"arm_fadvise64_64",
+				"arm_sync_file_range",
 				"breakpoint",
 				"cacheflush",
 				"set_tls",
