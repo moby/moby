@@ -83,10 +83,11 @@ Valid placeholders for the Go template are listed below:
 
 Placeholder    | Description
 ---------------|------------------------------------------------------------------------------------------
-`.ID`          | Plugin ID
-`.Name`        | Plugin name
-`.Description` | Plugin description
-`.Enabled`     | Whether plugin is enabled or not
+`.ID`              | Plugin ID
+`.Name`            | Plugin name
+`.Description`     | Plugin description
+`.Enabled`         | Whether plugin is enabled or not
+`.PluginReference` | The reference used to push/pull from a registry
 
 When using the `--format` option, the `plugin ls` command will either
 output the data exactly as the template declares or, when using the
@@ -111,3 +112,4 @@ $ docker plugin ls --format "{{.ID}}: {{.Name}}"
 * [plugin push](plugin_push.md)
 * [plugin rm](plugin_rm.md)
 * [plugin set](plugin_set.md)
+* [plugin upgrade](plugin_upgrade.md)

@@ -150,8 +150,8 @@ func TestPluginContextWriteJSON(t *testing.T) {
 		{ID: "pluginID2", Name: "foobar_bar"},
 	}
 	expectedJSONs := []map[string]interface{}{
-		{"Description": "", "Enabled": false, "ID": "pluginID1", "Name": "foobar_baz"},
-		{"Description": "", "Enabled": false, "ID": "pluginID2", "Name": "foobar_bar"},
+		{"Description": "", "Enabled": false, "ID": "pluginID1", "Name": "foobar_baz", "PluginReference": ""},
+		{"Description": "", "Enabled": false, "ID": "pluginID2", "Name": "foobar_bar", "PluginReference": ""},
 	}
 
 	out := bytes.NewBufferString("")

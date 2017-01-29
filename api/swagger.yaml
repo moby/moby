@@ -1412,6 +1412,10 @@ definitions:
             type: "array"
             items:
               $ref: "#/definitions/PluginDevice"
+      PluginReference:
+        description: "plugin remote reference used to push/pull the plugin"
+        type: "string"
+        x-nullable: false
       Config:
         description: "The config of a plugin."
         type: "object"

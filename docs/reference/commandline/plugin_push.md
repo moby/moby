@@ -48,3 +48,4 @@ $ docker plugin push user/plugin
 * [plugin ls](plugin_ls.md)
 * [plugin rm](plugin_rm.md)
 * [plugin set](plugin_set.md)
+* [plugin upgrade](plugin_upgrade.md)

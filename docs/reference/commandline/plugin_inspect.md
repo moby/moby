@@ -37,6 +37,7 @@ $ docker plugin inspect tiborvass/sample-volume-plugin:latest
 {
   "Id": "8c74c978c434745c3ade82f1bc0acf38d04990eaf494fa507c16d9f1daa99c21",
   "Name": "tiborvass/sample-volume-plugin:latest",
+  "PluginReference": "tiborvas/sample-volume-plugin:latest",
   "Enabled": true,
   "Config": {
     "Mounts": [
@@ -160,3 +161,4 @@ $ docker plugin inspect -f '{{.Id}}' tiborvass/sample-volume-plugin:latest
 * [plugin push](plugin_push.md)
 * [plugin rm](plugin_rm.md)
 * [plugin set](plugin_set.md)
+* [plugin upgrade](plugin_upgrade.md)
