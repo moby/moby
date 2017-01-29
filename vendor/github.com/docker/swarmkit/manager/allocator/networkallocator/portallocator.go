@@ -269,6 +269,33 @@ func (pa *portAllocator) serviceDeallocatePorts(s *api.Service) {
 	s.Endpoint.Ports = nil
 }
 
+func (pa *portAllocator) portsAllocatedInHostPublishMode(s *api.Service) bool {
+	if s.Endpoint == nil && s.Spec.Endpoint == nil {
+		return true
+	}
+
+	portStates := allocatedPorts{}
+	if s.Endpoint != nil {
+		for _, portState := range s.Endpoint.Ports {
+			if portState.PublishMode == api.PublishModeHost {
+				portStates.addState(portState)
+			}
+		}
+	}
+
+	if s.Spec.Endpoint != nil {
+		for _, portConfig := range s.Spec.Endpoint.Ports {
+			if portConfig.PublishMode == api.PublishModeHost {
+				if portStates.delState(portConfig) == nil {
+					return false
+				}
+			}
+		}
+	}
+
+	return true
+}
+
 func (pa *portAllocator) isPortsAllocated(s *api.Service) bool {
 	// If service has no user-defined endpoint and allocated endpoint,
 	// we assume it is allocated and return true.
