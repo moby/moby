@@ -251,6 +251,7 @@ install_binary() {
 	target="${DOCKER_MAKE_INSTALL_PREFIX:=/usr/local}/bin/"
 	if [ "$(go env GOOS)" == "linux" ]; then
 		echo "Installing $(basename $file) to ${target}"
+		mkdir -p "$target"
 		cp -L "$file" "$target"
 	else
 		echo "Install is only supported on linux"
