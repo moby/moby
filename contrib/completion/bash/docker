@@ -2806,7 +2806,7 @@ _docker_service_update() {
 		--limit-memory
 		--log-driver
 		--log-opt
-		--mount
+		--volume
 		--network
 		--no-healthcheck
 		--replicas

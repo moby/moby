@@ -14,7 +14,7 @@ import (
 func (s *DockerSwarmSuite) TestSwarmVolumePlugin(c *check.C) {
 	d := s.AddDaemon(c, true, true)
 
-	out, err := d.Cmd("service", "create", "--mount", "type=volume,source=my-volume,destination=/foo,volume-driver=customvolumedriver", "--name", "top", "busybox", "top")
+	out, err := d.Cmd("service", "create", "--volume", "type=volume,source=my-volume,destination=/foo,volume-driver=customvolumedriver", "--name", "top", "busybox", "top")
 	c.Assert(err, checker.IsNil, check.Commentf(out))
 
 	// Make sure task stays pending before plugin is available

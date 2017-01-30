@@ -53,8 +53,6 @@ Options:
       --limit-memory bytes               Limit Memory (default 0 B)
       --log-driver string                Logging driver for service
       --log-opt list                     Logging driver options (default [])
-      --mount-add mount                  Add or update a mount on a service
-      --mount-rm list                    Remove a mount by its target path (default [])
       --no-healthcheck                   Disable any container-specified HEALTHCHECK
       --publish-add port                 Add or update a published port
       --publish-rm port                  Remove a published port by its target port
@@ -76,6 +74,8 @@ Options:
       --update-monitor duration          Duration after each task update to monitor for failure (ns|us|ms|s|m|h) (default 0s)
       --update-parallelism uint          Maximum number of tasks updated simultaneously (0 to update all at once) (default 1)
   -u, --user string                      Username or UID (format: <name|uid>[:<group|gid>])
+      --volume-add volume                Add or update a mount on a service (default [])
+      --volume-rm list                   Remove a mount by its target path (default [])
       --with-registry-auth               Send registry authentication details to swarm agents
   -w, --workdir string                   Working directory inside the container
 ```
@@ -113,8 +113,10 @@ that the rolling restart happens gradually.
 
 ### Adding and removing mounts
 
-Use the `--mount-add` or `--mount-rm` options add or remove a service's bind-mounts
+Use the `--volume-add` or `--volume-rm` options add or remove a service's bind-mounts
 or volumes.
+These options were known as `--mount-add` and `--mount-rm` in v1.12 and v1.13.
+`--mount-add` and `--mount-rm` are still available for compatibility.
 
 The following example creates a service which mounts the `test-data` volume to
 `/somewhere`. The next step updates the service to also mount the `other-volume`
@@ -122,17 +124,17 @@ volume to `/somewhere-else`volume, The last step unmounts the `/somewhere` mount
 point, effectively removing the `test-data` volume. Each command returns the
 service name.
 
-- The `--mount-add` flag takes the same parameters as the `--mount` flag on
+- The `--volume-add` flag takes the same parameters as the `--volume` flag on
   `service create`. Refer to the [volumes and
   bind-mounts](service_create.md#volumes-and-bind-mounts-mount) section in the
   `service create` reference for details.
 
-- The `--mount-rm` flag takes the `target` path of the mount.
+- The `--volume-rm` flag takes the `target` path of the mount.
 
 ```bash
 $ docker service create \
     --name=myservice \
-    --mount \
+    --volume \
       type=volume,source=test-data,target=/somewhere \
     nginx:alpine \
     myservice
@@ -140,13 +142,13 @@ $ docker service create \
 myservice
 
 $ docker service update \
-    --mount-add \
+    --volume-add \
       type=volume,source=other-volume,target=/somewhere-else \
     myservice
 
 myservice
 
-$ docker service update --mount-rm /somewhere myservice
+$ docker service update --volume-rm /somewhere myservice
 
 myservice
 ```

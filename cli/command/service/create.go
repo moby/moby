@@ -35,7 +35,8 @@ func newCreateCommand(dockerCli *command.DockerCli) *cobra.Command {
 	flags.Var(&opts.containerLabels, flagContainerLabel, "Container labels")
 	flags.VarP(&opts.env, flagEnv, "e", "Set environment variables")
 	flags.Var(&opts.envFile, flagEnvFile, "Read in a file of environment variables")
-	flags.Var(&opts.mounts, flagMount, "Attach a filesystem mount to the service")
+	flags.VarP(&opts.volumes, flagVolume, "v", "Attach a filesystem mount to the service")
+	flags.Var(&opts.volumes, flagMountDeprecated, "Attach a filesystem mount to the service")
 	flags.Var(&opts.constraints, flagConstraint, "Placement constraints")
 	flags.Var(&opts.networks, flagNetwork, "Network attachments")
 	flags.Var(&opts.secrets, flagSecret, "Specify secrets to expose to the service")
@@ -47,6 +48,7 @@ func newCreateCommand(dockerCli *command.DockerCli) *cobra.Command {
 	flags.Var(&opts.hosts, flagHost, "Set one or more custom host-to-IP mappings (host:ip)")
 
 	flags.SetInterspersed(false)
+	flags.MarkDeprecated(flagMountDeprecated, "use --volume instead")
 	return cmd
 }
 

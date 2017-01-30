@@ -45,7 +45,9 @@ func newUpdateCommand(dockerCli *command.DockerCli) *cobra.Command {
 	flags.Var(newListOptsVar(), flagGroupRemove, "Remove a previously added supplementary user group from the container")
 	flags.Var(newListOptsVar(), flagLabelRemove, "Remove a label by its key")
 	flags.Var(newListOptsVar(), flagContainerLabelRemove, "Remove a container label by its key")
-	flags.Var(newListOptsVar(), flagMountRemove, "Remove a mount by its target path")
+	volumeRemove := newListOptsVar()
+	flags.Var(volumeRemove, flagVolumeRemove, "Remove a mount by its target path")
+	flags.Var(volumeRemove, flagMountRemoveDeprecated, "Remove a mount by its target path")
 	// flags.Var(newListOptsVar().WithValidator(validatePublishRemove), flagPublishRemove, "Remove a published port by its target port")
 	flags.Var(&opts.PortOpt{}, flagPublishRemove, "Remove a published port by its target port")
 	flags.Var(newListOptsVar(), flagConstraintRemove, "Remove a constraint")
@@ -58,7 +60,8 @@ func newUpdateCommand(dockerCli *command.DockerCli) *cobra.Command {
 	flags.Var(&serviceOpts.env, flagEnvAdd, "Add or update an environment variable")
 	flags.Var(newListOptsVar(), flagSecretRemove, "Remove a secret")
 	flags.Var(&serviceOpts.secrets, flagSecretAdd, "Add or update a secret on a service")
-	flags.Var(&serviceOpts.mounts, flagMountAdd, "Add or update a mount on a service")
+	flags.Var(&serviceOpts.volumes, flagVolumeAdd, "Add or update a mount on a service")
+	flags.Var(&serviceOpts.volumes, flagMountAddDeprecated, "Add or update a mount on a service")
 	flags.Var(&serviceOpts.constraints, flagConstraintAdd, "Add or update a placement constraint")
 	flags.Var(&serviceOpts.endpoint.publishPorts, flagPublishAdd, "Add or update a published port")
 	flags.Var(&serviceOpts.groups, flagGroupAdd, "Add an additional supplementary user group to the container")
@@ -67,6 +70,8 @@ func newUpdateCommand(dockerCli *command.DockerCli) *cobra.Command {
 	flags.Var(&serviceOpts.dnsSearch, flagDNSSearchAdd, "Add or update a custom DNS search domain")
 	flags.Var(&serviceOpts.hosts, flagHostAdd, "Add or update a custom host-to-IP mapping (host:ip)")
 
+	flags.MarkDeprecated(flagMountRemoveDeprecated, "use --volume-rm instead")
+	flags.MarkDeprecated(flagMountAddDeprecated, "use --volume-add instead")
 	return cmd
 }
 
@@ -505,18 +510,39 @@ func (m byMountSource) Less(i, j int) bool {
 	return a.Source < b.Source
 }
 
-func updateMounts(flags *pflag.FlagSet, mounts *[]mounttypes.Mount) error {
-
-	mountsByTarget := map[string]mounttypes.Mount{}
-
-	if flags.Changed(flagMountAdd) {
-		values := flags.Lookup(flagMountAdd).Value.(*opts.MountOpt).Value()
-		for _, mount := range values {
-			if _, ok := mountsByTarget[mount.Target]; ok {
-				return fmt.Errorf("duplicate mount target")
-			}
-			mountsByTarget[mount.Target] = mount
+func union(sets ...map[string]struct{}) map[string]struct{} {
+	u := make(map[string]struct{})
+	for _, set := range sets {
+		for s := range set {
+			u[s] = struct{}{}
 		}
+	}
+	return u
+}
+
+func updateMounts(flags *pflag.FlagSet, mounts *[]mounttypes.Mount) error {
+	mountsByTarget := map[string]mounttypes.Mount{}
+	processFlag := func(f string) error {
+		if flags.Changed(f) {
+			v := flags.Lookup(f).Value.(*opts.VolumeOpt)
+			values, err := mountsFromVolumeOpt(v)
+			if err != nil {
+				return err
+			}
+			for _, mount := range values {
+				if _, ok := mountsByTarget[mount.Target]; ok {
+					return fmt.Errorf("duplicate mount target")
+				}
+				mountsByTarget[mount.Target] = mount
+			}
+		}
+		return nil
+	}
+	if err := processFlag(flagVolumeAdd); err != nil {
+		return err
+	}
+	if err := processFlag(flagMountAddDeprecated); err != nil {
+		return err
 	}
 
 	// Add old list of mount points minus updated one.
@@ -528,7 +554,8 @@ func updateMounts(flags *pflag.FlagSet, mounts *[]mounttypes.Mount) error {
 
 	newMounts := []mounttypes.Mount{}
 
-	toRemove := buildToRemoveSet(flags, flagMountRemove)
+	toRemove := union(buildToRemoveSet(flags, flagVolumeRemove),
+		buildToRemoveSet(flags, flagMountRemoveDeprecated))
 
 	for _, mount := range mountsByTarget {
 		if _, exists := toRemove[mount.Target]; !exists {
