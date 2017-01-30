@@ -1419,11 +1419,15 @@ func (n *Node) sendToMember(ctx context.Context, members map[uint64]*membership.
 			officialHost, officialPort, _ := net.SplitHostPort(conn.Addr)
 			if officialHost != lastSeenHost {
 				reconnectAddr := net.JoinHostPort(lastSeenHost, officialPort)
-				log.G(ctx).Warningf("detected address change for %x (%s -> %s)", m.To, conn.Addr, reconnectAddr)
-				if err := n.handleAddressChange(ctx, conn, reconnectAddr); err != nil {
-					log.G(ctx).WithError(err).Error("failed to hande address change")
-				}
-				return
+				log.G(ctx).Debugf("detected address change for %x (%s -> %s)", m.To, conn.Addr, reconnectAddr)
+				// TODO(aaronl): Address changes are temporarily disabled.
+				// See https://github.com/docker/docker/issues/30455.
+				// This should be reenabled in the future with additional
+				// safeguards (perhaps storing multiple addresses per node).
+				//if err := n.handleAddressChange(ctx, conn, reconnectAddr); err != nil {
+				//	log.G(ctx).WithError(err).Error("failed to hande address change")
+				//}
+				//return
 			}
 		}
 
