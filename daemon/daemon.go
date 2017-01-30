@@ -92,6 +92,7 @@ type Daemon struct {
 	discoveryWatcher          discoveryReloader
 	root                      string
 	seccompEnabled            bool
+	apparmorEnabled           bool
 	shutdown                  bool
 	uidMaps                   []idtools.IDMap
 	gidMaps                   []idtools.IDMap
@@ -683,6 +684,7 @@ func NewDaemon(config *Config, registryService registry.Service, containerdRemot
 	d.uidMaps = uidMaps
 	d.gidMaps = gidMaps
 	d.seccompEnabled = sysInfo.Seccomp
+	d.apparmorEnabled = sysInfo.AppArmor
 
 	d.nameIndex = registrar.NewRegistrar()
 	d.linkIndex = newLinkIndex()
