@@ -11,10 +11,10 @@ import (
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cli/command"
-	secretcli "github.com/docker/docker/cli/command/secret"
 	"github.com/docker/docker/cli/compose/convert"
 	"github.com/docker/docker/cli/compose/loader"
 	composetypes "github.com/docker/docker/cli/compose/types"
+	apiclient "github.com/docker/docker/client"
 	dockerclient "github.com/docker/docker/client"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -229,22 +229,18 @@ func createSecrets(
 	client := dockerCli.Client()
 
 	for _, secretSpec := range secrets {
-		// TODO: fix this after https://github.com/docker/docker/pull/29218
-		secrets, err := secretcli.GetSecretsByNameOrIDPrefixes(ctx, client, []string{secretSpec.Name})
-		switch {
-		case err != nil:
-			return err
-		case len(secrets) > 1:
-			return errors.Errorf("ambiguous secret name: %s", secretSpec.Name)
-		case len(secrets) == 0:
-			fmt.Fprintf(dockerCli.Out(), "Creating secret %s\n", secretSpec.Name)
-			_, err = client.SecretCreate(ctx, secretSpec)
-		default:
-			secret := secrets[0]
-			// Update secret to ensure that the local data hasn't changed
-			err = client.SecretUpdate(ctx, secret.ID, secret.Meta.Version, secretSpec)
-		}
-		if err != nil {
+		secret, _, err := client.SecretInspectWithRaw(ctx, secretSpec.Name)
+		if err == nil {
+			// secret already exists, then we update that
+			if err := client.SecretUpdate(ctx, secret.ID, secret.Meta.Version, secretSpec); err != nil {
+				return err
+			}
+		} else if apiclient.IsErrSecretNotFound(err) {
+			// secret does not exist, then we create a new one.
+			if _, err := client.SecretCreate(ctx, secretSpec); err != nil {
+				return err
+			}
+		} else {
 			return err
 		}
 	}
