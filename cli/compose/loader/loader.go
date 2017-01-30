@@ -225,18 +225,28 @@ func transformHook(
 	switch target {
 	case reflect.TypeOf(types.External{}):
 		return transformExternal(data)
-	case reflect.TypeOf(make(map[string]string, 0)):
-		return transformMapStringString(source, target, data)
+	case reflect.TypeOf(types.HealthCheckTest{}):
+		return transformHealthCheckTest(data)
+	case reflect.TypeOf(types.ShellCommand{}):
+		return transformShellCommand(data)
+	case reflect.TypeOf(types.StringList{}):
+		return transformStringList(data)
+	case reflect.TypeOf(map[string]string{}):
+		return transformMapStringString(data)
 	case reflect.TypeOf(types.UlimitsConfig{}):
 		return transformUlimits(data)
 	case reflect.TypeOf(types.UnitBytes(0)):
-		return loadSize(data)
+		return transformSize(data)
 	case reflect.TypeOf(types.ServiceSecretConfig{}):
 		return transformServiceSecret(data)
-	}
-	switch target.Kind() {
-	case reflect.Struct:
-		return transformStruct(source, target, data)
+	case reflect.TypeOf(types.StringOrNumberList{}):
+		return transformStringOrNumberList(data)
+	case reflect.TypeOf(map[string]*types.ServiceNetworkConfig{}):
+		return transformServiceNetworkMap(data)
+	case reflect.TypeOf(types.MappingWithEquals{}):
+		return transformMappingOrList(data, "="), nil
+	case reflect.TypeOf(types.MappingWithColon{}):
+		return transformMappingOrList(data, ":"), nil
 	}
 	return data, nil
 }
@@ -249,13 +259,7 @@ func convertToStringKeysRecursive(value interface{}, keyPrefix string) (interfac
 		for key, entry := range mapping {
 			str, ok := key.(string)
 			if !ok {
-				var location string
-				if keyPrefix == "" {
-					location = "at top level"
-				} else {
-					location = fmt.Sprintf("in %s", keyPrefix)
-				}
-				return nil, fmt.Errorf("Non-string key %s: %#v", location, key)
+				return nil, formatInvalidKeyError(keyPrefix, key)
 			}
 			var newKeyPrefix string
 			if keyPrefix == "" {
@@ -286,6 +290,16 @@ func convertToStringKeysRecursive(value interface{}, keyPrefix string) (interfac
 	return value, nil
 }
 
+func formatInvalidKeyError(keyPrefix string, key interface{}) error {
+	var location string
+	if keyPrefix == "" {
+		location = "at top level"
+	} else {
+		location = fmt.Sprintf("in %s", keyPrefix)
+	}
+	return fmt.Errorf("Non-string key %s: %#v", location, key)
+}
+
 func loadServices(servicesDict types.Dict, workingDir string) ([]types.ServiceConfig, error) {
 	var services []types.ServiceConfig
 
@@ -307,7 +321,7 @@ func loadService(name string, serviceDict types.Dict, workingDir string) (*types
 	}
 	serviceConfig.Name = name
 
-	if err := resolveEnvironment(serviceConfig, serviceDict, workingDir); err != nil {
+	if err := resolveEnvironment(serviceConfig, workingDir); err != nil {
 		return nil, err
 	}
 
@@ -318,15 +332,13 @@ func loadService(name string, serviceDict types.Dict, workingDir string) (*types
 	return serviceConfig, nil
 }
 
-func resolveEnvironment(serviceConfig *types.ServiceConfig, serviceDict types.Dict, workingDir string) error {
+func resolveEnvironment(serviceConfig *types.ServiceConfig, workingDir string) error {
 	environment := make(map[string]string)
 
-	if envFileVal, ok := serviceDict["env_file"]; ok {
-		envFiles := loadStringOrListOfStrings(envFileVal)
-
+	if len(serviceConfig.EnvFile) > 0 {
 		var envVars []string
 
-		for _, file := range envFiles {
+		for _, file := range serviceConfig.EnvFile {
 			filePath := absPath(workingDir, file)
 			fileVars, err := opts.ParseEnvFile(filePath)
 			if err != nil {
@@ -419,7 +431,6 @@ func loadVolumes(source types.Dict) (map[string]types.VolumeConfig, error) {
 	return volumes, nil
 }
 
-// TODO: remove duplicate with networks/volumes
 func loadSecrets(source types.Dict, workingDir string) (map[string]types.SecretConfig, error) {
 	secrets := make(map[string]types.SecretConfig)
 	if err := transform(source, &secrets); err != nil {
@@ -444,46 +455,7 @@ func absPath(workingDir string, filepath string) string {
 	return path.Join(workingDir, filepath)
 }
 
-func transformStruct(
-	source reflect.Type,
-	target reflect.Type,
-	data interface{},
-) (interface{}, error) {
-	structValue, ok := data.(map[string]interface{})
-	if !ok {
-		// FIXME: this is necessary because of convertToStringKeysRecursive
-		structValue, ok = data.(types.Dict)
-		if !ok {
-			panic(fmt.Sprintf(
-				"transformStruct called with non-map type: %T, %s", data, data))
-		}
-	}
-
-	var err error
-	for i := 0; i < target.NumField(); i++ {
-		field := target.Field(i)
-		fieldTag := field.Tag.Get("compose")
-
-		yamlName := toYAMLName(field.Name)
-		value, ok := structValue[yamlName]
-		if !ok {
-			continue
-		}
-
-		structValue[yamlName], err = convertField(
-			fieldTag, reflect.TypeOf(value), field.Type, value)
-		if err != nil {
-			return nil, fmt.Errorf("field %s: %s", yamlName, err.Error())
-		}
-	}
-	return structValue, nil
-}
-
-func transformMapStringString(
-	source reflect.Type,
-	target reflect.Type,
-	data interface{},
-) (interface{}, error) {
+func transformMapStringString(data interface{}) (interface{}, error) {
 	switch value := data.(type) {
 	case map[string]interface{}:
 		return toMapStringString(value), nil
@@ -494,37 +466,6 @@ func transformMapStringString(
 	default:
 		return data, fmt.Errorf("invalid type %T for map[string]string", value)
 	}
-}
-
-func convertField(
-	fieldTag string,
-	source reflect.Type,
-	target reflect.Type,
-	data interface{},
-) (interface{}, error) {
-	switch fieldTag {
-	case "":
-		return data, nil
-	case "healthcheck":
-		return loadHealthcheck(data)
-	case "list_or_dict_equals":
-		return loadMappingOrList(data, "="), nil
-	case "list_or_dict_colon":
-		return loadMappingOrList(data, ":"), nil
-	case "list_or_struct_map":
-		return loadListOrStructMap(data, target)
-	case "string_or_list":
-		return loadStringOrListOfStrings(data), nil
-	case "list_of_strings_or_numbers":
-		return loadListOfStringsOrNumbers(data), nil
-	case "shell_command":
-		return loadShellCommand(data)
-	case "size":
-		return loadSize(data)
-	case "-":
-		return nil, nil
-	}
-	return data, nil
 }
 
 func transformExternal(data interface{}) (interface{}, error) {
@@ -551,18 +492,9 @@ func transformServiceSecret(data interface{}) (interface{}, error) {
 	default:
 		return data, fmt.Errorf("invalid type %T for external", value)
 	}
-
 }
 
-func toYAMLName(name string) string {
-	nameParts := fieldNameRegexp.FindAllString(name, -1)
-	for i, p := range nameParts {
-		nameParts[i] = strings.ToLower(p)
-	}
-	return strings.Join(nameParts, "_")
-}
-
-func loadListOrStructMap(value interface{}, target reflect.Type) (interface{}, error) {
+func transformServiceNetworkMap(value interface{}) (interface{}, error) {
 	if list, ok := value.([]interface{}); ok {
 		mapValue := map[interface{}]interface{}{}
 		for _, name := range list {
@@ -570,31 +502,30 @@ func loadListOrStructMap(value interface{}, target reflect.Type) (interface{}, e
 		}
 		return mapValue, nil
 	}
-
 	return value, nil
 }
 
-func loadListOfStringsOrNumbers(value interface{}) []string {
+func transformStringOrNumberList(value interface{}) (interface{}, error) {
 	list := value.([]interface{})
 	result := make([]string, len(list))
 	for i, item := range list {
 		result[i] = fmt.Sprint(item)
 	}
-	return result
+	return result, nil
 }
 
-func loadStringOrListOfStrings(value interface{}) []string {
-	if list, ok := value.([]interface{}); ok {
-		result := make([]string, len(list))
-		for i, item := range list {
-			result[i] = fmt.Sprint(item)
-		}
-		return result
+func transformStringList(data interface{}) (interface{}, error) {
+	switch value := data.(type) {
+	case string:
+		return []string{value}, nil
+	case []interface{}:
+		return value, nil
+	default:
+		return data, fmt.Errorf("invalid type %T for string list", value)
 	}
-	return []string{value.(string)}
 }
 
-func loadMappingOrList(mappingOrList interface{}, sep string) map[string]string {
+func transformMappingOrList(mappingOrList interface{}, sep string) map[string]string {
 	if mapping, ok := mappingOrList.(types.Dict); ok {
 		return toMapStringString(mapping)
 	}
@@ -613,21 +544,25 @@ func loadMappingOrList(mappingOrList interface{}, sep string) map[string]string 
 	panic(fmt.Errorf("expected a map or a slice, got: %#v", mappingOrList))
 }
 
-func loadShellCommand(value interface{}) (interface{}, error) {
+func transformShellCommand(value interface{}) (interface{}, error) {
 	if str, ok := value.(string); ok {
 		return shellwords.Parse(str)
 	}
 	return value, nil
 }
 
-func loadHealthcheck(value interface{}) (interface{}, error) {
-	if str, ok := value.(string); ok {
-		return append([]string{"CMD-SHELL"}, str), nil
+func transformHealthCheckTest(data interface{}) (interface{}, error) {
+	switch value := data.(type) {
+	case string:
+		return append([]string{"CMD-SHELL"}, value), nil
+	case []interface{}:
+		return value, nil
+	default:
+		return value, fmt.Errorf("invalid type %T for healthcheck.test", value)
 	}
-	return value, nil
 }
 
-func loadSize(value interface{}) (int64, error) {
+func transformSize(value interface{}) (int64, error) {
 	switch value := value.(type) {
 	case int:
 		return int64(value), nil

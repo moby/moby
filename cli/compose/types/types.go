@@ -81,31 +81,32 @@ type ServiceConfig struct {
 	CapAdd          []string `mapstructure:"cap_add"`
 	CapDrop         []string `mapstructure:"cap_drop"`
 	CgroupParent    string   `mapstructure:"cgroup_parent"`
-	Command         []string `compose:"shell_command"`
+	Command         ShellCommand
 	ContainerName   string   `mapstructure:"container_name"`
 	DependsOn       []string `mapstructure:"depends_on"`
 	Deploy          DeployConfig
 	Devices         []string
-	DNS             []string          `compose:"string_or_list"`
-	DNSSearch       []string          `mapstructure:"dns_search" compose:"string_or_list"`
-	DomainName      string            `mapstructure:"domainname"`
-	Entrypoint      []string          `compose:"shell_command"`
-	Environment     map[string]string `compose:"list_or_dict_equals"`
-	Expose          []string          `compose:"list_of_strings_or_numbers"`
-	ExternalLinks   []string          `mapstructure:"external_links"`
-	ExtraHosts      map[string]string `mapstructure:"extra_hosts" compose:"list_or_dict_colon"`
+	DNS             StringList
+	DNSSearch       StringList `mapstructure:"dns_search"`
+	DomainName      string     `mapstructure:"domainname"`
+	Entrypoint      ShellCommand
+	Environment     MappingWithEquals
+	EnvFile         StringList `mapstructure:"env_file"`
+	Expose          StringOrNumberList
+	ExternalLinks   []string         `mapstructure:"external_links"`
+	ExtraHosts      MappingWithColon `mapstructure:"extra_hosts"`
 	Hostname        string
 	HealthCheck     *HealthCheckConfig
 	Image           string
 	Ipc             string
-	Labels          map[string]string `compose:"list_or_dict_equals"`
+	Labels          MappingWithEquals
 	Links           []string
 	Logging         *LoggingConfig
-	MacAddress      string                           `mapstructure:"mac_address"`
-	NetworkMode     string                           `mapstructure:"network_mode"`
-	Networks        map[string]*ServiceNetworkConfig `compose:"list_or_struct_map"`
+	MacAddress      string `mapstructure:"mac_address"`
+	NetworkMode     string `mapstructure:"network_mode"`
+	Networks        map[string]*ServiceNetworkConfig
 	Pid             string
-	Ports           []string `compose:"list_of_strings_or_numbers"`
+	Ports           StringOrNumberList
 	Privileged      bool
 	ReadOnly        bool `mapstructure:"read_only"`
 	Restart         string
@@ -114,13 +115,31 @@ type ServiceConfig struct {
 	StdinOpen       bool           `mapstructure:"stdin_open"`
 	StopGracePeriod *time.Duration `mapstructure:"stop_grace_period"`
 	StopSignal      string         `mapstructure:"stop_signal"`
-	Tmpfs           []string       `compose:"string_or_list"`
-	Tty             bool           `mapstructure:"tty"`
+	Tmpfs           StringList
+	Tty             bool `mapstructure:"tty"`
 	Ulimits         map[string]*UlimitsConfig
 	User            string
 	Volumes         []string
 	WorkingDir      string `mapstructure:"working_dir"`
 }
+
+// ShellCommand is a string or list of string args
+type ShellCommand []string
+
+// StringList is a type for fields that can be a string or list of strings
+type StringList []string
+
+// StringOrNumberList is a type for fields that can be a list of strings or
+// numbers
+type StringOrNumberList []string
+
+// MappingWithEquals is a mapping type that can be converted from a list of
+// key=value strings
+type MappingWithEquals map[string]string
+
+// MappingWithColon is a mapping type that can be converted from alist of
+// 'key: value' strings
+type MappingWithColon map[string]string
 
 // LoggingConfig the logging configuration for a service
 type LoggingConfig struct {
@@ -132,8 +151,8 @@ type LoggingConfig struct {
 type DeployConfig struct {
 	Mode          string
 	Replicas      *uint64
-	Labels        map[string]string `compose:"list_or_dict_equals"`
-	UpdateConfig  *UpdateConfig     `mapstructure:"update_config"`
+	Labels        MappingWithEquals
+	UpdateConfig  *UpdateConfig `mapstructure:"update_config"`
 	Resources     Resources
 	RestartPolicy *RestartPolicy `mapstructure:"restart_policy"`
 	Placement     Placement
@@ -141,12 +160,15 @@ type DeployConfig struct {
 
 // HealthCheckConfig the healthcheck configuration for a service
 type HealthCheckConfig struct {
-	Test     []string `compose:"healthcheck"`
+	Test     HealthCheckTest
 	Timeout  string
 	Interval string
 	Retries  *uint64
 	Disable  bool
 }
+
+// HealthCheckTest is the command run to test the health of a service
+type HealthCheckTest []string
 
 // UpdateConfig the service update configuration
 type UpdateConfig struct {
@@ -216,7 +238,7 @@ type NetworkConfig struct {
 	Ipam       IPAMConfig
 	External   External
 	Internal   bool
-	Labels     map[string]string `compose:"list_or_dict_equals"`
+	Labels     MappingWithEquals
 }
 
 // IPAMConfig for a network
@@ -235,7 +257,7 @@ type VolumeConfig struct {
 	Driver     string
 	DriverOpts map[string]string `mapstructure:"driver_opts"`
 	External   External
-	Labels     map[string]string `compose:"list_or_dict_equals"`
+	Labels     MappingWithEquals
 }
 
 // External identifies a Volume or Network as a reference to a resource that is
@@ -249,5 +271,5 @@ type External struct {
 type SecretConfig struct {
 	File     string
 	External External
-	Labels   map[string]string `compose:"list_or_dict_equals"`
+	Labels   MappingWithEquals
 }
