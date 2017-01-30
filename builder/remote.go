@@ -129,7 +129,7 @@ func inspectResponse(ct string, r io.ReadCloser, clen int64) (string, io.ReadClo
 		return ct, r, err
 	}
 
-	preambleR := bytes.NewReader(preamble)
+	preambleR := bytes.NewReader(preamble[:rlen])
 	bodyReader := ioutil.NopCloser(io.MultiReader(preambleR, r))
 	// Some web servers will use application/octet-stream as the default
 	// content type for files without an extension (e.g. 'Dockerfile')
