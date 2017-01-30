@@ -176,7 +176,9 @@ func addSwarmFlags(flags *pflag.FlagSet, opts *swarmOptions) {
 	flags.DurationVar(&opts.nodeCertExpiry, flagCertExpiry, time.Duration(90*24*time.Hour), "Validity period for node certificates (ns|us|ms|s|m|h)")
 	flags.Var(&opts.externalCA, flagExternalCA, "Specifications of one or more certificate signing endpoints")
 	flags.Uint64Var(&opts.maxSnapshots, flagMaxSnapshots, 0, "Number of additional Raft snapshots to retain")
+	flags.SetAnnotation(flagMaxSnapshots, "version", []string{"1.25"})
 	flags.Uint64Var(&opts.snapshotInterval, flagSnapshotInterval, 10000, "Number of log entries between Raft snapshots")
+	flags.SetAnnotation(flagSnapshotInterval, "version", []string{"1.25"})
 }
 
 func (opts *swarmOptions) mergeSwarmSpec(spec *swarm.Spec, flags *pflag.FlagSet) {
