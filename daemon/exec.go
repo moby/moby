@@ -210,15 +210,19 @@ func (d *Daemon) ContainerExecStart(ctx context.Context, name string, stdin io.R
 		return err
 	}
 
-	attachConfig := &stream.AttachConfig{
+	attachConfig := stream.AttachConfig{
 		TTY:        ec.Tty,
+		UseStdin:   cStdin != nil,
+		UseStdout:  cStdout != nil,
+		UseStderr:  cStderr != nil,
 		Stdin:      cStdin,
 		Stdout:     cStdout,
 		Stderr:     cStderr,
 		DetachKeys: ec.DetachKeys,
 		CloseStdin: true,
 	}
-	attachErr := ec.StreamConfig.Attach(ctx, attachConfig)
+	ec.StreamConfig.AttachStreams(&attachConfig)
+	attachErr := ec.StreamConfig.CopyStreams(ctx, &attachConfig)
 
 	systemPid, err := d.containerd.AddProcess(ctx, c.ID, name, p, ec.InitializeStdio)
 	if err != nil {
