@@ -94,7 +94,7 @@ RUN set -x \
 
 # Install Go
 # NOTE: official ppc64le go binaries weren't available until go 1.6.4 and 1.7.4
-ENV GO_VERSION 1.7.4
+ENV GO_VERSION 1.7.5
 RUN curl -fsSL "https://golang.org/dl/go${GO_VERSION}.linux-ppc64le.tar.gz" \
 	| tar -xzC /usr/local
 

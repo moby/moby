@@ -87,7 +87,7 @@ RUN cd /usr/local/lvm2 \
 	&& make install_device-mapper
 # See https://git.fedorahosted.org/cgit/lvm2.git/tree/INSTALL
 
-ENV GO_VERSION 1.7.4
+ENV GO_VERSION 1.7.5
 RUN curl -fsSL "https://golang.org/dl/go${GO_VERSION}.linux-s390x.tar.gz" \
 	| tar -xzC /usr/local
 

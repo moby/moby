@@ -10,7 +10,7 @@ RUN yum install -y kernel-uek-devel-4.1.12-32.el6uek
 RUN yum groupinstall -y "Development Tools"
 RUN yum install -y btrfs-progs-devel device-mapper-devel glibc-static  libselinux-devel libtool-ltdl-devel pkgconfig selinux-policy selinux-policy-devel  tar git cmake vim-common
 
-ENV GO_VERSION 1.7.4
+ENV GO_VERSION 1.7.5
 RUN curl -fSL "https://golang.org/dl/go${GO_VERSION}.linux-amd64.tar.gz" | tar xzC /usr/local
 ENV PATH $PATH:/usr/local/go/bin
 
