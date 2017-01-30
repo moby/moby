@@ -194,6 +194,12 @@ message ContainerSpec {
 	// OpenStdin declares that the standard input (stdin) should be open.
 	bool open_stdin = 18;
 
+	// ReadOnly declares that the container root filesystem is read-only.
+	// This only impacts the root filesystem, not additional mounts (including
+	// tmpfs). For additional mounts that are not part of the initial rootfs,
+	// they will be decided by the modes passed in the mount definition.
+	bool read_only = 19;
+
 	repeated Mount mounts = 8 [(gogoproto.nullable) = false];
 
 	// StopGracePeriod the grace period for stopping the container before

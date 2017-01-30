@@ -4,7 +4,10 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/docker/docker/pkg/plugingetter"
+	"github.com/docker/libnetwork/ipamapi"
 	"github.com/docker/swarmkit/api"
+	"github.com/docker/swarmkit/manager/allocator/networkallocator"
 	"github.com/docker/swarmkit/manager/state/store"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -76,7 +79,7 @@ func validateAnnotations(m api.Annotations) error {
 	return nil
 }
 
-func validateDriver(driver *api.Driver) error {
+func validateDriver(driver *api.Driver, pg plugingetter.PluginGetter, pluginType string) error {
 	if driver == nil {
 		// It is ok to not specify the driver. We will choose
 		// a default driver.
@@ -85,6 +88,19 @@ func validateDriver(driver *api.Driver) error {
 
 	if driver.Name == "" {
 		return grpc.Errorf(codes.InvalidArgument, "driver name: if driver is specified name is required")
+	}
+
+	if strings.ToLower(driver.Name) == networkallocator.DefaultDriver || strings.ToLower(driver.Name) == ipamapi.DefaultIPAM {
+		return nil
+	}
+
+	p, err := pg.Get(driver.Name, pluginType, plugingetter.Lookup)
+	if err != nil {
+		return grpc.Errorf(codes.InvalidArgument, "error during lookup of plugin %s", driver.Name)
+	}
+
+	if p.IsV1() {
+		return grpc.Errorf(codes.InvalidArgument, "legacy plugin %s of type %s is not supported in swarm mode", driver.Name, pluginType)
 	}
 
 	return nil

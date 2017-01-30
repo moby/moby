@@ -529,6 +529,20 @@ func (n *Node) Agent() *agent.Agent {
 	return n.agent
 }
 
+// IsStateDirty returns true if any objects have been added to raft which make
+// the state "dirty". Currently, the existence of any object other than the
+// default cluster or the local node implies a dirty state.
+func (n *Node) IsStateDirty() (bool, error) {
+	n.RLock()
+	defer n.RUnlock()
+
+	if n.manager == nil {
+		return false, errors.New("node is not a manager")
+	}
+
+	return n.manager.IsStateDirty()
+}
+
 // Remotes returns a list of known peers known to node.
 func (n *Node) Remotes() []api.Peer {
 	weights := n.remotes.Weights()

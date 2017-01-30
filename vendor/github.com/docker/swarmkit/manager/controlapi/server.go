@@ -3,6 +3,7 @@ package controlapi
 import (
 	"errors"
 
+	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/swarmkit/ca"
 	"github.com/docker/swarmkit/manager/state/raft"
 	"github.com/docker/swarmkit/manager/state/store"
@@ -18,13 +19,15 @@ type Server struct {
 	store  *store.MemoryStore
 	raft   *raft.Node
 	rootCA *ca.RootCA
+	pg     plugingetter.PluginGetter
 }
 
 // NewServer creates a Cluster API server.
-func NewServer(store *store.MemoryStore, raft *raft.Node, rootCA *ca.RootCA) *Server {
+func NewServer(store *store.MemoryStore, raft *raft.Node, rootCA *ca.RootCA, pg plugingetter.PluginGetter) *Server {
 	return &Server{
 		store:  store,
 		raft:   raft,
 		rootCA: rootCA,
+		pg:     pg,
 	}
 }
