@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"sort"
 	"strconv"
@@ -159,12 +158,11 @@ func (s *DockerSuite) TestPsListContainersSize(c *check.C) {
 	dockerCmd(c, "run", "--name", name, "busybox", "sh", "-c", "echo 1 > test")
 	id := getIDByName(c, name)
 
-	runCmd := exec.Command(dockerBinary, "ps", "-s", "-n=1")
-	var out string
+	var result *icmd.Result
 
 	wait := make(chan struct{})
 	go func() {
-		out, _, err = runCommandWithOutput(runCmd)
+		result = icmd.RunCommand(dockerBinary, "ps", "-s", "-n=1")
 		close(wait)
 	}()
 	select {
@@ -172,8 +170,8 @@ func (s *DockerSuite) TestPsListContainersSize(c *check.C) {
 	case <-time.After(3 * time.Second):
 		c.Fatalf("Calling \"docker ps -s\" timed out!")
 	}
-	c.Assert(err, checker.IsNil)
-	lines := strings.Split(strings.Trim(out, "\n "), "\n")
+	result.Assert(c, icmd.Success)
+	lines := strings.Split(strings.Trim(result.Combined(), "\n "), "\n")
 	c.Assert(lines, checker.HasLen, 2, check.Commentf("Expected 2 lines for 'ps -s -n=1' output, got %d", len(lines)))
 	sizeIndex := strings.Index(lines[0], "SIZE")
 	idIndex := strings.Index(lines[0], "CONTAINER ID")

@@ -1951,11 +1951,11 @@ func (s *DockerDaemonSuite) TestDaemonRestartWithKilledRunningContainer(t *check
 
 	// Give time to containerd to process the command if we don't
 	// the exit event might be received after we do the inspect
-	pidCmd := exec.Command("kill", "-0", pid)
-	_, ec, _ := runCommandWithOutput(pidCmd)
-	for ec == 0 {
+	result := icmd.RunCommand("kill", "-0", pid)
+	for result.ExitCode == 0 {
 		time.Sleep(1 * time.Second)
-		_, ec, _ = runCommandWithOutput(pidCmd)
+		// FIXME(vdemeester) should we check it doesn't error out ?
+		result = icmd.RunCommand("kill", "-0", pid)
 	}
 
 	// restart the daemon

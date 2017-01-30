@@ -17,6 +17,7 @@ import (
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/integration-cli/daemon"
+	icmd "github.com/docker/docker/pkg/testutil/cmd"
 	"github.com/docker/libnetwork/driverapi"
 	"github.com/docker/libnetwork/ipamapi"
 	remoteipam "github.com/docker/libnetwork/ipams/remote/api"
@@ -832,8 +833,7 @@ func checkSwarmLockedToUnlocked(c *check.C, d *daemon.Swarm, unlockKey string) {
 		// it must not have updated to be unlocked in time - unlock, wait 3 seconds, and try again
 		cmd := d.Command("swarm", "unlock")
 		cmd.Stdin = bytes.NewBufferString(unlockKey)
-		out, err := cmd.CombinedOutput()
-		c.Assert(err, checker.IsNil, check.Commentf("out: %v", string(out)))
+		icmd.RunCmd(cmd).Assert(c, icmd.Success)
 
 		c.Assert(getNodeStatus(c, d), checker.Equals, swarm.LocalNodeStateActive)
 
@@ -860,22 +860,24 @@ func (s *DockerSwarmSuite) TestUnlockEngineAndUnlockedSwarm(c *check.C) {
 
 	// unlocking a normal engine should return an error - it does not even ask for the key
 	cmd := d.Command("swarm", "unlock")
-	outs, err := cmd.CombinedOutput()
+	result := icmd.RunCmd(cmd)
+	result.Assert(c, icmd.Expected{
+		ExitCode: 1,
+	})
+	c.Assert(result.Combined(), checker.Contains, "Error: This node is not part of a swarm")
+	c.Assert(result.Combined(), checker.Not(checker.Contains), "Please enter unlock key")
 
-	c.Assert(err, checker.NotNil, check.Commentf("out: %v", string(outs)))
-	c.Assert(string(outs), checker.Contains, "Error: This node is not part of a swarm")
-	c.Assert(string(outs), checker.Not(checker.Contains), "Please enter unlock key")
-
-	_, err = d.Cmd("swarm", "init")
+	_, err := d.Cmd("swarm", "init")
 	c.Assert(err, checker.IsNil)
 
 	// unlocking an unlocked swarm should return an error - it does not even ask for the key
 	cmd = d.Command("swarm", "unlock")
-	outs, err = cmd.CombinedOutput()
-
-	c.Assert(err, checker.NotNil, check.Commentf("out: %v", string(outs)))
-	c.Assert(string(outs), checker.Contains, "Error: swarm is not locked")
-	c.Assert(string(outs), checker.Not(checker.Contains), "Please enter unlock key")
+	result = icmd.RunCmd(cmd)
+	result.Assert(c, icmd.Expected{
+		ExitCode: 1,
+	})
+	c.Assert(result.Combined(), checker.Contains, "Error: swarm is not locked")
+	c.Assert(result.Combined(), checker.Not(checker.Contains), "Please enter unlock key")
 }
 
 func (s *DockerSwarmSuite) TestSwarmInitLocked(c *check.C) {
@@ -907,16 +909,16 @@ func (s *DockerSwarmSuite) TestSwarmInitLocked(c *check.C) {
 
 	cmd := d.Command("swarm", "unlock")
 	cmd.Stdin = bytes.NewBufferString("wrong-secret-key")
-	out, err := cmd.CombinedOutput()
-	c.Assert(err, checker.NotNil, check.Commentf("out: %v", string(out)))
-	c.Assert(string(out), checker.Contains, "invalid key")
+	icmd.RunCmd(cmd).Assert(c, icmd.Expected{
+		ExitCode: 1,
+		Err:      "invalid key",
+	})
 
 	c.Assert(getNodeStatus(c, d), checker.Equals, swarm.LocalNodeStateLocked)
 
 	cmd = d.Command("swarm", "unlock")
 	cmd.Stdin = bytes.NewBufferString(unlockKey)
-	out, err = cmd.CombinedOutput()
-	c.Assert(err, checker.IsNil, check.Commentf("out: %v", string(out)))
+	icmd.RunCmd(cmd).Assert(c, icmd.Success)
 
 	c.Assert(getNodeStatus(c, d), checker.Equals, swarm.LocalNodeStateActive)
 
@@ -1007,8 +1009,7 @@ func (s *DockerSwarmSuite) TestSwarmLockUnlockCluster(c *check.C) {
 
 		cmd := d.Command("swarm", "unlock")
 		cmd.Stdin = bytes.NewBufferString(unlockKey)
-		out, err := cmd.CombinedOutput()
-		c.Assert(err, checker.IsNil, check.Commentf("out: %v", string(out)))
+		icmd.RunCmd(cmd).Assert(c, icmd.Success)
 		c.Assert(getNodeStatus(c, d), checker.Equals, swarm.LocalNodeStateActive)
 	}
 
@@ -1034,8 +1035,7 @@ func (s *DockerSwarmSuite) TestSwarmLockUnlockCluster(c *check.C) {
 	// unlock it
 	cmd := d2.Command("swarm", "unlock")
 	cmd.Stdin = bytes.NewBufferString(unlockKey)
-	out, err := cmd.CombinedOutput()
-	c.Assert(err, checker.IsNil, check.Commentf("out: %v", string(out)))
+	icmd.RunCmd(cmd).Assert(c, icmd.Success)
 	c.Assert(getNodeStatus(c, d2), checker.Equals, swarm.LocalNodeStateActive)
 
 	// once it's caught up, d2 is set to not be locked
@@ -1088,8 +1088,7 @@ func (s *DockerSwarmSuite) TestSwarmJoinPromoteLocked(c *check.C) {
 
 		cmd := d.Command("swarm", "unlock")
 		cmd.Stdin = bytes.NewBufferString(unlockKey)
-		out, err := cmd.CombinedOutput()
-		c.Assert(err, checker.IsNil, check.Commentf("out: %v", string(out)))
+		icmd.RunCmd(cmd).Assert(c, icmd.Success)
 		c.Assert(getNodeStatus(c, d), checker.Equals, swarm.LocalNodeStateActive)
 	}
 
@@ -1159,9 +1158,9 @@ func (s *DockerSwarmSuite) TestSwarmRotateUnlockKey(c *check.C) {
 
 		cmd := d.Command("swarm", "unlock")
 		cmd.Stdin = bytes.NewBufferString(unlockKey)
-		out, err := cmd.CombinedOutput()
+		result := icmd.RunCmd(cmd)
 
-		if err == nil {
+		if result.Error == nil {
 			// On occasion, the daemon may not have finished
 			// rotating the KEK before restarting. The test is
 			// intentionally written to explore this behavior.
@@ -1176,18 +1175,19 @@ func (s *DockerSwarmSuite) TestSwarmRotateUnlockKey(c *check.C) {
 
 			cmd = d.Command("swarm", "unlock")
 			cmd.Stdin = bytes.NewBufferString(unlockKey)
-			out, err = cmd.CombinedOutput()
+			result = icmd.RunCmd(cmd)
 		}
-		c.Assert(err, checker.NotNil, check.Commentf("out: %v", string(out)))
-		c.Assert(string(out), checker.Contains, "invalid key")
+		result.Assert(c, icmd.Expected{
+			ExitCode: 1,
+			Err:      "invalid key",
+		})
 
 		outs, _ = d.Cmd("node", "ls")
 		c.Assert(outs, checker.Contains, "Swarm is encrypted and needs to be unlocked")
 
 		cmd = d.Command("swarm", "unlock")
 		cmd.Stdin = bytes.NewBufferString(newUnlockKey)
-		out, err = cmd.CombinedOutput()
-		c.Assert(err, checker.IsNil, check.Commentf("out: %v", string(out)))
+		icmd.RunCmd(cmd).Assert(c, icmd.Success)
 
 		c.Assert(getNodeStatus(c, d), checker.Equals, swarm.LocalNodeStateActive)
 
@@ -1245,9 +1245,9 @@ func (s *DockerSwarmSuite) TestSwarmClusterRotateUnlockKey(c *check.C) {
 
 			cmd := d.Command("swarm", "unlock")
 			cmd.Stdin = bytes.NewBufferString(unlockKey)
-			out, err := cmd.CombinedOutput()
+			result := icmd.RunCmd(cmd)
 
-			if err == nil {
+			if result.Error == nil {
 				// On occasion, the daemon may not have finished
 				// rotating the KEK before restarting. The test is
 				// intentionally written to explore this behavior.
@@ -1262,18 +1262,19 @@ func (s *DockerSwarmSuite) TestSwarmClusterRotateUnlockKey(c *check.C) {
 
 				cmd = d.Command("swarm", "unlock")
 				cmd.Stdin = bytes.NewBufferString(unlockKey)
-				out, err = cmd.CombinedOutput()
+				result = icmd.RunCmd(cmd)
 			}
-			c.Assert(err, checker.NotNil, check.Commentf("out: %v", string(out)))
-			c.Assert(string(out), checker.Contains, "invalid key")
+			result.Assert(c, icmd.Expected{
+				ExitCode: 1,
+				Err:      "invalid key",
+			})
 
 			outs, _ = d.Cmd("node", "ls")
 			c.Assert(outs, checker.Contains, "Swarm is encrypted and needs to be unlocked")
 
 			cmd = d.Command("swarm", "unlock")
 			cmd.Stdin = bytes.NewBufferString(newUnlockKey)
-			out, err = cmd.CombinedOutput()
-			c.Assert(err, checker.IsNil, check.Commentf("out: %v", string(out)))
+			icmd.RunCmd(cmd).Assert(c, icmd.Success)
 
 			c.Assert(getNodeStatus(c, d), checker.Equals, swarm.LocalNodeStateActive)
 
@@ -1308,8 +1309,7 @@ func (s *DockerSwarmSuite) TestSwarmAlternateLockUnlock(c *check.C) {
 
 		cmd := d.Command("swarm", "unlock")
 		cmd.Stdin = bytes.NewBufferString(unlockKey)
-		out, err := cmd.CombinedOutput()
-		c.Assert(err, checker.IsNil, check.Commentf("out: %v", string(out)))
+		icmd.RunCmd(cmd).Assert(c, icmd.Success)
 
 		c.Assert(getNodeStatus(c, d), checker.Equals, swarm.LocalNodeStateActive)
 
@@ -1410,12 +1410,11 @@ func (s *DockerTrustedSwarmSuite) TestTrustedServiceCreate(c *check.C) {
 
 	name := "trusted"
 	serviceCmd := d.Command("-D", "service", "create", "--name", name, repoName, "top")
-	trustedExecCmd(serviceCmd)
-	out, _, err := runCommandWithOutput(serviceCmd)
-	c.Assert(err, checker.IsNil, check.Commentf(out))
-	c.Assert(out, checker.Contains, "resolved image tag to", check.Commentf(out))
+	icmd.RunCmd(serviceCmd, trustedCmd).Assert(c, icmd.Expected{
+		Err: "resolved image tag to",
+	})
 
-	out, err = d.Cmd("service", "inspect", "--pretty", name)
+	out, err := d.Cmd("service", "inspect", "--pretty", name)
 	c.Assert(err, checker.IsNil, check.Commentf(out))
 	c.Assert(out, checker.Contains, repoName+"@", check.Commentf(out))
 
@@ -1429,11 +1428,10 @@ func (s *DockerTrustedSwarmSuite) TestTrustedServiceCreate(c *check.C) {
 
 	name = "untrusted"
 	serviceCmd = d.Command("service", "create", "--name", name, repoName, "top")
-	trustedExecCmd(serviceCmd)
-	out, _, err = runCommandWithOutput(serviceCmd)
-
-	c.Assert(err, check.NotNil, check.Commentf(out))
-	c.Assert(string(out), checker.Contains, "Error: remote trust data does not exist", check.Commentf(out))
+	icmd.RunCmd(serviceCmd, trustedCmd).Assert(c, icmd.Expected{
+		ExitCode: 1,
+		Err:      "Error: remote trust data does not exist",
+	})
 
 	out, err = d.Cmd("service", "inspect", "--pretty", name)
 	c.Assert(err, checker.NotNil, check.Commentf(out))
@@ -1458,10 +1456,9 @@ func (s *DockerTrustedSwarmSuite) TestTrustedServiceUpdate(c *check.C) {
 	c.Assert(out, check.Not(checker.Contains), repoName+"@", check.Commentf(out))
 
 	serviceCmd := d.Command("-D", "service", "update", "--image", repoName, name)
-	trustedExecCmd(serviceCmd)
-	out, _, err = runCommandWithOutput(serviceCmd)
-	c.Assert(err, checker.IsNil, check.Commentf(out))
-	c.Assert(out, checker.Contains, "resolved image tag to", check.Commentf(out))
+	icmd.RunCmd(serviceCmd, trustedCmd).Assert(c, icmd.Expected{
+		Err: "resolved image tag to",
+	})
 
 	out, err = d.Cmd("service", "inspect", "--pretty", name)
 	c.Assert(err, checker.IsNil, check.Commentf(out))
@@ -1476,11 +1473,10 @@ func (s *DockerTrustedSwarmSuite) TestTrustedServiceUpdate(c *check.C) {
 	dockerCmd(c, "rmi", repoName)
 
 	serviceCmd = d.Command("service", "update", "--image", repoName, name)
-	trustedExecCmd(serviceCmd)
-	out, _, err = runCommandWithOutput(serviceCmd)
-
-	c.Assert(err, check.NotNil, check.Commentf(out))
-	c.Assert(string(out), checker.Contains, "Error: remote trust data does not exist", check.Commentf(out))
+	icmd.RunCmd(serviceCmd, trustedCmd).Assert(c, icmd.Expected{
+		ExitCode: 1,
+		Err:      "Error: remote trust data does not exist",
+	})
 }
 
 // Test case for issue #27866, which did not allow NW name that is the prefix of a swarm NW ID.

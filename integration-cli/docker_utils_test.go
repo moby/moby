@@ -52,22 +52,16 @@ func deleteContainer(ignoreNoSuchContainer bool, container ...string) error {
 	return result.Compare(icmd.Success)
 }
 
-func getAllContainers() (string, error) {
-	getContainersCmd := exec.Command(dockerBinary, "ps", "-q", "-a")
-	out, exitCode, err := runCommandWithOutput(getContainersCmd)
-	if exitCode != 0 && err == nil {
-		err = fmt.Errorf("failed to get a list of containers: %v\n", out)
-	}
-
-	return out, err
+func getAllContainers(c *check.C) string {
+	result := icmd.RunCommand(dockerBinary, "ps", "-q", "-a")
+	result.Assert(c, icmd.Success)
+	return result.Combined()
 }
 
 func deleteAllContainers(c *check.C) {
-	containers, err := getAllContainers()
-	c.Assert(err, checker.IsNil, check.Commentf("containers: %v", containers))
-
+	containers := getAllContainers(c)
 	if containers != "" {
-		err = deleteContainer(true, strings.Split(strings.TrimSpace(containers), "\n")...)
+		err := deleteContainer(true, strings.Split(strings.TrimSpace(containers), "\n")...)
 		c.Assert(err, checker.IsNil)
 	}
 }
@@ -202,17 +196,10 @@ func deleteAllImages(c *check.C) {
 	}
 }
 
-func getPausedContainers() ([]string, error) {
-	getPausedContainersCmd := exec.Command(dockerBinary, "ps", "-f", "status=paused", "-q", "-a")
-	out, exitCode, err := runCommandWithOutput(getPausedContainersCmd)
-	if exitCode != 0 && err == nil {
-		err = fmt.Errorf("failed to get a list of paused containers: %v\n", out)
-	}
-	if err != nil {
-		return nil, err
-	}
-
-	return strings.Fields(out), nil
+func getPausedContainers(c *check.C) []string {
+	result := icmd.RunCommand(dockerBinary, "ps", "-f", "status=paused", "-q", "-a")
+	result.Assert(c, icmd.Success)
+	return strings.Fields(result.Combined())
 }
 
 func unpauseContainer(c *check.C, container string) {
@@ -220,8 +207,7 @@ func unpauseContainer(c *check.C, container string) {
 }
 
 func unpauseAllContainers(c *check.C) {
-	containers, err := getPausedContainers()
-	c.Assert(err, checker.IsNil, check.Commentf("containers: %v", containers))
+	containers := getPausedContainers(c)
 	for _, value := range containers {
 		unpauseContainer(c, value)
 	}
@@ -310,29 +296,24 @@ func findContainerIP(c *check.C, id string, network string) string {
 	return strings.Trim(out, " \r\n'")
 }
 
-func getContainerCount() (int, error) {
+func getContainerCount(c *check.C) int {
 	const containers = "Containers:"
 
-	cmd := exec.Command(dockerBinary, "info")
-	out, _, err := runCommandWithOutput(cmd)
-	if err != nil {
-		return 0, err
-	}
+	result := icmd.RunCommand(dockerBinary, "info")
+	result.Assert(c, icmd.Success)
 
-	lines := strings.Split(out, "\n")
+	lines := strings.Split(result.Combined(), "\n")
 	for _, line := range lines {
 		if strings.Contains(line, containers) {
 			output := strings.TrimSpace(line)
 			output = strings.TrimLeft(output, containers)
 			output = strings.Trim(output, " ")
 			containerCount, err := strconv.Atoi(output)
-			if err != nil {
-				return 0, err
-			}
-			return containerCount, nil
+			c.Assert(err, checker.IsNil)
+			return containerCount
 		}
 	}
-	return 0, fmt.Errorf("couldn't find the Container count in the output")
+	return 0
 }
 
 // FakeContext creates directories that can be used as a build context
@@ -626,19 +607,16 @@ func inspectMountPointJSON(j, destination string) (types.MountPoint, error) {
 	return *m, nil
 }
 
-func inspectImage(name, filter string) (string, error) {
+func inspectImage(c *check.C, name, filter string) string {
 	args := []string{"inspect", "--type", "image"}
 	if filter != "" {
 		format := fmt.Sprintf("{{%s}}", filter)
 		args = append(args, "-f", format)
 	}
 	args = append(args, name)
-	inspectCmd := exec.Command(dockerBinary, args...)
-	out, exitCode, err := runCommandWithOutput(inspectCmd)
-	if err != nil || exitCode != 0 {
-		return "", fmt.Errorf("failed to inspect %s: %s", name, out)
-	}
-	return strings.TrimSpace(out), nil
+	result := icmd.RunCommand(dockerBinary, args...)
+	result.Assert(c, icmd.Success)
+	return strings.TrimSpace(result.Combined())
 }
 
 func getIDByName(c *check.C, name string) string {
@@ -864,39 +842,30 @@ func containerStorageFile(containerID, basename string) string {
 }
 
 // docker commands that use this function must be run with the '-d' switch.
-func runCommandAndReadContainerFile(filename string, cmd *exec.Cmd) ([]byte, error) {
-	out, _, err := runCommandWithOutput(cmd)
-	if err != nil {
-		return nil, fmt.Errorf("%v: %q", err, out)
-	}
-
-	contID := strings.TrimSpace(out)
-
+func runCommandAndReadContainerFile(c *check.C, filename string, command string, args ...string) []byte {
+	result := icmd.RunCommand(command, args...)
+	result.Assert(c, icmd.Success)
+	contID := strings.TrimSpace(result.Combined())
 	if err := waitRun(contID); err != nil {
-		return nil, fmt.Errorf("%v: %q", contID, err)
+		c.Fatalf("%v: %q", contID, err)
 	}
-
-	return readContainerFile(contID, filename)
+	return readContainerFile(c, contID, filename)
 }
 
-func readContainerFile(containerID, filename string) ([]byte, error) {
+func readContainerFile(c *check.C, containerID, filename string) []byte {
 	f, err := os.Open(containerStorageFile(containerID, filename))
-	if err != nil {
-		return nil, err
-	}
+	c.Assert(err, checker.IsNil)
 	defer f.Close()
 
 	content, err := ioutil.ReadAll(f)
-	if err != nil {
-		return nil, err
-	}
-
-	return content, nil
+	c.Assert(err, checker.IsNil)
+	return content
 }
 
-func readContainerFileWithExec(containerID, filename string) ([]byte, error) {
-	out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "exec", containerID, "cat", filename))
-	return []byte(out), err
+func readContainerFileWithExec(c *check.C, containerID, filename string) []byte {
+	result := icmd.RunCommand(dockerBinary, "exec", containerID, "cat", filename)
+	result.Assert(c, icmd.Success)
+	return []byte(result.Combined())
 }
 
 // daemonTime provides the current time on the daemon host

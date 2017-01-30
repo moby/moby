@@ -869,18 +869,15 @@ func (s *DockerNetworkSuite) TestDockerNetworkAnonymousEndpoint(c *check.C) {
 	out, _ := dockerCmd(c, "run", "-d", "--net", cstmBridgeNw, "busybox", "top")
 	cid1 := strings.TrimSpace(out)
 
-	hosts1, err := readContainerFileWithExec(cid1, hostsFile)
-	c.Assert(err, checker.IsNil)
+	hosts1 := readContainerFileWithExec(c, cid1, hostsFile)
 
 	out, _ = dockerCmd(c, "run", "-d", "--net", cstmBridgeNw, "busybox", "top")
 	cid2 := strings.TrimSpace(out)
 
-	hosts2, err := readContainerFileWithExec(cid2, hostsFile)
-	c.Assert(err, checker.IsNil)
+	hosts2 := readContainerFileWithExec(c, cid2, hostsFile)
 
 	// verify first container etc/hosts file has not changed
-	hosts1post, err := readContainerFileWithExec(cid1, hostsFile)
-	c.Assert(err, checker.IsNil)
+	hosts1post := readContainerFileWithExec(c, cid1, hostsFile)
 	c.Assert(string(hosts1), checker.Equals, string(hosts1post),
 		check.Commentf("Unexpected %s change on anonymous container creation", hostsFile))
 
@@ -891,11 +888,8 @@ func (s *DockerNetworkSuite) TestDockerNetworkAnonymousEndpoint(c *check.C) {
 
 	dockerCmd(c, "network", "connect", cstmBridgeNw1, cid2)
 
-	hosts2, err = readContainerFileWithExec(cid2, hostsFile)
-	c.Assert(err, checker.IsNil)
-
-	hosts1post, err = readContainerFileWithExec(cid1, hostsFile)
-	c.Assert(err, checker.IsNil)
+	hosts2 = readContainerFileWithExec(c, cid2, hostsFile)
+	hosts1post = readContainerFileWithExec(c, cid1, hostsFile)
 	c.Assert(string(hosts1), checker.Equals, string(hosts1post),
 		check.Commentf("Unexpected %s change on container connect", hostsFile))
 
@@ -910,18 +904,16 @@ func (s *DockerNetworkSuite) TestDockerNetworkAnonymousEndpoint(c *check.C) {
 
 	// Stop named container and verify first two containers' etc/hosts file hasn't changed
 	dockerCmd(c, "stop", cid3)
-	hosts1post, err = readContainerFileWithExec(cid1, hostsFile)
-	c.Assert(err, checker.IsNil)
+	hosts1post = readContainerFileWithExec(c, cid1, hostsFile)
 	c.Assert(string(hosts1), checker.Equals, string(hosts1post),
 		check.Commentf("Unexpected %s change on name container creation", hostsFile))
 
-	hosts2post, err := readContainerFileWithExec(cid2, hostsFile)
-	c.Assert(err, checker.IsNil)
+	hosts2post := readContainerFileWithExec(c, cid2, hostsFile)
 	c.Assert(string(hosts2), checker.Equals, string(hosts2post),
 		check.Commentf("Unexpected %s change on name container creation", hostsFile))
 
 	// verify that container 1 and 2 can't ping the named container now
-	_, _, err = dockerCmdWithError("exec", cid1, "ping", "-c", "1", cName)
+	_, _, err := dockerCmdWithError("exec", cid1, "ping", "-c", "1", cName)
 	c.Assert(err, check.NotNil)
 	_, _, err = dockerCmdWithError("exec", cid2, "ping", "-c", "1", cName)
 	c.Assert(err, check.NotNil)
