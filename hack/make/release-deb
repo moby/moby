@@ -22,7 +22,7 @@ APTDIR=$DOCKER_RELEASE_DIR/apt/repo
 mkdir -p "$APTDIR/conf" "$APTDIR/db" "$APTDIR/dists"
 
 # supported arches/sections
-arches=( amd64 i386 armhf )
+arches=( amd64 i386 armhf ppc64le s390x )
 
 # Preserve existing components but don't add any non-existing ones
 for component in main testing experimental ; do
