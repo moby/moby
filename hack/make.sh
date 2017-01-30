@@ -85,7 +85,6 @@ elif command -v git &> /dev/null && [ -d .git ] && git rev-parse &> /dev/null; t
 		git status --porcelain --untracked-files=no
 		echo "#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 	fi
-	! BUILDTIME=$(date --rfc-3339 ns 2> /dev/null | sed -e 's/ /T/') &> /dev/null
 else
 	echo >&2 'error: .git directory missing and DOCKER_GITCOMMIT not specified'
 	echo >&2 '  Please either build with the .git directory accessible, or specify the'

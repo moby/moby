@@ -1,5 +1,4 @@
 bundles
-integration-cli/bundles
 .gopath
 vendor/pkg
 .go-pkg-cache
