@@ -94,14 +94,16 @@ func (daemon *Daemon) ImportImage(src string, repository, tag string, msg string
 	}
 	defer layer.ReleaseAndLog(daemon.layerStore, l)
 
-	created := time.Now().UTC()
+	// remove hostname from config for reproducibility
+	config.Hostname = ""
+
 	imgConfig, err := json.Marshal(&image.Image{
 		V1Image: image.V1Image{
 			DockerVersion: dockerversion.Version,
 			Config:        config,
 			Architecture:  runtime.GOARCH,
 			OS:            runtime.GOOS,
-			Created:       created,
+			Created:       time.Time{},
 			Comment:       msg,
 		},
 		RootFS: &image.RootFS{
@@ -109,7 +111,7 @@ func (daemon *Daemon) ImportImage(src string, repository, tag string, msg string
 			DiffIDs: []layer.DiffID{l.DiffID()},
 		},
 		History: []image.History{{
-			Created: created,
+			Created: time.Time{},
 			Comment: msg,
 		}},
 	})

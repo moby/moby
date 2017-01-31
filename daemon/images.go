@@ -289,7 +289,6 @@ func (daemon *Daemon) SquashImage(id, parent string) (string, error) {
 		newImage.History[i] = hi
 	}
 
-	now := time.Now()
 	var historyComment string
 	if len(parent) > 0 {
 		historyComment = fmt.Sprintf("merge %s to %s", id, parent)
@@ -298,10 +297,10 @@ func (daemon *Daemon) SquashImage(id, parent string) (string, error) {
 	}
 
 	newImage.History = append(newImage.History, image.History{
-		Created: now,
+		Created: time.Time{},
 		Comment: historyComment,
 	})
-	newImage.Created = now
+	newImage.Created = time.Time{}
 
 	b, err := json.Marshal(&newImage)
 	if err != nil {

@@ -117,6 +117,35 @@ func merge(userConf, imageConf *containertypes.Config) error {
 	return nil
 }
 
+// Return the reproducible parts of the config, which currently excludes hostname as random
+func reproConfig(config *containertypes.Config) *containertypes.Config {
+	return &containertypes.Config{
+		User:            config.User,
+		AttachStdin:     config.AttachStdin,
+		AttachStdout:    config.AttachStdout,
+		AttachStderr:    config.AttachStderr,
+		ExposedPorts:    config.ExposedPorts,
+		Tty:             config.Tty,
+		OpenStdin:       config.OpenStdin,
+		StdinOnce:       config.StdinOnce,
+		Env:             config.Env,
+		Cmd:             config.Cmd,
+		Healthcheck:     config.Healthcheck,
+		ArgsEscaped:     config.ArgsEscaped,
+		Image:           config.Image,
+		Volumes:         config.Volumes,
+		WorkingDir:      config.WorkingDir,
+		Entrypoint:      config.Entrypoint,
+		NetworkDisabled: config.NetworkDisabled,
+		MacAddress:      config.MacAddress,
+		OnBuild:         config.OnBuild,
+		Labels:          config.Labels,
+		StopSignal:      config.StopSignal,
+		StopTimeout:     config.StopTimeout,
+		Shell:           config.Shell,
+	}
+}
+
 // Commit creates a new filesystem image from the current state of a container.
 // The image can optionally be tagged into a repository.
 func (daemon *Daemon) Commit(name string, c *backend.ContainerCommitConfig) (string, error) {
@@ -181,7 +210,7 @@ func (daemon *Daemon) Commit(name string, c *backend.ContainerCommitConfig) (str
 
 	h := image.History{
 		Author:     c.Author,
-		Created:    time.Now().UTC(),
+		Created:    time.Time{},
 		CreatedBy:  strings.Join(container.Config.Cmd, " "),
 		Comment:    c.Comment,
 		EmptyLayer: true,
@@ -197,13 +226,13 @@ func (daemon *Daemon) Commit(name string, c *backend.ContainerCommitConfig) (str
 	config, err := json.Marshal(&image.Image{
 		V1Image: image.V1Image{
 			DockerVersion:   dockerversion.Version,
-			Config:          newConfig,
+			Config:          reproConfig(newConfig),
 			Architecture:    runtime.GOARCH,
 			OS:              runtime.GOOS,
-			Container:       container.ID,
-			ContainerConfig: *container.Config,
+			Container:       "",
+			ContainerConfig: *reproConfig(container.Config),
 			Author:          c.Author,
-			Created:         h.Created,
+			Created:         time.Time{},
 		},
 		RootFS:     rootFS,
 		History:    history,
