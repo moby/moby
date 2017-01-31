@@ -167,8 +167,20 @@
         "ports": {
           "type": "array",
           "items": {
-            "type": ["string", "number"],
-            "format": "ports"
+            "oneOf": [
+              {"type": "number", "format": "ports"},
+              {"type": "string", "format": "ports"},
+              {
+                "type": "object",
+                "properties": {
+                  "mode": {"type": "string"},
+                  "target": {"type": "integer"},
+                  "published": {"type": "integer"},
+                  "protocol": {"type": "string"}
+                },
+                "additionalProperties": false
+              }
+            ]
           },
           "uniqueItems": true
         },
