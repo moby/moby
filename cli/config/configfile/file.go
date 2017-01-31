@@ -38,6 +38,15 @@ type ConfigFile struct {
 	ServicesFormat       string                      `json:"servicesFormat,omitempty"`
 	TasksFormat          string                      `json:"tasksFormat,omitempty"`
 	SecretFormat         string                      `json:"secretFormat,omitempty"`
+	Proxies              map[string]ProxyConfig      `json:"proxies,omitempty"`
+}
+
+// ProxyConfig contains proxy configuration settings
+type ProxyConfig struct {
+	HTTPProxy  string `json:"httpProxy,omitempty"`
+	HTTPSProxy string `json:"httpsProxy,omitempty"`
+	NoProxy    string `json:"noProxy,omitempty"`
+	FTPProxy   string `json:"ftpProxy,omitempty"`
 }
 
 // LegacyLoadFromReader reads the non-nested configuration data given and sets up the
