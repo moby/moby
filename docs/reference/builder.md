@@ -709,7 +709,7 @@ it instead, as it enables setting any metadata you require, and can be viewed
 easily, for example with `docker inspect`. To set a label corresponding to the
 `MAINTAINER` field you could use:
 
-    LABEL maintainer "SvenDowideit@home.org.au"
+    LABEL maintainer="SvenDowideit@home.org.au"
 
 This will then be visible from `docker inspect` with the other labels.
 
