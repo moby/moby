@@ -1795,6 +1795,7 @@ __docker_service_subcommand() {
         "($help)*--network=[Network attachments]:network: "
         "($help)--no-healthcheck[Disable any container-specified HEALTHCHECK]"
         "($help)*"{-p=,--publish=}"[Publish a port as a node port]:port: "
+        "($help)--read-only[Mount the container's root filesystem as read only]"
         "($help)--replicas=[Number of tasks]:replicas: "
         "($help)--reserve-cpu=[Reserve CPUs]:value: "
         "($help)--reserve-memory=[Reserve Memory]:value: "

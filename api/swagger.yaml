@@ -1884,6 +1884,9 @@ definitions:
           TTY:
             description: "Whether a pseudo-TTY should be allocated."
             type: "boolean"
+          ReadOnly:
+            description: "Mount the container's root filesystem as read only."
+            type: "boolean"
           Mounts:
             description: "Specification for mounts to be added to containers created as part of the service."
             type: "array"

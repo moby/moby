@@ -1644,3 +1644,24 @@ func (s *DockerSwarmSuite) TestSwarmInitWithDrain(c *check.C) {
 	c.Assert(err, checker.IsNil)
 	c.Assert(out, checker.Contains, "Drain")
 }
+
+func (s *DockerSwarmSuite) TestSwarmReadonlyRootfs(c *check.C) {
+	testRequires(c, DaemonIsLinux, UserNamespaceROMount)
+
+	d := s.AddDaemon(c, true, true)
+
+	out, err := d.Cmd("service", "create", "--name", "top", "--read-only", "busybox", "top")
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+
+	// make sure task has been deployed.
+	waitAndAssert(c, defaultReconciliationTimeout, d.CheckActiveContainerCount, checker.Equals, 1)
+
+	out, err = d.Cmd("service", "inspect", "--format", "{{ .Spec.TaskTemplate.ContainerSpec.ReadOnly }}", "top")
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+	c.Assert(strings.TrimSpace(out), checker.Equals, "true")
+
+	containers := d.ActiveContainers()
+	out, err = d.Cmd("inspect", "--type", "container", "--format", "{{.HostConfig.ReadonlyRootfs}}", containers[0])
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+	c.Assert(strings.TrimSpace(out), checker.Equals, "true")
+}

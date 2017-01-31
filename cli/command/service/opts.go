@@ -303,6 +303,7 @@ type serviceOptions struct {
 	user            string
 	groups          opts.ListOpts
 	tty             bool
+	readOnly        bool
 	mounts          opts.MountOpt
 	dns             opts.ListOpts
 	dnsSearch       opts.ListOpts
@@ -384,6 +385,7 @@ func (opts *serviceOptions) ToService() (swarm.ServiceSpec, error) {
 				User:     opts.user,
 				Groups:   opts.groups.GetAll(),
 				TTY:      opts.tty,
+				ReadOnly: opts.readOnly,
 				Mounts:   opts.mounts.Value(),
 				DNSConfig: &swarm.DNSConfig{
 					Nameservers: opts.dns.GetAll(),
@@ -488,6 +490,9 @@ func addServiceFlags(cmd *cobra.Command, opts *serviceOptions) {
 
 	flags.BoolVarP(&opts.tty, flagTTY, "t", false, "Allocate a pseudo-TTY")
 	flags.SetAnnotation(flagTTY, "version", []string{"1.25"})
+
+	flags.BoolVar(&opts.readOnly, flagReadOnly, false, "Mount the container's root filesystem as read only")
+	flags.SetAnnotation(flagReadOnly, "version", []string{"1.26"})
 }
 
 const (
@@ -532,6 +537,7 @@ const (
 	flagPublish               = "publish"
 	flagPublishRemove         = "publish-rm"
 	flagPublishAdd            = "publish-add"
+	flagReadOnly              = "read-only"
 	flagReplicas              = "replicas"
 	flagReserveCPU            = "reserve-cpu"
 	flagReserveMemory         = "reserve-memory"

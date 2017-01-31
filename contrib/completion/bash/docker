@@ -2851,6 +2851,7 @@ _docker_service_update() {
 
 	local boolean_options="
 		--help
+		--read-only
 		--tty -t
 		--with-registry-auth
 	"

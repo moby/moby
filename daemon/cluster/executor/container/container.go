@@ -335,10 +335,11 @@ func (c *containerConfig) healthcheck() *enginecontainer.HealthConfig {
 
 func (c *containerConfig) hostConfig() *enginecontainer.HostConfig {
 	hc := &enginecontainer.HostConfig{
-		Resources:    c.resources(),
-		GroupAdd:     c.spec().Groups,
-		PortBindings: c.portBindings(),
-		Mounts:       c.mounts(),
+		Resources:      c.resources(),
+		GroupAdd:       c.spec().Groups,
+		PortBindings:   c.portBindings(),
+		Mounts:         c.mounts(),
+		ReadonlyRootfs: c.spec().ReadOnly,
 	}
 
 	if c.spec().DNSConfig != nil {
