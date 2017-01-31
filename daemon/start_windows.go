@@ -9,6 +9,7 @@ import (
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/libcontainerd"
+	"github.com/docker/docker/pkg/system"
 	"golang.org/x/sys/windows/registry"
 )
 
@@ -28,6 +29,14 @@ func (daemon *Daemon) getLibcontainerdCreateOptions(container *container.Contain
 	} else {
 		// Container is requesting an isolation mode. Honour it.
 		hvOpts.IsHyperV = container.HostConfig.Isolation.IsHyperV()
+	}
+
+	dnsSearch := daemon.getDNSSearchSettings(container)
+	if dnsSearch != nil {
+		osv := system.GetOSVersion()
+		if osv.Build < 14997 {
+			return nil, fmt.Errorf("dns-search option is not supported on the current platform")
+		}
 	}
 
 	// Generate the layer folder of the layer options
@@ -149,7 +158,11 @@ func (daemon *Daemon) getLibcontainerdCreateOptions(container *container.Contain
 	createOptions = append(createOptions, hvOpts)
 	createOptions = append(createOptions, layerOpts)
 	if epList != nil {
-		createOptions = append(createOptions, &libcontainerd.NetworkEndpointsOption{Endpoints: epList, AllowUnqualifiedDNSQuery: AllowUnqualifiedDNSQuery})
+		createOptions = append(createOptions, &libcontainerd.NetworkEndpointsOption{
+			Endpoints:                epList,
+			AllowUnqualifiedDNSQuery: AllowUnqualifiedDNSQuery,
+			DNSSearchList:            dnsSearch,
+		})
 	}
 
 	return createOptions, nil
