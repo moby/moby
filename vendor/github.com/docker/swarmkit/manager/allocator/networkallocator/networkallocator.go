@@ -283,6 +283,12 @@ func (na *NetworkAllocator) IsTaskAllocated(t *api.Task) bool {
 	return true
 }
 
+// PortsAllocatedInHostPublishMode returns if the passed service has its published ports in
+// host (non ingress) mode allocated
+func (na *NetworkAllocator) PortsAllocatedInHostPublishMode(s *api.Service) bool {
+	return na.portAllocator.portsAllocatedInHostPublishMode(s)
+}
+
 // IsServiceAllocated returns if the passed service has its network resources allocated or not.
 func (na *NetworkAllocator) IsServiceAllocated(s *api.Service) bool {
 	// If endpoint mode is VIP and allocator does not have the
