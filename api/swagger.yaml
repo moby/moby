@@ -6365,7 +6365,7 @@ paths:
           schema:
             type: "object"
             properties:
-              VolumesDeleted:
+              NetworksDeleted:
                 description: "Networks that were deleted"
                 type: "array"
                 items:
