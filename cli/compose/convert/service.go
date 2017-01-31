@@ -3,6 +3,7 @@ package convert
 import (
 	"fmt"
 	"os"
+	"sort"
 	"time"
 
 	"github.com/docker/docker/api/types"
@@ -13,8 +14,6 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/opts"
 	runconfigopts "github.com/docker/docker/runconfig/opts"
-	"github.com/docker/go-connections/nat"
-	"sort"
 )
 
 // Services from compose-file types to engine API types
@@ -367,19 +366,16 @@ func (a byPublishedPort) Len() int           { return len(a) }
 func (a byPublishedPort) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 func (a byPublishedPort) Less(i, j int) bool { return a[i].PublishedPort < a[j].PublishedPort }
 
-func convertEndpointSpec(source []string) (*swarm.EndpointSpec, error) {
+func convertEndpointSpec(source []composetypes.ServicePortConfig) (*swarm.EndpointSpec, error) {
 	portConfigs := []swarm.PortConfig{}
-	ports, portBindings, err := nat.ParsePortSpecs(source)
-	if err != nil {
-		return nil, err
-	}
-
-	for port := range ports {
-		portConfig, err := opts.ConvertPortToPortConfig(port, portBindings)
-		if err != nil {
-			return nil, err
+	for _, port := range source {
+		portConfig := swarm.PortConfig{
+			Protocol:      swarm.PortConfigProtocol(port.Protocol),
+			TargetPort:    port.Target,
+			PublishedPort: port.Published,
+			PublishMode:   swarm.PortConfigPublishMode(port.Mode),
 		}
-		portConfigs = append(portConfigs, portConfig...)
+		portConfigs = append(portConfigs, portConfig)
 	}
 
 	sort.Sort(byPublishedPort(portConfigs))
