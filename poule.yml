@@ -72,6 +72,11 @@
         }
       - type:       rebuild
         settings: {
+            configurations: [ powerpc ],
+            label:          "rebuild/powerpc",
+        }
+      - type:       rebuild
+        settings: {
             configurations: [ userns ],
             label:          "rebuild/userns",
         }
@@ -89,4 +94,9 @@
         settings: {
             configurations: [ windowsRS1 ],
             label:          "rebuild/windowsRS1",
+        }
+      - type:       rebuild
+        settings: {
+            configurations: [ z ],
+            label:          "rebuild/z",
         }
