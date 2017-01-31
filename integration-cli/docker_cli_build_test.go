@@ -4909,6 +4909,132 @@ func (s *DockerSuite) TestBuildBuildTimeUnusedArgMultipleFrom(c *check.C) {
 	c.Assert(result.Stdout(), checker.Not(checker.Contains), "baz")
 }
 
+func (s *DockerSuite) TestBuildBuildTimeArgFromConfig(c *check.C) {
+	testRequires(c, DaemonIsLinux) // Windows does not support --build-arg
+	imgName := "bldargtest"
+	envKey := "HTTP_PROXY"
+	envVal := "http://127.0.0.1:9000"
+	dockerfile := fmt.Sprintf(`FROM busybox
+		RUN echo $%s
+		CMD echo $%s`, envKey, envKey)
+
+	tmp, err := ioutil.TempDir("", "integration-cli-")
+	c.Assert(err, checker.IsNil)
+
+	config := `{ "proxies": { "default": { "httpProxy": "http://127.0.0.1:9000" }}}`
+	configPath := filepath.Join(tmp, "config.json")
+	err = ioutil.WriteFile(configPath, []byte(config), 0644)
+	c.Assert(err, checker.IsNil)
+
+	result := buildImage(imgName,
+		cli.WithConfigFile(tmp),
+		build.WithDockerfile(dockerfile),
+	)
+	result.Assert(c, icmd.Success)
+	if !strings.Contains(result.Combined(), envVal) {
+		c.Fatalf("failed to access environment variable in output: %q expected: %q", result.Combined(), envVal)
+	}
+	containerName := "bldargCont"
+	if out, _ := dockerCmd(c, "run", "--name", containerName, imgName); out != "\n" {
+		c.Fatalf("run produced invalid output: %q, expected empty string", out)
+	}
+}
+
+func (s *DockerSuite) TestBuildBuildTimeArgFromConfigOverride(c *check.C) {
+	testRequires(c, DaemonIsLinux) // Windows does not support --build-arg
+	imgName := "bldargtest"
+	envKey := "HTTP_PROXY"
+
+	envVal := "http://127.0.0.1:3000"
+	dockerfile := fmt.Sprintf(`FROM busybox
+	RUN echo $%s
+	CMD echo $%s`, envKey, envKey)
+
+	tmp, err := ioutil.TempDir("", "integration-cli-")
+	c.Assert(err, checker.IsNil)
+
+	config := `{ "proxies": { "default": { "httpProxy": "http://127.0.0.1:9000" }}}`
+	configPath := filepath.Join(tmp, "config.json")
+	err = ioutil.WriteFile(configPath, []byte(config), 0644)
+	c.Assert(err, checker.IsNil)
+
+	result := buildImage(imgName,
+		cli.WithConfigFile(tmp),
+		cli.WithFlags("--build-arg", fmt.Sprintf("%s=%s", envKey, envVal)),
+		build.WithDockerfile(dockerfile),
+	)
+	result.Assert(c, icmd.Success)
+	if !strings.Contains(result.Combined(), envVal) {
+		c.Fatalf("failed to access environment variable in output: %q expected: %q", result.Combined(), envVal)
+	}
+	containerName := "bldargCont"
+	if out, _ := dockerCmd(c, "run", "--name", containerName, imgName); out != "\n" {
+		c.Fatalf("run produced invalid output: %q, expected empty string", out)
+	}
+}
+
+func (s *DockerSuite) TestBuildBuildTimeArgFromSpecificConfig(c *check.C) {
+	testRequires(c, DaemonIsLinux) // Windows does not support --build-arg
+	imgName := "bldargtest"
+	envKey := "HTTP_PROXY"
+	specificEnvVal := "http://proxy.example.com"
+	dockerfile := fmt.Sprintf(`FROM busybox
+	RUN echo $%s
+	CMD echo $%s`, envKey, envKey)
+
+	tmp, err := ioutil.TempDir("", "integration-cli-")
+	c.Assert(err, checker.IsNil)
+
+	config := `{ "proxies": { "default" : { "httpProxy": "http://127.0.0.1:9000" }, "` + os.Getenv("DOCKER_HOST") + `": { "httpProxy": "` + specificEnvVal + `" }}}`
+	configPath := filepath.Join(tmp, "config.json")
+	err = ioutil.WriteFile(configPath, []byte(config), 0644)
+	c.Assert(err, checker.IsNil)
+
+	result := buildImage(imgName,
+		cli.WithConfigFile(tmp),
+		build.WithDockerfile(dockerfile),
+	)
+	result.Assert(c, icmd.Success)
+	if !strings.Contains(result.Combined(), specificEnvVal) {
+		c.Fatalf("failed to access environment variable in output: %q expected: %q", result.Combined(), specificEnvVal)
+	}
+	containerName := "bldargCont"
+	if out, _ := dockerCmd(c, "run", "--name", containerName, imgName); out != "\n" {
+		c.Fatalf("run produced invalid output: %q, expected empty string", out)
+	}
+}
+
+func (s *DockerSuite) TestBuildBuildTimeArgFromBadConfig(c *check.C) {
+	testRequires(c, DaemonIsLinux) // Windows does not support --build-arg
+	imgName := "bldargtest"
+	envKey := "HTTP_PROXY"
+	envVal := "http://127.0.0.1:9000"
+	dockerfile := fmt.Sprintf(`FROM busybox
+RUN echo $%s
+CMD echo $%s`, envKey, envKey)
+
+	tmp, err := ioutil.TempDir("", "integration-cli-")
+	c.Assert(err, checker.IsNil)
+
+	config := `{ "proxies": { "bad" : { "httpProxy": "http://127.0.0.1:9000" }}}`
+	configPath := filepath.Join(tmp, "config.json")
+	err = ioutil.WriteFile(configPath, []byte(config), 0644)
+	c.Assert(err, checker.IsNil)
+
+	result := buildImage(imgName,
+		cli.WithConfigFile(tmp),
+		build.WithDockerfile(dockerfile),
+	)
+	result.Assert(c, icmd.Success)
+	if strings.Contains(result.Combined(), envVal) {
+		c.Fatalf("environment variable '%q' leaked in to output: %q", envKey, result.Combined())
+	}
+	containerName := "bldargCont"
+	if out, _ := dockerCmd(c, "run", "--name", containerName, imgName); out != "\n" {
+		c.Fatalf("run produced invalid output: %q, expected empty string", out)
+	}
+}
+
 func (s *DockerSuite) TestBuildNoNamedVolume(c *check.C) {
 	volName := "testname:/foo"
 

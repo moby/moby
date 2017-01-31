@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"strings"
 	"time"
 
 	"github.com/docker/distribution/reference"
@@ -21,6 +22,7 @@ import (
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cli/command"
 	"github.com/docker/docker/cli/command/image/build"
+	"github.com/docker/docker/cli/config/configfile"
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/fileutils"
@@ -296,7 +298,7 @@ func runBuild(dockerCli *command.DockerCli, options buildOptions) error {
 		Dockerfile:     relDockerfile,
 		ShmSize:        options.shmSize.Value(),
 		Ulimits:        options.ulimits.GetList(),
-		BuildArgs:      runconfigopts.ConvertKVStringsToMapWithNil(options.buildArgs.GetAll()),
+		BuildArgs:      createBuildArgs(dockerCli.ConfigFile(), dockerCli.Client().ClientHost(), options.buildArgs),
 		AuthConfigs:    authConfigs,
 		Labels:         runconfigopts.ConvertKVStringsToMap(options.labels.GetAll()),
 		CacheFrom:      options.cacheFrom,
@@ -527,4 +529,35 @@ func replaceDockerfileTarWrapper(ctx context.Context, inputTarStream io.ReadClos
 	}()
 
 	return pipeReader
+}
+
+func createBuildArgs(cfg *configfile.ConfigFile, host string, o opts.ListOpts) map[string]*string {
+	var cfgKey string
+
+	if _, ok := cfg.Proxies[host]; !ok {
+		cfgKey = "default"
+	} else {
+		cfgKey = host
+	}
+
+	config, _ := cfg.Proxies[cfgKey]
+	permitted := map[string]*string{
+		"HTTP_PROXY":  &config.HTTPProxy,
+		"HTTPS_PROXY": &config.HTTPSProxy,
+		"NO_PROXY":    &config.NoProxy,
+		"FTP_PROXY":   &config.FTPProxy,
+	}
+	m := runconfigopts.ConvertKVStringsToMapWithNil(o.GetAll())
+	for k := range permitted {
+		if *permitted[k] == "" {
+			continue
+		}
+		if _, ok := m[k]; !ok {
+			m[k] = permitted[k]
+		}
+		if _, ok := m[strings.ToLower(k)]; !ok {
+			m[strings.ToLower(k)] = permitted[k]
+		}
+	}
+	return m
 }
