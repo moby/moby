@@ -157,12 +157,14 @@ func runBuild(dockerCli *command.DockerCli, options buildOptions) error {
 	switch {
 	case specifiedContext == "-":
 		buildCtx, relDockerfile, err = build.GetContextFromReader(dockerCli.In(), options.dockerfileName)
+	case isLocalDir(specifiedContext):
+		contextDir, relDockerfile, err = build.GetContextFromLocalDir(specifiedContext, options.dockerfileName)
 	case urlutil.IsGitURL(specifiedContext):
 		tempDir, relDockerfile, err = build.GetContextFromGitURL(specifiedContext, options.dockerfileName)
 	case urlutil.IsURL(specifiedContext):
 		buildCtx, relDockerfile, err = build.GetContextFromURL(progBuff, specifiedContext, options.dockerfileName)
 	default:
-		contextDir, relDockerfile, err = build.GetContextFromLocalDir(specifiedContext, options.dockerfileName)
+		return fmt.Errorf("unable to prepare context: path %q not found", specifiedContext)
 	}
 
 	if err != nil {
@@ -355,6 +357,11 @@ func runBuild(dockerCli *command.DockerCli, options buildOptions) error {
 	}
 
 	return nil
+}
+
+func isLocalDir(c string) bool {
+	_, err := os.Stat(c)
+	return err == nil
 }
 
 type translatorFunc func(context.Context, reference.NamedTagged) (reference.Canonical, error)
