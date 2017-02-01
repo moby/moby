@@ -1192,6 +1192,9 @@ _docker_container_ls() {
 			__docker_complete_containers_all --cur "${cur##*=}"
 			return
 			;;
+		expose|publish)
+			return
+			;;
 		id)
 			__docker_complete_containers_all --cur "${cur##*=}" --id
 			return
@@ -1228,7 +1231,7 @@ _docker_container_ls() {
 
 	case "$prev" in
 		--filter|-f)
-			COMPREPLY=( $( compgen -S = -W "ancestor before exited health id is-task label name network since status volume" -- "$cur" ) )
+			COMPREPLY=( $( compgen -S = -W "ancestor before exited expose health id is-task label name network publish since status volume" -- "$cur" ) )
 			__docker_nospace
 			return
 			;;
