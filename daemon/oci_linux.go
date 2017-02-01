@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -25,6 +26,10 @@ import (
 	"github.com/opencontainers/runc/libcontainer/devices"
 	"github.com/opencontainers/runc/libcontainer/user"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
+)
+
+var (
+	deviceCgroupRuleRegex = regexp.MustCompile("^([acb]) ([0-9]+|\\*):([0-9]+|\\*) ([rwm]{1,3})$")
 )
 
 func setResources(s *specs.Spec, r containertypes.Resources) error {
@@ -105,6 +110,41 @@ func setDevices(s *specs.Spec, c *container.Container) error {
 			}
 			devs = append(devs, d...)
 			devPermissions = append(devPermissions, dPermissions...)
+		}
+
+		for _, deviceCgroupRule := range c.HostConfig.DeviceCgroupRules {
+			ss := deviceCgroupRuleRegex.FindAllStringSubmatch(deviceCgroupRule, -1)
+			if len(ss[0]) != 5 {
+				return fmt.Errorf("invalid device cgroup rule format: '%s'", deviceCgroupRule)
+			}
+			matches := ss[0]
+
+			dPermissions := specs.DeviceCgroup{
+				Allow:  true,
+				Type:   &matches[1],
+				Access: &matches[4],
+			}
+			if matches[2] == "*" {
+				major := int64(-1)
+				dPermissions.Major = &major
+			} else {
+				major, err := strconv.ParseInt(matches[2], 10, 64)
+				if err != nil {
+					return fmt.Errorf("invalid major value in device cgroup rule format: '%s'", deviceCgroupRule)
+				}
+				dPermissions.Major = &major
+			}
+			if matches[3] == "*" {
+				minor := int64(-1)
+				dPermissions.Minor = &minor
+			} else {
+				minor, err := strconv.ParseInt(matches[3], 10, 64)
+				if err != nil {
+					return fmt.Errorf("invalid minor value in device cgroup rule format: '%s'", deviceCgroupRule)
+				}
+				dPermissions.Minor = &minor
+			}
+			devPermissions = append(devPermissions, dPermissions)
 		}
 	}
 

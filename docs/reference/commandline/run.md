@@ -48,6 +48,7 @@ Options:
   -d, --detach                      Run container in background and print container ID
       --detach-keys string          Override the key sequence for detaching a container
       --device value                Add a host device to the container (default [])
+      --device-cgroup-rule value    Add a rule to the cgroup allowed devices list
       --device-read-bps value       Limit read rate (bytes per second) from a device (default [])
       --device-read-iops value      Limit read rate (IO per second) from a device (default [])
       --device-write-bps value      Limit write rate (bytes per second) to a device (default [])
