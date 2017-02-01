@@ -152,11 +152,13 @@ func collect(ctx context.Context, s *formatter.ContainerStats, cli client.APICli
 				waitFirst.Done()
 			}
 		case err := <-u:
+			s.SetError(err)
+			if err == io.EOF {
+				break
+			}
 			if err != nil {
-				s.SetError(err)
 				continue
 			}
-			s.SetError(nil)
 			// if this is the first stat you get, release WaitGroup
 			if !getFirst {
 				getFirst = true
