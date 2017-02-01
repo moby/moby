@@ -24,6 +24,7 @@ RUN sed -ri "s/(httpredir|deb).debian.org/$APT_MIRROR/g" /etc/apt/sources.list
 # Packaged dependencies
 RUN apt-get update && apt-get install -y \
 	apparmor \
+	apt-utils \
 	aufs-tools \
 	automake \
 	bash-completion \
