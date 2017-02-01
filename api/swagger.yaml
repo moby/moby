@@ -4417,6 +4417,10 @@ paths:
       responses:
         200:
           description: "no error"
+        400:
+          description: "Bad parameter"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
         500:
           description: "server error"
           schema:
