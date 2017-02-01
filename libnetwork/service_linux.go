@@ -192,7 +192,7 @@ func (sb *sandbox) addLBBackend(ip, vip net.IP, fwMark uint32, ingressPorts []*P
 			return
 		}
 
-		if err := i.NewService(s); err != nil {
+		if err := i.NewService(s); err != nil && err != syscall.EEXIST {
 			logrus.Errorf("Failed to create a new service for vip %s fwmark %d: %v", vip, fwMark, err)
 			return
 		}
