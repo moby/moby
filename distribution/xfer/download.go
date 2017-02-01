@@ -126,6 +126,11 @@ func (ldm *LayerDownloadManager) Download(ctx context.Context, initialRootFS ima
 					topLayer = l
 					missingLayer = false
 					rootFS.Append(diffID)
+					// Register this repository as a source of this layer.
+					withRegistered, hasRegistered := descriptor.(DownloadDescriptorWithRegistered)
+					if hasRegistered {
+						withRegistered.Registered(diffID)
+					}
 					continue
 				}
 			}
