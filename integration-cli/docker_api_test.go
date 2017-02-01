@@ -75,7 +75,7 @@ func (s *DockerSuite) TestAPIDockerAPIVersion(c *check.C) {
 		Command: binaryWithArgs("-H="+server.URL[7:], "version"),
 		Env:     appendBaseEnv(false, "DOCKER_API_VERSION=xxx"),
 	})
-	c.Assert(result, icmd.Matches, icmd.Expected{Out: "API version:  xxx", ExitCode: 1})
+	c.Assert(result, icmd.Matches, icmd.Expected{Out: "API version:     xxx", ExitCode: 1})
 	c.Assert(svrVersion, check.Equals, "/vxxx/version", check.Commentf("%s", result.Compare(icmd.Success)))
 }
 

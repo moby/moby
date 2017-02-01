@@ -5220,6 +5220,17 @@ paths:
                 type: "boolean"
               BuildTime:
                 type: "string"
+              DockerVersion:
+                type: "object"
+                properties:
+                  Type:
+                    type: "string"
+                  Version:
+                    type: "string"
+                  Flavor:
+                    type: "string"
+                  Patch:
+                    type: "string"
           examples:
             application/json:
               Version: "1.14.0"
@@ -5232,6 +5243,11 @@ paths:
               MinAPIVersion: "1.12"
               BuildTime: "2016-06-14T07:09:13.444803460+00:00"
               Experimental: true
+              DockerVersion:
+                Type: CE
+                Version: "17.01"
+                Flavor: ubuntu
+                Patch: "0"
         500:
           description: "server error"
           schema:

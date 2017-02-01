@@ -166,6 +166,10 @@ func (daemon *Daemon) SystemVersion() types.Version {
 	}
 	v.KernelVersion = kernelVersion
 
+	dockerRelease := dockerversion.DockerRelease()
+	if dockerRelease != nil {
+		v.DockerVersion = &dockerRelease.DockerVersion
+	}
 	return v
 }
 

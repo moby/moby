@@ -110,9 +110,25 @@ type Version struct {
 	GoVersion     string
 	Os            string
 	Arch          string
-	KernelVersion string `json:",omitempty"`
-	Experimental  bool   `json:",omitempty"`
-	BuildTime     string `json:",omitempty"`
+	KernelVersion string         `json:",omitempty"`
+	Experimental  bool           `json:",omitempty"`
+	BuildTime     string         `json:",omitempty"`
+	DockerVersion *DockerVersion `json:",omitempty"`
+}
+
+// DockerVersion contains docker version info and
+// is returned by:
+// GET "/version"
+type DockerVersion struct {
+	Type    string // CE, EE...
+	Version string // 17.01, 18.04...
+	Flavor  string // mac, win...
+	Patch   string // 0, 1...
+}
+
+// String returns a string formated version.
+func (ev *DockerVersion) String() string {
+	return fmt.Sprintf("%s %s-%s%s", ev.Type, ev.Version, ev.Flavor, ev.Patch)
 }
 
 // Commit holds the Git-commit (SHA1) that a binary was built from, as reported

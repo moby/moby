@@ -82,6 +82,7 @@ keywords: "API, Docker, rcli, REST, documentation"
 * `GET /secrets/{id}` returns information on the secret `id`.
 * `POST /secrets/{id}/update` updates the secret `id`.
 * `POST /services/(id or name)/update` now accepts service name or prefix of service id as a parameter.
+* `GET /version` now returns DockerVersion information, including the edition, the type and the flavor of Docker.
 
 ## v1.24 API changes
 
