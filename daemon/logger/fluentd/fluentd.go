@@ -151,9 +151,12 @@ func (f *fluentd) Log(msg *logger.Message) error {
 	for k, v := range f.extra {
 		data[k] = v
 	}
+
+	ts := msg.Timestamp
+	logger.PutMessage(msg)
 	// fluent-logger-golang buffers logs from failures and disconnections,
 	// and these are transferred again automatically.
-	return f.writer.PostWithTime(f.tag, msg.Timestamp, data)
+	return f.writer.PostWithTime(f.tag, ts, data)
 }
 
 func (f *fluentd) Close() error {

@@ -336,7 +336,7 @@ func (l *splunkLoggerInline) Log(msg *logger.Message) error {
 	event.Source = msg.Source
 
 	message.Event = &event
-
+	logger.PutMessage(msg)
 	return l.queueMessageAsync(message)
 }
 
@@ -354,7 +354,7 @@ func (l *splunkLoggerJSON) Log(msg *logger.Message) error {
 	event.Source = msg.Source
 
 	message.Event = &event
-
+	logger.PutMessage(msg)
 	return l.queueMessageAsync(message)
 }
 
@@ -362,7 +362,7 @@ func (l *splunkLoggerRaw) Log(msg *logger.Message) error {
 	message := l.createSplunkMessage(msg)
 
 	message.Event = string(append(l.prefix, msg.Line...))
-
+	logger.PutMessage(msg)
 	return l.queueMessageAsync(message)
 }
 

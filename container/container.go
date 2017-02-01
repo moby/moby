@@ -37,6 +37,7 @@ import (
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/volume"
 	"github.com/docker/go-connections/nat"
+	"github.com/docker/go-units"
 	"github.com/docker/libnetwork"
 	"github.com/docker/libnetwork/netlabel"
 	"github.com/docker/libnetwork/options"
@@ -316,7 +317,7 @@ func (container *Container) CheckpointDir() string {
 // StartLogger starts a new logger driver for the container.
 func (container *Container) StartLogger() (logger.Logger, error) {
 	cfg := container.HostConfig.LogConfig
-	c, err := logger.GetLogDriver(cfg.Type)
+	initDriver, err := logger.GetLogDriver(cfg.Type)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get logging factory: %v", err)
 	}
@@ -341,7 +342,23 @@ func (container *Container) StartLogger() (logger.Logger, error) {
 			return nil, err
 		}
 	}
-	return c(info)
+
+	l, err := initDriver(info)
+	if err != nil {
+		return nil, err
+	}
+
+	if containertypes.LogMode(cfg.Config["mode"]) == containertypes.LogModeNonBlock {
+		bufferSize := int64(-1)
+		if s, exists := cfg.Config["max-buffer-size"]; exists {
+			bufferSize, err = units.RAMInBytes(s)
+			if err != nil {
+				return nil, err
+			}
+		}
+		l = logger.NewRingLogger(l, info, bufferSize)
+	}
+	return l, nil
 }
 
 // GetProcessLabel returns the process label for the container.

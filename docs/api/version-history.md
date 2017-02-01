@@ -82,6 +82,8 @@ keywords: "API, Docker, rcli, REST, documentation"
 * `GET /secrets/{id}` returns information on the secret `id`.
 * `POST /secrets/{id}/update` updates the secret `id`.
 * `POST /services/(id or name)/update` now accepts service name or prefix of service id as a parameter.
+* `POST /containers/create` added 2 built-in log-opts that work on all logging drivers,
+`mode` (`blocking`|`non-blocking`), and `max-buffer-size` (e.g. `2m`) which enables a non-blocking log buffer.
 
 ## v1.24 API changes
 

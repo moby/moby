@@ -133,6 +133,7 @@ func (s *gelfLogger) Log(msg *logger.Message) error {
 		Level:    level,
 		RawExtra: s.rawExtra,
 	}
+	logger.PutMessage(msg)
 
 	if err := s.writer.WriteMessage(&m); err != nil {
 		return fmt.Errorf("gelf: cannot send GELF message: %v", err)

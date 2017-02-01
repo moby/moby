@@ -203,8 +203,7 @@ func (l *logStream) Log(msg *logger.Message) error {
 	l.lock.RLock()
 	defer l.lock.RUnlock()
 	if !l.closed {
-		// buffer up the data, making sure to copy the Line data
-		l.messages <- logger.CopyMessage(msg)
+		l.messages <- msg
 	}
 	return nil
 }
@@ -347,6 +346,7 @@ func (l *logStream) collectBatch() {
 				})
 				bytes += (lineBytes + perEventBytes)
 			}
+			logger.PutMessage(msg)
 		}
 	}
 }
