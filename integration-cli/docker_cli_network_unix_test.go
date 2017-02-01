@@ -486,9 +486,35 @@ func (s *DockerSuite) TestDockerInspectMultipleNetwork(c *check.C) {
 	err := json.Unmarshal([]byte(result.Stdout()), &networkResources)
 	c.Assert(err, check.IsNil)
 	c.Assert(networkResources, checker.HasLen, 2)
+}
 
-	// Should print an error, return an exitCode 1 *but* should print the host network
-	result = dockerCmdWithResult("network", "inspect", "host", "nonexistent")
+func (s *DockerSuite) TestDockerInspectMultipleNetworksIncludingNonexistent(c *check.C) {
+	// non-existent network was not at the beginning of the inspect list
+	// This should print an error, return an exitCode 1 and print the host network
+	result := dockerCmdWithResult("network", "inspect", "host", "nonexistent")
+	c.Assert(result, icmd.Matches, icmd.Expected{
+		ExitCode: 1,
+		Err:      "Error: No such network: nonexistent",
+		Out:      "host",
+	})
+
+	networkResources := []types.NetworkResource{}
+	err := json.Unmarshal([]byte(result.Stdout()), &networkResources)
+	c.Assert(err, check.IsNil)
+	c.Assert(networkResources, checker.HasLen, 1)
+
+	// Only one non-existent network to inspect
+	// Should print an error and return an exitCode, nothing else
+	result = dockerCmdWithResult("network", "inspect", "nonexistent")
+	c.Assert(result, icmd.Matches, icmd.Expected{
+		ExitCode: 1,
+		Err:      "Error: No such network: nonexistent",
+		Out:      "[]",
+	})
+
+	// non-existent network was at the beginning of the inspect list
+	// Should not fail fast, and still print host network but print an error
+	result = dockerCmdWithResult("network", "inspect", "nonexistent", "host")
 	c.Assert(result, icmd.Matches, icmd.Expected{
 		ExitCode: 1,
 		Err:      "Error: No such network: nonexistent",
@@ -499,14 +525,6 @@ func (s *DockerSuite) TestDockerInspectMultipleNetwork(c *check.C) {
 	err = json.Unmarshal([]byte(result.Stdout()), &networkResources)
 	c.Assert(err, check.IsNil)
 	c.Assert(networkResources, checker.HasLen, 1)
-
-	// Should print an error and return an exitCode, nothing else
-	result = dockerCmdWithResult("network", "inspect", "nonexistent")
-	c.Assert(result, icmd.Matches, icmd.Expected{
-		ExitCode: 1,
-		Err:      "Error: No such network: nonexistent",
-		Out:      "[]",
-	})
 }
 
 func (s *DockerSuite) TestDockerInspectNetworkWithContainerName(c *check.C) {
