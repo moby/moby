@@ -97,6 +97,13 @@ networkID1          foobar_baz          foo                 local
 networkID2          foobar_bar          bar                 local
 `,
 		},
+		// Table format with spaces
+		{
+			Context{Format: NewNetworkFormat(" table  ", true)},
+			`networkID1
+networkID2
+`,
+		},
 		{
 			Context{Format: NewNetworkFormat("table", true)},
 			`networkID1
@@ -105,6 +112,14 @@ networkID2
 		},
 		{
 			Context{Format: NewNetworkFormat("table {{.Name}}", false)},
+			`NAME
+foobar_baz
+foobar_bar
+`,
+		},
+		// Table format with spaces
+		{
+			Context{Format: NewNetworkFormat("  table {{.Name}}", false)},
 			`NAME
 foobar_baz
 foobar_bar
@@ -134,6 +149,13 @@ scope: local
 		},
 		{
 			Context{Format: NewNetworkFormat("raw", true)},
+			`network_id: networkID1
+network_id: networkID2
+`,
+		},
+		// Raw format with spaces
+		{
+			Context{Format: NewNetworkFormat("   raw    ", true)},
 			`network_id: networkID1
 network_id: networkID2
 `,

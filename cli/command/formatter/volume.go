@@ -20,7 +20,7 @@ const (
 
 // NewVolumeFormat returns a format for use with a volume Context
 func NewVolumeFormat(source string, quiet bool) Format {
-	switch source {
+	switch strings.TrimSpace(source) {
 	case TableFormatKey:
 		if quiet {
 			return defaultVolumeQuietFormat

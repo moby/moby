@@ -114,10 +114,32 @@ image               tag2                imageID2            24 hours ago        
 <none>              <none>              imageID3            24 hours ago        0 B
 `,
 		},
+		// Table Format with spaces
+		{
+			ImageContext{
+				Context: Context{
+					Format: NewImageFormat("  table  ", false, false),
+				},
+			},
+			`REPOSITORY          TAG                 IMAGE ID            CREATED             SIZE
+image               tag1                imageID1            24 hours ago        0 B
+image               tag2                imageID2            24 hours ago        0 B
+<none>              <none>              imageID3            24 hours ago        0 B
+`,
+		},
 		{
 			ImageContext{
 				Context: Context{
 					Format: NewImageFormat("table {{.Repository}}", false, false),
+				},
+			},
+			"REPOSITORY\nimage\nimage\n<none>\n",
+		},
+		// Table format with spaces
+		{
+			ImageContext{
+				Context: Context{
+					Format: NewImageFormat("  table {{.Repository}}", false, false),
 				},
 			},
 			"REPOSITORY\nimage\nimage\n<none>\n",
@@ -234,6 +256,18 @@ virtual_size: 0 B
 			ImageContext{
 				Context: Context{
 					Format: NewImageFormat("raw", true, false),
+				},
+			},
+			`image_id: imageID1
+image_id: imageID2
+image_id: imageID3
+`,
+		},
+		// Raw format with spaces
+		{
+			ImageContext{
+				Context: Context{
+					Format: NewImageFormat(" raw  ", true, false),
 				},
 			},
 			`image_id: imageID1

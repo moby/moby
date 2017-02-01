@@ -82,6 +82,14 @@ foo                 foobar_baz
 bar                 foobar_bar
 `,
 		},
+		// Table format with spaces
+		{
+			Context{Format: NewVolumeFormat("  table   ", false)},
+			`DRIVER              VOLUME NAME
+foo                 foobar_baz
+bar                 foobar_bar
+`,
+		},
 		{
 			Context{Format: NewVolumeFormat("table", true)},
 			`foobar_baz
@@ -90,6 +98,14 @@ foobar_bar
 		},
 		{
 			Context{Format: NewVolumeFormat("table {{.Name}}", false)},
+			`VOLUME NAME
+foobar_baz
+foobar_bar
+`,
+		},
+		// Table format with spaces
+		{
+			Context{Format: NewVolumeFormat("  table   {{.Name}}  ", false)},
 			`VOLUME NAME
 foobar_baz
 foobar_bar
@@ -119,9 +135,23 @@ driver: bar
 name: foobar_bar
 `,
 		},
+		// Raw format with spaces
+		{
+			Context{Format: NewVolumeFormat("  raw  ", true)},
+			`name: foobar_baz
+name: foobar_bar
+`,
+		},
 		// Custom Format
 		{
 			Context{Format: NewVolumeFormat("{{.Name}}", false)},
+			`foobar_baz
+foobar_bar
+`,
+		},
+		// Custom Format with spaces
+		{
+			Context{Format: NewVolumeFormat("   {{.Name}}  ", false)},
 			`foobar_baz
 foobar_bar
 `,
