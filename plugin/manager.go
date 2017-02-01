@@ -237,7 +237,7 @@ func (pm *Manager) save(p *v2.Plugin) error {
 		return errors.Wrap(err, "failed to marshal plugin json")
 	}
 	if err := ioutils.AtomicWriteFile(filepath.Join(pm.config.Root, p.GetID(), configFileName), pluginJSON, 0600); err != nil {
-		return err
+		return errors.Wrap(err, "failed to write atomically plugin json")
 	}
 	return nil
 }
