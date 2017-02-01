@@ -922,3 +922,37 @@ func (s *DockerSuite) TestPsFormatTemplateWithArg(c *check.C) {
 	out, _ := dockerCmd(c, "ps", "--format", `{{.Names}} {{.Label "some.label"}}`)
 	c.Assert(strings.TrimSpace(out), checker.Equals, "top label.foo-bar")
 }
+
+func (s *DockerSuite) TestPsListContainersFilterPorts(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+
+	out, _ := dockerCmd(c, "run", "-d", "--publish=80", "busybox", "top")
+	id1 := strings.TrimSpace(out)
+
+	out, _ = dockerCmd(c, "run", "-d", "--expose=8080", "busybox", "top")
+	id2 := strings.TrimSpace(out)
+
+	out, _ = dockerCmd(c, "ps", "--no-trunc", "-q")
+	c.Assert(strings.TrimSpace(out), checker.Contains, id1)
+	c.Assert(strings.TrimSpace(out), checker.Contains, id2)
+
+	out, _ = dockerCmd(c, "ps", "--no-trunc", "-q", "--filter", "publish=80-8080/udp")
+	c.Assert(strings.TrimSpace(out), checker.Not(checker.Equals), id1)
+	c.Assert(strings.TrimSpace(out), checker.Not(checker.Equals), id2)
+
+	out, _ = dockerCmd(c, "ps", "--no-trunc", "-q", "--filter", "expose=8081")
+	c.Assert(strings.TrimSpace(out), checker.Not(checker.Equals), id1)
+	c.Assert(strings.TrimSpace(out), checker.Not(checker.Equals), id2)
+
+	out, _ = dockerCmd(c, "ps", "--no-trunc", "-q", "--filter", "publish=80-81")
+	c.Assert(strings.TrimSpace(out), checker.Equals, id1)
+	c.Assert(strings.TrimSpace(out), checker.Not(checker.Equals), id2)
+
+	out, _ = dockerCmd(c, "ps", "--no-trunc", "-q", "--filter", "expose=80/tcp")
+	c.Assert(strings.TrimSpace(out), checker.Equals, id1)
+	c.Assert(strings.TrimSpace(out), checker.Not(checker.Equals), id2)
+
+	out, _ = dockerCmd(c, "ps", "--no-trunc", "-q", "--filter", "expose=8080/tcp")
+	c.Assert(strings.TrimSpace(out), checker.Not(checker.Equals), id1)
+	c.Assert(strings.TrimSpace(out), checker.Equals, id2)
+}
