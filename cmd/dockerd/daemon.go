@@ -260,6 +260,9 @@ func (cli *DaemonCli) start(opts daemonOptions) (err error) {
 		<-stopc // wait for daemonCli.start() to return
 	})
 
+	// Notify that the API is active, but before daemon is set up.
+	preNotifySystem()
+
 	d, err := daemon.NewDaemon(cli.Config, registryService, containerdRemote)
 	if err != nil {
 		return fmt.Errorf("Error starting daemon: %v", err)
