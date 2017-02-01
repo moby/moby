@@ -442,12 +442,6 @@ func cleanResourcePath(path string) string {
 	return filepath.Join(string(os.PathSeparator), path)
 }
 
-// canMountFS determines if the file system for the container
-// can be mounted locally. A no-op on non-Windows platforms
-func (container *Container) canMountFS() bool {
-	return true
-}
-
 // EnableServiceDiscoveryOnDefaultNetwork Enable service discovery on default network
 func (container *Container) EnableServiceDiscoveryOnDefaultNetwork() bool {
 	return false
