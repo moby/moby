@@ -319,8 +319,8 @@ Try {
     # Handle the "-Binary" shortcut to build both client and daemon.
     if ($Binary) { $Client = $True; $Daemon = $True }
 
-    # Make sure we have something to do
-    if (-not($Client) -and -not($Daemon) -and -not($DCO) -and -not($PkgImports) -and -not($GoFormat) -and -not($TestUnit)) { Throw 'Nothing to do. Try adding "-All" for everything I can do' }
+    # Default to building the binaries if not asked for anything explicitly.
+    if (-not($Client) -and -not($Daemon) -and -not($DCO) -and -not($PkgImports) -and -not($GoFormat) -and -not($TestUnit)) { $Client=$True; $Daemon=$True }
 
     # Verify git is installed
     if ($(Get-Command git -ErrorAction SilentlyContinue) -eq $nil) { Throw "Git does not appear to be installed" }
