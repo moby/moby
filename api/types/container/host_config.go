@@ -223,6 +223,17 @@ func (rp *RestartPolicy) IsSame(tp *RestartPolicy) bool {
 	return rp.Name == tp.Name && rp.MaximumRetryCount == tp.MaximumRetryCount
 }
 
+// LogMode is a type to define the available modes for logging
+// These modes affect how logs are handled when log messages start piling up.
+type LogMode string
+
+// Available logging modes
+const (
+	LogModeUnset            = ""
+	LogModeBlocking LogMode = "blocking"
+	LogModeNonBlock LogMode = "non-blocking"
+)
+
 // LogConfig represents the logging configuration of the container.
 type LogConfig struct {
 	Type   string

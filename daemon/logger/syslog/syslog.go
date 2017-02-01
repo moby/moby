@@ -132,10 +132,12 @@ func New(info logger.Info) (logger.Logger, error) {
 }
 
 func (s *syslogger) Log(msg *logger.Message) error {
+	line := string(msg.Line)
+	logger.PutMessage(msg)
 	if msg.Source == "stderr" {
-		return s.writer.Err(string(msg.Line))
+		return s.writer.Err(line)
 	}
-	return s.writer.Info(string(msg.Line))
+	return s.writer.Info(line)
 }
 
 func (s *syslogger) Close() error {

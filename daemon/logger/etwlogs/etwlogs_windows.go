@@ -76,7 +76,9 @@ func (etwLogger *etwLogs) Log(msg *logger.Message) error {
 		logrus.Error(errorMessage)
 		return errors.New(errorMessage)
 	}
-	return callEventWriteString(createLogMessage(etwLogger, msg))
+	m := createLogMessage(etwLogger, msg)
+	logger.PutMessage(msg)
+	return callEventWriteString(m)
 }
 
 // Close closes the logger by unregistering the ETW provider.
