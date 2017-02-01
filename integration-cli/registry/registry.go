@@ -138,6 +138,7 @@ func (r *V2) Ping() error {
 // Close kills the registry server
 func (r *V2) Close() {
 	r.cmd.Process.Kill()
+	r.cmd.Process.Wait()
 	os.RemoveAll(r.dir)
 }
 

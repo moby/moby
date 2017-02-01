@@ -6,14 +6,13 @@ import (
 	"fmt"
 	"strings"
 
-	distreference "github.com/docker/distribution/reference"
+	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
 	registrytypes "github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cli/command"
 	"github.com/docker/docker/cli/command/image"
 	"github.com/docker/docker/pkg/jsonmessage"
-	"github.com/docker/docker/reference"
 	"github.com/docker/docker/registry"
 	"github.com/spf13/cobra"
 	"golang.org/x/net/context"
@@ -47,13 +46,13 @@ func newInstallCommand(dockerCli *command.DockerCli) *cobra.Command {
 	flags.BoolVar(&options.disable, "disable", false, "Do not enable the plugin on install")
 	flags.StringVar(&options.alias, "alias", "", "Local name for plugin")
 
-	command.AddTrustedFlags(flags, true)
+	command.AddTrustVerificationFlags(flags)
 
 	return cmd
 }
 
-func getRepoIndexFromUnnormalizedRef(ref distreference.Named) (*registrytypes.IndexInfo, error) {
-	named, err := reference.ParseNamed(ref.Name())
+func getRepoIndexFromUnnormalizedRef(ref reference.Named) (*registrytypes.IndexInfo, error) {
+	named, err := reference.ParseNormalizedNamed(ref.Name())
 	if err != nil {
 		return nil, err
 	}
@@ -85,71 +84,60 @@ func newRegistryService() registry.Service {
 }
 
 func runInstall(dockerCli *command.DockerCli, opts pluginOptions) error {
-	// Parse name using distribution reference package to support name
-	// containing both tag and digest. Names with both tag and digest
-	// will be treated by the daemon as a pull by digest with
-	// an alias for the tag (if no alias is provided).
-	ref, err := distreference.ParseNamed(opts.name)
+	// Names with both tag and digest will be treated by the daemon
+	// as a pull by digest with an alias for the tag
+	// (if no alias is provided).
+	ref, err := reference.ParseNormalizedNamed(opts.name)
 	if err != nil {
 		return err
 	}
 
 	alias := ""
 	if opts.alias != "" {
-		aref, err := reference.ParseNamed(opts.alias)
+		aref, err := reference.ParseNormalizedNamed(opts.alias)
 		if err != nil {
 			return err
 		}
-		aref = reference.WithDefaultTag(aref)
-		if _, ok := aref.(reference.NamedTagged); !ok {
+		if _, ok := aref.(reference.Canonical); ok {
 			return fmt.Errorf("invalid name: %s", opts.alias)
 		}
-		alias = aref.String()
+		alias = reference.FamiliarString(reference.EnsureTagged(aref))
 	}
 	ctx := context.Background()
 
-	index, err := getRepoIndexFromUnnormalizedRef(ref)
+	repoInfo, err := registry.ParseRepositoryInfo(ref)
 	if err != nil {
 		return err
 	}
 
 	remote := ref.String()
 
-	_, isCanonical := ref.(distreference.Canonical)
+	_, isCanonical := ref.(reference.Canonical)
 	if command.IsTrusted() && !isCanonical {
 		if alias == "" {
-			alias = ref.String()
+			alias = reference.FamiliarString(ref)
 		}
-		var nt reference.NamedTagged
-		named, err := reference.ParseNamed(ref.Name())
-		if err != nil {
-			return err
-		}
-		if tagged, ok := ref.(distreference.Tagged); ok {
-			nt, err = reference.WithTag(named, tagged.Tag())
-			if err != nil {
-				return err
-			}
-		} else {
-			named = reference.WithDefaultTag(named)
-			nt = named.(reference.NamedTagged)
+
+		nt, ok := ref.(reference.NamedTagged)
+		if !ok {
+			nt = reference.EnsureTagged(ref)
 		}
 
 		trusted, err := image.TrustedReference(ctx, dockerCli, nt, newRegistryService())
 		if err != nil {
 			return err
 		}
-		remote = trusted.String()
+		remote = reference.FamiliarString(trusted)
 	}
 
-	authConfig := command.ResolveAuthConfig(ctx, dockerCli, index)
+	authConfig := command.ResolveAuthConfig(ctx, dockerCli, repoInfo.Index)
 
 	encodedAuth, err := command.EncodeAuthToBase64(authConfig)
 	if err != nil {
 		return err
 	}
 
-	registryAuthFunc := command.RegistryAuthenticationPrivilegedFunc(dockerCli, index, "plugin install")
+	registryAuthFunc := command.RegistryAuthenticationPrivilegedFunc(dockerCli, repoInfo.Index, "plugin install")
 
 	options := types.PluginInstallOptions{
 		RegistryAuth:          encodedAuth,

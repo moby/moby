@@ -583,16 +583,17 @@ func (d *Daemon) GetBaseDeviceSize(c *check.C) int64 {
 	return basesizeBytes
 }
 
-// Cmd will execute a docker CLI command against this Daemon.
+// Cmd executes a docker CLI command against this daemon.
 // Example: d.Cmd("version") will run docker -H unix://path/to/unix.sock version
 func (d *Daemon) Cmd(args ...string) (string, error) {
-	b, err := d.Command(args...).CombinedOutput()
-	return string(b), err
+	result := icmd.RunCmd(d.Command(args...))
+	return result.Combined(), result.Error
 }
 
-// Command will create a docker CLI command against this Daeomn.
-func (d *Daemon) Command(args ...string) *exec.Cmd {
-	return exec.Command(d.dockerBinary, d.PrependHostArg(args)...)
+// Command creates a docker CLI command against this daemon, to be executed later.
+// Example: d.Command("version") creates a command to run "docker -H unix://path/to/unix.sock version"
+func (d *Daemon) Command(args ...string) icmd.Cmd {
+	return icmd.Command(d.dockerBinary, d.PrependHostArg(args)...)
 }
 
 // PrependHostArg prepend the specified arguments by the daemon host flags
@@ -761,7 +762,7 @@ func WaitInspectWithArgs(dockerBinary, name, expr, expected string, timeout time
 	for {
 		result := icmd.RunCommand(dockerBinary, args...)
 		if result.Error != nil {
-			if !strings.Contains(result.Stderr(), "No such") {
+			if !strings.Contains(strings.ToLower(result.Stderr()), "no such") {
 				return errors.Errorf("error executing docker inspect: %v\n%s",
 					result.Stderr(), result.Stdout())
 			}
@@ -791,6 +792,7 @@ func WaitInspectWithArgs(dockerBinary, name, expr, expected string, timeout time
 }
 
 // BuildImageCmdWithHost create a build command with the specified arguments.
+// Deprecated
 // FIXME(vdemeester) move this away
 func BuildImageCmdWithHost(dockerBinary, name, dockerfile, host string, useCache bool, buildFlags ...string) *exec.Cmd {
 	args := []string{}

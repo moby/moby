@@ -11,7 +11,6 @@ import (
 	"syscall"
 	"testing"
 
-	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/swarm"
 	cliconfig "github.com/docker/docker/cli/config"
 	"github.com/docker/docker/integration-cli/daemon"
@@ -40,40 +39,6 @@ var (
 
 	// the docker client binary to use
 	dockerBinary = "docker"
-
-	// isLocalDaemon is true if the daemon under test is on the same
-	// host as the CLI.
-	isLocalDaemon bool
-	// daemonPlatform is held globally so that tests can make intelligent
-	// decisions on how to configure themselves according to the platform
-	// of the daemon. This is initialized in docker_utils by sending
-	// a version call to the daemon and examining the response header.
-	daemonPlatform string
-
-	// WindowsBaseImage is the name of the base image for Windows testing
-	// Environment variable WINDOWS_BASE_IMAGE can override this
-	WindowsBaseImage string
-
-	// For a local daemon on Linux, these values will be used for testing
-	// user namespace support as the standard graph path(s) will be
-	// appended with the root remapped uid.gid prefix
-	dockerBasePath       string
-	volumesConfigPath    string
-	containerStoragePath string
-
-	// daemonStorageDriver is held globally so that tests can know the storage
-	// driver of the daemon. This is initialized in docker_utils by sending
-	// a version call to the daemon and examining the response header.
-	daemonStorageDriver string
-
-	// isolation is the isolation mode of the daemon under test
-	isolation container.Isolation
-
-	// experimentalDaemon tell whether the main daemon has
-	// experimental features enabled or not
-	experimentalDaemon bool
-
-	daemonKernelVersion string
 )
 
 func init() {
@@ -86,22 +51,6 @@ func init() {
 		fmt.Println(err)
 		os.Exit(1)
 	}
-
-	assignGlobalVariablesFromTestEnv(testEnv)
-}
-
-// FIXME(vdemeester) remove this and use environment
-func assignGlobalVariablesFromTestEnv(testEnv *environment.Execution) {
-	isLocalDaemon = testEnv.LocalDaemon()
-	daemonPlatform = testEnv.DaemonPlatform()
-	dockerBasePath = testEnv.DockerBasePath()
-	volumesConfigPath = testEnv.VolumesConfigPath()
-	containerStoragePath = testEnv.ContainerStoragePath()
-	daemonStorageDriver = testEnv.DaemonStorageDriver()
-	isolation = testEnv.Isolation()
-	experimentalDaemon = testEnv.ExperimentalDaemon()
-	daemonKernelVersion = testEnv.DaemonKernelVersion()
-	WindowsBaseImage = testEnv.MinimalBaseImage()
 }
 
 func TestMain(m *testing.M) {
@@ -125,17 +74,17 @@ func TestMain(m *testing.M) {
 	for _, img := range images {
 		protectedImages[img] = struct{}{}
 	}
-	if !isLocalDaemon {
-		fmt.Println("INFO: Testing against a remote daemon")
-	} else {
+	if testEnv.LocalDaemon() {
 		fmt.Println("INFO: Testing against a local daemon")
+	} else {
+		fmt.Println("INFO: Testing against a remote daemon")
 	}
 	exitCode := m.Run()
 	os.Exit(exitCode)
 }
 
 func Test(t *testing.T) {
-	if daemonPlatform == "linux" {
+	if testEnv.DaemonPlatform() == "linux" {
 		ensureFrozenImagesLinux(t)
 	}
 	check.TestingT(t)
@@ -149,7 +98,7 @@ type DockerSuite struct {
 }
 
 func (s *DockerSuite) OnTimeout(c *check.C) {
-	if testEnv.DaemonPID() > 0 && isLocalDaemon {
+	if testEnv.DaemonPID() > 0 && testEnv.LocalDaemon() {
 		daemon.SignalDaemonDump(testEnv.DaemonPID())
 	}
 }
@@ -160,7 +109,7 @@ func (s *DockerSuite) TearDownTest(c *check.C) {
 	deleteAllImages(c)
 	deleteAllVolumes(c)
 	deleteAllNetworks(c)
-	if daemonPlatform == "linux" {
+	if testEnv.DaemonPlatform() == "linux" {
 		deleteAllPlugins(c)
 	}
 }
@@ -185,7 +134,7 @@ func (s *DockerRegistrySuite) SetUpTest(c *check.C) {
 	testRequires(c, DaemonIsLinux, registry.Hosting)
 	s.reg = setupRegistry(c, false, "", "")
 	s.d = daemon.New(c, dockerBinary, dockerdBinary, daemon.Config{
-		Experimental: experimentalDaemon,
+		Experimental: testEnv.ExperimentalDaemon(),
 	})
 }
 
@@ -219,7 +168,7 @@ func (s *DockerSchema1RegistrySuite) SetUpTest(c *check.C) {
 	testRequires(c, DaemonIsLinux, registry.Hosting, NotArm64)
 	s.reg = setupRegistry(c, true, "", "")
 	s.d = daemon.New(c, dockerBinary, dockerdBinary, daemon.Config{
-		Experimental: experimentalDaemon,
+		Experimental: testEnv.ExperimentalDaemon(),
 	})
 }
 
@@ -253,7 +202,7 @@ func (s *DockerRegistryAuthHtpasswdSuite) SetUpTest(c *check.C) {
 	testRequires(c, DaemonIsLinux, registry.Hosting)
 	s.reg = setupRegistry(c, false, "htpasswd", "")
 	s.d = daemon.New(c, dockerBinary, dockerdBinary, daemon.Config{
-		Experimental: experimentalDaemon,
+		Experimental: testEnv.ExperimentalDaemon(),
 	})
 }
 
@@ -288,7 +237,7 @@ func (s *DockerRegistryAuthTokenSuite) OnTimeout(c *check.C) {
 func (s *DockerRegistryAuthTokenSuite) SetUpTest(c *check.C) {
 	testRequires(c, DaemonIsLinux, registry.Hosting)
 	s.d = daemon.New(c, dockerBinary, dockerdBinary, daemon.Config{
-		Experimental: experimentalDaemon,
+		Experimental: testEnv.ExperimentalDaemon(),
 	})
 }
 
@@ -329,7 +278,7 @@ func (s *DockerDaemonSuite) OnTimeout(c *check.C) {
 func (s *DockerDaemonSuite) SetUpTest(c *check.C) {
 	testRequires(c, DaemonIsLinux, SameHostDaemon)
 	s.d = daemon.New(c, dockerBinary, dockerdBinary, daemon.Config{
-		Experimental: experimentalDaemon,
+		Experimental: testEnv.ExperimentalDaemon(),
 	})
 }
 
@@ -387,7 +336,7 @@ func (s *DockerSwarmSuite) SetUpTest(c *check.C) {
 func (s *DockerSwarmSuite) AddDaemon(c *check.C, joinSwarm, manager bool) *daemon.Swarm {
 	d := &daemon.Swarm{
 		Daemon: daemon.New(c, dockerBinary, dockerdBinary, daemon.Config{
-			Experimental: experimentalDaemon,
+			Experimental: testEnv.ExperimentalDaemon(),
 		}),
 		Port: defaultSwarmPort + s.portIndex,
 	}

@@ -101,7 +101,7 @@ func (s *DockerSwarmSuite) TestSecretCreateResolve(c *check.C) {
 
 	// Remove based on ID prefix of the fake one should succeed
 	out, err = d.Cmd("secret", "rm", fake[:5])
-	c.Assert(out, checker.Contains, fake)
+	c.Assert(out, checker.Contains, fake[:5])
 	out, err = d.Cmd("secret", "ls")
 	c.Assert(err, checker.IsNil)
 	c.Assert(out, checker.Not(checker.Contains), name)

@@ -23,7 +23,11 @@ import (
 var ImageTypes = []string{
 	schema2.MediaTypeImageConfig,
 	// Handle unexpected values from https://github.com/docker/distribution/issues/1621
+	// (see also https://github.com/docker/docker/issues/22378,
+	// https://github.com/docker/docker/issues/30083)
 	"application/octet-stream",
+	"application/json",
+	"text/html",
 	// Treat defaulted values as images, newer types cannot be implied
 	"",
 }

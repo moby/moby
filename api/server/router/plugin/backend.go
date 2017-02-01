@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	enginetypes "github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/reference"
 	"golang.org/x/net/context"
 )
@@ -13,7 +14,7 @@ import (
 type Backend interface {
 	Disable(name string, config *enginetypes.PluginDisableConfig) error
 	Enable(name string, config *enginetypes.PluginEnableConfig) error
-	List() ([]enginetypes.Plugin, error)
+	List(filters.Args) ([]enginetypes.Plugin, error)
 	Inspect(name string) (*enginetypes.Plugin, error)
 	Remove(name string, config *enginetypes.PluginRmConfig) error
 	Set(name string, args []string) error

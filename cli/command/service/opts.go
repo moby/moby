@@ -11,32 +11,11 @@ import (
 	"github.com/docker/docker/opts"
 	runconfigopts "github.com/docker/docker/runconfig/opts"
 	"github.com/docker/go-connections/nat"
-	units "github.com/docker/go-units"
 	"github.com/spf13/cobra"
 )
 
 type int64Value interface {
 	Value() int64
-}
-
-type memBytes int64
-
-func (m *memBytes) String() string {
-	return units.BytesSize(float64(m.Value()))
-}
-
-func (m *memBytes) Set(value string) error {
-	val, err := units.RAMInBytes(value)
-	*m = memBytes(val)
-	return err
-}
-
-func (m *memBytes) Type() string {
-	return "bytes"
-}
-
-func (m *memBytes) Value() int64 {
-	return int64(*m)
 }
 
 // PositiveDurationOpt is an option type for time.Duration that uses a pointer.
@@ -149,9 +128,9 @@ type updateOptions struct {
 
 type resourceOptions struct {
 	limitCPU      opts.NanoCPUs
-	limitMemBytes memBytes
+	limitMemBytes opts.MemBytes
 	resCPU        opts.NanoCPUs
-	resMemBytes   memBytes
+	resMemBytes   opts.MemBytes
 }
 
 func (r *resourceOptions) ToResourceRequirements() *swarm.ResourceRequirements {
@@ -303,6 +282,7 @@ type serviceOptions struct {
 	user            string
 	groups          opts.ListOpts
 	tty             bool
+	readOnly        bool
 	mounts          opts.MountOpt
 	dns             opts.ListOpts
 	dnsSearch       opts.ListOpts
@@ -384,6 +364,7 @@ func (opts *serviceOptions) ToService() (swarm.ServiceSpec, error) {
 				User:     opts.user,
 				Groups:   opts.groups.GetAll(),
 				TTY:      opts.tty,
+				ReadOnly: opts.readOnly,
 				Mounts:   opts.mounts.Value(),
 				DNSConfig: &swarm.DNSConfig{
 					Nameservers: opts.dns.GetAll(),
@@ -445,6 +426,7 @@ func addServiceFlags(cmd *cobra.Command, opts *serviceOptions) {
 	flags.StringVarP(&opts.workdir, flagWorkdir, "w", "", "Working directory inside the container")
 	flags.StringVarP(&opts.user, flagUser, "u", "", "Username or UID (format: <name|uid>[:<group|gid>])")
 	flags.StringVar(&opts.hostname, flagHostname, "", "Container hostname")
+	flags.SetAnnotation(flagHostname, "version", []string{"1.25"})
 
 	flags.Var(&opts.resources.limitCPU, flagLimitCPU, "Limit CPUs")
 	flags.Var(&opts.resources.limitMemBytes, flagLimitMemory, "Limit Memory")
@@ -462,8 +444,10 @@ func addServiceFlags(cmd *cobra.Command, opts *serviceOptions) {
 	flags.Uint64Var(&opts.update.parallelism, flagUpdateParallelism, 1, "Maximum number of tasks updated simultaneously (0 to update all at once)")
 	flags.DurationVar(&opts.update.delay, flagUpdateDelay, time.Duration(0), "Delay between updates (ns|us|ms|s|m|h) (default 0s)")
 	flags.DurationVar(&opts.update.monitor, flagUpdateMonitor, time.Duration(0), "Duration after each task update to monitor for failure (ns|us|ms|s|m|h) (default 0s)")
+	flags.SetAnnotation(flagUpdateMonitor, "version", []string{"1.25"})
 	flags.StringVar(&opts.update.onFailure, flagUpdateFailureAction, "pause", "Action on update failure (pause|continue)")
 	flags.Var(&opts.update.maxFailureRatio, flagUpdateMaxFailureRatio, "Failure rate to tolerate during an update")
+	flags.SetAnnotation(flagUpdateMaxFailureRatio, "version", []string{"1.25"})
 
 	flags.StringVar(&opts.endpoint.mode, flagEndpointMode, "", "Endpoint mode (vip or dnsrr)")
 
@@ -473,12 +457,21 @@ func addServiceFlags(cmd *cobra.Command, opts *serviceOptions) {
 	flags.Var(&opts.logDriver.opts, flagLogOpt, "Logging driver options")
 
 	flags.StringVar(&opts.healthcheck.cmd, flagHealthCmd, "", "Command to run to check health")
+	flags.SetAnnotation(flagHealthCmd, "version", []string{"1.25"})
 	flags.Var(&opts.healthcheck.interval, flagHealthInterval, "Time between running the check (ns|us|ms|s|m|h)")
+	flags.SetAnnotation(flagHealthInterval, "version", []string{"1.25"})
 	flags.Var(&opts.healthcheck.timeout, flagHealthTimeout, "Maximum time to allow one check to run (ns|us|ms|s|m|h)")
+	flags.SetAnnotation(flagHealthTimeout, "version", []string{"1.25"})
 	flags.IntVar(&opts.healthcheck.retries, flagHealthRetries, 0, "Consecutive failures needed to report unhealthy")
+	flags.SetAnnotation(flagHealthRetries, "version", []string{"1.25"})
 	flags.BoolVar(&opts.healthcheck.noHealthcheck, flagNoHealthcheck, false, "Disable any container-specified HEALTHCHECK")
+	flags.SetAnnotation(flagNoHealthcheck, "version", []string{"1.25"})
 
 	flags.BoolVarP(&opts.tty, flagTTY, "t", false, "Allocate a pseudo-TTY")
+	flags.SetAnnotation(flagTTY, "version", []string{"1.25"})
+
+	flags.BoolVar(&opts.readOnly, flagReadOnly, false, "Mount the container's root filesystem as read only")
+	flags.SetAnnotation(flagReadOnly, "version", []string{"1.26"})
 }
 
 const (
@@ -523,6 +516,7 @@ const (
 	flagPublish               = "publish"
 	flagPublishRemove         = "publish-rm"
 	flagPublishAdd            = "publish-add"
+	flagReadOnly              = "read-only"
 	flagReplicas              = "replicas"
 	flagReserveCPU            = "reserve-cpu"
 	flagReserveMemory         = "reserve-memory"

@@ -38,11 +38,14 @@ func newUpdateCommand(dockerCli *command.DockerCli) *cobra.Command {
 	flags.String("image", "", "Service image tag")
 	flags.String("args", "", "Service command args")
 	flags.Bool("rollback", false, "Rollback to previous specification")
+	flags.SetAnnotation("rollback", "version", []string{"1.25"})
 	flags.Bool("force", false, "Force update even if no changes require it")
+	flags.SetAnnotation("force", "version", []string{"1.25"})
 	addServiceFlags(cmd, serviceOpts)
 
 	flags.Var(newListOptsVar(), flagEnvRemove, "Remove an environment variable")
 	flags.Var(newListOptsVar(), flagGroupRemove, "Remove a previously added supplementary user group from the container")
+	flags.SetAnnotation(flagGroupRemove, "version", []string{"1.25"})
 	flags.Var(newListOptsVar(), flagLabelRemove, "Remove a label by its key")
 	flags.Var(newListOptsVar(), flagContainerLabelRemove, "Remove a container label by its key")
 	flags.Var(newListOptsVar(), flagMountRemove, "Remove a mount by its target path")
@@ -50,22 +53,33 @@ func newUpdateCommand(dockerCli *command.DockerCli) *cobra.Command {
 	flags.Var(&opts.PortOpt{}, flagPublishRemove, "Remove a published port by its target port")
 	flags.Var(newListOptsVar(), flagConstraintRemove, "Remove a constraint")
 	flags.Var(newListOptsVar(), flagDNSRemove, "Remove a custom DNS server")
+	flags.SetAnnotation(flagDNSRemove, "version", []string{"1.25"})
 	flags.Var(newListOptsVar(), flagDNSOptionRemove, "Remove a DNS option")
+	flags.SetAnnotation(flagDNSOptionRemove, "version", []string{"1.25"})
 	flags.Var(newListOptsVar(), flagDNSSearchRemove, "Remove a DNS search domain")
+	flags.SetAnnotation(flagDNSSearchRemove, "version", []string{"1.25"})
 	flags.Var(newListOptsVar(), flagHostRemove, "Remove a custom host-to-IP mapping (host:ip)")
+	flags.SetAnnotation(flagHostRemove, "version", []string{"1.25"})
 	flags.Var(&serviceOpts.labels, flagLabelAdd, "Add or update a service label")
 	flags.Var(&serviceOpts.containerLabels, flagContainerLabelAdd, "Add or update a container label")
 	flags.Var(&serviceOpts.env, flagEnvAdd, "Add or update an environment variable")
 	flags.Var(newListOptsVar(), flagSecretRemove, "Remove a secret")
+	flags.SetAnnotation(flagSecretRemove, "version", []string{"1.25"})
 	flags.Var(&serviceOpts.secrets, flagSecretAdd, "Add or update a secret on a service")
+	flags.SetAnnotation(flagSecretAdd, "version", []string{"1.25"})
 	flags.Var(&serviceOpts.mounts, flagMountAdd, "Add or update a mount on a service")
 	flags.Var(&serviceOpts.constraints, flagConstraintAdd, "Add or update a placement constraint")
 	flags.Var(&serviceOpts.endpoint.publishPorts, flagPublishAdd, "Add or update a published port")
 	flags.Var(&serviceOpts.groups, flagGroupAdd, "Add an additional supplementary user group to the container")
+	flags.SetAnnotation(flagGroupAdd, "version", []string{"1.25"})
 	flags.Var(&serviceOpts.dns, flagDNSAdd, "Add or update a custom DNS server")
+	flags.SetAnnotation(flagDNSAdd, "version", []string{"1.25"})
 	flags.Var(&serviceOpts.dnsOption, flagDNSOptionAdd, "Add or update a DNS option")
+	flags.SetAnnotation(flagDNSOptionAdd, "version", []string{"1.25"})
 	flags.Var(&serviceOpts.dnsSearch, flagDNSSearchAdd, "Add or update a custom DNS search domain")
+	flags.SetAnnotation(flagDNSSearchAdd, "version", []string{"1.25"})
 	flags.Var(&serviceOpts.hosts, flagHostAdd, "Add or update a custom host-to-IP mapping (host:ip)")
+	flags.SetAnnotation(flagHostAdd, "version", []string{"1.25"})
 
 	return cmd
 }
@@ -327,6 +341,14 @@ func updateService(flags *pflag.FlagSet, spec *swarm.ServiceSpec) error {
 		cspec.TTY = tty
 	}
 
+	if flags.Changed(flagReadOnly) {
+		readOnly, err := flags.GetBool(flagReadOnly)
+		if err != nil {
+			return err
+		}
+		cspec.ReadOnly = readOnly
+	}
+
 	return nil
 }
 
@@ -443,7 +465,7 @@ func getUpdatedSecrets(apiClient client.SecretAPIClient, flags *pflag.FlagSet, s
 	if flags.Changed(flagSecretAdd) {
 		values := flags.Lookup(flagSecretAdd).Value.(*opts.SecretOpt).Value()
 
-		addSecrets, err := parseSecrets(apiClient, values)
+		addSecrets, err := ParseSecrets(apiClient, values)
 		if err != nil {
 			return nil, err
 		}

@@ -115,3 +115,8 @@ func (c *networkContext) Label(name string) string {
 	}
 	return c.n.Labels[name]
 }
+
+func (c *networkContext) CreatedAt() string {
+	c.AddHeader(createdAtHeader)
+	return c.n.Created.String()
+}

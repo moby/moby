@@ -411,8 +411,9 @@ func TestParseModes(t *testing.T) {
 		t.Fatalf("Expected a valid UTSMode, got %v", hostconfig.UTSMode)
 	}
 	// shm-size ko
-	if _, _, _, err = parseRun([]string{"--shm-size=a128m", "img", "cmd"}); err == nil || err.Error() != "invalid size: 'a128m'" {
-		t.Fatalf("Expected an error with message 'invalid size: a128m', got %v", err)
+	expectedErr := `invalid argument "a128m" for --shm-size=a128m: invalid size: 'a128m'`
+	if _, _, _, err = parseRun([]string{"--shm-size=a128m", "img", "cmd"}); err == nil || err.Error() != expectedErr {
+		t.Fatalf("Expected an error with message '%v', got %v", expectedErr, err)
 	}
 	// shm-size ok
 	_, hostconfig, _, err = parseRun([]string{"--shm-size=128m", "img", "cmd"})
@@ -453,6 +454,14 @@ func TestParseRestartPolicy(t *testing.T) {
 		if hostconfig.RestartPolicy != expected {
 			t.Fatalf("Expected %v, got %v", expected, hostconfig.RestartPolicy)
 		}
+	}
+}
+
+func TestParseRestartPolicyAutoRemove(t *testing.T) {
+	expected := "Conflicting options: --restart and --rm"
+	_, _, _, err := parseRun([]string{"--rm", "--restart=always", "img", "cmd"})
+	if err == nil || err.Error() != expected {
+		t.Fatalf("Expected error %v, but got none", expected)
 	}
 }
 

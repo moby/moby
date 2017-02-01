@@ -96,9 +96,9 @@ func (c *Conn) Close(success bool) error {
 	}
 
 	if success {
-		c.remotes.ObserveIfExists(c.peer, -remotes.DefaultObservationWeight)
-	} else {
 		c.remotes.ObserveIfExists(c.peer, remotes.DefaultObservationWeight)
+	} else {
+		c.remotes.ObserveIfExists(c.peer, -remotes.DefaultObservationWeight)
 	}
 
 	return c.ClientConn.Close()

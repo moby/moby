@@ -95,7 +95,6 @@ for version in "${versions[@]}"; do
 		pkgconfig # for the pkg-config command
 		selinux-policy
 		selinux-policy-devel
-		sqlite-devel # for "sqlite3.h"
 		systemd-devel # for "sd-journal.h" and libraries
 		tar # older versions of dev-tools do not have tar
 		git # required for containerd and runc clone

@@ -27,6 +27,7 @@ docker-run - Run a command in a new container
 [**-d**|**--detach**]
 [**--detach-keys**[=*[]*]]
 [**--device**[=*[]*]]
+[**--device-cgroup-rule**[=*[]*]]
 [**--device-read-bps**[=*[]*]]
 [**--device-read-iops**[=*[]*]]
 [**--device-write-bps**[=*[]*]]
@@ -41,6 +42,8 @@ docker-run - Run a command in a new container
 [**--group-add**[=*[]*]]
 [**-h**|**--hostname**[=*HOSTNAME*]]
 [**--help**]
+[**--init**]
+[**--init-path**[=*[]*]]
 [**-i**|**--interactive**]
 [**--ip**[=*IPv4-ADDRESS*]]
 [**--ip6**[=*IPv6-ADDRESS*]]
@@ -244,6 +247,16 @@ See **config-json(5)** for documentation on using a configuration file.
 **--device**=[]
    Add a host device to the container (e.g. --device=/dev/sdc:/dev/xvdc:rwm)
 
+**--device-cgroup-rule**=[]
+   Add a rule to the cgroup allowed devices list.
+   
+   The rule is expected to be in the format specified in the Linux kernel documentation (Documentation/cgroup-v1/devices.txt):
+     - type: `a` (all), `c` (char) or `b` (block)
+     - major and minor: either a number or `*` for all
+     - permission: a composition of `r` (read), `w` (write) and `m` (mknod)
+
+   Example: `c 1:3 mr`: allow for character device with major `1` and minor `3` to be created (`m`) and read (`r`)
+
 **--device-read-bps**=[]
    Limit read rate from a device (e.g. --device-read-bps=/dev/sda:1mb)
 
@@ -309,7 +322,13 @@ redirection on the host system.
    Sets the container host name that is available inside the container.
 
 **--help**
-  Print usage statement
+   Print usage statement
+
+**--init**
+   Run an init inside the container that forwards signals and reaps processes
+
+**--init-path**=""
+   Path to the docker-init binary
 
 **-i**, **--interactive**=*true*|*false*
    Keep STDIN open even if not attached. The default is *false*.

@@ -247,7 +247,7 @@ func (sb *sandbox) rmLBBackend(ip, vip net.IP, fwMark uint32, ingressPorts []*Po
 	if rmService {
 		s.SchedName = ipvs.RoundRobin
 		if err := i.DelService(s); err != nil {
-			logrus.Errorf("Failed to delete a new service for vip %s fwmark %d: %v", vip, fwMark, err)
+			logrus.Errorf("Failed to delete service for vip %s fwmark %d: %v", vip, fwMark, err)
 		}
 
 		var filteredPorts []*PortConfig
@@ -259,7 +259,7 @@ func (sb *sandbox) rmLBBackend(ip, vip net.IP, fwMark uint32, ingressPorts []*Po
 		}
 
 		if err := invokeFWMarker(sb.Key(), vip, fwMark, ingressPorts, eIP, true); err != nil {
-			logrus.Errorf("Failed to add firewall mark rule in sbox %s: %v", sb.Key(), err)
+			logrus.Errorf("Failed to delete firewall mark rule in sbox %s: %v", sb.Key(), err)
 		}
 	}
 }

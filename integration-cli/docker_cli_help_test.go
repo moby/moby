@@ -93,7 +93,7 @@ func (s *DockerSuite) TestHelpTextVerify(c *check.C) {
 		// Create the list of commands we want to test
 		cmdsToTest := []string{}
 		for _, cmd := range helpOut {
-			// Stop on blank line or non-idented line
+			// Stop on blank line or non-indented line
 			if cmd == "" || !unicode.IsSpace(rune(cmd[0])) {
 				break
 			}
@@ -118,7 +118,7 @@ func (s *DockerSuite) TestHelpTextVerify(c *check.C) {
 		cmdsToTest = append(cmdsToTest, "network ls")
 		cmdsToTest = append(cmdsToTest, "network rm")
 
-		if experimentalDaemon {
+		if testEnv.ExperimentalDaemon() {
 			cmdsToTest = append(cmdsToTest, "checkpoint create")
 			cmdsToTest = append(cmdsToTest, "checkpoint ls")
 			cmdsToTest = append(cmdsToTest, "checkpoint rm")

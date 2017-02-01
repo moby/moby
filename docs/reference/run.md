@@ -1385,30 +1385,68 @@ it will provide a named alias for the container being linked to.
 
 ### ENV (environment variables)
 
-When a new container is created, Docker will set the following environment
-variables automatically:
+Docker automatically sets some environment variables when creating a Linux
+container. Docker does not set any environment variables when creating a Windows
+container.
+
+The following environment variables are set for Linux containers:
 
 | Variable | Value |
 | -------- | ----- |
 | `HOME` | Set based on the value of `USER` |
 | `HOSTNAME` | The hostname associated with the container |
-| `PATH` | Includes popular directories, such as `:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin` |
+| `PATH` | Includes popular directories, such as `/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin` |
 | `TERM` | `xterm` if the container is allocated a pseudo-TTY |
+
 
 Additionally, the operator can **set any environment variable** in the
 container by using one or more `-e` flags, even overriding those mentioned
 above, or already defined by the developer with a Dockerfile `ENV`:
 
-    $ docker run -e "deep=purple" --rm ubuntu /bin/bash -c export
-    declare -x HOME="/"
-    declare -x HOSTNAME="85bc26a0e200"
-    declare -x OLDPWD
-    declare -x PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
-    declare -x PWD="/"
-    declare -x SHLVL="1"
-    declare -x deep="purple"
+```bash
+$ docker run -e "deep=purple" --rm alpine env
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+HOSTNAME=d2219b854598
+deep=purple
+HOME=/root
+```
 
-Similarly the operator can set the **hostname** with `-h`.
+```PowerShell
+PS C:\> docker run --rm -e "foo=bar" microsoft/nanoserver cmd /s /c set
+ALLUSERSPROFILE=C:\ProgramData
+APPDATA=C:\Users\ContainerAdministrator\AppData\Roaming
+CommonProgramFiles=C:\Program Files\Common Files
+CommonProgramFiles(x86)=C:\Program Files (x86)\Common Files
+CommonProgramW6432=C:\Program Files\Common Files
+COMPUTERNAME=C2FAEFCC8253
+ComSpec=C:\Windows\system32\cmd.exe
+foo=bar
+LOCALAPPDATA=C:\Users\ContainerAdministrator\AppData\Local
+NUMBER_OF_PROCESSORS=8
+OS=Windows_NT
+Path=C:\Windows\system32;C:\Windows;C:\Windows\System32\Wbem;C:\Windows\System32\WindowsPowerShell\v1.0\;C:\Users\ContainerAdministrator\AppData\Local\Microsoft\WindowsApps
+PATHEXT=.COM;.EXE;.BAT;.CMD
+PROCESSOR_ARCHITECTURE=AMD64
+PROCESSOR_IDENTIFIER=Intel64 Family 6 Model 62 Stepping 4, GenuineIntel
+PROCESSOR_LEVEL=6
+PROCESSOR_REVISION=3e04
+ProgramData=C:\ProgramData
+ProgramFiles=C:\Program Files
+ProgramFiles(x86)=C:\Program Files (x86)
+ProgramW6432=C:\Program Files
+PROMPT=$P$G
+PUBLIC=C:\Users\Public
+SystemDrive=C:
+SystemRoot=C:\Windows
+TEMP=C:\Users\ContainerAdministrator\AppData\Local\Temp
+TMP=C:\Users\ContainerAdministrator\AppData\Local\Temp
+USERDOMAIN=User Manager
+USERNAME=ContainerAdministrator
+USERPROFILE=C:\Users\ContainerAdministrator
+windir=C:\Windows
+```
+
+Similarly the operator can set the **HOSTNAME** (Linux) or **COMPUTERNAME** (Windows) with `-h`.
 
 ### HEALTHCHECK
 

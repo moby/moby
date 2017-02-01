@@ -58,6 +58,7 @@ func newCreateCommand(dockerCli *command.DockerCli) *cobra.Command {
 	flags.BoolVar(&opts.internal, "internal", false, "Restrict external access to the network")
 	flags.BoolVar(&opts.ipv6, "ipv6", false, "Enable IPv6 networking")
 	flags.BoolVar(&opts.attachable, "attachable", false, "Enable manual container attachment")
+	flags.SetAnnotation("attachable", "version", []string{"1.25"})
 
 	flags.StringVar(&opts.ipamDriver, "ipam-driver", "default", "IP Address Management Driver")
 	flags.StringSliceVar(&opts.ipamSubnet, "subnet", []string{}, "Subnet in CIDR format that represents a network segment")

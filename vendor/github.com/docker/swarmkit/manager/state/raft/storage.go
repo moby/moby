@@ -60,9 +60,25 @@ func (n *Node) loadAndStart(ctx context.Context, forceNewCluster bool) error {
 	n.Config.ID = raftNode.RaftID
 
 	if snapshot != nil {
-		// Load the snapshot data into the store
-		if err := n.restoreFromSnapshot(snapshot.Data, forceNewCluster); err != nil {
+		snapCluster, err := n.clusterSnapshot(snapshot.Data)
+		if err != nil {
 			return err
+		}
+		var bootstrapMembers []*api.RaftMember
+		if forceNewCluster {
+			for _, m := range snapCluster.Members {
+				if m.RaftID != n.Config.ID {
+					n.cluster.RemoveMember(m.RaftID)
+					continue
+				}
+				bootstrapMembers = append(bootstrapMembers, m)
+			}
+		} else {
+			bootstrapMembers = snapCluster.Members
+		}
+		n.bootstrapMembers = bootstrapMembers
+		for _, removedMember := range snapCluster.Removed {
+			n.cluster.RemoveMember(removedMember)
 		}
 	}
 
@@ -215,40 +231,18 @@ func (n *Node) doSnapshot(ctx context.Context, raftConfig api.RaftConfig) {
 	<-viewStarted
 }
 
-func (n *Node) restoreFromSnapshot(data []byte, forceNewCluster bool) error {
+func (n *Node) clusterSnapshot(data []byte) (api.ClusterSnapshot, error) {
 	var snapshot api.Snapshot
 	if err := snapshot.Unmarshal(data); err != nil {
-		return err
+		return snapshot.Membership, err
 	}
 	if snapshot.Version != api.Snapshot_V0 {
-		return fmt.Errorf("unrecognized snapshot version %d", snapshot.Version)
+		return snapshot.Membership, fmt.Errorf("unrecognized snapshot version %d", snapshot.Version)
 	}
 
 	if err := n.memoryStore.Restore(&snapshot.Store); err != nil {
-		return err
+		return snapshot.Membership, err
 	}
 
-	oldMembers := n.cluster.Members()
-
-	for _, member := range snapshot.Membership.Members {
-		if forceNewCluster && member.RaftID != n.Config.ID {
-			n.cluster.RemoveMember(member.RaftID)
-		} else {
-			if err := n.registerNode(&api.RaftMember{RaftID: member.RaftID, NodeID: member.NodeID, Addr: member.Addr}); err != nil {
-				return err
-			}
-		}
-		delete(oldMembers, member.RaftID)
-	}
-
-	for _, removedMember := range snapshot.Membership.Removed {
-		n.cluster.RemoveMember(removedMember)
-		delete(oldMembers, removedMember)
-	}
-
-	for member := range oldMembers {
-		n.cluster.ClearMember(member)
-	}
-
-	return nil
+	return snapshot.Membership, nil
 }

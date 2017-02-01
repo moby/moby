@@ -7,7 +7,7 @@ import (
 
 	types "github.com/docker/docker/api/types/swarm"
 	swarmapi "github.com/docker/swarmkit/api"
-	"github.com/docker/swarmkit/protobuf/ptypes"
+	gogotypes "github.com/gogo/protobuf/types"
 )
 
 // SwarmFromGRPC converts a grpc Cluster to a Swarm.
@@ -37,10 +37,10 @@ func SwarmFromGRPC(c swarmapi.Cluster) types.Swarm {
 		},
 	}
 
-	heartbeatPeriod, _ := ptypes.Duration(c.Spec.Dispatcher.HeartbeatPeriod)
+	heartbeatPeriod, _ := gogotypes.DurationFromProto(c.Spec.Dispatcher.HeartbeatPeriod)
 	swarm.Spec.Dispatcher.HeartbeatPeriod = heartbeatPeriod
 
-	swarm.Spec.CAConfig.NodeCertExpiry, _ = ptypes.Duration(c.Spec.CAConfig.NodeCertExpiry)
+	swarm.Spec.CAConfig.NodeCertExpiry, _ = gogotypes.DurationFromProto(c.Spec.CAConfig.NodeCertExpiry)
 
 	for _, ca := range c.Spec.CAConfig.ExternalCAs {
 		swarm.Spec.CAConfig.ExternalCAs = append(swarm.Spec.CAConfig.ExternalCAs, &types.ExternalCA{
@@ -52,8 +52,8 @@ func SwarmFromGRPC(c swarmapi.Cluster) types.Swarm {
 
 	// Meta
 	swarm.Version.Index = c.Meta.Version.Index
-	swarm.CreatedAt, _ = ptypes.Timestamp(c.Meta.CreatedAt)
-	swarm.UpdatedAt, _ = ptypes.Timestamp(c.Meta.UpdatedAt)
+	swarm.CreatedAt, _ = gogotypes.TimestampFromProto(c.Meta.CreatedAt)
+	swarm.UpdatedAt, _ = gogotypes.TimestampFromProto(c.Meta.UpdatedAt)
 
 	// Annotations
 	swarm.Spec.Name = c.Spec.Annotations.Name
@@ -98,10 +98,10 @@ func MergeSwarmSpecToGRPC(s types.Spec, spec swarmapi.ClusterSpec) (swarmapi.Clu
 		spec.Raft.ElectionTick = uint32(s.Raft.ElectionTick)
 	}
 	if s.Dispatcher.HeartbeatPeriod != 0 {
-		spec.Dispatcher.HeartbeatPeriod = ptypes.DurationProto(time.Duration(s.Dispatcher.HeartbeatPeriod))
+		spec.Dispatcher.HeartbeatPeriod = gogotypes.DurationProto(time.Duration(s.Dispatcher.HeartbeatPeriod))
 	}
 	if s.CAConfig.NodeCertExpiry != 0 {
-		spec.CAConfig.NodeCertExpiry = ptypes.DurationProto(s.CAConfig.NodeCertExpiry)
+		spec.CAConfig.NodeCertExpiry = gogotypes.DurationProto(s.CAConfig.NodeCertExpiry)
 	}
 
 	for _, ca := range s.CAConfig.ExternalCAs {

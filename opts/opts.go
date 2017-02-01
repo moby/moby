@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/docker/docker/api/types/filters"
+	units "github.com/docker/go-units"
 )
 
 var (
@@ -401,4 +402,45 @@ func ParseLink(val string) (string, string, error) {
 func ValidateLink(val string) (string, error) {
 	_, _, err := ParseLink(val)
 	return val, err
+}
+
+// MemBytes is a type for human readable memory bytes (like 128M, 2g, etc)
+type MemBytes int64
+
+// String returns the string format of the human readable memory bytes
+func (m *MemBytes) String() string {
+	// NOTE: In spf13/pflag/flag.go, "0" is considered as "zero value" while "0 B" is not.
+	// We return "0" in case value is 0 here so that the default value is hidden.
+	// (Sometimes "default 0 B" is actually misleading)
+	if m.Value() != 0 {
+		return units.BytesSize(float64(m.Value()))
+	}
+	return "0"
+}
+
+// Set sets the value of the MemBytes by passing a string
+func (m *MemBytes) Set(value string) error {
+	val, err := units.RAMInBytes(value)
+	*m = MemBytes(val)
+	return err
+}
+
+// Type returns the type
+func (m *MemBytes) Type() string {
+	return "bytes"
+}
+
+// Value returns the value in int64
+func (m *MemBytes) Value() int64 {
+	return int64(*m)
+}
+
+// UnmarshalJSON is the customized unmarshaler for MemBytes
+func (m *MemBytes) UnmarshalJSON(s []byte) error {
+	if len(s) <= 2 || s[0] != '"' || s[len(s)-1] != '"' {
+		return fmt.Errorf("invalid size: %q", s)
+	}
+	val, err := units.RAMInBytes(string(s[1 : len(s)-1]))
+	*m = MemBytes(val)
+	return err
 }

@@ -9,7 +9,6 @@ import (
 	"github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/connectionbroker"
 	"github.com/docker/swarmkit/log"
-	"github.com/docker/swarmkit/protobuf/ptypes"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -173,12 +172,7 @@ func (s *session) heartbeat(ctx context.Context) error {
 				return err
 			}
 
-			period, err := ptypes.Duration(&resp.Period)
-			if err != nil {
-				return err
-			}
-
-			heartbeat.Reset(period)
+			heartbeat.Reset(resp.Period)
 		case <-s.closed:
 			return errSessionClosed
 		case <-ctx.Done():

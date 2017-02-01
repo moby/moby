@@ -51,7 +51,7 @@ type DockerExternalVolumeSuite struct {
 
 func (s *DockerExternalVolumeSuite) SetUpTest(c *check.C) {
 	s.d = daemon.New(c, dockerBinary, dockerdBinary, daemon.Config{
-		Experimental: experimentalDaemon,
+		Experimental: testEnv.ExperimentalDaemon(),
 	})
 	s.ec = &eventCounter{}
 }
@@ -295,7 +295,8 @@ func (s *DockerExternalVolumeSuite) TestVolumeCLICreateOptionConflict(c *check.C
 
 	// make sure hidden --name option conflicts with positional arg name
 	out, _, err = dockerCmdWithError("volume", "create", "--name", "test2", "test2")
-	c.Assert(err, check.NotNil, check.Commentf("Conflicting options: either specify --name or provide positional arg, not both"))
+	c.Assert(err, check.NotNil)
+	c.Assert(strings.TrimSpace(out), checker.Equals, "Conflicting options: either specify --name or provide positional arg, not both")
 }
 
 func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverNamed(c *check.C) {
@@ -503,7 +504,7 @@ func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverWithDaemonRestart(c 
 
 	dockerCmd(c, "run", "--name=test", "-v", "abc1:/foo", "busybox", "true")
 	var mounts []types.MountPoint
-	inspectFieldAndMarshall(c, "test", "Mounts", &mounts)
+	inspectFieldAndUnmarshall(c, "test", "Mounts", &mounts)
 	c.Assert(mounts, checker.HasLen, 1)
 	c.Assert(mounts[0].Driver, checker.Equals, volumePluginName)
 }

@@ -6,7 +6,7 @@ any point.
 
 The initial status of the container created with **docker create** is 'created'.
 
-# OPTIONS 
+### OPTIONS 
 
 The `CONTAINER-DIR` must be an absolute path such as `/src/docs`. The `HOST-DIR`
 can be an absolute path or a `name` value. A `name` value must start with an
@@ -82,18 +82,3 @@ change propagation properties of source mount. Say `/` is source mount for
 
 To disable automatic copying of data from the container path to the volume, use
 the `nocopy` flag. The `nocopy` flag can be set on bind mounts and named volumes.
-
-# EXAMPLES
-
-## Specify isolation technology for container (--isolation)
-
-This option is useful in situations where you are running Docker containers on
-Windows. The `--isolation=<value>` option sets a container's isolation
-technology. On Linux, the only supported is the `default` option which uses
-Linux namespaces. On Microsoft Windows, you can specify these values:
-
-* `default`: Use the value specified by the Docker daemon's `--exec-opt` . If the `daemon` does not specify an isolation technology, Microsoft Windows uses `process` as its default value.
-* `process`: Namespace isolation only.
-* `hyperv`: Hyper-V hypervisor partition-based isolation.
-
-Specifying the `--isolation` flag without a value is the same as setting `--isolation="default"`.

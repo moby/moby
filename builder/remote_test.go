@@ -151,6 +151,26 @@ func TestInspectResponseEmptyContentType(t *testing.T) {
 	}
 }
 
+func TestUnknownContentLength(t *testing.T) {
+	content := []byte(dockerfileContents)
+	ct := "text/plain"
+	br := ioutil.NopCloser(bytes.NewReader(content))
+	contentType, bReader, err := inspectResponse(ct, br, -1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if contentType != "text/plain" {
+		t.Fatalf("Content type should be 'text/plain' but is %q", contentType)
+	}
+	body, err := ioutil.ReadAll(bReader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(body) != dockerfileContents {
+		t.Fatalf("Corrupted response body %s", body)
+	}
+}
+
 func TestMakeRemoteContext(t *testing.T) {
 	contextDir, cleanup := createTestTempDir(t, "", "builder-tarsum-test")
 	defer cleanup()

@@ -58,7 +58,7 @@ func (s *DockerSuite) TestCreateArgs(c *check.C) {
 // Make sure we can grow the container's rootfs at creation time.
 func (s *DockerSuite) TestCreateGrowRootfs(c *check.C) {
 	// Windows and Devicemapper support growing the rootfs
-	if daemonPlatform != "windows" {
+	if testEnv.DaemonPlatform() != "windows" {
 		testRequires(c, Devicemapper)
 	}
 	out, _ := dockerCmd(c, "create", "--storage-opt", "size=120G", "busybox")
@@ -195,7 +195,7 @@ func (s *DockerSuite) TestCreateLabels(c *check.C) {
 	dockerCmd(c, "create", "--name", name, "-l", "k1=v1", "--label", "k2=v2", "busybox")
 
 	actual := make(map[string]string)
-	inspectFieldAndMarshall(c, name, "Config.Labels", &actual)
+	inspectFieldAndUnmarshall(c, name, "Config.Labels", &actual)
 
 	if !reflect.DeepEqual(expected, actual) {
 		c.Fatalf("Expected %s got %s", expected, actual)
@@ -204,19 +204,15 @@ func (s *DockerSuite) TestCreateLabels(c *check.C) {
 
 func (s *DockerSuite) TestCreateLabelFromImage(c *check.C) {
 	imageName := "testcreatebuildlabel"
-	_, err := buildImage(imageName,
-		`FROM busybox
-		LABEL k1=v1 k2=v2`,
-		true)
-
-	c.Assert(err, check.IsNil)
+	buildImageSuccessfully(c, imageName, withDockerfile(`FROM busybox
+		LABEL k1=v1 k2=v2`))
 
 	name := "test_create_labels_from_image"
 	expected := map[string]string{"k2": "x", "k3": "v3", "k1": "v1"}
 	dockerCmd(c, "create", "--name", name, "-l", "k2=x", "--label", "k3=v3", imageName)
 
 	actual := make(map[string]string)
-	inspectFieldAndMarshall(c, name, "Config.Labels", &actual)
+	inspectFieldAndUnmarshall(c, name, "Config.Labels", &actual)
 
 	if !reflect.DeepEqual(expected, actual) {
 		c.Fatalf("Expected %s got %s", expected, actual)
@@ -226,8 +222,8 @@ func (s *DockerSuite) TestCreateLabelFromImage(c *check.C) {
 func (s *DockerSuite) TestCreateHostnameWithNumber(c *check.C) {
 	image := "busybox"
 	// Busybox on Windows does not implement hostname command
-	if daemonPlatform == "windows" {
-		image = WindowsBaseImage
+	if testEnv.DaemonPlatform() == "windows" {
+		image = testEnv.MinimalBaseImage()
 	}
 	out, _ := dockerCmd(c, "run", "-h", "web.0", image, "hostname")
 	c.Assert(strings.TrimSpace(out), checker.Equals, "web.0", check.Commentf("hostname not set, expected `web.0`, got: %s", out))
@@ -263,13 +259,9 @@ func (s *DockerSuite) TestCreateModeIpcContainer(c *check.C) {
 
 func (s *DockerSuite) TestCreateByImageID(c *check.C) {
 	imageName := "testcreatebyimageid"
-	imageID, err := buildImage(imageName,
-		`FROM busybox
-		MAINTAINER dockerio`,
-		true)
-	if err != nil {
-		c.Fatal(err)
-	}
+	buildImageSuccessfully(c, imageName, withDockerfile(`FROM busybox
+		MAINTAINER dockerio`))
+	imageID := getIDByName(c, imageName)
 	truncatedImageID := stringid.TruncateID(imageID)
 
 	dockerCmd(c, "create", imageID)
@@ -282,7 +274,7 @@ func (s *DockerSuite) TestCreateByImageID(c *check.C) {
 		c.Fatalf("expected non-zero exit code; received %d", exit)
 	}
 
-	if expected := "Error parsing reference"; !strings.Contains(out, expected) {
+	if expected := "invalid reference format"; !strings.Contains(out, expected) {
 		c.Fatalf(`Expected %q in output; got: %s`, expected, out)
 	}
 
@@ -411,7 +403,7 @@ func (s *DockerSuite) TestCreateWithWorkdir(c *check.C) {
 
 	dockerCmd(c, "create", "--name", name, "-w", dir, "busybox")
 	// Windows does not create the workdir until the container is started
-	if daemonPlatform == "windows" {
+	if testEnv.DaemonPlatform() == "windows" {
 		dockerCmd(c, "start", name)
 	}
 	dockerCmd(c, "cp", fmt.Sprintf("%s:%s", name, dir), prefix+slash+"tmp")
@@ -444,16 +436,14 @@ RUN chmod 755 /entrypoint.sh
 ENTRYPOINT ["/entrypoint.sh"]
 CMD echo foobar`
 
-	ctx, err := fakeContext(dockerfile, map[string]string{
+	ctx := fakeContext(c, dockerfile, map[string]string{
 		"entrypoint.sh": `#!/bin/sh
 echo "I am an entrypoint"
 exec "$@"`,
 	})
-	c.Assert(err, check.IsNil)
 	defer ctx.Close()
 
-	_, err = buildImageFromContext(name, ctx, true)
-	c.Assert(err, check.IsNil)
+	buildImageSuccessfully(c, name, withExternalBuildContext(ctx))
 
 	out, _ := dockerCmd(c, "create", "--entrypoint=", name, "echo", "foo")
 	id := strings.TrimSpace(out)

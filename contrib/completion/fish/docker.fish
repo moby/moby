@@ -121,6 +121,7 @@ complete -c docker -A -f -n '__fish_seen_subcommand_from create' -l cap-drop -d 
 complete -c docker -A -f -n '__fish_seen_subcommand_from create' -l cidfile -d 'Write the container ID to the file'
 complete -c docker -A -f -n '__fish_seen_subcommand_from create' -l cpuset -d 'CPUs in which to allow execution (0-3, 0,1)'
 complete -c docker -A -f -n '__fish_seen_subcommand_from create' -l device -d 'Add a host device to the container (e.g. --device=/dev/sdc:/dev/xvdc:rwm)'
+complete -c docker -A -f -n '__fish_seen_subcommand_from create' -l device-cgroup-rule -d 'Add a rule to the cgroup allowed devices list (e.g. --device-cgroup-rule="c 13:37 rwm")'
 complete -c docker -A -f -n '__fish_seen_subcommand_from create' -l dns -d 'Set custom DNS servers'
 complete -c docker -A -f -n '__fish_seen_subcommand_from create' -l dns-opt -d "Set custom DNS options (Use --dns-opt='' if you don't wish to set options)"
 complete -c docker -A -f -n '__fish_seen_subcommand_from create' -l dns-search -d "Set custom DNS search domains (Use --dns-search=. if you don't wish to set the search domain)"
@@ -312,6 +313,7 @@ complete -c docker -A -f -n '__fish_seen_subcommand_from run' -l cidfile -d 'Wri
 complete -c docker -A -f -n '__fish_seen_subcommand_from run' -l cpuset -d 'CPUs in which to allow execution (0-3, 0,1)'
 complete -c docker -A -f -n '__fish_seen_subcommand_from run' -s d -l detach -d 'Detached mode: run the container in the background and print the new container ID'
 complete -c docker -A -f -n '__fish_seen_subcommand_from run' -l device -d 'Add a host device to the container (e.g. --device=/dev/sdc:/dev/xvdc:rwm)'
+complete -c docker -A -f -n '__fish_seen_subcommand_from create' -l device-cgroup-rule -d 'Add a rule to the cgroup allowed devices list (e.g. --device-cgroup-rule="c 13:37 rwm")'
 complete -c docker -A -f -n '__fish_seen_subcommand_from run' -l dns -d 'Set custom DNS servers'
 complete -c docker -A -f -n '__fish_seen_subcommand_from run' -l dns-opt -d "Set custom DNS options (Use --dns-opt='' if you don't wish to set options)"
 complete -c docker -A -f -n '__fish_seen_subcommand_from run' -l dns-search -d "Set custom DNS search domains (Use --dns-search=. if you don't wish to set the search domain)"

@@ -9,7 +9,7 @@ import (
 	"github.com/docker/swarmkit/manager/orchestrator"
 	"github.com/docker/swarmkit/manager/state"
 	"github.com/docker/swarmkit/manager/state/store"
-	"github.com/docker/swarmkit/protobuf/ptypes"
+	gogotypes "github.com/gogo/protobuf/types"
 	"golang.org/x/net/context"
 )
 
@@ -63,14 +63,14 @@ func (r *Orchestrator) initTasks(ctx context.Context, readTx store.ReadTx) error
 			restartDelay := orchestrator.DefaultRestartDelay
 			if t.Spec.Restart != nil && t.Spec.Restart.Delay != nil {
 				var err error
-				restartDelay, err = ptypes.Duration(t.Spec.Restart.Delay)
+				restartDelay, err = gogotypes.DurationFromProto(t.Spec.Restart.Delay)
 				if err != nil {
 					log.G(ctx).WithError(err).Error("invalid restart delay")
 					restartDelay = orchestrator.DefaultRestartDelay
 				}
 			}
 			if restartDelay != 0 {
-				timestamp, err := ptypes.Timestamp(t.Status.Timestamp)
+				timestamp, err := gogotypes.TimestampFromProto(t.Status.Timestamp)
 				if err == nil {
 					restartTime := timestamp.Add(restartDelay)
 					calculatedRestartDelay := restartTime.Sub(time.Now())

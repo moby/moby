@@ -39,12 +39,18 @@ func newCreateCommand(dockerCli *command.DockerCli) *cobra.Command {
 	flags.Var(&opts.constraints, flagConstraint, "Placement constraints")
 	flags.Var(&opts.networks, flagNetwork, "Network attachments")
 	flags.Var(&opts.secrets, flagSecret, "Specify secrets to expose to the service")
+	flags.SetAnnotation(flagSecret, "version", []string{"1.25"})
 	flags.VarP(&opts.endpoint.publishPorts, flagPublish, "p", "Publish a port as a node port")
 	flags.Var(&opts.groups, flagGroup, "Set one or more supplementary user groups for the container")
+	flags.SetAnnotation(flagGroup, "version", []string{"1.25"})
 	flags.Var(&opts.dns, flagDNS, "Set custom DNS servers")
+	flags.SetAnnotation(flagDNS, "version", []string{"1.25"})
 	flags.Var(&opts.dnsOption, flagDNSOption, "Set DNS options")
+	flags.SetAnnotation(flagDNSOption, "version", []string{"1.25"})
 	flags.Var(&opts.dnsSearch, flagDNSSearch, "Set custom DNS search domains")
+	flags.SetAnnotation(flagDNSSearch, "version", []string{"1.25"})
 	flags.Var(&opts.hosts, flagHost, "Set one or more custom host-to-IP mappings (host:ip)")
+	flags.SetAnnotation(flagHost, "version", []string{"1.25"})
 
 	flags.SetInterspersed(false)
 	return cmd
@@ -62,7 +68,7 @@ func runCreate(dockerCli *command.DockerCli, opts *serviceOptions) error {
 	specifiedSecrets := opts.secrets.Value()
 	if len(specifiedSecrets) > 0 {
 		// parse and validate secrets
-		secrets, err := parseSecrets(apiClient, specifiedSecrets)
+		secrets, err := ParseSecrets(apiClient, specifiedSecrets)
 		if err != nil {
 			return err
 		}

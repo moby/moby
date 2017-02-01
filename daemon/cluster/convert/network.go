@@ -7,7 +7,7 @@ import (
 	networktypes "github.com/docker/docker/api/types/network"
 	types "github.com/docker/docker/api/types/swarm"
 	swarmapi "github.com/docker/swarmkit/api"
-	"github.com/docker/swarmkit/protobuf/ptypes"
+	gogotypes "github.com/gogo/protobuf/types"
 )
 
 func networkAttachementFromGRPC(na *swarmapi.NetworkAttachment) types.NetworkAttachment {
@@ -35,8 +35,8 @@ func networkFromGRPC(n *swarmapi.Network) types.Network {
 
 		// Meta
 		network.Version.Index = n.Meta.Version.Index
-		network.CreatedAt, _ = ptypes.Timestamp(n.Meta.CreatedAt)
-		network.UpdatedAt, _ = ptypes.Timestamp(n.Meta.UpdatedAt)
+		network.CreatedAt, _ = gogotypes.TimestampFromProto(n.Meta.CreatedAt)
+		network.UpdatedAt, _ = gogotypes.TimestampFromProto(n.Meta.UpdatedAt)
 
 		//Annotations
 		network.Spec.Name = n.Spec.Annotations.Name
@@ -186,9 +186,13 @@ func BasicNetworkCreateToGRPC(create basictypes.NetworkCreateRequest) swarmapi.N
 		Attachable:  create.Attachable,
 	}
 	if create.IPAM != nil {
+		driver := create.IPAM.Driver
+		if driver == "" {
+			driver = "default"
+		}
 		ns.IPAM = &swarmapi.IPAMOptions{
 			Driver: &swarmapi.Driver{
-				Name:    create.IPAM.Driver,
+				Name:    driver,
 				Options: create.IPAM.Options,
 			},
 		}

@@ -161,14 +161,13 @@ func testConcurrentPush(c *check.C) {
 	repos := []string{}
 	for _, tag := range []string{"push1", "push2", "push3"} {
 		repo := fmt.Sprintf("%v:%v", repoName, tag)
-		_, err := buildImage(repo, fmt.Sprintf(`
+		buildImageSuccessfully(c, repo, withDockerfile(fmt.Sprintf(`
 	FROM busybox
 	ENTRYPOINT ["/bin/echo"]
 	ENV FOO foo
 	ENV BAR bar
 	CMD echo %s
-`, repo), true)
-		c.Assert(err, checker.IsNil)
+`, repo)))
 		repos = append(repos, repo)
 	}
 

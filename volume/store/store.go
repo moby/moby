@@ -145,7 +145,7 @@ func (s *VolumeStore) Purge(name string) {
 	v, exists := s.names[name]
 	if exists {
 		if _, err := volumedrivers.RemoveDriver(v.DriverName()); err != nil {
-			logrus.Error("Error dereferencing volume driver: %v", err)
+			logrus.Errorf("Error dereferencing volume driver: %v", err)
 		}
 	}
 	if err := s.removeMeta(name); err != nil {
@@ -275,6 +275,9 @@ func (s *VolumeStore) CreateWithRef(name, driverName, ref string, opts, labels m
 
 	v, err := s.create(name, driverName, opts, labels)
 	if err != nil {
+		if _, ok := err.(*OpErr); ok {
+			return nil, err
+		}
 		return nil, &OpErr{Err: err, Name: name, Op: "create"}
 	}
 

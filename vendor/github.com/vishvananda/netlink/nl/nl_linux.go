@@ -656,6 +656,13 @@ func Uint32Attr(v uint32) []byte {
 	return bytes
 }
 
+func Uint64Attr(v uint64) []byte {
+	native := NativeEndian()
+	bytes := make([]byte, 8)
+	native.PutUint64(bytes, v)
+	return bytes
+}
+
 func ParseRouteAttr(b []byte) ([]syscall.NetlinkRouteAttr, error) {
 	var attrs []syscall.NetlinkRouteAttr
 	for len(b) >= syscall.SizeofRtAttr {

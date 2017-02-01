@@ -13,8 +13,8 @@ import (
 	"github.com/docker/swarmkit/api"
 	pb "github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/manager/state"
-	"github.com/docker/swarmkit/protobuf/ptypes"
 	"github.com/docker/swarmkit/watch"
+	gogotypes "github.com/gogo/protobuf/types"
 	memdb "github.com/hashicorp/go-memdb"
 	"golang.org/x/net/context"
 )
@@ -25,7 +25,6 @@ const (
 	indexServiceID    = "serviceid"
 	indexNodeID       = "nodeid"
 	indexSlot         = "slot"
-	indexCN           = "cn"
 	indexDesiredState = "desiredstate"
 	indexTaskState    = "taskstate"
 	indexRole         = "role"
@@ -573,12 +572,6 @@ func (tx readTx) findIterators(table string, by By, checkType func(By) error) ([
 			return nil, err
 		}
 		return []memdb.ResultIterator{it}, nil
-	case byCN:
-		it, err := tx.memDBTx.Get(table, indexCN, string(v))
-		if err != nil {
-			return nil, err
-		}
-		return []memdb.ResultIterator{it}, nil
 	case byIDPrefix:
 		it, err := tx.memDBTx.Get(table, indexID+prefix, string(v))
 		if err != nil {
@@ -744,7 +737,7 @@ func touchMeta(meta *api.Meta, version *api.Version) error {
 		return nil
 	}
 
-	now, err := ptypes.TimestampProto(time.Now())
+	now, err := gogotypes.TimestampProto(time.Now())
 	if err != nil {
 		return err
 	}

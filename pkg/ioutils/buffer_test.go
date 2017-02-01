@@ -21,6 +21,9 @@ func TestFixedBufferWrite(t *testing.T) {
 	}
 
 	n, err = buf.Write(bytes.Repeat([]byte{1}, 64))
+	if n != 59 {
+		t.Fatalf("expected 59 bytes written before buffer is full, got %d", n)
+	}
 	if err != errBufferFull {
 		t.Fatalf("expected errBufferFull, got %v - %v", err, buf.buf[:64])
 	}

@@ -3,7 +3,7 @@ syntax = "proto3";
 package docker.swarmkit.v1;
 
 import "gogoproto/gogo.proto";
-import "timestamp/timestamp.proto"; // TODO(stevvooe): use our own until we fix gogoproto/deepcopy
+import "google/protobuf/timestamp.proto";
 import "plugin/plugin.proto";
 
 // LogStream defines the stream from which the log message came.
@@ -44,7 +44,8 @@ message LogSubscriptionOptions {
 
 	// Since indicates that only log messages produced after this timestamp
 	// should be sent.
-	Timestamp since = 4;
+	// Note: can't use stdtime because this field is nullable.
+	google.protobuf.Timestamp since = 4;
 }
 
 // LogSelector will match logs from ANY of the defined parameters.
@@ -71,7 +72,8 @@ message LogMessage {
 	LogContext context = 1 [(gogoproto.nullable) = false];
 
 	// Timestamp is the time at which the message was generated.
-	Timestamp timestamp = 2;
+	// Note: can't use stdtime because this field is nullable.
+	google.protobuf.Timestamp timestamp = 2;
 
 	// Stream identifies the stream of the log message, stdout or stderr.
 	LogStream stream = 3;

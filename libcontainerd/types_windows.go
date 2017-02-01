@@ -58,8 +58,9 @@ type LayerOption struct {
 // of network endpoints to which a container should be attached during its creation.
 type NetworkEndpointsOption struct {
 	Endpoints                []string
-	AllowUnqualifiedDNSQuery bool
-	NetworkSharedContainerID string
+	AllowUnqualifiedDNSQuery bool	
+	DNSSearchList            []string
+  NetworkSharedContainerID string
 }
 
 // CredentialsOption is a CreateOption that indicates the credentials from

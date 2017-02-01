@@ -29,7 +29,7 @@ func ensureHTTPServerImage() error {
 	}
 	defer os.RemoveAll(tmp)
 
-	goos := daemonPlatform
+	goos := testEnv.DaemonPlatform()
 	if goos == "" {
 		goos = "linux"
 	}

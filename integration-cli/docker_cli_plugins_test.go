@@ -47,7 +47,7 @@ func (s *DockerSuite) TestPluginBasicOps(c *check.C) {
 	c.Assert(err, checker.IsNil)
 	c.Assert(out, checker.Contains, pNameWithTag)
 
-	_, err = os.Stat(filepath.Join(dockerBasePath, "plugins", id))
+	_, err = os.Stat(filepath.Join(testEnv.DockerBasePath(), "plugins", id))
 	if !os.IsNotExist(err) {
 		c.Fatal(err)
 	}
@@ -400,4 +400,30 @@ func (s *DockerSuite) TestPluginIDPrefix(c *check.C) {
 	c.Assert(err, checker.IsNil)
 	c.Assert(out, checker.Not(checker.Contains), pName)
 	c.Assert(out, checker.Not(checker.Contains), pTag)
+}
+
+func (s *DockerSuite) TestPluginListDefaultFormat(c *check.C) {
+	testRequires(c, DaemonIsLinux, Network, IsAmd64)
+
+	config, err := ioutil.TempDir("", "config-file-")
+	c.Assert(err, check.IsNil)
+	defer os.RemoveAll(config)
+
+	err = ioutil.WriteFile(filepath.Join(config, "config.json"), []byte(`{"pluginsFormat": "raw"}`), 0644)
+	c.Assert(err, check.IsNil)
+
+	out, _ := dockerCmd(c, "plugin", "install", "--grant-all-permissions", pName)
+	c.Assert(strings.TrimSpace(out), checker.Contains, pName)
+
+	out, _ = dockerCmd(c, "plugin", "inspect", "--format", "{{.ID}}", pNameWithTag)
+	id := strings.TrimSpace(out)
+
+	// We expect the format to be in `raw + --no-trunc`
+	expectedOutput := fmt.Sprintf(`plugin_id: %s
+name: %s
+description: A sample volume plugin for Docker
+enabled: true`, id, pNameWithTag)
+
+	out, _ = dockerCmd(c, "--config", config, "plugin", "ls", "--no-trunc")
+	c.Assert(strings.TrimSpace(out), checker.Contains, expectedOutput)
 }

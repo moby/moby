@@ -47,7 +47,8 @@ type Backend interface {
 	VolumeCreate(name, driverName string, opts, labels map[string]string) (*types.Volume, error)
 	Containers(config *types.ContainerListOptions) ([]*types.Container, error)
 	SetNetworkBootstrapKeys([]*networktypes.EncryptionKey) error
-	SetClusterProvider(provider cluster.Provider)
+	DaemonJoinsCluster(provider cluster.Provider)
+	DaemonLeavesCluster()
 	IsSwarmCompatible() error
 	SubscribeToEvents(since, until time.Time, filter filters.Args) ([]events.Message, chan interface{})
 	UnsubscribeFromEvents(listener chan interface{})
@@ -56,4 +57,5 @@ type Backend interface {
 	GetRepository(context.Context, reference.NamedTagged, *types.AuthConfig) (distribution.Repository, bool, error)
 	LookupImage(name string) (*types.ImageInspect, error)
 	PluginManager() *plugin.Manager
+	PluginGetter() *plugin.Store
 }

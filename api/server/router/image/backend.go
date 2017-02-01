@@ -6,6 +6,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/filters"
+	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/registry"
 	"golang.org/x/net/context"
 )
@@ -24,8 +25,8 @@ type containerBackend interface {
 }
 
 type imageBackend interface {
-	ImageDelete(imageRef string, force, prune bool) ([]types.ImageDelete, error)
-	ImageHistory(imageName string) ([]*types.ImageHistory, error)
+	ImageDelete(imageRef string, force, prune bool) ([]types.ImageDeleteResponseItem, error)
+	ImageHistory(imageName string) ([]*image.HistoryResponseItem, error)
 	Images(imageFilters filters.Args, all bool, withExtraAttrs bool) ([]*types.ImageSummary, error)
 	LookupImage(name string) (*types.ImageInspect, error)
 	TagImage(imageName, repository, tag string) error

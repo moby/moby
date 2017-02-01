@@ -10,10 +10,9 @@ import math "math"
 
 // skipping weak import gogoproto "github.com/gogo/protobuf/gogoproto"
 
+import github_com_docker_swarmkit_api_deepcopy "github.com/docker/swarmkit/api/deepcopy"
+
 import strings "strings"
-import github_com_gogo_protobuf_proto "github.com/gogo/protobuf/proto"
-import sort "sort"
-import strconv "strconv"
 import reflect "reflect"
 
 import io "io"
@@ -59,7 +58,7 @@ func (*StoreSnapshot) Descriptor() ([]byte, []int) { return fileDescriptorSnapsh
 // ClusterSnapshot stores cluster membership information in snapshots.
 type ClusterSnapshot struct {
 	Members []*RaftMember `protobuf:"bytes,1,rep,name=members" json:"members,omitempty"`
-	Removed []uint64      `protobuf:"varint,2,rep,name=removed" json:"removed,omitempty"`
+	Removed []uint64      `protobuf:"varint,2,rep,packed,name=removed" json:"removed,omitempty"`
 }
 
 func (m *ClusterSnapshot) Reset()                    { *m = ClusterSnapshot{} }
@@ -87,189 +86,131 @@ func (m *StoreSnapshot) Copy() *StoreSnapshot {
 	if m == nil {
 		return nil
 	}
-
 	o := &StoreSnapshot{}
-
-	if m.Nodes != nil {
-		o.Nodes = make([]*Node, 0, len(m.Nodes))
-		for _, v := range m.Nodes {
-			o.Nodes = append(o.Nodes, v.Copy())
-		}
-	}
-
-	if m.Services != nil {
-		o.Services = make([]*Service, 0, len(m.Services))
-		for _, v := range m.Services {
-			o.Services = append(o.Services, v.Copy())
-		}
-	}
-
-	if m.Networks != nil {
-		o.Networks = make([]*Network, 0, len(m.Networks))
-		for _, v := range m.Networks {
-			o.Networks = append(o.Networks, v.Copy())
-		}
-	}
-
-	if m.Tasks != nil {
-		o.Tasks = make([]*Task, 0, len(m.Tasks))
-		for _, v := range m.Tasks {
-			o.Tasks = append(o.Tasks, v.Copy())
-		}
-	}
-
-	if m.Clusters != nil {
-		o.Clusters = make([]*Cluster, 0, len(m.Clusters))
-		for _, v := range m.Clusters {
-			o.Clusters = append(o.Clusters, v.Copy())
-		}
-	}
-
-	if m.Secrets != nil {
-		o.Secrets = make([]*Secret, 0, len(m.Secrets))
-		for _, v := range m.Secrets {
-			o.Secrets = append(o.Secrets, v.Copy())
-		}
-	}
-
+	o.CopyFrom(m)
 	return o
+}
+
+func (m *StoreSnapshot) CopyFrom(src interface{}) {
+
+	o := src.(*StoreSnapshot)
+	*m = *o
+	if o.Nodes != nil {
+		m.Nodes = make([]*Node, len(o.Nodes))
+		for i := range m.Nodes {
+			m.Nodes[i] = &Node{}
+			github_com_docker_swarmkit_api_deepcopy.Copy(m.Nodes[i], o.Nodes[i])
+		}
+	}
+
+	if o.Services != nil {
+		m.Services = make([]*Service, len(o.Services))
+		for i := range m.Services {
+			m.Services[i] = &Service{}
+			github_com_docker_swarmkit_api_deepcopy.Copy(m.Services[i], o.Services[i])
+		}
+	}
+
+	if o.Networks != nil {
+		m.Networks = make([]*Network, len(o.Networks))
+		for i := range m.Networks {
+			m.Networks[i] = &Network{}
+			github_com_docker_swarmkit_api_deepcopy.Copy(m.Networks[i], o.Networks[i])
+		}
+	}
+
+	if o.Tasks != nil {
+		m.Tasks = make([]*Task, len(o.Tasks))
+		for i := range m.Tasks {
+			m.Tasks[i] = &Task{}
+			github_com_docker_swarmkit_api_deepcopy.Copy(m.Tasks[i], o.Tasks[i])
+		}
+	}
+
+	if o.Clusters != nil {
+		m.Clusters = make([]*Cluster, len(o.Clusters))
+		for i := range m.Clusters {
+			m.Clusters[i] = &Cluster{}
+			github_com_docker_swarmkit_api_deepcopy.Copy(m.Clusters[i], o.Clusters[i])
+		}
+	}
+
+	if o.Secrets != nil {
+		m.Secrets = make([]*Secret, len(o.Secrets))
+		for i := range m.Secrets {
+			m.Secrets[i] = &Secret{}
+			github_com_docker_swarmkit_api_deepcopy.Copy(m.Secrets[i], o.Secrets[i])
+		}
+	}
+
 }
 
 func (m *ClusterSnapshot) Copy() *ClusterSnapshot {
 	if m == nil {
 		return nil
 	}
-
 	o := &ClusterSnapshot{}
+	o.CopyFrom(m)
+	return o
+}
 
-	if m.Members != nil {
-		o.Members = make([]*RaftMember, 0, len(m.Members))
-		for _, v := range m.Members {
-			o.Members = append(o.Members, v.Copy())
+func (m *ClusterSnapshot) CopyFrom(src interface{}) {
+
+	o := src.(*ClusterSnapshot)
+	*m = *o
+	if o.Members != nil {
+		m.Members = make([]*RaftMember, len(o.Members))
+		for i := range m.Members {
+			m.Members[i] = &RaftMember{}
+			github_com_docker_swarmkit_api_deepcopy.Copy(m.Members[i], o.Members[i])
 		}
 	}
 
-	if m.Removed != nil {
-		o.Removed = make([]uint64, 0, len(m.Removed))
-		o.Removed = append(o.Removed, m.Removed...)
+	if o.Removed != nil {
+		m.Removed = make([]uint64, len(o.Removed))
+		copy(m.Removed, o.Removed)
 	}
 
-	return o
 }
 
 func (m *Snapshot) Copy() *Snapshot {
 	if m == nil {
 		return nil
 	}
-
-	o := &Snapshot{
-		Version:    m.Version,
-		Membership: *m.Membership.Copy(),
-		Store:      *m.Store.Copy(),
-	}
-
+	o := &Snapshot{}
+	o.CopyFrom(m)
 	return o
 }
 
-func (this *StoreSnapshot) GoString() string {
-	if this == nil {
-		return "nil"
-	}
-	s := make([]string, 0, 10)
-	s = append(s, "&api.StoreSnapshot{")
-	if this.Nodes != nil {
-		s = append(s, "Nodes: "+fmt.Sprintf("%#v", this.Nodes)+",\n")
-	}
-	if this.Services != nil {
-		s = append(s, "Services: "+fmt.Sprintf("%#v", this.Services)+",\n")
-	}
-	if this.Networks != nil {
-		s = append(s, "Networks: "+fmt.Sprintf("%#v", this.Networks)+",\n")
-	}
-	if this.Tasks != nil {
-		s = append(s, "Tasks: "+fmt.Sprintf("%#v", this.Tasks)+",\n")
-	}
-	if this.Clusters != nil {
-		s = append(s, "Clusters: "+fmt.Sprintf("%#v", this.Clusters)+",\n")
-	}
-	if this.Secrets != nil {
-		s = append(s, "Secrets: "+fmt.Sprintf("%#v", this.Secrets)+",\n")
-	}
-	s = append(s, "}")
-	return strings.Join(s, "")
+func (m *Snapshot) CopyFrom(src interface{}) {
+
+	o := src.(*Snapshot)
+	*m = *o
+	github_com_docker_swarmkit_api_deepcopy.Copy(&m.Membership, &o.Membership)
+	github_com_docker_swarmkit_api_deepcopy.Copy(&m.Store, &o.Store)
 }
-func (this *ClusterSnapshot) GoString() string {
-	if this == nil {
-		return "nil"
-	}
-	s := make([]string, 0, 6)
-	s = append(s, "&api.ClusterSnapshot{")
-	if this.Members != nil {
-		s = append(s, "Members: "+fmt.Sprintf("%#v", this.Members)+",\n")
-	}
-	s = append(s, "Removed: "+fmt.Sprintf("%#v", this.Removed)+",\n")
-	s = append(s, "}")
-	return strings.Join(s, "")
-}
-func (this *Snapshot) GoString() string {
-	if this == nil {
-		return "nil"
-	}
-	s := make([]string, 0, 7)
-	s = append(s, "&api.Snapshot{")
-	s = append(s, "Version: "+fmt.Sprintf("%#v", this.Version)+",\n")
-	s = append(s, "Membership: "+strings.Replace(this.Membership.GoString(), `&`, ``, 1)+",\n")
-	s = append(s, "Store: "+strings.Replace(this.Store.GoString(), `&`, ``, 1)+",\n")
-	s = append(s, "}")
-	return strings.Join(s, "")
-}
-func valueToGoStringSnapshot(v interface{}, typ string) string {
-	rv := reflect.ValueOf(v)
-	if rv.IsNil() {
-		return "nil"
-	}
-	pv := reflect.Indirect(rv).Interface()
-	return fmt.Sprintf("func(v %v) *%v { return &v } ( %#v )", typ, typ, pv)
-}
-func extensionToGoStringSnapshot(m github_com_gogo_protobuf_proto.Message) string {
-	e := github_com_gogo_protobuf_proto.GetUnsafeExtensionsMap(m)
-	if e == nil {
-		return "nil"
-	}
-	s := "proto.NewUnsafeXXX_InternalExtensions(map[int32]proto.Extension{"
-	keys := make([]int, 0, len(e))
-	for k := range e {
-		keys = append(keys, int(k))
-	}
-	sort.Ints(keys)
-	ss := []string{}
-	for _, k := range keys {
-		ss = append(ss, strconv.Itoa(k)+": "+e[int32(k)].GoString())
-	}
-	s += strings.Join(ss, ",") + "})"
-	return s
-}
-func (m *StoreSnapshot) Marshal() (data []byte, err error) {
+
+func (m *StoreSnapshot) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
-	data = make([]byte, size)
-	n, err := m.MarshalTo(data)
+	dAtA = make([]byte, size)
+	n, err := m.MarshalTo(dAtA)
 	if err != nil {
 		return nil, err
 	}
-	return data[:n], nil
+	return dAtA[:n], nil
 }
 
-func (m *StoreSnapshot) MarshalTo(data []byte) (int, error) {
+func (m *StoreSnapshot) MarshalTo(dAtA []byte) (int, error) {
 	var i int
 	_ = i
 	var l int
 	_ = l
 	if len(m.Nodes) > 0 {
 		for _, msg := range m.Nodes {
-			data[i] = 0xa
+			dAtA[i] = 0xa
 			i++
-			i = encodeVarintSnapshot(data, i, uint64(msg.Size()))
-			n, err := msg.MarshalTo(data[i:])
+			i = encodeVarintSnapshot(dAtA, i, uint64(msg.Size()))
+			n, err := msg.MarshalTo(dAtA[i:])
 			if err != nil {
 				return 0, err
 			}
@@ -278,10 +219,10 @@ func (m *StoreSnapshot) MarshalTo(data []byte) (int, error) {
 	}
 	if len(m.Services) > 0 {
 		for _, msg := range m.Services {
-			data[i] = 0x12
+			dAtA[i] = 0x12
 			i++
-			i = encodeVarintSnapshot(data, i, uint64(msg.Size()))
-			n, err := msg.MarshalTo(data[i:])
+			i = encodeVarintSnapshot(dAtA, i, uint64(msg.Size()))
+			n, err := msg.MarshalTo(dAtA[i:])
 			if err != nil {
 				return 0, err
 			}
@@ -290,10 +231,10 @@ func (m *StoreSnapshot) MarshalTo(data []byte) (int, error) {
 	}
 	if len(m.Networks) > 0 {
 		for _, msg := range m.Networks {
-			data[i] = 0x1a
+			dAtA[i] = 0x1a
 			i++
-			i = encodeVarintSnapshot(data, i, uint64(msg.Size()))
-			n, err := msg.MarshalTo(data[i:])
+			i = encodeVarintSnapshot(dAtA, i, uint64(msg.Size()))
+			n, err := msg.MarshalTo(dAtA[i:])
 			if err != nil {
 				return 0, err
 			}
@@ -302,10 +243,10 @@ func (m *StoreSnapshot) MarshalTo(data []byte) (int, error) {
 	}
 	if len(m.Tasks) > 0 {
 		for _, msg := range m.Tasks {
-			data[i] = 0x22
+			dAtA[i] = 0x22
 			i++
-			i = encodeVarintSnapshot(data, i, uint64(msg.Size()))
-			n, err := msg.MarshalTo(data[i:])
+			i = encodeVarintSnapshot(dAtA, i, uint64(msg.Size()))
+			n, err := msg.MarshalTo(dAtA[i:])
 			if err != nil {
 				return 0, err
 			}
@@ -314,10 +255,10 @@ func (m *StoreSnapshot) MarshalTo(data []byte) (int, error) {
 	}
 	if len(m.Clusters) > 0 {
 		for _, msg := range m.Clusters {
-			data[i] = 0x2a
+			dAtA[i] = 0x2a
 			i++
-			i = encodeVarintSnapshot(data, i, uint64(msg.Size()))
-			n, err := msg.MarshalTo(data[i:])
+			i = encodeVarintSnapshot(dAtA, i, uint64(msg.Size()))
+			n, err := msg.MarshalTo(dAtA[i:])
 			if err != nil {
 				return 0, err
 			}
@@ -326,10 +267,10 @@ func (m *StoreSnapshot) MarshalTo(data []byte) (int, error) {
 	}
 	if len(m.Secrets) > 0 {
 		for _, msg := range m.Secrets {
-			data[i] = 0x32
+			dAtA[i] = 0x32
 			i++
-			i = encodeVarintSnapshot(data, i, uint64(msg.Size()))
-			n, err := msg.MarshalTo(data[i:])
+			i = encodeVarintSnapshot(dAtA, i, uint64(msg.Size()))
+			n, err := msg.MarshalTo(dAtA[i:])
 			if err != nil {
 				return 0, err
 			}
@@ -339,27 +280,27 @@ func (m *StoreSnapshot) MarshalTo(data []byte) (int, error) {
 	return i, nil
 }
 
-func (m *ClusterSnapshot) Marshal() (data []byte, err error) {
+func (m *ClusterSnapshot) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
-	data = make([]byte, size)
-	n, err := m.MarshalTo(data)
+	dAtA = make([]byte, size)
+	n, err := m.MarshalTo(dAtA)
 	if err != nil {
 		return nil, err
 	}
-	return data[:n], nil
+	return dAtA[:n], nil
 }
 
-func (m *ClusterSnapshot) MarshalTo(data []byte) (int, error) {
+func (m *ClusterSnapshot) MarshalTo(dAtA []byte) (int, error) {
 	var i int
 	_ = i
 	var l int
 	_ = l
 	if len(m.Members) > 0 {
 		for _, msg := range m.Members {
-			data[i] = 0xa
+			dAtA[i] = 0xa
 			i++
-			i = encodeVarintSnapshot(data, i, uint64(msg.Size()))
-			n, err := msg.MarshalTo(data[i:])
+			i = encodeVarintSnapshot(dAtA, i, uint64(msg.Size()))
+			n, err := msg.MarshalTo(dAtA[i:])
 			if err != nil {
 				return 0, err
 			}
@@ -367,79 +308,89 @@ func (m *ClusterSnapshot) MarshalTo(data []byte) (int, error) {
 		}
 	}
 	if len(m.Removed) > 0 {
+		dAtA2 := make([]byte, len(m.Removed)*10)
+		var j1 int
 		for _, num := range m.Removed {
-			data[i] = 0x10
-			i++
-			i = encodeVarintSnapshot(data, i, uint64(num))
+			for num >= 1<<7 {
+				dAtA2[j1] = uint8(uint64(num)&0x7f | 0x80)
+				num >>= 7
+				j1++
+			}
+			dAtA2[j1] = uint8(num)
+			j1++
 		}
+		dAtA[i] = 0x12
+		i++
+		i = encodeVarintSnapshot(dAtA, i, uint64(j1))
+		i += copy(dAtA[i:], dAtA2[:j1])
 	}
 	return i, nil
 }
 
-func (m *Snapshot) Marshal() (data []byte, err error) {
+func (m *Snapshot) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
-	data = make([]byte, size)
-	n, err := m.MarshalTo(data)
+	dAtA = make([]byte, size)
+	n, err := m.MarshalTo(dAtA)
 	if err != nil {
 		return nil, err
 	}
-	return data[:n], nil
+	return dAtA[:n], nil
 }
 
-func (m *Snapshot) MarshalTo(data []byte) (int, error) {
+func (m *Snapshot) MarshalTo(dAtA []byte) (int, error) {
 	var i int
 	_ = i
 	var l int
 	_ = l
 	if m.Version != 0 {
-		data[i] = 0x8
+		dAtA[i] = 0x8
 		i++
-		i = encodeVarintSnapshot(data, i, uint64(m.Version))
+		i = encodeVarintSnapshot(dAtA, i, uint64(m.Version))
 	}
-	data[i] = 0x12
+	dAtA[i] = 0x12
 	i++
-	i = encodeVarintSnapshot(data, i, uint64(m.Membership.Size()))
-	n1, err := m.Membership.MarshalTo(data[i:])
+	i = encodeVarintSnapshot(dAtA, i, uint64(m.Membership.Size()))
+	n3, err := m.Membership.MarshalTo(dAtA[i:])
 	if err != nil {
 		return 0, err
 	}
-	i += n1
-	data[i] = 0x1a
+	i += n3
+	dAtA[i] = 0x1a
 	i++
-	i = encodeVarintSnapshot(data, i, uint64(m.Store.Size()))
-	n2, err := m.Store.MarshalTo(data[i:])
+	i = encodeVarintSnapshot(dAtA, i, uint64(m.Store.Size()))
+	n4, err := m.Store.MarshalTo(dAtA[i:])
 	if err != nil {
 		return 0, err
 	}
-	i += n2
+	i += n4
 	return i, nil
 }
 
-func encodeFixed64Snapshot(data []byte, offset int, v uint64) int {
-	data[offset] = uint8(v)
-	data[offset+1] = uint8(v >> 8)
-	data[offset+2] = uint8(v >> 16)
-	data[offset+3] = uint8(v >> 24)
-	data[offset+4] = uint8(v >> 32)
-	data[offset+5] = uint8(v >> 40)
-	data[offset+6] = uint8(v >> 48)
-	data[offset+7] = uint8(v >> 56)
+func encodeFixed64Snapshot(dAtA []byte, offset int, v uint64) int {
+	dAtA[offset] = uint8(v)
+	dAtA[offset+1] = uint8(v >> 8)
+	dAtA[offset+2] = uint8(v >> 16)
+	dAtA[offset+3] = uint8(v >> 24)
+	dAtA[offset+4] = uint8(v >> 32)
+	dAtA[offset+5] = uint8(v >> 40)
+	dAtA[offset+6] = uint8(v >> 48)
+	dAtA[offset+7] = uint8(v >> 56)
 	return offset + 8
 }
-func encodeFixed32Snapshot(data []byte, offset int, v uint32) int {
-	data[offset] = uint8(v)
-	data[offset+1] = uint8(v >> 8)
-	data[offset+2] = uint8(v >> 16)
-	data[offset+3] = uint8(v >> 24)
+func encodeFixed32Snapshot(dAtA []byte, offset int, v uint32) int {
+	dAtA[offset] = uint8(v)
+	dAtA[offset+1] = uint8(v >> 8)
+	dAtA[offset+2] = uint8(v >> 16)
+	dAtA[offset+3] = uint8(v >> 24)
 	return offset + 4
 }
-func encodeVarintSnapshot(data []byte, offset int, v uint64) int {
+func encodeVarintSnapshot(dAtA []byte, offset int, v uint64) int {
 	for v >= 1<<7 {
-		data[offset] = uint8(v&0x7f | 0x80)
+		dAtA[offset] = uint8(v&0x7f | 0x80)
 		v >>= 7
 		offset++
 	}
-	data[offset] = uint8(v)
+	dAtA[offset] = uint8(v)
 	return offset + 1
 }
 
@@ -495,9 +446,11 @@ func (m *ClusterSnapshot) Size() (n int) {
 		}
 	}
 	if len(m.Removed) > 0 {
+		l = 0
 		for _, e := range m.Removed {
-			n += 1 + sovSnapshot(uint64(e))
+			l += sovSnapshot(uint64(e))
 		}
+		n += 1 + sovSnapshot(uint64(l)) + l
 	}
 	return n
 }
@@ -574,8 +527,8 @@ func valueToStringSnapshot(v interface{}) string {
 	pv := reflect.Indirect(rv).Interface()
 	return fmt.Sprintf("*%v", pv)
 }
-func (m *StoreSnapshot) Unmarshal(data []byte) error {
-	l := len(data)
+func (m *StoreSnapshot) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
 		preIndex := iNdEx
@@ -587,7 +540,7 @@ func (m *StoreSnapshot) Unmarshal(data []byte) error {
 			if iNdEx >= l {
 				return io.ErrUnexpectedEOF
 			}
-			b := data[iNdEx]
+			b := dAtA[iNdEx]
 			iNdEx++
 			wire |= (uint64(b) & 0x7F) << shift
 			if b < 0x80 {
@@ -615,7 +568,7 @@ func (m *StoreSnapshot) Unmarshal(data []byte) error {
 				if iNdEx >= l {
 					return io.ErrUnexpectedEOF
 				}
-				b := data[iNdEx]
+				b := dAtA[iNdEx]
 				iNdEx++
 				msglen |= (int(b) & 0x7F) << shift
 				if b < 0x80 {
@@ -630,7 +583,7 @@ func (m *StoreSnapshot) Unmarshal(data []byte) error {
 				return io.ErrUnexpectedEOF
 			}
 			m.Nodes = append(m.Nodes, &Node{})
-			if err := m.Nodes[len(m.Nodes)-1].Unmarshal(data[iNdEx:postIndex]); err != nil {
+			if err := m.Nodes[len(m.Nodes)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex
@@ -646,7 +599,7 @@ func (m *StoreSnapshot) Unmarshal(data []byte) error {
 				if iNdEx >= l {
 					return io.ErrUnexpectedEOF
 				}
-				b := data[iNdEx]
+				b := dAtA[iNdEx]
 				iNdEx++
 				msglen |= (int(b) & 0x7F) << shift
 				if b < 0x80 {
@@ -661,7 +614,7 @@ func (m *StoreSnapshot) Unmarshal(data []byte) error {
 				return io.ErrUnexpectedEOF
 			}
 			m.Services = append(m.Services, &Service{})
-			if err := m.Services[len(m.Services)-1].Unmarshal(data[iNdEx:postIndex]); err != nil {
+			if err := m.Services[len(m.Services)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex
@@ -677,7 +630,7 @@ func (m *StoreSnapshot) Unmarshal(data []byte) error {
 				if iNdEx >= l {
 					return io.ErrUnexpectedEOF
 				}
-				b := data[iNdEx]
+				b := dAtA[iNdEx]
 				iNdEx++
 				msglen |= (int(b) & 0x7F) << shift
 				if b < 0x80 {
@@ -692,7 +645,7 @@ func (m *StoreSnapshot) Unmarshal(data []byte) error {
 				return io.ErrUnexpectedEOF
 			}
 			m.Networks = append(m.Networks, &Network{})
-			if err := m.Networks[len(m.Networks)-1].Unmarshal(data[iNdEx:postIndex]); err != nil {
+			if err := m.Networks[len(m.Networks)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex
@@ -708,7 +661,7 @@ func (m *StoreSnapshot) Unmarshal(data []byte) error {
 				if iNdEx >= l {
 					return io.ErrUnexpectedEOF
 				}
-				b := data[iNdEx]
+				b := dAtA[iNdEx]
 				iNdEx++
 				msglen |= (int(b) & 0x7F) << shift
 				if b < 0x80 {
@@ -723,7 +676,7 @@ func (m *StoreSnapshot) Unmarshal(data []byte) error {
 				return io.ErrUnexpectedEOF
 			}
 			m.Tasks = append(m.Tasks, &Task{})
-			if err := m.Tasks[len(m.Tasks)-1].Unmarshal(data[iNdEx:postIndex]); err != nil {
+			if err := m.Tasks[len(m.Tasks)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex
@@ -739,7 +692,7 @@ func (m *StoreSnapshot) Unmarshal(data []byte) error {
 				if iNdEx >= l {
 					return io.ErrUnexpectedEOF
 				}
-				b := data[iNdEx]
+				b := dAtA[iNdEx]
 				iNdEx++
 				msglen |= (int(b) & 0x7F) << shift
 				if b < 0x80 {
@@ -754,7 +707,7 @@ func (m *StoreSnapshot) Unmarshal(data []byte) error {
 				return io.ErrUnexpectedEOF
 			}
 			m.Clusters = append(m.Clusters, &Cluster{})
-			if err := m.Clusters[len(m.Clusters)-1].Unmarshal(data[iNdEx:postIndex]); err != nil {
+			if err := m.Clusters[len(m.Clusters)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex
@@ -770,7 +723,7 @@ func (m *StoreSnapshot) Unmarshal(data []byte) error {
 				if iNdEx >= l {
 					return io.ErrUnexpectedEOF
 				}
-				b := data[iNdEx]
+				b := dAtA[iNdEx]
 				iNdEx++
 				msglen |= (int(b) & 0x7F) << shift
 				if b < 0x80 {
@@ -785,13 +738,13 @@ func (m *StoreSnapshot) Unmarshal(data []byte) error {
 				return io.ErrUnexpectedEOF
 			}
 			m.Secrets = append(m.Secrets, &Secret{})
-			if err := m.Secrets[len(m.Secrets)-1].Unmarshal(data[iNdEx:postIndex]); err != nil {
+			if err := m.Secrets[len(m.Secrets)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
-			skippy, err := skipSnapshot(data[iNdEx:])
+			skippy, err := skipSnapshot(dAtA[iNdEx:])
 			if err != nil {
 				return err
 			}
@@ -810,8 +763,8 @@ func (m *StoreSnapshot) Unmarshal(data []byte) error {
 	}
 	return nil
 }
-func (m *ClusterSnapshot) Unmarshal(data []byte) error {
-	l := len(data)
+func (m *ClusterSnapshot) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
 		preIndex := iNdEx
@@ -823,7 +776,7 @@ func (m *ClusterSnapshot) Unmarshal(data []byte) error {
 			if iNdEx >= l {
 				return io.ErrUnexpectedEOF
 			}
-			b := data[iNdEx]
+			b := dAtA[iNdEx]
 			iNdEx++
 			wire |= (uint64(b) & 0x7F) << shift
 			if b < 0x80 {
@@ -851,7 +804,7 @@ func (m *ClusterSnapshot) Unmarshal(data []byte) error {
 				if iNdEx >= l {
 					return io.ErrUnexpectedEOF
 				}
-				b := data[iNdEx]
+				b := dAtA[iNdEx]
 				iNdEx++
 				msglen |= (int(b) & 0x7F) << shift
 				if b < 0x80 {
@@ -866,33 +819,75 @@ func (m *ClusterSnapshot) Unmarshal(data []byte) error {
 				return io.ErrUnexpectedEOF
 			}
 			m.Members = append(m.Members, &RaftMember{})
-			if err := m.Members[len(m.Members)-1].Unmarshal(data[iNdEx:postIndex]); err != nil {
+			if err := m.Members[len(m.Members)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex
 		case 2:
-			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Removed", wireType)
-			}
-			var v uint64
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowSnapshot
+			if wireType == 2 {
+				var packedLen int
+				for shift := uint(0); ; shift += 7 {
+					if shift >= 64 {
+						return ErrIntOverflowSnapshot
+					}
+					if iNdEx >= l {
+						return io.ErrUnexpectedEOF
+					}
+					b := dAtA[iNdEx]
+					iNdEx++
+					packedLen |= (int(b) & 0x7F) << shift
+					if b < 0x80 {
+						break
+					}
 				}
-				if iNdEx >= l {
+				if packedLen < 0 {
+					return ErrInvalidLengthSnapshot
+				}
+				postIndex := iNdEx + packedLen
+				if postIndex > l {
 					return io.ErrUnexpectedEOF
 				}
-				b := data[iNdEx]
-				iNdEx++
-				v |= (uint64(b) & 0x7F) << shift
-				if b < 0x80 {
-					break
+				for iNdEx < postIndex {
+					var v uint64
+					for shift := uint(0); ; shift += 7 {
+						if shift >= 64 {
+							return ErrIntOverflowSnapshot
+						}
+						if iNdEx >= l {
+							return io.ErrUnexpectedEOF
+						}
+						b := dAtA[iNdEx]
+						iNdEx++
+						v |= (uint64(b) & 0x7F) << shift
+						if b < 0x80 {
+							break
+						}
+					}
+					m.Removed = append(m.Removed, v)
 				}
+			} else if wireType == 0 {
+				var v uint64
+				for shift := uint(0); ; shift += 7 {
+					if shift >= 64 {
+						return ErrIntOverflowSnapshot
+					}
+					if iNdEx >= l {
+						return io.ErrUnexpectedEOF
+					}
+					b := dAtA[iNdEx]
+					iNdEx++
+					v |= (uint64(b) & 0x7F) << shift
+					if b < 0x80 {
+						break
+					}
+				}
+				m.Removed = append(m.Removed, v)
+			} else {
+				return fmt.Errorf("proto: wrong wireType = %d for field Removed", wireType)
 			}
-			m.Removed = append(m.Removed, v)
 		default:
 			iNdEx = preIndex
-			skippy, err := skipSnapshot(data[iNdEx:])
+			skippy, err := skipSnapshot(dAtA[iNdEx:])
 			if err != nil {
 				return err
 			}
@@ -911,8 +906,8 @@ func (m *ClusterSnapshot) Unmarshal(data []byte) error {
 	}
 	return nil
 }
-func (m *Snapshot) Unmarshal(data []byte) error {
-	l := len(data)
+func (m *Snapshot) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
 		preIndex := iNdEx
@@ -924,7 +919,7 @@ func (m *Snapshot) Unmarshal(data []byte) error {
 			if iNdEx >= l {
 				return io.ErrUnexpectedEOF
 			}
-			b := data[iNdEx]
+			b := dAtA[iNdEx]
 			iNdEx++
 			wire |= (uint64(b) & 0x7F) << shift
 			if b < 0x80 {
@@ -952,7 +947,7 @@ func (m *Snapshot) Unmarshal(data []byte) error {
 				if iNdEx >= l {
 					return io.ErrUnexpectedEOF
 				}
-				b := data[iNdEx]
+				b := dAtA[iNdEx]
 				iNdEx++
 				m.Version |= (Snapshot_Version(b) & 0x7F) << shift
 				if b < 0x80 {
@@ -971,7 +966,7 @@ func (m *Snapshot) Unmarshal(data []byte) error {
 				if iNdEx >= l {
 					return io.ErrUnexpectedEOF
 				}
-				b := data[iNdEx]
+				b := dAtA[iNdEx]
 				iNdEx++
 				msglen |= (int(b) & 0x7F) << shift
 				if b < 0x80 {
@@ -985,7 +980,7 @@ func (m *Snapshot) Unmarshal(data []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			if err := m.Membership.Unmarshal(data[iNdEx:postIndex]); err != nil {
+			if err := m.Membership.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex
@@ -1001,7 +996,7 @@ func (m *Snapshot) Unmarshal(data []byte) error {
 				if iNdEx >= l {
 					return io.ErrUnexpectedEOF
 				}
-				b := data[iNdEx]
+				b := dAtA[iNdEx]
 				iNdEx++
 				msglen |= (int(b) & 0x7F) << shift
 				if b < 0x80 {
@@ -1015,13 +1010,13 @@ func (m *Snapshot) Unmarshal(data []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			if err := m.Store.Unmarshal(data[iNdEx:postIndex]); err != nil {
+			if err := m.Store.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
-			skippy, err := skipSnapshot(data[iNdEx:])
+			skippy, err := skipSnapshot(dAtA[iNdEx:])
 			if err != nil {
 				return err
 			}
@@ -1040,8 +1035,8 @@ func (m *Snapshot) Unmarshal(data []byte) error {
 	}
 	return nil
 }
-func skipSnapshot(data []byte) (n int, err error) {
-	l := len(data)
+func skipSnapshot(dAtA []byte) (n int, err error) {
+	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
 		var wire uint64
@@ -1052,7 +1047,7 @@ func skipSnapshot(data []byte) (n int, err error) {
 			if iNdEx >= l {
 				return 0, io.ErrUnexpectedEOF
 			}
-			b := data[iNdEx]
+			b := dAtA[iNdEx]
 			iNdEx++
 			wire |= (uint64(b) & 0x7F) << shift
 			if b < 0x80 {
@@ -1070,7 +1065,7 @@ func skipSnapshot(data []byte) (n int, err error) {
 					return 0, io.ErrUnexpectedEOF
 				}
 				iNdEx++
-				if data[iNdEx-1] < 0x80 {
+				if dAtA[iNdEx-1] < 0x80 {
 					break
 				}
 			}
@@ -1087,7 +1082,7 @@ func skipSnapshot(data []byte) (n int, err error) {
 				if iNdEx >= l {
 					return 0, io.ErrUnexpectedEOF
 				}
-				b := data[iNdEx]
+				b := dAtA[iNdEx]
 				iNdEx++
 				length |= (int(b) & 0x7F) << shift
 				if b < 0x80 {
@@ -1110,7 +1105,7 @@ func skipSnapshot(data []byte) (n int, err error) {
 					if iNdEx >= l {
 						return 0, io.ErrUnexpectedEOF
 					}
-					b := data[iNdEx]
+					b := dAtA[iNdEx]
 					iNdEx++
 					innerWire |= (uint64(b) & 0x7F) << shift
 					if b < 0x80 {
@@ -1121,7 +1116,7 @@ func skipSnapshot(data []byte) (n int, err error) {
 				if innerWireType == 4 {
 					break
 				}
-				next, err := skipSnapshot(data[start:])
+				next, err := skipSnapshot(dAtA[start:])
 				if err != nil {
 					return 0, err
 				}
@@ -1148,31 +1143,31 @@ var (
 func init() { proto.RegisterFile("snapshot.proto", fileDescriptorSnapshot) }
 
 var fileDescriptorSnapshot = []byte{
-	// 409 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x09, 0x6e, 0x88, 0x02, 0xff, 0x7c, 0x92, 0xbf, 0x6f, 0xd3, 0x40,
-	0x14, 0xc7, 0x73, 0xce, 0x0f, 0x57, 0xaf, 0x6a, 0x81, 0x13, 0xc3, 0x29, 0xa0, 0x23, 0x04, 0x86,
-	0x4c, 0x06, 0x02, 0x12, 0x2c, 0x30, 0x94, 0x89, 0x81, 0x0e, 0x17, 0x54, 0xb1, 0x3a, 0xf6, 0x6b,
-	0x6b, 0x8c, 0x7d, 0xd1, 0xbd, 0xc3, 0x5d, 0xf9, 0xf3, 0x32, 0x76, 0x64, 0x42, 0xc4, 0x0b, 0x2b,
-	0x7f, 0x02, 0xb2, 0xcf, 0xb6, 0x22, 0xe1, 0xb0, 0x3d, 0x5b, 0x9f, 0xef, 0x8f, 0x7b, 0x7a, 0x70,
-	0x4a, 0x79, 0xb8, 0xa1, 0x6b, 0x6d, 0x83, 0x8d, 0xd1, 0x56, 0x73, 0x1e, 0xeb, 0x28, 0x45, 0x13,
-	0xd0, 0x4d, 0x68, 0xb2, 0x34, 0xb1, 0x41, 0xf1, 0x62, 0x7a, 0xa2, 0xd7, 0x5f, 0x30, 0xb2, 0xe4,
-	0x90, 0x29, 0x98, 0xf0, 0xb2, 0xc1, 0xa7, 0xf7, 0xaf, 0xf4, 0x95, 0xae, 0xc7, 0x67, 0xd5, 0xe4,
-	0xfe, 0xce, 0x6f, 0x3d, 0x38, 0x59, 0x59, 0x6d, 0x70, 0xd5, 0x98, 0xf3, 0x00, 0xc6, 0xb9, 0x8e,
-	0x91, 0x04, 0x9b, 0x0d, 0x17, 0xc7, 0x4b, 0x11, 0xfc, 0x1b, 0x13, 0x9c, 0xeb, 0x18, 0x95, 0xc3,
-	0xf8, 0x6b, 0x38, 0x22, 0x34, 0x45, 0x12, 0x21, 0x09, 0xaf, 0x96, 0x3c, 0xe8, 0x93, 0xac, 0x1c,
-	0xa3, 0x3a, 0xb8, 0x12, 0xe6, 0x68, 0x6f, 0xb4, 0x49, 0x49, 0x0c, 0x0f, 0x0b, 0xcf, 0x1d, 0xa3,
-	0x3a, 0xb8, 0x6a, 0x68, 0x43, 0x4a, 0x49, 0x8c, 0x0e, 0x37, 0xfc, 0x14, 0x52, 0xaa, 0x1c, 0x56,
-	0x05, 0x45, 0x5f, 0xbf, 0x91, 0x45, 0x43, 0x62, 0x7c, 0x38, 0xe8, 0xbd, 0x63, 0x54, 0x07, 0xf3,
-	0x57, 0xe0, 0x13, 0x46, 0x06, 0x2d, 0x89, 0x49, 0xad, 0x9b, 0xf6, 0xbf, 0xac, 0x42, 0x54, 0x8b,
-	0xce, 0x11, 0xee, 0x34, 0x56, 0xdd, 0x4e, 0xdf, 0x80, 0x9f, 0x61, 0xb6, 0xae, 0x0a, 0xb8, 0xad,
-	0xca, 0x3e, 0x23, 0x15, 0x5e, 0xda, 0x8f, 0x35, 0xa6, 0x5a, 0x9c, 0x0b, 0xf0, 0x0d, 0x66, 0xba,
-	0xc0, 0xb8, 0x5e, 0xee, 0x48, 0xb5, 0x9f, 0xf3, 0xdf, 0x0c, 0x8e, 0xba, 0x80, 0x77, 0xe0, 0x17,
-	0x68, 0x28, 0xd1, 0xb9, 0x60, 0x33, 0xb6, 0x38, 0x5d, 0x3e, 0xed, 0x6d, 0xda, 0x1e, 0xd0, 0x85,
-	0x63, 0x55, 0x2b, 0xe2, 0x1f, 0x00, 0x9a, 0xc4, 0xeb, 0x64, 0x23, 0xbc, 0x19, 0x5b, 0x1c, 0x2f,
-	0x9f, 0xfc, 0x67, 0x49, 0xad, 0xd3, 0xd9, 0x68, 0xfb, 0xf3, 0xd1, 0x40, 0xed, 0x89, 0xf9, 0x5b,
-	0x18, 0x53, 0x75, 0x50, 0x62, 0x58, 0xbb, 0x3c, 0xee, 0x2d, 0xb2, 0x7f, 0x71, 0x8d, 0x87, 0x53,
-	0xcd, 0xef, 0x81, 0xdf, 0xb4, 0xe3, 0x13, 0xf0, 0x2e, 0x9e, 0xdf, 0x1d, 0x9c, 0x3d, 0xdc, 0xee,
-	0xe4, 0xe0, 0xc7, 0x4e, 0x0e, 0xfe, 0xec, 0x24, 0xfb, 0x5e, 0x4a, 0xb6, 0x2d, 0x25, 0xbb, 0x2d,
-	0x25, 0xfb, 0x55, 0x4a, 0xf6, 0xd9, 0x5b, 0x4f, 0xea, 0x53, 0x7e, 0xf9, 0x37, 0x00, 0x00, 0xff,
-	0xff, 0x48, 0xfb, 0x27, 0x26, 0x21, 0x03, 0x00, 0x00,
+	// 404 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x09, 0x6e, 0x88, 0x02, 0xff, 0x7c, 0x92, 0xbd, 0x6e, 0xd4, 0x40,
+	0x10, 0xc7, 0xbd, 0xbe, 0x0f, 0x47, 0x13, 0x25, 0xc0, 0x8a, 0x62, 0x65, 0x24, 0x73, 0x18, 0x8a,
+	0xab, 0x0c, 0x1c, 0x48, 0xd0, 0x40, 0x11, 0x2a, 0x0a, 0x52, 0xec, 0xa1, 0x88, 0xd6, 0x67, 0x4f,
+	0x12, 0x63, 0xec, 0x3d, 0xed, 0x2c, 0x4e, 0xcb, 0xe3, 0x5d, 0x99, 0x92, 0x0a, 0x11, 0x37, 0xbc,
+	0x06, 0xb2, 0xd7, 0xb6, 0x4e, 0xc2, 0x47, 0x37, 0xb6, 0x7e, 0xff, 0x8f, 0x1d, 0x0d, 0x9c, 0x52,
+	0x19, 0x6f, 0xe9, 0x5a, 0x99, 0x68, 0xab, 0x95, 0x51, 0x9c, 0xa7, 0x2a, 0xc9, 0x51, 0x47, 0x74,
+	0x13, 0xeb, 0x22, 0xcf, 0x4c, 0x54, 0xbd, 0xf4, 0x4f, 0xd4, 0xe6, 0x2b, 0x26, 0x86, 0x2c, 0xe2,
+	0x83, 0x8e, 0x2f, 0x3b, 0xdc, 0x7f, 0x78, 0xa5, 0xae, 0x54, 0x3b, 0x3e, 0x6f, 0x26, 0xfb, 0x37,
+	0xbc, 0x75, 0xe1, 0x64, 0x6d, 0x94, 0xc6, 0x75, 0x67, 0xce, 0x23, 0x98, 0x95, 0x2a, 0x45, 0x12,
+	0x6c, 0x31, 0x59, 0x1e, 0xaf, 0x44, 0xf4, 0x6f, 0x4c, 0x74, 0xae, 0x52, 0x94, 0x16, 0xe3, 0x6f,
+	0xe0, 0x88, 0x50, 0x57, 0x59, 0x82, 0x24, 0xdc, 0x56, 0xf2, 0x68, 0x4c, 0xb2, 0xb6, 0x8c, 0x1c,
+	0xe0, 0x46, 0x58, 0xa2, 0xb9, 0x51, 0x3a, 0x27, 0x31, 0x39, 0x2c, 0x3c, 0xb7, 0x8c, 0x1c, 0xe0,
+	0xa6, 0xa1, 0x89, 0x29, 0x27, 0x31, 0x3d, 0xdc, 0xf0, 0x73, 0x4c, 0xb9, 0xb4, 0x58, 0x13, 0x94,
+	0x7c, 0xfb, 0x4e, 0x06, 0x35, 0x89, 0xd9, 0xe1, 0xa0, 0x0f, 0x96, 0x91, 0x03, 0xcc, 0x5f, 0x83,
+	0x47, 0x98, 0x68, 0x34, 0x24, 0xe6, 0xad, 0xce, 0x1f, 0x7f, 0x59, 0x83, 0xc8, 0x1e, 0x0d, 0x11,
+	0xee, 0x75, 0x56, 0xc3, 0x4e, 0xdf, 0x82, 0x57, 0x60, 0xb1, 0x69, 0x0a, 0xd8, 0xad, 0x06, 0x63,
+	0x46, 0x32, 0xbe, 0x34, 0x9f, 0x5a, 0x4c, 0xf6, 0x38, 0x17, 0xe0, 0x69, 0x2c, 0x54, 0x85, 0x69,
+	0xbb, 0xdc, 0xa9, 0xec, 0x3f, 0xc3, 0x3f, 0x0c, 0x8e, 0x86, 0x80, 0xf7, 0xe0, 0x55, 0xa8, 0x29,
+	0x53, 0xa5, 0x60, 0x0b, 0xb6, 0x3c, 0x5d, 0x3d, 0x1b, 0x6d, 0xda, 0x1f, 0xd0, 0x85, 0x65, 0x65,
+	0x2f, 0xe2, 0x1f, 0x01, 0xba, 0xc4, 0xeb, 0x6c, 0x2b, 0xdc, 0x05, 0x5b, 0x1e, 0xaf, 0x9e, 0xfe,
+	0x67, 0x49, 0xbd, 0xd3, 0xd9, 0x74, 0xf7, 0xeb, 0xb1, 0x23, 0xf7, 0xc4, 0xfc, 0x1d, 0xcc, 0xa8,
+	0x39, 0x28, 0x31, 0x69, 0x5d, 0x9e, 0x8c, 0x16, 0xd9, 0xbf, 0xb8, 0xce, 0xc3, 0xaa, 0xc2, 0x07,
+	0xe0, 0x75, 0xed, 0xf8, 0x1c, 0xdc, 0x8b, 0x17, 0xf7, 0x9d, 0x33, 0xb1, 0xbb, 0x0b, 0x9c, 0x9f,
+	0x77, 0x81, 0xf3, 0xa3, 0x0e, 0xd8, 0xae, 0x0e, 0xd8, 0x6d, 0x1d, 0xb0, 0xdf, 0x75, 0xc0, 0xbe,
+	0xb8, 0x9b, 0x79, 0x7b, 0xc6, 0xaf, 0xfe, 0x06, 0x00, 0x00, 0xff, 0xff, 0xa4, 0x5b, 0x6d, 0xab,
+	0x1d, 0x03, 0x00, 0x00,
 }

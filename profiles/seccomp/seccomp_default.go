@@ -306,8 +306,6 @@ func DefaultProfile() *types.Seccomp {
 				"signalfd",
 				"signalfd4",
 				"sigreturn",
-				"socket",
-				"socketcall",
 				"socketpair",
 				"splice",
 				"stat",
@@ -389,7 +387,156 @@ func DefaultProfile() *types.Seccomp {
 			},
 		},
 		{
+			Names:  []string{"socket"},
+			Action: types.ActAllow,
+			Args: []*types.Arg{
+				{
+					Index: 0,
+					Value: syscall.AF_UNIX,
+					Op:    types.OpEqualTo,
+				},
+			},
+		},
+		{
+			Names:  []string{"socket"},
+			Action: types.ActAllow,
+			Args: []*types.Arg{
+				{
+					Index: 0,
+					Value: syscall.AF_INET,
+					Op:    types.OpEqualTo,
+				},
+			},
+		},
+		{
+			Names:  []string{"socket"},
+			Action: types.ActAllow,
+			Args: []*types.Arg{
+				{
+					Index: 0,
+					Value: syscall.AF_INET6,
+					Op:    types.OpEqualTo,
+				},
+			},
+		},
+		{
+			Names:  []string{"socket"},
+			Action: types.ActAllow,
+			Args: []*types.Arg{
+				{
+					Index: 0,
+					Value: syscall.AF_NETLINK,
+					Op:    types.OpEqualTo,
+				},
+			},
+		},
+		{
+			Names:  []string{"socket"},
+			Action: types.ActAllow,
+			Args: []*types.Arg{
+				{
+					Index: 0,
+					Value: syscall.AF_PACKET,
+					Op:    types.OpEqualTo,
+				},
+			},
+		},
+		// socketcall(1, ...) is equivalent to socket(...) on some architectures eg i386
+		{
+			Names:  []string{"socketcall"},
+			Action: types.ActAllow,
+			Args: []*types.Arg{
+				{
+					Index: 0,
+					Value: 1,
+					Op:    types.OpGreaterThan,
+				},
+			},
+		},
+		{
+			Names:  []string{"socketcall"},
+			Action: types.ActAllow,
+			Args: []*types.Arg{
+				{
+					Index: 0,
+					Value: 1,
+					Op:    types.OpEqualTo,
+				},
+				{
+					Index: 1,
+					Value: syscall.AF_UNIX,
+					Op:    types.OpEqualTo,
+				},
+			},
+		},
+		{
+			Names:  []string{"socketcall"},
+			Action: types.ActAllow,
+			Args: []*types.Arg{
+				{
+					Index: 0,
+					Value: 1,
+					Op:    types.OpEqualTo,
+				},
+				{
+					Index: 1,
+					Value: syscall.AF_INET,
+					Op:    types.OpEqualTo,
+				},
+			},
+		},
+		{
+			Names:  []string{"socketcall"},
+			Action: types.ActAllow,
+			Args: []*types.Arg{
+				{
+					Index: 0,
+					Value: 1,
+					Op:    types.OpEqualTo,
+				},
+				{
+					Index: 1,
+					Value: syscall.AF_INET6,
+					Op:    types.OpEqualTo,
+				},
+			},
+		},
+		{
+			Names:  []string{"socketcall"},
+			Action: types.ActAllow,
+			Args: []*types.Arg{
+				{
+					Index: 0,
+					Value: 1,
+					Op:    types.OpEqualTo,
+				},
+				{
+					Index: 1,
+					Value: syscall.AF_NETLINK,
+					Op:    types.OpEqualTo,
+				},
+			},
+		},
+		{
+			Names:  []string{"socketcall"},
+			Action: types.ActAllow,
+			Args: []*types.Arg{
+				{
+					Index: 0,
+					Value: 1,
+					Op:    types.OpEqualTo,
+				},
+				{
+					Index: 1,
+					Value: syscall.AF_PACKET,
+					Op:    types.OpEqualTo,
+				},
+			},
+		},
+		{
 			Names: []string{
+				"arm_fadvise64_64",
+				"arm_sync_file_range",
 				"breakpoint",
 				"cacheflush",
 				"set_tls",

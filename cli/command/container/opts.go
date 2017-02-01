@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"path"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -19,6 +20,10 @@ import (
 	"github.com/docker/go-connections/nat"
 	units "github.com/docker/go-units"
 	"github.com/spf13/pflag"
+)
+
+var (
+	deviceCgroupRuleRegexp = regexp.MustCompile("^[acb] ([0-9]+|\\*):([0-9]+|\\*) [rwm]{1,3}$")
 )
 
 // containerOptions is a data object with all the options for creating a container
@@ -36,6 +41,7 @@ type containerOptions struct {
 	deviceWriteIOps    opts.ThrottledeviceOpt
 	env                opts.ListOpts
 	labels             opts.ListOpts
+	deviceCgroupRules  opts.ListOpts
 	devices            opts.ListOpts
 	ulimits            *opts.UlimitOpt
 	sysctls            *opts.MapOpts
@@ -100,7 +106,7 @@ type containerOptions struct {
 	stopSignal         string
 	stopTimeout        int
 	isolation          string
-	shmSize            string
+	shmSize            opts.MemBytes
 	noHealthcheck      bool
 	healthCmd          string
 	healthInterval     time.Duration
@@ -127,6 +133,7 @@ func addFlags(flags *pflag.FlagSet) *containerOptions {
 		dns:               opts.NewListOpts(opts.ValidateIPAddress),
 		dnsOptions:        opts.NewListOpts(nil),
 		dnsSearch:         opts.NewListOpts(opts.ValidateDNSSearch),
+		deviceCgroupRules: opts.NewListOpts(validateDeviceCgroupRule),
 		deviceReadBps:     opts.NewThrottledeviceOpt(opts.ValidateThrottleBpsDevice),
 		deviceReadIOps:    opts.NewThrottledeviceOpt(opts.ValidateThrottleIOpsDevice),
 		deviceWriteBps:    opts.NewThrottledeviceOpt(opts.ValidateThrottleBpsDevice),
@@ -154,6 +161,7 @@ func addFlags(flags *pflag.FlagSet) *containerOptions {
 
 	// General purpose flags
 	flags.VarP(&copts.attach, "attach", "a", "Attach to STDIN, STDOUT or STDERR")
+	flags.Var(&copts.deviceCgroupRules, "device-cgroup-rule", "Add a rule to the cgroup allowed devices list")
 	flags.Var(&copts.devices, "device", "Add a host device to the container")
 	flags.VarP(&copts.env, "env", "e", "Set environment variables")
 	flags.Var(&copts.envFile, "env-file", "Read in a file of environment variables")
@@ -236,9 +244,12 @@ func addFlags(flags *pflag.FlagSet) *containerOptions {
 	flags.Int64Var(&copts.cpuPeriod, "cpu-period", 0, "Limit CPU CFS (Completely Fair Scheduler) period")
 	flags.Int64Var(&copts.cpuQuota, "cpu-quota", 0, "Limit CPU CFS (Completely Fair Scheduler) quota")
 	flags.Int64Var(&copts.cpuRealtimePeriod, "cpu-rt-period", 0, "Limit CPU real-time period in microseconds")
+	flags.SetAnnotation("cpu-rt-period", "version", []string{"1.25"})
 	flags.Int64Var(&copts.cpuRealtimeRuntime, "cpu-rt-runtime", 0, "Limit CPU real-time runtime in microseconds")
+	flags.SetAnnotation("cpu-rt-runtime", "version", []string{"1.25"})
 	flags.Int64VarP(&copts.cpuShares, "cpu-shares", "c", 0, "CPU shares (relative weight)")
 	flags.Var(&copts.cpus, "cpus", "Number of CPUs")
+	flags.SetAnnotation("cpus", "version", []string{"1.25"})
 	flags.Var(&copts.deviceReadBps, "device-read-bps", "Limit read rate (bytes per second) from a device")
 	flags.Var(&copts.deviceReadIOps, "device-read-iops", "Limit read rate (IO per second) from a device")
 	flags.Var(&copts.deviceWriteBps, "device-write-bps", "Limit write rate (bytes per second) to a device")
@@ -259,12 +270,14 @@ func addFlags(flags *pflag.FlagSet) *containerOptions {
 	flags.StringVar(&copts.ipcMode, "ipc", "", "IPC namespace to use")
 	flags.StringVar(&copts.isolation, "isolation", "", "Container isolation technology")
 	flags.StringVar(&copts.pidMode, "pid", "", "PID namespace to use")
-	flags.StringVar(&copts.shmSize, "shm-size", "", "Size of /dev/shm, default value is 64MB")
+	flags.Var(&copts.shmSize, "shm-size", "Size of /dev/shm")
 	flags.StringVar(&copts.utsMode, "uts", "", "UTS namespace to use")
 	flags.StringVar(&copts.runtime, "runtime", "", "Runtime to use for this container")
 
 	flags.BoolVar(&copts.init, "init", false, "Run an init inside the container that forwards signals and reaps processes")
+	flags.SetAnnotation("init", "version", []string{"1.25"})
 	flags.StringVar(&copts.initPath, "init-path", "", "Path to the docker-init binary")
+	flags.SetAnnotation("init-path", "version", []string{"1.25"})
 	return copts
 }
 
@@ -334,14 +347,6 @@ func parse(flags *pflag.FlagSet, copts *containerOptions) (*container.Config, *c
 	swappiness := copts.swappiness
 	if swappiness != -1 && (swappiness < 0 || swappiness > 100) {
 		return nil, nil, nil, fmt.Errorf("invalid value: %d. Valid memory swappiness range is 0-100", swappiness)
-	}
-
-	var shmSize int64
-	if copts.shmSize != "" {
-		shmSize, err = units.RAMInBytes(copts.shmSize)
-		if err != nil {
-			return nil, nil, nil, err
-		}
 	}
 
 	// TODO FIXME units.RAMInBytes should have a uint64 version
@@ -548,6 +553,7 @@ func parse(flags *pflag.FlagSet, copts *containerOptions) (*container.Config, *c
 		IOMaximumIOps:        copts.ioMaxIOps,
 		IOMaximumBandwidth:   uint64(maxIOBandwidth),
 		Ulimits:              copts.ulimits.GetList(),
+		DeviceCgroupRules:    copts.deviceCgroupRules.GetAll(),
 		Devices:              deviceMappings,
 	}
 
@@ -615,11 +621,15 @@ func parse(flags *pflag.FlagSet, copts *containerOptions) (*container.Config, *c
 		LogConfig:      container.LogConfig{Type: copts.loggingDriver, Config: loggingOpts},
 		VolumeDriver:   copts.volumeDriver,
 		Isolation:      container.Isolation(copts.isolation),
-		ShmSize:        shmSize,
+		ShmSize:        copts.shmSize.Value(),
 		Resources:      resources,
 		Tmpfs:          tmpfs,
 		Sysctls:        copts.sysctls.GetAll(),
 		Runtime:        copts.runtime,
+	}
+
+	if copts.autoRemove && !hostConfig.RestartPolicy.IsNone() {
+		return nil, nil, nil, fmt.Errorf("Conflicting options: --restart and --rm")
 	}
 
 	// only set this value if the user provided the flag, else it should default to nil
@@ -756,6 +766,17 @@ func parseDevice(device string) (container.DeviceMapping, error) {
 		CgroupPermissions: permissions,
 	}
 	return deviceMapping, nil
+}
+
+// validateDeviceCgroupRule validates a device cgroup rule string format
+// It will make sure 'val' is in the form:
+//    'type major:minor mode'
+func validateDeviceCgroupRule(val string) (string, error) {
+	if deviceCgroupRuleRegexp.MatchString(val) {
+		return val, nil
+	}
+
+	return val, fmt.Errorf("invalid device cgroup format '%s'", val)
 }
 
 // validDeviceMode checks if the mode for device is valid or not.

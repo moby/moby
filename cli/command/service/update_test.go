@@ -442,3 +442,25 @@ func TestUpdateSecretUpdateInPlace(t *testing.T) {
 	assert.Equal(t, updatedSecrets[0].SecretName, "foo")
 	assert.Equal(t, updatedSecrets[0].File.Name, "foo2")
 }
+
+func TestUpdateReadOnly(t *testing.T) {
+	spec := &swarm.ServiceSpec{}
+	cspec := &spec.TaskTemplate.ContainerSpec
+
+	// Update with --read-only=true, changed to true
+	flags := newUpdateCommand(nil).Flags()
+	flags.Set("read-only", "true")
+	updateService(flags, spec)
+	assert.Equal(t, cspec.ReadOnly, true)
+
+	// Update without --read-only, no change
+	flags = newUpdateCommand(nil).Flags()
+	updateService(flags, spec)
+	assert.Equal(t, cspec.ReadOnly, true)
+
+	// Update with --read-only=false, changed to false
+	flags = newUpdateCommand(nil).Flags()
+	flags.Set("read-only", "false")
+	updateService(flags, spec)
+	assert.Equal(t, cspec.ReadOnly, false)
+}

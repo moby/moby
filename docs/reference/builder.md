@@ -2,6 +2,8 @@
 title: "Dockerfile reference"
 description: "Dockerfiles use a simple DSL which allows you to automate the steps you would normally manually take to create an image."
 keywords: "builder, docker, Dockerfile, automation, image creation"
+redirect_from:
+- /reference/builder/
 ---
 
 <!-- This file is maintained within the docker/docker Github
@@ -403,9 +405,9 @@ Here is an example `.dockerignore` file:
 
 ```
 # comment
-    */temp*
-    */*/temp*
-    temp?
+*/temp*
+*/*/temp*
+temp?
 ```
 
 This file causes the following build behavior:
@@ -709,7 +711,7 @@ it instead, as it enables setting any metadata you require, and can be viewed
 easily, for example with `docker inspect`. To set a label corresponding to the
 `MAINTAINER` field you could use:
 
-    LABEL maintainer "SvenDowideit@home.org.au"
+    LABEL maintainer="SvenDowideit@home.org.au"
 
 This will then be visible from `docker inspect` with the other labels.
 
@@ -1286,8 +1288,8 @@ to create the directory in the Dockerfile. For example:
     ARG <name>[=<default value>]
 
 The `ARG` instruction defines a variable that users can pass at build-time to
-the builder with the `docker build` command using the `--build-arg
-<varname>=<value>` flag. If a user specifies a build argument that was not
+the builder with the `docker build` command using the `--build-arg <varname>=<value>`
+flag. If a user specifies a build argument that was not
 defined in the Dockerfile, the build outputs a warning.
 
 ```
@@ -1375,7 +1377,7 @@ useful interactions between `ARG` and `ENV` instructions:
 ```
 
 Unlike an `ARG` instruction, `ENV` values are always persisted in the built
-image. Consider a docker build without the --build-arg flag:
+image. Consider a docker build without the `--build-arg` flag:
 
 ```
 $ docker build Dockerfile
@@ -1638,9 +1640,9 @@ The command invoked by docker will be:
 
     cmd /S /C powershell -command Execute-MyCmdlet -param1 "c:\foo.txt"
 
- This is inefficient for two reasons. First, there is an un-necessary cmd.exe command
- processor (aka shell) being invoked. Second, each `RUN` instruction in the *shell*
- form requires an extra `powershell -command` prefixing the command.
+This is inefficient for two reasons. First, there is an un-necessary cmd.exe command
+processor (aka shell) being invoked. Second, each `RUN` instruction in the *shell*
+form requires an extra `powershell -command` prefixing the command.
 
 To make this more efficient, one of two mechanisms can be employed. One is to
 use the JSON form of the RUN command such as:

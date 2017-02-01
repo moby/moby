@@ -13,15 +13,16 @@ var basicFunctions = template.FuncMap{
 		a, _ := json.Marshal(v)
 		return string(a)
 	},
-	"split": strings.Split,
-	"join":  strings.Join,
-	"title": strings.Title,
-	"lower": strings.ToLower,
-	"upper": strings.ToUpper,
-	"pad":   padWithSpace,
+	"split":    strings.Split,
+	"join":     strings.Join,
+	"title":    strings.Title,
+	"lower":    strings.ToLower,
+	"upper":    strings.ToUpper,
+	"pad":      padWithSpace,
+	"truncate": truncateWithLength,
 }
 
-// Parse creates a new annonymous template with the basic functions
+// Parse creates a new anonymous template with the basic functions
 // and parses the given format.
 func Parse(format string) (*template.Template, error) {
 	return NewParse("", format)
@@ -39,4 +40,12 @@ func padWithSpace(source string, prefix, suffix int) string {
 		return source
 	}
 	return strings.Repeat(" ", prefix) + source + strings.Repeat(" ", suffix)
+}
+
+// truncateWithLength truncates the source string up to the length provided by the input
+func truncateWithLength(source string, length int) string {
+	if len(source) < length {
+		return source
+	}
+	return source[:length]
 }

@@ -17,38 +17,6 @@ import (
 	"github.com/docker/go-connections/nat"
 )
 
-// ContainerChange contains response of Engine API:
-// GET "/containers/{name:.*}/changes"
-type ContainerChange struct {
-	Kind int
-	Path string
-}
-
-// ImageHistory contains response of Engine API:
-// GET "/images/{name:.*}/history"
-type ImageHistory struct {
-	ID        string `json:"Id"`
-	Created   int64
-	CreatedBy string
-	Tags      []string
-	Size      int64
-	Comment   string
-}
-
-// ImageDelete contains response of Engine API:
-// DELETE "/images/{name:.*}"
-type ImageDelete struct {
-	Untagged string `json:",omitempty"`
-	Deleted  string `json:",omitempty"`
-}
-
-// GraphDriverData returns Image's graph driver config info
-// when calling inspect command
-type GraphDriverData struct {
-	Name string
-	Data map[string]string
-}
-
 // RootFS returns Image's RootFS description including the layer IDs.
 type RootFS struct {
 	Type      string
@@ -123,13 +91,6 @@ type ContainerPathStat struct {
 type ContainerStats struct {
 	Body   io.ReadCloser `json:"body"`
 	OSType string        `json:"ostype"`
-}
-
-// ContainerProcessList contains response of Engine API:
-// GET "/containers/{name:.*}/top"
-type ContainerProcessList struct {
-	Processes [][]string
-	Titles    []string
 }
 
 // Ping contains response of Engine API:
@@ -526,7 +487,7 @@ type VolumesPruneReport struct {
 // ImagesPruneReport contains the response for Engine API:
 // POST "/images/prune"
 type ImagesPruneReport struct {
-	ImagesDeleted  []ImageDelete
+	ImagesDeleted  []ImageDeleteResponseItem
 	SpaceReclaimed uint64
 }
 

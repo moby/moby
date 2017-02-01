@@ -36,7 +36,7 @@ func (s *DockerSuite) TestInfoEnsureSucceeds(c *check.C) {
 		"Live Restore Enabled:",
 	}
 
-	if daemonPlatform == "linux" {
+	if testEnv.DaemonPlatform() == "linux" {
 		stringsToCheck = append(stringsToCheck, "Init Binary:", "Security Options:", "containerd version:", "runc version:", "init version:")
 	}
 
@@ -44,7 +44,7 @@ func (s *DockerSuite) TestInfoEnsureSucceeds(c *check.C) {
 		stringsToCheck = append(stringsToCheck, "Runtimes:", "Default Runtime: runc")
 	}
 
-	if experimentalDaemon {
+	if testEnv.ExperimentalDaemon() {
 		stringsToCheck = append(stringsToCheck, "Experimental: true")
 	} else {
 		stringsToCheck = append(stringsToCheck, "Experimental: false")
@@ -72,7 +72,7 @@ func (s *DockerSuite) TestInfoDiscoveryBackend(c *check.C) {
 	testRequires(c, SameHostDaemon, DaemonIsLinux)
 
 	d := daemon.New(c, dockerBinary, dockerdBinary, daemon.Config{
-		Experimental: experimentalDaemon,
+		Experimental: testEnv.ExperimentalDaemon(),
 	})
 	discoveryBackend := "consul://consuladdr:consulport/some/path"
 	discoveryAdvertise := "1.1.1.1:2375"
@@ -91,7 +91,7 @@ func (s *DockerSuite) TestInfoDiscoveryInvalidAdvertise(c *check.C) {
 	testRequires(c, SameHostDaemon, DaemonIsLinux)
 
 	d := daemon.New(c, dockerBinary, dockerdBinary, daemon.Config{
-		Experimental: experimentalDaemon,
+		Experimental: testEnv.ExperimentalDaemon(),
 	})
 	discoveryBackend := "consul://consuladdr:consulport/some/path"
 
@@ -110,7 +110,7 @@ func (s *DockerSuite) TestInfoDiscoveryAdvertiseInterfaceName(c *check.C) {
 	testRequires(c, SameHostDaemon, Network, DaemonIsLinux)
 
 	d := daemon.New(c, dockerBinary, dockerdBinary, daemon.Config{
-		Experimental: experimentalDaemon,
+		Experimental: testEnv.ExperimentalDaemon(),
 	})
 	discoveryBackend := "consul://consuladdr:consulport/some/path"
 	discoveryAdvertise := "eth0"
@@ -177,7 +177,7 @@ func (s *DockerSuite) TestInfoDebug(c *check.C) {
 	testRequires(c, SameHostDaemon, DaemonIsLinux)
 
 	d := daemon.New(c, dockerBinary, dockerdBinary, daemon.Config{
-		Experimental: experimentalDaemon,
+		Experimental: testEnv.ExperimentalDaemon(),
 	})
 	d.Start(c, "--debug")
 	defer d.Stop(c)
@@ -200,7 +200,7 @@ func (s *DockerSuite) TestInsecureRegistries(c *check.C) {
 	registryHost := "insecurehost.com:5000"
 
 	d := daemon.New(c, dockerBinary, dockerdBinary, daemon.Config{
-		Experimental: experimentalDaemon,
+		Experimental: testEnv.ExperimentalDaemon(),
 	})
 	d.Start(c, "--insecure-registry="+registryCIDR, "--insecure-registry="+registryHost)
 	defer d.Stop(c)

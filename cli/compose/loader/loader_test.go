@@ -163,6 +163,24 @@ func TestLoad(t *testing.T) {
 	assert.Equal(t, sampleConfig.Volumes, actual.Volumes)
 }
 
+func TestLoadV31(t *testing.T) {
+	actual, err := loadYAML(`
+version: "3.1"
+services:
+  foo:
+    image: busybox
+    secrets: [super]
+secrets:
+  super:
+    external: true
+`)
+	if !assert.NoError(t, err) {
+		return
+	}
+	assert.Equal(t, len(actual.Services), 1)
+	assert.Equal(t, len(actual.Secrets), 1)
+}
+
 func TestParseAndLoad(t *testing.T) {
 	actual, err := loadYAML(sampleYAML)
 	if !assert.NoError(t, err) {
@@ -376,7 +394,7 @@ services:
 `)
 	assert.NoError(t, err)
 
-	expected := map[string]string{
+	expected := types.MappingWithEquals{
 		"FOO":  "1",
 		"BAR":  "2",
 		"BAZ":  "2.5",
@@ -438,7 +456,7 @@ volumes:
 
 	home := os.Getenv("HOME")
 
-	expectedLabels := map[string]string{
+	expectedLabels := types.MappingWithEquals{
 		"home1":       home,
 		"home2":       home,
 		"nonexistent": "",
@@ -603,6 +621,10 @@ func TestFullExample(t *testing.T) {
 			"BAR":            "2",
 			"BAZ":            "3",
 		},
+		EnvFile: []string{
+			"./example1.env",
+			"./example2.env",
+		},
 		Expose: []string{"3000", "8000"},
 		ExternalLinks: []string{
 			"redis_1",
@@ -614,10 +636,7 @@ func TestFullExample(t *testing.T) {
 			"somehost":  "162.242.195.82",
 		},
 		HealthCheck: &types.HealthCheckConfig{
-			Test: []string{
-				"CMD-SHELL",
-				"echo \"hello world\"",
-			},
+			Test:     types.HealthCheckTest([]string{"CMD-SHELL", "echo \"hello world\""}),
 			Interval: "10s",
 			Timeout:  "1s",
 			Retries:  uint64Ptr(5),

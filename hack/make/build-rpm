@@ -139,7 +139,7 @@ set -e
 			EOF
 		fi
 		tempImage="docker-temp/build-rpm:$version"
-		( set -x && docker build -t "$tempImage" -f $DEST/$version/Dockerfile.build . )
+		( set -x && docker build ${DOCKER_BUILD_ARGS} -t "$tempImage" -f $DEST/$version/Dockerfile.build . )
 		docker run --rm "$tempImage" bash -c 'cd /root/rpmbuild && tar -c *RPMS' | tar -xvC "$DEST/$version"
 		docker rmi "$tempImage"
 	done

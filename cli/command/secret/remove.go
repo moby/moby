@@ -33,20 +33,15 @@ func runSecretRemove(dockerCli *command.DockerCli, opts removeOptions) error {
 	client := dockerCli.Client()
 	ctx := context.Background()
 
-	ids, err := getCliRequestedSecretIDs(ctx, client, opts.names)
-	if err != nil {
-		return err
-	}
-
 	var errs []string
 
-	for _, id := range ids {
-		if err := client.SecretRemove(ctx, id); err != nil {
+	for _, name := range opts.names {
+		if err := client.SecretRemove(ctx, name); err != nil {
 			errs = append(errs, err.Error())
 			continue
 		}
 
-		fmt.Fprintln(dockerCli.Out(), id)
+		fmt.Fprintln(dockerCli.Out(), name)
 	}
 
 	if len(errs) > 0 {

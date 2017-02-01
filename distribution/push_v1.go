@@ -121,7 +121,7 @@ type v1DependencyImage struct {
 func newV1DependencyImage(l layer.Layer, parent *v1DependencyImage) *v1DependencyImage {
 	v1ID := digest.Digest(l.ChainID()).Hex()
 
-	config := ""
+	var config string
 	if parent != nil {
 		config = fmt.Sprintf(`{"id":"%s","parent":"%s"}`, v1ID, parent.V1ID())
 	} else {

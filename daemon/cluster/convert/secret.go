@@ -3,7 +3,7 @@ package convert
 import (
 	swarmtypes "github.com/docker/docker/api/types/swarm"
 	swarmapi "github.com/docker/swarmkit/api"
-	"github.com/docker/swarmkit/protobuf/ptypes"
+	gogotypes "github.com/gogo/protobuf/types"
 )
 
 // SecretFromGRPC converts a grpc Secret to a Secret.
@@ -21,8 +21,8 @@ func SecretFromGRPC(s *swarmapi.Secret) swarmtypes.Secret {
 
 	secret.Version.Index = s.Meta.Version.Index
 	// Meta
-	secret.CreatedAt, _ = ptypes.Timestamp(s.Meta.CreatedAt)
-	secret.UpdatedAt, _ = ptypes.Timestamp(s.Meta.UpdatedAt)
+	secret.CreatedAt, _ = gogotypes.TimestampFromProto(s.Meta.CreatedAt)
+	secret.UpdatedAt, _ = gogotypes.TimestampFromProto(s.Meta.UpdatedAt)
 
 	return secret
 }

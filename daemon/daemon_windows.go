@@ -339,8 +339,10 @@ func (daemon *Daemon) initNetworkController(config *Config, activeSandboxes map[
 		name := v.Name
 
 		// If there is no nat network create one from the first NAT network
-		// encountered
-		if !defaultNetworkExists && runconfig.DefaultDaemonNetworkMode() == containertypes.NetworkMode(strings.ToLower(v.Type)) {
+		// encountered if it doesn't already exist
+		if !defaultNetworkExists &&
+			runconfig.DefaultDaemonNetworkMode() == containertypes.NetworkMode(strings.ToLower(v.Type)) &&
+			n == nil {
 			name = runconfig.DefaultDaemonNetworkMode().NetworkName()
 			defaultNetworkExists = true
 		}

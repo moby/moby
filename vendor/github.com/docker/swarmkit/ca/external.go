@@ -103,26 +103,9 @@ func makeExternalSignRequest(ctx context.Context, client *http.Client, url strin
 	if err != nil {
 		return nil, recoverableErr{err: errors.Wrap(err, "unable to perform certificate signing request")}
 	}
-
-	doneReading := make(chan struct{})
-	bodyClosed := make(chan struct{})
-	go func() {
-		select {
-		case <-ctx.Done():
-		case <-doneReading:
-		}
-		resp.Body.Close()
-		close(bodyClosed)
-	}()
+	defer resp.Body.Close()
 
 	body, err := ioutil.ReadAll(resp.Body)
-	close(doneReading)
-	<-bodyClosed
-	select {
-	case <-ctx.Done():
-		return nil, ctx.Err()
-	default:
-	}
 	if err != nil {
 		return nil, recoverableErr{err: errors.Wrap(err, "unable to read CSR response body")}
 	}

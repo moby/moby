@@ -132,27 +132,32 @@ func (daemon *Daemon) ImagesPrune(pruneFilters filters.Args) (*types.ImagesPrune
 			continue
 		}
 
-		deletedImages := []types.ImageDelete{}
+		deletedImages := []types.ImageDeleteResponseItem{}
 		refs := daemon.referenceStore.References(dgst)
 		if len(refs) > 0 {
-			if danglingOnly {
-				// Not a dangling image
-				continue
+			shouldDelete := !danglingOnly
+			if !shouldDelete {
+				hasTag := false
+				for _, ref := range refs {
+					if _, ok := ref.(reference.NamedTagged); ok {
+						hasTag = true
+						break
+					}
+				}
+
+				// Only delete if it's untagged (i.e. repo:<none>)
+				shouldDelete = !hasTag
 			}
 
-			nrRefs := len(refs)
-			for _, ref := range refs {
-				// If nrRefs == 1, we have an image marked as myreponame:<none>
-				// i.e. the tag content was changed
-				if _, ok := ref.(reference.Canonical); ok && nrRefs > 1 {
-					continue
+			if shouldDelete {
+				for _, ref := range refs {
+					imgDel, err := daemon.ImageDelete(ref.String(), false, true)
+					if err != nil {
+						logrus.Warnf("could not delete reference %s: %v", ref.String(), err)
+						continue
+					}
+					deletedImages = append(deletedImages, imgDel...)
 				}
-				imgDel, err := daemon.ImageDelete(ref.String(), false, true)
-				if err != nil {
-					logrus.Warnf("could not delete reference %s: %v", ref.String(), err)
-					continue
-				}
-				deletedImages = append(deletedImages, imgDel...)
 			}
 		} else {
 			imgDel, err := daemon.ImageDelete(hex, false, true)

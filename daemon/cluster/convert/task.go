@@ -5,7 +5,7 @@ import (
 
 	types "github.com/docker/docker/api/types/swarm"
 	swarmapi "github.com/docker/swarmkit/api"
-	"github.com/docker/swarmkit/protobuf/ptypes"
+	gogotypes "github.com/gogo/protobuf/types"
 )
 
 // TaskFromGRPC converts a grpc Task to a Task.
@@ -47,10 +47,10 @@ func TaskFromGRPC(t swarmapi.Task) types.Task {
 
 	// Meta
 	task.Version.Index = t.Meta.Version.Index
-	task.CreatedAt, _ = ptypes.Timestamp(t.Meta.CreatedAt)
-	task.UpdatedAt, _ = ptypes.Timestamp(t.Meta.UpdatedAt)
+	task.CreatedAt, _ = gogotypes.TimestampFromProto(t.Meta.CreatedAt)
+	task.UpdatedAt, _ = gogotypes.TimestampFromProto(t.Meta.UpdatedAt)
 
-	task.Status.Timestamp, _ = ptypes.Timestamp(t.Status.Timestamp)
+	task.Status.Timestamp, _ = gogotypes.TimestampFromProto(t.Status.Timestamp)
 
 	if containerStatus != nil {
 		task.Status.ContainerStatus.ContainerID = containerStatus.ContainerID

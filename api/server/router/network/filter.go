@@ -8,7 +8,8 @@ import (
 	"github.com/docker/docker/runconfig"
 )
 
-func filterNetworkByType(nws []types.NetworkResource, netType string) (retNws []types.NetworkResource, err error) {
+func filterNetworkByType(nws []types.NetworkResource, netType string) ([]types.NetworkResource, error) {
+	retNws := []types.NetworkResource{}
 	switch netType {
 	case "builtin":
 		for _, nw := range nws {
@@ -62,7 +63,7 @@ func filterNetworks(nws []types.NetworkResource, filter filters.Args) ([]types.N
 	}
 
 	if filter.Include("type") {
-		var typeNet []types.NetworkResource
+		typeNet := []types.NetworkResource{}
 		errFilter := filter.WalkValues("type", func(fval string) error {
 			passList, err := filterNetworkByType(displayNet, fval)
 			if err != nil {

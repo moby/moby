@@ -2,20 +2,27 @@ package convert
 
 import (
 	"fmt"
+	"os"
 	"time"
 
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/swarm"
+	servicecli "github.com/docker/docker/cli/command/service"
 	composetypes "github.com/docker/docker/cli/compose/types"
+	"github.com/docker/docker/client"
 	"github.com/docker/docker/opts"
 	runconfigopts "github.com/docker/docker/runconfig/opts"
 	"github.com/docker/go-connections/nat"
+	"sort"
 )
 
 // Services from compose-file types to engine API types
+// TODO: fix secrets API so that SecretAPIClient is not required here
 func Services(
 	namespace Namespace,
 	config *composetypes.Config,
+	client client.SecretAPIClient,
 ) (map[string]swarm.ServiceSpec, error) {
 	result := make(map[string]swarm.ServiceSpec)
 
@@ -24,7 +31,12 @@ func Services(
 	networks := config.Networks
 
 	for _, service := range services {
-		serviceSpec, err := convertService(namespace, service, networks, volumes)
+
+		secrets, err := convertServiceSecrets(client, namespace, service.Secrets, config.Secrets)
+		if err != nil {
+			return nil, err
+		}
+		serviceSpec, err := convertService(namespace, service, networks, volumes, secrets)
 		if err != nil {
 			return nil, err
 		}
@@ -39,6 +51,7 @@ func convertService(
 	service composetypes.ServiceConfig,
 	networkConfigs map[string]composetypes.NetworkConfig,
 	volumes map[string]composetypes.VolumeConfig,
+	secrets []*swarm.SecretReference,
 ) (swarm.ServiceSpec, error) {
 	name := namespace.Scope(service.Name)
 
@@ -98,9 +111,9 @@ func convertService(
 				Command:         service.Entrypoint,
 				Args:            service.Command,
 				Hostname:        service.Hostname,
-				Hosts:           convertExtraHosts(service.ExtraHosts),
+				Hosts:           sortStrings(convertExtraHosts(service.ExtraHosts)),
 				Healthcheck:     healthcheck,
-				Env:             convertEnvironment(service.Environment),
+				Env:             sortStrings(convertEnvironment(service.Environment)),
 				Labels:          AddStackLabel(namespace, service.Labels),
 				Dir:             service.WorkingDir,
 				User:            service.User,
@@ -108,6 +121,7 @@ func convertService(
 				StopGracePeriod: service.StopGracePeriod,
 				TTY:             service.Tty,
 				OpenStdin:       service.StdinOpen,
+				Secrets:         secrets,
 			},
 			LogDriver:     logDriver,
 			Resources:     resources,
@@ -124,6 +138,17 @@ func convertService(
 
 	return serviceSpec, nil
 }
+
+func sortStrings(strs []string) []string {
+	sort.Strings(strs)
+	return strs
+}
+
+type byNetworkTarget []swarm.NetworkAttachmentConfig
+
+func (a byNetworkTarget) Len() int           { return len(a) }
+func (a byNetworkTarget) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+func (a byNetworkTarget) Less(i, j int) bool { return a[i].Target < a[j].Target }
 
 func convertServiceNetworks(
 	networks map[string]*composetypes.ServiceNetworkConfig,
@@ -160,7 +185,50 @@ func convertServiceNetworks(
 			Aliases: append(aliases, name),
 		})
 	}
+
+	sort.Sort(byNetworkTarget(nets))
 	return nets, nil
+}
+
+// TODO: fix secrets API so that SecretAPIClient is not required here
+func convertServiceSecrets(
+	client client.SecretAPIClient,
+	namespace Namespace,
+	secrets []composetypes.ServiceSecretConfig,
+	secretSpecs map[string]composetypes.SecretConfig,
+) ([]*swarm.SecretReference, error) {
+	opts := []*types.SecretRequestOption{}
+	for _, secret := range secrets {
+		target := secret.Target
+		if target == "" {
+			target = secret.Source
+		}
+
+		source := namespace.Scope(secret.Source)
+		secretSpec := secretSpecs[secret.Source]
+		if secretSpec.External.External {
+			source = secretSpec.External.Name
+		}
+
+		uid := secret.UID
+		gid := secret.GID
+		if uid == "" {
+			uid = "0"
+		}
+		if gid == "" {
+			gid = "0"
+		}
+
+		opts = append(opts, &types.SecretRequestOption{
+			Source: source,
+			Target: target,
+			UID:    uid,
+			GID:    gid,
+			Mode:   os.FileMode(secret.Mode),
+		})
+	}
+
+	return servicecli.ParseSecrets(client, opts)
 }
 
 func convertExtraHosts(extraHosts map[string]string) []string {
@@ -293,6 +361,12 @@ func convertResources(source composetypes.Resources) (*swarm.ResourceRequirement
 	return resources, nil
 }
 
+type byPublishedPort []swarm.PortConfig
+
+func (a byPublishedPort) Len() int           { return len(a) }
+func (a byPublishedPort) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+func (a byPublishedPort) Less(i, j int) bool { return a[i].PublishedPort < a[j].PublishedPort }
+
 func convertEndpointSpec(source []string) (*swarm.EndpointSpec, error) {
 	portConfigs := []swarm.PortConfig{}
 	ports, portBindings, err := nat.ParsePortSpecs(source)
@@ -301,11 +375,14 @@ func convertEndpointSpec(source []string) (*swarm.EndpointSpec, error) {
 	}
 
 	for port := range ports {
-		portConfigs = append(
-			portConfigs,
-			opts.ConvertPortToPortConfig(port, portBindings)...)
+		portConfig, err := opts.ConvertPortToPortConfig(port, portBindings)
+		if err != nil {
+			return nil, err
+		}
+		portConfigs = append(portConfigs, portConfig...)
 	}
 
+	sort.Sort(byPublishedPort(portConfigs))
 	return &swarm.EndpointSpec{Ports: portConfigs}, nil
 }
 

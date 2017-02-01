@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 
+	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	networktypes "github.com/docker/docker/api/types/network"
@@ -13,8 +14,6 @@ import (
 	"github.com/docker/docker/cli/command/image"
 	apiclient "github.com/docker/docker/client"
 	"github.com/docker/docker/pkg/jsonmessage"
-	// FIXME migrate to docker/distribution/reference
-	"github.com/docker/docker/reference"
 	"github.com/docker/docker/registry"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -52,7 +51,7 @@ func NewCreateCommand(dockerCli *command.DockerCli) *cobra.Command {
 	// with hostname
 	flags.Bool("help", false, "Print usage")
 
-	command.AddTrustedFlags(flags, true)
+	command.AddTrustVerificationFlags(flags)
 	copts = addFlags(flags)
 	return cmd
 }
@@ -72,7 +71,7 @@ func runCreate(dockerCli *command.DockerCli, flags *pflag.FlagSet, opts *createO
 }
 
 func pullImage(ctx context.Context, dockerCli *command.DockerCli, image string, out io.Writer) error {
-	ref, err := reference.ParseNamed(image)
+	ref, err := reference.ParseNormalizedNamed(image)
 	if err != nil {
 		return err
 	}
@@ -150,7 +149,12 @@ func newCIDFile(path string) (*cidFile, error) {
 func createContainer(ctx context.Context, dockerCli *command.DockerCli, config *container.Config, hostConfig *container.HostConfig, networkingConfig *networktypes.NetworkingConfig, cidfile, name string) (*container.ContainerCreateCreatedBody, error) {
 	stderr := dockerCli.Err()
 
-	var containerIDFile *cidFile
+	var (
+		containerIDFile *cidFile
+		trustedRef      reference.Canonical
+		namedRef        reference.Named
+	)
+
 	if cidfile != "" {
 		var err error
 		if containerIDFile, err = newCIDFile(cidfile); err != nil {
@@ -159,21 +163,24 @@ func createContainer(ctx context.Context, dockerCli *command.DockerCli, config *
 		defer containerIDFile.Close()
 	}
 
-	var trustedRef reference.Canonical
-	_, ref, err := reference.ParseIDOrReference(config.Image)
+	ref, err := reference.ParseAnyReference(config.Image)
 	if err != nil {
 		return nil, err
 	}
-	if ref != nil {
-		ref = reference.WithDefaultTag(ref)
+	if named, ok := ref.(reference.Named); ok {
+		if reference.IsNameOnly(named) {
+			namedRef = reference.EnsureTagged(named)
+		} else {
+			namedRef = named
+		}
 
-		if ref, ok := ref.(reference.NamedTagged); ok && command.IsTrusted() {
+		if taggedRef, ok := namedRef.(reference.NamedTagged); ok && command.IsTrusted() {
 			var err error
-			trustedRef, err = image.TrustedReference(ctx, dockerCli, ref, nil)
+			trustedRef, err = image.TrustedReference(ctx, dockerCli, taggedRef, nil)
 			if err != nil {
 				return nil, err
 			}
-			config.Image = trustedRef.String()
+			config.Image = reference.FamiliarString(trustedRef)
 		}
 	}
 
@@ -182,15 +189,15 @@ func createContainer(ctx context.Context, dockerCli *command.DockerCli, config *
 
 	//if image not found try to pull it
 	if err != nil {
-		if apiclient.IsErrImageNotFound(err) && ref != nil {
-			fmt.Fprintf(stderr, "Unable to find image '%s' locally\n", ref.String())
+		if apiclient.IsErrImageNotFound(err) && namedRef != nil {
+			fmt.Fprintf(stderr, "Unable to find image '%s' locally\n", reference.FamiliarString(namedRef))
 
 			// we don't want to write to stdout anything apart from container.ID
 			if err = pullImage(ctx, dockerCli, config.Image, stderr); err != nil {
 				return nil, err
 			}
-			if ref, ok := ref.(reference.NamedTagged); ok && trustedRef != nil {
-				if err := image.TagTrusted(ctx, dockerCli, trustedRef, ref); err != nil {
+			if taggedRef, ok := namedRef.(reference.NamedTagged); ok && trustedRef != nil {
+				if err := image.TagTrusted(ctx, dockerCli, trustedRef, taggedRef); err != nil {
 					return nil, err
 				}
 			}

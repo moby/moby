@@ -1,15 +1,17 @@
 package registry
 
 import (
-	"errors"
 	"fmt"
 	"net"
 	"net/url"
 	"strings"
 
+	"github.com/Sirupsen/logrus"
+	"github.com/docker/distribution/reference"
 	registrytypes "github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/opts"
-	"github.com/docker/docker/reference"
+	forkedref "github.com/docker/docker/reference"
+	"github.com/pkg/errors"
 	"github.com/spf13/pflag"
 )
 
@@ -150,6 +152,19 @@ skip:
 			config.ServiceConfig.IndexConfigs = originalIndexInfos
 			return err
 		}
+		if strings.HasPrefix(strings.ToLower(r), "http://") {
+			logrus.Warnf("insecure registry %s should not contain 'http://' and 'http://' has been removed from the insecure registry config", r)
+			r = r[7:]
+		} else if strings.HasPrefix(strings.ToLower(r), "https://") {
+			logrus.Warnf("insecure registry %s should not contain 'https://' and 'https://' has been removed from the insecure registry config", r)
+			r = r[8:]
+		} else if validateNoScheme(r) != nil {
+			// Insecure registry should not contain '://'
+			// before returning err, roll back to original data
+			config.ServiceConfig.InsecureRegistryCIDRs = originalCIDRs
+			config.ServiceConfig.IndexConfigs = originalIndexInfos
+			return fmt.Errorf("insecure registry %s should not contain '://'", r)
+		}
 		// Check if CIDR was passed to --insecure-registry
 		_, ipnet, err := net.ParseCIDR(r)
 		if err == nil {
@@ -256,8 +271,8 @@ func ValidateMirror(val string) (string, error) {
 
 // ValidateIndexName validates an index name.
 func ValidateIndexName(val string) (string, error) {
-	if val == reference.LegacyDefaultHostname {
-		val = reference.DefaultHostname
+	if val == forkedref.LegacyDefaultHostname {
+		val = forkedref.DefaultHostname
 	}
 	if strings.HasPrefix(val, "-") || strings.HasSuffix(val, "-") {
 		return "", fmt.Errorf("Invalid index name (%s). Cannot begin or end with a hyphen.", val)
@@ -307,13 +322,19 @@ func GetAuthConfigKey(index *registrytypes.IndexInfo) string {
 
 // newRepositoryInfo validates and breaks down a repository name into a RepositoryInfo
 func newRepositoryInfo(config *serviceConfig, name reference.Named) (*RepositoryInfo, error) {
-	index, err := newIndexInfo(config, name.Hostname())
+	index, err := newIndexInfo(config, reference.Domain(name))
 	if err != nil {
 		return nil, err
 	}
-	official := !strings.ContainsRune(name.Name(), '/')
+	official := !strings.ContainsRune(reference.FamiliarName(name), '/')
+
+	// TODO: remove used of forked reference package
+	nameref, err := forkedref.ParseNamed(name.String())
+	if err != nil {
+		return nil, err
+	}
 	return &RepositoryInfo{
-		Named:    name,
+		Named:    nameref,
 		Index:    index,
 		Official: official,
 	}, nil
