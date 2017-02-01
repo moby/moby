@@ -356,7 +356,8 @@ func (s *DockerSuite) TestExecInspectID(c *check.C) {
 	}
 
 	// But we should still be able to query the execID
-	sc, body, err := request.SockRequest("GET", "/exec/"+execID+"/json", nil, daemonHost())
+	sc, body, _ := request.SockRequest("GET", "/exec/"+execID+"/json", nil, daemonHost())
+
 	c.Assert(sc, checker.Equals, http.StatusOK, check.Commentf("received status != 200 OK: %d\n%s", sc, body))
 
 	// Now delete the container and then an 'inspect' on the exec should
