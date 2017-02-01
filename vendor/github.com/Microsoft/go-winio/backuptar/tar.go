@@ -339,7 +339,7 @@ func WriteBackupStreamFromTarFile(w io.Writer, t *tar.Reader, hdr *tar.Header) (
 		bhdr := winio.BackupHeader{
 			Id:   winio.BackupAlternateData,
 			Size: ahdr.Size,
-			Name: ahdr.Name[len(hdr.Name)+1:] + ":$DATA",
+			Name: ahdr.Name[len(hdr.Name):] + ":$DATA",
 		}
 		err = bw.WriteHeader(&bhdr)
 		if err != nil {
