@@ -1270,19 +1270,6 @@ For example:
 The output of the final `pwd` command in this `Dockerfile` would be
 `/path/$DIRNAME`
 
-On Windows, `WORKDIR` behaves differently depending on whether using Windows
-Server containers or Hyper-V containers. For Hyper-V containers, the engine
-is, for architectural reasons, unable to create the directory if it does not
-previously exist. For Windows Server containers, the directory is created
-if it does not exist. Hence, for consistency between Windows Server and 
-Hyper-V containers, it is strongly recommended to include an explicit instruction
-to create the directory in the Dockerfile. For example:
-
-    # escape=`
-    FROM microsoft/nanoserver
-    RUN mkdir c:\myapp
-    WORKDIR c:\myapp
-
 ## ARG
 
     ARG <name>[=<default value>]

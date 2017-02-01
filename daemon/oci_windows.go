@@ -18,9 +18,9 @@ func (daemon *Daemon) createSpec(c *container.Container) (*specs.Spec, error) {
 		return nil, err
 	}
 
-	if err := c.SetupWorkingDirectory(0, 0); err != nil {
-		return nil, err
-	}
+	// Note, unlike Unix, we do NOT call into SetupWorkingDirectory as
+	// this is done in VMCompute. Further, we couldn't do it for Hyper-V
+	// containers anyway.
 
 	// In base spec
 	s.Hostname = c.FullHostname()
