@@ -30,7 +30,7 @@ service NodeCA {
 }
 
 message NodeCertificateStatusRequest {
-	string node_id = 1 [(gogoproto.customname) = "NodeID"];
+	string node_id = 1;
 }
 
 message NodeCertificateStatusResponse {
@@ -54,7 +54,7 @@ message IssueNodeCertificateRequest {
 }
 
 message IssueNodeCertificateResponse {
-	string node_id = 1 [(gogoproto.customname) = "NodeID"];
+	string node_id = 1;
 	NodeSpec.Membership node_membership = 2;
 }
 

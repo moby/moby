@@ -20,15 +20,15 @@ service ResourceAllocator {
 
 message AttachNetworkRequest {
 	NetworkAttachmentConfig config = 1;
-	string container_id = 2 [(gogoproto.customname) = "ContainerID"];
+	string container_id = 2;
 }
 
 message AttachNetworkResponse {
-	string attachment_id = 1 [(gogoproto.customname) = "AttachmentID"];
+	string attachment_id = 1;
 }
 
 message DetachNetworkRequest {
-	string attachment_id = 1 [(gogoproto.customname) = "AttachmentID"];
+	string attachment_id = 1;
 }
 
 message DetachNetworkResponse {}
