@@ -24,6 +24,7 @@ Aliases:
   ls, list
 
 Options:
+  -f, --filter filter   Provide filter values (e.g. 'enabled=true')
       --format string   Pretty-print plugins using a Go template
       --help            Print usage
       --no-trunc        Don't truncate output
@@ -32,6 +33,8 @@ Options:
 
 Lists all the plugins that are currently installed. You can install plugins
 using the [`docker plugin install`](plugin_install.md) command.
+You can also filter using the `-f` or `--filter` flag.
+Refer to the [filtering](#filtering) section for more information about available filter options.
 
 Example output:
 
@@ -41,6 +44,35 @@ $ docker plugin ls
 ID                  NAME                             TAG                 DESCRIPTION                ENABLED
 69553ca1d123        tiborvass/sample-volume-plugin   latest              A test plugin for Docker   true
 ```
+
+## Filtering
+
+The filtering flag (`-f` or `--filter`) format is of "key=value". If there is more
+than one filter, then pass multiple flags (e.g., `--filter "foo=bar" --filter "bif=baz"`)
+
+The currently supported filters are:
+
+* enabled (boolean - true or false, 0 or 1)
+* capability (string - currently `volumedriver`, `networkdriver`, `ipamdriver`, or `authz`)
+
+### enabled
+
+The `enabled` filter matches on plugins enabled or disabled.
+
+### capability
+
+The `capability` filter matches on plugin capabilities. One plugin
+might have multiple capabilities. Currently `volumedriver`, `networkdriver`,
+`ipamdriver`, and `authz` are supported capabilities.
+
+```bash
+$ docker plugin install --disable tiborvass/no-remove
+tiborvass/no-remove
+
+$ docker plugin ls --filter enabled=true
+NAME                  TAG                 DESCRIPTION                ENABLED
+```
+
 
 ## Formatting
 
@@ -67,6 +99,7 @@ The following example uses a template without headers and outputs the
 $ docker plugin ls --format "{{.ID}}: {{.Name}}"
 4be01827a72e: tiborvass/no-remove
 ```
+
 
 ## Related information
 

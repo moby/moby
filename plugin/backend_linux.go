@@ -18,6 +18,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/manifest/schema2"
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/distribution"
 	progressutils "github.com/docker/docker/distribution/utils"
 	"github.com/docker/docker/distribution/xfer"
@@ -32,6 +33,11 @@ import (
 	"github.com/pkg/errors"
 	"golang.org/x/net/context"
 )
+
+var acceptedPluginFilterTags = map[string]bool{
+	"enabled":    true,
+	"capability": true,
+}
 
 // Disable deactivates a plugin. This means resources (volumes, networks) cant use them.
 func (pm *Manager) Disable(refOrID string, config *types.PluginDisableConfig) error {
@@ -259,10 +265,41 @@ func (pm *Manager) Pull(ctx context.Context, ref reference.Named, name string, m
 }
 
 // List displays the list of plugins and associated metadata.
-func (pm *Manager) List() ([]types.Plugin, error) {
+func (pm *Manager) List(pluginFilters filters.Args) ([]types.Plugin, error) {
+	if err := pluginFilters.Validate(acceptedPluginFilterTags); err != nil {
+		return nil, err
+	}
+
+	enabledOnly := false
+	disabledOnly := false
+	if pluginFilters.Include("enabled") {
+		if pluginFilters.ExactMatch("enabled", "true") {
+			enabledOnly = true
+		} else if pluginFilters.ExactMatch("enabled", "false") {
+			disabledOnly = true
+		} else {
+			return nil, fmt.Errorf("Invalid filter 'enabled=%s'", pluginFilters.Get("enabled"))
+		}
+	}
+
 	plugins := pm.config.Store.GetAll()
 	out := make([]types.Plugin, 0, len(plugins))
+
+next:
 	for _, p := range plugins {
+		if enabledOnly && !p.PluginObj.Enabled {
+			continue
+		}
+		if disabledOnly && p.PluginObj.Enabled {
+			continue
+		}
+		if pluginFilters.Include("capability") {
+			for _, f := range p.GetTypes() {
+				if !pluginFilters.Match("capability", f.Capability) {
+					continue next
+				}
+			}
+		}
 		out = append(out, p.PluginObj)
 	}
 	return out, nil

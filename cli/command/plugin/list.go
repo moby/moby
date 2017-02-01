@@ -4,6 +4,7 @@ import (
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cli/command"
 	"github.com/docker/docker/cli/command/formatter"
+	"github.com/docker/docker/opts"
 	"github.com/spf13/cobra"
 	"golang.org/x/net/context"
 )
@@ -12,10 +13,11 @@ type listOptions struct {
 	quiet   bool
 	noTrunc bool
 	format  string
+	filter  opts.FilterOpt
 }
 
 func newListCommand(dockerCli *command.DockerCli) *cobra.Command {
-	var opts listOptions
+	opts := listOptions{filter: opts.NewFilterOpt()}
 
 	cmd := &cobra.Command{
 		Use:     "ls [OPTIONS]",
@@ -32,12 +34,13 @@ func newListCommand(dockerCli *command.DockerCli) *cobra.Command {
 	flags.BoolVarP(&opts.quiet, "quiet", "q", false, "Only display plugin IDs")
 	flags.BoolVar(&opts.noTrunc, "no-trunc", false, "Don't truncate output")
 	flags.StringVar(&opts.format, "format", "", "Pretty-print plugins using a Go template")
+	flags.VarP(&opts.filter, "filter", "f", "Provide filter values (e.g. 'enabled=true')")
 
 	return cmd
 }
 
 func runList(dockerCli *command.DockerCli, opts listOptions) error {
-	plugins, err := dockerCli.Client().PluginList(context.Background())
+	plugins, err := dockerCli.Client().PluginList(context.Background(), opts.filter.Value())
 	if err != nil {
 		return err
 	}
