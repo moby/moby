@@ -41,7 +41,7 @@ func (pm *Manager) enable(p *v2.Plugin, c *controller, force bool) error {
 	pm.mu.Unlock()
 
 	if p.PropagatedMount != "" {
-		if err := mount.MakeRShared(p.PropagatedMount); err != nil {
+		if err := mount.MakeRSlave(p.PropagatedMount); err != nil {
 			return err
 		}
 	}
