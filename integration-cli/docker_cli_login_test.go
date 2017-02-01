@@ -6,6 +6,8 @@ import (
 
 	"github.com/docker/docker/integration-cli/checker"
 	"github.com/go-check/check"
+	"io/ioutil"
+	"os"
 )
 
 func (s *DockerSuite) TestLoginWithoutTTY(c *check.C) {
@@ -27,4 +29,19 @@ func (s *DockerRegistryAuthHtpasswdSuite) TestLoginToPrivateRegistry(c *check.C)
 
 	// now it's fine
 	dockerCmd(c, "login", "-u", s.reg.Username(), "-p", s.reg.Password(), privateRegistryURL)
+}
+
+func (s *DockerRegistryAuthHtpasswdSuite) TestLoginToPrivateRegistryWithPasswordFile(c *check.C) {
+	content := []byte(s.reg.Password())
+	tmpfile, err := ioutil.TempFile("", "dockerpass")
+	c.Assert(err, checker.IsNil)
+	defer os.Remove(tmpfile.Name()) // clean up
+
+	_, err = tmpfile.Write(content)
+	c.Assert(err, checker.IsNil)
+
+	err = tmpfile.Close()
+	c.Assert(err, checker.IsNil)
+
+	dockerCmd(c, "login", "-u", s.reg.Username(), "--password-file", tmpfile.Name(), privateRegistryURL)
 }
