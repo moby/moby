@@ -117,7 +117,7 @@ func (daemon *Daemon) setupIpcDirs(c *container.Container) error {
 				return err
 			}
 
-			shmSize := container.DefaultSHMSize
+			shmSize := int64(daemon.configStore.ShmSize)
 			if c.HostConfig.ShmSize != 0 {
 				shmSize = c.HostConfig.ShmSize
 			}

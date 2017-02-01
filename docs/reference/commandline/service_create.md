@@ -39,7 +39,7 @@ Options:
       --hostname string                  Container hostname
   -l, --label list                       Service labels (default [])
       --limit-cpu decimal                Limit CPUs (default 0.000)
-      --limit-memory bytes               Limit Memory (default 0 B)
+      --limit-memory bytes               Limit Memory
       --log-driver string                Logging driver for service
       --log-opt list                     Logging driver options (default [])
       --mode string                      Service mode (replicated or global) (default "replicated")
@@ -51,7 +51,7 @@ Options:
       --read-only                        Mount the container's root filesystem as read only
       --replicas uint                    Number of tasks
       --reserve-cpu decimal              Reserve CPUs (default 0.000)
-      --reserve-memory bytes             Reserve Memory (default 0 B)
+      --reserve-memory bytes             Reserve Memory
       --restart-condition string         Restart when condition is met (none, on-failure, or any)
       --restart-delay duration           Delay between restart attempts (ns|us|ms|s|m|h)
       --restart-max-attempts uint        Maximum number of restarts before giving up

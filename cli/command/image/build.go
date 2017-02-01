@@ -41,7 +41,7 @@ type buildOptions struct {
 	ulimits        *opts.UlimitOpt
 	memory         string
 	memorySwap     string
-	shmSize        string
+	shmSize        opts.MemBytes
 	cpuShares      int64
 	cpuPeriod      int64
 	cpuQuota       int64
@@ -89,7 +89,7 @@ func NewBuildCommand(dockerCli *command.DockerCli) *cobra.Command {
 	flags.StringVarP(&options.dockerfileName, "file", "f", "", "Name of the Dockerfile (Default is 'PATH/Dockerfile')")
 	flags.StringVarP(&options.memory, "memory", "m", "", "Memory limit")
 	flags.StringVar(&options.memorySwap, "memory-swap", "", "Swap limit equal to memory plus swap: '-1' to enable unlimited swap")
-	flags.StringVar(&options.shmSize, "shm-size", "", "Size of /dev/shm, default value is 64MB")
+	flags.Var(&options.shmSize, "shm-size", "Size of /dev/shm")
 	flags.Int64VarP(&options.cpuShares, "cpu-shares", "c", 0, "CPU shares (relative weight)")
 	flags.Int64Var(&options.cpuPeriod, "cpu-period", 0, "Limit the CPU CFS (Completely Fair Scheduler) period")
 	flags.Int64Var(&options.cpuQuota, "cpu-quota", 0, "Limit the CPU CFS (Completely Fair Scheduler) quota")
@@ -274,14 +274,6 @@ func runBuild(dockerCli *command.DockerCli, options buildOptions) error {
 		}
 	}
 
-	var shmSize int64
-	if options.shmSize != "" {
-		shmSize, err = units.RAMInBytes(options.shmSize)
-		if err != nil {
-			return err
-		}
-	}
-
 	authConfigs, _ := dockerCli.GetAllCredentials()
 	buildOptions := types.ImageBuildOptions{
 		Memory:         memory,
@@ -300,7 +292,7 @@ func runBuild(dockerCli *command.DockerCli, options buildOptions) error {
 		CPUPeriod:      options.cpuPeriod,
 		CgroupParent:   options.cgroupParent,
 		Dockerfile:     relDockerfile,
-		ShmSize:        shmSize,
+		ShmSize:        options.shmSize.Value(),
 		Ulimits:        options.ulimits.GetList(),
 		BuildArgs:      runconfigopts.ConvertKVStringsToMapWithNil(options.buildArgs.GetAll()),
 		AuthConfigs:    authConfigs,

@@ -256,7 +256,10 @@ func (daemon *Daemon) adaptContainerSettings(hostConfig *containertypes.HostConf
 		hostConfig.MemorySwap = hostConfig.Memory * 2
 	}
 	if hostConfig.ShmSize == 0 {
-		hostConfig.ShmSize = container.DefaultSHMSize
+		hostConfig.ShmSize = defaultShmSize
+		if daemon.configStore != nil {
+			hostConfig.ShmSize = int64(daemon.configStore.ShmSize)
+		}
 	}
 	var err error
 	opts, err := daemon.generateSecurityOpt(hostConfig.IpcMode, hostConfig.PidMode, hostConfig.Privileged)
@@ -576,6 +579,10 @@ func (daemon *Daemon) platformReload(config *Config) map[string]string {
 		daemon.configStore.DefaultRuntime = config.DefaultRuntime
 	}
 
+	if config.IsValueSet("default-shm-size") {
+		daemon.configStore.ShmSize = config.ShmSize
+	}
+
 	// Update attributes
 	var runtimeList bytes.Buffer
 	for name, rt := range daemon.configStore.Runtimes {
@@ -586,8 +593,9 @@ func (daemon *Daemon) platformReload(config *Config) map[string]string {
 	}
 
 	return map[string]string{
-		"runtimes":        runtimeList.String(),
-		"default-runtime": daemon.configStore.DefaultRuntime,
+		"runtimes":         runtimeList.String(),
+		"default-runtime":  daemon.configStore.DefaultRuntime,
+		"default-shm-size": fmt.Sprintf("%d", daemon.configStore.ShmSize),
 	}
 }
 

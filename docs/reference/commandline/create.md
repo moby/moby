@@ -107,7 +107,7 @@ Options:
       --rm                          Automatically remove the container when it exits
       --runtime string              Runtime to use for this container
       --security-opt value          Security Options (default [])
-      --shm-size string             Size of /dev/shm, default value is 64MB.
+      --shm-size bytes              Size of /dev/shm
                                     The format is `<number><unit>`. `number` must be greater than `0`.
                                     Unit is optional and can be `b` (bytes), `k` (kilobytes), `m` (megabytes),
                                     or `g` (gigabytes). If you omit the unit, the system uses bytes.

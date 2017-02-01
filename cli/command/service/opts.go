@@ -11,32 +11,11 @@ import (
 	"github.com/docker/docker/opts"
 	runconfigopts "github.com/docker/docker/runconfig/opts"
 	"github.com/docker/go-connections/nat"
-	units "github.com/docker/go-units"
 	"github.com/spf13/cobra"
 )
 
 type int64Value interface {
 	Value() int64
-}
-
-type memBytes int64
-
-func (m *memBytes) String() string {
-	return units.BytesSize(float64(m.Value()))
-}
-
-func (m *memBytes) Set(value string) error {
-	val, err := units.RAMInBytes(value)
-	*m = memBytes(val)
-	return err
-}
-
-func (m *memBytes) Type() string {
-	return "bytes"
-}
-
-func (m *memBytes) Value() int64 {
-	return int64(*m)
 }
 
 // PositiveDurationOpt is an option type for time.Duration that uses a pointer.
@@ -149,9 +128,9 @@ type updateOptions struct {
 
 type resourceOptions struct {
 	limitCPU      opts.NanoCPUs
-	limitMemBytes memBytes
+	limitMemBytes opts.MemBytes
 	resCPU        opts.NanoCPUs
-	resMemBytes   memBytes
+	resMemBytes   opts.MemBytes
 }
 
 func (r *resourceOptions) ToResourceRequirements() *swarm.ResourceRequirements {

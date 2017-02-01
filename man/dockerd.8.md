@@ -21,6 +21,7 @@ dockerd - Enable daemon mode
 [**--default-gateway**[=*DEFAULT-GATEWAY*]]
 [**--default-gateway-v6**[=*DEFAULT-GATEWAY-V6*]]
 [**--default-runtime**[=*runc*]]
+[**--default-shm-size**[=*64MiB*]]
 [**--default-ulimit**[=*[]*]]
 [**--disable-legacy-registry**]
 [**--dns**[=*[]*]]
@@ -163,6 +164,9 @@ $ sudo dockerd --add-runtime runc=runc --add-runtime custom=/usr/local/bin/my-ru
 
 **--default-runtime**="runc"
   Set default runtime if there're more than one specified by `--add-runtime`.
+
+**--default-shm-size**=*64MiB*
+  Set the daemon-wide default shm size for containers. Default is `64MiB`.
 
 **--default-ulimit**=[]
   Default ulimits for containers.
