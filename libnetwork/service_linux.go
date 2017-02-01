@@ -97,20 +97,16 @@ func (sb *sandbox) populateLoadbalancers(ep *endpoint) {
 		}
 
 		lb.service.Lock()
-		addService := true
 		for _, ip := range lb.backEnds {
-			sb.addLBBackend(ip, lb.vip, lb.fwMark, lb.service.ingressPorts,
-				eIP, gwIP, addService, n.ingress)
-			addService = false
+			sb.addLBBackend(ip, lb.vip, lb.fwMark, lb.service.ingressPorts, eIP, gwIP, n.ingress)
 		}
 		lb.service.Unlock()
 	}
 }
 
 // Add loadbalancer backend to all sandboxes which has a connection to
-// this network. If needed add the service as well, as specified by
-// the addService bool.
-func (n *network) addLBBackend(ip, vip net.IP, fwMark uint32, ingressPorts []*PortConfig, addService bool) {
+// this network. If needed add the service as well.
+func (n *network) addLBBackend(ip, vip net.IP, fwMark uint32, ingressPorts []*PortConfig) {
 	n.WalkEndpoints(func(e Endpoint) bool {
 		ep := e.(*endpoint)
 		if sb, ok := ep.getSandbox(); ok {
@@ -123,7 +119,7 @@ func (n *network) addLBBackend(ip, vip net.IP, fwMark uint32, ingressPorts []*Po
 				gwIP = ep.Iface().Address().IP
 			}
 
-			sb.addLBBackend(ip, vip, fwMark, ingressPorts, ep.Iface().Address(), gwIP, addService, n.ingress)
+			sb.addLBBackend(ip, vip, fwMark, ingressPorts, ep.Iface().Address(), gwIP, n.ingress)
 		}
 
 		return false
@@ -154,7 +150,7 @@ func (n *network) rmLBBackend(ip, vip net.IP, fwMark uint32, ingressPorts []*Por
 }
 
 // Add loadbalancer backend into one connected sandbox.
-func (sb *sandbox) addLBBackend(ip, vip net.IP, fwMark uint32, ingressPorts []*PortConfig, eIP *net.IPNet, gwIP net.IP, addService bool, isIngressNetwork bool) {
+func (sb *sandbox) addLBBackend(ip, vip net.IP, fwMark uint32, ingressPorts []*PortConfig, eIP *net.IPNet, gwIP net.IP, isIngressNetwork bool) {
 	if sb.osSbox == nil {
 		return
 	}
@@ -176,7 +172,7 @@ func (sb *sandbox) addLBBackend(ip, vip net.IP, fwMark uint32, ingressPorts []*P
 		SchedName:     ipvs.RoundRobin,
 	}
 
-	if addService {
+	if !i.IsServicePresent(s) {
 		var filteredPorts []*PortConfig
 		if sb.ingress {
 			filteredPorts = filterPortConfigs(ingressPorts, false)
