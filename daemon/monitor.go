@@ -31,7 +31,10 @@ func (daemon *Daemon) StateChanged(id string, e libcontainerd.StateInfo) error {
 	case libcontainerd.StateExit:
 		// if container's AutoRemove flag is set, remove it after clean up
 		autoRemove := func() {
-			if c.HostConfig.AutoRemove {
+			c.Lock()
+			ar := c.HostConfig.AutoRemove
+			c.Unlock()
+			if ar {
 				if err := daemon.ContainerRm(c.ID, &types.ContainerRmConfig{ForceRemove: true, RemoveVolume: true}); err != nil {
 					logrus.Errorf("can't remove container %s: %v", c.ID, err)
 				}

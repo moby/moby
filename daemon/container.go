@@ -16,6 +16,7 @@ import (
 	"github.com/docker/docker/pkg/signal"
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/pkg/truncindex"
+	"github.com/docker/docker/runconfig"
 	"github.com/docker/go-connections/nat"
 )
 
@@ -201,6 +202,7 @@ func (daemon *Daemon) setHostConfig(container *container.Container, hostConfig *
 		return err
 	}
 
+	runconfig.SetDefaultNetModeIfBlank(hostConfig)
 	container.HostConfig = hostConfig
 	return container.ToDisk()
 }

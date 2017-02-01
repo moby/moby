@@ -15,7 +15,6 @@ import (
 	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/container"
-	"github.com/docker/docker/runconfig"
 )
 
 // ContainerStart starts a container.
@@ -137,10 +136,6 @@ func (daemon *Daemon) containerStart(container *container.Container, checkpoint 
 	if err := daemon.conditionalMountOnStart(container); err != nil {
 		return err
 	}
-
-	// Make sure NetworkMode has an acceptable value. We do this to ensure
-	// backwards API compatibility.
-	container.HostConfig = runconfig.SetDefaultNetModeIfBlank(container.HostConfig)
 
 	if err := daemon.initializeNetworking(container); err != nil {
 		return err
