@@ -365,19 +365,6 @@ func (container *Container) GetExecIDs() []string {
 	return container.ExecCommands.List()
 }
 
-// Attach connects to the container's stdio to the client streams
-func (container *Container) Attach(cfg *stream.AttachConfig) chan error {
-	ctx := container.InitAttachContext()
-
-	cfg.TTY = container.Config.Tty
-	if !container.Config.OpenStdin {
-		cfg.Stdin = nil
-	}
-	cfg.CloseStdin = cfg.Stdin != nil && container.Config.StdinOnce
-
-	return container.StreamConfig.Attach(ctx, cfg)
-}
-
 // ShouldRestart decides whether the daemon should restart the container or not.
 // This is based on the container's restart policy.
 func (container *Container) ShouldRestart() bool {

@@ -33,33 +33,51 @@ type AttachConfig struct {
 	// For example, this would close the attached container's stdin.
 	CloseStdin bool
 
+	// UseStd* indicate whether the client has requested to be connected to the
+	// given stream or not.  These flags are used instead of checking Std* != nil
+	// at points before the client streams Std* are wired up.
+	UseStdin, UseStdout, UseStderr bool
+
+	// CStd* are the streams directly connected to the container
+	CStdin           io.WriteCloser
+	CStdout, CStderr io.ReadCloser
+
 	// Provide client streams to wire up to
 	Stdin          io.ReadCloser
 	Stdout, Stderr io.Writer
 }
 
-// Attach attaches the stream config to the streams specified in
-// the AttachOptions
-func (c *Config) Attach(ctx context.Context, cfg *AttachConfig) chan error {
+// AttachStreams attaches the container's streams to the AttachConfig
+func (c *Config) AttachStreams(cfg *AttachConfig) {
+	if cfg.UseStdin {
+		cfg.CStdin = c.StdinPipe()
+	}
+
+	if cfg.UseStdout {
+		cfg.CStdout = c.StdoutPipe()
+	}
+
+	if cfg.UseStderr {
+		cfg.CStderr = c.StderrPipe()
+	}
+}
+
+// CopyStreams starts goroutines to copy data in and out to/from the container
+func (c *Config) CopyStreams(ctx context.Context, cfg *AttachConfig) chan error {
 	var (
-		cStdout, cStderr io.ReadCloser
-		cStdin           io.WriteCloser
-		wg               sync.WaitGroup
-		errors           = make(chan error, 3)
+		wg     sync.WaitGroup
+		errors = make(chan error, 3)
 	)
 
 	if cfg.Stdin != nil {
-		cStdin = c.StdinPipe()
 		wg.Add(1)
 	}
 
 	if cfg.Stdout != nil {
-		cStdout = c.StdoutPipe()
 		wg.Add(1)
 	}
 
 	if cfg.Stderr != nil {
-		cStderr = c.StderrPipe()
 		wg.Add(1)
 	}
 
@@ -72,9 +90,9 @@ func (c *Config) Attach(ctx context.Context, cfg *AttachConfig) chan error {
 
 		var err error
 		if cfg.TTY {
-			_, err = copyEscapable(cStdin, cfg.Stdin, cfg.DetachKeys)
+			_, err = copyEscapable(cfg.CStdin, cfg.Stdin, cfg.DetachKeys)
 		} else {
-			_, err = io.Copy(cStdin, cfg.Stdin)
+			_, err = io.Copy(cfg.CStdin, cfg.Stdin)
 		}
 		if err == io.ErrClosedPipe {
 			err = nil
@@ -84,14 +102,14 @@ func (c *Config) Attach(ctx context.Context, cfg *AttachConfig) chan error {
 			errors <- err
 		}
 		if cfg.CloseStdin && !cfg.TTY {
-			cStdin.Close()
+			cfg.CStdin.Close()
 		} else {
 			// No matter what, when stdin is closed (io.Copy unblock), close stdout and stderr
-			if cStdout != nil {
-				cStdout.Close()
+			if cfg.CStdout != nil {
+				cfg.CStdout.Close()
 			}
-			if cStderr != nil {
-				cStderr.Close()
+			if cfg.CStderr != nil {
+				cfg.CStderr.Close()
 			}
 		}
 		logrus.Debug("attach: stdin: end")
@@ -121,8 +139,8 @@ func (c *Config) Attach(ctx context.Context, cfg *AttachConfig) chan error {
 		wg.Done()
 	}
 
-	go attachStream("stdout", cfg.Stdout, cStdout)
-	go attachStream("stderr", cfg.Stderr, cStderr)
+	go attachStream("stdout", cfg.Stdout, cfg.CStdout)
+	go attachStream("stderr", cfg.Stderr, cfg.CStderr)
 
 	return promise.Go(func() error {
 		done := make(chan struct{})
@@ -134,14 +152,14 @@ func (c *Config) Attach(ctx context.Context, cfg *AttachConfig) chan error {
 		case <-done:
 		case <-ctx.Done():
 			// close all pipes
-			if cStdin != nil {
-				cStdin.Close()
+			if cfg.CStdin != nil {
+				cfg.CStdin.Close()
 			}
-			if cStdout != nil {
-				cStdout.Close()
+			if cfg.CStdout != nil {
+				cfg.CStdout.Close()
 			}
-			if cStderr != nil {
-				cStderr.Close()
+			if cfg.CStderr != nil {
+				cfg.CStderr.Close()
 			}
 			<-done
 		}
