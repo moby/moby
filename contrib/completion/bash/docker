@@ -3429,7 +3429,24 @@ _docker_plugin_list() {
 }
 
 _docker_plugin_ls() {
+	local key=$(__docker_map_key_of_current_option '--filter|-f')
+	case "$key" in
+		capability)
+			COMPREPLY=( $( compgen -W "authz ipamdriver networkdriver volumedriver" -- "${cur##*=}" ) )
+			return
+			;;
+		enabled)
+			COMPREPLY=( $( compgen -W "false true" -- "${cur##*=}" ) )
+			return
+			;;
+	esac
+
 	case "$prev" in
+		--filter|-f)
+			COMPREPLY=( $( compgen -S = -W "capability enabled" -- "$cur" ) )
+			__docker_nospace
+			return
+			;;
 		--format)
 			return
 			;;
@@ -3437,7 +3454,7 @@ _docker_plugin_ls() {
 
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "--format --help --no-trunc --quiet -q" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "--filter -f --format --help --no-trunc --quiet -q" -- "$cur" ) )
 			;;
 	esac
 }
