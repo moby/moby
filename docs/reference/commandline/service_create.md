@@ -507,7 +507,7 @@ $ docker service create --name dns-cache -p 53:53/udp dns-cache
 ### Create services using templates
 
 You can use templates for some flags of `service create`, using the syntax
-provided by the Go's [text/template](http://golange.org/pkg/text/template/) package.
+provided by the Go's [text/template](http://golang.org/pkg/text/template/) package.
 
 The supported flags are the following :
 
