@@ -647,8 +647,8 @@ func (c *controller) NewNetwork(networkType, name string, id string, options ...
 		}
 	}
 
-	if err := config.ValidateName(name); err != nil {
-		return nil, ErrInvalidName(err.Error())
+	if !config.IsValidName(name) {
+		return nil, ErrInvalidName(name)
 	}
 
 	if id == "" {

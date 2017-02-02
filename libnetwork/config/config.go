@@ -1,8 +1,6 @@
 package config
 
 import (
-	"fmt"
-	"regexp"
 	"strings"
 
 	"github.com/BurntSushi/toml"
@@ -16,12 +14,6 @@ import (
 	"github.com/docker/libnetwork/netlabel"
 	"github.com/docker/libnetwork/osl"
 )
-
-// RestrictedNameChars collects the characters allowed to represent a network or endpoint name.
-const restrictedNameChars = `[a-zA-Z0-9][a-zA-Z0-9_.-]`
-
-// RestrictedNamePattern is a regular expression to validate names against the collection of restricted characters.
-var restrictedNamePattern = regexp.MustCompile(`^/?` + restrictedNameChars + `+$`)
 
 // Config encapsulates configurations of various Libnetwork components
 type Config struct {
@@ -240,12 +232,12 @@ func (c *Config) ProcessOptions(options ...Option) {
 	}
 }
 
-// ValidateName validates configuration objects supported by libnetwork
-func ValidateName(name string) error {
-	if !restrictedNamePattern.MatchString(name) {
-		return fmt.Errorf("%s includes invalid characters, only %q are allowed", name, restrictedNameChars)
+// IsValidName validates configuration objects supported by libnetwork
+func IsValidName(name string) bool {
+	if strings.TrimSpace(name) == "" {
+		return false
 	}
-	return nil
+	return true
 }
 
 // OptionLocalKVProvider function returns an option setter for kvstore provider

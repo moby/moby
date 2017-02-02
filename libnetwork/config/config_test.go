@@ -46,16 +46,13 @@ func TestOptionsLabels(t *testing.T) {
 }
 
 func TestValidName(t *testing.T) {
-	if err := ValidateName("test"); err != nil {
+	if !IsValidName("test") {
 		t.Fatal("Name validation fails for a name that must be accepted")
 	}
-	if err := ValidateName(""); err == nil {
+	if IsValidName("") {
 		t.Fatal("Name validation succeeds for a case when it is expected to fail")
 	}
-	if err := ValidateName("   "); err == nil {
-		t.Fatal("Name validation succeeds for a case when it is expected to fail")
-	}
-	if err := ValidateName("<>$$^"); err == nil {
+	if IsValidName("   ") {
 		t.Fatal("Name validation succeeds for a case when it is expected to fail")
 	}
 }
