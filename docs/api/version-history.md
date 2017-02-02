@@ -17,6 +17,9 @@ keywords: "API, Docker, rcli, REST, documentation"
 
 [Docker Engine API v1.26](v1.26/) documentation
 
+* `GET /containers/(id or name)/attach/ws` now returns WebSocket in binary frame format for API version >= v1.26,
+  and returns WebSocket in text frame format for API version< v1.26, for the purpose of backward-compatibility.
+
 ## v1.25 API changes
 
 [Docker Engine API v1.25](v1.25.md) documentation
