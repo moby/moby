@@ -3,6 +3,7 @@ package libnetwork
 //go:generate protoc -I.:Godeps/_workspace/src/github.com/gogo/protobuf  --gogo_out=import_path=github.com/docker/libnetwork,Mgogoproto/gogo.proto=github.com/gogo/protobuf/gogoproto:. agent.proto
 
 import (
+	"encoding/json"
 	"fmt"
 	"net"
 	"os"
@@ -285,6 +286,7 @@ func (c *controller) agentInit(listenAddr, bindAddrOrInterface, advertiseAddr st
 	}
 
 	ch, cancel := nDB.Watch("endpoint_table", "", "")
+	nodeCh, cancel := nDB.Watch(networkdb.NodeTable, "", "")
 
 	c.Lock()
 	c.agent = &agent{
@@ -297,6 +299,7 @@ func (c *controller) agentInit(listenAddr, bindAddrOrInterface, advertiseAddr st
 	c.Unlock()
 
 	go c.handleTableEvents(ch, c.handleEpTableEvent)
+	go c.handleTableEvents(nodeCh, c.handleNodeTableEvent)
 
 	drvEnc := discoverapi.DriverEncryptionConfig{}
 	keys, tags = c.getKeys(subsysIPSec)
@@ -632,6 +635,31 @@ func (n *network) handleDriverTableEvent(ev events.Event) {
 	}
 
 	d.EventNotify(etype, n.ID(), tname, key, value)
+}
+
+func (c *controller) handleNodeTableEvent(ev events.Event) {
+	var (
+		value    []byte
+		isAdd    bool
+		nodeAddr networkdb.NodeAddr
+	)
+	switch event := ev.(type) {
+	case networkdb.CreateEvent:
+		value = event.Value
+		isAdd = true
+	case networkdb.DeleteEvent:
+		value = event.Value
+	case networkdb.UpdateEvent:
+		logrus.Errorf("Unexpected update node table event = %#v", event)
+	}
+
+	err := json.Unmarshal(value, &nodeAddr)
+	if err != nil {
+		logrus.Errorf("Error unmarshalling node table event %v", err)
+		return
+	}
+	c.processNodeDiscovery([]net.IP{nodeAddr.Addr}, isAdd)
+
 }
 
 func (c *controller) handleEpTableEvent(ev events.Event) {
