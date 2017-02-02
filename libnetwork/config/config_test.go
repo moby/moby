@@ -46,37 +46,14 @@ func TestOptionsLabels(t *testing.T) {
 }
 
 func TestValidName(t *testing.T) {
-	assertName(t, "test", true)
-	assertName(t, "test1", true)
-	assertName(t, "test1.2_3", true)
-	assertName(t, "_test", true)
-	assertName(t, "test_", true)
-	assertName(t, "looks-good", true)
-	assertName(t, " test", false)
-	assertName(t, "test ", false)
-	assertName(t, "test.", false)
-	assertName(t, ".test", false)
-	assertName(t, "", false)
-	assertName(t, "   ", false)
-	assertName(t, "<>$$^", false)
-	assertName(t, "this is a good network name", true)
-	assertName(t, "this is also-good", true)
-	assertName(t, " this is a not good network name", false)
-	assertName(t, "this is a not either ", false)
-	assertName(t, "this one\nis not good", false)
-	assertName(t, "this one\tis not good", false)
-	assertName(t, "this one\ris not good", false)
-	assertName(t, "this one\vis not good", false)
-	assertName(t, "this one\fis not good", false)
-}
-func assertName(t *testing.T, name string, mustSucceed bool) {
-	msg := "Name validation succeeds for a case when it is expected to fail"
-	if mustSucceed {
-		msg = "Name validation fails for a name that must be accepted"
+	if !IsValidName("test") {
+		t.Fatal("Name validation fails for a name that must be accepted")
 	}
-	err := ValidateName(name)
-	if (err == nil) != mustSucceed {
-		t.Fatalf("%s: %s", msg, name)
+	if IsValidName("") {
+		t.Fatal("Name validation succeeds for a case when it is expected to fail")
+	}
+	if IsValidName("   ") {
+		t.Fatal("Name validation succeeds for a case when it is expected to fail")
 	}
 }
 
