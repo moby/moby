@@ -2,6 +2,7 @@ package libnetwork
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/libkv/store/boltdb"
@@ -152,21 +153,24 @@ func (c *controller) getNetworksFromStore() ([]*network, error) {
 			continue
 		}
 
+		kvep, err := store.Map(datastore.Key(epCntKeyPrefix), &endpointCnt{})
+		if err != nil {
+			if err != datastore.ErrKeyNotFound {
+				logrus.Warnf("failed to get endpoint_count map for scope %s: %v", store.Scope(), err)
+			}
+		}
+
 		for _, kvo := range kvol {
 			n := kvo.(*network)
 			n.Lock()
 			n.ctrlr = c
-			n.Unlock()
-
 			ec := &endpointCnt{n: n}
-			err = store.GetObject(datastore.Key(ec.Key()...), ec)
-			if err != nil && !n.inDelete {
-				logrus.Warnf("could not find endpoint count key %s for network %s while listing: %v", datastore.Key(ec.Key()...), n.Name(), err)
-				continue
+			// Trim the leading & trailing "/" to make it consistent across all stores
+			if val, ok := kvep[strings.Trim(datastore.Key(ec.Key()...), "/")]; ok {
+				ec = val.(*endpointCnt)
+				ec.n = n
+				n.epCnt = ec
 			}
-
-			n.Lock()
-			n.epCnt = ec
 			n.scope = store.Scope()
 			n.Unlock()
 			nl = append(nl, n)
