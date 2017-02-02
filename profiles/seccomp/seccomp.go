@@ -36,6 +36,7 @@ var nativeToSeccomp = map[string]types.Arch{
 	"mips64n32":   types.ArchMIPS64N32,
 	"mipsel64":    types.ArchMIPSEL64,
 	"mipsel64n32": types.ArchMIPSEL64N32,
+	"ppc64le":     types.ArchPPC64LE,
 	"s390x":       types.ArchS390X,
 }
 

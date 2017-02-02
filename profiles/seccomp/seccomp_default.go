@@ -35,6 +35,10 @@ func arches() []types.Architecture {
 			SubArches: []types.Arch{types.ArchMIPSEL, types.ArchMIPSEL64},
 		},
 		{
+			Arch:      types.ArchPPC64LE,
+			SubArches: []types.Arch{},
+		},
+		{
 			Arch:      types.ArchS390X,
 			SubArches: []types.Arch{types.ArchS390},
 		},

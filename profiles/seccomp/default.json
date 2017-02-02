@@ -43,6 +43,10 @@
 			]
 		},
 		{
+			"architecture": "SCMP_ARCH_PPC64LE",
+			"subArchitectures": []
+		},
+		{
 			"architecture": "SCMP_ARCH_S390X",
 			"subArchitectures": [
 				"SCMP_ARCH_S390"
