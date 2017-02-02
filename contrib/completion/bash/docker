@@ -712,16 +712,18 @@ __docker_complete_log_drivers() {
 }
 
 __docker_complete_log_options() {
-	# see docs/reference/logging/index.md
-	local awslogs_options="awslogs-region awslogs-group awslogs-stream awslogs-create-group"
-	local fluentd_options="env fluentd-address fluentd-async-connect fluentd-buffer-limit fluentd-retry-wait fluentd-max-retries labels tag"
-	local gcplogs_options="env gcp-log-cmd gcp-project labels"
-	local gelf_options="env gelf-address gelf-compression-level gelf-compression-type labels tag"
-	local journald_options="env labels tag"
-	local json_file_options="env labels max-file max-size"
-	local logentries_options="logentries-token"
-	local syslog_options="env labels syslog-address syslog-facility syslog-format syslog-tls-ca-cert syslog-tls-cert syslog-tls-key syslog-tls-skip-verify tag"
-	local splunk_options="env labels splunk-caname splunk-capath splunk-format splunk-gzip splunk-gzip-level splunk-index splunk-insecureskipverify splunk-source splunk-sourcetype splunk-token splunk-url splunk-verify-connection tag"
+	# see repository docker/docker.github.io/engine/admin/logging/
+	local common_options="max-buffer-size mode"
+
+	local awslogs_options="$common_options awslogs-region awslogs-group awslogs-stream awslogs-create-group"
+	local fluentd_options="$common_options env fluentd-address fluentd-async-connect fluentd-buffer-limit fluentd-retry-wait fluentd-max-retries labels tag"
+	local gcplogs_options="$common_options env gcp-log-cmd gcp-project labels"
+	local gelf_options="$common_options env gelf-address gelf-compression-level gelf-compression-type labels tag"
+	local journald_options="$common_options env labels tag"
+	local json_file_options="$common_options env labels max-file max-size"
+	local logentries_options="$common_options logentries-token"
+	local syslog_options="$common_options env labels syslog-address syslog-facility syslog-format syslog-tls-ca-cert syslog-tls-cert syslog-tls-key syslog-tls-skip-verify tag"
+	local splunk_options="$common_options env labels splunk-caname splunk-capath splunk-format splunk-gzip splunk-gzip-level splunk-index splunk-insecureskipverify splunk-source splunk-sourcetype splunk-token splunk-url splunk-verify-connection tag"
 
 	local all_options="$fluentd_options $gcplogs_options $gelf_options $journald_options $logentries_options $json_file_options $syslog_options $splunk_options"
 
@@ -782,6 +784,10 @@ __docker_complete_log_driver_options() {
 			;;
 		gelf-compression-type)
 			COMPREPLY=( $( compgen -W "gzip none zlib" -- "${cur##*=}" ) )
+			return
+			;;
+		mode)
+			COMPREPLY=( $( compgen -W "blocking nonblocking" -- "${cur##*=}" ) )
 			return
 			;;
 		syslog-address)
