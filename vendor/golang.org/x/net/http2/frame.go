@@ -312,7 +312,7 @@ type Framer struct {
 	MaxHeaderListSize uint32
 
 	// TODO: track which type of frame & with which flags was sent
-	// last.  Then return an error (unless AllowIllegalWrites) if
+	// last. Then return an error (unless AllowIllegalWrites) if
 	// we're in the middle of a header block and a
 	// non-Continuation or Continuation on a different stream is
 	// attempted to be written.
@@ -600,6 +600,7 @@ var (
 	errStreamID    = errors.New("invalid stream ID")
 	errDepStreamID = errors.New("invalid dependent stream ID")
 	errPadLength   = errors.New("pad length too large")
+	errPadBytes    = errors.New("padding bytes must all be zeros unless AllowIllegalWrites is enabled")
 )
 
 func validStreamIDOrZero(streamID uint32) bool {
@@ -623,6 +624,7 @@ func (f *Framer) WriteData(streamID uint32, endStream bool, data []byte) error {
 //
 // If pad is nil, the padding bit is not sent.
 // The length of pad must not exceed 255 bytes.
+// The bytes of pad must all be zero, unless f.AllowIllegalWrites is set.
 //
 // It will perform exactly one Write to the underlying Writer.
 // It is the caller's responsibility not to violate the maximum frame size
@@ -631,8 +633,18 @@ func (f *Framer) WriteDataPadded(streamID uint32, endStream bool, data, pad []by
 	if !validStreamID(streamID) && !f.AllowIllegalWrites {
 		return errStreamID
 	}
-	if len(pad) > 255 {
-		return errPadLength
+	if len(pad) > 0 {
+		if len(pad) > 255 {
+			return errPadLength
+		}
+		if !f.AllowIllegalWrites {
+			for _, b := range pad {
+				if b != 0 {
+					// "Padding octets MUST be set to zero when sending."
+					return errPadBytes
+				}
+			}
+		}
 	}
 	var flags Flags
 	if endStream {
@@ -663,7 +675,7 @@ type SettingsFrame struct {
 func parseSettingsFrame(fh FrameHeader, p []byte) (Frame, error) {
 	if fh.Flags.Has(FlagSettingsAck) && fh.Length > 0 {
 		// When this (ACK 0x1) bit is set, the payload of the
-		// SETTINGS frame MUST be empty.  Receipt of a
+		// SETTINGS frame MUST be empty. Receipt of a
 		// SETTINGS frame with the ACK flag set and a length
 		// field value other than 0 MUST be treated as a
 		// connection error (Section 5.4.1) of type
@@ -672,7 +684,7 @@ func parseSettingsFrame(fh FrameHeader, p []byte) (Frame, error) {
 	}
 	if fh.StreamID != 0 {
 		// SETTINGS frames always apply to a connection,
-		// never a single stream.  The stream identifier for a
+		// never a single stream. The stream identifier for a
 		// SETTINGS frame MUST be zero (0x0).  If an endpoint
 		// receives a SETTINGS frame whose stream identifier
 		// field is anything other than 0x0, the endpoint MUST
@@ -923,7 +935,7 @@ func parseHeadersFrame(fh FrameHeader, p []byte) (_ Frame, err error) {
 		FrameHeader: fh,
 	}
 	if fh.StreamID == 0 {
-		// HEADERS frames MUST be associated with a stream.  If a HEADERS frame
+		// HEADERS frames MUST be associated with a stream. If a HEADERS frame
 		// is received whose stream identifier field is 0x0, the recipient MUST
 		// respond with a connection error (Section 5.4.1) of type
 		// PROTOCOL_ERROR.
@@ -1045,7 +1057,7 @@ type PriorityParam struct {
 	Exclusive bool
 
 	// Weight is the stream's zero-indexed weight. It should be
-	// set together with StreamDep, or neither should be set.  Per
+	// set together with StreamDep, or neither should be set. Per
 	// the spec, "Add one to the value to obtain a weight between
 	// 1 and 256."
 	Weight uint8
