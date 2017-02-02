@@ -126,6 +126,25 @@ Function Check-InContainer() {
         Write-Host ""
         Write-Warning "Not running in a container. The result might be an incorrect build."
         Write-Host ""
+        return $False
+    }
+    return $True
+}
+
+# Utility function to warn if the version of go is correct. Used for local builds
+# outside of a container where it may be out of date with master.
+Function Verify-GoVersion() {
+    Try {
+        $goVersionDockerfile=(Get-Content ".\Dockerfile" | Select-String "ENV GO_VERSION").ToString().Split(" ")[2]
+        $goVersionInstalled=(go version).ToString().Split(" ")[2].SubString(2)
+    }
+    Catch [Exception] {
+        Throw "Failed to validate go version correctness: $_"
+    }
+    if (-not($goVersionInstalled -eq $goVersionDockerfile)) {
+        Write-Host ""
+        Write-Warning "Building with golang version $goVersionInstalled. You should update to $goVersionDockerfile"
+        Write-Host ""
     }
 }
 
@@ -338,7 +357,10 @@ Try {
 
     # Give a warning if we are not running in a container and are building binaries or running unit tests.
     # Not relevant for validation tests as these are fine to run outside of a container.
-    if ($Client -or $Daemon -or $TestUnit) { Check-InContainer }
+    if ($Client -or $Daemon -or $TestUnit) { $inContainer=Check-InContainer }
+
+    # If we are not in a container, validate the version of GO that is installed.
+    if (-not $inContainer) { Verify-GoVersion }
 
     # Verify GOPATH is set
     if ($env:GOPATH.Length -eq 0) { Throw "Missing GOPATH environment variable. See https://golang.org/doc/code.html#GOPATH" }
