@@ -326,6 +326,25 @@ func newServiceOptions() *serviceOptions {
 	}
 }
 
+func (opts *serviceOptions) ToServiceMode() (swarm.ServiceMode, error) {
+	serviceMode := swarm.ServiceMode{}
+	switch opts.mode {
+	case "global":
+		if opts.replicas.Value() != nil {
+			return serviceMode, fmt.Errorf("replicas can only be used with replicated mode")
+		}
+
+		serviceMode.Global = &swarm.GlobalService{}
+	case "replicated":
+		serviceMode.Replicated = &swarm.ReplicatedService{
+			Replicas: opts.replicas.Value(),
+		}
+	default:
+		return serviceMode, fmt.Errorf("Unknown mode: %s, only replicated and global supported", opts.mode)
+	}
+	return serviceMode, nil
+}
+
 func (opts *serviceOptions) ToService() (swarm.ServiceSpec, error) {
 	var service swarm.ServiceSpec
 
@@ -346,6 +365,16 @@ func (opts *serviceOptions) ToService() (swarm.ServiceSpec, error) {
 			}
 		}
 		currentEnv = append(currentEnv, env)
+	}
+
+	healthConfig, err := opts.healthcheck.toHealthConfig()
+	if err != nil {
+		return service, err
+	}
+
+	serviceMode, err := opts.ToServiceMode()
+	if err != nil {
+		return service, err
 	}
 
 	service = swarm.ServiceSpec{
@@ -374,6 +403,7 @@ func (opts *serviceOptions) ToService() (swarm.ServiceSpec, error) {
 				Hosts:           convertExtraHostsToSwarmHosts(opts.hosts.GetAll()),
 				StopGracePeriod: opts.stopGrace.Value(),
 				Secrets:         nil,
+				Healthcheck:     healthConfig,
 			},
 			Networks:      convertNetworks(opts.networks.GetAll()),
 			Resources:     opts.resources.ToResourceRequirements(),
@@ -384,7 +414,7 @@ func (opts *serviceOptions) ToService() (swarm.ServiceSpec, error) {
 			LogDriver: opts.logDriver.toLogDriver(),
 		},
 		Networks: convertNetworks(opts.networks.GetAll()),
-		Mode:     swarm.ServiceMode{},
+		Mode:     serviceMode,
 		UpdateConfig: &swarm.UpdateConfig{
 			Parallelism:     opts.update.parallelism,
 			Delay:           opts.update.delay,
@@ -395,26 +425,6 @@ func (opts *serviceOptions) ToService() (swarm.ServiceSpec, error) {
 		EndpointSpec: opts.endpoint.ToEndpointSpec(),
 	}
 
-	healthConfig, err := opts.healthcheck.toHealthConfig()
-	if err != nil {
-		return service, err
-	}
-	service.TaskTemplate.ContainerSpec.Healthcheck = healthConfig
-
-	switch opts.mode {
-	case "global":
-		if opts.replicas.Value() != nil {
-			return service, fmt.Errorf("replicas can only be used with replicated mode")
-		}
-
-		service.Mode.Global = &swarm.GlobalService{}
-	case "replicated":
-		service.Mode.Replicated = &swarm.ReplicatedService{
-			Replicas: opts.replicas.Value(),
-		}
-	default:
-		return service, fmt.Errorf("Unknown mode: %s", opts.mode)
-	}
 	return service, nil
 }
 
@@ -449,7 +459,7 @@ func addServiceFlags(cmd *cobra.Command, opts *serviceOptions) {
 	flags.Var(&opts.update.maxFailureRatio, flagUpdateMaxFailureRatio, "Failure rate to tolerate during an update")
 	flags.SetAnnotation(flagUpdateMaxFailureRatio, "version", []string{"1.25"})
 
-	flags.StringVar(&opts.endpoint.mode, flagEndpointMode, "", "Endpoint mode (vip or dnsrr)")
+	flags.StringVar(&opts.endpoint.mode, flagEndpointMode, "vip", "Endpoint mode (vip or dnsrr)")
 
 	flags.BoolVar(&opts.registryAuth, flagRegistryAuth, false, "Send registry authentication details to swarm agents")
 

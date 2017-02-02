@@ -26,7 +26,7 @@ Options:
       --dns list                         Set custom DNS servers (default [])
       --dns-option list                  Set DNS options (default [])
       --dns-search list                  Set custom DNS search domains (default [])
-      --endpoint-mode string             Endpoint mode (vip or dnsrr)
+      --endpoint-mode string             Endpoint mode (vip or dnsrr) (default "vip")
   -e, --env list                         Set environment variables (default [])
       --env-file list                    Read in a file of environment variables (default [])
       --group list                       Set one or more supplementary user groups for the container (default [])
