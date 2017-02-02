@@ -42,17 +42,20 @@ func TestContainerTopParsePSOutput(t *testing.T) {
 		{[]byte(`  PID COMMAND
    42 foo
    43 bar
+		- -
   100 baz
 `), []int{42, 43}, false},
 		{[]byte(`  UID COMMAND
    42 foo
    43 bar
+		- -
   100 baz
 `), []int{42, 43}, true},
 		// unicode space (U+2003, 0xe2 0x80 0x83)
 		{[]byte(` PID COMMAND
    42 foo
    43 bar
+		- -
   100 baz
 `), []int{42, 43}, true},
 		// the first space is U+2003, the second one is ascii.
