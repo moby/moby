@@ -2453,22 +2453,21 @@ paths:
         - name: "filters"
           in: "query"
           description: |
-            Filters to process on the container list, encoded as JSON (a `map[string][]string`). For example, `{"status": ["paused"]}` will only return paused containers.
+            Filters to process on the container list, encoded as JSON (a `map[string][]string`). For example, `{"status": ["paused"]}` will only return paused containers. Available filters:
 
-            Available filters:
-            - `exited=<int>` containers with exit code of `<int>`
-            - `status=`(`created`|`restarting`|`running`|`removing`|`paused`|`exited`|`dead`)
-            - `label=key` or `label="key=value"` of a container label
-            - `isolation=`(`default`|`process`|`hyperv`) (Windows daemon only)
-            - `id=<ID>` a container's ID
-            - `name=<name>` a container's name
-            - `is-task=`(`true`|`false`)
             - `ancestor`=(`<image-name>[:<tag>]`, `<image id>`, or `<image@digest>`)
             - `before`=(`<container id>` or `<container name>`)
-            - `since`=(`<container id>` or `<container name>`)
-            - `volume`=(`<volume name>` or `<mount point destination>`)
-            - `network`=(`<network id>` or `<network name>`)
+            - `exited=<int>` containers with exit code of `<int>`
             - `health`=(`starting`|`healthy`|`unhealthy`|`none`)
+            - `id=<ID>` a container's ID
+            - `isolation=`(`default`|`process`|`hyperv`) (Windows daemon only)
+            - `is-task=`(`true`|`false`)
+            - `label=key` or `label="key=value"` of a container label
+            - `name=<name>` a container's name
+            - `network`=(`<network id>` or `<network name>`)
+            - `since`=(`<container id>` or `<container name>`)
+            - `status=`(`created`|`restarting`|`running`|`removing`|`paused`|`exited`|`dead`)
+            - `volume`=(`<volume name>` or `<mount point destination>`)
           type: "string"
       responses:
         200:
@@ -4272,14 +4271,13 @@ paths:
         - name: "filters"
           in: "query"
           description: |
-            A JSON encoded value of the filters (a `map[string][]string`) to process on the images list.
+            A JSON encoded value of the filters (a `map[string][]string`) to process on the images list. Available filters:
 
-            Available filters:
+            - `before`=(`<image-name>[:<tag>]`,  `<image id>` or `<image@digest>`)
             - `dangling=true`
             - `label=key` or `label="key=value"` of an image label
-            - `before`=(`<image-name>[:<tag>]`,  `<image id>` or `<image@digest>`)
-            - `since`=(`<image-name>[:<tag>]`,  `<image id>` or `<image@digest>`)
             - `reference`=(`<image-name>[:<tag>]`)
+            - `since`=(`<image-name>[:<tag>]`,  `<image id>` or `<image@digest>`)
           type: "string"
         - name: "digests"
           in: "query"
@@ -4853,9 +4851,9 @@ paths:
           description: |
             A JSON encoded value of the filters (a `map[string][]string`) to process on the images list. Available filters:
 
-            - `stars=<number>`
             - `is-automated=(true|false)`
             - `is-official=(true|false)`
+            - `stars=<number>` Matches images that has at least 'number' stars.
           type: "string"
       tags: ["Image"]
   /images/prune:
@@ -4868,9 +4866,8 @@ paths:
         - name: "filters"
           in: "query"
           description: |
-            Filters to process on the prune list, encoded as JSON (a `map[string][]string`).
+            Filters to process on the prune list, encoded as JSON (a `map[string][]string`). Available filters:
 
-            Available filters:
             - `dangling=<boolean>` When set to `true` (or `1`), prune only
                unused *and* untagged images. When set to `false`
                (or `0`), all unused images are pruned.
@@ -5355,13 +5352,14 @@ paths:
             A JSON encoded value of filters (a `map[string][]string`) to process on the event list. Available filters:
 
             - `container=<string>` container name or ID
+            - `daemon=<string>` daemon name or ID
             - `event=<string>` event type
             - `image=<string>` image name or ID
             - `label=<string>` image or container label
+            - `network=<string>` network name or ID
+            - `plugin`=<string> plugin name or ID
             - `type=<string>` object to filter by, one of `container`, `image`, `volume`, `network`, or `daemon`
             - `volume=<string>` volume name or ID
-            - `network=<string>` network name or ID
-            - `daemon=<string>` daemon name or ID
           type: "string"
       tags: ["System"]
   /system/df:
@@ -5835,13 +5833,14 @@ paths:
             JSON encoded value of the filters (a `map[string][]string`) to
             process on the volumes list. Available filters:
 
-            - `name=<volume-name>` Matches all or part of a volume name.
             - `dangling=<boolean>` When set to `true` (or `1`), returns all
                volumes that are not in use by a container. When set to `false`
                (or `0`), only volumes that are in use by one or more
                containers are returned.
-            - `driver=<volume-driver-name>` Matches all or part of a volume
-              driver name.
+            - `driver=<volume-driver-name>` Matches volumes based on their driver.
+            - `label=<key>` or `label=<key>:<value>` Matches volumes based on
+               the presence of a `label` alone or a `label` and a value.
+            - `name=<volume-name>` Matches all or part of a volume name.
           type: "string"
           format: "json"
       tags: ["Volume"]
@@ -7200,8 +7199,8 @@ paths:
             A JSON encoded value of the filters (a `map[string][]string`) to process on the services list. Available filters:
 
             - `id=<service id>`
-            - `name=<service name>`
             - `label=<service label>`
+            - `name=<service name>`
       tags: ["Service"]
   /services/create:
     post:
@@ -7664,12 +7663,12 @@ paths:
           description: |
             A JSON encoded value of the filters (a `map[string][]string`) to process on the tasks list. Available filters:
 
-            - `id=<task id>`
-            - `name=<task name>`
-            - `service=<service name>`
-            - `node=<node id or name>`
-            - `label=key` or `label="key=value"`
             - `desired-state=(running | shutdown | accepted)`
+            - `id=<task id>`
+            - `label=key` or `label="key=value"`
+            - `name=<task name>`
+            - `node=<node id or name>`
+            - `service=<service name>`
       tags: ["Task"]
   /tasks/{id}:
     get:

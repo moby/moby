@@ -82,14 +82,14 @@ container container 588a23dac085 *AND* the event type is *start*
 The currently supported filters are:
 
 * container (`container=<name or id>`)
+* daemon (`daemon=<name or id>`)
 * event (`event=<event action>`)
 * image (`image=<tag or id>`)
-* plugin (experimental) (`plugin=<name or id>`)
 * label (`label=<key>` or `label=<key>=<value>`)
+* network (`network=<name or id>`)
+* plugin (`plugin=<name or id>`)
 * type (`type=<container or image or volume or network or daemon>`)
 * volume (`volume=<name or id>`)
-* network (`network=<name or id>`)
-* daemon (`daemon=<name or id>`)
 
 ## Format
 
