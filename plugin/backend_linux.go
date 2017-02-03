@@ -13,6 +13,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/Sirupsen/logrus"
@@ -25,6 +26,7 @@ import (
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/chrootarchive"
+	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/pools"
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/plugin/v2"
@@ -597,10 +599,50 @@ func (pm *Manager) Remove(name string, config *types.PluginRmConfig) error {
 	id := p.GetID()
 	pm.config.Store.Remove(p)
 	pluginDir := filepath.Join(pm.config.Root, id)
+	if err := recursiveUnmount(pm.config.Root); err != nil {
+		logrus.WithField("dir", pm.config.Root).WithField("id", id).Warn(err)
+	}
 	if err := os.RemoveAll(pluginDir); err != nil {
 		logrus.Warnf("unable to remove %q from plugin remove: %v", pluginDir, err)
 	}
 	pm.config.LogPluginEvent(id, name, "remove")
+	return nil
+}
+
+func getMounts(root string) ([]string, error) {
+	infos, err := mount.GetMounts()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to read mount table while performing recursive unmount")
+	}
+
+	var mounts []string
+	for _, m := range infos {
+		if strings.HasPrefix(m.Mountpoint, root) {
+			mounts = append(mounts, m.Mountpoint)
+		}
+	}
+
+	return mounts, nil
+}
+
+func recursiveUnmount(root string) error {
+	mounts, err := getMounts(root)
+	if err != nil {
+		return err
+	}
+
+	// sort in reverse-lexicographic order so the root mount will always be last
+	sort.Sort(sort.Reverse(sort.StringSlice(mounts)))
+
+	for i, m := range mounts {
+		if err := mount.Unmount(m); err != nil {
+			if i == len(mounts)-1 {
+				return errors.Wrapf(err, "error performing recursive unmount on %s", root)
+			}
+			logrus.WithError(err).WithField("mountpoint", m).Warn("could not unmount")
+		}
+	}
+
 	return nil
 }
 
