@@ -1164,7 +1164,7 @@ _docker_container_cp() {
 }
 
 _docker_container_create() {
-	_docker_container_run
+	_docker_container_run_and_create
 }
 
 _docker_container_diff() {
@@ -1434,6 +1434,12 @@ _docker_container_rm() {
 }
 
 _docker_container_run() {
+	_docker_container_run_and_create
+}
+
+# _docker_container_run_and_create is the combined completion for `_docker_container_run`
+# and `_docker_container_create`
+_docker_container_run_and_create() {
 	local options_with_args="
 		--add-host
 		--attach -a
@@ -1888,7 +1894,7 @@ _docker_cp() {
 }
 
 _docker_create() {
-	_docker_container_run
+	_docker_container_create
 }
 
 _docker_daemon() {
@@ -2788,7 +2794,7 @@ _docker_service() {
 }
 
 _docker_service_create() {
-	_docker_service_update
+	_docker_service_update_and_create
 }
 
 _docker_service_inspect() {
@@ -2922,6 +2928,12 @@ _docker_service_ps() {
 }
 
 _docker_service_update() {
+	_docker_service_update_and_create
+}
+
+# _docker_service_update_and_create is the combined completion for `docker service create`
+# and `docker service update`
+_docker_service_update_and_create() {
 	local $subcommand="${words[$subcommand_pos]}"
 
 	local options_with_args="
