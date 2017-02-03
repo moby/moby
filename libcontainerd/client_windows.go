@@ -251,7 +251,6 @@ func (clnt *client) Create(containerID string, checkpoint string, checkpointDir 
 					client:       clnt,
 					friendlyName: InitFriendlyName,
 				},
-				commandLine: strings.Join(spec.Process.Args, " "),
 			},
 			processes: make(map[string]*process),
 		},
@@ -354,8 +353,7 @@ func (clnt *client) AddProcess(ctx context.Context, containerID, processFriendly
 			client:       clnt,
 			systemPid:    uint32(pid),
 		},
-		commandLine: createProcessParms.CommandLine,
-		hcsProcess:  newProcess,
+		hcsProcess: newProcess,
 	}
 
 	// Add the process to the container's list of processes
