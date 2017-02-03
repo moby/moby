@@ -9,7 +9,7 @@ import (
 	"golang.org/x/net/context"
 )
 
-// CheckpointList returns the volumes configured in the docker host.
+// CheckpointList returns the checkpoints of the given container in the docker host
 func (cli *Client) CheckpointList(ctx context.Context, container string, options types.CheckpointListOptions) ([]types.Checkpoint, error) {
 	var checkpoints []types.Checkpoint
 
