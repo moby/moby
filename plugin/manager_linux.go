@@ -40,9 +40,20 @@ func (pm *Manager) enable(p *v2.Plugin, c *controller, force bool) error {
 	pm.cMap[p] = c
 	pm.mu.Unlock()
 
+	var propRoot string
 	if p.PropagatedMount != "" {
-		if err := mount.MakeRShared(p.PropagatedMount); err != nil {
-			return errors.WithStack(err)
+		propRoot = filepath.Join(filepath.Dir(p.Rootfs), "propagated-mount")
+
+		if err := os.MkdirAll(propRoot, 0755); err != nil {
+			logrus.Errorf("failed to create PropagatedMount directory at %s: %v", propRoot, err)
+		}
+
+		if err := mount.MakeRShared(propRoot); err != nil {
+			return errors.Wrap(err, "error setting up propagated mount dir")
+		}
+
+		if err := mount.Mount(propRoot, p.PropagatedMount, "none", "rbind"); err != nil {
+			return errors.Wrap(err, "error creating mount for propagated mount")
 		}
 	}
 
@@ -54,6 +65,9 @@ func (pm *Manager) enable(p *v2.Plugin, c *controller, force bool) error {
 		if p.PropagatedMount != "" {
 			if err := mount.Unmount(p.PropagatedMount); err != nil {
 				logrus.Warnf("Could not unmount %s: %v", p.PropagatedMount, err)
+			}
+			if err := mount.Unmount(propRoot); err != nil {
+				logrus.Warnf("Could not unmount %s: %v", propRoot, err)
 			}
 		}
 		return errors.WithStack(err)
