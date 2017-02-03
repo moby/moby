@@ -1923,6 +1923,7 @@ _docker_daemon() {
 		--containerd
 		--default-gateway
 		--default-gateway-v6
+		--default-shm-size
 		--default-ulimit
 		--dns
 		--dns-search
