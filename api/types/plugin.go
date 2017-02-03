@@ -22,6 +22,9 @@ type Plugin struct {
 	// Required: true
 	Name string `json:"Name"`
 
+	// plugin remote reference used to push/pull the plugin
+	PluginReference string `json:"PluginReference,omitempty"`
+
 	// settings
 	// Required: true
 	Settings PluginSettings `json:"Settings"`

@@ -427,3 +427,35 @@ enabled: true`, id, pNameWithTag)
 	out, _ = dockerCmd(c, "--config", config, "plugin", "ls", "--no-trunc")
 	c.Assert(strings.TrimSpace(out), checker.Contains, expectedOutput)
 }
+
+func (s *DockerSuite) TestPluginUpgrade(c *check.C) {
+	testRequires(c, DaemonIsLinux, Network, SameHostDaemon, IsAmd64)
+	plugin := "cpuguy83/docker-volume-driver-plugin-local:latest"
+	pluginV2 := "cpuguy83/docker-volume-driver-plugin-local:v2"
+
+	dockerCmd(c, "plugin", "install", "--grant-all-permissions", plugin)
+	dockerCmd(c, "volume", "create", "--driver", plugin, "bananas")
+	dockerCmd(c, "run", "--rm", "-v", "bananas:/apple", "busybox", "sh", "-c", "touch /apple/core")
+
+	out, _, err := dockerCmdWithError("plugin", "upgrade", "--grant-all-permissions", plugin, pluginV2)
+	c.Assert(err, checker.NotNil, check.Commentf(out))
+	c.Assert(out, checker.Contains, "disabled before upgrading")
+
+	out, _ = dockerCmd(c, "plugin", "inspect", "--format={{.ID}}", plugin)
+	id := strings.TrimSpace(out)
+
+	// make sure "v2" does not exists
+	_, err = os.Stat(filepath.Join(testEnv.DockerBasePath(), "plugins", id, "rootfs", "v2"))
+	c.Assert(os.IsNotExist(err), checker.True, check.Commentf(out))
+
+	dockerCmd(c, "plugin", "disable", "-f", plugin)
+	dockerCmd(c, "plugin", "upgrade", "--grant-all-permissions", "--skip-remote-check", plugin, pluginV2)
+
+	// make sure "v2" file exists
+	_, err = os.Stat(filepath.Join(testEnv.DockerBasePath(), "plugins", id, "rootfs", "v2"))
+	c.Assert(err, checker.IsNil)
+
+	dockerCmd(c, "plugin", "enable", plugin)
+	dockerCmd(c, "volume", "inspect", "bananas")
+	dockerCmd(c, "run", "--rm", "-v", "bananas:/apple", "busybox", "sh", "-c", "ls -lh /apple/core")
+}
