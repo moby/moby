@@ -104,13 +104,6 @@ func (container *Container) BuildHostnameFile() error {
 	return nil
 }
 
-// canMountFS determines if the file system for the container
-// can be mounted locally. In the case of Windows, this is not possible
-// for Hyper-V containers during WORKDIR execution for example.
-func (container *Container) canMountFS() bool {
-	return !containertypes.Isolation.IsHyperV(container.HostConfig.Isolation)
-}
-
 // EnableServiceDiscoveryOnDefaultNetwork Enable service discovery on default network
 func (container *Container) EnableServiceDiscoveryOnDefaultNetwork() bool {
 	return true
