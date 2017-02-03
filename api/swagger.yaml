@@ -6320,6 +6320,10 @@ paths:
           description: "Network not found"
           schema:
             $ref: "#/definitions/ErrorResponse"
+        500:
+          description: "Server error"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
       parameters:
         - name: "id"
           in: "path"
@@ -6339,6 +6343,10 @@ paths:
       responses:
         204:
           description: "No error"
+        403:
+          description: "operation not supported for pre-defined networks"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
         404:
           description: "no such network"
           schema:
