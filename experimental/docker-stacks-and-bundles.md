@@ -60,7 +60,7 @@ Creating service vossibility-stack_logstash
 Creating service vossibility-stack_lookupd
 Creating service vossibility-stack_nsqd
 Creating service vossibility-stack_vossibility-collector
-```s
+```
 
 We can verify that services were correctly created:
 
