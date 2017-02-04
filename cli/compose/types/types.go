@@ -238,6 +238,7 @@ type NetworkConfig struct {
 	Ipam       IPAMConfig
 	External   External
 	Internal   bool
+	Attachable bool
 	Labels     MappingWithEquals
 }
 
