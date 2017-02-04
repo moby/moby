@@ -295,9 +295,12 @@ func (daemon *Daemon) traverseLocalVolumes(fn func(volume.Volume) error) error {
 
 	for _, v := range vols {
 		name := v.Name()
-		_, err := daemon.volumes.Get(name)
+		vol, err := daemon.volumes.Get(name)
 		if err != nil {
 			logrus.Warnf("failed to retrieve volume %s from store: %v", name, err)
+		} else {
+			// daemon.volumes.Get will return DetailedVolume
+			v = vol
 		}
 
 		err = fn(v)

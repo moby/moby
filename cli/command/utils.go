@@ -9,6 +9,7 @@ import (
 	"runtime"
 	"strings"
 
+	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/pkg/system"
 )
 
@@ -84,4 +85,35 @@ func PromptForConfirmation(ins *InStream, outs *OutStream, message string) bool 
 	reader := bufio.NewReader(ins)
 	answer, _, _ := reader.ReadLine()
 	return strings.ToLower(string(answer)) == "y"
+}
+
+// PruneFilters returns consolidated prune filters obtained from config.json and cli
+func PruneFilters(dockerCli Cli, pruneFilters filters.Args) filters.Args {
+	if dockerCli.ConfigFile() == nil {
+		return pruneFilters
+	}
+	for _, f := range dockerCli.ConfigFile().PruneFilters {
+		parts := strings.SplitN(f, "=", 2)
+		if len(parts) != 2 {
+			continue
+		}
+		if parts[0] == "label" {
+			// CLI label filter supersede config.json.
+			// If CLI label filter conflict with config.json,
+			// skip adding label! filter in config.json.
+			if pruneFilters.Include("label!") && pruneFilters.ExactMatch("label!", parts[1]) {
+				continue
+			}
+		} else if parts[0] == "label!" {
+			// CLI label! filter supersede config.json.
+			// If CLI label! filter conflict with config.json,
+			// skip adding label filter in config.json.
+			if pruneFilters.Include("label") && pruneFilters.ExactMatch("label", parts[1]) {
+				continue
+			}
+		}
+		pruneFilters.Add(parts[0], parts[1])
+	}
+
+	return pruneFilters
 }

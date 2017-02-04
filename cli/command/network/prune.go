@@ -48,7 +48,7 @@ const warning = `WARNING! This will remove all networks not used by at least one
 Are you sure you want to continue?`
 
 func runPrune(dockerCli *command.DockerCli, opts pruneOptions) (output string, err error) {
-	pruneFilters := opts.filter.Value()
+	pruneFilters := command.PruneFilters(dockerCli, opts.filter.Value())
 
 	if !opts.force && !command.PromptForConfirmation(dockerCli.In(), dockerCli.Out(), warning) {
 		return
