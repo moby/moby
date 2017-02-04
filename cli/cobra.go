@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/docker/docker/pkg/term"
 	"github.com/spf13/cobra"
 )
 
@@ -14,6 +15,7 @@ func SetupRootCommand(rootCmd *cobra.Command) {
 	cobra.AddTemplateFunc("hasManagementSubCommands", hasManagementSubCommands)
 	cobra.AddTemplateFunc("operationSubCommands", operationSubCommands)
 	cobra.AddTemplateFunc("managementSubCommands", managementSubCommands)
+	cobra.AddTemplateFunc("wrappedFlagUsages", wrappedFlagUsages)
 
 	rootCmd.SetUsageTemplate(usageTemplate)
 	rootCmd.SetHelpTemplate(helpTemplate)
@@ -76,6 +78,14 @@ func operationSubCommands(cmd *cobra.Command) []*cobra.Command {
 	return cmds
 }
 
+func wrappedFlagUsages(cmd *cobra.Command) string {
+	width := 80
+	if ws, err := term.GetWinsize(0); err == nil {
+		width = int(ws.Width)
+	}
+	return cmd.Flags().FlagUsagesWrapped(width - 1)
+}
+
 func managementSubCommands(cmd *cobra.Command) []*cobra.Command {
 	cmds := []*cobra.Command{}
 	for _, sub := range cmd.Commands() {
@@ -108,7 +118,7 @@ Examples:
 {{- if .HasFlags}}
 
 Options:
-{{.Flags.FlagUsages | trimRightSpace}}
+{{ wrappedFlagUsages . | trimRightSpace}}
 
 {{- end}}
 {{- if hasManagementSubCommands . }}
