@@ -5383,6 +5383,10 @@ paths:
                   image: "alpine"
                   name: "my-container"
               time: 1461943101
+        400:
+          description: "bad parameter"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
         500:
           description: "server error"
           schema:
