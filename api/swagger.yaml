@@ -2488,6 +2488,7 @@ paths:
 
             - `ancestor`=(`<image-name>[:<tag>]`, `<image id>`, or `<image@digest>`)
             - `before`=(`<container id>` or `<container name>`)
+            - `expose`=(`<port>[/<proto>]`|`<startport-endport>/[<proto>]`)
             - `exited=<int>` containers with exit code of `<int>`
             - `health`=(`starting`|`healthy`|`unhealthy`|`none`)
             - `id=<ID>` a container's ID
@@ -2496,6 +2497,7 @@ paths:
             - `label=key` or `label="key=value"` of a container label
             - `name=<name>` a container's name
             - `network`=(`<network id>` or `<network name>`)
+            - `publish`=(`<port>[/<proto>]`|`<startport-endport>/[<proto>]`)
             - `since`=(`<container id>` or `<container name>`)
             - `status=`(`created`|`restarting`|`running`|`removing`|`paused`|`exited`|`dead`)
             - `volume`=(`<volume name>` or `<mount point destination>`)

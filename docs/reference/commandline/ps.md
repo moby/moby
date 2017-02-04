@@ -26,6 +26,7 @@ Options:
                         - ancestor=(<image-name>[:tag]|<image-id>|<image@digest>)
                           containers created from an image or a descendant.
                         - before=(<container-name>|<container-id>)
+                        - expose=(<port>[/<proto>]|<startport-endport>/[<proto>])
                         - exited=<int> an exit code of <int>
                         - health=(starting|healthy|unhealthy|none)
                         - id=<ID> a container's ID
@@ -34,6 +35,7 @@ Options:
                         - label=<key> or label=<key>=<value>
                         - name=<string> a container's name
                         - network=(<network-id>|<network-name>)
+                        - publish=(<port>[/<proto>]|<startport-endport>/[<proto>])
                         - since=(<container-name>|<container-id>)
                         - status=(created|restarting|removing|running|paused|exited) 
                         - volume=(<volume name>|<mount point destination>)
