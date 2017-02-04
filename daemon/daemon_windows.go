@@ -3,6 +3,7 @@ package daemon
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/Microsoft/hcsshim"
@@ -36,6 +37,11 @@ const (
 	windowsMaxCPUPercent = 100
 	windowsMinCPUCount   = 1
 )
+
+// Windows has no concept of an execution state directory. So use config.Root here.
+func getPluginExecRoot(root string) string {
+	return filepath.Join(root, "plugins")
+}
 
 func getBlkioWeightDevices(config *containertypes.HostConfig) ([]blkiodev.WeightDevice, error) {
 	return nil, nil
