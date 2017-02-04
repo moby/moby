@@ -10,6 +10,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/network"
+	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/libnetwork"
 	"github.com/docker/libnetwork/networkdb"
 )
@@ -55,7 +56,18 @@ SKIP:
 				continue SKIP
 			}
 		}
-		list = append(list, *n.buildNetworkResource(nw))
+
+		var nr *types.NetworkResource
+		// Versions < 1.26 fetches all the containers attached to a network
+		// in a network list api call. It is a heavy weight operation when
+		// run across all the networks. Starting API version 1.26, this detailed
+		// info is available for network specific GET API (equivalent to inspect)
+		if versions.LessThan(httputils.VersionFromContext(ctx), "1.26") {
+			nr = n.buildDetailedNetworkResources(nw)
+		} else {
+			nr = n.buildNetworkResource(nw)
+		}
+		list = append(list, *nr)
 	}
 
 	list, err = filterNetworks(list, netFilters)
@@ -77,7 +89,7 @@ func (n *networkRouter) getNetwork(ctx context.Context, w http.ResponseWriter, r
 		}
 		return err
 	}
-	return httputils.WriteJSON(w, http.StatusOK, n.buildNetworkResource(nw))
+	return httputils.WriteJSON(w, http.StatusOK, n.buildDetailedNetworkResources(nw))
 }
 
 func (n *networkRouter) postNetworkCreate(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
@@ -198,6 +210,15 @@ func (n *networkRouter) buildNetworkResource(nw libnetwork.Network) *types.Netwo
 		r.Peers = buildPeerInfoResources(peers)
 	}
 
+	return r
+}
+
+func (n *networkRouter) buildDetailedNetworkResources(nw libnetwork.Network) *types.NetworkResource {
+	if nw == nil {
+		return &types.NetworkResource{}
+	}
+
+	r := n.buildNetworkResource(nw)
 	epl := nw.Endpoints()
 	for _, e := range epl {
 		ei := e.Info()
