@@ -9,16 +9,31 @@ import (
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/registry"
 	timetypes "github.com/docker/docker/api/types/time"
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/pkg/ioutils"
 	pkgerrors "github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 )
+
+var acceptedEventFilters = map[string]bool{
+	"config":    true,
+	"container": true,
+	"daemon":    true,
+	"event":     true,
+	"image":     true,
+	"label":     true,
+	"network":   true,
+	"node":      true,
+	"plugin":    true,
+	"scope":     true,
+	"secret":    true,
+	"service":   true,
+	"type":      true,
+	"volume":    true,
+}
 
 func optionsHandler(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	w.WriteHeader(http.StatusOK)
@@ -99,6 +114,14 @@ func (s *systemRouter) getEvents(ctx context.Context, w http.ResponseWriter, r *
 		return err
 	}
 
+	eventFilters, err := filters.FromParam(r.Form.Get("filters"))
+	if err != nil {
+		return err
+	}
+	if err := eventFilters.Validate(acceptedEventFilters); err != nil {
+		return err
+	}
+
 	since, err := eventTime(r.Form.Get("since"))
 	if err != nil {
 		return err
@@ -108,68 +131,19 @@ func (s *systemRouter) getEvents(ctx context.Context, w http.ResponseWriter, r *
 		return err
 	}
 
-	var (
-		timeout        <-chan time.Time
-		onlyPastEvents bool
-	)
-	if !until.IsZero() {
-		if until.Before(since) {
-			return invalidRequestError{fmt.Errorf("`since` time (%s) cannot be after `until` time (%s)", r.Form.Get("since"), r.Form.Get("until"))}
-		}
-
-		now := time.Now()
-
-		onlyPastEvents = until.Before(now)
-
-		if !onlyPastEvents {
-			dur := until.Sub(now)
-			timeout = time.NewTimer(dur).C
-		}
-	}
-
-	ef, err := filters.FromJSON(r.Form.Get("filters"))
-	if err != nil {
-		return err
+	if !until.IsZero() && until.Before(since) {
+		return invalidRequestError{fmt.Errorf("`since` time (%s) cannot be after `until` time (%s)", r.Form.Get("since"), r.Form.Get("until"))}
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	output := ioutils.NewWriteFlusher(w)
+
 	defer output.Close()
 	output.Flush()
 
 	enc := json.NewEncoder(output)
 
-	buffered, l := s.backend.SubscribeToEvents(since, until, ef)
-	defer s.backend.UnsubscribeFromEvents(l)
-
-	for _, ev := range buffered {
-		if err := enc.Encode(ev); err != nil {
-			return err
-		}
-	}
-
-	if onlyPastEvents {
-		return nil
-	}
-
-	for {
-		select {
-		case ev := <-l:
-			jev, ok := ev.(events.Message)
-			if !ok {
-				logrus.Warnf("unexpected event message: %q", ev)
-				continue
-			}
-			if err := enc.Encode(jev); err != nil {
-				return err
-			}
-		case <-timeout:
-			return nil
-		case <-ctx.Done():
-			logrus.Debug("Client context cancelled, stop sending events")
-			return nil
-		}
-	}
+	return s.backend.Events(ctx, since, until, enc, eventFilters)
 }
 
 func (s *systemRouter) postAuth(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
