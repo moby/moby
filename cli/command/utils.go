@@ -1,6 +1,7 @@
 package command
 
 import (
+	"bufio"
 	"fmt"
 	"io"
 	"os"
@@ -80,11 +81,7 @@ func PromptForConfirmation(ins *InStream, outs *OutStream, message string) bool 
 		ins = NewInStream(os.Stdin)
 	}
 
-	answer := ""
-	n, _ := fmt.Fscan(ins, &answer)
-	if n != 1 || (answer != "y" && answer != "Y") {
-		return false
-	}
-
-	return true
+	reader := bufio.NewReader(ins)
+	answer, _, _ := reader.ReadLine()
+	return strings.ToLower(string(answer)) == "y"
 }
