@@ -2,13 +2,8 @@ package formatter
 
 import (
 	"bytes"
-	//"encoding/json"
-	//"strings"
 	"testing"
-	//"time"
 
-	//"github.com/docker/docker/api/types"
-	//"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/pkg/testutil/assert"
 )
 
@@ -44,10 +39,6 @@ VOLUME NAME         LINKS               SIZE
 	}
 
 	for _, testcase := range cases {
-		//networks := []types.NetworkResource{
-		//	{ID: "networkID1", Name: "foobar_baz", Driver: "foo", Scope: "local", Created: timestamp1},
-		//	{ID: "networkID2", Name: "foobar_bar", Driver: "bar", Scope: "local", Created: timestamp2},
-		//}
 		out := bytes.NewBufferString("")
 		testcase.context.Output = out
 		testcase.context.Write()

@@ -76,20 +76,6 @@ func ImageWrite(ctx ImageContext, images []types.ImageSummary) error {
 	render := func(format func(subContext subContext) error) error {
 		return imageFormat(ctx, images, format)
 	}
-	imageCtx := imageContext{}
-	imageCtx.header = map[string]string{
-		"ID":           imageIDHeader,
-		"Repository":   repositoryHeader,
-		"Tag":          tagHeader,
-		"Digest":       digestHeader,
-		"CreatedSince": createdSinceHeader,
-		"CreatedAt":    createdAtHeader,
-		"Size":         sizeHeader,
-		"Containers":   containersHeader,
-		"VirtualSize":  sizeHeader,
-		"SharedSize":   sharedSizeHeader,
-		"UniqueSize":   uniqueSizeHeader,
-	}
 	return ctx.Write(newImageContext(), render)
 }
 

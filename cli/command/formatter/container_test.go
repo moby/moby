@@ -226,6 +226,14 @@ size: 0B
 			Context{Format: NewContainerFormat("{{.Image}}", false, true)},
 			"ubuntu\nubuntu\n",
 		},
+		// Special headers for customerized table format
+		{
+			Context{Format: NewContainerFormat(`table {{truncate .ID 5}}\t{{json .Image}} {{.RunningFor}}/{{title .Status}}/{{pad .Ports 2 2}}.{{upper .Names}} {{lower .Status}}`, false, true)},
+			`CONTAINER ID        IMAGE CREATED/STATUS/  PORTS  .NAMES STATUS
+conta               "ubuntu" 24 hours ago//.FOOBAR_BAZ 
+conta               "ubuntu" 24 hours ago//.FOOBAR_BAR 
+`,
+		},
 	}
 
 	for _, testcase := range cases {
