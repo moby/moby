@@ -100,6 +100,45 @@ func (pr *pluginRouter) getPrivileges(ctx context.Context, w http.ResponseWriter
 	return httputils.WriteJSON(w, http.StatusOK, privileges)
 }
 
+func (pr *pluginRouter) upgradePlugin(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if err := httputils.ParseForm(r); err != nil {
+		return errors.Wrap(err, "failed to parse form")
+	}
+
+	var privileges types.PluginPrivileges
+	dec := json.NewDecoder(r.Body)
+	if err := dec.Decode(&privileges); err != nil {
+		return errors.Wrap(err, "failed to parse privileges")
+	}
+	if dec.More() {
+		return errors.New("invalid privileges")
+	}
+
+	metaHeaders, authConfig := parseHeaders(r.Header)
+	ref, tag, err := parseRemoteRef(r.FormValue("remote"))
+	if err != nil {
+		return err
+	}
+
+	name, err := getName(ref, tag, vars["name"])
+	if err != nil {
+		return err
+	}
+	w.Header().Set("Docker-Plugin-Name", name)
+
+	w.Header().Set("Content-Type", "application/json")
+	output := ioutils.NewWriteFlusher(w)
+
+	if err := pr.backend.Upgrade(ctx, ref, name, metaHeaders, authConfig, privileges, output); err != nil {
+		if !output.Flushed() {
+			return err
+		}
+		output.Write(streamformatter.NewJSONStreamFormatter().FormatError(err))
+	}
+
+	return nil
+}
+
 func (pr *pluginRouter) pullPlugin(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
 		return errors.Wrap(err, "failed to parse form")
@@ -115,40 +154,14 @@ func (pr *pluginRouter) pullPlugin(ctx context.Context, w http.ResponseWriter, r
 	}
 
 	metaHeaders, authConfig := parseHeaders(r.Header)
-
 	ref, tag, err := parseRemoteRef(r.FormValue("remote"))
 	if err != nil {
 		return err
 	}
 
-	name := r.FormValue("name")
-	if name == "" {
-		if _, ok := ref.(reference.Canonical); ok {
-			trimmed := reference.TrimNamed(ref)
-			if tag != "" {
-				nt, err := reference.WithTag(trimmed, tag)
-				if err != nil {
-					return err
-				}
-				name = nt.String()
-			} else {
-				name = reference.WithDefaultTag(trimmed).String()
-			}
-		} else {
-			name = ref.String()
-		}
-	} else {
-		localRef, err := reference.ParseNamed(name)
-		if err != nil {
-			return err
-		}
-		if _, ok := localRef.(reference.Canonical); ok {
-			return errors.New("cannot use digest in plugin tag")
-		}
-		if distreference.IsNameOnly(localRef) {
-			// TODO: log change in name to out stream
-			name = reference.WithDefaultTag(localRef).String()
-		}
+	name, err := getName(ref, tag, r.FormValue("name"))
+	if err != nil {
+		return err
 	}
 	w.Header().Set("Docker-Plugin-Name", name)
 
@@ -163,6 +176,38 @@ func (pr *pluginRouter) pullPlugin(ctx context.Context, w http.ResponseWriter, r
 	}
 
 	return nil
+}
+
+func getName(ref reference.Named, tag, name string) (string, error) {
+	if name == "" {
+		if _, ok := ref.(reference.Canonical); ok {
+			trimmed := reference.TrimNamed(ref)
+			if tag != "" {
+				nt, err := reference.WithTag(trimmed, tag)
+				if err != nil {
+					return "", err
+				}
+				name = nt.String()
+			} else {
+				name = reference.WithDefaultTag(trimmed).String()
+			}
+		} else {
+			name = ref.String()
+		}
+	} else {
+		localRef, err := reference.ParseNamed(name)
+		if err != nil {
+			return "", err
+		}
+		if _, ok := localRef.(reference.Canonical); ok {
+			return "", errors.New("cannot use digest in plugin tag")
+		}
+		if distreference.IsNameOnly(localRef) {
+			// TODO: log change in name to out stream
+			name = reference.WithDefaultTag(localRef).String()
+		}
+	}
+	return name, nil
 }
 
 func (pr *pluginRouter) createPlugin(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
