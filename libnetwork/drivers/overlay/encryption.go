@@ -20,7 +20,7 @@ import (
 )
 
 const (
-	mark         = uint32(0xD0C4E3)
+	r            = 0xD0C4E3
 	timeout      = 30
 	pktExpansion = 26 // SPI(4) + SeqN(4) + IV(8) + PadLength(1) + NextHeader(1) + ICV(8)
 )
@@ -30,6 +30,8 @@ const (
 	reverse
 	bidir
 )
+
+var spMark = netlink.XfrmMark{Value: uint32(r), Mask: 0xffffffff}
 
 type key struct {
 	value []byte
@@ -196,7 +198,7 @@ func programMangle(vni uint32, add bool) (err error) {
 	var (
 		p      = strconv.FormatUint(uint64(vxlanPort), 10)
 		c      = fmt.Sprintf("0>>22&0x3C@12&0xFFFFFF00=%d", int(vni)<<8)
-		m      = strconv.FormatUint(uint64(mark), 10)
+		m      = strconv.FormatUint(uint64(r), 10)
 		chain  = "OUTPUT"
 		rule   = []string{"-p", "udp", "--dport", p, "-m", "u32", "--u32", c, "-j", "MARK", "--set-mark", m}
 		a      = "-A"
@@ -237,6 +239,7 @@ func programSA(localIP, remoteIP net.IP, spi *spi, k *key, dir int, add bool) (f
 			Proto: netlink.XFRM_PROTO_ESP,
 			Spi:   spi.reverse,
 			Mode:  netlink.XFRM_MODE_TRANSPORT,
+			Reqid: r,
 		}
 		if add {
 			rSA.Aead = buildAeadAlgo(k, spi.reverse)
@@ -262,6 +265,7 @@ func programSA(localIP, remoteIP net.IP, spi *spi, k *key, dir int, add bool) (f
 			Proto: netlink.XFRM_PROTO_ESP,
 			Spi:   spi.forward,
 			Mode:  netlink.XFRM_MODE_TRANSPORT,
+			Reqid: r,
 		}
 		if add {
 			fSA.Aead = buildAeadAlgo(k, spi.forward)
@@ -302,9 +306,7 @@ func programSP(fSA *netlink.XfrmState, rSA *netlink.XfrmState, add bool) error {
 		Dir:     netlink.XFRM_DIR_OUT,
 		Proto:   17,
 		DstPort: 4789,
-		Mark: &netlink.XfrmMark{
-			Value: mark,
-		},
+		Mark:    &spMark,
 		Tmpls: []netlink.XfrmPolicyTmpl{
 			{
 				Src:   fSA.Src,
@@ -312,6 +314,7 @@ func programSP(fSA *netlink.XfrmState, rSA *netlink.XfrmState, add bool) error {
 				Proto: netlink.XFRM_PROTO_ESP,
 				Mode:  netlink.XFRM_MODE_TRANSPORT,
 				Spi:   fSA.Spi,
+				Reqid: r,
 			},
 		},
 	}
@@ -395,6 +398,8 @@ func (d *driver) secMapWalk(f func(string, []*spi) ([]*spi, bool)) error {
 }
 
 func (d *driver) setKeys(keys []*key) error {
+	// Remove any stale policy, state
+	clearEncryptionStates()
 	// Accept the encryption keys and clear any stale encryption map
 	d.Lock()
 	d.keys = keys
@@ -513,9 +518,7 @@ func updateNodeKey(lIP, rIP net.IP, idxs []*spi, curKeys []*key, newIdx, priIdx,
 			Dir:     netlink.XFRM_DIR_OUT,
 			Proto:   17,
 			DstPort: 4789,
-			Mark: &netlink.XfrmMark{
-				Value: mark,
-			},
+			Mark:    &spMark,
 			Tmpls: []netlink.XfrmPolicyTmpl{
 				{
 					Src:   fSA2.Src,
@@ -523,6 +526,7 @@ func updateNodeKey(lIP, rIP net.IP, idxs []*spi, curKeys []*key, newIdx, priIdx,
 					Proto: netlink.XFRM_PROTO_ESP,
 					Mode:  netlink.XFRM_MODE_TRANSPORT,
 					Spi:   fSA2.Spi,
+					Reqid: r,
 				},
 			},
 		}
@@ -567,4 +571,34 @@ func (n *network) maxMTU() int {
 		mtu -= (mtu % 4)
 	}
 	return mtu
+}
+
+func clearEncryptionStates() {
+	nlh := ns.NlHandle()
+	spList, err := nlh.XfrmPolicyList(netlink.FAMILY_ALL)
+	if err != nil {
+		logrus.Warnf("Failed to retrieve SP list for cleanup: %v", err)
+	}
+	saList, err := nlh.XfrmStateList(netlink.FAMILY_ALL)
+	if err != nil {
+		logrus.Warnf("Failed to retrieve SA list for cleanup: %v", err)
+	}
+	for _, sp := range spList {
+		if sp.Mark != nil && sp.Mark.Value == spMark.Value {
+			if err := nlh.XfrmPolicyDel(&sp); err != nil {
+				logrus.Warnf("Failed to delete stale SP %s: %v", sp, err)
+				continue
+			}
+			logrus.Debugf("Removed stale SP: %s", sp)
+		}
+	}
+	for _, sa := range saList {
+		if sa.Reqid == r {
+			if err := nlh.XfrmStateDel(&sa); err != nil {
+				logrus.Warnf("Failed to delete stale SA %s: %v", sa, err)
+				continue
+			}
+			logrus.Debugf("Removed stale SA: %s", sa)
+		}
+	}
 }
