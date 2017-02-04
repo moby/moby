@@ -182,12 +182,21 @@ func imageFormat(ctx ImageContext, images []types.ImageSummary, format func(subC
 
 	bys := []string{}
 	if ctx.Sortby == "" {
-		bys = append(bys, "Created:dsc")
+		bys = append(bys, "CreatedAt:desc")
 	} else {
 		bys = append(bys, strings.Split(ctx.Sortby, ",")...)
 	}
 
-	sorter, err := newGenericStructSorter(imageCtxs, bys)
+	// whitelist is a map of struct field name to new name
+	whitelist := map[string]string{
+		"Created": "CreatedAt",
+		"ID":      "",
+		"Size":    "",
+		"repo":    "Repository",
+		"tag":     "Tag",
+		"digest":  "Digest",
+	}
+	sorter, err := newGenericStructSorter(imageCtxs, bys, whitelist)
 	if err != nil {
 		return err
 	}

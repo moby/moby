@@ -369,14 +369,14 @@ func (s *DockerSuite) TestImageSortBy(c *check.C) {
 	dockerCmd(c, "tag", "busybox", "name1:v2")
 	dockerCmd(c, "tag", "busybox", "name0:v2")
 
-	imagesOut, _ := dockerCmd(c, "images", "--sort-by", "repo:asc,tag:dsc", "name*")
+	imagesOut, _ := dockerCmd(c, "images", "--sort-by", "Repository:asc,tag:desc", "name*")
 	imgs := strings.Split(imagesOut, "\n")
 	c.Assert(imgs[1], checker.Contains, "name0               v2", check.Commentf("First image must be %s, got %s", "name0:v2", imgs[1]))
 	c.Assert(imgs[2], checker.Contains, "name1               v2", check.Commentf("First image must be %s, got %s", "name1:v2", imgs[2]))
 	c.Assert(imgs[3], checker.Contains, "name1               v1", check.Commentf("First image must be %s, got %s", "name1:v1", imgs[3]))
 
 	// test unsupported --sort-by value
-	_, _, err := dockerCmdWithError("images", "--sort-by", "fake:asc,tag:dsc", "name*")
+	_, _, err := dockerCmdWithError("images", "--sort-by", "repo:asc,tag:desc", "name*")
 	c.Assert(err, checker.NotNil)
-	c.Assert(err.Error(), checker.Contains, "can't sort by \"fake\"")
+	c.Assert(err.Error(), checker.Contains, "can't sort by \"repo\"")
 }

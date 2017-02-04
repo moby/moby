@@ -9,13 +9,15 @@ import (
 
 const (
 	ascendantKey  = "asc"
-	descendantKey = "dsc"
+	descendantKey = "desc"
 )
 
+type fieldIndex []int
+
 type orderBy struct {
-	fieldName string // order by field with `fieldName` in struct
-	ordering  string // asc or dsc
-	index     []int  // index of field in struct
+	name     string     // order by name
+	ordering string     // asc or desc
+	index    fieldIndex // index of field in struct
 }
 
 type genericStructSorter struct {
@@ -50,41 +52,9 @@ func validateType(data []interface{}) error {
 	return nil
 }
 
-// findFieldIndex find the first occurence of field with name "name"
-// if it's a nested field, return array of index
-// e.g. [2, 1, 1] means field[2][1][1]
-func findFieldIndex(t reflect.Type, name string, index *[]int) bool {
-	// TODO: use FieldByNameFunc to compare both lower and upper case
-	// It's weird that current implementation doesn't work!
-	// match := func(s string) bool {
-	//	 return strings.EqualFold(s, name)
-	// }
-	// f, ok := t.FieldByNameFunc(match)
-	f, ok := t.FieldByName(name)
-	if ok {
-		*index = append(f.Index, *index...)
-		return true
-	}
-
-	for i := 0; i < t.NumField(); i++ {
-		nt := t.Field(i).Type
-		if nt.Kind() == reflect.Ptr {
-			nt = nt.Elem()
-		}
-		// don't peek into time.Time{}
-		if nt.Kind() == reflect.Struct && nt != reflect.TypeOf(time.Time{}) {
-			ok = findFieldIndex(nt, name, index)
-			if ok {
-				*index = append(t.Field(i).Index, *index...)
-				return true
-			}
-		}
-	}
-
-	return false
-}
-
-func newGenericStructSorter(data []interface{}, bys []string) (genericStructSorter, error) {
+// newGenericStructSorter creates a sorter based on data and user specified configure
+// whitelist is a map with struct field name as key and new name as value
+func newGenericStructSorter(data []interface{}, bys []string, whitelist map[string]string) (genericStructSorter, error) {
 	gs := genericStructSorter{}
 	if len(data) == 0 {
 		return gs, nil
@@ -96,8 +66,8 @@ func newGenericStructSorter(data []interface{}, bys []string) (genericStructSort
 		return gs, err
 	}
 	// scan and get the sortable fields
-	sortableFields := make(map[string]bool)
-	if err := getSortableFields(reflect.TypeOf(data[0]), sortableFields); err != nil {
+	sortableFields := make(map[string]fieldIndex)
+	if err := getSortableFields(reflect.TypeOf(data[0]), whitelist, nil, sortableFields); err != nil {
 		return gs, fmt.Errorf("can't get sortable fields: %v", err)
 	}
 
@@ -111,35 +81,32 @@ func newGenericStructSorter(data []interface{}, bys []string) (genericStructSort
 			switch parts[1] {
 			case descendantKey:
 				dir = descendantKey
-			case ascendantKey, "": // if default, keep as ascendantKey
-			default: // doesn't support key other than "asc","dsc",""
-				return gs, fmt.Errorf("sort order %q not supported", parts[1])
+			case ascendantKey, "":
+				// if default, keep as ascendantKey
+			default:
+				// doesn't support key other than "asc","desc",""
+				supportedOrders := []string{ascendantKey, descendantKey}
+				return gs, fmt.Errorf("sort order %q not supported, it must be in [%s]",
+					parts[1], strings.Join(supportedOrders, ","))
 			}
-		case 1: // sort order not specified, keep default
+		case 1:
+			// sort order not specified, keep default
 		default:
 			return gs, fmt.Errorf("malformed sort key: %q", by)
 		}
-		by = parts[0]
-		if _, ok := sortableFields[by]; !ok {
+		by = strings.ToLower(parts[0])
+		index, ok := sortableFields[by]
+		if !ok {
 			var keys []string
 			for k := range sortableFields {
 				keys = append(keys, k)
 			}
-			return gs, fmt.Errorf("can't sort by %q, it must be in [%s]", by, strings.Join(keys, ","))
-		}
-		fieldIndex := []int{}
-		ok := findFieldIndex(reflect.TypeOf(data[0]), by, &fieldIndex)
-		if !ok { // if by is in sortableFields, then this should never happen
-			var keys []string
-			for k := range sortableFields {
-				keys = append(keys, k)
-			}
-			return gs, fmt.Errorf("can't find field index of %q, supported fields are [%s]", by, strings.Join(keys, ","))
+			return gs, fmt.Errorf("can't sort by %q, it must be in [%s]", parts[0], strings.Join(keys, ","))
 		}
 		gs.bys = append(gs.bys, orderBy{
-			fieldName: by,
-			ordering:  dir,
-			index:     fieldIndex,
+			name:     by,
+			ordering: dir,
+			index:    index,
 		})
 
 	}
@@ -295,29 +262,58 @@ func lessForTime(i, j reflect.Value) int {
 	return 1
 }
 
-func getSortableFields(dataType reflect.Type, fields map[string]bool) error {
+func getSortableFields(dataType reflect.Type, whitelist map[string]string, parent fieldIndex, fields map[string]fieldIndex) error {
 	if dataType.Kind() != reflect.Struct {
 		return fmt.Errorf("data must be of type struct: %v", dataType)
 	}
 
+	subFields := map[string]fieldIndex{}
 	for i := 0; i < dataType.NumField(); i++ {
 		structField := dataType.Field(i)
 		fieldType := structField.Type
 		if fieldType.Kind() == reflect.Ptr {
 			fieldType = fieldType.Elem()
 		}
+
 		switch fieldType.Kind() {
-		case reflect.String, reflect.Bool, reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64, reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Float32, reflect.Float64:
-			fields[structField.Name] = true
+		case reflect.String, reflect.Bool, reflect.Int,
+			reflect.Int8, reflect.Int16, reflect.Int32,
+			reflect.Int64, reflect.Uint, reflect.Uint8,
+			reflect.Uint16, reflect.Uint32, reflect.Uint64,
+			reflect.Float32, reflect.Float64:
+			// these are supported fields, go forward to next step
 		case reflect.Struct:
-			if fieldType == reflect.TypeOf(time.Time{}) {
-				fields[structField.Name] = true
+			// time.Time is special and sortable field, go to next step
+			if fieldType != reflect.TypeOf(time.Time{}) {
+				if err := getSortableFields(fieldType, whitelist, fieldIndex(append(parent, i)), subFields); err != nil {
+					return err
+				}
+				// we don't support sorting by ordinary struct type, continue to skip
 				continue
 			}
-			if err := getSortableFields(fieldType, fields); err != nil {
-				return err
+		default:
+			//ignore other types
+			continue
+		}
+
+		fieldName := structField.Name
+		if v, ok := whitelist[fieldName]; ok {
+			if len(v) == 0 {
+				v = fieldName
 			}
-		default: //ignore other types
+
+			v = strings.ToLower(v)
+			// don't overwrite existing ones
+			if _, ok := fields[v]; !ok {
+				fields[v] = fieldIndex(append(parent, i))
+			}
+		}
+	}
+
+	// merge subFields into fields
+	for k, v := range subFields {
+		if _, ok := fields[k]; !ok {
+			fields[k] = v
 		}
 	}
 
