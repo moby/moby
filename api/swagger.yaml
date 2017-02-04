@@ -6480,7 +6480,7 @@ paths:
           schema:
             $ref: "#/definitions/ErrorResponse"
       parameters:
-        - name: "name"
+        - name: "remote"
           in: "query"
           description: "The name of the plugin. The `:latest` tag is optional, and is the default if omitted."
           required: true
