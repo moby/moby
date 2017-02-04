@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"os"
 	"strings"
 	"syscall"
 	"time"
@@ -258,7 +259,28 @@ func (c *containerAdapter) create(ctx context.Context) error {
 	return nil
 }
 
+// checkMounts ensures that the provided mounts won't have any host-specific
+// problems at start up. For example, we disallow bind mounts without an
+// existing path, which slightly different from the container API.
+func (c *containerAdapter) checkMounts() error {
+	spec := c.container.spec()
+	for _, mount := range spec.Mounts {
+		switch mount.Type {
+		case api.MountTypeBind:
+			if _, err := os.Stat(mount.Source); os.IsNotExist(err) {
+				return fmt.Errorf("invalid bind mount source, source path not found: %s", mount.Source)
+			}
+		}
+	}
+
+	return nil
+}
+
 func (c *containerAdapter) start(ctx context.Context) error {
+	if err := c.checkMounts(); err != nil {
+		return err
+	}
+
 	return c.backend.ContainerStart(c.container.name(), nil, "", "")
 }
 

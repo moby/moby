@@ -42,10 +42,10 @@ func TestControllerValidateMountBind(t *testing.T) {
 	// with non-existing source
 	if _, err := newTestControllerWithMount(api.Mount{
 		Type:   api.MountTypeBind,
-		Source: "/some-non-existing-host-path/",
+		Source: testAbsNonExistent,
 		Target: testAbsPath,
-	}); err == nil || !strings.Contains(err.Error(), "invalid bind mount source") {
-		t.Fatalf("expected  error, got: %v", err)
+	}); err != nil {
+		t.Fatalf("controller should not error at creation: %v", err)
 	}
 
 	// with proper source
