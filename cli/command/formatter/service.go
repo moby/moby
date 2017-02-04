@@ -372,7 +372,15 @@ func ServiceListWrite(ctx Context, services []swarm.Service, info map[string]Ser
 		}
 		return nil
 	}
-	return ctx.Write(&serviceContext{}, render)
+	serviceCtx := serviceContext{}
+	serviceCtx.header = map[string]string{
+		"ID":       serviceIDHeader,
+		"Name":     nameHeader,
+		"Mode":     modeHeader,
+		"Replicas": replicasHeader,
+		"Image":    imageHeader,
+	}
+	return ctx.Write(&serviceCtx, render)
 }
 
 type serviceContext struct {
@@ -387,27 +395,22 @@ func (c *serviceContext) MarshalJSON() ([]byte, error) {
 }
 
 func (c *serviceContext) ID() string {
-	c.AddHeader(serviceIDHeader)
 	return stringid.TruncateID(c.service.ID)
 }
 
 func (c *serviceContext) Name() string {
-	c.AddHeader(nameHeader)
 	return c.service.Spec.Name
 }
 
 func (c *serviceContext) Mode() string {
-	c.AddHeader(modeHeader)
 	return c.mode
 }
 
 func (c *serviceContext) Replicas() string {
-	c.AddHeader(replicasHeader)
 	return c.replicas
 }
 
 func (c *serviceContext) Image() string {
-	c.AddHeader(imageHeader)
 	image := c.service.Spec.TaskTemplate.ContainerSpec.Image
 	if ref, err := reference.ParseNormalizedNamed(image); err == nil {
 		// update image string for display, (strips any digest)

@@ -18,23 +18,22 @@ func TestPluginContext(t *testing.T) {
 	cases := []struct {
 		pluginCtx pluginContext
 		expValue  string
-		expHeader string
 		call      func() string
 	}{
 		{pluginContext{
 			p:     types.Plugin{ID: pluginID},
 			trunc: false,
-		}, pluginID, pluginIDHeader, ctx.ID},
+		}, pluginID, ctx.ID},
 		{pluginContext{
 			p:     types.Plugin{ID: pluginID},
 			trunc: true,
-		}, stringid.TruncateID(pluginID), pluginIDHeader, ctx.ID},
+		}, stringid.TruncateID(pluginID), ctx.ID},
 		{pluginContext{
 			p: types.Plugin{Name: "plugin_name"},
-		}, "plugin_name", nameHeader, ctx.Name},
+		}, "plugin_name", ctx.Name},
 		{pluginContext{
 			p: types.Plugin{Config: types.PluginConfig{Description: "plugin_description"}},
-		}, "plugin_description", descriptionHeader, ctx.Description},
+		}, "plugin_description", ctx.Description},
 	}
 
 	for _, c := range cases {
@@ -44,11 +43,6 @@ func TestPluginContext(t *testing.T) {
 			compareMultipleValues(t, v, c.expValue)
 		} else if v != c.expValue {
 			t.Fatalf("Expected %s, was %s\n", c.expValue, v)
-		}
-
-		h := ctx.FullHeader()
-		if h != c.expHeader {
-			t.Fatalf("Expected %s, was %s\n", c.expHeader, h)
 		}
 	}
 }

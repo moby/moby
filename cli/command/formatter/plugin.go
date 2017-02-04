@@ -44,7 +44,15 @@ func PluginWrite(ctx Context, plugins []*types.Plugin) error {
 		}
 		return nil
 	}
-	return ctx.Write(&pluginContext{}, render)
+	pluginCtx := pluginContext{}
+	pluginCtx.header = map[string]string{
+		"ID":              pluginIDHeader,
+		"Name":            nameHeader,
+		"Description":     descriptionHeader,
+		"Enabled":         enabledHeader,
+		"PluginReference": imageHeader,
+	}
+	return ctx.Write(&pluginCtx, render)
 }
 
 type pluginContext struct {
@@ -58,7 +66,6 @@ func (c *pluginContext) MarshalJSON() ([]byte, error) {
 }
 
 func (c *pluginContext) ID() string {
-	c.AddHeader(pluginIDHeader)
 	if c.trunc {
 		return stringid.TruncateID(c.p.ID)
 	}
@@ -66,12 +73,10 @@ func (c *pluginContext) ID() string {
 }
 
 func (c *pluginContext) Name() string {
-	c.AddHeader(nameHeader)
 	return c.p.Name
 }
 
 func (c *pluginContext) Description() string {
-	c.AddHeader(descriptionHeader)
 	desc := strings.Replace(c.p.Config.Description, "\n", "", -1)
 	desc = strings.Replace(desc, "\r", "", -1)
 	if c.trunc {
@@ -82,11 +87,9 @@ func (c *pluginContext) Description() string {
 }
 
 func (c *pluginContext) Enabled() bool {
-	c.AddHeader(enabledHeader)
 	return c.p.Enabled
 }
 
 func (c *pluginContext) PluginReference() string {
-	c.AddHeader(imageHeader)
 	return c.p.PluginReference
 }
