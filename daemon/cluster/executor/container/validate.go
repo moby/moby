@@ -3,7 +3,6 @@ package container
 import (
 	"errors"
 	"fmt"
-	"os"
 	"path/filepath"
 
 	"github.com/docker/swarmkit/api"
@@ -24,9 +23,6 @@ func validateMounts(mounts []api.Mount) error {
 		case api.MountTypeBind:
 			if !filepath.IsAbs(mount.Source) {
 				return fmt.Errorf("invalid bind mount source, must be an absolute path: %s", mount.Source)
-			}
-			if _, err := os.Stat(mount.Source); os.IsNotExist(err) {
-				return fmt.Errorf("invalid bind mount source, source path not found: %s", mount.Source)
 			}
 		case api.MountTypeVolume:
 			if filepath.IsAbs(mount.Source) {
