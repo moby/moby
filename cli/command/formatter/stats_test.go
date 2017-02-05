@@ -14,30 +14,31 @@ func TestContainerStatsContext(t *testing.T) {
 	var ctx containerStatsContext
 	tt := []struct {
 		stats     StatsEntry
+		osType    string
 		expValue  string
 		expHeader string
 		call      func() string
 	}{
-		{StatsEntry{Container: containerID}, containerID, containerHeader, ctx.Container},
-		{StatsEntry{CPUPercentage: 5.5}, "5.50%", cpuPercHeader, ctx.CPUPerc},
-		{StatsEntry{CPUPercentage: 5.5, IsInvalid: true}, "--", cpuPercHeader, ctx.CPUPerc},
-		{StatsEntry{NetworkRx: 0.31, NetworkTx: 12.3}, "0.31 B / 12.3 B", netIOHeader, ctx.NetIO},
-		{StatsEntry{NetworkRx: 0.31, NetworkTx: 12.3, IsInvalid: true}, "--", netIOHeader, ctx.NetIO},
-		{StatsEntry{BlockRead: 0.1, BlockWrite: 2.3}, "0.1 B / 2.3 B", blockIOHeader, ctx.BlockIO},
-		{StatsEntry{BlockRead: 0.1, BlockWrite: 2.3, IsInvalid: true}, "--", blockIOHeader, ctx.BlockIO},
-		{StatsEntry{MemoryPercentage: 10.2}, "10.20%", memPercHeader, ctx.MemPerc},
-		{StatsEntry{MemoryPercentage: 10.2, IsInvalid: true}, "--", memPercHeader, ctx.MemPerc},
-		{StatsEntry{MemoryPercentage: 10.2, OSType: "windows"}, "--", memPercHeader, ctx.MemPerc},
-		{StatsEntry{Memory: 24, MemoryLimit: 30}, "24 B / 30 B", memUseHeader, ctx.MemUsage},
-		{StatsEntry{Memory: 24, MemoryLimit: 30, IsInvalid: true}, "-- / --", memUseHeader, ctx.MemUsage},
-		{StatsEntry{Memory: 24, MemoryLimit: 30, OSType: "windows"}, "24 B", winMemUseHeader, ctx.MemUsage},
-		{StatsEntry{PidsCurrent: 10}, "10", pidsHeader, ctx.PIDs},
-		{StatsEntry{PidsCurrent: 10, IsInvalid: true}, "--", pidsHeader, ctx.PIDs},
-		{StatsEntry{PidsCurrent: 10, OSType: "windows"}, "--", pidsHeader, ctx.PIDs},
+		{StatsEntry{Container: containerID}, "", containerID, containerHeader, ctx.Container},
+		{StatsEntry{CPUPercentage: 5.5}, "", "5.50%", cpuPercHeader, ctx.CPUPerc},
+		{StatsEntry{CPUPercentage: 5.5, IsInvalid: true}, "", "--", cpuPercHeader, ctx.CPUPerc},
+		{StatsEntry{NetworkRx: 0.31, NetworkTx: 12.3}, "", "0.31 B / 12.3 B", netIOHeader, ctx.NetIO},
+		{StatsEntry{NetworkRx: 0.31, NetworkTx: 12.3, IsInvalid: true}, "", "--", netIOHeader, ctx.NetIO},
+		{StatsEntry{BlockRead: 0.1, BlockWrite: 2.3}, "", "0.1 B / 2.3 B", blockIOHeader, ctx.BlockIO},
+		{StatsEntry{BlockRead: 0.1, BlockWrite: 2.3, IsInvalid: true}, "", "--", blockIOHeader, ctx.BlockIO},
+		{StatsEntry{MemoryPercentage: 10.2}, "", "10.20%", memPercHeader, ctx.MemPerc},
+		{StatsEntry{MemoryPercentage: 10.2, IsInvalid: true}, "", "--", memPercHeader, ctx.MemPerc},
+		{StatsEntry{MemoryPercentage: 10.2}, "windows", "--", memPercHeader, ctx.MemPerc},
+		{StatsEntry{Memory: 24, MemoryLimit: 30}, "", "24 B / 30 B", memUseHeader, ctx.MemUsage},
+		{StatsEntry{Memory: 24, MemoryLimit: 30, IsInvalid: true}, "", "-- / --", memUseHeader, ctx.MemUsage},
+		{StatsEntry{Memory: 24, MemoryLimit: 30}, "windows", "24 B", winMemUseHeader, ctx.MemUsage},
+		{StatsEntry{PidsCurrent: 10}, "", "10", pidsHeader, ctx.PIDs},
+		{StatsEntry{PidsCurrent: 10, IsInvalid: true}, "", "--", pidsHeader, ctx.PIDs},
+		{StatsEntry{PidsCurrent: 10}, "windows", "--", pidsHeader, ctx.PIDs},
 	}
 
 	for _, te := range tt {
-		ctx = containerStatsContext{s: te.stats}
+		ctx = containerStatsContext{s: te.stats, os: te.osType}
 		if v := te.call(); v != te.expValue {
 			t.Fatalf("Expected %q, got %q", te.expValue, v)
 		}
@@ -93,7 +94,6 @@ container2  --
 				BlockWrite:       20,
 				PidsCurrent:      2,
 				IsInvalid:        false,
-				OSType:           "linux",
 			},
 			{
 				Container:        "container2",
@@ -107,12 +107,11 @@ container2  --
 				BlockWrite:       30,
 				PidsCurrent:      3,
 				IsInvalid:        true,
-				OSType:           "linux",
 			},
 		}
 		var out bytes.Buffer
 		te.context.Output = &out
-		err := ContainerStatsWrite(te.context, stats)
+		err := ContainerStatsWrite(te.context, stats, "linux")
 		if err != nil {
 			assert.Error(t, err, te.expected)
 		} else {
@@ -161,7 +160,6 @@ container2  --  --
 				BlockWrite:       20,
 				PidsCurrent:      2,
 				IsInvalid:        false,
-				OSType:           "windows",
 			},
 			{
 				Container:        "container2",
@@ -175,12 +173,11 @@ container2  --  --
 				BlockWrite:       30,
 				PidsCurrent:      3,
 				IsInvalid:        true,
-				OSType:           "windows",
 			},
 		}
 		var out bytes.Buffer
 		te.context.Output = &out
-		err := ContainerStatsWrite(te.context, stats)
+		err := ContainerStatsWrite(te.context, stats, "windows")
 		if err != nil {
 			assert.Error(t, err, te.expected)
 		} else {
@@ -220,8 +217,46 @@ func TestContainerStatsContextWriteWithNoStats(t *testing.T) {
 	}
 
 	for _, context := range contexts {
-		ContainerStatsWrite(context.context, []StatsEntry{})
+		ContainerStatsWrite(context.context, []StatsEntry{}, "linux")
 		assert.Equal(t, context.expected, out.String())
+		// Clean buffer
+		out.Reset()
+	}
+}
+
+func TestContainerStatsContextWriteWithNoStatsWindows(t *testing.T) {
+	var out bytes.Buffer
+
+	contexts := []struct {
+		context  Context
+		expected string
+	}{
+		{
+			Context{
+				Format: "{{.Container}}",
+				Output: &out,
+			},
+			"",
+		},
+		{
+			Context{
+				Format: "table {{.Container}}\t{{.MemUsage}}",
+				Output: &out,
+			},
+			"CONTAINER           PRIV WORKING SET\n",
+		},
+		{
+			Context{
+				Format: "table {{.Container}}\t{{.CPUPerc}}\t{{.MemUsage}}",
+				Output: &out,
+			},
+			"CONTAINER           CPU %               PRIV WORKING SET\n",
+		},
+	}
+
+	for _, context := range contexts {
+		ContainerStatsWrite(context.context, []StatsEntry{}, "windows")
+		assert.Equal(t, out.String(), context.expected)
 		// Clean buffer
 		out.Reset()
 	}
