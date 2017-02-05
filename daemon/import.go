@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/url"
 	"runtime"
+	"strings"
 	"time"
 
 	"github.com/docker/distribution/reference"
@@ -59,20 +60,19 @@ func (daemon *Daemon) ImportImage(src string, repository, tag string, msg string
 		rc = inConfig
 	} else {
 		inConfig.Close()
+		if len(strings.Split(src, "://")) == 1 {
+			src = "http://" + src
+		}
 		u, err := url.Parse(src)
 		if err != nil {
 			return err
 		}
-		if u.Scheme == "" {
-			u.Scheme = "http"
-			u.Host = src
-			u.Path = ""
-		}
-		outStream.Write(sf.FormatStatus("", "Downloading from %s", u))
+
 		resp, err = httputils.Download(u.String())
 		if err != nil {
 			return err
 		}
+		outStream.Write(sf.FormatStatus("", "Downloading from %s", u))
 		progressOutput := sf.NewProgressOutput(outStream, true)
 		rc = progress.NewProgressReader(resp.Body, progressOutput, resp.ContentLength, "", "Importing")
 	}
