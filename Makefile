@@ -10,6 +10,9 @@ export DOCKER_INCREMENTAL_BINARY
 DOCKER_OSARCH := $(shell bash -c 'source hack/make/.detect-daemon-osarch && echo $${DOCKER_ENGINE_OSARCH:-$$DOCKER_CLIENT_OSARCH}')
 DOCKERFILE := $(shell bash -c 'source hack/make/.detect-daemon-osarch && echo $${DOCKERFILE}')
 
+DOCKER_GITCOMMIT := $(shell git rev-parse --short HEAD || echo unsupported)
+export DOCKER_GITCOMMIT
+
 # env vars passed through directly to Docker's build scripts
 # to allow things like `make KEEPBUNDLE=1 binary` easily
 # `project/PACKAGERS.md` have some limited documentation of some of these
@@ -49,7 +52,7 @@ DOCKER_MOUNT := $(if $(BIND_DIR),-v "$(CURDIR)/$(BIND_DIR):/go/src/github.com/do
 # This allows the test suite to be able to run without worrying about the underlying fs used by the container running the daemon (e.g. aufs-on-aufs), so long as the host running the container is running a supported fs.
 # The volume will be cleaned up when the container is removed due to `--rm`.
 # Note that `BIND_DIR` will already be set to `bundles` if `DOCKER_HOST` is not set (see above BIND_DIR line), in such case this will do nothing since `DOCKER_MOUNT` will already be set.
-DOCKER_MOUNT := $(if $(DOCKER_MOUNT),$(DOCKER_MOUNT),-v /go/src/github.com/docker/docker/bundles)
+DOCKER_MOUNT := $(if $(DOCKER_MOUNT),$(DOCKER_MOUNT),-v /go/src/github.com/docker/docker/bundles) -v $(CURDIR)/.git:/go/src/github.com/docker/docker/.git
 
 # This allows to set the docker-dev container name
 DOCKER_CONTAINER_NAME := $(if $(CONTAINER_NAME),--name $(CONTAINER_NAME),)

@@ -71,8 +71,9 @@
 #
 # 4. Build the docker executable binaries by running one of the following:
 #
-#    >>   docker run --name binaries nativebuildimage hack\make.ps1 -Binary
-#    >>   docker run --name binaries -m 2GB nativebuildimage hack\make.ps1 -Binary    (if using Hyper-V containers)
+#    >>   $DOCKER_GITCOMMIT=(git rev-parse --short HEAD)
+#    >>   docker run --name binaries -e DOCKER_GITCOMMIT=$DOCKER_GITCOMMIT nativebuildimage hack\make.ps1 -Binary
+#    >>   docker run --name binaries -e DOCKER_GITCOMMIT=$DOCKER_GITCOMMIT -m 2GB nativebuildimage hack\make.ps1 -Binary    (if using Hyper-V containers)
 #
 #
 # 5. Copy the binaries out of the container, replacing HostPath with an appropriate destination 
@@ -98,18 +99,13 @@
 # -----------------------------------------------------------------------------------------
 
 
-#  The validation tests can either run in a container, or directly on the host. To run in a
-#  container, ensure you have created the nativebuildimage above. Then run one of the
-#  following from an (elevated) Windows PowerShell prompt:
-#
-#    >>   docker run --rm nativebuildimage hack\make.ps1 -DCO -PkgImports -GoFormat
-#    >>   docker run --rm -m 2GB nativebuildimage hack\make.ps1 -DCO -PkgImports -GoFormat    (if using Hyper-V containers)
-
-# To run the validation tests on the host, from the root of the repository, run the
-# following from a Windows PowerShell prompt (elevation is not required): (Note Go
-# must be installed to run these tests)
+#  The validation tests can only run directly on the host. This is because they calculate
+#  information from the git repo, but the .git directory is not passed into the image as
+#  it is excluded via .dockerignore. Run the following from a Windows PowerShell prompt
+#  (elevation is not required): (Note Go must be installed to run these tests)
 #
 #    >>   hack\make.ps1 -DCO -PkgImports -GoFormat
+
 
 # -----------------------------------------------------------------------------------------
 
@@ -124,7 +120,7 @@
 # -----------------------------------------------------------------------------------------
 
 
-#  To run all tests and binary build, ensure you have created the nativebuildimage above. Then 
+#  To run unit tests and binary build, ensure you have created the nativebuildimage above. Then 
 #  run one of the following from an (elevated) Windows PowerShell prompt:
 #
 #    >>   docker run nativebuildimage hack\make.ps1 -All

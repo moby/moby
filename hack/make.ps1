@@ -21,7 +21,7 @@
                 "hack\make.ps1 -Client" to build just the client 64-bit binary
                 "hack\make.ps1 -TestUnit" to run unit tests
                 "hack\make.ps1 -Binary -TestUnit" to build the binaries and run unit tests
-                "hack\make.ps1 -All" to run everything this script knows about
+                "hack\make.ps1 -All" to run everything this script knows about that can run in a container
 
 .PARAMETER Client
      Builds the client binaries.
@@ -48,24 +48,23 @@
      Adds a custom string to be appended to the commit ID (spaces are stripped).
 
 .PARAMETER DCO
-     Runs the DCO (Developer Certificate Of Origin) test.
+     Runs the DCO (Developer Certificate Of Origin) test (must be run outside a container).
 
 .PARAMETER PkgImports
-     Runs the pkg\ directory imports test.
+     Runs the pkg\ directory imports test (must be run outside a container).
 
 .PARAMETER GoFormat
-     Runs the Go formatting test.
+     Runs the Go formatting test (must be run outside a container).
 
 .PARAMETER TestUnit
      Runs unit tests.
 
 .PARAMETER All
-     Runs everything this script knows about.
+     Runs everything this script knows about that can run in a container.
 
 
 TODO
 - Unify the head commit
-- Sort out the GITCOMMIT environment variable in the absence of a .git (longer term)
 - Add golint and other checks (swagger maybe?)
 
 #>
@@ -334,7 +333,9 @@ Try {
     Push-Location $root
 
     # Handle the "-All" shortcut to turn on all things we can handle.
-    if ($All) { $Client=$True; $Daemon=$True; $DCO=$True; $PkgImports=$True; $GoFormat=$True; $TestUnit=$True }
+    # Note we expressly only include the items which can run in a container - the validations tests cannot
+    # as they require the .git directory which is excluded from the image by .dockerignore
+    if ($All) { $Client=$True; $Daemon=$True; $TestUnit=$True }
 
     # Handle the "-Binary" shortcut to build both client and daemon.
     if ($Binary) { $Client = $True; $Daemon = $True }

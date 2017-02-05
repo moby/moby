@@ -70,7 +70,9 @@ DEFAULT_BUNDLES=(
 
 VERSION=$(< ./VERSION)
 ! BUILDTIME=$(date --rfc-3339 ns 2> /dev/null | sed -e 's/ /T/')
-if command -v git &> /dev/null && [ -d .git ] && git rev-parse &> /dev/null; then
+if [ "$DOCKER_GITCOMMIT" ]; then
+	GITCOMMIT="$DOCKER_GITCOMMIT"
+elif command -v git &> /dev/null && [ -d .git ] && git rev-parse &> /dev/null; then
 	GITCOMMIT=$(git rev-parse --short HEAD)
 	if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
 		GITCOMMIT="$GITCOMMIT-unsupported"
@@ -83,8 +85,6 @@ if command -v git &> /dev/null && [ -d .git ] && git rev-parse &> /dev/null; the
 		git status --porcelain --untracked-files=no
 		echo "#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 	fi
-elif [ "$DOCKER_GITCOMMIT" ]; then
-	GITCOMMIT="$DOCKER_GITCOMMIT"
 else
 	echo >&2 'error: .git directory missing and DOCKER_GITCOMMIT not specified'
 	echo >&2 '  Please either build with the .git directory accessible, or specify the'
