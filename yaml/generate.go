@@ -6,15 +6,17 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/docker/docker/cli/command"
 	"github.com/docker/docker/cli/command/commands"
 	"github.com/docker/docker/pkg/term"
+	"github.com/russross/blackfriday"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 )
 
-const descriptionSourcePath = "man/src/"
+const descriptionSourcePath = "docs/reference/commandline/"
 
 func generateCliYaml(opts *options) error {
 	stdin, stdout, stderr := term.StdStreams()
@@ -22,7 +24,7 @@ func generateCliYaml(opts *options) error {
 	cmd := &cobra.Command{Use: "docker"}
 	commands.AddCommands(cmd, dockerCli)
 	source := filepath.Join(opts.source, descriptionSourcePath)
-	if err := loadLongDescription(cmd, source); err != nil {
+	if err := loadLongDescription(cmd, source, ""); err != nil {
 		return err
 	}
 
@@ -30,15 +32,16 @@ func generateCliYaml(opts *options) error {
 	return GenYamlTree(cmd, opts.target)
 }
 
-func loadLongDescription(cmd *cobra.Command, path string) error {
+func loadLongDescription(cmd *cobra.Command, path string, parent string) error {
 	for _, cmd := range cmd.Commands() {
 		if cmd.Name() == "" {
 			continue
 		}
-		fullpath := filepath.Join(path, cmd.Name()+".md")
+		fullpath := filepath.Join(path, parent+cmd.Name()+".md")
+		log.Println("Looking at path: ", fullpath)
 
 		if cmd.HasSubCommands() {
-			loadLongDescription(cmd, filepath.Join(path, cmd.Name()))
+			loadLongDescription(cmd, path, cmd.Name()+"_")
 		}
 
 		if _, err := os.Stat(fullpath); err != nil {
@@ -50,6 +53,12 @@ func loadLongDescription(cmd *cobra.Command, path string) error {
 		if err != nil {
 			return err
 		}
+		content := ""
+		parsedContent := strings.SplitN(string(fileContent), "```", 3)
+		if len(parsedContent) == 3 {
+			content = []byte(parsedContent[2])
+		}
+		content = blackfriday.MarkdownCommon(content)
 		cmd.Long = string(content)
 	}
 	return nil

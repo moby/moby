@@ -26,7 +26,7 @@ type cmdDoc struct {
 	Version          string      `yaml:"engine_version,omitempty"`
 	Aliases          string      `yaml:",omitempty"`
 	Short            string      `yaml:",omitempty"`
-	Long             string      `yaml:",omitempty"`
+	Long             string      `yaml:",omitempty,flow"`
 	Usage            string      `yaml:",omitempty"`
 	Pname            string      `yaml:",omitempty"`
 	Plink            string      `yaml:",omitempty"`
