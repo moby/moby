@@ -408,6 +408,20 @@ func copyOwnership(source, destination string) error {
 	return os.Chmod(destination, os.FileMode(stat.Mode()))
 }
 
+func (container *Container) OverlayMounts() ([]Mount, error) {
+	var mounts []Mount
+	for dest, mnt := range container.MountPoints {
+		if mnt.Type == mounttypes.TypeOverlay {
+			mounts = append(mounts, Mount{
+				Source:      "overlay",
+				Destination: dest,
+				Data:        fmt.Sprintf("lowerdir=%s:%s", dest, filepath.Join(container.BaseFS, strings.TrimPrefix(dest, "/"))),
+			})
+		}
+	}
+	return mounts, nil
+}
+
 // TmpfsMounts returns the list of tmpfs mounts
 func (container *Container) TmpfsMounts() ([]Mount, error) {
 	var mounts []Mount

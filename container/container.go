@@ -308,6 +308,11 @@ func (container *Container) CheckpointDir() string {
 	return filepath.Join(container.Root, "checkpoints")
 }
 
+// OverlaysDir TODO(runcom)
+func (container *Container) OverlaysDir() string {
+	return filepath.Join(container.Root, "overlays")
+}
+
 // StartLogger starts a new logger driver for the container.
 func (container *Container) StartLogger() (logger.Logger, error) {
 	cfg := container.HostConfig.LogConfig

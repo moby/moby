@@ -128,6 +128,9 @@ func (daemon *Daemon) create(params types.ContainerCreateConfig, managed bool) (
 	if err := idtools.MkdirAs(container.CheckpointDir(), 0700, rootUID, rootGID); err != nil {
 		return nil, err
 	}
+	if err := idtools.MkdirAs(container.OverlaysDir(), 0700, rootUID, rootGID); err != nil {
+		return nil, err
+	}
 
 	if err := daemon.setHostConfig(container, params.HostConfig); err != nil {
 		return nil, err

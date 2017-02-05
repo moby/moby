@@ -248,6 +248,9 @@ func ParseMountRaw(raw, volumeDriver string) (*MountPoint, error) {
 	} else {
 		spec.Type = mounttypes.TypeVolume
 	}
+	if mode == string(mounttypes.TypeOverlay) {
+		spec.Type = mounttypes.TypeOverlay
+	}
 
 	spec.ReadOnly = !ReadWrite(mode)
 
@@ -309,7 +312,7 @@ func ParseMountSpec(cfg mounttypes.Mount, options ...func(*validateOpts)) (*Moun
 				mp.CopyData = false
 			}
 		}
-	case mounttypes.TypeBind:
+	case mounttypes.TypeBind, mounttypes.TypeOverlay:
 		mp.Source = clean(convertSlash(cfg.Source))
 		if cfg.BindOptions != nil {
 			if len(cfg.BindOptions.Propagation) > 0 {

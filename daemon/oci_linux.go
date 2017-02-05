@@ -516,6 +516,16 @@ func setMounts(daemon *Daemon, s *specs.Spec, c *container.Container, mounts []c
 			continue
 		}
 
+		if m.Source == "overlay" {
+			s.Mounts = append(s.Mounts, specs.Mount{
+				Destination: m.Destination,
+				Source:      m.Source,
+				Type:        "overlay",
+				Options:     strings.Split(m.Data, ","),
+			})
+			continue
+		}
+
 		mt := specs.Mount{Destination: m.Destination, Source: m.Source, Type: "bind"}
 
 		// Determine property of RootPropagation based on volume
@@ -740,6 +750,16 @@ func (daemon *Daemon) createSpec(c *container.Container) (*specs.Spec, error) {
 	}
 
 	ms = append(ms, c.IpcMounts()...)
+
+	overlayfsMounts, err := c.OverlayMounts()
+	if err != nil {
+		return nil, err
+	}
+
+	logrus.Debugf("runcom 1 %v", ms)
+	logrus.Debugf("runcom 1 %v", overlayfsMounts)
+
+	ms = append(ms, overlayfsMounts...)
 
 	tmpfsMounts, err := c.TmpfsMounts()
 	if err != nil {
