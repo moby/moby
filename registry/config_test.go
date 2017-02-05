@@ -57,6 +57,22 @@ func TestLoadInsecureRegistries(t *testing.T) {
 		err        string
 	}{
 		{
+			registries: []string{"127.0.0.1"},
+			index:      "127.0.0.1",
+		},
+		{
+			registries: []string{"127.0.0.1:8080"},
+			index:      "127.0.0.1:8080",
+		},
+		{
+			registries: []string{"2001:db8::1"},
+			index:      "2001:db8::1",
+		},
+		{
+			registries: []string{"[2001:db8::1]:80"},
+			index:      "[2001:db8::1]:80",
+		},
+		{
 			registries: []string{"http://mytest.com"},
 			index:      "mytest.com",
 		},
@@ -75,6 +91,26 @@ func TestLoadInsecureRegistries(t *testing.T) {
 		{
 			registries: []string{"-invalid-registry"},
 			err:        "Cannot begin or end with a hyphen",
+		},
+		{
+			registries: []string{`mytest-.com`},
+			err:        `insecure registry mytest-.com is not valid: invalid host "mytest-.com"`,
+		},
+		{
+			registries: []string{`1200:0000:AB00:1234:0000:2552:7777:1313:8080`},
+			err:        `insecure registry 1200:0000:AB00:1234:0000:2552:7777:1313:8080 is not valid: invalid host "1200:0000:AB00:1234:0000:2552:7777:1313:8080"`,
+		},
+		{
+			registries: []string{`mytest.com:500000`},
+			err:        `insecure registry mytest.com:500000 is not valid: invalid port "500000"`,
+		},
+		{
+			registries: []string{`"mytest.com"`},
+			err:        `insecure registry "mytest.com" is not valid: invalid host "\"mytest.com\""`,
+		},
+		{
+			registries: []string{`"mytest.com:5000"`},
+			err:        `insecure registry "mytest.com:5000" is not valid: invalid host "\"mytest.com"`,
 		},
 	}
 	for _, testCase := range testCases {

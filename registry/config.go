@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"net"
 	"net/url"
+	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/Sirupsen/logrus"
@@ -60,6 +62,10 @@ var (
 	ErrInvalidRepositoryName = errors.New("Invalid repository name (ex: \"registry.domain.tld/myrepos\")")
 
 	emptyServiceConfig = newServiceConfig(ServiceOptions{})
+)
+
+var (
+	validHostPortRegex = regexp.MustCompile(`^` + reference.DomainRegexp.String() + `$`)
 )
 
 // for mocking in unit tests
@@ -178,6 +184,12 @@ skip:
 			config.InsecureRegistryCIDRs = append(config.InsecureRegistryCIDRs, data)
 
 		} else {
+			if err := validateHostPort(r); err != nil {
+				config.ServiceConfig.InsecureRegistryCIDRs = originalCIDRs
+				config.ServiceConfig.IndexConfigs = originalIndexInfos
+				return fmt.Errorf("insecure registry %s is not valid: %v", r, err)
+
+			}
 			// Assume `host:port` if not CIDR.
 			config.IndexConfigs[r] = &registrytypes.IndexInfo{
 				Name:     r,
@@ -284,6 +296,30 @@ func validateNoScheme(reposName string) error {
 	if strings.Contains(reposName, "://") {
 		// It cannot contain a scheme!
 		return ErrInvalidRepositoryName
+	}
+	return nil
+}
+
+func validateHostPort(s string) error {
+	// Split host and port, and in case s can not be splitted, assume host only
+	host, port, err := net.SplitHostPort(s)
+	if err != nil {
+		host = s
+		port = ""
+	}
+	// If match against the `host:port` pattern fails,
+	// it might be `IPv6:port`, which will be captured by net.ParseIP(host)
+	if !validHostPortRegex.MatchString(s) && net.ParseIP(host) == nil {
+		return fmt.Errorf("invalid host %q", host)
+	}
+	if port != "" {
+		v, err := strconv.Atoi(port)
+		if err != nil {
+			return err
+		}
+		if v < 0 || v > 65535 {
+			return fmt.Errorf("invalid port %q", port)
+		}
 	}
 	return nil
 }
