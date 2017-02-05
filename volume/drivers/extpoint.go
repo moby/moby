@@ -23,7 +23,7 @@ const extName = "VolumeDriver"
 
 // NewVolumeDriver returns a driver has the given name mapped on the given client.
 func NewVolumeDriver(name string, baseHostPath string, c client) volume.Driver {
-	proxy := &volumeDriverProxy{c}
+	proxy := &volumeDriverProxy{c, make(map[string]int), sync.Mutex{}}
 	return &volumeDriverAdapter{name: name, baseHostPath: baseHostPath, proxy: proxy}
 }
 
