@@ -156,20 +156,17 @@
 FROM microsoft/windowsservercore
 
 # Use PowerShell as the default shell
-SHELL ["powershell", "-command"]
+SHELL ["powershell", "-Command", "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue';"]
 
 # Environment variable notes:
 #  - GO_VERSION must be consistent with 'Dockerfile' used by Linux.
 #  - FROM_DOCKERFILE is used for detection of building within a container.
 ENV GO_VERSION=1.7.5 `
-    GIT_VERSION=2.11.0 `
+    GIT_VERSION=2.11.1 `
     GOPATH=C:\go `
     FROM_DOCKERFILE=1
 
 RUN `
-  $ErrorActionPreference = 'Stop'; `
-  $ProgressPreference = 'SilentlyContinue'; `
-  `
   Function Test-Nano() { `
     $EditionId = (Get-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion' -Name 'EditionID').EditionId; `
     return (($EditionId -eq 'ServerStandardNano') -or ($EditionId -eq 'ServerDataCenterNano') -or ($EditionId -eq 'NanoServer')); `
@@ -201,11 +198,11 @@ RUN `
     } `
   } `
   `
-  setx /M PATH $('C:\git\bin;C:\git\usr\bin;'+$Env:PATH+';C:\gcc\bin;C:\go\bin'); `
+  setx /M PATH $('C:\git\cmd;C:\git\usr\bin;'+$Env:PATH+';C:\gcc\bin;C:\go\bin'); `
   `
   Write-Host INFO: Downloading git...; `
-  $location='https://github.com/git-for-windows/git/releases/download/v'+$env:GIT_VERSION+'.windows.1/PortableGit-'+$env:GIT_VERSION+'-64-bit.7z.exe'; `
-  Download-File $location C:\gitsetup.7z.exe; `
+  $location='https://www.nuget.org/api/v2/package/GitForWindows/'+$Env:GIT_VERSION; `
+  Download-File $location C:\gitsetup.zip; `
   `
   Write-Host INFO: Downloading go...; `
   Download-File $('https://golang.org/dl/go'+$Env:GO_VERSION+'.windows-amd64.zip') C:\go.zip; `
@@ -219,15 +216,11 @@ RUN `
   Write-Host INFO: Downloading compiler 3 of 3...; `
   Download-File https://raw.githubusercontent.com/jhowardmsft/docker-tdmgcc/master/binutils.zip C:\binutils.zip; `
   `
-  Write-Host INFO: Installing PS7Zip package...; `
-  Install-Package PS7Zip -Force | Out-Null; `
-  Write-Host INFO: Importing PS7Zip...; `
-  Import-Module PS7Zip -Force; `
-  New-Item C:\git -ItemType Directory | Out-Null ; `
-  cd C:\git; `
   Write-Host INFO: Extracting git...; `
-  Expand-7Zip C:\gitsetup.7z.exe | Out-Null; `
-  cd C:\; `
+  Expand-Archive C:\gitsetup.zip C:\git-tmp; `
+  New-Item -Type Directory C:\git | Out-Null; `
+  Move-Item C:\git-tmp\tools\* C:\git\.; `
+  Remove-Item -Recurse -Force C:\git-tmp; `
   `
   Write-Host INFO: Expanding go...; `
   Expand-Archive C:\go.zip -DestinationPath C:\; `
@@ -243,13 +236,13 @@ RUN `
   Remove-Item C:\gcc.zip; `
   Remove-Item C:\runtime.zip; `
   Remove-Item C:\binutils.zip; `
-  Remove-Item C:\gitsetup.7z.exe; `
+  Remove-Item C:\gitsetup.zip; `
   `
   Write-Host INFO: Creating source directory...; `
   New-Item -ItemType Directory -Path C:\go\src\github.com\docker\docker | Out-Null; `
   `
   Write-Host INFO: Configuring git core.autocrlf...; `
-  C:\git\bin\git config --global core.autocrlf true; `
+  C:\git\cmd\git config --global core.autocrlf true; `
   `
   Write-Host INFO: Completed
 
