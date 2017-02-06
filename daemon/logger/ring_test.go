@@ -1,10 +1,11 @@
 package logger
 
 import (
-	"context"
 	"strconv"
 	"testing"
 	"time"
+
+	"golang.org/x/net/context"
 )
 
 type mockLogger struct{ c chan *Message }

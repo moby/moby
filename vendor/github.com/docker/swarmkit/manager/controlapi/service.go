@@ -275,6 +275,21 @@ func (s *Server) validateNetworks(networks []*api.NetworkAttachmentConfig) error
 	return nil
 }
 
+func validateMode(s *api.ServiceSpec) error {
+	m := s.GetMode()
+	switch m.(type) {
+	case *api.ServiceSpec_Replicated:
+		if int64(m.(*api.ServiceSpec_Replicated).Replicated.Replicas) < 0 {
+			return grpc.Errorf(codes.InvalidArgument, "Number of replicas must be non-negative")
+		}
+	case *api.ServiceSpec_Global:
+	default:
+		return grpc.Errorf(codes.InvalidArgument, "Unrecognized service mode")
+	}
+
+	return nil
+}
+
 func validateServiceSpec(spec *api.ServiceSpec) error {
 	if spec == nil {
 		return grpc.Errorf(codes.InvalidArgument, errInvalidArgument.Error())
@@ -289,6 +304,9 @@ func validateServiceSpec(spec *api.ServiceSpec) error {
 		return err
 	}
 	if err := validateEndpointSpec(spec.Endpoint); err != nil {
+		return err
+	}
+	if err := validateMode(spec); err != nil {
 		return err
 	}
 	// Check to see if the Secret Reference portion of the spec is valid

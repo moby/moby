@@ -102,15 +102,15 @@ func (r *Orchestrator) reconcile(ctx context.Context, service *api.Service) {
 	}
 
 	deploy := service.Spec.GetMode().(*api.ServiceSpec_Replicated)
-	specifiedSlots := int(deploy.Replicated.Replicas)
+	specifiedSlots := deploy.Replicated.Replicas
 
 	switch {
-	case specifiedSlots > numSlots:
+	case specifiedSlots > uint64(numSlots):
 		log.G(ctx).Debugf("Service %s was scaled up from %d to %d instances", service.ID, numSlots, specifiedSlots)
 		// Update all current tasks then add missing tasks
 		r.updater.Update(ctx, r.cluster, service, slotsSlice)
 		_, err = r.store.Batch(func(batch *store.Batch) error {
-			r.addTasks(ctx, batch, service, runningSlots, deadSlots, specifiedSlots-numSlots)
+			r.addTasks(ctx, batch, service, runningSlots, deadSlots, specifiedSlots-uint64(numSlots))
 			r.deleteTasksMap(ctx, batch, deadSlots)
 			return nil
 		})
@@ -118,7 +118,7 @@ func (r *Orchestrator) reconcile(ctx context.Context, service *api.Service) {
 			log.G(ctx).WithError(err).Errorf("reconcile batch failed")
 		}
 
-	case specifiedSlots < numSlots:
+	case specifiedSlots < uint64(numSlots):
 		// Update up to N tasks then remove the extra
 		log.G(ctx).Debugf("Service %s was scaled down from %d to %d instances", service.ID, numSlots, specifiedSlots)
 
@@ -165,7 +165,7 @@ func (r *Orchestrator) reconcile(ctx context.Context, service *api.Service) {
 			log.G(ctx).WithError(err).Errorf("reconcile batch failed")
 		}
 
-	case specifiedSlots == numSlots:
+	case specifiedSlots == uint64(numSlots):
 		_, err = r.store.Batch(func(batch *store.Batch) error {
 			r.deleteTasksMap(ctx, batch, deadSlots)
 			return nil
@@ -178,9 +178,9 @@ func (r *Orchestrator) reconcile(ctx context.Context, service *api.Service) {
 	}
 }
 
-func (r *Orchestrator) addTasks(ctx context.Context, batch *store.Batch, service *api.Service, runningSlots map[uint64]orchestrator.Slot, deadSlots map[uint64]orchestrator.Slot, count int) {
+func (r *Orchestrator) addTasks(ctx context.Context, batch *store.Batch, service *api.Service, runningSlots map[uint64]orchestrator.Slot, deadSlots map[uint64]orchestrator.Slot, count uint64) {
 	slot := uint64(0)
-	for i := 0; i < count; i++ {
+	for i := uint64(0); i < count; i++ {
 		// Find a slot number that is missing a running task
 		for {
 			slot++

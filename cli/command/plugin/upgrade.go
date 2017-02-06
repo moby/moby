@@ -2,7 +2,6 @@ package plugin
 
 import (
 	"bufio"
-	"context"
 	"fmt"
 	"strings"
 
@@ -12,6 +11,7 @@ import (
 	"github.com/docker/docker/reference"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	"golang.org/x/net/context"
 )
 
 func newUpgradeCommand(dockerCli *command.DockerCli) *cobra.Command {

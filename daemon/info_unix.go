@@ -3,7 +3,6 @@
 package daemon
 
 import (
-	"context"
 	"os/exec"
 	"strings"
 
@@ -11,6 +10,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/pkg/sysinfo"
+	"golang.org/x/net/context"
 )
 
 // FillPlatformInfo fills the platform related info.

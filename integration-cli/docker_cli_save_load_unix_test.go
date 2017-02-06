@@ -3,7 +3,6 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -15,6 +14,7 @@ import (
 	icmd "github.com/docker/docker/pkg/testutil/cmd"
 	"github.com/go-check/check"
 	"github.com/kr/pty"
+	"golang.org/x/net/context"
 )
 
 // save a repo and try to load it using stdout

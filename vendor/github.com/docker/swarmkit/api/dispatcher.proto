@@ -66,7 +66,7 @@ message SessionRequest {
 	// SessionID is empty or invalid, a new SessionID will be assigned.
 	//
 	// See SessionMessage.SessionID for details.
-	string session_id = 2 [(gogoproto.customname) = "SessionID"];
+	string session_id = 2;
 }
 
 // SessionMessage instructs an agent on various actions as part of the current
@@ -115,7 +115,7 @@ message SessionMessage {
 	// We considered placing this field in a GRPC header. Because this is a
 	// critical feature of the protocol, we thought it should be represented
 	// directly in the RPC message set.
-	string session_id = 1 [(gogoproto.customname) = "SessionID"];
+	string session_id = 1;
 
 	// Node identifies the registering node.
 	Node node = 2;
@@ -130,7 +130,7 @@ message SessionMessage {
 
 // HeartbeatRequest provides identifying properties for a single heartbeat.
 message HeartbeatRequest {
-	string session_id = 1 [(gogoproto.customname) = "SessionID"];
+	string session_id = 1;
 }
 
 message HeartbeatResponse {
@@ -142,10 +142,10 @@ message HeartbeatResponse {
 message UpdateTaskStatusRequest {
 	// Tasks should contain all statuses for running tasks. Only the status
 	// field must be set. The spec is not required.
-	string session_id = 1 [(gogoproto.customname) = "SessionID"];
+	string session_id = 1;
 
 	message TaskStatusUpdate {
-		string task_id = 1 [(gogoproto.customname) = "TaskID"];
+		string task_id = 1;
 		TaskStatus status = 2;
 	}
 
@@ -157,7 +157,7 @@ message  UpdateTaskStatusResponse{
 }
 
 message TasksRequest {
-	string session_id = 1 [(gogoproto.customname) = "SessionID"];
+	string session_id = 1;
 }
 
 message TasksMessage {
@@ -167,7 +167,7 @@ message TasksMessage {
 }
 
 message AssignmentsRequest {
-	string session_id = 1 [(gogoproto.customname) = "SessionID"];
+	string session_id = 1;
 }
 
 message Assignment {
