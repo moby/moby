@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/docker/docker/api/errors"
 	"github.com/docker/docker/api/types/backend"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/builder/dockerfile"
@@ -125,6 +126,19 @@ func (daemon *Daemon) Commit(name string, c *backend.ContainerCommitConfig) (str
 	if err != nil {
 		return "", err
 	}
+
+	if container.IsDead() {
+		err := fmt.Errorf("You cannot commit container %s which is dead", container.ID)
+		return "", errors.NewBadRequestError(err)
+	}
+
+	if container.IsRemovalInProgress() {
+		err := fmt.Errorf("You cannot commit container %s which is being removed", container.ID)
+		return "", errors.NewBadRequestError(err)
+	}
+
+	container.IncCommitInProgress()
+	defer container.DecCommitInProgress()
 
 	// It is not possible to commit a running container on Windows and on Solaris.
 	if (runtime.GOOS == "windows" || runtime.GOOS == "solaris") && container.IsRunning() {

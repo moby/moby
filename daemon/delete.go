@@ -33,6 +33,11 @@ func (daemon *Daemon) ContainerRm(name string, config *types.ContainerRmConfig) 
 	}
 	defer container.ResetRemovalInProgress()
 
+	if container.IsCommitInProgress() {
+		err := fmt.Errorf("You cannot remove container %s which is being committed", container.ID)
+		return errors.NewBadRequestError(err)
+	}
+
 	// check if container wasn't deregistered by previous rm since Get
 	if c := daemon.containers.Get(container.ID); c == nil {
 		return nil
