@@ -1900,6 +1900,9 @@ definitions:
             type: "array"
             items:
               $ref: "#/definitions/Mount"
+          StopSignal:
+            description: "Signal to stop the container."
+            type: "string"
           StopGracePeriod:
             description: "Amount of time to wait for the container to terminate before forcefully killing it."
             type: "integer"

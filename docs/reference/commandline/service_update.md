@@ -70,6 +70,7 @@ Options:
       --secret-add secret                Add or update a secret on a service
       --secret-rm list                   Remove a secret (default [])
       --stop-grace-period duration       Time to wait before force killing a container (ns|us|ms|s|m|h)
+      --stop-signal string               Signal to stop the container
   -t, --tty                              Allocate a pseudo-TTY
       --update-delay duration            Delay between updates (ns|us|ms|s|m|h) (default 0s)
       --update-failure-action string     Action on update failure ("pause"|"continue") (default "pause")
