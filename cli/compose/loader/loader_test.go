@@ -799,3 +799,29 @@ type servicesByName []types.ServiceConfig
 func (sbn servicesByName) Len() int           { return len(sbn) }
 func (sbn servicesByName) Swap(i, j int)      { sbn[i], sbn[j] = sbn[j], sbn[i] }
 func (sbn servicesByName) Less(i, j int) bool { return sbn[i].Name < sbn[j].Name }
+
+func TestLoadAttachableNetwork(t *testing.T) {
+	config, err := loadYAML(`
+version: "3.1"
+networks:
+  mynet1:
+    driver: overlay
+    attachable: true
+  mynet2:
+    driver: bridge
+`)
+	assert.NoError(t, err)
+
+	expected := map[string]types.NetworkConfig{
+		"mynet1": {
+			Driver:     "overlay",
+			Attachable: true,
+		},
+		"mynet2": {
+			Driver:     "bridge",
+			Attachable: false,
+		},
+	}
+
+	assert.Equal(t, expected, config.Networks)
+}

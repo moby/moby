@@ -30,9 +30,10 @@ func TestAddStackLabel(t *testing.T) {
 func TestNetworks(t *testing.T) {
 	namespace := Namespace{name: "foo"}
 	serviceNetworks := map[string]struct{}{
-		"normal":  {},
-		"outside": {},
-		"default": {},
+		"normal":        {},
+		"outside":       {},
+		"default":       {},
+		"attachablenet": {},
 	}
 	source := networkMap{
 		"normal": composetypes.NetworkConfig{
@@ -58,6 +59,10 @@ func TestNetworks(t *testing.T) {
 				Name:     "special",
 			},
 		},
+		"attachablenet": composetypes.NetworkConfig{
+			Driver:     "overlay",
+			Attachable: true,
+		},
 	}
 	expected := map[string]types.NetworkCreate{
 		"default": {
@@ -81,6 +86,13 @@ func TestNetworks(t *testing.T) {
 			Labels: map[string]string{
 				LabelNamespace: "foo",
 				"something":    "labeled",
+			},
+		},
+		"attachablenet": {
+			Driver:     "overlay",
+			Attachable: true,
+			Labels: map[string]string{
+				LabelNamespace: "foo",
 			},
 		},
 	}
