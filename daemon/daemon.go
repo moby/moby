@@ -168,11 +168,7 @@ func (daemon *Daemon) restore() error {
 			delete(containers, id)
 			continue
 		}
-		if err := daemon.Register(c); err != nil {
-			logrus.Errorf("Failed to register container %s: %s", c.ID, err)
-			delete(containers, id)
-			continue
-		}
+		daemon.Register(c)
 
 		// verify that all volumes valid and have been migrated from the pre-1.7 layout
 		if err := daemon.verifyVolumesInfo(c); err != nil {

@@ -151,9 +151,7 @@ func (daemon *Daemon) create(params types.ContainerCreateConfig, managed bool) (
 		logrus.Errorf("Error saving new container to disk: %v", err)
 		return nil, err
 	}
-	if err := daemon.Register(container); err != nil {
-		return nil, err
-	}
+	daemon.Register(container)
 	daemon.LogContainerEvent(container, "create")
 	return container, nil
 }
