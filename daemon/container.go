@@ -88,7 +88,7 @@ func (daemon *Daemon) load(id string) (*container.Container, error) {
 }
 
 // Register makes a container object usable by the daemon as <container.ID>
-func (daemon *Daemon) Register(c *container.Container) error {
+func (daemon *Daemon) Register(c *container.Container) {
 	// Attach to stdout and stderr
 	if c.Config.OpenStdin {
 		c.StreamConfig.NewInputPipes()
@@ -98,8 +98,6 @@ func (daemon *Daemon) Register(c *container.Container) error {
 
 	daemon.containers.Add(c.ID, c)
 	daemon.idIndex.Add(c.ID)
-
-	return nil
 }
 
 func (daemon *Daemon) newContainer(name string, config *containertypes.Config, hostConfig *containertypes.HostConfig, imgID image.ID, managed bool) (*container.Container, error) {
