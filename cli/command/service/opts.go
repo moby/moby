@@ -10,7 +10,6 @@ import (
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/opts"
 	runconfigopts "github.com/docker/docker/runconfig/opts"
-	"github.com/docker/go-connections/nat"
 	"github.com/spf13/cobra"
 )
 
@@ -242,17 +241,6 @@ func (opts *healthCheckOptions) toHealthConfig() (*container.HealthConfig, error
 		}
 	}
 	return healthConfig, nil
-}
-
-// ValidatePort validates a string is in the expected format for a port definition
-func ValidatePort(value string) (string, error) {
-	portMappings, err := nat.ParsePortSpec(value)
-	for _, portMapping := range portMappings {
-		if portMapping.Binding.HostIP != "" {
-			return "", fmt.Errorf("HostIP is not supported by a service.")
-		}
-	}
-	return value, err
 }
 
 // convertExtraHostsToSwarmHosts converts an array of extra hosts in cli

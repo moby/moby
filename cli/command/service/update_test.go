@@ -362,29 +362,6 @@ func TestUpdatePortsRmWithProtocol(t *testing.T) {
 	assert.Equal(t, portConfigs[1].TargetPort, uint32(82))
 }
 
-// FIXME(vdemeester) port to opts.PortOpt
-func TestValidatePort(t *testing.T) {
-	validPorts := []string{"80/tcp", "80", "80/udp"}
-	invalidPorts := map[string]string{
-		"9999999":   "out of range",
-		"80:80/tcp": "invalid port format",
-		"53:53/udp": "invalid port format",
-		"80:80":     "invalid port format",
-		"80/xyz":    "invalid protocol",
-		"tcp":       "invalid syntax",
-		"udp":       "invalid syntax",
-		"":          "invalid protocol",
-	}
-	for _, port := range validPorts {
-		_, err := validatePublishRemove(port)
-		assert.Equal(t, err, nil)
-	}
-	for port, e := range invalidPorts {
-		_, err := validatePublishRemove(port)
-		assert.Error(t, err, e)
-	}
-}
-
 type secretAPIClientMock struct {
 	listResult []swarm.Secret
 }

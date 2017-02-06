@@ -663,24 +663,6 @@ func portConfigToString(portConfig *swarm.PortConfig) string {
 	return fmt.Sprintf("%v:%v/%s/%s", portConfig.PublishedPort, portConfig.TargetPort, protocol, mode)
 }
 
-// FIXME(vdemeester) port to opts.PortOpt
-// This validation is only used for `--publish-rm`.
-// The `--publish-rm` takes:
-// <TargetPort>[/<Protocol>] (e.g., 80, 80/tcp, 53/udp)
-func validatePublishRemove(val string) (string, error) {
-	proto, port := nat.SplitProtoPort(val)
-	if proto != "tcp" && proto != "udp" {
-		return "", fmt.Errorf("invalid protocol '%s' for %s", proto, val)
-	}
-	if strings.Contains(port, ":") {
-		return "", fmt.Errorf("invalid port format: '%s', should be <TargetPort>[/<Protocol>] (e.g., 80, 80/tcp, 53/udp)", port)
-	}
-	if _, err := nat.ParsePort(port); err != nil {
-		return "", err
-	}
-	return val, nil
-}
-
 func updatePorts(flags *pflag.FlagSet, portConfig *[]swarm.PortConfig) error {
 	// The key of the map is `port/protocol`, e.g., `80/tcp`
 	portSet := map[string]swarm.PortConfig{}
