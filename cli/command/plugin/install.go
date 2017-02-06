@@ -1,7 +1,6 @@
 package plugin
 
 import (
-	"bufio"
 	"errors"
 	"fmt"
 	"strings"
@@ -178,13 +177,6 @@ func acceptPrivileges(dockerCli *command.DockerCli, name string) func(privileges
 		for _, privilege := range privileges {
 			fmt.Fprintf(dockerCli.Out(), " - %s: %v\n", privilege.Name, privilege.Value)
 		}
-
-		fmt.Fprint(dockerCli.Out(), "Do you grant the above permissions? [y/N] ")
-		reader := bufio.NewReader(dockerCli.In())
-		line, _, err := reader.ReadLine()
-		if err != nil {
-			return false, err
-		}
-		return strings.ToLower(string(line)) == "y", nil
+		return command.PromptForConfirmation(dockerCli.In(), dockerCli.Out(), "Do you grant the above permissions?"), nil
 	}
 }

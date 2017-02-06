@@ -1,7 +1,6 @@
 package plugin
 
 import (
-	"bufio"
 	"context"
 	"fmt"
 	"strings"
@@ -64,17 +63,7 @@ func runUpgrade(dockerCli *command.DockerCli, opts pluginOptions) error {
 
 	fmt.Fprintf(dockerCli.Out(), "Upgrading plugin %s from %s to %s\n", p.Name, old, remote)
 	if !opts.skipRemoteCheck && remote.String() != old.String() {
-		_, err := fmt.Fprint(dockerCli.Out(), "Plugin images do not match, are you sure? ")
-		if err != nil {
-			return errors.Wrap(err, "error writing to stdout")
-		}
-
-		rdr := bufio.NewReader(dockerCli.In())
-		line, _, err := rdr.ReadLine()
-		if err != nil {
-			return errors.Wrap(err, "error reading from stdin")
-		}
-		if strings.ToLower(string(line)) != "y" {
+		if !command.PromptForConfirmation(dockerCli.In(), dockerCli.Out(), "Plugin images do not match, are you sure?") {
 			return errors.New("canceling upgrade request")
 		}
 	}
