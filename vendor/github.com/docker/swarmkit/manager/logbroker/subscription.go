@@ -1,7 +1,6 @@
 package logbroker
 
 import (
-	"context"
 	"fmt"
 	"strings"
 	"sync"
@@ -12,6 +11,7 @@ import (
 	"github.com/docker/swarmkit/manager/state"
 	"github.com/docker/swarmkit/manager/state/store"
 	"github.com/docker/swarmkit/watch"
+	"golang.org/x/net/context"
 )
 
 type subscription struct {

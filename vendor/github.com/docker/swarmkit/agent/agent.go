@@ -39,6 +39,7 @@ type Agent struct {
 	ready     chan struct{}
 	leaving   chan struct{}
 	leaveOnce sync.Once
+	left      chan struct{} // closed after "run" processes "leaving" and will no longer accept new assignments
 	stopped   chan struct{} // requests shutdown
 	stopOnce  sync.Once     // only allow stop to be called once
 	closed    chan struct{} // only closed in run
@@ -56,6 +57,7 @@ func New(config *Config) (*Agent, error) {
 		sessionq: make(chan sessionOperation),
 		started:  make(chan struct{}),
 		leaving:  make(chan struct{}),
+		left:     make(chan struct{}),
 		stopped:  make(chan struct{}),
 		closed:   make(chan struct{}),
 		ready:    make(chan struct{}),
@@ -95,6 +97,16 @@ func (a *Agent) Leave(ctx context.Context) error {
 	a.leaveOnce.Do(func() {
 		close(a.leaving)
 	})
+
+	// Do not call Wait until we have confirmed that the agent is no longer
+	// accepting assignments. Starting a worker might race with Wait.
+	select {
+	case <-a.left:
+	case <-a.closed:
+		return ErrClosed
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 
 	// agent could be closed while Leave is in progress
 	var err error
@@ -215,6 +227,8 @@ func (a *Agent) run(ctx context.Context) {
 			if err := a.worker.Assign(ctx, nil); err != nil {
 				log.G(ctx).WithError(err).Error("failed removing all assignments")
 			}
+
+			close(a.left)
 		case msg := <-session.assignments:
 			// if we have left, accept no more assignments
 			if leaving == nil {

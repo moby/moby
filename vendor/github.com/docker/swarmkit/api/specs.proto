@@ -130,7 +130,7 @@ message TaskSpec {
 message NetworkAttachmentSpec {
 	// ContainerID spcifies a unique ID of the container for which
 	// this attachment is for.
-	string container_id = 1 [(gogoproto.customname) = "ContainerID"];
+	string container_id = 1;
 }
 
 

@@ -410,7 +410,7 @@ enum TaskState {
 
 // Container specific status.
 message ContainerStatus {
-	string container_id = 1 [(gogoproto.customname) = "ContainerID"];
+	string container_id = 1;
 
 	int32 pid = 2 [(gogoproto.customname) = "PID"];
 	int32 exit_code = 3;
@@ -574,7 +574,7 @@ message IPAMOptions {
 
 // Peer should be used anywhere where we are describing a remote peer.
 message Peer {
-	string node_id = 1 [(gogoproto.customname) = "NodeID"];
+	string node_id = 1;
 	string addr = 2;
 }
 
@@ -787,7 +787,7 @@ message EncryptionKey {
 message ManagerStatus {
 	// RaftID specifies the internal ID used by the manager in a raft context, it can never be modified
 	// and is used only for information purposes
-	uint64 raft_id = 1 [(gogoproto.customname) = "RaftID"];
+	uint64 raft_id = 1;
 
 	// Addr is the address advertised to raft.
 	string addr = 2;
@@ -805,7 +805,7 @@ message SecretReference {
 	// SecretID represents the ID of the specific Secret that we're
 	// referencing. This identifier exists so that SecretReferences don't leak
 	// any information about the secret contents.
-	string secret_id = 1 [(gogoproto.customname) = "SecretID"];
+	string secret_id = 1;
 
 	// SecretName is the name of the secret that this references, but this is just provided for
 	// lookup/display purposes.  The secret in the reference will be identified by its ID.
