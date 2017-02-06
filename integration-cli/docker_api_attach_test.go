@@ -3,7 +3,6 @@ package main
 import (
 	"bufio"
 	"bytes"
-	"context"
 	"io"
 	"net"
 	"net/http"
@@ -17,6 +16,7 @@ import (
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/docker/docker/pkg/testutil"
 	"github.com/go-check/check"
+	"golang.org/x/net/context"
 	"golang.org/x/net/websocket"
 )
 
