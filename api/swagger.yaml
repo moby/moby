@@ -6564,6 +6564,10 @@ paths:
       responses:
         200:
           description: "no error"
+        404:
+          description: "plugin is not installed"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
         500:
           description: "server error"
           schema:
@@ -6587,6 +6591,10 @@ paths:
       responses:
         200:
           description: "no error"
+        404:
+          description: "plugin is not installed"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
         500:
           description: "server error"
           schema:
