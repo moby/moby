@@ -26,7 +26,7 @@ To manually remove all plugins and resolve this problem, take the following step
 ### Contrib
 
 * Do not require a custom build of tini [#28454](https://github.com/docker/docker/pull/28454)
-* Upgrade to Go 1.7.4 [#29142](https://github.com/docker/docker/pull/29142)
+* Upgrade to Go 1.7.5 [#30489](https://github.com/docker/docker/pull/30489)
 
 ### Remote API (v1.25) & Client
 
@@ -37,14 +37,17 @@ To manually remove all plugins and resolve this problem, take the following step
 * Fix size issue in `docker system df` [#30378](https://github.com/docker/docker/pull/30378)
 * Fix error on `docker inspect` when Swarm certificates were expired. [#29246](https://github.com/docker/docker/pull/29246)
 * Fix deadlock on v1 plugin with activate error [#30408](https://github.com/docker/docker/pull/30408)
+* Fix SELinux regression [#30649](https://github.com/docker/docker/pull/30649)
 
-### Networking
+### Plugins
 
 * Fix network plugins [#30332](https://github.com/docker/docker/pull/30332)
++ Add `docker plugin upgrade` [#29414](https://github.com/docker/docker/pull/29414)
 
 ### Windows
 
 * Fix small regression with old plugins in Windows [#30150](https://github.com/docker/docker/pull/30150)
+* Fix warning on Windows [#30730](https://github.com/docker/docker/pull/30730)
 
 ## 1.13.0 (2017-01-18)
 
