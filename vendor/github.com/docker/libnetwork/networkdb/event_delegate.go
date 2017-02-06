@@ -1,12 +1,28 @@
 package networkdb
 
-import "github.com/hashicorp/memberlist"
+import (
+	"encoding/json"
+	"net"
+
+	"github.com/Sirupsen/logrus"
+	"github.com/hashicorp/memberlist"
+)
 
 type eventDelegate struct {
 	nDB *NetworkDB
 }
 
+func (e *eventDelegate) broadcastNodeEvent(addr net.IP, op opType) {
+	value, err := json.Marshal(&NodeAddr{addr})
+	if err == nil {
+		e.nDB.broadcaster.Write(makeEvent(op, NodeTable, "", "", value))
+	} else {
+		logrus.Errorf("Error marshalling node broadcast event %s", addr.String())
+	}
+}
+
 func (e *eventDelegate) NotifyJoin(mn *memberlist.Node) {
+	e.broadcastNodeEvent(mn.Addr, opCreate)
 	e.nDB.Lock()
 	// In case the node is rejoining after a failure or leave,
 	// wait until an explicit join message arrives before adding
@@ -24,6 +40,7 @@ func (e *eventDelegate) NotifyJoin(mn *memberlist.Node) {
 }
 
 func (e *eventDelegate) NotifyLeave(mn *memberlist.Node) {
+	e.broadcastNodeEvent(mn.Addr, opDelete)
 	e.nDB.deleteNodeTableEntries(mn.Name)
 	e.nDB.deleteNetworkEntriesForNode(mn.Name)
 	e.nDB.Lock()
