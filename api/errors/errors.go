@@ -16,7 +16,7 @@ func (e apiError) HTTPErrorStatusCode() int {
 
 // NewErrorWithStatusCode allows you to associate
 // a specific HTTP Status Code to an error.
-// The Server will take that code and set
+// The server will take that code and set
 // it as the response status.
 func NewErrorWithStatusCode(err error, code int) error {
 	return apiError{err, code}
