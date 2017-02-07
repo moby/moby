@@ -96,15 +96,7 @@ func (daemon *Daemon) GetNetworksByID(partialID string) []libnetwork.Network {
 
 // getAllNetworks returns a list containing all networks
 func (daemon *Daemon) getAllNetworks() []libnetwork.Network {
-	c := daemon.netController
-	list := []libnetwork.Network{}
-	l := func(nw libnetwork.Network) bool {
-		list = append(list, nw)
-		return false
-	}
-	c.WalkNetworks(l)
-
-	return list
+	return daemon.netController.Networks()
 }
 
 func isIngressNetwork(name string) bool {
