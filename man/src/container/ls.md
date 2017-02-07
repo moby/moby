@@ -16,6 +16,8 @@ Filter output based on these conditions:
    - volume=(<volume-name>|<mount-point-destination>)
    - network=(<network-name>|<network-id>) - containers connected to the provided network
    - health=(starting|healthy|unhealthy|none) - filters containers based on healthcheck status
+   - publish=(<port>[/<proto>]|<startport-endport>/[<proto>]) - filters containers based on published ports
+   - expose=(<port>[/<proto>]|<startport-endport>/[<proto>]) - filters containers based on exposed ports
 
 ## Format
 
@@ -94,3 +96,15 @@ Filter output based on these conditions:
     $ docker container ls --filter volume=/data --format "table {{.ID}}\t{{.Mounts}}"
     CONTAINER ID        MOUNTS
     9c3527ed70ce        remote-volume
+
+## Display containers that have published port of 80:
+
+    $ docker ps --filter publish=80
+    CONTAINER ID        IMAGE               COMMAND             CREATED              STATUS              PORTS                   NAMES
+    fc7e477723b7        busybox             "top"               About a minute ago   Up About a minute   0.0.0.0:32768->80/tcp   admiring_roentgen
+
+## Display containers that have exposed TCP port in the range of `8000-8080`:
+
+    $ docker ps --filter expose=8000-8080/tcp
+    CONTAINER ID        IMAGE               COMMAND             CREATED             STATUS              PORTS               NAMES
+    9833437217a5        busybox             "top"               21 seconds ago      Up 19 seconds       8080/tcp            dreamy_mccarthy
