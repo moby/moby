@@ -612,13 +612,13 @@ func (n *network) initSandbox(restore bool) error {
 	var nlSock *nl.NetlinkSocket
 	sbox.InvokeFunc(func() {
 		nlSock, err = nl.Subscribe(syscall.NETLINK_ROUTE, syscall.RTNLGRP_NEIGH)
-		if err != nil {
-			err = fmt.Errorf("failed to subscribe to neighbor group netlink messages")
-		}
 	})
 
-	if nlSock != nil {
+	if err == nil {
 		go n.watchMiss(nlSock)
+	} else {
+		logrus.Errorf("failed to subscribe to neighbor group netlink messages for overlay network %s in sbox %s: %v",
+			n.id, sbox.Key(), err)
 	}
 
 	return nil
