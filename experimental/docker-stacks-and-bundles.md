@@ -52,7 +52,7 @@ Options:
 Let's deploy the stack created before:
 
 ```bash
-# docker deploy vossibility-stack
+# docker deploy --bundle-file vossibilitystack.dab vossibility
 Loading bundle from vossibility-stack.dab
 Creating service vossibility-stack_elasticsearch
 Creating service vossibility-stack_kibana
