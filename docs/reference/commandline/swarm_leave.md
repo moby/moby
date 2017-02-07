@@ -44,11 +44,16 @@ dvfxp4zseq4s0rih1selh0d20 *  manager1  Ready   Active        Leader
 ```
 
 To remove `worker2`, issue the following command from `worker2` itself:
+
 ```bash
 $ docker swarm leave
 Node left the default swarm.
 ```
-To remove an inactive node, use the [`node rm`](node_rm.md) command instead.
+
+The node will still appear in the node list, and marked as `down`. It no longer
+affects swarm operation, but a long list of `down` nodes can clutter the node
+list. To remove an inactive node from the list, use the [`node rm`](node_rm.md)
+command.
 
 ## Related information
 
