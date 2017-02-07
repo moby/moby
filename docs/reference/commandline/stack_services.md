@@ -90,10 +90,12 @@ The following example uses a template without headers and outputs the
 `ID`, `Mode`, and `Replicas` entries separated by a colon for all services:
 
 ```bash
+{% raw %}
 $ docker stack services --format "{{.ID}}: {{.Mode}} {{.Replicas}}"
 
 0zmvwuiu3vue: replicated 10/10
 fm6uf97exkul: global 5/5
+{% endraw %}
 ```
 
 

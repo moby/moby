@@ -323,7 +323,7 @@ pre-configuration of storage. It is strongly recommended that you do
 not use loopback in production. Ensure your Engine daemon has a
 `--storage-opt dm.thinpooldev` argument provided.
 
-###### Example:
+###### Example
 
 ```bash
 $ sudo dockerd --storage-opt dm.thinpooldev=/dev/mapper/thin-pool
@@ -341,7 +341,7 @@ The base device size can be increased at daemon restart which will allow
 all future images and containers (based on those new images) to be of the
 new base device size.
 
-###### Examples
+###### Example
 
 ```bash
 $ sudo dockerd --storage-opt dm.basesize=50G
@@ -413,6 +413,7 @@ Specifies extra mkfs arguments to be used when creating the base device.
 
 ###### Example
 
+>>>>>>> 52df69f00... Standardized formatting of CLI reference commands
 ```bash
 $ sudo dockerd --storage-opt "dm.mkfsarg=-O ^has_journal"
 ```
