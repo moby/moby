@@ -3,12 +3,14 @@ package main
 import (
 	"fmt"
 	"io/ioutil"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 
 	"github.com/docker/docker/integration-cli/checker"
+	"github.com/docker/docker/integration-cli/request"
 	icmd "github.com/docker/docker/pkg/testutil/cmd"
 	"github.com/go-check/check"
 )
@@ -448,4 +450,150 @@ func (s *DockerSuite) TestVolumeCliInspectWithVolumeOpts(c *check.C) {
 	c.Assert(strings.TrimSpace(out), checker.Contains, fmt.Sprintf("%s:%s", k1, v1))
 	c.Assert(strings.TrimSpace(out), checker.Contains, fmt.Sprintf("%s:%s", k2, v2))
 	c.Assert(strings.TrimSpace(out), checker.Contains, fmt.Sprintf("%s:%s", k3, v3))
+}
+
+// Test case (1) for 21845: duplicate targets for --volumes-from
+func (s *DockerSuite) TestDuplicateMountpointsForVolumesFrom(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+
+	image := "vimage"
+	buildImageSuccessfully(c, image, withDockerfile(`
+		FROM busybox
+		VOLUME ["/tmp/data"]`))
+
+	dockerCmd(c, "run", "--name=data1", image, "true")
+	dockerCmd(c, "run", "--name=data2", image, "true")
+
+	out, _ := dockerCmd(c, "inspect", "--format", "{{(index .Mounts 0).Name}}", "data1")
+	data1 := strings.TrimSpace(out)
+	c.Assert(data1, checker.Not(checker.Equals), "")
+
+	out, _ = dockerCmd(c, "inspect", "--format", "{{(index .Mounts 0).Name}}", "data2")
+	data2 := strings.TrimSpace(out)
+	c.Assert(data2, checker.Not(checker.Equals), "")
+
+	// Both volume should exist
+	out, _ = dockerCmd(c, "volume", "ls", "-q")
+	c.Assert(strings.TrimSpace(out), checker.Contains, data1)
+	c.Assert(strings.TrimSpace(out), checker.Contains, data2)
+
+	out, _, err := dockerCmdWithError("run", "--name=app", "--volumes-from=data1", "--volumes-from=data2", "-d", "busybox", "top")
+	c.Assert(err, checker.IsNil, check.Commentf("Out: %s", out))
+
+	// Only the second volume will be referenced, this is backward compatible
+	out, _ = dockerCmd(c, "inspect", "--format", "{{(index .Mounts 0).Name}}", "app")
+	c.Assert(strings.TrimSpace(out), checker.Equals, data2)
+
+	dockerCmd(c, "rm", "-f", "-v", "app")
+	dockerCmd(c, "rm", "-f", "-v", "data1")
+	dockerCmd(c, "rm", "-f", "-v", "data2")
+
+	// Both volume should not exist
+	out, _ = dockerCmd(c, "volume", "ls", "-q")
+	c.Assert(strings.TrimSpace(out), checker.Not(checker.Contains), data1)
+	c.Assert(strings.TrimSpace(out), checker.Not(checker.Contains), data2)
+}
+
+// Test case (2) for 21845: duplicate targets for --volumes-from and -v (bind)
+func (s *DockerSuite) TestDuplicateMountpointsForVolumesFromAndBind(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+
+	image := "vimage"
+	buildImageSuccessfully(c, image, withDockerfile(`
+                FROM busybox
+                VOLUME ["/tmp/data"]`))
+
+	dockerCmd(c, "run", "--name=data1", image, "true")
+	dockerCmd(c, "run", "--name=data2", image, "true")
+
+	out, _ := dockerCmd(c, "inspect", "--format", "{{(index .Mounts 0).Name}}", "data1")
+	data1 := strings.TrimSpace(out)
+	c.Assert(data1, checker.Not(checker.Equals), "")
+
+	out, _ = dockerCmd(c, "inspect", "--format", "{{(index .Mounts 0).Name}}", "data2")
+	data2 := strings.TrimSpace(out)
+	c.Assert(data2, checker.Not(checker.Equals), "")
+
+	// Both volume should exist
+	out, _ = dockerCmd(c, "volume", "ls", "-q")
+	c.Assert(strings.TrimSpace(out), checker.Contains, data1)
+	c.Assert(strings.TrimSpace(out), checker.Contains, data2)
+
+	out, _, err := dockerCmdWithError("run", "--name=app", "--volumes-from=data1", "--volumes-from=data2", "-v", "/tmp/data:/tmp/data", "-d", "busybox", "top")
+	c.Assert(err, checker.IsNil, check.Commentf("Out: %s", out))
+
+	// No volume will be referenced (mount is /tmp/data), this is backward compatible
+	out, _ = dockerCmd(c, "inspect", "--format", "{{(index .Mounts 0).Name}}", "app")
+	c.Assert(strings.TrimSpace(out), checker.Not(checker.Contains), data1)
+	c.Assert(strings.TrimSpace(out), checker.Not(checker.Contains), data2)
+
+	dockerCmd(c, "rm", "-f", "-v", "app")
+	dockerCmd(c, "rm", "-f", "-v", "data1")
+	dockerCmd(c, "rm", "-f", "-v", "data2")
+
+	// Both volume should not exist
+	out, _ = dockerCmd(c, "volume", "ls", "-q")
+	c.Assert(strings.TrimSpace(out), checker.Not(checker.Contains), data1)
+	c.Assert(strings.TrimSpace(out), checker.Not(checker.Contains), data2)
+}
+
+// Test case (3) for 21845: duplicate targets for --volumes-from and `Mounts` (API only)
+func (s *DockerSuite) TestDuplicateMountpointsForVolumesFromAndMounts(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+
+	image := "vimage"
+	buildImageSuccessfully(c, image, withDockerfile(`
+                FROM busybox
+                VOLUME ["/tmp/data"]`))
+
+	dockerCmd(c, "run", "--name=data1", image, "true")
+	dockerCmd(c, "run", "--name=data2", image, "true")
+
+	out, _ := dockerCmd(c, "inspect", "--format", "{{(index .Mounts 0).Name}}", "data1")
+	data1 := strings.TrimSpace(out)
+	c.Assert(data1, checker.Not(checker.Equals), "")
+
+	out, _ = dockerCmd(c, "inspect", "--format", "{{(index .Mounts 0).Name}}", "data2")
+	data2 := strings.TrimSpace(out)
+	c.Assert(data2, checker.Not(checker.Equals), "")
+
+	// Both volume should exist
+	out, _ = dockerCmd(c, "volume", "ls", "-q")
+	c.Assert(strings.TrimSpace(out), checker.Contains, data1)
+	c.Assert(strings.TrimSpace(out), checker.Contains, data2)
+
+	// Mounts is available in API
+	status, body, err := request.SockRequest("POST", "/containers/create?name=app", map[string]interface{}{
+		"Image": "busybox",
+		"Cmd":   []string{"top"},
+		"HostConfig": map[string]interface{}{
+			"VolumesFrom": []string{
+				"data1",
+				"data2",
+			},
+			"Mounts": []map[string]interface{}{
+				{
+					"Type":   "bind",
+					"Source": "/tmp/data",
+					"Target": "/tmp/data",
+				},
+			}},
+	}, daemonHost())
+
+	c.Assert(err, checker.IsNil, check.Commentf(string(body)))
+	c.Assert(status, checker.Equals, http.StatusCreated, check.Commentf(string(body)))
+
+	// No volume will be referenced (mount is /tmp/data), this is backward compatible
+	out, _ = dockerCmd(c, "inspect", "--format", "{{(index .Mounts 0).Name}}", "app")
+	c.Assert(strings.TrimSpace(out), checker.Not(checker.Contains), data1)
+	c.Assert(strings.TrimSpace(out), checker.Not(checker.Contains), data2)
+
+	dockerCmd(c, "rm", "-f", "-v", "app")
+	dockerCmd(c, "rm", "-f", "-v", "data1")
+	dockerCmd(c, "rm", "-f", "-v", "data2")
+
+	// Both volume should not exist
+	out, _ = dockerCmd(c, "volume", "ls", "-q")
+	c.Assert(strings.TrimSpace(out), checker.Not(checker.Contains), data1)
+	c.Assert(strings.TrimSpace(out), checker.Not(checker.Contains), data2)
 }
