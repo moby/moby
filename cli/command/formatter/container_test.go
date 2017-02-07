@@ -54,8 +54,8 @@ func TestContainerPsContext(t *testing.T) {
 		{types.Container{Created: unix}, true, time.Unix(unix, 0).String(), createdAtHeader, ctx.CreatedAt},
 		{types.Container{Ports: []types.Port{{PrivatePort: 8080, PublicPort: 8080, Type: "tcp"}}}, true, "8080/tcp", portsHeader, ctx.Ports},
 		{types.Container{Status: "RUNNING"}, true, "RUNNING", statusHeader, ctx.Status},
-		{types.Container{SizeRw: 10}, true, "10 B", sizeHeader, ctx.Size},
-		{types.Container{SizeRw: 10, SizeRootFs: 20}, true, "10 B (virtual 20 B)", sizeHeader, ctx.Size},
+		{types.Container{SizeRw: 10}, true, "10B", sizeHeader, ctx.Size},
+		{types.Container{SizeRw: 10, SizeRootFs: 20}, true, "10B (virtual 20B)", sizeHeader, ctx.Size},
 		{types.Container{}, true, "", labelsHeader, ctx.Labels},
 		{types.Container{Labels: map[string]string{"cpu": "6", "storage": "ssd"}}, true, "cpu=6,storage=ssd", labelsHeader, ctx.Labels},
 		{types.Container{Created: unix}, true, "About a minute", runningForHeader, ctx.RunningFor},
@@ -160,8 +160,8 @@ func TestContainerContextWrite(t *testing.T) {
 		{
 			Context{Format: NewContainerFormat("table", false, true)},
 			`CONTAINER ID        IMAGE               COMMAND             CREATED             STATUS              PORTS               NAMES               SIZE
-containerID1        ubuntu              ""                  24 hours ago                                                foobar_baz          0 B
-containerID2        ubuntu              ""                  24 hours ago                                                foobar_bar          0 B
+containerID1        ubuntu              ""                  24 hours ago                                                foobar_baz          0B
+containerID2        ubuntu              ""                  24 hours ago                                                foobar_bar          0B
 `,
 		},
 		{
@@ -220,7 +220,7 @@ status:
 names: foobar_baz
 labels:
 ports:
-size: 0 B
+size: 0B
 
 container_id: containerID2
 image: ubuntu
@@ -230,7 +230,7 @@ status:
 names: foobar_bar
 labels:
 ports:
-size: 0 B
+size: 0B
 
 `, expectedTime, expectedTime),
 		},
@@ -333,8 +333,8 @@ func TestContainerContextWriteJSON(t *testing.T) {
 	}
 	expectedCreated := time.Unix(unix, 0).String()
 	expectedJSONs := []map[string]interface{}{
-		{"Command": "\"\"", "CreatedAt": expectedCreated, "ID": "containerID1", "Image": "ubuntu", "Labels": "", "LocalVolumes": "0", "Mounts": "", "Names": "foobar_baz", "Networks": "", "Ports": "", "RunningFor": "About a minute", "Size": "0 B", "Status": ""},
-		{"Command": "\"\"", "CreatedAt": expectedCreated, "ID": "containerID2", "Image": "ubuntu", "Labels": "", "LocalVolumes": "0", "Mounts": "", "Names": "foobar_bar", "Networks": "", "Ports": "", "RunningFor": "About a minute", "Size": "0 B", "Status": ""},
+		{"Command": "\"\"", "CreatedAt": expectedCreated, "ID": "containerID1", "Image": "ubuntu", "Labels": "", "LocalVolumes": "0", "Mounts": "", "Names": "foobar_baz", "Networks": "", "Ports": "", "RunningFor": "About a minute", "Size": "0B", "Status": ""},
+		{"Command": "\"\"", "CreatedAt": expectedCreated, "ID": "containerID2", "Image": "ubuntu", "Labels": "", "LocalVolumes": "0", "Mounts": "", "Names": "foobar_bar", "Networks": "", "Ports": "", "RunningFor": "About a minute", "Size": "0B", "Status": ""},
 	}
 	out := bytes.NewBufferString("")
 	err := ContainerWrite(Context{Format: "{{json .}}", Output: out}, containers)

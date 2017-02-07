@@ -22,16 +22,16 @@ func TestContainerStatsContext(t *testing.T) {
 		{StatsEntry{Container: containerID}, "", containerID, containerHeader, ctx.Container},
 		{StatsEntry{CPUPercentage: 5.5}, "", "5.50%", cpuPercHeader, ctx.CPUPerc},
 		{StatsEntry{CPUPercentage: 5.5, IsInvalid: true}, "", "--", cpuPercHeader, ctx.CPUPerc},
-		{StatsEntry{NetworkRx: 0.31, NetworkTx: 12.3}, "", "0.31 B / 12.3 B", netIOHeader, ctx.NetIO},
+		{StatsEntry{NetworkRx: 0.31, NetworkTx: 12.3}, "", "0.31B / 12.3B", netIOHeader, ctx.NetIO},
 		{StatsEntry{NetworkRx: 0.31, NetworkTx: 12.3, IsInvalid: true}, "", "--", netIOHeader, ctx.NetIO},
-		{StatsEntry{BlockRead: 0.1, BlockWrite: 2.3}, "", "0.1 B / 2.3 B", blockIOHeader, ctx.BlockIO},
+		{StatsEntry{BlockRead: 0.1, BlockWrite: 2.3}, "", "0.1B / 2.3B", blockIOHeader, ctx.BlockIO},
 		{StatsEntry{BlockRead: 0.1, BlockWrite: 2.3, IsInvalid: true}, "", "--", blockIOHeader, ctx.BlockIO},
 		{StatsEntry{MemoryPercentage: 10.2}, "", "10.20%", memPercHeader, ctx.MemPerc},
 		{StatsEntry{MemoryPercentage: 10.2, IsInvalid: true}, "", "--", memPercHeader, ctx.MemPerc},
 		{StatsEntry{MemoryPercentage: 10.2}, "windows", "--", memPercHeader, ctx.MemPerc},
-		{StatsEntry{Memory: 24, MemoryLimit: 30}, "", "24 B / 30 B", memUseHeader, ctx.MemUsage},
+		{StatsEntry{Memory: 24, MemoryLimit: 30}, "", "24B / 30B", memUseHeader, ctx.MemUsage},
 		{StatsEntry{Memory: 24, MemoryLimit: 30, IsInvalid: true}, "", "-- / --", memUseHeader, ctx.MemUsage},
-		{StatsEntry{Memory: 24, MemoryLimit: 30}, "windows", "24 B", winMemUseHeader, ctx.MemUsage},
+		{StatsEntry{Memory: 24, MemoryLimit: 30}, "windows", "24B", winMemUseHeader, ctx.MemUsage},
 		{StatsEntry{PidsCurrent: 10}, "", "10", pidsHeader, ctx.PIDs},
 		{StatsEntry{PidsCurrent: 10, IsInvalid: true}, "", "--", pidsHeader, ctx.PIDs},
 		{StatsEntry{PidsCurrent: 10}, "windows", "--", pidsHeader, ctx.PIDs},
@@ -68,7 +68,7 @@ func TestContainerStatsContextWrite(t *testing.T) {
 		{
 			Context{Format: "table {{.MemUsage}}"},
 			`MEM USAGE / LIMIT
-20 B / 20 B
+20B / 20B
 -- / --
 `,
 		},
@@ -128,7 +128,7 @@ func TestContainerStatsContextWriteWindows(t *testing.T) {
 		{
 			Context{Format: "table {{.MemUsage}}"},
 			`PRIV WORKING SET
-20 B
+20B
 -- / --
 `,
 		},
