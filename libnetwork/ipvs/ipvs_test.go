@@ -117,7 +117,7 @@ func checkService(t *testing.T, checkPresent bool, protocol, schedMethod, servic
 
 func TestGetFamily(t *testing.T) {
 	if testutils.RunningOnCircleCI() {
-		t.Skipf("Skipping as not supported on CIRCLE CI kernel")
+		t.Skip("Skipping as not supported on CIRCLE CI kernel")
 	}
 
 	id, err := getIPVSFamily()
@@ -127,7 +127,7 @@ func TestGetFamily(t *testing.T) {
 
 func TestService(t *testing.T) {
 	if testutils.RunningOnCircleCI() {
-		t.Skipf("Skipping as not supported on CIRCLE CI kernel")
+		t.Skip("Skipping as not supported on CIRCLE CI kernel")
 	}
 
 	defer testutils.SetupTestOSContext(t)()
@@ -178,6 +178,7 @@ func TestService(t *testing.T) {
 			}
 
 			err = i.DelService(&s)
+			assert.NoError(t, err)
 			checkService(t, false, protocol, lastMethod, serviceAddress)
 		}
 	}
@@ -186,7 +187,7 @@ func TestService(t *testing.T) {
 
 func createDummyInterface(t *testing.T) {
 	if testutils.RunningOnCircleCI() {
-		t.Skipf("Skipping as not supported on CIRCLE CI kernel")
+		t.Skip("Skipping as not supported on CIRCLE CI kernel")
 	}
 
 	dummy := &netlink.Dummy{
