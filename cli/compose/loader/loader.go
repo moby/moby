@@ -2,15 +2,16 @@ package loader
 
 import (
 	"fmt"
-	"os"
 	"path"
 	"reflect"
 	"regexp"
 	"sort"
 	"strings"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/cli/compose/interpolation"
 	"github.com/docker/docker/cli/compose/schema"
+	"github.com/docker/docker/cli/compose/template"
 	"github.com/docker/docker/cli/compose/types"
 	"github.com/docker/docker/opts"
 	runconfigopts "github.com/docker/docker/runconfig/opts"
@@ -69,13 +70,17 @@ func Load(configDetails types.ConfigDetails) (*types.Config, error) {
 	}
 
 	cfg := types.Config{}
+	lookupEnv := func(k string) (string, bool) {
+		v, ok := configDetails.Environment[k]
+		return v, ok
+	}
 	if services, ok := configDict["services"]; ok {
-		servicesConfig, err := interpolation.Interpolate(services.(types.Dict), "service", os.LookupEnv)
+		servicesConfig, err := interpolation.Interpolate(services.(types.Dict), "service", lookupEnv)
 		if err != nil {
 			return nil, err
 		}
 
-		servicesList, err := LoadServices(servicesConfig, configDetails.WorkingDir)
+		servicesList, err := LoadServices(servicesConfig, configDetails.WorkingDir, lookupEnv)
 		if err != nil {
 			return nil, err
 		}
@@ -84,7 +89,7 @@ func Load(configDetails types.ConfigDetails) (*types.Config, error) {
 	}
 
 	if networks, ok := configDict["networks"]; ok {
-		networksConfig, err := interpolation.Interpolate(networks.(types.Dict), "network", os.LookupEnv)
+		networksConfig, err := interpolation.Interpolate(networks.(types.Dict), "network", lookupEnv)
 		if err != nil {
 			return nil, err
 		}
@@ -98,7 +103,7 @@ func Load(configDetails types.ConfigDetails) (*types.Config, error) {
 	}
 
 	if volumes, ok := configDict["volumes"]; ok {
-		volumesConfig, err := interpolation.Interpolate(volumes.(types.Dict), "volume", os.LookupEnv)
+		volumesConfig, err := interpolation.Interpolate(volumes.(types.Dict), "volume", lookupEnv)
 		if err != nil {
 			return nil, err
 		}
@@ -112,7 +117,7 @@ func Load(configDetails types.ConfigDetails) (*types.Config, error) {
 	}
 
 	if secrets, ok := configDict["secrets"]; ok {
-		secretsConfig, err := interpolation.Interpolate(secrets.(types.Dict), "secret", os.LookupEnv)
+		secretsConfig, err := interpolation.Interpolate(secrets.(types.Dict), "secret", lookupEnv)
 		if err != nil {
 			return nil, err
 		}
@@ -308,11 +313,11 @@ func formatInvalidKeyError(keyPrefix string, key interface{}) error {
 
 // LoadServices produces a ServiceConfig map from a compose file Dict
 // the servicesDict is not validated if directly used. Use Load() to enable validation
-func LoadServices(servicesDict types.Dict, workingDir string) ([]types.ServiceConfig, error) {
+func LoadServices(servicesDict types.Dict, workingDir string, lookupEnv template.Mapping) ([]types.ServiceConfig, error) {
 	var services []types.ServiceConfig
 
 	for name, serviceDef := range servicesDict {
-		serviceConfig, err := LoadService(name, serviceDef.(types.Dict), workingDir)
+		serviceConfig, err := loadService(name, serviceDef.(types.Dict), workingDir, lookupEnv)
 		if err != nil {
 			return nil, err
 		}
@@ -324,22 +329,39 @@ func LoadServices(servicesDict types.Dict, workingDir string) ([]types.ServiceCo
 
 // LoadService produces a single ServiceConfig from a compose file Dict
 // the serviceDict is not validated if directly used. Use Load() to enable validation
-func LoadService(name string, serviceDict types.Dict, workingDir string) (*types.ServiceConfig, error) {
+func LoadService(name string, serviceDict types.Dict, workingDir string, lookupEnv template.Mapping) (*types.ServiceConfig, error) {
 	serviceConfig := &types.ServiceConfig{}
 	if err := transform(serviceDict, serviceConfig); err != nil {
 		return nil, err
 	}
 	serviceConfig.Name = name
 
-	if err := resolveEnvironment(serviceConfig, workingDir); err != nil {
+	if err := resolveEnvironment(serviceConfig, workingDir, lookupEnv); err != nil {
 		return nil, err
 	}
 
-	resolveVolumePaths(serviceConfig.Volumes, workingDir)
+	resolveVolumePaths(serviceConfig.Volumes, workingDir, lookupEnv)
 	return serviceConfig, nil
 }
 
-func resolveEnvironment(serviceConfig *types.ServiceConfig, workingDir string) error {
+func updateEnvironment(environment map[string]string, vars map[string]string, lookupEnv template.Mapping) map[string]string {
+	result := make(map[string]string, len(environment))
+	for k, v := range environment {
+		result[k]=v
+	}
+	for k, v := range vars {
+		interpolatedV, ok := lookupEnv(k)
+		if ok {
+			// lookupEnv is prioritized over vars
+			result[k] = interpolatedV
+		} else {
+			result[k] = v
+		}
+	}
+	return result
+}
+
+func resolveEnvironment(serviceConfig *types.ServiceConfig, workingDir string, lookupEnv template.Mapping) error {
 	environment := make(map[string]string)
 
 	if len(serviceConfig.EnvFile) > 0 {
@@ -353,36 +375,35 @@ func resolveEnvironment(serviceConfig *types.ServiceConfig, workingDir string) e
 			}
 			envVars = append(envVars, fileVars...)
 		}
-
-		for k, v := range runconfigopts.ConvertKVStringsToMap(envVars) {
-			environment[k] = v
-		}
+		environment = updateEnvironment(environment,
+			runconfigopts.ConvertKVStringsToMap(envVars), lookupEnv)
 	}
 
-	for k, v := range serviceConfig.Environment {
-		environment[k] = v
-	}
-
-	serviceConfig.Environment = environment
-
+	serviceConfig.Environment = updateEnvironment(environment,
+		serviceConfig.Environment, lookupEnv)
 	return nil
 }
 
-func resolveVolumePaths(volumes []types.ServiceVolumeConfig, workingDir string) {
+func resolveVolumePaths(volumes []types.ServiceVolumeConfig, workingDir string, lookupEnv template.Mapping) {
 	for i, volume := range volumes {
 		if volume.Type != "bind" {
 			continue
 		}
 
-		volume.Source = absPath(workingDir, expandUser(volume.Source))
+		volume.Source = absPath(workingDir, expandUser(volume.Source, lookupEnv))
 		volumes[i] = volume
 	}
 }
 
 // TODO: make this more robust
-func expandUser(path string) string {
+func expandUser(path string, lookupEnv template.Mapping) string {
 	if strings.HasPrefix(path, "~") {
-		return strings.Replace(path, "~", os.Getenv("HOME"), 1)
+		home, ok := lookupEnv("HOME")
+		if !ok {
+			logrus.Warn("cannot expand '~', because the environment lacks HOME")
+			return path
+		}
+		return strings.Replace(path, "~", home, 1)
 	}
 	return path
 }
