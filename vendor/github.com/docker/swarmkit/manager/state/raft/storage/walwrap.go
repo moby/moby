@@ -1,7 +1,6 @@
 package storage
 
 import (
-	"context"
 	"io"
 	"io/ioutil"
 	"os"
@@ -15,6 +14,7 @@ import (
 	"github.com/docker/swarmkit/log"
 	"github.com/docker/swarmkit/manager/encryption"
 	"github.com/pkg/errors"
+	"golang.org/x/net/context"
 )
 
 // This package wraps the github.com/coreos/etcd/wal package, and encrypts

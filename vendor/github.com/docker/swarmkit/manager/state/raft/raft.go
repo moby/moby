@@ -1193,9 +1193,13 @@ func (n *Node) ProcessRaftMessage(ctx context.Context, msg *api.ProcessRaftMessa
 	ctx, cancel := n.WithContext(ctx)
 	defer cancel()
 
-	if err := n.reportNewAddress(ctx, msg.Message.From); err != nil {
-		log.G(ctx).WithError(err).Errorf("failed to report new address of %x to transport", msg.Message.From)
-	}
+	// TODO(aaronl): Address changes are temporarily disabled.
+	// See https://github.com/docker/docker/issues/30455.
+	// This should be reenabled in the future with additional
+	// safeguards (perhaps storing multiple addresses per node).
+	//if err := n.reportNewAddress(ctx, msg.Message.From); err != nil {
+	//	log.G(ctx).WithError(err).Errorf("failed to report new address of %x to transport", msg.Message.From)
+	//}
 
 	// Reject vote requests from unreachable peers
 	if msg.Message.Type == raftpb.MsgVote {

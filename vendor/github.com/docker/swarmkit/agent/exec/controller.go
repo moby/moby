@@ -104,17 +104,21 @@ func Resolve(ctx context.Context, task *api.Task, executor Executor) (Controller
 
 	// depending on the tasks state, a failed controller resolution has varying
 	// impact. The following expresses that impact.
-	if task.Status.State < api.TaskStateStarting {
-		if err != nil {
-			// before the task has been started, we consider it a rejection.
-			status.Message = "resolving controller failed"
-			status.Err = err.Error()
+	if err != nil {
+		status.Message = "resolving controller failed"
+		status.Err = err.Error()
+		// before the task has been started, we consider it a rejection.
+		// if task is running, consider the task has failed
+		// otherwise keep the existing state
+		if task.Status.State < api.TaskStateStarting {
 			status.State = api.TaskStateRejected
-		} else if task.Status.State < api.TaskStateAccepted {
-			// we always want to proceed to accepted when we resolve the contoller
-			status.Message = "accepted"
-			status.State = api.TaskStateAccepted
+		} else if task.Status.State <= api.TaskStateRunning {
+			status.State = api.TaskStateFailed
 		}
+	} else if task.Status.State < api.TaskStateAccepted {
+		// we always want to proceed to accepted when we resolve the controller
+		status.Message = "accepted"
+		status.State = api.TaskStateAccepted
 	}
 
 	return ctlr, status, err
