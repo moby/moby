@@ -30,9 +30,11 @@ Options:
   -t, --timestamps     Show timestamps
 ```
 
+## Description
+
 The `docker service logs` command batch-retrieves logs present at the time of execution.
 
-> **Note**: this command is only functional for services that are started with
+> **Note**: This command is only functional for services that are started with
 > the `json-file` or `journald` logging driver.
 
 For more information about selecting and configuring logging drivers, refer to
@@ -66,7 +68,7 @@ seconds (aka Unix epoch or Unix time), and the optional .nanoseconds field is a
 fraction of a second no more than nine digits long. You can combine the
 `--since` option with either or both of the `--follow` or `--tail` options.
 
-## Related information
+## Related commands
 
 * [service create](service_create.md)
 * [service inspect](service_inspect.md)

@@ -69,6 +69,8 @@ Options:
   -w, --workdir string                   Working directory inside the container
 ```
 
+## Description
+
 Creates a service as described by the specified parameters. You must run this
 command on a manager node.
 
@@ -78,12 +80,15 @@ command on a manager node.
 
 ```bash
 $ docker service create --name redis redis:3.0.6
+
 dmu1ept4cxcfe8k8lhtux3ro3
 
 $ docker service create --mode global --name redis2 redis:3.0.6
+
 a8q9dasaafudfs8q8w32udass
 
 $ docker service ls
+
 ID            NAME    MODE        REPLICAS  IMAGE
 dmu1ept4cxcf  redis   replicated  1/1       redis:3.0.6
 a8q9dasaafud  redis2  global      1/1       redis:3.0.6
@@ -96,6 +101,7 @@ service. The following command creates a `redis` service with `5` replica tasks:
 
 ```bash
 $ docker service create --name redis --replicas=5 redis:3.0.6
+
 4cdgfyky7ozwh3htjfw0d12qv
 ```
 
@@ -109,6 +115,7 @@ number of `RUNNING` tasks is `3`:
 
 ```bash
 $ docker service ls
+
 ID            NAME   MODE        REPLICAS  IMAGE
 4cdgfyky7ozw  redis  replicated  3/5       redis:3.0.7
 ```
@@ -118,11 +125,13 @@ equal to the desired number:
 
 ```bash
 $ docker service ls
+
 ID            NAME   MODE        REPLICAS  IMAGE
 4cdgfyky7ozw  redis  replicated  5/5       redis:3.0.7
 ```
 
 ### Create a service with secrets
+
 Use the `--secret` flag to give a container access to a
 [secret](secret_create.md).
 
@@ -130,6 +139,7 @@ Create a service specifying a secret:
 
 ```bash
 $ docker service create --name redis --secret secret.json redis:3.0.6
+
 4cdgfyky7ozwh3htjfw0d12qv
 ```
 
@@ -140,6 +150,7 @@ $ docker service create --name redis \
     --secret source=ssh-key,target=ssh \
     --secret source=app-key,target=app,uid=1000,gid=1001,mode=0400 \
     redis:3.0.6
+
 4cdgfyky7ozwh3htjfw0d12qv
 ```
 
@@ -173,12 +184,15 @@ This sets environmental variables for all tasks in a service. For example:
 $ docker service create --name redis_2 --replicas 5 --env MYVAR=foo redis:3.0.6
 ```
 
-### Create a docker service with specific hostname (--hostname)
+### Create a service with specific hostname (--hostname)
 
-This option sets the docker service containers hostname to a specific string. For example:
+This option sets the docker service containers hostname to a specific string.
+For example:
+
 ```bash
 $ docker service create --name redis --hostname myredis redis:3.0.6
 ```
+
 ### Set metadata on a service (-l, --label)
 
 A label is a `key=value` pair that applies metadata to a service. To label a
@@ -202,7 +216,7 @@ or write from files or directories on other containers or the host operating
 system. These types are _data volumes_ (often referred to simply as volumes) and
 _bind-mounts_.
 
-Additionally, Docker also supports tmpfs mounts.
+Additionally, Docker supports `tmpfs` mounts.
 
 A **bind-mount** makes a file or directory on the host available to the
 container it is mounted within. A bind-mount may be either read-only or
@@ -304,19 +318,19 @@ The `--mount` flag supports most options that are supported by the `-v`
 or `--volume` flag for `docker run`, with some important exceptions:
 
 - The `--mount` flag allows you to specify a volume driver and volume driver
-    options *per volume*, without creating the volumes in advance. In contrast,
-    `docker run` allows you to specify a single volume driver which is shared
-    by all volumes, using the `--volume-driver` flag.
+  options *per volume*, without creating the volumes in advance. In contrast,
+  `docker run` allows you to specify a single volume driver which is shared
+  by all volumes, using the `--volume-driver` flag.
 
 - The `--mount` flag allows you to specify custom metadata ("labels") for a volume,
-    before the volume is created.
+  before the volume is created.
 
 - When you use `--mount` with `type=bind`, the host-path must refer to an *existing*
-    path on the host. The path will not be created for you and the service will fail
-    with an error if the path does not exist.
+  path on the host. The path will not be created for you and the service will fail
+  with an error if the path does not exist.
 
 - The `--mount` flag does not allow you to relabel a volume with `Z` or `z` flags,
-    which are used for `selinux` labeling.
+  which are used for `selinux` labeling.
 
 #### Create a service using a named volume
 
@@ -533,18 +547,25 @@ In this example, we are going to set the template of the created containers base
 service's name and the node's ID where it sits.
 
 ```bash
-$ docker service create --name hosttempl --hostname={% raw %}"{{.Node.ID}}-{{.Service.Name}}"{% endraw %} busybox top
+{% raw %}
+$ docker service create --name hosttempl \
+                        --hostname={% raw %}"{{.Node.ID}}-{{.Service.Name}}"\
+                         busybox top
+
 va8ew30grofhjoychbr6iot8c
 
 $ docker service ps va8ew30grofhjoychbr6iot8c
+
 ID            NAME         IMAGE                                                                                   NODE          DESIRED STATE  CURRENT STATE               ERROR  PORTS
 wo41w8hg8qan  hosttempl.1  busybox:latest@sha256:29f5d56d12684887bdfa50dcd29fc31eea4aaf4ad3bec43daf19026a7ce69912  2e7a8a9c4da2  Running        Running about a minute ago
 
-$ docker inspect --format={% raw %}"{{.Config.Hostname}}"{% endraw %} hosttempl.1.wo41w8hg8qanxwjwsg4kxpprj
+$ docker inspect --format="{{.Config.Hostname}}" hosttempl.1.wo41w8hg8qanxwjwsg4kxpprj
+
 x3ti0erg11rjpg64m75kej2mz-hosttempl
+{% endraw %}
 ```
 
-## Related information
+## Related commands
 
 * [service inspect](service_inspect.md)
 * [service logs](service_logs.md)

@@ -25,6 +25,8 @@ Options:
       --help    Print usage
 ```
 
+## Description
+
 When you run this command on a worker, that worker leaves the swarm.
 
 You can use the `--force` option on a manager to remove it from the swarm.
@@ -34,7 +36,10 @@ from a swarm is to demote it to a worker and then direct it to leave the quorum
 without using `--force`. Only use `--force` in situations where the swarm will
 no longer be used after the manager leaves, such as in a single-node swarm.
 
+## Examples
+
 Consider the following swarm, as seen from the manager:
+
 ```bash
 $ docker node ls
 ID                           HOSTNAME  STATUS  AVAILABILITY  MANAGER STATUS
@@ -55,7 +60,7 @@ affects swarm operation, but a long list of `down` nodes can clutter the node
 list. To remove an inactive node from the list, use the [`node rm`](node_rm.md)
 command.
 
-## Related information
+## Related commands
 
 * [node rm](node_rm.md)
 * [swarm init](swarm_init.md)

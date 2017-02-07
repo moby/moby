@@ -31,12 +31,14 @@ Options:
   -q, --quiet           Only display plugin IDs
 ```
 
+## Description
+
 Lists all the plugins that are currently installed. You can install plugins
 using the [`docker plugin install`](plugin_install.md) command.
 You can also filter using the `-f` or `--filter` flag.
 Refer to the [filtering](#filtering) section for more information about available filter options.
 
-Example output:
+## Examples
 
 ```bash
 $ docker plugin ls
@@ -45,7 +47,7 @@ ID                  NAME                             TAG                 DESCRIP
 69553ca1d123        tiborvass/sample-volume-plugin   latest              A test plugin for Docker   true
 ```
 
-## Filtering
+### Filtering
 
 The filtering flag (`-f` or `--filter`) format is of "key=value". If there is more
 than one filter, then pass multiple flags (e.g., `--filter "foo=bar" --filter "bif=baz"`)
@@ -55,11 +57,11 @@ The currently supported filters are:
 * enabled (boolean - true or false, 0 or 1)
 * capability (string - currently `volumedriver`, `networkdriver`, `ipamdriver`, or `authz`)
 
-### enabled
+#### enabled
 
 The `enabled` filter matches on plugins enabled or disabled.
 
-### capability
+#### capability
 
 The `capability` filter matches on plugin capabilities. One plugin
 might have multiple capabilities. Currently `volumedriver`, `networkdriver`,
@@ -67,14 +69,16 @@ might have multiple capabilities. Currently `volumedriver`, `networkdriver`,
 
 ```bash
 $ docker plugin install --disable tiborvass/no-remove
+
 tiborvass/no-remove
 
 $ docker plugin ls --filter enabled=true
+
 NAME                  TAG                 DESCRIPTION                ENABLED
 ```
 
 
-## Formatting
+### Formatting
 
 The formatting options (`--format`) pretty-prints plugins output
 using a Go template.
@@ -97,12 +101,15 @@ The following example uses a template without headers and outputs the
 `ID` and `Name` entries separated by a colon for all plugins:
 
 ```bash
+{% raw %}
 $ docker plugin ls --format "{{.ID}}: {{.Name}}"
+
 4be01827a72e: tiborvass/no-remove
+{% endraw %}
 ```
 
 
-## Related information
+## Related commands
 
 * [plugin create](plugin_create.md)
 * [plugin disable](plugin_disable.md)

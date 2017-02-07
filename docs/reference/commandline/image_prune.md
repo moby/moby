@@ -27,12 +27,17 @@ Options:
       --help            Print usage
 ```
 
+## Description
+
 Remove all dangling images. If `-a` is specified, will also remove all images not referenced by any container.
+
+## Examples
 
 Example output:
 
 ```bash
 $ docker image prune -a
+
 WARNING! This will remove all images without at least one container associated to them.
 Are you sure you want to continue? [y/N] y
 Deleted Images:
@@ -63,7 +68,7 @@ deleted: sha256:2c675ee9ed53425e31a13e3390bf3f539bf8637000e4bcfbb85ee03ef4d910a1
 Total reclaimed space: 16.43 MB
 ```
 
-## Filtering
+### Filtering
 
 The filtering flag (`-f` or `--filter`) format is of "key=value". If there is more
 than one filter, then pass multiple flags (e.g., `--filter "foo=bar" --filter "bif=baz"`)
@@ -85,7 +90,9 @@ seconds (aka Unix epoch or Unix time), and the optional .nanoseconds field is a
 fraction of a second no more than nine digits long.
 
 The following removes images created before `2017-01-04T00:00:00`:
+
 ```bash
+{% raw %}
 $ docker images --format 'table {{.Repository}}\t{{.Tag}}\t{{.ID}}\t{{.CreatedAt}}\t{{.Size}}'
 REPOSITORY          TAG                 IMAGE ID            CREATED AT                      SIZE
 foo                 latest              2f287ac753da        2017-01-04 13:42:23 -0800 PST   3.98 MB
@@ -93,6 +100,7 @@ alpine              latest              88e169ea8f46        2016-12-27 10:17:25 
 busybox             latest              e02e811dd08f        2016-10-07 14:03:58 -0700 PDT   1.09 MB
 
 $ docker image prune -a --force --filter "until=2017-01-04T00:00:00"
+
 Deleted Images:
 untagged: alpine:latest
 untagged: alpine@sha256:dfbd4a3a8ebca874ebd2474f044a0b33600d4523d03b0df76e5c5986cb02d7e8
@@ -104,13 +112,17 @@ deleted: sha256:e88b3f82283bc59d5e0df427c824e9f95557e661fcb0ea15fb0fb6f97760f9d9
 Total reclaimed space: 1.093 MB
 
 $ docker images --format 'table {{.Repository}}\t{{.Tag}}\t{{.ID}}\t{{.CreatedAt}}\t{{.Size}}'
+
 REPOSITORY          TAG                 IMAGE ID            CREATED AT                      SIZE
 foo                 latest              2f287ac753da        2017-01-04 13:42:23 -0800 PST   3.98 MB
+{% endraw %}
 ```
 
 The following removes images created more than 10 days (`240h`) ago:
+
 ```bash
 $ docker images
+
 REPOSITORY          TAG                 IMAGE ID            CREATED             SIZE
 foo                 latest              2f287ac753da        14 seconds ago      3.98 MB
 alpine              latest              88e169ea8f46        8 days ago          3.98 MB
@@ -119,6 +131,7 @@ busybox             latest              e02e811dd08f        2 months ago        
 golang              1.7.0               138c2e655421        4 months ago        670 MB
 
 $ docker image prune -a --force --filter "until=240h"
+
 Deleted Images:
 untagged: golang:1.7.0
 untagged: golang@sha256:6765038c2b8f407fd6e3ecea043b44580c229ccfa2a13f6d85866cf2b4a9628e
@@ -138,13 +151,14 @@ deleted: sha256:f96222d75c5563900bc4dd852179b720a0885de8f7a0619ba0ac76e92542bbc8
 Total reclaimed space: 792.6 MB
 
 $ docker images
+
 REPOSITORY          TAG                 IMAGE ID            CREATED              SIZE
 foo                 latest              2f287ac753da        About a minute ago   3.98 MB
 alpine              latest              88e169ea8f46        8 days ago           3.98 MB
 busybox             latest              e02e811dd08f        2 months ago         1.09 MB
 ```
 
-## Related information
+## Related commands
 
 * [system df](system_df.md)
 * [container prune](container_prune.md)

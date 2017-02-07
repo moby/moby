@@ -25,14 +25,19 @@ Options:
 
 ```
 
-Demotes an existing manager so that it is no longer a manager. This command targets a docker engine that is a manager in the swarm.
+## Description
 
+Demotes an existing manager so that it is no longer a manager. This command
+targets a docker engine that is a manager in the swarm.
+
+
+## Examples
 
 ```bash
 $ docker node demote <node name>
 ```
 
-## Related information
+## Related commands
 
 * [node inspect](node_inspect.md)
 * [node ls](node_ls.md)

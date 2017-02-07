@@ -35,9 +35,12 @@ Options:
       --task-history-limit int          Task history retention limit (default 5)
 ```
 
+## Description
+
 Initialize a swarm. The docker engine targeted by this command becomes a manager
 in the newly created single-node swarm.
 
+## Examples
 
 ```bash
 $ docker swarm init --advertise-addr 192.168.99.121
@@ -144,7 +147,7 @@ dedicated manager nodes that are not served as worker nodes. This could be achie
 by passing `--availability=drain` to `docker swarm init`.
 
 
-## Related information
+## Related commands
 
 * [swarm join](swarm_join.md)
 * [swarm join-token](swarm_join_token.md)

@@ -29,12 +29,14 @@ Options:
   -q, --quiet           Only display task IDs
 ```
 
+## Description
+
 Lists the tasks that are running as part of the specified services. This command
 has to be run targeting a manager node.
 
 ## Examples
 
-### Listing the tasks that are part of a service
+### List the tasks that are part of a service
 
 The following command shows all the tasks that are part of the `redis` service:
 
@@ -93,7 +95,7 @@ bk658fpbex0d57cqcwoe3jthu   redis.2      redis:3.0.6@sha256:6a692a76c2081888b589
 nvjljf7rmor4htv7l8rwcx7i7   \_ redis.2   redis:3.0.6@sha256:6a692a76c2081888b589e26e6ec835743119fe453d67ecf03df7de5b73d69842  worker2   Shutdown       Rejected 5 minutes ago   "No such image: redis@sha256:6a692a76c2081888b589e26e6ec835743119fe453d67ecf03df7de5b73d69842"
 ```
 
-## Filtering
+### Filtering
 
 The filtering flag (`-f` or `--filter`) format is a `key=value` pair. If there
 is more than one filter, then pass multiple flags (e.g. `--filter "foo=bar" --filter "bif=baz"`).
@@ -108,7 +110,7 @@ The currently supported filters are:
 * [desired-state](#desired-state)
 
 
-#### ID
+#### id
 
 The `id` filter matches on all or a prefix of a task's ID.
 
@@ -120,7 +122,7 @@ ID             NAME      IMAGE        NODE      DESIRED STATE  CURRENT STATE    
 8eaxrb2fqpbn   redis.10  redis:3.0.6  manager1  Running        Running 8 seconds
 ```
 
-#### Name
+#### name
 
 The `name` filter matches on task names.
 
@@ -131,7 +133,7 @@ qihejybwf1x5  redis.1  redis:3.0.6  manager1  Running        Running 8 seconds
 ```
 
 
-#### Node
+#### node
 
 The `node` filter matches on a node name or a node ID.
 
@@ -150,7 +152,7 @@ ID            NAME      IMAGE        NODE      DESIRED STATE  CURRENT STATE     
 The `desired-state` filter can take the values `running`, `shutdown`, and `accepted`.
 
 
-## Related information
+## Related commands
 
 * [service create](service_create.md)
 * [service inspect](service_inspect.md)

@@ -27,16 +27,20 @@ Options:
   -q, --quiet          Only display IDs
 ```
 
+## Description
+
 Run this command on a manager node to list the secrets in the swarm.
 
 ## Examples
 
 ```bash
 $ docker secret ls
+
 ID                          NAME                    CREATED                                   UPDATED
 mhv17xfe3gh6xc4rij5orpfds   secret.json             2016-10-27 23:25:43.909181089 +0000 UTC   2016-10-27 23:25:43.909181089 +0000 UTC
 ```
-## Related information
+
+## Related commands
 
 * [secret create](secret_create.md)
 * [secret inspect](secret_inspect.md)

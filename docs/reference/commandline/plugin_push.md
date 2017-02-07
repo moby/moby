@@ -23,22 +23,27 @@ Options:
       --help                    Print usage
 ```
 
-Use `docker plugin create` to create the plugin. Once the plugin is ready for distribution,
-use `docker plugin push` to share your images to the Docker Hub registry or to a self-hosted one.
+## Description
+
+After you have created a plugin using `docker plugin create` and the plugin is
+ready for distribution, use `docker plugin push` to share your images to Docker
+Hub or a self-hosted registry.
 
 Registry credentials are managed by [docker login](login.md).
+
+## Examples
 
 The following example shows how to push a sample `user/plugin`.
 
 ```bash
-
 $ docker plugin ls
+
 ID                  NAME                  TAG                 DESCRIPTION                ENABLED
 69553ca1d456        user/plugin           latest              A sample plugin for Docker false
 $ docker plugin push user/plugin
 ```
 
-## Related information
+## Related commands
 
 * [plugin create](plugin_create.md)
 * [plugin disable](plugin_disable.md)

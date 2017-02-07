@@ -28,12 +28,17 @@ Options:
           --help   Print usage
 ```
 
+## Description
+
 Removes a plugin. You cannot remove a plugin if it is enabled, you must disable
 a plugin using the [`docker plugin disable`](plugin_disable.md) before removing
 it (or use --force, use of force is not recommended, since it can affect
 functioning of running containers using the plugin).
 
-The following example disables and removes the `sample-volume-plugin:latest` plugin;
+## Examples
+
+The following example disables and removes the `sample-volume-plugin:latest`
+plugin:
 
 ```bash
 $ docker plugin disable tiborvass/sample-volume-plugin
@@ -43,7 +48,7 @@ $ docker plugin rm tiborvass/sample-volume-plugin:latest
 tiborvass/sample-volume-plugin
 ```
 
-## Related information
+## Related commands
 
 * [plugin create](plugin_create.md)
 * [plugin disable](plugin_disable.md)

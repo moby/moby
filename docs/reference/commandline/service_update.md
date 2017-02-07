@@ -81,6 +81,8 @@ Options:
   -w, --workdir string                   Working directory inside the container
 ```
 
+## Description
+
 Updates a service as described by the specified parameters. This command has to be run targeting a manager node.
 The parameters are the same as [`docker service create`](service_create.md). Please look at the description there
 for further information.
@@ -112,7 +114,7 @@ that only one task is replaced at a time (this is the default behavior). The
 `--update-delay 30s` setting introduces a 30 second delay between tasks, so
 that the rolling restart happens gradually.
 
-### Adding and removing mounts
+### Add or remove mounts
 
 Use the `--mount-add` or `--mount-rm` options add or remove a service's bind-mounts
 or volumes.
@@ -152,7 +154,7 @@ $ docker service update --mount-rm /somewhere myservice
 myservice
 ```
 
-### Adding and removing secrets
+### Add or remove secrets
 
 Use the `--secret-add` or `--secret-rm` options add or remove a service's
 secrets.
@@ -171,7 +173,7 @@ $ docker service update \
 Some flags of `service update` support the use of templating.
 See [`service create`](./service_create.md#templating) for the reference.
 
-## Related information
+## Related commands
 
 * [service create](service_create.md)
 * [service inspect](service_inspect.md)
