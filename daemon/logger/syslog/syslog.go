@@ -68,7 +68,7 @@ func init() {
 func rfc5424formatterWithAppNameAsTag(p syslog.Priority, hostname, tag, content string) string {
 	timestamp := time.Now().Format(time.RFC3339)
 	pid := os.Getpid()
-	msg := fmt.Sprintf("<%d>%d %s %s %s %d %s %s",
+	msg := fmt.Sprintf("<%d>%d %s %s %s %d %s - %s",
 		p, 1, timestamp, hostname, tag, pid, tag, content)
 	return msg
 }
@@ -79,7 +79,7 @@ func rfc5424formatterWithAppNameAsTag(p syslog.Priority, hostname, tag, content 
 func rfc5424microformatterWithAppNameAsTag(p syslog.Priority, hostname, tag, content string) string {
 	timestamp := time.Now().Format("2006-01-02T15:04:05.999999Z07:00")
 	pid := os.Getpid()
-	msg := fmt.Sprintf("<%d>%d %s %s %s %d %s %s",
+	msg := fmt.Sprintf("<%d>%d %s %s %s %d %s - %s",
 		p, 1, timestamp, hostname, tag, pid, tag, content)
 	return msg
 }
