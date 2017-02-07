@@ -667,7 +667,18 @@ It also causes any seccomp filters to be applied later, after privileges have be
 which may mean you can have a more restrictive set of filters.
 For more details, see the [kernel documentation](https://www.kernel.org/doc/Documentation/prctl/no_new_privs.txt).
 
-## Specifying custom cgroups
+## Specify an init process
+
+You can use the `--init` flag to indicate that an init process should be used as
+the PID 1 in the container. Specifying an init process ensures the usual
+responsibilities of an init system, such as reaping zombie processes, are
+performed inside the created container.
+
+The default init process used is the first `docker-init` executable found in the
+system path of the Docker daemon process. This `docker-init` binary, included in
+the default installation, is backed by [tini](https://github.com/krallin/tini).
+
+## Specify custom cgroups
 
 Using the `--cgroup-parent` flag, you can pass a specific cgroup to run a
 container in. This allows you to create and manage cgroups on their own. You can
