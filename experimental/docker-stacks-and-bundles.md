@@ -41,12 +41,13 @@ A stack is created using the `docker deploy` command:
 
 Usage:  docker deploy [OPTIONS] STACK
 
-Create and update a stack from a Distributed Application Bundle (DAB)
+Deploy a new stack or update an existing stack
 
 Options:
-      --file   string        Path to a Distributed Application Bundle file (Default: STACK.dab)
-      --help                 Print usage
-      --with-registry-auth   Send registry authentication details to Swarm agents
+      --bundle-file string    Path to a Distributed Application Bundle file
+  -c, --compose-file string   Path to a Compose file
+      --help                  Print usage
+      --with-registry-auth    Send registry authentication details to Swarm agents
 ```
 
 Let's deploy the stack created before:
