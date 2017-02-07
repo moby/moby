@@ -644,6 +644,9 @@ func (n *network) watchMiss(nlSock *nl.NetlinkSocket) {
 			}
 
 			if neigh.IP.To4() == nil {
+				if neigh.HardwareAddr != nil {
+					logrus.Debugf("Miss notification, l2 mac %v", neigh.HardwareAddr)
+				}
 				continue
 			}
 
