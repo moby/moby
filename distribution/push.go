@@ -7,9 +7,9 @@ import (
 	"io"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/distribution/metadata"
 	"github.com/docker/docker/pkg/progress"
-	"github.com/docker/docker/reference"
 	"github.com/docker/docker/registry"
 	"golang.org/x/net/context"
 )
@@ -64,16 +64,16 @@ func Push(ctx context.Context, ref reference.Named, imagePushConfig *ImagePushCo
 		return err
 	}
 
-	endpoints, err := imagePushConfig.RegistryService.LookupPushEndpoints(repoInfo.Hostname())
+	endpoints, err := imagePushConfig.RegistryService.LookupPushEndpoints(reference.Domain(repoInfo.Name))
 	if err != nil {
 		return err
 	}
 
-	progress.Messagef(imagePushConfig.ProgressOutput, "", "The push refers to a repository [%s]", repoInfo.FullName())
+	progress.Messagef(imagePushConfig.ProgressOutput, "", "The push refers to a repository [%s]", repoInfo.Name.Name())
 
-	associations := imagePushConfig.ReferenceStore.ReferencesByName(repoInfo)
+	associations := imagePushConfig.ReferenceStore.ReferencesByName(repoInfo.Name)
 	if len(associations) == 0 {
-		return fmt.Errorf("An image does not exist locally with the tag: %s", repoInfo.Name())
+		return fmt.Errorf("An image does not exist locally with the tag: %s", reference.FamiliarName(repoInfo.Name))
 	}
 
 	var (
@@ -106,7 +106,7 @@ func Push(ctx context.Context, ref reference.Named, imagePushConfig *ImagePushCo
 			}
 		}
 
-		logrus.Debugf("Trying to push %s to %s %s", repoInfo.FullName(), endpoint.URL, endpoint.Version)
+		logrus.Debugf("Trying to push %s to %s %s", repoInfo.Name.Name(), endpoint.URL, endpoint.Version)
 
 		pusher, err := NewPusher(ref, endpoint, repoInfo, imagePushConfig)
 		if err != nil {
@@ -135,12 +135,12 @@ func Push(ctx context.Context, ref reference.Named, imagePushConfig *ImagePushCo
 			return err
 		}
 
-		imagePushConfig.ImageEventLogger(ref.String(), repoInfo.Name(), "push")
+		imagePushConfig.ImageEventLogger(reference.FamiliarString(ref), reference.FamiliarName(repoInfo.Name), "push")
 		return nil
 	}
 
 	if lastErr == nil {
-		lastErr = fmt.Errorf("no endpoints found for %s", repoInfo.FullName())
+		lastErr = fmt.Errorf("no endpoints found for %s", repoInfo.Name.Name())
 	}
 	return lastErr
 }

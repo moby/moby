@@ -1,8 +1,8 @@
 package daemon
 
 import (
+	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/image"
-	"github.com/docker/docker/reference"
 )
 
 // TagImage creates the tag specified by newTag, pointing to the image named
@@ -13,12 +13,12 @@ func (daemon *Daemon) TagImage(imageName, repository, tag string) error {
 		return err
 	}
 
-	newTag, err := reference.WithName(repository)
+	newTag, err := reference.ParseNormalizedNamed(repository)
 	if err != nil {
 		return err
 	}
 	if tag != "" {
-		if newTag, err = reference.WithTag(newTag, tag); err != nil {
+		if newTag, err = reference.WithTag(reference.TrimNamed(newTag), tag); err != nil {
 			return err
 		}
 	}
@@ -32,6 +32,6 @@ func (daemon *Daemon) TagImageWithReference(imageID image.ID, newTag reference.N
 		return err
 	}
 
-	daemon.LogImageEvent(imageID.String(), newTag.String(), "tag")
+	daemon.LogImageEvent(imageID.String(), reference.FamiliarString(newTag), "tag")
 	return nil
 }

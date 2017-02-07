@@ -135,7 +135,7 @@ func (daemon *Daemon) Images(imageFilters filters.Args, all bool, withExtraAttrs
 				var found bool
 				var matchErr error
 				for _, pattern := range imageFilters.Get("reference") {
-					found, matchErr = reference.Match(pattern, ref)
+					found, matchErr = reference.FamiliarMatch(pattern, ref)
 					if matchErr != nil {
 						return nil, matchErr
 					}
@@ -145,10 +145,10 @@ func (daemon *Daemon) Images(imageFilters filters.Args, all bool, withExtraAttrs
 				}
 			}
 			if _, ok := ref.(reference.Canonical); ok {
-				newImage.RepoDigests = append(newImage.RepoDigests, ref.String())
+				newImage.RepoDigests = append(newImage.RepoDigests, reference.FamiliarString(ref))
 			}
 			if _, ok := ref.(reference.NamedTagged); ok {
-				newImage.RepoTags = append(newImage.RepoTags, ref.String())
+				newImage.RepoTags = append(newImage.RepoTags, reference.FamiliarString(ref))
 			}
 		}
 		if newImage.RepoDigests == nil && newImage.RepoTags == nil {

@@ -5,12 +5,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/errors"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/stringid"
-	"github.com/docker/docker/reference"
 )
 
 type conflictType int
@@ -89,7 +89,7 @@ func (daemon *Daemon) ImageDelete(imageRef string, force, prune bool) ([]types.I
 			}
 		}
 
-		parsedRef, err := reference.ParseNamed(imageRef)
+		parsedRef, err := reference.ParseNormalizedNamed(imageRef)
 		if err != nil {
 			return nil, err
 		}
@@ -99,7 +99,7 @@ func (daemon *Daemon) ImageDelete(imageRef string, force, prune bool) ([]types.I
 			return nil, err
 		}
 
-		untaggedRecord := types.ImageDeleteResponseItem{Untagged: parsedRef.String()}
+		untaggedRecord := types.ImageDeleteResponseItem{Untagged: reference.FamiliarString(parsedRef)}
 
 		daemon.LogImageEvent(imgID.String(), imgID.String(), "untag")
 		records = append(records, untaggedRecord)
@@ -126,7 +126,7 @@ func (daemon *Daemon) ImageDelete(imageRef string, force, prune bool) ([]types.I
 							return records, err
 						}
 
-						untaggedRecord := types.ImageDeleteResponseItem{Untagged: repoRef.String()}
+						untaggedRecord := types.ImageDeleteResponseItem{Untagged: reference.FamiliarString(repoRef)}
 						records = append(records, untaggedRecord)
 					} else {
 						remainingRefs = append(remainingRefs, repoRef)
@@ -162,7 +162,7 @@ func (daemon *Daemon) ImageDelete(imageRef string, force, prune bool) ([]types.I
 					return nil, err
 				}
 
-				untaggedRecord := types.ImageDeleteResponseItem{Untagged: parsedRef.String()}
+				untaggedRecord := types.ImageDeleteResponseItem{Untagged: reference.FamiliarString(parsedRef)}
 
 				daemon.LogImageEvent(imgID.String(), imgID.String(), "untag")
 				records = append(records, untaggedRecord)
@@ -232,7 +232,8 @@ func (daemon *Daemon) getContainerUsingImage(imageID image.ID) *container.Contai
 // optional tag or digest reference. If tag or digest is omitted, the default
 // tag is used. Returns the resolved image reference and an error.
 func (daemon *Daemon) removeImageRef(ref reference.Named) (reference.Named, error) {
-	ref = reference.WithDefaultTag(ref)
+	ref = reference.TagNameOnly(ref)
+
 	// Ignore the boolean value returned, as far as we're concerned, this
 	// is an idempotent operation and it's okay if the reference didn't
 	// exist in the first place.
@@ -255,7 +256,7 @@ func (daemon *Daemon) removeAllReferencesToImageID(imgID image.ID, records *[]ty
 			return err
 		}
 
-		untaggedRecord := types.ImageDeleteResponseItem{Untagged: parsedRef.String()}
+		untaggedRecord := types.ImageDeleteResponseItem{Untagged: reference.FamiliarString(parsedRef)}
 
 		daemon.LogImageEvent(imgID.String(), imgID.String(), "untag")
 		*records = append(*records, untaggedRecord)

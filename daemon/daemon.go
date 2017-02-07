@@ -46,7 +46,7 @@ import (
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/pkg/truncindex"
 	"github.com/docker/docker/plugin"
-	"github.com/docker/docker/reference"
+	refstore "github.com/docker/docker/reference"
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/runconfig"
 	volumedrivers "github.com/docker/docker/volume/drivers"
@@ -76,7 +76,7 @@ type Daemon struct {
 	repository                string
 	containers                container.Store
 	execCommands              *exec.Store
-	referenceStore            reference.Store
+	referenceStore            refstore.Store
 	downloadManager           *xfer.LayerDownloadManager
 	uploadManager             *xfer.LayerUploadManager
 	distributionMetadataStore dmetadata.Store
@@ -637,7 +637,7 @@ func NewDaemon(config *Config, registryService registry.Service, containerdRemot
 
 	eventsService := events.New()
 
-	referenceStore, err := reference.NewReferenceStore(filepath.Join(imageRoot, "repositories.json"))
+	referenceStore, err := refstore.NewReferenceStore(filepath.Join(imageRoot, "repositories.json"))
 	if err != nil {
 		return nil, fmt.Errorf("Couldn't create Tag store repositories: %s", err)
 	}

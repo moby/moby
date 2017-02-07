@@ -5,6 +5,7 @@ import (
 	"sync"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/distribution/reference"
 	"github.com/docker/distribution/registry/client/transport"
 	"github.com/docker/docker/distribution/metadata"
 	"github.com/docker/docker/dockerversion"
@@ -14,7 +15,6 @@ import (
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/pkg/stringid"
-	"github.com/docker/docker/reference"
 	"github.com/docker/docker/registry"
 	"github.com/opencontainers/go-digest"
 	"golang.org/x/net/context"
@@ -356,8 +356,8 @@ func (p *v1Pusher) pushImageToEndpoint(ctx context.Context, endpoint string, ima
 		}
 		if topImage, isTopImage := img.(*v1TopImage); isTopImage {
 			for _, tag := range tags[topImage.imageID] {
-				progress.Messagef(p.config.ProgressOutput, "", "Pushing tag for rev [%s] on {%s}", stringid.TruncateID(v1ID), endpoint+"repositories/"+p.repoInfo.RemoteName()+"/tags/"+tag)
-				if err := p.session.PushRegistryTag(p.repoInfo, v1ID, tag, endpoint); err != nil {
+				progress.Messagef(p.config.ProgressOutput, "", "Pushing tag for rev [%s] on {%s}", stringid.TruncateID(v1ID), endpoint+"repositories/"+reference.Path(p.repoInfo.Name)+"/tags/"+tag)
+				if err := p.session.PushRegistryTag(p.repoInfo.Name, v1ID, tag, endpoint); err != nil {
 					return err
 				}
 			}
@@ -385,7 +385,7 @@ func (p *v1Pusher) pushRepository(ctx context.Context) error {
 
 	// Register all the images in a repository with the registry
 	// If an image is not in this list it will not be associated with the repository
-	repoData, err := p.session.PushImageJSONIndex(p.repoInfo, imageIndex, false, nil)
+	repoData, err := p.session.PushImageJSONIndex(p.repoInfo.Name, imageIndex, false, nil)
 	if err != nil {
 		return err
 	}
@@ -395,7 +395,7 @@ func (p *v1Pusher) pushRepository(ctx context.Context) error {
 			return err
 		}
 	}
-	_, err = p.session.PushImageJSONIndex(p.repoInfo, imageIndex, true, repoData.Endpoints)
+	_, err = p.session.PushImageJSONIndex(p.repoInfo.Name, imageIndex, true, repoData.Endpoints)
 	return err
 }
 

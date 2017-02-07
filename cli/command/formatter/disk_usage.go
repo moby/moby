@@ -94,12 +94,12 @@ func (ctx *DiskUsageContext) Write() {
 		tag := "<none>"
 		if len(i.RepoTags) > 0 && !isDangling(*i) {
 			// Only show the first tag
-			ref, err := reference.ParseNamed(i.RepoTags[0])
+			ref, err := reference.ParseNormalizedNamed(i.RepoTags[0])
 			if err != nil {
 				continue
 			}
 			if nt, ok := ref.(reference.NamedTagged); ok {
-				repo = ref.Name()
+				repo = reference.FamiliarName(ref)
 				tag = nt.Tag()
 			}
 		}

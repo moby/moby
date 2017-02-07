@@ -22,8 +22,8 @@ type Manifest interface {
 	References() []Descriptor
 
 	// Payload provides the serialized format of the manifest, in addition to
-	// the mediatype.
-	Payload() (mediatype string, payload []byte, err error)
+	// the media type.
+	Payload() (mediaType string, payload []byte, err error)
 }
 
 // ManifestBuilder creates a manifest allowing one to include dependencies.
@@ -94,20 +94,20 @@ var mappings = make(map[string]UnmarshalFunc, 0)
 func UnmarshalManifest(ctHeader string, p []byte) (Manifest, Descriptor, error) {
 	// Need to look up by the actual media type, not the raw contents of
 	// the header. Strip semicolons and anything following them.
-	var mediatype string
+	var mediaType string
 	if ctHeader != "" {
 		var err error
-		mediatype, _, err = mime.ParseMediaType(ctHeader)
+		mediaType, _, err = mime.ParseMediaType(ctHeader)
 		if err != nil {
 			return nil, Descriptor{}, err
 		}
 	}
 
-	unmarshalFunc, ok := mappings[mediatype]
+	unmarshalFunc, ok := mappings[mediaType]
 	if !ok {
 		unmarshalFunc, ok = mappings[""]
 		if !ok {
-			return nil, Descriptor{}, fmt.Errorf("unsupported manifest mediatype and no default available: %s", mediatype)
+			return nil, Descriptor{}, fmt.Errorf("unsupported manifest media type and no default available: %s", mediaType)
 		}
 	}
 
@@ -116,10 +116,10 @@ func UnmarshalManifest(ctHeader string, p []byte) (Manifest, Descriptor, error) 
 
 // RegisterManifestSchema registers an UnmarshalFunc for a given schema type.  This
 // should be called from specific
-func RegisterManifestSchema(mediatype string, u UnmarshalFunc) error {
-	if _, ok := mappings[mediatype]; ok {
-		return fmt.Errorf("manifest mediatype registration would overwrite existing: %s", mediatype)
+func RegisterManifestSchema(mediaType string, u UnmarshalFunc) error {
+	if _, ok := mappings[mediaType]; ok {
+		return fmt.Errorf("manifest media type registration would overwrite existing: %s", mediaType)
 	}
-	mappings[mediatype] = u
+	mappings[mediaType] = u
 	return nil
 }

@@ -12,13 +12,13 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/daemon/cluster/convert"
 	executorpkg "github.com/docker/docker/daemon/cluster/executor"
-	"github.com/docker/docker/reference"
 	"github.com/docker/libnetwork"
 	"github.com/docker/swarmkit/agent/exec"
 	"github.com/docker/swarmkit/api"
@@ -61,7 +61,7 @@ func (c *containerAdapter) pullImage(ctx context.Context) error {
 
 	// Skip pulling if the image is referenced by digest and already
 	// exists locally.
-	named, err := reference.ParseNamed(spec.Image)
+	named, err := reference.ParseNormalizedNamed(spec.Image)
 	if err == nil {
 		if _, ok := named.(reference.Canonical); ok {
 			_, err := c.backend.LookupImage(spec.Image)

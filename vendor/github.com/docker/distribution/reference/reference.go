@@ -20,14 +20,13 @@
 //	digest-algorithm-component      := /[A-Za-z][A-Za-z0-9]*/
 //	digest-hex                      := /[0-9a-fA-F]{32,}/ ; At least 128 bit digest value
 //
-//      identifier                      := /[a-f0-9]{64}/
-//      short-identifier                := /[a-f0-9]{6,64}/
+//	identifier                      := /[a-f0-9]{64}/
+//	short-identifier                := /[a-f0-9]{6,64}/
 package reference
 
 import (
 	"errors"
 	"fmt"
-	"path"
 	"strings"
 
 	"github.com/opencontainers/go-digest"
@@ -56,6 +55,9 @@ var (
 
 	// ErrNameTooLong is returned when a repository name is longer than NameTotalLengthMax.
 	ErrNameTooLong = fmt.Errorf("repository name must not be more than %v characters", NameTotalLengthMax)
+
+	// ErrNameNotCanonical is returned when a name is not canonical.
+	ErrNameNotCanonical = errors.New("repository name must be canonical")
 )
 
 // Reference is an opaque object reference identifier that may include
@@ -232,18 +234,17 @@ func Parse(s string) (Reference, error) {
 }
 
 // ParseNamed parses s and returns a syntactically valid reference implementing
-// the Named interface. The reference must have a name, otherwise an error is
-// returned.
+// the Named interface. The reference must have a name and be in the canonical
+// form, otherwise an error is returned.
 // If an error was encountered it is returned, along with a nil Reference.
 // NOTE: ParseNamed will not handle short digests.
 func ParseNamed(s string) (Named, error) {
-	ref, err := Parse(s)
+	named, err := ParseNormalizedNamed(s)
 	if err != nil {
 		return nil, err
 	}
-	named, isNamed := ref.(Named)
-	if !isNamed {
-		return nil, fmt.Errorf("reference %s has no name", ref.String())
+	if named.String() != s {
+		return nil, ErrNameNotCanonical
 	}
 	return named, nil
 }
@@ -315,16 +316,6 @@ func WithDigest(name Named, digest digest.Digest) (Canonical, error) {
 		namedRepository: repo,
 		digest:          digest,
 	}, nil
-}
-
-// Match reports whether ref matches the specified pattern.
-// See https://godoc.org/path#Match for supported patterns.
-func Match(pattern string, ref Reference) (bool, error) {
-	matched, err := path.Match(pattern, ref.String())
-	if namedRef, isNamed := ref.(Named); isNamed && !matched {
-		matched, _ = path.Match(pattern, namedRef.Name())
-	}
-	return matched, err
 }
 
 // TrimNamed removes any tag or digest from the named reference.
@@ -408,7 +399,7 @@ func (r repository) Path() string {
 type digestReference digest.Digest
 
 func (d digestReference) String() string {
-	return d.String()
+	return digest.Digest(d).String()
 }
 
 func (d digestReference) Digest() digest.Digest {

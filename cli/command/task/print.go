@@ -10,7 +10,7 @@ import (
 
 	"golang.org/x/net/context"
 
-	distreference "github.com/docker/distribution/reference"
+	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/cli/command"
 	"github.com/docker/docker/cli/command/idresolver"
@@ -129,13 +129,15 @@ func print(out io.Writer, ctx context.Context, tasks []swarm.Task, resolver *idr
 
 		image := task.Spec.ContainerSpec.Image
 		if !noTrunc {
-			ref, err := distreference.ParseNamed(image)
+			ref, err := reference.ParseNormalizedNamed(image)
 			if err == nil {
-				// update image string for display
-				namedTagged, ok := ref.(distreference.NamedTagged)
-				if ok {
-					image = namedTagged.Name() + ":" + namedTagged.Tag()
+				// update image string for display, (strips any digest)
+				if nt, ok := ref.(reference.NamedTagged); ok {
+					if namedTagged, err := reference.WithTag(reference.TrimNamed(nt), nt.Tag()); err == nil {
+						image = reference.FamiliarString(namedTagged)
+					}
 				}
+
 			}
 		}
 

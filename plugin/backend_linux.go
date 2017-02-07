@@ -18,6 +18,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/manifest/schema2"
+	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/distribution"
@@ -30,7 +31,7 @@ import (
 	"github.com/docker/docker/pkg/pools"
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/plugin/v2"
-	"github.com/docker/docker/reference"
+	refstore "github.com/docker/docker/reference"
 	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
 	"golang.org/x/net/context"
@@ -232,11 +233,11 @@ func (pm *Manager) Upgrade(ctx context.Context, ref reference.Named, name string
 	defer pm.muGC.RUnlock()
 
 	// revalidate because Pull is public
-	nameref, err := reference.ParseNamed(name)
+	nameref, err := reference.ParseNormalizedNamed(name)
 	if err != nil {
 		return errors.Wrapf(err, "failed to parse %q", name)
 	}
-	name = reference.WithDefaultTag(nameref).String()
+	name = reference.FamiliarString(reference.TagNameOnly(nameref))
 
 	tmpRootFSDir, err := ioutil.TempDir(pm.tmpDir(), ".rootfs")
 	defer os.RemoveAll(tmpRootFSDir)
@@ -277,11 +278,11 @@ func (pm *Manager) Pull(ctx context.Context, ref reference.Named, name string, m
 	defer pm.muGC.RUnlock()
 
 	// revalidate because Pull is public
-	nameref, err := reference.ParseNamed(name)
+	nameref, err := reference.ParseNormalizedNamed(name)
 	if err != nil {
 		return errors.Wrapf(err, "failed to parse %q", name)
 	}
-	name = reference.WithDefaultTag(nameref).String()
+	name = reference.FamiliarString(reference.TagNameOnly(nameref))
 
 	if err := pm.config.Store.validateName(name); err != nil {
 		return err
@@ -370,7 +371,7 @@ func (pm *Manager) Push(ctx context.Context, name string, metaHeader http.Header
 		return err
 	}
 
-	ref, err := reference.ParseNamed(p.Name())
+	ref, err := reference.ParseNormalizedNamed(p.Name())
 	if err != nil {
 		return errors.Wrapf(err, "plugin has invalid name %v for push", p.Name())
 	}
@@ -448,8 +449,8 @@ func (r *pluginReference) References(id digest.Digest) []reference.Named {
 	return []reference.Named{r.name}
 }
 
-func (r *pluginReference) ReferencesByName(ref reference.Named) []reference.Association {
-	return []reference.Association{
+func (r *pluginReference) ReferencesByName(ref reference.Named) []refstore.Association {
+	return []refstore.Association{
 		{
 			Ref: r.name,
 			ID:  r.pluginID,
@@ -459,7 +460,7 @@ func (r *pluginReference) ReferencesByName(ref reference.Named) []reference.Asso
 
 func (r *pluginReference) Get(ref reference.Named) (digest.Digest, error) {
 	if r.name.String() != ref.String() {
-		return digest.Digest(""), reference.ErrDoesNotExist
+		return digest.Digest(""), refstore.ErrDoesNotExist
 	}
 	return r.pluginID, nil
 }
@@ -664,15 +665,14 @@ func (pm *Manager) CreateFromContext(ctx context.Context, tarCtx io.ReadCloser, 
 	pm.muGC.RLock()
 	defer pm.muGC.RUnlock()
 
-	ref, err := reference.ParseNamed(options.RepoName)
+	ref, err := reference.ParseNormalizedNamed(options.RepoName)
 	if err != nil {
 		return errors.Wrapf(err, "failed to parse reference %v", options.RepoName)
 	}
 	if _, ok := ref.(reference.Canonical); ok {
 		return errors.Errorf("canonical references are not permitted")
 	}
-	taggedRef := reference.WithDefaultTag(ref)
-	name := taggedRef.String()
+	name := reference.FamiliarString(reference.TagNameOnly(ref))
 
 	if err := pm.config.Store.validateName(name); err != nil { // fast check, real check is in createPlugin()
 		return err
@@ -754,7 +754,7 @@ func (pm *Manager) CreateFromContext(ctx context.Context, tarCtx io.ReadCloser, 
 	if err != nil {
 		return err
 	}
-	p.PluginObj.PluginReference = taggedRef.String()
+	p.PluginObj.PluginReference = name
 
 	pm.config.LogPluginEvent(p.PluginObj.ID, name, "create")
 

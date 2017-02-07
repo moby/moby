@@ -15,6 +15,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	cfconfig "github.com/cloudflare/cfssl/config"
+	events "github.com/docker/go-events"
 	"github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/connectionbroker"
 	"github.com/docker/swarmkit/identity"
@@ -49,6 +50,13 @@ const (
 	// ceil(log(2^256-1, 36))
 	base36DigestLen = 50
 )
+
+// RenewTLSExponentialBackoff sets the exponential backoff when trying to renew TLS certificates that have expired
+var RenewTLSExponentialBackoff = events.ExponentialBackoffConfig{
+	Base:   time.Second * 5,
+	Factor: time.Minute,
+	Max:    1 * time.Hour,
+}
 
 // SecurityConfig is used to represent a node's security configuration. It includes information about
 // the RootCA and ServerTLSCreds/ClientTLSCreds transport authenticators to be used for MTLS
@@ -189,7 +197,7 @@ func GenerateJoinToken(rootCA *RootCA) string {
 
 func getCAHashFromToken(token string) (digest.Digest, error) {
 	split := strings.Split(token, "-")
-	if len(split) != 4 || split[0] != "SWMTKN" || split[1] != "1" {
+	if len(split) != 4 || split[0] != "SWMTKN" || split[1] != "1" || len(split[2]) != base36DigestLen || len(split[3]) != maxGeneratedSecretLength {
 		return "", errors.New("invalid join token")
 	}
 
@@ -242,7 +250,7 @@ func DownloadRootCA(ctx context.Context, paths CertPaths, token string, connBrok
 
 // LoadSecurityConfig loads TLS credentials from disk, or returns an error if
 // these credentials do not exist or are unusable.
-func LoadSecurityConfig(ctx context.Context, rootCA RootCA, krw *KeyReadWriter) (*SecurityConfig, error) {
+func LoadSecurityConfig(ctx context.Context, rootCA RootCA, krw *KeyReadWriter, allowExpired bool) (*SecurityConfig, error) {
 	ctx = log.WithModule(ctx, "tls")
 
 	// At this point we've successfully loaded the CA details from disk, or
@@ -273,7 +281,7 @@ func LoadSecurityConfig(ctx context.Context, rootCA RootCA, krw *KeyReadWriter) 
 	}
 
 	// Check to see if this certificate was signed by our CA, and isn't expired
-	if _, err := X509Cert.Verify(opts); err != nil {
+	if err := verifyCertificate(X509Cert, opts, allowExpired); err != nil {
 		return nil, err
 	}
 
@@ -447,6 +455,7 @@ func RenewTLSConfig(ctx context.Context, s *SecurityConfig, connBroker *connecti
 
 	go func() {
 		var retry time.Duration
+		expBackoff := events.NewExponentialBackoff(RenewTLSExponentialBackoff)
 		defer close(updates)
 		for {
 			ctx = log.WithModule(ctx, "tls")
@@ -472,18 +481,12 @@ func RenewTLSConfig(ctx context.Context, s *SecurityConfig, connBroker *connecti
 					return
 				}
 			} else {
-				// If we have an expired certificate, we let's stick with the starting default in
-				// the hope that this is a temporary clock skew.
+				// If we have an expired certificate, try to renew immediately: the hope that this is a temporary clock skew, or
+				// we can issue our own TLS certs.
 				if validUntil.Before(time.Now()) {
-					log.WithError(err).Errorf("failed to create a new client TLS config")
-
-					select {
-					case updates <- CertificateUpdate{Err: errors.New("TLS certificate is expired")}:
-					case <-ctx.Done():
-						log.Info("shutting down certificate renewal routine")
-						return
-					}
-
+					log.Warn("the current TLS certificate is expired, so an attempt to renew it will be made immediately")
+					// retry immediately(ish) with exponential backoff
+					retry = expBackoff.Proceed(nil)
 				} else {
 					// Random retry time between 50% and 80% of the total time to expiration
 					retry = calculateRandomExpiry(validFrom, validUntil)
@@ -492,7 +495,7 @@ func RenewTLSConfig(ctx context.Context, s *SecurityConfig, connBroker *connecti
 
 			log.WithFields(logrus.Fields{
 				"time": time.Now().Add(retry),
-			}).Debugf("next certificate renewal scheduled")
+			}).Debugf("next certificate renewal scheduled for %v from now", retry)
 
 			select {
 			case <-time.After(retry):
@@ -508,8 +511,10 @@ func RenewTLSConfig(ctx context.Context, s *SecurityConfig, connBroker *connecti
 			var certUpdate CertificateUpdate
 			if err := RenewTLSConfigNow(ctx, s, connBroker); err != nil {
 				certUpdate.Err = err
+				expBackoff.Failure(nil, nil)
 			} else {
 				certUpdate.Role = s.ClientTLSCreds.Role()
+				expBackoff = events.NewExponentialBackoff(RenewTLSExponentialBackoff)
 			}
 
 			select {

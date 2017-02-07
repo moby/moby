@@ -25,7 +25,7 @@ message Meta {
 // Node provides the internal node state as seen by the cluster.
 message Node {
 	// ID specifies the identity of the node.
-	string id = 1 [(gogoproto.customname) = "ID"];
+	string id = 1;
 
 	Meta meta = 2 [(gogoproto.nullable) = false];
 
@@ -63,7 +63,7 @@ message Node {
 }
 
 message Service {
-	string id = 1 [(gogoproto.customname) = "ID"];
+	string id = 1;
 
 	Meta meta = 2 [(gogoproto.nullable) = false];
 
@@ -101,7 +101,7 @@ message Endpoint {
 	// and the IP addresses the target service will be made available under.
 	message VirtualIP {
 		// NetworkID for which this endpoint attachment was created.
-		string network_id = 1 [(gogoproto.customname) = "NetworkID"];
+		string network_id = 1;
 
 		// A virtual IP is used to address this service in IP
 		// layer that the client can use to send requests to
@@ -123,7 +123,7 @@ message Endpoint {
 // immutable and idempotent. Once it is dispatched to a node, it will not be
 // dispatched to another node.
 message Task {
-	string id = 1 [(gogoproto.customname) = "ID"];
+	string id = 1;
 
 	Meta meta = 2 [(gogoproto.nullable) = false];
 
@@ -133,7 +133,7 @@ message Task {
 
 	// ServiceID indicates the service under which this task is orchestrated. This
 	// should almost always be set.
-	string service_id = 4 [(gogoproto.customname) = "ServiceID"];
+	string service_id = 4;
 
 	// Slot is the service slot number for a task.
 	// For example, if a replicated service has replicas = 2, there will be a
@@ -142,7 +142,7 @@ message Task {
 
 	// NodeID indicates the node to which the task is assigned. If this field
 	// is empty or not set, the task is unassigned.
-	string node_id = 6 [(gogoproto.customname) = "NodeID"];
+	string node_id = 6;
 
 	// Annotations defines the names and labels for the runtime, as set by
 	// the cluster manager.
@@ -204,7 +204,7 @@ message NetworkAttachment {
 }
 
 message Network {
-	string id = 1 [(gogoproto.customname) = "ID"];
+	string id = 1;
 
 	Meta meta = 2 [(gogoproto.nullable) = false];
 
@@ -220,7 +220,7 @@ message Network {
 
 // Cluster provides global cluster settings.
 message Cluster {
-	string id = 1 [(gogoproto.customname) = "ID"];
+	string id = 1;
 
 	Meta meta = 2 [(gogoproto.nullable) = false];
 
@@ -256,7 +256,7 @@ message Cluster {
 // information that is generated from the secret data in the `spec`, such as
 // the digest and size of the secret data.
 message Secret {
-	string id = 1 [(gogoproto.customname) = "ID"];
+	string id = 1;
 
 	Meta meta = 2 [(gogoproto.nullable) = false];
 
