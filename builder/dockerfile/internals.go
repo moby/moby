@@ -181,7 +181,11 @@ func (b *Builder) runContextCommand(args []string, allowRemote bool, allowLocalD
 		return nil
 	}
 
-	container, err := b.docker.ContainerCreate(types.ContainerCreateConfig{Config: b.runConfig})
+	container, err := b.docker.ContainerCreate(types.ContainerCreateConfig{
+		Config: b.runConfig,
+		// Set a log config to override any default value set on the daemon
+		HostConfig: &container.HostConfig{LogConfig: defaultLogConfig},
+	})
 	if err != nil {
 		return err
 	}
@@ -489,6 +493,8 @@ func (b *Builder) create() (string, error) {
 		ShmSize:     b.options.ShmSize,
 		Resources:   resources,
 		NetworkMode: container.NetworkMode(b.options.NetworkMode),
+		// Set a log config to override any default value set on the daemon
+		LogConfig: defaultLogConfig,
 	}
 
 	config := *b.runConfig

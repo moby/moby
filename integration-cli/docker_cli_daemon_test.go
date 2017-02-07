@@ -1134,6 +1134,19 @@ func (s *DockerDaemonSuite) TestDaemonLoggingDriverNoneLogsError(c *check.C) {
 	c.Assert(out, checker.Contains, expected)
 }
 
+func (s *DockerDaemonSuite) TestDaemonLoggingDriverShouldBeIgnoredForBuild(c *check.C) {
+	s.d.StartWithBusybox(c, "--log-driver=splunk")
+
+	out, err := s.d.Cmd("build")
+	out, code, err := s.d.BuildImageWithOut("busyboxs", `
+        FROM busybox
+        RUN echo foo`, false)
+	comment := check.Commentf("Failed to build image. output %s, exitCode %d, err %v", out, code, err)
+	c.Assert(err, check.IsNil, comment)
+	c.Assert(code, check.Equals, 0, comment)
+	c.Assert(out, checker.Contains, "foo", comment)
+}
+
 func (s *DockerDaemonSuite) TestDaemonUnixSockCleanedUp(c *check.C) {
 	dir, err := ioutil.TempDir("", "socket-cleanup-test")
 	if err != nil {
