@@ -449,3 +449,10 @@ func (s *DockerSuite) TestVolumeCliInspectWithVolumeOpts(c *check.C) {
 	c.Assert(strings.TrimSpace(out), checker.Contains, fmt.Sprintf("%s:%s", k2, v2))
 	c.Assert(strings.TrimSpace(out), checker.Contains, fmt.Sprintf("%s:%s", k3, v3))
 }
+
+// Regression test to #29126
+func (s *DockerSuite) TestVolumeCLIRmInvalidVolumeWithTwoDots(c *check.C) {
+	out, _, err := dockerCmdWithError("volume", "rm", "../my_vol_id")
+	c.Assert(err, checker.NotNil)
+	c.Assert(out, checker.Contains, "Bad name: ../my_vol_id")
+}

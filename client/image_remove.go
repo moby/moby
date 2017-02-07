@@ -20,8 +20,8 @@ func (cli *Client) ImageRemove(ctx context.Context, imageID string, options type
 	}
 
 	resp, err := cli.delete(ctx, "/images/"+imageID, query, nil)
-	if err != nil {
-		return nil, err
+	if failErr := isDeletedSuccessfully(resp, imageID, err); failErr != nil {
+		return nil, failErr
 	}
 
 	var dels []types.ImageDeleteResponseItem

@@ -80,6 +80,13 @@ func (s *DockerSuite) TestRmInvalidContainer(c *check.C) {
 	c.Assert(out, checker.Contains, "No such container")
 }
 
+// Regression test to #29126
+func (s *DockerSuite) TestRmInvalidContainerWithTwoDots(c *check.C) {
+	out, _, err := dockerCmdWithError("rm", "../unknown")
+	c.Assert(err, checker.NotNil, check.Commentf("Expected error on rm unknown container, got none"))
+	c.Assert(out, checker.Contains, "Bad name: ../unknown")
+}
+
 func createRunningContainer(c *check.C, name string) {
 	runSleepingContainer(c, "-dt", "--name", name)
 }

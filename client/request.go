@@ -245,3 +245,16 @@ func ensureReaderClosed(response serverResponse) {
 		response.body.Close()
 	}
 }
+
+func isDeletedSuccessfully(response serverResponse, name string, err error) error {
+	if err != nil {
+		return err
+	}
+	// When the name starts with '../' the daemon detects this and
+	// returns status code 304. Read more here:
+	// https://github.com/docker/docker/issues/29126#issuecomment-271901605
+	if response.statusCode == http.StatusMovedPermanently {
+		return fmt.Errorf("Bad name: %s", name)
+	}
+	return nil
+}
