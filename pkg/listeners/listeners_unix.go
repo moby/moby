@@ -31,7 +31,12 @@ func Init(proto, addr, socketGroup string, tlsConfig *tls.Config) ([]net.Listene
 		}
 		ls = append(ls, l)
 	case "unix":
-		l, err := sockets.NewUnixSocket(addr, socketGroup)
+
+		gid, err := strconv.Atoi(socketGroup)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse socket group id: should be a number: %v", socketGroup)
+		}
+		l, err := sockets.NewUnixSocket(addr, gid)
 		if err != nil {
 			return nil, fmt.Errorf("can't create unix socket %s: %v", addr, err)
 		}
