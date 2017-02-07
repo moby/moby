@@ -6660,6 +6660,69 @@ paths:
           required: true
           type: "string"
       tags: ["Plugin"]
+  /plugins/{name}/upgrade:
+    post:
+      summary: "Upgrade a plugin"
+      operationId: "PluginUpgrade"
+      responses:
+        204:
+          description: "no error"
+        404:
+          description: "plugin not installed"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        500:
+          description: "server error"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+      parameters:
+        - name: "name"
+          in: "path"
+          description: "The name of the plugin. The `:latest` tag is optional, and is the default if omitted."
+          required: true
+          type: "string"
+        - name: "remote"
+          in: "query"
+          description: |
+            Remote reference to upgrade to.
+
+            The `:latest` tag is optional, and is used as the default if omitted.
+          required: true
+          type: "string"
+        - name: "X-Registry-Auth"
+          in: "header"
+          description: "A base64-encoded auth configuration to use when pulling a plugin from a registry. [See the authentication section for details.](#section/Authentication)"
+          type: "string"
+        - name: "body"
+          in: "body"
+          schema:
+            type: "array"
+            items:
+              description: "Describes a permission accepted by the user upon installing the plugin."
+              type: "object"
+              properties:
+                Name:
+                  type: "string"
+                Description:
+                  type: "string"
+                Value:
+                  type: "array"
+                  items:
+                    type: "string"
+            example:
+              - Name: "network"
+                Description: ""
+                Value:
+                  - "host"
+              - Name: "mount"
+                Description: ""
+                Value:
+                  - "/data"
+              - Name: "device"
+                Description: ""
+                Value:
+                  - "/dev/cpu_dma_latency"
+      tags: ["Plugin"]
   /plugins/create:
     post:
       summary: "Create a plugin"
