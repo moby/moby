@@ -27,7 +27,7 @@ Options:
 
 When you run this command on a worker, that worker leaves the swarm.
 
-You can use the `--force` option to on a manager to remove it from the swarm.
+You can use the `--force` option on a manager to remove it from the swarm.
 However, this does not reconfigure the swarm to ensure that there are enough
 managers to maintain a quorum in the swarm. The safe way to remove a manager
 from a swarm is to demote it to a worker and then direct it to leave the quorum
