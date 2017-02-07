@@ -6,14 +6,13 @@ import (
 	"sort"
 	"time"
 
-	"github.com/pkg/errors"
-
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
+	"github.com/pkg/errors"
 )
 
 var acceptedImageFilterTags = map[string]bool{
@@ -129,9 +128,16 @@ func (daemon *Daemon) Images(imageFilters filters.Args, all bool, withExtraAttrs
 		}
 
 		newImage := newImage(img, size)
+		didMatch := false
 
 		for _, ref := range daemon.referenceStore.References(id.Digest()) {
-			if imageFilters.Include("reference") {
+			if _, ok := ref.(reference.Canonical); ok {
+				newImage.RepoDigests = append(newImage.RepoDigests, ref.String())
+			}
+			if _, ok := ref.(reference.NamedTagged); ok {
+				newImage.RepoTags = append(newImage.RepoTags, ref.String())
+			}
+			if !didMatch && imageFilters.Include("reference") {
 				var found bool
 				var matchErr error
 				for _, pattern := range imageFilters.Get("reference") {
@@ -139,18 +145,17 @@ func (daemon *Daemon) Images(imageFilters filters.Args, all bool, withExtraAttrs
 					if matchErr != nil {
 						return nil, matchErr
 					}
+					if found {
+						didMatch = true
+						break
+					}
 				}
-				if !found {
-					continue
-				}
-			}
-			if _, ok := ref.(reference.Canonical); ok {
-				newImage.RepoDigests = append(newImage.RepoDigests, ref.String())
-			}
-			if _, ok := ref.(reference.NamedTagged); ok {
-				newImage.RepoTags = append(newImage.RepoTags, ref.String())
 			}
 		}
+		if imageFilters.Include("reference") && !didMatch {
+			continue
+		}
+
 		if newImage.RepoDigests == nil && newImage.RepoTags == nil {
 			if all || len(daemon.imageStore.Children(id)) == 0 {
 
