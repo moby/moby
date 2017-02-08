@@ -149,8 +149,10 @@ func (c *containerStatsContext) Container() string {
 
 func (c *containerStatsContext) Name() string {
 	c.AddHeader(nameHeader)
-	name := c.s.Name[1:]
-	return name
+	if len(c.s.Name) > 1 {
+		return c.s.Name[1:]
+	}
+	return "--"
 }
 
 func (c *containerStatsContext) ID() string {

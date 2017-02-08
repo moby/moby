@@ -73,6 +73,12 @@ func TestContainerStatsContextWrite(t *testing.T) {
 `,
 		},
 		{
+			Context{Format: "{{.Container}}  {{.ID}}  {{.Name}}"},
+			`container1  abcdef  foo
+container2    --
+`,
+		},
+		{
 			Context{Format: "{{.Container}}  {{.CPUPerc}}"},
 			`container1  20.00%
 container2  --
@@ -84,6 +90,8 @@ container2  --
 		stats := []StatsEntry{
 			{
 				Container:        "container1",
+				ID:               "abcdef",
+				Name:             "/foo",
 				CPUPercentage:    20,
 				Memory:           20,
 				MemoryLimit:      20,
