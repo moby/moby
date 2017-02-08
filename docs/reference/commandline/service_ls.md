@@ -137,6 +137,7 @@ Placeholder | Description
 `.Mode`     | Service mode (replicated, global)
 `.Replicas` | Service replicas
 `.Image`    | Service image
+`.Ports`    | Service ports published in ingress mode
 
 When using the `--format` option, the `service ls` command will either
 output the data exactly as the template declares or, when using the

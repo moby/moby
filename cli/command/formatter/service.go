@@ -1,6 +1,7 @@
 package formatter
 
 import (
+	"fmt"
 	"strings"
 	"time"
 
@@ -391,7 +392,7 @@ func (ctx *serviceInspectContext) Ports() []swarm.PortConfig {
 }
 
 const (
-	defaultServiceTableFormat = "table {{.ID}}\t{{.Name}}\t{{.Mode}}\t{{.Replicas}}\t{{.Image}}"
+	defaultServiceTableFormat = "table {{.ID}}\t{{.Name}}\t{{.Mode}}\t{{.Replicas}}\t{{.Image}}\t{{.Ports}}"
 
 	serviceIDHeader = "ID"
 	modeHeader      = "MODE"
@@ -410,7 +411,7 @@ func NewServiceListFormat(source string, quiet bool) Format {
 		if quiet {
 			return `id: {{.ID}}`
 		}
-		return `id: {{.ID}}\nname: {{.Name}}\nmode: {{.Mode}}\nreplicas: {{.Replicas}}\nimage: {{.Image}}\n`
+		return `id: {{.ID}}\nname: {{.Name}}\nmode: {{.Mode}}\nreplicas: {{.Replicas}}\nimage: {{.Image}}\nports: {{.Ports}}\n`
 	}
 	return Format(source)
 }
@@ -439,6 +440,7 @@ func ServiceListWrite(ctx Context, services []swarm.Service, info map[string]Ser
 		"Mode":     modeHeader,
 		"Replicas": replicasHeader,
 		"Image":    imageHeader,
+		"Ports":    portsHeader,
 	}
 	return ctx.Write(&serviceCtx, render)
 }
@@ -482,4 +484,21 @@ func (c *serviceContext) Image() string {
 	}
 
 	return image
+}
+
+func (c *serviceContext) Ports() string {
+	if c.service.Spec.EndpointSpec == nil || c.service.Spec.EndpointSpec.Ports == nil {
+		return ""
+	}
+	ports := []string{}
+	for _, pConfig := range c.service.Spec.EndpointSpec.Ports {
+		if pConfig.PublishMode == swarm.PortConfigPublishModeIngress {
+			ports = append(ports, fmt.Sprintf("*:%d->%d/%s",
+				pConfig.PublishedPort,
+				pConfig.TargetPort,
+				pConfig.Protocol,
+			))
+		}
+	}
+	return strings.Join(ports, ",")
 }
