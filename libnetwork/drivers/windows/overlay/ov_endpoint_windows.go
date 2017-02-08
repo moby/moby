@@ -7,9 +7,7 @@ import (
 
 	"github.com/Microsoft/hcsshim"
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/libnetwork/datastore"
 	"github.com/docker/libnetwork/driverapi"
-	"github.com/docker/libnetwork/types"
 )
 
 type endpointTable map[string]*endpoint
@@ -23,8 +21,6 @@ type endpoint struct {
 	remote    bool
 	mac       net.HardwareAddr
 	addr      *net.IPNet
-	dbExists  bool
-	dbIndex   uint64
 }
 
 func validateID(nid, eid string) error {
@@ -67,6 +63,7 @@ func (n *network) removeEndpointWithAddress(addr *net.IPNet) {
 			break
 		}
 	}
+
 	if networkEndpoint != nil {
 		delete(n.endpoints, networkEndpoint.id)
 	}
@@ -79,10 +76,6 @@ func (n *network) removeEndpointWithAddress(addr *net.IPNet) {
 		if err != nil {
 			logrus.Debugf("Failed to delete stale overlay endpoint (%s) from hns", networkEndpoint.id[0:7])
 		}
-
-		if err := n.driver.deleteEndpointFromStore(networkEndpoint); err != nil {
-			logrus.Debugf("Failed to delete stale overlay endpoint (%s) from store", networkEndpoint.id[0:7])
-		}
 	}
 }
 
@@ -93,19 +86,23 @@ func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo,
 		return err
 	}
 
-	// Since we perform lazy configuration make sure we try
-	// configuring the driver when we enter CreateEndpoint since
-	// CreateNetwork may not be called in every node.
-	if err := d.configure(); err != nil {
-		return err
-	}
-
 	n := d.network(nid)
 	if n == nil {
 		return fmt.Errorf("network id %q not found", nid)
 	}
 
-	ep := &endpoint{
+	ep := n.endpoint(eid)
+	if ep != nil {
+		logrus.Debugf("Deleting stale endpoint %s", eid)
+		n.deleteEndpoint(eid)
+
+		_, err := hcsshim.HNSEndpointRequest("DELETE", ep.profileId, "")
+		if err != nil {
+			return err
+		}
+	}
+
+	ep = &endpoint{
 		id:   eid,
 		nid:  n.id,
 		addr: ifInfo.Address(),
@@ -123,6 +120,7 @@ func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo,
 	// Todo: Add port bindings and qos policies here
 
 	hnsEndpoint := &hcsshim.HNSEndpoint{
+		Name:              eid,
 		VirtualNetwork:    n.hnsId,
 		IPAddress:         ep.addr.IP,
 		EnableInternalDNS: true,
@@ -167,9 +165,6 @@ func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo,
 	}
 
 	n.addEndpoint(ep)
-	if err := d.writeEndpointToStore(ep); err != nil {
-		return fmt.Errorf("failed to update overlay endpoint %s to local store: %v", ep.id[0:7], err)
-	}
 
 	return nil
 }
@@ -190,10 +185,6 @@ func (d *driver) DeleteEndpoint(nid, eid string) error {
 	}
 
 	n.deleteEndpoint(eid)
-
-	if err := d.deleteEndpointFromStore(ep); err != nil {
-		logrus.Warnf("Failed to delete overlay endpoint %s from local store: %v", ep.id[0:7], err)
-	}
 
 	_, err := hcsshim.HNSEndpointRequest("DELETE", ep.profileId, "")
 	if err != nil {
@@ -222,125 +213,4 @@ func (d *driver) EndpointOperInfo(nid, eid string) (map[string]interface{}, erro
 	data["hnsid"] = ep.profileId
 	data["AllowUnqualifiedDNSQuery"] = true
 	return data, nil
-}
-
-func (d *driver) deleteEndpointFromStore(e *endpoint) error {
-	if d.localStore == nil {
-		return fmt.Errorf("overlay local store not initialized, ep not deleted")
-	}
-
-	if err := d.localStore.DeleteObjectAtomic(e); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (d *driver) writeEndpointToStore(e *endpoint) error {
-	if d.localStore == nil {
-		return fmt.Errorf("overlay local store not initialized, ep not added")
-	}
-
-	if err := d.localStore.PutObjectAtomic(e); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (ep *endpoint) DataScope() string {
-	return datastore.LocalScope
-}
-
-func (ep *endpoint) New() datastore.KVObject {
-	return &endpoint{}
-}
-
-func (ep *endpoint) CopyTo(o datastore.KVObject) error {
-	dstep := o.(*endpoint)
-	*dstep = *ep
-	return nil
-}
-
-func (ep *endpoint) Key() []string {
-	return []string{overlayEndpointPrefix, ep.id}
-}
-
-func (ep *endpoint) KeyPrefix() []string {
-	return []string{overlayEndpointPrefix}
-}
-
-func (ep *endpoint) Index() uint64 {
-	return ep.dbIndex
-}
-
-func (ep *endpoint) SetIndex(index uint64) {
-	ep.dbIndex = index
-	ep.dbExists = true
-}
-
-func (ep *endpoint) Exists() bool {
-	return ep.dbExists
-}
-
-func (ep *endpoint) Skip() bool {
-	return false
-}
-
-func (ep *endpoint) Value() []byte {
-	b, err := json.Marshal(ep)
-	if err != nil {
-		return nil
-	}
-	return b
-}
-
-func (ep *endpoint) SetValue(value []byte) error {
-	return json.Unmarshal(value, ep)
-}
-
-func (ep *endpoint) MarshalJSON() ([]byte, error) {
-	epMap := make(map[string]interface{})
-
-	epMap["id"] = ep.id
-	epMap["nid"] = ep.nid
-	epMap["remote"] = ep.remote
-	if ep.profileId != "" {
-		epMap["profileId"] = ep.profileId
-	}
-
-	if ep.addr != nil {
-		epMap["addr"] = ep.addr.String()
-	}
-	if len(ep.mac) != 0 {
-		epMap["mac"] = ep.mac.String()
-	}
-
-	return json.Marshal(epMap)
-}
-
-func (ep *endpoint) UnmarshalJSON(value []byte) error {
-	var (
-		err   error
-		epMap map[string]interface{}
-	)
-
-	json.Unmarshal(value, &epMap)
-
-	ep.id = epMap["id"].(string)
-	ep.nid = epMap["nid"].(string)
-	ep.remote = epMap["remote"].(bool)
-	if v, ok := epMap["profileId"]; ok {
-		ep.profileId = v.(string)
-	}
-	if v, ok := epMap["mac"]; ok {
-		if ep.mac, err = net.ParseMAC(v.(string)); err != nil {
-			return types.InternalErrorf("failed to decode endpoint interface mac address after json unmarshal: %s", v.(string))
-		}
-	}
-	if v, ok := epMap["addr"]; ok {
-		if ep.addr, err = types.ParseCIDR(v.(string)); err != nil {
-			return types.InternalErrorf("failed to decode endpoint interface ipv4 address after json unmarshal: %v", err)
-		}
-	}
-	return nil
 }
