@@ -3457,6 +3457,7 @@ _docker_plugin() {
 		push
 		rm
 		set
+		upgrade
 	"
 	local aliases="
 		list
@@ -3629,6 +3630,25 @@ _docker_plugin_set() {
 			local counter=$(__docker_pos_first_nonflag)
 			if [ $cword -eq $counter ]; then
 				__docker_complete_plugins_installed
+			fi
+			;;
+	esac
+}
+
+_docker_plugin_upgrade() {
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "--disable-content-trust --grant-all-permissions --help --skip-remote-check" -- "$cur" ) )
+			;;
+		*)
+			local counter=$(__docker_pos_first_nonflag)
+			if [ $cword -eq $counter ]; then
+				__docker_complete_plugins_installed
+				__ltrim_colon_completions "$cur"
+			elif [ $cword -eq  $((counter + 1)) ]; then
+				local plugin_images="$(__docker_plugins_installed)"
+				COMPREPLY=( $(compgen -S : -W "${plugin_images%:*}" -- "$cur") )
+				__docker_nospace
 			fi
 			;;
 	esac
