@@ -5,8 +5,8 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types"
-	cliconfig "github.com/docker/docker/cli/config"
-	"github.com/docker/docker/cli/config/configfile"
+	"github.com/docker/docker/client/config"
+	"github.com/docker/docker/client/config/configfile"
 )
 
 func newConfigFile(auths map[string]types.AuthConfig) *configfile.ConfigFile {
@@ -14,7 +14,7 @@ func newConfigFile(auths map[string]types.AuthConfig) *configfile.ConfigFile {
 	name := tmp.Name()
 	tmp.Close()
 
-	c := cliconfig.NewConfigFile(name)
+	c := config.NewConfigFile(name)
 	c.AuthConfigs = auths
 	return c
 }
