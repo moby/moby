@@ -2,7 +2,9 @@ package network
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
+	"strings"
 
 	"golang.org/x/net/context"
 
@@ -82,14 +84,80 @@ func (n *networkRouter) getNetwork(ctx context.Context, w http.ResponseWriter, r
 		return err
 	}
 
-	nw, err := n.backend.FindNetwork(vars["id"])
-	if err != nil {
-		if nr, err := n.cluster.GetNetwork(vars["id"]); err == nil {
-			return httputils.WriteJSON(w, http.StatusOK, nr)
+	term := vars["id"]
+
+	// In case multiple networks have duplicate names, return error.
+	// TODO (yongtang): should we wrap with version here for backward compatibility?
+
+	// First find based on full ID, return immediately once one is found.
+	// If a network appears both in swarm and local, assume it is in local first
+
+	// For full name and partial ID, save the result first, and process later
+	// in case multiple records was found based on the same term
+	listByFullName := map[string]types.NetworkResource{}
+	listByPartialID := map[string]types.NetworkResource{}
+
+	nw := n.backend.GetNetworks()
+	for _, network := range nw {
+		if network.ID() == term {
+			return httputils.WriteJSON(w, http.StatusOK, *n.buildDetailedNetworkResources(network))
 		}
-		return err
+		if network.Name() == term {
+			// No need to check the ID collision here as we are still in
+			// local scope and the network ID is unique in this scope.
+			listByFullName[network.ID()] = *n.buildDetailedNetworkResources(network)
+		}
+		if strings.HasPrefix(network.ID(), term) {
+			// No need to check the ID collision here as we are still in
+			// local scope and the network ID is unique in this scope.
+			listByPartialID[network.ID()] = *n.buildDetailedNetworkResources(network)
+		}
 	}
-	return httputils.WriteJSON(w, http.StatusOK, n.buildDetailedNetworkResources(nw))
+
+	nr, _ := n.cluster.GetNetworks()
+	for _, network := range nr {
+		if network.ID == term {
+			return httputils.WriteJSON(w, http.StatusOK, network)
+		}
+		if network.Name == term {
+			// Check the ID collision as we are in swarm scope here, and
+			// the map (of the listByFullName) may have already had a
+			// network with the same ID (from local scope previously)
+			if _, ok := listByFullName[network.ID]; !ok {
+				listByFullName[network.ID] = network
+			}
+		}
+		if strings.HasPrefix(network.ID, term) {
+			// Check the ID collision as we are in swarm scope here, and
+			// the map (of the listByPartialID) may have already had a
+			// network with the same ID (from local scope previously)
+			if _, ok := listByPartialID[network.ID]; !ok {
+				listByPartialID[network.ID] = network
+			}
+		}
+	}
+
+	// Find based on full name, returns true only if no duplicates
+	if len(listByFullName) == 1 {
+		for _, v := range listByFullName {
+			return httputils.WriteJSON(w, http.StatusOK, v)
+		}
+	}
+	if len(listByFullName) > 1 {
+		return fmt.Errorf("network %s is ambiguous (%d matches found based on name)", term, len(listByFullName))
+	}
+
+	// Find based on partial ID, returns true only if no duplicates
+	if len(listByPartialID) == 1 {
+		for _, v := range listByPartialID {
+			return httputils.WriteJSON(w, http.StatusOK, v)
+		}
+	}
+	if len(listByPartialID) > 1 {
+		return fmt.Errorf("network %s is ambiguous (%d matches found based on ID prefix)", term, len(listByPartialID))
+	}
+
+	return libnetwork.ErrNoSuchNetwork(term)
 }
 
 func (n *networkRouter) postNetworkCreate(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
