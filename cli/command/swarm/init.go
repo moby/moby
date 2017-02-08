@@ -16,9 +16,8 @@ import (
 
 type initOptions struct {
 	swarmOptions
-	listenAddr NodeAddrOption
-	// Not a NodeAddrOption because it has no default port.
-	advertiseAddr   string
+	listenAddr      NodeAddrOption
+	advertiseAddr   NodeAddrOption
 	forceNewCluster bool
 	availability    string
 }
@@ -39,7 +38,7 @@ func newInitCommand(dockerCli command.Cli) *cobra.Command {
 
 	flags := cmd.Flags()
 	flags.Var(&opts.listenAddr, flagListenAddr, "Listen address (format: <ip|interface>[:port])")
-	flags.StringVar(&opts.advertiseAddr, flagAdvertiseAddr, "", "Advertised address (format: <ip|interface>[:port])")
+	flags.Var(&opts.advertiseAddr, flagAdvertiseAddr, "Advertised address (format: <ip|interface>[:port])")
 	flags.BoolVar(&opts.forceNewCluster, "force-new-cluster", false, "Force create a new cluster from current state")
 	flags.BoolVar(&opts.autolock, flagAutolock, false, "Enable manager autolocking (requiring an unlock key to start a stopped manager)")
 	flags.StringVar(&opts.availability, flagAvailability, "active", "Availability of the node (active/pause/drain)")
@@ -53,7 +52,7 @@ func runInit(dockerCli command.Cli, flags *pflag.FlagSet, opts initOptions) erro
 
 	req := swarm.InitRequest{
 		ListenAddr:       opts.listenAddr.String(),
-		AdvertiseAddr:    opts.advertiseAddr,
+		AdvertiseAddr:    opts.advertiseAddr.String(),
 		ForceNewCluster:  opts.forceNewCluster,
 		Spec:             opts.swarmOptions.ToSpec(flags),
 		AutoLockManagers: opts.swarmOptions.autolock,

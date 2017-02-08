@@ -41,7 +41,7 @@ type swarmOptions struct {
 	autolock            bool
 }
 
-// NodeAddrOption is a pflag.Value for listening addresses
+// NodeAddrOption is a pflag.Value for addresses
 type NodeAddrOption struct {
 	addr string
 }
