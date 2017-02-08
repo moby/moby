@@ -30,15 +30,15 @@ func TestProgress(t *testing.T) {
 		t.Fatalf("Expected empty string, got '%s'", jp.String())
 	}
 
-	expected := "     1 B"
+	expected := "      1B"
 	jp2 := JSONProgress{Current: 1}
 	if jp2.String() != expected {
 		t.Fatalf("Expected %q, got %q", expected, jp2.String())
 	}
 
-	expectedStart := "[==========>                                        ]     20 B/100 B"
+	expectedStart := "[==========>                                        ]      20B/100B"
 	if termsz != nil && termsz.Width <= 110 {
-		expectedStart = "    20 B/100 B"
+		expectedStart = "    20B/100B"
 	}
 	jp3 := JSONProgress{Current: 20, Total: 100, Start: time.Now().Unix()}
 	// Just look at the start of the string
@@ -47,9 +47,9 @@ func TestProgress(t *testing.T) {
 		t.Fatalf("Expected to start with %q, got %q", expectedStart, jp3.String())
 	}
 
-	expected = "[=========================>                         ]     50 B/100 B"
+	expected = "[=========================>                         ]      50B/100B"
 	if termsz != nil && termsz.Width <= 110 {
-		expected = "    50 B/100 B"
+		expected = "    50B/100B"
 	}
 	jp4 := JSONProgress{Current: 50, Total: 100}
 	if jp4.String() != expected {
@@ -57,9 +57,9 @@ func TestProgress(t *testing.T) {
 	}
 
 	// this number can't be negative gh#7136
-	expected = "[==================================================>]     50 B"
+	expected = "[==================================================>]      50B"
 	if termsz != nil && termsz.Width <= 110 {
-		expected = "    50 B"
+		expected = "    50B"
 	}
 	jp5 := JSONProgress{Current: 50, Total: 40}
 	if jp5.String() != expected {
@@ -133,7 +133,7 @@ func TestJSONMessageDisplay(t *testing.T) {
 			Progress: &JSONProgress{Current: 1},
 		}: {
 			"",
-			fmt.Sprintf("%c[1K%c[K\rstatus      1 B\r", 27, 27),
+			fmt.Sprintf("%c[1K%c[K\rstatus       1B\r", 27, 27),
 		},
 	}
 
@@ -216,7 +216,7 @@ func TestDisplayJSONMessagesStream(t *testing.T) {
 		// With progressDetail
 		"{ \"id\": \"ID\", \"status\": \"status\", \"progressDetail\": { \"Current\": 1} }": {
 			"", // progressbar is disabled in non-terminal
-			fmt.Sprintf("\n%c[%dA%c[1K%c[K\rID: status      1 B\r%c[%dB", 27, 1, 27, 27, 27, 1),
+			fmt.Sprintf("\n%c[%dA%c[1K%c[K\rID: status       1B\r%c[%dB", 27, 1, 27, 27, 27, 1),
 		},
 	}
 

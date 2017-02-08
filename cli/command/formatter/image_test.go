@@ -34,7 +34,7 @@ func TestImageContext(t *testing.T) {
 		{imageContext{
 			i:     types.ImageSummary{Size: 10, VirtualSize: 10},
 			trunc: true,
-		}, "10 B", sizeHeader, ctx.Size},
+		}, "10B", sizeHeader, ctx.Size},
 		{imageContext{
 			i:     types.ImageSummary{Created: unix},
 			trunc: true,
@@ -109,9 +109,9 @@ func TestImageContextWrite(t *testing.T) {
 				},
 			},
 			`REPOSITORY          TAG                 IMAGE ID            CREATED             SIZE
-image               tag1                imageID1            24 hours ago        0 B
-image               tag2                imageID2            24 hours ago        0 B
-<none>              <none>              imageID3            24 hours ago        0 B
+image               tag1                imageID1            24 hours ago        0B
+image               tag2                imageID2            24 hours ago        0B
+<none>              <none>              imageID3            24 hours ago        0B
 `,
 		},
 		{
@@ -159,9 +159,9 @@ image               <none>
 				Digest: true,
 			},
 			`REPOSITORY          TAG                 DIGEST                                                                    IMAGE ID            CREATED             SIZE
-image               tag1                sha256:cbbf2f9a99b47fc460d422812b6a5adff7dfee951d8fa2e4a98caa0382cfbdbf   imageID1            24 hours ago        0 B
-image               tag2                <none>                                                                    imageID2            24 hours ago        0 B
-<none>              <none>              <none>                                                                    imageID3            24 hours ago        0 B
+image               tag1                sha256:cbbf2f9a99b47fc460d422812b6a5adff7dfee951d8fa2e4a98caa0382cfbdbf   imageID1            24 hours ago        0B
+image               tag2                <none>                                                                    imageID2            24 hours ago        0B
+<none>              <none>              <none>                                                                    imageID3            24 hours ago        0B
 `,
 		},
 		{
@@ -184,19 +184,19 @@ image               tag2                <none>                                  
 tag: tag1
 image_id: imageID1
 created_at: %s
-virtual_size: 0 B
+virtual_size: 0B
 
 repository: image
 tag: tag2
 image_id: imageID2
 created_at: %s
-virtual_size: 0 B
+virtual_size: 0B
 
 repository: <none>
 tag: <none>
 image_id: imageID3
 created_at: %s
-virtual_size: 0 B
+virtual_size: 0B
 
 `, expectedTime, expectedTime, expectedTime),
 		},
@@ -212,21 +212,21 @@ tag: tag1
 digest: sha256:cbbf2f9a99b47fc460d422812b6a5adff7dfee951d8fa2e4a98caa0382cfbdbf
 image_id: imageID1
 created_at: %s
-virtual_size: 0 B
+virtual_size: 0B
 
 repository: image
 tag: tag2
 digest: <none>
 image_id: imageID2
 created_at: %s
-virtual_size: 0 B
+virtual_size: 0B
 
 repository: <none>
 tag: <none>
 digest: <none>
 image_id: imageID3
 created_at: %s
-virtual_size: 0 B
+virtual_size: 0B
 
 `, expectedTime, expectedTime, expectedTime),
 		},

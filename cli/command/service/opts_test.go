@@ -12,7 +12,7 @@ import (
 
 func TestMemBytesString(t *testing.T) {
 	var mem opts.MemBytes = 1048576
-	assert.Equal(t, mem.String(), "1 MiB")
+	assert.Equal(t, mem.String(), "1MiB")
 }
 
 func TestMemBytesSetAndValue(t *testing.T) {
