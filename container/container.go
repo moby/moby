@@ -667,15 +667,32 @@ func (container *Container) BuildCreateEndpointOptions(n libnetwork.Network, epC
 
 	if epConfig != nil {
 		ipam := epConfig.IPAMConfig
-		if ipam != nil && (ipam.IPv4Address != "" || ipam.IPv6Address != "" || len(ipam.LinkLocalIPs) > 0) {
-			var ipList []net.IP
+
+		if ipam != nil {
+			var (
+				ipList          []net.IP
+				ip, ip6, linkip net.IP
+			)
+
 			for _, ips := range ipam.LinkLocalIPs {
-				if ip := net.ParseIP(ips); ip != nil {
-					ipList = append(ipList, ip)
+				if linkip = net.ParseIP(ips); linkip == nil && ips != "" {
+					return nil, fmt.Errorf("Invalid link-local IP address:%s", ipam.LinkLocalIPs)
 				}
+				ipList = append(ipList, linkip)
+
 			}
+
+			if ip = net.ParseIP(ipam.IPv4Address); ip == nil && ipam.IPv4Address != "" {
+				return nil, fmt.Errorf("Invalid IPv4 address:%s)", ipam.IPv4Address)
+			}
+
+			if ip6 = net.ParseIP(ipam.IPv6Address); ip6 == nil && ipam.IPv6Address != "" {
+				return nil, fmt.Errorf("Invalid IPv6 address:%s)", ipam.IPv6Address)
+			}
+
 			createOptions = append(createOptions,
-				libnetwork.CreateOptionIpam(net.ParseIP(ipam.IPv4Address), net.ParseIP(ipam.IPv6Address), ipList, nil))
+				libnetwork.CreateOptionIpam(ip, ip6, ipList, nil))
+
 		}
 
 		for _, alias := range epConfig.Aliases {
