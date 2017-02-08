@@ -645,19 +645,25 @@ func (n *network) watchMiss(nlSock *nl.NetlinkSocket) {
 				continue
 			}
 
-			if neigh.IP.To4() == nil {
-				if neigh.HardwareAddr != nil {
-					logrus.Debugf("Miss notification, l2 mac %v", neigh.HardwareAddr)
-				}
+			var (
+				ip  net.IP
+				mac net.HardwareAddr
+			)
+			if neigh.IP.To4() != nil {
+				ip = neigh.IP
+			} else if neigh.HardwareAddr != nil {
+				mac = []byte(neigh.HardwareAddr)
+				ip = net.IP(mac[2:])
+			} else {
 				continue
 			}
 
 			// Not any of the network's subnets. Ignore.
-			if !n.contains(neigh.IP) {
+			if !n.contains(ip) {
 				continue
 			}
 
-			logrus.Debugf("miss notification for dest IP, %v", neigh.IP.String())
+			logrus.Debugf("miss notification: dest IP %v, dest MAC %v", ip, mac)
 
 			if neigh.State&(netlink.NUD_STALE|netlink.NUD_INCOMPLETE) == 0 {
 				continue
@@ -667,14 +673,14 @@ func (n *network) watchMiss(nlSock *nl.NetlinkSocket) {
 				continue
 			}
 
-			mac, IPmask, vtep, err := n.driver.resolvePeer(n.id, neigh.IP)
+			mac, IPmask, vtep, err := n.driver.resolvePeer(n.id, ip)
 			if err != nil {
-				logrus.Errorf("could not resolve peer %q: %v", neigh.IP, err)
+				logrus.Errorf("could not resolve peer %q: %v", ip, err)
 				continue
 			}
 
-			if err := n.driver.peerAdd(n.id, "dummy", neigh.IP, IPmask, mac, vtep, true); err != nil {
-				logrus.Errorf("could not add neighbor entry for missed peer %q: %v", neigh.IP, err)
+			if err := n.driver.peerAdd(n.id, "dummy", ip, IPmask, mac, vtep, true); err != nil {
+				logrus.Errorf("could not add neighbor entry for missed peer %q: %v", ip, err)
 			}
 		}
 	}
