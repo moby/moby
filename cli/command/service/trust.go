@@ -9,6 +9,7 @@ import (
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/cli/command"
 	"github.com/docker/docker/cli/trust"
+	"github.com/docker/docker/client/clientutil"
 	"github.com/docker/docker/registry"
 	"github.com/docker/notary/tuf/data"
 	"github.com/opencontainers/go-digest"
@@ -58,7 +59,10 @@ func trustedResolveDigest(ctx context.Context, cli *command.DockerCli, ref refer
 		return nil, err
 	}
 
-	authConfig := command.ResolveAuthConfig(ctx, cli, repoInfo.Index)
+	authConfig, err := clientutil.ResolveAuthConfig(ctx, cli.Client(), cli.ConfigFile(), repoInfo.Index)
+	if err != nil {
+		return nil, err
+	}
 
 	notaryRepo, err := trust.GetNotaryRepository(cli, repoInfo, authConfig, "pull")
 	if err != nil {

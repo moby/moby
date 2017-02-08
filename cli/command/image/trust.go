@@ -14,6 +14,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/cli/command"
 	"github.com/docker/docker/cli/trust"
+	"github.com/docker/docker/client/clientutil"
 	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/docker/docker/registry"
 	"github.com/docker/notary/client"
@@ -203,7 +204,7 @@ func addTargetToAllSignableRoles(repo *client.NotaryRepository, target *client.T
 
 // imagePushPrivileged push the image
 func imagePushPrivileged(ctx context.Context, cli *command.DockerCli, authConfig types.AuthConfig, ref reference.Named, requestPrivilege types.RequestPrivilegeFunc) (io.ReadCloser, error) {
-	encodedAuth, err := command.EncodeAuthToBase64(authConfig)
+	encodedAuth, err := clientutil.EncodeAuthToBase64(authConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -297,7 +298,7 @@ func trustedPull(ctx context.Context, cli *command.DockerCli, repoInfo *registry
 // imagePullPrivileged pulls the image and displays it to the output
 func imagePullPrivileged(ctx context.Context, cli *command.DockerCli, authConfig types.AuthConfig, ref string, requestPrivilege types.RequestPrivilegeFunc, all bool) error {
 
-	encodedAuth, err := command.EncodeAuthToBase64(authConfig)
+	encodedAuth, err := clientutil.EncodeAuthToBase64(authConfig)
 	if err != nil {
 		return err
 	}
@@ -332,7 +333,10 @@ func TrustedReference(ctx context.Context, cli *command.DockerCli, ref reference
 	}
 
 	// Resolve the Auth config relevant for this server
-	authConfig := command.ResolveAuthConfig(ctx, cli, repoInfo.Index)
+	authConfig, err := clientutil.ResolveAuthConfig(ctx, cli.Client(), cli.ConfigFile(), repoInfo.Index)
+	if err != nil {
+		return nil, err
+	}
 
 	notaryRepo, err := trust.GetNotaryRepository(cli, repoInfo, authConfig, "pull")
 	if err != nil {

@@ -7,6 +7,7 @@ import (
 
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cli/command"
+	"github.com/docker/docker/client/clientutil"
 	"github.com/docker/docker/registry"
 	"github.com/spf13/cobra"
 )
@@ -35,7 +36,11 @@ func runLogout(dockerCli *command.DockerCli, serverAddress string) error {
 	var isDefaultRegistry bool
 
 	if serverAddress == "" {
-		serverAddress = command.ElectAuthServer(ctx, dockerCli)
+		var err error
+		serverAddress, err = clientutil.ElectAuthServer(ctx, dockerCli.Client())
+		if err != nil {
+			return err
+		}
 		isDefaultRegistry = true
 	}
 
@@ -68,7 +73,7 @@ func runLogout(dockerCli *command.DockerCli, serverAddress string) error {
 
 	fmt.Fprintf(dockerCli.Out(), "Removing login credentials for %s\n", hostnameAddress)
 	for _, r := range regsToLogout {
-		if err := dockerCli.CredentialsStore(r).Erase(r); err != nil {
+		if err := clientutil.CredentialsStore(dockerCli.ConfigFile(), r).Erase(r); err != nil {
 			fmt.Fprintf(dockerCli.Err(), "WARNING: could not erase credentials: %v\n", err)
 		}
 	}

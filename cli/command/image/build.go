@@ -19,6 +19,7 @@ import (
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cli/command"
 	"github.com/docker/docker/cli/command/image/build"
+	"github.com/docker/docker/client/clientutil"
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/fileutils"
@@ -274,7 +275,7 @@ func runBuild(dockerCli *command.DockerCli, options buildOptions) error {
 		}
 	}
 
-	authConfigs, _ := dockerCli.GetAllCredentials()
+	authConfigs, _ := clientutil.GetAllCredentials(dockerCli.ConfigFile())
 	buildOptions := types.ImageBuildOptions{
 		Memory:         memory,
 		MemorySwap:     memorySwap,

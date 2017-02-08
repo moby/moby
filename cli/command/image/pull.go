@@ -10,6 +10,7 @@ import (
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cli/command"
+	"github.com/docker/docker/client/clientutil"
 	"github.com/docker/docker/registry"
 	"github.com/spf13/cobra"
 )
@@ -65,7 +66,10 @@ func runPull(dockerCli *command.DockerCli, opts pullOptions) error {
 
 	ctx := context.Background()
 
-	authConfig := command.ResolveAuthConfig(ctx, dockerCli, repoInfo.Index)
+	authConfig, err := clientutil.ResolveAuthConfig(ctx, dockerCli.Client(), dockerCli.ConfigFile(), repoInfo.Index)
+	if err != nil {
+		return err
+	}
 	requestPrivilege := command.RegistryAuthenticationPrivilegedFunc(dockerCli, repoInfo.Index, "pull")
 
 	// Check if reference has a digest
