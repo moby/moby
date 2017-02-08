@@ -2,6 +2,7 @@ package registry
 
 import (
 	"fmt"
+	"strings"
 
 	"golang.org/x/net/context"
 
@@ -52,7 +53,10 @@ func runLogin(dockerCli *client.DockerCli, opts loginOptions) error {
 
 	var serverAddress string
 	var isDefaultRegistry bool
-	if opts.serverAddress != "" {
+
+	// when the user entered  custom registry  url, but the url is the default docker.io registry  so just ignore it
+	// without this check the login will succed, but the credentials will not be saved properly and can't be used
+	if opts.serverAddress != "" && !strings.Contains(opts.serverAddress, "docker.io") {
 		serverAddress = opts.serverAddress
 	} else {
 		serverAddress = dockerCli.ElectAuthServer(ctx)
