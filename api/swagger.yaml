@@ -6443,6 +6443,15 @@ paths:
           description: "Server error"
           schema:
             $ref: "#/definitions/ErrorResponse"
+      parameters:
+        - name: "filters"
+          in: "query"
+          type: "string"
+          description: |
+            A JSON encoded value of the filters (a `map[string][]string`) to process on the plugin list. Available filters:
+
+            - `capability=<capability name>`
+            - `enable=<true>|<false>`
       tags: ["Plugin"]
 
   /plugins/privileges:
