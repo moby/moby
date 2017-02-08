@@ -99,4 +99,28 @@
         settings: {
             configurations: [ z ],
             label:          "rebuild/z",
+
+# Once a day, randomly assign pull requests older than 2 weeks.
+- schedule:         "@daily"
+  operations:
+      - type:       random-assign
+        filters: {
+            age:    "2w",
+            is:     "pr",
+        }
+        settings: {
+            users: [
+                "anusha-ragunathan",
+                "cpuguy83",
+                "crosbymichael",
+                "dnephin",
+                "justincormack",
+                "lk4d4",
+                "mlaventure",
+                "thajeztah",
+                "tiborvass",
+                "tonistiigi",
+                "vdemeester",
+                "vieux",
+            ]
         }
