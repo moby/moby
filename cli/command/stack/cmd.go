@@ -30,6 +30,6 @@ func NewTopLevelDeployCommand(dockerCli *command.DockerCli) *cobra.Command {
 	cmd := newDeployCommand(dockerCli)
 	// Remove the aliases at the top level
 	cmd.Aliases = []string{}
-	cmd.Tags = map[string]string{"experimental": "", "version": "1.25"}
+	cmd.Tags = map[string]string{"version": "1.25"}
 	return cmd
 }
