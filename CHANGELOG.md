@@ -5,7 +5,13 @@ information on the list of deprecated flags and APIs please have a look at
 https://docs.docker.com/engine/deprecated/ where target removal dates can also
 be found.
 
-## 1.13.1 (2017-02-06)
+## 1.13.1 (2017-02-08)
+
+**IMPORTANT**: On Linux distributions where `devicemapper` was the default storage driver,
+the `overlay2`, or `overlay` is now used by default (if the kernel supports it).
+To use devicemapper, you can manually configure the storage driver to use through
+the `--storage-driver` daemon option, or by setting "storage-driver" in the `daemon.json`
+configuration file.
 
 **IMPORTANT**: In Docker 1.13, the managed plugin api changed, as compared to the experimental
 version introduced in Docker 1.12. You must **uninstall** plugins which you installed with Docker 1.12
@@ -28,7 +34,7 @@ To manually remove all plugins and resolve this problem, take the following step
 * Do not require a custom build of tini [#28454](https://github.com/docker/docker/pull/28454)
 * Upgrade to Go 1.7.5 [#30489](https://github.com/docker/docker/pull/30489)
 
-### Remote API (v1.25) & Client
+### Remote API (v1.26) & Client
 
 + Support secrets in docker stack deploy with compose file [#30144](https://github.com/docker/docker/pull/30144)
 
@@ -41,7 +47,7 @@ To manually remove all plugins and resolve this problem, take the following step
 
 ### Plugins
 
-* Fix network plugins [#30332](https://github.com/docker/docker/pull/30332)
+* Support global scoped network plugins (v2) in swarm mode [#30332](https://github.com/docker/docker/pull/30332)
 + Add `docker plugin upgrade` [#29414](https://github.com/docker/docker/pull/29414)
 
 ### Windows
@@ -50,6 +56,12 @@ To manually remove all plugins and resolve this problem, take the following step
 * Fix warning on Windows [#30730](https://github.com/docker/docker/pull/30730)
 
 ## 1.13.0 (2017-01-18)
+
+**IMPORTANT**: On Linux distributions where `devicemapper` was the default storage driver,
+the `overlay2`, or `overlay` is now used by default (if the kernel supports it).
+To use devicemapper, you can manually configure the storage driver to use through
+the `--storage-driver` daemon option, or by setting "storage-driver" in the `daemon.json`
+configuration file.
 
 **IMPORTANT**: In Docker 1.13, the managed plugin api changed, as compared to the experimental
 version introduced in Docker 1.12. You must **uninstall** plugins which you installed with Docker 1.12
