@@ -22,7 +22,7 @@ Join a swarm as a node and/or manager
 
 Options:
       --advertise-addr string   Advertised address (format: <ip|interface>[:port])
-      --availability string     Availability of the node (active/pause/drain) (default "active")
+      --availability string     Availability of the node ("active"|"pause"|"drain") (default "active")
       --help                    Print usage
       --listen-addr node-addr   Listen address (format: <ip|interface>[:port]) (default 0.0.0.0:2377)
       --token string            Token for entry into the swarm

@@ -31,8 +31,8 @@ func newUpdateCommand(dockerCli command.Cli) *cobra.Command {
 	}
 
 	flags := cmd.Flags()
-	flags.StringVar(&nodeOpts.role, flagRole, "", "Role of the node (worker/manager)")
-	flags.StringVar(&nodeOpts.availability, flagAvailability, "", "Availability of the node (active/pause/drain)")
+	flags.StringVar(&nodeOpts.role, flagRole, "", `Role of the node ("worker"|"manager")`)
+	flags.StringVar(&nodeOpts.availability, flagAvailability, "", `Availability of the node ("active"|"pause"|"drain")`)
 	flags.Var(&nodeOpts.annotations.labels, flagLabelAdd, "Add or update a node label (key=value)")
 	labelKeys := opts.NewListOpts(nil)
 	flags.Var(&labelKeys, flagLabelRemove, "Remove a node label if exists")

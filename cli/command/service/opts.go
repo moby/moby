@@ -446,7 +446,7 @@ func addServiceFlags(cmd *cobra.Command, opts *serviceOptions) {
 
 	flags.Var(&opts.replicas, flagReplicas, "Number of tasks")
 
-	flags.StringVar(&opts.restartPolicy.condition, flagRestartCondition, "", "Restart when condition is met (none, on-failure, or any)")
+	flags.StringVar(&opts.restartPolicy.condition, flagRestartCondition, "", `Restart when condition is met ("none"|"on-failure"|"any")`)
 	flags.Var(&opts.restartPolicy.delay, flagRestartDelay, "Delay between restart attempts (ns|us|ms|s|m|h)")
 	flags.Var(&opts.restartPolicy.maxAttempts, flagRestartMaxAttempts, "Maximum number of restarts before giving up")
 	flags.Var(&opts.restartPolicy.window, flagRestartWindow, "Window used to evaluate the restart policy (ns|us|ms|s|m|h)")
@@ -455,7 +455,7 @@ func addServiceFlags(cmd *cobra.Command, opts *serviceOptions) {
 	flags.DurationVar(&opts.update.delay, flagUpdateDelay, time.Duration(0), "Delay between updates (ns|us|ms|s|m|h) (default 0s)")
 	flags.DurationVar(&opts.update.monitor, flagUpdateMonitor, time.Duration(0), "Duration after each task update to monitor for failure (ns|us|ms|s|m|h) (default 0s)")
 	flags.SetAnnotation(flagUpdateMonitor, "version", []string{"1.25"})
-	flags.StringVar(&opts.update.onFailure, flagUpdateFailureAction, "pause", "Action on update failure (pause|continue)")
+	flags.StringVar(&opts.update.onFailure, flagUpdateFailureAction, "pause", `Action on update failure ("pause"|"continue")`)
 	flags.Var(&opts.update.maxFailureRatio, flagUpdateMaxFailureRatio, "Failure rate to tolerate during an update")
 	flags.SetAnnotation(flagUpdateMaxFailureRatio, "version", []string{"1.25"})
 
