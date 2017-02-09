@@ -23,19 +23,22 @@ List containers
 Options:
   -a, --all             Show all containers (default shows just running)
   -f, --filter value    Filter output based on conditions provided (default [])
-                        - exited=<int> an exit code of <int>
-                        - label=<key> or label=<key>=<value>
-                        - status=(created|restarting|removing|running|paused|exited)
-                        - name=<string> a container's name
-                        - id=<ID> a container's ID
-                        - before=(<container-name>|<container-id>)
-                        - since=(<container-name>|<container-id>)
                         - ancestor=(<image-name>[:tag]|<image-id>|<image@digest>)
                           containers created from an image or a descendant.
-                        - publish=(<port>[/<proto>]|<startport-endport>/[<proto>])
+                        - before=(<container-name>|<container-id>)
                         - expose=(<port>[/<proto>]|<startport-endport>/[<proto>])
-                        - is-task=(true|false)
+                        - exited=<int> an exit code of <int>
                         - health=(starting|healthy|unhealthy|none)
+                        - id=<ID> a container's ID
+                        - isolation=(`default`|`process`|`hyperv`) (Windows daemon only)
+                        - is-task=(true|false)
+                        - label=<key> or label=<key>=<value>
+                        - name=<string> a container's name
+                        - network=(<network-id>|<network-name>)
+                        - publish=(<port>[/<proto>]|<startport-endport>/[<proto>])
+                        - since=(<container-name>|<container-id>)
+                        - status=(created|restarting|removing|running|paused|exited) 
+                        - volume=(<volume name>|<mount point destination>)
       --format string   Pretty-print containers using a Go template
       --help            Print usage
   -n, --last int        Show n last created containers (includes all states) (default -1)
