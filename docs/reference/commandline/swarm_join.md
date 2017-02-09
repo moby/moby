@@ -27,9 +27,13 @@ Options:
       --token string            Token for entry into the swarm
 ```
 
+## Description
+
 Join a node to a swarm. The node joins as a manager node or worker node based upon the token you
 pass with the `--token` flag. If you pass a manager token, the node joins as a manager. If you
 pass a worker token, the node joins as a worker.
+
+## Examples
 
 ### Join a node to swarm as a manager
 
@@ -95,7 +99,7 @@ This flag is generally not necessary when joining an existing swarm.
 Secret value required for nodes to join the swarm
 
 
-## Related information
+## Related commands
 
 * [swarm init](swarm_init.md)
 * [swarm leave](swarm_leave.md)
