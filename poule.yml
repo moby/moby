@@ -1,6 +1,6 @@
 # Add a "status/0-triage" to every newly opened pull request.
 - triggers:
-      pull_request: [ opened ]
+      broken: [ opened ]
   operations:
       - type:       label
         filters: {
