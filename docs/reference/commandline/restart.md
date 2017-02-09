@@ -24,3 +24,9 @@ Options:
       --help       Print usage
   -t, --time int   Seconds to wait for stop before killing the container (default 10)
 ```
+
+## Examples
+
+```bash
+$ docker restart my_container
+```

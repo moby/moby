@@ -28,6 +28,8 @@ Options:
   -p, --pause            Pause container during commit (default true)
 ```
 
+## Description
+
 It can be useful to commit a container's file changes or settings into a new
 image. This allows you debug a container by running an interactive shell, or to
 export a working dataset to another server. Generally, it is better to use
@@ -46,48 +48,72 @@ The `--change` option will apply `Dockerfile` instructions to the image that is
 created.  Supported `Dockerfile` instructions:
 `CMD`|`ENTRYPOINT`|`ENV`|`EXPOSE`|`LABEL`|`ONBUILD`|`USER`|`VOLUME`|`WORKDIR`
 
-## Commit a container
+## Examples
 
-    $ docker ps
-    CONTAINER ID        IMAGE               COMMAND             CREATED             STATUS              PORTS              NAMES
-    c3f279d17e0a        ubuntu:12.04        /bin/bash           7 days ago          Up 25 hours                            desperate_dubinsky
-    197387f1b436        ubuntu:12.04        /bin/bash           7 days ago          Up 25 hours                            focused_hamilton
-    $ docker commit c3f279d17e0a  svendowideit/testimage:version3
-    f5283438590d
-    $ docker images
-    REPOSITORY                        TAG                 ID                  CREATED             SIZE
-    svendowideit/testimage            version3            f5283438590d        16 seconds ago      335.7 MB
+### Commit a container
 
-## Commit a container with new configurations
+```bash
+$ docker ps
 
-    {% raw %}
-    $ docker ps
-    ICONTAINER ID       IMAGE               COMMAND             CREATED             STATUS              PORTS              NAMES
-    c3f279d17e0a        ubuntu:12.04        /bin/bash           7 days ago          Up 25 hours                            desperate_dubinsky
-    197387f1b436        ubuntu:12.04        /bin/bash           7 days ago          Up 25 hours                            focused_hamilton
-    $ docker inspect -f "{{ .Config.Env }}" c3f279d17e0a
-    [HOME=/ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin]
-    $ docker commit --change "ENV DEBUG true" c3f279d17e0a  svendowideit/testimage:version3
-    f5283438590d
-    $ docker inspect -f "{{ .Config.Env }}" f5283438590d
-    [HOME=/ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin DEBUG=true]
-    {% endraw %}
+CONTAINER ID        IMAGE               COMMAND             CREATED             STATUS              PORTS              NAMES
+c3f279d17e0a        ubuntu:12.04        /bin/bash           7 days ago          Up 25 hours                            desperate_dubinsky
+197387f1b436        ubuntu:12.04        /bin/bash           7 days ago          Up 25 hours                            focused_hamilton
 
-## Commit a container with new `CMD` and `EXPOSE` instructions
+$ docker commit c3f279d17e0a  svendowideit/testimage:version3
 
-    $ docker ps
-    CONTAINER ID        IMAGE               COMMAND             CREATED             STATUS              PORTS              NAMES
-    c3f279d17e0a        ubuntu:12.04        /bin/bash           7 days ago          Up 25 hours                            desperate_dubinsky
-    197387f1b436        ubuntu:12.04        /bin/bash           7 days ago          Up 25 hours                            focused_hamilton
+f5283438590d
 
-    $ docker commit --change='CMD ["apachectl", "-DFOREGROUND"]' -c "EXPOSE 80" c3f279d17e0a  svendowideit/testimage:version4
-    f5283438590d
+$ docker images
 
-    $ docker run -d svendowideit/testimage:version4
-    89373736e2e7f00bc149bd783073ac43d0507da250e999f3f1036e0db60817c0
+REPOSITORY                        TAG                 ID                  CREATED             SIZE
+svendowideit/testimage            version3            f5283438590d        16 seconds ago      335.7 MB
+```
 
-    $ docker ps
-    CONTAINER ID        IMAGE               COMMAND                 CREATED             STATUS              PORTS              NAMES
-    89373736e2e7        testimage:version4  "apachectl -DFOREGROU"  3 seconds ago       Up 2 seconds        80/tcp             distracted_fermat
-    c3f279d17e0a        ubuntu:12.04        /bin/bash               7 days ago          Up 25 hours                            desperate_dubinsky
-    197387f1b436        ubuntu:12.04        /bin/bash               7 days ago          Up 25 hours                            focused_hamilton
+### Commit a container with new configurations
+
+```bash
+{% raw %}
+$ docker ps
+
+ICONTAINER ID       IMAGE               COMMAND             CREATED             STATUS              PORTS              NAMES
+c3f279d17e0a        ubuntu:12.04        /bin/bash           7 days ago          Up 25 hours                            desperate_dubinsky
+197387f1b436        ubuntu:12.04        /bin/bash           7 days ago          Up 25 hours                            focused_hamilton
+
+$ docker inspect -f "{{ .Config.Env }}" c3f279d17e0a
+
+[HOME=/ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin]
+
+$ docker commit --change "ENV DEBUG true" c3f279d17e0a  svendowideit/testimage:version3
+
+f5283438590d
+
+$ docker inspect -f "{{ .Config.Env }}" f5283438590d
+
+[HOME=/ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin DEBUG=true]
+{% endraw %}
+```
+
+### Commit a container with new `CMD` and `EXPOSE` instructions
+
+```bash
+$ docker ps
+
+CONTAINER ID        IMAGE               COMMAND             CREATED             STATUS              PORTS              NAMES
+c3f279d17e0a        ubuntu:12.04        /bin/bash           7 days ago          Up 25 hours                            desperate_dubinsky
+197387f1b436        ubuntu:12.04        /bin/bash           7 days ago          Up 25 hours                            focused_hamilton
+
+$ docker commit --change='CMD ["apachectl", "-DFOREGROUND"]' -c "EXPOSE 80" c3f279d17e0a  svendowideit/testimage:version4
+
+f5283438590d
+
+$ docker run -d svendowideit/testimage:version4
+
+89373736e2e7f00bc149bd783073ac43d0507da250e999f3f1036e0db60817c0
+
+$ docker ps
+
+CONTAINER ID        IMAGE               COMMAND                 CREATED             STATUS              PORTS              NAMES
+89373736e2e7        testimage:version4  "apachectl -DFOREGROU"  3 seconds ago       Up 2 seconds        80/tcp             distracted_fermat
+c3f279d17e0a        ubuntu:12.04        /bin/bash               7 days ago          Up 25 hours                            desperate_dubinsky
+197387f1b436        ubuntu:12.04        /bin/bash               7 days ago          Up 25 hours                            focused_hamilton
+```

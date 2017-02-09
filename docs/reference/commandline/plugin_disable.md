@@ -25,10 +25,13 @@ Options:
       --help    Print usage
 ```
 
+## Description
+
 Disables a plugin. The plugin must be installed before it can be disabled,
 see [`docker plugin install`](plugin_install.md). Without the `-f` option,
 a plugin that has references (eg, volumes, networks) cannot be disabled.
 
+## Examples
 
 The following example shows that the `sample-volume-plugin` plugin is installed
 and enabled:
@@ -53,7 +56,7 @@ ID                  NAME                             TAG                 DESCRIP
 69553ca1d123        tiborvass/sample-volume-plugin   latest              A test plugin for Docker   false
 ```
 
-## Related information
+## Related commands
 
 * [plugin create](plugin_create.md)
 * [plugin enable](plugin_enable.md)

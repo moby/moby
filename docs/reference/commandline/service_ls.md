@@ -30,12 +30,18 @@ Options:
   -q, --quiet           Only display IDs
 ```
 
+## Description
+
 This command when run targeting a manager, lists services are running in the
 swarm.
 
+## Examples
+
 On a manager node:
+
 ```bash
 $ docker service ls
+
 ID            NAME      MODE        REPLICAS    IMAGE
 c8wgl7q4ndfd  frontend  replicated  5/5         nginx:alpine
 dmu1ept4cxcf  redis     replicated  3/3         redis:3.0.6
@@ -45,7 +51,7 @@ iwe3278osahj  mongo     global      7/7         mongo:3.3
 The `REPLICAS` column shows both the *actual* and *desired* number of tasks for
 the service.
 
-## Filtering
+### Filtering
 
 The filtering flag (`-f` or `--filter`) format is of "key=value". If there is more
 than one filter, then pass multiple flags (e.g., `--filter "foo=bar" --filter "bif=baz"`)
@@ -56,7 +62,7 @@ The currently supported filters are:
 * [label](service_ls.md#label)
 * [name](service_ls.md#name)
 
-#### ID
+#### id
 
 The `id` filter matches all or part of a service's id.
 
@@ -66,7 +72,7 @@ ID            NAME   MODE        REPLICAS  IMAGE
 0bcjwfh8ychr  redis  replicated  1/1       redis:3.0.6
 ```
 
-#### Label
+#### label
 
 The `label` filter matches services based on the presence of a `label` alone or
 a `label` and a value.
@@ -92,7 +98,7 @@ ID            NAME      MODE        REPLICAS  IMAGE
 74nzcxxjv6fq  backend   replicated  3/3       redis:3.0.6
 ```
 
-#### Name
+#### name
 
 The `name` filter matches on all or part of a service's name.
 
@@ -104,7 +110,7 @@ ID            NAME   MODE        REPLICAS  IMAGE
 0bcjwfh8ychr  redis  replicated  1/1       redis:3.0.6
 ```
 
-## Formatting
+### Formatting
 
 The formatting options (`--format`) pretty-prints services output
 using a Go template.
@@ -127,12 +133,15 @@ The following example uses a template without headers and outputs the
 `ID`, `Mode`, and `Replicas` entries separated by a colon for all services:
 
 ```bash
+{% raw %}
 $ docker service ls --format "{{.ID}}: {{.Mode}} {{.Replicas}}"
+
 0zmvwuiu3vue: replicated 10/10
 fm6uf97exkul: global 5/5
+{% endraw %}
 ```
 
-## Related information
+## Related commands
 
 * [service create](service_create.md)
 * [service inspect](service_inspect.md)

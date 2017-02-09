@@ -13,7 +13,7 @@ keywords: "Docker, Docker documentation, CLI, command line"
      will be rejected.
 -->
 
-# Use the Docker command line
+# docker
 
 To list available commands, either run `docker` with no parameters
 or execute `docker help`:
@@ -43,6 +43,8 @@ Commands:
     # […]
 ```
 
+## Description
+
 Depending on your Docker system configuration, you may be required to preface
 each `docker` command with `sudo`. To avoid having to use `sudo` with the
 `docker` command, your system administrator can create a Unix group called
@@ -51,7 +53,7 @@ each `docker` command with `sudo`. To avoid having to use `sudo` with the
 For more information about installing Docker or `sudo` configuration, refer to
 the [installation](https://docs.docker.com/engine/installation/) instructions for your operating system.
 
-## Environment variables
+### Environment variables
 
 For easy reference, the following list of environment variables are supported
 by the `docker` command line:
@@ -69,7 +71,7 @@ by the `docker` command line:
   Equates to `--disable-content-trust=false` for build, create, pull, push, run.
 * `DOCKER_CONTENT_TRUST_SERVER` The URL of the Notary server to use. This defaults
   to the same URL as the registry.
-* `DOCKER_HIDE_LEGACY_COMMANDS` When set, Docker hides "legacy" top-level commands (such as `docker rm`, and 
+* `DOCKER_HIDE_LEGACY_COMMANDS` When set, Docker hides "legacy" top-level commands (such as `docker rm`, and
   `docker pull`) in `docker help` output, and only `Management commands` per object-type (e.g., `docker container`) are
   printed. This may become the default in a future release, at which point this environment-variable is removed.
 * `DOCKER_TMPDIR` Location for temporary Docker files.
@@ -85,7 +87,7 @@ These Go environment variables are case-insensitive. See the
 [Go specification](http://golang.org/pkg/net/http/) for details on these
 variables.
 
-## Configuration files
+### Configuration files
 
 By default, the Docker command line stores its configuration files in a
 directory called `.docker` within your `$HOME` directory. However, you can
@@ -192,25 +194,27 @@ attach`, `docker exec`, `docker run` or `docker start` command.
 
 Following is a sample `config.json` file:
 
-    {% raw %}
-    {
-      "HttpHeaders": {
-        "MyHeader": "MyValue"
-      },
-      "psFormat": "table {{.ID}}\\t{{.Image}}\\t{{.Command}}\\t{{.Labels}}",
-      "imagesFormat": "table {{.ID}}\\t{{.Repository}}\\t{{.Tag}}\\t{{.CreatedAt}}",
-      "pluginsFormat": "table {{.ID}}\t{{.Name}}\t{{.Enabled}}",
-      "statsFormat": "table {{.Container}}\t{{.CPUPerc}}\t{{.MemUsage}}",
-      "servicesFormat": "table {{.ID}}\t{{.Name}}\t{{.Mode}}",
-      "serviceInspectFormat": "pretty",
-      "detachKeys": "ctrl-e,e",
-      "credsStore": "secretservice",
-      "credHelpers": {
-        "awesomereg.example.org": "hip-star",
-        "unicorn.example.com": "vcbait"
-      }
-    }
-    {% endraw %}
+```json
+{% raw %}
+{
+  "HttpHeaders": {
+    "MyHeader": "MyValue"
+  },
+  "psFormat": "table {{.ID}}\\t{{.Image}}\\t{{.Command}}\\t{{.Labels}}",
+  "imagesFormat": "table {{.ID}}\\t{{.Repository}}\\t{{.Tag}}\\t{{.CreatedAt}}",
+  "pluginsFormat": "table {{.ID}}\t{{.Name}}\t{{.Enabled}}",
+  "statsFormat": "table {{.Container}}\t{{.CPUPerc}}\t{{.MemUsage}}",
+  "servicesFormat": "table {{.ID}}\t{{.Name}}\t{{.Mode}}",
+  "serviceInspectFormat": "pretty",
+  "detachKeys": "ctrl-e,e",
+  "credsStore": "secretservice",
+  "credHelpers": {
+    "awesomereg.example.org": "hip-star",
+    "unicorn.example.com": "vcbait"
+  }
+}
+{% endraw %}
+```
 
 ### Notary
 
@@ -221,7 +225,9 @@ Certificate Authority, you need to place the certificate at
 Alternatively you can trust the certificate globally by adding it to your system's
 list of root Certificate Authorities.
 
-## Help
+## Examples
+
+### Display help text
 
 To list the help on any command just execute the command, followed by the
 `--help` option.
@@ -237,13 +243,13 @@ To list the help on any command just execute the command, followed by the
       -a, --attach value               Attach to STDIN, STDOUT or STDERR (default [])
     ...
 
-## Option types
+### Option types
 
 Single character command line options can be combined, so rather than
 typing `docker run -i -t --name test busybox sh`,
 you can write `docker run -it --name test busybox sh`.
 
-### Boolean
+#### Boolean
 
 Boolean options take the form `-d=false`. The value you see in the help text is
 the default value which is set if you do **not** specify that flag. If you
@@ -256,27 +262,33 @@ container **will** run in "detached" mode, in the background.
 Options which default to `true` (e.g., `docker build --rm=true`) can only be
 set to the non-default value by explicitly setting them to `false`:
 
-    $ docker build --rm=false .
+```bash
+$ docker build --rm=false .
+```
 
-### Multi
+#### Multi
 
 You can specify options like `-a=[]` multiple times in a single command line,
 for example in these commands:
 
-    $ docker run -a stdin -a stdout -i -t ubuntu /bin/bash
-    $ docker run -a stdin -a stdout -a stderr ubuntu /bin/ls
+```bash
+$ docker run -a stdin -a stdout -i -t ubuntu /bin/bash
+
+$ docker run -a stdin -a stdout -a stderr ubuntu /bin/ls
+```
 
 Sometimes, multiple options can call for a more complex value string as for
 `-v`:
 
-    $ docker run -v /host:/container example/mysql
+```bash
+$ docker run -v /host:/container example/mysql
+```
 
-> **Note:**
-> Do not use the `-t` and `-a stderr` options together due to
+> **Note**: Do not use the `-t` and `-a stderr` options together due to
 > limitations in the `pty` implementation. All `stderr` in `pty` mode
 > simply goes to `stdout`.
 
-### Strings and Integers
+#### Strings and Integers
 
 Options like `--name=""` expect a string, and they
 can only be specified once. Options like `-c=0`
