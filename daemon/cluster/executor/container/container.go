@@ -342,6 +342,8 @@ func (c *containerConfig) hostConfig() *enginecontainer.HostConfig {
 		ReadonlyRootfs: c.spec().ReadOnly,
 	}
 
+	applySecurityConfig(hc, c.spec().SecurityConfig)
+
 	if c.spec().DNSConfig != nil {
 		hc.DNS = c.spec().DNSConfig.Nameservers
 		hc.DNSSearch = c.spec().DNSConfig.Search

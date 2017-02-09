@@ -30,6 +30,13 @@ func containerSpecFromGRPC(c *swarmapi.ContainerSpec) types.ContainerSpec {
 		Secrets:   secretReferencesFromGRPC(c.Secrets),
 	}
 
+	if c.SecurityConfig != nil {
+		containerSpec.SecurityConfig = &types.SecurityConfig{
+			Userns:         c.SecurityConfig.Userns,
+			CredentialSpec: c.SecurityConfig.CredentialSpec,
+		}
+	}
+
 	if c.DNSConfig != nil {
 		containerSpec.DNSConfig = &types.DNSConfig{
 			Nameservers: c.DNSConfig.Nameservers,
@@ -150,6 +157,13 @@ func containerToGRPC(c types.ContainerSpec) (*swarmapi.ContainerSpec, error) {
 		ReadOnly:  c.ReadOnly,
 		Hosts:     c.Hosts,
 		Secrets:   secretReferencesToGRPC(c.Secrets),
+	}
+
+	if c.SecurityConfig != nil {
+		containerSpec.SecurityConfig = &swarmapi.ContainerSpec_SecurityConfig{
+			Userns:         c.SecurityConfig.Userns,
+			CredentialSpec: c.SecurityConfig.CredentialSpec,
+		}
 	}
 
 	if c.DNSConfig != nil {
