@@ -31,10 +31,9 @@ func Init(proto, addr, socketGroup string, tlsConfig *tls.Config) ([]net.Listene
 		}
 		ls = append(ls, l)
 	case "unix":
-
-		gid, err := strconv.Atoi(socketGroup)
+		gid, err := lookupGID(socketGroup)
 		if err != nil {
-			return nil, fmt.Errorf("failed to parse socket group id: should be a number: %v", socketGroup)
+			return nil, err
 		}
 		l, err := sockets.NewUnixSocket(addr, gid)
 		if err != nil {
