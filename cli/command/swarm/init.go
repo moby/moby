@@ -78,7 +78,7 @@ func runInit(dockerCli command.Cli, flags *pflag.FlagSet, opts initOptions) erro
 
 	fmt.Fprintf(dockerCli.Out(), "Swarm initialized: current node (%s) is now a manager.\n\n", nodeID)
 
-	if err := printJoinCommand(ctx, dockerCli, nodeID, false, true); err != nil {
+	if err := printJoinCommand(ctx, dockerCli, nodeID, true, false); err != nil {
 		return err
 	}
 
