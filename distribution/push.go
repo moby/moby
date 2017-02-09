@@ -25,6 +25,7 @@ type Pusher interface {
 }
 
 const compressionBufSize = 32768
+const parallelCompressionBlockSize = 256 << 10
 
 // NewPusher creates a new Pusher interface that will push to either a v1 or v2
 // registry. The endpoint argument contains a Version field that determines
@@ -159,21 +160,14 @@ func Push(ctx context.Context, ref reference.Named, imagePushConfig *ImagePushCo
 // is finished. This allows the caller to make sure the goroutine finishes
 // before it releases any resources connected with the reader that was
 // passed in.
-func compress(in io.Reader, parallel bool) (io.ReadCloser, chan struct{}) {
+func compress(in io.Reader, compressionThreads int) (io.ReadCloser, chan struct{}) {
 	compressionDone := make(chan struct{})
 
 	pipeReader, pipeWriter := io.Pipe()
 	// Use a bufio.Writer to avoid excessive chunking in HTTP request.
 	bufWriter := bufio.NewWriterSize(pipeWriter, compressionBufSize)
 
-	// Use pgzip for compression if requested
-	var compressor io.WriteCloser
-	if parallel {
-		logrus.Debugf("Compressing push with pgzip")
-		compressor = pgzip.NewWriter(bufWriter)
-	} else {
-		compressor = gzip.NewWriter(bufWriter)
-	}
+	compressor := newCompressor(bufWriter, compressionThreads)
 
 	go func() {
 		_, err := io.Copy(compressor, in)
@@ -192,4 +186,17 @@ func compress(in io.Reader, parallel bool) (io.ReadCloser, chan struct{}) {
 	}()
 
 	return pipeReader, compressionDone
+}
+
+// return the correct compressor based on the given number of threads,
+// wrapping the given writer.
+func newCompressor(bufWriter io.Writer, compressionThreads int) io.WriteCloser {
+	// Use pgzip for compression if multi-threaded compression is requested
+	if compressionThreads > 1 {
+		logrus.Debugf("Compressing push with pgzip with %i threads", compressionThreads)
+		compressor := pgzip.NewWriter(bufWriter)
+		compressor.SetConcurrency(parallelCompressionBlockSize, compressionThreads)
+		return compressor
+	}
+	return gzip.NewWriter(bufWriter)
 }
