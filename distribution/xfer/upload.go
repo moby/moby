@@ -16,6 +16,7 @@ const maxUploadAttempts = 5
 // LayerUploadManager provides task management and progress reporting for
 // uploads.
 type LayerUploadManager struct {
+	parallelGzip bool
 	tm           TransferManager
 	waitDuration time.Duration
 }
@@ -26,8 +27,9 @@ func (lum *LayerUploadManager) SetConcurrency(concurrency int) {
 }
 
 // NewLayerUploadManager returns a new LayerUploadManager.
-func NewLayerUploadManager(concurrencyLimit int, options ...func(*LayerUploadManager)) *LayerUploadManager {
+func NewLayerUploadManager(concurrencyLimit int, parallelGzip bool, options ...func(*LayerUploadManager)) *LayerUploadManager {
 	manager := LayerUploadManager{
+		parallelGzip: parallelGzip,
 		tm:           NewTransferManager(concurrencyLimit),
 		waitDuration: time.Second,
 	}
@@ -53,7 +55,7 @@ type UploadDescriptor interface {
 	// DiffID should return the DiffID for this layer.
 	DiffID() layer.DiffID
 	// Upload is called to perform the Upload.
-	Upload(ctx context.Context, progressOutput progress.Output) (distribution.Descriptor, error)
+	Upload(ctx context.Context, progressOutput progress.Output, parallelGzip bool) (distribution.Descriptor, error)
 	// SetRemoteDescriptor provides the distribution.Descriptor that was
 	// returned by Upload. This descriptor is not to be confused with
 	// the UploadDescriptor interface, which is used for internally
@@ -124,7 +126,7 @@ func (lum *LayerUploadManager) makeUploadFunc(descriptor UploadDescriptor) DoFun
 
 			retries := 0
 			for {
-				remoteDescriptor, err := descriptor.Upload(u.Transfer.Context(), progressOutput)
+				remoteDescriptor, err := descriptor.Upload(u.Transfer.Context(), progressOutput, lum.parallelGzip)
 				if err == nil {
 					u.remoteDescriptor = remoteDescriptor
 					break

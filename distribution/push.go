@@ -11,6 +11,7 @@ import (
 	"github.com/docker/docker/distribution/metadata"
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/registry"
+	"github.com/klauspost/pgzip"
 	"golang.org/x/net/context"
 )
 
@@ -158,13 +159,21 @@ func Push(ctx context.Context, ref reference.Named, imagePushConfig *ImagePushCo
 // is finished. This allows the caller to make sure the goroutine finishes
 // before it releases any resources connected with the reader that was
 // passed in.
-func compress(in io.Reader) (io.ReadCloser, chan struct{}) {
+func compress(in io.Reader, parallel bool) (io.ReadCloser, chan struct{}) {
 	compressionDone := make(chan struct{})
 
 	pipeReader, pipeWriter := io.Pipe()
 	// Use a bufio.Writer to avoid excessive chunking in HTTP request.
 	bufWriter := bufio.NewWriterSize(pipeWriter, compressionBufSize)
-	compressor := gzip.NewWriter(bufWriter)
+
+	// Use pgzip for compression if requested
+	var compressor io.WriteCloser
+	if parallel {
+		logrus.Debugf("Compressing push with pgzip")
+		compressor = pgzip.NewWriter(bufWriter)
+	} else {
+		compressor = gzip.NewWriter(bufWriter)
+	}
 
 	go func() {
 		_, err := io.Copy(compressor, in)

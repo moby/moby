@@ -601,7 +601,7 @@ func NewDaemon(config *Config, registryService registry.Service, containerdRemot
 	logrus.Debugf("Max Concurrent Downloads: %d", *config.MaxConcurrentDownloads)
 	d.downloadManager = xfer.NewLayerDownloadManager(d.layerStore, *config.MaxConcurrentDownloads)
 	logrus.Debugf("Max Concurrent Uploads: %d", *config.MaxConcurrentUploads)
-	d.uploadManager = xfer.NewLayerUploadManager(*config.MaxConcurrentUploads)
+	d.uploadManager = xfer.NewLayerUploadManager(*config.MaxConcurrentUploads, config.ParallelGzip)
 
 	ifs, err := image.NewFSStoreBackend(filepath.Join(imageRoot, "imagedb"))
 	if err != nil {

@@ -40,7 +40,7 @@ func (u *mockUploadDescriptor) SetRemoteDescriptor(remoteDescriptor distribution
 }
 
 // Upload is called to perform the upload.
-func (u *mockUploadDescriptor) Upload(ctx context.Context, progressOutput progress.Output) (distribution.Descriptor, error) {
+func (u *mockUploadDescriptor) Upload(ctx context.Context, progressOutput progress.Output, parallelGzip bool) (distribution.Descriptor, error) {
 	if u.currentUploads != nil {
 		defer atomic.AddInt32(u.currentUploads, -1)
 
@@ -79,7 +79,7 @@ func uploadDescriptors(currentUploads *int32) []UploadDescriptor {
 }
 
 func TestSuccessfulUpload(t *testing.T) {
-	lum := NewLayerUploadManager(maxUploadConcurrency, func(m *LayerUploadManager) { m.waitDuration = time.Millisecond })
+	lum := NewLayerUploadManager(maxUploadConcurrency, false, func(m *LayerUploadManager) { m.waitDuration = time.Millisecond })
 
 	progressChan := make(chan progress.Progress)
 	progressDone := make(chan struct{})
@@ -105,7 +105,7 @@ func TestSuccessfulUpload(t *testing.T) {
 }
 
 func TestCancelledUpload(t *testing.T) {
-	lum := NewLayerUploadManager(maxUploadConcurrency, func(m *LayerUploadManager) { m.waitDuration = time.Millisecond })
+	lum := NewLayerUploadManager(maxUploadConcurrency, false, func(m *LayerUploadManager) { m.waitDuration = time.Millisecond })
 
 	progressChan := make(chan progress.Progress)
 	progressDone := make(chan struct{})

@@ -129,6 +129,10 @@ type CommonConfig struct {
 	// may take place at a time for each push.
 	MaxConcurrentUploads *int `json:"max-concurrent-uploads,omitempty"`
 
+	// ParallelGzip enables multi-threaded gzip compression on image push,
+	// using pgzip instead of the normal compress/gzip library
+	ParallelGzip bool `json:"parallel-gzip,omitempty"`
+
 	// ShutdownTimeout is the timeout value (in seconds) the daemon will wait for the container
 	// to stop when daemon is being shutdown
 	ShutdownTimeout int `json:"shutdown-timeout,omitempty"`
@@ -189,6 +193,7 @@ func (config *Config) InstallCommonFlags(flags *pflag.FlagSet) {
 	flags.StringVar(&config.CorsHeaders, "api-cors-header", "", "Set CORS headers in the Engine API")
 	flags.IntVar(&maxConcurrentDownloads, "max-concurrent-downloads", defaultMaxConcurrentDownloads, "Set the max concurrent downloads for each pull")
 	flags.IntVar(&maxConcurrentUploads, "max-concurrent-uploads", defaultMaxConcurrentUploads, "Set the max concurrent uploads for each push")
+	flags.BoolVar(&config.ParallelGzip, "parallel-gzip", false, "Enables parallel gzip compression on image push")
 	flags.IntVar(&config.ShutdownTimeout, "shutdown-timeout", defaultShutdownTimeout, "Set the default shutdown timeout")
 
 	flags.StringVar(&config.SwarmDefaultAdvertiseAddr, "swarm-default-advertise-addr", "", "Set default address or interface for swarm advertised address")
