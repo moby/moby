@@ -99,6 +99,7 @@
         settings: {
             configurations: [ z ],
             label:          "rebuild/z",
+        }
 
 # Once a day, randomly assign pull requests older than 2 weeks.
 - schedule:         "@daily"
