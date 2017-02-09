@@ -19,10 +19,10 @@ produces:
 consumes:
   - "application/json"
   - "text/plain"
-basePath: "/v1.26"
+basePath: "/v1.27"
 info:
   title: "Docker Engine API"
-  version: "1.26"
+  version: "1.27"
   x-logo:
     url: "https://docs.docker.com/images/logo-docker-main.png"
   description: |
@@ -44,7 +44,7 @@ info:
 
     The API is usually changed in each release of Docker, so API calls are versioned to ensure that clients don't break.
 
-    For Docker Engine 1.14, the API version is 1.26. To lock to this version, you prefix the URL with `/v1.26`. For example, calling `/info` is the same as calling `/v1.26/info`.
+    For Docker Engine 1.14, the API version is 1.27. To lock to this version, you prefix the URL with `/v1.27`. For example, calling `/info` is the same as calling `/v1.27/info`.
 
     Engine releases in the near future should support this version of the API, so your client will continue to work even if it is talking to a newer Engine.
 
@@ -52,11 +52,12 @@ info:
 
     The API uses an open schema model, which means server may add extra properties to responses. Likewise, the server will ignore any extra query parameters and request body properties. When you write clients, you need to ignore additional properties in responses to ensure they do not break when talking to newer Docker daemons.
 
-    This documentation is for version 1.26 of the API, which was introduced with Docker 1.14. Use this table to find documentation for previous versions of the API:
+    This documentation is for version 1.27 of the API, which was introduced with Docker 1.14. Use this table to find documentation for previous versions of the API:
 
     Docker version  | API version | Changes
     ----------------|-------------|---------
-    1.13.x | [1.25](https://docs.docker.com/engine/api/v1.25/) | [API changes](https://docs.docker.com/engine/api/version-history/#v1-25-api-changes)
+    1.13.1 | [1.26](https://docs.docker.com/engine/api/v1.26/) | [API changes](https://docs.docker.com/engine/api/version-history/#v1-26-api-changes)
+    1.13.0 | [1.25](https://docs.docker.com/engine/api/v1.25/) | [API changes](https://docs.docker.com/engine/api/version-history/#v1-25-api-changes)
     1.12.x | [1.24](https://docs.docker.com/engine/api/v1.24/) | [API changes](https://docs.docker.com/engine/api/version-history/#v1-24-api-changes)
     1.11.x | [1.23](https://docs.docker.com/engine/api/v1.23/) | [API changes](https://docs.docker.com/engine/api/version-history/#v1-23-api-changes)
     1.10.x | [1.22](https://docs.docker.com/engine/api/v1.22/) | [API changes](https://docs.docker.com/engine/api/version-history/#v1-22-api-changes)
