@@ -4165,7 +4165,7 @@ paths:
             $ref: "#/definitions/ErrorResponse"
           examples:
             application/json:
-              message: "You cannot remove a running container: c2ada9df5af8. Stop the container before attempting removal or use -f"
+              message: "You cannot remove a running container: c2ada9df5af8. Stop the container before attempting removal or force remove"
         500:
           description: "server error"
           schema:
