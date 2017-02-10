@@ -102,7 +102,7 @@ Endpoint Mode:	{{ .EndpointMode }}
 {{- if .Ports }}
 Ports:
 {{- range $port := .Ports }}
- PublishedPort {{ $port.PublishedPort }}
+ PublishedPort = {{ $port.PublishedPort }}
   Protocol = {{ $port.Protocol }}
   TargetPort = {{ $port.TargetPort }}
   PublishMode = {{ $port.PublishMode }}
