@@ -198,6 +198,7 @@ func (daemon *Daemon) restore() error {
 			if err := backportMountSpec(c); err != nil {
 				logrus.Error("Failed to migrate old mounts to use new spec format")
 			}
+			daemon.setStateCounter(c)
 
 			if c.IsRunning() || c.IsPaused() {
 				c.RestartManager().Cancel() // manually start containers because some need to wait for swarm networking

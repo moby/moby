@@ -124,6 +124,7 @@ func (daemon *Daemon) cleanupContainer(container *container.Container, forceRemo
 				logrus.Error(e)
 			}
 			daemon.LogContainerEvent(container, "destroy")
+			stateCtr.del(container.ID)
 		}
 	}()
 

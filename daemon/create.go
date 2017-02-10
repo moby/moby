@@ -151,6 +151,7 @@ func (daemon *Daemon) create(params types.ContainerCreateConfig, managed bool) (
 		return nil, err
 	}
 	daemon.Register(container)
+	stateCtr.set(container.ID, "stopped")
 	daemon.LogContainerEvent(container, "create")
 	return container, nil
 }

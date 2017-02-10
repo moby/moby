@@ -1,9 +1,15 @@
 package daemon
 
-import "github.com/docker/go-metrics"
+import (
+	"sync"
+
+	"github.com/docker/go-metrics"
+	"github.com/prometheus/client_golang/prometheus"
+)
 
 var (
 	containerActions          metrics.LabeledTimer
+	containerStates           metrics.LabeledGauge
 	imageActions              metrics.LabeledTimer
 	networkActions            metrics.LabeledTimer
 	engineVersion             metrics.LabeledGauge
@@ -11,6 +17,8 @@ var (
 	engineMemory              metrics.Gauge
 	healthChecksCounter       metrics.Counter
 	healthChecksFailedCounter metrics.Counter
+
+	stateCtr *stateCounter
 )
 
 func init() {
@@ -25,6 +33,7 @@ func init() {
 	} {
 		containerActions.WithValues(a).Update(0)
 	}
+
 	networkActions = ns.NewLabeledTimer("network_actions", "The number of seconds it takes to process each network action", "action")
 	engineVersion = ns.NewLabeledGauge("engine", "The version and commit information for the engine process", metrics.Unit("info"),
 		"version",
@@ -38,5 +47,60 @@ func init() {
 	healthChecksCounter = ns.NewCounter("health_checks", "The total number of health checks")
 	healthChecksFailedCounter = ns.NewCounter("health_checks_failed", "The total number of failed health checks")
 	imageActions = ns.NewLabeledTimer("image_actions", "The number of seconds it takes to process each image action", "action")
+
+	stateCtr = newStateCounter(ns.NewDesc("container_states", "The count of containers in various states", metrics.Unit("containers"), "state"))
+	ns.Add(stateCtr)
+
 	metrics.Register(ns)
+}
+
+type stateCounter struct {
+	mu     sync.Mutex
+	states map[string]string
+	desc   *prometheus.Desc
+}
+
+func newStateCounter(desc *prometheus.Desc) *stateCounter {
+	return &stateCounter{
+		states: make(map[string]string),
+		desc:   desc,
+	}
+}
+
+func (ctr *stateCounter) get() (running int, paused int, stopped int) {
+	ctr.mu.Lock()
+	defer ctr.mu.Unlock()
+
+	states := map[string]int{
+		"running": 0,
+		"paused":  0,
+		"stopped": 0,
+	}
+	for _, state := range ctr.states {
+		states[state]++
+	}
+	return states["running"], states["paused"], states["stopped"]
+}
+
+func (ctr *stateCounter) set(id, label string) {
+	ctr.mu.Lock()
+	ctr.states[id] = label
+	ctr.mu.Unlock()
+}
+
+func (ctr *stateCounter) del(id string) {
+	ctr.mu.Lock()
+	delete(ctr.states, id)
+	ctr.mu.Unlock()
+}
+
+func (ctr *stateCounter) Describe(ch chan<- *prometheus.Desc) {
+	ch <- ctr.desc
+}
+
+func (ctr *stateCounter) Collect(ch chan<- prometheus.Metric) {
+	running, paused, stopped := ctr.get()
+	ch <- prometheus.MustNewConstMetric(ctr.desc, prometheus.GaugeValue, float64(running), "running")
+	ch <- prometheus.MustNewConstMetric(ctr.desc, prometheus.GaugeValue, float64(paused), "paused")
+	ch <- prometheus.MustNewConstMetric(ctr.desc, prometheus.GaugeValue, float64(stopped), "stopped")
 }
