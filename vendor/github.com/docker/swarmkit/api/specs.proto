@@ -258,6 +258,12 @@ message ContainerSpec {
 	// task will exit and a new task will be rescheduled elsewhere. A container
 	// is considered unhealthy after `Retries` number of consecutive failures.
 	HealthConfig healthcheck = 16;
+
+	message SecurityConfig {
+	    string userns = 30;
+	    string credential_spec = 31 [(gogoproto.customname) = "CredentialSpec"];
+	}
+	SecurityConfig security_config = 40;
 }
 
 // EndpointSpec defines the properties that can be configured to

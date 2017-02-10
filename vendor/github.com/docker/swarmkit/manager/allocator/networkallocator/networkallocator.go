@@ -289,8 +289,25 @@ func (na *NetworkAllocator) PortsAllocatedInHostPublishMode(s *api.Service) bool
 	return na.portAllocator.portsAllocatedInHostPublishMode(s)
 }
 
+// ServiceAllocationOpts is struct used for functional options in IsServiceAllocated
+type ServiceAllocationOpts struct {
+	OnInit bool
+}
+
+// OnInit is called for allocator initialization stage
+func OnInit(options *ServiceAllocationOpts) {
+	options.OnInit = true
+}
+
 // IsServiceAllocated returns if the passed service has its network resources allocated or not.
-func (na *NetworkAllocator) IsServiceAllocated(s *api.Service) bool {
+// init bool indicates if the func is called during allocator initialization stage.
+func (na *NetworkAllocator) IsServiceAllocated(s *api.Service, flags ...func(*ServiceAllocationOpts)) bool {
+	var options ServiceAllocationOpts
+
+	for _, flag := range flags {
+		flag(&options)
+	}
+
 	// If endpoint mode is VIP and allocator does not have the
 	// service in VIP allocated set then it is not allocated.
 	if (len(s.Spec.Task.Networks) != 0 || len(s.Spec.Networks) != 0) &&
@@ -313,7 +330,7 @@ func (na *NetworkAllocator) IsServiceAllocated(s *api.Service) bool {
 
 	if (s.Spec.Endpoint != nil && len(s.Spec.Endpoint.Ports) != 0) ||
 		(s.Endpoint != nil && len(s.Endpoint.Ports) != 0) {
-		return na.portAllocator.isPortsAllocated(s)
+		return na.portAllocator.isPortsAllocatedOnInit(s, options.OnInit)
 	}
 
 	return true
@@ -402,7 +419,7 @@ func (na *NetworkAllocator) releaseEndpoints(networks []*api.NetworkAttachment) 
 
 		localNet := na.getNetwork(nAttach.Network.ID)
 		if localNet == nil {
-			return fmt.Errorf("could not find network allocater state for network %s", nAttach.Network.ID)
+			return fmt.Errorf("could not find network allocator state for network %s", nAttach.Network.ID)
 		}
 
 		// Do not fail and bail out if we fail to release IP
