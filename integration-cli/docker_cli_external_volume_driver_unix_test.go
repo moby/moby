@@ -426,7 +426,7 @@ func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverRetryNotImmediatelyE
 
 	<-started
 	// wait for a retry to occur, then create spec to allow plugin to register
-	time.Sleep(2000 * time.Millisecond)
+	time.Sleep(2 * time.Second)
 	p := newVolumePlugin(c, driverName)
 	defer p.Close()
 
