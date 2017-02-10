@@ -32,6 +32,28 @@ An image that has no parent is a **base image**.
 [boot2docker](http://boot2docker.io/) is a lightweight Linux distribution made
 specifically to run Docker containers. The boot2docker management tool for Mac and Windows was deprecated and replaced by [`docker-machine`](#machine) which you can install with the Docker Toolbox.
 
+## bridge
+
+In terms of generic networking, a bridge is a Link Layer device which forwards
+traffic between network segments. A bridge can be a hardware device or a
+software device running within a host machine's kernel.
+
+In terms of Docker, a bridge network uses a software bridge which allows
+containers connected to the same bridge network to communicate, while providing
+isolation from containers which are not connected to that bridge network.
+The Docker bridge driver automatically installs rules in the host machine so
+that containers on different bridge networks cannot communicate directly with
+each other.
+
+The default bridge network, which is also named `bridge`, behaves differently
+from user-defined bridge networks. Containers connected to the default `bridge`
+network can communicate with each other across the bridge by IP address but
+cannot resolve each other's container name to an IP address unless they are
+explicitly linked using the `--link` flag to `docker run`.
+
+For more information about Docker networking, see
+[Understand container communication](https://docs.docker.com/engine/userguide/networking/default_network/container-communication/).
+
 ## btrfs
 
 btrfs (B-tree file system) is a Linux [filesystem](#filesystem) that Docker
