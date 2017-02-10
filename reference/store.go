@@ -107,6 +107,20 @@ func (store *store) AddDigest(ref reference.Canonical, id digest.Digest, force b
 }
 
 func (store *store) addReference(ref reference.Named, id digest.Digest, force bool) error {
+	// If the reference includes a digest and a tag, we must store only the
+	// digest.
+	canonical, isCanonical := ref.(reference.Canonical)
+	_, isNamedTagged := ref.(reference.NamedTagged)
+
+	if isCanonical && isNamedTagged {
+		trimmed, err := reference.WithDigest(reference.TrimNamed(canonical), canonical.Digest())
+		if err != nil {
+			// should never happen
+			return err
+		}
+		ref = trimmed
+	}
+
 	refName := reference.FamiliarName(ref)
 	refStr := reference.FamiliarString(ref)
 
