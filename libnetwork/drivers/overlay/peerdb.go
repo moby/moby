@@ -367,3 +367,12 @@ func (d *driver) pushLocalDb() {
 		return false
 	})
 }
+
+func (d *driver) peerDBUpdateSelf() {
+	d.peerDbWalk(func(nid string, pkey *peerKey, pEntry *peerEntry) bool {
+		if pEntry.isLocal {
+			pEntry.vtep = net.ParseIP(d.advertiseAddress)
+		}
+		return false
+	})
+}
