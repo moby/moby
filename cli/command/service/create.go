@@ -51,6 +51,7 @@ func newCreateCommand(dockerCli *command.DockerCli) *cobra.Command {
 	flags.SetAnnotation(flagDNSSearch, "version", []string{"1.25"})
 	flags.Var(&opts.hosts, flagHost, "Set one or more custom host-to-IP mappings (host:ip)")
 	flags.SetAnnotation(flagHost, "version", []string{"1.25"})
+	flags.Var(&opts.securityOptions, flagSecurityOption, "Set security specific options")
 
 	flags.SetInterspersed(false)
 	return cmd

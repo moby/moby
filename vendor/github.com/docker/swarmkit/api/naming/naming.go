@@ -9,7 +9,7 @@ import (
 
 // Task returns the task name from Annotations.Name,
 // and, in case Annotations.Name is missing, fallback
-// to construct the name from othere information.
+// to construct the name from other information.
 func Task(t *api.Task) string {
 	if t.Annotations.Name != "" {
 		// if set, use the container Annotations.Name field, set in the orchestrator.
