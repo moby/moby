@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/types/versions"
@@ -17,7 +18,6 @@ import (
 	"github.com/docker/docker/pkg/term"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
-	"strings"
 )
 
 func newDockerCommand(dockerCli *command.DockerCli) *cobra.Command {
@@ -55,7 +55,7 @@ func newDockerCommand(dockerCli *command.DockerCli) *cobra.Command {
 	cli.SetupRootCommand(cmd)
 
 	cmd.SetHelpFunc(func(ccmd *cobra.Command, args []string) {
-		if dockerCli.Client() == nil { // when using --help, PersistenPreRun is not called, so initialization is needed.
+		if dockerCli.Client() == nil { // when using --help, PersistentPreRun is not called, so initialization is needed.
 			// flags must be the top-level command flags, not cmd.Flags()
 			opts.Common.SetDefaultOptions(flags)
 			dockerPreRun(opts)
