@@ -378,6 +378,10 @@ func (s *DockerSuite) TestBuildCacheAdd(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildLastModified(c *check.C) {
+	// Temporary fix for #30890. TODO @jhowardmsft figure out what
+	// has changed in the master busybox image.
+	testRequires(c, DaemonIsLinux)
+
 	name := "testbuildlastmodified"
 
 	server := fakeStorage(c, map[string]string{
@@ -2579,7 +2583,7 @@ USER 1042:1043
 RUN [ "$(id -u):$(id -g)/$(id -un):$(id -gn)/$(id -G):$(id -Gn)" = '1042:1043/1042:1043/1043:1043' ]`))
 }
 
-// FIXME(vdemeester) rename this test (and probably "merge" it with the one below TestBuildEnvUsage2)
+// FIXME(vdemeester) rename this test (and probably "merge" it with the one below TestBuildEnvUsage2)
 func (s *DockerSuite) TestBuildEnvUsage(c *check.C) {
 	// /docker/world/hello is not owned by the correct user
 	testRequires(c, NotUserNamespace)
@@ -2610,7 +2614,7 @@ RUN    [ "$ghi" = "def" ]
 	))
 }
 
-// FIXME(vdemeester) rename this test (and probably "merge" it with the one above TestBuildEnvUsage)
+// FIXME(vdemeester) rename this test (and probably "merge" it with the one above TestBuildEnvUsage)
 func (s *DockerSuite) TestBuildEnvUsage2(c *check.C) {
 	// /docker/world/hello is not owned by the correct user
 	testRequires(c, NotUserNamespace)
@@ -3548,7 +3552,7 @@ CMD cat /foo/file`),
 
 }
 
-// FIXME(vdemeester) part of this should be unit test, other part should be clearer
+// FIXME(vdemeester) part of this should be unit test, other part should be clearer
 func (s *DockerSuite) TestBuildRenamedDockerfile(c *check.C) {
 	ctx := fakeContext(c, `FROM busybox
 	RUN echo from Dockerfile`,
