@@ -709,10 +709,29 @@ message EncryptionConfig {
 	bool auto_lock_managers = 1;
 }
 
+message SpreadOver {
+	string spread_descriptor = 1; // label descriptor, such as engine.labels.az
+	// TODO: support node information beyond engine and node labels
+
+	// TODO: in the future, add a map that provides weights for weighted
+	// spreading.
+}
+
+message PlacementPreference {
+	oneof Preference {
+		SpreadOver spread = 1;
+	}
+}
+
 // Placement specifies task distribution constraints.
 message Placement {
-	// constraints specifies a set of requirements a node should meet for a task.
+	// Constraints specifies a set of requirements a node should meet for a task.
 	repeated string constraints = 1;
+
+	// Preferences provide a way to make the scheduler aware of factors
+	// such as topology. They are provided in order from highest to lowest
+	// precedence.
+	repeated PlacementPreference preferences = 2;
 }
 
 // JoinToken contains the join tokens for workers and managers.
