@@ -1,9 +1,8 @@
-FROM    alpine:3.4
+FROM    golang:1.7.5-alpine
 
-RUN     apk add -U git go bash curl gcc musl-dev make
+RUN     apk add -U git bash curl gcc musl-dev make
 
 RUN     mkdir -p /go/src /go/bin /go/pkg
-ENV     GOPATH=/go
 RUN     export GLIDE=v0.11.1; \
         export TARGET=/go/src/github.com/Masterminds; \
         mkdir -p ${TARGET} && \
@@ -18,7 +17,7 @@ COPY    glide.yaml /manvendor/
 COPY    glide.lock /manvendor/
 WORKDIR /manvendor/
 RUN     glide install && mv vendor src
-ENV     GOPATH=$GOPATH:/go/src/github.com/docker/docker/vendor:/manvendor
+ENV     GOPATH=$GOPATH:/manvendor
 RUN     go build -o /usr/bin/go-md2man github.com/cpuguy83/go-md2man
 
 WORKDIR /go/src/github.com/docker/docker/

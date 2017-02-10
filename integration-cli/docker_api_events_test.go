@@ -9,19 +9,20 @@ import (
 	"strings"
 	"time"
 
-	"github.com/docker/docker/pkg/integration/checker"
+	"github.com/docker/docker/integration-cli/checker"
+	"github.com/docker/docker/integration-cli/request"
 	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/go-check/check"
 )
 
-func (s *DockerSuite) TestEventsApiEmptyOutput(c *check.C) {
+func (s *DockerSuite) TestEventsAPIEmptyOutput(c *check.C) {
 	type apiResp struct {
 		resp *http.Response
 		err  error
 	}
 	chResp := make(chan *apiResp)
 	go func() {
-		resp, body, err := sockRequestRaw("GET", "/events", nil, "")
+		resp, body, err := request.SockRequestRaw("GET", "/events", nil, "", daemonHost())
 		body.Close()
 		chResp <- &apiResp{resp, err}
 	}()
@@ -35,7 +36,7 @@ func (s *DockerSuite) TestEventsApiEmptyOutput(c *check.C) {
 	}
 }
 
-func (s *DockerSuite) TestEventsApiBackwardsCompatible(c *check.C) {
+func (s *DockerSuite) TestEventsAPIBackwardsCompatible(c *check.C) {
 	since := daemonTime(c).Unix()
 	ts := strconv.FormatInt(since, 10)
 
@@ -46,7 +47,7 @@ func (s *DockerSuite) TestEventsApiBackwardsCompatible(c *check.C) {
 	q := url.Values{}
 	q.Set("since", ts)
 
-	_, body, err := sockRequestRaw("GET", "/events?"+q.Encode(), nil, "")
+	_, body, err := request.SockRequestRaw("GET", "/events?"+q.Encode(), nil, "", daemonHost())
 	c.Assert(err, checker.IsNil)
 	defer body.Close()
 

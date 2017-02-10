@@ -24,9 +24,15 @@ Packager: Docker <support@docker.com>
 BuildRequires: systemd-rpm-macros
 %{?systemd_requires}
 %else
+%if 0%{?fedora} >= 25
+# Systemd 230 and up no longer have libsystemd-journal (see https://bugzilla.redhat.com/show_bug.cgi?id=1350301)
+BuildRequires: pkgconfig(systemd)
+Requires: systemd-units
+%else
 BuildRequires: pkgconfig(systemd)
 Requires: systemd-units
 BuildRequires: pkgconfig(libsystemd-journal)
+%endif
 %endif
 %else
 Requires(post): chkconfig
@@ -126,15 +132,20 @@ export DOCKER_GITCOMMIT=%{_gitcommit}
 install -d $RPM_BUILD_ROOT/%{_bindir}
 install -p -m 755 bundles/%{_origversion}/dynbinary-client/docker-%{_origversion} $RPM_BUILD_ROOT/%{_bindir}/docker
 install -p -m 755 bundles/%{_origversion}/dynbinary-daemon/dockerd-%{_origversion} $RPM_BUILD_ROOT/%{_bindir}/dockerd
-install -p -m 755 bundles/%{_origversion}/dynbinary-daemon/docker-proxy-%{_origversion} $RPM_BUILD_ROOT/%{_bindir}/docker-proxy
+
+# install proxy
+install -p -m 755 /usr/local/bin/docker-proxy $RPM_BUILD_ROOT/%{_bindir}/docker-proxy
 
 # install containerd
-install -p -m 755 /usr/local/bin/containerd $RPM_BUILD_ROOT/%{_bindir}/docker-containerd
-install -p -m 755 /usr/local/bin/containerd-shim $RPM_BUILD_ROOT/%{_bindir}/docker-containerd-shim
-install -p -m 755 /usr/local/bin/ctr $RPM_BUILD_ROOT/%{_bindir}/docker-containerd-ctr
+install -p -m 755 /usr/local/bin/docker-containerd $RPM_BUILD_ROOT/%{_bindir}/docker-containerd
+install -p -m 755 /usr/local/bin/docker-containerd-shim $RPM_BUILD_ROOT/%{_bindir}/docker-containerd-shim
+install -p -m 755 /usr/local/bin/docker-containerd-ctr $RPM_BUILD_ROOT/%{_bindir}/docker-containerd-ctr
 
 # install runc
-install -p -m 755 /usr/local/sbin/runc $RPM_BUILD_ROOT/%{_bindir}/docker-runc
+install -p -m 755 /usr/local/bin/docker-runc $RPM_BUILD_ROOT/%{_bindir}/docker-runc
+
+# install tini
+install -p -m 755 /usr/local/bin/docker-init $RPM_BUILD_ROOT/%{_bindir}/docker-init
 
 # install udev rules
 install -d $RPM_BUILD_ROOT/%{_sysconfdir}/udev/rules.d
@@ -190,6 +201,7 @@ install -p -m 644 contrib/syntax/nano/Dockerfile.nanorc $RPM_BUILD_ROOT/usr/shar
 /%{_bindir}/docker-containerd-ctr
 /%{_bindir}/docker-proxy
 /%{_bindir}/docker-runc
+/%{_bindir}/docker-init
 /%{_sysconfdir}/udev/rules.d/80-docker.rules
 %if 0%{?is_systemd}
 /%{_unitdir}/docker.service

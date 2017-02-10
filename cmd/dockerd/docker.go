@@ -3,6 +3,8 @@ package main
 import (
 	"fmt"
 	"os"
+	"path/filepath"
+	"runtime"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/cli"
@@ -11,7 +13,6 @@ import (
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/pkg/reexec"
 	"github.com/docker/docker/pkg/term"
-	"github.com/docker/docker/utils"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 )
@@ -61,6 +62,16 @@ func runDaemon(opts daemonOptions) error {
 
 	daemonCli := NewDaemonCli()
 
+	// Windows specific settings as these are not defaulted.
+	if runtime.GOOS == "windows" {
+		if opts.daemonConfig.Pidfile == "" {
+			opts.daemonConfig.Pidfile = filepath.Join(opts.daemonConfig.Root, "docker.pid")
+		}
+		if opts.configFile == "" {
+			opts.configFile = filepath.Join(opts.daemonConfig.Root, `config\daemon.json`)
+		}
+	}
+
 	// On Windows, this may be launching as a service or with an option to
 	// register the service.
 	stop, err := initService(daemonCli)
@@ -78,11 +89,7 @@ func runDaemon(opts daemonOptions) error {
 }
 
 func showVersion() {
-	if utils.ExperimentalBuild() {
-		fmt.Printf("Docker version %s, build %s, experimental\n", dockerversion.Version, dockerversion.GitCommit)
-	} else {
-		fmt.Printf("Docker version %s, build %s\n", dockerversion.Version, dockerversion.GitCommit)
-	}
+	fmt.Printf("Docker version %s, build %s\n", dockerversion.Version, dockerversion.GitCommit)
 }
 
 func main() {

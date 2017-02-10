@@ -1,12 +1,17 @@
-<!--[metadata]>
-+++
-title = "import"
-description = "The import command description and usage"
-keywords = ["import, file, system, container"]
-[menu.main]
-parent = "smn_cli"
-+++
-<![end-metadata]-->
+---
+title: "import"
+description: "The import command description and usage"
+keywords: "import, file, system, container"
+---
+
+<!-- This file is maintained within the docker/docker Github
+     repository at https://github.com/docker/docker/. Make all
+     pull requests against that repo. If you see this file in
+     another repository, consider it read-only there, as it will
+     periodically be overwritten by the definitive file. Pull
+     requests which include edits to this file in other repositories
+     will be rejected.
+-->
 
 # import
 
@@ -20,6 +25,8 @@ Options:
       --help             Print usage
   -m, --message string   Set commit message for imported image
 ```
+
+## Description
 
 You can specify a `URL` or `-` (dash) to take data directly from `STDIN`. The
 `URL` can point to an archive (.tar, .tar.gz, .tgz, .bzip, .tar.xz, or .txz)
@@ -36,33 +43,45 @@ Supported `Dockerfile` instructions:
 
 ## Examples
 
-**Import from a remote location:**
+### Import from a remote location
 
 This will create a new untagged image.
 
-    $ docker import http://example.com/exampleimage.tgz
+```bash
+$ docker import http://example.com/exampleimage.tgz
+```
 
-**Import from a local file:**
+### Import from a local file
 
-Import to docker via pipe and `STDIN`.
+- Import to docker via pipe and `STDIN`.
 
-    $ cat exampleimage.tgz | docker import - exampleimagelocal:new
+  ```bash
+  $ cat exampleimage.tgz | docker import - exampleimagelocal:new
+  ```
 
-Import with a commit message.
+- Import with a commit message.
 
-    $ cat exampleimage.tgz | docker import --message "New image imported from tarball" - exampleimagelocal:new
+  ```bash
+  $ cat exampleimage.tgz | docker import --message "New image imported from tarball" - exampleimagelocal:new
+  ```
 
-Import to docker from a local archive.
+- Import to docker from a local archive.
 
+  ```bash
     $ docker import /path/to/exampleimage.tgz
+  ```
 
-**Import from a local directory:**
+### Import from a local directory
 
-    $ sudo tar -c . | docker import - exampleimagedir
+```bash
+$ sudo tar -c . | docker import - exampleimagedir
+```
 
-**Import from a local directory with new configurations:**
+### Import from a local directory with new configurations
 
-    $ sudo tar -c . | docker import --change "ENV DEBUG true" - exampleimagedir
+```bash
+$ sudo tar -c . | docker import --change "ENV DEBUG true" - exampleimagedir
+```
 
 Note the `sudo` in this example – you must preserve
 the ownership of the files (especially root ownership) during the

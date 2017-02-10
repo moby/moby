@@ -3,46 +3,51 @@ package daemon
 import (
 	"fmt"
 	"net"
+	"runtime"
 	"strings"
+	"time"
+
+	"github.com/pkg/errors"
 
 	"github.com/Sirupsen/logrus"
+	apierrors "github.com/docker/docker/api/errors"
+	"github.com/docker/docker/api/types"
+	containertypes "github.com/docker/docker/api/types/container"
+	networktypes "github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/container"
-	"github.com/docker/docker/errors"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/runconfig"
 	volumestore "github.com/docker/docker/volume/store"
-	"github.com/docker/engine-api/types"
-	containertypes "github.com/docker/engine-api/types/container"
-	networktypes "github.com/docker/engine-api/types/network"
 	"github.com/opencontainers/runc/libcontainer/label"
 )
 
 // CreateManagedContainer creates a container that is managed by a Service
-func (daemon *Daemon) CreateManagedContainer(params types.ContainerCreateConfig, validateHostname bool) (types.ContainerCreateResponse, error) {
-	return daemon.containerCreate(params, true, validateHostname)
+func (daemon *Daemon) CreateManagedContainer(params types.ContainerCreateConfig) (containertypes.ContainerCreateCreatedBody, error) {
+	return daemon.containerCreate(params, true)
 }
 
 // ContainerCreate creates a regular container
-func (daemon *Daemon) ContainerCreate(params types.ContainerCreateConfig, validateHostname bool) (types.ContainerCreateResponse, error) {
-	return daemon.containerCreate(params, false, validateHostname)
+func (daemon *Daemon) ContainerCreate(params types.ContainerCreateConfig) (containertypes.ContainerCreateCreatedBody, error) {
+	return daemon.containerCreate(params, false)
 }
 
-func (daemon *Daemon) containerCreate(params types.ContainerCreateConfig, managed bool, validateHostname bool) (types.ContainerCreateResponse, error) {
+func (daemon *Daemon) containerCreate(params types.ContainerCreateConfig, managed bool) (containertypes.ContainerCreateCreatedBody, error) {
+	start := time.Now()
 	if params.Config == nil {
-		return types.ContainerCreateResponse{}, fmt.Errorf("Config cannot be empty in order to create a container")
+		return containertypes.ContainerCreateCreatedBody{}, fmt.Errorf("Config cannot be empty in order to create a container")
 	}
 
-	warnings, err := daemon.verifyContainerSettings(params.HostConfig, params.Config, false, validateHostname)
+	warnings, err := daemon.verifyContainerSettings(params.HostConfig, params.Config, false)
 	if err != nil {
-		return types.ContainerCreateResponse{Warnings: warnings}, err
+		return containertypes.ContainerCreateCreatedBody{Warnings: warnings}, err
 	}
 
 	err = daemon.verifyNetworkingConfig(params.NetworkingConfig)
 	if err != nil {
-		return types.ContainerCreateResponse{Warnings: warnings}, err
+		return containertypes.ContainerCreateCreatedBody{Warnings: warnings}, err
 	}
 
 	if params.HostConfig == nil {
@@ -50,15 +55,16 @@ func (daemon *Daemon) containerCreate(params types.ContainerCreateConfig, manage
 	}
 	err = daemon.adaptContainerSettings(params.HostConfig, params.AdjustCPUShares)
 	if err != nil {
-		return types.ContainerCreateResponse{Warnings: warnings}, err
+		return containertypes.ContainerCreateCreatedBody{Warnings: warnings}, err
 	}
 
 	container, err := daemon.create(params, managed)
 	if err != nil {
-		return types.ContainerCreateResponse{Warnings: warnings}, daemon.imageNotExistToErrcode(err)
+		return containertypes.ContainerCreateCreatedBody{Warnings: warnings}, daemon.imageNotExistToErrcode(err)
 	}
+	containerActions.WithValues("create").UpdateSince(start)
 
-	return types.ContainerCreateResponse{ID: container.ID, Warnings: warnings}, nil
+	return containertypes.ContainerCreateCreatedBody{ID: container.ID, Warnings: warnings}, nil
 }
 
 // Create creates a new container from the given configuration with a given name.
@@ -75,6 +81,10 @@ func (daemon *Daemon) create(params types.ContainerCreateConfig, managed bool) (
 		if err != nil {
 			return nil, err
 		}
+
+		if runtime.GOOS == "solaris" && img.OS != "solaris " {
+			return nil, errors.New("Platform on which parent image was created is not Solaris")
+		}
 		imgID = img.ID()
 	}
 
@@ -86,7 +96,7 @@ func (daemon *Daemon) create(params types.ContainerCreateConfig, managed bool) (
 		return nil, err
 	}
 
-	if container, err = daemon.newContainer(params.Name, params.Config, imgID, managed); err != nil {
+	if container, err = daemon.newContainer(params.Name, params.Config, params.HostConfig, imgID, managed); err != nil {
 		return nil, err
 	}
 	defer func() {
@@ -115,6 +125,9 @@ func (daemon *Daemon) create(params types.ContainerCreateConfig, managed bool) (
 	if err := idtools.MkdirAs(container.Root, 0700, rootUID, rootGID); err != nil {
 		return nil, err
 	}
+	if err := idtools.MkdirAs(container.CheckpointDir(), 0700, rootUID, rootGID); err != nil {
+		return nil, err
+	}
 
 	if err := daemon.setHostConfig(container, params.HostConfig); err != nil {
 		return nil, err
@@ -132,17 +145,13 @@ func (daemon *Daemon) create(params types.ContainerCreateConfig, managed bool) (
 	// backwards API compatibility.
 	container.HostConfig = runconfig.SetDefaultNetModeIfBlank(container.HostConfig)
 
-	if err := daemon.updateContainerNetworkSettings(container, endpointsConfigs); err != nil {
-		return nil, err
-	}
+	daemon.updateContainerNetworkSettings(container, endpointsConfigs)
 
 	if err := container.ToDisk(); err != nil {
 		logrus.Errorf("Error saving new container to disk: %v", err)
 		return nil, err
 	}
-	if err := daemon.Register(container); err != nil {
-		return nil, err
-	}
+	daemon.Register(container)
 	daemon.LogContainerEvent(container, "create")
 	return container, nil
 }
@@ -198,7 +207,14 @@ func (daemon *Daemon) setRWLayer(container *container.Container) error {
 		}
 		layerID = img.RootFS.ChainID()
 	}
-	rwLayer, err := daemon.layerStore.CreateRWLayer(container.ID, layerID, container.MountLabel, daemon.setupInitLayer, container.HostConfig.StorageOpt)
+
+	rwLayerOpts := &layer.CreateRWLayerOpts{
+		MountLabel: container.MountLabel,
+		InitFunc:   daemon.getLayerInit(),
+		StorageOpt: container.HostConfig.StorageOpt,
+	}
+
+	rwLayer, err := daemon.layerStore.CreateRWLayer(container.ID, layerID, rwLayerOpts)
 	if err != nil {
 		return err
 	}
@@ -208,7 +224,7 @@ func (daemon *Daemon) setRWLayer(container *container.Container) error {
 }
 
 // VolumeCreate creates a volume with the specified name, driver, and opts
-// This is called directly from the remote API
+// This is called directly from the Engine API
 func (daemon *Daemon) VolumeCreate(name, driverName string, opts, labels map[string]string) (*types.Volume, error) {
 	if name == "" {
 		name = stringid.GenerateNonCryptoID()
@@ -252,12 +268,17 @@ func (daemon *Daemon) verifyNetworkingConfig(nwConfig *networktypes.NetworkingCo
 	}
 	if len(nwConfig.EndpointsConfig) == 1 {
 		for _, v := range nwConfig.EndpointsConfig {
-			if v.IPAMConfig != nil {
+			if v != nil && v.IPAMConfig != nil {
 				if v.IPAMConfig.IPv4Address != "" && net.ParseIP(v.IPAMConfig.IPv4Address).To4() == nil {
-					return errors.NewBadRequestError(fmt.Errorf("invalid IPv4 address: %s", v.IPAMConfig.IPv4Address))
+					return apierrors.NewBadRequestError(fmt.Errorf("invalid IPv4 address: %s", v.IPAMConfig.IPv4Address))
 				}
-				if v.IPAMConfig.IPv6Address != "" && net.ParseIP(v.IPAMConfig.IPv6Address).To16() == nil {
-					return errors.NewBadRequestError(fmt.Errorf("invalid IPv6 address: %s", v.IPAMConfig.IPv6Address))
+				if v.IPAMConfig.IPv6Address != "" {
+					n := net.ParseIP(v.IPAMConfig.IPv6Address)
+					// if the address is an invalid network address (ParseIP == nil) or if it is
+					// an IPv4 address (To4() != nil), then it is an invalid IPv6 address
+					if n == nil || n.To4() != nil {
+						return apierrors.NewBadRequestError(fmt.Errorf("invalid IPv6 address: %s", v.IPAMConfig.IPv6Address))
+					}
 				}
 			}
 		}
@@ -268,5 +289,5 @@ func (daemon *Daemon) verifyNetworkingConfig(nwConfig *networktypes.NetworkingCo
 		l = append(l, k)
 	}
 	err := fmt.Errorf("Container cannot be connected to network endpoints: %s", strings.Join(l, ", "))
-	return errors.NewBadRequestError(err)
+	return apierrors.NewBadRequestError(err)
 }

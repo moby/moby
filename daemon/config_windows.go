@@ -2,14 +2,15 @@ package daemon
 
 import (
 	"os"
+	"path/filepath"
 
-	"github.com/docker/engine-api/types"
+	"github.com/docker/docker/api/types"
 	"github.com/spf13/pflag"
 )
 
 var (
-	defaultPidFile = os.Getenv("programdata") + string(os.PathSeparator) + "docker.pid"
-	defaultGraph   = os.Getenv("programdata") + string(os.PathSeparator) + "docker"
+	defaultPidFile string
+	defaultGraph   = filepath.Join(os.Getenv("programdata"), "docker")
 )
 
 // bridgeConfig stores all the bridge driver specific
@@ -20,7 +21,7 @@ type bridgeConfig struct {
 
 // Config defines the configuration of a docker daemon.
 // These are the configuration settings that you pass
-// to the docker daemon when you launch it with say: `docker daemon -e windows`
+// to the docker daemon when you launch it with say: `dockerd -e windows`
 type Config struct {
 	CommonConfig
 
@@ -43,6 +44,11 @@ func (config *Config) InstallFlags(flags *pflag.FlagSet) {
 // runtime name
 func (config *Config) GetRuntime(name string) *types.Runtime {
 	return nil
+}
+
+// GetInitPath returns the configure docker-init path
+func (config *Config) GetInitPath() string {
+	return ""
 }
 
 // GetDefaultRuntimeName returns the current default runtime

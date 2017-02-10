@@ -5,12 +5,12 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/builder/dockerfile/parser"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/reexec"
-	"github.com/docker/engine-api/types"
-	"github.com/docker/engine-api/types/container"
 )
 
 type dispatchTestCase struct {

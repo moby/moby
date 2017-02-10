@@ -21,13 +21,11 @@ func (node *Node) Dump() string {
 		str += "(" + n.Dump() + ")\n"
 	}
 
-	if node.Next != nil {
-		for n := node.Next; n != nil; n = n.Next {
-			if len(n.Children) > 0 {
-				str += " " + n.Dump()
-			} else {
-				str += " " + strconv.Quote(n.Value)
-			}
+	for n := node.Next; n != nil; n = n.Next {
+		if len(n.Children) > 0 {
+			str += " " + n.Dump()
+		} else {
+			str += " " + strconv.Quote(n.Value)
 		}
 	}
 

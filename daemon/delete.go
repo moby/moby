@@ -5,13 +5,14 @@ import (
 	"os"
 	"path"
 	"strings"
+	"time"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/api/errors"
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/container"
-	"github.com/docker/docker/errors"
 	"github.com/docker/docker/layer"
 	volumestore "github.com/docker/docker/volume/store"
-	"github.com/docker/engine-api/types"
 )
 
 // ContainerRm removes the container id from the filesystem. An error
@@ -19,6 +20,7 @@ import (
 // fails. If the remove succeeds, the container name is released, and
 // network links are removed.
 func (daemon *Daemon) ContainerRm(name string, config *types.ContainerRmConfig) error {
+	start := time.Now()
 	container, err := daemon.GetContainer(name)
 	if err != nil {
 		return err
@@ -26,7 +28,8 @@ func (daemon *Daemon) ContainerRm(name string, config *types.ContainerRmConfig) 
 
 	// Container state RemovalInProgress should be used to avoid races.
 	if inProgress := container.SetRemovalInProgress(); inProgress {
-		return nil
+		err := fmt.Errorf("removal of container %s is already in progress", name)
+		return errors.NewBadRequestError(err)
 	}
 	defer container.ResetRemovalInProgress()
 
@@ -39,7 +42,10 @@ func (daemon *Daemon) ContainerRm(name string, config *types.ContainerRmConfig) 
 		return daemon.rmLink(container, name)
 	}
 
-	return daemon.cleanupContainer(container, config.ForceRemove, config.RemoveVolume)
+	err = daemon.cleanupContainer(container, config.ForceRemove, config.RemoveVolume)
+	containerActions.WithValues("delete").UpdateSince(start)
+
+	return err
 }
 
 func (daemon *Daemon) rmLink(container *container.Container, name string) error {
@@ -83,7 +89,7 @@ func (daemon *Daemon) cleanupContainer(container *container.Container, forceRemo
 
 	// stop collection of stats for the container regardless
 	// if stats are currently getting collected.
-	daemon.statsCollector.stopCollection(container)
+	daemon.statsCollector.StopCollection(container)
 
 	if err = daemon.containerStop(container, 3); err != nil {
 		return err
@@ -134,7 +140,7 @@ func (daemon *Daemon) cleanupContainer(container *container.Container, forceRemo
 
 // VolumeRm removes the volume with the given name.
 // If the volume is referenced by a container it is not removed
-// This is called directly from the remote API
+// This is called directly from the Engine API
 func (daemon *Daemon) VolumeRm(name string, force bool) error {
 	err := daemon.volumeRm(name)
 	if err == nil || force {

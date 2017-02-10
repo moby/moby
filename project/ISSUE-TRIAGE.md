@@ -30,16 +30,20 @@ reopened when the necessary information is provided.
 
 ### 2. Classify the Issue
 
-An issue can have multiple of the following labels.
+An issue can have multiple of the following labels. Typically, a properly classified issue should
+have:
+
+- One label identifying its kind (`kind/*`).
+- One or multiple labels identifying the functional areas of interest (`area/*`).
+- Where applicable, one label categorizing its difficulty (`exp/*`).
 
 #### Issue kind
 
 | Kind             | Description                                                                                                                     |
 |------------------|---------------------------------------------------------------------------------------------------------------------------------|
 | kind/bug         | Bugs are bugs. The cause may or may not be known at triage time so debugging should be taken account into the time estimate.    |
-| kind/docs        | Writing documentation, man pages, articles, blogs, or other significant word-driven task.                                       |
-| kind/enhancement | Enhancement are not bugs or new features but can drastically improve usability or performance of a project component.           |
-| kind/feature     | Functionality or other elements that the project does not currently support.  Features are new and shiny.                      |
+| kind/enhancement | Enhancements are not bugs or new features but can drastically improve usability or performance of a project component.           |
+| kind/feature     | Functionality or other elements that the project does not currently support.  Features are new and shiny.                       |
 | kind/question    | Contains a user or contributor question requiring a response.                                                                   |
 
 #### Functional area
@@ -48,15 +52,41 @@ An issue can have multiple of the following labels.
 |---------------------------|
 | area/api                  |
 | area/builder              |
+| area/bundles              |
 | area/cli                  |
+| area/daemon               |
+| area/distribution         |
+| area/docs                 |
 | area/kernel               |
+| area/logging              |
+| area/networking           |
+| area/plugins              |
+| area/project              |
 | area/runtime              |
+| area/security             |
+| area/security/apparmor    |
+| area/security/seccomp     |
+| area/security/selinux     |
+| area/security/trust       |
 | area/storage              |
 | area/storage/aufs         |
 | area/storage/btrfs        |
 | area/storage/devicemapper |
 | area/storage/overlay      |
 | area/storage/zfs          |
+| area/swarm                |
+| area/testing              |
+| area/volumes              |
+
+#### Platform
+
+| Platform                  |
+|---------------------------|
+| platform/arm              |
+| platform/darwin           |
+| platform/ibm-power        |
+| platform/ibm-z            |
+| platform/windows          |
 
 #### Experience level
 
@@ -75,11 +105,22 @@ written a whole plugin for Docker in a personal project and never contributed to
 Docker. With that kind of experience, you could take on an <strong
 class="gh-label expert">exp/expert</strong> level task.
 
+#### Triage status
+
+To communicate the triage status with other collaborators, you can apply status
+labels to issues. These labels prevent duplicating effort.
+
+| Status                        | Description                                                                                                                                                                 |
+|-------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| status/confirmed              | You triaged the issue, and were able to reproduce the issue. Always leave a comment how you reproduced, so that the person working on resolving the issue has a way to set up a test-case.
+| status/accepted               | Apply to enhancements / feature requests that we think are good to have. Adding this label helps contributors find things to work on.
+| status/more-info-needed       | Apply this to issues that are missing information (e.g. no `docker version` or `docker info` output, or no steps to reproduce), or require feedback from the reporter. If the issue is not updated after a week, it can generally be closed.
+| status/needs-attention        | Apply this label if an issue (or PR) needs more eyes.
+
 ### 3. Prioritizing issue
 
-When attached to a specific milestone, an issue can be attributed one of the
-following labels to indicate their degree of priority (from more urgent to less
-urgent).
+When, and only when, an issue is attached to a specific milestone, the issue can be labeled with the
+following labels to indicate their degree of priority (from more urgent to less urgent).
 
 | Priority    | Description                                                                                                                       |
 |-------------|-----------------------------------------------------------------------------------------------------------------------------------|
@@ -88,4 +129,4 @@ urgent).
 | priority/P2 | Normal priority: default priority applied.                                                                                        |
 | priority/P3 | Best effort: those are nice to have / minor issues.                                                                               |
 
-And that's it. That should be all the information required for a new or existing contributor to come in an resolve an issue.
+And that's it. That should be all the information required for a new or existing contributor to come in a resolve an issue.

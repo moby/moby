@@ -7,8 +7,6 @@ import (
 	"fmt"
 	"io"
 	"sync"
-
-	"github.com/Sirupsen/logrus"
 )
 
 // StdType is the type of standard stream
@@ -108,13 +106,11 @@ func StdCopy(dstout, dsterr io.Writer, src io.Reader) (written int64, err error)
 			nr += nr2
 			if er == io.EOF {
 				if nr < stdWriterPrefixLen {
-					logrus.Debugf("Corrupted prefix: %v", buf[:nr])
 					return written, nil
 				}
 				break
 			}
 			if er != nil {
-				logrus.Debugf("Error reading header: %s", er)
 				return 0, er
 			}
 		}
@@ -130,18 +126,15 @@ func StdCopy(dstout, dsterr io.Writer, src io.Reader) (written int64, err error)
 			// Write on stderr
 			out = dsterr
 		default:
-			logrus.Debugf("Error selecting output fd: (%d)", buf[stdWriterFdIndex])
 			return 0, fmt.Errorf("Unrecognized input header: %d", buf[stdWriterFdIndex])
 		}
 
 		// Retrieve the size of the frame
 		frameSize = int(binary.BigEndian.Uint32(buf[stdWriterSizeIndex : stdWriterSizeIndex+4]))
-		logrus.Debugf("framesize: %d", frameSize)
 
 		// Check if the buffer is big enough to read the frame.
 		// Extend it if necessary.
 		if frameSize+stdWriterPrefixLen > bufLen {
-			logrus.Debugf("Extending buffer cap by %d (was %d)", frameSize+stdWriterPrefixLen-bufLen+1, len(buf))
 			buf = append(buf, make([]byte, frameSize+stdWriterPrefixLen-bufLen+1)...)
 			bufLen = len(buf)
 		}
@@ -153,13 +146,11 @@ func StdCopy(dstout, dsterr io.Writer, src io.Reader) (written int64, err error)
 			nr += nr2
 			if er == io.EOF {
 				if nr < frameSize+stdWriterPrefixLen {
-					logrus.Debugf("Corrupted frame: %v", buf[stdWriterPrefixLen:nr])
 					return written, nil
 				}
 				break
 			}
 			if er != nil {
-				logrus.Debugf("Error reading frame: %s", er)
 				return 0, er
 			}
 		}
@@ -167,12 +158,10 @@ func StdCopy(dstout, dsterr io.Writer, src io.Reader) (written int64, err error)
 		// Write the retrieved frame (without header)
 		nw, ew = out.Write(buf[stdWriterPrefixLen : frameSize+stdWriterPrefixLen])
 		if ew != nil {
-			logrus.Debugf("Error writing frame: %s", ew)
 			return 0, ew
 		}
 		// If the frame has not been fully written: error
 		if nw != frameSize {
-			logrus.Debugf("Error Short Write: (%d on %d)", nw, frameSize)
 			return 0, io.ErrShortWrite
 		}
 		written += int64(nw)

@@ -10,12 +10,15 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"sync"
 
+	"github.com/pkg/errors"
+
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/api"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/mount"
-	"github.com/docker/docker/utils"
 	"github.com/docker/docker/volume"
 )
 
@@ -33,7 +36,7 @@ var (
 	// volumeNameRegex ensures the name assigned for the volume is valid.
 	// This name is used to create the bind directory, so we need to avoid characters that
 	// would make the path to escape the root directory.
-	volumeNameRegex = utils.RestrictedVolumeNamePattern
+	volumeNameRegex = api.RestrictedNamePattern
 )
 
 type validationError struct {
@@ -93,7 +96,7 @@ func New(scope string, rootUID, rootGID int) (*Root, error) {
 		if b, err := ioutil.ReadFile(optsFilePath); err == nil {
 			opts := optsConfig{}
 			if err := json.Unmarshal(b, &opts); err != nil {
-				return nil, err
+				return nil, errors.Wrapf(err, "error while unmarshaling volume options for volume: %s", name)
 			}
 			// Make sure this isn't an empty optsConfig.
 			// This could be empty due to buggy behavior in older versions of Docker.
@@ -168,7 +171,7 @@ func (r *Root) Create(name string, opts map[string]string) (volume.Volume, error
 		if os.IsExist(err) {
 			return nil, fmt.Errorf("volume already exists under %s", filepath.Dir(path))
 		}
-		return nil, err
+		return nil, errors.Wrapf(err, "error while creating volume path '%s'", path)
 	}
 
 	var err error
@@ -194,7 +197,7 @@ func (r *Root) Create(name string, opts map[string]string) (volume.Volume, error
 			return nil, err
 		}
 		if err = ioutil.WriteFile(filepath.Join(filepath.Dir(path), "opts.json"), b, 600); err != nil {
-			return nil, err
+			return nil, errors.Wrap(err, "error while persisting volume options")
 		}
 	}
 
@@ -240,7 +243,7 @@ func removePath(path string) error {
 		if os.IsNotExist(err) {
 			return nil
 		}
-		return err
+		return errors.Wrapf(err, "error removing volume path '%s'", path)
 	}
 	return nil
 }
@@ -266,7 +269,7 @@ func (r *Root) validateName(name string) error {
 		return validationError{fmt.Errorf("volume name is too short, names should be at least two alphanumeric characters")}
 	}
 	if !volumeNameRegex.MatchString(name) {
-		return validationError{fmt.Errorf("%q includes invalid characters for a local volume name, only %q are allowed", name, utils.RestrictedNameChars)}
+		return validationError{fmt.Errorf("%q includes invalid characters for a local volume name, only %q are allowed. If you intended to pass a host directory, use absolute path", name, api.RestrictedNameChars)}
 	}
 	return nil
 }
@@ -327,7 +330,7 @@ func (v *localVolume) Unmount(id string) error {
 		if v.active.count == 0 {
 			if err := mount.Unmount(v.path); err != nil {
 				v.active.count++
-				return err
+				return errors.Wrapf(err, "error while unmounting volume path '%s'", v.path)
 			}
 			v.active.mounted = false
 		}
@@ -346,4 +349,16 @@ func validateOpts(opts map[string]string) error {
 
 func (v *localVolume) Status() map[string]interface{} {
 	return nil
+}
+
+// getAddress finds out address/hostname from options
+func getAddress(opts string) string {
+	optsList := strings.Split(opts, ",")
+	for i := 0; i < len(optsList); i++ {
+		if strings.HasPrefix(optsList[i], "addr=") {
+			addr := (strings.SplitN(optsList[i], "=", 2)[1])
+			return addr
+		}
+	}
+	return ""
 }

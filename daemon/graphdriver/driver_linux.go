@@ -56,8 +56,9 @@ var (
 		"aufs",
 		"btrfs",
 		"zfs",
-		"devicemapper",
+		"overlay2",
 		"overlay",
+		"devicemapper",
 		"vfs",
 	}
 
@@ -72,6 +73,7 @@ var (
 		FsMagicJffs2Fs:     "jffs2",
 		FsMagicJfs:         "jfs",
 		FsMagicNfsFs:       "nfs",
+		FsMagicOverlay:     "overlayfs",
 		FsMagicRAMFs:       "ramfs",
 		FsMagicReiserFs:    "reiserfs",
 		FsMagicSmbFs:       "smb",

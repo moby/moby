@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/docker/docker/pkg/integration/checker"
+	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/runconfig"
 	"github.com/go-check/check"
 )

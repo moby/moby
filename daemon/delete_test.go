@@ -1,13 +1,14 @@
 package daemon
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
 	"testing"
 
+	"github.com/docker/docker/api/types"
+	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/container"
-	"github.com/docker/engine-api/types"
-	containertypes "github.com/docker/engine-api/types/container"
 )
 
 func TestContainerDoubleDelete(t *testing.T) {
@@ -34,9 +35,9 @@ func TestContainerDoubleDelete(t *testing.T) {
 	// Mark the container as having a delete in progress
 	container.SetRemovalInProgress()
 
-	// Try to remove the container when its start is removalInProgress.
-	// It should ignore the container and not return an error.
-	if err := daemon.ContainerRm(container.ID, &types.ContainerRmConfig{ForceRemove: true}); err != nil {
-		t.Fatal(err)
+	// Try to remove the container when its state is removalInProgress.
+	// It should return an error indicating it is under removal progress.
+	if err := daemon.ContainerRm(container.ID, &types.ContainerRmConfig{ForceRemove: true}); err == nil {
+		t.Fatalf("expected err: %v, got nil", fmt.Sprintf("removal of container %s is already in progress", container.ID))
 	}
 }

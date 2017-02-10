@@ -17,6 +17,10 @@
 
 FROM armhf/debian:jessie
 
+# allow replacing httpredir or deb mirror
+ARG APT_MIRROR=deb.debian.org
+RUN sed -ri "s/(httpredir|deb).debian.org/$APT_MIRROR/g" /etc/apt/sources.list
+
 # Packaged dependencies
 RUN apt-get update && apt-get install -y \
 	apparmor \
@@ -27,6 +31,7 @@ RUN apt-get update && apt-get install -y \
 	build-essential \
 	createrepo \
 	curl \
+	cmake \
 	dpkg-sig \
 	git \
 	iptables \
@@ -35,7 +40,6 @@ RUN apt-get update && apt-get install -y \
 	libapparmor-dev \
 	libcap-dev \
 	libltdl-dev \
-	libsqlite3-dev \
 	libsystemd-journal-dev \
 	libtool \
 	mercurial \
@@ -46,14 +50,16 @@ RUN apt-get update && apt-get install -y \
 	python-websocket \
 	xfsprogs \
 	tar \
-	--no-install-recommends
+	vim-common \
+	--no-install-recommends \
+	&& pip install awscli==1.10.15
 
 # Get lvm2 source for compiling statically
 ENV LVM2_VERSION 2.02.103
 RUN mkdir -p /usr/local/lvm2 \
 	&& curl -fsSL "https://mirrors.kernel.org/sourceware/lvm2/LVM2.${LVM2_VERSION}.tgz" \
 		| tar -xzC /usr/local/lvm2 --strip-components=1
-# see https://git.fedorahosted.org/cgit/lvm2.git/refs/tags for release tags
+# See https://git.fedorahosted.org/cgit/lvm2.git/refs/tags for release tags
 
 # Compile and install lvm2
 RUN cd /usr/local/lvm2 \
@@ -62,16 +68,16 @@ RUN cd /usr/local/lvm2 \
 		--enable-static_link \
 	&& make device-mapper \
 	&& make install_device-mapper
-# see https://git.fedorahosted.org/cgit/lvm2.git/tree/INSTALL
+# See https://git.fedorahosted.org/cgit/lvm2.git/tree/INSTALL
 
 # Install Go
-ENV GO_VERSION 1.7
-RUN curl -fsSL "https://storage.googleapis.com/golang/go${GO_VERSION}.linux-armv6l.tar.gz" \
+ENV GO_VERSION 1.7.5
+RUN curl -fsSL "https://golang.org/dl/go${GO_VERSION}.linux-armv6l.tar.gz" \
 	| tar -xzC /usr/local
 ENV PATH /go/bin:/usr/local/go/bin:$PATH
-ENV GOPATH /go:/go/src/github.com/docker/docker/vendor
+ENV GOPATH /go
 
-# we're building for armhf, which is ARMv7, so let's be explicit about that
+# We're building for armhf, which is ARMv7, so let's be explicit about that
 ENV GOARCH arm
 ENV GOARM 7
 
@@ -86,7 +92,7 @@ RUN git clone https://github.com/golang/lint.git /go/src/github.com/golang/lint 
 	&& (cd /go/src/github.com/golang/lint && git checkout -q $GO_LINT_COMMIT) \
 	&& go install -v github.com/golang/lint/golint
 
-# install seccomp: the version shipped in trusty is too old
+# Install seccomp: the version shipped in trusty is too old
 ENV SECCOMP_VERSION 2.3.1
 RUN set -x \
 	&& export SECCOMP_PATH="$(mktemp -d)" \
@@ -119,7 +125,7 @@ RUN set -x \
 	&& rm -rf "$GOPATH"
 
 # Install notary and notary-server
-ENV NOTARY_VERSION v0.3.0
+ENV NOTARY_VERSION v0.5.0
 RUN set -x \
 	&& export GOPATH="$(mktemp -d)" \
 	&& git clone https://github.com/docker/notary.git "$GOPATH/src/github.com/docker/notary" \
@@ -161,49 +167,13 @@ RUN ./contrib/download-frozen-image-v2.sh /docker-frozen-images \
 	armhf/busybox:latest@sha256:d98a7343ac750ffe387e3d514f8521ba69846c216778919b01414b8617cfb3d4 \
 	armhf/debian:jessie@sha256:4a2187483f04a84f9830910fe3581d69b3c985cc045d9f01d8e2f3795b28107b \
 	armhf/hello-world:latest@sha256:161dcecea0225975b2ad5f768058212c1e0d39e8211098666ffa1ac74cfb7791
-# see also "hack/make/.ensure-frozen-images" (which needs to be updated any time this list is)
+# See also "hack/make/.ensure-frozen-images" (which needs to be updated any time this list is)
 
-# Download man page generator
-RUN set -x \
-	&& export GOPATH="$(mktemp -d)" \
-	&& git clone --depth 1 -b v1.0.5 https://github.com/cpuguy83/go-md2man.git "$GOPATH/src/github.com/cpuguy83/go-md2man" \
-	&& git clone --depth 1 -b v1.4 https://github.com/russross/blackfriday.git "$GOPATH/src/github.com/russross/blackfriday" \
-	&& go get -v -d github.com/cpuguy83/go-md2man \
-	&& go build -v -o /usr/local/bin/go-md2man github.com/cpuguy83/go-md2man \
-	&& rm -rf "$GOPATH"
-
-# Download toml validator
-ENV TOMLV_COMMIT 9baf8a8a9f2ed20a8e54160840c492f937eeaf9a
-RUN set -x \
-	&& export GOPATH="$(mktemp -d)" \
-	&& git clone https://github.com/BurntSushi/toml.git "$GOPATH/src/github.com/BurntSushi/toml" \
-	&& (cd "$GOPATH/src/github.com/BurntSushi/toml" && git checkout -q "$TOMLV_COMMIT") \
-	&& go build -v -o /usr/local/bin/tomlv github.com/BurntSushi/toml/cmd/tomlv \
-	&& rm -rf "$GOPATH"
-
-# Install runc
-ENV RUNC_COMMIT cc29e3dded8e27ba8f65738f40d251c885030a28
-RUN set -x \
-	&& export GOPATH="$(mktemp -d)" \
-	&& git clone https://github.com/opencontainers/runc.git "$GOPATH/src/github.com/opencontainers/runc" \
-	&& cd "$GOPATH/src/github.com/opencontainers/runc" \
-	&& git checkout -q "$RUNC_COMMIT" \
-	&& make static BUILDTAGS="seccomp apparmor selinux" \
-	&& cp runc /usr/local/bin/docker-runc \
-	&& rm -rf "$GOPATH"
-
-# Install containerd
-ENV CONTAINERD_COMMIT 8508d2bec90b96403143a1104cdcbd56f6aeb361
-RUN set -x \
-	&& export GOPATH="$(mktemp -d)" \
-	&& git clone https://github.com/docker/containerd.git "$GOPATH/src/github.com/docker/containerd" \
-	&& cd "$GOPATH/src/github.com/docker/containerd" \
-	&& git checkout -q "$CONTAINERD_COMMIT" \
-	&& make static \
-	&& cp bin/containerd /usr/local/bin/docker-containerd \
-	&& cp bin/containerd-shim /usr/local/bin/docker-containerd-shim \
-	&& cp bin/ctr /usr/local/bin/docker-containerd-ctr \
-	&& rm -rf "$GOPATH"
+# Install tomlv, vndr, runc, containerd, tini, docker-proxy
+# Please edit hack/dockerfile/install-binaries.sh to update them.
+COPY hack/dockerfile/binaries-commits /tmp/binaries-commits
+COPY hack/dockerfile/install-binaries.sh /tmp/install-binaries.sh
+RUN /tmp/install-binaries.sh tomlv vndr runc containerd tini proxy
 
 ENTRYPOINT ["hack/dind"]
 

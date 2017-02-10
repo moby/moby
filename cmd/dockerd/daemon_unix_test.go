@@ -1,13 +1,15 @@
-// +build !windows
+// +build !windows,!solaris
+
+// TODO: Create new file for Solaris which tests config parameters
+// as described in daemon/config_solaris.go
 
 package main
 
 import (
-	"testing"
-
 	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/pkg/testutil/assert"
 	"github.com/docker/docker/pkg/testutil/tempfile"
+	"testing"
 )
 
 func TestLoadDaemonCliConfigWithDaemonFlags(t *testing.T) {

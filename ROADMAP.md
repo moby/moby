@@ -63,10 +63,9 @@ containers, and not as easily dismissed).
 ## 1.3 Internal decoupling
 
 A lot of work has been done in trying to decouple the Docker Engine's internals. In particular, the
-API implementation has been refactored and ongoing work is happening to move the code to a separate
-repository ([`docker/engine-api`](https://github.com/docker/engine-api)), and the Builder side of
-the daemon is now [fully independent](https://github.com/docker/docker/tree/master/builder) while
-still residing in the same repository.
+API implementation has been refactored, and the Builder side of the daemon is now
+[fully independent](https://github.com/docker/docker/tree/master/builder) while still residing in
+the same repository.
 
 We are exploring ways to go further with that decoupling, capitalizing on the work introduced by the
 runtime renovation and plugins improvement efforts. Indeed, the combination of `containerd` support
@@ -86,7 +85,7 @@ their container to communicate, the next step is for a given Engine to gain abil
 to another node in the cluster. This will be introduced in a backward compatible way, such that a
 `docker run` invocation on a particular node remains fully deterministic.
 
-# 2 Frozen features
+# 2. Frozen features
 
 ## 2.1 Docker exec
 

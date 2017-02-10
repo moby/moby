@@ -6,10 +6,10 @@ import (
 	"testing"
 	"time"
 
+	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/daemon/events"
-	containertypes "github.com/docker/engine-api/types/container"
 	"github.com/docker/swarmkit/api"
 	"golang.org/x/net/context"
 )
@@ -54,7 +54,7 @@ func TestHealthStates(t *testing.T) {
 		EventsService: e,
 	}
 
-	controller, err := newController(daemon, task)
+	controller, err := newController(daemon, task, nil)
 	if err != nil {
 		t.Fatalf("create controller fail %v", err)
 	}
@@ -87,7 +87,7 @@ func TestHealthStates(t *testing.T) {
 			}
 		case <-timer.C:
 			if expectedErr != nil {
-				t.Fatalf("time limit exceeded, didn't get expected error")
+				t.Fatal("time limit exceeded, didn't get expected error")
 			}
 		}
 	}

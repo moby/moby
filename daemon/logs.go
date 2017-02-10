@@ -1,7 +1,7 @@
 package daemon
 
 import (
-	"fmt"
+	"errors"
 	"io"
 	"strconv"
 	"time"
@@ -10,25 +10,27 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/types/backend"
+	containertypes "github.com/docker/docker/api/types/container"
+	timetypes "github.com/docker/docker/api/types/time"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/logger"
-	"github.com/docker/docker/daemon/logger/jsonfilelog"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/stdcopy"
-	containertypes "github.com/docker/engine-api/types/container"
-	timetypes "github.com/docker/engine-api/types/time"
 )
 
 // ContainerLogs hooks up a container's stdout and stderr streams
 // configured with the given struct.
 func (daemon *Daemon) ContainerLogs(ctx context.Context, containerName string, config *backend.ContainerLogsConfig, started chan struct{}) error {
+	if !(config.ShowStdout || config.ShowStderr) {
+		return errors.New("You must choose at least one stream")
+	}
 	container, err := daemon.GetContainer(containerName)
 	if err != nil {
 		return err
 	}
 
-	if !(config.ShowStdout || config.ShowStderr) {
-		return fmt.Errorf("You must choose at least one stream")
+	if container.HostConfig.LogConfig.Type == "none" {
+		return logger.ErrReadLogsNotSupported
 	}
 
 	cLog, err := daemon.getLogger(container)
@@ -62,13 +64,26 @@ func (daemon *Daemon) ContainerLogs(ctx context.Context, containerName string, c
 		Follow: follow,
 	}
 	logs := logReader.ReadLogs(readConfig)
+	// Close logWatcher on exit
+	defer func() {
+		logs.Close()
+		if cLog != container.LogDriver {
+			// Since the logger isn't cached in the container, which
+			// occurs if it is running, it must get explicitly closed
+			// here to avoid leaking it and any file handles it has.
+			if err := cLog.Close(); err != nil {
+				logrus.Errorf("Error closing logger: %v", err)
+			}
+		}
+	}()
 
 	wf := ioutils.NewWriteFlusher(config.OutStream)
 	defer wf.Close()
 	close(started)
 	wf.Flush()
 
-	var outStream io.Writer = wf
+	var outStream io.Writer
+	outStream = wf
 	errStream := outStream
 	if !container.Config.Tty {
 		errStream = stdcopy.NewStdWriter(outStream, stdcopy.Stderr)
@@ -81,19 +96,11 @@ func (daemon *Daemon) ContainerLogs(ctx context.Context, containerName string, c
 			logrus.Errorf("Error streaming logs: %v", err)
 			return nil
 		case <-ctx.Done():
-			logs.Close()
+			logrus.Debugf("logs: end stream, ctx is done: %v", ctx.Err())
 			return nil
 		case msg, ok := <-logs.Msg:
 			if !ok {
 				logrus.Debug("logs: end stream")
-				logs.Close()
-				if cLog != container.LogDriver {
-					// Since the logger isn't cached in the container, which occurs if it is running, it
-					// must get explicitly closed here to avoid leaking it and any file handles it has.
-					if err := cLog.Close(); err != nil {
-						logrus.Errorf("Error closing logger: %v", err)
-					}
-				}
 				return nil
 			}
 			logLine := msg.Line
@@ -117,31 +124,7 @@ func (daemon *Daemon) getLogger(container *container.Container) (logger.Logger, 
 	if container.LogDriver != nil && container.IsRunning() {
 		return container.LogDriver, nil
 	}
-	return container.StartLogger(container.HostConfig.LogConfig)
-}
-
-// StartLogging initializes and starts the container logging stream.
-func (daemon *Daemon) StartLogging(container *container.Container) error {
-	if container.HostConfig.LogConfig.Type == "none" {
-		return nil // do not start logging routines
-	}
-
-	l, err := container.StartLogger(container.HostConfig.LogConfig)
-	if err != nil {
-		return fmt.Errorf("Failed to initialize logging driver: %v", err)
-	}
-
-	copier := logger.NewCopier(map[string]io.Reader{"stdout": container.StdoutPipe(), "stderr": container.StderrPipe()}, l)
-	container.LogCopier = copier
-	copier.Run()
-	container.LogDriver = l
-
-	// set LogPath field only for json-file logdriver
-	if jl, ok := l.(*jsonfilelog.JSONFileLogger); ok {
-		container.LogPath = jl.LogPath()
-	}
-
-	return nil
+	return container.StartLogger()
 }
 
 // mergeLogConfig merges the daemon log config to the container's log config if the container's log driver is not specified.

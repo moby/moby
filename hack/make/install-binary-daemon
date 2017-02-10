@@ -12,4 +12,5 @@ rm -rf "$DEST"
 	install_binary "${DEST}/${DOCKER_CONTAINERD_CTR_BINARY_NAME}"
 	install_binary "${DEST}/${DOCKER_CONTAINERD_SHIM_BINARY_NAME}"
 	install_binary "${DEST}/${DOCKER_PROXY_BINARY_NAME}"
+	install_binary "${DEST}/${DOCKER_INIT_BINARY_NAME}"
 )

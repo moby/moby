@@ -35,7 +35,7 @@ func parseSubCommand(rest string, d *Directive) (*Node, map[string]bool, error) 
 		return nil, nil, nil
 	}
 
-	_, child, err := ParseLine(rest, d)
+	_, child, err := ParseLine(rest, d, false)
 	if err != nil {
 		return nil, nil, err
 	}

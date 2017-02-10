@@ -5,9 +5,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/pkg/archive"
-	"github.com/docker/engine-api/types"
 )
 
 func TestEmptyDockerfile(t *testing.T) {

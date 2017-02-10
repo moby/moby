@@ -18,8 +18,8 @@ docker-version-osarch() {
 	'
 }
 
-# Retrieve OS/ARCH of docker daemon, eg. linux/amd64
-export DOCKER_ENGINE_OSARCH="$(docker-version-osarch 'Server')"
+# Retrieve OS/ARCH of docker daemon, e.g. linux/amd64
+export DOCKER_ENGINE_OSARCH="${DOCKER_ENGINE_OSARCH:=$(docker-version-osarch 'Server')}"
 export DOCKER_ENGINE_GOOS="${DOCKER_ENGINE_OSARCH%/*}"
 export DOCKER_ENGINE_GOARCH="${DOCKER_ENGINE_OSARCH##*/}"
 DOCKER_ENGINE_GOARCH=${DOCKER_ENGINE_GOARCH:=amd64}
@@ -55,6 +55,9 @@ case "$PACKAGE_ARCH" in
 		case "${DOCKER_ENGINE_GOOS:-$DOCKER_CLIENT_GOOS}" in
 			windows)
 				DOCKERFILE='Dockerfile.windows'
+				;;
+			solaris)
+				DOCKERFILE='Dockerfile.solaris'
 				;;
 		esac
 		;;

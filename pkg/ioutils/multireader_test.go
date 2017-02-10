@@ -2,6 +2,7 @@ package ioutils
 
 import (
 	"bytes"
+	"encoding/binary"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -145,5 +146,66 @@ func TestMultiReadSeekerNegativeSeek(t *testing.T) {
 	expected := fmt.Sprintf("%s %d", str, 3)
 	if string(buf) != fmt.Sprintf("%s %d", str, 3) {
 		t.Fatalf("expected %q to be %q", string(buf), expected)
+	}
+}
+
+func TestMultiReadSeekerCurAfterSet(t *testing.T) {
+	str := "hello world"
+	s1 := strings.NewReader(str + " 1")
+	s2 := strings.NewReader(str + " 2")
+	s3 := strings.NewReader(str + " 3")
+	mr := MultiReadSeeker(s1, s2, s3)
+
+	mid := int64(s1.Len() + s2.Len()/2)
+
+	size, err := mr.Seek(mid, os.SEEK_SET)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if size != mid {
+		t.Fatalf("reader size does not match, got %d, expected %d", size, mid)
+	}
+
+	size, err = mr.Seek(3, os.SEEK_CUR)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if size != mid+3 {
+		t.Fatalf("reader size does not match, got %d, expected %d", size, mid+3)
+	}
+	size, err = mr.Seek(5, os.SEEK_CUR)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if size != mid+8 {
+		t.Fatalf("reader size does not match, got %d, expected %d", size, mid+8)
+	}
+
+	size, err = mr.Seek(10, os.SEEK_CUR)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if size != mid+18 {
+		t.Fatalf("reader size does not match, got %d, expected %d", size, mid+18)
+	}
+}
+
+func TestMultiReadSeekerSmallReads(t *testing.T) {
+	readers := []io.ReadSeeker{}
+	for i := 0; i < 10; i++ {
+		integer := make([]byte, 4, 4)
+		binary.BigEndian.PutUint32(integer, uint32(i))
+		readers = append(readers, bytes.NewReader(integer))
+	}
+
+	reader := MultiReadSeeker(readers...)
+	for i := 0; i < 10; i++ {
+		var integer uint32
+		if err := binary.Read(reader, binary.BigEndian, &integer); err != nil {
+			t.Fatalf("Read from NewMultiReadSeeker failed: %v", err)
+		}
+		if uint32(i) != integer {
+			t.Fatalf("Read wrong value from NewMultiReadSeeker: %d != %d", i, integer)
+		}
 	}
 }

@@ -59,7 +59,7 @@ func TestFileSpecPlugin(t *testing.T) {
 		}
 
 		if p.name != c.name {
-			t.Fatalf("Expected plugin `%s`, got %s\n", c.name, p.Name)
+			t.Fatalf("Expected plugin `%s`, got %s\n", c.name, p.name)
 		}
 
 		if p.Addr != c.addr {
@@ -97,8 +97,8 @@ func TestFileJSONSpecPlugin(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if plugin.name != "example" {
-		t.Fatalf("Expected plugin `plugin-example`, got %s\n", plugin.Name)
+	if expected, actual := "example", plugin.name; expected != actual {
+		t.Fatalf("Expected plugin %q, got %s\n", expected, actual)
 	}
 
 	if plugin.Addr != "https://example.com/docker/plugin" {
@@ -138,8 +138,8 @@ func TestFileJSONSpecPluginWithoutTLSConfig(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if plugin.name != "example" {
-		t.Fatalf("Expected plugin `plugin-example`, got %s\n", plugin.Name)
+	if expected, actual := "example", plugin.name; expected != actual {
+		t.Fatalf("Expected plugin %q, got %s\n", expected, actual)
 	}
 
 	if plugin.Addr != "https://example.com/docker/plugin" {

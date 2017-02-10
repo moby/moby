@@ -6,9 +6,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/engine-api/types"
-	"github.com/docker/engine-api/types/container"
-	"github.com/docker/engine-api/types/strslice"
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/strslice"
 	"github.com/docker/go-connections/nat"
 )
 
@@ -196,7 +196,7 @@ func TestFrom(t *testing.T) {
 
 	if runtime.GOOS == "windows" {
 		if err == nil {
-			t.Fatalf("Error not set on Windows")
+			t.Fatal("Error not set on Windows")
 		}
 
 		expectedError := "Windows does not support FROM scratch"
@@ -214,7 +214,7 @@ func TestFrom(t *testing.T) {
 		}
 
 		if b.noBaseImage != true {
-			t.Fatalf("Image should not have any base image, got: %s", b.noBaseImage)
+			t.Fatalf("Image should not have any base image, got: %v", b.noBaseImage)
 		}
 	}
 }
@@ -231,7 +231,7 @@ func TestOnbuildIllegalTriggers(t *testing.T) {
 		err := onbuild(b, []string{trigger.command}, nil, "")
 
 		if err == nil {
-			t.Fatalf("Error should not be nil")
+			t.Fatal("Error should not be nil")
 		}
 
 		if !strings.Contains(err.Error(), trigger.expectedError) {
@@ -301,7 +301,7 @@ func TestCmd(t *testing.T) {
 	}
 
 	if !b.cmdSet {
-		t.Fatalf("Command should be marked as set")
+		t.Fatal("Command should be marked as set")
 	}
 }
 
@@ -365,7 +365,7 @@ func TestEntrypoint(t *testing.T) {
 	}
 
 	if b.runConfig.Entrypoint == nil {
-		t.Fatalf("Entrypoint should be set")
+		t.Fatal("Entrypoint should be set")
 	}
 
 	var expectedEntrypoint strslice.StrSlice
@@ -391,7 +391,7 @@ func TestExpose(t *testing.T) {
 	}
 
 	if b.runConfig.ExposedPorts == nil {
-		t.Fatalf("ExposedPorts should be set")
+		t.Fatal("ExposedPorts should be set")
 	}
 
 	if len(b.runConfig.ExposedPorts) != 1 {
@@ -433,7 +433,7 @@ func TestVolume(t *testing.T) {
 	}
 
 	if b.runConfig.Volumes == nil {
-		t.Fatalf("Volumes should be set")
+		t.Fatal("Volumes should be set")
 	}
 
 	if len(b.runConfig.Volumes) != 1 {
@@ -460,7 +460,7 @@ func TestStopSignal(t *testing.T) {
 }
 
 func TestArg(t *testing.T) {
-	buildOptions := &types.ImageBuildOptions{BuildArgs: make(map[string]string)}
+	buildOptions := &types.ImageBuildOptions{BuildArgs: make(map[string]*string)}
 
 	b := &Builder{flags: &BFlags{}, runConfig: &container.Config{}, disableCommit: true, allowedBuildArgs: make(map[string]bool), options: buildOptions}
 
@@ -488,7 +488,7 @@ func TestArg(t *testing.T) {
 		t.Fatalf("%s argument should be a build arg", argName)
 	}
 
-	if val != "bar" {
+	if *val != "bar" {
 		t.Fatalf("%s argument should have default value 'bar', got %s", argName, val)
 	}
 }
@@ -506,7 +506,7 @@ func TestShell(t *testing.T) {
 	}
 
 	if b.runConfig.Shell == nil {
-		t.Fatalf("Shell should be set")
+		t.Fatal("Shell should be set")
 	}
 
 	expectedShell := strslice.StrSlice([]string{shellCmd})

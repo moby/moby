@@ -5,14 +5,15 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/docker/docker/pkg/integration/checker"
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/versions/v1p20"
+	"github.com/docker/docker/integration-cli/checker"
+	"github.com/docker/docker/integration-cli/request"
 	"github.com/docker/docker/pkg/stringutils"
-	"github.com/docker/engine-api/types"
-	"github.com/docker/engine-api/types/versions/v1p20"
 	"github.com/go-check/check"
 )
 
-func (s *DockerSuite) TestInspectApiContainerResponse(c *check.C) {
+func (s *DockerSuite) TestInspectAPIContainerResponse(c *check.C) {
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "true")
 
 	cleanedContainerID := strings.TrimSpace(out)
@@ -26,9 +27,9 @@ func (s *DockerSuite) TestInspectApiContainerResponse(c *check.C) {
 
 	var cases []acase
 
-	if daemonPlatform == "windows" {
+	if testEnv.DaemonPlatform() == "windows" {
 		cases = []acase{
-			{"v1.20", append(keysBase, "Mounts")},
+			{"v1.25", append(keysBase, "Mounts")},
 		}
 
 	} else {
@@ -56,7 +57,7 @@ func (s *DockerSuite) TestInspectApiContainerResponse(c *check.C) {
 	}
 }
 
-func (s *DockerSuite) TestInspectApiContainerVolumeDriverLegacy(c *check.C) {
+func (s *DockerSuite) TestInspectAPIContainerVolumeDriverLegacy(c *check.C) {
 	// No legacy implications for Windows
 	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "true")
@@ -75,39 +76,39 @@ func (s *DockerSuite) TestInspectApiContainerVolumeDriverLegacy(c *check.C) {
 		c.Assert(ok, checker.True, check.Commentf("Unable to find 'Config'"))
 		cfg := config.(map[string]interface{})
 		_, ok = cfg["VolumeDriver"]
-		c.Assert(ok, checker.True, check.Commentf("Api version %s expected to include VolumeDriver in 'Config'", version))
+		c.Assert(ok, checker.True, check.Commentf("API version %s expected to include VolumeDriver in 'Config'", version))
 	}
 }
 
-func (s *DockerSuite) TestInspectApiContainerVolumeDriver(c *check.C) {
+func (s *DockerSuite) TestInspectAPIContainerVolumeDriver(c *check.C) {
 	out, _ := dockerCmd(c, "run", "-d", "--volume-driver", "local", "busybox", "true")
 
 	cleanedContainerID := strings.TrimSpace(out)
 
-	body := getInspectBody(c, "v1.21", cleanedContainerID)
+	body := getInspectBody(c, "v1.25", cleanedContainerID)
 
 	var inspectJSON map[string]interface{}
 	err := json.Unmarshal(body, &inspectJSON)
-	c.Assert(err, checker.IsNil, check.Commentf("Unable to unmarshal body for version 1.21"))
+	c.Assert(err, checker.IsNil, check.Commentf("Unable to unmarshal body for version 1.25"))
 
 	config, ok := inspectJSON["Config"]
 	c.Assert(ok, checker.True, check.Commentf("Unable to find 'Config'"))
 	cfg := config.(map[string]interface{})
 	_, ok = cfg["VolumeDriver"]
-	c.Assert(ok, checker.False, check.Commentf("Api version 1.21 expected to not include VolumeDriver in 'Config'"))
+	c.Assert(ok, checker.False, check.Commentf("API version 1.25 expected to not include VolumeDriver in 'Config'"))
 
 	config, ok = inspectJSON["HostConfig"]
 	c.Assert(ok, checker.True, check.Commentf("Unable to find 'HostConfig'"))
 	cfg = config.(map[string]interface{})
 	_, ok = cfg["VolumeDriver"]
-	c.Assert(ok, checker.True, check.Commentf("Api version 1.21 expected to include VolumeDriver in 'HostConfig'"))
+	c.Assert(ok, checker.True, check.Commentf("API version 1.25 expected to include VolumeDriver in 'HostConfig'"))
 }
 
-func (s *DockerSuite) TestInspectApiImageResponse(c *check.C) {
+func (s *DockerSuite) TestInspectAPIImageResponse(c *check.C) {
 	dockerCmd(c, "tag", "busybox:latest", "busybox:mytag")
 
 	endpoint := "/images/busybox/json"
-	status, body, err := sockRequest("GET", endpoint, nil)
+	status, body, err := request.SockRequest("GET", endpoint, nil, daemonHost())
 
 	c.Assert(err, checker.IsNil)
 	c.Assert(status, checker.Equals, http.StatusOK)
@@ -122,7 +123,7 @@ func (s *DockerSuite) TestInspectApiImageResponse(c *check.C) {
 }
 
 // #17131, #17139, #17173
-func (s *DockerSuite) TestInspectApiEmptyFieldsInConfigPre121(c *check.C) {
+func (s *DockerSuite) TestInspectAPIEmptyFieldsInConfigPre121(c *check.C) {
 	// Not relevant on Windows
 	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "true")
@@ -141,12 +142,12 @@ func (s *DockerSuite) TestInspectApiEmptyFieldsInConfigPre121(c *check.C) {
 		cfg := config.(map[string]interface{})
 		for _, f := range []string{"MacAddress", "NetworkDisabled", "ExposedPorts"} {
 			_, ok := cfg[f]
-			c.Check(ok, checker.True, check.Commentf("Api version %s expected to include %s in 'Config'", version, f))
+			c.Check(ok, checker.True, check.Commentf("API version %s expected to include %s in 'Config'", version, f))
 		}
 	}
 }
 
-func (s *DockerSuite) TestInspectApiBridgeNetworkSettings120(c *check.C) {
+func (s *DockerSuite) TestInspectAPIBridgeNetworkSettings120(c *check.C) {
 	// Not relevant on Windows, and besides it doesn't have any bridge network settings
 	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "top")
@@ -163,7 +164,7 @@ func (s *DockerSuite) TestInspectApiBridgeNetworkSettings120(c *check.C) {
 	c.Assert(settings.IPAddress, checker.Not(checker.HasLen), 0)
 }
 
-func (s *DockerSuite) TestInspectApiBridgeNetworkSettings121(c *check.C) {
+func (s *DockerSuite) TestInspectAPIBridgeNetworkSettings121(c *check.C) {
 	// Windows doesn't have any bridge network settings
 	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "top")

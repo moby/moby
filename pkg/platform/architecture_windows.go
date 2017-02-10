@@ -4,10 +4,12 @@ import (
 	"fmt"
 	"syscall"
 	"unsafe"
+
+	"golang.org/x/sys/windows"
 )
 
 var (
-	modkernel32       = syscall.NewLazyDLL("kernel32.dll")
+	modkernel32       = windows.NewLazySystemDLL("kernel32.dll")
 	procGetSystemInfo = modkernel32.NewProc("GetSystemInfo")
 )
 
@@ -34,10 +36,9 @@ const (
 	ProcessorArchitectureArm  = 5 // PROCESSOR_ARCHITECTURE_ARM
 )
 
-var sysinfo systeminfo
-
 // runtimeArchitecture gets the name of the current architecture (x86, x86_64, …)
 func runtimeArchitecture() (string, error) {
+	var sysinfo systeminfo
 	syscall.Syscall(procGetSystemInfo.Addr(), 1, uintptr(unsafe.Pointer(&sysinfo)), 0, 0)
 	switch sysinfo.wProcessorArchitecture {
 	case ProcessorArchitecture64, ProcessorArchitectureIA64:
@@ -49,4 +50,11 @@ func runtimeArchitecture() (string, error) {
 	default:
 		return "", fmt.Errorf("Unknown processor architecture")
 	}
+}
+
+// NumProcs returns the number of processors on the system
+func NumProcs() uint32 {
+	var sysinfo systeminfo
+	syscall.Syscall(procGetSystemInfo.Addr(), 1, uintptr(unsafe.Pointer(&sysinfo)), 0, 0)
+	return sysinfo.dwNumberOfProcessors
 }

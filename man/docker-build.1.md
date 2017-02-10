@@ -2,7 +2,7 @@
 % Docker Community
 % JUNE 2014
 # NAME
-docker-build - Build a new image from the source code at PATH
+docker-build - Build an image from a Dockerfile
 
 # SYNOPSIS
 **docker build**
@@ -11,16 +11,19 @@ docker-build - Build a new image from the source code at PATH
 [**--cgroup-parent**[=*CGROUP-PARENT*]]
 [**--help**]
 [**-f**|**--file**[=*PATH/Dockerfile*]]
+[**-squash**] *Experimental*
 [**--force-rm**]
 [**--isolation**[=*default*]]
 [**--label**[=*[]*]]
 [**--no-cache**]
 [**--pull**]
+[**--compress**]
 [**-q**|**--quiet**]
 [**--rm**[=*true*]]
 [**-t**|**--tag**[=*[]*]]
 [**-m**|**--memory**[=*MEMORY*]]
 [**--memory-swap**[=*LIMIT*]]
+[**--network**[=*"default"*]]
 [**--shm-size**[=*SHM-SIZE*]]
 [**--cpu-period**[=*0*]]
 [**--cpu-quota**[=*0*]]
@@ -55,6 +58,22 @@ set as the **URL**, the repository is cloned locally and then sent as the contex
    the remote context. In all cases, the file must be within the build context.
    The default is *Dockerfile*.
 
+**--squash**=*true*|*false*
+   **Experimental Only**
+   Once the image is built, squash the new layers into a new image with a single
+   new layer. Squashing does not destroy any existing image, rather it creates a new
+   image with the content of the squashed layers. This effectively makes it look
+   like all `Dockerfile` commands were created with a single layer. The build
+   cache is preserved with this method.
+
+   **Note**: using this option means the new image will not be able to take
+   advantage of layer sharing with other images and may use significantly more
+   space.
+
+   **Note**: using this option you may see significantly more space used due to
+   storing two copies of the image, one for the build cache with all the cache
+   layers in tact, and one for the squashed version.
+
 **--build-arg**=*variable*
    name and value of a **buildarg**.
 
@@ -64,7 +83,7 @@ set as the **URL**, the repository is cloned locally and then sent as the contex
    Users pass these values at build-time. Docker uses the `buildargs` as the
    environment context for command(s) run via the Dockerfile's `RUN` instruction
    or for variable expansion in other Dockerfile instructions. This is not meant
-   for passing secret values. [Read more about the buildargs instruction](/reference/builder/#arg)
+   for passing secret values. [Read more about the buildargs instruction](https://docs.docker.com/engine/reference/builder/#arg)
 
 **--force-rm**=*true*|*false*
    Always remove intermediate containers, even after unsuccessful builds. The default is *false*.
@@ -83,6 +102,9 @@ set as the **URL**, the repository is cloned locally and then sent as the contex
 
 **--pull**=*true*|*false*
    Always attempt to pull a newer version of the image. The default is *false*.
+
+**--compress**=*true*|*false*
+    Compress the build context using gzip. The default is *false*.
 
 **-q**, **--quiet**=*true*|*false*
    Suppress the build output and print image ID on success. The default is *false*.
@@ -106,6 +128,11 @@ set as the **URL**, the repository is cloned locally and then sent as the contex
    The format of `LIMIT` is `<number>[<unit>]`. Unit can be `b` (bytes),
 `k` (kilobytes), `m` (megabytes), or `g` (gigabytes). If you don't specify a
 unit, `b` is used. Set LIMIT to `-1` to enable unlimited swap.
+
+**--network**=*bridge*
+  Set the networking mode for the RUN instructions during build. Supported standard
+  values are: `bridge`, `host`, `none` and `container:<name|id>`. Any other value
+  is taken as a custom network's name or ID which this container should connect to.
 
 **--shm-size**=*SHM-SIZE*
   Size of `/dev/shm`. The format is `<number><unit>`. `number` must be greater than `0`.
@@ -199,7 +226,7 @@ Cgroups are created if they do not already exist.
   Ulimit options
 
   For more information about `ulimit` see [Setting ulimits in a 
-container](https://docs.docker.com/reference/commandline/run/#setting-ulimits-in-a-container)
+container](https://docs.docker.com/engine/reference/commandline/run/#set-ulimits-in-container---ulimit)
 
 # EXAMPLES
 

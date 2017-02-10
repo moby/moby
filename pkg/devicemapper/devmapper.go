@@ -505,7 +505,7 @@ func ReloadPool(poolName string, dataFile, metadataFile *os.File, poolBlockSize 
 	}
 
 	if err := task.run(); err != nil {
-		return fmt.Errorf("devicemapper: Error running deviceCreate %s", err)
+		return fmt.Errorf("devicemapper: Error running ReloadPool %s", err)
 	}
 
 	return nil
@@ -792,7 +792,7 @@ func CreateSnapDeviceRaw(poolName string, deviceID int, baseDeviceID int) error 
 		if dmSawExist {
 			return ErrDeviceIDExists
 		}
-		return fmt.Errorf("devicemapper: Error running deviceCreate (createSnapDevice) %s", err)
+		return fmt.Errorf("devicemapper: Error running deviceCreate (CreateSnapDeviceRaw) %s", err)
 	}
 
 	return nil

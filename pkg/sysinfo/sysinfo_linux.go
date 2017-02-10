@@ -18,7 +18,7 @@ const (
 )
 
 func findCgroupMountpoints() (map[string]string, error) {
-	cgMounts, err := cgroups.GetCgroupMounts()
+	cgMounts, err := cgroups.GetCgroupMounts(false)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to parse cgroup information: %v", err)
 	}
@@ -82,23 +82,23 @@ func checkCgroupMem(cgMounts map[string]string, quiet bool) cgroupMemInfo {
 
 	swapLimit := cgroupEnabled(mountPoint, "memory.memsw.limit_in_bytes")
 	if !quiet && !swapLimit {
-		logrus.Warn("Your kernel does not support swap memory limit.")
+		logrus.Warn("Your kernel does not support swap memory limit")
 	}
 	memoryReservation := cgroupEnabled(mountPoint, "memory.soft_limit_in_bytes")
 	if !quiet && !memoryReservation {
-		logrus.Warn("Your kernel does not support memory reservation.")
+		logrus.Warn("Your kernel does not support memory reservation")
 	}
 	oomKillDisable := cgroupEnabled(mountPoint, "memory.oom_control")
 	if !quiet && !oomKillDisable {
-		logrus.Warn("Your kernel does not support oom control.")
+		logrus.Warn("Your kernel does not support oom control")
 	}
 	memorySwappiness := cgroupEnabled(mountPoint, "memory.swappiness")
 	if !quiet && !memorySwappiness {
-		logrus.Warn("Your kernel does not support memory swappiness.")
+		logrus.Warn("Your kernel does not support memory swappiness")
 	}
 	kernelMemory := cgroupEnabled(mountPoint, "memory.kmem.limit_in_bytes")
 	if !quiet && !kernelMemory {
-		logrus.Warn("Your kernel does not support kernel memory limit.")
+		logrus.Warn("Your kernel does not support kernel memory limit")
 	}
 
 	return cgroupMemInfo{
@@ -135,10 +135,23 @@ func checkCgroupCPU(cgMounts map[string]string, quiet bool) cgroupCPUInfo {
 	if !quiet && !cpuCfsQuota {
 		logrus.Warn("Your kernel does not support cgroup cfs quotas")
 	}
+
+	cpuRealtimePeriod := cgroupEnabled(mountPoint, "cpu.rt_period_us")
+	if !quiet && !cpuRealtimePeriod {
+		logrus.Warn("Your kernel does not support cgroup rt period")
+	}
+
+	cpuRealtimeRuntime := cgroupEnabled(mountPoint, "cpu.rt_runtime_us")
+	if !quiet && !cpuRealtimeRuntime {
+		logrus.Warn("Your kernel does not support cgroup rt runtime")
+	}
+
 	return cgroupCPUInfo{
-		CPUShares:    cpuShares,
-		CPUCfsPeriod: cpuCfsPeriod,
-		CPUCfsQuota:  cpuCfsQuota,
+		CPUShares:          cpuShares,
+		CPUCfsPeriod:       cpuCfsPeriod,
+		CPUCfsQuota:        cpuCfsQuota,
+		CPURealtimePeriod:  cpuRealtimePeriod,
+		CPURealtimeRuntime: cpuRealtimeRuntime,
 	}
 }
 

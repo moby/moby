@@ -1,4 +1,4 @@
-// +build linux freebsd
+// +build linux freebsd solaris
 
 package graphtest
 
@@ -41,7 +41,7 @@ func newDriver(t testing.TB, name string, options []string) *Driver {
 		t.Fatal(err)
 	}
 
-	d, err := graphdriver.GetDriver(name, root, options, nil, nil)
+	d, err := graphdriver.GetDriver(name, nil, graphdriver.Options{DriverOptions: options, Root: root})
 	if err != nil {
 		t.Logf("graphdriver: %v\n", err)
 		if err == graphdriver.ErrNotSupported || err == graphdriver.ErrPrerequisites || err == graphdriver.ErrIncompatibleFS {
@@ -86,7 +86,7 @@ func DriverTestCreateEmpty(t testing.TB, drivername string, driverOptions ...str
 	driver := GetDriver(t, drivername, driverOptions...)
 	defer PutDriver(t)
 
-	if err := driver.Create("empty", "", "", nil); err != nil {
+	if err := driver.Create("empty", "", nil); err != nil {
 		t.Fatal(err)
 	}
 
@@ -147,7 +147,7 @@ func DriverTestCreateSnap(t testing.TB, drivername string, driverOptions ...stri
 		}
 	}()
 
-	if err := driver.Create("Snap", "Base", "", nil); err != nil {
+	if err := driver.Create("Snap", "Base", nil); err != nil {
 		t.Fatal(err)
 	}
 
@@ -166,8 +166,7 @@ func DriverTestDeepLayerRead(t testing.TB, layerCount int, drivername string, dr
 	defer PutDriver(t)
 
 	base := stringid.GenerateRandomID()
-
-	if err := driver.Create(base, "", "", nil); err != nil {
+	if err := driver.Create(base, "", nil); err != nil {
 		t.Fatal(err)
 	}
 
@@ -201,7 +200,7 @@ func DriverTestDiffApply(t testing.TB, fileCount int, drivername string, driverO
 	deleteFileContent := []byte("This file should get removed in upper!")
 	deleteDir := "var/lib"
 
-	if err := driver.Create(base, "", "", nil); err != nil {
+	if err := driver.Create(base, "", nil); err != nil {
 		t.Fatal(err)
 	}
 
@@ -217,7 +216,7 @@ func DriverTestDiffApply(t testing.TB, fileCount int, drivername string, driverO
 		t.Fatal(err)
 	}
 
-	if err := driver.Create(upper, base, "", nil); err != nil {
+	if err := driver.Create(upper, base, nil); err != nil {
 		t.Fatal(err)
 	}
 
@@ -235,7 +234,7 @@ func DriverTestDiffApply(t testing.TB, fileCount int, drivername string, driverO
 	}
 
 	diff := stringid.GenerateRandomID()
-	if err := driver.Create(diff, base, "", nil); err != nil {
+	if err := driver.Create(diff, base, nil); err != nil {
 		t.Fatal(err)
 	}
 
@@ -288,8 +287,7 @@ func DriverTestChanges(t testing.TB, drivername string, driverOptions ...string)
 	defer PutDriver(t)
 	base := stringid.GenerateRandomID()
 	upper := stringid.GenerateRandomID()
-
-	if err := driver.Create(base, "", "", nil); err != nil {
+	if err := driver.Create(base, "", nil); err != nil {
 		t.Fatal(err)
 	}
 
@@ -297,7 +295,7 @@ func DriverTestChanges(t testing.TB, drivername string, driverOptions ...string)
 		t.Fatal(err)
 	}
 
-	if err := driver.Create(upper, base, "", nil); err != nil {
+	if err := driver.Create(upper, base, nil); err != nil {
 		t.Fatal(err)
 	}
 
@@ -339,9 +337,10 @@ func DriverTestSetQuota(t *testing.T, drivername string) {
 	defer PutDriver(t)
 
 	createBase(t, driver, "Base")
-	storageOpt := make(map[string]string, 1)
-	storageOpt["size"] = "50M"
-	if err := driver.Create("zfsTest", "Base", "", storageOpt); err != nil {
+	createOpts := &graphdriver.CreateOpts{}
+	createOpts.StorageOpt = make(map[string]string, 1)
+	createOpts.StorageOpt["size"] = "50M"
+	if err := driver.Create("zfsTest", "Base", createOpts); err != nil {
 		t.Fatal(err)
 	}
 

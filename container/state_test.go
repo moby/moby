@@ -4,7 +4,29 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/docker/docker/api/types"
 )
+
+func TestIsValidHealthString(t *testing.T) {
+	contexts := []struct {
+		Health   string
+		Expected bool
+	}{
+		{types.Healthy, true},
+		{types.Unhealthy, true},
+		{types.Starting, true},
+		{types.NoHealthcheck, true},
+		{"fail", false},
+	}
+
+	for _, c := range contexts {
+		v := IsValidHealthString(c.Health)
+		if v != c.Expected {
+			t.Fatalf("Expected %t, but got %t", c.Expected, v)
+		}
+	}
+}
 
 func TestStateRunStop(t *testing.T) {
 	s := NewState()
@@ -30,7 +52,9 @@ func TestStateRunStop(t *testing.T) {
 			atomic.StoreInt64(&exit, int64(exitCode))
 			close(stopped)
 		}()
-		s.SetStoppedLocking(&ExitStatus{ExitCode: i})
+		s.Lock()
+		s.SetStopped(&ExitStatus{ExitCode: i})
+		s.Unlock()
 		if s.IsRunning() {
 			t.Fatal("State is running")
 		}
@@ -70,7 +94,9 @@ func TestStateTimeoutWait(t *testing.T) {
 		t.Log("Stop callback fired")
 	}
 
-	s.SetStoppedLocking(&ExitStatus{ExitCode: 1})
+	s.Lock()
+	s.SetStopped(&ExitStatus{ExitCode: 1})
+	s.Unlock()
 
 	stopped = make(chan struct{})
 	go func() {
@@ -79,7 +105,7 @@ func TestStateTimeoutWait(t *testing.T) {
 	}()
 	select {
 	case <-time.After(200 * time.Millisecond):
-		t.Fatal("Stop callback doesn't fire in 100 milliseconds")
+		t.Fatal("Stop callback doesn't fire in 200 milliseconds")
 	case <-stopped:
 		t.Log("Stop callback fired")
 	}

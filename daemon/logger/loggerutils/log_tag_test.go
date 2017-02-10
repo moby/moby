@@ -7,27 +7,27 @@ import (
 )
 
 func TestParseLogTagDefaultTag(t *testing.T) {
-	ctx := buildContext(map[string]string{})
-	tag, e := ParseLogTag(ctx, "{{.ID}}")
-	assertTag(t, e, tag, ctx.ID())
+	info := buildContext(map[string]string{})
+	tag, e := ParseLogTag(info, "{{.ID}}")
+	assertTag(t, e, tag, info.ID())
 }
 
 func TestParseLogTag(t *testing.T) {
-	ctx := buildContext(map[string]string{"tag": "{{.ImageName}}/{{.Name}}/{{.ID}}"})
-	tag, e := ParseLogTag(ctx, "{{.ID}}")
+	info := buildContext(map[string]string{"tag": "{{.ImageName}}/{{.Name}}/{{.ID}}"})
+	tag, e := ParseLogTag(info, "{{.ID}}")
 	assertTag(t, e, tag, "test-image/test-container/container-ab")
 }
 
 func TestParseLogTagEmptyTag(t *testing.T) {
-	ctx := buildContext(map[string]string{})
-	tag, e := ParseLogTag(ctx, "{{.DaemonName}}/{{.ID}}")
+	info := buildContext(map[string]string{})
+	tag, e := ParseLogTag(info, "{{.DaemonName}}/{{.ID}}")
 	assertTag(t, e, tag, "test-dockerd/container-ab")
 }
 
 // Helpers
 
-func buildContext(cfg map[string]string) logger.Context {
-	return logger.Context{
+func buildContext(cfg map[string]string) logger.Info {
+	return logger.Info{
 		ContainerID:        "container-abcdefghijklmnopqrstuvwxyz01234567890",
 		ContainerName:      "/test-container",
 		ContainerImageID:   "image-abcdefghijklmnopqrstuvwxyz01234567890",

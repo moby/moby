@@ -15,16 +15,18 @@
 # the case. Therefore, you don't have to disable it anymore.
 #
 
-FROM s390x/gcc:6.1
+FROM s390x/debian:jessie
 
 # Packaged dependencies
 RUN apt-get update && apt-get install -y \
 	apparmor \
+	apt-utils \
 	aufs-tools \
 	automake \
 	bash-completion \
 	btrfs-tools \
 	build-essential \
+	cmake \
 	createrepo \
 	curl \
 	dpkg-sig \
@@ -35,7 +37,6 @@ RUN apt-get update && apt-get install -y \
 	libapparmor-dev \
 	libcap-dev \
 	libltdl-dev \
-	libsqlite3-dev \
 	libsystemd-journal-dev \
 	libtool \
 	mercurial \
@@ -46,18 +47,10 @@ RUN apt-get update && apt-get install -y \
 	python-websocket \
 	xfsprogs \
 	tar \
+	vim-common \
 	--no-install-recommends
 
-# glibc in Debian has a bug specific to s390x that won't be fixed until Debian 8.6 is released
-# - https://github.com/docker/docker/issues/24748
-# - https://sourceware.org/git/?p=glibc.git;a=commit;h=890b7a4b33d482b5c768ab47d70758b80227e9bc
-# - https://sourceware.org/git/?p=glibc.git;a=commit;h=2e807f29595eb5b1e5d0decc6e356a3562ecc58e
-RUN echo 'deb http://httpredir.debian.org/debian jessie-proposed-updates main' >> /etc/apt/sources.list.d/pu.list \
-	&& apt-get update \
-	&& apt-get install -y libc6 \
-	&& rm -rf /var/lib/apt/lists/*
-
-# install seccomp: the version shipped in jessie is too old
+# Install seccomp: the version shipped in jessie is too old
 ENV SECCOMP_VERSION 2.3.1
 RUN set -x \
 	&& export SECCOMP_PATH="$(mktemp -d)" \
@@ -77,9 +70,9 @@ ENV LVM2_VERSION 2.02.103
 RUN mkdir -p /usr/local/lvm2 \
 	&& curl -fsSL "https://mirrors.kernel.org/sourceware/lvm2/LVM2.${LVM2_VERSION}.tgz" \
 		| tar -xzC /usr/local/lvm2 --strip-components=1
-# see https://git.fedorahosted.org/cgit/lvm2.git/refs/tags for release tags
+# See https://git.fedorahosted.org/cgit/lvm2.git/refs/tags for release tags
 
-# fix platform enablement in lvm2 to support s390x properly
+# Fix platform enablement in lvm2 to support s390x properly
 RUN set -e \
 	&& for f in config.guess config.sub; do \
 		curl -fsSL -o "/usr/local/lvm2/autoconf/$f" "http://git.savannah.gnu.org/gitweb/?p=config.git;a=blob_plain;f=$f;hb=HEAD"; \
@@ -93,23 +86,14 @@ RUN cd /usr/local/lvm2 \
 		--enable-static_link \
 	&& make device-mapper \
 	&& make install_device-mapper
-# see https://git.fedorahosted.org/cgit/lvm2.git/tree/INSTALL
+# See https://git.fedorahosted.org/cgit/lvm2.git/tree/INSTALL
 
-## BUILD GOLANG 1.7 with existing gccgo
+ENV GO_VERSION 1.7.5
+RUN curl -fsSL "https://golang.org/dl/go${GO_VERSION}.linux-s390x.tar.gz" \
+	| tar -xzC /usr/local
 
-ENV GO_VERSION 1.7
-ENV GO_DOWNLOAD_URL https://golang.org/dl/go${GO_VERSION}.src.tar.gz
-ENV GOROOT_BOOTSTRAP /usr/local
-
-RUN curl -fsSL "$GO_DOWNLOAD_URL" -o golang.tar.gz \
-    && tar -C /usr/src -xzf golang.tar.gz \
-    && rm golang.tar.gz \
-    && cd /usr/src/go/src && ./make.bash 2>&1
-
-ENV GOROOT_BOOTSTRAP /usr/src/
-
-ENV PATH /usr/src/go/bin/:/go/bin:$PATH
-ENV GOPATH /go:/go/src/github.com/docker/docker/vendor
+ENV PATH /go/bin:/usr/local/go/bin:$PATH
+ENV GOPATH /go
 
 # Dependency for golint
 ENV GO_TOOLS_COMMIT 823804e1ae08dbb14eb807afc7db9993bc9e3cc3
@@ -140,7 +124,7 @@ RUN set -x \
 	&& rm -rf "$GOPATH"
 
 # Install notary and notary-server
-ENV NOTARY_VERSION v0.3.0
+ENV NOTARY_VERSION v0.5.0
 RUN set -x \
 	&& export GOPATH="$(mktemp -d)" \
 	&& git clone https://github.com/docker/notary.git "$GOPATH/src/github.com/docker/notary" \
@@ -182,49 +166,13 @@ RUN ./contrib/download-frozen-image-v2.sh /docker-frozen-images \
 	s390x/busybox:latest@sha256:dd61522c983884a66ed72d60301925889028c6d2d5e0220a8fe1d9b4c6a4f01b \
 	s390x/debian:jessie@sha256:b74c863400909eff3c5e196cac9bfd1f6333ce47aae6a38398d87d5875da170a \
 	s390x/hello-world:latest@sha256:780d80b3a7677c3788c0d5cd9168281320c8d4a6d9183892d8ee5cdd610f5699
-# see also "hack/make/.ensure-frozen-images" (which needs to be updated any time this list is)
+# See also "hack/make/.ensure-frozen-images" (which needs to be updated any time this list is)
 
-# Download man page generator
-RUN set -x \
-	&& export GOPATH="$(mktemp -d)" \
-	&& git clone --depth 1 -b v1.0.5 https://github.com/cpuguy83/go-md2man.git "$GOPATH/src/github.com/cpuguy83/go-md2man" \
-	&& git clone --depth 1 -b v1.4 https://github.com/russross/blackfriday.git "$GOPATH/src/github.com/russross/blackfriday" \
-	&& go get -v -d github.com/cpuguy83/go-md2man \
-	&& go build -v -o /usr/local/bin/go-md2man github.com/cpuguy83/go-md2man \
-	&& rm -rf "$GOPATH"
-
-# Download toml validator
-ENV TOMLV_COMMIT 9baf8a8a9f2ed20a8e54160840c492f937eeaf9a
-RUN set -x \
-	&& export GOPATH="$(mktemp -d)" \
-	&& git clone https://github.com/BurntSushi/toml.git "$GOPATH/src/github.com/BurntSushi/toml" \
-	&& (cd "$GOPATH/src/github.com/BurntSushi/toml" && git checkout -q "$TOMLV_COMMIT") \
-	&& go build -v -o /usr/local/bin/tomlv github.com/BurntSushi/toml/cmd/tomlv \
-	&& rm -rf "$GOPATH"
-
-# Install runc
-ENV RUNC_COMMIT cc29e3dded8e27ba8f65738f40d251c885030a28
-RUN set -x \
-	&& export GOPATH="$(mktemp -d)" \
-	&& git clone https://github.com/opencontainers/runc.git "$GOPATH/src/github.com/opencontainers/runc" \
-	&& cd "$GOPATH/src/github.com/opencontainers/runc" \
-	&& git checkout -q "$RUNC_COMMIT" \
-	&& make static BUILDTAGS="seccomp apparmor selinux" \
-	&& cp runc /usr/local/bin/docker-runc \
-	&& rm -rf "$GOPATH"
-
-# Install containerd
-ENV CONTAINERD_COMMIT 8508d2bec90b96403143a1104cdcbd56f6aeb361
-RUN set -x \
-	&& export GOPATH="$(mktemp -d)" \
-	&& git clone https://github.com/docker/containerd.git "$GOPATH/src/github.com/docker/containerd" \
-	&& cd "$GOPATH/src/github.com/docker/containerd" \
-	&& git checkout -q "$CONTAINERD_COMMIT" \
-	&& make static \
-	&& cp bin/containerd /usr/local/bin/docker-containerd \
-	&& cp bin/containerd-shim /usr/local/bin/docker-containerd-shim \
-	&& cp bin/ctr /usr/local/bin/docker-containerd-ctr \
-	&& rm -rf "$GOPATH"
+# Install tomlv, vndr, runc, containerd, tini, docker-proxy
+# Please edit hack/dockerfile/install-binaries.sh to update them.
+COPY hack/dockerfile/binaries-commits /tmp/binaries-commits
+COPY hack/dockerfile/install-binaries.sh /tmp/install-binaries.sh
+RUN /tmp/install-binaries.sh tomlv vndr runc containerd tini proxy
 
 # Wrap all commands in the "docker-in-docker" script to allow nested containers
 ENTRYPOINT ["hack/dind"]

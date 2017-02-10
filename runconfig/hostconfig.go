@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"io"
 
-	"github.com/docker/engine-api/types/container"
+	"github.com/docker/docker/api/types/container"
 )
 
 // DecodeHostConfig creates a HostConfig based on the specified Reader.

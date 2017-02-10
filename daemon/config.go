@@ -3,10 +3,12 @@ package daemon
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"runtime"
+	"sort"
 	"strings"
 	"sync"
 
@@ -37,6 +39,10 @@ const (
 	disableNetworkBridge = "none"
 )
 
+const (
+	defaultShutdownTimeout = 15
+)
+
 // flatOptions contains configuration keys
 // that MUST NOT be parsed as deep structures.
 // Use this to differentiate these options
@@ -45,6 +51,7 @@ var flatOptions = map[string]bool{
 	"cluster-store-opts": true,
 	"log-opts":           true,
 	"runtimes":           true,
+	"default-ulimits":    true,
 }
 
 // LogConfig represents the default log configuration.
@@ -122,6 +129,10 @@ type CommonConfig struct {
 	// may take place at a time for each push.
 	MaxConcurrentUploads *int `json:"max-concurrent-uploads,omitempty"`
 
+	// ShutdownTimeout is the timeout value (in seconds) the daemon will wait for the container
+	// to stop when daemon is being shutdown
+	ShutdownTimeout int `json:"shutdown-timeout,omitempty"`
+
 	Debug     bool     `json:"debug,omitempty"`
 	Hosts     []string `json:"hosts,omitempty"`
 	LogLevel  string   `json:"log-level,omitempty"`
@@ -137,6 +148,7 @@ type CommonConfig struct {
 	// given to the /swarm/init endpoint and no advertise address is
 	// specified.
 	SwarmDefaultAdvertiseAddr string `json:"swarm-default-advertise-addr"`
+	MetricsAddress            string `json:"metrics-addr"`
 
 	LogConfig
 	bridgeConfig // bridgeConfig holds bridge network specific configuration.
@@ -144,6 +156,8 @@ type CommonConfig struct {
 
 	reloadLock sync.Mutex
 	valuesSet  map[string]interface{}
+
+	Experimental bool `json:"experimental"` // Experimental indicates whether experimental features should be exposed or not
 }
 
 // InstallCommonFlags adds flags to the pflag.FlagSet to configure the daemon
@@ -172,11 +186,15 @@ func (config *Config) InstallCommonFlags(flags *pflag.FlagSet) {
 	flags.StringVar(&config.ClusterAdvertise, "cluster-advertise", "", "Address or interface name to advertise")
 	flags.StringVar(&config.ClusterStore, "cluster-store", "", "URL of the distributed storage backend")
 	flags.Var(opts.NewNamedMapOpts("cluster-store-opts", config.ClusterOpts, nil), "cluster-store-opt", "Set cluster store options")
-	flags.StringVar(&config.CorsHeaders, "api-cors-header", "", "Set CORS headers in the remote API")
+	flags.StringVar(&config.CorsHeaders, "api-cors-header", "", "Set CORS headers in the Engine API")
 	flags.IntVar(&maxConcurrentDownloads, "max-concurrent-downloads", defaultMaxConcurrentDownloads, "Set the max concurrent downloads for each pull")
 	flags.IntVar(&maxConcurrentUploads, "max-concurrent-uploads", defaultMaxConcurrentUploads, "Set the max concurrent uploads for each push")
+	flags.IntVar(&config.ShutdownTimeout, "shutdown-timeout", defaultShutdownTimeout, "Set the default shutdown timeout")
 
 	flags.StringVar(&config.SwarmDefaultAdvertiseAddr, "swarm-default-advertise-addr", "", "Set default address or interface for swarm advertised address")
+	flags.BoolVar(&config.Experimental, "experimental", false, "Enable experimental features")
+
+	flags.StringVar(&config.MetricsAddress, "metrics-addr", "", "Set default address and port to serve the metrics api on")
 
 	config.MaxConcurrentDownloads = &maxConcurrentDownloads
 	config.MaxConcurrentUploads = &maxConcurrentUploads
@@ -205,11 +223,14 @@ func NewConfig() *Config {
 }
 
 func parseClusterAdvertiseSettings(clusterStore, clusterAdvertise string) (string, error) {
+	if runtime.GOOS == "solaris" && (clusterAdvertise != "" || clusterStore != "") {
+		return "", errors.New("Cluster Advertise Settings not supported on Solaris")
+	}
 	if clusterAdvertise == "" {
 		return "", errDiscoveryDisabled
 	}
 	if clusterStore == "" {
-		return "", fmt.Errorf("invalid cluster configuration. --cluster-advertise must be accompanied by --cluster-store configuration")
+		return "", errors.New("invalid cluster configuration. --cluster-advertise must be accompanied by --cluster-store configuration")
 	}
 
 	advertise, err := discovery.ParseAdvertise(clusterAdvertise)
@@ -217,6 +238,30 @@ func parseClusterAdvertiseSettings(clusterStore, clusterAdvertise string) (strin
 		return "", fmt.Errorf("discovery advertise parsing failed (%v)", err)
 	}
 	return advertise, nil
+}
+
+// GetConflictFreeLabels validates Labels for conflict
+// In swarm the duplicates for labels are removed
+// so we only take same values here, no conflict values
+// If the key-value is the same we will only take the last label
+func GetConflictFreeLabels(labels []string) ([]string, error) {
+	labelMap := map[string]string{}
+	for _, label := range labels {
+		stringSlice := strings.SplitN(label, "=", 2)
+		if len(stringSlice) > 1 {
+			// If there is a conflict we will return an error
+			if v, ok := labelMap[stringSlice[0]]; ok && v != stringSlice[1] {
+				return nil, fmt.Errorf("conflict labels for %s=%s and %s=%s", stringSlice[0], stringSlice[1], stringSlice[0], v)
+			}
+			labelMap[stringSlice[0]] = stringSlice[1]
+		}
+	}
+
+	newLabels := []string{}
+	for k, v := range labelMap {
+		newLabels = append(newLabels, fmt.Sprintf("%s=%s", k, v))
+	}
+	return newLabels, nil
 }
 
 // ReloadConfiguration reads the configuration in the host and reloads the daemon and server.
@@ -229,6 +274,23 @@ func ReloadConfiguration(configFile string, flags *pflag.FlagSet, reload func(*C
 
 	if err := ValidateConfiguration(newConfig); err != nil {
 		return fmt.Errorf("file configuration validation failed (%v)", err)
+	}
+
+	// Labels of the docker engine used to allow multiple values associated with the same key.
+	// This is deprecated in 1.13, and, be removed after 3 release cycles.
+	// The following will check the conflict of labels, and report a warning for deprecation.
+	//
+	// TODO: After 3 release cycles (1.16) an error will be returned, and labels will be
+	// sanitized to consolidate duplicate key-value pairs (config.Labels = newLabels):
+	//
+	// newLabels, err := GetConflictFreeLabels(newConfig.Labels)
+	// if err != nil {
+	//      return err
+	// }
+	// newConfig.Labels = newLabels
+	//
+	if _, err := GetConflictFreeLabels(newConfig.Labels); err != nil {
+		logrus.Warnf("Engine labels with duplicate keys and conflicting values have been deprecated: %s", err)
 	}
 
 	reload(newConfig)
@@ -461,4 +523,17 @@ func ValidateConfiguration(config *Config) error {
 	}
 
 	return nil
+}
+
+// GetAuthorizationPlugins returns daemon's sorted authorization plugins
+func (config *Config) GetAuthorizationPlugins() []string {
+	config.reloadLock.Lock()
+	defer config.reloadLock.Unlock()
+
+	authPlugins := make([]string, 0, len(config.AuthorizationPlugins))
+	for _, p := range config.AuthorizationPlugins {
+		authPlugins = append(authPlugins, p)
+	}
+	sort.Strings(authPlugins)
+	return authPlugins
 }

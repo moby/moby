@@ -3,6 +3,7 @@ package daemon
 import (
 	"io/ioutil"
 	"os"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -10,41 +11,6 @@ import (
 	"github.com/docker/docker/pkg/testutil/assert"
 	"github.com/spf13/pflag"
 )
-
-func TestDaemonConfigurationMerge(t *testing.T) {
-	f, err := ioutil.TempFile("", "docker-config-")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	configFile := f.Name()
-	f.Write([]byte(`{"debug": true}`))
-	f.Close()
-
-	c := &Config{
-		CommonConfig: CommonConfig{
-			AutoRestart: true,
-			LogConfig: LogConfig{
-				Type:   "syslog",
-				Config: map[string]string{"tag": "test"},
-			},
-		},
-	}
-
-	cc, err := MergeDaemonConfigurations(c, nil, configFile)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !cc.Debug {
-		t.Fatalf("expected %v, got %v\n", true, cc.Debug)
-	}
-	if !cc.AutoRestart {
-		t.Fatalf("expected %v, got %v\n", true, cc.AutoRestart)
-	}
-	if cc.LogConfig.Type != "syslog" {
-		t.Fatalf("expected syslog config, got %q\n", cc.LogConfig)
-	}
-}
 
 func TestDaemonConfigurationNotFound(t *testing.T) {
 	_, err := MergeDaemonConfigurations(&Config{}, nil, "/tmp/foo-bar-baz-docker")
@@ -70,6 +36,9 @@ func TestDaemonBrokenConfiguration(t *testing.T) {
 }
 
 func TestParseClusterAdvertiseSettings(t *testing.T) {
+	if runtime.GOOS == "solaris" {
+		t.Skip("ClusterSettings not supported on Solaris\n")
+	}
 	_, err := parseClusterAdvertiseSettings("something", "")
 	if err != errDiscoveryDisabled {
 		t.Fatalf("expected discovery disabled error, got %v\n", err)

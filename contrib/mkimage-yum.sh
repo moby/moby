@@ -6,6 +6,8 @@
 # a CentOS image on CentOS).  See contrib/mkimage-rinse.sh for a way
 # to build CentOS images on other systems.
 
+set -e
+
 usage() {
     cat <<EOOPTS
 $(basename $0) [OPTIONS] <name>

@@ -25,6 +25,7 @@ package aufs
 import (
 	"bufio"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -33,6 +34,7 @@ import (
 	"strings"
 	"sync"
 	"syscall"
+	"time"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/vbatts/tar-split/tar/storage"
@@ -72,6 +74,7 @@ type Driver struct {
 	ctr           *graphdriver.RefCounter
 	pathCacheLock sync.Mutex
 	pathCache     map[string]string
+	naiveDiff     graphdriver.DiffDriver
 }
 
 // Init returns a new AUFS driver.
@@ -135,6 +138,8 @@ func Init(root string, options []string, uidMaps, gidMaps []idtools.IDMap) (grap
 			return nil, err
 		}
 	}
+
+	a.naiveDiff = graphdriver.NewNaiveDiffDriver(a, uidMaps, gidMaps)
 	return a, nil
 }
 
@@ -200,15 +205,15 @@ func (a *Driver) Exists(id string) bool {
 
 // CreateReadWrite creates a layer that is writable for use as a container
 // file system.
-func (a *Driver) CreateReadWrite(id, parent, mountLabel string, storageOpt map[string]string) error {
-	return a.Create(id, parent, mountLabel, storageOpt)
+func (a *Driver) CreateReadWrite(id, parent string, opts *graphdriver.CreateOpts) error {
+	return a.Create(id, parent, opts)
 }
 
 // Create three folders for each id
 // mnt, layers, and diff
-func (a *Driver) Create(id, parent, mountLabel string, storageOpt map[string]string) error {
+func (a *Driver) Create(id, parent string, opts *graphdriver.CreateOpts) error {
 
-	if len(storageOpt) != 0 {
+	if opts != nil && len(opts.StorageOpt) != 0 {
 		return fmt.Errorf("--storage-opt is not supported for aufs")
 	}
 
@@ -223,7 +228,7 @@ func (a *Driver) Create(id, parent, mountLabel string, storageOpt map[string]str
 	defer f.Close()
 
 	if parent != "" {
-		ids, err := getParentIds(a.rootPath(), parent)
+		ids, err := getParentIDs(a.rootPath(), parent)
 		if err != nil {
 			return err
 		}
@@ -264,6 +269,39 @@ func (a *Driver) createDirsFor(id string) error {
 	return nil
 }
 
+// Helper function to debug EBUSY errors on remove.
+func debugEBusy(mountPath string) (out []string, err error) {
+	// lsof is not part of GNU coreutils. This is a best effort
+	// attempt to detect offending processes.
+	c := exec.Command("lsof")
+
+	r, err := c.StdoutPipe()
+	if err != nil {
+		return nil, fmt.Errorf("Assigning pipes failed with %v", err)
+	}
+
+	if err := c.Start(); err != nil {
+		return nil, fmt.Errorf("Starting %s failed with %v", c.Path, err)
+	}
+
+	defer func() {
+		waiterr := c.Wait()
+		if waiterr != nil && err == nil {
+			err = fmt.Errorf("Waiting for %s failed with %v", c.Path, waiterr)
+		}
+	}()
+
+	sc := bufio.NewScanner(r)
+	for sc.Scan() {
+		entry := sc.Text()
+		if strings.Contains(entry, mountPath) {
+			out = append(out, entry, "\n")
+		}
+	}
+
+	return out, nil
+}
+
 // Remove will unmount and remove the given id.
 func (a *Driver) Remove(id string) error {
 	a.pathCacheLock.Lock()
@@ -272,9 +310,35 @@ func (a *Driver) Remove(id string) error {
 	if !exists {
 		mountpoint = a.getMountpoint(id)
 	}
-	if err := a.unmount(mountpoint); err != nil {
-		// no need to return here, we can still try to remove since the `Rename` will fail below if still mounted
-		logrus.Debugf("aufs: error while unmounting %s: %v", mountpoint, err)
+
+	var retries int
+	for {
+		mounted, err := a.mounted(mountpoint)
+		if err != nil {
+			return err
+		}
+		if !mounted {
+			break
+		}
+
+		if err := a.unmount(mountpoint); err != nil {
+			if err != syscall.EBUSY {
+				return fmt.Errorf("aufs: unmount error: %s: %v", mountpoint, err)
+			}
+			if retries >= 5 {
+				out, debugErr := debugEBusy(mountpoint)
+				if debugErr == nil {
+					logrus.Warnf("debugEBusy returned %v", out)
+				}
+				return fmt.Errorf("aufs: unmount error after retries: %s: %v", mountpoint, err)
+			}
+			// If unmount returns EBUSY, it could be a transient error. Sleep and retry.
+			retries++
+			logrus.Warnf("unmount failed due to EBUSY: retry count: %d", retries)
+			time.Sleep(100 * time.Millisecond)
+			continue
+		}
+		break
 	}
 
 	// Atomically remove each directory in turn by first moving it out of the
@@ -282,6 +346,13 @@ func (a *Driver) Remove(id string) error {
 	// the whole tree.
 	tmpMntPath := path.Join(a.mntPath(), fmt.Sprintf("%s-removing", id))
 	if err := os.Rename(mountpoint, tmpMntPath); err != nil && !os.IsNotExist(err) {
+		if err == syscall.EBUSY {
+			logrus.Warn("os.Rename err due to EBUSY")
+			out, debugErr := debugEBusy(mountpoint)
+			if debugErr == nil {
+				logrus.Warnf("debugEBusy returned %v", out)
+			}
+		}
 		return err
 	}
 	defer os.RemoveAll(tmpMntPath)
@@ -359,9 +430,22 @@ func (a *Driver) Put(id string) error {
 	return err
 }
 
+// isParent returns if the passed in parent is the direct parent of the passed in layer
+func (a *Driver) isParent(id, parent string) bool {
+	parents, _ := getParentIDs(a.rootPath(), id)
+	if parent == "" && len(parents) > 0 {
+		return false
+	}
+	return !(len(parents) > 0 && parent != parents[0])
+}
+
 // Diff produces an archive of the changes between the specified
 // layer and its parent layer which may be "".
-func (a *Driver) Diff(id, parent string) (archive.Archive, error) {
+func (a *Driver) Diff(id, parent string) (io.ReadCloser, error) {
+	if !a.isParent(id, parent) {
+		return a.naiveDiff.Diff(id, parent)
+	}
+
 	// AUFS doesn't need the parent layer to produce a diff.
 	return archive.TarWithOptions(path.Join(a.rootPath(), "diff", id), &archive.TarOptions{
 		Compression:     archive.Uncompressed,
@@ -386,7 +470,7 @@ func (a *Driver) DiffGetter(id string) (graphdriver.FileGetCloser, error) {
 	return fileGetNilCloser{storage.NewPathFileGetter(p)}, nil
 }
 
-func (a *Driver) applyDiff(id string, diff archive.Reader) error {
+func (a *Driver) applyDiff(id string, diff io.Reader) error {
 	return chrootarchive.UntarUncompressed(diff, path.Join(a.rootPath(), "diff", id), &archive.TarOptions{
 		UIDMaps: a.uidMaps,
 		GIDMaps: a.gidMaps,
@@ -397,6 +481,9 @@ func (a *Driver) applyDiff(id string, diff archive.Reader) error {
 // and its parent and returns the size in bytes of the changes
 // relative to its base filesystem directory.
 func (a *Driver) DiffSize(id, parent string) (size int64, err error) {
+	if !a.isParent(id, parent) {
+		return a.naiveDiff.DiffSize(id, parent)
+	}
 	// AUFS doesn't need the parent layer to calculate the diff size.
 	return directory.Size(path.Join(a.rootPath(), "diff", id))
 }
@@ -404,8 +491,12 @@ func (a *Driver) DiffSize(id, parent string) (size int64, err error) {
 // ApplyDiff extracts the changeset from the given diff into the
 // layer with the specified id and parent, returning the size of the
 // new layer in bytes.
-func (a *Driver) ApplyDiff(id, parent string, diff archive.Reader) (size int64, err error) {
-	// AUFS doesn't need the parent id to apply the diff.
+func (a *Driver) ApplyDiff(id, parent string, diff io.Reader) (size int64, err error) {
+	if !a.isParent(id, parent) {
+		return a.naiveDiff.ApplyDiff(id, parent, diff)
+	}
+
+	// AUFS doesn't need the parent id to apply the diff if it is the direct parent.
 	if err = a.applyDiff(id, diff); err != nil {
 		return
 	}
@@ -416,6 +507,10 @@ func (a *Driver) ApplyDiff(id, parent string, diff archive.Reader) (size int64, 
 // Changes produces a list of changes between the specified layer
 // and its parent layer. If parent is "", then all changes will be ADD changes.
 func (a *Driver) Changes(id, parent string) ([]archive.Change, error) {
+	if !a.isParent(id, parent) {
+		return a.naiveDiff.Changes(id, parent)
+	}
+
 	// AUFS doesn't have snapshots, so we need to get changes from all parent
 	// layers.
 	layers, err := a.getParentLayerPaths(id)
@@ -426,7 +521,7 @@ func (a *Driver) Changes(id, parent string) ([]archive.Change, error) {
 }
 
 func (a *Driver) getParentLayerPaths(id string) ([]string, error) {
-	parentIds, err := getParentIds(a.rootPath(), id)
+	parentIds, err := getParentIDs(a.rootPath(), id)
 	if err != nil {
 		return nil, err
 	}
@@ -514,40 +609,29 @@ func (a *Driver) aufsMount(ro []string, rw, target, mountLabel string) (err erro
 	b := make([]byte, syscall.Getpagesize()-len(mountLabel)-offset) // room for xino & mountLabel
 	bp := copy(b, fmt.Sprintf("br:%s=rw", rw))
 
-	firstMount := true
-	i := 0
-
-	for {
-		for ; i < len(ro); i++ {
-			layer := fmt.Sprintf(":%s=ro+wh", ro[i])
-
-			if firstMount {
-				if bp+len(layer) > len(b) {
-					break
-				}
-				bp += copy(b[bp:], layer)
-			} else {
-				data := label.FormatMountLabel(fmt.Sprintf("append%s", layer), mountLabel)
-				if err = mount("none", target, "aufs", syscall.MS_REMOUNT, data); err != nil {
-					return
-				}
-			}
-		}
-
-		if firstMount {
-			opts := "dio,xino=/dev/shm/aufs.xino"
-			if useDirperm() {
-				opts += ",dirperm1"
-			}
-			data := label.FormatMountLabel(fmt.Sprintf("%s,%s", string(b[:bp]), opts), mountLabel)
-			if err = mount("none", target, "aufs", 0, data); err != nil {
-				return
-			}
-			firstMount = false
-		}
-
-		if i == len(ro) {
+	index := 0
+	for ; index < len(ro); index++ {
+		layer := fmt.Sprintf(":%s=ro+wh", ro[index])
+		if bp+len(layer) > len(b) {
 			break
+		}
+		bp += copy(b[bp:], layer)
+	}
+
+	opts := "dio,xino=/dev/shm/aufs.xino"
+	if useDirperm() {
+		opts += ",dirperm1"
+	}
+	data := label.FormatMountLabel(fmt.Sprintf("%s,%s", string(b[:bp]), opts), mountLabel)
+	if err = mount("none", target, "aufs", 0, data); err != nil {
+		return
+	}
+
+	for ; index < len(ro); index++ {
+		layer := fmt.Sprintf(":%s=ro+wh", ro[index])
+		data := label.FormatMountLabel(fmt.Sprintf("append%s", layer), mountLabel)
+		if err = mount("none", target, "aufs", syscall.MS_REMOUNT, data); err != nil {
+			return
 		}
 	}
 

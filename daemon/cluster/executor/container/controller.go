@@ -1,18 +1,28 @@
 package container
 
 import (
+	"bufio"
+	"bytes"
+	"encoding/binary"
 	"fmt"
+	"io"
 	"os"
+	"strconv"
+	"strings"
+	"time"
 
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/events"
 	executorpkg "github.com/docker/docker/daemon/cluster/executor"
-	"github.com/docker/engine-api/types"
-	"github.com/docker/engine-api/types/events"
+	"github.com/docker/go-connections/nat"
 	"github.com/docker/libnetwork"
 	"github.com/docker/swarmkit/agent/exec"
 	"github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/log"
+	gogotypes "github.com/gogo/protobuf/types"
 	"github.com/pkg/errors"
 	"golang.org/x/net/context"
+	"golang.org/x/time/rate"
 )
 
 // controller implements agent.Controller against docker's API.
@@ -33,8 +43,8 @@ type controller struct {
 var _ exec.Controller = &controller{}
 
 // NewController returns a docker exec runner for the provided task.
-func newController(b executorpkg.Backend, task *api.Task) (*controller, error) {
-	adapter, err := newContainerAdapter(b, task)
+func newController(b executorpkg.Backend, task *api.Task, secrets exec.SecretGetter) (*controller, error) {
+	adapter, err := newContainerAdapter(b, task, secrets)
 	if err != nil {
 		return nil, err
 	}
@@ -60,6 +70,19 @@ func (r *controller) ContainerStatus(ctx context.Context) (*api.ContainerStatus,
 		return nil, err
 	}
 	return parseContainerStatus(ctnr)
+}
+
+func (r *controller) PortStatus(ctx context.Context) (*api.PortStatus, error) {
+	ctnr, err := r.adapter.inspect(ctx)
+	if err != nil {
+		if isUnknownContainer(err) {
+			return nil, nil
+		}
+
+		return nil, err
+	}
+
+	return parsePortStatus(ctnr)
 }
 
 // Update tasks a recent task update and applies it to the container.
@@ -182,13 +205,11 @@ func (r *controller) Start(ctx context.Context) error {
 	}
 
 	// no health check
-	if ctnr.Config == nil || ctnr.Config.Healthcheck == nil {
-		return nil
-	}
-
-	healthCmd := ctnr.Config.Healthcheck.Test
-
-	if len(healthCmd) == 0 || healthCmd[0] == "NONE" {
+	if ctnr.Config == nil || ctnr.Config.Healthcheck == nil || len(ctnr.Config.Healthcheck.Test) == 0 || ctnr.Config.Healthcheck.Test[0] == "NONE" {
+		if err := r.adapter.activateServiceBinding(); err != nil {
+			log.G(ctx).WithError(err).Errorf("failed to activate service binding for container %s which has no healthcheck config", r.adapter.container.name())
+			return err
+		}
 		return nil
 	}
 
@@ -225,6 +246,10 @@ func (r *controller) Start(ctx context.Context) error {
 				// set health check error, and wait for container to fully exit ("die" event)
 				healthErr = ErrContainerUnhealthy
 			case "health_status: healthy":
+				if err := r.adapter.activateServiceBinding(); err != nil {
+					log.G(ctx).WithError(err).Errorf("failed to activate service binding for container %s after healthy event", r.adapter.container.name())
+					return err
+				}
 				return nil
 			}
 		case <-ctx.Done():
@@ -288,6 +313,12 @@ func (r *controller) Shutdown(ctx context.Context) error {
 
 	if r.cancelPull != nil {
 		r.cancelPull()
+	}
+
+	// remove container from service binding
+	if err := r.adapter.deactivateServiceBinding(); err != nil {
+		log.G(ctx).WithError(err).Errorf("failed to deactivate service binding for container %s", r.adapter.container.name())
+		return err
 	}
 
 	if err := r.adapter.shutdown(ctx); err != nil {
@@ -360,6 +391,128 @@ func (r *controller) Remove(ctx context.Context) error {
 	return nil
 }
 
+// waitReady waits for a container to be "ready".
+// Ready means it's past the started state.
+func (r *controller) waitReady(pctx context.Context) error {
+	if err := r.checkClosed(); err != nil {
+		return err
+	}
+
+	ctx, cancel := context.WithCancel(pctx)
+	defer cancel()
+
+	eventq := r.adapter.events(ctx)
+
+	ctnr, err := r.adapter.inspect(ctx)
+	if err != nil {
+		if !isUnknownContainer(err) {
+			return errors.Wrap(err, "inspect container failed")
+		}
+	} else {
+		switch ctnr.State.Status {
+		case "running", "exited", "dead":
+			return nil
+		}
+	}
+
+	for {
+		select {
+		case event := <-eventq:
+			if !r.matchevent(event) {
+				continue
+			}
+
+			switch event.Action {
+			case "start":
+				return nil
+			}
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-r.closed:
+			return r.err
+		}
+	}
+}
+
+func (r *controller) Logs(ctx context.Context, publisher exec.LogPublisher, options api.LogSubscriptionOptions) error {
+	if err := r.checkClosed(); err != nil {
+		return err
+	}
+
+	if err := r.waitReady(ctx); err != nil {
+		return errors.Wrap(err, "container not ready for logs")
+	}
+
+	rc, err := r.adapter.logs(ctx, options)
+	if err != nil {
+		return errors.Wrap(err, "failed getting container logs")
+	}
+	defer rc.Close()
+
+	var (
+		// use a rate limiter to keep things under control but also provides some
+		// ability coalesce messages.
+		limiter = rate.NewLimiter(rate.Every(time.Second), 10<<20) // 10 MB/s
+		msgctx  = api.LogContext{
+			NodeID:    r.task.NodeID,
+			ServiceID: r.task.ServiceID,
+			TaskID:    r.task.ID,
+		}
+	)
+
+	brd := bufio.NewReader(rc)
+	for {
+		// so, message header is 8 bytes, treat as uint64, pull stream off MSB
+		var header uint64
+		if err := binary.Read(brd, binary.BigEndian, &header); err != nil {
+			if err == io.EOF {
+				return nil
+			}
+
+			return errors.Wrap(err, "failed reading log header")
+		}
+
+		stream, size := (header>>(7<<3))&0xFF, header & ^(uint64(0xFF)<<(7<<3))
+
+		// limit here to decrease allocation back pressure.
+		if err := limiter.WaitN(ctx, int(size)); err != nil {
+			return errors.Wrap(err, "failed rate limiter")
+		}
+
+		buf := make([]byte, size)
+		_, err := io.ReadFull(brd, buf)
+		if err != nil {
+			return errors.Wrap(err, "failed reading buffer")
+		}
+
+		// Timestamp is RFC3339Nano with 1 space after. Lop, parse, publish
+		parts := bytes.SplitN(buf, []byte(" "), 2)
+		if len(parts) != 2 {
+			return fmt.Errorf("invalid timestamp in log message: %v", buf)
+		}
+
+		ts, err := time.Parse(time.RFC3339Nano, string(parts[0]))
+		if err != nil {
+			return errors.Wrap(err, "failed to parse timestamp")
+		}
+
+		tsp, err := gogotypes.TimestampProto(ts)
+		if err != nil {
+			return errors.Wrap(err, "failed to convert timestamp")
+		}
+
+		if err := publisher.Publish(ctx, api.LogMessage{
+			Context:   msgctx,
+			Timestamp: tsp,
+			Stream:    api.LogStream(stream),
+
+			Data: parts[1],
+		}); err != nil {
+			return errors.Wrap(err, "failed to publish log message")
+		}
+	}
+}
+
 // Close the runner and clean up any ephemeral resources.
 func (r *controller) Close() error {
 	select {
@@ -408,6 +561,64 @@ func parseContainerStatus(ctnr types.ContainerJSON) (*api.ContainerStatus, error
 	}
 
 	return status, nil
+}
+
+func parsePortStatus(ctnr types.ContainerJSON) (*api.PortStatus, error) {
+	status := &api.PortStatus{}
+
+	if ctnr.NetworkSettings != nil && len(ctnr.NetworkSettings.Ports) > 0 {
+		exposedPorts, err := parsePortMap(ctnr.NetworkSettings.Ports)
+		if err != nil {
+			return nil, err
+		}
+		status.Ports = exposedPorts
+	}
+
+	return status, nil
+}
+
+func parsePortMap(portMap nat.PortMap) ([]*api.PortConfig, error) {
+	exposedPorts := make([]*api.PortConfig, 0, len(portMap))
+
+	for portProtocol, mapping := range portMap {
+		parts := strings.SplitN(string(portProtocol), "/", 2)
+		if len(parts) != 2 {
+			return nil, fmt.Errorf("invalid port mapping: %s", portProtocol)
+		}
+
+		port, err := strconv.ParseUint(parts[0], 10, 16)
+		if err != nil {
+			return nil, err
+		}
+
+		protocol := api.ProtocolTCP
+		switch strings.ToLower(parts[1]) {
+		case "tcp":
+			protocol = api.ProtocolTCP
+		case "udp":
+			protocol = api.ProtocolUDP
+		default:
+			return nil, fmt.Errorf("invalid protocol: %s", parts[1])
+		}
+
+		for _, binding := range mapping {
+			hostPort, err := strconv.ParseUint(binding.HostPort, 10, 16)
+			if err != nil {
+				return nil, err
+			}
+
+			// TODO(aluzzardi): We're losing the port `name` here since
+			// there's no way to retrieve it back from the Engine.
+			exposedPorts = append(exposedPorts, &api.PortConfig{
+				PublishMode:   api.PublishModeHost,
+				Protocol:      protocol,
+				TargetPort:    uint32(port),
+				PublishedPort: uint32(hostPort),
+			})
+		}
+	}
+
+	return exposedPorts, nil
 }
 
 type exitError struct {

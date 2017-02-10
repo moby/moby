@@ -58,30 +58,24 @@ func sanitizeKeyMod(s string) string {
 
 // New creates a journald logger using the configuration passed in on
 // the context.
-func New(ctx logger.Context) (logger.Logger, error) {
+func New(info logger.Info) (logger.Logger, error) {
 	if !journal.Enabled() {
 		return nil, fmt.Errorf("journald is not enabled on this host")
 	}
-	// Strip a leading slash so that people can search for
-	// CONTAINER_NAME=foo rather than CONTAINER_NAME=/foo.
-	name := ctx.ContainerName
-	if name[0] == '/' {
-		name = name[1:]
-	}
 
 	// parse log tag
-	tag, err := loggerutils.ParseLogTag(ctx, loggerutils.DefaultTemplate)
+	tag, err := loggerutils.ParseLogTag(info, loggerutils.DefaultTemplate)
 	if err != nil {
 		return nil, err
 	}
 
 	vars := map[string]string{
-		"CONTAINER_ID":      ctx.ContainerID[:12],
-		"CONTAINER_ID_FULL": ctx.ContainerID,
-		"CONTAINER_NAME":    name,
+		"CONTAINER_ID":      info.ContainerID[:12],
+		"CONTAINER_ID_FULL": info.ContainerID,
+		"CONTAINER_NAME":    info.Name(),
 		"CONTAINER_TAG":     tag,
 	}
-	extraAttrs := ctx.ExtraAttributes(sanitizeKeyMod)
+	extraAttrs := info.ExtraAttributes(sanitizeKeyMod)
 	for k, v := range extraAttrs {
 		vars[k] = v
 	}
@@ -111,10 +105,14 @@ func (s *journald) Log(msg *logger.Message) error {
 	if msg.Partial {
 		vars["CONTAINER_PARTIAL_MESSAGE"] = "true"
 	}
+
+	line := string(msg.Line)
+	logger.PutMessage(msg)
+
 	if msg.Source == "stderr" {
-		return journal.Send(string(msg.Line), journal.PriErr, vars)
+		return journal.Send(line, journal.PriErr, vars)
 	}
-	return journal.Send(string(msg.Line), journal.PriInfo, vars)
+	return journal.Send(line, journal.PriInfo, vars)
 }
 
 func (s *journald) Name() string {

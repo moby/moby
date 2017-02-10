@@ -1,7 +1,21 @@
 #!/usr/bin/env bash
 set -e
 
+mkimgdeb="$(basename "$0")"
+mkimg="$(dirname "$0").sh"
+
+usage() {
+	echo >&2 "usage: $mkimgdeb rootfsDir suite [debootstrap-args]"
+	echo >&2 " note: $mkimgdeb meant to be used from $mkimg"
+	exit 1
+}
+
 rootfsDir="$1"
+if [ -z "$rootfsDir" ]; then
+	echo >&2 "error: rootfsDir is missing"
+	echo >&2
+	usage
+fi
 shift
 
 # we have to do a little fancy footwork to make sure "rootfsDir" becomes the second non-option argument to debootstrap
@@ -13,10 +27,21 @@ while [ $# -gt 0 ] && [[ "$1" == -* ]]; do
 done
 
 suite="$1"
+if [ -z "$suite" ]; then
+	echo >&2 "error: suite is missing"
+	echo >&2
+	usage
+fi
 shift
 
 # get path to "chroot" in our current PATH
-chrootPath="$(type -P chroot)"
+chrootPath="$(type -P chroot || :)"
+if [ -z "$chrootPath" ]; then
+	echo >&2 "error: chroot not found. Are you root?"
+	echo >&2
+	usage
+fi
+
 rootfs_chroot() {
 	# "chroot" doesn't set PATH, so we need to set it explicitly to something our new debootstrap chroot can use appropriately!
 
@@ -168,7 +193,7 @@ if [ -z "$DONT_TOUCH_SOURCES_LIST" ]; then
 	case "$lsbDist" in
 		debian)
 			# updates and security!
-			if [ "$suite" != 'sid' -a "$suite" != 'unstable' ]; then
+			if curl -o /dev/null -s --head --fail "http://security.debian.org/dists/$suite/updates/main/binary-$(rootfs_chroot dpkg --print-architecture)/Packages.gz"; then
 				(
 					set -x
 					sed -i "

@@ -41,7 +41,7 @@ func TestLUtimesNano(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	ts := []syscall.Timespec{{0, 0}, {0, 0}}
+	ts := []syscall.Timespec{{Sec: 0, Nsec: 0}, {Sec: 0, Nsec: 0}}
 	if err := LUtimesNano(symlink, ts); err != nil {
 		t.Fatal(err)
 	}

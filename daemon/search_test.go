@@ -1,15 +1,15 @@
 package daemon
 
 import (
-	"fmt"
+	"errors"
 	"strings"
 	"testing"
 
 	"golang.org/x/net/context"
 
+	"github.com/docker/docker/api/types"
+	registrytypes "github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/registry"
-	"github.com/docker/engine-api/types"
-	registrytypes "github.com/docker/engine-api/types/registry"
 )
 
 type FakeService struct {
@@ -23,7 +23,7 @@ type FakeService struct {
 
 func (s *FakeService) Search(ctx context.Context, term string, limit int, authConfig *types.AuthConfig, userAgent string, headers map[string][]string) (*registrytypes.SearchResults, error) {
 	if s.shouldReturnError {
-		return nil, fmt.Errorf("Search unknown error")
+		return nil, errors.New("Search unknown error")
 	}
 	return &registrytypes.SearchResults{
 		Query:      s.term,

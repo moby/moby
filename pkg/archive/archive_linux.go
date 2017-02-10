@@ -19,7 +19,7 @@ func getWhiteoutConverter(format WhiteoutFormat) tarWhiteoutConverter {
 
 type overlayWhiteoutConverter struct{}
 
-func (overlayWhiteoutConverter) ConvertWrite(hdr *tar.Header, path string, fi os.FileInfo) error {
+func (overlayWhiteoutConverter) ConvertWrite(hdr *tar.Header, path string, fi os.FileInfo) (wo *tar.Header, err error) {
 	// convert whiteouts to AUFS format
 	if fi.Mode()&os.ModeCharDevice != 0 && hdr.Devmajor == 0 && hdr.Devminor == 0 {
 		// we just rename the file and make it normal
@@ -34,12 +34,16 @@ func (overlayWhiteoutConverter) ConvertWrite(hdr *tar.Header, path string, fi os
 		// convert opaque dirs to AUFS format by writing an empty file with the prefix
 		opaque, err := system.Lgetxattr(path, "trusted.overlay.opaque")
 		if err != nil {
-			return err
+			return nil, err
 		}
-		if opaque != nil && len(opaque) == 1 && opaque[0] == 'y' {
+		if len(opaque) == 1 && opaque[0] == 'y' {
+			if hdr.Xattrs != nil {
+				delete(hdr.Xattrs, "trusted.overlay.opaque")
+			}
+
 			// create a header for the whiteout file
 			// it should inherit some properties from the parent, but be a regular file
-			*hdr = tar.Header{
+			wo = &tar.Header{
 				Typeflag:   tar.TypeReg,
 				Mode:       hdr.Mode & int64(os.ModePerm),
 				Name:       filepath.Join(hdr.Name, WhiteoutOpaqueDir),
@@ -54,7 +58,7 @@ func (overlayWhiteoutConverter) ConvertWrite(hdr *tar.Header, path string, fi os
 		}
 	}
 
-	return nil
+	return
 }
 
 func (overlayWhiteoutConverter) ConvertRead(hdr *tar.Header, path string) (bool, error) {
@@ -63,12 +67,9 @@ func (overlayWhiteoutConverter) ConvertRead(hdr *tar.Header, path string) (bool,
 
 	// if a directory is marked as opaque by the AUFS special file, we need to translate that to overlay
 	if base == WhiteoutOpaqueDir {
-		if err := syscall.Setxattr(dir, "trusted.overlay.opaque", []byte{'y'}, 0); err != nil {
-			return false, err
-		}
-
+		err := syscall.Setxattr(dir, "trusted.overlay.opaque", []byte{'y'}, 0)
 		// don't write the file itself
-		return false, nil
+		return false, err
 	}
 
 	// if a file was deleted and we are using overlay, we need to create a character device

@@ -10,13 +10,14 @@ daemonSupporting=(
 
 # if we have our linux/amd64 version compiled, let's symlink it in
 if [ -x "$DEST/../binary-daemon/dockerd-$VERSION" ]; then
-	mkdir -p "$DEST/linux/amd64"
+	arch=$(go env GOHOSTARCH)
+	mkdir -p "$DEST/linux/${arch}"
 	(
-		cd "$DEST/linux/amd64"
+		cd "$DEST/linux/${arch}"
 		ln -s ../../../binary-daemon/* ./
 		ln -s ../../../binary-client/* ./
 	)
-	echo "Created symlinks:" "$DEST/linux/amd64/"*
+	echo "Created symlinks:" "$DEST/linux/${arch}/"*
 fi
 
 for platform in $DOCKER_CROSSPLATFORMS; do
@@ -28,15 +29,18 @@ for platform in $DOCKER_CROSSPLATFORMS; do
 		export GOOS=${platform%/*}
 		export GOARCH=${platform##*/}
 
-		if [ -z "${daemonSupporting[$platform]}" ]; then
-			# we just need a simple client for these platforms
-			export LDFLAGS_STATIC_DOCKER=""
-			# remove the "daemon" build tag from platforms that aren't supported
-			export BUILDFLAGS=( "${ORIG_BUILDFLAGS[@]/ daemon/}" )
-			source "${MAKEDIR}/binary-client"
-		else
-			source "${MAKEDIR}/binary-client"
-			source "${MAKEDIR}/binary-daemon"
+		if [ "$GOOS" != "solaris" ]; then
+			# TODO. Solaris cannot be cross build because of CGO calls.
+			if [ -z "${daemonSupporting[$platform]}" ]; then
+				# we just need a simple client for these platforms
+				export LDFLAGS_STATIC_DOCKER=""
+				# remove the "daemon" build tag from platforms that aren't supported
+				export BUILDFLAGS=( "${ORIG_BUILDFLAGS[@]/ daemon/}" )
+				source "${MAKEDIR}/binary-client"
+			else
+				source "${MAKEDIR}/binary-client"
+				source "${MAKEDIR}/binary-daemon"
+			fi
 		fi
 	)
 done

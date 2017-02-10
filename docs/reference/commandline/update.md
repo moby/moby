@@ -1,12 +1,17 @@
-<!--[metadata]>
-+++
-title = "update"
-description = "The update command description and usage"
-keywords = ["resources, update, dynamically"]
-[menu.main]
-parent = "smn_cli"
-+++
-<![end-metadata]-->
+---
+title: "update"
+description: "The update command description and usage"
+keywords: "resources, update, dynamically"
+---
+
+<!-- This file is maintained within the docker/docker Github
+     repository at https://github.com/docker/docker/. Make all
+     pull requests against that repo. If you see this file in
+     another repository, consider it read-only there, as it will
+     periodically be overwritten by the definitive file. Pull
+     requests which include edits to this file in other repositories
+     will be rejected.
+-->
 
 ## update
 
@@ -20,6 +25,8 @@ Options:
       --cpu-period int              Limit CPU CFS (Completely Fair Scheduler) period
       --cpu-quota int               Limit CPU CFS (Completely Fair Scheduler) quota
   -c, --cpu-shares int              CPU shares (relative weight)
+      --cpu-rt-period int           Limit the CPU real-time period in microseconds
+      --cpu-rt-runtime int          Limit the CPU real-time runtime in microseconds
       --cpuset-cpus string          CPUs in which to allow execution (0-3, 0,1)
       --cpuset-mems string          MEMs in which to allow execution (0-3, 0,1)
       --help                        Print usage
@@ -30,9 +37,11 @@ Options:
       --restart string              Restart policy to apply when a container exits
 ```
 
+## Description
+
 The `docker update` command dynamically updates container configuration.
-You can use this command to prevent containers from consuming too many 
-resources from their Docker host.  With a single command, you can place 
+You can use this command to prevent containers from consuming too many
+resources from their Docker host.  With a single command, you can place
 limits on a single container or on many. To specify more than one container,
 provide space-separated list of container names or IDs.
 
@@ -41,7 +50,7 @@ options on a running or a stopped container. On kernel version older than
 4.6, you can only update `--kernel-memory` on a stopped container or on
 a running container with kernel memory initialized.
 
-## EXAMPLES
+## Examples
 
 The following sections illustrate ways to use this command.
 
