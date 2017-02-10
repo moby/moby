@@ -97,7 +97,7 @@ Function Get-GitCommit() {
         if ($env:DOCKER_GITCOMMIT.Length -eq 0) {
             Throw ".git directory missing and DOCKER_GITCOMMIT environment variable not specified."
         }
-        Write-Host "INFO: Git commit assumed from DOCKER_GITCOMMIT environment variable"
+        Write-Host "INFO: Git commit ($env:DOCKER_GITCOMMIT) assumed from DOCKER_GITCOMMIT environment variable"
         return $env:DOCKER_GITCOMMIT
     }
     $gitCommit=$(git rev-parse --short HEAD)
