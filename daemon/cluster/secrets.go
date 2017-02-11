@@ -1,63 +1,14 @@
 package cluster
 
 import (
-	"fmt"
-	"strings"
-
 	apitypes "github.com/docker/docker/api/types"
 	types "github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/daemon/cluster/convert"
 	swarmapi "github.com/docker/swarmkit/api"
-	"golang.org/x/net/context"
 )
 
-func getSecretByNameOrIDPrefix(ctx context.Context, state *nodeState, nameOrIDPrefix string) (*swarmapi.Secret, error) {
-	// attempt to lookup secret by full ID
-	if r, err := state.controlClient.GetSecret(ctx, &swarmapi.GetSecretRequest{
-		SecretID: nameOrIDPrefix,
-	}); err == nil {
-		return r.Secret, nil
-	}
-
-	// attempt to lookup secret by full name and partial ID
-	// Note here ListSecretRequest_Filters operate with `or`
-	r, err := state.controlClient.ListSecrets(ctx, &swarmapi.ListSecretsRequest{
-		Filters: &swarmapi.ListSecretsRequest_Filters{
-			Names:      []string{nameOrIDPrefix},
-			IDPrefixes: []string{nameOrIDPrefix},
-		},
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	// attempt to lookup secret by full name
-	for _, s := range r.Secrets {
-		if s.Spec.Annotations.Name == nameOrIDPrefix {
-			return s, nil
-		}
-	}
-	// attempt to lookup secret by partial ID (prefix)
-	// return error if more than one matches found (ambiguous)
-	n := 0
-	var found *swarmapi.Secret
-	for _, s := range r.Secrets {
-		if strings.HasPrefix(s.ID, nameOrIDPrefix) {
-			found = s
-			n++
-		}
-	}
-	if n > 1 {
-		return nil, fmt.Errorf("secret %s is ambiguous (%d matches found)", nameOrIDPrefix, n)
-	}
-	if found == nil {
-		return nil, fmt.Errorf("no such secret: %s", nameOrIDPrefix)
-	}
-	return found, nil
-}
-
 // GetSecret returns a secret from a managed swarm cluster
-func (c *Cluster) GetSecret(nameOrIDPrefix string) (types.Secret, error) {
+func (c *Cluster) GetSecret(input string) (types.Secret, error) {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
@@ -69,7 +20,7 @@ func (c *Cluster) GetSecret(nameOrIDPrefix string) (types.Secret, error) {
 	ctx, cancel := c.getRequestContext()
 	defer cancel()
 
-	secret, err := getSecretByNameOrIDPrefix(ctx, &state, nameOrIDPrefix)
+	secret, err := getSecret(ctx, state.controlClient, input)
 	if err != nil {
 		return types.Secret{}, err
 	}
@@ -133,7 +84,7 @@ func (c *Cluster) CreateSecret(s types.SecretSpec) (string, error) {
 }
 
 // RemoveSecret removes a secret from a managed swarm cluster.
-func (c *Cluster) RemoveSecret(nameOrIDPrefix string) error {
+func (c *Cluster) RemoveSecret(input string) error {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
@@ -145,7 +96,7 @@ func (c *Cluster) RemoveSecret(nameOrIDPrefix string) error {
 	ctx, cancel := c.getRequestContext()
 	defer cancel()
 
-	secret, err := getSecretByNameOrIDPrefix(ctx, &state, nameOrIDPrefix)
+	secret, err := getSecret(ctx, state.controlClient, input)
 	if err != nil {
 		return err
 	}
