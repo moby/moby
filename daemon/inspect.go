@@ -1,6 +1,7 @@
 package daemon
 
 import (
+	"errors"
 	"fmt"
 	"time"
 
@@ -34,7 +35,9 @@ func (daemon *Daemon) ContainerInspectCurrent(name string, size bool) (*types.Co
 		return nil, err
 	}
 
-	container.Lock()
+	if !tryLock(&container.Mutex, 4*time.Second) {
+		return nil, errors.New("Unable to lock container for inspect.")
+	}
 	defer container.Unlock()
 
 	base, err := daemon.getInspectData(container, size)

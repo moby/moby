@@ -6,6 +6,8 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/types"
@@ -205,9 +207,34 @@ func (daemon *Daemon) reduceContainers(config *types.ContainerListOptions, reduc
 	return containers, nil
 }
 
+// There's a big problem with this: it leaks a channel and two goprocs on every failed lock acquisition.
+// In our scenario we're seeing an operation that will not complete (stuck kernel state prevents it), and so this change moves us from
+// "hard stuck forever" to "some pieces are stuck and other pieces leak slowly", which is better
+func tryLock(m *sync.Mutex, timeout time.Duration) bool {
+	c := make(chan struct{})
+	go func() {
+		m.Lock()
+		c <- struct{}{}
+	}()
+	select {
+	case <-c:
+		return true
+	case <-time.After(timeout):
+		// To avoid leaking the lock, we leak a second goproc whose job is to wait for a response and unlock it
+		go func() {
+			_ = <-c
+			m.Unlock()
+		}()
+		return false
+	}
+}
+
 // reducePsContainer is the basic representation for a container as expected by the ps command.
 func (daemon *Daemon) reducePsContainer(container *container.Container, ctx *listContext, reducer containerReducer) (*types.Container, error) {
-	container.Lock()
+	if !tryLock(&container.Mutex, 4*time.Second) {
+		logrus.Warnf("Unable to lock container %v for list.", container.ID)
+		return nil, nil
+	}
 	defer container.Unlock()
 
 	// filter containers to return
