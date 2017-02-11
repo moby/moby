@@ -143,6 +143,40 @@ func TestConvertHealthcheckDisableWithTest(t *testing.T) {
 	assert.Error(t, err, "test and disable can't be set")
 }
 
+func TestConvertEndpointSpec(t *testing.T) {
+	source := []composetypes.ServicePortConfig{
+		{
+			Protocol:  "udp",
+			Target:    53,
+			Published: 1053,
+			Mode:      "host",
+		},
+		{
+			Target:    8080,
+			Published: 80,
+		},
+	}
+	endpoint, err := convertEndpointSpec(source)
+
+	expected := swarm.EndpointSpec{
+		Ports: []swarm.PortConfig{
+			{
+				TargetPort:    8080,
+				PublishedPort: 80,
+			},
+			{
+				Protocol:      "udp",
+				TargetPort:    53,
+				PublishedPort: 1053,
+				PublishMode:   "host",
+			},
+		},
+	}
+
+	assert.NilError(t, err)
+	assert.DeepEqual(t, *endpoint, expected)
+}
+
 func TestConvertServiceNetworksOnlyDefault(t *testing.T) {
 	networkConfigs := networkMap{}
 	networks := map[string]*composetypes.ServiceNetworkConfig{}

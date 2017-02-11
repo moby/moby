@@ -12,7 +12,9 @@ import (
 	"github.com/docker/docker/cli/compose/interpolation"
 	"github.com/docker/docker/cli/compose/schema"
 	"github.com/docker/docker/cli/compose/types"
-	"github.com/docker/docker/runconfig/opts"
+	"github.com/docker/docker/opts"
+	runconfigopts "github.com/docker/docker/runconfig/opts"
+	"github.com/docker/go-connections/nat"
 	units "github.com/docker/go-units"
 	shellwords "github.com/mattn/go-shellwords"
 	"github.com/mitchellh/mapstructure"
@@ -237,6 +239,8 @@ func transformHook(
 		return transformUlimits(data)
 	case reflect.TypeOf(types.UnitBytes(0)):
 		return transformSize(data)
+	case reflect.TypeOf([]types.ServicePortConfig{}):
+		return transformServicePort(data)
 	case reflect.TypeOf(types.ServiceSecretConfig{}):
 		return transformServiceSecret(data)
 	case reflect.TypeOf(types.StringOrNumberList{}):
@@ -340,14 +344,14 @@ func resolveEnvironment(serviceConfig *types.ServiceConfig, workingDir string) e
 
 		for _, file := range serviceConfig.EnvFile {
 			filePath := absPath(workingDir, file)
-			fileVars, err := opts.ParseEnvFile(filePath)
+			fileVars, err := runconfigopts.ParseEnvFile(filePath)
 			if err != nil {
 				return err
 			}
 			envVars = append(envVars, fileVars...)
 		}
 
-		for k, v := range opts.ConvertKVStringsToMap(envVars) {
+		for k, v := range runconfigopts.ConvertKVStringsToMap(envVars) {
 			environment[k] = v
 		}
 	}
@@ -481,6 +485,41 @@ func transformExternal(data interface{}) (interface{}, error) {
 	}
 }
 
+func transformServicePort(data interface{}) (interface{}, error) {
+	switch entries := data.(type) {
+	case []interface{}:
+		// We process the list instead of individual items here.
+		// The reason is that one entry might be mapped to multiple ServicePortConfig.
+		// Therefore we take an input of a list and return an output of a list.
+		ports := []interface{}{}
+		for _, entry := range entries {
+			switch value := entry.(type) {
+			case int:
+				v, err := toServicePortConfigs(fmt.Sprint(value))
+				if err != nil {
+					return data, err
+				}
+				ports = append(ports, v...)
+			case string:
+				v, err := toServicePortConfigs(value)
+				if err != nil {
+					return data, err
+				}
+				ports = append(ports, v...)
+			case types.Dict:
+				ports = append(ports, value)
+			case map[string]interface{}:
+				ports = append(ports, value)
+			default:
+				return data, fmt.Errorf("invalid type %T for port", value)
+			}
+		}
+		return ports, nil
+	default:
+		return data, fmt.Errorf("invalid type %T for port", entries)
+	}
+}
+
 func transformServiceSecret(data interface{}) (interface{}, error) {
 	switch value := data.(type) {
 	case string:
@@ -570,6 +609,39 @@ func transformSize(value interface{}) (int64, error) {
 		return units.RAMInBytes(value)
 	}
 	panic(fmt.Errorf("invalid type for size %T", value))
+}
+
+func toServicePortConfigs(value string) ([]interface{}, error) {
+	var portConfigs []interface{}
+
+	ports, portBindings, err := nat.ParsePortSpecs([]string{value})
+	if err != nil {
+		return nil, err
+	}
+	// We need to sort the key of the ports to make sure it is consistent
+	keys := []string{}
+	for port := range ports {
+		keys = append(keys, string(port))
+	}
+	sort.Strings(keys)
+
+	for _, key := range keys {
+		// Reuse ConvertPortToPortConfig so that it is consistent
+		portConfig, err := opts.ConvertPortToPortConfig(nat.Port(key), portBindings)
+		if err != nil {
+			return nil, err
+		}
+		for _, p := range portConfig {
+			portConfigs = append(portConfigs, types.ServicePortConfig{
+				Protocol:  string(p.Protocol),
+				Target:    p.TargetPort,
+				Published: p.PublishedPort,
+				Mode:      string(p.PublishMode),
+			})
+		}
+	}
+
+	return portConfigs, nil
 }
 
 func toMapStringString(value map[string]interface{}) map[string]string {
