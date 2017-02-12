@@ -2703,7 +2703,7 @@ _docker_service() {
 		ps
 		update
 	"
-	__docker_daemon_is_experimental && subcommands+="logs"
+	__docker_is_experimental && subcommands+="logs"
 
 	__docker_subcommands "$subcommands" && return
 
