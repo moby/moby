@@ -5,7 +5,63 @@ information on the list of deprecated flags and APIs please have a look at
 https://docs.docker.com/engine/deprecated/ where target removal dates can also
 be found.
 
+## 1.13.1 (2017-02-08)
+
+**IMPORTANT**: On Linux distributions where `devicemapper` was the default storage driver,
+the `overlay2`, or `overlay` is now used by default (if the kernel supports it).
+To use devicemapper, you can manually configure the storage driver to use through
+the `--storage-driver` daemon option, or by setting "storage-driver" in the `daemon.json`
+configuration file.
+
+**IMPORTANT**: In Docker 1.13, the managed plugin api changed, as compared to the experimental
+version introduced in Docker 1.12. You must **uninstall** plugins which you installed with Docker 1.12
+_before_ upgrading to Docker 1.13. You can uninstall plugins using the `docker plugin rm` command.
+
+If you have already upgraded to Docker 1.13 without uninstalling
+previously-installed plugins, you may see this message when the Docker daemon
+starts:
+
+    Error starting daemon: json: cannot unmarshal string into Go value of type types.PluginEnv
+
+To manually remove all plugins and resolve this problem, take the following steps:
+
+1. Remove plugins.json from: `/var/lib/docker/plugins/`.
+2. Restart Docker. Verify that the Docker daemon starts with no errors.
+3. Reinstall your plugins.
+
+### Contrib
+
+* Do not require a custom build of tini [#28454](https://github.com/docker/docker/pull/28454)
+* Upgrade to Go 1.7.5 [#30489](https://github.com/docker/docker/pull/30489)
+
+### Remote API (v1.26) & Client
+
++ Support secrets in docker stack deploy with compose file [#30144](https://github.com/docker/docker/pull/30144)
+
+### Runtime
+
+* Fix size issue in `docker system df` [#30378](https://github.com/docker/docker/pull/30378)
+* Fix error on `docker inspect` when Swarm certificates were expired. [#29246](https://github.com/docker/docker/pull/29246)
+* Fix deadlock on v1 plugin with activate error [#30408](https://github.com/docker/docker/pull/30408)
+* Fix SELinux regression [#30649](https://github.com/docker/docker/pull/30649)
+
+### Plugins
+
+* Support global scoped network plugins (v2) in swarm mode [#30332](https://github.com/docker/docker/pull/30332)
++ Add `docker plugin upgrade` [#29414](https://github.com/docker/docker/pull/29414)
+
+### Windows
+
+* Fix small regression with old plugins in Windows [#30150](https://github.com/docker/docker/pull/30150)
+* Fix warning on Windows [#30730](https://github.com/docker/docker/pull/30730)
+
 ## 1.13.0 (2017-01-18)
+
+**IMPORTANT**: On Linux distributions where `devicemapper` was the default storage driver,
+the `overlay2`, or `overlay` is now used by default (if the kernel supports it).
+To use devicemapper, you can manually configure the storage driver to use through
+the `--storage-driver` daemon option, or by setting "storage-driver" in the `daemon.json`
+configuration file.
 
 **IMPORTANT**: In Docker 1.13, the managed plugin api changed, as compared to the experimental
 version introduced in Docker 1.12. You must **uninstall** plugins which you installed with Docker 1.12
@@ -24,6 +80,7 @@ To manually remove all plugins and resolve this problem, take the following step
 3. Reinstall your plugins.
 
 ### Builder
+
 + Add capability to specify images used as a cache source on build. These images do not need to have local parent chain and can be pulled from other registries [#26839](https://github.com/docker/docker/pull/26839)
 + (experimental) Add option to squash image layers to the FROM image after successful builds [#22641](https://github.com/docker/docker/pull/22641)
 * Fix dockerfile parser with empty line after escape [#24725](https://github.com/docker/docker/pull/24725)
@@ -34,15 +91,20 @@ To manually remove all plugins and resolve this problem, take the following step
 - Fix image layer inconsistencies when using the overlay storage driver [#27209](https://github.com/docker/docker/pull/27209)
 * Unused build-args are now allowed. A warning is presented instead of an error and failed build [#27412](https://github.com/docker/docker/pull/27412)
 - Fix builder cache issue on Windows [#27805](https://github.com/docker/docker/pull/27805)
++ Allow `USER` in builder on Windows [#28415](https://github.com/docker/docker/pull/28415)
++ Handle env case-insensitive on Windows [#28725](https://github.com/docker/docker/pull/28725)
 
 ### Contrib
-+ Add support for building docker debs for Ubuntu Xenial on PPC64 [#23438](https://github.com/docker/docker/pull/23438)
-+ Add support for building docker debs for Ubuntu Xenial on s390x [#26104](https://github.com/docker/docker/pull/26104)
+
++ Add support for building docker debs for Ubuntu 16.04 Xenial on PPC64LE [#23438](https://github.com/docker/docker/pull/23438)
++ Add support for building docker debs for Ubuntu 16.04 Xenial on s390x [#26104](https://github.com/docker/docker/pull/26104)
++ Add support for building docker debs for Ubuntu 16.10 Yakkety Yak on PPC64LE [#28046](https://github.com/docker/docker/pull/28046)
 - Add RPM builder for VMWare Photon OS [#24116](https://github.com/docker/docker/pull/24116)
 + Add shell completions to tgz [#27735](https://github.com/docker/docker/pull/27735)
 * Update the install script to allow using the mirror in China [#27005](https://github.com/docker/docker/pull/27005)
 + Add DEB builder for Ubuntu 16.10 Yakkety Yak [#27993](https://github.com/docker/docker/pull/27993)
 + Add RPM builder for Fedora 25 [#28222](https://github.com/docker/docker/pull/28222)
++ Add `make deb` support for aarch64 [#27625](https://github.com/docker/docker/pull/27625)
 
 ### Distribution
 
@@ -68,6 +130,9 @@ To manually remove all plugins and resolve this problem, take the following step
 + Unix socket support for fluentd [#26088](https://github.com/docker/docker/pull/26088)
 * Enable fluentd logging driver on Windows [#28189](https://github.com/docker/docker/pull/28189)
 - Sanitize docker labels when used as journald field names [#23725](https://github.com/docker/docker/pull/23725)
+- Fix an issue where `docker logs --tail` returned less lines than expected [#28203](https://github.com/docker/docker/pull/28203)
+- Splunk Logging Driver: performance and reliability improvements [#26207](https://github.com/docker/docker/pull/26207)
+- Splunk Logging Driver: configurable formats and skip for verifying connection [#25786](https://github.com/docker/docker/pull/25786)
 
 ### Networking
 
@@ -93,6 +158,7 @@ To manually remove all plugins and resolve this problem, take the following step
 + Add `docker plugin create` command [#28164](https://github.com/docker/docker/pull/28164)
 * Send request's TLS peer certificates to authorization plugins [#27383](https://github.com/docker/docker/pull/27383)
 * Support for global-scoped network and ipam plugins in swarm-mode [#27287](https://github.com/docker/docker/pull/27287)
+* Split `docker plugin install` into two API call `/privileges` and `/pull` [#28963](https://github.com/docker/docker/pull/28963)
 
 ### Remote API (v1.25) & Client
 
@@ -116,6 +182,7 @@ To manually remove all plugins and resolve this problem, take the following step
 + Add capability to /containers/create API to specify mounts in a more granular and safer way [#22373](https://github.com/docker/docker/pull/22373)
 + Add `--format` flag to `network ls` and `volume ls` [#23475](https://github.com/docker/docker/pull/23475)
 * Allow the top-level `docker inspect` command to inspect any kind of resource [#23614](https://github.com/docker/docker/pull/23614)
++ Add --cpus flag to control cpu resources for `docker run` and `docker create`, and add `NanoCPUs` to `HostConfig` [#27958](https://github.com/docker/docker/pull/27958)
 - Allow unsetting the `--entrypoint` in `docker run` or `docker create` [#23718](https://github.com/docker/docker/pull/23718)
 * Restructure CLI commands by adding `docker image` and `docker container` commands for more consistency [#26025](https://github.com/docker/docker/pull/26025)
 - Remove `COMMAND` column from `service ls` output [#28029](https://github.com/docker/docker/pull/28029)
@@ -147,7 +214,7 @@ To manually remove all plugins and resolve this problem, take the following step
 - Fix a race condition between device deferred removal and resume device, when using the devicemapper graphdriver [#23497](https://github.com/docker/docker/pull/23497)
 - Add `docker stats` support in Windows [#25737](https://github.com/docker/docker/pull/25737)
 - Allow using `--pid=host` and `--net=host` when `--userns=host` [#25771](https://github.com/docker/docker/pull/25771)
-+ (experimental) Add metrics output [#25820](https://github.com/docker/docker/pull/25820)
++ (experimental) Add metrics (Prometheus) output for basic `container`, `image`, and `daemon` operations [#25820](https://github.com/docker/docker/pull/25820)
 - Fix issue in `docker stats` with `NetworkDisabled=true` [#25905](https://github.com/docker/docker/pull/25905)
 + Add `docker top` support in Windows [#25891](https://github.com/docker/docker/pull/25891)
 + Record pid of exec'd process [#27470](https://github.com/docker/docker/pull/27470)
@@ -165,28 +232,34 @@ To manually remove all plugins and resolve this problem, take the following step
 ### Swarm Mode
 
 + Add secret management [#27794](https://github.com/docker/docker/pull/27794)
++ Add support for templating service options (hostname, mounts, and environment variables) [#28025](https://github.com/docker/docker/pull/28025)
 * Display the endpoint mode in the output of `docker service inspect --pretty` [#26906](https://github.com/docker/docker/pull/26906)
 * Make `docker service ps` output more bearable by shortening service IDs in task names [#28088](https://github.com/docker/docker/pull/28088)
-* `docker node ps` now defaults to the current node [#25214](https://github.com/docker/docker/pull/25214)
-+ Add `-a`/`--all` flags to `docker service ps` and `docker node ps` to show all results [#25983](https://github.com/docker/docker/pull/25983)
+* Make `docker node ps` default to the current node [#25214](https://github.com/docker/docker/pull/25214)
 + Add `--dns`, -`-dns-opt`, and `--dns-search` to service create. [#27567](https://github.com/docker/docker/pull/27567)
 + Add `--force` to `docker service update` [#27596](https://github.com/docker/docker/pull/27596)
++ Add `--health-*` and `--no-healthcheck` flags to `docker service create` and `docker service update` [#27369](https://github.com/docker/docker/pull/27369)
 + Add `-q` to `docker service ps` [#27654](https://github.com/docker/docker/pull/27654)
 * Display number of global services in `docker service ls` [#27710](https://github.com/docker/docker/pull/27710)
 - Remove `--name` flag from `docker service update`. This flag is only functional on `docker service create`, so was removed from the `update` command [#26988](https://github.com/docker/docker/pull/26988)
 - Fix worker nodes failing to recover because of transient networking issues [#26646](https://github.com/docker/docker/issues/26646)
 * Add support for health aware load balancing and DNS records [#27279](https://github.com/docker/docker/pull/27279)
-* Add `--hostname` to `docker service create` [#27857](https://github.com/docker/docker/pull/27857)
-- Add `--tty` flag to `docker service create`/`update` [#28076](https://github.com/docker/docker/pull/28076)
++ Add `--hostname` to `docker service create` [#27857](https://github.com/docker/docker/pull/27857)
++ Add `--host` to `docker service create`, and `--host-add`, `--host-rm` to `docker service update` [#28031](https://github.com/docker/docker/pull/28031)
++ Add `--tty` flag to `docker service create`/`update` [#28076](https://github.com/docker/docker/pull/28076)
 * Autodetect, store, and expose node IP address as seen by the manager [#27910](https://github.com/docker/docker/pull/27910)
 * Encryption at rest of manager keys and raft data [#27967](https://github.com/docker/docker/pull/27967)
 + Add `--update-max-failure-ratio`, `--update-monitor` and `--rollback` flags to `docker service update` [#26421](https://github.com/docker/docker/pull/26421)
 - Fix an issue with address autodiscovery on `docker swarm init` running inside a container [#26457](https://github.com/docker/docker/pull/26457)
 + (experimental) Add `docker service logs` command to view logs for a service [#28089](https://github.com/docker/docker/pull/28089)
-- Pin images by digest for `docker service create` and `update` [#28173](https://github.com/docker/docker/pull/28173)
-- Add short (`-f`) flag for `docker node rm --force` and `docker swarm leave --force` [#28196](https://github.com/docker/docker/pull/28196)
-+ Don't repull image if pinned by digest [#28265](https://github.com/docker/docker/pull/28265)
-+ swarm-mode support for Windows [#27838](https://github.com/docker/docker/pull/27838)
++ Pin images by digest for `docker service create` and `update` [#28173](https://github.com/docker/docker/pull/28173)
+* Add short (`-f`) flag for `docker node rm --force` and `docker swarm leave --force` [#28196](https://github.com/docker/docker/pull/28196)
++ Add options to customize Raft snapshots (`--max-snapshots`, `--snapshot-interval`) [#27997](https://github.com/docker/docker/pull/27997)
+- Don't repull image if pinned by digest [#28265](https://github.com/docker/docker/pull/28265)
++ Swarm-mode support for Windows [#27838](https://github.com/docker/docker/pull/27838)
++ Allow hostname to be updated on service [#28771](https://github.com/docker/docker/pull/28771)
++ Support v2 plugins [#29433](https://github.com/docker/docker/pull/29433)
++ Add content trust for services [#29469](https://github.com/docker/docker/pull/29469)
 
 ### Volume
 
@@ -207,10 +280,13 @@ To manually remove all plugins and resolve this problem, take the following step
 - Deprecate unversioned API endpoints [#28208](https://github.com/docker/docker/pull/28208)
 - Remove Ubuntu 15.10 (Wily Werewolf) as supported platform. Ubuntu 15.10 is EOL, and no longer receives updates [#27042](https://github.com/docker/docker/pull/27042)
 - Remove Fedora 22 as supported platform. Fedora 22 is EOL, and no longer receives updates [#27432](https://github.com/docker/docker/pull/27432)
+- Remove Fedora 23 as supported platform. Fedora 23 is EOL, and no longer receives updates [#29455](https://github.com/docker/docker/pull/29455)
 - Deprecate the `repo:shortid` syntax on `docker pull` [#27207](https://github.com/docker/docker/pull/27207)
-- Deprecate backing filesystem without d_type for overlay/overlay2 storage drivers [#27433](https://github.com/docker/docker/pull/27433)
-- Deprecate MAINTAINER in Dockerfile [#25466](https://github.com/docker/docker/pull/25466)
-- Deprecated filter param for endpoint `/images/json` [#27872](https://github.com/docker/docker/pull/27872)
+- Deprecate backing filesystem without `d_type` for overlay and overlay2 storage drivers [#27433](https://github.com/docker/docker/pull/27433)
+- Deprecate `MAINTAINER` in Dockerfile [#25466](https://github.com/docker/docker/pull/25466)
+- Deprecate `filter` param for endpoint `/images/json` [#27872](https://github.com/docker/docker/pull/27872)
+- Deprecate setting duplicate engine labels [#24533](https://github.com/docker/docker/pull/24533)
+- Deprecate "top-level" network information in `NetworkSettings` [#28437](https://github.com/docker/docker/pull/28437)
 
 ## 1.12.6 (2017-01-10)
 
