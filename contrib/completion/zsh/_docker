@@ -2390,6 +2390,7 @@ __docker_subcommand() {
                 "($help -D --debug)"{-D,--debug}"[Enable debug mode]" \
                 "($help)--default-gateway[Container default gateway IPv4 address]:IPv4 address: " \
                 "($help)--default-gateway-v6[Container default gateway IPv6 address]:IPv6 address: " \
+                "($help)--default-shm-size=[Default shm size for containers]:size:" \
                 "($help)*--default-ulimit=[Default ulimits for containers]:ulimit: " \
                 "($help)--disable-legacy-registry[Disable contacting legacy registries]" \
                 "($help)*--dns=[DNS server to use]:DNS: " \
