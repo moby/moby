@@ -107,6 +107,7 @@ type Daemon struct {
 	defaultIsolation          containertypes.Isolation // Default isolation mode on Windows
 	clusterProvider           cluster.Provider
 	cluster                   Cluster
+	proxyEnv                  []string
 
 	machineMemory uint64
 
@@ -681,6 +682,8 @@ func NewDaemon(config *Config, registryService registry.Service, containerdRemot
 	d.gidMaps = gidMaps
 	d.seccompEnabled = sysInfo.Seccomp
 	d.apparmorEnabled = sysInfo.AppArmor
+
+	d.proxyEnv = config.ProxyEnv
 
 	d.nameIndex = registrar.NewRegistrar()
 	d.linkIndex = newLinkIndex()

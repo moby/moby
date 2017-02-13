@@ -305,3 +305,33 @@ func TestParseLink(t *testing.T) {
 		t.Fatalf("Expected error 'bad format for links: link:alias:wrong' but got: %v", err)
 	}
 }
+
+func TestValidateProxyEnv(t *testing.T) {
+	valid := []string{
+		`HTTP_PROXY=foo`,
+		`http_proxy=foo`,
+		`HTTPS_PROXY=foo`,
+		`https_proxy=foo`,
+		`FTP_PROXY=foo`,
+		`ftp_proxy=foo`,
+		`NO_PROXY=foo`,
+		`no_proxy=foo`,
+		`HTTP_PROXY = foo`,
+	}
+	invalid := []string{
+		`HTZP_PROXY=foo`,
+		`foo=bar`,
+	}
+
+	for _, proxyVar := range valid {
+		if ret, err := ValidateProxyEnv(proxyVar); err != nil || ret == "" {
+			t.Fatalf("ValidateProxyEnv(`"+proxyVar+"`) got %s %s", ret, err)
+		}
+	}
+
+	for _, proxyVar := range invalid {
+		if ret, err := ValidateProxyEnv(proxyVar); err == nil || ret != "" {
+			t.Fatalf("ValidateProxyEnv(`"+proxyVar+"`) got %s %s", ret, err)
+		}
+	}
+}

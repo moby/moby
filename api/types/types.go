@@ -179,6 +179,7 @@ type Info struct {
 	// running containers are detected
 	LiveRestoreEnabled bool
 	Isolation          container.Isolation
+	ProxyEnv           []string
 	InitBinary         string
 	ContainerdCommit   Commit
 	RuncCommit         Commit

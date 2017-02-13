@@ -103,6 +103,10 @@ type CommonConfig struct {
 	CorsHeaders          string              `json:"api-cors-header,omitempty"`
 	EnableCors           bool                `json:"api-enable-cors,omitempty"`
 
+	// ProxyEnv is a list of environment variables that configure proxy behaviour
+	// in all containers
+	ProxyEnv []string `json:"proxy-env,omitempty"`
+
 	// LiveRestoreEnabled determines whether we should keep containers
 	// alive upon daemon shutdown/start
 	LiveRestoreEnabled bool `json:"live-restore,omitempty"`
@@ -195,6 +199,7 @@ func (config *Config) InstallCommonFlags(flags *pflag.FlagSet) {
 	flags.BoolVar(&config.Experimental, "experimental", false, "Enable experimental features")
 
 	flags.StringVar(&config.MetricsAddress, "metrics-addr", "", "Set default address and port to serve the metrics api on")
+	flags.Var(opts.NewListOptsRef(&config.ProxyEnv, opts.ValidateProxyEnv), "proxy-env", "Proxy environment variables")
 
 	config.MaxConcurrentDownloads = &maxConcurrentDownloads
 	config.MaxConcurrentUploads = &maxConcurrentUploads

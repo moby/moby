@@ -50,10 +50,10 @@ type ExitStatus struct {
 }
 
 // CreateDaemonEnvironment returns the list of all environment variables given the list of
-// environment variables related to links.
+// environment variables related to links and those that are to be globally propagated
 // Sets PATH, HOSTNAME and if container.Config.Tty is set: TERM.
 // The defaults set here do not override the values in container.Config.Env
-func (container *Container) CreateDaemonEnvironment(tty bool, linkedEnv []string) []string {
+func (container *Container) CreateDaemonEnvironment(tty bool, linkedEnv []string, proxyEnv []string) []string {
 	// Setup environment
 	env := []string{
 		"PATH=" + system.DefaultPathEnv,
@@ -63,6 +63,7 @@ func (container *Container) CreateDaemonEnvironment(tty bool, linkedEnv []string
 		env = append(env, "TERM=xterm")
 	}
 	env = append(env, linkedEnv...)
+	env = append(env, proxyEnv...)
 	// because the env on the container can override certain default values
 	// we need to replace the 'env' keys where they match and append anything
 	// else.
