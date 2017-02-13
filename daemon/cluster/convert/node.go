@@ -30,8 +30,7 @@ func NodeFromGRPC(n swarmapi.Node) types.Node {
 	node.UpdatedAt, _ = gogotypes.TimestampFromProto(n.Meta.UpdatedAt)
 
 	//Annotations
-	node.Spec.Name = n.Spec.Annotations.Name
-	node.Spec.Labels = n.Spec.Annotations.Labels
+	node.Spec.Annotations = annotationsFromGRPC(n.Spec.Annotations)
 
 	//Description
 	if n.Description != nil {

@@ -56,8 +56,7 @@ func SwarmFromGRPC(c swarmapi.Cluster) types.Swarm {
 	swarm.UpdatedAt, _ = gogotypes.TimestampFromProto(c.Meta.UpdatedAt)
 
 	// Annotations
-	swarm.Spec.Name = c.Spec.Annotations.Name
-	swarm.Spec.Labels = c.Spec.Annotations.Labels
+	swarm.Spec.Annotations = annotationsFromGRPC(c.Spec.Annotations)
 
 	return swarm
 }
