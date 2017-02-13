@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #
 # This script installs the bundle to Docker Machine instances, for the purpose
 # of testing the latest Docker with Swarm mode enabled.
