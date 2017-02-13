@@ -416,7 +416,7 @@ func (pm *Manager) Push(ctx context.Context, name string, metaHeader http.Header
 		pluginID: p.Config,
 	}
 
-	uploadManager := xfer.NewLayerUploadManager(3)
+	uploadManager := xfer.NewLayerUploadManager(3, 1)
 
 	imagePushConfig := &distribution.ImagePushConfig{
 		Config: distribution.Config{

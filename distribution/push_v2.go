@@ -258,7 +258,7 @@ func (pd *v2PushDescriptor) DiffID() layer.DiffID {
 	return pd.layer.DiffID()
 }
 
-func (pd *v2PushDescriptor) Upload(ctx context.Context, progressOutput progress.Output) (distribution.Descriptor, error) {
+func (pd *v2PushDescriptor) Upload(ctx context.Context, progressOutput progress.Output, compressionThreads int) (distribution.Descriptor, error) {
 	if fs, ok := pd.layer.(distribution.Describable); ok {
 		if d := fs.Descriptor(); len(d.URLs) > 0 {
 			progress.Update(progressOutput, pd.ID(), "Skipped foreign layer")
@@ -390,7 +390,7 @@ func (pd *v2PushDescriptor) Upload(ctx context.Context, progressOutput progress.
 	defer layerUpload.Close()
 
 	// upload the blob
-	desc, err := pd.uploadUsingSession(ctx, progressOutput, diffID, layerUpload)
+	desc, err := pd.uploadUsingSession(ctx, progressOutput, diffID, layerUpload, compressionThreads)
 	if err != nil {
 		return desc, err
 	}
@@ -411,6 +411,7 @@ func (pd *v2PushDescriptor) uploadUsingSession(
 	progressOutput progress.Output,
 	diffID layer.DiffID,
 	layerUpload distribution.BlobWriter,
+	compressionThreads int,
 ) (distribution.Descriptor, error) {
 	var reader io.ReadCloser
 
@@ -421,7 +422,7 @@ func (pd *v2PushDescriptor) uploadUsingSession(
 
 	switch m := pd.layer.MediaType(); m {
 	case schema2.MediaTypeUncompressedLayer:
-		compressedReader, compressionDone := compress(reader)
+		compressedReader, compressionDone := compress(reader, compressionThreads)
 		defer func(closer io.Closer) {
 			closer.Close()
 			<-compressionDone
