@@ -155,6 +155,8 @@ func (s *Server) InitRouter(enableProfiler bool, routers ...router.Router) {
 	s.routers = append(s.routers, routers...)
 
 	m := s.createMux()
+	m.SkipClean(true)
+
 	if enableProfiler {
 		profilerSetup(m)
 	}
