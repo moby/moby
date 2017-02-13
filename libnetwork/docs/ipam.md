@@ -78,7 +78,7 @@ On network creation, libnetwork will iterate the list and perform the following 
 
 If the list of IPv4 configurations is empty, libnetwork will automatically add one empty `IpamConf` structure. This will cause libnetwork to request IPAM driver an IPv4 address pool of the driver's choice on the configured address space, if specified, or on the IPAM driver default address space otherwise. If the IPAM driver is not able to provide an address pool, network creation will fail.
 If the list of IPv6 configurations is empty, libnetwork will not take any action.
-The data retrieved from the IPAM driver during the execution of point 1) to 3) will be stored in the network structure as a list of `IpamInfo` structures for IPv6 and for IPv6.
+The data retrieved from the IPAM driver during the execution of point 1) to 3) will be stored in the network structure as a list of `IpamInfo` structures for IPv4 and a list for IPv6.
 
 On endpoint creation, libnetwork will iterate over the list of configs and perform the following operation:
 
