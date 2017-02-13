@@ -20,15 +20,15 @@ var (
 		optional(repeated(separatorRegexp, alphaNumericRegexp)))
 
 	// domainComponentRegexp restricts the registry domain component of a
-	// repository name to start with a component as defined by domainRegexp
+	// repository name to start with a component as defined by DomainRegexp
 	// and followed by an optional port.
 	domainComponentRegexp = match(`(?:[a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9-]*[a-zA-Z0-9])`)
 
-	// domainRegexp defines the structure of potential domain components
+	// DomainRegexp defines the structure of potential domain components
 	// that may be part of image names. This is purposely a subset of what is
 	// allowed by DNS to ensure backwards compatibility with Docker image
 	// names.
-	domainRegexp = expression(
+	DomainRegexp = expression(
 		domainComponentRegexp,
 		optional(repeated(literal(`.`), domainComponentRegexp)),
 		optional(literal(`:`), match(`[0-9]+`)))
@@ -51,14 +51,14 @@ var (
 	// regexp has capturing groups for the domain and name part omitting
 	// the separating forward slash from either.
 	NameRegexp = expression(
-		optional(domainRegexp, literal(`/`)),
+		optional(DomainRegexp, literal(`/`)),
 		nameComponentRegexp,
 		optional(repeated(literal(`/`), nameComponentRegexp)))
 
 	// anchoredNameRegexp is used to parse a name value, capturing the
 	// domain and trailing components.
 	anchoredNameRegexp = anchored(
-		optional(capture(domainRegexp), literal(`/`)),
+		optional(capture(DomainRegexp), literal(`/`)),
 		capture(nameComponentRegexp,
 			optional(repeated(literal(`/`), nameComponentRegexp))))
 
