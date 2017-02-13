@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -e
 
 # This script updates the apt repo in $DOCKER_RELEASE_DIR/apt/repo.

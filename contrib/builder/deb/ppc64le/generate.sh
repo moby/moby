@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -e
 
 # This file is used to auto-generate Dockerfiles for making debs via 'make deb'

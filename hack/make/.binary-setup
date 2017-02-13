@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 DOCKER_CLIENT_BINARY_NAME='docker'
 DOCKER_DAEMON_BINARY_NAME='dockerd'

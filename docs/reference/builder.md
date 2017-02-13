@@ -1029,7 +1029,7 @@ the final executable receives the Unix signals by using `exec` and `gosu`
 commands:
 
 ```bash
-#!/bin/bash
+#!/usr/bin/env bash
 set -e
 
 if [ "$1" = 'postgres' ]; then
