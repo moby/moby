@@ -1,6 +1,6 @@
 // +build windows
 
-package daemon
+package config
 
 import (
 	"io/ioutil"

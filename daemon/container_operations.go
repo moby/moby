@@ -282,7 +282,7 @@ func (daemon *Daemon) updateEndpointNetworkSettings(container *container.Contain
 	}
 
 	if container.HostConfig.NetworkMode == runconfig.DefaultDaemonNetworkMode() {
-		container.NetworkSettings.Bridge = daemon.configStore.bridgeConfig.Iface
+		container.NetworkSettings.Bridge = daemon.configStore.BridgeConfig.Iface
 	}
 
 	return nil

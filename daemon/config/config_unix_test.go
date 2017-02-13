@@ -1,15 +1,12 @@
 // +build !windows
 
-package daemon
+package config
 
 import (
 	"io/ioutil"
 	"runtime"
 
 	"testing"
-
-	"github.com/docker/docker/pkg/testutil/assert"
-	"github.com/spf13/pflag"
 )
 
 func TestDaemonConfigurationMerge(t *testing.T) {
@@ -81,26 +78,6 @@ func TestDaemonConfigurationMerge(t *testing.T) {
 		} else {
 			t.Fatal("expected default ulimit name nofile, got nil\n")
 		}
-	}
-}
-
-func TestDaemonParseShmSize(t *testing.T) {
-	if runtime.GOOS == "solaris" {
-		t.Skip("ShmSize not supported on Solaris\n")
-	}
-	flags := pflag.NewFlagSet("test", pflag.ContinueOnError)
-
-	config := &Config{}
-	config.InstallFlags(flags)
-	// By default `--default-shm-size=64M`
-	expectedValue := 64 * 1024 * 1024
-	if config.ShmSize.Value() != int64(expectedValue) {
-		t.Fatalf("expected default shm size %d, got %d", expectedValue, config.ShmSize.Value())
-	}
-	assert.NilError(t, flags.Set("default-shm-size", "128M"))
-	expectedValue = 128 * 1024 * 1024
-	if config.ShmSize.Value() != int64(expectedValue) {
-		t.Fatalf("expected default shm size %d, got %d", expectedValue, config.ShmSize.Value())
 	}
 }
 

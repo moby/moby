@@ -11,6 +11,7 @@ import (
 	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/container"
+	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/parsers"
@@ -210,12 +211,12 @@ func verifyPlatformContainerSettings(daemon *Daemon, hostConfig *containertypes.
 }
 
 // platformReload updates configuration with platform specific options
-func (daemon *Daemon) platformReload(config *Config) map[string]string {
+func (daemon *Daemon) platformReload(config *config.Config) map[string]string {
 	return map[string]string{}
 }
 
 // verifyDaemonSettings performs validation of daemon config struct
-func verifyDaemonSettings(config *Config) error {
+func verifyDaemonSettings(config *config.Config) error {
 	return nil
 }
 
@@ -239,16 +240,16 @@ func checkSystem() error {
 }
 
 // configureKernelSecuritySupport configures and validate security support for the kernel
-func configureKernelSecuritySupport(config *Config, driverName string) error {
+func configureKernelSecuritySupport(config *config.Config, driverName string) error {
 	return nil
 }
 
 // configureMaxThreads sets the Go runtime max threads threshold
-func configureMaxThreads(config *Config) error {
+func configureMaxThreads(config *config.Config) error {
 	return nil
 }
 
-func (daemon *Daemon) initNetworkController(config *Config, activeSandboxes map[string]interface{}) (libnetwork.NetworkController, error) {
+func (daemon *Daemon) initNetworkController(config *config.Config, activeSandboxes map[string]interface{}) (libnetwork.NetworkController, error) {
 	netOptions, err := daemon.networkOptions(config, nil, nil)
 	if err != nil {
 		return nil, err
@@ -376,7 +377,7 @@ func (daemon *Daemon) initNetworkController(config *Config, activeSandboxes map[
 	return controller, nil
 }
 
-func initBridgeDriver(controller libnetwork.NetworkController, config *Config) error {
+func initBridgeDriver(controller libnetwork.NetworkController, config *config.Config) error {
 	if _, err := controller.NetworkByName(runconfig.DefaultDaemonNetworkMode().NetworkName()); err == nil {
 		return nil
 	}
@@ -388,8 +389,8 @@ func initBridgeDriver(controller libnetwork.NetworkController, config *Config) e
 	var ipamOption libnetwork.NetworkOption
 	var subnetPrefix string
 
-	if config.bridgeConfig.FixedCIDR != "" {
-		subnetPrefix = config.bridgeConfig.FixedCIDR
+	if config.BridgeConfig.FixedCIDR != "" {
+		subnetPrefix = config.BridgeConfig.FixedCIDR
 	} else {
 		// TP5 doesn't support properly detecting subnet
 		osv := system.GetOSVersion()
@@ -434,11 +435,11 @@ func (daemon *Daemon) cleanupMounts() error {
 	return nil
 }
 
-func setupRemappedRoot(config *Config) ([]idtools.IDMap, []idtools.IDMap, error) {
+func setupRemappedRoot(config *config.Config) ([]idtools.IDMap, []idtools.IDMap, error) {
 	return nil, nil, nil
 }
 
-func setupDaemonRoot(config *Config, rootDir string, rootUID, rootGID int) error {
+func setupDaemonRoot(config *config.Config, rootDir string, rootUID, rootGID int) error {
 	config.Root = rootDir
 	// Create the root directory if it doesn't exists
 	if err := system.MkdirAllWithACL(config.Root, 0); err != nil && !os.IsExist(err) {
@@ -479,7 +480,7 @@ func (daemon *Daemon) conditionalUnmountOnCleanup(container *container.Container
 	return nil
 }
 
-func driverOptions(config *Config) []nwconfig.Option {
+func driverOptions(config *config.Config) []nwconfig.Option {
 	return []nwconfig.Option{}
 }
 
@@ -593,7 +594,7 @@ func rootFSToAPIType(rootfs *image.RootFS) types.RootFS {
 	}
 }
 
-func setupDaemonProcess(config *Config) error {
+func setupDaemonProcess(config *config.Config) error {
 	return nil
 }
 
