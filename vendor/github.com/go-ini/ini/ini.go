@@ -32,7 +32,7 @@ import (
 
 const (
 	DEFAULT_SECTION = "DEFAULT"
-	// Maximum allowed depth when recursively substituing variable names.
+	// Maximum allowed depth when recursively substituting variable names.
 	_DEPTH_VALUES = 99
 
 	_VERSION = "1.6.0"
@@ -683,7 +683,7 @@ func (s *Section) DeleteKey(name string) {
 //  \___  /   |__|____/\___  >
 //      \/                 \/
 
-// File represents a combination of a or more INI file(s) in memory.
+// File represents a combination of one or more INI file(s) in memory.
 type File struct {
 	// Should make things safe, but sometimes doesn't matter.
 	BlockMode bool
