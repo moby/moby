@@ -237,7 +237,7 @@ copy_binaries() {
 		if [ -x /usr/local/bin/docker-runc ]; then
 			echo "Copying nested executables into $dir"
 			for file in containerd containerd-shim containerd-ctr runc init proxy; do
-				cp `which "docker-$file"` "$dir/"
+				cp -f `which "docker-$file"` "$dir/"
 				if [ "$2" == "hash" ]; then
 					hash_files "$dir/docker-$file"
 				fi
@@ -252,7 +252,7 @@ install_binary() {
 	if [ "$(go env GOOS)" == "linux" ]; then
 		echo "Installing $(basename $file) to ${target}"
 		mkdir -p "$target"
-		cp -L "$file" "$target"
+		cp -f -L "$file" "$target"
 	else
 		echo "Install is only supported on linux"
 		return 1
