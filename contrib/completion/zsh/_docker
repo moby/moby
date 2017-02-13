@@ -2067,6 +2067,8 @@ __docker_swarm_commands() {
         "join:Join a swarm as a node and/or manager"
         "join-token:Manage join tokens"
         "leave:Leave a swarm"
+        "unlock:Unlock swarm"
+        "unlock-key:Manage the unlock key"
         "update:Update the swarm"
     )
     _describe -t docker-swarm-commands "docker swarm command" _docker_swarm_subcommands
@@ -2115,6 +2117,16 @@ __docker_swarm_subcommand() {
             _arguments $(__docker_arguments) \
                 $opts_help \
                 "($help -f --force)"{-f,--force}"[Force this node to leave the swarm, ignoring warnings]" && ret=0
+            ;;
+        (unlock)
+            _arguments $(__docker_arguments) \
+                $opts_help && ret=0
+            ;;
+        (unlock-key)
+            _arguments $(__docker_arguments) \
+                $opts_help \
+                "($help -q --quiet)"{-q,--quiet}"[Only display token]" \
+                "($help)--rotate[Rotate unlock token]" && ret=0
             ;;
         (update)
             _arguments $(__docker_arguments) \
