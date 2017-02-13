@@ -996,6 +996,7 @@ __docker_image_subcommand() {
                 "($help -q --quiet)"{-q,--quiet}"[Suppress verbose build output]" \
                 "($help)--rm[Remove intermediate containers after a successful build]" \
                 "($help)*--shm-size=[Size of '/dev/shm' (format is '<number><unit>')]:shm size: " \
+                "($help)--squash[Squash newly built layers into a single new layer]" \
                 "($help -t --tag)*"{-t=,--tag=}"[Repository, name and tag for the image]: :__docker_complete_repositories_with_tags" \
                 "($help)*--ulimit=[ulimit options]:ulimit: " \
                 "($help)--userns=[Container user namespace]:user namespace:(host)" \
