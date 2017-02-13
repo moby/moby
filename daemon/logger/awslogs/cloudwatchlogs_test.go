@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"reflect"
+	"regexp"
 	"runtime"
 	"strings"
 	"testing"
@@ -24,7 +25,7 @@ const (
 	streamName        = "streamName"
 	sequenceToken     = "sequenceToken"
 	nextSequenceToken = "nextSequenceToken"
-	logline           = "this is a log line"
+	logline           = "this is a log line\r"
 )
 
 func TestNewAWSLogsClientUserAgentHandler(t *testing.T) {
@@ -471,6 +472,127 @@ func TestCollectBatchTicker(t *testing.T) {
 
 }
 
+func TestCollectBatchMultilinePattern(t *testing.T) {
+	mockClient := newMockClient()
+	multilinePattern := regexp.MustCompile("xxxx")
+	stream := &logStream{
+		client:           mockClient,
+		logGroupName:     groupName,
+		logStreamName:    streamName,
+		multilinePattern: multilinePattern,
+		sequenceToken:    aws.String(sequenceToken),
+		messages:         make(chan *logger.Message),
+	}
+	mockClient.putLogEventsResult <- &putLogEventsResult{
+		successResult: &cloudwatchlogs.PutLogEventsOutput{
+			NextSequenceToken: aws.String(nextSequenceToken),
+		},
+	}
+	ticks := make(chan time.Time)
+	newTicker = func(_ time.Duration) *time.Ticker {
+		return &time.Ticker{
+			C: ticks,
+		}
+	}
+
+	go stream.collectBatch()
+
+	stream.Log(&logger.Message{
+		Line:      []byte(logline),
+		Timestamp: time.Now(),
+	})
+	stream.Log(&logger.Message{
+		Line:      []byte(logline),
+		Timestamp: time.Now(),
+	})
+	stream.Log(&logger.Message{
+		Line:      []byte("xxxx " + logline),
+		Timestamp: time.Now(),
+	})
+
+	ticks <- time.Time{}
+
+	// Verify single multiline event
+	argument := <-mockClient.putLogEventsArgument
+	if argument == nil {
+		t.Fatal("Expected non-nil PutLogEventsInput")
+	}
+	if len(argument.LogEvents) != 1 {
+		t.Errorf("Expected LogEvents to contain 1 elements, but contains %d", len(argument.LogEvents))
+	}
+	if *argument.LogEvents[0].Message != logline+logline {
+		t.Errorf("Expected message to be %s but was %s", logline+logline, *argument.LogEvents[0].Message)
+	}
+
+	stream.Close()
+
+	// Verify single event
+	argument = <-mockClient.putLogEventsArgument
+	if argument == nil {
+		t.Fatal("Expected non-nil PutLogEventsInput")
+	}
+	if len(argument.LogEvents) != 1 {
+		t.Errorf("Expected LogEvents to contain 1 elements, but contains %d", len(argument.LogEvents))
+	}
+	if *argument.LogEvents[0].Message != "xxxx "+logline {
+		t.Errorf("Expected message to be %s but was %s", "xxxx "+logline, *argument.LogEvents[0].Message)
+	}
+}
+
+func TestCollectBatchMultilinePatternMaxEventAge(t *testing.T) {
+	mockClient := newMockClient()
+	multilinePattern := regexp.MustCompile("xxxx")
+	stream := &logStream{
+		client:           mockClient,
+		logGroupName:     groupName,
+		logStreamName:    streamName,
+		multilinePattern: multilinePattern,
+		sequenceToken:    aws.String(sequenceToken),
+		messages:         make(chan *logger.Message),
+	}
+	mockClient.putLogEventsResult <- &putLogEventsResult{
+		successResult: &cloudwatchlogs.PutLogEventsOutput{
+			NextSequenceToken: aws.String(nextSequenceToken),
+		},
+	}
+	ticks := make(chan time.Time)
+	newTicker = func(_ time.Duration) *time.Ticker {
+		return &time.Ticker{
+			C: ticks,
+		}
+	}
+
+	go stream.collectBatch()
+
+	stream.Log(&logger.Message{
+		Line:      []byte(logline),
+		Timestamp: time.Now(),
+	})
+
+	// Log an event 1 second later
+	stream.Log(&logger.Message{
+		Line:      []byte(logline),
+		Timestamp: time.Now().Add(time.Second),
+	})
+
+	// Fire ticker batchPublishFrequency seconds later
+	ticks <- time.Now().Add(batchPublishFrequency * time.Second)
+
+	// Verify single multiline event is flushed after maximum event buffer age (batchPublishFrequency)
+	argument := <-mockClient.putLogEventsArgument
+	if argument == nil {
+		t.Fatal("Expected non-nil PutLogEventsInput")
+	}
+	if len(argument.LogEvents) != 1 {
+		t.Errorf("Expected LogEvents to contain 1 elements, but contains %d", len(argument.LogEvents))
+	}
+	if *argument.LogEvents[0].Message != logline+logline {
+		t.Errorf("Expected message to be %s but was %s", logline+logline, *argument.LogEvents[0].Message)
+	}
+
+	stream.Close()
+}
+
 func TestCollectBatchClose(t *testing.T) {
 	mockClient := newMockClient()
 	stream := &logStream{
@@ -720,6 +842,71 @@ func TestCollectBatchWithDuplicateTimestamps(t *testing.T) {
 	for i := 0; i < times; i++ {
 		if !reflect.DeepEqual(*argument.LogEvents[i], *expectedEvents[i]) {
 			t.Errorf("Expected event to be %v but was %v", *expectedEvents[i], *argument.LogEvents[i])
+		}
+	}
+}
+
+func TestParseLogOptionsMultilinePattern(t *testing.T) {
+	info := logger.Info{
+		Config: map[string]string{
+			multilinePatternKey: "^xxxx",
+		},
+	}
+
+	multilinePattern, err := parseMultilineOptions(info)
+	if err != nil {
+		t.Errorf("Received unexpected err: %v\n", err)
+	}
+	if !multilinePattern.MatchString("xxxx") {
+		t.Errorf("Expected multilinePattern to match string xxxx but no match found")
+	}
+}
+
+func TestParseLogOptionsDatetimeFormatSupersedesMultilinePattern(t *testing.T) {
+	info := logger.Info{
+		Config: map[string]string{
+			multilinePatternKey: "^xxxx",
+			datetimeFormatKey:   "%Y-%m-%d",
+		},
+	}
+
+	multilinePattern, err := parseMultilineOptions(info)
+	if err != nil {
+		t.Errorf("Received unexpected err: %v\n", err)
+	}
+	if multilinePattern.MatchString("xxxx") {
+		t.Errorf("Expected multilinePattern to NOT match string xxxx but match was made")
+	}
+	if !multilinePattern.MatchString("2017-01-01") {
+		t.Errorf("Expected multilinePattern to match string 2017-01-01 but no match found")
+	}
+}
+
+func TestParseLogOptionsDatetimeFormat(t *testing.T) {
+	datetimeFormatTests := []struct {
+		format string
+		match  string
+	}{
+		{"%d/%m/%y %a %H:%M:%S%L %Z", "31/12/10 Mon 08:42:44.345 NZDT"},
+		{"%Y-%m-%d %A %I:%M:%S.%f%p%z", "2007-12-04 Monday 08:42:44.123456AM+1200"},
+		{"%b|%b|%b|%b|%b|%b|%b|%b|%b|%b|%b|%b", "Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sep|Oct|Nov|Dec"},
+		{"%B|%B|%B|%B|%B|%B|%B|%B|%B|%B|%B|%B", "January|February|March|April|June|July|August|September|October|November|December"},
+		{"%A|%A|%A|%A|%A|%A|%A", "Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday"},
+		{"%a|%a|%a|%a|%a|%a|%a", "Mon|Tue|Wed|Thu|Fri|Sat|Sun"},
+		{"Day of the week: %w, Day of the year: %j", "Day of the week: 4, Day of the year: 091"},
+	}
+	for _, dt := range datetimeFormatTests {
+		info := logger.Info{
+			Config: map[string]string{
+				datetimeFormatKey: dt.format,
+			},
+		}
+		multilinePattern, err := parseMultilineOptions(info)
+		if err != nil {
+			t.Errorf("Received unexpected err: %v\n", err)
+		}
+		if !multilinePattern.MatchString(dt.match) {
+			t.Errorf("Expected multilinePattern %s to match string %s but no match found", dt.format, dt.match)
 		}
 	}
 }
