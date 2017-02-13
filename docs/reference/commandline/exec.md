@@ -31,7 +31,7 @@ Options:
   -u, --user           Username or UID (format: <name|uid>[:<group|gid>])
 ```
 
-## Descriptino
+## Description
 
 The `docker exec` command runs a new command in a running container.
 
