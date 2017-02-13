@@ -36,6 +36,7 @@ true
  * [Ipvlan Network Drivers](vlan-networks.md)
  * [Docker Stacks and Distributed Application Bundles](docker-stacks-and-bundles.md)
  * [Checkpoint & Restore](checkpoint-restore.md)
+ * [Docker build with --squash argument](docker-build-with-squash.md)
 
 ## How to comment on an experimental feature
 

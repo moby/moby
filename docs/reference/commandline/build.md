@@ -443,6 +443,8 @@ more `--add-host` flags. This example adds a static address for a host named
 
 ### Squash an image's layers (--squash) **Experimental Only**
 
+#### Overview
+
 Once the image is built, squash the new layers into a new image with a single
 new layer. Squashing does not destroy any existing image, rather it creates a new
 image with the content of the squashed layers. This effectively makes it look
@@ -457,3 +459,91 @@ space.
 storing two copies of the image, one for the build cache with all the cache
 layers in tact, and one for the squashed version.
 
+#### Prerequisites
+
+The example on this page is using experimental mode in Docker 1.13.
+
+Experimental mode can be enabled by using the `--experimental` flag when starting the Docker daemon or setting `experimental: true` in the `daemon.json` configuration file.
+
+By default, experimental mode is disabled. To see the current configuration, use the `docker version` command.
+
+```none
+
+Server:
+ Version:      1.13.1
+ API version:  1.26 (minimum version 1.12)
+ Go version:   go1.7.5
+ Git commit:   092cba3
+ Built:        Wed Feb  8 06:35:24 2017
+ OS/Arch:      linux/amd64
+ Experimental: false
+
+ [...]
+
+```
+
+To enable experimental mode, users need to restart the docker daemon with the experimental flag enabled.
+
+#### Enable Docker experimental
+
+Experimental features are now included in the standard Docker binaries as of version 1.13.0. For enabling experimental features, you need to start the Docker daemon with `--experimental` flag. You can also enable the daemon flag via /etc/docker/daemon.json. e.g.
+
+```
+
+{
+    "experimental": true
+}
+
+```
+Then make sure the experimental flag is enabled:
+
+```bash
+
+$ docker version -f '{{.Server.Experimental}}'
+true
+
+```
+
+#### Build an image with `--squash` argument
+
+The following is an example of docker build with `--squash` argument
+
+```Dockerfile
+
+FROM busybox
+RUN echo hello > /hello
+RUN echo world >> /hello
+RUN touch remove_me /remove_me
+ENV HELLO world
+RUN rm /remove_me
+
+```
+An image named `test` is built with `--squash` argument.
+
+```bash
+
+$ docker build --squash -t test .
+
+[...]
+
+```
+
+If everything is right, the history will look like this:
+
+```bash
+$ docker history test 
+
+IMAGE               CREATED             CREATED BY                                      SIZE                COMMENT
+4e10cb5b4cac        3 seconds ago                                                       12 B                merge sha256:88a7b0112a41826885df0e7072698006ee8f621c6ab99fca7fe9151d7b599702 to sha256:47bcc53f74dc94b1920f0b34f6036096526296767650f223433fe65c35f149eb
+<missing>           5 minutes ago       /bin/sh -c rm /remove_me                        0 B
+<missing>           5 minutes ago       /bin/sh -c #(nop) ENV HELLO=world               0 B
+<missing>           5 minutes ago       /bin/sh -c touch remove_me /remove_me           0 B
+<missing>           5 minutes ago       /bin/sh -c echo world >> /hello                 0 B
+<missing>           6 minutes ago       /bin/sh -c echo hello > /hello                  0 B
+<missing>           7 weeks ago         /bin/sh -c #(nop) CMD ["sh"]                    0 B
+<missing>           7 weeks ago         /bin/sh -c #(nop) ADD file:47ca6e777c36a4cfff   1.113 MB
+
+```
+We could find that all layer's name is `<missing>`, and there is a new layer with COMMENT `merge`.
+
+Test the image, check for `/remove_me` being gone, make sure `hello\nworld` is in `/hello`, make sure the `HELLO` envvar's value is `world`.
