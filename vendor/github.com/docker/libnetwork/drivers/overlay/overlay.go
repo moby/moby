@@ -48,6 +48,7 @@ type driver struct {
 	vxlanIdm         *idm.Idm
 	once             sync.Once
 	joinOnce         sync.Once
+	localJoinOnce    sync.Once
 	keys             []*key
 	sync.Mutex
 }
@@ -240,6 +241,12 @@ func (d *driver) nodeJoin(advertiseAddress, bindAddress string, self bool) {
 		d.advertiseAddress = advertiseAddress
 		d.bindAddress = bindAddress
 		d.Unlock()
+
+		// If containers are already running on this network update the
+		// advertiseaddress in the peerDB
+		d.localJoinOnce.Do(func() {
+			d.peerDBUpdateSelf()
+		})
 
 		// If there is no cluster store there is no need to start serf.
 		if d.store != nil {
