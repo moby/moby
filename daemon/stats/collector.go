@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/pkg/pubsub"
 )
@@ -84,7 +85,14 @@ func (s *Collector) Run() {
 			if err != nil {
 				if _, ok := err.(notRunningErr); !ok {
 					logrus.Errorf("collecting stats for %s: %v", pair.container.ID, err)
+					continue
 				}
+
+				// publish empty stats containing only name and ID if not running
+				pair.publisher.Publish(types.StatsJSON{
+					Name: pair.container.Name,
+					ID:   pair.container.ID,
+				})
 				continue
 			}
 			// FIXME: move to containerd on Linux (not Windows)
