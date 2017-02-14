@@ -229,7 +229,7 @@ type ServiceSecretConfig struct {
 	Target string
 	UID    string
 	GID    string
-	Mode   uint32
+	Mode   *uint32
 }
 
 // UlimitsConfig the ulimit configuration
