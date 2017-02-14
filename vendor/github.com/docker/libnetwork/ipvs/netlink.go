@@ -138,6 +138,7 @@ func getIPVSFamily() (int, error) {
 	if err != nil {
 		return 0, err
 	}
+	defer sock.Close()
 
 	req := newGenlRequest(genlCtrlID, genlCtrlCmdGetFamily)
 	req.AddData(nl.NewRtAttr(genlCtrlAttrFamilyName, nl.ZeroTerminated("IPVS")))
