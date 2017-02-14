@@ -31,6 +31,7 @@ import (
 	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/parsers/kernel"
+	"github.com/docker/docker/pkg/system"
 	units "github.com/docker/go-units"
 
 	"github.com/opencontainers/selinux/go-selinux/label"
@@ -464,7 +465,7 @@ func (d *Driver) Remove(id string) error {
 		}
 	}
 
-	if err := os.RemoveAll(dir); err != nil && !os.IsNotExist(err) {
+	if err := system.EnsureRemoveAll(dir); err != nil && !os.IsNotExist(err) {
 		return err
 	}
 	return nil
