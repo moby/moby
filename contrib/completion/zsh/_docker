@@ -494,6 +494,57 @@ __docker_complete_prune_filters() {
     return ret
 }
 
+# BO checkpoint
+
+__docker_checkpoint_commands() {
+    local -a _docker_checkpoint_subcommands
+    _docker_checkpoint_subcommands=(
+        "create:Create a checkpoint from a running container"
+        "ls:List checkpoints for a container"
+        "rm:Remove a checkpoint"
+    )
+    _describe -t docker-checkpoint-commands "docker checkpoint command" _docker_checkpoint_subcommands
+}
+
+__docker_checkpoint_subcommand() {
+    local -a _command_args opts_help
+    local expl help="--help"
+    integer ret=1
+
+    opts_help=("(: -)--help[Print usage]")
+
+    case "$words[1]" in
+        (create)
+            _arguments $(__docker_arguments) \
+                $opts_help \
+                "($help)--checkpoint-dir=[Use a custom checkpoint storage directory]:dir:_directories" \
+                "($help)--leave-running[Leave the container running after checkpoint]" \
+                "($help -)1:container:__docker_complete_running_containers" \
+                "($help -)2:checkpoint: " && ret=0
+            ;;
+        (ls|list)
+            _arguments $(__docker_arguments) \
+                $opts_help \
+                "($help)--checkpoint-dir=[Use a custom checkpoint storage directory]:dir:_directories" \
+                "($help -)1:container:__docker_complete_containers" && ret=0
+            ;;
+        (rm|remove)
+            _arguments $(__docker_arguments) \
+                $opts_help \
+                "($help)--checkpoint-dir=[Use a custom checkpoint storage directory]:dir:_directories" \
+                "($help -)1:container:__docker_complete_containers" \
+                "($help -)2:checkpoint: " && ret=0
+            ;;
+        (help)
+            _arguments $(__docker_arguments) ":subcommand:__docker_checkpoint_commands" && ret=0
+            ;;
+    esac
+
+    return ret
+}
+
+# EO checkpoint
+
 # BO container
 
 __docker_container_commands() {
@@ -2433,6 +2484,23 @@ __docker_subcommand() {
             ;;
         (build|history|import|load|pull|push|save|tag)
             __docker_image_subcommand && ret=0
+            ;;
+        (checkpoint)
+            local curcontext="$curcontext" state
+            _arguments $(__docker_arguments) \
+                $opts_help \
+                "($help -): :->command" \
+                "($help -)*:: :->option-or-argument" && ret=0
+
+            case $state in
+                (command)
+                    __docker_checkpoint_commands && ret=0
+                    ;;
+                (option-or-argument)
+                    curcontext=${curcontext%:*:*}:docker-${words[-1]}:
+                    __docker_checkpoint_subcommand && ret=0
+                    ;;
+            esac
             ;;
         (container)
             local curcontext="$curcontext" state
