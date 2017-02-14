@@ -60,17 +60,16 @@ func Inspect(out io.Writer, references []string, tmplStr string, getRef GetRefFu
 		return cli.StatusError{StatusCode: 64, Status: err.Error()}
 	}
 
-	var inspectErr error
+	var inspectErrs []string
 	for _, ref := range references {
 		element, raw, err := getRef(ref)
 		if err != nil {
-			inspectErr = err
-			break
+			inspectErrs = append(inspectErrs, err.Error())
+			continue
 		}
 
 		if err := inspector.Inspect(element, raw); err != nil {
-			inspectErr = err
-			break
+			inspectErrs = append(inspectErrs, err.Error())
 		}
 	}
 
@@ -78,8 +77,8 @@ func Inspect(out io.Writer, references []string, tmplStr string, getRef GetRefFu
 		logrus.Errorf("%s\n", err)
 	}
 
-	if inspectErr != nil {
-		return cli.StatusError{StatusCode: 1, Status: inspectErr.Error()}
+	if len(inspectErrs) > 0 {
+		return cli.StatusError{StatusCode: 1, Status: strings.Join(inspectErrs, "\n")}
 	}
 	return nil
 }
