@@ -404,7 +404,7 @@ Managing the thin-pool outside of Engine makes for the most feature-rich
 method of having Docker utilize device mapper thin provisioning as the
 backing storage for Docker containers. The highlights of the lvm-based
 thin-pool management feature include: automatic or interactive thin-pool
-resize support, dynamically changing thin-pool features, automatic thinp
+resize support, dynamically changing thin-pool features, automatic thin
 metadata checking when lvm activates the thin-pool, etc.
 
 As a fallback if no thin pool is provided, loopback files are
