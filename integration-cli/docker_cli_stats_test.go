@@ -157,3 +157,22 @@ func (s *DockerSuite) TestStatsAllNewContainersAdded(c *check.C) {
 		// ignore, done
 	}
 }
+
+func (s *DockerSuite) TestStatsFormatAll(c *check.C) {
+	// Windows does not support stats
+	testRequires(c, DaemonIsLinux)
+
+	dockerCmd(c, "run", "-d", "--name=RunningOne", "busybox", "top")
+	c.Assert(waitRun("RunningOne"), check.IsNil)
+	dockerCmd(c, "run", "-d", "--name=ExitedOne", "busybox", "top")
+	dockerCmd(c, "stop", "ExitedOne")
+	c.Assert(waitExited("ExitedOne", 5*time.Second), check.IsNil)
+
+	out, _ := dockerCmd(c, "stats", "--no-stream", "--format", "{{.Name}}")
+	c.Assert(out, checker.Contains, "RunningOne")
+	c.Assert(out, checker.Not(checker.Contains), "ExitedOne")
+
+	out, _ = dockerCmd(c, "stats", "--all", "--no-stream", "--format", "{{.Name}}")
+	c.Assert(out, checker.Contains, "RunningOne")
+	c.Assert(out, checker.Contains, "ExitedOne")
+}
