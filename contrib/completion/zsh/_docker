@@ -1859,6 +1859,7 @@ __docker_service_commands() {
     _docker_service_subcommands=(
         "create:Create a new service"
         "inspect:Display detailed information on one or more services"
+        "logs:Fetch the logs of a service"
         "ls:List services"
         "rm:Remove one or more services"
         "scale:Scale one or multiple replicated services"
@@ -1936,6 +1937,17 @@ __docker_service_subcommand() {
                 "($help -f --format)"{-f=,--format=}"[Format the output using the given go template]:template: " \
                 "($help)--pretty[Print the information in a human friendly format]" \
                 "($help -)*:service:__docker_complete_services" && ret=0
+            ;;
+        (logs)
+            _arguments $(__docker_arguments) \
+                $opts_help \
+                "($help)--details[Show extra details provided to logs]" \
+                "($help -f --follow)"{-f,--follow}"[Follow log output]" \
+                "($help)--no-resolve[Do not map IDs to Names]" \
+                "($help)--since=[Show logs since timestamp]:timestamp: " \
+                "($help)--tail=[Number of lines to show from the end of the logs]:lines:(1 10 20 50 all)" \
+                "($help -t --timestamps)"{-t,--timestamps}"[Show timestamps]" \
+                "($help -)1:service:__docker_complete_services" && ret=0
             ;;
         (ls|list)
             _arguments $(__docker_arguments) \
