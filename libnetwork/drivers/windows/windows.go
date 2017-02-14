@@ -309,7 +309,7 @@ func (d *driver) DeleteNetwork(nid string) error {
 
 	_, err = hcsshim.HNSNetworkRequest("DELETE", config.HnsID, "")
 	if err != nil {
-		return err
+		return types.ForbiddenErrorf(err.Error())
 	}
 
 	d.Lock()
