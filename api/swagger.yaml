@@ -1099,6 +1099,8 @@ definitions:
         $ref: "#/definitions/IPAM"
       Internal:
         type: "boolean"
+      Attachable:
+        type: "boolean"
       Containers:
         type: "object"
         additionalProperties:
@@ -1126,6 +1128,7 @@ definitions:
         Options:
           foo: "bar"
       Internal: false
+      Attachable: false
       Containers:
         19a4d5d687db25203351ed79d478946f861258f018fe384f229f2efa4b23513c:
           Name: "test"
@@ -6066,6 +6069,7 @@ paths:
                 Driver: "bridge"
                 EnableIPv6: false
                 Internal: false
+                Attachable: false
                 IPAM:
                   Driver: "default"
                   Config:
@@ -6091,6 +6095,7 @@ paths:
                 Driver: "null"
                 EnableIPv6: false
                 Internal: false
+                Attachable: false
                 IPAM:
                   Driver: "default"
                   Config: []
@@ -6103,6 +6108,7 @@ paths:
                 Driver: "host"
                 EnableIPv6: false
                 Internal: false
+                Attachable: false
                 IPAM:
                   Driver: "default"
                   Config: []
@@ -6227,6 +6233,9 @@ paths:
               Internal:
                 description: "Restrict external access to the network."
                 type: "boolean"
+              Attachable:
+                description: "Globally scoped network is manually attachable by regular containers from workers in swarm mode."
+                type: "boolean"
               IPAM:
                 description: "Optional custom IP scheme for the network."
                 $ref: "#/definitions/IPAM"
@@ -6259,6 +6268,7 @@ paths:
                 Options:
                   foo: "bar"
               Internal: true
+              Attachable: false
               Options:
                 com.docker.network.bridge.default_bridge: "true"
                 com.docker.network.bridge.enable_icc: "true"
