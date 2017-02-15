@@ -1160,7 +1160,7 @@ func (daemon *Daemon) reloadClusterDiscovery(conf *config.Config) error {
 	}
 
 	// check discovery modifications
-	if !config.ModifiedDiscoverySettings(daemon.configStore, newAdvertise, newClusterStore, conf.ClusterOpts) {
+	if !config.ModifiedDiscoverySettings(daemon.configStore, newClusterStore, newAdvertise, conf.ClusterOpts) {
 		return nil
 	}
 
