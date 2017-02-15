@@ -7,6 +7,7 @@ import (
 
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cli/command"
+	"github.com/docker/docker/registry"
 	"github.com/spf13/cobra"
 )
 
@@ -49,7 +50,7 @@ func runLogin(dockerCli *command.DockerCli, opts loginOptions) error {
 		serverAddress string
 		authServer    = command.ElectAuthServer(ctx, dockerCli)
 	)
-	if opts.serverAddress != "" {
+	if opts.serverAddress != "" && opts.serverAddress != registry.DefaultNamespace {
 		serverAddress = opts.serverAddress
 	} else {
 		serverAddress = authServer
