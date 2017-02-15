@@ -240,6 +240,9 @@ func (pm *Manager) Upgrade(ctx context.Context, ref reference.Named, name string
 	name = reference.FamiliarString(reference.TagNameOnly(nameref))
 
 	tmpRootFSDir, err := ioutil.TempDir(pm.tmpDir(), ".rootfs")
+	if err != nil {
+		return err
+	}
 	defer os.RemoveAll(tmpRootFSDir)
 
 	dm := &downloadManager{
@@ -289,6 +292,9 @@ func (pm *Manager) Pull(ctx context.Context, ref reference.Named, name string, m
 	}
 
 	tmpRootFSDir, err := ioutil.TempDir(pm.tmpDir(), ".rootfs")
+	if err != nil {
+		return err
+	}
 	defer os.RemoveAll(tmpRootFSDir)
 
 	dm := &downloadManager{
@@ -679,10 +685,11 @@ func (pm *Manager) CreateFromContext(ctx context.Context, tarCtx io.ReadCloser, 
 	}
 
 	tmpRootFSDir, err := ioutil.TempDir(pm.tmpDir(), ".rootfs")
-	defer os.RemoveAll(tmpRootFSDir)
 	if err != nil {
 		return errors.Wrap(err, "failed to create temp directory")
 	}
+	defer os.RemoveAll(tmpRootFSDir)
+
 	var configJSON []byte
 	rootFS := splitConfigRootFSFromTar(tarCtx, &configJSON)
 
