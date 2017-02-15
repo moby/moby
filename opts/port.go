@@ -94,11 +94,20 @@ func (p *PortOpt) Set(value string) error {
 	} else {
 		// short syntax
 		portConfigs := []swarm.PortConfig{}
-		// We can ignore errors because the format was already validated by ValidatePort
-		ports, portBindings, _ := nat.ParsePortSpecs([]string{value})
+		ports, portBindingMap, err := nat.ParsePortSpecs([]string{value})
+		if err != nil {
+			return err
+		}
+		for _, portBindings := range portBindingMap {
+			for _, portBinding := range portBindings {
+				if portBinding.HostIP != "" {
+					return fmt.Errorf("HostIP is not supported.")
+				}
+			}
+		}
 
 		for port := range ports {
-			portConfig, err := ConvertPortToPortConfig(port, portBindings)
+			portConfig, err := ConvertPortToPortConfig(port, portBindingMap)
 			if err != nil {
 				return err
 			}
