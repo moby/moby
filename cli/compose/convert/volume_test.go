@@ -105,8 +105,34 @@ func TestConvertVolumeToMountNamedVolumeExternal(t *testing.T) {
 		Type:   mount.TypeVolume,
 		Source: "special",
 		Target: "/foo",
+		VolumeOptions: &mount.VolumeOptions{
+			NoCopy: false,
+		},
 	}
 	mount, err := convertVolumeToMount("outside:/foo", stackVolumes, namespace)
+	assert.NilError(t, err)
+	assert.DeepEqual(t, mount, expected)
+}
+
+func TestConvertVolumeToMountNamedVolumeExternalNoCopy(t *testing.T) {
+	stackVolumes := volumes{
+		"outside": composetypes.VolumeConfig{
+			External: composetypes.External{
+				External: true,
+				Name:     "special",
+			},
+		},
+	}
+	namespace := NewNamespace("foo")
+	expected := mount.Mount{
+		Type:   mount.TypeVolume,
+		Source: "special",
+		Target: "/foo",
+		VolumeOptions: &mount.VolumeOptions{
+			NoCopy: true,
+		},
+	}
+	mount, err := convertVolumeToMount("outside:/foo:nocopy", stackVolumes, namespace)
 	assert.NilError(t, err)
 	assert.DeepEqual(t, mount, expected)
 }

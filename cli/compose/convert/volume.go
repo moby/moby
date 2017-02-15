@@ -75,6 +75,9 @@ func convertVolumeToMount(volumeSpec string, stackVolumes volumes, namespace Nam
 
 	var volumeOptions *mount.VolumeOptions
 	if stackVolume.External.Name != "" {
+		volumeOptions = &mount.VolumeOptions{
+			NoCopy: isNoCopy(mode),
+		}
 		source = stackVolume.External.Name
 	} else {
 		volumeOptions = &mount.VolumeOptions{
