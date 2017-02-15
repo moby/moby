@@ -75,7 +75,7 @@ Options:
       --stop-signal string               Signal to stop the container
   -t, --tty                              Allocate a pseudo-TTY
       --update-delay duration            Delay between updates (ns|us|ms|s|m|h) (default 0s)
-      --update-failure-action string     Action on update failure ("pause"|"continue") (default "pause")
+      --update-failure-action string     Action on update failure ("pause"|"continue"|"rollback") (default "pause")
       --update-max-failure-ratio float   Failure rate to tolerate during an update
       --update-monitor duration          Duration after each task update to monitor for failure (ns|us|ms|s|m|h) (default 0s)
       --update-parallelism uint          Maximum number of tasks updated simultaneously (0 to update all at once) (default 1)

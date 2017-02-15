@@ -35,6 +35,12 @@ func ServiceFromGRPC(s swarmapi.Service) types.Service {
 			service.UpdateStatus.State = types.UpdateStatePaused
 		case swarmapi.UpdateStatus_COMPLETED:
 			service.UpdateStatus.State = types.UpdateStateCompleted
+		case swarmapi.UpdateStatus_ROLLBACK_STARTED:
+			service.UpdateStatus.State = types.UpdateStateRollbackStarted
+		case swarmapi.UpdateStatus_ROLLBACK_PAUSED:
+			service.UpdateStatus.State = types.UpdateStateRollbackPaused
+		case swarmapi.UpdateStatus_ROLLBACK_COMPLETED:
+			service.UpdateStatus.State = types.UpdateStateRollbackCompleted
 		}
 
 		startedAt, _ := gogotypes.TimestampFromProto(s.UpdateStatus.StartedAt)
@@ -102,6 +108,8 @@ func serviceSpecFromGRPC(spec *swarmapi.ServiceSpec) *types.ServiceSpec {
 			convertedSpec.UpdateConfig.FailureAction = types.UpdateFailureActionPause
 		case swarmapi.UpdateConfig_CONTINUE:
 			convertedSpec.UpdateConfig.FailureAction = types.UpdateFailureActionContinue
+		case swarmapi.UpdateConfig_ROLLBACK:
+			convertedSpec.UpdateConfig.FailureAction = types.UpdateFailureActionRollback
 		}
 	}
 
@@ -187,6 +195,8 @@ func ServiceSpecToGRPC(s types.ServiceSpec) (swarmapi.ServiceSpec, error) {
 			failureAction = swarmapi.UpdateConfig_PAUSE
 		case types.UpdateFailureActionContinue:
 			failureAction = swarmapi.UpdateConfig_CONTINUE
+		case types.UpdateFailureActionRollback:
+			failureAction = swarmapi.UpdateConfig_ROLLBACK
 		default:
 			return swarmapi.ServiceSpec{}, fmt.Errorf("unrecognized update failure action %s", s.UpdateConfig.FailureAction)
 		}

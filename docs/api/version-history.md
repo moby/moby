@@ -22,6 +22,7 @@ keywords: "API, Docker, rcli, REST, documentation"
 * `GET /containers/json` now supports `publish` and `expose` filters to filter containers that expose or publish certain ports.
 * `POST /services/create` and `POST /services/(id or name)/update` now accept the `ReadOnly` parameter, which mounts the container's root filesystem as read only.
 * `POST /build` now accepts `extrahosts` parameter to specify a host to ip mapping to use during the build.
+* `POST /services/create` and `POST /services/(id or name)/update` now accept a `rollback` value for `FailureAction`.
 
 ## v1.26 API changes
 

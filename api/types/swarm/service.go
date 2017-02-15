@@ -45,6 +45,12 @@ const (
 	UpdateStatePaused UpdateState = "paused"
 	// UpdateStateCompleted is the completed state.
 	UpdateStateCompleted UpdateState = "completed"
+	// UpdateStateRollbackStarted is the state with a rollback in progress.
+	UpdateStateRollbackStarted UpdateState = "rollback_started"
+	// UpdateStateRollbackPaused is the state with a rollback in progress.
+	UpdateStateRollbackPaused UpdateState = "rollback_paused"
+	// UpdateStateRollbackCompleted is the state with a rollback in progress.
+	UpdateStateRollbackCompleted UpdateState = "rollback_completed"
 )
 
 // UpdateStatus reports the status of a service update.
@@ -68,6 +74,8 @@ const (
 	UpdateFailureActionPause = "pause"
 	// UpdateFailureActionContinue CONTINUE
 	UpdateFailureActionContinue = "continue"
+	// UpdateFailureActionRollback ROLLBACK
+	UpdateFailureActionRollback = "rollback"
 )
 
 // UpdateConfig represents the update configuration.

@@ -2256,6 +2256,7 @@ definitions:
             enum:
               - "continue"
               - "pause"
+              - "rollback"
           Monitor:
             description: "Amount of time to monitor each updated task for failures, in nanoseconds."
             type: "integer"
