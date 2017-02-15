@@ -2,8 +2,6 @@ package command
 
 import (
 	"bufio"
-	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -15,33 +13,10 @@ import (
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
 	registrytypes "github.com/docker/docker/api/types/registry"
+	"github.com/docker/docker/client/clientutil"
 	"github.com/docker/docker/pkg/term"
 	"github.com/docker/docker/registry"
 )
-
-// ElectAuthServer returns the default registry to use (by asking the daemon)
-func ElectAuthServer(ctx context.Context, cli *DockerCli) string {
-	// The daemon `/info` endpoint informs us of the default registry being
-	// used. This is essential in cross-platforms environment, where for
-	// example a Linux client might be interacting with a Windows daemon, hence
-	// the default registry URL might be Windows specific.
-	serverAddress := registry.IndexServer
-	if info, err := cli.Client().Info(ctx); err != nil {
-		fmt.Fprintf(cli.Out(), "Warning: failed to get default registry endpoint from daemon (%v). Using system default: %s\n", err, serverAddress)
-	} else {
-		serverAddress = info.IndexServerAddress
-	}
-	return serverAddress
-}
-
-// EncodeAuthToBase64 serializes the auth configuration as JSON base64 payload
-func EncodeAuthToBase64(authConfig types.AuthConfig) (string, error) {
-	buf, err := json.Marshal(authConfig)
-	if err != nil {
-		return "", err
-	}
-	return base64.URLEncoding.EncodeToString(buf), nil
-}
 
 // RegistryAuthenticationPrivilegedFunc returns a RequestPrivilegeFunc from the specified registry index info
 // for the given command.
@@ -49,26 +24,17 @@ func RegistryAuthenticationPrivilegedFunc(cli *DockerCli, index *registrytypes.I
 	return func() (string, error) {
 		fmt.Fprintf(cli.Out(), "\nPlease login prior to %s:\n", cmdName)
 		indexServer := registry.GetAuthConfigKey(index)
-		isDefaultRegistry := indexServer == ElectAuthServer(context.Background(), cli)
+		electedServer, err := clientutil.ElectAuthServer(context.Background(), cli.Client())
+		if err != nil {
+			return "", err
+		}
+		isDefaultRegistry := indexServer == electedServer
 		authConfig, err := ConfigureAuth(cli, "", "", indexServer, isDefaultRegistry)
 		if err != nil {
 			return "", err
 		}
-		return EncodeAuthToBase64(authConfig)
+		return clientutil.EncodeAuthToBase64(authConfig)
 	}
-}
-
-// ResolveAuthConfig is like registry.ResolveAuthConfig, but if using the
-// default index, it uses the default index name for the daemon's platform,
-// not the client's platform.
-func ResolveAuthConfig(ctx context.Context, cli *DockerCli, index *registrytypes.IndexInfo) types.AuthConfig {
-	configKey := index.Name
-	if index.Official {
-		configKey = ElectAuthServer(ctx, cli)
-	}
-
-	a, _ := cli.CredentialsStore(configKey).Get(configKey)
-	return a
 }
 
 // ConfigureAuth returns an AuthConfig from the specified user, password and server.
@@ -82,7 +48,7 @@ func ConfigureAuth(cli *DockerCli, flUser, flPassword, serverAddress string, isD
 		serverAddress = registry.ConvertToHostname(serverAddress)
 	}
 
-	authconfig, err := cli.CredentialsStore(serverAddress).Get(serverAddress)
+	authconfig, err := clientutil.CredentialsStore(cli.ConfigFile(), serverAddress).Get(serverAddress)
 	if err != nil {
 		return authconfig, err
 	}
@@ -165,7 +131,7 @@ func RetrieveAuthTokenFromImage(ctx context.Context, cli *DockerCli, image strin
 	if err != nil {
 		return "", err
 	}
-	encodedAuth, err := EncodeAuthToBase64(authConfig)
+	encodedAuth, err := clientutil.EncodeAuthToBase64(authConfig)
 	if err != nil {
 		return "", err
 	}
@@ -182,5 +148,5 @@ func resolveAuthConfigFromImage(ctx context.Context, cli *DockerCli, image strin
 	if err != nil {
 		return types.AuthConfig{}, err
 	}
-	return ResolveAuthConfig(ctx, cli, repoInfo.Index), nil
+	return clientutil.ResolveAuthConfig(ctx, cli.Client(), cli.ConfigFile(), repoInfo.Index)
 }

@@ -12,6 +12,7 @@ import (
 	registrytypes "github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cli/command"
+	"github.com/docker/docker/client/clientutil"
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/stringutils"
 	"github.com/docker/docker/registry"
@@ -66,10 +67,13 @@ func runSearch(dockerCli *command.DockerCli, opts searchOptions) error {
 
 	ctx := context.Background()
 
-	authConfig := command.ResolveAuthConfig(ctx, dockerCli, indexInfo)
+	authConfig, err := clientutil.ResolveAuthConfig(ctx, dockerCli.Client(), dockerCli.ConfigFile(), indexInfo)
+	if err != nil {
+		return err
+	}
 	requestPrivilege := command.RegistryAuthenticationPrivilegedFunc(dockerCli, indexInfo, "search")
 
-	encodedAuth, err := command.EncodeAuthToBase64(authConfig)
+	encodedAuth, err := clientutil.EncodeAuthToBase64(authConfig)
 	if err != nil {
 		return err
 	}

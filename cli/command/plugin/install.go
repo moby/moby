@@ -10,6 +10,7 @@ import (
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cli/command"
 	"github.com/docker/docker/cli/command/image"
+	"github.com/docker/docker/client/clientutil"
 	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/docker/docker/registry"
 	"github.com/spf13/cobra"
@@ -103,9 +104,12 @@ func buildPullConfig(ctx context.Context, dockerCli *command.DockerCli, opts plu
 		remote = reference.FamiliarString(trusted)
 	}
 
-	authConfig := command.ResolveAuthConfig(ctx, dockerCli, repoInfo.Index)
+	authConfig, err := clientutil.ResolveAuthConfig(ctx, dockerCli.Client(), dockerCli.ConfigFile(), repoInfo.Index)
+	if err != nil {
+		return types.PluginInstallOptions{}, err
+	}
 
-	encodedAuth, err := command.EncodeAuthToBase64(authConfig)
+	encodedAuth, err := clientutil.EncodeAuthToBase64(authConfig)
 	if err != nil {
 		return types.PluginInstallOptions{}, err
 	}

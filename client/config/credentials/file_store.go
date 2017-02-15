@@ -2,7 +2,7 @@ package credentials
 
 import (
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/cli/config/configfile"
+	"github.com/docker/docker/client/config/configfile"
 	"github.com/docker/docker/registry"
 )
 

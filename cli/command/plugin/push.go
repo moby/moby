@@ -9,6 +9,7 @@ import (
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cli/command"
 	"github.com/docker/docker/cli/command/image"
+	"github.com/docker/docker/client/clientutil"
 	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/docker/docker/registry"
 	"github.com/spf13/cobra"
@@ -48,9 +49,13 @@ func runPush(dockerCli *command.DockerCli, name string) error {
 	if err != nil {
 		return err
 	}
-	authConfig := command.ResolveAuthConfig(ctx, dockerCli, repoInfo.Index)
 
-	encodedAuth, err := command.EncodeAuthToBase64(authConfig)
+	authConfig, err := clientutil.ResolveAuthConfig(ctx, dockerCli.Client(), dockerCli.ConfigFile(), repoInfo.Index)
+	if err != nil {
+		return err
+	}
+
+	encodedAuth, err := clientutil.EncodeAuthToBase64(authConfig)
 	if err != nil {
 		return err
 	}

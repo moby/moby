@@ -7,6 +7,7 @@ import (
 
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cli/command"
+	"github.com/docker/docker/client/clientutil"
 	"github.com/spf13/cobra"
 )
 
@@ -45,17 +46,16 @@ func runLogin(dockerCli *command.DockerCli, opts loginOptions) error {
 	ctx := context.Background()
 	clnt := dockerCli.Client()
 
-	var (
-		serverAddress string
-		authServer    = command.ElectAuthServer(ctx, dockerCli)
-	)
-	if opts.serverAddress != "" {
-		serverAddress = opts.serverAddress
-	} else {
-		serverAddress = authServer
+	var isDefaultRegistry bool
+	serverAddress := opts.serverAddress
+	if serverAddress == "" {
+		var err error
+		serverAddress, err = clientutil.ElectAuthServer(ctx, dockerCli.Client())
+		if err != nil {
+			return err
+		}
+		isDefaultRegistry = true
 	}
-
-	isDefaultRegistry := serverAddress == authServer
 
 	authConfig, err := command.ConfigureAuth(dockerCli, opts.user, opts.password, serverAddress, isDefaultRegistry)
 	if err != nil {
@@ -69,7 +69,7 @@ func runLogin(dockerCli *command.DockerCli, opts loginOptions) error {
 		authConfig.Password = ""
 		authConfig.IdentityToken = response.IdentityToken
 	}
-	if err := dockerCli.CredentialsStore(serverAddress).Store(authConfig); err != nil {
+	if err := clientutil.CredentialsStore(dockerCli.ConfigFile(), serverAddress).Store(authConfig); err != nil {
 		return fmt.Errorf("Error saving credentials: %v", err)
 	}
 

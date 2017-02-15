@@ -6,6 +6,7 @@ import (
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cli/command"
+	"github.com/docker/docker/client/clientutil"
 	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/docker/docker/registry"
 	"github.com/spf13/cobra"
@@ -44,7 +45,10 @@ func runPush(dockerCli *command.DockerCli, remote string) error {
 	ctx := context.Background()
 
 	// Resolve the Auth config relevant for this server
-	authConfig := command.ResolveAuthConfig(ctx, dockerCli, repoInfo.Index)
+	authConfig, err := clientutil.ResolveAuthConfig(ctx, dockerCli.Client(), dockerCli.ConfigFile(), repoInfo.Index)
+	if err != nil {
+		return err
+	}
 	requestPrivilege := command.RegistryAuthenticationPrivilegedFunc(dockerCli, repoInfo.Index, "push")
 
 	if command.IsTrusted() {
