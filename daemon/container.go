@@ -217,7 +217,7 @@ func (daemon *Daemon) setHostConfig(container *container.Container, hostConfig *
 
 // verifyContainerSettings performs validation of the hostconfig and config
 // structures.
-func (daemon *Daemon) verifyContainerSettings(hostConfig *containertypes.HostConfig, config *containertypes.Config, update bool) ([]string, error) {
+func (daemon *Daemon) verifyContainerSettings(hostConfig *containertypes.HostConfig, config *containertypes.Config, update bool, validators ...func(*containertypes.Config, *containertypes.HostConfig) error) ([]string, error) {
 
 	// First perform verification of settings common across all platforms.
 	if config != nil {
@@ -300,6 +300,12 @@ func (daemon *Daemon) verifyContainerSettings(hostConfig *containertypes.HostCon
 	// do nothing
 	default:
 		return nil, fmt.Errorf("invalid restart policy '%s'", p.Name)
+	}
+
+	for _, validator := range validators {
+		if err := validator(config, hostConfig); err != nil {
+			return nil, err
+		}
 	}
 
 	// Now do platform-specific verification

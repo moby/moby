@@ -7,8 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pkg/errors"
-
 	"github.com/Sirupsen/logrus"
 	apierrors "github.com/docker/docker/api/errors"
 	"github.com/docker/docker/api/types"
@@ -22,25 +20,26 @@ import (
 	"github.com/docker/docker/runconfig"
 	volumestore "github.com/docker/docker/volume/store"
 	"github.com/opencontainers/runc/libcontainer/label"
+	"github.com/pkg/errors"
 )
 
 // CreateManagedContainer creates a container that is managed by a Service
-func (daemon *Daemon) CreateManagedContainer(params types.ContainerCreateConfig) (containertypes.ContainerCreateCreatedBody, error) {
-	return daemon.containerCreate(params, true)
+func (daemon *Daemon) CreateManagedContainer(params types.ContainerCreateConfig, validators ...func(*containertypes.Config, *containertypes.HostConfig) error) (containertypes.ContainerCreateCreatedBody, error) {
+	return daemon.containerCreate(params, true, validators...)
 }
 
 // ContainerCreate creates a regular container
-func (daemon *Daemon) ContainerCreate(params types.ContainerCreateConfig) (containertypes.ContainerCreateCreatedBody, error) {
-	return daemon.containerCreate(params, false)
+func (daemon *Daemon) ContainerCreate(params types.ContainerCreateConfig, validators ...func(*containertypes.Config, *containertypes.HostConfig) error) (containertypes.ContainerCreateCreatedBody, error) {
+	return daemon.containerCreate(params, false, validators...)
 }
 
-func (daemon *Daemon) containerCreate(params types.ContainerCreateConfig, managed bool) (containertypes.ContainerCreateCreatedBody, error) {
+func (daemon *Daemon) containerCreate(params types.ContainerCreateConfig, managed bool, validators ...func(*containertypes.Config, *containertypes.HostConfig) error) (containertypes.ContainerCreateCreatedBody, error) {
 	start := time.Now()
 	if params.Config == nil {
 		return containertypes.ContainerCreateCreatedBody{}, fmt.Errorf("Config cannot be empty in order to create a container")
 	}
 
-	warnings, err := daemon.verifyContainerSettings(params.HostConfig, params.Config, false)
+	warnings, err := daemon.verifyContainerSettings(params.HostConfig, params.Config, false, validators...)
 	if err != nil {
 		return containertypes.ContainerCreateCreatedBody{Warnings: warnings}, err
 	}

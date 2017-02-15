@@ -183,6 +183,10 @@ func parseSecurityOpt(container *container.Container, config *containertypes.Hos
 		if strings.Contains(opt, "=") {
 			con = strings.SplitN(opt, "=", 2)
 		} else if strings.Contains(opt, ":") {
+			// Note: keeping this to be retro-compatible. From API 1.27 and later, a validation is
+			// done upfront and this will fail early.
+			// But as long as we support API versions lower than 1.27, we should still be
+			// able to handle `:` at this point of the code
 			con = strings.SplitN(opt, ":", 2)
 			logrus.Warn("Security options with `:` as a separator are deprecated and will be completely unsupported in 17.04, use `=` instead.")
 		}
