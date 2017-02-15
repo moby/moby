@@ -413,6 +413,7 @@ func (d *driver) updateKeys(newKey, primary, pruneKey *key) error {
 		priIdx = -1
 		delIdx = -1
 		lIP    = net.ParseIP(d.bindAddress)
+		aIP    = net.ParseIP(d.advertiseAddress)
 	)
 
 	d.Lock()
@@ -440,7 +441,7 @@ func (d *driver) updateKeys(newKey, primary, pruneKey *key) error {
 
 	d.secMapWalk(func(rIPs string, spis []*spi) ([]*spi, bool) {
 		rIP := net.ParseIP(rIPs)
-		return updateNodeKey(lIP, rIP, spis, d.keys, newIdx, priIdx, delIdx), false
+		return updateNodeKey(lIP, aIP, rIP, spis, d.keys, newIdx, priIdx, delIdx), false
 	})
 
 	d.Lock()
@@ -471,7 +472,7 @@ func (d *driver) updateKeys(newKey, primary, pruneKey *key) error {
  *********************************************************/
 
 // Spis and keys are sorted in such away the one in position 0 is the primary
-func updateNodeKey(lIP, rIP net.IP, idxs []*spi, curKeys []*key, newIdx, priIdx, delIdx int) []*spi {
+func updateNodeKey(lIP, aIP, rIP net.IP, idxs []*spi, curKeys []*key, newIdx, priIdx, delIdx int) []*spi {
 	logrus.Debugf("Updating keys for node: %s (%d,%d,%d)", rIP, newIdx, priIdx, delIdx)
 
 	spis := idxs
@@ -480,8 +481,8 @@ func updateNodeKey(lIP, rIP net.IP, idxs []*spi, curKeys []*key, newIdx, priIdx,
 	// add new
 	if newIdx != -1 {
 		spis = append(spis, &spi{
-			forward: buildSPI(lIP, rIP, curKeys[newIdx].tag),
-			reverse: buildSPI(rIP, lIP, curKeys[newIdx].tag),
+			forward: buildSPI(aIP, rIP, curKeys[newIdx].tag),
+			reverse: buildSPI(rIP, aIP, curKeys[newIdx].tag),
 		})
 	}
 

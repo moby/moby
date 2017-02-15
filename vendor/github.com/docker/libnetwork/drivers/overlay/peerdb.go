@@ -80,25 +80,29 @@ func (d *driver) peerDbWalk(f func(string, *peerKey, *peerEntry) bool) error {
 func (d *driver) peerDbNetworkWalk(nid string, f func(*peerKey, *peerEntry) bool) error {
 	d.peerDb.Lock()
 	pMap, ok := d.peerDb.mp[nid]
+	d.peerDb.Unlock()
+
 	if !ok {
-		d.peerDb.Unlock()
 		return nil
 	}
-	d.peerDb.Unlock()
+
+	mp := map[string]peerEntry{}
 
 	pMap.Lock()
 	for pKeyStr, pEntry := range pMap.mp {
+		mp[pKeyStr] = pEntry
+	}
+	pMap.Unlock()
+
+	for pKeyStr, pEntry := range mp {
 		var pKey peerKey
 		if _, err := fmt.Sscan(pKeyStr, &pKey); err != nil {
 			logrus.Warnf("Peer key scan on network %s failed: %v", nid, err)
 		}
-
 		if f(&pKey, &pEntry) {
-			pMap.Unlock()
 			return nil
 		}
 	}
-	pMap.Unlock()
 
 	return nil
 }
@@ -359,6 +363,15 @@ func (d *driver) pushLocalDb() {
 	d.peerDbWalk(func(nid string, pKey *peerKey, pEntry *peerEntry) bool {
 		if pEntry.isLocal {
 			d.pushLocalEndpointEvent("join", nid, pEntry.eid)
+		}
+		return false
+	})
+}
+
+func (d *driver) peerDBUpdateSelf() {
+	d.peerDbWalk(func(nid string, pkey *peerKey, pEntry *peerEntry) bool {
+		if pEntry.isLocal {
+			pEntry.vtep = net.ParseIP(d.advertiseAddress)
 		}
 		return false
 	})
