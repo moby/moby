@@ -419,6 +419,10 @@ func (b *Builder) processImageFrom(img builder.Image) error {
 	onBuildTriggers := b.runConfig.OnBuild
 	b.runConfig.OnBuild = []string{}
 
+	// Reset stdin settings as all build actions run without stdin
+	b.runConfig.OpenStdin = false
+	b.runConfig.StdinOnce = false
+
 	// parse the ONBUILD triggers by invoking the parser
 	for _, step := range onBuildTriggers {
 		ast, err := parser.Parse(strings.NewReader(step), &b.directive)
