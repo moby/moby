@@ -13,6 +13,7 @@ import (
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/filters"
 	types "github.com/docker/docker/api/types/swarm"
+	"github.com/docker/docker/pkg/stdcopy"
 	"golang.org/x/net/context"
 )
 
@@ -252,7 +253,8 @@ func (sr *swarmRouter) getServiceLogs(ctx context.Context, w http.ResponseWriter
 			// The client may be expecting all of the data we're sending to
 			// be multiplexed, so send it through OutStream, which will
 			// have been set up to handle that if needed.
-			fmt.Fprintf(logsConfig.OutStream, "Error grabbing service logs: %v\n", err)
+			stdwriter := stdcopy.NewStdWriter(w, stdcopy.Systemerr)
+			fmt.Fprintf(stdwriter, "Error grabbing service logs: %v\n", err)
 		default:
 			return err
 		}
