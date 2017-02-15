@@ -200,8 +200,6 @@ func (k *KeyManager) Run(ctx context.Context) error {
 	} else {
 		k.keyRing.lClock = cluster.EncryptionKeyLamportClock
 		k.keyRing.keys = cluster.NetworkBootstrapKeys
-
-		k.rotateKey(ctx)
 	}
 
 	ticker := time.NewTicker(k.config.RotationInterval)
