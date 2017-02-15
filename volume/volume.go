@@ -61,7 +61,7 @@ type Volume interface {
 	Path() string
 	// Mount mounts the volume and returns the absolute path to
 	// where it can be consumed.
-	Mount(id string) (string, error)
+	Mount(id string, dest string) (string, error)
 	// Unmount unmounts the volume when it is no longer in use.
 	Unmount(id string) error
 	// Status returns low-level status information about a volume
@@ -143,7 +143,7 @@ func (m *MountPoint) Setup(mountLabel string, rootUID, rootGID int) (path string
 		if id == "" {
 			id = stringid.GenerateNonCryptoID()
 		}
-		path, err := m.Volume.Mount(id)
+		path, err := m.Volume.Mount(id, m.Destination)
 		if err != nil {
 			return "", errors.Wrapf(err, "error while mounting volume '%s'", m.Source)
 		}

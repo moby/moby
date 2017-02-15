@@ -154,8 +154,8 @@ func (a *volumeAdapter) CachedPath() string {
 	return a.eMount
 }
 
-func (a *volumeAdapter) Mount(id string) (string, error) {
-	mountpoint, err := a.proxy.Mount(a.name, id)
+func (a *volumeAdapter) Mount(id string, dest string) (string, error) {
+	mountpoint, err := a.proxy.Mount(a.name, id, dest)
 	a.eMount = hostPath(a.baseHostPath, mountpoint)
 	return a.eMount, err
 }

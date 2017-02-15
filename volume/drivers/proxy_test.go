@@ -73,7 +73,7 @@ func TestVolumeRequestError(t *testing.T) {
 		t.Fatalf("Unexpected error: %v\n", err)
 	}
 
-	_, err = driver.Mount("volume", "123")
+	_, err = driver.Mount("volume", "123", "/mnt")
 	if err == nil {
 		t.Fatal("Expected error, was nil")
 	}
