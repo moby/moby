@@ -54,14 +54,42 @@ func newDockerCommand(dockerCli *command.DockerCli) *cobra.Command {
 	}
 	cli.SetupRootCommand(cmd)
 
-	cmd.SetHelpFunc(func(ccmd *cobra.Command, args []string) {
-		if dockerCli.Client() == nil { // when using --help, PersistentPreRun is not called, so initialization is needed.
-			// flags must be the top-level command flags, not cmd.Flags()
-			opts.Common.SetDefaultOptions(flags)
-			dockerPreRun(opts)
-			dockerCli.Initialize(opts)
-		}
+	flags = cmd.Flags()
+	flags.BoolVarP(&opts.Version, "version", "v", false, "Print version information and quit")
+	flags.StringVar(&opts.ConfigDir, "config", cliconfig.Dir(), "Location of client config files")
+	opts.Common.InstallFlags(flags)
 
+	setFlagErrorFunc(dockerCli, cmd, flags, opts)
+
+	setHelpFunc(dockerCli, cmd, flags, opts)
+
+	cmd.SetOutput(dockerCli.Out())
+	cmd.AddCommand(newDaemonCommand())
+	commands.AddCommands(cmd, dockerCli)
+
+	setValidateArgs(dockerCli, cmd, flags, opts)
+
+	return cmd
+}
+
+func setFlagErrorFunc(dockerCli *command.DockerCli, cmd *cobra.Command, flags *pflag.FlagSet, opts *cliflags.ClientOptions) {
+	// When invoking `docker stack --nonsense`, we need to make sure FlagErrorFunc return appropriate
+	// output if the feature is not supported.
+	// As above cli.SetupRootCommand(cmd) have already setup the FlagErrorFunc, we will add a pre-check before the FlagErrorFunc
+	// is called.
+	flagErrorFunc := cmd.FlagErrorFunc()
+	cmd.SetFlagErrorFunc(func(cmd *cobra.Command, err error) error {
+		initializeDockerCli(dockerCli, flags, opts)
+		if err := isSupported(cmd, dockerCli.Client().ClientVersion(), dockerCli.HasExperimental()); err != nil {
+			return err
+		}
+		return flagErrorFunc(cmd, err)
+	})
+}
+
+func setHelpFunc(dockerCli *command.DockerCli, cmd *cobra.Command, flags *pflag.FlagSet, opts *cliflags.ClientOptions) {
+	cmd.SetHelpFunc(func(ccmd *cobra.Command, args []string) {
+		initializeDockerCli(dockerCli, flags, opts)
 		if err := isSupported(ccmd, dockerCli.Client().ClientVersion(), dockerCli.HasExperimental()); err != nil {
 			ccmd.Println(err)
 			return
@@ -73,17 +101,52 @@ func newDockerCommand(dockerCli *command.DockerCli) *cobra.Command {
 			ccmd.Println(err)
 		}
 	})
+}
 
-	flags = cmd.Flags()
-	flags.BoolVarP(&opts.Version, "version", "v", false, "Print version information and quit")
-	flags.StringVar(&opts.ConfigDir, "config", cliconfig.Dir(), "Location of client config files")
-	opts.Common.InstallFlags(flags)
+func setValidateArgs(dockerCli *command.DockerCli, cmd *cobra.Command, flags *pflag.FlagSet, opts *cliflags.ClientOptions) {
+	// The Args is handled by ValidateArgs in cobra, which does not allows a pre-hook.
+	// As a result, here we replace the existing Args validation func to a wrapper,
+	// where the wrapper will check to see if the feature is supported or not.
+	// The Args validation error will only be returned if the feature is supported.
+	visitAll(cmd, func(ccmd *cobra.Command) {
+		// if there is no tags for a command or any of its parent,
+		// there is no need to wrap the Args validation.
+		if !hasTags(ccmd) {
+			return
+		}
 
-	cmd.SetOutput(dockerCli.Out())
-	cmd.AddCommand(newDaemonCommand())
-	commands.AddCommands(cmd, dockerCli)
+		if ccmd.Args == nil {
+			return
+		}
 
-	return cmd
+		cmdArgs := ccmd.Args
+		ccmd.Args = func(cmd *cobra.Command, args []string) error {
+			initializeDockerCli(dockerCli, flags, opts)
+			if err := isSupported(cmd, dockerCli.Client().ClientVersion(), dockerCli.HasExperimental()); err != nil {
+				return err
+			}
+			return cmdArgs(cmd, args)
+		}
+	})
+}
+
+func initializeDockerCli(dockerCli *command.DockerCli, flags *pflag.FlagSet, opts *cliflags.ClientOptions) {
+	if dockerCli.Client() == nil { // when using --help, PersistentPreRun is not called, so initialization is needed.
+		// flags must be the top-level command flags, not cmd.Flags()
+		opts.Common.SetDefaultOptions(flags)
+		dockerPreRun(opts)
+		dockerCli.Initialize(opts)
+	}
+}
+
+// visitAll will traverse all commands from the root.
+// This is different from the VisitAll of cobra.Command where only parents
+// are checked.
+func visitAll(root *cobra.Command, fn func(*cobra.Command)) {
+	for _, cmd := range root.Commands() {
+		visitAll(cmd, fn)
+	}
+	fn(root)
 }
 
 func noArgs(cmd *cobra.Command, args []string) error {
@@ -167,9 +230,12 @@ func hideUnsupportedFeatures(cmd *cobra.Command, clientVersion string, hasExperi
 }
 
 func isSupported(cmd *cobra.Command, clientVersion string, hasExperimental bool) error {
+	// We check recursively so that, e.g., `docker stack ls` will return the same output as `docker stack`
 	if !hasExperimental {
-		if _, ok := cmd.Tags["experimental"]; ok {
-			return errors.New("only supported on a Docker daemon with experimental features enabled")
+		for curr := cmd; curr != nil; curr = curr.Parent() {
+			if _, ok := curr.Tags["experimental"]; ok {
+				return errors.New("only supported on a Docker daemon with experimental features enabled")
+			}
 		}
 	}
 
@@ -209,4 +275,15 @@ func isFlagSupported(f *pflag.Flag, clientVersion string) bool {
 		return versions.GreaterThanOrEqualTo(clientVersion, v)
 	}
 	return true
+}
+
+// hasTags return true if any of the command's parents has tags
+func hasTags(cmd *cobra.Command) bool {
+	for curr := cmd; curr != nil; curr = curr.Parent() {
+		if len(curr.Tags) > 0 {
+			return true
+		}
+	}
+
+	return false
 }
