@@ -131,11 +131,13 @@ func (tr *TaskReaper) tick() {
 	}
 
 	defer func() {
-		tr.dirty = make(map[instanceTuple]struct{})
 		tr.orphaned = nil
 	}()
 
-	deleteTasks := tr.orphaned
+	deleteTasks := make(map[string]struct{})
+	for _, tID := range tr.orphaned {
+		deleteTasks[tID] = struct{}{}
+	}
 	tr.store.View(func(tx store.ReadTx) {
 		for dirty := range tr.dirty {
 			service := store.GetService(tx, dirty.serviceID)
@@ -180,13 +182,15 @@ func (tr *TaskReaper) tick() {
 			// instead of sorting the whole slice.
 			sort.Sort(tasksByTimestamp(historicTasks))
 
+			runningTasks := 0
 			for _, t := range historicTasks {
-				if t.DesiredState <= api.TaskStateRunning {
+				if t.DesiredState <= api.TaskStateRunning || t.Status.State <= api.TaskStateRunning {
 					// Don't delete running tasks
+					runningTasks++
 					continue
 				}
 
-				deleteTasks = append(deleteTasks, t.ID)
+				deleteTasks[t.ID] = struct{}{}
 
 				taskHistory++
 				if int64(len(historicTasks)) <= taskHistory {
@@ -194,12 +198,15 @@ func (tr *TaskReaper) tick() {
 				}
 			}
 
+			if runningTasks <= 1 {
+				delete(tr.dirty, dirty)
+			}
 		}
 	})
 
 	if len(deleteTasks) > 0 {
 		tr.store.Batch(func(batch *store.Batch) error {
-			for _, taskID := range deleteTasks {
+			for taskID := range deleteTasks {
 				batch.Update(func(tx store.Tx) error {
 					return store.DeleteTask(tx, taskID)
 				})

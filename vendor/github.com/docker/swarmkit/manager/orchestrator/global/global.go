@@ -504,7 +504,7 @@ func (g *Orchestrator) removeTasks(ctx context.Context, batch *store.Batch, task
 }
 
 func isTaskRunning(t *api.Task) bool {
-	return t != nil && t.DesiredState <= api.TaskStateRunning && t.Status.State <= api.TaskStateRunning
+	return t != nil && t.DesiredState <= api.TaskStateRunning
 }
 
 func isTaskCompleted(t *api.Task, restartPolicy api.RestartPolicy_RestartCondition) bool {
