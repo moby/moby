@@ -92,26 +92,8 @@ func serviceSpecFromGRPC(spec *swarmapi.ServiceSpec) *types.ServiceSpec {
 	}
 
 	// UpdateConfig
-	if spec.Update != nil {
-		convertedSpec.UpdateConfig = &types.UpdateConfig{
-			Parallelism:     spec.Update.Parallelism,
-			MaxFailureRatio: spec.Update.MaxFailureRatio,
-		}
-
-		convertedSpec.UpdateConfig.Delay = spec.Update.Delay
-		if spec.Update.Monitor != nil {
-			convertedSpec.UpdateConfig.Monitor, _ = gogotypes.DurationFromProto(spec.Update.Monitor)
-		}
-
-		switch spec.Update.FailureAction {
-		case swarmapi.UpdateConfig_PAUSE:
-			convertedSpec.UpdateConfig.FailureAction = types.UpdateFailureActionPause
-		case swarmapi.UpdateConfig_CONTINUE:
-			convertedSpec.UpdateConfig.FailureAction = types.UpdateFailureActionContinue
-		case swarmapi.UpdateConfig_ROLLBACK:
-			convertedSpec.UpdateConfig.FailureAction = types.UpdateFailureActionRollback
-		}
-	}
+	convertedSpec.UpdateConfig = updateConfigFromGRPC(spec.Update)
+	convertedSpec.RollbackConfig = updateConfigFromGRPC(spec.Rollback)
 
 	// Mode
 	switch t := spec.GetMode().(type) {
@@ -188,27 +170,13 @@ func ServiceSpecToGRPC(s types.ServiceSpec) (swarmapi.ServiceSpec, error) {
 		}
 	}
 
-	if s.UpdateConfig != nil {
-		var failureAction swarmapi.UpdateConfig_FailureAction
-		switch s.UpdateConfig.FailureAction {
-		case types.UpdateFailureActionPause, "":
-			failureAction = swarmapi.UpdateConfig_PAUSE
-		case types.UpdateFailureActionContinue:
-			failureAction = swarmapi.UpdateConfig_CONTINUE
-		case types.UpdateFailureActionRollback:
-			failureAction = swarmapi.UpdateConfig_ROLLBACK
-		default:
-			return swarmapi.ServiceSpec{}, fmt.Errorf("unrecognized update failure action %s", s.UpdateConfig.FailureAction)
-		}
-		spec.Update = &swarmapi.UpdateConfig{
-			Parallelism:     s.UpdateConfig.Parallelism,
-			Delay:           s.UpdateConfig.Delay,
-			FailureAction:   failureAction,
-			MaxFailureRatio: s.UpdateConfig.MaxFailureRatio,
-		}
-		if s.UpdateConfig.Monitor != 0 {
-			spec.Update.Monitor = gogotypes.DurationProto(s.UpdateConfig.Monitor)
-		}
+	spec.Update, err = updateConfigToGRPC(s.UpdateConfig)
+	if err != nil {
+		return swarmapi.ServiceSpec{}, err
+	}
+	spec.Rollback, err = updateConfigToGRPC(s.RollbackConfig)
+	if err != nil {
+		return swarmapi.Servicepec{}, err
 	}
 
 	if s.EndpointSpec != nil {
@@ -414,4 +382,59 @@ func driverToGRPC(p *types.Driver) *swarmapi.Driver {
 		Name:    p.Name,
 		Options: p.Options,
 	}
+}
+
+func updateConfigFromGRPC(updateConfig *swarmapi.UpdateConfig) *types.UpdateConfig {
+	if updateConfig == nil {
+		return nil
+	}
+
+	converted := &types.UpdateConfig{
+		Parallelism:     updateConfig.Parallelism,
+		MaxFailureRatio: updateConfig.MaxFailureRatio,
+	}
+
+	converted.Delay = updateConfig.Delay
+	if updateConfig.Monitor != nil {
+		converted.Monitor, _ = gogotypes.DurationFromProto(updateConfig.Monitor)
+	}
+
+	switch updateConfig.FailureAction {
+	case swarmapi.UpdateConfig_PAUSE:
+		converted.FailureAction = types.UpdateFailureActionPause
+	case swarmapi.UpdateConfig_CONTINUE:
+		converted.FailureAction = types.UpdateFailureActionContinue
+	case swarmapi.UpdateConfig_ROLLBACK:
+		converted.FailureAction = types.UpdateFailureActionRollback
+	}
+
+	return converted
+}
+
+func updateConfigToGRPC(updateConfig *types.UpdateConfig) (*swarmapi.UpdateConfig, error) {
+	if updateConfig == nil {
+		return nil, nil
+	}
+
+	converted := &swarmapi.UpdateConfig{
+		Parallelism:     updateConfig.Parallelism,
+		Delay:           updateConfig.Delay,
+		MaxFailureRatio: updateConfig.MaxFailureRatio,
+	}
+
+	switch updateConfig.FailureAction {
+	case types.UpdateFailureActionPause, "":
+		converted.FailureAction = swarmapi.UpdateConfig_PAUSE
+	case types.UpdateFailureActionContinue:
+		converted.FailureAction = swarmapi.UpdateConfig_CONTINUE
+	case types.UpdateFailureActionRollback:
+		converted.FailureAction = swarmapi.UpdateConfig_ROLLBACK
+	default:
+		return nil, fmt.Errorf("unrecongized update failure action %s", updateConfig.FailureAction)
+	}
+	if updateConfig.Monitor != 0 {
+		converted.Monitor = gogotypes.DurationProto(updateConfig.Monitor)
+	}
+
+	return converted, nil
 }

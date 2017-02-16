@@ -21,67 +21,74 @@ Usage:  docker service update [OPTIONS] SERVICE
 Update a service
 
 Options:
-      --args string                      Service command args
-      --constraint-add list              Add or update a placement constraint (default [])
-      --constraint-rm list               Remove a constraint (default [])
-      --container-label-add list         Add or update a container label (default [])
-      --container-label-rm list          Remove a container label by its key (default [])
-      --dns-add list                     Add or update a custom DNS server (default [])
-      --dns-option-add list              Add or update a DNS option (default [])
-      --dns-option-rm list               Remove a DNS option (default [])
-      --dns-rm list                      Remove a custom DNS server (default [])
-      --dns-search-add list              Add or update a custom DNS search domain (default [])
-      --dns-search-rm list               Remove a DNS search domain (default [])
-      --endpoint-mode string             Endpoint mode ("vip"|"dnsrr") (default "vip")
-      --env-add list                     Add or update an environment variable (default [])
-      --env-rm list                      Remove an environment variable (default [])
-      --force                            Force update even if no changes require it
-      --group-add list                   Add an additional supplementary user group to the container (default [])
-      --group-rm list                    Remove a previously added supplementary user group from the container (default [])
-      --health-cmd string                Command to run to check health
-      --health-interval duration         Time between running the check (ns|us|ms|s|m|h)
-      --health-retries int               Consecutive failures needed to report unhealthy
-      --health-timeout duration          Maximum time to allow one check to run (ns|us|ms|s|m|h)
-      --help                             Print usage
-      --host-add list                    Add or update a custom host-to-IP mapping (host:ip) (default [])
-      --host-rm list                     Remove a custom host-to-IP mapping (host:ip) (default [])
-      --hostname string                  Container hostname
-      --image string                     Service image tag
-      --label-add list                   Add or update a service label (default [])
-      --label-rm list                    Remove a label by its key (default [])
-      --limit-cpu decimal                Limit CPUs (default 0.000)
-      --limit-memory bytes               Limit Memory
-      --log-driver string                Logging driver for service
-      --log-opt list                     Logging driver options (default [])
-      --mount-add mount                  Add or update a mount on a service
-      --mount-rm list                    Remove a mount by its target path (default [])
-      --no-healthcheck                   Disable any container-specified HEALTHCHECK
-      --placement-pref-add pref          Add a placement preference
-      --placement-pref-rm pref           Remove a placement preference
-      --publish-add port                 Add or update a published port
-      --publish-rm port                  Remove a published port by its target port
-      --read-only                        Mount the container's root filesystem as read only
-      --replicas uint                    Number of tasks
-      --reserve-cpu decimal              Reserve CPUs (default 0.000)
-      --reserve-memory bytes             Reserve Memory
-      --restart-condition string         Restart when condition is met ("none"|"on-failure"|"any")
-      --restart-delay duration           Delay between restart attempts (ns|us|ms|s|m|h)
-      --restart-max-attempts uint        Maximum number of restarts before giving up
-      --restart-window duration          Window used to evaluate the restart policy (ns|us|ms|s|m|h)
-      --rollback                         Rollback to previous specification
-      --secret-add secret                Add or update a secret on a service
-      --secret-rm list                   Remove a secret (default [])
-      --stop-grace-period duration       Time to wait before force killing a container (ns|us|ms|s|m|h)
-      --stop-signal string               Signal to stop the container
-  -t, --tty                              Allocate a pseudo-TTY
-      --update-delay duration            Delay between updates (ns|us|ms|s|m|h) (default 0s)
-      --update-failure-action string     Action on update failure ("pause"|"continue"|"rollback") (default "pause")
-      --update-max-failure-ratio float   Failure rate to tolerate during an update
-      --update-monitor duration          Duration after each task update to monitor for failure (ns|us|ms|s|m|h) (default 0s)
-      --update-parallelism uint          Maximum number of tasks updated simultaneously (0 to update all at once) (default 1)
-  -u, --user string                      Username or UID (format: <name|uid>[:<group|gid>])
-      --with-registry-auth               Send registry authentication details to swarm agents
-  -w, --workdir string                   Working directory inside the container
+      --args string                        Service command args
+      --constraint-add list                Add or update a placement constraint (default [])
+      --constraint-rm list                 Remove a constraint (default [])
+      --container-label-add list           Add or update a container label (default [])
+      --container-label-rm list            Remove a container label by its key (default [])
+      --dns-add list                       Add or update a custom DNS server (default [])
+      --dns-option-add list                Add or update a DNS option (default [])
+      --dns-option-rm list                 Remove a DNS option (default [])
+      --dns-rm list                        Remove a custom DNS server (default [])
+      --dns-search-add list                Add or update a custom DNS search domain (default [])
+      --dns-search-rm list                 Remove a DNS search domain (default [])
+      --endpoint-mode string               Endpoint mode ("vip"|"dnsrr") (default "vip")
+      --env-add list                       Add or update an environment variable (default [])
+      --env-rm list                        Remove an environment variable (default [])
+      --force                              Force update even if no changes require it
+      --group-add list                     Add an additional supplementary user group to the container (default [])
+      --group-rm list                      Remove a previously added supplementary user group from the container (default [])
+      --health-cmd string                  Command to run to check health
+      --health-interval duration           Time between running the check (ns|us|ms|s|m|h)
+      --health-retries int                 Consecutive failures needed to report unhealthy
+      --health-timeout duration            Maximum time to allow one check to run (ns|us|ms|s|m|h)
+      --help                               Print usage
+      --host-add list                      Add or update a custom host-to-IP mapping (host:ip) (default [])
+      --host-rm list                       Remove a custom host-to-IP mapping (host:ip) (default [])
+      --hostname string                    Container hostname
+      --image string                       Service image tag
+      --label-add list                     Add or update a service label (default [])
+      --label-rm list                      Remove a label by its key (default [])
+      --limit-cpu decimal                  Limit CPUs (default 0.000)
+      --limit-memory bytes                 Limit Memory
+      --log-driver string                  Logging driver for service
+      --log-opt list                       Logging driver options (default [])
+      --mount-add mount                    Add or update a mount on a service
+      --mount-rm list                      Remove a mount by its target path (default [])
+      --no-healthcheck                     Disable any container-specified HEALTHCHECK
+      --placement-pref-add pref            Add a placement preference
+      --placement-pref-rm pref             Remove a placement preference
+      --publish-add port                   Add or update a published port
+      --publish-rm port                    Remove a published port by its target port
+      --read-only                          Mount the container's root filesystem as read only
+      --replicas uint                      Number of tasks
+      --reserve-cpu decimal                Reserve CPUs (default 0.000)
+      --reserve-memory bytes               Reserve Memory
+      --restart-condition string           Restart when condition is met ("none"|"on-failure"|"any")
+      --restart-delay duration             Delay between restart attempts (ns|us|ms|s|m|h)
+      --restart-max-attempts uint          Maximum number of restarts before giving up
+      --restart-window duration            Window used to evaluate the restart policy (ns|us|ms|s|m|h)
+      --rollback                           Rollback to previous specification
+      --rollback-delay duration            Delay between task rollbacks (ns|us|ms|s|m|h) (default 0s)
+      --rollback-failure-action string     Action on rollback failure ("pause"|"continue") (default "pause")
+      --rollback-max-failure-ratio float   Failure rate to tolerate during a rollback
+      --rollback-monitor duration          Duration after each task rollback to monitor for failure
+                                           (ns|us|ms|s|m|h) (default 0s)
+      --rollback-parallelism uint          Maximum number of tasks rolled back simultaneously (0 to roll
+                                           back all at once) (default 1)
+      --secret-add secret                  Add or update a secret on a service
+      --secret-rm list                     Remove a secret (default [])
+      --stop-grace-period duration         Time to wait before force killing a container (ns|us|ms|s|m|h)
+      --stop-signal string                 Signal to stop the container
+  -t, --tty                                Allocate a pseudo-TTY
+      --update-delay duration              Delay between updates (ns|us|ms|s|m|h) (default 0s)
+      --update-failure-action string       Action on update failure ("pause"|"continue"|"rollback") (default "pause")
+      --update-max-failure-ratio float     Failure rate to tolerate during an update
+      --update-monitor duration            Duration after each task update to monitor for failure (ns|us|ms|s|m|h) (default 0s)
+      --update-parallelism uint            Maximum number of tasks updated simultaneously (0 to update all at once) (default 1)
+  -u, --user string                        Username or UID (format: <name|uid>[:<group|gid>])
+      --with-registry-auth                 Send registry authentication details to swarm agents
+  -w, --workdir string                     Working directory inside the container
 ```
 
 ## Description
@@ -201,6 +208,26 @@ $ docker service update \
 web
 
 ```
+
+Services can also be set up to roll back to the previous version automatically
+when an update fails. To set up a service for automatic rollback, use
+`--update-failure-action=rollback`. A rollback will be triggered if the fraction
+of the tasks which failed to update successfully exceeds the value given with
+`--update-max-failure-ratio`.
+
+The rate, parallelism, and other parameters of a rollback operation are
+determined by the values passed with the following flags:
+
+- `--rollback-delay`
+- `--rollback-failure-action`
+- `--rollback-max-failure-ratio`
+- `--rollback-monitor`
+- `--rollback-parallelism`
+
+For example, a service set up with `--update-parallelism 1 --rollback-parallelism 3`
+will update one task at a time during a normal update, but during a rollback, 3
+tasks at a time will get rolled back. These rollback parameters are respected both
+during automatic rollbacks and for rollbacks initiated manually using `--rollback`.
 
 ### Add or remove secrets
 

@@ -165,6 +165,16 @@ type updateOptions struct {
 	maxFailureRatio floatValue
 }
 
+func (opts updateOptions) config() *swarm.UpdateConfig {
+	return &swarm.UpdateConfig{
+		Parallelism:     opts.parallelism,
+		Delay:           opts.delay,
+		Monitor:         opts.monitor,
+		FailureAction:   opts.onFailure,
+		MaxFailureRatio: opts.maxFailureRatio.Value(),
+	}
+}
+
 type resourceOptions struct {
 	limitCPU      opts.NanoCPUs
 	limitMemBytes opts.MemBytes
@@ -328,6 +338,7 @@ type serviceOptions struct {
 	constraints    opts.ListOpts
 	placementPrefs placementPrefOpts
 	update         updateOptions
+	rollback       updateOptions
 	networks       opts.ListOpts
 	endpoint       endpointOptions
 
@@ -445,16 +456,11 @@ func (opts *serviceOptions) ToService() (swarm.ServiceSpec, error) {
 			},
 			LogDriver: opts.logDriver.toLogDriver(),
 		},
-		Networks: convertNetworks(opts.networks.GetAll()),
-		Mode:     serviceMode,
-		UpdateConfig: &swarm.UpdateConfig{
-			Parallelism:     opts.update.parallelism,
-			Delay:           opts.update.delay,
-			Monitor:         opts.update.monitor,
-			FailureAction:   opts.update.onFailure,
-			MaxFailureRatio: opts.update.maxFailureRatio.Value(),
-		},
-		EndpointSpec: opts.endpoint.ToEndpointSpec(),
+		Networks:       convertNetworks(opts.networks.GetAll()),
+		Mode:           serviceMode,
+		UpdateConfig:   opts.update.config(),
+		RollbackConfig: opts.rollback.config(),
+		EndpointSpec:   opts.endpoint.ToEndpointSpec(),
 	}
 
 	return service, nil
@@ -491,6 +497,17 @@ func addServiceFlags(cmd *cobra.Command, opts *serviceOptions) {
 	flags.Var(&opts.update.maxFailureRatio, flagUpdateMaxFailureRatio, "Failure rate to tolerate during an update")
 	flags.SetAnnotation(flagUpdateMaxFailureRatio, "version", []string{"1.25"})
 
+	flags.Uint64Var(&opts.rollback.parallelism, flagRollbackParallelism, 1, "Maximum number of tasks rolled back simultaneously (0 to roll back all at once)")
+	flags.SetAnnotation(flagRollbackParallelism, "version", []string{"1.27"})
+	flags.DurationVar(&opts.rollback.delay, flagRollbackDelay, time.Duration(0), "Delay between task rollbacks (ns|us|ms|s|m|h) (default 0s)")
+	flags.SetAnnotation(flagRollbackDelay, "version", []string{"1.27"})
+	flags.DurationVar(&opts.rollback.monitor, flagRollbackMonitor, time.Duration(0), "Duration after each task rollback to monitor for failure (ns|us|ms|s|m|h) (default 0s)")
+	flags.SetAnnotation(flagRollbackMonitor, "version", []string{"1.27"})
+	flags.StringVar(&opts.rollback.onFailure, flagRollbackFailureAction, "pause", `Action on rollback failure ("pause"|"continue")`)
+	flags.SetAnnotation(flagRollbackFailureAction, "version", []string{"1.27"})
+	flags.Var(&opts.rollback.maxFailureRatio, flagRollbackMaxFailureRatio, "Failure rate to tolerate during a rollback")
+	flags.SetAnnotation(flagRollbackMaxFailureRatio, "version", []string{"1.27"})
+
 	flags.StringVar(&opts.endpoint.mode, flagEndpointMode, "vip", "Endpoint mode (vip or dnsrr)")
 
 	flags.BoolVar(&opts.registryAuth, flagRegistryAuth, false, "Send registry authentication details to swarm agents")
@@ -520,77 +537,82 @@ func addServiceFlags(cmd *cobra.Command, opts *serviceOptions) {
 }
 
 const (
-	flagPlacementPref         = "placement-pref"
-	flagPlacementPrefAdd      = "placement-pref-add"
-	flagPlacementPrefRemove   = "placement-pref-rm"
-	flagConstraint            = "constraint"
-	flagConstraintRemove      = "constraint-rm"
-	flagConstraintAdd         = "constraint-add"
-	flagContainerLabel        = "container-label"
-	flagContainerLabelRemove  = "container-label-rm"
-	flagContainerLabelAdd     = "container-label-add"
-	flagDNS                   = "dns"
-	flagDNSRemove             = "dns-rm"
-	flagDNSAdd                = "dns-add"
-	flagDNSOption             = "dns-option"
-	flagDNSOptionRemove       = "dns-option-rm"
-	flagDNSOptionAdd          = "dns-option-add"
-	flagDNSSearch             = "dns-search"
-	flagDNSSearchRemove       = "dns-search-rm"
-	flagDNSSearchAdd          = "dns-search-add"
-	flagEndpointMode          = "endpoint-mode"
-	flagHost                  = "host"
-	flagHostAdd               = "host-add"
-	flagHostRemove            = "host-rm"
-	flagHostname              = "hostname"
-	flagEnv                   = "env"
-	flagEnvFile               = "env-file"
-	flagEnvRemove             = "env-rm"
-	flagEnvAdd                = "env-add"
-	flagGroup                 = "group"
-	flagGroupAdd              = "group-add"
-	flagGroupRemove           = "group-rm"
-	flagLabel                 = "label"
-	flagLabelRemove           = "label-rm"
-	flagLabelAdd              = "label-add"
-	flagLimitCPU              = "limit-cpu"
-	flagLimitMemory           = "limit-memory"
-	flagMode                  = "mode"
-	flagMount                 = "mount"
-	flagMountRemove           = "mount-rm"
-	flagMountAdd              = "mount-add"
-	flagName                  = "name"
-	flagNetwork               = "network"
-	flagPublish               = "publish"
-	flagPublishRemove         = "publish-rm"
-	flagPublishAdd            = "publish-add"
-	flagReadOnly              = "read-only"
-	flagReplicas              = "replicas"
-	flagReserveCPU            = "reserve-cpu"
-	flagReserveMemory         = "reserve-memory"
-	flagRestartCondition      = "restart-condition"
-	flagRestartDelay          = "restart-delay"
-	flagRestartMaxAttempts    = "restart-max-attempts"
-	flagRestartWindow         = "restart-window"
-	flagStopGracePeriod       = "stop-grace-period"
-	flagStopSignal            = "stop-signal"
-	flagTTY                   = "tty"
-	flagUpdateDelay           = "update-delay"
-	flagUpdateFailureAction   = "update-failure-action"
-	flagUpdateMaxFailureRatio = "update-max-failure-ratio"
-	flagUpdateMonitor         = "update-monitor"
-	flagUpdateParallelism     = "update-parallelism"
-	flagUser                  = "user"
-	flagWorkdir               = "workdir"
-	flagRegistryAuth          = "with-registry-auth"
-	flagLogDriver             = "log-driver"
-	flagLogOpt                = "log-opt"
-	flagHealthCmd             = "health-cmd"
-	flagHealthInterval        = "health-interval"
-	flagHealthRetries         = "health-retries"
-	flagHealthTimeout         = "health-timeout"
-	flagNoHealthcheck         = "no-healthcheck"
-	flagSecret                = "secret"
-	flagSecretAdd             = "secret-add"
-	flagSecretRemove          = "secret-rm"
+	flagPlacementPref           = "placement-pref"
+	flagPlacementPrefAdd        = "placement-pref-add"
+	flagPlacementPrefRemove     = "placement-pref-rm"
+	flagConstraint              = "constraint"
+	flagConstraintRemove        = "constraint-rm"
+	flagConstraintAdd           = "constraint-add"
+	flagContainerLabel          = "container-label"
+	flagContainerLabelRemove    = "container-label-rm"
+	flagContainerLabelAdd       = "container-label-add"
+	flagDNS                     = "dns"
+	flagDNSRemove               = "dns-rm"
+	flagDNSAdd                  = "dns-add"
+	flagDNSOption               = "dns-option"
+	flagDNSOptionRemove         = "dns-option-rm"
+	flagDNSOptionAdd            = "dns-option-add"
+	flagDNSSearch               = "dns-search"
+	flagDNSSearchRemove         = "dns-search-rm"
+	flagDNSSearchAdd            = "dns-search-add"
+	flagEndpointMode            = "endpoint-mode"
+	flagHost                    = "host"
+	flagHostAdd                 = "host-add"
+	flagHostRemove              = "host-rm"
+	flagHostname                = "hostname"
+	flagEnv                     = "env"
+	flagEnvFile                 = "env-file"
+	flagEnvRemove               = "env-rm"
+	flagEnvAdd                  = "env-add"
+	flagGroup                   = "group"
+	flagGroupAdd                = "group-add"
+	flagGroupRemove             = "group-rm"
+	flagLabel                   = "label"
+	flagLabelRemove             = "label-rm"
+	flagLabelAdd                = "label-add"
+	flagLimitCPU                = "limit-cpu"
+	flagLimitMemory             = "limit-memory"
+	flagMode                    = "mode"
+	flagMount                   = "mount"
+	flagMountRemove             = "mount-rm"
+	flagMountAdd                = "mount-add"
+	flagName                    = "name"
+	flagNetwork                 = "network"
+	flagPublish                 = "publish"
+	flagPublishRemove           = "publish-rm"
+	flagPublishAdd              = "publish-add"
+	flagReadOnly                = "read-only"
+	flagReplicas                = "replicas"
+	flagReserveCPU              = "reserve-cpu"
+	flagReserveMemory           = "reserve-memory"
+	flagRestartCondition        = "restart-condition"
+	flagRestartDelay            = "restart-delay"
+	flagRestartMaxAttempts      = "restart-max-attempts"
+	flagRestartWindow           = "restart-window"
+	flagRollbackDelay           = "rollback-delay"
+	flagRollbackFailureAction   = "rollback-failure-action"
+	flagRollbackMaxFailureRatio = "rollback-max-failure-ratio"
+	flagRollbackMonitor         = "rollback-monitor"
+	flagRollbackParallelism     = "rollback-parallelism"
+	flagStopGracePeriod         = "stop-grace-period"
+	flagStopSignal              = "stop-signal"
+	flagTTY                     = "tty"
+	flagUpdateDelay             = "update-delay"
+	flagUpdateFailureAction     = "update-failure-action"
+	flagUpdateMaxFailureRatio   = "update-max-failure-ratio"
+	flagUpdateMonitor           = "update-monitor"
+	flagUpdateParallelism       = "update-parallelism"
+	flagUser                    = "user"
+	flagWorkdir                 = "workdir"
+	flagRegistryAuth            = "with-registry-auth"
+	flagLogDriver               = "log-driver"
+	flagLogOpt                  = "log-opt"
+	flagHealthCmd               = "health-cmd"
+	flagHealthInterval          = "health-interval"
+	flagHealthRetries           = "health-retries"
+	flagHealthTimeout           = "health-timeout"
+	flagNoHealthcheck           = "no-healthcheck"
+	flagSecret                  = "secret"
+	flagSecretAdd               = "secret-add"
+	flagSecretRemove            = "secret-rm"
 )

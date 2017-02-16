@@ -289,6 +289,17 @@ func updateService(flags *pflag.FlagSet, spec *swarm.ServiceSpec) error {
 		updateFloatValue(flagUpdateMaxFailureRatio, &spec.UpdateConfig.MaxFailureRatio)
 	}
 
+	if anyChanged(flags, flagRollbackParallelism, flagRollbackDelay, flagRollbackMonitor, flagRollbackFailureAction, flagRollbackMaxFailureRatio) {
+		if spec.RollbackConfig == nil {
+			spec.RollbackConfig = &swarm.UpdateConfig{}
+		}
+		updateUint64(flagRollbackParallelism, &spec.RollbackConfig.Parallelism)
+		updateDuration(flagRollbackDelay, &spec.RollbackConfig.Delay)
+		updateDuration(flagRollbackMonitor, &spec.RollbackConfig.Monitor)
+		updateString(flagRollbackFailureAction, &spec.RollbackConfig.FailureAction)
+		updateFloatValue(flagRollbackMaxFailureRatio, &spec.RollbackConfig.MaxFailureRatio)
+	}
+
 	if flags.Changed(flagEndpointMode) {
 		value, _ := flags.GetString(flagEndpointMode)
 		if spec.EndpointSpec == nil {

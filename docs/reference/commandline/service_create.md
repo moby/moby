@@ -21,54 +21,61 @@ Usage:  docker service create [OPTIONS] IMAGE [COMMAND] [ARG...]
 Create a new service
 
 Options:
-      --constraint list                  Placement constraints (default [])
-      --container-label list             Container labels (default [])
-      --dns list                         Set custom DNS servers (default [])
-      --dns-option list                  Set DNS options (default [])
-      --dns-search list                  Set custom DNS search domains (default [])
-      --endpoint-mode string             Endpoint mode ("vip"|"dnsrr") (default "vip")
-  -e, --env list                         Set environment variables (default [])
-      --env-file list                    Read in a file of environment variables (default [])
-      --group list                       Set one or more supplementary user groups for the container (default [])
-      --health-cmd string                Command to run to check health
-      --health-interval duration         Time between running the check (ns|us|ms|s|m|h)
-      --health-retries int               Consecutive failures needed to report unhealthy
-      --health-timeout duration          Maximum time to allow one check to run (ns|us|ms|s|m|h)
-      --help                             Print usage
-      --host list                        Set one or more custom host-to-IP mappings (host:ip) (default [])
-      --hostname string                  Container hostname
-  -l, --label list                       Service labels (default [])
-      --limit-cpu decimal                Limit CPUs (default 0.000)
-      --limit-memory bytes               Limit Memory
-      --log-driver string                Logging driver for service
-      --log-opt list                     Logging driver options (default [])
-      --mode string                      Service mode (replicated or global) (default "replicated")
-      --mount mount                      Attach a filesystem mount to the service
-      --name string                      Service name
-      --network list                     Network attachments (default [])
-      --no-healthcheck                   Disable any container-specified HEALTHCHECK
-      --placement-pref pref              Add a placement preference
-  -p, --publish port                     Publish a port as a node port
-      --read-only                        Mount the container's root filesystem as read only
-      --replicas uint                    Number of tasks
-      --reserve-cpu decimal              Reserve CPUs (default 0.000)
-      --reserve-memory bytes             Reserve Memory
-      --restart-condition string         Restart when condition is met ("none"|"on-failure"|"any")
-      --restart-delay duration           Delay between restart attempts (ns|us|ms|s|m|h)
-      --restart-max-attempts uint        Maximum number of restarts before giving up
-      --restart-window duration          Window used to evaluate the restart policy (ns|us|ms|s|m|h)
-      --secret secret                    Specify secrets to expose to the service
-      --stop-grace-period duration       Time to wait before force killing a container (ns|us|ms|s|m|h)
-      --stop-signal string               Signal to stop the container
-  -t, --tty                              Allocate a pseudo-TTY
-      --update-delay duration            Delay between updates (ns|us|ms|s|m|h) (default 0s)
-      --update-failure-action string     Action on update failure ("pause"|"continue"|"rollback") (default "pause")
-      --update-max-failure-ratio float   Failure rate to tolerate during an update
-      --update-monitor duration          Duration after each task update to monitor for failure (ns|us|ms|s|m|h) (default 0s)
-      --update-parallelism uint          Maximum number of tasks updated simultaneously (0 to update all at once) (default 1)
-  -u, --user string                      Username or UID (format: <name|uid>[:<group|gid>])
-      --with-registry-auth               Send registry authentication details to swarm agents
-  -w, --workdir string                   Working directory inside the container
+      --constraint list                    Placement constraints (default [])
+      --container-label list               Container labels (default [])
+      --dns list                           Set custom DNS servers (default [])
+      --dns-option list                    Set DNS options (default [])
+      --dns-search list                    Set custom DNS search domains (default [])
+      --endpoint-mode string               Endpoint mode ("vip"|"dnsrr") (default "vip")
+  -e, --env list                           Set environment variables (default [])
+      --env-file list                      Read in a file of environment variables (default [])
+      --group list                         Set one or more supplementary user groups for the container (default [])
+      --health-cmd string                  Command to run to check health
+      --health-interval duration           Time between running the check (ns|us|ms|s|m|h)
+      --health-retries int                 Consecutive failures needed to report unhealthy
+      --health-timeout duration            Maximum time to allow one check to run (ns|us|ms|s|m|h)
+      --help                               Print usage
+      --host list                          Set one or more custom host-to-IP mappings (host:ip) (default [])
+      --hostname string                    Container hostname
+  -l, --label list                         Service labels (default [])
+      --limit-cpu decimal                  Limit CPUs (default 0.000)
+      --limit-memory bytes                 Limit Memory
+      --log-driver string                  Logging driver for service
+      --log-opt list                       Logging driver options (default [])
+      --mode string                        Service mode (replicated or global) (default "replicated")
+      --mount mount                        Attach a filesystem mount to the service
+      --name string                        Service name
+      --network list                       Network attachments (default [])
+      --no-healthcheck                     Disable any container-specified HEALTHCHECK
+      --placement-pref pref                Add a placement preference
+  -p, --publish port                       Publish a port as a node port
+      --read-only                          Mount the container's root filesystem as read only
+      --replicas uint                      Number of tasks
+      --reserve-cpu decimal                Reserve CPUs (default 0.000)
+      --reserve-memory bytes               Reserve Memory
+      --restart-condition string           Restart when condition is met ("none"|"on-failure"|"any")
+      --restart-delay duration             Delay between restart attempts (ns|us|ms|s|m|h)
+      --restart-max-attempts uint          Maximum number of restarts before giving up
+      --restart-window duration            Window used to evaluate the restart policy (ns|us|ms|s|m|h)
+      --rollback-delay duration            Delay between task rollbacks (ns|us|ms|s|m|h) (default 0s)
+      --rollback-failure-action string     Action on rollback failure ("pause"|"continue") (default "pause")
+      --rollback-max-failure-ratio float   Failure rate to tolerate during a rollback
+      --rollback-monitor duration          Duration after each task rollback to monitor for failure
+                                           (ns|us|ms|s|m|h) (default 0s)
+      --rollback-parallelism uint          Maximum number of tasks rolled back simultaneously (0 to roll
+                                           back all at once) (default 1)
+      --secret secret                      Specify secrets to expose to the service
+      --stop-grace-period duration         Time to wait before force killing a container (ns|us|ms|s|m|h)
+      --stop-signal string                 Signal to stop the container
+  -t, --tty                                Allocate a pseudo-TTY
+      --update-delay duration              Delay between updates (ns|us|ms|s|m|h) (default 0s)
+      --update-failure-action string       Action on update failure ("pause"|"continue"|"rollback") (default "pause")
+      --update-max-failure-ratio float     Failure rate to tolerate during an update
+      --update-monitor duration            Duration after each task update to monitor for failure (ns|us|ms|s|m|h) (default 0s)
+      --update-parallelism uint            Maximum number of tasks updated simultaneously (0 to update all at once) (default 1)
+  -u, --user string                        Username or UID (format: <name|uid>[:<group|gid>])
+      --with-registry-auth                 Send registry authentication details to swarm agents
+  -w, --workdir string                     Working directory inside the container
 ```
 
 ## Description
