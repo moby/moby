@@ -996,10 +996,26 @@ func (daemon *Daemon) ConnectToNetwork(container *container.Container, idOrName 
 
 		n, err := daemon.FindNetwork(idOrName)
 		if err != nil {
-			return err
-		}
+			if _, ok := err.(libnetwork.ErrNoSuchNetwork); !ok {
+				return err
+			}
 
-		if err := daemon.updateNetworkConfig(container, n, endpointConfig, true); err != nil {
+			// currently input network does not exit,
+			// check if it is lazily created and has not been gossiped to this node
+			n, found, err := daemon.isNetworkLazyCreated(idOrName)
+			if err != nil {
+				return err
+			}
+
+			if !found {
+				return libnetwork.ErrNoSuchNetwork(idOrName)
+			}
+
+			container.NetworkSettings.Networks[n.Name()] = &network.EndpointSettings{
+				EndpointSettings: endpointConfig,
+			}
+
+		} else if err := daemon.updateNetworkConfig(container, n, endpointConfig, true); err != nil {
 			return err
 		}
 	} else if !daemon.isNetworkHotPluggable() {
@@ -1049,7 +1065,7 @@ func (daemon *Daemon) DisconnectStoppedContainerFromNetwork(container *container
 	}
 
 	if network != nil {
-		daemon.LogNetworkEventWithAttributes(n, "disconnect", map[string]string{
+		daemon.LogNetworkEventWithAttributes(network, "disconnect", map[string]string{
 			"container": container.ID,
 		})
 	}
@@ -1076,7 +1092,7 @@ func (daemon *Daemon) DisconnectRunningContainerFromNetwork(container *container
 		return err
 	}
 
-	if err := container.ToDiskLocking(); err != nil {
+	if err := container.CheckpointTo(daemon.containersReplica); err != nil {
 		return fmt.Errorf("Error saving container to disk: %v", err)
 	}
 
@@ -1114,4 +1130,32 @@ func (daemon *Daemon) DeactivateContainerServiceBinding(containerName string) er
 		return nil
 	}
 	return sb.DisableService()
+}
+
+// isNetworkLazyCreated checks if the input network is currently not found on this worker node,
+// but after sometime it will be gossiped to this node as lazy creation.
+func (daemon *Daemon) isNetworkLazyCreated(idOrName string) (libnetwork.Network, bool, error) {
+	// if daemon is not a part of swarm, just return false
+	if !daemon.cluster.IsManager() && !daemon.cluster.IsAgent() {
+		return nil, false, nil
+	}
+
+	for i := 0; i < 3; i++ {
+		n, err := daemon.FindNetwork(idOrName)
+		if err != nil {
+			if _, ok := err.(libnetwork.ErrNoSuchNetwork); !ok {
+				// if the error is not NotFound, just return err
+				return nil, false, err
+			}
+
+			// network is not found, continue the loop
+			time.Sleep(1 * time.Second)
+			continue
+		}
+		// network found
+		return n, true, nil
+	}
+
+	// network not found, return false
+	return nil, false, nil
 }
