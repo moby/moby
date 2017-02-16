@@ -179,9 +179,9 @@ func TestBuilderFlags(t *testing.T) {
 	}
 
 	if flStr1.Value != "BYE" {
-		t.Fatalf("Teset %s, str1 should be BYE", bf.Args)
+		t.Fatalf("Test %s, str1 should be BYE", bf.Args)
 	}
 	if !flBool1.IsTrue() {
-		t.Fatalf("Teset %s, bool1 should be true", bf.Args)
+		t.Fatalf("Test %s, bool1 should be true", bf.Args)
 	}
 }

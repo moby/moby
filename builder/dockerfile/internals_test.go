@@ -16,7 +16,7 @@ func TestEmptyDockerfile(t *testing.T) {
 
 	createTestTempFile(t, contextDir, builder.DefaultDockerfileName, "", 0777)
 
-	readAndCheckDockerfile(t, "emptyDockefile", contextDir, "", "The Dockerfile (Dockerfile) cannot be empty")
+	readAndCheckDockerfile(t, "emptyDockerfile", contextDir, "", "The Dockerfile (Dockerfile) cannot be empty")
 }
 
 func TestSymlinkDockerfile(t *testing.T) {
