@@ -5,6 +5,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"syscall"
+	"unsafe"
 
 	"github.com/Microsoft/hcsshim"
 	"github.com/Sirupsen/logrus"
@@ -37,6 +39,8 @@ const (
 	windowsMinCPUPercent = 1
 	windowsMaxCPUPercent = 100
 	windowsMinCPUCount   = 1
+
+	errInvalidState = syscall.Errno(0x139F)
 )
 
 // Windows has no concept of an execution state directory. So use config.Root here.
@@ -236,7 +240,8 @@ func checkSystem() error {
 	if vmcompute.Load() != nil {
 		return fmt.Errorf("Failed to load vmcompute.dll. Ensure that the Containers role is installed.")
 	}
-	return nil
+
+	return waitOOBEComplete()
 }
 
 // configureKernelSecuritySupport configures and validate security support for the kernel
@@ -606,5 +611,37 @@ func (daemon *Daemon) verifyVolumesInfo(container *container.Container) error {
 }
 
 func (daemon *Daemon) setupSeccompProfile() error {
+	return nil
+}
+
+func waitOOBEComplete() error {
+	kernel32 := windows.NewLazySystemDLL("kernel32.dll")
+	registerWaitUntilOOBECompleted := kernel32.NewProc("RegisterWaitUntilOOBECompleted")
+	unregisterWaitUntilOOBECompleted := kernel32.NewProc("UnregisterWaitUntilOOBECompleted")
+
+	callbackChan := make(chan struct{})
+	callbackFunc := func(uintptr) uintptr {
+		close(callbackChan)
+		return 0
+	}
+	callbackFuncPtr := syscall.NewCallback(callbackFunc)
+
+	var callbackHandle syscall.Handle
+	ret, _, err := registerWaitUntilOOBECompleted.Call(callbackFuncPtr, 0, uintptr(unsafe.Pointer(&callbackHandle)))
+	if ret == 0 {
+		if err == errInvalidState {
+			return nil
+		}
+		return fmt.Errorf("failed to register OOBEComplete callback. Error: %v", err)
+	}
+
+	// Wait for the callback when OOBE is finished
+	<-callbackChan
+
+	ret, _, err = unregisterWaitUntilOOBECompleted.Call(uintptr(callbackHandle))
+	if ret == 0 {
+		return fmt.Errorf("failed to unregister OOBEComplete callback. Error: %v", err)
+	}
+
 	return nil
 }
