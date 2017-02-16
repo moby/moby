@@ -1,6 +1,7 @@
 package service
 
 import (
+	"errors"
 	"fmt"
 	"sort"
 	"strings"
@@ -10,6 +11,7 @@ import (
 	"github.com/docker/docker/api/types/container"
 	mounttypes "github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/api/types/swarm"
+	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cli/command"
 	"github.com/docker/docker/client"
@@ -95,7 +97,6 @@ func newListOptsVar() *opts.ListOpts {
 func runUpdate(dockerCli *command.DockerCli, flags *pflag.FlagSet, serviceID string) error {
 	apiClient := dockerCli.Client()
 	ctx := context.Background()
-	updateOpts := types.ServiceUpdateOptions{}
 
 	service, _, err := apiClient.ServiceInspectWithRaw(ctx, serviceID)
 	if err != nil {
@@ -107,12 +108,44 @@ func runUpdate(dockerCli *command.DockerCli, flags *pflag.FlagSet, serviceID str
 		return err
 	}
 
+	// There are two ways to do user-requested rollback. The old way is
+	// client-side, but with a sufficiently recent daemon we prefer
+	// server-side, because it will honor the rollback parameters.
+	var (
+		clientSideRollback bool
+		serverSideRollback bool
+	)
+
 	spec := &service.Spec
 	if rollback {
-		spec = service.PreviousSpec
-		if spec == nil {
-			return fmt.Errorf("service does not have a previous specification to roll back to")
+		// Rollback can't be combined with other flags.
+		otherFlagsPassed := false
+		flags.VisitAll(func(f *pflag.Flag) {
+			if f.Name == "rollback" {
+				return
+			}
+			if flags.Changed(f.Name) {
+				otherFlagsPassed = true
+			}
+		})
+		if otherFlagsPassed {
+			return errors.New("other flags may not be combined with --rollback")
 		}
+
+		if versions.LessThan(dockerCli.Client().ClientVersion(), "1.27") {
+			clientSideRollback = true
+			spec = service.PreviousSpec
+			if spec == nil {
+				return fmt.Errorf("service does not have a previous specification to roll back to")
+			}
+		} else {
+			serverSideRollback = true
+		}
+	}
+
+	updateOpts := types.ServiceUpdateOptions{}
+	if serverSideRollback {
+		updateOpts.Rollback = "previous"
 	}
 
 	err = updateService(flags, spec)
@@ -147,7 +180,7 @@ func runUpdate(dockerCli *command.DockerCli, flags *pflag.FlagSet, serviceID str
 			return err
 		}
 		updateOpts.EncodedRegistryAuth = encodedAuth
-	} else if rollback {
+	} else if clientSideRollback {
 		updateOpts.RegistryAuthFrom = types.RegistryAuthFromPreviousSpec
 	} else {
 		updateOpts.RegistryAuthFrom = types.RegistryAuthFromSpec

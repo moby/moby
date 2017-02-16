@@ -320,6 +320,12 @@ type ServiceUpdateOptions struct {
 	// credentials if they are not given in EncodedRegistryAuth. Valid
 	// values are "spec" and "previous-spec".
 	RegistryAuthFrom string
+
+	// Rollback indicates whether a server-side rollback should be
+	// performed. When this is set, the provided spec will be ignored.
+	// The valid values are "previous" and "none". An empty value is the
+	// same as "none".
+	Rollback string
 }
 
 // ServiceListOptions holds parameters to list  services with.

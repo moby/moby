@@ -7631,6 +7631,12 @@ paths:
   parameter indicates where to find registry authorization credentials. The
   valid values are `spec` and `previous-spec`."
           default: "spec"
+        - name: "rollback"
+          in: "query"
+          type: "string"
+          description: "Set to this parameter to `previous` to cause a
+  server-side rollback to the previous service spec. The supplied spec will be
+  ignored in this case."
         - name: "X-Registry-Auth"
           in: "header"
           description: "A base64-encoded auth configuration for pulling from private registries. [See the authentication section for details.](#section/Authentication)"

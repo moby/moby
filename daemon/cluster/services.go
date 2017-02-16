@@ -132,7 +132,7 @@ func (c *Cluster) CreateService(s types.ServiceSpec, encodedAuth string) (*apity
 }
 
 // UpdateService updates existing service to match new properties.
-func (c *Cluster) UpdateService(serviceIDOrName string, version uint64, spec types.ServiceSpec, encodedAuth string, registryAuthFrom string) (*apitypes.ServiceUpdateResponse, error) {
+func (c *Cluster) UpdateService(serviceIDOrName string, version uint64, spec types.ServiceSpec, flags apitypes.ServiceUpdateOptions) (*apitypes.ServiceUpdateResponse, error) {
 	var resp *apitypes.ServiceUpdateResponse
 
 	err := c.lockedManagerAction(func(ctx context.Context, state nodeState) error {
@@ -157,13 +157,14 @@ func (c *Cluster) UpdateService(serviceIDOrName string, version uint64, spec typ
 			return errors.New("service does not use container tasks")
 		}
 
+		encodedAuth := flags.EncodedRegistryAuth
 		if encodedAuth != "" {
 			newCtnr.PullOptions = &swarmapi.ContainerSpec_PullOptions{RegistryAuth: encodedAuth}
 		} else {
 			// this is needed because if the encodedAuth isn't being updated then we
 			// shouldn't lose it, and continue to use the one that was already present
 			var ctnr *swarmapi.ContainerSpec
-			switch registryAuthFrom {
+			switch flags.RegistryAuthFrom {
 			case apitypes.RegistryAuthFromSpec, "":
 				ctnr = currentService.Spec.Task.GetContainer()
 			case apitypes.RegistryAuthFromPreviousSpec:
@@ -208,6 +209,16 @@ func (c *Cluster) UpdateService(serviceIDOrName string, version uint64, spec typ
 			}
 		}
 
+		var rollback swarmapi.UpdateServiceRequest_Rollback
+		switch flags.Rollback {
+		case "", "none":
+			rollback = swarmapi.UpdateServiceRequest_NONE
+		case "previous":
+			rollback = swarmapi.UpdateServiceRequest_PREVIOUS
+		default:
+			return fmt.Errorf("unrecognized rollback option %s", flags.Rollback)
+		}
+
 		_, err = state.controlClient.UpdateService(
 			ctx,
 			&swarmapi.UpdateServiceRequest{
@@ -216,6 +227,7 @@ func (c *Cluster) UpdateService(serviceIDOrName string, version uint64, spec typ
 				ServiceVersion: &swarmapi.Version{
 					Index: version,
 				},
+				Rollback: rollback,
 			},
 		)
 		return err

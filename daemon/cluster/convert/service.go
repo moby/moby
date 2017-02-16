@@ -176,7 +176,7 @@ func ServiceSpecToGRPC(s types.ServiceSpec) (swarmapi.ServiceSpec, error) {
 	}
 	spec.Rollback, err = updateConfigToGRPC(s.RollbackConfig)
 	if err != nil {
-		return swarmapi.Servicepec{}, err
+		return swarmapi.ServiceSpec{}, err
 	}
 
 	if s.EndpointSpec != nil {
