@@ -171,7 +171,7 @@ func (daemon *Daemon) Images(imageFilters filters.Args, all bool, withExtraAttrs
 		}
 
 		if withExtraAttrs {
-			// lazyly init variables
+			// lazily init variables
 			if imagesMap == nil {
 				allContainers = daemon.List()
 				allLayers = daemon.layerStore.Map()

@@ -585,7 +585,7 @@ func getMaxMountAndExistenceCheckAttempts(layer PushLayer) (maxMountAttempts, ma
 }
 
 // getRepositoryMountCandidates returns an array of v2 metadata items belonging to the given registry. The
-// array is sorted from youngest to oldest. If requireReigstryMatch is true, the resulting array will contain
+// array is sorted from youngest to oldest. If requireRegistryMatch is true, the resulting array will contain
 // only metadata entries having registry part of SourceRepository matching the part of repoInfo.
 func getRepositoryMountCandidates(
 	repoInfo reference.Named,

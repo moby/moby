@@ -36,7 +36,7 @@ Filter output based on these conditions:
     ID                  NAME                                    DESCRIPTION                         ENABLED
     869080b57404        tiborvass/sample-volume-plugin:latest   A sample volume plugin for Docker   true
 
-## Display plguins with `volumedriver` capability
+## Display plugins with `volumedriver` capability
 
     $ docker plugin ls --filter capability=volumedriver --format "table {{.ID}}\t{{.Name}}"
     ID                  Name

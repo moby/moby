@@ -179,7 +179,7 @@ func ServiceSpecToGRPC(s types.ServiceSpec) (swarmapi.ServiceSpec, error) {
 		case types.UpdateFailureActionContinue:
 			failureAction = swarmapi.UpdateConfig_CONTINUE
 		default:
-			return swarmapi.ServiceSpec{}, fmt.Errorf("unrecongized update failure action %s", s.UpdateConfig.FailureAction)
+			return swarmapi.ServiceSpec{}, fmt.Errorf("unrecognized update failure action %s", s.UpdateConfig.FailureAction)
 		}
 		spec.Update = &swarmapi.UpdateConfig{
 			Parallelism:     s.UpdateConfig.Parallelism,

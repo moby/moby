@@ -22,7 +22,7 @@ func NewRefCounter(c Checker) *RefCounter {
 	}
 }
 
-// Increment increaes the ref count for the given id and returns the current count
+// Increment increases the ref count for the given id and returns the current count
 func (c *RefCounter) Increment(path string) int {
 	c.mu.Lock()
 	m := c.counts[path]

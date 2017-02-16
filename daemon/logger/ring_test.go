@@ -104,7 +104,7 @@ func TestRingClose(t *testing.T) {
 		t.Fatal("expected empty queue")
 	}
 	if m, err := r.Dequeue(); err == nil || m != nil {
-		t.Fatal("exepcted err on Dequeue after close")
+		t.Fatal("expected err on Dequeue after close")
 	}
 
 	ls := r.Drain()

@@ -31,5 +31,5 @@ docker create --device-cgroup-rule='c 42:* rmw' -name my-container my-image
 Then, a user could ask `udev` to execute a script that would `docker exec my-container mknod newDevX c 42 <minor>`
 the required device when it is added.
 
-NOTE: initially present devices still need to be explicitely added to
+NOTE: initially present devices still need to be explicitly added to
 the create/run command
