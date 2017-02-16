@@ -2,6 +2,7 @@ package main
 
 import (
 	"crypto/tls"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -261,6 +262,12 @@ func (cli *DaemonCli) start(opts daemonOptions) (err error) {
 		<-stopc // wait for daemonCli.start() to return
 	})
 
+	if b, err := json.Marshal(cli.Config); err != nil {
+		logrus.Errorf("Cannot format configuration in JSON: %v", err)
+	} else {
+		logrus.Infof("Loaded configuration: %s", string(b))
+	}
+
 	d, err := daemon.NewDaemon(cli.Config, registryService, containerdRemote)
 	if err != nil {
 		return fmt.Errorf("Error starting daemon: %v", err)
@@ -348,6 +355,12 @@ func (cli *DaemonCli) reloadConfig() {
 		if err := cli.d.Reload(config); err != nil {
 			logrus.Errorf("Error reconfiguring the daemon: %v", err)
 			return
+		}
+
+		if b, err := json.Marshal(cli.Config); err != nil {
+			logrus.Errorf("Cannot format configuration in JSON: %v", err)
+		} else {
+			logrus.Infof("Reloaded configuration: %s", string(b))
 		}
 
 		if config.IsValueSet("debug") {
