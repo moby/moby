@@ -353,7 +353,7 @@ Try {
     $gitCommit=Get-GitCommit
     if ($CommitSuffix -ne "") { $gitCommit += "-"+$CommitSuffix -Replace ' ', '' }
 
-    # Get the version of docker (eg 1.14.0-dev)
+    # Get the version of docker (eg 17.04.0-dev)
     $dockerVersion=Get-DockerVersion
 
     # Give a warning if we are not running in a container and are building binaries or running unit tests.

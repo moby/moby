@@ -9,7 +9,7 @@
      The commit string. This is calculated externally to this script.
 
 .PARAMETER DockerVersion
-     The version such as 1.14.0-dev. This is calculated externally to this script.
+     The version such as 17.04.0-dev. This is calculated externally to this script.
 #>
 
 param(
