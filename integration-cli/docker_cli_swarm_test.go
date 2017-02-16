@@ -387,6 +387,30 @@ func (s *DockerSwarmSuite) TestOverlayAttachableOnSwarmLeave(c *check.C) {
 	c.Assert(out, checker.Not(checker.Contains), nwName)
 }
 
+func (s *DockerSwarmSuite) TestOverlayAttachableReleaseResourcesOnFailure(c *check.C) {
+	d := s.AddDaemon(c, true, true)
+
+	// Create attachable network
+	out, err := d.Cmd("network", "create", "-d", "overlay", "--attachable", "--subnet", "10.10.9.0/24", "ovnet")
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+
+	// Attach a container with specific IP
+	out, err = d.Cmd("run", "-d", "--network", "ovnet", "--name", "c1", "--ip", "10.10.9.33", "busybox", "top")
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+
+	// Attempt to attach another contianer with same IP, must fail
+	_, err = d.Cmd("run", "-d", "--network", "ovnet", "--name", "c2", "--ip", "10.10.9.33", "busybox", "top")
+	c.Assert(err, checker.NotNil)
+
+	// Remove first container
+	out, err = d.Cmd("rm", "-f", "c1")
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+
+	// Verify the network can be removed, no phantom network attachment task left over
+	out, err = d.Cmd("network", "rm", "ovnet")
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+}
+
 func (s *DockerSwarmSuite) TestSwarmRemoveInternalNetwork(c *check.C) {
 	d := s.AddDaemon(c, true, true)
 
