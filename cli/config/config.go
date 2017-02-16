@@ -13,29 +13,37 @@ import (
 
 const (
 	// ConfigFileName is the name of config file
-	ConfigFileName = "config.json"
-	configFileDir  = ".docker"
-	oldConfigfile  = ".dockercfg"
+	ConfigFileName   = "config.json"
+	configFileDir    = "docker"
+	dotconfigFileDir = "." + configFileDir
+	oldConfigfile    = ".dockercfg"
 )
 
 var (
-	configDir = os.Getenv("DOCKER_CONFIG")
+	readConfigDir  = os.Getenv("DOCKER_CONFIG")
+	writeConfigDir = readConfigDir
 )
 
-func init() {
-	if configDir == "" {
-		configDir = filepath.Join(homedir.Get(), configFileDir)
+// GetDir returns the specified directory inside the docker config directory.
+// It handles legacy folders by checking their existence if the default one doesn't exists
+func GetDir(name string) string {
+	dir := filepath.Join(writeConfigDir, name)
+	if readConfigDir == writeConfigDir {
+		return dir
 	}
-}
-
-// Dir returns the directory the configuration file is stored in
-func Dir() string {
-	return configDir
+	if _, err := os.Stat(dir); err != nil && os.IsNotExist(err) {
+		legacyDir := filepath.Join(readConfigDir, name)
+		if _, err := os.Stat(legacyDir); err == nil || os.IsExist(err) {
+			return legacyDir
+		}
+	}
+	return dir
 }
 
 // SetDir sets the directory the configuration file is stored in
 func SetDir(dir string) {
-	configDir = dir
+	readConfigDir = dir
+	writeConfigDir = dir
 }
 
 // NewConfigFile initializes an empty configuration file for the given filename 'fn'
@@ -70,47 +78,60 @@ func LoadFromReader(configData io.Reader) (*configfile.ConfigFile, error) {
 // Load reads the configuration files in the given directory, and sets up
 // the auth config information and returns values.
 // FIXME: use the internal golang config parser
-func Load(configDir string) (*configfile.ConfigFile, error) {
-	if configDir == "" {
-		configDir = Dir()
-	}
-
+func Load() (*configfile.ConfigFile, error) {
 	configFile := configfile.ConfigFile{
 		AuthConfigs: make(map[string]types.AuthConfig),
-		Filename:    filepath.Join(configDir, ConfigFileName),
+		Filename:    filepath.Join(writeConfigDir, ConfigFileName),
 	}
 
 	// Try happy path first - latest config file
 	if _, err := os.Stat(configFile.Filename); err == nil {
 		file, err := os.Open(configFile.Filename)
 		if err != nil {
-			return &configFile, errors.Errorf("%s - %v", configFile.Filename, err)
+			return &configFile, errors.Wrapf(err, "Error loading config file: %s", configFile.Filename)
 		}
 		defer file.Close()
 		err = configFile.LoadFromReader(file)
+		return &configFile, errors.Wrapf(err, "Error loading config file: %s", configFile.Filename)
+	} else if os.IsNotExist(err) {
+		legacyFilename := filepath.Join(readConfigDir, ConfigFileName)
+		_, err := os.Stat(legacyFilename)
 		if err != nil {
-			err = errors.Errorf("%s - %v", configFile.Filename, err)
+			if os.IsNotExist(err) {
+				// Can't find latest config file so check for the old ones
+				confFile := filepath.Join(homedir.Get(), oldConfigfile)
+				if _, err := os.Stat(confFile); err != nil {
+					return &configFile, nil //missing file is not an error
+				}
+				file, err := os.Open(confFile)
+				if err != nil {
+					return &configFile, errors.Wrapf(err, "Error loading config file: %s", confFile)
+				}
+				defer file.Close()
+				err = configFile.LegacyLoadFromReader(file)
+				if err != nil {
+					return &configFile, errors.Wrapf(err, "Error loading config file: %s", confFile)
+				}
+				return &configFile, nil //missing file is not an error
+			}
+			return &configFile, errors.Wrapf(err, "Error loading config file: %s", legacyFilename)
 		}
-		return &configFile, err
+		file, err := os.Open(legacyFilename)
+		if err != nil {
+			return &configFile, errors.Wrapf(err, "Error loading config file: %s", legacyFilename)
+		}
+		defer file.Close()
+		if err := configFile.LoadFromReader(file); err != nil {
+			return &configFile, errors.Wrapf(err, "Error loading config file: %s", legacyFilename)
+		}
+		if err := configFile.Save(); err != nil {
+			return &configFile, errors.Wrapf(err, "Error saving %s", legacyFilename)
+		}
+		return &configFile, errors.Errorf("configuration migrated from %s to %s", legacyFilename, configFile.Filename)
 	} else if !os.IsNotExist(err) {
 		// if file is there but we can't stat it for any reason other
 		// than it doesn't exist then stop
-		return &configFile, errors.Errorf("%s - %v", configFile.Filename, err)
-	}
-
-	// Can't find latest config file so check for the old one
-	confFile := filepath.Join(homedir.Get(), oldConfigfile)
-	if _, err := os.Stat(confFile); err != nil {
-		return &configFile, nil //missing file is not an error
-	}
-	file, err := os.Open(confFile)
-	if err != nil {
-		return &configFile, errors.Errorf("%s - %v", confFile, err)
-	}
-	defer file.Close()
-	err = configFile.LegacyLoadFromReader(file)
-	if err != nil {
-		return &configFile, errors.Errorf("%s - %v", confFile, err)
+		return &configFile, errors.Wrapf(err, "Error loading config file: %s", configFile.Filename)
 	}
 
 	if configFile.HTTPHeaders == nil {

@@ -295,7 +295,7 @@ func (s *DockerTrustSuite) TestTrustedPush(c *check.C) {
 	})
 
 	// Assert that we rotated the snapshot key to the server by checking our local keystore
-	contents, err := ioutil.ReadDir(filepath.Join(cliconfig.Dir(), "trust/private/tuf_keys", privateRegistryURL, "dockerclitrusted/pushtest"))
+	contents, err := ioutil.ReadDir(filepath.Join(cliconfig.GetDir("trust"), "private", "tuf_keys", privateRegistryURL, "dockerclitrusted", "pushtest"))
 	c.Assert(err, check.IsNil, check.Commentf("Unable to read local tuf key files"))
 	// Check that we only have 1 key (targets key)
 	c.Assert(contents, checker.HasLen, 1)
@@ -442,7 +442,7 @@ func (s *DockerTrustSuite) TestTrustedPushWithReleasesDelegationOnly(c *check.C)
 	s.assertTargetNotInRoles(c, repoName, "latest", "targets")
 
 	// Try pull after push
-	os.RemoveAll(filepath.Join(cliconfig.Dir(), "trust"))
+	os.RemoveAll(filepath.Join(cliconfig.GetDir("trust")))
 
 	icmd.RunCmd(icmd.Command(dockerBinary, "pull", targetName), trustedCmd).Assert(c, icmd.Expected{
 		Out: "Status: Image is up to date",
@@ -479,7 +479,7 @@ func (s *DockerTrustSuite) TestTrustedPushSignsAllFirstLevelRolesWeHaveKeysFor(c
 	s.assertTargetNotInRoles(c, repoName, "latest", "targets")
 
 	// Try pull after push
-	os.RemoveAll(filepath.Join(cliconfig.Dir(), "trust"))
+	os.RemoveAll(filepath.Join(cliconfig.GetDir("trust")))
 
 	// pull should fail because none of these are the releases role
 	icmd.RunCmd(icmd.Command(dockerBinary, "pull", targetName), trustedCmd).Assert(c, icmd.Expected{
@@ -515,7 +515,7 @@ func (s *DockerTrustSuite) TestTrustedPushSignsForRolesWithKeysAndValidPaths(c *
 	s.assertTargetNotInRoles(c, repoName, "latest", "targets")
 
 	// Try pull after push
-	os.RemoveAll(filepath.Join(cliconfig.Dir(), "trust"))
+	os.RemoveAll(filepath.Join(cliconfig.GetDir("trust")))
 
 	// pull should fail because none of these are the releases role
 	icmd.RunCmd(icmd.Command(dockerBinary, "pull", targetName), trustedCmd).Assert(c, icmd.Expected{

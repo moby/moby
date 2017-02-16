@@ -521,10 +521,10 @@ func (s *DockerDaemonSuite) TestDaemonKeyMigration(c *check.C) {
 	if err != nil {
 		c.Fatalf("Error generating private key: %s", err)
 	}
-	if err := os.MkdirAll(filepath.Join(os.Getenv("HOME"), ".docker"), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Join(os.Getenv("HOME"), ".config", "docker"), 0755); err != nil {
 		c.Fatalf("Error creating .docker directory: %s", err)
 	}
-	if err := libtrust.SaveKey(filepath.Join(os.Getenv("HOME"), ".docker", "key.json"), k1); err != nil {
+	if err := libtrust.SaveKey(filepath.Join(os.Getenv("HOME"), ".config", "docker", "key.json"), k1); err != nil {
 		c.Fatalf("Error saving private key: %s", err)
 	}
 

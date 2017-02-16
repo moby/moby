@@ -20,7 +20,7 @@ func TestEmptyConfigDir(t *testing.T) {
 
 	SetDir(tmpHome)
 
-	config, err := Load("")
+	config, err := Load()
 	if err != nil {
 		t.Fatalf("Failed loading on empty config dir: %q", err)
 	}
@@ -28,22 +28,6 @@ func TestEmptyConfigDir(t *testing.T) {
 	expectedConfigFilename := filepath.Join(tmpHome, ConfigFileName)
 	if config.Filename != expectedConfigFilename {
 		t.Fatalf("Expected config filename %s, got %s", expectedConfigFilename, config.Filename)
-	}
-
-	// Now save it and make sure it shows up in new form
-	saveConfigAndValidateNewFormat(t, config, tmpHome)
-}
-
-func TestMissingFile(t *testing.T) {
-	tmpHome, err := ioutil.TempDir("", "config-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpHome)
-
-	config, err := Load(tmpHome)
-	if err != nil {
-		t.Fatalf("Failed loading on missing file: %q", err)
 	}
 
 	// Now save it and make sure it shows up in new form
@@ -58,8 +42,9 @@ func TestSaveFileToDirs(t *testing.T) {
 	defer os.RemoveAll(tmpHome)
 
 	tmpHome += "/.docker"
+	SetDir(tmpHome)
 
-	config, err := Load(tmpHome)
+	config, err := Load()
 	if err != nil {
 		t.Fatalf("Failed loading on missing file: %q", err)
 	}
@@ -80,7 +65,9 @@ func TestEmptyFile(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = Load(tmpHome)
+	SetDir(tmpHome)
+
+	_, err = Load()
 	if err == nil {
 		t.Fatalf("Was supposed to fail")
 	}
@@ -97,8 +84,9 @@ func TestEmptyJSON(t *testing.T) {
 	if err := ioutil.WriteFile(fn, []byte("{}"), 0600); err != nil {
 		t.Fatal(err)
 	}
+	SetDir(tmpHome)
 
-	config, err := Load(tmpHome)
+	config, err := Load()
 	if err != nil {
 		t.Fatalf("Failed loading on empty json file: %q", err)
 	}
@@ -134,7 +122,7 @@ email`: "Invalid auth configuration file",
 			t.Fatal(err)
 		}
 
-		config, err := Load(tmpHome)
+		config, err := Load()
 		// Use Contains instead of == since the file name will change each time
 		if err == nil || !strings.Contains(err.Error(), expectedError) {
 			t.Fatalf("Should have failed\nConfig: %v\nGot: %v\nExpected: %v", config, err, expectedError)
@@ -166,7 +154,8 @@ func TestOldValidAuth(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	config, err := Load(tmpHome)
+	SetDir(tmpHome)
+	config, err := Load()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -212,7 +201,8 @@ func TestOldJSONInvalid(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	config, err := Load(tmpHome)
+	SetDir(tmpHome)
+	config, err := Load()
 	// Use Contains instead of == since the file name will change each time
 	if err == nil || !strings.Contains(err.Error(), "Invalid auth configuration file") {
 		t.Fatalf("Expected an error got : %v, %v", config, err)
@@ -238,7 +228,8 @@ func TestOldJSON(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	config, err := Load(tmpHome)
+	SetDir(tmpHome)
+	config, err := Load()
 	if err != nil {
 		t.Fatalf("Failed loading on empty json file: %q", err)
 	}
@@ -278,7 +269,8 @@ func TestNewJSON(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	config, err := Load(tmpHome)
+	SetDir(tmpHome)
+	config, err := Load()
 	if err != nil {
 		t.Fatalf("Failed loading on empty json file: %q", err)
 	}
@@ -317,7 +309,8 @@ func TestNewJSONNoEmail(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	config, err := Load(tmpHome)
+	SetDir(tmpHome)
+	config, err := Load()
 	if err != nil {
 		t.Fatalf("Failed loading on empty json file: %q", err)
 	}
@@ -359,7 +352,8 @@ func TestJSONWithPsFormat(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	config, err := Load(tmpHome)
+	SetDir(tmpHome)
+	config, err := Load()
 	if err != nil {
 		t.Fatalf("Failed loading on empty json file: %q", err)
 	}
@@ -392,7 +386,8 @@ func TestJSONWithCredentialStore(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	config, err := Load(tmpHome)
+	SetDir(tmpHome)
+	config, err := Load()
 	if err != nil {
 		t.Fatalf("Failed loading on empty json file: %q", err)
 	}
@@ -425,7 +420,8 @@ func TestJSONWithCredentialHelpers(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	config, err := Load(tmpHome)
+	SetDir(tmpHome)
+	config, err := Load()
 	if err != nil {
 		t.Fatalf("Failed loading on empty json file: %q", err)
 	}
@@ -471,15 +467,15 @@ func TestConfigDir(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpHome)
 
-	if Dir() == tmpHome {
+	if GetDir("") == tmpHome {
 		t.Fatalf("Expected ConfigDir to be different than %s by default, but was the same", tmpHome)
 	}
 
 	// Update configDir
 	SetDir(tmpHome)
 
-	if Dir() != tmpHome {
-		t.Fatalf("Expected ConfigDir to %s, but was %s", tmpHome, Dir())
+	if GetDir("") != tmpHome {
+		t.Fatalf("Expected ConfigDir to %s, but was %s", tmpHome, GetDir(""))
 	}
 }
 

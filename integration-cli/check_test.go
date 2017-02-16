@@ -396,6 +396,7 @@ func (s *DockerTrustSuite) SetUpTest(c *check.C) {
 }
 
 func (s *DockerTrustSuite) TearDownTest(c *check.C) {
+	s.ds.TearDownTest(c)
 	if s.reg != nil {
 		s.reg.Close()
 	}
@@ -404,8 +405,7 @@ func (s *DockerTrustSuite) TearDownTest(c *check.C) {
 	}
 
 	// Remove trusted keys and metadata after test
-	os.RemoveAll(filepath.Join(cliconfig.Dir(), "trust"))
-	s.ds.TearDownTest(c)
+	os.RemoveAll(cliconfig.GetDir("trust"))
 }
 
 func init() {
