@@ -69,8 +69,11 @@ message ServiceSpec {
 		GlobalService global = 4;
 	}
 
-	// UpdateConfig controls the rate and policy of updates.
+	// Update contains settings which affect updates.
 	UpdateConfig update = 6;
+
+	// Rollback contains settings which affect rollbacks of updates.
+	UpdateConfig rollback = 9;
 
 	// ServiceSpec.Networks has been deprecated and is replaced by
 	// Networks field in Task (TaskSpec.Networks).
@@ -199,6 +202,9 @@ message ContainerSpec {
 	// tmpfs). For additional mounts that are not part of the initial rootfs,
 	// they will be decided by the modes passed in the mount definition.
 	bool read_only = 19;
+
+	// StopSignal defines the signal to stop the container.
+	string stop_signal = 20;
 
 	repeated Mount mounts = 8 [(gogoproto.nullable) = false];
 

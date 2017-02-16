@@ -321,7 +321,7 @@ func (k *KeyReadWriter) readKey() (*pem.Block, error) {
 	}
 
 	// If it's encrypted, we can't read without a passphrase (we're assuming
-	// empty passphrases iare invalid)
+	// empty passphrases are invalid)
 	if k.kekData.KEK == nil {
 		return nil, ErrInvalidKEK{Wrapped: x509.IncorrectPasswordError}
 	}

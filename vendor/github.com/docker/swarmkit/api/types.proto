@@ -285,12 +285,6 @@ message UpdateConfig {
 	enum FailureAction {
 		PAUSE = 0;
 		CONTINUE = 1;
-		// NOTE: Automated rollback triggered as a failure action is an
-		// experimental feature that is not yet exposed to the end
-		// user. Currently, rollbacks must be initiated manually
-		// through the API by setting Spec to PreviousSpec. We may
-		// decide to expose automatic rollback in the future based on
-		// user feedback, or remove this feature otherwise.
 		ROLLBACK = 2;
 	}
 
@@ -320,11 +314,6 @@ message UpdateConfig {
 	// If the failure action is ROLLBACK, the orchestrator will attempt to
 	// roll back to the previous service spec. If the MaxFailureRatio
 	// threshold is hit during the rollback, the rollback will pause.
-	//
-	// TODO(aaronl): Should there be a separate failure threshold for
-	// rollbacks? Should there be a failure action for rollbacks (to allow
-	// them to do something other than pause when the rollback encounters
-	// errors)?
 	float max_failure_ratio = 5;
 }
 

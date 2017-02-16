@@ -66,10 +66,8 @@ func (t temporary) Temporary() bool { return true }
 // temporary.
 func IsTemporary(err error) bool {
 	for err != nil {
-		if tmp, ok := err.(Temporary); ok {
-			if tmp.Temporary() {
-				return true
-			}
+		if tmp, ok := err.(Temporary); ok && tmp.Temporary() {
+			return true
 		}
 
 		cause := errors.Cause(err)

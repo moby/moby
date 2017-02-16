@@ -419,7 +419,7 @@ func (na *NetworkAllocator) releaseEndpoints(networks []*api.NetworkAttachment) 
 
 		localNet := na.getNetwork(nAttach.Network.ID)
 		if localNet == nil {
-			return fmt.Errorf("could not find network allocater state for network %s", nAttach.Network.ID)
+			return fmt.Errorf("could not find network allocator state for network %s", nAttach.Network.ID)
 		}
 
 		// Do not fail and bail out if we fail to release IP

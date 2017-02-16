@@ -285,7 +285,8 @@ func (pa *portAllocator) portsAllocatedInHostPublishMode(s *api.Service) bool {
 
 	if s.Spec.Endpoint != nil {
 		for _, portConfig := range s.Spec.Endpoint.Ports {
-			if portConfig.PublishMode == api.PublishModeHost {
+			if portConfig.PublishMode == api.PublishModeHost &&
+				portConfig.PublishedPort != 0 {
 				if portStates.delState(portConfig) == nil {
 					return false
 				}

@@ -156,7 +156,7 @@ func (s *Server) ListSecrets(ctx context.Context, request *api.ListSecretsReques
 	return &api.ListSecretsResponse{Secrets: respSecrets}, nil
 }
 
-// CreateSecret creates and return a `CreateSecretResponse` with a `Secret` based
+// CreateSecret creates and returns a `CreateSecretResponse` with a `Secret` based
 // on the provided `CreateSecretRequest.SecretSpec`.
 // - Returns `InvalidArgument` if the `CreateSecretRequest.SecretSpec` is malformed,
 //   or if the secret data is too long or contains invalid characters.

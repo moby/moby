@@ -179,13 +179,13 @@ func (a *Agent) run(ctx context.Context) {
 
 	ctx = log.WithModule(ctx, "agent")
 
-	log.G(ctx).Debugf("(*Agent).run")
-	defer log.G(ctx).Debugf("(*Agent).run exited")
+	log.G(ctx).Debug("(*Agent).run")
+	defer log.G(ctx).Debug("(*Agent).run exited")
 
 	// get the node description
 	nodeDescription, err := a.nodeDescriptionWithHostname(ctx)
 	if err != nil {
-		log.G(ctx).WithError(err).WithField("agent", a.config.Executor).Errorf("agent: node description unavailable")
+		log.G(ctx).WithError(err).WithField("agent", a.config.Executor).Error("agent: node description unavailable")
 	}
 	// nodeUpdateTicker is used to periodically check for updates to node description
 	nodeUpdateTicker := time.NewTicker(nodeUpdatePeriod)
@@ -312,7 +312,7 @@ func (a *Agent) run(ctx context.Context) {
 			// get the current node description
 			newNodeDescription, err := a.nodeDescriptionWithHostname(ctx)
 			if err != nil {
-				log.G(ctx).WithError(err).WithField("agent", a.config.Executor).Errorf("agent: updated node description unavailable")
+				log.G(ctx).WithError(err).WithField("agent", a.config.Executor).Error("agent: updated node description unavailable")
 			}
 
 			// if newNodeDescription is nil, it will cause a panic when
@@ -431,7 +431,7 @@ func (a *Agent) withSession(ctx context.Context, fn func(session *session) error
 //
 // If an error is returned, the operation should be retried.
 func (a *Agent) UpdateTaskStatus(ctx context.Context, taskID string, status *api.TaskStatus) error {
-	log.G(ctx).WithField("task.id", taskID).Debugf("(*Agent).UpdateTaskStatus")
+	log.G(ctx).WithField("task.id", taskID).Debug("(*Agent).UpdateTaskStatus")
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 

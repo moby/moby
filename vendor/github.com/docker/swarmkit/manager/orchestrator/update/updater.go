@@ -156,10 +156,34 @@ func (u *Updater) Run(ctx context.Context, slots []orchestrator.Slot) {
 		u.startUpdate(ctx, service.ID)
 	}
 
-	parallelism := 0
-	if service.Spec.Update != nil {
-		parallelism = int(service.Spec.Update.Parallelism)
+	var (
+		parallelism            int
+		delay                  time.Duration
+		failureAction          = api.UpdateConfig_PAUSE
+		allowedFailureFraction = float32(0)
+		monitoringPeriod       = defaultMonitor
+	)
+
+	updateConfig := service.Spec.Update
+	if service.UpdateStatus != nil && service.UpdateStatus.State == api.UpdateStatus_ROLLBACK_STARTED {
+		updateConfig = service.Spec.Rollback
 	}
+
+	if updateConfig != nil {
+		failureAction = updateConfig.FailureAction
+		allowedFailureFraction = updateConfig.MaxFailureRatio
+		parallelism = int(updateConfig.Parallelism)
+		delay = updateConfig.Delay
+
+		var err error
+		if updateConfig.Monitor != nil {
+			monitoringPeriod, err = gogotypes.DurationFromProto(updateConfig.Monitor)
+			if err != nil {
+				monitoringPeriod = defaultMonitor
+			}
+		}
+	}
+
 	if parallelism == 0 {
 		// TODO(aluzzardi): We could try to optimize unlimited parallelism by performing updates in a single
 		// goroutine using a batch transaction.
@@ -172,26 +196,9 @@ func (u *Updater) Run(ctx context.Context, slots []orchestrator.Slot) {
 	wg.Add(parallelism)
 	for i := 0; i < parallelism; i++ {
 		go func() {
-			u.worker(ctx, slotQueue)
+			u.worker(ctx, slotQueue, delay)
 			wg.Done()
 		}()
-	}
-
-	failureAction := api.UpdateConfig_PAUSE
-	allowedFailureFraction := float32(0)
-	monitoringPeriod := defaultMonitor
-
-	if service.Spec.Update != nil {
-		failureAction = service.Spec.Update.FailureAction
-		allowedFailureFraction = service.Spec.Update.MaxFailureRatio
-
-		if service.Spec.Update.Monitor != nil {
-			var err error
-			monitoringPeriod, err = gogotypes.DurationFromProto(service.Spec.Update.Monitor)
-			if err != nil {
-				monitoringPeriod = defaultMonitor
-			}
-		}
 	}
 
 	var failedTaskWatch chan events.Event
@@ -303,7 +310,7 @@ slotsLoop:
 	}
 }
 
-func (u *Updater) worker(ctx context.Context, queue <-chan orchestrator.Slot) {
+func (u *Updater) worker(ctx context.Context, queue <-chan orchestrator.Slot, delay time.Duration) {
 	for slot := range queue {
 		// Do we have a task with the new spec in desired state = RUNNING?
 		// If so, all we have to do to complete the update is remove the
@@ -345,7 +352,7 @@ func (u *Updater) worker(ctx context.Context, queue <-chan orchestrator.Slot) {
 			}
 		}
 
-		if u.newService.Spec.Update != nil && u.newService.Spec.Update.Delay != 0 {
+		if delay != 0 {
 			select {
 			case <-time.After(u.newService.Spec.Update.Delay):
 			case <-u.stopChan:
