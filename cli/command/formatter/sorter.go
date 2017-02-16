@@ -8,8 +8,8 @@ import (
 )
 
 const (
-	ascendantKey  = "asc"
-	descendantKey = "desc"
+	ascendingKey  = "asc"
+	descendingKey = "desc"
 )
 
 type fieldIndex []int
@@ -68,26 +68,26 @@ func newGenericStructSorter(data []interface{}, bys []string, whitelist map[stri
 	// scan and get the sortable fields
 	sortableFields := make(map[string]fieldIndex)
 	if err := getSortableFields(reflect.TypeOf(data[0]), whitelist, nil, sortableFields); err != nil {
-		return gs, fmt.Errorf("can't get sortable fields: %v", err)
+		return gs, fmt.Errorf("failed to get sortable fields: %v", err)
 	}
 
 	gs.data = data
 	for _, by := range bys {
 		by = strings.TrimSpace(by)
 		parts := strings.Split(by, ":")
-		dir := ascendantKey // ascendant key is default
+		dir := ascendingKey // sort ascending by default
 		switch len(parts) {
 		case 2:
 			switch parts[1] {
-			case descendantKey:
-				dir = descendantKey
-			case ascendantKey, "":
-				// if default, keep as ascendantKey
+			case descendingKey:
+				dir = descendingKey
+			case ascendingKey, "":
+				// if default, keep as ascendingKey
 			default:
 				// doesn't support key other than "asc","desc",""
-				supportedOrders := []string{ascendantKey, descendantKey}
-				return gs, fmt.Errorf("sort order %q not supported, it must be in [%s]",
-					parts[1], strings.Join(supportedOrders, ","))
+				supportedOrders := []string{ascendingKey, descendingKey}
+				return gs, fmt.Errorf("sort order %q not supported. It must be in \"%s\"",
+					parts[1], strings.Join(supportedOrders, ", "))
 			}
 		case 1:
 			// sort order not specified, keep default
@@ -101,7 +101,7 @@ func newGenericStructSorter(data []interface{}, bys []string, whitelist map[stri
 			for k := range sortableFields {
 				keys = append(keys, k)
 			}
-			return gs, fmt.Errorf("can't sort by %q, it must be in [%s]", parts[0], strings.Join(keys, ","))
+			return gs, fmt.Errorf("unknown sort field: %q. Valid options are \"%s\"", parts[0], strings.Join(keys, ", "))
 		}
 		gs.bys = append(gs.bys, orderBy{
 			name:     by,
@@ -177,15 +177,13 @@ func (s genericStructSorter) Less(i, j int) bool {
 			case reflect.TypeOf(time.Time{}):
 				res = lessForTime(diCurValue, djCurValue)
 			default:
-				// panic(fmt.Sprintf("genericStructSorter: comparison of %v are not supported", diCurType.Kind()))
-				// TODO: find a reasonable logic
 				// if it's unsupported field, keep original positions
 				return false
 			}
 		}
 
 		if res != 0 {
-			if orderBy.ordering == ascendantKey {
+			if orderBy.ordering == ascendingKey {
 				return res == -1
 			}
 			return res == 1

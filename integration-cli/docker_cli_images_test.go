@@ -378,5 +378,5 @@ func (s *DockerSuite) TestImageSortBy(c *check.C) {
 	// test unsupported --sort-by value
 	_, _, err := dockerCmdWithError("images", "--sort-by", "repo:asc,tag:desc", "name*")
 	c.Assert(err, checker.NotNil)
-	c.Assert(err.Error(), checker.Contains, "can't sort by \"repo\"")
+	c.Assert(err.Error(), checker.Contains, "unknown sort field: \"repo\"")
 }

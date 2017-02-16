@@ -22,7 +22,7 @@ func TestStringStructSorter(t *testing.T) {
 	whitelist := map[string]string{"S": ""}
 	gs, err := newGenericStructSorter(data, []string{"S"}, whitelist)
 	if err != nil {
-		t.Fatal("failed to create sorter:", err)
+		t.Fatal("failed to create sorter: ", err)
 	}
 
 	sort.Sort(gs)
@@ -47,7 +47,7 @@ func TestBoolStructSorter(t *testing.T) {
 	whitelist := map[string]string{"B": ""}
 	gs, err := newGenericStructSorter(data, []string{"B:desc"}, whitelist)
 	if err != nil {
-		t.Fatal("failed to create sorter:", err)
+		t.Fatal("failed to create sorter: ", err)
 	}
 
 	sort.Sort(gs)
@@ -72,7 +72,7 @@ func TestIntStructSorter(t *testing.T) {
 	whitelist := map[string]string{"I": ""}
 	gs, err := newGenericStructSorter(data, []string{"I:asc"}, whitelist)
 	if err != nil {
-		t.Fatal("failed to create sorter:", err)
+		t.Fatal("failed to create sorter: ", err)
 	}
 
 	sort.Sort(gs)
@@ -97,7 +97,7 @@ func TestUintStructSorter(t *testing.T) {
 	whitelist := map[string]string{"U": ""}
 	gs, err := newGenericStructSorter(data, []string{"U"}, whitelist)
 	if err != nil {
-		t.Fatal("failed to create sorter:", err)
+		t.Fatal("failed to create sorter: ", err)
 	}
 
 	sort.Sort(gs)
@@ -122,7 +122,7 @@ func TestFloatStructSorter(t *testing.T) {
 	whitelist := map[string]string{"F": ""}
 	gs, err := newGenericStructSorter(data, []string{"F"}, whitelist)
 	if err != nil {
-		t.Fatal("failed to create sorter:", err)
+		t.Fatal("failed to create sorter: ", err)
 	}
 
 	sort.Sort(gs)
