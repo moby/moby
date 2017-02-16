@@ -418,6 +418,54 @@ Example use:
    $ dockerd \
          --storage-opt dm.thinpooldev=/dev/mapper/thin-pool
 
+#### dm.directlvm_device
+
+As an alternative to manually creating a thin pool as above, Docker can
+automatically configure a block device for you.
+
+Example use:
+
+   $ dockerd \
+         --storage-opt dm.directlvm_device=/dev/xvdf
+
+##### dm.thinp_percent
+
+Sets the percentage of passed in block device to use for storage.
+
+###### Example:
+
+   $ sudo dockerd \
+        --storage-opt dm.thinp_percent=95
+
+##### `dm.thinp_metapercent`
+
+Sets the percentage of the passed in block device to use for metadata storage.
+
+###### Example:
+
+   $ sudo dockerd \
+         --storage-opt dm.thinp_metapercent=1
+
+##### dm.thinp_autoextend_threshold
+
+Sets the value of the percentage of space used before `lvm` attempts to
+autoextend the available space [100 = disabled]
+
+###### Example:
+
+   $ sudo dockerd \
+         --storage-opt dm.thinp_autoextend_threshold=80
+
+##### dm.thinp_autoextend_percent
+
+Sets the value percentage value to increase the thin pool by when when `lvm`
+attempts to autoextend the available space [100 = disabled]
+
+###### Example:
+
+   $ sudo dockerd \
+         --storage-opt dm.thinp_autoextend_percent=20
+
 #### dm.basesize
 
 Specifies the size to use when creating the base device, which limits

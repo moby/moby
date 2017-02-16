@@ -5,7 +5,6 @@ package devmapper
 import (
 	"bufio"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -13,6 +12,7 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"reflect"
 	"strconv"
 	"strings"
 	"sync"
@@ -29,6 +29,7 @@ import (
 	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/parsers"
 	units "github.com/docker/go-units"
+	"github.com/pkg/errors"
 
 	"github.com/opencontainers/runc/libcontainer/label"
 )
@@ -50,6 +51,7 @@ var (
 	enableDeferredDeletion              = false
 	userBaseSize                        = false
 	defaultMinFreeSpacePercent   uint32 = 10
+	lvmSetupConfigForce          bool
 )
 
 const deviceSetMetaFile string = "deviceset-metadata"
@@ -123,6 +125,7 @@ type DeviceSet struct {
 	gidMaps               []idtools.IDMap
 	minFreeSpacePercent   uint32 //min free space percentage in thinpool
 	xfsNospaceRetries     string // max retries when xfs receives ENOSPC
+	lvmSetupConfig        directLVMConfig
 }
 
 // DiskUsage contains information about disk usage and is used when reporting Status of a device.
@@ -1730,8 +1733,36 @@ func (devices *DeviceSet) initDevmapper(doInit bool) error {
 		return err
 	}
 
-	// Set the device prefix from the device id and inode of the docker root dir
+	prevSetupConfig, err := readLVMConfig(devices.root)
+	if err != nil {
+		return err
+	}
 
+	if !reflect.DeepEqual(devices.lvmSetupConfig, directLVMConfig{}) {
+		if devices.thinPoolDevice != "" {
+			return errors.New("cannot setup direct-lvm when `dm.thinpooldev` is also specified")
+		}
+
+		if !reflect.DeepEqual(prevSetupConfig, devices.lvmSetupConfig) {
+			if !reflect.DeepEqual(prevSetupConfig, directLVMConfig{}) {
+				return errors.New("changing direct-lvm config is not supported")
+			}
+			logrus.WithField("storage-driver", "devicemapper").WithField("direct-lvm-config", devices.lvmSetupConfig).Debugf("Setting up direct lvm mode")
+			if err := verifyBlockDevice(devices.lvmSetupConfig.Device, lvmSetupConfigForce); err != nil {
+				return err
+			}
+			if err := setupDirectLVM(devices.lvmSetupConfig); err != nil {
+				return err
+			}
+			if err := writeLVMConfig(devices.root, devices.lvmSetupConfig); err != nil {
+				return err
+			}
+		}
+		devices.thinPoolDevice = "docker-thinpool"
+		logrus.WithField("storage-driver", "devicemapper").Debugf("Setting dm.thinpooldev to %q", devices.thinPoolDevice)
+	}
+
+	// Set the device prefix from the device id and inode of the docker root dir
 	st, err := os.Stat(devices.root)
 	if err != nil {
 		return fmt.Errorf("devmapper: Error looking up dir %s: %s", devices.root, err)
@@ -2605,6 +2636,7 @@ func NewDeviceSet(root string, doInit bool, options []string, uidMaps, gidMaps [
 	}
 
 	foundBlkDiscard := false
+	var lvmSetupConfig directLVMConfig
 	for _, option := range options {
 		key, val, err := parsers.ParseKeyValueOpt(option)
 		if err != nil {
@@ -2699,10 +2731,59 @@ func NewDeviceSet(root string, doInit bool, options []string, uidMaps, gidMaps [
 				return nil, err
 			}
 			devices.xfsNospaceRetries = val
+		case "dm.directlvm_device":
+			lvmSetupConfig.Device = val
+		case "dm.directlvm_device_force":
+			lvmSetupConfigForce, err = strconv.ParseBool(val)
+			if err != nil {
+				return nil, err
+			}
+		case "dm.thinp_percent":
+			per, err := strconv.ParseUint(strings.TrimSuffix(val, "%"), 10, 32)
+			if err != nil {
+				return nil, errors.Wrapf(err, "could not parse `dm.thinp_percent=%s`", val)
+			}
+			if per >= 100 {
+				return nil, errors.New("dm.thinp_percent must be greater than 0 and less than 100")
+			}
+			lvmSetupConfig.ThinpPercent = per
+		case "dm.thinp_metapercent":
+			per, err := strconv.ParseUint(strings.TrimSuffix(val, "%"), 10, 32)
+			if err != nil {
+				return nil, errors.Wrapf(err, "could not parse `dm.thinp_metapercent=%s`", val)
+			}
+			if per >= 100 {
+				return nil, errors.New("dm.thinp_metapercent must be greater than 0 and less than 100")
+			}
+			lvmSetupConfig.ThinpMetaPercent = per
+		case "dm.thinp_autoextend_percent":
+			per, err := strconv.ParseUint(strings.TrimSuffix(val, "%"), 10, 32)
+			if err != nil {
+				return nil, errors.Wrapf(err, "could not parse `dm.thinp_autoextend_percent=%s`", val)
+			}
+			if per > 100 {
+				return nil, errors.New("dm.thinp_autoextend_percent must be greater than 0 and less than 100")
+			}
+			lvmSetupConfig.AutoExtendPercent = per
+		case "dm.thinp_autoextend_threshold":
+			per, err := strconv.ParseUint(strings.TrimSuffix(val, "%"), 10, 32)
+			if err != nil {
+				return nil, errors.Wrapf(err, "could not parse `dm.thinp_autoextend_threshold=%s`", val)
+			}
+			if per > 100 {
+				return nil, errors.New("dm.thinp_autoextend_threshold must be greater than 0 and less than 100")
+			}
+			lvmSetupConfig.AutoExtendThreshold = per
 		default:
 			return nil, fmt.Errorf("devmapper: Unknown option %s\n", key)
 		}
 	}
+
+	if err := validateLVMConfig(lvmSetupConfig); err != nil {
+		return nil, err
+	}
+
+	devices.lvmSetupConfig = lvmSetupConfig
 
 	// By default, don't do blk discard hack on raw devices, its rarely useful and is expensive
 	if !foundBlkDiscard && (devices.dataDevice != "" || devices.thinPoolDevice != "") {
