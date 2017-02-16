@@ -35,7 +35,7 @@ func (daemon *Daemon) ContainerStart(name string, hostConfig *containertypes.Hos
 
 	if container.IsRunning() {
 		err := fmt.Errorf("Container already started")
-		return apierrors.NewErrorWithStatusCode(err, http.StatusNotModified)
+		return apierrors.NewErrorWithStatusCode(err, http.StatusConflict)
 	}
 
 	// Windows does not have the backwards compatibility issue here.

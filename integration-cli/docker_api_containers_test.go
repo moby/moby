@@ -910,13 +910,12 @@ func (s *DockerSuite) TestContainerAPIStart(c *check.C) {
 	c.Assert(err, checker.IsNil)
 	c.Assert(status, checker.Equals, http.StatusNoContent)
 
-	// second call to start should give 304
+	// second call to start should give 409
 	status, _, err = request.SockRequest("POST", "/containers/"+name+"/start", nil, daemonHost())
 	c.Assert(err, checker.IsNil)
 
-	// TODO(tibor): figure out why this doesn't work on windows
 	if testEnv.LocalDaemon() {
-		c.Assert(status, checker.Equals, http.StatusNotModified)
+		c.Assert(status, checker.Equals, http.StatusConflict)
 	}
 }
 
@@ -929,10 +928,10 @@ func (s *DockerSuite) TestContainerAPIStop(c *check.C) {
 	c.Assert(status, checker.Equals, http.StatusNoContent)
 	c.Assert(waitInspect(name, "{{ .State.Running  }}", "false", 60*time.Second), checker.IsNil)
 
-	// second call to start should give 304
+	// second call to start should give 409
 	status, _, err = request.SockRequest("POST", "/containers/"+name+"/stop?t=30", nil, daemonHost())
 	c.Assert(err, checker.IsNil)
-	c.Assert(status, checker.Equals, http.StatusNotModified)
+	c.Assert(status, checker.Equals, http.StatusConflict)
 }
 
 func (s *DockerSuite) TestContainerAPIWait(c *check.C) {
