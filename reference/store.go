@@ -106,19 +106,28 @@ func (store *store) AddDigest(ref reference.Canonical, id digest.Digest, force b
 	return store.addReference(ref, id, force)
 }
 
-func (store *store) addReference(ref reference.Named, id digest.Digest, force bool) error {
+func favorDigest(originalRef reference.Named) (reference.Named, error) {
+	ref := originalRef
 	// If the reference includes a digest and a tag, we must store only the
 	// digest.
-	canonical, isCanonical := ref.(reference.Canonical)
-	_, isNamedTagged := ref.(reference.NamedTagged)
+	canonical, isCanonical := originalRef.(reference.Canonical)
+	_, isNamedTagged := originalRef.(reference.NamedTagged)
 
 	if isCanonical && isNamedTagged {
 		trimmed, err := reference.WithDigest(reference.TrimNamed(canonical), canonical.Digest())
 		if err != nil {
 			// should never happen
-			return err
+			return originalRef, err
 		}
 		ref = trimmed
+	}
+	return ref, nil
+}
+
+func (store *store) addReference(ref reference.Named, id digest.Digest, force bool) error {
+	ref, err := favorDigest(ref)
+	if err != nil {
+		return err
 	}
 
 	refName := reference.FamiliarName(ref)
@@ -169,6 +178,11 @@ func (store *store) addReference(ref reference.Named, id digest.Digest, force bo
 // Delete deletes a reference from the store. It returns true if a deletion
 // happened, or false otherwise.
 func (store *store) Delete(ref reference.Named) (bool, error) {
+	ref, err := favorDigest(ref)
+	if err != nil {
+		return false, err
+	}
+
 	ref = reference.TagNameOnly(ref)
 
 	refName := reference.FamiliarName(ref)
