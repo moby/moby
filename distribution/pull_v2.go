@@ -64,7 +64,7 @@ func (p *v2Puller) Pull(ctx context.Context, ref reference.Named) (err error) {
 	// TODO(tiborvass): was ReceiveTimeout
 	p.repo, p.confirmedV2, err = NewV2Repository(ctx, p.repoInfo, p.endpoint, p.config.MetaHeaders, p.config.AuthConfig, "pull")
 	if err != nil {
-		logrus.Warnf("Error getting v2 registry: %v", err)
+		logrus.Warnf("Error creating v2 registry: %v", err)
 		return err
 	}
 
@@ -73,7 +73,7 @@ func (p *v2Puller) Pull(ctx context.Context, ref reference.Named) (err error) {
 			return err
 		}
 		if continueOnError(err) {
-			logrus.Errorf("Error trying v2 registry: %v", err)
+			logrus.Errorf("Error pulling v2 registry: %v", err)
 			return fallbackError{
 				err:         err,
 				confirmedV2: p.confirmedV2,
