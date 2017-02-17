@@ -16,6 +16,7 @@ type Container struct {
 	CommonContainer
 
 	// Fields below here are platform specific.
+	NetworkSharedContainerID string
 }
 
 // ExitStatus provides exit reasons for a container.

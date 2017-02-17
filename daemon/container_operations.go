@@ -501,12 +501,13 @@ func (daemon *Daemon) allocateNetwork(container *container.Container) error {
 		logrus.Errorf("failed to cleanup up stale network sandbox for container %s", container.ID)
 	}
 
-	updateSettings := false
-	if len(container.NetworkSettings.Networks) == 0 {
-		if container.Config.NetworkDisabled || container.HostConfig.NetworkMode.IsContainer() {
-			return nil
-		}
+	if container.Config.NetworkDisabled || container.HostConfig.NetworkMode.IsContainer() {
+		return nil
+	}
 
+	updateSettings := false
+
+	if len(container.NetworkSettings.Networks) == 0 {
 		daemon.updateContainerNetworkSettings(container, nil)
 		updateSettings = true
 	}

@@ -167,6 +167,7 @@ func (clnt *client) Create(containerID string, checkpoint string, checkpointDir 
 		if n, ok := option.(*NetworkEndpointsOption); ok {
 			configuration.EndpointList = n.Endpoints
 			configuration.AllowUnqualifiedDNSQuery = n.AllowUnqualifiedDNSQuery
+			configuration.NetworkSharedContainerName = n.NetworkSharedContainerID
 			if n.DNSSearchList != nil {
 				configuration.DNSSearchList = strings.Join(n.DNSSearchList, ",")
 			}

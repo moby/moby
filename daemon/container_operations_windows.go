@@ -56,4 +56,5 @@ func setupPathsAndSandboxOptions(container *container.Container, sboxOptions *[]
 }
 
 func initializeNetworkingPaths(container *container.Container, nc *container.Container) {
+	container.NetworkSharedContainerID = nc.ID
 }
