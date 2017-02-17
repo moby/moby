@@ -29,13 +29,13 @@ func profilerSetup(mainRouter *mux.Router) {
 func expVars(w http.ResponseWriter, r *http.Request) {
 	first := true
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	fmt.Fprintf(w, "{\n")
+	fmt.Fprintln(w, "{")
 	expvar.Do(func(kv expvar.KeyValue) {
 		if !first {
-			fmt.Fprintf(w, ",\n")
+			fmt.Fprintln(w, ",")
 		}
 		first = false
 		fmt.Fprintf(w, "%q: %s", kv.Key, kv.Value)
 	})
-	fmt.Fprintf(w, "\n}\n")
+	fmt.Fprintln(w, "\n}")
 }
