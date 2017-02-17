@@ -25,6 +25,8 @@ import (
 	"golang.org/x/time/rate"
 )
 
+const defaultGossipConvergeDelay = 2 * time.Second
+
 // controller implements agent.Controller against docker's API.
 //
 // Most operations against docker's API are done through the container name,
@@ -322,6 +324,13 @@ func (r *controller) Shutdown(ctx context.Context) error {
 		// the service binding is expected if the container was never
 		// started.
 	}
+
+	// add a delay for gossip converge
+	// TODO(dongluochen): this delay shoud be configurable to fit different cluster size and network delay.
+	// TODO(dongluochen): if there is no service binding for this container, this delay is not necessary.
+	// if r.adapter.deactivateServiceBinding can return an error to indicate that, it'd reduce service
+	// converge time.
+	time.Sleep(defaultGossipConvergeDelay)
 
 	if err := r.adapter.shutdown(ctx); err != nil {
 		if isUnknownContainer(err) || isStoppedContainer(err) {
