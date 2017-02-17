@@ -256,9 +256,12 @@ func followLogs(f *os.File, logWatcher *logger.LogWatcher, notifyRotate chan int
 
 	handleDecodeErr := func(err error) error {
 		if err == io.EOF {
-			for err := waitRead(); err != nil; {
+			for {
+				err := waitRead()
+				if err == nil {
+					break
+				}
 				if err == errRetry {
-					// retry the waitRead
 					continue
 				}
 				return err
