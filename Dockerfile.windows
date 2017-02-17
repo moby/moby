@@ -156,7 +156,7 @@
 FROM microsoft/windowsservercore
 
 # Use PowerShell as the default shell
-SHELL ["powershell", "-command"]
+SHELL ["powershell", "-Command", "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue';"]
 
 # Environment variable notes:
 #  - GO_VERSION must be consistent with 'Dockerfile' used by Linux.
@@ -167,70 +167,20 @@ ENV GO_VERSION=1.7.5 `
     FROM_DOCKERFILE=1
 
 RUN `
-  $ErrorActionPreference = 'Stop'; `
-  $ProgressPreference = 'SilentlyContinue'; `
-  `
-  Function Test-Nano() { `
-    $EditionId = (Get-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion' -Name 'EditionID').EditionId; `
-    return (($EditionId -eq 'ServerStandardNano') -or ($EditionId -eq 'ServerDataCenterNano') -or ($EditionId -eq 'NanoServer')); `
-  }`
-  `
-  Function Download-File([string] $source, [string] $target) { `
-    if (Test-Nano) { `
-      $handler = New-Object System.Net.Http.HttpClientHandler; `
-      $client = New-Object System.Net.Http.HttpClient($handler); `
-      $client.Timeout = New-Object System.TimeSpan(0, 30, 0); `
-      $cancelTokenSource = [System.Threading.CancellationTokenSource]::new(); `
-      $responseMsg = $client.GetAsync([System.Uri]::new($source), $cancelTokenSource.Token); `
-      $responseMsg.Wait(); `
-      if (!$responseMsg.IsCanceled) { `
-        $response = $responseMsg.Result; `
-        if ($response.IsSuccessStatusCode) { `
-          $downloadedFileStream = [System.IO.FileStream]::new($target, [System.IO.FileMode]::Create, [System.IO.FileAccess]::Write); `
-          $copyStreamOp = $response.Content.CopyToAsync($downloadedFileStream); `
-          $copyStreamOp.Wait(); `
-          $downloadedFileStream.Close(); `
-          if ($copyStreamOp.Exception -ne $null) { throw $copyStreamOp.Exception } `
-        } `
-      } else { `
-      Throw ("Failed to download " + $source) `
-      }`
-    } else { `
-      $webClient = New-Object System.Net.WebClient; `
-      $webClient.DownloadFile($source, $target); `
-    } `
-  } `
-  `
   setx /M PATH $('C:\git\bin;C:\git\usr\bin;'+$Env:PATH+';C:\gcc\bin;C:\go\bin'); `
   `
-  Write-Host INFO: Downloading git...; `
-  $location='https://github.com/git-for-windows/git/releases/download/v'+$env:GIT_VERSION+'.windows.1/PortableGit-'+$env:GIT_VERSION+'-64-bit.7z.exe'; `
-  Download-File $location C:\gitsetup.7z.exe; `
-  `
   Write-Host INFO: Downloading go...; `
-  Download-File $('https://golang.org/dl/go'+$Env:GO_VERSION+'.windows-amd64.zip') C:\go.zip; `
+  Invoke-Webrequest "https://golang.org/dl/go$Env:GO_VERSION.windows-amd64.zip" -OutFile C:\go.zip -UseBasicParsing; `
+  Expand-Archive C:\go.zip -DestinationPath C:\ -Force; `
   `
   Write-Host INFO: Downloading compiler 1 of 3...; `
-  Download-File https://raw.githubusercontent.com/jhowardmsft/docker-tdmgcc/master/gcc.zip C:\gcc.zip; `
+  Invoke-WebRequest https://raw.githubusercontent.com/jhowardmsft/docker-tdmgcc/master/gcc.zip -UseBasicParsing -OutFile C:\gcc.zip; `
   `
   Write-Host INFO: Downloading compiler 2 of 3...; `
-  Download-File https://raw.githubusercontent.com/jhowardmsft/docker-tdmgcc/master/runtime.zip C:\runtime.zip; `
+  Invoke-WebRequest https://raw.githubusercontent.com/jhowardmsft/docker-tdmgcc/master/runtime.zip -UseBasicParsing -OutFile C:\runtime.zip; `
   `
   Write-Host INFO: Downloading compiler 3 of 3...; `
-  Download-File https://raw.githubusercontent.com/jhowardmsft/docker-tdmgcc/master/binutils.zip C:\binutils.zip; `
-  `
-  Write-Host INFO: Installing PS7Zip package...; `
-  Install-Package PS7Zip -Force | Out-Null; `
-  Write-Host INFO: Importing PS7Zip...; `
-  Import-Module PS7Zip -Force; `
-  New-Item C:\git -ItemType Directory | Out-Null ; `
-  cd C:\git; `
-  Write-Host INFO: Extracting git...; `
-  Expand-7Zip C:\gitsetup.7z.exe | Out-Null; `
-  cd C:\; `
-  `
-  Write-Host INFO: Expanding go...; `
-  Expand-Archive C:\go.zip -DestinationPath C:\; `
+  Invoke-WebRequest https://raw.githubusercontent.com/jhowardmsft/docker-tdmgcc/master/binutils.zip -UseBasicParsing -OutFile C:\binutils.zip; `
   `
   Write-Host INFO: Expanding compiler 1 of 3...; `
   Expand-Archive C:\gcc.zip -DestinationPath C:\gcc -Force; `
@@ -243,13 +193,21 @@ RUN `
   Remove-Item C:\gcc.zip; `
   Remove-Item C:\runtime.zip; `
   Remove-Item C:\binutils.zip; `
-  Remove-Item C:\gitsetup.7z.exe; `
   `
-  Write-Host INFO: Creating source directory...; `
-  New-Item -ItemType Directory -Path C:\go\src\github.com\docker\docker | Out-Null; `
+  Write-Host INFO: Downloading Git...; `
+  Invoke-Webrequest "https://github.com/git-for-windows/git/releases/download/v$Env:GIT_VERSION.windows.1/PortableGit-$Env:GIT_VERSION-64-bit.7z.exe" -UseBasicParsing -OutFile C:\gitsetup.7z.exe; `
+  Install-Package PS7Zip -Force | Out-Null; `
+  Import-Module PS7Zip -Force; `
+  New-Item C:\git -ItemType Directory | Out-Null; `
+  Push-Location c:\git ; Expand-7Zip C:\gitsetup.7z.exe | Out-Null ; Pop-Location; `
+  Uninstall-Package PS7Zip -Force | Out-Null; `
+  Remove-Item C:\gitsetup.7z.exe; `
   `
   Write-Host INFO: Configuring git core.autocrlf...; `
   C:\git\bin\git config --global core.autocrlf true; `
+  `
+  Write-Host INFO: Creating source directory...; `
+  New-Item -ItemType Directory -Path C:\go\src\github.com\docker\docker | Out-Null; `
   `
   Write-Host INFO: Completed
 
