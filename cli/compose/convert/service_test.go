@@ -156,9 +156,10 @@ func TestConvertEndpointSpec(t *testing.T) {
 			Published: 80,
 		},
 	}
-	endpoint, err := convertEndpointSpec(source)
+	endpoint, err := convertEndpointSpec("vip", source)
 
 	expected := swarm.EndpointSpec{
+		Mode: swarm.ResolutionMode(strings.ToLower("vip")),
 		Ports: []swarm.PortConfig{
 			{
 				TargetPort:    8080,
