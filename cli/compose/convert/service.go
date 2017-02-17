@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/docker/docker/api/types"
@@ -54,7 +55,7 @@ func convertService(
 ) (swarm.ServiceSpec, error) {
 	name := namespace.Scope(service.Name)
 
-	endpoint, err := convertEndpointSpec(service.Ports)
+	endpoint, err := convertEndpointSpec(service.EndpointMode, service.Ports)
 	if err != nil {
 		return swarm.ServiceSpec{}, err
 	}
@@ -374,7 +375,7 @@ func (a byPublishedPort) Len() int           { return len(a) }
 func (a byPublishedPort) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 func (a byPublishedPort) Less(i, j int) bool { return a[i].PublishedPort < a[j].PublishedPort }
 
-func convertEndpointSpec(source []composetypes.ServicePortConfig) (*swarm.EndpointSpec, error) {
+func convertEndpointSpec(endpointMode string, source []composetypes.ServicePortConfig) (*swarm.EndpointSpec, error) {
 	portConfigs := []swarm.PortConfig{}
 	for _, port := range source {
 		portConfig := swarm.PortConfig{
@@ -387,7 +388,10 @@ func convertEndpointSpec(source []composetypes.ServicePortConfig) (*swarm.Endpoi
 	}
 
 	sort.Sort(byPublishedPort(portConfigs))
-	return &swarm.EndpointSpec{Ports: portConfigs}, nil
+	return &swarm.EndpointSpec{
+		Mode:  swarm.ResolutionMode(strings.ToLower(endpointMode)),
+		Ports: portConfigs,
+	}, nil
 }
 
 func convertEnvironment(source map[string]string) []string {

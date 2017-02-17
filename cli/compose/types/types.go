@@ -89,6 +89,7 @@ type ServiceConfig struct {
 	DNS             StringList
 	DNSSearch       StringList `mapstructure:"dns_search"`
 	DomainName      string     `mapstructure:"domainname"`
+	EndpointMode    string
 	Entrypoint      ShellCommand
 	Environment     MappingWithEquals
 	EnvFile         StringList `mapstructure:"env_file"`
