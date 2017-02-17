@@ -2,41 +2,15 @@ package task
 
 import (
 	"fmt"
-	"io"
 	"sort"
-	"strings"
-	"text/tabwriter"
-	"time"
 
 	"golang.org/x/net/context"
 
-	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/cli/command"
+	"github.com/docker/docker/cli/command/formatter"
 	"github.com/docker/docker/cli/command/idresolver"
-	"github.com/docker/docker/pkg/stringid"
-	"github.com/docker/go-units"
 )
-
-const (
-	psTaskItemFmt = "%s\t%s\t%s\t%s\t%s\t%s %s ago\t%s\t%s\n"
-	maxErrLength  = 30
-)
-
-type portStatus swarm.PortStatus
-
-func (ps portStatus) String() string {
-	if len(ps.Ports) == 0 {
-		return ""
-	}
-
-	str := fmt.Sprintf("*:%d->%d/%s", ps.Ports[0].PublishedPort, ps.Ports[0].TargetPort, ps.Ports[0].Protocol)
-	for _, pConfig := range ps.Ports[1:] {
-		str += fmt.Sprintf(",*:%d->%d/%s", pConfig.PublishedPort, pConfig.TargetPort, pConfig.Protocol)
-	}
-
-	return str
-}
 
 type tasksBySlot []swarm.Task
 
@@ -58,42 +32,23 @@ func (t tasksBySlot) Less(i, j int) bool {
 	return t[j].Meta.CreatedAt.Before(t[i].CreatedAt)
 }
 
-// Print task information in a table format.
+// Print task information in a format.
 // Besides this, command `docker node ps <node>`
 // and `docker stack ps` will call this, too.
-func Print(dockerCli command.Cli, ctx context.Context, tasks []swarm.Task, resolver *idresolver.IDResolver, noTrunc bool) error {
+func Print(dockerCli command.Cli, ctx context.Context, tasks []swarm.Task, resolver *idresolver.IDResolver, trunc, quiet bool, format string) error {
 	sort.Stable(tasksBySlot(tasks))
 
-	writer := tabwriter.NewWriter(dockerCli.Out(), 0, 4, 2, ' ', 0)
+	names := map[string]string{}
+	nodes := map[string]string{}
 
-	// Ignore flushing errors
-	defer writer.Flush()
-	fmt.Fprintln(writer, strings.Join([]string{"ID", "NAME", "IMAGE", "NODE", "DESIRED STATE", "CURRENT STATE", "ERROR", "PORTS"}, "\t"))
-
-	return print(writer, ctx, tasks, resolver, noTrunc)
-}
-
-// PrintQuiet shows task list in a quiet way.
-func PrintQuiet(dockerCli command.Cli, tasks []swarm.Task) error {
-	sort.Stable(tasksBySlot(tasks))
-
-	out := dockerCli.Out()
-
-	for _, task := range tasks {
-		fmt.Fprintln(out, task.ID)
+	tasksCtx := formatter.Context{
+		Output: dockerCli.Out(),
+		Format: formatter.NewTaskFormat(format, quiet),
+		Trunc:  trunc,
 	}
 
-	return nil
-}
-
-func print(out io.Writer, ctx context.Context, tasks []swarm.Task, resolver *idresolver.IDResolver, noTrunc bool) error {
 	prevName := ""
 	for _, task := range tasks {
-		id := task.ID
-		if !noTrunc {
-			id = stringid.TruncateID(id)
-		}
-
 		serviceName, err := resolver.Resolve(ctx, swarm.Service{}, task.ServiceID)
 		if err != nil {
 			return err
@@ -118,42 +73,12 @@ func print(out io.Writer, ctx context.Context, tasks []swarm.Task, resolver *idr
 		}
 		prevName = name
 
-		// Trim and quote the error message.
-		taskErr := task.Status.Err
-		if !noTrunc && len(taskErr) > maxErrLength {
-			taskErr = fmt.Sprintf("%s…", taskErr[:maxErrLength-1])
+		names[task.ID] = name
+		if tasksCtx.Format.IsTable() {
+			names[task.ID] = indentedName
 		}
-		if len(taskErr) > 0 {
-			taskErr = fmt.Sprintf("\"%s\"", taskErr)
-		}
-
-		image := task.Spec.ContainerSpec.Image
-		if !noTrunc {
-			ref, err := reference.ParseNormalizedNamed(image)
-			if err == nil {
-				// update image string for display, (strips any digest)
-				if nt, ok := ref.(reference.NamedTagged); ok {
-					if namedTagged, err := reference.WithTag(reference.TrimNamed(nt), nt.Tag()); err == nil {
-						image = reference.FamiliarString(namedTagged)
-					}
-				}
-
-			}
-		}
-
-		fmt.Fprintf(
-			out,
-			psTaskItemFmt,
-			id,
-			indentedName,
-			image,
-			nodeValue,
-			command.PrettyPrint(task.DesiredState),
-			command.PrettyPrint(task.Status.State),
-			strings.ToLower(units.HumanDuration(time.Since(task.Status.Timestamp))),
-			taskErr,
-			portStatus(task.Status.PortStatus),
-		)
+		nodes[task.ID] = nodeValue
 	}
-	return nil
+
+	return formatter.TaskWrite(tasksCtx, tasks, names, nodes)
 }
