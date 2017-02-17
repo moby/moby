@@ -219,17 +219,25 @@ func convertServiceSecrets(
 		if gid == "" {
 			gid = "0"
 		}
+		mode := secret.Mode
+		if mode == nil {
+			mode = uint32Ptr(0444)
+		}
 
 		opts = append(opts, &types.SecretRequestOption{
 			Source: source,
 			Target: target,
 			UID:    uid,
 			GID:    gid,
-			Mode:   os.FileMode(secret.Mode),
+			Mode:   os.FileMode(*mode),
 		})
 	}
 
 	return servicecli.ParseSecrets(client, opts)
+}
+
+func uint32Ptr(value uint32) *uint32 {
+	return &value
 }
 
 func convertExtraHosts(extraHosts map[string]string) []string {
