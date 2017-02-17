@@ -35,6 +35,8 @@ type JSONProgress struct {
 	Current    int64 `json:"current,omitempty"`
 	Total      int64 `json:"total,omitempty"`
 	Start      int64 `json:"start,omitempty"`
+	// If true, don't show xB/yB
+	HideCounts bool `json:"hidecounts,omitempty"`
 }
 
 func (p *JSONProgress) String() string {
@@ -71,11 +73,13 @@ func (p *JSONProgress) String() string {
 		pbBox = fmt.Sprintf("[%s>%s] ", strings.Repeat("=", percentage), strings.Repeat(" ", numSpaces))
 	}
 
-	numbersBox = fmt.Sprintf("%8v/%v", current, total)
+	if !p.HideCounts {
+		numbersBox = fmt.Sprintf("%8v/%v", current, total)
 
-	if p.Current > p.Total {
-		// remove total display if the reported current is wonky.
-		numbersBox = fmt.Sprintf("%8v", current)
+		if p.Current > p.Total {
+			// remove total display if the reported current is wonky.
+			numbersBox = fmt.Sprintf("%8v", current)
+		}
 	}
 
 	if p.Current > 0 && p.Start > 0 && percentage < 50 {

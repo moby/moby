@@ -23,6 +23,8 @@ Create a new service
 Options:
       --constraint list                    Placement constraints (default [])
       --container-label list               Container labels (default [])
+  -d, --detach                             Exit immediately instead of waiting for the service to converge
+                                           (default true)
       --dns list                           Set custom DNS servers (default [])
       --dns-option list                    Set DNS options (default [])
       --dns-search list                    Set custom DNS search domains (default [])

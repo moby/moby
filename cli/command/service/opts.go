@@ -333,6 +333,9 @@ func convertExtraHostsToSwarmHosts(extraHosts []string) []string {
 }
 
 type serviceOptions struct {
+	detach bool
+	quiet  bool
+
 	name            string
 	labels          opts.ListOpts
 	containerLabels opts.ListOpts
@@ -496,6 +499,9 @@ func (opts *serviceOptions) ToService() (swarm.ServiceSpec, error) {
 // addServiceFlags adds all flags that are common to both `create` and `update`.
 // Any flags that are not common are added separately in the individual command
 func addServiceFlags(flags *pflag.FlagSet, opts *serviceOptions) {
+	flags.BoolVarP(&opts.detach, "detach", "d", true, "Exit immediately instead of waiting for the service to converge")
+	flags.BoolVarP(&opts.quiet, "quiet", "q", false, "Suppress progress output")
+
 	flags.StringVarP(&opts.workdir, flagWorkdir, "w", "", "Working directory inside the container")
 	flags.StringVarP(&opts.user, flagUser, "u", "", "Username or UID (format: <name|uid>[:<group|gid>])")
 	flags.StringVar(&opts.hostname, flagHostname, "", "Container hostname")
