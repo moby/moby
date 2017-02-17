@@ -210,7 +210,7 @@ func TestFrom(t *testing.T) {
 		}
 
 		if b.image != "" {
-			t.Fatalf("Image shoule be empty, got: %s", b.image)
+			t.Fatalf("Image should be empty, got: %s", b.image)
 		}
 
 		if b.noBaseImage != true {

@@ -106,7 +106,7 @@ func runCreate(dockerCli *command.DockerCli, opts createOptions) error {
 // Consolidates the ipam configuration as a group from different related configurations
 // user can configure network with multiple non-overlapping subnets and hence it is
 // possible to correlate the various related parameters and consolidate them.
-// consoidateIpam consolidates subnets, ip-ranges, gateways and auxiliary addresses into
+// consolidateIpam consolidates subnets, ip-ranges, gateways and auxiliary addresses into
 // structured ipam data.
 func consolidateIpam(subnets, ranges, gateways []string, auxaddrs map[string]string) ([]network.IPAMConfig, error) {
 	if len(subnets) < len(ranges) || len(subnets) < len(gateways) {

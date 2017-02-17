@@ -120,7 +120,7 @@ func NewBuildCommand(dockerCli *command.DockerCli) *cobra.Command {
 
 // lastProgressOutput is the same as progress.Output except
 // that it only output with the last update. It is used in
-// non terminal scenarios to depresss verbose messages
+// non terminal scenarios to suppress verbose messages
 type lastProgressOutput struct {
 	output progress.Output
 }

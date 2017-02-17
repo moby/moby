@@ -31,7 +31,7 @@ func TestSwarmInitErrorOnAPIFailure(t *testing.T) {
 			expectedError: "error initializing the swarm",
 		},
 		{
-			name: "init-faild-with-ip-choice",
+			name: "init-failed-with-ip-choice",
 			swarmInitFunc: func() (string, error) {
 				return "", fmt.Errorf("could not choose an IP address to advertise")
 			},
