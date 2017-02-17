@@ -162,6 +162,11 @@ func getBlkioWeightDevices(config containertypes.Resources) ([]specs.WeightDevic
 	return blkioWeightDevices, nil
 }
 
+func (daemon *Daemon) parseSecurityOpt(container *container.Container, hostConfig *containertypes.HostConfig) error {
+	container.NoNewPrivileges = daemon.configStore.NoNewPrivileges
+	return parseSecurityOpt(container, hostConfig)
+}
+
 func parseSecurityOpt(container *container.Container, config *containertypes.HostConfig) error {
 	var (
 		labelOpts []string
@@ -193,6 +198,12 @@ func parseSecurityOpt(container *container.Container, config *containertypes.Hos
 			container.AppArmorProfile = con[1]
 		case "seccomp":
 			container.SeccompProfile = con[1]
+		case "no-new-privileges":
+			noNewPrivileges, err := strconv.ParseBool(con[1])
+			if err != nil {
+				return fmt.Errorf("invalid --security-opt 2: %q", opt)
+			}
+			container.NoNewPrivileges = noNewPrivileges
 		default:
 			return fmt.Errorf("invalid --security-opt 2: %q", opt)
 		}

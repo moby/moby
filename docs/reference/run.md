@@ -630,7 +630,7 @@ with the same logic -- if the original volume was specified with a name it will 
     --security-opt="label=level:LEVEL"   : Set the label level for the container
     --security-opt="label=disable"       : Turn off label confinement for the container
     --security-opt="apparmor=PROFILE"    : Set the apparmor profile to be applied to the container
-    --security-opt="no-new-privileges"   : Disable container processes from gaining new privileges
+    --security-opt="no-new-privileges:true|false"   : Disable/enable container processes from gaining new privileges
     --security-opt="seccomp=unconfined"  : Turn off seccomp confinement for the container
     --security-opt="seccomp=profile.json": White listed syscalls seccomp Json file to be used as a seccomp filter
 
