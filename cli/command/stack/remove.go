@@ -73,7 +73,7 @@ func removeServices(
 ) bool {
 	var err error
 	for _, service := range services {
-		fmt.Fprintf(dockerCli.Err(), "Removing service %s\n", service.Spec.Name)
+		fmt.Fprintf(dockerCli.Out(), "Removing service %s\n", service.Spec.Name)
 		if err = dockerCli.Client().ServiceRemove(ctx, service.ID); err != nil {
 			fmt.Fprintf(dockerCli.Err(), "Failed to remove service %s: %s", service.ID, err)
 		}
@@ -88,7 +88,7 @@ func removeNetworks(
 ) bool {
 	var err error
 	for _, network := range networks {
-		fmt.Fprintf(dockerCli.Err(), "Removing network %s\n", network.Name)
+		fmt.Fprintf(dockerCli.Out(), "Removing network %s\n", network.Name)
 		if err = dockerCli.Client().NetworkRemove(ctx, network.ID); err != nil {
 			fmt.Fprintf(dockerCli.Err(), "Failed to remove network %s: %s", network.ID, err)
 		}
@@ -103,7 +103,7 @@ func removeSecrets(
 ) bool {
 	var err error
 	for _, secret := range secrets {
-		fmt.Fprintf(dockerCli.Err(), "Removing secret %s\n", secret.Spec.Name)
+		fmt.Fprintf(dockerCli.Out(), "Removing secret %s\n", secret.Spec.Name)
 		if err = dockerCli.Client().SecretRemove(ctx, secret.ID); err != nil {
 			fmt.Fprintf(dockerCli.Err(), "Failed to remove secret %s: %s", secret.ID, err)
 		}
