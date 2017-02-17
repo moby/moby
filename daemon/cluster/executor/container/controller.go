@@ -317,8 +317,10 @@ func (r *controller) Shutdown(ctx context.Context) error {
 
 	// remove container from service binding
 	if err := r.adapter.deactivateServiceBinding(); err != nil {
-		log.G(ctx).WithError(err).Errorf("failed to deactivate service binding for container %s", r.adapter.container.name())
-		return err
+		log.G(ctx).WithError(err).Warningf("failed to deactivate service binding for container %s", r.adapter.container.name())
+		// Don't return an error here, because failure to deactivate
+		// the service binding is expected if the container was never
+		// started.
 	}
 
 	if err := r.adapter.shutdown(ctx); err != nil {
