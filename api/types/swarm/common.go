@@ -17,7 +17,7 @@ type Meta struct {
 // Annotations represents how to describe an object.
 type Annotations struct {
 	Name   string            `json:",omitempty"`
-	Labels map[string]string `json:",omitempty"`
+	Labels map[string]string `json:"Labels"`
 }
 
 // Driver represents a driver (network, logging).

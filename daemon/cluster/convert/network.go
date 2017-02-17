@@ -39,8 +39,7 @@ func networkFromGRPC(n *swarmapi.Network) types.Network {
 		network.UpdatedAt, _ = gogotypes.TimestampFromProto(n.Meta.UpdatedAt)
 
 		//Annotations
-		network.Spec.Name = n.Spec.Annotations.Name
-		network.Spec.Labels = n.Spec.Annotations.Labels
+		network.Spec.Annotations = annotationsFromGRPC(n.Spec.Annotations)
 
 		//DriverConfiguration
 		if n.Spec.DriverConfig != nil {
