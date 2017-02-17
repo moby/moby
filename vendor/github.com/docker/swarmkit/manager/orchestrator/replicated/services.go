@@ -223,3 +223,8 @@ func (r *Orchestrator) deleteTask(ctx context.Context, batch *store.Batch, t *ap
 		log.G(ctx).WithError(err).Errorf("deleting task %s failed", t.ID)
 	}
 }
+
+// IsRelatedService returns true if the service should be governed by this orchestrator
+func (r *Orchestrator) IsRelatedService(service *api.Service) bool {
+	return orchestrator.IsReplicatedService(service)
+}

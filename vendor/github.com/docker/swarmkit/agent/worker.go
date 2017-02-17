@@ -396,7 +396,10 @@ func (w *worker) taskManager(ctx context.Context, tx *bolt.Tx, task *api.Task) (
 }
 
 func (w *worker) newTaskManager(ctx context.Context, tx *bolt.Tx, task *api.Task) (*taskManager, error) {
-	ctx = log.WithLogger(ctx, log.G(ctx).WithField("task.id", task.ID))
+	ctx = log.WithLogger(ctx, log.G(ctx).WithFields(logrus.Fields{
+		"task.id":    task.ID,
+		"service.id": task.ServiceID,
+	}))
 
 	ctlr, status, err := exec.Resolve(ctx, task, w.executor)
 	if err := w.updateTaskStatus(ctx, tx, task.ID, status); err != nil {

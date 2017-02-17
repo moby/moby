@@ -1,11 +1,14 @@
 package constraintenforcer
 
 import (
+	"time"
+
 	"github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/log"
 	"github.com/docker/swarmkit/manager/constraint"
 	"github.com/docker/swarmkit/manager/state"
 	"github.com/docker/swarmkit/manager/state/store"
+	"github.com/docker/swarmkit/protobuf/ptypes"
 )
 
 // ConstraintEnforcer watches for updates to nodes and shuts down tasks that no
@@ -43,7 +46,7 @@ func (ce *ConstraintEnforcer) Run() {
 		log.L.WithError(err).Error("failed to check nodes for noncompliant tasks")
 	} else {
 		for _, node := range nodes {
-			ce.shutdownNoncompliantTasks(node)
+			ce.rejectNoncompliantTasks(node)
 		}
 	}
 
@@ -51,14 +54,14 @@ func (ce *ConstraintEnforcer) Run() {
 		select {
 		case event := <-watcher:
 			node := event.(state.EventUpdateNode).Node
-			ce.shutdownNoncompliantTasks(node)
+			ce.rejectNoncompliantTasks(node)
 		case <-ce.stopChan:
 			return
 		}
 	}
 }
 
-func (ce *ConstraintEnforcer) shutdownNoncompliantTasks(node *api.Node) {
+func (ce *ConstraintEnforcer) rejectNoncompliantTasks(node *api.Node) {
 	// If the availability is "drain", the orchestrator will
 	// shut down all tasks.
 	// If the availability is "pause", we shouldn't touch
@@ -134,7 +137,16 @@ func (ce *ConstraintEnforcer) shutdownNoncompliantTasks(node *api.Node) {
 						return nil
 					}
 
-					t.DesiredState = api.TaskStateShutdown
+					// We set the observed state to
+					// REJECTED, rather than the desired
+					// state. Desired state is owned by the
+					// orchestrator, and setting it directly
+					// will bypass actions such as
+					// restarting the task on another node
+					// (if applicable).
+					t.Status.State = api.TaskStateRejected
+					t.Status.Message = "assigned node no longer meets constraints"
+					t.Status.Timestamp = ptypes.MustTimestampProto(time.Now())
 					return store.UpdateTask(tx, t)
 				})
 				if err != nil {

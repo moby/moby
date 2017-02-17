@@ -449,12 +449,6 @@ type UpdateConfig_FailureAction int32
 const (
 	UpdateConfig_PAUSE    UpdateConfig_FailureAction = 0
 	UpdateConfig_CONTINUE UpdateConfig_FailureAction = 1
-	// NOTE: Automated rollback triggered as a failure action is an
-	// experimental feature that is not yet exposed to the end
-	// user. Currently, rollbacks must be initiated manually
-	// through the API by setting Spec to PreviousSpec. We may
-	// decide to expose automatic rollback in the future based on
-	// user feedback, or remove this feature otherwise.
 	UpdateConfig_ROLLBACK UpdateConfig_FailureAction = 2
 )
 
@@ -951,11 +945,6 @@ type UpdateConfig struct {
 	// If the failure action is ROLLBACK, the orchestrator will attempt to
 	// roll back to the previous service spec. If the MaxFailureRatio
 	// threshold is hit during the rollback, the rollback will pause.
-	//
-	// TODO(aaronl): Should there be a separate failure threshold for
-	// rollbacks? Should there be a failure action for rollbacks (to allow
-	// them to do something other than pause when the rollback encounters
-	// errors)?
 	MaxFailureRatio float32 `protobuf:"fixed32,5,opt,name=max_failure_ratio,json=maxFailureRatio,proto3" json:"max_failure_ratio,omitempty"`
 }
 

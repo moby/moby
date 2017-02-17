@@ -4,10 +4,13 @@ import (
 	"bytes"
 	"crypto"
 	"crypto/ecdsa"
+	"crypto/elliptic"
 	"crypto/rand"
+	"crypto/rsa"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/pem"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
@@ -52,7 +55,7 @@ const (
 	// root CA private key material encryption key. It can be used for seamless
 	// KEK rotations.
 	PassphraseENVVarPrev = "SWARM_ROOT_CA_PASSPHRASE_PREV"
-	// RootCAExpiration represents the expiration for the root CA in seconds (20 years)
+	// RootCAExpiration represents the default expiration for the root CA in seconds (20 years)
 	RootCAExpiration = "630720000s"
 	// DefaultNodeCertExpiration represents the default expiration for node certificates (3 months)
 	DefaultNodeCertExpiration = 2160 * time.Hour
@@ -317,31 +320,7 @@ func (rca *RootCA) ParseValidateAndSignCSR(csrBytes []byte, cn, ou, org string) 
 		return nil, errors.Wrap(err, "failed to sign node certificate")
 	}
 
-	return rca.AppendFirstRootPEM(cert)
-}
-
-// AppendFirstRootPEM appends the first certificate from this RootCA's cert
-// bundle to the given cert bundle (which should already be encoded as a series
-// of PEM-encoded certificate blocks).
-func (rca *RootCA) AppendFirstRootPEM(cert []byte) ([]byte, error) {
-	// Append the first root CA Cert to the certificate, to create a valid chain
-	// Get the first Root CA Cert on the bundle
-	firstRootCA, _, err := helpers.ParseOneCertificateFromPEM(rca.Cert)
-	if err != nil {
-		return nil, err
-	}
-	if len(firstRootCA) < 1 {
-		return nil, errors.New("no valid Root CA certificates found")
-	}
-	// Convert the first root CA back to PEM
-	firstRootCAPEM := helpers.EncodeCertificatePEM(firstRootCA[0])
-	if firstRootCAPEM == nil {
-		return nil, errors.New("error while encoding the Root CA certificate")
-	}
-	// Append this Root CA to the certificate to make [Cert PEM]\n[Root PEM][EOF]
-	certChain := append(cert, firstRootCAPEM...)
-
-	return certChain, nil
+	return cert, nil
 }
 
 // NewRootCA creates a new RootCA object from unparsed PEM cert bundle and key byte
@@ -361,8 +340,17 @@ func NewRootCA(certBytes, keyBytes []byte, certExpiry time.Duration) (RootCA, er
 	// Create a Pool with all of the certificates found
 	pool := x509.NewCertPool()
 	for _, cert := range parsedCerts {
+		switch cert.SignatureAlgorithm {
+		case x509.SHA256WithRSA, x509.SHA384WithRSA, x509.SHA512WithRSA, x509.ECDSAWithSHA256, x509.ECDSAWithSHA384, x509.ECDSAWithSHA512:
+			break
+		default:
+			return RootCA{}, fmt.Errorf("unsupported signature algorithm: %s", cert.SignatureAlgorithm.String())
+		}
+
 		// Check to see if all of the certificates are valid, self-signed root CA certs
-		if err := cert.CheckSignature(cert.SignatureAlgorithm, cert.RawTBSCertificate, cert.Signature); err != nil {
+		selfpool := x509.NewCertPool()
+		selfpool.AddCert(cert)
+		if _, err := cert.Verify(x509.VerifyOptions{Roots: selfpool}); err != nil {
 			return RootCA{}, errors.Wrap(err, "error while validating Root CA Certificate")
 		}
 		pool.AddCert(cert)
@@ -429,8 +417,22 @@ func NewRootCA(certBytes, keyBytes []byte, certExpiry time.Duration) (RootCA, er
 
 func ensureCertKeyMatch(cert *x509.Certificate, key crypto.PublicKey) error {
 	switch certPub := cert.PublicKey.(type) {
-	// TODO: Handle RSA keys.
+	case *rsa.PublicKey:
+		if certPub.N.BitLen() < 2048 || certPub.E == 1 {
+			return errors.New("unsupported RSA key parameters")
+		}
+		rsaKey, ok := key.(*rsa.PublicKey)
+		if ok && certPub.E == rsaKey.E && certPub.N.Cmp(rsaKey.N) == 0 {
+			return nil
+		}
 	case *ecdsa.PublicKey:
+		switch certPub.Curve {
+		case elliptic.P256(), elliptic.P384(), elliptic.P521():
+			break
+		default:
+			return errors.New("unsupported ECDSA key parameters")
+		}
+
 		ecKey, ok := key.(*ecdsa.PublicKey)
 		if ok && certPub.X.Cmp(ecKey.X) == 0 && certPub.Y.Cmp(ecKey.Y) == 0 {
 			return nil
