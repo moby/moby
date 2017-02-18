@@ -39,6 +39,7 @@ keywords: "API, Docker, rcli, REST, documentation"
 * `POST /services/create` and `POST /services/(id or name)/update` now accept a `rollback` value for `FailureAction`.
 * `POST /services/create` and `POST /services/(id or name)/update` now accept an optional `RollbackConfig` object which specifies rollback options.
 * `GET /services` now supports a `mode` filter to filter services based on the service mode (either `global` or `replicated`).
+* `POST /containers/(name)/update` now supports updating `NanoCPUs` that represents CPU quota in units of 10<sup>-9</sup> CPUs.
 
 ## v1.27 API changes
 
