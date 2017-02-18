@@ -4085,6 +4085,11 @@ paths:
           description: "If the container is running, kill it before removing it."
           type: "boolean"
           default: false
+        - name: "link"
+          in: "query"
+          description: "Remove the specified link associated with the container."
+          type: "boolean"
+          default: false
       tags: ["Container"]
   /containers/{id}/archive:
     head:
