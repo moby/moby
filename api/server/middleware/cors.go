@@ -7,7 +7,7 @@ import (
 	"golang.org/x/net/context"
 )
 
-// CORSMiddleware injects CORS headers to each request
+// CORSMiddleware injects CORS headers into each request
 // when it's configured.
 type CORSMiddleware struct {
 	defaultHeaders string

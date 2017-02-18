@@ -13,14 +13,14 @@ func (validationError) IsValidationError() bool {
 	return true
 }
 
-// containerRouter is a router to talk with the container controller
+// containerRouter is a router to talk with the container controller.
 type containerRouter struct {
 	backend Backend
 	decoder httputils.ContainerDecoder
 	routes  []router.Route
 }
 
-// NewRouter initializes a new container router
+// NewRouter initializes a new container router.
 func NewRouter(b Backend, decoder httputils.ContainerDecoder) router.Router {
 	r := &containerRouter{
 		backend: b,
@@ -30,12 +30,12 @@ func NewRouter(b Backend, decoder httputils.ContainerDecoder) router.Router {
 	return r
 }
 
-// Routes returns the available routes to the container controller
+// Routes returns the available routes to the container controller.
 func (r *containerRouter) Routes() []router.Route {
 	return r.routes
 }
 
-// initRoutes initializes the routes in container router
+// initRoutes initializes the routes in container router.
 func (r *containerRouter) initRoutes() {
 	r.routes = []router.Route{
 		// HEAD

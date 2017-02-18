@@ -30,9 +30,9 @@ func filterNetworkByType(nws []types.NetworkResource, netType string) ([]types.N
 }
 
 // filterNetworks filters network list according to user specified filter
-// and returns user chosen networks
+// and returns user chosen networks.
 func filterNetworks(nws []types.NetworkResource, filter filters.Args) ([]types.NetworkResource, error) {
-	// if filter is empty, return original network list
+	// If filter is empty, return original network list.
 	if filter.Len() == 0 {
 		return nws, nil
 	}

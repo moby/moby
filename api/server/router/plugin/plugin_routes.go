@@ -209,7 +209,7 @@ func (pr *pluginRouter) createPlugin(ctx context.Context, w http.ResponseWriter,
 	if err := pr.backend.CreateFromContext(ctx, r.Body, options); err != nil {
 		return err
 	}
-	//TODO: send progress bar
+	// TODO: send progress bar
 	w.WriteHeader(http.StatusNoContent)
 	return nil
 }

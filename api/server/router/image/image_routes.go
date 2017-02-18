@@ -100,8 +100,8 @@ func (s *imageRouter) postImagesCreate(ctx context.Context, w http.ResponseWrite
 		if authEncoded != "" {
 			authJSON := base64.NewDecoder(base64.URLEncoding, strings.NewReader(authEncoded))
 			if err := json.NewDecoder(authJSON).Decode(authConfig); err != nil {
-				// for a pull it is not an error if no auth was given
-				// to increase compatibility with the existing api it is defaulting to be empty
+				// For a pull, it is not an error if no auth was given.
+				// To increase compatibility with the existing api, it is defaulting to be empty.
 				authConfig = &types.AuthConfig{}
 			}
 		}
@@ -111,7 +111,7 @@ func (s *imageRouter) postImagesCreate(ctx context.Context, w http.ResponseWrite
 		src := r.Form.Get("fromSrc")
 		// 'err' MUST NOT be defined within this block, we need any error
 		// generated from the download to be available to the output
-		// stream processing below
+		// stream processing below.
 		err = s.backend.ImportImage(src, repo, tag, message, r.Body, output, r.Form["changes"])
 	}
 	if err != nil {
@@ -139,14 +139,14 @@ func (s *imageRouter) postImagesPush(ctx context.Context, w http.ResponseWriter,
 
 	authEncoded := r.Header.Get("X-Registry-Auth")
 	if authEncoded != "" {
-		// the new format is to handle the authConfig as a header
+		// The new format is to handle the authConfig as a header.
 		authJSON := base64.NewDecoder(base64.URLEncoding, strings.NewReader(authEncoded))
 		if err := json.NewDecoder(authJSON).Decode(authConfig); err != nil {
-			// to increase compatibility to existing api it is defaulting to be empty
+			// To increase compatibility to existing api, it is defaulting to be empty
 			authConfig = &types.AuthConfig{}
 		}
 	} else {
-		// the old format is supported for compatibility if there was no authConfig header
+		// The old format is supported for compatibility if there was no authConfig header.
 		if err := json.NewDecoder(r.Body).Decode(authConfig); err != nil {
 			return fmt.Errorf("Bad parameters and missing X-Registry-Auth: %v", err)
 		}
@@ -301,8 +301,8 @@ func (s *imageRouter) getImagesSearch(ctx context.Context, w http.ResponseWriter
 	if authEncoded != "" {
 		authJSON := base64.NewDecoder(base64.URLEncoding, strings.NewReader(authEncoded))
 		if err := json.NewDecoder(authJSON).Decode(&config); err != nil {
-			// for a search it is not an error if no auth was given
-			// to increase compatibility with the existing api it is defaulting to be empty
+			// For a search, it is not an error if no auth was given.
+			// To increase compatibility with the existing api, it is defaulting to be empty.
 			config = &types.AuthConfig{}
 		}
 	}

@@ -34,7 +34,7 @@ func Int64ValueOrZero(r *http.Request, k string) int64 {
 }
 
 // Int64ValueOrDefault parses a form value into an int64 type. If there is an
-// error, returns the error. If there is no value returns the default value.
+// error, returns the error. If there is no value, returns the default value.
 func Int64ValueOrDefault(r *http.Request, field string, def int64) (int64, error) {
 	if r.Form.Get(field) != "" {
 		value, err := strconv.ParseInt(r.Form.Get(field), 10, 64)
