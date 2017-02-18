@@ -21,7 +21,7 @@ import (
 // when a request is about to be served.
 const versionMatcher = "/v{version:[0-9.]+}"
 
-// Config provides the configuration for the API server
+// Config provides the configuration for the API server.
 type Config struct {
 	Logging     bool
 	EnableCors  bool
@@ -31,7 +31,7 @@ type Config struct {
 	TLSConfig   *tls.Config
 }
 
-// Server contains instance details for the server
+// Server contains instance details for the server.
 type Server struct {
 	cfg           *Config
 	servers       []*HTTPServer
@@ -67,7 +67,7 @@ func (s *Server) Accept(addr string, listeners ...net.Listener) {
 	}
 }
 
-// Close closes servers and thus stop receiving requests
+// Close closes servers and thus stop receiving requests.
 func (s *Server) Close() {
 	for _, srv := range s.servers {
 		if err := srv.Close(); err != nil {
@@ -122,8 +122,8 @@ func (s *HTTPServer) Close() error {
 
 func (s *Server) makeHTTPHandler(handler httputils.APIFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		// Define the context that we'll pass around to share info
-		// like the docker-request-id.
+		// Defines the context that we'll pass around to share info
+		// similar to docker-request-id.
 		//
 		// The 'context' will be used for global data that should
 		// apply to all requests. Data that is specific to the

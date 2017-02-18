@@ -2,13 +2,13 @@ package volume
 
 import "github.com/docker/docker/api/server/router"
 
-// volumeRouter is a router to talk with the volumes controller
+// volumeRouter is a router to talk with the volumes controller.
 type volumeRouter struct {
 	backend Backend
 	routes  []router.Route
 }
 
-// NewRouter initializes a new volume router
+// NewRouter initializes a new volume router.
 func NewRouter(b Backend) router.Router {
 	r := &volumeRouter{
 		backend: b,
@@ -17,7 +17,7 @@ func NewRouter(b Backend) router.Router {
 	return r
 }
 
-// Routes returns the available routes to the volumes controller
+// Routes returns the available routes to the volumes controller.
 func (r *volumeRouter) Routes() []router.Route {
 	return r.routes
 }

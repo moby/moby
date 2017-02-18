@@ -7,7 +7,7 @@ import (
 )
 
 // Backend is the methods that need to be implemented to provide
-// volume specific functionality
+// volume specific functionality.
 type Backend interface {
 	Volumes(filter string) ([]*types.Volume, []string, error)
 	VolumeInspect(name string) (*types.Volume, error)
