@@ -1697,18 +1697,31 @@ func (c *Cluster) AttachNetwork(target string, containerID string, addresses []s
 	close(attachCompleteCh)
 	c.Unlock()
 
-	logrus.Debugf("Successfully attached to network %s with tid %s", target, taskID)
+	logrus.Debugf("Successfully attached to network %s with task id %s", target, taskID)
+
+	release := func() {
+		ctx, cancel := c.getRequestContext()
+		defer cancel()
+		if err := agent.ResourceAllocator().DetachNetwork(ctx, taskID); err != nil {
+			logrus.Errorf("Failed remove network attachment %s to network %s on allocation failure: %v",
+				taskID, target, err)
+		}
+	}
 
 	var config *network.NetworkingConfig
 	select {
 	case config = <-attachWaitCh:
 	case <-ctx.Done():
+		release()
 		return nil, fmt.Errorf("attaching to network failed, make sure your network options are correct and check manager logs: %v", ctx.Err())
 	}
 
 	c.Lock()
 	c.attachers[aKey].config = config
 	c.Unlock()
+
+	logrus.Debugf("Successfully allocated resources on network %s for task id %s", target, taskID)
+
 	return config, nil
 }
 
